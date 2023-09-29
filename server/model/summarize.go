@@ -12,7 +12,7 @@ import (
 )
 
 func Summarize(text string) ([]byte, error) {
-	resp, err := client.CreateChatCompletion(
+	resp, err := Client.CreateChatCompletion(
 		context.Background(),
 		openai.ChatCompletionRequest{
 			Model: openai.GPT3Dot5Turbo,

@@ -18,7 +18,11 @@ var client *openai.Client
 func main() {
 	r := mux.NewRouter()
 
-	r.HandleFunc("/prompt", handlers.PromptHandler).Methods("POST")
+	r.HandleFunc("/proposal", handlers.ProposalHandler).Methods("POST")
+	r.HandleFunc("/confirm-proposal", handlers.ConfirmProposalHandler).Methods("PATCH")
+	r.HandleFunc("/abort-proposal", handlers.AbortProposalHandler).Methods("DELETE")
+	// r.HandleFunc("/revise-proposal", handlers.ReviseProposalHandler).Methods("PATCH")
+
 	r.HandleFunc("/summarize", handlers.SummarizeHandler).Methods("POST")
 
 	// Get port from the environment variable or default to 8088

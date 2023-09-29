@@ -7,7 +7,7 @@ import (
 	"github.com/plandex/plandex/shared"
 )
 
-func formatModelContext(context shared.ModelContext) string {
+func FormatModelContext(context shared.ModelContext) string {
 	var contextMessages []string
 	for _, part := range context {
 		var message string
@@ -24,7 +24,7 @@ func formatModelContext(context shared.ModelContext) string {
 	return strings.Join(contextMessages, "\n")
 }
 
-func formatCurrentPlan(plan shared.CurrentPlanFiles) string {
+func FormatCurrentPlan(plan shared.CurrentPlanFiles) string {
 	var planMessages []string
 	for path, content := range plan.Files {
 		planMessages = append(planMessages, fmt.Sprintf("\n\n-file: %s\n\n```%s```", path, content))

@@ -28,7 +28,7 @@ type SummarizeResponse struct {
 }
 
 type PromptResponse struct {
-	Reply     string            `json:"reply"`
+	Summary   string            `json:"summary"`
 	CommitMsg string            `json:"commitMsg"`
 	Files     map[string]string `json:"files"`
 	Exec      string            `json:"exec"`
@@ -56,6 +56,12 @@ type ModelContextState struct {
 
 type PlanSettings struct {
 	Name string `json:"name"`
+}
+
+type PlanChunk struct {
+	FilePath string `json:"filePath"`
+	Content  string `json:"content"`
+	IsExec   bool   `json:"isExec"`
 }
 
 // type Plan struct {
