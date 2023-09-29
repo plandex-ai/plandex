@@ -28,7 +28,9 @@ func Prompt(prompt string, chatOnly bool) error {
 	conversationFilePath := filepath.Join(ConversationSubdir, fmt.Sprintf("%s.md", timestamp))
 	userHeader := fmt.Sprintf("@@@!>user|%s\n\n", timestamp)
 	responseHeader := fmt.Sprintf("@@@!>response|%s\n\n", responseTimestamp)
-	conversationFileContents := fmt.Sprintf("%s%s\n\n%s%s", userHeader, prompt, responseHeader, response.Reply)
+
+	// TOOD: store both summary and full response in conversation file for different use cases/context needs
+	conversationFileContents := fmt.Sprintf("%s%s\n\n%s%s", userHeader, prompt, responseHeader, response.Summary)
 	conversationFile, err := os.OpenFile(conversationFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return fmt.Errorf("failed to write conversation file: %s\n", err)
