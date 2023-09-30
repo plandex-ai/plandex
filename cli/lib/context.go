@@ -10,22 +10,13 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"plandex/types"
 	"strings"
 	"sync"
 	"sync/atomic"
 
 	"github.com/plandex/plandex/shared"
 )
-
-type LoadContextParams struct {
-	Note      string
-	MaxTokens uint32
-	Recursive bool
-	MaxDepth  int16
-	NamesOnly bool
-	Truncate  bool
-	Resources []string
-}
 
 func WriteInitialContextState(contextDir string) error {
 	fmt.Println("Creating initial context state...")
@@ -52,7 +43,7 @@ func WriteInitialContextState(contextDir string) error {
 	return err
 }
 
-func LoadContextOrDie(params *LoadContextParams) {
+func LoadContextOrDie(params *types.LoadContextParams) {
 	var contextState shared.ModelContextState
 	contextStateFilePath := filepath.Join(ContextSubdir, "context.json")
 

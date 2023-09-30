@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 
 	"plandex/lib"
+	"plandex/types"
 
 	"github.com/spf13/cobra"
 )
@@ -188,7 +189,7 @@ func new(cmd *cobra.Command, args []string) {
 	}
 
 	if len(context) > 0 {
-		lib.LoadContextOrDie(&lib.LoadContextParams{
+		lib.LoadContextOrDie(&types.LoadContextParams{
 			Note:      note,
 			MaxTokens: maxTokens,
 			Recursive: recursive,
@@ -200,7 +201,7 @@ func new(cmd *cobra.Command, args []string) {
 	}
 
 	if prompt != "" {
-		err = lib.Prompt(prompt, false)
+		err = lib.Propose(prompt, false)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "Prompt error:", err)
 			return

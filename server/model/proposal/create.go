@@ -31,6 +31,7 @@ func CreateProposal(req shared.PromptRequest, onStream types.OnStreamProposalFun
 		You help programmers with tasks, especially those that involve multiple files and shell commands. You offer a structured, versioned, and iterative approach to AI-driven development. 
 		You and the programmer collaborate to create a 'plan' for the task at hand. A plan is a set of files and an 'exec' script with an attached context.
 		Based on user-provided context, please create a plan for the task. When suggesting changes that would modify files from the context or create new files, always precede them with the file path.
+		For code in markdown blocks, always include the language name after the opening triple backticks.
 		Context from the user:` + contextText
 
 	systemMessage := openai.ChatCompletionMessage{

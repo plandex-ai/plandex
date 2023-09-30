@@ -1,11 +1,14 @@
 package lib
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"plandex/types"
+	"strings"
 
 	"github.com/plandex/plandex/shared"
 	openai "github.com/sashabaranov/go-openai"
@@ -13,8 +16,8 @@ import (
 
 const apiHost = "http://localhost:8088"
 
-func ApiPrompt(prompt string, chatOnly bool) (*shared.PromptResponse, error) {
-	serverUrl := apiHost + "/prompt"
+func ApiPropose(prompt string, chatOnly bool, onStream types.OnStreamProposal) error {
+	serverUrl := apiHost + "/proposal"
 
 	// Channels to receive data and errors
 	contextChan := make(chan shared.ModelContext, 1) // Buffered channels to prevent deadlock
@@ -68,14 +71,14 @@ func ApiPrompt(prompt string, chatOnly bool) (*shared.PromptResponse, error) {
 	select {
 	case context = <-contextChan:
 	case err = <-contextErrChan:
-		return nil, err
+		return err
 	}
 
 	// Using select to receive from either data or error channel for conversation
 	select {
 	case conversation = <-conversationChan:
 	case err = <-conversationErrChan:
-		return nil, err
+		return err
 	}
 
 	// Using select to receive from either data or error channel for plan
@@ -83,7 +86,7 @@ func ApiPrompt(prompt string, chatOnly bool) (*shared.PromptResponse, error) {
 	case plan := <-planChan:
 		currentPlan = plan
 	case err = <-planErrChan:
-		return nil, err
+		return err
 	}
 
 	payload := shared.PromptRequest{
@@ -96,34 +99,53 @@ func ApiPrompt(prompt string, chatOnly bool) (*shared.PromptResponse, error) {
 
 	jsonData, err := json.Marshal(payload)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	resp, err := http.Post(serverUrl, "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
-		return nil, err
+		return err
 	}
-	defer resp.Body.Close()
 
 	// Check the HTTP status code
 	if resp.StatusCode >= 400 {
 		// Read the error message from the body
 		errorBody, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("server returned an error %d: %s", resp.StatusCode, string(errorBody))
+		return fmt.Errorf("server returned an error %d: %s", resp.StatusCode, string(errorBody))
 	}
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
+	reader := bufio.NewReader(resp.Body)
+	buf := make([]byte, 32)
 
-	var parsed shared.PromptResponse
-	err = json.Unmarshal(body, &parsed)
-	if err != nil {
-		return nil, err
-	}
+	go func() {
+		for {
+			n, err := reader.Read(buf)
+			if err == io.EOF {
+				fmt.Println("EOF")
+				onStream("", true, nil)
+				resp.Body.Close()
+				return
+			}
+			if err != nil {
+				fmt.Println("Error reading line:", err)
+				onStream("", true, err)
+				resp.Body.Close()
+				return
+			}
 
-	return &parsed, nil
+			s := string(buf[:n])
+
+			if strings.Contains(s, shared.STREAM_FINISHED) {
+				onStream("", true, nil)
+				resp.Body.Close()
+				return
+			}
+
+			onStream(s, false, nil)
+		}
+	}()
+
+	return nil
 }
 
 func ApiSummarize(text string) (*shared.SummarizeResponse, error) {

@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"plandex/lib"
+	"plandex/types"
 
 	"github.com/spf13/cobra"
 )
@@ -26,7 +27,7 @@ func init() {
 }
 
 func contextLoad(cmd *cobra.Command, args []string) {
-	lib.LoadContextOrDie(&lib.LoadContextParams{
+	lib.LoadContextOrDie(&types.LoadContextParams{
 		Note:      note,
 		MaxTokens: maxTokens,
 		Recursive: recursive,

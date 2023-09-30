@@ -1,3 +1,3 @@
 package shared
 
-const STREAM_FINISHED = "STREAM_FINISHED"
+const STREAM_FINISHED = "@@_PLANDEX_STREAM_FINISHED_@@"

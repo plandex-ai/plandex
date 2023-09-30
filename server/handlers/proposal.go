@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"plandex-server/model/proposal"
+	"sync"
 
 	"github.com/plandex/plandex/shared"
 )
@@ -43,6 +44,8 @@ func ProposalHandler(w http.ResponseWriter, r *http.Request) {
 
 	var cancel *context.CancelFunc
 	var isResponseClosed bool
+	var mu sync.Mutex
+	done := make(chan struct{})
 
 	onStream := func(content string, finished bool, err error) {
 		if isResponseClosed {
@@ -50,7 +53,9 @@ func ProposalHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if err != nil {
+			mu.Lock()
 			isResponseClosed = true
+			mu.Unlock()
 			if cancel != nil {
 				(*cancel)()
 			}
@@ -60,16 +65,20 @@ func ProposalHandler(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write([]byte(err.Error()))
 
+			close(done)
+
 			return
 		}
 
 		if finished {
+			mu.Lock()
 			isResponseClosed = true
+			mu.Unlock()
 			if cancel != nil {
 				(*cancel)()
 			}
-			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(shared.STREAM_FINISHED))
+			close(done)
 
 			return
 		}
@@ -77,20 +86,37 @@ func ProposalHandler(w http.ResponseWriter, r *http.Request) {
 		// stream content to client
 		if content != "" {
 			_, err = w.Write([]byte(content))
+			if flusher, ok := w.(http.Flusher); ok {
+				flusher.Flush()
+			}
 
 			if err != nil {
+				mu.Lock()
 				isResponseClosed = true
+				mu.Unlock()
 				log.Printf("Error writing stream content to client: %v\n", err)
 				if cancel != nil {
 					(*cancel)()
 				}
+				close(done)
 				return
 			}
+
 		}
 
 	}
 
 	cancel, err = proposal.CreateProposal(requestBody, onStream)
+
+	if err != nil {
+		log.Printf("Error creating proposal: %v\n", err)
+		http.Error(w, "Error creating proposal: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// block until streaming is done
+	<-done
+
 }
 
 func ConfirmProposalHandler(w http.ResponseWriter, r *http.Request) {

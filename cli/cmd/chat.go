@@ -22,7 +22,7 @@ var chatCmd = &cobra.Command{
 func chat(cmd *cobra.Command, args []string) {
 	p := args[0]
 
-	err := lib.Prompt(p, true)
+	err := lib.Propose(p, true)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Prompt error:", err)
 		return

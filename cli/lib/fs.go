@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"plandex/types"
 	"sync"
 
 	"github.com/plandex/plandex/shared"
@@ -139,7 +140,7 @@ func CwdIsPlan() bool {
 	return parentDir == PlandexDir
 }
 
-func flattenPaths(fileOrDirPaths []string, params *LoadContextParams, depth int16) []string {
+func flattenPaths(fileOrDirPaths []string, params *types.LoadContextParams, depth int16) []string {
 	var wg sync.WaitGroup
 	resPathsChan := make(chan string, len(fileOrDirPaths))
 
