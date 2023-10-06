@@ -1,14 +1,12 @@
 package handlers
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"plandex-server/model/proposal"
-	"sync"
 
 	"github.com/plandex/plandex/shared"
 )
@@ -42,71 +40,49 @@ func ProposalHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Transfer-Encoding", "chunked")
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 
-	var cancel *context.CancelFunc
 	var isResponseClosed bool
-	var mu sync.Mutex
 	done := make(chan struct{})
 
-	onStream := func(content string, finished bool, err error) {
+	// this is called serially; no need for mutex on 'isResponseClosed'
+	onStream := func(content string, err error) {
 		if isResponseClosed {
 			return
 		}
 
 		if err != nil {
-			mu.Lock()
 			isResponseClosed = true
-			mu.Unlock()
-			if cancel != nil {
-				(*cancel)()
-			}
-
 			log.Printf("Error writing stream content to client: %v\n", err)
-
-			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte(err.Error()))
-
 			close(done)
-
-			return
-		}
-
-		if finished {
-			mu.Lock()
-			isResponseClosed = true
-			mu.Unlock()
-			if cancel != nil {
-				(*cancel)()
-			}
-			w.Write([]byte(shared.STREAM_FINISHED))
-			close(done)
-
 			return
 		}
 
 		// stream content to client
 		if content != "" {
-			_, err = w.Write([]byte(content))
-			if flusher, ok := w.(http.Flusher); ok {
-				flusher.Flush()
-			}
+			// fmt.Println("writing stream content to client:", content)
 
+			bytes := []byte(content + shared.STREAM_MESSAGE_SEPARATOR)
+			_, err = w.Write(bytes)
 			if err != nil {
-				mu.Lock()
 				isResponseClosed = true
-				mu.Unlock()
 				log.Printf("Error writing stream content to client: %v\n", err)
-				if cancel != nil {
-					(*cancel)()
-				}
 				close(done)
 				return
 			}
-
+			if flusher, ok := w.(http.Flusher); ok {
+				flusher.Flush()
+			}
 		}
 
+		if content == shared.STREAM_FINISHED {
+			isResponseClosed = true
+			close(done)
+			fmt.Println("proposal stream finished")
+			return
+		}
 	}
 
-	cancel, err = proposal.CreateProposal(requestBody, onStream)
+	fmt.Println("creating proposal and starting stream")
+	err = proposal.CreateProposal(requestBody, onStream)
 
 	if err != nil {
 		log.Printf("Error creating proposal: %v\n", err)
@@ -117,88 +93,7 @@ func ProposalHandler(w http.ResponseWriter, r *http.Request) {
 	// block until streaming is done
 	<-done
 
-}
-
-func ConfirmProposalHandler(w http.ResponseWriter, r *http.Request) {
-	log.Println("Received a request for ConfirmProposalHandler")
-
-	proposalId := r.URL.Query().Get("proposalId")
-
-	if proposalId == "" {
-		log.Println("Received empty proposalId field")
-		http.Error(w, "proposalId field is required", http.StatusBadRequest)
-		return
-	}
-
-	w.Header().Set("Transfer-Encoding", "chunked")
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-
-	var cancel *context.CancelFunc
-	var err error
-	var isResponseClosed bool
-
-	onStream := func(planChunk *shared.PlanChunk, finished bool, err error) {
-		if isResponseClosed {
-			return
-		}
-
-		if err != nil {
-			isResponseClosed = true
-			if cancel != nil {
-				(*cancel)()
-			}
-			log.Printf("Error writing plan chunk to client. chunk: , err: %v\n", planChunk, err)
-			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte(fmt.Sprintf("%v: %v", planChunk, err)))
-			return
-		}
-
-		if finished {
-			isResponseClosed = true
-			if cancel != nil {
-				(*cancel)()
-			}
-			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(shared.STREAM_FINISHED))
-
-			return
-		}
-
-		// stream content to client
-		if planChunk != nil {
-			// convert plan chunk to json
-			json, err := json.Marshal(planChunk)
-			if err != nil {
-				isResponseClosed = true
-				if cancel != nil {
-					(*cancel)()
-				}
-				log.Printf("Error marshalling plan chunk to json. chunk: , err: %v\n", planChunk, err)
-				w.WriteHeader(http.StatusInternalServerError)
-				w.Write([]byte(fmt.Sprintf("%v: %v", planChunk, err)))
-				return
-			}
-
-			_, err = w.Write([]byte(json))
-
-			if err != nil {
-				isResponseClosed = true
-				log.Printf("Error writing stream content to client: %v\n", err)
-				if cancel != nil {
-					(*cancel)()
-				}
-				return
-			}
-		}
-	}
-
-	cancel, err = proposal.ConfirmProposal(proposalId, onStream)
-
-	if err != nil {
-		log.Printf("Error confirming proposal: %v\n", err)
-		http.Error(w, "Error confirming proposal: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
+	fmt.Println("done")
 
 }
 

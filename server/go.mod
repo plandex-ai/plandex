@@ -10,4 +10,9 @@ require (
 	github.com/sashabaranov/go-openai v1.15.1
 )
 
+require (
+	github.com/drhodes/golorem v0.0.0-20220328165741-da82e5b29246
+	github.com/looplab/fsm v1.0.1 // indirect
+)
+
 replace github.com/plandex/plandex/shared => ../shared

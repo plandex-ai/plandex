@@ -20,6 +20,7 @@ var CacheDir string
 var CurrentPlanName string
 var CurrentPlanRootDir string
 var PlanSubdir string
+var PlanFilesDir string
 var ConversationSubdir string
 var ContextSubdir string
 
@@ -91,6 +92,7 @@ func LoadCurrentPlan() error {
 	CurrentPlanName = planSettings.Name
 	CurrentPlanRootDir = filepath.Join(PlandexDir, CurrentPlanName)
 	PlanSubdir = filepath.Join(CurrentPlanRootDir, "plan")
+	PlanFilesDir = filepath.Join(PlanSubdir, "files")
 	ConversationSubdir = filepath.Join(CurrentPlanRootDir, "conversation")
 	ContextSubdir = filepath.Join(CurrentPlanRootDir, "context")
 
@@ -140,7 +142,7 @@ func CwdIsPlan() bool {
 	return parentDir == PlandexDir
 }
 
-func flattenPaths(fileOrDirPaths []string, params *types.LoadContextParams, depth int16) []string {
+func FlattenPaths(fileOrDirPaths []string, params *types.LoadContextParams, depth int16) []string {
 	var wg sync.WaitGroup
 	resPathsChan := make(chan string, len(fileOrDirPaths))
 
@@ -164,7 +166,7 @@ func flattenPaths(fileOrDirPaths []string, params *types.LoadContextParams, dept
 
 					if info.IsDir() {
 						if depth < params.MaxDepth {
-							for _, subPath := range flattenPaths([]string{path}, params, depth+1) {
+							for _, subPath := range FlattenPaths([]string{path}, params, depth+1) {
 								resPathsChan <- subPath
 							}
 						} else if params.NamesOnly {

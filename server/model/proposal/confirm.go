@@ -5,136 +5,59 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
+	"os"
 	"plandex-server/model"
 	"plandex-server/types"
 	"strings"
-	"sync"
 	"time"
 
+	lorem "github.com/drhodes/golorem"
 	"github.com/plandex/plandex/shared"
 	"github.com/sashabaranov/go-openai"
 	"github.com/sashabaranov/go-openai/jsonschema"
 )
 
-type firstParseResponse struct {
-	Summary   string   `json:"summary"`
-	CommitMsg string   `json:"commitMsg"`
-	Files     []string `json:"files"`
-}
+func confirmProposal(proposalId string, onStream types.OnStreamFunc) error {
+	goEnv := os.Getenv("GOENV")
+	if goEnv == "test" {
+		streamFilesLoremIpsum(onStream)
+		return nil
+	}
 
-type parseFileResponse struct {
-	Content string `json:"content"`
-}
+	proposal := proposals.Get(proposalId)
+	if proposal == nil {
+		return errors.New("proposal not found")
+	}
 
-func ConfirmProposal(proposalId string, onStream types.OnStreamPlanFunc) (*context.CancelFunc, error) {
-	mu.Lock()
-	proposal, ok := proposalsMap[proposalId]
-	mu.Unlock()
-	if !ok {
-		return nil, errors.New("proposal not found")
+	if !proposal.IsFinished() {
+		return errors.New("proposal not finished")
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	var wg sync.WaitGroup
 
-	var proposalContent string
-	mu.Lock()
-	proposal.Cancel = &cancel
-	proposalsMap[proposalId] = proposal
-	proposalContent = proposal.Content
-	mu.Unlock()
-
-	setError := func(err error) {
-		mu.Lock()
-		proposal := proposalsMap[proposalId]
-		proposal.ProposalError = err
-		proposalsMap[proposalId] = proposal
-		mu.Unlock()
-	}
-
-	firstParseResp, err := model.Client.CreateChatCompletion(
-		ctx,
-		openai.ChatCompletionRequest{
-			Model: openai.GPT3Dot5Turbo,
-			Functions: []openai.FunctionDefinition{{
-				Name: "parse",
-				Parameters: &jsonschema.Definition{
-					Type: jsonschema.Object,
-					Properties: map[string]jsonschema.Definition{
-						"summary": {
-							Type:        jsonschema.String,
-							Description: "High-level summary of changed proposed in previous response without code or commands.",
-						},
-						"commitMsg": {
-							Type:        jsonschema.String,
-							Description: "A brief commit message for the changes proposed in AI's plan from previous response.",
-						},
-						"files": {
-							Type:        jsonschema.Array,
-							Description: "An array of file paths in AI's plan from previous response that should be created or updated.",
-							Items: &jsonschema.Definition{
-								Type: jsonschema.String,
-							},
-						},
-					},
-					Required: []string{"summary", "commitMsg", "files"},
-				},
-			}},
-			Messages: []openai.ChatCompletionMessage{
-				{
-					Role:    openai.ChatMessageRoleSystem,
-					Content: "You are an AI parser. You turn an AI's plan for a programming task into a high-level summary, a set of files and an exec script. You call the 'parse' function with these arguments: summary, commitMsg, files. Only call the 'parse' function in your response. Don't call any other function.",
-				},
-				{
-					Role:    openai.ChatMessageRoleAssistant,
-					Content: proposalContent,
-				},
-			},
+	plans.Set(proposalId, &types.Plan{
+		ProposalId:    proposalId,
+		NumFiles:      len(proposal.PlanDescription.Files),
+		HasExec:       proposal.PlanDescription.HasExec,
+		Files:         map[string]string{},
+		FileErrs:      map[string]error{},
+		FilesFinished: map[string]bool{},
+		ProposalStage: types.ProposalStage{
+			CancelFn: &cancel,
 		},
-	)
+	})
 
-	if err != nil {
-		fmt.Printf("Error during first parse completion: %v\n", err)
-		setError(err)
-		return nil, err
-	}
-
-	var firstParseStrRes string
-	for _, choice := range firstParseResp.Choices {
-		if choice.FinishReason == "function_call" && choice.Message.FunctionCall != nil && choice.Message.FunctionCall.Name == "parse" {
-			fnCall := choice.Message.FunctionCall
-			firstParseStrRes = fnCall.Arguments
-		}
-	}
-
-	if firstParseStrRes == "" {
-		err = fmt.Errorf("no parse function call found in response")
-		setError(err)
-		return nil, err
-	}
-
-	firstParseByteRes := []byte(firstParseStrRes)
-	var firstParsePromptResp firstParseResponse
-	err = json.Unmarshal(firstParseByteRes, &firstParsePromptResp)
-	if err != nil {
-		fmt.Printf("Error unmarshalling first parse response: %v\n", err)
-		fmt.Printf("JSON causing the error: %s\n", firstParseByteRes)
-		setError(err)
-		return nil, err
-	}
-
-	for _, filePath := range firstParsePromptResp.Files {
-		wg.Add(1)
-
+	for _, filePath := range proposal.PlanDescription.Files {
 		onError := func(err error) {
-			setError(err)
-			onStream(&shared.PlanChunk{FilePath: filePath}, true, err)
+			fmt.Printf("Error for file %s: %v\n", filePath, err)
+			plans.Update(proposalId, func(p *types.Plan) {
+				p.FileErrs[filePath] = err
+				p.SetErr(err)
+			})
+			onStream("", err)
 		}
 
 		go func(filePath string) {
-			defer wg.Done()
-
 			fmt.Println("Getting file from model: " + filePath)
 
 			// get relevant file context (if any)
@@ -156,7 +79,7 @@ func ConfirmProposal(proposalId string, onStream types.OnStreamPlanFunc) (*conte
 
 			fileMessages = append(fileMessages, openai.ChatCompletionMessage{
 				Role:    openai.ChatMessageRoleAssistant,
-				Content: proposalContent,
+				Content: proposal.Content,
 			},
 				openai.ChatCompletionMessage{
 					Role: openai.ChatMessageRoleUser,
@@ -204,9 +127,7 @@ func ConfirmProposal(proposalId string, onStream types.OnStreamPlanFunc) (*conte
 						return
 					case <-timer.C:
 						// Timer triggered because no new chunk was received in time
-						fmt.Println("\nStream timeout due to inactivity")
-						err = fmt.Errorf("stream timeout due to inactivity")
-						onError(err)
+						onError(fmt.Errorf("stream timeout due to inactivity"))
 						return
 					default:
 						response, err := stream.Recv()
@@ -219,35 +140,66 @@ func ConfirmProposal(proposalId string, onStream types.OnStreamPlanFunc) (*conte
 							timer.Reset(model.OPENAI_STREAM_CHUNK_TIMEOUT)
 						}
 
-						if errors.Is(err, io.EOF) {
-							fmt.Println("\nStream finished")
-							return
-						}
-
 						if err != nil {
-							fmt.Printf("\nStream error: %v\n", err)
-							onError(err)
+							onError(fmt.Errorf("Stream error: %v", err))
 							return
 						}
 
 						if len(response.Choices) == 0 {
-							fmt.Println("\nStream finished")
+							onError(fmt.Errorf("Stream error: no choices"))
 							return
 						}
 
-						// TODO handle different finish reasons
-						if response.Choices[0].FinishReason != "" {
-							fmt.Println("\nStream finished")
+						choice := response.Choices[0]
+
+						if choice.FinishReason != "" {
+							if choice.FinishReason == openai.FinishReasonFunctionCall {
+								// parse the writeFile function call
+								plan := plans.Get(proposalId)
+								var resp shared.StreamedFile
+								err := json.Unmarshal([]byte(plan.Files[filePath]), &resp)
+								if err != nil {
+									onError(fmt.Errorf("error parsing writeFile function call: %v", err))
+									return
+								}
+
+								finished := false
+								plans.Update(proposalId, func(plan *types.Plan) {
+									plan.FilesFinished[filePath] = true
+
+									if plan.DidFinish() {
+										plan.Finish()
+										finished = true
+									}
+								})
+
+								if finished {
+									fmt.Println("Stream finished")
+									onStream(shared.STREAM_FINISHED, nil)
+									return
+								}
+
+							} else {
+								onError(fmt.Errorf("Stream finished without 'writeFile' function call. Reason: %s", choice.FinishReason))
+								return
+							}
+
 							return
 						}
 
 						var content string
 						delta := response.Choices[0].Delta
-						if delta.FunctionCall != nil && delta.FunctionCall.Name == "writeFile" {
-							content = delta.FunctionCall.Arguments
-						} else {
 
+						if delta.FunctionCall == nil {
+							fmt.Printf("\nStream received data not for 'writeFile' function call")
+							continue
+						} else {
+							content = delta.FunctionCall.Arguments
 						}
+
+						plans.Update(proposalId, func(p *types.Plan) {
+							p.Files[filePath] += content
+						})
 
 						chunk := &shared.PlanChunk{
 							FilePath: filePath,
@@ -255,21 +207,33 @@ func ConfirmProposal(proposalId string, onStream types.OnStreamPlanFunc) (*conte
 							IsExec:   false,
 						}
 
-						fmt.Printf("%s: %s", filePath, content)
-						onStream(chunk, false, nil)
+						// fmt.Printf("%s: %s", filePath, content)
+						chunkJson, err := json.Marshal(chunk)
+						if err != nil {
+							onError(fmt.Errorf("error marshalling plan chunk: %v", err))
+							return
+						}
+						onStream(string(chunkJson), nil)
 					}
 				}
 			}()
 		}(filePath)
 	}
 
-	wg.Add(1)
+	if !proposal.PlanDescription.HasExec {
+		fmt.Println("No exec.sh to parse")
+		return nil
+	}
+
 	onExecErr := func(err error) {
-		setError(err)
-		onStream(&shared.PlanChunk{IsExec: true}, true, err)
+		plans.Update(proposalId, func(p *types.Plan) {
+			p.ExecErr = err
+			p.SetErr(err)
+		})
+
+		onStream("", err)
 	}
 	go func() {
-		defer wg.Done()
 		fmt.Println("Getting exec.sh from model: ")
 
 		// Define the model request for exec.sh
@@ -291,16 +255,16 @@ func ConfirmProposal(proposalId string, onStream types.OnStreamPlanFunc) (*conte
 			Messages: []openai.ChatCompletionMessage{
 				{
 					Role:    openai.ChatMessageRoleSystem,
-					Content: "You are an AI parser. You turn an AI's plan for a programming task into executable shell commands. Call the 'writeExec' function with the entire shell script as raw text, based on your previous response. Only call the 'writeExec' function in your response. Don't call any other function.",
+					Content: "You are an AI parser that extracts shell commands from an AI-generated programming plan. Call the 'writeExec' function with any commands in '- exec' blocks in the previous response and combine them into a single shell script--pass only the raw text of the shell script to 'writeExec'. Only call the 'writeExec' function in your response. Don't call any other function.",
 				},
 				{
 					Role:    openai.ChatMessageRoleAssistant,
-					Content: proposalContent,
+					Content: proposal.Content,
 				},
 				{
 					Role: openai.ChatMessageRoleUser,
 					Content: fmt.Sprintf(`
-                    Based on your previous response, call the 'writeExec' function with the shell script that includes any commands that should be executed after any relevant files are created and/or updated. If no commands should be executed, pass only 'no exec commands' to the 'writeExec' function. Otherwise, pass the full script as raw text to the function and output nothing else.
+                    Based on your previous response, call the 'writeExec' function with a script that should be run after any relevant files are created and/or updated. If no commands should be executed, pass only 'no exec commands' to the 'writeExec' function. Otherwise, pass the full script as raw text to the function and output nothing else.
                 `),
 				},
 			},
@@ -341,30 +305,55 @@ func ConfirmProposal(proposalId string, onStream types.OnStreamPlanFunc) (*conte
 					timer.Reset(model.OPENAI_STREAM_CHUNK_TIMEOUT)
 				}
 
-				if errors.Is(err, io.EOF) {
-					fmt.Println("\nStream finished for exec.sh")
-					return
-				}
-
 				if err != nil {
-					fmt.Printf("\nStream error for exec.sh: %v\n", err)
-					onExecErr(err)
-					return
-				}
-
-				// TODO handle different finish reasons
-				if response.Choices[0].FinishReason != "" {
-					fmt.Println("\nStream finished")
+					onExecErr(fmt.Errorf("Stream error for exec.sh: %v", err))
 					return
 				}
 
 				if len(response.Choices) == 0 {
-					fmt.Println("\nStream finished for exec.sh")
+					onExecErr(fmt.Errorf("Stream error for exec.sh: no choices"))
+					return
+				}
+
+				choice := response.Choices[0]
+
+				if choice.FinishReason != "" {
+					if choice.FinishReason == openai.FinishReasonFunctionCall {
+						// parse the writeExec function call
+						plan := plans.Get(proposalId)
+						var resp shared.StreamedFile
+						err := json.Unmarshal([]byte(plan.Exec), &resp)
+						if err != nil {
+							onExecErr(fmt.Errorf("error parsing writeExec function call: %v", err))
+							return
+						}
+
+						finished := false
+						plans.Update(proposalId, func(plan *types.Plan) {
+							plan.ExecFinished = true
+
+							if plan.DidFinish() {
+								plan.Finish()
+								finished = true
+							}
+						})
+
+						if finished {
+							fmt.Println("Stream finished")
+							onStream(shared.STREAM_FINISHED, nil)
+							return
+						}
+
+					} else {
+						onExecErr(fmt.Errorf("Stream finished without 'writeExec' function call. Reason: %s", choice.FinishReason))
+						return
+					}
+
 					return
 				}
 
 				var content string
-				delta := response.Choices[0].Delta
+				delta := choice.Delta
 				if delta.FunctionCall != nil && delta.FunctionCall.Name == "writeExec" {
 					content = delta.FunctionCall.Arguments
 				}
@@ -376,24 +365,66 @@ func ConfirmProposal(proposalId string, onStream types.OnStreamPlanFunc) (*conte
 					fmt.Println("No commands to execute for exec.sh")
 				} else {
 					fmt.Println("Commands to execute for exec.sh")
-					onStream(&shared.PlanChunk{
-						IsExec:  true,
-						Content: content,
-					}, false, nil)
+
+					chunk := shared.PlanChunk{IsExec: true, Content: content}
+					chunkJson, err := json.Marshal(chunk)
+					if err != nil {
+						onExecErr(fmt.Errorf("error marshalling exec.sh chunk: %v", err))
+						return
+					}
+
+					onStream(string(chunkJson), nil)
 				}
 			}
 		}
 	}()
 
-	// Wait for all streams to finish and then inform the caller
-	go func() {
-		wg.Wait()
-		mu.Lock()
-		delete(proposalsMap, proposalId)
-		mu.Unlock()
-		onStream(nil, true, nil)
-	}()
+	return nil
+}
 
-	return &cancel, nil
+func streamFilesLoremIpsum(onStream types.OnStreamFunc) {
+	writeChunk := func(filePath string, isExec bool, content string) {
+		chunk := shared.PlanChunk{FilePath: filePath, Content: content, IsExec: isExec}
+		chunkJson, _ := json.Marshal(chunk)
+		onStream(string(chunkJson), nil)
+		time.Sleep(50 * time.Millisecond) // Adding a small delay between files for effect
+	}
 
+	// For each file in the proposal, stream some unstyled lorem ipsum content
+	files := []string{"file1.txt", "file2.txt"}
+	for _, filePath := range files {
+		text := strings.Join([]string{lorem.Paragraph(2, 3), lorem.Paragraph(2, 3), lorem.Paragraph(2, 3)}, "\n\n")
+		streamedFile := shared.StreamedFile{Content: text}
+		fileContent, _ := json.Marshal(streamedFile)
+
+		for _, line := range strings.Split(string(fileContent), "\n") {
+			for _, word := range strings.Split(line, " ") {
+				writeChunk(filePath, false, word+" ")
+			}
+			writeChunk(filePath, false, "\n")
+		}
+	}
+
+	// For the exec.sh script, generate a script that echoes some lorem ipsum content
+
+	echoContent := `#!/bin/sh
+echo "` + lorem.Sentence(5, 6) + `"` +
+		`
+		echo "` + lorem.Sentence(5, 6) + `"` +
+		`
+		echo "hi"`
+
+	fmt.Println("exec.sh content: " + echoContent)
+
+	streamedFile := shared.StreamedFile{Content: echoContent}
+	fileContent, _ := json.Marshal(streamedFile)
+
+	for _, line := range strings.Split(string(fileContent), "\n") {
+		for _, word := range strings.Split(line, " ") {
+			writeChunk("", true, word+" ")
+		}
+		writeChunk("", true, "\n")
+	}
+
+	onStream(shared.STREAM_FINISHED, nil)
 }

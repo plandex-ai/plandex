@@ -118,7 +118,7 @@ func LoadContextOrDie(params *types.LoadContextParams) {
 			hash := sha256.Sum256([]byte(body))
 			sha := hex.EncodeToString(hash[:])
 
-			summaryResp, err := ApiSummarize(body)
+			summaryResp, err := Api.Summarize(body)
 			if err != nil {
 				log.Fatalf("Failed to summarize the text: %v", err)
 			}
@@ -192,7 +192,7 @@ func LoadContextOrDie(params *types.LoadContextParams) {
 				hash := sha256.Sum256([]byte(body))
 				sha := hex.EncodeToString(hash[:])
 
-				summaryResp, err := ApiSummarize(body)
+				summaryResp, err := Api.Summarize(body)
 				if err != nil {
 					log.Fatalf("Failed to summarize piped data: %v", err)
 				}
@@ -237,7 +237,7 @@ func LoadContextOrDie(params *types.LoadContextParams) {
 		go func() {
 			defer wg.Done()
 
-			flattenedPaths := flattenPaths(inputFilePaths, params, 0)
+			flattenedPaths := FlattenPaths(inputFilePaths, params, 0)
 
 			if params.NamesOnly {
 				body := strings.Join(flattenedPaths, "\n")
@@ -330,7 +330,7 @@ func LoadContextOrDie(params *types.LoadContextParams) {
 
 						}()
 
-						summaryResp, err := ApiSummarize(body)
+						summaryResp, err := Api.Summarize(body)
 						if err != nil {
 							log.Fatalf("Failed to summarize the file %s: %v", path, err)
 						}
@@ -401,7 +401,7 @@ func LoadContextOrDie(params *types.LoadContextParams) {
 				hash := sha256.Sum256([]byte(body))
 				sha := hex.EncodeToString(hash[:])
 
-				summaryResp, err := ApiSummarize(body)
+				summaryResp, err := Api.Summarize(body)
 				if err != nil {
 					log.Fatalf("Failed to summarize content from URL %s: %v", url, err)
 				}
@@ -524,7 +524,7 @@ func GetAllContext(metaOnly bool) ([]shared.ModelContextPart, error) {
 
 		// Only process .meta files and then look for their corresponding .body files
 		if strings.HasSuffix(filename, ".meta") {
-			fmt.Fprintf(os.Stderr, "Reading meta context file %s\n", filename)
+			// fmt.Fprintf(os.Stderr, "Reading meta context file %s\n", filename)
 
 			metaContent, err := os.ReadFile(filepath.Join(ContextSubdir, filename))
 			if err != nil {
@@ -543,7 +543,7 @@ func GetAllContext(metaOnly bool) ([]shared.ModelContextPart, error) {
 				bodyFilename := strings.TrimSuffix(filename, ".meta") + ".body"
 				bodyPath := filepath.Join(ContextSubdir, bodyFilename)
 
-				fmt.Fprintf(os.Stderr, "Reading body context file %s\n", bodyPath)
+				// fmt.Fprintf(os.Stderr, "Reading body context file %s\n", bodyPath)
 
 				bodyContent, err := os.ReadFile(bodyPath)
 				if err != nil {

@@ -19,7 +19,6 @@ func main() {
 	r := mux.NewRouter()
 
 	r.HandleFunc("/proposal", handlers.ProposalHandler).Methods("POST")
-	r.HandleFunc("/confirm-proposal", handlers.ConfirmProposalHandler).Methods("PATCH")
 	r.HandleFunc("/abort-proposal", handlers.AbortProposalHandler).Methods("DELETE")
 	// r.HandleFunc("/revise-proposal", handlers.ReviseProposalHandler).Methods("PATCH")
 

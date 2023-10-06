@@ -22,7 +22,7 @@ func (s *safePlanFiles) Add(key string, value string) {
 
 var planFiles safePlanFiles
 
-func worker(filesDir string, srcPath string, info os.FileInfo, err error, errCh chan<- error) {
+func worker(PlanFilesDir string, srcPath string, info os.FileInfo, err error, errCh chan<- error) {
 	if err != nil {
 		errCh <- err
 		return
@@ -32,7 +32,7 @@ func worker(filesDir string, srcPath string, info os.FileInfo, err error, errCh 
 	}
 
 	// Compute relative path
-	relPath, err := filepath.Rel(filesDir, srcPath)
+	relPath, err := filepath.Rel(PlanFilesDir, srcPath)
 	if err != nil {
 		errCh <- err
 		return
@@ -51,17 +51,16 @@ func worker(filesDir string, srcPath string, info os.FileInfo, err error, errCh 
 
 func getCurrentPlanFiles() (shared.CurrentPlanFiles, error) {
 	planFiles.data = make(map[string]string)
-	filesDir := filepath.Join(CurrentPlanRootDir, "plan", "files")
 
 	// Check if filesDir exists
-	_, err := os.Stat(filesDir)
+	_, err := os.Stat(PlanFilesDir)
 	exists := !os.IsNotExist(err)
 
 	if exists {
 		errCh := make(chan error)
 		// Enumerate all paths in [planDir]/files
-		err = filepath.Walk(filesDir, func(srcPath string, info os.FileInfo, err error) error {
-			go worker(filesDir, srcPath, info, err, errCh)
+		err = filepath.Walk(PlanFilesDir, func(srcPath string, info os.FileInfo, err error) error {
+			go worker(PlanFilesDir, srcPath, info, err, errCh)
 			return nil
 		})
 

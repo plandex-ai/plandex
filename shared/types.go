@@ -14,7 +14,6 @@ type PromptRequest struct {
 	ModelContext ModelContext `json:"modelContext"`
 	Conversation []openai.ChatCompletionMessage
 	CurrentPlan  CurrentPlanFiles `json:"currentPlan"`
-	ChatOnly     bool
 }
 
 type SummarizeRequest struct {
@@ -59,9 +58,18 @@ type PlanSettings struct {
 }
 
 type PlanChunk struct {
+	Type     string `json:"type"`
 	FilePath string `json:"filePath"`
 	Content  string `json:"content"`
 	IsExec   bool   `json:"isExec"`
+}
+
+type PlanDescription struct {
+	MadePlan  bool     `json:"madePlan"`
+	Subtasks  bool     `json:"subtasks"`
+	CommitMsg string   `json:"commitMsg"`
+	Files     []string `json:"files"`
+	HasExec   bool     `json:"hasExec"`
 }
 
 // type Plan struct {

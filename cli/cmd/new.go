@@ -47,7 +47,7 @@ func new(cmd *cobra.Command, args []string) {
 	}
 
 	if name == "" {
-		summaryResp, err := lib.ApiSummarize(prompt)
+		summaryResp, err := lib.Api.Summarize(prompt)
 		if err != nil {
 			log.Fatalf("Failed to get a name for the prompt: %v", err)
 		}
@@ -201,7 +201,7 @@ func new(cmd *cobra.Command, args []string) {
 	}
 
 	if prompt != "" {
-		err = lib.Propose(prompt, false)
+		err = lib.Propose(prompt)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "Prompt error:", err)
 			return

@@ -78,8 +78,10 @@ func SanitizeAndClipURL(url string, maxLength int) string {
 	sanitized = strings.ReplaceAll(sanitized, "%", "_")
 	sanitized = strings.ReplaceAll(sanitized, "*", "_")
 	sanitized = strings.ReplaceAll(sanitized, " ", "_")
-
-	return sanitized[:maxLength]
+	if len(sanitized) > maxLength {
+		return sanitized[:maxLength]
+	}
+	return sanitized
 }
 
 func IsValidURL(str string) bool {

@@ -3,12 +3,12 @@ package lib
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"plandex/types"
-	"strings"
 
 	"github.com/plandex/plandex/shared"
 	openai "github.com/sashabaranov/go-openai"
@@ -16,7 +16,12 @@ import (
 
 const apiHost = "http://localhost:8088"
 
-func ApiPropose(prompt string, chatOnly bool, onStream types.OnStreamProposal) error {
+// Check that API implements the types.APIHandler interface
+var Api types.APIHandler = (*API)(nil)
+
+type API struct{}
+
+func (api *API) Propose(prompt string, onStream types.OnStreamPlan) error {
 	serverUrl := apiHost + "/proposal"
 
 	// Channels to receive data and errors
@@ -31,13 +36,13 @@ func ApiPropose(prompt string, chatOnly bool, onStream types.OnStreamProposal) e
 
 	// Goroutine for loading context
 	go func() {
-		context, err := GetAllContext(false)
+		modelContext, err := GetAllContext(false)
 		if err != nil {
 			fmt.Println("Error loading context:" + err.Error())
 			contextErrChan <- err
 			return
 		}
-		contextChan <- context
+		contextChan <- modelContext
 	}()
 
 	// Goroutine for loading conversation
@@ -62,14 +67,14 @@ func ApiPropose(prompt string, chatOnly bool, onStream types.OnStreamProposal) e
 		planChan <- plan
 	}()
 
-	var context shared.ModelContext
+	var modelContext shared.ModelContext
 	var currentPlan shared.CurrentPlanFiles
 	var conversation []openai.ChatCompletionMessage
 	var err error
 
 	// Using select to receive from either data or error channel for context
 	select {
-	case context = <-contextChan:
+	case modelContext = <-contextChan:
 	case err = <-contextErrChan:
 		return err
 	}
@@ -91,10 +96,9 @@ func ApiPropose(prompt string, chatOnly bool, onStream types.OnStreamProposal) e
 
 	payload := shared.PromptRequest{
 		Prompt:       prompt,
-		ModelContext: context,
+		ModelContext: modelContext,
 		Conversation: conversation,
 		CurrentPlan:  currentPlan,
-		ChatOnly:     chatOnly,
 	}
 
 	jsonData, err := json.Marshal(payload)
@@ -115,40 +119,86 @@ func ApiPropose(prompt string, chatOnly bool, onStream types.OnStreamProposal) e
 	}
 
 	reader := bufio.NewReader(resp.Body)
-	buf := make([]byte, 32)
+	streamState := shared.NewPlanStreamState()
 
 	go func() {
 		for {
-			n, err := reader.Read(buf)
-			if err == io.EOF {
-				fmt.Println("EOF")
-				onStream("", true, nil)
-				resp.Body.Close()
-				return
-			}
+			s, err := readUntilSeparator(reader, shared.STREAM_MESSAGE_SEPARATOR)
 			if err != nil {
 				fmt.Println("Error reading line:", err)
-				onStream("", true, err)
+				streamState.Event(context.Background(), shared.EVENT_ERROR)
+				onStream(types.OnStreamPlanParams{Content: "", State: streamState, Err: err})
 				resp.Body.Close()
 				return
 			}
 
-			s := string(buf[:n])
-
-			if strings.Contains(s, shared.STREAM_FINISHED) {
-				onStream("", true, nil)
+			if s == shared.STREAM_FINISHED || s == shared.STREAM_ABORTED {
+				var evt string
+				if s == shared.STREAM_FINISHED {
+					evt = shared.EVENT_FINISH
+				} else {
+					evt = shared.STATE_ABORTED
+				}
+				err := streamState.Event(context.Background(), evt)
+				if err != nil {
+					fmt.Printf("Error triggering state change %s: %s\n", evt, err)
+				}
+				onStream(types.OnStreamPlanParams{Content: "", State: streamState, Err: err})
 				resp.Body.Close()
 				return
 			}
 
-			onStream(s, false, nil)
+			if s == shared.STREAM_DESCRIPTION_PHASE {
+				err = streamState.Event(context.Background(), shared.EVENT_DESCRIBE)
+			} else if s == shared.STREAM_BUILD_PHASE {
+				err = streamState.Event(context.Background(), shared.EVENT_BUILD)
+			}
+
+			if err != nil {
+				fmt.Println("Error setting state:", err)
+				onStream(types.OnStreamPlanParams{Content: "", State: streamState, Err: err})
+				resp.Body.Close()
+				return
+			}
+
+			onStream(types.OnStreamPlanParams{Content: s, State: streamState, Err: nil})
 		}
 	}()
 
 	return nil
 }
 
-func ApiSummarize(text string) (*shared.SummarizeResponse, error) {
+func (api *API) Abort(proposalId string) error {
+	serverUrl := apiHost + "/abort"
+
+	req, err := http.NewRequest("GET", serverUrl, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %s\n", err)
+	}
+
+	q := req.URL.Query()
+	q.Add("proposalId", proposalId)
+	req.URL.RawQuery = q.Encode()
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to send request to server: %s\n", err)
+	}
+
+	defer resp.Body.Close()
+
+	// Check the response status code
+	if resp.StatusCode != http.StatusOK {
+		// Read the error message from the body
+		errorBody, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("server returned an error %d: %s", resp.StatusCode,
+			string(errorBody))
+	}
+
+	return nil
+}
+
+func (api *API) Summarize(text string) (*shared.SummarizeResponse, error) {
 	serverUrl := apiHost + "/summarize"
 
 	payload := shared.SummarizeRequest{
@@ -170,7 +220,7 @@ func ApiSummarize(text string) (*shared.SummarizeResponse, error) {
 		return nil, err
 	}
 
-	fmt.Println("ApiSummarize response body:")
+	fmt.Println("Summarize response body:")
 	fmt.Println(string(body))
 
 	var summarized shared.SummarizeResponse
@@ -180,4 +230,19 @@ func ApiSummarize(text string) (*shared.SummarizeResponse, error) {
 	}
 
 	return &summarized, nil
+}
+
+func readUntilSeparator(reader *bufio.Reader, separator string) (string, error) {
+	var result []byte
+	sepBytes := []byte(separator)
+	for {
+		b, err := reader.ReadByte()
+		if err != nil {
+			return string(result), err
+		}
+		result = append(result, b)
+		if len(result) >= len(sepBytes) && bytes.HasSuffix(result, sepBytes) {
+			return string(result[:len(result)-len(separator)]), nil
+		}
+	}
 }

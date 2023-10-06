@@ -22,7 +22,7 @@ var reviseCmd = &cobra.Command{
 func revise(cmd *cobra.Command, args []string) {
 	p := args[0]
 
-	err := lib.Propose(p, false)
+	err := lib.Propose(p)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Prompt error:", err)
 		return

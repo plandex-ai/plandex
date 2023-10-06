@@ -1,9 +1,12 @@
 package lib
 
 import (
+	"fmt"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/eiannone/keyboard"
 )
 
 func StringTs() string {
@@ -31,4 +34,20 @@ func GetFileNameWithoutExt(path string) string {
 	name = strings.ReplaceAll(name, "\"", "")
 
 	return name
+}
+
+func getUserInput() (rune, error) {
+	if err := keyboard.Open(); err != nil {
+		return 0, fmt.Errorf("failed to open keyboard: %s\n", err)
+	}
+	defer func() {
+		_ = keyboard.Close()
+	}()
+
+	char, _, err := keyboard.GetKey()
+	if err != nil {
+		return 0, fmt.Errorf("failed to read keypress: %s\n", err)
+	}
+
+	return char, nil
 }
