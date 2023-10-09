@@ -19,8 +19,11 @@ type key struct {
 }
 
 func Propose(prompt string) error {
-	s := spinner.New(spinner.CharSets[14], 100*time.Millisecond) // Choose spinner style
+	fmt.Println("Sending prompt... ")
+	s := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
 	s.Start()
+
+	time.Sleep(500 * time.Millisecond)
 
 	timestamp := StringTs()
 	reply := ""
@@ -32,6 +35,7 @@ func Propose(prompt string) error {
 	defer replyUpdateTimer.Stop()
 
 	var proposalId string
+	var replyStarted bool
 	var terminalHasPendingUpdate bool
 	var endedReply bool
 
@@ -45,18 +49,22 @@ func Propose(prompt string) error {
 	jsonBuffers := make(map[string]string)
 	contextTokensByFile := make(map[string]int)
 
-	replyTokenCounter := NewReplyTokenCounter()
+	replyTokenCounter := shared.NewReplyInfo(true)
 	var tokensAddedByFile map[string]int
+
+	printReply := func() {
+		clearScreen()
+		moveCursorToTopLeft()
+		mdFull, _ := GetMarkdown(reply)
+		fmt.Println(mdFull)
+		fmt.Printf(displayHotkeys())
+		termState = mdFull
+	}
 
 	go func() {
 		for range replyUpdateTimer.C {
 			if terminalHasPendingUpdate {
-				clearScreen()
-				moveCursorToTopLeft()
-				mdFull, _ := GetMarkdown(reply)
-				fmt.Println(mdFull)
-				fmt.Printf(displayHotkeys())
-				termState = mdFull
+				printReply()
 				terminalHasPendingUpdate = false
 			}
 			replyUpdateTimer.Reset(100 * time.Millisecond)
@@ -69,14 +77,14 @@ func Propose(prompt string) error {
 
 	endReply := func() {
 		replyUpdateTimer.Stop()
-		time.Sleep(50 * time.Millisecond)
+
 		backToMain()
 		fmt.Print(termState)
 		err := appendConversation(timestamp, prompt, reply)
 		if err != nil {
 			fmt.Printf("failed to append conversation: %s\n", err)
 		}
-		tokensAddedByFile = replyTokenCounter.FinishAndRead()
+		_, tokensAddedByFile = replyTokenCounter.FinishAndRead()
 		endedReply = true
 	}
 
@@ -123,10 +131,12 @@ func Propose(prompt string) error {
 				return
 			} else {
 				proposalId = content
-				s.Stop()
-				alternateScreen()
 				return
 			}
+		} else if !replyStarted {
+			replyStarted = true
+			s.Stop()
+			alternateScreen()
 		}
 
 		switch state.Current() {
@@ -166,6 +176,8 @@ func Propose(prompt string) error {
 					// if desc.HasExec {
 					// 	fmt.Printf("- %s\n", "exec.sh")
 					// }
+				} else {
+					filesFinished = true
 				}
 
 			}

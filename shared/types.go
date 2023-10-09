@@ -59,7 +59,6 @@ type PlanChunk struct {
 
 type PlanDescription struct {
 	MadePlan  bool     `json:"madePlan"`
-	Subtasks  bool     `json:"subtasks"`
 	CommitMsg string   `json:"commitMsg"`
 	Files     []string `json:"files"`
 	// HasExec   bool     `json:"hasExec"`

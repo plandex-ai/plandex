@@ -28,7 +28,7 @@ func receiveFileChunk(content string, desc *shared.PlanDescription, jsonBuffers 
 	buffer += chunk.Content
 	jsonBuffers[chunk.FilePath] = buffer
 
-	numTokens := int(GetNumTokens(chunk.Content))
+	numTokens := int(shared.GetNumTokens(chunk.Content))
 	numTokensByFile[chunk.FilePath] += numTokens
 
 	var streamed shared.StreamedFile

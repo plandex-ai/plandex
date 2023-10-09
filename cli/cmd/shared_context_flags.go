@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"plandex/lib"
+	"github.com/plandex/plandex/shared"
 
 	"github.com/spf13/cobra"
 )
@@ -11,7 +11,7 @@ var (
 	maxDepth  int16
 	namesOnly bool
 	truncate  bool
-	maxTokens uint32 = lib.MaxTokens
+	maxTokens uint32 = shared.MaxTokens
 )
 
 func addSharedContextFlags(cmd *cobra.Command) {
@@ -20,5 +20,5 @@ func addSharedContextFlags(cmd *cobra.Command) {
 	cmd.Flags().Int16VarP(&maxDepth, "max-depth", "d", -1, "Maximum depth for recursive directory search (-1 means no limit)")
 	cmd.Flags().BoolVar(&namesOnly, "names-only", false, "Only process file names")
 	cmd.Flags().BoolVar(&truncate, "truncate", false, "Truncate contents if tokens exceed maximum, otherwise abort")
-	cmd.Flags().Uint32Var(&maxTokens, "max-tokens", lib.MaxTokens, "Maximum limit for number of tokens")
+	cmd.Flags().Uint32Var(&maxTokens, "max-tokens", shared.MaxTokens, "Maximum limit for number of tokens")
 }

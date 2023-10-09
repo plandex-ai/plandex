@@ -2,6 +2,7 @@ package proposal
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"time"
@@ -100,6 +101,8 @@ func CreateProposal(req shared.PromptRequest, onStream types.OnStreamFunc) error
 		},
 	})
 
+	replyInfo := shared.NewReplyInfo(false)
+
 	modelReq := openai.ChatCompletionRequest{
 		Model:    openai.GPT4,
 		Messages: messages,
@@ -170,12 +173,47 @@ func CreateProposal(req shared.PromptRequest, onStream types.OnStreamFunc) error
 				if choice.FinishReason != "" {
 					onStream(shared.STREAM_DESCRIPTION_PHASE, nil)
 
-					planDescription, planDescriptionJson, err := genPlanDescriptionJson(proposalId, ctx)
+					files, _ := replyInfo.FinishAndRead()
 
+					if len(files) == 0 {
+						planDescription := &shared.PlanDescription{
+							Files:    []string{},
+							MadePlan: false,
+						}
+						bytes, err := json.Marshal(planDescription)
+						if err != nil {
+							onError(fmt.Errorf("failed to marshal plan description: %v", err))
+							return
+						}
+						planDescriptionJson := string(bytes)
+
+						proposals.Update(proposalId, func(proposal *types.Proposal) {
+							proposal.Finish(planDescription)
+						})
+
+						fmt.Println(planDescriptionJson)
+
+						onStream(planDescriptionJson, nil)
+						onStream(shared.STREAM_FINISHED, nil)
+						return
+					}
+
+					planDescription, err := genPlanDescriptionJson(proposalId, ctx)
 					if err != nil {
 						onError(fmt.Errorf("failed to generate plan description json: %v", err))
 						return
 					}
+
+					planDescription.MadePlan = true
+					planDescription.Files = files
+
+					bytes, err := json.Marshal(planDescription)
+					if err != nil {
+						onError(fmt.Errorf("failed to marshal plan description: %v", err))
+						return
+					}
+					planDescriptionJson := string(bytes)
+					fmt.Println(planDescriptionJson)
 
 					proposals.Update(proposalId, func(proposal *types.Proposal) {
 						proposal.Finish(planDescription)
@@ -183,14 +221,10 @@ func CreateProposal(req shared.PromptRequest, onStream types.OnStreamFunc) error
 
 					onStream(planDescriptionJson, nil)
 
-					if planDescription.MadePlan && (len(planDescription.Files) > 0 /*|| planDescription.HasExec*/) {
-						onStream(shared.STREAM_BUILD_PHASE, nil)
-						err = confirmProposal(proposalId, onStream)
-						if err != nil {
-							onError(fmt.Errorf("failed to confirm proposal: %v", err))
-						}
-					} else {
-						onStream(shared.STREAM_FINISHED, nil)
+					onStream(shared.STREAM_BUILD_PHASE, nil)
+					err = confirmProposal(proposalId, onStream)
+					if err != nil {
+						onError(fmt.Errorf("failed to confirm proposal: %v", err))
 					}
 
 					return
@@ -204,6 +238,7 @@ func CreateProposal(req shared.PromptRequest, onStream types.OnStreamFunc) error
 
 				// fmt.Printf("%s", content)
 				onStream(content, nil)
+				replyInfo.AddChunk(content)
 
 			}
 		}

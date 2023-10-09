@@ -19,7 +19,6 @@ import (
 )
 
 func WriteInitialContextState(contextDir string) error {
-	fmt.Println("Creating initial context state...")
 	contextState := shared.ModelContextState{
 		NumTokens:    0,
 		ActiveTokens: 0,
@@ -88,7 +87,7 @@ func LoadContextOrDie(params *types.LoadContextParams) {
 			defer wg.Done()
 
 			body := params.Note
-			numTokens := GetNumTokens(body)
+			numTokens := shared.GetNumTokens(body)
 
 			totalTokensMutex.Lock()
 			func() {
@@ -164,7 +163,7 @@ func LoadContextOrDie(params *types.LoadContextParams) {
 				defer wg.Done()
 
 				body := string(pipedData)
-				numTokens := GetNumTokens(body)
+				numTokens := shared.GetNumTokens(body)
 
 				totalTokensMutex.Lock()
 				func() {
@@ -244,7 +243,7 @@ func LoadContextOrDie(params *types.LoadContextParams) {
 				bytes := []byte(body)
 				hash := sha256.Sum256(bytes)
 				sha := hex.EncodeToString(hash[:])
-				numTokens := GetNumTokens(body)
+				numTokens := shared.GetNumTokens(body)
 
 				totalTokensMutex.Lock()
 				func() {
@@ -302,7 +301,7 @@ func LoadContextOrDie(params *types.LoadContextParams) {
 						body := string(fileContent)
 						hash := sha256.Sum256(fileContent)
 						sha := hex.EncodeToString(hash[:])
-						numTokens := GetNumTokens(body)
+						numTokens := shared.GetNumTokens(body)
 
 						totalTokensMutex.Lock()
 						func() {
@@ -373,7 +372,7 @@ func LoadContextOrDie(params *types.LoadContextParams) {
 					log.Fatalf("Failed to fetch content from URL %s: %v", url, err)
 				}
 
-				numTokens := GetNumTokens(body)
+				numTokens := shared.GetNumTokens(body)
 
 				totalTokensMutex.Lock()
 				func() {

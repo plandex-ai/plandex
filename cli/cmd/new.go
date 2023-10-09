@@ -8,10 +8,12 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"time"
 
 	"plandex/lib"
 	"plandex/types"
 
+	"github.com/briandowns/spinner"
 	"github.com/spf13/cobra"
 )
 
@@ -120,7 +122,7 @@ func new(cmd *cobra.Command, args []string) {
 		fmt.Fprintln(os.Stderr, "Error creating plan subdir:", err)
 		return
 	}
-	fmt.Fprintln(os.Stderr, "✅ Created plan directory at "+planDir)
+	// fmt.Fprintln(os.Stderr, "✅ Created plan directory at "+planDir)
 
 	// Create conversation subdirectory
 	conversationDir := filepath.Join(rootDir, "conversation")
@@ -129,7 +131,7 @@ func new(cmd *cobra.Command, args []string) {
 		fmt.Fprintln(os.Stderr, "Error creating conversation subdir:", err)
 		return
 	}
-	fmt.Fprintln(os.Stderr, "✅ Created conversation directory at "+conversationDir)
+	// fmt.Fprintln(os.Stderr, "✅ Created conversation directory at "+conversationDir)
 
 	// Init empty git repositories in context, plan, and conversation directories
 	// init git repo in root plan dir
@@ -179,7 +181,7 @@ func new(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	fmt.Fprintln(os.Stderr, "✅ Initialized context and plan git repositories")
+	// fmt.Fprintln(os.Stderr, "✅ Initialized context and plan git repositories")
 
 	err = lib.LoadCurrentPlan()
 
@@ -189,6 +191,10 @@ func new(cmd *cobra.Command, args []string) {
 	}
 
 	if len(context) > 0 {
+		fmt.Println("Loading context... ")
+		s := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
+		s.Start()
+
 		lib.LoadContextOrDie(&types.LoadContextParams{
 			Note:      note,
 			MaxTokens: maxTokens,
@@ -198,6 +204,9 @@ func new(cmd *cobra.Command, args []string) {
 			Truncate:  truncate,
 			Resources: context,
 		})
+
+		time.Sleep(500 * time.Millisecond)
+		s.Stop()
 	}
 
 	if prompt != "" {
