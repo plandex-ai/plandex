@@ -159,7 +159,7 @@ func Propose(prompt string) error {
 				}
 
 				if desc.MadePlan && (len(desc.Files) > 0 || desc.HasExec) {
-					fmt.Println("Writing plan files:")
+					fmt.Println("Writing plan draft:")
 					for _, filePath := range desc.Files {
 						fmt.Printf("- %s\n", filePath)
 					}
@@ -210,7 +210,7 @@ func Propose(prompt string) error {
 							total := contextTotal + added
 
 							fmtArgs = append(fmtArgs, total, contextTotal, added)
-						} else {
+						} else if added > 0 {
 							fmtStr += " / %d estimated"
 							fmtArgs = append(fmtArgs, added)
 						}

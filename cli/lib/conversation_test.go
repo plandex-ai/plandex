@@ -1,38 +1,57 @@
 package lib
 
 import (
+	"fmt"
 	"os"
 	"testing"
 )
 
+type TestExample struct {
+	FilePath string
+	NumPaths int
+}
+
+var examples = []TestExample{
+	{
+		FilePath: "conversation_test_examples/1.md",
+		NumPaths: 2,
+	},
+	{
+		FilePath: "conversation_test_examples/2.md",
+		NumPaths: 2,
+	},
+}
+
 func TestReplyTokenCounter(t *testing.T) {
-	bytes, err := os.ReadFile("conversation_test.md")
-	if err != nil {
-		t.Error(err)
-	}
-
-	content := string(bytes)
-
-	chunkSize := 10
-
-	counter := NewReplyTokenCounter()
-
-	for i := 0; i < len(content); {
-		end := i + chunkSize
-		if end > len(content) {
-			end = len(content)
+	for _, example := range examples {
+		bytes, err := os.ReadFile(example.FilePath)
+		if err != nil {
+			t.Error(err)
 		}
-		chunk := content[i:end]
-		counter.AddChunk(chunk)
-		i = end
+
+		content := string(bytes)
+
+		chunkSize := 10
+
+		counter := NewReplyTokenCounter()
+
+		for i := 0; i < len(content); {
+			end := i + chunkSize
+			if end > len(content) {
+				end = len(content)
+			}
+			chunk := content[i:end]
+			counter.AddChunk(chunk)
+			i = end
+		}
+
+		tokensByFilePath := counter.FinishAndRead()
+
+		if len(tokensByFilePath) != example.NumPaths {
+			t.Error(fmt.Sprintf("Expected %d file paths", example.NumPaths))
+		}
+
 	}
-
-	tokensByFilePath := counter.FinishAndRead()
-
-	if len(tokensByFilePath) != 2 {
-		t.Error("Expected 2 file paths")
-	}
-
 }
 
 // func TestGetTokensPerFilePath(t *testing.T) {

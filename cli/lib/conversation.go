@@ -176,9 +176,11 @@ func (r *replyTokenCounter) AddChunk(chunk string) {
 
 	if r.currentFilePath == "" {
 		var gotPath string
-		if (strings.HasPrefix(prevFullLine, "-") && strings.HasSuffix(prevFullLine, ":")) || strings.HasPrefix(prevFullLine, "-file:") || strings.HasPrefix(prevFullLine, "- file:") {
-			p := strings.TrimPrefix(prevFullLine, "-")
+		if (strings.HasPrefix(prevFullLine, "-") && strings.HasSuffix(prevFullLine, ":")) || strings.HasPrefix(prevFullLine, "-file:") || strings.HasPrefix(prevFullLine, "- file:") || (strings.HasPrefix(prevFullLine, "**") && strings.HasSuffix(prevFullLine, "**")) {
+			p := strings.TrimPrefix(prevFullLine, "**")
+			p = strings.TrimPrefix(p, "-")
 			p = strings.TrimSpace(p)
+			p = strings.TrimSuffix(p, "**")
 			p = strings.TrimPrefix(p, "file:")
 			p = strings.TrimSuffix(p, ":")
 			p = strings.TrimSpace(p)
