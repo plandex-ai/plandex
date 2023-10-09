@@ -47,7 +47,7 @@ func LoadContextOrDie(params *types.LoadContextParams) {
 	var contextState shared.ModelContextState
 	contextStateFilePath := filepath.Join(ContextSubdir, "context.json")
 
-	fmt.Fprintf(os.Stderr, "Loading context from %s\n", contextStateFilePath)
+	// fmt.Fprintf(os.Stderr, "Loading context from %s\n", contextStateFilePath)
 
 	func() {
 		contextStateFile, err := os.Open(contextStateFilePath)
@@ -472,7 +472,7 @@ func LoadContextOrDie(params *types.LoadContextParams) {
 		added = append(added, fmt.Sprintf("%d urls", len(inputUrls)))
 	}
 
-	msg := "Loaded"
+	msg := "Loaded "
 	if len(added) <= 2 {
 		msg += strings.Join(added, " and ")
 	} else {

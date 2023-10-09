@@ -220,8 +220,8 @@ func (api *API) Summarize(text string) (*shared.SummarizeResponse, error) {
 		return nil, err
 	}
 
-	fmt.Println("Summarize response body:")
-	fmt.Println(string(body))
+	// fmt.Println("Summarize response body:")
+	// fmt.Println(string(body))
 
 	var summarized shared.SummarizeResponse
 	err = json.Unmarshal(body, &summarized)

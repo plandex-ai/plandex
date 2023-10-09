@@ -139,12 +139,12 @@ func new(cmd *cobra.Command, args []string) {
 		fmt.Fprintln(os.Stderr, "Error initializing git repo:", err)
 		return
 	}
-	fmt.Println("Adding git submodules to " + rootDir)
+	// fmt.Println("Adding git submodules to " + rootDir)
 
 	initAndAddSubmodule := func(dir string) {
 
 		// Initialize the Git repo in the directory
-		fmt.Println("Initializing git repo in " + dir)
+		// fmt.Println("Initializing git repo in " + dir)
 		err = lib.InitGitRepo(dir)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "Error initializing git repo:", err)
@@ -152,7 +152,7 @@ func new(cmd *cobra.Command, args []string) {
 		}
 
 		// Add the directory as a submodule to the root repo
-		fmt.Println("Adding git submodule " + dir + " to " + rootDir)
+		// fmt.Println("Adding git submodule " + dir + " to " + rootDir)
 		err = lib.AddGitSubmodule(rootDir, dir)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "Error adding git submodules:", err)
@@ -165,7 +165,7 @@ func new(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	fmt.Println("Wrote initial context state to " + contextDir)
+	// fmt.Println("Wrote initial context state to " + contextDir)
 
 	initAndAddSubmodule(contextDir)
 	initAndAddSubmodule(planDir)

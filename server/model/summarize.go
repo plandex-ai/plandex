@@ -31,7 +31,7 @@ func Summarize(text string) ([]byte, error) {
 						},
 						"fileName": {
 							Type:        jsonschema.String,
-							Description: "A short file name for the text based on the content. Use dashes as word separators. No spaces or special characters. 5 words max.",
+							Description: "A *short* file name for the text based on the content. Use dashes as word separators. No spaces or special characters. 3-5 words max.",
 						},
 					},
 					Required: []string{"name", "summary", "fileName"},
