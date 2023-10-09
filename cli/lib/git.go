@@ -98,3 +98,35 @@ func GitCommit(repoDir, commitMsg string, lockMutex bool) error {
 
 	return nil
 }
+
+func gitCommitPlanUpdate(commitMsg string) error {
+
+	err := GitAddAndCommit(ConversationSubdir, commitMsg)
+	if err != nil {
+		return fmt.Errorf("failed to commit files to conversation dir: %s\n", err)
+	}
+
+	err = GitAddAndCommit(PlanSubdir, commitMsg)
+	if err != nil {
+		return fmt.Errorf("failed to commit files to plan dir: %s\n", err)
+	}
+
+	// Stage changes in the submodules in the root repo
+	err = GitAdd(CurrentPlanRootDir, ConversationSubdir, true)
+	if err != nil {
+		return fmt.Errorf("failed to stage submodule changes in conversation dir: %s\n", err)
+	}
+
+	err = GitAdd(CurrentPlanRootDir, PlanSubdir, true)
+	if err != nil {
+		return fmt.Errorf("failed to stage submodule changes in plan dir: %s\n", err)
+	}
+
+	// Commit these staged submodule changes in the root repo
+	err = GitCommit(CurrentPlanRootDir, commitMsg, true)
+	if err != nil {
+		return fmt.Errorf("failed to commit submodule updates in root dir: %s\n", err)
+	}
+
+	return nil
+}

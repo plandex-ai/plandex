@@ -21,7 +21,7 @@ var Api types.APIHandler = (*API)(nil)
 
 type API struct{}
 
-func (api *API) Propose(prompt string, onStream types.OnStreamPlan) error {
+func (api *API) Propose(prompt string, onStream types.OnStreamPlan) (*shared.PromptRequest, error) {
 	serverUrl := apiHost + "/proposal"
 
 	// Channels to receive data and errors
@@ -76,14 +76,14 @@ func (api *API) Propose(prompt string, onStream types.OnStreamPlan) error {
 	select {
 	case modelContext = <-contextChan:
 	case err = <-contextErrChan:
-		return err
+		return nil, err
 	}
 
 	// Using select to receive from either data or error channel for conversation
 	select {
 	case conversation = <-conversationChan:
 	case err = <-conversationErrChan:
-		return err
+		return nil, err
 	}
 
 	// Using select to receive from either data or error channel for plan
@@ -91,7 +91,7 @@ func (api *API) Propose(prompt string, onStream types.OnStreamPlan) error {
 	case plan := <-planChan:
 		currentPlan = plan
 	case err = <-planErrChan:
-		return err
+		return nil, err
 	}
 
 	payload := shared.PromptRequest{
@@ -103,19 +103,19 @@ func (api *API) Propose(prompt string, onStream types.OnStreamPlan) error {
 
 	jsonData, err := json.Marshal(payload)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	resp, err := http.Post(serverUrl, "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Check the HTTP status code
 	if resp.StatusCode >= 400 {
 		// Read the error message from the body
 		errorBody, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("server returned an error %d: %s", resp.StatusCode, string(errorBody))
+		return &payload, fmt.Errorf("server returned an error %d: %s", resp.StatusCode, string(errorBody))
 	}
 
 	reader := bufio.NewReader(resp.Body)
@@ -165,7 +165,7 @@ func (api *API) Propose(prompt string, onStream types.OnStreamPlan) error {
 		}
 	}()
 
-	return nil
+	return &payload, nil
 }
 
 func (api *API) Abort(proposalId string) error {

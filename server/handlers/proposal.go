@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"plandex-server/model/proposal"
+	"sync"
 
 	"github.com/plandex/plandex/shared"
 )
@@ -43,8 +44,12 @@ func ProposalHandler(w http.ResponseWriter, r *http.Request) {
 	var isResponseClosed bool
 	done := make(chan struct{})
 
-	// this is called serially; no need for mutex on 'isResponseClosed'
+	var streamMu sync.Mutex
+
 	onStream := func(content string, err error) {
+		streamMu.Lock()
+		defer streamMu.Unlock()
+
 		if isResponseClosed {
 			return
 		}
@@ -65,6 +70,7 @@ func ProposalHandler(w http.ResponseWriter, r *http.Request) {
 			if err != nil {
 				isResponseClosed = true
 				log.Printf("Error writing stream content to client: %v\n", err)
+				log.Printf("Content: %s\n", string(bytes))
 				close(done)
 				return
 			}

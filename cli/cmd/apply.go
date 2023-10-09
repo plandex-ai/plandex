@@ -19,20 +19,19 @@ func init() {
 var applyCmd = &cobra.Command{
 	Use:   "apply [name]",
 	Short: "Apply a plan to the project",
-	Args:  cobra.ExactArgs(1),
-	Run:   apply,
+	Args:  cobra.MaximumNArgs(1),
+	RunE:  apply,
 }
 
-func apply(cmd *cobra.Command, args []string) {
+func apply(cmd *cobra.Command, args []string) error {
 	plandexDir, _, err := lib.FindOrCreatePlandex()
 	name := args[0]
 
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error:", err)
-		return
+		return fmt.Errorf("Error: %v", err)
 	}
 
-	if name == "" {
+	if name == "current" {
 		name = lib.CurrentPlanName
 	}
 
@@ -48,8 +47,7 @@ func apply(cmd *cobra.Command, args []string) {
 	rootDir := filepath.Join(plandexDir, name)
 
 	if _, err := os.Stat(rootDir); os.IsNotExist(err) {
-		fmt.Fprintln(os.Stderr, "Error: plan with name '"+name+"' does not exist")
-		return
+		return fmt.Errorf("Error: plan with name '%+v' does not exist", name)
 	}
 
 	copiedAny := false
@@ -82,8 +80,7 @@ func apply(cmd *cobra.Command, args []string) {
 	})
 
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error processing files:", err)
-		return
+		return fmt.Errorf("Error processing files: %v", err)
 	}
 
 	didExec := false
@@ -98,8 +95,7 @@ func apply(cmd *cobra.Command, args []string) {
 
 		err = cmd.Run()
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "Error executing plan:", err)
-			return
+			return fmt.Errorf("Error executing plan: %v", err)
 		}
 		didExec = true
 	}
@@ -107,10 +103,10 @@ func apply(cmd *cobra.Command, args []string) {
 	if copiedAny || didExec {
 		fmt.Println("Plan applied successfully!")
 	} else {
-		fmt.Fprintf(os.Stderr, "This plan has no changes to apply.")
-		os.Exit(1)
+		return fmt.Errorf("This plan has no changes to apply.")
 	}
 
+	return nil
 }
 
 // Utility function to copy files

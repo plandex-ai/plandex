@@ -302,6 +302,14 @@ func genPlanDescriptionJson(proposalId string, ctx context.Context) (*shared.Pla
 		return nil, "", err
 	}
 
+	for i, filePath := range planDesc.Files {
+		filePath = strings.TrimSpace(filePath)
+		filePath = strings.TrimPrefix(filePath, "-")
+		filePath = strings.TrimSpace(filePath)
+		planDesc.Files[i] = filePath
+		fmt.Println("file path: " + filePath)
+	}
+
 	bytes, err := json.Marshal(planDesc)
 	if err != nil {
 		fmt.Printf("Error marshalling plan description: %v\n", err)

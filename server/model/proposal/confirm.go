@@ -9,6 +9,7 @@ import (
 	"plandex-server/model"
 	"plandex-server/types"
 	"strings"
+	"sync"
 	"time"
 
 	lorem "github.com/drhodes/golorem"
@@ -154,15 +155,6 @@ func confirmProposal(proposalId string, onStream types.OnStreamFunc) error {
 
 						if choice.FinishReason != "" {
 							if choice.FinishReason == openai.FinishReasonFunctionCall {
-								// parse the writeFile function call
-								plan := plans.Get(proposalId)
-								var resp shared.StreamedFile
-								err := json.Unmarshal([]byte(plan.Files[filePath]), &resp)
-								if err != nil {
-									onError(fmt.Errorf("error parsing writeFile function call: %v", err))
-									return
-								}
-
 								finished := false
 								plans.Update(proposalId, func(plan *types.Plan) {
 									plan.FilesFinished[filePath] = true
@@ -319,15 +311,6 @@ func confirmProposal(proposalId string, onStream types.OnStreamFunc) error {
 
 				if choice.FinishReason != "" {
 					if choice.FinishReason == openai.FinishReasonFunctionCall {
-						// parse the writeExec function call
-						plan := plans.Get(proposalId)
-						var resp shared.StreamedFile
-						err := json.Unmarshal([]byte(plan.Exec), &resp)
-						if err != nil {
-							onExecErr(fmt.Errorf("error parsing writeExec function call: %v", err))
-							return
-						}
-
 						finished := false
 						plans.Update(proposalId, func(plan *types.Plan) {
 							plan.ExecFinished = true
@@ -358,23 +341,14 @@ func confirmProposal(proposalId string, onStream types.OnStreamFunc) error {
 					content = delta.FunctionCall.Arguments
 				}
 
-				fmt.Printf("exec.sh content: %s", content)
-
-				// Check if content includes phrase 'No commands'
-				if strings.Contains(strings.ToLower(content), "no exec commands") {
-					fmt.Println("No commands to execute for exec.sh")
-				} else {
-					fmt.Println("Commands to execute for exec.sh")
-
-					chunk := shared.PlanChunk{IsExec: true, Content: content}
-					chunkJson, err := json.Marshal(chunk)
-					if err != nil {
-						onExecErr(fmt.Errorf("error marshalling exec.sh chunk: %v", err))
-						return
-					}
-
-					onStream(string(chunkJson), nil)
+				chunk := shared.PlanChunk{IsExec: true, Content: content}
+				chunkJson, err := json.Marshal(chunk)
+				if err != nil {
+					onExecErr(fmt.Errorf("error marshalling exec.sh chunk: %v", err))
+					return
 				}
+
+				onStream(string(chunkJson), nil)
 			}
 		}
 	}()
@@ -391,18 +365,23 @@ func streamFilesLoremIpsum(onStream types.OnStreamFunc) {
 	}
 
 	// For each file in the proposal, stream some unstyled lorem ipsum content
+	var wg sync.WaitGroup
 	files := []string{"file1.txt", "file2.txt"}
 	for _, filePath := range files {
-		text := strings.Join([]string{lorem.Paragraph(2, 3), lorem.Paragraph(2, 3), lorem.Paragraph(2, 3)}, "\n\n")
-		streamedFile := shared.StreamedFile{Content: text}
-		fileContent, _ := json.Marshal(streamedFile)
+		wg.Add(1)
+		go func(filePath string) {
+			defer wg.Done()
+			text := strings.Join([]string{lorem.Paragraph(2, 3), lorem.Paragraph(2, 3), lorem.Paragraph(2, 3)}, "\n\n")
+			streamedFile := shared.StreamedFile{Content: text}
+			fileContent, _ := json.Marshal(streamedFile)
 
-		for _, line := range strings.Split(string(fileContent), "\n") {
-			for _, word := range strings.Split(line, " ") {
-				writeChunk(filePath, false, word+" ")
+			for _, line := range strings.Split(string(fileContent), "\n") {
+				for _, word := range strings.Split(line, " ") {
+					writeChunk(filePath, false, word+" ")
+				}
+				writeChunk(filePath, false, "\n")
 			}
-			writeChunk(filePath, false, "\n")
-		}
+		}(filePath)
 	}
 
 	// For the exec.sh script, generate a script that echoes some lorem ipsum content
@@ -419,12 +398,19 @@ echo "` + lorem.Sentence(5, 6) + `"` +
 	streamedFile := shared.StreamedFile{Content: echoContent}
 	fileContent, _ := json.Marshal(streamedFile)
 
-	for _, line := range strings.Split(string(fileContent), "\n") {
-		for _, word := range strings.Split(line, " ") {
-			writeChunk("", true, word+" ")
+	wg.Add(1)
+
+	go func() {
+		defer wg.Done()
+		for _, line := range strings.Split(string(fileContent), "\n") {
+			for _, word := range strings.Split(line, " ") {
+				writeChunk("", true, word+" ")
+			}
+			writeChunk("", true, "\n")
 		}
-		writeChunk("", true, "\n")
-	}
+	}()
+
+	wg.Wait()
 
 	onStream(shared.STREAM_FINISHED, nil)
 }
