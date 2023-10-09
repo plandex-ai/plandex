@@ -6,7 +6,7 @@ import (
 
 type CurrentPlanFiles struct {
 	Files map[string]string `json:"files"`
-	Exec  string            `json:"exec"`
+	// Exec  string            `json:"exec"`
 }
 
 type PromptRequest struct {
@@ -24,13 +24,6 @@ type SummarizeResponse struct {
 	Name     string `json:"name"`
 	Summary  string `json:"summary"`
 	FileName string `json:"fileName"`
-}
-
-type PromptResponse struct {
-	Summary   string            `json:"summary"`
-	CommitMsg string            `json:"commitMsg"`
-	Files     map[string]string `json:"files"`
-	Exec      string            `json:"exec"`
 }
 
 type ModelContextPart struct {
@@ -61,7 +54,7 @@ type PlanChunk struct {
 	Type     string `json:"type"`
 	FilePath string `json:"filePath"`
 	Content  string `json:"content"`
-	IsExec   bool   `json:"isExec"`
+	// IsExec   bool   `json:"isExec"`
 }
 
 type PlanDescription struct {
@@ -69,24 +62,5 @@ type PlanDescription struct {
 	Subtasks  bool     `json:"subtasks"`
 	CommitMsg string   `json:"commitMsg"`
 	Files     []string `json:"files"`
-	HasExec   bool     `json:"hasExec"`
+	// HasExec   bool     `json:"hasExec"`
 }
-
-// type Plan struct {
-// 	Id        string
-// 	Name      string
-// 	Summary   string
-// 	Creator   string
-// 	CreatedAt string
-// 	UpdatedAt string
-
-// 	ContextVersionNum uint32
-// 	ContextSha        string
-// 	ContextUpdatedAt  string
-// 	ContextUpdatedBy  string
-
-// 	RevisionNum uint32
-// 	RevisionSha string
-// 	RevisedAt   string
-// 	RevisedBy   string
-// }

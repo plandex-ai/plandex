@@ -18,11 +18,11 @@ func receiveFileChunk(content string, desc *shared.PlanDescription, jsonBuffers 
 	}
 
 	var filePath string
-	if chunk.IsExec {
-		filePath = filepath.Join(PlanSubdir, "exec.sh")
-	} else {
-		filePath = filepath.Join(PlanFilesDir, chunk.FilePath)
-	}
+	// if chunk.IsExec {
+	// 	filePath = filepath.Join(PlanSubdir, "exec.sh")
+	// } else {
+	filePath = filepath.Join(PlanFilesDir, chunk.FilePath)
+	// }
 
 	buffer := jsonBuffers[chunk.FilePath]
 	buffer += chunk.Content

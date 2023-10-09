@@ -73,21 +73,21 @@ func getCurrentPlanFiles() (shared.CurrentPlanFiles, error) {
 		}
 	}
 
-	var execContent string
-	var execExists bool
-	execPath := filepath.Join(CurrentPlanRootDir, "exec.sh")
-	_, err = os.Stat(execPath)
-	execExists = !os.IsNotExist(err)
+	// var execContent string
+	// var execExists bool
+	// execPath := filepath.Join(CurrentPlanRootDir, "exec.sh")
+	// _, err = os.Stat(execPath)
+	// execExists = !os.IsNotExist(err)
 
-	if execExists {
-		// exec.sh exists
-		// Read file content and set it to planFiles["exec"]
-		content, err := os.ReadFile(execPath)
-		if err != nil {
-			return shared.CurrentPlanFiles{}, err
-		}
-		execContent = string(content)
-	}
+	// if execExists {
+	// 	// exec.sh exists
+	// 	// Read file content and set it to planFiles["exec"]
+	// 	content, err := os.ReadFile(execPath)
+	// 	if err != nil {
+	// 		return shared.CurrentPlanFiles{}, err
+	// 	}
+	// 	execContent = string(content)
+	// }
 
-	return shared.CurrentPlanFiles{Files: planFiles.data, Exec: execContent}, nil
+	return shared.CurrentPlanFiles{Files: planFiles.data /*Exec: execContent*/}, nil
 }

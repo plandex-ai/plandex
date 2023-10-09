@@ -8,11 +8,8 @@ import (
 	"os"
 	"plandex-server/model"
 	"plandex-server/types"
-	"strings"
-	"sync"
 	"time"
 
-	lorem "github.com/drhodes/golorem"
 	"github.com/plandex/plandex/shared"
 	"github.com/sashabaranov/go-openai"
 	"github.com/sashabaranov/go-openai/jsonschema"
@@ -37,9 +34,9 @@ func confirmProposal(proposalId string, onStream types.OnStreamFunc) error {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	plans.Set(proposalId, &types.Plan{
-		ProposalId:    proposalId,
-		NumFiles:      len(proposal.PlanDescription.Files),
-		HasExec:       proposal.PlanDescription.HasExec,
+		ProposalId: proposalId,
+		NumFiles:   len(proposal.PlanDescription.Files),
+		// HasExec:       proposal.PlanDescription.HasExec,
 		Files:         map[string]string{},
 		FileErrs:      map[string]error{},
 		FilesFinished: map[string]bool{},
@@ -196,7 +193,7 @@ func confirmProposal(proposalId string, onStream types.OnStreamFunc) error {
 						chunk := &shared.PlanChunk{
 							FilePath: filePath,
 							Content:  content,
-							IsExec:   false,
+							// IsExec:   false,
 						}
 
 						// fmt.Printf("%s: %s", filePath, content)
@@ -212,205 +209,146 @@ func confirmProposal(proposalId string, onStream types.OnStreamFunc) error {
 		}(filePath)
 	}
 
-	if !proposal.PlanDescription.HasExec {
-		fmt.Println("No exec.sh to parse")
-		return nil
-	}
+	// if !proposal.PlanDescription.HasExec {
+	// 	fmt.Println("No exec.sh to parse")
+	// 	return nil
+	// }
 
-	onExecErr := func(err error) {
-		plans.Update(proposalId, func(p *types.Plan) {
-			p.ExecErr = err
-			p.SetErr(err)
-		})
+	// onExecErr := func(err error) {
+	// 	plans.Update(proposalId, func(p *types.Plan) {
+	// 		p.ExecErr = err
+	// 		p.SetErr(err)
+	// 	})
 
-		onStream("", err)
-	}
-	go func() {
-		fmt.Println("Getting exec.sh from model: ")
+	// 	onStream("", err)
+	// }
+	// go func() {
+	// 	fmt.Println("Getting exec.sh from model: ")
 
-		// Define the model request for exec.sh
-		modelReq := openai.ChatCompletionRequest{
-			Model: openai.GPT4,
-			Functions: []openai.FunctionDefinition{{
-				Name: "writeExec",
-				Parameters: &jsonschema.Definition{
-					Type: jsonschema.Object,
-					Properties: map[string]jsonschema.Definition{
-						"content": {
-							Type:        jsonschema.String,
-							Description: "The shell script from the previous message, including any updates",
-						},
-					},
-					Required: []string{"content"},
-				},
-			}},
-			Messages: []openai.ChatCompletionMessage{
-				{
-					Role:    openai.ChatMessageRoleSystem,
-					Content: "You are an AI parser that extracts shell commands from an AI-generated programming plan. Call the 'writeExec' function with any commands in '- exec' blocks in the previous response and combine them into a single shell script--pass only the raw text of the shell script to 'writeExec'. Only call the 'writeExec' function in your response. Don't call any other function.",
-				},
-				{
-					Role:    openai.ChatMessageRoleAssistant,
-					Content: proposal.Content,
-				},
-				{
-					Role: openai.ChatMessageRoleUser,
-					Content: fmt.Sprintf(`
-                    Based on your previous response, call the 'writeExec' function with a script that should be run after any relevant files are created and/or updated. If no commands should be executed, pass only 'no exec commands' to the 'writeExec' function. Otherwise, pass the full script as raw text to the function and output nothing else.
-                `),
-				},
-			},
-		}
+	// 	// Define the model request for exec.sh
+	// 	modelReq := openai.ChatCompletionRequest{
+	// 		Model: openai.GPT4,
+	// 		Functions: []openai.FunctionDefinition{{
+	// 			Name: "writeExec",
+	// 			Parameters: &jsonschema.Definition{
+	// 				Type: jsonschema.Object,
+	// 				Properties: map[string]jsonschema.Definition{
+	// 					"content": {
+	// 						Type:        jsonschema.String,
+	// 						Description: "The shell script from the previous message, including any updates",
+	// 					},
+	// 				},
+	// 				Required: []string{"content"},
+	// 			},
+	// 		}},
+	// 		Messages: []openai.ChatCompletionMessage{
+	// 			{
+	// 				Role:    openai.ChatMessageRoleSystem,
+	// 				Content: "You are an AI parser that extracts shell commands from an AI-generated programming plan. Call the 'writeExec' function with any commands in '- exec' blocks in the previous response and combine them into a single shell script--pass only the raw text of the shell script to 'writeExec'. Only call the 'writeExec' function in your response. Don't call any other function.",
+	// 			},
+	// 			{
+	// 				Role:    openai.ChatMessageRoleAssistant,
+	// 				Content: proposal.Content,
+	// 			},
+	// 			{
+	// 				Role: openai.ChatMessageRoleUser,
+	// 				Content: fmt.Sprintf(`
+	//                   Based on your previous response, call the 'writeExec' function with a script that should be run after any relevant files are created and/or updated. If no commands should be executed, pass only 'no exec commands' to the 'writeExec' function. Otherwise, pass the full script as raw text to the function and output nothing else.
+	//               `),
+	// 			},
+	// 		},
+	// 	}
 
-		stream, err := model.Client.CreateChatCompletionStream(ctx, modelReq)
-		if err != nil {
-			fmt.Println("Error creating shell script stream: " + err.Error())
-			onExecErr(err)
-			return
-		}
+	// 	stream, err := model.Client.CreateChatCompletionStream(ctx, modelReq)
+	// 	if err != nil {
+	// 		fmt.Println("Error creating shell script stream: " + err.Error())
+	// 		onExecErr(err)
+	// 		return
+	// 	}
 
-		defer stream.Close()
+	// 	defer stream.Close()
 
-		// Create a timer that will trigger if no chunk is received within the specified duration
-		timer := time.NewTimer(model.OPENAI_STREAM_CHUNK_TIMEOUT)
-		defer timer.Stop()
+	// 	// Create a timer that will trigger if no chunk is received within the specified duration
+	// 	timer := time.NewTimer(model.OPENAI_STREAM_CHUNK_TIMEOUT)
+	// 	defer timer.Stop()
 
-		for {
-			select {
-			case <-ctx.Done():
-				// The main context was canceled (not the timer)
-				return
-			case <-timer.C:
-				// Timer triggered because no new chunk was received in time
-				fmt.Println("\nStream timeout due to inactivity")
-				err = fmt.Errorf("stream timeout due to inactivity")
-				onExecErr(err)
-				return
-			default:
-				response, err := stream.Recv()
+	// 	for {
+	// 		select {
+	// 		case <-ctx.Done():
+	// 			// The main context was canceled (not the timer)
+	// 			return
+	// 		case <-timer.C:
+	// 			// Timer triggered because no new chunk was received in time
+	// 			fmt.Println("\nStream timeout due to inactivity")
+	// 			err = fmt.Errorf("stream timeout due to inactivity")
+	// 			onExecErr(err)
+	// 			return
+	// 		default:
+	// 			response, err := stream.Recv()
 
-				if err == nil {
-					// Successfully received a chunk, reset the timer
-					if !timer.Stop() {
-						<-timer.C
-					}
-					timer.Reset(model.OPENAI_STREAM_CHUNK_TIMEOUT)
-				}
+	// 			if err == nil {
+	// 				// Successfully received a chunk, reset the timer
+	// 				if !timer.Stop() {
+	// 					<-timer.C
+	// 				}
+	// 				timer.Reset(model.OPENAI_STREAM_CHUNK_TIMEOUT)
+	// 			}
 
-				if err != nil {
-					onExecErr(fmt.Errorf("Stream error for exec.sh: %v", err))
-					return
-				}
+	// 			if err != nil {
+	// 				onExecErr(fmt.Errorf("Stream error for exec.sh: %v", err))
+	// 				return
+	// 			}
 
-				if len(response.Choices) == 0 {
-					onExecErr(fmt.Errorf("Stream error for exec.sh: no choices"))
-					return
-				}
+	// 			if len(response.Choices) == 0 {
+	// 				onExecErr(fmt.Errorf("Stream error for exec.sh: no choices"))
+	// 				return
+	// 			}
 
-				choice := response.Choices[0]
+	// 			choice := response.Choices[0]
 
-				if choice.FinishReason != "" {
-					if choice.FinishReason == openai.FinishReasonFunctionCall {
-						finished := false
-						plans.Update(proposalId, func(plan *types.Plan) {
-							plan.ExecFinished = true
+	// 			if choice.FinishReason != "" {
+	// 				if choice.FinishReason == openai.FinishReasonFunctionCall {
+	// 					finished := false
+	// 					plans.Update(proposalId, func(plan *types.Plan) {
+	// 						plan.ExecFinished = true
 
-							if plan.DidFinish() {
-								plan.Finish()
-								finished = true
-							}
-						})
+	// 						if plan.DidFinish() {
+	// 							plan.Finish()
+	// 							finished = true
+	// 						}
+	// 					})
 
-						if finished {
-							fmt.Println("Stream finished")
-							onStream(shared.STREAM_FINISHED, nil)
-							return
-						}
+	// 					if finished {
+	// 						fmt.Println("Stream finished")
+	// 						onStream(shared.STREAM_FINISHED, nil)
+	// 						return
+	// 					}
 
-					} else {
-						onExecErr(fmt.Errorf("Stream finished without 'writeExec' function call. Reason: %s", choice.FinishReason))
-						return
-					}
+	// 				} else {
+	// 					onExecErr(fmt.Errorf("Stream finished without 'writeExec' function call. Reason: %s", choice.FinishReason))
+	// 					return
+	// 				}
 
-					return
-				}
+	// 				return
+	// 			}
 
-				var content string
-				delta := choice.Delta
-				if delta.FunctionCall != nil && delta.FunctionCall.Name == "writeExec" {
-					content = delta.FunctionCall.Arguments
-				}
+	// 			var content string
+	// 			delta := choice.Delta
+	// 			if delta.FunctionCall != nil && delta.FunctionCall.Name == "writeExec" {
+	// 				content = delta.FunctionCall.Arguments
+	// 			}
 
-				chunk := shared.PlanChunk{IsExec: true, Content: content}
-				chunkJson, err := json.Marshal(chunk)
-				if err != nil {
-					onExecErr(fmt.Errorf("error marshalling exec.sh chunk: %v", err))
-					return
-				}
+	// 			chunk := shared.PlanChunk{IsExec: true, Content: content}
+	// 			chunkJson, err := json.Marshal(chunk)
+	// 			if err != nil {
+	// 				onExecErr(fmt.Errorf("error marshalling exec.sh chunk: %v", err))
+	// 				return
+	// 			}
 
-				onStream(string(chunkJson), nil)
-			}
-		}
-	}()
+	// 			onStream(string(chunkJson), nil)
+	// 		}
+	// 	}
+	// }()
 
 	return nil
-}
-
-func streamFilesLoremIpsum(onStream types.OnStreamFunc) {
-	writeChunk := func(filePath string, isExec bool, content string) {
-		chunk := shared.PlanChunk{FilePath: filePath, Content: content, IsExec: isExec}
-		chunkJson, _ := json.Marshal(chunk)
-		onStream(string(chunkJson), nil)
-		time.Sleep(50 * time.Millisecond) // Adding a small delay between files for effect
-	}
-
-	// For each file in the proposal, stream some unstyled lorem ipsum content
-	var wg sync.WaitGroup
-	files := []string{"file1.txt", "file2.txt"}
-	for _, filePath := range files {
-		wg.Add(1)
-		go func(filePath string) {
-			defer wg.Done()
-			text := strings.Join([]string{lorem.Paragraph(2, 3), lorem.Paragraph(2, 3), lorem.Paragraph(2, 3)}, "\n\n")
-			streamedFile := shared.StreamedFile{Content: text}
-			fileContent, _ := json.Marshal(streamedFile)
-
-			for _, line := range strings.Split(string(fileContent), "\n") {
-				for _, word := range strings.Split(line, " ") {
-					writeChunk(filePath, false, word+" ")
-				}
-				writeChunk(filePath, false, "\n")
-			}
-		}(filePath)
-	}
-
-	// For the exec.sh script, generate a script that echoes some lorem ipsum content
-
-	echoContent := `#!/bin/sh
-echo "` + lorem.Sentence(5, 6) + `"` +
-		`
-		echo "` + lorem.Sentence(5, 6) + `"` +
-		`
-		echo "hi"`
-
-	fmt.Println("exec.sh content: " + echoContent)
-
-	streamedFile := shared.StreamedFile{Content: echoContent}
-	fileContent, _ := json.Marshal(streamedFile)
-
-	wg.Add(1)
-
-	go func() {
-		defer wg.Done()
-		for _, line := range strings.Split(string(fileContent), "\n") {
-			for _, word := range strings.Split(line, " ") {
-				writeChunk("", true, word+" ")
-			}
-			writeChunk("", true, "\n")
-		}
-	}()
-
-	wg.Wait()
-
-	onStream(shared.STREAM_FINISHED, nil)
 }

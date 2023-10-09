@@ -158,14 +158,14 @@ func Propose(prompt string) error {
 					return
 				}
 
-				if desc.MadePlan && (len(desc.Files) > 0 || desc.HasExec) {
+				if desc.MadePlan && (len(desc.Files) > 0 /*|| desc.HasExec*/) {
 					fmt.Println("Writing plan draft:")
 					for _, filePath := range desc.Files {
 						fmt.Printf("- %s\n", filePath)
 					}
-					if desc.HasExec {
-						fmt.Printf("- %s\n", "exec.sh")
-					}
+					// if desc.HasExec {
+					// 	fmt.Printf("- %s\n", "exec.sh")
+					// }
 				}
 
 			}
@@ -182,11 +182,13 @@ func Propose(prompt string) error {
 					return
 				}
 
-				files := make([]string, len(desc.Files))
-				copy(files, desc.Files)
-				if desc.HasExec {
-					files = append(files, "exec.sh")
-				}
+				// files := make([]string, len(desc.Files))
+				// copy(files, desc.Files)
+				// if desc.HasExec {
+				// 	files = append(files, "exec.sh")
+				// }
+
+				files := desc.Files
 
 				// Clear previous lines
 				moveUpLines(len(files))

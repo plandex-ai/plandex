@@ -30,9 +30,9 @@ func FormatCurrentPlan(plan shared.CurrentPlanFiles) string {
 		planMessages = append(planMessages, fmt.Sprintf("\n\n-file: %s\n\n```%s```", path, content))
 	}
 
-	if plan.Exec != "" {
-		planMessages = append(planMessages, fmt.Sprintf("\n\n-exec: %s", plan.Exec))
-	}
+	// if plan.Exec != "" {
+	// 	planMessages = append(planMessages, fmt.Sprintf("\n\n-exec: %s", plan.Exec))
+	// }
 
 	return strings.Join(planMessages, "\n")
 }
