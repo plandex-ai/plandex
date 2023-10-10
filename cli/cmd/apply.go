@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"plandex/lib"
+	"strings"
 
 	"github.com/spf13/cobra"
 )
@@ -30,18 +31,15 @@ func apply(cmd *cobra.Command, args []string) error {
 
 	if len(args) > 0 {
 		name = args[0]
+		name = strings.TrimSpace(name)
 	}
 
 	if err != nil {
 		return fmt.Errorf("Error: %v", err)
 	}
 
-	if name == "current" {
+	if name == "" || name == "current" {
 		name = lib.CurrentPlanName
-	}
-
-	if name == "" {
-		log.Fatalf("No plan name provided. Use 'plandex apply current' to apply the current plan: %s\n", lib.CurrentPlanName)
 	}
 
 	// Check git installed

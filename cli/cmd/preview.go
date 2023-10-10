@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bytes"
 	"fmt"
 	"log"
 	"os"
@@ -23,9 +24,27 @@ var checkoutCmd = &cobra.Command{
 	Run:     checkout,
 }
 
+func getCurrentBranch() (string, error) {
+	cmd := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD")
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	err := cmd.Run()
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(out.String()), nil
+}
+
 func checkout(cmd *cobra.Command, args []string) {
 	if !lib.IsCommandAvailable("git") {
 		log.Fatalln("Error: git is required")
+	}
+
+	var name string
+
+	if len(args) > 0 {
+		name = args[0]
+		name = strings.TrimSpace(name)
 	}
 
 	output, err := exec.Command("git", "rev-parse", "--is-inside-work-tree").CombinedOutput()
@@ -33,19 +52,25 @@ func checkout(cmd *cobra.Command, args []string) {
 		log.Fatalln("Error: please make sure you're inside of a git repository")
 	}
 
-	if name == "current" {
+	if name == "" || name == "current" {
 		name = lib.CurrentPlanName
 	}
 
-	if name == "" {
-		log.Fatalf("No plan name provided. Use 'plandex preview current' to preview the current plan in a branch: %s\n", lib.CurrentPlanName)
+	branchName := "pdx-" + name
+
+	currentBranch, err := getCurrentBranch()
+	if err != nil {
+		log.Fatalf("Error: could not retrieve current branch: %v\n", err)
 	}
 
-	branchName := "pdx_" + args[0]
-	_, err = exec.Command("git", "checkout", "-b", branchName).CombinedOutput()
-
-	if err != nil {
-		log.Fatalln("Error: could not checkout to a new branch.")
+	if currentBranch == branchName {
+		fmt.Printf("Already on branch %s\n", branchName)
+	} else {
+		_, err = exec.Command("git", "checkout", "-b", branchName).CombinedOutput()
+		fmt.Printf("✅ Checked out branch %s\n", branchName)
+		if err != nil {
+			log.Fatalf("Error: could not checkout to a new branch: %v\n", err)
+		}
 	}
 
 	err = apply(cmd, args)
@@ -54,5 +79,5 @@ func checkout(cmd *cobra.Command, args []string) {
 		fmt.Fprintln(os.Stderr, "Error committing plan: ", err)
 		return
 	}
-	fmt.Println("Plan applied and committed successfully to branch", branchName, "!")
+	fmt.Println("✅ Applied changes")
 }
