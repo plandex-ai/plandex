@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/plandex/plandex/shared"
@@ -66,6 +67,11 @@ func Summarize(text string) ([]byte, error) {
 	for _, choice := range resp.Choices {
 		if choice.FinishReason == "function_call" && choice.Message.FunctionCall != nil && choice.Message.FunctionCall.Name == "summarize" {
 			fnCall := choice.Message.FunctionCall
+
+			if strings.HasSuffix(fnCall.Arguments, ",\n}") { // remove trailing comma
+				fnCall.Arguments = strings.TrimSuffix(fnCall.Arguments, ",\n}") + "\n}"
+			}
+
 			byteRes = []byte(fnCall.Arguments)
 		}
 	}

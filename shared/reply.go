@@ -81,11 +81,11 @@ func (r *replyInfo) AddChunk(chunk string) {
 			r.currentFilePath = r.maybeFilePath
 			r.maybeFilePath = ""
 			// fmt.Println("Confirmed file path:", r.currentFilePath) // Logging the confirmed file path
+			return
 		} else if prevFullLineTrimmed != "" {
 			// turns out previous maybeFilePath was not a file path since there's a non-empty line before finding opening ticks
 			r.maybeFilePath = ""
 		}
-		return
 	}
 
 	if r.currentFilePath == "" {

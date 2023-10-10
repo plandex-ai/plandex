@@ -32,6 +32,10 @@ var examples = []TestExample{
 		N:        5,
 		NumPaths: 2,
 	},
+	{
+		N:        6,
+		NumPaths: 1,
+	},
 }
 
 func TestReplyTokenCounter(t *testing.T) {

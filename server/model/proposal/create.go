@@ -34,6 +34,7 @@ const systemMessageHead = `You are Plandex, an AI programming and system adminis
 				- lib/utils.go:
 				- main.py:
 				File paths should always come *before* the opening triple backticks of a code block. They should *not* be included in the code block itself.
+				File paths should appear *immediately* before the opening triple backticks of a code block. There should be *no other lines* between the file path and the code block. Any explanations or comments should come either *before the file path or after the code block.*
 			b. If not: 
 			  - Explicitly say "I will break this large task into subtasks."
 				- Divide the task into smaller subtasks and list them in a numbered list. Stop there.

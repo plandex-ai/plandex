@@ -12,11 +12,11 @@ func FormatModelContext(context shared.ModelContext) string {
 	for _, part := range context {
 		var message string
 		if part.FilePath != "" {
-			message = fmt.Sprintf("\n\n-file: %s\n\n```%s```", part.FilePath, part.Body)
+			message = fmt.Sprintf("\n\n- %s:\n\n```%s```", part.FilePath, part.Body)
 		} else if part.Url != "" {
-			message = fmt.Sprintf("\n\n-url: %s\n\n```%s```", part.Url, part.Body)
+			message = fmt.Sprintf("\n\n- %s:\n\n```%s```", part.Url, part.Body)
 		} else {
-			message = fmt.Sprintf("\n\n-content%s:\n\n```%s```", part.Name, part.Body)
+			message = fmt.Sprintf("\n\n- content%s:\n\n```%s```", part.Name, part.Body)
 		}
 
 		contextMessages = append(contextMessages, message)
