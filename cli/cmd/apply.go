@@ -5,7 +5,6 @@ import (
 	"io"
 	"log"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"plandex/lib"
 	"strings"
@@ -86,25 +85,8 @@ func apply(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("Error processing files: %v", err)
 	}
 
-	didExec := false
-	// If it exists, run [planDir]/exec.sh with cwd set to current process cwd
-	execPath := filepath.Join(rootDir, "exec.sh")
-	if _, err := os.Stat(execPath); err == nil {
-		// exec.sh exists, run it
-		cmd := exec.Command(execPath)
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		cmd.Dir = "." // Current process CWD
-
-		err = cmd.Run()
-		if err != nil {
-			return fmt.Errorf("Error executing plan: %v", err)
-		}
-		didExec = true
-	}
-
-	if copiedAny || didExec {
-		fmt.Println("Plan applied successfully!")
+	if copiedAny {
+		fmt.Println("✅ Applied changes")
 	} else {
 		return fmt.Errorf("This plan has no changes to apply.")
 	}

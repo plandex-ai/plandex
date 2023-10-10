@@ -73,13 +73,15 @@ func (r *replyInfo) AddChunk(chunk string) {
 	prevFullLine := r.lines[r.lineIndex-1]
 	// fmt.Println("Previous full line:", strconv.Quote(prevFullLine)) // Logging the full line that's being checked
 
+	prevFullLineTrimmed := strings.TrimSpace(prevFullLine)
+
 	if r.maybeFilePath != "" {
 		// fmt.Println("Maybe file path is:", r.maybeFilePath) // Logging the maybeFilePath
-		if strings.HasPrefix(prevFullLine, "```") {
+		if strings.HasPrefix(prevFullLineTrimmed, "```") {
 			r.currentFilePath = r.maybeFilePath
 			r.maybeFilePath = ""
 			// fmt.Println("Confirmed file path:", r.currentFilePath) // Logging the confirmed file path
-		} else if prevFullLine != "" {
+		} else if prevFullLineTrimmed != "" {
 			// turns out previous maybeFilePath was not a file path since there's a non-empty line before finding opening ticks
 			r.maybeFilePath = ""
 		}
@@ -90,8 +92,8 @@ func (r *replyInfo) AddChunk(chunk string) {
 		// fmt.Println("Current file path is empty--checking for possible file path...")
 
 		var gotPath string
-		if (strings.HasPrefix(prevFullLine, "-")) || strings.HasPrefix(prevFullLine, "-file:") || strings.HasPrefix(prevFullLine, "- file:") || (strings.HasPrefix(prevFullLine, "**") && strings.HasSuffix(prevFullLine, "**")) {
-			p := strings.TrimPrefix(prevFullLine, "**")
+		if (strings.HasPrefix(prevFullLineTrimmed, "-")) || strings.HasPrefix(prevFullLineTrimmed, "-file:") || strings.HasPrefix(prevFullLineTrimmed, "- file:") || (strings.HasPrefix(prevFullLineTrimmed, "**") && strings.HasSuffix(prevFullLineTrimmed, "**")) {
+			p := strings.TrimPrefix(prevFullLineTrimmed, "**")
 			p = strings.TrimPrefix(p, "-")
 			p = strings.TrimSpace(p)
 			p = strings.TrimSuffix(p, "**")
@@ -100,7 +102,7 @@ func (r *replyInfo) AddChunk(chunk string) {
 			p = strings.TrimSpace(p)
 			gotPath = p
 		} else {
-			// fmt.Println("No possible file path detected.", strconv.Quote(prevFullLine))
+			// fmt.Println("No possible file path detected.", strconv.Quote(prevFullLineTrimmed))
 		}
 
 		if gotPath != "" {
@@ -113,7 +115,7 @@ func (r *replyInfo) AddChunk(chunk string) {
 			}
 		}
 	} else {
-		if strings.HasPrefix(prevFullLine, "```") {
+		if strings.HasPrefix(prevFullLineTrimmed, "```") {
 			r.currentFilePath = ""
 			// fmt.Println("Exited file block.")
 		} else {

@@ -25,6 +25,10 @@ type SummarizeResponse struct {
 	FileName string `json:"fileName"`
 }
 
+type SectionizeRequest struct {
+	Text string `json:"text"`
+}
+
 type ModelContextPart struct {
 	Name      string `json:"name"`
 	Summary   string `json:"summary"`

@@ -7,35 +7,40 @@ import (
 )
 
 type TestExample struct {
-	FilePath string
+	N        int
 	NumPaths int
 }
 
 var examples = []TestExample{
 	{
-		FilePath: "reply_test_examples/1.md",
+		N:        1,
 		NumPaths: 2,
 	},
 	{
-		FilePath: "reply_test_examples/2.md",
+		N:        2,
 		NumPaths: 2,
 	},
 	{
-		FilePath: "reply_test_examples/3.md",
+		N:        3,
 		NumPaths: 2,
 	},
 	{
-		FilePath: "reply_test_examples/4.md",
+		N:        4,
 		NumPaths: 1,
+	},
+	{
+		N:        5,
+		NumPaths: 2,
 	},
 }
 
 func TestReplyTokenCounter(t *testing.T) {
 
 	for _, example := range examples {
-		fmt.Println(example.FilePath)
+		filePath := fmt.Sprintf("reply_test_examples/%d.md", example.N)
+		fmt.Println(filePath)
 
-		bytes, err := os.ReadFile(example.FilePath)
+		bytes, err := os.ReadFile(filePath)
 		if err != nil {
 			t.Error(err)
 		}
@@ -57,6 +62,8 @@ func TestReplyTokenCounter(t *testing.T) {
 		}
 
 		files, tokensByFilePath := counter.FinishAndRead()
+
+		fmt.Printf("%d files: %v\n", len(files), files)
 
 		if len(files) != example.NumPaths {
 			t.Error(fmt.Sprintf("Expected %d file paths", example.NumPaths))

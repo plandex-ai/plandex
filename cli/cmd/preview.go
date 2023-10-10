@@ -79,5 +79,5 @@ func checkout(cmd *cobra.Command, args []string) {
 		fmt.Fprintln(os.Stderr, "Error committing plan: ", err)
 		return
 	}
-	fmt.Println("✅ Applied changes")
+
 }

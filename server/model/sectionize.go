@@ -2,13 +2,13 @@ package model
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
+	"plandex-server/types"
+
 	"github.com/davecgh/go-spew/spew"
-	"github.com/plandex/plandex/shared"
-	"github.com/plandex/plandex/server/types"
 	"github.com/sashabaranov/go-openai"
-	"github.com/sashabaranov/go-openai/jsonschema"
 )
 
 func Sectionize(text string) ([]byte, error) {
@@ -16,31 +16,18 @@ func Sectionize(text string) ([]byte, error) {
 		context.Background(),
 		openai.ChatCompletionRequest{
 			Model: openai.GPT3Dot5Turbo,
-			Functions: []openai.FunctionDefinition{{
-				Name: "sectionize",
-				Parameters: &jsonschema.Definition{
-					Type: jsonschema.Object,
-					Properties: map[string]jsonschema.Definition{
-						"text": {
-							Type:        jsonschema.String,
-							Description: "The text that needs to be sectionized",
-						},
-					},
-					Required: []string{"text"},
-				},
-			}},
 			Messages: []openai.ChatCompletionMessage{
 				{
 					Role:    openai.ChatMessageRoleSystem,
-					Content: "You are an AI that breaks up text into logical sections. For code, each function would be its own section. Sections can also contain subsections.",
+					Content: "You are an AI specialized in processing text and code, dividing them into logical sections and subsections based on their content. After sectionization, you should call the 'create_sections' function with your sectionization results.",
 				},
 				{
 					Role: openai.ChatMessageRoleUser,
-					Content: fmt.Sprintf("Please sectionize the text below: \n %s", text),
+					Content: fmt.Sprintf("Sectionize the text below, identifying logical sections and subsections, and call 'create_sections' with the sectionized results: %s",
+						text),
 				},
 			},
-		},
-	)
+		})
 
 	if err != nil {
 		return nil, err
@@ -48,14 +35,14 @@ func Sectionize(text string) ([]byte, error) {
 
 	var byteRes []byte
 	for _, choice := range resp.Choices {
-		if choice.FinishReason == "function_call" && choice.Message.FunctionCall != nil && choice.Message.FunctionCall.Name == "sectionize" {
+		if choice.FinishReason == "stop" && choice.Message.Role == "assistant" && choice.Message.FunctionCall != nil && choice.Message.FunctionCall.Name == "create_sections" {
 			fnCall := choice.Message.FunctionCall
 			byteRes = []byte(fnCall.Arguments)
 		}
 	}
 
 	if len(byteRes) == 0 {
-		return nil, fmt.Errorf("no sectionize function call found in response")
+		return nil, fmt.Errorf("no 'create_sections' function call found in response")
 	}
 
 	// validate the JSON response
@@ -63,11 +50,6 @@ func Sectionize(text string) ([]byte, error) {
 	if err := json.Unmarshal(byteRes, &sectionizeResp); err != nil {
 		return nil, err
 	}
-
-	spew.Dump(sectionizeResp)
-
-	return byteRes, nil
-}
 
 	spew.Dump(sectionizeResp)
 
