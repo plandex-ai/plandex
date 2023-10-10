@@ -96,7 +96,7 @@ func confirmProposal(proposalId string, onStream types.OnStreamFunc) error {
 				openai.ChatCompletionMessage{
 					Role: openai.ChatMessageRoleUser,
 					Content: fmt.Sprintf(`
-						Based on your previous response, call the 'writeFile' function with the full content of the file %s as raw text, including any updates. You must include the entire file and not leave anything out, even if it is already present in the original file. Do not include any placeholders or references to the original file. Output the updated entire file. Only call the 'writeFile' function in your reponse. Don't call any other function.
+						Based on your previous response, call the 'writeFile' function with the full content of the file %s as raw text, including any updates. If the current state of the file within the plan is included above, apply your changes to the *current file*, not the original file. If there is no current file, apply your changes to the original file. You must include the entire file and not leave anything out, even if it is already present the source file. Do not include any placeholders or references to the original file. Output the updated entire file. Only call the 'writeFile' function in your reponse. Don't call any other function.
 							`, filePath),
 				})
 

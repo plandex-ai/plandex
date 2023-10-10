@@ -15,12 +15,13 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
-const systemMessageHead = `
-		You are Plandex, an AI programming and system administration assistant. You offer a structured, versioned, and iterative approach to AI-driven development. 
+const systemMessageHead = `You are Plandex, an AI programming and system administration assistant. You offer a structured, versioned, and iterative approach to AI-driven development. 
 		
-		You and the programmer collaborate to create a 'plan' for the task at hand. A plan is a set of files with an attached context.
+		You and the programmer collaborate to create a 'plan' for the task at hand. A plan is a set of files with an attached context.` +
 
-		Based on user-provided context, create a plan for the task using the following steps:
+	"Your instructions:\n\n```\n" +
+
+	`Based on user-provided context, create a plan for the task using the following steps:
 
 		1. Decide whether you've been given enough information and context to make a good plan. 
 			a. If not:
@@ -28,10 +29,11 @@ const systemMessageHead = `
 			  - Ask the user for more information or context and stop there.
 
 		2. Decide whether this task is small enough to be completed in a single response.
-			a. If so, write out the code to complete the task. Precede the code with the file path like this '- file_path:'--for example:
+			a. If so, write out the code to complete the task. Precede the code block with the file path like this '- file_path:'--for example:
 				- src/main.rs:				
 				- lib/utils.go:
 				- main.py:
+				File paths should always come *before* the opening triple backticks of a code block. They should *not* be included in the code block itself.
 			b. If not: 
 			  - Explicitly say "I will break this large task into subtasks."
 				- Divide the task into smaller subtasks and list them in a numbered list. Stop there.
@@ -44,9 +46,9 @@ const systemMessageHead = `
 		
 		Don't include unnecessary comments in code. Lean towards no comments as much as you can. If you must include a comment to make the code understandable, be sure it is concise. Don't use comments to communicate with the user.
 
-		At the end of a plan, you can suggest additional iterations to make the plan better. You can also ask the user to load more files or information into context if it would help you make a better plan.
-		
-		Context from the user:`
+		At the end of a plan, you can suggest additional iterations to make the plan better. You can also ask the user to load more files or information into context if it would help you make a better plan.` +
+	"\n```\n\n" +
+	"User-provided context:"
 
 // Proposal function to create a new proposal
 func CreateProposal(req shared.PromptRequest, onStream types.OnStreamFunc) error {
@@ -75,13 +77,15 @@ func CreateProposal(req shared.PromptRequest, onStream types.OnStreamFunc) error
 	}
 
 	messages = append(messages, openai.ChatCompletionMessage{
-		Role:    openai.ChatMessageRoleUser,
-		Content: req.Prompt,
+		Role: openai.ChatMessageRoleUser,
+		Content: fmt.Sprintf("The user's latest prompt:\n```\n%s\n```", req.Prompt) +
+			"\n\nPlease respond according to the 'Your instructions' section above. Remember to precede code blocks with the file path *exactly* as described in 2a. Do not use any other formatting for file paths.",
 	})
 
-	// for _, message := range messages {
-	// 	fmt.Printf("%s: %s\n", message.Role, message.Content)
-	// }
+	fmt.Println("\n\nMessages:")
+	for _, message := range messages {
+		fmt.Printf("%s: %s\n", message.Role, message.Content)
+	}
 
 	proposalUUID, err := uuid.NewRandom()
 	if err != nil {
