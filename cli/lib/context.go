@@ -70,6 +70,7 @@ func LoadContextOrDie(params *types.LoadContextParams) {
 		}
 	}()
 
+	tokensAdded := 0
 	totalTokens := contextState.NumTokens
 	var totalTokensMutex sync.Mutex
 
@@ -94,6 +95,8 @@ func LoadContextOrDie(params *types.LoadContextParams) {
 				defer totalTokensMutex.Unlock()
 
 				totalTokens += numTokens
+				tokensAdded += numTokens
+
 				if totalTokens > params.MaxTokens {
 					if params.Truncate {
 						log.Printf("The total number of tokens (%d) exceeds the maximum allowed (%d). Truncating input text.", totalTokens, params.MaxTokens)
@@ -170,6 +173,7 @@ func LoadContextOrDie(params *types.LoadContextParams) {
 					defer totalTokensMutex.Unlock()
 
 					totalTokens += numTokens
+					tokensAdded += numTokens
 					if totalTokens > params.MaxTokens {
 						if params.Truncate {
 							log.Printf("The total number of tokens (%d) exceeds the maximum allowed (%d). Truncating piped data.", totalTokens, params.MaxTokens)
@@ -241,6 +245,9 @@ func LoadContextOrDie(params *types.LoadContextParams) {
 			if params.NamesOnly {
 				body := strings.Join(flattenedPaths, "\n")
 				bytes := []byte(body)
+
+				fmt.Println(body)
+
 				hash := sha256.Sum256(bytes)
 				sha := hex.EncodeToString(hash[:])
 				numTokens := shared.GetNumTokens(body)
@@ -249,6 +256,7 @@ func LoadContextOrDie(params *types.LoadContextParams) {
 				func() {
 					defer totalTokensMutex.Unlock()
 					totalTokens += numTokens
+					tokensAdded += numTokens
 					if totalTokens > params.MaxTokens {
 
 						if params.Truncate {
@@ -307,6 +315,7 @@ func LoadContextOrDie(params *types.LoadContextParams) {
 						func() {
 							defer totalTokensMutex.Unlock()
 							totalTokens += numTokens
+							tokensAdded += numTokens
 							if totalTokens > params.MaxTokens {
 
 								if params.Truncate {
@@ -378,6 +387,7 @@ func LoadContextOrDie(params *types.LoadContextParams) {
 				func() {
 					defer totalTokensMutex.Unlock()
 					totalTokens += numTokens
+					tokensAdded += numTokens
 					if totalTokens > params.MaxTokens {
 						if params.Truncate {
 							log.Printf("The total number of tokens (%d) exceeds the maximum allowed (%d). Truncating content from URL %s.", totalTokens, params.MaxTokens, url)
@@ -465,10 +475,18 @@ func LoadContextOrDie(params *types.LoadContextParams) {
 		added = append(added, "piped data")
 	}
 	if len(inputFilePaths) > 0 {
-		added = append(added, fmt.Sprintf("%d files", len(inputFilePaths)))
+		label := "file"
+		if len(inputFilePaths) > 1 {
+			label = "files"
+		}
+		added = append(added, fmt.Sprintf("%d %s", len(inputFilePaths), label))
 	}
 	if len(inputUrls) > 0 {
-		added = append(added, fmt.Sprintf("%d urls", len(inputUrls)))
+		label := "url"
+		if len(inputUrls) > 1 {
+			label = "urls"
+		}
+		added = append(added, fmt.Sprintf("%d %s", len(inputUrls), label))
 	}
 
 	msg := "Loaded "
@@ -483,7 +501,13 @@ func LoadContextOrDie(params *types.LoadContextParams) {
 			}
 		}
 	}
-	msg += " into context"
+	msg += fmt.Sprintf(" into context (%d tokens)", tokensAdded)
+
+	if err != nil {
+		log.Fatalf("Failed to get total tokens: %v", err)
+	}
+
+	msg += fmt.Sprintf("\n\nTotal tokens in context: %d\n", totalTokens)
 
 	err = GitAddAndCommit(ContextSubdir, msg)
 
@@ -503,7 +527,7 @@ func LoadContextOrDie(params *types.LoadContextParams) {
 		fmt.Printf("failed to commit submodule updates in root dir: %s\n", err)
 	}
 
-	fmt.Fprint(os.Stderr, msg)
+	fmt.Fprint(os.Stderr, "✅ "+msg+"\n")
 }
 
 func GetAllContext(metaOnly bool) ([]shared.ModelContextPart, error) {

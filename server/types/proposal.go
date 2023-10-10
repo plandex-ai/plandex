@@ -5,9 +5,9 @@ import (
 )
 
 type Proposal struct {
-	Id           string
-	ModelContext *shared.ModelContext
-	Content      string
+	Id      string
+	Request *shared.PromptRequest
+	Content string
 	ProposalStage
 	PlanDescription *shared.PlanDescription
 }

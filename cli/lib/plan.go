@@ -73,21 +73,47 @@ func getCurrentPlanFiles() (shared.CurrentPlanFiles, error) {
 		}
 	}
 
-	// var execContent string
-	// var execExists bool
-	// execPath := filepath.Join(CurrentPlanRootDir, "exec.sh")
-	// _, err = os.Stat(execPath)
-	// execExists = !os.IsNotExist(err)
+	return shared.CurrentPlanFiles{Files: planFiles.data}, nil
+}
 
-	// if execExists {
-	// 	// exec.sh exists
-	// 	// Read file content and set it to planFiles["exec"]
-	// 	content, err := os.ReadFile(execPath)
-	// 	if err != nil {
-	// 		return shared.CurrentPlanFiles{}, err
-	// 	}
-	// 	execContent = string(content)
-	// }
+func getCurrentPlanFilePaths() ([]string, error) {
+	// Check if filesDir exists
+	_, err := os.Stat(PlanFilesDir)
+	exists := !os.IsNotExist(err)
 
-	return shared.CurrentPlanFiles{Files: planFiles.data /*Exec: execContent*/}, nil
+	filePaths := make([]string, 0)
+
+	if exists {
+		// Enumerate all paths in [planDir]/files
+		err = filepath.Walk(PlanFilesDir, func(srcPath string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+
+			filePaths = append(filePaths, srcPath)
+			return nil
+		})
+
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error listing files: %v", err)
+			return []string{}, err
+		}
+	}
+
+	return filePaths, nil
+}
+
+func isFilePathInPlan(filePath string) bool {
+	filePaths, err := getCurrentPlanFilePaths()
+	if err != nil {
+		return false
+	}
+
+	for _, path := range filePaths {
+		if path == filePath {
+			return true
+		}
+	}
+
+	return false
 }

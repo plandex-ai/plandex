@@ -28,7 +28,11 @@ func contextLs(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
+	totalTokens := 0
+
 	for i, part := range context {
+		totalTokens += part.NumTokens
+
 		if i != 0 {
 			fmt.Print("\n\n")
 		}
@@ -48,6 +52,9 @@ func contextLs(cmd *cobra.Command, args []string) {
 
 		fmt.Printf("Summary:\n%s", part.Summary)
 	}
+
+	fmt.Printf("\n\nTotal tokens: %d\n", totalTokens)
+
 }
 
 func init() {

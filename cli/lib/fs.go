@@ -165,6 +165,9 @@ func FlattenPaths(fileOrDirPaths []string, params *types.LoadContextParams, dept
 					}
 
 					if info.IsDir() {
+						if info.Name() == ".git" || info.Name() == ".plandex" {
+							return filepath.SkipDir
+						}
 						if depth < params.MaxDepth {
 							for _, subPath := range FlattenPaths([]string{path}, params, depth+1) {
 								resPathsChan <- subPath

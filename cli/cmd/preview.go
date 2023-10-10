@@ -16,10 +16,11 @@ func init() {
 }
 
 var checkoutCmd = &cobra.Command{
-	Use:   "checkout [name]",
-	Short: "Checkout to a new branch and apply a plan",
-	Args:  cobra.ExactArgs(1),
-	Run:   checkout,
+	Use:     "preview [name]",
+	Aliases: []string{"pv"},
+	Short:   "Preview changes in a new branch",
+	Args:    cobra.MaximumNArgs(1),
+	Run:     checkout,
 }
 
 func checkout(cmd *cobra.Command, args []string) {
@@ -30,6 +31,14 @@ func checkout(cmd *cobra.Command, args []string) {
 	output, err := exec.Command("git", "rev-parse", "--is-inside-work-tree").CombinedOutput()
 	if err != nil || strings.TrimSpace(string(output)) != "true" {
 		log.Fatalln("Error: please make sure you're inside of a git repository")
+	}
+
+	if name == "current" {
+		name = lib.CurrentPlanName
+	}
+
+	if name == "" {
+		log.Fatalf("No plan name provided. Use 'plandex preview current' to preview the current plan in a branch: %s\n", lib.CurrentPlanName)
 	}
 
 	branchName := "pdx_" + args[0]

@@ -17,15 +17,20 @@ func init() {
 }
 
 var applyCmd = &cobra.Command{
-	Use:   "apply [name]",
-	Short: "Apply a plan to the project",
-	Args:  cobra.MaximumNArgs(1),
-	RunE:  apply,
+	Use:     "apply [name]",
+	Aliases: []string{"ap"},
+	Short:   "Apply a plan to the project",
+	Args:    cobra.MaximumNArgs(1),
+	RunE:    apply,
 }
 
 func apply(cmd *cobra.Command, args []string) error {
 	plandexDir, _, err := lib.FindOrCreatePlandex()
-	name := args[0]
+	var name string
+
+	if len(args) > 0 {
+		name = args[0]
+	}
 
 	if err != nil {
 		return fmt.Errorf("Error: %v", err)
@@ -36,7 +41,7 @@ func apply(cmd *cobra.Command, args []string) error {
 	}
 
 	if name == "" {
-		log.Fatalln("No plan name provided and no current plan is set.")
+		log.Fatalf("No plan name provided. Use 'plandex apply current' to apply the current plan: %s\n", lib.CurrentPlanName)
 	}
 
 	// Check git installed

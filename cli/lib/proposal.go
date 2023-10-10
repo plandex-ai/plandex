@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"plandex/types"
 	"time"
 
@@ -52,6 +53,21 @@ func Propose(prompt string) error {
 	replyTokenCounter := shared.NewReplyInfo(true)
 	var tokensAddedByFile map[string]int
 
+	currentPlanTokensByFilePath := make(map[string]int)
+	currrentPlanTokensPath := filepath.Join(CurrentPlanRootDir, "tokens.json")
+	if _, err := os.Stat(currrentPlanTokensPath); os.IsNotExist(err) {
+		currentPlanTokensByFilePath = make(map[string]int)
+	} else {
+		fileBytes, err := os.ReadFile(currrentPlanTokensPath)
+		if err != nil {
+			return fmt.Errorf("failed to open current plan token count file: %s\n", err)
+		}
+		err = json.Unmarshal(fileBytes, &currentPlanTokensByFilePath)
+		if err != nil {
+			return fmt.Errorf("failed to parse current plan token count json: %s\n", err)
+		}
+	}
+
 	printReply := func() {
 		clearScreen()
 		moveCursorToTopLeft()
@@ -77,7 +93,7 @@ func Propose(prompt string) error {
 
 	endReply := func() {
 		replyUpdateTimer.Stop()
-
+		printReply()
 		backToMain()
 		fmt.Print(termState)
 		err := appendConversation(timestamp, prompt, reply)
@@ -207,6 +223,7 @@ func Propose(prompt string) error {
 
 				for _, filePath := range files {
 					contextPart, foundContext := contextByFilePath[filePath]
+					filePathInPlan := isFilePathInPlan(filePath)
 					contextTokens := contextTokensByFile[filePath]
 					added := tokensAddedByFile[filePath]
 
@@ -218,7 +235,12 @@ func Propose(prompt string) error {
 					if finished {
 						fmtStr += " | done ✅"
 					} else {
-						if foundContext {
+						if filePathInPlan {
+							fmtStr += " / %d estimated (%d base + ~%d changes)"
+							currentTotal := currentPlanTokensByFilePath[filePath]
+							total := currentTotal + added
+							fmtArgs = append(fmtArgs, total, currentTotal, added)
+						} else if foundContext {
 							fmtStr += " / %d estimated (%d base + ~%d changes)"
 							contextTotal := int(contextPart.NumTokens)
 							total := contextTotal + added

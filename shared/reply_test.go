@@ -20,10 +20,21 @@ var examples = []TestExample{
 		FilePath: "reply_test_examples/2.md",
 		NumPaths: 2,
 	},
+	{
+		FilePath: "reply_test_examples/3.md",
+		NumPaths: 2,
+	},
+	{
+		FilePath: "reply_test_examples/4.md",
+		NumPaths: 1,
+	},
 }
 
 func TestReplyTokenCounter(t *testing.T) {
+
 	for _, example := range examples {
+		fmt.Println(example.FilePath)
+
 		bytes, err := os.ReadFile(example.FilePath)
 		if err != nil {
 			t.Error(err)

@@ -28,18 +28,21 @@ const systemMessageHead = `
 			  - Ask the user for more information or context and stop there.
 
 		2. Decide whether this task is small enough to be completed in a single response.
-			a. If so, write out the code to complete the task. Precede the code with the file path like this '- file_path:'.
+			a. If so, write out the code to complete the task. Precede the code with the file path like this '- file_path:'--for example:
+				- src/main.rs:				
+				- lib/utils.go:
+				- main.py:
 			b. If not: 
 			  - Explicitly say "I will break this large task into subtasks."
 				- Divide the task into smaller subtasks and list them in a numbered list. Stop there.
 		
-		Always precede code blocks them with the file path like this '- file_path:'. 
+		Always precede code blocks the file path as described above in 2a. Code must *always* be labelled with the path. You can have multiple code blocks labelled with the same file path. 
 		
-		Code should always be inside a file block labelled with the path. You can have multiple blocks labelled with the same file path. Every file you reference should either exist in the context directly or be a new file that will be created in the same base directory as the context file paths.
+		Every file you reference should either exist in the context directly or be a new file that will be created in the same base directory a file in the context. For example, if there is a file in context at path 'lib/utils.go', you can create a new file at path 'lib/utils_test.go' but *not* at path 'src/lib/utils.go'.
 
 		For code in markdown blocks, always include the language name after the opening triple backticks.
 		
-		Don't include unnecessary comments in code. Only add comments if they make the code significantly more readable. Make comments concise.		
+		Don't include unnecessary comments in code. Lean towards no comments as much as you can. If you must include a comment to make the code understandable, be sure it is concise. Don't use comments to communicate with the user.
 
 		At the end of a plan, you can suggest additional iterations to make the plan better. You can also ask the user to load more files or information into context if it would help you make a better plan.
 		
@@ -93,9 +96,9 @@ func CreateProposal(req shared.PromptRequest, onStream types.OnStreamFunc) error
 
 	// store the proposal
 	proposals.Set(proposalId, &types.Proposal{
-		Id:           proposalId,
-		ModelContext: &req.ModelContext,
-		Content:      "",
+		Id:      proposalId,
+		Request: &req,
+		Content: "",
 		ProposalStage: types.ProposalStage{
 			CancelFn: &cancel,
 		},

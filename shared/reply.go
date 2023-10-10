@@ -1,6 +1,8 @@
 package shared
 
-import "strings"
+import (
+	"strings"
+)
 
 type replyInfo struct {
 	lines           []string
@@ -85,8 +87,10 @@ func (r *replyInfo) AddChunk(chunk string) {
 	}
 
 	if r.currentFilePath == "" {
+		// fmt.Println("Current file path is empty--checking for possible file path...")
+
 		var gotPath string
-		if (strings.HasPrefix(prevFullLine, "-") && strings.HasSuffix(prevFullLine, ":")) || strings.HasPrefix(prevFullLine, "-file:") || strings.HasPrefix(prevFullLine, "- file:") || (strings.HasPrefix(prevFullLine, "**") && strings.HasSuffix(prevFullLine, "**")) {
+		if (strings.HasPrefix(prevFullLine, "-")) || strings.HasPrefix(prevFullLine, "-file:") || strings.HasPrefix(prevFullLine, "- file:") || (strings.HasPrefix(prevFullLine, "**") && strings.HasSuffix(prevFullLine, "**")) {
 			p := strings.TrimPrefix(prevFullLine, "**")
 			p = strings.TrimPrefix(p, "-")
 			p = strings.TrimSpace(p)
@@ -95,6 +99,8 @@ func (r *replyInfo) AddChunk(chunk string) {
 			p = strings.TrimSuffix(p, ":")
 			p = strings.TrimSpace(p)
 			gotPath = p
+		} else {
+			// fmt.Println("No possible file path detected.", strconv.Quote(prevFullLine))
 		}
 
 		if gotPath != "" {
@@ -113,8 +119,9 @@ func (r *replyInfo) AddChunk(chunk string) {
 		} else {
 			r.files[r.currentFilePath] = true
 
+			var tokens int
 			if r.countTokens {
-				tokens := int(GetNumTokens(prevFullLine))
+				tokens = int(GetNumTokens(prevFullLine))
 				r.numTokensByFile[r.currentFilePath] += tokens
 			}
 			// r.contentByFile[r.currentFilePath] += prevFullLine + "\n"

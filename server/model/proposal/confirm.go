@@ -60,18 +60,32 @@ func confirmProposal(proposalId string, onStream types.OnStreamFunc) error {
 
 			// get relevant file context (if any)
 			var fileContext *shared.ModelContextPart
-			for _, part := range *proposal.ModelContext {
+			for _, part := range proposal.Request.ModelContext {
 				if part.FilePath == filePath {
 					fileContext = &part
 					break
 				}
 			}
 
-			fileMessages := []openai.ChatCompletionMessage{}
+			fmtStr := ""
+			fmtArgs := []interface{}{}
+
 			if fileContext != nil {
+				fmtStr += "Original file %s:\n```\n%s\n```"
+				fmtArgs = []interface{}{filePath, fileContext.Body}
+			}
+
+			currentState := proposal.Request.CurrentPlan.Files[filePath]
+			if currentState != "" {
+				fmtStr += "\nCurrent state of file %s in the plan:\n```\n%s\n```"
+				fmtArgs = append(fmtArgs, filePath, currentState)
+			}
+
+			fileMessages := []openai.ChatCompletionMessage{}
+			if fileContext != nil || currentState != "" {
 				fileMessages = append(fileMessages, openai.ChatCompletionMessage{
 					Role:    openai.ChatMessageRoleSystem,
-					Content: fmt.Sprintf("Original file %s:\n```\n%s\n```", filePath, fileContext.Body),
+					Content: fmt.Sprintf(fmtStr, fmtArgs...),
 				})
 			}
 

@@ -7,7 +7,7 @@ import (
 
 type LoadContextParams struct {
 	Note      string
-	MaxTokens uint32
+	MaxTokens int
 	Recursive bool
 	MaxDepth  int16
 	NamesOnly bool

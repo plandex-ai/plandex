@@ -65,7 +65,7 @@ func handleReviseKey(proposalId string) error {
 
 func handleKeyPress(input rune, proposalId string) error {
 	switch input {
-	case 'a':
+	case 's':
 		return handleAbortKey(proposalId)
 	case 'r':
 		return handleReviseKey(proposalId)
@@ -93,6 +93,6 @@ func displayHotkeys() string {
 	divisionLine := strings.Repeat("─", terminalWidth)
 
 	return divisionLine + "\n" +
-		"   \x1b[1m(a)\x1b[0m" + `bort   ` + "\x1b[1m(r)\x1b[0m" + `evise
+		"  \x1b[1m(s)\x1b[0m" + `top  
 ` + divisionLine
 }
