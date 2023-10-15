@@ -42,11 +42,13 @@ func WriteInitialContextState(contextDir string) error {
 	return err
 }
 
-func LoadContextOrDie(params *types.LoadContextParams) {
+func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 	var contextState shared.ModelContextState
 	contextStateFilePath := filepath.Join(ContextSubdir, "context.json")
 
 	// fmt.Fprintf(os.Stderr, "Loading context from %s\n", contextStateFilePath)
+
+	maxTokens := min(params.MaxTokens, shared.MaxTokens)
 
 	func() {
 		contextStateFile, err := os.Open(contextStateFilePath)
@@ -97,10 +99,10 @@ func LoadContextOrDie(params *types.LoadContextParams) {
 				totalTokens += numTokens
 				tokensAdded += numTokens
 
-				if totalTokens > params.MaxTokens {
+				if totalTokens > maxTokens {
 					if params.Truncate {
-						log.Printf("The total number of tokens (%d) exceeds the maximum allowed (%d). Truncating input text.", totalTokens, params.MaxTokens)
-						numTokens = params.MaxTokens - (totalTokens - numTokens)
+						log.Printf("The total number of tokens (%d) exceeds the maximum allowed (%d). Truncating input text.", totalTokens, maxTokens)
+						numTokens = maxTokens - (totalTokens - numTokens)
 
 						// If the number of tokens is less than or equal to 0, then we can stop processing files
 						if numTokens <= 0 {
@@ -108,10 +110,10 @@ func LoadContextOrDie(params *types.LoadContextParams) {
 						}
 
 						body = body[:numTokens]
-						totalTokens = params.MaxTokens
+						totalTokens = maxTokens
 
 					} else {
-						log.Fatalf("The total number of tokens (%d) exceeds the maximum allowed (%d)", totalTokens, params.MaxTokens)
+						log.Fatalf("The total number of tokens (%d) exceeds the maximum allowed (%d)", totalTokens, maxTokens)
 					}
 
 				}
@@ -174,20 +176,20 @@ func LoadContextOrDie(params *types.LoadContextParams) {
 
 					totalTokens += numTokens
 					tokensAdded += numTokens
-					if totalTokens > params.MaxTokens {
+					if totalTokens > maxTokens {
 						if params.Truncate {
-							log.Printf("The total number of tokens (%d) exceeds the maximum allowed (%d). Truncating piped data.", totalTokens, params.MaxTokens)
-							numTokens = params.MaxTokens - (totalTokens - numTokens)
+							log.Printf("The total number of tokens (%d) exceeds the maximum allowed (%d). Truncating piped data.", totalTokens, maxTokens)
+							numTokens = maxTokens - (totalTokens - numTokens)
 
 							if numTokens <= 0 {
 								return
 							}
 
 							body = body[:numTokens]
-							totalTokens = params.MaxTokens
+							totalTokens = maxTokens
 
 						} else {
-							log.Fatalf("The total number of tokens (%d) exceeds the maximum allowed (%d)", totalTokens, params.MaxTokens)
+							log.Fatalf("The total number of tokens (%d) exceeds the maximum allowed (%d)", totalTokens, maxTokens)
 						}
 					}
 				}()
@@ -257,11 +259,11 @@ func LoadContextOrDie(params *types.LoadContextParams) {
 					defer totalTokensMutex.Unlock()
 					totalTokens += numTokens
 					tokensAdded += numTokens
-					if totalTokens > params.MaxTokens {
+					if totalTokens > maxTokens {
 
 						if params.Truncate {
-							log.Printf("The total number of tokens (%d) exceeds the maximum allowed (%d). Truncating filenames.", totalTokens, params.MaxTokens)
-							numTokens = params.MaxTokens - (totalTokens - numTokens)
+							log.Printf("The total number of tokens (%d) exceeds the maximum allowed (%d). Truncating filenames.", totalTokens, maxTokens)
+							numTokens = maxTokens - (totalTokens - numTokens)
 
 							// If the number of tokens is less than or equal to 0, then we can stop processing files
 							if numTokens <= 0 {
@@ -269,10 +271,10 @@ func LoadContextOrDie(params *types.LoadContextParams) {
 							}
 
 							body = body[:numTokens]
-							totalTokens = params.MaxTokens
+							totalTokens = maxTokens
 
 						} else {
-							log.Fatalf("The total number of tokens (%d) exceeds the maximum allowed (%d)", totalTokens, params.MaxTokens)
+							log.Fatalf("The total number of tokens (%d) exceeds the maximum allowed (%d)", totalTokens, maxTokens)
 						}
 
 					}
@@ -316,11 +318,11 @@ func LoadContextOrDie(params *types.LoadContextParams) {
 							defer totalTokensMutex.Unlock()
 							totalTokens += numTokens
 							tokensAdded += numTokens
-							if totalTokens > params.MaxTokens {
+							if totalTokens > maxTokens {
 
 								if params.Truncate {
-									log.Printf("The total number of tokens (%d) exceeds the maximum allowed (%d). Truncating the file %s.", totalTokens, params.MaxTokens, path)
-									numTokens = params.MaxTokens - (totalTokens - numTokens)
+									log.Printf("The total number of tokens (%d) exceeds the maximum allowed (%d). Truncating the file %s.", totalTokens, maxTokens, path)
+									numTokens = maxTokens - (totalTokens - numTokens)
 
 									// If the number of tokens is less than or equal to 0, then we can stop processing files
 									if numTokens <= 0 {
@@ -328,10 +330,10 @@ func LoadContextOrDie(params *types.LoadContextParams) {
 									}
 
 									body = body[:numTokens]
-									totalTokens = params.MaxTokens
+									totalTokens = maxTokens
 
 								} else {
-									log.Fatalf("The total number of tokens (%d) exceeds the maximum allowed (%d)", totalTokens, params.MaxTokens)
+									log.Fatalf("The total number of tokens (%d) exceeds the maximum allowed (%d)", totalTokens, maxTokens)
 								}
 
 							}
@@ -388,10 +390,10 @@ func LoadContextOrDie(params *types.LoadContextParams) {
 					defer totalTokensMutex.Unlock()
 					totalTokens += numTokens
 					tokensAdded += numTokens
-					if totalTokens > params.MaxTokens {
+					if totalTokens > maxTokens {
 						if params.Truncate {
-							log.Printf("The total number of tokens (%d) exceeds the maximum allowed (%d). Truncating content from URL %s.", totalTokens, params.MaxTokens, url)
-							numTokens = params.MaxTokens - (totalTokens - numTokens)
+							log.Printf("The total number of tokens (%d) exceeds the maximum allowed (%d). Truncating content from URL %s.", totalTokens, maxTokens, url)
+							numTokens = maxTokens - (totalTokens - numTokens)
 
 							// If the number of tokens is less than or equal to 0, then we can stop processing content
 							if numTokens <= 0 {
@@ -399,10 +401,10 @@ func LoadContextOrDie(params *types.LoadContextParams) {
 							}
 
 							body = body[:numTokens]
-							totalTokens = params.MaxTokens
+							totalTokens = maxTokens
 
 						} else {
-							log.Fatalf("The total number of tokens (%d) exceeds the maximum allowed (%d)", totalTokens, params.MaxTokens)
+							log.Fatalf("The total number of tokens (%d) exceeds the maximum allowed (%d)", totalTokens, maxTokens)
 						}
 					}
 				}()
@@ -507,27 +509,28 @@ func LoadContextOrDie(params *types.LoadContextParams) {
 		log.Fatalf("Failed to get total tokens: %v", err)
 	}
 
-	msg += fmt.Sprintf("\n\nTotal tokens in context: %d\n", totalTokens)
+	// msg += fmt.Sprintf("\n\nTotal tokens in context: %d\n", totalTokens)
 
 	err = GitAddAndCommit(ContextSubdir, msg)
 
 	if err != nil {
-		return
+		log.Fatalf("Failed to commit context: %v", err)
 	}
 
 	err = GitAdd(CurrentPlanRootDir, ContextSubdir, true)
 	if err != nil {
-		fmt.Printf("failed to stage submodule changes in context dir: %s\n", err)
-		return
+		log.Fatalf("failed to stage submodule changes in context dir: %s\n", err)
 	}
 
 	// Commit these staged submodule changes in the root repo
 	err = GitCommit(CurrentPlanRootDir, msg, true)
 	if err != nil {
-		fmt.Printf("failed to commit submodule updates in root dir: %s\n", err)
+		log.Fatalf("failed to commit submodule updates in root dir: %s\n", err)
 	}
 
 	fmt.Fprint(os.Stderr, "✅ "+msg+"\n")
+
+	return tokensAdded, totalTokens
 }
 
 func GetAllContext(metaOnly bool) ([]shared.ModelContextPart, error) {

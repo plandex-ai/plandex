@@ -5,42 +5,44 @@ import (
 )
 
 type replyInfo struct {
-	lines           []string
-	lineIndex       int
-	maybeFilePath   string
-	currentFilePath string
-	files           map[string]bool
-	countTokens     bool
-	numTokensByFile map[string]int
+	lines            []string
+	currentFileLines []string
+	lineIndex        int
+	maybeFilePath    string
+	currentFilePath  string
+	files            map[string]bool
+	numTokens        int
+	numTokensByFile  map[string]int
 }
 
-func NewReplyInfo(countTokens bool) *replyInfo {
+func NewReplyInfo() *replyInfo {
 	info := &replyInfo{
-		lines: []string{""},
-		files: make(map[string]bool),
-	}
-
-	if countTokens {
-		info.countTokens = true
-		info.numTokensByFile = make(map[string]int)
+		lines:            []string{""},
+		currentFileLines: []string{},
+		files:            make(map[string]bool),
+		numTokensByFile:  make(map[string]int),
 	}
 
 	return info
 }
 
-func (r *replyInfo) AddChunk(chunk string) {
+func (r *replyInfo) AddToken(token string, addToTotal bool) {
 	// fmt.Println("Adding chunk:", strconv.Quote(chunk)) // Logging the chunk that's being processed
 
 	hasNewLine := false
 	nextChunk := ""
 
-	if chunk == "\n" {
+	if addToTotal {
+		r.numTokens++
+	}
+
+	if token == "\n" {
 		// fmt.Println("Chunk is \\n, adding new line")
 		r.lines = append(r.lines, "")
 		hasNewLine = true
 		r.lineIndex++
 	} else {
-		chunkLines := strings.Split(chunk, "\n")
+		chunkLines := strings.Split(token, "\n")
 
 		// fmt.Println("Chunk lines:", len(chunkLines))
 
@@ -60,7 +62,7 @@ func (r *replyInfo) AddChunk(chunk string) {
 				nextChunk = "\n" + strings.Join(tail, "\n")
 				defer func() {
 					// fmt.Println("Recursive add next queued chunk:", strconv.Quote(nextChunk))
-					r.AddChunk(nextChunk)
+					r.AddToken(nextChunk, false)
 				}()
 			}
 		}
@@ -80,6 +82,7 @@ func (r *replyInfo) AddChunk(chunk string) {
 		if strings.HasPrefix(prevFullLineTrimmed, "```") {
 			r.currentFilePath = r.maybeFilePath
 			r.maybeFilePath = ""
+			r.currentFileLines = []string{}
 			// fmt.Println("Confirmed file path:", r.currentFilePath) // Logging the confirmed file path
 			return
 		} else if prevFullLineTrimmed != "" {
@@ -120,25 +123,22 @@ func (r *replyInfo) AddChunk(chunk string) {
 			// fmt.Println("Exited file block.")
 		} else {
 			r.files[r.currentFilePath] = true
+			r.currentFileLines = append(r.currentFileLines, prevFullLine)
+			r.numTokensByFile[r.currentFilePath]++
 
-			var tokens int
-			if r.countTokens {
-				tokens = int(GetNumTokens(prevFullLine))
-				r.numTokensByFile[r.currentFilePath] += tokens
-			}
 			// r.contentByFile[r.currentFilePath] += prevFullLine + "\n"
 			// fmt.Printf("Added %d tokens to %s\n", tokens, r.currentFilePath) // Logging token addition
 		}
 	}
 }
 
-func (r *replyInfo) FinishAndRead() ([]string, map[string]int) {
-	r.AddChunk("\n")
+func (r *replyInfo) FinishAndRead() ([]string, map[string]int, int) {
+	r.AddToken("\n", false)
 
 	files := make([]string, 0, len(r.files))
 	for file := range r.files {
 		files = append(files, file)
 	}
 
-	return files, r.numTokensByFile
+	return files, r.numTokensByFile, r.numTokens
 }

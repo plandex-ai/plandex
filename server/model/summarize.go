@@ -6,13 +6,12 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/plandex/plandex/shared"
 	"github.com/sashabaranov/go-openai"
 	"github.com/sashabaranov/go-openai/jsonschema"
 )
 
-func Summarize(text string) ([]byte, error) {
+func Summarize(text string) ([]byte, int, error) {
 	resp, err := Client.CreateChatCompletion(
 		context.Background(),
 		openai.ChatCompletionRequest{
@@ -56,11 +55,8 @@ func Summarize(text string) ([]byte, error) {
 		},
 	)
 
-	fmt.Println("Summarize response:")
-	spew.Dump(resp)
-
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	var byteRes []byte
@@ -77,16 +73,14 @@ func Summarize(text string) ([]byte, error) {
 	}
 
 	if len(byteRes) == 0 {
-		return nil, fmt.Errorf("no summarize function call found in response")
+		return nil, 0, fmt.Errorf("no summarize function call found in response")
 	}
 
 	// validate the JSON response
 	var summarizeResp shared.SummarizeResponse
 	if err := json.Unmarshal(byteRes, &summarizeResp); err != nil {
-		return nil, err
+		return nil, resp.Usage.CompletionTokens, err
 	}
 
-	spew.Dump(summarizeResp)
-
-	return byteRes, nil
+	return byteRes, resp.Usage.CompletionTokens, nil
 }

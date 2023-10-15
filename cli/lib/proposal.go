@@ -50,7 +50,7 @@ func Propose(prompt string) error {
 	jsonBuffers := make(map[string]string)
 	contextTokensByFile := make(map[string]int)
 
-	replyTokenCounter := shared.NewReplyInfo(true)
+	replyTokenCounter := shared.NewReplyInfo()
 	var tokensAddedByFile map[string]int
 
 	currentPlanTokensByFilePath := make(map[string]int)
@@ -67,6 +67,29 @@ func Propose(prompt string) error {
 			return fmt.Errorf("failed to parse current plan token count json: %s\n", err)
 		}
 	}
+
+	var parentProposalId string
+	var planState types.PlanState
+	// get plan state from [CurrentPlanRootDir]/plan.json
+	planStatePath := filepath.Join(CurrentPlanRootDir, "plan.json")
+	if _, err := os.Stat(planStatePath); os.IsNotExist(err) {
+		planState = types.PlanState{}
+	} else {
+		fileBytes, err := os.ReadFile(planStatePath)
+		if err != nil {
+			return fmt.Errorf("failed to open plan state file: %s\n", err)
+		}
+		err = json.Unmarshal(fileBytes, &planState)
+		if err != nil {
+			return fmt.Errorf("failed to parse plan state json: %s\n", err)
+		}
+		parentProposalId = planState.ProposalId
+	}
+
+	var promptNumTokens int
+	go func() {
+		promptNumTokens = shared.GetNumTokens(prompt)
+	}()
 
 	printReply := func() {
 		clearScreen()
@@ -96,11 +119,18 @@ func Propose(prompt string) error {
 		printReply()
 		backToMain()
 		fmt.Print(termState)
-		err := appendConversation(timestamp, prompt, reply)
+		var totalTokens int
+		_, tokensAddedByFile, totalTokens = replyTokenCounter.FinishAndRead()
+		err := appendConversation(types.AppendConversationParams{
+			Timestamp:    timestamp,
+			Prompt:       prompt,
+			PromptTokens: promptNumTokens,
+			Reply:        reply,
+			ReplyTokens:  totalTokens,
+		})
 		if err != nil {
 			fmt.Printf("failed to append conversation: %s\n", err)
 		}
-		_, tokensAddedByFile = replyTokenCounter.FinishAndRead()
 		endedReply = true
 	}
 
@@ -147,6 +177,23 @@ func Propose(prompt string) error {
 				return
 			} else {
 				proposalId = content
+
+				// Save proposal id to [CurrentPlanRootDir]/plan.json
+				planState = types.PlanState{
+					ProposalId: proposalId,
+				}
+				planStatePath := filepath.Join(CurrentPlanRootDir, "plan.json")
+				planStateBytes, err := json.Marshal(planState)
+				if err != nil {
+					onError(fmt.Errorf("failed to marshal plan state: %s\n", err))
+					return
+				}
+				err = os.WriteFile(planStatePath, planStateBytes, 0644)
+				if err != nil {
+					onError(fmt.Errorf("failed to write plan state: %s\n", err))
+					return
+				}
+
 				return
 			}
 		} else if !replyStarted {
@@ -158,7 +205,7 @@ func Propose(prompt string) error {
 		switch state.Current() {
 		case shared.STATE_REPLYING, shared.STATE_REVISING:
 			reply += content
-			replyTokenCounter.AddChunk(content)
+			replyTokenCounter.AddToken(content, true)
 			terminalHasPendingUpdate = true
 
 		case shared.STATE_FINISHED:
@@ -184,14 +231,11 @@ func Propose(prompt string) error {
 					return
 				}
 
-				if desc.MadePlan && (len(desc.Files) > 0 /*|| desc.HasExec*/) {
+				if desc.MadePlan && (len(desc.Files) > 0) {
 					fmt.Println("Writing plan draft:")
 					for _, filePath := range desc.Files {
 						fmt.Printf("- %s\n", filePath)
 					}
-					// if desc.HasExec {
-					// 	fmt.Printf("- %s\n", "exec.sh")
-					// }
 				} else {
 					filesFinished = true
 				}
@@ -209,12 +253,6 @@ func Propose(prompt string) error {
 					onError(err)
 					return
 				}
-
-				// files := make([]string, len(desc.Files))
-				// copy(files, desc.Files)
-				// if desc.HasExec {
-				// 	files = append(files, "exec.sh")
-				// }
 
 				files := desc.Files
 
@@ -272,7 +310,7 @@ func Propose(prompt string) error {
 
 	}
 
-	apiReq, err := Api.Propose(prompt, handleStream)
+	apiReq, err := Api.Propose(prompt, parentProposalId, handleStream)
 	if err != nil {
 		backToMain()
 		return fmt.Errorf("failed to send prompt to server: %s\n", err)

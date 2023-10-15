@@ -11,7 +11,6 @@ import (
 	"plandex/types"
 
 	"github.com/plandex/plandex/shared"
-	openai "github.com/sashabaranov/go-openai"
 )
 
 const apiHost = "http://localhost:8088"
@@ -21,14 +20,14 @@ var Api types.APIHandler = (*API)(nil)
 
 type API struct{}
 
-func (api *API) Propose(prompt string, onStream types.OnStreamPlan) (*shared.PromptRequest, error) {
+func (api *API) Propose(prompt, parentProposalId string, onStream types.OnStreamPlan) (*shared.PromptRequest, error) {
 	serverUrl := apiHost + "/proposal"
 
 	// Channels to receive data and errors
 	contextChan := make(chan shared.ModelContext, 1) // Buffered channels to prevent deadlock
 	contextErrChan := make(chan error, 1)
 
-	conversationChan := make(chan []openai.ChatCompletionMessage, 1)
+	conversationChan := make(chan []shared.ConversationMessage, 1)
 	conversationErrChan := make(chan error, 1)
 
 	planChan := make(chan shared.CurrentPlanFiles, 1)
@@ -69,7 +68,7 @@ func (api *API) Propose(prompt string, onStream types.OnStreamPlan) (*shared.Pro
 
 	var modelContext shared.ModelContext
 	var currentPlan shared.CurrentPlanFiles
-	var conversation []openai.ChatCompletionMessage
+	var conversation []shared.ConversationMessage
 	var err error
 
 	// Using select to receive from either data or error channel for context
@@ -95,10 +94,11 @@ func (api *API) Propose(prompt string, onStream types.OnStreamPlan) (*shared.Pro
 	}
 
 	payload := shared.PromptRequest{
-		Prompt:       prompt,
-		ModelContext: modelContext,
-		Conversation: conversation,
-		CurrentPlan:  currentPlan,
+		Prompt:           prompt,
+		ModelContext:     modelContext,
+		Conversation:     conversation,
+		CurrentPlan:      currentPlan,
+		ParentProposalId: parentProposalId,
 	}
 
 	jsonData, err := json.Marshal(payload)

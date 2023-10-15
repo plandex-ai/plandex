@@ -7,34 +7,52 @@ import (
 )
 
 type TestExample struct {
-	N        int
-	NumPaths int
+	N                int
+	TokensByFilePath map[string]int
 }
 
+// These aren't the real number of tokens
+// We're just splitting the file into chunks of 5 characters to simulate tokens
 var examples = []TestExample{
 	{
-		N:        1,
-		NumPaths: 2,
+		N: 1,
+		TokensByFilePath: map[string]int{
+			"cmd/checkout.go": 17,
+			"cmd/apply.go":    41,
+		},
 	},
 	{
-		N:        2,
-		NumPaths: 2,
+		N: 2,
+		TokensByFilePath: map[string]int{
+			"cmd/context_rm.go":     51,
+			"cmd/context_update.go": 41,
+		},
 	},
 	{
-		N:        3,
-		NumPaths: 2,
+		N: 3,
+		TokensByFilePath: map[string]int{
+			"cmd/context_rm.go":     51,
+			"cmd/context_update.go": 41,
+		},
 	},
 	{
-		N:        4,
-		NumPaths: 1,
+		N: 4,
+		TokensByFilePath: map[string]int{
+			"server/types/section.go": 11,
+		},
 	},
 	{
-		N:        5,
-		NumPaths: 2,
+		N: 5,
+		TokensByFilePath: map[string]int{
+			"shared/types.go":         5,
+			"cli/lib/conversation.go": 8,
+		},
 	},
 	{
-		N:        6,
-		NumPaths: 1,
+		N: 6,
+		TokensByFilePath: map[string]int{
+			"server/model/proposal/create.go": 32,
+		},
 	},
 }
 
@@ -51,30 +69,39 @@ func TestReplyTokenCounter(t *testing.T) {
 
 		content := string(bytes)
 
-		chunkSize := 10
+		tokenSize := 5
 
-		counter := NewReplyInfo(true)
+		counter := NewReplyInfo()
 
+		totalTokens := 0
 		for i := 0; i < len(content); {
-			end := i + chunkSize
+			end := i + tokenSize
 			if end > len(content) {
 				end = len(content)
 			}
 			chunk := content[i:end]
-			counter.AddChunk(chunk)
+			counter.AddToken(chunk, true)
+			totalTokens++
 			i = end
 		}
 
-		files, tokensByFilePath := counter.FinishAndRead()
+		files, tokensByFilePath, totalCounted := counter.FinishAndRead()
 
+		fmt.Printf("Total tokens counted: %d\n", totalCounted)
 		fmt.Printf("%d files: %v\n", len(files), files)
-
-		if len(files) != example.NumPaths {
-			t.Error(fmt.Sprintf("Expected %d file paths", example.NumPaths))
+		fmt.Println("Tokens by file path:")
+		for filePath, tokens := range tokensByFilePath {
+			fmt.Printf("%s: %d\n", filePath, tokens)
 		}
 
-		if len(tokensByFilePath) != example.NumPaths {
-			t.Error(fmt.Sprintf("Expected %d file paths", example.NumPaths))
+		if totalCounted != totalTokens {
+			t.Error(fmt.Sprintf("Expected %d tokens, got %d", totalTokens, totalCounted))
+		}
+
+		for filePath, tokens := range example.TokensByFilePath {
+			if tokensByFilePath[filePath] != tokens {
+				t.Error(fmt.Sprintf("Expected %d tokens for %s", tokens, filePath))
+			}
 		}
 	}
 }

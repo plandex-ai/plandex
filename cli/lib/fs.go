@@ -142,7 +142,7 @@ func CwdIsPlan() bool {
 	return parentDir == PlandexDir
 }
 
-func FlattenPaths(fileOrDirPaths []string, params *types.LoadContextParams, depth int16) []string {
+func FlattenPaths(fileOrDirPaths []string, params *types.LoadContextParams, depth int) []string {
 	var wg sync.WaitGroup
 	resPathsChan := make(chan string, len(fileOrDirPaths))
 

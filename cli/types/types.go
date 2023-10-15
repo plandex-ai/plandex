@@ -9,7 +9,7 @@ type LoadContextParams struct {
 	Note      string
 	MaxTokens int
 	Recursive bool
-	MaxDepth  int16
+	MaxDepth  int
 	NamesOnly bool
 	Truncate  bool
 	Resources []string
@@ -25,7 +25,26 @@ type OnStreamPlan func(params OnStreamPlanParams)
 
 // APIHandler is an interface that represents the public API functions
 type APIHandler interface {
-	Propose(prompt string, onStream OnStreamPlan) (*shared.PromptRequest, error)
+	Propose(prompt, parentProposalId string, onStream OnStreamPlan) (*shared.PromptRequest, error)
 	Summarize(text string) (*shared.SummarizeResponse, error)
 	Abort(proposalId string) error
+}
+
+type AppendConversationParams struct {
+	Timestamp    string
+	Prompt       string
+	Reply        string
+	PromptTokens int
+	ReplyTokens  int
+}
+
+type ConversationSummaryParams struct {
+	CurrentTimestamp string
+	MessageTimestamp string
+	Summary          string
+	SummaryTokens    int
+}
+
+type PlanState struct {
+	ProposalId string
 }

@@ -5,9 +5,12 @@ import (
 )
 
 type Proposal struct {
-	Id      string
-	Request *shared.PromptRequest
-	Content string
+	Id       string
+	ParentId string
+	RootId   string
+	IsRoot   bool
+	Request  *shared.PromptRequest
+	Content  string
 	ProposalStage
 	PlanDescription *shared.PlanDescription
 }

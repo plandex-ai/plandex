@@ -8,11 +8,20 @@ type CurrentPlanFiles struct {
 	Files map[string]string `json:"files"`
 }
 
+type ConversationMessage struct {
+	Message       openai.ChatCompletionMessage `json:"message"`
+	Tokens        int                          `json:"tokens"`
+	Summarized    bool                         `json:"summarized"`
+	Summary       string                       `json:"summary"`
+	SummaryTokens int                          `json:"summaryTokens"`
+}
+
 type PromptRequest struct {
-	Prompt       string       `json:"prompt"`
-	ModelContext ModelContext `json:"modelContext"`
-	Conversation []openai.ChatCompletionMessage
-	CurrentPlan  CurrentPlanFiles `json:"currentPlan"`
+	Prompt           string                `json:"prompt"`
+	ModelContext     ModelContext          `json:"modelContext"`
+	CurrentPlan      CurrentPlanFiles      `json:"currentPlan"`
+	Conversation     []ConversationMessage `json:"conversation"`
+	ParentProposalId string                `json:"parentProposalId"`
 }
 
 type SummarizeRequest struct {
@@ -23,10 +32,6 @@ type SummarizeResponse struct {
 	Name     string `json:"name"`
 	Summary  string `json:"summary"`
 	FileName string `json:"fileName"`
-}
-
-type SectionizeRequest struct {
-	Text string `json:"text"`
 }
 
 type ModelContextPart struct {

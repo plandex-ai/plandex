@@ -34,7 +34,7 @@ const systemMessageHead = `You are Plandex, an AI programming and system adminis
 				- lib/utils.go:
 				- main.py:
 				File paths should always come *before* the opening triple backticks of a code block. They should *not* be included in the code block itself.
-				File paths should appear *immediately* before the opening triple backticks of a code block. There should be *no other lines* between the file path and the code block. Any explanations or comments should come either *before the file path or after the code block.*
+				File paths should appear *immediately* before the opening triple backticks of a code block. There should be *no other lines* between the file path and the code block. Any explanations should come either *before the file path or after the code block.*
 			b. If not: 
 			  - Explicitly say "I will break this large task into subtasks."
 				- Divide the task into smaller subtasks and list them in a numbered list. Stop there.
@@ -51,6 +51,12 @@ const systemMessageHead = `You are Plandex, an AI programming and system adminis
 	"\n```\n\n" +
 	"User-provided context:"
 
+var systemHeadNumTokens = shared.GetNumTokens(systemMessageHead)
+
+const promptWrapperFormatStr = "The user's latest prompt:\n```\n%s\n```\n\nPlease respond according to the 'Your instructions' section above. Remember to precede code blocks with the file path *exactly* as described in 2a. Do not use any other formatting for file paths."
+
+var promptWrapperTokens = shared.GetNumTokens(fmt.Sprintf(promptWrapperFormatStr, ""))
+
 // Proposal function to create a new proposal
 func CreateProposal(req shared.PromptRequest, onStream types.OnStreamFunc) error {
 	goEnv := os.Getenv("GOENV") // Fetch the GO_ENV environment variable
@@ -62,7 +68,7 @@ func CreateProposal(req shared.PromptRequest, onStream types.OnStreamFunc) error
 		return nil
 	}
 
-	contextText := model.FormatModelContext(req.ModelContext)
+	contextText, contextTokens := model.FormatModelContext(req.ModelContext)
 	systemMessageText := systemMessageHead + contextText
 	systemMessage := openai.ChatCompletionMessage{
 		Role:    openai.ChatMessageRoleSystem,
@@ -73,14 +79,32 @@ func CreateProposal(req shared.PromptRequest, onStream types.OnStreamFunc) error
 		systemMessage,
 	}
 
+	promptTokens := promptWrapperTokens + shared.GetNumTokens(req.Prompt)
+
+	totalTokens := systemHeadNumTokens + contextTokens + promptTokens
+
+	// print out breakdown of token usage
+	fmt.Printf("System message tokens: %d\n", systemHeadNumTokens)
+	fmt.Printf("Context tokens: %d\n", contextTokens)
+	fmt.Printf("Prompt tokens: %d\n", promptTokens)
+	fmt.Printf("Total tokens before convo: %d\n", totalTokens)
+
+	if totalTokens > shared.MaxTokens {
+		// token limit already exceeded before adding conversation
+		err := fmt.Errorf("token limit exceeded before adding conversation")
+		fmt.Printf("Error: %v\n", err)
+		return err
+	}
+
 	if len(req.Conversation) > 0 {
-		messages = append(messages, req.Conversation...)
+		for _, convoMessage := range req.Conversation {
+			messages = append(messages, convoMessage.Message)
+		}
 	}
 
 	messages = append(messages, openai.ChatCompletionMessage{
-		Role: openai.ChatMessageRoleUser,
-		Content: fmt.Sprintf("The user's latest prompt:\n```\n%s\n```", req.Prompt) +
-			"\n\nPlease respond according to the 'Your instructions' section above. Remember to precede code blocks with the file path *exactly* as described in 2a. Do not use any other formatting for file paths.",
+		Role:    openai.ChatMessageRoleUser,
+		Content: fmt.Sprintf(promptWrapperFormatStr, req.Prompt),
 	})
 
 	fmt.Println("\n\nMessages:")
@@ -101,15 +125,17 @@ func CreateProposal(req shared.PromptRequest, onStream types.OnStreamFunc) error
 
 	// store the proposal
 	proposals.Set(proposalId, &types.Proposal{
-		Id:      proposalId,
-		Request: &req,
-		Content: "",
+		Id:       proposalId,
+		ParentId: req.ParentProposalId,
+		IsRoot:   req.ParentProposalId == "",
+		Request:  &req,
+		Content:  "",
 		ProposalStage: types.ProposalStage{
 			CancelFn: &cancel,
 		},
 	})
 
-	replyInfo := shared.NewReplyInfo(false)
+	replyInfo := shared.NewReplyInfo()
 
 	modelReq := openai.ChatCompletionRequest{
 		Model:    openai.GPT4,
@@ -181,7 +207,7 @@ func CreateProposal(req shared.PromptRequest, onStream types.OnStreamFunc) error
 				if choice.FinishReason != "" {
 					onStream(shared.STREAM_DESCRIPTION_PHASE, nil)
 
-					files, _ := replyInfo.FinishAndRead()
+					files, _, _ := replyInfo.FinishAndRead()
 
 					if len(files) == 0 {
 						planDescription := &shared.PlanDescription{
@@ -246,7 +272,7 @@ func CreateProposal(req shared.PromptRequest, onStream types.OnStreamFunc) error
 
 				// fmt.Printf("%s", content)
 				onStream(content, nil)
-				replyInfo.AddChunk(content)
+				replyInfo.AddToken(content, true)
 
 			}
 		}
@@ -254,3 +280,32 @@ func CreateProposal(req shared.PromptRequest, onStream types.OnStreamFunc) error
 
 	return nil
 }
+
+// func summarizeConversationIfPossible(req *shared.PromptRequest) (*shared.PromptRequest, error) {
+// 	msgs := req.Conversation
+// 	if len(msgs) >= 2 {
+// 		for i := 1; i < len(msgs); i++ {
+// 			if msgs[i].Role == openai.ChatMessageRoleAssistant && !msgs[i].Summarized {
+// 				// assuming the summarize function takes a text and returns
+// 				// a summarization of that text
+// 				summary, err := model.Summarize(msgs[i].Content)
+// 				if err != nil {
+// 					return nil, err
+// 				}
+
+// 				// In case the message has multiple sentences. Concatenate the first
+// 				// two and add '... (summarized)' for clarity on UI.
+// 				sentences := strings.Split(summary, ".")
+// 				if len(sentences) > 2 {
+// 					summary = sentences[0] + ". " + sentences[1] + "... (summarized)"
+// 				}
+
+// 				msgs[i].Content = summary
+// 				msgs[i].Summarized = true
+// 				break
+// 			}
+// 		}
+// 	}
+// 	req.Conversation = msgs
+// 	return req, nil
+// }
