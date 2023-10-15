@@ -39,28 +39,6 @@ func handleAbortKey(proposalId string) error {
 	return Abort(proposalId)
 }
 
-// // Function for 'r' key action
-// func handleReviseKey(proposalId string) error {
-// 	// Terminate current operation
-// 	err := Api.Abort(proposalId)
-// 	if err != nil {
-// 		return err
-// 	}
-
-// 	// Prompt the user for new message
-// 	fmt.Println(">\"")
-// 	reader := bufio.NewReader(os.Stdin)
-// 	newMessage, _ := reader.ReadString('"')
-
-// 	// Propose the new message
-// 	err = Propose(newMessage)
-// 	if err != nil {
-// 		return err
-// 	}
-
-// 	fmt.Println("Revision proposed.")
-// 	return nil
-// }
 
 func handleKeyPress(input rune, proposalId string) error {
 	switch input {
