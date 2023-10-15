@@ -8,8 +8,6 @@ import (
 	"path/filepath"
 	"plandex/types"
 	"sync"
-
-	"github.com/plandex/plandex/shared"
 )
 
 var Cwd string
@@ -83,7 +81,7 @@ func LoadCurrentPlan() error {
 	}
 
 	// Unmarshal the JSON data into the shared.PlanSettings type
-	var planSettings shared.PlanSettings
+	var planSettings types.PlanSettings
 	err = json.Unmarshal(fileBytes, &planSettings)
 	if err != nil {
 		return fmt.Errorf("error unmarshalling current_plan.json: %v", err)

@@ -62,7 +62,6 @@ func CreateProposal(req shared.PromptRequest, onStream types.OnStreamFunc) error
 	goEnv := os.Getenv("GOENV") // Fetch the GO_ENV environment variable
 
 	fmt.Println("GOENV: " + goEnv)
-
 	if goEnv == "test" {
 		streamLoremIpsum(onStream)
 		return nil

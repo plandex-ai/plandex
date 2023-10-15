@@ -15,32 +15,9 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/plandex/plandex/shared"
 )
-
-func WriteInitialContextState(contextDir string) error {
-	contextState := shared.ModelContextState{
-		NumTokens:    0,
-		ActiveTokens: 0,
-		ChatFlexPct:  25,
-		PlanFlexPct:  50,
-	}
-	contextStateFilePath := filepath.Join(contextDir, "context.json")
-	contextStateFile, err := os.OpenFile(contextStateFilePath, os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		return err
-	}
-	defer contextStateFile.Close()
-
-	contextStateFileContents, err := json.Marshal(contextState)
-	if err != nil {
-		return err
-	}
-
-	_, err = contextStateFile.Write(contextStateFileContents)
-
-	return err
-}
 
 func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 	var contextState shared.ModelContextState
@@ -417,6 +394,13 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 					log.Fatalf("Failed to summarize content from URL %s: %v", url, err)
 				}
 
+				sectionizeResp, err := Api.Sectionize(body)
+				if err != nil {
+					log.Fatalf("Failed to sectionize content from URL %s: %v", url, err)
+				}
+				fmt.Println("Sectionize response:")
+				spew.Dump(sectionizeResp)
+
 				contextPart := shared.ModelContextPart{
 					Name:      fmt.Sprintf("%d.%s", atomic.LoadUint32(&counter), SanitizeAndClipURL(url, 70)),
 					Summary:   summaryResp.Summary,
@@ -531,125 +515,4 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 	fmt.Fprint(os.Stderr, "✅ "+msg+"\n")
 
 	return tokensAdded, totalTokens
-}
-
-func GetAllContext(metaOnly bool) ([]shared.ModelContextPart, error) {
-	files, err := os.ReadDir(ContextSubdir)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to read context directory: %v", err)
-		return nil, err
-	}
-
-	var contexts []shared.ModelContextPart
-	for _, file := range files {
-		filename := file.Name()
-
-		if filename == ".git" || filename == "context.json" {
-			continue
-		}
-
-		// Only process .meta files and then look for their corresponding .body files
-		if strings.HasSuffix(filename, ".meta") {
-			// fmt.Fprintf(os.Stderr, "Reading meta context file %s\n", filename)
-
-			metaContent, err := os.ReadFile(filepath.Join(ContextSubdir, filename))
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Failed to read meta file %s: %v", filename, err)
-				return nil, err
-			}
-
-			var contextPart shared.ModelContextPart
-			if err := json.Unmarshal(metaContent, &contextPart); err != nil {
-				fmt.Fprintf(os.Stderr, "Failed to unmarshal JSON from file %s: %v", filename, err)
-				return nil, err
-			}
-
-			if !metaOnly {
-				// get the body filename by replacing the .meta suffix with .body
-				bodyFilename := strings.TrimSuffix(filename, ".meta") + ".body"
-				bodyPath := filepath.Join(ContextSubdir, bodyFilename)
-
-				// fmt.Fprintf(os.Stderr, "Reading body context file %s\n", bodyPath)
-
-				bodyContent, err := os.ReadFile(bodyPath)
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "Failed to read body file %s: %v", bodyPath, err)
-					return nil, err
-				}
-
-				contextPart.Body = string(bodyContent)
-			}
-
-			contexts = append(contexts, contextPart)
-		}
-	}
-
-	return contexts, nil
-}
-
-// createContextFileName constructs a filename based on the given name and sha.
-func createContextFileName(name, sha string) string {
-	// Extract the first 8 characters of the sha
-	shaSubstring := sha[:8]
-	return fmt.Sprintf("%s.%s", name, shaSubstring)
-}
-
-// writeContextPartToFile writes a single ModelContextPart to a file.
-func writeContextPartToFile(part shared.ModelContextPart) error {
-	metaFilename := createContextFileName(part.Name, part.Sha) + ".meta"
-	metaPath := filepath.Join(ContextSubdir, metaFilename)
-
-	bodyFilename := createContextFileName(part.Name, part.Sha) + ".body"
-	bodyPath := filepath.Join(ContextSubdir, bodyFilename)
-	body := []byte(part.Body)
-	part.Body = ""
-
-	// Convert the ModelContextPart to JSON
-	data, err := json.MarshalIndent(part, "", "  ")
-	if err != nil {
-		return fmt.Errorf("failed to marshal context part: %v", err)
-	}
-
-	// Open or create a bodyFile for writing
-	bodyFile, err := os.OpenFile(bodyPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
-	if err != nil {
-		return fmt.Errorf("failed to open file %s for writing: %v", bodyPath, err)
-	}
-	defer bodyFile.Close()
-
-	// Write the body to the file
-	if _, err = bodyFile.Write(body); err != nil {
-		return fmt.Errorf("failed to write data to file %s: %v", bodyPath, err)
-	}
-
-	// Open or create a metaFile for writing
-	metaFile, err := os.OpenFile(metaPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
-	if err != nil {
-		return fmt.Errorf("failed to open file %s for writing: %v", metaPath, err)
-	}
-	defer metaFile.Close()
-
-	// Write the JSON data to the file
-	if _, err = metaFile.Write(data); err != nil {
-		return fmt.Errorf("failed to write data to file %s: %v", metaPath, err)
-	}
-
-	return nil
-}
-
-// Write each context part in parallel
-func writeContextParts(contextParts []shared.ModelContextPart) {
-	var wg sync.WaitGroup
-	for _, part := range contextParts {
-		wg.Add(1)
-		go func(p shared.ModelContextPart) {
-			defer wg.Done()
-			if err := writeContextPartToFile(p); err != nil {
-				// Handling the error in the goroutine by logging. Depending on your application,
-				// you might want a different strategy (e.g., collect errors and handle them after waiting).
-				fmt.Fprintf(os.Stderr, "Error writing context part to file: %v", err)
-			}
-		}(part)
-	}
-	wg.Wait() // Wait for all goroutines to finish writing
 }

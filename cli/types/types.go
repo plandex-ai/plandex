@@ -27,6 +27,7 @@ type OnStreamPlan func(params OnStreamPlanParams)
 type APIHandler interface {
 	Propose(prompt, parentProposalId string, onStream OnStreamPlan) (*shared.PromptRequest, error)
 	Summarize(text string) (*shared.SummarizeResponse, error)
+	Sectionize(text string) (*shared.SectionizeResponse, error)
 	Abort(proposalId string) error
 }
 
@@ -47,4 +48,8 @@ type ConversationSummaryParams struct {
 
 type PlanState struct {
 	ProposalId string
+}
+
+type PlanSettings struct {
+	Name string
 }

@@ -63,16 +63,16 @@ func new(cmd *cobra.Command, args []string) {
 	// fmt.Fprintln(os.Stderr, "✅ Confirmed git is installed")
 
 	// Search recursively upward for a .plandex directory
-	plandexDir, newd, err := lib.FindOrCreatePlandex()
+	plandexDir, _, err := lib.FindOrCreatePlandex()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Error finding or creating .plandex dir:", err)
 		return
 	}
-	if newd {
-		fmt.Fprintln(os.Stderr, "✅ Created .plandex directory at "+plandexDir)
-	} else {
-		fmt.Fprintln(os.Stderr, "✅ Found .plandex directory at "+plandexDir)
-	}
+	// if newd {
+	// 	fmt.Fprintln(os.Stderr, "✅ Created .plandex directory at "+plandexDir)
+	// } else {
+	// 	fmt.Fprintln(os.Stderr, "✅ Found .plandex directory at "+plandexDir)
+	// }
 
 	// If 'name' directory already exists, tack on an integer to differentiate
 	rootDir := filepath.Join(plandexDir, name)
@@ -104,7 +104,7 @@ func new(cmd *cobra.Command, args []string) {
 		fmt.Fprintln(os.Stderr, "Error creating plan dir:", err)
 		return
 	}
-	fmt.Fprintln(os.Stderr, "✅ Created plan at "+rootDir)
+	// fmt.Fprintln(os.Stderr, "✅ Created plan at "+rootDir)
 
 	// Create context subdirectory
 	contextDir := filepath.Join(rootDir, "context")

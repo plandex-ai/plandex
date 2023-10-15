@@ -34,6 +34,14 @@ type SummarizeResponse struct {
 	FileName string `json:"fileName"`
 }
 
+type SectionizeRequest struct {
+	Text string `json:"text"`
+}
+
+type SectionizeResponse struct {
+	Sections []string `json:"sections"`
+}
+
 type ModelContextPart struct {
 	Name      string `json:"name"`
 	Summary   string `json:"summary"`
@@ -52,10 +60,6 @@ type ModelContextState struct {
 	ActiveTokens int    `json:"activeTokens"`
 	ChatFlexPct  int    `json:"chatFlexPct"`
 	PlanFlexPct  int    `json:"planFlexPct"`
-}
-
-type PlanSettings struct {
-	Name string `json:"name"`
 }
 
 type PlanChunk struct {

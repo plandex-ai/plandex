@@ -121,7 +121,7 @@ func appendConversation(params types.AppendConversationParams) error {
 func setSummary(params types.ConversationSummaryParams) error {
 	// Create or append to summary file
 	summaryFilePath := filepath.Join(ConversationSubdir, fmt.Sprintf("%s.summary.md", params.MessageTimestamp))
-	summaryFileContents := fmt.Sprintf("@@@!>response-summary|%s|%d\n\n%s", params.CurrentTimestamp, params.Summary, params.SummaryTokens)
+	summaryFileContents := fmt.Sprintf("@@@!>response-summary|%s|%d\n\n%s", params.CurrentTimestamp, params.SummaryTokens, params.Summary)
 	summaryFile, err := os.OpenFile(summaryFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return fmt.Errorf("failed to write summary file: %s\n", err)
