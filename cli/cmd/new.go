@@ -56,6 +56,8 @@ func new(cmd *cobra.Command, args []string) {
 		name = lib.GetFileNameWithoutExt(summaryResp.FileName)
 	}
 
+	fmt.Println("Creating plan '" + name + "'... ")
+
 	// Check git installed
 	if !lib.IsCommandAvailable("git") {
 		log.Fatalln("Error: git is required")
@@ -80,12 +82,16 @@ func new(cmd *cobra.Command, args []string) {
 	exists := !os.IsNotExist(err)
 
 	postfix := 1
+	var nameWithPostfix string
 	for exists {
 		postfix += 1
-		nameWithPostfix := fmt.Sprintf("%s.%d", name, postfix)
+		nameWithPostfix = fmt.Sprintf("%s.%d", name, postfix)
 		rootDir = filepath.Join(plandexDir, nameWithPostfix)
 		_, err = os.Stat(rootDir)
 		exists = !os.IsNotExist(err)
+	}
+	if nameWithPostfix != "" {
+		name = nameWithPostfix
 	}
 
 	// Create current plan json file with current plan name

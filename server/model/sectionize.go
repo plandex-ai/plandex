@@ -5,20 +5,25 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"plandex-server/types"
+	"plandex-server/model/lib"
 
 	"github.com/davecgh/go-spew/spew"
+	"github.com/plandex/plandex/shared"
 	"github.com/sashabaranov/go-openai"
 	"github.com/sashabaranov/go-openai/jsonschema"
 )
+
+type sectionizeResult = struct {
+	Sections []string `json:"sections"`
+}
 
 func Sectionize(text string) ([]byte, error) {
 	resp, err := Client.CreateChatCompletion(
 		context.Background(),
 		openai.ChatCompletionRequest{
-			Model: openai.GPT3Dot5Turbo16K,
+			Model: openai.GPT4,
 			Functions: []openai.FunctionDefinition{{
-				Name: "sectionize",
+				Name: "sectionized",
 				Parameters: &jsonschema.Definition{
 					Type: jsonschema.Object,
 					Properties: map[string]jsonschema.Definition{
@@ -35,12 +40,37 @@ func Sectionize(text string) ([]byte, error) {
 			}},
 			Messages: []openai.ChatCompletionMessage{
 				{
-					Role:    openai.ChatMessageRoleSystem,
-					Content: "You are an AI specialized in processing text and code, dividing them into logical sections based on their content. You should call the 'sectionize' function with an array of sections. Make sure the sections add up to the original text, don't overlap, don't leave any gaps, and are in the right order (i.e. the first section should come first, the second section should come second, etc.). If the text is code, try not to split up functions unless they are very long. Only call the 'sectionize' function and don't call any other function.",
+					Role: openai.ChatMessageRoleSystem,
+					Content: `You are an AI specialized in breaking code up into sections based on purpose and functionality. 
+					
+					Your instructions:
+
+					1. Break up the provided text into sections based on purpose and functionality. 
+						1a. If the text is code, try to group together related operations. 
+						1b. If the text is natural language, try to group together related ideas.
+
+					2. Call the 'sectionized' function with the the 'sections' parameter. For each section, provide a string containing *just the first line that begins the section.*									
+
+					When breaking up the text into sections, follow these guidelines.
+					- Sections should be roughly 50-100 lines in size.
+					- A file should be broken up into no more than 5-10 sections.
+					- For a short file, it's good to have a small number of sections, like 2-3 sections.
+					- Sections should be understandable in isolation.
+					- If in doubt, lean towards fewer sections rather than more sections.
+					- Blocks of code that are commented out should be given their own sections.
+					- Lean towards not breaking up functions or methods into multiple sections unless they are very long.
+					- Lean towards not breaking up variable definitions, type definitions, or control flow blocks into multiple sections unless they are very long.
+					- Lean towards not breaking up comment blocks into multiple sections unless they are very long.
+					- Lean towards not breaking up paragraphs into multiple sections unless they are very long.
+					- Lean towards keeping 'header' information like package declarations, imports, and initialization logic together in one section unless it would be very long.					
+					- If there's no way to break up the text according to these instructions, call 'sectionized' with an empty array.
+
+					Important: you *must always* call the 'sectionized' function and never call any other function.
+					`,
 				},
 				{
 					Role: openai.ChatMessageRoleUser,
-					Content: fmt.Sprintf("Sectionize the text below, identifying logical sections, and call 'sectionize' with the sectionized results.\n\nBelow is the text to be sectionized:\n\n%s",
+					Content: fmt.Sprintf("Break up the following text into sections as described in your instructions above and call the 'sectionized' function with the result: \n\n%s",
 						text),
 				},
 			},
@@ -50,25 +80,42 @@ func Sectionize(text string) ([]byte, error) {
 		return nil, err
 	}
 
+	spew.Dump(resp)
+
 	var byteRes []byte
 	for _, choice := range resp.Choices {
-		if choice.FinishReason == "stop" && choice.Message.Role == "assistant" && choice.Message.FunctionCall != nil && choice.Message.FunctionCall.Name == "sectionize" {
+		if choice.FinishReason == "function_call" && choice.Message.Role == "assistant" && choice.Message.FunctionCall != nil && choice.Message.FunctionCall.Name == "sectionized" {
 			fnCall := choice.Message.FunctionCall
 			byteRes = []byte(fnCall.Arguments)
 		}
 	}
 
 	if len(byteRes) == 0 {
-		return nil, fmt.Errorf("no 'sectionize' function call found in response")
+		return nil, fmt.Errorf("no 'sectionized' function call found in response")
 	}
+
+	// Clean the body of the response
+	cleanBody := lib.CleanSectionJson(byteRes)
 
 	// validate the JSON response
-	var sectionizeResp types.SectionizeResponse
-	if err := json.Unmarshal(byteRes, &sectionizeResp); err != nil {
-		return nil, err
+	var res sectionizeResult
+	err = json.Unmarshal(cleanBody, &res)
+
+	if err != nil {
+		fmt.Printf("Failed JSON: %s\n", cleanBody) // Printing the JSON causing the failure
+		return nil, fmt.Errorf("error unmarshalling JSON: %w", err)
 	}
 
-	spew.Dump(sectionizeResp)
+	// spew.Dump(sectionizedResp)
+
+	sectionizedResp := shared.SectionizeResponse{
+		SectionEnds: lib.GetSectionEnds(text, res.Sections),
+	}
+
+	byteRes, err = json.Marshal(sectionizedResp)
+	if err != nil {
+		return nil, err
+	}
 
 	return byteRes, nil
 }

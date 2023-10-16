@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"plandex-server/model"
-	"strings"
 
 	"github.com/plandex/plandex/shared"
 	"github.com/sashabaranov/go-openai"
@@ -75,14 +74,6 @@ func genPlanDescriptionJson(proposalId string, ctx context.Context) (*shared.Pla
 	if err != nil {
 		fmt.Printf("Error unmarshalling plan description response: %v\n", err)
 		return nil, err
-	}
-
-	for i, filePath := range planDesc.Files {
-		filePath = strings.TrimSpace(filePath)
-		filePath = strings.TrimPrefix(filePath, "-")
-		filePath = strings.TrimSpace(filePath)
-		planDesc.Files[i] = filePath
-		fmt.Println("file path: " + filePath)
 	}
 
 	return &planDesc, nil

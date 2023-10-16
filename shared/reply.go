@@ -34,6 +34,10 @@ func (r *replyInfo) AddToken(token string, addToTotal bool) {
 
 	if addToTotal {
 		r.numTokens++
+
+		if r.currentFilePath != "" {
+			r.numTokensByFile[r.currentFilePath]++
+		}
 	}
 
 	if token == "\n" {
@@ -124,7 +128,6 @@ func (r *replyInfo) AddToken(token string, addToTotal bool) {
 		} else {
 			r.files[r.currentFilePath] = true
 			r.currentFileLines = append(r.currentFileLines, prevFullLine)
-			r.numTokensByFile[r.currentFilePath]++
 
 			// r.contentByFile[r.currentFilePath] += prevFullLine + "\n"
 			// fmt.Printf("Added %d tokens to %s\n", tokens, r.currentFilePath) // Logging token addition

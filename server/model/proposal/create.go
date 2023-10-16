@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"plandex-server/model"
+	"plandex-server/model/lib"
 	"plandex-server/types"
 
 	"github.com/google/uuid"
@@ -15,9 +16,7 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
-const systemMessageHead = `You are Plandex, an AI programming and system administration assistant. You offer a structured, versioned, and iterative approach to AI-driven development. 
-		
-		You and the programmer collaborate to create a 'plan' for the task at hand. A plan is a set of files with an attached context.` +
+const systemMessageHead = `You are Plandex, an AI programming and system administration assistant. You and the programmer collaborate to create a 'plan' for the task at hand. A plan is a set of files with an attached context.` +
 
 	"Your instructions:\n\n```\n" +
 
@@ -29,17 +28,17 @@ const systemMessageHead = `You are Plandex, an AI programming and system adminis
 			  - Ask the user for more information or context and stop there.
 
 		2. Decide whether this task is small enough to be completed in a single response.
-			a. If so, write out the code to complete the task. Precede the code block with the file path like this '- file_path:'--for example:
-				- src/main.rs:				
-				- lib/utils.go:
-				- main.py:
-				File paths should always come *before* the opening triple backticks of a code block. They should *not* be included in the code block itself.
-				File paths should appear *immediately* before the opening triple backticks of a code block. There should be *no other lines* between the file path and the code block. Any explanations should come either *before the file path or after the code block.*
+			a. If so, write out the code to complete the task. Precede the code block with the file path + section like this '- file_path-section_num:'--for example:
+				- src/main.rs-1:				
+				- lib/utils.go-2:
+				- main.py-8:
+				File+section paths should always come *before* the opening triple backticks of a code block. They should *not* be included in the code block itself.
+				File+section paths should appear *immediately* before the opening triple backticks of a code block. There should be *no other lines* between the file path and the code block. Any explanations should come either *before the file path or after the code block.*
 			b. If not: 
 			  - Explicitly say "I will break this large task into subtasks."
 				- Divide the task into smaller subtasks and list them in a numbered list. Stop there.
 		
-		Always precede code blocks the file path as described above in 2a. Code must *always* be labelled with the path. You can have multiple code blocks labelled with the same file path. 
+		Always precede code blocks the file path+section as described above in 2a. Code must *always* be labelled with the path+section. 
 		
 		Every file you reference should either exist in the context directly or be a new file that will be created in the same base directory a file in the context. For example, if there is a file in context at path 'lib/utils.go', you can create a new file at path 'lib/utils_test.go' but *not* at path 'src/lib/utils.go'.
 
@@ -47,13 +46,15 @@ const systemMessageHead = `You are Plandex, an AI programming and system adminis
 		
 		Don't include unnecessary comments in code. Lean towards no comments as much as you can. If you must include a comment to make the code understandable, be sure it is concise. Don't use comments to communicate with the user.
 
+		An exception to the above instructions on comments are if a file+section block is empty because you removed everything in it. In that case, leave a brief one-line comment starting with 'Plandex: removed' that says what was removed so that the file+section block isn't empty.
+
 		At the end of a plan, you can suggest additional iterations to make the plan better. You can also ask the user to load more files or information into context if it would help you make a better plan.` +
 	"\n```\n\n" +
 	"User-provided context:"
 
 var systemHeadNumTokens = shared.GetNumTokens(systemMessageHead)
 
-const promptWrapperFormatStr = "The user's latest prompt:\n```\n%s\n```\n\nPlease respond according to the 'Your instructions' section above. Remember to precede code blocks with the file path *exactly* as described in 2a. Do not use any other formatting for file paths."
+const promptWrapperFormatStr = "The user's latest prompt:\n```\n%s\n```\n\nPlease respond according to the 'Your instructions' section above. Remember to precede code blocks with the file path+section *exactly* as described in 2a. Do not use any other formatting for file paths or file sections."
 
 var promptWrapperTokens = shared.GetNumTokens(fmt.Sprintf(promptWrapperFormatStr, ""))
 
@@ -67,7 +68,7 @@ func CreateProposal(req shared.PromptRequest, onStream types.OnStreamFunc) error
 		return nil
 	}
 
-	contextText, contextTokens := model.FormatModelContext(req.ModelContext)
+	contextText, contextTokens := lib.FormatModelContext(req.ModelContext)
 	systemMessageText := systemMessageHead + contextText
 	systemMessage := openai.ChatCompletionMessage{
 		Role:    openai.ChatMessageRoleSystem,

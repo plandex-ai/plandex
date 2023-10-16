@@ -22,53 +22,79 @@ func (s *safePlanFiles) Add(key string, value string) {
 
 var planFiles safePlanFiles
 
-func worker(PlanFilesDir string, srcPath string, info os.FileInfo, err error, errCh chan<- error) {
-	if err != nil {
-		errCh <- err
-		return
-	}
-	if info.IsDir() {
-		return
-	}
-
+func worker(dir string, srcPath string, info os.FileInfo, err error, doneCh chan<- error) {
 	// Compute relative path
-	relPath, err := filepath.Rel(PlanFilesDir, srcPath)
+	relPath, err := filepath.Rel(dir, srcPath)
 	if err != nil {
-		errCh <- err
+		doneCh <- err
 		return
 	}
 
 	// Read file content
 	content, err := os.ReadFile(srcPath)
 	if err != nil {
-		errCh <- err
+		doneCh <- err
 		return
 	}
 
 	// Add file content to planFiles with relative path as key
 	planFiles.Add(relPath, string(content))
+	doneCh <- nil
 }
 
 func getCurrentPlanFiles() (shared.CurrentPlanFiles, error) {
 	planFiles.data = make(map[string]string)
 
-	// Check if filesDir exists
 	_, err := os.Stat(PlanFilesDir)
-	exists := !os.IsNotExist(err)
+	filesDirExists := !os.IsNotExist(err)
 
-	if exists {
-		errCh := make(chan error)
-		// Enumerate all paths in [planDir]/files
-		err = filepath.Walk(PlanFilesDir, func(srcPath string, info os.FileInfo, err error) error {
-			go worker(PlanFilesDir, srcPath, info, err, errCh)
-			return nil
-		})
+	_, err = os.Stat(PlanSectionsDir)
+	sectionsDirExists := !os.IsNotExist(err)
 
-		close(errCh)
-		for err := range errCh {
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error processing files: %v", err)
-				return shared.CurrentPlanFiles{}, err
+	numFiles := 0
+
+	if filesDirExists || sectionsDirExists {
+		doneCh := make(chan error)
+
+		if filesDirExists {
+			// Enumerate all paths in [planDir]/files
+			err = filepath.Walk(PlanFilesDir, func(srcPath string, info os.FileInfo, err error) error {
+				if err != nil {
+					return err
+				}
+				if info.IsDir() {
+					return nil
+				}
+				numFiles++
+				go worker(PlanFilesDir, srcPath, info, err, doneCh)
+				return nil
+			})
+		}
+
+		if sectionsDirExists {
+			// Enumerate all paths in [planDir]/sections
+			err = filepath.Walk(PlanSectionsDir, func(srcPath string, info os.FileInfo, err error) error {
+				if err != nil {
+					return err
+				}
+				if info.IsDir() {
+					return nil
+				}
+				numFiles++
+				go worker(PlanSectionsDir, srcPath, info, err, doneCh)
+				return nil
+			})
+		}
+
+		numFinished := 0
+		for numFinished < numFiles {
+			select {
+			case err := <-doneCh:
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "Error processing files: %v", err)
+					return shared.CurrentPlanFiles{}, err
+				}
+				numFinished++
 			}
 		}
 	}
@@ -77,17 +103,44 @@ func getCurrentPlanFiles() (shared.CurrentPlanFiles, error) {
 }
 
 func getCurrentPlanFilePaths() ([]string, error) {
-	// Check if filesDir exists
 	_, err := os.Stat(PlanFilesDir)
-	exists := !os.IsNotExist(err)
+	filesDirExists := !os.IsNotExist(err)
+
+	_, err = os.Stat(PlanSectionsDir)
+	sectionsDirExists := !os.IsNotExist(err)
 
 	filePaths := make([]string, 0)
 
-	if exists {
+	if filesDirExists {
 		// Enumerate all paths in [planDir]/files
 		err = filepath.Walk(PlanFilesDir, func(srcPath string, info os.FileInfo, err error) error {
 			if err != nil {
 				return err
+			}
+
+			if info.IsDir() {
+				return nil
+			}
+
+			filePaths = append(filePaths, srcPath)
+			return nil
+		})
+
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error listing files: %v", err)
+			return []string{}, err
+		}
+	}
+
+	if sectionsDirExists {
+		// Enumerate all paths in [planDir]/sections
+		err = filepath.Walk(PlanSectionsDir, func(srcPath string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+
+			if info.IsDir() {
+				return nil
 			}
 
 			filePaths = append(filePaths, srcPath)

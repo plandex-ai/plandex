@@ -1,4 +1,4 @@
-package model
+package lib
 
 import (
 	"fmt"
@@ -13,22 +13,33 @@ func FormatModelContext(context shared.ModelContext) (string, int) {
 	for _, part := range context {
 		var message string
 		var fmtStr string
-		var labelArg string
+		var args []any
 
 		if part.FilePath != "" {
-			fmtStr = "\n\n- %s:\n\n```%s```"
-			labelArg = part.FilePath
+			if len(part.SectionEnds) > 0 {
+
+				sections := shared.GetFullSections(part.Body, part.SectionEnds)
+
+				for i, section := range sections {
+					fmtStr += "\n\n- %s:\n\n```\n%s\n```"
+					args = append(args, fmt.Sprintf("%s-%d", part.FilePath, i), section)
+				}
+
+			} else {
+				fmtStr = "\n\n- %s:\n\n```\n%s\n```"
+				args = append(args, part.FilePath, part.Body)
+			}
 		} else if part.Url != "" {
-			fmtStr = "\n\n- %s:\n\n```%s```"
-			labelArg = part.Url
+			fmtStr = "\n\n- %s:\n\n```\n%s\n```"
+			args = append(args, part.Url, part.Body)
 		} else {
-			fmtStr = "\n\n- content%s:\n\n```%s```"
-			labelArg = part.Name
+			fmtStr = "\n\n- content%s:\n\n```\n%s\n```"
+			args = append(args, part.Name, part.Body)
 		}
 
-		numTokens += part.NumTokens + shared.GetNumTokens(fmt.Sprintf(fmtStr, labelArg, ""))
+		numTokens += part.NumTokens + shared.GetNumTokens(fmt.Sprintf(fmtStr, ""))
 
-		message = fmt.Sprintf(fmtStr, labelArg, part.Body)
+		message = fmt.Sprintf(fmtStr, args...)
 
 		contextMessages = append(contextMessages, message)
 	}

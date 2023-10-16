@@ -14,8 +14,8 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/plandex/plandex/shared"
 )
 
@@ -25,7 +25,12 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 
 	// fmt.Fprintf(os.Stderr, "Loading context from %s\n", contextStateFilePath)
 
-	maxTokens := min(params.MaxTokens, shared.MaxTokens)
+	var maxTokens int
+	if params.MaxTokens == -1 {
+		maxTokens = shared.MaxTokens
+	} else {
+		maxTokens = min(params.MaxTokens, shared.MaxTokens)
+	}
 
 	func() {
 		contextStateFile, err := os.Open(contextStateFilePath)
@@ -219,7 +224,7 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 		go func() {
 			defer wg.Done()
 
-			flattenedPaths := FlattenPaths(inputFilePaths, params, 0)
+			flattenedPaths := FlattenPaths(inputFilePaths, params)
 
 			if params.NamesOnly {
 				body := strings.Join(flattenedPaths, "\n")
@@ -317,9 +322,41 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 
 						}()
 
-						summaryResp, err := Api.Summarize(body)
-						if err != nil {
-							log.Fatalf("Failed to summarize the file %s: %v", path, err)
+						errCh := make(chan error, 2)
+						summaryCh := make(chan shared.SummarizeResponse, 1)
+						// sectionizeCh := make(chan shared.SectionizeResponse, 1)
+
+						go func() {
+							resp, err := Api.Summarize(body)
+							if err != nil {
+								errCh <- fmt.Errorf("failed to summarize the file %s: %v", path, err)
+								return
+							}
+							summaryCh <- *resp
+						}()
+
+						// go func() {
+						// 	resp, err := Api.Sectionize(body)
+						// 	if err != nil {
+						// 		errCh <- fmt.Errorf("failed to sectionize the file %s: %v", path, err)
+						// 		return
+						// 	}
+						// 	sectionizeCh <- *resp
+						// }()
+
+						// var sectionizeResp shared.SectionizeResponse
+						var summaryResp shared.SummarizeResponse
+
+						// Waiting for the summary response or error
+						for i := 0; i < 1; i++ {
+							select {
+							case err := <-errCh:
+								log.Fatalf("Failed to summarize or sectionize the file %s: %v", path, err)
+							case summaryResp = <-summaryCh:
+							// case sectionizeResp = <-sectionizeCh:
+							case <-time.After(time.Second * 30): // adjust the timeout as necessary
+								log.Fatalf("Timeout while waiting to receive the responses for file %s", path)
+							}
 						}
 
 						// get just the filename
@@ -332,6 +369,7 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 							FilePath:  path,
 							Sha:       sha,
 							NumTokens: numTokens,
+							// SectionEnds: sectionizeResp.SectionEnds,
 							UpdatedAt: StringTs(),
 						}
 
@@ -393,13 +431,6 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 				if err != nil {
 					log.Fatalf("Failed to summarize content from URL %s: %v", url, err)
 				}
-
-				sectionizeResp, err := Api.Sectionize(body)
-				if err != nil {
-					log.Fatalf("Failed to sectionize content from URL %s: %v", url, err)
-				}
-				fmt.Println("Sectionize response:")
-				spew.Dump(sectionizeResp)
 
 				contextPart := shared.ModelContextPart{
 					Name:      fmt.Sprintf("%d.%s", atomic.LoadUint32(&counter), SanitizeAndClipURL(url, 70)),
@@ -512,7 +543,7 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 		log.Fatalf("failed to commit submodule updates in root dir: %s\n", err)
 	}
 
-	fmt.Fprint(os.Stderr, "✅ "+msg+"\n")
+	fmt.Fprint(os.Stderr, "\n✅ "+msg+"\n")
 
 	return tokensAdded, totalTokens
 }

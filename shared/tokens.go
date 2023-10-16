@@ -7,8 +7,8 @@ import (
 	"github.com/pkoukk/tiktoken-go"
 )
 
-const MaxTokens int = 7000        // leave room for the model ouput
-const MaxContextTokens int = 6000 // leave room for the conversation history
+const MaxTokens int = 7500        // leave room for the model ouput
+const MaxContextTokens int = 6500 // leave room for the conversation history
 
 func GetNumTokens(text string) (numTokens int) {
 	tkm, err := tiktoken.EncodingForModel("gpt-4")

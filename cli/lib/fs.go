@@ -19,6 +19,7 @@ var CurrentPlanName string
 var CurrentPlanRootDir string
 var PlanSubdir string
 var PlanFilesDir string
+var PlanSectionsDir string
 var ConversationSubdir string
 var ContextSubdir string
 
@@ -91,6 +92,7 @@ func LoadCurrentPlan() error {
 	CurrentPlanRootDir = filepath.Join(PlandexDir, CurrentPlanName)
 	PlanSubdir = filepath.Join(CurrentPlanRootDir, "plan")
 	PlanFilesDir = filepath.Join(PlanSubdir, "files")
+	PlanSectionsDir = filepath.Join(PlanSubdir, "sections")
 	ConversationSubdir = filepath.Join(CurrentPlanRootDir, "conversation")
 	ContextSubdir = filepath.Join(CurrentPlanRootDir, "context")
 
@@ -140,52 +142,41 @@ func CwdIsPlan() bool {
 	return parentDir == PlandexDir
 }
 
-func FlattenPaths(fileOrDirPaths []string, params *types.LoadContextParams, depth int) []string {
+func FlattenPaths(fileOrDirPaths []string, params *types.LoadContextParams) []string {
 	var wg sync.WaitGroup
 	resPathsChan := make(chan string, len(fileOrDirPaths))
 
 	for _, path := range fileOrDirPaths {
-		fileInfo, err := os.Stat(path)
-		if err != nil {
-			log.Fatalf("Failed to read the file %s: %v", path, err)
-		}
+		wg.Add(1)
+		go func(p string) {
+			defer wg.Done()
+			depth := 0
 
-		if fileInfo.IsDir() {
-			if !params.Recursive {
-				log.Fatalf("The path %s is a directory. Please use the --recursive / -r flag to load the directory recursively.", path)
-			}
-			wg.Add(1)
-			go func(p string) {
-				defer wg.Done()
-				err := filepath.Walk(p, func(path string, info os.FileInfo, err error) error {
-					if err != nil {
-						log.Fatalf("Failed to read the file %s: %v", path, err)
-					}
-
-					if info.IsDir() {
-						if info.Name() == ".git" || info.Name() == ".plandex" {
-							return filepath.SkipDir
-						}
-						if depth < params.MaxDepth {
-							for _, subPath := range FlattenPaths([]string{path}, params, depth+1) {
-								resPathsChan <- subPath
-							}
-						} else if params.NamesOnly {
-							resPathsChan <- path
-						}
-					} else {
-						resPathsChan <- path
-					}
-
-					return nil
-				})
+			err := filepath.Walk(p, func(path string, info os.FileInfo, err error) error {
 				if err != nil {
-					log.Fatalf("Failed to process directory %s: %v", p, err)
+					return err // Handling error more gracefully
 				}
-			}(path)
-		} else {
-			resPathsChan <- path
-		}
+
+				if info.IsDir() {
+					if info.Name() == ".git" || info.Name() == ".plandex" {
+						return filepath.SkipDir
+					}
+
+					if depth >= params.MaxDepth {
+						return filepath.SkipDir
+					}
+
+					depth++ // Incrementing depth here
+				}
+
+				resPathsChan <- path
+				return nil
+			})
+
+			if err != nil {
+				log.Printf("Failed to process directory %s: %v", p, err) // Logging error instead of fatal
+			}
+		}(path)
 	}
 
 	go func() {

@@ -70,13 +70,13 @@ func confirmProposal(proposalId string, onStream types.OnStreamFunc) error {
 			fmtArgs := []interface{}{}
 
 			if fileContext != nil {
-				fmtStr += "Original file %s:\n```\n%s\n```"
+				fmtStr += "Original %s:\n```\n%s\n```"
 				fmtArgs = []interface{}{filePath, fileContext.Body}
 			}
 
 			currentState := proposal.Request.CurrentPlan.Files[filePath]
 			if currentState != "" {
-				fmtStr += "\nCurrent state of file %s in the plan:\n```\n%s\n```"
+				fmtStr += "\nCurrent state of %s in the plan:\n```\n%s\n```"
 				fmtArgs = append(fmtArgs, filePath, currentState)
 			}
 
@@ -95,20 +95,25 @@ func confirmProposal(proposalId string, onStream types.OnStreamFunc) error {
 				openai.ChatCompletionMessage{
 					Role: openai.ChatMessageRoleUser,
 					Content: fmt.Sprintf(`
-						Based on your previous response, call the 'writeFile' function with the full content of the file %s as raw text, including any updates. If the current state of the file within the plan is included above, apply your changes to the *current file*, not the original file. If there is no current file, apply your changes to the original file. You must include the entire file and not leave anything out, even if it is already present the source file. Do not include any placeholders or references to the original file. Output the updated entire file. Only call the 'writeFile' function in your reponse. Don't call any other function.
+						Based on your previous response, call the 'write' function with the full content of the file or file section %s as raw text, including any updates. If the current state of the file+section within the plan is included above, apply your changes to the *current file+section*, not the original file+section. If there is no current file+section, apply your changes to the original file+section. You must include the entire file+section and not leave anything out, even if it is already present the original file+section. Do not include any placeholders or references to the original file+section. Output the updated entire file. Only call the 'write' function in your reponse. Don't call any other function.
 							`, filePath),
 				})
+
+			fmt.Println("Calling model for file: " + filePath)
+			for _, msg := range fileMessages {
+				fmt.Printf("%s: %s\n", msg.Role, msg.Content)
+			}
 
 			modelReq := openai.ChatCompletionRequest{
 				Model: openai.GPT4,
 				Functions: []openai.FunctionDefinition{{
-					Name: "writeFile",
+					Name: "write",
 					Parameters: &jsonschema.Definition{
 						Type: jsonschema.Object,
 						Properties: map[string]jsonschema.Definition{
 							"content": {
 								Type:        jsonschema.String,
-								Description: "The full content of the file, including any updates from the previous response, as raw text",
+								Description: "The full content of the file+section, including any updates from the previous response, as raw text",
 							},
 						},
 						Required: []string{"content"},
@@ -182,7 +187,7 @@ func confirmProposal(proposalId string, onStream types.OnStreamFunc) error {
 								}
 
 							} else {
-								onError(fmt.Errorf("Stream finished without 'writeFile' function call. Reason: %s", choice.FinishReason))
+								onError(fmt.Errorf("Stream finished without 'write' function call. Reason: %s", choice.FinishReason))
 								return
 							}
 
@@ -193,7 +198,7 @@ func confirmProposal(proposalId string, onStream types.OnStreamFunc) error {
 						delta := response.Choices[0].Delta
 
 						if delta.FunctionCall == nil {
-							fmt.Printf("\nStream received data not for 'writeFile' function call")
+							fmt.Printf("\nStream received data not for 'write' function call")
 							continue
 						} else {
 							content = delta.FunctionCall.Arguments
@@ -204,8 +209,8 @@ func confirmProposal(proposalId string, onStream types.OnStreamFunc) error {
 						})
 
 						chunk := &shared.PlanChunk{
-							FilePath: filePath,
-							Content:  content,
+							Path:    filePath,
+							Content: content,
 						}
 
 						// fmt.Printf("%s: %s", filePath, content)

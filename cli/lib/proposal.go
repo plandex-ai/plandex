@@ -20,6 +20,7 @@ type key struct {
 }
 
 func Propose(prompt string) error {
+	var err error
 	fmt.Println("Sending prompt... ")
 	s := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
 	s.Start()
@@ -45,27 +46,17 @@ func Propose(prompt string) error {
 	var state *fsm.FSM
 	var streamFinished bool
 	var filesFinished bool
-	finishedByFile := make(map[string]bool)
+	finishedByPath := make(map[string]bool)
 
 	jsonBuffers := make(map[string]string)
-	contextTokensByFile := make(map[string]int)
+	numStreamedTokensByPath := make(map[string]int)
 
 	replyTokenCounter := shared.NewReplyInfo()
 	var tokensAddedByFile map[string]int
 
-	currentPlanTokensByFilePath := make(map[string]int)
-	currrentPlanTokensPath := filepath.Join(CurrentPlanRootDir, "tokens.json")
-	if _, err := os.Stat(currrentPlanTokensPath); os.IsNotExist(err) {
-		currentPlanTokensByFilePath = make(map[string]int)
-	} else {
-		fileBytes, err := os.ReadFile(currrentPlanTokensPath)
-		if err != nil {
-			return fmt.Errorf("failed to open current plan token count file: %s\n", err)
-		}
-		err = json.Unmarshal(fileBytes, &currentPlanTokensByFilePath)
-		if err != nil {
-			return fmt.Errorf("failed to parse current plan token count json: %s\n", err)
-		}
+	currentPlanTokensByFilePath, err := loadCurrentPlanTokensByFilePath()
+	if err != nil {
+		return fmt.Errorf("failed to load token counts: %s\n", err)
 	}
 
 	var parentProposalId string
@@ -138,6 +129,8 @@ func Propose(prompt string) error {
 
 	running := false
 	queue := make(chan types.OnStreamPlanParams, 1)
+
+	var apiReq *shared.PromptRequest
 
 	var handleStream types.OnStreamPlan
 	handleStream = func(params types.OnStreamPlanParams) {
@@ -247,7 +240,12 @@ func Propose(prompt string) error {
 				// plan build mode started
 
 			} else {
-				wroteFile, err := receiveFileChunk(content, desc, jsonBuffers, contextTokensByFile, finishedByFile)
+				wroteFile, err := receiveFileChunk(&receiveFileChunkParams{
+					Content:                 content,
+					JsonBuffers:             jsonBuffers,
+					NumStreamedTokensByPath: numStreamedTokensByPath,
+					FinishedByPath:          finishedByPath,
+				})
 
 				if err != nil {
 					onError(err)
@@ -262,13 +260,13 @@ func Propose(prompt string) error {
 				for _, filePath := range files {
 					contextPart, foundContext := contextByFilePath[filePath]
 					filePathInPlan := isFilePathInPlan(filePath)
-					contextTokens := contextTokensByFile[filePath]
+					numStreamedTokens := numStreamedTokensByPath[filePath]
 					added := tokensAddedByFile[filePath]
 
 					fmtStr := "- %s | %d tokens"
-					fmtArgs := []interface{}{filePath, contextTokens}
+					fmtArgs := []interface{}{filePath, numStreamedTokens}
 
-					finished := finishedByFile[filePath]
+					_, finished := finishedByPath[filePath]
 
 					if finished {
 						fmtStr += " | done ✅"
@@ -295,7 +293,14 @@ func Propose(prompt string) error {
 				}
 
 				if wroteFile {
-					if len(finishedByFile) == len(files) {
+					fmt.Printf("Wrote %d / %d files", len(finishedByPath), len(files))
+					if len(finishedByPath) == len(files) {
+						err = writeFilesFromSections(apiReq, finishedByPath)
+						if err != nil {
+							onError(err)
+							return
+						}
+
 						filesFinished = true
 
 						if streamFinished {
@@ -310,7 +315,7 @@ func Propose(prompt string) error {
 
 	}
 
-	apiReq, err := Api.Propose(prompt, parentProposalId, handleStream)
+	apiReq, err = Api.Propose(prompt, parentProposalId, handleStream)
 	if err != nil {
 		backToMain()
 		return fmt.Errorf("failed to send prompt to server: %s\n", err)

@@ -12,6 +12,7 @@ import (
 )
 
 func Summarize(text string) ([]byte, int, error) {
+
 	resp, err := Client.CreateChatCompletion(
 		context.Background(),
 		openai.ChatCompletionRequest{
@@ -27,7 +28,7 @@ func Summarize(text string) ([]byte, int, error) {
 						},
 						"summary": {
 							Type:        jsonschema.String,
-							Description: "A concise summary of the text.",
+							Description: "A brief summary of the text. A few sentences at most",
 						},
 						"fileName": {
 							Type:        jsonschema.String,

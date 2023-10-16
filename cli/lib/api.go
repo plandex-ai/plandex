@@ -249,17 +249,15 @@ func (api *API) Sectionize(text string) (*shared.SectionizeResponse, error) {
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	rawBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
 
-	fmt.Println("Sectionize response body:")
-	fmt.Println(string(body))
-
 	var sectionized shared.SectionizeResponse
-	err = json.Unmarshal(body, &sectionized)
+	err = json.Unmarshal(rawBody, &sectionized)
 	if err != nil {
+		fmt.Printf("Failed JSON: %s\n", rawBody) // Printing the JSON causing the failure
 		return nil, err
 	}
 

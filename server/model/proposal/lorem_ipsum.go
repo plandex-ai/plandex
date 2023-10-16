@@ -70,7 +70,7 @@ func streamLoremIpsum(onStream types.OnStreamFunc) {
 
 func streamFilesLoremIpsum(onStream types.OnStreamFunc) {
 	writeChunk := func(filePath string, isExec bool, content string) {
-		chunk := shared.PlanChunk{FilePath: filePath, Content: content /*IsExec: isExec*/}
+		chunk := shared.PlanChunk{Path: filePath, Content: content}
 		chunkJson, _ := json.Marshal(chunk)
 		onStream(string(chunkJson), nil)
 		time.Sleep(50 * time.Millisecond) // Adding a small delay between files for effect
