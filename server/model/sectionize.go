@@ -49,12 +49,12 @@ func Sectionize(text string) ([]byte, error) {
 						1a. If the text is code, try to group together related operations. 
 						1b. If the text is natural language, try to group together related ideas.
 
-					2. Call the 'sectionized' function with the the 'sections' parameter. For each section, provide a string containing *just the first line that begins the section.*									
+					2. Call the 'sectionized' function with the the 'sections' parameter. For each section, provide a string containing *just the first several distinguishing tokens that begin the section.*									
 
 					When breaking up the text into sections, follow these guidelines.
 					- Sections should be roughly 50-100 lines in size.
-					- A file should be broken up into no more than 5-10 sections.
-					- For a short file, it's good to have a small number of sections, like 2-3 sections.
+					- A long file should be broken up into no more than 5-7 sections.
+					- A short file should have 2-3 sections.
 					- Sections should be understandable in isolation.
 					- If in doubt, lean towards fewer sections rather than more sections.
 					- Blocks of code that are commented out should be given their own sections.

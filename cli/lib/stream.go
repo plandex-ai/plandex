@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/plandex/plandex/shared"
@@ -18,7 +19,7 @@ type receiveFileChunkParams struct {
 	FinishedByPath          map[string]bool
 }
 
-func receiveFileChunk(params *receiveFileChunkParams) (bool, error) {
+func receiveFileToken(params *receiveFileChunkParams) (bool, error) {
 	content := params.Content
 	jsonBuffers := params.JsonBuffers
 	numStreamedTokensByPath := params.NumStreamedTokensByPath
@@ -30,59 +31,129 @@ func receiveFileChunk(params *receiveFileChunkParams) (bool, error) {
 		return false, fmt.Errorf("error parsing plan chunk: %v", err)
 	}
 
-	_, sectionNum, err := shared.SplitSectionPath(chunk.Path)
-	if err != nil {
-		return false, fmt.Errorf("error parsing section number: %v", err)
-	}
-	isSection := sectionNum >= 0
+	// _, sectionNum, err := shared.SplitSectionPath(chunk.Path)
+	// if err != nil {
+	// 	return false, fmt.Errorf("error parsing section number: %v", err)
+	// }
+	// isSection := sectionNum >= 0
 
 	// fmt.Println("path: " + chunk.Path)
 	// fmt.Println("isSection: " + fmt.Sprintf("%t", isSection))
 	// fmt.Println("sectionNum: " + fmt.Sprintf("%d", sectionNum))
 	// fmt.Println("filePath: " + filePath)
 
-	buffer, isFirstWriteToPath := jsonBuffers[chunk.Path]
+	buffer := jsonBuffers[chunk.Path]
 	buffer += chunk.Content
 	jsonBuffers[chunk.Path] = buffer
 
-	numTokens := int(shared.GetNumTokens(chunk.Content))
-	if isFirstWriteToPath {
-		numStreamedTokensByPath[chunk.Path] = numTokens
+	numStreamedTokensByPath[chunk.Path]++
+
+	// log.Println("Received file chunk: " + chunk.Path)
+	// log.Println("Number of tokens: " + fmt.Sprintf("%d", numStreamedTokensByPath[chunk.Path]))
+
+	var streamedType string
+	var streamed shared.StreamedFile
+	var replacements shared.StreamedReplacements
+
+	err = json.Unmarshal([]byte(jsonBuffers[chunk.Path]), &replacements)
+	if err == nil {
+		streamedType = "replacements"
 	} else {
-		numStreamedTokensByPath[chunk.Path] += numTokens
+		err = json.Unmarshal([]byte(jsonBuffers[chunk.Path]), &streamed)
+		if err == nil {
+			streamedType = "file"
+		}
 	}
 
-	var streamed shared.StreamedFile
-	err = json.Unmarshal([]byte(jsonBuffers[chunk.Path]), &streamed)
-
 	if err == nil {
+
+		// log.Println("Parsed JSON. Streamed type: " + streamedType)
+
 		var writeToPath string
 
-		if isSection {
-			// log.Printf("Section. Writing to section path '%s'\n", chunk.Path)
-			writeToPath = filepath.Join(PlanSectionsDir, chunk.Path)
+		writeToPath = filepath.Join(PlanFilesDir, chunk.Path)
+
+		var content string
+
+		if streamedType == "replacements" {
+
+			exists := false
+			if _, err := os.Stat(writeToPath); !os.IsNotExist(err) {
+				exists = true
+			}
+
+			if exists {
+				bytes, err := os.ReadFile(writeToPath)
+
+				if err != nil {
+					err = fmt.Errorf("failed to read file '%s': %v\n", writeToPath, err)
+					log.Println(err)
+					return false, fmt.Errorf("failed to read file '%s': %v\n", writeToPath, err)
+				}
+
+				content = string(bytes)
+			} else {
+				bytes, err := os.ReadFile(filepath.Join(ProjectRoot, chunk.Path))
+
+				if err != nil {
+					err = fmt.Errorf("failed to read file '%s': %v\n", chunk.Path, err)
+					log.Println(err)
+					return false, fmt.Errorf("failed to read file '%s': %v\n", chunk.Path, err)
+				}
+
+				content = string(bytes)
+			}
+
+			// log.Println("Content before replacements: " + content)
+
+			// ensure replacements are ordered by index in content (error if not present)
+			sort.Slice(replacements.Replacements, func(i, j int) bool {
+				iIdx := strings.Index(content, replacements.Replacements[i].Old)
+				jIdx := strings.Index(content, replacements.Replacements[j].Old)
+				return iIdx < jIdx
+			})
+
+			lastInsertedIdx := 0
+			for _, replacement := range replacements.Replacements {
+				pre := content[:lastInsertedIdx]
+				sub := content[lastInsertedIdx:]
+				idx := strings.Index(sub, replacement.Old)
+				if idx == -1 {
+					err = fmt.Errorf("failed to find replacement string '%s' in file '%s'\n", replacement.Old, chunk.Path)
+					log.Println(err)
+					return false, err
+				}
+
+				updated := strings.Replace(sub, replacement.Old, replacement.New, 1)
+
+				// log.Println("Replacement: " + replacement.Old + " -> " + replacement.New)
+				// log.Println("Pre: " + pre)
+				// log.Println("Sub: " + sub)
+				// log.Println("Idx: " + fmt.Sprintf("%d", idx))
+				// log.Println("Updated: " + updated)
+
+				content = pre + updated
+
+				lastInsertedIdx = lastInsertedIdx + idx + len(replacement.New)
+			}
+
+			// log.Println("Content after replacements: " + content)
+		} else if streamedType == "file" {
+			content = streamed.Content
 		} else {
-			// log.Printf("Note section. Writing to file path '%s'\n", chunk.Path)
-			writeToPath = filepath.Join(PlanFilesDir, chunk.Path)
+			err = fmt.Errorf("unknown streamed type: %s", streamedType)
+			log.Println(err)
+			return false, err
 		}
 
-		// log.Printf("Writing to file or section path '%s'\n", writeToPath)
 		err := os.MkdirAll(filepath.Dir(writeToPath), os.ModePerm)
 		if err != nil {
 			log.Printf("failed to create directory: %s\n", err)
 			return false, fmt.Errorf("failed to create directory: %s\n", err)
 
 		}
-		file, err := os.OpenFile(writeToPath, os.O_TRUNC|os.O_CREATE|os.O_WRONLY,
-			0644)
-		if err != nil {
-			log.Printf("failed to open plan file '%s': %v\n", writeToPath, err)
-			return false, fmt.Errorf("failed to open plan file '%s': %v\n", writeToPath,
-				err)
-		}
-		defer file.Close()
-		_, err = file.WriteString(streamed.Content)
 
+		err = os.WriteFile(writeToPath, []byte(content), 0644)
 		if err != nil {
 			log.Printf("failed to write plan file '%s': %v\n", writeToPath, err)
 			return false, fmt.Errorf("failed to write plan file '%s': %v\n", writeToPath, err)
@@ -92,8 +163,6 @@ func receiveFileChunk(params *receiveFileChunkParams) (bool, error) {
 		if err != nil {
 			return false, fmt.Errorf("failed to write token counts: %s\n", err)
 		}
-
-		// fmt.Println("Wrote to file " + filePath)
 
 		finishedByPath[chunk.Path] = true
 
@@ -172,134 +241,4 @@ func loadCurrentPlanTokensByFilePath() (map[string]int, error) {
 	}
 
 	return currentPlanTokensByFilePath, nil
-}
-
-func writeFilesFromSections(apiReq *shared.PromptRequest, finishedByPath map[string]bool) error {
-	log.Println("Starting writeFilesFromSections...")
-
-	var filePaths []string
-
-	for path := range finishedByPath {
-		filePath, sectionNum, err := shared.SplitSectionPath(path)
-		if err != nil {
-			return fmt.Errorf("error parsing section number: %v", err)
-		}
-		if sectionNum >= 0 {
-			filePaths = append(filePaths, filePath)
-		}
-	}
-
-	log.Printf("File paths to process: %v\n", filePaths)
-
-	errCh := make(chan error)
-	doneCh := make(chan bool)
-	numWritten := 0
-
-	for _, filePath := range filePaths {
-		go func(filePath string) {
-			log.Printf("Processing file: %s\n", filePath)
-
-			origPath := filepath.Join(".", filePath)
-			planFilesPath := filepath.Join(PlanFilesDir, filePath)
-
-			// read the original file
-			origBytes, err := os.ReadFile(origPath)
-			if err != nil {
-				log.Printf("failed to read original file '%s': %v\n", origPath, err)
-				errCh <- fmt.Errorf("failed to read original file '%s': %v\n", origPath, err)
-				return
-			}
-			origContent := string(origBytes)
-
-			// get the full sections from the original file
-			var contextPart *shared.ModelContextPart
-			for _, part := range apiReq.ModelContext {
-				if part.FilePath == filePath {
-					contextPart = &part
-					break
-				}
-			}
-			if contextPart == nil {
-				log.Printf("failed to find context part for file '%s'\n", filePath)
-				errCh <- fmt.Errorf("failed to find context part for file '%s'\n", filePath)
-				return
-			}
-			origSections := shared.GetFullSections(origContent, contextPart.SectionEnds)
-			fileContent := origContent
-
-			// list existing section files for this file path
-			sectionsDir := filepath.Dir(filepath.Join(PlanSectionsDir, filePath))
-			sectionFiles, err := os.ReadDir(sectionsDir)
-			if err != nil {
-				log.Printf("failed to read section files for '%s': %v\n", filePath, err)
-				errCh <- fmt.Errorf("failed to read section files for '%s': %v\n", filePath, err)
-				return
-			}
-			for _, sectionFile := range sectionFiles {
-				name := sectionFile.Name()
-				sectionPath := filepath.Join(filepath.Dir(filePath), name)
-
-				_, sectionNum, err := shared.SplitSectionPath(sectionPath)
-				if err != nil || sectionNum < 0 {
-					log.Printf("failed to parse section number for '%s': %v\n", sectionPath, err)
-					errCh <- fmt.Errorf("failed to parse section number for '%s': %v\n", sectionPath, err)
-					return
-				}
-
-				if sectionNum >= len(origSections) {
-					log.Printf("failed to find section %d in file '%s'\n", sectionNum, filePath)
-					errCh <- fmt.Errorf("failed to find section %d in file '%s'\n", sectionNum, filePath)
-					return
-				}
-
-				origSection := origSections[sectionNum]
-
-				// read the section file
-				sectionBytes, err := os.ReadFile(filepath.Join(sectionsDir, name))
-				if err != nil {
-					log.Printf("failed to read section file '%s': %v\n", sectionPath, err)
-					errCh <- fmt.Errorf("failed to read section file '%s': %v\n", sectionPath, err)
-					return
-				}
-
-				sectionContent := string(sectionBytes)
-
-				// replace the section in the original file
-				fileContent = strings.Replace(fileContent, origSection, sectionContent, 1)
-			}
-
-			// ensure directory exists
-			err = os.MkdirAll(filepath.Dir(planFilesPath), os.ModePerm)
-			if err != nil {
-				log.Printf("failed to create directory: %s\n", err)
-				errCh <- fmt.Errorf("failed to create directory: %s\n", err)
-				return
-			}
-
-			// write the file
-			err = os.WriteFile(planFilesPath, []byte(fileContent), 0644)
-			if err != nil {
-				log.Printf("failed to write file '%s': %v\n", planFilesPath, err)
-				errCh <- fmt.Errorf("failed to write file '%s': %v\n", planFilesPath, err)
-				return
-			}
-
-			// log.Printf("File written successfully: %s\n", planFilesPath)
-			doneCh <- true
-		}(filePath)
-	}
-
-	for numWritten < len(filePaths) {
-		select {
-		case err := <-errCh:
-			return err
-		case <-doneCh:
-			numWritten++
-			// log.Printf("Number of files written: %d\n", numWritten)
-		}
-	}
-
-	// log.Println("Completed writeFilesFromSections.")
-
-	return nil
 }

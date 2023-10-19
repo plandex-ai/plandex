@@ -348,6 +348,7 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 						var summaryResp shared.SummarizeResponse
 
 						// Waiting for the summary response or error
+						// for i := 0; i < 2; i++ {
 						for i := 0; i < 1; i++ {
 							select {
 							case err := <-errCh:

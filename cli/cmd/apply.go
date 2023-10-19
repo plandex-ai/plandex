@@ -70,7 +70,7 @@ func apply(cmd *cobra.Command, args []string) error {
 		}
 
 		// Compute destination path
-		dstPath := filepath.Join(".", relPath)
+		dstPath := filepath.Join(lib.ProjectRoot, relPath)
 
 		// Copy the file
 		err = copyFile(srcPath, dstPath)

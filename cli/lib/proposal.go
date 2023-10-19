@@ -54,10 +54,10 @@ func Propose(prompt string) error {
 	replyTokenCounter := shared.NewReplyInfo()
 	var tokensAddedByFile map[string]int
 
-	currentPlanTokensByFilePath, err := loadCurrentPlanTokensByFilePath()
-	if err != nil {
-		return fmt.Errorf("failed to load token counts: %s\n", err)
-	}
+	// currentPlanTokensByFilePath, err := loadCurrentPlanTokensByFilePath()
+	// if err != nil {
+	// 	return fmt.Errorf("failed to load token counts: %s\n", err)
+	// }
 
 	var parentProposalId string
 	var planState types.PlanState
@@ -240,7 +240,7 @@ func Propose(prompt string) error {
 				// plan build mode started
 
 			} else {
-				wroteFile, err := receiveFileChunk(&receiveFileChunkParams{
+				wroteFile, err := receiveFileToken(&receiveFileChunkParams{
 					Content:                 content,
 					JsonBuffers:             jsonBuffers,
 					NumStreamedTokensByPath: numStreamedTokensByPath,
@@ -258,8 +258,8 @@ func Propose(prompt string) error {
 				moveUpLines(len(files))
 
 				for _, filePath := range files {
-					contextPart, foundContext := contextByFilePath[filePath]
-					filePathInPlan := isFilePathInPlan(filePath)
+					// contextPart, foundContext := contextByFilePath[filePath]
+					// filePathInPlan := isFilePathInPlan(filePath)
 					numStreamedTokens := numStreamedTokensByPath[filePath]
 					added := tokensAddedByFile[filePath]
 
@@ -270,22 +270,9 @@ func Propose(prompt string) error {
 
 					if finished {
 						fmtStr += " | done ✅"
-					} else {
-						if filePathInPlan {
-							fmtStr += " / %d estimated (%d base + ~%d changes)"
-							currentTotal := currentPlanTokensByFilePath[filePath]
-							total := currentTotal + added
-							fmtArgs = append(fmtArgs, total, currentTotal, added)
-						} else if foundContext {
-							fmtStr += " / %d estimated (%d base + ~%d changes)"
-							contextTotal := int(contextPart.NumTokens)
-							total := contextTotal + added
-
-							fmtArgs = append(fmtArgs, total, contextTotal, added)
-						} else if added > 0 {
-							fmtStr += " / %d estimated"
-							fmtArgs = append(fmtArgs, added)
-						}
+					} else if added > 0 {
+						fmtStr += " / %d estimated"
+						fmtArgs = append(fmtArgs, added)
 					}
 
 					clearCurrentLine()
@@ -293,13 +280,13 @@ func Propose(prompt string) error {
 				}
 
 				if wroteFile {
-					fmt.Printf("Wrote %d / %d files", len(finishedByPath), len(files))
+					// fmt.Printf("Wrote %d / %d files", len(finishedByPath), len(files))
 					if len(finishedByPath) == len(files) {
-						err = writeFilesFromSections(apiReq, finishedByPath)
-						if err != nil {
-							onError(err)
-							return
-						}
+						// err = writeFilesFromSections(apiReq, finishedByPath)
+						// if err != nil {
+						// 	onError(err)
+						// 	return
+						// }
 
 						filesFinished = true
 

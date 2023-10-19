@@ -12,6 +12,7 @@ import (
 
 var Cwd string
 var PlandexDir string
+var ProjectRoot string
 var HomePlandexDir string
 var CacheDir string
 
@@ -56,7 +57,8 @@ func init() {
 	go func() {
 		defer wg.Done()
 
-		PlandexDir = FindPlandex()
+		PlandexDir, ProjectRoot = FindPlandex()
+
 		err = LoadCurrentPlan()
 		if err != nil {
 			panic(err)
@@ -123,17 +125,17 @@ func FindOrCreatePlandex() (string, bool, error) {
 	return dir, false, nil
 }
 
-func FindPlandex() string {
+func FindPlandex() (string, string) {
 	searchPath := Cwd
 	for searchPath != "/" {
 		dir := filepath.Join(searchPath, ".plandex")
 		if _, err := os.Stat(dir); !os.IsNotExist(err) {
-			return dir
+			return dir, searchPath
 		}
 		searchPath = filepath.Dir(searchPath)
 	}
 
-	return ""
+	return "", ""
 }
 
 func CwdIsPlan() bool {
