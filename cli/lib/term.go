@@ -5,8 +5,29 @@ import (
 	"os"
 	"strings"
 
+	"github.com/fatih/color"
 	"golang.org/x/term"
 )
+
+var cmdDesc = map[string][2]string{
+	"load": {"l", "load files/urls or pipe data into context"},
+	"tell": {"t", "describe a task, ask a question, or just chat"},
+}
+
+func PrintCmds(cmds ...string) {
+	for _, cmd := range cmds {
+		config, ok := cmdDesc[cmd]
+		if !ok {
+			continue
+		}
+
+		alias := config[0]
+		desc := config[1]
+		cmd = strings.Replace(cmd, alias, fmt.Sprintf("(%s)", alias), 1)
+
+		fmt.Printf("%s 👉 %s\n", color.New(color.Bold, color.BgCyan, color.FgHiWhite).Sprintf(" plandex %s ", cmd), desc)
+	}
+}
 
 func alternateScreen() {
 	// Switch to alternate screen and hide the cursor

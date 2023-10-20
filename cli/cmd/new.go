@@ -8,101 +8,68 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"time"
 
 	"plandex/lib"
-	"plandex/types"
 
-	"github.com/briandowns/spinner"
+	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 )
 
-var context []string
 var name string
 
 // newCmd represents the new command
 var newCmd = &cobra.Command{
-	Use:   "new [prompt]",
-	Short: "",
-	Long:  ``,
-	Args:  cobra.RangeArgs(0, 1),
-	Run:   new,
+	Use:   "new",
+	Short: "Start a new plan.",
+	// Long:  ``,
+	Args: cobra.ExactArgs(0),
+	Run:  new,
 }
 
 func init() {
-	addSharedContextFlags(newCmd)
-	newCmd.Flags().StringSliceVarP(&context, "context", "c", []string{}, "Context to load into the new plan (file paths or urls)")
-	newCmd.Flags().StringVarP(&name, "name", "n", "", "Name of the new plan")
 	RootCmd.AddCommand(newCmd)
+	newCmd.Flags().StringVarP(&name, "name", "n", "", "Name of the new plan")
 }
 
-// const minActionDelay = 1000 * time.Millisecond
-
 func new(cmd *cobra.Command, args []string) {
-	var prompt string
-	if len(args) > 0 {
-		prompt = args[0]
-	}
-
-	if name == "" && prompt == "" {
-		log.Fatalln("Error: either prompt or --name/-n flag must be provided")
-	}
+	isDraft := false
 
 	if name == "" {
-		summaryResp, err := lib.Api.Summarize(prompt)
-		if err != nil {
-			log.Fatalf("Failed to get a name for the prompt: %v", err)
-		}
-		name = lib.GetFileNameWithoutExt(summaryResp.FileName)
+		name = "draft"
+		isDraft = true
 	}
-
-	fmt.Println("Creating plan '" + name + "'... ")
 
 	// Check git installed
 	if !lib.IsCommandAvailable("git") {
 		log.Fatalln("Error: git is required")
 	}
-	// fmt.Fprintln(os.Stderr, "✅ Confirmed git is installed")
 
-	// Search recursively upward for a .plandex directory
 	plandexDir, _, err := lib.FindOrCreatePlandex()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Error finding or creating .plandex dir:", err)
 		return
 	}
-	// if newd {
-	// 	fmt.Fprintln(os.Stderr, "✅ Created .plandex directory at "+plandexDir)
-	// } else {
-	// 	fmt.Fprintln(os.Stderr, "✅ Found .plandex directory at "+plandexDir)
-	// }
 
-	// If 'name' directory already exists, tack on an integer to differentiate
-	rootDir := filepath.Join(plandexDir, name)
-	_, err = os.Stat(rootDir)
-	exists := !os.IsNotExist(err)
-
-	postfix := 1
-	var nameWithPostfix string
-	for exists {
-		postfix += 1
-		nameWithPostfix = fmt.Sprintf("%s.%d", name, postfix)
-		rootDir = filepath.Join(plandexDir, nameWithPostfix)
-		_, err = os.Stat(rootDir)
-		exists = !os.IsNotExist(err)
-	}
-	if nameWithPostfix != "" {
-		name = nameWithPostfix
-	}
-
-	// Create current plan json file with current plan name
-	planFilePath := filepath.Join(plandexDir, "current_plan.json")
-	planFile, err := os.OpenFile(planFilePath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
+	err = lib.ClearDraftPlans()
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error creating current_plan.json:", err)
+		fmt.Fprintln(os.Stderr, "Error clearing draft plans:", err)
 		return
 	}
-	defer planFile.Close()
-	_, err = planFile.WriteString(fmt.Sprintf(`{"name": "%s"}`, name))
+
+	name, err = lib.DedupPlanName(name)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "Error deduping plan name:", err)
+		return
+	}
+
+	rootDir := filepath.Join(plandexDir, name)
+
+	// Set the current plan to 'name'
+	err = lib.SetCurrentPlan(name)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "Error setting current plan:", err)
+		return
+	}
 
 	// Create 'name' directory inside .plandex
 	err = os.Mkdir(rootDir, os.ModePerm)
@@ -189,38 +156,13 @@ func new(cmd *cobra.Command, args []string) {
 
 	// fmt.Fprintln(os.Stderr, "✅ Initialized context and plan git repositories")
 
-	err = lib.LoadCurrentPlan()
-
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error setting current plan:", err)
-		return
+	if isDraft {
+		fmt.Println("✅ Started new plan")
+	} else {
+		fmt.Printf("✅ Started new plan: %s\n", color.New(color.Bold, color.FgHiWhite).Sprint(name))
 	}
 
-	if len(context) > 0 {
-		fmt.Println("Loading context... ")
-		s := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
-		s.Start()
-
-		lib.LoadContextOrDie(&types.LoadContextParams{
-			Note:      note,
-			MaxTokens: maxTokens,
-			Recursive: recursive,
-			MaxDepth:  maxDepth,
-			NamesOnly: namesOnly,
-			Truncate:  truncate,
-			Resources: context,
-		})
-
-		time.Sleep(500 * time.Millisecond)
-		s.Stop()
-	}
-
-	if prompt != "" {
-		err = lib.Propose(prompt)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "Prompt error:", err)
-			return
-		}
-	}
+	fmt.Println()
+	lib.PrintCmds("load", "tell")
 
 }

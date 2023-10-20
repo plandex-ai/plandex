@@ -232,38 +232,6 @@ func (api *API) Summarize(text string) (*shared.SummarizeResponse, error) {
 	return &summarized, nil
 }
 
-func (api *API) Sectionize(text string) (*shared.SectionizeResponse, error) {
-	serverUrl := apiHost + "/sectionize"
-
-	payload := shared.SectionizeRequest{
-		Text: text,
-	}
-	jsonData, err := json.Marshal(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	resp, err := http.Post(serverUrl, "application/json", bytes.NewBuffer(jsonData))
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	rawBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	var sectionized shared.SectionizeResponse
-	err = json.Unmarshal(rawBody, &sectionized)
-	if err != nil {
-		fmt.Printf("Failed JSON: %s\n", rawBody) // Printing the JSON causing the failure
-		return nil, err
-	}
-
-	return &sectionized, nil
-}
-
 func readUntilSeparator(reader *bufio.Reader, separator string) (string, error) {
 	var result []byte
 	sepBytes := []byte(separator)

@@ -7,6 +7,7 @@ import (
 
 	"plandex/lib"
 
+	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 )
 
@@ -43,7 +44,7 @@ func del(cmd *cobra.Command, args []string) {
 	planDir := filepath.Join(plandexDir, name)
 
 	if _, err := os.Stat(planDir); os.IsNotExist(err) {
-		fmt.Fprintln(os.Stderr, "Error: plan with name '"+name+"' does not exist")
+		fmt.Fprintf(os.Stderr, "Plan %s does not exist", color.New(color.Bold).Sprint(name))
 		return
 	}
 
@@ -53,7 +54,15 @@ func del(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	fmt.Fprintln(os.Stderr, "✅ Plan '"+name+"' has been deleted.")
+	if lib.CurrentPlanName == name {
+		err = os.Remove(filepath.Join(plandexDir, "current_plan.json"))
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "Error deleting current plan:", err)
+			return
+		}
+	}
+
+	fmt.Printf("✅ Deleted plan %s\n", color.New(color.Bold).Sprint(name))
 }
 
 func delAll() {

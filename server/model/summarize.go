@@ -22,20 +22,16 @@ func Summarize(text string) ([]byte, int, error) {
 				Parameters: &jsonschema.Definition{
 					Type: jsonschema.Object,
 					Properties: map[string]jsonschema.Definition{
-						"name": {
-							Type:        jsonschema.String,
-							Description: "A short name for the text based on the content.",
-						},
 						"summary": {
 							Type:        jsonschema.String,
 							Description: "A brief summary of the text. A few sentences at most",
 						},
 						"fileName": {
 							Type:        jsonschema.String,
-							Description: "A *short* file name for the text based on the content. Use dashes as word separators. No spaces or special characters. 3-5 words max.",
+							Description: "A *short* file name for the text based on the content. Use dashes as word separators. No spaces or special characters. A few words max.",
 						},
 					},
-					Required: []string{"name", "summary", "fileName"},
+					Required: []string{"summary", "fileName"},
 				},
 			}},
 			Messages: []openai.ChatCompletionMessage{

@@ -56,16 +56,22 @@ func receiveFileToken(params *receiveFileChunkParams) (bool, error) {
 	var replacements shared.StreamedReplacements
 
 	err = json.Unmarshal([]byte(jsonBuffers[chunk.Path]), &replacements)
-	if err == nil {
+	if err == nil && len(replacements.Replacements) > 0 {
 		streamedType = "replacements"
 	} else {
 		err = json.Unmarshal([]byte(jsonBuffers[chunk.Path]), &streamed)
-		if err == nil {
+		if err == nil && streamed.Content != "" {
 			streamedType = "file"
 		}
 	}
 
 	if err == nil {
+
+		if streamedType == "" {
+			err = fmt.Errorf("failed to parse streamed data to a replacement or full file")
+			log.Println(err)
+			return false, err
+		}
 
 		// log.Println("Parsed JSON. Streamed type: " + streamedType)
 
@@ -104,6 +110,11 @@ func receiveFileToken(params *receiveFileChunkParams) (bool, error) {
 				content = string(bytes)
 			}
 
+			// Uncomment below for debugging updates
+			// updatesPath := filepath.Join(CurrentPlanRootDir, "updates", chunk.Path)
+			// os.MkdirAll(filepath.Dir(updatesPath), os.ModePerm)
+			// os.WriteFile(updatesPath+"-"+"replacements"+"-"+StringTs(), []byte(buffer), 0644)
+
 			// log.Println("Content before replacements: " + content)
 
 			// ensure replacements are ordered by index in content (error if not present)
@@ -140,10 +151,12 @@ func receiveFileToken(params *receiveFileChunkParams) (bool, error) {
 			// log.Println("Content after replacements: " + content)
 		} else if streamedType == "file" {
 			content = streamed.Content
-		} else {
-			err = fmt.Errorf("unknown streamed type: %s", streamedType)
-			log.Println(err)
-			return false, err
+
+			// Uncomment below for debugging updates
+			// updatesPath := filepath.Join(CurrentPlanRootDir, "updates", chunk.Path)
+			// os.MkdirAll(filepath.Dir(updatesPath), os.ModePerm)
+			// os.WriteFile(updatesPath+"-"+"file"+"-"+StringTs(), []byte(buffer), 0644)
+
 		}
 
 		err := os.MkdirAll(filepath.Dir(writeToPath), os.ModePerm)
@@ -232,11 +245,7 @@ func loadCurrentPlanTokensByFilePath() (map[string]int, error) {
 
 	currentPlanTokensByFilePath := make(map[string]int)
 
-	for path, numTokens := range currentPlanTokensByPath {
-		filePath, _, err := shared.SplitSectionPath(path)
-		if err != nil {
-			return nil, fmt.Errorf("error parsing section number: %v", err)
-		}
+	for filePath, numTokens := range currentPlanTokensByPath {
 		currentPlanTokensByFilePath[filePath] += numTokens
 	}
 

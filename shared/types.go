@@ -29,29 +29,18 @@ type SummarizeRequest struct {
 }
 
 type SummarizeResponse struct {
-	Name     string `json:"name"`
 	Summary  string `json:"summary"`
 	FileName string `json:"fileName"`
 }
 
-type SectionizeRequest struct {
-	Text string `json:"text"`
-}
-
-type SectionizeResponse struct {
-	SectionEnds []int `json:"sectionEnds"`
-}
-
 type ModelContextPart struct {
-	Name        string `json:"name"`
-	Summary     string `json:"summary"`
-	Body        string `json:"body"`
-	Url         string `json:"url"`
-	FilePath    string `json:"filePath"`
-	Sha         string `json:"sha"`
-	NumTokens   int    `json:"numTokens"`
-	UpdatedAt   string `json:"updatedAt"`
-	SectionEnds []int  `json:"sectionEnds"`
+	Name      string `json:"name"`
+	Body      string `json:"body"`
+	Url       string `json:"url"`
+	FilePath  string `json:"filePath"`
+	Sha       string `json:"sha"`
+	NumTokens int    `json:"numTokens"`
+	UpdatedAt string `json:"updatedAt"`
 }
 type ModelContext []ModelContextPart
 

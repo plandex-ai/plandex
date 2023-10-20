@@ -34,11 +34,10 @@ func contextLs(cmd *cobra.Command, args []string) {
 		totalTokens += part.NumTokens
 
 		if i != 0 {
-			fmt.Print("\n\n")
+			fmt.Print("\n")
 		}
 
-		fmt.Printf("Name: %s\n", part.Name)
-
+		fmt.Println("Index:", i)
 		if part.FilePath != "" {
 			fmt.Printf("File: %s\n", part.FilePath)
 		}
@@ -49,11 +48,9 @@ func contextLs(cmd *cobra.Command, args []string) {
 
 		fmt.Printf("Tokens: %d\n", part.NumTokens)
 		fmt.Printf("Updated: %s\n", part.UpdatedAt)
-
-		fmt.Printf("Summary:\n%s", part.Summary)
 	}
 
-	fmt.Printf("\n\nTotal tokens: %d\n", totalTokens)
+	fmt.Printf("\nTotal tokens: %d\n", totalTokens)
 
 }
 

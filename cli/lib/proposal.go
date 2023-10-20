@@ -22,10 +22,10 @@ type key struct {
 func Propose(prompt string) error {
 	var err error
 	fmt.Println("Sending prompt... ")
-	s := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
+	s := spinner.New(spinner.CharSets[33], 100*time.Millisecond)
 	s.Start()
 
-	time.Sleep(500 * time.Millisecond)
+	// time.Sleep(500 * time.Millisecond)
 
 	timestamp := StringTs()
 	reply := ""
@@ -52,7 +52,7 @@ func Propose(prompt string) error {
 	numStreamedTokensByPath := make(map[string]int)
 
 	replyTokenCounter := shared.NewReplyInfo()
-	var tokensAddedByFile map[string]int
+	// var tokensAddedByFile map[string]int
 
 	// currentPlanTokensByFilePath, err := loadCurrentPlanTokensByFilePath()
 	// if err != nil {
@@ -111,7 +111,8 @@ func Propose(prompt string) error {
 		backToMain()
 		fmt.Print(termState)
 		var totalTokens int
-		_, tokensAddedByFile, totalTokens = replyTokenCounter.FinishAndRead()
+		// _, tokensAddedByFile, totalTokens = replyTokenCounter.FinishAndRead()
+		_, _, totalTokens = replyTokenCounter.FinishAndRead()
 		err := appendConversation(types.AppendConversationParams{
 			Timestamp:    timestamp,
 			Prompt:       prompt,
@@ -261,7 +262,7 @@ func Propose(prompt string) error {
 					// contextPart, foundContext := contextByFilePath[filePath]
 					// filePathInPlan := isFilePathInPlan(filePath)
 					numStreamedTokens := numStreamedTokensByPath[filePath]
-					added := tokensAddedByFile[filePath]
+					// added := tokensAddedByFile[filePath]
 
 					fmtStr := "- %s | %d tokens"
 					fmtArgs := []interface{}{filePath, numStreamedTokens}
@@ -270,10 +271,11 @@ func Propose(prompt string) error {
 
 					if finished {
 						fmtStr += " | done ✅"
-					} else if added > 0 {
-						fmtStr += " / %d estimated"
-						fmtArgs = append(fmtArgs, added)
 					}
+					// else if added > 0 {
+					// 	fmtStr += " / %d estimated"
+					// 	fmtArgs = append(fmtArgs, added)
+					// }
 
 					clearCurrentLine()
 					fmt.Printf(fmtStr+"\n", fmtArgs...)
@@ -282,12 +284,6 @@ func Propose(prompt string) error {
 				if wroteFile {
 					// fmt.Printf("Wrote %d / %d files", len(finishedByPath), len(files))
 					if len(finishedByPath) == len(files) {
-						// err = writeFilesFromSections(apiReq, finishedByPath)
-						// if err != nil {
-						// 	onError(err)
-						// 	return
-						// }
-
 						filesFinished = true
 
 						if streamFinished {

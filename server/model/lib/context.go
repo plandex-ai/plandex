@@ -16,19 +16,8 @@ func FormatModelContext(context shared.ModelContext) (string, int) {
 		var args []any
 
 		if part.FilePath != "" {
-			if len(part.SectionEnds) > 0 {
-
-				sections := shared.GetFullSections(part.Body, part.SectionEnds)
-
-				for i, section := range sections {
-					fmtStr += "\n\n- %s:\n\n```\n%s\n```"
-					args = append(args, fmt.Sprintf("%s-%d", part.FilePath, i), section)
-				}
-
-			} else {
-				fmtStr = "\n\n- %s:\n\n```\n%s\n```"
-				args = append(args, part.FilePath, part.Body)
-			}
+			fmtStr = "\n\n- %s:\n\n```\n%s\n```"
+			args = append(args, part.FilePath, part.Body)
 		} else if part.Url != "" {
 			fmtStr = "\n\n- %s:\n\n```\n%s\n```"
 			args = append(args, part.Url, part.Body)

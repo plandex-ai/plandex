@@ -18,16 +18,13 @@ import (
 const systemPrompt = `
 [YOUR INSTRUCTIONS]
 
-You apply changes from a plan to a given code file. You can either us the 'writeEntireFile' function to write the entire file, or the 'writeReplacements' function to write a list of replacements to apply to the file.
+You apply changes from a plan to a given code file. You can either us the 'writeEntireFile' function to write the entire file, or the 'writeReplacements' function to write a list of replacements to apply to the file. Decide which is a more efficient way to apply the changes, and call the appropriate function.
 
 If the current state of the file within the plan is included, apply your changes to the current state of the file.
-
-Decide whether it is more efficient to rewrite the entire file or a list of replacements. Do whichever will use fewer tokens to update the file. 'writeReplacement' is more efficient if you are only changing a small amount of text. 'writeEntireFile' is more efficient if you are changing a large amount of text.
 
 A. If you are using the 'writeEntireFile' function, call it with the full content of the file as raw text, including any updates from the previous response. Ouput the entire updated file.
 	
 B. If you are using the 'writeReplacements' function, call it with a list of replacements to apply to the file. Each replacement is an object with two properties: 'old' and 'new'. 'old' is the old text to replace, and 'new' is the new text to replace it with. You can include as many replacements as you want. You must include at least one replacement.
-
 - The 'new' text must include the full text of the replacement without any placeholders or references to the original file.
 - The 'old' text must be a substring of the current file.
 - The 'old' text must not overlap with any other 'old' text in the list of replacements.
@@ -212,7 +209,6 @@ func confirmProposal(proposalId string, onStream types.OnStreamFunc) error {
 			fmtArgs := []interface{}{filePath}
 
 			currentState := proposal.Request.CurrentPlan.Files[filePath]
-			fmtStr += "\nCurrent state of %s:\n```\n%s\n```"
 			if currentState != "" {
 				fmtArgs = append(fmtArgs, currentState)
 			} else if fileContext != nil {

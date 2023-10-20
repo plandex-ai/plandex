@@ -57,7 +57,7 @@ func init() {
 	go func() {
 		defer wg.Done()
 
-		PlandexDir, ProjectRoot = FindPlandex()
+		PlandexDir, ProjectRoot = findPlandex()
 
 		err = LoadCurrentPlan()
 		if err != nil {
@@ -125,19 +125,6 @@ func FindOrCreatePlandex() (string, bool, error) {
 	return dir, false, nil
 }
 
-func FindPlandex() (string, string) {
-	searchPath := Cwd
-	for searchPath != "/" {
-		dir := filepath.Join(searchPath, ".plandex")
-		if _, err := os.Stat(dir); !os.IsNotExist(err) {
-			return dir, searchPath
-		}
-		searchPath = filepath.Dir(searchPath)
-	}
-
-	return "", ""
-}
-
 func CwdIsPlan() bool {
 	// check if parent directory of cwd is '.plandex'
 	parentDir := filepath.Dir(Cwd)
@@ -192,4 +179,17 @@ func FlattenPaths(fileOrDirPaths []string, params *types.LoadContextParams) []st
 	}
 
 	return resPaths
+}
+
+func findPlandex() (string, string) {
+	searchPath := Cwd
+	for searchPath != "/" {
+		dir := filepath.Join(searchPath, ".plandex")
+		if _, err := os.Stat(dir); !os.IsNotExist(err) {
+			return dir, searchPath
+		}
+		searchPath = filepath.Dir(searchPath)
+	}
+
+	return "", ""
 }

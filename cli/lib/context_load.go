@@ -16,10 +16,13 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/briandowns/spinner"
 	"github.com/plandex/plandex/shared"
 )
 
 func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
+	s := spinner.New(spinner.CharSets[33], 100*time.Millisecond)
+	s.Start()
 	var contextState shared.ModelContextState
 	contextStateFilePath := filepath.Join(ContextSubdir, "context.json")
 
@@ -112,8 +115,8 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 			fileName := GetFileNameWithoutExt(summaryResp.FileName)
 
 			contextPart := shared.ModelContextPart{
-				Name:      fmt.Sprintf("%d.%s", atomic.LoadUint32(&counter), fileName),
-				Summary:   summaryResp.Summary,
+				Name: fmt.Sprintf("%d.%s", atomic.LoadUint32(&counter), fileName),
+				// Summary:   summaryResp.Summary,
 				Body:      body,
 				Sha:       sha,
 				NumTokens: numTokens,
@@ -187,8 +190,8 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 				fileName := GetFileNameWithoutExt(summaryResp.FileName)
 
 				contextPart := shared.ModelContextPart{
-					Name:      fmt.Sprintf("%d.%s", atomic.LoadUint32(&counter), fileName),
-					Summary:   summaryResp.Summary,
+					Name: fmt.Sprintf("%d.%s", atomic.LoadUint32(&counter), fileName),
+					// Summary:   summaryResp.Summary,
 					Body:      body,
 					Sha:       sha,
 					NumTokens: numTokens,
@@ -264,8 +267,7 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 				}()
 
 				contextPart := shared.ModelContextPart{
-					Name:      fmt.Sprintf("%d-filenames", atomic.LoadUint32(&counter)),
-					Summary:   "filenames",
+					Name:      fmt.Sprintf("%d-directory-layout", atomic.LoadUint32(&counter)),
 					Body:      body,
 					Sha:       sha,
 					NumTokens: numTokens,
@@ -322,55 +324,14 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 
 						}()
 
-						errCh := make(chan error, 2)
-						summaryCh := make(chan shared.SummarizeResponse, 1)
-						// sectionizeCh := make(chan shared.SectionizeResponse, 1)
-
-						go func() {
-							resp, err := Api.Summarize(body)
-							if err != nil {
-								errCh <- fmt.Errorf("failed to summarize the file %s: %v", path, err)
-								return
-							}
-							summaryCh <- *resp
-						}()
-
-						// go func() {
-						// 	resp, err := Api.Sectionize(body)
-						// 	if err != nil {
-						// 		errCh <- fmt.Errorf("failed to sectionize the file %s: %v", path, err)
-						// 		return
-						// 	}
-						// 	sectionizeCh <- *resp
-						// }()
-
-						// var sectionizeResp shared.SectionizeResponse
-						var summaryResp shared.SummarizeResponse
-
-						// Waiting for the summary response or error
-						// for i := 0; i < 2; i++ {
-						for i := 0; i < 1; i++ {
-							select {
-							case err := <-errCh:
-								log.Fatalf("Failed to summarize or sectionize the file %s: %v", path, err)
-							case summaryResp = <-summaryCh:
-							// case sectionizeResp = <-sectionizeCh:
-							case <-time.After(time.Second * 30): // adjust the timeout as necessary
-								log.Fatalf("Timeout while waiting to receive the responses for file %s", path)
-							}
-						}
-
-						// get just the filename
 						_, fileName := filepath.Split(path)
 
 						contextPart := shared.ModelContextPart{
 							Name:      fmt.Sprintf("%d.%s", atomic.LoadUint32(&counter), fileName),
-							Summary:   summaryResp.Summary,
 							Body:      body,
 							FilePath:  path,
 							Sha:       sha,
 							NumTokens: numTokens,
-							// SectionEnds: sectionizeResp.SectionEnds,
 							UpdatedAt: StringTs(),
 						}
 
@@ -428,14 +389,14 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 				hash := sha256.Sum256([]byte(body))
 				sha := hex.EncodeToString(hash[:])
 
-				summaryResp, err := Api.Summarize(body)
-				if err != nil {
-					log.Fatalf("Failed to summarize content from URL %s: %v", url, err)
-				}
+				// summaryResp, err := Api.Summarize(body)
+				// if err != nil {
+				// 	log.Fatalf("Failed to summarize content from URL %s: %v", url, err)
+				// }
 
 				contextPart := shared.ModelContextPart{
-					Name:      fmt.Sprintf("%d.%s", atomic.LoadUint32(&counter), SanitizeAndClipURL(url, 70)),
-					Summary:   summaryResp.Summary,
+					Name: fmt.Sprintf("%d.%s", atomic.LoadUint32(&counter), SanitizeAndClipURL(url, 70)),
+					// Summary:   summaryResp.Summary,
 					Body:      body,
 					Sha:       sha,
 					NumTokens: numTokens,
@@ -519,7 +480,7 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 			}
 		}
 	}
-	msg += fmt.Sprintf(" into context (%d tokens)", tokensAdded)
+	msg += fmt.Sprintf(" into context (%d tokens added, %d tokens total)", tokensAdded, totalTokens)
 
 	if err != nil {
 		log.Fatalf("Failed to get total tokens: %v", err)
@@ -544,7 +505,8 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 		log.Fatalf("failed to commit submodule updates in root dir: %s\n", err)
 	}
 
-	fmt.Fprint(os.Stderr, "\n✅ "+msg+"\n")
+	s.Stop()
+	fmt.Fprintln(os.Stderr, "✅ "+msg)
 
 	return tokensAdded, totalTokens
 }
