@@ -121,6 +121,9 @@ func Propose(prompt string) error {
 		printReply()
 		backToMain()
 		fmt.Print(termState)
+		s = spinner.New(spinner.CharSets[33], 100*time.Millisecond)
+		s.Prefix = "  "
+		s.Start()
 		var totalTokens int
 		// _, tokensAddedByFile, totalTokens = replyTokenCounter.FinishAndRead()
 		_, _, totalTokens = replyTokenCounter.FinishAndRead()
@@ -135,6 +138,17 @@ func Propose(prompt string) error {
 			fmt.Printf("failed to append conversation: %s\n", err)
 		}
 		endedReply = true
+
+	}
+
+	showUpdatedPlanCmds := func() {
+		fmt.Println()
+		for _, cmd := range []string{"diffs", "preview", "apply"} {
+			clearCurrentLine()
+			PrintCmds("  ", cmd)
+		}
+		clearCurrentLine()
+		PrintCustomCmd("  ", "tell", "t", "update the plan, give more info, or chat")
 	}
 
 	contextByFilePath := make(map[string]shared.ModelContextPart)
@@ -224,9 +238,13 @@ func Propose(prompt string) error {
 			if !endedReply {
 				endReply()
 			}
+			s.Stop()
 			streamFinished = true
 
 			if filesFinished {
+				if desc.MadePlan && len(desc.Files) > 0 {
+					showUpdatedPlanCmds()
+				}
 				close(done)
 			}
 			return
@@ -244,9 +262,10 @@ func Propose(prompt string) error {
 				}
 
 				if desc.MadePlan && (len(desc.Files) > 0) {
-					fmt.Println("  " + color.New(color.BgHiBlack, color.FgHiWhite, color.Bold).Sprint(" 🏗  ") + color.New(color.BgHiBlack, color.FgHiWhite).Sprint("Building plan: "))
+					s.Stop()
+					fmt.Println("  " + color.New(color.BgGreen, color.FgHiWhite, color.Bold).Sprint(" 🏗  ") + color.New(color.BgGreen, color.FgHiWhite).Sprint("Building plan "))
 					for _, filePath := range desc.Files {
-						fmt.Printf("  - %s\n", filePath)
+						fmt.Printf("  📄 %s\n", filePath)
 					}
 					fmt.Println()
 					fmt.Printf(displayHotkeys() + "\n")
@@ -285,7 +304,7 @@ func Propose(prompt string) error {
 				for _, filePath := range files {
 					numStreamedTokens := numStreamedTokensByPath[filePath]
 
-					fmtStr := "  - %s | %d 🪙"
+					fmtStr := "  📄 %s | %d 🪙"
 					fmtArgs := []interface{}{filePath, numStreamedTokens}
 
 					_, finished := finishedByPath[filePath]
@@ -305,6 +324,7 @@ func Propose(prompt string) error {
 						filesFinished = true
 
 						if streamFinished {
+							showUpdatedPlanCmds()
 							close(done)
 						}
 					}

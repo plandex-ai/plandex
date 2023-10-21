@@ -163,6 +163,6 @@ func new(cmd *cobra.Command, args []string) {
 	}
 
 	fmt.Println()
-	lib.PrintCmds("load", "tell")
+	lib.PrintCmds("", "load", "tell")
 
 }

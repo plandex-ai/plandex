@@ -10,11 +10,17 @@ import (
 )
 
 var cmdDesc = map[string][2]string{
-	"load": {"l", "load files/urls or pipe data into context"},
-	"tell": {"t", "describe a task, ask a question, or just chat"},
+	"new":     {"n", "start a new plan"},
+	"load":    {"l", "load files/urls or pipe data into context"},
+	"tell":    {"t", "describe a task, ask a question, or chat"},
+	"diffs":   {"d", "show diffs between plan and project files"},
+	"preview": {"p", "preview the plan in a branch"},
+	"apply":   {"a", "apply the plan to your project files"},
+	"next":    {"n", "continue to next step of the plan"},
+	"status":  {"s", "show status of the plan"},
 }
 
-func PrintCmds(cmds ...string) {
+func PrintCmds(prefix string, cmds ...string) {
 	for _, cmd := range cmds {
 		config, ok := cmdDesc[cmd]
 		if !ok {
@@ -24,9 +30,16 @@ func PrintCmds(cmds ...string) {
 		alias := config[0]
 		desc := config[1]
 		cmd = strings.Replace(cmd, alias, fmt.Sprintf("(%s)", alias), 1)
+		styled := color.New(color.Bold, color.FgHiWhite, color.BgCyan).Sprintf(" plandex %s ", cmd)
 
-		fmt.Printf("%s 👉 %s\n", color.New(color.Bold, color.BgCyan, color.FgHiWhite).Sprintf(" plandex %s ", cmd), desc)
+		fmt.Printf("%s%s 👉 %s\n", prefix, styled, desc)
 	}
+}
+
+func PrintCustomCmd(prefix, cmd, alias, desc string) {
+	cmd = strings.Replace(cmd, alias, fmt.Sprintf("(%s)", alias), 1)
+	styled := color.New(color.Bold, color.FgHiWhite, color.BgCyan).Sprintf(" plandex %s ", cmd)
+	fmt.Printf("%s%s 👉 %s\n", prefix, styled, desc)
 }
 
 func alternateScreen() {
