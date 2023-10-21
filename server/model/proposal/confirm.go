@@ -15,18 +15,16 @@ import (
 	"github.com/sashabaranov/go-openai/jsonschema"
 )
 
-const systemPrompt = `
+const replacementSystemPrompt = `
 [YOUR INSTRUCTIONS]
 
 You apply changes from a plan to a given code file. You can either us the 'writeEntireFile' function to write the entire file, or the 'writeReplacements' function to write a list of replacements to apply to the file. Decide which is a more efficient way to apply the changes, and call the appropriate function.
 
-If the current state of the file within the plan is included, apply your changes to the current state of the file.
-
-A. If you are using the 'writeEntireFile' function, call it with the full content of the file as raw text, including any updates from the previous response. Ouput the entire updated file.
+A. If you are using the 'writeEntireFile' function, call it with the full content of the file as raw text, including any  updates from the previous response. Call 'writeEntireFile' with the entire updated file. Don't include any placeholders or references to the original file.
 	
 B. If you are using the 'writeReplacements' function, call it with a list of replacements to apply to the file. Each replacement is an object with two properties: 'old' and 'new'. 'old' is the old text to replace, and 'new' is the new text to replace it with. You can include as many replacements as you want. You must include at least one replacement.
 - The 'new' text must include the full text of the replacement without any placeholders or references to the original file.
-- The 'old' text must be a substring of the current file.
+- The 'old' text *must be a substring* of the current state of the file.
 - The 'old' text must not overlap with any other 'old' text in the list of replacements.
 
 Replacement examples below. Note: >>> and <<< indicate the start and end of an example response.
@@ -154,6 +152,13 @@ writeReplacements({
 
 [END INSTRUCTIONS]`
 
+const writeFileOnlySystemPrompt = `
+[YOUR INSTRUCTIONS]
+
+You apply changes from a plan to a given code file. Use 'writeEntireFile' function to write the full content of the file as raw text, including any updates from the previous response, to the file. Call 'writeEntireFile' with the entire updated file. Don't include any placeholders or references to the original file.
+
+[END INSTRUCTIONS]`
+
 func confirmProposal(proposalId string, onStream types.OnStreamFunc) error {
 	goEnv := os.Getenv("GOENV")
 	if goEnv == "test" {
@@ -196,6 +201,8 @@ func confirmProposal(proposalId string, onStream types.OnStreamFunc) error {
 		go func(filePath string) {
 			fmt.Println("Getting file from model: " + filePath)
 
+			_, fileInProject := proposal.Request.ProjectPaths[filePath]
+
 			// get relevant file context (if any)
 			var fileContext *shared.ModelContextPart
 			for _, part := range proposal.Request.ModelContext {
@@ -217,31 +224,49 @@ func confirmProposal(proposalId string, onStream types.OnStreamFunc) error {
 
 			fileMessages := []openai.ChatCompletionMessage{}
 			if fileContext != nil || currentState != "" {
-				fileMessages = append(fileMessages, openai.ChatCompletionMessage{
-					Role:    openai.ChatMessageRoleSystem,
-					Content: systemPrompt + "\n\n" + fmt.Sprintf(fmtStr, fmtArgs...),
-				})
+				if fileInProject {
+					fileMessages = append(fileMessages, openai.ChatCompletionMessage{
+						Role:    openai.ChatMessageRoleSystem,
+						Content: replacementSystemPrompt + "\n\n" + fmt.Sprintf(fmtStr, fmtArgs...),
+					})
+				} else {
+					fileMessages = append(fileMessages, openai.ChatCompletionMessage{
+						Role:    openai.ChatMessageRoleSystem,
+						Content: writeFileOnlySystemPrompt + "\n\n" + fmt.Sprintf(fmtStr, fmtArgs...),
+					})
+				}
 			}
 
 			fileMessages = append(fileMessages, openai.ChatCompletionMessage{
 				Role:    openai.ChatMessageRoleAssistant,
 				Content: proposal.Content,
-			},
-				openai.ChatCompletionMessage{
-					Role: openai.ChatMessageRoleUser,
-					Content: fmt.Sprintf(`
+			})
+
+			if fileInProject {
+				fileMessages = append(fileMessages,
+					openai.ChatCompletionMessage{
+						Role: openai.ChatMessageRoleUser,
+						Content: fmt.Sprintf(`
 					Based on your instructions, apply the changes from the plan to %s. You must call either the 'writeReplacements' function or the 'writeEntireFile' function, depending on which is a more efficient way to apply the changes. Don't call any other function.
 					`, filePath),
-				})
+					})
+			} else {
+				fileMessages = append(fileMessages,
+					openai.ChatCompletionMessage{
+						Role: openai.ChatMessageRoleUser,
+						Content: fmt.Sprintf(`
+						Based on your instructions, apply the changes from the plan to %s. You must call the 'writeEntireFile' function. Don't call any other function.
+						`, filePath),
+					})
+			}
 
 			fmt.Println("Calling model for file: " + filePath)
 			for _, msg := range fileMessages {
 				fmt.Printf("%s: %s\n", msg.Role, msg.Content)
 			}
 
-			modelReq := openai.ChatCompletionRequest{
-				Model: openai.GPT4,
-				Functions: []openai.FunctionDefinition{{
+			functions := []openai.FunctionDefinition{
+				{
 					Name: "writeEntireFile",
 					Parameters: &jsonschema.Definition{
 						Type: jsonschema.Object,
@@ -253,7 +278,11 @@ func confirmProposal(proposalId string, onStream types.OnStreamFunc) error {
 						},
 						Required: []string{"content"},
 					},
-				}, {
+				},
+			}
+
+			if fileInProject {
+				functions = append(functions, openai.FunctionDefinition{
 					Name: "writeReplacements",
 					Parameters: &jsonschema.Definition{
 						Type: jsonschema.Object,
@@ -279,8 +308,13 @@ func confirmProposal(proposalId string, onStream types.OnStreamFunc) error {
 						},
 						Required: []string{"replacements"},
 					},
-				}},
-				Messages: fileMessages,
+				})
+			}
+
+			modelReq := openai.ChatCompletionRequest{
+				Model:     openai.GPT4,
+				Functions: functions,
+				Messages:  fileMessages,
 			}
 
 			stream, err := model.Client.CreateChatCompletionStream(ctx, modelReq)

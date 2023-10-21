@@ -20,6 +20,7 @@ type PromptRequest struct {
 	Prompt           string                `json:"prompt"`
 	ModelContext     ModelContext          `json:"modelContext"`
 	CurrentPlan      CurrentPlanFiles      `json:"currentPlan"`
+	ProjectPaths     map[string]bool       `json:"projectPaths"`
 	Conversation     []ConversationMessage `json:"conversation"`
 	ParentProposalId string                `json:"parentProposalId"`
 }
