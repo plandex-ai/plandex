@@ -7,7 +7,14 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var note string
+var (
+	recursive bool
+	maxDepth  int
+	namesOnly bool
+	truncate  bool
+	maxTokens int
+	note      string
+)
 
 var contextLoadCmd = &cobra.Command{
 	Use:     "load [files-or-urls...]",
@@ -19,8 +26,12 @@ var contextLoadCmd = &cobra.Command{
 }
 
 func init() {
-	addSharedContextFlags(contextLoadCmd)
 	contextLoadCmd.Flags().StringVarP(&note, "note", "n", "", "Add a note to the context")
+	contextLoadCmd.Flags().BoolVarP(&recursive, "recursive", "r", false, "Search directories recursively")
+	contextLoadCmd.Flags().IntVarP(&maxDepth, "depth", "d", -1, "Maximum depth for recursive directory search (-1 means no limit)")
+	contextLoadCmd.Flags().BoolVar(&namesOnly, "names", false, "Only process file names")
+	contextLoadCmd.Flags().BoolVar(&truncate, "truncate", false, "Truncate contents if tokens exceed maximum")
+	contextLoadCmd.Flags().IntVar(&maxTokens, "max", -1, "Maximum limit for number of tokens")
 
 	// can be called via plandex load or plandex context load
 	RootCmd.AddCommand(contextLoadCmd)

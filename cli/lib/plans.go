@@ -79,17 +79,28 @@ func RenameCurrentDraftPlan(name string) error {
 	}
 
 	if CurrentPlanIsDraft() {
+		name, err := DedupPlanName(name)
+		if err != nil {
+			return fmt.Errorf("failed to deduplicate plan name: %w", err)
+		}
+
 		oldPath := filepath.Join(PlandexDir, CurrentPlanName)
 		newPath := filepath.Join(PlandexDir, name)
 
-		err := os.Rename(oldPath, newPath)
+		err = os.Rename(oldPath, newPath)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to rename plan directory: %w", err)
 		}
 
 		err = SetCurrentPlan(name)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to set current plan: %w", err)
+		}
+
+		// Fixes current plan paths (CurrentPlanName, CurrentPlanRootDir, etc.)
+		err = LoadCurrentPlan()
+		if err != nil {
+			return fmt.Errorf("failed to load current plan: %w", err)
 		}
 	}
 

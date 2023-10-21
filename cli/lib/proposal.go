@@ -9,6 +9,7 @@ import (
 	"plandex/types"
 	"time"
 
+	"github.com/fatih/color"
 	"github.com/looplab/fsm"
 	"github.com/plandex/plandex/shared"
 
@@ -21,11 +22,21 @@ type key struct {
 
 func Propose(prompt string) error {
 	var err error
-	fmt.Println("Sending prompt... ")
+
+	start := time.Now()
+
 	s := spinner.New(spinner.CharSets[33], 100*time.Millisecond)
+	s.Prefix = "💬 Sending prompt..."
 	s.Start()
 
-	// time.Sleep(500 * time.Millisecond)
+	if CurrentPlanIsDraft() {
+		summaryResp, err := Api.Summarize(prompt)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "\nError summarizing prompt:", err)
+			return err
+		}
+		RenameCurrentDraftPlan(GetFileNameWithoutExt(summaryResp.FileName))
+	}
 
 	timestamp := StringTs()
 	reply := ""
@@ -93,7 +104,7 @@ func Propose(prompt string) error {
 
 	go func() {
 		for range replyUpdateTimer.C {
-			if terminalHasPendingUpdate {
+			if replyStarted && terminalHasPendingUpdate {
 				printReply()
 				terminalHasPendingUpdate = false
 			}
@@ -191,9 +202,16 @@ func Propose(prompt string) error {
 				return
 			}
 		} else if !replyStarted {
-			replyStarted = true
+			elapsed := time.Since(start)
+			if elapsed < 700*time.Millisecond {
+				time.Sleep(700*time.Millisecond - elapsed)
+			}
+
 			s.Stop()
+			clearCurrentLine()
 			alternateScreen()
+
+			replyStarted = true
 		}
 
 		switch state.Current() {
@@ -226,10 +244,12 @@ func Propose(prompt string) error {
 				}
 
 				if desc.MadePlan && (len(desc.Files) > 0) {
-					fmt.Println("Writing plan draft:")
+					fmt.Println("  " + color.New(color.BgHiBlack, color.FgHiWhite, color.Bold).Sprint(" 🏗  ") + color.New(color.BgHiBlack, color.FgHiWhite).Sprint("Building plan: "))
 					for _, filePath := range desc.Files {
-						fmt.Printf("- %s\n", filePath)
+						fmt.Printf("  - %s\n", filePath)
 					}
+					fmt.Println()
+					fmt.Printf(displayHotkeys() + "\n")
 				} else {
 					filesFinished = true
 				}
@@ -256,15 +276,16 @@ func Propose(prompt string) error {
 				files := desc.Files
 
 				// Clear previous lines
-				moveUpLines(len(files))
+				if filesFinished {
+					moveUpLines(len(files))
+				} else {
+					moveUpLines(len(files) + 4)
+				}
 
 				for _, filePath := range files {
-					// contextPart, foundContext := contextByFilePath[filePath]
-					// filePathInPlan := isFilePathInPlan(filePath)
 					numStreamedTokens := numStreamedTokensByPath[filePath]
-					// added := tokensAddedByFile[filePath]
 
-					fmtStr := "- %s | %d tokens"
+					fmtStr := "  - %s | %d 🪙"
 					fmtArgs := []interface{}{filePath, numStreamedTokens}
 
 					_, finished := finishedByPath[filePath]
@@ -272,12 +293,9 @@ func Propose(prompt string) error {
 					if finished {
 						fmtStr += " | done ✅"
 					}
-					// else if added > 0 {
-					// 	fmtStr += " / %d estimated"
-					// 	fmtArgs = append(fmtArgs, added)
-					// }
 
 					clearCurrentLine()
+
 					fmt.Printf(fmtStr+"\n", fmtArgs...)
 				}
 
@@ -290,7 +308,11 @@ func Propose(prompt string) error {
 							close(done)
 						}
 					}
+				}
 
+				if !filesFinished {
+					fmt.Println()
+					fmt.Printf(displayHotkeys() + "\n")
 				}
 
 			}

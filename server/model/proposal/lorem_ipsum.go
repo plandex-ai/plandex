@@ -35,7 +35,7 @@ func applyLoremStyling(paragraphs []string) []string {
 
 // Function to stream "lorem ipsum" text sentence by sentence with delay
 func streamLoremIpsum(onStream types.OnStreamFunc) {
-	paragraphs := []string{lorem.Paragraph(2, 3), lorem.Paragraph(2, 3), lorem.Paragraph(2, 3)}
+	paragraphs := []string{lorem.Paragraph(1, 1), lorem.Paragraph(1, 1), lorem.Paragraph(1, 1)}
 	paragraphs = applyLoremStyling(paragraphs)
 
 	for _, paragraph := range paragraphs {
@@ -55,7 +55,6 @@ func streamLoremIpsum(onStream types.OnStreamFunc) {
 	planDescription := &shared.PlanDescription{
 		MadePlan: true,
 		Files:    []string{"file1.txt", "file2.txt"},
-		// HasExec:  true,
 	}
 	planDescriptionBytes, _ := json.Marshal(planDescription)
 	planDescriptionJson := string(planDescriptionBytes)
@@ -83,7 +82,7 @@ func streamFilesLoremIpsum(onStream types.OnStreamFunc) {
 		wg.Add(1)
 		go func(filePath string) {
 			defer wg.Done()
-			text := strings.Join([]string{lorem.Paragraph(2, 3), lorem.Paragraph(2, 3), lorem.Paragraph(2, 3)}, "\n\n")
+			text := strings.Join([]string{lorem.Paragraph(1, 1), lorem.Paragraph(1, 1), lorem.Paragraph(1, 1)}, "\n\n")
 			streamedFile := shared.StreamedFile{Content: text}
 			fileContent, _ := json.Marshal(streamedFile)
 

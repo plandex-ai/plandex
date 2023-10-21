@@ -9,13 +9,11 @@ import (
 	"os/exec"
 	"plandex/lib"
 	"strings"
-	"time"
 
-	"github.com/briandowns/spinner"
 	"github.com/spf13/cobra"
 )
 
-const defaultEditor = "nano"
+const defaultEditor = "vim"
 
 var promptFile string
 
@@ -101,19 +99,6 @@ func tell(cmd *cobra.Command, args []string) {
 	if prompt == "" {
 		fmt.Fprintln(os.Stderr, "🤷‍♂️ No prompt to send.")
 		return
-	}
-
-	if lib.CurrentPlanIsDraft() {
-		s := spinner.New(spinner.CharSets[33], 100*time.Millisecond)
-		s.Start()
-
-		summaryResp, err := lib.Api.Summarize(prompt)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "\nError summarizing prompt:", err)
-			return
-		}
-		lib.RenameCurrentDraftPlan(lib.GetFileNameWithoutExt(summaryResp.FileName))
-		s.Stop()
 	}
 
 	err := lib.Propose(prompt)

@@ -21,7 +21,10 @@ import (
 )
 
 func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
+	timeStart := time.Now()
+
 	s := spinner.New(spinner.CharSets[33], 100*time.Millisecond)
+	s.Prefix = "📥 Loading context... "
 	s.Start()
 	var contextState shared.ModelContextState
 	contextStateFilePath := filepath.Join(ContextSubdir, "context.json")
@@ -480,7 +483,7 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 			}
 		}
 	}
-	msg += fmt.Sprintf(" into context (%d tokens added, %d tokens total)", tokensAdded, totalTokens)
+	msg += fmt.Sprintf(" into context | %d 🪙 added | %d 🪙 total", tokensAdded, totalTokens)
 
 	if err != nil {
 		log.Fatalf("Failed to get total tokens: %v", err)
@@ -505,7 +508,14 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 		log.Fatalf("failed to commit submodule updates in root dir: %s\n", err)
 	}
 
+	elapsed := time.Since(timeStart)
+
+	if elapsed < 700*time.Millisecond {
+		time.Sleep(700*time.Millisecond - elapsed)
+	}
+
 	s.Stop()
+	clearCurrentLine()
 	fmt.Fprintln(os.Stderr, "✅ "+msg)
 
 	return tokensAdded, totalTokens
