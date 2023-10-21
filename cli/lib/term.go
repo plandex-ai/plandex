@@ -18,6 +18,7 @@ var cmdDesc = map[string][2]string{
 	"apply":   {"a", "apply the plan to your project files"},
 	"next":    {"n", "continue to next step of the plan"},
 	"status":  {"s", "show status of the plan"},
+	"rewind":  {"r", "rewind the plan to a previous step or state"},
 }
 
 func PrintCmds(prefix string, cmds ...string) {
