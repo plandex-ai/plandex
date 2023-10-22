@@ -20,7 +20,6 @@ var CurrentPlanName string
 var CurrentPlanRootDir string
 var PlanSubdir string
 var PlanFilesDir string
-var PlanSectionsDir string
 var ConversationSubdir string
 var ContextSubdir string
 
@@ -94,7 +93,6 @@ func LoadCurrentPlan() error {
 	CurrentPlanRootDir = filepath.Join(PlandexDir, CurrentPlanName)
 	PlanSubdir = filepath.Join(CurrentPlanRootDir, "plan")
 	PlanFilesDir = filepath.Join(PlanSubdir, "files")
-	PlanSectionsDir = filepath.Join(PlanSubdir, "sections")
 	ConversationSubdir = filepath.Join(CurrentPlanRootDir, "conversation")
 	ContextSubdir = filepath.Join(CurrentPlanRootDir, "context")
 
