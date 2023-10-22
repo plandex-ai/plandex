@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -73,7 +72,7 @@ func apply(cmd *cobra.Command, args []string) error {
 		dstPath := filepath.Join(lib.ProjectRoot, relPath)
 
 		// Copy the file
-		err = copyFile(srcPath, dstPath)
+		err = lib.CopyFile(srcPath, dstPath)
 		if err != nil {
 			return fmt.Errorf("failed to copy %s to %s: %w", srcPath, dstPath, err)
 		}
@@ -92,22 +91,4 @@ func apply(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
-}
-
-// Utility function to copy files
-func copyFile(src, dst string) error {
-	srcFile, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	defer srcFile.Close()
-
-	dstFile, err := os.Create(dst)
-	if err != nil {
-		return err
-	}
-	defer dstFile.Close()
-
-	_, err = io.Copy(dstFile, srcFile)
-	return err
 }

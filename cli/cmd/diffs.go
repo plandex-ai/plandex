@@ -10,6 +10,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const tempBranchName = "pdx_temp"
+
 func init() {
 	RootCmd.AddCommand(diffsCmd)
 }
@@ -34,60 +36,82 @@ func showDiffs() error {
 		return fmt.Errorf("git is required to generate diffs")
 	}
 
-	// Save current branch name
-	cmd := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD")
-	currentBranch, err := cmd.Output()
+	originalDir, err := os.Getwd()
 	if err != nil {
-		return fmt.Errorf("error getting current branch: %v", err)
+		return fmt.Errorf("error getting current directory: %v", err)
 	}
 
-	// Create and checkout a temporary branch
-	cmd = exec.Command("git", "checkout", "-b", "temp_diff_branch")
-	err = cmd.Run()
+	// Create a temporary directory
+	tempDir, err := os.MkdirTemp(os.TempDir(), "plandex-diffs-*")
 	if err != nil {
-		return fmt.Errorf("error creating temp branch: %v", err)
+		return fmt.Errorf("error creating temp directory: %v", err)
+	}
+	defer os.RemoveAll(tempDir) // Cleanup temporary directory
+
+	fmt.Println("Temp directory:", tempDir)
+
+	// Copy relevant project files to the temporary directory
+	paths, err := lib.GetCurrentPlanFilePaths()
+	ch := make(chan error)
+	for _, filePath := range paths {
+		go func(filePath string) {
+			ch <- lib.CopyFile(filepath.Join(lib.ProjectRoot, filePath), filepath.Join(tempDir, filePath))
+		}(filePath)
 	}
 
-	defer func() {
-		// Switch back to the original branch and delete the temporary branch
-		cmd = exec.Command("git", "checkout", string(currentBranch))
-		err = cmd.Run()
-		if err != nil {
-			fmt.Println(fmt.Errorf("error switching back to original branch: %v", err))
+	for range paths {
+		select {
+		case err := <-ch:
+			if err != nil {
+				if !os.IsNotExist(err) {
+					return fmt.Errorf("error copying file: %v", err)
+				}
+			}
 		}
+	}
 
-		cmd = exec.Command("git", "branch", "-D", "temp_diff_branch")
-		err = cmd.Run()
-		if err != nil {
-			fmt.Println(fmt.Errorf("error deleting temp branch: %v", err))
-		}
+	// Navigate to the temporary directory
+	err = os.Chdir(tempDir)
+	if err != nil {
+		return fmt.Errorf("error changing to temp directory: %v", err)
+	}
+	defer os.Chdir(originalDir)
 
-	}()
+	// Initialize a new git repo in the temporary directory
+	cmd := exec.Command("git", "init")
+	err = cmd.Run()
+	if err != nil {
+		return fmt.Errorf("error initializing git repo in temp directory: %v", err)
+	}
 
-	// Commit any outstanding changes
+	// Add and commit changes in the temporary directory
 	cmd = exec.Command("git", "add", ".")
-	err = cmd.Run()
+	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("error adding changes: %v", err)
-	}
-	cmd = exec.Command("git", "commit", "-m", "temp commit")
-	err = cmd.Run()
-	if err != nil {
-		return fmt.Errorf("error committing changes: %v", err)
+		err = fmt.Errorf("error adding changes in temp directory: %v", err)
+		fmt.Println(err)
+		fmt.Println(string(output))
 	}
 
-	// Overwrite project files with plan files
-	err = copyDirectory(lib.ProjectRoot, lib.PlanFilesDir)
-
+	cmd = exec.Command("git", "commit", "-m", "temp commit", "--allow-empty")
+	output, err = cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("error copying files: %v", err)
+		err = fmt.Errorf("error committing changes in temp directory: %v", err)
+		fmt.Println(err)
+		fmt.Println(string(output))
 	}
 
-	// Add changes to the staging area
+	err = lib.CopyDir(lib.PlanFilesDir, tempDir)
+	if err != nil {
+		return fmt.Errorf("error copying files to temp directory: %v", err)
+	}
+
 	cmd = exec.Command("git", "add", ".")
-	err = cmd.Run()
+	output, err = cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("error adding changes: %v", err)
+		err = fmt.Errorf("error adding changes in temp directory: %v", err)
+		fmt.Println(err)
+		fmt.Println(string(output))
 	}
 
 	// Show the diff
@@ -95,40 +119,9 @@ func showDiffs() error {
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-
 	err = cmd.Run()
 	if err != nil {
-		return fmt.Errorf("error generating diff: %v", err)
-	}
-
-	return nil
-}
-
-func copyDirectory(srcDir, dstDir string) error {
-	entries, err := os.ReadDir(srcDir)
-	if err != nil {
-		return err
-	}
-
-	for _, entry := range entries {
-		srcPath := filepath.Join(srcDir, entry.Name())
-		dstPath := filepath.Join(dstDir, entry.Name())
-
-		if entry.IsDir() {
-			err = copyDirectory(srcPath, dstPath)
-			if err != nil {
-				return err
-			}
-		} else {
-			data, err := os.ReadFile(srcPath)
-			if err != nil {
-				return err
-			}
-			err = os.WriteFile(dstPath, data, 0644)
-			if err != nil {
-				return err
-			}
-		}
+		return fmt.Errorf("error showing diffs: %v", err)
 	}
 
 	return nil

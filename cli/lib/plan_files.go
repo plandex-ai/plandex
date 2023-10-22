@@ -84,7 +84,7 @@ func getCurrentPlanFiles() (shared.CurrentPlanFiles, error) {
 	return shared.CurrentPlanFiles{Files: planFiles.data}, nil
 }
 
-func getCurrentPlanFilePaths() ([]string, error) {
+func GetCurrentPlanFilePaths() ([]string, error) {
 	_, err := os.Stat(PlanFilesDir)
 	filesDirExists := !os.IsNotExist(err)
 
@@ -101,7 +101,12 @@ func getCurrentPlanFilePaths() ([]string, error) {
 				return nil
 			}
 
-			filePaths = append(filePaths, srcPath)
+			relPath, err := filepath.Rel(PlanFilesDir, srcPath)
+			if err != nil {
+				return err
+			}
+
+			filePaths = append(filePaths, relPath)
 			return nil
 		})
 
@@ -115,7 +120,7 @@ func getCurrentPlanFilePaths() ([]string, error) {
 }
 
 func isFilePathInPlan(filePath string) bool {
-	filePaths, err := getCurrentPlanFilePaths()
+	filePaths, err := GetCurrentPlanFilePaths()
 	if err != nil {
 		return false
 	}
