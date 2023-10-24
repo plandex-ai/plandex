@@ -1,3 +1,6 @@
+// this file is unused as it hasn't yet been needed
+// keeping it around for now in case it's useful at some point
+
 package model
 
 import (

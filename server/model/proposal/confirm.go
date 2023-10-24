@@ -10,6 +10,7 @@ import (
 	"plandex-server/types"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/plandex/plandex/shared"
 	"github.com/sashabaranov/go-openai"
 	"github.com/sashabaranov/go-openai/jsonschema"
@@ -392,6 +393,8 @@ func confirmProposal(proposalId string, onStream types.OnStreamFunc) error {
 
 						if delta.FunctionCall == nil {
 							fmt.Printf("\nStream received data not for a function call")
+
+							spew.Dump(delta)
 							continue
 						} else {
 							content = delta.FunctionCall.Arguments

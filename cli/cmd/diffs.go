@@ -48,8 +48,6 @@ func showDiffs() error {
 	}
 	defer os.RemoveAll(tempDir) // Cleanup temporary directory
 
-	fmt.Println("Temp directory:", tempDir)
-
 	// Copy relevant project files to the temporary directory
 	paths, err := lib.GetCurrentPlanFilePaths()
 	ch := make(chan error)

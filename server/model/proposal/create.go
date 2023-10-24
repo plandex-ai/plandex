@@ -5,12 +5,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"plandex-server/model"
 	"plandex-server/model/lib"
 	"plandex-server/types"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/google/uuid"
 	"github.com/plandex/plandex/shared"
 	"github.com/sashabaranov/go-openai"
@@ -148,6 +150,16 @@ func CreateProposal(req shared.PromptRequest, onStream types.OnStreamFunc) error
 	stream, err := model.Client.CreateChatCompletionStream(ctx, modelReq)
 	if err != nil {
 		fmt.Printf("Error creating proposal GPT4 stream: %v\n", err)
+
+		spew.Dump(err)
+
+		errStr := err.Error()
+		if strings.Contains(errStr, "status code: 400") &&
+			strings.Contains(errStr, "reduce the length of the messages") {
+			fmt.Println("Token limit exceeded")
+
+		}
+
 		proposals.Delete(proposalId)
 		return err
 	}

@@ -10,8 +10,8 @@ import (
 	"github.com/plandex/plandex/shared"
 )
 
-func ShortSummaryHandler(w http.ResponseWriter, r *http.Request) {
-	log.Println("Received a request for ShortSummaryHandler")
+func FileNameHandler(w http.ResponseWriter, r *http.Request) {
+	log.Println("Received a request for FileNameHandler")
 
 	// Read the request body
 	body, err := io.ReadAll(r.Body)
@@ -23,7 +23,7 @@ func ShortSummaryHandler(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	// Unmarshal the request body to get the 'prompt'
-	var requestBody shared.ShortSummaryRequest
+	var requestBody shared.FileNameRequest
 	if err := json.Unmarshal(body, &requestBody); err != nil {
 		log.Printf("Error parsing request body: %v\n", err)
 		http.Error(w, "Error parsing request body", http.StatusBadRequest)
@@ -36,14 +36,14 @@ func ShortSummaryHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	modelResp, _, err := model.ShortSummary(requestBody.Text)
+	modelResp, _, err := model.FileName(requestBody.Text)
 	if err != nil {
-		log.Printf("Error summarizing text: %v\n", err)
-		http.Error(w, "Error summarizing text: "+err.Error(), http.StatusInternalServerError)
+		log.Printf("Error creating file name for text: %v\n", err)
+		http.Error(w, "Error creating file name for text: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	log.Println("Successfully processed summarize request")
+	log.Println("Successfully processed file name request")
 	// Return the response from OpenAI to the client
 	w.Write(modelResp)
 }

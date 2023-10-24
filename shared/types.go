@@ -9,11 +9,8 @@ type CurrentPlanFiles struct {
 }
 
 type ConversationMessage struct {
-	Message       openai.ChatCompletionMessage `json:"message"`
-	Tokens        int                          `json:"tokens"`
-	Summarized    bool                         `json:"summarized"`
-	Summary       string                       `json:"summary"`
-	SummaryTokens int                          `json:"summaryTokens"`
+	Message openai.ChatCompletionMessage `json:"message"`
+	Tokens  int                          `json:"tokens"`
 }
 
 type PromptRequest struct {
@@ -25,12 +22,19 @@ type PromptRequest struct {
 	ParentProposalId string                `json:"parentProposalId"`
 }
 
-type SummarizeRequest struct {
+type ShortSummaryRequest struct {
 	Text string `json:"text"`
 }
 
-type SummarizeResponse struct {
-	Summary  string `json:"summary"`
+type ShortSummaryResponse struct {
+	Summary string `json:"summary"`
+}
+
+type FileNameRequest struct {
+	Text string `json:"text"`
+}
+
+type FileNameResponse struct {
 	FileName string `json:"fileName"`
 }
 
@@ -46,11 +50,8 @@ type ModelContextPart struct {
 type ModelContext []ModelContextPart
 
 type ModelContextState struct {
-	NumTokens    int    `json:"numTokens"`
-	Counter      uint32 `json:"counter"`
-	ActiveTokens int    `json:"activeTokens"`
-	ChatFlexPct  int    `json:"chatFlexPct"`
-	PlanFlexPct  int    `json:"planFlexPct"`
+	NumTokens int    `json:"numTokens"`
+	Counter   uint32 `json:"counter"`
 }
 
 type PlanChunk struct {

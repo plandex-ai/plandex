@@ -21,7 +21,8 @@ func main() {
 	r.HandleFunc("/proposal", handlers.ProposalHandler).Methods("POST")
 	r.HandleFunc("/abort-proposal", handlers.AbortProposalHandler).Methods("DELETE")
 	// r.HandleFunc("/revise-proposal", handlers.ReviseProposalHandler).Methods("PATCH")
-	r.HandleFunc("/summarize", handlers.SummarizeHandler).Methods("POST")
+	r.HandleFunc("/short-summary", handlers.ShortSummaryHandler).Methods("POST")
+	r.HandleFunc("/filename", handlers.FileNameHandler).Methods("POST")
 
 	// Get port from the environment variable or default to 8088
 	port := os.Getenv("PORT")

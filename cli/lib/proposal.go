@@ -30,12 +30,12 @@ func Propose(prompt string) error {
 	s.Start()
 
 	if CurrentPlanIsDraft() {
-		summaryResp, err := Api.Summarize(prompt)
+		fileNameResp, err := Api.FileName(prompt)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "\nError summarizing prompt:", err)
 			return err
 		}
-		RenameCurrentDraftPlan(GetFileNameWithoutExt(summaryResp.FileName))
+		RenameCurrentDraftPlan(GetFileNameWithoutExt(fileNameResp.FileName))
 	}
 
 	timestamp := StringTs()

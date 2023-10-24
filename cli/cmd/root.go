@@ -10,7 +10,7 @@ import (
 // RootCmd represents the base command when called without any subcommands
 var RootCmd = &cobra.Command{
 	Use:   `plandex [command] [flags]`,
-	Short: "Plandex CLI: generate, iterate, and execute code with AI",
+	Short: "Plandex: iterative development with AI",
 	Run: func(cmd *cobra.Command, args []string) {
 		run(cmd, args)
 	},

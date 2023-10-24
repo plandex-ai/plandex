@@ -17,6 +17,5 @@ func GetNumTokens(text string) (numTokens int) {
 		log.Println(err)
 		return
 	}
-
 	return len(tkm.Encode(text, nil, nil))
 }

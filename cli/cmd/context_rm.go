@@ -30,12 +30,6 @@ func contextRm(cmd *cobra.Command, args []string) {
 	}
 	defer contextStateFile.Close()
 
-	// var contextState shared.ModelContextState
-
-	// data, err := io.ReadAll(contextStateFile)
-	// if err != nil {
-	// 	log.Fatalf("Error reading file: %v", err)
-	// }
 }
 
 func init() {

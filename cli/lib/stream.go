@@ -1,6 +1,8 @@
 package lib
 
 import (
+	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -250,4 +252,19 @@ func loadCurrentPlanTokensByFilePath() (map[string]int, error) {
 	}
 
 	return currentPlanTokensByFilePath, nil
+}
+
+func readUntilSeparator(reader *bufio.Reader, separator string) (string, error) {
+	var result []byte
+	sepBytes := []byte(separator)
+	for {
+		b, err := reader.ReadByte()
+		if err != nil {
+			return string(result), err
+		}
+		result = append(result, b)
+		if len(result) >= len(sepBytes) && bytes.HasSuffix(result, sepBytes) {
+			return string(result[:len(result)-len(separator)]), nil
+		}
+	}
 }

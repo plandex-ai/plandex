@@ -110,16 +110,15 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 			hash := sha256.Sum256([]byte(body))
 			sha := hex.EncodeToString(hash[:])
 
-			summaryResp, err := Api.Summarize(body)
+			fileNameResp, err := Api.FileName(body)
 			if err != nil {
 				log.Fatalf("Failed to summarize the text: %v", err)
 			}
 
-			fileName := GetFileNameWithoutExt(summaryResp.FileName)
+			fileName := GetFileNameWithoutExt(fileNameResp.FileName)
 
 			contextPart := shared.ModelContextPart{
-				Name: fmt.Sprintf("%d.%s", atomic.LoadUint32(&counter), fileName),
-				// Summary:   summaryResp.Summary,
+				Name:      fmt.Sprintf("%d.%s", atomic.LoadUint32(&counter), fileName),
 				Body:      body,
 				Sha:       sha,
 				NumTokens: numTokens,
@@ -185,16 +184,15 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 				hash := sha256.Sum256([]byte(body))
 				sha := hex.EncodeToString(hash[:])
 
-				summaryResp, err := Api.Summarize(body)
+				fileNameResp, err := Api.FileName(body)
 				if err != nil {
 					log.Fatalf("Failed to summarize piped data: %v", err)
 				}
 
-				fileName := GetFileNameWithoutExt(summaryResp.FileName)
+				fileName := GetFileNameWithoutExt(fileNameResp.FileName)
 
 				contextPart := shared.ModelContextPart{
-					Name: fmt.Sprintf("%d.%s", atomic.LoadUint32(&counter), fileName),
-					// Summary:   summaryResp.Summary,
+					Name:      fmt.Sprintf("%d.%s", atomic.LoadUint32(&counter), fileName),
 					Body:      body,
 					Sha:       sha,
 					NumTokens: numTokens,
@@ -392,14 +390,13 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 				hash := sha256.Sum256([]byte(body))
 				sha := hex.EncodeToString(hash[:])
 
-				// summaryResp, err := Api.Summarize(body)
+				// fileNameResp, err := Api.FileName(body)
 				// if err != nil {
 				// 	log.Fatalf("Failed to summarize content from URL %s: %v", url, err)
 				// }
 
 				contextPart := shared.ModelContextPart{
-					Name: fmt.Sprintf("%d.%s", atomic.LoadUint32(&counter), SanitizeAndClipURL(url, 70)),
-					// Summary:   summaryResp.Summary,
+					Name:      fmt.Sprintf("%d.%s", atomic.LoadUint32(&counter), SanitizeAndClipURL(url, 70)),
 					Body:      body,
 					Sha:       sha,
 					NumTokens: numTokens,

@@ -12,10 +12,7 @@ import (
 
 func WriteInitialContextState(contextDir string) error {
 	contextState := shared.ModelContextState{
-		NumTokens:    0,
-		ActiveTokens: 0,
-		ChatFlexPct:  25,
-		PlanFlexPct:  50,
+		NumTokens: 0,
 	}
 	contextStateFilePath := filepath.Join(contextDir, "context.json")
 	contextStateFile, err := os.OpenFile(contextStateFilePath, os.O_CREATE|os.O_WRONLY, 0644)
