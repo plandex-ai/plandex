@@ -149,6 +149,9 @@ func Propose(prompt string) error {
 		}
 		clearCurrentLine()
 		PrintCustomCmd("  ", "tell", "t", "update the plan, give more info, or chat")
+
+		clearCurrentLine()
+		PrintCmds("  ", "next")
 	}
 
 	contextByFilePath := make(map[string]shared.ModelContextPart)

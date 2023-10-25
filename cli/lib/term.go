@@ -10,7 +10,7 @@ import (
 )
 
 var cmdDesc = map[string][2]string{
-	"new":     {"n", "start a new plan"},
+	"new":     {"", "start a new plan"},
 	"load":    {"l", "load files/urls or pipe data into context"},
 	"tell":    {"t", "describe a task, ask a question, or chat"},
 	"diffs":   {"d", "show diffs between plan and project files"},
@@ -30,7 +30,9 @@ func PrintCmds(prefix string, cmds ...string) {
 
 		alias := config[0]
 		desc := config[1]
-		cmd = strings.Replace(cmd, alias, fmt.Sprintf("(%s)", alias), 1)
+		if alias != "" {
+			cmd = strings.Replace(cmd, alias, fmt.Sprintf("(%s)", alias), 1)
+		}
 		styled := color.New(color.Bold, color.FgHiWhite, color.BgCyan).Sprintf(" plandex %s ", cmd)
 
 		fmt.Printf("%s%s 👉 %s\n", prefix, styled, desc)

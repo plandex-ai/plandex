@@ -53,7 +53,7 @@ func FileName(text string) ([]byte, int, error) {
 
 	var byteRes []byte
 	for _, choice := range resp.Choices {
-		if choice.FinishReason == "function_call" && choice.Message.FunctionCall != nil && choice.Message.FunctionCall.Name == "summarize" {
+		if choice.FinishReason == "function_call" && choice.Message.FunctionCall != nil && choice.Message.FunctionCall.Name == "nameFile" {
 			fnCall := choice.Message.FunctionCall
 
 			if strings.HasSuffix(fnCall.Arguments, ",\n}") { // remove trailing comma
@@ -65,12 +65,12 @@ func FileName(text string) ([]byte, int, error) {
 	}
 
 	if len(byteRes) == 0 {
-		return nil, 0, fmt.Errorf("no summarize function call found in response")
+		return nil, 0, fmt.Errorf("no nameFile function call found in response")
 	}
 
 	// validate the JSON response
-	var summarizeResp shared.FileNameResponse
-	if err := json.Unmarshal(byteRes, &summarizeResp); err != nil {
+	var nameFileResp shared.FileNameResponse
+	if err := json.Unmarshal(byteRes, &nameFileResp); err != nil {
 		return nil, resp.Usage.CompletionTokens, err
 	}
 

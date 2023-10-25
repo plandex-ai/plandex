@@ -16,11 +16,14 @@ import (
 var client *openai.Client
 
 func main() {
+	if os.Getenv("OPENAI_API_KEY") == "" {
+		log.Fatal("OPENAI_API_KEY environment variable is not set")
+	}
+
 	r := mux.NewRouter()
 
 	r.HandleFunc("/proposal", handlers.ProposalHandler).Methods("POST")
 	r.HandleFunc("/abort-proposal", handlers.AbortProposalHandler).Methods("DELETE")
-	// r.HandleFunc("/revise-proposal", handlers.ReviseProposalHandler).Methods("PATCH")
 	r.HandleFunc("/short-summary", handlers.ShortSummaryHandler).Methods("POST")
 	r.HandleFunc("/filename", handlers.FileNameHandler).Methods("POST")
 
