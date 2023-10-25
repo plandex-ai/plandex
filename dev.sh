@@ -1,22 +1,20 @@
 #!/bin/bash
 
-# Function to handle termination signals, to clean up the background processes
 terminate() {
-    kill -TERM "$pid1" 2>/dev/null
-    kill -TERM "$pid2" 2>/dev/null
+  pkill -f 'plandex-server' # Assuming plandex-server is the name of your process
+  kill -TERM "$pid1" 2>/dev/null
+  kill -TERM "$pid2" 2>/dev/null
 }
 
-# Trap termination signals and call the terminate function
 trap terminate SIGTERM SIGINT
 
-# rebuild cli when there are changes
-reflex -r '^(cli|shared)/.*\.go$' -- sh -c 'cd cli && go build && rm /usr/local/bin/pdx && cp plandex /usr/local/bin/pdx && echo rebuilt plandex cli' &
+(cd cli && ./dev.sh)
+
+reflex -r '^(cli|shared)/.*\.(go|mod|sum)$' -- sh -c 'cd cli && ./dev.sh' &
 pid1=$!
 
-# rebuild and restart server when there are changes
-reflex -r '^(server|shared)/.*\.go$' -s -- sh -c 'cd server && go build && ./plandex-server' &
+reflex -r '^(server|shared)/.*\.(go|mod|sum)$' -s -- sh -c 'cd server && go build && ./plandex-server' &
 pid2=$!
 
-# Wait for both background processes to finish
 wait $pid1
 wait $pid2
