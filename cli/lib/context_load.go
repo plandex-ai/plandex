@@ -480,7 +480,7 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 			}
 		}
 	}
-	msg += fmt.Sprintf(" into context | added → %d ./🪙 |  total → %d 🪙", tokensAdded, totalTokens)
+	msg += fmt.Sprintf(" into context | added → %d 🪙 |  total → %d 🪙", tokensAdded, totalTokens)
 
 	if err != nil {
 		log.Fatalf("Failed to get total tokens: %v", err)
