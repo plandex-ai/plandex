@@ -1,6 +1,6 @@
 package types
 
-type Conversation struct {
+type ConversationSummary struct {
 	ProposalId    string
 	Summary       string
 	SummaryTokens int

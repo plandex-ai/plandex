@@ -18,7 +18,7 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
-const systemMessageHead = `You are Plandex, an AI programming and system administration assistant. You and the programmer collaborate to create a 'plan' for the task at hand. A plan is a set of files with an attached context.` +
+const systemMessageHead = shared.IdentityPrompt + ` A plan is a set of files with an attached context.` +
 
 	"Your instructions:\n\n```\n" +
 
@@ -294,32 +294,3 @@ func CreateProposal(req shared.PromptRequest, onStream types.OnStreamFunc) error
 
 	return nil
 }
-
-// func summarizeConversationIfPossible(req *shared.PromptRequest) (*shared.PromptRequest, error) {
-// 	msgs := req.Conversation
-// 	if len(msgs) >= 2 {
-// 		for i := 1; i < len(msgs); i++ {
-// 			if msgs[i].Role == openai.ChatMessageRoleAssistant && !msgs[i].Summarized {
-// 				// assuming the summarize function takes a text and returns
-// 				// a summarization of that text
-// 				summary, err := model.Summarize(msgs[i].Content)
-// 				if err != nil {
-// 					return nil, err
-// 				}
-
-// 				// In case the message has multiple sentences. Concatenate the first
-// 				// two and add '... (summarized)' for clarity on UI.
-// 				sentences := strings.Split(summary, ".")
-// 				if len(sentences) > 2 {
-// 					summary = sentences[0] + ". " + sentences[1] + "... (summarized)"
-// 				}
-
-// 				msgs[i].Content = summary
-// 				msgs[i].Summarized = true
-// 				break
-// 			}
-// 		}
-// 	}
-// 	req.Conversation = msgs
-// 	return req, nil
-// }

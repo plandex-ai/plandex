@@ -53,3 +53,7 @@ type PlanState struct {
 type PlanSettings struct {
 	Name string
 }
+
+type ModelContextState struct {
+	NumTokens int `json:"numTokens"`
+}

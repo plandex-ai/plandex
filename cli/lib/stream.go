@@ -33,17 +33,6 @@ func receiveFileToken(params *receiveFileChunkParams) (bool, error) {
 		return false, fmt.Errorf("error parsing plan chunk: %v", err)
 	}
 
-	// _, sectionNum, err := shared.SplitSectionPath(chunk.Path)
-	// if err != nil {
-	// 	return false, fmt.Errorf("error parsing section number: %v", err)
-	// }
-	// isSection := sectionNum >= 0
-
-	// fmt.Println("path: " + chunk.Path)
-	// fmt.Println("isSection: " + fmt.Sprintf("%t", isSection))
-	// fmt.Println("sectionNum: " + fmt.Sprintf("%d", sectionNum))
-	// fmt.Println("filePath: " + filePath)
-
 	buffer := jsonBuffers[chunk.Path]
 	buffer += chunk.Content
 	jsonBuffers[chunk.Path] = buffer
@@ -77,9 +66,7 @@ func receiveFileToken(params *receiveFileChunkParams) (bool, error) {
 
 		// log.Println("Parsed JSON. Streamed type: " + streamedType)
 
-		var writeToPath string
-
-		writeToPath = filepath.Join(PlanFilesDir, chunk.Path)
+		writeToPath := filepath.Join(PlanFilesDir, chunk.Path)
 
 		var content string
 
@@ -94,9 +81,9 @@ func receiveFileToken(params *receiveFileChunkParams) (bool, error) {
 				bytes, err := os.ReadFile(writeToPath)
 
 				if err != nil {
-					err = fmt.Errorf("failed to read file '%s': %v\n", writeToPath, err)
+					err = fmt.Errorf("failed to read file '%s': %v", writeToPath, err)
 					log.Println(err)
-					return false, fmt.Errorf("failed to read file '%s': %v\n", writeToPath, err)
+					return false, fmt.Errorf("failed to read file '%s': %v", writeToPath, err)
 				}
 
 				content = string(bytes)
@@ -104,9 +91,9 @@ func receiveFileToken(params *receiveFileChunkParams) (bool, error) {
 				bytes, err := os.ReadFile(filepath.Join(ProjectRoot, chunk.Path))
 
 				if err != nil {
-					err = fmt.Errorf("failed to read file '%s': %v\n", chunk.Path, err)
+					err = fmt.Errorf("failed to read file '%s': %v", chunk.Path, err)
 					log.Println(err)
-					return false, fmt.Errorf("failed to read file '%s': %v\n", chunk.Path, err)
+					return false, fmt.Errorf("failed to read file '%s': %v", chunk.Path, err)
 				}
 
 				content = string(bytes)
@@ -132,7 +119,7 @@ func receiveFileToken(params *receiveFileChunkParams) (bool, error) {
 				sub := content[lastInsertedIdx:]
 				idx := strings.Index(sub, replacement.Old)
 				if idx == -1 {
-					err = fmt.Errorf("failed to find replacement string '%s' in file '%s'\n", replacement.Old, chunk.Path)
+					err = fmt.Errorf("failed to find replacement string '%s' in file '%s'", replacement.Old, chunk.Path)
 					log.Println(err)
 					return false, err
 				}
@@ -163,20 +150,20 @@ func receiveFileToken(params *receiveFileChunkParams) (bool, error) {
 
 		err := os.MkdirAll(filepath.Dir(writeToPath), os.ModePerm)
 		if err != nil {
-			log.Printf("failed to create directory: %s\n", err)
-			return false, fmt.Errorf("failed to create directory: %s\n", err)
+			log.Printf("failed to create directory: %s", err)
+			return false, fmt.Errorf("failed to create directory: %s", err)
 
 		}
 
 		err = os.WriteFile(writeToPath, []byte(content), 0644)
 		if err != nil {
-			log.Printf("failed to write plan file '%s': %v\n", writeToPath, err)
-			return false, fmt.Errorf("failed to write plan file '%s': %v\n", writeToPath, err)
+			log.Printf("failed to write plan file '%s': %v", writeToPath, err)
+			return false, fmt.Errorf("failed to write plan file '%s': %v", writeToPath, err)
 		}
 
 		err = writeTokenCounts(&chunk, numStreamedTokensByPath)
 		if err != nil {
-			return false, fmt.Errorf("failed to write token counts: %s\n", err)
+			return false, fmt.Errorf("failed to write token counts: %s", err)
 		}
 
 		finishedByPath[chunk.Path] = true
@@ -237,11 +224,11 @@ func loadCurrentPlanTokensByFilePath() (map[string]int, error) {
 	} else {
 		fileBytes, err := os.ReadFile(currrentPlanTokensPath)
 		if err != nil {
-			return nil, fmt.Errorf("failed to open current plan token count file: %s\n", err)
+			return nil, fmt.Errorf("failed to open current plan token count file: %s", err)
 		}
 		err = json.Unmarshal(fileBytes, &currentPlanTokensByPath)
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse current plan token count json: %s\n", err)
+			return nil, fmt.Errorf("failed to parse current plan token count json: %s", err)
 		}
 	}
 

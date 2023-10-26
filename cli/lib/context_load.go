@@ -13,7 +13,6 @@ import (
 	"plandex/types"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/briandowns/spinner"
@@ -26,7 +25,7 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 	s := spinner.New(spinner.CharSets[33], 100*time.Millisecond)
 	s.Prefix = "📥 Loading context... "
 	s.Start()
-	var contextState shared.ModelContextState
+	var contextState types.ModelContextState
 	contextStateFilePath := filepath.Join(ContextSubdir, "context.json")
 
 	// fmt.Fprintf(os.Stderr, "Loading context from %s\n", contextStateFilePath)
@@ -63,8 +62,6 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 	tokensAdded := 0
 	totalTokens := contextState.NumTokens
 	var totalTokensMutex sync.Mutex
-
-	counter := contextState.Counter
 
 	var contextParts []shared.ModelContextPart
 	var contextPartsMutex sync.Mutex
@@ -118,7 +115,7 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 			fileName := GetFileNameWithoutExt(fileNameResp.FileName)
 
 			contextPart := shared.ModelContextPart{
-				Name:      fmt.Sprintf("%d.%s", atomic.LoadUint32(&counter), fileName),
+				Name:      fileName,
 				Body:      body,
 				Sha:       sha,
 				NumTokens: numTokens,
@@ -129,7 +126,6 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 			contextParts = append(contextParts, contextPart)
 			contextPartsMutex.Unlock()
 
-			atomic.AddUint32(&counter, 1)
 		}()
 
 	}
@@ -192,7 +188,7 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 				fileName := GetFileNameWithoutExt(fileNameResp.FileName)
 
 				contextPart := shared.ModelContextPart{
-					Name:      fmt.Sprintf("%d.%s", atomic.LoadUint32(&counter), fileName),
+					Name:      fileName,
 					Body:      body,
 					Sha:       sha,
 					NumTokens: numTokens,
@@ -203,7 +199,6 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 				contextParts = append(contextParts, contextPart)
 				contextPartsMutex.Unlock()
 
-				atomic.AddUint32(&counter, 1)
 			}()
 		}
 	}
@@ -268,7 +263,7 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 				}()
 
 				contextPart := shared.ModelContextPart{
-					Name:      fmt.Sprintf("%d-directory-layout", atomic.LoadUint32(&counter)),
+					Name:      "directory layout",
 					Body:      body,
 					Sha:       sha,
 					NumTokens: numTokens,
@@ -278,8 +273,6 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 				contextPartsMutex.Lock()
 				contextParts = append(contextParts, contextPart)
 				contextPartsMutex.Unlock()
-
-				atomic.AddUint32(&counter, 1)
 
 			} else {
 				for _, path := range flattenedPaths {
@@ -328,7 +321,7 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 						_, fileName := filepath.Split(path)
 
 						contextPart := shared.ModelContextPart{
-							Name:      fmt.Sprintf("%d.%s", atomic.LoadUint32(&counter), fileName),
+							Name:      fileName,
 							Body:      body,
 							FilePath:  path,
 							Sha:       sha,
@@ -340,7 +333,6 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 						contextParts = append(contextParts, contextPart)
 						contextPartsMutex.Unlock()
 
-						atomic.AddUint32(&counter, 1)
 					}(path)
 
 				}
@@ -396,7 +388,7 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 				// }
 
 				contextPart := shared.ModelContextPart{
-					Name:      fmt.Sprintf("%d.%s", atomic.LoadUint32(&counter), SanitizeAndClipURL(url, 70)),
+					Name:      SanitizeAndClipURL(url, 70),
 					Body:      body,
 					Sha:       sha,
 					NumTokens: numTokens,
@@ -406,8 +398,6 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 				contextPartsMutex.Lock()
 				contextParts = append(contextParts, contextPart)
 				contextPartsMutex.Unlock()
-
-				atomic.AddUint32(&counter, 1)
 			}(url)
 		}
 	}
@@ -431,7 +421,6 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 	go func() {
 		defer wg.Done()
 		contextState.NumTokens = totalTokens
-		contextState.Counter = counter
 
 		data, err := json.MarshalIndent(contextState, "", "  ")
 		if err != nil {

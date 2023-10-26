@@ -1,88 +1,128 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
-
 	"plandex/lib"
+	"plandex/types"
 
-	"github.com/fatih/color"
+	"github.com/plandex/plandex/shared"
 	"github.com/spf13/cobra"
 )
 
-var all bool
-
-func init() {
-	rmCmd.Flags().BoolVar(&all, "all", false, "Delete all plans and clear the current plan")
-	RootCmd.AddCommand(rmCmd)
+var contextRmCmd = &cobra.Command{
+	Use:     "rm",
+	Aliases: []string{"remove"},
+	Short:   "Remove a specific context file",
+	Long:    `This command allows the user to remove a specific context file by providing the file's index as an argument.`,
+	Args:    cobra.MinimumNArgs(1),
+	Run:     contextRm,
 }
 
-// rmCmd represents the rm command
-var rmCmd = &cobra.Command{
-	Use:     "rm [name]",
-	Aliases: []string{"delete"},
-	Short:   "Delete the specified plan",
-	Args:    cobra.RangeArgs(0, 1),
-	Run:     del,
-}
+func contextRm(cmd *cobra.Command, args []string) {
 
-func del(cmd *cobra.Command, args []string) {
-	if all {
-		delAll()
-		return
-	}
-
-	name := args[0]
-	plandexDir, _, err := lib.FindOrCreatePlandex()
+	context, err := lib.GetAllContext(true)
 
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error:", err)
+		fmt.Fprintln(os.Stderr, "Error retrieving context:", err)
 		return
 	}
 
-	planDir := filepath.Join(plandexDir, name)
+	toRemovePaths := []string{}
+	toRemoveParts := []shared.ModelContextPart{}
 
-	if _, err := os.Stat(planDir); os.IsNotExist(err) {
-		fmt.Fprintf(os.Stderr, "Plan %s does not exist", color.New(color.Bold).Sprint(name))
-		return
+	for i, part := range context {
+		path := lib.CreateContextFileName(part.Name, part.Sha)
+		for _, id := range args {
+			if fmt.Sprintf("%d", i) == id || part.FilePath == id || part.Url == id {
+				toRemovePaths = append(toRemovePaths, path)
+				toRemoveParts = append(toRemoveParts, part)
+				break
+			} else if part.FilePath != "" {
+				// Check if id is a glob pattern
+				matched, err := filepath.Match(id, part.FilePath)
+				if err != nil {
+					fmt.Fprintln(os.Stderr, "Error matching glob pattern:", err)
+					return
+				}
+				if matched {
+					toRemovePaths = append(toRemovePaths, path)
+					toRemoveParts = append(toRemoveParts, part)
+					break
+				}
+			}
+		}
 	}
 
-	err = os.RemoveAll(planDir)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error deleting the plan:", err)
-		return
+	// remove files
+	errCh := make(chan error, len(toRemovePaths)*2)
+	for _, path := range toRemovePaths {
+		for _, ext := range []string{".meta", ".body"} {
+			go func(path, ext string) {
+				errCh <- os.Remove(filepath.Join(lib.ContextSubdir, path+ext))
+			}(path, ext)
+		}
 	}
 
-	if lib.CurrentPlanName == name {
-		err = os.Remove(filepath.Join(plandexDir, "current_plan.json"))
+	for i := 0; i < len(toRemovePaths)*2; i++ {
+		err := <-errCh
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "Error deleting current plan:", err)
+			fmt.Fprintln(os.Stderr, "Error removing context file:", err)
 			return
 		}
 	}
 
-	fmt.Printf("✅ Deleted plan %s\n", color.New(color.Bold).Sprint(name))
+	// update context.json with new token count
+	var contextState types.ModelContextState
+
+	contextStateFilePath := filepath.Join(lib.ContextSubdir, "context.json")
+	bytes, err := os.ReadFile(contextStateFilePath)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "Error reading context state file:", err)
+		return
+	}
+
+	err = json.Unmarshal(bytes, &contextState)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "Error unmarshalling context state:", err)
+		return
+	}
+
+	removedTokens := 0
+	totalTokens := contextState.NumTokens
+	for _, part := range toRemoveParts {
+		removedTokens += part.NumTokens
+		totalTokens -= part.NumTokens
+	}
+	contextState.NumTokens = totalTokens
+
+	bytes, err = json.MarshalIndent(contextState, "", "  ")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "Error marshalling context state:", err)
+		return
+	}
+
+	err = os.WriteFile(contextStateFilePath, bytes, 0644)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "Error writing context state file:", err)
+		return
+	}
+
+	// output
+	if len(toRemovePaths) > 0 {
+		suffix := ""
+		if len(toRemovePaths) > 1 {
+			suffix = "s"
+		}
+		fmt.Printf("✅ Removed %d piece%s of context | removed → %d 🪙 | total → %d 🪙 \n", len(toRemovePaths), suffix, removedTokens, totalTokens)
+	} else {
+		fmt.Println("🤷‍♂️ No context removed")
+	}
+
 }
 
-func delAll() {
-	plandexDir, _, err := lib.FindOrCreatePlandex()
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error:", err)
-		return
-	}
-
-	err = os.RemoveAll(plandexDir)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error deleting all the plans:", err)
-		return
-	}
-
-	err = os.Mkdir(plandexDir, os.ModePerm)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error creating .plandex folder:", err)
-		return
-	}
-
-	fmt.Fprintln(os.Stderr, "✅ All plans have been deleted.")
+func init() {
+	RootCmd.AddCommand(contextRmCmd)
 }

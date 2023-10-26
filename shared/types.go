@@ -49,11 +49,6 @@ type ModelContextPart struct {
 }
 type ModelContext []ModelContextPart
 
-type ModelContextState struct {
-	NumTokens int    `json:"numTokens"`
-	Counter   uint32 `json:"counter"`
-}
-
 type PlanChunk struct {
 	Path    string `json:"path"`
 	Content string `json:"content"`

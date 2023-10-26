@@ -5,13 +5,14 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"plandex/types"
 	"sync"
 
 	"github.com/plandex/plandex/shared"
 )
 
 func WriteInitialContextState(contextDir string) error {
-	contextState := shared.ModelContextState{
+	contextState := types.ModelContextState{
 		NumTokens: 0,
 	}
 	contextStateFilePath := filepath.Join(contextDir, "context.json")
@@ -31,8 +32,8 @@ func WriteInitialContextState(contextDir string) error {
 	return err
 }
 
-// createContextFileName constructs a filename based on the given name and sha.
-func createContextFileName(name, sha string) string {
+// CreateContextFileName constructs a filename based on the given name and sha.
+func CreateContextFileName(name, sha string) string {
 	// Extract the first 8 characters of the sha
 	shaSubstring := sha[:8]
 	return fmt.Sprintf("%s.%s", name, shaSubstring)
@@ -40,10 +41,10 @@ func createContextFileName(name, sha string) string {
 
 // writeContextPartToFile writes a single ModelContextPart to a file.
 func writeContextPartToFile(part shared.ModelContextPart) error {
-	metaFilename := createContextFileName(part.Name, part.Sha) + ".meta"
+	metaFilename := CreateContextFileName(part.Name, part.Sha) + ".meta"
 	metaPath := filepath.Join(ContextSubdir, metaFilename)
 
-	bodyFilename := createContextFileName(part.Name, part.Sha) + ".body"
+	bodyFilename := CreateContextFileName(part.Name, part.Sha) + ".body"
 	bodyPath := filepath.Join(ContextSubdir, bodyFilename)
 	body := []byte(part.Body)
 	part.Body = ""
