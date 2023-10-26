@@ -12,7 +12,7 @@ Iterative development with AI.
 From the root directory, run:
 
 ```bash
-export OPEN_AI_API_KEY=...
+export OPENAI_API_KEY=...
 ./dev.sh
 ```
 
