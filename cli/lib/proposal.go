@@ -94,8 +94,8 @@ func Propose(prompt string) error {
 	}()
 
 	printReply := func() {
-		clearScreen()
-		moveCursorToTopLeft()
+		ClearScreen()
+		MoveCursorToTopLeft()
 		mdFull, _ := GetMarkdown(reply)
 		fmt.Println(mdFull)
 		fmt.Printf(displayHotkeys())
@@ -119,14 +119,13 @@ func Propose(prompt string) error {
 	endReply := func() {
 		replyUpdateTimer.Stop()
 		printReply()
-		backToMain()
+		BackToMain()
 		fmt.Print(termState)
 		s = spinner.New(spinner.CharSets[33], 100*time.Millisecond)
 		s.Prefix = "  "
 		s.Start()
 		var totalTokens int
-		// _, tokensAddedByFile, totalTokens = replyTokenCounter.FinishAndRead()
-		_, _, totalTokens = replyTokenCounter.FinishAndRead()
+		_, _, _, totalTokens = replyTokenCounter.FinishAndRead()
 		err := appendConversation(types.AppendConversationParams{
 			Timestamp:    timestamp,
 			Prompt:       prompt,
@@ -139,19 +138,6 @@ func Propose(prompt string) error {
 		}
 		endedReply = true
 
-	}
-
-	showUpdatedPlanCmds := func() {
-		fmt.Println()
-		for _, cmd := range []string{"apply", "preview", "diffs"} {
-			clearCurrentLine()
-			PrintCmds("  ", cmd)
-		}
-		clearCurrentLine()
-		PrintCustomCmd("  ", "tell", "t", "update the plan, give more info, or chat")
-
-		clearCurrentLine()
-		PrintCmds("  ", "next")
 	}
 
 	contextByFilePath := make(map[string]shared.ModelContextPart)
@@ -182,7 +168,7 @@ func Propose(prompt string) error {
 		content := params.Content
 
 		onError := func(err error) {
-			backToMain()
+			BackToMain()
 			fmt.Fprintln(os.Stderr, "Error:", err)
 			cancelKeywatch()
 			close(done)
@@ -225,7 +211,7 @@ func Propose(prompt string) error {
 			}
 
 			s.Stop()
-			clearCurrentLine()
+			ClearCurrentLine()
 			alternateScreen()
 
 			replyStarted = true
@@ -245,9 +231,6 @@ func Propose(prompt string) error {
 			streamFinished = true
 
 			if filesFinished {
-				if desc.MadePlan && len(desc.Files) > 0 {
-					showUpdatedPlanCmds()
-				}
 				close(done)
 			}
 			return
@@ -299,9 +282,9 @@ func Propose(prompt string) error {
 
 				// Clear previous lines
 				if filesFinished {
-					moveUpLines(len(files))
+					MoveUpLines(len(files))
 				} else {
-					moveUpLines(len(files) + 4)
+					MoveUpLines(len(files) + 4)
 				}
 
 				for _, filePath := range files {
@@ -316,7 +299,7 @@ func Propose(prompt string) error {
 						fmtStr += " | done ✅"
 					}
 
-					clearCurrentLine()
+					ClearCurrentLine()
 
 					fmt.Printf(fmtStr+"\n", fmtArgs...)
 				}
@@ -327,7 +310,6 @@ func Propose(prompt string) error {
 						filesFinished = true
 
 						if streamFinished {
-							showUpdatedPlanCmds()
 							close(done)
 						}
 					}
@@ -345,7 +327,7 @@ func Propose(prompt string) error {
 
 	apiReq, err = Api.Propose(prompt, parentProposalId, handleStream)
 	if err != nil {
-		backToMain()
+		BackToMain()
 		return fmt.Errorf("failed to send prompt to server: %s\n", err)
 	}
 	for _, part := range apiReq.ModelContext {
@@ -388,6 +370,21 @@ Loop:
 			return err
 		}
 	}
+
+	fmt.Println()
+
+	if desc.MadePlan && len(desc.Files) > 0 {
+		for _, cmd := range []string{"apply", "diffs", "preview"} {
+			ClearCurrentLine()
+			PrintCmds("  ", cmd)
+		}
+	}
+
+	ClearCurrentLine()
+	PrintCustomCmd("  ", "tell", "t", "update the plan, give more info, or chat")
+
+	ClearCurrentLine()
+	PrintCmds("  ", "next")
 
 	return nil
 }

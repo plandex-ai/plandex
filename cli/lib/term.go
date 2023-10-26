@@ -50,23 +50,23 @@ func alternateScreen() {
 	fmt.Print("\x1b[?1049h\x1b[?25l")
 }
 
-func clearScreen() {
+func ClearScreen() {
 	fmt.Print("\x1b[2J")
 }
 
-func moveCursorToTopLeft() {
+func MoveCursorToTopLeft() {
 	fmt.Print("\x1b[H")
 }
 
-func clearCurrentLine() {
+func ClearCurrentLine() {
 	fmt.Print("\033[2K")
 }
 
-func moveUpLines(numLines int) {
+func MoveUpLines(numLines int) {
 	fmt.Printf("\033[%dA", numLines)
 }
 
-func backToMain() {
+func BackToMain() {
 	// Switch back to main screen and show the cursor on exit
 	fmt.Print("\x1b[?1049l\x1b[?25h")
 }

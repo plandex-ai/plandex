@@ -160,7 +160,7 @@ You apply changes from a plan to a given code file. Use 'writeEntireFile' functi
 
 [END INSTRUCTIONS]`
 
-func confirmProposal(proposalId string, onStream types.OnStreamFunc) error {
+func confirmProposal(proposalId string, fileContents map[string]string, numTokensByFile map[string]int, onStream types.OnStreamFunc) error {
 	goEnv := os.Getenv("GOENV")
 	if goEnv == "test" {
 		streamFilesLoremIpsum(onStream)
@@ -200,10 +200,6 @@ func confirmProposal(proposalId string, onStream types.OnStreamFunc) error {
 		}
 
 		go func(filePath string) {
-			fmt.Println("Getting file from model: " + filePath)
-
-			_, fileInProject := proposal.Request.ProjectPaths[filePath]
-
 			// get relevant file context (if any)
 			var fileContext *shared.ModelContextPart
 			for _, part := range proposal.Request.ModelContext {
@@ -212,6 +208,56 @@ func confirmProposal(proposalId string, onStream types.OnStreamFunc) error {
 					break
 				}
 			}
+
+			_, fileInCurrentPlan := proposal.Request.CurrentPlan.Files[filePath]
+
+			if fileContext == nil && !fileInCurrentPlan {
+				// new file
+				streamed := shared.StreamedFile{
+					Content: fileContents[filePath],
+				}
+				bytes, err := json.Marshal(streamed)
+
+				if err != nil {
+					onError(fmt.Errorf("error marshalling streamed file: %v", err))
+					return
+				}
+
+				chunk := &shared.PlanChunk{
+					Path:      filePath,
+					Content:   string(bytes),
+					NumTokens: numTokensByFile[filePath],
+				}
+
+				// fmt.Printf("%s: %s", filePath, content)
+				chunkJson, err := json.Marshal(chunk)
+				if err != nil {
+					onError(fmt.Errorf("error marshalling plan chunk: %v", err))
+					return
+				}
+				onStream(string(chunkJson), nil)
+
+				finished := false
+				plans.Update(proposalId, func(plan *types.Plan) {
+					plan.FilesFinished[filePath] = true
+					plan.Files[filePath] = string(bytes)
+
+					if plan.DidFinish() {
+						plan.Finish()
+						finished = true
+					}
+				})
+
+				if finished {
+					fmt.Println("Stream finished")
+					onStream(shared.STREAM_FINISHED, nil)
+					return
+				}
+
+				return
+			}
+
+			fmt.Println("Getting file from model: " + filePath)
 
 			fmtStr := "\nCurrent state of %s:\n```\n%s\n```"
 			fmtArgs := []interface{}{filePath}
@@ -224,26 +270,29 @@ func confirmProposal(proposalId string, onStream types.OnStreamFunc) error {
 			}
 
 			fileMessages := []openai.ChatCompletionMessage{}
-			if fileContext != nil || currentState != "" {
-				if fileInProject {
-					fileMessages = append(fileMessages, openai.ChatCompletionMessage{
-						Role:    openai.ChatMessageRoleSystem,
-						Content: replacementSystemPrompt + "\n\n" + fmt.Sprintf(fmtStr, fmtArgs...),
-					})
-				} else {
-					fileMessages = append(fileMessages, openai.ChatCompletionMessage{
-						Role:    openai.ChatMessageRoleSystem,
-						Content: writeFileOnlySystemPrompt + "\n\n" + fmt.Sprintf(fmtStr, fmtArgs...),
-					})
-				}
+
+			var msg string
+			if fileContext != nil {
+				msg = replacementSystemPrompt
+			} else {
+				msg = writeFileOnlySystemPrompt
 			}
+
+			if fileContext != nil || currentState != "" {
+				msg += "\n\n" + fmt.Sprintf(fmtStr, fmtArgs...)
+			}
+
+			fileMessages = append(fileMessages, openai.ChatCompletionMessage{
+				Role:    openai.ChatMessageRoleSystem,
+				Content: msg,
+			})
 
 			fileMessages = append(fileMessages, openai.ChatCompletionMessage{
 				Role:    openai.ChatMessageRoleAssistant,
 				Content: proposal.Content,
 			})
 
-			if fileInProject {
+			if fileContext != nil {
 				fileMessages = append(fileMessages,
 					openai.ChatCompletionMessage{
 						Role: openai.ChatMessageRoleUser,
@@ -282,7 +331,7 @@ func confirmProposal(proposalId string, onStream types.OnStreamFunc) error {
 				},
 			}
 
-			if fileInProject {
+			if fileContext != nil {
 				functions = append(functions, openai.FunctionDefinition{
 					Name: "writeReplacements",
 					Parameters: &jsonschema.Definition{
@@ -353,12 +402,12 @@ func confirmProposal(proposalId string, onStream types.OnStreamFunc) error {
 						}
 
 						if err != nil {
-							onError(fmt.Errorf("Stream error: %v", err))
+							onError(fmt.Errorf("stream error: %v", err))
 							return
 						}
 
 						if len(response.Choices) == 0 {
-							onError(fmt.Errorf("Stream error: no choices"))
+							onError(fmt.Errorf("stream error: no choices"))
 							return
 						}
 
@@ -383,7 +432,7 @@ func confirmProposal(proposalId string, onStream types.OnStreamFunc) error {
 								}
 
 							} else {
-								onError(fmt.Errorf("Stream finished without a function call. Reason: %s", choice.FinishReason))
+								onError(fmt.Errorf("stream finished without a function call. Reason: %s", choice.FinishReason))
 								return
 							}
 						}
@@ -405,8 +454,9 @@ func confirmProposal(proposalId string, onStream types.OnStreamFunc) error {
 						})
 
 						chunk := &shared.PlanChunk{
-							Path:    filePath,
-							Content: content,
+							Path:      filePath,
+							Content:   content,
+							NumTokens: 1,
 						}
 
 						// fmt.Printf("%s: %s", filePath, content)

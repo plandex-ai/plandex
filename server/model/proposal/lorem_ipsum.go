@@ -63,7 +63,7 @@ func streamLoremIpsum(onStream types.OnStreamFunc) {
 	onStream(planDescriptionJson, nil)
 
 	onStream(shared.STREAM_BUILD_PHASE, nil)
-	confirmProposal("", onStream)
+	confirmProposal("", map[string]string{}, map[string]int{}, onStream)
 
 }
 

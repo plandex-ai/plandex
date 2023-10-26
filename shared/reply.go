@@ -11,6 +11,7 @@ type replyInfo struct {
 	maybeFilePath    string
 	currentFilePath  string
 	files            map[string]bool
+	fileContents     map[string]string
 	numTokens        int
 	numTokensByFile  map[string]int
 }
@@ -20,6 +21,7 @@ func NewReplyInfo() *replyInfo {
 		lines:            []string{""},
 		currentFileLines: []string{},
 		files:            make(map[string]bool),
+		fileContents:     make(map[string]string),
 		numTokensByFile:  make(map[string]int),
 	}
 
@@ -127,6 +129,7 @@ func (r *replyInfo) AddToken(token string, addToTotal bool) {
 			// fmt.Println("Exited file block.")
 		} else {
 			r.files[r.currentFilePath] = true
+			r.fileContents[r.currentFilePath] += prevFullLine + "\n"
 			r.currentFileLines = append(r.currentFileLines, prevFullLine)
 
 			// r.contentByFile[r.currentFilePath] += prevFullLine + "\n"
@@ -135,7 +138,7 @@ func (r *replyInfo) AddToken(token string, addToTotal bool) {
 	}
 }
 
-func (r *replyInfo) FinishAndRead() ([]string, map[string]int, int) {
+func (r *replyInfo) FinishAndRead() ([]string, map[string]string, map[string]int, int) {
 	r.AddToken("\n", false)
 
 	files := make([]string, 0, len(r.files))
@@ -143,5 +146,5 @@ func (r *replyInfo) FinishAndRead() ([]string, map[string]int, int) {
 		files = append(files, file)
 	}
 
-	return files, r.numTokensByFile, r.numTokens
+	return files, r.fileContents, r.numTokensByFile, r.numTokens
 }

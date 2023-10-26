@@ -221,7 +221,7 @@ func CreateProposal(req shared.PromptRequest, onStream types.OnStreamFunc) error
 				if choice.FinishReason != "" {
 					onStream(shared.STREAM_DESCRIPTION_PHASE, nil)
 
-					files, _, _ := replyInfo.FinishAndRead()
+					files, fileContents, numTokensByFile, _ := replyInfo.FinishAndRead()
 
 					if len(files) == 0 {
 						planDescription := &shared.PlanDescription{
@@ -270,7 +270,7 @@ func CreateProposal(req shared.PromptRequest, onStream types.OnStreamFunc) error
 					onStream(planDescriptionJson, nil)
 
 					onStream(shared.STREAM_BUILD_PHASE, nil)
-					err = confirmProposal(proposalId, onStream)
+					err = confirmProposal(proposalId, fileContents, numTokensByFile, onStream)
 					if err != nil {
 						onError(fmt.Errorf("failed to confirm proposal: %v", err))
 					}

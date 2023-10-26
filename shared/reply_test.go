@@ -85,22 +85,23 @@ func TestReplyTokenCounter(t *testing.T) {
 			i = end
 		}
 
-		files, tokensByFilePath, totalCounted := counter.FinishAndRead()
+		files, fileContents, tokensByFilePath, totalCounted := counter.FinishAndRead()
 
 		fmt.Printf("Total tokens counted: %d\n", totalCounted)
 		fmt.Printf("%d files: %v\n", len(files), files)
+		fmt.Printf("%d file content: %v\n", len(fileContents), fileContents)
 		fmt.Println("Tokens by file path:")
 		for filePath, tokens := range tokensByFilePath {
 			fmt.Printf("%s: %d\n", filePath, tokens)
 		}
 
 		if totalCounted != totalTokens {
-			t.Error(fmt.Sprintf("Expected %d tokens, got %d", totalTokens, totalCounted))
+			t.Errorf("Expected %d tokens, got %d", totalTokens, totalCounted)
 		}
 
 		for filePath, tokens := range example.TokensByFilePath {
 			if tokensByFilePath[filePath] != tokens {
-				t.Error(fmt.Sprintf("Expected %d tokens for %s", tokens, filePath))
+				t.Errorf("Expected %d tokens for %s", tokens, filePath)
 			}
 		}
 	}

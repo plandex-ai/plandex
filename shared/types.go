@@ -17,7 +17,6 @@ type PromptRequest struct {
 	Prompt           string                `json:"prompt"`
 	ModelContext     ModelContext          `json:"modelContext"`
 	CurrentPlan      CurrentPlanFiles      `json:"currentPlan"`
-	ProjectPaths     map[string]bool       `json:"projectPaths"`
 	Conversation     []ConversationMessage `json:"conversation"`
 	ParentProposalId string                `json:"parentProposalId"`
 }
@@ -50,8 +49,9 @@ type ModelContextPart struct {
 type ModelContext []ModelContextPart
 
 type PlanChunk struct {
-	Path    string `json:"path"`
-	Content string `json:"content"`
+	Path      string `json:"path"`
+	Content   string `json:"content"`
+	NumTokens int    `json:"numTokens"`
 }
 
 type PlanDescription struct {

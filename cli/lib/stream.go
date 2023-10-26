@@ -37,7 +37,7 @@ func receiveFileToken(params *receiveFileChunkParams) (bool, error) {
 	buffer += chunk.Content
 	jsonBuffers[chunk.Path] = buffer
 
-	numStreamedTokensByPath[chunk.Path]++
+	numStreamedTokensByPath[chunk.Path] += chunk.NumTokens
 
 	// log.Println("Received file chunk: " + chunk.Path)
 	// log.Println("Number of tokens: " + fmt.Sprintf("%d", numStreamedTokensByPath[chunk.Path]))
