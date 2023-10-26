@@ -143,7 +143,7 @@ func Propose(prompt string) error {
 
 	showUpdatedPlanCmds := func() {
 		fmt.Println()
-		for _, cmd := range []string{"diffs", "preview", "apply"} {
+		for _, cmd := range []string{"apply", "preview", "diffs"} {
 			clearCurrentLine()
 			PrintCmds("  ", cmd)
 		}

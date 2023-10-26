@@ -56,7 +56,7 @@ func checkout(cmd *cobra.Command, args []string) {
 		name = lib.CurrentPlanName
 	}
 
-	branchName := "pdx-" + name
+	branchName := name
 
 	currentBranch, err := getCurrentBranch()
 	if err != nil {
