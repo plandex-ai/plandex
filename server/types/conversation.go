@@ -1,8 +1,11 @@
 package types
 
-type ConversationSummary struct {
-	ProposalId    string
-	Summary       string
-	SummaryTokens int
-	UpdatedAt     int
+import (
+	"github.com/plandex/plandex/shared"
+)
+
+type ConvoSummaryProc struct {
+	Err       error
+	SummaryCh chan *shared.ConversationSummary
+	ErrCh     chan error
 }

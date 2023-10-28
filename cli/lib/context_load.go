@@ -123,7 +123,7 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 				Body:      body,
 				Sha:       sha,
 				NumTokens: numTokens,
-				UpdatedAt: StringTs(),
+				UpdatedAt: shared.StringTs(),
 			}
 
 			contextPartsMutex.Lock()
@@ -200,7 +200,7 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 					Body:      body,
 					Sha:       sha,
 					NumTokens: numTokens,
-					UpdatedAt: StringTs(),
+					UpdatedAt: shared.StringTs(),
 				}
 
 				contextPartsMutex.Lock()
@@ -279,7 +279,7 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 					Body:      body,
 					Sha:       sha,
 					NumTokens: numTokens,
-					UpdatedAt: StringTs(),
+					UpdatedAt: shared.StringTs(),
 				}
 
 				contextPartsMutex.Lock()
@@ -342,7 +342,7 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 							FilePath:  path,
 							Sha:       sha,
 							NumTokens: numTokens,
-							UpdatedAt: StringTs(),
+							UpdatedAt: shared.StringTs(),
 						}
 
 						contextPartsMutex.Lock()
@@ -402,18 +402,13 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 				hash := sha256.Sum256([]byte(body))
 				sha := hex.EncodeToString(hash[:])
 
-				// fileNameResp, err := Api.FileName(body)
-				// if err != nil {
-				// 	log.Fatalf("Failed to summarize content from URL %s: %v", url, err)
-				// }
-
 				contextPart := shared.ModelContextPart{
 					Name:      SanitizeAndClipURL(url, 70),
 					Url:       url,
 					Body:      body,
 					Sha:       sha,
 					NumTokens: numTokens,
-					UpdatedAt: StringTs(),
+					UpdatedAt: shared.StringTs(),
 				}
 
 				contextPartsMutex.Lock()

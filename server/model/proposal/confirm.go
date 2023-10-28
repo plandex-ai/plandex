@@ -311,9 +311,9 @@ func confirmProposal(proposalId string, fileContents map[string]string, numToken
 			}
 
 			fmt.Println("Calling model for file: " + filePath)
-			for _, msg := range fileMessages {
-				fmt.Printf("%s: %s\n", msg.Role, msg.Content)
-			}
+			// for _, msg := range fileMessages {
+			// 	fmt.Printf("%s: %s\n", msg.Role, msg.Content)
+			// }
 
 			functions := []openai.FunctionDefinition{
 				{

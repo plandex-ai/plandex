@@ -36,7 +36,7 @@ func ShortSummaryHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	modelResp, _, err := model.ShortSummary(requestBody.Text)
+	modelResp, err := model.ShortSummary(requestBody.Text)
 	if err != nil {
 		log.Printf("Error summarizing text: %v\n", err)
 		http.Error(w, "Error summarizing text: "+err.Error(), http.StatusInternalServerError)

@@ -118,15 +118,18 @@ func getTerminalWidth() (int, error) {
 	return width, nil
 }
 
-func displayHotkeys() string {
+func GetDivisionLine() string {
 	// Get the terminal width
 	terminalWidth, err := getTerminalWidth()
 	if err != nil {
 		fmt.Println("Error fetching terminal size:", err)
 		terminalWidth = 50 // default width if unable to fetch width
 	}
-	// Creating the terminal width long division line
-	divisionLine := strings.Repeat("─", terminalWidth)
+	return strings.Repeat("─", terminalWidth)
+}
+
+func displayHotkeys() string {
+	divisionLine := GetDivisionLine()
 
 	return divisionLine + "\n" +
 		"  \x1b[1m(s)\x1b[0m" + `top  

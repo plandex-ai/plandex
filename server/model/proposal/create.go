@@ -12,7 +12,6 @@ import (
 	"plandex-server/model/lib"
 	"plandex-server/types"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/google/uuid"
 	"github.com/plandex/plandex/shared"
 	"github.com/sashabaranov/go-openai"
@@ -72,6 +71,33 @@ func CreateProposal(req shared.PromptRequest, onStream types.OnStreamFunc) error
 		return nil
 	}
 
+	proposalUUID, err := uuid.NewRandom()
+	if err != nil {
+		fmt.Printf("Failed to generate proposal id: %v\n", err)
+		return err
+	}
+	proposalId := proposalUUID.String()
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	rootId := req.RootProposalId
+	if rootId == "" {
+		rootId = proposalId
+	}
+	proposal := types.Proposal{
+		Id:       proposalId,
+		ParentId: req.ParentProposalId,
+		IsRoot:   req.ParentProposalId == "",
+		RootId:   rootId,
+		Request:  &req,
+		Content:  "",
+		ProposalStage: types.ProposalStage{
+			CancelFn: &cancel,
+		},
+	}
+
+	onStream(proposalId, nil)
+
 	contextText, contextTokens := lib.FormatModelContext(req.ModelContext)
 	systemMessageText := systemMessageHead + contextText
 	systemMessage := openai.ChatCompletionMessage{
@@ -84,7 +110,6 @@ func CreateProposal(req shared.PromptRequest, onStream types.OnStreamFunc) error
 	}
 
 	promptTokens := promptWrapperTokens + shared.GetNumTokens(req.Prompt)
-
 	totalTokens := systemHeadNumTokens + contextTokens + promptTokens
 
 	// print out breakdown of token usage
@@ -100,10 +125,52 @@ func CreateProposal(req shared.PromptRequest, onStream types.OnStreamFunc) error
 		return err
 	}
 
-	if len(req.Conversation) > 0 {
-		for _, convoMessage := range req.Conversation {
-			messages = append(messages, convoMessage.Message)
+	conversationTokens := 0
+	tokensUpToTimestamp := make(map[string]int)
+	for _, convoMessage := range req.Conversation {
+		conversationTokens += convoMessage.Tokens
+		tokensUpToTimestamp[convoMessage.Timestamp] = conversationTokens
+	}
+
+	var summary *shared.ConversationSummary
+	if (totalTokens + conversationTokens) > shared.MaxTokens {
+		// token limit exceeded after adding conversation
+		// get summary for as much as the conversation as necessary to stay under the token limit
+		for _, s := range req.ConversationSummaries {
+			tokens, ok := tokensUpToTimestamp[s.LastMessageTimestamp]
+			if !ok {
+				err := fmt.Errorf("conversation summary timestamp not found in conversation")
+				fmt.Printf("Error: %v\n", err)
+				return err
+			}
+			updatedConversationTokens := (conversationTokens - tokens) + s.Tokens
+			if updatedConversationTokens <= shared.MaxTokens {
+				summary = &s
+				break
+			}
 		}
+	}
+
+	if summary == nil {
+		if len(req.Conversation) > 0 {
+			for _, convoMessage := range req.Conversation {
+				messages = append(messages, convoMessage.Message)
+			}
+		}
+	} else {
+
+		if (totalTokens + summary.Tokens) > shared.MaxTokens {
+			err := fmt.Errorf("token limit still exceeded after summarizing conversation")
+			return err
+		}
+
+		messages = append(messages, openai.ChatCompletionMessage{
+			Role: openai.ChatMessageRoleAssistant,
+			Content: fmt.Sprintf(`
+			Summary of the plan so far:
+
+			%s`, summary.Summary),
+		})
 	}
 
 	messages = append(messages, openai.ChatCompletionMessage{
@@ -111,33 +178,13 @@ func CreateProposal(req shared.PromptRequest, onStream types.OnStreamFunc) error
 		Content: fmt.Sprintf(promptWrapperFormatStr, req.Prompt),
 	})
 
-	fmt.Println("\n\nMessages:")
-	for _, message := range messages {
-		fmt.Printf("%s: %s\n", message.Role, message.Content)
-	}
-
-	proposalUUID, err := uuid.NewRandom()
-	if err != nil {
-		fmt.Printf("Failed to generate proposal id: %v\n", err)
-		return err
-	}
-	proposalId := proposalUUID.String()
-
-	onStream(proposalId, nil)
-
-	ctx, cancel := context.WithCancel(context.Background())
+	// fmt.Println("\n\nMessages:")
+	// for _, message := range messages {
+	// 	fmt.Printf("%s: %s\n", message.Role, message.Content)
+	// }
 
 	// store the proposal
-	proposals.Set(proposalId, &types.Proposal{
-		Id:       proposalId,
-		ParentId: req.ParentProposalId,
-		IsRoot:   req.ParentProposalId == "",
-		Request:  &req,
-		Content:  "",
-		ProposalStage: types.ProposalStage{
-			CancelFn: &cancel,
-		},
-	})
+	proposals.Set(proposalId, &proposal)
 
 	replyInfo := shared.NewReplyInfo()
 
@@ -150,14 +197,12 @@ func CreateProposal(req shared.PromptRequest, onStream types.OnStreamFunc) error
 	stream, err := model.Client.CreateChatCompletionStream(ctx, modelReq)
 	if err != nil {
 		fmt.Printf("Error creating proposal GPT4 stream: %v\n", err)
-
-		spew.Dump(err)
+		fmt.Println(err)
 
 		errStr := err.Error()
 		if strings.Contains(errStr, "status code: 400") &&
 			strings.Contains(errStr, "reduce the length of the messages") {
 			fmt.Println("Token limit exceeded")
-
 		}
 
 		proposals.Delete(proposalId)
@@ -220,13 +265,58 @@ func CreateProposal(req shared.PromptRequest, onStream types.OnStreamFunc) error
 
 				if choice.FinishReason != "" {
 					onStream(shared.STREAM_DESCRIPTION_PHASE, nil)
+					responseTs := shared.StringTs()
+
+					if len(req.Conversation) > 0 {
+						summaryCh := make(chan *shared.ConversationSummary)
+						errCh := make(chan error)
+
+						summaryProc := types.ConvoSummaryProc{
+							SummaryCh: summaryCh,
+							ErrCh:     errCh,
+						}
+
+						convoSummaryProcs.Set(proposal.RootId, &summaryProc)
+
+						messages = append(messages, openai.ChatCompletionMessage{
+							Role:    openai.ChatMessageRoleUser,
+							Content: proposal.Content,
+						})
+
+						go func() {
+							fmt.Println("Generating plan summary for rootId:", proposal.RootId)
+
+							defer func() {
+								close(summaryCh)
+								close(errCh)
+								fmt.Println("Closing summary channels for root", proposal.RootId)
+							}()
+							summary, err := model.PlanSummary(messages, responseTs)
+							if err != nil {
+								fmt.Printf("Error generating plan summary for root %s: %v\n", proposal.RootId, err)
+
+								convoSummaryProcs.Update(proposal.RootId, func(proc *types.ConvoSummaryProc) {
+									proc.Err = err
+								})
+								errCh <- err
+								return
+							}
+
+							fmt.Println("Generated plan summary for root", proposal.RootId, ":", summary.Summary)
+
+							convoSummaries.Set(proposal.RootId, summary)
+							summaryCh <- summary
+
+						}()
+					}
 
 					files, fileContents, numTokensByFile, _ := replyInfo.FinishAndRead()
 
 					if len(files) == 0 {
 						planDescription := &shared.PlanDescription{
-							Files:    []string{},
-							MadePlan: false,
+							Files:             []string{},
+							MadePlan:          false,
+							ResponseTimestamp: responseTs,
 						}
 						bytes, err := json.Marshal(planDescription)
 						if err != nil {
@@ -254,6 +344,7 @@ func CreateProposal(req shared.PromptRequest, onStream types.OnStreamFunc) error
 
 					planDescription.MadePlan = true
 					planDescription.Files = files
+					planDescription.ResponseTimestamp = responseTs
 
 					bytes, err := json.Marshal(planDescription)
 					if err != nil {

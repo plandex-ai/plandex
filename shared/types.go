@@ -9,16 +9,20 @@ type CurrentPlanFiles struct {
 }
 
 type ConversationMessage struct {
-	Message openai.ChatCompletionMessage `json:"message"`
-	Tokens  int                          `json:"tokens"`
+	Message   openai.ChatCompletionMessage `json:"message"`
+	Tokens    int                          `json:"tokens"`
+	Timestamp string                       `json:"timestamp"`
 }
 
 type PromptRequest struct {
-	Prompt           string                `json:"prompt"`
-	ModelContext     ModelContext          `json:"modelContext"`
-	CurrentPlan      CurrentPlanFiles      `json:"currentPlan"`
-	Conversation     []ConversationMessage `json:"conversation"`
-	ParentProposalId string                `json:"parentProposalId"`
+	Timestamp             string                `json:"timestamp"`
+	Prompt                string                `json:"prompt"`
+	ModelContext          ModelContext          `json:"modelContext"`
+	CurrentPlan           CurrentPlanFiles      `json:"currentPlan"`
+	Conversation          []ConversationMessage `json:"conversation"`
+	ConversationSummaries []ConversationSummary `json:"conversationSummaries"`
+	ParentProposalId      string                `json:"parentProposalId"`
+	RootProposalId        string                `json:"rootProposalId"`
 }
 
 type ShortSummaryRequest struct {
@@ -55,7 +59,14 @@ type PlanChunk struct {
 }
 
 type PlanDescription struct {
-	MadePlan  bool     `json:"madePlan"`
-	CommitMsg string   `json:"commitMsg"`
-	Files     []string `json:"files"`
+	MadePlan          bool     `json:"madePlan"`
+	CommitMsg         string   `json:"commitMsg"`
+	Files             []string `json:"files"`
+	ResponseTimestamp string   `json:"responseTimestamp"`
+}
+
+type ConversationSummary struct {
+	Summary              string
+	Tokens               int
+	LastMessageTimestamp string
 }
