@@ -99,10 +99,11 @@ func receiveFileToken(params *receiveFileChunkParams) (bool, error) {
 				content = string(bytes)
 			}
 
-			// Uncomment below for debugging updates
-			// updatesPath := filepath.Join(CurrentPlanRootDir, "updates", chunk.Path)
-			// os.MkdirAll(filepath.Dir(updatesPath), os.ModePerm)
-			// os.WriteFile(updatesPath+"-"+"replacements"+"-"+StringTs(), []byte(buffer), 0644)
+			if os.Getenv("GOENV") == "development" {
+				updatesPath := filepath.Join(CurrentPlanRootDir, "updates", chunk.Path)
+				os.MkdirAll(filepath.Dir(updatesPath), os.ModePerm)
+				os.WriteFile(updatesPath+"-"+"replacements"+"-"+shared.StringTs(), []byte(buffer), 0644)
+			}
 
 			// log.Println("Content before replacements: " + content)
 
@@ -141,10 +142,11 @@ func receiveFileToken(params *receiveFileChunkParams) (bool, error) {
 		} else if streamedType == "file" {
 			content = streamed.Content
 
-			// Uncomment below for debugging updates
-			// updatesPath := filepath.Join(CurrentPlanRootDir, "updates", chunk.Path)
-			// os.MkdirAll(filepath.Dir(updatesPath), os.ModePerm)
-			// os.WriteFile(updatesPath+"-"+"file"+"-"+StringTs(), []byte(buffer), 0644)
+			if os.Getenv("GOENV") == "development" {
+				updatesPath := filepath.Join(CurrentPlanRootDir, "updates", chunk.Path)
+				os.MkdirAll(filepath.Dir(updatesPath), os.ModePerm)
+				os.WriteFile(updatesPath+"-"+"file"+"-"+shared.StringTs(), []byte(buffer), 0644)
+			}
 
 		}
 

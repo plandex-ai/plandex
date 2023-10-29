@@ -4,7 +4,10 @@ import (
 	"fmt"
 	"os"
 	"plandex/lib"
+	"strconv"
 
+	"github.com/fatih/color"
+	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
 )
 
@@ -19,33 +22,53 @@ func context(cmd *cobra.Command, args []string) {
 	context, err := lib.GetAllContext(true)
 
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error listing context:", err)
+		color.New(color.FgRed).Fprintln(os.Stderr, "Error listing context:", err)
 		os.Exit(1)
 	}
 
 	totalTokens := 0
+	table := tablewriter.NewWriter(os.Stdout)
+	table.SetHeader([]string{"Index", "Type", "ID", "Tokens", "Updated"})
+	table.SetAutoWrapText(false)
 
 	for i, part := range context {
 		totalTokens += part.NumTokens
 
-		if i != 0 {
-			fmt.Print("\n")
-		}
-
-		fmt.Println("Index:", i)
+		var contextType string
+		var id string
 		if part.FilePath != "" {
-			fmt.Printf("File: %s\n", part.FilePath)
+			contextType = "file"
+			id = part.FilePath
+		} else if part.Url != "" {
+			contextType = "url"
+			id = part.Url
+		} else {
+			contextType = "text"
+			id = part.Name
 		}
 
-		if part.Url != "" {
-			fmt.Printf("Url: %s\n", part.Url)
+		row := []string{
+			strconv.Itoa(i),
+			contextType,
+			id,
+			strconv.Itoa(part.NumTokens) + " 🪙",
+			part.UpdatedAt,
 		}
-
-		fmt.Printf("Tokens: %d\n", part.NumTokens)
-		fmt.Printf("Updated: %s\n", part.UpdatedAt)
+		if i%2 == 0 {
+			table.Rich(row, []tablewriter.Colors{
+				{tablewriter.FgHiCyanColor, tablewriter.Bold},
+				{tablewriter.FgHiWhiteColor},
+				{tablewriter.FgHiGreenColor, tablewriter.Bold},
+				{tablewriter.FgHiWhiteColor},
+				{tablewriter.FgHiWhiteColor},
+			})
+		} else {
+			table.Append(row)
+		}
 	}
 
-	fmt.Printf("\nTotal tokens: %d\n", totalTokens)
+	table.Render()
+	fmt.Print(color.New(color.FgHiCyan, color.Bold).Sprintf("\nTotal →") + color.New(color.FgHiWhite, color.Bold).Sprintf(" %d 🪙\n", totalTokens))
 
 }
 

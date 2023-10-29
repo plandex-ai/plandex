@@ -3,6 +3,7 @@ package proposal
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -132,8 +133,12 @@ func CreateProposal(req shared.PromptRequest, onStream types.OnStreamFunc) error
 		tokensUpToTimestamp[convoMessage.Timestamp] = conversationTokens
 	}
 
+	fmt.Printf("Conversation tokens: %d\n", conversationTokens)
+
 	var summary *shared.ConversationSummary
 	if (totalTokens + conversationTokens) > shared.MaxTokens {
+		fmt.Println("Token limit exceeded. Attempting to reduce via conversation summary.")
+
 		// token limit exceeded after adding conversation
 		// get summary for as much as the conversation as necessary to stay under the token limit
 		for _, s := range req.ConversationSummaries {
@@ -144,21 +149,26 @@ func CreateProposal(req shared.PromptRequest, onStream types.OnStreamFunc) error
 				return err
 			}
 			updatedConversationTokens := (conversationTokens - tokens) + s.Tokens
+			savedTokens := (totalTokens + conversationTokens) - updatedConversationTokens
 			if updatedConversationTokens <= shared.MaxTokens {
+				fmt.Printf("Summarizing up to %s | saving %d tokens\n", s.LastMessageTimestamp, savedTokens)
 				summary = &s
 				break
 			}
 		}
+
+		if summary == nil {
+			err := errors.New("couldn't get under token limit with conversation summary")
+			fmt.Printf("Error: %v\n", err)
+			return err
+		}
 	}
 
 	if summary == nil {
-		if len(req.Conversation) > 0 {
-			for _, convoMessage := range req.Conversation {
-				messages = append(messages, convoMessage.Message)
-			}
+		for _, convoMessage := range req.Conversation {
+			messages = append(messages, convoMessage.Message)
 		}
 	} else {
-
 		if (totalTokens + summary.Tokens) > shared.MaxTokens {
 			err := fmt.Errorf("token limit still exceeded after summarizing conversation")
 			return err
@@ -171,6 +181,13 @@ func CreateProposal(req shared.PromptRequest, onStream types.OnStreamFunc) error
 
 			%s`, summary.Summary),
 		})
+
+		// add messages after the last message in the summary
+		for _, convoMessage := range req.Conversation {
+			if convoMessage.Timestamp > summary.LastMessageTimestamp {
+				messages = append(messages, convoMessage.Message)
+			}
+		}
 	}
 
 	messages = append(messages, openai.ChatCompletionMessage{
