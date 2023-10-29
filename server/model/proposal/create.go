@@ -131,6 +131,7 @@ func CreateProposal(req shared.PromptRequest, onStream types.OnStreamFunc) error
 	for _, convoMessage := range req.Conversation {
 		conversationTokens += convoMessage.Tokens
 		tokensUpToTimestamp[convoMessage.Timestamp] = conversationTokens
+		fmt.Printf("Timestamp: %s | Tokens: %d | Total: %d | conversationTokens\n", convoMessage.Timestamp, convoMessage.Tokens, conversationTokens)
 	}
 
 	fmt.Printf("Conversation tokens: %d\n", conversationTokens)
@@ -143,14 +144,23 @@ func CreateProposal(req shared.PromptRequest, onStream types.OnStreamFunc) error
 		// get summary for as much as the conversation as necessary to stay under the token limit
 		for _, s := range req.ConversationSummaries {
 			tokens, ok := tokensUpToTimestamp[s.LastMessageTimestamp]
+
+			fmt.Printf("Last message timestamp: %s\n", s.LastMessageTimestamp)
+
 			if !ok {
 				err := fmt.Errorf("conversation summary timestamp not found in conversation")
 				fmt.Printf("Error: %v\n", err)
 				return err
 			}
+
 			updatedConversationTokens := (conversationTokens - tokens) + s.Tokens
-			savedTokens := (totalTokens + conversationTokens) - updatedConversationTokens
-			if updatedConversationTokens <= shared.MaxTokens {
+			savedTokens := conversationTokens - updatedConversationTokens
+
+			fmt.Printf("Conversation summary tokens: %d\n", tokens)
+			fmt.Printf("Updated conversation tokens: %d\n", updatedConversationTokens)
+			fmt.Printf("Saved tokens: %d\n", savedTokens)
+
+			if (totalTokens + updatedConversationTokens) <= shared.MaxTokens {
 				fmt.Printf("Summarizing up to %s | saving %d tokens\n", s.LastMessageTimestamp, savedTokens)
 				summary = &s
 				break
@@ -175,11 +185,8 @@ func CreateProposal(req shared.PromptRequest, onStream types.OnStreamFunc) error
 		}
 
 		messages = append(messages, openai.ChatCompletionMessage{
-			Role: openai.ChatMessageRoleAssistant,
-			Content: fmt.Sprintf(`
-			Summary of the plan so far:
-
-			%s`, summary.Summary),
+			Role:    openai.ChatMessageRoleAssistant,
+			Content: summary.Summary,
 		})
 
 		// add messages after the last message in the summary
