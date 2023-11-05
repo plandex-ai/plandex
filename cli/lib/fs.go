@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"plandex/types"
-	"strings"
 	"sync"
 )
 
@@ -162,10 +161,10 @@ func ParseInputPaths(fileOrDirPaths []string, params *types.LoadContextParams) (
 					}
 
 					// calculate directory depth from base
-					depth := strings.Count(path[len(p):], string(filepath.Separator))
-					if params.MaxDepth != -1 && depth > params.MaxDepth {
-						return filepath.SkipDir
-					}
+					// depth := strings.Count(path[len(p):], string(filepath.Separator))
+					// if params.MaxDepth != -1 && depth > params.MaxDepth {
+					// 	return filepath.SkipDir
+					// }
 
 					if params.NamesOnly {
 						// add directory name to results

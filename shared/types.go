@@ -62,7 +62,7 @@ type ModelContextPart struct {
 	AddedAt   string               `json:"addedAt"`
 	UpdatedAt string               `json:"updatedAt"`
 }
-type ModelContext []ModelContextPart
+type ModelContext []*ModelContextPart
 
 type PlanChunk struct {
 	Path      string `json:"path"`

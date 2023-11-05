@@ -38,7 +38,7 @@ func ContextRm(paths []string) error {
 }
 
 // writeContextPartToFile writes a single ModelContextPart to a file.
-func writeContextPartToFile(part shared.ModelContextPart) error {
+func writeContextPartToFile(part *shared.ModelContextPart) error {
 	metaFilename := CreateContextFileName(part.Name, part.Sha) + ".meta"
 	metaPath := filepath.Join(ContextSubdir, metaFilename)
 
@@ -81,10 +81,10 @@ func writeContextPartToFile(part shared.ModelContextPart) error {
 }
 
 // Write each context part in parallel
-func writeContextParts(contextParts []shared.ModelContextPart) error {
+func writeContextParts(contextParts []*shared.ModelContextPart) error {
 	var errCh = make(chan error)
 	for _, part := range contextParts {
-		go func(p shared.ModelContextPart) {
+		go func(p *shared.ModelContextPart) {
 			if err := writeContextPartToFile(p); err != nil {
 				// Handling the error in the goroutine by logging. Depending on your application,
 				// you might want a different strategy (e.g., collect errors and handle them after waiting).

@@ -135,7 +135,7 @@ func Propose(prompt string) error {
 		}
 	}
 
-	contextByFilePath := make(map[string]shared.ModelContextPart)
+	contextByFilePath := make(map[string]*shared.ModelContextPart)
 
 	running := false
 	queue := make(chan types.OnStreamPlanParams, 1)

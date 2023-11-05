@@ -19,19 +19,19 @@ import (
 	"github.com/plandex/plandex/shared"
 )
 
-func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
+func LoadContextOrDie(resources []string, params *types.LoadContextParams) (int, int) {
 	timeStart := time.Now()
 
 	s := spinner.New(spinner.CharSets[33], 100*time.Millisecond)
 	s.Prefix = "📥 Loading context... "
 	s.Start()
 
-	var maxTokens int
-	if params.MaxTokens == -1 {
-		maxTokens = shared.MaxTokens
-	} else {
-		maxTokens = min(params.MaxTokens, shared.MaxTokens)
-	}
+	maxTokens := shared.MaxContextTokens
+	// if params.MaxTokens == -1 {
+	// 	maxTokens = shared.MaxTokens
+	// } else {
+	// 	maxTokens = min(params.MaxTokens, shared.MaxTokens)
+	// }
 
 	planState, err := GetPlanState()
 	if err != nil {
@@ -44,7 +44,7 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 	totalTokens := planState.ContextTokens
 	var totalTokensMutex sync.Mutex
 
-	var contextParts []shared.ModelContextPart
+	var contextParts []*shared.ModelContextPart
 	var contextPartsMutex sync.Mutex
 
 	wg := sync.WaitGroup{}
@@ -66,26 +66,26 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 				tokensAdded += numTokens
 
 				if totalTokens > maxTokens {
-					if params.Truncate {
-						s.Stop()
-						ClearCurrentLine()
-						fmt.Fprintf(os.Stderr, "The total number of tokens (%d) exceeds the maximum allowed (%d). Truncating input text.\n", totalTokens, maxTokens)
-						s.Start()
-						numTokens = maxTokens - (totalTokens - numTokens)
+					// if params.Truncate {
+					// 	s.Stop()
+					// 	ClearCurrentLine()
+					// 	fmt.Fprintf(os.Stderr, "The total number of tokens (%d) exceeds the maximum allowed (%d). Truncating input text.\n", totalTokens, maxTokens)
+					// 	s.Start()
+					// 	numTokens = maxTokens - (totalTokens - numTokens)
 
-						// If the number of tokens is less than or equal to 0, then we can stop processing files
-						if numTokens <= 0 {
-							return
-						}
+					// 	// If the number of tokens is less than or equal to 0, then we can stop processing files
+					// 	if numTokens <= 0 {
+					// 		return
+					// 	}
 
-						body = body[:numTokens]
-						totalTokens = maxTokens
+					// 	body = body[:numTokens]
+					// 	totalTokens = maxTokens
 
-					} else {
-						s.Stop()
-						ClearCurrentLine()
-						log.Fatalf("The total number of tokens (%d) exceeds the maximum allowed (%d)", totalTokens, maxTokens)
-					}
+					// } else {
+					s.Stop()
+					ClearCurrentLine()
+					log.Fatalf("The total number of tokens (%d) exceeds the maximum allowed (%d)", totalTokens, maxTokens)
+					// }
 
 				}
 			}()
@@ -103,7 +103,7 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 			fileName := format.GetFileNameWithoutExt(fileNameResp.FileName)
 
 			ts := shared.StringTs()
-			contextPart := shared.ModelContextPart{
+			contextPart := &shared.ModelContextPart{
 				Type:      shared.ContextNoteType,
 				Name:      fileName,
 				Body:      body,
@@ -155,25 +155,25 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 					totalTokens += numTokens
 					tokensAdded += numTokens
 					if totalTokens > maxTokens {
-						if params.Truncate {
-							s.Stop()
-							ClearCurrentLine()
-							fmt.Fprintf(os.Stderr, "The total number of tokens (%d) exceeds the maximum allowed (%d). Truncating piped data.\n", totalTokens, maxTokens)
-							s.Start()
-							numTokens = maxTokens - (totalTokens - numTokens)
+						// if params.Truncate {
+						// 	s.Stop()
+						// 	ClearCurrentLine()
+						// 	fmt.Fprintf(os.Stderr, "The total number of tokens (%d) exceeds the maximum allowed (%d). Truncating piped data.\n", totalTokens, maxTokens)
+						// 	s.Start()
+						// 	numTokens = maxTokens - (totalTokens - numTokens)
 
-							if numTokens <= 0 {
-								return
-							}
+						// 	if numTokens <= 0 {
+						// 		return
+						// 	}
 
-							body = body[:numTokens]
-							totalTokens = maxTokens
+						// 	body = body[:numTokens]
+						// 	totalTokens = maxTokens
 
-						} else {
-							s.Stop()
-							ClearCurrentLine()
-							log.Fatalf("The total number of tokens (%d) exceeds the maximum allowed (%d)", totalTokens, maxTokens)
-						}
+						// } else {
+						s.Stop()
+						ClearCurrentLine()
+						log.Fatalf("The total number of tokens (%d) exceeds the maximum allowed (%d)", totalTokens, maxTokens)
+						// }
 					}
 				}()
 
@@ -190,7 +190,7 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 				fileName := format.GetFileNameWithoutExt(fileNameResp.FileName)
 
 				ts := shared.StringTs()
-				contextPart := shared.ModelContextPart{
+				contextPart := &shared.ModelContextPart{
 					Type:      shared.ContextPipedDataType,
 					Name:      fileName,
 					Body:      body,
@@ -211,8 +211,8 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 	var inputUrls []string
 	var inputFilePaths []string
 
-	if len(params.Resources) > 0 {
-		for _, resource := range params.Resources {
+	if len(resources) > 0 {
+		for _, resource := range resources {
 			// so far resources are either files or urls
 			if IsValidURL(resource) {
 				inputUrls = append(inputUrls, resource)
@@ -251,26 +251,26 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 						tokensAdded += numTokens
 						if totalTokens > maxTokens {
 
-							if params.Truncate {
-								s.Stop()
-								ClearCurrentLine()
-								fmt.Fprintf(os.Stderr, "The total number of tokens (%d) exceeds the maximum allowed (%d). Truncating directory tree.\n", totalTokens, maxTokens)
-								s.Start()
-								numTokens = maxTokens - (totalTokens - numTokens)
+							// if params.Truncate {
+							// 	s.Stop()
+							// 	ClearCurrentLine()
+							// 	fmt.Fprintf(os.Stderr, "The total number of tokens (%d) exceeds the maximum allowed (%d). Truncating directory tree.\n", totalTokens, maxTokens)
+							// 	s.Start()
+							// 	numTokens = maxTokens - (totalTokens - numTokens)
 
-								// If the number of tokens is less than or equal to 0, then we can stop processing files
-								if numTokens <= 0 {
-									return
-								}
+							// 	// If the number of tokens is less than or equal to 0, then we can stop processing files
+							// 	if numTokens <= 0 {
+							// 		return
+							// 	}
 
-								body = body[:numTokens]
-								totalTokens = maxTokens
+							// 	body = body[:numTokens]
+							// 	totalTokens = maxTokens
 
-							} else {
-								s.Stop()
-								ClearCurrentLine()
-								log.Fatalf("The total number of tokens (%d) exceeds the maximum allowed (%d)", totalTokens, maxTokens)
-							}
+							// } else {
+							s.Stop()
+							ClearCurrentLine()
+							log.Fatalf("The total number of tokens (%d) exceeds the maximum allowed (%d)", totalTokens, maxTokens)
+							// }
 
 						}
 
@@ -287,7 +287,7 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 						name = "parent"
 					}
 
-					contextPart := shared.ModelContextPart{
+					contextPart := &shared.ModelContextPart{
 						Type:      shared.ContextDirectoryTreeType,
 						Name:      name,
 						FilePath:  inputFilePath,
@@ -339,26 +339,26 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 						tokensAdded += numTokens
 						if totalTokens > maxTokens {
 
-							if params.Truncate {
-								s.Stop()
-								ClearCurrentLine()
-								fmt.Fprintf(os.Stderr, "The total number of tokens (%d) exceeds the maximum allowed (%d). Truncating the file %s.\n", totalTokens, maxTokens, path)
-								numTokens = maxTokens - (totalTokens - numTokens)
-								s.Start()
+							// if params.Truncate {
+							// 	s.Stop()
+							// 	ClearCurrentLine()
+							// 	fmt.Fprintf(os.Stderr, "The total number of tokens (%d) exceeds the maximum allowed (%d). Truncating the file %s.\n", totalTokens, maxTokens, path)
+							// 	numTokens = maxTokens - (totalTokens - numTokens)
+							// 	s.Start()
 
-								// If the number of tokens is less than or equal to 0, then we can stop processing files
-								if numTokens <= 0 {
-									return
-								}
+							// 	// If the number of tokens is less than or equal to 0, then we can stop processing files
+							// 	if numTokens <= 0 {
+							// 		return
+							// 	}
 
-								body = body[:numTokens]
-								totalTokens = maxTokens
+							// 	body = body[:numTokens]
+							// 	totalTokens = maxTokens
 
-							} else {
-								s.Stop()
-								ClearCurrentLine()
-								log.Fatalf("The total number of tokens (%d) exceeds the maximum allowed (%d)", totalTokens, maxTokens)
-							}
+							// } else {
+							s.Stop()
+							ClearCurrentLine()
+							log.Fatalf("The total number of tokens (%d) exceeds the maximum allowed (%d)", totalTokens, maxTokens)
+							// }
 
 						}
 
@@ -368,7 +368,7 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 
 					ts := shared.StringTs()
 
-					contextPart := shared.ModelContextPart{
+					contextPart := &shared.ModelContextPart{
 						Type:      shared.ContextFileType,
 						Name:      fileName,
 						Body:      body,
@@ -412,26 +412,26 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 					totalTokens += numTokens
 					tokensAdded += numTokens
 					if totalTokens > maxTokens {
-						if params.Truncate {
-							s.Stop()
-							ClearCurrentLine()
-							fmt.Fprintf(os.Stderr, "The total number of tokens (%d) exceeds the maximum allowed (%d). Truncating content from URL %s.\n", totalTokens, maxTokens, url)
-							numTokens = maxTokens - (totalTokens - numTokens)
-							s.Start()
+						// if params.Truncate {
+						// 	s.Stop()
+						// 	ClearCurrentLine()
+						// 	fmt.Fprintf(os.Stderr, "The total number of tokens (%d) exceeds the maximum allowed (%d). Truncating content from URL %s.\n", totalTokens, maxTokens, url)
+						// 	numTokens = maxTokens - (totalTokens - numTokens)
+						// 	s.Start()
 
-							// If the number of tokens is less than or equal to 0, then we can stop processing content
-							if numTokens <= 0 {
-								return
-							}
+						// 	// If the number of tokens is less than or equal to 0, then we can stop processing content
+						// 	if numTokens <= 0 {
+						// 		return
+						// 	}
 
-							body = body[:numTokens]
-							totalTokens = maxTokens
+						// 	body = body[:numTokens]
+						// 	totalTokens = maxTokens
 
-						} else {
-							s.Stop()
-							ClearCurrentLine()
-							log.Fatalf("The total number of tokens (%d) exceeds the maximum allowed (%d)", totalTokens, maxTokens)
-						}
+						// } else {
+						s.Stop()
+						ClearCurrentLine()
+						log.Fatalf("The total number of tokens (%d) exceeds the maximum allowed (%d)", totalTokens, maxTokens)
+						// }
 					}
 				}()
 
@@ -439,7 +439,7 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 				sha := hex.EncodeToString(hash[:])
 
 				ts := shared.StringTs()
-				contextPart := shared.ModelContextPart{
+				contextPart := &shared.ModelContextPart{
 					Type:      shared.ContextURLType,
 					Name:      SanitizeAndClipURL(url, 70),
 					Url:       url,

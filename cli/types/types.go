@@ -50,10 +50,9 @@ type PlanSettings struct {
 
 type LoadContextParams struct {
 	Note      string
-	MaxTokens int
 	Recursive bool
-	MaxDepth  int
 	NamesOnly bool
-	Truncate  bool
-	Resources []string
+	// Truncate  bool
+	// MaxDepth  int
+	// MaxTokens int
 }

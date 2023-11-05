@@ -28,7 +28,7 @@ func contextRm(cmd *cobra.Command, args []string) {
 	}
 
 	toRemovePaths := []string{}
-	toRemoveParts := []shared.ModelContextPart{}
+	toRemoveParts := []*shared.ModelContextPart{}
 
 	for i, part := range context {
 		path := lib.CreateContextFileName(part.Name, part.Sha)

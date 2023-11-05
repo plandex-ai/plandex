@@ -11,14 +11,14 @@ import (
 	"github.com/plandex/plandex/shared"
 )
 
-func GetAllContext(metaOnly bool) ([]shared.ModelContextPart, error) {
+func GetAllContext(metaOnly bool) ([]*shared.ModelContextPart, error) {
 	files, err := os.ReadDir(ContextSubdir)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to read context directory: %v", err)
 		return nil, err
 	}
 
-	var context []shared.ModelContextPart
+	var context []*shared.ModelContextPart
 	for _, file := range files {
 		filename := file.Name()
 
@@ -58,7 +58,7 @@ func GetAllContext(metaOnly bool) ([]shared.ModelContextPart, error) {
 				contextPart.Body = string(bodyContent)
 			}
 
-			context = append(context, contextPart)
+			context = append(context, &contextPart)
 		}
 	}
 
