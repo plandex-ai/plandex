@@ -41,14 +41,27 @@ type FileNameResponse struct {
 	FileName string `json:"fileName"`
 }
 
+type ModelContextPartType string
+
+const (
+	ContextFileType          ModelContextPartType = "file"
+	ContextURLType           ModelContextPartType = "url"
+	ContextNoteType          ModelContextPartType = "note"
+	ContextDirectoryType     ModelContextPartType = "directory"
+	ContextDirectoryTreeType ModelContextPartType = "directory tree"
+	ContextPipedDataType     ModelContextPartType = "piped data"
+)
+
 type ModelContextPart struct {
-	Name      string `json:"name"`
-	Body      string `json:"body"`
-	Url       string `json:"url"`
-	FilePath  string `json:"filePath"`
-	Sha       string `json:"sha"`
-	NumTokens int    `json:"numTokens"`
-	UpdatedAt string `json:"updatedAt"`
+	Type      ModelContextPartType `json:"type"`
+	Name      string               `json:"name"`
+	Body      string               `json:"body"`
+	Url       string               `json:"url"`
+	FilePath  string               `json:"filePath"`
+	Sha       string               `json:"sha"`
+	NumTokens int                  `json:"numTokens"`
+	AddedAt   string               `json:"addedAt"`
+	UpdatedAt string               `json:"updatedAt"`
 }
 type ModelContext []ModelContextPart
 
@@ -59,10 +72,11 @@ type PlanChunk struct {
 }
 
 type PlanDescription struct {
-	MadePlan          bool     `json:"madePlan"`
-	CommitMsg         string   `json:"commitMsg"`
-	Files             []string `json:"files"`
-	ResponseTimestamp string   `json:"responseTimestamp"`
+	MadePlan              bool     `json:"madePlan"`
+	CommitMsg             string   `json:"commitMsg"`
+	Files                 []string `json:"files"`
+	ResponseTimestamp     string   `json:"responseTimestamp"`
+	SummarizedToTimestamp string   `json:"summarizedToTimestamp"`
 }
 
 type ConversationSummary struct {

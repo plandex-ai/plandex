@@ -4,12 +4,12 @@ import (
 	"bufio"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"os"
 	"path/filepath"
+	"plandex/format"
 	"plandex/types"
 	"strings"
 	"sync"
@@ -25,10 +25,6 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 	s := spinner.New(spinner.CharSets[33], 100*time.Millisecond)
 	s.Prefix = "📥 Loading context... "
 	s.Start()
-	var contextState types.ModelContextState
-	contextStateFilePath := filepath.Join(ContextSubdir, "context.json")
-
-	// fmt.Fprintf(os.Stderr, "Loading context from %s\n", contextStateFilePath)
 
 	var maxTokens int
 	if params.MaxTokens == -1 {
@@ -37,30 +33,13 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 		maxTokens = min(params.MaxTokens, shared.MaxTokens)
 	}
 
-	func() {
-		contextStateFile, err := os.Open(contextStateFilePath)
-		if err != nil {
-			log.Fatalf("Error opening file: %v", err)
-			return
-		}
-
-		defer contextStateFile.Close()
-
-		data, err := io.ReadAll(contextStateFile)
-		if err != nil {
-			log.Fatalf("Error reading file: %v", err)
-			return
-		}
-
-		err = json.Unmarshal(data, &contextState)
-		if err != nil {
-			log.Fatalf("Error unmarshalling JSON: %v", err)
-			return
-		}
-	}()
+	planState, err := GetPlanState()
+	if err != nil {
+		log.Fatalf("Failed to get plan state: %v", err)
+	}
 
 	tokensAdded := 0
-	totalTokens := contextState.NumTokens
+	totalTokens := planState.ContextTokens
 	var totalTokensMutex sync.Mutex
 
 	var contextParts []shared.ModelContextPart
@@ -91,8 +70,6 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 						fmt.Fprintf(os.Stderr, "The total number of tokens (%d) exceeds the maximum allowed (%d). Truncating input text.\n", totalTokens, maxTokens)
 						numTokens = maxTokens - (totalTokens - numTokens)
 
-						s.Start()
-
 						// If the number of tokens is less than or equal to 0, then we can stop processing files
 						if numTokens <= 0 {
 							return
@@ -116,14 +93,16 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 				log.Fatalf("Failed to summarize the text: %v", err)
 			}
 
-			fileName := GetFileNameWithoutExt(fileNameResp.FileName)
+			fileName := format.GetFileNameWithoutExt(fileNameResp.FileName)
 
+			ts := shared.StringTs()
 			contextPart := shared.ModelContextPart{
 				Name:      fileName,
 				Body:      body,
 				Sha:       sha,
 				NumTokens: numTokens,
-				UpdatedAt: shared.StringTs(),
+				AddedAt:   ts,
+				UpdatedAt: ts,
 			}
 
 			contextPartsMutex.Lock()
@@ -170,8 +149,6 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 							fmt.Fprintf(os.Stderr, "The total number of tokens (%d) exceeds the maximum allowed (%d). Truncating piped data.\n", totalTokens, maxTokens)
 							numTokens = maxTokens - (totalTokens - numTokens)
 
-							s.Start()
-
 							if numTokens <= 0 {
 								return
 							}
@@ -193,14 +170,16 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 					log.Fatalf("Failed to summarize piped data: %v", err)
 				}
 
-				fileName := GetFileNameWithoutExt(fileNameResp.FileName)
+				fileName := format.GetFileNameWithoutExt(fileNameResp.FileName)
 
+				ts := shared.StringTs()
 				contextPart := shared.ModelContextPart{
 					Name:      fileName,
 					Body:      body,
 					Sha:       sha,
 					NumTokens: numTokens,
-					UpdatedAt: shared.StringTs(),
+					AddedAt:   ts,
+					UpdatedAt: ts,
 				}
 
 				contextPartsMutex.Lock()
@@ -237,8 +216,6 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 				body := strings.Join(flattenedPaths, "\n")
 				bytes := []byte(body)
 
-				fmt.Println(body)
-
 				hash := sha256.Sum256(bytes)
 				sha := hex.EncodeToString(hash[:])
 				numTokens := shared.GetNumTokens(body)
@@ -256,8 +233,6 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 							fmt.Fprintf(os.Stderr, "The total number of tokens (%d) exceeds the maximum allowed (%d). Truncating directory layout.\n", totalTokens, maxTokens)
 							numTokens = maxTokens - (totalTokens - numTokens)
 
-							s.Start()
-
 							// If the number of tokens is less than or equal to 0, then we can stop processing files
 							if numTokens <= 0 {
 								return
@@ -274,12 +249,14 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 
 				}()
 
+				ts := shared.StringTs()
 				contextPart := shared.ModelContextPart{
 					Name:      "directory layout",
 					Body:      body,
 					Sha:       sha,
 					NumTokens: numTokens,
-					UpdatedAt: shared.StringTs(),
+					AddedAt:   ts,
+					UpdatedAt: ts,
 				}
 
 				contextPartsMutex.Lock()
@@ -316,8 +293,6 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 									fmt.Fprintf(os.Stderr, "The total number of tokens (%d) exceeds the maximum allowed (%d). Truncating the file %s.\n", totalTokens, maxTokens, path)
 									numTokens = maxTokens - (totalTokens - numTokens)
 
-									s.Start()
-
 									// If the number of tokens is less than or equal to 0, then we can stop processing files
 									if numTokens <= 0 {
 										return
@@ -336,13 +311,16 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 
 						_, fileName := filepath.Split(path)
 
+						ts := shared.StringTs()
+
 						contextPart := shared.ModelContextPart{
 							Name:      fileName,
 							Body:      body,
 							FilePath:  path,
 							Sha:       sha,
 							NumTokens: numTokens,
-							UpdatedAt: shared.StringTs(),
+							AddedAt:   ts,
+							UpdatedAt: ts,
 						}
 
 						contextPartsMutex.Lock()
@@ -383,8 +361,6 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 							fmt.Fprintf(os.Stderr, "The total number of tokens (%d) exceeds the maximum allowed (%d). Truncating content from URL %s.\n", totalTokens, maxTokens, url)
 							numTokens = maxTokens - (totalTokens - numTokens)
 
-							s.Start()
-
 							// If the number of tokens is less than or equal to 0, then we can stop processing content
 							if numTokens <= 0 {
 								return
@@ -402,13 +378,15 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 				hash := sha256.Sum256([]byte(body))
 				sha := hex.EncodeToString(hash[:])
 
+				ts := shared.StringTs()
 				contextPart := shared.ModelContextPart{
 					Name:      SanitizeAndClipURL(url, 70),
 					Url:       url,
 					Body:      body,
 					Sha:       sha,
 					NumTokens: numTokens,
-					UpdatedAt: shared.StringTs(),
+					AddedAt:   ts,
+					UpdatedAt: ts,
 				}
 
 				contextPartsMutex.Lock()
@@ -424,32 +402,22 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 		log.Fatalln("No context loaded")
 	}
 
-	wg = sync.WaitGroup{}
-
-	wg.Add(1)
+	errCh := make(chan error, 2)
 	go func() {
-		defer wg.Done()
-		writeContextParts(contextParts)
+		errCh <- writeContextParts(contextParts)
 	}()
 
-	wg.Add(1)
-
 	go func() {
-		defer wg.Done()
-		contextState.NumTokens = totalTokens
-
-		data, err := json.MarshalIndent(contextState, "", "  ")
-		if err != nil {
-			log.Fatalf("Failed to marshal context state: %v", err)
-		}
-		// write file
-		err = os.WriteFile(contextStateFilePath, data, 0644)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to write context state to file: %v", err)
-		}
+		planState.ContextTokens = totalTokens
+		errCh <- SetPlanState(planState, shared.StringTs())
 	}()
 
-	wg.Wait()
+	for i := 0; i < 2; i++ {
+		err := <-errCh
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
 
 	var added []string
 	if params.Note != "" {
@@ -493,21 +461,9 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 
 	// msg += fmt.Sprintf("\n\nTotal tokens in context: %d\n", totalTokens)
 
-	err = GitAddAndCommit(ContextSubdir, msg)
-
+	err = GitCommitContextUpdate(msg)
 	if err != nil {
-		log.Fatalf("Failed to commit context: %v", err)
-	}
-
-	err = GitAdd(CurrentPlanRootDir, ContextSubdir, true)
-	if err != nil {
-		log.Fatalf("failed to stage submodule changes in context dir: %s\n", err)
-	}
-
-	// Commit these staged submodule changes in the root repo
-	err = GitCommit(CurrentPlanRootDir, msg, true)
-	if err != nil {
-		log.Fatalf("failed to commit submodule updates in root dir: %s\n", err)
+		log.Fatalf("Failed to commit context update to git: %v", err)
 	}
 
 	elapsed := time.Since(timeStart)
@@ -518,7 +474,7 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 
 	s.Stop()
 	ClearCurrentLine()
-	fmt.Fprintln(os.Stderr, "✅ "+msg)
+	fmt.Println("✅ " + msg)
 
 	return tokensAdded, totalTokens
 }

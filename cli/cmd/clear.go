@@ -1,13 +1,11 @@
 package cmd
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 	"plandex/lib"
-	"plandex/types"
 
+	"github.com/plandex/plandex/shared"
 	"github.com/spf13/cobra"
 )
 
@@ -20,35 +18,49 @@ var clearCmd = &cobra.Command{
 
 func clearAllContext(cmd *cobra.Command, args []string) {
 	// clear all files from context dir
-	err := os.RemoveAll(lib.ContextSubdir)
+	context, err := lib.GetAllContext(true)
 
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error clearing context:", err)
+		fmt.Fprintln(os.Stderr, "Error retrieving context:", err)
 		return
 	}
 
-	// create context dir
-	err = os.MkdirAll(lib.ContextSubdir, 0755)
+	toRemovePaths := []string{}
+	for _, part := range context {
+		path := lib.CreateContextFileName(part.Name, part.Sha)
+		toRemovePaths = append(toRemovePaths, path)
+	}
+
+	err = lib.ContextRm(toRemovePaths)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error creating context dir:", err)
+		fmt.Fprintln(os.Stderr, "Error removing context:", err)
 		return
 	}
 
-	contextStateFilePath := filepath.Join(lib.ContextSubdir, "context.json")
-	contextState := types.ModelContextState{NumTokens: 0}
-	bytes, err := json.MarshalIndent(contextState, "", "  ")
+	// update plan state with new token count
+	planState, err := lib.GetPlanState()
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error marshalling context state:", err)
+		fmt.Fprintln(os.Stderr, "Error retrieving plan state:", err)
+		return
+	}
+	planState.ContextTokens = 0
+
+	err = lib.SetPlanState(planState, shared.StringTs())
+
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "Error writing plan state:", err)
 		return
 	}
 
-	err = os.WriteFile(contextStateFilePath, bytes, 0644)
+	msg := "Context cleared"
+	err = lib.GitCommitContextUpdate(msg)
+
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error writing context state file:", err)
+		fmt.Fprintln(os.Stderr, "Error committing context update:", err)
 		return
 	}
 
-	fmt.Println("✅ All context cleared")
+	fmt.Println("✅ " + msg)
 
 }
 

@@ -138,7 +138,6 @@ func FlattenPaths(fileOrDirPaths []string, params *types.LoadContextParams) []st
 		wg.Add(1)
 		go func(p string) {
 			defer wg.Done()
-			depth := 0
 
 			err := filepath.Walk(p, func(path string, info os.FileInfo, err error) error {
 				if err != nil {
@@ -150,11 +149,17 @@ func FlattenPaths(fileOrDirPaths []string, params *types.LoadContextParams) []st
 						return filepath.SkipDir
 					}
 
-					if depth >= params.MaxDepth {
-						return filepath.SkipDir
+					// calculate directory depth from p
+					depth := 0
+					for _, c := range info.Name() {
+						if c == filepath.Separator {
+							depth += 1
+						}
 					}
 
-					depth++ // Incrementing depth here
+					if params.MaxDepth != -1 && depth > params.MaxDepth {
+						return filepath.SkipDir
+					}
 				}
 
 				resPathsChan <- path

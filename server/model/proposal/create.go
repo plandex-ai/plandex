@@ -131,7 +131,7 @@ func CreateProposal(req shared.PromptRequest, onStream types.OnStreamFunc) error
 	for _, convoMessage := range req.Conversation {
 		conversationTokens += convoMessage.Tokens
 		tokensUpToTimestamp[convoMessage.Timestamp] = conversationTokens
-		fmt.Printf("Timestamp: %s | Tokens: %d | Total: %d | conversationTokens\n", convoMessage.Timestamp, convoMessage.Tokens, conversationTokens)
+		// fmt.Printf("Timestamp: %s | Tokens: %d | Total: %d | conversationTokens\n", convoMessage.Timestamp, convoMessage.Tokens, conversationTokens)
 	}
 
 	fmt.Printf("Conversation tokens: %d\n", conversationTokens)
@@ -197,10 +197,12 @@ func CreateProposal(req shared.PromptRequest, onStream types.OnStreamFunc) error
 		}
 	}
 
-	messages = append(messages, openai.ChatCompletionMessage{
+	promptMessage := openai.ChatCompletionMessage{
 		Role:    openai.ChatMessageRoleUser,
 		Content: fmt.Sprintf(promptWrapperFormatStr, req.Prompt),
-	})
+	}
+
+	messages = append(messages, promptMessage)
 
 	// fmt.Println("\n\nMessages:")
 	// for _, message := range messages {
@@ -302,20 +304,37 @@ func CreateProposal(req shared.PromptRequest, onStream types.OnStreamFunc) error
 
 						convoSummaryProcs.Set(proposal.RootId, &summaryProc)
 
-						messages = append(messages, openai.ChatCompletionMessage{
-							Role:    openai.ChatMessageRoleUser,
-							Content: proposal.Content,
-						})
-
 						go func() {
 							fmt.Println("Generating plan summary for rootId:", proposal.RootId)
 
 							defer func() {
 								close(summaryCh)
 								close(errCh)
-								fmt.Println("Closing summary channels for root", proposal.RootId)
 							}()
-							summary, err := model.PlanSummary(messages, responseTs)
+
+							var summaryMessages []openai.ChatCompletionMessage
+							var latestSummary *shared.ConversationSummary
+							if len(req.ConversationSummaries) > 0 {
+								latestSummary = &req.ConversationSummaries[len(req.ConversationSummaries)-1]
+							}
+
+							if latestSummary == nil {
+								for _, convoMessage := range req.Conversation {
+									summaryMessages = append(summaryMessages, convoMessage.Message)
+								}
+							} else {
+								summaryMessages = append(summaryMessages, openai.ChatCompletionMessage{
+									Role:    openai.ChatMessageRoleAssistant,
+									Content: latestSummary.Summary,
+								})
+							}
+
+							summaryMessages = append(summaryMessages, promptMessage, openai.ChatCompletionMessage{
+								Role:    openai.ChatMessageRoleAssistant,
+								Content: proposal.Content,
+							})
+
+							summary, err := model.PlanSummary(summaryMessages, responseTs)
 							if err != nil {
 								fmt.Printf("Error generating plan summary for root %s: %v\n", proposal.RootId, err)
 
@@ -326,7 +345,7 @@ func CreateProposal(req shared.PromptRequest, onStream types.OnStreamFunc) error
 								return
 							}
 
-							fmt.Println("Generated plan summary for root", proposal.RootId, ":", summary.Summary)
+							fmt.Println("Generated plan summary for root", proposal.RootId)
 
 							convoSummaries.Set(proposal.RootId, summary)
 							summaryCh <- summary
@@ -336,39 +355,29 @@ func CreateProposal(req shared.PromptRequest, onStream types.OnStreamFunc) error
 
 					files, fileContents, numTokensByFile, _ := replyInfo.FinishAndRead()
 
+					var planDescription *shared.PlanDescription
+
 					if len(files) == 0 {
-						planDescription := &shared.PlanDescription{
+						planDescription = &shared.PlanDescription{
 							Files:             []string{},
 							MadePlan:          false,
 							ResponseTimestamp: responseTs,
 						}
-						bytes, err := json.Marshal(planDescription)
+					} else {
+						planDescription, err = genPlanDescriptionJson(proposalId, ctx)
 						if err != nil {
-							onError(fmt.Errorf("failed to marshal plan description: %v", err))
+							onError(fmt.Errorf("failed to generate plan description json: %v", err))
 							return
 						}
-						planDescriptionJson := string(bytes)
 
-						proposals.Update(proposalId, func(proposal *types.Proposal) {
-							proposal.Finish(planDescription)
-						})
-
-						fmt.Println(planDescriptionJson)
-
-						onStream(planDescriptionJson, nil)
-						onStream(shared.STREAM_FINISHED, nil)
-						return
+						planDescription.MadePlan = true
+						planDescription.Files = files
+						planDescription.ResponseTimestamp = responseTs
 					}
 
-					planDescription, err := genPlanDescriptionJson(proposalId, ctx)
-					if err != nil {
-						onError(fmt.Errorf("failed to generate plan description json: %v", err))
-						return
+					if summary != nil {
+						planDescription.SummarizedToTimestamp = summary.LastMessageTimestamp
 					}
-
-					planDescription.MadePlan = true
-					planDescription.Files = files
-					planDescription.ResponseTimestamp = responseTs
 
 					bytes, err := json.Marshal(planDescription)
 					if err != nil {
@@ -376,6 +385,8 @@ func CreateProposal(req shared.PromptRequest, onStream types.OnStreamFunc) error
 						return
 					}
 					planDescriptionJson := string(bytes)
+
+					fmt.Println("Plan description json:")
 					fmt.Println(planDescriptionJson)
 
 					proposals.Update(proposalId, func(proposal *types.Proposal) {
@@ -384,12 +395,16 @@ func CreateProposal(req shared.PromptRequest, onStream types.OnStreamFunc) error
 
 					onStream(planDescriptionJson, nil)
 
-					onStream(shared.STREAM_BUILD_PHASE, nil)
-					err = confirmProposal(proposalId, fileContents, numTokensByFile, onStream)
-					if err != nil {
-						onError(fmt.Errorf("failed to confirm proposal: %v", err))
+					if len(files) == 0 {
+						onStream(planDescriptionJson, nil)
+						onStream(shared.STREAM_FINISHED, nil)
+					} else {
+						onStream(shared.STREAM_BUILD_PHASE, nil)
+						err = buildPlan(proposalId, fileContents, numTokensByFile, onStream)
+						if err != nil {
+							onError(fmt.Errorf("failed to confirm proposal: %v", err))
+						}
 					}
-
 					return
 				}
 

@@ -29,7 +29,7 @@ func convo(cmd *cobra.Command, args []string) {
 	}
 
 	if len(conversation) == 0 {
-		fmt.Println("No conversation history.")
+		fmt.Println("🤷‍♂️ No conversation history")
 		return
 	}
 
@@ -61,6 +61,7 @@ func convo(cmd *cobra.Command, args []string) {
 
 	fmt.Println(lib.GetDivisionLine())
 	fmt.Println()
+
 	fmt.Println(color.New(color.Bold, color.FgCyan).Sprint("  Conversation size →") + fmt.Sprintf(" %d 🪙", totalTokens))
 	fmt.Println()
 }

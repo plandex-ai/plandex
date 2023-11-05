@@ -5,38 +5,36 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"plandex/types"
-	"sync"
 
 	"github.com/plandex/plandex/shared"
 )
-
-func WriteInitialContextState(contextDir string) error {
-	contextState := types.ModelContextState{
-		NumTokens: 0,
-	}
-	contextStateFilePath := filepath.Join(contextDir, "context.json")
-	contextStateFile, err := os.OpenFile(contextStateFilePath, os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		return err
-	}
-	defer contextStateFile.Close()
-
-	contextStateFileContents, err := json.Marshal(contextState)
-	if err != nil {
-		return err
-	}
-
-	_, err = contextStateFile.Write(contextStateFileContents)
-
-	return err
-}
 
 // CreateContextFileName constructs a filename based on the given name and sha.
 func CreateContextFileName(name, sha string) string {
 	// Extract the first 8 characters of the sha
 	shaSubstring := sha[:8]
 	return fmt.Sprintf("%s.%s", name, shaSubstring)
+}
+
+func ContextRm(paths []string) error {
+	// remove files
+	errCh := make(chan error, len(paths)*2)
+	for _, path := range paths {
+		for _, ext := range []string{".meta", ".body"} {
+			go func(path, ext string) {
+				errCh <- os.Remove(filepath.Join(ContextSubdir, path+ext))
+			}(path, ext)
+		}
+	}
+
+	for i := 0; i < len(paths)*2; i++ {
+		err := <-errCh
+		if err != nil {
+			return fmt.Errorf("error removing context file: %v", err)
+		}
+	}
+
+	return nil
 }
 
 // writeContextPartToFile writes a single ModelContextPart to a file.
@@ -83,18 +81,27 @@ func writeContextPartToFile(part shared.ModelContextPart) error {
 }
 
 // Write each context part in parallel
-func writeContextParts(contextParts []shared.ModelContextPart) {
-	var wg sync.WaitGroup
+func writeContextParts(contextParts []shared.ModelContextPart) error {
+	var errCh = make(chan error)
 	for _, part := range contextParts {
-		wg.Add(1)
 		go func(p shared.ModelContextPart) {
-			defer wg.Done()
 			if err := writeContextPartToFile(p); err != nil {
 				// Handling the error in the goroutine by logging. Depending on your application,
 				// you might want a different strategy (e.g., collect errors and handle them after waiting).
-				fmt.Fprintf(os.Stderr, "Error writing context part to file: %v", err)
+				err := fmt.Errorf("Error writing context part to file: %v", err)
+				errCh <- err
 			}
+			errCh <- nil
 		}(part)
 	}
-	wg.Wait() // Wait for all goroutines to finish writing
+
+	// Wait for all goroutines to finish
+	for range contextParts {
+		if err := <-errCh; err != nil {
+			return err
+		}
+	}
+
+	return nil
+
 }

@@ -192,6 +192,9 @@ func appendConversation(params types.AppendConversationParams) error {
 		return fmt.Errorf("failed to write conversation file: %s", err)
 	}
 
+	// Update plan state -- will be written to file by caller
+	params.PlanState.ConvoTokens += params.PromptTokens + params.ReplyTokens
+
 	return nil
 }
 

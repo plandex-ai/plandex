@@ -24,4 +24,5 @@ func current(cmd *cobra.Command, args []string) {
 		return
 	}
 	fmt.Println(lib.CurrentPlanName)
+
 }

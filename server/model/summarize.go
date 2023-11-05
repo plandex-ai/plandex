@@ -77,6 +77,53 @@ func ShortSummary(text string) ([]byte, error) {
 	return byteRes, nil
 }
 
+func PlanSummary(conversation []openai.ChatCompletionMessage, lastMessageTimestamp string) (*shared.ConversationSummary, error) {
+	messages := []openai.ChatCompletionMessage{
+		{
+			Role:    openai.ChatMessageRoleSystem,
+			Content: shared.IdentityPrompt,
+		},
+	}
+
+	messages = append(messages, conversation...)
+
+	messages = append(messages, openai.ChatCompletionMessage{
+		Role:    openai.ChatMessageRoleUser,
+		Content: convoSummaryPrompt,
+	})
+
+	// fmt.Println("summarizing messages:")
+	// spew.Dump(messages)
+
+	resp, err := Client.CreateChatCompletion(
+		context.Background(),
+		openai.ChatCompletionRequest{
+			Model: openai.GPT4,
+			// Model:    openai.GPT3Dot5Turbo16K,
+			Messages: messages,
+		},
+	)
+
+	if err != nil {
+		fmt.Println("PlanSummary err:", err)
+
+		return nil, err
+	}
+
+	if len(resp.Choices) == 0 {
+		return nil, fmt.Errorf("no response from GPT")
+	}
+
+	content := resp.Choices[0].Message.Content
+
+	return &shared.ConversationSummary{
+		Summary:              content,
+		Tokens:               resp.Usage.CompletionTokens,
+		LastMessageTimestamp: lastMessageTimestamp,
+	}, nil
+
+}
+
 const convoSummaryPrompt = `
 Based on the conversation so far, make a summary of the current state of the plan. 
 
@@ -96,46 +143,3 @@ Based on the conversation so far, make a summary of the current state of the pla
 
 Output only the summary of the current state of the plan and nothing else.
 `
-
-func PlanSummary(conversation []openai.ChatCompletionMessage, lastMessageTimestamp string) (*shared.ConversationSummary, error) {
-	messages := []openai.ChatCompletionMessage{
-		{
-			Role:    openai.ChatMessageRoleSystem,
-			Content: shared.IdentityPrompt,
-		},
-	}
-
-	messages = append(messages, conversation...)
-
-	messages = append(messages, openai.ChatCompletionMessage{
-		Role:    openai.ChatMessageRoleUser,
-		Content: convoSummaryPrompt,
-	})
-
-	resp, err := Client.CreateChatCompletion(
-		context.Background(),
-		openai.ChatCompletionRequest{
-			Model:    openai.GPT4,
-			Messages: messages,
-		},
-	)
-
-	if err != nil {
-		fmt.Println("PlanSummary err:", err)
-
-		return nil, err
-	}
-
-	if len(resp.Choices) == 0 {
-		return nil, fmt.Errorf("no response from GPT-4")
-	}
-
-	content := resp.Choices[0].Message.Content
-
-	return &shared.ConversationSummary{
-		Summary:              content,
-		Tokens:               resp.Usage.CompletionTokens,
-		LastMessageTimestamp: lastMessageTimestamp,
-	}, nil
-
-}

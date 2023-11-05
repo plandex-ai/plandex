@@ -1,12 +1,10 @@
 package cmd
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"plandex/lib"
-	"plandex/types"
 
 	"github.com/plandex/plandex/shared"
 	"github.com/spf13/cobra"
@@ -16,13 +14,12 @@ var contextRmCmd = &cobra.Command{
 	Use:     "rm",
 	Aliases: []string{"remove"},
 	Short:   "Remove context",
-	Long:    `Remove context by index, name, file path, or url.`,
+	Long:    `Remove context by index, name, or glob.`,
 	Args:    cobra.MinimumNArgs(1),
 	Run:     contextRm,
 }
 
 func contextRm(cmd *cobra.Command, args []string) {
-
 	context, err := lib.GetAllContext(true)
 
 	if err != nil {
@@ -56,57 +53,31 @@ func contextRm(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	// remove files
-	errCh := make(chan error, len(toRemovePaths)*2)
-	for _, path := range toRemovePaths {
-		for _, ext := range []string{".meta", ".body"} {
-			go func(path, ext string) {
-				errCh <- os.Remove(filepath.Join(lib.ContextSubdir, path+ext))
-			}(path, ext)
-		}
-	}
-
-	for i := 0; i < len(toRemovePaths)*2; i++ {
-		err := <-errCh
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "Error removing context file:", err)
-			return
-		}
-	}
-
-	// update context.json with new token count
-	var contextState types.ModelContextState
-
-	contextStateFilePath := filepath.Join(lib.ContextSubdir, "context.json")
-	bytes, err := os.ReadFile(contextStateFilePath)
+	err = lib.ContextRm(toRemovePaths)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error reading context state file:", err)
+		fmt.Fprintln(os.Stderr, "Error removing context:", err)
 		return
 	}
 
-	err = json.Unmarshal(bytes, &contextState)
+	// update plan state with new token count
+	planState, err := lib.GetPlanState()
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error unmarshalling context state:", err)
+		fmt.Fprintln(os.Stderr, "Error retrieving plan state:", err)
 		return
 	}
 
 	removedTokens := 0
-	totalTokens := contextState.NumTokens
+	totalTokens := planState.ContextTokens
 	for _, part := range toRemoveParts {
 		removedTokens += part.NumTokens
 		totalTokens -= part.NumTokens
 	}
-	contextState.NumTokens = totalTokens
+	planState.ContextTokens = totalTokens
 
-	bytes, err = json.MarshalIndent(contextState, "", "  ")
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error marshalling context state:", err)
-		return
-	}
+	err = lib.SetPlanState(planState, shared.StringTs())
 
-	err = os.WriteFile(contextStateFilePath, bytes, 0644)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error writing context state file:", err)
+		fmt.Fprintln(os.Stderr, "Error writing plan state:", err)
 		return
 	}
 
@@ -116,7 +87,16 @@ func contextRm(cmd *cobra.Command, args []string) {
 		if len(toRemovePaths) > 1 {
 			suffix = "s"
 		}
-		fmt.Printf("✅ Removed %d piece%s of context | removed → %d 🪙 | total → %d 🪙 \n", len(toRemovePaths), suffix, removedTokens, totalTokens)
+		msg := fmt.Sprintf("Removed %d piece%s of context | removed → %d 🪙 | total → %d 🪙 \n", len(toRemovePaths), suffix, removedTokens, totalTokens)
+
+		err = lib.GitCommitContextUpdate(msg)
+
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "Error committing context update:", err)
+			return
+		}
+
+		fmt.Println("✅ " + msg)
 	} else {
 		fmt.Println("🤷‍♂️ No context removed")
 	}

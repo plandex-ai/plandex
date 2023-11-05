@@ -7,8 +7,10 @@ import (
 	"path/filepath"
 
 	"plandex/lib"
+	"plandex/types"
 
 	"github.com/fatih/color"
+	"github.com/plandex/plandex/shared"
 	"github.com/spf13/cobra"
 )
 
@@ -65,6 +67,13 @@ func new(cmd *cobra.Command, args []string) {
 	err = lib.SetCurrentPlan(name)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Error setting current plan:", err)
+		return
+	}
+
+	// Fixes current plan paths (CurrentPlanName, CurrentPlanRootDir, etc.)
+	err = lib.LoadCurrentPlan()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "Error loading current plan:", err)
 		return
 	}
 
@@ -131,9 +140,16 @@ func new(cmd *cobra.Command, args []string) {
 			return
 		}
 	}
-	err = lib.WriteInitialContextState(contextDir)
+
+	ts := shared.StringTs()
+	initialPlanState := &types.PlanState{
+		Name:      "draft",
+		CreatedAt: ts,
+		UpdatedAt: ts,
+	}
+	err = lib.SetPlanState(initialPlanState, ts)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error writing initial context state:", err)
+		fmt.Fprintln(os.Stderr, "Error writing initial plan state:", err)
 		return
 	}
 
@@ -160,6 +176,6 @@ func new(cmd *cobra.Command, args []string) {
 	}
 
 	fmt.Println()
-	lib.PrintCmds("", "load", "tell")
+	lib.PrintCmds("", "load", "tell", "plans")
 
 }

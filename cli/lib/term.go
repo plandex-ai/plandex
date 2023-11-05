@@ -5,20 +5,29 @@ import (
 	"os"
 	"strings"
 
+	"github.com/eiannone/keyboard"
 	"github.com/fatih/color"
 	"golang.org/x/term"
 )
 
 var cmdDesc = map[string][2]string{
-	"new":     {"", "start a new plan"},
-	"load":    {"l", "load files/directories/urls/strings or pipe data into context"},
-	"tell":    {"t", "describe a task, ask a question, or chat"},
-	"diffs":   {"d", "show diffs between plan and project files"},
-	"preview": {"p", "preview the plan in a branch"},
-	"apply":   {"ap", "apply the plan to your project files"},
-	"next":    {"n", "continue to next step of the plan"},
-	"status":  {"s", "show status of the plan"},
-	"rewind":  {"rw", "rewind the plan to a previous step or state"},
+	"new":         {"", "start a new plan"},
+	"current":     {"c", "show current plan"},
+	"cd":          {"", "change current plan"},
+	"load":        {"l", "load files/directories/urls/strings or pipe data into context"},
+	"tell":        {"t", "describe a task, ask a question, or chat"},
+	"diffs":       {"d", "show diffs between plan and project files"},
+	"preview":     {"p", "preview the plan in a branch"},
+	"apply":       {"ap", "apply the plan to your project files"},
+	"next":        {"n", "continue to next step of the plan"},
+	"status":      {"s", "show status of the plan"},
+	"rewind":      {"rw", "rewind the plan to a previous step or state"},
+	"ls":          {"", "list everything in context"},
+	"rm":          {"", "remove context by name, index, or glob"},
+	"clear":       {"", "remove all context"},
+	"delete-plan": {"del", "delete plan by name or index"},
+	"plans":       {"", "list plans"},
+	"update":      {"u", "update outdated context"},
 }
 
 func PrintCmds(prefix string, cmds ...string) {
@@ -134,4 +143,20 @@ func displayHotkeys() string {
 	return divisionLine + "\n" +
 		"  \x1b[1m(s)\x1b[0m" + `top  
 ` + divisionLine
+}
+
+func getUserInput() (rune, error) {
+	if err := keyboard.Open(); err != nil {
+		return 0, fmt.Errorf("failed to open keyboard: %s\n", err)
+	}
+	defer func() {
+		_ = keyboard.Close()
+	}()
+
+	char, _, err := keyboard.GetKey()
+	if err != nil {
+		return 0, fmt.Errorf("failed to read keypress: %s\n", err)
+	}
+
+	return char, nil
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 
 	"plandex/lib"
 
@@ -14,15 +15,15 @@ import (
 var all bool
 
 func init() {
-	rmCmd.Flags().BoolVar(&all, "all", false, "Delete all plans and clear the current plan")
+	rmCmd.Flags().BoolVar(&all, "all", false, "Delete all plans")
 	RootCmd.AddCommand(rmCmd)
 }
 
 // rmCmd represents the rm command
 var rmCmd = &cobra.Command{
-	Use:     "delete-plan [name]",
+	Use:     "delete-plan [name-or-index]",
 	Aliases: []string{"del"},
-	Short:   "Delete the specified plan",
+	Short:   "Delete a plan by name or index, or delete all plans with --all flag",
 	Args:    cobra.RangeArgs(0, 1),
 	Run:     del,
 }
@@ -33,12 +34,26 @@ func del(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	name := args[0]
 	plandexDir, _, err := lib.FindOrCreatePlandex()
 
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Error:", err)
 		return
+	}
+
+	nameOrIdx := args[0]
+	var name string
+
+	// see if it's an index
+	if idx, err := strconv.Atoi(nameOrIdx); err == nil {
+		plans, err := lib.GetPlans()
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "Error getting plans:", err)
+		}
+		plan := plans[idx]
+		name = plan.Name
+	} else {
+		name = nameOrIdx
 	}
 
 	planDir := filepath.Join(plandexDir, name)
@@ -84,5 +99,5 @@ func delAll() {
 		return
 	}
 
-	fmt.Fprintln(os.Stderr, "✅ All plans have been deleted.")
+	fmt.Fprintln(os.Stderr, "✅ Deleted all plans")
 }

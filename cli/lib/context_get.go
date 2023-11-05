@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/plandex/plandex/shared"
@@ -17,7 +18,7 @@ func GetAllContext(metaOnly bool) ([]shared.ModelContextPart, error) {
 		return nil, err
 	}
 
-	var contexts []shared.ModelContextPart
+	var context []shared.ModelContextPart
 	for _, file := range files {
 		filename := file.Name()
 
@@ -57,9 +58,14 @@ func GetAllContext(metaOnly bool) ([]shared.ModelContextPart, error) {
 				contextPart.Body = string(bodyContent)
 			}
 
-			contexts = append(contexts, contextPart)
+			context = append(context, contextPart)
 		}
 	}
 
-	return contexts, nil
+	// sort by timestamp ascending
+	sort.Slice(context, func(i, j int) bool {
+		return context[i].AddedAt < context[j].AddedAt
+	})
+
+	return context, nil
 }

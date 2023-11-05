@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
+	"plandex/format"
 	"plandex/types"
 	"time"
 
@@ -26,7 +26,7 @@ func Propose(prompt string) error {
 	start := time.Now()
 
 	s := spinner.New(spinner.CharSets[33], 100*time.Millisecond)
-	s.Prefix = "💬 Sending prompt..."
+	s.Prefix = "💬 Sending prompt... "
 	s.Start()
 
 	if CurrentPlanIsDraft() {
@@ -35,7 +35,7 @@ func Propose(prompt string) error {
 			fmt.Fprintln(os.Stderr, "\nError summarizing prompt:", err)
 			return err
 		}
-		RenameCurrentDraftPlan(GetFileNameWithoutExt(fileNameResp.FileName))
+		RenameCurrentDraftPlan(format.GetFileNameWithoutExt(fileNameResp.FileName))
 	}
 
 	timestamp := shared.StringTs()
@@ -50,9 +50,6 @@ func Propose(prompt string) error {
 	var proposalId string
 	var replyStarted bool
 	var terminalHasPendingUpdate bool
-	var endedReply bool
-
-	var descJson string
 	var desc *shared.PlanDescription
 	var state *fsm.FSM
 	var streamFinished bool
@@ -66,23 +63,14 @@ func Propose(prompt string) error {
 
 	var parentProposalId string
 	var rootId string
-	var planState types.PlanState
-	// get plan state from [CurrentPlanRootDir]/plan.json
-	planStatePath := filepath.Join(CurrentPlanRootDir, "plan.json")
-	if _, err := os.Stat(planStatePath); os.IsNotExist(err) {
-		planState = types.PlanState{}
-	} else {
-		fileBytes, err := os.ReadFile(planStatePath)
-		if err != nil {
-			return fmt.Errorf("failed to open plan state file: %s", err)
-		}
-		err = json.Unmarshal(fileBytes, &planState)
-		if err != nil {
-			return fmt.Errorf("failed to parse plan state json: %s", err)
-		}
-		parentProposalId = planState.ProposalId
-		rootId = planState.RootId
+
+	planState, err := GetPlanState()
+
+	if err != nil {
+		return fmt.Errorf("failed to get plan state: %s", err)
 	}
+	parentProposalId = planState.ProposalId
+	rootId = planState.RootId
 
 	if rootId != "" {
 		err = saveLatestConvoSummary(rootId)
@@ -127,12 +115,12 @@ func Propose(prompt string) error {
 		s = spinner.New(spinner.CharSets[33], 100*time.Millisecond)
 		s.Prefix = "  "
 		s.Start()
-		endedReply = true
 	}
 
 	appendConvo := func() {
 		var totalTokens int
 		_, _, _, totalTokens = replyTokenCounter.FinishAndRead()
+
 		err := appendConversation(types.AppendConversationParams{
 			Timestamp:         timestamp,
 			ResponseTimestamp: desc.ResponseTimestamp,
@@ -140,6 +128,7 @@ func Propose(prompt string) error {
 			PromptTokens:      promptNumTokens,
 			Reply:             reply,
 			ReplyTokens:       totalTokens,
+			PlanState:         planState,
 		})
 		if err != nil {
 			fmt.Printf("failed to append conversation: %s", err)
@@ -196,22 +185,13 @@ func Propose(prompt string) error {
 				}
 
 				// Save proposal id to [CurrentPlanRootDir]/plan.json
-				planState = types.PlanState{
-					ProposalId: proposalId,
-					RootId:     rootId,
-				}
-				planStatePath := filepath.Join(CurrentPlanRootDir, "plan.json")
-				planStateBytes, err := json.Marshal(planState)
+				planState.ProposalId = proposalId
+				planState.RootId = rootId
+				err = SetPlanState(planState, shared.StringTs())
 				if err != nil {
-					onError(fmt.Errorf("failed to marshal plan state: %s", err))
+					onError(fmt.Errorf("failed to update plan state: %s", err))
 					return
 				}
-				err = os.WriteFile(planStatePath, planStateBytes, 0644)
-				if err != nil {
-					onError(fmt.Errorf("failed to write plan state: %s", err))
-					return
-				}
-
 				return
 			}
 		} else if !replyStarted {
@@ -234,10 +214,6 @@ func Propose(prompt string) error {
 			terminalHasPendingUpdate = true
 
 		case shared.STATE_FINISHED:
-			if !endedReply {
-				endReply()
-				appendConvo()
-			}
 			s.Stop()
 			streamFinished = true
 
@@ -251,14 +227,20 @@ func Propose(prompt string) error {
 				endReply()
 
 			} else {
-				descJson = content
-				err := json.Unmarshal([]byte(descJson), &desc)
+				err := json.Unmarshal([]byte(content), &desc)
 				if err != nil {
 					onError(fmt.Errorf("error parsing plan description: %v", err))
 					return
 				}
 
+				planState.Description = desc
 				appendConvo()
+
+				err = SetPlanState(planState, shared.StringTs())
+				if err != nil {
+					onError(fmt.Errorf("failed to update plan state: %s", err))
+					return
+				}
 
 				if desc.MadePlan && (len(desc.Files) > 0) {
 					s.Stop()

@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"fmt"
 	"plandex/lib"
 	"plandex/types"
 
@@ -21,7 +22,6 @@ var contextLoadCmd = &cobra.Command{
 	Aliases: []string{"l"},
 	Short:   "Load context from various inputs",
 	Long:    `Load context from a file path, a directory, a URL, a string, or piped data.`,
-	Args:    cobra.MinimumNArgs(1),
 	Run:     contextLoad,
 }
 
@@ -48,4 +48,7 @@ func contextLoad(cmd *cobra.Command, args []string) {
 		Truncate:  truncate,
 		Resources: args,
 	})
+
+	fmt.Println()
+	lib.PrintCmds("", "ls", "tell")
 }

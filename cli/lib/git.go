@@ -99,33 +99,54 @@ func GitCommit(repoDir, commitMsg string, lockMutex bool) error {
 	return nil
 }
 
-func gitCommitPlanUpdate(commitMsg string) error {
+func GitCommitContextUpdate(commitMsg string) error {
+	err := GitAddAndCommit(ContextSubdir, commitMsg)
 
-	err := GitAddAndCommit(ConversationSubdir, commitMsg)
 	if err != nil {
-		return fmt.Errorf("failed to commit files to conversation dir: %s\n", err)
+		return fmt.Errorf("failed to commit context: %v", err)
 	}
 
-	err = GitAddAndCommit(PlanSubdir, commitMsg)
+	err = GitAdd(CurrentPlanRootDir, ContextSubdir, true)
 	if err != nil {
-		return fmt.Errorf("failed to commit files to plan dir: %s\n", err)
-	}
-
-	// Stage changes in the submodules in the root repo
-	err = GitAdd(CurrentPlanRootDir, ConversationSubdir, true)
-	if err != nil {
-		return fmt.Errorf("failed to stage submodule changes in conversation dir: %s\n", err)
-	}
-
-	err = GitAdd(CurrentPlanRootDir, PlanSubdir, true)
-	if err != nil {
-		return fmt.Errorf("failed to stage submodule changes in plan dir: %s\n", err)
+		return fmt.Errorf("failed to stage submodule changes in context dir: %s", err)
 	}
 
 	// Commit these staged submodule changes in the root repo
 	err = GitCommit(CurrentPlanRootDir, commitMsg, true)
 	if err != nil {
-		return fmt.Errorf("failed to commit submodule updates in root dir: %s\n", err)
+		return fmt.Errorf("failed to commit submodule updates in root dir: %s", err)
+	}
+
+	return nil
+}
+
+func GitCommitPlanUpdate(commitMsg string) error {
+
+	err := GitAddAndCommit(ConversationSubdir, commitMsg)
+	if err != nil {
+		return fmt.Errorf("failed to commit files to conversation dir: %s", err)
+	}
+
+	err = GitAddAndCommit(PlanSubdir, commitMsg)
+	if err != nil {
+		return fmt.Errorf("failed to commit files to plan dir: %s", err)
+	}
+
+	// Stage changes in the submodules in the root repo
+	err = GitAdd(CurrentPlanRootDir, ConversationSubdir, true)
+	if err != nil {
+		return fmt.Errorf("failed to stage submodule changes in conversation dir: %s", err)
+	}
+
+	err = GitAdd(CurrentPlanRootDir, PlanSubdir, true)
+	if err != nil {
+		return fmt.Errorf("failed to stage submodule changes in plan dir: %s", err)
+	}
+
+	// Commit these staged submodule changes in the root repo
+	err = GitCommit(CurrentPlanRootDir, commitMsg, true)
+	if err != nil {
+		return fmt.Errorf("failed to commit submodule updates in root dir: %s", err)
 	}
 
 	return nil

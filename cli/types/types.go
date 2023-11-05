@@ -39,17 +39,21 @@ type AppendConversationParams struct {
 	Reply             string
 	PromptTokens      int
 	ReplyTokens       int
+	PlanState         *PlanState
 }
 
 type PlanState struct {
-	ProposalId string
-	RootId     string
+	Name                  string                  `json:"name"`
+	ProposalId            string                  `json:"proposalId"`
+	RootId                string                  `json:"rootId"`
+	CreatedAt             string                  `json:"createdAt"`
+	UpdatedAt             string                  `json:"updatedAt"`
+	Description           *shared.PlanDescription `json:"description"`
+	ContextTokens         int                     `json:"contextTokens"`
+	ConvoTokens           int                     `json:"convoTokens"`
+	ConvoSummarizedTokens int                     `json:"convoSummarizedTokens"`
 }
 
 type PlanSettings struct {
 	Name string
-}
-
-type ModelContextState struct {
-	NumTokens int `json:"numTokens"`
 }

@@ -1,10 +1,15 @@
 package lib
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
+	"plandex/types"
 	"regexp"
+	"sort"
+
+	"github.com/plandex/plandex/shared"
 )
 
 func SetCurrentPlan(name string) error {
@@ -102,6 +107,17 @@ func RenameCurrentDraftPlan(name string) error {
 		if err != nil {
 			return fmt.Errorf("failed to load current plan: %w", err)
 		}
+
+		planState, err := GetPlanState()
+		if err != nil {
+			return fmt.Errorf("failed to get plan state: %w", err)
+		}
+
+		planState.Name = name
+		err = SetPlanState(planState, shared.StringTs())
+		if err != nil {
+			return fmt.Errorf("failed to set plan state: %w", err)
+		}
 	}
 
 	return nil
@@ -141,4 +157,97 @@ func DedupPlanName(name string) (string, error) {
 	}
 
 	return name, nil
+}
+
+func GetPlanState() (*types.PlanState, error) {
+	return GetPlanStateForPlan(CurrentPlanName)
+}
+
+func GetPlanStateForPlan(name string) (*types.PlanState, error) {
+	if PlandexDir == "" {
+		return nil, fmt.Errorf("PlandexDir not set")
+	}
+
+	var state types.PlanState
+	planStatePath := filepath.Join(PlandexDir, name, "plan.json")
+	fileBytes, err := os.ReadFile(planStatePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open plan state file: %s", err)
+	}
+	err = json.Unmarshal(fileBytes, &state)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse plan state json: %s", err)
+	}
+
+	return &state, nil
+}
+
+func SetPlanState(state *types.PlanState, updatedAt string) error {
+	if updatedAt != "" {
+		state.UpdatedAt = updatedAt
+	}
+
+	planStatePath := filepath.Join(CurrentPlanRootDir, "plan.json")
+	planStateBytes, err := json.MarshalIndent(state, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal plan state: %s", err)
+	}
+	err = os.WriteFile(planStatePath, planStateBytes, 0644)
+	if err != nil {
+		return fmt.Errorf("failed to write plan state: %s", err)
+	}
+	return nil
+}
+
+func GetPlans() ([]*types.PlanState, error) {
+	if PlandexDir == "" {
+		return nil, fmt.Errorf("PlandexDir not set")
+	}
+
+	var plans []*types.PlanState
+
+	planContents, err := os.ReadDir(PlandexDir)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to read plandex directory: %s", err)
+	}
+
+	planCh := make(chan *types.PlanState, len(planContents))
+	errCh := make(chan error, 1)
+
+	for _, planFileOrDir := range planContents {
+		if planFileOrDir.IsDir() {
+			go func(planDir os.DirEntry) {
+				planName := planDir.Name()
+
+				planState, err := GetPlanStateForPlan(planName)
+				if err != nil {
+					errCh <- fmt.Errorf("failed to get plan state for plan %s: %s", planName, err)
+					return
+				}
+
+				planCh <- planState
+			}(planFileOrDir)
+		} else {
+			planCh <- nil
+		}
+	}
+
+	for range planContents {
+		select {
+		case plan := <-planCh:
+			if plan != nil {
+				plans = append(plans, plan)
+			}
+		case err := <-errCh:
+			return nil, err
+		}
+	}
+
+	// sort plans by UpdatedAt descending
+	sort.Slice(plans, func(i, j int) bool {
+		return plans[i].UpdatedAt > plans[j].UpdatedAt
+	})
+
+	return plans, nil
 }

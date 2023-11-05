@@ -3,9 +3,15 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"strconv"
+	"time"
 
+	"plandex/format"
 	"plandex/lib"
 
+	"github.com/fatih/color"
+	"github.com/olekukonko/tablewriter"
+	"github.com/plandex/plandex/shared"
 	"github.com/spf13/cobra"
 )
 
@@ -21,23 +27,69 @@ var plansCmd = &cobra.Command{
 }
 
 func plans(cmd *cobra.Command, args []string) {
-	plandexDir, _, err := lib.FindOrCreatePlandex()
-
+	plans, err := lib.GetPlans()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Error:", err)
 		return
 	}
 
-	plans, err := os.ReadDir(plandexDir)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error:", err)
+	table := tablewriter.NewWriter(os.Stdout)
+	table.SetAutoWrapText(false)
+	table.SetHeader([]string{"#", "Name", "Updated", "Created", "Context", "Convo"})
+
+	if len(plans) == 0 {
+		fmt.Println("🤷‍♂️ No plans")
+		fmt.Println()
+		lib.PrintCmds("", "new")
 		return
 	}
 
-	fmt.Println("Available plans:")
-	for _, p := range plans {
-		if p.IsDir() {
-			fmt.Println("-", p.Name())
+	for i, p := range plans {
+
+		var name string
+		if p.Name == lib.CurrentPlanName {
+			name = color.New(color.Bold, color.FgGreen).Sprint(p.Name) + color.New(color.FgWhite).Sprint(" 👈 current")
+		} else {
+			name = p.Name
 		}
+
+		createdAt, err := time.Parse(shared.TsFormat, p.CreatedAt)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "Error parsing time:", err)
+			continue
+		}
+
+		updatedAt, err := time.Parse(shared.TsFormat, p.UpdatedAt)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "Error parsing time:", err)
+			continue
+		}
+
+		row := []string{
+			strconv.Itoa(i),
+			name,
+			format.Time(updatedAt),
+			format.Time(createdAt),
+			strconv.Itoa(p.ContextTokens) + " 🪙",
+			strconv.Itoa(p.ConvoTokens) + " 🪙",
+		}
+
+		var style []tablewriter.Colors
+		if p.Name == lib.CurrentPlanName {
+			style = []tablewriter.Colors{
+				{tablewriter.FgGreenColor, tablewriter.Bold},
+			}
+		} else {
+			style = []tablewriter.Colors{
+				{tablewriter.FgHiWhiteColor, tablewriter.Bold},
+				{tablewriter.FgHiWhiteColor},
+			}
+		}
+
+		table.Rich(row, style)
+
 	}
+	table.Render()
+	fmt.Println()
+	lib.PrintCmds("", "new", "cd", "delete-plan")
 }
