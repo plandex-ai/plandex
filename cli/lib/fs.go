@@ -4,10 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"path/filepath"
 	"plandex/types"
+	"strings"
 	"sync"
 )
 
@@ -130,9 +130,11 @@ func CwdIsPlan() bool {
 	return parentDir == PlandexDir
 }
 
-func FlattenPaths(fileOrDirPaths []string, params *types.LoadContextParams) []string {
+func ParseInputPaths(fileOrDirPaths []string, params *types.LoadContextParams) ([]string, error) {
 	var wg sync.WaitGroup
-	resPathsChan := make(chan string, len(fileOrDirPaths))
+	var mu sync.Mutex
+	var firstErr error
+	resPaths := []string{}
 
 	for _, path := range fileOrDirPaths {
 		wg.Add(1)
@@ -141,7 +143,13 @@ func FlattenPaths(fileOrDirPaths []string, params *types.LoadContextParams) []st
 
 			err := filepath.Walk(p, func(path string, info os.FileInfo, err error) error {
 				if err != nil {
-					return err // Handling error more gracefully
+					return err
+				}
+
+				mu.Lock()
+				defer mu.Unlock()
+				if firstErr != nil {
+					return firstErr // If an error was encountered, stop walking
 				}
 
 				if info.IsDir() {
@@ -149,40 +157,45 @@ func FlattenPaths(fileOrDirPaths []string, params *types.LoadContextParams) []st
 						return filepath.SkipDir
 					}
 
-					// calculate directory depth from p
-					depth := 0
-					for _, c := range info.Name() {
-						if c == filepath.Separator {
-							depth += 1
-						}
+					if !(params.Recursive || params.NamesOnly) {
+						return fmt.Errorf("cannot process directory %s: --recursive or --tree flag not set", path)
 					}
 
+					// calculate directory depth from base
+					depth := strings.Count(path[len(p):], string(filepath.Separator))
 					if params.MaxDepth != -1 && depth > params.MaxDepth {
 						return filepath.SkipDir
 					}
+
+					if params.NamesOnly {
+						// add directory name to results
+						resPaths = append(resPaths, path)
+					}
+				} else {
+					// add file path to results
+					resPaths = append(resPaths, path)
 				}
 
-				resPathsChan <- path
 				return nil
 			})
 
 			if err != nil {
-				log.Printf("Failed to process directory %s: %v", p, err) // Logging error instead of fatal
+				mu.Lock()
+				if firstErr == nil {
+					firstErr = err
+				}
+				mu.Unlock()
 			}
 		}(path)
 	}
 
-	go func() {
-		wg.Wait()
-		close(resPathsChan)
-	}()
+	wg.Wait()
 
-	var resPaths []string
-	for p := range resPathsChan {
-		resPaths = append(resPaths, p)
+	if firstErr != nil {
+		return nil, firstErr
 	}
 
-	return resPaths
+	return resPaths, nil
 }
 
 func CopyFile(src, dst string) error {

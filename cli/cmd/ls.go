@@ -31,7 +31,7 @@ func context(cmd *cobra.Command, args []string) {
 
 	totalTokens := 0
 	table := tablewriter.NewWriter(os.Stdout)
-	table.SetHeader([]string{"#" /*"Type",*/, "Name", "🪙", "Added", "Updated"})
+	table.SetHeader([]string{"#", "Name", "Type", "🪙", "Added", "Updated"})
 	table.SetAutoWrapText(false)
 
 	if len(context) == 0 {
@@ -45,16 +45,27 @@ func context(cmd *cobra.Command, args []string) {
 		totalTokens += part.NumTokens
 
 		// var contextType string
-		var id string
-		if part.FilePath != "" {
-			// contextType = "file"
-			id = " 📄 " + part.FilePath
-		} else if part.Url != "" {
-			// contextType = "url"
-			id = " 🌎 " + part.Url
-		} else {
-			// contextType = "text"
-			id = " ✏️  " + part.Name
+		var icon string
+		var t string
+		id := part.Name
+		switch part.Type {
+		case shared.ContextFileType:
+			icon = "📄"
+			t = "file"
+			id = part.FilePath
+		case shared.ContextURLType:
+			icon = "🌎"
+			t = "url"
+		case shared.ContextDirectoryTreeType:
+			icon = "🗂 "
+			t = "tree"
+			id = part.FilePath
+		case shared.ContextNoteType:
+			icon = "✏️ "
+			t = "note"
+		case shared.ContextPipedDataType:
+			icon = "↔️ "
+			t = "piped"
 		}
 
 		addedAt, err := time.Parse(shared.TsFormat, part.AddedAt)
@@ -71,16 +82,16 @@ func context(cmd *cobra.Command, args []string) {
 
 		row := []string{
 			strconv.Itoa(i),
-			// contextType,
-			id,
+			" " + icon + " " + id,
+			t,
 			strconv.Itoa(part.NumTokens), //+ " 🪙",
 			format.Time(addedAt),
 			format.Time(updatedAt),
 		}
 		table.Rich(row, []tablewriter.Colors{
 			{tablewriter.FgHiWhiteColor, tablewriter.Bold},
-			// {tablewriter.FgHiWhiteColor},
 			{tablewriter.FgHiGreenColor, tablewriter.Bold},
+			{tablewriter.FgHiWhiteColor},
 			{tablewriter.FgHiWhiteColor},
 			{tablewriter.FgHiWhiteColor},
 			{tablewriter.FgHiWhiteColor},

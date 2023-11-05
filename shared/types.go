@@ -47,7 +47,6 @@ const (
 	ContextFileType          ModelContextPartType = "file"
 	ContextURLType           ModelContextPartType = "url"
 	ContextNoteType          ModelContextPartType = "note"
-	ContextDirectoryType     ModelContextPartType = "directory"
 	ContextDirectoryTreeType ModelContextPartType = "directory tree"
 	ContextPipedDataType     ModelContextPartType = "piped data"
 )

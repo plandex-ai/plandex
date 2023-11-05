@@ -35,6 +35,8 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 
 	planState, err := GetPlanState()
 	if err != nil {
+		s.Stop()
+		ClearCurrentLine()
 		log.Fatalf("Failed to get plan state: %v", err)
 	}
 
@@ -68,6 +70,7 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 						s.Stop()
 						ClearCurrentLine()
 						fmt.Fprintf(os.Stderr, "The total number of tokens (%d) exceeds the maximum allowed (%d). Truncating input text.\n", totalTokens, maxTokens)
+						s.Start()
 						numTokens = maxTokens - (totalTokens - numTokens)
 
 						// If the number of tokens is less than or equal to 0, then we can stop processing files
@@ -79,6 +82,8 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 						totalTokens = maxTokens
 
 					} else {
+						s.Stop()
+						ClearCurrentLine()
 						log.Fatalf("The total number of tokens (%d) exceeds the maximum allowed (%d)", totalTokens, maxTokens)
 					}
 
@@ -90,13 +95,16 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 
 			fileNameResp, err := Api.FileName(body)
 			if err != nil {
-				log.Fatalf("Failed to summarize the text: %v", err)
+				s.Stop()
+				ClearCurrentLine()
+				log.Fatalf("Failed to get a file name for the text: %v", err)
 			}
 
 			fileName := format.GetFileNameWithoutExt(fileNameResp.FileName)
 
 			ts := shared.StringTs()
 			contextPart := shared.ModelContextPart{
+				Type:      shared.ContextNoteType,
 				Name:      fileName,
 				Body:      body,
 				Sha:       sha,
@@ -116,12 +124,16 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 	hasPipeData := false
 	fileInfo, err := os.Stdin.Stat()
 	if err != nil {
+		s.Stop()
+		ClearCurrentLine()
 		log.Fatalf("Failed to stat stdin: %v", err)
 	}
 	if fileInfo.Mode()&os.ModeNamedPipe != 0 {
 		reader := bufio.NewReader(os.Stdin)
 		pipedData, err := io.ReadAll(reader)
 		if err != nil {
+			s.Stop()
+			ClearCurrentLine()
 			log.Fatalf("Failed to read piped data: %v", err)
 		}
 
@@ -147,6 +159,7 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 							s.Stop()
 							ClearCurrentLine()
 							fmt.Fprintf(os.Stderr, "The total number of tokens (%d) exceeds the maximum allowed (%d). Truncating piped data.\n", totalTokens, maxTokens)
+							s.Start()
 							numTokens = maxTokens - (totalTokens - numTokens)
 
 							if numTokens <= 0 {
@@ -157,6 +170,8 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 							totalTokens = maxTokens
 
 						} else {
+							s.Stop()
+							ClearCurrentLine()
 							log.Fatalf("The total number of tokens (%d) exceeds the maximum allowed (%d)", totalTokens, maxTokens)
 						}
 					}
@@ -167,13 +182,16 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 
 				fileNameResp, err := Api.FileName(body)
 				if err != nil {
-					log.Fatalf("Failed to summarize piped data: %v", err)
+					s.Stop()
+					ClearCurrentLine()
+					log.Fatalf("Failed to get a file name for piped data: %v", err)
 				}
 
 				fileName := format.GetFileNameWithoutExt(fileNameResp.FileName)
 
 				ts := shared.StringTs()
 				contextPart := shared.ModelContextPart{
+					Type:      shared.ContextPipedDataType,
 					Name:      fileName,
 					Body:      body,
 					Sha:       sha,
@@ -205,133 +223,170 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 	}
 
 	if len(inputFilePaths) > 0 {
-		wg.Add(1)
+		if params.NamesOnly {
+			for _, inputFilePath := range inputFilePaths {
+				wg.Add(1)
 
-		go func() {
-			defer wg.Done()
+				go func(inputFilePath string) {
+					defer wg.Done()
 
-			flattenedPaths := FlattenPaths(inputFilePaths, params)
-
-			if params.NamesOnly {
-				body := strings.Join(flattenedPaths, "\n")
-				bytes := []byte(body)
-
-				hash := sha256.Sum256(bytes)
-				sha := hex.EncodeToString(hash[:])
-				numTokens := shared.GetNumTokens(body)
-
-				totalTokensMutex.Lock()
-				func() {
-					defer totalTokensMutex.Unlock()
-					totalTokens += numTokens
-					tokensAdded += numTokens
-					if totalTokens > maxTokens {
-
-						if params.Truncate {
-							s.Stop()
-							ClearCurrentLine()
-							fmt.Fprintf(os.Stderr, "The total number of tokens (%d) exceeds the maximum allowed (%d). Truncating directory layout.\n", totalTokens, maxTokens)
-							numTokens = maxTokens - (totalTokens - numTokens)
-
-							// If the number of tokens is less than or equal to 0, then we can stop processing files
-							if numTokens <= 0 {
-								return
-							}
-
-							body = body[:numTokens]
-							totalTokens = maxTokens
-
-						} else {
-							log.Fatalf("The total number of tokens (%d) exceeds the maximum allowed (%d)", totalTokens, maxTokens)
-						}
-
+					flattenedPaths, err := ParseInputPaths([]string{inputFilePath}, params)
+					if err != nil {
+						s.Stop()
+						ClearCurrentLine()
+						log.Fatalf("Failed to parse input paths: %v", err)
 					}
 
-				}()
+					body := strings.Join(flattenedPaths, "\n")
+					bytes := []byte(body)
 
-				ts := shared.StringTs()
-				contextPart := shared.ModelContextPart{
-					Name:      "directory layout",
-					Body:      body,
-					Sha:       sha,
-					NumTokens: numTokens,
-					AddedAt:   ts,
-					UpdatedAt: ts,
-				}
+					hash := sha256.Sum256(bytes)
+					sha := hex.EncodeToString(hash[:])
+					numTokens := shared.GetNumTokens(body)
 
-				contextPartsMutex.Lock()
-				contextParts = append(contextParts, contextPart)
-				contextPartsMutex.Unlock()
+					totalTokensMutex.Lock()
+					func() {
+						defer totalTokensMutex.Unlock()
+						totalTokens += numTokens
+						tokensAdded += numTokens
+						if totalTokens > maxTokens {
 
-			} else {
-				for _, path := range flattenedPaths {
-					wg.Add(1)
+							if params.Truncate {
+								s.Stop()
+								ClearCurrentLine()
+								fmt.Fprintf(os.Stderr, "The total number of tokens (%d) exceeds the maximum allowed (%d). Truncating directory tree.\n", totalTokens, maxTokens)
+								s.Start()
+								numTokens = maxTokens - (totalTokens - numTokens)
 
-					go func(path string) {
-						defer wg.Done()
-
-						fileContent, err := os.ReadFile(path)
-						if err != nil {
-							log.Fatalf("Failed to read the file %s: %v", path, err)
-						}
-
-						body := string(fileContent)
-						hash := sha256.Sum256(fileContent)
-						sha := hex.EncodeToString(hash[:])
-						numTokens := shared.GetNumTokens(body)
-
-						totalTokensMutex.Lock()
-						func() {
-							defer totalTokensMutex.Unlock()
-							totalTokens += numTokens
-							tokensAdded += numTokens
-							if totalTokens > maxTokens {
-
-								if params.Truncate {
-									s.Stop()
-									ClearCurrentLine()
-									fmt.Fprintf(os.Stderr, "The total number of tokens (%d) exceeds the maximum allowed (%d). Truncating the file %s.\n", totalTokens, maxTokens, path)
-									numTokens = maxTokens - (totalTokens - numTokens)
-
-									// If the number of tokens is less than or equal to 0, then we can stop processing files
-									if numTokens <= 0 {
-										return
-									}
-
-									body = body[:numTokens]
-									totalTokens = maxTokens
-
-								} else {
-									log.Fatalf("The total number of tokens (%d) exceeds the maximum allowed (%d)", totalTokens, maxTokens)
+								// If the number of tokens is less than or equal to 0, then we can stop processing files
+								if numTokens <= 0 {
+									return
 								}
 
+								body = body[:numTokens]
+								totalTokens = maxTokens
+
+							} else {
+								s.Stop()
+								ClearCurrentLine()
+								log.Fatalf("The total number of tokens (%d) exceeds the maximum allowed (%d)", totalTokens, maxTokens)
 							}
 
-						}()
-
-						_, fileName := filepath.Split(path)
-
-						ts := shared.StringTs()
-
-						contextPart := shared.ModelContextPart{
-							Name:      fileName,
-							Body:      body,
-							FilePath:  path,
-							Sha:       sha,
-							NumTokens: numTokens,
-							AddedAt:   ts,
-							UpdatedAt: ts,
 						}
 
-						contextPartsMutex.Lock()
-						contextParts = append(contextParts, contextPart)
-						contextPartsMutex.Unlock()
+					}()
 
-					}(path)
+					ts := shared.StringTs()
 
-				}
+					// get last portion of directory path
+					name := filepath.Base(inputFilePath)
+					if name == "." {
+						name = "cwd"
+					}
+					if name == ".." {
+						name = "parent"
+					}
+
+					contextPart := shared.ModelContextPart{
+						Type:      shared.ContextDirectoryTreeType,
+						Name:      name,
+						FilePath:  inputFilePath,
+						Body:      body,
+						Sha:       sha,
+						NumTokens: numTokens,
+						AddedAt:   ts,
+						UpdatedAt: ts,
+					}
+
+					contextPartsMutex.Lock()
+					contextParts = append(contextParts, contextPart)
+					contextPartsMutex.Unlock()
+
+				}(inputFilePath)
+
 			}
-		}()
+
+		} else {
+			flattenedPaths, err := ParseInputPaths(inputFilePaths, params)
+			if err != nil {
+				s.Stop()
+				ClearCurrentLine()
+				log.Fatalf("Failed to parse input paths: %v", err)
+			}
+
+			for _, path := range flattenedPaths {
+				wg.Add(1)
+
+				go func(path string) {
+					defer wg.Done()
+
+					fileContent, err := os.ReadFile(path)
+					if err != nil {
+						s.Stop()
+						ClearCurrentLine()
+						log.Fatalf("Failed to read the file %s: %v", path, err)
+					}
+
+					body := string(fileContent)
+					hash := sha256.Sum256(fileContent)
+					sha := hex.EncodeToString(hash[:])
+					numTokens := shared.GetNumTokens(body)
+
+					totalTokensMutex.Lock()
+					func() {
+						defer totalTokensMutex.Unlock()
+						totalTokens += numTokens
+						tokensAdded += numTokens
+						if totalTokens > maxTokens {
+
+							if params.Truncate {
+								s.Stop()
+								ClearCurrentLine()
+								fmt.Fprintf(os.Stderr, "The total number of tokens (%d) exceeds the maximum allowed (%d). Truncating the file %s.\n", totalTokens, maxTokens, path)
+								numTokens = maxTokens - (totalTokens - numTokens)
+								s.Start()
+
+								// If the number of tokens is less than or equal to 0, then we can stop processing files
+								if numTokens <= 0 {
+									return
+								}
+
+								body = body[:numTokens]
+								totalTokens = maxTokens
+
+							} else {
+								s.Stop()
+								ClearCurrentLine()
+								log.Fatalf("The total number of tokens (%d) exceeds the maximum allowed (%d)", totalTokens, maxTokens)
+							}
+
+						}
+
+					}()
+
+					_, fileName := filepath.Split(path)
+
+					ts := shared.StringTs()
+
+					contextPart := shared.ModelContextPart{
+						Type:      shared.ContextFileType,
+						Name:      fileName,
+						Body:      body,
+						FilePath:  path,
+						Sha:       sha,
+						NumTokens: numTokens,
+						AddedAt:   ts,
+						UpdatedAt: ts,
+					}
+
+					contextPartsMutex.Lock()
+					contextParts = append(contextParts, contextPart)
+					contextPartsMutex.Unlock()
+
+				}(path)
+
+			}
+		}
 
 	}
 
@@ -344,6 +399,8 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 
 				body, err := FetchURLContent(url)
 				if err != nil {
+					s.Stop()
+					ClearCurrentLine()
 					log.Fatalf("Failed to fetch content from URL %s: %v", url, err)
 				}
 
@@ -360,6 +417,7 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 							ClearCurrentLine()
 							fmt.Fprintf(os.Stderr, "The total number of tokens (%d) exceeds the maximum allowed (%d). Truncating content from URL %s.\n", totalTokens, maxTokens, url)
 							numTokens = maxTokens - (totalTokens - numTokens)
+							s.Start()
 
 							// If the number of tokens is less than or equal to 0, then we can stop processing content
 							if numTokens <= 0 {
@@ -370,6 +428,8 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 							totalTokens = maxTokens
 
 						} else {
+							s.Stop()
+							ClearCurrentLine()
 							log.Fatalf("The total number of tokens (%d) exceeds the maximum allowed (%d)", totalTokens, maxTokens)
 						}
 					}
@@ -380,6 +440,7 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 
 				ts := shared.StringTs()
 				contextPart := shared.ModelContextPart{
+					Type:      shared.ContextURLType,
 					Name:      SanitizeAndClipURL(url, 70),
 					Url:       url,
 					Body:      body,
@@ -399,7 +460,8 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 	wg.Wait()
 
 	if len(contextParts) == 0 {
-		log.Fatalln("No context loaded")
+		fmt.Println("🤷‍♂️ No context loaded")
+		os.Exit(1)
 	}
 
 	errCh := make(chan error, 2)
@@ -427,10 +489,19 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 		added = append(added, "piped data")
 	}
 	if len(inputFilePaths) > 0 {
-		label := "file"
-		if len(inputFilePaths) > 1 {
-			label = "files"
+		var label string
+		if params.NamesOnly {
+			label = "directory tree"
+			if len(inputFilePaths) > 1 {
+				label = "directory trees"
+			}
+		} else {
+			label = "file"
+			if len(inputFilePaths) > 1 {
+				label = "files"
+			}
 		}
+
 		added = append(added, fmt.Sprintf("%d %s", len(inputFilePaths), label))
 	}
 	if len(inputUrls) > 0 {
@@ -456,6 +527,8 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 	msg += fmt.Sprintf(" into context | added → %d 🪙 |  total → %d 🪙", tokensAdded, totalTokens)
 
 	if err != nil {
+		s.Stop()
+		ClearCurrentLine()
 		log.Fatalf("Failed to get total tokens: %v", err)
 	}
 
@@ -463,6 +536,8 @@ func LoadContextOrDie(params *types.LoadContextParams) (int, int) {
 
 	err = GitCommitContextUpdate(msg)
 	if err != nil {
+		s.Stop()
+		ClearCurrentLine()
 		log.Fatalf("Failed to commit context update to git: %v", err)
 	}
 

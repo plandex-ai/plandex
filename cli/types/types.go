@@ -5,16 +5,6 @@ import (
 	"github.com/plandex/plandex/shared"
 )
 
-type LoadContextParams struct {
-	Note      string
-	MaxTokens int
-	Recursive bool
-	MaxDepth  int
-	NamesOnly bool
-	Truncate  bool
-	Resources []string
-}
-
 type OnStreamPlanParams struct {
 	Content string
 	State   *fsm.FSM
@@ -56,4 +46,14 @@ type PlanState struct {
 
 type PlanSettings struct {
 	Name string
+}
+
+type LoadContextParams struct {
+	Note      string
+	MaxTokens int
+	Recursive bool
+	MaxDepth  int
+	NamesOnly bool
+	Truncate  bool
+	Resources []string
 }

@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 	"time"
 
@@ -68,6 +69,10 @@ func ExtractTextualContent(htmlContent string) string {
 }
 
 func SanitizeAndClipURL(url string, maxLength int) string {
+	// remove protocol portion with a regex
+	re := regexp.MustCompile(`^.*?://`)
+	url = re.ReplaceAllString(url, "")
+
 	// Replace common invalid filename characters. You can extend this list as needed.
 	sanitized := strings.ReplaceAll(url, ":", "_")
 	sanitized = strings.ReplaceAll(sanitized, "/", "_")

@@ -15,7 +15,10 @@ func FormatModelContext(context shared.ModelContext) (string, int) {
 		var fmtStr string
 		var args []any
 
-		if part.FilePath != "" {
+		if part.Type == shared.ContextDirectoryTreeType {
+			fmtStr = "\n\n- %s | directory tree:\n\n```\n%s\n```"
+			args = append(args, part.FilePath, part.Body)
+		} else if part.Type == shared.ContextFileType {
 			fmtStr = "\n\n- %s:\n\n```\n%s\n```"
 			args = append(args, part.FilePath, part.Body)
 		} else if part.Url != "" {
