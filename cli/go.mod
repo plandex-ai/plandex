@@ -46,6 +46,7 @@ require (
 	github.com/plandex/plandex/shared v0.0.0-00010101000000-000000000000
 	github.com/sashabaranov/go-openai v1.15.1
 	github.com/spf13/pflag v1.0.5 // indirect
+	golang.org/x/text v0.14.0
 )
 
 replace github.com/plandex/plandex/shared => ../shared

@@ -60,7 +60,7 @@ func buildPlan(proposalId string, fileContents map[string]string, numTokensByFil
 			var fileContext *shared.ModelContextPart
 			for _, part := range proposal.Request.ModelContext {
 				if part.FilePath == filePath {
-					fileContext = &part
+					fileContext = part
 					break
 				}
 			}

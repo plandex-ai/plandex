@@ -53,7 +53,7 @@ func contextRm(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	err = lib.ContextRm(toRemovePaths)
+	err = lib.ContextRemoveFiles(toRemovePaths)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Error removing context:", err)
 		return
@@ -68,11 +68,17 @@ func contextRm(cmd *cobra.Command, args []string) {
 
 	removedTokens := 0
 	totalTokens := planState.ContextTokens
+	totalUpdatableTokens := planState.ContextUpdatableTokens
 	for _, part := range toRemoveParts {
 		removedTokens += part.NumTokens
 		totalTokens -= part.NumTokens
+
+		if part.Type == shared.ContextFileType || part.Type == shared.ContextDirectoryTreeType || part.Type == shared.ContextURLType {
+			totalUpdatableTokens -= part.NumTokens
+		}
 	}
 	planState.ContextTokens = totalTokens
+	planState.ContextUpdatableTokens = totalUpdatableTokens
 
 	err = lib.SetPlanState(planState, shared.StringTs())
 

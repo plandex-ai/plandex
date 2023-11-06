@@ -31,7 +31,7 @@ func clearAllContext(cmd *cobra.Command, args []string) {
 		toRemovePaths = append(toRemovePaths, path)
 	}
 
-	err = lib.ContextRm(toRemovePaths)
+	err = lib.ContextRemoveFiles(toRemovePaths)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Error removing context:", err)
 		return
@@ -44,6 +44,7 @@ func clearAllContext(cmd *cobra.Command, args []string) {
 		return
 	}
 	planState.ContextTokens = 0
+	planState.ContextUpdatableTokens = 0
 
 	err = lib.SetPlanState(planState, shared.StringTs())
 

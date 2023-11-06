@@ -1,10 +1,11 @@
 package cmd
 
 import (
+	"plandex/lib"
+
 	"github.com/spf13/cobra"
 )
 
-// updateCmd represents the update command
 var updateCmd = &cobra.Command{
 	Use:     "update ",
 	Aliases: []string{"u"},
@@ -14,12 +15,12 @@ var updateCmd = &cobra.Command{
 }
 
 func init() {
-	// Add update command
 	RootCmd.AddCommand(updateCmd)
 
 }
 
 func update(cmd *cobra.Command, args []string) {
-	// Argument parsing and update logic will be implemented
-
+	updateRes := lib.MustUpdateContextWithOuput()
+	table := lib.TableForContextUpdateRes(updateRes)
+	table.Render()
 }

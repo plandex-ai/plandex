@@ -44,7 +44,6 @@ func context(cmd *cobra.Command, args []string) {
 	for i, part := range context {
 		totalTokens += part.NumTokens
 
-		// var contextType string
 		var icon string
 		var t string
 		id := part.Name

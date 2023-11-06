@@ -16,7 +16,7 @@ func CreateContextFileName(name, sha string) string {
 	return fmt.Sprintf("%s.%s", name, shaSubstring)
 }
 
-func ContextRm(paths []string) error {
+func ContextRemoveFiles(paths []string) error {
 	// remove files
 	errCh := make(chan error, len(paths)*2)
 	for _, path := range paths {

@@ -33,15 +33,16 @@ type AppendConversationParams struct {
 }
 
 type PlanState struct {
-	Name                  string                  `json:"name"`
-	ProposalId            string                  `json:"proposalId"`
-	RootId                string                  `json:"rootId"`
-	CreatedAt             string                  `json:"createdAt"`
-	UpdatedAt             string                  `json:"updatedAt"`
-	Description           *shared.PlanDescription `json:"description"`
-	ContextTokens         int                     `json:"contextTokens"`
-	ConvoTokens           int                     `json:"convoTokens"`
-	ConvoSummarizedTokens int                     `json:"convoSummarizedTokens"`
+	Name                   string                  `json:"name"`
+	ProposalId             string                  `json:"proposalId"`
+	RootId                 string                  `json:"rootId"`
+	CreatedAt              string                  `json:"createdAt"`
+	UpdatedAt              string                  `json:"updatedAt"`
+	Description            *shared.PlanDescription `json:"description"`
+	ContextTokens          int                     `json:"contextTokens"`
+	ContextUpdatableTokens int                     `json:"contextUpdatableTokens"`
+	ConvoTokens            int                     `json:"convoTokens"`
+	ConvoSummarizedTokens  int                     `json:"convoSummarizedTokens"`
 }
 
 type PlanSettings struct {
@@ -52,7 +53,4 @@ type LoadContextParams struct {
 	Note      string
 	Recursive bool
 	NamesOnly bool
-	// Truncate  bool
-	// MaxDepth  int
-	// MaxTokens int
 }

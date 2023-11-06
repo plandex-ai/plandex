@@ -7,6 +7,8 @@ import (
 	"os"
 	"plandex/format"
 	"plandex/types"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/fatih/color"
@@ -23,9 +25,25 @@ type key struct {
 func Propose(prompt string) error {
 	var err error
 
-	start := time.Now()
+	planState, err := GetPlanState()
+	if err != nil {
+		return fmt.Errorf("failed to get plan state: %s", err)
+	}
 
 	s := spinner.New(spinner.CharSets[33], 100*time.Millisecond)
+	if planState.ContextUpdatableTokens > 0 {
+		shouldContinue, err := checkOutdatedContext(s)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to check outdated context: %v", err)
+			return err
+		}
+
+		if !shouldContinue {
+			return nil
+		}
+	}
+
+	start := time.Now()
 	s.Prefix = "💬 Sending prompt... "
 	s.Start()
 
@@ -64,11 +82,6 @@ func Propose(prompt string) error {
 	var parentProposalId string
 	var rootId string
 
-	planState, err := GetPlanState()
-
-	if err != nil {
-		return fmt.Errorf("failed to get plan state: %s", err)
-	}
 	parentProposalId = planState.ProposalId
 	rootId = planState.RootId
 
@@ -389,4 +402,110 @@ Loop:
 func Abort(proposalId string) error {
 	err := Api.Abort(proposalId)
 	return err
+}
+
+func checkOutdatedContext(s *spinner.Spinner) (bool, error) {
+	start := time.Now()
+	s.Prefix = "🔬 Checking context... "
+	s.Start()
+
+	stopSpinner := func() {
+		s.Stop()
+		ClearCurrentLine()
+	}
+
+	outdatedRes, err := CheckOutdatedContext()
+	if err != nil {
+		stopSpinner()
+		return false, fmt.Errorf("failed to check outdated context: %s", err)
+	}
+
+	elapsed := time.Since(start)
+	if elapsed < 700*time.Millisecond {
+		time.Sleep(700*time.Millisecond - elapsed)
+	}
+
+	stopSpinner()
+
+	if len(outdatedRes.UpdatedParts) == 0 {
+		fmt.Println("✅ Context is up to date")
+		return true, nil
+	}
+	types := []string{}
+	if outdatedRes.NumFiles > 0 {
+		lbl := "file"
+		if outdatedRes.NumFiles > 1 {
+			lbl = "files"
+		}
+		lbl = strconv.Itoa(outdatedRes.NumFiles) + " " + lbl
+		types = append(types, lbl)
+	}
+	if outdatedRes.NumUrls > 0 {
+		lbl := "url"
+		if outdatedRes.NumUrls > 1 {
+			lbl = "urls"
+		}
+		lbl = strconv.Itoa(outdatedRes.NumUrls) + " " + lbl
+		types = append(types, lbl)
+	}
+	if outdatedRes.NumTrees > 0 {
+		lbl := "directory tree"
+		if outdatedRes.NumTrees > 1 {
+			lbl = "directory trees"
+		}
+		lbl = strconv.Itoa(outdatedRes.NumTrees) + " " + lbl
+		types = append(types, lbl)
+	}
+
+	var msg string
+	if len(types) <= 2 {
+		msg += strings.Join(types, " and ")
+	} else {
+		for i, add := range types {
+			if i == len(types)-1 {
+				msg += ", and " + add
+			} else {
+				msg += ", " + add
+			}
+		}
+	}
+
+	color.New(color.FgHiCyan, color.Bold).Printf("%s in context have been modified 👇\n\n", msg)
+
+	table := TableForContextUpdateRes(outdatedRes)
+	table.Render()
+
+	fmt.Println()
+
+	var input func() (bool, error)
+	input = func() (bool, error) {
+		color.New(color.FgHiGreen, color.Bold).Println("Update context now? (y)es | (n)o | (c)ancel")
+		color.New(color.FgHiGreen, color.Bold).Print("> ")
+
+		char, err := getUserInput()
+		if err != nil {
+			return false, fmt.Errorf("failed to get user input: %s", err)
+		}
+
+		fmt.Println(string(char))
+		if char == 'y' || char == 'Y' {
+			MustUpdateContextWithOuput()
+			return true, nil
+		} else if char == 'n' || char == 'N' {
+			return true, nil
+		} else if char == 'c' || char == 'C' {
+			return false, nil
+		} else {
+			fmt.Println()
+			color.New(color.FgHiRed, color.Bold).Print("Invalid input.\nEnter 'y' for yes, 'n' for no, or 'c' to cancel.\n\n")
+			return input()
+		}
+	}
+
+	shouldContinue, err := input()
+	if err != nil {
+		return false, fmt.Errorf("failed to get user input: %s", err)
+	}
+
+	return shouldContinue, nil
 }

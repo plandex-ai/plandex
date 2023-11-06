@@ -4,41 +4,215 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"math"
 	"os"
 	"plandex/types"
+	"strconv"
 	"strings"
 	"sync"
+	"time"
 
+	"github.com/briandowns/spinner"
+	"github.com/olekukonko/tablewriter"
 	"github.com/plandex/plandex/shared"
 )
-
-func UpdateContext() ([]string, int, bool, error) {
-	return checkOutdatedAndMaybeUpdateContext(true)
-}
-
-func CheckOutdatedContext() ([]string, int, bool, error) {
-	return checkOutdatedAndMaybeUpdateContext(false)
-}
 
 type contextUpdate struct {
 	Path string
 	Part *shared.ModelContextPart
 }
 
-func checkOutdatedAndMaybeUpdateContext(doUpdate bool) ([]string, int, bool, error) {
+type updateRes struct {
+	UpdatedParts     []*shared.ModelContextPart
+	TokenDiffsByName map[string]int
+	TokensDiff       int
+	TotalTokens      int
+	MaxExceeded      bool
+	NumFiles         int
+	NumUrls          int
+	NumTrees         int
+}
+
+func MustUpdateContextWithOuput() *updateRes {
+	timeStart := time.Now()
+
+	s := spinner.New(spinner.CharSets[33], 100*time.Millisecond)
+	s.Prefix = "🔄 Updating context... "
+	s.Start()
+
+	stopFn := func() {
+		elapsed := time.Since(timeStart)
+		if elapsed < 700*time.Millisecond {
+			time.Sleep(700*time.Millisecond - elapsed)
+		}
+		s.Stop()
+		ClearCurrentLine()
+	}
+
+	updateRes, err := UpdateContext()
+
+	if err != nil {
+		stopFn()
+		fmt.Fprintln(os.Stderr, "Error updating context:", err)
+		os.Exit(1)
+	}
+
+	maxExceeded := updateRes.MaxExceeded
+	updatedParts := updateRes.UpdatedParts
+	tokensDiff := updateRes.TokensDiff
+	totalTokens := updateRes.TotalTokens
+	numFiles := updateRes.NumFiles
+	numTrees := updateRes.NumTrees
+	numUrls := updateRes.NumUrls
+
+	if maxExceeded {
+		stopFn()
+		overage := totalTokens - shared.MaxContextTokens
+		fmt.Printf("🚨 Update would add %d 🪙 and exceed token limit (%d) by %d 🪙", tokensDiff, shared.MaxContextTokens, overage)
+		os.Exit(1)
+	}
+
+	if len(updatedParts) == 0 {
+		stopFn()
+		fmt.Println("✅ Context is already up to date")
+		os.Exit(1)
+	}
+
+	msg := "Updated"
+
+	var toAdd []string
+	if numFiles > 0 {
+		postfix := "s"
+		if numFiles == 1 {
+			postfix = ""
+		}
+		toAdd = append(toAdd, fmt.Sprintf("%d file%s", numFiles, postfix))
+	}
+	if numTrees > 0 {
+		postfix := "s"
+		if numTrees == 1 {
+			postfix = ""
+		}
+		toAdd = append(toAdd, fmt.Sprintf("%d tree%s", numTrees, postfix))
+	}
+	if numUrls > 0 {
+		postfix := "s"
+		if numUrls == 1 {
+			postfix = ""
+		}
+		toAdd = append(toAdd, fmt.Sprintf("%d url%s", numUrls, postfix))
+	}
+
+	if len(toAdd) <= 2 {
+		msg += " " + strings.Join(toAdd, " and ")
+	} else {
+		for i, add := range toAdd {
+			if i == len(toAdd)-1 {
+				msg += ", and " + add
+			} else {
+				msg += ", " + add
+			}
+		}
+	}
+
+	action := "added"
+	if tokensDiff < 0 {
+		action = "removed"
+	}
+	absTokenDiff := int(math.Abs(float64(tokensDiff)))
+	msg += fmt.Sprintf(" | %s → %d 🪙 | total → %d 🪙", action, absTokenDiff, totalTokens)
+
+	err = GitCommitContextUpdate(msg)
+
+	stopFn()
+
+	if err != nil {
+		fmt.Println("Error committing context update:", err)
+		os.Exit(1)
+	}
+
+	fmt.Println("✅ " + msg)
+
+	return updateRes
+}
+
+func TableForContextUpdateRes(updateRes *updateRes) *tablewriter.Table {
+	updatedParts := updateRes.UpdatedParts
+	tokenDiffsByName := updateRes.TokenDiffsByName
+
+	table := tablewriter.NewWriter(os.Stdout)
+	table.SetHeader([]string{"Name", "Type", "🪙"})
+	table.SetAutoWrapText(false)
+
+	for _, part := range updatedParts {
+
+		var icon string
+		var t string
+		id := part.Name
+		switch part.Type {
+		case shared.ContextFileType:
+			icon = "📄"
+			t = "file"
+			id = part.FilePath
+		case shared.ContextURLType:
+			icon = "🌎"
+			t = "url"
+		case shared.ContextDirectoryTreeType:
+			icon = "🗂 "
+			t = "tree"
+			id = part.FilePath
+		}
+
+		diff := tokenDiffsByName[part.Name]
+
+		diffStr := "+" + strconv.Itoa(diff)
+		tableColor := []int{tablewriter.FgHiGreenColor, tablewriter.Bold}
+
+		if diff < 0 {
+			diffStr = strconv.Itoa(diff)
+			tableColor = []int{tablewriter.FgHiRedColor, tablewriter.Bold}
+		}
+
+		row := []string{
+			" " + icon + " " + id,
+			t,
+			diffStr,
+		}
+
+		table.Rich(row, []tablewriter.Colors{
+			{tablewriter.FgHiWhiteColor},
+			{tablewriter.FgHiWhiteColor},
+			tableColor,
+		})
+	}
+
+	return table
+}
+
+func UpdateContext() (*updateRes, error) {
+	return checkOutdatedAndMaybeUpdateContext(true)
+}
+
+func CheckOutdatedContext() (*updateRes, error) {
+	return checkOutdatedAndMaybeUpdateContext(false)
+}
+
+func checkOutdatedAndMaybeUpdateContext(doUpdate bool) (*updateRes, error) {
 	maxTokens := shared.MaxContextTokens
 	planState, err := GetPlanState()
 	if err != nil {
-		return nil, 0, false, fmt.Errorf("error retrieving plan state: %w", err)
+		return nil, fmt.Errorf("error retrieving plan state: %w", err)
 	}
 
+	tokenDiffsByName := make(map[string]int)
 	tokensDiff := 0
 	totalTokens := planState.ContextTokens
+	totalUpdatableTokens := planState.ContextUpdatableTokens
 	var mu sync.Mutex
 
 	context, err := GetAllContext(true)
 	if err != nil {
-		return nil, 0, false, fmt.Errorf("error retrieving context: %w", err)
+		return nil, fmt.Errorf("error retrieving context: %w", err)
 	}
 
 	ts := shared.StringTs()
@@ -72,6 +246,7 @@ func checkOutdatedAndMaybeUpdateContext(doUpdate bool) ([]string, int, bool, err
 
 					mu.Lock()
 					tokensDiff += numTokens - part.NumTokens
+					tokenDiffsByName[part.Name] = numTokens - part.NumTokens
 					mu.Unlock()
 
 					updateCh <- &contextUpdate{Path: contextPath, Part: &shared.ModelContextPart{
@@ -110,6 +285,7 @@ func checkOutdatedAndMaybeUpdateContext(doUpdate bool) ([]string, int, bool, err
 					numTokens := shared.GetNumTokens(body)
 					mu.Lock()
 					tokensDiff += numTokens - part.NumTokens
+					tokenDiffsByName[part.Name] = numTokens - part.NumTokens
 					mu.Unlock()
 
 					updateCh <- &contextUpdate{Path: contextPath, Part: &shared.ModelContextPart{
@@ -144,6 +320,7 @@ func checkOutdatedAndMaybeUpdateContext(doUpdate bool) ([]string, int, bool, err
 					numTokens := shared.GetNumTokens(body)
 					mu.Lock()
 					tokensDiff += numTokens - part.NumTokens
+					tokenDiffsByName[part.Name] = numTokens - part.NumTokens
 					mu.Unlock()
 
 					updateCh <- &contextUpdate{Path: contextPath, Part: &shared.ModelContextPart{
@@ -169,10 +346,10 @@ func checkOutdatedAndMaybeUpdateContext(doUpdate bool) ([]string, int, bool, err
 	updatedPaths := []string{}
 	updatedParts := []*shared.ModelContextPart{}
 
-	for i := 0; i < len(context); i++ {
+	for range context {
 		select {
 		case err := <-errCh:
-			return nil, 0, false, err
+			return nil, err
 		case update := <-updateCh:
 			if update != nil {
 				updatedPaths = append(updatedPaths, update.Path)
@@ -182,29 +359,61 @@ func checkOutdatedAndMaybeUpdateContext(doUpdate bool) ([]string, int, bool, err
 	}
 
 	totalTokens += tokensDiff
+	totalUpdatableTokens += tokensDiff
 
 	if doUpdate {
 		if totalTokens > maxTokens {
-			return nil, 0, true, fmt.Errorf("context update would exceed the token limit of %d", maxTokens)
+			return &updateRes{
+				UpdatedParts: nil,
+				TokensDiff:   tokensDiff,
+				TotalTokens:  totalTokens,
+				MaxExceeded:  true,
+			}, fmt.Errorf("context update would exceed the token limit of %d", maxTokens)
 		}
 
-		err = ContextRm(updatedPaths)
+		err = ContextRemoveFiles(updatedPaths)
 		if err != nil {
-			return nil, 0, false, fmt.Errorf("error removing updated context paths: %w", err)
+			return nil, fmt.Errorf("error removing updated context paths: %w", err)
 		}
 
 		err = writeContextParts(updatedParts)
 		if err != nil {
-			return nil, 0, false, fmt.Errorf("error writing updated context parts: %w", err)
+			return nil, fmt.Errorf("error writing updated context parts: %w", err)
 		}
 
 		planState.ContextTokens = totalTokens
+		planState.ContextUpdatableTokens = totalUpdatableTokens
 		err = SetPlanState(planState, ts)
 
 		if err != nil {
-			return nil, 0, false, fmt.Errorf("error writing plan state: %w", err)
+			return nil, fmt.Errorf("error writing plan state: %w", err)
 		}
 	}
 
-	return updatedPaths, tokensDiff, totalTokens > maxTokens, nil
+	var numFiles int
+	var numUrls int
+	var numTrees int
+	for _, part := range updatedParts {
+		if part.Type == shared.ContextFileType {
+			numFiles++
+		}
+		if part.Type == shared.ContextURLType {
+			numUrls++
+		}
+		if part.Type == shared.ContextDirectoryTreeType {
+			numTrees++
+		}
+	}
+
+	return &updateRes{
+		UpdatedParts:     updatedParts,
+		TokenDiffsByName: tokenDiffsByName,
+		TokensDiff:       tokensDiff,
+		TotalTokens:      totalTokens,
+		MaxExceeded:      totalTokens > maxTokens,
+		NumFiles:         numFiles,
+		NumUrls:          numUrls,
+		NumTrees:         numTrees,
+	}, nil
+
 }
