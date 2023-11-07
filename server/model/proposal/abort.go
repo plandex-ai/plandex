@@ -3,6 +3,8 @@ package proposal
 import "fmt"
 
 func AbortProposal(proposalId string) error {
+	fmt.Println("aborting proposal", proposalId)
+
 	proposal := proposals.Get(proposalId)
 	if proposal == nil {
 		return fmt.Errorf("proposal not found")

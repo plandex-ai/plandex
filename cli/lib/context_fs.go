@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/plandex/plandex/shared"
 )
@@ -13,7 +14,8 @@ import (
 func CreateContextFileName(name, sha string) string {
 	// Extract the first 8 characters of the sha
 	shaSubstring := sha[:8]
-	return fmt.Sprintf("%s.%s", name, shaSubstring)
+	s := strings.ReplaceAll(name, string(os.PathSeparator), "_")
+	return fmt.Sprintf("%s.%s", s, shaSubstring)
 }
 
 func ContextRemoveFiles(paths []string) error {

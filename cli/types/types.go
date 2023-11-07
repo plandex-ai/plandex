@@ -23,26 +23,34 @@ type APIHandler interface {
 }
 
 type AppendConversationParams struct {
-	Timestamp         string
+	Timestamp    string
+	PlanState    *PlanState
+	PromptParams *AppendConversationPromptParams
+	ReplyParams  *AppendConversationReplyParams
+}
+
+type AppendConversationPromptParams struct {
+	Prompt       string
+	PromptTokens int
+}
+
+type AppendConversationReplyParams struct {
 	ResponseTimestamp string
-	Prompt            string
 	Reply             string
-	PromptTokens      int
 	ReplyTokens       int
-	PlanState         *PlanState
 }
 
 type PlanState struct {
-	Name                   string                  `json:"name"`
-	ProposalId             string                  `json:"proposalId"`
-	RootId                 string                  `json:"rootId"`
-	CreatedAt              string                  `json:"createdAt"`
-	UpdatedAt              string                  `json:"updatedAt"`
-	Description            *shared.PlanDescription `json:"description"`
-	ContextTokens          int                     `json:"contextTokens"`
-	ContextUpdatableTokens int                     `json:"contextUpdatableTokens"`
-	ConvoTokens            int                     `json:"convoTokens"`
-	ConvoSummarizedTokens  int                     `json:"convoSummarizedTokens"`
+	Name                   string `json:"name"`
+	ProposalId             string `json:"proposalId"`
+	RootId                 string `json:"rootId"`
+	CreatedAt              string `json:"createdAt"`
+	UpdatedAt              string `json:"updatedAt"`
+	ContextTokens          int    `json:"contextTokens"`
+	ContextUpdatableTokens int    `json:"contextUpdatableTokens"`
+	ConvoTokens            int    `json:"convoTokens"`
+	ConvoSummarizedTokens  int    `json:"convoSummarizedTokens"`
+	NumMessages            int    `json:"numMessages"`
 }
 
 type PlanSettings struct {

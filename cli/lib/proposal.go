@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"plandex/format"
 	"plandex/types"
 	"strconv"
@@ -50,10 +51,14 @@ func Propose(prompt string) error {
 	if CurrentPlanIsDraft() {
 		fileNameResp, err := Api.FileName(prompt)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "\nError summarizing prompt:", err)
+			fmt.Fprintln(os.Stderr, "\nError getting file name for prompt:", err)
 			return err
 		}
-		RenameCurrentDraftPlan(format.GetFileNameWithoutExt(fileNameResp.FileName))
+		err = RenameCurrentDraftPlan(format.GetFileNameWithoutExt(fileNameResp.FileName))
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "\nError renaming draft plan:", err)
+			return err
+		}
 	}
 
 	timestamp := shared.StringTs()
@@ -92,10 +97,20 @@ func Propose(prompt string) error {
 		}
 	}
 
-	var promptNumTokens int
-	go func() {
-		promptNumTokens = shared.GetNumTokens(prompt)
-	}()
+	promptNumTokens := shared.GetNumTokens(prompt)
+
+	err = appendConversation(types.AppendConversationParams{
+		Timestamp: timestamp,
+		PlanState: planState,
+		PromptParams: &types.AppendConversationPromptParams{
+			Prompt:       prompt,
+			PromptTokens: promptNumTokens,
+		},
+	})
+
+	if err != nil {
+		return fmt.Errorf("failed to append prompt to conversation: %s", err)
+	}
 
 	printReply := func() {
 		ClearScreen()
@@ -130,22 +145,19 @@ func Propose(prompt string) error {
 		s.Start()
 	}
 
-	appendConvo := func() {
+	appendConvoReply := func() error {
 		var totalTokens int
 		_, _, _, totalTokens = replyTokenCounter.FinishAndRead()
 
-		err := appendConversation(types.AppendConversationParams{
-			Timestamp:         timestamp,
-			ResponseTimestamp: desc.ResponseTimestamp,
-			Prompt:            prompt,
-			PromptTokens:      promptNumTokens,
-			Reply:             reply,
-			ReplyTokens:       totalTokens,
-			PlanState:         planState,
+		return appendConversation(types.AppendConversationParams{
+			Timestamp: timestamp,
+			PlanState: planState,
+			ReplyParams: &types.AppendConversationReplyParams{
+				ResponseTimestamp: desc.ResponseTimestamp,
+				Reply:             reply,
+				ReplyTokens:       totalTokens,
+			},
 		})
-		if err != nil {
-			fmt.Printf("failed to append conversation: %s", err)
-		}
 	}
 
 	contextByFilePath := make(map[string]*shared.ModelContextPart)
@@ -240,18 +252,29 @@ func Propose(prompt string) error {
 				endReply()
 
 			} else {
-				err := json.Unmarshal([]byte(content), &desc)
+				bytes := []byte(content)
+
+				err := json.Unmarshal(bytes, &desc)
 				if err != nil {
 					onError(fmt.Errorf("error parsing plan description: %v", err))
 					return
 				}
 
-				planState.Description = desc
-				appendConvo()
-
-				err = SetPlanState(planState, shared.StringTs())
+				err = os.MkdirAll(PlanDescriptionsDir, os.ModePerm)
 				if err != nil {
-					onError(fmt.Errorf("failed to update plan state: %s", err))
+					onError(fmt.Errorf("failed to create plan descriptions directory: %s", err))
+					return
+				}
+				descriptionsPath := filepath.Join(PlanDescriptionsDir, desc.ResponseTimestamp+".json")
+				err = os.WriteFile(descriptionsPath, bytes, 0644)
+				if err != nil {
+					onError(fmt.Errorf("failed to write plan description to file: %s", err))
+					return
+				}
+
+				err = appendConvoReply()
+				if err != nil {
+					onError(fmt.Errorf("failed to append reply to conversation: %s", err))
 					return
 				}
 
@@ -317,6 +340,12 @@ func Propose(prompt string) error {
 					if len(finishedByPath) == len(files) {
 						filesFinished = true
 
+						err = GitCommitPlanUpdate(desc.CommitMsg)
+						if err != nil {
+							onError(fmt.Errorf("failed to commit root update: %s", err))
+							return
+						}
+
 						if streamFinished {
 							close(done)
 						}
@@ -338,6 +367,7 @@ func Propose(prompt string) error {
 		BackToMain()
 		return fmt.Errorf("failed to send prompt to server: %s", err)
 	}
+
 	for _, part := range apiReq.ModelContext {
 		contextByFilePath[part.FilePath] = part
 	}
@@ -470,7 +500,11 @@ func checkOutdatedContext(s *spinner.Spinner) (bool, error) {
 		}
 	}
 
-	color.New(color.FgHiCyan, color.Bold).Printf("%s in context have been modified 👇\n\n", msg)
+	phrase := "have been"
+	if len(outdatedRes.UpdatedParts) == 1 {
+		phrase = "has been"
+	}
+	color.New(color.FgHiCyan, color.Bold).Printf("%s in context %s modified 👇\n\n", msg, phrase)
 
 	table := TableForContextUpdateRes(outdatedRes)
 	table.Render()

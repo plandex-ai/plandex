@@ -177,10 +177,26 @@ func LoadSummaries() ([]shared.ConversationSummary, error) {
 func appendConversation(params types.AppendConversationParams) error {
 	// Create or append to conversation file
 	conversationFilePath := filepath.Join(ConversationSubdir, fmt.Sprintf("%s.md", params.Timestamp))
-	userHeader := fmt.Sprintf("@@@!>user|%s|%d\n\n", params.Timestamp, params.PromptTokens)
-	responseHeader := fmt.Sprintf("@@@!>response|%s|%d\n\n", params.ResponseTimestamp, params.ReplyTokens)
 
-	conversationFileContents := fmt.Sprintf("%s%s\n\n%s%s", userHeader, params.Prompt, responseHeader, params.Reply)
+	var header string
+	var body string
+	var tokens int
+	var t string
+	if params.PromptParams != nil {
+		t = "prompt"
+		header = fmt.Sprintf("@@@!>user|%s|%d\n\n", params.Timestamp, params.PromptParams.PromptTokens)
+		body = params.PromptParams.Prompt
+		tokens = params.PromptParams.PromptTokens
+	} else if params.ReplyParams != nil {
+		t = "reply"
+		header = fmt.Sprintf("@@@!>response|%s|%d\n\n", params.ReplyParams.ResponseTimestamp, params.ReplyParams.ReplyTokens)
+		body = params.ReplyParams.Reply
+		tokens = params.ReplyParams.ReplyTokens
+	} else {
+		return fmt.Errorf("invalid params: either prompt or reply params must be provided")
+	}
+
+	conversationFileContents := fmt.Sprintf("%s%s\n\n", header, body)
 	conversationFile, err := os.OpenFile(conversationFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return fmt.Errorf("failed to write conversation file: %s", err)
@@ -192,8 +208,24 @@ func appendConversation(params types.AppendConversationParams) error {
 		return fmt.Errorf("failed to write conversation file: %s", err)
 	}
 
-	// Update plan state -- will be written to file by caller
-	params.PlanState.ConvoTokens += params.PromptTokens + params.ReplyTokens
+	params.PlanState.NumMessages++
+	params.PlanState.ConvoTokens += tokens
+	err = SetPlanState(params.PlanState, shared.StringTs())
+	if err != nil {
+		return fmt.Errorf("failed to update plan state: %s", err)
+	}
+
+	var desc string
+	if t == "prompt" {
+		desc = "user prompt"
+	} else {
+		desc = "Plandex reply"
+	}
+	err = GitCommitConvoUpdate(fmt.Sprintf("Message #%d | %s | %d tokens", params.PlanState.NumMessages, desc, tokens))
+
+	if err != nil {
+		return fmt.Errorf("failed to commit conversation update: %s", err)
+	}
 
 	return nil
 }
@@ -243,6 +275,16 @@ func saveLatestConvoSummary(rootId string) error {
 	summaryFileContents := fmt.Sprintf("@@@!>summary|%s|%d\n\n%s", summary.LastMessageTimestamp, summary.Tokens, summary.Summary)
 
 	err = os.WriteFile(summaryFilePath, []byte(summaryFileContents), 0644)
+
+	if err != nil {
+		return fmt.Errorf("failed to write summary file: %s", err)
+	}
+
+	err = GitCommitConvoUpdate(fmt.Sprintf("Summarized up to message #%d | %d tokens", summary.NumMessages-1, summary.Tokens))
+
+	if err != nil {
+		return fmt.Errorf("failed to commit conversation update: %s", err)
+	}
 
 	return err
 }

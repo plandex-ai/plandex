@@ -17,7 +17,7 @@ func genPlanDescriptionJson(proposalId string, ctx context.Context) (*shared.Pla
 	planDescResp, err := model.Client.CreateChatCompletion(
 		ctx,
 		openai.ChatCompletionRequest{
-			Model: openai.GPT3Dot5Turbo,
+			Model: model.WeakModel,
 			Functions: []openai.FunctionDefinition{{
 				Name: "describePlan",
 				Parameters: &jsonschema.Definition{

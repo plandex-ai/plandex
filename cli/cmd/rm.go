@@ -33,7 +33,7 @@ func contextRm(cmd *cobra.Command, args []string) {
 	for i, part := range context {
 		path := lib.CreateContextFileName(part.Name, part.Sha)
 		for _, id := range args {
-			if fmt.Sprintf("%d", i) == id || part.Name == id || part.FilePath == id || part.Url == id {
+			if fmt.Sprintf("%d", i+1) == id || part.Name == id || part.FilePath == id || part.Url == id {
 				toRemovePaths = append(toRemovePaths, path)
 				toRemoveParts = append(toRemoveParts, part)
 				break

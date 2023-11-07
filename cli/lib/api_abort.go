@@ -7,11 +7,13 @@ import (
 )
 
 func (api *API) Abort(proposalId string) error {
+	fmt.Println("api aborting proposal", proposalId)
+
 	serverUrl := apiHost + "/abort"
 
-	req, err := http.NewRequest("GET", serverUrl, nil)
+	req, err := http.NewRequest("DELETE", serverUrl, nil)
 	if err != nil {
-		return fmt.Errorf("failed to create request: %s\n", err)
+		return fmt.Errorf("failed to create request: %s", err)
 	}
 
 	q := req.URL.Query()
@@ -20,7 +22,7 @@ func (api *API) Abort(proposalId string) error {
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("failed to send request to server: %s\n", err)
+		return fmt.Errorf("failed to send request to server: %s", err)
 	}
 
 	defer resp.Body.Close()

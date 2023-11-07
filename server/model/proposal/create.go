@@ -215,7 +215,7 @@ func CreateProposal(req shared.PromptRequest, onStream types.OnStreamFunc) error
 	replyInfo := shared.NewReplyInfo()
 
 	modelReq := openai.ChatCompletionRequest{
-		Model:    openai.GPT4,
+		Model:    model.StrongModel,
 		Messages: messages,
 		Stream:   true,
 	}
@@ -314,8 +314,10 @@ func CreateProposal(req shared.PromptRequest, onStream types.OnStreamFunc) error
 
 							var summaryMessages []openai.ChatCompletionMessage
 							var latestSummary *shared.ConversationSummary
+							var numMessagesSummarized int = 0
 							if len(req.ConversationSummaries) > 0 {
 								latestSummary = &req.ConversationSummaries[len(req.ConversationSummaries)-1]
+								numMessagesSummarized = latestSummary.NumMessages
 							}
 
 							if latestSummary == nil {
@@ -334,7 +336,7 @@ func CreateProposal(req shared.PromptRequest, onStream types.OnStreamFunc) error
 								Content: proposal.Content,
 							})
 
-							summary, err := model.PlanSummary(summaryMessages, responseTs)
+							summary, err := model.PlanSummary(summaryMessages, responseTs, numMessagesSummarized+1)
 							if err != nil {
 								fmt.Printf("Error generating plan summary for root %s: %v\n", proposal.RootId, err)
 
@@ -396,7 +398,6 @@ func CreateProposal(req shared.PromptRequest, onStream types.OnStreamFunc) error
 					onStream(planDescriptionJson, nil)
 
 					if len(files) == 0 {
-						onStream(planDescriptionJson, nil)
 						onStream(shared.STREAM_FINISHED, nil)
 					} else {
 						onStream(shared.STREAM_BUILD_PHASE, nil)

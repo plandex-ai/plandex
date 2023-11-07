@@ -218,7 +218,7 @@ func buildPlan(proposalId string, fileContents map[string]string, numTokensByFil
 			}
 
 			modelReq := openai.ChatCompletionRequest{
-				Model:     openai.GPT4,
+				Model:     model.StrongModel,
 				Functions: functions,
 				Messages:  fileMessages,
 			}

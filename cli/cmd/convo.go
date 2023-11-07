@@ -5,8 +5,10 @@ import (
 	"os"
 	"plandex/lib"
 	"strings"
+	"time"
 
 	"github.com/fatih/color"
+	"github.com/plandex/plandex/shared"
 	"github.com/spf13/cobra"
 )
 
@@ -35,18 +37,37 @@ func convo(cmd *cobra.Command, args []string) {
 
 	var convMarkdown []string
 	var totalTokens int
-	for _, msg := range conversation {
+	for i, msg := range conversation {
 		var author string
 		if msg.Message.Role == "assistant" {
-			author = "Plandex"
+			author = "🤖 Plandex"
 		} else if msg.Message.Role == "user" {
-			author = "You"
+			author = "💬 You"
 		} else {
 			author = msg.Message.Role
 		}
 
-		header := fmt.Sprintf("#### %s | %s | %d 🪙",
-			author, msg.Timestamp, msg.Tokens)
+		dt, err := time.Parse(shared.TsFormat, msg.Timestamp)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "Error parsing time:", err)
+			continue
+		}
+
+		// format as above but start with day of week
+		formattedTs := dt.Local().Format("Mon Jan 2, 2006 | 3:04:05pm MST")
+
+		// if it's today then use 'Today' instead of the date
+		if dt.Day() == time.Now().Day() {
+			formattedTs = dt.Local().Format("Today | 3:04:05pm MST")
+		}
+
+		// if it's yesterday then use 'Yesterday' instead of the date
+		if dt.Day() == time.Now().AddDate(0, 0, -1).Day() {
+			formattedTs = dt.Local().Format("Yesterday | 3:04:05pm MST")
+		}
+
+		header := fmt.Sprintf("#### %d | %s | %s | %d 🪙", i+1,
+			author, formattedTs, msg.Tokens)
 		convMarkdown = append(convMarkdown, header, msg.Message.Content, "")
 		totalTokens += msg.Tokens
 	}

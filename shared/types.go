@@ -82,4 +82,5 @@ type ConversationSummary struct {
 	Summary              string
 	Tokens               int
 	LastMessageTimestamp string
+	NumMessages          int
 }

@@ -50,7 +50,7 @@ func del(cmd *cobra.Command, args []string) {
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "Error getting plans:", err)
 		}
-		plan := plans[idx]
+		plan := plans[idx-1]
 		name = plan.Name
 	} else {
 		name = nameOrIdx

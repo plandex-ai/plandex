@@ -15,7 +15,7 @@ func ShortSummary(text string) ([]byte, error) {
 	resp, err := Client.CreateChatCompletion(
 		context.Background(),
 		openai.ChatCompletionRequest{
-			Model: openai.GPT3Dot5Turbo,
+			Model: WeakModel,
 			Functions: []openai.FunctionDefinition{{
 				Name: "summarize",
 				Parameters: &jsonschema.Definition{
@@ -77,7 +77,7 @@ func ShortSummary(text string) ([]byte, error) {
 	return byteRes, nil
 }
 
-func PlanSummary(conversation []openai.ChatCompletionMessage, lastMessageTimestamp string) (*shared.ConversationSummary, error) {
+func PlanSummary(conversation []openai.ChatCompletionMessage, lastMessageTimestamp string, numMessages int) (*shared.ConversationSummary, error) {
 	messages := []openai.ChatCompletionMessage{
 		{
 			Role:    openai.ChatMessageRoleSystem,
@@ -98,8 +98,7 @@ func PlanSummary(conversation []openai.ChatCompletionMessage, lastMessageTimesta
 	resp, err := Client.CreateChatCompletion(
 		context.Background(),
 		openai.ChatCompletionRequest{
-			Model: openai.GPT4,
-			// Model:    openai.GPT3Dot5Turbo16K,
+			Model:    StrongModel,
 			Messages: messages,
 		},
 	)

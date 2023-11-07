@@ -233,7 +233,7 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) (int, 
 
 					contextPart := &shared.ModelContextPart{
 						Type:      shared.ContextDirectoryTreeType,
-						Name:      name,
+						Name:      inputFilePath,
 						FilePath:  inputFilePath,
 						Body:      body,
 						Sha:       sha,
@@ -289,13 +289,11 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) (int, 
 
 					}()
 
-					_, fileName := filepath.Split(path)
-
 					ts := shared.StringTs()
 
 					contextPart := &shared.ModelContextPart{
 						Type:      shared.ContextFileType,
-						Name:      fileName,
+						Name:      path,
 						Body:      body,
 						FilePath:  path,
 						Sha:       sha,

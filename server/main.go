@@ -23,7 +23,7 @@ func main() {
 	r := mux.NewRouter()
 
 	r.HandleFunc("/proposal", handlers.ProposalHandler).Methods("POST")
-	r.HandleFunc("/abort-proposal", handlers.AbortProposalHandler).Methods("DELETE")
+	r.HandleFunc("/abort", handlers.AbortProposalHandler).Methods("DELETE")
 	r.HandleFunc("/short-summary", handlers.ShortSummaryHandler).Methods("POST")
 	r.HandleFunc("/filename", handlers.FileNameHandler).Methods("POST")
 	r.HandleFunc("/convo-summary/{rootId}", handlers.ConvoSummaryHandler).Methods("GET")

@@ -80,7 +80,7 @@ func context(cmd *cobra.Command, args []string) {
 		}
 
 		row := []string{
-			strconv.Itoa(i),
+			strconv.Itoa(i + 1),
 			" " + icon + " " + id,
 			t,
 			strconv.Itoa(part.NumTokens), //+ " 🪙",

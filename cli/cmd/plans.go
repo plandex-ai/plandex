@@ -66,7 +66,7 @@ func plans(cmd *cobra.Command, args []string) {
 		}
 
 		row := []string{
-			strconv.Itoa(i),
+			strconv.Itoa(i + 1),
 			name,
 			format.Time(updatedAt),
 			format.Time(createdAt),
