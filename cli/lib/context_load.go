@@ -15,7 +15,10 @@ import (
 	"sync"
 	"time"
 
+	"strconv"
+
 	"github.com/briandowns/spinner"
+	"github.com/olekukonko/tablewriter"
 	"github.com/plandex/plandex/shared"
 )
 
@@ -366,6 +369,32 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) (int, 
 
 	wg.Wait()
 
+	TableForLoadContext := func(contextParts []*shared.ModelContextPart) string {
+		tableString := &strings.Builder{}
+		table := tablewriter.NewWriter(tableString)
+		table.SetHeader([]string{"Name", "Type", "🪙"})
+		table.SetAutoWrapText(false)
+
+		for _, part := range contextParts {
+			t, icon := GetContextTypeAndIcon(part)
+			row := []string{
+				" " + icon + " " + part.Name,
+				t,
+				"+" + strconv.Itoa(part.NumTokens),
+			}
+
+			table.Rich(row, []tablewriter.Colors{
+				{tablewriter.FgHiGreenColor, tablewriter.Bold},
+				{tablewriter.FgHiGreenColor},
+				{tablewriter.FgHiGreenColor},
+			})
+		}
+
+		table.Render()
+
+		return tableString.String()
+	}
+
 	if len(contextParts) == 0 {
 		fmt.Println("🤷‍♂️ No context loaded")
 		os.Exit(1)
@@ -440,7 +469,6 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) (int, 
 		log.Fatalf("Failed to get total tokens: %v", err)
 	}
 
-	err = GitCommitContextUpdate(msg)
 	if err != nil {
 		s.Stop()
 		ClearCurrentLine()
@@ -455,6 +483,18 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) (int, 
 	s.Stop()
 	ClearCurrentLine()
 	fmt.Println("✅ " + msg)
+
+	if len(contextParts) > 0 {
+		tableString := TableForLoadContext(contextParts)
+
+		err = GitCommitContextUpdate(msg + "\n\n" + tableString)
+		if err != nil {
+			s.Stop()
+			ClearCurrentLine()
+			log.Fatalf("Failed to commit context update to git: %v", err)
+		}
+		fmt.Println(tableString)
+	}
 
 	return tokensAdded, totalTokens
 }

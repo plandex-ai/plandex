@@ -78,11 +78,10 @@ func convo(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	fmt.Print(markdownString)
+	output :=
+		fmt.Sprintf("\n%s", markdownString) +
+			lib.GetDivisionLine() +
+			color.New(color.Bold, color.FgCyan).Sprint("  Conversation size →") + fmt.Sprintf(" %d 🪙", totalTokens) + "\n\n"
 
-	fmt.Println(lib.GetDivisionLine())
-	fmt.Println()
-
-	fmt.Println(color.New(color.Bold, color.FgCyan).Sprint("  Conversation size →") + fmt.Sprintf(" %d 🪙", totalTokens))
-	fmt.Println()
+	lib.PageOutputReverse(output)
 }

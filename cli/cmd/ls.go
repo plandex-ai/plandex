@@ -44,29 +44,7 @@ func context(cmd *cobra.Command, args []string) {
 	for i, part := range context {
 		totalTokens += part.NumTokens
 
-		var icon string
-		var t string
-		id := part.Name
-		switch part.Type {
-		case shared.ContextFileType:
-			icon = "📄"
-			t = "file"
-			id = part.FilePath
-		case shared.ContextURLType:
-			icon = "🌎"
-			t = "url"
-		case shared.ContextDirectoryTreeType:
-			icon = "🗂 "
-			t = "tree"
-			id = part.FilePath
-		case shared.ContextNoteType:
-			icon = "✏️ "
-			t = "note"
-		case shared.ContextPipedDataType:
-			icon = "↔️ "
-			t = "piped"
-		}
-
+		t, icon := lib.GetContextTypeAndIcon(part)
 		addedAt, err := time.Parse(shared.TsFormat, part.AddedAt)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "Error parsing time:", err)
@@ -81,7 +59,7 @@ func context(cmd *cobra.Command, args []string) {
 
 		row := []string{
 			strconv.Itoa(i + 1),
-			" " + icon + " " + id,
+			" " + icon + " " + part.Name,
 			t,
 			strconv.Itoa(part.NumTokens), //+ " 🪙",
 			format.Time(addedAt),

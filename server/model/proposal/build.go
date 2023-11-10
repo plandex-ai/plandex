@@ -7,13 +7,13 @@ import (
 	"fmt"
 	"os"
 	"plandex-server/model"
+	"plandex-server/model/prompts"
 	"plandex-server/types"
 	"time"
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/plandex/plandex/shared"
 	"github.com/sashabaranov/go-openai"
-	"github.com/sashabaranov/go-openai/jsonschema"
 )
 
 func buildPlan(proposalId string, fileContents map[string]string, numTokensByFile map[string]int, onStream types.OnStreamFunc) error {
@@ -114,6 +114,7 @@ func buildPlan(proposalId string, fileContents map[string]string, numTokensByFil
 			}
 
 			fmt.Println("Getting file from model: " + filePath)
+			fmt.Println("File context:", fileContext)
 
 			fmtStr := "\nCurrent state of %s:\n```\n%s\n```"
 			fmtArgs := []interface{}{filePath}
@@ -129,21 +130,26 @@ func buildPlan(proposalId string, fileContents map[string]string, numTokensByFil
 
 			var msg string
 			if fileContext != nil {
-				msg = replacementSystemPrompt
+				msg = prompts.SysReplace
 			} else {
-				msg = writeFileOnlySystemPrompt
+				msg = prompts.SysWriteFile
 			}
 
 			if fileContext != nil || currentState != "" {
+				fmt.Println("Adding current state to message")
 				msg += "\n\n" + fmt.Sprintf(fmtStr, fmtArgs...)
+
+				fmt.Println("Message:")
+				fmt.Println(msg)
 			}
 
 			fileMessages = append(fileMessages, openai.ChatCompletionMessage{
 				Role:    openai.ChatMessageRoleSystem,
 				Content: msg,
-			})
-
-			fileMessages = append(fileMessages, openai.ChatCompletionMessage{
+			}, openai.ChatCompletionMessage{
+				Role:    openai.ChatMessageRoleUser,
+				Content: proposal.Request.Prompt,
+			}, openai.ChatCompletionMessage{
 				Role:    openai.ChatMessageRoleAssistant,
 				Content: proposal.Content,
 			})
@@ -153,7 +159,7 @@ func buildPlan(proposalId string, fileContents map[string]string, numTokensByFil
 					openai.ChatCompletionMessage{
 						Role: openai.ChatMessageRoleUser,
 						Content: fmt.Sprintf(`
-					Based on your instructions, apply the changes from the plan to %s. You must call either the 'writeReplacements' function or the 'writeEntireFile' function, depending on which is a more efficient way to apply the changes. Don't call any other function.
+					Based on your instructions, apply the changes from the plan to %s. You must call either the 'writeReplacements' function or the 'writeEntireFile' function, depending on which will apply the changes with fewer tokens.
 					`, filePath),
 					})
 			} else {
@@ -161,66 +167,28 @@ func buildPlan(proposalId string, fileContents map[string]string, numTokensByFil
 					openai.ChatCompletionMessage{
 						Role: openai.ChatMessageRoleUser,
 						Content: fmt.Sprintf(`
-						Based on your instructions, apply the changes from the plan to %s. You must call the 'writeEntireFile' function. Don't call any other function.
+						Based on your instructions, apply the changes from the plan to %s. You must call the 'writeEntireFile' function with the ENTIRE FILE, including your suggested changes. Don't call any other function.
 						`, filePath),
 					})
 			}
 
 			fmt.Println("Calling model for file: " + filePath)
+
 			// for _, msg := range fileMessages {
 			// 	fmt.Printf("%s: %s\n", msg.Role, msg.Content)
 			// }
 
-			functions := []openai.FunctionDefinition{
-				{
-					Name: "writeEntireFile",
-					Parameters: &jsonschema.Definition{
-						Type: jsonschema.Object,
-						Properties: map[string]jsonschema.Definition{
-							"content": {
-								Type:        jsonschema.String,
-								Description: "The full content of the file, including any updates from the previous response, as raw text",
-							},
-						},
-						Required: []string{"content"},
-					},
-				},
-			}
+			functions := []openai.FunctionDefinition{prompts.WriteFileFn}
 
 			if fileContext != nil {
-				functions = append(functions, openai.FunctionDefinition{
-					Name: "writeReplacements",
-					Parameters: &jsonschema.Definition{
-						Type: jsonschema.Object,
-						Properties: map[string]jsonschema.Definition{
-							"replacements": {
-								Type:        jsonschema.Array,
-								Description: "A list of replacements to apply to the file",
-								Items: &jsonschema.Definition{
-									Type: jsonschema.Object,
-									Properties: map[string]jsonschema.Definition{
-										"old": {
-											Type:        jsonschema.String,
-											Description: "The old text to replace",
-										},
-										"new": {
-											Type:        jsonschema.String,
-											Description: "The new text to replace it with",
-										},
-									},
-									Required: []string{"old", "new"},
-								},
-							},
-						},
-						Required: []string{"replacements"},
-					},
-				})
+				functions = append(functions, prompts.ReplaceFn)
 			}
 
 			modelReq := openai.ChatCompletionRequest{
-				Model:     model.StrongModel,
-				Functions: functions,
-				Messages:  fileMessages,
+				Model:       model.BuilderModel,
+				Functions:   functions,
+				Messages:    fileMessages,
+				Temperature: 0.0,
 			}
 
 			stream, err := model.Client.CreateChatCompletionStream(ctx, modelReq)
@@ -297,13 +265,9 @@ func buildPlan(proposalId string, fileContents map[string]string, numTokensByFil
 						delta := response.Choices[0].Delta
 
 						if delta.FunctionCall == nil {
-							fmt.Println("Stream received data not for a function call")
-
 							spew.Dump(delta)
 							continue
 						} else {
-							fmt.Printf("Stream received data for function call: %s", delta.FunctionCall.Name)
-
 							content = delta.FunctionCall.Arguments
 						}
 
@@ -334,147 +298,3 @@ func buildPlan(proposalId string, fileContents map[string]string, numTokensByFil
 
 	return nil
 }
-
-const replacementSystemPrompt = `
-[YOUR INSTRUCTIONS]
-
-You apply changes from a plan to a given code file. You can either us the 'writeEntireFile' function to write the entire file, or the 'writeReplacements' function to write a list of replacements to apply to the file. Decide which is a more efficient way to apply the changes, and call the appropriate function.
-
-A. If you are using the 'writeEntireFile' function, call it with the full content of the file as raw text, including any  updates from the previous response. Call 'writeEntireFile' with the entire updated file. Don't include any placeholders or references to the original file.
-	
-B. If you are using the 'writeReplacements' function, call it with a list of replacements to apply to the file. Each replacement is an object with two properties: 'old' and 'new'. 'old' is the old text to replace, and 'new' is the new text to replace it with. You can include as many replacements as you want. You must include at least one replacement.
-- The 'new' text must include the full text of the replacement without any placeholders or references to the original file.
-- The 'old' text *ABSOLUTELY MUST BE AN EXACT SUBSTRING* of the current state of the file.
-- The 'old' text must not overlap with any other 'old' text in the list of replacements.
-
-Replacement examples below. Note: >>> and <<< indicate the start and end of an example response.
-
-1.)
-If the current file is:
-` + "```" + `
-package main
-
-import "fmt"
-
-func main() {
-	fmt.Println("Hello, world!")
-}
-` + "```" + `
-
-And the previous response was:
-
->>>
-You can change the main.go file to print the current time instead of "Hello, world!".:
-
-- main.go:
-` + "```" + `
-func main() {
-	fmt.Println(time.Now())
-}
-` + "```" + `
-
-You'll also need to import the time package:
-
-- main.go:
-` + "```" + `
-import (
-	"fmt"
-	"time"
-)
-` + "```" + `
-<<<
-
-Then you would call the 'writeReplacements' function like this:
-
-writeReplacements({
-	replacements: [
-		{
-			old: "import \"fmt\"",
-			new: "import (\n\t\"fmt\"\n\t\"time\"\n)"
-		},
-		{
-			old: "fmt.Println(\"Hello, world!\")",
-			new: "fmt.Println(time.Now())"
-		}
-	}
-})
-
-2.)
-If the current file is:
-` + "```" + `
-package helpers
-
-func Add(a, b int) int {
-	return a + b
-}
-` + "```" + `
-
-And the previous response was:
-
->>>
-Add another function to the helpers.go file that subtracts two numbers:
-
-- helpers.go:
-` + "```" + `
-func Subtract(a, b int) int {
-	return a - b
-}
-` + "```" + `
-<<<
-
-Then you would call the 'writeReplacements' function like this:
-
-writeReplacements({
-	replacements: [
-		{
-			old: "\n}",
-			new: "\n}\n\nfunc Subtract(a, b int) int {\n\treturn a - b\n}"
-		}
-	]
-})
-
-3.)
-If the current file is:
-` + "```" + `
-package main
-
-import "fmt"
-
-func main() {
-	fmt.Println("Hello, world!")
-}
-` + "```" + `
-
-And the previous response was:
-
->>>
-You can change the main.go file to print "I love you!" in addition to "Hello, world!".:
-
-- main.go:
-` + "```" + `
-func main() {
-	fmt.Println("Hello, world!")
-	fmt.Println("I love you!")
-}
-` + "```" + `						
-<<<
-
-Then you would call the 'writeReplacements' function like this:
-
-writeReplacements({
-	replacements: [
-		{
-			old: "fmt.Println(\"Hello, world!\")",
-			new: "fmt.Println(\"Hello, world!\")\n\tfmt.Println(\"I love you!\")"
-		}
-	]
-})
-
-[END INSTRUCTIONS]`
-
-const writeFileOnlySystemPrompt = `
-[YOUR INSTRUCTIONS]
-
-You apply changes from a plan to a given code file. Use 'writeEntireFile' function to write the full content of the file as raw text, including any updates from the previous response, to the file. Call 'writeEntireFile' with the entire updated file. Don't include any placeholders or references to the original file.
-
-[END INSTRUCTIONS]`

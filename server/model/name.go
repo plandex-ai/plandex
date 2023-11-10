@@ -15,7 +15,7 @@ func FileName(text string) ([]byte, int, error) {
 	resp, err := Client.CreateChatCompletion(
 		context.Background(),
 		openai.ChatCompletionRequest{
-			Model: WeakModel,
+			Model: NameModel,
 			Functions: []openai.FunctionDefinition{{
 				Name: "nameFile",
 				Parameters: &jsonschema.Definition{

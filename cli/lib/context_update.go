@@ -115,6 +115,8 @@ func MustUpdateContextWithOuput() *updateRes {
 		}
 	}
 
+	msg += " in context"
+
 	action := "added"
 	if tokensDiff < 0 {
 		action = "removed"
@@ -122,7 +124,7 @@ func MustUpdateContextWithOuput() *updateRes {
 	absTokenDiff := int(math.Abs(float64(tokensDiff)))
 	msg += fmt.Sprintf(" | %s → %d 🪙 | total → %d 🪙", action, absTokenDiff, totalTokens)
 
-	err = GitCommitContextUpdate(msg)
+	err = GitCommitContextUpdate(msg + "\n\n" + TableForContextUpdateRes(updateRes))
 
 	stopFn()
 
@@ -136,57 +138,47 @@ func MustUpdateContextWithOuput() *updateRes {
 	return updateRes
 }
 
-func TableForContextUpdateRes(updateRes *updateRes) *tablewriter.Table {
+func TableForContextUpdateRes(updateRes *updateRes) string {
 	updatedParts := updateRes.UpdatedParts
 	tokenDiffsByName := updateRes.TokenDiffsByName
 
-	table := tablewriter.NewWriter(os.Stdout)
+	if len(updatedParts) == 0 {
+		return ""
+	}
+
+	tableString := &strings.Builder{}
+	table := tablewriter.NewWriter(tableString)
 	table.SetHeader([]string{"Name", "Type", "🪙"})
 	table.SetAutoWrapText(false)
 
 	for _, part := range updatedParts {
-
-		var icon string
-		var t string
-		id := part.Name
-		switch part.Type {
-		case shared.ContextFileType:
-			icon = "📄"
-			t = "file"
-			id = part.FilePath
-		case shared.ContextURLType:
-			icon = "🌎"
-			t = "url"
-		case shared.ContextDirectoryTreeType:
-			icon = "🗂 "
-			t = "tree"
-			id = part.FilePath
-		}
-
+		t, icon := GetContextTypeAndIcon(part)
 		diff := tokenDiffsByName[part.Name]
 
 		diffStr := "+" + strconv.Itoa(diff)
-		tableColor := []int{tablewriter.FgHiGreenColor, tablewriter.Bold}
+		tableColor := tablewriter.FgHiGreenColor
 
 		if diff < 0 {
 			diffStr = strconv.Itoa(diff)
-			tableColor = []int{tablewriter.FgHiRedColor, tablewriter.Bold}
+			tableColor = tablewriter.FgHiRedColor
 		}
 
 		row := []string{
-			" " + icon + " " + id,
+			" " + icon + " " + part.Name,
 			t,
 			diffStr,
 		}
 
 		table.Rich(row, []tablewriter.Colors{
-			{tablewriter.FgHiWhiteColor},
-			{tablewriter.FgHiWhiteColor},
-			tableColor,
+			{tableColor, tablewriter.Bold},
+			{tableColor},
+			{tableColor},
 		})
 	}
 
-	return table
+	table.Render()
+
+	return tableString.String()
 }
 
 func UpdateContext() (*updateRes, error) {

@@ -45,7 +45,7 @@ func worker(dir string, srcPath string, info os.FileInfo, err error, doneCh chan
 func getCurrentPlanFiles() (shared.CurrentPlanFiles, error) {
 	planFiles.data = make(map[string]string)
 
-	_, err := os.Stat(PlanFilesDir)
+	_, err := os.Stat(DraftFilesDir)
 	filesDirExists := !os.IsNotExist(err)
 
 	numFiles := 0
@@ -55,7 +55,7 @@ func getCurrentPlanFiles() (shared.CurrentPlanFiles, error) {
 
 		if filesDirExists {
 			// Enumerate all paths in [planDir]/files
-			err = filepath.Walk(PlanFilesDir, func(srcPath string, info os.FileInfo, err error) error {
+			err = filepath.Walk(DraftFilesDir, func(srcPath string, info os.FileInfo, err error) error {
 				if err != nil {
 					return err
 				}
@@ -63,7 +63,7 @@ func getCurrentPlanFiles() (shared.CurrentPlanFiles, error) {
 					return nil
 				}
 				numFiles++
-				go worker(PlanFilesDir, srcPath, info, err, doneCh)
+				go worker(DraftFilesDir, srcPath, info, err, doneCh)
 				return nil
 			})
 		}
@@ -85,14 +85,14 @@ func getCurrentPlanFiles() (shared.CurrentPlanFiles, error) {
 }
 
 func GetCurrentPlanFilePaths() ([]string, error) {
-	_, err := os.Stat(PlanFilesDir)
+	_, err := os.Stat(DraftFilesDir)
 	filesDirExists := !os.IsNotExist(err)
 
 	filePaths := make([]string, 0)
 
 	if filesDirExists {
 		// Enumerate all paths in [planDir]/files
-		err = filepath.Walk(PlanFilesDir, func(srcPath string, info os.FileInfo, err error) error {
+		err = filepath.Walk(DraftFilesDir, func(srcPath string, info os.FileInfo, err error) error {
 			if err != nil {
 				return err
 			}
@@ -101,7 +101,7 @@ func GetCurrentPlanFilePaths() ([]string, error) {
 				return nil
 			}
 
-			relPath, err := filepath.Rel(PlanFilesDir, srcPath)
+			relPath, err := filepath.Rel(DraftFilesDir, srcPath)
 			if err != nil {
 				return err
 			}

@@ -217,11 +217,11 @@ func appendConversation(params types.AppendConversationParams) error {
 
 	var desc string
 	if t == "prompt" {
-		desc = "user prompt"
+		desc = "💬 user prompt"
 	} else {
-		desc = "Plandex reply"
+		desc = "🤖 Plandex reply"
 	}
-	err = GitCommitConvoUpdate(fmt.Sprintf("Message #%d | %s | %d tokens", params.PlanState.NumMessages, desc, tokens))
+	err = GitCommitConvoUpdate(fmt.Sprintf("Message #%d | %s | %d 🪙", params.PlanState.NumMessages, desc, tokens))
 
 	if err != nil {
 		return fmt.Errorf("failed to commit conversation update: %s", err)
@@ -280,7 +280,7 @@ func saveLatestConvoSummary(rootId string) error {
 		return fmt.Errorf("failed to write summary file: %s", err)
 	}
 
-	err = GitCommitConvoUpdate(fmt.Sprintf("Summarized up to message #%d | %d tokens", summary.NumMessages-1, summary.Tokens))
+	err = GitCommitConvoUpdate(fmt.Sprintf("🤏 Summarized up to message #%d | %d 🪙", summary.NumMessages-1, summary.Tokens))
 
 	if err != nil {
 		return fmt.Errorf("failed to commit conversation update: %s", err)

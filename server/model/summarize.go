@@ -15,7 +15,7 @@ func ShortSummary(text string) ([]byte, error) {
 	resp, err := Client.CreateChatCompletion(
 		context.Background(),
 		openai.ChatCompletionRequest{
-			Model: WeakModel,
+			Model: ShortSummaryModel,
 			Functions: []openai.FunctionDefinition{{
 				Name: "summarize",
 				Parameters: &jsonschema.Definition{
@@ -98,7 +98,7 @@ func PlanSummary(conversation []openai.ChatCompletionMessage, lastMessageTimesta
 	resp, err := Client.CreateChatCompletion(
 		context.Background(),
 		openai.ChatCompletionRequest{
-			Model:    StrongModel,
+			Model:    PlanSummaryModel,
 			Messages: messages,
 		},
 	)
@@ -119,6 +119,7 @@ func PlanSummary(conversation []openai.ChatCompletionMessage, lastMessageTimesta
 		Summary:              content,
 		Tokens:               resp.Usage.CompletionTokens,
 		LastMessageTimestamp: lastMessageTimestamp,
+		NumMessages:          numMessages,
 	}, nil
 
 }

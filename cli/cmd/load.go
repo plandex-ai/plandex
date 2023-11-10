@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"fmt"
 	"plandex/lib"
 	"plandex/types"
 
@@ -36,6 +35,5 @@ func contextLoad(cmd *cobra.Command, args []string) {
 		NamesOnly: namesOnly,
 	})
 
-	fmt.Println()
 	lib.PrintCmds("", "ls", "tell")
 }

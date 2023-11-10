@@ -54,7 +54,7 @@ func Propose(prompt string) error {
 			fmt.Fprintln(os.Stderr, "\nError getting file name for prompt:", err)
 			return err
 		}
-		err = RenameCurrentDraftPlan(format.GetFileNameWithoutExt(fileNameResp.FileName))
+		err = RenameCurrentDraftPlan(planState, format.GetFileNameWithoutExt(fileNameResp.FileName))
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "\nError renaming draft plan:", err)
 			return err
@@ -260,12 +260,12 @@ func Propose(prompt string) error {
 					return
 				}
 
-				err = os.MkdirAll(PlanDescriptionsDir, os.ModePerm)
+				err = os.MkdirAll(DescriptionsDir, os.ModePerm)
 				if err != nil {
 					onError(fmt.Errorf("failed to create plan descriptions directory: %s", err))
 					return
 				}
-				descriptionsPath := filepath.Join(PlanDescriptionsDir, desc.ResponseTimestamp+".json")
+				descriptionsPath := filepath.Join(DescriptionsDir, desc.ResponseTimestamp+".json")
 				err = os.WriteFile(descriptionsPath, bytes, 0644)
 				if err != nil {
 					onError(fmt.Errorf("failed to write plan description to file: %s", err))
@@ -506,8 +506,8 @@ func checkOutdatedContext(s *spinner.Spinner) (bool, error) {
 	}
 	color.New(color.FgHiCyan, color.Bold).Printf("%s in context %s modified 👇\n\n", msg, phrase)
 
-	table := TableForContextUpdateRes(outdatedRes)
-	table.Render()
+	tableString := TableForContextUpdateRes(outdatedRes)
+	fmt.Println(tableString)
 
 	fmt.Println()
 

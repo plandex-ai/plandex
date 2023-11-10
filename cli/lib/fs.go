@@ -17,10 +17,10 @@ var HomePlandexDir string
 var CacheDir string
 
 var CurrentPlanName string
-var CurrentPlanRootDir string
-var PlanSubdir string
-var PlanFilesDir string
-var PlanDescriptionsDir string
+var CurrentPlanDir string
+var DraftSubdir string
+var DraftFilesDir string
+var DescriptionsDir string
 var ConversationSubdir string
 var ContextSubdir string
 
@@ -91,12 +91,12 @@ func LoadCurrentPlan() error {
 	}
 
 	CurrentPlanName = planSettings.Name
-	CurrentPlanRootDir = filepath.Join(PlandexDir, CurrentPlanName)
-	PlanSubdir = filepath.Join(CurrentPlanRootDir, "plan")
-	PlanFilesDir = filepath.Join(PlanSubdir, "files")
-	PlanDescriptionsDir = filepath.Join(PlanSubdir, "descriptions")
-	ConversationSubdir = filepath.Join(CurrentPlanRootDir, "conversation")
-	ContextSubdir = filepath.Join(CurrentPlanRootDir, "context")
+	CurrentPlanDir = filepath.Join(PlandexDir, CurrentPlanName)
+	DraftSubdir = filepath.Join(CurrentPlanDir, "draft")
+	DraftFilesDir = filepath.Join(DraftSubdir, "files")
+	DescriptionsDir = filepath.Join(CurrentPlanDir, "descriptions")
+	ConversationSubdir = filepath.Join(CurrentPlanDir, "conversation")
+	ContextSubdir = filepath.Join(CurrentPlanDir, "context")
 
 	return nil
 }

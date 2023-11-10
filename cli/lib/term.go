@@ -3,6 +3,7 @@ package lib
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"strings"
 
 	"github.com/eiannone/keyboard"
@@ -78,6 +79,32 @@ func MoveUpLines(numLines int) {
 func BackToMain() {
 	// Switch back to main screen and show the cursor on exit
 	fmt.Print("\x1b[?1049l\x1b[?25h")
+}
+
+func PageOutput(output string) {
+	cmd := exec.Command("less", "-R")
+	cmd.Env = append(os.Environ(), "LESS=FRX", "LESSCHARSET=utf-8")
+	cmd.Stdin = strings.NewReader(output)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Run(); err != nil {
+		fmt.Fprintln(os.Stderr, "Failed to page output:", err)
+	}
+}
+
+func PageOutputReverse(output string) {
+	cmd := exec.Command("less", "-RX", "+G")
+	cmd.Stdin = strings.NewReader(output)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	// Set the environment variables specifically for the less command
+	cmd.Env = append(os.Environ(), "LESS=FRX", "LESSCHARSET=utf-8")
+
+	if err := cmd.Run(); err != nil {
+		fmt.Fprintln(os.Stderr, "Failed to page output with colors:", err)
+	}
 }
 
 // Function for 'a' key action

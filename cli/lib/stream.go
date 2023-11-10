@@ -66,7 +66,7 @@ func receiveFileToken(params *receiveFileChunkParams) (bool, error) {
 
 		// log.Println("Parsed JSON. Streamed type: " + streamedType)
 
-		writeToPath := filepath.Join(PlanFilesDir, chunk.Path)
+		writeToPath := filepath.Join(DraftFilesDir, chunk.Path)
 
 		var content string
 
@@ -100,7 +100,7 @@ func receiveFileToken(params *receiveFileChunkParams) (bool, error) {
 			}
 
 			if os.Getenv("GOENV") == "development" {
-				updatesPath := filepath.Join(CurrentPlanRootDir, "updates", chunk.Path)
+				updatesPath := filepath.Join(CurrentPlanDir, "updates", chunk.Path)
 				os.MkdirAll(filepath.Dir(updatesPath), os.ModePerm)
 				os.WriteFile(updatesPath+"-"+"replacements"+"-"+shared.StringTs(), []byte(buffer), 0644)
 			}
@@ -143,7 +143,7 @@ func receiveFileToken(params *receiveFileChunkParams) (bool, error) {
 			content = streamed.Content
 
 			if os.Getenv("GOENV") == "development" {
-				updatesPath := filepath.Join(CurrentPlanRootDir, "updates", chunk.Path)
+				updatesPath := filepath.Join(CurrentPlanDir, "updates", chunk.Path)
 				os.MkdirAll(filepath.Dir(updatesPath), os.ModePerm)
 				os.WriteFile(updatesPath+"-"+"file"+"-"+shared.StringTs(), []byte(buffer), 0644)
 			}
@@ -180,7 +180,7 @@ func receiveFileToken(params *receiveFileChunkParams) (bool, error) {
 
 func writeTokenCounts(chunk *shared.PlanChunk, numTokensByPath map[string]int) error {
 	currentPlanTokensByPath := make(map[string]int)
-	currrentPlanTokensPath := filepath.Join(CurrentPlanRootDir, "tokens.json")
+	currrentPlanTokensPath := filepath.Join(CurrentPlanDir, "tokens.json")
 
 	// Read the existing token counts if the file exists.
 	if _, err := os.Stat(currrentPlanTokensPath); !os.IsNotExist(err) {
@@ -220,7 +220,7 @@ func writeTokenCounts(chunk *shared.PlanChunk, numTokensByPath map[string]int) e
 
 func loadCurrentPlanTokensByFilePath() (map[string]int, error) {
 	currentPlanTokensByPath := make(map[string]int)
-	currrentPlanTokensPath := filepath.Join(CurrentPlanRootDir, "tokens.json")
+	currrentPlanTokensPath := filepath.Join(CurrentPlanDir, "tokens.json")
 	if _, err := os.Stat(currrentPlanTokensPath); os.IsNotExist(err) {
 		// do nothing
 	} else {

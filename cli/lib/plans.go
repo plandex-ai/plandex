@@ -75,7 +75,7 @@ func CurrentPlanIsDraft() bool {
 	return draftRegex.MatchString(CurrentPlanName)
 }
 
-func RenameCurrentDraftPlan(name string) error {
+func RenameCurrentDraftPlan(planState *types.PlanState, name string) error {
 	if PlandexDir == "" {
 		return fmt.Errorf("PlandexDir not set")
 	}
@@ -108,13 +108,9 @@ func RenameCurrentDraftPlan(name string) error {
 			return fmt.Errorf("failed to load current plan: %w", err)
 		}
 
-		planState, err := GetPlanState()
-		if err != nil {
-			return fmt.Errorf("failed to get plan state: %w", err)
-		}
-
 		planState.Name = name
 		err = SetPlanState(planState, shared.StringTs())
+
 		if err != nil {
 			return fmt.Errorf("failed to set plan state: %w", err)
 		}
@@ -187,7 +183,7 @@ func SetPlanState(state *types.PlanState, updatedAt string) error {
 		state.UpdatedAt = updatedAt
 	}
 
-	planStatePath := filepath.Join(CurrentPlanRootDir, "plan.json")
+	planStatePath := filepath.Join(CurrentPlanDir, "plan.json")
 	planStateBytes, err := json.MarshalIndent(state, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal plan state: %s", err)
@@ -196,6 +192,7 @@ func SetPlanState(state *types.PlanState, updatedAt string) error {
 	if err != nil {
 		return fmt.Errorf("failed to write plan state: %s", err)
 	}
+
 	return nil
 }
 

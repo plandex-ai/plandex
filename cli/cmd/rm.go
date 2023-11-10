@@ -5,7 +5,10 @@ import (
 	"os"
 	"path/filepath"
 	"plandex/lib"
+	"strconv"
+	"strings"
 
+	"github.com/olekukonko/tablewriter"
 	"github.com/plandex/plandex/shared"
 	"github.com/spf13/cobra"
 )
@@ -66,6 +69,11 @@ func contextRm(cmd *cobra.Command, args []string) {
 		return
 	}
 
+	tableString := &strings.Builder{}
+	table := tablewriter.NewWriter(tableString)
+	table.SetHeader([]string{"Name", "Type", "🪙"})
+	table.SetAutoWrapText(false)
+
 	removedTokens := 0
 	totalTokens := planState.ContextTokens
 	totalUpdatableTokens := planState.ContextUpdatableTokens
@@ -76,6 +84,19 @@ func contextRm(cmd *cobra.Command, args []string) {
 		if part.Type == shared.ContextFileType || part.Type == shared.ContextDirectoryTreeType || part.Type == shared.ContextURLType {
 			totalUpdatableTokens -= part.NumTokens
 		}
+
+		t, icon := lib.GetContextTypeAndIcon(part)
+		row := []string{
+			" " + icon + " " + part.Name,
+			t,
+			"-" + strconv.Itoa(part.NumTokens),
+		}
+
+		table.Rich(row, []tablewriter.Colors{
+			{tablewriter.FgHiRedColor, tablewriter.Bold},
+			{tablewriter.FgHiRedColor},
+			{tablewriter.FgHiRedColor},
+		})
 	}
 	planState.ContextTokens = totalTokens
 	planState.ContextUpdatableTokens = totalUpdatableTokens
@@ -94,6 +115,9 @@ func contextRm(cmd *cobra.Command, args []string) {
 			suffix = "s"
 		}
 		msg := fmt.Sprintf("Removed %d piece%s of context | removed → %d 🪙 | total → %d 🪙 \n", len(toRemovePaths), suffix, removedTokens, totalTokens)
+		table.Render()
+
+		msg += "\n" + tableString.String()
 
 		err = lib.GitCommitContextUpdate(msg)
 
@@ -103,6 +127,7 @@ func contextRm(cmd *cobra.Command, args []string) {
 		}
 
 		fmt.Println("✅ " + msg)
+
 	} else {
 		fmt.Println("🤷‍♂️ No context removed")
 	}

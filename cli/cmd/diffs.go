@@ -99,7 +99,7 @@ func showDiffs() error {
 		fmt.Println(string(output))
 	}
 
-	err = lib.CopyDir(lib.PlanFilesDir, tempDir)
+	err = lib.CopyDir(lib.DraftFilesDir, tempDir)
 	if err != nil {
 		return fmt.Errorf("error copying files to temp directory: %v", err)
 	}
