@@ -169,6 +169,8 @@ func (api *API) Propose(prompt, parentProposalId, rootId string, onStream types.
 				err = streamState.Event(context.Background(), shared.EVENT_DESCRIBE)
 			} else if s == shared.STREAM_BUILD_PHASE {
 				err = streamState.Event(context.Background(), shared.EVENT_BUILD)
+			} else if s == shared.STREAM_WRITE_PHASE {
+				err = streamState.Event(context.Background(), shared.EVENT_WRITE)
 			}
 
 			if err != nil {

@@ -4,46 +4,30 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"plandex-server/model/prompts"
 	"strings"
 
 	"github.com/plandex/plandex/shared"
 	"github.com/sashabaranov/go-openai"
-	"github.com/sashabaranov/go-openai/jsonschema"
 )
 
 func FileName(text string) ([]byte, int, error) {
 	resp, err := Client.CreateChatCompletion(
 		context.Background(),
 		openai.ChatCompletionRequest{
-			Model: NameModel,
-			Functions: []openai.FunctionDefinition{{
-				Name: "nameFile",
-				Parameters: &jsonschema.Definition{
-					Type: jsonschema.Object,
-					Properties: map[string]jsonschema.Definition{
-						"fileName": {
-							Type:        jsonschema.String,
-							Description: "A *short* file name for the text based on the content. Use dashes as word separators. No spaces or special characters. **2-3 words max**.",
-						},
-					},
-					Required: []string{"fileName"},
-				},
-			}},
+			Model:     NameModel,
+			Functions: []openai.FunctionDefinition{prompts.FileNameFn},
 			Messages: []openai.ChatCompletionMessage{
 				{
 					Role:    openai.ChatMessageRoleSystem,
-					Content: "You are an AI namer that creates a valid filename for the content. Content can be any text, including programs/code, documentation, websites, and more. Most text will be related to software development.",
+					Content: prompts.SysFileName,
 				},
 				{
-					Role: openai.ChatMessageRoleUser,
-					Content: (`
-						 Create a file name using the 'nameFile' function. Only call the 'nameFile' function in your reponse. Don't call any other function.
-
-						 Text:
-
-					` + text),
+					Role:    openai.ChatMessageRoleUser,
+					Content: prompts.GetFileNamePrompt(text),
 				},
 			},
+			ResponseFormat: &openai.ChatCompletionResponseFormat{Type: "json_object"},
 		},
 	)
 

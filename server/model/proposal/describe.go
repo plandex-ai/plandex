@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"plandex-server/model"
+	"plandex-server/model/prompts"
 
 	"github.com/plandex/plandex/shared"
 	"github.com/sashabaranov/go-openai"
-	"github.com/sashabaranov/go-openai/jsonschema"
 )
 
 func genPlanDescriptionJson(proposalId string, ctx context.Context) (*shared.PlanDescription, error) {
@@ -17,30 +17,19 @@ func genPlanDescriptionJson(proposalId string, ctx context.Context) (*shared.Pla
 	planDescResp, err := model.Client.CreateChatCompletion(
 		ctx,
 		openai.ChatCompletionRequest{
-			Model: model.CommitMsgModel,
-			Functions: []openai.FunctionDefinition{{
-				Name: "describePlan",
-				Parameters: &jsonschema.Definition{
-					Type: jsonschema.Object,
-					Properties: map[string]jsonschema.Definition{
-						"commitMsg": {
-							Type:        jsonschema.String,
-							Description: "A good, succinct commit message for the changes proposed.",
-						},
-					},
-					Required: []string{"commitMsg"},
-				},
-			}},
+			Model:     model.CommitMsgModel,
+			Functions: []openai.FunctionDefinition{prompts.DescribePlanFn},
 			Messages: []openai.ChatCompletionMessage{
 				{
 					Role:    openai.ChatMessageRoleSystem,
-					Content: "You are an AI parser. You turn an AI's plan for a programming task into a structured description. You call the 'describePlan' function with the 'commitMsg' argument. Only call the 'describePlan' function in your response. Don't call any other function.",
+					Content: prompts.SysDescribe,
 				},
 				{
 					Role:    openai.ChatMessageRoleAssistant,
 					Content: proposal.Content,
 				},
 			},
+			ResponseFormat: &openai.ChatCompletionResponseFormat{Type: "json_object"},
 		},
 	)
 

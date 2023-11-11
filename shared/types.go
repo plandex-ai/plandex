@@ -64,10 +64,15 @@ type ModelContextPart struct {
 }
 type ModelContext []*ModelContextPart
 
-type PlanChunk struct {
+type PlanTokenCount struct {
 	Path      string `json:"path"`
-	Content   string `json:"content"`
 	NumTokens int    `json:"numTokens"`
+	Finished  bool   `json:"finished"`
+}
+
+type PlanFile struct {
+	Path    string `json:"path"`
+	Content string `json:"content"`
 }
 
 type PlanDescription struct {

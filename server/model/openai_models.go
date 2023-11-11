@@ -8,7 +8,7 @@ import (
 
 var PlannerModel = "gpt-4-1106-preview" //openai.GPT4
 var PlanSummaryModel = PlannerModel
-var BuilderModel = openai.GPT40613
+var BuilderModel = PlannerModel
 var ShortSummaryModel = openai.GPT3Dot5Turbo
 var NameModel = openai.GPT3Dot5Turbo
 var CommitMsgModel = openai.GPT3Dot5Turbo

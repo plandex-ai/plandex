@@ -177,11 +177,41 @@ func GetGitCommitHistory(dir string) (string, error) {
 
 	// Process the log output to get it in the desired format.
 	history := processGitHistoryOutput(strings.TrimSpace(out.String()))
-	return history, nil
+
+	var output []string
+	for _, el := range history {
+		output = append(output, el[1])
+	}
+
+	return strings.Join(output, "\n\n"), nil
+}
+
+// GetLatestCommit retrieves the latest commit SHA, timestamp, and message for the given directory.
+// It returns the short SHA along with a formatted commit message.
+func GetLatestCommit(dir string) (string, string, error) {
+	gitMutex.Lock()
+	defer gitMutex.Unlock()
+
+	var out bytes.Buffer
+	cmd := exec.Command("git", "log", "--pretty=%h@@|@@%at@@|@@%B@>>>@")
+	cmd.Dir = dir
+	cmd.Stdout = &out
+	err := cmd.Run()
+	if err != nil {
+		return "", "", fmt.Errorf("error getting git history for dir: %s, err: %v",
+			dir, err)
+	}
+
+	// Process the log output to get it in the desired format.
+	history := processGitHistoryOutput(strings.TrimSpace(out.String()))
+
+	first := history[0]
+
+	return first[0], first[1], nil
 }
 
 // GitRewindSteps reverts the repository by a specified number of steps.
-func GitRewindSteps(dir string, steps int) error {
+func GitRewindSteps(dir string, steps int, isRoot bool) error {
 	gitMutex.Lock()
 	defer gitMutex.Unlock()
 
@@ -192,11 +222,19 @@ func GitRewindSteps(dir string, steps int) error {
 		return fmt.Errorf("error executing git reset for dir: %s, steps: %d, err: %v, output: %s", dir, steps, err, string(res))
 	}
 
+	if isRoot {
+		// Update submodules
+		err = updateSubmodules(dir)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
 // GitRewindToSHA reverts the repository to a specific commit SHA.
-func GitRewindToSHA(dir, sha string) error {
+func GitRewindToSHA(dir, sha string, isRoot bool) error {
 	gitMutex.Lock()
 	defer gitMutex.Unlock()
 
@@ -207,12 +245,29 @@ func GitRewindToSHA(dir, sha string) error {
 		return fmt.Errorf("error executing git reset for dir: %s, sha: %s, err: %v, output: %s", dir, sha, err, string(res))
 	}
 
+	if isRoot {
+		err = updateSubmodules(dir)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// git mutex will already be locked when this function is called
+func updateSubmodules(dir string) error {
+	res, err := exec.Command("git", "-C", dir, "submodule", "update", "--recursive", "--init").CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("error updating git submodules for dir: %s, err: %v, output: %s", dir, err, string(res))
+	}
+
 	return nil
 }
 
 // processGitHistoryOutput processes the raw output from the git log command and returns a formatted string.
-func processGitHistoryOutput(raw string) string {
-	history := []string{}
+func processGitHistoryOutput(raw string) [][2]string {
+	var history [][2]string
 	entries := strings.Split(raw, "@>>>@") // Split entries using the custom separator.
 
 	for _, entry := range entries {
@@ -253,9 +308,9 @@ func processGitHistoryOutput(raw string) string {
 				fullEntry += "\n" + message
 			}
 
-			history = append(history, fullEntry)
+			history = append(history, [2]string{sha, fullEntry})
 		}
 	}
 
-	return strings.Join(history, "\n\n")
+	return history
 }

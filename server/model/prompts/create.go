@@ -6,7 +6,7 @@ import (
 	"github.com/plandex/plandex/shared"
 )
 
-const SysCreate = shared.IdentityPrompt + ` A plan is a set of files with an attached context.` +
+const SysCreate = Identity + ` A plan is a set of files with an attached context.` +
 
 	"Your instructions:\n\n```\n" +
 

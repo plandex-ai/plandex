@@ -1,6 +1,9 @@
 package prompts
 
 import (
+	"fmt"
+
+	"github.com/plandex/plandex/shared"
 	"github.com/sashabaranov/go-openai"
 	"github.com/sashabaranov/go-openai/jsonschema"
 )
@@ -154,11 +157,11 @@ var ReplaceFn = openai.FunctionDefinition{
 					Properties: map[string]jsonschema.Definition{
 						"old": {
 							Type:        jsonschema.String,
-							Description: "The old text to replace",
+							Description: "The old text to replace. Must be an exact substring of the current state of the file.",
 						},
 						"new": {
 							Type:        jsonschema.String,
-							Description: "The new text to replace it with",
+							Description: "The new text to replace it with. Must be an exact substring of the suggested changes from the plan in the previous response.",
 						},
 					},
 					Required: []string{"old", "new"},
@@ -167,4 +170,21 @@ var ReplaceFn = openai.FunctionDefinition{
 		},
 		Required: []string{"replacements"},
 	},
+}
+
+func GetReplacePrompt(filePath string) string {
+	return fmt.Sprintf(`
+					Based on your instructions, apply the changes from the plan to %s. Call the 'writeReplacements' function with a JSON array of replacements to apply to the file from your previous response. Each replacement is an object with two properties: 'old' and 'new'. 'old' is the old text to replace, and 'new' is the new text to replace it with. The 'old' text MUST be an exact substring of the current state of the file. The 'new' text MUST be an exact substring of the changes from the plan in the previous response. You MUST call only the 'writeReplacements'--don't call any other function or produce any other output.
+					`, filePath)
+}
+
+func GetCorrectReplacementPrompt(failedReplacements map[int]*shared.Replacement) string {
+	msg := "There were errors with the replacements you suggested."
+	for index, failedReplacement := range failedReplacements {
+		msg += fmt.Sprintf("\n\nError in replacement at index %d:", index)
+		msg += fmt.Sprintf("\n- The string '%s' (which you set for the 'old' key) was not found in the file.", failedReplacement.Old)
+	}
+	msg += "\n\nPlease review these errors and try again to call the 'writeReplacements' function with corrected replacements. Pay special attention to any special characters in the strings, extra spaces, or anything else that might cause the strings to not match exactly."
+
+	return msg
 }

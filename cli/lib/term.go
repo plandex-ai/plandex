@@ -14,7 +14,7 @@ import (
 var cmdDesc = map[string][2]string{
 	"new":         {"", "start a new plan"},
 	"current":     {"c", "show current plan"},
-	"cd":          {"", "change current plan"},
+	"cd":          {"", "set current plan by name or index"},
 	"load":        {"l", "load files/directories/urls/strings or pipe data into context"},
 	"tell":        {"t", "describe a task, ask a question, or chat"},
 	"diffs":       {"d", "show diffs between plan and project files"},

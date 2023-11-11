@@ -17,7 +17,7 @@ func init() {
 var cdCmd = &cobra.Command{
 	Use:     "cd [name-or-index]",
 	Aliases: []string{"set-plan"},
-	Short:   "Change to a different plan by name or index",
+	Short:   "Set current plan by name or index",
 	Args:    cobra.ExactArgs(1),
 	Run:     cd,
 }
@@ -38,7 +38,7 @@ func cd(cmd *cobra.Command, args []string) {
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "Error getting plans:", err)
 		}
-		plan := plans[idx]
+		plan := plans[idx-1]
 		name = plan.Name
 	} else {
 		name = nameOrIdx

@@ -58,19 +58,19 @@ func rewind(cmd *cobra.Command, args []string) {
 
 	if steps, err := strconv.Atoi(stepsOrSHA); err == nil && steps > 0 {
 		// Rewind by the specified number of steps
-		if err := lib.GitRewindSteps(dir, steps); err != nil {
+		if err := lib.GitRewindSteps(dir, steps, scope == "all"); err != nil {
 			fmt.Fprintln(os.Stderr, "Error rewinding steps:", err)
 			os.Exit(1)
 		}
 	} else if sha := stepsOrSHA; sha != "" {
 		// Rewind to the specified SHA
-		if err := lib.GitRewindToSHA(dir, sha); err != nil {
+		if err := lib.GitRewindToSHA(dir, sha, scope == "all"); err != nil {
 			fmt.Fprintln(os.Stderr, "Error rewinding to SHA:", err)
 			os.Exit(1)
 		}
 	} else if stepsOrSHA == "" {
 		// No steps or SHA provided, rewind by 1 step by default
-		if err := lib.GitRewindSteps(dir, 1); err != nil {
+		if err := lib.GitRewindSteps(dir, 1, scope == "all"); err != nil {
 			fmt.Fprintln(os.Stderr, "Error rewinding 1 step:", err)
 			os.Exit(1)
 		}
@@ -78,4 +78,21 @@ func rewind(cmd *cobra.Command, args []string) {
 		fmt.Fprintln(os.Stderr, "Invalid steps or SHA. Steps must be a positive integer, and SHA must be a valid commit hash.")
 		os.Exit(1)
 	}
+
+	latestCommitSha, latestCommitMsg, err := lib.GetLatestCommit(dir)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "Error getting latest commit:", err)
+		os.Exit(1)
+	}
+
+	msg := "✅ Rewound "
+	if scope != "all" {
+		msg += scope + " "
+	}
+
+	msg += "to " + latestCommitSha
+
+	fmt.Println(msg)
+	fmt.Println()
+	fmt.Println(latestCommitMsg)
 }

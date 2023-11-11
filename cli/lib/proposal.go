@@ -64,6 +64,7 @@ func Propose(prompt string) error {
 	timestamp := shared.StringTs()
 	reply := ""
 	done := make(chan struct{})
+	closedDone := false
 
 	termState := ""
 
@@ -79,7 +80,6 @@ func Propose(prompt string) error {
 	var filesFinished bool
 	finishedByPath := make(map[string]bool)
 
-	jsonBuffers := make(map[string]string)
 	numStreamedTokensByPath := make(map[string]int)
 
 	replyTokenCounter := shared.NewReplyInfo()
@@ -160,6 +160,38 @@ func Propose(prompt string) error {
 		})
 	}
 
+	writeFileProgress := func() {
+		files := desc.Files
+		// Clear previous lines
+		if filesFinished {
+			MoveUpLines(len(files))
+		} else {
+			MoveUpLines(len(files) + 4)
+		}
+
+		for _, filePath := range files {
+			numStreamedTokens := numStreamedTokensByPath[filePath]
+
+			fmtStr := "  📄 %s | %d 🪙"
+			fmtArgs := []interface{}{filePath, numStreamedTokens}
+
+			_, finished := finishedByPath[filePath]
+
+			if finished {
+				fmtStr += " | done ✅"
+			}
+
+			ClearCurrentLine()
+
+			fmt.Printf(fmtStr+"\n", fmtArgs...)
+		}
+
+		if !filesFinished {
+			fmt.Println()
+			fmt.Printf(displayHotkeys() + "\n")
+		}
+	}
+
 	contextByFilePath := make(map[string]*shared.ModelContextPart)
 
 	running := false
@@ -191,7 +223,10 @@ func Propose(prompt string) error {
 			BackToMain()
 			fmt.Fprintln(os.Stderr, "Error:", err)
 			cancelKeywatch()
-			close(done)
+			if !closedDone {
+				close(done)
+				closedDone = true
+			}
 		}
 
 		if err != nil {
@@ -233,7 +268,7 @@ func Propose(prompt string) error {
 		}
 
 		switch state.Current() {
-		case shared.STATE_REPLYING, shared.STATE_REVISING:
+		case shared.STATE_REPLYING:
 			reply += content
 			replyTokenCounter.AddToken(content, true)
 			terminalHasPendingUpdate = true
@@ -244,119 +279,93 @@ func Propose(prompt string) error {
 
 			if filesFinished {
 				close(done)
+				closedDone = true
 			}
-			return
 
 		case shared.STATE_DESCRIBING:
 			if content == shared.STREAM_DESCRIPTION_PHASE {
 				endReply()
+				return
+			}
+			bytes := []byte(content)
 
+			err := json.Unmarshal(bytes, &desc)
+			if err != nil {
+				onError(fmt.Errorf("error parsing plan description: %v", err))
+				return
+			}
+
+			err = os.MkdirAll(DescriptionsDir, os.ModePerm)
+			if err != nil {
+				onError(fmt.Errorf("failed to create plan descriptions directory: %s", err))
+				return
+			}
+			descriptionsPath := filepath.Join(DescriptionsDir, desc.ResponseTimestamp+".json")
+			err = os.WriteFile(descriptionsPath, bytes, 0644)
+			if err != nil {
+				onError(fmt.Errorf("failed to write plan description to file: %s", err))
+				return
+			}
+
+			err = appendConvoReply()
+			if err != nil {
+				onError(fmt.Errorf("failed to append reply to conversation: %s", err))
+				return
+			}
+
+			if desc.MadePlan && (len(desc.Files) > 0) {
+				s.Stop()
+				fmt.Println("  " + color.New(color.BgGreen, color.FgHiWhite, color.Bold).Sprint(" 🏗  ") + color.New(color.BgGreen, color.FgHiWhite).Sprint("Building plan "))
+				for _, filePath := range desc.Files {
+					fmt.Printf("  📄 %s\n", filePath)
+				}
+				fmt.Println()
+				fmt.Printf(displayHotkeys() + "\n")
 			} else {
-				bytes := []byte(content)
-
-				err := json.Unmarshal(bytes, &desc)
-				if err != nil {
-					onError(fmt.Errorf("error parsing plan description: %v", err))
-					return
-				}
-
-				err = os.MkdirAll(DescriptionsDir, os.ModePerm)
-				if err != nil {
-					onError(fmt.Errorf("failed to create plan descriptions directory: %s", err))
-					return
-				}
-				descriptionsPath := filepath.Join(DescriptionsDir, desc.ResponseTimestamp+".json")
-				err = os.WriteFile(descriptionsPath, bytes, 0644)
-				if err != nil {
-					onError(fmt.Errorf("failed to write plan description to file: %s", err))
-					return
-				}
-
-				err = appendConvoReply()
-				if err != nil {
-					onError(fmt.Errorf("failed to append reply to conversation: %s", err))
-					return
-				}
-
-				if desc.MadePlan && (len(desc.Files) > 0) {
-					s.Stop()
-					fmt.Println("  " + color.New(color.BgGreen, color.FgHiWhite, color.Bold).Sprint(" 🏗  ") + color.New(color.BgGreen, color.FgHiWhite).Sprint("Building plan "))
-					for _, filePath := range desc.Files {
-						fmt.Printf("  📄 %s\n", filePath)
-					}
-					fmt.Println()
-					fmt.Printf(displayHotkeys() + "\n")
-				} else {
-					filesFinished = true
-				}
-
+				filesFinished = true
 			}
 
 		case shared.STATE_BUILDING:
 			if content == shared.STREAM_BUILD_PHASE {
-				// plan build mode started
+				return
 
-			} else {
-				wroteFile, err := receiveFileToken(&receiveFileChunkParams{
-					Content:                 content,
-					JsonBuffers:             jsonBuffers,
-					NumStreamedTokensByPath: numStreamedTokensByPath,
-					FinishedByPath:          finishedByPath,
-				})
+			}
+			err := updateTokenCounts(content, numStreamedTokensByPath, finishedByPath)
 
+			if err != nil {
+				onError(err)
+				return
+			}
+
+			writeFileProgress()
+
+		case shared.STATE_WRITING:
+			if content == shared.STREAM_WRITE_PHASE {
+				// write phase started
+				return
+			}
+
+			err := writePlanFile(content)
+
+			if err != nil {
+				onError(fmt.Errorf("failed to write plan file: %s", err))
+				return
+			}
+
+			// fmt.Printf("Wrote %d / %d files", len(finishedByPath), len(files))
+			if len(finishedByPath) == len(desc.Files) {
+				filesFinished = true
+
+				err = GitCommitPlanUpdate(desc.CommitMsg)
 				if err != nil {
-					onError(err)
+					onError(fmt.Errorf("failed to commit root update: %s", err))
 					return
 				}
 
-				files := desc.Files
-
-				// Clear previous lines
-				if filesFinished {
-					MoveUpLines(len(files))
-				} else {
-					MoveUpLines(len(files) + 4)
+				if streamFinished {
+					close(done)
+					closedDone = true
 				}
-
-				for _, filePath := range files {
-					numStreamedTokens := numStreamedTokensByPath[filePath]
-
-					fmtStr := "  📄 %s | %d 🪙"
-					fmtArgs := []interface{}{filePath, numStreamedTokens}
-
-					_, finished := finishedByPath[filePath]
-
-					if finished {
-						fmtStr += " | done ✅"
-					}
-
-					ClearCurrentLine()
-
-					fmt.Printf(fmtStr+"\n", fmtArgs...)
-				}
-
-				if wroteFile {
-					// fmt.Printf("Wrote %d / %d files", len(finishedByPath), len(files))
-					if len(finishedByPath) == len(files) {
-						filesFinished = true
-
-						err = GitCommitPlanUpdate(desc.CommitMsg)
-						if err != nil {
-							onError(fmt.Errorf("failed to commit root update: %s", err))
-							return
-						}
-
-						if streamFinished {
-							close(done)
-						}
-					}
-				}
-
-				if !filesFinished {
-					fmt.Println()
-					fmt.Printf(displayHotkeys() + "\n")
-				}
-
 			}
 		}
 

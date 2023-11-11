@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
@@ -21,13 +20,13 @@ import (
 
 // Proposal function to create a new proposal
 func CreateProposal(req shared.PromptRequest, onStream types.OnStreamFunc) error {
-	goEnv := os.Getenv("GOENV") // Fetch the GO_ENV environment variable
+	// goEnv := os.Getenv("GOENV") // Fetch the GO_ENV environment variable
 
-	fmt.Println("GOENV: " + goEnv)
-	if goEnv == "test" {
-		streamLoremIpsum(onStream)
-		return nil
-	}
+	// fmt.Println("GOENV: " + goEnv)
+	// if goEnv == "test" {
+	// 	streamLoremIpsum(onStream)
+	// 	return nil
+	// }
 
 	proposalUUID, err := uuid.NewRandom()
 	if err != nil {
@@ -358,7 +357,7 @@ func CreateProposal(req shared.PromptRequest, onStream types.OnStreamFunc) error
 						onStream(shared.STREAM_FINISHED, nil)
 					} else {
 						onStream(shared.STREAM_BUILD_PHASE, nil)
-						err = buildPlan(proposalId, fileContents, numTokensByFile, onStream)
+						err = buildPlan(buildPlanParams{proposalId, fileContents, numTokensByFile, onStream})
 						if err != nil {
 							onError(fmt.Errorf("failed to confirm proposal: %v", err))
 						}
