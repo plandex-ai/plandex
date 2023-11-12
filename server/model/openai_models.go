@@ -6,12 +6,15 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
-var PlannerModel = "gpt-4-1106-preview" //openai.GPT4
-var PlanSummaryModel = PlannerModel
-var BuilderModel = PlannerModel
-var ShortSummaryModel = openai.GPT3Dot5Turbo
-var NameModel = openai.GPT3Dot5Turbo
-var CommitMsgModel = openai.GPT3Dot5Turbo
+const strongModel = openai.GPT4TurboPreview
+const weakModel = openai.GPT3Dot5Turbo1106
+
+var PlannerModel = strongModel
+var PlanSummaryModel = strongModel
+var BuilderModel = strongModel //openai.GPT4
+var ShortSummaryModel = weakModel
+var NameModel = weakModel
+var CommitMsgModel = weakModel
 
 func init() {
 	if os.Getenv("PLANNER_MODEL") != "" {

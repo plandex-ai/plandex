@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"plandex/lib"
@@ -33,27 +32,33 @@ func apply(cmd *cobra.Command, args []string) error {
 	}
 
 	if err != nil {
-		return fmt.Errorf("Error: %v", err)
+		return fmt.Errorf("error: %v", err)
 	}
 
 	if name == "" || name == "current" {
 		name = lib.CurrentPlanName
 	}
 
-	// Check git installed
-	if !lib.IsCommandAvailable("git") {
-		log.Fatalln("Error: git is required")
-	}
-
 	rootDir := filepath.Join(plandexDir, name)
 
 	if _, err := os.Stat(rootDir); os.IsNotExist(err) {
-		return fmt.Errorf("Error: plan with name '%+v' does not exist", name)
+		return fmt.Errorf("error: plan with name '%+v' does not exist", name)
 	}
 
+	// isRepo := lib.CwdIsGitRepo()
+
+	// if isRepo {
+
+	// 	planState, err := lib.GetPlanState()
+	// 	if err != nil {
+	// 		return fmt.Errorf("error loading plan state: %v", err)
+	// 	}
+
+	// }
+
 	copiedAny := false
-	// Enumerate all paths in [planDir]/files
-	filesDir := filepath.Join(rootDir, "plan", "files")
+	// Enumerate all paths in [draftDir]/files
+	filesDir := filepath.Join(rootDir, "draft", "files")
 	err = filepath.Walk(filesDir, func(srcPath string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -81,13 +86,13 @@ func apply(cmd *cobra.Command, args []string) error {
 	})
 
 	if err != nil {
-		return fmt.Errorf("Error processing files: %v", err)
+		return fmt.Errorf("error processing files: %v", err)
 	}
 
 	if copiedAny {
 		fmt.Println("✅ Applied changes")
 	} else {
-		return fmt.Errorf("This plan has no changes to apply.")
+		return fmt.Errorf("this plan has no changes to apply")
 	}
 
 	return nil

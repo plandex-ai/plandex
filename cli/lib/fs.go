@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"plandex/types"
 	"sync"
+
+	"github.com/plandex/plandex/shared"
 )
 
 var Cwd string
@@ -246,6 +248,37 @@ func CopyDir(srcDir, dstDir string) error {
 	}
 
 	return nil
+}
+
+func GetLatestPlanDescription() (*shared.PlanDescription, error) {
+	// List files in descriptions directory
+	entries, err := os.ReadDir(DescriptionsDir)
+	if err != nil {
+		return nil, err
+	}
+
+	// Find the latest file (named by timestamp)
+	var latestFile os.DirEntry
+	for _, entry := range entries {
+		if latestFile == nil || entry.Name() > latestFile.Name() {
+			latestFile = entry
+		}
+	}
+
+	// Read the contents of the latest file
+	bytes, err := os.ReadFile(filepath.Join(DescriptionsDir, latestFile.Name()))
+	if err != nil {
+		return nil, fmt.Errorf("error reading latest description file: %v", err)
+	}
+
+	// Unmarshal the JSON data into the shared.PlanDescription type
+	var description shared.PlanDescription
+	err = json.Unmarshal(bytes, &description)
+	if err != nil {
+		return nil, fmt.Errorf("error unmarshalling latest description file: %v", err)
+	}
+
+	return &description, nil
 }
 
 func findPlandex() (string, string) {

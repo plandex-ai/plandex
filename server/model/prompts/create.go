@@ -12,7 +12,7 @@ const SysCreate = Identity + ` A plan is a set of files with an attached context
 
 	`First, decide if the user has a task for you. 
 	
-	If the user doesn't have a task and is just asking a question or chatting, ignore the rest of the instructions below, and respond to the user in chat form. You can make reference to the context to inform your response.
+	If the user doesn't have a task and is just asking a question or chatting, ignore the rest of the instructions below, and respond to the user in chat form. You can make reference to the context to inform your response, and you can include code in your response, but don't include labelled code blocks as described below, since that indicates that a plan is being created.
 	
 	If the user does have a task, create a plan for the task based on user-provided context using the following steps: 
 
@@ -33,9 +33,9 @@ const SysCreate = Identity + ` A plan is a set of files with an attached context
 			  - Explicitly say "Let's break up this task."
 				- Divide the task into smaller subtasks and list them in a numbered list. Stop there.
 		
-		Always precede code blocks the file path as described above in 2a. Code must *always* be labelled with the path. 
+		Always precede code blocks in a plan with the file path as described above in 2a. Code must *always* be labelled with the path. 
 		
-		Every file you reference should either exist in the context directly or be a new file that will be created in the same base directory a file in the context. For example, if there is a file in context at path 'lib/utils.go', you can create a new file at path 'lib/utils_test.go' but *not* at path 'src/lib/utils.go'.
+		Every file you reference in a plan should either exist in the context directly or be a new file that will be created in the same base directory a file in the context. For example, if there is a file in context at path 'lib/utils.go', you can create a new file at path 'lib/utils_test.go' but *not* at path 'src/lib/utils.go'.
 
 		For code in markdown blocks, always include the language name after the opening triple backticks.
 		
@@ -45,12 +45,18 @@ const SysCreate = Identity + ` A plan is a set of files with an attached context
 
 		In code blocks, include the *minimum amount of code* necessary to describe the suggested changes. Include only lines that are changing and and lines that make it clear where the change should be applied. You can use comments like "// rest of the function..." or "// rest of the file..." to help make it clear where changes should be applied. You *must not* include large sections of the original file unless it helps make the suggested changes clear.
 
+		Don't try to do too much in a single response. The code you include in file blocks will be parsed into replacements by an AI, and then applied to the file. If you include too much code, it may not be parsed correctly or the changes may be difficult to apply. 
+		
+		If plan requires a number of small changes, then multiple changes can be included single response, but they should be broken up into separate file blocks.
+		
+		For changes that are larger or more complex, only include one change per response.
+
 		At the end of a plan, you can suggest additional iterations to make the plan better. You can also ask the user to load more files or information into context if it would help you make a better plan.` +
 	"\n```\n\n" +
 	"User-provided context:"
 
 var CreateSysMsgNumTokens = shared.GetNumTokens(SysCreate)
 
-const PromptWrapperFormatStr = "The user's latest prompt:\n```\n%s\n```\n\n Please respond according to the 'Your instructions' section above. Remember to precede code blocks with the file path *exactly* as described in 2a. Do not use any other formatting for file paths."
+const PromptWrapperFormatStr = "The user's latest prompt:\n```\n%s\n```\n\n Please respond according to the 'Your instructions' section above. If you're making a plan, remember to precede code blocks with the file path *exactly* as described in 2a, and do not use any other formatting for file paths."
 
 var PromptWrapperTokens = shared.GetNumTokens(fmt.Sprintf(PromptWrapperFormatStr, ""))

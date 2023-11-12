@@ -51,6 +51,9 @@ type PlanState struct {
 	ConvoTokens            int    `json:"convoTokens"`
 	ConvoSummarizedTokens  int    `json:"convoSummarizedTokens"`
 	NumMessages            int    `json:"numMessages"`
+	AppliedAt              string `json:"appliedAt"`
+	BaseBranch             string `json:"baseBranch"`
+	PreviewBranch          string `json:"previewBranch"`
 }
 
 type PlanSettings struct {

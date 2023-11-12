@@ -19,6 +19,8 @@ import (
 	"github.com/briandowns/spinner"
 )
 
+const replyStreamThrottle = 70 * time.Millisecond
+
 type key struct {
 	value rune
 }
@@ -68,7 +70,7 @@ func Propose(prompt string) error {
 
 	termState := ""
 
-	replyUpdateTimer := time.NewTimer(100 * time.Millisecond)
+	replyUpdateTimer := time.NewTimer(150 * time.Millisecond)
 	defer replyUpdateTimer.Stop()
 
 	var proposalId string
@@ -78,6 +80,7 @@ func Propose(prompt string) error {
 	var state *fsm.FSM
 	var streamFinished bool
 	var filesFinished bool
+	var lastReplyTokenAdded time.Time
 	finishedByPath := make(map[string]bool)
 
 	numStreamedTokensByPath := make(map[string]int)
@@ -265,13 +268,21 @@ func Propose(prompt string) error {
 			alternateScreen()
 
 			replyStarted = true
+			lastReplyTokenAdded = time.Now()
 		}
 
 		switch state.Current() {
 		case shared.STATE_REPLYING:
+			elapsed := time.Since(lastReplyTokenAdded)
+
+			if elapsed < replyStreamThrottle {
+				time.Sleep(replyStreamThrottle - elapsed)
+			}
+
 			reply += content
 			replyTokenCounter.AddToken(content, true)
 			terminalHasPendingUpdate = true
+			lastReplyTokenAdded = time.Now()
 
 		case shared.STATE_FINISHED:
 			s.Stop()
@@ -419,7 +430,6 @@ Loop:
 	}
 
 	if desc != nil {
-
 		if desc.MadePlan && len(desc.Files) > 0 {
 			fmt.Println()
 			for _, cmd := range []string{"apply", "diffs", "preview"} {
@@ -432,7 +442,10 @@ Loop:
 		PrintCustomCmd("  ", "tell", "t", "update the plan, give more info, or chat")
 
 		ClearCurrentLine()
-		PrintCmds("  ", "next")
+		PrintCmds("  ", "continue")
+
+		ClearCurrentLine()
+		PrintCmds("  ", "rewind")
 	}
 
 	return nil

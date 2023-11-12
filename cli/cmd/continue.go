@@ -9,13 +9,13 @@ import (
 )
 
 // Variables to be used in the nextCmd
-var prompt string = "continue to the next step of the plan"
+const continuePrompt = "continue the plan"
 
 // nextCmd represents the prompt command
 var nextCmd = &cobra.Command{
-	Use:     "next",
-	Aliases: []string{"n"},
-	Short:   "Continue to the next step of the plan.",
+	Use:     "continue",
+	Aliases: []string{"c"},
+	Short:   "Continue the plan.",
 	Run:     next,
 }
 
@@ -24,7 +24,7 @@ func init() {
 }
 
 func next(cmd *cobra.Command, args []string) {
-	err := lib.Propose(prompt)
+	err := lib.Propose(continuePrompt)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Prompt error:", err)
 		return

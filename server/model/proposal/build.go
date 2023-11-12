@@ -18,7 +18,7 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
-const MAX_RETRIES = 5
+const MAX_RETRIES = 3
 
 type buildPlanParams struct {
 	ProposalId      string
@@ -116,8 +116,8 @@ func buildPlan(params buildPlanParams) error {
 		onStream("", err)
 	}
 
-	var buildFile func(filePath string, numRetry int, failedReplacements map[int]*shared.Replacement)
-	buildFile = func(filePath string, numRetry int, failedReplacements map[int]*shared.Replacement) {
+	var buildFile func(filePath string, numRetry int, replacements []*shared.Replacement, failedReplacements map[int]*shared.Replacement)
+	buildFile = func(filePath string, numRetry int, replacements []*shared.Replacement, failedReplacements map[int]*shared.Replacement) {
 		fmt.Printf("Building file %s, numRetry: %d\n", filePath, numRetry)
 
 		// get relevant file context (if any)
@@ -167,19 +167,16 @@ func buildPlan(params buildPlanParams) error {
 		fmt.Println("Getting file from model: " + filePath)
 		// fmt.Println("File context:", fileContext)
 
-		msg := prompts.SysReplace
-
+		replacePrompt := prompts.GetReplacePrompt(filePath)
 		if currentState != "" {
-			fmt.Println("Adding current state to message")
-			msg += "\n\n" + fmt.Sprintf("\nCurrent state of %s:\n```\n%s\n```", filePath, currentState)
-			// fmt.Println("Message:")
-			// fmt.Println(msg)
+			fmt.Println("Adding current state before replace prompt")
+			replacePrompt = fmt.Sprintf("\nCurrent state of %s:\n```\n%s\n```", filePath, currentState) + "\n\n" + replacePrompt
 		}
 
 		fileMessages := []openai.ChatCompletionMessage{
 			{
 				Role:    openai.ChatMessageRoleSystem,
-				Content: msg,
+				Content: prompts.SysReplace,
 			}, {
 				Role:    openai.ChatMessageRoleUser,
 				Content: proposal.Request.Prompt,
@@ -189,14 +186,20 @@ func buildPlan(params buildPlanParams) error {
 			},
 			{
 				Role:    openai.ChatMessageRoleUser,
-				Content: prompts.GetReplacePrompt(filePath),
+				Content: replacePrompt,
 			},
 		}
 
-		if numRetry > 0 && failedReplacements != nil {
-			bytes, err := json.Marshal(failedReplacements)
+		if numRetry > 0 && replacements != nil && failedReplacements != nil {
+			bytes, err := json.Marshal(replacements)
 			if err != nil {
-				onBuildFileError(filePath, fmt.Errorf("error marshalling failed replacements: %v", err))
+				onBuildFileError(filePath, fmt.Errorf("error marshalling replacements: %v", err))
+				return
+			}
+
+			correctReplacementPrompt, err := prompts.GetCorrectReplacementPrompt(failedReplacements, currentState)
+			if err != nil {
+				onBuildFileError(filePath, fmt.Errorf("error getting correct replacement prompt: %v", err))
 				return
 			}
 
@@ -208,15 +211,15 @@ func buildPlan(params buildPlanParams) error {
 
 				openai.ChatCompletionMessage{
 					Role:    openai.ChatMessageRoleUser,
-					Content: prompts.GetCorrectReplacementPrompt(failedReplacements),
+					Content: correctReplacementPrompt,
 				})
 		}
 
 		fmt.Println("Calling model for file: " + filePath)
 
-		// for _, msg := range fileMessages {
-		// 	fmt.Printf("%s: %s\n", msg.Role, msg.Content)
-		// }
+		for _, msg := range fileMessages {
+			fmt.Printf("%s: %s\n", msg.Role, msg.Content)
+		}
 
 		modelReq := openai.ChatCompletionRequest{
 			Model:          model.BuilderModel,
@@ -234,7 +237,7 @@ func buildPlan(params buildPlanParams) error {
 				onBuildFileError(filePath, fmt.Errorf("failed to create plan file stream for path '%s' after %d retries: %v", filePath, numRetry, err))
 			} else {
 				fmt.Println("Retrying build plan for file: " + filePath)
-				buildFile(filePath, numRetry+1, failedReplacements)
+				buildFile(filePath, numRetry+1, replacements, failedReplacements)
 				if err != nil {
 					onBuildFileError(filePath, fmt.Errorf("failed to retry build plan for file '%s': %v", filePath, err))
 				}
@@ -249,7 +252,7 @@ func buildPlan(params buildPlanParams) error {
 			timer := time.NewTimer(model.OPENAI_STREAM_CHUNK_TIMEOUT)
 			defer timer.Stop()
 
-			handleErrorRetry := func(maxRetryErr error, shouldSleep bool, failed map[int]*shared.Replacement) {
+			handleErrorRetry := func(maxRetryErr error, shouldSleep bool, rep []*shared.Replacement, failed map[int]*shared.Replacement) {
 				fmt.Printf("Error for file %s: %v\n", filePath, maxRetryErr)
 
 				if numRetry >= MAX_RETRIES {
@@ -258,7 +261,7 @@ func buildPlan(params buildPlanParams) error {
 					if shouldSleep {
 						time.Sleep(1 * time.Second * time.Duration(math.Pow(float64(numRetry+1), 2)))
 					}
-					buildFile(filePath, numRetry+1, failed)
+					buildFile(filePath, numRetry+1, rep, failed)
 					if err != nil {
 						onBuildFileError(filePath, fmt.Errorf("failed to retry build plan for file '%s': %v", filePath, err))
 					}
@@ -276,6 +279,7 @@ func buildPlan(params buildPlanParams) error {
 					handleErrorRetry(
 						fmt.Errorf("stream timeout due to inactivity for file '%s' after %d retries", filePath, numRetry),
 						true,
+						replacements,
 						failedReplacements,
 					)
 					return
@@ -296,13 +300,14 @@ func buildPlan(params buildPlanParams) error {
 						handleErrorRetry(
 							fmt.Errorf("stream error for file '%s' after %d retries: %v", filePath, numRetry, err),
 							true,
+							replacements,
 							failedReplacements,
 						)
 						return
 					}
 
 					if len(response.Choices) == 0 {
-						handleErrorRetry(fmt.Errorf("stream error: no choices"), true, failedReplacements)
+						handleErrorRetry(fmt.Errorf("stream error: no choices"), true, replacements, failedReplacements)
 						return
 					}
 
@@ -313,6 +318,7 @@ func buildPlan(params buildPlanParams) error {
 							handleErrorRetry(
 								fmt.Errorf("stream finished without a function call. Reason: %s, File: %s", choice.FinishReason, filePath),
 								false,
+								replacements,
 								failedReplacements,
 							)
 							return
@@ -330,6 +336,7 @@ func buildPlan(params buildPlanParams) error {
 							handleErrorRetry(
 								fmt.Errorf("stream finished before replacements parsed. File: %s", filePath),
 								true,
+								replacements,
 								failedReplacements,
 							)
 							return
@@ -380,6 +387,7 @@ func buildPlan(params buildPlanParams) error {
 							handleErrorRetry(
 								fmt.Errorf("failed to apply replacements to file '%s' after %d retries", filePath, numRetry),
 								false,
+								replacements.Replacements,
 								failed,
 							)
 							return
@@ -408,7 +416,7 @@ func buildPlan(params buildPlanParams) error {
 	}
 
 	for _, filePath := range proposal.PlanDescription.Files {
-		go buildFile(filePath, 0, nil)
+		go buildFile(filePath, 0, nil, nil)
 	}
 
 	return nil

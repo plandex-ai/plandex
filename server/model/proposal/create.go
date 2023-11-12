@@ -93,7 +93,8 @@ func CreateProposal(req shared.PromptRequest, onStream types.OnStreamFunc) error
 	fmt.Printf("Conversation tokens: %d\n", conversationTokens)
 
 	var summary *shared.ConversationSummary
-	if (totalTokens + conversationTokens) > shared.MaxTokens {
+	if (totalTokens+conversationTokens) > shared.MaxTokens ||
+		conversationTokens > shared.MaxConvoTokens {
 		fmt.Println("Token limit exceeded. Attempting to reduce via conversation summary.")
 
 		// token limit exceeded after adding conversation
@@ -116,7 +117,8 @@ func CreateProposal(req shared.PromptRequest, onStream types.OnStreamFunc) error
 			fmt.Printf("Updated conversation tokens: %d\n", updatedConversationTokens)
 			fmt.Printf("Saved tokens: %d\n", savedTokens)
 
-			if (totalTokens + updatedConversationTokens) <= shared.MaxTokens {
+			if updatedConversationTokens <= shared.MaxConvoTokens &&
+				(totalTokens+updatedConversationTokens) <= shared.MaxTokens {
 				fmt.Printf("Summarizing up to %s | saving %d tokens\n", s.LastMessageTimestamp, savedTokens)
 				summary = &s
 				break

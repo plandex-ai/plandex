@@ -104,6 +104,19 @@ func GitCommit(repoDir, commitMsg string, lockMutex bool) error {
 	return nil
 }
 
+func CwdIsGitRepo() bool {
+	isGitRepo := false
+	if IsCommandAvailable("git") {
+		// check whether we're in a git repo
+		_, err := exec.Command("git", "rev-parse", "--is-inside-work-tree").Output()
+		if err == nil {
+			isGitRepo = true
+		}
+	}
+
+	return isGitRepo
+}
+
 func gitCommitRootUpdate(commitMsg string) error {
 	err := GitAdd(CurrentPlanDir, ".", true)
 	if err != nil {

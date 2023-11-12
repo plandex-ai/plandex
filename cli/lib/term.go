@@ -12,17 +12,17 @@ import (
 )
 
 var cmdDesc = map[string][2]string{
-	"new":         {"", "start a new plan"},
-	"current":     {"c", "show current plan"},
+	"new": {"", "start a new plan"},
+	// "current":     {"c", "show current plan"},
 	"cd":          {"", "set current plan by name or index"},
-	"load":        {"l", "load files/directories/urls/strings or pipe data into context"},
+	"load":        {"l", "load files/directories/urls/notes or pipe data into context"},
 	"tell":        {"t", "describe a task, ask a question, or chat"},
 	"diffs":       {"d", "show diffs between plan and project files"},
-	"preview":     {"p", "preview the plan in a branch"},
+	"preview":     {"pv", "preview the plan in a branch"},
 	"apply":       {"ap", "apply the plan to your project files"},
-	"next":        {"n", "continue to next step of the plan"},
+	"continue":    {"c", "continue the plan"},
 	"status":      {"s", "show status of the plan"},
-	"rewind":      {"rw", "rewind the plan to a previous step or state"},
+	"rewind":      {"rw", "rewind to a previous step or state"},
 	"ls":          {"", "list everything in context"},
 	"rm":          {"", "remove context by name, index, or glob"},
 	"clear":       {"", "remove all context"},
@@ -42,6 +42,7 @@ func PrintCmds(prefix string, cmds ...string) {
 		desc := config[1]
 		if alias != "" {
 			cmd = strings.Replace(cmd, alias, fmt.Sprintf("(%s)", alias), 1)
+			// desc += color.New(color.FgWhite).Sprintf(" • alias → %s", color.New(color.Bold).Sprint(alias))
 		}
 		styled := color.New(color.Bold, color.FgHiWhite, color.BgCyan).Sprintf(" plandex %s ", cmd)
 
@@ -51,6 +52,7 @@ func PrintCmds(prefix string, cmds ...string) {
 
 func PrintCustomCmd(prefix, cmd, alias, desc string) {
 	cmd = strings.Replace(cmd, alias, fmt.Sprintf("(%s)", alias), 1)
+	// desc += color.New(color.FgWhite).Sprintf(" • alias → %s", color.New(color.Bold).Sprint(alias))
 	styled := color.New(color.Bold, color.FgHiWhite, color.BgCyan).Sprintf(" plandex %s ", cmd)
 	fmt.Printf("%s%s 👉 %s\n", prefix, styled, desc)
 }
