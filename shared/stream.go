@@ -52,11 +52,6 @@ type StreamedFile struct {
 	Content string `json:"content"`
 }
 
-type Replacement struct {
-	Old string `json:"old"`
-	New string `json:"new"`
-}
-
 type StreamedReplacements struct {
 	Replacements []*Replacement `json:"replacements"`
 }

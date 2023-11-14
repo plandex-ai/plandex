@@ -68,7 +68,7 @@ func ExtractTextualContent(htmlContent string) string {
 	return doc.Text()
 }
 
-func SanitizeAndClipURL(url string, maxLength int) string {
+func SanitizeURL(url string) string {
 	// remove protocol portion with a regex
 	re := regexp.MustCompile(`^.*?://`)
 	url = re.ReplaceAllString(url, "")
@@ -83,9 +83,6 @@ func SanitizeAndClipURL(url string, maxLength int) string {
 	sanitized = strings.ReplaceAll(sanitized, "%", "_")
 	sanitized = strings.ReplaceAll(sanitized, "*", "_")
 	sanitized = strings.ReplaceAll(sanitized, " ", "_")
-	if len(sanitized) > maxLength {
-		return sanitized[:maxLength]
-	}
 	return sanitized
 }
 

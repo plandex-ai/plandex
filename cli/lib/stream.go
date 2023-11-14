@@ -26,30 +26,23 @@ func updateTokenCounts(content string, numStreamedTokensByPath map[string]int, f
 	return nil
 }
 
-func writePlanFile(content string) error {
-	var planFile shared.PlanFile
-	err := json.Unmarshal([]byte(content), &planFile)
+func writePlanRes(content string) error {
+	var planRes shared.PlanResult
+	err := json.Unmarshal([]byte(content), &planRes)
 	if err != nil {
 		return fmt.Errorf("failed to unmarshal plan file: %s", err)
 	}
 
-	// spew.Dump(planFile)
-
-	writeToPath := filepath.Join(DraftFilesDir, planFile.Path)
-
-	// fmt.Printf("Writing plan file '%s'...\n", writeToPath)
-
-	err = os.MkdirAll(filepath.Dir(writeToPath), os.ModePerm)
+	path := filepath.Join(ResultsSubdir, planRes.Path, planRes.Ts+".json")
+	err = os.MkdirAll(filepath.Dir(path), os.ModePerm)
 	if err != nil {
-		fmt.Printf("failed to create directory: %s", err)
-		return fmt.Errorf("failed to create directory: %s", err)
-
+		return fmt.Errorf("failed to create  directory: %s", err)
 	}
 
-	err = os.WriteFile(writeToPath, []byte(planFile.Content), 0644)
+	err = os.WriteFile(path, []byte(content), 0644)
 	if err != nil {
-		fmt.Printf("failed to write plan file '%s': %v", writeToPath, err)
-		return fmt.Errorf("failed to write plan file '%s': %v", writeToPath, err)
+		// fmt.Printf("failed to write plan file '%s': %v", path, err)
+		return fmt.Errorf("failed to write plan result '%s': %v", path, err)
 	}
 
 	return nil

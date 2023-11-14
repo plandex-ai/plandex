@@ -5,7 +5,8 @@ import (
 )
 
 type CurrentPlanFiles struct {
-	Files map[string]string `json:"files"`
+	Files       map[string]string `json:"files"`
+	ContextShas map[string]string `json:"contextShas"`
 }
 
 type ConversationMessage struct {
@@ -15,14 +16,14 @@ type ConversationMessage struct {
 }
 
 type PromptRequest struct {
-	Timestamp             string                `json:"timestamp"`
-	Prompt                string                `json:"prompt"`
-	ModelContext          ModelContext          `json:"modelContext"`
-	CurrentPlan           CurrentPlanFiles      `json:"currentPlan"`
-	Conversation          []ConversationMessage `json:"conversation"`
-	ConversationSummaries []ConversationSummary `json:"conversationSummaries"`
-	ParentProposalId      string                `json:"parentProposalId"`
-	RootProposalId        string                `json:"rootProposalId"`
+	Timestamp             string                 `json:"timestamp"`
+	Prompt                string                 `json:"prompt"`
+	ModelContext          ModelContext           `json:"modelContext"`
+	CurrentPlan           *CurrentPlanFiles      `json:"currentPlan"`
+	Conversation          []*ConversationMessage `json:"conversation"`
+	ConversationSummaries []*ConversationSummary `json:"conversationSummaries"`
+	ParentProposalId      string                 `json:"parentProposalId"`
+	RootProposalId        string                 `json:"rootProposalId"`
 }
 
 type ShortSummaryRequest struct {
@@ -68,11 +69,6 @@ type PlanTokenCount struct {
 	Path      string `json:"path"`
 	NumTokens int    `json:"numTokens"`
 	Finished  bool   `json:"finished"`
-}
-
-type PlanFile struct {
-	Path    string `json:"path"`
-	Content string `json:"content"`
 }
 
 type PlanDescription struct {

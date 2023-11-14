@@ -306,12 +306,12 @@ func Propose(prompt string) error {
 				return
 			}
 
-			err = os.MkdirAll(DescriptionsDir, os.ModePerm)
+			err = os.MkdirAll(DescriptionsSubdir, os.ModePerm)
 			if err != nil {
 				onError(fmt.Errorf("failed to create plan descriptions directory: %s", err))
 				return
 			}
-			descriptionsPath := filepath.Join(DescriptionsDir, desc.ResponseTimestamp+".json")
+			descriptionsPath := filepath.Join(DescriptionsSubdir, desc.ResponseTimestamp+".json")
 			err = os.WriteFile(descriptionsPath, bytes, 0644)
 			if err != nil {
 				onError(fmt.Errorf("failed to write plan description to file: %s", err))
@@ -356,7 +356,7 @@ func Propose(prompt string) error {
 				return
 			}
 
-			err := writePlanFile(content)
+			err := writePlanRes(content)
 
 			if err != nil {
 				onError(fmt.Errorf("failed to write plan file: %s", err))

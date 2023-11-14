@@ -104,6 +104,48 @@ func GitCommit(repoDir, commitMsg string, lockMutex bool) error {
 	return nil
 }
 
+func CheckUncommittedChanges() (bool, error) {
+	gitMutex.Lock()
+	defer gitMutex.Unlock()
+
+	// Check if there are any changes
+	res, err := exec.Command("git", "status", "--porcelain").CombinedOutput()
+	if err != nil {
+		return false, fmt.Errorf("error checking for uncommitted changes: %v, output: %s", err, string(res))
+	}
+
+	// If there's output, there are uncommitted changes
+	return strings.TrimSpace(string(res)) != "", nil
+}
+
+func GitStashCreate(message string) error {
+	gitMutex.Lock()
+	defer gitMutex.Unlock()
+
+	res, err := exec.Command("git", "stash", "push", "-m", message).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("error creating git stash: %v, output: %s", err, string(res))
+	}
+
+	return nil
+}
+
+func GitStashPopNoConflict() error {
+	gitMutex.Lock()
+	defer gitMutex.Unlock()
+
+	res, err := exec.Command("git", "stash", "pop", "--quiet", "--theirs").CombinedOutput()
+	if err != nil {
+		if strings.Contains(string(res), "Merge conflict") {
+			// We have a merge conflict but we are choosing to favor committed changes over stash
+			return nil
+		}
+		return fmt.Errorf("error popping git stash: %v, output: %s", err, string(res))
+	}
+
+	return nil
+}
+
 func CwdIsGitRepo() bool {
 	isGitRepo := false
 	if IsCommandAvailable("git") {
@@ -164,7 +206,7 @@ func GitCommitConvoUpdate(commitMsg string) error {
 }
 
 func GitCommitPlanUpdate(commitMsg string) error {
-	err := GitAddAndCommit(DraftSubdir, commitMsg)
+	err := GitAddAndCommit(ResultsSubdir, commitMsg)
 	if err != nil {
 		return fmt.Errorf("failed to commit files to plan dir: %s", err)
 	}

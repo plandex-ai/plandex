@@ -14,8 +14,8 @@ import (
 	openai "github.com/sashabaranov/go-openai"
 )
 
-func LoadConversation() ([]shared.ConversationMessage, error) {
-	var messages []shared.ConversationMessage
+func LoadConversation() ([]*shared.ConversationMessage, error) {
+	var messages []*shared.ConversationMessage
 
 	files, err := os.ReadDir(ConversationSubdir)
 	if err != nil {
@@ -46,7 +46,7 @@ func LoadConversation() ([]shared.ConversationMessage, error) {
 			if strings.HasPrefix(line, "@@@!>user|") {
 				if currentRole != "" {
 					// Save the previous message before starting a new one
-					messages = append(messages, shared.ConversationMessage{
+					messages = append(messages, &shared.ConversationMessage{
 						Message: openai.ChatCompletionMessage{
 							Role:    currentRole,
 							Content: strings.Join(contentBuffer, "\n"),
@@ -70,7 +70,7 @@ func LoadConversation() ([]shared.ConversationMessage, error) {
 			} else if strings.HasPrefix(line, "@@@!>response|") {
 				if currentRole != "" {
 					// Save the previous message before starting a new one
-					messages = append(messages, shared.ConversationMessage{
+					messages = append(messages, &shared.ConversationMessage{
 						Message: openai.ChatCompletionMessage{
 							Role:    currentRole,
 							Content: strings.Join(contentBuffer, "\n"),
@@ -97,7 +97,7 @@ func LoadConversation() ([]shared.ConversationMessage, error) {
 
 		// Add the last message in the file
 		if currentRole != "" && len(contentBuffer) > 0 {
-			messages = append(messages, shared.ConversationMessage{
+			messages = append(messages, &shared.ConversationMessage{
 				Message: openai.ChatCompletionMessage{
 					Role:    currentRole,
 					Content: strings.Join(contentBuffer, "\n"),
@@ -113,7 +113,7 @@ func LoadConversation() ([]shared.ConversationMessage, error) {
 	return messages, nil
 }
 
-func LoadSummaries() ([]shared.ConversationSummary, error) {
+func LoadSummaries() ([]*shared.ConversationSummary, error) {
 	// check if summaries subdirectory exists
 	summariesPath := filepath.Join(ConversationSubdir, "summaries")
 	exists := false
@@ -124,7 +124,7 @@ func LoadSummaries() ([]shared.ConversationSummary, error) {
 		return nil, err
 	}
 
-	var summaries []shared.ConversationSummary
+	var summaries []*shared.ConversationSummary
 	if exists {
 
 		files, err := os.ReadDir(summariesPath)
@@ -158,7 +158,7 @@ func LoadSummaries() ([]shared.ConversationSummary, error) {
 				return nil, fmt.Errorf("failed to parse tokens: %s", err)
 			}
 
-			summaries = append(summaries, shared.ConversationSummary{
+			summaries = append(summaries, &shared.ConversationSummary{
 				Summary:              summary,
 				LastMessageTimestamp: timestamp,
 				Tokens:               tokens,

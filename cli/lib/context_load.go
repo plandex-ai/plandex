@@ -349,9 +349,16 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) (int, 
 				sha := hex.EncodeToString(hash[:])
 
 				ts := shared.StringTs()
+
+				name := SanitizeURL(url)
+				// show the first 20 characters, then ellipsis then the last 20 characters of 'name'
+				if len(name) > 40 {
+					name = name[:20] + "⋯" + name[len(name)-20:]
+				}
+
 				contextPart := &shared.ModelContextPart{
 					Type:      shared.ContextURLType,
-					Name:      SanitizeAndClipURL(url, 70),
+					Name:      name,
 					Url:       url,
 					Body:      body,
 					Sha:       sha,

@@ -16,50 +16,33 @@ import (
 func (api *API) Propose(prompt, parentProposalId, rootId string, onStream types.OnStreamPlan) (*shared.PromptRequest, error) {
 	serverUrl := apiHost + "/proposal"
 
-	// Channels to receive data and errors
-	contextChan := make(chan shared.ModelContext, 1) // Buffered channels to prevent deadlock
-	contextErrChan := make(chan error, 1)
-
-	conversationChan := make(chan []shared.ConversationMessage, 1)
-	conversationErrChan := make(chan error, 1)
-
-	planChan := make(chan shared.CurrentPlanFiles, 1)
-	planErrChan := make(chan error, 1)
-
-	summaryChan := make(chan []shared.ConversationSummary, 1)
-	summaryErrChan := make(chan error, 1)
-
-	// Goroutine for loading context
-	go func() {
-		modelContext, err := GetAllContext(false)
-		if err != nil {
-			fmt.Println("Error loading context:" + err.Error())
-			contextErrChan <- err
-			return
-		}
-		contextChan <- modelContext
-	}()
+	errCh := make(chan error, 1)
+	contextCh := make(chan shared.ModelContext, 1)
+	conversationCh := make(chan []*shared.ConversationMessage, 1)
+	planFilesCh := make(chan *shared.CurrentPlanFiles, 1)
+	summaryCh := make(chan []*shared.ConversationSummary, 1)
 
 	// Goroutine for loading conversation
 	go func() {
 		conversation, err := LoadConversation()
 		if err != nil {
 			fmt.Println("Error loading conversation")
-			conversationErrChan <- err
+			errCh <- err
 			return
 		}
-		conversationChan <- conversation
+		conversationCh <- conversation
 	}()
 
-	// Goroutine for loading plan
+	// Goroutine for loading plan files and context
 	go func() {
-		plan, err := getCurrentPlanFiles()
+		planFiles, _, modelContext, err := GetCurrentPlanStateWithContext()
 		if err != nil {
 			fmt.Println("Error loading plan")
-			planErrChan <- err
+			errCh <- err
 			return
 		}
-		planChan <- plan
+		planFilesCh <- planFiles
+		contextCh <- modelContext
 	}()
 
 	// Goroutine for loading summaries
@@ -67,45 +50,26 @@ func (api *API) Propose(prompt, parentProposalId, rootId string, onStream types.
 		summaries, err := LoadSummaries()
 		if err != nil {
 			fmt.Println("Error loading summaries")
-			summaryErrChan <- err
+			errCh <- err
 			return
 		}
-		summaryChan <- summaries
+		summaryCh <- summaries
 	}()
 
 	var modelContext shared.ModelContext
-	var currentPlan shared.CurrentPlanFiles
-	var conversation []shared.ConversationMessage
-	var summaries []shared.ConversationSummary
-	var err error
+	var currentPlanFiles *shared.CurrentPlanFiles
+	var conversation []*shared.ConversationMessage
+	var summaries []*shared.ConversationSummary
 
-	// Using select to receive from either data or error channel for context
-	select {
-	case modelContext = <-contextChan:
-	case err = <-contextErrChan:
-		return nil, err
-	}
-
-	// Using select to receive from either data or error channel for conversation
-	select {
-	case conversation = <-conversationChan:
-	case err = <-conversationErrChan:
-		return nil, err
-	}
-
-	// Using select to receive from either data or error channel for plan
-	select {
-	case plan := <-planChan:
-		currentPlan = plan
-	case err = <-planErrChan:
-		return nil, err
-	}
-
-	// Using select to receive from either data or error channel for summaries
-	select {
-	case summaries = <-summaryChan:
-	case err = <-summaryErrChan:
-		return nil, err
+	for i := 0; i < 4; i++ {
+		select {
+		case err := <-errCh:
+			return nil, fmt.Errorf("error loading plan data: %v", err)
+		case modelContext = <-contextCh:
+		case conversation = <-conversationCh:
+		case currentPlanFiles = <-planFilesCh:
+		case summaries = <-summaryCh:
+		}
 	}
 
 	payload := shared.PromptRequest{
@@ -113,7 +77,7 @@ func (api *API) Propose(prompt, parentProposalId, rootId string, onStream types.
 		ModelContext:          modelContext,
 		Conversation:          conversation,
 		ConversationSummaries: summaries,
-		CurrentPlan:           currentPlan,
+		CurrentPlan:           currentPlanFiles,
 		ParentProposalId:      parentProposalId,
 		RootProposalId:        rootId,
 	}

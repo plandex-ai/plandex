@@ -14,7 +14,7 @@ const SysReplace = `
 
 You are an AI replacer. You apply changes from a plan to a given code file using the 'writeReplacements' function. You call 'writeReplacements' with a valid JSON array of replacements.
 
-Each replacement is an object with two properties: 'old' and 'new'. 'old' is the *exact* old text to replace, and 'new' is the new text to replace it with.
+Each replacement is an object with 3 properties: 'old', 'new', and 'summary'. 'old' is the *exact* old text to replace. 'new' is the new text to replace it with. 'summary' is a brief 1 line summary of the change.
 
 Use your judgment on how to logically apply the changes from the plan in a series of replacements. Use both the code and the plan description to determine the correct order of replacements. BE COMPLETELY SURE that replacements are inserted logically at the correct locations in the file and do not break any syntax or logic rules of the programming language.
 
@@ -73,11 +73,13 @@ writeReplacements({
 	replacements: [
 		{
 			old: "import \"fmt\"",
-			new: "import (\n\t\"fmt\"\n\t\"time\"\n)"
+			new: "import (\n\t\"fmt\"\n\t\"time\"\n)",
+			summary: "Import time package"
 		},
 		{
 			old: "fmt.Println(\"Hello, world!\")",
-			new: "fmt.Println(time.Now())"
+			new: "fmt.Println(time.Now())",
+			summary: "Print current time"
 		}
 	}
 })
@@ -111,7 +113,8 @@ writeReplacements({
 	replacements: [
 		{
 			old: "\n}",
-			new: "\n}\n\nfunc Subtract(a, b int) int {\n\treturn a - b\n}"
+			new: "\n}\n\nfunc Subtract(a, b int) int {\n\treturn a - b\n}",
+			summary: "Add Subtract function"
 		}
 	]
 })
@@ -148,7 +151,8 @@ writeReplacements({
 	replacements: [
 		{
 			old: "fmt.Println(\"Hello, world!\")",
-			new: "fmt.Println(\"Hello, world!\")\n\tfmt.Println(\"I love you!\")"
+			new: "fmt.Println(\"Hello, world!\")\n\tfmt.Println(\"I love you!\")",
+			summary: "Also print \"I love you!\""
 		}
 	]
 })
@@ -174,8 +178,12 @@ var ReplaceFn = openai.FunctionDefinition{
 							Type:        jsonschema.String,
 							Description: "The new text to replace it with from the changes suggested in the previous response.",
 						},
+						"summary": {
+							Type:        jsonschema.String,
+							Description: "A brief 1 line summary of the change.",
+						},
 					},
-					Required: []string{"old", "new"},
+					Required: []string{"old", "new", "summary"},
 				},
 			},
 		},
@@ -188,18 +196,21 @@ func GetReplacePrompt(filePath string) string {
 					Based on your instructions, apply the changes from the plan to %s. Call the 'writeReplacements' function with a JSON array of replacements to apply to the file from your previous response.`, filePath)
 }
 
-func GetCorrectReplacementPrompt(failedReplacements map[int]*shared.Replacement, currentState string) (string, error) {
+func GetCorrectReplacementPrompt(replacements []*shared.Replacement, currentState string) (string, error) {
 	msg := "There were errors with the replacements you suggested."
-	for i, failedReplacement := range failedReplacements {
+	for i, replacement := range replacements {
 
-		bytes, err := json.Marshal(failedReplacement)
-		if err != nil {
-			return "", fmt.Errorf("failed to marshal replacement: %w", err)
+		if replacement.Failed {
+			bytes, err := json.Marshal(replacement)
+			if err != nil {
+				return "", fmt.Errorf("failed to marshal replacement: %w", err)
+			}
+
+			msg += fmt.Sprintf("\n- The replacement at index %d was invalid. The replacement you suggested was:\n\n```%s```\n\n", i, string(bytes))
+
+			msg += fmt.Sprintf("\n- The string `%s` (which you set for the 'old' key of this replacement) was not found in the current state of the file.", replacement.Old)
 		}
 
-		msg += fmt.Sprintf("\n- The replacement at index %d was invalid. The replacement you suggested was:\n\n```%s```\n\n", i, string(bytes))
-
-		msg += fmt.Sprintf("\n- The string `%s` (which you set for the 'old' key of this replacement) was not found in the current state of the file.", failedReplacement.Old)
 	}
 	msg += "\n\nPlease review these errors and try again to call the 'writeReplacements' function with corrected replacements. Pay special attention to any special characters in the strings, extra spaces, or anything else that might cause the strings to not match exactly. You MUST call 'writeReplacements' with an updated list of replacements. Don't call any other function, produce any other output, or call 'writeReplacements' with the same list of replacements as before--it must be called with an updated list of replacements to fix the errors."
 

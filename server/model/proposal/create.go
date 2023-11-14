@@ -120,7 +120,7 @@ func CreateProposal(req shared.PromptRequest, onStream types.OnStreamFunc) error
 			if updatedConversationTokens <= shared.MaxConvoTokens &&
 				(totalTokens+updatedConversationTokens) <= shared.MaxTokens {
 				fmt.Printf("Summarizing up to %s | saving %d tokens\n", s.LastMessageTimestamp, savedTokens)
-				summary = &s
+				summary = s
 				break
 			}
 		}
@@ -274,7 +274,7 @@ func CreateProposal(req shared.PromptRequest, onStream types.OnStreamFunc) error
 							var latestSummary *shared.ConversationSummary
 							var numMessagesSummarized int = 0
 							if len(req.ConversationSummaries) > 0 {
-								latestSummary = &req.ConversationSummaries[len(req.ConversationSummaries)-1]
+								latestSummary = req.ConversationSummaries[len(req.ConversationSummaries)-1]
 								numMessagesSummarized = latestSummary.NumMessages
 							}
 

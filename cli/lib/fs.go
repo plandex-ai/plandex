@@ -20,9 +20,8 @@ var CacheDir string
 
 var CurrentPlanName string
 var CurrentPlanDir string
-var DraftSubdir string
-var DraftFilesDir string
-var DescriptionsDir string
+var ResultsSubdir string
+var DescriptionsSubdir string
 var ConversationSubdir string
 var ContextSubdir string
 
@@ -94,9 +93,8 @@ func LoadCurrentPlan() error {
 
 	CurrentPlanName = planSettings.Name
 	CurrentPlanDir = filepath.Join(PlandexDir, CurrentPlanName)
-	DraftSubdir = filepath.Join(CurrentPlanDir, "draft")
-	DraftFilesDir = filepath.Join(DraftSubdir, "files")
-	DescriptionsDir = filepath.Join(CurrentPlanDir, "descriptions")
+	ResultsSubdir = filepath.Join(CurrentPlanDir, "results")
+	DescriptionsSubdir = filepath.Join(CurrentPlanDir, "descriptions")
 	ConversationSubdir = filepath.Join(CurrentPlanDir, "conversation")
 	ContextSubdir = filepath.Join(CurrentPlanDir, "context")
 
@@ -252,7 +250,7 @@ func CopyDir(srcDir, dstDir string) error {
 
 func GetLatestPlanDescription() (*shared.PlanDescription, error) {
 	// List files in descriptions directory
-	entries, err := os.ReadDir(DescriptionsDir)
+	entries, err := os.ReadDir(DescriptionsSubdir)
 	if err != nil {
 		return nil, err
 	}
@@ -266,7 +264,7 @@ func GetLatestPlanDescription() (*shared.PlanDescription, error) {
 	}
 
 	// Read the contents of the latest file
-	bytes, err := os.ReadFile(filepath.Join(DescriptionsDir, latestFile.Name()))
+	bytes, err := os.ReadFile(filepath.Join(DescriptionsSubdir, latestFile.Name()))
 	if err != nil {
 		return nil, fmt.Errorf("error reading latest description file: %v", err)
 	}

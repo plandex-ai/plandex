@@ -45,7 +45,7 @@ func rewind(cmd *cobra.Command, args []string) {
 	case "context":
 		dir = lib.ContextSubdir
 	case "draft":
-		dir = lib.DraftSubdir
+		dir = lib.ResultsSubdir
 	default:
 		dir = lib.CurrentPlanDir // Rewind the whole plan by default
 	}

@@ -33,7 +33,7 @@ func runLog(cmd *cobra.Command, args []string) {
 	case args[0] == "context":
 		dir = lib.ContextSubdir
 	case args[0] == "draft":
-		dir = lib.DraftSubdir
+		dir = lib.ResultsSubdir
 	default:
 		fmt.Fprint(os.Stderr, "Invalid scope. Valid scopes are 'convo', 'context', and 'draft'")
 		os.Exit(1)
