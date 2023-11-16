@@ -50,6 +50,10 @@ func apply(cmd *cobra.Command, args []string) error {
 	appliedAny := false
 	currentPlanFiles, planResByPath, _, err := lib.GetCurrentPlanStateWithContext()
 
+	if err != nil {
+		return fmt.Errorf("error getting current plan files: %w", err)
+	}
+
 	// check if any files have been modified since the plan result was generated
 
 	pathsRemoved := []string{}
@@ -120,10 +124,6 @@ func apply(cmd *cobra.Command, args []string) error {
 				return fmt.Errorf("failed to create git stash: %w", err)
 			}
 		}
-	}
-
-	if err != nil {
-		return fmt.Errorf("error getting current plan files: %w", err)
 	}
 
 	for path, content := range currentPlanFiles.Files {

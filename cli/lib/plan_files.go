@@ -136,6 +136,51 @@ func GetCurrentPlanStateWithContext() (*shared.CurrentPlanFiles, shared.PlanResu
 	return &shared.CurrentPlanFiles{Files: files, ContextShas: shas}, planResByPath, modelContext, nil
 }
 
+func SetPendingResultsApplied(planResByPath shared.PlanResultsByPath) error {
+	ts := shared.StringTs()
+	numPending := planResByPath.NumPending()
+	planResByPath.SetApplied(ts)
+
+	errCh := make(chan error, numPending)
+
+	for _, planResults := range planResByPath {
+		for _, planResult := range planResults {
+			// only write results that were just applied
+			if planResult.AppliedAt != ts {
+				continue
+			}
+
+			go func(planResult *shared.PlanResult) {
+				bytes, err := json.Marshal(planResult)
+				if err != nil {
+					errCh <- fmt.Errorf("error marshalling plan result: %v", err)
+					return
+				}
+
+				path := filepath.Join(ResultsSubdir, planResult.Path, planResult.Ts+".json")
+
+				err = os.WriteFile(path, bytes, 0644)
+				if err != nil {
+					errCh <- fmt.Errorf("error writing plan result: %v", err)
+					return
+				}
+
+				errCh <- nil
+
+			}(planResult)
+		}
+	}
+
+	for i := 0; i < numPending; i++ {
+		err := <-errCh
+		if err != nil {
+			return fmt.Errorf("error wrting plan result file after SetApplied: %v", err)
+		}
+	}
+
+	return nil
+}
+
 func getPlanResultsByPath() (shared.PlanResultsByPath, error) {
 	resByPath := make(shared.PlanResultsByPath)
 
@@ -184,46 +229,4 @@ func getPlanResultsByPath() (shared.PlanResultsByPath, error) {
 	}
 
 	return resByPath, nil
-}
-
-func SetPendingResultsApplied(planResByPath shared.PlanResultsByPath) error {
-	ts := shared.StringTs()
-	planResByPath.SetApplied(ts)
-	numPending := planResByPath.NumPending()
-
-	errCh := make(chan error, numPending)
-
-	for _, planResults := range planResByPath {
-		for _, planResult := range planResults {
-			if !planResult.IsPending() {
-				continue
-			}
-
-			go func(planResult *shared.PlanResult) {
-				bytes, err := json.Marshal(planResult)
-				if err != nil {
-					errCh <- fmt.Errorf("error marshalling plan result: %v", err)
-					return
-				}
-
-				err = os.WriteFile(filepath.Join(ResultsSubdir, planResult.Path, planResult.Ts), bytes, 0644)
-				if err != nil {
-					errCh <- fmt.Errorf("error writing plan result: %v", err)
-					return
-				}
-
-				errCh <- nil
-
-			}(planResult)
-		}
-	}
-
-	for i := 0; i < numPending; i++ {
-		err := <-errCh
-		if err != nil {
-			return fmt.Errorf("error wrting plan result file after SetApplied: %v", err)
-		}
-	}
-
-	return nil
 }

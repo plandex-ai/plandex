@@ -134,16 +134,49 @@ func GitStashPopNoConflict() error {
 	gitMutex.Lock()
 	defer gitMutex.Unlock()
 
-	res, err := exec.Command("git", "stash", "pop", "--quiet", "--theirs").CombinedOutput()
+	res, err := exec.Command("git", "stash", "pop").CombinedOutput()
+
+	fmt.Println("'git stash pop' output:")
+	fmt.Println(string(res))
+
 	if err != nil {
-		if strings.Contains(string(res), "Merge conflict") {
-			// We have a merge conflict but we are choosing to favor committed changes over stash
+		if strings.Contains(string(res), "CONFLICT") {
+			// Parse the output to find which files have conflicts
+			conflictFiles := parseConflictFiles(string(res))
+			for _, file := range conflictFiles {
+				// Reset each conflicting file individually
+				err = exec.Command("git", "checkout", "--ours", file).Run()
+				if err != nil {
+					return fmt.Errorf("error resetting file %s: %v", file, err)
+				}
+			}
+			err = exec.Command("git", "stash", "drop").Run()
+			if err != nil {
+				return fmt.Errorf("error dropping git stash: %v", err)
+			}
 			return nil
+		} else {
+			return fmt.Errorf("error popping git stash: %v, output: %s", err, string(res))
 		}
-		return fmt.Errorf("error popping git stash: %v, output: %s", err, string(res))
 	}
 
 	return nil
+}
+
+func parseConflictFiles(gitOutput string) []string {
+	var conflictFiles []string
+	lines := strings.Split(gitOutput, "\n")
+	for _, line := range lines {
+		if strings.Contains(line, "CONFLICT") {
+			// Extract the filename from the line
+			parts := strings.Fields(line)
+			if len(parts) > 1 {
+				filename := parts[len(parts)-1]
+				conflictFiles = append(conflictFiles, filename)
+			}
+		}
+	}
+	return conflictFiles
 }
 
 func CwdIsGitRepo() bool {

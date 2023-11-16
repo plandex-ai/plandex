@@ -4,6 +4,7 @@ go 1.21.3
 
 require (
 	github.com/charmbracelet/lipgloss v0.7.1
+	github.com/davecgh/go-spew v1.1.1
 	github.com/fatih/color v1.13.0
 	github.com/looplab/fsm v1.0.1
 	github.com/olekukonko/tablewriter v0.0.5
