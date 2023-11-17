@@ -43,7 +43,7 @@ func FileNameHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Println("Successfully processed file name request")
+	log.Println("Successfully processed file name request", string(modelResp))
 	// Return the response from OpenAI to the client
 	w.Write(modelResp)
 }

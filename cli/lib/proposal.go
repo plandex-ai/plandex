@@ -63,6 +63,8 @@ func Propose(prompt string) error {
 		}
 	}
 
+	// fmt.Println("Checked current plan is draft")
+
 	timestamp := shared.StringTs()
 	reply := ""
 	done := make(chan struct{})
@@ -100,7 +102,11 @@ func Propose(prompt string) error {
 		}
 	}
 
+	// fmt.Println("Initialized locals")
+
 	promptNumTokens := shared.GetNumTokens(prompt)
+
+	// fmt.Println("Got prompt num tokens")
 
 	err = appendConversation(types.AppendConversationParams{
 		Timestamp: timestamp,
@@ -111,6 +117,8 @@ func Propose(prompt string) error {
 		},
 	})
 
+	// fmt.Println("Appended conversation")
+
 	if err != nil {
 		return fmt.Errorf("failed to append prompt to conversation: %s", err)
 	}
@@ -120,7 +128,6 @@ func Propose(prompt string) error {
 		MoveCursorToTopLeft()
 		mdFull, _ := GetMarkdown(reply)
 		fmt.Println(mdFull)
-		fmt.Print(displayHotkeys())
 		termState = mdFull
 	}
 
@@ -134,6 +141,8 @@ func Propose(prompt string) error {
 		}
 	}()
 
+	// fmt.Println("Starting proposal")
+
 	keyChan := make(chan *key, 1)
 	ctx, cancelKeywatch := context.WithCancel(context.Background())
 	errChn := make(chan error, 1)
@@ -143,9 +152,6 @@ func Propose(prompt string) error {
 		printReply()
 		BackToMain()
 		fmt.Print(termState)
-		s = spinner.New(spinner.CharSets[33], 100*time.Millisecond)
-		s.Prefix = "  "
-		s.Start()
 	}
 
 	appendConvoReply := func() error {
@@ -165,12 +171,14 @@ func Propose(prompt string) error {
 
 	writeFileProgress := func() {
 		files := desc.Files
-		// Clear previous lines
-		if filesFinished {
-			MoveUpLines(len(files))
-		} else {
-			MoveUpLines(len(files) + 4)
+
+		if len(files) == 0 {
+			return
 		}
+
+		// Clear previous lines
+
+		MoveUpLines(len(files) + 4)
 
 		for _, filePath := range files {
 			numStreamedTokens := numStreamedTokensByPath[filePath]
@@ -189,7 +197,7 @@ func Propose(prompt string) error {
 			fmt.Printf(fmtStr+"\n", fmtArgs...)
 		}
 
-		if !filesFinished {
+		if !(filesFinished && streamFinished) {
 			fmt.Println()
 			fmt.Printf(displayHotkeys() + "\n")
 		}
@@ -203,6 +211,9 @@ func Propose(prompt string) error {
 	var apiReq *shared.PromptRequest
 
 	var handleStream types.OnStreamPlan
+
+	// fmt.Println("Starting handleStream")
+
 	handleStream = func(params types.OnStreamPlanParams) {
 		if running {
 			queue <- params
@@ -291,19 +302,28 @@ func Propose(prompt string) error {
 			if filesFinished {
 				close(done)
 				closedDone = true
+				writeFileProgress()
 			}
 
 		case shared.STATE_DESCRIBING:
 			if content == shared.STREAM_DESCRIPTION_PHASE {
-				endReply()
 				return
 			}
+
+			describeStart := time.Now()
+
 			bytes := []byte(content)
 
 			err := json.Unmarshal(bytes, &desc)
 			if err != nil {
 				onError(fmt.Errorf("error parsing plan description: %v", err))
 				return
+			}
+
+			if len(desc.Files) > 0 {
+				s = spinner.New(spinner.CharSets[33], 100*time.Millisecond)
+				s.Prefix = "  "
+				s.Start()
 			}
 
 			err = os.MkdirAll(DescriptionsSubdir, os.ModePerm)
@@ -318,14 +338,30 @@ func Propose(prompt string) error {
 				return
 			}
 
+			// fmt.Println("appending convo reply")
+
 			err = appendConvoReply()
 			if err != nil {
 				onError(fmt.Errorf("failed to append reply to conversation: %s", err))
 				return
 			}
 
+			// fmt.Println("appended convo reply")
+
+			// wait a bit if necessary to avoid jarring output of conversation as soon as stream finishes
+			elapsed := time.Since(describeStart)
+			if elapsed < 1500*time.Millisecond {
+				time.Sleep(1500*time.Millisecond - elapsed)
+			}
+
+			// fmt.Println("waited elapsed")
+
+			endReply()
+
+			// fmt.Println("ended reply")
+			s.Stop()
+
 			if desc.MadePlan && (len(desc.Files) > 0) {
-				s.Stop()
 				fmt.Println("  " + color.New(color.BgGreen, color.FgHiWhite, color.Bold).Sprint(" 🏗  ") + color.New(color.BgGreen, color.FgHiWhite).Sprint("Building plan "))
 				for _, filePath := range desc.Files {
 					fmt.Printf("  📄 %s\n", filePath)
@@ -376,6 +412,7 @@ func Propose(prompt string) error {
 				if streamFinished {
 					close(done)
 					closedDone = true
+					writeFileProgress()
 				}
 			}
 		}
@@ -388,9 +425,13 @@ func Propose(prompt string) error {
 		return fmt.Errorf("failed to send prompt to server: %s", err)
 	}
 
+	// fmt.Println("Sent prompt to server")
+
 	for _, part := range apiReq.ModelContext {
 		contextByFilePath[part.FilePath] = part
 	}
+
+	// fmt.Println("Got context")
 
 	go func(ctx context.Context, errChn chan error) {
 		for {
@@ -398,7 +439,7 @@ func Propose(prompt string) error {
 			case <-ctx.Done():
 				return
 			default:
-				k, err := getUserInput()
+				k, err := GetUserInput()
 				if err != nil {
 					errChn <- err
 					return
@@ -429,6 +470,8 @@ Loop:
 		}
 	}
 
+	// fmt.Println("Started key loop")
+
 	if desc != nil {
 		if desc.MadePlan && len(desc.Files) > 0 {
 			fmt.Println()
@@ -447,6 +490,8 @@ Loop:
 		ClearCurrentLine()
 		PrintCmds("  ", "rewind")
 	}
+
+	// fmt.Println("Finished proposal")
 
 	return nil
 }
@@ -533,35 +578,13 @@ func checkOutdatedContext(s *spinner.Spinner) (bool, error) {
 
 	fmt.Println()
 
-	var input func() (bool, error)
-	input = func() (bool, error) {
-		color.New(color.FgHiGreen, color.Bold).Println("Update context now? (y)es | (n)o | (c)ancel")
-		color.New(color.FgHiGreen, color.Bold).Print("> ")
+	_, canceled, err := ConfirmYesNoCancel("Update context now?")
 
-		char, err := getUserInput()
-		if err != nil {
-			return false, fmt.Errorf("failed to get user input: %s", err)
-		}
-
-		fmt.Println(string(char))
-		if char == 'y' || char == 'Y' {
-			MustUpdateContextWithOuput()
-			return true, nil
-		} else if char == 'n' || char == 'N' {
-			return true, nil
-		} else if char == 'c' || char == 'C' {
-			return false, nil
-		} else {
-			fmt.Println()
-			color.New(color.FgHiRed, color.Bold).Print("Invalid input.\nEnter 'y' for yes, 'n' for no, or 'c' to cancel.\n\n")
-			return input()
-		}
-	}
-
-	shouldContinue, err := input()
 	if err != nil {
 		return false, fmt.Errorf("failed to get user input: %s", err)
 	}
+
+	shouldContinue := canceled
 
 	return shouldContinue, nil
 }

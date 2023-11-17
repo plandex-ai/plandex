@@ -73,12 +73,11 @@ func GetCurrentPlanStateWithContext() (*shared.CurrentPlanFiles, shared.PlanResu
 
 	for path, planResults := range planResByPath {
 		updated := files[path]
-		lastInsertedIdx := 0
 
 		// fmt.Printf("path: %s\n", path)
 		// fmt.Printf("updated: %s\n", updated)
 
-		for _, planRes := range planResults {
+		for i, planRes := range planResults {
 			if !planRes.IsPending() {
 				continue
 			}
@@ -94,6 +93,7 @@ func GetCurrentPlanStateWithContext() (*shared.CurrentPlanFiles, shared.PlanResu
 			}
 
 			contextSha := shas[path]
+
 			if contextSha != "" && planRes.ContextSha != contextSha {
 				return nil, nil, nil, fmt.Errorf("result sha doesn't match context sha: %s", path)
 			}
@@ -102,8 +102,9 @@ func GetCurrentPlanStateWithContext() (*shared.CurrentPlanFiles, shared.PlanResu
 				continue
 			}
 
-			for i, replacement := range planRes.Replacements {
-				if replacement.Failed || replacement.RejectedAt != "" {
+			lastInsertedIdx := 0
+			for j, replacement := range planRes.Replacements {
+				if !replacement.IsPending() {
 					continue
 				}
 
@@ -111,17 +112,23 @@ func GetCurrentPlanStateWithContext() (*shared.CurrentPlanFiles, shared.PlanResu
 				sub := updated[lastInsertedIdx:]
 				originalIdx := strings.Index(sub, replacement.Old)
 
+				// fmt.Println("replacement.Old: " + replacement.Old)
+				// fmt.Println("Pre: " + pre)
+				// fmt.Println("Sub: " + sub)
+				// fmt.Println("Idx: " + fmt.Sprintf("%d", i))
+				// fmt.Printf("OriginalIdx: %d\n", originalIdx)
+				// fmt.Printf("LastInsertedIdx: %d\n", lastInsertedIdx)
+
 				if originalIdx == -1 {
 					// replacement failed, return error (checked server-side so this shouldn't happen)
 
-					// fmt.Printf("replacement failed. path: %s, ts: %s, i: %d", path, planRes.Ts, i)
-					// fmt.Println("Replacement: " + replacement.Old + " -> " + replacement.New)
-					// fmt.Println("Pre: " + pre)
-					// fmt.Println("Sub: " + sub)
-					// fmt.Println("Idx: " + fmt.Sprintf("%d", lastInsertedIdx))
+					err := fmt.Errorf("replacement failed. path: %s, ts: %s, resIdx: %d, replaceIdx: %d", path, planRes.Ts, i, j)
+
+					fmt.Println(err.Error())
+
 					// fmt.Println("Updated: " + updated)
 
-					return nil, nil, nil, fmt.Errorf("replacement failed. path: %s, ts: %s, i: %d", path, planRes.Ts, i)
+					return nil, nil, nil, err
 				} else {
 					replaced := strings.Replace(sub, replacement.Old, replacement.New, 1)
 					updated = pre + replaced
@@ -221,8 +228,8 @@ func getPlanResultsByPath() (shared.PlanResultsByPath, error) {
 		return nil, fmt.Errorf("error reading results dir: %v", err)
 	}
 
-	// sort results by timestamp
 	for _, results := range resByPath {
+		// sort results by timestamp ascending
 		sort.Slice(results, func(i, j int) bool {
 			return results[i].Ts < results[j].Ts
 		})

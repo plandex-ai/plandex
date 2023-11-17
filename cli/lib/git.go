@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os/exec"
 	"path/filepath"
+	"plandex/types"
 	"strconv"
 	"strings"
 	"sync"
@@ -24,7 +25,7 @@ func InitGitRepo(dir string) error {
 		return fmt.Errorf("error initializing git repository for dir: %s, err: %v, output: %s", dir, err, string(res))
 	}
 
-	return GitAddAndCommit(dir, "New plan")
+	return GitAddAndCommit(dir, "New plan", false)
 }
 
 func AddGitSubmodule(rootDir, submoduleDir string) error {
@@ -62,7 +63,12 @@ func UpdateAndInitSubmodules(rootDir string) error {
 	return nil
 }
 
-func GitAddAndCommit(dir, message string) error {
+func GitAddAndCommit(dir, message string, lockMutex bool) error {
+	if lockMutex {
+		gitMutex.Lock()
+		defer gitMutex.Unlock()
+	}
+
 	err := GitAdd(dir, ".", false)
 	if err != nil {
 		return fmt.Errorf("error adding files to git repository for dir: %s, err: %v", dir, err)
@@ -130,17 +136,24 @@ func GitStashCreate(message string) error {
 	return nil
 }
 
-func GitStashPopNoConflict() error {
+// this matches output for git version 2.39.3
+// need to test on other versions and check for more variations
+// there isn't any structured way to get stash conflicts from git, unfortunately
+const PopStashConflictMsg = "overwritten by merge"
+const ConflictMsgFilesEnd = "commit your changes"
+
+func GitStashPop(conflictStrategy types.PlanOutdatedStrategy) error {
 	gitMutex.Lock()
 	defer gitMutex.Unlock()
 
 	res, err := exec.Command("git", "stash", "pop").CombinedOutput()
 
-	fmt.Println("'git stash pop' output:")
-	fmt.Println(string(res))
-
 	if err != nil {
-		if strings.Contains(string(res), "CONFLICT") {
+		if strings.Contains(string(res), PopStashConflictMsg) {
+			if conflictStrategy != types.PlanOutdatedStrategyOverwrite {
+				return fmt.Errorf("conflict popping git stash with unsupported conflict strategy: %s", conflictStrategy)
+			}
+
 			// Parse the output to find which files have conflicts
 			conflictFiles := parseConflictFiles(string(res))
 			for _, file := range conflictFiles {
@@ -156,7 +169,7 @@ func GitStashPopNoConflict() error {
 			}
 			return nil
 		} else {
-			return fmt.Errorf("error popping git stash: %v, output: %s", err, string(res))
+			return fmt.Errorf("error popping git stash: %v", err)
 		}
 	}
 
@@ -166,14 +179,20 @@ func GitStashPopNoConflict() error {
 func parseConflictFiles(gitOutput string) []string {
 	var conflictFiles []string
 	lines := strings.Split(gitOutput, "\n")
+
+	inFilesSection := false
+
 	for _, line := range lines {
-		if strings.Contains(line, "CONFLICT") {
-			// Extract the filename from the line
-			parts := strings.Fields(line)
-			if len(parts) > 1 {
-				filename := parts[len(parts)-1]
-				conflictFiles = append(conflictFiles, filename)
+		if inFilesSection {
+			file := strings.TrimSpace(line)
+			if file == "" {
+				continue
 			}
+			conflictFiles = append(conflictFiles, strings.TrimSpace(line))
+		} else if strings.Contains(line, PopStashConflictMsg) {
+			inFilesSection = true
+		} else if strings.Contains(line, ConflictMsgFilesEnd) {
+			break
 		}
 	}
 	return conflictFiles
@@ -192,14 +211,19 @@ func CwdIsGitRepo() bool {
 	return isGitRepo
 }
 
-func gitCommitRootUpdate(commitMsg string) error {
-	err := GitAdd(CurrentPlanDir, ".", true)
+func gitCommitRootUpdate(commitMsg string, lockMutex bool) error {
+	if lockMutex {
+		gitMutex.Lock()
+		defer gitMutex.Unlock()
+	}
+
+	err := GitAdd(CurrentPlanDir, ".", false)
 	if err != nil {
 		return fmt.Errorf("failed to root plan dir changes: %s", err)
 	}
 
 	// Commit these staged submodule changes in the root repo
-	err = GitCommit(CurrentPlanDir, commitMsg, true)
+	err = GitCommit(CurrentPlanDir, commitMsg, false)
 	if err != nil {
 		return fmt.Errorf("failed to commit submodule updates in root dir: %s", err)
 	}
@@ -209,42 +233,51 @@ func gitCommitRootUpdate(commitMsg string) error {
 }
 
 func GitCommitContextUpdate(commitMsg string) error {
-	err := GitAddAndCommit(ContextSubdir, commitMsg)
+	gitMutex.Lock()
+	defer gitMutex.Unlock()
+
+	err := GitAddAndCommit(ContextSubdir, commitMsg, false)
 
 	if err != nil {
 		return fmt.Errorf("failed to commit context: %v", err)
 	}
 
-	err = GitAdd(CurrentPlanDir, ContextSubdir, true)
+	err = GitAdd(CurrentPlanDir, ContextSubdir, false)
 	if err != nil {
 		return fmt.Errorf("failed to stage submodule changes in context dir: %s", err)
 	}
 
-	return gitCommitRootUpdate(commitMsg)
+	return gitCommitRootUpdate(commitMsg, false)
 }
 
 func GitCommitConvoUpdate(commitMsg string) error {
-	err := GitAddAndCommit(ConversationSubdir, commitMsg)
+	gitMutex.Lock()
+	defer gitMutex.Unlock()
+
+	err := GitAddAndCommit(ConversationSubdir, commitMsg, false)
 
 	if err != nil {
 		return fmt.Errorf("failed to commit convo update: %v", err)
 	}
 
-	err = GitAdd(CurrentPlanDir, ConversationSubdir, true)
+	err = GitAdd(CurrentPlanDir, ConversationSubdir, false)
 	if err != nil {
 		return fmt.Errorf("failed to stage submodule changes in convo dir: %s", err)
 	}
 
-	return gitCommitRootUpdate(commitMsg)
+	return gitCommitRootUpdate(commitMsg, false)
 }
 
 func GitCommitPlanUpdate(commitMsg string) error {
-	err := GitAddAndCommit(ResultsSubdir, commitMsg)
+	gitMutex.Lock()
+	defer gitMutex.Unlock()
+
+	err := GitAddAndCommit(ResultsSubdir, commitMsg, false)
 	if err != nil {
 		return fmt.Errorf("failed to commit files to plan dir: %s", err)
 	}
 
-	return gitCommitRootUpdate(commitMsg)
+	return gitCommitRootUpdate(commitMsg, false)
 }
 
 // GetGitCommitHistory retrieves the git commit history for the given directory.

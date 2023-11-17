@@ -11,11 +11,11 @@ import (
 	"golang.org/x/term"
 )
 
-var cmdDesc = map[string][2]string{
+var CmdDesc = map[string][2]string{
 	"new": {"", "start a new plan"},
 	// "current":     {"c", "show current plan"},
 	"cd":   {"", "set current plan by name or index"},
-	"load": {"l", "load files/directories/urls/notes or pipe data into context"},
+	"load": {"l", "load files, dirs, urls, notes or piped data into context"},
 	"tell": {"t", "describe a task, ask a question, or chat"},
 	// "diffs":       {"d", "show diffs between plan and project files"},
 	// "preview":     {"pv", "preview the plan in a branch"},
@@ -33,7 +33,7 @@ var cmdDesc = map[string][2]string{
 
 func PrintCmds(prefix string, cmds ...string) {
 	for _, cmd := range cmds {
-		config, ok := cmdDesc[cmd]
+		config, ok := CmdDesc[cmd]
 		if !ok {
 			continue
 		}
@@ -109,40 +109,84 @@ func PageOutputReverse(output string) {
 	}
 }
 
-// Function for 'a' key action
+func GetUserInput() (rune, error) {
+	if err := keyboard.Open(); err != nil {
+		return 0, fmt.Errorf("failed to open keyboard: %s", err)
+	}
+	defer func() {
+		_ = keyboard.Close()
+	}()
+
+	char, _, err := keyboard.GetKey()
+	if err != nil {
+		return 0, fmt.Errorf("failed to read keypress: %s", err)
+	}
+
+	return char, nil
+}
+
+func ConfirmYesNo(fmtStr string, fmtArgs ...interface{}) (bool, error) {
+	color.New(color.FgHiGreen, color.Bold).Printf(fmtStr+" (y)es | (n)o", fmtArgs...)
+	color.New(color.FgHiGreen, color.Bold).Print("> ")
+
+	char, err := GetUserInput()
+	if err != nil {
+		return false, fmt.Errorf("failed to get user input: %s", err)
+	}
+
+	fmt.Println(string(char))
+	if char == 'y' || char == 'Y' {
+		return true, nil
+	} else if char == 'n' || char == 'N' {
+		return false, nil
+	} else {
+		fmt.Println()
+		color.New(color.FgHiRed, color.Bold).Print("Invalid input.\nEnter 'y' for yes or 'n' for no.\n\n")
+		return ConfirmYesNo(fmtStr, fmtArgs...)
+	}
+}
+
+func ConfirmYesNoCancel(fmtStr string, fmtArgs ...interface{}) (bool, bool, error) {
+	color.New(color.FgHiGreen, color.Bold).Printf(fmtStr+" (y)es | (n)o | (c)ancel", fmtArgs...)
+	color.New(color.FgHiGreen, color.Bold).Print("> ")
+
+	char, err := GetUserInput()
+	if err != nil {
+		return false, false, fmt.Errorf("failed to get user input: %s", err)
+	}
+
+	fmt.Println(string(char))
+	if char == 'y' || char == 'Y' {
+		return true, false, nil
+	} else if char == 'n' || char == 'N' {
+		return false, false, nil
+	} else if char == 'c' || char == 'C' {
+		return false, true, nil
+	} else {
+		fmt.Println()
+		color.New(color.FgHiRed, color.Bold).Print("Invalid input.\nEnter 'y' for yes, 'n' for no, or 'c' for cancel.\n\n")
+		return ConfirmYesNoCancel(fmtStr, fmtArgs...)
+	}
+}
+
+func GetDivisionLine() string {
+	// Get the terminal width
+	terminalWidth, err := getTerminalWidth()
+	if err != nil {
+		fmt.Println("Error fetching terminal size:", err)
+		terminalWidth = 50 // default width if unable to fetch width
+	}
+	return strings.Repeat("─", terminalWidth)
+}
+
 func handleAbortKey(proposalId string) error {
 	return Abort(proposalId)
 }
-
-// // Function for 'r' key action
-// func handleReviseKey(proposalId string) error {
-// 	// Terminate current operation
-// 	err := Api.Abort(proposalId)
-// 	if err != nil {
-// 		return err
-// 	}
-
-// 	// Prompt the user for new message
-// 	fmt.Println(">\"")
-// 	reader := bufio.NewReader(os.Stdin)
-// 	newMessage, _ := reader.ReadString('"')
-
-// 	// Propose the new message
-// 	err = Propose(newMessage)
-// 	if err != nil {
-// 		return err
-// 	}
-
-// 	fmt.Println("Revision proposed.")
-// 	return nil
-// }
 
 func handleKeyPress(input rune, proposalId string) error {
 	switch input {
 	case 's':
 		return handleAbortKey(proposalId)
-	// case 'r':
-	// 	return handleReviseKey(proposalId)
 	default:
 		return fmt.Errorf("invalid key pressed: %s", string(input))
 	}
@@ -156,36 +200,10 @@ func getTerminalWidth() (int, error) {
 	return width, nil
 }
 
-func GetDivisionLine() string {
-	// Get the terminal width
-	terminalWidth, err := getTerminalWidth()
-	if err != nil {
-		fmt.Println("Error fetching terminal size:", err)
-		terminalWidth = 50 // default width if unable to fetch width
-	}
-	return strings.Repeat("─", terminalWidth)
-}
-
 func displayHotkeys() string {
 	divisionLine := GetDivisionLine()
 
 	return divisionLine + "\n" +
 		"  \x1b[1m(s)\x1b[0m" + `top  
 ` + divisionLine
-}
-
-func getUserInput() (rune, error) {
-	if err := keyboard.Open(); err != nil {
-		return 0, fmt.Errorf("failed to open keyboard: %s\n", err)
-	}
-	defer func() {
-		_ = keyboard.Close()
-	}()
-
-	char, _, err := keyboard.GetKey()
-	if err != nil {
-		return 0, fmt.Errorf("failed to read keypress: %s\n", err)
-	}
-
-	return char, nil
 }

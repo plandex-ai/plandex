@@ -22,11 +22,16 @@ func main() {
 
 	r := mux.NewRouter()
 
+	r.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, "OK")
+	})
+
 	r.HandleFunc("/proposal", handlers.ProposalHandler).Methods("POST")
 	r.HandleFunc("/abort", handlers.AbortProposalHandler).Methods("DELETE")
 	r.HandleFunc("/short-summary", handlers.ShortSummaryHandler).Methods("POST")
 	r.HandleFunc("/filename", handlers.FileNameHandler).Methods("POST")
 	r.HandleFunc("/convo-summary/{rootId}", handlers.ConvoSummaryHandler).Methods("GET")
+	// r.HandleFunc("/build", handlers.BuildHandler).Methods("PUT")
 
 	// Get port from the environment variable or default to 8088
 	port := os.Getenv("PORT")

@@ -98,11 +98,15 @@ func tell(cmd *cobra.Command, args []string) {
 		return
 	}
 
+	// fmt.Println("lib.Propose(prompt)")
+
 	err := lib.Propose(prompt)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Prompt error:", err)
 		return
 	}
+
+	// fmt.Println("lib.Propose(prompt) success")
 }
 
 func prepareEditorCommand(editor string, filename string) *exec.Cmd {

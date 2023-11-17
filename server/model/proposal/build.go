@@ -134,6 +134,10 @@ func buildPlan(params buildPlanParams) error {
 
 		if fileInCurrentPlan {
 			currentState = currentPlanFile
+
+			fmt.Printf("File %s found in current plan. Using current state.\n", filePath)
+			fmt.Println("Current state:")
+			fmt.Println(currentState)
 		} else if contextPart != nil {
 			currentState = contextPart.Body
 		}
@@ -168,15 +172,13 @@ func buildPlan(params buildPlanParams) error {
 		// fmt.Println("File context:", fileContext)
 
 		replacePrompt := prompts.GetReplacePrompt(filePath)
-		if currentState != "" {
-			fmt.Println("Adding current state before replace prompt")
-			replacePrompt = fmt.Sprintf("\nCurrent state of %s:\n```\n%s\n```", filePath, currentState) + "\n\n" + replacePrompt
-		}
+		currentStatePrompt := prompts.GetBuildCurrentStatePrompt(filePath, currentState)
+		sysPrompt := prompts.GetBuildSysPrompt(filePath, currentStatePrompt)
 
 		fileMessages := []openai.ChatCompletionMessage{
 			{
 				Role:    openai.ChatMessageRoleSystem,
-				Content: prompts.SysReplace,
+				Content: sysPrompt,
 			}, {
 				Role:    openai.ChatMessageRoleUser,
 				Content: proposal.Request.Prompt,
@@ -255,7 +257,8 @@ func buildPlan(params buildPlanParams) error {
 			handleErrorRetry := func(maxRetryErr error, shouldSleep bool, isReplacementsRetry bool, res *shared.PlanResult) {
 				fmt.Printf("Error for file %s: %v\n", filePath, maxRetryErr)
 
-				if numRetry >= MaxRetries {
+				if (isReplacementsRetry && numReplacementsRetry >= MaxReplacementRetries) ||
+					(!isReplacementsRetry && numRetry >= MaxRetries) {
 					onBuildFileError(filePath, maxRetryErr)
 				} else {
 					if shouldSleep {
@@ -393,14 +396,12 @@ func buildPlan(params buildPlanParams) error {
 								}
 							}
 
-							if numRetry < MaxReplacementRetries {
-								handleErrorRetry(
-									nil,
-									false,
-									true,
-									planResult,
-								)
-							}
+							handleErrorRetry(
+								fmt.Errorf("failed replacements for file '%s' after %d retries", filePath, numReplacementsRetry),
+								false,
+								true,
+								planResult,
+							)
 
 							return
 						}

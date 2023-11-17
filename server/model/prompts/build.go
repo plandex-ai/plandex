@@ -9,7 +9,8 @@ import (
 	"github.com/sashabaranov/go-openai/jsonschema"
 )
 
-const SysReplace = `
+func GetBuildSysPrompt(filePath, currentStatePrompt string) string {
+	return fmt.Sprintf(`
 [YOUR INSTRUCTIONS]
 
 You are an AI replacer. You apply changes from a plan to a given code file using the 'writeReplacements' function. You call 'writeReplacements' with a valid JSON array of replacements.
@@ -22,7 +23,9 @@ Lean toward using fewer replacements. If you can apply all the changes in a sing
 
 DO NOT INCLUDE any sections that are just comments, placeholders, references to the original file, or TODOs that are not yet implemented. Only include actual changes that move the plan forward and are ready to be applied to the file.
 
-These replacements will be applied automatically by a program to the file exactly as written, so the 'old' text must be an EXACT SUBSTRING of the current state of the file. Pay special attention to any special characters in the strings, extra spaces, or anything else that might cause 'old' not to be an exact substring.
+These replacements will be applied automatically by a program to the file exactly as written, so the 'old' text must be an EXACT SUBSTRING of the **current state of the file**. The current state of the file will be provided below, labelled with '**Current state of file for %s:**'. It does *not* include any of the suggested changes from the latest response. The 'old' text MUST be an exact substring of the current state of the file, not the suggested changes from the latest response.
+
+Pay special attention to any special characters in the strings, extra spaces, or anything else that might cause 'old' not to be an exact substring.
 
 The 'old' text should be unique and unambiguous in the current file. It must not overlap with any other 'old' text in the list of replacements. Make the 'old' text as short as it can be while still being unique and unambiguous. If the 'old' text can be a single line, it should be. If it must be multiple lines, it should be as few lines as possible.
 
@@ -34,7 +37,7 @@ Replacement examples below. Note: >>> and <<< indicate the start and end of an e
 
 1.)
 If the current file is:
-` + "```" + `
+`+"```"+`
 package main
 
 import "fmt"
@@ -42,7 +45,7 @@ import "fmt"
 func main() {
 	fmt.Println("Hello, world!")
 }
-` + "```" + `
+`+"```"+`
 
 And the previous response was:
 
@@ -50,21 +53,21 @@ And the previous response was:
 You can change the main.go file to print the current time instead of "Hello, world!".:
 
 - main.go:
-` + "```" + `
+`+"```"+`
 func main() {
 	fmt.Println(time.Now())
 }
-` + "```" + `
+`+"```"+`
 
 You'll also need to import the time package:
 
 - main.go:
-` + "```" + `
+`+"```"+`
 import (
 	"fmt"
 	"time"
 )
-` + "```" + `
+`+"```"+`
 <<<
 
 Then you would call the 'writeReplacements' function like this:
@@ -86,13 +89,13 @@ writeReplacements({
 
 2.)
 If the current file is:
-` + "```" + `
+`+"```"+`
 package helpers
 
 func Add(a, b int) int {
 	return a + b
 }
-` + "```" + `
+`+"```"+`
 
 And the previous response was:
 
@@ -100,11 +103,11 @@ And the previous response was:
 Add another function to the helpers.go file that subtracts two numbers:
 
 - helpers.go:
-` + "```" + `
+`+"```"+`
 func Subtract(a, b int) int {
 	return a - b
 }
-` + "```" + `
+`+"```"+`
 <<<
 
 Then you would call the 'writeReplacements' function like this:
@@ -121,7 +124,7 @@ writeReplacements({
 
 3.)
 If the current file is:
-` + "```" + `
+`+"```"+`
 package main
 
 import "fmt"
@@ -129,7 +132,7 @@ import "fmt"
 func main() {
 	fmt.Println("Hello, world!")
 }
-` + "```" + `
+`+"```"+`
 
 And the previous response was:
 
@@ -137,12 +140,12 @@ And the previous response was:
 You can change the main.go file to print "I love you!" in addition to "Hello, world!".:
 
 - main.go:
-` + "```" + `
+`+"```"+`
 func main() {
 	fmt.Println("Hello, world!")
 	fmt.Println("I love you!")
 }
-` + "```" + `
+`+"```"+`
 <<<
 
 Then you would call the 'writeReplacements' function like this:
@@ -157,7 +160,17 @@ writeReplacements({
 	]
 })
 
-[END INSTRUCTIONS]`
+[END INSTRUCTIONS]
+%s
+`, filePath, currentStatePrompt)
+}
+
+func GetBuildCurrentStatePrompt(filePath, currentState string) string {
+	if currentState == "" {
+		return ""
+	}
+	return fmt.Sprintf("\n\n**Current state of file for %s:**\n```\n%s\n```", filePath, currentState) + "\n\n"
+}
 
 var ReplaceFn = openai.FunctionDefinition{
 	Name: "writeReplacements",

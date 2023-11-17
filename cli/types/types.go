@@ -65,3 +65,12 @@ type LoadContextParams struct {
 	Recursive bool
 	NamesOnly bool
 }
+
+type PlanOutdatedStrategy string
+
+const (
+	PlanOutdatedStrategyOverwrite       PlanOutdatedStrategy = "Clear the modifications and then apply"
+	PlanOutdatedStrategyApplyUnmodified PlanOutdatedStrategy = "Apply only new and unmodified files"
+	PlanOutdatedStrategyRebuild         PlanOutdatedStrategy = "Rebuild the plan with updated context"
+	PlanOutdatedStrategyCancel          PlanOutdatedStrategy = "Cancel"
+)
