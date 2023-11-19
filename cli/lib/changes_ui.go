@@ -14,6 +14,21 @@ type keymap = struct {
 	up, down, reject, copy, applyAll, quit bubbleKey.Binding
 }
 
+type UIState int
+
+const (
+	ViewState UIState = iota
+	ChangeState
+)
+
+type changeDetail struct {
+	Path      string
+	Index     int
+	Change    shared.PlanResultReplacement
+	OldView   string
+	NewView   string
+}
+
 type changesUIModel struct {
 	help                     help.Model
 	keymap                   keymap
@@ -21,6 +36,17 @@ type changesUIModel struct {
 	selectedReplacementIndex int
 	resultsByPath            shared.PlanResultsByPath
 	currentPlanFiles         *shared.CurrentPlanFiles
+	state                    UIState
+	fileViewer               string
+	changeDetails            *changeDetail
+	clipboard                clipboardUtil
+}
+
+type clipboardUtil struct{}
+
+func (c *clipboardUtil) copy(text string) error {
+	// Implementation goes here.
+	return nil
 }
 
 func StartChangesUI() error {
@@ -70,10 +96,16 @@ func initialModel() changesUIModel {
 		}
 	}
 
-	return changesUIModel{
+	state:  ViewState,
+		fileViewer:    resultsByPath["example.go"][0].Content,
+		changeDetails: &changeDetail{
+			Path: "example.go",
+			Index: 0,
+		},
+		clipboard:     clipboardUtil{},
+		resultsByPath: resultsByPath,
 		selectedFileIndex:        0,
 		selectedReplacementIndex: 0,
-		resultsByPath:            resultsByPath,
 		help:                     help.New(),
 		keymap: keymap{
 			up: bubbleKey.NewBinding(
