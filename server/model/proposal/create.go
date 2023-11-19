@@ -313,7 +313,7 @@ func CreateProposal(req shared.PromptRequest, onStream types.OnStreamFunc) error
 						}()
 					}
 
-					files, fileContents, numTokensByFile, _ := replyInfo.FinishAndRead()
+					files, _, _, _ := replyInfo.FinishAndRead()
 
 					var planDescription *shared.PlanDescription
 
@@ -359,7 +359,11 @@ func CreateProposal(req shared.PromptRequest, onStream types.OnStreamFunc) error
 						onStream(shared.STREAM_FINISHED, nil)
 					} else {
 						onStream(shared.STREAM_BUILD_PHASE, nil)
-						err = buildPlan(buildPlanParams{proposalId, fileContents, numTokensByFile, onStream})
+						err = BuildPlan(&types.BuildParams{
+							ProposalId:  proposalId,
+							BuildPaths:  files,
+							CurrentPlan: req.CurrentPlan,
+						}, onStream)
 						if err != nil {
 							onError(fmt.Errorf("failed to confirm proposal: %v", err))
 						}

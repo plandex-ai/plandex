@@ -10,6 +10,7 @@ type Replacement struct {
 }
 
 type PlanResult struct {
+	ProposalId   string         `json:"proposalId"`
 	Path         string         `json:"path"`
 	ContextSha   string         `json:"contextSha"`
 	Content      string         `json:"content"`

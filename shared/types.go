@@ -42,6 +42,10 @@ type FileNameResponse struct {
 	FileName string `json:"fileName"`
 }
 
+type BuildRequest struct {
+	ProposalIds []string `json:"proposalIds"`
+}
+
 type ModelContextPartType string
 
 const (

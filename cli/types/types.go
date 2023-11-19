@@ -66,11 +66,9 @@ type LoadContextParams struct {
 	NamesOnly bool
 }
 
-type PlanOutdatedStrategy string
-
 const (
-	PlanOutdatedStrategyOverwrite       PlanOutdatedStrategy = "Clear the modifications and then apply"
-	PlanOutdatedStrategyApplyUnmodified PlanOutdatedStrategy = "Apply only new and unmodified files"
-	PlanOutdatedStrategyRebuild         PlanOutdatedStrategy = "Rebuild the plan with updated context"
-	PlanOutdatedStrategyCancel          PlanOutdatedStrategy = "Cancel"
+	PlanOutdatedStrategyOverwrite       string = "Clear the modifications and then apply"
+	PlanOutdatedStrategyApplyUnmodified string = "Apply only new and unmodified files"
+	PlanOutdatedStrategyRebuild         string = "Rebuild the plan with updated context"
+	PlanOutdatedStrategyCancel          string = "Cancel"
 )

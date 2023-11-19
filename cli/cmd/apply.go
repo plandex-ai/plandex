@@ -10,7 +10,6 @@ import (
 	"plandex/types"
 	"strings"
 
-	"github.com/erikgeiser/promptkit/selection"
 	"github.com/fatih/color"
 	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
@@ -70,8 +69,9 @@ func apply(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("error getting current plan files: %w", err)
 	}
 
-	// check if any files have been modified since the plan result was generated
+	aborted := false
 
+	// check if any files have been modified since the plan result was generated
 	pathsRemoved := []string{}
 	pathsOutdated := []string{}
 	pathsUnmodified := []string{}
@@ -123,55 +123,66 @@ func apply(cmd *cobra.Command, args []string) error {
 	table.SetHeader([]string{"Path", "Status"})
 	table.SetAutoWrapText(false)
 
-	var unmodifiedLabel = "Unmodified"
-
-	hasConflicts := (len(pathsRemoved) + len(pathsOutdated)) > 0
+	numConflicts := len(pathsRemoved) + len(pathsOutdated)
+	hasConflicts := numConflicts > 0
 
 	if hasConflicts {
-		fmt.Println("⚠️  Files in context have been modified since the plan was generated")
-		fmt.Println()
+		suffix := ""
+		verb := "has"
+		if numConflicts > 1 {
+			suffix = "s"
+			verb = "have"
+		}
+
+		color.New(color.Bold).Printf("⚠️  %d file%s in context %s been modified since the plan was generated\n\n", numConflicts, suffix, verb)
 
 		for _, path := range pathsRemoved {
 			table.Rich([]string{path, "🔴 Removed"}, []tablewriter.Colors{
 				{tablewriter.FgHiRedColor, tablewriter.Bold},
-				{tablewriter.FgHiRedColor},
+				{tablewriter.FgHiWhiteColor},
 			})
 		}
 
 		for _, path := range pathsOutdated {
-			table.Rich([]string{path, "🟠 Modified"}, []tablewriter.Colors{
+			table.Rich([]string{path, "🟡 Modified"}, []tablewriter.Colors{
 				{tablewriter.FgHiYellowColor, tablewriter.Bold},
-				{tablewriter.FgHiYellowColor},
+				{tablewriter.FgHiWhiteColor},
 			})
 		}
 	} else {
-		fmt.Printf("⚡️ %d files will be updated\n\n", len(pathsUnmodified)+len(pathsNew))
-		unmodifiedLabel = "Changes"
-	}
+		numUnmodified := len(pathsUnmodified) + len(pathsNew)
+		suffix := ""
 
-	for _, path := range pathsNew {
-		table.Rich([]string{path, "🟢 New File"}, []tablewriter.Colors{
-			{tablewriter.FgHiGreenColor, tablewriter.Bold},
-			{tablewriter.FgHiGreenColor},
-		})
+		if numUnmodified > 1 {
+			suffix = "s"
+		}
+
+		color.New(color.Bold).Printf("⚡️ %d file%s will be updated\n\n", numUnmodified, suffix)
 	}
 
 	for _, path := range pathsUnmodified {
-		table.Rich([]string{path, "🔵 " + unmodifiedLabel}, []tablewriter.Colors{
+		table.Rich([]string{path, "🟢 Ready for update"}, []tablewriter.Colors{
+			{tablewriter.FgHiGreenColor, tablewriter.Bold},
+			{tablewriter.FgHiWhiteColor},
+		})
+	}
+
+	for _, path := range pathsNew {
+		table.Rich([]string{path, "🔵 New file"}, []tablewriter.Colors{
 			{tablewriter.FgHiCyanColor, tablewriter.Bold},
-			{tablewriter.FgHiCyanColor},
+			{tablewriter.FgHiWhiteColor},
 		})
 	}
 
 	table.Render()
 
-	var conflictStrategy types.PlanOutdatedStrategy
+	var conflictStrategy string
 
 	if hasConflicts {
 		fmt.Println()
 
 		if conflictStrategy == "" {
-			options := []types.PlanOutdatedStrategy{
+			options := []string{
 				types.PlanOutdatedStrategyOverwrite,
 			}
 
@@ -184,13 +195,10 @@ func apply(cmd *cobra.Command, args []string) error {
 				types.PlanOutdatedStrategyCancel,
 			)
 
-			sp := selection.New("🤔 How do you want to handle it?", options)
-			sp.Filter = nil
+			choice, err := lib.SelectFromList("🤔 How do you want to handle it?", options)
 
-			choice, err := sp.RunPrompt()
 			if err != nil {
-				fmt.Printf("Error selecting choice: %v\n", err)
-				os.Exit(1)
+				return fmt.Errorf("failed to get user input: %w", err)
 			}
 
 			conflictStrategy = choice
@@ -199,16 +207,16 @@ func apply(cmd *cobra.Command, args []string) error {
 
 	switch conflictStrategy {
 	case types.PlanOutdatedStrategyOverwrite:
-		fmt.Println("⚡️ Will force apply and overwrite modifications")
+		fmt.Println("⚡️ Overwriting modifications")
 
 	case types.PlanOutdatedStrategyApplyUnmodified:
-		fmt.Println("⚡️ Will apply only new and unmodified files")
+		fmt.Println("⚡️ Applying only new and unmodified files")
 
 	case types.PlanOutdatedStrategyRebuild:
-		fmt.Println("⚡️ Will rebuild the plan with updated context")
+		fmt.Println("⚡️ Rebuilding the plan with updated context")
 
 	case types.PlanOutdatedStrategyCancel:
-		fmt.Println("🛑 Will abort and exit")
+		aborted = true
 		return nil
 	}
 
@@ -221,21 +229,6 @@ func apply(cmd *cobra.Command, args []string) error {
 
 		if err != nil {
 			return fmt.Errorf("error checking for uncommitted changes: %w", err)
-		}
-
-		if hasUncommittedChanges {
-			// If there are uncommitted changes, stash them
-			err := lib.GitStashCreate("Plandex auto-stash")
-			if err != nil {
-				return fmt.Errorf("failed to create git stash: %w", err)
-			}
-
-			defer func() {
-				err := lib.GitStashPop(conflictStrategy)
-				if err != nil {
-					fmt.Printf("failed to pop git stash: %v\n", err)
-				}
-			}()
 		}
 	}
 
@@ -255,16 +248,45 @@ func apply(cmd *cobra.Command, args []string) error {
 		fmt.Println("🤷‍♂️ No changes to apply")
 	} else {
 		if !autoConfirm && !hasConflicts {
-			shouldContinue, err := lib.ConfirmYesNo("Apply changes to %d files?", len(toApply))
+			fmt.Println()
+			numToApply := len(toApply)
+			suffix := ""
+			if numToApply > 1 {
+				suffix = "s"
+			}
+			shouldContinue, err := lib.ConfirmYesNo("Apply changes to %d file%s?", numToApply, suffix)
 
 			if err != nil {
 				return fmt.Errorf("failed to get confirmation user input: %s", err)
 			}
 
 			if !shouldContinue {
-				fmt.Println("🚫 Will abort and exit")
+				aborted = true
 				return nil
 			}
+		}
+
+		if isRepo && hasUncommittedChanges {
+			// If there are uncommitted changes, stash them
+			err := lib.GitStashCreate("Plandex auto-stash")
+			if err != nil {
+				return fmt.Errorf("failed to create git stash: %w", err)
+			}
+
+			defer func() {
+				if aborted {
+					// clear any partially applied changes before popping the stash
+					err := lib.GitClearUncommittedChanges()
+					if err != nil {
+						fmt.Printf("failed to clear uncommitted changes: %v\n", err)
+					}
+				}
+
+				err := lib.GitStashPop(conflictStrategy)
+				if err != nil {
+					fmt.Printf("failed to pop git stash: %v\n", err)
+				}
+			}()
 		}
 
 		for path, content := range toApply {
@@ -273,24 +295,28 @@ func apply(cmd *cobra.Command, args []string) error {
 			// Write the file
 			err = os.WriteFile(dstPath, []byte(content), 0644)
 			if err != nil {
+				aborted = true
 				return fmt.Errorf("failed to write %s: %w", dstPath, err)
 			}
 		}
 
 		err := lib.SetPendingResultsApplied(planResByPath)
 		if err != nil {
+			aborted = true
 			return fmt.Errorf("failed to set pending results applied: %w", err)
 		}
 
 		if isRepo {
 			desc, err := lib.GetLatestPlanDescription()
 			if err != nil {
+				aborted = true
 				return fmt.Errorf("failed to get latest plan description: %w", err)
 			}
 
 			// Commit the changes
 			err = lib.GitAddAndCommit(lib.ProjectRoot, color.New(color.BgBlue, color.FgHiWhite, color.Bold).Sprintln(" 🤖 Plandex ")+desc.CommitMsg, true)
 			if err != nil {
+				aborted = true
 				return fmt.Errorf("failed to commit changes: %w", err)
 			}
 		}

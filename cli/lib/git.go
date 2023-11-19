@@ -142,7 +142,7 @@ func GitStashCreate(message string) error {
 const PopStashConflictMsg = "overwritten by merge"
 const ConflictMsgFilesEnd = "commit your changes"
 
-func GitStashPop(conflictStrategy types.PlanOutdatedStrategy) error {
+func GitStashPop(conflictStrategy string) error {
 	gitMutex.Lock()
 	defer gitMutex.Unlock()
 
@@ -230,6 +230,17 @@ func gitCommitRootUpdate(commitMsg string, lockMutex bool) error {
 
 	return nil
 
+}
+func GitClearUncommittedChanges() error {
+	gitMutex.Lock()
+	defer gitMutex.Unlock()
+
+	res, err := exec.Command("git", "checkout", ".").CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("error clearing uncommitted changes: %v, output: %s", err, string(res))
+	}
+
+	return nil
 }
 
 func GitCommitContextUpdate(commitMsg string) error {

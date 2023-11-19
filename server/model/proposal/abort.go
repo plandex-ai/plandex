@@ -15,11 +15,11 @@ func AbortProposal(proposalId string) error {
 		proposals.Set(proposalId, proposal)
 	}
 
-	plan := plans.Get(proposalId)
+	plan := builds.Get(proposalId)
 	if plan != nil {
 		aborted := plan.Abort()
 		if aborted {
-			plans.Set(proposalId, plan)
+			builds.Set(proposalId, plan)
 		}
 	}
 

@@ -126,8 +126,8 @@ func GetUserInput() (rune, error) {
 }
 
 func ConfirmYesNo(fmtStr string, fmtArgs ...interface{}) (bool, error) {
-	color.New(color.FgHiGreen, color.Bold).Printf(fmtStr+" (y)es | (n)o", fmtArgs...)
-	color.New(color.FgHiGreen, color.Bold).Print("> ")
+	color.New(color.FgHiMagenta, color.Bold).Printf(fmtStr+" (y)es | (n)o", fmtArgs...)
+	color.New(color.FgHiMagenta, color.Bold).Print("> ")
 
 	char, err := GetUserInput()
 	if err != nil {
@@ -147,8 +147,8 @@ func ConfirmYesNo(fmtStr string, fmtArgs ...interface{}) (bool, error) {
 }
 
 func ConfirmYesNoCancel(fmtStr string, fmtArgs ...interface{}) (bool, bool, error) {
-	color.New(color.FgHiGreen, color.Bold).Printf(fmtStr+" (y)es | (n)o | (c)ancel", fmtArgs...)
-	color.New(color.FgHiGreen, color.Bold).Print("> ")
+	color.New(color.FgHiMagenta, color.Bold).Printf(fmtStr+" (y)es | (n)o | (c)ancel", fmtArgs...)
+	color.New(color.FgHiMagenta, color.Bold).Print("> ")
 
 	char, err := GetUserInput()
 	if err != nil {

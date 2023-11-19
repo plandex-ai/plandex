@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/davecgh/go-spew/spew"
+	"github.com/google/uuid"
 	"github.com/plandex/plandex/shared"
 	"github.com/sashabaranov/go-openai"
 )
@@ -21,24 +22,19 @@ import (
 const MaxRetries = 3
 const MaxReplacementRetries = 1
 
-type buildPlanParams struct {
-	ProposalId      string
-	FileContents    map[string]string
-	NumTokensByFile map[string]int
-	OnStream        types.OnStreamFunc
-}
-
-func buildPlan(params buildPlanParams) error {
-	proposalId := params.ProposalId
-	fileContents := params.FileContents
-	numTokensByFile := params.NumTokensByFile
-	onStream := params.OnStream
+func BuildPlan(params *types.BuildParams, onStream types.OnStreamFunc) error {
+	// proposalId := params.ProposalId
+	// fileContents := params.FileContents
+	// numTokensByFile := params.NumTokensByFile
+	// onStream := params.OnStream
 
 	// goEnv := os.Getenv("GOENV")
 	// if goEnv == "test" {
 	// 	streamFilesLoremIpsum(onStream)
 	// 	return nil
 	// }
+
+	proposalId := params.ProposalId
 
 	proposal := proposals.Get(proposalId)
 	if proposal == nil {
@@ -49,9 +45,21 @@ func buildPlan(params buildPlanParams) error {
 		return errors.New("proposal not finished")
 	}
 
+	buildUUID, err := uuid.NewRandom()
+	if err != nil {
+		fmt.Printf("Failed to generate build id: %v\n", err)
+		return err
+	}
+	buildId := buildUUID.String()
+
+	replyInfo := shared.NewReplyInfo()
+	replyInfo.AddToken(proposal.Content, true)
+	_, fileContents, numTokensByFile, _ := replyInfo.FinishAndRead()
+
 	ctx, cancel := context.WithCancel(context.Background())
 
-	plans.Set(proposalId, &types.Plan{
+	builds.Set(proposalId, &types.Build{
+		BuildId:    buildId,
 		ProposalId: proposalId,
 		NumFiles:   len(proposal.PlanDescription.Files),
 		Buffers:    map[string]string{},
@@ -67,7 +75,7 @@ func buildPlan(params buildPlanParams) error {
 
 		onStream(shared.STREAM_WRITE_PHASE, nil)
 
-		plan := plans.Get(proposalId)
+		plan := builds.Get(proposalId)
 		ts := shared.StringTs()
 
 		for _, planRes := range plan.Results {
@@ -91,7 +99,7 @@ func buildPlan(params buildPlanParams) error {
 		// fmt.Println("onFinishBuildFile: " + filePath)
 		// spew.Dump(planRes)
 
-		plans.Update(proposalId, func(plan *types.Plan) {
+		builds.Update(proposalId, func(plan *types.Build) {
 			plan.Results[filePath] = planRes
 
 			if plan.DidFinish() {
@@ -109,7 +117,7 @@ func buildPlan(params buildPlanParams) error {
 
 	onBuildFileError := func(filePath string, err error) {
 		fmt.Printf("Error for file %s: %v\n", filePath, err)
-		plans.Update(proposalId, func(p *types.Plan) {
+		builds.Update(proposalId, func(p *types.Build) {
 			p.Errs[filePath] = err
 			p.SetErr(err)
 		})
@@ -161,8 +169,9 @@ func buildPlan(params buildPlanParams) error {
 
 			// new file
 			planRes := &shared.PlanResult{
-				Path:    filePath,
-				Content: fileContents[filePath],
+				ProposalId: proposalId,
+				Path:       filePath,
+				Content:    fileContents[filePath],
 			}
 			onFinishBuildFile(filePath, planRes)
 			return
@@ -334,7 +343,7 @@ func buildPlan(params buildPlanParams) error {
 						fmt.Printf("File %s: Stream finished with non-function call\n", filePath)
 						fmt.Println("finish reason: " + choice.FinishReason)
 
-						plan := plans.Get(proposalId)
+						plan := builds.Get(proposalId)
 						if plan.Results[filePath] == nil {
 							fmt.Printf("Stream finished before replacements parsed. File: %s\n", filePath)
 							fmt.Println("Buffer:")
@@ -376,7 +385,7 @@ func buildPlan(params buildPlanParams) error {
 					onStream(string(planTokenCountJson), nil)
 
 					var buffer string
-					plans.Update(proposalId, func(p *types.Plan) {
+					builds.Update(proposalId, func(p *types.Build) {
 						p.Buffers[filePath] += content
 						buffer = p.Buffers[filePath]
 					})
@@ -386,7 +395,7 @@ func buildPlan(params buildPlanParams) error {
 					if err == nil && len(replacements.Replacements) > 0 {
 						fmt.Printf("File %s: Parsed replacements\n", filePath)
 
-						planResult, allSucceeded := getPlanResult(filePath, currentState, contextPart, replacements.Replacements)
+						planResult, allSucceeded := getPlanResult(proposalId, filePath, currentState, contextPart, replacements.Replacements)
 
 						if !allSucceeded {
 							fmt.Println("Failed replacements:")
@@ -435,7 +444,7 @@ func buildPlan(params buildPlanParams) error {
 	return nil
 }
 
-func getPlanResult(filePath, currentState string, contextPart *shared.ModelContextPart, replacements []*shared.Replacement) (*shared.PlanResult, bool) {
+func getPlanResult(proposalId, filePath, currentState string, contextPart *shared.ModelContextPart, replacements []*shared.Replacement) (*shared.PlanResult, bool) {
 	updated := currentState
 
 	sort.Slice(replacements, func(i, j int) bool {
@@ -476,6 +485,7 @@ func getPlanResult(filePath, currentState string, contextPart *shared.ModelConte
 	}
 
 	return &shared.PlanResult{
+		ProposalId:   proposalId,
 		Path:         filePath,
 		Replacements: replacements,
 		ContextSha:   contextSha,

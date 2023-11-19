@@ -8,7 +8,7 @@ import (
 
 var (
 	proposals         types.SafeMap[*types.Proposal]             = *types.NewSafeMap[*types.Proposal]()
-	plans             types.SafeMap[*types.Plan]                 = *types.NewSafeMap[*types.Plan]()
+	builds            types.SafeMap[*types.Build]                = *types.NewSafeMap[*types.Build]()
 	convoSummaryProcs types.SafeMap[*types.ConvoSummaryProc]     = *types.NewSafeMap[*types.ConvoSummaryProc]()
 	convoSummaries    types.SafeMap[*shared.ConversationSummary] = *types.NewSafeMap[*shared.ConversationSummary]()
 )

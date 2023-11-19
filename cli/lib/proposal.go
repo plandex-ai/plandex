@@ -300,8 +300,10 @@ func Propose(prompt string) error {
 			streamFinished = true
 
 			if filesFinished {
-				close(done)
-				closedDone = true
+				if !closedDone {
+					close(done)
+					closedDone = true
+				}
 				writeFileProgress()
 			}
 
@@ -410,8 +412,10 @@ func Propose(prompt string) error {
 				}
 
 				if streamFinished {
-					close(done)
-					closedDone = true
+					if !closedDone {
+						close(done)
+						closedDone = true
+					}
 					writeFileProgress()
 				}
 			}
@@ -578,13 +582,17 @@ func checkOutdatedContext(s *spinner.Spinner) (bool, error) {
 
 	fmt.Println()
 
-	_, canceled, err := ConfirmYesNoCancel("Update context now?")
+	confirmed, canceled, err := ConfirmYesNoCancel("Update context now?")
 
 	if err != nil {
 		return false, fmt.Errorf("failed to get user input: %s", err)
 	}
 
-	shouldContinue := canceled
+	if confirmed {
+		MustUpdateContextWithOuput()
+	}
+
+	shouldContinue := !canceled
 
 	return shouldContinue, nil
 }

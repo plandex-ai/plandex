@@ -57,10 +57,15 @@ func tell(cmd *cobra.Command, args []string) {
 			return
 		}
 
-		instruction := "Write your prompt below, then save and exit to send it to Plandex.\n\n"
-		_, err = tempFile.WriteString(instruction)
+		instructions := getEditorInstructions(editor)
+		filename := tempFile.Name()
+		err = os.WriteFile(filename, []byte(instructions), 0644)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "Failed to write instructions to temporary file:", err)
+			return
+		}
 
-		editorCmd := prepareEditorCommand(editor, tempFile.Name())
+		editorCmd := prepareEditorCommand(editor, filename)
 		editorCmd.Stdin = os.Stdin
 		editorCmd.Stdout = os.Stdout
 		editorCmd.Stderr = os.Stderr
@@ -84,75 +89,33 @@ func tell(cmd *cobra.Command, args []string) {
 			return
 		}
 
-		prompt = strings.TrimPrefix(prompt, strings.TrimSpace(instruction))
+		prompt = strings.TrimPrefix(prompt, strings.TrimSpace(instructions))
 		prompt = strings.TrimSpace(prompt)
 
 		if prompt != "" {
-			fmt.Print("Prompt:\n\n")
+			fmt.Print("\n\n")
+			fmt.Print(lib.GetDivisionLine())
+			fmt.Print("\n\n")
 			fmt.Println(prompt)
+			fmt.Print("\n\n")
+			fmt.Print(lib.GetDivisionLine())
+			fmt.Print("\n\n")
 		}
 	}
 
 	if prompt == "" {
-		fmt.Fprintln(os.Stderr, "🤷‍♂️ No prompt to send.")
+		fmt.Fprintln(os.Stderr, "🤷‍♂️ No prompt to send")
 		return
 	}
-
-	// fmt.Println("lib.Propose(prompt)")
 
 	err := lib.Propose(prompt)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Prompt error:", err)
 		return
 	}
-
-	// fmt.Println("lib.Propose(prompt) success")
 }
 
 func prepareEditorCommand(editor string, filename string) *exec.Cmd {
-	switch editor {
-	case "vim":
-		vimInstructions := "Write your prompt below, then save and exit to send it to Plandex.\n\n" +
-			"Vim Instructions:\n" +
-			"Use the arrow keys or 'hjkl' to navigate around the text.\n" +
-			"Press 'i' to enter 'Insert' mode and start typing your prompt.\n" +
-			"To exit 'Insert' mode and go back to 'Normal' mode, press 'Esc'.\n" +
-			"In 'Normal' mode, type ':wq' followed by 'Enter' key to save and exit.\n" +
-			"If you want to exit without saving, type ':q!' followed by 'Enter'."
-
-		// Write the Vim specific instructions into the temporary file
-		err := os.WriteFile(filename, []byte(vimInstructions), 0644)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "Failed to write instructions to temporary file:", err)
-			return nil
-		}
-
-		return exec.Command(editor, filename)
-
-	case "nano":
-		nanoInstructions := "Write your prompt below, then save and exit to send it to Plandex.\n\n" +
-			"Nano Instructions:\n" +
-			"Use the arrow keys to navigate around the text.\n" +
-			"Type your prompt as needed.\n" +
-			"When you're ready, press 'Ctrl + O' to save the file, then 'Enter' to confirm.\n" +
-			"Finally, press 'Ctrl + X' to exit Nano and send your prompt."
-
-		// Write the Nano specific instructions into the temporary file
-		err := os.WriteFile(filename, []byte(nanoInstructions), 0644)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "Failed to write instructions to temporary file:", err)
-			return nil
-		}
-
-		return exec.Command(editor, filename)
-	default:
-		return exec.Command(editor, filename)
-	}
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Failed to write instructions to temporary file:", err)
-		return nil
-	}
-
 	switch editor {
 	case "vim":
 		return exec.Command(editor, "+normal G$", "+startinsert!", filename)
@@ -161,4 +124,32 @@ func prepareEditorCommand(editor string, filename string) *exec.Cmd {
 	default:
 		return exec.Command(editor, filename)
 	}
+}
+
+func getEditorInstructions(editor string) string {
+
+	return "Write your prompt below, then save and exit to send it to Plandex.\n\n"
+
+	// var instructions string
+
+	// switch editor {
+	// case "vim":
+	// 	instructions = "Write your prompt below, then save and exit to send it to Plandex.\n\n" +
+	// 		"Vim Instructions:\n" +
+	// 		"Use the arrow keys or 'hjkl' to navigate around the text.\n" +
+	// 		"Press 'i' to enter 'Insert' mode and start typing your prompt.\n" +
+	// 		"To exit 'Insert' mode and go back to 'Normal' mode, press 'Esc'.\n" +
+	// 		"In 'Normal' mode, type ':wq' followed by 'Enter' key to save, exit, and send your prompt.\n" +
+	// 		"If you want to exit without saving, type ':q!' followed by 'Enter'."
+
+	// case "nano":
+	// 	instructions = "Write your prompt below, then save and exit to send it to Plandex.\n\n" +
+	// 		"Nano Instructions:\n" +
+	// 		"Use the arrow keys to navigate around the text.\n" +
+	// 		"Type your prompt as needed.\n" +
+	// 		"When you're ready, press 'Ctrl + O' to save the file, then 'Enter' to confirm.\n" +
+	// 		"Finally, press 'Ctrl + X' to exit Nano and send your prompt."
+	// }
+
+	// return instructions
 }

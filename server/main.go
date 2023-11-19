@@ -31,7 +31,7 @@ func main() {
 	r.HandleFunc("/short-summary", handlers.ShortSummaryHandler).Methods("POST")
 	r.HandleFunc("/filename", handlers.FileNameHandler).Methods("POST")
 	r.HandleFunc("/convo-summary/{rootId}", handlers.ConvoSummaryHandler).Methods("GET")
-	// r.HandleFunc("/build", handlers.BuildHandler).Methods("PUT")
+	r.HandleFunc("/build", handlers.BuildHandler).Methods("PUT")
 
 	// Get port from the environment variable or default to 8088
 	port := os.Getenv("PORT")
