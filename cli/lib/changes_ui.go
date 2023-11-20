@@ -3,6 +3,7 @@ package lib
 import (
 	"fmt"
 	"log"
+	"os"
 	"strings"
 	"time"
 
@@ -22,6 +23,11 @@ type keymap = struct {
 }
 
 type changesUIModel struct {
+	mainViewport struct {
+		fileContent list.Model
+		oldChange   list.Model
+		newChange   list.Model
+	}
 	help                     help.Model
 	keymap                   keymap
 	selectedFileIndex        int
@@ -31,9 +37,20 @@ type changesUIModel struct {
 	sidebar                  list.Model
 }
 
-func StartChangesUI() error {
-	log.Print("\n\n\nStarting changes UI...\n\n")
+func init() {
+	// set up a file logger
+	file, err := os.OpenFile("changes_ui.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
+	if err != nil {
+		log.Fatal(err)
+	}
 
+	// Set the output of the logger to the file
+	log.SetOutput(file)
+
+	log.Print("\n\n\nStarting changes UI...\n\n")
+}
+
+func StartChangesUI() error {
 	_, err := tea.NewProgram(initialModel(), tea.WithAltScreen()).Run()
 
 	if err != nil {
@@ -87,6 +104,15 @@ func initialModel() changesUIModel {
 	}
 
 	initialState := changesUIModel{
+	mainViewport: struct {
+		fileContent list.Model
+		oldChange   list.Model
+		newChange   list.Model
+	}{
+		fileContent: list.NewModel([]string{}, nil, false),
+		oldChange:   list.NewModel([]string{}, nil, false),
+		newChange:   list.NewModel([]string{}, nil, false),
+	},
 		resultsInfo:              resultsInfo,
 		selectedFileIndex:        0,
 		selectedReplacementIndex: 0,
@@ -131,6 +157,25 @@ var escPressedAt time.Time
 var escSeq string
 
 func (m changesUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "up":
+			if m.state == viewingChange {
+				m.mainViewport.oldChange.CursorUp(1)
+				m.mainViewport.newChange.CursorUp(1)
+			} else {
+				m.mainViewport.fileContent.CursorUp(1)
+			}
+		case "down":
+			if m.state == viewingChange {
+				m.mainViewport.oldChange.CursorDown(1)
+				m.mainViewport.newChange.CursorDown(1)
+			} else {
+				m.mainViewport.fileContent.CursorDown(1)
+			}
+		}
+	}
 
 	selectionInfo := m.getSelectionInfo()
 	paths := m.resultsInfo.sortedPaths
