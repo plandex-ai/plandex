@@ -23,6 +23,8 @@ const MaxRetries = 3
 const MaxReplacementRetries = 1
 
 func BuildPlan(params *types.BuildParams, onStream types.OnStreamFunc) error {
+	fmt.Printf("Building plan: %s\n", params.ProposalId)
+
 	// proposalId := params.ProposalId
 	// fileContents := params.FileContents
 	// numTokensByFile := params.NumTokensByFile
@@ -228,16 +230,17 @@ func BuildPlan(params *types.BuildParams, onStream types.OnStreamFunc) error {
 
 		fmt.Println("Calling model for file: " + filePath)
 
-		for _, msg := range fileMessages {
-			fmt.Printf("%s: %s\n", msg.Role, msg.Content)
-		}
+		// for _, msg := range fileMessages {
+		// 	fmt.Printf("%s: %s\n", msg.Role, msg.Content)
+		// }
 
 		modelReq := openai.ChatCompletionRequest{
-			Model:          model.BuilderModel,
-			Functions:      []openai.FunctionDefinition{prompts.ReplaceFn},
-			Messages:       fileMessages,
-			Temperature:    0.0,
-			ResponseFormat: &openai.ChatCompletionResponseFormat{Type: "json_object"},
+			Model:       model.BuilderModel,
+			Functions:   []openai.FunctionDefinition{prompts.ReplaceFn},
+			Messages:    fileMessages,
+			Temperature: 0.2,
+			TopP:        0.1,
+			// ResponseFormat: &openai.ChatCompletionResponseFormat{Type: "json_object"},
 		}
 
 		stream, err := model.Client.CreateChatCompletionStream(ctx, modelReq)
@@ -266,8 +269,9 @@ func BuildPlan(params *types.BuildParams, onStream types.OnStreamFunc) error {
 			handleErrorRetry := func(maxRetryErr error, shouldSleep bool, isReplacementsRetry bool, res *shared.PlanResult) {
 				fmt.Printf("Error for file %s: %v\n", filePath, maxRetryErr)
 
-				if (isReplacementsRetry && numReplacementsRetry >= MaxReplacementRetries) ||
-					(!isReplacementsRetry && numRetry >= MaxRetries) {
+				if isReplacementsRetry && numReplacementsRetry >= MaxReplacementRetries {
+					// in this case, we just want to ignore the error and continue
+				} else if !isReplacementsRetry && numRetry >= MaxRetries {
 					onBuildFileError(filePath, maxRetryErr)
 				} else {
 					if shouldSleep {
@@ -308,10 +312,13 @@ func BuildPlan(params *types.BuildParams, onStream types.OnStreamFunc) error {
 							<-timer.C
 						}
 						timer.Reset(model.OPENAI_STREAM_CHUNK_TIMEOUT)
-					}
-
-					if err != nil {
+					} else {
 						fmt.Printf("File %s: Error receiving stream chunk: %v\n", filePath, err)
+
+						if err == context.Canceled {
+							fmt.Printf("File %s: Stream canceled\n", filePath)
+							return
+						}
 
 						handleErrorRetry(
 							fmt.Errorf("stream error for file '%s' after %d retries: %v", filePath, numRetry, err),
@@ -395,7 +402,17 @@ func BuildPlan(params *types.BuildParams, onStream types.OnStreamFunc) error {
 					if err == nil && len(replacements.Replacements) > 0 {
 						fmt.Printf("File %s: Parsed replacements\n", filePath)
 
-						planResult, allSucceeded := getPlanResult(proposalId, filePath, currentState, contextPart, replacements.Replacements)
+						planResult, allSucceeded := getPlanResult(
+							planResultParams{
+								proposalId:   proposalId,
+								filePath:     filePath,
+								currentState: currentState,
+								contextPart:  contextPart,
+								replacements: replacements.Replacements,
+							},
+						)
+
+						// proposalId, filePath, currentState, contextPart, replacements.Replacements)
 
 						if !allSucceeded {
 							fmt.Println("Failed replacements:")
@@ -406,7 +423,7 @@ func BuildPlan(params *types.BuildParams, onStream types.OnStreamFunc) error {
 							}
 
 							handleErrorRetry(
-								fmt.Errorf("failed replacements for file '%s' after %d retries", filePath, numReplacementsRetry),
+								nil, // no error -- if we reach MAX_REPLACEMENT_RETRIES, we just ignore the error and continue
 								false,
 								true,
 								planResult,
@@ -444,7 +461,22 @@ func BuildPlan(params *types.BuildParams, onStream types.OnStreamFunc) error {
 	return nil
 }
 
-func getPlanResult(proposalId, filePath, currentState string, contextPart *shared.ModelContextPart, replacements []*shared.Replacement) (*shared.PlanResult, bool) {
+type planResultParams struct {
+	proposalId   string
+	filePath     string
+	currentState string
+	contextPart  *shared.ModelContextPart
+	replacements []*shared.Replacement
+	fileBlock    string
+}
+
+func getPlanResult(params planResultParams) (*shared.PlanResult, bool) {
+	proposalId := params.proposalId
+	filePath := params.filePath
+	currentState := params.currentState
+	contextPart := params.contextPart
+	replacements := params.replacements
+
 	updated := currentState
 
 	sort.Slice(replacements, func(i, j int) bool {
@@ -453,38 +485,24 @@ func getPlanResult(proposalId, filePath, currentState string, contextPart *share
 		return iIdx < jIdx
 	})
 
-	allSucceeded := true
-
-	lastInsertedIdx := 0
-	for _, replacement := range replacements {
-		pre := updated[:lastInsertedIdx]
-		sub := updated[lastInsertedIdx:]
-		originalIdx := strings.Index(sub, replacement.Old)
-
-		if originalIdx == -1 {
-			allSucceeded = false
-			replacement.Failed = true
-		} else {
-			replaced := strings.Replace(sub, replacement.Old, replacement.New, 1)
-
-			// log.Println("Replacement: " + replacement.Old + " -> " + replacement.New)
-			// log.Println("Pre: " + pre)
-			// log.Println("Sub: " + sub)
-			// log.Println("Idx: " + fmt.Sprintf("%d", idx))
-			// log.Println("Updated: " + updated)
-
-			updated = pre + replaced
-			lastInsertedIdx = lastInsertedIdx + originalIdx + len(replacement.New)
-		}
-
-	}
+	_, allSucceeded := shared.ApplyReplacements(currentState, replacements, true)
 
 	var contextSha string
 	if contextPart != nil {
 		contextSha = contextPart.Sha
 	}
 
+	for _, replacement := range replacements {
+		replacementUUID, err := uuid.NewRandom()
+		if err != nil {
+			fmt.Printf("Failed to generate replacement id: %v\n", err)
+			return nil, false
+		}
+		replacement.Id = replacementUUID.String()
+	}
+
 	return &shared.PlanResult{
+		Content:      params.fileBlock,
 		ProposalId:   proposalId,
 		Path:         filePath,
 		Replacements: replacements,

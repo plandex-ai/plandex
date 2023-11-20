@@ -6,12 +6,13 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
-const strongModel = openai.GPT4TurboPreview
+const strongModel = openai.GPT4 //openai.GPT4TurboPreview
+const mediumModel = openai.GPT4TurboPreview
 const weakModel = openai.GPT3Dot5Turbo1106
 
 var PlannerModel = strongModel
-var PlanSummaryModel = strongModel
-var BuilderModel = strongModel //openai.GPT4
+var PlanSummaryModel = mediumModel //strongModel
+var BuilderModel = strongModel     //openai.GPT4
 var ShortSummaryModel = weakModel
 var NameModel = weakModel
 var CommitMsgModel = weakModel

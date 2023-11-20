@@ -33,7 +33,9 @@ const SysCreate = Identity + ` A plan is a set of files with an attached context
 			  - Explicitly say "Let's break up this task."
 				- Divide the task into smaller subtasks and list them in a numbered list. Stop there.
 		
-		Always precede code blocks in a plan with the file path as described above in 2a. Code must *always* be labelled with the path. 
+		Always precede code blocks in a plan with the file path as described above in 2a. Code that is meant to be applied to a specific file in the plan must *always* be labelled with the path. 
+		
+		If code is being included for explanatory purposes and is not meant to be applied to a specific file, you MUST NOT label the code block in the format described in 2a. Instead, output the code without a label.
 		
 		Every file you reference in a plan should either exist in the context directly or be a new file that will be created in the same base directory a file in the context. For example, if there is a file in context at path 'lib/utils.go', you can create a new file at path 'lib/utils_test.go' but *not* at path 'src/lib/utils.go'.
 
@@ -51,7 +53,10 @@ const SysCreate = Identity + ` A plan is a set of files with an attached context
 		
 		For changes that are larger or more complex, only include one change per response.
 
-		At the end of a plan, you can suggest additional iterations to make the plan better. You can also ask the user to load more files or information into context if it would help you make a better plan.` +
+		At the end of a plan, you can suggest additional iterations to make the plan better. You can also ask the user to load more files or information into context if it would help you make a better plan.
+		
+		Be aware that since the plan started, the context may have been updated. It may have been updated by the user implementing your suggestions, by the user implementing their own work, or by the user adding more files or information to context. Be sure to consider the current state of the context when continuing with the plan, and whether the plan needs to be updated to reflect the latest context. For example, if you are working on a plan that has been broken up into subtasks, and you've reached the point of implementing a particular subtask, first consider whether the subtask is still necessary looking at the files in context. If it has already been implemented or is no longer necessary, say so, revise the plan if needed, and move on. Otherwise, implement the subtask.
+			` +
 	"\n```\n\n" +
 	"User-provided context:"
 

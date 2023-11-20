@@ -3,7 +3,9 @@ module plandex
 go 1.21.3
 
 require (
+	github.com/atotto/clipboard v0.1.4
 	github.com/charmbracelet/lipgloss v0.9.1
+	github.com/davecgh/go-spew v1.1.1
 	github.com/fatih/color v1.16.0
 	github.com/looplab/fsm v1.0.1
 	github.com/olekukonko/tablewriter v0.0.5
@@ -34,6 +36,7 @@ require (
 	github.com/muesli/reflow v0.3.0 // indirect
 	github.com/muesli/termenv v0.15.2 // indirect
 	github.com/rivo/uniseg v0.4.4 // indirect
+	github.com/sahilm/fuzzy v0.1.0 // indirect
 	github.com/yuin/goldmark v1.6.0 // indirect
 	github.com/yuin/goldmark-emoji v1.0.2 // indirect
 	golang.org/x/net v0.18.0 // indirect

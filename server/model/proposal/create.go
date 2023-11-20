@@ -173,9 +173,11 @@ func CreateProposal(req shared.PromptRequest, onStream types.OnStreamFunc) error
 	replyInfo := shared.NewReplyInfo()
 
 	modelReq := openai.ChatCompletionRequest{
-		Model:    model.PlannerModel,
-		Messages: messages,
-		Stream:   true,
+		Model:       model.PlannerModel,
+		Messages:    messages,
+		Stream:      true,
+		Temperature: 0.6,
+		TopP:        0.7,
 	}
 
 	stream, err := model.Client.CreateChatCompletionStream(ctx, modelReq)

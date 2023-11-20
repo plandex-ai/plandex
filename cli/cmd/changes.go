@@ -13,9 +13,10 @@ func init() {
 }
 
 var changesCmd = &cobra.Command{
-	Use:   "changes",
-	Short: "View, copy, or manage changes for the current plan",
-	Run:   changes,
+	Use:     "changes",
+	Aliases: []string{"ch"},
+	Short:   "View, copy, or manage changes for the current plan",
+	Run:     changes,
 }
 
 func changes(cmd *cobra.Command, args []string) {

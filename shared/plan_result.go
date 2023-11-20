@@ -1,14 +1,5 @@
 package shared
 
-type Replacement struct {
-	Old        string `json:"old"`
-	New        string `json:"new"`
-	Summary    string `json:"summary"`
-	Failed     bool   `json:"failed"`
-	RejectedAt string `json:"rejectedAt"`
-	ResolvedAt string `json:"resolvedAt"`
-}
-
 type PlanResult struct {
 	ProposalId   string         `json:"proposalId"`
 	Path         string         `json:"path"`

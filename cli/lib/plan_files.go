@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
-	"strings"
 
 	"github.com/plandex/plandex/shared"
 )
@@ -31,12 +30,12 @@ func GetCurrentPlanStateWithContext() (*shared.CurrentPlanFiles, shared.PlanResu
 	}()
 
 	go func() {
-		planResByPath, err := getPlanResultsByPath()
+		planResInfo, err := getPlanResultsInfo()
 		if err != nil {
 			errCh <- fmt.Errorf("error getting plan results: %v", err)
 			return
 		}
-		planResByPathCh <- planResByPath
+		planResByPathCh <- planResInfo.resultsByPath
 	}()
 
 	var planResByPath shared.PlanResultsByPath
@@ -77,12 +76,12 @@ func GetCurrentPlanStateWithContext() (*shared.CurrentPlanFiles, shared.PlanResu
 		// fmt.Printf("path: %s\n", path)
 		// fmt.Printf("updated: %s\n", updated)
 
-		for i, planRes := range planResults {
+		for _, planRes := range planResults {
 			if !planRes.IsPending() {
 				continue
 			}
 
-			if planRes.Content != "" {
+			if len(planRes.Replacements) == 0 {
 				if updated != "" {
 					return nil, nil, nil, fmt.Errorf("plan updates out of order: %s", path)
 				}
@@ -102,38 +101,12 @@ func GetCurrentPlanStateWithContext() (*shared.CurrentPlanFiles, shared.PlanResu
 				continue
 			}
 
-			lastInsertedIdx := 0
-			for j, replacement := range planRes.Replacements {
-				if !replacement.IsPending() {
-					continue
-				}
+			var allSucceeded bool
+			updated, allSucceeded = shared.ApplyReplacements(updated, planRes.Replacements, false)
 
-				pre := updated[:lastInsertedIdx]
-				sub := updated[lastInsertedIdx:]
-				originalIdx := strings.Index(sub, replacement.Old)
+			if !allSucceeded {
 
-				// fmt.Println("replacement.Old: " + replacement.Old)
-				// fmt.Println("Pre: " + pre)
-				// fmt.Println("Sub: " + sub)
-				// fmt.Println("Idx: " + fmt.Sprintf("%d", i))
-				// fmt.Printf("OriginalIdx: %d\n", originalIdx)
-				// fmt.Printf("LastInsertedIdx: %d\n", lastInsertedIdx)
-
-				if originalIdx == -1 {
-					// replacement failed, return error (checked server-side so this shouldn't happen)
-
-					err := fmt.Errorf("replacement failed. path: %s, ts: %s, resIdx: %d, replaceIdx: %d", path, planRes.Ts, i, j)
-
-					fmt.Println(err.Error())
-
-					// fmt.Println("Updated: " + updated)
-
-					return nil, nil, nil, err
-				} else {
-					replaced := strings.Replace(sub, replacement.Old, replacement.New, 1)
-					updated = pre + replaced
-					lastInsertedIdx = lastInsertedIdx + originalIdx + len(replacement.New)
-				}
+				return nil, nil, nil, fmt.Errorf("plan replacement failed: %s", path)
 			}
 		}
 
@@ -188,17 +161,24 @@ func SetPendingResultsApplied(planResByPath shared.PlanResultsByPath) error {
 	return nil
 }
 
-func getPlanResultsByPath() (shared.PlanResultsByPath, error) {
+type planResultsInfo struct {
+	resultsByPath      shared.PlanResultsByPath
+	sortedPaths        []string
+	replacementsByPath map[string][]*shared.Replacement
+}
+
+func getPlanResultsInfo() (*planResultsInfo, error) {
 	resByPath := make(shared.PlanResultsByPath)
+	replacementsByPath := make(map[string][]*shared.Replacement)
+	var paths []string
 
 	_, err := os.Stat(ResultsSubdir)
 	resDirExists := !os.IsNotExist(err)
 
 	if !resDirExists {
-		return resByPath, nil
+		return nil, nil
 	}
 
-	// resFiles, err := os.ReadDir(ResultsSubdir)
 	err = filepath.Walk(ResultsSubdir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return fmt.Errorf("error reading results dir: %v", err)
@@ -220,6 +200,7 @@ func getPlanResultsByPath() (shared.PlanResultsByPath, error) {
 		}
 
 		resByPath[planRes.Path] = append(resByPath[planRes.Path], &planRes)
+		paths = append(paths, planRes.Path)
 
 		return nil
 	})
@@ -233,7 +214,20 @@ func getPlanResultsByPath() (shared.PlanResultsByPath, error) {
 		sort.Slice(results, func(i, j int) bool {
 			return results[i].Ts < results[j].Ts
 		})
+
+		for _, planRes := range results {
+			replacementsByPath[planRes.Path] = append(replacementsByPath[planRes.Path], planRes.Replacements...)
+		}
 	}
 
-	return resByPath, nil
+	// sort paths ascending
+	sort.Slice(paths, func(i, j int) bool {
+		return paths[i] < paths[j]
+	})
+
+	return &planResultsInfo{
+		resultsByPath:      resByPath,
+		sortedPaths:        paths,
+		replacementsByPath: replacementsByPath,
+	}, nil
 }

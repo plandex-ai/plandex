@@ -128,6 +128,7 @@ func Propose(prompt string) error {
 		MoveCursorToTopLeft()
 		mdFull, _ := GetMarkdown(reply)
 		fmt.Println(mdFull)
+		fmt.Println(displayHotkeys())
 		termState = mdFull
 	}
 
