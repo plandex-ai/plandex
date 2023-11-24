@@ -18,7 +18,6 @@ type changesUIModel struct {
 	selectedFileIndex        int
 	selectedReplacementIndex int
 	selectedViewport         int
-	resultsInfo              *types.PlanResultsInfo
 	currentPlan              *types.CurrentPlanState
 	changeOldViewport        viewport.Model
 	changeNewViewport        viewport.Model
@@ -82,6 +81,16 @@ func initialModel() *changesUIModel {
 			scrollUp: bubbleKey.NewBinding(
 				bubbleKey.WithKeys("k"),
 				bubbleKey.WithHelp("k", "scroll up"),
+			),
+
+			pageDown: bubbleKey.NewBinding(
+				bubbleKey.WithKeys("enter", "pageDown"),
+				bubbleKey.WithHelp("enter", "page down"),
+			),
+
+			pageUp: bubbleKey.NewBinding(
+				bubbleKey.WithKeys("shift+enter", "pageUp"),
+				bubbleKey.WithHelp("shift+enter", "page up"),
 			),
 
 			switchView: bubbleKey.NewBinding(

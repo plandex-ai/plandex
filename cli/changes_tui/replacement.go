@@ -7,10 +7,19 @@ import (
 	"github.com/muesli/reflow/wrap"
 )
 
-const prependLines = 10
-const appendLines = 10
+const replacementPrependLines = 20
+const replacementAppendLines = 20
 
-func (m changesUIModel) getReplacementOldDisplay() (string, string, string) {
+type oldReplacementRes struct {
+	old               string
+	oldDisplay        string
+	prependContent    string
+	numLinesPrepended int
+	appendContent     string
+	numLinesAppended  int
+}
+
+func (m changesUIModel) getReplacementOldDisplay() oldReplacementRes {
 	oldContent := m.selectionInfo.currentRep.Old
 	originalFile := m.selectionInfo.currentPlanBeforeReplacement.CurrentPlanFiles.Files[m.selectionInfo.currentPath]
 
@@ -29,7 +38,7 @@ func (m changesUIModel) getReplacementOldDisplay() (string, string, string) {
 		toPrepend = s + toPrepend
 		if originalFile[i] == '\n' {
 			numLinesPrepended++
-			if numLinesPrepended == prependLines {
+			if numLinesPrepended == replacementPrependLines {
 				break
 			}
 		}
@@ -47,7 +56,7 @@ func (m changesUIModel) getReplacementOldDisplay() (string, string, string) {
 		toAppend += s
 		if originalFile[i] == '\n' {
 			numLinesAppended++
-			if numLinesAppended == appendLines {
+			if numLinesAppended == replacementAppendLines {
 				break
 			}
 		}
@@ -78,15 +87,19 @@ func (m changesUIModel) getReplacementOldDisplay() (string, string, string) {
 	}
 	toAppend = strings.Join(toAppendLines, "\n")
 
-	oldDisplayContent :=
-		toPrepend +
-			oldContent +
-			toAppend
+	oldDisplayContent := toPrepend + oldContent + toAppend
 
-	return oldDisplayContent, toPrepend, toAppend
+	return oldReplacementRes{
+		oldContent,
+		oldDisplayContent,
+		toPrepend,
+		numLinesPrepended,
+		toAppend,
+		numLinesAppended,
+	}
 }
 
-func (m changesUIModel) getReplacementNewDisplay(prependContent, appendContent string) string {
+func (m changesUIModel) getReplacementNewDisplay(prependContent, appendContent string) (string, string) {
 	newContent := m.selectionInfo.currentRep.New
 	newContent = wrap.String(newContent, m.changeNewViewport.Width-6)
 
@@ -96,5 +109,5 @@ func (m changesUIModel) getReplacementNewDisplay(prependContent, appendContent s
 	}
 	newContent = strings.Join(newContentLines, "\n")
 
-	return prependContent + newContent + appendContent
+	return newContent, prependContent + newContent + appendContent
 }

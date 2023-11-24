@@ -69,9 +69,6 @@ func (m changesUIModel) renderScrollFooter() string {
 		return ""
 	}
 
-	oldScrollable := m.changeOldViewport.TotalLineCount() > m.changeOldViewport.VisibleLineCount()
-	newScrollable := m.changeNewViewport.TotalLineCount() > m.changeNewViewport.VisibleLineCount()
-
 	width, _ := m.getMainViewDims()
 
 	if m.selectionInfo.currentRes != nil {
@@ -80,7 +77,7 @@ func (m changesUIModel) renderScrollFooter() string {
 
 	footer := ` (j/k) scroll`
 
-	if oldScrollable && newScrollable {
+	if m.oldScrollable() && m.newScrollable() {
 		footer += ` • (tab) switch view`
 	}
 

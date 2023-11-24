@@ -14,27 +14,19 @@ func (m changesUIModel) renderSidebar() string {
 		return ""
 	}
 
-	currentPath := m.selectionInfo.currentPath
-	currentRes := m.selectionInfo.currentRes
 	currentRep := m.selectionInfo.currentRep
 
 	var sb strings.Builder
 
 	for _, path := range paths {
 		results := m.currentPlan.PlanResByPath[path]
-		selectedPath := path == currentPath
-
-		selectedFullFile := selectedPath && currentRes == nil
-
 		anyFailed := false
 
 		// Change entries
 		for i, result := range results {
 			for j, rep := range result.Replacements {
 				flatIndex := i*len(result.Replacements) + j
-
-				selected := selectedPath && rep.Id == currentRep.Id
-
+				selected := currentRep != nil && rep.Id == currentRep.Id
 				s := ""
 
 				labelColor := color.FgHiGreen
@@ -65,7 +57,7 @@ func (m changesUIModel) renderSidebar() string {
 			labelColor = color.FgHiRed
 		}
 
-		if selectedFullFile {
+		if m.selectedFullFile() {
 			sb.WriteString(color.New(color.Bold, labelColor).Sprint(" > 📄 \n "))
 		} else {
 			sb.WriteString(color.New(labelColor).Sprint(" - 📄 \n"))

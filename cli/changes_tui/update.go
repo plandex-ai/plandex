@@ -23,6 +23,12 @@ func (m changesUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		switch {
 
+		case bubbleKey.Matches(msg, m.keymap.left):
+			m.left()
+
+		case bubbleKey.Matches(msg, m.keymap.right):
+			m.right()
+
 		case bubbleKey.Matches(msg, m.keymap.up):
 			m.up()
 
@@ -34,6 +40,12 @@ func (m changesUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case bubbleKey.Matches(msg, m.keymap.scrollUp):
 			m.scrollUp()
+
+		case bubbleKey.Matches(msg, m.keymap.pageDown):
+			m.pageDown()
+
+		case bubbleKey.Matches(msg, m.keymap.pageUp):
+			m.pageUp()
 
 		case bubbleKey.Matches(msg, m.keymap.switchView):
 			m.switchView()

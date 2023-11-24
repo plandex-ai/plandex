@@ -55,21 +55,21 @@ func (m *changesUIModel) updateViewportSizes() {
 
 	oldViewHeight := mainViewHeight
 
-	if m.selectedViewport == 0 && m.changeOldViewport.TotalLineCount() > m.changeOldViewport.VisibleLineCount() {
+	if m.oldScrollable() && (m.selectedViewport == 0 || !m.newScrollable()) {
 		footerHeight := lipgloss.Height(m.renderScrollFooter())
 		oldViewHeight -= footerHeight
 	}
 
 	newViewHeight := mainViewHeight
 
-	if m.selectedViewport == 1 && m.changeNewViewport.TotalLineCount() > m.changeNewViewport.VisibleLineCount() {
+	if m.newScrollable() && (m.selectedViewport == 1 || !m.oldScrollable()) {
 		footerHeight := lipgloss.Height(m.renderScrollFooter())
 		newViewHeight -= footerHeight
 	}
 
 	fileViewHeight := mainViewHeight
 
-	if m.fileViewport.TotalLineCount() > m.fileViewport.VisibleLineCount() {
+	if m.fileScrollable() {
 		footerHeight := lipgloss.Height(m.renderScrollFooter())
 		fileViewHeight -= footerHeight
 	}
@@ -98,4 +98,8 @@ func (m changesUIModel) newScrollable() bool {
 
 func (m changesUIModel) fileScrollable() bool {
 	return m.fileViewport.TotalLineCount() > m.fileViewport.VisibleLineCount()
+}
+
+func (m changesUIModel) selectedFullFile() bool {
+	return m.selectionInfo != nil && m.selectionInfo.currentRep == nil
 }
