@@ -5,6 +5,7 @@ import (
 	"os"
 	"plandex/format"
 	"plandex/lib"
+	"plandex/term"
 	"strconv"
 	"time"
 
@@ -84,6 +85,6 @@ func current(cmd *cobra.Command, args []string) {
 
 	table.Render()
 	fmt.Println()
-	lib.PrintCmds("", "tell", "ls", "plans")
+	term.PrintCmds("", "tell", "ls", "plans")
 
 }

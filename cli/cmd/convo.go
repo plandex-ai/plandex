@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"plandex/lib"
+	"plandex/term"
 	"strings"
 	"time"
 
@@ -72,7 +73,7 @@ func convo(cmd *cobra.Command, args []string) {
 		totalTokens += msg.Tokens
 	}
 
-	markdownString, err := lib.GetMarkdown(strings.Join(convMarkdown, "\n"))
+	markdownString, err := term.GetMarkdown(strings.Join(convMarkdown, "\n"))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Error creating markdown representation:", err)
 		return
@@ -80,8 +81,8 @@ func convo(cmd *cobra.Command, args []string) {
 
 	output :=
 		fmt.Sprintf("\n%s", markdownString) +
-			lib.GetDivisionLine() +
+			term.GetDivisionLine() +
 			color.New(color.Bold, color.FgCyan).Sprint("  Conversation size →") + fmt.Sprintf(" %d 🪙", totalTokens) + "\n\n"
 
-	lib.PageOutputReverse(output)
+	term.PageOutputReverse(output)
 }

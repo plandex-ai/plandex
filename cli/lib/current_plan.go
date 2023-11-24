@@ -5,19 +5,27 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"plandex/types"
 	"sort"
 
 	"github.com/plandex/plandex/shared"
 )
 
 func GetCurrentPlanFiles() (*shared.CurrentPlanFiles, error) {
-	currentPlanFiles, _, _, err := GetCurrentPlanStateWithContext()
-	return currentPlanFiles, err
+	res, err := GetCurrentPlanState()
+	if err != nil {
+		return nil, err
+	}
+	return res.CurrentPlanFiles, err
 }
 
-func GetCurrentPlanStateWithContext() (*shared.CurrentPlanFiles, shared.PlanResultsByPath, shared.ModelContext, error) {
+func GetCurrentPlanState() (*types.CurrentPlanState, error) {
+	return GetCurrentPlanStateBeforeReplacement("")
+}
+
+func GetCurrentPlanStateBeforeReplacement(id string) (*types.CurrentPlanState, error) {
 	errCh := make(chan error, 1)
-	planResByPathCh := make(chan shared.PlanResultsByPath, 1)
+	planResInfoCh := make(chan *types.PlanResultsInfo, 1)
 	contextCh := make(chan shared.ModelContext, 1)
 
 	go func() {
@@ -30,22 +38,22 @@ func GetCurrentPlanStateWithContext() (*shared.CurrentPlanFiles, shared.PlanResu
 	}()
 
 	go func() {
-		planResInfo, err := getPlanResultsInfo()
+		planResInfo, err := GetPlanResultsInfo()
 		if err != nil {
 			errCh <- fmt.Errorf("error getting plan results: %v", err)
 			return
 		}
-		planResByPathCh <- planResInfo.resultsByPath
+		planResInfoCh <- planResInfo
 	}()
 
-	var planResByPath shared.PlanResultsByPath
+	var planResInfo *types.PlanResultsInfo
 	var modelContext shared.ModelContext
 
 	for i := 0; i < 2; i++ {
 		select {
 		case err := <-errCh:
-			return nil, nil, nil, err
-		case planResByPath = <-planResByPathCh:
+			return nil, err
+		case planResInfo = <-planResInfoCh:
 		case modelContext = <-contextCh:
 		}
 	}
@@ -60,7 +68,7 @@ func GetCurrentPlanStateWithContext() (*shared.CurrentPlanFiles, shared.PlanResu
 
 		// fmt.Printf("contextPart: %s\n", contextPart.FilePath)
 
-		_, hasPath := planResByPath[contextPart.FilePath]
+		_, hasPath := planResInfo.PlanResByPath[contextPart.FilePath]
 
 		// fmt.Printf("hasPath: %v\n", hasPath)
 
@@ -70,12 +78,13 @@ func GetCurrentPlanStateWithContext() (*shared.CurrentPlanFiles, shared.PlanResu
 		}
 	}
 
-	for path, planResults := range planResByPath {
+	for path, planResults := range planResInfo.PlanResByPath {
 		updated := files[path]
 
 		// fmt.Printf("path: %s\n", path)
 		// fmt.Printf("updated: %s\n", updated)
 
+	PlanResLoop:
 		for _, planRes := range planResults {
 			if !planRes.IsPending() {
 				continue
@@ -83,7 +92,7 @@ func GetCurrentPlanStateWithContext() (*shared.CurrentPlanFiles, shared.PlanResu
 
 			if len(planRes.Replacements) == 0 {
 				if updated != "" {
-					return nil, nil, nil, fmt.Errorf("plan updates out of order: %s", path)
+					return nil, fmt.Errorf("plan updates out of order: %s", path)
 				}
 
 				updated = planRes.Content
@@ -94,26 +103,38 @@ func GetCurrentPlanStateWithContext() (*shared.CurrentPlanFiles, shared.PlanResu
 			contextSha := shas[path]
 
 			if contextSha != "" && planRes.ContextSha != contextSha {
-				return nil, nil, nil, fmt.Errorf("result sha doesn't match context sha: %s", path)
+				return nil, fmt.Errorf("result sha doesn't match context sha: %s", path)
 			}
 
 			if len(planRes.Replacements) == 0 {
 				continue
 			}
 
+			replacements := []*shared.Replacement{}
+			for _, replacement := range planRes.Replacements {
+				if replacement.Id == id {
+					break PlanResLoop
+				}
+				replacements = append(replacements, replacement)
+			}
+
 			var allSucceeded bool
-			updated, allSucceeded = shared.ApplyReplacements(updated, planRes.Replacements, false)
+			updated, allSucceeded = shared.ApplyReplacements(updated, replacements, false)
 
 			if !allSucceeded {
-
-				return nil, nil, nil, fmt.Errorf("plan replacement failed: %s", path)
+				return nil, fmt.Errorf("plan replacement failed: %s", path)
 			}
 		}
 
 		files[path] = updated
 	}
 
-	return &shared.CurrentPlanFiles{Files: files, ContextShas: shas}, planResByPath, modelContext, nil
+	return &types.CurrentPlanState{
+		CurrentPlanFiles: &shared.CurrentPlanFiles{Files: files, ContextShas: shas},
+		ModelContext:     modelContext,
+		ContextByPath:    modelContext.ByPath(),
+		PlanResultsInfo:  *planResInfo,
+	}, nil
 }
 
 func SetPendingResultsApplied(planResByPath shared.PlanResultsByPath) error {
@@ -161,13 +182,7 @@ func SetPendingResultsApplied(planResByPath shared.PlanResultsByPath) error {
 	return nil
 }
 
-type planResultsInfo struct {
-	resultsByPath      shared.PlanResultsByPath
-	sortedPaths        []string
-	replacementsByPath map[string][]*shared.Replacement
-}
-
-func getPlanResultsInfo() (*planResultsInfo, error) {
+func GetPlanResultsInfo() (*types.PlanResultsInfo, error) {
 	resByPath := make(shared.PlanResultsByPath)
 	replacementsByPath := make(map[string][]*shared.Replacement)
 	var paths []string
@@ -199,8 +214,15 @@ func getPlanResultsInfo() (*planResultsInfo, error) {
 			return fmt.Errorf("error unmarshalling plan result JSON from file %s: %v", path, err)
 		}
 
-		resByPath[planRes.Path] = append(resByPath[planRes.Path], &planRes)
-		paths = append(paths, planRes.Path)
+		if planRes.IsPending() {
+			_, hasPath := resByPath[planRes.Path]
+
+			resByPath[planRes.Path] = append(resByPath[planRes.Path], &planRes)
+
+			if !hasPath {
+				paths = append(paths, planRes.Path)
+			}
+		}
 
 		return nil
 	})
@@ -225,9 +247,9 @@ func getPlanResultsInfo() (*planResultsInfo, error) {
 		return paths[i] < paths[j]
 	})
 
-	return &planResultsInfo{
-		resultsByPath:      resByPath,
-		sortedPaths:        paths,
-		replacementsByPath: replacementsByPath,
+	return &types.PlanResultsInfo{
+		PlanResByPath:      resByPath,
+		SortedPaths:        paths,
+		ReplacementsByPath: replacementsByPath,
 	}, nil
 }

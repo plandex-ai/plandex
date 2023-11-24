@@ -1,6 +1,8 @@
 package shared
 
-import "strings"
+import (
+	"strings"
+)
 
 type Replacement struct {
 	Id         string `json:"id"`
@@ -28,6 +30,12 @@ func ApplyReplacements(content string, replacements []*Replacement, setFailed bo
 			if setFailed {
 				replacement.Failed = true
 			}
+
+			// jsonBytes, _ := json.Marshal(replacement)
+			// log.Println(string(jsonBytes))
+
+			// log.Println("Replacement: " + replacement.Old + " -> " + replacement.New)
+
 		} else {
 			replaced := strings.Replace(sub, replacement.Old, replacement.New, 1)
 

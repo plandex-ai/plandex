@@ -35,14 +35,14 @@ func (api *API) Propose(prompt, parentProposalId, rootId string, onStream types.
 
 	// Goroutine for loading plan files and context
 	go func() {
-		planFiles, _, modelContext, err := GetCurrentPlanStateWithContext()
+		res, err := GetCurrentPlanState()
 		if err != nil {
 			fmt.Println("Error loading plan")
 			errCh <- err
 			return
 		}
-		planFilesCh <- planFiles
-		contextCh <- modelContext
+		planFilesCh <- res.CurrentPlanFiles
+		contextCh <- res.ModelContext
 	}()
 
 	// Goroutine for loading summaries

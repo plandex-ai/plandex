@@ -8,6 +8,7 @@ import (
 
 	"plandex/format"
 	"plandex/lib"
+	"plandex/term"
 
 	"github.com/fatih/color"
 	"github.com/olekukonko/tablewriter"
@@ -40,7 +41,7 @@ func plans(cmd *cobra.Command, args []string) {
 	if len(plans) == 0 {
 		fmt.Println("🤷‍♂️ No plans")
 		fmt.Println()
-		lib.PrintCmds("", "new")
+		term.PrintCmds("", "new")
 		return
 	}
 
@@ -91,5 +92,5 @@ func plans(cmd *cobra.Command, args []string) {
 	}
 	table.Render()
 	fmt.Println()
-	lib.PrintCmds("", "new", "cd", "delete-plan")
+	term.PrintCmds("", "new", "cd", "delete-plan")
 }

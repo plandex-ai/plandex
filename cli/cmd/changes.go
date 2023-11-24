@@ -3,7 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"plandex/lib"
+	"plandex/changes_tui"
 
 	"github.com/spf13/cobra"
 )
@@ -21,7 +21,7 @@ var changesCmd = &cobra.Command{
 
 func changes(cmd *cobra.Command, args []string) {
 
-	err := lib.StartChangesUI()
+	err := changes_tui.StartChangesUI()
 
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error starting changes UI: %v\n", err)

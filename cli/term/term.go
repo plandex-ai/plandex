@@ -1,4 +1,4 @@
-package lib
+package term
 
 import (
 	"fmt"
@@ -57,7 +57,7 @@ func PrintCustomCmd(prefix, cmd, alias, desc string) {
 	fmt.Printf("%s%s 👉 %s\n", prefix, styled, desc)
 }
 
-func alternateScreen() {
+func AlternateScreen() {
 	// Switch to alternate screen and hide the cursor
 	fmt.Print("\x1b[?1049h\x1b[?25l")
 }
@@ -179,31 +179,10 @@ func GetDivisionLine() string {
 	return strings.Repeat("─", terminalWidth)
 }
 
-func handleAbortKey(proposalId string) error {
-	return Abort(proposalId)
-}
-
-func handleKeyPress(input rune, proposalId string) error {
-	switch input {
-	case 's':
-		return handleAbortKey(proposalId)
-	default:
-		return fmt.Errorf("invalid key pressed: %s", string(input))
-	}
-}
-
 func getTerminalWidth() (int, error) {
 	width, _, err := term.GetSize(int(os.Stdout.Fd()))
 	if err != nil {
 		return 0, err
 	}
 	return width, nil
-}
-
-func displayHotkeys() string {
-	divisionLine := GetDivisionLine()
-
-	return divisionLine + "\n" +
-		"  \x1b[1m(s)\x1b[0m" + `top  
-` + divisionLine
 }

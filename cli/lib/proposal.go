@@ -7,9 +7,11 @@ import (
 	"os"
 	"path/filepath"
 	"plandex/format"
+	"plandex/term"
 	"plandex/types"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/fatih/color"
@@ -84,6 +86,7 @@ func Propose(prompt string) error {
 	var filesFinished bool
 	var lastReplyTokenAdded time.Time
 	finishedByPath := make(map[string]bool)
+	var buildMu sync.Mutex
 
 	numStreamedTokensByPath := make(map[string]int)
 
@@ -124,9 +127,9 @@ func Propose(prompt string) error {
 	}
 
 	printReply := func() {
-		ClearScreen()
-		MoveCursorToTopLeft()
-		mdFull, _ := GetMarkdown(reply)
+		term.ClearScreen()
+		term.MoveCursorToTopLeft()
+		mdFull, _ := term.GetMarkdown(reply)
 		fmt.Println(mdFull)
 		fmt.Println(displayHotkeys())
 		termState = mdFull
@@ -151,7 +154,7 @@ func Propose(prompt string) error {
 	endReply := func() {
 		replyUpdateTimer.Stop()
 		printReply()
-		BackToMain()
+		term.BackToMain()
 		fmt.Print(termState)
 	}
 
@@ -178,8 +181,9 @@ func Propose(prompt string) error {
 		}
 
 		// Clear previous lines
+		numLines := len(files) + 4
 
-		MoveUpLines(len(files) + 4)
+		term.MoveUpLines(numLines)
 
 		for _, filePath := range files {
 			numStreamedTokens := numStreamedTokensByPath[filePath]
@@ -193,7 +197,7 @@ func Propose(prompt string) error {
 				fmtStr += " | done ✅"
 			}
 
-			ClearCurrentLine()
+			term.ClearCurrentLine()
 
 			fmt.Printf(fmtStr+"\n", fmtArgs...)
 		}
@@ -235,7 +239,7 @@ func Propose(prompt string) error {
 		content := params.Content
 
 		onError := func(err error) {
-			BackToMain()
+			term.BackToMain()
 			fmt.Fprintln(os.Stderr, "Error:", err)
 			cancelKeywatch()
 			if !closedDone {
@@ -276,8 +280,8 @@ func Propose(prompt string) error {
 			}
 
 			s.Stop()
-			ClearCurrentLine()
-			alternateScreen()
+			term.ClearCurrentLine()
+			term.AlternateScreen()
 
 			replyStarted = true
 			lastReplyTokenAdded = time.Now()
@@ -298,13 +302,12 @@ func Propose(prompt string) error {
 
 		case shared.STATE_FINISHED:
 			s.Stop()
+			buildMu.Lock()
+			defer buildMu.Unlock()
 			streamFinished = true
-
-			if filesFinished {
-				if !closedDone {
-					close(done)
-					closedDone = true
-				}
+			if filesFinished && !closedDone {
+				close(done)
+				closedDone = true
 				writeFileProgress()
 			}
 
@@ -404,6 +407,8 @@ func Propose(prompt string) error {
 
 			// fmt.Printf("Wrote %d / %d files", len(finishedByPath), len(files))
 			if len(finishedByPath) == len(desc.Files) {
+				buildMu.Lock()
+				defer buildMu.Unlock()
 				filesFinished = true
 
 				err = GitCommitPlanUpdate(desc.CommitMsg)
@@ -412,11 +417,9 @@ func Propose(prompt string) error {
 					return
 				}
 
-				if streamFinished {
-					if !closedDone {
-						close(done)
-						closedDone = true
-					}
+				if streamFinished && !closedDone {
+					close(done)
+					closedDone = true
 					writeFileProgress()
 				}
 			}
@@ -426,7 +429,7 @@ func Propose(prompt string) error {
 
 	apiReq, err = Api.Propose(prompt, parentProposalId, rootId, handleStream)
 	if err != nil {
-		BackToMain()
+		term.BackToMain()
 		return fmt.Errorf("failed to send prompt to server: %s", err)
 	}
 
@@ -444,7 +447,7 @@ func Propose(prompt string) error {
 			case <-ctx.Done():
 				return
 			default:
-				k, err := GetUserInput()
+				k, err := term.GetUserInput()
 				if err != nil {
 					errChn <- err
 					return
@@ -481,19 +484,19 @@ Loop:
 		if desc.MadePlan && len(desc.Files) > 0 {
 			fmt.Println()
 			for _, cmd := range []string{"apply", "diffs", "preview"} {
-				ClearCurrentLine()
-				PrintCmds("  ", cmd)
+				term.ClearCurrentLine()
+				term.PrintCmds("  ", cmd)
 			}
 		}
 
-		ClearCurrentLine()
-		PrintCustomCmd("  ", "tell", "t", "update the plan, give more info, or chat")
+		term.ClearCurrentLine()
+		term.PrintCustomCmd("  ", "tell", "t", "update the plan, give more info, or chat")
 
-		ClearCurrentLine()
-		PrintCmds("  ", "continue")
+		term.ClearCurrentLine()
+		term.PrintCmds("  ", "continue")
 
-		ClearCurrentLine()
-		PrintCmds("  ", "rewind")
+		term.ClearCurrentLine()
+		term.PrintCmds("  ", "rewind")
 	}
 
 	// fmt.Println("Finished proposal")
@@ -513,7 +516,7 @@ func checkOutdatedContext(s *spinner.Spinner) (bool, error) {
 
 	stopSpinner := func() {
 		s.Stop()
-		ClearCurrentLine()
+		term.ClearCurrentLine()
 	}
 
 	outdatedRes, err := CheckOutdatedContext()
@@ -583,7 +586,7 @@ func checkOutdatedContext(s *spinner.Spinner) (bool, error) {
 
 	fmt.Println()
 
-	confirmed, canceled, err := ConfirmYesNoCancel("Update context now?")
+	confirmed, canceled, err := term.ConfirmYesNoCancel("Update context now?")
 
 	if err != nil {
 		return false, fmt.Errorf("failed to get user input: %s", err)
@@ -596,4 +599,25 @@ func checkOutdatedContext(s *spinner.Spinner) (bool, error) {
 	shouldContinue := !canceled
 
 	return shouldContinue, nil
+}
+
+func handleAbortKey(proposalId string) error {
+	return Abort(proposalId)
+}
+
+func handleKeyPress(input rune, proposalId string) error {
+	switch input {
+	case 's':
+		return handleAbortKey(proposalId)
+	default:
+		return fmt.Errorf("invalid key pressed: %s", string(input))
+	}
+}
+
+func displayHotkeys() string {
+	divisionLine := term.GetDivisionLine()
+
+	return divisionLine + "\n" +
+		"  \x1b[1m(s)\x1b[0m" + `top  
+` + divisionLine
 }

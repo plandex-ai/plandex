@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"plandex/term"
 	"plandex/types"
 
 	"github.com/fatih/color"
@@ -35,11 +36,14 @@ func ApplyPlanWithOutput(name string, autoConfirm bool) error {
 		return fmt.Errorf("error checking if plan exists: %w", err)
 	}
 
-	currentPlanFiles, planResByPath, _, err := GetCurrentPlanStateWithContext()
+	res, err := GetCurrentPlanState()
 
 	if err != nil {
 		return fmt.Errorf("error getting current plan files: %w", err)
 	}
+
+	currentPlanFiles := res.CurrentPlanFiles
+	planResByPath := res.PlanResByPath
 
 	aborted := false
 
@@ -196,7 +200,7 @@ func ApplyPlanWithOutput(name string, autoConfirm bool) error {
 				types.PlanOutdatedStrategyCancel,
 			)
 
-			choice, err := SelectFromList("🤔 How do you want to handle it?", options)
+			choice, err := term.SelectFromList("🤔 How do you want to handle it?", options)
 
 			if err != nil {
 				return fmt.Errorf("failed to get user input: %w", err)
@@ -260,7 +264,7 @@ func ApplyPlanWithOutput(name string, autoConfirm bool) error {
 			if numToApply > 1 {
 				suffix = "s"
 			}
-			shouldContinue, err := ConfirmYesNo("Apply changes to %d file%s?", numToApply, suffix)
+			shouldContinue, err := term.ConfirmYesNo("Apply changes to %d file%s?", numToApply, suffix)
 
 			if err != nil {
 				return fmt.Errorf("failed to get confirmation user input: %s", err)

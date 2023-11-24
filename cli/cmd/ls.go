@@ -5,6 +5,7 @@ import (
 	"os"
 	"plandex/format"
 	"plandex/lib"
+	"plandex/term"
 	"strconv"
 	"time"
 
@@ -37,7 +38,7 @@ func context(cmd *cobra.Command, args []string) {
 	if len(context) == 0 {
 		fmt.Println("🤷‍♂️ No context")
 		fmt.Println()
-		lib.PrintCmds("", "load")
+		term.PrintCmds("", "load")
 		return
 	}
 
@@ -84,7 +85,7 @@ func context(cmd *cobra.Command, args []string) {
 	tokensTbl.Render()
 
 	fmt.Println()
-	lib.PrintCmds("", "load", "rm", "clear")
+	term.PrintCmds("", "load", "rm", "clear")
 
 }
 

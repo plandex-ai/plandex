@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"plandex/lib"
+	"plandex/term"
 
 	"github.com/spf13/cobra"
 )
@@ -45,5 +46,5 @@ func runLog(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	lib.PageOutput(history)
+	term.PageOutput(history)
 }

@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"plandex/term"
 	"plandex/types"
+	"plandex/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -46,7 +48,7 @@ func MustUpdateContextWithOuput() *updateRes {
 			time.Sleep(700*time.Millisecond - elapsed)
 		}
 		s.Stop()
-		ClearCurrentLine()
+		term.ClearCurrentLine()
 	}
 
 	updateRes, err := UpdateContext()
@@ -297,7 +299,7 @@ func checkOutdatedAndMaybeUpdateContext(doUpdate bool) (*updateRes, error) {
 			wg.Add(1)
 			go func(part *shared.ModelContextPart) {
 				defer wg.Done()
-				body, err := FetchURLContent(part.Url)
+				body, err := url.FetchURLContent(part.Url)
 				if err != nil {
 					errCh <- fmt.Errorf("failed to fetch the URL %s: %v", part.Url, err)
 					return

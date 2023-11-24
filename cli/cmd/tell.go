@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"plandex/lib"
+	"plandex/term"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -94,11 +95,11 @@ func tell(cmd *cobra.Command, args []string) {
 
 		if prompt != "" {
 			fmt.Print("\n\n")
-			fmt.Print(lib.GetDivisionLine())
+			fmt.Print(term.GetDivisionLine())
 			fmt.Print("\n\n")
 			fmt.Println(prompt)
 			fmt.Print("\n\n")
-			fmt.Print(lib.GetDivisionLine())
+			fmt.Print(term.GetDivisionLine())
 			fmt.Print("\n\n")
 		}
 	}

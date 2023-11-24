@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"plandex/lib"
+	"plandex/term"
 	"plandex/types"
 
 	"github.com/spf13/cobra"
@@ -35,5 +36,5 @@ func contextLoad(cmd *cobra.Command, args []string) {
 		NamesOnly: namesOnly,
 	})
 
-	lib.PrintCmds("", "ls", "tell")
+	term.PrintCmds("", "ls", "tell")
 }

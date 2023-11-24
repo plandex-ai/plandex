@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"plandex/lib"
+	"plandex/term"
 	"plandex/types"
 
 	"github.com/fatih/color"
@@ -177,6 +178,6 @@ func new(cmd *cobra.Command, args []string) {
 	}
 
 	fmt.Println()
-	lib.PrintCmds("", "load", "tell", "plans")
+	term.PrintCmds("", "load", "tell", "plans")
 
 }

@@ -25,7 +25,7 @@ const SysCreate = Identity + ` A plan is a set of files with an attached context
 		2. Decide whether this task is small enough to be completed in a single response.
 			a. If so, write out the code to complete the task. Include only lines that will change and lines that are necessary to know where the changes should be applied. Precede the code block with the file path like this '- file_path:'--for example:
 				- src/main.rs:				
-				- lib/utils.go:
+				- lib/term.go:
 				- main.py:
 				File paths should always come *before* the opening triple backticks of a code block. They should *not* be included in the code block itself.
 				File paths should appear *immediately* before the opening triple backticks of a code block. There should be *no other lines* between the file path and the code block. Any explanations should come either *before the file path or after the code block.*
@@ -37,7 +37,7 @@ const SysCreate = Identity + ` A plan is a set of files with an attached context
 		
 		If code is being included for explanatory purposes and is not meant to be applied to a specific file, you MUST NOT label the code block in the format described in 2a. Instead, output the code without a label.
 		
-		Every file you reference in a plan should either exist in the context directly or be a new file that will be created in the same base directory a file in the context. For example, if there is a file in context at path 'lib/utils.go', you can create a new file at path 'lib/utils_test.go' but *not* at path 'src/lib/utils.go'.
+		Every file you reference in a plan should either exist in the context directly or be a new file that will be created in the same base directory a file in the context. For example, if there is a file in context at path 'lib/term.go', you can create a new file at path 'lib/utils_test.go' but *not* at path 'src/lib/term.go'.
 
 		For code in markdown blocks, always include the language name after the opening triple backticks.
 		
