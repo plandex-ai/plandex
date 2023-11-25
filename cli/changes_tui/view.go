@@ -1,6 +1,8 @@
 package changes_tui
 
 import (
+	"strings"
+
 	"github.com/charmbracelet/bubbles/viewport"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -34,8 +36,17 @@ func (m changesUIModel) getMainViewDims() (int, int) {
 	tabsHeight := lipgloss.Height(m.renderPathTabs())
 	helpHeight := lipgloss.Height(m.renderHelp())
 	sidebarWidth := lipgloss.Width(m.renderSidebar())
+	mainViewHeaderHeight := lipgloss.Height(m.renderMainViewHeader())
+	mainViewFooterHeight := lipgloss.Height(m.renderMainViewFooter())
 	mainViewWidth := m.width - sidebarWidth
-	mainViewHeight := m.height - (helpHeight + tabsHeight + lipgloss.Height(m.renderMainViewHeader()) + lipgloss.Height(m.renderMainViewFooter()))
+
+	mainViewHeight := m.height - (helpHeight + tabsHeight)
+
+	if m.selectedFullFile() {
+		mainViewHeight -= mainViewHeaderHeight
+	} else {
+		mainViewHeight -= (mainViewHeaderHeight + mainViewFooterHeight)
+	}
 
 	return mainViewWidth, mainViewHeight
 }
@@ -43,47 +54,51 @@ func (m changesUIModel) getMainViewDims() (int, int) {
 func (m *changesUIModel) initViewports() {
 	mainViewWidth, mainViewHeight := m.getMainViewDims()
 	m.changeOldViewport = viewport.New(mainViewWidth/2, mainViewHeight)
-	m.changeOldViewport.Style = lipgloss.NewStyle().Padding(1)
+	m.changeOldViewport.Style = lipgloss.NewStyle().Padding(0, 1, 0, 1)
 	m.changeNewViewport = viewport.New(mainViewWidth/2, mainViewHeight)
-	m.changeNewViewport.Style = lipgloss.NewStyle().Padding(1)
+	m.changeNewViewport.Style = lipgloss.NewStyle().Padding(0, 1, 0, 1)
 	m.fileViewport = viewport.New(mainViewWidth, mainViewHeight)
-	m.fileViewport.Style = lipgloss.NewStyle().Padding(1)
+	m.fileViewport.Style = lipgloss.NewStyle().Padding(0, 1, 0, 1)
 }
 
 func (m *changesUIModel) updateViewportSizes() {
 	mainViewWidth, mainViewHeight := m.getMainViewDims()
 
-	oldViewHeight := mainViewHeight
+	if m.selectedFullFile() {
+		fileViewHeight := mainViewHeight
 
-	if m.oldScrollable() && (m.selectedViewport == 0 || !m.newScrollable()) {
-		footerHeight := lipgloss.Height(m.renderScrollFooter())
-		oldViewHeight -= footerHeight
+		if m.fileScrollable() {
+			footerHeight := lipgloss.Height(m.renderScrollFooter())
+			fileViewHeight -= footerHeight
+		}
+
+		m.fileViewport.Width = mainViewWidth
+		m.fileViewport.Height = fileViewHeight
+
+	} else {
+		oldViewHeight := mainViewHeight
+
+		if m.oldScrollable() && (m.selectedViewport == 0 || !m.newScrollable()) {
+			footerHeight := lipgloss.Height(m.renderScrollFooter())
+			oldViewHeight -= footerHeight
+		}
+
+		newViewHeight := mainViewHeight
+
+		if m.newScrollable() && (m.selectedViewport == 1 || !m.oldScrollable()) {
+			footerHeight := lipgloss.Height(m.renderScrollFooter())
+			newViewHeight -= footerHeight
+		}
+
+		m.changeOldViewport.Width = mainViewWidth / 2
+		m.changeOldViewport.Height = oldViewHeight
+		m.changeNewViewport.Width = mainViewWidth / 2
+		m.changeNewViewport.Height = newViewHeight
 	}
-
-	newViewHeight := mainViewHeight
-
-	if m.newScrollable() && (m.selectedViewport == 1 || !m.oldScrollable()) {
-		footerHeight := lipgloss.Height(m.renderScrollFooter())
-		newViewHeight -= footerHeight
-	}
-
-	fileViewHeight := mainViewHeight
-
-	if m.fileScrollable() {
-		footerHeight := lipgloss.Height(m.renderScrollFooter())
-		fileViewHeight -= footerHeight
-	}
-
-	m.changeOldViewport.Width = mainViewWidth / 2
-	m.changeOldViewport.Height = oldViewHeight
-	m.changeNewViewport.Width = mainViewWidth / 2
-	m.changeNewViewport.Height = newViewHeight
-	m.fileViewport.Width = mainViewWidth
-	m.fileViewport.Height = fileViewHeight
 }
 
 func (m changesUIModel) renderHelp() string {
-	help := ` (↑/↓) select change • (ctrl+a) apply pending • (ctrl+d) discard all • (q)uit`
+	help := ` (↑/↓) select change • (ctrl+a) apply pending • (ctrl+d) drop all • (q)uit`
 	style := lipgloss.NewStyle().Width(m.width).Inherit(topBorderStyle).Foreground(lipgloss.Color(helpTextColor))
 	return style.Render(help)
 }
@@ -102,4 +117,32 @@ func (m changesUIModel) fileScrollable() bool {
 
 func (m changesUIModel) selectedFullFile() bool {
 	return m.selectionInfo != nil && m.selectionInfo.currentRep == nil
+}
+
+func (m *changesUIModel) scrollReplacementIntoView(oldContent, newContent string, numLinesPrepended int) {
+	scrollView := func(content string, view *viewport.Model) {
+		view.GotoTop()
+
+		if numLinesPrepended <= 2 {
+			return
+		}
+
+		visibleLines := view.VisibleLineCount()
+		contentLines := len(strings.Split(content, "\n"))
+
+		if contentLines >= (visibleLines - 2) {
+			view.LineDown(numLinesPrepended - 2)
+		} else {
+			diffAround := visibleLines - contentLines
+			toScroll := numLinesPrepended - diffAround/2
+			view.LineDown(toScroll)
+		}
+	}
+
+	if m.oldScrollable() {
+		scrollView(oldContent, &m.changeOldViewport)
+	}
+	if m.newScrollable() {
+		scrollView(newContent, &m.changeNewViewport)
+	}
 }

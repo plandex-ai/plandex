@@ -84,13 +84,13 @@ func initialModel() *changesUIModel {
 			),
 
 			pageDown: bubbleKey.NewBinding(
-				bubbleKey.WithKeys("enter", "pageDown"),
-				bubbleKey.WithHelp("enter", "page down"),
+				bubbleKey.WithKeys("J", "pageDown"),
+				bubbleKey.WithHelp("J", "page down"),
 			),
 
 			pageUp: bubbleKey.NewBinding(
-				bubbleKey.WithKeys("shift+enter", "pageUp"),
-				bubbleKey.WithHelp("shift+enter", "page up"),
+				bubbleKey.WithKeys("K", "pageUp"),
+				bubbleKey.WithHelp("K", "page up"),
 			),
 
 			switchView: bubbleKey.NewBinding(
@@ -100,7 +100,7 @@ func initialModel() *changesUIModel {
 
 			reject: bubbleKey.NewBinding(
 				bubbleKey.WithKeys("d"),
-				bubbleKey.WithHelp("d", "discard change"),
+				bubbleKey.WithHelp("d", "drop change"),
 			),
 
 			copy: bubbleKey.NewBinding(

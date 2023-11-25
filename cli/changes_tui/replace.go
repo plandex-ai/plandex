@@ -43,8 +43,12 @@ func (m changesUIModel) getReplacementOldDisplay() oldReplacementRes {
 			}
 		}
 	}
+	prependedToStart := strings.Index(originalFile, toPrepend) == 0
 
 	toPrepend = strings.TrimLeft(toPrepend, "\n")
+	if !prependedToStart {
+		toPrepend = "…\n" + toPrepend
+	}
 
 	toAppend := ""
 	numLinesAppended := 0
@@ -61,8 +65,13 @@ func (m changesUIModel) getReplacementOldDisplay() oldReplacementRes {
 			}
 		}
 	}
+	appendedToEnd := strings.Index(originalFile, toAppend) == len(originalFile)-len(toAppend)
 
 	toAppend = strings.TrimRight(toAppend, "\n")
+
+	if !appendedToEnd {
+		toAppend += "\n…"
+	}
 
 	wrapWidth := m.changeOldViewport.Width - 6
 	toPrepend = wrap.String(toPrepend, wrapWidth)

@@ -51,6 +51,10 @@ func (m changesUIModel) renderPathTabs() string {
 
 		tabWidth := lipgloss.Width(tab)
 
+		if tabWidth > m.width {
+			return ""
+		}
+
 		if lineWidth+tabWidth > m.width {
 			lineWidth = 0
 			lineNum++

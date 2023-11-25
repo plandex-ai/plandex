@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/atotto/clipboard"
-	"github.com/charmbracelet/bubbles/viewport"
+	"github.com/fatih/color"
 	"github.com/muesli/reflow/wrap"
 	"github.com/plandex/plandex/shared"
 )
@@ -74,7 +74,13 @@ func (m *changesUIModel) down() {
 		currentReplacements = m.selectionInfo.currentReplacements
 	}
 
-	if m.selectedReplacementIndex < len(currentReplacements) {
+	// allow for selection of 'full file' option at bottom of replacement list in sidebar
+	max := len(currentReplacements) - 1
+	if m.selectionInfo.currentPlanBeforeReplacement.NumPendingForPath(m.selectionInfo.currentPath) > 0 {
+		max++
+	}
+
+	if m.selectedReplacementIndex < max {
 		m.selectedReplacementIndex++
 	}
 	m.setSelectionInfo()
@@ -140,46 +146,54 @@ func (m *changesUIModel) windowResized(w, h int) {
 }
 
 func (m *changesUIModel) updateMainView(scrollReplacement bool) {
-	updatedFile := m.selectionInfo.currentPlanBeforeReplacement.CurrentPlanFiles.Files[m.selectionInfo.currentPath]
+	if m.selectedFullFile() {
+		updatedFile := m.currentPlan.CurrentPlanFiles.Files[m.selectionInfo.currentPath]
 
-	oldRes := m.getReplacementOldDisplay()
+		wrapWidth := m.fileViewport.Width - 2
 
-	m.changeOldViewport.SetContent(oldRes.oldDisplay)
+		replacements := m.selectionInfo.currentReplacements
+		fileSegments := []string{}
+		replacementSegments := map[int]bool{}
+		lastReplacementIdx := 0
+		for _, rep := range replacements {
+			idx := strings.Index(updatedFile, rep.New)
+			if idx == -1 || idx < lastReplacementIdx {
+				continue
+			}
 
-	newContent, newContentDisplay := m.getReplacementNewDisplay(oldRes.prependContent, oldRes.appendContent)
-	m.changeNewViewport.SetContent(newContentDisplay)
-
-	m.fileViewport.SetContent(wrap.String(updatedFile, m.fileViewport.Width-2))
-
-	m.updateViewportSizes()
-
-	if scrollReplacement {
-		m.scrollReplacementIntoView(oldRes.old, newContent, oldRes.numLinesPrepended)
-	}
-}
-
-func (m *changesUIModel) scrollReplacementIntoView(oldContent, newContent string, numLinesPrepended int) {
-	if numLinesPrepended <= 3 {
-		return
-	}
-
-	scrollView := func(content string, view *viewport.Model) {
-		visibleLines := view.VisibleLineCount()
-		contentLines := len(strings.Split(content, "\n"))
-
-		if contentLines >= (visibleLines - 3) {
-			view.LineDown(numLinesPrepended - 3)
-		} else {
-			diffAround := visibleLines - contentLines
-			toScroll := numLinesPrepended - diffAround/2
-			view.LineDown(toScroll)
+			fileSegments = append(fileSegments, updatedFile[lastReplacementIdx:idx])
+			fileSegments = append(fileSegments, rep.New)
+			replacementSegments[len(fileSegments)-1] = true
+			lastReplacementIdx = idx + len(rep.New)
 		}
-	}
+		fileSegments = append(fileSegments, updatedFile[lastReplacementIdx:])
 
-	if m.oldScrollable() {
-		scrollView(oldContent, &m.changeOldViewport)
-	}
-	if m.newScrollable() {
-		scrollView(newContent, &m.changeNewViewport)
+		for i, segment := range fileSegments {
+			wrapped := wrap.String(segment, wrapWidth)
+			isReplacement := replacementSegments[i]
+			if isReplacement {
+				lines := strings.Split(wrapped, "\n")
+				for j, line := range lines {
+					lines[j] = color.New(color.FgHiGreen).Sprint(line)
+				}
+				wrapped = strings.Join(lines, "\n")
+			}
+			fileSegments[i] = wrapped
+		}
+
+		m.fileViewport.SetContent(strings.Join(fileSegments, ""))
+		m.updateViewportSizes()
+
+	} else {
+		oldRes := m.getReplacementOldDisplay()
+		m.changeOldViewport.SetContent(oldRes.oldDisplay)
+		newContent, newContentDisplay := m.getReplacementNewDisplay(oldRes.prependContent, oldRes.appendContent)
+		m.changeNewViewport.SetContent(newContentDisplay)
+
+		m.updateViewportSizes()
+
+		if scrollReplacement {
+			m.scrollReplacementIntoView(oldRes.old, newContent, oldRes.numLinesPrepended)
+		}
 	}
 }

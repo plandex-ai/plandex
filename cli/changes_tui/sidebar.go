@@ -21,6 +21,7 @@ func (m changesUIModel) renderSidebar() string {
 	for _, path := range paths {
 		results := m.currentPlan.PlanResByPath[path]
 		anyFailed := false
+		anyApplied := false
 
 		// Change entries
 		for i, result := range results {
@@ -29,20 +30,34 @@ func (m changesUIModel) renderSidebar() string {
 				selected := currentRep != nil && rep.Id == currentRep.Id
 				s := ""
 
-				labelColor := color.FgHiGreen
+				fgColor := color.FgHiGreen
+				bgColor := color.BgGreen
 				if rep.Failed {
-					labelColor = color.FgHiRed
+					fgColor = color.FgHiRed
+					bgColor = color.BgRed
 					anyFailed = true
+				} else if rep.RejectedAt != "" {
+					fgColor = color.FgWhite
+					bgColor = color.BgBlack
+				}
+
+				var icon string
+				if rep.RejectedAt != "" {
+					icon = "👎"
+				} else if rep.Failed {
+					icon = "🚫"
+				} else {
+					icon = "📝"
+				}
+
+				if !rep.Failed && rep.RejectedAt == "" {
+					anyApplied = true
 				}
 
 				if selected {
-					s += color.New(color.Bold, labelColor).Sprintf(" > ") + color.New(color.Bold, labelColor).Sprintf("%d", flatIndex)
+					s += color.New(color.Bold, bgColor, color.FgHiWhite).Sprintf(" > %s %d ", icon, flatIndex+1)
 				} else {
-					s += color.New(labelColor).Sprintf(" - %d", flatIndex)
-				}
-
-				if result.RejectedAt != "" {
-					s += " 🚫"
+					s += color.New(fgColor).Sprintf(" - %s %d ", icon, flatIndex+1)
 				}
 
 				s += "\n"
@@ -52,15 +67,21 @@ func (m changesUIModel) renderSidebar() string {
 
 		}
 
-		labelColor := color.FgHiGreen
+		if !anyApplied {
+			continue
+		}
+
+		fgColor := color.FgHiGreen
+		bgColor := color.BgGreen
 		if anyFailed {
-			labelColor = color.FgHiRed
+			fgColor = color.FgHiRed
+			bgColor = color.BgRed
 		}
 
 		if m.selectedFullFile() {
-			sb.WriteString(color.New(color.Bold, labelColor).Sprint(" > 📄 \n "))
+			sb.WriteString(color.New(color.Bold, bgColor, color.FgHiWhite).Sprint(" > 🔀   "))
 		} else {
-			sb.WriteString(color.New(labelColor).Sprint(" - 📄 \n"))
+			sb.WriteString(color.New(fgColor).Sprint(" - 🔀   "))
 		}
 	}
 
