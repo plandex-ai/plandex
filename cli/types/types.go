@@ -79,10 +79,3 @@ type PlanResultsInfo struct {
 	PlanResByPath      shared.PlanResultsByPath
 	ReplacementsByPath map[string][]*shared.Replacement
 }
-
-type CurrentPlanState struct {
-	PlanResultsInfo
-	CurrentPlanFiles *shared.CurrentPlanFiles
-	ModelContext     shared.ModelContext
-	ContextByPath    map[string]*shared.ModelContextPart
-}

@@ -236,7 +236,11 @@ func checkOutdatedAndMaybeUpdateContext(doUpdate bool) (*updateRes, error) {
 					updateCh <- nil
 				} else {
 					body := string(fileContent)
-					numTokens := shared.GetNumTokens(body)
+					numTokens, err := shared.GetNumTokens(body)
+					if err != nil {
+						errCh <- fmt.Errorf("failed to get the number of tokens in the file %s: %v", part.FilePath, err)
+						return
+					}
 
 					mu.Lock()
 					tokensDiff += numTokens - part.NumTokens
@@ -276,7 +280,12 @@ func checkOutdatedAndMaybeUpdateContext(doUpdate bool) (*updateRes, error) {
 				if sha == part.Sha {
 					updateCh <- nil
 				} else {
-					numTokens := shared.GetNumTokens(body)
+					numTokens, err := shared.GetNumTokens(body)
+					if err != nil {
+						errCh <- fmt.Errorf("failed to get the number of tokens in the directory tree %s: %v", part.FilePath, err)
+						return
+					}
+
 					mu.Lock()
 					tokensDiff += numTokens - part.NumTokens
 					tokenDiffsByName[part.Name] = numTokens - part.NumTokens
@@ -311,7 +320,12 @@ func checkOutdatedAndMaybeUpdateContext(doUpdate bool) (*updateRes, error) {
 				if sha == part.Sha {
 					updateCh <- nil
 				} else {
-					numTokens := shared.GetNumTokens(body)
+					numTokens, err := shared.GetNumTokens(body)
+					if err != nil {
+						errCh <- fmt.Errorf("failed to get the number of tokens in the URL %s: %v", part.Url, err)
+						return
+					}
+
 					mu.Lock()
 					tokensDiff += numTokens - part.NumTokens
 					tokenDiffsByName[part.Name] = numTokens - part.NumTokens

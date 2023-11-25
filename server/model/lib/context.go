@@ -7,7 +7,7 @@ import (
 	"github.com/plandex/plandex/shared"
 )
 
-func FormatModelContext(context shared.ModelContext) (string, int) {
+func FormatModelContext(context shared.ModelContext) (string, int, error) {
 	var contextMessages []string
 	var numTokens int
 	for _, part := range context {
@@ -29,13 +29,19 @@ func FormatModelContext(context shared.ModelContext) (string, int) {
 			args = append(args, part.Name, part.Body)
 		}
 
-		numTokens += part.NumTokens + shared.GetNumTokens(fmt.Sprintf(fmtStr, ""))
+		numContextTokens, err := shared.GetNumTokens(fmt.Sprintf(fmtStr, ""))
+		if err != nil {
+			err = fmt.Errorf("failed to get the number of tokens in the context: %v", err)
+			return "", 0, err
+		}
+
+		numTokens += part.NumTokens + numContextTokens
 
 		message = fmt.Sprintf(fmtStr, args...)
 
 		contextMessages = append(contextMessages, message)
 	}
-	return strings.Join(contextMessages, "\n"), numTokens
+	return strings.Join(contextMessages, "\n"), numTokens, nil
 }
 
 func FormatCurrentPlan(plan shared.CurrentPlanFiles) string {

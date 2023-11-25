@@ -107,7 +107,10 @@ func Propose(prompt string) error {
 
 	// fmt.Println("Initialized locals")
 
-	promptNumTokens := shared.GetNumTokens(prompt)
+	promptNumTokens, err := shared.GetNumTokens(prompt)
+	if err != nil {
+		return fmt.Errorf("failed to get number of tokens in prompt: %s", err)
+	}
 
 	// fmt.Println("Got prompt num tokens")
 

@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"path/filepath"
 	"plandex/format"
@@ -37,7 +36,8 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) (int, 
 	if err != nil {
 		s.Stop()
 		term.ClearCurrentLine()
-		log.Fatalf("Failed to get plan state: %v", err)
+		fmt.Fprintf(os.Stderr, "Failed to get plan state: %v", err)
+		os.Exit(1)
 	}
 
 	tokensAdded := 0
@@ -57,7 +57,13 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) (int, 
 			defer wg.Done()
 
 			body := params.Note
-			numTokens := shared.GetNumTokens(body)
+			numTokens, err := shared.GetNumTokens(body)
+			if err != nil {
+				s.Stop()
+				term.ClearCurrentLine()
+				fmt.Fprintf(os.Stderr, "Failed to get number of tokens for the note: %v", err)
+				os.Exit(1)
+			}
 
 			totalTokensMutex.Lock()
 			func() {
@@ -69,7 +75,8 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) (int, 
 				if totalTokens > maxTokens {
 					s.Stop()
 					term.ClearCurrentLine()
-					log.Fatalf("The total number of tokens (%d) exceeds the maximum allowed (%d)", totalTokens, maxTokens)
+					fmt.Fprintf(os.Stderr, "The total number of tokens (%d) exceeds the maximum allowed (%d)", totalTokens, maxTokens)
+					os.Exit(1)
 				}
 			}()
 
@@ -80,7 +87,8 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) (int, 
 			if err != nil {
 				s.Stop()
 				term.ClearCurrentLine()
-				log.Fatalf("Failed to get a file name for the text: %v", err)
+				fmt.Fprintf(os.Stderr, "Failed to get a file name for the text: %v", err)
+				os.Exit(1)
 			}
 
 			fileName := format.GetFileNameWithoutExt(fileNameResp.FileName)
@@ -109,7 +117,8 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) (int, 
 	if err != nil {
 		s.Stop()
 		term.ClearCurrentLine()
-		log.Fatalf("Failed to stat stdin: %v", err)
+		fmt.Fprintf(os.Stderr, "Failed to stat stdin: %v", err)
+		os.Exit(1)
 	}
 	if fileInfo.Mode()&os.ModeNamedPipe != 0 {
 		reader := bufio.NewReader(os.Stdin)
@@ -117,7 +126,8 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) (int, 
 		if err != nil {
 			s.Stop()
 			term.ClearCurrentLine()
-			log.Fatalf("Failed to read piped data: %v", err)
+			fmt.Fprintf(os.Stderr, "Failed to read piped data: %v", err)
+			os.Exit(1)
 		}
 
 		if len(pipedData) > 0 {
@@ -129,7 +139,13 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) (int, 
 				defer wg.Done()
 
 				body := string(pipedData)
-				numTokens := shared.GetNumTokens(body)
+				numTokens, err := shared.GetNumTokens(body)
+				if err != nil {
+					s.Stop()
+					term.ClearCurrentLine()
+					fmt.Fprintf(os.Stderr, "Failed to get number of tokens for the note: %v", err)
+					os.Exit(1)
+				}
 
 				totalTokensMutex.Lock()
 				func() {
@@ -140,7 +156,8 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) (int, 
 					if totalTokens > maxTokens {
 						s.Stop()
 						term.ClearCurrentLine()
-						log.Fatalf("The total number of tokens (%d) exceeds the maximum allowed (%d)", totalTokens, maxTokens)
+						fmt.Fprintf(os.Stderr, "The total number of tokens (%d) exceeds the maximum allowed (%d)", totalTokens, maxTokens)
+						os.Exit(1)
 					}
 				}()
 
@@ -151,7 +168,8 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) (int, 
 				if err != nil {
 					s.Stop()
 					term.ClearCurrentLine()
-					log.Fatalf("Failed to get a file name for piped data: %v", err)
+					fmt.Fprintf(os.Stderr, "Failed to get a file name for piped data: %v", err)
+					os.Exit(1)
 				}
 
 				fileName := format.GetFileNameWithoutExt(fileNameResp.FileName)
@@ -201,7 +219,8 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) (int, 
 					if err != nil {
 						s.Stop()
 						term.ClearCurrentLine()
-						log.Fatalf("Failed to parse input paths: %v", err)
+						fmt.Fprintf(os.Stderr, "Failed to parse input paths: %v", err)
+						os.Exit(1)
 					}
 
 					body := strings.Join(flattenedPaths, "\n")
@@ -209,7 +228,13 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) (int, 
 
 					hash := sha256.Sum256(bytes)
 					sha := hex.EncodeToString(hash[:])
-					numTokens := shared.GetNumTokens(body)
+					numTokens, err := shared.GetNumTokens(body)
+					if err != nil {
+						s.Stop()
+						term.ClearCurrentLine()
+						fmt.Fprintf(os.Stderr, "Failed to get number of tokens for the note: %v", err)
+						os.Exit(1)
+					}
 
 					totalTokensMutex.Lock()
 					func() {
@@ -220,7 +245,8 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) (int, 
 						if totalTokens > maxTokens {
 							s.Stop()
 							term.ClearCurrentLine()
-							log.Fatalf("The total number of tokens (%d) exceeds the maximum allowed (%d)", totalTokens, maxTokens)
+							fmt.Fprintf(os.Stderr, "The total number of tokens (%d) exceeds the maximum allowed (%d)", totalTokens, maxTokens)
+							os.Exit(1)
 						}
 
 					}()
@@ -259,7 +285,8 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) (int, 
 			if err != nil {
 				s.Stop()
 				term.ClearCurrentLine()
-				log.Fatalf("Failed to parse input paths: %v", err)
+				fmt.Fprintf(os.Stderr, "Failed to parse input paths: %v", err)
+				os.Exit(1)
 			}
 
 			for _, path := range flattenedPaths {
@@ -272,13 +299,20 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) (int, 
 					if err != nil {
 						s.Stop()
 						term.ClearCurrentLine()
-						log.Fatalf("Failed to read the file %s: %v", path, err)
+						fmt.Fprintf(os.Stderr, "Failed to read the file %s: %v", path, err)
+						os.Exit(1)
 					}
 
 					body := string(fileContent)
 					hash := sha256.Sum256(fileContent)
 					sha := hex.EncodeToString(hash[:])
-					numTokens := shared.GetNumTokens(body)
+					numTokens, err := shared.GetNumTokens(body)
+					if err != nil {
+						s.Stop()
+						term.ClearCurrentLine()
+						fmt.Fprintf(os.Stderr, "Failed to get number of tokens for the note: %v", err)
+						os.Exit(1)
+					}
 
 					totalTokensMutex.Lock()
 					func() {
@@ -289,7 +323,8 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) (int, 
 						if totalTokens > maxTokens {
 							s.Stop()
 							term.ClearCurrentLine()
-							log.Fatalf("The total number of tokens (%d) exceeds the maximum allowed (%d)", totalTokens, maxTokens)
+							fmt.Fprintf(os.Stderr, "The total number of tokens (%d) exceeds the maximum allowed (%d)", totalTokens, maxTokens)
+							os.Exit(1)
 						}
 
 					}()
@@ -329,10 +364,17 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) (int, 
 				if err != nil {
 					s.Stop()
 					term.ClearCurrentLine()
-					log.Fatalf("Failed to fetch content from URL %s: %v", u, err)
+					fmt.Fprintf(os.Stderr, "Failed to fetch content from URL %s: %v", u, err)
+					os.Exit(1)
 				}
 
-				numTokens := shared.GetNumTokens(body)
+				numTokens, err := shared.GetNumTokens(body)
+				if err != nil {
+					s.Stop()
+					term.ClearCurrentLine()
+					fmt.Fprintf(os.Stderr, "Failed to get number of tokens for the note: %v", err)
+					os.Exit(1)
+				}
 
 				totalTokensMutex.Lock()
 				func() {
@@ -343,7 +385,8 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) (int, 
 					if totalTokens > maxTokens {
 						s.Stop()
 						term.ClearCurrentLine()
-						log.Fatalf("The total number of tokens (%d) exceeds the maximum allowed (%d)", totalTokens, maxTokens)
+						fmt.Fprintf(os.Stderr, "The total number of tokens (%d) exceeds the maximum allowed (%d)", totalTokens, maxTokens)
+						os.Exit(1)
 					}
 				}()
 
@@ -423,7 +466,8 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) (int, 
 	for i := 0; i < 2; i++ {
 		err := <-errCh
 		if err != nil {
-			log.Fatal(err)
+			fmt.Printf("Failed to write context: %v", err)
+			os.Exit(1)
 		}
 	}
 
@@ -475,13 +519,15 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) (int, 
 	if err != nil {
 		s.Stop()
 		term.ClearCurrentLine()
-		log.Fatalf("Failed to get total tokens: %v", err)
+		fmt.Fprintf(os.Stderr, "Failed to get total tokens: %v", err)
+		os.Exit(1)
 	}
 
 	if err != nil {
 		s.Stop()
 		term.ClearCurrentLine()
-		log.Fatalf("Failed to commit context update to git: %v", err)
+		fmt.Fprintf(os.Stderr, "Failed to commit context update to git: %v", err)
+		os.Exit(1)
 	}
 
 	elapsed := time.Since(timeStart)
@@ -500,7 +546,8 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) (int, 
 		if err != nil {
 			s.Stop()
 			term.ClearCurrentLine()
-			log.Fatalf("Failed to commit context update to git: %v", err)
+			fmt.Fprintf(os.Stderr, "Failed to commit context update to git: %v", err)
+			os.Exit(1)
 		}
 		fmt.Println(tableString)
 	}

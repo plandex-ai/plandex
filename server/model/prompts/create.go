@@ -60,8 +60,8 @@ const SysCreate = Identity + ` A plan is a set of files with an attached context
 	"\n```\n\n" +
 	"User-provided context:"
 
-var CreateSysMsgNumTokens = shared.GetNumTokens(SysCreate)
+var CreateSysMsgNumTokens, _ = shared.GetNumTokens(SysCreate)
 
 const PromptWrapperFormatStr = "The user's latest prompt:\n```\n%s\n```\n\n Please respond according to the 'Your instructions' section above. If you're making a plan, remember to precede code blocks with the file path *exactly* as described in 2a, and do not use any other formatting for file paths."
 
-var PromptWrapperTokens = shared.GetNumTokens(fmt.Sprintf(PromptWrapperFormatStr, ""))
+var PromptWrapperTokens, _ = shared.GetNumTokens(fmt.Sprintf(PromptWrapperFormatStr, ""))

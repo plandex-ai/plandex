@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 
@@ -42,7 +41,8 @@ func new(cmd *cobra.Command, args []string) {
 
 	// Check git installed
 	if !lib.IsCommandAvailable("git") {
-		log.Fatalln("Error: git is required")
+		fmt.Fprintln(os.Stderr, "Error: git is required")
+		os.Exit(1)
 	}
 
 	plandexDir, _, err := lib.FindOrCreatePlandex()

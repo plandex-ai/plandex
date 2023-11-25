@@ -2,10 +2,11 @@ package url
 
 import (
 	"errors"
+	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"net/url"
+	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -61,8 +62,8 @@ func ExtractTextualContent(htmlContent string) string {
 	r := strings.NewReader(htmlContent)
 	doc, err := goquery.NewDocumentFromReader(r)
 	if err != nil {
-		log.Fatalf("Failed to parse HTML: %v", err)
-		return ""
+		fmt.Fprintf(os.Stderr, "Failed to parse HTML: %v\n", err)
+		os.Exit(1)
 	}
 
 	return doc.Text()

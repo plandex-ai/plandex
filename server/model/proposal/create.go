@@ -55,7 +55,13 @@ func CreateProposal(req shared.PromptRequest, onStream types.OnStreamFunc) error
 
 	onStream(proposalId, nil)
 
-	contextText, contextTokens := lib.FormatModelContext(req.ModelContext)
+	contextText, contextTokens, err := lib.FormatModelContext(req.ModelContext)
+	if err != nil {
+		err = fmt.Errorf("error formatting model context: %v", err)
+		fmt.Println(err)
+		return err
+	}
+
 	systemMessageText := prompts.SysCreate + contextText
 	systemMessage := openai.ChatCompletionMessage{
 		Role:    openai.ChatMessageRoleSystem,
@@ -66,7 +72,14 @@ func CreateProposal(req shared.PromptRequest, onStream types.OnStreamFunc) error
 		systemMessage,
 	}
 
-	promptTokens := prompts.PromptWrapperTokens + shared.GetNumTokens(req.Prompt)
+	numPromptTokens, err := shared.GetNumTokens(req.Prompt)
+	if err != nil {
+		err = fmt.Errorf("error getting number of tokens in prompt: %v", err)
+		fmt.Println(err)
+		return err
+	}
+
+	promptTokens := prompts.PromptWrapperTokens + numPromptTokens
 	totalTokens := prompts.CreateSysMsgNumTokens + contextTokens + promptTokens
 
 	// print out breakdown of token usage
