@@ -14,7 +14,7 @@ import (
 func GetAllContext(metaOnly bool) (shared.ModelContext, error) {
 	files, err := os.ReadDir(ContextSubdir)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to read context directory: %v", err)
+		fmt.Fprintf(os.Stderr, "Failed to read context directory: %v\n", err)
 		return nil, err
 	}
 
@@ -38,7 +38,7 @@ func GetAllContext(metaOnly bool) (shared.ModelContext, error) {
 
 			var contextPart shared.ModelContextPart
 			if err := json.Unmarshal(metaContent, &contextPart); err != nil {
-				fmt.Fprintf(os.Stderr, "Failed to unmarshal JSON from file %s: %v", filename, err)
+				fmt.Fprintf(os.Stderr, "Failed to unmarshal JSON from file %s: %v\n", filename, err)
 				return nil, err
 			}
 
@@ -51,7 +51,7 @@ func GetAllContext(metaOnly bool) (shared.ModelContext, error) {
 
 				bodyContent, err := os.ReadFile(bodyPath)
 				if err != nil {
-					fmt.Fprintf(os.Stderr, "Failed to read body file %s: %v", bodyPath, err)
+					fmt.Fprintf(os.Stderr, "Failed to read body file %s: %v\n", bodyPath, err)
 					return nil, err
 				}
 

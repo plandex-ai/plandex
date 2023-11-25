@@ -36,7 +36,7 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) (int, 
 	if err != nil {
 		s.Stop()
 		term.ClearCurrentLine()
-		fmt.Fprintf(os.Stderr, "Failed to get plan state: %v", err)
+		fmt.Fprintf(os.Stderr, "Failed to get plan state: %v\n", err)
 		os.Exit(1)
 	}
 
@@ -61,7 +61,7 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) (int, 
 			if err != nil {
 				s.Stop()
 				term.ClearCurrentLine()
-				fmt.Fprintf(os.Stderr, "Failed to get number of tokens for the note: %v", err)
+				fmt.Fprintf(os.Stderr, "Failed to get number of tokens for the note: %v\n", err)
 				os.Exit(1)
 			}
 
@@ -75,7 +75,7 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) (int, 
 				if totalTokens > maxTokens {
 					s.Stop()
 					term.ClearCurrentLine()
-					fmt.Fprintf(os.Stderr, "The total number of tokens (%d) exceeds the maximum allowed (%d)", totalTokens, maxTokens)
+					fmt.Fprintf(os.Stderr, "🚨 The total number of tokens (%d) exceeds the maximum allowed (%d)\n", totalTokens, maxTokens)
 					os.Exit(1)
 				}
 			}()
@@ -87,7 +87,7 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) (int, 
 			if err != nil {
 				s.Stop()
 				term.ClearCurrentLine()
-				fmt.Fprintf(os.Stderr, "Failed to get a file name for the text: %v", err)
+				fmt.Fprintf(os.Stderr, "Failed to get a file name for the text: %v\n", err)
 				os.Exit(1)
 			}
 
@@ -117,7 +117,7 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) (int, 
 	if err != nil {
 		s.Stop()
 		term.ClearCurrentLine()
-		fmt.Fprintf(os.Stderr, "Failed to stat stdin: %v", err)
+		fmt.Fprintf(os.Stderr, "Failed to stat stdin: %v\n", err)
 		os.Exit(1)
 	}
 	if fileInfo.Mode()&os.ModeNamedPipe != 0 {
@@ -126,7 +126,7 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) (int, 
 		if err != nil {
 			s.Stop()
 			term.ClearCurrentLine()
-			fmt.Fprintf(os.Stderr, "Failed to read piped data: %v", err)
+			fmt.Fprintf(os.Stderr, "Failed to read piped data: %v\n", err)
 			os.Exit(1)
 		}
 
@@ -143,7 +143,7 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) (int, 
 				if err != nil {
 					s.Stop()
 					term.ClearCurrentLine()
-					fmt.Fprintf(os.Stderr, "Failed to get number of tokens for the note: %v", err)
+					fmt.Fprintf(os.Stderr, "Failed to get number of tokens for the note: %v\n", err)
 					os.Exit(1)
 				}
 
@@ -156,7 +156,7 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) (int, 
 					if totalTokens > maxTokens {
 						s.Stop()
 						term.ClearCurrentLine()
-						fmt.Fprintf(os.Stderr, "The total number of tokens (%d) exceeds the maximum allowed (%d)", totalTokens, maxTokens)
+						fmt.Fprintf(os.Stderr, "🚨 The total number of tokens (%d) exceeds the maximum allowed (%d)\n", totalTokens, maxTokens)
 						os.Exit(1)
 					}
 				}()
@@ -168,7 +168,7 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) (int, 
 				if err != nil {
 					s.Stop()
 					term.ClearCurrentLine()
-					fmt.Fprintf(os.Stderr, "Failed to get a file name for piped data: %v", err)
+					fmt.Fprintf(os.Stderr, "Failed to get a file name for piped data: %v\n", err)
 					os.Exit(1)
 				}
 
@@ -219,7 +219,7 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) (int, 
 					if err != nil {
 						s.Stop()
 						term.ClearCurrentLine()
-						fmt.Fprintf(os.Stderr, "Failed to parse input paths: %v", err)
+						fmt.Fprintf(os.Stderr, "Failed to parse input paths: %v\n", err)
 						os.Exit(1)
 					}
 
@@ -232,7 +232,7 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) (int, 
 					if err != nil {
 						s.Stop()
 						term.ClearCurrentLine()
-						fmt.Fprintf(os.Stderr, "Failed to get number of tokens for the note: %v", err)
+						fmt.Fprintf(os.Stderr, "Failed to get number of tokens for the note: %v\n", err)
 						os.Exit(1)
 					}
 
@@ -245,7 +245,7 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) (int, 
 						if totalTokens > maxTokens {
 							s.Stop()
 							term.ClearCurrentLine()
-							fmt.Fprintf(os.Stderr, "The total number of tokens (%d) exceeds the maximum allowed (%d)", totalTokens, maxTokens)
+							fmt.Fprintf(os.Stderr, "🚨 The total number of tokens (%d) exceeds the maximum allowed (%d)\n", totalTokens, maxTokens)
 							os.Exit(1)
 						}
 
@@ -285,7 +285,7 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) (int, 
 			if err != nil {
 				s.Stop()
 				term.ClearCurrentLine()
-				fmt.Fprintf(os.Stderr, "Failed to parse input paths: %v", err)
+				fmt.Fprintf(os.Stderr, "Failed to parse input paths: %v\n", err)
 				os.Exit(1)
 			}
 
@@ -310,7 +310,7 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) (int, 
 					if err != nil {
 						s.Stop()
 						term.ClearCurrentLine()
-						fmt.Fprintf(os.Stderr, "Failed to get number of tokens for the note: %v", err)
+						fmt.Fprintf(os.Stderr, "Failed to get number of tokens for the note: %v\n", err)
 						os.Exit(1)
 					}
 
@@ -323,7 +323,7 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) (int, 
 						if totalTokens > maxTokens {
 							s.Stop()
 							term.ClearCurrentLine()
-							fmt.Fprintf(os.Stderr, "The total number of tokens (%d) exceeds the maximum allowed (%d)", totalTokens, maxTokens)
+							fmt.Fprintf(os.Stderr, "🚨 The total number of tokens (%d) exceeds the maximum allowed (%d)\n", totalTokens, maxTokens)
 							os.Exit(1)
 						}
 
@@ -372,7 +372,7 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) (int, 
 				if err != nil {
 					s.Stop()
 					term.ClearCurrentLine()
-					fmt.Fprintf(os.Stderr, "Failed to get number of tokens for the note: %v", err)
+					fmt.Fprintf(os.Stderr, "Failed to get number of tokens for the note: %v\n", err)
 					os.Exit(1)
 				}
 
@@ -385,7 +385,7 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) (int, 
 					if totalTokens > maxTokens {
 						s.Stop()
 						term.ClearCurrentLine()
-						fmt.Fprintf(os.Stderr, "The total number of tokens (%d) exceeds the maximum allowed (%d)", totalTokens, maxTokens)
+						fmt.Fprintf(os.Stderr, "🚨 The total number of tokens (%d) exceeds the maximum allowed (%d)\n", totalTokens, maxTokens)
 						os.Exit(1)
 					}
 				}()
@@ -466,7 +466,7 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) (int, 
 	for i := 0; i < 2; i++ {
 		err := <-errCh
 		if err != nil {
-			fmt.Printf("Failed to write context: %v", err)
+			fmt.Printf("Failed to write context: %v\n", err)
 			os.Exit(1)
 		}
 	}
@@ -519,14 +519,14 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) (int, 
 	if err != nil {
 		s.Stop()
 		term.ClearCurrentLine()
-		fmt.Fprintf(os.Stderr, "Failed to get total tokens: %v", err)
+		fmt.Fprintf(os.Stderr, "Failed to get total tokens: %v\n", err)
 		os.Exit(1)
 	}
 
 	if err != nil {
 		s.Stop()
 		term.ClearCurrentLine()
-		fmt.Fprintf(os.Stderr, "Failed to commit context update to git: %v", err)
+		fmt.Fprintf(os.Stderr, "Failed to commit context update to git: %v\n", err)
 		os.Exit(1)
 	}
 
@@ -546,7 +546,7 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) (int, 
 		if err != nil {
 			s.Stop()
 			term.ClearCurrentLine()
-			fmt.Fprintf(os.Stderr, "Failed to commit context update to git: %v", err)
+			fmt.Fprintf(os.Stderr, "Failed to commit context update to git: %v\n", err)
 			os.Exit(1)
 		}
 		fmt.Println(tableString)

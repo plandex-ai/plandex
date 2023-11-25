@@ -39,7 +39,7 @@ func Propose(prompt string) error {
 	if planState.ContextUpdatableTokens > 0 {
 		shouldContinue, err := checkOutdatedContext(s)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to check outdated context: %v", err)
+			fmt.Fprintf(os.Stderr, "Failed to check outdated context: %v\n", err)
 			return err
 		}
 
