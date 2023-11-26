@@ -31,6 +31,8 @@ The 'old' text should be unique and unambiguous in the current file. It must not
 
 The 'new' text must include the full text of the replacement without any placeholders or references to the original file. DO NOT INCLUDE text like "// ... existing code", "// ... rest of the file", or other equivalents with different wording/formatting/syntax in the 'new' text. Only include the actual code that should be inserted.
 
+For the 'new' text, apart from the exceptions I mentioned in the previous paragraph, do not make any additional modifications on top of the changes from the plan unless absolutely necessary to apply the change correctly. Don't add additional comments. Don't escape characters (like emoji or other characters) unless they are also escaped in the plan. Keep as closely as possible to the changes as suggested in the plan, down to specific characters and formatting.
+
 You MUST call only 'writeReplacements'--don't call any other function or produce any other output.
 
 Replacement examples below. Note: >>> and <<< indicate the start and end of an example response.

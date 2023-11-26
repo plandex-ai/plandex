@@ -2,6 +2,8 @@ package changes_tui
 
 import (
 	"fmt"
+	"log"
+	"plandex/lib"
 	"strings"
 
 	"github.com/atotto/clipboard"
@@ -10,19 +12,19 @@ import (
 	"github.com/plandex/plandex/shared"
 )
 
-func (m changesUIModel) rejectChange() error {
+func (m *changesUIModel) rejectChange() {
+	if m.selectionInfo == nil || m.selectionInfo.currentRep == nil {
+		log.Println("can't drop change; no change is currently selected")
+		return
+	}
 
-	return nil
-}
+	err := lib.DropChange(lib.CurrentPlanName, m.selectionInfo.currentPath, m.selectionInfo.currentRep)
 
-func (m changesUIModel) applyAllChanges() error {
+	if err != nil {
+		log.Printf("error dropping change: %v", err)
+		return
+	}
 
-	return nil
-}
-
-func (m changesUIModel) rejectAllChanges() error {
-
-	return nil
 }
 
 func (m changesUIModel) copyCurrentChange() error {

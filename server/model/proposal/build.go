@@ -422,14 +422,15 @@ func BuildPlan(params *types.BuildParams, onStream types.OnStreamFunc) error {
 								}
 							}
 
-							handleErrorRetry(
-								nil, // no error -- if we reach MAX_REPLACEMENT_RETRIES, we just ignore the error and continue
-								false,
-								true,
-								planResult,
-							)
-
-							return
+							if numReplacementsRetry < MaxReplacementRetries {
+								handleErrorRetry(
+									nil, // no error -- if we reach MAX_REPLACEMENT_RETRIES, we just ignore the error and continue
+									false,
+									true,
+									planResult,
+								)
+								return
+							}
 						}
 
 						planTokenCount := &shared.PlanTokenCount{

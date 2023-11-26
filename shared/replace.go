@@ -11,7 +11,6 @@ type Replacement struct {
 	Summary    string `json:"summary"`
 	Failed     bool   `json:"failed"`
 	RejectedAt string `json:"rejectedAt"`
-	ResolvedAt string `json:"resolvedAt"`
 }
 
 func ApplyReplacements(content string, replacements []*Replacement, setFailed bool) (string, bool) {
@@ -51,4 +50,12 @@ func ApplyReplacements(content string, replacements []*Replacement, setFailed bo
 	}
 
 	return updated, allSucceeded
+}
+
+func (rep *Replacement) IsPending() bool {
+	return !rep.Failed && rep.RejectedAt == ""
+}
+
+func (rep *Replacement) SetRejected(ts string) {
+	rep.RejectedAt = ts
 }

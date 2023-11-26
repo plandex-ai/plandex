@@ -131,26 +131,4 @@ func getEditorInstructions(editor string) string {
 
 	return "Write your prompt below, then save and exit to send it to Plandex.\n\n"
 
-	// var instructions string
-
-	// switch editor {
-	// case "vim":
-	// 	instructions = "Write your prompt below, then save and exit to send it to Plandex.\n\n" +
-	// 		"Vim Instructions:\n" +
-	// 		"Use the arrow keys or 'hjkl' to navigate around the text.\n" +
-	// 		"Press 'i' to enter 'Insert' mode and start typing your prompt.\n" +
-	// 		"To exit 'Insert' mode and go back to 'Normal' mode, press 'Esc'.\n" +
-	// 		"In 'Normal' mode, type ':wq' followed by 'Enter' key to save, exit, and send your prompt.\n" +
-	// 		"If you want to exit without saving, type ':q!' followed by 'Enter'."
-
-	// case "nano":
-	// 	instructions = "Write your prompt below, then save and exit to send it to Plandex.\n\n" +
-	// 		"Nano Instructions:\n" +
-	// 		"Use the arrow keys to navigate around the text.\n" +
-	// 		"Type your prompt as needed.\n" +
-	// 		"When you're ready, press 'Ctrl + O' to save the file, then 'Enter' to confirm.\n" +
-	// 		"Finally, press 'Ctrl + X' to exit Nano and send your prompt."
-	// }
-
-	// return instructions
 }

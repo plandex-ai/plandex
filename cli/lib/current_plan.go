@@ -43,6 +43,7 @@ func GetCurrentPlanStateBeforeReplacement(id string) (*types.CurrentPlanState, e
 			errCh <- fmt.Errorf("error getting plan results: %v", err)
 			return
 		}
+
 		planResInfoCh <- planResInfo
 	}()
 
@@ -65,8 +66,6 @@ func GetCurrentPlanStateBeforeReplacement(id string) (*types.CurrentPlanState, e
 		if contextPart.FilePath == "" {
 			continue
 		}
-
-		// fmt.Printf("contextPart: %s\n", contextPart.FilePath)
 
 		_, hasPath := planResInfo.PlanResByPath[contextPart.FilePath]
 
@@ -191,7 +190,11 @@ func GetPlanResultsInfo() (*types.PlanResultsInfo, error) {
 	resDirExists := !os.IsNotExist(err)
 
 	if !resDirExists {
-		return nil, nil
+		return &types.PlanResultsInfo{
+			PlanResByPath:      resByPath,
+			SortedPaths:        paths,
+			ReplacementsByPath: replacementsByPath,
+		}, nil
 	}
 
 	err = filepath.Walk(ResultsSubdir, func(path string, info os.FileInfo, err error) error {

@@ -26,6 +26,8 @@ type changesUIModel struct {
 	ready                    bool
 	width                    int
 	height                   int
+	shouldApplyAll           bool
+	shouldRejectAll          bool
 }
 
 type keymap = struct {

@@ -312,6 +312,8 @@ func Propose(prompt string) error {
 				close(done)
 				closedDone = true
 				writeFileProgress()
+				fmt.Println()
+				fmt.Println()
 			}
 
 		case shared.STATE_DESCRIBING:
@@ -424,6 +426,8 @@ func Propose(prompt string) error {
 					close(done)
 					closedDone = true
 					writeFileProgress()
+					fmt.Println()
+					fmt.Println()
 				}
 			}
 		}

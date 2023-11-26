@@ -54,10 +54,12 @@ func (m changesUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.rejectChange()
 
 		case bubbleKey.Matches(msg, m.keymap.applyAll):
-			m.applyAllChanges()
+			m.shouldApplyAll = true
+			return m, tea.Quit
 
 		case bubbleKey.Matches(msg, m.keymap.rejectAll):
-			m.rejectAllChanges()
+			m.shouldRejectAll = true
+			return m, tea.Quit
 
 		case bubbleKey.Matches(msg, m.keymap.copy):
 			m.copyCurrentChange()

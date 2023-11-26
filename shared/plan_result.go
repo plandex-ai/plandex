@@ -10,14 +10,9 @@ type PlanResult struct {
 	Replacements []*Replacement `json:"replacements"`
 	AppliedAt    string         `json:"appliedAt"`
 	RejectedAt   string         `json:"rejectedAt"`
-	ResolvedAt   string         `json:"resolvedAt"`
 }
 
 type PlanResultsByPath map[string][]*PlanResult
-
-func (rep *Replacement) IsPending() bool {
-	return !rep.Failed && rep.RejectedAt == "" && rep.ResolvedAt == ""
-}
 
 func (res *PlanResult) NumPendingReplacements() int {
 	numPending := 0
@@ -30,7 +25,7 @@ func (res *PlanResult) NumPendingReplacements() int {
 }
 
 func (res *PlanResult) IsPending() bool {
-	return res.AppliedAt == "" && res.RejectedAt == "" && res.ResolvedAt == "" && res.NumPendingReplacements() > 0
+	return res.AppliedAt == "" && res.RejectedAt == "" && res.NumPendingReplacements() > 0
 }
 
 func (p PlanResultsByPath) SetApplied(ts string) {
@@ -44,24 +39,19 @@ func (p PlanResultsByPath) SetApplied(ts string) {
 	}
 }
 
-func (p PlanResultsByPath) SetRejected(ts string) {
+func (p PlanResultsByPath) SetRejected(ts string) int {
+	numRejected := 0
 	for _, planResults := range p {
 		for _, planResult := range planResults {
 			if !planResult.IsPending() {
 				continue
 			}
 			planResult.RejectedAt = ts
-		}
-	}
-}
+			numRejected++
 
-func (p PlanResultsByPath) SetResolved(ts string) {
-	for _, planResults := range p {
-		for _, planResult := range planResults {
-			if !planResult.IsPending() {
-				continue
+			for _, rep := range planResult.Replacements {
+				rep.SetRejected(ts)
 			}
-			planResult.ResolvedAt = ts
 		}
 	}
 }
