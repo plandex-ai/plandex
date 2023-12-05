@@ -98,7 +98,17 @@ func (m *changesUIModel) updateViewportSizes() {
 }
 
 func (m changesUIModel) renderHelp() string {
-	help := ` (↑/↓) select change • (ctrl+a) apply pending • (ctrl+d) drop all • (q)uit`
+	help := " "
+
+	if len(m.currentPlan.SortedPaths) > 1 {
+		help += "(←/→) select file • "
+	}
+
+	if m.renderSidebar() != "" {
+		help += "(↑/↓) select change • "
+	}
+
+	help += "(ctrl+a) apply pending • (ctrl+d) drop all • (q)uit"
 	style := lipgloss.NewStyle().Width(m.width).Inherit(topBorderStyle).Foreground(lipgloss.Color(helpTextColor))
 	return style.Render(help)
 }

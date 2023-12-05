@@ -75,11 +75,16 @@ func (m changesUIModel) renderMainViewHeader() string {
 	var header string
 	if m.selectedFullFile() {
 		numChanges := m.selectionInfo.currentPlanBeforeReplacement.NumPendingForPath(m.selectionInfo.currentPath)
-		suffix := "s"
-		if numChanges == 1 {
-			suffix = ""
+
+		if numChanges > 0 {
+			suffix := "s"
+			if numChanges == 1 {
+				suffix = ""
+			}
+			header = fmt.Sprintf(" ✅ Final state of %s including %d change%s", m.selectionInfo.currentPath, numChanges, suffix)
+		} else {
+			header = fmt.Sprintf(" ✅ New file: %s", m.selectionInfo.currentPath)
 		}
-		header = fmt.Sprintf(" ✅ "+"Final state of file including %d change%s", numChanges, suffix)
 	} else {
 		header = " 👉 " + m.selectionInfo.currentRep.Summary
 	}

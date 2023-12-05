@@ -25,7 +25,7 @@ func (res *PlanResult) NumPendingReplacements() int {
 }
 
 func (res *PlanResult) IsPending() bool {
-	return res.AppliedAt == "" && res.RejectedAt == "" && res.NumPendingReplacements() > 0
+	return res.AppliedAt == "" && res.RejectedAt == "" && (res.Content != "" || res.NumPendingReplacements() > 0)
 }
 
 func (p PlanResultsByPath) SetApplied(ts string) {
@@ -54,6 +54,7 @@ func (p PlanResultsByPath) SetRejected(ts string) int {
 			}
 		}
 	}
+	return numRejected
 }
 
 func (p PlanResultsByPath) NumPending() int {

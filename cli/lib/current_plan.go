@@ -192,7 +192,6 @@ func GetPlanResultsInfo() (*types.PlanResultsInfo, error) {
 	if !resDirExists {
 		return &types.PlanResultsInfo{
 			PlanResByPath:      resByPath,
-			SortedPaths:        paths,
 			ReplacementsByPath: replacementsByPath,
 		}, nil
 	}

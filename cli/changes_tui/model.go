@@ -74,7 +74,14 @@ func initialModel() *changesUIModel {
 				bubbleKey.WithKeys("down"),
 				bubbleKey.WithHelp("down", "next change"),
 			),
-
+			left: bubbleKey.NewBinding(
+				bubbleKey.WithKeys("left"),
+				bubbleKey.WithHelp("left", "prev file"),
+			),
+			right: bubbleKey.NewBinding(
+				bubbleKey.WithKeys("right"),
+				bubbleKey.WithHelp("right", "next file"),
+			),
 			scrollDown: bubbleKey.NewBinding(
 				bubbleKey.WithKeys("j"),
 				bubbleKey.WithHelp("j", "scroll down"),

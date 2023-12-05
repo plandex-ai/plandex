@@ -45,6 +45,11 @@ func ApplyPlanWithOutput(name string, autoConfirm bool) error {
 	currentPlanFiles := res.CurrentPlanFiles
 	planResByPath := res.PlanResByPath
 
+	if len(currentPlanFiles.Files) == 0 {
+		fmt.Println("🤷‍♂️ No changes to apply")
+		return nil
+	}
+
 	aborted := false
 
 	// check if any files have been modified since the plan result was generated

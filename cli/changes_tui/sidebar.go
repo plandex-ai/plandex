@@ -8,8 +8,6 @@ import (
 )
 
 func (m changesUIModel) renderSidebar() string {
-	paths := m.currentPlan.SortedPaths
-
 	if m.selectionInfo == nil {
 		return ""
 	}
@@ -17,60 +15,62 @@ func (m changesUIModel) renderSidebar() string {
 	currentRep := m.selectionInfo.currentRep
 
 	var sb strings.Builder
+	path := m.selectionInfo.currentPath
 
-	for _, path := range paths {
-		results := m.currentPlan.PlanResByPath[path]
-		anyFailed := false
-		anyApplied := false
+	results := m.currentPlan.PlanResByPath[path]
+	anyFailed := false
+	anyApplied := false
+	anyReplacements := false
 
-		// Change entries
-		for i, result := range results {
-			for j, rep := range result.Replacements {
-				flatIndex := i*len(result.Replacements) + j
-				selected := currentRep != nil && rep.Id == currentRep.Id
-				s := ""
+	// Change entries
+	for i, result := range results {
+		for j, rep := range result.Replacements {
+			anyReplacements = true
+			flatIndex := i*len(result.Replacements) + j
+			selected := currentRep != nil && rep.Id == currentRep.Id
+			s := ""
 
-				fgColor := color.FgHiGreen
-				bgColor := color.BgGreen
-				if rep.Failed {
-					fgColor = color.FgHiRed
-					bgColor = color.BgRed
-					anyFailed = true
-				} else if rep.RejectedAt != "" {
-					fgColor = color.FgWhite
-					bgColor = color.BgBlack
-				}
-
-				var icon string
-				if rep.RejectedAt != "" {
-					icon = "👎"
-				} else if rep.Failed {
-					icon = "🚫"
-				} else {
-					icon = "📝"
-				}
-
-				if !rep.Failed && rep.RejectedAt == "" {
-					anyApplied = true
-				}
-
-				if selected {
-					s += color.New(color.Bold, bgColor, color.FgHiWhite).Sprintf(" > %s %d ", icon, flatIndex+1)
-				} else {
-					s += color.New(fgColor).Sprintf(" - %s %d ", icon, flatIndex+1)
-				}
-
-				s += "\n"
-
-				sb.WriteString(s)
+			fgColor := color.FgHiGreen
+			bgColor := color.BgGreen
+			if rep.Failed {
+				fgColor = color.FgHiRed
+				bgColor = color.BgRed
+				anyFailed = true
+			} else if rep.RejectedAt != "" {
+				fgColor = color.FgWhite
+				bgColor = color.BgBlack
 			}
 
-		}
+			var icon string
+			if rep.RejectedAt != "" {
+				icon = "👎"
+			} else if rep.Failed {
+				icon = "🚫"
+			} else {
+				icon = "📝"
+			}
 
-		if !anyApplied {
-			continue
-		}
+			if !rep.Failed && rep.RejectedAt == "" {
+				anyApplied = true
+			}
 
+			if selected {
+				s += color.New(color.Bold, bgColor, color.FgHiWhite).Sprintf(" > %s %d ", icon, flatIndex+1)
+			} else {
+				s += color.New(fgColor).Sprintf(" - %s %d ", icon, flatIndex+1)
+			}
+
+			s += "\n"
+
+			sb.WriteString(s)
+		}
+	}
+
+	if !anyReplacements {
+		return ""
+	}
+
+	if anyApplied {
 		fgColor := color.FgHiGreen
 		bgColor := color.BgGreen
 		if anyFailed {

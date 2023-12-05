@@ -1,6 +1,7 @@
 package changes_tui
 
 import (
+	"log"
 	"time"
 
 	bubbleKey "github.com/charmbracelet/bubbles/key"
@@ -95,12 +96,22 @@ func (m *changesUIModel) resolveEscapeSequence(val string) {
 		if elapsed < 50*time.Millisecond {
 			escSeq += val
 
+			log.Println("escSeq:", escSeq)
+
 			if escSeq == "esc[A" || escSeq == "alt+[A" {
 				m.up()
 				escReceivedAt = time.Time{}
 				escSeq = ""
 			} else if escSeq == "esc[B" || escSeq == "alt+[B" {
 				m.down()
+				escReceivedAt = time.Time{}
+				escSeq = ""
+			} else if escSeq == "esc[C" || escSeq == "alt+[C" {
+				m.right()
+				escReceivedAt = time.Time{}
+				escSeq = ""
+			} else if escSeq == "esc[D" || escSeq == "alt+[D" {
+				m.left()
 				escReceivedAt = time.Time{}
 				escSeq = ""
 			}
