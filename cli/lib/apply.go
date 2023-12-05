@@ -307,6 +307,13 @@ func ApplyPlanWithOutput(name string, autoConfirm bool) error {
 		for path, content := range toApply {
 			// Compute destination path
 			dstPath := filepath.Join(ProjectRoot, path)
+			// Create the directory if it doesn't exist
+			err := os.MkdirAll(filepath.Dir(dstPath), 0755)
+			if err != nil {
+				aborted = true
+				return fmt.Errorf("failed to create directory %s: %w", filepath.Dir(dstPath), err)
+			}
+
 			// Write the file
 			err = os.WriteFile(dstPath, []byte(content), 0644)
 			if err != nil {
