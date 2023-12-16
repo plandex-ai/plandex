@@ -17,7 +17,7 @@ func (m changesUIModel) renderSidebar() string {
 	var sb strings.Builder
 	path := m.selectionInfo.currentPath
 
-	results := m.currentPlan.PlanResByPath[path]
+	results := m.currentPlan.PlanResult.FileResultsByPath[path]
 	anyFailed := false
 	anyApplied := false
 	anyReplacements := false
@@ -36,13 +36,13 @@ func (m changesUIModel) renderSidebar() string {
 				fgColor = color.FgHiRed
 				bgColor = color.BgRed
 				anyFailed = true
-			} else if rep.RejectedAt != "" {
+			} else if rep.RejectedAt != nil {
 				fgColor = color.FgWhite
 				bgColor = color.BgBlack
 			}
 
 			var icon string
-			if rep.RejectedAt != "" {
+			if rep.RejectedAt != nil {
 				icon = "👎"
 			} else if rep.Failed {
 				icon = "🚫"
@@ -50,7 +50,7 @@ func (m changesUIModel) renderSidebar() string {
 				icon = "📝"
 			}
 
-			if !rep.Failed && rep.RejectedAt == "" {
+			if !rep.Failed && rep.RejectedAt == nil {
 				anyApplied = true
 			}
 

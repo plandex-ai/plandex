@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"plandex/api"
 	"plandex/lib"
 
 	"github.com/plandex/plandex/shared"
@@ -17,51 +18,40 @@ var clearCmd = &cobra.Command{
 }
 
 func clearAllContext(cmd *cobra.Command, args []string) {
-	// clear all files from context dir
-	context, err := lib.GetAllContext(true)
+	lib.MustResolveProject()
+
+	if lib.CurrentPlanId == "" {
+		fmt.Fprintln(os.Stderr, "No current plan")
+		return
+	}
+
+	contexts, err := api.Client.ListContext(lib.CurrentPlanId)
 
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Error retrieving context:", err)
 		return
 	}
 
-	toRemovePaths := []string{}
-	for _, part := range context {
-		path := lib.CreateContextFileName(part.Name, part.Sha)
-		toRemovePaths = append(toRemovePaths, path)
+	deleteIds := map[string]bool{}
+
+	for _, context := range contexts {
+		deleteIds[context.Id] = true
 	}
 
-	err = lib.ContextRemoveFiles(toRemovePaths)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error removing context:", err)
-		return
+	if len(deleteIds) > 0 {
+		res, err := api.Client.DeleteContext(lib.CurrentPlanId, shared.DeleteContextRequest{
+			Ids: deleteIds,
+		})
+
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "Error deleting context:", err)
+			return
+		}
+
+		fmt.Println("✅ " + res.Msg)
+	} else {
+		fmt.Println("🤷‍♂️ No context removed")
 	}
-
-	// update plan state with new token count
-	planState, err := lib.GetPlanState()
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error retrieving plan state:", err)
-		return
-	}
-	planState.ContextTokens = 0
-	planState.ContextUpdatableTokens = 0
-
-	err = lib.SetPlanState(planState, shared.StringTs())
-
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error writing plan state:", err)
-		return
-	}
-
-	msg := "Context cleared"
-	err = lib.GitCommitContextUpdate(msg)
-
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error committing context update:", err)
-		return
-	}
-
-	fmt.Println("✅ " + msg)
 
 }
 

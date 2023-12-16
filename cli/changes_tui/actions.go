@@ -3,6 +3,7 @@ package changes_tui
 import (
 	"fmt"
 	"log"
+	"plandex/api"
 	"plandex/lib"
 	"strings"
 
@@ -18,7 +19,7 @@ func (m *changesUIModel) rejectChange() {
 		return
 	}
 
-	err := lib.DropChange(lib.CurrentPlanName, m.selectionInfo.currentPath, m.selectionInfo.currentRep)
+	err := api.Client.RejectReplacement(lib.CurrentPlanId, m.selectionInfo.currentRes.Id, m.selectionInfo.currentRep.Id)
 
 	if err != nil {
 		log.Printf("error dropping change: %v", err)
@@ -51,7 +52,7 @@ func (m *changesUIModel) left() {
 }
 
 func (m *changesUIModel) right() {
-	paths := m.currentPlan.SortedPaths
+	paths := m.currentPlan.PlanResult.SortedPaths
 
 	if m.selectedFileIndex < len(paths)-1 {
 		m.selectedFileIndex++
@@ -78,7 +79,7 @@ func (m *changesUIModel) down() {
 
 	// allow for selection of 'full file' option at bottom of replacement list in sidebar
 	max := len(currentReplacements) - 1
-	if m.selectionInfo.currentPlanBeforeReplacement.NumPendingForPath(m.selectionInfo.currentPath) > 0 {
+	if m.currentPlan.PlanResult.NumPendingForPath(m.selectionInfo.currentPath) > 0 {
 		max++
 	}
 

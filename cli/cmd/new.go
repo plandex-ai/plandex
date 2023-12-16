@@ -3,11 +3,10 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 
+	"plandex/api"
 	"plandex/lib"
 	"plandex/term"
-	"plandex/types"
 
 	"github.com/fatih/color"
 	"github.com/plandex/plandex/shared"
@@ -32,146 +31,23 @@ func init() {
 }
 
 func new(cmd *cobra.Command, args []string) {
-	isDraft := false
+	lib.MustResolveProject()
 
-	if name == "" {
-		name = "draft"
-		isDraft = true
-	}
+	res, err := api.Client.CreatePlan(lib.CurrentProjectId, shared.CreatePlanRequest{Name: name})
 
-	// Check git installed
-	if !lib.IsCommandAvailable("git") {
-		fmt.Fprintln(os.Stderr, "Error: git is required")
-		os.Exit(1)
-	}
-
-	plandexDir, _, err := lib.FindOrCreatePlandex()
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error finding or creating .plandex dir:", err)
+		fmt.Fprintln(os.Stderr, "Error creating plan:", err)
 		return
 	}
 
-	err = lib.ClearDraftPlans()
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error clearing draft plans:", err)
-		return
-	}
+	err = lib.SetCurrentPlan(res.Id)
 
-	name, err = lib.DedupPlanName(name)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error deduping plan name:", err)
-		return
-	}
-
-	rootDir := filepath.Join(plandexDir, name)
-
-	// Set the current plan to 'name'
-	err = lib.SetCurrentPlan(name)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Error setting current plan:", err)
 		return
 	}
 
-	// Fixes current plan paths (CurrentPlanName, CurrentPlanRootDir, etc.)
-	err = lib.LoadCurrentPlan()
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error loading current plan:", err)
-		return
-	}
-
-	// Create 'name' directory inside .plandex
-	err = os.Mkdir(rootDir, os.ModePerm)
-	if err != nil && !os.IsExist(err) {
-		fmt.Fprintln(os.Stderr, "Error creating plan dir:", err)
-		return
-	}
-	// fmt.Fprintln(os.Stderr, "✅ Created plan at "+rootDir)
-
-	// Create context subdirectory
-	contextDir := filepath.Join(rootDir, "context")
-	err = os.Mkdir(contextDir, os.ModePerm)
-	if err != nil && !os.IsExist(err) {
-		fmt.Fprintln(os.Stderr, "Error creating context subdir:", err)
-		return
-	}
-	// fmt.Fprintln(os.Stderr, "✅ Created context directory at "+contextDir)
-
-	// Create plan subdirectory
-	planDir := filepath.Join(rootDir, "plan")
-	err = os.Mkdir(planDir, os.ModePerm)
-	if err != nil && !os.IsExist(err) {
-		fmt.Fprintln(os.Stderr, "Error creating plan subdir:", err)
-		return
-	}
-	// fmt.Fprintln(os.Stderr, "✅ Created plan directory at "+planDir)
-
-	// Create conversation subdirectory
-	conversationDir := filepath.Join(rootDir, "conversation")
-	err = os.Mkdir(conversationDir, os.ModePerm)
-	if err != nil && !os.IsExist(err) {
-		fmt.Fprintln(os.Stderr, "Error creating conversation subdir:", err)
-		return
-	}
-	// fmt.Fprintln(os.Stderr, "✅ Created conversation directory at "+conversationDir)
-
-	// Init empty git repositories in context, plan, and conversation directories
-	// init git repo in root plan dir
-	// fmt.Println("Initializing git repo in " + rootDir)
-	err = lib.InitGitRepo(rootDir)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error initializing git repo:", err)
-		return
-	}
-	// fmt.Println("Adding git submodules to " + rootDir)
-
-	initAndAddSubmodule := func(dir string) {
-
-		// Initialize the Git repo in the directory
-		// fmt.Println("Initializing git repo in " + dir)
-		err = lib.InitGitRepo(dir)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "Error initializing git repo:", err)
-			return
-		}
-
-		// Add the directory as a submodule to the root repo
-		// fmt.Println("Adding git submodule " + dir + " to " + rootDir)
-		err = lib.AddGitSubmodule(rootDir, dir)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "Error adding git submodules:", err)
-			return
-		}
-	}
-
-	ts := shared.StringTs()
-	initialPlanState := &types.PlanState{
-		Name:      "draft",
-		CreatedAt: ts,
-		UpdatedAt: ts,
-	}
-	err = lib.SetPlanState(initialPlanState, ts)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error writing initial plan state:", err)
-		return
-	}
-
-	// fmt.Println("Wrote initial context state to " + contextDir)
-
-	initAndAddSubmodule(contextDir)
-	initAndAddSubmodule(planDir)
-	initAndAddSubmodule(conversationDir)
-
-	// After initializing and adding all submodules, ensure they're checked out correctly in the rootDir repo
-	// fmt.Println("Updating and initializing submodules in " + rootDir)
-	err = lib.UpdateAndInitSubmodules(rootDir)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error updating submodules:", err)
-		return
-	}
-
-	// fmt.Fprintln(os.Stderr, "✅ Initialized context and plan git repositories")
-
-	if isDraft {
+	if name == "" {
 		fmt.Println("✅ Started new plan")
 	} else {
 		fmt.Printf("✅ Started new plan: %s\n", color.New(color.Bold, color.FgHiWhite).Sprint(name))

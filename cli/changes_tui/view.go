@@ -100,7 +100,7 @@ func (m *changesUIModel) updateViewportSizes() {
 func (m changesUIModel) renderHelp() string {
 	help := " "
 
-	if len(m.currentPlan.SortedPaths) > 1 {
+	if len(m.currentPlan.PlanResult.SortedPaths) > 1 {
 		help += "(←/→) select file • "
 	}
 

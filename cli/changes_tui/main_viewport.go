@@ -74,7 +74,7 @@ func (m changesUIModel) renderMainViewHeader() string {
 
 	var header string
 	if m.selectedFullFile() {
-		numChanges := m.selectionInfo.currentPlanBeforeReplacement.NumPendingForPath(m.selectionInfo.currentPath)
+		numChanges := m.currentPlan.PlanResult.NumPendingForPath(m.selectionInfo.currentPath)
 
 		if numChanges > 0 {
 			suffix := "s"

@@ -5,12 +5,9 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"plandex-server/db"
 
 	openai "github.com/sashabaranov/go-openai"
-
-	"github.com/gorilla/mux"
-
-	"plandex-server/handlers"
 )
 
 var client *openai.Client
@@ -20,18 +17,17 @@ func main() {
 		log.Fatal("OPENAI_API_KEY environment variable is not set")
 	}
 
-	r := mux.NewRouter()
+	err := db.Connect()
+	if err != nil {
+		log.Fatal("Error initializing database: ", err)
+	}
 
-	r.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, "OK")
-	})
+	err = db.MigrationsUp()
+	if err != nil {
+		log.Fatal("Error running migrations: ", err)
+	}
 
-	r.HandleFunc("/proposal", handlers.ProposalHandler).Methods("POST")
-	r.HandleFunc("/abort", handlers.AbortProposalHandler).Methods("DELETE")
-	r.HandleFunc("/short-summary", handlers.ShortSummaryHandler).Methods("POST")
-	r.HandleFunc("/filename", handlers.FileNameHandler).Methods("POST")
-	r.HandleFunc("/convo-summary/{rootId}", handlers.ConvoSummaryHandler).Methods("GET")
-	r.HandleFunc("/build", handlers.BuildHandler).Methods("PUT")
+	routes := InitRoutes()
 
 	// Get port from the environment variable or default to 8088
 	port := os.Getenv("PORT")
@@ -40,5 +36,5 @@ func main() {
 	}
 
 	log.Printf("Plandex server is running on :%s", port)
-	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%s", port), r))
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%s", port), routes))
 }

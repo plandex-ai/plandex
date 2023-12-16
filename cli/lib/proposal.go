@@ -539,7 +539,7 @@ func checkOutdatedContext(s *spinner.Spinner) (bool, error) {
 
 	stopSpinner()
 
-	if len(outdatedRes.UpdatedParts) == 0 {
+	if len(outdatedRes.UpdatedContexts) == 0 {
 		fmt.Println("✅ Context is up to date")
 		return true, nil
 	}
@@ -583,7 +583,7 @@ func checkOutdatedContext(s *spinner.Spinner) (bool, error) {
 	}
 
 	phrase := "have been"
-	if len(outdatedRes.UpdatedParts) == 1 {
+	if len(outdatedRes.UpdatedContexts) == 1 {
 		phrase = "has been"
 	}
 	color.New(color.FgHiCyan, color.Bold).Printf("%s in context %s modified 👇\n\n", msg, phrase)

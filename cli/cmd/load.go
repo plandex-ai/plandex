@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"fmt"
+	"os"
 	"plandex/lib"
 	"plandex/term"
 	"plandex/types"
@@ -30,6 +32,13 @@ func init() {
 }
 
 func contextLoad(cmd *cobra.Command, args []string) {
+	lib.MustResolveProject()
+
+	if lib.CurrentPlanId == "" {
+		fmt.Fprintln(os.Stderr, "No current plan")
+		return
+	}
+
 	lib.MustLoadContext(args, &types.LoadContextParams{
 		Note:      note,
 		Recursive: recursive,

@@ -2,6 +2,7 @@ package changes_tui
 
 import (
 	"fmt"
+	"plandex/api"
 	"plandex/lib"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -10,7 +11,7 @@ import (
 func StartChangesUI() error {
 	initial := initialModel()
 
-	if len(initial.currentPlan.SortedPaths) == 0 {
+	if len(initial.currentPlan.PlanResult.SortedPaths) == 0 {
 		fmt.Println("🤷‍♂️ No changes pending")
 		return nil
 	}
@@ -22,13 +23,13 @@ func StartChangesUI() error {
 	}
 
 	if m.(changesUIModel).shouldApplyAll {
-		err := lib.ApplyPlanWithOutput(lib.CurrentPlanName, false)
+		err := lib.ApplyPlanWithOutput(lib.CurrentPlanId, false)
 
 		if err != nil {
 			return fmt.Errorf("error applying plan: %v", err)
 		}
 	} else if m.(changesUIModel).shouldRejectAll {
-		err := lib.DropChangesWithOutput(lib.CurrentPlanName)
+		err := api.Client.RejectAllChanges(lib.CurrentPlanId)
 
 		if err != nil {
 			return fmt.Errorf("error rejecting plan: %v", err)

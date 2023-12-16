@@ -3,10 +3,12 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"path/filepath"
+	"plandex/api"
 	"plandex/lib"
 	"strconv"
+	"time"
 
+	"github.com/plandex/plandex/shared"
 	"github.com/spf13/cobra"
 )
 
@@ -23,38 +25,54 @@ var cdCmd = &cobra.Command{
 }
 
 func cd(cmd *cobra.Command, args []string) {
-	plandexDir, _, err := lib.FindOrCreatePlandex()
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error:", err)
-		return
-	}
+	lib.MustResolveProject()
 
 	nameOrIdx := args[0]
-	var name string
+	var plan *shared.Plan
 
-	// see if it's an index
-	if idx, err := strconv.Atoi(nameOrIdx); err == nil {
-		plans, err := lib.GetPlans()
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "Error getting plans:", err)
-		}
-		plan := plans[idx-1]
-		name = plan.Name
-	} else {
-		name = nameOrIdx
-	}
+	plans, err := api.Client.ListPlans(lib.CurrentProjectId)
 
-	planDir := filepath.Join(plandexDir, name)
-
-	if _, err := os.Stat(planDir); os.IsNotExist(err) {
-		fmt.Fprintln(os.Stderr, "🤷‍♂️ Plan '"+name+"' does not exist")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "Error getting plans:", err)
 		os.Exit(1)
 	}
 
-	err = lib.SetCurrentPlan(name)
+	// see if it's an index
+	idx, err := strconv.Atoi(nameOrIdx)
+
+	if err == nil {
+		if idx > 0 && idx <= len(plans) {
+			plan = plans[idx-1]
+		} else {
+			fmt.Fprintln(os.Stderr, "Error: index out of range")
+			os.Exit(1)
+		}
+	} else {
+		for _, p := range plans {
+			if p.Name == nameOrIdx {
+				plan = p
+				break
+			}
+		}
+
+		if plan == nil {
+			fmt.Fprintln(os.Stderr, "Error: plan not found")
+			os.Exit(1)
+		}
+	}
+
+	err = lib.SetCurrentPlan(plan.Id)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Error setting current plan:", err)
 		os.Exit(1)
 	}
+
+	// fire and forget SetProjectPlan request (we don't care about the response or errors)
+	// this only matters for setting the current plan on a new device (i.e. when the current plan is not set)
+	go api.Client.SetProjectPlan(lib.CurrentProjectId, shared.SetProjectPlanRequest{PlanId: plan.Id})
+
+	// give the SetProjectPlan request some time to be sent before exiting
+	time.Sleep(50 * time.Millisecond)
+
 	fmt.Fprintln(os.Stderr, "✅ Changed current plan to "+name)
 }

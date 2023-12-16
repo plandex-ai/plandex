@@ -2,66 +2,24 @@ package model
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
+	"plandex-server/db"
 	"plandex-server/model/prompts"
-	"strings"
+	"time"
 
-	"github.com/plandex/plandex/shared"
 	"github.com/sashabaranov/go-openai"
 )
 
-func ShortSummary(text string) ([]byte, error) {
-	resp, err := Client.CreateChatCompletion(
-		context.Background(),
-		openai.ChatCompletionRequest{
-			Model:     ShortSummaryModel,
-			Functions: []openai.FunctionDefinition{prompts.ShortSummaryFn},
-			Messages: []openai.ChatCompletionMessage{
-				{
-					Role:    openai.ChatMessageRoleSystem,
-					Content: prompts.SysShortSummary,
-				},
-				{
-					Role:    openai.ChatMessageRoleUser,
-					Content: prompts.GetShortSummaryPrompt(text),
-				},
-			},
-			ResponseFormat: &openai.ChatCompletionResponseFormat{Type: "json_object"},
-		},
-	)
-
-	if err != nil {
-		return nil, err
-	}
-
-	var byteRes []byte
-	for _, choice := range resp.Choices {
-		if choice.FinishReason == "function_call" && choice.Message.FunctionCall != nil && choice.Message.FunctionCall.Name == "summarize" {
-			fnCall := choice.Message.FunctionCall
-
-			if strings.HasSuffix(fnCall.Arguments, ",\n}") { // remove trailing comma
-				fnCall.Arguments = strings.TrimSuffix(fnCall.Arguments, ",\n}") + "\n}"
-			}
-
-			byteRes = []byte(fnCall.Arguments)
-		}
-	}
-
-	if len(byteRes) == 0 {
-		return nil, fmt.Errorf("no summarize function call found in response")
-	}
-
-	// validate the JSON response
-	var summarizeResp shared.ShortSummaryResponse
-	if err := json.Unmarshal(byteRes, &summarizeResp); err != nil {
-		return nil, err
-	}
-
-	return byteRes, nil
+type PlanSummaryParams struct {
+	Conversation                []openai.ChatCompletionMessage
+	LatestConvoMessageId        string
+	LatestConvoMessageCreatedAt time.Time
+	NumMessages                 int
+	OrgId                       string
+	PlanId                      string
 }
 
-func PlanSummary(conversation []openai.ChatCompletionMessage, lastMessageTimestamp string, numMessages int) (*shared.ConversationSummary, error) {
+func PlanSummary(params PlanSummaryParams) (*db.ConvoSummary, error) {
 	messages := []openai.ChatCompletionMessage{
 		{
 			Role:    openai.ChatMessageRoleSystem,
@@ -69,7 +27,7 @@ func PlanSummary(conversation []openai.ChatCompletionMessage, lastMessageTimesta
 		},
 	}
 
-	messages = append(messages, conversation...)
+	messages = append(messages, params.Conversation...)
 
 	messages = append(messages, openai.ChatCompletionMessage{
 		Role:    openai.ChatMessageRoleUser,
@@ -99,11 +57,14 @@ func PlanSummary(conversation []openai.ChatCompletionMessage, lastMessageTimesta
 
 	content := resp.Choices[0].Message.Content
 
-	return &shared.ConversationSummary{
-		Summary:              content,
-		Tokens:               resp.Usage.CompletionTokens,
-		LastMessageTimestamp: lastMessageTimestamp,
-		NumMessages:          numMessages,
+	return &db.ConvoSummary{
+		OrgId:                       params.OrgId,
+		PlanId:                      params.PlanId,
+		Summary:                     content,
+		Tokens:                      resp.Usage.CompletionTokens,
+		LatestConvoMessageId:        params.LatestConvoMessageId,
+		LatestConvoMessageCreatedAt: params.LatestConvoMessageCreatedAt,
+		NumMessages:                 params.NumMessages,
 	}, nil
 
 }

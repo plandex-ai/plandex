@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"plandex/api"
 	"plandex/term"
 	"plandex/types"
 
@@ -14,36 +15,15 @@ import (
 	"github.com/plandex/plandex/shared"
 )
 
-func ApplyPlanWithOutput(name string, autoConfirm bool) error {
-	plandexDir, _, err := FindOrCreatePlandex()
-	if err != nil {
-		return fmt.Errorf("error finding or creating plandex dir: %w", err)
-	}
-
-	if name == "" {
-		fmt.Println("🤷‍♂️ No plan specified and no current plan")
-		return nil
-	}
-
-	rootDir := filepath.Join(plandexDir, name)
-
-	_, err = os.Stat(rootDir)
-
-	if os.IsNotExist(err) {
-		fmt.Printf("🤷‍♂️ Plan with name '%s' doesn't exist\n", name)
-		return nil
-	} else if err != nil {
-		return fmt.Errorf("error checking if plan exists: %w", err)
-	}
-
-	res, err := GetCurrentPlanState()
+func ApplyPlanWithOutput(planId string, autoConfirm bool) error {
+	currentPlanState, err := api.Client.GetCurrentPlanState(planId)
 
 	if err != nil {
-		return fmt.Errorf("error getting current plan files: %w", err)
+		return fmt.Errorf("error getting current plan state: %w", err)
 	}
 
-	currentPlanFiles := res.CurrentPlanFiles
-	planResByPath := res.PlanResByPath
+	currentPlanFiles := currentPlanState.CurrentPlanFiles
+	planResByPath := currentPlanState.PlanResult.FileResultsByPath
 
 	if len(currentPlanFiles.Files) == 0 {
 		fmt.Println("🤷‍♂️ No changes to apply")
@@ -322,14 +302,15 @@ func ApplyPlanWithOutput(name string, autoConfirm bool) error {
 			}
 		}
 
-		err := SetPendingResultsApplied(planResByPath)
+		err := api.Client.ApplyPlan(planId)
+
 		if err != nil {
 			aborted = true
 			return fmt.Errorf("failed to set pending results applied: %w", err)
 		}
 
 		if isRepo {
-			desc, err := GetLatestPlanDescription()
+			desc := currentPlanState.LatestBuildDescription
 			if err != nil {
 				aborted = true
 				return fmt.Errorf("failed to get latest plan description: %w", err)

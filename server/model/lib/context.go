@@ -2,12 +2,13 @@ package lib
 
 import (
 	"fmt"
+	"plandex-server/db"
 	"strings"
 
 	"github.com/plandex/plandex/shared"
 )
 
-func FormatModelContext(context shared.ModelContext) (string, int, error) {
+func FormatModelContext(context []*db.Context) (string, int, error) {
 	var contextMessages []string
 	var numTokens int
 	for _, part := range context {
@@ -15,10 +16,10 @@ func FormatModelContext(context shared.ModelContext) (string, int, error) {
 		var fmtStr string
 		var args []any
 
-		if part.Type == shared.ContextDirectoryTreeType {
+		if part.ContextType == shared.ContextDirectoryTreeType {
 			fmtStr = "\n\n- %s | directory tree:\n\n```\n%s\n```"
 			args = append(args, part.FilePath, part.Body)
-		} else if part.Type == shared.ContextFileType {
+		} else if part.ContextType == shared.ContextFileType {
 			fmtStr = "\n\n- %s:\n\n```\n%s\n```"
 			args = append(args, part.FilePath, part.Body)
 		} else if part.Url != "" {
@@ -42,13 +43,4 @@ func FormatModelContext(context shared.ModelContext) (string, int, error) {
 		contextMessages = append(contextMessages, message)
 	}
 	return strings.Join(contextMessages, "\n"), numTokens, nil
-}
-
-func FormatCurrentPlan(plan shared.CurrentPlanFiles) string {
-	var planMessages []string
-	for path, content := range plan.Files {
-		planMessages = append(planMessages, fmt.Sprintf("\n\n- %s:\n\n```%s```", path, content))
-	}
-
-	return strings.Join(planMessages, "\n")
 }

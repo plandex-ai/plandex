@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"plandex/changes_tui"
+	"plandex/lib"
 
 	"github.com/spf13/cobra"
 )
@@ -20,6 +21,7 @@ var changesCmd = &cobra.Command{
 }
 
 func changes(cmd *cobra.Command, args []string) {
+	lib.MustResolveProject()
 
 	err := changes_tui.StartChangesUI()
 

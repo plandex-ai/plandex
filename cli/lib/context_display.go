@@ -2,10 +2,10 @@ package lib
 
 import "github.com/plandex/plandex/shared"
 
-func GetContextTypeAndIcon(part *shared.ModelContextPart) (string, string) {
+func GetContextTypeAndIcon(context *shared.Context) (string, string) {
 	var icon string
 	var t string
-	switch part.Type {
+	switch context.ContextType {
 	case shared.ContextFileType:
 		icon = "📄"
 		t = "file"

@@ -3,15 +3,14 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"plandex/api"
 	"plandex/format"
 	"plandex/lib"
 	"plandex/term"
 	"strconv"
-	"time"
 
 	"github.com/fatih/color"
 	"github.com/olekukonko/tablewriter"
-	"github.com/plandex/plandex/shared"
 	"github.com/spf13/cobra"
 )
 
@@ -27,14 +26,16 @@ func init() {
 }
 
 func current(cmd *cobra.Command, args []string) {
-	if lib.CurrentPlanName == "" {
+	lib.MustResolveProject()
+
+	if lib.CurrentPlanId == "" {
 		fmt.Println("🤷‍♂️ No current plan")
 		return
 	}
 
-	planState, err := lib.GetPlanState()
+	plan, err := api.Client.GetPlan(lib.CurrentPlanId)
 	if err != nil {
-		fmt.Println("Error getting plan state:", err)
+		fmt.Println("Error getting plan:", err)
 		return
 	}
 
@@ -42,43 +43,18 @@ func current(cmd *cobra.Command, args []string) {
 	table.SetAutoWrapText(false)
 	table.SetHeader([]string{"Current Plan", "Updated", "Created", "Context", "Convo"})
 
-	var name string
-	if planState.Name == lib.CurrentPlanName {
-		name = color.New(color.Bold, color.FgGreen).Sprint(planState.Name)
-	} else {
-		name = planState.Name
-	}
-
-	createdAt, err := time.Parse(shared.TsFormat, planState.CreatedAt)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error parsing time:", err)
-		return
-	}
-
-	updatedAt, err := time.Parse(shared.TsFormat, planState.UpdatedAt)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error parsing time:", err)
-		return
-	}
+	name := color.New(color.Bold, color.FgGreen).Sprint(plan.Name)
 
 	row := []string{
 		name,
-		format.Time(updatedAt),
-		format.Time(createdAt),
-		strconv.Itoa(planState.ContextTokens) + " 🪙",
-		strconv.Itoa(planState.ConvoTokens) + " 🪙",
+		format.Time(plan.UpdatedAt),
+		format.Time(plan.CreatedAt),
+		strconv.Itoa(plan.ContextTokens) + " 🪙",
+		strconv.Itoa(plan.ConvoTokens) + " 🪙",
 	}
 
-	var style []tablewriter.Colors
-	if planState.Name == lib.CurrentPlanName {
-		style = []tablewriter.Colors{
-			{tablewriter.FgGreenColor, tablewriter.Bold},
-		}
-	} else {
-		style = []tablewriter.Colors{
-			{tablewriter.FgHiWhiteColor, tablewriter.Bold},
-			{tablewriter.FgHiWhiteColor},
-		}
+	style := []tablewriter.Colors{
+		{tablewriter.FgGreenColor, tablewriter.Bold},
 	}
 
 	table.Rich(row, style)

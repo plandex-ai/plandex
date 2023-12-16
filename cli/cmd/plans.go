@@ -4,15 +4,14 @@ import (
 	"fmt"
 	"os"
 	"strconv"
-	"time"
 
+	"plandex/api"
 	"plandex/format"
 	"plandex/lib"
 	"plandex/term"
 
 	"github.com/fatih/color"
 	"github.com/olekukonko/tablewriter"
-	"github.com/plandex/plandex/shared"
 	"github.com/spf13/cobra"
 )
 
@@ -28,9 +27,12 @@ var plansCmd = &cobra.Command{
 }
 
 func plans(cmd *cobra.Command, args []string) {
-	plans, err := lib.GetPlans()
+	lib.MustResolveProject()
+
+	plans, err := api.Client.ListPlans(lib.CurrentProjectId)
+
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error:", err)
+		fmt.Fprintln(os.Stderr, "Error getting plans:", err)
 		return
 	}
 
@@ -48,35 +50,23 @@ func plans(cmd *cobra.Command, args []string) {
 	for i, p := range plans {
 
 		var name string
-		if p.Name == lib.CurrentPlanName {
+		if p.Name == lib.CurrentPlanId {
 			name = color.New(color.Bold, color.FgGreen).Sprint(p.Name) + color.New(color.FgWhite).Sprint(" 👈 current")
 		} else {
 			name = p.Name
 		}
 
-		createdAt, err := time.Parse(shared.TsFormat, p.CreatedAt)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "Error parsing time:", err)
-			continue
-		}
-
-		updatedAt, err := time.Parse(shared.TsFormat, p.UpdatedAt)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "Error parsing time:", err)
-			continue
-		}
-
 		row := []string{
 			strconv.Itoa(i + 1),
 			name,
-			format.Time(updatedAt),
-			format.Time(createdAt),
+			format.Time(p.UpdatedAt),
+			format.Time(p.CreatedAt),
 			strconv.Itoa(p.ContextTokens) + " 🪙",
 			strconv.Itoa(p.ConvoTokens) + " 🪙",
 		}
 
 		var style []tablewriter.Colors
-		if p.Name == lib.CurrentPlanName {
+		if p.Name == lib.CurrentPlanId {
 			style = []tablewriter.Colors{
 				{tablewriter.FgGreenColor, tablewriter.Bold},
 			}

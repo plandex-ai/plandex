@@ -17,7 +17,7 @@ func (m changesUIModel) renderPathTabs() string {
 	lineWidth := 0
 	lineNum := 0
 
-	paths := m.currentPlan.SortedPaths
+	paths := m.currentPlan.PlanResult.SortedPaths
 
 	for i, path := range paths {
 		selected := i == m.selectedFileIndex
@@ -28,7 +28,7 @@ func (m changesUIModel) renderPathTabs() string {
 
 		tab := " 📄 " + path + "  "
 
-		results := m.currentPlan.PlanResByPath[path]
+		results := m.currentPlan.PlanResult.FileResultsByPath[path]
 		pathColor := color.FgHiGreen
 		bgColor := color.BgGreen
 		anyFailed := false

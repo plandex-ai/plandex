@@ -3,15 +3,14 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"plandex/api"
 	"plandex/format"
 	"plandex/lib"
 	"plandex/term"
 	"strconv"
-	"time"
 
 	"github.com/fatih/color"
 	"github.com/olekukonko/tablewriter"
-	"github.com/plandex/plandex/shared"
 	"github.com/spf13/cobra"
 )
 
@@ -23,7 +22,9 @@ var contextCmd = &cobra.Command{
 }
 
 func context(cmd *cobra.Command, args []string) {
-	context, err := lib.GetAllContext(true)
+	lib.MustResolveProject()
+
+	contexts, err := api.Client.ListContext(lib.CurrentPlanId)
 
 	if err != nil {
 		color.New(color.FgRed).Fprintln(os.Stderr, "Error listing context:", err)
@@ -35,36 +36,25 @@ func context(cmd *cobra.Command, args []string) {
 	table.SetHeader([]string{"#", "Name", "Type", "🪙", "Added", "Updated"})
 	table.SetAutoWrapText(false)
 
-	if len(context) == 0 {
+	if len(contexts) == 0 {
 		fmt.Println("🤷‍♂️ No context")
 		fmt.Println()
 		term.PrintCmds("", "load")
 		return
 	}
 
-	for i, part := range context {
-		totalTokens += part.NumTokens
+	for i, context := range contexts {
+		totalTokens += context.NumTokens
 
-		t, icon := lib.GetContextTypeAndIcon(part)
-		addedAt, err := time.Parse(shared.TsFormat, part.AddedAt)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "Error parsing time:", err)
-			continue
-		}
-
-		updatedAt, err := time.Parse(shared.TsFormat, part.UpdatedAt)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "Error parsing time:", err)
-			continue
-		}
+		t, icon := lib.GetContextTypeAndIcon(context)
 
 		row := []string{
 			strconv.Itoa(i + 1),
-			" " + icon + " " + part.Name,
+			" " + icon + " " + context.Name,
 			t,
-			strconv.Itoa(part.NumTokens), //+ " 🪙",
-			format.Time(addedAt),
-			format.Time(updatedAt),
+			strconv.Itoa(context.NumTokens), //+ " 🪙",
+			format.Time(context.CreatedAt),
+			format.Time(context.UpdatedAt),
 		}
 		table.Rich(row, []tablewriter.Colors{
 			{tablewriter.FgHiWhiteColor, tablewriter.Bold},

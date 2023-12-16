@@ -3,12 +3,13 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"strconv"
 
+	"plandex/api"
 	"plandex/lib"
 
 	"github.com/fatih/color"
+	"github.com/plandex/plandex/shared"
 	"github.com/spf13/cobra"
 )
 
@@ -29,73 +30,69 @@ var rmCmd = &cobra.Command{
 }
 
 func del(cmd *cobra.Command, args []string) {
+	lib.MustResolveProject()
+
 	if all {
 		delAll()
 		return
 	}
 
-	plandexDir, _, err := lib.FindOrCreatePlandex()
+	nameOrIdx := args[0]
+	var plan *shared.Plan
+
+	plans, err := api.Client.ListPlans(lib.CurrentProjectId)
 
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error:", err)
-		return
+		fmt.Fprintln(os.Stderr, "Error getting plans:", err)
+		os.Exit(1)
 	}
-
-	nameOrIdx := args[0]
-	var name string
 
 	// see if it's an index
-	if idx, err := strconv.Atoi(nameOrIdx); err == nil {
-		plans, err := lib.GetPlans()
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "Error getting plans:", err)
+	idx, err := strconv.Atoi(nameOrIdx)
+
+	if err == nil {
+		if idx > 0 && idx <= len(plans) {
+			plan = plans[idx-1]
+		} else {
+			fmt.Fprintln(os.Stderr, "Error: index out of range")
+			os.Exit(1)
 		}
-		plan := plans[idx-1]
-		name = plan.Name
 	} else {
-		name = nameOrIdx
+		for _, p := range plans {
+			if p.Name == nameOrIdx {
+				plan = p
+				break
+			}
+		}
+
+		if plan == nil {
+			fmt.Fprintln(os.Stderr, "Error: plan not found")
+			os.Exit(1)
+		}
 	}
 
-	planDir := filepath.Join(plandexDir, name)
+	err = api.Client.DeletePlan(plan.Id)
 
-	if _, err := os.Stat(planDir); os.IsNotExist(err) {
-		fmt.Fprintf(os.Stderr, "Plan %s does not exist", color.New(color.Bold).Sprint(name))
-		return
-	}
-
-	err = os.RemoveAll(planDir)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error deleting the plan:", err)
+		fmt.Fprintln(os.Stderr, "Error deleting plan:", err)
 		return
 	}
 
-	if lib.CurrentPlanName == name {
-		err = os.Remove(filepath.Join(plandexDir, "current_plan.json"))
+	if lib.CurrentPlanId == plan.Id {
+		err = lib.ClearCurrentPlan()
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "Error deleting current plan:", err)
+			fmt.Fprintln(os.Stderr, "Error clearing current plan:", err)
 			return
 		}
 	}
 
-	fmt.Printf("✅ Deleted plan %s\n", color.New(color.Bold).Sprint(name))
+	fmt.Printf("✅ Deleted plan %s\n", color.New(color.Bold).Sprint(plan.Name))
 }
 
 func delAll() {
-	plandexDir, _, err := lib.FindOrCreatePlandex()
+	err := api.Client.DeleteAllPlans(lib.CurrentProjectId)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error:", err)
-		return
-	}
-
-	err = os.RemoveAll(plandexDir)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error deleting all the plans:", err)
-		return
-	}
-
-	err = os.Mkdir(plandexDir, os.ModePerm)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error creating .plandex folder:", err)
+		fmt.Fprintln(os.Stderr, "Error deleting all  plans:", err)
 		return
 	}
 

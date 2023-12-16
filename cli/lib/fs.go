@@ -3,9 +3,9 @@ package lib
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
+	"plandex/api"
 	"plandex/types"
 	"sync"
 
@@ -18,12 +18,13 @@ var ProjectRoot string
 var HomePlandexDir string
 var CacheDir string
 
-var CurrentPlanName string
-var CurrentPlanDir string
-var ResultsSubdir string
-var DescriptionsSubdir string
-var ConversationSubdir string
-var ContextSubdir string
+var CurrentProjectId string
+var CurrentOrgId string
+var CurrentUserId string
+var CurrentPlanId string
+
+var HomeCurrentProjectDir string
+var HomeCurrentPlanPath string
 
 func init() {
 	var err error
@@ -32,103 +33,103 @@ func init() {
 		panic(err)
 	}
 
-	wg := sync.WaitGroup{}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		panic(err)
+	}
+	HomePlandexDir = filepath.Join(home, ".plandex-home")
+	CacheDir = filepath.Join(HomePlandexDir, "cache")
+	err = os.MkdirAll(filepath.Join(CacheDir, "tiktoken"), os.ModePerm)
+	if err != nil {
+		panic(err)
+	}
+	err = os.Setenv("TIKTOKEN_CACHE_DIR", CacheDir)
+	if err != nil {
+		panic(err)
+	}
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-
-		home, err := os.UserHomeDir()
-		if err != nil {
-			panic(err)
-		}
-		HomePlandexDir = filepath.Join(home, ".plandex")
-		CacheDir = filepath.Join(HomePlandexDir, "cache")
-		err = os.MkdirAll(filepath.Join(CacheDir, "tiktoken"), os.ModePerm)
-		if err != nil {
-			panic(err)
-		}
-		err = os.Setenv("TIKTOKEN_CACHE_DIR", CacheDir)
-		if err != nil {
-			panic(err)
-		}
-	}()
-
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-
-		PlandexDir, ProjectRoot = findPlandex()
-
-		err = LoadCurrentPlan()
-		if err != nil {
-			panic(err)
-		}
-	}()
-
-	wg.Wait()
+	PlandexDir, ProjectRoot = findPlandex()
 }
 
-func LoadCurrentPlan() error {
-	// Construct the path to the current_plan.json file
-	path := filepath.Join(PlandexDir, "current_plan.json")
+func MustResolveProject() {
+	if PlandexDir == "" {
+		_, _, err := findOrCreatePlandex()
+		if err != nil {
+			panic(fmt.Errorf("error finding or creating plandex: %v", err))
+		}
+	}
+
+	if PlandexDir == "" || ProjectRoot == "" {
+		panic(fmt.Errorf("could not find or create plandex directory"))
+	}
+
+	// check if project.json exists in PlandexDir
+	path := filepath.Join(PlandexDir, "project.json")
+	_, err := os.Stat(path)
+
+	if os.IsNotExist(err) {
+		mustInitProject()
+	} else if err != nil {
+		panic(fmt.Errorf("error checking if project.json exists: %v", err))
+	}
+
+	// read project.json
+	bytes, err := os.ReadFile(path)
+
+	if err != nil {
+		panic(fmt.Errorf("error reading project.json: %v", err))
+	}
+
+	var settings types.ProjectSettings
+	err = json.Unmarshal(bytes, &settings)
+
+	if err != nil {
+		panic(fmt.Errorf("error unmarshalling project.json: %v", err))
+	}
+
+	CurrentProjectId = settings.Id
+	CurrentOrgId = settings.OrgId
+
+	HomeCurrentProjectDir = filepath.Join(HomePlandexDir, CurrentProjectId)
+	HomeCurrentPlanPath = filepath.Join(HomeCurrentProjectDir, "current_plan.json")
+
+	err = os.MkdirAll(HomeCurrentProjectDir, os.ModePerm)
+
+	if err != nil {
+		panic(fmt.Errorf("error creating project dir: %v", err))
+	}
+
+	MustLoadCurrentPlan()
+}
+
+func MustLoadCurrentPlan() {
+	if CurrentProjectId == "" {
+		panic("No current project")
+	}
 
 	// Check if the file exists
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		return nil
+	_, err := os.Stat(HomeCurrentPlanPath)
+
+	if os.IsNotExist(err) {
+		return
+	} else if err != nil {
+		panic(fmt.Errorf("error checking if current_plan.json exists: %v", err))
 	}
 
 	// Read the contents of the file
-	fileBytes, err := os.ReadFile(path)
+	fileBytes, err := os.ReadFile(HomeCurrentPlanPath)
 	if err != nil {
-		return fmt.Errorf("error reading current_plan.json: %v", err)
+		panic(fmt.Errorf("error reading current_plan.json: %v", err))
 	}
 
 	// Unmarshal the JSON data into the shared.PlanSettings type
 	var planSettings types.PlanSettings
 	err = json.Unmarshal(fileBytes, &planSettings)
 	if err != nil {
-		return fmt.Errorf("error unmarshalling current_plan.json: %v", err)
+		panic(fmt.Errorf("error unmarshalling current_plan.json: %v", err))
 	}
 
-	CurrentPlanName = planSettings.Name
-	CurrentPlanDir = filepath.Join(PlandexDir, CurrentPlanName)
-	ResultsSubdir = filepath.Join(CurrentPlanDir, "results")
-	DescriptionsSubdir = filepath.Join(CurrentPlanDir, "descriptions")
-	ConversationSubdir = filepath.Join(CurrentPlanDir, "conversation")
-	ContextSubdir = filepath.Join(CurrentPlanDir, "context")
-
-	return nil
-}
-
-func FindOrCreatePlandex() (string, bool, error) {
-	var err error
-
-	// Determine the directory path
-	dir := filepath.Join(Cwd, ".plandex")
-
-	// Check if the directory already exists
-	_, err = os.Stat(dir)
-	if err != nil {
-		if os.IsNotExist(err) {
-			// If not found, create in the current directory
-			err = os.Mkdir(dir, os.ModePerm)
-			if err != nil {
-				return "", false, err
-			}
-			PlandexDir = dir
-			return dir, true, nil
-		}
-		return "", false, err
-	}
-
-	return dir, false, nil
-}
-
-func CwdIsPlan() bool {
-	// check if parent directory of cwd is '.plandex'
-	parentDir := filepath.Dir(Cwd)
-	return parentDir == PlandexDir
+	CurrentPlanId = planSettings.Id
 }
 
 func ParseInputPaths(fileOrDirPaths []string, params *types.LoadContextParams) ([]string, error) {
@@ -199,84 +200,77 @@ func ParseInputPaths(fileOrDirPaths []string, params *types.LoadContextParams) (
 	return resPaths, nil
 }
 
-func CopyFile(src, dst string) error {
-	srcFile, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	defer srcFile.Close()
+func mustInitProject() {
+	res, err := api.Client.CreateProject(shared.CreateProjectRequest{Name: filepath.Base(ProjectRoot)})
 
-	// ensure parent directory exists
-	err = os.MkdirAll(filepath.Dir(dst), os.ModePerm)
 	if err != nil {
-		return err
+		panic(fmt.Errorf("error creating project: %v", err))
 	}
 
-	dstFile, err := os.Create(dst)
-	if err != nil {
-		return err
-	}
-	defer dstFile.Close()
+	CurrentProjectId = res.Id
 
-	_, err = io.Copy(dstFile, srcFile)
-	return err
+	// TODO: placeholder until orgs/auth are implemented
+	CurrentOrgId = "org1"
+
+	// write project.json
+	path := filepath.Join(PlandexDir, "project.json")
+	bytes, err := json.Marshal(types.ProjectSettings{
+		Id:    CurrentProjectId,
+		OrgId: CurrentOrgId,
+	})
+
+	if err != nil {
+		panic(fmt.Errorf("error marshalling project settings: %v", err))
+	}
+
+	err = os.WriteFile(path, bytes, os.ModePerm)
+
+	if err != nil {
+		panic(fmt.Errorf("error writing project.json: %v", err))
+	}
+
+	// write current_plan.json to PlandexHomeDir/[projectId]/current_plan.json
+	dir := filepath.Join(HomePlandexDir, CurrentProjectId)
+	err = os.MkdirAll(dir, os.ModePerm)
+
+	if err != nil {
+		panic(fmt.Errorf("error creating project dir: %v", err))
+	}
+
+	path = filepath.Join(dir, "current_plan.json")
+	bytes, err = json.Marshal(types.PlanSettings{
+		Id: "",
+	})
+
+	if err != nil {
+		panic(fmt.Errorf("error marshalling plan settings: %v", err))
+	}
+
+	err = os.WriteFile(path, bytes, os.ModePerm)
+
+	if err != nil {
+		panic(fmt.Errorf("error writing current_plan.json: %v", err))
+	}
 }
 
-func CopyDir(srcDir, dstDir string) error {
-	entries, err := os.ReadDir(srcDir)
+func findOrCreatePlandex() (string, bool, error) {
+	PlandexDir, ProjectRoot = findPlandex()
+
+	if PlandexDir != "" && ProjectRoot != "" {
+		return PlandexDir, false, nil
+	}
+
+	// Determine the directory path
+	dir := filepath.Join(Cwd, ".plandex")
+
+	err := os.Mkdir(dir, os.ModePerm)
 	if err != nil {
-		return err
+		return "", false, err
 	}
+	PlandexDir = dir
+	ProjectRoot = Cwd
 
-	for _, entry := range entries {
-		srcPath := filepath.Join(srcDir, entry.Name())
-		dstPath := filepath.Join(dstDir, entry.Name())
-
-		if entry.IsDir() {
-			err = CopyDir(srcPath, dstPath)
-			if err != nil {
-				return err
-			}
-		} else {
-			err = CopyFile(srcPath, dstPath)
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
-}
-
-func GetLatestPlanDescription() (*shared.PlanDescription, error) {
-	// List files in descriptions directory
-	entries, err := os.ReadDir(DescriptionsSubdir)
-	if err != nil {
-		return nil, err
-	}
-
-	// Find the latest file (named by timestamp)
-	var latestFile os.DirEntry
-	for _, entry := range entries {
-		if latestFile == nil || entry.Name() > latestFile.Name() {
-			latestFile = entry
-		}
-	}
-
-	// Read the contents of the latest file
-	bytes, err := os.ReadFile(filepath.Join(DescriptionsSubdir, latestFile.Name()))
-	if err != nil {
-		return nil, fmt.Errorf("error reading latest description file: %v", err)
-	}
-
-	// Unmarshal the JSON data into the shared.PlanDescription type
-	var description shared.PlanDescription
-	err = json.Unmarshal(bytes, &description)
-	if err != nil {
-		return nil, fmt.Errorf("error unmarshalling latest description file: %v", err)
-	}
-
-	return &description, nil
+	return dir, true, nil
 }
 
 func findPlandex() (string, string) {

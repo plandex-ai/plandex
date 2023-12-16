@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"fmt"
 	"plandex/lib"
 
 	"github.com/spf13/cobra"
@@ -21,7 +20,7 @@ func init() {
 }
 
 func update(cmd *cobra.Command, args []string) {
-	updateRes := lib.MustUpdateContextWithOuput()
-	table := lib.TableForContextUpdateRes(updateRes)
-	fmt.Println(table)
+	lib.MustResolveProject()
+
+	lib.MustUpdateContextWithOuput()
 }

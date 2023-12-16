@@ -3,13 +3,14 @@ package changes_tui
 import (
 	"fmt"
 	"log"
+	"plandex/api"
 	"plandex/lib"
-	"plandex/types"
 
 	"github.com/charmbracelet/bubbles/help"
 	bubbleKey "github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/plandex/plandex/shared"
 )
 
 type changesUIModel struct {
@@ -18,7 +19,7 @@ type changesUIModel struct {
 	selectedFileIndex        int
 	selectedReplacementIndex int
 	selectedViewport         int
-	currentPlan              *types.CurrentPlanState
+	currentPlan              *shared.CurrentPlanState
 	changeOldViewport        viewport.Model
 	changeNewViewport        viewport.Model
 	fileViewport             viewport.Model
@@ -52,7 +53,7 @@ func (m changesUIModel) Init() tea.Cmd {
 }
 
 func initialModel() *changesUIModel {
-	currentPlan, err := lib.GetCurrentPlanState()
+	currentPlan, err := api.Client.GetCurrentPlanState(lib.CurrentPlanId)
 	if err != nil {
 		err = fmt.Errorf("error getting current plan state: %v", err)
 		log.Println(err)

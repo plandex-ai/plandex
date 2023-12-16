@@ -21,7 +21,7 @@ type oldReplacementRes struct {
 
 func (m changesUIModel) getReplacementOldDisplay() oldReplacementRes {
 	oldContent := m.selectionInfo.currentRep.Old
-	originalFile := m.selectionInfo.currentPlanBeforeReplacement.CurrentPlanFiles.Files[m.selectionInfo.currentPath]
+	originalFile := m.selectionInfo.currentFilesBeforeReplacement.Files[m.selectionInfo.currentPath]
 
 	// log.Printf("oldContent: %v", oldContent)
 	// log.Printf("originalFile: %v", originalFile)

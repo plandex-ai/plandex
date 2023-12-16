@@ -3,27 +3,25 @@ package changes_tui
 import (
 	"fmt"
 	"log"
-	"plandex/lib"
-	"plandex/types"
 
 	"github.com/plandex/plandex/shared"
 )
 
 type selectionInfo struct {
-	currentPath                  string
-	currentRes                   *shared.PlanResult
-	currentReplacements          []*shared.Replacement
-	currentRep                   *shared.Replacement
-	currentPlanBeforeReplacement *types.CurrentPlanState
+	currentPath                   string
+	currentRes                    *shared.PlanFileResult
+	currentReplacements           []*shared.Replacement
+	currentRep                    *shared.Replacement
+	currentFilesBeforeReplacement *shared.CurrentPlanFiles
 }
 
 func (m *changesUIModel) setSelectionInfo() {
-	paths := m.currentPlan.SortedPaths
+	paths := m.currentPlan.PlanResult.SortedPaths
 	currentPath := paths[m.selectedFileIndex]
 
-	results := m.currentPlan.PlanResByPath[currentPath]
+	results := m.currentPlan.PlanResult.FileResultsByPath[currentPath]
 
-	var currentRes *shared.PlanResult
+	var currentRes *shared.PlanFileResult
 	var currentRep *shared.Replacement
 
 	var pathReplacements []*shared.Replacement
@@ -40,13 +38,13 @@ func (m *changesUIModel) setSelectionInfo() {
 		}
 	}
 
-	var currentPlanAtReplacement *types.CurrentPlanState
+	var currentFilesBeforeReplacement *shared.CurrentPlanFiles
 	var err error
 
 	if currentRep == nil {
-		currentPlanAtReplacement = m.currentPlan
+		currentFilesBeforeReplacement = m.currentPlan.CurrentPlanFiles
 	} else {
-		currentPlanAtReplacement, err = lib.GetCurrentPlanStateBeforeReplacement(currentRep.Id)
+		currentFilesBeforeReplacement, err = m.currentPlan.GetFilesBeforeReplacement(currentRep.Id)
 	}
 	if err != nil {
 		err = fmt.Errorf("error getting current plan state: %v", err)
@@ -55,10 +53,10 @@ func (m *changesUIModel) setSelectionInfo() {
 	}
 
 	m.selectionInfo = &selectionInfo{
-		currentPath:                  currentPath,
-		currentRes:                   currentRes,
-		currentReplacements:          pathReplacements,
-		currentRep:                   currentRep,
-		currentPlanBeforeReplacement: currentPlanAtReplacement,
+		currentPath:                   currentPath,
+		currentRes:                    currentRes,
+		currentReplacements:           pathReplacements,
+		currentRep:                    currentRep,
+		currentFilesBeforeReplacement: currentFilesBeforeReplacement,
 	}
 }

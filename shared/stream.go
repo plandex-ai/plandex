@@ -47,11 +47,3 @@ func NewPlanStreamState() *fsm.FSM {
 
 	return sm
 }
-
-type StreamedFile struct {
-	Content string `json:"content"`
-}
-
-type StreamedReplacements struct {
-	Replacements []*Replacement `json:"replacements"`
-}

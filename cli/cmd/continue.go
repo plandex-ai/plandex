@@ -24,6 +24,8 @@ func init() {
 }
 
 func next(cmd *cobra.Command, args []string) {
+	lib.MustResolveProject()
+
 	err := lib.Propose(continuePrompt)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Prompt error:", err)
