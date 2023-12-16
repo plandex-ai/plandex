@@ -47,4 +47,5 @@ type ApiClient interface {
 	ListContext(planId string) ([]*shared.Context, error)
 
 	ListConvo(planId string) ([]*shared.ConvoMessage, error)
+	ListLogs(planId string) (*shared.LogResponse, error)
 }

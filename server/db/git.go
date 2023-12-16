@@ -46,25 +46,40 @@ func GitAddAndCommit(orgId, planId, message string) error {
 	return nil
 }
 
-func gitAdd(repoDir, path string) error {
-	res, err := exec.Command("git", "-C", repoDir, "add", path).CombinedOutput()
+func GitRewindToSHA(orgId, planId, sha string) error {
+	dir := getPlanDir(orgId, planId)
+
+	err := gitRewindToSHA(dir, sha)
 	if err != nil {
-		return fmt.Errorf("error adding files to git repository for dir: %s, err: %v, output: %s", repoDir, err, string(res))
+		return fmt.Errorf("error rewinding git repository for dir: %s, err: %v", dir, err)
 	}
 
 	return nil
 }
 
-func gitCommit(repoDir, commitMsg string) error {
-	res, err := exec.Command("git", "-C", repoDir, "commit", "-m", commitMsg).CombinedOutput()
+func GetGitCommitHistory(orgId, planId string) (string, error) {
+	dir := getPlanDir(orgId, planId)
+
+	history, err := getGitCommitHistory(dir)
 	if err != nil {
-		return fmt.Errorf("error committing files to git repository for dir: %s, err: %v, output: %s", repoDir, err, string(res))
+		return "", fmt.Errorf("error getting git history for dir: %s, err: %v", dir, err)
 	}
 
-	return nil
+	return history, nil
 }
 
-func GitRewindToSHA(repoDir, sha string) error {
+func GetLatestCommit(orgId, planId string) (string, string, error) {
+	dir := getPlanDir(orgId, planId)
+
+	sha, timestamp, err := getLatestCommit(dir)
+	if err != nil {
+		return "", "", fmt.Errorf("error getting latest commit for dir: %s, err: %v", dir, err)
+	}
+
+	return sha, timestamp, nil
+}
+
+func gitRewindToSHA(repoDir, sha string) error {
 	res, err := exec.Command("git", "-C", repoDir, "reset", "--hard",
 		sha).CombinedOutput()
 
@@ -75,7 +90,7 @@ func GitRewindToSHA(repoDir, sha string) error {
 	return nil
 }
 
-func GetLatestCommit(dir string) (string, string, error) {
+func getLatestCommit(dir string) (string, string, error) {
 	var out bytes.Buffer
 	cmd := exec.Command("git", "log", "--pretty=%h@@|@@%at@@|@@%B@>>>@")
 	cmd.Dir = dir
@@ -94,8 +109,7 @@ func GetLatestCommit(dir string) (string, string, error) {
 	return first[0], first[1], nil
 }
 
-func GetGitCommitHistory(dir string) (string, error) {
-
+func getGitCommitHistory(dir string) (string, error) {
 	var out bytes.Buffer
 	cmd := exec.Command("git", "log", "--pretty=%h@@|@@%at@@|@@%B@>>>@")
 	cmd.Dir = dir
@@ -165,4 +179,22 @@ func processGitHistoryOutput(raw string) [][2]string {
 	}
 
 	return history
+}
+
+func gitAdd(repoDir, path string) error {
+	res, err := exec.Command("git", "-C", repoDir, "add", path).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("error adding files to git repository for dir: %s, err: %v, output: %s", repoDir, err, string(res))
+	}
+
+	return nil
+}
+
+func gitCommit(repoDir, commitMsg string) error {
+	res, err := exec.Command("git", "-C", repoDir, "commit", "-m", commitMsg).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("error committing files to git repository for dir: %s, err: %v, output: %s", repoDir, err, string(res))
+	}
+
+	return nil
 }

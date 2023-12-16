@@ -620,3 +620,27 @@ func (a *Api) ListConvo(planId string) ([]*shared.ConvoMessage, error) {
 
 	return convos, nil
 }
+
+func (a *Api) ListLogs(planId string) (*shared.LogResponse, error) {
+	serverUrl := fmt.Sprintf("%s/plans/%s/logs", apiHost, planId)
+
+	resp, err := http.Get(serverUrl)
+	if err != nil {
+		return nil, fmt.Errorf("error sending request: %v", err)
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		errorBody, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("error listing logs: %d - %s", resp.StatusCode, string(errorBody))
+	}
+
+	var logs shared.LogResponse
+	err = json.NewDecoder(resp.Body).Decode(&logs)
+	if err != nil {
+		return nil, fmt.Errorf("error decoding response: %v", err)
+	}
+
+	return &logs, nil
+}

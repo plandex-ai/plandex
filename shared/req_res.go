@@ -69,9 +69,8 @@ type RewindPlanRequest struct {
 	Sha string `json:"sha"`
 }
 
-type ListPlanChangesResponse struct {
-	Results      []*PlanFileResult `json:"planResults"`
-	Replacements []*Replacement    `json:"planReplacements"`
+type LogResponse struct {
+	Body string `json:"body"`
 }
 
 type PlanTokenCount struct {

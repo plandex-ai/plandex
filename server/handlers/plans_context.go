@@ -255,10 +255,15 @@ func UpdateContextHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	maxTokens := shared.MaxContextTokens
-	tokensAdded := 0
+	tokensDiff := 0
 	totalTokens := plan.ContextTokens
-	updateNumTokensById := make(map[string]int)
+	tokensDiffById := make(map[string]int)
 	contextsById := make(map[string]*db.Context)
+	var updatedContexts []*shared.Context
+
+	numFiles := 0
+	numUrls := 0
+	numTrees := 0
 
 	var mu sync.Mutex
 	errCh := make(chan error)
@@ -276,9 +281,8 @@ func UpdateContextHandler(w http.ResponseWriter, r *http.Request) {
 			}
 
 			contextsById[id] = context
-
+			updatedContexts = append(updatedContexts, context.ToApi())
 			updateNumTokens, err := shared.GetNumTokens(params.Body)
-
 			tokenDiff := updateNumTokens - context.NumTokens
 
 			if err != nil {
@@ -286,16 +290,25 @@ func UpdateContextHandler(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
-			updateNumTokensById[id] = updateNumTokens
-			tokensAdded += tokenDiff
+			tokensDiffById[id] = updateNumTokens
+			tokensDiff += tokenDiff
 			totalTokens += tokenDiff
+
+			switch context.ContextType {
+			case shared.ContextFileType:
+				numFiles++
+			case shared.ContextURLType:
+				numUrls++
+			case shared.ContextDirectoryTreeType:
+				numTrees++
+			}
 		}(id, params)
 	}
 
 	if totalTokens > maxTokens {
 		log.Printf("The total number of tokens (%d) exceeds the maximum allowed (%d)", totalTokens, maxTokens)
 		res := shared.LoadContextResponse{
-			TokensAdded:       tokensAdded,
+			TokensAdded:       tokensDiff,
 			TotalTokens:       totalTokens,
 			MaxTokensExceeded: true,
 		}
@@ -312,7 +325,6 @@ func UpdateContextHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	updatedContextsCh := make(chan *db.Context)
 	errCh = make(chan error)
 	for id, params := range requestBody {
 		go func(id string, params *shared.UpdateContextParams) {
@@ -323,35 +335,32 @@ func UpdateContextHandler(w http.ResponseWriter, r *http.Request) {
 
 			context.Body = params.Body
 			context.Sha = sha
-			context.NumTokens = updateNumTokensById[id]
+			context.NumTokens = tokensDiffById[id]
 
-			err = db.StoreContext(context)
-
-			if err != nil {
-				errCh <- err
-				return
-			}
-
-			updatedContextsCh <- context
-
+			errCh <- db.StoreContext(context)
 		}(id, params)
 	}
 
-	var apiContexts []*shared.Context
 	for i := 0; i < len(requestBody); i++ {
-		select {
-		case err := <-errCh:
+		err := <-errCh
+		if err != nil {
 			log.Printf("Error creating context: %v\n", err)
 			http.Error(w, "Error creating context: "+err.Error(), http.StatusInternalServerError)
 			return
-		case dbContext := <-updatedContextsCh:
-			apiContext := dbContext.ToApi()
-			apiContext.Body = ""
-			apiContexts = append(apiContexts, apiContext)
 		}
 	}
 
-	commitMsg := shared.SummaryForUpdateContext(apiContexts) + "\n\n" + shared.TableForContextUpdate(apiContexts)
+	updateRes := &shared.ContextUpdateResult{
+		UpdatedContexts: updatedContexts,
+		TokenDiffsById:  tokensDiffById,
+		TokensDiff:      tokensDiff,
+		TotalTokens:     totalTokens,
+		NumFiles:        numFiles,
+		NumUrls:         numUrls,
+		NumTrees:        numTrees,
+	}
+
+	commitMsg := shared.SummaryForUpdateContext(updateRes) + "\n\n" + shared.TableForContextUpdate(updateRes)
 	err = db.GitAddAndCommit(currentOrgId, planId, commitMsg)
 
 	if err != nil {
@@ -360,7 +369,7 @@ func UpdateContextHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = db.AddPlanContextTokens(planId, tokensAdded)
+	err = db.AddPlanContextTokens(planId, tokensDiff)
 	if err != nil {
 		log.Printf("Error updating plan tokens: %v\n", err)
 		http.Error(w, "Error updating plan tokens: "+err.Error(), http.StatusInternalServerError)
@@ -368,7 +377,7 @@ func UpdateContextHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	res := shared.UpdateContextResponse{
-		TokensAdded: tokensAdded,
+		TokensAdded: tokensDiff,
 		TotalTokens: totalTokens,
 		Msg:         commitMsg,
 	}

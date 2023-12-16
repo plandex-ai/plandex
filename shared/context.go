@@ -10,14 +10,13 @@ import (
 )
 
 type ContextUpdateResult struct {
-	UpdatedContexts  []Context
-	TokenDiffsByName map[string]int
-	TokensDiff       int
-	TotalTokens      int
-	MaxExceeded      bool
-	NumFiles         int
-	NumUrls          int
-	NumTrees         int
+	UpdatedContexts []*Context
+	TokenDiffsById  map[string]int
+	TokensDiff      int
+	TotalTokens     int
+	NumFiles        int
+	NumUrls         int
+	NumTrees        int
 }
 
 func (c *Context) TypeAndIcon() (string, string) {
@@ -246,7 +245,7 @@ func SummaryForUpdateContext(updateRes *ContextUpdateResult) string {
 
 func TableForContextUpdate(updateRes *ContextUpdateResult) string {
 	contexts := updateRes.UpdatedContexts
-	tokenDiffsByName := updateRes.TokenDiffsByName
+	tokenDiffsById := updateRes.TokenDiffsById
 
 	if len(contexts) == 0 {
 		return ""
@@ -259,7 +258,7 @@ func TableForContextUpdate(updateRes *ContextUpdateResult) string {
 
 	for _, context := range contexts {
 		t, icon := context.TypeAndIcon()
-		diff := tokenDiffsByName[context.Name]
+		diff := tokenDiffsById[context.Id]
 
 		diffStr := "+" + strconv.Itoa(diff)
 		tableColor := tablewriter.FgHiGreenColor

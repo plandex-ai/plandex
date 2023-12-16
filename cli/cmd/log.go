@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"fmt"
-	"os"
+	"plandex/api"
 	"plandex/lib"
 	"plandex/term"
 
@@ -14,8 +14,8 @@ var logCmd = &cobra.Command{
 	Use:     "log [scope]",
 	Aliases: []string{"history"},
 	Short:   "Show plan history",
-	Long:    `Show plan history. Pass an optional scope to log only a specific part of the plan. Valid scopes are "convo", "context", and "draft". If no scope is passed, the history of the entire plan will be output.`,
-	Args:    cobra.MaximumNArgs(1),
+	Long:    `Show plan history.`,
+	Args:    cobra.NoArgs,
 	Run:     runLog,
 }
 
@@ -25,26 +25,18 @@ func init() {
 }
 
 func runLog(cmd *cobra.Command, args []string) {
-	var dir string
-	switch {
-	case len(args) == 0:
-		dir = lib.CurrentPlanDir
-	case args[0] == "convo":
-		dir = lib.ConversationSubdir
-	case args[0] == "context":
-		dir = lib.ContextSubdir
-	case args[0] == "draft":
-		dir = lib.ResultsSubdir
-	default:
-		fmt.Fprint(os.Stderr, "Invalid scope. Valid scopes are 'convo', 'context', and 'draft'")
-		os.Exit(1)
+	lib.MustResolveProject()
+
+	if lib.CurrentPlanId == "" {
+		fmt.Println("No current plan")
+		return
 	}
 
-	history, err := lib.GetGitCommitHistory(dir)
+	res, err := api.Client.ListLogs(lib.CurrentPlanId)
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
 		return
 	}
 
-	term.PageOutput(history)
+	term.PageOutput(res.Body)
 }
