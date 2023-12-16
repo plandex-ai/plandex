@@ -69,8 +69,14 @@ type RewindPlanRequest struct {
 	Sha string `json:"sha"`
 }
 
+type RewindPlanResponse struct {
+	LatestSha    string `json:"latestSha"`
+	LatestCommit string `json:"latestCommit"`
+}
+
 type LogResponse struct {
-	Body string `json:"body"`
+	Shas []string `json:"shas"`
+	Body string   `json:"body"`
 }
 
 type PlanTokenCount struct {

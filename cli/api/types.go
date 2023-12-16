@@ -48,4 +48,5 @@ type ApiClient interface {
 
 	ListConvo(planId string) ([]*shared.ConvoMessage, error)
 	ListLogs(planId string) (*shared.LogResponse, error)
+	RewindPlan(planId string, req shared.RewindPlanRequest) (*shared.RewindPlanResponse, error)
 }

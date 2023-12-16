@@ -46,10 +46,10 @@ func GitAddAndCommit(orgId, planId, message string) error {
 	return nil
 }
 
-func GitRewindToSHA(orgId, planId, sha string) error {
+func GitRewindToSha(orgId, planId, sha string) error {
 	dir := getPlanDir(orgId, planId)
 
-	err := gitRewindToSHA(dir, sha)
+	err := gitRewindToSha(dir, sha)
 	if err != nil {
 		return fmt.Errorf("error rewinding git repository for dir: %s, err: %v", dir, err)
 	}
@@ -57,29 +57,29 @@ func GitRewindToSHA(orgId, planId, sha string) error {
 	return nil
 }
 
-func GetGitCommitHistory(orgId, planId string) (string, error) {
+func GetGitCommitHistory(orgId, planId string) (body string, shas []string, err error) {
 	dir := getPlanDir(orgId, planId)
 
-	history, err := getGitCommitHistory(dir)
+	body, shas, err = getGitCommitHistory(dir)
 	if err != nil {
-		return "", fmt.Errorf("error getting git history for dir: %s, err: %v", dir, err)
+		return "", nil, fmt.Errorf("error getting git history for dir: %s, err: %v", dir, err)
 	}
 
-	return history, nil
+	return body, shas, nil
 }
 
-func GetLatestCommit(orgId, planId string) (string, string, error) {
+func GetLatestCommit(orgId, planId string) (sha, body string, err error) {
 	dir := getPlanDir(orgId, planId)
 
-	sha, timestamp, err := getLatestCommit(dir)
+	sha, body, err = getLatestCommit(dir)
 	if err != nil {
 		return "", "", fmt.Errorf("error getting latest commit for dir: %s, err: %v", dir, err)
 	}
 
-	return sha, timestamp, nil
+	return sha, body, nil
 }
 
-func gitRewindToSHA(repoDir, sha string) error {
+func gitRewindToSha(repoDir, sha string) error {
 	res, err := exec.Command("git", "-C", repoDir, "reset", "--hard",
 		sha).CombinedOutput()
 
@@ -90,12 +90,12 @@ func gitRewindToSHA(repoDir, sha string) error {
 	return nil
 }
 
-func getLatestCommit(dir string) (string, string, error) {
+func getLatestCommit(dir string) (sha, body string, err error) {
 	var out bytes.Buffer
 	cmd := exec.Command("git", "log", "--pretty=%h@@|@@%at@@|@@%B@>>>@")
 	cmd.Dir = dir
 	cmd.Stdout = &out
-	err := cmd.Run()
+	err = cmd.Run()
 	if err != nil {
 		return "", "", fmt.Errorf("error getting git history for dir: %s, err: %v",
 			dir, err)
@@ -106,17 +106,20 @@ func getLatestCommit(dir string) (string, string, error) {
 
 	first := history[0]
 
-	return first[0], first[1], nil
+	sha = first[0]
+	body = first[1]
+
+	return sha, body, nil
 }
 
-func getGitCommitHistory(dir string) (string, error) {
+func getGitCommitHistory(dir string) (body string, shas []string, err error) {
 	var out bytes.Buffer
 	cmd := exec.Command("git", "log", "--pretty=%h@@|@@%at@@|@@%B@>>>@")
 	cmd.Dir = dir
 	cmd.Stdout = &out
-	err := cmd.Run()
+	err = cmd.Run()
 	if err != nil {
-		return "", fmt.Errorf("error getting git history for dir: %s, err: %v",
+		return "", nil, fmt.Errorf("error getting git history for dir: %s, err: %v",
 			dir, err)
 	}
 
@@ -125,10 +128,11 @@ func getGitCommitHistory(dir string) (string, error) {
 
 	var output []string
 	for _, el := range history {
+		shas = append(shas, el[0])
 		output = append(output, el[1])
 	}
 
-	return strings.Join(output, "\n\n"), nil
+	return strings.Join(output, "\n\n"), shas, nil
 }
 
 // processGitHistoryOutput processes the raw output from the git log command and returns a formatted string.
@@ -165,7 +169,7 @@ func processGitHistoryOutput(raw string) [][2]string {
 			headerColor := color.New(color.FgCyan, color.Bold)
 			dateColor := color.New(color.FgCyan)
 
-			// Combine SHA, formatted timestamp, and message header into one string.
+			// Combine sha, formatted timestamp, and message header into one string.
 			header := fmt.Sprintf("%s | %s", headerColor.Sprintf("📝 Update %s", sha), dateColor.Sprintf("%s", formattedTs))
 
 			// Combine header and message with a newline only if the message is not empty.

@@ -644,3 +644,37 @@ func (a *Api) ListLogs(planId string) (*shared.LogResponse, error) {
 
 	return &logs, nil
 }
+
+func (a *Api) RewindPlan(planId string, req shared.RewindPlanRequest) (*shared.RewindPlanResponse, error) {
+	serverUrl := fmt.Sprintf("%s/plans/%s/rewind", apiHost, planId)
+	reqBytes, err := json.Marshal(req)
+	if err != nil {
+		return nil, fmt.Errorf("error marshalling request: %v", err)
+	}
+
+	request, err := http.NewRequest(http.MethodPatch, serverUrl, bytes.NewBuffer(reqBytes))
+	if err != nil {
+		return nil, fmt.Errorf("error creating request: %v", err)
+	}
+	request.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(request)
+	if err != nil {
+		return nil, fmt.Errorf("error sending request: %v", err)
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		errorBody, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("error rewinding plan: %d - %s", resp.StatusCode, string(errorBody))
+	}
+
+	var rewindPlanResponse shared.RewindPlanResponse
+	err = json.NewDecoder(resp.Body).Decode(&rewindPlanResponse)
+	if err != nil {
+		return nil, fmt.Errorf("error decoding response: %v", err)
+	}
+
+	return &rewindPlanResponse, nil
+}

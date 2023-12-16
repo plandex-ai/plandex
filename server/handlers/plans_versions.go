@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"io"
 	"log"
 	"net/http"
 	"plandex-server/db"
@@ -21,7 +22,7 @@ func ListLogsHandler(w http.ResponseWriter, r *http.Request) {
 
 	log.Println("planId: ", planId)
 
-	body, err := db.GetGitCommitHistory(currentOrgId, planId)
+	body, shas, err := db.GetGitCommitHistory(currentOrgId, planId)
 
 	if err != nil {
 		log.Println("Error getting logs: ", err)
@@ -31,6 +32,7 @@ func ListLogsHandler(w http.ResponseWriter, r *http.Request) {
 
 	res := shared.LogResponse{
 		Body: body,
+		Shas: shas,
 	}
 
 	bytes, err := json.Marshal(res)
@@ -49,9 +51,60 @@ func ListLogsHandler(w http.ResponseWriter, r *http.Request) {
 func RewindPlanHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for RewindPlanHandler")
 
+	// TODO: get from auth when implemented
+	currentOrgId := "org1"
+
 	vars := mux.Vars(r)
 	planId := vars["planId"]
 
 	log.Println("planId: ", planId)
 
+	// read the request body
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		log.Printf("Error reading request body: %v\n", err)
+		http.Error(w, "Error reading request body", http.StatusInternalServerError)
+		return
+	}
+	defer r.Body.Close()
+
+	var requestBody shared.RewindPlanRequest
+	if err := json.Unmarshal(body, &requestBody); err != nil {
+		log.Printf("Error parsing request body: %v\n", err)
+		http.Error(w, "Error parsing request body", http.StatusBadRequest)
+		return
+	}
+
+	err = db.GitRewindToSha(currentOrgId, planId, requestBody.Sha)
+
+	if err != nil {
+		log.Println("Error rewinding plan: ", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	sha, latest, err := db.GetLatestCommit(currentOrgId, planId)
+
+	if err != nil {
+		log.Println("Error getting latest commit: ", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	res := shared.RewindPlanResponse{
+		LatestSha:    sha,
+		LatestCommit: latest,
+	}
+
+	bytes, err := json.Marshal(res)
+
+	if err != nil {
+		log.Println("Error marshalling response: ", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.Write(bytes)
+
+	log.Println("Successfully processed request for RewindPlanHandler")
 }

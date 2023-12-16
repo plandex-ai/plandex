@@ -3,22 +3,24 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"plandex/api"
 	"plandex/lib"
 	"strconv"
 
+	"github.com/plandex/plandex/shared"
 	"github.com/spf13/cobra"
 )
 
 // rewindCmd represents the rewind command
 var rewindCmd = &cobra.Command{
-	Use:     "rewind [scope] [steps-or-sha]",
+	Use:     "rewind [steps-or-sha]",
 	Aliases: []string{"rw"},
 	Short:   "Rewind the plan to an earlier state",
-	Long: `Rewind the plan to an earlier state. Pass an optional scope to rewind only a specific part of the plan. Valid scopes are "convo", "context", and "draft". If no scope is passed, the entire plan is rewound.
+	Long: `Rewind the plan to an earlier state.
 	
-	You can also optionally pass a "steps" number or commit sha. If a steps number is passed, the plan will be rewound that many steps. If a commit sha is passed, the plan will be rewound to that commit. If neither a steps number nor a commit sha is passed, the target scope will be rewound by 1 step.
+	You can pass a "steps" number or a commit sha. If a steps number is passed, the plan will be rewound that many steps. If a commit sha is passed, the plan will be rewound to that commit. If neither a steps number nor a commit sha is passed, the target scope will be rewound by 1 step.
 	`,
-	Args: cobra.MaximumNArgs(2),
+	Args: cobra.MaximumNArgs(1),
 	Run:  rewind,
 }
 
@@ -33,66 +35,44 @@ func init() {
 }
 
 func rewind(cmd *cobra.Command, args []string) {
-	var dir string
-	scope := "all"
-	if len(args) > 0 {
-		scope = args[0]
-	}
-
-	switch scope {
-	case "convo":
-		dir = lib.ConversationSubdir
-	case "context":
-		dir = lib.ContextSubdir
-	case "draft":
-		dir = lib.ResultsSubdir
-	default:
-		dir = lib.CurrentPlanDir // Rewind the whole plan by default
-	}
 
 	// Check if either steps or sha is provided and not both
-	stepsOrSHA := ""
+	stepsOrSha := ""
 	if len(args) > 1 {
-		stepsOrSHA = args[1]
+		stepsOrSha = args[1]
 	}
 
-	if steps, err := strconv.Atoi(stepsOrSHA); err == nil && steps > 0 {
-		// Rewind by the specified number of steps
-		if err := lib.GitRewindSteps(dir, steps, scope == "all"); err != nil {
-			fmt.Fprintln(os.Stderr, "Error rewinding steps:", err)
-			os.Exit(1)
-		}
-	} else if sha := stepsOrSHA; sha != "" {
-		// Rewind to the specified SHA
-		if err := lib.GitRewindToSHA(dir, sha, scope == "all"); err != nil {
-			fmt.Fprintln(os.Stderr, "Error rewinding to SHA:", err)
-			os.Exit(1)
-		}
-	} else if stepsOrSHA == "" {
-		// No steps or SHA provided, rewind by 1 step by default
-		if err := lib.GitRewindSteps(dir, 1, scope == "all"); err != nil {
-			fmt.Fprintln(os.Stderr, "Error rewinding 1 step:", err)
-			os.Exit(1)
-		}
-	} else {
-		fmt.Fprintln(os.Stderr, "Invalid steps or SHA. Steps must be a positive integer, and SHA must be a valid commit hash.")
-		os.Exit(1)
-	}
+	logsRes, err := api.Client.ListLogs(lib.CurrentPlanId)
 
-	latestCommitSha, latestCommitMsg, err := lib.GetLatestCommit(dir)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error getting latest commit:", err)
+		fmt.Printf("Error getting logs: %v\n", err)
+		return
+	}
+
+	var targetSha string
+
+	if steps, err := strconv.Atoi(stepsOrSha); err == nil && steps > 0 {
+		// Rewind by the specified number of steps
+		targetSha = logsRes.Shas[steps]
+	} else if sha := stepsOrSha; sha != "" {
+		// Rewind to the specified Sha
+		targetSha = sha
+	} else if stepsOrSha == "" {
+		// Rewind by 1 step
+		targetSha = logsRes.Shas[1]
+	} else {
+		fmt.Fprintln(os.Stderr, "Invalid steps or sha. Steps must be a positive integer, and sha must be a valid commit hash.")
 		os.Exit(1)
 	}
+
+	// Rewind to the target sha
+	rwRes, err := api.Client.RewindPlan(lib.CurrentPlanId, shared.RewindPlanRequest{Sha: targetSha})
 
 	msg := "✅ Rewound "
-	if scope != "all" {
-		msg += scope + " "
-	}
 
-	msg += "to " + latestCommitSha
+	msg += "to " + targetSha
 
 	fmt.Println(msg)
 	fmt.Println()
-	fmt.Println(latestCommitMsg)
+	fmt.Println(rwRes.LatestCommit)
 }
