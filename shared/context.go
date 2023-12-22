@@ -69,9 +69,7 @@ func TableForLoadContext(contexts []*Context) string {
 	return tableString.String()
 }
 
-func SummaryForLoadContext(contexts []*Context) string {
-	var tokensAdded int
-	var totalTokens int
+func SummaryForLoadContext(contexts []*Context, tokensAdded, totalTokens int) string {
 
 	var hasNote bool
 	var hasPiped bool
@@ -81,9 +79,6 @@ func SummaryForLoadContext(contexts []*Context) string {
 	var numUrls int
 
 	for _, context := range contexts {
-		tokensAdded += context.NumTokens
-		totalTokens += context.NumTokens
-
 		switch context.ContextType {
 		case ContextFileType:
 			numFiles++
@@ -168,6 +163,8 @@ func TableForRemoveContext(contexts []*Context) string {
 		})
 	}
 
+	table.Render()
+
 	return tableString.String()
 }
 
@@ -185,7 +182,7 @@ func SummaryForRemoveContext(contexts []*Context, previousTotalTokens int) strin
 		suffix = "s"
 	}
 
-	return fmt.Sprintf("Removed %d piece%s of context | removed → %d 🪙 | total → %d 🪙 \n", len(contexts), suffix, removedTokens, totalTokens)
+	return fmt.Sprintf("Removed %d piece%s of context | removed → %d 🪙 | total → %d 🪙", len(contexts), suffix, removedTokens, totalTokens)
 }
 
 func SummaryForUpdateContext(updateRes *ContextUpdateResult) string {

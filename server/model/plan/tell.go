@@ -47,28 +47,60 @@ func execTellPlan(planId, currentUserId, currentOrgId string, req *shared.TellPl
 		return
 	}
 
-	modelContextCh := make(chan []*db.Context)
-	convoCh := make(chan []*db.ConvoMessage)
-	summariesCh := make(chan []*db.ConvoSummary)
 	errCh := make(chan error)
+	var modelContext []*db.Context
+	var convo []*db.ConvoMessage
+	var summaries []*db.ConvoSummary
 
-	go func(planId string) {
-		modelContext, err := db.GetPlanContexts(currentOrgId, planId, true)
+	// get name for plan and rename it's a draft
+	go func() {
+		plan, err := db.GetPlan(planId)
+		if err != nil {
+			log.Printf("Error getting plan: %v\n", err)
+			errCh <- fmt.Errorf("error getting plan: %v", err)
+			return
+		}
+
+		if plan.Name == "draft" {
+			name, err := model.GenPlanName(req.Prompt)
+
+			if err != nil {
+				log.Printf("Error generating plan name: %v\n", err)
+				errCh <- fmt.Errorf("error generating plan name: %v", err)
+				return
+			}
+
+			err = db.RenamePlan(planId, name)
+
+			if err != nil {
+				log.Printf("Error renaming plan: %v\n", err)
+				errCh <- fmt.Errorf("error renaming plan: %v", err)
+				return
+			}
+		}
+
+		errCh <- nil
+	}()
+
+	go func() {
+		res, err := db.GetPlanContexts(currentOrgId, planId, true)
 		if err != nil {
 			log.Printf("Error getting plan modelContext: %v\n", err)
 			errCh <- fmt.Errorf("error getting plan modelContext: %v", err)
 			return
 		}
-		modelContextCh <- modelContext
-	}(planId)
+		modelContext = res
+		errCh <- nil
+	}()
 
-	go func(planId, prompt string) {
-		convo, err := db.GetPlanConvo(currentOrgId, planId)
+	go func() {
+		res, err := db.GetPlanConvo(currentOrgId, planId)
 		if err != nil {
 			log.Printf("Error getting plan convo: %v\n", err)
 			errCh <- fmt.Errorf("error getting plan convo: %v", err)
 			return
 		}
+		convo = res
 
 		promptTokens, err := shared.GetNumTokens(req.Prompt)
 		if err != nil {
@@ -87,7 +119,7 @@ func execTellPlan(planId, currentUserId, currentOrgId string, req *shared.TellPl
 			Message: req.Prompt,
 		}
 
-		err = db.StoreConvoMessage(&userMsg)
+		_, err = db.StoreConvoMessage(&userMsg, true)
 
 		if err != nil {
 			log.Printf("Error storing user message: %v\n", err)
@@ -95,31 +127,26 @@ func execTellPlan(planId, currentUserId, currentOrgId string, req *shared.TellPl
 			return
 		}
 
-		convoCh <- convo
-	}(planId, req.Prompt)
+		errCh <- nil
+	}()
 
-	go func(planId string) {
-		summaries, err := db.GetPlanSummaries(planId)
+	go func() {
+		res, err := db.GetPlanSummaries(planId)
 		if err != nil {
 			log.Printf("Error getting plan summaries: %v\n", err)
 			errCh <- fmt.Errorf("error getting plan summaries: %v", err)
 			return
 		}
-		summariesCh <- summaries
-	}(planId)
+		summaries = res
 
-	var modelContext []*db.Context
-	var convo []*db.ConvoMessage
-	var summaries []*db.ConvoSummary
+		errCh <- nil
+	}()
 
-	for i := 0; i < 3; i++ {
-		select {
-		case err := <-errCh:
-			active.StreamDoneCh <- fmt.Errorf("error getting plan modelContext, convo, or summaries: %v", err)
+	for i := 0; i < 4; i++ {
+		err := <-errCh
+		if err != nil {
+			active.StreamDoneCh <- fmt.Errorf("error getting plan, context, convo, or summaries: %v", err)
 			return
-		case modelContext = <-modelContextCh:
-		case convo = <-convoCh:
-		case summaries = <-summariesCh:
 		}
 	}
 
@@ -297,7 +324,7 @@ func execTellPlan(planId, currentUserId, currentOrgId string, req *shared.TellPl
 		return
 	}
 
-	storeAssistantReply := func() (*db.ConvoMessage, []string, error) {
+	storeAssistantReply := func() (*db.ConvoMessage, []string, string, error) {
 		files, _, _, replyNumTokens := replyInfo.FinishAndRead()
 
 		assistantMsg := db.ConvoMessage{
@@ -310,42 +337,58 @@ func execTellPlan(planId, currentUserId, currentOrgId string, req *shared.TellPl
 			Message: Active.Get(planId).Content,
 		}
 
-		err := db.StoreConvoMessage(&assistantMsg)
+		commitMsg, err := db.StoreConvoMessage(&assistantMsg, false)
 
 		if err != nil {
 			log.Printf("Error storing assistant message: %v\n", err)
-			return nil, files, err
+			return nil, files, "", err
 		}
 
 		Active.Update(planId, func(active *types.ActivePlan) {
 			active.AssistantMessageId = assistantMsg.Id
 		})
 
-		return &assistantMsg, files, err
+		return &assistantMsg, files, commitMsg, err
 	}
 
-	onError := func(err error, storeDesc bool, convoMessageId string) {
-		log.Printf("\nStream error: %v\n", err)
-		active.StreamDoneCh <- err
+	onError := func(streamErr error, storeDesc bool, convoMessageId, commitMsg string) {
+		log.Printf("\nStream error: %v\n", streamErr)
+		active.StreamDoneCh <- streamErr
+
+		storedMessage := false
+		storedDesc := false
 
 		if convoMessageId == "" {
-			assistantMsg, _, err := storeAssistantReply()
+			assistantMsg, _, msg, err := storeAssistantReply()
 			if err == nil {
 				convoMessageId = assistantMsg.Id
+				commitMsg = msg
+				storedMessage = true
+			} else {
+				log.Printf("Error storing assistant message after stream error: %v\n", err)
 			}
 		}
 
-		if storeDesc {
+		if storeDesc && convoMessageId != "" {
 			err = db.StoreDescription(&db.ConvoMessageDescription{
 				OrgId:                 currentOrgId,
 				PlanId:                planId,
 				SummarizedToMessageId: summarizedToMessageId,
 				MadePlan:              false,
 				ConvoMessageId:        convoMessageId,
-				Error:                 err.Error(),
+				Error:                 streamErr.Error(),
 			})
+			if err == nil {
+				storedDesc = true
+			} else {
+				log.Printf("Error storing description after stream error: %v\n", err)
+			}
+		}
+
+		if storedMessage || storedDesc {
+			err = db.GitAddAndCommit(currentOrgId, planId, commitMsg)
 			if err != nil {
-				log.Printf("Error storing error state description: %v\n", err)
+				log.Printf("Error committing after stream error: %v\n", err)
 			}
 		}
 	}
@@ -365,7 +408,7 @@ func execTellPlan(planId, currentUserId, currentOrgId string, req *shared.TellPl
 			case <-timer.C:
 				// Timer triggered because no new chunk was received in time
 				log.Println("\nStream timeout due to inactivity")
-				onError(fmt.Errorf("stream timeout due to inactivity"), true, "")
+				onError(fmt.Errorf("stream timeout due to inactivity"), true, "", "")
 				return
 			default:
 				response, err := stream.Recv()
@@ -379,17 +422,17 @@ func execTellPlan(planId, currentUserId, currentOrgId string, req *shared.TellPl
 				}
 
 				if err != nil {
-					onError(fmt.Errorf("stream error: %v", err), true, "")
+					onError(fmt.Errorf("stream error: %v", err), true, "", "")
 					return
 				}
 
 				if len(response.Choices) == 0 {
-					onError(fmt.Errorf("stream finished with no choices"), true, "")
+					onError(fmt.Errorf("stream finished with no choices"), true, "", "")
 					return
 				}
 
 				if len(response.Choices) > 1 {
-					onError(fmt.Errorf("stream finished with more than one choice"), true, "")
+					onError(fmt.Errorf("stream finished with more than one choice"), true, "", "")
 					return
 				}
 
@@ -399,7 +442,7 @@ func execTellPlan(planId, currentUserId, currentOrgId string, req *shared.TellPl
 					active.StreamCh <- shared.STREAM_DESCRIPTION_PHASE
 					err := db.SetPlanStatus(planId, shared.PlanStatusDescribing, "")
 					if err != nil {
-						onError(fmt.Errorf("failed to set plan status to describing: %v", err), true, "")
+						onError(fmt.Errorf("failed to set plan status to describing: %v", err), true, "", "")
 						return
 					}
 
@@ -414,10 +457,10 @@ func execTellPlan(planId, currentUserId, currentOrgId string, req *shared.TellPl
 						})
 					}
 
-					assistantMsg, files, err := storeAssistantReply()
+					assistantMsg, files, convoCommitMsg, err := storeAssistantReply()
 
 					if err != nil {
-						onError(fmt.Errorf("failed to store assistant message: %v", err), true, "")
+						onError(fmt.Errorf("failed to store assistant message: %v", err), true, "", "")
 						return
 					}
 
@@ -438,7 +481,7 @@ func execTellPlan(planId, currentUserId, currentOrgId string, req *shared.TellPl
 
 						description, err = genPlanDescription(planId, active.Ctx)
 						if err != nil {
-							onError(fmt.Errorf("failed to generate plan description: %v", err), true, assistantMsg.Id)
+							onError(fmt.Errorf("failed to generate plan description: %v", err), true, assistantMsg.Id, convoCommitMsg)
 							return
 						}
 
@@ -452,7 +495,13 @@ func execTellPlan(planId, currentUserId, currentOrgId string, req *shared.TellPl
 					err = db.StoreDescription(description)
 
 					if err != nil {
-						onError(fmt.Errorf("failed to store description: %v", err), false, "")
+						onError(fmt.Errorf("failed to store description: %v", err), false, assistantMsg.Id, convoCommitMsg)
+						return
+					}
+
+					err = db.GitAddAndCommit(currentOrgId, planId, convoCommitMsg)
+					if err != nil {
+						onError(fmt.Errorf("failed to commit: %v", err), false, assistantMsg.Id, convoCommitMsg)
 						return
 					}
 

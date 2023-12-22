@@ -40,12 +40,26 @@ func MigrationsUp() error {
 	}
 
 	m, err := migrate.NewWithDatabaseInstance(
-		"file:///migrations",
+		"file://migrations",
 		"postgres", driver)
 
 	if err != nil {
 		return fmt.Errorf("error creating migration instance: %v", err)
 	}
+
+	// Uncomment below to reset migration state after an error / dirty state
+	// // Check if database is dirty
+	// version, dirty, err := m.Version()
+	// if err != nil {
+	// 	return fmt.Errorf("error getting migration version: %v", err)
+	// }
+
+	// if dirty {
+	// 	// Force the version to the current version to clean the dirty state
+	// 	if err := m.Force(int(version)); err != nil {
+	// 		return fmt.Errorf("error forcing migration version: %v", err)
+	// 	}
+	// }
 
 	err = m.Up()
 

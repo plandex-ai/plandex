@@ -15,7 +15,7 @@ func ListLogsHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for ListLogsHandler")
 
 	// TODO: get from auth when implemented
-	currentOrgId := "org1"
+	currentOrgId := "2ff5bc12-1160-4305-8707-9a165319de5a"
 
 	vars := mux.Vars(r)
 	planId := vars["planId"]
@@ -52,7 +52,7 @@ func RewindPlanHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for RewindPlanHandler")
 
 	// TODO: get from auth when implemented
-	currentOrgId := "org1"
+	currentOrgId := "2ff5bc12-1160-4305-8707-9a165319de5a"
 
 	vars := mux.Vars(r)
 	planId := vars["planId"]
@@ -79,6 +79,14 @@ func RewindPlanHandler(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Println("Error rewinding plan: ", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	err = db.SyncPlanTokens(currentOrgId, planId)
+
+	if err != nil {
+		log.Println("Error syncing plan tokens: ", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}

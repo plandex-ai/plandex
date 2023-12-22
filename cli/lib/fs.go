@@ -208,9 +208,7 @@ func mustInitProject() {
 	}
 
 	CurrentProjectId = res.Id
-
-	// TODO: placeholder until orgs/auth are implemented
-	CurrentOrgId = "org1"
+	CurrentOrgId = res.OrgId
 
 	// write project.json
 	path := filepath.Join(PlandexDir, "project.json")

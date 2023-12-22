@@ -310,14 +310,8 @@ func ApplyPlanWithOutput(planId string, autoConfirm bool) error {
 		}
 
 		if isRepo {
-			desc := currentPlanState.LatestBuildDescription
-			if err != nil {
-				aborted = true
-				return fmt.Errorf("failed to get latest plan description: %w", err)
-			}
-
 			// Commit the changes
-			err = GitAddAndCommit(ProjectRoot, color.New(color.BgBlue, color.FgHiWhite, color.Bold).Sprintln(" 🤖 Plandex ")+desc.CommitMsg, true)
+			err = GitAddAndCommit(ProjectRoot, color.New(color.BgBlue, color.FgHiWhite, color.Bold).Sprintln(" 🤖 Plandex ")+currentPlanState.PendingChangesSummary(), true)
 			if err != nil {
 				aborted = true
 				return fmt.Errorf("failed to commit changes: %w", err)

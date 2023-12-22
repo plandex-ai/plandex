@@ -62,7 +62,7 @@ func GetPlanConvo(orgId, planId string) ([]*ConvoMessage, error) {
 	return convo, nil
 }
 
-func StoreConvoMessage(message *ConvoMessage) error {
+func StoreConvoMessage(message *ConvoMessage, commit bool) (string, error) {
 	convoDir := getPlanConversationDir(message.OrgId, message.PlanId)
 
 	id := uuid.New().String()
@@ -74,19 +74,19 @@ func StoreConvoMessage(message *ConvoMessage) error {
 	bytes, err := json.Marshal(message)
 
 	if err != nil {
-		return fmt.Errorf("error marshalling convo message: %v", err)
+		return "", fmt.Errorf("error marshalling convo message: %v", err)
 	}
 
 	err = os.WriteFile(filepath.Join(convoDir, message.Id+".json"), bytes, os.ModePerm)
 
 	if err != nil {
-		return fmt.Errorf("error writing convo message: %v", err)
+		return "", fmt.Errorf("error writing convo message: %v", err)
 	}
 
 	err = AddPlanConvoTokens(message.PlanId, message.Tokens)
 
 	if err != nil {
-		return fmt.Errorf("error adding convo tokens: %v", err)
+		return "", fmt.Errorf("error adding convo tokens: %v", err)
 	}
 
 	var desc string
@@ -101,13 +101,15 @@ func StoreConvoMessage(message *ConvoMessage) error {
 	}
 
 	msg := fmt.Sprintf("Message #%d | %s | %d 🪙", message.Num, desc, message.Tokens)
-	err = GitAddAndCommit(message.OrgId, message.PlanId, msg)
 
-	if err != nil {
-		return fmt.Errorf("error committing convo message: %v", err)
+	if commit {
+		err = GitAddAndCommit(message.OrgId, message.PlanId, msg)
+		if err != nil {
+			return "", fmt.Errorf("error committing convo message: %v", err)
+		}
 	}
 
-	return nil
+	return msg, nil
 }
 
 func GetPlanSummaries(planId string) ([]*ConvoSummary, error) {

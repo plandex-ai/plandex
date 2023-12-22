@@ -15,6 +15,8 @@ import (
 func CreateProjectHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for CreateProjectHandler")
 
+	currentOrgId := "2ff5bc12-1160-4305-8707-9a165319de5a" // TODO: get from auth when implemented
+
 	// read the request body
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -39,7 +41,7 @@ func CreateProjectHandler(w http.ResponseWriter, r *http.Request) {
 
 	id := uuid.New().String()
 
-	_, err = db.Conn.Exec("INSERT INTO projects (id, name) VALUES ($1, $2)", id, requestBody.Name)
+	_, err = db.Conn.Exec("INSERT INTO projects (id, org_id, name) VALUES ($1, $2, $3)", id, currentOrgId, requestBody.Name)
 
 	if err != nil {
 		log.Printf("Error creating project: %v\n", err)
@@ -48,7 +50,8 @@ func CreateProjectHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp := shared.CreateProjectResponse{
-		Id: id,
+		Id:    id,
+		OrgId: currentOrgId,
 	}
 
 	bytes, err := json.Marshal(resp)
@@ -68,7 +71,7 @@ func CreateProjectHandler(w http.ResponseWriter, r *http.Request) {
 func ListProjectsHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for ListProjectsHandler")
 
-	userId := "user1" // TODO: get from auth when implemented
+	userId := "bc9c75ee-57b0-4552-aa1b-f80cf8c09f3f" // TODO: get from auth when implemented
 
 	rows, err := db.Conn.Query("SELECT project.id, project.name FROM users_projects INNER JOIN project ON users_projects.project_id = project.id WHERE users_projects.user_id = $1", userId)
 

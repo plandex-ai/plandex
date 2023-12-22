@@ -98,7 +98,7 @@ func ContextRemove(contexts []*Context) error {
 	for _, context := range contexts {
 		contextDir := getPlanContextDir(context.OrgId, context.PlanId)
 		for _, ext := range []string{".meta", ".body"} {
-			go func(dircontext *Context, dir, ext string) {
+			go func(context *Context, dir, ext string) {
 				errCh <- os.Remove(filepath.Join(dir, context.Id+ext))
 			}(context, contextDir, ext)
 		}

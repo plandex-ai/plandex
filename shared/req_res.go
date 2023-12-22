@@ -5,7 +5,8 @@ type CreateProjectRequest struct {
 }
 
 type CreateProjectResponse struct {
-	Id string `json:"id"`
+	Id    string `json:"id"`
+	OrgId string `json:"orgId"`
 }
 
 type SetProjectPlanRequest struct {

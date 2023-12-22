@@ -35,6 +35,12 @@ func init() {
 }
 
 func rewind(cmd *cobra.Command, args []string) {
+	lib.MustResolveProject()
+
+	if lib.CurrentPlanId == "" {
+		fmt.Fprintln(os.Stderr, "No current plan")
+		return
+	}
 
 	// Check if either steps or sha is provided and not both
 	stepsOrSha := ""
@@ -68,9 +74,12 @@ func rewind(cmd *cobra.Command, args []string) {
 	// Rewind to the target sha
 	rwRes, err := api.Client.RewindPlan(lib.CurrentPlanId, shared.RewindPlanRequest{Sha: targetSha})
 
-	msg := "✅ Rewound "
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error rewinding plan: %v\n", err)
+		return
+	}
 
-	msg += "to " + targetSha
+	msg := "✅ Rewound to " + targetSha
 
 	fmt.Println(msg)
 	fmt.Println()

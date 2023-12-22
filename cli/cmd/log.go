@@ -12,7 +12,7 @@ import (
 // logCmd represents the log command
 var logCmd = &cobra.Command{
 	Use:     "log",
-	Aliases: []string{"history"},
+	Aliases: []string{"history", "logs"},
 	Short:   "Show plan history",
 	Long:    `Show plan history.`,
 	Args:    cobra.NoArgs,

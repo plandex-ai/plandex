@@ -45,37 +45,76 @@ func StorePlanResult(result *PlanFileResult) error {
 
 }
 
-func GetCurrentPlanState(orgId, planId string, contexts []*Context) (*shared.CurrentPlanState, error) {
+type CurrentPlanStateParams struct {
+	OrgId                    string
+	PlanId                   string
+	Contexts                 []*Context
+	PlanFileResults          []*PlanFileResult
+	PendingBuildDescriptions []*ConvoMessageDescription
+}
+
+func GetCurrentPlanState(params CurrentPlanStateParams) (*shared.CurrentPlanState, error) {
+	orgId := params.OrgId
+	planId := params.PlanId
 
 	var dbPlanFileResults []*PlanFileResult
-	var latestBuildDesc *ConvoMessageDescription
-	errCh := make(chan error, 2)
+	var pendingBuildDescriptions []*shared.ConvoMessageDescription
+	var contexts []*Context
+
+	errCh := make(chan error)
 
 	go func() {
-		res, err := GetPlanFileResults(orgId, planId)
-		dbPlanFileResults = res
+		if params.PlanFileResults == nil {
+			res, err := GetPlanFileResults(orgId, planId)
+			dbPlanFileResults = res
 
-		if err != nil {
-			errCh <- fmt.Errorf("error getting plan file results: %v", err)
-			return
+			if err != nil {
+				errCh <- fmt.Errorf("error getting plan file results: %v", err)
+				return
+			}
+		} else {
+			dbPlanFileResults = params.PlanFileResults
 		}
 
 		errCh <- nil
 	}()
 
 	go func() {
-		res, err := GetLatestBuildDescription(planId)
-		latestBuildDesc = res
+		if params.PendingBuildDescriptions == nil {
+			res, err := GetPendingBuildDescriptions(orgId, planId)
+			if err != nil {
+				errCh <- fmt.Errorf("error getting latest plan build description: %v", err)
+				return
+			}
 
-		if err != nil {
-			errCh <- fmt.Errorf("error getting latest plan build description: %v", err)
-			return
+			for _, desc := range res {
+				pendingBuildDescriptions = append(pendingBuildDescriptions, desc.ToApi())
+			}
+		} else {
+			for _, desc := range params.PendingBuildDescriptions {
+				pendingBuildDescriptions = append(pendingBuildDescriptions, desc.ToApi())
+			}
 		}
 
 		errCh <- nil
 	}()
 
-	for i := 0; i < 2; i++ {
+	go func() {
+		if params.Contexts == nil {
+			res, err := GetPlanContexts(orgId, planId, true)
+			if err != nil {
+				errCh <- fmt.Errorf("error getting plan contexts: %v", err)
+				return
+			}
+			contexts = res
+		} else {
+			contexts = params.Contexts
+		}
+
+		errCh <- nil
+	}()
+
+	for i := 0; i < 3; i++ {
 		err := <-errCh
 		if err != nil {
 			return nil, err
@@ -101,10 +140,10 @@ func GetCurrentPlanState(orgId, planId string, contexts []*Context) (*shared.Cur
 	}
 
 	planState := &shared.CurrentPlanState{
-		PlanResult:             planResult,
-		Contexts:               apiContexts,
-		ContextsByPath:         apiContextsByPath,
-		LatestBuildDescription: latestBuildDesc.ToApi(),
+		PlanResult:               planResult,
+		Contexts:                 apiContexts,
+		ContextsByPath:           apiContextsByPath,
+		PendingBuildDescriptions: pendingBuildDescriptions,
 	}
 
 	currentPlanFiles, err := planState.GetFiles()
@@ -118,16 +157,56 @@ func GetCurrentPlanState(orgId, planId string, contexts []*Context) (*shared.Cur
 	return planState, nil
 }
 
-func GetLatestBuildDescription(planId string) (*ConvoMessageDescription, error) {
-	var description ConvoMessageDescription
+func GetPendingBuildDescriptions(orgId, planId string) ([]*ConvoMessageDescription, error) {
+	descriptionsDir := getPlanDescriptionsDir(orgId, planId)
 
-	err := Conn.Get(&description, "SELECT id, org_id, plan_id, convo_message_id, summarized_to_message_created_at, made_plan, commit_msg, files, error, created_at, updated_at FROM convo_message_descriptions WHERE plan_id = $1 AND made_plan = true ORDER BY created_at DESC LIMIT 1", planId)
+	files, err := os.ReadDir(descriptionsDir)
 
 	if err != nil {
-		return nil, fmt.Errorf("error getting plan build description: %v", err)
+		return nil, fmt.Errorf("error reading descriptions dir: %v", err)
 	}
 
-	return &description, nil
+	var descriptions []*ConvoMessageDescription
+	errCh := make(chan error, len(files))
+	descCh := make(chan *ConvoMessageDescription, len(files))
+
+	for _, file := range files {
+		go func(file os.DirEntry) {
+			bytes, err := os.ReadFile(filepath.Join(descriptionsDir, file.Name()))
+
+			if err != nil {
+				errCh <- fmt.Errorf("error reading description file: %v", err)
+				return
+			}
+
+			var description ConvoMessageDescription
+			err = json.Unmarshal(bytes, &description)
+
+			if err != nil {
+				errCh <- fmt.Errorf("error unmarshalling description file: %v", err)
+				return
+			}
+
+			descCh <- &description
+		}(file)
+	}
+
+	for i := 0; i < len(files); i++ {
+		select {
+		case err := <-errCh:
+			return nil, fmt.Errorf("error reading description files: %v", err)
+		case description := <-descCh:
+			if description.MadePlan && description.AppliedAt == nil {
+				descriptions = append(descriptions, description)
+			}
+		}
+	}
+
+	sort.Slice(descriptions, func(i, j int) bool {
+		return descriptions[i].CreatedAt.Before(descriptions[j].CreatedAt)
+	})
+
+	return descriptions, nil
 }
 
 func GetPlanFileResults(orgId, planId string) ([]*PlanFileResult, error) {
@@ -214,55 +293,92 @@ func GetPlanResult(planFileResults []*shared.PlanFileResult) *shared.PlanResult 
 		FileResultsByPath:  resByPath,
 		SortedPaths:        paths,
 		ReplacementsByPath: replacementsByPath,
+		Results:            planFileResults,
 	}
 }
 
 func ApplyPlan(orgId, planId string) error {
 	resultsDir := getPlanResultsDir(orgId, planId)
 
-	files, err := os.ReadDir(resultsDir)
+	errCh := make(chan error)
 
-	if err != nil {
-		return fmt.Errorf("error reading results dir: %v", err)
+	var results []*PlanFileResult
+	var pendingBuildDescriptions []*ConvoMessageDescription
+	var contexts []*Context
+
+	go func() {
+		res, err := GetPlanFileResults(orgId, planId)
+		if err != nil {
+			errCh <- fmt.Errorf("error getting plan file results: %v", err)
+			return
+		}
+		results = res
+		errCh <- nil
+	}()
+
+	go func() {
+		res, err := GetPendingBuildDescriptions(orgId, planId)
+		if err != nil {
+			errCh <- fmt.Errorf("error getting latest plan build description: %v", err)
+			return
+		}
+		pendingBuildDescriptions = res
+		errCh <- nil
+	}()
+
+	go func() {
+		res, err := GetPlanContexts(orgId, planId, false)
+		if err != nil {
+			errCh <- fmt.Errorf("error getting plan contexts: %v", err)
+			return
+		}
+		contexts = res
+		errCh <- nil
+	}()
+
+	for i := 0; i < 3; i++ {
+		err := <-errCh
+		if err != nil {
+			return fmt.Errorf("error applying plan: %v", err)
+		}
 	}
 
-	errCh := make(chan error, len(files))
+	planState, err := GetCurrentPlanState(CurrentPlanStateParams{
+		OrgId:                    orgId,
+		PlanId:                   planId,
+		Contexts:                 contexts,
+		PlanFileResults:          results,
+		PendingBuildDescriptions: pendingBuildDescriptions,
+	})
 
+	if err != nil {
+		return fmt.Errorf("error getting current plan state: %v", err)
+	}
+
+	var pendingDbResults []*PlanFileResult
+
+	for _, result := range results {
+		apiResult := result.ToApi()
+		if apiResult.IsPending() {
+			pendingDbResults = append(pendingDbResults, result)
+		}
+	}
+
+	errCh = make(chan error, len(pendingDbResults)+len(pendingBuildDescriptions))
 	now := time.Now()
 
-	for _, file := range files {
-		go func(file os.DirEntry) {
-
-			bytes, err := os.ReadFile(filepath.Join(resultsDir, file.Name()))
-
-			if err != nil {
-				errCh <- fmt.Errorf("error reading result file: %v", err)
-				return
-			}
-
-			var result PlanFileResult
-			err = json.Unmarshal(bytes, &result)
-
-			if err != nil {
-				errCh <- fmt.Errorf("error unmarshalling result file: %v", err)
-				return
-			}
-
-			if result.AppliedAt != nil {
-				errCh <- nil
-				return
-			}
-
+	for _, result := range pendingDbResults {
+		go func(result *PlanFileResult) {
 			result.AppliedAt = &now
 
-			bytes, err = json.MarshalIndent(result, "", "  ")
+			bytes, err := json.MarshalIndent(result, "", "  ")
 
 			if err != nil {
 				errCh <- fmt.Errorf("error marshalling result: %v", err)
 				return
 			}
 
-			err = os.WriteFile(filepath.Join(resultsDir, file.Name()), bytes, 0644)
+			err = os.WriteFile(filepath.Join(resultsDir, result.Id+".json"), bytes, 0644)
 
 			if err != nil {
 				errCh <- fmt.Errorf("error writing result file: %v", err)
@@ -271,20 +387,37 @@ func ApplyPlan(orgId, planId string) error {
 
 			errCh <- nil
 
-		}(file)
+		}(result)
 	}
 
-	for i := 0; i < len(files); i++ {
+	for _, description := range pendingBuildDescriptions {
+		go func(description *ConvoMessageDescription) {
+			description.AppliedAt = &now
+
+			err := StoreDescription(description)
+
+			if err != nil {
+				errCh <- fmt.Errorf("error storing convo message description: %v", err)
+				return
+			}
+
+			errCh <- nil
+		}(description)
+	}
+
+	for i := 0; i < len(pendingDbResults)+len(pendingBuildDescriptions); i++ {
 		err := <-errCh
 		if err != nil {
 			return fmt.Errorf("error applying plan: %v", err)
 		}
 	}
 
-	_, err = Conn.Exec("UPDATE plans SET applied_at = NOW() WHERE id = $1", planId)
+	msg := "Marked pending results as applied." + "\n\n" + planState.PendingChangesSummary()
+
+	err = GitAddAndCommit(orgId, planId, msg)
 
 	if err != nil {
-		return fmt.Errorf("error updating plan: %v", err)
+		return fmt.Errorf("error committing plan: %v", err)
 	}
 
 	return nil

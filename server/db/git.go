@@ -15,7 +15,7 @@ func init() {
 	// ensure git is available
 	cmd := exec.Command("git", "--version")
 	if err := cmd.Run(); err != nil {
-		panic(fmt.Errorf("Error running git --version: %v", err))
+		panic(fmt.Errorf("error running git --version: %v", err))
 	}
 }
 

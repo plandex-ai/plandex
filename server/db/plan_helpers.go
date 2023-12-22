@@ -1,21 +1,26 @@
 package db
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
+	"os"
+	"path/filepath"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/plandex/plandex/shared"
 )
 
 func CreatePlan(orgId, projectId, userId, name string) (*Plan, error) {
-	query := "INSERT INTO plans (org_id, creator_id, project_id, name) VALUES (:org_id, :creator_id, :project_id, :name) RETURNING id, created_at, updated_at"
+	query := "INSERT INTO plans (org_id, creator_id, project_id, name, status) VALUES (:org_id, :creator_id, :project_id, :name, :status) RETURNING id, created_at, updated_at"
 
 	plan := &Plan{
 		OrgId:     orgId,
 		CreatorId: userId,
 		ProjectId: projectId,
 		Name:      name,
+		Status:    shared.PlanStatusDraft,
 	}
 
 	row, err := Conn.NamedQuery(query, plan)
@@ -48,7 +53,7 @@ func CreatePlan(orgId, projectId, userId, name string) (*Plan, error) {
 }
 
 func ListPlans(projectId, userId string, archived bool, status string) ([]shared.Plan, error) {
-	qs := "SELECT id, creator_id, name, status, context_tokens, convo_tokens, applied_at, archived_at, created_at, updated_at FROM plans WHERE project_id = $1 AND creator_id = $2 ORDER BY updated_at DESC"
+	qs := "SELECT id, creator_id, name, status, context_tokens, convo_tokens, archived_at, created_at, updated_at FROM plans WHERE project_id = $1 AND creator_id = $2"
 	qargs := []interface{}{projectId, userId}
 
 	if archived {
@@ -63,7 +68,6 @@ func ListPlans(projectId, userId string, archived bool, status string) ([]shared
 	}
 
 	qs += " ORDER BY updated_at DESC"
-
 	res, err := Conn.Query(qs, qargs...)
 
 	if err != nil {
@@ -71,13 +75,11 @@ func ListPlans(projectId, userId string, archived bool, status string) ([]shared
 	}
 
 	defer res.Close()
-
 	var plans []shared.Plan
-
 	for res.Next() {
 		var plan shared.Plan
 
-		err := res.Scan(&plan.Id, &plan.CreatorId, &plan.Name, &plan.Status, &plan.ContextTokens, &plan.ConvoTokens, &plan.AppliedAt, &plan.ArchivedAt, &plan.CreatedAt, &plan.UpdatedAt)
+		err := res.Scan(&plan.Id, &plan.CreatorId, &plan.Name, &plan.Status, &plan.ContextTokens, &plan.ConvoTokens, &plan.ArchivedAt, &plan.CreatedAt, &plan.UpdatedAt)
 
 		if err != nil {
 			return nil, fmt.Errorf("error scanning plan: %v", err)
@@ -104,10 +106,53 @@ func AddPlanConvoTokens(planId string, addTokens int) error {
 	return nil
 }
 
-func GetPlan(planId string) (*shared.Plan, error) {
-	var plan shared.Plan
+func SyncPlanTokens(orgId, planId string) error {
+	var contexts []*Context
+	var convos []*ConvoMessage
+	errCh := make(chan error)
 
-	err := Conn.Get(&plan, "SELECT id, creator_id, name, status, context_tokens, convo_tokens, applied_at, archived_at, created_at, updated_at FROM plans WHERE id = $1", planId)
+	go func() {
+		var err error
+		contexts, err = GetPlanContexts(orgId, planId, false)
+		errCh <- err
+	}()
+
+	go func() {
+		var err error
+		convos, err = GetPlanConvo(orgId, planId)
+		errCh <- err
+	}()
+
+	for i := 0; i < 2; i++ {
+		err := <-errCh
+		if err != nil {
+			return fmt.Errorf("error getting contexts or convo: %v", err)
+		}
+	}
+
+	contextTokens := 0
+	for _, context := range contexts {
+		contextTokens += context.NumTokens
+	}
+
+	convoTokens := 0
+	for _, msg := range convos {
+		convoTokens += msg.Tokens
+	}
+
+	_, err := Conn.Exec("UPDATE plans SET context_tokens = $1, convo_tokens = $2 WHERE id = $3", contextTokens, convoTokens, planId)
+
+	if err != nil {
+		return fmt.Errorf("error updating plan tokens: %v", err)
+	}
+
+	return nil
+}
+
+func GetPlan(planId string) (*Plan, error) {
+	var plan Plan
+
+	err := Conn.Get(&plan, "SELECT id, org_id, creator_id, project_id, name, status, error, context_tokens, convo_tokens, archived_at, created_at, updated_at FROM plans WHERE id = $1", planId)
 
 	if err != nil {
 		return nil, fmt.Errorf("error getting plan: %v", err)
@@ -126,27 +171,37 @@ func SetPlanStatus(planId string, status shared.PlanStatus, errStr string) error
 	return nil
 }
 
-func StoreDescription(description *ConvoMessageDescription) error {
-	query := "INSERT INTO convo_message_descriptions (org_id, plan_id, convo_message_id, summarized_to_message_created_at, made_plan, commit_msg, files, error) VALUES (:id, :org_id, :plan_id, :convo_message_id, :summarized_to_message_created_at, :made_plan, :commit_msg, :files, :error) RETURNING id, created_at, updated_at"
-
-	row, err := Conn.NamedQuery(query, description)
+func RenamePlan(planId string, name string) error {
+	_, err := Conn.Exec("UPDATE plans SET name = $1 WHERE id = $2", name, planId)
 
 	if err != nil {
-		return fmt.Errorf("error storing convo message description: %v", err)
+		return fmt.Errorf("error renaming plan: %v", err)
 	}
 
-	defer row.Close()
+	return nil
+}
 
-	if row.Next() {
-		var createdAt, updatedAt time.Time
-		var id string
-		if err := row.Scan(&id, &createdAt, &updatedAt); err != nil {
-			return fmt.Errorf("error storing convo message description: %v", err)
-		}
+func StoreDescription(description *ConvoMessageDescription) error {
+	descriptionsDir := getPlanDescriptionsDir(description.OrgId, description.PlanId)
 
-		description.Id = id
-		description.CreatedAt = createdAt
-		description.UpdatedAt = updatedAt
+	now := time.Now()
+
+	if description.Id == "" {
+		description.Id = uuid.New().String()
+		description.CreatedAt = now
+	}
+	description.UpdatedAt = now
+
+	bytes, err := json.Marshal(description)
+
+	if err != nil {
+		return fmt.Errorf("error marshalling convo message description: %v", err)
+	}
+
+	err = os.WriteFile(filepath.Join(descriptionsDir, description.Id+".json"), bytes, os.ModePerm)
+
+	if err != nil {
+		return fmt.Errorf("error writing convo message description: %v", err)
 	}
 
 	return nil

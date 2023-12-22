@@ -15,8 +15,8 @@ func TellPlanHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for TellPlanHandler")
 
 	// TODO: get this from auth when implemented
-	currentOrgId := "org1"
-	currentUserId := "user1"
+	currentOrgId := "2ff5bc12-1160-4305-8707-9a165319de5a"
+	currentUserId := "bc9c75ee-57b0-4552-aa1b-f80cf8c09f3f"
 
 	// TODO: authenticate user and plan access
 

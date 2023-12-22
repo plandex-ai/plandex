@@ -50,7 +50,7 @@ func plans(cmd *cobra.Command, args []string) {
 	for i, p := range plans {
 
 		var name string
-		if p.Name == lib.CurrentPlanId {
+		if p.Id == lib.CurrentPlanId {
 			name = color.New(color.Bold, color.FgGreen).Sprint(p.Name) + color.New(color.FgWhite).Sprint(" 👈 current")
 		} else {
 			name = p.Name

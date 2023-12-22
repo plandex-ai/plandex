@@ -71,7 +71,6 @@ func contextRm(cmd *cobra.Command, args []string) {
 	} else {
 		fmt.Println("🤷‍♂️ No context removed")
 	}
-
 }
 
 func init() {

@@ -22,6 +22,7 @@ type Project struct {
 type PlanStatus string
 
 const (
+	PlanStatusDraft      PlanStatus = "draft"
 	PlanStatusReplying   PlanStatus = "replying"
 	PlanStatusDescribing PlanStatus = "describing"
 	PlanStatusBuilding   PlanStatus = "building"
@@ -31,17 +32,15 @@ const (
 )
 
 type Plan struct {
-	Id                 string     `json:"id"`
-	CreatorId          string     `json:"creatorId"`
-	Name               string     `json:"name"`
-	Status             PlanStatus `json:"status"`
-	ContextTokens      int        `json:"contextTokens"`
-	ConvoTokens        int        `json:"convoTokens"`
-	ConvoSummaryTokens int        `json:"convoSummaryTokens"`
-	AppliedAt          *time.Time `json:"appliedAt,omitempty"`
-	ArchivedAt         *time.Time `json:"archivedAt,omitempty"`
-	CreatedAt          time.Time  `json:"createdAt"`
-	UpdatedAt          time.Time  `json:"updatedAt"`
+	Id            string     `json:"id"`
+	CreatorId     string     `json:"creatorId"`
+	Name          string     `json:"name"`
+	Status        PlanStatus `json:"status"`
+	ContextTokens int        `json:"contextTokens"`
+	ConvoTokens   int        `json:"convoTokens"`
+	ArchivedAt    *time.Time `json:"archivedAt,omitempty"`
+	CreatedAt     time.Time  `json:"createdAt"`
+	UpdatedAt     time.Time  `json:"updatedAt"`
 }
 
 type ContextType string
@@ -90,15 +89,16 @@ type ConvoSummary struct {
 }
 
 type ConvoMessageDescription struct {
-	Id                    string    `json:"id"`
-	ConvoMessageId        string    `json:"convoMessageId"`
-	SummarizedToMessageId string    `json:"summarizedToMessageId"`
-	MadePlan              bool      `json:"madePlan"`
-	CommitMsg             string    `json:"commitMsg"`
-	Files                 []string  `json:"files"`
-	Error                 string    `json:"error"`
-	CreatedAt             time.Time `json:"createdAt"`
-	UpdatedAt             time.Time `json:"updatedAt"`
+	Id                    string     `json:"id"`
+	ConvoMessageId        string     `json:"convoMessageId"`
+	SummarizedToMessageId string     `json:"summarizedToMessageId"`
+	MadePlan              bool       `json:"madePlan"`
+	CommitMsg             string     `json:"commitMsg"`
+	Files                 []string   `json:"files"`
+	Error                 string     `json:"error"`
+	AppliedAt             *time.Time `json:"appliedAt,omitempty"`
+	CreatedAt             time.Time  `json:"createdAt"`
+	UpdatedAt             time.Time  `json:"updatedAt"`
 }
 
 type PlanBuild struct {
@@ -120,17 +120,18 @@ type Replacement struct {
 }
 
 type PlanFileResult struct {
-	Id           string         `json:"id"`
-	PlanBuildId  string         `json:"planBuildId"`
-	Path         string         `json:"path"`
-	ContextSha   string         `json:"contextSha"`
-	Content      string         `json:"content"`
-	AnyFailed    bool           `json:"anyFailed"`
-	AppliedAt    *time.Time     `json:"appliedAt,omitempty"`
-	RejectedAt   *time.Time     `json:"rejectedAt,omitempty"`
-	Replacements []*Replacement `json:"replacements"`
-	CreatedAt    time.Time      `json:"createdAt"`
-	UpdatedAt    time.Time      `json:"updatedAt"`
+	Id             string         `json:"id"`
+	ConvoMessageId string         `json:"convoMessageId"`
+	PlanBuildId    string         `json:"planBuildId"`
+	Path           string         `json:"path"`
+	ContextSha     string         `json:"contextSha"`
+	Content        string         `json:"content"`
+	AnyFailed      bool           `json:"anyFailed"`
+	AppliedAt      *time.Time     `json:"appliedAt,omitempty"`
+	RejectedAt     *time.Time     `json:"rejectedAt,omitempty"`
+	Replacements   []*Replacement `json:"replacements"`
+	CreatedAt      time.Time      `json:"createdAt"`
+	UpdatedAt      time.Time      `json:"updatedAt"`
 }
 
 type CurrentPlanFiles struct {
@@ -143,13 +144,14 @@ type PlanFileResultsByPath map[string][]*PlanFileResult
 type PlanResult struct {
 	SortedPaths        []string                  `json:"sortedPaths"`
 	FileResultsByPath  PlanFileResultsByPath     `json:"fileResultsByPath"`
+	Results            []*PlanFileResult         `json:"results"`
 	ReplacementsByPath map[string][]*Replacement `json:"replacementsByPath"`
 }
 
 type CurrentPlanState struct {
-	PlanResult             *PlanResult
-	CurrentPlanFiles       *CurrentPlanFiles
-	Contexts               []*Context
-	ContextsByPath         map[string]*Context
-	LatestBuildDescription *ConvoMessageDescription
+	PlanResult               *PlanResult                `json:"planResult"`
+	CurrentPlanFiles         *CurrentPlanFiles          `json:"currentPlanFiles"`
+	Contexts                 []*Context                 `json:"contexts"`
+	ContextsByPath           map[string]*Context        `json:"contextsByPath"`
+	PendingBuildDescriptions []*ConvoMessageDescription `json:"pendingBuildDescriptions"`
 }

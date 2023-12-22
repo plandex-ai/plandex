@@ -522,7 +522,15 @@ func (a *Api) UpdateContext(planId string, req shared.UpdateContextRequest) (*sh
 		return nil, fmt.Errorf("error marshalling request: %v", err)
 	}
 
-	resp, err := http.Post(serverUrl, "application/json", bytes.NewBuffer(reqBytes))
+	request, err := http.NewRequest(http.MethodPut, serverUrl, bytes.NewBuffer(reqBytes))
+
+	if err != nil {
+		return nil, fmt.Errorf("error creating request: %v", err)
+	}
+
+	request.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(request)
 	if err != nil {
 		return nil, fmt.Errorf("error sending request: %v", err)
 	}

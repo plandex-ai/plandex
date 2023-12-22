@@ -86,10 +86,9 @@ type Plan struct {
 	ProjectId     string            `db:"project_id"`
 	Name          string            `db:"name"`
 	Status        shared.PlanStatus `db:"status"`
-	Error         string            `db:"error"`
+	Error         *string           `db:"error"`
 	ContextTokens int               `db:"context_tokens"`
 	ConvoTokens   int               `db:"convo_tokens"`
-	AppliedAt     *time.Time        `db:"applied_at,omitempty"`
 	ArchivedAt    *time.Time        `db:"archived_at,omitempty"`
 	CreatedAt     time.Time         `db:"created_at"`
 	UpdatedAt     time.Time         `db:"updated_at"`
@@ -103,7 +102,6 @@ func (plan *Plan) ToApi() *shared.Plan {
 		Status:        plan.Status,
 		ContextTokens: plan.ContextTokens,
 		ConvoTokens:   plan.ConvoTokens,
-		AppliedAt:     plan.AppliedAt,
 		ArchivedAt:    plan.ArchivedAt,
 		CreatedAt:     plan.CreatedAt,
 		UpdatedAt:     plan.UpdatedAt,
@@ -131,34 +129,6 @@ func (summary *ConvoSummary) ToApi() *shared.ConvoSummary {
 		Tokens:                      summary.Tokens,
 		NumMessages:                 summary.NumMessages,
 		CreatedAt:                   summary.CreatedAt,
-	}
-}
-
-type ConvoMessageDescription struct {
-	Id                    string    `db:"id"`
-	OrgId                 string    `db:"org_id"`
-	PlanId                string    `db:"plan_id"`
-	ConvoMessageId        string    `db:"convo_message_id"`
-	SummarizedToMessageId string    `db:"summarized_to_message_id"`
-	MadePlan              bool      `db:"made_plan"`
-	CommitMsg             string    `db:"commit_msg"`
-	Files                 []string  `db:"files"`
-	Error                 string    `db:"error"`
-	CreatedAt             time.Time `db:"created_at"`
-	UpdatedAt             time.Time `db:"updated_at"`
-}
-
-func (desc *ConvoMessageDescription) ToApi() *shared.ConvoMessageDescription {
-	return &shared.ConvoMessageDescription{
-		Id:                    desc.Id,
-		ConvoMessageId:        desc.ConvoMessageId,
-		SummarizedToMessageId: desc.SummarizedToMessageId,
-		MadePlan:              desc.MadePlan,
-		CommitMsg:             desc.CommitMsg,
-		Files:                 desc.Files,
-		Error:                 desc.Error,
-		CreatedAt:             desc.CreatedAt,
-		UpdatedAt:             desc.UpdatedAt,
 	}
 }
 
@@ -245,35 +215,66 @@ func (msg *ConvoMessage) ToApi() *shared.ConvoMessage {
 	}
 }
 
+type ConvoMessageDescription struct {
+	Id                    string     `json:"id"`
+	OrgId                 string     `json:"orgId"`
+	PlanId                string     `json:"planId"`
+	ConvoMessageId        string     `json:"convoMessageId"`
+	SummarizedToMessageId string     `json:"summarizedToMessageId"`
+	MadePlan              bool       `json:"madePlan"`
+	CommitMsg             string     `json:"commitMsg"`
+	Files                 []string   `json:"files"`
+	Error                 string     `json:"error"`
+	AppliedAt             *time.Time `json:"appliedAt,omitempty"`
+	CreatedAt             time.Time  `json:"createdAt"`
+	UpdatedAt             time.Time  `json:"updatedAt"`
+}
+
+func (desc *ConvoMessageDescription) ToApi() *shared.ConvoMessageDescription {
+	return &shared.ConvoMessageDescription{
+		Id:                    desc.Id,
+		ConvoMessageId:        desc.ConvoMessageId,
+		SummarizedToMessageId: desc.SummarizedToMessageId,
+		MadePlan:              desc.MadePlan,
+		CommitMsg:             desc.CommitMsg,
+		Files:                 desc.Files,
+		Error:                 desc.Error,
+		CreatedAt:             desc.CreatedAt,
+		UpdatedAt:             desc.UpdatedAt,
+	}
+}
+
 type PlanFileResult struct {
-	Id           string                `json:"id"`
-	OrgId        string                `json:"orgId"`
-	PlanId       string                `json:"planId"`
-	PlanBuildId  string                `json:"planBuildId"`
-	Path         string                `json:"path"`
-	ContextSha   string                `json:"contextSha"`
-	Content      string                `json:"content,omitempty"`
-	Replacements []*shared.Replacement `json:"replacements"`
-	AnyFailed    bool                  `json:"anyFailed"`
-	Error        string                `json:"error"`
-	AppliedAt    *time.Time            `json:"appliedAt,omitempty"`
-	RejectedAt   *time.Time            `json:"rejectedAt,omitempty"`
-	CreatedAt    time.Time             `json:"createdAt"`
-	UpdatedAt    time.Time             `json:"updatedAt"`
+	Id             string                `json:"id"`
+	OrgId          string                `json:"orgId"`
+	PlanId         string                `json:"planId"`
+	ConvoMessageId string                `json:"convoMessageId"`
+	PlanBuildId    string                `json:"planBuildId"`
+	Path           string                `json:"path"`
+	ContextSha     string                `json:"contextSha"`
+	Content        string                `json:"content,omitempty"`
+	Replacements   []*shared.Replacement `json:"replacements"`
+	AnyFailed      bool                  `json:"anyFailed"`
+	Error          string                `json:"error"`
+	AppliedAt      *time.Time            `json:"appliedAt,omitempty"`
+	RejectedAt     *time.Time            `json:"rejectedAt,omitempty"`
+	CreatedAt      time.Time             `json:"createdAt"`
+	UpdatedAt      time.Time             `json:"updatedAt"`
 }
 
 func (res *PlanFileResult) ToApi() *shared.PlanFileResult {
 	return &shared.PlanFileResult{
-		Id:           res.Id,
-		PlanBuildId:  res.PlanBuildId,
-		Path:         res.Path,
-		ContextSha:   res.ContextSha,
-		Content:      res.Content,
-		AnyFailed:    res.AnyFailed,
-		AppliedAt:    res.AppliedAt,
-		RejectedAt:   res.RejectedAt,
-		Replacements: res.Replacements,
-		CreatedAt:    res.CreatedAt,
-		UpdatedAt:    res.UpdatedAt,
+		Id:             res.Id,
+		PlanBuildId:    res.PlanBuildId,
+		ConvoMessageId: res.ConvoMessageId,
+		Path:           res.Path,
+		ContextSha:     res.ContextSha,
+		Content:        res.Content,
+		AnyFailed:      res.AnyFailed,
+		AppliedAt:      res.AppliedAt,
+		RejectedAt:     res.RejectedAt,
+		Replacements:   res.Replacements,
+		CreatedAt:      res.CreatedAt,
+		UpdatedAt:      res.UpdatedAt,
 	}
 }

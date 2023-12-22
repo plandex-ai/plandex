@@ -30,7 +30,7 @@ func Stop(planId, currentUserId, currentOrgId string) error {
 		Message: content,
 	}
 
-	err := db.StoreConvoMessage(&userMsg)
+	_, err := db.StoreConvoMessage(&userMsg, true)
 
 	if err != nil {
 		return fmt.Errorf("error storing convo message: %v", err)

@@ -5,5 +5,4 @@ DROP TABLE IF EXISTS users_projects;
 DROP TABLE IF EXISTS users;
 DROP TABLE IF EXISTS plans;
 DROP TABLE IF EXISTS convo_summaries;
-DROP TABLE IF EXISTS convo_message_descriptions;
 DROP TABLE IF EXISTS plan_builds;

@@ -16,8 +16,8 @@ func CreatePlanHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for CreatePlanHandler")
 
 	// TODO: get from auth when implemented
-	currentUserId := "user1"
-	currentOrgId := "org1"
+	currentUserId := "bc9c75ee-57b0-4552-aa1b-f80cf8c09f3f"
+	currentOrgId := "2ff5bc12-1160-4305-8707-9a165319de5a"
 
 	vars := mux.Vars(r)
 	projectId := vars["projectId"]
@@ -133,7 +133,7 @@ func DeletePlanHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for DeletePlanHandler")
 
 	// TODO: get from auth when implemented
-	currentOrgId := "org1"
+	currentOrgId := "2ff5bc12-1160-4305-8707-9a165319de5a"
 
 	vars := mux.Vars(r)
 	planId := vars["planId"]
@@ -176,8 +176,8 @@ func DeleteAllPlansHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for DeleteAllPlansHandler")
 
 	// TODO: get from auth when implemented
-	currentOrgId := "org1"
-	currentUserId := "user1"
+	currentOrgId := "2ff5bc12-1160-4305-8707-9a165319de5a"
+	currentUserId := "bc9c75ee-57b0-4552-aa1b-f80cf8c09f3f"
 
 	vars := mux.Vars(r)
 	projectId := vars["projectId"]
@@ -195,7 +195,7 @@ func DeleteAllPlansHandler(w http.ResponseWriter, r *http.Request) {
 
 func ListPlansHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for ListPlansHandler")
-	currentUserId := "user1" // TODO: get from auth when implemented
+	currentUserId := "bc9c75ee-57b0-4552-aa1b-f80cf8c09f3f" // TODO: get from auth when implemented
 
 	vars := mux.Vars(r)
 	projectId := vars["projectId"]

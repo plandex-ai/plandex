@@ -14,7 +14,7 @@ func CurrentPlanHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for ListPlanChangesHandler")
 
 	// TODO: get this from auth when implemented
-	currentOrgId := "org1"
+	currentOrgId := "2ff5bc12-1160-4305-8707-9a165319de5a"
 
 	// TODO: authenticate user and plan access
 
@@ -31,7 +31,11 @@ func CurrentPlanHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	planState, err := db.GetCurrentPlanState(currentOrgId, planId, contexts)
+	planState, err := db.GetCurrentPlanState(db.CurrentPlanStateParams{
+		OrgId:    currentOrgId,
+		PlanId:   planId,
+		Contexts: contexts,
+	})
 
 	if err != nil {
 		log.Printf("Error getting current plan state: %v\n", err)
@@ -56,7 +60,7 @@ func ApplyPlanHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for ApplyPlanHandler")
 
 	// TODO: get this from auth when implemented
-	currentOrgId := "org1"
+	currentOrgId := "2ff5bc12-1160-4305-8707-9a165319de5a"
 
 	// TODO: authenticate user and plan access
 
@@ -80,7 +84,7 @@ func RejectAllChangesHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for RejectAllChangesHandler")
 
 	// TODO: get this from auth when implemented
-	currentOrgId := "org1"
+	currentOrgId := "2ff5bc12-1160-4305-8707-9a165319de5a"
 
 	// TODO: authenticate user and plan access
 
@@ -104,7 +108,7 @@ func RejectResultHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for RejectResultHandler")
 
 	// TODO: get this from auth when implemented
-	currentOrgId := "org1"
+	currentOrgId := "2ff5bc12-1160-4305-8707-9a165319de5a"
 
 	// TODO: authenticate user and plan access
 
@@ -129,7 +133,7 @@ func RejectReplacementHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for RejectReplacementHandler")
 
 	// TODO: get this from auth when implemented
-	currentOrgId := "org1"
+	currentOrgId := "2ff5bc12-1160-4305-8707-9a165319de5a"
 
 	// TODO: authenticate user and plan access
 

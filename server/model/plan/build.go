@@ -83,7 +83,11 @@ func execPlanBuild(currentOrgId, planId string, active *types.ActivePlan) {
 	}()
 
 	go func() {
-		currentPlan, err := db.GetCurrentPlanState(currentOrgId, planId, active.Contexts)
+		currentPlan, err := db.GetCurrentPlanState(db.CurrentPlanStateParams{
+			OrgId:    currentOrgId,
+			PlanId:   planId,
+			Contexts: active.Contexts,
+		})
 		if err != nil {
 			errCh <- fmt.Errorf("error getting current plan state: %v", err)
 			return
@@ -194,11 +198,12 @@ func execPlanBuild(currentOrgId, planId string, active *types.ActivePlan) {
 
 			// new file
 			planRes := &db.PlanFileResult{
-				OrgId:       currentOrgId,
-				PlanId:      planId,
-				PlanBuildId: build.Id,
-				Path:        filePath,
-				Content:     fileContents[filePath],
+				OrgId:          currentOrgId,
+				PlanId:         planId,
+				PlanBuildId:    build.Id,
+				ConvoMessageId: build.ConvoMessageId,
+				Path:           filePath,
+				Content:        fileContents[filePath],
 			}
 			onFinishBuildFile(filePath, planRes)
 			return
@@ -429,13 +434,14 @@ func execPlanBuild(currentOrgId, planId string, active *types.ActivePlan) {
 
 						planFileResult, allSucceeded := getPlanResult(
 							planResultParams{
-								orgId:        currentOrgId,
-								planId:       planId,
-								planBuildId:  build.Id,
-								filePath:     filePath,
-								currentState: currentState,
-								context:      contextPart,
-								replacements: streamed.Replacements,
+								orgId:          currentOrgId,
+								planId:         planId,
+								planBuildId:    build.Id,
+								convoMessageId: build.ConvoMessageId,
+								filePath:       filePath,
+								currentState:   currentState,
+								context:        contextPart,
+								replacements:   streamed.Replacements,
 							},
 						)
 
@@ -488,13 +494,14 @@ func execPlanBuild(currentOrgId, planId string, active *types.ActivePlan) {
 }
 
 type planResultParams struct {
-	orgId        string
-	planId       string
-	planBuildId  string
-	filePath     string
-	currentState string
-	context      *db.Context
-	replacements []*shared.Replacement
+	orgId          string
+	planId         string
+	planBuildId    string
+	convoMessageId string
+	filePath       string
+	currentState   string
+	context        *db.Context
+	replacements   []*shared.Replacement
 }
 
 func getPlanResult(params planResultParams) (*db.PlanFileResult, bool) {
@@ -526,13 +533,14 @@ func getPlanResult(params planResultParams) (*db.PlanFileResult, bool) {
 	}
 
 	return &db.PlanFileResult{
-		OrgId:        orgId,
-		PlanId:       planId,
-		PlanBuildId:  planBuildId,
-		Content:      "",
-		Path:         filePath,
-		Replacements: replacements,
-		ContextSha:   contextSha,
-		AnyFailed:    !allSucceeded,
+		OrgId:          orgId,
+		PlanId:         planId,
+		PlanBuildId:    planBuildId,
+		ConvoMessageId: params.convoMessageId,
+		Content:        "",
+		Path:           filePath,
+		Replacements:   replacements,
+		ContextSha:     contextSha,
+		AnyFailed:      !allSucceeded,
 	}, allSucceeded
 }

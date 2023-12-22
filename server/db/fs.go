@@ -11,7 +11,7 @@ var BaseDir string
 func init() {
 	home, err := os.UserHomeDir()
 	if err != nil {
-		panic(fmt.Errorf("Error getting user home dir: %v", err))
+		panic(fmt.Errorf("error getting user home dir: %v", err))
 	}
 
 	BaseDir = filepath.Join(home, "plandex-server")
@@ -28,7 +28,8 @@ func InitPlan(orgId, planId string) error {
 	for _, subdirFn := range [](func(orgId, planId string) string){
 		getPlanContextDir,
 		getPlanConversationDir,
-		getPlanResultsDir} {
+		getPlanResultsDir,
+		getPlanDescriptionsDir} {
 		err = os.MkdirAll(subdirFn(orgId, planId), os.ModePerm)
 
 		if err != nil {
@@ -70,4 +71,8 @@ func getPlanConversationDir(orgId, planId string) string {
 
 func getPlanResultsDir(orgId, planId string) string {
 	return filepath.Join(getPlanDir(orgId, planId), "results")
+}
+
+func getPlanDescriptionsDir(orgId, planId string) string {
+	return filepath.Join(getPlanDir(orgId, planId), "descriptions")
 }

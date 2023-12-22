@@ -5,22 +5,26 @@ import (
 	"github.com/sashabaranov/go-openai/jsonschema"
 )
 
-const SysFileName = "You are an AI namer that creates a valid filename for the content. Content can be any text, including programs/code, documentation, websites, and more. Most text will be related to software development. Call the 'nameFile' function with a valid JSON object that includes the 'fileName' key. Only call the 'nameFile' function in your response. Don't call any other function."
+type PlanNameRes struct {
+	PlanName string `json:"PlanName"`
+}
 
-var FileNameFn = openai.FunctionDefinition{
-	Name: "nameFile",
+const SysPlanName = "You are an AI namer that creates a name for the plan. Most plans will be related to software development. Call the 'namePlan' function with a valid JSON object that includes the 'planName' key. Only call the 'namePlan' function in your response. Don't call any other function."
+
+var PlanNameFn = openai.FunctionDefinition{
+	Name: "namePlan",
 	Parameters: &jsonschema.Definition{
 		Type: jsonschema.Object,
 		Properties: map[string]jsonschema.Definition{
-			"fileName": {
+			"planName": {
 				Type:        jsonschema.String,
-				Description: "A *short* file name for the text based on the content. Use dashes as word separators. No spaces or special characters. **2-3 words max**.",
+				Description: "A *short* lowercase file name for the plan content. Use dashes as word separators. No spaces, numbers, or special characters. **2-3 words max**.",
 			},
 		},
-		Required: []string{"fileName"},
+		Required: []string{"planName"},
 	},
 }
 
-func GetFileNamePrompt(text string) string {
-	return SysFileName + "\n\nText:\n" + text
+func GetPlanNamePrompt(text string) string {
+	return SysPlanName + "\n\nContent:\n" + text
 }

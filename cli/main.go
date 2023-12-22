@@ -16,7 +16,7 @@ func init() {
 		panic(err)
 	}
 
-	dir := filepath.Join(home, ".plandex")
+	dir := filepath.Join(home, ".plandex-home")
 	err = os.MkdirAll(dir, os.ModePerm)
 	if err != nil {
 		panic(err)

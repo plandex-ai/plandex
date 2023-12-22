@@ -179,13 +179,14 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 		onErr(fmt.Errorf("failed to load context: %v", err))
 	}
 
+	s.Stop()
+	term.ClearCurrentLine()
+
 	if res.MaxTokensExceeded {
-		s.Stop()
-		term.ClearCurrentLine()
 		overage := res.TotalTokens - shared.MaxContextTokens
 		fmt.Printf("🚨 Update would add %d 🪙 and exceed token limit (%d) by %d 🪙", res.TokensAdded, shared.MaxContextTokens, overage)
 		os.Exit(1)
 	}
 
-	fmt.Println(res.Msg)
+	fmt.Println("✅ " + res.Msg)
 }
