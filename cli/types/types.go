@@ -11,6 +11,7 @@ type LoadContextParams struct {
 type ContextOutdatedResult struct {
 	Msg             string
 	UpdatedContexts []*shared.Context
+	TokenDiffsById  map[string]int
 	NumFiles        int
 	NumUrls         int
 	NumTrees        int
@@ -31,4 +32,10 @@ type PlanSettings struct {
 type ProjectSettings struct {
 	Id    string `json:"id"`
 	OrgId string `json:"orgId"`
+}
+
+type StreamTUIUpdate struct {
+	ReplyChunk     string
+	Processing     bool
+	PlanTokenCount *shared.PlanTokenCount
 }

@@ -4,16 +4,20 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"plandex/api"
 	"plandex/lib"
+	streamtui "plandex/stream_tui"
 	"plandex/term"
 	"strings"
 
+	"github.com/plandex/plandex/shared"
 	"github.com/spf13/cobra"
 )
 
 const defaultEditor = "vim"
 
-var promptFile string
+var tellPromptFile string
+var tellBg bool
 
 // tellCmd represents the prompt command
 var tellCmd = &cobra.Command{
@@ -28,7 +32,9 @@ var tellCmd = &cobra.Command{
 func init() {
 	RootCmd.AddCommand(tellCmd)
 
-	tellCmd.Flags().StringVarP(&promptFile, "file", "f", "", "File containing prompt")
+	tellCmd.Flags().StringVarP(&tellPromptFile, "file", "f", "", "File containing prompt")
+
+	tellCmd.Flags().BoolVar(&tellBg, "bg", false, "Execute autonomously in the background")
 }
 
 func tell(cmd *cobra.Command, args []string) {
@@ -36,8 +42,8 @@ func tell(cmd *cobra.Command, args []string) {
 
 	if len(args) > 0 {
 		prompt = args[0]
-	} else if promptFile != "" {
-		bytes, err := os.ReadFile(promptFile)
+	} else if tellPromptFile != "" {
+		bytes, err := os.ReadFile(tellPromptFile)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "Error reading prompt file:", err)
 			return
@@ -109,10 +115,24 @@ func tell(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	err := lib.Propose(prompt)
+	lib.MustCheckOutdatedContextWithOutput()
+
+	err := api.Client.TellPlan(lib.CurrentPlanId, shared.TellPlanRequest{
+		Prompt:        prompt,
+		ConnectStream: !tellBg,
+	}, lib.OnStreamPlan)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Prompt error:", err)
 		return
+	}
+
+	if !tellBg {
+		err = streamtui.StartStreamUI()
+
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "Error starting stream UI:", err)
+			return
+		}
 	}
 }
 

@@ -2,22 +2,36 @@ package lib
 
 import (
 	"encoding/json"
-	"fmt"
+	"log"
+	"plandex/api"
+	streamtui "plandex/stream_tui"
+	"plandex/types"
 
 	"github.com/plandex/plandex/shared"
 )
 
-func updateTokenCounts(content string, numStreamedTokensByPath map[string]int, finishedByPath map[string]bool) error {
-	var planTokenCount shared.PlanTokenCount
-	err := json.Unmarshal([]byte(content), &planTokenCount)
-	if err != nil {
-		return fmt.Errorf("error parsing plan token count update: %v", err)
-	}
-	numStreamedTokensByPath[planTokenCount.Path] += planTokenCount.NumTokens
+var OnStreamPlan api.OnStreamPlan = func(params api.OnStreamPlanParams) {
 
-	if planTokenCount.Finished {
-		finishedByPath[planTokenCount.Path] = true
+	switch params.State.Current() {
+	case shared.STATE_REPLYING:
+		streamtui.Send(types.StreamTUIUpdate{
+			ReplyChunk: params.Content,
+		})
+	case shared.STATE_DESCRIBING:
+		streamtui.Send(types.StreamTUIUpdate{
+			Processing: true,
+		})
+
+	case shared.STATE_BUILDING:
+		var tokenCount shared.PlanTokenCount
+		err := json.Unmarshal([]byte(params.Content), &tokenCount)
+		if err != nil {
+			log.Println("error parsing plan token count update:", err)
+			return
+		}
+		streamtui.Send(types.StreamTUIUpdate{
+			PlanTokenCount: &tokenCount,
+		})
 	}
 
-	return nil
 }
