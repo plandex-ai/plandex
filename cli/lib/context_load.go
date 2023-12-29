@@ -108,6 +108,7 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 				onErr(fmt.Errorf("failed to parse input paths: %v", err))
 			}
 
+			inputFilePaths = flattenedPaths
 			for _, path := range flattenedPaths {
 
 				go func(path string) {
@@ -184,7 +185,7 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 
 	if res.MaxTokensExceeded {
 		overage := res.TotalTokens - shared.MaxContextTokens
-		fmt.Printf("🚨 Update would add %d 🪙 and exceed token limit (%d) by %d 🪙", res.TokensAdded, shared.MaxContextTokens, overage)
+		fmt.Printf("🚨 Update would add %d 🪙 and exceed token limit (%d) by %d 🪙\n", res.TokensAdded, shared.MaxContextTokens, overage)
 		os.Exit(1)
 	}
 
