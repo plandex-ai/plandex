@@ -3,16 +3,20 @@ package streamtui
 import (
 	"fmt"
 	"log"
+	"sync"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
 
 var ui *tea.Program
+var mu sync.Mutex
 
 func StartStreamUI() error {
 	initial := initialModel()
 
+	mu.Lock()
 	ui = tea.NewProgram(initial, tea.WithAltScreen())
+	mu.Unlock()
 
 	_, err := ui.Run()
 
@@ -28,6 +32,8 @@ func Quit() {
 		log.Println("stream ui is nil, can't quit")
 		return
 	}
+	mu.Lock()
+	defer mu.Unlock()
 	ui.Quit()
 }
 
@@ -36,6 +42,7 @@ func Send(msg tea.Msg) {
 		log.Println("stream ui is nil, can't send message")
 		return
 	}
-
+	mu.Lock()
+	defer mu.Unlock()
 	ui.Send(msg)
 }

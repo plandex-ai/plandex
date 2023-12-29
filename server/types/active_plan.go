@@ -49,9 +49,7 @@ func NewActivePlan(prompt string) *ActivePlan {
 				return
 			case msg := <-active.StreamCh:
 				for _, ch := range active.subscriptions {
-					go func(ch chan string) {
-						ch <- msg
-					}(ch)
+					ch <- msg
 				}
 			}
 		}

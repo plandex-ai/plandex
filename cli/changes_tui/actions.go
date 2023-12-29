@@ -108,7 +108,6 @@ func (m *changesUIModel) scrollDown() {
 	} else if m.newScrollable() {
 		m.changeNewViewport.LineDown(1)
 	}
-
 }
 
 func (m *changesUIModel) pageUp() {

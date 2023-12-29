@@ -25,14 +25,14 @@ func (m streamUIModel) renderMainView() string {
 }
 
 func (m streamUIModel) renderHelp() string {
-	style := lipgloss.NewStyle().Width(m.width).Foreground(lipgloss.Color(helpTextColor)).BorderTop(true).BorderForeground(lipgloss.Color(borderColor))
+	style := lipgloss.NewStyle().Width(m.width).Foreground(lipgloss.Color(helpTextColor)).BorderStyle(lipgloss.NormalBorder()).BorderTop(true).BorderForeground(lipgloss.Color(borderColor))
 
-	return style.Render("(s)top")
+	return style.Render(" (s)top")
 }
 
 func (m streamUIModel) renderProcessing() string {
 	if m.processing {
-		style := lipgloss.NewStyle().Width(m.width).BorderTop(true).BorderForeground(lipgloss.Color(borderColor))
+		style := lipgloss.NewStyle().Width(m.width).BorderStyle(lipgloss.NormalBorder()).BorderTop(true).BorderForeground(lipgloss.Color(borderColor))
 
 		return style.Render(m.spinner.View())
 	} else {
@@ -45,11 +45,12 @@ func (m streamUIModel) renderBuild() string {
 		return ""
 	}
 
-	style := lipgloss.NewStyle().Width(m.width).BorderTop(true).BorderForeground(lipgloss.Color(borderColor))
+	style := lipgloss.NewStyle().Width(m.width).BorderStyle(lipgloss.NormalBorder()).BorderTop(true).BorderForeground(lipgloss.Color(borderColor))
 
 	head := color.New(color.BgGreen, color.FgHiWhite, color.Bold).Sprint(" 🏗  ") + color.New(color.BgGreen, color.FgHiWhite).Sprint("Building plan ")
 
 	var lines []string
+	lines = append(lines, head)
 	for filePath, tokens := range m.tokensByPath {
 		finished := m.finishedByPath[filePath]
 		line := fmt.Sprintf("  📄 %s", filePath)
@@ -62,5 +63,5 @@ func (m streamUIModel) renderBuild() string {
 		lines = append(lines, line)
 	}
 
-	return style.Render(head + strings.Join(lines, "\n"))
+	return style.Render(strings.Join(lines, "\n"))
 }

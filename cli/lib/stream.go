@@ -11,7 +11,6 @@ import (
 )
 
 var OnStreamPlan api.OnStreamPlan = func(params api.OnStreamPlanParams) {
-
 	switch params.State.Current() {
 	case shared.STATE_REPLYING:
 		streamtui.Send(types.StreamTUIUpdate{

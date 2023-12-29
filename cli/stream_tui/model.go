@@ -1,8 +1,6 @@
 package streamtui
 
 import (
-	"time"
-
 	bubbleKey "github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/viewport"
@@ -13,9 +11,8 @@ import (
 type streamUIModel struct {
 	keymap keymap
 
-	reply                 string
-	replyDisplay          string
-	replyDisplayUpdatedAt time.Time
+	reply        string
+	replyDisplay string
 
 	replyViewport viewport.Model
 
@@ -32,6 +29,11 @@ type streamUIModel struct {
 }
 
 type keymap = struct {
+	stop,
+	scrollUp,
+	scrollDown,
+	pageUp,
+	pageDown,
 	quit bubbleKey.Binding
 }
 
@@ -46,9 +48,32 @@ func initialModel() *streamUIModel {
 
 	initialState := streamUIModel{
 		keymap: keymap{
+			stop: bubbleKey.NewBinding(
+				bubbleKey.WithKeys("s"),
+				bubbleKey.WithHelp("s", "stop"),
+			),
+
+			scrollDown: bubbleKey.NewBinding(
+				bubbleKey.WithKeys("j"),
+				bubbleKey.WithHelp("j", "scroll down"),
+			),
+
+			scrollUp: bubbleKey.NewBinding(
+				bubbleKey.WithKeys("k"),
+				bubbleKey.WithHelp("k", "scroll up"),
+			),
+
+			pageDown: bubbleKey.NewBinding(
+				bubbleKey.WithKeys("J", "pageDown"),
+				bubbleKey.WithHelp("J", "page down"),
+			),
+
+			pageUp: bubbleKey.NewBinding(
+				bubbleKey.WithKeys("K", "pageUp"),
+				bubbleKey.WithHelp("K", "page up"),
+			),
 			quit: bubbleKey.NewBinding(
-				bubbleKey.WithKeys("q", "ctrl+c"),
-				bubbleKey.WithHelp("q", "quit"),
+				bubbleKey.WithKeys("ctrl+c"),
 			),
 		},
 

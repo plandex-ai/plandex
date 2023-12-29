@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 
 	"github.com/plandex/plandex/shared"
@@ -278,6 +279,7 @@ func (a *Api) DeleteAllPlans(projectId string) error {
 }
 
 func (a *Api) TellPlan(planId string, req shared.TellPlanRequest, onStream OnStreamPlan) error {
+
 	serverUrl := fmt.Sprintf("%s/plans/%s/tell", apiHost, planId)
 	reqBytes, err := json.Marshal(req)
 	if err != nil {
@@ -294,7 +296,6 @@ func (a *Api) TellPlan(planId string, req shared.TellPlanRequest, onStream OnStr
 	if err != nil {
 		return fmt.Errorf("error sending request: %v", err)
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode >= 400 {
 		errorBody, _ := io.ReadAll(resp.Body)
@@ -302,6 +303,7 @@ func (a *Api) TellPlan(planId string, req shared.TellPlanRequest, onStream OnStr
 	}
 
 	if req.ConnectStream {
+		log.Println("Connecting stream")
 		connectPlanRespStream(resp.Body, onStream)
 	}
 

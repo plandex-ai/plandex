@@ -27,12 +27,11 @@ var nextCmd = &cobra.Command{
 func init() {
 	RootCmd.AddCommand(nextCmd)
 
-	tellCmd.Flags().BoolVar(&continueBg, "bg", false, "Execute autonomously in the background")
+	nextCmd.Flags().BoolVar(&continueBg, "bg", false, "Execute autonomously in the background")
 }
 
 func next(cmd *cobra.Command, args []string) {
 	lib.MustResolveProject()
-
 	lib.MustCheckOutdatedContextWithOutput()
 
 	err := api.Client.TellPlan(lib.CurrentPlanId, shared.TellPlanRequest{

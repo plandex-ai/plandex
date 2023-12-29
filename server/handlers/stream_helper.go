@@ -9,6 +9,8 @@ import (
 )
 
 func startResponseStream(w http.ResponseWriter, ch chan string, ctx context.Context, closeFn func()) {
+	log.Println("Response stream manager: starting plan stream")
+
 	w.Header().Set("Transfer-Encoding", "chunked")
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 
@@ -23,6 +25,8 @@ func startResponseStream(w http.ResponseWriter, ch chan string, ctx context.Cont
 			log.Println("Response stream manager: context done")
 			return
 		case msg := <-ch:
+			log.Println("Response stream manager: sending message:", msg)
+
 			bytes := []byte(msg + shared.STREAM_MESSAGE_SEPARATOR)
 			_, err := w.Write(bytes)
 			if err != nil {

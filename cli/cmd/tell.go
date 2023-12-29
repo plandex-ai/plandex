@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"plandex/api"
@@ -38,6 +39,8 @@ func init() {
 }
 
 func tell(cmd *cobra.Command, args []string) {
+	lib.MustResolveProject()
+
 	var prompt string
 
 	if len(args) > 0 {
@@ -117,6 +120,19 @@ func tell(cmd *cobra.Command, args []string) {
 
 	lib.MustCheckOutdatedContextWithOutput()
 
+	if !tellBg {
+		go func() {
+			err := streamtui.StartStreamUI()
+
+			if err != nil {
+				fmt.Fprintln(os.Stderr, "Error starting stream UI:", err)
+				os.Exit(1)
+			}
+
+			os.Exit(0)
+		}()
+	}
+
 	err := api.Client.TellPlan(lib.CurrentPlanId, shared.TellPlanRequest{
 		Prompt:        prompt,
 		ConnectStream: !tellBg,
@@ -126,14 +142,15 @@ func tell(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	if !tellBg {
-		err = streamtui.StartStreamUI()
+	log.Println("Prompt sent")
 
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "Error starting stream UI:", err)
-			return
-		}
+	if tellBg {
+		fmt.Println("✅ Prompt sent")
+	} else {
+		// Wait for stream UI to quit
+		select {}
 	}
+
 }
 
 func prepareEditorCommand(editor string, filename string) *exec.Cmd {

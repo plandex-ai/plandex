@@ -81,7 +81,7 @@ func (m changesUIModel) renderMainViewHeader() string {
 			if numChanges == 1 {
 				suffix = ""
 			}
-			header = fmt.Sprintf(" ✅ Final state of %s including %d change%s", m.selectionInfo.currentPath, numChanges, suffix)
+			header = fmt.Sprintf(" ✅ Final state of %s (%d change%s)", m.selectionInfo.currentPath, numChanges, suffix)
 		} else {
 			header = fmt.Sprintf(" ✅ New file: %s", m.selectionInfo.currentPath)
 		}

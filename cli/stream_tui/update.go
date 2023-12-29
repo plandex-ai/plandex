@@ -1,10 +1,8 @@
 package streamtui
 
 import (
-	"log"
 	"plandex/term"
 	"plandex/types"
-	"time"
 
 	bubbleKey "github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/spinner"
@@ -13,10 +11,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-const displayThrottle = 150 * time.Millisecond
-
-func (m streamUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-
+func (m *streamUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 
 	case spinner.TickMsg:
@@ -30,43 +25,20 @@ func (m streamUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.windowResized(msg.Width, msg.Height)
 
 	case types.StreamTUIUpdate:
-		now := time.Now()
-
-		if msg.PlanTokenCount != nil {
-			m.processing = false
-			m.building = true
-
-			if m.replyDisplay != m.reply {
-				m.updateReplyDisplay(now)
-			}
-
-			m.tokensByPath[msg.PlanTokenCount.Path] += msg.PlanTokenCount.NumTokens
-			if msg.PlanTokenCount.Finished {
-				m.finishedByPath[msg.PlanTokenCount.Path] = true
-			}
-		} else if msg.ReplyChunk != "" {
-			m.processing = false
-
-			elapsed := now.Sub(m.replyDisplayUpdatedAt)
-
-			m.reply += msg.ReplyChunk
-
-			if elapsed >= displayThrottle {
-				m.updateReplyDisplay(now)
-			}
-
-		} else if msg.Processing {
-			m.processing = true
-			if m.replyDisplay != m.reply {
-				m.updateReplyDisplay(now)
-			}
-			return m, m.spinner.Tick
-		}
+		return m.streamUpdate(&msg)
 
 	case tea.KeyMsg:
 		switch {
 		case bubbleKey.Matches(msg, m.keymap.quit):
 			return m, tea.Quit
+		case bubbleKey.Matches(msg, m.keymap.scrollDown):
+			m.scrollDown()
+		case bubbleKey.Matches(msg, m.keymap.scrollUp):
+			m.scrollUp()
+		case bubbleKey.Matches(msg, m.keymap.pageDown):
+			m.pageDown()
+		case bubbleKey.Matches(msg, m.keymap.pageUp):
+			m.pageUp()
 		}
 	}
 
@@ -76,24 +48,90 @@ func (m streamUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m *streamUIModel) windowResized(w, h int) {
 	m.width = w
 	m.height = h
+
+	_, viewportHeight := m.getViewportDimensions()
+
 	if m.ready {
-		m.replyViewport.Width = w
-		m.replyViewport.Height = h
+		m.updateViewportDimensions()
 	} else {
-		m.replyViewport = viewport.New(w, h)
+		m.replyViewport = viewport.New(w, viewportHeight)
 		m.replyViewport.Style = lipgloss.NewStyle().Padding(0, 1, 0, 1)
 		m.ready = true
 	}
 }
 
-func (m *streamUIModel) updateReplyDisplay(now time.Time) {
-	m.replyDisplay = m.reply
-	md, err := term.GetMarkdown(m.reply)
-	if err != nil {
-		log.Println("error parsing markdown:", err)
-		return
+func (m *streamUIModel) updateReplyDisplay() {
+	md, _ := term.GetMarkdown(m.reply)
+	m.replyDisplay = md
+	m.replyViewport.SetContent(md)
+	m.updateViewportDimensions()
+}
+
+func (m *streamUIModel) updateViewportDimensions() {
+	w, h := m.getViewportDimensions()
+	m.replyViewport.Width = w
+	m.replyViewport.Height = h
+}
+
+func (m *streamUIModel) getViewportDimensions() (int, int) {
+	w := m.width
+	h := m.height
+
+	helpHeight := lipgloss.Height(m.renderHelp())
+	buildHeight := lipgloss.Height(m.renderBuild())
+	processingHeight := lipgloss.Height(m.renderProcessing())
+	maxViewportHeight := h - (helpHeight + buildHeight + processingHeight)
+	viewportHeight := min(maxViewportHeight, lipgloss.Height(m.replyDisplay))
+
+	return w, viewportHeight
+}
+
+func (m streamUIModel) replyScrollable() bool {
+	return m.replyViewport.TotalLineCount() > m.replyViewport.VisibleLineCount()
+}
+
+func (m *streamUIModel) scrollDown() {
+	if m.replyScrollable() {
+		m.replyViewport.LineDown(1)
+	}
+}
+
+func (m *streamUIModel) scrollUp() {
+	if m.replyScrollable() {
+		m.replyViewport.LineUp(1)
+	}
+}
+
+func (m *streamUIModel) pageDown() {
+	if m.replyScrollable() {
+		m.replyViewport.ViewDown()
+	}
+}
+
+func (m *streamUIModel) pageUp() {
+	if m.replyScrollable() {
+		m.replyViewport.ViewUp()
+	}
+}
+
+func (m *streamUIModel) streamUpdate(msg *types.StreamTUIUpdate) (tea.Model, tea.Cmd) {
+	if msg.PlanTokenCount != nil {
+		m.processing = false
+		m.building = true
+
+		m.tokensByPath[msg.PlanTokenCount.Path] += msg.PlanTokenCount.NumTokens
+		if msg.PlanTokenCount.Finished {
+			m.finishedByPath[msg.PlanTokenCount.Path] = true
+		}
+	} else if msg.ReplyChunk != "" {
+		m.processing = false
+		m.reply += msg.ReplyChunk
+		m.updateReplyDisplay()
+
+	} else if msg.Processing {
+		m.processing = true
+		return m, m.spinner.Tick
 	}
 
-	m.replyViewport.SetContent(md)
-	m.replyDisplayUpdatedAt = now
+	return m, nil
 }

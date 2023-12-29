@@ -43,14 +43,14 @@ func GenPlanName(planContent string) (string, error) {
 	for _, choice := range resp.Choices {
 		if choice.FinishReason == "function_call" &&
 			choice.Message.FunctionCall != nil &&
-			choice.Message.FunctionCall.Name == "describePlan" {
+			choice.Message.FunctionCall.Name == "namePlan" {
 			fnCall := choice.Message.FunctionCall
 			res = fnCall.Arguments
 		}
 	}
 
 	if res == "" {
-		fmt.Println("no describePlan function call found in response")
+		fmt.Println("no namePlan function call found in response")
 		return "", err
 	}
 

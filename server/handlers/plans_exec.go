@@ -31,7 +31,10 @@ func TellPlanHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Error reading request body", http.StatusInternalServerError)
 		return
 	}
-	defer r.Body.Close()
+	defer func() {
+		log.Println("Closing request body")
+		r.Body.Close()
+	}()
 
 	var requestBody shared.TellPlanRequest
 	if err := json.Unmarshal(body, &requestBody); err != nil {

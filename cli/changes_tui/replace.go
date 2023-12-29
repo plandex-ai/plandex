@@ -98,6 +98,9 @@ func (m changesUIModel) getReplacementOldDisplay() oldReplacementRes {
 
 	oldDisplayContent := toPrepend + oldContent + toAppend
 
+	numLinesPrepended = len(toPrependLines)
+	numLinesAppended = len(toAppendLines)
+
 	return oldReplacementRes{
 		oldContent,
 		oldDisplayContent,

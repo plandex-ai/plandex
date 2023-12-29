@@ -38,8 +38,8 @@ func (m changesUIModel) getMainViewDims() (int, int) {
 	sidebarWidth := lipgloss.Width(m.renderSidebar())
 	mainViewHeaderHeight := lipgloss.Height(m.renderMainViewHeader())
 	mainViewFooterHeight := lipgloss.Height(m.renderMainViewFooter())
-	mainViewWidth := m.width - sidebarWidth
 
+	mainViewWidth := m.width - sidebarWidth
 	mainViewHeight := m.height - (helpHeight + tabsHeight)
 
 	if m.selectedFullFile() {
@@ -104,7 +104,7 @@ func (m changesUIModel) renderHelp() string {
 		help += "(←/→) select file • "
 	}
 
-	if m.renderSidebar() != "" {
+	if m.selectionInfo != nil {
 		help += "(↑/↓) select change • "
 	}
 
@@ -137,14 +137,14 @@ func (m *changesUIModel) scrollReplacementIntoView(oldContent, newContent string
 			return
 		}
 
+		totalLines := view.TotalLineCount()
 		visibleLines := view.VisibleLineCount()
 		contentLines := len(strings.Split(content, "\n"))
 
 		if contentLines >= (visibleLines - 2) {
 			view.LineDown(numLinesPrepended - 2)
 		} else {
-			diffAround := visibleLines - contentLines
-			toScroll := numLinesPrepended - diffAround/2
+			toScroll := getSnippetScrollPosition(totalLines, visibleLines, numLinesPrepended, contentLines)
 			view.LineDown(toScroll)
 		}
 	}
@@ -155,4 +155,18 @@ func (m *changesUIModel) scrollReplacementIntoView(oldContent, newContent string
 	if m.newScrollable() {
 		scrollView(newContent, &m.changeNewViewport)
 	}
+}
+
+func getSnippetScrollPosition(totalLines, viewportHeight, snippetLineIndex, snippetHeight int) int {
+	snippetMiddleLine := snippetLineIndex + snippetHeight/2
+	viewportMiddleLine := viewportHeight / 2
+
+	// Initial target scroll position
+	scrollPosition := snippetMiddleLine - viewportMiddleLine
+
+	// Adjust for bounds
+	scrollPosition = max(scrollPosition, 0)                         // Adjust for top bound
+	scrollPosition = min(scrollPosition, totalLines-viewportHeight) // Adjust for bottom bound
+
+	return scrollPosition
 }

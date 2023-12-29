@@ -4,8 +4,8 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	"fmt"
 	"io"
+	"log"
 
 	"github.com/plandex/plandex/shared"
 )
@@ -18,12 +18,14 @@ func connectPlanRespStream(body io.ReadCloser, onStream OnStreamPlan) {
 		for {
 			s, err := readUntilSeparator(reader, shared.STREAM_MESSAGE_SEPARATOR)
 			if err != nil {
-				fmt.Println("Error reading line:", err)
+				log.Println("Error reading line:", err)
 				streamState.Event(context.Background(), shared.EVENT_ERROR)
 				onStream(OnStreamPlanParams{Content: "", State: streamState, Err: err})
 				body.Close()
 				return
 			}
+
+			// log.Println("Stream received:", s)
 
 			if s == shared.STREAM_FINISHED || s == shared.STREAM_ABORTED {
 				var evt string
@@ -34,7 +36,7 @@ func connectPlanRespStream(body io.ReadCloser, onStream OnStreamPlan) {
 				}
 				err := streamState.Event(context.Background(), evt)
 				if err != nil {
-					fmt.Printf("Error triggering state change %s: %s\n", evt, err)
+					log.Printf("Error triggering state change %s: %s\n", evt, err)
 				}
 				onStream(OnStreamPlanParams{Content: "", State: streamState, Err: err})
 				body.Close()
@@ -48,7 +50,7 @@ func connectPlanRespStream(body io.ReadCloser, onStream OnStreamPlan) {
 			}
 
 			if err != nil {
-				fmt.Println("Error setting state:", err)
+				log.Println("Error setting state:", err)
 				onStream(OnStreamPlanParams{Content: "", State: streamState, Err: err})
 				body.Close()
 				return
