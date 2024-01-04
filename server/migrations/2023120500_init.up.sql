@@ -12,13 +12,11 @@ CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name VARCHAR(255) NOT NULL,
   email VARCHAR(255) NOT NULL,
+  is_trial BOOLEAN NOT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 CREATE TRIGGER update_users_modtime BEFORE UPDATE ON users FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
--- Default user, remove when auth is implemented
-INSERT INTO users (id, name, email) VALUES ('bc9c75ee-57b0-4552-aa1b-f80cf8c09f3f', 'Default User', 'dane.schneider@gmail.com');
 
 CREATE TABLE IF NOT EXISTS orgs (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -26,22 +24,11 @@ CREATE TABLE IF NOT EXISTS orgs (
   domain VARCHAR(255),
   auto_add_domain_users BOOLEAN NOT NULL DEFAULT FALSE,
   creator_id UUID NOT NULL REFERENCES users(id),
+  is_trial BOOLEAN NOT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 CREATE TRIGGER update_orgs_modtime BEFORE UPDATE ON orgs FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
--- Default org, remove when auth is implemented
-INSERT INTO orgs (id, name, creator_id) VALUES ('2ff5bc12-1160-4305-8707-9a165319de5a', 'Default Org', 'bc9c75ee-57b0-4552-aa1b-f80cf8c09f3f');
-
-CREATE TABLE IF NOT EXISTS projects (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  org_id UUID NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
-  name VARCHAR(255) NOT NULL,
-  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
-);
-CREATE TRIGGER update_projects_modtime BEFORE UPDATE ON projects FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TABLE IF NOT EXISTS orgs_users (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -51,6 +38,23 @@ CREATE TABLE IF NOT EXISTS orgs_users (
   updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 CREATE TRIGGER update_orgs_users_modtime BEFORE UPDATE ON orgs_users FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TABLE IF NOT EXISTS auth_tokens (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token_hash VARCHAR(64) NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+CREATE INDEX auth_tokens_hash_idx ON auth_tokens(token_hash);
+
+CREATE TABLE IF NOT EXISTS projects (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  org_id UUID NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
+  name VARCHAR(255) NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+CREATE TRIGGER update_projects_modtime BEFORE UPDATE ON projects FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TABLE IF NOT EXISTS plans (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

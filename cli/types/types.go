@@ -2,6 +2,22 @@ package types
 
 import "github.com/plandex/plandex/shared"
 
+type ClientAccount struct {
+	UserName string `json:"userName"`
+	UserId   string `json:"userId"`
+	Token    string `json:"token"`
+	IsTrial  bool   `json:"isTrial"`
+}
+
+type ClientAuth struct {
+	OrgId    string `json:"orgId"`
+	OrgName  string `json:"orgName"`
+	UserId   string `json:"userId"`
+	UserName string `json:"userName"`
+	Token    string `json:"token"`
+	IsTrial  bool   `json:"isTrial"`
+}
+
 type LoadContextParams struct {
 	Note      string
 	Recursive bool
@@ -30,8 +46,7 @@ type PlanSettings struct {
 }
 
 type ProjectSettings struct {
-	Id    string `json:"id"`
-	OrgId string `json:"orgId"`
+	Id string `json:"id"`
 }
 
 type StreamTUIUpdate struct {

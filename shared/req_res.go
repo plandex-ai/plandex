@@ -1,12 +1,19 @@
 package shared
 
+type StartTrialResponse struct {
+	UserId   string `json:"userId"`
+	Token    string `json:"token"`
+	OrgId    string `json:"orgId"`
+	UserName string `json:"userName"`
+	OrgName  string `json:"orgName"`
+}
+
 type CreateProjectRequest struct {
 	Name string `json:"name"`
 }
 
 type CreateProjectResponse struct {
-	Id    string `json:"id"`
-	OrgId string `json:"orgId"`
+	Id string `json:"id"`
 }
 
 type SetProjectPlanRequest struct {

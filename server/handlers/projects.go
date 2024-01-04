@@ -50,8 +50,7 @@ func CreateProjectHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp := shared.CreateProjectResponse{
-		Id:    id,
-		OrgId: currentOrgId,
+		Id: id,
 	}
 
 	bytes, err := json.Marshal(resp)

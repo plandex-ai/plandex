@@ -5,7 +5,6 @@ go 1.21.3
 require (
 	github.com/atotto/clipboard v0.1.4
 	github.com/charmbracelet/lipgloss v0.9.1
-	github.com/davecgh/go-spew v1.1.1
 	github.com/fatih/color v1.16.0
 	github.com/looplab/fsm v1.0.1
 	github.com/muesli/reflow v0.3.0

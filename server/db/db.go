@@ -3,6 +3,7 @@ package db
 import (
 	"errors"
 	"fmt"
+	"log"
 	"os"
 
 	"github.com/golang-migrate/migrate/v4"
@@ -47,24 +48,37 @@ func MigrationsUp() error {
 		return fmt.Errorf("error creating migration instance: %v", err)
 	}
 
-	// Uncomment below to reset migration state after an error / dirty state
-	// // Check if database is dirty
-	// version, dirty, err := m.Version()
-	// if err != nil {
-	// 	return fmt.Errorf("error getting migration version: %v", err)
+	// Uncomment below to reset migration state to a specific version after a failure
+	// if err := m.Force(); err != nil {
+	// 	return fmt.Errorf("error forcing migration version: %v", err)
 	// }
 
-	// if dirty {
-	// 	// Force the version to the current version to clean the dirty state
-	// 	if err := m.Force(int(version)); err != nil {
-	// 		return fmt.Errorf("error forcing migration version: %v", err)
+	// Uncomment below to run down migrations in development (resets database)
+	// if os.Getenv("GOENV") == "development" {
+	// 	err = m.Down()
+	// 	if err != nil {
+	// 		if err == migrate.ErrNoChange {
+	// 			log.Println("no migrations to run down")
+	// 		} else {
+	// 			return fmt.Errorf("error running down migrations: %v", err)
+	// 		}
 	// 	}
+	// 	log.Println("database reset")
 	// }
 
 	err = m.Up()
 
-	if err != nil && err != migrate.ErrNoChange {
-		return fmt.Errorf("error running migrations: %v", err)
+	if err != nil {
+		if err == migrate.ErrNoChange {
+			log.Println("migration state is up to date")
+		} else {
+
+			return fmt.Errorf("error running migrations: %v", err)
+		}
+	}
+
+	if err == nil {
+		log.Println("ran migrations successfully")
 	}
 
 	return nil

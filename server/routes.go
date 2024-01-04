@@ -15,6 +15,8 @@ func InitRoutes() *mux.Router {
 		fmt.Fprintf(w, "OK")
 	})
 
+	r.HandleFunc("/accounts/start-trial", handlers.StartTrialHandler).Methods("POST")
+
 	r.HandleFunc("/projects", handlers.CreateProjectHandler).Methods("POST")
 	r.HandleFunc("/projects", handlers.ListProjectsHandler).Methods("GET")
 	r.HandleFunc("/projects/{projectId}/set-plan", handlers.ProjectSetPlanHandler).Methods("PUT")

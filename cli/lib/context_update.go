@@ -12,7 +12,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/fatih/color"
 	"github.com/olekukonko/tablewriter"
@@ -20,28 +19,15 @@ import (
 )
 
 func MustCheckOutdatedContextWithOutput() {
-	s := term.Spinner
-	start := time.Now()
-	s.Prefix = "🔬 Checking context... "
-	s.Start()
-
-	stopSpinner := func() {
-		s.Stop()
-		term.ClearCurrentLine()
-	}
+	term.StartSpinner("🔬 Checking context...")
 
 	outdatedRes, err := CheckOutdatedContext()
 	if err != nil {
-		stopSpinner()
+		term.StopSpinner()
 		panic(fmt.Errorf("failed to check outdated context: %s", err))
 	}
 
-	elapsed := time.Since(start)
-	if elapsed < 700*time.Millisecond {
-		time.Sleep(700*time.Millisecond - elapsed)
-	}
-
-	stopSpinner()
+	term.StopSpinner()
 
 	if len(outdatedRes.UpdatedContexts) == 0 {
 		fmt.Println("✅ Context is up to date")
@@ -114,30 +100,17 @@ func MustCheckOutdatedContextWithOutput() {
 }
 
 func MustUpdateContextWithOuput() {
-	timeStart := time.Now()
-
-	s := term.Spinner
-	s.Prefix = "🔄 Updating context... "
-	s.Start()
-
-	stopFn := func() {
-		elapsed := time.Since(timeStart)
-		if elapsed < 700*time.Millisecond {
-			time.Sleep(700*time.Millisecond - elapsed)
-		}
-		s.Stop()
-		term.ClearCurrentLine()
-	}
+	term.StartSpinner("🔄 Updating context...")
 
 	updateRes, err := UpdateContext()
 
 	if err != nil {
-		stopFn()
+		term.StopSpinner()
 		fmt.Fprintln(os.Stderr, "Error updating context:", err)
 		os.Exit(1)
 	}
 
-	stopFn()
+	term.StopSpinner()
 
 	fmt.Println("✅ " + updateRes.Msg)
 

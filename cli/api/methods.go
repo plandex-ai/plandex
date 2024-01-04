@@ -7,9 +7,34 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"plandex/types"
 
 	"github.com/plandex/plandex/shared"
 )
+
+func (a *Api) StartTrial() (*shared.StartTrialResponse, error) {
+	serverUrl := apiHost + "/accounts/start-trial"
+
+	resp, err := unauthenticatedClient.Post(serverUrl, "application/json", nil)
+	if err != nil {
+		return nil, fmt.Errorf("error sending request: %v", err)
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		errorBody, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("error starting trial: %d - %s", resp.StatusCode, string(errorBody))
+	}
+
+	var startTrialResponse shared.StartTrialResponse
+	err = json.NewDecoder(resp.Body).Decode(&startTrialResponse)
+	if err != nil {
+		return nil, fmt.Errorf("error decoding response: %v", err)
+	}
+
+	return &startTrialResponse, nil
+}
 
 func (a *Api) CreateProject(req shared.CreateProjectRequest) (*shared.CreateProjectResponse, error) {
 	serverUrl := apiHost + "/projects"
@@ -18,7 +43,7 @@ func (a *Api) CreateProject(req shared.CreateProjectRequest) (*shared.CreateProj
 		return nil, fmt.Errorf("error marshalling request: %v", err)
 	}
 
-	resp, err := http.Post(serverUrl, "application/json", bytes.NewBuffer(reqBytes))
+	resp, err := authenticatedFastClient.Post(serverUrl, "application/json", bytes.NewBuffer(reqBytes))
 	if err != nil {
 		return nil, fmt.Errorf("error sending request: %v", err)
 	}
@@ -40,7 +65,7 @@ func (a *Api) CreateProject(req shared.CreateProjectRequest) (*shared.CreateProj
 
 func (a *Api) ListProjects() ([]*shared.Project, error) {
 	serverUrl := apiHost + "/projects"
-	resp, err := http.Get(serverUrl)
+	resp, err := authenticatedFastClient.Get(serverUrl)
 	if err != nil {
 		return nil, fmt.Errorf("error sending request: %v", err)
 	}
@@ -73,7 +98,7 @@ func (a *Api) SetProjectPlan(projectId string, req shared.SetProjectPlanRequest)
 	}
 	request.Header.Set("Content-Type", "application/json")
 
-	resp, err := http.DefaultClient.Do(request)
+	resp, err := authenticatedFastClient.Do(request)
 	if err != nil {
 		return fmt.Errorf("error sending request: %v", err)
 	}
@@ -100,7 +125,7 @@ func (a *Api) RenameProject(projectId string, req shared.RenameProjectRequest) e
 	}
 	request.Header.Set("Content-Type", "application/json")
 
-	resp, err := http.DefaultClient.Do(request)
+	resp, err := authenticatedFastClient.Do(request)
 	if err != nil {
 		return fmt.Errorf("error sending request: %v", err)
 	}
@@ -117,7 +142,7 @@ func (a *Api) RenameProject(projectId string, req shared.RenameProjectRequest) e
 func (a *Api) ListPlans(projectId string) ([]*shared.Plan, error) {
 	serverUrl := fmt.Sprintf("%s/projects/%s/plans", apiHost, projectId)
 
-	resp, err := http.Get(serverUrl)
+	resp, err := authenticatedFastClient.Get(serverUrl)
 	if err != nil {
 		return nil, fmt.Errorf("error sending request: %v", err)
 	}
@@ -140,7 +165,7 @@ func (a *Api) ListPlans(projectId string) ([]*shared.Plan, error) {
 func (a *Api) ListArchivedPlans(projectId string) ([]*shared.Plan, error) {
 	serverUrl := fmt.Sprintf("%s/projects/%s/plans/archive", apiHost, projectId)
 
-	resp, err := http.Get(serverUrl)
+	resp, err := authenticatedFastClient.Get(serverUrl)
 	if err != nil {
 		return nil, fmt.Errorf("error sending request: %v", err)
 	}
@@ -163,7 +188,7 @@ func (a *Api) ListArchivedPlans(projectId string) ([]*shared.Plan, error) {
 func (a *Api) ListPlansRunning(projectId string) ([]*shared.Plan, error) {
 	serverUrl := fmt.Sprintf("%s/projects/%s/plans/ps", apiHost, projectId)
 
-	resp, err := http.Get(serverUrl)
+	resp, err := authenticatedFastClient.Get(serverUrl)
 	if err != nil {
 		return nil, fmt.Errorf("error sending request: %v", err)
 	}
@@ -190,7 +215,7 @@ func (a *Api) CreatePlan(projectId string, req shared.CreatePlanRequest) (*share
 		return nil, fmt.Errorf("error marshalling request: %v", err)
 	}
 
-	resp, err := http.Post(serverUrl, "application/json", bytes.NewBuffer(reqBytes))
+	resp, err := authenticatedFastClient.Post(serverUrl, "application/json", bytes.NewBuffer(reqBytes))
 	if err != nil {
 		return nil, fmt.Errorf("error sending request: %v", err)
 	}
@@ -213,7 +238,7 @@ func (a *Api) CreatePlan(projectId string, req shared.CreatePlanRequest) (*share
 func (a *Api) GetPlan(planId string) (*shared.Plan, error) {
 	serverUrl := fmt.Sprintf("%s/plans/%s", apiHost, planId)
 
-	resp, err := http.Get(serverUrl)
+	resp, err := authenticatedFastClient.Get(serverUrl)
 	if err != nil {
 		return nil, fmt.Errorf("error sending request: %v", err)
 	}
@@ -242,7 +267,7 @@ func (a *Api) DeletePlan(planId string) error {
 		return fmt.Errorf("error creating request: %v", err)
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := authenticatedFastClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("error sending request: %v", err)
 	}
@@ -264,7 +289,7 @@ func (a *Api) DeleteAllPlans(projectId string) error {
 		return fmt.Errorf("error creating request: %v", err)
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := authenticatedFastClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("error sending request: %v", err)
 	}
@@ -278,7 +303,7 @@ func (a *Api) DeleteAllPlans(projectId string) error {
 	return nil
 }
 
-func (a *Api) TellPlan(planId string, req shared.TellPlanRequest, onStream OnStreamPlan) error {
+func (a *Api) TellPlan(planId string, req shared.TellPlanRequest, onStream types.OnStreamPlan) error {
 
 	serverUrl := fmt.Sprintf("%s/plans/%s/tell", apiHost, planId)
 	reqBytes, err := json.Marshal(req)
@@ -292,7 +317,14 @@ func (a *Api) TellPlan(planId string, req shared.TellPlanRequest, onStream OnStr
 	}
 	request.Header.Set("Content-Type", "application/json")
 
-	resp, err := http.DefaultClient.Do(request)
+	var client *http.Client
+	if req.ConnectStream {
+		client = authenticatedStreamingClient
+	} else {
+		client = authenticatedFastClient
+	}
+
+	resp, err := client.Do(request)
 	if err != nil {
 		return fmt.Errorf("error sending request: %v", err)
 	}
@@ -310,7 +342,7 @@ func (a *Api) TellPlan(planId string, req shared.TellPlanRequest, onStream OnStr
 	return nil
 }
 
-func (a *Api) ConnectPlan(planId string, onStream OnStreamPlan) error {
+func (a *Api) ConnectPlan(planId string, onStream types.OnStreamPlan) error {
 	serverUrl := fmt.Sprintf("%s/plans/%s/connect", apiHost, planId)
 
 	req, err := http.NewRequest(http.MethodPatch, serverUrl, nil)
@@ -318,7 +350,7 @@ func (a *Api) ConnectPlan(planId string, onStream OnStreamPlan) error {
 		return fmt.Errorf("error creating request: %v", err)
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := authenticatedStreamingClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("error sending request: %v", err)
 	}
@@ -342,7 +374,7 @@ func (a *Api) StopPlan(planId string) error {
 		return fmt.Errorf("error creating request: %v", err)
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := authenticatedFastClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("error sending request: %v", err)
 	}
@@ -359,7 +391,7 @@ func (a *Api) StopPlan(planId string) error {
 func (a *Api) GetCurrentPlanState(planId string) (*shared.CurrentPlanState, error) {
 	serverUrl := fmt.Sprintf("%s/plans/%s/current_plan", apiHost, planId)
 
-	resp, err := http.Get(serverUrl)
+	resp, err := authenticatedFastClient.Get(serverUrl)
 	if err != nil {
 		return nil, fmt.Errorf("error sending request: %v", err)
 	}
@@ -387,7 +419,7 @@ func (a *Api) ApplyPlan(planId string) error {
 		return fmt.Errorf("error creating request: %v", err)
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := authenticatedFastClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("error sending request: %v", err)
 	}
@@ -409,7 +441,7 @@ func (a *Api) ArchivePlan(planId string) error {
 		return fmt.Errorf("error creating request: %v", err)
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := authenticatedFastClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("error sending request: %v", err)
 	}
@@ -431,7 +463,7 @@ func (a *Api) RejectAllChanges(planId string) error {
 		return fmt.Errorf("error creating request: %v", err)
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := authenticatedFastClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("error sending request: %v", err)
 	}
@@ -453,7 +485,7 @@ func (a *Api) RejectResult(planId, resultId string) error {
 		return fmt.Errorf("error creating request: %v", err)
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := authenticatedFastClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("error sending request: %v", err)
 	}
@@ -475,7 +507,7 @@ func (a *Api) RejectReplacement(planId, resultId, replacementId string) error {
 		return fmt.Errorf("error creating request: %v", err)
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := authenticatedFastClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("error sending request: %v", err)
 	}
@@ -496,7 +528,8 @@ func (a *Api) LoadContext(planId string, req shared.LoadContextRequest) (*shared
 		return nil, fmt.Errorf("error marshalling request: %v", err)
 	}
 
-	resp, err := http.Post(serverUrl, "application/json", bytes.NewBuffer(reqBytes))
+	// use the slow client since we may be uploading relatively large files
+	resp, err := authenticatedSlowClient.Post(serverUrl, "application/json", bytes.NewBuffer(reqBytes))
 	if err != nil {
 		return nil, fmt.Errorf("error sending request: %v", err)
 	}
@@ -532,7 +565,8 @@ func (a *Api) UpdateContext(planId string, req shared.UpdateContextRequest) (*sh
 
 	request.Header.Set("Content-Type", "application/json")
 
-	resp, err := http.DefaultClient.Do(request)
+	// use the slow client since we may be uploading relatively large files
+	resp, err := authenticatedSlowClient.Do(request)
 	if err != nil {
 		return nil, fmt.Errorf("error sending request: %v", err)
 	}
@@ -565,7 +599,7 @@ func (a *Api) DeleteContext(planId string, req shared.DeleteContextRequest) (*sh
 	}
 	request.Header.Set("Content-Type", "application/json")
 
-	resp, err := http.DefaultClient.Do(request)
+	resp, err := authenticatedFastClient.Do(request)
 	if err != nil {
 		return nil, fmt.Errorf("error sending request: %v", err)
 	}
@@ -588,7 +622,7 @@ func (a *Api) DeleteContext(planId string, req shared.DeleteContextRequest) (*sh
 func (a *Api) ListContext(planId string) ([]*shared.Context, error) {
 	serverUrl := fmt.Sprintf("%s/plans/%s/context", apiHost, planId)
 
-	resp, err := http.Get(serverUrl)
+	resp, err := authenticatedFastClient.Get(serverUrl)
 	if err != nil {
 		return nil, fmt.Errorf("error sending request: %v", err)
 	}
@@ -611,7 +645,7 @@ func (a *Api) ListContext(planId string) ([]*shared.Context, error) {
 func (a *Api) ListConvo(planId string) ([]*shared.ConvoMessage, error) {
 	serverUrl := fmt.Sprintf("%s/plans/%s/convo", apiHost, planId)
 
-	resp, err := http.Get(serverUrl)
+	resp, err := authenticatedFastClient.Get(serverUrl)
 	if err != nil {
 		return nil, fmt.Errorf("error sending request: %v", err)
 	}
@@ -634,7 +668,7 @@ func (a *Api) ListConvo(planId string) ([]*shared.ConvoMessage, error) {
 func (a *Api) ListLogs(planId string) (*shared.LogResponse, error) {
 	serverUrl := fmt.Sprintf("%s/plans/%s/logs", apiHost, planId)
 
-	resp, err := http.Get(serverUrl)
+	resp, err := authenticatedFastClient.Get(serverUrl)
 	if err != nil {
 		return nil, fmt.Errorf("error sending request: %v", err)
 	}
@@ -668,7 +702,7 @@ func (a *Api) RewindPlan(planId string, req shared.RewindPlanRequest) (*shared.R
 	}
 	request.Header.Set("Content-Type", "application/json")
 
-	resp, err := http.DefaultClient.Do(request)
+	resp, err := authenticatedFastClient.Do(request)
 	if err != nil {
 		return nil, fmt.Errorf("error sending request: %v", err)
 	}

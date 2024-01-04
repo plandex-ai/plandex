@@ -3,14 +3,13 @@ package lib
 import (
 	"encoding/json"
 	"log"
-	"plandex/api"
 	streamtui "plandex/stream_tui"
 	"plandex/types"
 
 	"github.com/plandex/plandex/shared"
 )
 
-var OnStreamPlan api.OnStreamPlan = func(params api.OnStreamPlanParams) {
+var OnStreamPlan types.OnStreamPlan = func(params types.OnStreamPlanParams) {
 	switch params.State.Current() {
 	case shared.STATE_REPLYING:
 		streamtui.Send(types.StreamTUIUpdate{

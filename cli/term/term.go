@@ -5,9 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
-	"time"
 
-	"github.com/briandowns/spinner"
 	"github.com/eiannone/keyboard"
 	"github.com/fatih/color"
 	"golang.org/x/term"
@@ -32,8 +30,6 @@ var CmdDesc = map[string][2]string{
 	"plans":       {"", "list plans"},
 	"update":      {"u", "update outdated context"},
 }
-
-var Spinner = spinner.New(spinner.CharSets[33], 100*time.Millisecond)
 
 func PrintCmds(prefix string, cmds ...string) {
 	for _, cmd := range cmds {

@@ -3,15 +3,16 @@ package lib
 import (
 	"fmt"
 	"os"
+	"plandex/fs"
 )
 
 func SetCurrentPlan(id string) error {
-	if HomePlandexDir == "" {
+	if fs.HomePlandexDir == "" {
 		return fmt.Errorf("HomePlandexDir not set")
 	}
 
 	if CurrentProjectId == "" || HomeCurrentPlanPath == "" {
-		return fmt.Errorf("No current project")
+		return fmt.Errorf("no current project")
 	}
 
 	err := os.WriteFile(HomeCurrentPlanPath, []byte(fmt.Sprintf(`{"id": "%s"}`, id)), 0644)
@@ -23,12 +24,12 @@ func SetCurrentPlan(id string) error {
 }
 
 func ClearCurrentPlan() error {
-	if HomePlandexDir == "" {
+	if fs.HomePlandexDir == "" {
 		return fmt.Errorf("HomePlandexDir not set")
 	}
 
 	if CurrentProjectId == "" || HomeCurrentPlanPath == "" {
-		return fmt.Errorf("No current project")
+		return fmt.Errorf("no current project")
 	}
 
 	err := os.Remove(HomeCurrentPlanPath)

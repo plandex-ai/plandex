@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"plandex/api"
+	"plandex/auth"
 	"plandex/lib"
 	"plandex/term"
 
@@ -31,6 +32,7 @@ func init() {
 }
 
 func new(cmd *cobra.Command, args []string) {
+	auth.MustResolveAuth()
 	lib.MustResolveProject()
 
 	res, err := api.Client.CreatePlan(lib.CurrentProjectId, shared.CreatePlanRequest{Name: name})

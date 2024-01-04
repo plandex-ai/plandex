@@ -5,10 +5,14 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"plandex/api"
+	"plandex/auth"
 	"plandex/cmd"
 )
 
 func init() {
+	auth.SetApiClient(api.Client)
+
 	// set up a file logger
 	// TODO: log rotation
 	home, err := os.UserHomeDir()

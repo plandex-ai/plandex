@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"plandex/api"
+	"plandex/fs"
 	"plandex/term"
 	"plandex/types"
 
@@ -52,7 +53,7 @@ func ApplyPlanWithOutput(planId string, autoConfirm bool) error {
 		}
 
 		// Compute destination path
-		dstPath := filepath.Join(ProjectRoot, path)
+		dstPath := filepath.Join(fs.ProjectRoot, path)
 
 		// Check if the file has been removed
 		_, err := os.Stat(dstPath)
@@ -286,7 +287,7 @@ func ApplyPlanWithOutput(planId string, autoConfirm bool) error {
 
 		for path, content := range toApply {
 			// Compute destination path
-			dstPath := filepath.Join(ProjectRoot, path)
+			dstPath := filepath.Join(fs.ProjectRoot, path)
 			// Create the directory if it doesn't exist
 			err := os.MkdirAll(filepath.Dir(dstPath), 0755)
 			if err != nil {
@@ -311,7 +312,7 @@ func ApplyPlanWithOutput(planId string, autoConfirm bool) error {
 
 		if isRepo {
 			// Commit the changes
-			err = GitAddAndCommit(ProjectRoot, color.New(color.BgBlue, color.FgHiWhite, color.Bold).Sprintln(" 🤖 Plandex ")+currentPlanState.PendingChangesSummary(), true)
+			err = GitAddAndCommit(fs.ProjectRoot, color.New(color.BgBlue, color.FgHiWhite, color.Bold).Sprintln(" 🤖 Plandex ")+currentPlanState.PendingChangesSummary(), true)
 			if err != nil {
 				aborted = true
 				return fmt.Errorf("failed to commit changes: %w", err)

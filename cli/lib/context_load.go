@@ -10,20 +10,16 @@ import (
 	"plandex/types"
 	"plandex/url"
 	"strings"
-	"time"
 
-	"github.com/briandowns/spinner"
 	"github.com/plandex/plandex/shared"
 )
 
 func MustLoadContext(resources []string, params *types.LoadContextParams) {
-	s := spinner.New(spinner.CharSets[33], 100*time.Millisecond)
-	s.Prefix = "📥 Loading context... "
-	s.Start()
+
+	term.StartSpinner("📥 Loading context...")
 
 	onErr := func(err error) {
-		s.Stop()
-		term.ClearCurrentLine()
+		term.StopSpinner()
 		fmt.Fprintf(os.Stderr, "Failed to load context: %v\n", err)
 		os.Exit(1)
 	}
@@ -168,8 +164,7 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 	}
 
 	if len(loadContextReq) == 0 {
-		s.Stop()
-		term.ClearCurrentLine()
+		term.StopSpinner()
 		fmt.Println("🤷‍♂️ No context loaded")
 		os.Exit(0)
 	}
@@ -180,8 +175,7 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 		onErr(fmt.Errorf("failed to load context: %v", err))
 	}
 
-	s.Stop()
-	term.ClearCurrentLine()
+	term.StopSpinner()
 
 	if res.MaxTokensExceeded {
 		overage := res.TotalTokens - shared.MaxContextTokens

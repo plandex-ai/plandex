@@ -6,11 +6,12 @@ import (
 	"context"
 	"io"
 	"log"
+	"plandex/types"
 
 	"github.com/plandex/plandex/shared"
 )
 
-func connectPlanRespStream(body io.ReadCloser, onStream OnStreamPlan) {
+func connectPlanRespStream(body io.ReadCloser, onStream types.OnStreamPlan) {
 	streamState := shared.NewPlanStreamState()
 	reader := bufio.NewReader(body)
 
@@ -20,7 +21,7 @@ func connectPlanRespStream(body io.ReadCloser, onStream OnStreamPlan) {
 			if err != nil {
 				log.Println("Error reading line:", err)
 				streamState.Event(context.Background(), shared.EVENT_ERROR)
-				onStream(OnStreamPlanParams{Content: "", State: streamState, Err: err})
+				onStream(types.OnStreamPlanParams{Content: "", State: streamState, Err: err})
 				body.Close()
 				return
 			}
@@ -38,7 +39,7 @@ func connectPlanRespStream(body io.ReadCloser, onStream OnStreamPlan) {
 				if err != nil {
 					log.Printf("Error triggering state change %s: %s\n", evt, err)
 				}
-				onStream(OnStreamPlanParams{Content: "", State: streamState, Err: err})
+				onStream(types.OnStreamPlanParams{Content: "", State: streamState, Err: err})
 				body.Close()
 				return
 			}
@@ -51,12 +52,12 @@ func connectPlanRespStream(body io.ReadCloser, onStream OnStreamPlan) {
 
 			if err != nil {
 				log.Println("Error setting state:", err)
-				onStream(OnStreamPlanParams{Content: "", State: streamState, Err: err})
+				onStream(types.OnStreamPlanParams{Content: "", State: streamState, Err: err})
 				body.Close()
 				return
 			}
 
-			onStream(OnStreamPlanParams{Content: s, State: streamState, Err: nil})
+			onStream(types.OnStreamPlanParams{Content: s, State: streamState, Err: nil})
 		}
 	}()
 }

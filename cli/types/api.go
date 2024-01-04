@@ -1,4 +1,4 @@
-package api
+package types
 
 import (
 	"github.com/looplab/fsm"
@@ -13,9 +13,8 @@ type OnStreamPlanParams struct {
 
 type OnStreamPlan func(params OnStreamPlanParams)
 
-type Api struct{}
-
 type ApiClient interface {
+	StartTrial() (*shared.StartTrialResponse, error)
 	CreateProject(req shared.CreateProjectRequest) (*shared.CreateProjectResponse, error)
 	ListProjects() ([]*shared.Project, error)
 	SetProjectPlan(projectId string, req shared.SetProjectPlanRequest) error
