@@ -15,14 +15,19 @@ import (
 func CreatePlanHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for CreatePlanHandler")
 
-	// TODO: get from auth when implemented
-	currentUserId := "bc9c75ee-57b0-4552-aa1b-f80cf8c09f3f"
-	currentOrgId := "2ff5bc12-1160-4305-8707-9a165319de5a"
+	auth := authenticate(w, r)
+	if auth == nil {
+		return
+	}
 
 	vars := mux.Vars(r)
 	projectId := vars["projectId"]
 
 	log.Println("projectId: ", projectId)
+
+	if !authorizeProject(w, projectId, auth.UserId, auth.OrgId) {
+		return
+	}
 
 	// read the request body
 	body, err := io.ReadAll(r.Body)
@@ -47,7 +52,7 @@ func CreatePlanHandler(w http.ResponseWriter, r *http.Request) {
 
 	if name == "draft" {
 		// delete any existing draft plans
-		err = db.DeleteDraftPlans(currentOrgId, projectId, currentUserId)
+		err = db.DeleteDraftPlans(auth.OrgId, projectId, auth.UserId)
 
 		if err != nil {
 			log.Printf("Error deleting draft plans: %v\n", err)
@@ -59,7 +64,7 @@ func CreatePlanHandler(w http.ResponseWriter, r *http.Request) {
 		originalName := name
 		for {
 			var count int
-			err := db.Conn.Get(&count, "SELECT COUNT(*) FROM plans WHERE project_id = $1 AND creator_id = $2 AND name = $3", projectId, currentUserId, name)
+			err := db.Conn.Get(&count, "SELECT COUNT(*) FROM plans WHERE project_id = $1 AND owner_id = $2 AND name = $3", projectId, auth.UserId, name)
 
 			if err != nil {
 				log.Printf("Error checking if plan exists: %v\n", err)
@@ -76,7 +81,7 @@ func CreatePlanHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	plan, err := db.CreatePlan(currentOrgId, projectId, currentUserId, name)
+	plan, err := db.CreatePlan(auth.OrgId, projectId, auth.UserId, name)
 
 	if err != nil {
 		log.Printf("Error creating plan: %v\n", err)
@@ -105,16 +110,19 @@ func CreatePlanHandler(w http.ResponseWriter, r *http.Request) {
 func GetPlanHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for GetPlanHandler")
 
+	auth := authenticate(w, r)
+	if auth == nil {
+		return
+	}
+
 	vars := mux.Vars(r)
 	planId := vars["planId"]
 
 	log.Println("planId: ", planId)
 
-	plan, err := db.GetPlan(planId)
+	plan := authorizePlan(w, planId, auth.UserId, auth.OrgId)
 
-	if err != nil {
-		log.Printf("Error getting plan: %v\n", err)
-		http.Error(w, "Error getting plan: "+err.Error(), http.StatusInternalServerError)
+	if plan == nil {
 		return
 	}
 
@@ -132,13 +140,27 @@ func GetPlanHandler(w http.ResponseWriter, r *http.Request) {
 func DeletePlanHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for DeletePlanHandler")
 
-	// TODO: get from auth when implemented
-	currentOrgId := "2ff5bc12-1160-4305-8707-9a165319de5a"
+	auth := authenticate(w, r)
+	if auth == nil {
+		return
+	}
 
 	vars := mux.Vars(r)
 	planId := vars["planId"]
 
 	log.Println("planId: ", planId)
+
+	plan := authorizePlan(w, planId, auth.UserId, auth.OrgId)
+
+	if plan == nil {
+		return
+	}
+
+	if plan.OwnerId != auth.UserId {
+		log.Println("Only the plan owner can delete a plan")
+		http.Error(w, "Only the plan owner can delete a plan", http.StatusForbidden)
+		return
+	}
 
 	res, err := db.Conn.Exec("DELETE FROM plans WHERE id = $1", planId)
 
@@ -161,7 +183,7 @@ func DeletePlanHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = db.DeletePlanDir(currentOrgId, planId)
+	err = db.DeletePlanDir(auth.OrgId, planId)
 
 	if err != nil {
 		log.Printf("Error deleting plan dir: %v\n", err)
@@ -175,14 +197,21 @@ func DeletePlanHandler(w http.ResponseWriter, r *http.Request) {
 func DeleteAllPlansHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for DeleteAllPlansHandler")
 
-	// TODO: get from auth when implemented
-	currentOrgId := "2ff5bc12-1160-4305-8707-9a165319de5a"
-	currentUserId := "bc9c75ee-57b0-4552-aa1b-f80cf8c09f3f"
+	auth := authenticate(w, r)
+	if auth == nil {
+		return
+	}
 
 	vars := mux.Vars(r)
 	projectId := vars["projectId"]
 
-	err := db.DeletePlans(currentOrgId, projectId, currentUserId)
+	log.Println("projectId: ", projectId)
+
+	if !authorizeProject(w, projectId, auth.UserId, auth.OrgId) {
+		return
+	}
+
+	err := db.DeleteOwnerPlans(auth.OrgId, projectId, auth.UserId)
 
 	if err != nil {
 		log.Printf("Error deleting plans: %v\n", err)
@@ -195,14 +224,21 @@ func DeleteAllPlansHandler(w http.ResponseWriter, r *http.Request) {
 
 func ListPlansHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for ListPlansHandler")
-	currentUserId := "bc9c75ee-57b0-4552-aa1b-f80cf8c09f3f" // TODO: get from auth when implemented
+	auth := authenticate(w, r)
+	if auth == nil {
+		return
+	}
 
 	vars := mux.Vars(r)
 	projectId := vars["projectId"]
 
 	log.Println("projectId: ", projectId)
 
-	plans, err := db.ListPlans(projectId, currentUserId, false, "")
+	if !authorizeProject(w, projectId, auth.UserId, auth.OrgId) {
+		return
+	}
+
+	plans, err := db.ListPlans(projectId, auth.UserId, false, "")
 
 	if err != nil {
 		log.Printf("Error listing plans: %v\n", err)
@@ -224,11 +260,19 @@ func ListPlansHandler(w http.ResponseWriter, r *http.Request) {
 
 func ListArchivedPlansHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for ListArchivedPlansHandler")
+	auth := authenticate(w, r)
+	if auth == nil {
+		return
+	}
 
 	vars := mux.Vars(r)
 	projectId := vars["projectId"]
 
 	log.Println("projectId: ", projectId)
+
+	if !authorizeProject(w, projectId, auth.UserId, auth.OrgId) {
+		return
+	}
 
 	plans, err := db.ListPlans(projectId, "", true, "")
 
@@ -252,11 +296,19 @@ func ListArchivedPlansHandler(w http.ResponseWriter, r *http.Request) {
 
 func ListPlansRunningHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for ListPlansRunningHandler")
+	auth := authenticate(w, r)
+	if auth == nil {
+		return
+	}
 
 	vars := mux.Vars(r)
 	projectId := vars["projectId"]
 
 	log.Println("projectId: ", projectId)
+
+	if !authorizeProject(w, projectId, auth.UserId, auth.OrgId) {
+		return
+	}
 
 	// TODO: implement when status is figured out
 

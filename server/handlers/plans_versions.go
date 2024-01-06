@@ -14,15 +14,21 @@ import (
 func ListLogsHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for ListLogsHandler")
 
-	// TODO: get from auth when implemented
-	currentOrgId := "2ff5bc12-1160-4305-8707-9a165319de5a"
+	auth := authenticate(w, r)
+	if auth == nil {
+		return
+	}
 
 	vars := mux.Vars(r)
 	planId := vars["planId"]
 
 	log.Println("planId: ", planId)
 
-	body, shas, err := db.GetGitCommitHistory(currentOrgId, planId)
+	if authorizePlan(w, planId, auth.UserId, auth.OrgId) == nil {
+		return
+	}
+
+	body, shas, err := db.GetGitCommitHistory(auth.OrgId, planId)
 
 	if err != nil {
 		log.Println("Error getting logs: ", err)
@@ -51,13 +57,19 @@ func ListLogsHandler(w http.ResponseWriter, r *http.Request) {
 func RewindPlanHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for RewindPlanHandler")
 
-	// TODO: get from auth when implemented
-	currentOrgId := "2ff5bc12-1160-4305-8707-9a165319de5a"
+	auth := authenticate(w, r)
+	if auth == nil {
+		return
+	}
 
 	vars := mux.Vars(r)
 	planId := vars["planId"]
 
 	log.Println("planId: ", planId)
+
+	if authorizePlan(w, planId, auth.UserId, auth.OrgId) == nil {
+		return
+	}
 
 	// read the request body
 	body, err := io.ReadAll(r.Body)
@@ -75,7 +87,7 @@ func RewindPlanHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = db.GitRewindToSha(currentOrgId, planId, requestBody.Sha)
+	err = db.GitRewindToSha(auth.OrgId, planId, requestBody.Sha)
 
 	if err != nil {
 		log.Println("Error rewinding plan: ", err)
@@ -83,7 +95,7 @@ func RewindPlanHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = db.SyncPlanTokens(currentOrgId, planId)
+	err = db.SyncPlanTokens(auth.OrgId, planId)
 
 	if err != nil {
 		log.Println("Error syncing plan tokens: ", err)
@@ -91,7 +103,7 @@ func RewindPlanHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sha, latest, err := db.GetLatestCommit(currentOrgId, planId)
+	sha, latest, err := db.GetLatestCommit(auth.OrgId, planId)
 
 	if err != nil {
 		log.Println("Error getting latest commit: ", err)

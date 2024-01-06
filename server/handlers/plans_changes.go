@@ -13,17 +13,21 @@ import (
 func CurrentPlanHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for ListPlanChangesHandler")
 
-	// TODO: get this from auth when implemented
-	currentOrgId := "2ff5bc12-1160-4305-8707-9a165319de5a"
-
-	// TODO: authenticate user and plan access
+	auth := authenticate(w, r)
+	if auth == nil {
+		return
+	}
 
 	vars := mux.Vars(r)
 	planId := vars["planId"]
 
 	log.Println("planId: ", planId)
 
-	contexts, err := db.GetPlanContexts(currentOrgId, planId, true)
+	if authorizePlan(w, planId, auth.UserId, auth.OrgId) == nil {
+		return
+	}
+
+	contexts, err := db.GetPlanContexts(auth.OrgId, planId, true)
 
 	if err != nil {
 		log.Printf("Error getting plan contexts: %v\n", err)
@@ -32,7 +36,7 @@ func CurrentPlanHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	planState, err := db.GetCurrentPlanState(db.CurrentPlanStateParams{
-		OrgId:    currentOrgId,
+		OrgId:    auth.OrgId,
 		PlanId:   planId,
 		Contexts: contexts,
 	})
@@ -59,17 +63,20 @@ func CurrentPlanHandler(w http.ResponseWriter, r *http.Request) {
 func ApplyPlanHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for ApplyPlanHandler")
 
-	// TODO: get this from auth when implemented
-	currentOrgId := "2ff5bc12-1160-4305-8707-9a165319de5a"
-
-	// TODO: authenticate user and plan access
+	auth := authenticate(w, r)
+	if auth == nil {
+		return
+	}
 
 	vars := mux.Vars(r)
 	planId := vars["planId"]
-
 	log.Println("planId: ", planId)
 
-	err := db.ApplyPlan(currentOrgId, planId)
+	if authorizePlan(w, planId, auth.UserId, auth.OrgId) == nil {
+		return
+	}
+
+	err := db.ApplyPlan(auth.OrgId, planId)
 
 	if err != nil {
 		log.Printf("Error applying plan: %v\n", err)
@@ -83,17 +90,20 @@ func ApplyPlanHandler(w http.ResponseWriter, r *http.Request) {
 func RejectAllChangesHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for RejectAllChangesHandler")
 
-	// TODO: get this from auth when implemented
-	currentOrgId := "2ff5bc12-1160-4305-8707-9a165319de5a"
-
-	// TODO: authenticate user and plan access
+	auth := authenticate(w, r)
+	if auth == nil {
+		return
+	}
 
 	vars := mux.Vars(r)
 	planId := vars["planId"]
-
 	log.Println("planId: ", planId)
 
-	err := db.RejectAllResults(currentOrgId, planId)
+	if authorizePlan(w, planId, auth.UserId, auth.OrgId) == nil {
+		return
+	}
+
+	err := db.RejectAllResults(auth.OrgId, planId)
 
 	if err != nil {
 		log.Printf("Error rejecting all changes: %v\n", err)
@@ -107,10 +117,10 @@ func RejectAllChangesHandler(w http.ResponseWriter, r *http.Request) {
 func RejectResultHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for RejectResultHandler")
 
-	// TODO: get this from auth when implemented
-	currentOrgId := "2ff5bc12-1160-4305-8707-9a165319de5a"
-
-	// TODO: authenticate user and plan access
+	auth := authenticate(w, r)
+	if auth == nil {
+		return
+	}
 
 	vars := mux.Vars(r)
 	planId := vars["planId"]
@@ -118,7 +128,11 @@ func RejectResultHandler(w http.ResponseWriter, r *http.Request) {
 
 	log.Println("planId: ", planId, "resultId: ", resultId)
 
-	err := db.RejectPlanFileResult(currentOrgId, planId, resultId, time.Now())
+	if authorizePlan(w, planId, auth.UserId, auth.OrgId) == nil {
+		return
+	}
+
+	err := db.RejectPlanFileResult(auth.OrgId, planId, resultId, time.Now())
 
 	if err != nil {
 		log.Printf("Error rejecting result: %v\n", err)
@@ -132,10 +146,10 @@ func RejectResultHandler(w http.ResponseWriter, r *http.Request) {
 func RejectReplacementHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for RejectReplacementHandler")
 
-	// TODO: get this from auth when implemented
-	currentOrgId := "2ff5bc12-1160-4305-8707-9a165319de5a"
-
-	// TODO: authenticate user and plan access
+	auth := authenticate(w, r)
+	if auth == nil {
+		return
+	}
 
 	vars := mux.Vars(r)
 	planId := vars["planId"]
@@ -144,7 +158,11 @@ func RejectReplacementHandler(w http.ResponseWriter, r *http.Request) {
 
 	log.Println("planId: ", planId, "resultId: ", resultId, "replacementId: ", replacementId)
 
-	err := db.RejectReplacement(currentOrgId, planId, resultId, replacementId)
+	if authorizePlan(w, planId, auth.UserId, auth.OrgId) == nil {
+		return
+	}
+
+	err := db.RejectReplacement(auth.OrgId, planId, resultId, replacementId)
 
 	if err != nil {
 		log.Printf("Error rejecting replacement: %v\n", err)
@@ -156,14 +174,35 @@ func RejectReplacementHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func ArchivePlanHandler(w http.ResponseWriter, r *http.Request) {
-	log.Println("Received request for ArchivePlanHandler")
+	auth := authenticate(w, r)
+	if auth == nil {
+		return
+	}
 
-	// TODO: authenticate user and plan access
+	log.Println("Received request for ArchivePlanHandler")
 
 	vars := mux.Vars(r)
 	planId := vars["planId"]
-
 	log.Println("planId: ", planId)
+
+	plan := authorizePlan(w, planId, auth.UserId, auth.OrgId)
+
+	if plan == nil {
+		return
+	}
+
+	// apart from authorization, only the plan owner can archive a plan
+	if plan.OwnerId != auth.UserId {
+		log.Println("Only the plan owner can archive a plan")
+		http.Error(w, "Only the plan owner can archive a plan", http.StatusForbidden)
+		return
+	}
+
+	if plan.ArchivedAt != nil {
+		log.Println("Plan already archived")
+		http.Error(w, "Plan already archived", http.StatusBadRequest)
+		return
+	}
 
 	res, err := db.Conn.Exec("UPDATE plans SET archived_at = NOW() WHERE id = $1", planId)
 

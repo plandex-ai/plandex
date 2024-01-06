@@ -15,7 +15,10 @@ import (
 func CreateProjectHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for CreateProjectHandler")
 
-	currentOrgId := "2ff5bc12-1160-4305-8707-9a165319de5a" // TODO: get from auth when implemented
+	auth := authenticate(w, r)
+	if auth == nil {
+		return
+	}
 
 	// read the request body
 	body, err := io.ReadAll(r.Body)
@@ -41,7 +44,7 @@ func CreateProjectHandler(w http.ResponseWriter, r *http.Request) {
 
 	id := uuid.New().String()
 
-	_, err = db.Conn.Exec("INSERT INTO projects (id, org_id, name) VALUES ($1, $2, $3)", id, currentOrgId, requestBody.Name)
+	_, err = db.Conn.Exec("INSERT INTO projects (id, org_id, name) VALUES ($1, $2, $3)", id, auth.OrgId, requestBody.Name)
 
 	if err != nil {
 		log.Printf("Error creating project: %v\n", err)
@@ -70,9 +73,12 @@ func CreateProjectHandler(w http.ResponseWriter, r *http.Request) {
 func ListProjectsHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for ListProjectsHandler")
 
-	userId := "bc9c75ee-57b0-4552-aa1b-f80cf8c09f3f" // TODO: get from auth when implemented
+	auth := authenticate(w, r)
+	if auth == nil {
+		return
+	}
 
-	rows, err := db.Conn.Query("SELECT project.id, project.name FROM users_projects INNER JOIN project ON users_projects.project_id = project.id WHERE users_projects.user_id = $1", userId)
+	rows, err := db.Conn.Query("SELECT project.id, project.name FROM users_projects INNER JOIN project ON users_projects.project_id = project.id WHERE users_projects.user_id = $1 AND users_projects.org_id = $2", auth.UserId, auth.OrgId)
 
 	if err != nil {
 		log.Printf("Error listing projects: %v\n", err)
@@ -105,11 +111,19 @@ func ListProjectsHandler(w http.ResponseWriter, r *http.Request) {
 
 func ProjectSetPlanHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for UpdateProjectSetPlanHandler")
+	auth := authenticate(w, r)
+	if auth == nil {
+		return
+	}
 
 	vars := mux.Vars(r)
 	projectId := vars["projectId"]
 
 	log.Println("projectId: ", projectId)
+
+	if !authorizeProject(w, projectId, auth.UserId, auth.OrgId) {
+		return
+	}
 
 	// read the request body
 	body, err := io.ReadAll(r.Body)
@@ -146,11 +160,19 @@ func ProjectSetPlanHandler(w http.ResponseWriter, r *http.Request) {
 
 func RenameProjectHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for RenameProjectHandler")
+	auth := authenticate(w, r)
+	if auth == nil {
+		return
+	}
 
 	vars := mux.Vars(r)
 	projectId := vars["projectId"]
 
 	log.Println("projectId: ", projectId)
+
+	if !authorizeProject(w, projectId, auth.UserId, auth.OrgId) {
+		return
+	}
 
 	// read the request body
 	body, err := io.ReadAll(r.Body)

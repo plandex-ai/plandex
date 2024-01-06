@@ -32,15 +32,16 @@ const (
 )
 
 type Plan struct {
-	Id            string     `json:"id"`
-	CreatorId     string     `json:"creatorId"`
-	Name          string     `json:"name"`
-	Status        PlanStatus `json:"status"`
-	ContextTokens int        `json:"contextTokens"`
-	ConvoTokens   int        `json:"convoTokens"`
-	ArchivedAt    *time.Time `json:"archivedAt,omitempty"`
-	CreatedAt     time.Time  `json:"createdAt"`
-	UpdatedAt     time.Time  `json:"updatedAt"`
+	Id              string     `json:"id"`
+	OwnerId         string     `json:"ownerId"`
+	Name            string     `json:"name"`
+	Status          PlanStatus `json:"status"`
+	ContextTokens   int        `json:"contextTokens"`
+	ConvoTokens     int        `json:"convoTokens"`
+	SharedWithOrgAt *time.Time `json:"sharedWithOrgAt,omitempty"`
+	ArchivedAt      *time.Time `json:"archivedAt,omitempty"`
+	CreatedAt       time.Time  `json:"createdAt"`
+	UpdatedAt       time.Time  `json:"updatedAt"`
 }
 
 type ContextType string
@@ -55,7 +56,7 @@ const (
 
 type Context struct {
 	Id          string      `json:"id"`
-	CreatorId   string      `json:"creatorId"`
+	OwnerId     string      `json:"ownerId"`
 	ContextType ContextType `json:"contextType"`
 	Name        string      `json:"name"`
 	Url         string      `json:"url"`

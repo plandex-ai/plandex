@@ -16,7 +16,7 @@ type Org struct {
 	Name               string    `db:"name"`
 	Domain             string    `db:"domain"`
 	AutoAddDomainUsers bool      `db:"auto_add_domain_users"`
-	CreatorId          string    `db:"creator_id"`
+	OwnerId            string    `db:"owner_id"`
 	CreatedAt          time.Time `db:"created_at"`
 	UpdatedAt          time.Time `db:"updated_at"`
 }
@@ -80,31 +80,33 @@ type UserProject struct {
 }
 
 type Plan struct {
-	Id            string            `db:"id"`
-	OrgId         string            `db:"org_id"`
-	CreatorId     string            `db:"creator_id"`
-	ProjectId     string            `db:"project_id"`
-	Name          string            `db:"name"`
-	Status        shared.PlanStatus `db:"status"`
-	Error         *string           `db:"error"`
-	ContextTokens int               `db:"context_tokens"`
-	ConvoTokens   int               `db:"convo_tokens"`
-	ArchivedAt    *time.Time        `db:"archived_at,omitempty"`
-	CreatedAt     time.Time         `db:"created_at"`
-	UpdatedAt     time.Time         `db:"updated_at"`
+	Id              string            `db:"id"`
+	OrgId           string            `db:"org_id"`
+	OwnerId         string            `db:"owner_id"`
+	ProjectId       string            `db:"project_id"`
+	Name            string            `db:"name"`
+	Status          shared.PlanStatus `db:"status"`
+	Error           *string           `db:"error"`
+	ContextTokens   int               `db:"context_tokens"`
+	ConvoTokens     int               `db:"convo_tokens"`
+	SharedWithOrgAt *time.Time        `db:"shared_with_org_at,omitempty"`
+	ArchivedAt      *time.Time        `db:"archived_at,omitempty"`
+	CreatedAt       time.Time         `db:"created_at"`
+	UpdatedAt       time.Time         `db:"updated_at"`
 }
 
 func (plan *Plan) ToApi() *shared.Plan {
 	return &shared.Plan{
-		Id:            plan.Id,
-		CreatorId:     plan.CreatorId,
-		Name:          plan.Name,
-		Status:        plan.Status,
-		ContextTokens: plan.ContextTokens,
-		ConvoTokens:   plan.ConvoTokens,
-		ArchivedAt:    plan.ArchivedAt,
-		CreatedAt:     plan.CreatedAt,
-		UpdatedAt:     plan.UpdatedAt,
+		Id:              plan.Id,
+		OwnerId:         plan.OwnerId,
+		Name:            plan.Name,
+		Status:          plan.Status,
+		ContextTokens:   plan.ContextTokens,
+		ConvoTokens:     plan.ConvoTokens,
+		SharedWithOrgAt: plan.SharedWithOrgAt,
+		ArchivedAt:      plan.ArchivedAt,
+		CreatedAt:       plan.CreatedAt,
+		UpdatedAt:       plan.UpdatedAt,
 	}
 }
 
@@ -160,7 +162,7 @@ func (build *PlanBuild) ToApi() *shared.PlanBuild {
 type Context struct {
 	Id          string             `json:"id"`
 	OrgId       string             `json:"orgId"`
-	CreatorId   string             `json:"creatorId"`
+	OwnerId     string             `json:"ownerId"`
 	PlanId      string             `json:"planId"`
 	ContextType shared.ContextType `json:"contextType"`
 	Name        string             `json:"name"`
@@ -176,7 +178,7 @@ type Context struct {
 func (context *Context) ToApi() *shared.Context {
 	return &shared.Context{
 		Id:          context.Id,
-		CreatorId:   context.CreatorId,
+		OwnerId:     context.OwnerId,
 		ContextType: context.ContextType,
 		Name:        context.Name,
 		Url:         context.Url,

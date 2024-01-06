@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS orgs (
   name VARCHAR(255) NOT NULL,
   domain VARCHAR(255),
   auto_add_domain_users BOOLEAN NOT NULL DEFAULT FALSE,
-  creator_id UUID NOT NULL REFERENCES users(id),
+  owner_id UUID NOT NULL REFERENCES users(id),
   is_trial BOOLEAN NOT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMP NOT NULL DEFAULT NOW()
@@ -59,21 +59,22 @@ CREATE TRIGGER update_projects_modtime BEFORE UPDATE ON projects FOR EACH ROW EX
 CREATE TABLE IF NOT EXISTS plans (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   org_id UUID NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
-  creator_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  owner_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
   name VARCHAR(255) NOT NULL,
   status VARCHAR(32) NOT NULL,
   error TEXT,
   context_tokens INTEGER NOT NULL DEFAULT 0,
   convo_tokens INTEGER NOT NULL DEFAULT 0,
+  shared_with_org_at TIMESTAMP,
   archived_at TIMESTAMP,
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 CREATE TRIGGER update_plans_modtime BEFORE UPDATE ON plans FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-CREATE INDEX plans_name_idx ON plans(project_id, creator_id, name);
-CREATE INDEX plans_archived_idx ON plans(project_id, creator_id, archived_at);
+CREATE INDEX plans_name_idx ON plans(project_id, owner_id, name);
+CREATE INDEX plans_archived_idx ON plans(project_id, owner_id, archived_at);
 
 CREATE TABLE IF NOT EXISTS users_projects (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -86,7 +87,7 @@ CREATE TABLE IF NOT EXISTS users_projects (
 );
 CREATE TRIGGER update_users_projects_modtime BEFORE UPDATE ON users_projects FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-CREATE INDEX users_projects_idx ON users_projects(project_id);
+CREATE INDEX users_projects_idx ON users_projects(user_id, org_id, project_id);
 
 CREATE TABLE IF NOT EXISTS convo_summaries (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

@@ -78,7 +78,7 @@ func StartTrialHandler(w http.ResponseWriter, r *http.Request) {
 
 	// create a new org
 	orgName := "Trial Org " + tag
-	orgRow, err := tx.Query("INSERT INTO orgs (name, creator_id, is_trial) VALUES ($1, $2, true) RETURNING id", orgName, userId)
+	orgRow, err := tx.Query("INSERT INTO orgs (name, owner_id, is_trial) VALUES ($1, $2, true) RETURNING id", orgName, userId)
 	closedOrgRow := false
 
 	if err != nil {
@@ -119,7 +119,7 @@ func StartTrialHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// create auth token
-	token, err := db.GenAuthToken(userId, tx)
+	token, err := db.CreateAuthToken(userId, tx)
 
 	if err != nil {
 		log.Printf("Error creating auth token: %v\n", err)

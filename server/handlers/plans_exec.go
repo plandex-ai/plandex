@@ -14,16 +14,19 @@ import (
 func TellPlanHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for TellPlanHandler")
 
-	// TODO: get this from auth when implemented
-	currentOrgId := "2ff5bc12-1160-4305-8707-9a165319de5a"
-	currentUserId := "bc9c75ee-57b0-4552-aa1b-f80cf8c09f3f"
-
-	// TODO: authenticate user and plan access
+	auth := authenticate(w, r)
+	if auth == nil {
+		return
+	}
 
 	vars := mux.Vars(r)
 	planId := vars["planId"]
 
 	log.Println("planId: ", planId)
+
+	if authorizePlan(w, planId, auth.UserId, auth.OrgId) == nil {
+		return
+	}
 
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -43,7 +46,7 @@ func TellPlanHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = plan.Tell(planId, currentUserId, currentOrgId, &requestBody)
+	err = plan.Tell(planId, auth.UserId, auth.OrgId, &requestBody)
 
 	if err != nil {
 		log.Printf("Error telling plan: %v\n", err)
@@ -64,30 +67,54 @@ func TellPlanHandler(w http.ResponseWriter, r *http.Request) {
 
 func BuildPlanHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for BuildPlanHandler")
+	auth := authenticate(w, r)
+	if auth == nil {
+		return
+	}
 
 	vars := mux.Vars(r)
 	planId := vars["planId"]
 
 	log.Println("planId: ", planId)
+
+	if authorizePlan(w, planId, auth.UserId, auth.OrgId) == nil {
+		return
+	}
 
 }
 
 func ConnectPlanHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for ConnectPlanHandler")
+	auth := authenticate(w, r)
+	if auth == nil {
+		return
+	}
 
 	vars := mux.Vars(r)
 	planId := vars["planId"]
 
 	log.Println("planId: ", planId)
+
+	if authorizePlan(w, planId, auth.UserId, auth.OrgId) == nil {
+		return
+	}
 
 }
 
 func StopPlanHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for StopPlanHandler")
+	auth := authenticate(w, r)
+	if auth == nil {
+		return
+	}
 
 	vars := mux.Vars(r)
 	planId := vars["planId"]
 
 	log.Println("planId: ", planId)
+
+	if authorizePlan(w, planId, auth.UserId, auth.OrgId) == nil {
+		return
+	}
 
 }

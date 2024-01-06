@@ -13,11 +13,11 @@ import (
 )
 
 func CreatePlan(orgId, projectId, userId, name string) (*Plan, error) {
-	query := "INSERT INTO plans (org_id, creator_id, project_id, name, status) VALUES (:org_id, :creator_id, :project_id, :name, :status) RETURNING id, created_at, updated_at"
+	query := "INSERT INTO plans (org_id, owner_id, project_id, name, status) VALUES (:org_id, :owner_id, :project_id, :name, :status) RETURNING id, created_at, updated_at"
 
 	plan := &Plan{
 		OrgId:     orgId,
-		CreatorId: userId,
+		OwnerId:   userId,
 		ProjectId: projectId,
 		Name:      name,
 		Status:    shared.PlanStatusDraft,
@@ -53,7 +53,7 @@ func CreatePlan(orgId, projectId, userId, name string) (*Plan, error) {
 }
 
 func ListPlans(projectId, userId string, archived bool, status string) ([]shared.Plan, error) {
-	qs := "SELECT id, creator_id, name, status, context_tokens, convo_tokens, archived_at, created_at, updated_at FROM plans WHERE project_id = $1 AND creator_id = $2"
+	qs := "SELECT id, owner_id, name, status, context_tokens, convo_tokens, shared_with_org_at, archived_at, created_at, updated_at FROM plans WHERE project_id = $1 AND owner_id = $2"
 	qargs := []interface{}{projectId, userId}
 
 	if archived {
@@ -79,7 +79,7 @@ func ListPlans(projectId, userId string, archived bool, status string) ([]shared
 	for res.Next() {
 		var plan shared.Plan
 
-		err := res.Scan(&plan.Id, &plan.CreatorId, &plan.Name, &plan.Status, &plan.ContextTokens, &plan.ConvoTokens, &plan.ArchivedAt, &plan.CreatedAt, &plan.UpdatedAt)
+		err := res.Scan(&plan.Id, &plan.OwnerId, &plan.Name, &plan.Status, &plan.ContextTokens, &plan.ConvoTokens, &plan.SharedWithOrgAt, &plan.ArchivedAt, &plan.CreatedAt, &plan.UpdatedAt)
 
 		if err != nil {
 			return nil, fmt.Errorf("error scanning plan: %v", err)
@@ -152,7 +152,7 @@ func SyncPlanTokens(orgId, planId string) error {
 func GetPlan(planId string) (*Plan, error) {
 	var plan Plan
 
-	err := Conn.Get(&plan, "SELECT id, org_id, creator_id, project_id, name, status, error, context_tokens, convo_tokens, archived_at, created_at, updated_at FROM plans WHERE id = $1", planId)
+	err := Conn.Get(&plan, "SELECT id, org_id, owner_id, project_id, name, status, error, context_tokens, convo_tokens, shared_with_org_at, archived_at, created_at, updated_at FROM plans WHERE id = $1", planId)
 
 	if err != nil {
 		return nil, fmt.Errorf("error getting plan: %v", err)
@@ -208,7 +208,7 @@ func StoreDescription(description *ConvoMessageDescription) error {
 }
 
 func DeleteDraftPlans(orgId, projectId, userId string) error {
-	res, err := Conn.Query("DELETE FROM plans WHERE project_id = $1 AND creator_id = $2 AND name = 'draft' RETURNING id;", projectId, userId)
+	res, err := Conn.Query("DELETE FROM plans WHERE project_id = $1 AND owner_id = $2 AND name = 'draft' RETURNING id;", projectId, userId)
 	if err != nil {
 		return fmt.Errorf("error deleting draft plans: %v", err)
 	}
@@ -248,8 +248,8 @@ func DeleteDraftPlans(orgId, projectId, userId string) error {
 	return nil
 }
 
-func DeletePlans(orgId, projectId, userId string) error {
-	res, err := Conn.Query("DELETE FROM plans WHERE project_id = $1 AND creator_id = $2 RETURNING id;", projectId, userId)
+func DeleteOwnerPlans(orgId, projectId, userId string) error {
+	res, err := Conn.Query("DELETE FROM plans WHERE project_id = $1 AND owner_id = $2 RETURNING id;", projectId, userId)
 	if err != nil {
 		return fmt.Errorf("error deleting plans: %v", err)
 	}
@@ -287,4 +287,43 @@ func DeletePlans(orgId, projectId, userId string) error {
 	}
 
 	return nil
+}
+
+func ValidatePlanAccess(planId, userId, orgId string) (*Plan, error) {
+	// get plan
+	plan, err := GetPlan(planId)
+
+	if err != nil {
+		return nil, fmt.Errorf("error getting plan: %v", err)
+	}
+
+	if plan == nil {
+		return nil, nil
+	}
+
+	if plan.OrgId != orgId {
+		return nil, nil
+	}
+
+	hasProjectAccess, err := ValidateProjectAccess(plan.ProjectId, userId, orgId)
+
+	if err != nil {
+		return nil, fmt.Errorf("error validating project membership: %v", err)
+	}
+
+	if !hasProjectAccess {
+		return nil, nil
+	}
+
+	// owner has access
+	if plan.ProjectId == userId {
+		return plan, nil
+	}
+
+	// plan is shared with org
+	if plan.SharedWithOrgAt != nil {
+		return plan, nil
+	}
+
+	return nil, nil
 }
