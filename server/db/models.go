@@ -29,18 +29,22 @@ func (org *Org) ToApi() *shared.Org {
 }
 
 type User struct {
-	Id        string    `db:"id"`
-	Name      string    `db:"name"`
-	Email     string    `db:"email"`
-	CreatedAt time.Time `db:"created_at"`
-	UpdatedAt time.Time `db:"updated_at"`
+	Id               string    `db:"id"`
+	Name             string    `db:"name"`
+	Email            string    `db:"email"`
+	NumNonDraftPlans int       `db:"num_non_draft_plans"`
+	IsTrial          bool      `db:"is_trial"`
+	CreatedAt        time.Time `db:"created_at"`
+	UpdatedAt        time.Time `db:"updated_at"`
 }
 
 func (user *User) ToApi() *shared.User {
 	return &shared.User{
-		Id:    user.Id,
-		Name:  user.Name,
-		Email: user.Email,
+		Id:               user.Id,
+		Name:             user.Name,
+		Email:            user.Email,
+		NumNonDraftPlans: user.NumNonDraftPlans,
+		IsTrial:          user.IsTrial,
 	}
 }
 
@@ -90,6 +94,7 @@ type Plan struct {
 	ContextTokens   int               `db:"context_tokens"`
 	ConvoTokens     int               `db:"convo_tokens"`
 	SharedWithOrgAt *time.Time        `db:"shared_with_org_at,omitempty"`
+	TotalMessages   int               `db:"total_messages"`
 	ArchivedAt      *time.Time        `db:"archived_at,omitempty"`
 	CreatedAt       time.Time         `db:"created_at"`
 	UpdatedAt       time.Time         `db:"updated_at"`
@@ -104,6 +109,7 @@ func (plan *Plan) ToApi() *shared.Plan {
 		ContextTokens:   plan.ContextTokens,
 		ConvoTokens:     plan.ConvoTokens,
 		SharedWithOrgAt: plan.SharedWithOrgAt,
+		TotalMessages:   plan.TotalMessages,
 		ArchivedAt:      plan.ArchivedAt,
 		CreatedAt:       plan.CreatedAt,
 		UpdatedAt:       plan.UpdatedAt,

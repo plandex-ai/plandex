@@ -3,7 +3,6 @@ package api
 import (
 	"net"
 	"net/http"
-	"os"
 	"plandex/auth"
 	"plandex/types"
 	"time"
@@ -15,16 +14,23 @@ const slowReqTimeout = 5 * time.Minute
 
 type Api struct{}
 
-var apiHost string
+var cloudApiHost string
 
 var Client types.ApiClient = (*Api)(nil)
 
 func init() {
-	var port = os.Getenv("PORT")
-	if port == "" {
-		port = "8088"
+	// TODO: set this to the actual cloud api host in production
+	cloudApiHost = "http://localhost:8088"
+}
+
+func getApiHost() string {
+	if auth.Current == nil {
+		return ""
+	} else if auth.Current.IsCloud {
+		return cloudApiHost
+	} else {
+		return auth.Current.Host
 	}
-	apiHost = "http://localhost:" + port
 }
 
 type authenticatedTransport struct {

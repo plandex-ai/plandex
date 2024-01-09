@@ -18,7 +18,7 @@ import (
 )
 
 // Proposal function to create a new proposal
-func Tell(planId, currentUserId, currentOrgId string, req *shared.TellPlanRequest) error {
+func Tell(plan *db.Plan, currentUserId, currentOrgId string, req *shared.TellPlanRequest) error {
 	// goEnv := os.Getenv("GOENV") // Fetch the GO_ENV environment variable
 
 	// log.Println("GOENV: " + goEnv)
@@ -27,6 +27,8 @@ func Tell(planId, currentUserId, currentOrgId string, req *shared.TellPlanReques
 	// 	return nil
 	// }
 
+	planId := plan.Id
+
 	active := Active.Get(planId)
 	if active != nil {
 		return fmt.Errorf("plan %s already has an active stream", planId)
@@ -34,12 +36,13 @@ func Tell(planId, currentUserId, currentOrgId string, req *shared.TellPlanReques
 
 	active = CreateActivePlan(planId, req.Prompt)
 
-	go execTellPlan(planId, currentUserId, currentOrgId, req, active)
+	go execTellPlan(plan, currentUserId, currentOrgId, req, active)
 
 	return nil
 }
 
-func execTellPlan(planId, currentUserId, currentOrgId string, req *shared.TellPlanRequest, active *types.ActivePlan) {
+func execTellPlan(plan *db.Plan, currentUserId, currentOrgId string, req *shared.TellPlanRequest, active *types.ActivePlan) {
+	planId := plan.Id
 	err := db.SetPlanStatus(planId, shared.PlanStatusReplying, "")
 	if err != nil {
 		log.Printf("Error setting plan %s status to replying: %v\n", planId, err)
@@ -54,13 +57,6 @@ func execTellPlan(planId, currentUserId, currentOrgId string, req *shared.TellPl
 
 	// get name for plan and rename it's a draft
 	go func() {
-		plan, err := db.GetPlan(planId)
-		if err != nil {
-			log.Printf("Error getting plan: %v\n", err)
-			errCh <- fmt.Errorf("error getting plan: %v", err)
-			return
-		}
-
 		if plan.Name == "draft" {
 			name, err := model.GenPlanName(req.Prompt)
 
@@ -75,6 +71,14 @@ func execTellPlan(planId, currentUserId, currentOrgId string, req *shared.TellPl
 			if err != nil {
 				log.Printf("Error renaming plan: %v\n", err)
 				errCh <- fmt.Errorf("error renaming plan: %v", err)
+				return
+			}
+
+			err = db.IncNumNonDraftPlans(currentUserId)
+
+			if err != nil {
+				log.Printf("Error incrementing num non draft plans: %v\n", err)
+				errCh <- fmt.Errorf("error incrementing num non draft plans: %v", err)
 				return
 			}
 		}

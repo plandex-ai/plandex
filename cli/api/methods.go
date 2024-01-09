@@ -13,7 +13,7 @@ import (
 )
 
 func (a *Api) StartTrial() (*shared.StartTrialResponse, error) {
-	serverUrl := apiHost + "/accounts/start-trial"
+	serverUrl := cloudApiHost + "/accounts/start_trial"
 
 	resp, err := unauthenticatedClient.Post(serverUrl, "application/json", nil)
 	if err != nil {
@@ -37,7 +37,7 @@ func (a *Api) StartTrial() (*shared.StartTrialResponse, error) {
 }
 
 func (a *Api) CreateProject(req shared.CreateProjectRequest) (*shared.CreateProjectResponse, error) {
-	serverUrl := apiHost + "/projects"
+	serverUrl := getApiHost() + "/projects"
 	reqBytes, err := json.Marshal(req)
 	if err != nil {
 		return nil, fmt.Errorf("error marshalling request: %v", err)
@@ -64,7 +64,7 @@ func (a *Api) CreateProject(req shared.CreateProjectRequest) (*shared.CreateProj
 }
 
 func (a *Api) ListProjects() ([]*shared.Project, error) {
-	serverUrl := apiHost + "/projects"
+	serverUrl := getApiHost() + "/projects"
 	resp, err := authenticatedFastClient.Get(serverUrl)
 	if err != nil {
 		return nil, fmt.Errorf("error sending request: %v", err)
@@ -86,7 +86,7 @@ func (a *Api) ListProjects() ([]*shared.Project, error) {
 }
 
 func (a *Api) SetProjectPlan(projectId string, req shared.SetProjectPlanRequest) error {
-	serverUrl := fmt.Sprintf("%s/projects/%s/set-plan", apiHost, projectId)
+	serverUrl := fmt.Sprintf("%s/projects/%s/set_plan", getApiHost(), projectId)
 	reqBytes, err := json.Marshal(req)
 	if err != nil {
 		return fmt.Errorf("error marshalling request: %v", err)
@@ -113,7 +113,7 @@ func (a *Api) SetProjectPlan(projectId string, req shared.SetProjectPlanRequest)
 }
 
 func (a *Api) RenameProject(projectId string, req shared.RenameProjectRequest) error {
-	serverUrl := fmt.Sprintf("%s/projects/%s/rename", apiHost, projectId)
+	serverUrl := fmt.Sprintf("%s/projects/%s/rename", getApiHost(), projectId)
 	reqBytes, err := json.Marshal(req)
 	if err != nil {
 		return fmt.Errorf("error marshalling request: %v", err)
@@ -140,7 +140,7 @@ func (a *Api) RenameProject(projectId string, req shared.RenameProjectRequest) e
 }
 
 func (a *Api) ListPlans(projectId string) ([]*shared.Plan, error) {
-	serverUrl := fmt.Sprintf("%s/projects/%s/plans", apiHost, projectId)
+	serverUrl := fmt.Sprintf("%s/projects/%s/plans", getApiHost(), projectId)
 
 	resp, err := authenticatedFastClient.Get(serverUrl)
 	if err != nil {
@@ -163,7 +163,7 @@ func (a *Api) ListPlans(projectId string) ([]*shared.Plan, error) {
 }
 
 func (a *Api) ListArchivedPlans(projectId string) ([]*shared.Plan, error) {
-	serverUrl := fmt.Sprintf("%s/projects/%s/plans/archive", apiHost, projectId)
+	serverUrl := fmt.Sprintf("%s/projects/%s/plans/archive", getApiHost(), projectId)
 
 	resp, err := authenticatedFastClient.Get(serverUrl)
 	if err != nil {
@@ -186,7 +186,7 @@ func (a *Api) ListArchivedPlans(projectId string) ([]*shared.Plan, error) {
 }
 
 func (a *Api) ListPlansRunning(projectId string) ([]*shared.Plan, error) {
-	serverUrl := fmt.Sprintf("%s/projects/%s/plans/ps", apiHost, projectId)
+	serverUrl := fmt.Sprintf("%s/projects/%s/plans/ps", getApiHost(), projectId)
 
 	resp, err := authenticatedFastClient.Get(serverUrl)
 	if err != nil {
@@ -209,7 +209,7 @@ func (a *Api) ListPlansRunning(projectId string) ([]*shared.Plan, error) {
 }
 
 func (a *Api) CreatePlan(projectId string, req shared.CreatePlanRequest) (*shared.CreatePlanResponse, error) {
-	serverUrl := fmt.Sprintf("%s/projects/%s/plans", apiHost, projectId)
+	serverUrl := fmt.Sprintf("%s/projects/%s/plans", getApiHost(), projectId)
 	reqBytes, err := json.Marshal(req)
 	if err != nil {
 		return nil, fmt.Errorf("error marshalling request: %v", err)
@@ -236,7 +236,7 @@ func (a *Api) CreatePlan(projectId string, req shared.CreatePlanRequest) (*share
 }
 
 func (a *Api) GetPlan(planId string) (*shared.Plan, error) {
-	serverUrl := fmt.Sprintf("%s/plans/%s", apiHost, planId)
+	serverUrl := fmt.Sprintf("%s/plans/%s", getApiHost(), planId)
 
 	resp, err := authenticatedFastClient.Get(serverUrl)
 	if err != nil {
@@ -260,7 +260,7 @@ func (a *Api) GetPlan(planId string) (*shared.Plan, error) {
 }
 
 func (a *Api) DeletePlan(planId string) error {
-	serverUrl := fmt.Sprintf("%s/plans/%s", apiHost, planId)
+	serverUrl := fmt.Sprintf("%s/plans/%s", getApiHost(), planId)
 
 	req, err := http.NewRequest(http.MethodDelete, serverUrl, nil)
 	if err != nil {
@@ -282,7 +282,7 @@ func (a *Api) DeletePlan(planId string) error {
 }
 
 func (a *Api) DeleteAllPlans(projectId string) error {
-	serverUrl := fmt.Sprintf("%s/projects/%s/plans", apiHost, projectId)
+	serverUrl := fmt.Sprintf("%s/projects/%s/plans", getApiHost(), projectId)
 
 	req, err := http.NewRequest(http.MethodDelete, serverUrl, nil)
 	if err != nil {
@@ -305,7 +305,7 @@ func (a *Api) DeleteAllPlans(projectId string) error {
 
 func (a *Api) TellPlan(planId string, req shared.TellPlanRequest, onStream types.OnStreamPlan) error {
 
-	serverUrl := fmt.Sprintf("%s/plans/%s/tell", apiHost, planId)
+	serverUrl := fmt.Sprintf("%s/plans/%s/tell", getApiHost(), planId)
 	reqBytes, err := json.Marshal(req)
 	if err != nil {
 		return fmt.Errorf("error marshalling request: %v", err)
@@ -343,7 +343,7 @@ func (a *Api) TellPlan(planId string, req shared.TellPlanRequest, onStream types
 }
 
 func (a *Api) ConnectPlan(planId string, onStream types.OnStreamPlan) error {
-	serverUrl := fmt.Sprintf("%s/plans/%s/connect", apiHost, planId)
+	serverUrl := fmt.Sprintf("%s/plans/%s/connect", getApiHost(), planId)
 
 	req, err := http.NewRequest(http.MethodPatch, serverUrl, nil)
 	if err != nil {
@@ -367,7 +367,7 @@ func (a *Api) ConnectPlan(planId string, onStream types.OnStreamPlan) error {
 }
 
 func (a *Api) StopPlan(planId string) error {
-	serverUrl := fmt.Sprintf("%s/plans/%s/stop", apiHost, planId)
+	serverUrl := fmt.Sprintf("%s/plans/%s/stop", getApiHost(), planId)
 
 	req, err := http.NewRequest(http.MethodDelete, serverUrl, nil)
 	if err != nil {
@@ -389,7 +389,7 @@ func (a *Api) StopPlan(planId string) error {
 }
 
 func (a *Api) GetCurrentPlanState(planId string) (*shared.CurrentPlanState, error) {
-	serverUrl := fmt.Sprintf("%s/plans/%s/current_plan", apiHost, planId)
+	serverUrl := fmt.Sprintf("%s/plans/%s/current_plan", getApiHost(), planId)
 
 	resp, err := authenticatedFastClient.Get(serverUrl)
 	if err != nil {
@@ -412,7 +412,7 @@ func (a *Api) GetCurrentPlanState(planId string) (*shared.CurrentPlanState, erro
 }
 
 func (a *Api) ApplyPlan(planId string) error {
-	serverUrl := fmt.Sprintf("%s/plans/%s/apply", apiHost, planId)
+	serverUrl := fmt.Sprintf("%s/plans/%s/apply", getApiHost(), planId)
 
 	req, err := http.NewRequest(http.MethodPatch, serverUrl, nil)
 	if err != nil {
@@ -434,7 +434,7 @@ func (a *Api) ApplyPlan(planId string) error {
 }
 
 func (a *Api) ArchivePlan(planId string) error {
-	serverUrl := fmt.Sprintf("%s/plans/%s/archive", apiHost, planId)
+	serverUrl := fmt.Sprintf("%s/plans/%s/archive", getApiHost(), planId)
 
 	req, err := http.NewRequest(http.MethodPatch, serverUrl, nil)
 	if err != nil {
@@ -456,7 +456,7 @@ func (a *Api) ArchivePlan(planId string) error {
 }
 
 func (a *Api) RejectAllChanges(planId string) error {
-	serverUrl := fmt.Sprintf("%s/plans/%s/reject_all", apiHost, planId)
+	serverUrl := fmt.Sprintf("%s/plans/%s/reject_all", getApiHost(), planId)
 
 	req, err := http.NewRequest(http.MethodPatch, serverUrl, nil)
 	if err != nil {
@@ -478,7 +478,7 @@ func (a *Api) RejectAllChanges(planId string) error {
 }
 
 func (a *Api) RejectResult(planId, resultId string) error {
-	serverUrl := fmt.Sprintf("%s/plans/%s/results/%s/reject", apiHost, planId, resultId)
+	serverUrl := fmt.Sprintf("%s/plans/%s/results/%s/reject", getApiHost(), planId, resultId)
 
 	req, err := http.NewRequest(http.MethodPatch, serverUrl, nil)
 	if err != nil {
@@ -500,7 +500,7 @@ func (a *Api) RejectResult(planId, resultId string) error {
 }
 
 func (a *Api) RejectReplacement(planId, resultId, replacementId string) error {
-	serverUrl := fmt.Sprintf("%s/plans/%s/results/%s/replacements/%s/reject", apiHost, planId, resultId, replacementId)
+	serverUrl := fmt.Sprintf("%s/plans/%s/results/%s/replacements/%s/reject", getApiHost(), planId, resultId, replacementId)
 
 	req, err := http.NewRequest(http.MethodPatch, serverUrl, nil)
 	if err != nil {
@@ -522,7 +522,7 @@ func (a *Api) RejectReplacement(planId, resultId, replacementId string) error {
 }
 
 func (a *Api) LoadContext(planId string, req shared.LoadContextRequest) (*shared.LoadContextResponse, error) {
-	serverUrl := fmt.Sprintf("%s/plans/%s/context", apiHost, planId)
+	serverUrl := fmt.Sprintf("%s/plans/%s/context", getApiHost(), planId)
 	reqBytes, err := json.Marshal(req)
 	if err != nil {
 		return nil, fmt.Errorf("error marshalling request: %v", err)
@@ -550,7 +550,7 @@ func (a *Api) LoadContext(planId string, req shared.LoadContextRequest) (*shared
 }
 
 func (a *Api) UpdateContext(planId string, req shared.UpdateContextRequest) (*shared.UpdateContextResponse, error) {
-	serverUrl := fmt.Sprintf("%s/plans/%s/context", apiHost, planId)
+	serverUrl := fmt.Sprintf("%s/plans/%s/context", getApiHost(), planId)
 
 	reqBytes, err := json.Marshal(req)
 	if err != nil {
@@ -587,7 +587,7 @@ func (a *Api) UpdateContext(planId string, req shared.UpdateContextRequest) (*sh
 }
 
 func (a *Api) DeleteContext(planId string, req shared.DeleteContextRequest) (*shared.DeleteContextResponse, error) {
-	serverUrl := fmt.Sprintf("%s/plans/%s/context", apiHost, planId)
+	serverUrl := fmt.Sprintf("%s/plans/%s/context", getApiHost(), planId)
 	reqBytes, err := json.Marshal(req)
 	if err != nil {
 		return nil, fmt.Errorf("error marshalling request: %v", err)
@@ -620,7 +620,7 @@ func (a *Api) DeleteContext(planId string, req shared.DeleteContextRequest) (*sh
 }
 
 func (a *Api) ListContext(planId string) ([]*shared.Context, error) {
-	serverUrl := fmt.Sprintf("%s/plans/%s/context", apiHost, planId)
+	serverUrl := fmt.Sprintf("%s/plans/%s/context", getApiHost(), planId)
 
 	resp, err := authenticatedFastClient.Get(serverUrl)
 	if err != nil {
@@ -643,7 +643,7 @@ func (a *Api) ListContext(planId string) ([]*shared.Context, error) {
 }
 
 func (a *Api) ListConvo(planId string) ([]*shared.ConvoMessage, error) {
-	serverUrl := fmt.Sprintf("%s/plans/%s/convo", apiHost, planId)
+	serverUrl := fmt.Sprintf("%s/plans/%s/convo", getApiHost(), planId)
 
 	resp, err := authenticatedFastClient.Get(serverUrl)
 	if err != nil {
@@ -666,7 +666,7 @@ func (a *Api) ListConvo(planId string) ([]*shared.ConvoMessage, error) {
 }
 
 func (a *Api) ListLogs(planId string) (*shared.LogResponse, error) {
-	serverUrl := fmt.Sprintf("%s/plans/%s/logs", apiHost, planId)
+	serverUrl := fmt.Sprintf("%s/plans/%s/logs", getApiHost(), planId)
 
 	resp, err := authenticatedFastClient.Get(serverUrl)
 	if err != nil {
@@ -690,7 +690,7 @@ func (a *Api) ListLogs(planId string) (*shared.LogResponse, error) {
 }
 
 func (a *Api) RewindPlan(planId string, req shared.RewindPlanRequest) (*shared.RewindPlanResponse, error) {
-	serverUrl := fmt.Sprintf("%s/plans/%s/rewind", apiHost, planId)
+	serverUrl := fmt.Sprintf("%s/plans/%s/rewind", getApiHost(), planId)
 	reqBytes, err := json.Marshal(req)
 	if err != nil {
 		return nil, fmt.Errorf("error marshalling request: %v", err)

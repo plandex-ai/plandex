@@ -6,6 +6,7 @@ DROP TABLE IF EXISTS plans;
 DROP TABLE IF EXISTS projects;
 DROP TABLE IF EXISTS orgs_users;
 
+DROP TABLE IF EXISTS email_verifications;
 DROP TABLE IF EXISTS auth_tokens;
 
 DROP TABLE IF EXISTS orgs;

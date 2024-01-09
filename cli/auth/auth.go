@@ -180,6 +180,72 @@ func promptAuth() error {
 	return nil
 }
 
+func signIn() error {
+	acccounts, err := LoadAccounts()
+
+	if err != nil {
+		return fmt.Errorf("error loading accounts: %v", err)
+	}
+
+	if len(acccounts) == 0 {
+		err := promptSignInNewAccount()
+		if err != nil {
+			return fmt.Errorf("error signing in to new account: %v", err)
+		}
+	}
+
+	var options []string
+	for _, account := range acccounts {
+		options = append(options, fmt.Sprintf("<%s> %s", account.UserName, account.Email))
+	}
+
+	options = append(options, "Sign in to another account")
+
+	// either select from existing accounts or prompt for email
+
+	return nil
+}
+
+const (
+	SignInCloudOption = "Sign in to Plandex Cloud"
+	SignInOtherOption = "Sign in to another host"
+)
+
+func promptSignInNewAccount() error {
+
+	selected, err := term.SelectFromList("You can sign in to an existing account on Plandex Cloud or another host.", []string{SignInCloudOption, SignInOtherOption})
+
+	if err != nil {
+		return fmt.Errorf("error selecting sign in option: %v", err)
+	}
+
+	if selected == SignInCloudOption {
+		email, err := term.GetUserStringInput("Your email:")
+
+		if err != nil {
+			return fmt.Errorf("error prompting email: %v", err)
+		}
+	} else {
+		host, err := term.GetUserStringInput("Host:")
+
+		if err != nil {
+			return fmt.Errorf("error prompting host: %v", err)
+		}
+
+		email, err := term.GetUserStringInput("Your email:")
+
+		if err != nil {
+			return fmt.Errorf("error prompting email: %v", err)
+		}
+
+	}
+}
+
+func createAccount() error {
+
+	return nil
+}
+
 func startTrial() error {
 	term.StartSpinner("🌟 Starting trial...")
 
@@ -193,6 +259,7 @@ func startTrial() error {
 	term.StopSpinner()
 
 	err = StoreAccountIfNew(&types.ClientAccount{
+		Email:    res.Email,
 		UserId:   res.UserId,
 		UserName: res.UserName,
 		Token:    res.Token,
@@ -204,6 +271,7 @@ func startTrial() error {
 	}
 
 	Current = &types.ClientAuth{
+		Email:    res.Email,
 		UserId:   res.UserId,
 		UserName: res.UserName,
 		OrgId:    res.OrgId,

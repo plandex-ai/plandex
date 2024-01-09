@@ -63,7 +63,7 @@ func MigrationsUp() error {
 	// 			return fmt.Errorf("error running down migrations: %v", err)
 	// 		}
 	// 	}
-	// 	log.Println("database reset")
+	// 	log.Println("ran down migrations - database was reset")
 	// }
 
 	err = m.Up()

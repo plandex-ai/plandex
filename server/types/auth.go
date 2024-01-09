@@ -1,6 +1,7 @@
 package types
 
 type ServerAuth struct {
-	UserId string
-	OrgId  string
+	UserId    string
+	OrgId     string
+	TokenHash string
 }

@@ -3,6 +3,9 @@ package types
 import "github.com/plandex/plandex/shared"
 
 type ClientAccount struct {
+	IsCloud  bool   `json:"isCloud"`
+	Host     string `json:"host"`
+	Email    string `json:"email"`
 	UserName string `json:"userName"`
 	UserId   string `json:"userId"`
 	Token    string `json:"token"`
@@ -10,6 +13,9 @@ type ClientAccount struct {
 }
 
 type ClientAuth struct {
+	IsCloud  bool   `json:"isCloud"`
+	Host     string `json:"host"`
+	Email    string `json:"email"`
 	OrgId    string `json:"orgId"`
 	OrgName  string `json:"orgName"`
 	UserId   string `json:"userId"`

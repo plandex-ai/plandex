@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"plandex-server/db"
 
 	"github.com/gorilla/mux"
@@ -15,7 +16,7 @@ import (
 func CreatePlanHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for CreatePlanHandler")
 
-	auth := authenticate(w, r)
+	auth := authenticate(w, r, true)
 	if auth == nil {
 		return
 	}
@@ -27,6 +28,24 @@ func CreatePlanHandler(w http.ResponseWriter, r *http.Request) {
 
 	if !authorizeProject(w, projectId, auth.UserId, auth.OrgId) {
 		return
+	}
+
+	if os.Getenv("IS_CLOUD") != "" {
+		user, err := db.GetUser(auth.UserId)
+
+		if err != nil {
+			log.Printf("Error getting user: %v\n", err)
+			http.Error(w, "Error getting user: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		if user.IsTrial {
+			if user.NumNonDraftPlans >= 10 {
+				log.Println("User has reached max number of plans")
+				http.Error(w, "User has reached max number of free trial plans", http.StatusForbidden)
+				return
+			}
+		}
 	}
 
 	// read the request body
@@ -110,7 +129,7 @@ func CreatePlanHandler(w http.ResponseWriter, r *http.Request) {
 func GetPlanHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for GetPlanHandler")
 
-	auth := authenticate(w, r)
+	auth := authenticate(w, r, true)
 	if auth == nil {
 		return
 	}
@@ -140,7 +159,7 @@ func GetPlanHandler(w http.ResponseWriter, r *http.Request) {
 func DeletePlanHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for DeletePlanHandler")
 
-	auth := authenticate(w, r)
+	auth := authenticate(w, r, true)
 	if auth == nil {
 		return
 	}
@@ -197,7 +216,7 @@ func DeletePlanHandler(w http.ResponseWriter, r *http.Request) {
 func DeleteAllPlansHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for DeleteAllPlansHandler")
 
-	auth := authenticate(w, r)
+	auth := authenticate(w, r, true)
 	if auth == nil {
 		return
 	}
@@ -224,7 +243,7 @@ func DeleteAllPlansHandler(w http.ResponseWriter, r *http.Request) {
 
 func ListPlansHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for ListPlansHandler")
-	auth := authenticate(w, r)
+	auth := authenticate(w, r, true)
 	if auth == nil {
 		return
 	}
@@ -238,7 +257,7 @@ func ListPlansHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	plans, err := db.ListPlans(projectId, auth.UserId, false, "")
+	plans, err := db.ListOwnedPlans(projectId, auth.UserId, false, "")
 
 	if err != nil {
 		log.Printf("Error listing plans: %v\n", err)
@@ -260,7 +279,7 @@ func ListPlansHandler(w http.ResponseWriter, r *http.Request) {
 
 func ListArchivedPlansHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for ListArchivedPlansHandler")
-	auth := authenticate(w, r)
+	auth := authenticate(w, r, true)
 	if auth == nil {
 		return
 	}
@@ -274,7 +293,7 @@ func ListArchivedPlansHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	plans, err := db.ListPlans(projectId, "", true, "")
+	plans, err := db.ListOwnedPlans(projectId, "", true, "")
 
 	if err != nil {
 		log.Printf("Error listing plans: %v\n", err)
@@ -296,7 +315,7 @@ func ListArchivedPlansHandler(w http.ResponseWriter, r *http.Request) {
 
 func ListPlansRunningHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for ListPlansRunningHandler")
-	auth := authenticate(w, r)
+	auth := authenticate(w, r, true)
 	if auth == nil {
 		return
 	}

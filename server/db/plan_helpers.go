@@ -52,7 +52,7 @@ func CreatePlan(orgId, projectId, userId, name string) (*Plan, error) {
 	return plan, nil
 }
 
-func ListPlans(projectId, userId string, archived bool, status string) ([]shared.Plan, error) {
+func ListOwnedPlans(projectId, userId string, archived bool, status string) ([]shared.Plan, error) {
 	qs := "SELECT id, owner_id, name, status, context_tokens, convo_tokens, shared_with_org_at, archived_at, created_at, updated_at FROM plans WHERE project_id = $1 AND owner_id = $2"
 	qargs := []interface{}{projectId, userId}
 
@@ -98,8 +98,8 @@ func AddPlanContextTokens(planId string, addTokens int) error {
 	return nil
 }
 
-func AddPlanConvoTokens(planId string, addTokens int) error {
-	_, err := Conn.Exec("UPDATE plans SET convo_tokens = convo_tokens + $1 WHERE id = $2", addTokens, planId)
+func AddPlanConvoMessage(planId string, addTokens int) error {
+	_, err := Conn.Exec("UPDATE plans SET convo_tokens = convo_tokens + $1, total_messages = total_messages + 1 WHERE id = $2", addTokens, planId)
 	if err != nil {
 		return fmt.Errorf("error updating plan tokens: %v", err)
 	}
@@ -152,7 +152,7 @@ func SyncPlanTokens(orgId, planId string) error {
 func GetPlan(planId string) (*Plan, error) {
 	var plan Plan
 
-	err := Conn.Get(&plan, "SELECT id, org_id, owner_id, project_id, name, status, error, context_tokens, convo_tokens, shared_with_org_at, archived_at, created_at, updated_at FROM plans WHERE id = $1", planId)
+	err := Conn.Get(&plan, "SELECT id, org_id, owner_id, project_id, name, status, error, context_tokens, convo_tokens, shared_with_org_at, total_messages, archived_at, created_at, updated_at FROM plans WHERE id = $1", planId)
 
 	if err != nil {
 		return nil, fmt.Errorf("error getting plan: %v", err)
@@ -176,6 +176,16 @@ func RenamePlan(planId string, name string) error {
 
 	if err != nil {
 		return fmt.Errorf("error renaming plan: %v", err)
+	}
+
+	return nil
+}
+
+func IncNumNonDraftPlans(userId string) error {
+	_, err := Conn.Exec("UPDATE users SET num_non_draft_plans = num_non_draft_plans + 1 WHERE id = $1", userId)
+
+	if err != nil {
+		return fmt.Errorf("error updating user num_non_draft_plans: %v", err)
 	}
 
 	return nil

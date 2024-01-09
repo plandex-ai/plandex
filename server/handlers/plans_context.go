@@ -20,7 +20,7 @@ import (
 func ListContextHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for ListContextHandler")
 
-	auth := authenticate(w, r)
+	auth := authenticate(w, r, true)
 	if auth == nil {
 		return
 	}
@@ -61,7 +61,7 @@ func ListContextHandler(w http.ResponseWriter, r *http.Request) {
 func LoadContextHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for LoadContextHandler")
 
-	auth := authenticate(w, r)
+	auth := authenticate(w, r, true)
 	if auth == nil {
 		return
 	}
@@ -229,7 +229,7 @@ func LoadContextHandler(w http.ResponseWriter, r *http.Request) {
 func UpdateContextHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for UpdateContextHandler")
 
-	auth := authenticate(w, r)
+	auth := authenticate(w, r, true)
 	if auth == nil {
 		return
 	}
@@ -426,7 +426,7 @@ func UpdateContextHandler(w http.ResponseWriter, r *http.Request) {
 func DeleteContextHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for DeleteContextHandler")
 
-	auth := authenticate(w, r)
+	auth := authenticate(w, r, true)
 	if auth == nil {
 		return
 	}

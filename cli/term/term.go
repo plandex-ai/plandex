@@ -9,6 +9,8 @@ import (
 	"github.com/eiannone/keyboard"
 	"github.com/fatih/color"
 	"golang.org/x/term"
+
+	"github.com/cqroot/prompt"
 )
 
 var CmdDesc = map[string][2]string{
@@ -109,7 +111,11 @@ func PageOutputReverse(output string) {
 	}
 }
 
-func GetUserInput() (rune, error) {
+func GetUserStringInput(msg string) (string, error) {
+	return prompt.New().Ask(msg).Input("")
+}
+
+func GetUserKeyInput() (rune, error) {
 	if err := keyboard.Open(); err != nil {
 		return 0, fmt.Errorf("failed to open keyboard: %s", err)
 	}
@@ -129,7 +135,7 @@ func ConfirmYesNo(fmtStr string, fmtArgs ...interface{}) (bool, error) {
 	color.New(color.FgHiMagenta, color.Bold).Printf(fmtStr+" (y)es | (n)o", fmtArgs...)
 	color.New(color.FgHiMagenta, color.Bold).Print("> ")
 
-	char, err := GetUserInput()
+	char, err := GetUserKeyInput()
 	if err != nil {
 		return false, fmt.Errorf("failed to get user input: %s", err)
 	}
@@ -150,7 +156,7 @@ func ConfirmYesNoCancel(fmtStr string, fmtArgs ...interface{}) (bool, bool, erro
 	color.New(color.FgHiMagenta, color.Bold).Printf(fmtStr+" (y)es | (n)o | (c)ancel", fmtArgs...)
 	color.New(color.FgHiMagenta, color.Bold).Print("> ")
 
-	char, err := GetUserInput()
+	char, err := GetUserKeyInput()
 	if err != nil {
 		return false, false, fmt.Errorf("failed to get user input: %s", err)
 	}

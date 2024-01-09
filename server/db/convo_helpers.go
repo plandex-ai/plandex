@@ -83,7 +83,7 @@ func StoreConvoMessage(message *ConvoMessage, commit bool) (string, error) {
 		return "", fmt.Errorf("error writing convo message: %v", err)
 	}
 
-	err = AddPlanConvoTokens(message.PlanId, message.Tokens)
+	err = AddPlanConvoMessage(message.PlanId, message.Tokens)
 
 	if err != nil {
 		return "", fmt.Errorf("error adding convo tokens: %v", err)

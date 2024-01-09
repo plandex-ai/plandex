@@ -13,10 +13,13 @@ CREATE TABLE IF NOT EXISTS users (
   name VARCHAR(255) NOT NULL,
   email VARCHAR(255) NOT NULL,
   is_trial BOOLEAN NOT NULL,
+  num_non_draft_plans INTEGER NOT NULL DEFAULT 0,
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 CREATE TRIGGER update_users_modtime BEFORE UPDATE ON users FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+ALTER TABLE users ADD UNIQUE (email);
 
 CREATE TABLE IF NOT EXISTS orgs (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -30,6 +33,8 @@ CREATE TABLE IF NOT EXISTS orgs (
 );
 CREATE TRIGGER update_orgs_modtime BEFORE UPDATE ON orgs FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+ALTER TABLE orgs ADD UNIQUE (domain);
+
 CREATE TABLE IF NOT EXISTS orgs_users (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   org_id UUID NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
@@ -39,13 +44,29 @@ CREATE TABLE IF NOT EXISTS orgs_users (
 );
 CREATE TRIGGER update_orgs_users_modtime BEFORE UPDATE ON orgs_users FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+CREATE INDEX orgs_users_idx ON orgs_users(user_id);
+
 CREATE TABLE IF NOT EXISTS auth_tokens (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   token_hash VARCHAR(64) NOT NULL,
-  created_at TIMESTAMP NOT NULL DEFAULT NOW()
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  deleted_at TIMESTAMP
 );
-CREATE INDEX auth_tokens_hash_idx ON auth_tokens(token_hash);
+ALTER TABLE auth_tokens ADD UNIQUE (token_hash);
+
+CREATE TABLE IF NOT EXISTS email_verifications (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  email VARCHAR(255) NOT NULL,
+  pin_hash VARCHAR(64) NOT NULL,
+  user_id UUID REFERENCES users(id),  
+  auth_token_id UUID REFERENCES auth_tokens(id),
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+CREATE TRIGGER update_email_verifications_modtime BEFORE UPDATE ON email_verifications FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE UNIQUE INDEX email_verifications_idx ON email_verifications(token_hash, email, created_at DESC);
 
 CREATE TABLE IF NOT EXISTS projects (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -67,6 +88,7 @@ CREATE TABLE IF NOT EXISTS plans (
   context_tokens INTEGER NOT NULL DEFAULT 0,
   convo_tokens INTEGER NOT NULL DEFAULT 0,
   shared_with_org_at TIMESTAMP,
+  total_messages INTEGER NOT NULL DEFAULT 0,
   archived_at TIMESTAMP,
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMP NOT NULL DEFAULT NOW()

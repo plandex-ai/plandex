@@ -9,7 +9,7 @@ import (
 
 func ListConvoHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received a request for ListConvoHandler")
-	auth := authenticate(w, r)
+	auth := authenticate(w, r, true)
 	if auth == nil {
 		return
 	}

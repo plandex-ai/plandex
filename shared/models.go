@@ -8,9 +8,11 @@ type Org struct {
 }
 
 type User struct {
-	Id    string `json:"id"`
-	Name  string `json:"name"`
-	Email string `json:"email"`
+	Id               string `json:"id"`
+	Name             string `json:"name"`
+	Email            string `json:"email"`
+	IsTrial          bool   `json:"isTrial"`
+	NumNonDraftPlans int    `db:"num_non_draft_plans"`
 }
 
 type Project struct {
@@ -39,6 +41,7 @@ type Plan struct {
 	ContextTokens   int        `json:"contextTokens"`
 	ConvoTokens     int        `json:"convoTokens"`
 	SharedWithOrgAt *time.Time `json:"sharedWithOrgAt,omitempty"`
+	TotalMessages   int        `json:"totalMessages"`
 	ArchivedAt      *time.Time `json:"archivedAt,omitempty"`
 	CreatedAt       time.Time  `json:"createdAt"`
 	UpdatedAt       time.Time  `json:"updatedAt"`

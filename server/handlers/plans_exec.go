@@ -5,7 +5,9 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"plandex-server/model/plan"
+	"os"
+	"plandex-server/db"
+	model "plandex-server/model/plan"
 
 	"github.com/gorilla/mux"
 	"github.com/plandex/plandex/shared"
@@ -14,7 +16,7 @@ import (
 func TellPlanHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for TellPlanHandler")
 
-	auth := authenticate(w, r)
+	auth := authenticate(w, r, true)
 	if auth == nil {
 		return
 	}
@@ -24,7 +26,9 @@ func TellPlanHandler(w http.ResponseWriter, r *http.Request) {
 
 	log.Println("planId: ", planId)
 
-	if authorizePlan(w, planId, auth.UserId, auth.OrgId) == nil {
+	plan := authorizePlan(w, planId, auth.UserId, auth.OrgId)
+
+	if plan == nil {
 		return
 	}
 
@@ -46,7 +50,25 @@ func TellPlanHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = plan.Tell(planId, auth.UserId, auth.OrgId, &requestBody)
+	if os.Getenv("IS_CLOUD") != "" {
+		user, err := db.GetUser(auth.UserId)
+
+		if err != nil {
+			log.Printf("Error getting user: %v\n", err)
+			http.Error(w, "Error getting user: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		if user.IsTrial {
+			if plan.TotalMessages >= 15 {
+				log.Println("User has reached max number of messages")
+				http.Error(w, "User has reached max number of free trial messages", http.StatusForbidden)
+				return
+			}
+		}
+	}
+
+	err = model.Tell(plan, auth.UserId, auth.OrgId, &requestBody)
 
 	if err != nil {
 		log.Printf("Error telling plan: %v\n", err)
@@ -55,11 +77,11 @@ func TellPlanHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if requestBody.ConnectStream {
-		active := plan.Active.Get(planId)
-		subscriptionId, ch := plan.SubscribePlan(planId)
+		active := model.Active.Get(planId)
+		subscriptionId, ch := model.SubscribePlan(planId)
 
 		startResponseStream(w, ch, active.Ctx, func() {
-			plan.UnsubscribePlan(planId, subscriptionId)
+			model.UnsubscribePlan(planId, subscriptionId)
 		})
 	}
 
@@ -67,7 +89,7 @@ func TellPlanHandler(w http.ResponseWriter, r *http.Request) {
 
 func BuildPlanHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for BuildPlanHandler")
-	auth := authenticate(w, r)
+	auth := authenticate(w, r, true)
 	if auth == nil {
 		return
 	}
@@ -85,7 +107,7 @@ func BuildPlanHandler(w http.ResponseWriter, r *http.Request) {
 
 func ConnectPlanHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for ConnectPlanHandler")
-	auth := authenticate(w, r)
+	auth := authenticate(w, r, true)
 	if auth == nil {
 		return
 	}
@@ -103,7 +125,7 @@ func ConnectPlanHandler(w http.ResponseWriter, r *http.Request) {
 
 func StopPlanHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for StopPlanHandler")
-	auth := authenticate(w, r)
+	auth := authenticate(w, r, true)
 	if auth == nil {
 		return
 	}

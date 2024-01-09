@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"plandex-server/db"
 
-	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/plandex/plandex/shared"
 )
@@ -15,7 +14,7 @@ import (
 func CreateProjectHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for CreateProjectHandler")
 
-	auth := authenticate(w, r)
+	auth := authenticate(w, r, true)
 	if auth == nil {
 		return
 	}
@@ -42,9 +41,27 @@ func CreateProjectHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	id := uuid.New().String()
+	// start a transaction
+	tx, err := db.Conn.Begin()
+	if err != nil {
+		log.Printf("Error starting transaction: %v\n", err)
+		http.Error(w, "Error starting transaction: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
 
-	_, err = db.Conn.Exec("INSERT INTO projects (id, org_id, name) VALUES ($1, $2, $3)", id, auth.OrgId, requestBody.Name)
+	// Ensure that rollback is attempted in case of failure
+	defer func() {
+		if err != nil {
+			if rbErr := tx.Rollback(); rbErr != nil {
+				log.Printf("transaction rollback error: %v\n", rbErr)
+			} else {
+				log.Println("transaction rolled back")
+			}
+		}
+	}()
+
+	var projectId string
+	err = tx.QueryRow("INSERT INTO projects (org_id, name) VALUES ($1, $2) RETURNING id", auth.OrgId, requestBody.Name).Scan(&projectId)
 
 	if err != nil {
 		log.Printf("Error creating project: %v\n", err)
@@ -52,8 +69,23 @@ func CreateProjectHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	_, err = tx.Exec("INSERT INTO users_projects (user_id, org_id, project_id) VALUES ($1, $2, $3)", auth.UserId, auth.OrgId, projectId)
+
+	if err != nil {
+		log.Printf("Error adding owner to project: %v\n", err)
+		http.Error(w, "Error adding owner to project: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		log.Printf("Error committing transaction: %v\n", err)
+		http.Error(w, "Error committing transaction: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
 	resp := shared.CreateProjectResponse{
-		Id: id,
+		Id: projectId,
 	}
 
 	bytes, err := json.Marshal(resp)
@@ -66,14 +98,13 @@ func CreateProjectHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Write(bytes)
 
-	log.Println("Successfully created project", id)
-
+	log.Println("Successfully created project", projectId)
 }
 
 func ListProjectsHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for ListProjectsHandler")
 
-	auth := authenticate(w, r)
+	auth := authenticate(w, r, true)
 	if auth == nil {
 		return
 	}
@@ -111,7 +142,7 @@ func ListProjectsHandler(w http.ResponseWriter, r *http.Request) {
 
 func ProjectSetPlanHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for UpdateProjectSetPlanHandler")
-	auth := authenticate(w, r)
+	auth := authenticate(w, r, true)
 	if auth == nil {
 		return
 	}
@@ -160,7 +191,7 @@ func ProjectSetPlanHandler(w http.ResponseWriter, r *http.Request) {
 
 func RenameProjectHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for RenameProjectHandler")
-	auth := authenticate(w, r)
+	auth := authenticate(w, r, true)
 	if auth == nil {
 		return
 	}

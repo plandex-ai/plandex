@@ -4,8 +4,43 @@ type StartTrialResponse struct {
 	UserId   string `json:"userId"`
 	Token    string `json:"token"`
 	OrgId    string `json:"orgId"`
+	Email    string `json:"email"`
 	UserName string `json:"userName"`
 	OrgName  string `json:"orgName"`
+}
+
+type CreateEmailVerificationRequest struct {
+	Email  string `json:"email"`
+	UserId string `json:"userId"`
+}
+
+type SignInRequest struct {
+	Email string `json:"email"`
+	Pin   string `json:"pin"`
+}
+
+type CreateAccountRequest struct {
+	Email    string `json:"email"`
+	Pin      string `json:"pin"`
+	UserName string `json:"userName"`
+}
+
+type SessionResponse struct {
+	UserId   string `json:"userId"`
+	Token    string `json:"token"`
+	Email    string `json:"email"`
+	UserName string `json:"userName"`
+	Orgs     []*Org `json:"orgs"`
+}
+
+type CreateOrgRequest struct {
+	Name               string `json:"name"`
+	Domain             string `json:"domain"`
+	AutoAddDomainUsers bool   `json:"autoAddDomainUsers"`
+}
+
+type CreateOrgResponse struct {
+	Id string `json:"id"`
 }
 
 type CreateProjectRequest struct {

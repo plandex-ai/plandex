@@ -12,7 +12,7 @@ import (
 	"github.com/plandex/plandex/shared"
 )
 
-func authenticate(w http.ResponseWriter, r *http.Request) *types.ServerAuth {
+func authenticate(w http.ResponseWriter, r *http.Request, requireOrg bool) *types.ServerAuth {
 	log.Println("authenticating request")
 
 	authHeader := r.Header.Get("Authorization")
@@ -52,11 +52,24 @@ func authenticate(w http.ResponseWriter, r *http.Request) *types.ServerAuth {
 	}
 
 	// validate the token
-	userId, err := db.ValidateAuthToken(parsed.Token)
+	userId, tokenHash, err := db.ValidateAuthToken(parsed.Token)
 
 	if err != nil {
 		log.Printf("error validating auth token: %v\n", err)
 		http.Error(w, "invalid auth token", http.StatusUnauthorized)
+		return nil
+	}
+
+	if !requireOrg {
+		return &types.ServerAuth{
+			UserId:    userId,
+			TokenHash: tokenHash,
+		}
+	}
+
+	if parsed.OrgId == "" {
+		log.Println("no org id")
+		http.Error(w, "no org id", http.StatusUnauthorized)
 		return nil
 	}
 
@@ -76,8 +89,9 @@ func authenticate(w http.ResponseWriter, r *http.Request) *types.ServerAuth {
 	}
 
 	return &types.ServerAuth{
-		UserId: userId,
-		OrgId:  parsed.OrgId,
+		UserId:    userId,
+		OrgId:     parsed.OrgId,
+		TokenHash: tokenHash,
 	}
 }
 
