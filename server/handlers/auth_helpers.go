@@ -52,18 +52,29 @@ func authenticate(w http.ResponseWriter, r *http.Request, requireOrg bool) *type
 	}
 
 	// validate the token
-	userId, tokenHash, err := db.ValidateAuthToken(parsed.Token)
+	authToken, err := db.ValidateAuthToken(parsed.Token)
 
 	if err != nil {
-		log.Printf("error validating auth token: %v\n", err)
-		http.Error(w, "invalid auth token", http.StatusUnauthorized)
+		writeApiError(w, shared.ApiErr{
+			Type:   shared.ApiErrorTypeInvalidToken,
+			Status: http.StatusUnauthorized,
+			Msg:    "Invalid auth token",
+		})
+		return nil
+	}
+
+	user, err := db.GetUser(authToken.UserId)
+
+	if err != nil {
+		log.Printf("error getting user: %v\n", err)
+		http.Error(w, "error getting user", http.StatusInternalServerError)
 		return nil
 	}
 
 	if !requireOrg {
 		return &types.ServerAuth{
-			UserId:    userId,
-			TokenHash: tokenHash,
+			AuthToken: authToken,
+			User:      user,
 		}
 	}
 
@@ -74,7 +85,7 @@ func authenticate(w http.ResponseWriter, r *http.Request, requireOrg bool) *type
 	}
 
 	// validate the org membership
-	isMember, err := db.ValidateOrgMembership(userId, parsed.OrgId)
+	isMember, err := db.ValidateOrgMembership(authToken.UserId, parsed.OrgId)
 
 	if err != nil {
 		log.Printf("error validating org membership: %v\n", err)
@@ -82,17 +93,43 @@ func authenticate(w http.ResponseWriter, r *http.Request, requireOrg bool) *type
 		return nil
 	}
 
-	if !isMember {
-		log.Println("user is not a member of the org")
-		http.Error(w, "not a member of org", http.StatusUnauthorized)
-		return nil
+	if isMember {
+		return &types.ServerAuth{
+			AuthToken: authToken,
+			User:      user,
+			OrgId:     parsed.OrgId,
+		}
+	} else {
+		// check if there's an invite for this user and accept it if so (adds the user to the org)
+		invite, err := db.GetInviteForOrgUser(parsed.OrgId, authToken.UserId)
+
+		if err != nil {
+			log.Printf("error getting invite for org user: %v\n", err)
+			http.Error(w, "error getting invite for org user", http.StatusInternalServerError)
+			return nil
+		}
+
+		if invite != nil {
+			err := db.AcceptInvite(invite, authToken.UserId)
+
+			if err != nil {
+				log.Printf("error accepting invite: %v\n", err)
+				http.Error(w, "error accepting invite", http.StatusInternalServerError)
+				return nil
+			}
+
+			return &types.ServerAuth{
+				AuthToken: authToken,
+				User:      user,
+				OrgId:     parsed.OrgId,
+			}
+		} else {
+			log.Println("user is not a member of the org")
+			http.Error(w, "not a member of org", http.StatusUnauthorized)
+			return nil
+		}
 	}
 
-	return &types.ServerAuth{
-		UserId:    userId,
-		OrgId:     parsed.OrgId,
-		TokenHash: tokenHash,
-	}
 }
 
 func authorizeProject(w http.ResponseWriter, projectId, userId, orgId string) bool {

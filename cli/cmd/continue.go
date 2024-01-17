@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"plandex/api"
+	"plandex/auth"
 	"plandex/lib"
 	streamtui "plandex/stream_tui"
 
@@ -31,20 +32,21 @@ func init() {
 }
 
 func next(cmd *cobra.Command, args []string) {
+	auth.MustResolveAuthWithOrg()
 	lib.MustResolveProject()
 	lib.MustCheckOutdatedContextWithOutput()
 
-	err := api.Client.TellPlan(lib.CurrentPlanId, shared.TellPlanRequest{
+	apiErr := api.Client.TellPlan(lib.CurrentPlanId, shared.TellPlanRequest{
 		Prompt:        continuePrompt,
 		ConnectStream: !continueBg,
 	}, lib.OnStreamPlan)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Prompt error:", err)
+	if apiErr != nil {
+		fmt.Fprintln(os.Stderr, "Prompt error:", apiErr.Msg)
 		return
 	}
 
 	if !continueBg {
-		err = streamtui.StartStreamUI()
+		err := streamtui.StartStreamUI()
 
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "Error starting stream UI:", err)

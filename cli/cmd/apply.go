@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"plandex/api"
+	"plandex/auth"
 	"plandex/lib"
 	"strconv"
 
@@ -27,6 +28,7 @@ var applyCmd = &cobra.Command{
 }
 
 func apply(cmd *cobra.Command, args []string) error {
+	auth.MustResolveAuthWithOrg()
 	lib.MustResolveProject()
 
 	var planId string
@@ -51,10 +53,10 @@ func apply(cmd *cobra.Command, args []string) error {
 		} else {
 			var plan *shared.Plan
 
-			plans, err := api.Client.ListPlans(lib.CurrentProjectId)
+			plans, apiErr := api.Client.ListPlans(lib.CurrentProjectId)
 
-			if err != nil {
-				fmt.Fprintln(os.Stderr, "Error getting plans:", err)
+			if apiErr != nil {
+				fmt.Fprintln(os.Stderr, "Error getting plans:", apiErr.Msg)
 				os.Exit(1)
 			}
 

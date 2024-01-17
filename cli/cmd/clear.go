@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"plandex/api"
+	"plandex/auth"
 	"plandex/lib"
 
 	"github.com/plandex/plandex/shared"
@@ -18,6 +19,7 @@ var clearCmd = &cobra.Command{
 }
 
 func clearAllContext(cmd *cobra.Command, args []string) {
+	auth.MustResolveAuthWithOrg()
 	lib.MustResolveProject()
 
 	if lib.CurrentPlanId == "" {

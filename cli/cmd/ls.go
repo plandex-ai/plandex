@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"plandex/api"
+	"plandex/auth"
 	"plandex/format"
 	"plandex/lib"
 	"plandex/term"
@@ -22,6 +23,7 @@ var contextCmd = &cobra.Command{
 }
 
 func context(cmd *cobra.Command, args []string) {
+	auth.MustResolveAuthWithOrg()
 	lib.MustResolveProject()
 
 	contexts, err := api.Client.ListContext(lib.CurrentPlanId)

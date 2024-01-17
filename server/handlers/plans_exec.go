@@ -13,6 +13,8 @@ import (
 	"github.com/plandex/plandex/shared"
 )
 
+const TrialMaxMessages = 15
+
 func TellPlanHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for TellPlanHandler")
 
@@ -20,13 +22,14 @@ func TellPlanHandler(w http.ResponseWriter, r *http.Request) {
 	if auth == nil {
 		return
 	}
+	currentUserId := auth.User.Id
 
 	vars := mux.Vars(r)
 	planId := vars["planId"]
 
 	log.Println("planId: ", planId)
 
-	plan := authorizePlan(w, planId, auth.UserId, auth.OrgId)
+	plan := authorizePlan(w, planId, currentUserId, auth.OrgId)
 
 	if plan == nil {
 		return
@@ -51,7 +54,7 @@ func TellPlanHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if os.Getenv("IS_CLOUD") != "" {
-		user, err := db.GetUser(auth.UserId)
+		user, err := db.GetUser(currentUserId)
 
 		if err != nil {
 			log.Printf("Error getting user: %v\n", err)
@@ -60,15 +63,21 @@ func TellPlanHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if user.IsTrial {
-			if plan.TotalMessages >= 15 {
-				log.Println("User has reached max number of messages")
-				http.Error(w, "User has reached max number of free trial messages", http.StatusForbidden)
+			if plan.TotalMessages >= TrialMaxMessages {
+				writeApiError(w, shared.ApiErr{
+					Type:   shared.ApiErrorTypeTrialMessagesExceeded,
+					Status: http.StatusForbidden,
+					Msg:    "Free trial message limit exceeded",
+					TrialMessagesExceededError: &shared.TrialMessagesExceededError{
+						MaxMessages: TrialMaxMessages,
+					},
+				})
 				return
 			}
 		}
 	}
 
-	err = model.Tell(plan, auth.UserId, auth.OrgId, &requestBody)
+	err = model.Tell(plan, currentUserId, auth.OrgId, &requestBody)
 
 	if err != nil {
 		log.Printf("Error telling plan: %v\n", err)
@@ -93,13 +102,14 @@ func BuildPlanHandler(w http.ResponseWriter, r *http.Request) {
 	if auth == nil {
 		return
 	}
+	currentUserId := auth.User.Id
 
 	vars := mux.Vars(r)
 	planId := vars["planId"]
 
 	log.Println("planId: ", planId)
 
-	if authorizePlan(w, planId, auth.UserId, auth.OrgId) == nil {
+	if authorizePlan(w, planId, currentUserId, auth.OrgId) == nil {
 		return
 	}
 
@@ -111,13 +121,14 @@ func ConnectPlanHandler(w http.ResponseWriter, r *http.Request) {
 	if auth == nil {
 		return
 	}
+	currentUserId := auth.User.Id
 
 	vars := mux.Vars(r)
 	planId := vars["planId"]
 
 	log.Println("planId: ", planId)
 
-	if authorizePlan(w, planId, auth.UserId, auth.OrgId) == nil {
+	if authorizePlan(w, planId, currentUserId, auth.OrgId) == nil {
 		return
 	}
 
@@ -129,13 +140,14 @@ func StopPlanHandler(w http.ResponseWriter, r *http.Request) {
 	if auth == nil {
 		return
 	}
+	currentUserId := auth.User.Id
 
 	vars := mux.Vars(r)
 	planId := vars["planId"]
 
 	log.Println("planId: ", planId)
 
-	if authorizePlan(w, planId, auth.UserId, auth.OrgId) == nil {
+	if authorizePlan(w, planId, currentUserId, auth.OrgId) == nil {
 		return
 	}
 

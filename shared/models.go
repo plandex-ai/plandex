@@ -3,8 +3,9 @@ package shared
 import "time"
 
 type Org struct {
-	Id   string `json:"id"`
-	Name string `json:"name"`
+	Id        string `json:"id"`
+	Name      string `json:"name"`
+	IsPending bool   `json:"isPending"`
 }
 
 type User struct {
@@ -13,6 +14,17 @@ type User struct {
 	Email            string `json:"email"`
 	IsTrial          bool   `json:"isTrial"`
 	NumNonDraftPlans int    `db:"num_non_draft_plans"`
+}
+
+type Invite struct {
+	Id         string     `json:"id"`
+	OrgId      string     `json:"orgId"`
+	Email      string     `json:"email"`
+	Name       string     `json:"name"`
+	InviterId  string     `json:"inviterId"`
+	InviteeId  string     `json:"inviteeId"`
+	AcceptedAt *time.Time `json:"acceptedAt"`
+	CreatedAt  time.Time  `json:"createdAt"`
 }
 
 type Project struct {

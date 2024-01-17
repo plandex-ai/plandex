@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"plandex/auth"
 	"plandex/changes_tui"
 	"plandex/lib"
 
@@ -21,6 +22,7 @@ var changesCmd = &cobra.Command{
 }
 
 func changes(cmd *cobra.Command, args []string) {
+	auth.MustResolveAuthWithOrg()
 	lib.MustResolveProject()
 
 	err := changes_tui.StartChangesUI()

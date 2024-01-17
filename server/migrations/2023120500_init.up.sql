@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name VARCHAR(255) NOT NULL,
   email VARCHAR(255) NOT NULL,
+  domain VARCHAR(255) NOT NULL,
   is_trial BOOLEAN NOT NULL,
   num_non_draft_plans INTEGER NOT NULL DEFAULT 0,
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
@@ -20,6 +21,7 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TRIGGER update_users_modtime BEFORE UPDATE ON users FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 ALTER TABLE users ADD UNIQUE (email);
+CREATE INDEX users_domain_idx ON users(domain);
 
 CREATE TABLE IF NOT EXISTS orgs (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -44,7 +46,25 @@ CREATE TABLE IF NOT EXISTS orgs_users (
 );
 CREATE TRIGGER update_orgs_users_modtime BEFORE UPDATE ON orgs_users FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-CREATE INDEX orgs_users_idx ON orgs_users(user_id);
+CREATE INDEX orgs_users_user_idx ON orgs_users(user_id);
+CREATE INDEX orgs_users_org_idx ON orgs_users(org_id);
+
+CREATE TABLE IF NOT EXISTS invites (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  org_id UUID NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
+  name VARCHAR(255) NOT NULL,
+  email VARCHAR(255) NOT NULL,
+  inviter_id UUID NOT NULL REFERENCES users(id),
+  invitee_id UUID REFERENCES users(id),
+  accepted_at TIMESTAMP,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+CREATE TRIGGER update_invites_modtime BEFORE UPDATE ON invites FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE INDEX invites_pending_idx ON invites(org_id, (accepted_at IS NULL));
+CREATE INDEX invites_email_idx ON invites(email, (accepted_at IS NULL));
+CREATE INDEX invites_org_user_idx ON invites(org_id, invitee_id);
 
 CREATE TABLE IF NOT EXISTS auth_tokens (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

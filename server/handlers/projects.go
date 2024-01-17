@@ -18,6 +18,7 @@ func CreateProjectHandler(w http.ResponseWriter, r *http.Request) {
 	if auth == nil {
 		return
 	}
+	currentUserId := auth.User.Id
 
 	// read the request body
 	body, err := io.ReadAll(r.Body)
@@ -69,7 +70,7 @@ func CreateProjectHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = tx.Exec("INSERT INTO users_projects (user_id, org_id, project_id) VALUES ($1, $2, $3)", auth.UserId, auth.OrgId, projectId)
+	_, err = tx.Exec("INSERT INTO users_projects (user_id, org_id, project_id) VALUES ($1, $2, $3)", currentUserId, auth.OrgId, projectId)
 
 	if err != nil {
 		log.Printf("Error adding owner to project: %v\n", err)
@@ -108,8 +109,9 @@ func ListProjectsHandler(w http.ResponseWriter, r *http.Request) {
 	if auth == nil {
 		return
 	}
+	currentUserId := auth.User.Id
 
-	rows, err := db.Conn.Query("SELECT project.id, project.name FROM users_projects INNER JOIN project ON users_projects.project_id = project.id WHERE users_projects.user_id = $1 AND users_projects.org_id = $2", auth.UserId, auth.OrgId)
+	rows, err := db.Conn.Query("SELECT project.id, project.name FROM users_projects INNER JOIN project ON users_projects.project_id = project.id WHERE users_projects.user_id = $1 AND users_projects.org_id = $2", currentUserId, auth.OrgId)
 
 	if err != nil {
 		log.Printf("Error listing projects: %v\n", err)
@@ -146,13 +148,14 @@ func ProjectSetPlanHandler(w http.ResponseWriter, r *http.Request) {
 	if auth == nil {
 		return
 	}
+	currentUserId := auth.User.Id
 
 	vars := mux.Vars(r)
 	projectId := vars["projectId"]
 
 	log.Println("projectId: ", projectId)
 
-	if !authorizeProject(w, projectId, auth.UserId, auth.OrgId) {
+	if !authorizeProject(w, projectId, currentUserId, auth.OrgId) {
 		return
 	}
 
@@ -195,13 +198,14 @@ func RenameProjectHandler(w http.ResponseWriter, r *http.Request) {
 	if auth == nil {
 		return
 	}
+	currentUserId := auth.User.Id
 
 	vars := mux.Vars(r)
 	projectId := vars["projectId"]
 
 	log.Println("projectId: ", projectId)
 
-	if !authorizeProject(w, projectId, auth.UserId, auth.OrgId) {
+	if !authorizeProject(w, projectId, currentUserId, auth.OrgId) {
 		return
 	}
 

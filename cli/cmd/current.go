@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"plandex/api"
+	"plandex/auth"
 	"plandex/format"
 	"plandex/lib"
 	"plandex/term"
@@ -26,6 +27,7 @@ func init() {
 }
 
 func current(cmd *cobra.Command, args []string) {
+	auth.MustResolveAuthWithOrg()
 	lib.MustResolveProject()
 
 	if lib.CurrentPlanId == "" {

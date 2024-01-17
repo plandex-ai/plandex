@@ -32,17 +32,38 @@ func init() {
 }
 
 func new(cmd *cobra.Command, args []string) {
-	auth.MustResolveAuth()
+	auth.MustResolveAuthWithOrg()
 	lib.MustResolveProject()
 
-	res, err := api.Client.CreatePlan(lib.CurrentProjectId, shared.CreatePlanRequest{Name: name})
+	res, apiErr := api.Client.CreatePlan(lib.CurrentProjectId, shared.CreatePlanRequest{Name: name})
 
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error creating plan:", err)
+	if apiErr != nil {
+		if apiErr.Type == shared.ApiErrorTypeTrialPlansExceeded {
+			fmt.Fprintf(os.Stderr, "🚨 You've reached the free trial limit of %d plans\n", apiErr.TrialPlansExceededError.MaxPlans)
+
+			res, err := term.ConfirmYesNo("Upgrade trial now?")
+
+			if err != nil {
+				fmt.Fprintln(os.Stderr, "Error prompting upgrade trial:", err)
+				return
+			}
+
+			if res {
+				err := auth.ConvertTrial()
+				if err != nil {
+					fmt.Fprintln(os.Stderr, "Error converting trial:", err)
+					return
+				}
+			}
+
+			return
+		}
+
+		fmt.Fprintln(os.Stderr, "Error creating plan:", apiErr.Msg)
 		return
 	}
 
-	err = lib.SetCurrentPlan(res.Id)
+	err := lib.SetCurrentPlan(res.Id)
 
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Error setting current plan:", err)

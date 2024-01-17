@@ -169,10 +169,10 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 		os.Exit(0)
 	}
 
-	res, err := api.Client.LoadContext(CurrentPlanId, loadContextReq)
+	res, apiErr := api.Client.LoadContext(CurrentPlanId, loadContextReq)
 
-	if err != nil {
-		onErr(fmt.Errorf("failed to load context: %v", err))
+	if apiErr != nil {
+		onErr(fmt.Errorf("failed to load context: %v", apiErr.Msg))
 	}
 
 	term.StopSpinner()

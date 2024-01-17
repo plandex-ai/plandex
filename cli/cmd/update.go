@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"plandex/auth"
 	"plandex/lib"
 
 	"github.com/spf13/cobra"
@@ -20,6 +21,7 @@ func init() {
 }
 
 func update(cmd *cobra.Command, args []string) {
+	auth.MustResolveAuthWithOrg()
 	lib.MustResolveProject()
 
 	lib.MustUpdateContextWithOuput()

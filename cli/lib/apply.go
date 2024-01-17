@@ -17,10 +17,10 @@ import (
 )
 
 func ApplyPlanWithOutput(planId string, autoConfirm bool) error {
-	currentPlanState, err := api.Client.GetCurrentPlanState(planId)
+	currentPlanState, apiErr := api.Client.GetCurrentPlanState(planId)
 
-	if err != nil {
-		return fmt.Errorf("error getting current plan state: %w", err)
+	if apiErr != nil {
+		return fmt.Errorf("error getting current plan state: %w", apiErr.Msg)
 	}
 
 	currentPlanFiles := currentPlanState.CurrentPlanFiles
@@ -42,6 +42,7 @@ func ApplyPlanWithOutput(planId string, autoConfirm bool) error {
 	outdatedCanMergeSet := map[string]bool{}
 
 	canMergeAllOutdated := true
+	var err error
 
 	for path := range currentPlanFiles.Files {
 		contextSha := currentPlanFiles.ContextShas[path]
@@ -303,11 +304,11 @@ func ApplyPlanWithOutput(planId string, autoConfirm bool) error {
 			}
 		}
 
-		err := api.Client.ApplyPlan(planId)
+		apiErr := api.Client.ApplyPlan(planId)
 
-		if err != nil {
+		if apiErr != nil {
 			aborted = true
-			return fmt.Errorf("failed to set pending results applied: %w", err)
+			return fmt.Errorf("failed to set pending results applied: %w", apiErr.Msg)
 		}
 
 		if isRepo {

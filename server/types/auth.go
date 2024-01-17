@@ -1,7 +1,9 @@
 package types
 
+import "plandex-server/db"
+
 type ServerAuth struct {
-	UserId    string
+	AuthToken *db.AuthToken
+	User      *db.User
 	OrgId     string
-	TokenHash string
 }

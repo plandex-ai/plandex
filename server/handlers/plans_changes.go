@@ -17,13 +17,14 @@ func CurrentPlanHandler(w http.ResponseWriter, r *http.Request) {
 	if auth == nil {
 		return
 	}
+	currentUserId := auth.User.Id
 
 	vars := mux.Vars(r)
 	planId := vars["planId"]
 
 	log.Println("planId: ", planId)
 
-	if authorizePlan(w, planId, auth.UserId, auth.OrgId) == nil {
+	if authorizePlan(w, planId, currentUserId, auth.OrgId) == nil {
 		return
 	}
 
@@ -67,12 +68,13 @@ func ApplyPlanHandler(w http.ResponseWriter, r *http.Request) {
 	if auth == nil {
 		return
 	}
+	currentUserId := auth.User.Id
 
 	vars := mux.Vars(r)
 	planId := vars["planId"]
 	log.Println("planId: ", planId)
 
-	if authorizePlan(w, planId, auth.UserId, auth.OrgId) == nil {
+	if authorizePlan(w, planId, currentUserId, auth.OrgId) == nil {
 		return
 	}
 
@@ -94,12 +96,13 @@ func RejectAllChangesHandler(w http.ResponseWriter, r *http.Request) {
 	if auth == nil {
 		return
 	}
+	currentUserId := auth.User.Id
 
 	vars := mux.Vars(r)
 	planId := vars["planId"]
 	log.Println("planId: ", planId)
 
-	if authorizePlan(w, planId, auth.UserId, auth.OrgId) == nil {
+	if authorizePlan(w, planId, currentUserId, auth.OrgId) == nil {
 		return
 	}
 
@@ -121,6 +124,7 @@ func RejectResultHandler(w http.ResponseWriter, r *http.Request) {
 	if auth == nil {
 		return
 	}
+	currentUserId := auth.User.Id
 
 	vars := mux.Vars(r)
 	planId := vars["planId"]
@@ -128,7 +132,7 @@ func RejectResultHandler(w http.ResponseWriter, r *http.Request) {
 
 	log.Println("planId: ", planId, "resultId: ", resultId)
 
-	if authorizePlan(w, planId, auth.UserId, auth.OrgId) == nil {
+	if authorizePlan(w, planId, currentUserId, auth.OrgId) == nil {
 		return
 	}
 
@@ -150,6 +154,7 @@ func RejectReplacementHandler(w http.ResponseWriter, r *http.Request) {
 	if auth == nil {
 		return
 	}
+	currentUserId := auth.User.Id
 
 	vars := mux.Vars(r)
 	planId := vars["planId"]
@@ -158,7 +163,7 @@ func RejectReplacementHandler(w http.ResponseWriter, r *http.Request) {
 
 	log.Println("planId: ", planId, "resultId: ", resultId, "replacementId: ", replacementId)
 
-	if authorizePlan(w, planId, auth.UserId, auth.OrgId) == nil {
+	if authorizePlan(w, planId, currentUserId, auth.OrgId) == nil {
 		return
 	}
 
@@ -178,6 +183,7 @@ func ArchivePlanHandler(w http.ResponseWriter, r *http.Request) {
 	if auth == nil {
 		return
 	}
+	currentUserId := auth.User.Id
 
 	log.Println("Received request for ArchivePlanHandler")
 
@@ -185,14 +191,14 @@ func ArchivePlanHandler(w http.ResponseWriter, r *http.Request) {
 	planId := vars["planId"]
 	log.Println("planId: ", planId)
 
-	plan := authorizePlan(w, planId, auth.UserId, auth.OrgId)
+	plan := authorizePlan(w, planId, currentUserId, auth.OrgId)
 
 	if plan == nil {
 		return
 	}
 
 	// apart from authorization, only the plan owner can archive a plan
-	if plan.OwnerId != auth.UserId {
+	if plan.OwnerId != currentUserId {
 		log.Println("Only the plan owner can archive a plan")
 		http.Error(w, "Only the plan owner can archive a plan", http.StatusForbidden)
 		return

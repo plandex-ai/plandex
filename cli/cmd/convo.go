@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"plandex/api"
+	"plandex/auth"
 	"plandex/lib"
 	"plandex/term"
 	"strings"
@@ -25,11 +26,12 @@ func init() {
 }
 
 func convo(cmd *cobra.Command, args []string) {
+	auth.MustResolveAuthWithOrg()
 	lib.MustResolveProject()
 
-	conversation, err := api.Client.ListConvo(lib.CurrentPlanId)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error loading conversation:", err)
+	conversation, apiErr := api.Client.ListConvo(lib.CurrentPlanId)
+	if apiErr != nil {
+		fmt.Fprintln(os.Stderr, "Error loading conversation:", apiErr.Msg)
 		return
 	}
 

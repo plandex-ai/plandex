@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"plandex/api"
+	"plandex/auth"
 	"plandex/format"
 	"plandex/lib"
 	"plandex/term"
@@ -27,6 +28,7 @@ var plansCmd = &cobra.Command{
 }
 
 func plans(cmd *cobra.Command, args []string) {
+	auth.MustResolveAuthWithOrg()
 	lib.MustResolveProject()
 
 	plans, err := api.Client.ListPlans(lib.CurrentProjectId)

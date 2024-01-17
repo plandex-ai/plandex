@@ -53,9 +53,9 @@ func (m changesUIModel) Init() tea.Cmd {
 }
 
 func initialModel() *changesUIModel {
-	currentPlan, err := api.Client.GetCurrentPlanState(lib.CurrentPlanId)
-	if err != nil {
-		err = fmt.Errorf("error getting current plan state: %v", err)
+	currentPlan, apiErr := api.Client.GetCurrentPlanState(lib.CurrentPlanId)
+	if apiErr != nil {
+		err := fmt.Errorf("error getting current plan state: %v", apiErr.Msg)
 		log.Println(err)
 		panic(err)
 	}

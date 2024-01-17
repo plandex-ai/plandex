@@ -11,10 +11,18 @@ import (
 // This adds some duplication, but helps ensure that server-only data doesn't leak to the client.
 // Models used client-side have a ToApi() method to convert it to the corresponding client-side model.
 
+type AuthToken struct {
+	Id        string    `db:"id"`
+	UserId    string    `db:"user_id"`
+	TokenHash string    `db:"token_hash"`
+	CreatedAt time.Time `db:"created_at"`
+	DeletedAt time.Time `db:"deleted_at"`
+}
+
 type Org struct {
 	Id                 string    `db:"id"`
 	Name               string    `db:"name"`
-	Domain             string    `db:"domain"`
+	Domain             *string   `db:"domain"`
 	AutoAddDomainUsers bool      `db:"auto_add_domain_users"`
 	OwnerId            string    `db:"owner_id"`
 	CreatedAt          time.Time `db:"created_at"`
@@ -32,6 +40,7 @@ type User struct {
 	Id               string    `db:"id"`
 	Name             string    `db:"name"`
 	Email            string    `db:"email"`
+	Domain           string    `db:"domain"`
 	NumNonDraftPlans int       `db:"num_non_draft_plans"`
 	IsTrial          bool      `db:"is_trial"`
 	CreatedAt        time.Time `db:"created_at"`
@@ -45,6 +54,31 @@ func (user *User) ToApi() *shared.User {
 		Email:            user.Email,
 		NumNonDraftPlans: user.NumNonDraftPlans,
 		IsTrial:          user.IsTrial,
+	}
+}
+
+type Invite struct {
+	Id         string     `db:"id"`
+	OrgId      string     `db:"org_id"`
+	Email      string     `db:"email"`
+	Name       string     `db:"name"`
+	InviterId  string     `db:"inviter_id"`
+	InviteeId  string     `db:"invitee_id"`
+	AcceptedAt *time.Time `db:"accepted_at"`
+	CreatedAt  time.Time  `db:"created_at"`
+	UpdatedAt  time.Time  `db:"updated_at"`
+}
+
+func (invite *Invite) ToApi() *shared.Invite {
+	return &shared.Invite{
+		Id:         invite.Id,
+		OrgId:      invite.OrgId,
+		Email:      invite.Email,
+		Name:       invite.Name,
+		InviterId:  invite.InviterId,
+		InviteeId:  invite.InviteeId,
+		AcceptedAt: invite.AcceptedAt,
+		CreatedAt:  invite.CreatedAt,
 	}
 }
 

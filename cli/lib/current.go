@@ -98,10 +98,10 @@ func MustLoadCurrentPlan() {
 }
 
 func mustInitProject() {
-	res, err := api.Client.CreateProject(shared.CreateProjectRequest{Name: filepath.Base(fs.ProjectRoot)})
+	res, apiErr := api.Client.CreateProject(shared.CreateProjectRequest{Name: filepath.Base(fs.ProjectRoot)})
 
-	if err != nil {
-		panic(fmt.Errorf("error creating project: %v", err))
+	if apiErr != nil {
+		panic(fmt.Errorf("error creating project: %v", apiErr.Msg))
 	}
 
 	CurrentProjectId = res.Id

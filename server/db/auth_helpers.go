@@ -28,28 +28,29 @@ func CreateAuthToken(userId string, tx *sql.Tx) (token, id string, err error) {
 	return uid.String(), id, nil
 }
 
-func ValidateAuthToken(token string) (userId, tokenHash string, err error) {
+func ValidateAuthToken(token string) (*AuthToken, error) {
 	uid, err := uuid.Parse(token)
 
 	if err != nil {
-		return "", "", errors.New("invalid token")
+		return nil, errors.New("invalid token")
 	}
 
 	bytes := uid[:]
 	hashBytes := sha256.Sum256(bytes)
-	tokenHash = hex.EncodeToString(hashBytes[:])
+	tokenHash := hex.EncodeToString(hashBytes[:])
 
-	err = Conn.QueryRow("SELECT user_id FROM auth_tokens WHERE token_hash = $1 AND created_at > $2 AND deleted_at IS NULL", tokenHash, time.Now().AddDate(0, 0, -tokenExpirationDays)).Scan(&userId)
+	var authToken AuthToken
+	err = Conn.Get(&authToken, "SELECT * FROM auth_tokens WHERE token_hash = $1 AND created_at > $2 AND deleted_at IS NULL", tokenHash, time.Now().AddDate(0, 0, -tokenExpirationDays))
 
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return "", "", errors.New("invalid token")
+			return nil, errors.New("invalid token")
 		}
 
-		return "", "", fmt.Errorf("error validating token: %v", err)
+		return nil, fmt.Errorf("error validating token: %v", err)
 	}
 
-	return userId, tokenHash, nil
+	return &authToken, nil
 }
 
 func CreateEmailVerification(email string, userId, pinHash string) error {

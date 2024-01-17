@@ -18,13 +18,14 @@ func ListLogsHandler(w http.ResponseWriter, r *http.Request) {
 	if auth == nil {
 		return
 	}
+	currentUserId := auth.User.Id
 
 	vars := mux.Vars(r)
 	planId := vars["planId"]
 
 	log.Println("planId: ", planId)
 
-	if authorizePlan(w, planId, auth.UserId, auth.OrgId) == nil {
+	if authorizePlan(w, planId, currentUserId, auth.OrgId) == nil {
 		return
 	}
 
@@ -61,13 +62,14 @@ func RewindPlanHandler(w http.ResponseWriter, r *http.Request) {
 	if auth == nil {
 		return
 	}
+	currentUserId := auth.User.Id
 
 	vars := mux.Vars(r)
 	planId := vars["planId"]
 
 	log.Println("planId: ", planId)
 
-	if authorizePlan(w, planId, auth.UserId, auth.OrgId) == nil {
+	if authorizePlan(w, planId, currentUserId, auth.OrgId) == nil {
 		return
 	}
 

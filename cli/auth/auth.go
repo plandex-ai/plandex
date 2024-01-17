@@ -1,26 +1,18 @@
 package auth
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"os"
 	"plandex/fs"
-	"plandex/term"
 	"plandex/types"
-
-	"github.com/plandex/plandex/shared"
 )
 
-var Current *types.ClientAuth
-var apiClient types.ApiClient
-
-func SetApiClient(client types.ApiClient) {
-	apiClient = client
+func MustResolveAuthWithOrg() {
+	MustResolveAuth(true)
 }
 
-func MustResolveAuth() {
+func MustResolveAuth(requireOrg bool) {
 	if apiClient == nil {
 		panic(fmt.Errorf("error resolving auth: api client not set"))
 	}
@@ -30,7 +22,7 @@ func MustResolveAuth() {
 
 	if err != nil {
 		if os.IsNotExist(err) {
-			err = promptAuth()
+			err = promptInitialAuth()
 
 			if err != nil {
 				panic(fmt.Errorf("error resolving auth: %v", err))
@@ -49,241 +41,58 @@ func MustResolveAuth() {
 	}
 
 	Current = &auth
-}
 
-func LoadAccounts() ([]*types.ClientAccount, error) {
-	bytes, err := os.ReadFile(fs.HomeAccountsPath)
+	if requireOrg && Current.OrgId == "" {
+		orgs, apiErr := apiClient.ListOrgs()
 
-	if err != nil {
-		if os.IsNotExist(err) {
-			// no accounts
-			return []*types.ClientAccount{}, nil
-		} else {
-			return nil, fmt.Errorf("error reading accounts.json: %v", err)
+		if apiErr != nil {
+			panic(fmt.Errorf("error listing orgs: %v", apiErr.Msg))
+		}
+
+		orgId, orgName, err := resolveOrgAuth(orgs)
+
+		if err != nil {
+			panic(fmt.Errorf("error resolving org: %v", err))
+		}
+
+		if orgId == "" {
+			// still no org--exit now
+			os.Exit(1)
+		}
+
+		Current.OrgId = orgId
+		Current.OrgName = orgName
+
+		err = writeCurrentAuth()
+
+		if err != nil {
+			panic(fmt.Errorf("error writing auth: %v", err))
 		}
 	}
 
-	var accounts []*types.ClientAccount
-	err = json.Unmarshal(bytes, &accounts)
-
-	if err != nil {
-		return nil, fmt.Errorf("error unmarshalling accounts.json: %v", err)
-	}
-
-	return accounts, nil
 }
 
-func StoreAccountIfNew(acct *types.ClientAccount) error {
-	accounts, err := LoadAccounts()
-
-	if err != nil {
-		return fmt.Errorf("error loading accounts: %v", err)
-	}
-
-	for _, account := range accounts {
-		if account.UserId == acct.UserId {
-			return nil
-		}
-	}
-
-	accounts = append(accounts, acct)
-
-	bytes, err := json.Marshal(accounts)
-
-	if err != nil {
-		return fmt.Errorf("error marshalling accounts: %v", err)
-	}
-
-	err = os.WriteFile(fs.HomeAccountsPath, bytes, os.ModePerm)
-
-	if err != nil {
-		return fmt.Errorf("error writing accounts: %v", err)
-	}
-
-	return nil
-}
-
-func SetAuthHeader(req *http.Request) error {
+func RefreshInvalidToken() error {
 	if Current == nil {
-		return fmt.Errorf("error setting auth header: auth not loaded")
+		return fmt.Errorf("error refreshing token: auth not loaded")
 	}
 
-	authHeader := shared.AuthHeader{
-		Token: Current.Token,
-		OrgId: Current.OrgId,
-	}
-
-	bytes, err := json.Marshal(authHeader)
+	hasAccount, pin, err := verifyEmail(Current.Email, Current.Host)
 
 	if err != nil {
-		return fmt.Errorf("error marshalling auth header: %v", err)
+		return fmt.Errorf("error verifying email: %v", err)
 	}
 
-	// base64 encode
-	token := base64.StdEncoding.EncodeToString(bytes)
-
-	req.Header.Set("Authorization", "Bearer "+token)
-
-	return nil
-}
-
-func writeCurrentAuth() error {
-	if Current == nil {
-		return fmt.Errorf("error writing auth: auth not loaded")
-	}
-
-	bytes, err := json.Marshal(Current)
-
-	if err != nil {
-		return fmt.Errorf("error marshalling auth: %v", err)
-	}
-
-	err = os.WriteFile(fs.HomeAuthPath, bytes, os.ModePerm)
-
-	if err != nil {
-		return fmt.Errorf("error writing auth: %v", err)
-	}
-
-	return nil
-}
-
-const (
-	AuthFreeTrialOption = "Start a free trial on Plandex Cloud"
-	AuthSignInOption    = "Sign in to an existing account on Plandex Cloud or another host"
-	AuthCreateAccount   = "Create a new account on Plandex Cloud or another host"
-)
-
-func promptAuth() error {
-	selected, err := term.SelectFromList("👋 Hey there! It looks like this is your first time using Plandex on this computer. What would you like to do?", []string{AuthFreeTrialOption, AuthSignInOption, AuthCreateAccount})
-
-	if err != nil {
-		return fmt.Errorf("error selecting auth option: %v", err)
-	}
-
-	switch selected {
-	case AuthFreeTrialOption:
-		err = startTrial()
-
-		if err != nil {
-			return fmt.Errorf("error starting trial: %v", err)
-		}
-
-	case AuthSignInOption:
-		// sign in
-		// TODO
-
-	case AuthCreateAccount:
-		// create account
-		// TODO
-	}
-
-	return nil
-}
-
-func signIn() error {
-	acccounts, err := LoadAccounts()
-
-	if err != nil {
-		return fmt.Errorf("error loading accounts: %v", err)
-	}
-
-	if len(acccounts) == 0 {
-		err := promptSignInNewAccount()
-		if err != nil {
-			return fmt.Errorf("error signing in to new account: %v", err)
-		}
-	}
-
-	var options []string
-	for _, account := range acccounts {
-		options = append(options, fmt.Sprintf("<%s> %s", account.UserName, account.Email))
-	}
-
-	options = append(options, "Sign in to another account")
-
-	// either select from existing accounts or prompt for email
-
-	return nil
-}
-
-const (
-	SignInCloudOption = "Sign in to Plandex Cloud"
-	SignInOtherOption = "Sign in to another host"
-)
-
-func promptSignInNewAccount() error {
-
-	selected, err := term.SelectFromList("You can sign in to an existing account on Plandex Cloud or another host.", []string{SignInCloudOption, SignInOtherOption})
-
-	if err != nil {
-		return fmt.Errorf("error selecting sign in option: %v", err)
-	}
-
-	if selected == SignInCloudOption {
-		email, err := term.GetUserStringInput("Your email:")
-
-		if err != nil {
-			return fmt.Errorf("error prompting email: %v", err)
-		}
+	if hasAccount {
+		return signIn(Current.Email, pin, Current.Host)
 	} else {
-		host, err := term.GetUserStringInput("Host:")
-
-		if err != nil {
-			return fmt.Errorf("error prompting host: %v", err)
+		host := Current.Host
+		if host == "" {
+			host = "Plandex Cloud"
 		}
 
-		email, err := term.GetUserStringInput("Your email:")
-
-		if err != nil {
-			return fmt.Errorf("error prompting email: %v", err)
-		}
-
-	}
-}
-
-func createAccount() error {
-
-	return nil
-}
-
-func startTrial() error {
-	term.StartSpinner("🌟 Starting trial...")
-
-	res, err := apiClient.StartTrial()
-
-	if err != nil {
-		term.StopSpinner()
-		return fmt.Errorf("error starting trial: %v", err)
-	}
-
-	term.StopSpinner()
-
-	err = StoreAccountIfNew(&types.ClientAccount{
-		Email:    res.Email,
-		UserId:   res.UserId,
-		UserName: res.UserName,
-		Token:    res.Token,
-		IsTrial:  true,
-	})
-
-	if err != nil {
-		return fmt.Errorf("error storing trial account: %v", err)
-	}
-
-	Current = &types.ClientAuth{
-		Email:    res.Email,
-		UserId:   res.UserId,
-		UserName: res.UserName,
-		OrgId:    res.OrgId,
-		OrgName:  res.OrgName,
-		Token:    res.Token,
-		IsTrial:  true,
-	}
-
-	err = writeCurrentAuth()
-
-	if err != nil {
-		return fmt.Errorf("error writing auth: %v", err)
+		fmt.Printf("🚨 Account %s not found on %s\n", Current.Email, host)
+		os.Exit(1)
 	}
 
 	return nil

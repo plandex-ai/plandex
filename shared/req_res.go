@@ -14,6 +14,10 @@ type CreateEmailVerificationRequest struct {
 	UserId string `json:"userId"`
 }
 
+type CreateEmailVerificationResponse struct {
+	HasAccount bool `json:"hasAccount"`
+}
+
 type SignInRequest struct {
 	Email string `json:"email"`
 	Pin   string `json:"pin"`
@@ -35,12 +39,24 @@ type SessionResponse struct {
 
 type CreateOrgRequest struct {
 	Name               string `json:"name"`
-	Domain             string `json:"domain"`
 	AutoAddDomainUsers bool   `json:"autoAddDomainUsers"`
+}
+
+type ConvertTrialRequest struct {
+	Email                 string `json:"email"`
+	Pin                   string `json:"pin"`
+	UserName              string `json:"userName"`
+	OrgName               string `json:"orgName"`
+	OrgAutoAddDomainUsers bool   `json:"orgAutoAddDomainUsers"`
 }
 
 type CreateOrgResponse struct {
 	Id string `json:"id"`
+}
+
+type InviteRequest struct {
+	Email string `json:"email"`
+	Name  string `json:"name"`
 }
 
 type CreateProjectRequest struct {

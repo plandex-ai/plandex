@@ -13,15 +13,9 @@ type ClientAccount struct {
 }
 
 type ClientAuth struct {
-	IsCloud  bool   `json:"isCloud"`
-	Host     string `json:"host"`
-	Email    string `json:"email"`
-	OrgId    string `json:"orgId"`
-	OrgName  string `json:"orgName"`
-	UserId   string `json:"userId"`
-	UserName string `json:"userName"`
-	Token    string `json:"token"`
-	IsTrial  bool   `json:"isTrial"`
+	ClientAccount
+	OrgId   string `json:"orgId"`
+	OrgName string `json:"orgName"`
 }
 
 type LoadContextParams struct {

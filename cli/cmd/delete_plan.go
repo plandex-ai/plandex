@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"plandex/api"
+	"plandex/auth"
 	"plandex/lib"
 
 	"github.com/fatih/color"
@@ -30,6 +31,7 @@ var rmCmd = &cobra.Command{
 }
 
 func del(cmd *cobra.Command, args []string) {
+	auth.MustResolveAuthWithOrg()
 	lib.MustResolveProject()
 
 	if all {
@@ -40,10 +42,10 @@ func del(cmd *cobra.Command, args []string) {
 	nameOrIdx := args[0]
 	var plan *shared.Plan
 
-	plans, err := api.Client.ListPlans(lib.CurrentProjectId)
+	plans, apiErr := api.Client.ListPlans(lib.CurrentProjectId)
 
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error getting plans:", err)
+	if apiErr != nil {
+		fmt.Fprintln(os.Stderr, "Error getting plans:", apiErr.Msg)
 		os.Exit(1)
 	}
 
@@ -71,10 +73,10 @@ func del(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	err = api.Client.DeletePlan(plan.Id)
+	apiErr = api.Client.DeletePlan(plan.Id)
 
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error deleting plan:", err)
+	if apiErr != nil {
+		fmt.Fprintln(os.Stderr, "Error deleting plan:", apiErr.Msg)
 		return
 	}
 

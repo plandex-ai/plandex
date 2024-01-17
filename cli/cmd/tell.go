@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"plandex/api"
+	"plandex/auth"
 	"plandex/lib"
 	streamtui "plandex/stream_tui"
 	"plandex/term"
@@ -39,6 +40,7 @@ func init() {
 }
 
 func tell(cmd *cobra.Command, args []string) {
+	auth.MustResolveAuthWithOrg()
 	lib.MustResolveProject()
 
 	var prompt string
@@ -133,12 +135,33 @@ func tell(cmd *cobra.Command, args []string) {
 		}()
 	}
 
-	err := api.Client.TellPlan(lib.CurrentPlanId, shared.TellPlanRequest{
+	apiErr := api.Client.TellPlan(lib.CurrentPlanId, shared.TellPlanRequest{
 		Prompt:        prompt,
 		ConnectStream: !tellBg,
 	}, lib.OnStreamPlan)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Prompt error:", err)
+	if apiErr != nil {
+		fmt.Fprintln(os.Stderr, "Prompt error:", apiErr.Msg)
+		return
+	}
+
+	if apiErr.Type == shared.ApiErrorTypeTrialMessagesExceeded {
+		fmt.Fprintf(os.Stderr, "🚨 You've reached the free trial limit of %d messages per plan\n", apiErr.TrialMessagesExceededError.MaxMessages)
+
+		res, err := term.ConfirmYesNo("Upgrade now?")
+
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "Error prompting upgrade trial:", err)
+			return
+		}
+
+		if res {
+			err := auth.ConvertTrial()
+			if err != nil {
+				fmt.Fprintln(os.Stderr, "Error converting trial:", err)
+				return
+			}
+		}
+
 		return
 	}
 
