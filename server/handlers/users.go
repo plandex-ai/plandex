@@ -5,8 +5,10 @@ import (
 	"log"
 	"net/http"
 	"plandex-server/db"
+	"strings"
 
 	"github.com/gorilla/mux"
+	"github.com/plandex/plandex/shared"
 )
 
 func ListUsersHandler(w http.ResponseWriter, r *http.Request) {
@@ -17,8 +19,11 @@ func ListUsersHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if auth.User.IsTrial {
-		log.Println("Trial user cannot list users")
-		http.Error(w, "Trial user cannot list users", http.StatusForbidden)
+		writeApiError(w, shared.ApiError{
+			Type:   shared.ApiErrorTypeTrialActionNotAllowed,
+			Status: http.StatusForbidden,
+			Msg:    "Free trial user can't list users",
+		})
 		return
 	}
 
@@ -49,13 +54,31 @@ func DeleteOrgUserHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if auth.User.IsTrial {
-		log.Println("Trial user cannot delete users")
-		http.Error(w, "Trial user cannot delete users", http.StatusForbidden)
+		writeApiError(w, shared.ApiError{
+			Type:   shared.ApiErrorTypeTrialActionNotAllowed,
+			Status: http.StatusForbidden,
+			Msg:    "Free trial user can't delete users",
+		})
 		return
 	}
 
 	vars := mux.Vars(r)
 	userId := vars["userId"]
+
+	user, err := db.GetUser(userId)
+
+	if err != nil {
+		log.Printf("Error getting user: %v\n", err)
+		http.Error(w, "Error getting user: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// ensure current user can invite target user
+	if !auth.HasPermission(strings.Join([]string{"remove_user", user.OrgRoleId}, "|")) {
+		log.Printf("User does not have permission to invite user with role: %v\n", user.OrgRoleId)
+		http.Error(w, "User does not have permission to invite user with role: "+user.OrgRoleId, http.StatusForbidden)
+		return
+	}
 
 	// verify user is org member
 	isMember, err := db.ValidateOrgMembership(userId, auth.OrgId)

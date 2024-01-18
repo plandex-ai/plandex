@@ -2,8 +2,10 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
+	"plandex/auth"
 
 	"github.com/plandex/plandex/shared"
 )
@@ -29,4 +31,15 @@ func handleApiError(r *http.Response, errBody []byte) *shared.ApiError {
 	}
 
 	return &apiError
+}
+
+func refreshTokenIfNeeded(apiErr *shared.ApiError) (bool, *shared.ApiError) {
+	if apiErr.Type == shared.ApiErrorTypeInvalidToken {
+		err := auth.RefreshInvalidToken()
+		if err != nil {
+			return false, &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error refreshing invalid token")}
+		}
+		return true, nil
+	}
+	return false, apiErr
 }

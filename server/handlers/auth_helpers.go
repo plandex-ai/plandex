@@ -55,7 +55,7 @@ func authenticate(w http.ResponseWriter, r *http.Request, requireOrg bool) *type
 	authToken, err := db.ValidateAuthToken(parsed.Token)
 
 	if err != nil {
-		writeApiError(w, shared.ApiErr{
+		writeApiError(w, shared.ApiError{
 			Type:   shared.ApiErrorTypeInvalidToken,
 			Status: http.StatusUnauthorized,
 			Msg:    "Invalid auth token",
@@ -93,13 +93,7 @@ func authenticate(w http.ResponseWriter, r *http.Request, requireOrg bool) *type
 		return nil
 	}
 
-	if isMember {
-		return &types.ServerAuth{
-			AuthToken: authToken,
-			User:      user,
-			OrgId:     parsed.OrgId,
-		}
-	} else {
+	if !isMember {
 		// check if there's an invite for this user and accept it if so (adds the user to the org)
 		invite, err := db.GetInviteForOrgUser(parsed.OrgId, authToken.UserId)
 
@@ -118,11 +112,6 @@ func authenticate(w http.ResponseWriter, r *http.Request, requireOrg bool) *type
 				return nil
 			}
 
-			return &types.ServerAuth{
-				AuthToken: authToken,
-				User:      user,
-				OrgId:     parsed.OrgId,
-			}
 		} else {
 			log.Println("user is not a member of the org")
 			http.Error(w, "not a member of org", http.StatusUnauthorized)
@@ -130,12 +119,34 @@ func authenticate(w http.ResponseWriter, r *http.Request, requireOrg bool) *type
 		}
 	}
 
+	// get user permissions
+	permissions, err := db.GetUserPermissions(authToken.UserId, parsed.OrgId)
+
+	if err != nil {
+		log.Printf("error getting user permissions: %v\n", err)
+		http.Error(w, "error getting user permissions", http.StatusInternalServerError)
+		return nil
+	}
+
+	// build the permissions map
+	permissionsMap := make(map[string]bool)
+	for _, permission := range permissions {
+		permissionsMap[permission] = true
+	}
+
+	return &types.ServerAuth{
+		AuthToken:   authToken,
+		User:        user,
+		OrgId:       parsed.OrgId,
+		Permissions: permissionsMap,
+	}
+
 }
 
-func authorizeProject(w http.ResponseWriter, projectId, userId, orgId string) bool {
+func authorizeProject(w http.ResponseWriter, projectId string, auth *types.ServerAuth) bool {
 	log.Println("authorizing project")
 
-	hasProjectAccess, err := db.ValidateProjectAccess(projectId, userId, orgId)
+	hasProjectAccess, err := db.ValidateProjectAccess(projectId, auth.User.Id, auth.OrgId)
 
 	if err != nil {
 		log.Printf("error validating project membership: %v\n", err)
@@ -152,10 +163,38 @@ func authorizeProject(w http.ResponseWriter, projectId, userId, orgId string) bo
 	return true
 }
 
-func authorizePlan(w http.ResponseWriter, planId, userId, orgId string) *db.Plan {
+func authorizeProjectRename(w http.ResponseWriter, projectId string, auth *types.ServerAuth) bool {
+	if !authorizeProject(w, projectId, auth) {
+		return false
+	}
+
+	if !auth.HasPermission("rename_any_project") {
+		log.Println("User does not have permission to rename project")
+		http.Error(w, "User does not have permission to rename project", http.StatusForbidden)
+		return false
+	}
+
+	return true
+}
+
+func authorizeProjectDelete(w http.ResponseWriter, projectId string, auth *types.ServerAuth) bool {
+	if !authorizeProject(w, projectId, auth) {
+		return false
+	}
+
+	if !auth.HasPermission("delete_any_project") {
+		log.Println("User does not have permission to delete project")
+		http.Error(w, "User does not have permission to delete project", http.StatusForbidden)
+		return false
+	}
+
+	return true
+}
+
+func authorizePlan(w http.ResponseWriter, planId string, auth *types.ServerAuth) *db.Plan {
 	log.Println("authorizing plan")
 
-	plan, err := db.ValidatePlanAccess(planId, userId, orgId)
+	plan, err := db.ValidatePlanAccess(planId, auth.User.Id, auth.OrgId)
 
 	if err != nil {
 		log.Printf("error validating plan membership: %v\n", err)
@@ -166,6 +205,70 @@ func authorizePlan(w http.ResponseWriter, planId, userId, orgId string) *db.Plan
 	if plan == nil {
 		log.Println("user doesn't have access the plan")
 		http.Error(w, "no access to plan", http.StatusUnauthorized)
+		return nil
+	}
+
+	return plan
+}
+
+func authorizePlanUpdate(w http.ResponseWriter, planId string, auth *types.ServerAuth) *db.Plan {
+	plan := authorizePlan(w, planId, auth)
+
+	if plan == nil {
+		return nil
+	}
+
+	if plan.OwnerId != auth.User.Id && !auth.HasPermission("update_any_plan") {
+		log.Println("User does not have permission to update plan")
+		http.Error(w, "User does not have permission to update plan", http.StatusForbidden)
+		return nil
+	}
+
+	return plan
+}
+
+func authorizePlanDelete(w http.ResponseWriter, planId string, auth *types.ServerAuth) *db.Plan {
+	plan := authorizePlan(w, planId, auth)
+
+	if plan == nil {
+		return nil
+	}
+
+	if plan.OwnerId != auth.User.Id && !auth.HasPermission("delete_any_plan") {
+		log.Println("User does not have permission to delete plan")
+		http.Error(w, "User does not have permission to delete plan", http.StatusForbidden)
+		return nil
+	}
+
+	return plan
+}
+
+func authorizePlanRename(w http.ResponseWriter, planId string, auth *types.ServerAuth) *db.Plan {
+	plan := authorizePlan(w, planId, auth)
+
+	if plan == nil {
+		return nil
+	}
+
+	if plan.OwnerId != auth.User.Id && !auth.HasPermission("rename_any_plan") {
+		log.Println("User does not have permission to rename plan")
+		http.Error(w, "User does not have permission to rename plan", http.StatusForbidden)
+		return nil
+	}
+
+	return plan
+}
+
+func authorizePlanArchive(w http.ResponseWriter, planId string, auth *types.ServerAuth) *db.Plan {
+	plan := authorizePlan(w, planId, auth)
+
+	if plan == nil {
+		return nil
+	}
+
+	if plan.OwnerId != auth.User.Id && !auth.HasPermission("archive_any_plan") {
+		log.Println("User does not have permission to archive plan")
+		http.Error(w, "User does not have permission to archive plan", http.StatusForbidden)
 		return nil
 	}
 

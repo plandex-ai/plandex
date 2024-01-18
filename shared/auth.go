@@ -11,6 +11,7 @@ const (
 	ApiErrorTypeInvalidToken          ApiErrorType = "invalid_token"
 	ApiErrorTypeTrialPlansExceeded    ApiErrorType = "trial_plans_exceeded"
 	ApiErrorTypeTrialMessagesExceeded ApiErrorType = "trial_messages_exceeded"
+	ApiErrorTypeTrialActionNotAllowed ApiErrorType = "trial_action_not_allowed"
 	ApiErrorTypeOther                 ApiErrorType = "other"
 )
 

@@ -19,8 +19,12 @@ func InviteUserHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if auth.User.IsTrial {
-		log.Println("Trial user can't invite other users")
-		http.Error(w, "Trial user can't invite other users", http.StatusForbidden)
+		writeApiError(w, shared.ApiError{
+			Type:   shared.ApiErrorTypeTrialActionNotAllowed,
+			Status: http.StatusForbidden,
+			Msg:    "Free trial user can't invite other users",
+		})
+
 		return
 	}
 
@@ -34,6 +38,13 @@ func InviteUserHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	req.Email = strings.ToLower(req.Email)
+
+	// ensure current user can invite target user
+	if !auth.HasPermission(strings.Join([]string{"invite_user", req.OrgRoleId}, "|")) {
+		log.Printf("User does not have permission to invite user with role: %v\n", req.OrgRoleId)
+		http.Error(w, "User does not have permission to invite user with role: "+req.OrgRoleId, http.StatusForbidden)
+		return
+	}
 
 	// ensure user doesn't already have access to org via domain
 	split := strings.Split(req.Email, "@")
@@ -98,6 +109,7 @@ func InviteUserHandler(w http.ResponseWriter, r *http.Request) {
 
 	err = db.CreateInvite(&db.Invite{
 		OrgId:     auth.OrgId,
+		OrgRoleId: req.OrgRoleId,
 		Email:     req.Email,
 		Name:      req.Name,
 		InviterId: currentUserId,
@@ -120,8 +132,11 @@ func ListPendingInvitesHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if auth.User.IsTrial {
-		log.Println("Trial user can't list invites")
-		http.Error(w, "Trial user can't list invites", http.StatusForbidden)
+		writeApiError(w, shared.ApiError{
+			Type:   shared.ApiErrorTypeTrialActionNotAllowed,
+			Status: http.StatusForbidden,
+			Msg:    "Free trial user can't list invites",
+		})
 		return
 	}
 
@@ -158,8 +173,11 @@ func ListAcceptedInvitesHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if auth.User.IsTrial {
-		log.Println("Trial user can't list invites")
-		http.Error(w, "Trial user can't list invites", http.StatusForbidden)
+		writeApiError(w, shared.ApiError{
+			Type:   shared.ApiErrorTypeTrialActionNotAllowed,
+			Status: http.StatusForbidden,
+			Msg:    "Free trial user can't list invites",
+		})
 		return
 	}
 
@@ -196,8 +214,11 @@ func ListAllInvitesHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if auth.User.IsTrial {
-		log.Println("Trial user can't list invites")
-		http.Error(w, "Trial user can't list invites", http.StatusForbidden)
+		writeApiError(w, shared.ApiError{
+			Type:   shared.ApiErrorTypeTrialActionNotAllowed,
+			Status: http.StatusForbidden,
+			Msg:    "Free trial user can't list invites",
+		})
 		return
 	}
 
@@ -234,8 +255,11 @@ func DeleteInviteHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if auth.User.IsTrial {
-		log.Println("Trial user can't delete invites")
-		http.Error(w, "Trial user can't delete invites", http.StatusForbidden)
+		writeApiError(w, shared.ApiError{
+			Type:   shared.ApiErrorTypeTrialActionNotAllowed,
+			Status: http.StatusForbidden,
+			Msg:    "Free trial user can't delete invites",
+		})
 		return
 	}
 
@@ -253,6 +277,14 @@ func DeleteInviteHandler(w http.ResponseWriter, r *http.Request) {
 	if invite.OrgId != auth.OrgId {
 		log.Printf("Invite does not belong to org: %v\n", inviteId)
 		http.Error(w, "Invite does not belong to org: "+inviteId, http.StatusBadRequest)
+		return
+	}
+
+	// ensure current user can remove target invite
+	if !(auth.HasPermission(strings.Join([]string{"remove_user", invite.OrgRoleId}, "|")) ||
+		(auth.User.Id == invite.InviterId && auth.HasPermission(strings.Join([]string{"invite_user", invite.OrgRoleId}, "|")))) {
+		log.Printf("User does not have permission to remove invite with role: %v\n", invite.OrgRoleId)
+		http.Error(w, "User does not have permission to remove invite with role: "+invite.OrgRoleId, http.StatusForbidden)
 		return
 	}
 

@@ -98,14 +98,7 @@ func SignInHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Error unmarshalling request: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-
-	emailVerificationId, err := db.ValidateEmailVerification(req.Email, req.Pin)
-
-	if err != nil {
-		log.Printf("Error validating email verification: %v\n", err)
-		http.Error(w, "Error validating email verification: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
+	req.Email = strings.ToLower(req.Email)
 
 	user, err := db.GetUserByEmail(req.Email)
 
@@ -118,6 +111,20 @@ func SignInHandler(w http.ResponseWriter, r *http.Request) {
 	if user == nil {
 		log.Printf("User not found for email: %v\n", req.Email)
 		http.Error(w, "Not found", http.StatusNotFound)
+		return
+	}
+
+	if user != nil && user.IsTrial {
+		log.Printf("Trial user can't sign in: %v\n", req.Email)
+		http.Error(w, "Trial user can't sign in", http.StatusForbidden)
+		return
+	}
+
+	emailVerificationId, err := db.ValidateEmailVerification(req.Email, req.Pin)
+
+	if err != nil {
+		log.Printf("Error validating email verification: %v\n", err)
+		http.Error(w, "Error validating email verification: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -141,7 +148,7 @@ func SignInHandler(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	// create auth token
-	token, authTokenId, err := db.CreateAuthToken(user.Id, tx)
+	token, authTokenId, err := db.CreateAuthToken(user.Id, false, tx)
 
 	if err != nil {
 		log.Printf("Error creating auth token: %v\n", err)

@@ -53,8 +53,11 @@ func CreateOrgHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if auth.User.IsTrial {
-		log.Println("Trial user cannot create org")
-		http.Error(w, "Trial user cannot create org", http.StatusForbidden)
+		writeApiError(w, shared.ApiError{
+			Type:   shared.ApiErrorTypeTrialActionNotAllowed,
+			Status: http.StatusForbidden,
+			Msg:    "Free trial user can't create org",
+		})
 		return
 	}
 
@@ -144,6 +147,55 @@ func CreateOrgHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Println("Successfully created org")
+
+	w.Write(bytes)
+}
+
+func ListOrgRolesHandler(w http.ResponseWriter, r *http.Request) {
+	log.Println("Received request for ListOrgRolesHandler")
+
+	auth := authenticate(w, r, true)
+	if auth == nil {
+		return
+	}
+
+	if auth.User.IsTrial {
+		writeApiError(w, shared.ApiError{
+			Type:   shared.ApiErrorTypeTrialActionNotAllowed,
+			Status: http.StatusForbidden,
+			Msg:    "Free trial user can't list org roles",
+		})
+		return
+	}
+
+	if !auth.HasPermission("list_org_roles") {
+		log.Println("User cannot list org roles")
+		http.Error(w, "User cannot list org roles", http.StatusForbidden)
+		return
+	}
+
+	roles, err := db.ListOrgRoles(auth.OrgId)
+
+	if err != nil {
+		log.Printf("Error listing org roles: %v\n", err)
+		http.Error(w, "Error listing org roles: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	var apiRoles []*shared.OrgRole
+	for _, role := range roles {
+		apiRoles = append(apiRoles, role.ToApi())
+	}
+
+	bytes, err := json.Marshal(apiRoles)
+
+	if err != nil {
+		log.Printf("Error marshalling response: %v\n", err)
+		http.Error(w, "Error marshalling response: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	log.Println("Successfully listed org roles")
 
 	w.Write(bytes)
 }

@@ -70,10 +70,11 @@ CREATE TABLE IF NOT EXISTS auth_tokens (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   token_hash VARCHAR(64) NOT NULL,
+  is_trial BOOLEAN NOT NULL DEFAULT FALSE,
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
   deleted_at TIMESTAMP
 );
-ALTER TABLE auth_tokens ADD UNIQUE (token_hash);
+CREATE UNIQUE INDEX auth_tokens_idx ON auth_tokens(token_hash);
 
 CREATE TABLE IF NOT EXISTS email_verifications (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -86,7 +87,7 @@ CREATE TABLE IF NOT EXISTS email_verifications (
 );
 CREATE TRIGGER update_email_verifications_modtime BEFORE UPDATE ON email_verifications FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-CREATE UNIQUE INDEX email_verifications_idx ON email_verifications(token_hash, email, created_at DESC);
+CREATE UNIQUE INDEX email_verifications_idx ON email_verifications(pin_hash, email, created_at DESC);
 
 CREATE TABLE IF NOT EXISTS projects (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

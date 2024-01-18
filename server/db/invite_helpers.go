@@ -131,7 +131,7 @@ func AcceptInvite(invite *Invite, inviteeId string) error {
 	}
 
 	// create org user
-	err = CreateOrgUser(invite.OrgId, invite.InviteeId, tx)
+	err = CreateOrgUser(invite.OrgId, invite.InviteeId, invite.OrgRoleId, tx)
 
 	if err != nil {
 		return fmt.Errorf("error creating org user: %v", err)

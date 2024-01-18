@@ -150,8 +150,8 @@ func DeleteOrgUser(orgId, userId string, tx *sql.Tx) error {
 	return nil
 }
 
-func CreateOrgUser(orgId, userId string, tx *sql.Tx) error {
-	query := "INSERT INTO orgs_users (org_id, user_id) VALUES ($1, $2)"
+func CreateOrgUser(orgId, userId, orgRoleId string, tx *sql.Tx) error {
+	query := "INSERT INTO orgs_users (org_id, user_id, org_role_id) VALUES ($1, $2, $3)"
 	var err error
 	if tx == nil {
 		_, err = Conn.Exec(query, orgId, userId)
@@ -164,4 +164,15 @@ func CreateOrgUser(orgId, userId string, tx *sql.Tx) error {
 	}
 
 	return nil
+}
+
+func ListOrgRoles(orgId string) ([]*OrgRole, error) {
+	var orgRoles []*OrgRole
+	err := Conn.Select(&orgRoles, "SELECT * FROM org_roles WHERE org_id IS NULL OR org_id = $1", orgId)
+
+	if err != nil {
+		return nil, fmt.Errorf("error listing org roles: %v", err)
+	}
+
+	return orgRoles, nil
 }

@@ -29,6 +29,8 @@ type ApiClient interface {
 	ListUsers() ([]*shared.User, *shared.ApiError)
 	DeleteUser(userId string) *shared.ApiError
 
+	ListOrgRoles() ([]*shared.OrgRole, *shared.ApiError)
+
 	InviteUser(req shared.InviteRequest) *shared.ApiError
 	ListPendingInvites() ([]*shared.Invite, *shared.ApiError)
 	ListAcceptedInvites() ([]*shared.Invite, *shared.ApiError)

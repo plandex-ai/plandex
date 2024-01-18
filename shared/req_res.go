@@ -55,8 +55,9 @@ type CreateOrgResponse struct {
 }
 
 type InviteRequest struct {
-	Email string `json:"email"`
-	Name  string `json:"name"`
+	Email     string `json:"email"`
+	Name      string `json:"name"`
+	OrgRoleId string `json:"orgRoleId"`
 }
 
 type CreateProjectRequest struct {

@@ -13,7 +13,8 @@ type User struct {
 	Name             string `json:"name"`
 	Email            string `json:"email"`
 	IsTrial          bool   `json:"isTrial"`
-	NumNonDraftPlans int    `db:"num_non_draft_plans"`
+	OrgRoleId        string `json:"orgRoleId"`
+	NumNonDraftPlans int    `json:"numNonDraftPlans"`
 }
 
 type Invite struct {
@@ -21,6 +22,7 @@ type Invite struct {
 	OrgId      string     `json:"orgId"`
 	Email      string     `json:"email"`
 	Name       string     `json:"name"`
+	OrgRoleId  string     `json:"orgRoleId"`
 	InviterId  string     `json:"inviterId"`
 	InviteeId  string     `json:"inviteeId"`
 	AcceptedAt *time.Time `json:"acceptedAt"`
@@ -170,4 +172,11 @@ type CurrentPlanState struct {
 	Contexts                 []*Context                 `json:"contexts"`
 	ContextsByPath           map[string]*Context        `json:"contextsByPath"`
 	PendingBuildDescriptions []*ConvoMessageDescription `json:"pendingBuildDescriptions"`
+}
+
+type OrgRole struct {
+	Id          string `json:"id"`
+	IsDefault   bool   `json:"isDefault"`
+	Label       string `json:"label"`
+	Description string `json:"description"`
 }

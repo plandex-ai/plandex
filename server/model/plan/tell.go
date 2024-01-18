@@ -18,7 +18,7 @@ import (
 )
 
 // Proposal function to create a new proposal
-func Tell(plan *db.Plan, currentUserId, currentOrgId string, req *shared.TellPlanRequest) error {
+func Tell(plan *db.Plan, auth *types.ServerAuth, req *shared.TellPlanRequest) error {
 	// goEnv := os.Getenv("GOENV") // Fetch the GO_ENV environment variable
 
 	// log.Println("GOENV: " + goEnv)
@@ -36,12 +36,15 @@ func Tell(plan *db.Plan, currentUserId, currentOrgId string, req *shared.TellPla
 
 	active = CreateActivePlan(planId, req.Prompt)
 
-	go execTellPlan(plan, currentUserId, currentOrgId, req, active)
+	go execTellPlan(plan, auth, req, active)
 
 	return nil
 }
 
-func execTellPlan(plan *db.Plan, currentUserId, currentOrgId string, req *shared.TellPlanRequest, active *types.ActivePlan) {
+func execTellPlan(plan *db.Plan, auth *types.ServerAuth, req *shared.TellPlanRequest, active *types.ActivePlan) {
+	currentUserId := auth.User.Id
+	currentOrgId := auth.OrgId
+
 	planId := plan.Id
 	err := db.SetPlanStatus(planId, shared.PlanStatusReplying, "")
 	if err != nil {

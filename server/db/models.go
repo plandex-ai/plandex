@@ -15,6 +15,7 @@ type AuthToken struct {
 	Id        string    `db:"id"`
 	UserId    string    `db:"user_id"`
 	TokenHash string    `db:"token_hash"`
+	IsTrial   bool      `db:"is_trial"`
 	CreatedAt time.Time `db:"created_at"`
 	DeletedAt time.Time `db:"deleted_at"`
 }
@@ -43,6 +44,7 @@ type User struct {
 	Domain           string    `db:"domain"`
 	NumNonDraftPlans int       `db:"num_non_draft_plans"`
 	IsTrial          bool      `db:"is_trial"`
+	OrgRoleId        string    `db:"org_role_id"`
 	CreatedAt        time.Time `db:"created_at"`
 	UpdatedAt        time.Time `db:"updated_at"`
 }
@@ -52,6 +54,7 @@ func (user *User) ToApi() *shared.User {
 		Id:               user.Id,
 		Name:             user.Name,
 		Email:            user.Email,
+		OrgRoleId:        user.OrgRoleId,
 		NumNonDraftPlans: user.NumNonDraftPlans,
 		IsTrial:          user.IsTrial,
 	}
@@ -64,6 +67,7 @@ type Invite struct {
 	Name       string     `db:"name"`
 	InviterId  string     `db:"inviter_id"`
 	InviteeId  string     `db:"invitee_id"`
+	OrgRoleId  string     `db:"org_role_id"`
 	AcceptedAt *time.Time `db:"accepted_at"`
 	CreatedAt  time.Time  `db:"created_at"`
 	UpdatedAt  time.Time  `db:"updated_at"`
@@ -77,6 +81,7 @@ func (invite *Invite) ToApi() *shared.Invite {
 		Name:       invite.Name,
 		InviterId:  invite.InviterId,
 		InviteeId:  invite.InviteeId,
+		OrgRoleId:  invite.OrgRoleId,
 		AcceptedAt: invite.AcceptedAt,
 		CreatedAt:  invite.CreatedAt,
 	}
@@ -193,6 +198,25 @@ func (build *PlanBuild) ToApi() *shared.PlanBuild {
 		ErrorPath:      build.ErrorPath,
 		CreatedAt:      build.CreatedAt,
 		UpdatedAt:      build.UpdatedAt,
+	}
+}
+
+type OrgRole struct {
+	Id          string    `db:"id"`
+	OrgId       *string   `db:"org_id"`
+	Name        string    `db:"name"`
+	Label       string    `db:"label"`
+	Description string    `db:"description"`
+	CreatedAt   time.Time `db:"created_at"`
+	UpdatedAt   time.Time `db:"updated_at"`
+}
+
+func (role *OrgRole) ToApi() *shared.OrgRole {
+	return &shared.OrgRole{
+		Id:          role.Id,
+		IsDefault:   role.OrgId == nil,
+		Label:       role.Label,
+		Description: role.Description,
 	}
 }
 

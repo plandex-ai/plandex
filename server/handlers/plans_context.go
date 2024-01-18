@@ -24,13 +24,12 @@ func ListContextHandler(w http.ResponseWriter, r *http.Request) {
 	if auth == nil {
 		return
 	}
-	currentUserId := auth.User.Id
 
 	vars := mux.Vars(r)
 	planId := vars["planId"]
 	log.Println("planId: ", planId)
 
-	if authorizePlan(w, planId, currentUserId, auth.OrgId) == nil {
+	if authorizePlan(w, planId, auth) == nil {
 		return
 	}
 
@@ -72,7 +71,7 @@ func LoadContextHandler(w http.ResponseWriter, r *http.Request) {
 	planId := vars["planId"]
 	log.Println("planId: ", planId)
 
-	if authorizePlan(w, planId, currentUserId, auth.OrgId) == nil {
+	if authorizePlan(w, planId, auth) == nil {
 		return
 	}
 
@@ -235,13 +234,12 @@ func UpdateContextHandler(w http.ResponseWriter, r *http.Request) {
 	if auth == nil {
 		return
 	}
-	currentUserId := auth.User.Id
 
 	vars := mux.Vars(r)
 	planId := vars["planId"]
 	log.Println("planId: ", planId)
 
-	if authorizePlan(w, planId, currentUserId, auth.OrgId) == nil {
+	if authorizePlan(w, planId, auth) == nil {
 		return
 	}
 
@@ -433,13 +431,12 @@ func DeleteContextHandler(w http.ResponseWriter, r *http.Request) {
 	if auth == nil {
 		return
 	}
-	currentUserId := auth.User.Id
 
 	vars := mux.Vars(r)
 	planId := vars["planId"]
 	log.Println("planId: ", planId)
 
-	plan := authorizePlan(w, planId, currentUserId, auth.OrgId)
+	plan := authorizePlan(w, planId, auth)
 
 	if plan == nil {
 		return

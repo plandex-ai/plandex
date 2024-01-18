@@ -27,6 +27,7 @@ func InitRoutes() *mux.Router {
 
 	r.HandleFunc("/users", handlers.ListUsersHandler).Methods("GET")
 	r.HandleFunc("/orgs/users/{userId}", handlers.DeleteOrgUserHandler).Methods("DELETE")
+	r.HandleFunc("/orgs/roles", handlers.ListOrgRolesHandler).Methods("GET")
 
 	r.HandleFunc("/invites", handlers.InviteUserHandler).Methods("POST")
 	r.HandleFunc("/invites/pending", handlers.ListPendingInvitesHandler).Methods("GET")

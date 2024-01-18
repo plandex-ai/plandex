@@ -66,8 +66,17 @@ func StartTrialHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// get org owner role id
+	orgOwnerRoleId, err := db.GetOrgOwnerRoleId(orgId)
+
+	if err != nil {
+		log.Printf("Error getting org owner role: %v\n", err)
+		http.Error(w, "Error getting org owner role: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
 	// insert org user
-	err = db.CreateOrgUser(userId, orgId, tx)
+	err = db.CreateOrgUser(userId, orgId, orgOwnerRoleId, tx)
 	if err != nil {
 		log.Printf("Error inserting org user: %v\n", err)
 		http.Error(w, "Error inserting org user: "+err.Error(), http.StatusInternalServerError)
@@ -75,7 +84,7 @@ func StartTrialHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// create auth token
-	token, _, err := db.CreateAuthToken(userId, tx)
+	token, _, err := db.CreateAuthToken(userId, true, tx)
 
 	if err != nil {
 		log.Printf("Error creating auth token: %v\n", err)
@@ -191,7 +200,7 @@ func CreateAccountHandler(w http.ResponseWriter, r *http.Request) {
 	userId := user.Id
 
 	// create auth token
-	token, authTokenId, err := db.CreateAuthToken(userId, tx)
+	token, authTokenId, err := db.CreateAuthToken(userId, false, tx)
 
 	if err != nil {
 		log.Printf("Error creating auth token: %v\n", err)
@@ -218,7 +227,16 @@ func CreateAccountHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if org != nil && org.AutoAddDomainUsers {
-		err = db.CreateOrgUser(userId, org.Id, tx)
+		// get org owner role id
+		orgOwnerRoleId, err := db.GetOrgOwnerRoleId(org.Id)
+
+		if err != nil {
+			log.Printf("Error getting org owner role: %v\n", err)
+			http.Error(w, "Error getting org owner role: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		err = db.CreateOrgUser(userId, org.Id, orgOwnerRoleId, tx)
 
 		if err != nil {
 			log.Printf("Error adding org user: %v\n", err)

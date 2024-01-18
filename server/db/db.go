@@ -49,22 +49,22 @@ func MigrationsUp() error {
 	}
 
 	// Uncomment below to reset migration state to a specific version after a failure
-	// if err := m.Force(); err != nil {
+	// if err := m.Force(2024011700); err != nil {
 	// 	return fmt.Errorf("error forcing migration version: %v", err)
 	// }
 
 	// Uncomment below to run down migrations in development (resets database)
-	// if os.Getenv("GOENV") == "development" {
-	// 	err = m.Down()
-	// 	if err != nil {
-	// 		if err == migrate.ErrNoChange {
-	// 			log.Println("no migrations to run down")
-	// 		} else {
-	// 			return fmt.Errorf("error running down migrations: %v", err)
-	// 		}
-	// 	}
-	// 	log.Println("ran down migrations - database was reset")
-	// }
+	if os.Getenv("GOENV") == "development" {
+		err = m.Down()
+		if err != nil {
+			if err == migrate.ErrNoChange {
+				log.Println("no migrations to run down")
+			} else {
+				return fmt.Errorf("error running down migrations: %v", err)
+			}
+		}
+		log.Println("ran down migrations - database was reset")
+	}
 
 	err = m.Up()
 

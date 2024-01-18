@@ -22,19 +22,24 @@ func CreatePlanHandler(w http.ResponseWriter, r *http.Request) {
 	if auth == nil {
 		return
 	}
-	currentUserId := auth.User.Id
+
+	if !auth.HasPermission("create_plan") {
+		log.Println("User does not have permission to create a plan")
+		http.Error(w, "User does not have permission to create a plan", http.StatusForbidden)
+		return
+	}
 
 	vars := mux.Vars(r)
 	projectId := vars["projectId"]
 
 	log.Println("projectId: ", projectId)
 
-	if !authorizeProject(w, projectId, currentUserId, auth.OrgId) {
+	if !authorizeProject(w, projectId, auth) {
 		return
 	}
 
 	if os.Getenv("IS_CLOUD") != "" {
-		user, err := db.GetUser(currentUserId)
+		user, err := db.GetUser(auth.User.Id)
 
 		if err != nil {
 			log.Printf("Error getting user: %v\n", err)
@@ -44,7 +49,7 @@ func CreatePlanHandler(w http.ResponseWriter, r *http.Request) {
 
 		if user.IsTrial {
 			if user.NumNonDraftPlans >= TrialMaxPlans {
-				writeApiError(w, shared.ApiErr{
+				writeApiError(w, shared.ApiError{
 					Type:   shared.ApiErrorTypeTrialPlansExceeded,
 					Status: http.StatusForbidden,
 					Msg:    "User has reached max number of free trial plans",
@@ -80,7 +85,7 @@ func CreatePlanHandler(w http.ResponseWriter, r *http.Request) {
 
 	if name == "draft" {
 		// delete any existing draft plans
-		err = db.DeleteDraftPlans(auth.OrgId, projectId, currentUserId)
+		err = db.DeleteDraftPlans(auth.OrgId, projectId, auth.User.Id)
 
 		if err != nil {
 			log.Printf("Error deleting draft plans: %v\n", err)
@@ -92,7 +97,7 @@ func CreatePlanHandler(w http.ResponseWriter, r *http.Request) {
 		originalName := name
 		for {
 			var count int
-			err := db.Conn.Get(&count, "SELECT COUNT(*) FROM plans WHERE project_id = $1 AND owner_id = $2 AND name = $3", projectId, currentUserId, name)
+			err := db.Conn.Get(&count, "SELECT COUNT(*) FROM plans WHERE project_id = $1 AND owner_id = $2 AND name = $3", projectId, auth.User.Id, name)
 
 			if err != nil {
 				log.Printf("Error checking if plan exists: %v\n", err)
@@ -109,7 +114,7 @@ func CreatePlanHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	plan, err := db.CreatePlan(auth.OrgId, projectId, currentUserId, name)
+	plan, err := db.CreatePlan(auth.OrgId, projectId, auth.User.Id, name)
 
 	if err != nil {
 		log.Printf("Error creating plan: %v\n", err)
@@ -142,14 +147,13 @@ func GetPlanHandler(w http.ResponseWriter, r *http.Request) {
 	if auth == nil {
 		return
 	}
-	currentUserId := auth.User.Id
 
 	vars := mux.Vars(r)
 	planId := vars["planId"]
 
 	log.Println("planId: ", planId)
 
-	plan := authorizePlan(w, planId, currentUserId, auth.OrgId)
+	plan := authorizePlan(w, planId, auth)
 
 	if plan == nil {
 		return
@@ -173,20 +177,19 @@ func DeletePlanHandler(w http.ResponseWriter, r *http.Request) {
 	if auth == nil {
 		return
 	}
-	currentUserId := auth.User.Id
 
 	vars := mux.Vars(r)
 	planId := vars["planId"]
 
 	log.Println("planId: ", planId)
 
-	plan := authorizePlan(w, planId, currentUserId, auth.OrgId)
+	plan := authorizePlanDelete(w, planId, auth)
 
 	if plan == nil {
 		return
 	}
 
-	if plan.OwnerId != currentUserId {
+	if plan.OwnerId != auth.User.Id {
 		log.Println("Only the plan owner can delete a plan")
 		http.Error(w, "Only the plan owner can delete a plan", http.StatusForbidden)
 		return
@@ -231,18 +234,17 @@ func DeleteAllPlansHandler(w http.ResponseWriter, r *http.Request) {
 	if auth == nil {
 		return
 	}
-	currentUserId := auth.User.Id
 
 	vars := mux.Vars(r)
 	projectId := vars["projectId"]
 
 	log.Println("projectId: ", projectId)
 
-	if !authorizeProject(w, projectId, currentUserId, auth.OrgId) {
+	if !authorizeProject(w, projectId, auth) {
 		return
 	}
 
-	err := db.DeleteOwnerPlans(auth.OrgId, projectId, currentUserId)
+	err := db.DeleteOwnerPlans(auth.OrgId, projectId, auth.User.Id)
 
 	if err != nil {
 		log.Printf("Error deleting plans: %v\n", err)
@@ -259,18 +261,17 @@ func ListPlansHandler(w http.ResponseWriter, r *http.Request) {
 	if auth == nil {
 		return
 	}
-	currentUserId := auth.User.Id
 
 	vars := mux.Vars(r)
 	projectId := vars["projectId"]
 
 	log.Println("projectId: ", projectId)
 
-	if !authorizeProject(w, projectId, currentUserId, auth.OrgId) {
+	if !authorizeProject(w, projectId, auth) {
 		return
 	}
 
-	plans, err := db.ListOwnedPlans(projectId, currentUserId, false, "")
+	plans, err := db.ListOwnedPlans(projectId, auth.User.Id, false, "")
 
 	if err != nil {
 		log.Printf("Error listing plans: %v\n", err)
@@ -296,14 +297,13 @@ func ListArchivedPlansHandler(w http.ResponseWriter, r *http.Request) {
 	if auth == nil {
 		return
 	}
-	currentUserId := auth.User.Id
 
 	vars := mux.Vars(r)
 	projectId := vars["projectId"]
 
 	log.Println("projectId: ", projectId)
 
-	if !authorizeProject(w, projectId, currentUserId, auth.OrgId) {
+	if !authorizeProject(w, projectId, auth) {
 		return
 	}
 
@@ -333,14 +333,13 @@ func ListPlansRunningHandler(w http.ResponseWriter, r *http.Request) {
 	if auth == nil {
 		return
 	}
-	currentUserId := auth.User.Id
 
 	vars := mux.Vars(r)
 	projectId := vars["projectId"]
 
 	log.Println("projectId: ", projectId)
 
-	if !authorizeProject(w, projectId, currentUserId, auth.OrgId) {
+	if !authorizeProject(w, projectId, auth) {
 		return
 	}
 
