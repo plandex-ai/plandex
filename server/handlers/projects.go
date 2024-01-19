@@ -69,7 +69,7 @@ func CreateProjectHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = tx.Exec("INSERT INTO users_projects (user_id, org_id, project_id) VALUES ($1, $2, $3)", auth, projectId)
+	_, err = tx.Exec("INSERT INTO users_projects (user_id, org_id, project_id) VALUES ($1, $2, $3)", auth.User.Id, auth.OrgId, projectId)
 
 	if err != nil {
 		log.Printf("Error adding owner to project: %v\n", err)

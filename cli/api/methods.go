@@ -39,6 +39,7 @@ func (a *Api) StartTrial() (*shared.StartTrialResponse, *shared.ApiError) {
 
 func (a *Api) CreateProject(req shared.CreateProjectRequest) (*shared.CreateProjectResponse, *shared.ApiError) {
 	serverUrl := getApiHost() + "/projects"
+
 	reqBytes, err := json.Marshal(req)
 	if err != nil {
 		return nil, &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error marshalling request: %v", err)}

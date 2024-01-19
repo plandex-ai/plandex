@@ -326,7 +326,7 @@ func ValidatePlanAccess(planId, userId, orgId string) (*Plan, error) {
 	}
 
 	// owner has access
-	if plan.ProjectId == userId {
+	if plan.OwnerId == userId {
 		return plan, nil
 	}
 

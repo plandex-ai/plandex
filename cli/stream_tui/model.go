@@ -26,6 +26,8 @@ type streamUIModel struct {
 	ready  bool
 	width  int
 	height int
+
+	atScrollBottom bool
 }
 
 type keymap = struct {
@@ -80,6 +82,7 @@ func initialModel() *streamUIModel {
 		tokensByPath:   make(map[string]int),
 		finishedByPath: make(map[string]bool),
 		spinner:        s,
+		atScrollBottom: true,
 	}
 
 	return &initialState

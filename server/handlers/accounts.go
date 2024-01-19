@@ -43,17 +43,21 @@ func StartTrialHandler(w http.ResponseWriter, r *http.Request) {
 	tag := fmt.Sprintf("%x", b)
 	tag = strings.ToLower(tag)
 
-	name := "Trial User " + tag
-	email := tag + "@trial.plandex.ai"
-
-	var userId string
-	err = tx.QueryRow("INSERT INTO users (name, email, is_trial) VALUES ($1, $2, true) RETURNING id", name, email).Scan(&userId)
+	user := &db.User{
+		Name:    "Trial User " + tag,
+		Email:   tag + "@trial.plandex.ai",
+		Domain:  "trial.plandex.ai",
+		IsTrial: true,
+	}
+	err = db.CreateUser(user, tx)
 
 	if err != nil {
 		log.Printf("Error creating user: %v\n", err)
 		http.Error(w, "Error creating user: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	userId := user.Id
 
 	// create a new org
 	var orgId string
@@ -67,7 +71,7 @@ func StartTrialHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// get org owner role id
-	orgOwnerRoleId, err := db.GetOrgOwnerRoleId(orgId)
+	orgOwnerRoleId, err := db.GetOrgOwnerRoleId()
 
 	if err != nil {
 		log.Printf("Error getting org owner role: %v\n", err)
@@ -76,7 +80,7 @@ func StartTrialHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// insert org user
-	err = db.CreateOrgUser(userId, orgId, orgOwnerRoleId, tx)
+	err = db.CreateOrgUser(orgId, userId, orgOwnerRoleId, tx)
 	if err != nil {
 		log.Printf("Error inserting org user: %v\n", err)
 		http.Error(w, "Error inserting org user: "+err.Error(), http.StatusInternalServerError)
@@ -104,9 +108,9 @@ func StartTrialHandler(w http.ResponseWriter, r *http.Request) {
 		UserId:   userId,
 		OrgId:    orgId,
 		Token:    token,
-		UserName: name,
+		UserName: user.Name,
 		OrgName:  orgName,
-		Email:    email,
+		Email:    user.Email,
 	}
 
 	bytes, err := json.Marshal(resp)
@@ -228,7 +232,7 @@ func CreateAccountHandler(w http.ResponseWriter, r *http.Request) {
 
 	if org != nil && org.AutoAddDomainUsers {
 		// get org owner role id
-		orgOwnerRoleId, err := db.GetOrgOwnerRoleId(org.Id)
+		orgOwnerRoleId, err := db.GetOrgOwnerRoleId()
 
 		if err != nil {
 			log.Printf("Error getting org owner role: %v\n", err)
@@ -236,7 +240,7 @@ func CreateAccountHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		err = db.CreateOrgUser(userId, org.Id, orgOwnerRoleId, tx)
+		err = db.CreateOrgUser(org.Id, userId, orgOwnerRoleId, tx)
 
 		if err != nil {
 			log.Printf("Error adding org user: %v\n", err)

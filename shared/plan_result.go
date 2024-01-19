@@ -2,6 +2,7 @@ package shared
 
 import (
 	"fmt"
+	"log"
 	"sort"
 	"strings"
 	"time"
@@ -140,7 +141,7 @@ func (planState *CurrentPlanState) GetFilesBeforeReplacement(
 
 		_, hasPath := planRes.FileResultsByPath[contextPart.FilePath]
 
-		// fmt.Printf("hasPath: %v\n", hasPath)
+		log.Printf("hasPath: %v\n", hasPath)
 
 		if hasPath {
 			files[contextPart.FilePath] = contextPart.Body
@@ -151,14 +152,16 @@ func (planState *CurrentPlanState) GetFilesBeforeReplacement(
 	for path, planResults := range planRes.FileResultsByPath {
 		updated := files[path]
 
-		// fmt.Printf("path: %s\n", path)
-		// fmt.Printf("updated: %s\n", updated)
+		log.Printf("path: %s\n", path)
+		log.Printf("updated: %s\n", updated)
 
 	PlanResLoop:
 		for _, planRes := range planResults {
 			if !planRes.IsPending() {
 				continue
 			}
+
+			log.Println("planRes:", planRes)
 
 			if len(planRes.Replacements) == 0 {
 				if updated != "" {

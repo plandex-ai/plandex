@@ -7,6 +7,7 @@ import (
 	"plandex/auth"
 	"plandex/lib"
 	streamtui "plandex/stream_tui"
+	"plandex/term"
 
 	"github.com/plandex/plandex/shared"
 	"github.com/spf13/cobra"
@@ -41,6 +42,27 @@ func next(cmd *cobra.Command, args []string) {
 		ConnectStream: !continueBg,
 	}, lib.OnStreamPlan)
 	if apiErr != nil {
+		if apiErr.Type == shared.ApiErrorTypeTrialMessagesExceeded {
+			fmt.Fprintf(os.Stderr, "🚨 You've reached the free trial limit of %d messages per plan\n", apiErr.TrialMessagesExceededError.MaxMessages)
+
+			res, err := term.ConfirmYesNo("Upgrade now?")
+
+			if err != nil {
+				fmt.Fprintln(os.Stderr, "Error prompting upgrade trial:", err)
+				return
+			}
+
+			if res {
+				err := auth.ConvertTrial()
+				if err != nil {
+					fmt.Fprintln(os.Stderr, "Error converting trial:", err)
+					return
+				}
+			}
+
+			return
+		}
+
 		fmt.Fprintln(os.Stderr, "Prompt error:", apiErr.Msg)
 		return
 	}

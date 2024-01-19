@@ -65,6 +65,10 @@ func (m *streamUIModel) updateReplyDisplay() {
 	m.replyDisplay = md
 	m.replyViewport.SetContent(md)
 	m.updateViewportDimensions()
+
+	if m.atScrollBottom {
+		m.replyViewport.GotoBottom()
+	}
 }
 
 func (m *streamUIModel) updateViewportDimensions() {
@@ -94,11 +98,14 @@ func (m *streamUIModel) scrollDown() {
 	if m.replyScrollable() {
 		m.replyViewport.LineDown(1)
 	}
+
+	m.atScrollBottom = !m.replyScrollable() || m.replyViewport.AtBottom()
 }
 
 func (m *streamUIModel) scrollUp() {
 	if m.replyScrollable() {
 		m.replyViewport.LineUp(1)
+		m.atScrollBottom = false
 	}
 }
 
@@ -106,11 +113,14 @@ func (m *streamUIModel) pageDown() {
 	if m.replyScrollable() {
 		m.replyViewport.ViewDown()
 	}
+
+	m.atScrollBottom = !m.replyScrollable() || m.replyViewport.AtBottom()
 }
 
 func (m *streamUIModel) pageUp() {
 	if m.replyScrollable() {
 		m.replyViewport.ViewUp()
+		m.atScrollBottom = false
 	}
 }
 

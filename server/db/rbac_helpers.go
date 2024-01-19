@@ -2,9 +2,9 @@ package db
 
 import "fmt"
 
-func GetOrgOwnerRoleId(orgId string) (string, error) {
+func GetOrgOwnerRoleId() (string, error) {
 	var roleId string
-	err := Conn.Get(&roleId, "SELECT id FROM org_roles WHERE name = 'owner'", orgId)
+	err := Conn.Get(&roleId, "SELECT id FROM org_roles WHERE name = 'owner'")
 
 	if err != nil {
 		return "", fmt.Errorf("error getting owner role id: %v", err)

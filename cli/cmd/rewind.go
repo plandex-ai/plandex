@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"plandex/api"
 	"plandex/auth"
@@ -59,7 +60,10 @@ func rewind(cmd *cobra.Command, args []string) {
 
 	var targetSha string
 
+	log.Println("shas:", logsRes.Shas)
+
 	if steps, err := strconv.Atoi(stepsOrSha); err == nil && steps > 0 {
+		log.Println("steps:", steps)
 		// Rewind by the specified number of steps
 		targetSha = logsRes.Shas[steps]
 	} else if sha := stepsOrSha; sha != "" {
@@ -72,6 +76,8 @@ func rewind(cmd *cobra.Command, args []string) {
 		fmt.Fprintln(os.Stderr, "Invalid steps or sha. Steps must be a positive integer, and sha must be a valid commit hash.")
 		os.Exit(1)
 	}
+
+	log.Println("Rewinding to", targetSha)
 
 	// Rewind to the target sha
 	rwRes, err := api.Client.RewindPlan(lib.CurrentPlanId, shared.RewindPlanRequest{Sha: targetSha})

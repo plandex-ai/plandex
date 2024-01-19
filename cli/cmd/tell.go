@@ -140,28 +140,28 @@ func tell(cmd *cobra.Command, args []string) {
 		ConnectStream: !tellBg,
 	}, lib.OnStreamPlan)
 	if apiErr != nil {
-		fmt.Fprintln(os.Stderr, "Prompt error:", apiErr.Msg)
-		return
-	}
+		if apiErr.Type == shared.ApiErrorTypeTrialMessagesExceeded {
+			fmt.Fprintf(os.Stderr, "🚨 You've reached the free trial limit of %d messages per plan\n", apiErr.TrialMessagesExceededError.MaxMessages)
 
-	if apiErr.Type == shared.ApiErrorTypeTrialMessagesExceeded {
-		fmt.Fprintf(os.Stderr, "🚨 You've reached the free trial limit of %d messages per plan\n", apiErr.TrialMessagesExceededError.MaxMessages)
+			res, err := term.ConfirmYesNo("Upgrade now?")
 
-		res, err := term.ConfirmYesNo("Upgrade now?")
+			if err != nil {
+				fmt.Fprintln(os.Stderr, "Error prompting upgrade trial:", err)
+				return
+			}
 
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "Error prompting upgrade trial:", err)
+			if res {
+				err := auth.ConvertTrial()
+				if err != nil {
+					fmt.Fprintln(os.Stderr, "Error converting trial:", err)
+					return
+				}
+			}
+
 			return
 		}
 
-		if res {
-			err := auth.ConvertTrial()
-			if err != nil {
-				fmt.Fprintln(os.Stderr, "Error converting trial:", err)
-				return
-			}
-		}
-
+		fmt.Fprintln(os.Stderr, "Prompt error:", apiErr.Msg)
 		return
 	}
 

@@ -41,7 +41,7 @@ func ValidateAuthToken(token string) (*AuthToken, error) {
 
 	var authToken AuthToken
 	// free trial tokens don't expire
-	err = Conn.Get(&authToken, "SELECT * FROM auth_tokens WHERE token_hash = $1 AND (created_at > $2 OR is_trial = FALSE) AND deleted_at IS NULL", tokenHash, time.Now().AddDate(0, 0, -tokenExpirationDays))
+	err = Conn.Get(&authToken, "SELECT * FROM auth_tokens WHERE token_hash = $1 AND (created_at > $2 OR is_trial = TRUE) AND deleted_at IS NULL", tokenHash, time.Now().AddDate(0, 0, -tokenExpirationDays))
 
 	if err != nil {
 		if err == sql.ErrNoRows {

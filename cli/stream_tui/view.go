@@ -2,6 +2,7 @@ package streamtui
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
@@ -51,7 +52,16 @@ func (m streamUIModel) renderBuild() string {
 
 	var lines []string
 	lines = append(lines, head)
-	for filePath, tokens := range m.tokensByPath {
+
+	filePaths := make([]string, 0, len(m.tokensByPath))
+	for filePath := range m.tokensByPath {
+		filePaths = append(filePaths, filePath)
+	}
+
+	sort.Strings(filePaths)
+
+	for _, filePath := range filePaths {
+		tokens := m.tokensByPath[filePath]
 		finished := m.finishedByPath[filePath]
 		line := fmt.Sprintf("  📄 %s", filePath)
 		if tokens > 0 {

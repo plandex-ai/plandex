@@ -55,6 +55,8 @@ func authenticate(w http.ResponseWriter, r *http.Request, requireOrg bool) *type
 	authToken, err := db.ValidateAuthToken(parsed.Token)
 
 	if err != nil {
+		log.Printf("error validating auth token: %v\n", err)
+
 		writeApiError(w, shared.ApiError{
 			Type:   shared.ApiErrorTypeInvalidToken,
 			Status: http.StatusUnauthorized,

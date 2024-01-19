@@ -154,9 +154,9 @@ func CreateOrgUser(orgId, userId, orgRoleId string, tx *sql.Tx) error {
 	query := "INSERT INTO orgs_users (org_id, user_id, org_role_id) VALUES ($1, $2, $3)"
 	var err error
 	if tx == nil {
-		_, err = Conn.Exec(query, orgId, userId)
+		_, err = Conn.Exec(query, orgId, userId, orgRoleId)
 	} else {
-		_, err = tx.Exec(query, orgId, userId)
+		_, err = tx.Exec(query, orgId, userId, orgRoleId)
 	}
 
 	if err != nil {

@@ -202,6 +202,7 @@ func signIn(email, pin, host string) error {
 			UserName: res.UserName,
 			Token:    res.Token,
 			IsTrial:  false,
+			IsCloud:  host == "",
 		},
 		OrgId:   orgId,
 		OrgName: orgName,
@@ -209,6 +210,57 @@ func signIn(email, pin, host string) error {
 
 	if err != nil {
 		return fmt.Errorf("error setting auth: %v", err)
+	}
+
+	return nil
+}
+
+func createAccount(email, pin, host string) error {
+
+	name, err := term.GetUserStringInput("Your name:")
+
+	if err != nil {
+		return fmt.Errorf("error prompting name: %v", err)
+	}
+
+	res, apiErr := apiClient.CreateAccount(shared.CreateAccountRequest{
+		Email:    email,
+		UserName: name,
+		Pin:      pin,
+	}, host)
+
+	if apiErr != nil {
+		return fmt.Errorf("error creating account: %v", apiErr.Msg)
+	}
+
+	err = setAuth(&types.ClientAuth{
+		ClientAccount: types.ClientAccount{
+			Email:    res.Email,
+			UserId:   res.UserId,
+			UserName: res.UserName,
+			Token:    res.Token,
+			IsTrial:  false,
+			IsCloud:  host == "",
+		},
+	})
+
+	if err != nil {
+		return fmt.Errorf("error setting auth: %v", err)
+	}
+
+	orgId, orgName, err := resolveOrgAuth(res.Orgs)
+
+	if err != nil {
+		return fmt.Errorf("error resolving org: %v", err)
+	}
+
+	Current.OrgId = orgId
+	Current.OrgName = orgName
+
+	err = writeCurrentAuth()
+
+	if err != nil {
+		return fmt.Errorf("error writing auth: %v", err)
 	}
 
 	return nil

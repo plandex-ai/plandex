@@ -135,9 +135,9 @@ func StoreSummary(summary *ConvoSummary) error {
 	defer row.Close()
 
 	if row.Next() {
-		var createdAt, updatedAt time.Time
+		var createdAt time.Time
 		var id string
-		if err := row.Scan(&id, &createdAt, &updatedAt); err != nil {
+		if err := row.Scan(&id, &createdAt); err != nil {
 			return fmt.Errorf("error storing summary: %v", err)
 		}
 

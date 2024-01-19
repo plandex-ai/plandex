@@ -60,6 +60,12 @@ func SubscribePlan(planId string) (string, chan string) {
 }
 
 func UnsubscribePlan(planId, subscriptionId string) {
+	active := Active.Get(planId)
+
+	if active == nil {
+		return
+	}
+
 	Active.Update(planId, func(activePlan *types.ActivePlan) {
 		activePlan.Unsubscribe(subscriptionId)
 	})

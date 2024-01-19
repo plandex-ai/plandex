@@ -12,12 +12,12 @@ import (
 // Models used client-side have a ToApi() method to convert it to the corresponding client-side model.
 
 type AuthToken struct {
-	Id        string    `db:"id"`
-	UserId    string    `db:"user_id"`
-	TokenHash string    `db:"token_hash"`
-	IsTrial   bool      `db:"is_trial"`
-	CreatedAt time.Time `db:"created_at"`
-	DeletedAt time.Time `db:"deleted_at"`
+	Id        string     `db:"id"`
+	UserId    string     `db:"user_id"`
+	TokenHash string     `db:"token_hash"`
+	IsTrial   bool       `db:"is_trial"`
+	CreatedAt time.Time  `db:"created_at"`
+	DeletedAt *time.Time `db:"deleted_at"`
 }
 
 type Org struct {

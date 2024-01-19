@@ -25,7 +25,7 @@ func startResponseStream(w http.ResponseWriter, ch chan string, ctx context.Cont
 			log.Println("Response stream manager: context done")
 			return
 		case msg := <-ch:
-			log.Println("Response stream manager: sending message:", msg)
+			// log.Println("Response stream manager: sending message:", msg)
 
 			bytes := []byte(msg + shared.STREAM_MESSAGE_SEPARATOR)
 			_, err := w.Write(bytes)

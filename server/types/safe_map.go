@@ -36,3 +36,21 @@ func (sm *SafeMap[V]) Update(key string, fn func(V)) {
 	fn(item)
 	sm.items[key] = item
 }
+
+func (sm *SafeMap[V]) Items() map[string]V {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+	return sm.items
+}
+
+func (sm *SafeMap[V]) Keys() []string {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+	keys := make([]string, len(sm.items))
+	i := 0
+	for k := range sm.items {
+		keys[i] = k
+		i++
+	}
+	return keys
+}
