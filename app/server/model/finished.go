@@ -2,9 +2,9 @@ package model
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"plandex-server/model/prompts"
-	"time"
 
 	"github.com/sashabaranov/go-openai"
 )
@@ -13,7 +13,12 @@ type PlanFinishedParams struct {
 	Conversation []openai.ChatCompletionMessage
 }
 
-func PlanFinished(params PlanFinishedParams) (bool, error) {
+type PlanFinishedRes struct {
+	Reasoning string `json:"reasoning"`
+	Finished  bool   `json:"finished"`
+}
+
+func PlanFinished(params PlanFinishedParams) (PlanFinishedRes, error) {
 	messages := []openai.ChatCompletionMessage{
 		{
 			Role:    openai.ChatMessageRoleSystem,
@@ -33,11 +38,11 @@ func PlanFinished(params PlanFinishedParams) (bool, error) {
 
 	if err != nil {
 		fmt.Println("PlanFinished err:", err)
-		return false, err
+		return PlanFinishedRes{}, err
 	}
 
 	if len(resp.Choices) == 0 {
-		return false, fmt.Errorf("no response from GPT")
+		return PlanFinishedRes{}, fmt.Errorf("no response from GPT")
 	}
 
 	content := resp.Choices[0].Message.Content
@@ -46,5 +51,8 @@ func PlanFinished(params PlanFinishedParams) (bool, error) {
 	// You might want to adjust this according to your needs.
 	isFinished := content == "finished"
 
-	return isFinished, nil
+	return PlanFinishedRes{
+		Reasoning: content,
+		Finished:  isFinished,
+	}, nil
 }
