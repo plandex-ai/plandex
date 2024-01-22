@@ -33,13 +33,13 @@ func genPlanDescription(planId string, ctx context.Context) (*db.ConvoMessageDes
 		},
 	)
 
-	var descStrRes string
-	var desc shared.ConvoMessageDescription
-
 	if err != nil {
 		fmt.Printf("Error during plan description model call: %v\n", err)
 		return nil, err
 	}
+
+	var descStrRes string
+	var desc shared.ConvoMessageDescription
 
 	for _, choice := range descResp.Choices {
 		if choice.FinishReason == "function_call" &&

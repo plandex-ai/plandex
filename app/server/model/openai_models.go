@@ -16,6 +16,7 @@ var BuilderModel = mediumModel
 var ShortSummaryModel = weakModel
 var NameModel = weakModel
 var CommitMsgModel = weakModel
+var PlanExecStatusModel = mediumModel
 
 func init() {
 	if os.Getenv("PLANNER_MODEL") != "" {

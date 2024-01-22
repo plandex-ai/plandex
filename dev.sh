@@ -8,6 +8,8 @@ terminate() {
 
 trap terminate SIGTERM SIGINT
 
+cd app
+
 (cd cli && ./dev.sh)
 
 reflex -r '^(cli|shared)/.*\.(go|mod|sum)$' -- sh -c 'cd cli && ./dev.sh' &

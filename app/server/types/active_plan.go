@@ -7,39 +7,43 @@ import (
 	"github.com/google/uuid"
 )
 
-type ActivePlan struct {
-	Prompt             string
-	StreamCh           chan string
-	StreamDoneCh       chan error
-	Ctx                context.Context
-	CancelFn           context.CancelFunc
-	Contexts           []*db.Context
-	ContextsByPath     map[string]*db.Context
-	Content            string
-	NumTokens          int
-	PromptMessageNum   int
+type ActiveBuild struct {
 	AssistantMessageId string
 	Files              []string
 	BuildBuffers       map[string]string
 	BuiltFiles         map[string]bool
-	subscriptions      map[string]chan string
+	Error              error
+	ErrorReason        string
+}
+
+type ActivePlan struct {
+	Prompt            string
+	StreamCh          chan string
+	StreamDoneCh      chan error
+	Ctx               context.Context
+	CancelFn          context.CancelFunc
+	Contexts          []*db.Context
+	ContextsByPath    map[string]*db.Context
+	Content           string
+	NumTokens         int
+	PromptMessageNum  int
+	BuildQueuesByPath map[string]*[]ActiveBuild
+	subscriptions     map[string]chan string
 }
 
 func NewActivePlan(prompt string) *ActivePlan {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	active := ActivePlan{
-		Prompt:         prompt,
-		StreamCh:       make(chan string),
-		StreamDoneCh:   make(chan error),
-		Ctx:            ctx,
-		CancelFn:       cancel,
-		Files:          []string{},
-		BuiltFiles:     map[string]bool{},
-		Contexts:       []*db.Context{},
-		ContextsByPath: map[string]*db.Context{},
-		BuildBuffers:   map[string]string{},
-		subscriptions:  map[string]chan string{},
+		Prompt:            prompt,
+		StreamCh:          make(chan string),
+		StreamDoneCh:      make(chan error),
+		Ctx:               ctx,
+		CancelFn:          cancel,
+		BuildQueuesByPath: map[string]*[]ActiveBuild{},
+		Contexts:          []*db.Context{},
+		ContextsByPath:    map[string]*db.Context{},
+		subscriptions:     map[string]chan string{},
 	}
 
 	go func() {
@@ -58,8 +62,8 @@ func NewActivePlan(prompt string) *ActivePlan {
 	return &active
 }
 
-func (ap *ActivePlan) BuildFinished() bool {
-	return len(ap.Files) == len(ap.BuiltFiles)
+func (b *ActiveBuild) BuildFinished() bool {
+	return len(b.Files) == len(b.BuiltFiles)
 }
 
 func (ap *ActivePlan) Subscribe() (string, chan string) {

@@ -242,9 +242,6 @@ func execTellPlan(plan *db.Plan, auth *types.ServerAuth, req *shared.TellPlanReq
 		// token limit exceeded after adding conversation
 		// get summary for as much as the conversation as necessary to stay under the token limit
 		for _, s := range summaries {
-			log.Printf("summary: ")
-			spew.Dump(s)
-
 			timestamp := s.LatestConvoMessageCreatedAt.UnixNano() / int64(time.Millisecond)
 
 			tokens, ok := tokensUpToTimestamp[timestamp]
