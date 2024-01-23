@@ -32,7 +32,7 @@ func (m streamUIModel) renderHelp() string {
 }
 
 func (m streamUIModel) renderProcessing() string {
-	if m.processing {
+	if m.starting || m.processing {
 		style := lipgloss.NewStyle().Width(m.width).BorderStyle(lipgloss.NormalBorder()).BorderTop(true).BorderForeground(lipgloss.Color(borderColor))
 
 		return style.Render(m.spinner.View())
@@ -50,9 +50,6 @@ func (m streamUIModel) renderBuild() string {
 
 	head := color.New(color.BgGreen, color.FgHiWhite, color.Bold).Sprint(" 🏗  ") + color.New(color.BgGreen, color.FgHiWhite).Sprint("Building plan ")
 
-	var lines []string
-	lines = append(lines, head)
-
 	filePaths := make([]string, 0, len(m.tokensByPath))
 	for filePath := range m.tokensByPath {
 		filePaths = append(filePaths, filePath)
@@ -60,18 +57,45 @@ func (m streamUIModel) renderBuild() string {
 
 	sort.Strings(filePaths)
 
+	var rows [][]string
+	lineWidth := 0
+	lineNum := 0
+
 	for _, filePath := range filePaths {
 		tokens := m.tokensByPath[filePath]
 		finished := m.finishedByPath[filePath]
-		line := fmt.Sprintf("  📄 %s", filePath)
+		block := fmt.Sprintf("  📄 %s", filePath)
 		if tokens > 0 {
-			line += fmt.Sprintf(" | %d 🪙", tokens)
+			block += fmt.Sprintf(" | %d 🪙", tokens)
 		}
 		if finished {
-			line += " | ✅"
+			block += " | ✅"
 		}
-		lines = append(lines, line)
+
+		blockWidth := lipgloss.Width(block)
+
+		if lineWidth+blockWidth > m.width {
+			lineWidth = 0
+			lineNum++
+		}
+
+		if len(rows) <= lineNum {
+			rows = append(rows, []string{})
+		}
+
+		row := rows[lineNum]
+		row = append(row, block)
+		rows[lineNum] = row
+
+		lineWidth += blockWidth
 	}
 
-	return style.Render(strings.Join(lines, "\n"))
+	resRows := make([]string, len(rows)+1)
+
+	resRows[0] = head
+	for i, row := range rows {
+		resRows[i+1] = strings.Join(row, "")
+	}
+
+	return style.Render(strings.Join(resRows, "\n"))
 }

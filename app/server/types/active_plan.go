@@ -29,10 +29,12 @@ type ActivePlan struct {
 	ContextsByPath      map[string]*db.Context
 	Files               []string
 	BuiltFiles          map[string]bool
+	IsBuildingByPath    map[string]bool
 	CurrentReplyContent string
 	NumTokens           int
 	PromptMessageNum    int
 	BuildQueuesByPath   map[string][]*ActiveBuild
+	RepliesFinished     bool
 	StreamDoneCh        chan *shared.ApiError
 
 	streamCh      chan string
@@ -52,10 +54,10 @@ func NewActivePlan(planId, prompt string) *ActivePlan {
 		ContextsByPath:    map[string]*db.Context{},
 		Files:             []string{},
 		BuiltFiles:        map[string]bool{},
-
-		streamCh:      make(chan string),
-		StreamDoneCh:  make(chan *shared.ApiError),
-		subscriptions: map[string]chan string{},
+		IsBuildingByPath:  map[string]bool{},
+		StreamDoneCh:      make(chan *shared.ApiError),
+		streamCh:          make(chan string),
+		subscriptions:     map[string]chan string{},
 	}
 
 	go func() {
@@ -85,6 +87,10 @@ func (ap *ActivePlan) Stream(msg shared.StreamMessage) {
 		return
 	}
 	ap.streamCh <- string(msgJson)
+
+	if msg.Type == shared.StreamMessageFinished {
+		ap.StreamDoneCh <- nil
+	}
 }
 
 func (ap *ActivePlan) BuildFinished() bool {

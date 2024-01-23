@@ -78,9 +78,15 @@ func (m *changesUIModel) down() {
 		currentReplacements = m.selectionInfo.currentReplacements
 	}
 
-	// allow for selection of 'full file' option at bottom of replacement list in sidebar
 	max := len(currentReplacements) - 1
+
+	// allow for selection of 'full file' option at bottom of replacement list in sidebar
 	if m.currentPlan.PlanResult.NumPendingForPath(m.selectionInfo.currentPath) > 0 {
+		max++
+	}
+
+	// allow for selection of 'new file' option at top of replacement list in sidebar
+	if m.hasNewFile() {
 		max++
 	}
 
@@ -154,14 +160,20 @@ func (m *changesUIModel) updateMainView(scrollReplacement bool) {
 
 	// var updateMsg types.ChangesUIViewportsUpdate
 
-	if m.selectedFullFile() {
+	if m.selectedNewFile() || m.selectedFullFile() {
 		context := m.currentPlan.ContextsByPath[m.selectionInfo.currentPath]
 		var originalFile string
 		if context != nil {
 			originalFile = context.Body
 		}
 
-		updatedFile := m.currentPlan.CurrentPlanFiles.Files[m.selectionInfo.currentPath]
+		var updatedFile string
+
+		if m.selectedNewFile() {
+			updatedFile = m.selectionInfo.currentRes.Content
+		} else {
+			updatedFile = m.currentPlan.CurrentPlanFiles.Files[m.selectionInfo.currentPath]
+		}
 
 		wrapWidth := m.fileViewport.Width - 2
 		fileSegments := []string{}

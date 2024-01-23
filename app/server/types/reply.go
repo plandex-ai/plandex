@@ -1,8 +1,6 @@
 package types
 
 import (
-	"log"
-	"strconv"
 	"strings"
 )
 
@@ -31,7 +29,7 @@ func NewReplyParser() *replyParser {
 }
 
 func (r *replyParser) AddChunk(chunk string, addToTotal bool) {
-	log.Println("Adding chunk:", strconv.Quote(chunk)) // Logging the chunk that's being processed
+	// log.Println("Adding chunk:", strconv.Quote(chunk)) // Logging the chunk that's being processed
 
 	hasNewLine := false
 	nextChunk := ""
@@ -43,19 +41,19 @@ func (r *replyParser) AddChunk(chunk string, addToTotal bool) {
 			r.numTokensByFile[r.currentFilePath]++
 		}
 
-		log.Println("Total tokens:", r.numTokens)
-		log.Println("Tokens by file path:", r.numTokensByFile)
+		// log.Println("Total tokens:", r.numTokens)
+		// log.Println("Tokens by file path:", r.numTokensByFile)
 	}
 
 	if chunk == "\n" {
-		log.Println("Chunk is \\n, adding new line")
+		// log.Println("Chunk is \\n, adding new line")
 		r.lines = append(r.lines, "")
 		hasNewLine = true
 		r.lineIndex++
 	} else {
 		chunkLines := strings.Split(chunk, "\n")
 
-		log.Println("Chunk lines:", len(chunkLines))
+		// log.Println("Chunk lines:", len(chunkLines))
 
 		currentLine := r.lines[r.lineIndex]
 		currentLine += chunkLines[0]
@@ -80,22 +78,22 @@ func (r *replyParser) AddChunk(chunk string, addToTotal bool) {
 	}
 
 	if r.lineIndex == 0 || !hasNewLine {
-		log.Println("No new line detected--returning")
+		// log.Println("No new line detected--returning")
 		return
 	}
 
 	prevFullLine := r.lines[r.lineIndex-1]
-	log.Println("Previous full line:", strconv.Quote(prevFullLine)) // Logging the full line that's being checked
+	// log.Println("Previous full line:", strconv.Quote(prevFullLine)) // Logging the full line that's being checked
 
 	prevFullLineTrimmed := strings.TrimSpace(prevFullLine)
 
 	if r.maybeFilePath != "" {
-		log.Println("Maybe file path is:", r.maybeFilePath) // Logging the maybeFilePath
+		// log.Println("Maybe file path is:", r.maybeFilePath) // Logging the maybeFilePath
 		if strings.HasPrefix(prevFullLineTrimmed, "```") {
 			r.currentFilePath = r.maybeFilePath
 			r.maybeFilePath = ""
 			r.currentFileLines = []string{}
-			log.Println("Confirmed file path:", r.currentFilePath) // Logging the confirmed file path
+			// log.Println("Confirmed file path:", r.currentFilePath) // Logging the confirmed file path
 			return
 		} else if prevFullLineTrimmed != "" {
 			// turns out previous maybeFilePath was not a file path since there's a non-empty line before finding opening ticks
@@ -104,7 +102,7 @@ func (r *replyParser) AddChunk(chunk string, addToTotal bool) {
 	}
 
 	if r.currentFilePath == "" {
-		log.Println("Current file path is empty--checking for possible file path...")
+		// log.Println("Current file path is empty--checking for possible file path...")
 
 		var gotPath string
 		if (strings.HasPrefix(prevFullLineTrimmed, "-")) || strings.HasPrefix(prevFullLineTrimmed, "-file:") || strings.HasPrefix(prevFullLineTrimmed, "- file:") || (strings.HasPrefix(prevFullLineTrimmed, "**") && strings.HasSuffix(prevFullLineTrimmed, "**")) {
@@ -117,11 +115,11 @@ func (r *replyParser) AddChunk(chunk string, addToTotal bool) {
 			p = strings.TrimSpace(p)
 			gotPath = p
 		} else {
-			log.Println("No possible file path detected.", strconv.Quote(prevFullLineTrimmed))
+			// log.Println("No possible file path detected.", strconv.Quote(prevFullLineTrimmed))
 		}
 
 		if gotPath != "" {
-			log.Println("Detected possible file path:", gotPath) // Logging the possible file path
+			// log.Println("Detected possible file path:", gotPath) // Logging the possible file path
 
 			if r.maybeFilePath == "" {
 				r.maybeFilePath = gotPath
@@ -131,10 +129,10 @@ func (r *replyParser) AddChunk(chunk string, addToTotal bool) {
 		}
 	} else {
 		if strings.HasPrefix(prevFullLineTrimmed, "```") {
-			r.currentFilePath = ""
-			log.Println("Exited file block.")
-		} else {
 			r.files[r.currentFilePath] = true
+			r.currentFilePath = ""
+			// log.Println("Exited file block.")
+		} else {
 			r.fileContents[r.currentFilePath] += prevFullLine + "\n"
 			r.currentFileLines = append(r.currentFileLines, prevFullLine)
 

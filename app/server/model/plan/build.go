@@ -33,7 +33,7 @@ func QueueBuild(currentOrgId, planId string, activeBuild *types.ActiveBuild) {
 	})
 	log.Printf("Queued build for file %s\n", filePath)
 
-	if !activePlan.PathFinished(filePath) {
+	if activePlan.IsBuildingByPath[filePath] {
 		log.Printf("Already building file %s\n", filePath)
 		return
 	} else {
@@ -43,6 +43,10 @@ func QueueBuild(currentOrgId, planId string, activeBuild *types.ActiveBuild) {
 }
 
 func execPlanBuild(currentOrgId string, activePlan *types.ActivePlan, activeBuild *types.ActiveBuild) {
+	Active.Update(activePlan.Id, func(ap *types.ActivePlan) {
+		ap.IsBuildingByPath[activeBuild.Path] = true
+	})
+
 	planId := activePlan.Id
 	filePath := activeBuild.Path
 
@@ -109,6 +113,9 @@ func execPlanBuild(currentOrgId string, activePlan *types.ActivePlan, activeBuil
 		err := <-errCh
 		if err != nil {
 			log.Printf("Error building plan %s: %v\n", planId, err)
+			Active.Update(activePlan.Id, func(ap *types.ActivePlan) {
+				ap.IsBuildingByPath[activeBuild.Path] = false
+			})
 			activePlan.StreamDoneCh <- &shared.ApiError{
 				Type:   shared.ApiErrorTypeOther,
 				Status: http.StatusInternalServerError,
@@ -119,9 +126,13 @@ func execPlanBuild(currentOrgId string, activePlan *types.ActivePlan, activeBuil
 	}
 
 	onFinishBuild := func() {
-		log.Println("Build finished.")
-		// activePlan.StreamCh <- shared.STREAM_FINISHED
-		activePlan.StreamDoneCh <- nil
+		log.Println("Build finished")
+
+		if Active.Get(planId).RepliesFinished {
+			activePlan.Stream(shared.StreamMessage{
+				Type: shared.StreamMessageFinished,
+			})
+		}
 	}
 
 	onFinishBuildFile := func(filePath string, planRes *db.PlanFileResult) {
@@ -145,11 +156,27 @@ func execPlanBuild(currentOrgId string, activePlan *types.ActivePlan, activeBuil
 
 		Active.Update(planId, func(ap *types.ActivePlan) {
 			ap.BuiltFiles[filePath] = true
+			ap.IsBuildingByPath[filePath] = false
 
 			if ap.BuildFinished() {
 				finished = true
 			}
 		})
+
+		if !activePlan.PathFinished(filePath) {
+			log.Printf("Processing next build for file %s\n", filePath)
+			var nextBuild *types.ActiveBuild
+			for _, build := range activePlan.BuildQueuesByPath[filePath] {
+				if !build.BuildFinished() {
+					nextBuild = build
+					break
+				}
+			}
+			if nextBuild != nil {
+				go execPlanBuild(currentOrgId, activePlan, nextBuild)
+			}
+			return
+		}
 
 		log.Printf("Finished building file %s\n", filePath)
 
@@ -179,6 +206,10 @@ func execPlanBuild(currentOrgId string, activePlan *types.ActivePlan, activeBuil
 		if err != nil {
 			log.Printf("Error setting build error: %v\n", err)
 		}
+
+		Active.Update(activePlan.Id, func(ap *types.ActivePlan) {
+			ap.IsBuildingByPath[activeBuild.Path] = false
+		})
 	}
 
 	var buildFile func(filePath string, numRetry int, numReplacementRetry int, res *db.PlanFileResult)

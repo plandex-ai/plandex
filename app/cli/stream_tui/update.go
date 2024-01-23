@@ -17,7 +17,7 @@ func (m *streamUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 
 	case spinner.TickMsg:
-		if m.processing {
+		if m.processing || m.starting {
 			spinnerModel, cmd := m.spinner.Update(msg)
 			m.spinner = spinnerModel
 			return m, cmd
@@ -86,10 +86,13 @@ func (m *streamUIModel) getViewportDimensions() (int, int) {
 	helpHeight := lipgloss.Height(m.renderHelp())
 	buildHeight := lipgloss.Height(m.renderBuild())
 	processingHeight := lipgloss.Height(m.renderProcessing())
-	maxViewportHeight := h - (helpHeight + buildHeight + processingHeight)
+	maxViewportHeight := h - (helpHeight + processingHeight + buildHeight)
 	viewportHeight := min(maxViewportHeight, lipgloss.Height(m.replyDisplay))
+	viewportWidth := w
 
-	return w, viewportHeight
+	// log.Println("viewportWidth:", viewportWidth)
+
+	return viewportWidth, viewportHeight
 }
 
 func (m streamUIModel) replyScrollable() bool {
@@ -129,9 +132,13 @@ func (m *streamUIModel) pageUp() {
 func (m *streamUIModel) streamUpdate(msg *shared.StreamMessage) (tea.Model, tea.Cmd) {
 	switch msg.Type {
 	case shared.StreamMessageReply:
+		if m.starting {
+			m.starting = false
+		}
+
 		if m.processing {
 			m.processing = false
-			m.reply += "\n\n"
+			m.reply += "\n\n👉 "
 		}
 
 		m.reply += msg.ReplyChunk
@@ -140,9 +147,8 @@ func (m *streamUIModel) streamUpdate(msg *shared.StreamMessage) (tea.Model, tea.
 	case shared.StreamMessageBuildInfo:
 		m.building = true
 		m.tokensByPath[msg.BuildInfo.Path] += msg.BuildInfo.NumTokens
-		if msg.BuildInfo.Finished {
-			m.finishedByPath[msg.BuildInfo.Path] = true
-		}
+		m.finishedByPath[msg.BuildInfo.Path] = msg.BuildInfo.Finished
+		m.updateViewportDimensions()
 
 	case shared.StreamMessageDescribing:
 		m.processing = true
@@ -155,5 +161,9 @@ func (m *streamUIModel) streamUpdate(msg *shared.StreamMessage) (tea.Model, tea.
 	case shared.StreamMessageAborted:
 	}
 
-	return m, nil
+	if m.starting {
+		return m, m.spinner.Tick
+	} else {
+		return m, nil
+	}
 }

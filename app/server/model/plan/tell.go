@@ -503,10 +503,11 @@ func execTellPlan(plan *db.Plan, auth *types.ServerAuth, req *shared.TellPlanReq
 			select {
 			case <-active.Ctx.Done():
 				// The main modelContext was canceled (not the timer)
+				log.Println("\nTell: stream canceled")
 				return
 			case <-timer.C:
 				// Timer triggered because no new chunk was received in time
-				log.Println("\nStream timeout due to inactivity")
+				log.Println("\nTell: stream timeout due to inactivity")
 				onError(fmt.Errorf("stream timeout due to inactivity"), true, "", "")
 				return
 			default:
@@ -633,13 +634,17 @@ func execTellPlan(plan *db.Plan, auth *types.ServerAuth, req *shared.TellPlanReq
 					}
 
 					if !req.AutoContinue || execStatus.Finished || execStatus.NeedsInput {
-						active.Stream(shared.StreamMessage{
-							Type: shared.StreamMessageFinished,
-						})
-						active.StreamDoneCh <- nil
-					} else {
-						// TODO: validate that user can continue plan
+						if Active.Get(planId).BuildFinished() {
+							active.Stream(shared.StreamMessage{
+								Type: shared.StreamMessageFinished,
+							})
+						} else {
+							Active.Update(planId, func(active *types.ActivePlan) {
+								active.RepliesFinished = true
+							})
+						}
 
+					} else {
 						// continue plan
 						execTellPlan(plan, auth, req, active, iteration+1)
 					}
@@ -664,14 +669,11 @@ func execTellPlan(plan *db.Plan, auth *types.ServerAuth, req *shared.TellPlanReq
 				files, _, _, numTokens := replyParser.Read()
 				replyNumTokens = numTokens
 
-				log.Printf("Reply num tokens: %d\n", replyNumTokens)
-				log.Printf("Reply files: %v\n", files)
+				// log.Printf("Reply num tokens: %d\n", replyNumTokens)
+				// log.Printf("Reply files: %v\n", files)
 
 				if len(files) > len(replyFiles) {
-					log.Println("New files found")
-
 					latestFile := files[len(files)-1]
-
 					Active.Update(planId, func(active *types.ActivePlan) {
 						active.Files = files
 					})

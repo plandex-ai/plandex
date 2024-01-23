@@ -24,13 +24,36 @@ func (m changesUIModel) renderSidebar() string {
 	anyReplacements := false
 
 	var replacements []*shared.Replacement
+	var createdFile bool
 
-	for _, result := range results {
-		replacements = append(replacements, result.Replacements...)
+	for i, result := range results {
+		if m.hasNewFile() && i == 0 {
+			createdFile = true
+			selected := m.selectedNewFile()
+			fgColor := color.FgHiGreen
+			bgColor := color.BgGreen
+			icon := "🌟"
+
+			var s string
+			if selected {
+				s += color.New(color.Bold, bgColor, color.FgHiWhite).Sprintf(" %s %d ", icon, 1)
+			} else {
+				s += color.New(fgColor).Sprintf(" %s %d ", icon, 1)
+			}
+
+			s += "\n"
+			sb.WriteString(s)
+		} else {
+			replacements = append(replacements, result.Replacements...)
+		}
 	}
 
 	// Change entries
 	for i, rep := range replacements {
+		num := i + 1
+		if createdFile {
+			num++
+		}
 		anyReplacements = true
 		selected := currentRep != nil && rep.Id == currentRep.Id
 		s := ""
@@ -60,9 +83,9 @@ func (m changesUIModel) renderSidebar() string {
 		}
 
 		if selected {
-			s += color.New(color.Bold, bgColor, color.FgHiWhite).Sprintf(" > %s %d ", icon, i+1)
+			s += color.New(color.Bold, bgColor, color.FgHiWhite).Sprintf(" %s %d ", icon, num)
 		} else {
-			s += color.New(fgColor).Sprintf(" - %s %d ", icon, i+1)
+			s += color.New(fgColor).Sprintf(" %s %d ", icon, num)
 		}
 
 		s += "\n"
@@ -83,9 +106,9 @@ func (m changesUIModel) renderSidebar() string {
 		}
 
 		if m.selectedFullFile() {
-			sb.WriteString(color.New(color.Bold, bgColor, color.FgHiWhite).Sprint(" > 🔀   "))
+			sb.WriteString(color.New(color.Bold, bgColor, color.FgHiWhite).Sprint(" 🔀 → "))
 		} else {
-			sb.WriteString(color.New(fgColor).Sprint(" - 🔀   "))
+			sb.WriteString(color.New(fgColor).Sprint(" 🔀   "))
 		}
 	}
 

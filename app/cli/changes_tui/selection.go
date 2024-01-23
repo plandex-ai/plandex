@@ -31,11 +31,23 @@ func (m *changesUIModel) setSelectionInfo() {
 	}
 
 	i := 0
+outer:
 	for _, res := range results {
+		if i == 0 && len(res.Replacements) == 0 && res.Content != "" {
+			if m.selectedReplacementIndex == 0 {
+				currentRes = res
+				break outer
+			} else {
+				i++
+				continue
+			}
+		}
+
 		for _, rep := range res.Replacements {
 			if i == m.selectedReplacementIndex {
 				currentRes = res
 				currentRep = rep
+				break outer
 			}
 			i++
 		}

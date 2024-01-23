@@ -44,7 +44,7 @@ func (m changesUIModel) getMainViewDims() (int, int) {
 	mainViewWidth := m.width - sidebarWidth
 	mainViewHeight := m.height - (helpHeight + tabsHeight)
 
-	if m.selectedFullFile() {
+	if m.selectedNewFile() || m.selectedFullFile() {
 		mainViewHeight -= mainViewHeaderHeight
 	} else {
 		mainViewHeight -= (mainViewHeaderHeight + mainViewFooterHeight)
@@ -70,7 +70,7 @@ func (m *changesUIModel) updateViewportSizes() {
 
 	mainViewWidth, mainViewHeight := m.getMainViewDims()
 
-	if m.selectedFullFile() {
+	if m.selectedNewFile() || m.selectedFullFile() {
 		fileViewHeight := mainViewHeight
 
 		if m.fileScrollable() {
@@ -160,8 +160,22 @@ func (m changesUIModel) fileScrollable() bool {
 	return m.fileViewport.TotalLineCount() > m.fileViewport.VisibleLineCount()
 }
 
+func (m changesUIModel) hasNewFile() bool {
+	firstRes := m.currentPlan.PlanResult.FileResultsByPath[m.selectionInfo.currentPath][0]
+	return len(firstRes.Replacements) == 0 && firstRes.Content != ""
+}
+
+func (m changesUIModel) selectedNewFile() bool {
+	return m.selectionInfo != nil &&
+		m.hasNewFile() &&
+		m.selectedReplacementIndex == 0 &&
+		m.selectionInfo.currentRes != nil &&
+		len(m.selectionInfo.currentRes.Replacements) == 0 &&
+		m.selectionInfo.currentRes.Content != ""
+}
+
 func (m changesUIModel) selectedFullFile() bool {
-	return m.selectionInfo != nil && m.selectionInfo.currentRep == nil
+	return !m.selectedNewFile() && m.selectionInfo != nil && m.selectionInfo.currentRep == nil
 }
 
 func (m *changesUIModel) scrollReplacementIntoView(oldContent, newContent string, numLinesPrepended int) {

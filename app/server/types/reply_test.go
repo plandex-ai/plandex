@@ -17,43 +17,43 @@ var examples = []TestExample{
 	{
 		N: 1,
 		TokensByFilePath: map[string]int{
-			"cmd/checkout.go": 17,
-			"cmd/apply.go":    41,
+			"cmd/checkout.go": 54,
+			"cmd/apply.go":    180,
 		},
 	},
-	// {
-	// 	N: 2,
-	// 	TokensByFilePath: map[string]int{
-	// 		"cmd/context_rm.go":     51,
-	// 		"cmd/context_update.go": 41,
-	// 	},
-	// },
-	// {
-	// 	N: 3,
-	// 	TokensByFilePath: map[string]int{
-	// 		"cmd/context_rm.go":     51,
-	// 		"cmd/context_update.go": 41,
-	// 	},
-	// },
-	// {
-	// 	N: 4,
-	// 	TokensByFilePath: map[string]int{
-	// 		"server/types/section.go": 11,
-	// 	},
-	// },
-	// {
-	// 	N: 5,
-	// 	TokensByFilePath: map[string]int{
-	// 		"shared/types.go":         5,
-	// 		"cli/lib/conversation.go": 8,
-	// 	},
-	// },
-	// {
-	// 	N: 6,
-	// 	TokensByFilePath: map[string]int{
-	// 		"server/model/proposal/create.go": 32,
-	// 	},
-	// },
+	{
+		N: 2,
+		TokensByFilePath: map[string]int{
+			"cmd/context_rm.go":     210,
+			"cmd/context_update.go": 188,
+		},
+	},
+	{
+		N: 3,
+		TokensByFilePath: map[string]int{
+			"cmd/context_rm.go":     210,
+			"cmd/context_update.go": 188,
+		},
+	},
+	{
+		N: 4,
+		TokensByFilePath: map[string]int{
+			"server/types/section.go": 32,
+		},
+	},
+	{
+		N: 5,
+		TokensByFilePath: map[string]int{
+			"shared/types.go":         20,
+			"cli/lib/conversation.go": 58,
+		},
+	},
+	{
+		N: 6,
+		TokensByFilePath: map[string]int{
+			"server/model/proposal/create.go": 239,
+		},
+	},
 }
 
 func TestReplyTokenCounter(t *testing.T) {
@@ -87,22 +87,22 @@ func TestReplyTokenCounter(t *testing.T) {
 
 		files, fileContents, tokensByFilePath, totalCounted := counter.FinishAndRead()
 
-		// fmt.Printf("Total tokens counted: %d\n", totalCounted)
-		// fmt.Printf("%d files: %v\n", len(files), files)
-		// fmt.Printf("%d file content: %v\n", len(fileContents), fileContents)
-		// fmt.Println("Tokens by file path:")
-		// for filePath, tokens := range tokensByFilePath {
-		// 	fmt.Printf("%s: %d\n", filePath, tokens)
-		// }
+		fmt.Printf("Total tokens counted: %d\n", totalCounted)
+		fmt.Printf("%d files: %v\n", len(files), files)
+		fmt.Printf("%d file content: %v\n", len(fileContents), fileContents)
+		fmt.Println("Tokens by file path:")
+		for filePath, tokens := range tokensByFilePath {
+			fmt.Printf("%s: %d\n", filePath, tokens)
+		}
 
-		// if totalCounted != totalTokens {
-		// 	t.Errorf("Expected %d tokens, got %d", totalTokens, totalCounted)
-		// }
+		if totalCounted != totalTokens {
+			t.Errorf("Expected %d tokens, got %d", totalTokens, totalCounted)
+		}
 
-		// for filePath, tokens := range example.TokensByFilePath {
-		// 	if tokensByFilePath[filePath] != tokens {
-		// 		t.Errorf("Expected %d tokens for %s, got %d", tokens, filePath, tokensByFilePath[filePath])
-		// 	}
-		// }
+		for filePath, tokens := range example.TokensByFilePath {
+			if tokensByFilePath[filePath] != tokens {
+				t.Errorf("Expected %d tokens for %s, got %d", tokens, filePath, tokensByFilePath[filePath])
+			}
+		}
 	}
 }

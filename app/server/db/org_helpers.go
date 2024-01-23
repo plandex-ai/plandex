@@ -80,7 +80,7 @@ func CreateOrg(req *shared.CreateOrgRequest, userId string, domain *string, tx *
 	if err != nil {
 		if IsNonUniqueErr(err) {
 			// Handle the uniqueness constraint violation
-			return nil, fmt.Errorf("an org with domain %s already exists", domain)
+			return nil, fmt.Errorf("an org with domain %s already exists", *domain)
 
 		}
 

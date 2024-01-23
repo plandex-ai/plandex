@@ -17,6 +17,7 @@ type streamUIModel struct {
 	replyViewport viewport.Model
 
 	processing bool
+	starting   bool
 	spinner    spinner.Model
 
 	building       bool
@@ -83,6 +84,7 @@ func initialModel() *streamUIModel {
 		finishedByPath: make(map[string]bool),
 		spinner:        s,
 		atScrollBottom: true,
+		starting:       true,
 	}
 
 	return &initialState

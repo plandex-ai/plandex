@@ -12,7 +12,7 @@ func (m changesUIModel) renderMainView() string {
 
 	mainViewHeader := m.renderMainViewHeader()
 
-	if m.selectedFullFile() {
+	if m.selectedNewFile() || m.selectedFullFile() {
 		fileView := m.fileViewport.View()
 
 		fileViews := []string{fileView}
@@ -78,6 +78,9 @@ func (m changesUIModel) renderMainViewHeader() string {
 	var header string
 	if m.selectedFullFile() {
 		numChanges := m.currentPlan.PlanResult.NumPendingForPath(m.selectionInfo.currentPath)
+		if m.hasNewFile() {
+			numChanges++
+		}
 
 		if numChanges > 0 {
 			suffix := "s"
@@ -86,8 +89,17 @@ func (m changesUIModel) renderMainViewHeader() string {
 			}
 			header = fmt.Sprintf(" ✅ Final state of %s (%d change%s)", m.selectionInfo.currentPath, numChanges, suffix)
 		} else {
-			header = fmt.Sprintf(" ✅ New file: %s", m.selectionInfo.currentPath)
+			header = fmt.Sprintf(" 🌟 New file: %s", m.selectionInfo.currentPath)
 		}
+	} else if m.selectedNewFile() {
+		numChanges := m.currentPlan.PlanResult.NumPendingForPath(m.selectionInfo.currentPath)
+		icon := "🌟"
+		if numChanges > 1 {
+			icon = "👉"
+		}
+
+		header = fmt.Sprintf(" %s New file: %s", icon, m.selectionInfo.currentPath)
+
 	} else {
 		header = " 👉 " + m.selectionInfo.currentRep.Summary
 	}
@@ -113,13 +125,13 @@ func (m changesUIModel) renderScrollFooter() string {
 
 	width, _ := m.getMainViewDims()
 
-	if m.selectionInfo.currentRes != nil {
+	if !m.selectedNewFile() && !m.selectedFullFile() {
 		width = width / 2
 	}
 
 	var footer string
 
-	if m.selectedFullFile() {
+	if m.selectedNewFile() || m.selectedFullFile() {
 		footer = `(j/k) scroll down/up • (J/K) page down/up`
 	} else {
 		footer = ` (j/k) scroll`
