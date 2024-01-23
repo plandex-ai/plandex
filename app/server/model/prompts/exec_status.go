@@ -11,14 +11,8 @@ The plan is finished if all the plan's tasks and subtasks have been completed. W
 
 Return a JSON object with the 'finished' key set to true or false. Only call the 'planIsFinished' function in your response. Don't call any other function.`
 
-func GetExecStatusIsFinishedPrompt(conversation []openai.ChatCompletionMessage) string {
-	s := ""
-	for _, m := range conversation {
-		s += m.Role + ":\n"
-		s += m.Content + "\n"
-	}
-
-	return SysExecStatusIsFinished + "\n\nConversation:\n" + s
+func GetExecStatusIsFinishedPrompt(message string) string {
+	return SysExecStatusIsFinished + "\n\nLatest message from coding AI:\n" + message
 }
 
 var PlanIsFinishedFn = openai.FunctionDefinition{
@@ -39,10 +33,10 @@ const SysExecStatusNeedsInput = `You are an AI assistant that determines the exe
 
 When the coding AI needs more input, it will say something like "I need more information or context to make a plan for this task."
 
-If the coding AI says or implies that additional information would be helpful or useful, but that information isn't *required* to continue the plan, then the plan *does not* need more input. It only needs more input if the AI says or implies that more information is necessary and required to continue. Return a JSON object with the 'needs_input' key set to true or false. Only call the 'planNeedsInput' function in your response. Don't call any other function.`
+If the coding AI says or implies that additional information would be helpful or useful, but that information isn't *required* to continue the plan, then the plan *does not* need more input. It only needs more input if the AI says or implies that more information is necessary and required to continue. Return a JSON object with the 'needsInput' key set to true or false. Only call the 'planNeedsInput' function in your response. Don't call any other function.`
 
-func GetExecStatusNeedsInputPrompt(message *openai.ChatCompletionMessage) string {
-	return SysExecStatusNeedsInput + "\nLatest message from coding AI:\n" + message.Content
+func GetExecStatusNeedsInputPrompt(message string) string {
+	return SysExecStatusNeedsInput + "\nLatest message from coding AI:\n" + message
 }
 
 var PlanNeedsInputFn = openai.FunctionDefinition{
@@ -50,11 +44,11 @@ var PlanNeedsInputFn = openai.FunctionDefinition{
 	Parameters: &jsonschema.Definition{
 		Type: jsonschema.Object,
 		Properties: map[string]jsonschema.Definition{
-			"needs_input": {
+			"needsInput": {
 				Type:        jsonschema.Boolean,
 				Description: "Whether the plan needs more input. If ambiguous or unclear, assume the plan does not need more input.",
 			},
 		},
-		Required: []string{"needs_input"},
+		Required: []string{"needsInput"},
 	},
 }

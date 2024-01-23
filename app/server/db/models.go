@@ -185,8 +185,8 @@ type PlanBuild struct {
 	OrgId          string    `db:"org_id"`
 	PlanId         string    `db:"plan_id"`
 	ConvoMessageId string    `db:"convo_message_id"`
+	FilePath       string    `db:"file_path"`
 	Error          string    `db:"error"`
-	ErrorPath      string    `db:"error_path"`
 	CreatedAt      time.Time `db:"created_at"`
 	UpdatedAt      time.Time `db:"updated_at"`
 }
@@ -196,7 +196,7 @@ func (build *PlanBuild) ToApi() *shared.PlanBuild {
 		Id:             build.Id,
 		ConvoMessageId: build.ConvoMessageId,
 		Error:          build.Error,
-		ErrorPath:      build.ErrorPath,
+		FilePath:       build.FilePath,
 		CreatedAt:      build.CreatedAt,
 		UpdatedAt:      build.UpdatedAt,
 	}

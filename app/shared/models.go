@@ -122,8 +122,8 @@ type ConvoMessageDescription struct {
 type PlanBuild struct {
 	Id             string    `json:"id"`
 	ConvoMessageId string    `json:"convoMessageId"`
+	FilePath       string    `json:"filePath"`
 	Error          string    `json:"error"`
-	ErrorPath      string    `json:"errorPath"`
 	CreatedAt      time.Time `json:"createdAt"`
 	UpdatedAt      time.Time `json:"updatedAt"`
 }

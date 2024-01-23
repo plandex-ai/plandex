@@ -88,6 +88,7 @@ type CreatePlanResponse struct {
 type TellPlanRequest struct {
 	Prompt        string `json:"prompt"`
 	ConnectStream bool   `json:"connectStream"`
+	AutoContinue  bool   `json:"autoContinue"`
 }
 
 type LoadContextParams struct {
@@ -137,10 +138,4 @@ type RewindPlanResponse struct {
 type LogResponse struct {
 	Shas []string `json:"shas"`
 	Body string   `json:"body"`
-}
-
-type PlanTokenCount struct {
-	Path      string `json:"path"`
-	NumTokens int    `json:"numTokens"`
-	Finished  bool   `json:"finished"`
 }

@@ -13,7 +13,7 @@ var (
 )
 
 func CreateActivePlan(planId, prompt string) *types.ActivePlan {
-	activePlan := types.NewActivePlan(prompt)
+	activePlan := types.NewActivePlan(planId, prompt)
 	Active.Set(planId, activePlan)
 
 	go func() {

@@ -65,10 +65,12 @@ func GetPlanConvo(orgId, planId string) ([]*ConvoMessage, error) {
 func StoreConvoMessage(message *ConvoMessage, commit bool) (string, error) {
 	convoDir := getPlanConversationDir(message.OrgId, message.PlanId)
 
-	id := uuid.New().String()
 	ts := time.Now().UTC()
 
-	message.Id = id
+	if message.Id == "" {
+		message.Id = uuid.New().String()
+	}
+
 	message.CreatedAt = ts
 
 	bytes, err := json.Marshal(message)

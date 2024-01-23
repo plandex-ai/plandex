@@ -149,8 +149,8 @@ CREATE TABLE IF NOT EXISTS plan_builds (
   org_id UUID NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
   plan_id UUID NOT NULL REFERENCES plans(id) ON DELETE CASCADE,
   convo_message_id UUID NOT NULL,
+  file_path VARCHAR(255) NOT NULL,
   error TEXT,
-  error_path TEXT,
   finished_at TIMESTAMP,
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMP NOT NULL DEFAULT NOW()

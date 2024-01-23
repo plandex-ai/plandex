@@ -23,46 +23,66 @@ import (
 const MaxRetries = 3
 const MaxReplacementRetries = 1
 
-func Build(currentOrgId, planId string) *types.ActivePlan {
-	log.Printf("Building plan: %s\n", planId)
+// func BuildPlan(currentOrgId, planId string) *types.ActivePlan {
+// 	log.Printf("Building plan: %s\n", planId)
 
-	// goEnv := os.Getenv("GOENV")
-	// if goEnv == "test" {
-	// 	streamFilesLoremIpsum(onStream)
-	// 	return nil
-	// }
+// 	// goEnv := os.Getenv("GOENV")
+// 	// if goEnv == "test" {
+// 	// 	streamFilesLoremIpsum(onStream)
+// 	// 	return nil
+// 	// }
 
-	active := Active.Get(planId)
+// 	active := Active.Get(planId)
 
-	if active == nil {
-		log.Printf("Active plan not found for plan %s\n", planId)
-		// TODO: to allow for rebuilds or selective builds, construct the active plan here from the db
+// 	if active == nil {
+// 		log.Printf("Active plan not found for plan %s\n", planId)
+// 		// TODO: to allow for rebuilds or selective builds, construct the active plan here from the db
+// 	} else {
+// 		for _, filePath := range active.Files {
+// 			go execPlanBuild(currentOrgId, filePath, active)
+// 		}
+// 	}
+
+// 	return active
+// }
+
+func QueueBuild(currentOrgId, planId string, activeBuild *types.ActiveBuild) {
+	activePlan := Active.Get(planId)
+	filePath := activeBuild.Path
+
+	if !activePlan.PathFinished(filePath) {
+		log.Printf("Already building file %s\n", filePath)
+		return
 	} else {
-		go execPlanBuild(currentOrgId, planId, active)
-	}
 
-	return active
+		Active.Update(planId, func(active *types.ActivePlan) {
+			active.BuildQueuesByPath[filePath] = append(active.BuildQueuesByPath[filePath])
+		})
+
+		execPlanBuild(currentOrgId, activePlan, activeBuild)
+	}
 }
 
-func execPlanBuild(currentOrgId, planId string, active *types.ActivePlan) {
-	for _, filePath := range active.Files {
-		tokenCount := &shared.PlanTokenCount{
-			Path:      filePath,
-			NumTokens: 0,
-			Finished:  false,
-		}
-		json, err := json.Marshal(tokenCount)
-		if err != nil {
-			log.Printf("Error marshalling plan token count: %v\n", err)
-			active.StreamDoneCh <- err
-			return
-		}
-		active.StreamCh <- string(json)
-	}
+func execPlanBuild(currentOrgId string, activePlan *types.ActivePlan, activeBuild *types.ActiveBuild) {
+	planId := activePlan.Id
+	filePath := activeBuild.Path
 
-	replyInfo := types.NewReplyInfo()
-	replyInfo.AddToken(active.Content, true)
-	_, fileContents, numTokensByFile, _ := replyInfo.FinishAndRead()
+	tokenCount := &shared.PlanTokenCount{
+		Path:      filePath,
+		NumTokens: 0,
+		Finished:  false,
+	}
+	tokenCountJson, err := json.Marshal(tokenCount)
+	if err != nil {
+		log.Printf("Error marshalling plan token count: %v\n", err)
+		activePlan.StreamDoneCh <- err
+		return
+	}
+	activePlan.StreamCh <- string(tokenCountJson)
+
+	replyInfo := types.NewReplyParser()
+	replyInfo.AddToken(activePlan.CurrentReplyContent, true)
+	_, fileContents, numTokensByFile, _ := replyInfo.Read()
 
 	errCh := make(chan error)
 
@@ -73,7 +93,8 @@ func execPlanBuild(currentOrgId, planId string, active *types.ActivePlan) {
 		build = &db.PlanBuild{
 			OrgId:          currentOrgId,
 			PlanId:         planId,
-			ConvoMessageId: active.AssistantMessageId,
+			ConvoMessageId: activeBuild.AssistantMessageId,
+			FilePath:       filePath,
 		}
 		err := db.StorePlanBuild(build)
 
@@ -98,7 +119,7 @@ func execPlanBuild(currentOrgId, planId string, active *types.ActivePlan) {
 		res, err := db.GetCurrentPlanState(db.CurrentPlanStateParams{
 			OrgId:    currentOrgId,
 			PlanId:   planId,
-			Contexts: active.Contexts,
+			Contexts: activePlan.Contexts,
 		})
 		if err != nil {
 			errCh <- fmt.Errorf("error getting current plan state: %v", err)
@@ -112,15 +133,15 @@ func execPlanBuild(currentOrgId, planId string, active *types.ActivePlan) {
 		err := <-errCh
 		if err != nil {
 			log.Printf("Error building plan %s: %v\n", planId, err)
-			active.StreamDoneCh <- err
+			activePlan.StreamDoneCh <- err
 			return
 		}
 	}
 
 	onFinishBuild := func() {
 		log.Println("Build finished.")
-		active.StreamCh <- shared.STREAM_FINISHED
-		active.StreamDoneCh <- nil
+		activePlan.StreamCh <- shared.STREAM_FINISHED
+		activePlan.StreamDoneCh <- nil
 	}
 
 	onFinishBuildFile := func(filePath string, planRes *db.PlanFileResult) {
@@ -132,7 +153,7 @@ func execPlanBuild(currentOrgId, planId string, active *types.ActivePlan) {
 		err := db.StorePlanResult(planRes)
 		if err != nil {
 			log.Printf("Error storing plan result: %v\n", err)
-			active.StreamDoneCh <- err
+			activePlan.StreamDoneCh <- err
 			return
 		}
 
@@ -154,14 +175,13 @@ func execPlanBuild(currentOrgId, planId string, active *types.ActivePlan) {
 	onBuildFileError := func(filePath string, err error) {
 		log.Printf("Error for file %s: %v\n", filePath, err)
 
-		active.StreamDoneCh <- err
+		activePlan.StreamDoneCh <- err
 
 		if err != nil {
 			log.Printf("Error storing plan error result: %v\n", err)
 		}
 
 		build.Error = err.Error()
-		build.ErrorPath = filePath
 
 		err = db.SetBuildError(build)
 		if err != nil {
@@ -174,7 +194,7 @@ func execPlanBuild(currentOrgId, planId string, active *types.ActivePlan) {
 		log.Printf("Building file %s, numRetry: %d\n", filePath, numRetry)
 
 		// get relevant file context (if any)
-		contextPart := active.ContextsByPath[filePath]
+		contextPart := activePlan.ContextsByPath[filePath]
 
 		var currentState string
 		currentPlanFile, fileInCurrentPlan := currentPlan.CurrentPlanFiles.Files[filePath]
@@ -204,7 +224,7 @@ func execPlanBuild(currentOrgId, planId string, active *types.ActivePlan) {
 				onBuildFileError(filePath, fmt.Errorf("error marshalling plan chunk: %v", err))
 				return
 			}
-			active.StreamCh <- string(planTokenCountJson)
+			activePlan.StreamCh <- string(planTokenCountJson)
 
 			// new file
 			planRes := &db.PlanFileResult{
@@ -232,10 +252,10 @@ func execPlanBuild(currentOrgId, planId string, active *types.ActivePlan) {
 				Content: sysPrompt,
 			}, {
 				Role:    openai.ChatMessageRoleUser,
-				Content: active.Prompt,
+				Content: activePlan.Prompt,
 			}, {
 				Role:    openai.ChatMessageRoleAssistant,
-				Content: active.Content,
+				Content: activePlan.CurrentReplyContent,
 			},
 			{
 				Role:    openai.ChatMessageRoleUser,
@@ -283,7 +303,7 @@ func execPlanBuild(currentOrgId, planId string, active *types.ActivePlan) {
 			// ResponseFormat: &openai.ChatCompletionResponseFormat{Type: "json_object"},
 		}
 
-		stream, err := model.Client.CreateChatCompletionStream(active.Ctx, modelReq)
+		stream, err := model.Client.CreateChatCompletionStream(activePlan.Ctx, modelReq)
 		if err != nil {
 			log.Printf("Error creating plan file stream for path '%s': %v\n", filePath, err)
 
@@ -331,7 +351,7 @@ func execPlanBuild(currentOrgId, planId string, active *types.ActivePlan) {
 
 			for {
 				select {
-				case <-active.Ctx.Done():
+				case <-activePlan.Ctx.Done():
 					// The main context was canceled (not the timer)
 					return
 				case <-timer.C:
@@ -394,7 +414,7 @@ func execPlanBuild(currentOrgId, planId string, active *types.ActivePlan) {
 						if !active.BuiltFiles[filePath] {
 							log.Printf("Stream finished before replacements parsed. File: %s\n", filePath)
 							log.Println("Buffer:")
-							log.Println(active.BuildBuffers[filePath])
+							log.Println(activeBuild.Buffer)
 
 							handleErrorRetry(
 								fmt.Errorf("stream finished before replacements parsed. File: %s", filePath),
@@ -429,16 +449,12 @@ func execPlanBuild(currentOrgId, planId string, active *types.ActivePlan) {
 						onBuildFileError(filePath, fmt.Errorf("error marshalling plan chunk: %v", err))
 						return
 					}
-					active.StreamCh <- string(planTokenCountJson)
+					activePlan.StreamCh <- string(planTokenCountJson)
 
-					var buffer string
-					Active.Update(planId, func(ap *types.ActivePlan) {
-						ap.BuildBuffers[filePath] += content
-						buffer = ap.BuildBuffers[filePath]
-					})
+					activeBuild.Buffer += content
 
 					var streamed types.StreamedReplacements
-					err = json.Unmarshal([]byte(buffer), &streamed)
+					err = json.Unmarshal([]byte(activeBuild.Buffer), &streamed)
 					if err == nil && len(streamed.Replacements) > 0 {
 						log.Printf("File %s: Parsed replacements\n", filePath)
 
@@ -488,7 +504,7 @@ func execPlanBuild(currentOrgId, planId string, active *types.ActivePlan) {
 							onBuildFileError(filePath, fmt.Errorf("error marshalling plan chunk: %v", err))
 							return
 						}
-						active.StreamCh <- string(planTokenCountJson)
+						activePlan.StreamCh <- string(planTokenCountJson)
 
 						onFinishBuildFile(filePath, planFileResult)
 						return
@@ -498,7 +514,7 @@ func execPlanBuild(currentOrgId, planId string, active *types.ActivePlan) {
 		}()
 	}
 
-	for _, filePath := range active.Files {
+	for _, filePath := range activePlan.Files {
 		go buildFile(filePath, 0, 0, nil)
 	}
 }

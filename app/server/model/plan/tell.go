@@ -14,6 +14,7 @@ import (
 	"plandex-server/types"
 
 	"github.com/davecgh/go-spew/spew"
+	"github.com/google/uuid"
 	"github.com/plandex/plandex/shared"
 	"github.com/sashabaranov/go-openai"
 )
@@ -321,7 +322,10 @@ func execTellPlan(plan *db.Plan, auth *types.ServerAuth, req *shared.TellPlanReq
 	// 	log.Printf("%s: %s\n", message.Role, message.Content)
 	// }
 
-	replyInfo := types.NewReplyInfo()
+	replyId := uuid.New().String()
+	replyParser := types.NewReplyParser()
+	replyFiles := []string{}
+	replyNumTokens := 0
 
 	modelReq := openai.ChatCompletionRequest{
 		Model:       model.PlannerModel,
@@ -347,8 +351,6 @@ func execTellPlan(plan *db.Plan, auth *types.ServerAuth, req *shared.TellPlanReq
 	}
 
 	storeAssistantReply := func() (*db.ConvoMessage, []string, string, error) {
-		files, _, _, replyNumTokens := replyInfo.FinishAndRead()
-
 		assistantMsg := db.ConvoMessage{
 			OrgId:   currentOrgId,
 			PlanId:  planId,
@@ -356,21 +358,17 @@ func execTellPlan(plan *db.Plan, auth *types.ServerAuth, req *shared.TellPlanReq
 			Role:    openai.ChatMessageRoleAssistant,
 			Tokens:  replyNumTokens,
 			Num:     len(convo) + 2,
-			Message: Active.Get(planId).Content,
+			Message: Active.Get(planId).CurrentReplyContent,
 		}
 
 		commitMsg, err := db.StoreConvoMessage(&assistantMsg, false)
 
 		if err != nil {
 			log.Printf("Error storing assistant message: %v\n", err)
-			return nil, files, "", err
+			return nil, replyFiles, "", err
 		}
 
-		Active.Update(planId, func(active *types.ActivePlan) {
-			active.AssistantMessageId = assistantMsg.Id
-		})
-
-		return &assistantMsg, files, commitMsg, err
+		return &assistantMsg, replyFiles, commitMsg, err
 	}
 
 	onError := func(streamErr error, storeDesc bool, convoMessageId, commitMsg string) {
@@ -489,38 +487,61 @@ func execTellPlan(plan *db.Plan, auth *types.ServerAuth, req *shared.TellPlanReq
 					}
 
 					var description *db.ConvoMessageDescription
+					var execStatus *types.PlanExecStatus
 
-					if len(files) == 0 {
-						description = &db.ConvoMessageDescription{
-							OrgId:                 currentOrgId,
-							PlanId:                planId,
-							ConvoMessageId:        assistantMsg.Id,
-							SummarizedToMessageId: summarizedToMessageId,
-							MadePlan:              false,
+					errCh := make(chan error, 2)
+
+					go func() {
+						if len(files) == 0 {
+							description = &db.ConvoMessageDescription{
+								OrgId:                 currentOrgId,
+								PlanId:                planId,
+								ConvoMessageId:        assistantMsg.Id,
+								SummarizedToMessageId: summarizedToMessageId,
+								MadePlan:              false,
+							}
+						} else {
+							description, err = genPlanDescription(planId, active.Ctx)
+							if err != nil {
+								onError(fmt.Errorf("failed to generate plan description: %v", err), true, assistantMsg.Id, convoCommitMsg)
+								return
+							}
+
+							description.OrgId = currentOrgId
+							description.ConvoMessageId = assistantMsg.Id
+							description.SummarizedToMessageId = summarizedToMessageId
+							description.MadePlan = true
+							description.Files = files
 						}
-					} else {
-						Active.Update(planId, func(ap *types.ActivePlan) {
-							ap.Files = files
-						})
 
-						description, err = genPlanDescription(planId, active.Ctx)
+						err = db.StoreDescription(description)
+
 						if err != nil {
-							onError(fmt.Errorf("failed to generate plan description: %v", err), true, assistantMsg.Id, convoCommitMsg)
+							onError(fmt.Errorf("failed to store description: %v", err), false, assistantMsg.Id, convoCommitMsg)
+							errCh <- err
 							return
 						}
 
-						description.OrgId = currentOrgId
-						description.ConvoMessageId = assistantMsg.Id
-						description.SummarizedToMessageId = summarizedToMessageId
-						description.MadePlan = true
-						description.Files = files
-					}
+						errCh <- nil
+					}()
 
-					err = db.StoreDescription(description)
+					go func() {
 
-					if err != nil {
-						onError(fmt.Errorf("failed to store description: %v", err), false, assistantMsg.Id, convoCommitMsg)
-						return
+						execStatus, err = ExecStatus(assistantMsg.Message, active.Ctx)
+						if err != nil {
+							onError(fmt.Errorf("failed to get exec status: %v", err), false, assistantMsg.Id, convoCommitMsg)
+							errCh <- err
+							return
+						}
+
+						errCh <- nil
+					}()
+
+					for i := 0; i < 2; i++ {
+						err := <-errCh
+						if err != nil {
+							return
+						}
 					}
 
 					err = db.GitAddAndCommit(currentOrgId, planId, convoCommitMsg)
@@ -529,26 +550,48 @@ func execTellPlan(plan *db.Plan, auth *types.ServerAuth, req *shared.TellPlanReq
 						return
 					}
 
-					if len(files) == 0 {
+					if !req.AutoContinue || execStatus.Finished || execStatus.NeedsInput {
 						active.StreamCh <- shared.STREAM_FINISHED
 						active.StreamDoneCh <- nil
+
+						return
 					} else {
-						active.StreamCh <- shared.STREAM_BUILD_PHASE
-						Build(currentOrgId, planId)
+
+						// continue plan
+
 					}
-					return
+
 				}
 
 				delta := choice.Delta
 				content := delta.Content
 				Active.Update(planId, func(active *types.ActivePlan) {
-					active.Content += content
+					active.CurrentReplyContent += content
 					active.NumTokens++
 				})
 
 				// log.Printf("%s", content)
 				active.StreamCh <- content
-				replyInfo.AddToken(content, true)
+				replyParser.AddToken(content, true)
+
+				files, _, _, numTokens := replyParser.Read()
+				replyNumTokens = numTokens
+				if len(files) > len(replyFiles) {
+					latestFile := files[len(files)-1]
+
+					Active.Update(planId, func(active *types.ActivePlan) {
+						active.Files = files
+					})
+
+					log.Printf("Queuing build for %s\n", latestFile)
+					QueueBuild(currentOrgId, planId, &types.ActiveBuild{
+						AssistantMessageId: replyId,
+						ReplyContent:       content,
+						Path:               latestFile,
+					})
+
+					replyFiles = files
+				}
 
 			}
 		}
@@ -622,7 +665,7 @@ func summarizeConvo(params summarizeConvoParams) error {
 
 	summaryMessages = append(summaryMessages, promptMessage, openai.ChatCompletionMessage{
 		Role:    openai.ChatMessageRoleAssistant,
-		Content: Active.Get(planId).Content,
+		Content: Active.Get(planId).CurrentReplyContent,
 	})
 
 	summary, err := model.PlanSummary(model.PlanSummaryParams{

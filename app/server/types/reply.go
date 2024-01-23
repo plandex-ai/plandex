@@ -4,7 +4,7 @@ import (
 	"strings"
 )
 
-type replyInfo struct {
+type replyParser struct {
 	lines            []string
 	currentFileLines []string
 	lineIndex        int
@@ -16,8 +16,8 @@ type replyInfo struct {
 	numTokensByFile  map[string]int
 }
 
-func NewReplyInfo() *replyInfo {
-	info := &replyInfo{
+func NewReplyParser() *replyParser {
+	info := &replyParser{
 		lines:            []string{""},
 		currentFileLines: []string{},
 		files:            make(map[string]bool),
@@ -28,7 +28,7 @@ func NewReplyInfo() *replyInfo {
 	return info
 }
 
-func (r *replyInfo) AddToken(token string, addToTotal bool) {
+func (r *replyParser) AddToken(token string, addToTotal bool) {
 	// fmt.Println("Adding chunk:", strconv.Quote(chunk)) // Logging the chunk that's being processed
 
 	hasNewLine := false
@@ -138,10 +138,10 @@ func (r *replyInfo) AddToken(token string, addToTotal bool) {
 	}
 }
 
-func (r *replyInfo) FinishAndRead() ([]string, map[string]string, map[string]int, int) {
+func (r *replyParser) Read() (files []string, fileContents map[string]string, numTokensByFile map[string]int, totalTokens int) {
 	r.AddToken("\n", false)
 
-	files := make([]string, 0, len(r.files))
+	files = make([]string, 0, len(r.files))
 	for file := range r.files {
 		files = append(files, file)
 	}

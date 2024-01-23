@@ -26,7 +26,7 @@ func genPlanDescription(planId string, ctx context.Context) (*db.ConvoMessageDes
 				},
 				{
 					Role:    openai.ChatMessageRoleAssistant,
-					Content: Active.Get(planId).Content,
+					Content: Active.Get(planId).CurrentReplyContent,
 				},
 			},
 			ResponseFormat: &openai.ChatCompletionResponseFormat{Type: "json_object"},

@@ -15,7 +15,7 @@ func Stop(planId, currentUserId, currentOrgId string) error {
 		return fmt.Errorf("no active plan with id %s", planId)
 	}
 
-	content := active.Content
+	content := active.CurrentReplyContent
 
 	active.CancelFn()
 

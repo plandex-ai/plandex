@@ -6,33 +6,31 @@ import (
 	"fmt"
 	"plandex-server/model"
 	"plandex-server/model/prompts"
+	"plandex-server/types"
 
 	"github.com/sashabaranov/go-openai"
 )
 
-type PlanExecStatus struct {
-	NeedsInput bool `json:"needs_input"`
-	Finished   bool `json:"finished"`
-}
-
-func ExecStatus(conversation []openai.ChatCompletionMessage, ctx context.Context) (*PlanExecStatus, error) {
-	var res PlanExecStatus
+func ExecStatus(message string, ctx context.Context) (*types.PlanExecStatus, error) {
+	var res types.PlanExecStatus
 
 	errCh := make(chan error, 2)
 
 	go func() {
-		needsInput, err := ExecStatusNeedsInput(conversation, ctx)
+		needsInput, err := ExecStatusNeedsInput(message, ctx)
 		if err != nil {
 			errCh <- err
+			return
 		}
 		res.NeedsInput = needsInput
 		errCh <- nil
 	}()
 
 	go func() {
-		finished, err := ExecStatusIsFinished(conversation, ctx)
+		finished, err := ExecStatusIsFinished(message, ctx)
 		if err != nil {
 			errCh <- err
+			return
 		}
 		res.Finished = finished
 		errCh <- nil
@@ -48,11 +46,11 @@ func ExecStatus(conversation []openai.ChatCompletionMessage, ctx context.Context
 	return &res, nil
 }
 
-func ExecStatusIsFinished(conversation []openai.ChatCompletionMessage, ctx context.Context) (bool, error) {
+func ExecStatusIsFinished(message string, ctx context.Context) (bool, error) {
 	messages := []openai.ChatCompletionMessage{
 		{
 			Role:    openai.ChatMessageRoleSystem,
-			Content: prompts.GetExecStatusIsFinishedPrompt(conversation),
+			Content: prompts.GetExecStatusIsFinishedPrompt(message),
 		},
 	}
 
@@ -72,7 +70,7 @@ func ExecStatusIsFinished(conversation []openai.ChatCompletionMessage, ctx conte
 	}
 
 	var strRes string
-	var res PlanExecStatus
+	var res types.PlanExecStatus
 
 	for _, choice := range resp.Choices {
 		if choice.FinishReason == "function_call" &&
@@ -99,15 +97,13 @@ func ExecStatusIsFinished(conversation []openai.ChatCompletionMessage, ctx conte
 	return res.Finished, nil
 }
 
-func ExecStatusNeedsInput(conversation []openai.ChatCompletionMessage, ctx context.Context) (bool, error) {
+func ExecStatusNeedsInput(message string, ctx context.Context) (bool, error) {
 	messages := []openai.ChatCompletionMessage{
 		{
 			Role:    openai.ChatMessageRoleSystem,
-			Content: prompts.GetExecStatusNeedsInputPrompt(&conversation[len(conversation)-1]),
+			Content: prompts.GetExecStatusNeedsInputPrompt(message),
 		},
 	}
-
-	messages = append(messages, conversation...)
 
 	resp, err := model.Client.CreateChatCompletion(
 		ctx,
@@ -125,7 +121,7 @@ func ExecStatusNeedsInput(conversation []openai.ChatCompletionMessage, ctx conte
 	}
 
 	var strRes string
-	var res PlanExecStatus
+	var res types.PlanExecStatus
 
 	for _, choice := range resp.Choices {
 		if choice.FinishReason == "function_call" &&
