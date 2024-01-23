@@ -14,7 +14,7 @@ const (
 )
 
 func promptInitialAuth() error {
-	selected, err := term.SelectFromList("👋 Hey there! It looks like this is your first time using Plandex on this computer. What would you like to do?", []string{AuthFreeTrialOption, AuthAccountOption})
+	selected, err := term.SelectFromList("👋 Hey there!\nIt looks like this is your first time using Plandex on this computer.\nWhat would you like to do?", []string{AuthFreeTrialOption, AuthAccountOption})
 
 	if err != nil {
 		return fmt.Errorf("error selecting auth option: %v", err)

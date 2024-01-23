@@ -121,7 +121,7 @@ func execPlanBuild(currentOrgId string, activePlan *types.ActivePlan, activeBuil
 	onFinishBuild := func() {
 		log.Println("Build finished.")
 		// activePlan.StreamCh <- shared.STREAM_FINISHED
-		// activePlan.StreamDoneCh <- nil
+		activePlan.StreamDoneCh <- nil
 	}
 
 	onFinishBuildFile := func(filePath string, planRes *db.PlanFileResult) {
