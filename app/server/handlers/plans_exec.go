@@ -69,13 +69,13 @@ func TellPlanHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if user.IsTrial {
-			if plan.TotalMessages >= TrialMaxMessages {
+			if plan.TotalMessages >= types.TrialMaxMessages {
 				writeApiError(w, shared.ApiError{
 					Type:   shared.ApiErrorTypeTrialMessagesExceeded,
 					Status: http.StatusForbidden,
 					Msg:    "Free trial message limit exceeded",
 					TrialMessagesExceededError: &shared.TrialMessagesExceededError{
-						MaxMessages: TrialMaxMessages,
+						MaxMessages: types.TrialMaxMessages,
 					},
 				})
 				return

@@ -14,8 +14,6 @@ import (
 	"github.com/plandex/plandex/shared"
 )
 
-const TrialMaxPlans = 10
-
 func CreatePlanHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for CreatePlanHandler")
 
@@ -49,13 +47,13 @@ func CreatePlanHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if user.IsTrial {
-			if user.NumNonDraftPlans >= TrialMaxPlans {
+			if user.NumNonDraftPlans >= types.TrialMaxPlans {
 				writeApiError(w, shared.ApiError{
 					Type:   shared.ApiErrorTypeTrialPlansExceeded,
 					Status: http.StatusForbidden,
 					Msg:    "User has reached max number of free trial plans",
 					TrialPlansExceededError: &shared.TrialPlansExceededError{
-						MaxPlans: TrialMaxPlans,
+						MaxPlans: types.TrialMaxPlans,
 					},
 				})
 				return

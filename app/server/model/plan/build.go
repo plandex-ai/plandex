@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"net/http"
 	"plandex-server/db"
 	"plandex-server/model"
 	"plandex-server/model/prompts"
@@ -108,7 +109,11 @@ func execPlanBuild(currentOrgId string, activePlan *types.ActivePlan, activeBuil
 		err := <-errCh
 		if err != nil {
 			log.Printf("Error building plan %s: %v\n", planId, err)
-			activePlan.StreamDoneCh <- err
+			activePlan.StreamDoneCh <- &shared.ApiError{
+				Type:   shared.ApiErrorTypeOther,
+				Status: http.StatusInternalServerError,
+				Msg:    err.Error(),
+			}
 			return
 		}
 	}
@@ -128,7 +133,11 @@ func execPlanBuild(currentOrgId string, activePlan *types.ActivePlan, activeBuil
 		err := db.StorePlanResult(planRes)
 		if err != nil {
 			log.Printf("Error storing plan result: %v\n", err)
-			activePlan.StreamDoneCh <- err
+			activePlan.StreamDoneCh <- &shared.ApiError{
+				Type:   shared.ApiErrorTypeOther,
+				Status: http.StatusInternalServerError,
+				Msg:    "Error storing plan result: " + err.Error(),
+			}
 			return
 		}
 
@@ -154,7 +163,11 @@ func execPlanBuild(currentOrgId string, activePlan *types.ActivePlan, activeBuil
 
 		activeBuild.Error = err
 
-		activePlan.StreamDoneCh <- err
+		activePlan.StreamDoneCh <- &shared.ApiError{
+			Type:   shared.ApiErrorTypeOther,
+			Status: http.StatusInternalServerError,
+			Msg:    err.Error(),
+		}
 
 		if err != nil {
 			log.Printf("Error storing plan error result: %v\n", err)

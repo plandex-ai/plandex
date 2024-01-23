@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -47,11 +49,32 @@ func execTellPlan(plan *db.Plan, auth *types.ServerAuth, req *shared.TellPlanReq
 	currentUserId := auth.User.Id
 	currentOrgId := auth.OrgId
 
+	if os.Getenv("IS_CLOUD") != "" {
+		if auth.User.IsTrial {
+			if plan.TotalMessages >= types.TrialMaxMessages {
+				active.StreamDoneCh <- &shared.ApiError{
+					Type:   shared.ApiErrorTypeTrialMessagesExceeded,
+					Status: http.StatusForbidden,
+					Msg:    "Free trial message limit exceeded",
+					TrialMessagesExceededError: &shared.TrialMessagesExceededError{
+						MaxMessages: types.TrialMaxMessages,
+					},
+				}
+				return
+			}
+		}
+	}
+
 	planId := plan.Id
 	err := db.SetPlanStatus(planId, shared.PlanStatusReplying, "")
 	if err != nil {
 		log.Printf("Error setting plan %s status to replying: %v\n", planId, err)
-		active.StreamDoneCh <- fmt.Errorf("error setting plan status to replying: %v", err)
+		active.StreamDoneCh <- &shared.ApiError{
+			Type:   shared.ApiErrorTypeOther,
+			Status: http.StatusInternalServerError,
+			Msg:    "Error setting plan status to replying",
+		}
+
 		return
 	}
 
@@ -154,7 +177,11 @@ func execTellPlan(plan *db.Plan, auth *types.ServerAuth, req *shared.TellPlanReq
 	for i := 0; i < 4; i++ {
 		err := <-errCh
 		if err != nil {
-			active.StreamDoneCh <- fmt.Errorf("error getting plan, context, convo, or summaries: %v", err)
+			active.StreamDoneCh <- &shared.ApiError{
+				Type:   shared.ApiErrorTypeOther,
+				Status: http.StatusInternalServerError,
+				Msg:    "Error getting plan, context, convo, or summaries",
+			}
 			return
 		}
 	}
@@ -174,7 +201,12 @@ func execTellPlan(plan *db.Plan, auth *types.ServerAuth, req *shared.TellPlanReq
 	if err != nil {
 		err = fmt.Errorf("error formatting model modelContext: %v", err)
 		log.Println(err)
-		active.StreamDoneCh <- err
+
+		active.StreamDoneCh <- &shared.ApiError{
+			Type:   shared.ApiErrorTypeOther,
+			Status: http.StatusInternalServerError,
+			Msg:    "Error formatting model modelContext",
+		}
 		return
 	}
 
@@ -192,7 +224,11 @@ func execTellPlan(plan *db.Plan, auth *types.ServerAuth, req *shared.TellPlanReq
 	if err != nil {
 		err = fmt.Errorf("error getting number of tokens in prompt: %v", err)
 		log.Println(err)
-		active.StreamDoneCh <- err
+		active.StreamDoneCh <- &shared.ApiError{
+			Type:   shared.ApiErrorTypeOther,
+			Status: http.StatusInternalServerError,
+			Msg:    "Error getting number of tokens in prompt",
+		}
 		return
 	}
 
@@ -209,7 +245,11 @@ func execTellPlan(plan *db.Plan, auth *types.ServerAuth, req *shared.TellPlanReq
 		// token limit already exceeded before adding conversation
 		err := fmt.Errorf("token limit exceeded before adding conversation")
 		log.Printf("Error: %v\n", err)
-		active.StreamDoneCh <- err
+		active.StreamDoneCh <- &shared.ApiError{
+			Type:   shared.ApiErrorTypeOther,
+			Status: http.StatusInternalServerError,
+			Msg:    "Token limit exceeded before adding conversation",
+		}
 		return
 	}
 
@@ -253,7 +293,11 @@ func execTellPlan(plan *db.Plan, auth *types.ServerAuth, req *shared.TellPlanReq
 			if !ok {
 				err := fmt.Errorf("conversation summary timestamp not found in conversation")
 				log.Printf("Error: %v\n", err)
-				active.StreamDoneCh <- err
+				active.StreamDoneCh <- &shared.ApiError{
+					Type:   shared.ApiErrorTypeOther,
+					Status: http.StatusInternalServerError,
+					Msg:    "Conversation summary timestamp not found in conversation",
+				}
 				return
 			}
 
@@ -275,7 +319,11 @@ func execTellPlan(plan *db.Plan, auth *types.ServerAuth, req *shared.TellPlanReq
 		if summary == nil {
 			err := errors.New("couldn't get under token limit with conversation summary")
 			log.Printf("Error: %v\n", err)
-			active.StreamDoneCh <- err
+			active.StreamDoneCh <- &shared.ApiError{
+				Type:   shared.ApiErrorTypeOther,
+				Status: http.StatusInternalServerError,
+				Msg:    "Couldn't get under token limit with conversation summary",
+			}
 			return
 		}
 	}
@@ -289,8 +337,11 @@ func execTellPlan(plan *db.Plan, auth *types.ServerAuth, req *shared.TellPlanReq
 		}
 	} else {
 		if (tokensBeforeConvo + summary.Tokens) > shared.MaxTokens {
-			err := fmt.Errorf("token limit still exceeded after summarizing conversation")
-			active.StreamDoneCh <- err
+			active.StreamDoneCh <- &shared.ApiError{
+				Type:   shared.ApiErrorTypeOther,
+				Status: http.StatusInternalServerError,
+				Msg:    "Token limit still exceeded after summarizing conversation",
+			}
 			return
 		}
 		summarizedToMessageId = summary.LatestConvoMessageId
@@ -346,7 +397,11 @@ func execTellPlan(plan *db.Plan, auth *types.ServerAuth, req *shared.TellPlanReq
 			log.Println("Token limit exceeded")
 		}
 
-		active.StreamDoneCh <- err
+		active.StreamDoneCh <- &shared.ApiError{
+			Type:   shared.ApiErrorTypeOther,
+			Status: http.StatusInternalServerError,
+			Msg:    "Error creating proposal GPT4 stream",
+		}
 		return
 	}
 
@@ -373,7 +428,11 @@ func execTellPlan(plan *db.Plan, auth *types.ServerAuth, req *shared.TellPlanReq
 
 	onError := func(streamErr error, storeDesc bool, convoMessageId, commitMsg string) {
 		log.Printf("\nStream error: %v\n", streamErr)
-		active.StreamDoneCh <- streamErr
+		active.StreamDoneCh <- &shared.ApiError{
+			Type:   shared.ApiErrorTypeOther,
+			Status: http.StatusInternalServerError,
+			Msg:    "Stream error: " + streamErr.Error(),
+		}
 
 		storedMessage := false
 		storedDesc := false

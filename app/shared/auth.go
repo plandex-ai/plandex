@@ -12,7 +12,8 @@ const (
 	ApiErrorTypeTrialPlansExceeded    ApiErrorType = "trial_plans_exceeded"
 	ApiErrorTypeTrialMessagesExceeded ApiErrorType = "trial_messages_exceeded"
 	ApiErrorTypeTrialActionNotAllowed ApiErrorType = "trial_action_not_allowed"
-	ApiErrorTypeOther                 ApiErrorType = "other"
+
+	ApiErrorTypeOther ApiErrorType = "other"
 )
 
 type TrialPlansExceededError struct {

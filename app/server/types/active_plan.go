@@ -3,6 +3,7 @@ package types
 import (
 	"context"
 	"encoding/json"
+	"net/http"
 	"plandex-server/db"
 
 	"github.com/google/uuid"
@@ -32,7 +33,7 @@ type ActivePlan struct {
 	NumTokens           int
 	PromptMessageNum    int
 	BuildQueuesByPath   map[string][]*ActiveBuild
-	StreamDoneCh        chan error
+	StreamDoneCh        chan *shared.ApiError
 
 	streamCh      chan string
 	subscriptions map[string]chan string
@@ -53,7 +54,7 @@ func NewActivePlan(planId, prompt string) *ActivePlan {
 		BuiltFiles:        map[string]bool{},
 
 		streamCh:      make(chan string),
-		StreamDoneCh:  make(chan error),
+		StreamDoneCh:  make(chan *shared.ApiError),
 		subscriptions: map[string]chan string{},
 	}
 
@@ -76,7 +77,11 @@ func NewActivePlan(planId, prompt string) *ActivePlan {
 func (ap *ActivePlan) Stream(msg shared.StreamMessage) {
 	msgJson, err := json.Marshal(msg)
 	if err != nil {
-		ap.StreamDoneCh <- err
+		ap.StreamDoneCh <- &shared.ApiError{
+			Type:   shared.ApiErrorTypeOther,
+			Status: http.StatusInternalServerError,
+			Msg:    "Error marshalling stream message: " + err.Error(),
+		}
 		return
 	}
 	ap.streamCh <- string(msgJson)

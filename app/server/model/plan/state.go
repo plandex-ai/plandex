@@ -25,7 +25,7 @@ func CreateActivePlan(planId, prompt string) *types.ActivePlan {
 				if err == nil {
 					log.Printf("Plan %s stream completed successfully", planId)
 
-					err = db.SetPlanStatus(planId, shared.PlanStatusFinished, "")
+					err := db.SetPlanStatus(planId, shared.PlanStatusFinished, "")
 					if err != nil {
 						log.Printf("Error setting plan %s status to ready: %v\n", planId, err)
 					}
@@ -33,7 +33,7 @@ func CreateActivePlan(planId, prompt string) *types.ActivePlan {
 				} else {
 					log.Printf("Error streaming plan %s: %v\n", planId, err)
 
-					err = db.SetPlanStatus(planId, shared.PlanStatusError, err.Error())
+					err := db.SetPlanStatus(planId, shared.PlanStatusError, err.Msg)
 					if err != nil {
 						log.Printf("Error setting plan %s status to error: %v\n", planId, err)
 					}
