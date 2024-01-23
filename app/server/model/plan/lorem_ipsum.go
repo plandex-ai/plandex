@@ -70,7 +70,7 @@ package plan
 // func streamFilesLoremIpsum(onStream types.OnStreamFunc) {
 // 	writeNumTokens := func(filePath string, content string) {
 // 		numTokens := shared.GetNumTokens(content)
-// 		chunk := shared.PlanTokenCount{Path: filePath, NumTokens: numTokens}
+// 		chunk := shared.BuildInfo{Path: filePath, NumTokens: numTokens}
 // 		chunkJson, _ := json.Marshal(chunk)
 // 		onStream(string(chunkJson), nil)
 // 		time.Sleep(50 * time.Millisecond) // Adding a small delay between files for effect

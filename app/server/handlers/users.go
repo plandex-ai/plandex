@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"plandex-server/db"
+	"plandex-server/types"
 	"strings"
 
 	"github.com/gorilla/mux"
@@ -74,7 +75,9 @@ func DeleteOrgUserHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// ensure current user can invite target user
-	if !auth.HasPermission(strings.Join([]string{"remove_user", user.OrgRoleId}, "|")) {
+	removePermission := types.Permission(strings.Join([]string{string(types.PermissionRemoveUser), user.OrgRoleId}, "|"))
+
+	if !auth.HasPermission(removePermission) {
 		log.Printf("User does not have permission to invite user with role: %v\n", user.OrgRoleId)
 		http.Error(w, "User does not have permission to invite user with role: "+user.OrgRoleId, http.StatusForbidden)
 		return

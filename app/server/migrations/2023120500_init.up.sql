@@ -151,7 +151,6 @@ CREATE TABLE IF NOT EXISTS plan_builds (
   convo_message_id UUID NOT NULL,
   file_path VARCHAR(255) NOT NULL,
   error TEXT,
-  finished_at TIMESTAMP,
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );

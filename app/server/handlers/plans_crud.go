@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"plandex-server/db"
+	"plandex-server/types"
 
 	"github.com/gorilla/mux"
 	"github.com/plandex/plandex/shared"
@@ -23,7 +24,7 @@ func CreatePlanHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !auth.HasPermission("create_plan") {
+	if !auth.HasPermission(types.PermissionCreatePlan) {
 		log.Println("User does not have permission to create a plan")
 		http.Error(w, "User does not have permission to create a plan", http.StatusForbidden)
 		return

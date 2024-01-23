@@ -131,9 +131,9 @@ func authenticate(w http.ResponseWriter, r *http.Request, requireOrg bool) *type
 	}
 
 	// build the permissions map
-	permissionsMap := make(map[string]bool)
+	permissionsMap := make(map[types.Permission]bool)
 	for _, permission := range permissions {
-		permissionsMap[permission] = true
+		permissionsMap[types.Permission(permission)] = true
 	}
 
 	return &types.ServerAuth{
@@ -170,7 +170,7 @@ func authorizeProjectRename(w http.ResponseWriter, projectId string, auth *types
 		return false
 	}
 
-	if !auth.HasPermission("rename_any_project") {
+	if !auth.HasPermission(types.PermissionRenameAnyProject) {
 		log.Println("User does not have permission to rename project")
 		http.Error(w, "User does not have permission to rename project", http.StatusForbidden)
 		return false
@@ -184,7 +184,7 @@ func authorizeProjectDelete(w http.ResponseWriter, projectId string, auth *types
 		return false
 	}
 
-	if !auth.HasPermission("delete_any_project") {
+	if !auth.HasPermission(types.PermissionDeleteAnyProject) {
 		log.Println("User does not have permission to delete project")
 		http.Error(w, "User does not have permission to delete project", http.StatusForbidden)
 		return false
@@ -220,7 +220,7 @@ func authorizePlanUpdate(w http.ResponseWriter, planId string, auth *types.Serve
 		return nil
 	}
 
-	if plan.OwnerId != auth.User.Id && !auth.HasPermission("update_any_plan") {
+	if plan.OwnerId != auth.User.Id && !auth.HasPermission(types.PermissionUpdateAnyPlan) {
 		log.Println("User does not have permission to update plan")
 		http.Error(w, "User does not have permission to update plan", http.StatusForbidden)
 		return nil
@@ -236,7 +236,7 @@ func authorizePlanDelete(w http.ResponseWriter, planId string, auth *types.Serve
 		return nil
 	}
 
-	if plan.OwnerId != auth.User.Id && !auth.HasPermission("delete_any_plan") {
+	if plan.OwnerId != auth.User.Id && !auth.HasPermission(types.PermissionDeleteAnyPlan) {
 		log.Println("User does not have permission to delete plan")
 		http.Error(w, "User does not have permission to delete plan", http.StatusForbidden)
 		return nil
@@ -252,7 +252,7 @@ func authorizePlanRename(w http.ResponseWriter, planId string, auth *types.Serve
 		return nil
 	}
 
-	if plan.OwnerId != auth.User.Id && !auth.HasPermission("rename_any_plan") {
+	if plan.OwnerId != auth.User.Id && !auth.HasPermission(types.PermissionRenameAnyPlan) {
 		log.Println("User does not have permission to rename plan")
 		http.Error(w, "User does not have permission to rename plan", http.StatusForbidden)
 		return nil
@@ -268,7 +268,7 @@ func authorizePlanArchive(w http.ResponseWriter, planId string, auth *types.Serv
 		return nil
 	}
 
-	if plan.OwnerId != auth.User.Id && !auth.HasPermission("archive_any_plan") {
+	if plan.OwnerId != auth.User.Id && !auth.HasPermission(types.PermissionArchiveAnyPlan) {
 		log.Println("User does not have permission to archive plan")
 		http.Error(w, "User does not have permission to archive plan", http.StatusForbidden)
 		return nil

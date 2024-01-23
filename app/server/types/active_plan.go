@@ -2,26 +2,26 @@ package types
 
 import (
 	"context"
+	"encoding/json"
 	"plandex-server/db"
 
 	"github.com/google/uuid"
+	"github.com/plandex/plandex/shared"
 )
 
 type ActiveBuild struct {
 	AssistantMessageId string
 	ReplyContent       string
+	FileContent        string
 	Path               string
 	Buffer             string
 	Success            bool
 	Error              error
-	ErrorReason        string
 }
 
 type ActivePlan struct {
 	Id                  string
 	Prompt              string
-	StreamCh            chan string
-	StreamDoneCh        chan error
 	Ctx                 context.Context
 	CancelFn            context.CancelFunc
 	Contexts            []*db.Context
@@ -32,7 +32,10 @@ type ActivePlan struct {
 	NumTokens           int
 	PromptMessageNum    int
 	BuildQueuesByPath   map[string][]*ActiveBuild
-	subscriptions       map[string]chan string
+	StreamDoneCh        chan error
+
+	streamCh      chan string
+	subscriptions map[string]chan string
 }
 
 func NewActivePlan(planId, prompt string) *ActivePlan {
@@ -41,8 +44,6 @@ func NewActivePlan(planId, prompt string) *ActivePlan {
 	active := ActivePlan{
 		Id:                planId,
 		Prompt:            prompt,
-		StreamCh:          make(chan string),
-		StreamDoneCh:      make(chan error),
 		Ctx:               ctx,
 		CancelFn:          cancel,
 		BuildQueuesByPath: map[string][]*ActiveBuild{},
@@ -50,7 +51,10 @@ func NewActivePlan(planId, prompt string) *ActivePlan {
 		ContextsByPath:    map[string]*db.Context{},
 		Files:             []string{},
 		BuiltFiles:        map[string]bool{},
-		subscriptions:     map[string]chan string{},
+
+		streamCh:      make(chan string),
+		StreamDoneCh:  make(chan error),
+		subscriptions: map[string]chan string{},
 	}
 
 	go func() {
@@ -58,7 +62,7 @@ func NewActivePlan(planId, prompt string) *ActivePlan {
 			select {
 			case <-active.Ctx.Done():
 				return
-			case msg := <-active.StreamCh:
+			case msg := <-active.streamCh:
 				for _, ch := range active.subscriptions {
 					ch <- msg
 				}
@@ -69,8 +73,13 @@ func NewActivePlan(planId, prompt string) *ActivePlan {
 	return &active
 }
 
-func (b *ActiveBuild) BuildFinished() bool {
-	return b.Success || b.Error != nil
+func (ap *ActivePlan) Stream(msg shared.StreamMessage) {
+	msgJson, err := json.Marshal(msg)
+	if err != nil {
+		ap.StreamDoneCh <- err
+		return
+	}
+	ap.streamCh <- string(msgJson)
 }
 
 func (ap *ActivePlan) BuildFinished() bool {
@@ -100,4 +109,8 @@ func (ap *ActivePlan) Subscribe() (string, chan string) {
 
 func (ap *ActivePlan) Unsubscribe(id string) {
 	delete(ap.subscriptions, id)
+}
+
+func (b *ActiveBuild) BuildFinished() bool {
+	return b.Success || b.Error != nil
 }

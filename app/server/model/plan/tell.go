@@ -21,7 +21,7 @@ import (
 
 // Proposal function to create a new proposal
 func Tell(plan *db.Plan, auth *types.ServerAuth, req *shared.TellPlanRequest) error {
-	// goEnv := os.Getenv("GOENV") // Fetch the GO_ENV environment variable
+	// goEnv := os.Getenv("GOENV") // Fetch the GOENV environment variable
 
 	// log.Println("GOENV: " + goEnv)
 	// if goEnv == "test" {
@@ -459,7 +459,10 @@ func execTellPlan(plan *db.Plan, auth *types.ServerAuth, req *shared.TellPlanReq
 				choice := response.Choices[0]
 
 				if choice.FinishReason != "" {
-					active.StreamCh <- shared.STREAM_DESCRIPTION_PHASE
+					active.Stream(shared.StreamMessage{
+						Type: shared.StreamMessageDescribing,
+					})
+
 					err := db.SetPlanStatus(planId, shared.PlanStatusDescribing, "")
 					if err != nil {
 						onError(fmt.Errorf("failed to set plan status to describing: %v", err), true, "", "")
@@ -551,16 +554,18 @@ func execTellPlan(plan *db.Plan, auth *types.ServerAuth, req *shared.TellPlanReq
 					}
 
 					if !req.AutoContinue || execStatus.Finished || execStatus.NeedsInput {
-						active.StreamCh <- shared.STREAM_FINISHED
+						active.Stream(shared.StreamMessage{
+							Type: shared.StreamMessageFinished,
+						})
 						active.StreamDoneCh <- nil
-
-						return
 					} else {
+						// TODO: validate that user can continue plan
 
 						// continue plan
-
+						execTellPlan(plan, auth, req, active)
 					}
 
+					return
 				}
 
 				delta := choice.Delta
@@ -571,7 +576,10 @@ func execTellPlan(plan *db.Plan, auth *types.ServerAuth, req *shared.TellPlanReq
 				})
 
 				// log.Printf("%s", content)
-				active.StreamCh <- content
+				active.Stream(shared.StreamMessage{
+					Type:       shared.StreamMessageReply,
+					ReplyChunk: content,
+				})
 				replyParser.AddToken(content, true)
 
 				files, _, _, numTokens := replyParser.Read()

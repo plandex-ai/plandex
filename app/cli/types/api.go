@@ -1,14 +1,12 @@
 package types
 
 import (
-	"github.com/looplab/fsm"
 	"github.com/plandex/plandex/shared"
 )
 
 type OnStreamPlanParams struct {
-	Content string
-	State   *fsm.FSM
-	Err     error
+	Msg *shared.StreamMessage
+	Err error
 }
 
 type OnStreamPlan func(params OnStreamPlanParams)

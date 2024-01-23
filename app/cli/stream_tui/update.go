@@ -2,13 +2,13 @@ package streamtui
 
 import (
 	"plandex/term"
-	"plandex/types"
 
 	bubbleKey "github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/plandex/plandex/shared"
 )
 
 func (m *streamUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -24,7 +24,7 @@ func (m *streamUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.windowResized(msg.Width, msg.Height)
 
-	case types.StreamTUIUpdate:
+	case shared.StreamMessage:
 		return m.streamUpdate(&msg)
 
 	case tea.KeyMsg:
@@ -124,23 +124,29 @@ func (m *streamUIModel) pageUp() {
 	}
 }
 
-func (m *streamUIModel) streamUpdate(msg *types.StreamTUIUpdate) (tea.Model, tea.Cmd) {
-	if msg.PlanTokenCount != nil {
-		m.processing = false
-		m.building = true
-
-		m.tokensByPath[msg.PlanTokenCount.Path] += msg.PlanTokenCount.NumTokens
-		if msg.PlanTokenCount.Finished {
-			m.finishedByPath[msg.PlanTokenCount.Path] = true
-		}
-	} else if msg.ReplyChunk != "" {
+func (m *streamUIModel) streamUpdate(msg *shared.StreamMessage) (tea.Model, tea.Cmd) {
+	switch msg.Type {
+	case shared.StreamMessageReply:
 		m.processing = false
 		m.reply += msg.ReplyChunk
 		m.updateReplyDisplay()
 
-	} else if msg.Processing {
+	case shared.StreamMessageBuildInfo:
+		m.building = true
+		m.tokensByPath[msg.BuildInfo.Path] += msg.BuildInfo.NumTokens
+		if msg.BuildInfo.Finished {
+			m.finishedByPath[msg.BuildInfo.Path] = true
+		}
+
+	case shared.StreamMessageDescribing:
 		m.processing = true
 		return m, m.spinner.Tick
+
+	case shared.StreamMessageError:
+
+	case shared.StreamMessageFinished:
+
+	case shared.StreamMessageAborted:
 	}
 
 	return m, nil

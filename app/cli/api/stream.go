@@ -3,7 +3,7 @@ package api
 import (
 	"bufio"
 	"bytes"
-	"context"
+	"encoding/json"
 	"io"
 	"log"
 	"plandex/types"
@@ -12,7 +12,6 @@ import (
 )
 
 func connectPlanRespStream(body io.ReadCloser, onStream types.OnStreamPlan) {
-	streamState := shared.NewPlanStreamState()
 	reader := bufio.NewReader(body)
 
 	go func() {
@@ -20,44 +19,22 @@ func connectPlanRespStream(body io.ReadCloser, onStream types.OnStreamPlan) {
 			s, err := readUntilSeparator(reader, shared.STREAM_MESSAGE_SEPARATOR)
 			if err != nil {
 				log.Println("Error reading line:", err)
-				streamState.Event(context.Background(), shared.EVENT_ERROR)
-				onStream(types.OnStreamPlanParams{Content: "", State: streamState, Err: err})
+				onStream(types.OnStreamPlanParams{Msg: nil, Err: err})
 				body.Close()
 				return
 			}
 
-			// log.Println("Stream received:", s)
-
-			if s == shared.STREAM_FINISHED || s == shared.STREAM_ABORTED {
-				var evt string
-				if s == shared.STREAM_FINISHED {
-					evt = shared.EVENT_FINISH
-				} else {
-					evt = shared.STATE_ABORTED
-				}
-				err := streamState.Event(context.Background(), evt)
-				if err != nil {
-					log.Printf("Error triggering state change %s: %s\n", evt, err)
-				}
-				onStream(types.OnStreamPlanParams{Content: "", State: streamState, Err: err})
-				body.Close()
-				return
-			}
-
-			if s == shared.STREAM_DESCRIPTION_PHASE {
-				err = streamState.Event(context.Background(), shared.EVENT_DESCRIBE)
-			} else if s == shared.STREAM_BUILD_PHASE {
-				err = streamState.Event(context.Background(), shared.EVENT_BUILD)
-			}
-
+			var msg shared.StreamMessage
+			err = json.Unmarshal([]byte(s), &msg)
 			if err != nil {
-				log.Println("Error setting state:", err)
-				onStream(types.OnStreamPlanParams{Content: "", State: streamState, Err: err})
+				log.Println("Error unmarshalling message:", err)
+				onStream(types.OnStreamPlanParams{Msg: nil, Err: err})
 				body.Close()
 				return
 			}
 
-			onStream(types.OnStreamPlanParams{Content: s, State: streamState, Err: nil})
+			onStream(types.OnStreamPlanParams{Msg: &msg, Err: nil})
+			body.Close()
 		}
 	}()
 }

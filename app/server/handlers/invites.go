@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"plandex-server/db"
+	"plandex-server/types"
 	"strings"
 
 	"github.com/gorilla/mux"
@@ -40,7 +41,9 @@ func InviteUserHandler(w http.ResponseWriter, r *http.Request) {
 	req.Email = strings.ToLower(req.Email)
 
 	// ensure current user can invite target user
-	if !auth.HasPermission(strings.Join([]string{"invite_user", req.OrgRoleId}, "|")) {
+	permission := types.Permission(strings.Join([]string{string(types.PermissionInviteUser), req.OrgRoleId}, "|"))
+
+	if !auth.HasPermission(permission) {
 		log.Printf("User does not have permission to invite user with role: %v\n", req.OrgRoleId)
 		http.Error(w, "User does not have permission to invite user with role: "+req.OrgRoleId, http.StatusForbidden)
 		return
@@ -281,8 +284,12 @@ func DeleteInviteHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// ensure current user can remove target invite
-	if !(auth.HasPermission(strings.Join([]string{"remove_user", invite.OrgRoleId}, "|")) ||
-		(auth.User.Id == invite.InviterId && auth.HasPermission(strings.Join([]string{"invite_user", invite.OrgRoleId}, "|")))) {
+	removePermission := types.Permission(strings.Join([]string{string(types.PermissionRemoveUser), invite.OrgRoleId}, "|"))
+
+	invitePermission := types.Permission(strings.Join([]string{string(types.PermissionInviteUser), invite.OrgRoleId}, "|"))
+
+	if !(auth.HasPermission(removePermission) ||
+		(auth.User.Id == invite.InviterId && auth.HasPermission(invitePermission))) {
 		log.Printf("User does not have permission to remove invite with role: %v\n", invite.OrgRoleId)
 		http.Error(w, "User does not have permission to remove invite with role: "+invite.OrgRoleId, http.StatusForbidden)
 		return

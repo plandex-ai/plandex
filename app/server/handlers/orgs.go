@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"plandex-server/db"
+	"plandex-server/types"
 
 	"github.com/plandex/plandex/shared"
 )
@@ -168,7 +169,7 @@ func ListOrgRolesHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !auth.HasPermission("list_org_roles") {
+	if !auth.HasPermission(types.PermissionListOrgRoles) {
 		log.Println("User cannot list org roles")
 		http.Error(w, "User cannot list org roles", http.StatusForbidden)
 		return

@@ -8,6 +8,7 @@ import (
 	"os"
 	"plandex-server/db"
 	model "plandex-server/model/plan"
+	"plandex-server/types"
 
 	"github.com/gorilla/mux"
 	"github.com/plandex/plandex/shared"
@@ -34,7 +35,7 @@ func TellPlanHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if plan.OwnerId != auth.User.Id && !auth.HasPermission("update_any_plan") {
+	if plan.OwnerId != auth.User.Id && !auth.HasPermission(types.PermissionUpdateAnyPlan) {
 		log.Println("User does not have permission to update plan")
 		http.Error(w, "User does not have permission to update plan", http.StatusForbidden)
 		return

@@ -49,12 +49,6 @@ type ProjectSettings struct {
 	Id string `json:"id"`
 }
 
-type StreamTUIUpdate struct {
-	ReplyChunk     string
-	Processing     bool
-	PlanTokenCount *shared.PlanTokenCount
-}
-
 type ChangesUIScrollReplacement struct {
 	OldContent        string
 	NewContent        string
