@@ -1,7 +1,7 @@
 I want to deploy api infrastructure with the following components:          
                                                                               
   These should all be done with the AWS CDK and tied together in              
-  infra/lib/main.ts                                                           
+  infra/lib/main.ts. The infra project will need simple, minimalistic package.json and tsconfig.json files in `infra`.                                                          
                                                                               
   Please pay close attention to detail and ensure every setting is correct,   
   secure, and production ready. At the same time, do not include any          

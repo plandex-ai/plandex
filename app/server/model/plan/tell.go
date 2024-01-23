@@ -15,7 +15,6 @@ import (
 	"plandex-server/model/prompts"
 	"plandex-server/types"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/google/uuid"
 	"github.com/plandex/plandex/shared"
 	"github.com/sashabaranov/go-openai"
@@ -40,12 +39,12 @@ func Tell(plan *db.Plan, auth *types.ServerAuth, req *shared.TellPlanRequest) er
 
 	active = CreateActivePlan(planId, req.Prompt)
 
-	go execTellPlan(plan, auth, req, active)
+	go execTellPlan(plan, auth, req, active, 0)
 
 	return nil
 }
 
-func execTellPlan(plan *db.Plan, auth *types.ServerAuth, req *shared.TellPlanRequest, active *types.ActivePlan) {
+func execTellPlan(plan *db.Plan, auth *types.ServerAuth, req *shared.TellPlanRequest, active *types.ActivePlan, iteration int) {
 	currentUserId := auth.User.Id
 	currentOrgId := auth.OrgId
 
@@ -141,22 +140,24 @@ func execTellPlan(plan *db.Plan, auth *types.ServerAuth, req *shared.TellPlanReq
 			return
 		}
 
-		userMsg := db.ConvoMessage{
-			OrgId:   currentOrgId,
-			PlanId:  planId,
-			UserId:  currentUserId,
-			Role:    openai.ChatMessageRoleUser,
-			Tokens:  promptTokens,
-			Num:     len(convo) + 1,
-			Message: req.Prompt,
-		}
+		if iteration == 0 {
+			userMsg := db.ConvoMessage{
+				OrgId:   currentOrgId,
+				PlanId:  planId,
+				UserId:  currentUserId,
+				Role:    openai.ChatMessageRoleUser,
+				Tokens:  promptTokens,
+				Num:     len(convo) + 1,
+				Message: req.Prompt,
+			}
 
-		_, err = db.StoreConvoMessage(&userMsg, true)
+			_, err = db.StoreConvoMessage(&userMsg, true)
 
-		if err != nil {
-			log.Printf("Error storing user message: %v\n", err)
-			errCh <- fmt.Errorf("error storing user message: %v", err)
-			return
+			if err != nil {
+				log.Printf("Error storing user message: %v\n", err)
+				errCh <- fmt.Errorf("error storing user message: %v", err)
+				return
+			}
 		}
 
 		errCh <- nil
@@ -186,16 +187,18 @@ func execTellPlan(plan *db.Plan, auth *types.ServerAuth, req *shared.TellPlanReq
 		}
 	}
 
-	Active.Update(planId, func(ap *types.ActivePlan) {
-		ap.Contexts = modelContext
-		ap.PromptMessageNum = len(convo) + 1
+	if iteration == 0 {
+		Active.Update(planId, func(ap *types.ActivePlan) {
+			ap.Contexts = modelContext
+			ap.PromptMessageNum = len(convo) + 1
 
-		for _, context := range modelContext {
-			if context.FilePath != "" {
-				ap.ContextsByPath[context.FilePath] = context
+			for _, context := range modelContext {
+				if context.FilePath != "" {
+					ap.ContextsByPath[context.FilePath] = context
+				}
 			}
-		}
-	})
+		})
+	}
 
 	modelContextText, modelContextTokens, err := lib.FormatModelContext(modelContext)
 	if err != nil {
@@ -220,19 +223,25 @@ func execTellPlan(plan *db.Plan, auth *types.ServerAuth, req *shared.TellPlanReq
 		systemMessage,
 	}
 
-	numPromptTokens, err := shared.GetNumTokens(req.Prompt)
-	if err != nil {
-		err = fmt.Errorf("error getting number of tokens in prompt: %v", err)
-		log.Println(err)
-		active.StreamDoneCh <- &shared.ApiError{
-			Type:   shared.ApiErrorTypeOther,
-			Status: http.StatusInternalServerError,
-			Msg:    "Error getting number of tokens in prompt",
+	var (
+		numPromptTokens int
+		promptTokens    int
+	)
+	if iteration == 0 {
+		numPromptTokens, err = shared.GetNumTokens(req.Prompt)
+		if err != nil {
+			err = fmt.Errorf("error getting number of tokens in prompt: %v", err)
+			log.Println(err)
+			active.StreamDoneCh <- &shared.ApiError{
+				Type:   shared.ApiErrorTypeOther,
+				Status: http.StatusInternalServerError,
+				Msg:    "Error getting number of tokens in prompt",
+			}
+			return
 		}
-		return
+		promptTokens = prompts.PromptWrapperTokens + numPromptTokens
 	}
 
-	promptTokens := prompts.PromptWrapperTokens + numPromptTokens
 	tokensBeforeConvo := prompts.CreateSysMsgNumTokens + modelContextTokens + promptTokens
 
 	// print out breakdown of token usage
@@ -361,12 +370,18 @@ func execTellPlan(plan *db.Plan, auth *types.ServerAuth, req *shared.TellPlanReq
 		}
 	}
 
-	promptMessage := openai.ChatCompletionMessage{
-		Role:    openai.ChatMessageRoleUser,
-		Content: fmt.Sprintf(prompts.PromptWrapperFormatStr, req.Prompt),
+	var prompt string
+	if iteration == 0 {
+		prompt = req.Prompt
+	} else {
+		prompt = "Continue the plan."
 	}
 
-	messages = append(messages, promptMessage)
+	promptMessage := &openai.ChatCompletionMessage{
+		Role:    openai.ChatMessageRoleUser,
+		Content: fmt.Sprintf(prompts.PromptWrapperFormatStr, prompt),
+	}
+	messages = append(messages, *promptMessage)
 
 	// log.Println("\n\nMessages:")
 	// for _, message := range messages {
@@ -406,13 +421,18 @@ func execTellPlan(plan *db.Plan, auth *types.ServerAuth, req *shared.TellPlanReq
 	}
 
 	storeAssistantReply := func() (*db.ConvoMessage, []string, string, error) {
+		num := len(convo) + 1
+		if iteration == 0 {
+			num++
+		}
+
 		assistantMsg := db.ConvoMessage{
 			OrgId:   currentOrgId,
 			PlanId:  planId,
 			UserId:  currentUserId,
 			Role:    openai.ChatMessageRoleAssistant,
 			Tokens:  replyNumTokens,
-			Num:     len(convo) + 2,
+			Num:     num,
 			Message: Active.Get(planId).CurrentReplyContent,
 		}
 
@@ -528,7 +548,7 @@ func execTellPlan(plan *db.Plan, auth *types.ServerAuth, req *shared.TellPlanReq
 						return
 					}
 
-					log.Println("summarize convo:", spew.Sdump(convo))
+					// log.Println("summarize convo:", spew.Sdump(convo))
 
 					if len(convo) > 0 {
 						// summarize in the background
@@ -621,7 +641,7 @@ func execTellPlan(plan *db.Plan, auth *types.ServerAuth, req *shared.TellPlanReq
 						// TODO: validate that user can continue plan
 
 						// continue plan
-						execTellPlan(plan, auth, req, active)
+						execTellPlan(plan, auth, req, active, iteration+1)
 					}
 
 					return
@@ -639,11 +659,17 @@ func execTellPlan(plan *db.Plan, auth *types.ServerAuth, req *shared.TellPlanReq
 					Type:       shared.StreamMessageReply,
 					ReplyChunk: content,
 				})
-				replyParser.AddToken(content, true)
+				replyParser.AddChunk(content, true)
 
 				files, _, _, numTokens := replyParser.Read()
 				replyNumTokens = numTokens
+
+				log.Printf("Reply num tokens: %d\n", replyNumTokens)
+				log.Printf("Reply files: %v\n", files)
+
 				if len(files) > len(replyFiles) {
+					log.Println("New files found")
+
 					latestFile := files[len(files)-1]
 
 					Active.Update(planId, func(active *types.ActivePlan) {
@@ -669,7 +695,7 @@ type summarizeConvoParams struct {
 	planId        string
 	convo         []*db.ConvoMessage
 	summaries     []*db.ConvoSummary
-	promptMessage openai.ChatCompletionMessage
+	promptMessage *openai.ChatCompletionMessage
 	currentOrgId  string
 }
 
@@ -692,7 +718,7 @@ func summarizeConvo(params summarizeConvoParams) error {
 	// spew.Dump(promptMessage)
 	// log.Printf("currentOrgId: %s\n", currentOrgId)
 
-	var summaryMessages []openai.ChatCompletionMessage
+	var summaryMessages []*openai.ChatCompletionMessage
 	var latestSummary *db.ConvoSummary
 	var numMessagesSummarized int = 0
 	var latestMessageSummarizedAt time.Time
@@ -707,7 +733,7 @@ func summarizeConvo(params summarizeConvoParams) error {
 
 	if latestSummary == nil {
 		for _, convoMessage := range convo {
-			summaryMessages = append(summaryMessages, openai.ChatCompletionMessage{
+			summaryMessages = append(summaryMessages, &openai.ChatCompletionMessage{
 				Role:    convoMessage.Role,
 				Content: convoMessage.Message,
 			})
@@ -715,7 +741,7 @@ func summarizeConvo(params summarizeConvoParams) error {
 			latestMessageSummarizedAt = convoMessage.CreatedAt
 		}
 	} else {
-		summaryMessages = append(summaryMessages, openai.ChatCompletionMessage{
+		summaryMessages = append(summaryMessages, &openai.ChatCompletionMessage{
 			Role:    openai.ChatMessageRoleAssistant,
 			Content: latestSummary.Summary,
 		})
@@ -724,16 +750,18 @@ func summarizeConvo(params summarizeConvoParams) error {
 		latestMessageId = latestConvoMessage.Id
 		latestMessageSummarizedAt = latestConvoMessage.CreatedAt
 
-		summaryMessages = append(summaryMessages, openai.ChatCompletionMessage{
+		summaryMessages = append(summaryMessages, &openai.ChatCompletionMessage{
 			Role:    latestConvoMessage.Role,
 			Content: latestConvoMessage.Message,
 		})
 	}
 
-	summaryMessages = append(summaryMessages, promptMessage, openai.ChatCompletionMessage{
-		Role:    openai.ChatMessageRoleAssistant,
-		Content: Active.Get(planId).CurrentReplyContent,
-	})
+	if promptMessage != nil {
+		summaryMessages = append(summaryMessages, promptMessage, &openai.ChatCompletionMessage{
+			Role:    openai.ChatMessageRoleAssistant,
+			Content: Active.Get(planId).CurrentReplyContent,
+		})
+	}
 
 	summary, err := model.PlanSummary(model.PlanSummaryParams{
 		Conversation:                summaryMessages,

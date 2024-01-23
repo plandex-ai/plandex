@@ -12,5 +12,5 @@ var OnStreamPlan types.OnStreamPlan = func(params types.OnStreamPlanParams) {
 		return
 	}
 
-	streamtui.Send(params.Msg)
+	streamtui.Send(*params.Msg)
 }

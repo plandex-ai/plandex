@@ -14,7 +14,7 @@ import (
 )
 
 // Variables to be used in the nextCmd
-const continuePrompt = "continue the plan"
+const continuePrompt = "Continue the plan."
 
 var continueBg bool
 
@@ -37,6 +37,15 @@ func next(cmd *cobra.Command, args []string) {
 	lib.MustResolveProject()
 	lib.MustCheckOutdatedContextWithOutput()
 
+	if !continueBg {
+		err := streamtui.StartStreamUI()
+
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "Error starting stream UI:", err)
+			return
+		}
+	}
+
 	var fn func() bool
 	fn = func() bool {
 		apiErr := api.Client.TellPlan(lib.CurrentPlanId, shared.TellPlanRequest{
@@ -45,6 +54,8 @@ func next(cmd *cobra.Command, args []string) {
 		}, lib.OnStreamPlan)
 		if apiErr != nil {
 			if apiErr.Type == shared.ApiErrorTypeTrialMessagesExceeded {
+				streamtui.Quit()
+
 				fmt.Fprintf(os.Stderr, "🚨 You've reached the free trial limit of %d messages per plan\n", apiErr.TrialMessagesExceededError.MaxMessages)
 
 				res, err := term.ConfirmYesNo("Upgrade now?")
@@ -73,17 +84,5 @@ func next(cmd *cobra.Command, args []string) {
 		return true
 	}
 
-	shouldContinue := fn()
-	if !shouldContinue {
-		return
-	}
-
-	if !continueBg {
-		err := streamtui.StartStreamUI()
-
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "Error starting stream UI:", err)
-			return
-		}
-	}
+	fn()
 }

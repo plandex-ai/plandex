@@ -12,6 +12,8 @@ import (
 )
 
 func (m *streamUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	// log.Println("Update received message:", spew.Sdump(msg))
+
 	switch msg := msg.(type) {
 
 	case spinner.TickMsg:
@@ -127,7 +129,11 @@ func (m *streamUIModel) pageUp() {
 func (m *streamUIModel) streamUpdate(msg *shared.StreamMessage) (tea.Model, tea.Cmd) {
 	switch msg.Type {
 	case shared.StreamMessageReply:
-		m.processing = false
+		if m.processing {
+			m.processing = false
+			m.reply += "\n\n"
+		}
+
 		m.reply += msg.ReplyChunk
 		m.updateReplyDisplay()
 

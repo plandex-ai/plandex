@@ -1,6 +1,8 @@
 package types
 
 import (
+	"log"
+	"strconv"
 	"strings"
 )
 
@@ -28,8 +30,8 @@ func NewReplyParser() *replyParser {
 	return info
 }
 
-func (r *replyParser) AddToken(token string, addToTotal bool) {
-	// fmt.Println("Adding chunk:", strconv.Quote(chunk)) // Logging the chunk that's being processed
+func (r *replyParser) AddChunk(chunk string, addToTotal bool) {
+	log.Println("Adding chunk:", strconv.Quote(chunk)) // Logging the chunk that's being processed
 
 	hasNewLine := false
 	nextChunk := ""
@@ -40,22 +42,25 @@ func (r *replyParser) AddToken(token string, addToTotal bool) {
 		if r.currentFilePath != "" {
 			r.numTokensByFile[r.currentFilePath]++
 		}
+
+		log.Println("Total tokens:", r.numTokens)
+		log.Println("Tokens by file path:", r.numTokensByFile)
 	}
 
-	if token == "\n" {
-		// fmt.Println("Chunk is \\n, adding new line")
+	if chunk == "\n" {
+		log.Println("Chunk is \\n, adding new line")
 		r.lines = append(r.lines, "")
 		hasNewLine = true
 		r.lineIndex++
 	} else {
-		chunkLines := strings.Split(token, "\n")
+		chunkLines := strings.Split(chunk, "\n")
 
-		// fmt.Println("Chunk lines:", len(chunkLines))
+		log.Println("Chunk lines:", len(chunkLines))
 
 		currentLine := r.lines[r.lineIndex]
 		currentLine += chunkLines[0]
 
-		// fmt.Println("Current line:", strconv.Quote(currentLine))
+		// log.Println("Current line:", strconv.Quote(currentLine))
 		r.lines[r.lineIndex] = currentLine
 
 		if len(chunkLines) > 1 {
@@ -67,29 +72,30 @@ func (r *replyParser) AddToken(token string, addToTotal bool) {
 				tail := chunkLines[2:]
 				nextChunk = "\n" + strings.Join(tail, "\n")
 				defer func() {
-					// fmt.Println("Recursive add next queued chunk:", strconv.Quote(nextChunk))
-					r.AddToken(nextChunk, false)
+					// log.Println("Recursive add next queued chunk:", strconv.Quote(nextChunk))
+					r.AddChunk(nextChunk, false)
 				}()
 			}
 		}
 	}
 
 	if r.lineIndex == 0 || !hasNewLine {
+		log.Println("No new line detected--returning")
 		return
 	}
 
 	prevFullLine := r.lines[r.lineIndex-1]
-	// fmt.Println("Previous full line:", strconv.Quote(prevFullLine)) // Logging the full line that's being checked
+	log.Println("Previous full line:", strconv.Quote(prevFullLine)) // Logging the full line that's being checked
 
 	prevFullLineTrimmed := strings.TrimSpace(prevFullLine)
 
 	if r.maybeFilePath != "" {
-		// fmt.Println("Maybe file path is:", r.maybeFilePath) // Logging the maybeFilePath
+		log.Println("Maybe file path is:", r.maybeFilePath) // Logging the maybeFilePath
 		if strings.HasPrefix(prevFullLineTrimmed, "```") {
 			r.currentFilePath = r.maybeFilePath
 			r.maybeFilePath = ""
 			r.currentFileLines = []string{}
-			// fmt.Println("Confirmed file path:", r.currentFilePath) // Logging the confirmed file path
+			log.Println("Confirmed file path:", r.currentFilePath) // Logging the confirmed file path
 			return
 		} else if prevFullLineTrimmed != "" {
 			// turns out previous maybeFilePath was not a file path since there's a non-empty line before finding opening ticks
@@ -98,7 +104,7 @@ func (r *replyParser) AddToken(token string, addToTotal bool) {
 	}
 
 	if r.currentFilePath == "" {
-		// fmt.Println("Current file path is empty--checking for possible file path...")
+		log.Println("Current file path is empty--checking for possible file path...")
 
 		var gotPath string
 		if (strings.HasPrefix(prevFullLineTrimmed, "-")) || strings.HasPrefix(prevFullLineTrimmed, "-file:") || strings.HasPrefix(prevFullLineTrimmed, "- file:") || (strings.HasPrefix(prevFullLineTrimmed, "**") && strings.HasSuffix(prevFullLineTrimmed, "**")) {
@@ -111,11 +117,11 @@ func (r *replyParser) AddToken(token string, addToTotal bool) {
 			p = strings.TrimSpace(p)
 			gotPath = p
 		} else {
-			// fmt.Println("No possible file path detected.", strconv.Quote(prevFullLineTrimmed))
+			log.Println("No possible file path detected.", strconv.Quote(prevFullLineTrimmed))
 		}
 
 		if gotPath != "" {
-			// fmt.Println("Detected possible file path:", gotPath) // Logging the possible file path
+			log.Println("Detected possible file path:", gotPath) // Logging the possible file path
 
 			if r.maybeFilePath == "" {
 				r.maybeFilePath = gotPath
@@ -126,7 +132,7 @@ func (r *replyParser) AddToken(token string, addToTotal bool) {
 	} else {
 		if strings.HasPrefix(prevFullLineTrimmed, "```") {
 			r.currentFilePath = ""
-			// fmt.Println("Exited file block.")
+			log.Println("Exited file block.")
 		} else {
 			r.files[r.currentFilePath] = true
 			r.fileContents[r.currentFilePath] += prevFullLine + "\n"
@@ -139,12 +145,15 @@ func (r *replyParser) AddToken(token string, addToTotal bool) {
 }
 
 func (r *replyParser) Read() (files []string, fileContents map[string]string, numTokensByFile map[string]int, totalTokens int) {
-	r.AddToken("\n", false)
-
 	files = make([]string, 0, len(r.files))
 	for file := range r.files {
 		files = append(files, file)
 	}
 
 	return files, r.fileContents, r.numTokensByFile, r.numTokens
+}
+
+func (r *replyParser) FinishAndRead() (files []string, fileContents map[string]string, numTokensByFile map[string]int, totalTokens int) {
+	r.AddChunk("\n", false)
+	return r.Read()
 }

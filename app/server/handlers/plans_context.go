@@ -11,7 +11,6 @@ import (
 	"plandex-server/db"
 	"sync"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/plandex/plandex/shared"
@@ -290,7 +289,7 @@ func UpdateContextHandler(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
-			spew.Dump(context)
+			// spew.Dump(context)
 
 			mu.Lock()
 			defer mu.Unlock()

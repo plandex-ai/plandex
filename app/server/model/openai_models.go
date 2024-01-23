@@ -6,7 +6,8 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
-const strongModel = openai.GPT4 // gpt-4-turbo-preview has huge context and is faster, but seems much weaker than gpt-4
+// const strongModel = openai.GPT4 // gpt-4-turbo-preview has huge context and is faster, but seems much weaker so far than gpt-4 (this could change in the future)
+const strongModel = openai.GPT4TurboPreview
 const mediumModel = openai.GPT4TurboPreview
 const weakModel = openai.GPT3Dot5Turbo1106
 

@@ -16,10 +16,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const defaultEditor = "vim"
+// const defaultEditor = "vim"
+const defaultEditor = "nano"
 
 var tellPromptFile string
 var tellBg bool
+var tellStep bool
 
 // tellCmd represents the prompt command
 var tellCmd = &cobra.Command{
@@ -35,8 +37,8 @@ func init() {
 	RootCmd.AddCommand(tellCmd)
 
 	tellCmd.Flags().StringVarP(&tellPromptFile, "file", "f", "", "File containing prompt")
-
 	tellCmd.Flags().BoolVar(&tellBg, "bg", false, "Execute autonomously in the background")
+	tellCmd.Flags().BoolVar(&tellStep, "step", false, "Pause after a single step or reply")
 }
 
 func tell(cmd *cobra.Command, args []string) {
@@ -140,9 +142,12 @@ func tell(cmd *cobra.Command, args []string) {
 		apiErr := api.Client.TellPlan(lib.CurrentPlanId, shared.TellPlanRequest{
 			Prompt:        prompt,
 			ConnectStream: !tellBg,
+			AutoContinue:  !tellStep,
 		}, lib.OnStreamPlan)
 		if apiErr != nil {
 			if apiErr.Type == shared.ApiErrorTypeTrialMessagesExceeded {
+				streamtui.Quit()
+
 				fmt.Fprintf(os.Stderr, "\n🚨 You've reached the free trial limit of %d messages per plan\n", apiErr.TrialMessagesExceededError.MaxMessages)
 
 				res, err := term.ConfirmYesNo("Upgrade now?")
@@ -167,6 +172,7 @@ func tell(cmd *cobra.Command, args []string) {
 			fmt.Fprintln(os.Stderr, "Prompt error:", apiErr.Msg)
 			return false
 		}
+
 		return true
 	}
 

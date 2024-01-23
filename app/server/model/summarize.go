@@ -11,7 +11,7 @@ import (
 )
 
 type PlanSummaryParams struct {
-	Conversation                []openai.ChatCompletionMessage
+	Conversation                []*openai.ChatCompletionMessage
 	LatestConvoMessageId        string
 	LatestConvoMessageCreatedAt time.Time
 	NumMessages                 int
@@ -27,7 +27,9 @@ func PlanSummary(params PlanSummaryParams) (*db.ConvoSummary, error) {
 		},
 	}
 
-	messages = append(messages, params.Conversation...)
+	for _, message := range params.Conversation {
+		messages = append(messages, *message)
+	}
 
 	messages = append(messages, openai.ChatCompletionMessage{
 		Role:    openai.ChatMessageRoleUser,

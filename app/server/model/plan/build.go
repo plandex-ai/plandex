@@ -57,7 +57,7 @@ func execPlanBuild(currentOrgId string, activePlan *types.ActivePlan, activeBuil
 	})
 
 	replyInfo := types.NewReplyParser()
-	replyInfo.AddToken(activePlan.CurrentReplyContent, true)
+	replyInfo.AddChunk(activePlan.CurrentReplyContent, true)
 	_, fileContents, _, _ := replyInfo.Read()
 
 	errCh := make(chan error)

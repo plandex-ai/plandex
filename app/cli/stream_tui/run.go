@@ -39,7 +39,7 @@ func Quit() {
 
 func Send(msg tea.Msg) {
 	if ui == nil {
-		log.Println("stream ui is nil, can't send message")
+		log.Println("stream ui is nil")
 		return
 	}
 	mu.Lock()
