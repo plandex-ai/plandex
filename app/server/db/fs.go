@@ -14,7 +14,11 @@ func init() {
 		panic(fmt.Errorf("error getting user home dir: %v", err))
 	}
 
-	BaseDir = filepath.Join(home, "plandex-server")
+	if os.Getenv("GOENV") == "development" {
+		BaseDir = filepath.Join(home, "plandex-server")
+	} else {
+		BaseDir = "/plandex-server"
+	}
 }
 
 func InitPlan(orgId, planId string) error {

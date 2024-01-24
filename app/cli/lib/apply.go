@@ -20,7 +20,7 @@ func ApplyPlanWithOutput(planId string, autoConfirm bool) error {
 	currentPlanState, apiErr := api.Client.GetCurrentPlanState(planId)
 
 	if apiErr != nil {
-		return fmt.Errorf("error getting current plan state: %w", apiErr.Msg)
+		return fmt.Errorf("error getting current plan state: %s", apiErr.Msg)
 	}
 
 	currentPlanFiles := currentPlanState.CurrentPlanFiles
@@ -308,7 +308,7 @@ func ApplyPlanWithOutput(planId string, autoConfirm bool) error {
 
 		if apiErr != nil {
 			aborted = true
-			return fmt.Errorf("failed to set pending results applied: %w", apiErr.Msg)
+			return fmt.Errorf("failed to set pending results applied: %s", apiErr.Msg)
 		}
 
 		if isRepo {

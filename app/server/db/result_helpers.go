@@ -327,7 +327,7 @@ func ApplyPlan(orgId, planId string) error {
 	}()
 
 	go func() {
-		res, err := GetPlanContexts(orgId, planId, false)
+		res, err := GetPlanContexts(orgId, planId, true)
 		if err != nil {
 			errCh <- fmt.Errorf("error getting plan contexts: %v", err)
 			return

@@ -427,6 +427,7 @@ func execTellPlan(plan *db.Plan, auth *types.ServerAuth, req *shared.TellPlanReq
 		}
 
 		assistantMsg := db.ConvoMessage{
+			Id:      replyId,
 			OrgId:   currentOrgId,
 			PlanId:  planId,
 			UserId:  currentUserId,

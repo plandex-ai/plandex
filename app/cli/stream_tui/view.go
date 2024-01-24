@@ -64,12 +64,12 @@ func (m streamUIModel) renderBuild() string {
 	for _, filePath := range filePaths {
 		tokens := m.tokensByPath[filePath]
 		finished := m.finishedByPath[filePath]
-		block := fmt.Sprintf("  📄 %s", filePath)
-		if tokens > 0 {
-			block += fmt.Sprintf(" | %d 🪙", tokens)
-		}
+		block := fmt.Sprintf("📄 %s", filePath)
+
 		if finished {
-			block += " | ✅"
+			block += " ✅"
+		} else if tokens > 0 {
+			block += fmt.Sprintf(" %d 🪙", tokens)
 		}
 
 		blockWidth := lipgloss.Width(block)
@@ -94,7 +94,7 @@ func (m streamUIModel) renderBuild() string {
 
 	resRows[0] = head
 	for i, row := range rows {
-		resRows[i+1] = strings.Join(row, "")
+		resRows[i+1] = strings.Join(row, " | ")
 	}
 
 	return style.Render(strings.Join(resRows, "\n"))

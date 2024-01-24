@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/fatih/color"
 	"github.com/plandex/plandex/shared"
 	"github.com/spf13/cobra"
 )
@@ -76,5 +77,5 @@ func cd(cmd *cobra.Command, args []string) {
 	// give the SetProjectPlan request some time to be sent before exiting
 	time.Sleep(50 * time.Millisecond)
 
-	fmt.Fprintln(os.Stderr, "✅ Changed current plan to "+name)
+	fmt.Fprintln(os.Stderr, "✅ Changed current plan to "+color.New(color.FgGreen, color.Bold).Sprint(plan.Name))
 }

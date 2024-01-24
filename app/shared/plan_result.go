@@ -92,25 +92,19 @@ func ApplyReplacements(content string, replacements []*Replacement, setFailed bo
 		sub := updated[lastInsertedIdx:]
 		originalIdx := strings.Index(sub, replacement.Old)
 
+		// log.Println("Replacement: " + replacement.Old + " -> " + replacement.New)
+		// log.Println("Pre: " + pre)
+		// log.Println("Sub: " + sub)
+		// log.Println("Idx: " + fmt.Sprintf("%d", idx))
+		// log.Println("Updated: " + updated)
+
 		if originalIdx == -1 {
 			allSucceeded = false
 			if setFailed {
 				replacement.Failed = true
 			}
-
-			// jsonBytes, _ := json.Marshal(replacement)
-			// log.Println(string(jsonBytes))
-
-			// log.Println("Replacement: " + replacement.Old + " -> " + replacement.New)
-
 		} else {
 			replaced := strings.Replace(sub, replacement.Old, replacement.New, 1)
-
-			// log.Println("Replacement: " + replacement.Old + " -> " + replacement.New)
-			// log.Println("Pre: " + pre)
-			// log.Println("Sub: " + sub)
-			// log.Println("Idx: " + fmt.Sprintf("%d", idx))
-			// log.Println("Updated: " + updated)
 
 			updated = pre + replaced
 			lastInsertedIdx = lastInsertedIdx + originalIdx + len(replacement.New)
@@ -134,13 +128,12 @@ func (planState *CurrentPlanState) GetFilesBeforeReplacement(
 	shas := make(map[string]string)
 
 	for _, contextPart := range contexts {
+
 		if contextPart.FilePath == "" {
 			continue
 		}
 
 		_, hasPath := planRes.FileResultsByPath[contextPart.FilePath]
-
-		// log.Printf("hasPath: %v\n", hasPath)
 
 		if hasPath {
 			files[contextPart.FilePath] = contextPart.Body
@@ -151,11 +144,9 @@ func (planState *CurrentPlanState) GetFilesBeforeReplacement(
 	for path, planResults := range planRes.FileResultsByPath {
 		updated := files[path]
 
-		// log.Printf("path: %s\n", path)
-		// log.Printf("updated: %s\n", updated)
-
 	PlanResLoop:
 		for _, planRes := range planResults {
+
 			if !planRes.IsPending() {
 				continue
 			}
@@ -174,10 +165,6 @@ func (planState *CurrentPlanState) GetFilesBeforeReplacement(
 
 			if contextSha != "" && planRes.ContextSha != contextSha {
 				return nil, fmt.Errorf("result sha doesn't match context sha: %s", path)
-			}
-
-			if len(planRes.Replacements) == 0 {
-				continue
 			}
 
 			replacements := []*Replacement{}
@@ -250,7 +237,7 @@ func (state *CurrentPlanState) PendingChangesSummary() string {
 		descMsgs = append(descMsgs, fmt.Sprintf("📝 %s", desc.CommitMsg))
 
 		if len(pendingNewFiles) > 0 {
-			newMsg := "  📄 New files:\n\n"
+			newMsg := "  📄 New files:\n"
 			for _, path := range pendingNewFiles {
 				newMsg += fmt.Sprintf("  • %s\n", path)
 			}
@@ -258,7 +245,7 @@ func (state *CurrentPlanState) PendingChangesSummary() string {
 		}
 
 		if len(pendingReplacementPaths) > 0 {
-			updatesMsg := "  ✏️ Edits:\n\n"
+			updatesMsg := "  ✏️ Edits:\n"
 
 			for _, path := range pendingReplacementPaths {
 				updatesMsg += fmt.Sprintf("    • %s\n", path)
@@ -272,7 +259,7 @@ func (state *CurrentPlanState) PendingChangesSummary() string {
 			descMsgs = append(descMsgs, updatesMsg)
 		}
 
-		msgs = append(msgs, strings.Join(descMsgs, "\n\n"))
+		msgs = append(msgs, strings.Join(descMsgs, "\n"))
 	}
-	return strings.Join(msgs, "\n\n")
+	return strings.Join(msgs, "\n")
 }

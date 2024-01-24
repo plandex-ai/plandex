@@ -3,9 +3,8 @@ module shared
 go 1.21.3
 
 require (
-	github.com/looplab/fsm v1.0.1
+	github.com/davecgh/go-spew v1.1.1
 	github.com/pkoukk/tiktoken-go v0.1.6
-	github.com/sashabaranov/go-openai v1.15.1
 )
 
 require github.com/mattn/go-runewidth v0.0.9 // indirect
