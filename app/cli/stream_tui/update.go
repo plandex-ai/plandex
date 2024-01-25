@@ -29,6 +29,13 @@ func (m *streamUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case shared.StreamMessage:
 		return m.streamUpdate(&msg)
 
+	case tea.MouseMsg:
+		if msg.Type == tea.MouseWheelUp {
+			m.replyViewport.LineUp(3)
+		} else if msg.Type == tea.MouseWheelDown {
+			m.replyViewport.LineDown(3)
+		}
+
 	case tea.KeyMsg:
 		switch {
 		case bubbleKey.Matches(msg, m.keymap.quit):

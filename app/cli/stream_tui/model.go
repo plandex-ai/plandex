@@ -85,6 +85,10 @@ func initialModel() *streamUIModel {
 		spinner:        s,
 		atScrollBottom: true,
 		starting:       true,
+
+		// Enable mouse support for the viewport
+		replyViewport: viewport.Model{Width: initialState.width, Height: initialState.height},
+		replyViewport.MouseWheelEnabled = true,
 	}
 
 	return &initialState
