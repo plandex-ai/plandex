@@ -48,7 +48,7 @@ func next(cmd *cobra.Command, args []string) {
 
 	var fn func() bool
 	fn = func() bool {
-		apiErr := api.Client.TellPlan(lib.CurrentPlanId, shared.TellPlanRequest{
+		apiErr := api.Client.TellPlan(lib.CurrentPlanId, lib.CurrentBranch, shared.TellPlanRequest{
 			Prompt:        continuePrompt,
 			ConnectStream: !continueBg,
 		}, lib.OnStreamPlan)
@@ -56,7 +56,7 @@ func next(cmd *cobra.Command, args []string) {
 			if apiErr.Type == shared.ApiErrorTypeTrialMessagesExceeded {
 				streamtui.Quit()
 
-				fmt.Fprintf(os.Stderr, "🚨 You've reached the free trial limit of %d messages per plan\n", apiErr.TrialMessagesExceededError.MaxMessages)
+				fmt.Fprintf(os.Stderr, "🚨 You've reached the free trial limit of %d messages per plan\n", apiErr.TrialMessagesExceededError.MaxReplies)
 
 				res, err := term.ConfirmYesNo("Upgrade now?")
 

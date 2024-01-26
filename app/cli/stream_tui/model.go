@@ -41,7 +41,10 @@ type keymap = struct {
 }
 
 func (m streamUIModel) Init() tea.Cmd {
-	return nil
+	m.replyViewport.MouseWheelEnabled = true
+
+	// start spinner
+	return m.spinner.Tick
 }
 
 func initialModel() *streamUIModel {
@@ -85,10 +88,6 @@ func initialModel() *streamUIModel {
 		spinner:        s,
 		atScrollBottom: true,
 		starting:       true,
-
-		// Enable mouse support for the viewport
-		replyViewport: viewport.Model{Width: initialState.width, Height: initialState.height},
-		replyViewport.MouseWheelEnabled = true,
 	}
 
 	return &initialState

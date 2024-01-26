@@ -21,7 +21,7 @@ type TrialPlansExceededError struct {
 }
 
 type TrialMessagesExceededError struct {
-	MaxMessages int `json:"maxMessages"`
+	MaxReplies int `json:"maxMessages"`
 }
 
 type ApiError struct {

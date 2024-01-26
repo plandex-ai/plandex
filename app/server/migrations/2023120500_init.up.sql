@@ -103,13 +103,10 @@ CREATE TABLE IF NOT EXISTS plans (
   org_id UUID NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
   owner_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-  name VARCHAR(255) NOT NULL,
-  status VARCHAR(32) NOT NULL,
-  error TEXT,
-  context_tokens INTEGER NOT NULL DEFAULT 0,
-  convo_tokens INTEGER NOT NULL DEFAULT 0,
+  name VARCHAR(255) NOT NULL,  
   shared_with_org_at TIMESTAMP,
-  total_messages INTEGER NOT NULL DEFAULT 0,
+  total_replies INTEGER NOT NULL DEFAULT 0,
+  active_branches INTEGER NOT NULL DEFAULT 0,
   archived_at TIMESTAMP,
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMP NOT NULL DEFAULT NOW()
@@ -118,6 +115,28 @@ CREATE TRIGGER update_plans_modtime BEFORE UPDATE ON plans FOR EACH ROW EXECUTE 
 
 CREATE INDEX plans_name_idx ON plans(project_id, owner_id, name);
 CREATE INDEX plans_archived_idx ON plans(project_id, owner_id, archived_at);
+
+CREATE TABLE IF NOT EXISTS branches (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  org_id UUID NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
+  owner_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  plan_id UUID NOT NULL REFERENCES plans(id) ON DELETE CASCADE,
+  parent_branch_id UUID REFERENCES branches(id) ON DELETE CASCADE,
+  name VARCHAR(255) NOT NULL,
+  status VARCHAR(32) NOT NULL,
+  error TEXT,
+  context_tokens INTEGER NOT NULL DEFAULT 0,
+  convo_tokens INTEGER NOT NULL DEFAULT 0,
+  shared_with_org_at TIMESTAMP,
+  archived_at TIMESTAMP,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+  deleted_at TIMESTAMP
+);
+CREATE TRIGGER update_branches_modtime BEFORE UPDATE ON branches FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE UNIQUE INDEX branches_name_idx ON branches(plan_id, name, archived_at, deleted_at);
+
 
 CREATE TABLE IF NOT EXISTS users_projects (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

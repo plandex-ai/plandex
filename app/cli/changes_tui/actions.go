@@ -19,7 +19,7 @@ func (m *changesUIModel) rejectChange() {
 		return
 	}
 
-	err := api.Client.RejectReplacement(lib.CurrentPlanId, m.selectionInfo.currentRes.Id, m.selectionInfo.currentRep.Id)
+	err := api.Client.RejectReplacement(lib.CurrentPlanId, lib.CurrentBranch, m.selectionInfo.currentRes.Id, m.selectionInfo.currentRep.Id)
 
 	if err != nil {
 		log.Printf("error dropping change: %v", err)

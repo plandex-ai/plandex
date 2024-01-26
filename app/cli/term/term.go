@@ -30,7 +30,7 @@ var CmdDesc = map[string][2]string{
 	"rm":          {"", "remove context by name, index, or glob"},
 	"clear":       {"", "remove all context"},
 	"delete-plan": {"del", "delete plan by name or index"},
-	"plans":       {"", "list plans"},
+	"plans":       {"pl", "list plans"},
 	"update":      {"u", "update outdated context"},
 }
 

@@ -26,7 +26,7 @@ func context(cmd *cobra.Command, args []string) {
 	auth.MustResolveAuthWithOrg()
 	lib.MustResolveProject()
 
-	contexts, err := api.Client.ListContext(lib.CurrentPlanId)
+	contexts, err := api.Client.ListContext(lib.CurrentPlanId, lib.CurrentBranch)
 
 	if err != nil {
 		color.New(color.FgRed).Fprintln(os.Stderr, "Error listing context:", err)

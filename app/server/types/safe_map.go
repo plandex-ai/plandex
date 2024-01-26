@@ -54,3 +54,9 @@ func (sm *SafeMap[V]) Keys() []string {
 	}
 	return keys
 }
+
+func (sm *SafeMap[V]) Len() int {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+	return len(sm.items)
+}

@@ -29,7 +29,7 @@ func convo(cmd *cobra.Command, args []string) {
 	auth.MustResolveAuthWithOrg()
 	lib.MustResolveProject()
 
-	conversation, apiErr := api.Client.ListConvo(lib.CurrentPlanId)
+	conversation, apiErr := api.Client.ListConvo(lib.CurrentPlanId, lib.CurrentBranch)
 	if apiErr != nil {
 		fmt.Fprintln(os.Stderr, "Error loading conversation:", apiErr.Msg)
 		return

@@ -1,4 +1,4 @@
 package types
 
-const TrialMaxMessages = 15
+const TrialMaxReplies = 10
 const TrialMaxPlans = 10

@@ -42,7 +42,7 @@ func rewind(cmd *cobra.Command, args []string) {
 
 	stepsOrSha := args[0]
 
-	logsRes, err := api.Client.ListLogs(lib.CurrentPlanId)
+	logsRes, err := api.Client.ListLogs(lib.CurrentPlanId, lib.CurrentBranch)
 
 	if err != nil {
 		fmt.Printf("Error getting logs: %v\n", err)
@@ -73,7 +73,7 @@ func rewind(cmd *cobra.Command, args []string) {
 	// log.Println("Rewinding to", targetSha)
 
 	// Rewind to the target sha
-	rwRes, err := api.Client.RewindPlan(lib.CurrentPlanId, shared.RewindPlanRequest{Sha: targetSha})
+	rwRes, err := api.Client.RewindPlan(lib.CurrentPlanId, lib.CurrentBranch, shared.RewindPlanRequest{Sha: targetSha})
 
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error rewinding plan: %v\n", err)

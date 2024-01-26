@@ -64,11 +64,14 @@ func cd(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	err = lib.SetCurrentPlan(plan.Id)
+	err = lib.WriteCurrentPlan(plan.Id)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Error setting current plan:", err)
 		os.Exit(1)
 	}
+
+	// reload current plan, which will also handle setting the right branch
+	lib.MustLoadCurrentPlan()
 
 	// fire and forget SetProjectPlan request (we don't care about the response or errors)
 	// this only matters for setting the current plan on a new device (i.e. when the current plan is not set)

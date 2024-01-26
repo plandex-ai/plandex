@@ -41,31 +41,38 @@ type ApiClient interface {
 	RenameProject(projectId string, req shared.RenameProjectRequest) *shared.ApiError
 
 	ListPlans(projectId string) ([]*shared.Plan, *shared.ApiError)
+
+	GetCurrentBranchByPlanId(projectId string, req shared.GetCurrentBranchByPlanIdRequest) (map[string]*shared.Branch, *shared.ApiError)
+
 	ListArchivedPlans(projectId string) ([]*shared.Plan, *shared.ApiError)
 	ListPlansRunning(projectId string) ([]*shared.Plan, *shared.ApiError)
 	GetPlan(planId string) (*shared.Plan, *shared.ApiError)
 	CreatePlan(projectId string, req shared.CreatePlanRequest) (*shared.CreatePlanResponse, *shared.ApiError)
 
-	TellPlan(planId string, req shared.TellPlanRequest, onStreamPlan OnStreamPlan) *shared.ApiError
+	TellPlan(planId, branch string, req shared.TellPlanRequest, onStreamPlan OnStreamPlan) *shared.ApiError
 	DeletePlan(planId string) *shared.ApiError
 	DeleteAllPlans(projectId string) *shared.ApiError
-	ConnectPlan(planId string, onStreamPlan OnStreamPlan) *shared.ApiError
-	StopPlan(planId string) *shared.ApiError
+	ConnectPlan(planId, branch string, onStreamPlan OnStreamPlan) *shared.ApiError
+	StopPlan(planId, branch string) *shared.ApiError
 
 	ArchivePlan(planId string) *shared.ApiError
 
-	GetCurrentPlanState(planId string) (*shared.CurrentPlanState, *shared.ApiError)
-	ApplyPlan(planId string) *shared.ApiError
-	RejectAllChanges(planId string) *shared.ApiError
-	RejectResult(planId, resultId string) *shared.ApiError
-	RejectReplacement(planId, resultId, replacementId string) *shared.ApiError
+	GetCurrentPlanState(planId, branch string) (*shared.CurrentPlanState, *shared.ApiError)
+	ApplyPlan(planId, branch string) *shared.ApiError
+	RejectAllChanges(planId, branch string) *shared.ApiError
+	RejectResult(planId, branch, resultId string) *shared.ApiError
+	RejectReplacement(planId, branch, resultId, replacementId string) *shared.ApiError
 
-	LoadContext(planId string, req shared.LoadContextRequest) (*shared.LoadContextResponse, *shared.ApiError)
-	UpdateContext(planId string, req shared.UpdateContextRequest) (*shared.UpdateContextResponse, *shared.ApiError)
-	DeleteContext(planId string, req shared.DeleteContextRequest) (*shared.DeleteContextResponse, *shared.ApiError)
-	ListContext(planId string) ([]*shared.Context, *shared.ApiError)
+	LoadContext(planId, branch string, req shared.LoadContextRequest) (*shared.LoadContextResponse, *shared.ApiError)
+	UpdateContext(planId, branch string, req shared.UpdateContextRequest) (*shared.UpdateContextResponse, *shared.ApiError)
+	DeleteContext(planId, branch string, req shared.DeleteContextRequest) (*shared.DeleteContextResponse, *shared.ApiError)
+	ListContext(planId, branch string) ([]*shared.Context, *shared.ApiError)
 
-	ListConvo(planId string) ([]*shared.ConvoMessage, *shared.ApiError)
-	ListLogs(planId string) (*shared.LogResponse, *shared.ApiError)
-	RewindPlan(planId string, req shared.RewindPlanRequest) (*shared.RewindPlanResponse, *shared.ApiError)
+	ListConvo(planId, branch string) ([]*shared.ConvoMessage, *shared.ApiError)
+	ListLogs(planId, branch string) (*shared.LogResponse, *shared.ApiError)
+	RewindPlan(planId, branch string, req shared.RewindPlanRequest) (*shared.RewindPlanResponse, *shared.ApiError)
+
+	ListBranches(planId string) ([]*shared.Branch, *shared.ApiError)
+	DeleteBranch(planId, branch string) *shared.ApiError
+	CreateBranch(planId, branch string, req shared.CreateBranchRequest) *shared.ApiError
 }

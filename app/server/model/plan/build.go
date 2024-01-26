@@ -24,7 +24,7 @@ import (
 const MaxRetries = 3
 const MaxReplacementRetries = 1
 
-func QueueBuild(currentOrgId, planId string, activeBuild *types.ActiveBuild) {
+func QueueBuild(currentOrgId, currentUserId, planId, branch string, activeBuild *types.ActiveBuild) {
 	activePlan := Active.Get(planId)
 	filePath := activeBuild.Path
 
@@ -38,11 +38,11 @@ func QueueBuild(currentOrgId, planId string, activeBuild *types.ActiveBuild) {
 		return
 	} else {
 		log.Printf("Will process build queue for file %s\n", filePath)
-		go execPlanBuild(currentOrgId, activePlan, activeBuild)
+		go execPlanBuild(currentOrgId, currentUserId, branch, activePlan, activeBuild)
 	}
 }
 
-func execPlanBuild(currentOrgId string, activePlan *types.ActivePlan, activeBuild *types.ActiveBuild) {
+func execPlanBuild(currentOrgId, currentUserId, branch string, activePlan *types.ActivePlan, activeBuild *types.ActiveBuild) {
 	Active.Update(activePlan.Id, func(ap *types.ActivePlan) {
 		ap.IsBuildingByPath[activeBuild.Path] = true
 	})
@@ -141,14 +141,39 @@ func execPlanBuild(currentOrgId string, activePlan *types.ActivePlan, activeBuil
 		// log.Println("onFinishBuildFile: " + filePath)
 		// spew.Dump(planRes)
 
-		err := db.StorePlanResult(planRes)
+		repoLockId, err := db.LockRepo(currentOrgId, currentUserId, planId, branch, db.LockScopeWrite)
 		if err != nil {
-			log.Printf("Error storing plan result: %v\n", err)
+			log.Printf("Error locking repo: %v\n", err)
 			activePlan.StreamDoneCh <- &shared.ApiError{
 				Type:   shared.ApiErrorTypeOther,
 				Status: http.StatusInternalServerError,
-				Msg:    "Error storing plan result: " + err.Error(),
+				Msg:    "Error locking repo: " + err.Error(),
 			}
+			return
+		}
+
+		err = func() error {
+			defer func() {
+				err := db.UnlockRepo(repoLockId)
+				if err != nil {
+					log.Printf("Error unlocking repo: %v\n", err)
+				}
+			}()
+
+			err = db.StorePlanResult(planRes)
+			if err != nil {
+				log.Printf("Error storing plan result: %v\n", err)
+				activePlan.StreamDoneCh <- &shared.ApiError{
+					Type:   shared.ApiErrorTypeOther,
+					Status: http.StatusInternalServerError,
+					Msg:    "Error storing plan result: " + err.Error(),
+				}
+				return err
+			}
+			return nil
+		}()
+
+		if err != nil {
 			return
 		}
 
@@ -173,7 +198,7 @@ func execPlanBuild(currentOrgId string, activePlan *types.ActivePlan, activeBuil
 				}
 			}
 			if nextBuild != nil {
-				go execPlanBuild(currentOrgId, activePlan, nextBuild)
+				go execPlanBuild(currentOrgId, currentUserId, branch, activePlan, nextBuild)
 			}
 			return
 		}

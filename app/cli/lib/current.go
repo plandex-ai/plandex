@@ -14,6 +14,7 @@ import (
 
 var CurrentProjectId string
 var CurrentPlanId string
+var CurrentBranch string
 var HomeCurrentProjectDir string
 var HomeCurrentPlanPath string
 
@@ -46,7 +47,7 @@ func MustResolveProject() {
 		panic(fmt.Errorf("error reading project.json: %v", err))
 	}
 
-	var settings types.ProjectSettings
+	var settings types.CurrentProjectSettings
 	err = json.Unmarshal(bytes, &settings)
 
 	if err != nil {
@@ -87,14 +88,60 @@ func MustLoadCurrentPlan() {
 		panic(fmt.Errorf("error reading current_plan.json: %v", err))
 	}
 
-	// Unmarshal the JSON data into the shared.PlanSettings type
-	var planSettings types.PlanSettings
-	err = json.Unmarshal(fileBytes, &planSettings)
+	var currentPlan types.CurrentPlanSettings
+	err = json.Unmarshal(fileBytes, &currentPlan)
 	if err != nil {
 		panic(fmt.Errorf("error unmarshalling current_plan.json: %v", err))
 	}
 
-	CurrentPlanId = planSettings.Id
+	CurrentPlanId = currentPlan.Id
+
+	err = loadCurrentBranch()
+
+	if err != nil {
+		panic(fmt.Errorf("error loading current branch: %v", err))
+	}
+
+	if CurrentBranch == "" {
+		err = WriteCurrentBranch("main")
+
+		if err != nil {
+			panic(fmt.Errorf("error setting current branch: %v", err))
+		}
+	}
+}
+
+func loadCurrentBranch() error {
+	// Load plan-specific settings
+	if CurrentPlanId == "" {
+		return fmt.Errorf("no current plan")
+	}
+
+	path := filepath.Join(HomeCurrentProjectDir, CurrentPlanId, "settings.json")
+
+	// Check if the file exists
+	_, err := os.Stat(path)
+
+	if os.IsNotExist(err) {
+		return nil
+	} else if err != nil {
+		return fmt.Errorf("error checking if settings.json exists: %v", err)
+	}
+
+	fileBytes, err := os.ReadFile(path)
+	if err != nil {
+		panic(fmt.Errorf("error reading settings.json: %v", err))
+	}
+
+	var settings types.PlanSettings
+	err = json.Unmarshal(fileBytes, &settings)
+	if err != nil {
+		panic(fmt.Errorf("error unmarshalling settings.json: %v", err))
+	}
+
+	CurrentBranch = settings.Branch
+
+	return nil
 }
 
 func mustInitProject() {
@@ -108,7 +155,7 @@ func mustInitProject() {
 
 	// write project.json
 	path := filepath.Join(fs.PlandexDir, "project.json")
-	bytes, err := json.Marshal(types.ProjectSettings{
+	bytes, err := json.Marshal(types.CurrentProjectSettings{
 		Id: CurrentProjectId,
 	})
 
@@ -131,7 +178,7 @@ func mustInitProject() {
 	}
 
 	path = filepath.Join(dir, "current_plan.json")
-	bytes, err = json.Marshal(types.PlanSettings{
+	bytes, err = json.Marshal(types.CurrentPlanSettings{
 		Id: "",
 	})
 

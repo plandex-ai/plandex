@@ -34,7 +34,7 @@ func runLog(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	res, err := api.Client.ListLogs(lib.CurrentPlanId)
+	res, err := api.Client.ListLogs(lib.CurrentPlanId, lib.CurrentBranch)
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
 		return

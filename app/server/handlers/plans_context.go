@@ -32,6 +32,13 @@ func ListContextHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	unlockFn := lockRepo(w, r, auth, db.LockScopeRead)
+	if unlockFn == nil {
+		return
+	} else {
+		defer (*unlockFn)()
+	}
+
 	dbContexts, err := db.GetPlanContexts(auth.OrgId, planId, false)
 
 	if err != nil {
@@ -68,9 +75,18 @@ func LoadContextHandler(w http.ResponseWriter, r *http.Request) {
 
 	vars := mux.Vars(r)
 	planId := vars["planId"]
+	branchName := vars["branch"]
 	log.Println("planId: ", planId)
 
-	if authorizePlan(w, planId, auth) == nil {
+	plan := authorizePlan(w, planId, auth)
+	if plan == nil {
+		return
+	}
+
+	branch, err := db.GetDbBranch(planId, branchName)
+	if err != nil {
+		log.Printf("Error getting branch: %v\n", err)
+		http.Error(w, "Error getting branch: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -90,17 +106,9 @@ func LoadContextHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// load plan
-	plan, err := db.GetPlan(planId)
-
-	if err != nil {
-		log.Printf("Plan not found: %v\n", err)
-		http.Error(w, "Plan not found: "+err.Error(), http.StatusBadRequest)
-	}
-
 	maxTokens := shared.MaxContextTokens
 	tokensAdded := 0
-	totalTokens := plan.ContextTokens
+	totalTokens := branch.ContextTokens
 
 	paramsByTempId := make(map[string]*shared.LoadContextParams)
 	numTokensByTempId := make(map[string]int)
@@ -140,6 +148,13 @@ func LoadContextHandler(w http.ResponseWriter, r *http.Request) {
 
 		w.Write(bytes)
 		return
+	}
+
+	unlockFn := lockRepo(w, r, auth, db.LockScopeWrite)
+	if unlockFn == nil {
+		return
+	} else {
+		defer (*unlockFn)()
 	}
 
 	dbContextsCh := make(chan *db.Context)
@@ -192,7 +207,7 @@ func LoadContextHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	commitMsg := shared.SummaryForLoadContext(apiContexts, tokensAdded, totalTokens) + "\n\n" + shared.TableForLoadContext(apiContexts)
-	err = db.GitAddAndCommit(auth.OrgId, planId, commitMsg)
+	err = db.GitAddAndCommit(auth.OrgId, planId, branchName, commitMsg)
 
 	if err != nil {
 		log.Printf("Error committing changes: %v\n", err)
@@ -200,7 +215,7 @@ func LoadContextHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = db.AddPlanContextTokens(planId, tokensAdded)
+	err = db.AddPlanContextTokens(planId, branchName, tokensAdded)
 	if err != nil {
 		log.Printf("Error updating plan tokens: %v\n", err)
 		http.Error(w, "Error updating plan tokens: "+err.Error(), http.StatusInternalServerError)
@@ -236,9 +251,18 @@ func UpdateContextHandler(w http.ResponseWriter, r *http.Request) {
 
 	vars := mux.Vars(r)
 	planId := vars["planId"]
+	branchName := vars["branch"]
 	log.Println("planId: ", planId)
 
-	if authorizePlan(w, planId, auth) == nil {
+	plan := authorizePlan(w, planId, auth)
+	if plan == nil {
+		return
+	}
+
+	branch, err := db.GetDbBranch(planId, branchName)
+	if err != nil {
+		log.Printf("Error getting branch: %v\n", err)
+		http.Error(w, "Error getting branch: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -258,17 +282,9 @@ func UpdateContextHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// load plan
-	plan, err := db.GetPlan(planId)
-
-	if err != nil {
-		log.Printf("Plan not found: %v\n", err)
-		http.Error(w, "Plan not found: "+err.Error(), http.StatusBadRequest)
-	}
-
 	maxTokens := shared.MaxContextTokens
 	tokensDiff := 0
-	totalTokens := plan.ContextTokens
+	totalTokens := branch.ContextTokens
 	tokensDiffById := make(map[string]int)
 	contextsById := make(map[string]*db.Context)
 	var updatedContexts []*shared.Context
@@ -352,6 +368,13 @@ func UpdateContextHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	unlockFn := lockRepo(w, r, auth, db.LockScopeWrite)
+	if unlockFn == nil {
+		return
+	} else {
+		defer (*unlockFn)()
+	}
+
 	errCh = make(chan error)
 
 	for id, params := range requestBody {
@@ -389,7 +412,7 @@ func UpdateContextHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	commitMsg := shared.SummaryForUpdateContext(updateRes) + "\n\n" + shared.TableForContextUpdate(updateRes)
-	err = db.GitAddAndCommit(auth.OrgId, planId, commitMsg)
+	err = db.GitAddAndCommit(auth.OrgId, planId, branchName, commitMsg)
 
 	if err != nil {
 		log.Printf("Error committing changes: %v\n", err)
@@ -397,7 +420,7 @@ func UpdateContextHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = db.AddPlanContextTokens(planId, tokensDiff)
+	err = db.AddPlanContextTokens(planId, branchName, tokensDiff)
 	if err != nil {
 		log.Printf("Error updating plan tokens: %v\n", err)
 		http.Error(w, "Error updating plan tokens: "+err.Error(), http.StatusInternalServerError)
@@ -433,6 +456,7 @@ func DeleteContextHandler(w http.ResponseWriter, r *http.Request) {
 
 	vars := mux.Vars(r)
 	planId := vars["planId"]
+	branchName := vars["branch"]
 	log.Println("planId: ", planId)
 
 	plan := authorizePlan(w, planId, auth)
@@ -440,6 +464,8 @@ func DeleteContextHandler(w http.ResponseWriter, r *http.Request) {
 	if plan == nil {
 		return
 	}
+
+	branch, err := db.GetDbBranch(planId, branchName)
 
 	// read the request body
 	body, err := io.ReadAll(r.Body)
@@ -455,6 +481,13 @@ func DeleteContextHandler(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Error parsing request body: %v\n", err)
 		http.Error(w, "Error parsing request body", http.StatusBadRequest)
 		return
+	}
+
+	unlockFn := lockRepo(w, r, auth, db.LockScopeWrite)
+	if unlockFn == nil {
+		return
+	} else {
+		defer (*unlockFn)()
 	}
 
 	dbContexts, err := db.GetPlanContexts(auth.OrgId, planId, false)
@@ -487,8 +520,8 @@ func DeleteContextHandler(w http.ResponseWriter, r *http.Request) {
 		removeTokens += dbContext.NumTokens
 	}
 
-	commitMsg := shared.SummaryForRemoveContext(toRemoveApiContexts, plan.ContextTokens) + "\n\n" + shared.TableForRemoveContext(toRemoveApiContexts)
-	err = db.GitAddAndCommit(auth.OrgId, planId, commitMsg)
+	commitMsg := shared.SummaryForRemoveContext(toRemoveApiContexts, branch.ContextTokens) + "\n\n" + shared.TableForRemoveContext(toRemoveApiContexts)
+	err = db.GitAddAndCommit(auth.OrgId, planId, branchName, commitMsg)
 
 	if err != nil {
 		log.Printf("Error committing changes: %v\n", err)
@@ -496,7 +529,7 @@ func DeleteContextHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = db.AddPlanContextTokens(planId, -removeTokens)
+	err = db.AddPlanContextTokens(planId, branchName, -removeTokens)
 	if err != nil {
 		log.Printf("Error updating plan tokens: %v\n", err)
 		http.Error(w, "Error updating plan tokens: "+err.Error(), http.StatusInternalServerError)
@@ -505,7 +538,7 @@ func DeleteContextHandler(w http.ResponseWriter, r *http.Request) {
 
 	res := shared.DeleteContextResponse{
 		TokensRemoved: removeTokens,
-		TotalTokens:   plan.ContextTokens - removeTokens,
+		TotalTokens:   branch.ContextTokens - removeTokens,
 		Msg:           commitMsg,
 	}
 

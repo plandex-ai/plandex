@@ -41,11 +41,15 @@ const (
 	PlanOutdatedStrategyCancel           string = "Cancel"
 )
 
-type PlanSettings struct {
+type CurrentPlanSettings struct {
 	Id string `json:"id"`
 }
 
-type ProjectSettings struct {
+type PlanSettings struct {
+	Branch string `json:"branch"`
+}
+
+type CurrentProjectSettings struct {
 	Id string `json:"id"`
 }
 

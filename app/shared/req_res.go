@@ -85,6 +85,10 @@ type CreatePlanResponse struct {
 	Name string `json:"name"`
 }
 
+type GetCurrentBranchByPlanIdRequest struct {
+	CurrentBranchByPlanId map[string]string `json:"currentBranchByPlanId"`
+}
+
 type TellPlanRequest struct {
 	Prompt        string `json:"prompt"`
 	ConnectStream bool   `json:"connectStream"`
@@ -138,4 +142,8 @@ type RewindPlanResponse struct {
 type LogResponse struct {
 	Shas []string `json:"shas"`
 	Body string   `json:"body"`
+}
+
+type CreateBranchRequest struct {
+	Name string `json:"name"`
 }

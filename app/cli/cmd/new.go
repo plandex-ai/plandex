@@ -63,7 +63,7 @@ func new(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	err := lib.SetCurrentPlan(res.Id)
+	err := lib.WriteCurrentPlan(res.Id)
 
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Error setting current plan:", err)

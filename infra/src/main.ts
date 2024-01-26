@@ -46,23 +46,30 @@ export class MyStack extends cdk.Stack {
     );
 
     // Create an RDS Aurora PostgreSQL database
-    const dbInstance = new rds.DatabaseInstance(this, `plandex-rds-instance-${tag}`, {
-      engine: rds.DatabaseInstanceEngine.postgres({
-        version: rds.PostgresEngineVersion.VER_14_2,
-      }),
-      instanceType: ec2.InstanceType.of(
-        ec2.InstanceClass.BURSTABLE2,
-        ec2.InstanceSize.MICRO
-      ),
-      vpc,
-      vpcSubnets: {
-        subnetType: ec2.SubnetType.PRIVATE_ISOLATED,
-      },
-      credentials: rds.Credentials.fromSecret(dbCredentialsSecret), // Use credentials from Secrets Manager
-    });
+    const dbInstance = new rds.DatabaseInstance(
+      this,
+      `plandex-rds-instance-${tag}`,
+      {
+        engine: rds.DatabaseInstanceEngine.postgres({
+          version: rds.PostgresEngineVersion.VER_14_2,
+        }),
+        instanceType: ec2.InstanceType.of(
+          ec2.InstanceClass.BURSTABLE2,
+          ec2.InstanceSize.MICRO
+        ),
+        vpc,
+        vpcSubnets: {
+          subnetType: ec2.SubnetType.PRIVATE_ISOLATED,
+        },
+        credentials: rds.Credentials.fromSecret(dbCredentialsSecret), // Use credentials from Secrets Manager
+      }
+    );
 
     // Create an ECR repository
-    const ecrRepository = new ecr.Repository(this, `plandex-ecr-repository-${tag}`);
+    const ecrRepository = new ecr.Repository(
+      this,
+      `plandex-ecr-repository-${tag}`
+    );
 
     // Create an ECS cluster
     const ecsCluster = new ecs.Cluster(this, `plandex-ecs-cluster-${tag}`, {
@@ -70,9 +77,13 @@ export class MyStack extends cdk.Stack {
     });
 
     // Create an EFS file system
-    const fileSystem = new efs.FileSystem(this, `plandex-efs-file-system-${tag}`, {
-      vpc,
-    });
+    const fileSystem = new efs.FileSystem(
+      this,
+      `plandex-efs-file-system-${tag}`,
+      {
+        vpc,
+      }
+    );
 
     // Create an IAM role for the Fargate task to interact with SES
     const taskRole = new iam.Role(this, `plandex-task-role-${tag}`, {
@@ -97,6 +108,9 @@ export class MyStack extends cdk.Stack {
     const container = taskDefinition.addContainer("MyContainer", {
       image: ecs.ContainerImage.fromEcrRepository(ecrRepository),
       logging: new ecs.AwsLogDriver({ streamPrefix: "MyContainer" }),
+      environment: {
+        ECS_CONTAINER_STOP_TIMEOUT: "10m", // gives time for streams to finish before container is stopped
+      },
     });
 
     // Mount the EFS file system to the container
@@ -130,12 +144,16 @@ export class MyStack extends cdk.Stack {
       "Allow Fargate service to access RDS instance"
     );
 
-    const fargateService = new ecs.FargateService(this, `plandex-fargate-service-${tag}`, {
-      cluster: ecsCluster,
-      taskDefinition,
-      desiredCount: 1,
-      securityGroups: [fargateServiceSecurityGroup],
-    });
+    const fargateService = new ecs.FargateService(
+      this,
+      `plandex-fargate-service-${tag}`,
+      {
+        cluster: ecsCluster,
+        taskDefinition,
+        desiredCount: 1,
+        securityGroups: [fargateServiceSecurityGroup],
+      }
+    );
 
     // Create an SES email sending resource
     // Note: SES setup can vary based on the region and verification status. Here, we're creating a simple rule set.

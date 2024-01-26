@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"plandex-server/db"
+	"plandex-server/host"
 	"plandex-server/model"
 	"plandex-server/model/lib"
 	"plandex-server/model/prompts"
@@ -21,7 +22,7 @@ import (
 )
 
 // Proposal function to create a new proposal
-func Tell(plan *db.Plan, auth *types.ServerAuth, req *shared.TellPlanRequest) error {
+func Tell(plan *db.Plan, branch string, auth *types.ServerAuth, req *shared.TellPlanRequest) error {
 	// goEnv := os.Getenv("GOENV") // Fetch the GOENV environment variable
 
 	// log.Println("GOENV: " + goEnv)
@@ -39,24 +40,24 @@ func Tell(plan *db.Plan, auth *types.ServerAuth, req *shared.TellPlanRequest) er
 
 	active = CreateActivePlan(planId, req.Prompt)
 
-	go execTellPlan(plan, auth, req, active, 0)
+	go execTellPlan(plan, branch, auth, req, active, 0)
 
 	return nil
 }
 
-func execTellPlan(plan *db.Plan, auth *types.ServerAuth, req *shared.TellPlanRequest, active *types.ActivePlan, iteration int) {
+func execTellPlan(plan *db.Plan, branch string, auth *types.ServerAuth, req *shared.TellPlanRequest, active *types.ActivePlan, iteration int) {
 	currentUserId := auth.User.Id
 	currentOrgId := auth.OrgId
 
 	if os.Getenv("IS_CLOUD") != "" {
 		if auth.User.IsTrial {
-			if plan.TotalMessages >= types.TrialMaxMessages {
+			if plan.TotalReplies >= types.TrialMaxReplies {
 				active.StreamDoneCh <- &shared.ApiError{
 					Type:   shared.ApiErrorTypeTrialMessagesExceeded,
 					Status: http.StatusForbidden,
 					Msg:    "Free trial message limit exceeded",
 					TrialMessagesExceededError: &shared.TrialMessagesExceededError{
-						MaxMessages: types.TrialMaxMessages,
+						MaxReplies: types.TrialMaxReplies,
 					},
 				}
 				return
@@ -74,6 +75,22 @@ func execTellPlan(plan *db.Plan, auth *types.ServerAuth, req *shared.TellPlanReq
 			Msg:    "Error setting plan status to replying",
 		}
 
+		return
+	}
+
+	lockScope := db.LockScopeWrite
+	if iteration > 0 {
+		lockScope = db.LockScopeRead
+	}
+	repoLockId, err := db.LockRepo(auth.OrgId, auth.User.Id, planId, branch, lockScope)
+
+	if err != nil {
+		log.Printf("Error locking repo: %v\n", err)
+		active.StreamDoneCh <- &shared.ApiError{
+			Type:   shared.ApiErrorTypeOther,
+			Status: http.StatusInternalServerError,
+			Msg:    "Error locking repo",
+		}
 		return
 	}
 
@@ -151,7 +168,7 @@ func execTellPlan(plan *db.Plan, auth *types.ServerAuth, req *shared.TellPlanReq
 				Message: req.Prompt,
 			}
 
-			_, err = db.StoreConvoMessage(&userMsg, true)
+			_, err = db.StoreConvoMessage(&userMsg, auth.User.Id, branch, true)
 
 			if err != nil {
 				log.Printf("Error storing user message: %v\n", err)
@@ -175,16 +192,37 @@ func execTellPlan(plan *db.Plan, auth *types.ServerAuth, req *shared.TellPlanReq
 		errCh <- nil
 	}()
 
-	for i := 0; i < 4; i++ {
-		err := <-errCh
-		if err != nil {
-			active.StreamDoneCh <- &shared.ApiError{
-				Type:   shared.ApiErrorTypeOther,
-				Status: http.StatusInternalServerError,
-				Msg:    "Error getting plan, context, convo, or summaries",
+	err = func() error {
+		defer func() {
+			err = db.UnlockRepo(repoLockId)
+			if err != nil {
+				log.Printf("Error unlocking repo: %v\n", err)
+				active.StreamDoneCh <- &shared.ApiError{
+					Type:   shared.ApiErrorTypeOther,
+					Status: http.StatusInternalServerError,
+					Msg:    "Error unlocking repo",
+				}
+				return
 			}
-			return
+		}()
+
+		for i := 0; i < 4; i++ {
+			err := <-errCh
+			if err != nil {
+				active.StreamDoneCh <- &shared.ApiError{
+					Type:   shared.ApiErrorTypeOther,
+					Status: http.StatusInternalServerError,
+					Msg:    "Error getting plan, context, convo, or summaries",
+				}
+				return err
+			}
 		}
+
+		return nil
+	}()
+
+	if err != nil {
+		return
 	}
 
 	if iteration == 0 {
@@ -420,6 +458,22 @@ func execTellPlan(plan *db.Plan, auth *types.ServerAuth, req *shared.TellPlanReq
 		return
 	}
 
+	err = db.StoreModelStream(&db.ModelStream{
+		OrgId:      currentOrgId,
+		PlanId:     planId,
+		InternalIp: host.Ip,
+	})
+
+	if err != nil {
+		log.Printf("Error storing model stream: %v\n", err)
+		active.StreamDoneCh <- &shared.ApiError{
+			Type:   shared.ApiErrorTypeOther,
+			Status: http.StatusInternalServerError,
+			Msg:    "Error storing model stream",
+		}
+		return
+	}
+
 	storeAssistantReply := func() (*db.ConvoMessage, []string, string, error) {
 		num := len(convo) + 1
 		if iteration == 0 {
@@ -437,7 +491,7 @@ func execTellPlan(plan *db.Plan, auth *types.ServerAuth, req *shared.TellPlanReq
 			Message: Active.Get(planId).CurrentReplyContent,
 		}
 
-		commitMsg, err := db.StoreConvoMessage(&assistantMsg, false)
+		commitMsg, err := db.StoreConvoMessage(&assistantMsg, auth.User.Id, branch, false)
 
 		if err != nil {
 			log.Printf("Error storing assistant message: %v\n", err)
@@ -486,7 +540,7 @@ func execTellPlan(plan *db.Plan, auth *types.ServerAuth, req *shared.TellPlanReq
 		}
 
 		if storedMessage || storedDesc {
-			err = db.GitAddAndCommit(currentOrgId, planId, commitMsg)
+			err = db.GitAddAndCommit(currentOrgId, planId, branch, commitMsg)
 			if err != nil {
 				log.Printf("Error committing after stream error: %v\n", err)
 			}
@@ -563,74 +617,96 @@ func execTellPlan(plan *db.Plan, auth *types.ServerAuth, req *shared.TellPlanReq
 						})
 					}
 
-					assistantMsg, files, convoCommitMsg, err := storeAssistantReply()
+					repoLockId, err := db.LockRepo(auth.OrgId, auth.User.Id, planId, branch, db.LockScopeWrite)
 
-					if err != nil {
-						onError(fmt.Errorf("failed to store assistant message: %v", err), true, "", "")
-						return
-					}
-
-					var description *db.ConvoMessageDescription
 					var execStatus *types.PlanExecStatus
-
-					errCh := make(chan error, 2)
-
-					go func() {
-						if len(files) == 0 {
-							description = &db.ConvoMessageDescription{
-								OrgId:                 currentOrgId,
-								PlanId:                planId,
-								ConvoMessageId:        assistantMsg.Id,
-								SummarizedToMessageId: summarizedToMessageId,
-								MadePlan:              false,
-							}
-						} else {
-							description, err = genPlanDescription(planId, active.Ctx)
+					err = func() error {
+						defer func() {
+							err = db.UnlockRepo(repoLockId)
 							if err != nil {
-								onError(fmt.Errorf("failed to generate plan description: %v", err), true, assistantMsg.Id, convoCommitMsg)
+								log.Printf("Error unlocking repo: %v\n", err)
+								active.StreamDoneCh <- &shared.ApiError{
+									Type:   shared.ApiErrorTypeOther,
+									Status: http.StatusInternalServerError,
+									Msg:    "Error unlocking repo",
+								}
+							}
+						}()
+
+						assistantMsg, files, convoCommitMsg, err := storeAssistantReply()
+
+						if err != nil {
+							onError(fmt.Errorf("failed to store assistant message: %v", err), true, "", "")
+							return err
+						}
+
+						var description *db.ConvoMessageDescription
+
+						errCh := make(chan error, 2)
+
+						go func() {
+							if len(files) == 0 {
+								description = &db.ConvoMessageDescription{
+									OrgId:                 currentOrgId,
+									PlanId:                planId,
+									ConvoMessageId:        assistantMsg.Id,
+									SummarizedToMessageId: summarizedToMessageId,
+									MadePlan:              false,
+								}
+							} else {
+								description, err = genPlanDescription(planId, active.Ctx)
+								if err != nil {
+									onError(fmt.Errorf("failed to generate plan description: %v", err), true, assistantMsg.Id, convoCommitMsg)
+									return
+								}
+
+								description.OrgId = currentOrgId
+								description.ConvoMessageId = assistantMsg.Id
+								description.SummarizedToMessageId = summarizedToMessageId
+								description.MadePlan = true
+								description.Files = files
+							}
+
+							err = db.StoreDescription(description)
+
+							if err != nil {
+								onError(fmt.Errorf("failed to store description: %v", err), false, assistantMsg.Id, convoCommitMsg)
+								errCh <- err
 								return
 							}
 
-							description.OrgId = currentOrgId
-							description.ConvoMessageId = assistantMsg.Id
-							description.SummarizedToMessageId = summarizedToMessageId
-							description.MadePlan = true
-							description.Files = files
+							errCh <- nil
+						}()
+
+						go func() {
+
+							execStatus, err = ExecStatus(assistantMsg.Message, active.Ctx)
+							if err != nil {
+								onError(fmt.Errorf("failed to get exec status: %v", err), false, assistantMsg.Id, convoCommitMsg)
+								errCh <- err
+								return
+							}
+
+							errCh <- nil
+						}()
+
+						for i := 0; i < 2; i++ {
+							err := <-errCh
+							if err != nil {
+								return err
+							}
 						}
 
-						err = db.StoreDescription(description)
-
+						err = db.GitAddAndCommit(currentOrgId, planId, branch, convoCommitMsg)
 						if err != nil {
-							onError(fmt.Errorf("failed to store description: %v", err), false, assistantMsg.Id, convoCommitMsg)
-							errCh <- err
-							return
+							onError(fmt.Errorf("failed to commit: %v", err), false, assistantMsg.Id, convoCommitMsg)
+							return err
 						}
 
-						errCh <- nil
+						return nil
 					}()
 
-					go func() {
-
-						execStatus, err = ExecStatus(assistantMsg.Message, active.Ctx)
-						if err != nil {
-							onError(fmt.Errorf("failed to get exec status: %v", err), false, assistantMsg.Id, convoCommitMsg)
-							errCh <- err
-							return
-						}
-
-						errCh <- nil
-					}()
-
-					for i := 0; i < 2; i++ {
-						err := <-errCh
-						if err != nil {
-							return
-						}
-					}
-
-					err = db.GitAddAndCommit(currentOrgId, planId, convoCommitMsg)
 					if err != nil {
-						onError(fmt.Errorf("failed to commit: %v", err), false, assistantMsg.Id, convoCommitMsg)
 						return
 					}
 
@@ -647,7 +723,7 @@ func execTellPlan(plan *db.Plan, auth *types.ServerAuth, req *shared.TellPlanReq
 
 					} else {
 						// continue plan
-						execTellPlan(plan, auth, req, active, iteration+1)
+						execTellPlan(plan, branch, auth, req, active, iteration+1)
 					}
 
 					return
@@ -680,7 +756,7 @@ func execTellPlan(plan *db.Plan, auth *types.ServerAuth, req *shared.TellPlanReq
 					})
 
 					log.Printf("Queuing build for %s\n", latestFile)
-					QueueBuild(currentOrgId, planId, &types.ActiveBuild{
+					QueueBuild(currentOrgId, currentUserId, branch, planId, &types.ActiveBuild{
 						AssistantMessageId: replyId,
 						ReplyContent:       content,
 						Path:               latestFile,

@@ -297,7 +297,7 @@ func GetPlanResult(planFileResults []*shared.PlanFileResult) *shared.PlanResult 
 	}
 }
 
-func ApplyPlan(orgId, planId string) error {
+func ApplyPlan(orgId, planId, branch string) error {
 	resultsDir := getPlanResultsDir(orgId, planId)
 
 	errCh := make(chan error)
@@ -414,7 +414,7 @@ func ApplyPlan(orgId, planId string) error {
 
 	msg := "Marked pending results as applied." + "\n\n" + planState.PendingChangesSummary()
 
-	err = GitAddAndCommit(orgId, planId, msg)
+	err = GitAddAndCommit(orgId, planId, branch, msg)
 
 	if err != nil {
 		return fmt.Errorf("error committing plan: %v", err)

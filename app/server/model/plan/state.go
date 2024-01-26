@@ -40,7 +40,6 @@ func CreateActivePlan(planId, prompt string) *types.ActivePlan {
 				}
 
 				activePlan.CancelFn()
-
 				Active.Delete(planId)
 				return
 			}

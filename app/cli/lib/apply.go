@@ -16,8 +16,8 @@ import (
 	"github.com/plandex/plandex/shared"
 )
 
-func ApplyPlanWithOutput(planId string, autoConfirm bool) error {
-	currentPlanState, apiErr := api.Client.GetCurrentPlanState(planId)
+func ApplyPlanWithOutput(planId, branch string, autoConfirm bool) error {
+	currentPlanState, apiErr := api.Client.GetCurrentPlanState(planId, branch)
 
 	if apiErr != nil {
 		return fmt.Errorf("error getting current plan state: %s", apiErr.Msg)
@@ -304,7 +304,7 @@ func ApplyPlanWithOutput(planId string, autoConfirm bool) error {
 			}
 		}
 
-		apiErr := api.Client.ApplyPlan(planId)
+		apiErr := api.Client.ApplyPlan(planId, branch)
 
 		if apiErr != nil {
 			aborted = true

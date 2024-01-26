@@ -5,19 +5,27 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
 	"plandex-server/db"
+	"plandex-server/host"
+	"plandex-server/model/plan"
+	"syscall"
+	"time"
 
-	openai "github.com/sashabaranov/go-openai"
+	"github.com/gorilla/mux"
 )
-
-var client *openai.Client
 
 func main() {
 	if os.Getenv("OPENAI_API_KEY") == "" {
 		log.Fatal("OPENAI_API_KEY environment variable is not set")
 	}
 
-	err := db.Connect()
+	err := host.LoadIp()
+	if err != nil {
+		log.Fatal("Error loading IP: ", err)
+	}
+
+	err = db.Connect()
 	if err != nil {
 		log.Fatal("Error initializing database: ", err)
 	}
@@ -27,14 +35,39 @@ func main() {
 		log.Fatal("Error running migrations: ", err)
 	}
 
-	routes := InitRoutes()
-
-	// Get port from the environment variable or default to 8088
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8088"
+	// Get externalPort from the environment variable or default to 8088
+	externalPort := os.Getenv("PORT")
+	if externalPort == "" {
+		externalPort = "8088"
 	}
 
-	log.Printf("Plandex server is running on :%s", port)
-	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%s", port), routes))
+	go startServer(externalPort, routes())
+	log.Println("Started server on port " + externalPort)
+
+	sigTermChan := make(chan os.Signal, 1)
+	signal.Notify(sigTermChan, syscall.SIGTERM)
+
+	go func() {
+		<-sigTermChan
+
+		for {
+			l := plan.Active.Len()
+			if l == 0 {
+				break
+			}
+			log.Printf("Waiting for %d active plans to finish...\n", l)
+			time.Sleep(1 * time.Second)
+		}
+
+		os.Exit(0)
+	}()
+
+	select {}
+}
+
+func startServer(port string, routes *mux.Router) {
+	err := http.ListenAndServe(fmt.Sprintf(":%s", port), routes)
+	if err != nil {
+		log.Fatalf("Failed to start server on port %s: %v", port, err)
+	}
 }

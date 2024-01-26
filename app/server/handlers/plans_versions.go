@@ -21,6 +21,7 @@ func ListLogsHandler(w http.ResponseWriter, r *http.Request) {
 
 	vars := mux.Vars(r)
 	planId := vars["planId"]
+	branch := vars["branch"]
 
 	log.Println("planId: ", planId)
 
@@ -28,7 +29,14 @@ func ListLogsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	body, shas, err := db.GetGitCommitHistory(auth.OrgId, planId)
+	unlockFn := lockRepo(w, r, auth, db.LockScopeRead)
+	if unlockFn == nil {
+		return
+	} else {
+		defer (*unlockFn)()
+	}
+
+	body, shas, err := db.GetGitCommitHistory(auth.OrgId, planId, branch)
 
 	if err != nil {
 		log.Println("Error getting logs: ", err)
@@ -64,6 +72,7 @@ func RewindPlanHandler(w http.ResponseWriter, r *http.Request) {
 
 	vars := mux.Vars(r)
 	planId := vars["planId"]
+	branch := vars["branch"]
 
 	log.Println("planId: ", planId)
 
@@ -87,7 +96,14 @@ func RewindPlanHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = db.GitRewindToSha(auth.OrgId, planId, requestBody.Sha)
+	unlockFn := lockRepo(w, r, auth, db.LockScopeWrite)
+	if unlockFn == nil {
+		return
+	} else {
+		defer (*unlockFn)()
+	}
+
+	err = db.GitRewindToSha(auth.OrgId, planId, branch, requestBody.Sha)
 
 	if err != nil {
 		log.Println("Error rewinding plan: ", err)
@@ -95,7 +111,7 @@ func RewindPlanHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = db.SyncPlanTokens(auth.OrgId, planId)
+	err = db.SyncPlanTokens(auth.OrgId, planId, branch)
 
 	if err != nil {
 		log.Println("Error syncing plan tokens: ", err)
@@ -103,7 +119,7 @@ func RewindPlanHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sha, latest, err := db.GetLatestCommit(auth.OrgId, planId)
+	sha, latest, err := db.GetLatestCommit(auth.OrgId, planId, branch)
 
 	if err != nil {
 		log.Println("Error getting latest commit: ", err)

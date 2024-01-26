@@ -9,6 +9,7 @@ import (
 	"os"
 	"plandex-server/db"
 	"plandex-server/types"
+	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/plandex/plandex/shared"
@@ -255,7 +256,8 @@ func DeleteAllPlansHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func ListPlansHandler(w http.ResponseWriter, r *http.Request) {
-	log.Println("Received request for ListPlansHandler")
+	log.Println("Received request for ListPlans")
+
 	auth := authenticate(w, r, true)
 	if auth == nil {
 		return
@@ -270,24 +272,101 @@ func ListPlansHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	plans, err := db.ListOwnedPlans(projectId, auth.User.Id, false, "")
+	plans, err := db.ListOwnedPlans(projectId, auth.User.Id, false)
 
 	if err != nil {
-		log.Printf("Error listing plans: %v\n", err)
-		http.Error(w, "Error listing plans: "+err.Error(), http.StatusInternalServerError)
+		log.Printf("Error listing plan ids: %v\n", err)
+		http.Error(w, "Error listing plan ids: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	jsonBytes, err := json.Marshal(plans)
+	bytes, err := json.Marshal(plans)
+
 	if err != nil {
-		log.Printf("Error marshalling plans: %v\n", err)
-		http.Error(w, "Error marshalling plans: "+err.Error(), http.StatusInternalServerError)
+		log.Printf("Error marshalling plan ids: %v\n", err)
+		http.Error(w, "Error marshalling plan ids: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	log.Println("Successfully processed ListPlansHandler request")
+	w.Write(bytes)
+}
 
-	w.Write(jsonBytes)
+func GetCurrentBranchByPlanIdHandler(w http.ResponseWriter, r *http.Request) {
+	log.Println("Received request for CurrentBranchByPlanIdHandler")
+	auth := authenticate(w, r, true)
+	if auth == nil {
+		return
+	}
+
+	vars := mux.Vars(r)
+	projectId := vars["projectId"]
+
+	log.Println("projectId: ", projectId)
+
+	if !authorizeProject(w, projectId, auth) {
+		return
+	}
+
+	var req shared.GetCurrentBranchByPlanIdRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		log.Printf("Error parsing request body: %v\n", err)
+		http.Error(w, "Error parsing request body", http.StatusBadRequest)
+		return
+	}
+
+	plans, err := db.ListOwnedPlans(projectId, auth.User.Id, false)
+
+	if err != nil {
+		log.Printf("Error listing plan ids: %v\n", err)
+		http.Error(w, "Error listing plan ids: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	query := "SELECT * FROM branches WHERE "
+
+	var orConditions []string
+	var queryArgs []interface{}
+	currentArg := 1
+	for _, plan := range plans {
+		branchName, ok := req.CurrentBranchByPlanId[plan.Id]
+
+		if !ok {
+			continue
+		}
+
+		orConditions = append(orConditions, fmt.Sprintf("(plan_id = $%d AND name = $%d)", currentArg, currentArg+1))
+		queryArgs = append(queryArgs, plan.Id, branchName)
+
+		currentArg += 2
+	}
+
+	query += "(" + strings.Join(orConditions, " OR ") + ") AND archived_at IS NULL AND deleted_at IS NULL"
+
+	var branches []db.Branch
+	err = db.Conn.Select(&branches, query, queryArgs...)
+
+	if err != nil {
+		log.Printf("Error getting branches: %v\n", err)
+		http.Error(w, "Error getting branches: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	res := map[string]*shared.Branch{}
+	for _, branch := range branches {
+		res[branch.PlanId] = branch.ToApi()
+	}
+
+	bytes, err := json.Marshal(res)
+
+	if err != nil {
+		log.Printf("Error marshalling branches: %v\n", err)
+		http.Error(w, "Error marshalling branches: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	log.Println("Successfully processed GetCurrentBranchByPlanIdHandler request")
+
+	w.Write(bytes)
 }
 
 func ListArchivedPlansHandler(w http.ResponseWriter, r *http.Request) {
@@ -306,7 +385,7 @@ func ListArchivedPlansHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	plans, err := db.ListOwnedPlans(projectId, "", true, "")
+	plans, err := db.ListOwnedPlans(projectId, "", true)
 
 	if err != nil {
 		log.Printf("Error listing plans: %v\n", err)

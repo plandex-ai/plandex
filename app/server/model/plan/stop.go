@@ -7,8 +7,7 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
-func Stop(planId, currentUserId, currentOrgId string) error {
-
+func Stop(planId, branch, currentUserId, currentOrgId string) error {
 	active := Active.Get(planId)
 
 	if active == nil {
@@ -30,7 +29,7 @@ func Stop(planId, currentUserId, currentOrgId string) error {
 		Message: content,
 	}
 
-	_, err := db.StoreConvoMessage(&userMsg, true)
+	_, err := db.StoreConvoMessage(&userMsg, currentUserId, branch, true)
 
 	if err != nil {
 		return fmt.Errorf("error storing convo message: %v", err)

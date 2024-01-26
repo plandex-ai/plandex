@@ -168,9 +168,5 @@ func (m *streamUIModel) streamUpdate(msg *shared.StreamMessage) (tea.Model, tea.
 	case shared.StreamMessageAborted:
 	}
 
-	if m.starting {
-		return m, m.spinner.Tick
-	} else {
-		return m, nil
-	}
+	return m, nil
 }

@@ -27,6 +27,13 @@ func CurrentPlanHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	unlockFn := lockRepo(w, r, auth, db.LockScopeRead)
+	if unlockFn == nil {
+		return
+	} else {
+		defer (*unlockFn)()
+	}
+
 	contexts, err := db.GetPlanContexts(auth.OrgId, planId, true)
 
 	if err != nil {
@@ -70,13 +77,21 @@ func ApplyPlanHandler(w http.ResponseWriter, r *http.Request) {
 
 	vars := mux.Vars(r)
 	planId := vars["planId"]
+	branch := vars["branch"]
 	log.Println("planId: ", planId)
 
 	if authorizePlan(w, planId, auth) == nil {
 		return
 	}
 
-	err := db.ApplyPlan(auth.OrgId, planId)
+	unlockFn := lockRepo(w, r, auth, db.LockScopeWrite)
+	if unlockFn == nil {
+		return
+	} else {
+		defer (*unlockFn)()
+	}
+
+	err := db.ApplyPlan(auth.OrgId, planId, branch)
 
 	if err != nil {
 		log.Printf("Error applying plan: %v\n", err)
@@ -101,6 +116,13 @@ func RejectAllChangesHandler(w http.ResponseWriter, r *http.Request) {
 
 	if authorizePlan(w, planId, auth) == nil {
 		return
+	}
+
+	unlockFn := lockRepo(w, r, auth, db.LockScopeWrite)
+	if unlockFn == nil {
+		return
+	} else {
+		defer (*unlockFn)()
 	}
 
 	err := db.RejectAllResults(auth.OrgId, planId)
@@ -132,6 +154,13 @@ func RejectResultHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	unlockFn := lockRepo(w, r, auth, db.LockScopeWrite)
+	if unlockFn == nil {
+		return
+	} else {
+		defer (*unlockFn)()
+	}
+
 	err := db.RejectPlanFileResult(auth.OrgId, planId, resultId, time.Now())
 
 	if err != nil {
@@ -160,6 +189,13 @@ func RejectReplacementHandler(w http.ResponseWriter, r *http.Request) {
 
 	if authorizePlan(w, planId, auth) == nil {
 		return
+	}
+
+	unlockFn := lockRepo(w, r, auth, db.LockScopeWrite)
+	if unlockFn == nil {
+		return
+	} else {
+		defer (*unlockFn)()
 	}
 
 	err := db.RejectReplacement(auth.OrgId, planId, resultId, replacementId)

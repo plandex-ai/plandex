@@ -3,6 +3,7 @@ package db
 import (
 	"bytes"
 	"fmt"
+	"log"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -30,7 +31,7 @@ func InitGitRepo(orgId, planId string) error {
 	return nil
 }
 
-func GitAddAndCommit(orgId, planId, message string) error {
+func GitAddAndCommit(orgId, planId, branch, message string) error {
 	dir := getPlanDir(orgId, planId)
 
 	err := gitAdd(dir, ".")
@@ -46,7 +47,7 @@ func GitAddAndCommit(orgId, planId, message string) error {
 	return nil
 }
 
-func GitRewindToSha(orgId, planId, sha string) error {
+func GitRewindToSha(orgId, planId, branch, sha string) error {
 	dir := getPlanDir(orgId, planId)
 
 	err := gitRewindToSha(dir, sha)
@@ -57,7 +58,7 @@ func GitRewindToSha(orgId, planId, sha string) error {
 	return nil
 }
 
-func GetGitCommitHistory(orgId, planId string) (body string, shas []string, err error) {
+func GetGitCommitHistory(orgId, planId, branch string) (body string, shas []string, err error) {
 	dir := getPlanDir(orgId, planId)
 
 	body, shas, err = getGitCommitHistory(dir)
@@ -68,7 +69,7 @@ func GetGitCommitHistory(orgId, planId string) (body string, shas []string, err 
 	return body, shas, nil
 }
 
-func GetLatestCommit(orgId, planId string) (sha, body string, err error) {
+func GetLatestCommit(orgId, planId, branch string) (sha, body string, err error) {
 	dir := getPlanDir(orgId, planId)
 
 	sha, body, err = getLatestCommit(dir)
@@ -77,6 +78,54 @@ func GetLatestCommit(orgId, planId string) (sha, body string, err error) {
 	}
 
 	return sha, body, nil
+}
+
+func GitListBranches(orgId, planId string) ([]string, error) {
+	dir := getPlanDir(orgId, planId)
+
+	var out bytes.Buffer
+	cmd := exec.Command("git", "branch", "--format=%(refname:short)")
+	cmd.Dir = dir
+	cmd.Stdout = &out
+	err := cmd.Run()
+	if err != nil {
+		return nil, fmt.Errorf("error getting git branches for dir: %s, err: %v", dir, err)
+	}
+
+	branches := strings.Split(strings.TrimSpace(out.String()), "\n")
+
+	return branches, nil
+}
+
+func GitCreateBranch(orgId, planId, branch, newBranch string) error {
+	dir := getPlanDir(orgId, planId)
+
+	res, err := exec.Command("git", "-C", dir, "checkout", "-b", newBranch).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("error creating git branch for dir: %s, err: %v, output: %s", dir, err, string(res))
+	}
+
+	return nil
+}
+
+func GitDeleteBranch(orgId, planId, branchName string) error {
+	dir := getPlanDir(orgId, planId)
+
+	res, err := exec.Command("git", "-C", dir, "branch", "-D", branchName).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("error deleting git branch for dir: %s, err: %v, output: %s", dir, err, string(res))
+	}
+
+	return nil
+}
+
+func gitCheckoutBranch(repoDir, branch string) error {
+	res, err := exec.Command("git", "-C", repoDir, "checkout", branch).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("error checking out git branch for dir: %s, err: %v, output: %s", repoDir, err, string(res))
+	}
+
+	return nil
 }
 
 func gitRewindToSha(repoDir, sha string) error {
@@ -198,6 +247,146 @@ func gitCommit(repoDir, commitMsg string) error {
 	res, err := exec.Command("git", "-C", repoDir, "commit", "-m", commitMsg).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("error committing files to git repository for dir: %s, err: %v, output: %s", repoDir, err, string(res))
+	}
+
+	return nil
+}
+
+// distributed locking to ensure only one user can write to a plan repo at a time
+// multiple readers are allowed, but read locks block writes
+// write lock is exclusive (blocks both reads and writes)
+const lockTimeout = 60 * time.Second
+
+func LockRepo(orgId, userId, planId, branch string, scope LockScope) (string, error) {
+	return lockRepo(orgId, userId, planId, branch, scope, 0)
+}
+
+func lockRepo(orgId, userId, planId, branch string, scope LockScope, numRetry int) (string, error) {
+	tx, err := Conn.Begin()
+	if err != nil {
+		return "", fmt.Errorf("error starting transaction: %v", err)
+	}
+
+	// Ensure that rollback is attempted in case of failure
+	defer func() {
+		if err != nil {
+			if rbErr := tx.Rollback(); rbErr != nil {
+				log.Printf("transaction rollback error: %v\n", rbErr)
+			} else {
+				log.Println("transaction rolled back")
+			}
+		}
+	}()
+
+	query := "SELECT * FROM repo_locks WHERE plan_id = $1 FOR UPDATE"
+	queryArgs := []interface{}{planId}
+
+	var locks []*repoLock
+
+	fn := func() error {
+		rows, err := tx.Query(query, queryArgs...)
+		if err != nil {
+			return fmt.Errorf("error getting repo locks: %v", err)
+		}
+
+		defer rows.Close()
+
+		now := time.Now()
+		for rows.Next() {
+			var lock repoLock
+			if err := rows.Scan(&lock.Id, &lock.OrgId, &lock.UserId, &lock.PlanId, &lock.Scope, &lock.CreatedAt); err != nil {
+				return fmt.Errorf("error scanning repo lock: %v", err)
+			}
+			if now.Sub(lock.CreatedAt) < lockTimeout {
+				locks = append(locks, &lock)
+			} else {
+				_, err = tx.Exec("DELETE FROM repo_locks WHERE id = $1", lock.Id)
+				if err != nil {
+					return fmt.Errorf("error removing expired lock: %v", err)
+				}
+			}
+		}
+
+		return nil
+	}
+	if err := fn(); err != nil {
+		return "", err
+	}
+
+	canAcquire := true
+	canRetry := true
+
+	for _, lock := range locks {
+		lockBranch := ""
+		if lock.Branch != nil {
+			lockBranch = *lock.Branch
+		}
+
+		if scope == LockScopeRead {
+			canAcquireThisLock := lock.Scope == LockScopeRead && lockBranch == branch
+
+			if !canAcquireThisLock {
+				canAcquire = false
+			}
+		} else if scope == LockScopeWrite {
+			canAcquire = false
+			if lock.Scope == LockScopeWrite && lockBranch == branch {
+				canRetry = false
+			}
+		} else {
+			err = fmt.Errorf("invalid lock scope: %v", scope)
+			return "", err
+		}
+	}
+
+	if !canAcquire {
+		if canRetry {
+			// 10 second timeout
+			if numRetry > 20 {
+				err = fmt.Errorf("plan is currently being updated by another user")
+				return "", err
+			}
+			time.Sleep(500 * time.Millisecond)
+			return lockRepo(orgId, userId, planId, branch, scope, numRetry+1)
+		}
+		err = fmt.Errorf("plan is currently being updated by another user")
+		return "", err
+	}
+
+	// Insert the new lock
+	newLock := &repoLock{
+		OrgId:  orgId,
+		UserId: userId,
+		PlanId: planId,
+		Scope:  scope,
+	}
+	insertQuery := "INSERT INTO repo_locks (org_id, user_id, plan_id, scope, branch) VALUES ($1, $2, $3, $4, $5) RETURNING id"
+	err = tx.QueryRow(insertQuery, newLock.OrgId, newLock.UserId, newLock.PlanId, newLock.Scope, branch).Scan(&newLock.Id)
+	if err != nil {
+		return "", fmt.Errorf("error inserting new lock: %v", err)
+	}
+
+	if branch != "" {
+		// checkout the branch
+		err = gitCheckoutBranch(getPlanDir(orgId, planId), branch)
+		if err != nil {
+			return "", fmt.Errorf("error checking out branch: %v", err)
+		}
+	}
+
+	// Commit the transaction
+	if err = tx.Commit(); err != nil {
+		return "", fmt.Errorf("error committing transaction: %v", err)
+	}
+
+	return newLock.Id, nil
+}
+
+func UnlockRepo(id string) error {
+	query := "DELETE FROM repo_locks WHERE id = $1"
+	_, err := Conn.Exec(query, id)
+	if err != nil {
+		return fmt.Errorf("error removing lock: %v", err)
 	}
 
 	return nil

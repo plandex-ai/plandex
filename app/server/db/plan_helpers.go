@@ -1,6 +1,7 @@
 package db
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -10,37 +11,58 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/plandex/plandex/shared"
+	"github.com/sashabaranov/go-openai"
 )
 
 func CreatePlan(orgId, projectId, userId, name string) (*Plan, error) {
-	query := "INSERT INTO plans (org_id, owner_id, project_id, name, status) VALUES (:org_id, :owner_id, :project_id, :name, :status) RETURNING id, created_at, updated_at"
+	// start a transaction
+	tx, err := Conn.Begin()
+	if err != nil {
+		return nil, fmt.Errorf("error starting transaction: %v", err)
+	}
+
+	// Ensure that rollback is attempted in case of failure
+	defer func() {
+		if err != nil {
+			if rbErr := tx.Rollback(); rbErr != nil {
+				log.Printf("transaction rollback error: %v\n", rbErr)
+			} else {
+				log.Println("transaction rolled back")
+			}
+		}
+	}()
+
+	query := `INSERT INTO plans (org_id, owner_id, project_id, name) 
+	VALUES ($1, $2, $3, $4)
+	RETURNING id, created_at, updated_at`
 
 	plan := &Plan{
 		OrgId:     orgId,
 		OwnerId:   userId,
 		ProjectId: projectId,
 		Name:      name,
-		Status:    shared.PlanStatusDraft,
 	}
 
-	row, err := Conn.NamedQuery(query, plan)
+	err = tx.QueryRow(
+		query,
+		orgId,
+		userId,
+		projectId,
+		name,
+	).Scan(
+		&plan.Id,
+		&plan.CreatedAt,
+		&plan.UpdatedAt,
+	)
 
 	if err != nil {
 		return nil, fmt.Errorf("error creating plan: %v", err)
 	}
 
-	defer row.Close()
+	_, err = CreateBranch(plan, nil, "main", tx)
 
-	if row.Next() {
-		var createdAt, updatedAt time.Time
-		var id string
-		if err := row.Scan(&id, &createdAt, &updatedAt); err != nil {
-			return nil, fmt.Errorf("error creating plan: %v", err)
-		}
-
-		plan.Id = id
-		plan.CreatedAt = createdAt
-		plan.UpdatedAt = updatedAt
+	if err != nil {
+		return nil, fmt.Errorf("error creating main branch: %v", err)
 	}
 
 	err = InitPlan(orgId, plan.Id)
@@ -52,19 +74,14 @@ func CreatePlan(orgId, projectId, userId, name string) (*Plan, error) {
 	return plan, nil
 }
 
-func ListOwnedPlans(projectId, userId string, archived bool, status string) ([]shared.Plan, error) {
-	qs := "SELECT id, owner_id, name, status, context_tokens, convo_tokens, shared_with_org_at, archived_at, created_at, updated_at FROM plans WHERE project_id = $1 AND owner_id = $2"
+func ListOwnedPlans(projectId, userId string, archived bool) ([]shared.Plan, error) {
+	qs := "SELECT id, owner_id, name, shared_with_org_at, archived_at, created_at, updated_at FROM plans WHERE project_id = $1 AND owner_id = $2"
 	qargs := []interface{}{projectId, userId}
 
 	if archived {
 		qs += " AND archived_at IS NOT NULL"
 	} else {
 		qs += " AND archived_at IS NULL"
-	}
-
-	if status != "" {
-		qs += " AND status = $3"
-		qargs = append(qargs, status)
 	}
 
 	qs += " ORDER BY updated_at DESC"
@@ -79,7 +96,7 @@ func ListOwnedPlans(projectId, userId string, archived bool, status string) ([]s
 	for res.Next() {
 		var plan shared.Plan
 
-		err := res.Scan(&plan.Id, &plan.OwnerId, &plan.Name, &plan.Status, &plan.ContextTokens, &plan.ConvoTokens, &plan.SharedWithOrgAt, &plan.ArchivedAt, &plan.CreatedAt, &plan.UpdatedAt)
+		err := res.Scan(&plan.Id, &plan.OwnerId, &plan.Name, &plan.SharedWithOrgAt, &plan.ArchivedAt, &plan.CreatedAt, &plan.UpdatedAt)
 
 		if err != nil {
 			return nil, fmt.Errorf("error scanning plan: %v", err)
@@ -90,23 +107,52 @@ func ListOwnedPlans(projectId, userId string, archived bool, status string) ([]s
 	return plans, nil
 }
 
-func AddPlanContextTokens(planId string, addTokens int) error {
-	_, err := Conn.Exec("UPDATE plans SET context_tokens = context_tokens + $1 WHERE id = $2", addTokens, planId)
+func AddPlanContextTokens(planId, branch string, addTokens int) error {
+	_, err := Conn.Exec("UPDATE branches SET context_tokens = context_tokens + $1 WHERE plan_id = $2 AND name = $3", addTokens, planId, branch)
 	if err != nil {
 		return fmt.Errorf("error updating plan tokens: %v", err)
 	}
 	return nil
 }
 
-func AddPlanConvoMessage(planId string, addTokens int) error {
-	_, err := Conn.Exec("UPDATE plans SET convo_tokens = convo_tokens + $1, total_messages = total_messages + 1 WHERE id = $2", addTokens, planId)
-	if err != nil {
-		return fmt.Errorf("error updating plan tokens: %v", err)
+func AddPlanConvoMessage(msg *ConvoMessage, branch string) error {
+	errCh := make(chan error)
+
+	go func() {
+		_, err := Conn.Exec("UPDATE branches SET convo_tokens = convo_tokens + $1 WHERE plan_id = $2 AND name = $3", msg.Tokens, msg.PlanId, branch)
+
+		if err != nil {
+			errCh <- fmt.Errorf("error updating plan tokens: %v", err)
+			return
+		}
+
+		errCh <- nil
+	}()
+
+	go func() {
+		if msg.Role != openai.ChatMessageRoleAssistant {
+			errCh <- nil
+			return
+		}
+		_, err := Conn.Exec("UPDATE plans SET total_replies = total_replies + 1 WHERE id = $1", msg.PlanId)
+		if err != nil {
+			errCh <- fmt.Errorf("error updating plan total replies: %v", err)
+		}
+
+		errCh <- nil
+	}()
+
+	for i := 0; i < 2; i++ {
+		err := <-errCh
+		if err != nil {
+			return fmt.Errorf("error updating plan tokens: %v", err)
+		}
 	}
+
 	return nil
 }
 
-func SyncPlanTokens(orgId, planId string) error {
+func SyncPlanTokens(orgId, planId, branch string) error {
 	var contexts []*Context
 	var convos []*ConvoMessage
 	errCh := make(chan error)
@@ -152,7 +198,7 @@ func SyncPlanTokens(orgId, planId string) error {
 func GetPlan(planId string) (*Plan, error) {
 	var plan Plan
 
-	err := Conn.Get(&plan, "SELECT id, org_id, owner_id, project_id, name, status, error, context_tokens, convo_tokens, shared_with_org_at, total_messages, archived_at, created_at, updated_at FROM plans WHERE id = $1", planId)
+	err := Conn.Get(&plan, "SELECT id, org_id, owner_id, project_id, name, status, error, context_tokens, convo_tokens, shared_with_org_at, total_replies, archived_at, created_at, updated_at FROM plans WHERE id = $1", planId)
 
 	if err != nil {
 		return nil, fmt.Errorf("error getting plan: %v", err)
@@ -176,6 +222,16 @@ func RenamePlan(planId string, name string) error {
 
 	if err != nil {
 		return fmt.Errorf("error renaming plan: %v", err)
+	}
+
+	return nil
+}
+
+func IncActiveBranches(planId string, inc int, tx *sql.Tx) error {
+	_, err := tx.Exec("UPDATE plans SET active_branches = active_branches + $1 WHERE id = $2", inc, planId)
+
+	if err != nil {
+		return fmt.Errorf("error updating plan active branches: %v", err)
 	}
 
 	return nil

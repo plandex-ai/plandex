@@ -51,11 +51,23 @@ type Plan struct {
 	Id              string     `json:"id"`
 	OwnerId         string     `json:"ownerId"`
 	Name            string     `json:"name"`
+	SharedWithOrgAt *time.Time `json:"sharedWithOrgAt,omitempty"`
+	TotalReplies    int        `json:"totalReplies"`
+	ActiveBranches  int        `json:"activeBranches"`
+	ArchivedAt      *time.Time `json:"archivedAt,omitempty"`
+	CreatedAt       time.Time  `json:"createdAt"`
+	UpdatedAt       time.Time  `json:"updatedAt"`
+}
+
+type Branch struct {
+	Id              string     `json:"id"`
+	OwnerId         string     `json:"ownerId"`
+	ParentBranchId  *string    `json:"parentBranchId"`
+	Name            string     `json:"name"`
 	Status          PlanStatus `json:"status"`
 	ContextTokens   int        `json:"contextTokens"`
 	ConvoTokens     int        `json:"convoTokens"`
 	SharedWithOrgAt *time.Time `json:"sharedWithOrgAt,omitempty"`
-	TotalMessages   int        `json:"totalMessages"`
 	ArchivedAt      *time.Time `json:"archivedAt,omitempty"`
 	CreatedAt       time.Time  `json:"createdAt"`
 	UpdatedAt       time.Time  `json:"updatedAt"`

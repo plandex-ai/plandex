@@ -169,7 +169,7 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 		os.Exit(0)
 	}
 
-	res, apiErr := api.Client.LoadContext(CurrentPlanId, loadContextReq)
+	res, apiErr := api.Client.LoadContext(CurrentPlanId, CurrentBranch, loadContextReq)
 
 	if apiErr != nil {
 		onErr(fmt.Errorf("failed to load context: %v", apiErr.Msg))

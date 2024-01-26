@@ -124,20 +124,17 @@ type UserProject struct {
 }
 
 type Plan struct {
-	Id              string            `db:"id"`
-	OrgId           string            `db:"org_id"`
-	OwnerId         string            `db:"owner_id"`
-	ProjectId       string            `db:"project_id"`
-	Name            string            `db:"name"`
-	Status          shared.PlanStatus `db:"status"`
-	Error           *string           `db:"error"`
-	ContextTokens   int               `db:"context_tokens"`
-	ConvoTokens     int               `db:"convo_tokens"`
-	SharedWithOrgAt *time.Time        `db:"shared_with_org_at,omitempty"`
-	TotalMessages   int               `db:"total_messages"`
-	ArchivedAt      *time.Time        `db:"archived_at,omitempty"`
-	CreatedAt       time.Time         `db:"created_at"`
-	UpdatedAt       time.Time         `db:"updated_at"`
+	Id              string     `db:"id"`
+	OrgId           string     `db:"org_id"`
+	OwnerId         string     `db:"owner_id"`
+	ProjectId       string     `db:"project_id"`
+	Name            string     `db:"name"`
+	SharedWithOrgAt *time.Time `db:"shared_with_org_at,omitempty"`
+	TotalReplies    int        `db:"total_replies"`
+	ActiveBranches  int        `db:"active_branches"`
+	ArchivedAt      *time.Time `db:"archived_at,omitempty"`
+	CreatedAt       time.Time  `db:"created_at"`
+	UpdatedAt       time.Time  `db:"updated_at"`
 }
 
 func (plan *Plan) ToApi() *shared.Plan {
@@ -145,14 +142,45 @@ func (plan *Plan) ToApi() *shared.Plan {
 		Id:              plan.Id,
 		OwnerId:         plan.OwnerId,
 		Name:            plan.Name,
-		Status:          plan.Status,
-		ContextTokens:   plan.ContextTokens,
-		ConvoTokens:     plan.ConvoTokens,
 		SharedWithOrgAt: plan.SharedWithOrgAt,
-		TotalMessages:   plan.TotalMessages,
+		TotalReplies:    plan.TotalReplies,
+		ActiveBranches:  plan.ActiveBranches,
 		ArchivedAt:      plan.ArchivedAt,
 		CreatedAt:       plan.CreatedAt,
 		UpdatedAt:       plan.UpdatedAt,
+	}
+}
+
+type Branch struct {
+	Id              string            `db:"id"`
+	OrgId           string            `db:"org_id"`
+	OwnerId         string            `db:"owner_id"`
+	PlanId          string            `db:"plan_id"`
+	ParentBranchId  *string           `db:"parent_branch_id"`
+	Name            string            `db:"name"`
+	Status          shared.PlanStatus `db:"status"`
+	Error           *string           `db:"error"`
+	ContextTokens   int               `db:"context_tokens"`
+	ConvoTokens     int               `db:"convo_tokens"`
+	SharedWithOrgAt *time.Time        `db:"shared_with_org_at,omitempty"`
+	ArchivedAt      *time.Time        `db:"archived_at,omitempty"`
+	CreatedAt       time.Time         `db:"created_at"`
+	UpdatedAt       time.Time         `db:"updated_at"`
+}
+
+func (branch *Branch) ToApi() *shared.Branch {
+	return &shared.Branch{
+		Id:              branch.Id,
+		OwnerId:         branch.OwnerId,
+		ParentBranchId:  branch.ParentBranchId,
+		Name:            branch.Name,
+		Status:          branch.Status,
+		ContextTokens:   branch.ContextTokens,
+		ConvoTokens:     branch.ConvoTokens,
+		SharedWithOrgAt: branch.SharedWithOrgAt,
+		ArchivedAt:      branch.ArchivedAt,
+		CreatedAt:       branch.CreatedAt,
+		UpdatedAt:       branch.UpdatedAt,
 	}
 }
 
@@ -219,6 +247,43 @@ func (role *OrgRole) ToApi() *shared.OrgRole {
 		Label:       role.Label,
 		Description: role.Description,
 	}
+}
+
+type ModelStream struct {
+	Id         string     `db:"id"`
+	OrgId      string     `db:"org_id"`
+	PlanId     string     `db:"plan_id"`
+	InternalIp string     `db:"internal_ip"`
+	CreatedAt  time.Time  `db:"created_at"`
+	FinishedAt *time.Time `db:"finished_at"`
+}
+
+// type ModelStreamSubscription struct {
+// 	Id            string     `db:"id"`
+// 	OrgId         string     `db:"org_id"`
+// 	PlanId        string     `db:"plan_id"`
+// 	UserId        string     `db:"user_id"`
+// 	ModelStreamId string     `db:"model_stream_id"`
+// 	UserIp        string     `db:"user_ip"`
+// 	CreatedAt     time.Time  `db:"created_at"`
+// 	FinishedAt    *time.Time `db:"finished_at"`
+// }
+
+type LockScope string
+
+const (
+	LockScopeRead  LockScope = "r"
+	LockScopeWrite LockScope = "w"
+)
+
+type repoLock struct {
+	Id        string    `db:"id"`
+	OrgId     string    `db:"org_id"`
+	UserId    string    `db:"user_id"`
+	PlanId    string    `db:"plan_id"`
+	Scope     LockScope `db:"scope"`
+	Branch    *string   `db:"branch"`
+	CreatedAt time.Time `db:"created_at"`
 }
 
 // Models below are stored in files, not in the database.

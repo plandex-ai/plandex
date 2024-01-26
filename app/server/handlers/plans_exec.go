@@ -14,7 +14,7 @@ import (
 	"github.com/plandex/plandex/shared"
 )
 
-const TrialMaxMessages = 15
+const TrialMaxReplies = 10
 
 func TellPlanHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for TellPlanHandler")
@@ -26,6 +26,7 @@ func TellPlanHandler(w http.ResponseWriter, r *http.Request) {
 
 	vars := mux.Vars(r)
 	planId := vars["planId"]
+	branch := vars["branch"]
 
 	log.Println("planId: ", planId)
 
@@ -69,13 +70,13 @@ func TellPlanHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if user.IsTrial {
-			if plan.TotalMessages >= types.TrialMaxMessages {
+			if plan.TotalReplies >= types.TrialMaxReplies {
 				writeApiError(w, shared.ApiError{
 					Type:   shared.ApiErrorTypeTrialMessagesExceeded,
 					Status: http.StatusForbidden,
 					Msg:    "Free trial message limit exceeded",
 					TrialMessagesExceededError: &shared.TrialMessagesExceededError{
-						MaxMessages: types.TrialMaxMessages,
+						MaxReplies: types.TrialMaxReplies,
 					},
 				})
 				return
@@ -83,7 +84,7 @@ func TellPlanHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	err = model.Tell(plan, auth, &requestBody)
+	err = model.Tell(plan, branch, auth, &requestBody)
 
 	if err != nil {
 		log.Printf("Error telling plan: %v\n", err)
@@ -139,6 +140,8 @@ func ConnectPlanHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func StopPlanHandler(w http.ResponseWriter, r *http.Request) {
+	// TODO: this handler should lookup the IP of the active plan stream and forward the request if it's not the same as this server's IP
+
 	log.Println("Received request for StopPlanHandler")
 	auth := authenticate(w, r, true)
 	if auth == nil {
@@ -147,6 +150,7 @@ func StopPlanHandler(w http.ResponseWriter, r *http.Request) {
 
 	vars := mux.Vars(r)
 	planId := vars["planId"]
+	branch := vars["branch"]
 
 	log.Println("planId: ", planId)
 
@@ -154,4 +158,20 @@ func StopPlanHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	unlockFn := lockRepo(w, r, auth, db.LockScopeWrite)
+	if unlockFn == nil {
+		return
+	} else {
+		defer (*unlockFn)()
+	}
+
+	err := model.Stop(planId, branch, auth.User.Id, auth.OrgId)
+
+	if err != nil {
+		log.Printf("Error stopping plan: %v\n", err)
+		http.Error(w, "Error stopping plan", http.StatusInternalServerError)
+		return
+	}
+
+	log.Println("Successfully processed request for StopPlanHandler")
 }

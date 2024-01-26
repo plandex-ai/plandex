@@ -62,7 +62,7 @@ func GetPlanConvo(orgId, planId string) ([]*ConvoMessage, error) {
 	return convo, nil
 }
 
-func StoreConvoMessage(message *ConvoMessage, commit bool) (string, error) {
+func StoreConvoMessage(message *ConvoMessage, currentUserId, branch string, commit bool) (string, error) {
 	convoDir := getPlanConversationDir(message.OrgId, message.PlanId)
 
 	ts := time.Now().UTC()
@@ -85,7 +85,7 @@ func StoreConvoMessage(message *ConvoMessage, commit bool) (string, error) {
 		return "", fmt.Errorf("error writing convo message: %v", err)
 	}
 
-	err = AddPlanConvoMessage(message.PlanId, message.Tokens)
+	err = AddPlanConvoMessage(message, branch)
 
 	if err != nil {
 		return "", fmt.Errorf("error adding convo tokens: %v", err)
@@ -105,47 +105,11 @@ func StoreConvoMessage(message *ConvoMessage, commit bool) (string, error) {
 	msg := fmt.Sprintf("Message #%d | %s | %d 🪙", message.Num, desc, message.Tokens)
 
 	if commit {
-		err = GitAddAndCommit(message.OrgId, message.PlanId, msg)
+		err = GitAddAndCommit(message.OrgId, message.PlanId, branch, msg)
 		if err != nil {
 			return "", fmt.Errorf("error committing convo message: %v", err)
 		}
 	}
 
 	return msg, nil
-}
-
-func GetPlanSummaries(planId string) ([]*ConvoSummary, error) {
-	var summaries []*ConvoSummary
-
-	err := Conn.Select(&summaries, "SELECT * FROM convo_summaries WHERE plan_id = $1 ORDER BY created_at", planId)
-
-	if err != nil {
-		return nil, fmt.Errorf("error getting plan summaries: %v", err)
-	}
-	return summaries, nil
-}
-
-func StoreSummary(summary *ConvoSummary) error {
-	query := "INSERT INTO convo_summaries (org_id, plan_id, latest_convo_message_id, latest_convo_message_created_at, summary, tokens, num_messages) VALUES (:org_id, :plan_id, :latest_convo_message_id, :latest_convo_message_created_at, :summary, :tokens, :num_messages) RETURNING id, created_at"
-
-	row, err := Conn.NamedQuery(query, summary)
-
-	if err != nil {
-		return fmt.Errorf("error storing summary: %v", err)
-	}
-
-	defer row.Close()
-
-	if row.Next() {
-		var createdAt time.Time
-		var id string
-		if err := row.Scan(&id, &createdAt); err != nil {
-			return fmt.Errorf("error storing summary: %v", err)
-		}
-
-		summary.Id = id
-		summary.CreatedAt = createdAt
-	}
-
-	return nil
 }

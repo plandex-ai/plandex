@@ -30,7 +30,7 @@ func contextRm(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	contexts, err := api.Client.ListContext(lib.CurrentPlanId)
+	contexts, err := api.Client.ListContext(lib.CurrentPlanId, lib.CurrentBranch)
 
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Error retrieving context:", err)
@@ -60,7 +60,7 @@ func contextRm(cmd *cobra.Command, args []string) {
 	}
 
 	if len(deleteIds) > 0 {
-		res, err := api.Client.DeleteContext(lib.CurrentPlanId, shared.DeleteContextRequest{
+		res, err := api.Client.DeleteContext(lib.CurrentPlanId, lib.CurrentBranch, shared.DeleteContextRequest{
 			Ids: deleteIds,
 		})
 
