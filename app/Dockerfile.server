@@ -1,0 +1,16 @@
+FROM golang:1.21
+
+WORKDIR /app
+
+COPY ./shared/go.mod ./shared/go.sum ./shared/
+RUN cd shared && go mod download
+
+COPY ./server/go.mod ./server/go.sum ./server/
+RUN cd server && go mod download
+
+COPY ./server ./server
+COPY ./shared ./shared
+
+RUN cd server && go build -o plandex-server .
+
+CMD ["./server/plandex-server"]
