@@ -5,13 +5,13 @@ import * as secretsmanager from "@aws-cdk/aws-secretsmanager";
 import * as ecs from "@aws-cdk/aws-ecs";
 import * as ecr from "@aws-cdk/aws-ecr";
 import * as efs from "@aws-cdk/aws-efs";
+import * as elbv2 from '@aws-cdk/aws-elasticloadbalancingv2';
 import * as iam from "@aws-cdk/aws-iam";
-import * as ses from "@aws-cdk/aws-ses";
 import { v4 as uuid } from "uuid";
 
 const tag = uuid().split("-")[0];
 
-export class MyStack extends cdk.Stack {
+export class PlandexStack extends cdk.Stack {
   constructor(scope: cdk.Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
@@ -105,16 +105,16 @@ export class MyStack extends cdk.Stack {
     );
 
     // Add a container to the task definition
-    const container = taskDefinition.addContainer("MyContainer", {
+    const container = taskDefinition.addContainer("plandex-server", {
       image: ecs.ContainerImage.fromEcrRepository(ecrRepository),
-      logging: new ecs.AwsLogDriver({ streamPrefix: "MyContainer" }),
+      logging: new ecs.AwsLogDriver({ streamPrefix: "plandex-server" }),
       environment: {
-        ECS_CONTAINER_STOP_TIMEOUT: "10m", // gives time for streams to finish before container is stopped
+        ECS_CONTAINER_STOP_TIMEOUT: "60m", // gives time for streams to finish before container is stopped
       },
     });
 
     // Mount the EFS file system to the container
-    const volumeName = "MyEfsVolume";
+    const volumeName = "plandex-efs-volume";
     taskDefinition.addVolume({
       name: volumeName,
       efsVolumeConfiguration: {
@@ -144,7 +144,9 @@ export class MyStack extends cdk.Stack {
       "Allow Fargate service to access RDS instance"
     );
 
-    const fargateService = new ecs.FargateService(
+    import * as elbv2 from '@aws-cdk/aws-elasticloadbalancingv2';
+
+const fargateService = new ecs.FargateService(
       this,
       `plandex-fargate-service-${tag}`,
       {
@@ -155,17 +157,58 @@ export class MyStack extends cdk.Stack {
       }
     );
 
-    // Create an SES email sending resource
-    // Note: SES setup can vary based on the region and verification status. Here, we're creating a simple rule set.
-    const emailSendingResource = new ses.CfnReceiptRuleSet(
-      this,
-      `plandex-email-sending-resource-${tag}`,
-      {
-        ruleSetName: "MyRuleSet",
-      }
-    );
+    // Create an Application Load Balancer in the VPC
+    const alb = new elbv2.ApplicationLoadBalancer(this, `plandex-alb-${tag}`, {
+      vpc,
+      internetFacing: true,
+    });
+
+    // Create a listener for the ALB
+    const certificate = acm.Certificate.fromCertificateArn(this, 'Certificate', 'arn:aws:acm:region:account-id:certificate/certificate-id');
+
+    const listener = alb.addListener('plandexListener', {
+      port: 443,
+      certificates: [certificate]
+    });
+
+    // Add a target group for the ECS service
+    const targetGroup = listener.addTargets('plandexEcsTarget', {
+      port: 80,
+      targets: [fargateService],
+    });
+
+    // Adjust the security group for the ALB to allow inbound traffic on port 80
+    listener.addRedirectResponse('HTTPtoHTTPSRedirect', {
+      statusCode: 'HTTP_301',
+      protocol: 'HTTPS',
+      port: '443',
+      host: '#{host}',
+      path: '/#{path}',
+      query: '#{query}'
+    });
+    alb.connections.allowFromAnyIpv4(ec2.Port.tcp(443), 'Allow inbound HTTPS traffic');
   }
 }
 
+    // Create an Application Load Balancer in the VPC
+    const alb = new elbv2.ApplicationLoadBalancer(this, `plandex-alb-${tag}`, {
+      vpc,
+      internetFacing: true,
+    });
+
+    // Create a listener for the ALB
+    const listener = alb.addListener('plandexListener', {
+      port: 80,
+    });
+
+    // Add a target group for the ECS service
+    const targetGroup = listener.addTargets('plandexEcsTarget', {
+      port: 80,
+      targets: [fargateService],
+    });
+
+    // Adjust the security group for the ALB to allow inbound traffic on port 80
+    alb.connections.allowFromAnyIpv4(ec2.Port.tcp(80), 'Allow inbound HTTP traffic');
+
 const app = new cdk.App();
-new MyStack(app, "plandex-stack-" + tag);
+new PlandexStack(app, "plandex-stack-" + tag);
