@@ -10,6 +10,7 @@ import (
 
 var ui *tea.Program
 var mu sync.Mutex
+var wg sync.WaitGroup
 
 func StartStreamUI() error {
 	initial := initialModel()
@@ -18,7 +19,9 @@ func StartStreamUI() error {
 	ui = tea.NewProgram(initial, tea.WithAltScreen())
 	mu.Unlock()
 
+	wg.Add(1)
 	_, err := ui.Run()
+	wg.Done()
 
 	if err != nil {
 		return fmt.Errorf("error running changes UI: %v", err)
@@ -35,6 +38,8 @@ func Quit() {
 	mu.Lock()
 	defer mu.Unlock()
 	ui.Quit()
+
+	wg.Wait() // Wait for the UI to fully terminate
 }
 
 func Send(msg tea.Msg) {

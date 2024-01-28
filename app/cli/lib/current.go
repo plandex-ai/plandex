@@ -96,17 +96,19 @@ func MustLoadCurrentPlan() {
 
 	CurrentPlanId = currentPlan.Id
 
-	err = loadCurrentBranch()
-
-	if err != nil {
-		panic(fmt.Errorf("error loading current branch: %v", err))
-	}
-
-	if CurrentBranch == "" {
-		err = WriteCurrentBranch("main")
+	if CurrentPlanId != "" {
+		err = loadCurrentBranch()
 
 		if err != nil {
-			panic(fmt.Errorf("error setting current branch: %v", err))
+			panic(fmt.Errorf("error loading current branch: %v", err))
+		}
+
+		if CurrentBranch == "" {
+			err = WriteCurrentBranch("main")
+
+			if err != nil {
+				panic(fmt.Errorf("error setting current branch: %v", err))
+			}
 		}
 	}
 }

@@ -79,7 +79,15 @@ func WriteCurrentBranch(branch string) error {
 		return fmt.Errorf("error marshalling current plan settings: %v", err)
 	}
 
-	path := filepath.Join(fs.HomePlandexDir, CurrentProjectId, CurrentPlanId, "settings.json")
+	dir := filepath.Join(fs.HomePlandexDir, CurrentProjectId, CurrentPlanId)
+
+	err = os.MkdirAll(dir, os.ModePerm)
+
+	if err != nil {
+		return fmt.Errorf("error creating plan dir: %v", err)
+	}
+
+	path := filepath.Join(dir, "settings.json")
 
 	err = os.WriteFile(path, bytes, 0644)
 

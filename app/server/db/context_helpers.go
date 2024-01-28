@@ -19,6 +19,10 @@ func GetPlanContexts(orgId, planId string, includeBody bool) ([]*Context, error)
 	// get all context files
 	files, err := os.ReadDir(contextDir)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return contexts, nil
+		}
+
 		return nil, fmt.Errorf("error reading context dir: %v", err)
 	}
 
@@ -116,6 +120,11 @@ func ContextRemove(contexts []*Context) error {
 
 func StoreContext(context *Context) error {
 	contextDir := getPlanContextDir(context.OrgId, context.PlanId)
+
+	err := os.MkdirAll(contextDir, os.ModePerm)
+	if err != nil {
+		return fmt.Errorf("error creating context dir: %v", err)
+	}
 
 	ts := time.Now().UTC()
 	if context.Id == "" {

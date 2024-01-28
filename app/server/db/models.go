@@ -166,6 +166,7 @@ type Branch struct {
 	ArchivedAt      *time.Time        `db:"archived_at,omitempty"`
 	CreatedAt       time.Time         `db:"created_at"`
 	UpdatedAt       time.Time         `db:"updated_at"`
+	DeletedAt       *time.Time        `db:"deleted_at"`
 }
 
 func (branch *Branch) ToApi() *shared.Branch {
@@ -254,6 +255,7 @@ type ModelStream struct {
 	OrgId      string     `db:"org_id"`
 	PlanId     string     `db:"plan_id"`
 	InternalIp string     `db:"internal_ip"`
+	Branch     string     `db:"branch"`
 	CreatedAt  time.Time  `db:"created_at"`
 	FinishedAt *time.Time `db:"finished_at"`
 }

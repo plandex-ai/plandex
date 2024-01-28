@@ -154,6 +154,7 @@ type PlanFileResult struct {
 	ConvoMessageId string         `json:"convoMessageId"`
 	PlanBuildId    string         `json:"planBuildId"`
 	Path           string         `json:"path"`
+	ContextBody    string         `json:"contextBody"`
 	ContextSha     string         `json:"contextSha"`
 	Content        string         `json:"content"`
 	AnyFailed      bool           `json:"anyFailed"`

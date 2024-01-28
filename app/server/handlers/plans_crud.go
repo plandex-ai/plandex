@@ -280,7 +280,12 @@ func ListPlansHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	bytes, err := json.Marshal(plans)
+	var apiPlans []*shared.Plan
+	for _, plan := range plans {
+		apiPlans = append(apiPlans, plan.ToApi())
+	}
+
+	bytes, err := json.Marshal(apiPlans)
 
 	if err != nil {
 		log.Printf("Error marshalling plan ids: %v\n", err)
@@ -393,7 +398,12 @@ func ListArchivedPlansHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	jsonBytes, err := json.Marshal(plans)
+	var apiPlans []*shared.Plan
+	for _, plan := range plans {
+		apiPlans = append(apiPlans, plan.ToApi())
+	}
+
+	jsonBytes, err := json.Marshal(apiPlans)
 	if err != nil {
 		log.Printf("Error marshalling plans: %v\n", err)
 		http.Error(w, "Error marshalling plans: "+err.Error(), http.StatusInternalServerError)

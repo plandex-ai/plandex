@@ -1,4 +1,7 @@
-FROM golang:1.21
+FROM golang:1.21.3
+
+RUN apt-get update && \
+  apt-get install -y git=2.43.0
 
 WORKDIR /app
 

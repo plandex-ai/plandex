@@ -627,7 +627,7 @@ func (a *Api) RejectAllChanges(planId, branch string) *shared.ApiError {
 }
 
 func (a *Api) RejectResult(planId, branch, resultId string) *shared.ApiError {
-	serverUrl := fmt.Sprintf("%s/plans/%s/%s/results/%s/reject", getApiHost(), planId, resultId)
+	serverUrl := fmt.Sprintf("%s/plans/%s/%s/results/%s/reject", getApiHost(), planId, branch, resultId)
 
 	req, err := http.NewRequest(http.MethodPatch, serverUrl, nil)
 	if err != nil {
@@ -654,7 +654,7 @@ func (a *Api) RejectResult(planId, branch, resultId string) *shared.ApiError {
 }
 
 func (a *Api) RejectReplacement(planId, branch, resultId, replacementId string) *shared.ApiError {
-	serverUrl := fmt.Sprintf("%s/plans/%s/%s/results/%s/replacements/%s/reject", getApiHost(), planId, resultId, replacementId)
+	serverUrl := fmt.Sprintf("%s/plans/%s/%s/results/%s/replacements/%s/reject", getApiHost(), planId, branch, resultId, replacementId)
 
 	req, err := http.NewRequest(http.MethodPatch, serverUrl, nil)
 	if err != nil {
@@ -1397,7 +1397,7 @@ func (a *Api) CreateBranch(planId, branch string, req shared.CreateBranchRequest
 }
 
 func (a *Api) DeleteBranch(planId, branch string) *shared.ApiError {
-	serverUrl := fmt.Sprintf("%s/plans/%s/branches/%s", getApiHost(), planId)
+	serverUrl := fmt.Sprintf("%s/plans/%s/branches/%s", getApiHost(), planId, branch)
 
 	req, err := http.NewRequest(http.MethodDelete, serverUrl, nil)
 	if err != nil {

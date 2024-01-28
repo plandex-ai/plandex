@@ -4,43 +4,55 @@ import (
 	"log"
 	"plandex-server/db"
 	"plandex-server/types"
+	"strings"
 
 	"github.com/plandex/plandex/shared"
 )
 
 var (
-	Active types.SafeMap[*types.ActivePlan] = *types.NewSafeMap[*types.ActivePlan]()
+	activePlans types.SafeMap[*types.ActivePlan] = *types.NewSafeMap[*types.ActivePlan]()
 )
 
-func CreateActivePlan(planId, prompt string) *types.ActivePlan {
-	activePlan := types.NewActivePlan(planId, prompt)
-	Active.Set(planId, activePlan)
+func GetActivePlan(planId, branch string) *types.ActivePlan {
+	return activePlans.Get(strings.Join([]string{planId, branch}, "|"))
+}
+
+func CreateActivePlan(planId, branch, prompt string) *types.ActivePlan {
+	activePlan := types.NewActivePlan(planId, branch, prompt)
+	key := strings.Join([]string{planId, branch}, "|")
+
+	activePlans.Set(key, activePlan)
 
 	go func() {
 		for {
 			select {
 			case <-activePlan.Ctx.Done():
 				return
-			case err := <-activePlan.StreamDoneCh:
-				if err == nil {
+			case apiErr := <-activePlan.StreamDoneCh:
+				if apiErr == nil {
 					log.Printf("Plan %s stream completed successfully", planId)
 
-					err := db.SetPlanStatus(planId, shared.PlanStatusFinished, "")
+					err := db.SetPlanStatus(planId, branch, shared.PlanStatusFinished, "")
 					if err != nil {
 						log.Printf("Error setting plan %s status to ready: %v\n", planId, err)
 					}
 
 				} else {
-					log.Printf("Error streaming plan %s: %v\n", planId, err)
+					log.Printf("Error streaming plan %s: %v\n", planId, apiErr)
 
-					err := db.SetPlanStatus(planId, shared.PlanStatusError, err.Msg)
+					err := db.SetPlanStatus(planId, branch, shared.PlanStatusError, apiErr.Msg)
 					if err != nil {
 						log.Printf("Error setting plan %s status to error: %v\n", planId, err)
 					}
 				}
 
+				err := db.SetModelStreamFinished(activePlan.ModelStreamId)
+				if err != nil {
+					log.Printf("Error setting model stream %s finished: %v\n", activePlan.ModelStreamId, err)
+				}
+
 				activePlan.CancelFn()
-				Active.Delete(planId)
+				DeleteActivePlan(planId, branch)
 				return
 			}
 		}
@@ -49,23 +61,35 @@ func CreateActivePlan(planId, prompt string) *types.ActivePlan {
 	return activePlan
 }
 
-func SubscribePlan(planId string) (string, chan string) {
+func DeleteActivePlan(planId, branch string) {
+	activePlans.Delete(strings.Join([]string{planId, branch}, "|"))
+}
+
+func UpdateActivePlan(planId, branch string, fn func(*types.ActivePlan)) {
+	activePlans.Update(strings.Join([]string{planId, branch}, "|"), fn)
+}
+
+func SubscribePlan(planId, branch string) (string, chan string) {
 	var id string
 	var ch chan string
-	Active.Update(planId, func(activePlan *types.ActivePlan) {
+	UpdateActivePlan(planId, branch, func(activePlan *types.ActivePlan) {
 		id, ch = activePlan.Subscribe()
 	})
 	return id, ch
 }
 
-func UnsubscribePlan(planId, subscriptionId string) {
-	active := Active.Get(planId)
+func UnsubscribePlan(planId, branch, subscriptionId string) {
+	active := GetActivePlan(planId, branch)
 
 	if active == nil {
 		return
 	}
 
-	Active.Update(planId, func(activePlan *types.ActivePlan) {
+	UpdateActivePlan(planId, branch, func(activePlan *types.ActivePlan) {
 		activePlan.Unsubscribe(subscriptionId)
 	})
+}
+
+func NumActivePlans() int {
+	return activePlans.Len()
 }

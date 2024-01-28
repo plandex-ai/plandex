@@ -40,6 +40,13 @@ func plans(cmd *cobra.Command, args []string) {
 		return
 	}
 
+	if len(plans) == 0 {
+		fmt.Println("🤷‍♂️ No plans")
+		fmt.Println()
+		term.PrintCmds("", "new")
+		return
+	}
+
 	var planIds []string
 	for _, p := range plans {
 		planIds = append(planIds, p.Id)
@@ -64,13 +71,6 @@ func plans(cmd *cobra.Command, args []string) {
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetAutoWrapText(false)
 	table.SetHeader([]string{"#", "Name", "Updated", "Created", "Branches", "Branch", "Context", "Convo"})
-
-	if len(plans) == 0 {
-		fmt.Println("🤷‍♂️ No plans")
-		fmt.Println()
-		term.PrintCmds("", "new")
-		return
-	}
 
 	for i, p := range plans {
 

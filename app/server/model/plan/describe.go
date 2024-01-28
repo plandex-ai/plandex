@@ -12,7 +12,7 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
-func genPlanDescription(planId string, ctx context.Context) (*db.ConvoMessageDescription, error) {
+func genPlanDescription(planId, branch string, ctx context.Context) (*db.ConvoMessageDescription, error) {
 
 	descResp, err := model.Client.CreateChatCompletion(
 		ctx,
@@ -26,7 +26,7 @@ func genPlanDescription(planId string, ctx context.Context) (*db.ConvoMessageDes
 				},
 				{
 					Role:    openai.ChatMessageRoleAssistant,
-					Content: Active.Get(planId).CurrentReplyContent,
+					Content: GetActivePlan(planId, branch).CurrentReplyContent,
 				},
 			},
 			ResponseFormat: &openai.ChatCompletionResponseFormat{Type: "json_object"},

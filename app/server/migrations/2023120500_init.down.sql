@@ -1,3 +1,5 @@
+DROP TABLE IF EXISTS branches;
+
 DROP TABLE IF EXISTS convo_summaries;
 DROP TABLE IF EXISTS plan_builds;
 

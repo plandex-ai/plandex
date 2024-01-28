@@ -25,10 +25,10 @@ const MaxRetries = 3
 const MaxReplacementRetries = 1
 
 func QueueBuild(currentOrgId, currentUserId, planId, branch string, activeBuild *types.ActiveBuild) {
-	activePlan := Active.Get(planId)
+	activePlan := GetActivePlan(planId, branch)
 	filePath := activeBuild.Path
 
-	Active.Update(planId, func(active *types.ActivePlan) {
+	UpdateActivePlan(planId, branch, func(active *types.ActivePlan) {
 		active.BuildQueuesByPath[filePath] = append(active.BuildQueuesByPath[filePath], activeBuild)
 	})
 	log.Printf("Queued build for file %s\n", filePath)
@@ -43,7 +43,7 @@ func QueueBuild(currentOrgId, currentUserId, planId, branch string, activeBuild 
 }
 
 func execPlanBuild(currentOrgId, currentUserId, branch string, activePlan *types.ActivePlan, activeBuild *types.ActiveBuild) {
-	Active.Update(activePlan.Id, func(ap *types.ActivePlan) {
+	UpdateActivePlan(activePlan.Id, activePlan.Branch, func(ap *types.ActivePlan) {
 		ap.IsBuildingByPath[activeBuild.Path] = true
 	})
 
@@ -87,7 +87,7 @@ func execPlanBuild(currentOrgId, currentUserId, branch string, activePlan *types
 	}()
 
 	go func() {
-		err := db.SetPlanStatus(planId, shared.PlanStatusBuilding, "")
+		err := db.SetPlanStatus(planId, branch, shared.PlanStatusBuilding, "")
 		if err != nil {
 			errCh <- fmt.Errorf("error setting plan status to building: %v", err)
 			return
@@ -113,7 +113,7 @@ func execPlanBuild(currentOrgId, currentUserId, branch string, activePlan *types
 		err := <-errCh
 		if err != nil {
 			log.Printf("Error building plan %s: %v\n", planId, err)
-			Active.Update(activePlan.Id, func(ap *types.ActivePlan) {
+			UpdateActivePlan(activePlan.Id, activePlan.Branch, func(ap *types.ActivePlan) {
 				ap.IsBuildingByPath[activeBuild.Path] = false
 			})
 			activePlan.StreamDoneCh <- &shared.ApiError{
@@ -128,7 +128,7 @@ func execPlanBuild(currentOrgId, currentUserId, branch string, activePlan *types
 	onFinishBuild := func() {
 		log.Println("Build finished")
 
-		if Active.Get(planId).RepliesFinished {
+		if GetActivePlan(planId, branch).RepliesFinished {
 			activePlan.Stream(shared.StreamMessage{
 				Type: shared.StreamMessageFinished,
 			})
@@ -179,7 +179,7 @@ func execPlanBuild(currentOrgId, currentUserId, branch string, activePlan *types
 
 		activeBuild.Success = true
 
-		Active.Update(planId, func(ap *types.ActivePlan) {
+		UpdateActivePlan(planId, branch, func(ap *types.ActivePlan) {
 			ap.BuiltFiles[filePath] = true
 			ap.IsBuildingByPath[filePath] = false
 
@@ -232,7 +232,7 @@ func execPlanBuild(currentOrgId, currentUserId, branch string, activePlan *types
 			log.Printf("Error setting build error: %v\n", err)
 		}
 
-		Active.Update(activePlan.Id, func(ap *types.ActivePlan) {
+		UpdateActivePlan(activePlan.Id, activePlan.Branch, func(ap *types.ActivePlan) {
 			ap.IsBuildingByPath[activeBuild.Path] = false
 		})
 	}
@@ -455,7 +455,7 @@ func execPlanBuild(currentOrgId, currentUserId, branch string, activePlan *types
 						log.Printf("File %s: Stream finished with non-function call\n", filePath)
 						log.Println("finish reason: " + choice.FinishReason)
 
-						active := Active.Get(planId)
+						active := GetActivePlan(planId, branch)
 						if !active.BuiltFiles[filePath] {
 							log.Printf("Stream finished before replacements parsed. File: %s\n", filePath)
 							log.Println("Buffer:")

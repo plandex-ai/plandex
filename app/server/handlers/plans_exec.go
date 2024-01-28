@@ -2,11 +2,13 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"os"
 	"plandex-server/db"
+	"plandex-server/host"
 	model "plandex-server/model/plan"
 	"plandex-server/types"
 
@@ -93,14 +95,12 @@ func TellPlanHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if requestBody.ConnectStream {
-		active := model.Active.Get(planId)
-		subscriptionId, ch := model.SubscribePlan(planId)
-
+		active := model.GetActivePlan(planId, branch)
+		subscriptionId, ch := model.SubscribePlan(planId, branch)
 		startResponseStream(w, ch, active.Ctx, func() {
-			model.UnsubscribePlan(planId, subscriptionId)
+			model.UnsubscribePlan(planId, branch, subscriptionId)
 		})
 	}
-
 }
 
 func BuildPlanHandler(w http.ResponseWriter, r *http.Request) {
@@ -140,8 +140,6 @@ func ConnectPlanHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func StopPlanHandler(w http.ResponseWriter, r *http.Request) {
-	// TODO: this handler should lookup the IP of the active plan stream and forward the request if it's not the same as this server's IP
-
 	log.Println("Received request for StopPlanHandler")
 	auth := authenticate(w, r, true)
 	if auth == nil {
@@ -156,6 +154,36 @@ func StopPlanHandler(w http.ResponseWriter, r *http.Request) {
 
 	if authorizePlan(w, planId, auth) == nil {
 		return
+	}
+
+	active := model.GetActivePlan(planId, branch)
+
+	if active == nil {
+		modelStream, err := db.GetActiveModelStream(planId, branch)
+
+		if err != nil {
+			log.Printf("Error getting active model stream: %v\n", err)
+			http.Error(w, "Error getting active model stream", http.StatusInternalServerError)
+			return
+		}
+
+		if modelStream == nil {
+			log.Printf("No active model stream for plan %s\n", planId)
+			http.Error(w, "No active model stream for plan", http.StatusNotFound)
+			return
+		}
+
+		if modelStream.InternalIp == host.Ip {
+			db.SetModelStreamFinished(modelStream.Id)
+			log.Printf("No active plan for plan %s\n", planId)
+			http.Error(w, "No active plan for plan", http.StatusNotFound)
+			return
+		} else {
+			log.Printf("Forwarding request to %s\n", modelStream.InternalIp)
+			proxyUrl := fmt.Sprintf("http://%s:%s/plans/%s/%s/stop", modelStream.InternalIp, os.Getenv("EXTERNAL_PORT"), planId, branch)
+			proxyRequest(w, r, proxyUrl)
+			return
+		}
 	}
 
 	unlockFn := lockRepo(w, r, auth, db.LockScopeWrite)

@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"plandex/api"
@@ -132,8 +131,6 @@ func tell(cmd *cobra.Command, args []string) {
 				fmt.Fprintln(os.Stderr, "Error starting stream UI:", err)
 				os.Exit(1)
 			}
-
-			os.Exit(0)
 		}()
 	}
 
@@ -180,8 +177,6 @@ func tell(cmd *cobra.Command, args []string) {
 	if !shouldContinue {
 		return
 	}
-
-	log.Println("Prompt sent")
 
 	if tellBg {
 		fmt.Println("✅ Prompt sent")

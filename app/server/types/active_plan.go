@@ -22,6 +22,7 @@ type ActiveBuild struct {
 
 type ActivePlan struct {
 	Id                  string
+	Branch              string
 	Prompt              string
 	Ctx                 context.Context
 	CancelFn            context.CancelFunc
@@ -36,16 +37,17 @@ type ActivePlan struct {
 	BuildQueuesByPath   map[string][]*ActiveBuild
 	RepliesFinished     bool
 	StreamDoneCh        chan *shared.ApiError
-
-	streamCh      chan string
-	subscriptions map[string]chan string
+	ModelStreamId       string
+	streamCh            chan string
+	subscriptions       map[string]chan string
 }
 
-func NewActivePlan(planId, prompt string) *ActivePlan {
+func NewActivePlan(planId, branch, prompt string) *ActivePlan {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	active := ActivePlan{
 		Id:                planId,
+		Branch:            branch,
 		Prompt:            prompt,
 		Ctx:               ctx,
 		CancelFn:          cancel,

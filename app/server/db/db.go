@@ -26,6 +26,15 @@ func Connect() error {
 	if err != nil {
 		return err
 	}
+
+	log.Println("connected to database")
+
+	_, err = Conn.Exec("SET TIMEZONE='UTC';")
+
+	if err != nil {
+		return fmt.Errorf("error setting timezone: %v", err)
+	}
+
 	return nil
 }
 
@@ -50,24 +59,24 @@ func MigrationsUp() error {
 
 	// Uncomment below (and update migration version) to reset migration state to a specific version after a failure
 	// if os.Getenv("GOENV") == "development" {
-	// migrateVersion := 2024011700
-	//	 if err := m.Force(migrateVersion); err != nil {
-	//	 	return fmt.Errorf("error forcing migration version: %v", err)
+	// 	migrateVersion := 2024012400
+	// 	if err := m.Force(migrateVersion); err != nil {
+	// 		return fmt.Errorf("error forcing migration version: %v", err)
 	// 	}
 	// }
 
 	// Uncomment below to run down migrations (RESETS DATABASE!!)
-	if os.Getenv("GOENV") == "development" {
-		err = m.Down()
-		if err != nil {
-			if err == migrate.ErrNoChange {
-				log.Println("no migrations to run down")
-			} else {
-				return fmt.Errorf("error running down migrations: %v", err)
-			}
-		}
-		log.Println("ran down migrations - database was reset")
-	}
+	// if os.Getenv("GOENV") == "development" {
+	// 	err = m.Down()
+	// 	if err != nil {
+	// 		if err == migrate.ErrNoChange {
+	// 			log.Println("no migrations to run down")
+	// 		} else {
+	// 			return fmt.Errorf("error running down migrations: %v", err)
+	// 		}
+	// 	}
+	// 	log.Println("ran down migrations - database was reset")
+	// }
 
 	err = m.Up()
 

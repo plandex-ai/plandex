@@ -68,7 +68,7 @@ func convo(cmd *cobra.Command, args []string) {
 			formattedTs = msg.CreatedAt.Local().Format("Yesterday | 3:04pm MST")
 		}
 
-		header := fmt.Sprintf("#### %d | %s | %s | %d 🪙 | ", i+1,
+		header := fmt.Sprintf("#### %d | %s | %s | %d 🪙 ", i+1,
 			author, formattedTs, msg.Tokens)
 		convMarkdown = append(convMarkdown, header, msg.Message, "")
 		totalTokens += msg.Tokens

@@ -51,7 +51,7 @@ func main() {
 		<-sigTermChan
 
 		for {
-			l := plan.Active.Len()
+			l := plan.NumActivePlans()
 			if l == 0 {
 				break
 			}

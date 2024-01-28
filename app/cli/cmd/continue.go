@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"plandex/api"
 	"plandex/auth"
@@ -38,12 +39,14 @@ func next(cmd *cobra.Command, args []string) {
 	lib.MustCheckOutdatedContextWithOutput()
 
 	if !continueBg {
-		err := streamtui.StartStreamUI()
+		go func() {
+			err := streamtui.StartStreamUI()
 
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "Error starting stream UI:", err)
-			return
-		}
+			if err != nil {
+				fmt.Fprintln(os.Stderr, "Error starting stream UI:", err)
+				os.Exit(1)
+			}
+		}()
 	}
 
 	var fn func() bool
@@ -53,6 +56,7 @@ func next(cmd *cobra.Command, args []string) {
 			ConnectStream: !continueBg,
 		}, lib.OnStreamPlan)
 		if apiErr != nil {
+			log.Println("Error telling plan:", apiErr)
 			if apiErr.Type == shared.ApiErrorTypeTrialMessagesExceeded {
 				streamtui.Quit()
 
@@ -84,5 +88,16 @@ func next(cmd *cobra.Command, args []string) {
 		return true
 	}
 
-	fn()
+	shouldContinue := fn()
+	if !shouldContinue {
+		return
+	}
+
+	if tellBg {
+		fmt.Println("✅ Prompt sent")
+	} else {
+		// Wait for stream UI to quit
+		select {}
+	}
+
 }

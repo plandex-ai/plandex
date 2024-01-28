@@ -18,6 +18,10 @@ func GetPlanConvo(orgId, planId string) ([]*ConvoMessage, error) {
 
 	files, err := os.ReadDir(convoDir)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return convo, nil
+		}
+
 		return nil, fmt.Errorf("error reading convo dir: %v", err)
 	}
 
@@ -77,6 +81,12 @@ func StoreConvoMessage(message *ConvoMessage, currentUserId, branch string, comm
 
 	if err != nil {
 		return "", fmt.Errorf("error marshalling convo message: %v", err)
+	}
+
+	err = os.MkdirAll(convoDir, os.ModePerm)
+
+	if err != nil {
+		return "", fmt.Errorf("error creating convo dir: %v", err)
 	}
 
 	err = os.WriteFile(filepath.Join(convoDir, message.Id+".json"), bytes, os.ModePerm)

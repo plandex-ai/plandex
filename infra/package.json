@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "dependencies": {
+    "@aws-cdk/aws-certificatemanager": "^1.204.0",
     "@aws-cdk/aws-ec2": "^1.203.0",
     "@aws-cdk/aws-ecr": "^1.203.0",
     "@aws-cdk/aws-ecs": "^1.203.0",

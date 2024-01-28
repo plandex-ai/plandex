@@ -5,8 +5,9 @@ import * as secretsmanager from "@aws-cdk/aws-secretsmanager";
 import * as ecs from "@aws-cdk/aws-ecs";
 import * as ecr from "@aws-cdk/aws-ecr";
 import * as efs from "@aws-cdk/aws-efs";
-import * as elbv2 from '@aws-cdk/aws-elasticloadbalancingv2';
+import * as elbv2 from "@aws-cdk/aws-elasticloadbalancingv2";
 import * as iam from "@aws-cdk/aws-iam";
+import * as acm from "@aws-cdk/aws-certificatemanager";
 import { v4 as uuid } from "uuid";
 
 const tag = uuid().split("-")[0];
@@ -68,7 +69,10 @@ export class PlandexStack extends cdk.Stack {
     // Create an ECR repository
     const ecrRepository = new ecr.Repository(
       this,
-      `plandex-ecr-repository-${tag}`
+      `plandex-ecr-repository-${tag}`,
+      {
+        repositoryName: "plandex-ecr-repository",
+      }
     );
 
     // Create an ECS cluster
@@ -144,9 +148,7 @@ export class PlandexStack extends cdk.Stack {
       "Allow Fargate service to access RDS instance"
     );
 
-    import * as elbv2 from '@aws-cdk/aws-elasticloadbalancingv2';
-
-const fargateService = new ecs.FargateService(
+    const fargateService = new ecs.FargateService(
       this,
       `plandex-fargate-service-${tag}`,
       {
@@ -164,51 +166,38 @@ const fargateService = new ecs.FargateService(
     });
 
     // Create a listener for the ALB
-    const certificate = acm.Certificate.fromCertificateArn(this, 'Certificate', 'arn:aws:acm:region:account-id:certificate/certificate-id');
+    const certificate = acm.Certificate.fromCertificateArn(
+      this,
+      "Certificate",
+      "arn:aws:acm:region:account-id:certificate/certificate-id"
+    );
 
-    const listener = alb.addListener('plandexListener', {
+    const listener = alb.addListener("plandexListener", {
       port: 443,
-      certificates: [certificate]
+      certificates: [certificate],
     });
 
     // Add a target group for the ECS service
-    const targetGroup = listener.addTargets('plandexEcsTarget', {
+    const targetGroup = listener.addTargets("plandexEcsTarget", {
       port: 80,
       targets: [fargateService],
     });
 
     // Adjust the security group for the ALB to allow inbound traffic on port 80
-    listener.addRedirectResponse('HTTPtoHTTPSRedirect', {
-      statusCode: 'HTTP_301',
-      protocol: 'HTTPS',
-      port: '443',
-      host: '#{host}',
-      path: '/#{path}',
-      query: '#{query}'
+    listener.addRedirectResponse("HTTPtoHTTPSRedirect", {
+      statusCode: "HTTP_301",
+      protocol: "HTTPS",
+      port: "443",
+      host: "#{host}",
+      path: "/#{path}",
+      query: "#{query}",
     });
-    alb.connections.allowFromAnyIpv4(ec2.Port.tcp(443), 'Allow inbound HTTPS traffic');
+    alb.connections.allowFromAnyIpv4(
+      ec2.Port.tcp(443),
+      "Allow inbound HTTPS traffic"
+    );
   }
 }
-
-    // Create an Application Load Balancer in the VPC
-    const alb = new elbv2.ApplicationLoadBalancer(this, `plandex-alb-${tag}`, {
-      vpc,
-      internetFacing: true,
-    });
-
-    // Create a listener for the ALB
-    const listener = alb.addListener('plandexListener', {
-      port: 80,
-    });
-
-    // Add a target group for the ECS service
-    const targetGroup = listener.addTargets('plandexEcsTarget', {
-      port: 80,
-      targets: [fargateService],
-    });
-
-    // Adjust the security group for the ALB to allow inbound traffic on port 80
-    alb.connections.allowFromAnyIpv4(ec2.Port.tcp(80), 'Allow inbound HTTP traffic');
 
 const app = new cdk.App();
 new PlandexStack(app, "plandex-stack-" + tag);

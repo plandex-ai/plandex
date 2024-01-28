@@ -31,14 +31,12 @@ func Tell(plan *db.Plan, branch string, auth *types.ServerAuth, req *shared.Tell
 	// 	return nil
 	// }
 
-	planId := plan.Id
-
-	active := Active.Get(planId)
+	active := GetActivePlan(plan.Id, branch)
 	if active != nil {
-		return fmt.Errorf("plan %s already has an active stream", planId)
+		return fmt.Errorf("plan %s branch %s already has an active stream on this host", plan.Id, branch)
 	}
 
-	active = CreateActivePlan(planId, req.Prompt)
+	active = CreateActivePlan(plan.Id, branch, req.Prompt)
 
 	go execTellPlan(plan, branch, auth, req, active, 0)
 
@@ -66,7 +64,7 @@ func execTellPlan(plan *db.Plan, branch string, auth *types.ServerAuth, req *sha
 	}
 
 	planId := plan.Id
-	err := db.SetPlanStatus(planId, shared.PlanStatusReplying, "")
+	err := db.SetPlanStatus(planId, branch, shared.PlanStatusReplying, "")
 	if err != nil {
 		log.Printf("Error setting plan %s status to replying: %v\n", planId, err)
 		active.StreamDoneCh <- &shared.ApiError{
@@ -226,7 +224,7 @@ func execTellPlan(plan *db.Plan, branch string, auth *types.ServerAuth, req *sha
 	}
 
 	if iteration == 0 {
-		Active.Update(planId, func(ap *types.ActivePlan) {
+		UpdateActivePlan(planId, branch, func(ap *types.ActivePlan) {
 			ap.Contexts = modelContext
 			ap.PromptMessageNum = len(convo) + 1
 
@@ -458,11 +456,13 @@ func execTellPlan(plan *db.Plan, branch string, auth *types.ServerAuth, req *sha
 		return
 	}
 
-	err = db.StoreModelStream(&db.ModelStream{
+	modelStream := &db.ModelStream{
 		OrgId:      currentOrgId,
 		PlanId:     planId,
 		InternalIp: host.Ip,
-	})
+		Branch:     branch,
+	}
+	err = db.StoreModelStream(modelStream)
 
 	if err != nil {
 		log.Printf("Error storing model stream: %v\n", err)
@@ -473,6 +473,8 @@ func execTellPlan(plan *db.Plan, branch string, auth *types.ServerAuth, req *sha
 		}
 		return
 	}
+
+	active.ModelStreamId = modelStream.Id
 
 	storeAssistantReply := func() (*db.ConvoMessage, []string, string, error) {
 		num := len(convo) + 1
@@ -488,7 +490,7 @@ func execTellPlan(plan *db.Plan, branch string, auth *types.ServerAuth, req *sha
 			Role:    openai.ChatMessageRoleAssistant,
 			Tokens:  replyNumTokens,
 			Num:     num,
-			Message: Active.Get(planId).CurrentReplyContent,
+			Message: GetActivePlan(planId, branch).CurrentReplyContent,
 		}
 
 		commitMsg, err := db.StoreConvoMessage(&assistantMsg, auth.User.Id, branch, false)
@@ -598,7 +600,7 @@ func execTellPlan(plan *db.Plan, branch string, auth *types.ServerAuth, req *sha
 						Type: shared.StreamMessageDescribing,
 					})
 
-					err := db.SetPlanStatus(planId, shared.PlanStatusDescribing, "")
+					err := db.SetPlanStatus(planId, branch, shared.PlanStatusDescribing, "")
 					if err != nil {
 						onError(fmt.Errorf("failed to set plan status to describing: %v", err), true, "", "")
 						return
@@ -610,6 +612,7 @@ func execTellPlan(plan *db.Plan, branch string, auth *types.ServerAuth, req *sha
 						// summarize in the background
 						go summarizeConvo(summarizeConvoParams{
 							planId:        planId,
+							branch:        branch,
 							convo:         convo,
 							summaries:     summaries,
 							promptMessage: promptMessage,
@@ -654,7 +657,7 @@ func execTellPlan(plan *db.Plan, branch string, auth *types.ServerAuth, req *sha
 									MadePlan:              false,
 								}
 							} else {
-								description, err = genPlanDescription(planId, active.Ctx)
+								description, err = genPlanDescription(planId, branch, active.Ctx)
 								if err != nil {
 									onError(fmt.Errorf("failed to generate plan description: %v", err), true, assistantMsg.Id, convoCommitMsg)
 									return
@@ -711,12 +714,12 @@ func execTellPlan(plan *db.Plan, branch string, auth *types.ServerAuth, req *sha
 					}
 
 					if !req.AutoContinue || execStatus.Finished || execStatus.NeedsInput {
-						if Active.Get(planId).BuildFinished() {
+						if GetActivePlan(planId, branch).BuildFinished() {
 							active.Stream(shared.StreamMessage{
 								Type: shared.StreamMessageFinished,
 							})
 						} else {
-							Active.Update(planId, func(active *types.ActivePlan) {
+							UpdateActivePlan(planId, branch, func(active *types.ActivePlan) {
 								active.RepliesFinished = true
 							})
 						}
@@ -731,7 +734,7 @@ func execTellPlan(plan *db.Plan, branch string, auth *types.ServerAuth, req *sha
 
 				delta := choice.Delta
 				content := delta.Content
-				Active.Update(planId, func(active *types.ActivePlan) {
+				UpdateActivePlan(planId, branch, func(active *types.ActivePlan) {
 					active.CurrentReplyContent += content
 					active.NumTokens++
 				})
@@ -751,12 +754,12 @@ func execTellPlan(plan *db.Plan, branch string, auth *types.ServerAuth, req *sha
 
 				if len(files) > len(replyFiles) {
 					latestFile := files[len(files)-1]
-					Active.Update(planId, func(active *types.ActivePlan) {
+					UpdateActivePlan(planId, branch, func(active *types.ActivePlan) {
 						active.Files = files
 					})
 
 					log.Printf("Queuing build for %s\n", latestFile)
-					QueueBuild(currentOrgId, currentUserId, branch, planId, &types.ActiveBuild{
+					QueueBuild(currentOrgId, currentUserId, planId, branch, &types.ActiveBuild{
 						AssistantMessageId: replyId,
 						ReplyContent:       content,
 						Path:               latestFile,
@@ -772,6 +775,7 @@ func execTellPlan(plan *db.Plan, branch string, auth *types.ServerAuth, req *sha
 
 type summarizeConvoParams struct {
 	planId        string
+	branch        string
 	convo         []*db.ConvoMessage
 	summaries     []*db.ConvoSummary
 	promptMessage *openai.ChatCompletionMessage
@@ -780,6 +784,7 @@ type summarizeConvoParams struct {
 
 func summarizeConvo(params summarizeConvoParams) error {
 	planId := params.planId
+	branch := params.branch
 	convo := params.convo
 	summaries := params.summaries
 	promptMessage := params.promptMessage
@@ -838,7 +843,7 @@ func summarizeConvo(params summarizeConvoParams) error {
 	if promptMessage != nil {
 		summaryMessages = append(summaryMessages, promptMessage, &openai.ChatCompletionMessage{
 			Role:    openai.ChatMessageRoleAssistant,
-			Content: Active.Get(planId).CurrentReplyContent,
+			Content: GetActivePlan(planId, branch).CurrentReplyContent,
 		})
 	}
 

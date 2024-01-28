@@ -8,7 +8,7 @@ import (
 )
 
 func Stop(planId, branch, currentUserId, currentOrgId string) error {
-	active := Active.Get(planId)
+	active := GetActivePlan(planId, branch)
 
 	if active == nil {
 		return fmt.Errorf("no active plan with id %s", planId)

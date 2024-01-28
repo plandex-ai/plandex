@@ -158,15 +158,19 @@ func GetCurrentPlanState(params CurrentPlanStateParams) (*shared.CurrentPlanStat
 }
 
 func GetPendingBuildDescriptions(orgId, planId string) ([]*ConvoMessageDescription, error) {
+	var descriptions []*ConvoMessageDescription
 	descriptionsDir := getPlanDescriptionsDir(orgId, planId)
-
 	files, err := os.ReadDir(descriptionsDir)
 
 	if err != nil {
+
+		if os.IsNotExist(err) {
+			return descriptions, nil
+		}
+
 		return nil, fmt.Errorf("error reading descriptions dir: %v", err)
 	}
 
-	var descriptions []*ConvoMessageDescription
 	errCh := make(chan error, len(files))
 	descCh := make(chan *ConvoMessageDescription, len(files))
 

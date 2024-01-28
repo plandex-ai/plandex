@@ -71,11 +71,16 @@ func CreatePlan(orgId, projectId, userId, name string) (*Plan, error) {
 		return nil, fmt.Errorf("error initializing plan dir: %v", err)
 	}
 
+	// commit the transaction
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("error committing transaction: %v", err)
+	}
+
 	return plan, nil
 }
 
-func ListOwnedPlans(projectId, userId string, archived bool) ([]shared.Plan, error) {
-	qs := "SELECT id, owner_id, name, shared_with_org_at, archived_at, created_at, updated_at FROM plans WHERE project_id = $1 AND owner_id = $2"
+func ListOwnedPlans(projectId, userId string, archived bool) ([]*Plan, error) {
+	qs := "SELECT * FROM plans WHERE project_id = $1 AND owner_id = $2"
 	qargs := []interface{}{projectId, userId}
 
 	if archived {
@@ -85,23 +90,12 @@ func ListOwnedPlans(projectId, userId string, archived bool) ([]shared.Plan, err
 	}
 
 	qs += " ORDER BY updated_at DESC"
-	res, err := Conn.Query(qs, qargs...)
+
+	var plans []*Plan
+	err := Conn.Select(&plans, qs, qargs...)
 
 	if err != nil {
 		return nil, fmt.Errorf("error listing plans: %v", err)
-	}
-
-	defer res.Close()
-	var plans []shared.Plan
-	for res.Next() {
-		var plan shared.Plan
-
-		err := res.Scan(&plan.Id, &plan.OwnerId, &plan.Name, &plan.SharedWithOrgAt, &plan.ArchivedAt, &plan.CreatedAt, &plan.UpdatedAt)
-
-		if err != nil {
-			return nil, fmt.Errorf("error scanning plan: %v", err)
-		}
-		plans = append(plans, plan)
 	}
 
 	return plans, nil
@@ -186,7 +180,7 @@ func SyncPlanTokens(orgId, planId, branch string) error {
 		convoTokens += msg.Tokens
 	}
 
-	_, err := Conn.Exec("UPDATE plans SET context_tokens = $1, convo_tokens = $2 WHERE id = $3", contextTokens, convoTokens, planId)
+	_, err := Conn.Exec("UPDATE branches SET context_tokens = $1, convo_tokens = $2 WHERE plan_id = $3 AND name = $4", contextTokens, convoTokens, planId, branch)
 
 	if err != nil {
 		return fmt.Errorf("error updating plan tokens: %v", err)
@@ -198,7 +192,7 @@ func SyncPlanTokens(orgId, planId, branch string) error {
 func GetPlan(planId string) (*Plan, error) {
 	var plan Plan
 
-	err := Conn.Get(&plan, "SELECT id, org_id, owner_id, project_id, name, status, error, context_tokens, convo_tokens, shared_with_org_at, total_replies, archived_at, created_at, updated_at FROM plans WHERE id = $1", planId)
+	err := Conn.Get(&plan, "SELECT * FROM plans WHERE id = $1", planId)
 
 	if err != nil {
 		return nil, fmt.Errorf("error getting plan: %v", err)
@@ -207,8 +201,8 @@ func GetPlan(planId string) (*Plan, error) {
 	return &plan, nil
 }
 
-func SetPlanStatus(planId string, status shared.PlanStatus, errStr string) error {
-	_, err := Conn.Exec("UPDATE plans SET status = $1, error = $2 WHERE id = $3", status, errStr, planId)
+func SetPlanStatus(planId, branch string, status shared.PlanStatus, errStr string) error {
+	_, err := Conn.Exec("UPDATE branches SET status = $1, error = $2 WHERE plan_id = $3 AND name = $4", status, errStr, planId, branch)
 
 	if err != nil {
 		return fmt.Errorf("error setting plan status: %v", err)
@@ -249,6 +243,12 @@ func IncNumNonDraftPlans(userId string) error {
 
 func StoreDescription(description *ConvoMessageDescription) error {
 	descriptionsDir := getPlanDescriptionsDir(description.OrgId, description.PlanId)
+
+	err := os.MkdirAll(descriptionsDir, os.ModePerm)
+
+	if err != nil {
+		return fmt.Errorf("error creating convo message descriptions dir: %v", err)
+	}
 
 	now := time.Now()
 
