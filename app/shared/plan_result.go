@@ -121,25 +121,10 @@ func (planState *CurrentPlanState) GetFiles() (*CurrentPlanFiles, error) {
 func (planState *CurrentPlanState) GetFilesBeforeReplacement(
 	replacementId string,
 ) (*CurrentPlanFiles, error) {
-	contexts := planState.Contexts
 	planRes := planState.PlanResult
 
 	files := make(map[string]string)
 	shas := make(map[string]string)
-
-	for _, contextPart := range contexts {
-
-		if contextPart.FilePath == "" {
-			continue
-		}
-
-		_, hasPath := planRes.FileResultsByPath[contextPart.FilePath]
-
-		if hasPath {
-			files[contextPart.FilePath] = contextPart.Body
-			shas[contextPart.FilePath] = contextPart.Sha
-		}
-	}
 
 	for path, planResults := range planRes.FileResultsByPath {
 		updated := files[path]
@@ -159,12 +144,9 @@ func (planState *CurrentPlanState) GetFilesBeforeReplacement(
 				updated = planRes.Content
 				files[path] = updated
 				continue
-			}
-
-			contextSha := shas[path]
-
-			if contextSha != "" && planRes.ContextSha != contextSha {
-				return nil, fmt.Errorf("result sha doesn't match context sha: %s", path)
+			} else if updated == "" {
+				updated = planRes.ContextBody
+				shas[path] = planRes.ContextSha
 			}
 
 			replacements := []*Replacement{}

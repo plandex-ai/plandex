@@ -386,6 +386,7 @@ type PlanFileResult struct {
 	PlanBuildId    string                `json:"planBuildId"`
 	Path           string                `json:"path"`
 	ContextSha     string                `json:"contextSha"`
+	ContextBody    string                `json:"contextBody"`
 	Content        string                `json:"content,omitempty"`
 	Replacements   []*shared.Replacement `json:"replacements"`
 	AnyFailed      bool                  `json:"anyFailed"`
@@ -403,6 +404,7 @@ func (res *PlanFileResult) ToApi() *shared.PlanFileResult {
 		ConvoMessageId: res.ConvoMessageId,
 		Path:           res.Path,
 		ContextSha:     res.ContextSha,
+		ContextBody:    res.ContextBody,
 		Content:        res.Content,
 		AnyFailed:      res.AnyFailed,
 		AppliedAt:      res.AppliedAt,

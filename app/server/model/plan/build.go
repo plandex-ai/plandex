@@ -604,6 +604,7 @@ func getPlanResult(params planResultParams) (*db.PlanFileResult, bool) {
 		Path:           filePath,
 		Replacements:   replacements,
 		ContextSha:     contextSha,
+		ContextBody:    contextPart.Body,
 		AnyFailed:      !allSucceeded,
 	}, allSucceeded
 }
