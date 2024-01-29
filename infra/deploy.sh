@@ -35,15 +35,23 @@ build_and_push_image() {
 
 # Function to update the ECS service with the new Docker image
 update_ecs_service() {
+  # Extract the tag from the ECR repository URI
+  TAG=$(echo $ECR_REPOSITORY | grep -oE 'plandex-ecr-repository-[a-zA-Z0-9]+' | sed 's/plandex-ecr-repository-//')
+
+  # Use the extracted tag to find the ECS cluster and service names
+  CLUSTER_NAME=$(aws ecs list-clusters | jq -r --arg TAG "$TAG" '.clusterArns[] | select(contains("plandex-ecs-cluster-" + $TAG)) | split("/")[1]')
+  SERVICE_NAME=$(aws ecs list-services --cluster "$CLUSTER_NAME" | jq -r --arg TAG "$TAG" '.serviceArns[] | select(contains("plandex-fargate-service-" + $TAG)) | split("/")[1]')
+
   # Replace placeholders in ecs-container-definitions.json with actual values
   sed -i "s|\${ECR_REPOSITORY_URI}|$ECR_REPOSITORY|g" ecs-container-definitions.json
   sed -i "s|\${IMAGE_TAG}|$IMAGE_TAG|g" ecs-container-definitions.json
   sed -i "s|\${AWS_REGION}|$(aws configure get region)|g" ecs-container-definitions.json
+
   # Register a new task definition with the new image
-  TASK_DEF_ARN=$(aws ecs register-task-definition --family plandex-task-definition --container-definitions file://ecs-container-definitions.json | jq -r '.taskDefinition.taskDefinitionArn')
+  TASK_DEF_ARN=$(aws ecs register-task-definition --family "plandex-task-definition-$TAG" --container-definitions file://ecs-container-definitions.json | jq -r '.taskDefinition.taskDefinitionArn')
 
   # Update the ECS service to use the new task definition
-  aws ecs update-service --cluster $CLUSTER_NAME --service $SERVICE_NAME --task-definition $TASK_DEF_ARN
+  aws ecs update-service --cluster "$CLUSTER_NAME" --service "$SERVICE_NAME" --task-definition $TASK_DEF_ARN
 }
 
 # Deploy or update the CloudFormation stack
