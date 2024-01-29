@@ -7,14 +7,14 @@ IMAGE_TAG=$(git rev-parse --short HEAD)
 # Function to deploy or update the CloudFormation stack using AWS CDK
 deploy_or_update_stack() {
   # Check if the stack exists
-  STACK_EXISTS=$(aws cloudformation describe-stacks --stack-name plandex-stack | jq -r '.Stacks | length')
+  STACK_NAME=$(aws cloudformation list-stacks --stack-status-filter CREATE_COMPLETE UPDATE_COMPLETE | jq -r '.StackSummaries[] | select(.StackName | startswith("plandex-stack-")) | .StackName')
 
-  if [ "$STACK_EXISTS" -eq "0" ]; then
+  if [ -z "$STACK_NAME" ]; then
     # Deploy the stack if it does not exist
-    npx cdk deploy "plandex-stack-*" --require-approval never
+    npx cdk deploy "plandex-stack-*" --require-approval never --tags stack=$STACK_TAG
   else
     # Update the stack if it exists
-    npx cdk deploy "plandex-stack-*" --require-approval never
+    npx cdk deploy "$STACK_NAME" --require-approval never
   fi
 }
 
@@ -43,7 +43,7 @@ update_ecs_service() {
   TASK_DEF_ARN=$(aws ecs register-task-definition --family plandex-task-definition --container-definitions file://ecs-container-definitions.json | jq -r '.taskDefinition.taskDefinitionArn')
 
   # Update the ECS service to use the new task definition
-  aws ecs update-service --cluster plandex-ecs-cluster --service plandex-fargate-service --task-definition $TASK_DEF_ARN
+  aws ecs update-service --cluster $CLUSTER_NAME --service $SERVICE_NAME --task-definition $TASK_DEF_ARN
 }
 
 # Deploy or update the CloudFormation stack
