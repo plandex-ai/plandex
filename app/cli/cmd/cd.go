@@ -6,6 +6,7 @@ import (
 	"plandex/api"
 	"plandex/auth"
 	"plandex/lib"
+	"plandex/term"
 	"strconv"
 	"time"
 
@@ -81,4 +82,7 @@ func cd(cmd *cobra.Command, args []string) {
 	time.Sleep(50 * time.Millisecond)
 
 	fmt.Fprintln(os.Stderr, "✅ Changed current plan to "+color.New(color.FgGreen, color.Bold).Sprint(plan.Name))
+
+	fmt.Println()
+	term.PrintCmds("", "current")
 }

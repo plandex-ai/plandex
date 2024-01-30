@@ -55,7 +55,7 @@ func current(cmd *cobra.Command, args []string) {
 
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetAutoWrapText(false)
-	table.SetHeader([]string{"Current Plan", "Updated", "Created", "Branches", "Branch", "Context", "Convo"})
+	table.SetHeader([]string{"Current Plan", "Updated", "Created" /*"Branches",*/, "Branch", "Context", "Convo"})
 
 	name := color.New(color.Bold, color.FgGreen).Sprint(plan.Name)
 	branch := currentBranchesByPlanId[lib.CurrentPlanId]
@@ -64,7 +64,7 @@ func current(cmd *cobra.Command, args []string) {
 		name,
 		format.Time(plan.UpdatedAt),
 		format.Time(plan.CreatedAt),
-		strconv.Itoa(plan.ActiveBranches),
+		// strconv.Itoa(plan.ActiveBranches),
 		lib.CurrentBranch,
 		strconv.Itoa(branch.ContextTokens) + " 🪙",
 		strconv.Itoa(branch.ConvoTokens) + " 🪙",

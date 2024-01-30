@@ -15,6 +15,7 @@
     "uuid": "^9.0.1"
   },
   "devDependencies": {
+    "@types/node": "^20.11.10",
     "@types/uuid": "^9.0.7",
     "aws-cdk": "^2.122.0",
     "typescript": "^5.3.3"

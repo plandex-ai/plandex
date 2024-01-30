@@ -1,6 +1,7 @@
 package types
 
 import (
+	"log"
 	"strings"
 )
 
@@ -10,8 +11,9 @@ type replyParser struct {
 	lineIndex        int
 	maybeFilePath    string
 	currentFilePath  string
-	files            map[string]bool
-	fileContents     map[string]string
+	currentFileIdx   int
+	files            []string
+	fileContents     []string
 	numTokens        int
 	numTokensByFile  map[string]int
 }
@@ -20,8 +22,8 @@ func NewReplyParser() *replyParser {
 	info := &replyParser{
 		lines:            []string{""},
 		currentFileLines: []string{},
-		files:            make(map[string]bool),
-		fileContents:     make(map[string]string),
+		files:            []string{},
+		fileContents:     []string{},
 		numTokensByFile:  make(map[string]int),
 	}
 
@@ -91,9 +93,12 @@ func (r *replyParser) AddChunk(chunk string, addToTotal bool) {
 		// log.Println("Maybe file path is:", r.maybeFilePath) // Logging the maybeFilePath
 		if strings.HasPrefix(prevFullLineTrimmed, "```") {
 			r.currentFilePath = r.maybeFilePath
+			r.currentFileIdx = len(r.files)
+			r.fileContents = append(r.fileContents, "")
 			r.maybeFilePath = ""
 			r.currentFileLines = []string{}
-			// log.Println("Confirmed file path:", r.currentFilePath) // Logging the confirmed file path
+			log.Println("Confirmed file path:", r.currentFilePath) // Logging the confirmed file path
+
 			return
 		} else if prevFullLineTrimmed != "" {
 			// turns out previous maybeFilePath was not a file path since there's a non-empty line before finding opening ticks
@@ -128,30 +133,27 @@ func (r *replyParser) AddChunk(chunk string, addToTotal bool) {
 			}
 		}
 	} else {
-		if strings.HasPrefix(prevFullLineTrimmed, "```") {
-			r.files[r.currentFilePath] = true
-			r.currentFilePath = ""
-			// log.Println("Exited file block.")
-		} else {
-			r.fileContents[r.currentFilePath] += prevFullLine + "\n"
-			r.currentFileLines = append(r.currentFileLines, prevFullLine)
+		log.Println("Current file path is not empty--adding to current file...")
 
-			// r.contentByFile[r.currentFilePath] += prevFullLine + "\n"
+		if strings.HasPrefix(prevFullLineTrimmed, "```") {
+			log.Println("Found closing ticks--adding file to files and resetting current file...")
+			r.files = append(r.files, r.currentFilePath)
+			r.currentFilePath = ""
+		} else {
+			log.Println("Adding tokens to current file...") // Logging token addition
+
+			r.fileContents[r.currentFileIdx] += prevFullLine + "\n"
+			r.currentFileLines = append(r.currentFileLines, prevFullLine)
 			// fmt.Printf("Added %d tokens to %s\n", tokens, r.currentFilePath) // Logging token addition
 		}
 	}
 }
 
-func (r *replyParser) Read() (files []string, fileContents map[string]string, numTokensByFile map[string]int, totalTokens int) {
-	files = make([]string, 0, len(r.files))
-	for file := range r.files {
-		files = append(files, file)
-	}
-
-	return files, r.fileContents, r.numTokensByFile, r.numTokens
+func (r *replyParser) Read() (files []string, fileContents []string, numTokensByFile map[string]int, totalTokens int) {
+	return r.files, r.fileContents, r.numTokensByFile, r.numTokens
 }
 
-func (r *replyParser) FinishAndRead() (files []string, fileContents map[string]string, numTokensByFile map[string]int, totalTokens int) {
+func (r *replyParser) FinishAndRead() (files []string, fileContents []string, numTokensByFile map[string]int, totalTokens int) {
 	r.AddChunk("\n", false)
 	return r.Read()
 }

@@ -161,11 +161,7 @@ func (m *changesUIModel) updateMainView(scrollReplacement bool) {
 	// var updateMsg types.ChangesUIViewportsUpdate
 
 	if m.selectedNewFile() || m.selectedFullFile() {
-		context := m.currentPlan.ContextsByPath[m.selectionInfo.currentPath]
-		var originalFile string
-		if context != nil {
-			originalFile = context.Body
-		}
+		originalFile := m.currentPlan.PlanResult.FileResultsByPath.OriginalContextForPath(m.selectionInfo.currentPath)
 
 		var updatedFile string
 
@@ -179,7 +175,7 @@ func (m *changesUIModel) updateMainView(scrollReplacement bool) {
 		fileSegments := []string{}
 		replacementSegments := map[int]bool{}
 
-		if context == nil {
+		if originalFile == "" {
 			// the file is new, so all lines are new and should be highlighted
 			fileSegments = append(fileSegments, updatedFile)
 			replacementSegments[0] = true

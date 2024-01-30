@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/fatih/color"
+	"github.com/lib/pq"
 )
 
 func init() {
@@ -274,10 +275,14 @@ func gitCommit(repoDir, commitMsg string) error {
 const lockTimeout = 60 * time.Second
 
 func LockRepo(orgId, userId, planId, branch string, scope LockScope) (string, error) {
-	return lockRepo(orgId, userId, planId, branch, scope, 0)
+	return lockRepo(orgId, userId, planId, "", branch, scope, 0)
 }
 
-func lockRepo(orgId, userId, planId, branch string, scope LockScope, numRetry int) (string, error) {
+func LockRepoForBuild(orgId, userId, planId, planBuildId, branch string, scope LockScope) (string, error) {
+	return lockRepo(orgId, userId, planId, planBuildId, branch, scope, 0)
+}
+
+func lockRepo(orgId, userId, planId, planBuildId, branch string, scope LockScope, numRetry int) (string, error) {
 	tx, err := Conn.Begin()
 	if err != nil {
 		return "", fmt.Errorf("error starting transaction: %v", err)
@@ -294,7 +299,7 @@ func lockRepo(orgId, userId, planId, branch string, scope LockScope, numRetry in
 		}
 	}()
 
-	query := "SELECT * FROM repo_locks WHERE plan_id = $1 FOR UPDATE"
+	query := "SELECT id, org_id, user_id, plan_id, plan_build_id, scope, branch, created_at FROM repo_locks WHERE plan_id = $1 FOR UPDATE"
 	queryArgs := []interface{}{planId}
 
 	var locks []*repoLock
@@ -307,19 +312,33 @@ func lockRepo(orgId, userId, planId, branch string, scope LockScope, numRetry in
 
 		defer rows.Close()
 
+		var expiredLockIds []string
+
 		now := time.Now()
 		for rows.Next() {
 			var lock repoLock
-			if err := rows.Scan(&lock.Id, &lock.OrgId, &lock.UserId, &lock.PlanId, &lock.Scope, &lock.CreatedAt); err != nil {
+			if err := rows.Scan(&lock.Id, &lock.OrgId, &lock.UserId, &lock.PlanId, &lock.PlanBuildId, &lock.Scope, &lock.Branch, &lock.CreatedAt); err != nil {
 				return fmt.Errorf("error scanning repo lock: %v", err)
 			}
 			if now.Sub(lock.CreatedAt) < lockTimeout {
 				locks = append(locks, &lock)
 			} else {
-				_, err = tx.Exec("DELETE FROM repo_locks WHERE id = $1", lock.Id)
-				if err != nil {
-					return fmt.Errorf("error removing expired lock: %v", err)
-				}
+				expiredLockIds = append(expiredLockIds, lock.Id)
+			}
+		}
+
+		if len(expiredLockIds) > 0 {
+			query := "DELETE FROM repo_locks WHERE id = ANY($1)"
+
+			args := make([]interface{}, len(expiredLockIds))
+			for i, id := range expiredLockIds {
+				args[i] = id
+			}
+
+			// Execute the query with the slice as a parameter
+			_, err := tx.Exec(query, pq.Array(expiredLockIds))
+			if err != nil {
+				return fmt.Errorf("error removing expired locks: %v", err)
 			}
 		}
 
@@ -332,6 +351,9 @@ func lockRepo(orgId, userId, planId, branch string, scope LockScope, numRetry in
 	canAcquire := true
 	canRetry := true
 
+	// log.Println("locks:")
+	// spew.Dump(locks)
+
 	for _, lock := range locks {
 		lockBranch := ""
 		if lock.Branch != nil {
@@ -340,12 +362,17 @@ func lockRepo(orgId, userId, planId, branch string, scope LockScope, numRetry in
 
 		if scope == LockScopeRead {
 			canAcquireThisLock := lock.Scope == LockScopeRead && lockBranch == branch
-
 			if !canAcquireThisLock {
 				canAcquire = false
 			}
 		} else if scope == LockScopeWrite {
 			canAcquire = false
+
+			// if lock is for the same plan plan and branch, allow parallel writes
+			if planId == lock.PlanId && branch == lockBranch {
+				canAcquire = true
+			}
+
 			if lock.Scope == LockScopeWrite && lockBranch == branch {
 				canRetry = false
 			}
@@ -363,21 +390,44 @@ func lockRepo(orgId, userId, planId, branch string, scope LockScope, numRetry in
 				return "", err
 			}
 			time.Sleep(500 * time.Millisecond)
-			return lockRepo(orgId, userId, planId, branch, scope, numRetry+1)
+			return lockRepo(orgId, userId, planId, planBuildId, branch, scope, numRetry+1)
 		}
 		err = fmt.Errorf("plan is currently being updated by another user")
 		return "", err
 	}
 
 	// Insert the new lock
-	newLock := &repoLock{
-		OrgId:  orgId,
-		UserId: userId,
-		PlanId: planId,
-		Scope:  scope,
+	var lockPlanBuildId *string
+	if planBuildId != "" {
+		lockPlanBuildId = &planBuildId
 	}
-	insertQuery := "INSERT INTO repo_locks (org_id, user_id, plan_id, scope, branch) VALUES ($1, $2, $3, $4, $5) RETURNING id"
-	err = tx.QueryRow(insertQuery, newLock.OrgId, newLock.UserId, newLock.PlanId, newLock.Scope, branch).Scan(&newLock.Id)
+
+	var lockBranch *string
+	if branch != "" {
+		lockBranch = &branch
+	}
+
+	newLock := &repoLock{
+		OrgId:       orgId,
+		UserId:      userId,
+		PlanId:      planId,
+		PlanBuildId: lockPlanBuildId,
+		Scope:       scope,
+		Branch:      lockBranch,
+	}
+	// log.Println("newLock:")
+	// spew.Dump(newLock)
+
+	insertQuery := "INSERT INTO repo_locks (org_id, user_id, plan_id, plan_build_id, scope, branch) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id"
+	err = tx.QueryRow(
+		insertQuery,
+		newLock.OrgId,
+		newLock.UserId,
+		newLock.PlanId,
+		newLock.PlanBuildId,
+		newLock.Scope,
+		newLock.Branch,
+	).Scan(&newLock.Id)
 	if err != nil {
 		return "", fmt.Errorf("error inserting new lock: %v", err)
 	}

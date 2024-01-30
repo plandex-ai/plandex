@@ -77,6 +77,6 @@ func new(cmd *cobra.Command, args []string) {
 	}
 
 	fmt.Println()
-	term.PrintCmds("", "load", "tell", "plans")
+	term.PrintCmds("", "load", "tell", "plans", "current")
 
 }

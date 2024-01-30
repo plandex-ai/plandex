@@ -16,12 +16,12 @@ import (
 	"plandex-server/model/prompts"
 	"plandex-server/types"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/google/uuid"
 	"github.com/plandex/plandex/shared"
 	"github.com/sashabaranov/go-openai"
 )
 
-// Proposal function to create a new proposal
 func Tell(plan *db.Plan, branch string, auth *types.ServerAuth, req *shared.TellPlanRequest) error {
 	// goEnv := os.Getenv("GOENV") // Fetch the GOENV environment variable
 
@@ -34,6 +34,16 @@ func Tell(plan *db.Plan, branch string, auth *types.ServerAuth, req *shared.Tell
 	active := GetActivePlan(plan.Id, branch)
 	if active != nil {
 		return fmt.Errorf("plan %s branch %s already has an active stream on this host", plan.Id, branch)
+	}
+
+	modelStream, err := db.GetActiveModelStream(plan.Id, branch)
+	if err != nil {
+		log.Printf("Error getting active model stream: %v\n", err)
+		return fmt.Errorf("error getting active model stream: %v", err)
+	}
+
+	if modelStream != nil {
+		return fmt.Errorf("plan %s branch %s already has an active stream on host %s", plan.Id, branch, modelStream.InternalIp)
 	}
 
 	active = CreateActivePlan(plan.Id, branch, req.Prompt)
@@ -338,6 +348,15 @@ func execTellPlan(plan *db.Plan, branch string, auth *types.ServerAuth, req *sha
 			if !ok {
 				err := fmt.Errorf("conversation summary timestamp not found in conversation")
 				log.Printf("Error: %v\n", err)
+
+				log.Println("timestamp:", timestamp)
+
+				log.Println("Conversation summary:")
+				spew.Dump(s)
+
+				log.Println("tokensUpToTimestamp:")
+				spew.Dump(tokensUpToTimestamp)
+
 				active.StreamDoneCh <- &shared.ApiError{
 					Type:   shared.ApiErrorTypeOther,
 					Status: http.StatusInternalServerError,
@@ -746,26 +765,30 @@ func execTellPlan(plan *db.Plan, branch string, auth *types.ServerAuth, req *sha
 				})
 				replyParser.AddChunk(content, true)
 
-				files, _, _, numTokens := replyParser.Read()
+				files, fileContents, _, numTokens := replyParser.Read()
 				replyNumTokens = numTokens
 
 				// log.Printf("Reply num tokens: %d\n", replyNumTokens)
 				// log.Printf("Reply files: %v\n", files)
 
 				if len(files) > len(replyFiles) {
-					latestFile := files[len(files)-1]
-					UpdateActivePlan(planId, branch, func(active *types.ActivePlan) {
-						active.Files = files
-					})
-
-					log.Printf("Queuing build for %s\n", latestFile)
-					QueueBuild(currentOrgId, currentUserId, planId, branch, &types.ActiveBuild{
-						AssistantMessageId: replyId,
-						ReplyContent:       content,
-						Path:               latestFile,
-					})
-
-					replyFiles = files
+					for i := len(files) - 1; i > 0; i-- {
+						if i < len(replyFiles) {
+							break
+						}
+						file := files[i]
+						log.Printf("Queuing build for %s\n", file)
+						QueueBuild(currentOrgId, currentUserId, planId, branch, &types.ActiveBuild{
+							AssistantMessageId: replyId,
+							ReplyContent:       content,
+							FileContent:        fileContents[i],
+							Path:               file,
+						})
+						replyFiles = append(replyFiles, file)
+						UpdateActivePlan(planId, branch, func(active *types.ActivePlan) {
+							active.Files = append(active.Files, file)
+						})
+					}
 				}
 
 			}

@@ -7,6 +7,7 @@ import (
 	"plandex/api"
 	"plandex/auth"
 	"plandex/lib"
+	"plandex/term"
 	"strconv"
 
 	"github.com/plandex/plandex/shared"
@@ -73,7 +74,7 @@ func rewind(cmd *cobra.Command, args []string) {
 	// log.Println("Rewinding to", targetSha)
 
 	// Rewind to the target sha
-	rwRes, err := api.Client.RewindPlan(lib.CurrentPlanId, lib.CurrentBranch, shared.RewindPlanRequest{Sha: targetSha})
+	_, err = api.Client.RewindPlan(lib.CurrentPlanId, lib.CurrentBranch, shared.RewindPlanRequest{Sha: targetSha})
 
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error rewinding plan: %v\n", err)
@@ -84,5 +85,8 @@ func rewind(cmd *cobra.Command, args []string) {
 
 	fmt.Println(msg)
 	fmt.Println()
-	fmt.Println(rwRes.LatestCommit)
+
+	term.PrintCmds("", "log")
+
+	// fmt.Println(rwRes.LatestCommit)
 }

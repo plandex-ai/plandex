@@ -78,6 +78,15 @@ func MigrationsUp() error {
 	// 	log.Println("ran down migrations - database was reset")
 	// }
 
+	// go back one migration
+	// if os.Getenv("GOENV") == "development" {
+	// 	err = m.Steps(-1)
+	// 	if err != nil {
+	// 		return fmt.Errorf("error running down migrations: %v", err)
+	// 	}
+	// 	log.Println("went down 1 migration")
+	// }
+
 	err = m.Up()
 
 	if err != nil {

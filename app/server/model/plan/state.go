@@ -27,8 +27,17 @@ func CreateActivePlan(planId, branch, prompt string) *types.ActivePlan {
 		for {
 			select {
 			case <-activePlan.Ctx.Done():
+				log.Printf("case <-activePlan.Ctx.Done(): %s\n", planId)
+
+				err := db.SetModelStreamFinished(activePlan.ModelStreamId)
+				if err != nil {
+					log.Printf("Error setting model stream %s finished: %v\n", activePlan.ModelStreamId, err)
+				}
 				return
 			case apiErr := <-activePlan.StreamDoneCh:
+				log.Printf("case apiErr := <-activePlan.StreamDoneCh: %s\n", planId)
+				log.Printf("apiErr: %v\n", apiErr)
+
 				if apiErr == nil {
 					log.Printf("Plan %s stream completed successfully", planId)
 
@@ -70,6 +79,7 @@ func UpdateActivePlan(planId, branch string, fn func(*types.ActivePlan)) {
 }
 
 func SubscribePlan(planId, branch string) (string, chan string) {
+	log.Printf("Subscribing to plan %s\n", planId)
 	var id string
 	var ch chan string
 	UpdateActivePlan(planId, branch, func(activePlan *types.ActivePlan) {
@@ -79,6 +89,8 @@ func SubscribePlan(planId, branch string) (string, chan string) {
 }
 
 func UnsubscribePlan(planId, branch, subscriptionId string) {
+	log.Printf("Unsubscribing from plan %s\n", planId)
+
 	active := GetActivePlan(planId, branch)
 
 	if active == nil {

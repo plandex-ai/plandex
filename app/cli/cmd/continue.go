@@ -38,6 +38,7 @@ func next(cmd *cobra.Command, args []string) {
 	lib.MustResolveProject()
 	lib.MustCheckOutdatedContextWithOutput()
 
+	promptingTrialExceeded := false
 	if !continueBg {
 		go func() {
 			err := streamtui.StartStreamUI()
@@ -45,6 +46,10 @@ func next(cmd *cobra.Command, args []string) {
 			if err != nil {
 				fmt.Fprintln(os.Stderr, "Error starting stream UI:", err)
 				os.Exit(1)
+			}
+
+			if !promptingTrialExceeded {
+				os.Exit(0)
 			}
 		}()
 	}
@@ -58,7 +63,9 @@ func next(cmd *cobra.Command, args []string) {
 		if apiErr != nil {
 			log.Println("Error telling plan:", apiErr)
 			if apiErr.Type == shared.ApiErrorTypeTrialMessagesExceeded {
+				promptingTrialExceeded = true
 				streamtui.Quit()
+				promptingTrialExceeded = false
 
 				fmt.Fprintf(os.Stderr, "🚨 You've reached the free trial limit of %d messages per plan\n", apiErr.TrialMessagesExceededError.MaxReplies)
 

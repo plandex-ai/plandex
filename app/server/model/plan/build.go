@@ -32,6 +32,8 @@ func QueueBuild(currentOrgId, currentUserId, planId, branch string, activeBuild 
 		active.BuildQueuesByPath[filePath] = append(active.BuildQueuesByPath[filePath], activeBuild)
 	})
 	log.Printf("Queued build for file %s\n", filePath)
+	log.Printf("Queue:")
+	spew.Dump(activePlan.BuildQueuesByPath[filePath])
 
 	if activePlan.IsBuildingByPath[filePath] {
 		log.Printf("Already building file %s\n", filePath)
@@ -59,10 +61,6 @@ func execPlanBuild(currentOrgId, currentUserId, branch string, activePlan *types
 		Type:      shared.StreamMessageBuildInfo,
 		BuildInfo: buildInfo,
 	})
-
-	replyInfo := types.NewReplyParser()
-	replyInfo.AddChunk(activePlan.CurrentReplyContent, true)
-	_, fileContents, _, _ := replyInfo.Read()
 
 	errCh := make(chan error)
 
@@ -97,9 +95,8 @@ func execPlanBuild(currentOrgId, currentUserId, branch string, activePlan *types
 
 	go func() {
 		res, err := db.GetCurrentPlanState(db.CurrentPlanStateParams{
-			OrgId:    currentOrgId,
-			PlanId:   planId,
-			Contexts: activePlan.Contexts,
+			OrgId:  currentOrgId,
+			PlanId: planId,
 		})
 		if err != nil {
 			errCh <- fmt.Errorf("error getting current plan state: %v", err)
@@ -137,17 +134,22 @@ func execPlanBuild(currentOrgId, currentUserId, branch string, activePlan *types
 
 	onFinishBuildFile := func(filePath string, planRes *db.PlanFileResult) {
 		finished := false
+		log.Println("onFinishBuildFile: " + filePath)
 
-		// log.Println("onFinishBuildFile: " + filePath)
-		// spew.Dump(planRes)
-
-		repoLockId, err := db.LockRepo(currentOrgId, currentUserId, planId, branch, db.LockScopeWrite)
+		repoLockId, err := db.LockRepoForBuild(
+			currentOrgId,
+			currentUserId,
+			planId,
+			planRes.PlanBuildId,
+			branch,
+			db.LockScopeWrite,
+		)
 		if err != nil {
-			log.Printf("Error locking repo: %v\n", err)
+			log.Printf("Error locking repo for build file: %v\n", err)
 			activePlan.StreamDoneCh <- &shared.ApiError{
 				Type:   shared.ApiErrorTypeOther,
 				Status: http.StatusInternalServerError,
-				Msg:    "Error locking repo: " + err.Error(),
+				Msg:    "Error locking repo for build file: " + err.Error(),
 			}
 			return
 		}
@@ -188,25 +190,33 @@ func execPlanBuild(currentOrgId, currentUserId, branch string, activePlan *types
 			}
 		})
 
-		if !activePlan.PathFinished(filePath) {
-			log.Printf("Processing next build for file %s\n", filePath)
-			var nextBuild *types.ActiveBuild
-			for _, build := range activePlan.BuildQueuesByPath[filePath] {
-				if !build.BuildFinished() {
-					nextBuild = build
-					break
-				}
-			}
-			if nextBuild != nil {
-				go execPlanBuild(currentOrgId, currentUserId, branch, activePlan, nextBuild)
-			}
-			return
-		}
-
 		log.Printf("Finished building file %s\n", filePath)
 
 		if finished {
+			log.Println("Finished building plan, calling onFinishBuild")
 			onFinishBuild()
+		} else {
+			if !activePlan.PathFinished(filePath) {
+				log.Printf("Processing next build for file %s\n", filePath)
+				var nextBuild *types.ActiveBuild
+				for _, build := range activePlan.BuildQueuesByPath[filePath] {
+					if !build.BuildFinished() {
+						nextBuild = build
+						break
+					}
+				}
+
+				log.Println("Next build:")
+				spew.Dump(nextBuild)
+
+				if nextBuild != nil {
+					log.Println("Calling execPlanBuild for next build in queue")
+					go execPlanBuild(currentOrgId, currentUserId, branch, activePlan, nextBuild)
+				}
+				return
+			} else {
+				log.Printf("File %s finished, but not all builds finished\n", filePath)
+			}
 		}
 	}
 
@@ -251,8 +261,8 @@ func execPlanBuild(currentOrgId, currentUserId, branch string, activePlan *types
 			currentState = currentPlanFile
 
 			log.Printf("File %s found in current plan. Using current state.\n", filePath)
-			log.Println("Current state:")
-			log.Println(currentState)
+			// log.Println("Current state:")
+			// log.Println(currentState)
 		} else if contextPart != nil {
 			currentState = contextPart.Body
 		}
@@ -278,7 +288,7 @@ func execPlanBuild(currentOrgId, currentUserId, branch string, activePlan *types
 				PlanBuildId:    build.Id,
 				ConvoMessageId: build.ConvoMessageId,
 				Path:           filePath,
-				Content:        fileContents[filePath],
+				Content:        activeBuild.FileContent,
 			}
 			onFinishBuildFile(filePath, planRes)
 			return

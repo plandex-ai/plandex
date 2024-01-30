@@ -34,18 +34,9 @@ func CurrentPlanHandler(w http.ResponseWriter, r *http.Request) {
 		defer (*unlockFn)()
 	}
 
-	contexts, err := db.GetPlanContexts(auth.OrgId, planId, true)
-
-	if err != nil {
-		log.Printf("Error getting plan contexts: %v\n", err)
-		http.Error(w, "Error getting plan contexts: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
 	planState, err := db.GetCurrentPlanState(db.CurrentPlanStateParams{
-		OrgId:    auth.OrgId,
-		PlanId:   planId,
-		Contexts: contexts,
+		OrgId:  auth.OrgId,
+		PlanId: planId,
 	})
 
 	if err != nil {

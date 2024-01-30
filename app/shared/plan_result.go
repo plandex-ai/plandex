@@ -2,6 +2,7 @@ package shared
 
 import (
 	"fmt"
+	"log"
 	"sort"
 	"strings"
 	"time"
@@ -70,6 +71,14 @@ func (p PlanFileResultsByPath) NumPending() int {
 	return numPending
 }
 
+func (p PlanFileResultsByPath) OriginalContextForPath(path string) string {
+	planResults := p[path]
+	if len(planResults) == 0 {
+		return ""
+	}
+	return planResults[0].ContextBody
+}
+
 func (r PlanResult) NumPendingForPath(path string) int {
 	res := 0
 	results := r.FileResultsByPath[path]
@@ -92,17 +101,17 @@ func ApplyReplacements(content string, replacements []*Replacement, setFailed bo
 		sub := updated[lastInsertedIdx:]
 		originalIdx := strings.Index(sub, replacement.Old)
 
-		// log.Println("Replacement: " + replacement.Old + " -> " + replacement.New)
-		// log.Println("Pre: " + pre)
-		// log.Println("Sub: " + sub)
-		// log.Println("Idx: " + fmt.Sprintf("%d", idx))
-		// log.Println("Updated: " + updated)
-
 		if originalIdx == -1 {
 			allSucceeded = false
 			if setFailed {
 				replacement.Failed = true
 			}
+
+			log.Println("Replacement failed: " + replacement.Old + " -> " + replacement.New)
+			log.Println("Pre: " + pre)
+			log.Println("Sub: " + sub)
+			log.Println("Updated: " + updated)
+
 		} else {
 			replaced := strings.Replace(sub, replacement.Old, replacement.New, 1)
 

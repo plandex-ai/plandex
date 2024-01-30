@@ -279,13 +279,14 @@ const (
 )
 
 type repoLock struct {
-	Id        string    `db:"id"`
-	OrgId     string    `db:"org_id"`
-	UserId    string    `db:"user_id"`
-	PlanId    string    `db:"plan_id"`
-	Scope     LockScope `db:"scope"`
-	Branch    *string   `db:"branch"`
-	CreatedAt time.Time `db:"created_at"`
+	Id          string    `db:"id"`
+	OrgId       string    `db:"org_id"`
+	UserId      string    `db:"user_id"`
+	PlanId      string    `db:"plan_id"`
+	Scope       LockScope `db:"scope"`
+	Branch      *string   `db:"branch"`
+	PlanBuildId *string   `db:"plan_build_id"`
+	CreatedAt   time.Time `db:"created_at"`
 }
 
 // Models below are stored in files, not in the database.

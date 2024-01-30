@@ -48,7 +48,6 @@ func StorePlanResult(result *PlanFileResult) error {
 type CurrentPlanStateParams struct {
 	OrgId                    string
 	PlanId                   string
-	Contexts                 []*Context
 	PlanFileResults          []*PlanFileResult
 	PendingBuildDescriptions []*ConvoMessageDescription
 }
@@ -59,7 +58,6 @@ func GetCurrentPlanState(params CurrentPlanStateParams) (*shared.CurrentPlanStat
 
 	var dbPlanFileResults []*PlanFileResult
 	var pendingBuildDescriptions []*shared.ConvoMessageDescription
-	var contexts []*Context
 
 	errCh := make(chan error)
 
@@ -99,22 +97,7 @@ func GetCurrentPlanState(params CurrentPlanStateParams) (*shared.CurrentPlanStat
 		errCh <- nil
 	}()
 
-	go func() {
-		if params.Contexts == nil {
-			res, err := GetPlanContexts(orgId, planId, true)
-			if err != nil {
-				errCh <- fmt.Errorf("error getting plan contexts: %v", err)
-				return
-			}
-			contexts = res
-		} else {
-			contexts = params.Contexts
-		}
-
-		errCh <- nil
-	}()
-
-	for i := 0; i < 3; i++ {
+	for i := 0; i < 2; i++ {
 		err := <-errCh
 		if err != nil {
 			return nil, err
@@ -128,21 +111,8 @@ func GetCurrentPlanState(params CurrentPlanStateParams) (*shared.CurrentPlanStat
 	}
 	planResult := GetPlanResult(apiPlanFileResults)
 
-	var apiContexts []*shared.Context
-	apiContextsByPath := make(map[string]*shared.Context)
-
-	for _, context := range contexts {
-		apiContexts = append(apiContexts, context.ToApi())
-
-		if context.FilePath != "" {
-			apiContextsByPath[context.FilePath] = context.ToApi()
-		}
-	}
-
 	planState := &shared.CurrentPlanState{
 		PlanResult:               planResult,
-		Contexts:                 apiContexts,
-		ContextsByPath:           apiContextsByPath,
 		PendingBuildDescriptions: pendingBuildDescriptions,
 	}
 
@@ -308,7 +278,6 @@ func ApplyPlan(orgId, planId, branch string) error {
 
 	var results []*PlanFileResult
 	var pendingBuildDescriptions []*ConvoMessageDescription
-	var contexts []*Context
 
 	go func() {
 		res, err := GetPlanFileResults(orgId, planId)
@@ -330,17 +299,7 @@ func ApplyPlan(orgId, planId, branch string) error {
 		errCh <- nil
 	}()
 
-	go func() {
-		res, err := GetPlanContexts(orgId, planId, true)
-		if err != nil {
-			errCh <- fmt.Errorf("error getting plan contexts: %v", err)
-			return
-		}
-		contexts = res
-		errCh <- nil
-	}()
-
-	for i := 0; i < 3; i++ {
+	for i := 0; i < 2; i++ {
 		err := <-errCh
 		if err != nil {
 			return fmt.Errorf("error applying plan: %v", err)
@@ -350,7 +309,6 @@ func ApplyPlan(orgId, planId, branch string) error {
 	planState, err := GetCurrentPlanState(CurrentPlanStateParams{
 		OrgId:                    orgId,
 		PlanId:                   planId,
-		Contexts:                 contexts,
 		PlanFileResults:          results,
 		PendingBuildDescriptions: pendingBuildDescriptions,
 	})

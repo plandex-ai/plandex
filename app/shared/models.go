@@ -182,8 +182,6 @@ type PlanResult struct {
 type CurrentPlanState struct {
 	PlanResult               *PlanResult                `json:"planResult"`
 	CurrentPlanFiles         *CurrentPlanFiles          `json:"currentPlanFiles"`
-	Contexts                 []*Context                 `json:"contexts"`
-	ContextsByPath           map[string]*Context        `json:"contextsByPath"`
 	PendingBuildDescriptions []*ConvoMessageDescription `json:"pendingBuildDescriptions"`
 }
 

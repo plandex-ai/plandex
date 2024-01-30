@@ -70,7 +70,7 @@ func plans(cmd *cobra.Command, args []string) {
 
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetAutoWrapText(false)
-	table.SetHeader([]string{"#", "Name", "Updated", "Created", "Branches", "Branch", "Context", "Convo"})
+	table.SetHeader([]string{"#", "Name", "Updated", "Created" /*"Branches",*/, "Branch", "Context", "Convo"})
 
 	for i, p := range plans {
 
@@ -88,7 +88,7 @@ func plans(cmd *cobra.Command, args []string) {
 			name,
 			format.Time(p.UpdatedAt),
 			format.Time(p.CreatedAt),
-			strconv.Itoa(p.ActiveBranches),
+			// strconv.Itoa(p.ActiveBranches),
 			currentBranch.Name,
 			strconv.Itoa(currentBranch.ContextTokens) + " 🪙",
 			strconv.Itoa(currentBranch.ConvoTokens) + " 🪙",

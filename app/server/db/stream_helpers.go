@@ -3,6 +3,7 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"log"
 	"time"
 )
 
@@ -32,6 +33,8 @@ func StoreModelStream(stream *ModelStream) error {
 }
 
 func SetModelStreamFinished(id string) error {
+	log.Println("Setting model stream finished")
+
 	_, err := Conn.Exec("UPDATE model_streams SET finished_at = NOW() WHERE id = $1", id)
 
 	if err != nil {

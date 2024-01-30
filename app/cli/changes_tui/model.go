@@ -94,13 +94,13 @@ func initialModel() *changesUIModel {
 			),
 
 			pageDown: bubbleKey.NewBinding(
-				bubbleKey.WithKeys("J", "pageDown"),
-				bubbleKey.WithHelp("J", "page down"),
+				bubbleKey.WithKeys("d", "pageDown"),
+				bubbleKey.WithHelp("d", "page down"),
 			),
 
 			pageUp: bubbleKey.NewBinding(
-				bubbleKey.WithKeys("K", "pageUp"),
-				bubbleKey.WithHelp("K", "page up"),
+				bubbleKey.WithKeys("u", "pageUp"),
+				bubbleKey.WithHelp("u", "page up"),
 			),
 
 			switchView: bubbleKey.NewBinding(

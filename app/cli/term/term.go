@@ -15,11 +15,11 @@ import (
 )
 
 var CmdDesc = map[string][2]string{
-	"new": {"", "start a new plan"},
-	// "current":     {"c", "show current plan"},
-	"cd":   {"", "set current plan by name or index"},
-	"load": {"l", "load files, dirs, urls, notes or piped data into context"},
-	"tell": {"t", "describe a task, ask a question, or chat"},
+	"new":     {"", "start a new plan"},
+	"current": {"cu", "show current plan"},
+	"cd":      {"", "set current plan by name or index"},
+	"load":    {"l", "load files, dirs, urls, notes or piped data into context"},
+	"tell":    {"t", "describe a task, ask a question, or chat"},
 	// "diffs":       {"d", "show diffs between plan and project files"},
 	// "preview":     {"pv", "preview the plan in a branch"},
 	"apply":       {"ap", "apply the plan to your project files"},
@@ -32,6 +32,9 @@ var CmdDesc = map[string][2]string{
 	"delete-plan": {"del", "delete plan by name or index"},
 	"plans":       {"pl", "list plans"},
 	"update":      {"u", "update outdated context"},
+	"log":         {"", "show log of plan updates"},
+	"branches":    {"br", "list plan branches"},
+	// "checkout":    {"co", "checkout or create a branch"}, need to implement non-contiguous aliases
 }
 
 func PrintCmds(prefix string, cmds ...string) {
