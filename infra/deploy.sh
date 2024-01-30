@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Generate a unique tag for the deployment
+export STACK_TAG=$(uuidgen | cut -d '-' -f1)
+
 # Set variables for the ECR repository and image tag
 ECR_REPOSITORY=$(aws ecr describe-repositories --repository-names plandex-ecr-repository | jq -r '.repositories[0].repositoryUri')
 IMAGE_TAG=$(git rev-parse --short HEAD)
@@ -11,7 +14,7 @@ deploy_or_update_stack() {
 
   if [ -z "$STACK_NAME" ]; then
     # Deploy the stack if it does not exist
-    npx cdk deploy "plandex-stack-*" --require-approval never --tags stack=$STACK_TAG
+    npx cdk deploy "plandex-stack-*" --require-approval never --context stackTag=$STACK_TAG
   else
     # Update the stack if it exists
     npx cdk deploy "$STACK_NAME" --require-approval never

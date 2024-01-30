@@ -10,7 +10,7 @@ import * as iam from "@aws-cdk/aws-iam";
 import * as acm from "@aws-cdk/aws-certificatemanager";
 import { v4 as uuid } from "uuid";
 
-const tag = uuid().split("-")[0];
+const tag = process.env.STACK_TAG || uuid().split("-")[0];
 
 export class PlandexStack extends cdk.Stack {
   constructor(scope: cdk.Construct, id: string, props?: cdk.StackProps) {
