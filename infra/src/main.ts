@@ -8,6 +8,7 @@ import * as efs from "@aws-cdk/aws-efs";
 import * as elbv2 from "@aws-cdk/aws-elasticloadbalancingv2";
 import * as iam from "@aws-cdk/aws-iam";
 import * as acm from "@aws-cdk/aws-certificatemanager";
+import * as cloudwatch from "@aws-cdk/aws-cloudwatch";
 import { v4 as uuid } from "uuid";
 
 const tag = process.env.STACK_TAG;
@@ -150,7 +151,27 @@ export class PlandexStack extends cdk.Stack {
       "Allow Fargate service to access RDS instance"
     );
 
-    const fargateService = new ecs.FargateService(
+    const fargateService = new ecs.FargateService
+
+    // Define the scaling target
+    const scaling = fargateService.autoScaleTaskCount({
+      minCapacity: 1,
+      maxCapacity: 10,
+    });
+
+    // Define the CPU-based scaling policy
+    scaling.scaleOnCpuUtilization('CpuScaling', {
+      targetUtilizationPercent: 50,
+      scaleInCooldown: cdk.Duration.seconds(300),
+      scaleOutCooldown: cdk.Duration.seconds(300),
+    });
+
+    // Define the memory-based scaling policy
+    scaling.scaleOnMemoryUtilization('MemoryScaling', {
+      targetUtilizationPercent: 50,
+      scaleInCooldown: cdk.Duration.seconds(300),
+      scaleOutCooldown: cdk.Duration.seconds(300),
+    });(
       this,
       `plandex-fargate-service-${tag}`,
       {
@@ -198,43 +219,37 @@ export class PlandexStack extends cdk.Stack {
       ec2.Port.tcp(443),
       "Allow inbound HTTPS traffic"
     );
+
+    // Define CloudWatch metrics for monitoring CPU and memory utilization
+    const cpuUtilizationMetric = fargateService.metricCpuUtilization();
+    const memoryUtilizationMetric = fargateService.metricMemoryUtilization();
+
+    // Create CloudWatch alarms for high CPU and memory utilization
+    new cloudwatch.Alarm(this, "HighCpuUtilizationAlarm", {
+      metric: cpuUtilizationMetric,
+      threshold: 80,
+      evaluationPeriods: 2,
+      alarmDescription: "Alarm when CPU utilization exceeds 80%",
+      comparisonOperator:
+        cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    });
+
+    new cloudwatch.Alarm(this, "HighMemoryUtilizationAlarm", {
+      metric: memoryUtilizationMetric,
+      threshold: 80,
+      evaluationPeriods: 2,
+      alarmDescription: "Alarm when memory utilization exceeds 80%",
+      comparisonOperator:
+        cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    });
   }
 }
 
-import * as cloudwatch from '@aws-cdk/aws-cloudwatch';
-
 const app = new cdk.App();
 
-const stack = new PlandexStack(app, "plandex-stack-" + (process.env.STACK_TAG || uuid().split("-")[0]), props);
-
-// Define CloudWatch metrics for monitoring CPU and memory utilization
-const cpuUtilizationMetric = fargateService.metricCpuUtilization();
-const memoryUtilizationMetric = fargateService.metricMemoryUtilization();
-
-// Create CloudWatch alarms for high CPU and memory utilization
-new cloudwatch.Alarm(this, 'HighCpuUtilizationAlarm', {
-  metric: cpuUtilizationMetric,
-  threshold: 80,
-  evaluationPeriods: 2,
-  alarmDescription: 'Alarm when CPU utilization exceeds 80%',
-  comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
-  treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
-});
-
-new cloudwatch.Alarm(this, 'HighMemoryUtilizationAlarm', {
-  metric: memoryUtilizationMetric,
-  threshold: 80,
-  evaluationPeriods: 2,
-  alarmDescription: 'Alarm when memory utilization exceeds 80%',
-  comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
-  treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
-});
-
-const stack = new PlandexStack(app, "plandex-stack-" + (process.env.STACK_TAG || uuid().split("-")[0]), props);
-
-// Enable automatic rollback for the stack on deployment failure
-// Enable automatic rollback for the stack on deployment failure
-const cfnStack = stack.node.defaultChild as cdk.CfnStack;
-cfnStack.cfnOptions.onFailure = cdk.CfnStack.OnFailure.ROLLBACK;
-
-
+const stack = new PlandexStack(
+  app,
+  "plandex-stack-" + (process.env.STACK_TAG || uuid().split("-")[0])
+);
