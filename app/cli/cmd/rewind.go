@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"plandex/api"
 	"plandex/auth"
@@ -41,20 +40,27 @@ func rewind(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	stepsOrSha := args[0]
+	var stepsOrSha string
+	if len(args) > 0 {
+		stepsOrSha = args[0]
+	} else {
+		stepsOrSha = "1"
+	}
 
-	logsRes, err := api.Client.ListLogs(lib.CurrentPlanId, lib.CurrentBranch)
+	logsRes, apiErr := api.Client.ListLogs(lib.CurrentPlanId, lib.CurrentBranch)
 
-	if err != nil {
-		fmt.Printf("Error getting logs: %v\n", err)
+	if apiErr != nil {
+		fmt.Printf("Error getting logs: %v\n", apiErr)
 		return
 	}
 
 	var targetSha string
 
-	log.Println("shas:", logsRes.Shas)
+	// log.Println("shas:", logsRes.Shas)
 
-	if steps, err := strconv.Atoi(stepsOrSha); err == nil && steps > 0 {
+	steps, err := strconv.Atoi(stepsOrSha)
+
+	if err == nil && steps > 0 {
 		// log.Println("steps:", steps)
 		// Rewind by the specified number of steps
 		targetSha = logsRes.Shas[steps]
@@ -74,14 +80,24 @@ func rewind(cmd *cobra.Command, args []string) {
 	// log.Println("Rewinding to", targetSha)
 
 	// Rewind to the target sha
-	_, err = api.Client.RewindPlan(lib.CurrentPlanId, lib.CurrentBranch, shared.RewindPlanRequest{Sha: targetSha})
+	_, apiErr = api.Client.RewindPlan(lib.CurrentPlanId, lib.CurrentBranch, shared.RewindPlanRequest{Sha: targetSha})
 
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error rewinding plan: %v\n", err)
+	if apiErr != nil {
+		fmt.Fprintf(os.Stderr, "Error rewinding plan: %v\n", apiErr)
 		return
 	}
 
-	msg := "✅ Rewound to " + targetSha
+	var msg string
+	if steps == 0 {
+		msg = "✅ Rewound to " + targetSha
+	} else {
+		postfix := "s"
+		if steps == 1 {
+			postfix = ""
+		}
+
+		msg = fmt.Sprintf("✅ Rewound %d step%s to %s", steps, postfix, targetSha)
+	}
 
 	fmt.Println(msg)
 	fmt.Println()

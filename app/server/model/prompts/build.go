@@ -35,10 +35,12 @@ For the 'new' text, apart from the exceptions I mentioned in the previous paragr
 
 You MUST call only 'writeReplacements'--don't call any other function or produce any other output.
 
+You MUST only generate replacements for the *current file*--don't generate replacements for any other file. If other files are present in the plan, ignore them. Only generate replacements for the current file.
+
 Replacement examples below. Note: >>> and <<< indicate the start and end of an example response.
 
 1.)
-If the current file is:
+If the current file is 'main.go' and the state is:
 `+"```"+`
 package main
 
@@ -90,7 +92,7 @@ writeReplacements({
 })
 
 2.)
-If the current file is:
+If the current file is 'helpers.go' and the state is:
 `+"```"+`
 package helpers
 
@@ -125,7 +127,7 @@ writeReplacements({
 })
 
 3.)
-If the current file is:
+If the current file is 'main.go' and the state is:
 `+"```"+`
 package main
 
@@ -171,7 +173,7 @@ func GetBuildCurrentStatePrompt(filePath, currentState string) string {
 	if currentState == "" {
 		return ""
 	}
-	return fmt.Sprintf("\n\n**Current state of file for %s:**\n```\n%s\n```", filePath, currentState) + "\n\n"
+	return fmt.Sprintf("**The current file is %s. Current state of the file:**\n```\n%s\n```", filePath, currentState) + "\n\n"
 }
 
 var ReplaceFn = openai.FunctionDefinition{
@@ -208,7 +210,7 @@ var ReplaceFn = openai.FunctionDefinition{
 
 func GetReplacePrompt(filePath string) string {
 	return fmt.Sprintf(`
-					Based on your instructions, apply the changes from the plan to %s. Call the 'writeReplacements' function with a JSON array of replacements to apply to the file from your previous response.`, filePath)
+					Based on your instructions, apply the changes from the plan to %s. Call the 'writeReplacements' function with a JSON array of replacements to apply to the file from your previous response. You *must always call the 'writeReplacements' function*. Don't call any other function.`, filePath)
 }
 
 func GetCorrectReplacementPrompt(replacements []*shared.Replacement, currentState string) (string, error) {

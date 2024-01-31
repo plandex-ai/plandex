@@ -1,7 +1,6 @@
 package types
 
 import (
-	"log"
 	"strings"
 )
 
@@ -97,7 +96,7 @@ func (r *replyParser) AddChunk(chunk string, addToTotal bool) {
 			r.fileContents = append(r.fileContents, "")
 			r.maybeFilePath = ""
 			r.currentFileLines = []string{}
-			log.Println("Confirmed file path:", r.currentFilePath) // Logging the confirmed file path
+			// log.Println("Confirmed file path:", r.currentFilePath) // Logging the confirmed file path
 
 			return
 		} else if prevFullLineTrimmed != "" {
@@ -133,18 +132,18 @@ func (r *replyParser) AddChunk(chunk string, addToTotal bool) {
 			}
 		}
 	} else {
-		log.Println("Current file path is not empty--adding to current file...")
+		// log.Println("Current file path is not empty--adding to current file...")
 
 		if strings.HasPrefix(prevFullLineTrimmed, "```") {
-			log.Println("Found closing ticks--adding file to files and resetting current file...")
+			// log.Println("Found closing ticks--adding file to files and resetting current file...")
 			r.files = append(r.files, r.currentFilePath)
 			r.currentFilePath = ""
 		} else {
-			log.Println("Adding tokens to current file...") // Logging token addition
+			// log.Println("Adding tokens to current file...") // Logging token addition
 
 			r.fileContents[r.currentFileIdx] += prevFullLine + "\n"
 			r.currentFileLines = append(r.currentFileLines, prevFullLine)
-			// fmt.Printf("Added %d tokens to %s\n", tokens, r.currentFilePath) // Logging token addition
+			// log.Printf("Added %d tokens to %s\n", tokens, r.currentFilePath) // Logging token addition
 		}
 	}
 }

@@ -3,12 +3,14 @@ package db
 import (
 	"fmt"
 	"time"
+
+	"github.com/lib/pq"
 )
 
-func GetPlanSummaries(planId string) ([]*ConvoSummary, error) {
+func GetPlanSummaries(planId string, convoMessageIds []string) ([]*ConvoSummary, error) {
 	var summaries []*ConvoSummary
 
-	err := Conn.Select(&summaries, "SELECT * FROM convo_summaries WHERE plan_id = $1 ORDER BY created_at", planId)
+	err := Conn.Select(&summaries, "SELECT * FROM convo_summaries WHERE plan_id = $1 AND latest_convo_message_id = ANY($2) ORDER BY created_at", planId, pq.Array(convoMessageIds))
 
 	if err != nil {
 		return nil, fmt.Errorf("error getting plan summaries: %v", err)

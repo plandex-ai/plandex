@@ -132,12 +132,12 @@ type ConvoMessageDescription struct {
 }
 
 type PlanBuild struct {
-	Id             string    `json:"id"`
-	ConvoMessageId string    `json:"convoMessageId"`
-	FilePath       string    `json:"filePath"`
-	Error          string    `json:"error"`
-	CreatedAt      time.Time `json:"createdAt"`
-	UpdatedAt      time.Time `json:"updatedAt"`
+	Id              string    `json:"id"`
+	ConvoMessageIds []string  `json:"convoMessageIds"`
+	FilePath        string    `json:"filePath"`
+	Error           string    `json:"error"`
+	CreatedAt       time.Time `json:"createdAt"`
+	UpdatedAt       time.Time `json:"updatedAt"`
 }
 
 type Replacement struct {
@@ -150,19 +150,19 @@ type Replacement struct {
 }
 
 type PlanFileResult struct {
-	Id             string         `json:"id"`
-	ConvoMessageId string         `json:"convoMessageId"`
-	PlanBuildId    string         `json:"planBuildId"`
-	Path           string         `json:"path"`
-	ContextBody    string         `json:"contextBody"`
-	ContextSha     string         `json:"contextSha"`
-	Content        string         `json:"content"`
-	AnyFailed      bool           `json:"anyFailed"`
-	AppliedAt      *time.Time     `json:"appliedAt,omitempty"`
-	RejectedAt     *time.Time     `json:"rejectedAt,omitempty"`
-	Replacements   []*Replacement `json:"replacements"`
-	CreatedAt      time.Time      `json:"createdAt"`
-	UpdatedAt      time.Time      `json:"updatedAt"`
+	Id              string         `json:"id"`
+	ConvoMessageIds []string       `json:"convoMessageIds"`
+	PlanBuildId     string         `json:"planBuildId"`
+	Path            string         `json:"path"`
+	ContextBody     string         `json:"contextBody"`
+	ContextSha      string         `json:"contextSha"`
+	Content         string         `json:"content"`
+	AnyFailed       bool           `json:"anyFailed"`
+	AppliedAt       *time.Time     `json:"appliedAt,omitempty"`
+	RejectedAt      *time.Time     `json:"rejectedAt,omitempty"`
+	Replacements    []*Replacement `json:"replacements"`
+	CreatedAt       time.Time      `json:"createdAt"`
+	UpdatedAt       time.Time      `json:"updatedAt"`
 }
 
 type CurrentPlanFiles struct {

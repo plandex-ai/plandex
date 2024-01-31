@@ -37,9 +37,11 @@ type ActivePlan struct {
 	BuildQueuesByPath   map[string][]*ActiveBuild
 	RepliesFinished     bool
 	StreamDoneCh        chan *shared.ApiError
-	ModelStreamId       string
-	streamCh            chan string
-	subscriptions       map[string]chan string
+
+	ModelStreamId string
+	IsBackground  bool
+	streamCh      chan string
+	subscriptions map[string]chan string
 }
 
 func NewActivePlan(planId, branch, prompt string) *ActivePlan {
@@ -122,6 +124,10 @@ func (ap *ActivePlan) Subscribe() (string, chan string) {
 
 func (ap *ActivePlan) Unsubscribe(id string) {
 	delete(ap.subscriptions, id)
+}
+
+func (ap *ActivePlan) NumSubscribers() int {
+	return len(ap.subscriptions)
 }
 
 func (b *ActiveBuild) BuildFinished() bool {

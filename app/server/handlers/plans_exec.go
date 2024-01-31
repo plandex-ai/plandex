@@ -97,7 +97,7 @@ func TellPlanHandler(w http.ResponseWriter, r *http.Request) {
 	if requestBody.ConnectStream {
 		active := model.GetActivePlan(planId, branch)
 		subscriptionId, ch := model.SubscribePlan(planId, branch)
-		startResponseStream(w, ch, active.Ctx, func() {
+		startResponseStream(w, ch, active, func() {
 			model.UnsubscribePlan(planId, branch, subscriptionId)
 		})
 	}

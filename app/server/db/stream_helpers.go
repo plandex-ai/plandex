@@ -33,13 +33,15 @@ func StoreModelStream(stream *ModelStream) error {
 }
 
 func SetModelStreamFinished(id string) error {
-	log.Println("Setting model stream finished")
+	log.Println("Setting model stream finished:", id)
 
 	_, err := Conn.Exec("UPDATE model_streams SET finished_at = NOW() WHERE id = $1", id)
 
 	if err != nil {
 		return fmt.Errorf("error setting model stream finished: %v", err)
 	}
+
+	log.Println("Set model stream finished successfully:", id)
 
 	return nil
 }

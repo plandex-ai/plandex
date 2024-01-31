@@ -210,24 +210,24 @@ func (summary *ConvoSummary) ToApi() *shared.ConvoSummary {
 }
 
 type PlanBuild struct {
-	Id             string    `db:"id"`
-	OrgId          string    `db:"org_id"`
-	PlanId         string    `db:"plan_id"`
-	ConvoMessageId string    `db:"convo_message_id"`
-	FilePath       string    `db:"file_path"`
-	Error          string    `db:"error"`
-	CreatedAt      time.Time `db:"created_at"`
-	UpdatedAt      time.Time `db:"updated_at"`
+	Id              string    `db:"id"`
+	OrgId           string    `db:"org_id"`
+	PlanId          string    `db:"plan_id"`
+	ConvoMessageIds []string  `db:"convo_message_ids"`
+	FilePath        string    `db:"file_path"`
+	Error           string    `db:"error"`
+	CreatedAt       time.Time `db:"created_at"`
+	UpdatedAt       time.Time `db:"updated_at"`
 }
 
 func (build *PlanBuild) ToApi() *shared.PlanBuild {
 	return &shared.PlanBuild{
-		Id:             build.Id,
-		ConvoMessageId: build.ConvoMessageId,
-		Error:          build.Error,
-		FilePath:       build.FilePath,
-		CreatedAt:      build.CreatedAt,
-		UpdatedAt:      build.UpdatedAt,
+		Id:              build.Id,
+		ConvoMessageIds: build.ConvoMessageIds,
+		Error:           build.Error,
+		FilePath:        build.FilePath,
+		CreatedAt:       build.CreatedAt,
+		UpdatedAt:       build.UpdatedAt,
 	}
 }
 
@@ -380,38 +380,38 @@ func (desc *ConvoMessageDescription) ToApi() *shared.ConvoMessageDescription {
 }
 
 type PlanFileResult struct {
-	Id             string                `json:"id"`
-	OrgId          string                `json:"orgId"`
-	PlanId         string                `json:"planId"`
-	ConvoMessageId string                `json:"convoMessageId"`
-	PlanBuildId    string                `json:"planBuildId"`
-	Path           string                `json:"path"`
-	ContextSha     string                `json:"contextSha"`
-	ContextBody    string                `json:"contextBody"`
-	Content        string                `json:"content,omitempty"`
-	Replacements   []*shared.Replacement `json:"replacements"`
-	AnyFailed      bool                  `json:"anyFailed"`
-	Error          string                `json:"error"`
-	AppliedAt      *time.Time            `json:"appliedAt,omitempty"`
-	RejectedAt     *time.Time            `json:"rejectedAt,omitempty"`
-	CreatedAt      time.Time             `json:"createdAt"`
-	UpdatedAt      time.Time             `json:"updatedAt"`
+	Id              string                `json:"id"`
+	OrgId           string                `json:"orgId"`
+	PlanId          string                `json:"planId"`
+	ConvoMessageIds []string              `json:"convoMessageIds"`
+	PlanBuildId     string                `json:"planBuildId"`
+	Path            string                `json:"path"`
+	ContextSha      string                `json:"contextSha"`
+	ContextBody     string                `json:"contextBody"`
+	Content         string                `json:"content,omitempty"`
+	Replacements    []*shared.Replacement `json:"replacements"`
+	AnyFailed       bool                  `json:"anyFailed"`
+	Error           string                `json:"error"`
+	AppliedAt       *time.Time            `json:"appliedAt,omitempty"`
+	RejectedAt      *time.Time            `json:"rejectedAt,omitempty"`
+	CreatedAt       time.Time             `json:"createdAt"`
+	UpdatedAt       time.Time             `json:"updatedAt"`
 }
 
 func (res *PlanFileResult) ToApi() *shared.PlanFileResult {
 	return &shared.PlanFileResult{
-		Id:             res.Id,
-		PlanBuildId:    res.PlanBuildId,
-		ConvoMessageId: res.ConvoMessageId,
-		Path:           res.Path,
-		ContextSha:     res.ContextSha,
-		ContextBody:    res.ContextBody,
-		Content:        res.Content,
-		AnyFailed:      res.AnyFailed,
-		AppliedAt:      res.AppliedAt,
-		RejectedAt:     res.RejectedAt,
-		Replacements:   res.Replacements,
-		CreatedAt:      res.CreatedAt,
-		UpdatedAt:      res.UpdatedAt,
+		Id:              res.Id,
+		PlanBuildId:     res.PlanBuildId,
+		ConvoMessageIds: res.ConvoMessageIds,
+		Path:            res.Path,
+		ContextSha:      res.ContextSha,
+		ContextBody:     res.ContextBody,
+		Content:         res.Content,
+		AnyFailed:       res.AnyFailed,
+		AppliedAt:       res.AppliedAt,
+		RejectedAt:      res.RejectedAt,
+		Replacements:    res.Replacements,
+		CreatedAt:       res.CreatedAt,
+		UpdatedAt:       res.UpdatedAt,
 	}
 }

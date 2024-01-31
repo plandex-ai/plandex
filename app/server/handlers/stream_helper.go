@@ -1,14 +1,14 @@
 package handlers
 
 import (
-	"context"
 	"log"
 	"net/http"
+	"plandex-server/types"
 
 	"github.com/plandex/plandex/shared"
 )
 
-func startResponseStream(w http.ResponseWriter, ch chan string, ctx context.Context, closeFn func()) {
+func startResponseStream(w http.ResponseWriter, ch chan string, active *types.ActivePlan, closeFn func()) {
 	log.Println("Response stream manager: starting plan stream")
 
 	w.Header().Set("Transfer-Encoding", "chunked")
@@ -21,7 +21,7 @@ func startResponseStream(w http.ResponseWriter, ch chan string, ctx context.Cont
 
 	for {
 		select {
-		case <-ctx.Done():
+		case <-active.Ctx.Done():
 			log.Println("Response stream manager: context done")
 			return
 		case msg := <-ch:
@@ -31,6 +31,9 @@ func startResponseStream(w http.ResponseWriter, ch chan string, ctx context.Cont
 			_, err := w.Write(bytes)
 			if err != nil {
 				log.Printf("Response stream mananger: error writing to client: %v\n", err)
+				if !active.IsBackground && active.NumSubscribers() == 1 {
+					active.CancelFn()
+				}
 				return
 			}
 			if flusher, ok := w.(http.Flusher); ok {

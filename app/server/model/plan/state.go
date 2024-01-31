@@ -33,6 +33,14 @@ func CreateActivePlan(planId, branch, prompt string) *types.ActivePlan {
 				if err != nil {
 					log.Printf("Error setting model stream %s finished: %v\n", activePlan.ModelStreamId, err)
 				}
+
+				err = db.SetPlanStatus(planId, branch, shared.PlanStatusStopped, "")
+				if err != nil {
+					log.Printf("Error setting plan %s status to stopped: %v\n", planId, err)
+				}
+
+				DeleteActivePlan(planId, branch)
+
 				return
 			case apiErr := <-activePlan.StreamDoneCh:
 				log.Printf("case apiErr := <-activePlan.StreamDoneCh: %s\n", planId)

@@ -2,6 +2,7 @@ package streamtui
 
 import (
 	"plandex/term"
+	"time"
 
 	bubbleKey "github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/spinner"
@@ -28,6 +29,9 @@ func (m *streamUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case shared.StreamMessage:
 		return m.streamUpdate(&msg)
+
+	case delayFileRestartMsg:
+		m.finishedByPath[msg.path] = false
 
 	case tea.MouseMsg:
 		if msg.Type == tea.MouseWheelUp {
@@ -153,8 +157,23 @@ func (m *streamUIModel) streamUpdate(msg *shared.StreamMessage) (tea.Model, tea.
 
 	case shared.StreamMessageBuildInfo:
 		m.building = true
-		m.tokensByPath[msg.BuildInfo.Path] += msg.BuildInfo.NumTokens
-		m.finishedByPath[msg.BuildInfo.Path] = msg.BuildInfo.Finished
+		wasFinished := m.finishedByPath[msg.BuildInfo.Path]
+		nowFinished := msg.BuildInfo.Finished
+
+		if msg.BuildInfo.Finished {
+			m.tokensByPath[msg.BuildInfo.Path] = 0
+			m.finishedByPath[msg.BuildInfo.Path] = true
+		} else {
+			if wasFinished && !nowFinished {
+				// delay for a second before marking not finished again (so check flashes green prior to restarting build)
+				return m, startDelay(msg.BuildInfo.Path, time.Second*1)
+			} else {
+				m.finishedByPath[msg.BuildInfo.Path] = false
+			}
+
+			m.tokensByPath[msg.BuildInfo.Path] += msg.BuildInfo.NumTokens
+		}
+
 		m.updateViewportDimensions()
 
 	case shared.StreamMessageDescribing:
@@ -169,4 +188,15 @@ func (m *streamUIModel) streamUpdate(msg *shared.StreamMessage) (tea.Model, tea.
 	}
 
 	return m, nil
+}
+
+type delayFileRestartMsg struct {
+	path string
+}
+
+func startDelay(path string, delay time.Duration) tea.Cmd {
+	return func() tea.Msg {
+		time.Sleep(delay)
+		return delayFileRestartMsg{path: path}
+	}
 }

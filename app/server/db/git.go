@@ -329,13 +329,6 @@ func lockRepo(orgId, userId, planId, planBuildId, branch string, scope LockScope
 
 		if len(expiredLockIds) > 0 {
 			query := "DELETE FROM repo_locks WHERE id = ANY($1)"
-
-			args := make([]interface{}, len(expiredLockIds))
-			for i, id := range expiredLockIds {
-				args[i] = id
-			}
-
-			// Execute the query with the slice as a parameter
 			_, err := tx.Exec(query, pq.Array(expiredLockIds))
 			if err != nil {
 				return fmt.Errorf("error removing expired locks: %v", err)

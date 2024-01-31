@@ -181,22 +181,35 @@ func (planState *CurrentPlanState) GetFilesBeforeReplacement(
 }
 
 func (state *CurrentPlanState) PendingChangesSummary() string {
+
 	var msgs []string
 
-	for _, desc := range state.PendingBuildDescriptions {
+	var multiDescs [][]*ConvoMessageDescription
+	for i, result := range state.PlanResult.Results {
+		if i >= len(multiDescs) {
+			multiDescs = append(multiDescs, []*ConvoMessageDescription{})
+		}
+		for _, convoMessageId := range result.ConvoMessageIds {
+			for _, desc := range state.PendingBuildDescriptions {
+				if desc.ConvoMessageId == convoMessageId {
+					multiDescs[i] = append(multiDescs[i], desc)
+				}
+			}
+		}
+	}
 
+	for i, descs := range multiDescs {
+		result := state.PlanResult.Results[i]
 		pendingNewFilesSet := make(map[string]bool)
 		pendingReplacementPathsSet := make(map[string]bool)
 		pendingReplacementsByPath := make(map[string][]*Replacement)
 
-		for _, result := range state.PlanResult.Results {
-			if result.ConvoMessageId == desc.ConvoMessageId && result.IsPending() {
-				if len(result.Replacements) == 0 && result.Content != "" {
-					pendingNewFilesSet[result.Path] = true
-				} else {
-					pendingReplacementPathsSet[result.Path] = true
-					pendingReplacementsByPath[result.Path] = append(pendingReplacementsByPath[result.Path], result.Replacements...)
-				}
+		if result.IsPending() {
+			if len(result.Replacements) == 0 && result.Content != "" {
+				pendingNewFilesSet[result.Path] = true
+			} else {
+				pendingReplacementPathsSet[result.Path] = true
+				pendingReplacementsByPath[result.Path] = append(pendingReplacementsByPath[result.Path], result.Replacements...)
 			}
 		}
 
@@ -224,8 +237,9 @@ func (state *CurrentPlanState) PendingChangesSummary() string {
 		})
 
 		var descMsgs []string
-
-		descMsgs = append(descMsgs, fmt.Sprintf("📝 %s", desc.CommitMsg))
+		for _, desc := range descs {
+			descMsgs = append(descMsgs, fmt.Sprintf("📝 %s", desc.CommitMsg))
+		}
 
 		if len(pendingNewFiles) > 0 {
 			newMsg := "  📄 New files:\n"
@@ -251,6 +265,7 @@ func (state *CurrentPlanState) PendingChangesSummary() string {
 		}
 
 		msgs = append(msgs, strings.Join(descMsgs, "\n"))
+
 	}
 	return strings.Join(msgs, "\n")
 }

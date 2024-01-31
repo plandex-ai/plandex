@@ -40,17 +40,28 @@ func QueueBuild(currentOrgId, currentUserId, planId, branch string, activeBuild 
 		return
 	} else {
 		log.Printf("Will process build queue for file %s\n", filePath)
-		go execPlanBuild(currentOrgId, currentUserId, branch, activePlan, activeBuild)
+		go execPlanBuild(currentOrgId, currentUserId, branch, activePlan, []*types.ActiveBuild{activeBuild})
 	}
 }
 
-func execPlanBuild(currentOrgId, currentUserId, branch string, activePlan *types.ActivePlan, activeBuild *types.ActiveBuild) {
-	UpdateActivePlan(activePlan.Id, activePlan.Branch, func(ap *types.ActivePlan) {
-		ap.IsBuildingByPath[activeBuild.Path] = true
-	})
+func execPlanBuild(currentOrgId, currentUserId, branch string, activePlan *types.ActivePlan, activeBuilds []*types.ActiveBuild) {
+	if len(activeBuilds) == 0 {
+		log.Println("No active builds")
+		return
+	}
 
+	// all builds should have the same path
+	filePath := activeBuilds[0].Path
 	planId := activePlan.Id
-	filePath := activeBuild.Path
+	var convoMessageIds []string
+
+	for _, activeBuild := range activeBuilds {
+		convoMessageIds = append(convoMessageIds, activeBuild.AssistantMessageId)
+	}
+
+	UpdateActivePlan(activePlan.Id, activePlan.Branch, func(ap *types.ActivePlan) {
+		ap.IsBuildingByPath[filePath] = true
+	})
 
 	buildInfo := &shared.BuildInfo{
 		Path:      filePath,
@@ -69,10 +80,10 @@ func execPlanBuild(currentOrgId, currentUserId, branch string, activePlan *types
 
 	go func() {
 		build = &db.PlanBuild{
-			OrgId:          currentOrgId,
-			PlanId:         planId,
-			ConvoMessageId: activeBuild.AssistantMessageId,
-			FilePath:       filePath,
+			OrgId:           currentOrgId,
+			PlanId:          planId,
+			ConvoMessageIds: convoMessageIds,
+			FilePath:        filePath,
 		}
 		err := db.StorePlanBuild(build)
 
@@ -111,7 +122,7 @@ func execPlanBuild(currentOrgId, currentUserId, branch string, activePlan *types
 		if err != nil {
 			log.Printf("Error building plan %s: %v\n", planId, err)
 			UpdateActivePlan(activePlan.Id, activePlan.Branch, func(ap *types.ActivePlan) {
-				ap.IsBuildingByPath[activeBuild.Path] = false
+				ap.IsBuildingByPath[filePath] = false
 			})
 			activePlan.StreamDoneCh <- &shared.ApiError{
 				Type:   shared.ApiErrorTypeOther,
@@ -179,7 +190,9 @@ func execPlanBuild(currentOrgId, currentUserId, branch string, activePlan *types
 			return
 		}
 
-		activeBuild.Success = true
+		for _, build := range activeBuilds {
+			build.Success = true
+		}
 
 		UpdateActivePlan(planId, branch, func(ap *types.ActivePlan) {
 			ap.BuiltFiles[filePath] = true
@@ -198,20 +211,19 @@ func execPlanBuild(currentOrgId, currentUserId, branch string, activePlan *types
 		} else {
 			if !activePlan.PathFinished(filePath) {
 				log.Printf("Processing next build for file %s\n", filePath)
-				var nextBuild *types.ActiveBuild
+				var nextBuilds []*types.ActiveBuild
 				for _, build := range activePlan.BuildQueuesByPath[filePath] {
-					if !build.BuildFinished() {
-						nextBuild = build
-						break
+					if !build.BuildFinished() && len(nextBuilds) < 5 {
+						nextBuilds = append(nextBuilds, build)
 					}
 				}
 
-				log.Println("Next build:")
-				spew.Dump(nextBuild)
+				log.Println("Next builds:")
+				spew.Dump(nextBuilds)
 
-				if nextBuild != nil {
+				if len(nextBuilds) > 0 {
 					log.Println("Calling execPlanBuild for next build in queue")
-					go execPlanBuild(currentOrgId, currentUserId, branch, activePlan, nextBuild)
+					go execPlanBuild(currentOrgId, currentUserId, branch, activePlan, nextBuilds)
 				}
 				return
 			} else {
@@ -223,7 +235,10 @@ func execPlanBuild(currentOrgId, currentUserId, branch string, activePlan *types
 	onBuildFileError := func(filePath string, err error) {
 		log.Printf("Error for file %s: %v\n", filePath, err)
 
-		activeBuild.Error = err
+		for _, build := range activeBuilds {
+			build.Success = false
+			build.Error = err
+		}
 
 		activePlan.StreamDoneCh <- &shared.ApiError{
 			Type:   shared.ApiErrorTypeOther,
@@ -243,7 +258,7 @@ func execPlanBuild(currentOrgId, currentUserId, branch string, activePlan *types
 		}
 
 		UpdateActivePlan(activePlan.Id, activePlan.Branch, func(ap *types.ActivePlan) {
-			ap.IsBuildingByPath[activeBuild.Path] = false
+			ap.IsBuildingByPath[filePath] = false
 		})
 	}
 
@@ -283,12 +298,12 @@ func execPlanBuild(currentOrgId, currentUserId, branch string, activePlan *types
 
 			// new file
 			planRes := &db.PlanFileResult{
-				OrgId:          currentOrgId,
-				PlanId:         planId,
-				PlanBuildId:    build.Id,
-				ConvoMessageId: build.ConvoMessageId,
-				Path:           filePath,
-				Content:        activeBuild.FileContent,
+				OrgId:           currentOrgId,
+				PlanId:          planId,
+				PlanBuildId:     build.Id,
+				ConvoMessageIds: build.ConvoMessageIds,
+				Path:            filePath,
+				Content:         activeBuilds[0].FileContent,
 			}
 			onFinishBuildFile(filePath, planRes)
 			return
@@ -301,16 +316,27 @@ func execPlanBuild(currentOrgId, currentUserId, branch string, activePlan *types
 		currentStatePrompt := prompts.GetBuildCurrentStatePrompt(filePath, currentState)
 		sysPrompt := prompts.GetBuildSysPrompt(filePath, currentStatePrompt)
 
+		var mergedReply string
+		for _, activeBuild := range activeBuilds {
+			mergedReply += "\n\n" + activeBuild.ReplyContent
+		}
+
+		log.Println("Num active builds: " + fmt.Sprintf("%d", len(activeBuilds)))
+		log.Println("Merged reply:")
+		log.Println(mergedReply)
+
 		fileMessages := []openai.ChatCompletionMessage{
 			{
 				Role:    openai.ChatMessageRoleSystem,
 				Content: sysPrompt,
-			}, {
+			},
+			{
 				Role:    openai.ChatMessageRoleUser,
 				Content: activePlan.Prompt,
-			}, {
+			},
+			{
 				Role:    openai.ChatMessageRoleAssistant,
-				Content: activePlan.CurrentReplyContent,
+				Content: mergedReply,
 			},
 			{
 				Role:    openai.ChatMessageRoleUser,
@@ -373,6 +399,8 @@ func execPlanBuild(currentOrgId, currentUserId, branch string, activePlan *types
 			}
 			return
 		}
+
+		buffer := ""
 
 		go func() {
 			defer stream.Close()
@@ -469,7 +497,7 @@ func execPlanBuild(currentOrgId, currentUserId, branch string, activePlan *types
 						if !active.BuiltFiles[filePath] {
 							log.Printf("Stream finished before replacements parsed. File: %s\n", filePath)
 							log.Println("Buffer:")
-							log.Println(activeBuild.Buffer)
+							log.Println(buffer)
 
 							handleErrorRetry(
 								fmt.Errorf("stream finished before replacements parsed. File: %s", filePath),
@@ -504,23 +532,23 @@ func execPlanBuild(currentOrgId, currentUserId, branch string, activePlan *types
 						BuildInfo: buildInfo,
 					})
 
-					activeBuild.Buffer += content
+					buffer += content
 
 					var streamed types.StreamedReplacements
-					err = json.Unmarshal([]byte(activeBuild.Buffer), &streamed)
+					err = json.Unmarshal([]byte(buffer), &streamed)
 					if err == nil && len(streamed.Replacements) > 0 {
 						log.Printf("File %s: Parsed replacements\n", filePath)
 
 						planFileResult, allSucceeded := getPlanResult(
 							planResultParams{
-								orgId:          currentOrgId,
-								planId:         planId,
-								planBuildId:    build.Id,
-								convoMessageId: build.ConvoMessageId,
-								filePath:       filePath,
-								currentState:   currentState,
-								context:        contextPart,
-								replacements:   streamed.Replacements,
+								orgId:           currentOrgId,
+								planId:          planId,
+								planBuildId:     build.Id,
+								convoMessageIds: build.ConvoMessageIds,
+								filePath:        filePath,
+								currentState:    currentState,
+								context:         contextPart,
+								replacements:    streamed.Replacements,
 							},
 						)
 
@@ -567,14 +595,14 @@ func execPlanBuild(currentOrgId, currentUserId, branch string, activePlan *types
 }
 
 type planResultParams struct {
-	orgId          string
-	planId         string
-	planBuildId    string
-	convoMessageId string
-	filePath       string
-	currentState   string
-	context        *db.Context
-	replacements   []*shared.Replacement
+	orgId           string
+	planId          string
+	planBuildId     string
+	convoMessageIds []string
+	filePath        string
+	currentState    string
+	context         *db.Context
+	replacements    []*shared.Replacement
 }
 
 func getPlanResult(params planResultParams) (*db.PlanFileResult, bool) {
@@ -606,15 +634,15 @@ func getPlanResult(params planResultParams) (*db.PlanFileResult, bool) {
 	}
 
 	return &db.PlanFileResult{
-		OrgId:          orgId,
-		PlanId:         planId,
-		PlanBuildId:    planBuildId,
-		ConvoMessageId: params.convoMessageId,
-		Content:        "",
-		Path:           filePath,
-		Replacements:   replacements,
-		ContextSha:     contextSha,
-		ContextBody:    contextPart.Body,
-		AnyFailed:      !allSucceeded,
+		OrgId:           orgId,
+		PlanId:          planId,
+		PlanBuildId:     planBuildId,
+		ConvoMessageIds: params.convoMessageIds,
+		Content:         "",
+		Path:            filePath,
+		Replacements:    replacements,
+		ContextSha:      contextSha,
+		ContextBody:     contextPart.Body,
+		AnyFailed:       !allSucceeded,
 	}, allSucceeded
 }

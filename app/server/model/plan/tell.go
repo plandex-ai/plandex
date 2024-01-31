@@ -48,6 +48,23 @@ func Tell(plan *db.Plan, branch string, auth *types.ServerAuth, req *shared.Tell
 
 	active = CreateActivePlan(plan.Id, branch, req.Prompt)
 
+	modelStream = &db.ModelStream{
+		OrgId:      auth.OrgId,
+		PlanId:     plan.Id,
+		InternalIp: host.Ip,
+		Branch:     branch,
+	}
+	err = db.StoreModelStream(modelStream)
+
+	if err != nil {
+		log.Printf("Error storing model stream: %v\n", err)
+		return fmt.Errorf("error storing model stream: %v", err)
+	}
+
+	active.ModelStreamId = modelStream.Id
+
+	log.Println("Model stream id:", modelStream.Id)
+
 	go execTellPlan(plan, branch, auth, req, active, 0)
 
 	return nil
@@ -165,37 +182,57 @@ func execTellPlan(plan *db.Plan, branch string, auth *types.ServerAuth, req *sha
 			return
 		}
 
-		if iteration == 0 {
-			userMsg := db.ConvoMessage{
-				OrgId:   currentOrgId,
-				PlanId:  planId,
-				UserId:  currentUserId,
-				Role:    openai.ChatMessageRoleUser,
-				Tokens:  promptTokens,
-				Num:     len(convo) + 1,
-				Message: req.Prompt,
+		innerErrCh := make(chan error)
+
+		go func() {
+			if iteration == 0 {
+				userMsg := db.ConvoMessage{
+					OrgId:   currentOrgId,
+					PlanId:  planId,
+					UserId:  currentUserId,
+					Role:    openai.ChatMessageRoleUser,
+					Tokens:  promptTokens,
+					Num:     len(convo) + 1,
+					Message: req.Prompt,
+				}
+
+				_, err = db.StoreConvoMessage(&userMsg, auth.User.Id, branch, true)
+
+				if err != nil {
+					log.Printf("Error storing user message: %v\n", err)
+					innerErrCh <- fmt.Errorf("error storing user message: %v", err)
+					return
+				}
 			}
 
-			_, err = db.StoreConvoMessage(&userMsg, auth.User.Id, branch, true)
+			innerErrCh <- nil
+		}()
 
+		go func() {
+			var convoMessageIds []string
+
+			for _, convoMessage := range convo {
+				convoMessageIds = append(convoMessageIds, convoMessage.Id)
+			}
+
+			res, err := db.GetPlanSummaries(planId, convoMessageIds)
 			if err != nil {
-				log.Printf("Error storing user message: %v\n", err)
-				errCh <- fmt.Errorf("error storing user message: %v", err)
+				log.Printf("Error getting plan summaries: %v\n", err)
+				innerErrCh <- fmt.Errorf("error getting plan summaries: %v", err)
+				return
+			}
+			summaries = res
+
+			innerErrCh <- nil
+		}()
+
+		for i := 0; i < 2; i++ {
+			err := <-innerErrCh
+			if err != nil {
+				errCh <- err
 				return
 			}
 		}
-
-		errCh <- nil
-	}()
-
-	go func() {
-		res, err := db.GetPlanSummaries(planId)
-		if err != nil {
-			log.Printf("Error getting plan summaries: %v\n", err)
-			errCh <- fmt.Errorf("error getting plan summaries: %v", err)
-			return
-		}
-		summaries = res
 
 		errCh <- nil
 	}()
@@ -214,7 +251,7 @@ func execTellPlan(plan *db.Plan, branch string, auth *types.ServerAuth, req *sha
 			}
 		}()
 
-		for i := 0; i < 4; i++ {
+		for i := 0; i < 3; i++ {
 			err := <-errCh
 			if err != nil {
 				active.StreamDoneCh <- &shared.ApiError{
@@ -243,6 +280,12 @@ func execTellPlan(plan *db.Plan, branch string, auth *types.ServerAuth, req *sha
 					ap.ContextsByPath[context.FilePath] = context
 				}
 			}
+		})
+	} else {
+		// reset current reply content and num tokens
+		UpdateActivePlan(planId, branch, func(ap *types.ActivePlan) {
+			ap.CurrentReplyContent = ""
+			ap.NumTokens = 0
 		})
 	}
 
@@ -474,26 +517,6 @@ func execTellPlan(plan *db.Plan, branch string, auth *types.ServerAuth, req *sha
 		}
 		return
 	}
-
-	modelStream := &db.ModelStream{
-		OrgId:      currentOrgId,
-		PlanId:     planId,
-		InternalIp: host.Ip,
-		Branch:     branch,
-	}
-	err = db.StoreModelStream(modelStream)
-
-	if err != nil {
-		log.Printf("Error storing model stream: %v\n", err)
-		active.StreamDoneCh <- &shared.ApiError{
-			Type:   shared.ApiErrorTypeOther,
-			Status: http.StatusInternalServerError,
-			Msg:    "Error storing model stream",
-		}
-		return
-	}
-
-	active.ModelStreamId = modelStream.Id
 
 	storeAssistantReply := func() (*db.ConvoMessage, []string, string, error) {
 		num := len(convo) + 1
@@ -769,18 +792,15 @@ func execTellPlan(plan *db.Plan, branch string, auth *types.ServerAuth, req *sha
 				replyNumTokens = numTokens
 
 				// log.Printf("Reply num tokens: %d\n", replyNumTokens)
-				// log.Printf("Reply files: %v\n", files)
 
 				if len(files) > len(replyFiles) {
-					for i := len(files) - 1; i > 0; i-- {
-						if i < len(replyFiles) {
-							break
-						}
+					log.Printf("Files: %v\n", files)
+					for i := len(files) - 1; i > len(replyFiles)-1; i-- {
 						file := files[i]
 						log.Printf("Queuing build for %s\n", file)
 						QueueBuild(currentOrgId, currentUserId, planId, branch, &types.ActiveBuild{
 							AssistantMessageId: replyId,
-							ReplyContent:       content,
+							ReplyContent:       active.CurrentReplyContent,
 							FileContent:        fileContents[i],
 							Path:               file,
 						})
