@@ -12,6 +12,9 @@ import * as cloudwatch from "@aws-cdk/aws-cloudwatch";
 import { v4 as uuid } from "uuid";
 
 const tag = process.env.STACK_TAG;
+if (!tag) {
+  throw new Error("STACK_TAG environment variable is not set");
+}
 
 export class PlandexStack extends cdk.Stack {
   constructor(scope: cdk.Construct, id: string, props?: cdk.StackProps) {
@@ -151,32 +154,7 @@ export class PlandexStack extends cdk.Stack {
       "Allow Fargate service to access RDS instance"
     );
 
-    const fargateService = new ecs.FargateService(this, `plandex-fargate-service-${tag}`, {
-      cluster: ecsCluster,
-      taskDefinition,
-      desiredCount: 1,
-      securityGroups: [fargateServiceSecurityGroup],
-    });
-
-    // Define the scaling target
-    const scaling = fargateService.autoScaleTaskCount({
-      minCapacity: 1,
-      maxCapacity: 10,
-    });
-
-    // Define the CPU-based scaling policy
-    scaling.scaleOnCpuUtilization('CpuScaling', {
-      targetUtilizationPercent: 50,
-      scaleInCooldown: cdk.Duration.seconds(300),
-      scaleOutCooldown: cdk.Duration.seconds(300),
-    });
-
-    // Define the memory-based scaling policy
-    scaling.scaleOnMemoryUtilization('MemoryScaling', {
-      targetUtilizationPercent: 50,
-      scaleInCooldown: cdk.Duration.seconds(300),
-      scaleOutCooldown: cdk.Duration.seconds(300),
-    });(
+    const fargateService = new ecs.FargateService(
       this,
       `plandex-fargate-service-${tag}`,
       {
@@ -186,6 +164,34 @@ export class PlandexStack extends cdk.Stack {
         securityGroups: [fargateServiceSecurityGroup],
       }
     );
+
+    // Define the scaling target
+    const scaling = fargateService.autoScaleTaskCount({
+      minCapacity: 1,
+      maxCapacity: 10,
+    });
+
+    // Define the CPU-based scaling policy
+    scaling.scaleOnCpuUtilization("CpuScaling", {
+      targetUtilizationPercent: 50,
+      scaleInCooldown: cdk.Duration.seconds(300),
+      scaleOutCooldown: cdk.Duration.seconds(300),
+    });
+
+    // Define the memory-based scaling policy
+    scaling.scaleOnMemoryUtilization("MemoryScaling", {
+      targetUtilizationPercent: 50,
+      scaleInCooldown: cdk.Duration.seconds(300),
+      scaleOutCooldown: cdk.Duration.seconds(300),
+    });
+    this,
+      `plandex-fargate-service-${tag}`,
+      {
+        cluster: ecsCluster,
+        taskDefinition,
+        desiredCount: 1,
+        securityGroups: [fargateServiceSecurityGroup],
+      };
 
     // Create an Application Load Balancer in the VPC
     const alb = new elbv2.ApplicationLoadBalancer(this, `plandex-alb-${tag}`, {
@@ -230,7 +236,14 @@ export class PlandexStack extends cdk.Stack {
     const memoryUtilizationMetric = fargateService.metricMemoryUtilization();
 
     // Create CloudWatch alarms for high CPU and memory utilization
-    new cloudwatch.Alarm(this, "HighCpuUtilizationAlarm", {
+    const alarmNotificationTopic = new sns.Topic(this, 'AlarmNotificationTopic', {
+      displayName: 'Alarm Notifications',
+    });
+
+    alarmNotificationTopic.addSubscription(new subscriptions.EmailSubscription('your-email@example.com'));
+    alarmNotificationTopic.addSubscription(new subscriptions.SmsSubscription('+15555555555'));
+
+    const dbCpuUtilizationAlarm = new cloudwatch.Alarm(this, 'HighDbCpuUtilizationAlarm', {
       metric: cpuUtilizationMetric,
       threshold: 80,
       evaluationPeriods: 2,
@@ -249,12 +262,34 @@ export class PlandexStack extends cdk.Stack {
         cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
       treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
     });
+
+    // Create CloudWatch alarms for RDS database instance health monitoring
+    const dbCpuUtilizationMetric = dbInstance.metricCPUUtilization();
+    dbCpuUtilizationAlarm.addAlarmAction(new cloudwatch.actions.SnsAction(alarmNotificationTopic));
+
+    const dbFreeableMemoryAlarm = new cloudwatch.Alarm(this, 'LowDbFreeableMemoryAlarm', {
+      metric: dbCpuUtilizationMetric,
+      threshold: 80,
+      evaluationPeriods: 2,
+      alarmDescription: 'Alarm when RDS CPU utilization exceeds 80%',
+      comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    });
+
+    const dbFreeableMemoryMetric = dbInstance.metricFreeableMemory();
+    dbFreeableMemoryAlarm.addAlarmAction(new cloudwatch.actions.SnsAction(alarmNotificationTopic));
+
+    new cloudwatch.Alarm(this, 'LowDbFreeableMemoryAlarm', {
+      metric: dbFreeableMemoryMetric,
+      threshold: 100 * 1024 * 1024,
+      evaluationPeriods: 2,
+      alarmDescription: 'Alarm when RDS freeable memory is too low',
+      comparisonOperator: cloudwatch.ComparisonOperator.LESS_THAN_THRESHOLD,
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    });
   }
 }
 
 const app = new cdk.App();
 
-const stack = new PlandexStack(
-  app,
-  "plandex-stack-" + (process.env.STACK_TAG || uuid().split("-")[0])
-);
+const stack = new PlandexStack(app, "plandex-stack-" + tag);
