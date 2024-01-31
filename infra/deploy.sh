@@ -1,5 +1,34 @@
 #!/bin/bash
 
+# Enhanced error handling and logging
+set -e
+set -o pipefail
+
+log() {
+  echo "[$(date +%Y-%m-%dT%H:%M:%S%z)]: $*"
+}
+
+handle_error() {
+  local exit_code=$?
+  log "An error occurred. Exiting with status ${exit_code}"
+  exit $exit_code
+}
+
+trap 'handle_error' ERR
+
+log() {
+  echo "[$(date +%Y-%m-%dT%H:%M:%S%z)]: $*"
+}
+
+handle_error() {
+  local exit_code=$?
+  log "An error occurred. Exiting with status ${exit_code}"
+  exit $exit_code
+}
+
+trap 'handle_error' ERR
+
+
 # Generate a unique tag for the deployment
 export STACK_TAG=$(uuidgen | cut -d '-' -f1)
 
