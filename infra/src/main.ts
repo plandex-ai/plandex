@@ -11,6 +11,7 @@ import * as elbv2 from "@aws-cdk/aws-elasticloadbalancingv2";
 import * as iam from "@aws-cdk/aws-iam";
 import * as acm from "@aws-cdk/aws-certificatemanager";
 import * as cloudwatch from "@aws-cdk/aws-cloudwatch";
+import * as cloudwatchActions from "@aws-cdk/aws-cloudwatch-actions";
 
 const tag = process.env.STACK_TAG;
 if (!tag) {
@@ -279,7 +280,7 @@ export class PlandexStack extends cdk.Stack {
     // Create CloudWatch alarms for RDS database instance health monitoring
     const dbCpuUtilizationMetric = dbInstance.metricCPUUtilization();
     dbCpuUtilizationAlarm.addAlarmAction(
-      new cloudwatch.actions.SnsAction(alarmNotificationTopic)
+      new cloudwatchActions.SnsAction(alarmNotificationTopic)
     );
 
     const dbFreeableMemoryAlarm = new cloudwatch.Alarm(
