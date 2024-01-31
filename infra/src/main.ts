@@ -151,7 +151,12 @@ export class PlandexStack extends cdk.Stack {
       "Allow Fargate service to access RDS instance"
     );
 
-    const fargateService = new ecs.FargateService
+    const fargateService = new ecs.FargateService(this, `plandex-fargate-service-${tag}`, {
+      cluster: ecsCluster,
+      taskDefinition,
+      desiredCount: 1,
+      securityGroups: [fargateServiceSecurityGroup],
+    });
 
     // Define the scaling target
     const scaling = fargateService.autoScaleTaskCount({
