@@ -181,41 +181,107 @@ func (planState *CurrentPlanState) GetFilesBeforeReplacement(
 }
 
 func (state *CurrentPlanState) PendingChangesSummary() string {
-
 	var msgs []string
 
-	var multiDescs [][]*ConvoMessageDescription
-	for i, result := range state.PlanResult.Results {
-		if i >= len(multiDescs) {
-			multiDescs = append(multiDescs, []*ConvoMessageDescription{})
+	descByConvoMessageId := make(map[string]*ConvoMessageDescription)
+	for _, desc := range state.PendingBuildDescriptions {
+		if desc.ConvoMessageId == "" {
+			log.Println("Warning: ConvoMessageId is empty for description:", desc)
+			continue
 		}
+
+		descByConvoMessageId[desc.ConvoMessageId] = desc
+	}
+
+	type changeset struct {
+		descsSet map[string]bool
+		descs    []*ConvoMessageDescription
+		results  []*PlanFileResult
+	}
+	byDescs := map[string]*changeset{}
+
+	for _, result := range state.PlanResult.Results {
+		convoIds := map[string]bool{}
 		for _, convoMessageId := range result.ConvoMessageIds {
-			for _, desc := range state.PendingBuildDescriptions {
-				if desc.ConvoMessageId == convoMessageId {
-					multiDescs[i] = append(multiDescs[i], desc)
+			if descByConvoMessageId[convoMessageId] != nil {
+				convoIds[convoMessageId] = true
+			}
+		}
+		var uniqueConvoIds []string
+		for convoId := range convoIds {
+			uniqueConvoIds = append(uniqueConvoIds, convoId)
+		}
+
+		composite := strings.Join(uniqueConvoIds, "|")
+		if _, ok := byDescs[composite]; !ok {
+			byDescs[composite] = &changeset{
+				descsSet: make(map[string]bool),
+			}
+		}
+
+		ch := byDescs[composite]
+		ch.results = append(byDescs[composite].results, result)
+
+		for _, convoMessageId := range uniqueConvoIds {
+			if desc, ok := descByConvoMessageId[convoMessageId]; ok {
+				if !ch.descsSet[convoMessageId] {
+					ch.descs = append(ch.descs, desc)
+					ch.descsSet[convoMessageId] = true
 				}
+			} else {
+				log.Println("Warning: no description for convo message id:", convoMessageId)
 			}
 		}
 	}
 
-	for i, descs := range multiDescs {
-		result := state.PlanResult.Results[i]
+	var sortedChangesets []*changeset
+	for _, ch := range byDescs {
+		sortedChangesets = append(sortedChangesets, ch)
+	}
+
+	sort.Slice(sortedChangesets, func(i, j int) bool {
+		// put changesets with no descriptions last, otherwise sort by date
+		if len(sortedChangesets[i].descs) == 0 {
+			return false
+		}
+		if len(sortedChangesets[j].descs) == 0 {
+			return true
+		}
+		return sortedChangesets[i].descs[0].CreatedAt.Before(sortedChangesets[j].descs[0].CreatedAt)
+	})
+
+	for _, ch := range sortedChangesets {
+		var descMsgs []string
+
+		if len(ch.descs) == 0 {
+			descMsgs = append(descMsgs, "📝 Changes")
+		} else {
+			for _, desc := range ch.descs {
+				descMsgs = append(descMsgs, fmt.Sprintf("📝 %s", desc.CommitMsg))
+			}
+		}
+
 		pendingNewFilesSet := make(map[string]bool)
 		pendingReplacementPathsSet := make(map[string]bool)
 		pendingReplacementsByPath := make(map[string][]*Replacement)
 
-		if result.IsPending() {
-			if len(result.Replacements) == 0 && result.Content != "" {
-				pendingNewFilesSet[result.Path] = true
-			} else {
-				pendingReplacementPathsSet[result.Path] = true
-				pendingReplacementsByPath[result.Path] = append(pendingReplacementsByPath[result.Path], result.Replacements...)
+		for _, result := range ch.results {
+
+			if result.IsPending() {
+				if len(result.Replacements) == 0 && result.Content != "" {
+					pendingNewFilesSet[result.Path] = true
+				} else {
+					pendingReplacementPathsSet[result.Path] = true
+					pendingReplacementsByPath[result.Path] = append(pendingReplacementsByPath[result.Path], result.Replacements...)
+				}
 			}
 		}
 
 		if len(pendingNewFilesSet) == 0 && len(pendingReplacementPathsSet) == 0 {
 			continue
 		}
+
+		msgs = append(msgs, descMsgs...)
 
 		var pendingNewFiles []string
 		var pendingReplacementPaths []string
@@ -236,17 +302,12 @@ func (state *CurrentPlanState) PendingChangesSummary() string {
 			return pendingNewFiles[i] < pendingNewFiles[j]
 		})
 
-		var descMsgs []string
-		for _, desc := range descs {
-			descMsgs = append(descMsgs, fmt.Sprintf("📝 %s", desc.CommitMsg))
-		}
-
 		if len(pendingNewFiles) > 0 {
 			newMsg := "  📄 New files:\n"
 			for _, path := range pendingNewFiles {
 				newMsg += fmt.Sprintf("  • %s\n", path)
 			}
-			descMsgs = append(descMsgs, newMsg)
+			msgs = append(msgs, newMsg)
 		}
 
 		if len(pendingReplacementPaths) > 0 {
@@ -261,10 +322,8 @@ func (state *CurrentPlanState) PendingChangesSummary() string {
 					updatesMsg += fmt.Sprintf("      ✅ %s\n", replacement.Summary)
 				}
 			}
-			descMsgs = append(descMsgs, updatesMsg)
+			msgs = append(msgs, updatesMsg)
 		}
-
-		msgs = append(msgs, strings.Join(descMsgs, "\n"))
 
 	}
 	return strings.Join(msgs, "\n")

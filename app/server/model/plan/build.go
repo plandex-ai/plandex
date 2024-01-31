@@ -54,9 +54,13 @@ func execPlanBuild(currentOrgId, currentUserId, branch string, activePlan *types
 	filePath := activeBuilds[0].Path
 	planId := activePlan.Id
 	var convoMessageIds []string
+	added := map[string]bool{}
 
 	for _, activeBuild := range activeBuilds {
-		convoMessageIds = append(convoMessageIds, activeBuild.AssistantMessageId)
+		if !added[activeBuild.AssistantMessageId] {
+			convoMessageIds = append(convoMessageIds, activeBuild.AssistantMessageId)
+			added[activeBuild.AssistantMessageId] = true
+		}
 	}
 
 	UpdateActivePlan(activePlan.Id, activePlan.Branch, func(ap *types.ActivePlan) {

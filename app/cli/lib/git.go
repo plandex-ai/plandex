@@ -87,7 +87,7 @@ func GitStashCreate(message string) error {
 	gitMutex.Lock()
 	defer gitMutex.Unlock()
 
-	res, err := exec.Command("git", "stash", "push", "-m", message).CombinedOutput()
+	res, err := exec.Command("git", "stash", "push", "-u", "-m", message).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("error creating git stash: %v, output: %s", err, string(res))
 	}
