@@ -14,13 +14,18 @@ import * as cloudwatch from "@aws-cdk/aws-cloudwatch";
 import * as cloudwatchActions from "@aws-cdk/aws-cloudwatch-actions";
 
 const tag = process.env.STACK_TAG;
-if (!tag) {
-  throw new Error("STACK_TAG environment variable is not set");
-}
+const notifyEmail = process.env.NOTIFY_EMAIL;
+const notifySms = process.env.NOTIFY_SMS;
 
 export class PlandexStack extends cdk.Stack {
   constructor(scope: cdk.Construct, id: string, props?: cdk.StackProps) {
     if (!tag) throw new Error("STACK_TAG environment variable is not set");
+    if (!notifyEmail) {
+      throw new Error("NOTIFY_EMAIL environment variable is not set");
+    }
+    if (!notifySms) {
+      throw new Error("NOTIFY_SMS environment variable is not set");
+    }
 
     super(scope, id, props);
 
@@ -247,10 +252,10 @@ export class PlandexStack extends cdk.Stack {
     );
 
     alarmNotificationTopic.addSubscription(
-      new subscriptions.EmailSubscription("your-email@example.com")
+      new subscriptions.EmailSubscription(notifyEmail)
     );
     alarmNotificationTopic.addSubscription(
-      new subscriptions.SmsSubscription("+15555555555")
+      new subscriptions.SmsSubscription(notifySms)
     );
 
     const dbCpuUtilizationAlarm = new cloudwatch.Alarm(
@@ -299,12 +304,12 @@ export class PlandexStack extends cdk.Stack {
 
     const dbFreeableMemoryMetric = dbInstance.metricFreeableMemory();
     dbFreeableMemoryAlarm.addAlarmAction(
-      new cloudwatch.actions.SnsAction(alarmNotificationTopic)
+      new cloudwatchActions.SnsAction(alarmNotificationTopic)
     );
 
     new cloudwatch.Alarm(this, "LowDbFreeableMemoryAlarm", {
       metric: dbFreeableMemoryMetric,
-      threshold: 100 * 1024 * 1024,
+      threshold: 200 * 1024 * 1024,
       evaluationPeriods: 2,
       alarmDescription: "Alarm when RDS freeable memory is too low",
       comparisonOperator: cloudwatch.ComparisonOperator.LESS_THAN_THRESHOLD,
