@@ -28,6 +28,7 @@ handle_error() {
 
 trap 'handle_error' ERR
 
+export AWS_PROFILE=plandex
 
 # Generate a unique tag for the deployment
 export STACK_TAG=$(uuidgen | cut -d '-' -f1)
@@ -35,6 +36,22 @@ export STACK_TAG=$(uuidgen | cut -d '-' -f1)
 # Set variables for the ECR repository and image tag
 ECR_REPOSITORY=$(aws ecr describe-repositories --repository-names plandex-ecr-repository | jq -r '.repositories[0].repositoryUri')
 IMAGE_TAG=$(git rev-parse --short HEAD)
+
+# Function to ensure the ECR repository exists
+ensure_ecr_repository_exists() {
+  # Check if the ECR repository exists
+  ECR_REPO_EXISTS=$(aws ecr describe-repositories --repository-names plandex-ecr-repository 2>/dev/null)
+  if [ -z "$ECR_REPO_EXISTS" ]; then
+    # Create the ECR repository if it does not exist
+    aws ecr create-repository --repository-name plandex-ecr-repository
+    log "ECR repository 'plandex-ecr-repository' created."
+  else
+    log "ECR repository 'plandex-ecr-repository' already exists."
+  fi
+}
+
+# Ensure the ECR repository exists before proceeding
+ensure_ecr_repository_exists
 
 # Function to deploy or update the CloudFormation stack using AWS CDK
 deploy_or_update_stack() {
