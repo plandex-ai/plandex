@@ -9,7 +9,8 @@ import * as elbv2 from "@aws-cdk/aws-elasticloadbalancingv2";
 import * as iam from "@aws-cdk/aws-iam";
 import * as acm from "@aws-cdk/aws-certificatemanager";
 import * as cloudwatch from "@aws-cdk/aws-cloudwatch";
-import { v4 as uuid } from "uuid";
+import * as sns from '@aws-cdk/aws-sns';
+import * as subscriptions from '@aws-cdk/aws-sns-subscriptions';
 
 const tag = process.env.STACK_TAG;
 if (!tag) {
@@ -236,22 +237,34 @@ export class PlandexStack extends cdk.Stack {
     const memoryUtilizationMetric = fargateService.metricMemoryUtilization();
 
     // Create CloudWatch alarms for high CPU and memory utilization
-    const alarmNotificationTopic = new sns.Topic(this, 'AlarmNotificationTopic', {
-      displayName: 'Alarm Notifications',
-    });
+    const alarmNotificationTopic = new sns.Topic(
+      this,
+      "AlarmNotificationTopic",
+      {
+        displayName: "Alarm Notifications",
+      }
+    );
 
-    alarmNotificationTopic.addSubscription(new subscriptions.EmailSubscription('your-email@example.com'));
-    alarmNotificationTopic.addSubscription(new subscriptions.SmsSubscription('+15555555555'));
+    alarmNotificationTopic.addSubscription(
+      new subscriptions.EmailSubscription("your-email@example.com")
+    );
+    alarmNotificationTopic.addSubscription(
+      new subscriptions.SmsSubscription("+15555555555")
+    );
 
-    const dbCpuUtilizationAlarm = new cloudwatch.Alarm(this, 'HighDbCpuUtilizationAlarm', {
-      metric: cpuUtilizationMetric,
-      threshold: 80,
-      evaluationPeriods: 2,
-      alarmDescription: "Alarm when CPU utilization exceeds 80%",
-      comparisonOperator:
-        cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
-      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
-    });
+    const dbCpuUtilizationAlarm = new cloudwatch.Alarm(
+      this,
+      "HighDbCpuUtilizationAlarm",
+      {
+        metric: cpuUtilizationMetric,
+        threshold: 80,
+        evaluationPeriods: 2,
+        alarmDescription: "Alarm when CPU utilization exceeds 80%",
+        comparisonOperator:
+          cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+        treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+      }
+    );
 
     new cloudwatch.Alarm(this, "HighMemoryUtilizationAlarm", {
       metric: memoryUtilizationMetric,
@@ -265,25 +278,34 @@ export class PlandexStack extends cdk.Stack {
 
     // Create CloudWatch alarms for RDS database instance health monitoring
     const dbCpuUtilizationMetric = dbInstance.metricCPUUtilization();
-    dbCpuUtilizationAlarm.addAlarmAction(new cloudwatch.actions.SnsAction(alarmNotificationTopic));
+    dbCpuUtilizationAlarm.addAlarmAction(
+      new cloudwatch.actions.SnsAction(alarmNotificationTopic)
+    );
 
-    const dbFreeableMemoryAlarm = new cloudwatch.Alarm(this, 'LowDbFreeableMemoryAlarm', {
-      metric: dbCpuUtilizationMetric,
-      threshold: 80,
-      evaluationPeriods: 2,
-      alarmDescription: 'Alarm when RDS CPU utilization exceeds 80%',
-      comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
-      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
-    });
+    const dbFreeableMemoryAlarm = new cloudwatch.Alarm(
+      this,
+      "LowDbFreeableMemoryAlarm",
+      {
+        metric: dbCpuUtilizationMetric,
+        threshold: 80,
+        evaluationPeriods: 2,
+        alarmDescription: "Alarm when RDS CPU utilization exceeds 80%",
+        comparisonOperator:
+          cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+        treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+      }
+    );
 
     const dbFreeableMemoryMetric = dbInstance.metricFreeableMemory();
-    dbFreeableMemoryAlarm.addAlarmAction(new cloudwatch.actions.SnsAction(alarmNotificationTopic));
+    dbFreeableMemoryAlarm.addAlarmAction(
+      new cloudwatch.actions.SnsAction(alarmNotificationTopic)
+    );
 
-    new cloudwatch.Alarm(this, 'LowDbFreeableMemoryAlarm', {
+    new cloudwatch.Alarm(this, "LowDbFreeableMemoryAlarm", {
       metric: dbFreeableMemoryMetric,
       threshold: 100 * 1024 * 1024,
       evaluationPeriods: 2,
-      alarmDescription: 'Alarm when RDS freeable memory is too low',
+      alarmDescription: "Alarm when RDS freeable memory is too low",
       comparisonOperator: cloudwatch.ComparisonOperator.LESS_THAN_THRESHOLD,
       treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
     });
