@@ -34,7 +34,15 @@ export AWS_PROFILE=plandex
 export STACK_TAG=$(uuidgen | cut -d '-' -f1)
 
 # Set variables for the ECR repository and image tag
-ECR_REPOSITORY=$(aws ecr describe-repositories --repository-names plandex-ecr-repository | jq -r '.repositories[0].repositoryUri')
+ECR_REPO_EXISTS=$(aws ecr describe-repositories --repository-names plandex-ecr-repository 2>/dev/null)
+  if [ -z "$ECR_REPO_EXISTS" ]; then
+    # Create the ECR repository if it does not exist
+    ECR_REPOSITORY=$(aws ecr create-repository --repository-name plandex-ecr-repository --tags Key=ManagedBy,Value=deploy.sh | jq -r '.repository.repositoryUri')
+    log "ECR repository 'plandex-ecr-repository' created."
+  else
+    log "ECR repository 'plandex-ecr-repository' already exists."
+    ECR_REPOSITORY=$(echo $ECR_REPO_EXISTS | jq -r '.repositories[0].repositoryUri')
+  fi
 IMAGE_TAG=$(git rev-parse --short HEAD)
 
 # Function to ensure the ECR repository exists
