@@ -17,6 +17,7 @@ const tag = process.env.STACK_TAG;
 const notifyEmail = process.env.NOTIFY_EMAIL;
 const notifySms = process.env.NOTIFY_SMS;
 const certificateArn = process.env.CERTIFICATE_ARN;
+const imageTag = process.env.IMAGE_TAG;
 
 export class PlandexStack extends cdk.Stack {
   constructor(scope: cdk.Construct, id: string, props?: cdk.StackProps) {
@@ -29,6 +30,9 @@ export class PlandexStack extends cdk.Stack {
     }
     if (!certificateArn) {
       throw new Error("CERTIFICATE_ARN environment variable is not set");
+    }
+    if (!imageTag) {
+      throw new Error("IMAGE_TAG environment variable is not set");
     }
 
     super(scope, id, props);
@@ -115,6 +119,16 @@ export class PlandexStack extends cdk.Stack {
       ],
     });
 
+    const taskExecutionRole = new iam.Role(this, "TaskExecutionRole", {
+      assumedBy: new iam.ServicePrincipal("ecs-tasks.amazonaws.com"),
+      managedPolicies: [
+        iam.ManagedPolicy.fromAwsManagedPolicyName(
+          "service-role/AmazonECSTaskExecutionRolePolicy"
+        ), // Default policy for task execution
+      ],
+    });
+    dbCredentialsSecret.grantRead(taskExecutionRole);
+
     // Create a Fargate task definition with EFS volume
     const taskDefinition = new ecs.FargateTaskDefinition(
       this,
@@ -123,15 +137,29 @@ export class PlandexStack extends cdk.Stack {
         memoryLimitMiB: 512,
         cpu: 256,
         taskRole,
+        executionRole: taskExecutionRole,
       }
     );
 
     // Add a container to the task definition
     const container = taskDefinition.addContainer("plandex-server", {
-      image: ecs.ContainerImage.fromEcrRepository(ecrRepository),
+      image: ecs.ContainerImage.fromEcrRepository(ecrRepository, imageTag),
       logging: new ecs.AwsLogDriver({ streamPrefix: "plandex-server" }),
       environment: {
-        ECS_CONTAINER_STOP_TIMEOUT: "60m", // gives time for streams to finish before container is stopped
+        // give time for streams to finish before container is stopped
+        ECS_CONTAINER_STOP_TIMEOUT: "60m",
+        DB_HOST: dbInstance.dbInstanceEndpointAddress,
+        DB_PORT: dbInstance.dbInstanceEndpointPort,
+        DB_NAME: "plandex",
+        DB_USER: "dbadmin",
+        GOENV: "production",
+        IS_CLOUD: "1",
+      },
+      secrets: {
+        DB_PASSWORD: ecs.Secret.fromSecretsManager(
+          dbCredentialsSecret,
+          "password"
+        ),
       },
       portMappings: [
         {
@@ -140,6 +168,26 @@ export class PlandexStack extends cdk.Stack {
           protocol: ecs.Protocol.TCP,
         },
       ],
+      healthCheck: {
+        command: [
+          "CMD-SHELL",
+          "curl -f http://localhost:8080/health || exit 1"
+        ],
+        interval: cdk.Duration.seconds(30),
+        timeout: cdk.Duration.seconds(5),
+        retries: 3,
+        startPeriod: cdk.Duration.seconds(60),
+      },
+      healthCheck: {
+        command: [
+          "CMD-SHELL",
+          "curl -f http://localhost:8080/health || exit 1"
+        ],
+        interval: cdk.Duration.seconds(30),
+        timeout: cdk.Duration.seconds(5),
+        retries: 3,
+        startPeriod: cdk.Duration.seconds(60),
+      },
     });
 
     // Mount the EFS file system to the container
@@ -181,6 +229,10 @@ export class PlandexStack extends cdk.Stack {
         taskDefinition,
         desiredCount: 1,
         securityGroups: [fargateServiceSecurityGroup],
+        vpcSubnets: {
+          subnetType: ec2.SubnetType.PUBLIC, // Deploy tasks in public subnets
+        },
+        assignPublicIp: true, // Assign public IP addresses to tasks for outbound internet access
       }
     );
 
