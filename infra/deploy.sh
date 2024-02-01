@@ -4,6 +4,18 @@
 set -e
 set -o pipefail
 
+# Initialize flag variable
+SKIP_DEPLOY=false
+
+# Parse command-line arguments
+while [[ "$#" -gt 0 ]]; do
+  case $1 in
+      --image-only) SKIP_DEPLOY=true ;;
+      *) echo "Unknown parameter passed: $1"; exit 1 ;;
+  esac
+  shift
+done
+
 log() {
   echo "[$(date +%Y-%m-%dT%H:%M:%S%z)]: $*"
 }
@@ -28,7 +40,11 @@ handle_error() {
 
 trap 'handle_error' ERR
 
-log "Deploying the infrastructure..."
+if [ "$SKIP_DEPLOY" = true ]; then
+  log "Skipping infra deploy due to --image-only flag"
+else
+  log "Deploying the infrastructure..."
+fi
 
 export AWS_PROFILE=plandex
 
@@ -115,31 +131,52 @@ build_and_push_image() {
 
 # Function to update the ECS service with the new Docker image
 update_ecs_service() {
-  # Extract the tag from the ECR repository URI
-  TAG=$(echo $ECR_REPOSITORY | grep -oE 'plandex-ecr-repository-[a-zA-Z0-9]+' | sed 's/plandex-ecr-repository-//')
+  log "STACK_TAG: $STACK_TAG"
 
   # Use the extracted tag to find the ECS cluster and service names
-  CLUSTER_NAME=$(aws ecs list-clusters | jq -r --arg TAG "$TAG" '.clusterArns[] | select(contains("plandex-ecs-cluster-" + $TAG)) | split("/")[1]')
-  SERVICE_NAME=$(aws ecs list-services --cluster "$CLUSTER_NAME" | jq -r --arg TAG "$TAG" '.serviceArns[] | select(contains("plandex-fargate-service-" + $TAG)) | split("/")[1]')
+  CLUSTER_NAME=$(aws ecs list-clusters | jq -r --arg TAG "$STACK_TAG" '.clusterArns[] | select(contains("plandex-stack-" + $TAG)) | split("/")[1]')
+  SERVICE_NAME=$(aws ecs list-services --cluster "$CLUSTER_NAME" | jq -r --arg TAG "$STACK_TAG" '.serviceArns[] | select(contains("plandex-stack-" + $TAG)) | split("/")[1]')
 
-  # Replace placeholders in ecs-container-definitions.json with actual values
-  sed -i "s|\${ECR_REPOSITORY_URI}|$ECR_REPOSITORY|g" ecs-container-definitions.json
-  sed -i "s|\${IMAGE_TAG}|$IMAGE_TAG|g" ecs-container-definitions.json
-  sed -i "s|\${AWS_REGION}|$(aws configure get region)|g" ecs-container-definitions.json
+  log "CLUSTER_NAME: $CLUSTER_NAME"
+  log "SERVICE_NAME: $SERVICE_NAME"
 
-  # Register a new task definition with the new image
-  TASK_DEF_ARN=$(aws ecs register-task-definition --family "plandex-task-definition-$TAG" --container-definitions file://ecs-container-definitions.json | jq -r '.taskDefinition.taskDefinitionArn')
+  # Retrieve the current task definition for the ECS service
+  TASK_DEF=$(aws ecs describe-task-definition --task-definition "plandex-task-definition-$STACK_TAG")
+  # Extract the current task definition JSON without the revision
+  TASK_DEF_JSON=$(echo $TASK_DEF | jq '.taskDefinition | del(.revision) | del(.status) | del(.taskDefinitionArn) | del(.requiresAttributes) | del(.compatibilities)')
+
+  # Update the container image URI in the task definition JSON
+  UPDATED_TASK_DEF_JSON=$(echo $TASK_DEF_JSON | jq --arg IMAGE_URI "$ECR_REPOSITORY:$IMAGE_TAG" '.containerDefinitions[0].image = $IMAGE_URI')
+
+  # Register the new task definition revision with the updated image
+  REGISTERED_TASK_DEF=$(echo $UPDATED_TASK_DEF_JSON | aws ecs register-task-definition --cli-input-json file://-)
+  NEW_TASK_DEF_ARN=$(echo $REGISTERED_TASK_DEF | jq -r '.taskDefinition.taskDefinitionArn')
+
+  log "New task definition registered: $NEW_TASK_DEF_ARN"
+
+  # Update the ECS service to use the new task definition revision
+  SERVICE_NAME=$(aws ecs list-services --cluster "plandex-ecs-cluster-$STACK_TAG" | jq -r --arg TAG "$STACK_TAG" '.serviceArns[] | select(contains("plandex-stack-" + $TAG)) | split("/")[1]')
+  aws ecs update-service --cluster "plandex-ecs-cluster-$STACK_TAG" --service "$SERVICE_NAME" --task-definition "$NEW_TASK_DEF_ARN"
+  log "ECS service updated successfully with new task definition"
+
+  log "TASK_DEF_ARN: $TASK_DEF_ARN"
 
   # Update the ECS service to use the new task definition
+  log "Updating the ECS service with the new task definition..."
   aws ecs update-service --cluster "$CLUSTER_NAME" --service "$SERVICE_NAME" --task-definition $TASK_DEF_ARN
+  log "ECS service updated successfully"
 }
 
 log "Building and pushing the Docker image to ECR..."
 build_and_push_image
 
-# Deploy or update the CloudFormation stack
-# log "Deploying or updating the CloudFormation stack..."
-# deploy_or_update_stack
+# Deploy or update the CloudFormation stack unless the --image-only flag is set
+if [ "$SKIP_DEPLOY" = false ]; then
+  log "Deploying or updating the CloudFormation stack..."
+  deploy_or_update_stack
+else
+  log "Skipping deploy_or_update_stack due to --image-only flag"
+fi
 
 # Update the ECS service with the new Docker image
 log "Updating the ECS service with the new Docker image..."

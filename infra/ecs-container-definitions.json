@@ -1,7 +1,7 @@
 [
   {
     "name": "plandex-server",
-    "image": "${ECR_REPOSITORY_URI}:${IMAGE_TAG}",
+    "image": "590183677625.dkr.ecr.us-east-1.amazonaws.com/plandex-ecr-repository:97fb9e6",
     "cpu": 256,
     "memory": 512,
     "essential": true,
@@ -28,7 +28,7 @@
       "logDriver": "awslogs",
       "options": {
         "awslogs-group": "/ecs/plandex-server",
-        "awslogs-region": "${AWS_REGION}",
+        "awslogs-region": "us-east-1",
         "awslogs-stream-prefix": "ecs"
       }
     }
