@@ -58,8 +58,6 @@ else
   generate_and_save_stack_tag
 fi
 
-
-
 # Function to ensure the ECR repository exists
 ensure_ecr_repository_exists() {
   # Check if the ECR repository exists
@@ -102,7 +100,9 @@ build_and_push_image() {
   aws ecr get-login-password --region $(aws configure get region) | docker login --username AWS --password-stdin $ECR_REPOSITORY
 
   # Build the Docker image
-  docker build -t plandex-server:$IMAGE_TAG -f app/Dockerfile.server .
+  cd ../app
+docker build -t plandex-server:$IMAGE_TAG -f Dockerfile.server .
+cd -
 
   # Tag the image for the ECR repository
   docker tag plandex-server:$IMAGE_TAG $ECR_REPOSITORY:$IMAGE_TAG
@@ -131,9 +131,6 @@ update_ecs_service() {
   # Update the ECS service to use the new task definition
   aws ecs update-service --cluster "$CLUSTER_NAME" --service "$SERVICE_NAME" --task-definition $TASK_DEF_ARN
 }
-
-log "Building and pushing the Docker image to ECR..."
-build_and_push_image
 
 log "Building and pushing the Docker image to ECR..."
 build_and_push_image
