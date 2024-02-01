@@ -101,8 +101,8 @@ build_and_push_image() {
 
   # Build the Docker image
   cd ../app
-docker build -t plandex-server:$IMAGE_TAG -f Dockerfile.server .
-cd -
+  docker build -t plandex-server:$IMAGE_TAG -f Dockerfile.server .
+  cd -
 
   # Tag the image for the ECR repository
   docker tag plandex-server:$IMAGE_TAG $ECR_REPOSITORY:$IMAGE_TAG

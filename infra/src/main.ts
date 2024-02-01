@@ -218,13 +218,6 @@ export class PlandexStack extends cdk.Stack {
       internetFacing: true,
     });
 
-    // Create a listener for the ALB
-    const certificate = acm.Certificate.fromCertificateArn(
-      this,
-      "Certificate",
-      certificateArn
-    );
-
     // Create an HTTP listener and add a redirect to HTTPS
     const httpListener = alb.addListener("HttpListener", {
       port: 80,
@@ -253,7 +246,12 @@ export class PlandexStack extends cdk.Stack {
       targets: [fargateService],
     });
 
-    alb.connections.allowFromAnyIpv4(ec2.Port.tcp(80), "Allow inbound HTTP traffic");
+    // Allow inbound HTTP and HTTPS traffic to the ALB
+    // HTTP will be redirected to HTTPS
+    alb.connections.allowFromAnyIpv4(
+      ec2.Port.tcp(80),
+      "Allow inbound HTTP traffic"
+    );
 
     alb.connections.allowFromAnyIpv4(
       ec2.Port.tcp(443),
