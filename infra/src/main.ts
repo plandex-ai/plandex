@@ -30,6 +30,7 @@ export class PlandexStack extends cdk.Stack {
     super(scope, id, props);
 
     // Create a VPC with two public and two private subnets
+    console.log('Creating VPC...');
     const vpc = new ec2.Vpc(this, `plandex-vpc-${tag}`, {
       maxAzs: 2,
       subnetConfiguration: [
@@ -60,6 +61,7 @@ export class PlandexStack extends cdk.Stack {
     );
 
     // Create an RDS Aurora PostgreSQL database
+    console.log('Creating RDS instance...');
     const dbInstance = new rds.DatabaseInstance(
       this,
       `plandex-rds-instance-${tag}`,
@@ -79,14 +81,15 @@ export class PlandexStack extends cdk.Stack {
       }
     );
 
-    // Create an ECR repository
-    const ecrRepository = ecr.Repository.fromRepositoryName(this, 'PlandexEcrRepository', 'plandex-ecr-repository');
-      {
-        repositoryName: "plandex-ecr-repository",
-      }
+    // Get the ECR repository
+    const ecrRepository = ecr.Repository.fromRepositoryName(
+      this,
+      "PlandexEcrRepository",
+      "plandex-ecr-repository"
     );
 
     // Create an ECS cluster
+    console.log('Creating ECS cluster...');
     const ecsCluster = new ecs.Cluster(this, `plandex-ecs-cluster-${tag}`, {
       vpc,
     });
@@ -256,47 +259,76 @@ export class PlandexStack extends cdk.Stack {
       new subscriptions.SmsSubscription(notifySms)
     );
 
-    const dbInstanceCpuUtilizationAlarm = new cloudwatch.Alarm(this, 'HighDbCpuUtilizationAlarm', {
-  metric: dbInstance.metricCPUUtilization(),
-  threshold: 80,
-  evaluationPeriods: 2,
-  alarmDescription: 'Alarm when RDS CPU utilization exceeds 80%',
-  comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
-  treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
-});
-dbInstanceCpuUtilizationAlarm.addAlarmAction(new cloudwatchActions.SnsAction(alarmNotificationTopic));
+    const dbInstanceCpuUtilizationAlarm = new cloudwatch.Alarm(
+      this,
+      "HighDbCpuUtilizationAlarm",
+      {
+        metric: dbInstance.metricCPUUtilization(),
+        threshold: 80,
+        evaluationPeriods: 2,
+        alarmDescription: "Alarm when RDS CPU utilization exceeds 80%",
+        comparisonOperator:
+          cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
+        treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+      }
+    );
+    dbInstanceCpuUtilizationAlarm.addAlarmAction(
+      new cloudwatchActions.SnsAction(alarmNotificationTopic)
+    );
 
-const dbInstanceFreeableMemoryAlarm = new cloudwatch.Alarm(this, 'LowDbFreeableMemoryAlarm', {
-  metric: dbInstance.metricFreeableMemory(),
-  threshold: 200 * 1024 * 1024, // Threshold in bytes (e.g., 200MB)
-  evaluationPeriods: 2,
-  alarmDescription: 'Alarm when RDS freeable memory is too low',
-  comparisonOperator: cloudwatch.ComparisonOperator.LESS_THAN_THRESHOLD,
-  treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
-});
-dbInstanceFreeableMemoryAlarm.addAlarmAction(new cloudwatchActions.SnsAction(alarmNotificationTopic));
+    const dbInstanceFreeableMemoryAlarm = new cloudwatch.Alarm(
+      this,
+      "LowDbFreeableMemoryAlarm",
+      {
+        metric: dbInstance.metricFreeableMemory(),
+        threshold: 200 * 1024 * 1024, // Threshold in bytes (e.g., 200MB)
+        evaluationPeriods: 2,
+        alarmDescription: "Alarm when RDS freeable memory is too low",
+        comparisonOperator: cloudwatch.ComparisonOperator.LESS_THAN_THRESHOLD,
+        treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+      }
+    );
+    dbInstanceFreeableMemoryAlarm.addAlarmAction(
+      new cloudwatchActions.SnsAction(alarmNotificationTopic)
+    );
 
-const fargateServiceCpuUtilizationAlarm = new cloudwatch.Alarm(this, 'HighFargateCpuUtilizationAlarm', {
-  metric: fargateService.metricCpuUtilization(),
-  threshold: 80,
-  evaluationPeriods: 2,
-  alarmDescription: 'Alarm when Fargate CPU utilization exceeds 80%',
-  comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
-  treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
-});
-fargateServiceCpuUtilizationAlarm.addAlarmAction(new cloudwatchActions.SnsAction(alarmNotificationTopic));
+    const fargateServiceCpuUtilizationAlarm = new cloudwatch.Alarm(
+      this,
+      "HighFargateCpuUtilizationAlarm",
+      {
+        metric: fargateService.metricCpuUtilization(),
+        threshold: 80,
+        evaluationPeriods: 2,
+        alarmDescription: "Alarm when Fargate CPU utilization exceeds 80%",
+        comparisonOperator:
+          cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
+        treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+      }
+    );
+    fargateServiceCpuUtilizationAlarm.addAlarmAction(
+      new cloudwatchActions.SnsAction(alarmNotificationTopic)
+    );
 
-const fargateServiceMemoryUtilizationAlarm = new cloudwatch.Alarm(this, 'HighFargateMemoryUtilizationAlarm', {
-  metric: fargateService.metricMemoryUtilization(),
-  threshold: 80,
-  evaluationPeriods: 2,
-  alarmDescription: 'Alarm when Fargate memory utilization exceeds 80%',
-  comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
-  treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
-});
-fargateServiceMemoryUtilizationAlarm.addAlarmAction(new cloudwatchActions.SnsAction(alarmNotificationTopic));
+    const fargateServiceMemoryUtilizationAlarm = new cloudwatch.Alarm(
+      this,
+      "HighFargateMemoryUtilizationAlarm",
+      {
+        metric: fargateService.metricMemoryUtilization(),
+        threshold: 80,
+        evaluationPeriods: 2,
+        alarmDescription: "Alarm when Fargate memory utilization exceeds 80%",
+        comparisonOperator:
+          cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
+        treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+      }
+    );
+    fargateServiceMemoryUtilizationAlarm.addAlarmAction(
+      new cloudwatchActions.SnsAction(alarmNotificationTopic)
+    );
   }
 }
+
+console.log('All resources have been defined in the CDK stack.');
 
 const app = new cdk.App();
 

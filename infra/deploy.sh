@@ -28,21 +28,20 @@ handle_error() {
 
 trap 'handle_error' ERR
 
+log "Deploying the infrastructure..."
+
 export AWS_PROFILE=plandex
 
 # Generate a unique tag for the deployment
 export STACK_TAG=$(uuidgen | cut -d '-' -f1)
 
-# Set variables for the ECR repository and image tag
-ECR_REPOSITORY=$(aws ecr describe-repositories --repository-names plandex-ecr-repository | jq -r '.repositories[0].repositoryUri')
-IMAGE_TAG=$(git rev-parse --short HEAD)
 
 # Function to ensure the ECR repository exists
 ensure_ecr_repository_exists() {
   # Check if the ECR repository exists
-  ECR_REPO_EXISTS=$(aws ecr describe-repositories --repository-names plandex-ecr-repository 2>/dev/null)
-  if [ -z "$ECR_REPO_EXISTS" ]; then
-    # Create the ECR repository if it does not exist
+  log "Checking if the ECR repository 'plandex-ecr-repository' exists..."
+  if ! aws ecr describe-repositories --repository-names plandex-ecr-repository 2>/dev/null; then
+    log "ECR repository does not exist. Creating repository..."
     aws ecr create-repository --repository-name plandex-ecr-repository
     log "ECR repository 'plandex-ecr-repository' created."
   else
@@ -50,8 +49,14 @@ ensure_ecr_repository_exists() {
   fi
 }
 
+log "Checking if the ECR repository exists..."
+
 # Ensure the ECR repository exists before proceeding
 ensure_ecr_repository_exists
+
+# Set variables for the ECR repository and image tag
+ECR_REPOSITORY=$(aws ecr describe-repositories --repository-names plandex-ecr-repository | jq -r '.repositories[0].repositoryUri')
+IMAGE_TAG=$(git rev-parse --short HEAD)
 
 # Function to deploy or update the CloudFormation stack using AWS CDK
 deploy_or_update_stack() {
@@ -104,10 +109,15 @@ update_ecs_service() {
 }
 
 # Deploy or update the CloudFormation stack
+log "Deploying or updating the CloudFormation stack..."
 deploy_or_update_stack
 
 # Build and push the Docker image to ECR
+log "Building and pushing the Docker image to ECR..."
 build_and_push_image
 
 # Update the ECS service with the new Docker image
+log "Updating the ECS service with the new Docker image..."
 update_ecs_service
+
+log "Infrastructure deployed successfully"
