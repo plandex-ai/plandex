@@ -33,7 +33,31 @@ log "Deploying the infrastructure..."
 export AWS_PROFILE=plandex
 
 # Generate a unique tag for the deployment
-export STACK_TAG=$(uuidgen | cut -d '-' -f1)
+# Path to the file where the STACK_TAG is stored
+STACK_TAG_FILE="stack-tag.txt"
+
+# Function to generate a new STACK_TAG and save it to the file
+generate_and_save_stack_tag() {
+  export STACK_TAG=$(uuidgen | cut -d '-' -f1)
+  echo $STACK_TAG > $STACK_TAG_FILE
+  log "Generated new STACK_TAG: $STACK_TAG"
+}
+
+# Function to load the existing STACK_TAG from the file
+load_stack_tag() {
+  export STACK_TAG=$(cat $STACK_TAG_FILE)
+  log "Loaded existing STACK_TAG: $STACK_TAG"
+}
+
+# Check if the STACK_TAG file exists and load it, otherwise generate a new one
+if [ -f "$STACK_TAG_FILE" ]; then
+  log "Loading existing STACK_TAG from file..."
+  load_stack_tag
+else
+  log "Generating new STACK_TAG and saving to file..."
+  generate_and_save_stack_tag
+fi
+
 
 
 # Function to ensure the ECR repository exists
@@ -108,13 +132,15 @@ update_ecs_service() {
   aws ecs update-service --cluster "$CLUSTER_NAME" --service "$SERVICE_NAME" --task-definition $TASK_DEF_ARN
 }
 
+log "Building and pushing the Docker image to ECR..."
+build_and_push_image
+
+log "Building and pushing the Docker image to ECR..."
+build_and_push_image
+
 # Deploy or update the CloudFormation stack
 log "Deploying or updating the CloudFormation stack..."
 deploy_or_update_stack
-
-# Build and push the Docker image to ECR
-log "Building and pushing the Docker image to ECR..."
-build_and_push_image
 
 # Update the ECS service with the new Docker image
 log "Updating the ECS service with the new Docker image..."
