@@ -80,9 +80,7 @@ export class PlandexStack extends cdk.Stack {
     );
 
     // Create an ECR repository
-    const ecrRepository = new ecr.Repository(
-      this,
-      `plandex-ecr-repository-${tag}`,
+    const ecrRepository = ecr.Repository.fromRepositoryName(this, 'PlandexEcrRepository', 'plandex-ecr-repository');
       {
         repositoryName: "plandex-ecr-repository",
       }
