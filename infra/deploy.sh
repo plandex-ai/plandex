@@ -138,8 +138,8 @@ log "Building and pushing the Docker image to ECR..."
 build_and_push_image
 
 # Deploy or update the CloudFormation stack
-log "Deploying or updating the CloudFormation stack..."
-deploy_or_update_stack
+# log "Deploying or updating the CloudFormation stack..."
+# deploy_or_update_stack
 
 # Update the ECS service with the new Docker image
 log "Updating the ECS service with the new Docker image..."

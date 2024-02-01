@@ -22,7 +22,7 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
-func Tell(plan *db.Plan, branch string, auth *types.ServerAuth, req *shared.TellPlanRequest) error {
+func Tell(client *openai.Client, plan *db.Plan, branch string, auth *types.ServerAuth, req *shared.TellPlanRequest) error {
 	// goEnv := os.Getenv("GOENV") // Fetch the GOENV environment variable
 
 	// log.Println("GOENV: " + goEnv)
@@ -65,12 +65,12 @@ func Tell(plan *db.Plan, branch string, auth *types.ServerAuth, req *shared.Tell
 
 	log.Println("Model stream id:", modelStream.Id)
 
-	go execTellPlan(plan, branch, auth, req, active, 0)
+	go execTellPlan(client, plan, branch, auth, req, active, 0)
 
 	return nil
 }
 
-func execTellPlan(plan *db.Plan, branch string, auth *types.ServerAuth, req *shared.TellPlanRequest, active *types.ActivePlan, iteration int) {
+func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *types.ServerAuth, req *shared.TellPlanRequest, active *types.ActivePlan, iteration int) {
 	currentUserId := auth.User.Id
 	currentOrgId := auth.OrgId
 
@@ -127,7 +127,7 @@ func execTellPlan(plan *db.Plan, branch string, auth *types.ServerAuth, req *sha
 	// get name for plan and rename it's a draft
 	go func() {
 		if plan.Name == "draft" {
-			name, err := model.GenPlanName(req.Prompt)
+			name, err := model.GenPlanName(client, req.Prompt)
 
 			if err != nil {
 				log.Printf("Error generating plan name: %v\n", err)
@@ -499,7 +499,7 @@ func execTellPlan(plan *db.Plan, branch string, auth *types.ServerAuth, req *sha
 		TopP:        0.7,
 	}
 
-	stream, err := model.Client.CreateChatCompletionStream(active.Ctx, modelReq)
+	stream, err := client.CreateChatCompletionStream(active.Ctx, modelReq)
 	if err != nil {
 		log.Printf("Error creating proposal GPT4 stream: %v\n", err)
 		log.Println(err)
@@ -652,7 +652,7 @@ func execTellPlan(plan *db.Plan, branch string, auth *types.ServerAuth, req *sha
 
 					if len(convo) > 0 {
 						// summarize in the background
-						go summarizeConvo(summarizeConvoParams{
+						go summarizeConvo(client, summarizeConvoParams{
 							planId:        planId,
 							branch:        branch,
 							convo:         convo,
@@ -699,7 +699,7 @@ func execTellPlan(plan *db.Plan, branch string, auth *types.ServerAuth, req *sha
 									MadePlan:              false,
 								}
 							} else {
-								description, err = genPlanDescription(planId, branch, active.Ctx)
+								description, err = genPlanDescription(client, planId, branch, active.Ctx)
 								if err != nil {
 									onError(fmt.Errorf("failed to generate plan description: %v", err), true, assistantMsg.Id, convoCommitMsg)
 									return
@@ -725,7 +725,7 @@ func execTellPlan(plan *db.Plan, branch string, auth *types.ServerAuth, req *sha
 
 						go func() {
 
-							execStatus, err = ExecStatus(assistantMsg.Message, active.Ctx)
+							execStatus, err = ExecStatus(client, assistantMsg.Message, active.Ctx)
 							if err != nil {
 								onError(fmt.Errorf("failed to get exec status: %v", err), false, assistantMsg.Id, convoCommitMsg)
 								errCh <- err
@@ -768,7 +768,7 @@ func execTellPlan(plan *db.Plan, branch string, auth *types.ServerAuth, req *sha
 
 					} else {
 						// continue plan
-						execTellPlan(plan, branch, auth, req, active, iteration+1)
+						execTellPlan(client, plan, branch, auth, req, active, iteration+1)
 					}
 
 					return
@@ -798,7 +798,7 @@ func execTellPlan(plan *db.Plan, branch string, auth *types.ServerAuth, req *sha
 					for i := len(files) - 1; i > len(replyFiles)-1; i-- {
 						file := files[i]
 						log.Printf("Queuing build for %s\n", file)
-						QueueBuild(currentOrgId, currentUserId, planId, branch, &types.ActiveBuild{
+						QueueBuild(client, currentOrgId, currentUserId, planId, branch, &types.ActiveBuild{
 							AssistantMessageId: replyId,
 							ReplyContent:       active.CurrentReplyContent,
 							FileContent:        fileContents[i],
@@ -825,7 +825,7 @@ type summarizeConvoParams struct {
 	currentOrgId  string
 }
 
-func summarizeConvo(params summarizeConvoParams) error {
+func summarizeConvo(client *openai.Client, params summarizeConvoParams) error {
 	planId := params.planId
 	branch := params.branch
 	convo := params.convo
@@ -890,7 +890,7 @@ func summarizeConvo(params summarizeConvoParams) error {
 		})
 	}
 
-	summary, err := model.PlanSummary(model.PlanSummaryParams{
+	summary, err := model.PlanSummary(client, model.PlanSummaryParams{
 		Conversation:                summaryMessages,
 		LatestConvoMessageId:        latestMessageId,
 		LatestConvoMessageCreatedAt: latestMessageSummarizedAt,

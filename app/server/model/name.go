@@ -9,7 +9,7 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
-func GenPlanName(planContent string) (string, error) {
+func GenPlanName(client *openai.Client, planContent string) (string, error) {
 	messages := []openai.ChatCompletionMessage{
 		{
 			Role:    openai.ChatMessageRoleSystem,
@@ -22,7 +22,7 @@ func GenPlanName(planContent string) (string, error) {
 		Content: prompts.GetPlanNamePrompt(planContent),
 	})
 
-	resp, err := Client.CreateChatCompletion(
+	resp, err := client.CreateChatCompletion(
 		context.Background(),
 		openai.ChatCompletionRequest{
 			Model:          NameModel,

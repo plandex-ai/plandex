@@ -93,6 +93,7 @@ type TellPlanRequest struct {
 	Prompt        string `json:"prompt"`
 	ConnectStream bool   `json:"connectStream"`
 	AutoContinue  bool   `json:"autoContinue"`
+	ApiKey        string `json:"apiKey"`
 }
 
 type LoadContextParams struct {

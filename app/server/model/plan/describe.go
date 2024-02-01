@@ -12,9 +12,9 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
-func genPlanDescription(planId, branch string, ctx context.Context) (*db.ConvoMessageDescription, error) {
+func genPlanDescription(client *openai.Client, planId, branch string, ctx context.Context) (*db.ConvoMessageDescription, error) {
 
-	descResp, err := model.Client.CreateChatCompletion(
+	descResp, err := client.CreateChatCompletion(
 		ctx,
 		openai.ChatCompletionRequest{
 			Model:     model.CommitMsgModel,

@@ -11,13 +11,13 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
-func ExecStatus(message string, ctx context.Context) (*types.PlanExecStatus, error) {
+func ExecStatus(client *openai.Client, message string, ctx context.Context) (*types.PlanExecStatus, error) {
 	var res types.PlanExecStatus
 
 	errCh := make(chan error, 2)
 
 	go func() {
-		needsInput, err := ExecStatusNeedsInput(message, ctx)
+		needsInput, err := ExecStatusNeedsInput(client, message, ctx)
 		if err != nil {
 			errCh <- err
 			return
@@ -27,7 +27,7 @@ func ExecStatus(message string, ctx context.Context) (*types.PlanExecStatus, err
 	}()
 
 	go func() {
-		finished, err := ExecStatusIsFinished(message, ctx)
+		finished, err := ExecStatusIsFinished(client, message, ctx)
 		if err != nil {
 			errCh <- err
 			return
@@ -46,7 +46,7 @@ func ExecStatus(message string, ctx context.Context) (*types.PlanExecStatus, err
 	return &res, nil
 }
 
-func ExecStatusIsFinished(message string, ctx context.Context) (bool, error) {
+func ExecStatusIsFinished(client *openai.Client, message string, ctx context.Context) (bool, error) {
 	messages := []openai.ChatCompletionMessage{
 		{
 			Role:    openai.ChatMessageRoleSystem,
@@ -54,7 +54,7 @@ func ExecStatusIsFinished(message string, ctx context.Context) (bool, error) {
 		},
 	}
 
-	resp, err := model.Client.CreateChatCompletion(
+	resp, err := client.CreateChatCompletion(
 		ctx,
 		openai.ChatCompletionRequest{
 			Model:          model.PlanExecStatusModel,
@@ -97,7 +97,7 @@ func ExecStatusIsFinished(message string, ctx context.Context) (bool, error) {
 	return res.Finished, nil
 }
 
-func ExecStatusNeedsInput(message string, ctx context.Context) (bool, error) {
+func ExecStatusNeedsInput(client *openai.Client, message string, ctx context.Context) (bool, error) {
 	messages := []openai.ChatCompletionMessage{
 		{
 			Role:    openai.ChatMessageRoleSystem,
@@ -105,7 +105,7 @@ func ExecStatusNeedsInput(message string, ctx context.Context) (bool, error) {
 		},
 	}
 
-	resp, err := model.Client.CreateChatCompletion(
+	resp, err := client.CreateChatCompletion(
 		ctx,
 		openai.ChatCompletionRequest{
 			Model:          model.PlanExecStatusModel,

@@ -16,10 +16,6 @@ import (
 )
 
 func main() {
-	if os.Getenv("OPENAI_API_KEY") == "" {
-		log.Fatal("OPENAI_API_KEY environment variable is not set")
-	}
-
 	err := host.LoadIp()
 	if err != nil {
 		log.Fatal("Error loading IP: ", err)

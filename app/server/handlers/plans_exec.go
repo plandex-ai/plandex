@@ -9,7 +9,8 @@ import (
 	"os"
 	"plandex-server/db"
 	"plandex-server/host"
-	model "plandex-server/model/plan"
+	"plandex-server/model"
+	modelPlan "plandex-server/model/plan"
 	"plandex-server/types"
 
 	"github.com/gorilla/mux"
@@ -62,6 +63,12 @@ func TellPlanHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if requestBody.ApiKey == "" {
+		log.Println("API key is required")
+		http.Error(w, "API key is required", http.StatusBadRequest)
+		return
+	}
+
 	if os.Getenv("IS_CLOUD") != "" {
 		user, err := db.GetUser(auth.User.Id)
 
@@ -86,7 +93,8 @@ func TellPlanHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	err = model.Tell(plan, branch, auth, &requestBody)
+	client := model.NewClient(requestBody.ApiKey)
+	err = modelPlan.Tell(client, plan, branch, auth, &requestBody)
 
 	if err != nil {
 		log.Printf("Error telling plan: %v\n", err)
@@ -95,10 +103,10 @@ func TellPlanHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if requestBody.ConnectStream {
-		active := model.GetActivePlan(planId, branch)
-		subscriptionId, ch := model.SubscribePlan(planId, branch)
+		active := modelPlan.GetActivePlan(planId, branch)
+		subscriptionId, ch := modelPlan.SubscribePlan(planId, branch)
 		startResponseStream(w, ch, active, func() {
-			model.UnsubscribePlan(planId, branch, subscriptionId)
+			modelPlan.UnsubscribePlan(planId, branch, subscriptionId)
 		})
 	}
 }
@@ -156,7 +164,7 @@ func StopPlanHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	active := model.GetActivePlan(planId, branch)
+	active := modelPlan.GetActivePlan(planId, branch)
 
 	if active == nil {
 		modelStream, err := db.GetActiveModelStream(planId, branch)
@@ -193,7 +201,7 @@ func StopPlanHandler(w http.ResponseWriter, r *http.Request) {
 		defer (*unlockFn)()
 	}
 
-	err := model.Stop(planId, branch, auth.User.Id, auth.OrgId)
+	err := modelPlan.Stop(planId, branch, auth.User.Id, auth.OrgId)
 
 	if err != nil {
 		log.Printf("Error stopping plan: %v\n", err)

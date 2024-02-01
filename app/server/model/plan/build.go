@@ -24,7 +24,7 @@ import (
 const MaxRetries = 3
 const MaxReplacementRetries = 1
 
-func QueueBuild(currentOrgId, currentUserId, planId, branch string, activeBuild *types.ActiveBuild) {
+func QueueBuild(client *openai.Client, currentOrgId, currentUserId, planId, branch string, activeBuild *types.ActiveBuild) {
 	activePlan := GetActivePlan(planId, branch)
 	filePath := activeBuild.Path
 
@@ -40,11 +40,11 @@ func QueueBuild(currentOrgId, currentUserId, planId, branch string, activeBuild 
 		return
 	} else {
 		log.Printf("Will process build queue for file %s\n", filePath)
-		go execPlanBuild(currentOrgId, currentUserId, branch, activePlan, []*types.ActiveBuild{activeBuild})
+		go execPlanBuild(client, currentOrgId, currentUserId, branch, activePlan, []*types.ActiveBuild{activeBuild})
 	}
 }
 
-func execPlanBuild(currentOrgId, currentUserId, branch string, activePlan *types.ActivePlan, activeBuilds []*types.ActiveBuild) {
+func execPlanBuild(client *openai.Client, currentOrgId, currentUserId, branch string, activePlan *types.ActivePlan, activeBuilds []*types.ActiveBuild) {
 	if len(activeBuilds) == 0 {
 		log.Println("No active builds")
 		return
@@ -227,7 +227,7 @@ func execPlanBuild(currentOrgId, currentUserId, branch string, activePlan *types
 
 				if len(nextBuilds) > 0 {
 					log.Println("Calling execPlanBuild for next build in queue")
-					go execPlanBuild(currentOrgId, currentUserId, branch, activePlan, nextBuilds)
+					go execPlanBuild(client, currentOrgId, currentUserId, branch, activePlan, nextBuilds)
 				}
 				return
 			} else {
@@ -388,7 +388,7 @@ func execPlanBuild(currentOrgId, currentUserId, branch string, activePlan *types
 			ResponseFormat: &openai.ChatCompletionResponseFormat{Type: "json_object"},
 		}
 
-		stream, err := model.Client.CreateChatCompletionStream(activePlan.Ctx, modelReq)
+		stream, err := client.CreateChatCompletionStream(activePlan.Ctx, modelReq)
 		if err != nil {
 			log.Printf("Error creating plan file stream for path '%s': %v\n", filePath, err)
 
