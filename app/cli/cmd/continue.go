@@ -34,6 +34,11 @@ func init() {
 }
 
 func next(cmd *cobra.Command, args []string) {
+	if os.Getenv("OPENAI_API_KEY") == "" {
+		term.OutputNoApiKeyMsg()
+		os.Exit(1)
+	}
+
 	auth.MustResolveAuthWithOrg()
 	lib.MustResolveProject()
 	lib.MustCheckOutdatedContextWithOutput()
@@ -59,6 +64,7 @@ func next(cmd *cobra.Command, args []string) {
 		apiErr := api.Client.TellPlan(lib.CurrentPlanId, lib.CurrentBranch, shared.TellPlanRequest{
 			Prompt:        continuePrompt,
 			ConnectStream: !continueBg,
+			ApiKey:        os.Getenv("OPENAI_API_KEY"),
 		}, lib.OnStreamPlan)
 		if apiErr != nil {
 			log.Println("Error telling plan:", apiErr)

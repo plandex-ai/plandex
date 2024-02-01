@@ -41,6 +41,11 @@ func init() {
 }
 
 func tell(cmd *cobra.Command, args []string) {
+	if os.Getenv("OPENAI_API_KEY") == "" {
+		term.OutputNoApiKeyMsg()
+		os.Exit(1)
+	}
+
 	auth.MustResolveAuthWithOrg()
 	lib.MustResolveProject()
 
@@ -145,6 +150,7 @@ func tell(cmd *cobra.Command, args []string) {
 			Prompt:        prompt,
 			ConnectStream: !tellBg,
 			AutoContinue:  !tellStep,
+			ApiKey:        os.Getenv("OPENAI_API_KEY"),
 		}, lib.OnStreamPlan)
 		if apiErr != nil {
 			if apiErr.Type == shared.ApiErrorTypeTrialMessagesExceeded {
