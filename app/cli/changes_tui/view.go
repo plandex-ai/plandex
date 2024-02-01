@@ -135,7 +135,7 @@ func (m changesUIModel) renderHelp() string {
 		help += "(↑/↓) select change • "
 	}
 
-	help += "(ctrl+a) apply pending • (ctrl+d) drop all • (q)uit"
+	help += "(ctrl+a) apply pending • (ctrl+r) reject all • (q)uit"
 	style := lipgloss.NewStyle().Width(m.width).Inherit(topBorderStyle).Foreground(lipgloss.Color(helpTextColor))
 	return style.Render(help)
 }

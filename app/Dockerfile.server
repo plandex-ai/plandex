@@ -1,7 +1,7 @@
 FROM golang:1.21.3
 
 RUN apt-get update && \
-  apt-get install -y git=2.43.0
+  apt-get install -y git
 
 WORKDIR /app
 
@@ -14,7 +14,9 @@ RUN cd server && go mod download
 COPY ./server ./server
 COPY ./shared ./shared
 
-RUN cd server && go build -o plandex-server .
+ENV GOOS=linux
+ENV GOARCH=amd64
+RUN cd server && (rm plandex-server || true) && go build -o plandex-server .
 
 ENV PORT=8080
 EXPOSE 8080

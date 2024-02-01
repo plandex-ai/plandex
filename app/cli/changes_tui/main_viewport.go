@@ -114,7 +114,7 @@ func (m changesUIModel) renderMainViewFooter() string {
 
 	sidebarWidth := lipgloss.Width(m.renderSidebar())
 	style := lipgloss.NewStyle().Width(m.width - sidebarWidth).Inherit(topBorderStyle).Foreground(lipgloss.Color(helpTextColor))
-	footer := ` (d)rop selected change • (c)opy to clipboard`
+	footer := ` (r)eject change • (c)opy to clipboard`
 	return style.Render(footer)
 }
 

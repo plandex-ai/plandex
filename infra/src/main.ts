@@ -21,7 +21,9 @@ const imageTag = process.env.IMAGE_TAG;
 
 export class PlandexStack extends cdk.Stack {
   constructor(scope: cdk.Construct, id: string, props?: cdk.StackProps) {
-    if (!tag) throw new Error("STACK_TAG environment variable is not set");
+    if (!tag) {
+      throw new Error("STACK_TAG environment variable is not set");
+    }
     if (!notifyEmail) {
       throw new Error("NOTIFY_EMAIL environment variable is not set");
     }
@@ -55,6 +57,78 @@ export class PlandexStack extends cdk.Stack {
       ],
     });
 
+    const rdsSecurityGroup = new ec2.SecurityGroup(this, "RdsSecurityGroup", {
+      vpc,
+      description: "Security group for RDS instance",
+    });
+
+    const efsSecurityGroup = new ec2.SecurityGroup(
+      this,
+      `plandex-efs-sg-${tag}`,
+      {
+        vpc,
+      }
+    );
+
+    const fargateServiceSecurityGroup = new ec2.SecurityGroup(
+      this,
+      `plandex-fargate-service-sg-${tag}`,
+      {
+        vpc,
+        allowAllOutbound: true, // Allows the containers to access the internet
+      }
+    );
+
+    const albSecurityGroup = new ec2.SecurityGroup(this, "AlbSecurityGroup", {
+      vpc,
+      description: "Security group for the ALB",
+    });
+
+    // RDS security group rules
+    fargateServiceSecurityGroup.addEgressRule(
+      rdsSecurityGroup,
+      ec2.Port.tcp(5432),
+      "Allow outbound traffic from Fargate service to RDS instance"
+    );
+
+    rdsSecurityGroup.addIngressRule(
+      fargateServiceSecurityGroup,
+      ec2.Port.tcp(5432),
+      "Allow Fargate service to access RDS instance"
+    );
+
+    // EFS security group rules
+    efsSecurityGroup.addIngressRule(
+      fargateServiceSecurityGroup,
+      ec2.Port.tcp(2049),
+      "Allow inbound NFS traffic from Fargate service"
+    );
+
+    fargateServiceSecurityGroup.addEgressRule(
+      ec2.Peer.ipv4(vpc.vpcCidrBlock),
+      ec2.Port.tcp(2049),
+      "Allow outbound NFS traffic to EFS"
+    );
+
+    // ALB security group rules
+    // Allow inbound HTTP and HTTPS traffic
+    albSecurityGroup.addIngressRule(
+      ec2.Peer.anyIpv4(),
+      ec2.Port.tcp(80),
+      "Allow inbound HTTP traffic"
+    );
+    albSecurityGroup.addIngressRule(
+      ec2.Peer.anyIpv4(),
+      ec2.Port.tcp(443),
+      "Allow inbound HTTPS traffic"
+    );
+    // Allow traffic from the alb to the fargate service
+    fargateServiceSecurityGroup.addIngressRule(
+      albSecurityGroup,
+      ec2.Port.tcp(8080),
+      "Allow inbound traffic from ALB"
+    );
+
     // Create a Secrets Manager secret to store the RDS database credentials
     const dbCredentialsSecret = new secretsmanager.Secret(
       this,
@@ -77,6 +151,7 @@ export class PlandexStack extends cdk.Stack {
         engine: rds.DatabaseInstanceEngine.postgres({
           version: rds.PostgresEngineVersion.VER_14,
         }),
+        storageEncrypted: true,
         instanceType: ec2.InstanceType.of(
           ec2.InstanceClass.BURSTABLE4_GRAVITON,
           ec2.InstanceSize.MICRO
@@ -85,6 +160,7 @@ export class PlandexStack extends cdk.Stack {
         vpcSubnets: {
           subnetType: ec2.SubnetType.PRIVATE_ISOLATED,
         },
+        securityGroups: [rdsSecurityGroup],
         credentials: rds.Credentials.fromSecret(dbCredentialsSecret), // Use credentials from Secrets Manager
       }
     );
@@ -108,6 +184,12 @@ export class PlandexStack extends cdk.Stack {
       `plandex-efs-file-system-${tag}`,
       {
         vpc,
+        securityGroup: efsSecurityGroup,
+        vpcSubnets: {
+          subnetType: ec2.SubnetType.PRIVATE_ISOLATED, // Deploy the file system in private subnets
+        },
+        encrypted: true,
+        enableAutomaticBackups: true,
       }
     );
 
@@ -124,7 +206,10 @@ export class PlandexStack extends cdk.Stack {
       managedPolicies: [
         iam.ManagedPolicy.fromAwsManagedPolicyName(
           "service-role/AmazonECSTaskExecutionRolePolicy"
-        ), // Default policy for task execution
+        ),
+        iam.ManagedPolicy.fromAwsManagedPolicyName(
+          "AmazonElasticFileSystemClientReadWriteAccess"
+        ),
       ],
     });
     dbCredentialsSecret.grantRead(taskExecutionRole);
@@ -184,49 +269,6 @@ export class PlandexStack extends cdk.Stack {
       readOnly: false,
     });
 
-    // Create a Fargate service with a security group that allows outbound internet access and access to the RDS database
-    const fargateServiceSecurityGroup = new ec2.SecurityGroup(
-      this,
-      `plandex-fargate-service-sg-${tag}`, {
-        vpc,
-        allowAllOutbound: true,
-      }
-    );
-
-    fargateServiceSecurityGroup.addEgressRule(
-      ec2.Peer.ipv4(vpc.vpcCidrBlock),
-      ec2.Port.tcp(2049),
-      "Allow outbound NFS traffic to EFS"
-    );
-
-    const efsSecurityGroup = new ec2.SecurityGroup(this, `plandex-efs-sg-${tag}`, {
-      vpc,
-    });
-
-    efsSecurityGroup.addIngressRule(
-      fargateServiceSecurityGroup,
-      ec2.Port.tcp(2049),
-      "Allow inbound NFS traffic from Fargate service"
-    );
-
-    const fileSystem = new efs.FileSystem(
-      this,
-      `plandex-efs-file-system-${tag}`, {
-        vpc,
-        securityGroup: efsSecurityGroup,
-      {
-        vpc,
-        allowAllOutbound: true, // Allows the containers to access the internet
-      }
-    );
-
-    // Define the ingress rule for the security group to allow the Fargate service to communicate with the RDS instance
-    fargateServiceSecurityGroup.addIngressRule(
-      ec2.Peer.anyIpv4(),
-      ec2.Port.tcp(5432),
-      "Allow Fargate service to access RDS instance"
-    );
-
     const fargateService = new ecs.FargateService(
       this,
       `plandex-fargate-service-${tag}`,
@@ -274,6 +316,10 @@ export class PlandexStack extends cdk.Stack {
     const alb = new elbv2.ApplicationLoadBalancer(this, `plandex-alb-${tag}`, {
       vpc,
       internetFacing: true,
+      securityGroup: albSecurityGroup,
+      vpcSubnets: {
+        subnetType: ec2.SubnetType.PUBLIC,
+      },
     });
 
     // Create an HTTP listener and add a redirect to HTTPS
@@ -303,22 +349,6 @@ export class PlandexStack extends cdk.Stack {
       port: 8080,
       targets: [fargateService],
     });
-
-    // Allow inbound HTTP and HTTPS traffic to the ALB
-    // HTTP will be redirected to HTTPS
-    alb.connections.allowFromAnyIpv4(
-      ec2.Port.tcp(80),
-      "Allow inbound HTTP traffic"
-    );
-
-    alb.connections.allowFromAnyIpv4(
-      ec2.Port.tcp(443),
-      "Allow inbound HTTPS traffic"
-    );
-
-    // Define CloudWatch metrics for monitoring CPU and memory utilization
-    const cpuUtilizationMetric = fargateService.metricCpuUtilization();
-    const memoryUtilizationMetric = fargateService.metricMemoryUtilization();
 
     // Create CloudWatch alarms for high CPU and memory utilization
     const alarmNotificationTopic = new sns.Topic(

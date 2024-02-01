@@ -109,8 +109,8 @@ func initialModel() *changesUIModel {
 			),
 
 			reject: bubbleKey.NewBinding(
-				bubbleKey.WithKeys("d"),
-				bubbleKey.WithHelp("d", "drop change"),
+				bubbleKey.WithKeys("r"),
+				bubbleKey.WithHelp("r", "reject change"),
 			),
 
 			copy: bubbleKey.NewBinding(
@@ -121,6 +121,11 @@ func initialModel() *changesUIModel {
 			applyAll: bubbleKey.NewBinding(
 				bubbleKey.WithKeys("ctrl+a"),
 				bubbleKey.WithHelp("ctrl+a", "apply all changes"),
+			),
+
+			rejectAll: bubbleKey.NewBinding(
+				bubbleKey.WithKeys("ctrl+r"),
+				bubbleKey.WithHelp("ctrl+r", "reject all changes"),
 			),
 
 			quit: bubbleKey.NewBinding(

@@ -18,11 +18,22 @@ var Conn *sqlx.DB
 func Connect() error {
 	var err error
 
-	if os.Getenv("DATABASE_URL") == "" {
-		return errors.New("DATABASE_URL not set")
+	dbUrl := os.Getenv("DATABASE_URL")
+	if dbUrl == "" {
+		if os.Getenv("DB_HOST") != "" &&
+			os.Getenv("DB_PORT") != "" &&
+			os.Getenv("DB_USER") != "" &&
+			os.Getenv("DB_PASSWORD") != "" &&
+			os.Getenv("DB_NAME") != "" {
+			dbUrl = "postgres://" + os.Getenv("DB_USER") + ":" + os.Getenv("DB_PASSWORD") + "@" + os.Getenv("DB_HOST") + ":" + os.Getenv("DB_PORT") + "/" + os.Getenv("DB_NAME")
+		}
+
+		if dbUrl == "" {
+			return errors.New("DATABASE_URL or DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, and DB_NAME environment variables must be set")
+		}
 	}
 
-	Conn, err = sqlx.Connect("postgres", os.Getenv("DATABASE_URL"))
+	Conn, err = sqlx.Connect("postgres", dbUrl)
 	if err != nil {
 		return err
 	}
