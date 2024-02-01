@@ -30,7 +30,7 @@ export class PlandexStack extends cdk.Stack {
     super(scope, id, props);
 
     // Create a VPC with two public and two private subnets
-    console.log('Creating VPC...');
+    console.log("Creating VPC...");
     const vpc = new ec2.Vpc(this, `plandex-vpc-${tag}`, {
       maxAzs: 2,
       subnetConfiguration: [
@@ -61,7 +61,7 @@ export class PlandexStack extends cdk.Stack {
     );
 
     // Create an RDS Aurora PostgreSQL database
-    console.log('Creating RDS instance...');
+    console.log("Creating RDS instance...");
     const dbInstance = new rds.DatabaseInstance(
       this,
       `plandex-rds-instance-${tag}`,
@@ -89,7 +89,7 @@ export class PlandexStack extends cdk.Stack {
     );
 
     // Create an ECS cluster
-    console.log('Creating ECS cluster...');
+    console.log("Creating ECS cluster...");
     const ecsCluster = new ecs.Cluster(this, `plandex-ecs-cluster-${tag}`, {
       vpc,
     });
@@ -129,6 +129,13 @@ export class PlandexStack extends cdk.Stack {
       environment: {
         ECS_CONTAINER_STOP_TIMEOUT: "60m", // gives time for streams to finish before container is stopped
       },
+      portMappings: [
+        {
+          containerPort: 80,
+          hostPort: 80,
+          protocol: ecs.Protocol.TCP,
+        },
+      ],
     });
 
     // Mount the EFS file system to the container
@@ -328,8 +335,6 @@ export class PlandexStack extends cdk.Stack {
   }
 }
 
-console.log('All resources have been defined in the CDK stack.');
-
 const app = new cdk.App();
 
-const stack = new PlandexStack(app, "plandex-stack-" + tag);
+new PlandexStack(app, "plandex-stack-" + tag);
