@@ -15,8 +15,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// const defaultEditor = "vim"
-const defaultEditor = "nano"
+const defaultEditor = "vim"
+
+// const defaultEditor = "nano"
 
 var tellPromptFile string
 var tellBg bool
