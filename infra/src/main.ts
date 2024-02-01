@@ -16,7 +16,6 @@ import * as cloudwatchActions from "@aws-cdk/aws-cloudwatch-actions";
 const tag = process.env.STACK_TAG;
 const notifyEmail = process.env.NOTIFY_EMAIL;
 const notifySms = process.env.NOTIFY_SMS;
-const certificateArn = process.env.CERTIFICATE_ARN;
 
 export class PlandexStack extends cdk.Stack {
   constructor(scope: cdk.Construct, id: string, props?: cdk.StackProps) {
@@ -26,9 +25,6 @@ export class PlandexStack extends cdk.Stack {
     }
     if (!notifySms) {
       throw new Error("NOTIFY_SMS environment variable is not set");
-    }
-    if (!certificateArn) {
-      throw new Error("CERTIFICATE_ARN environment variable is not set");
     }
 
     super(scope, id, props);
@@ -71,10 +67,10 @@ export class PlandexStack extends cdk.Stack {
       `plandex-rds-instance-${tag}`,
       {
         engine: rds.DatabaseInstanceEngine.postgres({
-          version: rds.PostgresEngineVersion.VER_14,
+          version: rds.PostgresEngineVersion.VER_14_2,
         }),
         instanceType: ec2.InstanceType.of(
-          ec2.InstanceClass.BURSTABLE4_GRAVITON,
+          ec2.InstanceClass.BURSTABLE2,
           ec2.InstanceSize.MICRO
         ),
         vpc,
@@ -166,6 +162,13 @@ export class PlandexStack extends cdk.Stack {
       }
     );
 
+    console.log(
+      "dbInstance.dbInstanceEndpointPort: ",
+      dbInstance.dbInstanceEndpointPort
+    );
+    const dbPort = parseInt(dbInstance.dbInstanceEndpointPort);
+    console.log("dbPort: ", dbPort);
+
     // Define the ingress rule for the security group to allow the Fargate service to communicate with the RDS instance
     fargateServiceSecurityGroup.addIngressRule(
       ec2.Peer.anyIpv4(),
@@ -222,7 +225,7 @@ export class PlandexStack extends cdk.Stack {
     const certificate = acm.Certificate.fromCertificateArn(
       this,
       "Certificate",
-      certificateArn
+      "arn:aws:acm:region:account-id:certificate/certificate-id"
     );
 
     const listener = alb.addListener("plandexListener", {
@@ -236,7 +239,12 @@ export class PlandexStack extends cdk.Stack {
       targets: [fargateService],
     });
 
-    listener.addRedirectResponse("HTTPtoHTTPSRedirect", {
+    // Adjust the security group for the ALB to allow inbound traffic
+    const httpListener = alb.addListener("HttpListener", {
+      port: 80,
+      open: true,
+    });
+    httpListener.addRedirectResponse("HTTPtoHTTPSRedirect", {
       statusCode: "HTTP_301",
       protocol: "HTTPS",
       port: "443",
@@ -244,6 +252,19 @@ export class PlandexStack extends cdk.Stack {
       path: "/#{path}",
       query: "#{query}",
     });
+
+    // Create an HTTPS listener
+    const httpsListener = alb.addListener("HttpsListener", {
+      port: 443,
+      certificates: [certificate],
+    });
+
+    // Add a target group for the ECS service to the HTTPS listener
+    const targetGroup = httpsListener.addTargets("plandexEcsTarget", {
+      port: 8080,
+      targets: [fargateService],
+    });
+
     alb.connections.allowFromAnyIpv4(
       ec2.Port.tcp(443),
       "Allow inbound HTTPS traffic"
