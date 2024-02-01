@@ -168,26 +168,6 @@ export class PlandexStack extends cdk.Stack {
           protocol: ecs.Protocol.TCP,
         },
       ],
-      healthCheck: {
-        command: [
-          "CMD-SHELL",
-          "curl -f http://localhost:8080/health || exit 1"
-        ],
-        interval: cdk.Duration.seconds(30),
-        timeout: cdk.Duration.seconds(5),
-        retries: 3,
-        startPeriod: cdk.Duration.seconds(60),
-      },
-      healthCheck: {
-        command: [
-          "CMD-SHELL",
-          "curl -f http://localhost:8080/health || exit 1"
-        ],
-        interval: cdk.Duration.seconds(30),
-        timeout: cdk.Duration.seconds(5),
-        retries: 3,
-        startPeriod: cdk.Duration.seconds(60),
-      },
     });
 
     // Mount the EFS file system to the container
@@ -207,7 +187,33 @@ export class PlandexStack extends cdk.Stack {
     // Create a Fargate service with a security group that allows outbound internet access and access to the RDS database
     const fargateServiceSecurityGroup = new ec2.SecurityGroup(
       this,
-      `plandex-fargate-service-sg-${tag}`,
+      `plandex-fargate-service-sg-${tag}`, {
+        vpc,
+        allowAllOutbound: true,
+      }
+    );
+
+    fargateServiceSecurityGroup.addEgressRule(
+      ec2.Peer.ipv4(vpc.vpcCidrBlock),
+      ec2.Port.tcp(2049),
+      "Allow outbound NFS traffic to EFS"
+    );
+
+    const efsSecurityGroup = new ec2.SecurityGroup(this, `plandex-efs-sg-${tag}`, {
+      vpc,
+    });
+
+    efsSecurityGroup.addIngressRule(
+      fargateServiceSecurityGroup,
+      ec2.Port.tcp(2049),
+      "Allow inbound NFS traffic from Fargate service"
+    );
+
+    const fileSystem = new efs.FileSystem(
+      this,
+      `plandex-efs-file-system-${tag}`, {
+        vpc,
+        securityGroup: efsSecurityGroup,
       {
         vpc,
         allowAllOutbound: true, // Allows the containers to access the internet
