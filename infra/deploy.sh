@@ -65,10 +65,10 @@ deploy_or_update_stack() {
 
   if [ -z "$STACK_NAME" ]; then
     # Deploy the stack if it does not exist
-    npx cdk deploy --require-approval never --app "npx ts-node infra/src/main.ts" --context stackTag=$STACK_TAG "plandex-stack-$STACK_TAG"
+    npx cdk deploy --require-approval never --app "npx ts-node src/main.ts" --context stackTag=$STACK_TAG "plandex-stack-$STACK_TAG"
   else
     # Update the stack if it exists
-    npx cdk deploy "$STACK_NAME" --require-approval never --app "npx ts-node infra/src/main.ts"
+    npx cdk deploy "$STACK_NAME" --require-approval never --app "npx ts-node src/main.ts"
   fi
 }
 

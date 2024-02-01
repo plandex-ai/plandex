@@ -16,4 +16,7 @@ COPY ./shared ./shared
 
 RUN cd server && go build -o plandex-server .
 
+ENV PORT=8080
+EXPOSE 8080
+
 CMD ["./server/plandex-server"]
