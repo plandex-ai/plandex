@@ -131,7 +131,7 @@ export class PlandexStack extends cdk.Stack {
       },
       portMappings: [
         {
-          containerPort: 80,
+          containerPort: 8080,
           hostPort: 80,
           protocol: ecs.Protocol.TCP,
         },
@@ -165,7 +165,7 @@ export class PlandexStack extends cdk.Stack {
     // Define the ingress rule for the security group to allow the Fargate service to communicate with the RDS instance
     fargateServiceSecurityGroup.addIngressRule(
       ec2.Peer.anyIpv4(),
-      ec2.Port.tcp(parseInt(dbInstance.dbInstanceEndpointPort)),
+      ec2.Port.tcp(dbInstance.dbInstanceEndpointPort),
       "Allow Fargate service to access RDS instance"
     );
 
@@ -228,11 +228,11 @@ export class PlandexStack extends cdk.Stack {
 
     // Add a target group for the ECS service
     const targetGroup = listener.addTargets("plandexEcsTarget", {
-      port: 80,
+      port: 8080,
       targets: [fargateService],
     });
 
-    // Adjust the security group for the ALB to allow inbound traffic on port 80
+    // Adjust the security group for the ALB to allow inbound traffic
     listener.addRedirectResponse("HTTPtoHTTPSRedirect", {
       statusCode: "HTTP_301",
       protocol: "HTTPS",
