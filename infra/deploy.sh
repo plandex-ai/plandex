@@ -80,6 +80,8 @@ ensure_ecr_repository_exists
 ECR_REPOSITORY=$(aws ecr describe-repositories --repository-names plandex-ecr-repository | jq -r '.repositories[0].repositoryUri')
 export IMAGE_TAG=$(git rev-parse --short HEAD)
 
+log "IMAGE_TAG: $IMAGE_TAG"
+
 # Function to deploy or update the CloudFormation stack using AWS CDK
 deploy_or_update_stack() {
   # Check if the stack exists
