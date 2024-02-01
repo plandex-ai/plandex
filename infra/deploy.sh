@@ -154,7 +154,10 @@ update_ecs_service() {
   log "UPDATED_TASK_DEF_JSON: $UPDATED_TASK_DEF_JSON"
 
   # Register the new task definition revision with the updated image
-  REGISTERED_TASK_DEF=$(echo $UPDATED_TASK_DEF_JSON | jq -c . | aws ecs register-task-definition --cli-input-json /dev/stdin)
+  TMP_FILE=$(mktemp)
+echo $UPDATED_TASK_DEF_JSON > $TMP_FILE
+
+REGISTERED_TASK_DEF=$(aws ecs register-task-definition --cli-input-json file://$TMP_FILE)
   NEW_TASK_DEF_ARN=$(echo $REGISTERED_TASK_DEF | jq -r '.taskDefinition.taskDefinitionArn')
 
   log "New task definition registered: $NEW_TASK_DEF_ARN"
@@ -170,6 +173,9 @@ update_ecs_service() {
   log "Updating the ECS service with the new task definition..."
   aws ecs update-service --cluster "$CLUSTER_NAME" --service "$SERVICE_NAME" --task-definition $TASK_DEF_ARN
   log "ECS service updated successfully"
+
+  # Clean up the temporary file
+  rm $TMP_FILE
 }
 
 log "Building and pushing the Docker image to ECR..."
