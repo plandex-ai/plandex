@@ -3,7 +3,9 @@ package email
 import (
 	"fmt"
 	"os"
-
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/ses"
 	"github.com/atotto/clipboard"
 	"github.com/gen2brain/beeep"
 )
@@ -11,8 +13,11 @@ import (
 func SendVerificationEmail(email string, pin string) error {
 	// Check if the environment is production
 	if os.Getenv("GOENV") == "production" {
-		// TODO: send email in production
-		return nil
+		// Production environment - send email using AWS SES
+		subject := "Your Verification Pin"
+		htmlBody := fmt.Sprintf("<h1>Verification Pin</h1><p>Your verification pin is: <strong>%s</strong></p>", pin)
+		textBody := fmt.Sprintf("Your verification pin is: %s", pin)
+		return sendEmailViaSES(email, subject, htmlBody, textBody)
 	}
 
 	if os.Getenv("GOENV") == "development" {
@@ -31,4 +36,50 @@ func SendVerificationEmail(email string, pin string) error {
 	}
 
 	return nil
+}
+
+// sendEmailViaSES sends an email using AWS SES
+func sendEmailViaSES(recipient, subject, htmlBody, textBody string) error {
+	// Create a new session in the us-west-2 region.
+	// Replace us-west-2 with the AWS Region you're working with.
+	sess, err := session.NewSession(&aws.Config{
+		Region: aws.String("us-west-2"),
+	})
+	if err != nil {
+		return fmt.Errorf("error creating AWS session: %v", err)
+	}
+
+	// Create an SES session.
+	svc := ses.New(sess)
+
+	// Assemble the email.
+	input := &ses.SendEmailInput{
+		Destination: &ses.Destination{
+			ToAddresses: []*string{
+				aws.String(recipient),
+			},
+		},
+		Message: &ses.Message{
+			Body: &ses.Body{
+				Html: &ses.Content{
+					Charset: aws.String("UTF-8"),
+					Data:    aws.String(htmlBody),
+				},
+				Text: &ses.Content{
+					Charset: aws.String("UTF-8"),
+					Data:    aws.String(textBody),
+				},
+			},
+			Subject: &ses.Content{
+				Charset: aws.String("UTF-8"),
+				Data:    aws.String(subject),
+			},
+		},
+		Source: aws.String("no-reply@yourdomain.com"), // Replace with your "From" address
+	}
+
+	// Attempt to send the email.
+	_, err = svc.SendEmail(input)
+
+	return err
 }

@@ -198,7 +198,7 @@ export class PlandexStack extends cdk.Stack {
     const taskRole = new iam.Role(this, `plandex-task-role-${tag}`, {
       assumedBy: new iam.ServicePrincipal("ecs-tasks.amazonaws.com"),
       managedPolicies: [
-        iam.ManagedPolicy.fromAwsManagedPolicyName("AmazonSESFullAccess"),
+        iam.ManagedPolicy.fromAwsManagedPolicyName("AmazonSESFullAccess"), // Ensure this policy allows sending emails
       ],
     });
 
