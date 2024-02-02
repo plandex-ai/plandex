@@ -154,7 +154,7 @@ update_ecs_service() {
   # Update the container image URI in the task definition JSON
   UPDATED_TASK_DEF_JSON=$(echo $TASK_DEF_JSON | jq -c --arg IMAGE_URI "$ECR_REPOSITORY:$IMAGE_TAG" '.containerDefinitions[0].image = $IMAGE_URI')
 
-  log "UPDATED_TASK_DEF_JSON: $UPDATED_TASK_DEF_JSON"
+  # log "UPDATED_TASK_DEF_JSON: $UPDATED_TASK_DEF_JSON"
 
   # Register the new task definition revision with the updated image
   TMP_FILE=$(mktemp)
@@ -163,7 +163,7 @@ update_ecs_service() {
   REGISTERED_TASK_DEF=$(aws ecs register-task-definition --cli-input-json file://$TMP_FILE)
   NEW_TASK_DEF_ARN=$(echo $REGISTERED_TASK_DEF | jq -r '.taskDefinition.taskDefinitionArn')
 
-  log "New task definition registered: $NEW_TASK_DEF_ARN"
+  log "New task definition registered"
 
   # Update the ECS service to use the new task definition revision
   aws ecs update-service --cluster "$CLUSTER_NAME" --service "$SERVICE_NAME" --task-definition "$NEW_TASK_DEF_ARN"

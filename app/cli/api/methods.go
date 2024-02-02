@@ -15,6 +15,8 @@ import (
 func (a *Api) StartTrial() (*shared.StartTrialResponse, *shared.ApiError) {
 	serverUrl := cloudApiHost + "/accounts/start_trial"
 
+	log.Println("Sending request to", serverUrl)
+
 	resp, err := unauthenticatedClient.Post(serverUrl, "application/json", nil)
 	if err != nil {
 		return nil, &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error sending request: %v", err)}

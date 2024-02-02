@@ -3,6 +3,7 @@ package lib
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"plandex/api"
@@ -30,11 +31,15 @@ func MustResolveProject() {
 		panic(fmt.Errorf("could not find or create plandex directory"))
 	}
 
+	log.Println("PlandexDir: ", fs.PlandexDir)
+
 	// check if project.json exists in PlandexDir
 	path := filepath.Join(fs.PlandexDir, "project.json")
 	_, err := os.Stat(path)
 
 	if os.IsNotExist(err) {
+		log.Println("project.json does not exist")
+		log.Println("Initializing project")
 		mustInitProject()
 	} else if err != nil {
 		panic(fmt.Errorf("error checking if project.json exists: %v", err))
@@ -147,11 +152,14 @@ func loadCurrentBranch() error {
 }
 
 func mustInitProject() {
+	log.Println("Calling api.CreateProject()")
 	res, apiErr := api.Client.CreateProject(shared.CreateProjectRequest{Name: filepath.Base(fs.ProjectRoot)})
 
 	if apiErr != nil {
 		panic(fmt.Errorf("error creating project: %v", apiErr.Msg))
 	}
+
+	log.Println("Project created:", res.Id)
 
 	CurrentProjectId = res.Id
 
@@ -170,6 +178,8 @@ func mustInitProject() {
 	if err != nil {
 		panic(fmt.Errorf("error writing project.json: %v", err))
 	}
+
+	log.Println("Wrote project.json")
 
 	// write current_plan.json to PlandexHomeDir/[projectId]/current_plan.json
 	dir := filepath.Join(fs.HomePlandexDir, CurrentProjectId)
@@ -193,4 +203,6 @@ func mustInitProject() {
 	if err != nil {
 		panic(fmt.Errorf("error writing current_plan.json: %v", err))
 	}
+
+	log.Println("Wrote current_plan.json")
 }

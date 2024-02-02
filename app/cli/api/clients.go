@@ -3,6 +3,7 @@ package api
 import (
 	"net"
 	"net/http"
+	"os"
 	"plandex/auth"
 	"plandex/types"
 	"time"
@@ -19,8 +20,11 @@ var cloudApiHost string
 var Client types.ApiClient = (*Api)(nil)
 
 func init() {
-	// TODO: set this to the actual cloud api host in production
-	cloudApiHost = "http://localhost:8088"
+	if os.Getenv("PLANDEX_ENV") == "development" {
+		cloudApiHost = "http://localhost:8088"
+	} else {
+		cloudApiHost = "https://api.plandex.ai"
+	}
 }
 
 func getApiHost() string {

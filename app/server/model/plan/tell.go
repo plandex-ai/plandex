@@ -664,7 +664,7 @@ func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *typ
 
 					repoLockId, err := db.LockRepo(auth.OrgId, auth.User.Id, planId, branch, db.LockScopeWrite)
 
-					var execStatus *types.PlanExecStatus
+					var shouldContinue bool
 					err = func() error {
 						defer func() {
 							err = db.UnlockRepo(repoLockId)
@@ -725,7 +725,7 @@ func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *typ
 
 						go func() {
 
-							execStatus, err = ExecStatus(client, assistantMsg.Message, active.Ctx)
+							shouldContinue, err = ExecStatusShouldContinue(client, assistantMsg.Message, active.Ctx)
 							if err != nil {
 								onError(fmt.Errorf("failed to get exec status: %v", err), false, assistantMsg.Id, convoCommitMsg)
 								errCh <- err
@@ -755,7 +755,10 @@ func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *typ
 						return
 					}
 
-					if !req.AutoContinue || execStatus.Finished || execStatus.NeedsInput {
+					if req.AutoContinue && shouldContinue {
+						// continue plan
+						execTellPlan(client, plan, branch, auth, req, active, iteration+1)
+					} else {
 						if GetActivePlan(planId, branch).BuildFinished() {
 							active.Stream(shared.StreamMessage{
 								Type: shared.StreamMessageFinished,
@@ -765,10 +768,6 @@ func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *typ
 								active.RepliesFinished = true
 							})
 						}
-
-					} else {
-						// continue plan
-						execTellPlan(client, plan, branch, auth, req, active, iteration+1)
 					}
 
 					return

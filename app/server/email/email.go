@@ -3,10 +3,11 @@ package email
 import (
 	"fmt"
 	"os"
+
+	"github.com/atotto/clipboard"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ses"
-	"github.com/atotto/clipboard"
 	"github.com/gen2brain/beeep"
 )
 
@@ -40,11 +41,7 @@ func SendVerificationEmail(email string, pin string) error {
 
 // sendEmailViaSES sends an email using AWS SES
 func sendEmailViaSES(recipient, subject, htmlBody, textBody string) error {
-	// Create a new session in the us-west-2 region.
-	// Replace us-west-2 with the AWS Region you're working with.
-	sess, err := session.NewSession(&aws.Config{
-		Region: aws.String("us-west-2"),
-	})
+	sess, err := session.NewSession()
 	if err != nil {
 		return fmt.Errorf("error creating AWS session: %v", err)
 	}
@@ -75,7 +72,7 @@ func sendEmailViaSES(recipient, subject, htmlBody, textBody string) error {
 				Data:    aws.String(subject),
 			},
 		},
-		Source: aws.String("no-reply@yourdomain.com"), // Replace with your "From" address
+		Source: aws.String("support@plandex.ai"),
 	}
 
 	// Attempt to send the email.

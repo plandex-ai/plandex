@@ -65,11 +65,15 @@ func CreatePlan(orgId, projectId, userId, name string) (*Plan, error) {
 		return nil, fmt.Errorf("error creating main branch: %v", err)
 	}
 
+	log.Println("Created branch main")
+
 	err = InitPlan(orgId, plan.Id)
 
 	if err != nil {
 		return nil, fmt.Errorf("error initializing plan dir: %v", err)
 	}
+
+	log.Println("Initialized plan dir")
 
 	// commit the transaction
 	if err := tx.Commit(); err != nil {
