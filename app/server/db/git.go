@@ -24,9 +24,10 @@ func init() {
 func InitGitRepo(orgId, planId string) error {
 	dir := getPlanDir(orgId, planId)
 
-	res, err := exec.Command("git", "init", dir).CombinedOutput()
+	// Set the default branch name to 'main' for the new repository
+	res, err := exec.Command("git", "-C", dir, "init", "-b", "main").CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("error initializing git repository for dir: %s, err: %v, output: %s", dir, err, string(res))
+		return fmt.Errorf("error initializing git repository with 'main' as default branch for dir: %s, err: %v, output: %s", dir, err, string(res))
 	}
 
 	return nil
