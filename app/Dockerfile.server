@@ -34,7 +34,9 @@ WORKDIR /root/
 COPY --from=builder /app/server/plandex-server .
 
 # Copy app/server/migrations to ./migrations
-COPY --from=builder /app/server/migrations ./migrations
+COPY --from=builder /app/server/migrations .
+
+WORKDIR /app/server
 
 # Set the PORT environment variable
 ENV PORT=8080
