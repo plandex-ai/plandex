@@ -21,7 +21,7 @@ RUN go build -o plandex-server . && ls -l plandex-server
 
 
 # Final stage
-FROM alpine:3.19.1  
+FROM --platform=linux/amd64 alpine:3.19.1  
 
 RUN apk --no-cache add git ca-certificates
 
