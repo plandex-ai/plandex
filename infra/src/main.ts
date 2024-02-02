@@ -162,6 +162,7 @@ export class PlandexStack extends cdk.Stack {
         },
         securityGroups: [rdsSecurityGroup],
         credentials: rds.Credentials.fromSecret(dbCredentialsSecret), // Use credentials from Secrets Manager
+        databaseName: 'plandex',
       }
     );
 
