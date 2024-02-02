@@ -1,8 +1,5 @@
 # Build stage
-FROM --platform=linux/amd64 debian:bullseye-slim as builder
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
-  golang-go 
+FROM --platform=linux/amd64 golang:1.21.3 as builder
 
 WORKDIR /app
 
@@ -18,7 +15,8 @@ COPY ./shared ./shared
 WORKDIR /app/server
 ENV GOOS=linux
 ENV GOARCH=amd64
-RUN go build -o plandex-server .
+ENV CGO_ENABLED=0
+RUN go build -ldflags "-linkmode external -extldflags '-static'" -o plandex-server .
 
 # Final stage
 FROM --platform=linux/amd64 debian:bullseye-slim  
