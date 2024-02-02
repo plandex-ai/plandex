@@ -14,11 +14,13 @@ RUN cd server && go mod download
 COPY ./server ./server
 COPY ./shared ./shared
 
+WORKDIR /app/server
+
 ENV GOOS=linux
 ENV GOARCH=amd64
-RUN cd server && (rm plandex-server || true) && go build -o plandex-server .
+RUN (rm plandex-server || true) && go build -o plandex-server .
 
 ENV PORT=8080
 EXPOSE 8080
 
-CMD ["./server/plandex-server"]
+CMD ["./plandex-server"]
