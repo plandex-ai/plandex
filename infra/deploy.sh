@@ -166,16 +166,8 @@ update_ecs_service() {
   log "New task definition registered: $NEW_TASK_DEF_ARN"
 
   # Update the ECS service to use the new task definition revision
-  SERVICE_NAME=$(aws ecs list-services --cluster "$CLUSTER_NAME" | jq -r --arg TAG "$STACK_TAG" '.serviceArns[] | select(contains("plandex-stack-" + $TAG)) | split("/")[1]')
   aws ecs update-service --cluster "$CLUSTER_NAME" --service "$SERVICE_NAME" --task-definition "$NEW_TASK_DEF_ARN"
   log "ECS service updated successfully with new task definition"
-
-  log "TASK_DEF_ARN: $TASK_DEF_ARN"
-
-  # Update the ECS service to use the new task definition
-  log "Updating the ECS service with the new task definition..."
-  aws ecs update-service --cluster "$CLUSTER_NAME" --service "$SERVICE_NAME" --task-definition $TASK_DEF_ARN
-  log "ECS service updated successfully"
 
   # Clean up the temporary file
   rm $TMP_FILE
