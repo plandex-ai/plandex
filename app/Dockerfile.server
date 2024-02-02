@@ -1,26 +1,46 @@
-FROM --platform=linux/amd64 golang:1.21.3
+# Build stage
+FROM --platform=linux/amd64 golang:1.21.3 as builder
 
-RUN apt-get update && \
-  apt-get install -y git
-
+# Set the working directory for the build
 WORKDIR /app
 
+# Copy and download dependencies for shared
 COPY ./shared/go.mod ./shared/go.sum ./shared/
 RUN cd shared && go mod download
 
+# Copy and download dependencies for server
 COPY ./server/go.mod ./server/go.sum ./server/
 RUN cd server && go mod download
 
+# Copy the rest of the source code
 COPY ./server ./server
 COPY ./shared ./shared
 
+# Build the application
 WORKDIR /app/server
-
 ENV GOOS=linux
 ENV GOARCH=amd64
 RUN (rm plandex-server || true) && go build -o plandex-server .
 
+# Final stage
+FROM alpine:3.19.1  
+
+# Install git and ca-certificates
+RUN apk --no-cache add git ca-certificates
+
+WORKDIR /root/
+
+# Copy the binary from the builder stage
+COPY --from=builder /app/server/plandex-server .
+
+# Copy app/server/migrations to ./migrations
+COPY --from=builder /app/server/migrations ./migrations
+
+# Set the PORT environment variable
 ENV PORT=8080
+
+# Expose port 8080
 EXPOSE 8080
 
+# Command to run
 CMD ["./plandex-server"]
