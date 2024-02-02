@@ -1,5 +1,5 @@
 # Build stage
-FROM --platform=linux/amd64 debian:bullseye-slim
+FROM --platform=linux/amd64 debian:bullseye-slim as builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
   golang-go 
