@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/url"
 	"os"
 
 	"github.com/golang-migrate/migrate/v4"
@@ -25,7 +26,9 @@ func Connect() error {
 			os.Getenv("DB_USER") != "" &&
 			os.Getenv("DB_PASSWORD") != "" &&
 			os.Getenv("DB_NAME") != "" {
-			dbUrl = "postgres://" + os.Getenv("DB_USER") + ":" + os.Getenv("DB_PASSWORD") + "@" + os.Getenv("DB_HOST") + ":" + os.Getenv("DB_PORT") + "/" + os.Getenv("DB_NAME")
+			encodedPassword := url.QueryEscape(os.Getenv("DB_PASSWORD"))
+
+			dbUrl = "postgres://" + os.Getenv("DB_USER") + ":" + encodedPassword + "@" + os.Getenv("DB_HOST") + ":" + os.Getenv("DB_PORT") + "/" + os.Getenv("DB_NAME")
 		}
 
 		if dbUrl == "" {

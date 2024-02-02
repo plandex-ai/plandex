@@ -98,6 +98,8 @@ export IMAGE_TAG=$(git rev-parse --short HEAD)
 
 log "IMAGE_TAG: $IMAGE_TAG"
 
+IS_NEW_STACK=false
+
 # Function to deploy or update the CloudFormation stack using AWS CDK
 deploy_or_update_stack() {
   # Check if the stack exists
@@ -106,6 +108,7 @@ deploy_or_update_stack() {
   if [ -z "$STACK_NAME" ]; then
     # Deploy the stack if it does not exist
     npx cdk deploy --require-approval never --app "npx ts-node src/main.ts" --context stackTag=$STACK_TAG "plandex-stack-$STACK_TAG"
+    IS_NEW_STACK=true
   else
     # Update the stack if it exists
     npx cdk deploy "$STACK_NAME" --require-approval never --app "npx ts-node src/main.ts"
@@ -189,8 +192,12 @@ else
   log "Skipping deploy_or_update_stack due to --image-only flag"
 fi
 
-# Update the ECS service with the new Docker image
-log "Updating the ECS service with the new Docker image..."
-update_ecs_service
+# Update the ECS service with the new Docker image if it's not a new stack
+if [ "$IS_NEW_STACK" = false ]; then
+  log "Updating the ECS service with the new Docker image..."
+  update_ecs_service
+else
+  log "Skipping update_ecs_service for new stack"
+fi
 
 log "Infrastructure deployed successfully"
