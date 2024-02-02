@@ -15,9 +15,8 @@ COPY ./shared ./shared
 WORKDIR /app/server
 ENV GOOS=linux
 ENV GOARCH=amd64
-
-RUN ls .
-RUN go build -o plandex-server . && ls -l plandex-server
+ENV CGO_ENABLED=0
+RUN go build -ldflags "-linkmode external -extldflags '-static'" -o plandex-server .
 
 
 # Final stage
@@ -30,10 +29,8 @@ WORKDIR /app/server
 COPY --from=builder /app/server/plandex-server .
 COPY --from=builder /app/server/migrations ./migrations
 
-RUN ls .
-
 ENV PORT=8080
 EXPOSE 8080
 
-CMD echo "Listing contents of .:" && ls -la . && echo "Listing contents of /app/server:" && ls -la /app/server && echo "Starting plandex-server..." && ./plandex-server
+CMD ./plandex-server
 
