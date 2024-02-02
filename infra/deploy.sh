@@ -137,8 +137,8 @@ update_ecs_service() {
   log "STACK_TAG: $STACK_TAG"
 
   # Use the extracted tag to find the ECS cluster and service names
-  CLUSTER_NAME=$(aws ecs list-clusters | jq -r --arg TAG "$STACK_TAG" '.clusterArns[] | select(contains("plandex-stack-" + $TAG)) | split("/")[1]')
-  SERVICE_NAME=$(aws ecs list-services --cluster "$CLUSTER_NAME" | jq -r --arg TAG "$STACK_TAG" '.serviceArns[] | select(contains("plandex-stack-" + $TAG)) | split("/")[1]')
+  CLUSTER_NAME=$(aws ecs list-clusters | jq -r --arg TAG "$STACK_TAG" '.clusterArns[] | select(contains("plandex-stack-" + $TAG)) | split("/") | .[-1]')
+  SERVICE_NAME=$(aws ecs list-services --cluster "$CLUSTER_NAME" | jq -r --arg TAG "$STACK_TAG" '.serviceArns[] | select(contains("plandex-stack-" + $TAG)) | split("/") | .[-1]')
 
   TASK_DEF_NAME=$(aws ecs list-task-definitions | jq -r --arg TAG "$STACK_TAG" '.taskDefinitionArns[] | select(contains("plandexstack" + $TAG))' | sort -V | tail -n 1 | awk -F'/' '{print $2}')
 
