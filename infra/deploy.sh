@@ -146,7 +146,7 @@ update_ecs_service() {
   # Retrieve the current task definition for the ECS service
   TASK_DEF=$(aws ecs describe-task-definition --task-definition "$TASK_DEF_NAME")
   # Extract the current task definition JSON without the revision
-  TASK_DEF_JSON=$(echo $TASK_DEF | jq '.taskDefinition | del(.revision) | del(.status) | del(.taskDefinitionArn) | del(.requiresAttributes) | del(.compatibilities)')
+  TASK_DEF_JSON=$(echo $TASK_DEF | jq -c '.taskDefinition | del(.revision, .status, .taskDefinitionArn, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)')
 
   # Update the container image URI in the task definition JSON
   UPDATED_TASK_DEF_JSON=$(echo $TASK_DEF_JSON | jq -c --arg IMAGE_URI "$ECR_REPOSITORY:$IMAGE_TAG" '.containerDefinitions[0].image = $IMAGE_URI')
@@ -155,9 +155,9 @@ update_ecs_service() {
 
   # Register the new task definition revision with the updated image
   TMP_FILE=$(mktemp)
-echo $UPDATED_TASK_DEF_JSON > $TMP_FILE
+  echo $UPDATED_TASK_DEF_JSON > $TMP_FILE
 
-REGISTERED_TASK_DEF=$(aws ecs register-task-definition --cli-input-json file://$TMP_FILE)
+  REGISTERED_TASK_DEF=$(aws ecs register-task-definition --cli-input-json file://$TMP_FILE)
   NEW_TASK_DEF_ARN=$(echo $REGISTERED_TASK_DEF | jq -r '.taskDefinition.taskDefinitionArn')
 
   log "New task definition registered: $NEW_TASK_DEF_ARN"
