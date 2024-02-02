@@ -133,9 +133,13 @@ func gitCheckoutBranch(repoDir, branch string) error {
 
 	currentBranch := strings.TrimSpace(out.String())
 
+	log.Println("currentBranch:", currentBranch)
+
 	if currentBranch == branch {
 		return nil
 	}
+
+	log.Println("checking out branch:", branch)
 
 	res, err := exec.Command("git", "-C", repoDir, "checkout", branch).CombinedOutput()
 	if err != nil {
@@ -424,6 +428,13 @@ func lockRepo(orgId, userId, planId, planBuildId, branch string, scope LockScope
 	if err != nil {
 		return "", fmt.Errorf("error inserting new lock: %v", err)
 	}
+
+	branches, err := GitListBranches(orgId, planId)
+	if err != nil {
+		return "", fmt.Errorf("error getting branches: %v", err)
+	}
+
+	log.Println("branches:", branches)
 
 	if branch != "" {
 		// checkout the branch
