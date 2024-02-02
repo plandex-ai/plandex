@@ -166,7 +166,7 @@ update_ecs_service() {
   log "New task definition registered"
 
   # Update the ECS service to use the new task definition revision
-  aws ecs update-service --cluster "$CLUSTER_NAME" --service "$SERVICE_NAME" --task-definition "$NEW_TASK_DEF_ARN"
+  aws ecs update-service --cluster "$CLUSTER_NAME" --service "$SERVICE_NAME" --task-definition "$NEW_TASK_DEF_ARN" > /dev/null
   log "ECS service updated successfully with new task definition"
 
   # Clean up the temporary file

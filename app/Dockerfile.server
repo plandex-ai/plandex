@@ -15,7 +15,10 @@ COPY ./shared ./shared
 WORKDIR /app/server
 ENV GOOS=linux
 ENV GOARCH=amd64
-RUN (rm -f plandex-server || true) && go build -o plandex-server .
+
+RUN ls .
+RUN go build -o plandex-server . && ls -l plandex-server
+
 
 # Final stage
 FROM alpine:3.19.1  
@@ -26,6 +29,8 @@ WORKDIR /app/server
 
 COPY --from=builder /app/server/plandex-server .
 COPY --from=builder /app/server/migrations ./migrations
+
+RUN ls .
 
 ENV PORT=8080
 EXPOSE 8080
