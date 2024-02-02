@@ -140,7 +140,7 @@ update_ecs_service() {
   CLUSTER_NAME=$(aws ecs list-clusters | jq -r --arg TAG "$STACK_TAG" '.clusterArns[] | select(contains("plandex-stack-" + $TAG)) | split("/")[1]')
   SERVICE_NAME=$(aws ecs list-services --cluster "$CLUSTER_NAME" | jq -r --arg TAG "$STACK_TAG" '.serviceArns[] | select(contains("plandex-stack-" + $TAG)) | split("/")[1]')
 
-  TASK_DEF_NAME=$(aws ecs list-task-definitions | jq -r --arg TAG "$STACK_TAG" '.taskDefinitionArns[] | select(contains("plandexstack" + $TAG)) | split("/")[1]')
+  TASK_DEF_NAME=$(aws ecs list-task-definitions | jq -r --arg TAG "$STACK_TAG" '.taskDefinitionArns[] | select(contains("plandexstack" + $TAG))' | sort -V | tail -n 1 | awk -F'/' '{print $2}')
 
   log "CLUSTER_NAME: $CLUSTER_NAME"
   log "SERVICE_NAME: $SERVICE_NAME"
@@ -166,8 +166,8 @@ update_ecs_service() {
   log "New task definition registered: $NEW_TASK_DEF_ARN"
 
   # Update the ECS service to use the new task definition revision
-  SERVICE_NAME=$(aws ecs list-services --cluster "plandex-ecs-cluster-$STACK_TAG" | jq -r --arg TAG "$STACK_TAG" '.serviceArns[] | select(contains("plandex-stack-" + $TAG)) | split("/")[1]')
-  aws ecs update-service --cluster "plandex-ecs-cluster-$STACK_TAG" --service "$SERVICE_NAME" --task-definition "$NEW_TASK_DEF_ARN"
+  SERVICE_NAME=$(aws ecs list-services --cluster "$CLUSTER_NAME" | jq -r --arg TAG "$STACK_TAG" '.serviceArns[] | select(contains("plandex-stack-" + $TAG)) | split("/")[1]')
+  aws ecs update-service --cluster "$CLUSTER_NAME" --service "$SERVICE_NAME" --task-definition "$NEW_TASK_DEF_ARN"
   log "ECS service updated successfully with new task definition"
 
   log "TASK_DEF_ARN: $TASK_DEF_ARN"
