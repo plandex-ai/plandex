@@ -1,5 +1,9 @@
 # Build stage
-FROM --platform=linux/amd64 golang:1.21.3 as builder
+FROM --platform=linux/amd64 debian:bullseye-slim as builder
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+  golang-go \
+  && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
@@ -16,7 +20,6 @@ WORKDIR /app/server
 ENV GOOS=linux
 ENV GOARCH=amd64
 RUN go build -o plandex-server .
-
 
 # Final stage
 FROM --platform=linux/amd64 debian:bullseye-slim  
