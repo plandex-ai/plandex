@@ -229,6 +229,16 @@ export class PlandexStack extends cdk.Stack {
 
     // Add a container to the task definition
     const container = taskDefinition.addContainer("plandex-server", {
+      healthCheck: {
+        command: [
+          "CMD-SHELL",
+          "curl -f http://localhost:8080/health || exit 1"
+        ],
+        interval: cdk.Duration.seconds(30),
+        timeout: cdk.Duration.seconds(5),
+        retries: 3,
+        startPeriod: cdk.Duration.seconds(60),
+      },
       image: ecs.ContainerImage.fromEcrRepository(ecrRepository, imageTag),
       logging: new ecs.AwsLogDriver({ streamPrefix: "plandex-server" }),
       environment: {
@@ -347,6 +357,16 @@ export class PlandexStack extends cdk.Stack {
 
     // Add a target group for the ECS service to the HTTPS listener
     const targetGroup = httpsListener.addTargets("plandexEcsTarget", {
+      healthCheck: {
+        path: "/health",
+        port: "8080",
+        protocol: elbv2.Protocol.HTTP,
+        healthyHttpCodes: "200",
+        interval: cdk.Duration.seconds(30),
+        timeout: cdk.Duration.seconds(5),
+        healthyThresholdCount: 2,
+        unhealthyThresholdCount: 3,
+      },
       port: 8080,
       targets: [fargateService],
     });
