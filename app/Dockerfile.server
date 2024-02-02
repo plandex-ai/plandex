@@ -35,5 +35,5 @@ RUN ls .
 ENV PORT=8080
 EXPOSE 8080
 
-CMD CMD echo "Listing contents of .:" && ls -la . && echo "Listing contents of /app/server:" && ls -la /app/server && echo "Starting plandex-server..." && ./plandex-server
+CMD echo "Listing contents of .:" && ls -la . && echo "Listing contents of /app/server:" && ls -la /app/server && echo "Starting plandex-server..." && ./plandex-server
 
