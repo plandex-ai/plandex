@@ -228,8 +228,8 @@ func processGitHistoryOutput(raw string) [][2]string {
 				continue // Skip entries with invalid timestamps.
 			}
 
-			dt := time.Unix(timestamp, 0).Local()
-			formattedTs := dt.Format("3:04:05pm MST")
+			dt := time.Unix(timestamp, 0).UTC()
+			formattedTs := dt.Format("Mon Jan 2, 2006 | 3:04:05pm MST")
 
 			// Prepare the header with colors.
 			headerColor := color.New(color.FgCyan, color.Bold)

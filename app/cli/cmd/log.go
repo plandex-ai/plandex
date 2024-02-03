@@ -56,8 +56,8 @@ func convertTimestampsToLocal(input string) (string, error) {
 	t := time.Now()
 	zone, _ := t.Zone()
 
-	parseFmt := "3:04:05pm UTC"
-	re := regexp.MustCompile(`\d{1,2}:\d{2}:\d{2}(am|pm) UTC`)
+	parseFmt := "Mon Jan 2, 2006 | 3:04:05pm UTC"
+	re := regexp.MustCompile(`\w{3} \w{3} \d{1,2}, \d{4} \| \d{1,2}:\d{2}:\d{2}(am|pm) UTC`)
 
 	// Function to convert matched timestamps assuming they are in UTC to local time.
 	replaceFunc := func(match string) string {
