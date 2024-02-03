@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"log"
 	"plandex/api"
 	"plandex/auth"
 	"plandex/lib"
@@ -50,13 +51,14 @@ func runLog(cmd *cobra.Command, args []string) {
 	}
 
 	term.PageOutput(withLocalTimestamps)
+
 }
 
 func convertTimestampsToLocal(input string) (string, error) {
 	t := time.Now()
 	zone, _ := t.Zone()
 
-	parseFmt := "Mon Jan 2, 2006 | 3:04:05pm UTC"
+	parseFmt := "Mon Jan 2, 2006 | 3:04:05pm MST"
 	re := regexp.MustCompile(`\w{3} \w{3} \d{1,2}, \d{4} \| \d{1,2}:\d{2}:\d{2}(am|pm) UTC`)
 
 	// Function to convert matched timestamps assuming they are in UTC to local time.
@@ -67,8 +69,16 @@ func convertTimestampsToLocal(input string) (string, error) {
 			return match
 		}
 
+		log.Println("t: ", t)
+
 		localDt := t.Local()
+
+		log.Println("localDt: ", localDt)
+
 		formattedTs := localDt.Format("Mon Jan 2, 2006 | 3:04:05pm")
+
+		log.Println("formattedTs: ", formattedTs)
+
 		if localDt.Day() == time.Now().Day() {
 			formattedTs = localDt.Format("Today | 3:04:05pm")
 		} else if localDt.Day() == time.Now().AddDate(0, 0, -1).Day() {
