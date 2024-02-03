@@ -55,6 +55,7 @@ require (
 	github.com/mattn/go-runewidth v0.0.15 // indirect
 	github.com/pkoukk/tiktoken-go v0.1.6 // indirect
 	github.com/plandex/plandex/shared v0.0.0-00010101000000-000000000000
+	github.com/sabhiram/go-gitignore v0.0.0-20210923224102-525f6e181f06
 	github.com/spf13/pflag v1.0.5 // indirect
 	golang.org/x/text v0.14.0 // indirect
 )

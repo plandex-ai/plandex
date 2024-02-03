@@ -217,7 +217,7 @@ func ApplyPlanWithOutput(planId, branch string, autoConfirm bool) error {
 		return nil
 	}
 
-	isRepo := CwdIsGitRepo()
+	isRepo := fs.ProjectRootIsGitRepo()
 
 	hasUncommittedChanges := false
 	if isRepo {

@@ -19,9 +19,10 @@ type ClientAuth struct {
 }
 
 type LoadContextParams struct {
-	Note      string
-	Recursive bool
-	NamesOnly bool
+	Note            string
+	Recursive       bool
+	NamesOnly       bool
+	ForceSkipIgnore bool
 }
 
 type ContextOutdatedResult struct {

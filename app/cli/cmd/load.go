@@ -12,9 +12,10 @@ import (
 )
 
 var (
-	recursive bool
-	namesOnly bool
-	note      string
+	recursive       bool
+	namesOnly       bool
+	note            string
+	forceSkipIgnore bool
 )
 
 var contextLoadCmd = &cobra.Command{
@@ -29,6 +30,7 @@ func init() {
 	contextLoadCmd.Flags().StringVarP(&note, "note", "n", "", "Add a note to the context")
 	contextLoadCmd.Flags().BoolVarP(&recursive, "recursive", "r", false, "Search directories recursively")
 	contextLoadCmd.Flags().BoolVar(&namesOnly, "tree", false, "Load directory tree with file names only")
+	contextLoadCmd.Flags().BoolVarP(&forceSkipIgnore, "force", "f", false, "Load files even when ignored by .gitignore or .plandexignore")
 	RootCmd.AddCommand(contextLoadCmd)
 }
 
@@ -42,9 +44,10 @@ func contextLoad(cmd *cobra.Command, args []string) {
 	}
 
 	lib.MustLoadContext(args, &types.LoadContextParams{
-		Note:      note,
-		Recursive: recursive,
-		NamesOnly: namesOnly,
+		Note:            note,
+		Recursive:       recursive,
+		NamesOnly:       namesOnly,
+		ForceSkipIgnore: forceSkipIgnore,
 	})
 
 	term.PrintCmds("", "ls", "tell")

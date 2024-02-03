@@ -10,18 +10,6 @@ import (
 
 var gitMutex sync.Mutex
 
-func InitGitRepo(dir string) error {
-	gitMutex.Lock()
-	defer gitMutex.Unlock()
-
-	res, err := exec.Command("git", "init", dir).CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("error initializing git repository for dir: %s, err: %v, output: %s", dir, err, string(res))
-	}
-
-	return GitAddAndCommit(dir, "New plan", false)
-}
-
 func GitAddAndCommit(dir, message string, lockMutex bool) error {
 	if lockMutex {
 		gitMutex.Lock()
@@ -155,19 +143,6 @@ func parseConflictFiles(gitOutput string) []string {
 		}
 	}
 	return conflictFiles
-}
-
-func CwdIsGitRepo() bool {
-	isGitRepo := false
-	if IsCommandAvailable("git") {
-		// check whether we're in a git repo
-		_, err := exec.Command("git", "rev-parse", "--is-inside-work-tree").Output()
-		if err == nil {
-			isGitRepo = true
-		}
-	}
-
-	return isGitRepo
 }
 
 func GitClearUncommittedChanges() error {

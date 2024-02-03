@@ -90,10 +90,11 @@ type GetCurrentBranchByPlanIdRequest struct {
 }
 
 type TellPlanRequest struct {
-	Prompt        string `json:"prompt"`
-	ConnectStream bool   `json:"connectStream"`
-	AutoContinue  bool   `json:"autoContinue"`
-	ApiKey        string `json:"apiKey"`
+	Prompt        string          `json:"prompt"`
+	ConnectStream bool            `json:"connectStream"`
+	AutoContinue  bool            `json:"autoContinue"`
+	ApiKey        string          `json:"apiKey"`
+	ProjectPaths  map[string]bool `json:"projectPaths"`
 }
 
 type LoadContextParams struct {

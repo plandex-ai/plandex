@@ -6,16 +6,17 @@ import (
 	"io"
 	"os"
 	"plandex/api"
+	"plandex/fs"
 	"plandex/term"
 	"plandex/types"
 	"plandex/url"
 	"strings"
 
 	"github.com/plandex/plandex/shared"
+	ignore "github.com/sabhiram/go-gitignore"
 )
 
 func MustLoadContext(resources []string, params *types.LoadContextParams) {
-
 	term.StartSpinner("📥 Loading context...")
 
 	onErr := func(err error) {
@@ -68,7 +69,33 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 	contextCh := make(chan *shared.LoadContextParams)
 	errCh := make(chan error)
 
+	ignoredPaths := make(map[string]string)
+
 	if len(inputFilePaths) > 0 {
+
+		projectPaths := make(map[string]bool)
+		var plandexIgnored *ignore.GitIgnore
+
+		if !params.ForceSkipIgnore {
+			projectPaths, plandexIgnored, err = fs.GetProjectPaths()
+			if err != nil {
+				onErr(fmt.Errorf("failed to get project paths: %v", err))
+			}
+			var filteredPaths []string
+			for _, inputFilePath := range inputFilePaths {
+				if _, ok := projectPaths[inputFilePath]; !ok {
+					if plandexIgnored.MatchesPath(inputFilePath) {
+						ignoredPaths[inputFilePath] = "plandex"
+					} else {
+						ignoredPaths[inputFilePath] = "git"
+					}
+				} else {
+					filteredPaths = append(filteredPaths, inputFilePath)
+				}
+			}
+			inputFilePaths = filteredPaths
+		}
+
 		if params.NamesOnly {
 			for _, inputFilePath := range inputFilePaths {
 
@@ -77,6 +104,20 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 					if err != nil {
 						errCh <- fmt.Errorf("failed to parse input paths: %v", err)
 						return
+					}
+
+					if !params.ForceSkipIgnore {
+						var filteredPaths []string
+						for _, path := range flattenedPaths {
+							if _, ok := projectPaths[path]; ok {
+								filteredPaths = append(filteredPaths, path)
+							} else if plandexIgnored != nil && plandexIgnored.MatchesPath(path) {
+								ignoredPaths[path] = "plandex"
+							} else {
+								ignoredPaths[path] = "git"
+							}
+						}
+						flattenedPaths = filteredPaths
 					}
 
 					body := strings.Join(flattenedPaths, "\n")
@@ -104,7 +145,22 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 				onErr(fmt.Errorf("failed to parse input paths: %v", err))
 			}
 
+			if !params.ForceSkipIgnore {
+				var filteredPaths []string
+				for _, path := range flattenedPaths {
+					if _, ok := projectPaths[path]; ok {
+						filteredPaths = append(filteredPaths, path)
+					} else if plandexIgnored != nil && plandexIgnored.MatchesPath(path) {
+						ignoredPaths[path] = "plandex"
+					} else {
+						ignoredPaths[path] = "git"
+					}
+				}
+				flattenedPaths = filteredPaths
+			}
+
 			inputFilePaths = flattenedPaths
+
 			for _, path := range flattenedPaths {
 
 				go func(path string) {
@@ -121,12 +177,9 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 						Body:        body,
 						FilePath:    path,
 					}
-
 				}(path)
-
 			}
 		}
-
 	}
 
 	if len(inputUrls) > 0 {
@@ -184,4 +237,10 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 	}
 
 	fmt.Println("✅ " + res.Msg)
+
+	if len(ignoredPaths) > 0 {
+		fmt.Println()
+		fmt.Println("ℹ️ Due to .gitignore or .plandexignore, some paths weren't loaded. Use --force / -f to load ignored paths.")
+
+	}
 }

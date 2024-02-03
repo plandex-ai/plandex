@@ -4,14 +4,12 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"plandex/api"
 	"plandex/auth"
 	"plandex/lib"
-	streamtui "plandex/stream_tui"
+	"plandex/tell"
 	"plandex/term"
 	"strings"
 
-	"github.com/plandex/plandex/shared"
 	"github.com/spf13/cobra"
 )
 
@@ -30,7 +28,7 @@ var tellCmd = &cobra.Command{
 	Short:   "Send a prompt for the current plan.",
 	// Long:  ``,
 	Args: cobra.RangeArgs(0, 1),
-	Run:  tell,
+	Run:  doTell,
 }
 
 func init() {
@@ -41,7 +39,7 @@ func init() {
 	tellCmd.Flags().BoolVar(&tellStep, "step", false, "Pause after a single step or reply")
 }
 
-func tell(cmd *cobra.Command, args []string) {
+func doTell(cmd *cobra.Command, args []string) {
 	if os.Getenv("OPENAI_API_KEY") == "" {
 		term.OutputNoApiKeyMsg()
 		os.Exit(1)
@@ -49,6 +47,11 @@ func tell(cmd *cobra.Command, args []string) {
 
 	auth.MustResolveAuthWithOrg()
 	lib.MustResolveProject()
+
+	if lib.CurrentPlanId == "" {
+		fmt.Fprintln(os.Stderr, "No current plan")
+		return
+	}
 
 	var prompt string
 
@@ -129,76 +132,7 @@ func tell(cmd *cobra.Command, args []string) {
 
 	lib.MustCheckOutdatedContextWithOutput()
 
-	promptingTrialExceeded := false
-	if !tellBg {
-		go func() {
-			err := streamtui.StartStreamUI()
-
-			if err != nil {
-				fmt.Fprintln(os.Stderr, "Error starting stream UI:", err)
-				os.Exit(1)
-			}
-
-			if !promptingTrialExceeded {
-				os.Exit(0)
-			}
-		}()
-	}
-
-	var fn func() bool
-	fn = func() bool {
-		apiErr := api.Client.TellPlan(lib.CurrentPlanId, lib.CurrentBranch, shared.TellPlanRequest{
-			Prompt:        prompt,
-			ConnectStream: !tellBg,
-			AutoContinue:  !tellStep,
-			ApiKey:        os.Getenv("OPENAI_API_KEY"),
-		}, lib.OnStreamPlan)
-		if apiErr != nil {
-			if apiErr.Type == shared.ApiErrorTypeTrialMessagesExceeded {
-				promptingTrialExceeded = true
-				streamtui.Quit()
-				promptingTrialExceeded = false
-
-				fmt.Fprintf(os.Stderr, "\n🚨 You've reached the free trial limit of %d messages per plan\n", apiErr.TrialMessagesExceededError.MaxReplies)
-
-				res, err := term.ConfirmYesNo("Upgrade now?")
-
-				if err != nil {
-					fmt.Fprintln(os.Stderr, "Error prompting upgrade trial:", err)
-					return false
-				}
-
-				if res {
-					err := auth.ConvertTrial()
-					if err != nil {
-						fmt.Fprintln(os.Stderr, "Error converting trial:", err)
-						return false
-					}
-					// retry action after converting trial
-					return fn()
-				}
-				return false
-			}
-
-			fmt.Fprintln(os.Stderr, "Prompt error:", apiErr.Msg)
-			return false
-		}
-
-		return true
-	}
-
-	shouldContinue := fn()
-	if !shouldContinue {
-		return
-	}
-
-	if tellBg {
-		fmt.Println("✅ Prompt sent")
-	} else {
-		// Wait for stream UI to quit
-		select {}
-	}
-
+	tell.TellPlan(prompt, tellBg, tellStep)
 }
 
 func prepareEditorCommand(editor string, filename string) *exec.Cmd {
