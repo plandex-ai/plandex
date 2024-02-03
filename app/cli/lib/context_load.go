@@ -90,7 +90,7 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 					}
 
 					contextCh <- &shared.LoadContextParams{
-						ContextType: shared.ContextFileType,
+						ContextType: shared.ContextDirectoryTreeType,
 						Name:        name,
 						Body:        body,
 						FilePath:    inputFilePath,

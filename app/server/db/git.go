@@ -229,12 +229,7 @@ func processGitHistoryOutput(raw string) [][2]string {
 			}
 
 			dt := time.Unix(timestamp, 0).Local()
-			formattedTs := dt.Format("Mon Jan 2, 2006 | 3:04:05pm MST")
-			if dt.Day() == time.Now().Day() {
-				formattedTs = dt.Format("Today | 3:04:05pm MST")
-			} else if dt.Day() == time.Now().AddDate(0, 0, -1).Day() {
-				formattedTs = dt.Format("Yesterday | 3:04:05pm MST")
-			}
+			formattedTs := dt.Format("3:04:05pm MST")
 
 			// Prepare the header with colors.
 			headerColor := color.New(color.FgCyan, color.Bold)
