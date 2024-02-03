@@ -13,9 +13,14 @@ import (
 )
 
 func ExecStatusShouldContinue(client *openai.Client, message string, ctx context.Context) (bool, error) {
+	log.Println("Checking if plan should continue based on exec status")
+
 	// First try to determine if the plan should continue based on the last paragraph without calling the model
 	paragraphs := strings.Split(message, "\n\n")
 	lastParagraph := paragraphs[len(paragraphs)-1]
+
+	log.Printf("Last paragraph: %s\n", lastParagraph)
+
 	if lastParagraph != "" {
 		if strings.Contains(lastParagraph, "All tasks have been completed") ||
 			strings.Contains(lastParagraph, "all tasks have been completed") ||
