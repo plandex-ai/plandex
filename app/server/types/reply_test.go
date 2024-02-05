@@ -85,7 +85,12 @@ func TestReplyTokenCounter(t *testing.T) {
 			i = end
 		}
 
-		files, fileContents, tokensByFilePath, totalCounted := counter.FinishAndRead()
+		res := counter.FinishAndRead()
+
+		totalCounted := res.TotalTokens
+		files := res.Files
+		fileContents := res.FileContents
+		tokensByFilePath := res.NumTokensByFile
 
 		fmt.Printf("Total tokens counted: %d\n", totalCounted)
 		fmt.Printf("%d files: %v\n", len(files), files)

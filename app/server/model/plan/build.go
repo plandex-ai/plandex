@@ -100,15 +100,6 @@ func execPlanBuild(client *openai.Client, currentOrgId, currentUserId, branch st
 	}()
 
 	go func() {
-		err := db.SetPlanStatus(planId, branch, shared.PlanStatusBuilding, "")
-		if err != nil {
-			errCh <- fmt.Errorf("error setting plan status to building: %v", err)
-			return
-		}
-		errCh <- nil
-	}()
-
-	go func() {
 		res, err := db.GetCurrentPlanState(db.CurrentPlanStateParams{
 			OrgId:  currentOrgId,
 			PlanId: planId,
@@ -121,7 +112,7 @@ func execPlanBuild(client *openai.Client, currentOrgId, currentUserId, branch st
 		errCh <- nil
 	}()
 
-	for i := 0; i < 3; i++ {
+	for i := 0; i < 2; i++ {
 		err := <-errCh
 		if err != nil {
 			log.Printf("Error building plan %s: %v\n", planId, err)

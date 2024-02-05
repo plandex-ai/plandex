@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 )
@@ -24,6 +25,9 @@ func LoadIp() error {
 		if err != nil {
 			return fmt.Errorf("error getting AWS ECS IP: %v", err)
 		}
+
+		log.Println("Got AWS ECS IP: ", Ip)
+
 	} else if os.Getenv("IP") != "" {
 		Ip = os.Getenv("IP")
 		return nil

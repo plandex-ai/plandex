@@ -65,16 +65,17 @@ func Tell(client *openai.Client, plan *db.Plan, branch string, auth *types.Serve
 
 	log.Println("Model stream id:", modelStream.Id)
 
-	go execTellPlan(client, plan, branch, auth, req, active, 0)
+	go execTellPlan(client, plan, branch, auth, req, active, 0, "")
 
 	return nil
 }
 
-func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *types.ServerAuth, req *shared.TellPlanRequest, active *types.ActivePlan, iteration int) {
+func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *types.ServerAuth, req *shared.TellPlanRequest, active *types.ActivePlan, iteration int, missingFileResponse shared.RespondMissingFileChoice) {
 	currentUserId := auth.User.Id
 	currentOrgId := auth.OrgId
 
-	if os.Getenv("IS_CLOUD") != "" {
+	if os.Getenv("IS_CLOUD") != "" &&
+		missingFileResponse == "" {
 		if auth.User.IsTrial {
 			if plan.TotalReplies >= types.TrialMaxReplies {
 				active.StreamDoneCh <- &shared.ApiError{
@@ -104,7 +105,7 @@ func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *typ
 	}
 
 	lockScope := db.LockScopeWrite
-	if iteration > 0 {
+	if iteration > 0 || missingFileResponse != "" {
 		lockScope = db.LockScopeRead
 	}
 	repoLockId, err := db.LockRepo(auth.OrgId, auth.User.Id, planId, branch, lockScope)
@@ -156,13 +157,17 @@ func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *typ
 	}()
 
 	go func() {
-		res, err := db.GetPlanContexts(currentOrgId, planId, true)
-		if err != nil {
-			log.Printf("Error getting plan modelContext: %v\n", err)
-			errCh <- fmt.Errorf("error getting plan modelContext: %v", err)
-			return
+		if iteration > 0 || missingFileResponse != "" {
+			modelContext = active.Contexts
+		} else {
+			res, err := db.GetPlanContexts(currentOrgId, planId, true)
+			if err != nil {
+				log.Printf("Error getting plan modelContext: %v\n", err)
+				errCh <- fmt.Errorf("error getting plan modelContext: %v", err)
+				return
+			}
+			modelContext = res
 		}
-		modelContext = res
 		errCh <- nil
 	}()
 
@@ -185,7 +190,7 @@ func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *typ
 		innerErrCh := make(chan error)
 
 		go func() {
-			if iteration == 0 {
+			if iteration == 0 && missingFileResponse == "" {
 				userMsg := db.ConvoMessage{
 					OrgId:   currentOrgId,
 					PlanId:  planId,
@@ -270,7 +275,7 @@ func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *typ
 		return
 	}
 
-	if iteration == 0 {
+	if iteration == 0 && missingFileResponse == "" {
 		UpdateActivePlan(planId, branch, func(ap *types.ActivePlan) {
 			ap.Contexts = modelContext
 			ap.PromptMessageNum = len(convo) + 1
@@ -281,7 +286,7 @@ func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *typ
 				}
 			}
 		})
-	} else {
+	} else if missingFileResponse == "" {
 		// reset current reply content and num tokens
 		UpdateActivePlan(planId, branch, func(ap *types.ActivePlan) {
 			ap.CurrentReplyContent = ""
@@ -316,7 +321,7 @@ func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *typ
 		numPromptTokens int
 		promptTokens    int
 	)
-	if iteration == 0 {
+	if iteration == 0 && missingFileResponse == "" {
 		numPromptTokens, err = shared.GetNumTokens(req.Prompt)
 		if err != nil {
 			err = fmt.Errorf("error getting number of tokens in prompt: %v", err)
@@ -468,6 +473,12 @@ func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *typ
 		}
 	}
 
+	replyId := uuid.New().String()
+	replyParser := types.NewReplyParser()
+	replyFiles := []string{}
+	replyNumTokens := 0
+
+	var promptMessage *openai.ChatCompletionMessage
 	var prompt string
 	if iteration == 0 {
 		prompt = req.Prompt
@@ -475,21 +486,68 @@ func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *typ
 		prompt = "Continue the plan."
 	}
 
-	promptMessage := &openai.ChatCompletionMessage{
+	promptMessage = &openai.ChatCompletionMessage{
 		Role:    openai.ChatMessageRoleUser,
 		Content: fmt.Sprintf(prompts.PromptWrapperFormatStr, prompt),
 	}
-	messages = append(messages, *promptMessage)
+
+	if missingFileResponse == "" {
+		messages = append(messages, *promptMessage)
+	} else {
+		replyParser.AddChunk(active.CurrentReplyContent, true)
+		res := replyParser.Read()
+		currentFile := res.CurrentFilePath
+
+		replyContent := active.CurrentReplyContent
+		numTokens := active.NumTokens
+
+		if missingFileResponse == shared.RespondMissingFileChoiceSkip {
+			replyBeforeCurrentFile := replyParser.GetReplyBeforeCurrentPath()
+			numTokens, err = shared.GetNumTokens(replyBeforeCurrentFile)
+			if err != nil {
+				log.Printf("Error getting num tokens for reply before current file: %v\n", err)
+				active.StreamDoneCh <- &shared.ApiError{
+					Type:   shared.ApiErrorTypeOther,
+					Status: http.StatusInternalServerError,
+					Msg:    "Error getting num tokens for reply before current file",
+				}
+				return
+			}
+
+			replyContent = replyBeforeCurrentFile
+			replyParser = types.NewReplyParser()
+			replyParser.AddChunk(replyContent, true)
+
+			userAction := fmt.Sprintf("\n\n**User action.** You chose not to update the file `%s`, so I'll skip this update.\n\n", currentFile)
+
+			replyParser.AddChunk(userAction, false)
+			replyContent += userAction
+
+			UpdateActivePlan(planId, branch, func(ap *types.ActivePlan) {
+				ap.CurrentReplyContent = replyContent
+				ap.NumTokens = numTokens
+			})
+
+		} else if missingFileResponse == shared.RespondMissingFileChoiceOverwrite {
+			UpdateActivePlan(planId, branch, func(ap *types.ActivePlan) {
+				ap.AllowOverwritePaths[currentFile] = true
+			})
+		}
+
+	}
+
+	messages = append(messages, openai.ChatCompletionMessage{
+		Role:    openai.ChatMessageRoleAssistant,
+		Content: active.CurrentReplyContent,
+	})
+
+	replyNumTokens = active.NumTokens
+	replyFiles = active.Files
 
 	// log.Println("\n\nMessages:")
 	// for _, message := range messages {
 	// 	log.Printf("%s: %s\n", message.Role, message.Content)
 	// }
-
-	replyId := uuid.New().String()
-	replyParser := types.NewReplyParser()
-	replyFiles := []string{}
-	replyNumTokens := 0
 
 	modelReq := openai.ChatCompletionRequest{
 		Model:       model.PlannerModel,
@@ -499,7 +557,7 @@ func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *typ
 		TopP:        0.7,
 	}
 
-	stream, err := client.CreateChatCompletionStream(active.Ctx, modelReq)
+	stream, err := client.CreateChatCompletionStream(active.ModelStreamCtx, modelReq)
 	if err != nil {
 		log.Printf("Error creating proposal GPT4 stream: %v\n", err)
 		log.Println(err)
@@ -520,7 +578,7 @@ func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *typ
 
 	storeAssistantReply := func() (*db.ConvoMessage, []string, string, error) {
 		num := len(convo) + 1
-		if iteration == 0 {
+		if iteration == 0 && missingFileResponse == "" {
 			num++
 		}
 
@@ -757,7 +815,7 @@ func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *typ
 
 					if req.AutoContinue && shouldContinue {
 						// continue plan
-						execTellPlan(client, plan, branch, auth, req, active, iteration+1)
+						execTellPlan(client, plan, branch, auth, req, active, iteration+1, "")
 					} else {
 						if GetActivePlan(planId, branch).BuildFinished() {
 							active.Stream(shared.StreamMessage{
@@ -787,10 +845,54 @@ func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *typ
 				})
 				replyParser.AddChunk(content, true)
 
-				files, fileContents, _, numTokens := replyParser.Read()
-				replyNumTokens = numTokens
+				res := replyParser.Read()
 
-				// log.Printf("Reply num tokens: %d\n", replyNumTokens)
+				files := res.Files
+				fileContents := res.FileContents
+				replyNumTokens = res.TotalTokens
+				currentFile := res.CurrentFilePath
+
+				if currentFile != "" &&
+					active.ContextsByPath[currentFile] == nil &&
+					req.ProjectPaths[currentFile] {
+					// attempting to overwrite a file that isn't in context
+					// we will stop the stream and ask the user what to do
+					err := db.SetPlanStatus(planId, branch, shared.PlanStatusPrompting, "")
+
+					if err != nil {
+						log.Printf("Error setting plan %s status to prompting: %v\n", planId, err)
+						active.StreamDoneCh <- &shared.ApiError{
+							Type:   shared.ApiErrorTypeOther,
+							Status: http.StatusInternalServerError,
+							Msg:    "Error setting plan status to prompting",
+						}
+						return
+					}
+
+					active.Stream(shared.StreamMessage{
+						Type:            shared.StreamMessagePromptMissingFile,
+						MissingFilePath: currentFile,
+					})
+
+					// stop stream for now
+					active.CancelModelStreamFn()
+
+					// wait for user response to come in
+					userChoice := <-active.MissingFileResponseCh
+
+					// continue plan
+					execTellPlan(
+						client,
+						plan,
+						branch,
+						auth,
+						req,
+						active,
+						iteration, // keep the same iteration
+						userChoice,
+					)
+					return
+				}
 
 				if len(files) > len(replyFiles) {
 					log.Printf("Files: %v\n", files)

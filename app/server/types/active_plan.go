@@ -21,47 +21,56 @@ type ActiveBuild struct {
 }
 
 type ActivePlan struct {
-	Id                  string
-	Branch              string
-	Prompt              string
-	Ctx                 context.Context
-	CancelFn            context.CancelFunc
-	Contexts            []*db.Context
-	ContextsByPath      map[string]*db.Context
-	Files               []string
-	BuiltFiles          map[string]bool
-	IsBuildingByPath    map[string]bool
-	CurrentReplyContent string
-	NumTokens           int
-	PromptMessageNum    int
-	BuildQueuesByPath   map[string][]*ActiveBuild
-	RepliesFinished     bool
-	StreamDoneCh        chan *shared.ApiError
-
-	ModelStreamId string
-	IsBackground  bool
-	streamCh      chan string
-	subscriptions map[string]chan string
+	Id                    string
+	Branch                string
+	Prompt                string
+	Ctx                   context.Context
+	CancelFn              context.CancelFunc
+	ModelStreamCtx        context.Context
+	CancelModelStreamFn   context.CancelFunc
+	Contexts              []*db.Context
+	ContextsByPath        map[string]*db.Context
+	Files                 []string
+	BuiltFiles            map[string]bool
+	IsBuildingByPath      map[string]bool
+	CurrentReplyContent   string
+	NumTokens             int
+	PromptMessageNum      int
+	BuildQueuesByPath     map[string][]*ActiveBuild
+	RepliesFinished       bool
+	StreamDoneCh          chan *shared.ApiError
+	ModelStreamId         string
+	IsBackground          bool
+	MissingFileResponseCh chan shared.RespondMissingFileChoice
+	AllowOverwritePaths   map[string]bool
+	streamCh              chan string
+	subscriptions         map[string]chan string
 }
 
 func NewActivePlan(planId, branch, prompt string) *ActivePlan {
 	ctx, cancel := context.WithCancel(context.Background())
+	// child context for model stream so we can cancel it separately if needed
+	modelStreamCtx, cancelModelStream := context.WithCancel(ctx)
 
 	active := ActivePlan{
-		Id:                planId,
-		Branch:            branch,
-		Prompt:            prompt,
-		Ctx:               ctx,
-		CancelFn:          cancel,
-		BuildQueuesByPath: map[string][]*ActiveBuild{},
-		Contexts:          []*db.Context{},
-		ContextsByPath:    map[string]*db.Context{},
-		Files:             []string{},
-		BuiltFiles:        map[string]bool{},
-		IsBuildingByPath:  map[string]bool{},
-		StreamDoneCh:      make(chan *shared.ApiError),
-		streamCh:          make(chan string),
-		subscriptions:     map[string]chan string{},
+		Id:                    planId,
+		Branch:                branch,
+		Prompt:                prompt,
+		Ctx:                   ctx,
+		CancelFn:              cancel,
+		ModelStreamCtx:        modelStreamCtx,
+		CancelModelStreamFn:   cancelModelStream,
+		BuildQueuesByPath:     map[string][]*ActiveBuild{},
+		Contexts:              []*db.Context{},
+		ContextsByPath:        map[string]*db.Context{},
+		Files:                 []string{},
+		BuiltFiles:            map[string]bool{},
+		IsBuildingByPath:      map[string]bool{},
+		StreamDoneCh:          make(chan *shared.ApiError),
+		MissingFileResponseCh: make(chan shared.RespondMissingFileChoice),
+		AllowOverwritePaths:   map[string]bool{},
+		streamCh:              make(chan string),
+		subscriptions:         map[string]chan string{},
 	}
 
 	go func() {
@@ -95,6 +104,10 @@ func (ap *ActivePlan) Stream(msg shared.StreamMessage) {
 	if msg.Type == shared.StreamMessageFinished {
 		ap.StreamDoneCh <- nil
 	}
+}
+
+func (ap *ActivePlan) ResetModelCtx() {
+	ap.ModelStreamCtx, ap.CancelModelStreamFn = context.WithCancel(context.Background())
 }
 
 func (ap *ActivePlan) BuildFinished() bool {

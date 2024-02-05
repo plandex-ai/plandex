@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"plandex/types"
+	"strings"
 	"sync"
 )
 
@@ -31,7 +32,7 @@ func ParseInputPaths(fileOrDirPaths []string, params *types.LoadContextParams) (
 				}
 
 				if info.IsDir() {
-					if info.Name() == ".git" || info.Name() == ".plandex" {
+					if info.Name() == ".git" || strings.Index(info.Name(), ".plandex") == 0 {
 						return filepath.SkipDir
 					}
 

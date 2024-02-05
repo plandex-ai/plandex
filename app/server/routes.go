@@ -55,6 +55,9 @@ func routes() *mux.Router {
 	r.HandleFunc("/plans/{planId}", handlers.DeletePlanHandler).Methods("DELETE")
 
 	r.HandleFunc("/plans/{planId}/{branch}/tell", handlers.TellPlanHandler).Methods("POST")
+
+	r.HandleFunc("/plans/{planId}/{branch}/respond_missing_file", handlers.RespondMissingFileHandler).Methods("POST")
+
 	r.HandleFunc("/plans/{planId}/{branch}/build", handlers.BuildPlanHandler).Methods("PATCH")
 	r.HandleFunc("/plans/{planId}/{branch}/connect", handlers.ConnectPlanHandler).Methods("PATCH")
 	r.HandleFunc("/plans/{planId}/{branch}/stop", handlers.StopPlanHandler).Methods("DELETE")

@@ -41,7 +41,7 @@ const (
 	PlanStatusDraft      PlanStatus = "draft"
 	PlanStatusReplying   PlanStatus = "replying"
 	PlanStatusDescribing PlanStatus = "describing"
-	PlanStatusBuilding   PlanStatus = "building"
+	PlanStatusPrompting  PlanStatus = "prompting"
 	PlanStatusFinished   PlanStatus = "finished"
 	PlanStatusStopped    PlanStatus = "stopped"
 	PlanStatusError      PlanStatus = "error"

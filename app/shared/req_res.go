@@ -97,6 +97,21 @@ type TellPlanRequest struct {
 	ProjectPaths  map[string]bool `json:"projectPaths"`
 }
 
+type RespondMissingFileChoice string
+
+const (
+	RespondMissingFileChoiceLoad      RespondMissingFileChoice = "load"
+	RespondMissingFileChoiceSkip      RespondMissingFileChoice = "skip"
+	RespondMissingFileChoiceOverwrite RespondMissingFileChoice = "overwrite"
+)
+
+type RespondMissingFileRequest struct {
+	Choice        RespondMissingFileChoice `json:"choice"`
+	ModelStreamId string                   `json:"modelStreamId"`
+	FilePath      string                   `json:"filePath"`
+	Body          string                   `json:"body"`
+}
+
 type LoadContextParams struct {
 	ContextType ContextType `json:"contextType"`
 	Name        string      `json:"name"`

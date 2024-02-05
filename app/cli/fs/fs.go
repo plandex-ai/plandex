@@ -30,7 +30,19 @@ func init() {
 	if err != nil {
 		panic("Couldn't find home dir:" + err.Error())
 	}
-	HomePlandexDir = filepath.Join(home, ".plandex-home")
+
+	if os.Getenv("PLANDEX_ENV") == "development" {
+		HomePlandexDir = filepath.Join(home, ".plandex-home-dev")
+	} else {
+		HomePlandexDir = filepath.Join(home, ".plandex-home")
+	}
+
+	// Create the home plandex directory if it doesn't exist
+	err = os.MkdirAll(HomePlandexDir, os.ModePerm)
+	if err != nil {
+		panic(err)
+	}
+
 	CacheDir = filepath.Join(HomePlandexDir, "cache")
 	HomeAuthPath = filepath.Join(HomePlandexDir, "auth.json")
 	HomeAccountsPath = filepath.Join(HomePlandexDir, "accounts.json")
@@ -55,7 +67,12 @@ func FindOrCreatePlandex() (string, bool, error) {
 	}
 
 	// Determine the directory path
-	dir := filepath.Join(Cwd, ".plandex")
+	var dir string
+	if os.Getenv("PLANDEX_ENV") == "development" {
+		dir = filepath.Join(Cwd, ".plandex-dev")
+	} else {
+		dir = filepath.Join(Cwd, ".plandex")
+	}
 
 	err := os.Mkdir(dir, os.ModePerm)
 	if err != nil {
@@ -199,7 +216,12 @@ func GetPlandexIgnore() (*ignore.GitIgnore, error) {
 func findPlandex() (string, string) {
 	searchPath := Cwd
 	for searchPath != "/" {
-		dir := filepath.Join(searchPath, ".plandex")
+		var dir string
+		if os.Getenv("PLANDEX_ENV") == "development" {
+			dir = filepath.Join(searchPath, ".plandex-dev")
+		} else {
+			dir = filepath.Join(searchPath, ".plandex")
+		}
 		if _, err := os.Stat(dir); !os.IsNotExist(err) {
 			return dir, searchPath
 		}

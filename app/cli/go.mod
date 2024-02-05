@@ -18,6 +18,7 @@ require (
 	github.com/andybalholm/cascadia v1.3.2 // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
 	github.com/aymerick/douceur v0.2.0 // indirect
+	github.com/catppuccin/go v0.2.0 // indirect
 	github.com/containerd/console v1.0.4-0.20230313162750-1ae8d489ac81 // indirect
 	github.com/cqroot/multichoose v0.1.1 // indirect
 	github.com/dlclark/regexp2 v1.10.0 // indirect
@@ -45,10 +46,11 @@ require (
 require (
 	github.com/PuerkitoBio/goquery v1.8.1
 	github.com/briandowns/spinner v1.23.0
-	github.com/charmbracelet/bubbles v0.16.1
-	github.com/charmbracelet/bubbletea v0.24.2
+	github.com/charmbracelet/bubbles v0.17.2-0.20240108170749-ec883029c8e6
+	github.com/charmbracelet/bubbletea v0.25.0
 	github.com/charmbracelet/glamour v0.6.0
 	github.com/charmbracelet/glow v1.5.1
+	github.com/charmbracelet/huh v0.3.0
 	github.com/cqroot/prompt v0.9.3
 	github.com/eiannone/keyboard v0.0.0-20220611211555-0d226195f203
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect

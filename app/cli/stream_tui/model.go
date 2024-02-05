@@ -5,6 +5,7 @@ import (
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -29,6 +30,8 @@ type streamUIModel struct {
 	height int
 
 	atScrollBottom bool
+
+	missingFilePrompt *huh.Select[string]
 }
 
 type keymap = struct {
@@ -83,11 +86,12 @@ func initialModel() *streamUIModel {
 			),
 		},
 
-		tokensByPath:   make(map[string]int),
-		finishedByPath: make(map[string]bool),
-		spinner:        s,
-		atScrollBottom: true,
-		starting:       true,
+		tokensByPath:      make(map[string]int),
+		finishedByPath:    make(map[string]bool),
+		spinner:           s,
+		atScrollBottom:    true,
+		starting:          true,
+		missingFilePrompt: nil,
 	}
 
 	return &initialState

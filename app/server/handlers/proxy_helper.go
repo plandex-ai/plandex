@@ -1,10 +1,42 @@
 package handlers
 
 import (
+	"fmt"
 	"io"
 	"log"
 	"net/http"
+	"os"
+	"plandex-server/db"
+	"plandex-server/host"
 )
+
+func proxyActivePlanMethod(w http.ResponseWriter, r *http.Request, planId, branch, method string) {
+	modelStream, err := db.GetActiveModelStream(planId, branch)
+
+	if err != nil {
+		log.Printf("Error getting active model stream: %v\n", err)
+		http.Error(w, "Error getting active model stream", http.StatusInternalServerError)
+		return
+	}
+
+	if modelStream == nil {
+		log.Printf("No active model stream for plan %s\n", planId)
+		http.Error(w, "No active model stream for plan", http.StatusNotFound)
+		return
+	}
+
+	if modelStream.InternalIp == host.Ip {
+		db.SetModelStreamFinished(modelStream.Id)
+		log.Printf("No active plan for plan %s\n", planId)
+		http.Error(w, "No active plan for plan", http.StatusNotFound)
+		return
+	} else {
+		log.Printf("Forwarding request to %s\n", modelStream.InternalIp)
+		proxyUrl := fmt.Sprintf("http://%s:%s/plans/%s/%s/%s", modelStream.InternalIp, os.Getenv("EXTERNAL_PORT"), planId, branch, method)
+		proxyRequest(w, r, proxyUrl)
+		return
+	}
+}
 
 func proxyRequest(w http.ResponseWriter, originalRequest *http.Request, url string) {
 	client := &http.Client{}
@@ -22,6 +54,11 @@ func proxyRequest(w http.ResponseWriter, originalRequest *http.Request, url stri
 		for _, h := range headers {
 			req.Header.Add(name, h)
 		}
+	}
+
+	// Copy the body from the original request to the new request if it's a POST or PUT
+	if originalRequest.Method == http.MethodPost || originalRequest.Method == http.MethodPut {
+		req.Body = originalRequest.Body
 	}
 
 	// Make the request
