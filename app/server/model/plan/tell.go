@@ -23,6 +23,7 @@ import (
 )
 
 func Tell(client *openai.Client, plan *db.Plan, branch string, auth *types.ServerAuth, req *shared.TellPlanRequest) error {
+	log.Println("Tell: Starting Tell operation") // Log start of Tell operation
 	// goEnv := os.Getenv("GOENV") // Fetch the GOENV environment variable
 
 	// log.Println("GOENV: " + goEnv)
@@ -58,6 +59,7 @@ func Tell(client *openai.Client, plan *db.Plan, branch string, auth *types.Serve
 
 	if err != nil {
 		log.Printf("Error storing model stream: %v\n", err)
+		log.Printf("Tell: Error storing model stream: %v\n", err) // Log error storing model stream
 		return fmt.Errorf("error storing model stream: %v", err)
 	}
 
@@ -67,10 +69,12 @@ func Tell(client *openai.Client, plan *db.Plan, branch string, auth *types.Serve
 
 	go execTellPlan(client, plan, branch, auth, req, active, 0, "")
 
+	log.Println("Tell: Tell operation completed successfully") // Log successful completion of Tell operation
 	return nil
 }
 
 func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *types.ServerAuth, req *shared.TellPlanRequest, active *types.ActivePlan, iteration int, missingFileResponse shared.RespondMissingFileChoice) {
+	log.Printf("execTellPlan: Starting execTellPlan operation, iteration: %d\n", iteration) // Log start of execTellPlan operation
 	currentUserId := auth.User.Id
 	currentOrgId := auth.OrgId
 
@@ -101,6 +105,7 @@ func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *typ
 			Msg:    "Error setting plan status to replying",
 		}
 
+		log.Printf("execTellPlan: execTellPlan operation completed, iteration: %d\n", iteration) // Log completion of execTellPlan operation
 		return
 	}
 
@@ -927,6 +932,7 @@ type summarizeConvoParams struct {
 }
 
 func summarizeConvo(client *openai.Client, params summarizeConvoParams) error {
+	log.Printf("summarizeConvo: Starting summarizeConvo for planId: %s\n", params.planId) // Log start of summarizeConvo
 	planId := params.planId
 	branch := params.branch
 	convo := params.convo
@@ -1002,6 +1008,7 @@ func summarizeConvo(client *openai.Client, params summarizeConvoParams) error {
 
 	if err != nil {
 		log.Printf("Error generating plan summary for plan %s: %v\n", planId, err)
+		log.Printf("summarizeConvo: Error generating plan summary for plan %s: %v\n", params.planId, err) // Log error generating plan summary
 		return err
 	}
 
