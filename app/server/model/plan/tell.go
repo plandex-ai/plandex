@@ -23,6 +23,7 @@ import (
 )
 
 func Tell(client *openai.Client, plan *db.Plan, branch string, auth *types.ServerAuth, req *shared.TellPlanRequest) error {
+	log.Printf("Tell: Called with plan ID %s on branch %s\n", plan.Id, branch) // Log the function call with plan ID and branch
 	log.Println("Tell: Starting Tell operation") // Log start of Tell operation
 	// goEnv := os.Getenv("GOENV") // Fetch the GOENV environment variable
 
@@ -34,6 +35,7 @@ func Tell(client *openai.Client, plan *db.Plan, branch string, auth *types.Serve
 
 	active := GetActivePlan(plan.Id, branch)
 	if active != nil {
+		log.Printf("Tell: Active plan found for plan ID %s on branch %s\n", plan.Id, branch) // Log if an active plan is found
 		return fmt.Errorf("plan %s branch %s already has an active stream on this host", plan.Id, branch)
 	}
 
@@ -44,6 +46,7 @@ func Tell(client *openai.Client, plan *db.Plan, branch string, auth *types.Serve
 	}
 
 	if modelStream != nil {
+		log.Printf("Tell: Active model stream found for plan ID %s on branch %s on host %s\n", plan.Id, branch, modelStream.InternalIp) // Log if an active model stream is found
 		return fmt.Errorf("plan %s branch %s already has an active stream on host %s", plan.Id, branch, modelStream.InternalIp)
 	}
 
@@ -56,8 +59,8 @@ func Tell(client *openai.Client, plan *db.Plan, branch string, auth *types.Serve
 		Branch:     branch,
 	}
 	err = db.StoreModelStream(modelStream)
-
 	if err != nil {
+		log.Printf("Tell: Error storing model stream for plan ID %s on branch %s: %v\n", plan.Id, branch, err) // Log error storing model stream
 		log.Printf("Error storing model stream: %v\n", err)
 		log.Printf("Tell: Error storing model stream: %v\n", err) // Log error storing model stream
 		return fmt.Errorf("error storing model stream: %v", err)
@@ -65,21 +68,24 @@ func Tell(client *openai.Client, plan *db.Plan, branch string, auth *types.Serve
 
 	active.ModelStreamId = modelStream.Id
 
+	log.Printf("Tell: Model stream stored with ID %s for plan ID %s on branch %s\n", modelStream.Id, plan.Id, branch) // Log successful storage of model stream
 	log.Println("Model stream id:", modelStream.Id)
 
 	go execTellPlan(client, plan, branch, auth, req, active, 0, "")
 
-	log.Println("Tell: Tell operation completed successfully") // Log successful completion of Tell operation
+	log.Printf("Tell: Tell operation completed successfully for plan ID %s on branch %s\n", plan.Id, branch) // Log successful completion of Tell operation
 	return nil
 }
 
 func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *types.ServerAuth, req *shared.TellPlanRequest, active *types.ActivePlan, iteration int, missingFileResponse shared.RespondMissingFileChoice) {
+	log.Printf("execTellPlan: Called for plan ID %s on branch %s, iteration %d\n", plan.Id, branch, iteration) // Log the function call with plan ID, branch, and iteration
 	log.Printf("execTellPlan: Starting execTellPlan operation, iteration: %d\n", iteration) // Log start of execTellPlan operation
 	currentUserId := auth.User.Id
 	currentOrgId := auth.OrgId
 
 	if os.Getenv("IS_CLOUD") != "" &&
 		missingFileResponse == "" {
+		log.Println("execTellPlan: IS_CLOUD environment variable is set") // Log check for IS_CLOUD environment variable
 		if auth.User.IsTrial {
 			if plan.TotalReplies >= types.TrialMaxReplies {
 				active.StreamDoneCh <- &shared.ApiError{
@@ -105,7 +111,7 @@ func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *typ
 			Msg:    "Error setting plan status to replying",
 		}
 
-		log.Printf("execTellPlan: execTellPlan operation completed, iteration: %d\n", iteration) // Log completion of execTellPlan operation
+		log.Printf("execTellPlan: execTellPlan operation completed for plan ID %s on branch %s, iteration %d\n", plan.Id, branch, iteration) // Log completion of execTellPlan operation
 		return
 	}
 
@@ -116,7 +122,7 @@ func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *typ
 	repoLockId, err := db.LockRepo(auth.OrgId, auth.User.Id, planId, branch, lockScope)
 
 	if err != nil {
-		log.Printf("Error locking repo: %v\n", err)
+		log.Printf("execTellPlan: Error locking repo for plan ID %s on branch %s: %v\n", plan.Id, branch, err) // Log error locking repo
 		active.StreamDoneCh <- &shared.ApiError{
 			Type:   shared.ApiErrorTypeOther,
 			Status: http.StatusInternalServerError,
@@ -932,6 +938,7 @@ type summarizeConvoParams struct {
 }
 
 func summarizeConvo(client *openai.Client, params summarizeConvoParams) error {
+	log.Printf("summarizeConvo: Called for plan ID %s on branch %s\n", params.planId, params.branch) // Log the function call with plan ID and branch
 	log.Printf("summarizeConvo: Starting summarizeConvo for planId: %s\n", params.planId) // Log start of summarizeConvo
 	planId := params.planId
 	branch := params.branch
@@ -1007,12 +1014,12 @@ func summarizeConvo(client *openai.Client, params summarizeConvoParams) error {
 	})
 
 	if err != nil {
-		log.Printf("Error generating plan summary for plan %s: %v\n", planId, err)
+		log.Printf("summarizeConvo: Error generating summary for plan ID %s: %v\n", params.planId, err) // Log error generating summary
 		log.Printf("summarizeConvo: Error generating plan summary for plan %s: %v\n", params.planId, err) // Log error generating plan summary
 		return err
 	}
 
-	log.Println("Generated plan summary for plan", planId)
+	log.Printf("summarizeConvo: Summary generated and stored for plan ID %s\n", params.planId) // Log successful generation and storage of summary
 
 	err = db.StoreSummary(summary)
 
