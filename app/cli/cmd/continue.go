@@ -26,7 +26,7 @@ func init() {
 	RootCmd.AddCommand(nextCmd)
 
 	nextCmd.Flags().BoolVar(&tellBg, "bg", false, "Execute autonomously in the background")
-	tellCmd.Flags().BoolVar(&tellStep, "step", false, "Pause after a single step or reply")
+	nextCmd.Flags().BoolVar(&tellStep, "step", false, "Pause after a single step or reply")
 }
 
 func doContinue(cmd *cobra.Command, args []string) {

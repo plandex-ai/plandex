@@ -24,7 +24,7 @@ import (
 
 func Tell(client *openai.Client, plan *db.Plan, branch string, auth *types.ServerAuth, req *shared.TellPlanRequest) error {
 	log.Printf("Tell: Called with plan ID %s on branch %s\n", plan.Id, branch) // Log the function call with plan ID and branch
-	log.Println("Tell: Starting Tell operation") // Log start of Tell operation
+	log.Println("Tell: Starting Tell operation")                               // Log start of Tell operation
 	// goEnv := os.Getenv("GOENV") // Fetch the GOENV environment variable
 
 	// log.Println("GOENV: " + goEnv)
@@ -79,7 +79,7 @@ func Tell(client *openai.Client, plan *db.Plan, branch string, auth *types.Serve
 
 func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *types.ServerAuth, req *shared.TellPlanRequest, active *types.ActivePlan, iteration int, missingFileResponse shared.RespondMissingFileChoice) {
 	log.Printf("execTellPlan: Called for plan ID %s on branch %s, iteration %d\n", plan.Id, branch, iteration) // Log the function call with plan ID, branch, and iteration
-	log.Printf("execTellPlan: Starting execTellPlan operation, iteration: %d\n", iteration) // Log start of execTellPlan operation
+	log.Printf("execTellPlan: Starting execTellPlan operation, iteration: %d\n", iteration)                    // Log start of execTellPlan operation
 	currentUserId := auth.User.Id
 	currentOrgId := auth.OrgId
 
@@ -305,6 +305,23 @@ func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *typ
 		})
 	}
 
+	// if any skipped paths have since been added to context, remove them from skipped paths
+	if len(active.SkippedPaths) > 0 {
+		var toUnskipPaths []string
+		for contextPath := range active.ContextsByPath {
+			if active.SkippedPaths[contextPath] {
+				toUnskipPaths = append(toUnskipPaths, contextPath)
+			}
+		}
+		if len(toUnskipPaths) > 0 {
+			UpdateActivePlan(planId, branch, func(ap *types.ActivePlan) {
+				for _, path := range toUnskipPaths {
+					delete(ap.SkippedPaths, path)
+				}
+			})
+		}
+	}
+
 	modelContextText, modelContextTokens, err := lib.FormatModelContext(modelContext)
 	if err != nil {
 		err = fmt.Errorf("error formatting model modelContext: %v", err)
@@ -322,6 +339,13 @@ func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *typ
 	systemMessage := openai.ChatCompletionMessage{
 		Role:    openai.ChatMessageRoleSystem,
 		Content: systemMessageText,
+	}
+
+	if len(active.SkippedPaths) > 0 {
+		systemMessageText += "\n\nSome files have been skipped by the user and *must not* be generated. The user will handle any updates to these files themselves. Skip any parts of the plan that require generating these files. You *must not* generate a file block for any of these files.\nSkipped files:\n"
+		for skippedPath := range active.SkippedPaths {
+			systemMessageText += fmt.Sprintf("- %s\n", skippedPath)
+		}
 	}
 
 	messages := []openai.ChatCompletionMessage{
@@ -529,28 +553,42 @@ func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *typ
 			replyParser = types.NewReplyParser()
 			replyParser.AddChunk(replyContent, true)
 
-			userAction := fmt.Sprintf("\n\n**User action.** You chose not to update the file `%s`, so I'll skip this update.\n\n", currentFile)
-
-			replyParser.AddChunk(userAction, false)
-			replyContent += userAction
-
 			UpdateActivePlan(planId, branch, func(ap *types.ActivePlan) {
 				ap.CurrentReplyContent = replyContent
 				ap.NumTokens = numTokens
+				ap.SkippedPaths[currentFile] = true
 			})
 
-		} else if missingFileResponse == shared.RespondMissingFileChoiceOverwrite {
-			UpdateActivePlan(planId, branch, func(ap *types.ActivePlan) {
-				ap.AllowOverwritePaths[currentFile] = true
-			})
+		} else {
+			if missingFileResponse == shared.RespondMissingFileChoiceOverwrite {
+				UpdateActivePlan(planId, branch, func(ap *types.ActivePlan) {
+					ap.AllowOverwritePaths[currentFile] = true
+				})
+			}
 		}
-
 	}
 
 	messages = append(messages, openai.ChatCompletionMessage{
 		Role:    openai.ChatMessageRoleAssistant,
 		Content: active.CurrentReplyContent,
 	})
+
+	if missingFileResponse != "" {
+		if missingFileResponse == shared.RespondMissingFileChoiceSkip {
+			res := replyParser.Read()
+
+			messages = append(messages, openai.ChatCompletionMessage{
+				Role:    openai.ChatMessageRoleUser,
+				Content: fmt.Sprintf(`You *must not* generate content for the file %s. Skip this file and continue with the plan according to the 'Your instructions' section if there are any remaining tasks or subtasks. Don't repeat any part of the previous message. If there are no remaining tasks or subtasks, say "All tasks have been completed." per your instructions`, res.CurrentFilePath),
+			})
+
+		} else {
+			messages = append(messages, openai.ChatCompletionMessage{
+				Role:    openai.ChatMessageRoleUser,
+				Content: "Continue generating exactly where you left off in the previous message. Don't produce any other output before continuing or repeat any part of the previous message. Do *not* duplicate the last line of the previous response before continuing. Do *not* include triple backticks and a language name like '```python' or '```yaml' at the start of the response, since these have already been included in the previous message. Continue from where you left off seamlessly to generate the rest of the file block. You must include closing triple backticks at the end of the file block. When the file block is finished, continue with the plan according to the 'Your instructions' sections if there are any remaining tasks or subtasks. If there are no remaining tasks or subtasks, say 'All tasks have been completed.' per your instructions.",
+			})
+		}
+	}
 
 	replyNumTokens = active.NumTokens
 	replyFiles = active.Files
@@ -707,6 +745,8 @@ func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *typ
 				choice := response.Choices[0]
 
 				if choice.FinishReason != "" {
+					log.Println("Model stream finished")
+
 					active.Stream(shared.StreamMessage{
 						Type: shared.StreamMessageDescribing,
 					})
@@ -837,6 +877,9 @@ func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *typ
 								active.RepliesFinished = true
 							})
 						}
+
+						// Wait briefly allow last stream message to be sent
+						time.Sleep(100 * time.Millisecond)
 					}
 
 					return
@@ -849,7 +892,7 @@ func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *typ
 					active.NumTokens++
 				})
 
-				// log.Printf("%s", content)
+				// log.Printf("Sending stream msg: %s", content)
 				active.Stream(shared.StreamMessage{
 					Type:       shared.StreamMessageReply,
 					ReplyChunk: content,
@@ -865,7 +908,9 @@ func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *typ
 
 				if currentFile != "" &&
 					active.ContextsByPath[currentFile] == nil &&
-					req.ProjectPaths[currentFile] {
+					req.ProjectPaths[currentFile] && !active.AllowOverwritePaths[currentFile] {
+					log.Printf("Attempting to overwrite a file that isn't in context: %s\n", currentFile)
+
 					// attempting to overwrite a file that isn't in context
 					// we will stop the stream and ask the user what to do
 					err := db.SetPlanStatus(planId, branch, shared.PlanStatusPrompting, "")
@@ -880,16 +925,30 @@ func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *typ
 						return
 					}
 
+					log.Printf("Prompting user for missing file: %s\n", currentFile)
+
 					active.Stream(shared.StreamMessage{
 						Type:            shared.StreamMessagePromptMissingFile,
 						MissingFilePath: currentFile,
 					})
 
+					log.Printf("Stopping stream for missing file: %s\n", currentFile)
+
+					log.Printf("Current reply content: %s\n", active.CurrentReplyContent)
+
 					// stop stream for now
 					active.CancelModelStreamFn()
 
+					log.Printf("Stopped stream for missing file: %s\n", currentFile)
+
 					// wait for user response to come in
 					userChoice := <-active.MissingFileResponseCh
+
+					log.Printf("User choice for missing file: %s\n", userChoice)
+
+					active.ResetModelCtx()
+
+					log.Println("Continuing stream")
 
 					// continue plan
 					execTellPlan(
@@ -939,7 +998,7 @@ type summarizeConvoParams struct {
 
 func summarizeConvo(client *openai.Client, params summarizeConvoParams) error {
 	log.Printf("summarizeConvo: Called for plan ID %s on branch %s\n", params.planId, params.branch) // Log the function call with plan ID and branch
-	log.Printf("summarizeConvo: Starting summarizeConvo for planId: %s\n", params.planId) // Log start of summarizeConvo
+	log.Printf("summarizeConvo: Starting summarizeConvo for planId: %s\n", params.planId)            // Log start of summarizeConvo
 	planId := params.planId
 	branch := params.branch
 	convo := params.convo
@@ -1014,7 +1073,7 @@ func summarizeConvo(client *openai.Client, params summarizeConvoParams) error {
 	})
 
 	if err != nil {
-		log.Printf("summarizeConvo: Error generating summary for plan ID %s: %v\n", params.planId, err) // Log error generating summary
+		log.Printf("summarizeConvo: Error generating summary for plan ID %s: %v\n", params.planId, err)   // Log error generating summary
 		log.Printf("summarizeConvo: Error generating plan summary for plan %s: %v\n", params.planId, err) // Log error generating plan summary
 		return err
 	}

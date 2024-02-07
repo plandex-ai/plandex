@@ -87,7 +87,7 @@ func promptAutoAddUsersIfValid(email string) (bool, error) {
 	var autoAddDomainUsers bool
 	var err error
 	if !shared.IsEmailServiceDomain(userDomain) {
-		fmt.Println("With domain auto-join, you can allow any user with an email ending in @", userDomain, "to auto-join this org")
+		fmt.Println("With domain auto-join, you can allow any user with an email ending in @"+userDomain, "to auto-join this org")
 		autoAddDomainUsers, err = term.ConfirmYesNo(fmt.Sprintf("Enable auto-join for %s?", userDomain))
 
 		if err != nil {

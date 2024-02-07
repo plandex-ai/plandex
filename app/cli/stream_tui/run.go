@@ -20,11 +20,15 @@ func StartStreamUI() error {
 	mu.Unlock()
 
 	wg.Add(1)
-	_, err := ui.Run()
+	m, err := ui.Run()
 	wg.Done()
 
 	if err != nil {
 		return fmt.Errorf("error running changes UI: %v", err)
+	}
+
+	if m.(streamUIModel).err != nil {
+		return fmt.Errorf("error in changes UI: %v", m.(streamUIModel).err)
 	}
 
 	return nil
@@ -40,6 +44,7 @@ func Quit() {
 	ui.Quit()
 
 	wg.Wait() // Wait for the UI to fully terminate
+
 }
 
 func Send(msg tea.Msg) {

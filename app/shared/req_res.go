@@ -106,10 +106,9 @@ const (
 )
 
 type RespondMissingFileRequest struct {
-	Choice        RespondMissingFileChoice `json:"choice"`
-	ModelStreamId string                   `json:"modelStreamId"`
-	FilePath      string                   `json:"filePath"`
-	Body          string                   `json:"body"`
+	Choice   RespondMissingFileChoice `json:"choice"`
+	FilePath string                   `json:"filePath"`
+	Body     string                   `json:"body"`
 }
 
 type LoadContextParams struct {

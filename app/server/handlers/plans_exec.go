@@ -227,7 +227,10 @@ func RespondMissingFileHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.Println("missing file choice:", requestBody.Choice)
+
 	if requestBody.Choice == shared.RespondMissingFileChoiceLoad {
+		log.Println("loading missing file")
 		res, dbContexts := loadContexts(w, r, auth, &shared.LoadContextRequest{
 			&shared.LoadContextParams{
 				ContextType: shared.ContextFileType,
@@ -248,6 +251,7 @@ func RespondMissingFileHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// This will resume model stream
+	log.Println("Resuming model stream")
 	active.MissingFileResponseCh <- requestBody.Choice
 
 	log.Println("Successfully processed request for RespondMissingFileHandler")

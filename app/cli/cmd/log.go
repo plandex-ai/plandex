@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"log"
 	"plandex/api"
 	"plandex/auth"
 	"plandex/lib"
@@ -69,15 +68,8 @@ func convertTimestampsToLocal(input string) (string, error) {
 			return match
 		}
 
-		log.Println("t: ", t)
-
 		localDt := t.Local()
-
-		log.Println("localDt: ", localDt)
-
 		formattedTs := localDt.Format("Mon Jan 2, 2006 | 3:04:05pm")
-
-		log.Println("formattedTs: ", formattedTs)
 
 		if localDt.Day() == time.Now().Day() {
 			formattedTs = localDt.Format("Today | 3:04:05pm")

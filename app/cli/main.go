@@ -16,6 +16,7 @@ func init() {
 
 	// set up a file logger
 	// TODO: log rotation
+
 	file, err := os.OpenFile(filepath.Join(fs.HomePlandexDir, "plandex.log"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error opening log file: %v\n", err)

@@ -5,9 +5,27 @@ import (
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/plandex/plandex/shared"
 )
+
+const (
+	MissingFileLoadLabel      = "Load the file into context"
+	MissingFileSkipLabel      = "Skip generating this file"
+	MissingFileOverwriteLabel = "Allow Plandex to overwrite this file"
+)
+
+var promptChoices = []shared.RespondMissingFileChoice{
+	shared.RespondMissingFileChoiceLoad,
+	shared.RespondMissingFileChoiceSkip,
+	shared.RespondMissingFileChoiceOverwrite,
+}
+
+var missingFileSelectOpts = []string{
+	MissingFileLoadLabel,
+	MissingFileSkipLabel,
+	MissingFileOverwriteLabel,
+}
 
 type streamUIModel struct {
 	keymap keymap
@@ -31,7 +49,15 @@ type streamUIModel struct {
 
 	atScrollBottom bool
 
-	missingFilePrompt *huh.Select[string]
+	promptingMissingFile   bool
+	missingFilePath        string
+	missingFileSelectedIdx int
+	promptedMissingFile    bool
+	missingFileContent     string
+	missingFileTokens      int
+
+	err    error
+	apiErr *shared.ApiError
 }
 
 type keymap = struct {
@@ -40,6 +66,9 @@ type keymap = struct {
 	scrollDown,
 	pageUp,
 	pageDown,
+	up,
+	down,
+	enter,
 	quit bubbleKey.Binding
 }
 
@@ -84,14 +113,28 @@ func initialModel() *streamUIModel {
 			quit: bubbleKey.NewBinding(
 				bubbleKey.WithKeys("ctrl+c"),
 			),
+
+			up: bubbleKey.NewBinding(
+				bubbleKey.WithKeys("up"),
+				bubbleKey.WithHelp("up", "prev"),
+			),
+
+			down: bubbleKey.NewBinding(
+				bubbleKey.WithKeys("down"),
+				bubbleKey.WithHelp("down", "next"),
+			),
+
+			enter: bubbleKey.NewBinding(
+				bubbleKey.WithKeys("enter"),
+				bubbleKey.WithHelp("enter", "select"),
+			),
 		},
 
-		tokensByPath:      make(map[string]int),
-		finishedByPath:    make(map[string]bool),
-		spinner:           s,
-		atScrollBottom:    true,
-		starting:          true,
-		missingFilePrompt: nil,
+		tokensByPath:   make(map[string]int),
+		finishedByPath: make(map[string]bool),
+		spinner:        s,
+		atScrollBottom: true,
+		starting:       true,
 	}
 
 	return &initialState

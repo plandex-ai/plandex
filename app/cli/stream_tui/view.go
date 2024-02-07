@@ -13,6 +13,10 @@ var borderColor = lipgloss.Color("#444")
 var helpTextColor = lipgloss.Color("#ddd")
 
 func (m streamUIModel) View() string {
+	if m.promptingMissingFile {
+		return m.renderMissingFilePrompt()
+	}
+
 	return lipgloss.JoinVertical(lipgloss.Left,
 		m.renderMainView(),
 		m.renderProcessing(),
@@ -98,4 +102,39 @@ func (m streamUIModel) renderBuild() string {
 	}
 
 	return style.Render(strings.Join(resRows, "\n"))
+}
+
+func (m streamUIModel) renderMissingFilePrompt() string {
+	style := lipgloss.NewStyle().Padding(1).BorderStyle(lipgloss.NormalBorder()).BorderForeground(lipgloss.Color(borderColor)).Width(m.width - 2).Height(m.height - 2)
+
+	prompt := "📄 " + color.New(color.Bold, color.FgHiYellow).Sprint(m.missingFilePath) + " isn't in context."
+
+	prompt += "\n\n"
+
+	desc := "This file exists in your project, but isn't loaded into context. Unless you load it into context or skip generating it, Plandex will fully overwrite the existing file rather than applying updates."
+
+	words := strings.Split(desc, " ")
+	for i, word := range words {
+		words[i] = color.New(color.FgWhite).Sprint(word)
+	}
+
+	prompt += strings.Join(words, " ")
+
+	prompt += "\n\n" + color.New(color.FgHiMagenta, color.Bold).Sprintln("🧐 What do you want to do?")
+
+	for i, opt := range missingFileSelectOpts {
+		if i == m.missingFileSelectedIdx {
+			prompt += color.New(color.FgHiCyan, color.Bold).Sprint(" > " + opt)
+		} else {
+			prompt += "   " + opt
+		}
+
+		if opt == MissingFileLoadLabel {
+			prompt += fmt.Sprintf(" | %d 🪙", m.missingFileTokens)
+		}
+
+		prompt += "\n"
+	}
+
+	return style.Render(prompt)
 }

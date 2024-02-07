@@ -59,8 +59,9 @@ func rewind(cmd *cobra.Command, args []string) {
 	// log.Println("shas:", logsRes.Shas)
 
 	steps, err := strconv.Atoi(stepsOrSha)
+	isSha := false
 
-	if err == nil && steps > 0 {
+	if err == nil && steps > 0 && steps < 999 {
 		// log.Println("steps:", steps)
 		// Rewind by the specified number of steps
 		targetSha = logsRes.Shas[steps]
@@ -68,9 +69,11 @@ func rewind(cmd *cobra.Command, args []string) {
 		// log.Println("sha provided:", sha)
 		// Rewind to the specified Sha
 		targetSha = sha
+		isSha = true
 	} else if stepsOrSha == "" {
 		// log.Println("No steps or sha provided, rewinding by 1 step")
 		// Rewind by 1 step
+		steps = 1
 		targetSha = logsRes.Shas[1]
 	} else {
 		fmt.Fprintln(os.Stderr, "Invalid steps or sha. Steps must be a positive integer, and sha must be a valid commit hash.")
@@ -88,7 +91,7 @@ func rewind(cmd *cobra.Command, args []string) {
 	}
 
 	var msg string
-	if steps == 0 {
+	if isSha {
 		msg = "✅ Rewound to " + targetSha
 	} else {
 		postfix := "s"

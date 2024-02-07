@@ -1,0 +1,16 @@
+insert simple log statements throughout the operations of the 'app/server/model/plan/tell.go' file so it's easy to track the flow of logic. add detailed and rigorous logging to all branches of control flow. log using log.Printf / log.Println                                                                 
+                                                                              
+only log key data and don't log anything that will show too large of an     
+output. the goal is to be able to follow the flow of the logic, not see *all
+* the data.
+
+especially add comprehensive logging to anything related to the 'missingFileResponse' functionality. as well as everything within spitting distance of this code: 
+                                                                              
+  active.Stream(shared.StreamMessage{ Type:                                   
+  shared.StreamMessagePromptMissingFile, MissingFilePath: currentFile, })     
+                                                                              
+                                // stop stream for now                                                    
+                                active.CancelModelStreamFn()                                              
+                                                                              
+                                // wait for user response to come in                                      
+                                userChoice := <-active.MissingFileResponseCh  

@@ -1,5 +1,5 @@
 .plandex/
+.plandex-dev/
 plandex
 plandex-server
-.aider*
 node_modules/

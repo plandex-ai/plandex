@@ -43,6 +43,7 @@ type ActivePlan struct {
 	IsBackground          bool
 	MissingFileResponseCh chan shared.RespondMissingFileChoice
 	AllowOverwritePaths   map[string]bool
+	SkippedPaths          map[string]bool
 	streamCh              chan string
 	subscriptions         map[string]chan string
 }
@@ -69,6 +70,7 @@ func NewActivePlan(planId, branch, prompt string) *ActivePlan {
 		StreamDoneCh:          make(chan *shared.ApiError),
 		MissingFileResponseCh: make(chan shared.RespondMissingFileChoice),
 		AllowOverwritePaths:   map[string]bool{},
+		SkippedPaths:          map[string]bool{},
 		streamCh:              make(chan string),
 		subscriptions:         map[string]chan string{},
 	}
@@ -107,7 +109,7 @@ func (ap *ActivePlan) Stream(msg shared.StreamMessage) {
 }
 
 func (ap *ActivePlan) ResetModelCtx() {
-	ap.ModelStreamCtx, ap.CancelModelStreamFn = context.WithCancel(context.Background())
+	ap.ModelStreamCtx, ap.CancelModelStreamFn = context.WithCancel(ap.Ctx)
 }
 
 func (ap *ActivePlan) BuildFinished() bool {

@@ -457,6 +457,41 @@ func (a *Api) TellPlan(planId, branch string, req shared.TellPlanRequest, onStre
 	return nil
 }
 
+func (a *Api) RespondMissingFile(planId, branch string, req shared.RespondMissingFileRequest) *shared.ApiError {
+	serverUrl := fmt.Sprintf("%s/plans/%s/%s/respond_missing_file", getApiHost(), planId, branch)
+
+	reqBytes, err := json.Marshal(req)
+	if err != nil {
+		return &shared.ApiError{Msg: fmt.Sprintf("error marshalling request: %v", err)}
+	}
+
+	request, err := http.NewRequest(http.MethodPost, serverUrl, bytes.NewBuffer(reqBytes))
+	if err != nil {
+		return &shared.ApiError{Msg: fmt.Sprintf("error creating request: %v", err)}
+	}
+	request.Header.Set("Content-Type", "application/json")
+
+	resp, err := authenticatedFastClient.Do(request)
+	if err != nil {
+		return &shared.ApiError{Msg: fmt.Sprintf("error sending request: %v", err)}
+	}
+
+	if resp.StatusCode >= 400 {
+		errorBody, _ := io.ReadAll(resp.Body)
+		apiErr := handleApiError(resp, errorBody)
+
+		didRefresh, apiErr := refreshTokenIfNeeded(apiErr)
+
+		if didRefresh {
+			return a.RespondMissingFile(planId, branch, req)
+		}
+		return apiErr
+	}
+
+	return nil
+
+}
+
 func (a *Api) ConnectPlan(planId, branch string, onStream types.OnStreamPlan) *shared.ApiError {
 	serverUrl := fmt.Sprintf("%s/plans/%s/%s/connect", getApiHost(), planId, branch)
 

@@ -7,6 +7,7 @@ import (
 	"plandex/auth"
 	"plandex/fs"
 	"plandex/lib"
+	"plandex/stream"
 	streamtui "plandex/stream_tui"
 	"plandex/term"
 
@@ -45,7 +46,7 @@ func TellPlan(prompt string, tellBg, tellStep bool) {
 			AutoContinue:  !tellStep,
 			ProjectPaths:  projectPaths,
 			ApiKey:        os.Getenv("OPENAI_API_KEY"),
-		}, lib.OnStreamPlan)
+		}, stream.OnStreamPlan)
 		if apiErr != nil {
 			if apiErr.Type == shared.ApiErrorTypeTrialMessagesExceeded {
 				promptingTrialExceeded = true

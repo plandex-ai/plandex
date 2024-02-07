@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	ignore "github.com/sabhiram/go-gitignore"
 )
@@ -120,53 +121,110 @@ func GetProjectPaths() (map[string]bool, *ignore.GitIgnore, error) {
 }
 
 func GetPaths(dir string) (map[string]bool, *ignore.GitIgnore, error) {
-	paths := map[string]bool{}
+	ignored, err := GetPlandexIgnore()
 
-	if ProjectRootIsGitRepo() {
+	if err != nil {
+		return nil, nil, err
+	}
+
+	paths := map[string]bool{}
+	dirs := map[string]bool{}
+
+	isGitRepo := ProjectRootIsGitRepo()
+
+	errCh := make(chan error)
+	var mu sync.Mutex
+	numRoutines := 0
+
+	if isGitRepo {
 		// combine `git ls-files` and `git ls-files --others --exclude-standard`
 		// to get all files in the repo
 
-		// get all tracked files in the repo
-		cmd := exec.Command("git", "ls-files")
-		cmd.Dir = dir
-		out, err := cmd.Output()
+		numRoutines++
+		go func() {
+			// get all tracked files in the repo
+			cmd := exec.Command("git", "ls-files")
+			cmd.Dir = dir
+			out, err := cmd.Output()
 
-		if err != nil {
-			return nil, nil, fmt.Errorf("error getting files in git repo: %s", err)
-		}
+			if err != nil {
+				errCh <- fmt.Errorf("error getting files in git repo: %s", err)
+				return
+			}
 
-		files := strings.Split(string(out), "\n")
+			files := strings.Split(string(out), "\n")
 
-		for _, file := range files {
-			paths[file] = true
-		}
+			mu.Lock()
+			defer mu.Unlock()
+			for _, file := range files {
+				if ignored != nil && ignored.MatchesPath(file) {
+					continue
+				}
 
-		// get all untracked files non-ignored files in the repo
-		cmd = exec.Command("git", "ls-files", "--others", "--exclude-standard")
-		cmd.Dir = dir
-		out, err = cmd.Output()
+				paths[file] = true
+			}
 
-		if err != nil {
-			return nil, nil, fmt.Errorf("error getting untracked files in git repo: %s", err)
-		}
+			errCh <- nil
+		}()
 
-		files = strings.Split(string(out), "\n")
+		// get all untracked non-ignored files in the repo
+		numRoutines++
+		go func() {
+			cmd := exec.Command("git", "ls-files", "--others", "--exclude-standard")
+			cmd.Dir = dir
+			out, err := cmd.Output()
 
-		for _, file := range files {
-			paths[file] = true
-		}
-	} else {
-		// get all files in the directory
-		err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				errCh <- fmt.Errorf("error getting untracked files in git repo: %s", err)
+				return
+			}
+
+			files := strings.Split(string(out), "\n")
+
+			mu.Lock()
+			defer mu.Unlock()
+			for _, file := range files {
+				if ignored != nil && ignored.MatchesPath(file) {
+					continue
+				}
+
+				paths[file] = true
+			}
+
+			errCh <- nil
+		}()
+	}
+
+	// get all paths in the directory
+	numRoutines++
+	go func() {
+		err = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				return err
 			}
 
-			if !info.IsDir() {
+			if info.IsDir() {
 				relPath, err := filepath.Rel(dir, path)
 				if err != nil {
 					return err
 				}
+
+				if ignored != nil && ignored.MatchesPath(relPath) {
+					return filepath.SkipDir
+				}
+
+				dirs[relPath] = true
+			} else if !isGitRepo {
+				relPath, err := filepath.Rel(dir, path)
+				if err != nil {
+					return err
+				}
+
+				if ignored != nil && ignored.MatchesPath(relPath) {
+					return nil
+				}
+
+				// lock isn't need here because isGitRepo is false, which makes this the only routine
 				paths[relPath] = true
 			}
 
@@ -174,22 +232,22 @@ func GetPaths(dir string) (map[string]bool, *ignore.GitIgnore, error) {
 		})
 
 		if err != nil {
-			return nil, nil, fmt.Errorf("error getting files in directory: %s", err)
+			errCh <- fmt.Errorf("error walking directory: %s", err)
+			return
+		}
+
+		errCh <- nil
+	}()
+
+	for i := 0; i < numRoutines; i++ {
+		err := <-errCh
+		if err != nil {
+			return nil, nil, err
 		}
 	}
 
-	ignored, err := GetPlandexIgnore()
-
-	if err != nil {
-		return nil, nil, err
-	}
-
-	if ignored != nil {
-		for path := range paths {
-			if ignored.MatchesPath(path) {
-				delete(paths, path)
-			}
-		}
+	for dir := range dirs {
+		paths[dir] = true
 	}
 
 	return paths, ignored, nil

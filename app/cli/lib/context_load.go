@@ -12,6 +12,7 @@ import (
 	"plandex/url"
 	"strings"
 
+	"github.com/fatih/color"
 	"github.com/plandex/plandex/shared"
 	ignore "github.com/sabhiram/go-gitignore"
 )
@@ -84,7 +85,7 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 			var filteredPaths []string
 			for _, inputFilePath := range inputFilePaths {
 				if _, ok := projectPaths[inputFilePath]; !ok {
-					if plandexIgnored.MatchesPath(inputFilePath) {
+					if plandexIgnored != nil && plandexIgnored.MatchesPath(inputFilePath) {
 						ignoredPaths[inputFilePath] = "plandex"
 					} else {
 						ignoredPaths[inputFilePath] = "git"
@@ -239,8 +240,7 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 	fmt.Println("✅ " + res.Msg)
 
 	if len(ignoredPaths) > 0 {
+		fmt.Println("ℹ️  " + color.New(color.FgWhite).Sprint("Due to .gitignore or .plandexignore, some paths weren't loaded.\nUse --force / -f to load ignored paths."))
 		fmt.Println()
-		fmt.Println("ℹ️ Due to .gitignore or .plandexignore, some paths weren't loaded. Use --force / -f to load ignored paths.")
-
 	}
 }

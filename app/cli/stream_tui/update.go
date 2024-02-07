@@ -1,7 +1,13 @@
 package streamtui
 
 import (
+	"fmt"
+	"log"
+	"os"
+	"plandex/api"
+	"plandex/lib"
 	"plandex/term"
+	"strings"
 	"time"
 
 	bubbleKey "github.com/charmbracelet/bubbles/key"
@@ -12,7 +18,7 @@ import (
 	"github.com/plandex/plandex/shared"
 )
 
-func (m *streamUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m streamUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// log.Println("Update received message:", spew.Sdump(msg))
 
 	switch msg := msg.(type) {
@@ -34,24 +40,35 @@ func (m *streamUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.finishedByPath[msg.path] = false
 
 	case tea.MouseMsg:
-		if msg.Type == tea.MouseWheelUp {
-			m.replyViewport.LineUp(3)
-		} else if msg.Type == tea.MouseWheelDown {
-			m.replyViewport.LineDown(3)
+		if !m.promptingMissingFile {
+			if msg.Type == tea.MouseWheelUp {
+				m.replyViewport.LineUp(3)
+			} else if msg.Type == tea.MouseWheelDown {
+				m.replyViewport.LineDown(3)
+			}
 		}
 
 	case tea.KeyMsg:
 		switch {
 		case bubbleKey.Matches(msg, m.keymap.quit):
 			return m, tea.Quit
-		case bubbleKey.Matches(msg, m.keymap.scrollDown):
+		case bubbleKey.Matches(msg, m.keymap.scrollDown) && !m.promptingMissingFile:
 			m.scrollDown()
-		case bubbleKey.Matches(msg, m.keymap.scrollUp):
+		case bubbleKey.Matches(msg, m.keymap.scrollUp) && !m.promptingMissingFile:
 			m.scrollUp()
-		case bubbleKey.Matches(msg, m.keymap.pageDown):
+		case bubbleKey.Matches(msg, m.keymap.pageDown) && !m.promptingMissingFile:
 			m.pageDown()
-		case bubbleKey.Matches(msg, m.keymap.pageUp):
+		case bubbleKey.Matches(msg, m.keymap.pageUp) && !m.promptingMissingFile:
 			m.pageUp()
+		case bubbleKey.Matches(msg, m.keymap.up):
+			m.up()
+		case bubbleKey.Matches(msg, m.keymap.down):
+			m.down()
+		case m.promptingMissingFile && bubbleKey.Matches(msg, m.keymap.enter):
+			m.selectedMissingFileOpt()
+
+		default:
+			m.resolveEscapeSequence(msg.String())
 		}
 	}
 
@@ -141,7 +158,31 @@ func (m *streamUIModel) pageUp() {
 }
 
 func (m *streamUIModel) streamUpdate(msg *shared.StreamMessage) (tea.Model, tea.Cmd) {
+	// log.Println("streamUI received message:", msg.Type)
 	switch msg.Type {
+
+	case shared.StreamMessagePromptMissingFile:
+		m.promptingMissingFile = true
+		m.missingFilePath = msg.MissingFilePath
+
+		bytes, err := os.ReadFile(m.missingFilePath)
+		if err != nil {
+			log.Println("failed to read file:", err)
+			m.err = fmt.Errorf("failed to read file: %w", err)
+			return m, nil
+		}
+		m.missingFileContent = string(bytes)
+
+		numTokens, err := shared.GetNumTokens(m.missingFileContent)
+
+		if err != nil {
+			log.Println("failed to get num tokens:", err)
+			m.err = fmt.Errorf("failed to get num tokens: %w", err)
+			return m, nil
+		}
+
+		m.missingFileTokens = numTokens
+
 	case shared.StreamMessageReply:
 		if m.starting {
 			m.starting = false
@@ -149,8 +190,14 @@ func (m *streamUIModel) streamUpdate(msg *shared.StreamMessage) (tea.Model, tea.
 
 		if m.processing {
 			m.processing = false
-			m.reply += "\n\n👉 "
+			if m.promptedMissingFile {
+				m.promptedMissingFile = false
+			} else {
+				m.reply += "\n\n👉 "
+			}
 		}
+
+		// log.Println("reply chunk:", msg.ReplyChunk)
 
 		m.reply += msg.ReplyChunk
 		m.updateReplyDisplay()
@@ -199,4 +246,87 @@ func startDelay(path string, delay time.Duration) tea.Cmd {
 		time.Sleep(delay)
 		return delayFileRestartMsg{path: path}
 	}
+}
+
+var escReceivedAt time.Time
+var escSeq string
+
+func (m *streamUIModel) resolveEscapeSequence(val string) {
+	if val == "esc" || val == "alt+[" {
+		escReceivedAt = time.Now()
+		go func() {
+			time.Sleep(51 * time.Millisecond)
+			escReceivedAt = time.Time{}
+			escSeq = ""
+		}()
+	}
+
+	if !escReceivedAt.IsZero() {
+		elapsed := time.Since(escReceivedAt)
+
+		if elapsed < 50*time.Millisecond {
+			escSeq += val
+
+			if escSeq == "esc[A" || escSeq == "alt+[A" {
+				// log.Println("up")
+				m.up()
+
+				escReceivedAt = time.Time{}
+				escSeq = ""
+			} else if escSeq == "esc[B" || escSeq == "alt+[B" {
+				// log.Println("down")
+				m.down()
+
+				escReceivedAt = time.Time{}
+				escSeq = ""
+			}
+		}
+	}
+}
+
+func (m *streamUIModel) up() {
+	if m.promptingMissingFile {
+		m.missingFileSelectedIdx = max(m.missingFileSelectedIdx-1, 0)
+	}
+}
+
+func (m *streamUIModel) down() {
+	if m.promptingMissingFile {
+		m.missingFileSelectedIdx = min(m.missingFileSelectedIdx+1, len(missingFileSelectOpts)-1)
+	}
+
+}
+
+func (m *streamUIModel) selectedMissingFileOpt() {
+	choice := promptChoices[m.missingFileSelectedIdx]
+
+	if choice == "" {
+		return
+	}
+
+	apiErr := api.Client.RespondMissingFile(lib.CurrentPlanId, lib.CurrentBranch, shared.RespondMissingFileRequest{
+		Choice:   choice,
+		FilePath: m.missingFilePath,
+		Body:     m.missingFileContent,
+	})
+
+	if apiErr != nil {
+		log.Println("missing file prompt api error:", apiErr)
+		m.apiErr = apiErr
+		return
+	}
+
+	if choice == shared.RespondMissingFileChoiceSkip {
+		replyLines := strings.Split(m.reply, "\n")
+		m.reply = strings.Join(replyLines[:len(replyLines)-3], "\n")
+		m.updateReplyDisplay()
+	}
+
+	m.promptingMissingFile = false
+	m.missingFilePath = ""
+	m.missingFileSelectedIdx = 0
+	m.missingFileContent = ""
+	m.missingFileTokens = 0
+	m.promptedMissingFile = true
+	m.processing = true
 }
