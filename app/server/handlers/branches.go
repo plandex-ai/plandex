@@ -28,11 +28,13 @@ func ListBranchesHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var err error
+
 	unlockFn := lockRepo(w, r, auth, db.LockScopeRead)
 	if unlockFn == nil {
 		return
 	} else {
-		defer (*unlockFn)()
+		defer (*unlockFn)(err)
 	}
 
 	branches, err := db.ListBranches(auth.OrgId, planId)
@@ -105,7 +107,7 @@ func CreateBranchHandler(w http.ResponseWriter, r *http.Request) {
 	if unlockFn == nil {
 		return
 	} else {
-		defer (*unlockFn)()
+		defer (*unlockFn)(err)
 	}
 
 	tx, err := db.Conn.Begin()
@@ -114,6 +116,17 @@ func CreateBranchHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Error starting transaction: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	// Ensure that rollback is attempted in case of failure
+	defer func() {
+		if err != nil {
+			if rbErr := tx.Rollback(); rbErr != nil {
+				log.Printf("transaction rollback error: %v\n", rbErr)
+			} else {
+				log.Println("transaction rolled back")
+			}
+		}
+	}()
 
 	_, err = db.CreateBranch(plan, parentBranch, req.Name, tx)
 

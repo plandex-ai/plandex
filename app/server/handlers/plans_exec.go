@@ -169,14 +169,15 @@ func StopPlanHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var err error
 	unlockFn := lockRepo(w, r, auth, db.LockScopeWrite)
 	if unlockFn == nil {
 		return
 	} else {
-		defer (*unlockFn)()
+		defer (*unlockFn)(err)
 	}
 
-	err := modelPlan.Stop(planId, branch, auth.User.Id, auth.OrgId)
+	err = modelPlan.Stop(planId, branch, auth.User.Id, auth.OrgId)
 
 	if err != nil {
 		log.Printf("Error stopping plan: %v\n", err)

@@ -69,7 +69,7 @@ func loadContexts(w http.ResponseWriter, r *http.Request, auth *types.ServerAuth
 	if unlockFn == nil {
 		return nil, nil
 	} else {
-		defer (*unlockFn)()
+		defer (*unlockFn)(err)
 	}
 
 	dbContextsCh := make(chan *db.Context)

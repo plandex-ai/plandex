@@ -25,11 +25,12 @@ func ListConvoHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var err error
 	unlockFn := lockRepo(w, r, auth, db.LockScopeRead)
 	if unlockFn == nil {
 		return
 	} else {
-		defer (*unlockFn)()
+		defer (*unlockFn)(err)
 	}
 
 	convoMessage, err := db.GetPlanConvo(auth.OrgId, planId)

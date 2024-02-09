@@ -75,7 +75,7 @@ func GitStashCreate(message string) error {
 	gitMutex.Lock()
 	defer gitMutex.Unlock()
 
-	res, err := exec.Command("git", "stash", "push", "-u", "-m", message).CombinedOutput()
+	res, err := exec.Command("git", "stash", "push", "--include-untracked", "-m", message).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("error creating git stash: %v, output: %s", err, string(res))
 	}
@@ -123,6 +123,25 @@ func GitStashPop(conflictStrategy string) error {
 	return nil
 }
 
+func GitClearUncommittedChanges() error {
+	gitMutex.Lock()
+	defer gitMutex.Unlock()
+
+	// Reset staged changes
+	res, err := exec.Command("git", "reset", "--hard").CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("error resetting staged changes | err: %v, output: %s", err, string(res))
+	}
+
+	// Clean untracked files
+	res, err = exec.Command("git", "clean", "-d", "-f").CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("error cleaning untracked files | err: %v, output: %s", err, string(res))
+	}
+
+	return nil
+}
+
 func parseConflictFiles(gitOutput string) []string {
 	var conflictFiles []string
 	lines := strings.Split(gitOutput, "\n")
@@ -143,16 +162,4 @@ func parseConflictFiles(gitOutput string) []string {
 		}
 	}
 	return conflictFiles
-}
-
-func GitClearUncommittedChanges() error {
-	gitMutex.Lock()
-	defer gitMutex.Unlock()
-
-	res, err := exec.Command("git", "checkout", ".").CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("error clearing uncommitted changes: %v, output: %s", err, string(res))
-	}
-
-	return nil
 }

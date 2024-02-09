@@ -31,11 +31,12 @@ func ListContextHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var err error
 	unlockFn := lockRepo(w, r, auth, db.LockScopeRead)
 	if unlockFn == nil {
 		return
 	} else {
-		defer (*unlockFn)()
+		defer (*unlockFn)(err)
 	}
 
 	dbContexts, err := db.GetPlanContexts(auth.OrgId, planId, false)
@@ -246,7 +247,7 @@ func UpdateContextHandler(w http.ResponseWriter, r *http.Request) {
 	if unlockFn == nil {
 		return
 	} else {
-		defer (*unlockFn)()
+		defer (*unlockFn)(err)
 	}
 
 	errCh = make(chan error)
@@ -361,7 +362,7 @@ func DeleteContextHandler(w http.ResponseWriter, r *http.Request) {
 	if unlockFn == nil {
 		return
 	} else {
-		defer (*unlockFn)()
+		defer (*unlockFn)(err)
 	}
 
 	dbContexts, err := db.GetPlanContexts(auth.OrgId, planId, false)

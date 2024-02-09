@@ -120,6 +120,24 @@ func GitDeleteBranch(orgId, planId, branchName string) error {
 	return nil
 }
 
+func GitClearUncommittedChanges(orgId, planId string) error {
+	dir := getPlanDir(orgId, planId)
+
+	// Reset staged changes
+	res, err := exec.Command("git", "-C", dir, "reset", "--hard").CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("error resetting staged changes | err: %v, output: %s", err, string(res))
+	}
+
+	// Clean untracked files
+	res, err = exec.Command("git", "-C", dir, "clean", "-d", "-f").CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("error cleaning untracked files | err: %v, output: %s", err, string(res))
+	}
+
+	return nil
+}
+
 func gitCheckoutBranch(repoDir, branch string) error {
 	// get current branch and only checkout if it's not the same
 	// trying to check out the same branch will result in an error

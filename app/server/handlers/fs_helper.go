@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"plandex-server/db"
@@ -9,7 +10,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
-func lockRepo(w http.ResponseWriter, r *http.Request, auth *types.ServerAuth, scope db.LockScope) *func() {
+func lockRepo(w http.ResponseWriter, r *http.Request, auth *types.ServerAuth, scope db.LockScope) *func(err error) {
 	vars := mux.Vars(r)
 	planId := vars["planId"]
 	branch := vars["branch"]
@@ -30,12 +31,34 @@ func lockRepo(w http.ResponseWriter, r *http.Request, auth *types.ServerAuth, sc
 		return nil
 	}
 
-	fn := func() {
-		err := db.UnlockRepo(repoLockId)
+	fn := func(err error) {
+
+		err = rollbackRepoIfErr(auth.OrgId, planId, err)
+		if err != nil {
+			log.Printf("Error rolling back repo: %v\n", err)
+		}
+
+		err = db.UnlockRepo(repoLockId)
 		if err != nil {
 			log.Printf("Error unlocking repo: %v\n", err)
 		}
 	}
 
 	return &fn
+}
+
+func rollbackRepoIfErr(orgId, planId string, err error) error {
+	// if no error, return nil
+	if err == nil {
+		return nil
+	}
+
+	// if any errors, rollback repo
+	err = db.GitClearUncommittedChanges(orgId, planId)
+
+	if err != nil {
+		return fmt.Errorf("error clearing uncommitted changes: %v", err)
+	}
+
+	return nil
 }

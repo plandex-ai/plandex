@@ -27,11 +27,13 @@ func CurrentPlanHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var err error
+
 	unlockFn := lockRepo(w, r, auth, db.LockScopeRead)
 	if unlockFn == nil {
 		return
 	} else {
-		defer (*unlockFn)()
+		defer (*unlockFn)(err)
 	}
 
 	planState, err := db.GetCurrentPlanState(db.CurrentPlanStateParams{
@@ -75,14 +77,15 @@ func ApplyPlanHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var err error
 	unlockFn := lockRepo(w, r, auth, db.LockScopeWrite)
 	if unlockFn == nil {
 		return
 	} else {
-		defer (*unlockFn)()
+		defer (*unlockFn)(err)
 	}
 
-	err := db.ApplyPlan(auth.OrgId, planId, branch)
+	err = db.ApplyPlan(auth.OrgId, planId, branch)
 
 	if err != nil {
 		log.Printf("Error applying plan: %v\n", err)
@@ -109,14 +112,15 @@ func RejectAllChangesHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var err error
 	unlockFn := lockRepo(w, r, auth, db.LockScopeWrite)
 	if unlockFn == nil {
 		return
 	} else {
-		defer (*unlockFn)()
+		defer (*unlockFn)(err)
 	}
 
-	err := db.RejectAllResults(auth.OrgId, planId)
+	err = db.RejectAllResults(auth.OrgId, planId)
 
 	if err != nil {
 		log.Printf("Error rejecting all changes: %v\n", err)
@@ -145,14 +149,15 @@ func RejectResultHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var err error
 	unlockFn := lockRepo(w, r, auth, db.LockScopeWrite)
 	if unlockFn == nil {
 		return
 	} else {
-		defer (*unlockFn)()
+		defer (*unlockFn)(err)
 	}
 
-	err := db.RejectPlanFileResult(auth.OrgId, planId, resultId, time.Now())
+	err = db.RejectPlanFileResult(auth.OrgId, planId, resultId, time.Now())
 
 	if err != nil {
 		log.Printf("Error rejecting result: %v\n", err)
@@ -182,14 +187,15 @@ func RejectReplacementHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var err error
 	unlockFn := lockRepo(w, r, auth, db.LockScopeWrite)
 	if unlockFn == nil {
 		return
 	} else {
-		defer (*unlockFn)()
+		defer (*unlockFn)(err)
 	}
 
-	err := db.RejectReplacement(auth.OrgId, planId, resultId, replacementId)
+	err = db.RejectReplacement(auth.OrgId, planId, resultId, replacementId)
 
 	if err != nil {
 		log.Printf("Error rejecting replacement: %v\n", err)
