@@ -437,13 +437,15 @@ func execPlanBuild(client *openai.Client, currentOrgId, currentUserId, branch st
 			timer := time.NewTimer(model.OPENAI_STREAM_CHUNK_TIMEOUT)
 			defer timer.Stop()
 
-			handleErrorRetry := func(maxRetryErr error, shouldSleep bool, isReplacementsRetry bool, res *db.PlanFileResult) {
+			handleErrorRetry := func(maxRetryErr error, shouldSleep bool, isReplacementsRetry bool, res *db.PlanFileResult) (shouldContinue bool) {
 				log.Printf("Error for file %s: %v\n", filePath, maxRetryErr)
 
 				if isReplacementsRetry && numReplacementsRetry >= MaxReplacementRetries {
 					// in this case, we just want to ignore the error and continue
+					return true
 				} else if !isReplacementsRetry && numRetry >= MaxRetries {
 					onBuildFileError(filePath, maxRetryErr)
+					return false
 				} else {
 					if shouldSleep {
 						time.Sleep(1 * time.Second * time.Duration(math.Pow(float64(numRetry+1), 2)))
@@ -456,6 +458,7 @@ func execPlanBuild(client *openai.Client, currentOrgId, currentUserId, branch st
 					if err != nil {
 						onBuildFileError(filePath, fmt.Errorf("failed to retry build plan for file '%s': %v", filePath, err))
 					}
+					return false
 				}
 
 			}
@@ -591,13 +594,15 @@ func execPlanBuild(client *openai.Client, currentOrgId, currentUserId, branch st
 							}
 
 							if numReplacementsRetry < MaxReplacementRetries {
-								handleErrorRetry(
+								shouldContinue := handleErrorRetry(
 									nil, // no error -- if we reach MAX_REPLACEMENT_RETRIES, we just ignore the error and continue
 									false,
 									true,
 									planFileResult,
 								)
-								return
+								if !shouldContinue {
+									return
+								}
 							}
 						}
 
