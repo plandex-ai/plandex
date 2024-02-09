@@ -56,6 +56,7 @@ func CreateActivePlan(planId, branch, prompt string) *types.ActivePlan {
 					if err != nil {
 						log.Printf("Error setting plan %s status to error: %v\n", planId, err)
 					}
+
 				}
 
 				activePlan.CancelFn()

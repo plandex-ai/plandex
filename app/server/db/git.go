@@ -48,6 +48,31 @@ func GitAddAndCommit(orgId, planId, branch, message string) error {
 	return nil
 }
 
+func GitAddAndAmendCommit(orgId, planId, branch, addMessage string) error {
+	dir := getPlanDir(orgId, planId)
+
+	err := gitAdd(dir, ".")
+	if err != nil {
+		return fmt.Errorf("error adding files to git repository for dir: %s, err: %v", dir, err)
+	}
+
+	// Get the latest commit message
+	_, latestCommitMsg, err := getLatestCommit(dir)
+	if err != nil {
+		return fmt.Errorf("error getting latest commit message for dir: %s, err: %v", dir, err)
+	}
+
+	// Amend the latest commit with the new message
+	message := latestCommitMsg + "\n\n" + addMessage
+	res, err := exec.Command("git", "-C", dir, "commit", "--amend", "-m", message).CombinedOutput()
+
+	if err != nil {
+		return fmt.Errorf("error amending commit for dir: %s, err: %v, output: %s", dir, err, string(res))
+	}
+
+	return nil
+}
+
 func GitRewindToSha(orgId, planId, branch, sha string) error {
 	dir := getPlanDir(orgId, planId)
 

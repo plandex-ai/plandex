@@ -33,7 +33,7 @@ func lockRepo(w http.ResponseWriter, r *http.Request, auth *types.ServerAuth, sc
 
 	fn := func(err error) {
 
-		err = rollbackRepoIfErr(auth.OrgId, planId, err)
+		err = RollbackRepoIfErr(auth.OrgId, planId, err)
 		if err != nil {
 			log.Printf("Error rolling back repo: %v\n", err)
 		}
@@ -47,7 +47,7 @@ func lockRepo(w http.ResponseWriter, r *http.Request, auth *types.ServerAuth, sc
 	return &fn
 }
 
-func rollbackRepoIfErr(orgId, planId string, err error) error {
+func RollbackRepoIfErr(orgId, planId string, err error) error {
 	// if no error, return nil
 	if err == nil {
 		return nil

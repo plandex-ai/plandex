@@ -155,7 +155,24 @@ func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *typ
 				return
 			}
 
-			err = db.RenamePlan(planId, name)
+			tx, err := db.Conn.Begin()
+			if err != nil {
+				log.Printf("Error starting transaction: %v\n", err)
+				errCh <- fmt.Errorf("error starting transaction: %v", err)
+			}
+
+			// Ensure that rollback is attempted in case of failure
+			defer func() {
+				if err != nil {
+					if rbErr := tx.Rollback(); rbErr != nil {
+						log.Printf("transaction rollback error: %v\n", rbErr)
+					} else {
+						log.Println("transaction rolled back")
+					}
+				}
+			}()
+
+			err = db.RenamePlan(planId, name, tx)
 
 			if err != nil {
 				log.Printf("Error renaming plan: %v\n", err)
@@ -163,11 +180,18 @@ func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *typ
 				return
 			}
 
-			err = db.IncNumNonDraftPlans(currentUserId)
+			err = db.IncNumNonDraftPlans(currentUserId, tx)
 
 			if err != nil {
 				log.Printf("Error incrementing num non draft plans: %v\n", err)
 				errCh <- fmt.Errorf("error incrementing num non draft plans: %v", err)
+				return
+			}
+
+			err = tx.Commit()
+			if err != nil {
+				log.Printf("Error committing transaction: %v\n", err)
+				errCh <- fmt.Errorf("error committing transaction: %v", err)
 				return
 			}
 		}
@@ -262,7 +286,16 @@ func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *typ
 	}()
 
 	err = func() error {
+		var err error
 		defer func() {
+			if err != nil {
+				log.Printf("Error: %v\n", err)
+				err = db.GitClearUncommittedChanges(auth.OrgId, planId)
+				if err != nil {
+					log.Printf("Error clearing uncommitted changes: %v\n", err)
+				}
+			}
+
 			err = db.UnlockRepo(repoLockId)
 			if err != nil {
 				log.Printf("Error unlocking repo: %v\n", err)
@@ -276,7 +309,7 @@ func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *typ
 		}()
 
 		for i := 0; i < 3; i++ {
-			err := <-errCh
+			err = <-errCh
 			if err != nil {
 				active.StreamDoneCh <- &shared.ApiError{
 					Type:   shared.ApiErrorTypeOther,
@@ -808,6 +841,14 @@ func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *typ
 					var shouldContinue bool
 					err = func() error {
 						defer func() {
+							if err != nil {
+								log.Printf("Error: %v\n", err)
+								err = db.GitClearUncommittedChanges(auth.OrgId, planId)
+								if err != nil {
+									log.Printf("Error clearing uncommitted changes: %v\n", err)
+								}
+							}
+
 							err = db.UnlockRepo(repoLockId)
 							if err != nil {
 								log.Printf("Error unlocking repo: %v\n", err)
@@ -876,7 +917,7 @@ func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *typ
 						}()
 
 						for i := 0; i < 2; i++ {
-							err := <-errCh
+							err = <-errCh
 							if err != nil {
 								return err
 							}

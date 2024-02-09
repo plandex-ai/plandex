@@ -131,6 +131,28 @@ func execPlanBuild(client *openai.Client, currentOrgId, currentUserId, branch st
 	onFinishBuild := func() {
 		log.Println("Build finished")
 
+		// get fresh current plan state
+		currentPlan, err := db.GetCurrentPlanState(db.CurrentPlanStateParams{
+			OrgId:  currentOrgId,
+			PlanId: planId,
+		})
+		if err != nil {
+			errCh <- fmt.Errorf("error getting current plan state: %v", err)
+			return
+		}
+
+		err = db.GitAddAndAmendCommit(currentOrgId, planId, branch, currentPlan.PendingChangesSummary())
+
+		if err != nil {
+			log.Printf("Error committing plan build: %v\n", err)
+			activePlan.StreamDoneCh <- &shared.ApiError{
+				Type:   shared.ApiErrorTypeOther,
+				Status: http.StatusInternalServerError,
+				Msg:    "Error committing plan build: " + err.Error(),
+			}
+			return
+		}
+
 		if GetActivePlan(planId, branch).RepliesFinished {
 			activePlan.Stream(shared.StreamMessage{
 				Type: shared.StreamMessageFinished,
@@ -163,7 +185,16 @@ func execPlanBuild(client *openai.Client, currentOrgId, currentUserId, branch st
 		}
 
 		err = func() error {
+			var err error
 			defer func() {
+				if err != nil {
+					log.Printf("Error: %v\n", err)
+					err = db.GitClearUncommittedChanges(currentOrgId, planId)
+					if err != nil {
+						log.Printf("Error clearing uncommitted changes: %v\n", err)
+					}
+				}
+
 				err := db.UnlockRepo(repoLockId)
 				if err != nil {
 					log.Printf("Error unlocking repo: %v\n", err)

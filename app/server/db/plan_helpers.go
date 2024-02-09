@@ -215,8 +215,8 @@ func SetPlanStatus(planId, branch string, status shared.PlanStatus, errStr strin
 	return nil
 }
 
-func RenamePlan(planId string, name string) error {
-	_, err := Conn.Exec("UPDATE plans SET name = $1 WHERE id = $2", name, planId)
+func RenamePlan(planId string, name string, tx *sql.Tx) error {
+	_, err := tx.Exec("UPDATE plans SET name = $1 WHERE id = $2", name, planId)
 
 	if err != nil {
 		return fmt.Errorf("error renaming plan: %v", err)
@@ -235,8 +235,8 @@ func IncActiveBranches(planId string, inc int, tx *sql.Tx) error {
 	return nil
 }
 
-func IncNumNonDraftPlans(userId string) error {
-	_, err := Conn.Exec("UPDATE users SET num_non_draft_plans = num_non_draft_plans + 1 WHERE id = $1", userId)
+func IncNumNonDraftPlans(userId string, tx *sql.Tx) error {
+	_, err := tx.Exec("UPDATE users SET num_non_draft_plans = num_non_draft_plans + 1 WHERE id = $1", userId)
 
 	if err != nil {
 		return fmt.Errorf("error updating user num_non_draft_plans: %v", err)
