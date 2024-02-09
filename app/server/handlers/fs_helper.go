@@ -14,7 +14,16 @@ func lockRepo(w http.ResponseWriter, r *http.Request, auth *types.ServerAuth, sc
 	planId := vars["planId"]
 	branch := vars["branch"]
 
-	repoLockId, err := db.LockRepo(auth.OrgId, auth.User.Id, planId, branch, db.LockScopeRead)
+	repoLockId, err := db.LockRepo(
+		db.LockRepoParams{
+			OrgId:  auth.OrgId,
+			UserId: auth.User.Id,
+			PlanId: planId,
+			Branch: branch,
+			Scope:  scope,
+		},
+	)
+
 	if err != nil {
 		log.Printf("Error locking repo: %v\n", err)
 		http.Error(w, "Error locking repo: "+err.Error(), http.StatusInternalServerError)

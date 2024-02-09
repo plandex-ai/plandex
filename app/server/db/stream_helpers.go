@@ -1,13 +1,17 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"log"
 	"time"
 )
 
-func StoreModelStream(stream *ModelStream) error {
+const modelStreamHeartbeatInterval = 1 * time.Second
+const modelStreamHeartbeatTimeout = 5 * time.Second
+
+func StoreModelStream(stream *ModelStream, ctx context.Context, cancelFn context.CancelFunc) error {
 	query := `INSERT INTO model_streams (org_id, plan_id, internal_ip, branch) VALUES (:org_id, :plan_id, :internal_ip, :branch) RETURNING id, created_at`
 
 	row, err := Conn.NamedQuery(query, stream)
@@ -28,6 +32,39 @@ func StoreModelStream(stream *ModelStream) error {
 		stream.Id = id
 		stream.CreatedAt = createdAt
 	}
+
+	// Start a goroutine to keep the lock alive
+	go func() {
+		numErrors := 0
+		for {
+			select {
+			case <-ctx.Done():
+				log.Printf("case <-stream.Ctx.Done(): %s\n", stream.Id)
+				err := SetModelStreamFinished(stream.Id)
+				if err != nil {
+					log.Printf("Error setting model stream %s finished: %v\n", stream.Id, err)
+				}
+				return
+
+			default:
+				_, err := Conn.Exec("UPDATE model_streams SET last_heartbeat_at = NOW() WHERE id = $1", stream.Id)
+
+				if err != nil {
+					log.Printf("Error updating model stream last heartbeat: %v\n", err)
+					numErrors++
+
+					if numErrors > 5 {
+						log.Printf("Too many errors updating model stream last heartbeat: %v\n", err)
+						cancelFn()
+						return
+					}
+				}
+
+				time.Sleep(modelStreamHeartbeatInterval)
+			}
+
+		}
+	}()
 
 	return nil
 }
@@ -56,6 +93,18 @@ func GetActiveModelStream(planId, branch string) (*ModelStream, error) {
 		}
 
 		return nil, fmt.Errorf("error getting active model stream: %v", err)
+	}
+
+	if time.Now().Add(-modelStreamHeartbeatTimeout).After(stream.LastHeartbeatAt) {
+		log.Printf("Model stream %s has not sent a heartbeat in %s\n", stream.Id, modelStreamHeartbeatTimeout)
+
+		err := SetModelStreamFinished(stream.Id)
+
+		if err != nil {
+			return nil, fmt.Errorf("error setting model stream finished: %v", err)
+		}
+
+		return nil, nil
 	}
 
 	return &stream, nil

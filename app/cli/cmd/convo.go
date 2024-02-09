@@ -25,6 +25,8 @@ func init() {
 	RootCmd.AddCommand(convoCmd)
 }
 
+const stoppedEarlyMsg = "You stopped the reply early"
+
 func convo(cmd *cobra.Command, args []string) {
 	auth.MustResolveAuthWithOrg()
 	lib.MustResolveProject()
@@ -46,9 +48,6 @@ func convo(cmd *cobra.Command, args []string) {
 		var author string
 		if msg.Role == "assistant" {
 			author = "🤖 Plandex"
-			if msg.Stopped {
-				author += " | 🛑 stopped early"
-			}
 		} else if msg.Role == "user" {
 			author = "💬 You"
 		} else {
@@ -71,6 +70,11 @@ func convo(cmd *cobra.Command, args []string) {
 		header := fmt.Sprintf("#### %d | %s | %s | %d 🪙 ", i+1,
 			author, formattedTs, msg.Tokens)
 		convMarkdown = append(convMarkdown, header, msg.Message, "")
+
+		if msg.Stopped {
+			convMarkdown = append(convMarkdown, fmt.Sprintf("🛑 **%s**", stoppedEarlyMsg), "")
+		}
+
 		totalTokens += msg.Tokens
 	}
 
@@ -79,6 +83,8 @@ func convo(cmd *cobra.Command, args []string) {
 		fmt.Fprintln(os.Stderr, "Error creating markdown representation:", err)
 		return
 	}
+
+	markdownString = strings.ReplaceAll(markdownString, stoppedEarlyMsg, color.New(color.FgHiRed).Sprint(stoppedEarlyMsg))
 
 	output :=
 		fmt.Sprintf("\n%s", markdownString) +

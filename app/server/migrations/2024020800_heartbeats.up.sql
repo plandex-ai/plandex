@@ -1,0 +1,2 @@
+ALTER TABLE repo_locks ADD COLUMN last_heartbeat_at TIMESTAMP NOT NULL DEFAULT NOW();
+ALTER TABLE model_streams ADD COLUMN last_heartbeat_at TIMESTAMP NOT NULL DEFAULT NOW();

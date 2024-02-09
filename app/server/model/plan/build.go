@@ -142,13 +142,15 @@ func execPlanBuild(client *openai.Client, currentOrgId, currentUserId, branch st
 		finished := false
 		log.Println("onFinishBuildFile: " + filePath)
 
-		repoLockId, err := db.LockRepoForBuild(
-			currentOrgId,
-			currentUserId,
-			planId,
-			planRes.PlanBuildId,
-			branch,
-			db.LockScopeWrite,
+		repoLockId, err := db.LockRepo(
+			db.LockRepoParams{
+				OrgId:       currentOrgId,
+				UserId:      currentUserId,
+				PlanId:      planId,
+				Branch:      branch,
+				PlanBuildId: build.Id,
+				Scope:       db.LockScopeWrite,
+			},
 		)
 		if err != nil {
 			log.Printf("Error locking repo for build file: %v\n", err)

@@ -251,13 +251,14 @@ func (role *OrgRole) ToApi() *shared.OrgRole {
 }
 
 type ModelStream struct {
-	Id         string     `db:"id"`
-	OrgId      string     `db:"org_id"`
-	PlanId     string     `db:"plan_id"`
-	InternalIp string     `db:"internal_ip"`
-	Branch     string     `db:"branch"`
-	CreatedAt  time.Time  `db:"created_at"`
-	FinishedAt *time.Time `db:"finished_at"`
+	Id              string     `db:"id"`
+	OrgId           string     `db:"org_id"`
+	PlanId          string     `db:"plan_id"`
+	InternalIp      string     `db:"internal_ip"`
+	Branch          string     `db:"branch"`
+	LastHeartbeatAt time.Time  `db:"last_heartbeat_at"`
+	CreatedAt       time.Time  `db:"created_at"`
+	FinishedAt      *time.Time `db:"finished_at"`
 }
 
 // type ModelStreamSubscription struct {
@@ -279,14 +280,15 @@ const (
 )
 
 type repoLock struct {
-	Id          string    `db:"id"`
-	OrgId       string    `db:"org_id"`
-	UserId      string    `db:"user_id"`
-	PlanId      string    `db:"plan_id"`
-	Scope       LockScope `db:"scope"`
-	Branch      *string   `db:"branch"`
-	PlanBuildId *string   `db:"plan_build_id"`
-	CreatedAt   time.Time `db:"created_at"`
+	Id              string    `db:"id"`
+	OrgId           string    `db:"org_id"`
+	UserId          string    `db:"user_id"`
+	PlanId          string    `db:"plan_id"`
+	Scope           LockScope `db:"scope"`
+	Branch          *string   `db:"branch"`
+	PlanBuildId     *string   `db:"plan_build_id"`
+	LastHeartbeatAt time.Time `db:"last_heartbeat_at"`
+	CreatedAt       time.Time `db:"created_at"`
 }
 
 // Models below are stored in files, not in the database.

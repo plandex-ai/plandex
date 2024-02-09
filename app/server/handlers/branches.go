@@ -157,7 +157,16 @@ func DeleteBranchHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	repoLockId, err := db.LockRepo(auth.OrgId, auth.User.Id, planId, "main", db.LockScopeRead)
+	repoLockId, err := db.LockRepo(
+		db.LockRepoParams{
+			OrgId:  auth.OrgId,
+			UserId: auth.User.Id,
+			PlanId: planId,
+			Branch: "main",
+			Scope:  db.LockScopeRead,
+		},
+	)
+
 	if err != nil {
 		log.Printf("Error locking repo: %v\n", err)
 		http.Error(w, "Error locking repo: "+err.Error(), http.StatusInternalServerError)

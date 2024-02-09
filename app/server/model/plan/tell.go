@@ -58,7 +58,7 @@ func Tell(client *openai.Client, plan *db.Plan, branch string, auth *types.Serve
 		InternalIp: host.Ip,
 		Branch:     branch,
 	}
-	err = db.StoreModelStream(modelStream)
+	err = db.StoreModelStream(modelStream, active.ModelStreamCtx, active.CancelModelStreamFn)
 	if err != nil {
 		log.Printf("Tell: Error storing model stream for plan ID %s on branch %s: %v\n", plan.Id, branch, err) // Log error storing model stream
 		log.Printf("Error storing model stream: %v\n", err)
@@ -119,7 +119,15 @@ func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *typ
 	if iteration > 0 || missingFileResponse != "" {
 		lockScope = db.LockScopeRead
 	}
-	repoLockId, err := db.LockRepo(auth.OrgId, auth.User.Id, planId, branch, lockScope)
+	repoLockId, err := db.LockRepo(
+		db.LockRepoParams{
+			OrgId:  auth.OrgId,
+			UserId: auth.User.Id,
+			PlanId: planId,
+			Branch: branch,
+			Scope:  lockScope,
+		},
+	)
 
 	if err != nil {
 		log.Printf("execTellPlan: Error locking repo for plan ID %s on branch %s: %v\n", plan.Id, branch, err) // Log error locking repo
@@ -728,6 +736,11 @@ func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *typ
 				}
 
 				if err != nil {
+					if err.Error() == "context canceled" {
+						log.Println("Tell: stream context canceled")
+						return
+					}
+
 					onError(fmt.Errorf("stream error: %v", err), true, "", "")
 					return
 				}
@@ -756,7 +769,6 @@ func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *typ
 						onError(fmt.Errorf("failed to set plan status to describing: %v", err), true, "", "")
 						return
 					}
-
 					// log.Println("summarize convo:", spew.Sdump(convo))
 
 					if len(convo) > 0 {
@@ -771,7 +783,27 @@ func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *typ
 						})
 					}
 
-					repoLockId, err := db.LockRepo(auth.OrgId, auth.User.Id, planId, branch, db.LockScopeWrite)
+					repoLockId, err := db.LockRepo(
+						db.LockRepoParams{
+							OrgId:    currentOrgId,
+							UserId:   currentUserId,
+							PlanId:   planId,
+							Branch:   branch,
+							Scope:    db.LockScopeWrite,
+							Ctx:      active.Ctx,
+							CancelFn: active.CancelFn,
+						},
+					)
+
+					if err != nil {
+						log.Printf("Error locking repo: %v\n", err)
+						active.StreamDoneCh <- &shared.ApiError{
+							Type:   shared.ApiErrorTypeOther,
+							Status: http.StatusInternalServerError,
+							Msg:    "Error locking repo",
+						}
+						return
+					}
 
 					var shouldContinue bool
 					err = func() error {
@@ -833,7 +865,6 @@ func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *typ
 						}()
 
 						go func() {
-
 							shouldContinue, err = ExecStatusShouldContinue(client, assistantMsg.Message, active.Ctx)
 							if err != nil {
 								onError(fmt.Errorf("failed to get exec status: %v", err), false, assistantMsg.Id, convoCommitMsg)

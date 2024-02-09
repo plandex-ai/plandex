@@ -26,6 +26,7 @@ func proxyActivePlanMethod(w http.ResponseWriter, r *http.Request, planId, branc
 	}
 
 	if modelStream.InternalIp == host.Ip {
+		// No active plan for this plan or else we wouldn't be calling proxyActivePlanMethod -- set the model stream to finished because something went wrong
 		db.SetModelStreamFinished(modelStream.Id)
 		log.Printf("No active plan for plan %s\n", planId)
 		http.Error(w, "No active plan for plan", http.StatusNotFound)

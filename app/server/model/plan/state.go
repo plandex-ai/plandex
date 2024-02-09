@@ -29,12 +29,7 @@ func CreateActivePlan(planId, branch, prompt string) *types.ActivePlan {
 			case <-activePlan.Ctx.Done():
 				log.Printf("case <-activePlan.Ctx.Done(): %s\n", planId)
 
-				err := db.SetModelStreamFinished(activePlan.ModelStreamId)
-				if err != nil {
-					log.Printf("Error setting model stream %s finished: %v\n", activePlan.ModelStreamId, err)
-				}
-
-				err = db.SetPlanStatus(planId, branch, shared.PlanStatusStopped, "")
+				err := db.SetPlanStatus(planId, branch, shared.PlanStatusStopped, "")
 				if err != nil {
 					log.Printf("Error setting plan %s status to stopped: %v\n", planId, err)
 				}
@@ -61,11 +56,6 @@ func CreateActivePlan(planId, branch, prompt string) *types.ActivePlan {
 					if err != nil {
 						log.Printf("Error setting plan %s status to error: %v\n", planId, err)
 					}
-				}
-
-				err := db.SetModelStreamFinished(activePlan.ModelStreamId)
-				if err != nil {
-					log.Printf("Error setting model stream %s finished: %v\n", activePlan.ModelStreamId, err)
 				}
 
 				activePlan.CancelFn()

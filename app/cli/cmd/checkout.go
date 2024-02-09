@@ -9,6 +9,7 @@ import (
 	"plandex/term"
 	"strings"
 
+	"github.com/fatih/color"
 	"github.com/plandex/plandex/shared"
 	"github.com/spf13/cobra"
 )
@@ -119,7 +120,7 @@ func checkout(cmd *cobra.Command, args []string) {
 		}
 
 		term.StopSpinner()
-		fmt.Printf("✅ Created branch '%s'\n", branchName)
+		fmt.Printf("✅ Created branch %s\n", color.New(color.Bold, color.FgHiGreen).Sprint(branchName))
 	}
 
 	err := lib.WriteCurrentBranch(branchName)
@@ -129,7 +130,7 @@ func checkout(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	fmt.Printf("✅ Checked out branch '%s'\n", branchName)
+	fmt.Printf("✅ Checked out branch %s\n", color.New(color.Bold, color.FgHiGreen).Sprint(branchName))
 
 	fmt.Println()
 	term.PrintCmds("", "load", "tell", "branches", "delete-branch")

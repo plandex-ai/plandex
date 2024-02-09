@@ -14,8 +14,6 @@ func Stop(planId, branch, currentUserId, currentOrgId string) error {
 		return fmt.Errorf("no active plan with id %s", planId)
 	}
 
-	content := active.CurrentReplyContent
-
 	active.CancelFn()
 
 	userMsg := db.ConvoMessage{
@@ -26,7 +24,7 @@ func Stop(planId, branch, currentUserId, currentOrgId string) error {
 		Tokens:  active.NumTokens,
 		Num:     active.PromptMessageNum + 1,
 		Stopped: true,
-		Message: content,
+		Message: active.CurrentReplyContent,
 	}
 
 	_, err := db.StoreConvoMessage(&userMsg, currentUserId, branch, true)
