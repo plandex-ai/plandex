@@ -132,13 +132,11 @@ func (m changesUIModel) renderScrollFooter() string {
 	var footer string
 
 	if m.selectedNewFile() || m.selectedFullFile() {
-		footer = `(j/k) scroll down/up • (d/u) page down/up`
+		footer = `(j/k) scroll • (d/u) page • (g/G) start/end`
 	} else {
 		footer = ` (j/k) scroll`
 		if m.oldScrollable() && m.newScrollable() {
 			footer += ` • (tab) switch view`
-		} else {
-			footer += ` down/up`
 		}
 	}
 

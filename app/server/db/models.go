@@ -362,6 +362,7 @@ type ConvoMessageDescription struct {
 	CommitMsg             string     `json:"commitMsg"`
 	Files                 []string   `json:"files"`
 	Error                 string     `json:"error"`
+	DidBuild              bool       `json:"didBuild"`
 	AppliedAt             *time.Time `json:"appliedAt,omitempty"`
 	CreatedAt             time.Time  `json:"createdAt"`
 	UpdatedAt             time.Time  `json:"updatedAt"`
@@ -375,6 +376,7 @@ func (desc *ConvoMessageDescription) ToApi() *shared.ConvoMessageDescription {
 		MadePlan:              desc.MadePlan,
 		CommitMsg:             desc.CommitMsg,
 		Files:                 desc.Files,
+		DidBuild:              desc.DidBuild,
 		Error:                 desc.Error,
 		CreatedAt:             desc.CreatedAt,
 		UpdatedAt:             desc.UpdatedAt,

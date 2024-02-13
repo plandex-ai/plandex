@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -32,7 +33,8 @@ func ListContextHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var err error
-	unlockFn := lockRepo(w, r, auth, db.LockScopeRead)
+	ctx, cancel := context.WithCancel(context.Background())
+	unlockFn := lockRepo(w, r, auth, db.LockScopeRead, ctx, cancel)
 	if unlockFn == nil {
 		return
 	} else {
@@ -243,7 +245,8 @@ func UpdateContextHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	unlockFn := lockRepo(w, r, auth, db.LockScopeWrite)
+	ctx, cancel := context.WithCancel(context.Background())
+	unlockFn := lockRepo(w, r, auth, db.LockScopeWrite, ctx, cancel)
 	if unlockFn == nil {
 		return
 	} else {
@@ -358,7 +361,8 @@ func DeleteContextHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	unlockFn := lockRepo(w, r, auth, db.LockScopeWrite)
+	ctx, cancel := context.WithCancel(context.Background())
+	unlockFn := lockRepo(w, r, auth, db.LockScopeWrite, ctx, cancel)
 	if unlockFn == nil {
 		return
 	} else {

@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -29,7 +30,8 @@ func CurrentPlanHandler(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 
-	unlockFn := lockRepo(w, r, auth, db.LockScopeRead)
+	ctx, cancel := context.WithCancel(context.Background())
+	unlockFn := lockRepo(w, r, auth, db.LockScopeRead, ctx, cancel)
 	if unlockFn == nil {
 		return
 	} else {
@@ -78,7 +80,8 @@ func ApplyPlanHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var err error
-	unlockFn := lockRepo(w, r, auth, db.LockScopeWrite)
+	ctx, cancel := context.WithCancel(context.Background())
+	unlockFn := lockRepo(w, r, auth, db.LockScopeWrite, ctx, cancel)
 	if unlockFn == nil {
 		return
 	} else {
@@ -113,7 +116,8 @@ func RejectAllChangesHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var err error
-	unlockFn := lockRepo(w, r, auth, db.LockScopeWrite)
+	ctx, cancel := context.WithCancel(context.Background())
+	unlockFn := lockRepo(w, r, auth, db.LockScopeWrite, ctx, cancel)
 	if unlockFn == nil {
 		return
 	} else {
@@ -150,7 +154,8 @@ func RejectResultHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var err error
-	unlockFn := lockRepo(w, r, auth, db.LockScopeWrite)
+	ctx, cancel := context.WithCancel(context.Background())
+	unlockFn := lockRepo(w, r, auth, db.LockScopeWrite, ctx, cancel)
 	if unlockFn == nil {
 		return
 	} else {
@@ -188,7 +193,8 @@ func RejectReplacementHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var err error
-	unlockFn := lockRepo(w, r, auth, db.LockScopeWrite)
+	ctx, cancel := context.WithCancel(context.Background())
+	unlockFn := lockRepo(w, r, auth, db.LockScopeWrite, ctx, cancel)
 	if unlockFn == nil {
 		return
 	} else {

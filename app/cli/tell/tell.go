@@ -2,6 +2,7 @@ package tell
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"plandex/api"
 	"plandex/auth"
@@ -14,7 +15,7 @@ import (
 	"github.com/plandex/plandex/shared"
 )
 
-func TellPlan(prompt string, tellBg, tellStep bool) {
+func TellPlan(prompt string, tellBg, tellStop, tellNoBuild bool) {
 	projectPaths, _, err := fs.GetProjectPaths()
 
 	if err != nil {
@@ -22,36 +23,29 @@ func TellPlan(prompt string, tellBg, tellStep bool) {
 		return
 	}
 
-	promptingTrialExceeded := false
+	log.Println("tellNoBuild:", tellNoBuild)
+
 	var fn func() bool
 	fn = func() bool {
-		if !tellBg {
-			go func() {
-				err := streamtui.StartStreamUI()
 
-				if err != nil {
-					fmt.Fprintln(os.Stderr, "Error starting stream UI:", err)
-					os.Exit(1)
-				}
-
-				if !promptingTrialExceeded {
-					os.Exit(0)
-				}
-			}()
+		var buildMode shared.BuildMode
+		if tellNoBuild {
+			buildMode = shared.BuildModeNone
+		} else {
+			buildMode = shared.BuildModeAuto
 		}
 
 		apiErr := api.Client.TellPlan(lib.CurrentPlanId, lib.CurrentBranch, shared.TellPlanRequest{
 			Prompt:        prompt,
 			ConnectStream: !tellBg,
-			AutoContinue:  !tellStep,
+			AutoContinue:  !tellStop,
 			ProjectPaths:  projectPaths,
+			BuildMode:     buildMode,
 			ApiKey:        os.Getenv("OPENAI_API_KEY"),
 		}, stream.OnStreamPlan)
 		if apiErr != nil {
 			if apiErr.Type == shared.ApiErrorTypeTrialMessagesExceeded {
-				promptingTrialExceeded = true
 				streamtui.Quit()
-				promptingTrialExceeded = false
 
 				fmt.Fprintf(os.Stderr, "\n🚨 You've reached the free trial limit of %d messages per plan\n", apiErr.TrialMessagesExceededError.MaxReplies)
 
@@ -76,6 +70,28 @@ func TellPlan(prompt string, tellBg, tellStep bool) {
 
 			fmt.Fprintln(os.Stderr, "Prompt error:", apiErr.Msg)
 			return false
+		}
+
+		if !tellBg {
+			go func() {
+				err := streamtui.StartStreamUI(prompt, false)
+
+				if err != nil {
+					log.Printf("Error starting stream UI: %v\n", err)
+					os.Exit(1)
+				}
+
+				fmt.Println()
+
+				if tellStop {
+					term.PrintCmds("", "continue", "convo", "changes", "log", "rewind")
+				} else if tellNoBuild {
+					term.PrintCmds("", "build", "convo", "log", "rewind")
+				} else {
+					term.PrintCmds("", "changes", "log", "rewind")
+				}
+				os.Exit(0)
+			}()
 		}
 
 		return true

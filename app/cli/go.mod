@@ -11,7 +11,7 @@ require (
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/plandex-ai/survey/v2 v2.0.0-00010101000000-000000000000
 	github.com/spf13/cobra v1.8.0
-	golang.org/x/term v0.14.0
+	golang.org/x/term v0.17.0
 )
 
 require (
@@ -41,7 +41,7 @@ require (
 	github.com/yuin/goldmark-emoji v1.0.2 // indirect
 	golang.org/x/net v0.18.0 // indirect
 	golang.org/x/sync v0.5.0 // indirect
-	golang.org/x/sys v0.14.0 // indirect
+	golang.org/x/sys v0.17.0 // indirect
 )
 
 require (
@@ -60,6 +60,7 @@ require (
 	github.com/plandex/plandex/shared v0.0.0-00010101000000-000000000000
 	github.com/sabhiram/go-gitignore v0.0.0-20210923224102-525f6e181f06
 	github.com/spf13/pflag v1.0.5 // indirect
+	golang.org/x/crypto v0.19.0
 	golang.org/x/text v0.14.0 // indirect
 )
 

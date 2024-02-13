@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -10,18 +11,20 @@ import (
 	"github.com/gorilla/mux"
 )
 
-func lockRepo(w http.ResponseWriter, r *http.Request, auth *types.ServerAuth, scope db.LockScope) *func(err error) {
+func lockRepo(w http.ResponseWriter, r *http.Request, auth *types.ServerAuth, scope db.LockScope, ctx context.Context, cancelFn context.CancelFunc) *func(err error) {
 	vars := mux.Vars(r)
 	planId := vars["planId"]
 	branch := vars["branch"]
 
 	repoLockId, err := db.LockRepo(
 		db.LockRepoParams{
-			OrgId:  auth.OrgId,
-			UserId: auth.User.Id,
-			PlanId: planId,
-			Branch: branch,
-			Scope:  scope,
+			OrgId:    auth.OrgId,
+			UserId:   auth.User.Id,
+			PlanId:   planId,
+			Branch:   branch,
+			Scope:    scope,
+			Ctx:      ctx,
+			CancelFn: cancelFn,
 		},
 	)
 

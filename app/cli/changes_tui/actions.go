@@ -138,6 +138,26 @@ func (m *changesUIModel) pageDown() {
 	}
 }
 
+func (m *changesUIModel) start() {
+	if m.selectionInfo.currentRep == nil && m.fileScrollable() {
+		m.fileViewport.GotoTop()
+	} else if m.selectedViewport == 0 && m.oldScrollable() {
+		m.changeOldViewport.GotoTop()
+	} else if m.newScrollable() {
+		m.changeNewViewport.GotoTop()
+	}
+}
+
+func (m *changesUIModel) end() {
+	if m.selectionInfo.currentRep == nil && m.fileScrollable() {
+		m.fileViewport.GotoBottom()
+	} else if m.selectedViewport == 0 && m.oldScrollable() {
+		m.changeOldViewport.GotoBottom()
+	} else if m.newScrollable() {
+		m.changeNewViewport.GotoBottom()
+	}
+}
+
 func (m *changesUIModel) switchView() {
 	m.selectedViewport = 1 - m.selectedViewport
 	m.updateMainView(false)

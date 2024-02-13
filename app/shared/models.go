@@ -41,6 +41,7 @@ const (
 	PlanStatusDraft      PlanStatus = "draft"
 	PlanStatusReplying   PlanStatus = "replying"
 	PlanStatusDescribing PlanStatus = "describing"
+	PlanStatusBuilding   PlanStatus = "building"
 	PlanStatusPrompting  PlanStatus = "prompting"
 	PlanStatusFinished   PlanStatus = "finished"
 	PlanStatusStopped    PlanStatus = "stopped"
@@ -125,6 +126,7 @@ type ConvoMessageDescription struct {
 	MadePlan              bool       `json:"madePlan"`
 	CommitMsg             string     `json:"commitMsg"`
 	Files                 []string   `json:"files"`
+	DidBuild              bool       `json:"didBuild"`
 	Error                 string     `json:"error"`
 	AppliedAt             *time.Time `json:"appliedAt,omitempty"`
 	CreatedAt             time.Time  `json:"createdAt"`

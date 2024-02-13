@@ -39,7 +39,7 @@ func StoreModelStream(stream *ModelStream, ctx context.Context, cancelFn context
 		for {
 			select {
 			case <-ctx.Done():
-				log.Printf("case <-stream.Ctx.Done(): %s\n", stream.Id)
+				// log.Printf("case <-stream.Ctx.Done(): %s\n", stream.Id)
 				err := SetModelStreamFinished(stream.Id)
 				if err != nil {
 					log.Printf("Error setting model stream %s finished: %v\n", stream.Id, err)
@@ -105,6 +105,8 @@ func GetActiveModelStream(planId, branch string) (*ModelStream, error) {
 		}
 
 		return nil, nil
+	} else {
+		log.Printf("Model stream %s sent heartbeat %d seconds ago\n", stream.Id, int(time.Since(stream.LastHeartbeatAt).Seconds()))
 	}
 
 	return &stream, nil

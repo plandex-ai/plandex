@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"plandex-server/db"
-	"plandex-server/host"
 	"plandex-server/model"
 	"plandex-server/model/lib"
 	"plandex-server/model/prompts"
@@ -23,69 +22,39 @@ import (
 )
 
 func Tell(client *openai.Client, plan *db.Plan, branch string, auth *types.ServerAuth, req *shared.TellPlanRequest) error {
-	log.Printf("Tell: Called with plan ID %s on branch %s\n", plan.Id, branch) // Log the function call with plan ID and branch
-	log.Println("Tell: Starting Tell operation")                               // Log start of Tell operation
-	// goEnv := os.Getenv("GOENV") // Fetch the GOENV environment variable
+	log.Printf("Tell: Called with plan ID %s on branch %s\n", plan.Id, branch)
 
-	// log.Println("GOENV: " + goEnv)
-	// if goEnv == "test" {
-	// 	streamLoremIpsum(onStream)
-	// 	return nil
-	// }
+	active, err := activatePlan(client, plan, branch, auth, req.Prompt, false)
 
-	active := GetActivePlan(plan.Id, branch)
-	if active != nil {
-		log.Printf("Tell: Active plan found for plan ID %s on branch %s\n", plan.Id, branch) // Log if an active plan is found
-		return fmt.Errorf("plan %s branch %s already has an active stream on this host", plan.Id, branch)
-	}
-
-	modelStream, err := db.GetActiveModelStream(plan.Id, branch)
 	if err != nil {
-		log.Printf("Error getting active model stream: %v\n", err)
-		return fmt.Errorf("error getting active model stream: %v", err)
+		log.Printf("Error activating plan: %v\n", err)
+		return err
 	}
 
-	if modelStream != nil {
-		log.Printf("Tell: Active model stream found for plan ID %s on branch %s on host %s\n", plan.Id, branch, modelStream.InternalIp) // Log if an active model stream is found
-		return fmt.Errorf("plan %s branch %s already has an active stream on host %s", plan.Id, branch, modelStream.InternalIp)
-	}
+	go execTellPlan(
+		client,
+		plan,
+		branch,
+		auth,
+		req,
+		active,
+		0,
+		"",
+		req.BuildMode == shared.BuildModeAuto,
+	)
 
-	active = CreateActivePlan(plan.Id, branch, req.Prompt)
-
-	modelStream = &db.ModelStream{
-		OrgId:      auth.OrgId,
-		PlanId:     plan.Id,
-		InternalIp: host.Ip,
-		Branch:     branch,
-	}
-	err = db.StoreModelStream(modelStream, active.ModelStreamCtx, active.CancelModelStreamFn)
-	if err != nil {
-		log.Printf("Tell: Error storing model stream for plan ID %s on branch %s: %v\n", plan.Id, branch, err) // Log error storing model stream
-		log.Printf("Error storing model stream: %v\n", err)
-		log.Printf("Tell: Error storing model stream: %v\n", err) // Log error storing model stream
-		return fmt.Errorf("error storing model stream: %v", err)
-	}
-
-	active.ModelStreamId = modelStream.Id
-
-	log.Printf("Tell: Model stream stored with ID %s for plan ID %s on branch %s\n", modelStream.Id, plan.Id, branch) // Log successful storage of model stream
-	log.Println("Model stream id:", modelStream.Id)
-
-	go execTellPlan(client, plan, branch, auth, req, active, 0, "")
-
-	log.Printf("Tell: Tell operation completed successfully for plan ID %s on branch %s\n", plan.Id, branch) // Log successful completion of Tell operation
+	log.Printf("Tell: Tell operation completed successfully for plan ID %s on branch %s\n", plan.Id, branch)
 	return nil
 }
 
-func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *types.ServerAuth, req *shared.TellPlanRequest, active *types.ActivePlan, iteration int, missingFileResponse shared.RespondMissingFileChoice) {
-	log.Printf("execTellPlan: Called for plan ID %s on branch %s, iteration %d\n", plan.Id, branch, iteration) // Log the function call with plan ID, branch, and iteration
-	log.Printf("execTellPlan: Starting execTellPlan operation, iteration: %d\n", iteration)                    // Log start of execTellPlan operation
+func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *types.ServerAuth, req *shared.TellPlanRequest, active *types.ActivePlan, iteration int, missingFileResponse shared.RespondMissingFileChoice, shouldBuildPending bool) {
+	log.Printf("execTellPlan: Called for plan ID %s on branch %s, iteration %d\n", plan.Id, branch, iteration)
 	currentUserId := auth.User.Id
 	currentOrgId := auth.OrgId
 
 	if os.Getenv("IS_CLOUD") != "" &&
 		missingFileResponse == "" {
-		log.Println("execTellPlan: IS_CLOUD environment variable is set") // Log check for IS_CLOUD environment variable
+		log.Println("execTellPlan: IS_CLOUD environment variable is set")
 		if auth.User.IsTrial {
 			if plan.TotalReplies >= types.TrialMaxReplies {
 				active.StreamDoneCh <- &shared.ApiError{
@@ -111,7 +80,7 @@ func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *typ
 			Msg:    "Error setting plan status to replying",
 		}
 
-		log.Printf("execTellPlan: execTellPlan operation completed for plan ID %s on branch %s, iteration %d\n", plan.Id, branch, iteration) // Log completion of execTellPlan operation
+		log.Printf("execTellPlan: execTellPlan operation completed for plan ID %s on branch %s, iteration %d\n", plan.Id, branch, iteration)
 		return
 	}
 
@@ -121,16 +90,18 @@ func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *typ
 	}
 	repoLockId, err := db.LockRepo(
 		db.LockRepoParams{
-			OrgId:  auth.OrgId,
-			UserId: auth.User.Id,
-			PlanId: planId,
-			Branch: branch,
-			Scope:  lockScope,
+			OrgId:    auth.OrgId,
+			UserId:   auth.User.Id,
+			PlanId:   planId,
+			Branch:   branch,
+			Scope:    lockScope,
+			Ctx:      active.ModelStreamCtx,
+			CancelFn: active.CancelModelStreamFn,
 		},
 	)
 
 	if err != nil {
-		log.Printf("execTellPlan: Error locking repo for plan ID %s on branch %s: %v\n", plan.Id, branch, err) // Log error locking repo
+		log.Printf("execTellPlan: Error locking repo for plan ID %s on branch %s: %v\n", plan.Id, branch, err)
 		active.StreamDoneCh <- &shared.ApiError{
 			Type:   shared.ApiErrorTypeOther,
 			Status: http.StatusInternalServerError,
@@ -666,6 +637,36 @@ func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *typ
 		return
 	}
 
+	if shouldBuildPending {
+		go func() {
+			pendingBuildsByPath, err := active.PendingBuildsByPath(auth.OrgId, auth.User.Id, convo)
+
+			if err != nil {
+				log.Printf("Error getting pending builds by path: %v\n", err)
+				active.StreamDoneCh <- &shared.ApiError{
+					Type:   shared.ApiErrorTypeOther,
+					Status: http.StatusInternalServerError,
+					Msg:    "Error getting pending builds by path",
+				}
+				return
+			}
+
+			if len(pendingBuildsByPath) == 0 {
+				log.Println("Tell plan: no pending builds")
+				return
+			}
+
+			for _, pendingBuilds := range pendingBuildsByPath {
+				queueBuilds(client, auth.OrgId, auth.User.Id, planId, branch, pendingBuilds)
+			}
+		}()
+	}
+
+	UpdateActivePlan(planId, branch, func(ap *types.ActivePlan) {
+		ap.CurrentStreamingReplyId = replyId
+		ap.CurrentReplyDoneCh = make(chan bool)
+	})
+
 	storeAssistantReply := func() (*db.ConvoMessage, []string, string, error) {
 		num := len(convo) + 1
 		if iteration == 0 && missingFileResponse == "" {
@@ -842,7 +843,7 @@ func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *typ
 					err = func() error {
 						defer func() {
 							if err != nil {
-								log.Printf("Error: %v\n", err)
+								log.Printf("Error storing reply and description: %v\n", err)
 								err = db.GitClearUncommittedChanges(auth.OrgId, planId)
 								if err != nil {
 									log.Printf("Error clearing uncommitted changes: %v\n", err)
@@ -923,6 +924,8 @@ func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *typ
 							}
 						}
 
+						log.Println("Comitting assistant message and description")
+
 						err = db.GitAddAndCommit(currentOrgId, planId, branch, convoCommitMsg)
 						if err != nil {
 							onError(fmt.Errorf("failed to commit: %v", err), false, assistantMsg.Id, convoCommitMsg)
@@ -936,22 +939,36 @@ func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *typ
 						return
 					}
 
+					active.CurrentReplyDoneCh <- true
+
+					UpdateActivePlan(planId, branch, func(active *types.ActivePlan) {
+						active.CurrentStreamingReplyId = ""
+						active.CurrentReplyDoneCh = nil
+					})
+
 					if req.AutoContinue && shouldContinue {
+						log.Println("Auto continue plan")
 						// continue plan
-						execTellPlan(client, plan, branch, auth, req, active, iteration+1, "")
+						execTellPlan(client, plan, branch, auth, req, active, iteration+1, "", false)
 					} else {
-						if GetActivePlan(planId, branch).BuildFinished() {
+						var buildFinished bool
+						UpdateActivePlan(planId, branch, func(active *types.ActivePlan) {
+							buildFinished = active.BuildFinished()
+							active.RepliesFinished = true
+						})
+
+						log.Printf("Won't continue plan. Build finished: %v\n", buildFinished)
+
+						if buildFinished {
 							active.Stream(shared.StreamMessage{
 								Type: shared.StreamMessageFinished,
 							})
 						} else {
-							UpdateActivePlan(planId, branch, func(active *types.ActivePlan) {
-								active.RepliesFinished = true
+							log.Println("Sending RepliesFinished stream message")
+							active.Stream(shared.StreamMessage{
+								Type: shared.StreamMessageRepliesFinished,
 							})
 						}
-
-						// Wait briefly allow last stream message to be sent
-						time.Sleep(100 * time.Millisecond)
 					}
 
 					return
@@ -978,6 +995,8 @@ func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *typ
 				replyNumTokens = res.TotalTokens
 				currentFile := res.CurrentFilePath
 
+				// Handle file that is present in project paths but not in context
+				// Prompt user for what to do on the client side, stop the stream, and wait for user response before proceeding
 				if currentFile != "" &&
 					active.ContextsByPath[currentFile] == nil &&
 					req.ProjectPaths[currentFile] && !active.AllowOverwritePaths[currentFile] {
@@ -1032,6 +1051,7 @@ func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *typ
 						active,
 						iteration, // keep the same iteration
 						userChoice,
+						false,
 					)
 					return
 				}
@@ -1040,13 +1060,15 @@ func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *typ
 					log.Printf("Files: %v\n", files)
 					for i := len(files) - 1; i > len(replyFiles)-1; i-- {
 						file := files[i]
-						log.Printf("Queuing build for %s\n", file)
-						QueueBuild(client, currentOrgId, currentUserId, planId, branch, &types.ActiveBuild{
-							AssistantMessageId: replyId,
-							ReplyContent:       active.CurrentReplyContent,
-							FileContent:        fileContents[i],
-							Path:               file,
-						})
+						if req.BuildMode == shared.BuildModeAuto {
+							log.Printf("Queuing build for %s\n", file)
+							queueBuilds(client, currentOrgId, currentUserId, planId, branch, []*types.ActiveBuild{{
+								ReplyId:      replyId,
+								ReplyContent: active.CurrentReplyContent,
+								FileContent:  fileContents[i],
+								Path:         file,
+							}})
+						}
 						replyFiles = append(replyFiles, file)
 						UpdateActivePlan(planId, branch, func(active *types.ActivePlan) {
 							active.Files = append(active.Files, file)
@@ -1069,8 +1091,8 @@ type summarizeConvoParams struct {
 }
 
 func summarizeConvo(client *openai.Client, params summarizeConvoParams) error {
-	log.Printf("summarizeConvo: Called for plan ID %s on branch %s\n", params.planId, params.branch) // Log the function call with plan ID and branch
-	log.Printf("summarizeConvo: Starting summarizeConvo for planId: %s\n", params.planId)            // Log start of summarizeConvo
+	log.Printf("summarizeConvo: Called for plan ID %s on branch %s\n", params.planId, params.branch)
+	log.Printf("summarizeConvo: Starting summarizeConvo for planId: %s\n", params.planId)
 	planId := params.planId
 	branch := params.branch
 	convo := params.convo
@@ -1080,7 +1102,6 @@ func summarizeConvo(client *openai.Client, params summarizeConvoParams) error {
 
 	log.Println("Generating plan summary for planId:", planId)
 
-	// log the parameters above
 	// log.Printf("planId: %s\n", planId)
 	// log.Printf("convo: ")
 	// spew.Dump(convo)
@@ -1145,12 +1166,11 @@ func summarizeConvo(client *openai.Client, params summarizeConvoParams) error {
 	})
 
 	if err != nil {
-		log.Printf("summarizeConvo: Error generating summary for plan ID %s: %v\n", params.planId, err)   // Log error generating summary
-		log.Printf("summarizeConvo: Error generating plan summary for plan %s: %v\n", params.planId, err) // Log error generating plan summary
+		log.Printf("summarizeConvo: Error generating plan summary for plan %s: %v\n", params.planId, err)
 		return err
 	}
 
-	log.Printf("summarizeConvo: Summary generated and stored for plan ID %s\n", params.planId) // Log successful generation and storage of summary
+	log.Printf("summarizeConvo: Summary generated and stored for plan %s\n", params.planId)
 
 	err = db.StoreSummary(summary)
 

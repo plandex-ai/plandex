@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"log"
@@ -31,15 +32,8 @@ func TellPlanHandler(w http.ResponseWriter, r *http.Request) {
 
 	log.Println("planId: ", planId)
 
-	plan := authorizePlanUpdate(w, planId, auth)
-
+	plan := authorizePlanExecUpdate(w, planId, auth)
 	if plan == nil {
-		return
-	}
-
-	if plan.OwnerId != auth.User.Id && !auth.HasPermission(types.PermissionUpdateAnyPlan) {
-		log.Println("User does not have permission to update plan")
-		http.Error(w, "User does not have permission to update plan", http.StatusForbidden)
 		return
 	}
 
@@ -118,13 +112,62 @@ func BuildPlanHandler(w http.ResponseWriter, r *http.Request) {
 
 	vars := mux.Vars(r)
 	planId := vars["planId"]
+	branch := vars["branch"]
 
 	log.Println("planId: ", planId)
-
-	if authorizePlan(w, planId, auth) == nil {
+	plan := authorizePlanExecUpdate(w, planId, auth)
+	if plan == nil {
 		return
 	}
 
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		log.Printf("Error reading request body: %v\n", err)
+		http.Error(w, "Error reading request body", http.StatusInternalServerError)
+		return
+	}
+	defer func() {
+		log.Println("Closing request body")
+		r.Body.Close()
+	}()
+
+	var requestBody shared.BuildPlanRequest
+	if err := json.Unmarshal(body, &requestBody); err != nil {
+		log.Printf("Error parsing request body: %v\n", err)
+		http.Error(w, "Error parsing request body", http.StatusBadRequest)
+		return
+	}
+
+	if requestBody.ApiKey == "" {
+		log.Println("API key is required")
+		http.Error(w, "API key is required", http.StatusBadRequest)
+		return
+	}
+
+	client := model.NewClient(requestBody.ApiKey)
+	numBuilds, err := modelPlan.Build(client, plan, branch, auth)
+
+	if err != nil {
+		log.Printf("Error building plan: %v\n", err)
+		http.Error(w, "Error building plan", http.StatusInternalServerError)
+		return
+	}
+
+	if numBuilds == 0 {
+		log.Println("No builds were executed")
+		http.Error(w, shared.NoBuildsErr, http.StatusNotFound)
+		return
+	}
+
+	if requestBody.ConnectStream {
+		active := modelPlan.GetActivePlan(planId, branch)
+		subscriptionId, ch := modelPlan.SubscribePlan(planId, branch)
+		startResponseStream(w, ch, active, func() {
+			modelPlan.UnsubscribePlan(planId, branch, subscriptionId)
+		})
+	}
+
+	log.Println("Successfully processed request for BuildPlanHandler")
 }
 
 func ConnectPlanHandler(w http.ResponseWriter, r *http.Request) {
@@ -170,7 +213,8 @@ func StopPlanHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var err error
-	unlockFn := lockRepo(w, r, auth, db.LockScopeWrite)
+	ctx, cancel := context.WithCancel(context.Background())
+	unlockFn := lockRepo(w, r, auth, db.LockScopeWrite, ctx, cancel)
 	if unlockFn == nil {
 		return
 	} else {
@@ -256,4 +300,19 @@ func RespondMissingFileHandler(w http.ResponseWriter, r *http.Request) {
 	active.MissingFileResponseCh <- requestBody.Choice
 
 	log.Println("Successfully processed request for RespondMissingFileHandler")
+}
+
+func authorizePlanExecUpdate(w http.ResponseWriter, planId string, auth *types.ServerAuth) *db.Plan {
+	plan := authorizePlan(w, planId, auth)
+	if plan == nil {
+		return nil
+	}
+
+	if plan.OwnerId != auth.User.Id && !auth.HasPermission(types.PermissionUpdateAnyPlan) {
+		log.Println("User does not have permission to update plan")
+		http.Error(w, "User does not have permission to update plan", http.StatusForbidden)
+		return nil
+	}
+
+	return plan
 }

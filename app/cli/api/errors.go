@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"plandex/auth"
+	"strings"
 
 	"github.com/plandex/plandex/shared"
 )
@@ -15,7 +16,7 @@ func handleApiError(r *http.Response, errBody []byte) *shared.ApiError {
 		return &shared.ApiError{
 			Type:   shared.ApiErrorTypeOther,
 			Status: r.StatusCode,
-			Msg:    string(errBody),
+			Msg:    strings.TrimSpace(string(errBody)),
 		}
 	}
 
@@ -25,7 +26,7 @@ func handleApiError(r *http.Response, errBody []byte) *shared.ApiError {
 		return &shared.ApiError{
 			Type:   shared.ApiErrorTypeOther,
 			Status: r.StatusCode,
-			Msg:    string(errBody),
+			Msg:    strings.TrimSpace(string(errBody)),
 		}
 	}
 

@@ -28,12 +28,13 @@ var missingFileSelectOpts = []string{
 }
 
 type streamUIModel struct {
-	keymap keymap
+	buildOnly bool
+	keymap    keymap
 
-	reply        string
-	replyDisplay string
+	reply       string
+	mainDisplay string
 
-	replyViewport viewport.Model
+	mainViewport viewport.Model
 
 	processing bool
 	starting   bool
@@ -56,6 +57,11 @@ type streamUIModel struct {
 	missingFileContent     string
 	missingFileTokens      int
 
+	prompt string
+
+	stopped  bool
+	finished bool
+
 	err    error
 	apiErr *shared.ApiError
 }
@@ -66,26 +72,36 @@ type keymap = struct {
 	scrollDown,
 	pageUp,
 	pageDown,
+	start,
+	end,
 	up,
 	down,
-	enter,
-	quit bubbleKey.Binding
+	quit,
+	enter bubbleKey.Binding
 }
 
 func (m streamUIModel) Init() tea.Cmd {
-	m.replyViewport.MouseWheelEnabled = true
+	m.mainViewport.MouseWheelEnabled = true
 
 	// start spinner
 	return m.spinner.Tick
 }
 
-func initialModel() *streamUIModel {
+func initialModel(prestartReply, prompt string, buildOnly bool) *streamUIModel {
 	s := spinner.New()
-	s.Spinner = spinner.Dot
+	s.Spinner = spinner.Points
 	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
 
 	initialState := streamUIModel{
+		buildOnly: buildOnly,
+		prompt:    prompt,
+		reply:     prestartReply,
 		keymap: keymap{
+			quit: bubbleKey.NewBinding(
+				bubbleKey.WithKeys("ctrl+c"),
+				bubbleKey.WithHelp("ctrl+c", "quit"),
+			),
+
 			stop: bubbleKey.NewBinding(
 				bubbleKey.WithKeys("s"),
 				bubbleKey.WithHelp("s", "stop"),
@@ -102,16 +118,13 @@ func initialModel() *streamUIModel {
 			),
 
 			pageDown: bubbleKey.NewBinding(
-				bubbleKey.WithKeys("J", "pageDown"),
-				bubbleKey.WithHelp("J", "page down"),
+				bubbleKey.WithKeys("d", "pageDown"),
+				bubbleKey.WithHelp("d", "page down"),
 			),
 
 			pageUp: bubbleKey.NewBinding(
-				bubbleKey.WithKeys("K", "pageUp"),
-				bubbleKey.WithHelp("K", "page up"),
-			),
-			quit: bubbleKey.NewBinding(
-				bubbleKey.WithKeys("ctrl+c"),
+				bubbleKey.WithKeys("u", "pageUp"),
+				bubbleKey.WithHelp("u", "page up"),
 			),
 
 			up: bubbleKey.NewBinding(
@@ -127,6 +140,16 @@ func initialModel() *streamUIModel {
 			enter: bubbleKey.NewBinding(
 				bubbleKey.WithKeys("enter"),
 				bubbleKey.WithHelp("enter", "select"),
+			),
+
+			start: bubbleKey.NewBinding(
+				bubbleKey.WithKeys("g", "home"),
+				bubbleKey.WithHelp("g", "start"),
+			),
+
+			end: bubbleKey.NewBinding(
+				bubbleKey.WithKeys("G", "end"),
+				bubbleKey.WithHelp("G", "end"),
 			),
 		},
 

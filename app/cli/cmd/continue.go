@@ -25,8 +25,8 @@ var nextCmd = &cobra.Command{
 func init() {
 	RootCmd.AddCommand(nextCmd)
 
-	nextCmd.Flags().BoolVar(&tellBg, "bg", false, "Execute autonomously in the background")
-	nextCmd.Flags().BoolVar(&tellStep, "step", false, "Pause after a single step or reply")
+	nextCmd.Flags().BoolVarP(&tellStop, "stop", "s", false, "Stop after a single reply")
+	nextCmd.Flags().BoolVarP(&tellNoBuild, "no-build", "n", false, "Don't build files")
 }
 
 func doContinue(cmd *cobra.Command, args []string) {
@@ -44,5 +44,5 @@ func doContinue(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	tell.TellPlan(continuePrompt, tellBg, tellStep)
+	tell.TellPlan(continuePrompt, tellBg, tellStop, tellNoBuild)
 }

@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -26,7 +27,8 @@ func ListConvoHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var err error
-	unlockFn := lockRepo(w, r, auth, db.LockScopeRead)
+	ctx, cancel := context.WithCancel(context.Background())
+	unlockFn := lockRepo(w, r, auth, db.LockScopeRead, ctx, cancel)
 	if unlockFn == nil {
 		return
 	} else {

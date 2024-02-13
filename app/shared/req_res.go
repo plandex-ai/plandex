@@ -89,13 +89,29 @@ type GetCurrentBranchByPlanIdRequest struct {
 	CurrentBranchByPlanId map[string]string `json:"currentBranchByPlanId"`
 }
 
+type BuildMode string
+
+const (
+	BuildModeAuto BuildMode = "auto"
+	BuildModeNone BuildMode = "none"
+)
+
 type TellPlanRequest struct {
 	Prompt        string          `json:"prompt"`
+	BuildMode     BuildMode       `json:"buildMode"`
 	ConnectStream bool            `json:"connectStream"`
 	AutoContinue  bool            `json:"autoContinue"`
 	ApiKey        string          `json:"apiKey"`
 	ProjectPaths  map[string]bool `json:"projectPaths"`
 }
+
+type BuildPlanRequest struct {
+	ConnectStream bool            `json:"connectStream"`
+	ApiKey        string          `json:"apiKey"`
+	ProjectPaths  map[string]bool `json:"projectPaths"`
+}
+
+const NoBuildsErr string = "No builds"
 
 type RespondMissingFileChoice string
 

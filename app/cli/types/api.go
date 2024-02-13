@@ -50,6 +50,7 @@ type ApiClient interface {
 	CreatePlan(projectId string, req shared.CreatePlanRequest) (*shared.CreatePlanResponse, *shared.ApiError)
 
 	TellPlan(planId, branch string, req shared.TellPlanRequest, onStreamPlan OnStreamPlan) *shared.ApiError
+	BuildPlan(planId, branch string, req shared.BuildPlanRequest, onStreamPlan OnStreamPlan) *shared.ApiError
 	RespondMissingFile(planId, branch string, req shared.RespondMissingFileRequest) *shared.ApiError
 
 	DeletePlan(planId string) *shared.ApiError

@@ -40,6 +40,8 @@ type keymap = struct {
 	scrollDown,
 	pageUp,
 	pageDown,
+	start,
+	end,
 	switchView,
 	reject,
 	copy,
@@ -101,6 +103,16 @@ func initialModel() *changesUIModel {
 			pageUp: bubbleKey.NewBinding(
 				bubbleKey.WithKeys("u", "pageUp"),
 				bubbleKey.WithHelp("u", "page up"),
+			),
+
+			start: bubbleKey.NewBinding(
+				bubbleKey.WithKeys("g", "home"),
+				bubbleKey.WithHelp("g", "start"),
+			),
+
+			end: bubbleKey.NewBinding(
+				bubbleKey.WithKeys("G", "end"),
+				bubbleKey.WithHelp("G", "end"),
 			),
 
 			switchView: bubbleKey.NewBinding(

@@ -14,7 +14,6 @@ func StorePlanBuild(build *PlanBuild) error {
 
 	query := `INSERT INTO plan_builds (org_id, plan_id, convo_message_ids, file_path) VALUES (:org_id, :plan_id, :convo_message_ids, :file_path) RETURNING id, created_at, updated_at`
 
-	// Wrap the ConvoMessageIds slice with pq.Array
 	args := map[string]interface{}{
 		"org_id":            build.OrgId,
 		"plan_id":           build.PlanId,

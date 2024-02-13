@@ -211,7 +211,7 @@ func lockRepo(params LockRepoParams, numRetry int) (string, error) {
 		for {
 			select {
 			case <-ctx.Done():
-				log.Printf("case <-stream.Ctx.Done(): %s\n", newLock.Id)
+				// log.Printf("case <-stream.Ctx.Done(): %s\n", newLock.Id)
 				err := UnlockRepo(newLock.Id)
 				if err != nil {
 					log.Printf("Error unlocking repo: %v\n", err)

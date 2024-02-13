@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -65,7 +66,8 @@ func loadContexts(w http.ResponseWriter, r *http.Request, auth *types.ServerAuth
 		return nil, nil
 	}
 
-	unlockFn := lockRepo(w, r, auth, db.LockScopeWrite)
+	ctx, cancel := context.WithCancel(context.Background())
+	unlockFn := lockRepo(w, r, auth, db.LockScopeWrite, ctx, cancel)
 	if unlockFn == nil {
 		return nil, nil
 	} else {

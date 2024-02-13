@@ -6,14 +6,18 @@ import (
 	"sync"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/fatih/color"
+	"github.com/plandex/plandex/shared"
 )
 
 var ui *tea.Program
 var mu sync.Mutex
 var wg sync.WaitGroup
 
-func StartStreamUI() error {
-	initial := initialModel()
+var prestartReply string
+
+func StartStreamUI(prompt string, buildOnly bool) error {
+	initial := initialModel(prestartReply, prompt, buildOnly)
 
 	mu.Lock()
 	ui = tea.NewProgram(initial, tea.WithAltScreen())
@@ -24,11 +28,33 @@ func StartStreamUI() error {
 	wg.Done()
 
 	if err != nil {
-		return fmt.Errorf("error running changes UI: %v", err)
+		return fmt.Errorf("error running stream UI: %v", err)
 	}
 
-	if m.(streamUIModel).err != nil {
-		return fmt.Errorf("error in changes UI: %v", m.(streamUIModel).err)
+	mod := m.(*streamUIModel)
+
+	fmt.Println()
+
+	if !mod.buildOnly {
+		fmt.Println(mod.mainDisplay)
+	}
+	fmt.Println(mod.renderStaticBuild())
+
+	if mod.err != nil {
+		fmt.Println()
+		color.New(color.FgHiRed, color.Bold).Printf("error in stream UI: %v\n", mod.err)
+		return fmt.Errorf("error in stream UI: %v", mod.err)
+	}
+
+	if mod.apiErr != nil {
+		fmt.Println()
+		color.New(color.FgHiRed, color.Bold).Printf("error in stream UI: %s\n", mod.apiErr.Msg)
+		return fmt.Errorf("error in stream UI: %v", mod.apiErr)
+	}
+
+	if mod.stopped {
+		color.New(color.BgBlack, color.Bold, color.FgHiRed).Print(" 🛑 stopped early by user ")
+		fmt.Println()
 	}
 
 	return nil
@@ -36,7 +62,7 @@ func StartStreamUI() error {
 
 func Quit() {
 	if ui == nil {
-		log.Println("stream ui is nil, can't quit")
+		log.Println("stream UI is nil, can't quit")
 		return
 	}
 	mu.Lock()
@@ -47,9 +73,10 @@ func Quit() {
 
 }
 
-func Send(msg tea.Msg) {
+func Send(msg shared.StreamMessage) {
 	if ui == nil {
-		log.Println("stream ui is nil")
+		// log.Println("stream ui is nil")
+		prestartReply += msg.ReplyChunk
 		return
 	}
 	mu.Lock()

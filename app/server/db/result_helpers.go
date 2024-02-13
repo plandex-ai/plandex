@@ -191,6 +191,10 @@ func GetPlanFileResults(orgId, planId string) ([]*PlanFileResult, error) {
 	files, err := os.ReadDir(resultsDir)
 
 	if err != nil {
+		if os.IsNotExist(err) {
+			return results, nil
+		}
+
 		return nil, fmt.Errorf("error reading results dir: %v", err)
 	}
 
@@ -391,6 +395,10 @@ func RejectAllResults(orgId, planId string) error {
 	files, err := os.ReadDir(resultsDir)
 
 	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+
 		return fmt.Errorf("error reading results dir: %v", err)
 	}
 

@@ -13,7 +13,7 @@ type StreamMessageType string
 const (
 	StreamMessageReply             StreamMessageType = "reply"
 	StreamMessageDescribing        StreamMessageType = "describing"
-	StreamMessageDescription       StreamMessageType = "description"
+	StreamMessageRepliesFinished   StreamMessageType = "repliesFinished"
 	StreamMessageBuildInfo         StreamMessageType = "buildInfo"
 	StreamMessagePromptMissingFile StreamMessageType = "promptMissingFile"
 	StreamMessageAborted           StreamMessageType = "aborted"

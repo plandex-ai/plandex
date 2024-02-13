@@ -254,10 +254,10 @@ func (state *CurrentPlanState) PendingChangesSummary() string {
 		var descMsgs []string
 
 		if len(ch.descs) == 0 {
-			descMsgs = append(descMsgs, "📝 Changes")
+			descMsgs = append(descMsgs, "🏗️  Changes")
 		} else {
 			for _, desc := range ch.descs {
-				descMsgs = append(descMsgs, fmt.Sprintf("📝 %s", desc.CommitMsg))
+				descMsgs = append(descMsgs, fmt.Sprintf("🏗️  %s", desc.CommitMsg))
 			}
 		}
 

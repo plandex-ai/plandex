@@ -24,27 +24,145 @@ import (
 const MaxRetries = 3
 const MaxReplacementRetries = 1
 
-func QueueBuild(client *openai.Client, currentOrgId, currentUserId, planId, branch string, activeBuild *types.ActiveBuild) {
+func Build(client *openai.Client, plan *db.Plan, branch string, auth *types.ServerAuth) (int, error) {
+	log.Printf("Build: Called with plan ID %s on branch %s\n", plan.Id, branch)
+	log.Println("Build: Starting Build operation")
+
+	active, err := activatePlan(client, plan, branch, auth, "", true)
+
+	if err != nil {
+		log.Printf("Error activating plan: %v\n", err)
+		return 0, err
+	}
+
+	onErr := func(err error) (int, error) {
+		log.Printf("Build error: %v\n", err)
+		active.StreamDoneCh <- nil
+		return 0, err
+	}
+
+	repoLockId, err := db.LockRepo(
+		db.LockRepoParams{
+			OrgId:    auth.OrgId,
+			UserId:   auth.User.Id,
+			PlanId:   plan.Id,
+			Branch:   branch,
+			Scope:    db.LockScopeRead,
+			Ctx:      active.Ctx,
+			CancelFn: active.CancelFn,
+		},
+	)
+	if err != nil {
+		return onErr(fmt.Errorf("error locking repo for build: %v", err))
+	}
+
+	var modelContext []*db.Context
+	var pendingBuildsByPath map[string][]*types.ActiveBuild
+
+	err = func() error {
+		defer func() {
+			err := db.UnlockRepo(repoLockId)
+			if err != nil {
+				log.Printf("Error unlocking repo: %v\n", err)
+			}
+		}()
+
+		errCh := make(chan error)
+
+		go func() {
+			res, err := db.GetPlanContexts(auth.OrgId, plan.Id, true)
+			if err != nil {
+				log.Printf("Error getting plan modelContext: %v\n", err)
+				errCh <- fmt.Errorf("error getting plan modelContext: %v", err)
+				return
+			}
+			modelContext = res
+
+			errCh <- nil
+		}()
+
+		go func() {
+			res, err := active.PendingBuildsByPath(auth.OrgId, auth.User.Id, nil)
+
+			if err != nil {
+				log.Printf("Error getting pending builds by path: %v\n", err)
+				errCh <- fmt.Errorf("error getting pending builds by path: %v", err)
+				return
+			}
+
+			pendingBuildsByPath = res
+
+			errCh <- nil
+		}()
+
+		for i := 0; i < 2; i++ {
+			err = <-errCh
+			if err != nil {
+				log.Printf("Error getting plan data: %v\n", err)
+				return err
+			}
+		}
+		return nil
+	}()
+
+	if err != nil {
+		return onErr(err)
+	}
+
+	UpdateActivePlan(plan.Id, branch, func(ap *types.ActivePlan) {
+		ap.Contexts = modelContext
+		for _, context := range modelContext {
+			if context.FilePath != "" {
+				ap.ContextsByPath[context.FilePath] = context
+			}
+		}
+	})
+
+	if len(pendingBuildsByPath) == 0 {
+		log.Println("No pending builds")
+		active.StreamDoneCh <- nil
+		return 0, nil
+	}
+
+	err = db.SetPlanStatus(plan.Id, branch, shared.PlanStatusBuilding, "")
+
+	if err != nil {
+		log.Printf("Error setting plan status to building: %v\n", err)
+		return onErr(fmt.Errorf("error setting plan status to building: %v", err))
+	}
+
+	log.Printf("Starting %d builds\n", len(pendingBuildsByPath))
+
+	for _, pendingBuilds := range pendingBuildsByPath {
+		go execPlanBuild(client, auth.OrgId, auth.User.Id, branch, active, pendingBuilds)
+	}
+
+	return len(pendingBuildsByPath), nil
+}
+
+func queueBuilds(client *openai.Client, currentOrgId, currentUserId, planId, branch string, activeBuilds []*types.ActiveBuild) {
 	activePlan := GetActivePlan(planId, branch)
-	filePath := activeBuild.Path
+	filePath := activeBuilds[0].Path
 
 	UpdateActivePlan(planId, branch, func(active *types.ActivePlan) {
-		active.BuildQueuesByPath[filePath] = append(active.BuildQueuesByPath[filePath], activeBuild)
+		active.BuildQueuesByPath[filePath] = append(active.BuildQueuesByPath[filePath], activeBuilds...)
 	})
-	log.Printf("Queued build for file %s\n", filePath)
-	log.Printf("Queue:")
-	spew.Dump(activePlan.BuildQueuesByPath[filePath])
+	log.Printf("Queued %d build(s) for file %s\n", len(activeBuilds), filePath)
+	// log.Printf("Queue:")
+	// spew.Dump(activePlan.BuildQueuesByPath[filePath])
 
 	if activePlan.IsBuildingByPath[filePath] {
 		log.Printf("Already building file %s\n", filePath)
 		return
 	} else {
 		log.Printf("Will process build queue for file %s\n", filePath)
-		go execPlanBuild(client, currentOrgId, currentUserId, branch, activePlan, []*types.ActiveBuild{activeBuild})
+		go execPlanBuild(client, currentOrgId, currentUserId, branch, activePlan, activeBuilds)
 	}
 }
 
 func execPlanBuild(client *openai.Client, currentOrgId, currentUserId, branch string, activePlan *types.ActivePlan, activeBuilds []*types.ActiveBuild) {
+	log.Printf("execPlanBuild for %d active builds\n", len(activeBuilds))
+
 	if len(activeBuilds) == 0 {
 		log.Println("No active builds")
 		return
@@ -57,9 +175,9 @@ func execPlanBuild(client *openai.Client, currentOrgId, currentUserId, branch st
 	added := map[string]bool{}
 
 	for _, activeBuild := range activeBuilds {
-		if !added[activeBuild.AssistantMessageId] {
-			convoMessageIds = append(convoMessageIds, activeBuild.AssistantMessageId)
-			added[activeBuild.AssistantMessageId] = true
+		if !added[activeBuild.ReplyId] {
+			convoMessageIds = append(convoMessageIds, activeBuild.ReplyId)
+			added[activeBuild.ReplyId] = true
 		}
 	}
 
@@ -77,90 +195,226 @@ func execPlanBuild(client *openai.Client, currentOrgId, currentUserId, branch st
 		BuildInfo: buildInfo,
 	})
 
-	errCh := make(chan error)
+	build := &db.PlanBuild{
+		OrgId:           currentOrgId,
+		PlanId:          planId,
+		ConvoMessageIds: convoMessageIds,
+		FilePath:        filePath,
+	}
+	err := db.StorePlanBuild(build)
 
-	var build *db.PlanBuild
+	if err != nil {
+		log.Printf("Error storing plan build: %v\n", err)
+		UpdateActivePlan(activePlan.Id, activePlan.Branch, func(ap *types.ActivePlan) {
+			ap.IsBuildingByPath[filePath] = false
+		})
+		activePlan.StreamDoneCh <- &shared.ApiError{
+			Type:   shared.ApiErrorTypeOther,
+			Status: http.StatusInternalServerError,
+			Msg:    "Error storing plan build: " + err.Error(),
+		}
+		return
+	}
+
 	var currentPlan *shared.CurrentPlanState
 
-	go func() {
-		build = &db.PlanBuild{
-			OrgId:           currentOrgId,
-			PlanId:          planId,
-			ConvoMessageIds: convoMessageIds,
-			FilePath:        filePath,
+	repoLockId, err := db.LockRepo(
+		db.LockRepoParams{
+			OrgId:       currentOrgId,
+			UserId:      currentUserId,
+			PlanId:      planId,
+			Branch:      branch,
+			PlanBuildId: build.Id,
+			Scope:       db.LockScopeRead,
+			Ctx:         activePlan.Ctx,
+			CancelFn:    activePlan.CancelFn,
+		},
+	)
+	if err != nil {
+		log.Printf("Error locking repo for build file: %v\n", err)
+		UpdateActivePlan(activePlan.Id, activePlan.Branch, func(ap *types.ActivePlan) {
+			ap.IsBuildingByPath[filePath] = false
+		})
+		activePlan.StreamDoneCh <- &shared.ApiError{
+			Type:   shared.ApiErrorTypeOther,
+			Status: http.StatusInternalServerError,
+			Msg:    "Error locking repo for build file: " + err.Error(),
 		}
-		err := db.StorePlanBuild(build)
+		return
+	}
 
-		if err != nil {
-			errCh <- fmt.Errorf("error storing plan build: %v", err)
-			return
-		}
+	func() {
+		defer func() {
+			err := db.UnlockRepo(repoLockId)
+			if err != nil {
+				log.Printf("Error unlocking repo: %v\n", err)
+			}
+		}()
 
-		errCh <- nil
-	}()
-
-	go func() {
 		res, err := db.GetCurrentPlanState(db.CurrentPlanStateParams{
 			OrgId:  currentOrgId,
 			PlanId: planId,
 		})
 		if err != nil {
-			errCh <- fmt.Errorf("error getting current plan state: %v", err)
-			return
-		}
-		currentPlan = res
-		errCh <- nil
-	}()
-
-	for i := 0; i < 2; i++ {
-		err := <-errCh
-		if err != nil {
-			log.Printf("Error building plan %s: %v\n", planId, err)
+			log.Printf("Error getting current plan state: %v\n", err)
 			UpdateActivePlan(activePlan.Id, activePlan.Branch, func(ap *types.ActivePlan) {
 				ap.IsBuildingByPath[filePath] = false
 			})
 			activePlan.StreamDoneCh <- &shared.ApiError{
 				Type:   shared.ApiErrorTypeOther,
 				Status: http.StatusInternalServerError,
-				Msg:    err.Error(),
+				Msg:    "Error getting current plan state: " + err.Error(),
 			}
 			return
 		}
-	}
+		currentPlan = res
+
+		log.Println("Got current plan state")
+		spew.Dump(currentPlan)
+	}()
+
+	errCh := make(chan error)
 
 	onFinishBuild := func() {
 		log.Println("Build finished")
 
-		// get fresh current plan state
-		currentPlan, err := db.GetCurrentPlanState(db.CurrentPlanStateParams{
-			OrgId:  currentOrgId,
-			PlanId: planId,
-		})
-		if err != nil {
-			errCh <- fmt.Errorf("error getting current plan state: %v", err)
-			return
+		// first check if any of the messages we're building hasen't finished streaming yet
+		stillStreaming := false
+		var doneCh chan bool
+		for _, convoMessageId := range convoMessageIds {
+			ap := GetActivePlan(planId, branch)
+			if ap.CurrentStreamingReplyId == convoMessageId {
+				stillStreaming = true
+				doneCh = ap.CurrentReplyDoneCh
+				break
+			}
+		}
+		if stillStreaming {
+			log.Println("Reply is still streaming, waiting for it to finish before finishing build")
+			<-doneCh
 		}
 
-		err = db.GitAddAndAmendCommit(currentOrgId, planId, branch, currentPlan.PendingChangesSummary())
+		repoLockId, err := db.LockRepo(
+			db.LockRepoParams{
+				OrgId:       currentOrgId,
+				UserId:      currentUserId,
+				PlanId:      planId,
+				Branch:      branch,
+				PlanBuildId: build.Id,
+				Scope:       db.LockScopeWrite,
+				Ctx:         activePlan.Ctx,
+				CancelFn:    activePlan.CancelFn,
+			},
+		)
 
 		if err != nil {
-			log.Printf("Error committing plan build: %v\n", err)
+			log.Printf("Error locking repo for finished build: %v\n", err)
 			activePlan.StreamDoneCh <- &shared.ApiError{
 				Type:   shared.ApiErrorTypeOther,
 				Status: http.StatusInternalServerError,
-				Msg:    "Error committing plan build: " + err.Error(),
+				Msg:    "Error locking repo for finished build: " + err.Error(),
 			}
 			return
 		}
 
-		if GetActivePlan(planId, branch).RepliesFinished {
+		log.Println("Locked repo for finished build")
+
+		err = func() error {
+			var err error
+			defer func() {
+				if err != nil {
+					log.Printf("Finish build error: %v\n", err)
+					err = db.GitClearUncommittedChanges(currentOrgId, planId)
+					if err != nil {
+						log.Printf("Error clearing uncommitted changes: %v\n", err)
+					}
+					log.Println("Cleared uncommitted changes")
+				}
+
+				err := db.UnlockRepo(repoLockId)
+				if err != nil {
+					log.Printf("Error unlocking repo: %v\n", err)
+				}
+
+				log.Println("Unlocked repo")
+			}()
+
+			// get plan descriptions
+			planDescs, err := db.GetPendingBuildDescriptions(currentOrgId, planId)
+			if err != nil {
+				errCh <- fmt.Errorf("error getting pending build descriptions: %v", err)
+				return err
+			}
+
+			// get fresh current plan state
+			currentPlan, err := db.GetCurrentPlanState(db.CurrentPlanStateParams{
+				OrgId:                    currentOrgId,
+				PlanId:                   planId,
+				PendingBuildDescriptions: planDescs,
+			})
+			if err != nil {
+				errCh <- fmt.Errorf("error getting current plan state: %v", err)
+				return err
+			}
+
+			descErrCh := make(chan error)
+			for _, desc := range planDescs {
+				if len(desc.Files) > 0 {
+					desc.DidBuild = true
+				}
+
+				go func(desc *db.ConvoMessageDescription) {
+					err := db.StoreDescription(desc)
+
+					if err != nil {
+						descErrCh <- fmt.Errorf("error storing description: %v", err)
+						return
+					}
+
+					descErrCh <- nil
+				}(desc)
+			}
+
+			for range planDescs {
+				err = <-descErrCh
+				if err != nil {
+					errCh <- err
+					return err
+				}
+			}
+
+			err = db.GitAddAndCommit(currentOrgId, planId, branch, currentPlan.PendingChangesSummary())
+
+			if err != nil {
+				log.Printf("Error committing plan build: %v\n", err)
+				activePlan.StreamDoneCh <- &shared.ApiError{
+					Type:   shared.ApiErrorTypeOther,
+					Status: http.StatusInternalServerError,
+					Msg:    "Error committing plan build: " + err.Error(),
+				}
+				return err
+			}
+
+			log.Println("Plan build committed")
+
+			return nil
+
+		}()
+
+		if err != nil {
+			return
+		}
+
+		active := GetActivePlan(planId, branch)
+
+		if active.RepliesFinished || active.BuildOnly {
 			activePlan.Stream(shared.StreamMessage{
 				Type: shared.StreamMessageFinished,
 			})
 		}
 	}
 
-	onFinishBuildFile := func(filePath string, planRes *db.PlanFileResult) {
+	onFinishBuildFile := func(planRes *db.PlanFileResult) {
 		finished := false
 		log.Println("onFinishBuildFile: " + filePath)
 
@@ -172,6 +426,8 @@ func execPlanBuild(client *openai.Client, currentOrgId, currentUserId, branch st
 				Branch:      branch,
 				PlanBuildId: build.Id,
 				Scope:       db.LockScopeWrite,
+				Ctx:         activePlan.Ctx,
+				CancelFn:    activePlan.CancelFn,
 			},
 		)
 		if err != nil {
@@ -260,7 +516,7 @@ func execPlanBuild(client *openai.Client, currentOrgId, currentUserId, branch st
 		}
 	}
 
-	onBuildFileError := func(filePath string, err error) {
+	onBuildFileError := func(err error) {
 		log.Printf("Error for file %s: %v\n", filePath, err)
 
 		for _, build := range activeBuilds {
@@ -333,7 +589,7 @@ func execPlanBuild(client *openai.Client, currentOrgId, currentUserId, branch st
 				Path:            filePath,
 				Content:         activeBuilds[0].FileContent,
 			}
-			onFinishBuildFile(filePath, planRes)
+			onFinishBuildFile(planRes)
 			return
 		}
 
@@ -375,13 +631,13 @@ func execPlanBuild(client *openai.Client, currentOrgId, currentUserId, branch st
 		if numReplacementsRetry > 0 && res != nil {
 			bytes, err := json.Marshal(res.Replacements)
 			if err != nil {
-				onBuildFileError(filePath, fmt.Errorf("error marshalling replacements: %v", err))
+				onBuildFileError(fmt.Errorf("error marshalling replacements: %v", err))
 				return
 			}
 
 			correctReplacementPrompt, err := prompts.GetCorrectReplacementPrompt(res.Replacements, currentState)
 			if err != nil {
-				onBuildFileError(filePath, fmt.Errorf("error getting correct replacement prompt: %v", err))
+				onBuildFileError(fmt.Errorf("error getting correct replacement prompt: %v", err))
 				return
 			}
 
@@ -417,12 +673,12 @@ func execPlanBuild(client *openai.Client, currentOrgId, currentUserId, branch st
 			log.Printf("Error creating plan file stream for path '%s': %v\n", filePath, err)
 
 			if numRetry >= MaxRetries {
-				onBuildFileError(filePath, fmt.Errorf("failed to create plan file stream for path '%s' after %d retries: %v", filePath, numRetry, err))
+				onBuildFileError(fmt.Errorf("failed to create plan file stream for path '%s' after %d retries: %v", filePath, numRetry, err))
 			} else {
 				log.Println("Retrying build plan for file: " + filePath)
 				buildFile(filePath, numRetry+1, numReplacementsRetry, res)
 				if err != nil {
-					onBuildFileError(filePath, fmt.Errorf("failed to retry build plan for file '%s': %v", filePath, err))
+					onBuildFileError(fmt.Errorf("failed to retry build plan for file '%s': %v", filePath, err))
 				}
 			}
 			return
@@ -444,7 +700,7 @@ func execPlanBuild(client *openai.Client, currentOrgId, currentUserId, branch st
 					// in this case, we just want to ignore the error and continue
 					return true
 				} else if !isReplacementsRetry && numRetry >= MaxRetries {
-					onBuildFileError(filePath, maxRetryErr)
+					onBuildFileError(maxRetryErr)
 					return false
 				} else {
 					if shouldSleep {
@@ -456,7 +712,7 @@ func execPlanBuild(client *openai.Client, currentOrgId, currentUserId, branch st
 						buildFile(filePath, numRetry+1, numReplacementsRetry, res)
 					}
 					if err != nil {
-						onBuildFileError(filePath, fmt.Errorf("failed to retry build plan for file '%s': %v", filePath, err))
+						onBuildFileError(fmt.Errorf("failed to retry build plan for file '%s': %v", filePath, err))
 					}
 					return false
 				}
@@ -583,8 +839,6 @@ func execPlanBuild(client *openai.Client, currentOrgId, currentUserId, branch st
 							},
 						)
 
-						// proposalId, filePath, currentState, contextPart, replacements.Replacements)
-
 						if !allSucceeded {
 							log.Println("Failed replacements:")
 							for _, replacement := range planFileResult.Replacements {
@@ -616,7 +870,7 @@ func execPlanBuild(client *openai.Client, currentOrgId, currentUserId, branch st
 							BuildInfo: buildInfo,
 						})
 
-						onFinishBuildFile(filePath, planFileResult)
+						onFinishBuildFile(planFileResult)
 						return
 					}
 				}

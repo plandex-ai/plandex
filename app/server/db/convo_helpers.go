@@ -8,6 +8,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/fatih/color"
 	"github.com/google/uuid"
 	"github.com/sashabaranov/go-openai"
 )
@@ -108,7 +109,7 @@ func StoreConvoMessage(message *ConvoMessage, currentUserId, branch string, comm
 	} else {
 		desc = "🤖 Plandex reply"
 		if message.Stopped {
-			desc += " | 🛑 stopped early"
+			desc += " | 🛑 " + color.New(color.FgHiRed).Sprint("stopped")
 		}
 	}
 

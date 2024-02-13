@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"log"
@@ -30,7 +31,8 @@ func ListBranchesHandler(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 
-	unlockFn := lockRepo(w, r, auth, db.LockScopeRead)
+	ctx, cancel := context.WithCancel(context.Background())
+	unlockFn := lockRepo(w, r, auth, db.LockScopeRead, ctx, cancel)
 	if unlockFn == nil {
 		return
 	} else {
@@ -103,7 +105,8 @@ func CreateBranchHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	unlockFn := lockRepo(w, r, auth, db.LockScopeWrite)
+	ctx, cancel := context.WithCancel(context.Background())
+	unlockFn := lockRepo(w, r, auth, db.LockScopeWrite, ctx, cancel)
 	if unlockFn == nil {
 		return
 	} else {
@@ -170,13 +173,16 @@ func DeleteBranchHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
 	repoLockId, err := db.LockRepo(
 		db.LockRepoParams{
-			OrgId:  auth.OrgId,
-			UserId: auth.User.Id,
-			PlanId: planId,
-			Branch: "main",
-			Scope:  db.LockScopeRead,
+			OrgId:    auth.OrgId,
+			UserId:   auth.User.Id,
+			PlanId:   planId,
+			Branch:   "main",
+			Scope:    db.LockScopeRead,
+			Ctx:      ctx,
+			CancelFn: cancel,
 		},
 	)
 

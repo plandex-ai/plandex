@@ -17,42 +17,77 @@ func (m streamUIModel) View() string {
 		return m.renderMissingFilePrompt()
 	}
 
-	return lipgloss.JoinVertical(lipgloss.Left,
-		m.renderMainView(),
-		m.renderProcessing(),
-		m.renderBuild(),
-		m.renderHelp(),
-	)
+	var views []string
+	if !m.buildOnly {
+		views = append(views, m.renderMainView())
+	}
+	if m.processing || m.starting {
+		views = append(views, m.renderProcessing())
+	}
+	if m.building {
+		views = append(views, m.renderBuild())
+	}
+	views = append(views, m.renderHelp())
+
+	return lipgloss.JoinVertical(lipgloss.Left, views...)
 }
 
 func (m streamUIModel) renderMainView() string {
-	return m.replyViewport.View()
+	return m.mainViewport.View()
 }
 
 func (m streamUIModel) renderHelp() string {
 	style := lipgloss.NewStyle().Width(m.width).Foreground(lipgloss.Color(helpTextColor)).BorderStyle(lipgloss.NormalBorder()).BorderTop(true).BorderForeground(lipgloss.Color(borderColor))
 
-	return style.Render(" (s)top")
+	if m.buildOnly {
+		return style.Render(" (s)top")
+	} else {
+		return style.Render(" (s)top • (j/k) scroll • (d/u) page • (g/G) start/end")
+	}
 }
 
 func (m streamUIModel) renderProcessing() string {
 	if m.starting || m.processing {
-		style := lipgloss.NewStyle().Width(m.width).BorderStyle(lipgloss.NormalBorder()).BorderTop(true).BorderForeground(lipgloss.Color(borderColor))
-
-		return style.Render(m.spinner.View())
+		return "\n " + m.spinner.View()
 	} else {
 		return ""
 	}
 }
 
 func (m streamUIModel) renderBuild() string {
-	if !m.building {
+	return m.doRenderBuild(false)
+}
+
+func (m streamUIModel) renderStaticBuild() string {
+	return m.doRenderBuild(true)
+}
+
+func (m streamUIModel) doRenderBuild(outputStatic bool) string {
+	if !m.building && !outputStatic {
 		return ""
 	}
 
-	style := lipgloss.NewStyle().Width(m.width).BorderStyle(lipgloss.NormalBorder()).BorderTop(true).BorderForeground(lipgloss.Color(borderColor))
+	if outputStatic && len(m.finishedByPath) == 0 {
+		return ""
+	}
 
-	head := color.New(color.BgGreen, color.FgHiWhite, color.Bold).Sprint(" 🏗  ") + color.New(color.BgGreen, color.FgHiWhite).Sprint("Building plan ")
+	if outputStatic && len(m.finishedByPath) != len(m.tokensByPath) {
+		return ""
+	}
+
+	var style lipgloss.Style
+	if m.buildOnly {
+		style = lipgloss.NewStyle().Width(m.width)
+	} else {
+		style = lipgloss.NewStyle().Width(m.width).BorderStyle(lipgloss.NormalBorder()).BorderTop(true).BorderForeground(lipgloss.Color(borderColor))
+	}
+
+	lbl := "Building plan "
+	if outputStatic {
+		lbl = "Built plan "
+	}
+
+	head := color.New(color.BgGreen, color.FgHiWhite, color.Bold).Sprint(" 🏗  ") + color.New(color.BgGreen, color.FgHiWhite).Sprint(lbl)
 
 	filePaths := make([]string, 0, len(m.tokensByPath))
 	for filePath := range m.tokensByPath {

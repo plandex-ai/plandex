@@ -457,6 +457,56 @@ func (a *Api) TellPlan(planId, branch string, req shared.TellPlanRequest, onStre
 	return nil
 }
 
+func (a *Api) BuildPlan(planId, branch string, req shared.BuildPlanRequest, onStream types.OnStreamPlan) *shared.ApiError {
+
+	log.Println("Calling BuildPlan")
+
+	serverUrl := fmt.Sprintf("%s/plans/%s/%s/build", getApiHost(), planId, branch)
+	reqBytes, err := json.Marshal(req)
+	if err != nil {
+		return &shared.ApiError{Msg: fmt.Sprintf("error marshalling request: %v", err)}
+	}
+
+	request, err := http.NewRequest(http.MethodPatch, serverUrl, bytes.NewBuffer(reqBytes))
+	if err != nil {
+		return &shared.ApiError{Msg: fmt.Sprintf("error creating request: %v", err)}
+	}
+	request.Header.Set("Content-Type", "application/json")
+
+	var client *http.Client
+	if req.ConnectStream {
+		client = authenticatedStreamingClient
+	} else {
+		client = authenticatedFastClient
+	}
+
+	resp, err := client.Do(request)
+	if err != nil {
+		return &shared.ApiError{Msg: fmt.Sprintf("error sending request: %v", err)}
+	}
+
+	if resp.StatusCode >= 400 {
+		log.Println("Error response from build plan", resp.StatusCode)
+
+		errorBody, _ := io.ReadAll(resp.Body)
+		apiErr := handleApiError(resp, errorBody)
+
+		didRefresh, apiErr := refreshTokenIfNeeded(apiErr)
+
+		if didRefresh {
+			return a.BuildPlan(planId, branch, req, onStream)
+		}
+		return apiErr
+	}
+
+	if req.ConnectStream {
+		log.Println("Connecting stream")
+		connectPlanRespStream(resp.Body, onStream)
+	}
+
+	return nil
+}
+
 func (a *Api) RespondMissingFile(planId, branch string, req shared.RespondMissingFileRequest) *shared.ApiError {
 	serverUrl := fmt.Sprintf("%s/plans/%s/%s/respond_missing_file", getApiHost(), planId, branch)
 

@@ -19,7 +19,8 @@ const defaultEditor = "vim"
 
 var tellPromptFile string
 var tellBg bool
-var tellStep bool
+var tellStop bool
+var tellNoBuild bool
 
 // tellCmd represents the prompt command
 var tellCmd = &cobra.Command{
@@ -35,8 +36,9 @@ func init() {
 	RootCmd.AddCommand(tellCmd)
 
 	tellCmd.Flags().StringVarP(&tellPromptFile, "file", "f", "", "File containing prompt")
-	tellCmd.Flags().BoolVar(&tellBg, "bg", false, "Execute autonomously in the background")
-	tellCmd.Flags().BoolVar(&tellStep, "step", false, "Pause after a single step or reply")
+	// tellCmd.Flags().BoolVar(&tellBg, "bg", false, "Execute autonomously in the background") // Not implemented yet
+	tellCmd.Flags().BoolVarP(&tellStop, "stop", "s", false, "Stop after a single reply")
+	tellCmd.Flags().BoolVarP(&tellNoBuild, "no-build", "n", false, "Don't build files")
 }
 
 func doTell(cmd *cobra.Command, args []string) {
@@ -113,16 +115,6 @@ func doTell(cmd *cobra.Command, args []string) {
 
 		prompt = strings.TrimPrefix(prompt, strings.TrimSpace(instructions))
 		prompt = strings.TrimSpace(prompt)
-
-		if prompt != "" {
-			fmt.Print("\n\n")
-			fmt.Print(term.GetDivisionLine())
-			fmt.Print("\n\n")
-			fmt.Println(prompt)
-			fmt.Print("\n\n")
-			fmt.Print(term.GetDivisionLine())
-			fmt.Print("\n\n")
-		}
 	}
 
 	if prompt == "" {
@@ -132,7 +124,7 @@ func doTell(cmd *cobra.Command, args []string) {
 
 	lib.MustCheckOutdatedContextWithOutput()
 
-	tell.TellPlan(prompt, tellBg, tellStep)
+	tell.TellPlan(prompt, tellBg, tellStop, tellNoBuild)
 }
 
 func prepareEditorCommand(editor string, filename string) *exec.Cmd {

@@ -15,6 +15,7 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/fatih/color"
 	"github.com/plandex/plandex/shared"
 )
 
@@ -39,26 +40,28 @@ func (m streamUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case delayFileRestartMsg:
 		m.finishedByPath[msg.path] = false
 
-	case tea.MouseMsg:
-		if !m.promptingMissingFile {
-			if msg.Type == tea.MouseWheelUp {
-				m.replyViewport.LineUp(3)
-			} else if msg.Type == tea.MouseWheelDown {
-				m.replyViewport.LineDown(3)
-			}
-		}
+	// Scroll wheel doesn't seem to work--not sure why
+	// case tea.MouseMsg:
+	// 	if !m.promptingMissingFile {
+	// 		if msg.Type == tea.MouseWheelUp {
+	// 			m.mainViewport.LineUp(3)
+	// 		} else if msg.Type == tea.MouseWheelDown {
+	// 			m.mainViewport.LineDown(3)
+	// 		}
+	// 	}
 
 	case tea.KeyMsg:
 		switch {
+
 		case bubbleKey.Matches(msg, m.keymap.quit):
-			return m, tea.Quit
+			return &m, tea.Quit
 
 		case bubbleKey.Matches(msg, m.keymap.stop):
 			apiErr := api.Client.StopPlan(lib.CurrentPlanId, lib.CurrentBranch)
 			if apiErr != nil {
 				log.Println("stop plan api error:", apiErr)
 				m.apiErr = apiErr
-				return m, nil
+				return &m, nil
 			}
 
 		case bubbleKey.Matches(msg, m.keymap.scrollDown) && !m.promptingMissingFile:
@@ -73,6 +76,10 @@ func (m streamUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.up()
 		case bubbleKey.Matches(msg, m.keymap.down):
 			m.down()
+		case bubbleKey.Matches(msg, m.keymap.start) && !m.promptingMissingFile:
+			m.scrollStart()
+		case bubbleKey.Matches(msg, m.keymap.end) && !m.promptingMissingFile:
+			m.scrollEnd()
 		case m.promptingMissingFile && bubbleKey.Matches(msg, m.keymap.enter):
 			m.selectedMissingFileOpt()
 
@@ -93,27 +100,44 @@ func (m *streamUIModel) windowResized(w, h int) {
 	if m.ready {
 		m.updateViewportDimensions()
 	} else {
-		m.replyViewport = viewport.New(w, viewportHeight)
-		m.replyViewport.Style = lipgloss.NewStyle().Padding(0, 1, 0, 1)
+		m.mainViewport = viewport.New(w, viewportHeight)
+		m.mainViewport.Style = lipgloss.NewStyle().Padding(0, 1, 0, 1)
+		m.updateReplyDisplay()
 		m.ready = true
 	}
 }
 
 func (m *streamUIModel) updateReplyDisplay() {
-	md, _ := term.GetMarkdown(m.reply)
-	m.replyDisplay = md
-	m.replyViewport.SetContent(md)
+	if m.buildOnly {
+		return
+	}
+
+	promptTxt, _ := term.GetPlain(m.prompt)
+
+	s := color.New(color.BgGreen, color.Bold, color.FgHiWhite).Sprintf(" 💬 User prompt 👇 ")
+	s += "\n" + promptTxt
+
+	if m.reply != "" {
+		replyMd, _ := term.GetMarkdown(m.reply)
+		s += "\n\n" + color.New(color.BgBlue, color.Bold, color.FgHiWhite).Sprintf(" 🤖 Plandex reply 👇 ")
+		s += "\n" + strings.TrimSpace(replyMd) + "\n"
+	} else {
+		s += "\n"
+	}
+
+	m.mainDisplay = s
+	m.mainViewport.SetContent(s)
 	m.updateViewportDimensions()
 
 	if m.atScrollBottom {
-		m.replyViewport.GotoBottom()
+		m.mainViewport.GotoBottom()
 	}
 }
 
 func (m *streamUIModel) updateViewportDimensions() {
 	w, h := m.getViewportDimensions()
-	m.replyViewport.Width = w
-	m.replyViewport.Height = h
+	m.mainViewport.Width = w
+	m.mainViewport.Height = h
 }
 
 func (m *streamUIModel) getViewportDimensions() (int, int) {
@@ -121,10 +145,19 @@ func (m *streamUIModel) getViewportDimensions() (int, int) {
 	h := m.height
 
 	helpHeight := lipgloss.Height(m.renderHelp())
-	buildHeight := lipgloss.Height(m.renderBuild())
-	processingHeight := lipgloss.Height(m.renderProcessing())
+
+	var buildHeight int
+	if m.building {
+		buildHeight = lipgloss.Height(m.renderBuild())
+	}
+
+	var processingHeight int
+	if m.starting || m.processing {
+		processingHeight = lipgloss.Height(m.renderProcessing())
+	}
+
 	maxViewportHeight := h - (helpHeight + processingHeight + buildHeight)
-	viewportHeight := min(maxViewportHeight, lipgloss.Height(m.replyDisplay))
+	viewportHeight := min(maxViewportHeight, lipgloss.Height(m.mainDisplay))
 	viewportWidth := w
 
 	// log.Println("viewportWidth:", viewportWidth)
@@ -133,36 +166,50 @@ func (m *streamUIModel) getViewportDimensions() (int, int) {
 }
 
 func (m streamUIModel) replyScrollable() bool {
-	return m.replyViewport.TotalLineCount() > m.replyViewport.VisibleLineCount()
+	return m.mainViewport.TotalLineCount() > m.mainViewport.VisibleLineCount()
 }
 
 func (m *streamUIModel) scrollDown() {
 	if m.replyScrollable() {
-		m.replyViewport.LineDown(1)
+		m.mainViewport.LineDown(1)
 	}
 
-	m.atScrollBottom = !m.replyScrollable() || m.replyViewport.AtBottom()
+	m.atScrollBottom = !m.replyScrollable() || m.mainViewport.AtBottom()
 }
 
 func (m *streamUIModel) scrollUp() {
 	if m.replyScrollable() {
-		m.replyViewport.LineUp(1)
+		m.mainViewport.LineUp(1)
 		m.atScrollBottom = false
 	}
 }
 
 func (m *streamUIModel) pageDown() {
 	if m.replyScrollable() {
-		m.replyViewport.ViewDown()
+		m.mainViewport.ViewDown()
 	}
 
-	m.atScrollBottom = !m.replyScrollable() || m.replyViewport.AtBottom()
+	m.atScrollBottom = !m.replyScrollable() || m.mainViewport.AtBottom()
 }
 
 func (m *streamUIModel) pageUp() {
 	if m.replyScrollable() {
-		m.replyViewport.ViewUp()
+		m.mainViewport.ViewUp()
 		m.atScrollBottom = false
+	}
+}
+
+func (m *streamUIModel) scrollStart() {
+	if m.replyScrollable() {
+		m.mainViewport.GotoTop()
+		m.atScrollBottom = false
+	}
+}
+
+func (m *streamUIModel) scrollEnd() {
+	if m.replyScrollable() {
+		m.mainViewport.GotoBottom()
+		m.atScrollBottom = true
 	}
 }
 
@@ -212,6 +259,10 @@ func (m *streamUIModel) streamUpdate(msg *shared.StreamMessage) (tea.Model, tea.
 		m.updateReplyDisplay()
 
 	case shared.StreamMessageBuildInfo:
+		if m.starting {
+			m.starting = false
+		}
+
 		m.building = true
 		wasFinished := m.finishedByPath[msg.BuildInfo.Path]
 		nowFinished := msg.BuildInfo.Finished
@@ -237,10 +288,20 @@ func (m *streamUIModel) streamUpdate(msg *shared.StreamMessage) (tea.Model, tea.
 		return m, m.spinner.Tick
 
 	case shared.StreamMessageError:
+		m.apiErr = msg.Error
+		return m, tea.Quit
 
 	case shared.StreamMessageFinished:
+		m.finished = true
+		return m, tea.Quit
 
 	case shared.StreamMessageAborted:
+		m.stopped = true
+		return m, tea.Quit
+
+	case shared.StreamMessageRepliesFinished:
+		m.processing = false
+
 	}
 
 	return m, nil
