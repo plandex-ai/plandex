@@ -73,6 +73,10 @@ func plans(cmd *cobra.Command, args []string) {
 	table.SetHeader([]string{"#", "Name", "Updated", "Created" /*"Branches",*/, "Branch", "Context", "Convo"})
 
 	for i, p := range plans {
+		num := strconv.Itoa(i + 1)
+		if p.Id == lib.CurrentPlanId {
+			num = color.New(color.Bold, color.FgGreen).Sprint(num)
+		}
 
 		var name string
 		if p.Id == lib.CurrentPlanId {
@@ -84,7 +88,7 @@ func plans(cmd *cobra.Command, args []string) {
 		currentBranch := currentBranchesByPlanId[p.Id]
 
 		row := []string{
-			strconv.Itoa(i + 1),
+			num,
 			name,
 			format.Time(p.UpdatedAt),
 			format.Time(p.CreatedAt),
@@ -111,5 +115,5 @@ func plans(cmd *cobra.Command, args []string) {
 	}
 	table.Render()
 	fmt.Println()
-	term.PrintCmds("", "new", "cd", "delete-plan")
+	term.PrintCmds("", "tell", "new", "cd", "delete-plan")
 }

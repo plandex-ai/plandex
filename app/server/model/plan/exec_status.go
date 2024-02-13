@@ -25,10 +25,16 @@ func ExecStatusShouldContinue(client *openai.Client, message string, ctx context
 		if strings.Contains(lastParagraph, "All tasks have been completed") ||
 			strings.Contains(lastParagraph, "all tasks have been completed") ||
 			strings.Contains(lastParagraph, "plan cannot be continued") {
+
+			log.Println("Plan cannot be continued based on last paragraph")
+
 			return false, nil
 		}
 
 		if strings.Index(lastParagraph, "Next, ") < 3 {
+
+			log.Println("Plan can be continued based on last paragraph")
+
 			return true, nil
 		}
 	}
@@ -39,6 +45,8 @@ func ExecStatusShouldContinue(client *openai.Client, message string, ctx context
 			Content: prompts.GetExecStatusShouldContinue(message), // Ensure this function is correctly defined in your package
 		},
 	}
+
+	log.Println("Calling model to check if plan should continue")
 
 	resp, err := client.CreateChatCompletion(
 		ctx,

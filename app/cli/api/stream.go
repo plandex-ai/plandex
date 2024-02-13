@@ -33,7 +33,7 @@ func connectPlanRespStream(body io.ReadCloser, onStream types.OnStreamPlan) {
 				return
 			}
 
-			log.Println("Received message:", msg)
+			// log.Println("Received message:", msg)
 
 			onStream(types.OnStreamPlanParams{Msg: &msg, Err: nil})
 

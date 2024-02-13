@@ -9,7 +9,6 @@ import (
 	"plandex-server/db"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/google/uuid"
 	"github.com/plandex/plandex/shared"
 )
@@ -217,8 +216,8 @@ func (ap *ActivePlan) PendingBuildsByPath(orgId, userId string, convoMessagesArg
 		}
 	}
 
-	log.Println("planDescs:")
-	spew.Dump(planDescs)
+	// log.Println("planDescs:")
+	// spew.Dump(planDescs)
 
 	activeBuildsByPath := map[string][]*ActiveBuild{}
 
@@ -249,8 +248,8 @@ func (ap *ActivePlan) PendingBuildsByPath(orgId, userId string, convoMessagesArg
 		}
 	}
 
-	log.Println("activeBuildsByPath:")
-	spew.Dump(activeBuildsByPath)
+	// log.Println("activeBuildsByPath:")
+	// spew.Dump(activeBuildsByPath)
 
 	return activeBuildsByPath, nil
 }

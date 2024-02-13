@@ -8,6 +8,7 @@ import (
 	"plandex/lib"
 	"plandex/term"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/fatih/color"
@@ -23,7 +24,7 @@ var cdCmd = &cobra.Command{
 	Use:     "cd [name-or-index]",
 	Aliases: []string{"set-plan"},
 	Short:   "Set current plan by name or index",
-	Args:    cobra.ExactArgs(1),
+	Args:    cobra.MaximumNArgs(1),
 	Run:     cd,
 }
 
@@ -31,7 +32,11 @@ func cd(cmd *cobra.Command, args []string) {
 	auth.MustResolveAuthWithOrg()
 	lib.MustResolveProject()
 
-	nameOrIdx := args[0]
+	var nameOrIdx string
+	if len(args) > 0 {
+		nameOrIdx = strings.TrimSpace(args[0])
+	}
+
 	var plan *shared.Plan
 
 	plans, apiErr := api.Client.ListPlans(lib.CurrentProjectId)
@@ -41,31 +46,60 @@ func cd(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
-	// see if it's an index
-	idx, err := strconv.Atoi(nameOrIdx)
+	if len(plans) == 0 {
+		fmt.Println("🤷‍♂️ No plans")
+		fmt.Println()
+		term.PrintCmds("", "new")
+		return
+	}
 
-	if err == nil {
-		if idx > 0 && idx <= len(plans) {
-			plan = plans[idx-1]
-		} else {
-			fmt.Fprintln(os.Stderr, "Error: index out of range")
-			os.Exit(1)
+	if nameOrIdx == "" {
+
+		opts := make([]string, len(plans))
+		for i, plan := range plans {
+			opts[i] = plan.Name
 		}
-	} else {
+
+		selected, err := term.SelectFromList("Select a plan", opts)
+
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "Error selecting plan:", err)
+			return
+		}
+
 		for _, p := range plans {
-			if p.Name == nameOrIdx {
+			if p.Name == selected {
 				plan = p
 				break
 			}
 		}
+	} else {
+		// see if it's an index
+		idx, err := strconv.Atoi(nameOrIdx)
 
-		if plan == nil {
-			fmt.Fprintln(os.Stderr, "Error: plan not found")
-			os.Exit(1)
+		if err == nil {
+			if idx > 0 && idx <= len(plans) {
+				plan = plans[idx-1]
+			} else {
+				fmt.Fprintln(os.Stderr, "Error: index out of range")
+				os.Exit(1)
+			}
+		} else {
+			for _, p := range plans {
+				if p.Name == nameOrIdx {
+					plan = p
+					break
+				}
+			}
 		}
 	}
 
-	err = lib.WriteCurrentPlan(plan.Id)
+	if plan == nil {
+		fmt.Fprintln(os.Stderr, "🚨 Plan not found")
+		os.Exit(1)
+	}
+
+	err := lib.WriteCurrentPlan(plan.Id)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Error setting current plan:", err)
 		os.Exit(1)

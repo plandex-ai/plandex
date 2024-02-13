@@ -47,16 +47,20 @@ func branches(cmd *cobra.Command, args []string) {
 	table.SetHeader([]string{"#", "Name", "Updated", "Created", "Context", "Convo"})
 
 	for i, b := range branches {
+		num := strconv.Itoa(i + 1)
+		if b.Name == lib.CurrentBranch {
+			num = color.New(color.Bold, color.FgGreen).Sprint(num)
+		}
 
 		var name string
-		if b.Id == lib.CurrentPlanId {
+		if b.Name == lib.CurrentBranch {
 			name = color.New(color.Bold, color.FgGreen).Sprint(b.Name) + color.New(color.FgWhite).Sprint(" 👈 current")
 		} else {
 			name = b.Name
 		}
 
 		row := []string{
-			strconv.Itoa(i + 1),
+			num,
 			name,
 			format.Time(b.UpdatedAt),
 			format.Time(b.CreatedAt),
@@ -80,8 +84,7 @@ func branches(cmd *cobra.Command, args []string) {
 
 	}
 	table.Render()
-
 	fmt.Println()
-	term.PrintCmds("", "checkout")
+	term.PrintCmds("", "checkout", "delete-branch")
 
 }

@@ -26,17 +26,18 @@ var CmdDesc = map[string][2]string{
 	"apply":    {"ap", "apply the plan to your project files"},
 	"continue": {"c", "continue the plan"},
 	// "status":      {"s", "show status of the plan"},
-	"rewind":      {"rw", "rewind to a previous state"},
-	"ls":          {"", "list everything in context"},
-	"rm":          {"", "remove context by name, index, or glob"},
-	"clear":       {"", "remove all context"},
-	"delete-plan": {"del", "delete plan by name or index"},
-	"plans":       {"pl", "list plans"},
-	"update":      {"u", "update outdated context"},
-	"log":         {"", "show log of plan updates"},
-	"convo":       {"", "show plan conversation"},
-	"branches":    {"br", "list plan branches"},
-	// "checkout":    {"co", "checkout or create a branch"}, need to implement non-contiguous aliases
+	"rewind":        {"rw", "rewind to a previous state"},
+	"ls":            {"", "list everything in context"},
+	"rm":            {"", "remove context by name, index, or glob"},
+	"clear":         {"", "remove all context"},
+	"delete-plan":   {"dp", "delete plan by name or index"},
+	"delete-branch": {"db", "delete a branch by name or index"},
+	"plans":         {"pl", "list plans"},
+	"update":        {"u", "update outdated context"},
+	"log":           {"", "show log of plan updates"},
+	"convo":         {"", "show plan conversation"},
+	"branches":      {"br", "list plan branches"},
+	"checkout":      {"co", "checkout or create a branch"},
 }
 
 func PrintCmds(prefix string, cmds ...string) {
@@ -49,7 +50,14 @@ func PrintCmds(prefix string, cmds ...string) {
 		alias := config[0]
 		desc := config[1]
 		if alias != "" {
-			cmd = strings.Replace(cmd, alias, fmt.Sprintf("(%s)", alias), 1)
+			containsFull := strings.Contains(cmd, alias)
+
+			if containsFull {
+				cmd = strings.Replace(cmd, alias, fmt.Sprintf("(%s)", alias), 1)
+			} else {
+				cmd = fmt.Sprintf("%s (%s)", cmd, alias)
+			}
+
 			// desc += color.New(color.FgWhite).Sprintf(" • alias → %s", color.New(color.Bold).Sprint(alias))
 		}
 		styled := color.New(color.Bold, color.FgHiWhite, color.BgCyan).Sprintf(" plandex %s ", cmd)

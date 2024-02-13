@@ -4,10 +4,12 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 
 	"plandex/api"
 	"plandex/auth"
 	"plandex/lib"
+	"plandex/term"
 
 	"github.com/fatih/color"
 	"github.com/plandex/plandex/shared"
@@ -24,7 +26,7 @@ func init() {
 // rmCmd represents the rm command
 var rmCmd = &cobra.Command{
 	Use:     "delete-plan [name-or-index]",
-	Aliases: []string{"del"},
+	Aliases: []string{"dp"},
 	Short:   "Delete a plan by name or index, or delete all plans with --all flag",
 	Args:    cobra.RangeArgs(0, 1),
 	Run:     del,
@@ -39,7 +41,15 @@ func del(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	nameOrIdx := args[0]
+	var nameOrIdx string
+	if len(args) > 0 {
+		nameOrIdx = strings.TrimSpace(args[0])
+
+		if all {
+			fmt.Fprintln(os.Stderr, "🚨 Can't use both --all and a plan name or index")
+			return
+		}
+	}
 	var plan *shared.Plan
 
 	plans, apiErr := api.Client.ListPlans(lib.CurrentProjectId)
@@ -49,28 +59,58 @@ func del(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
-	// see if it's an index
-	idx, err := strconv.Atoi(nameOrIdx)
+	if len(plans) == 0 {
+		fmt.Println("🤷‍♂️ No plans")
+		fmt.Println()
+		term.PrintCmds("", "new")
+		return
+	}
 
-	if err == nil {
-		if idx > 0 && idx <= len(plans) {
-			plan = plans[idx-1]
-		} else {
-			fmt.Fprintln(os.Stderr, "Error: index out of range")
-			os.Exit(1)
+	if nameOrIdx == "" {
+
+		opts := make([]string, len(plans))
+		for i, plan := range plans {
+			opts[i] = plan.Name
 		}
-	} else {
+
+		selected, err := term.SelectFromList("Select a plan", opts)
+
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "Error selecting plan:", err)
+			return
+		}
+
 		for _, p := range plans {
-			if p.Name == nameOrIdx {
+			if p.Name == selected {
 				plan = p
 				break
 			}
 		}
+	} else {
 
-		if plan == nil {
-			fmt.Fprintln(os.Stderr, "Error: plan not found")
-			os.Exit(1)
+		// see if it's an index
+		idx, err := strconv.Atoi(nameOrIdx)
+
+		if err == nil {
+			if idx > 0 && idx <= len(plans) {
+				plan = plans[idx-1]
+			} else {
+				fmt.Fprintln(os.Stderr, "Error: index out of range")
+				os.Exit(1)
+			}
+		} else {
+			for _, p := range plans {
+				if p.Name == nameOrIdx {
+					plan = p
+					break
+				}
+			}
 		}
+	}
+
+	if plan == nil {
+		fmt.Fprintln(os.Stderr, "🚨 Plan not found")
+		os.Exit(1)
 	}
 
 	apiErr = api.Client.DeletePlan(plan.Id)
@@ -81,7 +121,7 @@ func del(cmd *cobra.Command, args []string) {
 	}
 
 	if lib.CurrentPlanId == plan.Id {
-		err = lib.ClearCurrentPlan()
+		err := lib.ClearCurrentPlan()
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "Error clearing current plan:", err)
 			return

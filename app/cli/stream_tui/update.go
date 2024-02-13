@@ -115,12 +115,12 @@ func (m *streamUIModel) updateReplyDisplay() {
 	promptTxt, _ := term.GetPlain(m.prompt)
 
 	s := color.New(color.BgGreen, color.Bold, color.FgHiWhite).Sprintf(" 💬 User prompt 👇 ")
-	s += "\n" + promptTxt
+	s += "\n\n" + strings.TrimSpace(promptTxt) + "\n"
 
 	if m.reply != "" {
 		replyMd, _ := term.GetMarkdown(m.reply)
 		s += "\n\n" + color.New(color.BgBlue, color.Bold, color.FgHiWhite).Sprintf(" 🤖 Plandex reply 👇 ")
-		s += "\n" + strings.TrimSpace(replyMd) + "\n"
+		s += "\n\n" + strings.TrimSpace(replyMd) + "\n"
 	} else {
 		s += "\n"
 	}

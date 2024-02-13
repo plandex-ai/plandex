@@ -7,6 +7,7 @@ import (
 	"plandex/auth"
 	"plandex/lib"
 	"plandex/term"
+	"strconv"
 	"strings"
 
 	"github.com/fatih/color"
@@ -19,7 +20,7 @@ const (
 )
 
 var checkoutCmd = &cobra.Command{
-	Use:     "checkout",
+	Use:     "checkout [name-or-index]",
 	Aliases: []string{"co"},
 	Short:   "Checkout an existing plan branch or create a new one",
 	Run:     checkout,
@@ -39,6 +40,14 @@ func checkout(cmd *cobra.Command, args []string) {
 		return
 	}
 
+	branchName := ""
+	willCreate := false
+
+	var nameOrIdx string
+	if len(args) > 0 {
+		nameOrIdx = strings.TrimSpace(args[0])
+	}
+
 	branches, apiErr := api.Client.ListBranches(lib.CurrentPlanId)
 
 	if apiErr != nil {
@@ -46,13 +55,7 @@ func checkout(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	branchName := ""
-	willCreate := false
-	if len(args) > 0 {
-		branchName = strings.TrimSpace(args[0])
-	}
-
-	if branchName == "" {
+	if nameOrIdx == "" {
 		opts := make([]string, len(branches))
 		for i, branch := range branches {
 			opts[i] = branch.Name
@@ -76,11 +79,29 @@ func checkout(cmd *cobra.Command, args []string) {
 		} else {
 			branchName = selected
 		}
+	} else {
+		// see if it's an index
+		idx, err := strconv.Atoi(nameOrIdx)
+
+		if err == nil {
+			if idx > 0 && idx <= len(branches) {
+				branchName = branches[idx-1].Name
+			} else {
+				fmt.Fprintln(os.Stderr, "Error: index out of range")
+				os.Exit(1)
+			}
+		} else {
+			for _, b := range branches {
+				if b.Name == nameOrIdx {
+					branchName = b.Name
+					break
+				}
+			}
+		}
 	}
 
 	if branchName == "" {
-		// should never happen
-		fmt.Fprintln(os.Stderr, "🚨 Error selecting branch")
+		fmt.Fprintln(os.Stderr, "🚨 Branch not found")
 		os.Exit(1)
 	}
 
