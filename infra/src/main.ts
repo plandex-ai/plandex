@@ -39,7 +39,7 @@ export class PlandexStack extends cdk.Stack {
 
     super(scope, id, props);
 
-    // Create a VPC with two public and two private subnets
+    // Create a VPC with one public and one private subnet
     console.log("Creating VPC...");
     const vpc = new ec2.Vpc(this, `plandex-vpc-${tag}`, {
       maxAzs: 2,
@@ -101,7 +101,7 @@ export class PlandexStack extends cdk.Stack {
     efsSecurityGroup.addIngressRule(
       fargateServiceSecurityGroup,
       ec2.Port.tcp(2049),
-      "Allow inbound NFS traffic from Fargate service"
+      "Allow inbound NFS traffic to EFS from Fargate service"
     );
 
     fargateServiceSecurityGroup.addEgressRule(
@@ -232,7 +232,7 @@ export class PlandexStack extends cdk.Stack {
       healthCheck: {
         command: [
           "CMD-SHELL",
-          "curl -f http://localhost:8080/health || exit 1"
+          "curl -f http://localhost:8080/health || exit 1",
         ],
         interval: cdk.Duration.seconds(30),
         timeout: cdk.Duration.seconds(5),
