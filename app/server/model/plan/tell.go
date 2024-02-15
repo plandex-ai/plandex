@@ -1020,19 +1020,19 @@ func execTellPlan(
 				content := delta.Content
 
 				if missingFileResponse != "" {
-					if chunksReceived < 3 && strings.Contains(content, "```") {
+					if maybeRedundantBacktickContent != "" {
+						if strings.Contains(content, "\n") {
+							maybeRedundantBacktickContent = ""
+						} else {
+							maybeRedundantBacktickContent += content
+						}
+						continue
+					} else if chunksReceived < 3 && strings.Contains(content, "```") {
 						// received closing triple backticks in first 3 chunks after missing file response
 						// means this is a redundant start of a new file block, so just ignore it
 
 						maybeRedundantBacktickContent += content
 						continue
-					} else if maybeRedundantBacktickContent != "" {
-						if strings.Contains(content, "\n") {
-							maybeRedundantBacktickContent = ""
-						} else {
-							maybeRedundantBacktickContent += content
-							continue
-						}
 					}
 				}
 

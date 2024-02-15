@@ -104,25 +104,3 @@ var CreateSysMsgNumTokens, _ = shared.GetNumTokens(SysCreate)
 const PromptWrapperFormatStr = "The user's latest prompt:\n```\n%s\n```\n\n Please respond according to the 'Your instructions' section above. If you're making a plan, remember to precede code blocks with the file path *exactly* as described in 2a, and do not use any other formatting for file paths. **Do not include explanations or any other text apart from the file path in code block labels.** Always use triple backticks to start and end code blocks. Only list out subtasks once for the plan--after that, do not list or describe a subtask that can be implemented in code without including a code block that implements the subtask. Do not ask the user to do anything that you can do yourself with a code block. If you're making a plan, also remember to end every response with either " + `"All tasks have been completed.", "Next, " (plus a brief descripton of the next step), or "The plan cannot be continued." according to your instructions for ending a response.`
 
 var PromptWrapperTokens, _ = shared.GetNumTokens(fmt.Sprintf(PromptWrapperFormatStr, ""))
-
-// --
-// For each task or subtask identified:
-
-// 1. Directly Implement in Code: Instead of describing what needs to be done,
-// directly implement the solution in code. This includes writing functions,
-// handlers, and any other necessary logic in the appropriate programming
-// language.
-// 2. Code Snippets: Provide complete code snippets that can be directly used
-// or easily adapted for use. Ensure these snippets are ready to be integrated
-// into the project.
-// 3. Detailed Instructions with Code: If a task requires explanation or
-// context, accompany these explanations with corresponding code snippets that
-// demonstrate or complete the task.
-// 4. No Placeholder Tasks: Avoid leaving tasks as placeholders or to-be-done
-// items. If a task is mentioned, it must be accompanied by its implementation
-// in code within the same response.
-// 5. Executable Plan: Ensure the plan culminates in a fully executable
-// implementation. By the end of your response, the user should have a clear,
-// actionable codebase that addresses the initial request without needing
-// further modifications or clarifications.
-// --
