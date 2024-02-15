@@ -144,18 +144,19 @@ func queueBuilds(client *openai.Client, currentOrgId, currentUserId, planId, bra
 	activePlan := GetActivePlan(planId, branch)
 	filePath := activeBuilds[0].Path
 
+	// log.Printf("Queue:")
+	// spew.Dump(activePlan.BuildQueuesByPath[filePath])
+
 	UpdateActivePlan(planId, branch, func(active *types.ActivePlan) {
 		active.BuildQueuesByPath[filePath] = append(active.BuildQueuesByPath[filePath], activeBuilds...)
 	})
 	log.Printf("Queued %d build(s) for file %s\n", len(activeBuilds), filePath)
-	// log.Printf("Queue:")
-	// spew.Dump(activePlan.BuildQueuesByPath[filePath])
 
 	if activePlan.IsBuildingByPath[filePath] {
 		log.Printf("Already building file %s\n", filePath)
 		return
 	} else {
-		log.Printf("Will process build queue for file %s\n", filePath)
+		log.Printf("Not building file %s, will execute now\n", filePath)
 		go execPlanBuild(client, currentOrgId, currentUserId, branch, activePlan, activeBuilds)
 	}
 }
@@ -181,9 +182,11 @@ func execPlanBuild(client *openai.Client, currentOrgId, currentUserId, branch st
 		}
 	}
 
-	UpdateActivePlan(activePlan.Id, activePlan.Branch, func(ap *types.ActivePlan) {
-		ap.IsBuildingByPath[filePath] = true
-	})
+	if !activePlan.IsBuildingByPath[filePath] {
+		UpdateActivePlan(activePlan.Id, activePlan.Branch, func(ap *types.ActivePlan) {
+			ap.IsBuildingByPath[filePath] = true
+		})
+	}
 
 	buildInfo := &shared.BuildInfo{
 		Path:      filePath,
@@ -270,7 +273,7 @@ func execPlanBuild(client *openai.Client, currentOrgId, currentUserId, branch st
 		currentPlan = res
 
 		log.Println("Got current plan state")
-		spew.Dump(currentPlan)
+		// spew.Dump(currentPlan)
 	}()
 
 	errCh := make(chan error)
@@ -281,8 +284,8 @@ func execPlanBuild(client *openai.Client, currentOrgId, currentUserId, branch st
 		// first check if any of the messages we're building hasen't finished streaming yet
 		stillStreaming := false
 		var doneCh chan bool
+		ap := GetActivePlan(planId, branch)
 		for _, convoMessageId := range convoMessageIds {
-			ap := GetActivePlan(planId, branch)
 			if ap.CurrentStreamingReplyId == convoMessageId {
 				stillStreaming = true
 				doneCh = ap.CurrentReplyDoneCh
@@ -292,6 +295,14 @@ func execPlanBuild(client *openai.Client, currentOrgId, currentUserId, branch st
 		if stillStreaming {
 			log.Println("Reply is still streaming, waiting for it to finish before finishing build")
 			<-doneCh
+		}
+
+		// Check again if build is finished
+		// (more builds could have been queued while we were waiting for the reply to finish streaming)
+		ap = GetActivePlan(planId, branch)
+		if !ap.BuildFinished() {
+			log.Println("Build not finished after waiting for reply to finish streaming")
+			return
 		}
 
 		repoLockId, err := db.LockRepo(
@@ -407,7 +418,7 @@ func execPlanBuild(client *openai.Client, currentOrgId, currentUserId, branch st
 
 		active := GetActivePlan(planId, branch)
 
-		if active.RepliesFinished || active.BuildOnly {
+		if active != nil && (active.RepliesFinished || active.BuildOnly) {
 			activePlan.Stream(shared.StreamMessage{
 				Type: shared.StreamMessageFinished,
 			})
@@ -480,8 +491,6 @@ func execPlanBuild(client *openai.Client, currentOrgId, currentUserId, branch st
 
 		UpdateActivePlan(planId, branch, func(ap *types.ActivePlan) {
 			ap.BuiltFiles[filePath] = true
-			ap.IsBuildingByPath[filePath] = false
-
 			if ap.BuildFinished() {
 				finished = true
 			}
@@ -490,10 +499,18 @@ func execPlanBuild(client *openai.Client, currentOrgId, currentUserId, branch st
 		log.Printf("Finished building file %s\n", filePath)
 
 		if finished {
+			UpdateActivePlan(planId, branch, func(ap *types.ActivePlan) {
+				ap.IsBuildingByPath[filePath] = false
+			})
 			log.Println("Finished building plan, calling onFinishBuild")
 			onFinishBuild()
 		} else {
-			if !activePlan.PathFinished(filePath) {
+			if activePlan.PathFinished(filePath) {
+				UpdateActivePlan(planId, branch, func(ap *types.ActivePlan) {
+					ap.IsBuildingByPath[filePath] = false
+				})
+				log.Printf("File %s finished, but not all builds finished\n", filePath)
+			} else {
 				log.Printf("Processing next build for file %s\n", filePath)
 				var nextBuilds []*types.ActiveBuild
 				for _, build := range activePlan.BuildQueuesByPath[filePath] {
@@ -502,16 +519,15 @@ func execPlanBuild(client *openai.Client, currentOrgId, currentUserId, branch st
 					}
 				}
 
-				log.Println("Next builds:")
-				spew.Dump(nextBuilds)
+				// log.Println("Next builds:")
+				// spew.Dump(nextBuilds)
+				log.Printf("%d builds left for file %s\n", len(nextBuilds), filePath)
 
 				if len(nextBuilds) > 0 {
 					log.Println("Calling execPlanBuild for next build in queue")
 					go execPlanBuild(client, currentOrgId, currentUserId, branch, activePlan, nextBuilds)
 				}
 				return
-			} else {
-				log.Printf("File %s finished, but not all builds finished\n", filePath)
 			}
 		}
 	}
@@ -550,6 +566,11 @@ func execPlanBuild(client *openai.Client, currentOrgId, currentUserId, branch st
 	buildFile = func(filePath string, numRetry int, numReplacementsRetry int, res *db.PlanFileResult) {
 		log.Printf("Building file %s, numRetry: %d\n", filePath, numRetry)
 
+		log.Println("activePlan.ContextsByPath files:")
+		for k := range activePlan.ContextsByPath {
+			log.Println(k)
+		}
+
 		// get relevant file context (if any)
 		contextPart := activePlan.ContextsByPath[filePath]
 
@@ -563,7 +584,13 @@ func execPlanBuild(client *openai.Client, currentOrgId, currentUserId, branch st
 			// log.Println("Current state:")
 			// log.Println(currentState)
 		} else if contextPart != nil {
+			log.Printf("File %s found in model context. Using context state.\n", filePath)
+
 			currentState = contextPart.Body
+
+			if currentState == "" {
+				log.Println("Context state is empty. That's bad.")
+			}
 		}
 
 		if currentState == "" {
@@ -606,8 +633,8 @@ func execPlanBuild(client *openai.Client, currentOrgId, currentUserId, branch st
 		}
 
 		log.Println("Num active builds: " + fmt.Sprintf("%d", len(activeBuilds)))
-		log.Println("Merged reply:")
-		log.Println(mergedReply)
+		// log.Println("Merged reply:")
+		// log.Println(mergedReply)
 
 		fileMessages := []openai.ChatCompletionMessage{
 			{
@@ -660,8 +687,19 @@ func execPlanBuild(client *openai.Client, currentOrgId, currentUserId, branch st
 		// }
 
 		modelReq := openai.ChatCompletionRequest{
-			Model:          model.BuilderModel,
-			Functions:      []openai.FunctionDefinition{prompts.ReplaceFn},
+			Model: model.BuilderModel,
+			Tools: []openai.Tool{
+				{
+					Type:     "function",
+					Function: prompts.ReplaceFn,
+				},
+			},
+			ToolChoice: openai.ToolChoice{
+				Type: "function",
+				Function: openai.ToolFunction{
+					Name: prompts.ReplaceFn.Name,
+				},
+			},
 			Messages:       fileMessages,
 			Temperature:    0.2,
 			TopP:           0.1,
@@ -765,48 +803,30 @@ func execPlanBuild(client *openai.Client, currentOrgId, currentUserId, branch st
 					}
 
 					choice := response.Choices[0]
-
-					if choice.FinishReason != "" {
-						if choice.FinishReason != openai.FinishReasonFunctionCall {
-							handleErrorRetry(
-								fmt.Errorf("stream finished without a function call. Reason: %s, File: %s", choice.FinishReason, filePath),
-								false,
-								false,
-								res,
-							)
-							return
-						}
-
-						log.Printf("File %s: Stream finished with non-function call\n", filePath)
-						log.Println("finish reason: " + choice.FinishReason)
-
-						active := GetActivePlan(planId, branch)
-						if !active.BuiltFiles[filePath] {
-							log.Printf("Stream finished before replacements parsed. File: %s\n", filePath)
-							log.Println("Buffer:")
-							log.Println(buffer)
-
-							handleErrorRetry(
-								fmt.Errorf("stream finished before replacements parsed. File: %s", filePath),
-								true,
-								false,
-								res,
-							)
-							return
-						}
-					}
-
 					var content string
 					delta := response.Choices[0].Delta
 
-					if delta.FunctionCall == nil {
-						log.Println("No function call in delta. File:", filePath)
-						spew.Dump(delta)
-						continue
-					} else {
-						content = delta.FunctionCall.Arguments
+					if len(delta.ToolCalls) == 0 {
+						log.Println("Stream chunk missing function call. Response:")
+						spew.Dump(response)
+
+						log.Println("Messages:")
+						spew.Dump(fileMessages)
+
+						log.Println("Buffer:")
+						log.Println(buffer)
+
+						handleErrorRetry(
+							fmt.Errorf("stream chunk missing function call. Reason: %s, File: %s", choice.FinishReason, filePath),
+							false,
+							false,
+							res,
+						)
+						return
+
 					}
 
+					content = delta.ToolCalls[0].Function.Arguments
 					buildInfo := &shared.BuildInfo{
 						Path:      filePath,
 						NumTokens: 1,
@@ -911,8 +931,10 @@ func getPlanResult(params planResultParams) (*db.PlanFileResult, bool) {
 	_, allSucceeded := shared.ApplyReplacements(currentState, replacements, true)
 
 	var contextSha string
+	var contextBody string
 	if contextPart != nil {
 		contextSha = contextPart.Sha
+		contextBody = contextPart.Body
 	}
 
 	for _, replacement := range replacements {
@@ -929,7 +951,7 @@ func getPlanResult(params planResultParams) (*db.PlanFileResult, bool) {
 		Path:            filePath,
 		Replacements:    replacements,
 		ContextSha:      contextSha,
-		ContextBody:     contextPart.Body,
+		ContextBody:     contextBody,
 		AnyFailed:       !allSucceeded,
 	}, allSucceeded
 }

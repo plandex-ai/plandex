@@ -17,8 +17,19 @@ func genPlanDescription(client *openai.Client, planId, branch string, ctx contex
 	descResp, err := client.CreateChatCompletion(
 		ctx,
 		openai.ChatCompletionRequest{
-			Model:     model.CommitMsgModel,
-			Functions: []openai.FunctionDefinition{prompts.DescribePlanFn},
+			Model: model.CommitMsgModel,
+			Tools: []openai.Tool{
+				{
+					Type:     "function",
+					Function: prompts.DescribePlanFn,
+				},
+			},
+			ToolChoice: openai.ToolChoice{
+				Type: "function",
+				Function: openai.ToolFunction{
+					Name: prompts.DescribePlanFn.Name,
+				},
+			},
 			Messages: []openai.ChatCompletionMessage{
 				{
 					Role:    openai.ChatMessageRoleSystem,
@@ -42,17 +53,17 @@ func genPlanDescription(client *openai.Client, planId, branch string, ctx contex
 	var desc shared.ConvoMessageDescription
 
 	for _, choice := range descResp.Choices {
-		if choice.FinishReason == "function_call" &&
-			choice.Message.FunctionCall != nil &&
-			choice.Message.FunctionCall.Name == "describePlan" {
-			fnCall := choice.Message.FunctionCall
+		if len(choice.Message.ToolCalls) == 1 &&
+			choice.Message.ToolCalls[0].Function.Name == prompts.DescribePlanFn.Name {
+			fnCall := choice.Message.ToolCalls[0].Function
 			descStrRes = fnCall.Arguments
+			break
 		}
 	}
 
 	if descStrRes == "" {
 		fmt.Println("no describePlan function call found in response")
-		return nil, err
+		return nil, fmt.Errorf("no describePlan function call found in response")
 	}
 
 	descByteRes := []byte(descStrRes)

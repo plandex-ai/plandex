@@ -25,8 +25,20 @@ func GenPlanName(client *openai.Client, planContent string) (string, error) {
 	resp, err := client.CreateChatCompletion(
 		context.Background(),
 		openai.ChatCompletionRequest{
-			Model:          NameModel,
-			Functions:      []openai.FunctionDefinition{prompts.PlanNameFn},
+			Model: NameModel,
+			Tools: []openai.Tool{
+				{
+					Type:     "function",
+					Function: prompts.PlanNameFn,
+				},
+			},
+			ToolChoice: openai.ToolChoice{
+				Type: "function",
+				Function: openai.ToolFunction{
+					Name: prompts.PlanNameFn.Name,
+				},
+			},
+
 			Messages:       messages,
 			ResponseFormat: &openai.ChatCompletionResponseFormat{Type: "json_object"},
 		},
@@ -41,11 +53,11 @@ func GenPlanName(client *openai.Client, planContent string) (string, error) {
 	}
 
 	for _, choice := range resp.Choices {
-		if choice.FinishReason == "function_call" &&
-			choice.Message.FunctionCall != nil &&
-			choice.Message.FunctionCall.Name == "namePlan" {
-			fnCall := choice.Message.FunctionCall
+		if len(choice.Message.ToolCalls) == 1 &&
+			choice.Message.ToolCalls[0].Function.Name == prompts.PlanNameFn.Name {
+			fnCall := choice.Message.ToolCalls[0].Function
 			res = fnCall.Arguments
+			break
 		}
 	}
 

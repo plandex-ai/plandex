@@ -41,7 +41,7 @@ type ActivePlan struct {
 	IsBuildingByPath        map[string]bool
 	CurrentReplyContent     string
 	NumTokens               int
-	PromptMessageNum        int
+	MessageNum              int
 	BuildQueuesByPath       map[string][]*ActiveBuild
 	RepliesFinished         bool
 	StreamDoneCh            chan *shared.ApiError

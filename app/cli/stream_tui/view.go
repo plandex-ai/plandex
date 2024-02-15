@@ -99,6 +99,7 @@ func (m streamUIModel) doRenderBuild(outputStatic bool) string {
 	var rows [][]string
 	lineWidth := 0
 	lineNum := 0
+	rowIdx := 0
 
 	for _, filePath := range filePaths {
 		tokens := m.tokensByPath[filePath]
@@ -111,12 +112,22 @@ func (m streamUIModel) doRenderBuild(outputStatic bool) string {
 			block += fmt.Sprintf(" %d 🪙", tokens)
 		}
 
-		blockWidth := lipgloss.Width(block)
+		maybePrefix := ""
+		if rowIdx > 0 {
+			maybePrefix = " | "
+		}
 
-		if lineWidth+blockWidth > m.width {
+		maybeBlockWidth := lipgloss.Width(maybePrefix + block)
+
+		if lineWidth+maybeBlockWidth > m.width {
 			lineWidth = 0
 			lineNum++
+			rowIdx = 0
+		} else {
+			block = maybePrefix + block
 		}
+
+		defBlockWidth := lipgloss.Width(block)
 
 		if len(rows) <= lineNum {
 			rows = append(rows, []string{})
@@ -126,14 +137,15 @@ func (m streamUIModel) doRenderBuild(outputStatic bool) string {
 		row = append(row, block)
 		rows[lineNum] = row
 
-		lineWidth += blockWidth
+		lineWidth += defBlockWidth
+		rowIdx++
 	}
 
 	resRows := make([]string, len(rows)+1)
 
 	resRows[0] = head
 	for i, row := range rows {
-		resRows[i+1] = strings.Join(row, " | ")
+		resRows[i+1] = strings.Join(row, "")
 	}
 
 	return style.Render(strings.Join(resRows, "\n"))

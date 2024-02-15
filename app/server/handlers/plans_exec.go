@@ -101,6 +101,8 @@ func TellPlanHandler(w http.ResponseWriter, r *http.Request) {
 			modelPlan.UnsubscribePlan(planId, branch, subscriptionId)
 		})
 	}
+
+	log.Println("Successfully processed request for TellPlanHandler")
 }
 
 func BuildPlanHandler(w http.ResponseWriter, r *http.Request) {
@@ -289,6 +291,9 @@ func RespondMissingFileHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		dbContext := dbContexts[0]
+
+		log.Println("loaded missing file:", dbContext.FilePath)
+
 		modelPlan.UpdateActivePlan(planId, branch, func(activePlan *types.ActivePlan) {
 			activePlan.Contexts = append(activePlan.Contexts, dbContext)
 			activePlan.ContextsByPath[dbContext.FilePath] = dbContext

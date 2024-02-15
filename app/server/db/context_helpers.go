@@ -136,6 +136,8 @@ func StoreContext(context *Context) error {
 	metaFilename := context.Id + ".meta"
 	metaPath := filepath.Join(contextDir, metaFilename)
 
+	originalBody := context.Body
+
 	bodyFilename := context.Id + ".body"
 	bodyPath := filepath.Join(contextDir, bodyFilename)
 	body := []byte(context.Body)
@@ -156,6 +158,8 @@ func StoreContext(context *Context) error {
 	if err = os.WriteFile(metaPath, data, 0644); err != nil {
 		return fmt.Errorf("failed to write context meta to file %s: %v", metaPath, err)
 	}
+
+	context.Body = originalBody
 
 	return nil
 }

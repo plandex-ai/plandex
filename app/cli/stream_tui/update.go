@@ -81,7 +81,7 @@ func (m streamUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case bubbleKey.Matches(msg, m.keymap.end) && !m.promptingMissingFile:
 			m.scrollEnd()
 		case m.promptingMissingFile && bubbleKey.Matches(msg, m.keymap.enter):
-			m.selectedMissingFileOpt()
+			return m.selectedMissingFileOpt()
 
 		default:
 			m.resolveEscapeSequence(msg.String())
@@ -119,8 +119,8 @@ func (m *streamUIModel) updateReplyDisplay() {
 
 	if m.reply != "" {
 		replyMd, _ := term.GetMarkdown(m.reply)
-		s += "\n\n" + color.New(color.BgBlue, color.Bold, color.FgHiWhite).Sprintf(" 🤖 Plandex reply 👇 ")
-		s += "\n\n" + strings.TrimSpace(replyMd) + "\n"
+		s += "\n" + color.New(color.BgBlue, color.Bold, color.FgHiWhite).Sprintf(" 🤖 Plandex reply 👇 ")
+		s += "\n\n" + strings.TrimSpace(replyMd)
 	} else {
 		s += "\n"
 	}
@@ -367,11 +367,11 @@ func (m *streamUIModel) down() {
 
 }
 
-func (m *streamUIModel) selectedMissingFileOpt() {
+func (m *streamUIModel) selectedMissingFileOpt() (tea.Model, tea.Cmd) {
 	choice := promptChoices[m.missingFileSelectedIdx]
 
 	if choice == "" {
-		return
+		return m, nil
 	}
 
 	apiErr := api.Client.RespondMissingFile(lib.CurrentPlanId, lib.CurrentBranch, shared.RespondMissingFileRequest{
@@ -383,7 +383,7 @@ func (m *streamUIModel) selectedMissingFileOpt() {
 	if apiErr != nil {
 		log.Println("missing file prompt api error:", apiErr)
 		m.apiErr = apiErr
-		return
+		return m, nil
 	}
 
 	if choice == shared.RespondMissingFileChoiceSkip {
@@ -399,4 +399,6 @@ func (m *streamUIModel) selectedMissingFileOpt() {
 	m.missingFileTokens = 0
 	m.promptedMissingFile = true
 	m.processing = true
+
+	return m, m.spinner.Tick
 }

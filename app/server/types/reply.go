@@ -1,7 +1,11 @@
 package types
 
 import (
+	"log"
+	"strconv"
 	"strings"
+
+	"github.com/davecgh/go-spew/spew"
 )
 
 type parserRes struct {
@@ -92,19 +96,21 @@ func (r *replyParser) AddChunk(chunk string, addToTotal bool) {
 	}
 
 	prevFullLine := r.lines[r.lineIndex-1]
-	// log.Println("Previous full line:", strconv.Quote(prevFullLine)) // Logging the full line that's being checked
+	log.Println("Previous full line:", strconv.Quote(prevFullLine)) // Logging the full line that's being checked
 
 	prevFullLineTrimmed := strings.TrimSpace(prevFullLine)
 
 	if r.maybeFilePath != "" {
-		// log.Println("Maybe file path is:", r.maybeFilePath) // Logging the maybeFilePath
+		log.Println("Maybe file path is:", r.maybeFilePath) // Logging the maybeFilePath
 		if strings.HasPrefix(prevFullLineTrimmed, "```") {
+			log.Println("Found opening ticks--confirming file path...") // Logging the confirmed file path
+
 			r.currentFilePath = r.maybeFilePath
 			r.currentFileIdx = len(r.files)
 			r.fileContents = append(r.fileContents, "")
 			r.maybeFilePath = ""
 			r.currentFileLines = []string{}
-			// log.Println("Confirmed file path:", r.currentFilePath) // Logging the confirmed file path
+			log.Println("Confirmed file path:", r.currentFilePath) // Logging the confirmed file path
 
 			return
 		} else if prevFullLineTrimmed != "" {
@@ -114,17 +120,17 @@ func (r *replyParser) AddChunk(chunk string, addToTotal bool) {
 	}
 
 	if r.currentFilePath == "" {
-		// log.Println("Current file path is empty--checking for possible file path...")
+		log.Println("Current file path is empty--checking for possible file path...")
 
 		var gotPath string
 		if lineHasFilePath(prevFullLineTrimmed) {
 			gotPath = extractFilePath(prevFullLineTrimmed)
 		} else {
-			// log.Println("No possible file path detected.", strconv.Quote(prevFullLineTrimmed))
+			log.Println("No possible file path detected.", strconv.Quote(prevFullLineTrimmed))
 		}
 
 		if gotPath != "" {
-			// log.Println("Detected possible file path:", gotPath) // Logging the possible file path
+			log.Println("Detected possible file path:", gotPath) // Logging the possible file path
 			if r.maybeFilePath == "" {
 				r.maybeFilePath = gotPath
 			} else {
@@ -132,13 +138,15 @@ func (r *replyParser) AddChunk(chunk string, addToTotal bool) {
 			}
 		}
 	} else {
-		// log.Println("Current file path is not empty--adding to current file...")
+		log.Println("Current file path is not empty--adding to current file...")
 		if strings.HasPrefix(prevFullLineTrimmed, "```") {
-			// log.Println("Found closing ticks--adding file to files and resetting current file...")
+			log.Println("Found closing ticks--adding file to files and resetting current file...")
 			r.files = append(r.files, r.currentFilePath)
 			r.currentFilePath = ""
+
+			spew.Dump(r.files)
 		} else {
-			// log.Println("Adding tokens to current file...") // Logging token addition
+			log.Println("Adding tokens to current file...") // Logging token addition
 
 			r.fileContents[r.currentFileIdx] += prevFullLine + "\n"
 			r.currentFileLines = append(r.currentFileLines, prevFullLine)
@@ -184,12 +192,17 @@ func lineHasFilePath(line string) bool {
 }
 
 func extractFilePath(line string) string {
-	p := strings.TrimPrefix(line, "**")
+	p := strings.ReplaceAll(line, "**", "")
 	p = strings.TrimPrefix(p, "-")
 	p = strings.TrimSpace(p)
-	p = strings.TrimSuffix(p, "**")
 	p = strings.TrimPrefix(p, "file:")
 	p = strings.TrimSuffix(p, ":")
 	p = strings.TrimSpace(p)
+
+	split := strings.Split(p, " ")
+	if len(split) > 1 {
+		p = split[0]
+	}
+
 	return p
 }

@@ -17,21 +17,20 @@ func ExecStatusShouldContinue(client *openai.Client, message string, ctx context
 
 	// First try to determine if the plan should continue based on the last paragraph without calling the model
 	paragraphs := strings.Split(message, "\n\n")
-	lastParagraph := paragraphs[len(paragraphs)-1]
+	lastParagraphLower := strings.ToLower(paragraphs[len(paragraphs)-1])
 
-	log.Printf("Last paragraph: %s\n", lastParagraph)
+	// log.Printf("Last paragraph: %s\n", lastParagraphLower)
 
-	if lastParagraph != "" {
-		if strings.Contains(lastParagraph, "All tasks have been completed") ||
-			strings.Contains(lastParagraph, "all tasks have been completed") ||
-			strings.Contains(lastParagraph, "plan cannot be continued") {
+	if lastParagraphLower != "" {
+		if strings.Contains(lastParagraphLower, "all tasks have been completed") ||
+			strings.Contains(lastParagraphLower, "plan cannot be continued") {
 
 			log.Println("Plan cannot be continued based on last paragraph")
 
 			return false, nil
 		}
 
-		if strings.Index(lastParagraph, "Next, ") < 3 {
+		if strings.Index(lastParagraphLower, "next,") < 3 {
 
 			log.Println("Plan can be continued based on last paragraph")
 
@@ -51,8 +50,19 @@ func ExecStatusShouldContinue(client *openai.Client, message string, ctx context
 	resp, err := client.CreateChatCompletion(
 		ctx,
 		openai.ChatCompletionRequest{
-			Model:          model.PlanExecStatusModel,
-			Functions:      []openai.FunctionDefinition{prompts.ShouldAutoContinueFn},
+			Model: model.PlanExecStatusModel,
+			Tools: []openai.Tool{
+				{
+					Type:     "function",
+					Function: prompts.ShouldAutoContinueFn,
+				},
+			},
+			ToolChoice: openai.ToolChoice{
+				Type: "function",
+				Function: openai.ToolFunction{
+					Name: prompts.ShouldAutoContinueFn.Name,
+				},
+			},
 			Messages:       messages,
 			ResponseFormat: &openai.ChatCompletionResponseFormat{Type: "json_object"},
 		},
@@ -72,11 +82,11 @@ func ExecStatusShouldContinue(client *openai.Client, message string, ctx context
 	}
 
 	for _, choice := range resp.Choices {
-		if choice.FinishReason == "function_call" &&
-			choice.Message.FunctionCall != nil &&
-			choice.Message.FunctionCall.Name == "shouldAutoContinue" {
-			fnCall := choice.Message.FunctionCall
+		if len(choice.Message.ToolCalls) == 1 &&
+			choice.Message.ToolCalls[0].Function.Name == prompts.ShouldAutoContinueFn.Name {
+			fnCall := choice.Message.ToolCalls[0].Function
 			strRes = fnCall.Arguments
+			break
 		}
 	}
 

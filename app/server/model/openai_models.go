@@ -6,9 +6,9 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
-const strongModel = openai.GPT4Turbo1106
-const mediumModel = openai.GPT4Turbo1106
-const weakModel = openai.GPT3Dot5Turbo1106
+const strongModel = openai.GPT4Turbo0125
+const mediumModel = openai.GPT4Turbo0125
+const weakModel = openai.GPT3Dot5Turbo0125
 
 var PlannerModel = strongModel
 var PlanSummaryModel = mediumModel

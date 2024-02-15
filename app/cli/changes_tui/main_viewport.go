@@ -113,7 +113,10 @@ func (m changesUIModel) renderMainViewFooter() string {
 	}
 
 	sidebarWidth := lipgloss.Width(m.renderSidebar())
-	style := lipgloss.NewStyle().Width(m.width - sidebarWidth).Inherit(topBorderStyle).Foreground(lipgloss.Color(helpTextColor))
+	style := lipgloss.NewStyle().
+		Width(m.width - sidebarWidth).
+		Inherit(topBorderStyle).
+		Foreground(lipgloss.Color(helpTextColor))
 	footer := ` (r)eject change • (c)opy to clipboard`
 	return style.Render(footer)
 }
@@ -132,7 +135,7 @@ func (m changesUIModel) renderScrollFooter() string {
 	var footer string
 
 	if m.selectedNewFile() || m.selectedFullFile() {
-		footer = `(j/k) scroll • (d/u) page • (g/G) start/end`
+		footer = ` (j/k) scroll • (d/u) page • (g/G) start/end`
 	} else {
 		footer = ` (j/k) scroll`
 		if m.oldScrollable() && m.newScrollable() {
@@ -140,7 +143,10 @@ func (m changesUIModel) renderScrollFooter() string {
 		}
 	}
 
-	style := lipgloss.NewStyle().Width(width).Inherit(topBorderStyle).Foreground(lipgloss.Color(helpTextColor))
+	style := lipgloss.NewStyle().
+		Width(width).
+		Inherit(topBorderStyle).
+		Foreground(lipgloss.Color(helpTextColor))
 
 	return style.Render(footer)
 }

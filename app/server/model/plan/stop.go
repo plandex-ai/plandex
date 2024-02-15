@@ -26,13 +26,15 @@ func Stop(planId, branch, currentUserId, currentOrgId string) error {
 	active.CancelFn()
 
 	if !active.BuildOnly {
+		num := active.MessageNum + 1
+
 		userMsg := db.ConvoMessage{
 			OrgId:   currentOrgId,
 			PlanId:  planId,
 			UserId:  currentUserId,
 			Role:    openai.ChatMessageRoleAssistant,
 			Tokens:  active.NumTokens,
-			Num:     active.PromptMessageNum + 1,
+			Num:     num,
 			Stopped: true,
 			Message: active.CurrentReplyContent,
 		}

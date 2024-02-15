@@ -55,6 +55,43 @@ func checkout(cmd *cobra.Command, args []string) {
 		return
 	}
 
+	if nameOrIdx != "" {
+		idx, err := strconv.Atoi(nameOrIdx)
+
+		if err == nil {
+			if idx > 0 && idx <= len(branches) {
+				branchName = branches[idx-1].Name
+			} else {
+				fmt.Fprintf(os.Stderr, "🚨 Branch %d not found\n", idx)
+				os.Exit(1)
+			}
+		} else {
+			for _, b := range branches {
+				if b.Name == nameOrIdx {
+					branchName = b.Name
+					break
+				}
+			}
+		}
+
+		if branchName == "" {
+			fmt.Printf("🤷‍♂️ Branch %s not found\n", color.New(color.Bold, color.FgHiCyan).Sprint(nameOrIdx))
+			res, err := term.ConfirmYesNo("Create it now?")
+
+			if err != nil {
+				fmt.Println("Error getting user input:", err)
+			}
+
+			if res {
+				branchName = nameOrIdx
+				willCreate = true
+			} else {
+				return
+			}
+		}
+
+	}
+
 	if nameOrIdx == "" {
 		opts := make([]string, len(branches))
 		for i, branch := range branches {
@@ -79,55 +116,11 @@ func checkout(cmd *cobra.Command, args []string) {
 		} else {
 			branchName = selected
 		}
-	} else {
-		// see if it's an index
-		idx, err := strconv.Atoi(nameOrIdx)
-
-		if err == nil {
-			if idx > 0 && idx <= len(branches) {
-				branchName = branches[idx-1].Name
-			} else {
-				fmt.Fprintln(os.Stderr, "Error: index out of range")
-				os.Exit(1)
-			}
-		} else {
-			for _, b := range branches {
-				if b.Name == nameOrIdx {
-					branchName = b.Name
-					break
-				}
-			}
-		}
 	}
 
 	if branchName == "" {
 		fmt.Fprintln(os.Stderr, "🚨 Branch not found")
 		os.Exit(1)
-	}
-
-	if !willCreate {
-		found := false
-		for _, branch := range branches {
-			if branch.Name == branchName {
-				found = true
-				break
-			}
-		}
-
-		if !found {
-			fmt.Printf("🤷‍♂️ Branch '%s' not found\n", branchName)
-			res, err := term.ConfirmYesNo("Create it now?")
-
-			if err != nil {
-				fmt.Println("Error getting user input:", err)
-			}
-
-			if res {
-				willCreate = true
-			} else {
-				return
-			}
-		}
 	}
 
 	if willCreate {
@@ -141,7 +134,7 @@ func checkout(cmd *cobra.Command, args []string) {
 		}
 
 		term.StopSpinner()
-		fmt.Printf("✅ Created branch %s\n", color.New(color.Bold, color.FgHiGreen).Sprint(branchName))
+		// fmt.Printf("✅ Created branch %s\n", color.New(color.Bold, color.FgHiGreen).Sprint(branchName))
 	}
 
 	err := lib.WriteCurrentBranch(branchName)

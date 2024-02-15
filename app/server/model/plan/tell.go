@@ -24,7 +24,7 @@ import (
 func Tell(client *openai.Client, plan *db.Plan, branch string, auth *types.ServerAuth, req *shared.TellPlanRequest) error {
 	log.Printf("Tell: Called with plan ID %s on branch %s\n", plan.Id, branch)
 
-	active, err := activatePlan(client, plan, branch, auth, req.Prompt, false)
+	_, err := activatePlan(client, plan, branch, auth, req.Prompt, false)
 
 	if err != nil {
 		log.Printf("Error activating plan: %v\n", err)
@@ -37,7 +37,6 @@ func Tell(client *openai.Client, plan *db.Plan, branch string, auth *types.Serve
 		branch,
 		auth,
 		req,
-		active,
 		0,
 		"",
 		req.BuildMode == shared.BuildModeAuto,
@@ -47,10 +46,21 @@ func Tell(client *openai.Client, plan *db.Plan, branch string, auth *types.Serve
 	return nil
 }
 
-func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *types.ServerAuth, req *shared.TellPlanRequest, active *types.ActivePlan, iteration int, missingFileResponse shared.RespondMissingFileChoice, shouldBuildPending bool) {
+func execTellPlan(
+	client *openai.Client,
+	plan *db.Plan,
+	branch string,
+	auth *types.ServerAuth,
+	req *shared.TellPlanRequest,
+	iteration int,
+	missingFileResponse shared.RespondMissingFileChoice,
+	shouldBuildPending bool,
+) {
 	log.Printf("execTellPlan: Called for plan ID %s on branch %s, iteration %d\n", plan.Id, branch, iteration)
 	currentUserId := auth.User.Id
 	currentOrgId := auth.OrgId
+
+	active := GetActivePlan(plan.Id, branch)
 
 	if os.Getenv("IS_CLOUD") != "" &&
 		missingFileResponse == "" {
@@ -205,13 +215,15 @@ func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *typ
 
 		go func() {
 			if iteration == 0 && missingFileResponse == "" {
+				num := len(convo) + 1
+
 				userMsg := db.ConvoMessage{
 					OrgId:   currentOrgId,
 					PlanId:  planId,
 					UserId:  currentUserId,
 					Role:    openai.ChatMessageRoleUser,
 					Tokens:  promptTokens,
-					Num:     len(convo) + 1,
+					Num:     num,
 					Message: req.Prompt,
 				}
 
@@ -222,6 +234,10 @@ func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *typ
 					innerErrCh <- fmt.Errorf("error storing user message: %v", err)
 					return
 				}
+
+				UpdateActivePlan(planId, branch, func(ap *types.ActivePlan) {
+					ap.MessageNum = num
+				})
 			}
 
 			innerErrCh <- nil
@@ -301,7 +317,6 @@ func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *typ
 	if iteration == 0 && missingFileResponse == "" {
 		UpdateActivePlan(planId, branch, func(ap *types.ActivePlan) {
 			ap.Contexts = modelContext
-			ap.PromptMessageNum = len(convo) + 1
 
 			for _, context := range modelContext {
 				if context.FilePath != "" {
@@ -524,6 +539,8 @@ func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *typ
 	replyParser := types.NewReplyParser()
 	replyFiles := []string{}
 	replyNumTokens := 0
+	chunksReceived := 0
+	maybeRedundantBacktickContent := ""
 
 	var promptMessage *openai.ChatCompletionMessage
 	var prompt string
@@ -540,10 +557,17 @@ func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *typ
 
 	if missingFileResponse == "" {
 		messages = append(messages, *promptMessage)
-	} else {
+	}
+
+	if missingFileResponse != "" {
+		log.Println("Missing file response:", missingFileResponse, "setting replyParser")
+
 		replyParser.AddChunk(active.CurrentReplyContent, true)
 		res := replyParser.Read()
 		currentFile := res.CurrentFilePath
+
+		log.Printf("Current file: %s\n", currentFile)
+		// log.Println("Current reply content:\n", active.CurrentReplyContent)
 
 		replyContent := active.CurrentReplyContent
 		numTokens := active.NumTokens
@@ -601,9 +625,6 @@ func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *typ
 			})
 		}
 	}
-
-	replyNumTokens = active.NumTokens
-	replyFiles = active.Files
 
 	// log.Println("\n\nMessages:")
 	// for _, message := range messages {
@@ -664,7 +685,7 @@ func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *typ
 
 	UpdateActivePlan(planId, branch, func(ap *types.ActivePlan) {
 		ap.CurrentStreamingReplyId = replyId
-		ap.CurrentReplyDoneCh = make(chan bool)
+		ap.CurrentReplyDoneCh = make(chan bool, 1)
 	})
 
 	storeAssistantReply := func() (*db.ConvoMessage, []string, string, error) {
@@ -672,6 +693,8 @@ func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *typ
 		if iteration == 0 && missingFileResponse == "" {
 			num++
 		}
+
+		log.Printf("Storing assistant reply num %d\n", num)
 
 		assistantMsg := db.ConvoMessage{
 			Id:      replyId,
@@ -690,6 +713,10 @@ func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *typ
 			log.Printf("Error storing assistant message: %v\n", err)
 			return nil, replyFiles, "", err
 		}
+
+		UpdateActivePlan(planId, branch, func(ap *types.ActivePlan) {
+			ap.MessageNum = num
+		})
 
 		return &assistantMsg, replyFiles, commitMsg, err
 	}
@@ -817,6 +844,8 @@ func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *typ
 						})
 					}
 
+					log.Println("Locking repo for assistant reply and description")
+
 					repoLockId, err := db.LockRepo(
 						db.LockRepoParams{
 							OrgId:    currentOrgId,
@@ -839,6 +868,8 @@ func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *typ
 						return
 					}
 
+					log.Println("Locked repo for assistant reply and description")
+
 					var shouldContinue bool
 					err = func() error {
 						defer func() {
@@ -849,6 +880,8 @@ func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *typ
 									log.Printf("Error clearing uncommitted changes: %v\n", err)
 								}
 							}
+
+							log.Println("Unlocking repo for assistant reply and description")
 
 							err = db.UnlockRepo(repoLockId)
 							if err != nil {
@@ -914,6 +947,8 @@ func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *typ
 								return
 							}
 
+							log.Printf("Should continue: %v\n", shouldContinue)
+
 							errCh <- nil
 						}()
 
@@ -924,13 +959,15 @@ func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *typ
 							}
 						}
 
-						log.Println("Comitting assistant message and description")
+						log.Println("Comitting reply message and description")
 
 						err = db.GitAddAndCommit(currentOrgId, planId, branch, convoCommitMsg)
 						if err != nil {
 							onError(fmt.Errorf("failed to commit: %v", err), false, assistantMsg.Id, convoCommitMsg)
 							return err
 						}
+
+						log.Println("Assistant reply and description committed")
 
 						return nil
 					}()
@@ -939,22 +976,26 @@ func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *typ
 						return
 					}
 
+					log.Println("Sending active.CurrentReplyDoneCh <- true")
+
 					active.CurrentReplyDoneCh <- true
 
-					UpdateActivePlan(planId, branch, func(active *types.ActivePlan) {
-						active.CurrentStreamingReplyId = ""
-						active.CurrentReplyDoneCh = nil
+					log.Println("Resetting active.CurrentReplyDoneCh")
+
+					UpdateActivePlan(planId, branch, func(ap *types.ActivePlan) {
+						ap.CurrentStreamingReplyId = ""
+						ap.CurrentReplyDoneCh = nil
 					})
 
 					if req.AutoContinue && shouldContinue {
 						log.Println("Auto continue plan")
 						// continue plan
-						execTellPlan(client, plan, branch, auth, req, active, iteration+1, "", false)
+						execTellPlan(client, plan, branch, auth, req, iteration+1, "", false)
 					} else {
 						var buildFinished bool
-						UpdateActivePlan(planId, branch, func(active *types.ActivePlan) {
-							buildFinished = active.BuildFinished()
-							active.RepliesFinished = true
+						UpdateActivePlan(planId, branch, func(ap *types.ActivePlan) {
+							buildFinished = ap.BuildFinished()
+							ap.RepliesFinished = true
 						})
 
 						log.Printf("Won't continue plan. Build finished: %v\n", buildFinished)
@@ -974,11 +1015,30 @@ func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *typ
 					return
 				}
 
+				chunksReceived++
 				delta := choice.Delta
 				content := delta.Content
-				UpdateActivePlan(planId, branch, func(active *types.ActivePlan) {
-					active.CurrentReplyContent += content
-					active.NumTokens++
+
+				if missingFileResponse != "" {
+					if chunksReceived < 3 && strings.Contains(content, "```") {
+						// received closing triple backticks in first 3 chunks after missing file response
+						// means this is a redundant start of a new file block, so just ignore it
+
+						maybeRedundantBacktickContent += content
+						continue
+					} else if maybeRedundantBacktickContent != "" {
+						if strings.Contains(content, "\n") {
+							maybeRedundantBacktickContent = ""
+						} else {
+							maybeRedundantBacktickContent += content
+							continue
+						}
+					}
+				}
+
+				UpdateActivePlan(planId, branch, func(ap *types.ActivePlan) {
+					ap.CurrentReplyContent += content
+					ap.NumTokens++
 				})
 
 				// log.Printf("Sending stream msg: %s", content)
@@ -986,14 +1046,19 @@ func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *typ
 					Type:       shared.StreamMessageReply,
 					ReplyChunk: content,
 				})
+
+				// log.Printf("content: %s\n", content)
+
 				replyParser.AddChunk(content, true)
-
 				res := replyParser.Read()
-
 				files := res.Files
 				fileContents := res.FileContents
 				replyNumTokens = res.TotalTokens
 				currentFile := res.CurrentFilePath
+
+				// log.Printf("currentFile: %s\n", currentFile)
+				// log.Println("files:")
+				// spew.Dump(files)
 
 				// Handle file that is present in project paths but not in context
 				// Prompt user for what to do on the client side, stop the stream, and wait for user response before proceeding
@@ -1025,7 +1090,7 @@ func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *typ
 
 					log.Printf("Stopping stream for missing file: %s\n", currentFile)
 
-					log.Printf("Current reply content: %s\n", active.CurrentReplyContent)
+					// log.Printf("Current reply content: %s\n", active.CurrentReplyContent)
 
 					// stop stream for now
 					active.CancelModelStreamFn()
@@ -1048,7 +1113,6 @@ func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *typ
 						branch,
 						auth,
 						req,
-						active,
 						iteration, // keep the same iteration
 						userChoice,
 						false,
@@ -1056,10 +1120,23 @@ func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *typ
 					return
 				}
 
+				// log.Println("Content:", content)
+				// log.Println("Current reply content:", active.CurrentReplyContent)
+				// log.Println("Current file:", currentFile)
+				// log.Println("files:")
+				// spew.Dump(files)
+				// log.Println("replyFiles:")
+				// spew.Dump(replyFiles)
+
 				if len(files) > len(replyFiles) {
-					log.Printf("Files: %v\n", files)
-					for i := len(files) - 1; i > len(replyFiles)-1; i-- {
-						file := files[i]
+					log.Printf("%d new files\n", len(files)-len(replyFiles))
+
+					for i, file := range files {
+						if i < len(replyFiles) {
+							continue
+						}
+
+						log.Printf("New file: %s\n", file)
 						if req.BuildMode == shared.BuildModeAuto {
 							log.Printf("Queuing build for %s\n", file)
 							queueBuilds(client, currentOrgId, currentUserId, planId, branch, []*types.ActiveBuild{{
@@ -1070,12 +1147,11 @@ func execTellPlan(client *openai.Client, plan *db.Plan, branch string, auth *typ
 							}})
 						}
 						replyFiles = append(replyFiles, file)
-						UpdateActivePlan(planId, branch, func(active *types.ActivePlan) {
-							active.Files = append(active.Files, file)
+						UpdateActivePlan(planId, branch, func(ap *types.ActivePlan) {
+							ap.Files = append(ap.Files, file)
 						})
 					}
 				}
-
 			}
 		}
 	}()

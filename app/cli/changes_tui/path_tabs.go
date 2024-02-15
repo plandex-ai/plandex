@@ -22,8 +22,8 @@ func (m changesUIModel) renderPathTabs() string {
 	for i, path := range paths {
 		selected := i == m.selectedFileIndex
 
-		if len(path) > 20 {
-			path = path[:10] + "⋯" + path[len(path)-10:]
+		if len(path) > 40 {
+			path = path[:20] + "⋯" + path[len(path)-20:]
 		}
 
 		tab := " 📄 " + path + "  "

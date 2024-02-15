@@ -11,6 +11,7 @@ type BuildInfo struct {
 type StreamMessageType string
 
 const (
+	StreamMessageStart             StreamMessageType = "start"
 	StreamMessageReply             StreamMessageType = "reply"
 	StreamMessageDescribing        StreamMessageType = "describing"
 	StreamMessageRepliesFinished   StreamMessageType = "repliesFinished"

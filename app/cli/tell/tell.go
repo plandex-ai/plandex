@@ -23,8 +23,6 @@ func TellPlan(prompt string, tellBg, tellStop, tellNoBuild bool) {
 		return
 	}
 
-	log.Println("tellNoBuild:", tellNoBuild)
-
 	var fn func() bool
 	fn = func() bool {
 
@@ -35,6 +33,8 @@ func TellPlan(prompt string, tellBg, tellStop, tellNoBuild bool) {
 			buildMode = shared.BuildModeAuto
 		}
 
+		term.StartSpinner("💬 Sending prompt...")
+
 		apiErr := api.Client.TellPlan(lib.CurrentPlanId, lib.CurrentBranch, shared.TellPlanRequest{
 			Prompt:        prompt,
 			ConnectStream: !tellBg,
@@ -43,6 +43,9 @@ func TellPlan(prompt string, tellBg, tellStop, tellNoBuild bool) {
 			BuildMode:     buildMode,
 			ApiKey:        os.Getenv("OPENAI_API_KEY"),
 		}, stream.OnStreamPlan)
+
+		term.StopSpinner()
+
 		if apiErr != nil {
 			if apiErr.Type == shared.ApiErrorTypeTrialMessagesExceeded {
 				streamtui.Quit()

@@ -38,7 +38,10 @@ func StartStreamUI(prompt string, buildOnly bool) error {
 	if !mod.buildOnly {
 		fmt.Println(mod.mainDisplay)
 	}
-	fmt.Println(mod.renderStaticBuild())
+
+	if len(mod.finishedByPath) > 0 || len(mod.tokensByPath) > 0 {
+		fmt.Println(mod.renderStaticBuild())
+	}
 
 	if mod.err != nil {
 		fmt.Println()
@@ -53,6 +56,7 @@ func StartStreamUI(prompt string, buildOnly bool) error {
 	}
 
 	if mod.stopped {
+		fmt.Println()
 		color.New(color.BgBlack, color.Bold, color.FgHiRed).Print(" 🛑 stopped early by user ")
 		fmt.Println()
 	}
