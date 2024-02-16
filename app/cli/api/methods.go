@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"plandex/types"
+	"strings"
 
 	"github.com/plandex/plandex/shared"
 )
@@ -163,8 +164,13 @@ func (a *Api) RenameProject(projectId string, req shared.RenameProjectRequest) *
 
 	return nil
 }
-func (a *Api) ListPlans(projectId string) ([]*shared.Plan, *shared.ApiError) {
-	serverUrl := fmt.Sprintf("%s/projects/%s/plans", getApiHost(), projectId)
+func (a *Api) ListPlans(projectIds []string) ([]*shared.Plan, *shared.ApiError) {
+	serverUrl := fmt.Sprintf("%s/plans?", getApiHost())
+	parts := []string{}
+	for _, projectId := range projectIds {
+		parts = append(parts, fmt.Sprintf("projectId=%s", projectId))
+	}
+	serverUrl += strings.Join(parts, "&")
 
 	resp, err := authenticatedFastClient.Get(serverUrl)
 	if err != nil {
@@ -179,7 +185,73 @@ func (a *Api) ListPlans(projectId string) ([]*shared.Plan, *shared.ApiError) {
 
 		didRefresh, apiErr := refreshTokenIfNeeded(apiErr)
 		if didRefresh {
-			return a.ListPlans(projectId)
+			return a.ListPlans(projectIds)
+		}
+		return nil, apiErr
+	}
+
+	var plans []*shared.Plan
+	err = json.NewDecoder(resp.Body).Decode(&plans)
+	if err != nil {
+		return nil, &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error decoding response: %v", err)}
+	}
+
+	return plans, nil
+}
+
+func (a *Api) ListArchivedPlans(projectIds []string) ([]*shared.Plan, *shared.ApiError) {
+	serverUrl := fmt.Sprintf("%s/plans/archive?", getApiHost())
+	parts := []string{}
+	for _, projectId := range projectIds {
+		parts = append(parts, fmt.Sprintf("projectId=%s", projectId))
+	}
+	serverUrl += strings.Join(parts, "&")
+
+	resp, err := authenticatedFastClient.Get(serverUrl)
+	if err != nil {
+		return nil, &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error sending request: %v", err)}
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		errorBody, _ := io.ReadAll(resp.Body)
+		apiErr := handleApiError(resp, errorBody)
+		tokenRefreshed, apiErr := refreshTokenIfNeeded(apiErr)
+		if tokenRefreshed {
+			return a.ListArchivedPlans(projectIds)
+		}
+		return nil, apiErr
+	}
+
+	var plans []*shared.Plan
+	err = json.NewDecoder(resp.Body).Decode(&plans)
+	if err != nil {
+		return nil, &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error decoding response: %v", err)}
+	}
+
+	return plans, nil
+}
+
+func (a *Api) ListPlansRunning(projectIds []string) ([]*shared.Plan, *shared.ApiError) {
+	serverUrl := fmt.Sprintf("%s/plans/ps?", getApiHost())
+	parts := []string{}
+	for _, projectId := range projectIds {
+		parts = append(parts, fmt.Sprintf("projectId=%s", projectId))
+	}
+	serverUrl += strings.Join(parts, "&")
+
+	resp, err := authenticatedFastClient.Get(serverUrl)
+	if err != nil {
+		return nil, &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error sending request: %v", err)}
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		errorBody, _ := io.ReadAll(resp.Body)
+		apiErr := handleApiError(resp, errorBody)
+		tokenRefreshed, apiErr := refreshTokenIfNeeded(apiErr)
+		if tokenRefreshed {
+			return a.ListPlansRunning(projectIds)
 		}
 		return nil, apiErr
 	}
@@ -235,62 +307,6 @@ func (a *Api) GetCurrentBranchByPlanId(projectId string, req shared.GetCurrentBr
 	}
 
 	return respBody, nil
-}
-
-func (a *Api) ListArchivedPlans(projectId string) ([]*shared.Plan, *shared.ApiError) {
-	serverUrl := fmt.Sprintf("%s/projects/%s/plans/archive", getApiHost(), projectId)
-
-	resp, err := authenticatedFastClient.Get(serverUrl)
-	if err != nil {
-		return nil, &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error sending request: %v", err)}
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode >= 400 {
-		errorBody, _ := io.ReadAll(resp.Body)
-		apiErr := handleApiError(resp, errorBody)
-		tokenRefreshed, apiErr := refreshTokenIfNeeded(apiErr)
-		if tokenRefreshed {
-			return a.ListArchivedPlans(projectId)
-		}
-		return nil, apiErr
-	}
-
-	var plans []*shared.Plan
-	err = json.NewDecoder(resp.Body).Decode(&plans)
-	if err != nil {
-		return nil, &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error decoding response: %v", err)}
-	}
-
-	return plans, nil
-}
-
-func (a *Api) ListPlansRunning(projectId string) ([]*shared.Plan, *shared.ApiError) {
-	serverUrl := fmt.Sprintf("%s/projects/%s/plans/ps", getApiHost(), projectId)
-
-	resp, err := authenticatedFastClient.Get(serverUrl)
-	if err != nil {
-		return nil, &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error sending request: %v", err)}
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode >= 400 {
-		errorBody, _ := io.ReadAll(resp.Body)
-		apiErr := handleApiError(resp, errorBody)
-		tokenRefreshed, apiErr := refreshTokenIfNeeded(apiErr)
-		if tokenRefreshed {
-			return a.ListPlansRunning(projectId)
-		}
-		return nil, apiErr
-	}
-
-	var plans []*shared.Plan
-	err = json.NewDecoder(resp.Body).Decode(&plans)
-	if err != nil {
-		return nil, &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error decoding response: %v", err)}
-	}
-
-	return plans, nil
 }
 
 func (a *Api) CreatePlan(projectId string, req shared.CreatePlanRequest) (*shared.CreatePlanResponse, *shared.ApiError) {

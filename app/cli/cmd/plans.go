@@ -33,7 +33,7 @@ func plans(cmd *cobra.Command, args []string) {
 	auth.MustResolveAuthWithOrg()
 	lib.MustResolveProject()
 
-	plans, apiErr := api.Client.ListPlans(lib.CurrentProjectId)
+	plans, apiErr := api.Client.ListPlans([]string{lib.CurrentProjectId})
 
 	if apiErr != nil {
 		fmt.Fprintln(os.Stderr, "Error getting plans:", apiErr)
@@ -115,5 +115,6 @@ func plans(cmd *cobra.Command, args []string) {
 	}
 	table.Render()
 	fmt.Println()
+
 	term.PrintCmds("", "tell", "new", "cd", "delete-plan")
 }

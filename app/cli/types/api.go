@@ -40,12 +40,12 @@ type ApiClient interface {
 	SetProjectPlan(projectId string, req shared.SetProjectPlanRequest) *shared.ApiError
 	RenameProject(projectId string, req shared.RenameProjectRequest) *shared.ApiError
 
-	ListPlans(projectId string) ([]*shared.Plan, *shared.ApiError)
+	ListPlans(projectIds []string) ([]*shared.Plan, *shared.ApiError)
+	ListArchivedPlans(projectIds []string) ([]*shared.Plan, *shared.ApiError)
+	ListPlansRunning(projectIds []string) ([]*shared.Plan, *shared.ApiError)
 
 	GetCurrentBranchByPlanId(projectId string, req shared.GetCurrentBranchByPlanIdRequest) (map[string]*shared.Branch, *shared.ApiError)
 
-	ListArchivedPlans(projectId string) ([]*shared.Plan, *shared.ApiError)
-	ListPlansRunning(projectId string) ([]*shared.Plan, *shared.ApiError)
 	GetPlan(planId string) (*shared.Plan, *shared.ApiError)
 	CreatePlan(projectId string, req shared.CreatePlanRequest) (*shared.CreatePlanResponse, *shared.ApiError)
 

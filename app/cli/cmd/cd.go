@@ -39,7 +39,7 @@ func cd(cmd *cobra.Command, args []string) {
 
 	var plan *shared.Plan
 
-	plans, apiErr := api.Client.ListPlans(lib.CurrentProjectId)
+	plans, apiErr := api.Client.ListPlans([]string{lib.CurrentProjectId})
 
 	if apiErr != nil {
 		fmt.Fprintln(os.Stderr, "Error getting plans:", apiErr.Msg)

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 	"github.com/plandex/plandex/shared"
 	"github.com/sashabaranov/go-openai"
 )
@@ -83,9 +84,9 @@ func CreatePlan(orgId, projectId, userId, name string) (*Plan, error) {
 	return plan, nil
 }
 
-func ListOwnedPlans(projectId, userId string, archived bool) ([]*Plan, error) {
-	qs := "SELECT * FROM plans WHERE project_id = $1 AND owner_id = $2"
-	qargs := []interface{}{projectId, userId}
+func ListOwnedPlans(projectIds []string, userId string, archived bool) ([]*Plan, error) {
+	qs := "SELECT * FROM plans WHERE project_id = ANY($1) AND owner_id = $2"
+	qargs := []interface{}{pq.Array(projectIds), userId}
 
 	if archived {
 		qs += " AND archived_at IS NOT NULL"

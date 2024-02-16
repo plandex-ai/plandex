@@ -71,10 +71,10 @@ func new(cmd *cobra.Command, args []string) {
 	}
 
 	if name == "" {
-		fmt.Println("✅ Started new plan")
-	} else {
-		fmt.Printf("✅ Started new plan: %s\n", color.New(color.Bold, color.FgHiWhite).Sprint(name))
+		name = "draft"
 	}
+
+	fmt.Printf("✅ Started new plan %s and set it to current plan\n", color.New(color.Bold, color.FgHiGreen).Sprint(name))
 
 	fmt.Println()
 	term.PrintCmds("", "load", "tell", "plans", "current")

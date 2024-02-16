@@ -263,16 +263,23 @@ func ListPlansHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	vars := mux.Vars(r)
-	projectId := vars["projectId"]
+	projectIds := r.URL.Query()["projectId"]
 
-	log.Println("projectId: ", projectId)
+	log.Println("projectIds: ", projectIds)
 
-	if !authorizeProject(w, projectId, auth) {
+	if len(projectIds) == 0 {
+		log.Println("No project ids provided")
+		http.Error(w, "No project ids provided", http.StatusBadRequest)
 		return
 	}
 
-	plans, err := db.ListOwnedPlans(projectId, auth.User.Id, false)
+	for _, projectId := range projectIds {
+		if !authorizeProject(w, projectId, auth) {
+			return
+		}
+	}
+
+	plans, err := db.ListOwnedPlans(projectIds, auth.User.Id, false)
 
 	if err != nil {
 		log.Printf("Error listing plan ids: %v\n", err)
@@ -294,6 +301,81 @@ func ListPlansHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Write(bytes)
+}
+
+func ListArchivedPlansHandler(w http.ResponseWriter, r *http.Request) {
+	log.Println("Received request for ListArchivedPlansHandler")
+	auth := authenticate(w, r, true)
+	if auth == nil {
+		return
+	}
+
+	projectIds := r.URL.Query()["projectId"]
+
+	log.Println("projectIds: ", projectIds)
+
+	if len(projectIds) == 0 {
+		log.Println("No project ids provided")
+		http.Error(w, "No project ids provided", http.StatusBadRequest)
+		return
+	}
+
+	for _, projectId := range projectIds {
+		if !authorizeProject(w, projectId, auth) {
+			return
+		}
+	}
+
+	plans, err := db.ListOwnedPlans(projectIds, "", true)
+
+	if err != nil {
+		log.Printf("Error listing plans: %v\n", err)
+		http.Error(w, "Error listing plans: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	var apiPlans []*shared.Plan
+	for _, plan := range plans {
+		apiPlans = append(apiPlans, plan.ToApi())
+	}
+
+	jsonBytes, err := json.Marshal(apiPlans)
+	if err != nil {
+		log.Printf("Error marshalling plans: %v\n", err)
+		http.Error(w, "Error marshalling plans: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	log.Println("Successfully processed ListArchivedPlansHandler request")
+
+	w.Write(jsonBytes)
+}
+
+func ListPlansRunningHandler(w http.ResponseWriter, r *http.Request) {
+	log.Println("Received request for ListPlansRunningHandler")
+	auth := authenticate(w, r, true)
+	if auth == nil {
+		return
+	}
+
+	projectIds := r.URL.Query()["projectId"]
+
+	log.Println("projectIds: ", projectIds)
+
+	if len(projectIds) == 0 {
+		log.Println("No project ids provided")
+		http.Error(w, "No project ids provided", http.StatusBadRequest)
+		return
+	}
+
+	for _, projectId := range projectIds {
+		if !authorizeProject(w, projectId, auth) {
+			return
+		}
+	}
+
+	// TODO: implement when status is figured out
+
 }
 
 func GetCurrentBranchByPlanIdHandler(w http.ResponseWriter, r *http.Request) {
@@ -319,7 +401,7 @@ func GetCurrentBranchByPlanIdHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	plans, err := db.ListOwnedPlans(projectId, auth.User.Id, false)
+	plans, err := db.ListOwnedPlans([]string{projectId}, auth.User.Id, false)
 
 	if err != nil {
 		log.Printf("Error listing plan ids: %v\n", err)
@@ -372,65 +454,4 @@ func GetCurrentBranchByPlanIdHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Successfully processed GetCurrentBranchByPlanIdHandler request")
 
 	w.Write(bytes)
-}
-
-func ListArchivedPlansHandler(w http.ResponseWriter, r *http.Request) {
-	log.Println("Received request for ListArchivedPlansHandler")
-	auth := authenticate(w, r, true)
-	if auth == nil {
-		return
-	}
-
-	vars := mux.Vars(r)
-	projectId := vars["projectId"]
-
-	log.Println("projectId: ", projectId)
-
-	if !authorizeProject(w, projectId, auth) {
-		return
-	}
-
-	plans, err := db.ListOwnedPlans(projectId, "", true)
-
-	if err != nil {
-		log.Printf("Error listing plans: %v\n", err)
-		http.Error(w, "Error listing plans: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	var apiPlans []*shared.Plan
-	for _, plan := range plans {
-		apiPlans = append(apiPlans, plan.ToApi())
-	}
-
-	jsonBytes, err := json.Marshal(apiPlans)
-	if err != nil {
-		log.Printf("Error marshalling plans: %v\n", err)
-		http.Error(w, "Error marshalling plans: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	log.Println("Successfully processed ListArchivedPlansHandler request")
-
-	w.Write(jsonBytes)
-}
-
-func ListPlansRunningHandler(w http.ResponseWriter, r *http.Request) {
-	log.Println("Received request for ListPlansRunningHandler")
-	auth := authenticate(w, r, true)
-	if auth == nil {
-		return
-	}
-
-	vars := mux.Vars(r)
-	projectId := vars["projectId"]
-
-	log.Println("projectId: ", projectId)
-
-	if !authorizeProject(w, projectId, auth) {
-		return
-	}
-
-	// TODO: implement when status is figured out
-
 }

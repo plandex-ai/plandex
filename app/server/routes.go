@@ -40,12 +40,11 @@ func routes() *mux.Router {
 	r.HandleFunc("/projects/{projectId}/set_plan", handlers.ProjectSetPlanHandler).Methods("PUT")
 	r.HandleFunc("/projects/{projectId}/rename", handlers.RenameProjectHandler).Methods("PUT")
 
-	r.HandleFunc("/projects/{projectId}/plans", handlers.ListPlansHandler).Methods("GET")
-
 	r.HandleFunc("/projects/{projectId}/plans/current_branches", handlers.GetCurrentBranchByPlanIdHandler).Methods("POST")
 
-	r.HandleFunc("/projects/{projectId}/plans/archive", handlers.ListArchivedPlansHandler).Methods("GET")
-	r.HandleFunc("/projects/{projectId}/plans/ps", handlers.ListPlansRunningHandler).Methods("GET")
+	r.HandleFunc("/plans", handlers.ListPlansHandler).Methods("GET")
+	r.HandleFunc("/plans/archive", handlers.ListArchivedPlansHandler).Methods("GET")
+	r.HandleFunc("/plans/ps", handlers.ListPlansRunningHandler).Methods("GET")
 
 	r.HandleFunc("/projects/{projectId}/plans", handlers.CreatePlanHandler).Methods("POST")
 
