@@ -19,10 +19,10 @@ var contextCmd = &cobra.Command{
 	Use:     "ls",
 	Aliases: []string{"ls"},
 	Short:   "List everything in context",
-	Run:     context,
+	Run:     listContext,
 }
 
-func context(cmd *cobra.Command, args []string) {
+func listContext(cmd *cobra.Command, args []string) {
 	auth.MustResolveAuthWithOrg()
 	lib.MustResolveProject()
 

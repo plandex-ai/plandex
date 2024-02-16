@@ -1,11 +1,14 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"plandex/api"
 	"plandex/auth"
@@ -35,7 +38,7 @@ var plansCmd = &cobra.Command{
 
 func plans(cmd *cobra.Command, args []string) {
 	auth.MustResolveAuthWithOrg()
-	lib.MustResolveProject()
+	lib.MaybeResolveProject()
 
 	errCh := make(chan error)
 
@@ -55,9 +58,18 @@ func plans(cmd *cobra.Command, args []string) {
 	}()
 
 	go func() {
-		res, err := fs.GetChildProjectIdsWithPaths()
+		ctx, _ := context.WithTimeout(context.Background(), 500*time.Millisecond)
+
+		res, err := fs.GetChildProjectIdsWithPaths(ctx)
 
 		if err != nil {
+			log.Println(err.Error())
+
+			if err.Error() == "context timeout" {
+				errCh <- nil
+				return
+			}
+
 			errCh <- fmt.Errorf("error getting child project ids with paths: %v", err)
 			return
 		}
@@ -74,12 +86,24 @@ func plans(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	projectIds := []string{lib.CurrentProjectId}
+	var projectIds []string
+
+	if lib.CurrentProjectId != "" {
+		projectIds = append(projectIds, lib.CurrentProjectId)
+	}
+
 	for _, p := range parentProjectIdsWithPaths {
 		projectIds = append(projectIds, p[1])
 	}
 	for _, p := range childProjectIdsWithPaths {
 		projectIds = append(projectIds, p[1])
+	}
+
+	if len(projectIds) == 0 {
+		fmt.Println("🤷‍♂️ No plans")
+		fmt.Println()
+		term.PrintCmds("", "new")
+		return
 	}
 
 	plans, apiErr := api.Client.ListPlans(projectIds)
@@ -88,6 +112,8 @@ func plans(cmd *cobra.Command, args []string) {
 		fmt.Fprintln(os.Stderr, "Error getting plans:", apiErr)
 		return
 	}
+
+	log.Println("listed")
 
 	if len(plans) == 0 {
 		fmt.Println("🤷‍♂️ No plans")
@@ -197,10 +223,10 @@ func plans(cmd *cobra.Command, args []string) {
 			var searchBranch string
 			if isParent {
 				baseFull := filepath.Join(fs.HomeDir, basePath, base)
-				baseRel, _ := filepath.Rel(fs.ProjectRoot, baseFull)
+				baseRel, _ := filepath.Rel(fs.Cwd, baseFull)
 				searchBranch = fmt.Sprintf("%s (%s)", base, baseRel)
 
-				// 	log.Println("Project root:", fs.ProjectRoot)
+				// 	log.Println("Project root:", fs.Cwd)
 
 				// 	log.Println("searchBranch:", searchBranch)
 				// 	log.Println("base:", base)
@@ -223,7 +249,7 @@ func plans(cmd *cobra.Command, args []string) {
 			label := localPath
 			if isParent {
 				pathFull := filepath.Join(fs.HomeDir, basePath, localPath)
-				pathRel, _ := filepath.Rel(fs.ProjectRoot, pathFull)
+				pathRel, _ := filepath.Rel(fs.Cwd, pathFull)
 				label = fmt.Sprintf("%s (%s)", localPath, pathRel)
 
 				// log.Println("Adding path to tree")
@@ -271,7 +297,7 @@ func plans(cmd *cobra.Command, args []string) {
 		color.New(color.FgWhite).Println("cd into a directory to work on a plan in that directory")
 		childTree := treeprint.New()
 		for _, p := range childProjectIdsWithPaths {
-			rel, err := filepath.Rel(fs.ProjectRoot, p[0])
+			rel, err := filepath.Rel(fs.Cwd, p[0])
 
 			if err != nil {
 				fmt.Fprintln(os.Stderr, "Error getting relative path:", err)

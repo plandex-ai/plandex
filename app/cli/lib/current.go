@@ -20,18 +20,28 @@ var HomeCurrentProjectDir string
 var HomeCurrentPlanPath string
 
 func MustResolveProject() {
-	if fs.PlandexDir == "" {
+	resolveProject(true)
+}
+
+func MaybeResolveProject() {
+	resolveProject(false)
+}
+
+func resolveProject(mustResolve bool) {
+	if fs.PlandexDir == "" && mustResolve {
 		_, _, err := fs.FindOrCreatePlandex()
 		if err != nil {
 			panic(fmt.Errorf("error finding or creating plandex: %v", err))
 		}
 	}
 
-	if fs.PlandexDir == "" || fs.ProjectRoot == "" {
+	if (fs.PlandexDir == "" || fs.ProjectRoot == "") && mustResolve {
 		panic(fmt.Errorf("could not find or create plandex directory"))
 	}
 
-	log.Println("PlandexDir: ", fs.PlandexDir)
+	if fs.PlandexDir == "" {
+		return
+	}
 
 	// check if project.json exists in PlandexDir
 	path := filepath.Join(fs.PlandexDir, "project.json")

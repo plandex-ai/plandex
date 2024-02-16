@@ -1,6 +1,7 @@
 package fs
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -280,7 +281,7 @@ func GetPlandexIgnore() (*ignore.GitIgnore, error) {
 
 func GetParentProjectIdsWithPaths() ([][2]string, error) {
 	var parentProjectIds [][2]string
-	currentDir := filepath.Dir(ProjectRoot)
+	currentDir := filepath.Dir(Cwd)
 
 	for currentDir != "/" {
 		plandexDir := findPlandex(currentDir)
@@ -307,13 +308,36 @@ func GetParentProjectIdsWithPaths() ([][2]string, error) {
 	return parentProjectIds, nil
 }
 
-func GetChildProjectIdsWithPaths() ([][2]string, error) {
+func GetChildProjectIdsWithPaths(ctx context.Context) ([][2]string, error) {
 	var childProjectIds [][2]string
 
 	err := filepath.Walk(Cwd, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
+			// if permission denied, skip the path
+			if os.IsPermission(err) {
+				if info.IsDir() {
+					return filepath.SkipDir
+				} else {
+					return nil
+				}
+			}
+
 			return err
 		}
+
+		if strings.HasPrefix(info.Name(), ".") {
+			if info.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("context timeout")
+		default:
+		}
+
 		if info.IsDir() && path != Cwd {
 			plandexDir := findPlandex(path)
 			projectSettingsPath := filepath.Join(plandexDir, "project.json")
@@ -337,6 +361,10 @@ func GetChildProjectIdsWithPaths() ([][2]string, error) {
 	})
 
 	if err != nil {
+		if err.Error() == "context timeout" {
+			return childProjectIds, nil
+		}
+
 		return nil, fmt.Errorf("error walking the path %s: %s", Cwd, err)
 	}
 
