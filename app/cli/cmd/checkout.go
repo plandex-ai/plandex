@@ -75,7 +75,7 @@ func checkout(cmd *cobra.Command, args []string) {
 		}
 
 		if branchName == "" {
-			fmt.Printf("🤷‍♂️ Branch %s not found\n", color.New(color.Bold, color.FgHiCyan).Sprint(nameOrIdx))
+			fmt.Printf("🌱 Branch %s not found\n", color.New(color.Bold, color.FgHiCyan).Sprint(nameOrIdx))
 			res, err := term.ConfirmYesNo("Create it now?")
 
 			if err != nil {

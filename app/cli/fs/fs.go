@@ -280,7 +280,7 @@ func GetPlandexIgnore() (*ignore.GitIgnore, error) {
 
 func GetParentProjectIdsWithPaths() ([][2]string, error) {
 	var parentProjectIds [][2]string
-	currentDir := ProjectRoot
+	currentDir := filepath.Dir(ProjectRoot)
 
 	for currentDir != "/" {
 		plandexDir := findPlandex(currentDir)
@@ -314,7 +314,7 @@ func GetChildProjectIdsWithPaths() ([][2]string, error) {
 		if err != nil {
 			return err
 		}
-		if info.IsDir() {
+		if info.IsDir() && path != Cwd {
 			plandexDir := findPlandex(path)
 			projectSettingsPath := filepath.Join(plandexDir, "project.json")
 			if _, err := os.Stat(projectSettingsPath); err == nil {

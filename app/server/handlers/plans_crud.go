@@ -409,6 +409,12 @@ func GetCurrentBranchByPlanIdHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if len(plans) == 0 {
+		log.Println("No plans found")
+		http.Error(w, "No plans found", http.StatusNotFound)
+		return
+	}
+
 	query := "SELECT * FROM branches WHERE "
 
 	var orConditions []string
@@ -428,6 +434,8 @@ func GetCurrentBranchByPlanIdHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	query += "(" + strings.Join(orConditions, " OR ") + ") AND archived_at IS NULL AND deleted_at IS NULL"
+
+	log.Println("query: ", query)
 
 	var branches []db.Branch
 	err = db.Conn.Select(&branches, query, queryArgs...)

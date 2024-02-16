@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -105,28 +106,28 @@ func plans(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	currentBranchNamesByPlanId, err := lib.GetCurrentBranchNamesByPlanId(currentProjectPlanIds)
+	if len(currentProjectPlanIds) > 0 {
+		currentBranchNamesByPlanId, err := lib.GetCurrentBranchNamesByPlanId(currentProjectPlanIds)
 
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error getting current branches:", err)
-		return
-	}
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "Error getting current branches:", err)
+			return
+		}
 
-	currentBranchesByPlanId, apiErr := api.Client.GetCurrentBranchByPlanId(lib.CurrentProjectId, shared.GetCurrentBranchByPlanIdRequest{
-		CurrentBranchByPlanId: currentBranchNamesByPlanId,
-	})
+		currentBranchesByPlanId, apiErr := api.Client.GetCurrentBranchByPlanId(lib.CurrentProjectId, shared.GetCurrentBranchByPlanIdRequest{
+			CurrentBranchByPlanId: currentBranchNamesByPlanId,
+		})
 
-	if apiErr != nil {
-		fmt.Fprintln(os.Stderr, "Error getting current branches:", apiErr)
-		return
-	}
+		if apiErr != nil {
+			fmt.Fprintln(os.Stderr, "Error getting current branches:", apiErr)
+			return
+		}
 
-	table := tablewriter.NewWriter(os.Stdout)
-	table.SetAutoWrapText(false)
-	table.SetHeader([]string{"#", "Name", "Updated", "Created" /*"Branches",*/, "Branch", "Context", "Convo"})
+		table := tablewriter.NewWriter(os.Stdout)
+		table.SetAutoWrapText(false)
+		table.SetHeader([]string{"#", "Name", "Updated", "Created" /*"Branches",*/, "Branch", "Context", "Convo"})
 
-	currentProjectPlans := plansByProjectId[lib.CurrentProjectId]
-	if len(currentProjectPlans) > 0 {
+		currentProjectPlans := plansByProjectId[lib.CurrentProjectId]
 		fmt.Println()
 		if len(parentProjectIdsWithPaths) > 0 || len(childProjectIdsWithPaths) > 0 {
 			color.New(color.Bold, color.FgHiMagenta).Println("Plans in current directory")
@@ -184,6 +185,8 @@ func plans(cmd *cobra.Command, args []string) {
 
 	var addPathToTreeFn func(tree treeprint.Tree, pathParts []string, projectId string, isParent bool)
 	addPathToTreeFn = func(tree treeprint.Tree, pathParts []string, projectId string, isParent bool) {
+		log.Println("addPathToTreeFn", pathParts, projectId, isParent)
+
 		if len(pathParts) == 0 {
 			if plans, ok := plansByProjectId[projectId]; ok {
 				for _, plan := range plans {
@@ -221,7 +224,7 @@ func plans(cmd *cobra.Command, args []string) {
 		fmt.Println()
 		color.New(color.Bold, color.FgHiMagenta).Println("Plans in parent directories")
 		color.New(color.FgWhite).Println("cd into a directory to work on a plan in that directory")
-		parentTree := treeprint.New()
+		parentTree := treeprint.NewWithRoot("~")
 		for _, p := range parentProjectIdsWithPaths {
 			pathParts := strings.Split(strings.TrimPrefix(p[0], fs.HomeDir+"/"),
 				"/")
