@@ -57,13 +57,16 @@ func init() {
 		panic(err)
 	}
 
-	PlandexDir, ProjectRoot = findPlandex()
+	PlandexDir = findPlandex(Cwd)
+	if PlandexDir != "" {
+		ProjectRoot = Cwd
+	}
 }
 
 func FindOrCreatePlandex() (string, bool, error) {
-	PlandexDir, ProjectRoot = findPlandex()
-
-	if PlandexDir != "" && ProjectRoot != "" {
+	PlandexDir = findPlandex(Cwd)
+	if PlandexDir != "" {
+		ProjectRoot = Cwd
 		return PlandexDir, false, nil
 	}
 
@@ -271,22 +274,66 @@ func GetPlandexIgnore() (*ignore.GitIgnore, error) {
 	return nil, nil
 }
 
-func findPlandex() (string, string) {
-	searchPath := Cwd
-	for searchPath != "/" {
-		var dir string
-		if os.Getenv("PLANDEX_ENV") == "development" {
-			dir = filepath.Join(searchPath, ".plandex-dev")
-		} else {
-			dir = filepath.Join(searchPath, ".plandex")
+func GetParentProjectIdsWithPaths() ([][]string, error) {
+	var parentProjectIds [][]string
+	currentDir := ProjectRoot
+
+	for currentDir != "/" {
+		projectIdPath := filepath.Join(currentDir, ".plandex", "projectId")
+		if _, err := os.Stat(projectIdPath); err == nil {
+			data, err := os.ReadFile(projectIdPath)
+			if err != nil {
+				return nil, fmt.Errorf("error reading projectId file: %s", err)
+			}
+			projectId := string(data)
+			parentProjectIds = append(parentProjectIds, []string{currentDir, projectId})
 		}
-		if _, err := os.Stat(dir); !os.IsNotExist(err) {
-			return dir, searchPath
-		}
-		searchPath = filepath.Dir(searchPath)
+		currentDir = filepath.Dir(currentDir)
 	}
 
-	return "", ""
+	return parentProjectIds, nil
+}
+
+func GetChildProjectIdsWithPaths(dir string) ([][]string, error) {
+	var childProjectIds [][]string
+
+	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			projectIdPath := filepath.Join(path, ".plandex", "projectId")
+			if _, err := os.Stat(projectIdPath); err == nil {
+				data, err := os.ReadFile(projectIdPath)
+				if err != nil {
+					return fmt.Errorf("error reading projectId file: %s", err)
+				}
+				projectId := string(data)
+				childProjectIds = append(childProjectIds, []string{path, projectId})
+			}
+		}
+		return nil
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("error walking the path %s: %s", dir, err)
+	}
+
+	return childProjectIds, nil
+}
+
+func findPlandex(baseDir string) string {
+	var dir string
+	if os.Getenv("PLANDEX_ENV") == "development" {
+		dir = filepath.Join(baseDir, ".plandex-dev")
+	} else {
+		dir = filepath.Join(baseDir, ".plandex")
+	}
+	if _, err := os.Stat(dir); !os.IsNotExist(err) {
+		return dir
+	}
+
+	return ""
 }
 
 func isCommandAvailable(name string) bool {
