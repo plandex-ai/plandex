@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 
 	"plandex/api"
 	"plandex/auth"
@@ -94,12 +95,16 @@ func plans(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	var planIds []string
+	plansByProjectId := make(map[string][]*shared.Plan)
+	var currentProjectPlanIds []string
 	for _, p := range plans {
-		planIds = append(planIds, p.Id)
+		plansByProjectId[p.ProjectId] = append(plansByProjectId[p.ProjectId], p)
+		if p.ProjectId == lib.CurrentProjectId {
+			currentProjectPlanIds = append(currentProjectPlanIds, p.Id)
+		}
 	}
 
-	currentBranchNamesByPlanId, err := lib.GetCurrentBranchNamesByPlanId(planIds)
+	currentBranchNamesByPlanId, err := lib.GetCurrentBranchNamesByPlanId(currentProjectPlanIds)
 
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Error getting current branches:", err)
@@ -163,16 +168,17 @@ func plans(cmd *cobra.Command, args []string) {
 	table.Render()
 	fmt.Println()
 
-	// Initialize the tree
-	tree := treeprint.New()
-
 	// Function to recursively add paths to the tree
 	var addPathToTree func(tree treeprint.Tree, path string, projectId string)
 	addPathToTree = func(tree treeprint.Tree, path string, projectId string) {
 		parts := strings.SplitN(path, "/", 2)
 		if len(parts) == 1 {
 			// Leaf node
-			tree.AddNode(parts[0] + " - " + projectId)
+			if plans, ok := plansByProjectId[projectId]; ok {
+                for _, plan := range plans {
+                    tree.AddNode(plan.Name)
+                }
+            }
 		} else {
 			// Need to go deeper
 			subTree := tree.FindByValue(parts[0])
@@ -184,22 +190,29 @@ func plans(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	// Adding parent projects to the tree
-	parentTree := tree.AddBranch("Parent Projects")
-	for _, p := range parentProjectIdsWithPaths {
-		relativePath := strings.TrimPrefix(p[0], fs.ProjectRoot+"/")
-		addPathToTree(parentTree, relativePath, p[1])
+	if len(parentProjectIdsWithPaths) > 0 {
+		fmt.Println()
+		color.New(color.Bold, color.FgHiYellow).Println("Plans in parent directories")
+		fmt.Println()
+		parentTree := treeprint.New()
+		for _, p := range parentProjectIdsWithPaths {
+			relativePath := strings.TrimPrefix(p[0], fs.ProjectRoot+"/")
+			addPathToTree(parentTree, relativePath, p[1])
+		}
+		fmt.Println(parentTree.String())
 	}
 
-	// Adding child projects to the tree
-	childTree := tree.AddBranch("Child Projects")
-	for _, p := range childProjectIdsWithPaths {
-		relativePath := strings.TrimPrefix(p[0], fs.ProjectRoot+"/")
-		addPathToTree(childTree, relativePath, p[1])
+	if len(childProjectIdsWithPaths) > 0 {
+		fmt.Println()
+		color.New(color.Bold, color.FgHiYellow).Println("Plans in child directories")
+		fmt.Println()
+		childTree := treeprint.New()
+		for _, p := range childProjectIdsWithPaths {
+			relativePath := strings.TrimPrefix(p[0], fs.ProjectRoot+"/")
+			addPathToTree(childTree, relativePath, p[1])
+		}
+		fmt.Println(childTree.String())
 	}
-
-	// Print the tree
-	fmt.Println(tree.String())
 
 	fmt.Println()
 
