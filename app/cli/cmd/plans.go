@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -185,8 +184,6 @@ func plans(cmd *cobra.Command, args []string) {
 
 	var addPathToTreeFn func(tree treeprint.Tree, pathParts []string, projectId string, isParent bool)
 	addPathToTreeFn = func(tree treeprint.Tree, pathParts []string, projectId string, isParent bool) {
-		log.Println("addPathToTreeFn", pathParts, projectId, isParent)
-
 		if len(pathParts) == 0 {
 			if plans, ok := plansByProjectId[projectId]; ok {
 				for _, plan := range plans {
@@ -195,27 +192,48 @@ func plans(cmd *cobra.Command, args []string) {
 			}
 			return
 		}
+
 		var fullPath string
-		if isParent {
-			fullPath = filepath.Join(fs.HomeDir, filepath.Join(pathParts...))
-		} else {
-			fullPath = filepath.Join(fs.ProjectRoot, filepath.Join(pathParts...))
-		}
-		pathBase := fs.ProjectRoot
-		if isParent {
-			pathBase = fs.HomeDir
-		}
+	if isParent {
+		fullPath = filepath.Join(fs.HomeDir, filepath.Join(pathParts...))
+	} else {
+		fullPath = filepath.Join(fs.ProjectRoot, filepath.Join(pathParts...))
+	}
+	pathBase := fs.ProjectRoot
+	if isParent {
+		pathBase = fs.HomeDir
+	}
 
-		relPath, _ := filepath.Rel(pathBase, fullPath)
+	relPath, _ := filepath.Rel(pathBase, fullPath)
 
-		branch := tree.FindByValue(relPath)
-		if branch == nil {
-			if len(plansByProjectId[projectId]) == 0 {
-				// If there are no plans for this project, collapse the directories
-				tree.AddNode(relPath)
-			} else {
-				branch = tree.AddBranch(relPath)
-				addPathToTreeFn(branch, nil, projectId, isParent)
+	// Updated logic for constructing the tree to ensure correct nesting
+	var currentBranch treeprint.Tree = tree
+	for _, part := range strings.Split(relPath, string(os.PathSeparator)) {
+		found := false
+		// Since treeprint.Tree does not provide a method to list its branches,
+		// we maintain a map from paths to tree branches to find or create the correct branch.
+		existingBranch, exists := pathToBranchMap[part]
+		if exists {
+			currentBranch = existingBranch
+			found = true
+		}
+		if !found {
+			newBranch := currentBranch.AddBranch(part)
+			pathToBranchMap[part] = newBranch
+			currentBranch = newBranch
+		}
+	}
+
+	if plans, ok := plansByProjectId[projectId]; ok {
+		for _, plan := range plans {
+			currentBranch.AddNode(color.New(color.Bold, color.FgHiGreen).Sprint(plan.Name))
+		}
+	}
+
+		if plans, ok := plansByProjectId[projectId]; ok {
+			for _, plan := range plans {
+				currentBranch.AddNode(color.New(color.Bold,
+					color.FgHiGreen).Sprint(plan.Name))
 			}
 		}
 	}
@@ -245,4 +263,42 @@ func plans(cmd *cobra.Command, args []string) {
 		}
 		fmt.Println(childTree.String())
 	}
+}
+
+func buildTreeWithCorrectHierarchy(parentProjectIdsWithPaths [][2]string) string {
+	tree := treeprint.New()
+	pathToNode := make(map[string]treeprint.Tree)
+
+	// Ensure the root node is added to the map
+	rootPath := "~"
+	pathToNode[rootPath] = tree
+
+	for _, projectInfo := range parentProjectIdsWithPaths {
+		path := projectInfo[0]
+		projectId := projectInfo[1]
+
+		// Split the path into parts to build the hierarchy
+		pathParts := strings.Split(strings.TrimPrefix(path,
+			fs.HomeDir+"/"), "/")
+		currentPath := rootPath
+		var currentNode treeprint.Tree = tree
+
+		for _, part := range pathParts {
+			currentPath = filepath.Join(currentPath, part)
+			// Check if this path is already in the map
+			if node, exists := pathToNode[currentPath]; exists {
+				currentNode = node
+			} else {
+				// Path not in map, create a new branch and update the map
+				newNode := currentNode.AddBranch(part)
+				pathToNode[currentPath] = newNode
+				currentNode = newNode
+			}
+		}
+
+		// Add the project ID as a node under the current path
+		currentNode.AddNode(projectId)
+	}
+
+	return tree.String()
 }
