@@ -25,7 +25,7 @@ func Stop(planId, branch, currentUserId, currentOrgId string) error {
 
 	active.CancelFn()
 
-	if !active.BuildOnly {
+	if !active.BuildOnly && !active.RepliesFinished {
 		num := active.MessageNum + 1
 
 		userMsg := db.ConvoMessage{
