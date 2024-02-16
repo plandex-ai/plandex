@@ -124,76 +124,92 @@ func plans(cmd *cobra.Command, args []string) {
 	table.SetAutoWrapText(false)
 	table.SetHeader([]string{"#", "Name", "Updated", "Created" /*"Branches",*/, "Branch", "Context", "Convo"})
 
-	for i, p := range plans {
-		num := strconv.Itoa(i + 1)
-		if p.Id == lib.CurrentPlanId {
-			num = color.New(color.Bold, color.FgGreen).Sprint(num)
+	currentProjectPlans := plansByProjectId[lib.CurrentProjectId]
+	if len(currentProjectPlans) > 0 {
+		fmt.Println()
+		if len(parentProjectIdsWithPaths) > 0 || len(childProjectIdsWithPaths) > 0 {
+			color.New(color.Bold, color.FgHiYellow).Println("Plans in current directory")
 		}
-
-		var name string
-		if p.Id == lib.CurrentPlanId {
-			name = color.New(color.Bold, color.FgGreen).Sprint(p.Name) + color.New(color.FgWhite).Sprint(" 👈 current")
-		} else {
-			name = p.Name
-		}
-
-		currentBranch := currentBranchesByPlanId[p.Id]
-
-		row := []string{
-			num,
-			name,
-			format.Time(p.UpdatedAt),
-			format.Time(p.CreatedAt),
-			// strconv.Itoa(p.ActiveBranches),
-			currentBranch.Name,
-			strconv.Itoa(currentBranch.ContextTokens) + " 🪙",
-			strconv.Itoa(currentBranch.ConvoTokens) + " 🪙",
-		}
-
-		var style []tablewriter.Colors
-		if p.Name == lib.CurrentPlanId {
-			style = []tablewriter.Colors{
-				{tablewriter.FgGreenColor, tablewriter.Bold},
+		for i, p := range currentProjectPlans {
+			num := strconv.Itoa(i + 1)
+			if p.Id == lib.CurrentPlanId {
+				num = color.New(color.Bold, color.FgGreen).Sprint(num)
 			}
-		} else {
-			style = []tablewriter.Colors{
-				{tablewriter.FgHiWhiteColor, tablewriter.Bold},
-				{tablewriter.FgHiWhiteColor},
+
+			var name string
+			if p.Id == lib.CurrentPlanId {
+				name = color.New(color.Bold, color.FgGreen).Sprint(p.Name) + color.New(color.FgWhite).Sprint(" 👈 current")
+			} else {
+				name = p.Name
 			}
+
+			currentBranch := currentBranchesByPlanId[p.Id]
+
+			row := []string{
+				num,
+				name,
+				format.Time(p.UpdatedAt),
+				format.Time(p.CreatedAt),
+				// strconv.Itoa(p.ActiveBranches),
+				currentBranch.Name,
+				strconv.Itoa(currentBranch.ContextTokens) + " 🪙",
+				strconv.Itoa(currentBranch.ConvoTokens) + " 🪙",
+			}
+
+			var style []tablewriter.Colors
+			if p.Name == lib.CurrentPlanId {
+				style = []tablewriter.Colors{
+					{tablewriter.FgGreenColor, tablewriter.Bold},
+				}
+			} else {
+				style = []tablewriter.Colors{
+					{tablewriter.FgHiWhiteColor, tablewriter.Bold},
+					{tablewriter.FgHiWhiteColor},
+				}
+			}
+
+			table.Rich(row, style)
+
 		}
-
-		table.Rich(row, style)
-
+		table.Render()
+		fmt.Println()
+	} else {
+		fmt.Println("🤷‍♂️ No plans in current directory")
+		fmt.Println()
 	}
-	table.Render()
-	fmt.Println()
 
-	// Function to recursively add paths to the tree
-	var addPathToTree func(tree treeprint.Tree, path string, projectId string)
-	addPathToTree = func(tree treeprint.Tree, path string, projectId string) {
-		parts := strings.SplitN(path, "/", 2)
-		if len(parts) == 1 {
-			// Leaf node
-			if plans, ok := plansByProjectId[projectId]; ok {
+	addPathToTreeFn := func(tree treeprint.Tree, pathParts []string, projectId string, isParent bool) {
+        if len(pathParts) == 0 {
+            if plans, ok := plansByProjectId[projectId]; ok {
                 for _, plan := range plans {
                     tree.AddNode(plan.Name)
                 }
             }
-		} else {
-			// Need to go deeper
-			subTree := tree.FindByValue(parts[0])
-			if subTree == nil {
-				// Subtree doesn't exist yet, create a new branch
-				subTree = tree.AddBranch(parts[0])
-			}
-			addPathToTree(subTree, parts[1], projectId)
-		}
-	}
+            return
+        }
+        var fullPath string
+        if isParent {
+            fullPath = filepath.Join(fs.Home, strings.Join(pathParts, "/"))
+        } else {
+            fullPath = filepath.Join(fs.ProjectRoot, strings.Join(pathParts, "/"))
+        }
+        relPath, _ := filepath.Rel(isParent ? fs.Home : fs.ProjectRoot, fullPath)
+
+        branch := tree.FindByValue(relPath)
+        if branch == nil {
+            if len(plansByProjectId[projectId]) == 0 {
+                // If there are no plans for this project, collapse the directories
+                tree.AddNode(relPath)
+            } else {
+                branch = tree.AddBranch(relPath)
+                addPathToTreeFn(branch, nil, projectId, isParent)
+            }
+        }
+    }
 
 	if len(parentProjectIdsWithPaths) > 0 {
 		fmt.Println()
 		color.New(color.Bold, color.FgHiYellow).Println("Plans in parent directories")
-		fmt.Println()
 		parentTree := treeprint.New()
 		for _, p := range parentProjectIdsWithPaths {
 			relativePath := strings.TrimPrefix(p[0], fs.ProjectRoot+"/")
@@ -205,7 +221,6 @@ func plans(cmd *cobra.Command, args []string) {
 	if len(childProjectIdsWithPaths) > 0 {
 		fmt.Println()
 		color.New(color.Bold, color.FgHiYellow).Println("Plans in child directories")
-		fmt.Println()
 		childTree := treeprint.New()
 		for _, p := range childProjectIdsWithPaths {
 			relativePath := strings.TrimPrefix(p[0], fs.ProjectRoot+"/")
