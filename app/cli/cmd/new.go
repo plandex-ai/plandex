@@ -33,7 +33,7 @@ func init() {
 
 func new(cmd *cobra.Command, args []string) {
 	auth.MustResolveAuthWithOrg()
-	lib.MustResolveProject()
+	lib.MustResolveOrCreateProject()
 
 	res, apiErr := api.Client.CreatePlan(lib.CurrentProjectId, shared.CreatePlanRequest{Name: name})
 

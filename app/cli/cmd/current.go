@@ -29,7 +29,7 @@ func init() {
 
 func current(cmd *cobra.Command, args []string) {
 	auth.MustResolveAuthWithOrg()
-	lib.MustResolveProject()
+	lib.MaybeResolveProject()
 
 	if lib.CurrentPlanId == "" {
 		fmt.Println("🤷‍♂️ No current plan")

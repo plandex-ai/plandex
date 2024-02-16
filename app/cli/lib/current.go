@@ -10,6 +10,7 @@ import (
 	"plandex/fs"
 	"plandex/types"
 
+	"github.com/fatih/color"
 	"github.com/plandex/plandex/shared"
 )
 
@@ -19,16 +20,20 @@ var CurrentBranch string
 var HomeCurrentProjectDir string
 var HomeCurrentPlanPath string
 
+func MustResolveOrCreateProject() {
+	resolveProject(true, true)
+}
+
 func MustResolveProject() {
-	resolveProject(true)
+	resolveProject(true, false)
 }
 
 func MaybeResolveProject() {
-	resolveProject(false)
+	resolveProject(false, false)
 }
 
-func resolveProject(mustResolve bool) {
-	if fs.PlandexDir == "" && mustResolve {
+func resolveProject(mustResolve, shouldCreate bool) {
+	if fs.PlandexDir == "" && mustResolve && shouldCreate {
 		_, _, err := fs.FindOrCreatePlandex()
 		if err != nil {
 			panic(fmt.Errorf("error finding or creating plandex: %v", err))
@@ -36,7 +41,11 @@ func resolveProject(mustResolve bool) {
 	}
 
 	if (fs.PlandexDir == "" || fs.ProjectRoot == "") && mustResolve {
-		panic(fmt.Errorf("could not find or create plandex directory"))
+		fmt.Printf(
+			"🤷‍♂️ No plans in current directory\nTry %s to create a plan or %s to see plans in nearby directories\n",
+			color.New(color.Bold, color.FgHiCyan).Sprint("plandex new"),
+			color.New(color.Bold, color.FgHiCyan).Sprint("plandex plans"))
+		os.Exit(1)
 	}
 
 	if fs.PlandexDir == "" {
