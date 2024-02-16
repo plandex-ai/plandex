@@ -51,6 +51,7 @@ const (
 type Plan struct {
 	Id              string     `json:"id"`
 	OwnerId         string     `json:"ownerId"`
+	ProjectId       string     `json:"projectId"`
 	Name            string     `json:"name"`
 	SharedWithOrgAt *time.Time `json:"sharedWithOrgAt,omitempty"`
 	TotalReplies    int        `json:"totalReplies"`

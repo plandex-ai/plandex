@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -128,17 +129,17 @@ func plans(cmd *cobra.Command, args []string) {
 	if len(currentProjectPlans) > 0 {
 		fmt.Println()
 		if len(parentProjectIdsWithPaths) > 0 || len(childProjectIdsWithPaths) > 0 {
-			color.New(color.Bold, color.FgHiYellow).Println("Plans in current directory")
+			color.New(color.Bold, color.FgHiMagenta).Println("Plans in current directory")
 		}
 		for i, p := range currentProjectPlans {
 			num := strconv.Itoa(i + 1)
 			if p.Id == lib.CurrentPlanId {
-				num = color.New(color.Bold, color.FgGreen).Sprint(num)
+				num = color.New(color.Bold, color.FgHiGreen).Sprint(num)
 			}
 
 			var name string
 			if p.Id == lib.CurrentPlanId {
-				name = color.New(color.Bold, color.FgGreen).Sprint(p.Name) + color.New(color.FgWhite).Sprint(" 👈 current")
+				name = color.New(color.Bold, color.FgHiGreen).Sprint(p.Name) + color.New(color.FgWhite).Sprint(" 👈 current")
 			} else {
 				name = p.Name
 			}
@@ -159,7 +160,7 @@ func plans(cmd *cobra.Command, args []string) {
 			var style []tablewriter.Colors
 			if p.Name == lib.CurrentPlanId {
 				style = []tablewriter.Colors{
-					{tablewriter.FgGreenColor, tablewriter.Bold},
+					{tablewriter.FgHiGreenColor, tablewriter.Bold},
 				}
 			} else {
 				style = []tablewriter.Colors{
@@ -172,64 +173,73 @@ func plans(cmd *cobra.Command, args []string) {
 
 		}
 		table.Render()
+
 		fmt.Println()
+		term.PrintCmds("", "tell", "new", "cd", "delete-plan")
 	} else {
 		fmt.Println("🤷‍♂️ No plans in current directory")
 		fmt.Println()
+		term.PrintCmds("", "new")
 	}
 
-	addPathToTreeFn := func(tree treeprint.Tree, pathParts []string, projectId string, isParent bool) {
-        if len(pathParts) == 0 {
-            if plans, ok := plansByProjectId[projectId]; ok {
-                for _, plan := range plans {
-                    tree.AddNode(plan.Name)
-                }
-            }
-            return
-        }
-        var fullPath string
-        if isParent {
-            fullPath = filepath.Join(fs.Home, strings.Join(pathParts, "/"))
-        } else {
-            fullPath = filepath.Join(fs.ProjectRoot, strings.Join(pathParts, "/"))
-        }
-        relPath, _ := filepath.Rel(isParent ? fs.Home : fs.ProjectRoot, fullPath)
+	var addPathToTreeFn func(tree treeprint.Tree, pathParts []string, projectId string, isParent bool)
+	addPathToTreeFn = func(tree treeprint.Tree, pathParts []string, projectId string, isParent bool) {
+		if len(pathParts) == 0 {
+			if plans, ok := plansByProjectId[projectId]; ok {
+				for _, plan := range plans {
+					tree.AddNode(color.New(color.Bold, color.FgHiGreen).Sprint(plan.Name))
+				}
+			}
+			return
+		}
+		var fullPath string
+		if isParent {
+			fullPath = filepath.Join(fs.HomeDir, filepath.Join(pathParts...))
+		} else {
+			fullPath = filepath.Join(fs.ProjectRoot, filepath.Join(pathParts...))
+		}
+		pathBase := fs.ProjectRoot
+		if isParent {
+			pathBase = fs.HomeDir
+		}
 
-        branch := tree.FindByValue(relPath)
-        if branch == nil {
-            if len(plansByProjectId[projectId]) == 0 {
-                // If there are no plans for this project, collapse the directories
-                tree.AddNode(relPath)
-            } else {
-                branch = tree.AddBranch(relPath)
-                addPathToTreeFn(branch, nil, projectId, isParent)
-            }
-        }
-    }
+		relPath, _ := filepath.Rel(pathBase, fullPath)
+
+		branch := tree.FindByValue(relPath)
+		if branch == nil {
+			if len(plansByProjectId[projectId]) == 0 {
+				// If there are no plans for this project, collapse the directories
+				tree.AddNode(relPath)
+			} else {
+				branch = tree.AddBranch(relPath)
+				addPathToTreeFn(branch, nil, projectId, isParent)
+			}
+		}
+	}
 
 	if len(parentProjectIdsWithPaths) > 0 {
 		fmt.Println()
-		color.New(color.Bold, color.FgHiYellow).Println("Plans in parent directories")
+		color.New(color.Bold, color.FgHiMagenta).Println("Plans in parent directories")
+		color.New(color.FgWhite).Println("cd into a directory to work on a plan in that directory")
 		parentTree := treeprint.New()
 		for _, p := range parentProjectIdsWithPaths {
-			relativePath := strings.TrimPrefix(p[0], fs.ProjectRoot+"/")
-			addPathToTree(parentTree, relativePath, p[1])
+			pathParts := strings.Split(strings.TrimPrefix(p[0], fs.HomeDir+"/"),
+				"/")
+			addPathToTreeFn(parentTree, pathParts, p[1], true)
 		}
 		fmt.Println(parentTree.String())
 	}
 
 	if len(childProjectIdsWithPaths) > 0 {
 		fmt.Println()
-		color.New(color.Bold, color.FgHiYellow).Println("Plans in child directories")
+		color.New(color.Bold, color.FgHiMagenta).Println("Plans in child directories")
+		color.New(color.FgWhite).Println("cd into a directory to work on a plan in that directory")
 		childTree := treeprint.New()
 		for _, p := range childProjectIdsWithPaths {
-			relativePath := strings.TrimPrefix(p[0], fs.ProjectRoot+"/")
-			addPathToTree(childTree, relativePath, p[1])
+			pathParts := strings.Split(strings.TrimPrefix(p[0],
+				fs.ProjectRoot+"/"), "/")
+			addPathToTreeFn(childTree, pathParts, p[1], true)
 		}
 		fmt.Println(childTree.String())
 	}
-
-	fmt.Println()
-
-	term.PrintCmds("", "tell", "new", "cd", "delete-plan")
 }

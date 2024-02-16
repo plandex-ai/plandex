@@ -141,6 +141,7 @@ func (plan *Plan) ToApi() *shared.Plan {
 	return &shared.Plan{
 		Id:              plan.Id,
 		OwnerId:         plan.OwnerId,
+		ProjectId:       plan.ProjectId,
 		Name:            plan.Name,
 		SharedWithOrgAt: plan.SharedWithOrgAt,
 		TotalReplies:    plan.TotalReplies,
