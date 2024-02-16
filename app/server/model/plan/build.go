@@ -556,10 +556,6 @@ func execPlanBuild(client *openai.Client, currentOrgId, currentUserId, branch st
 		if err != nil {
 			log.Printf("Error setting build error: %v\n", err)
 		}
-
-		UpdateActivePlan(activePlan.Id, activePlan.Branch, func(ap *types.ActivePlan) {
-			ap.IsBuildingByPath[filePath] = false
-		})
 	}
 
 	var buildFile func(filePath string, numRetry int, numReplacementRetry int, res *db.PlanFileResult)

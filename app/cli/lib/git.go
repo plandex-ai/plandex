@@ -116,7 +116,7 @@ func GitStashPop(conflictStrategy string) error {
 			}
 			return nil
 		} else {
-			return fmt.Errorf("error popping git stash: %v", err)
+			return fmt.Errorf("error popping git stash: %v", string(res))
 		}
 	}
 

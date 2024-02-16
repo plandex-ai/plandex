@@ -67,11 +67,7 @@ func (m streamUIModel) doRenderBuild(outputStatic bool) string {
 		return ""
 	}
 
-	if outputStatic && len(m.finishedByPath) == 0 {
-		return ""
-	}
-
-	if outputStatic && len(m.finishedByPath) != len(m.tokensByPath) {
+	if outputStatic && len(m.finishedByPath) == 0 && len(m.tokensByPath) == 0 {
 		return ""
 	}
 
@@ -83,11 +79,25 @@ func (m streamUIModel) doRenderBuild(outputStatic bool) string {
 	}
 
 	lbl := "Building plan "
+	bgColor := color.BgGreen
 	if outputStatic {
 		lbl = "Built plan "
+
+		finishedAll := true
+		for _, tokens := range m.tokensByPath {
+			if tokens > 0 {
+				finishedAll = false
+				break
+			}
+		}
+
+		if !finishedAll {
+			lbl = "Build incomplete "
+			bgColor = color.BgBlue
+		}
 	}
 
-	head := color.New(color.BgGreen, color.FgHiWhite, color.Bold).Sprint(" 🏗  ") + color.New(color.BgGreen, color.FgHiWhite).Sprint(lbl)
+	head := color.New(bgColor, color.FgHiWhite, color.Bold).Sprint(" 🏗  ") + color.New(color.BgGreen, color.FgHiWhite).Sprint(lbl)
 
 	filePaths := make([]string, 0, len(m.tokensByPath))
 	for filePath := range m.tokensByPath {

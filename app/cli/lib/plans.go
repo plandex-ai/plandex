@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"plandex/fs"
 	"plandex/types"
+	"sync"
 )
 
 func WriteCurrentPlan(id string) error {
@@ -109,6 +110,7 @@ func GetCurrentBranchNamesByPlanId(planIds []string) (map[string]string, error) 
 		return nil, fmt.Errorf("no current project")
 	}
 
+	var mu sync.Mutex
 	branches := make(map[string]string)
 	errCh := make(chan error, len(planIds))
 	for _, planId := range planIds {
@@ -117,8 +119,10 @@ func GetCurrentBranchNamesByPlanId(planIds []string) (map[string]string, error) 
 			if err != nil {
 				errCh <- fmt.Errorf("error getting plan current branch: %v", err)
 			} else {
-				errCh <- nil
+				mu.Lock()
+				defer mu.Unlock()
 				branches[planId] = branch
+				errCh <- nil
 			}
 		}(planId)
 	}
