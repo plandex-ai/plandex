@@ -97,12 +97,13 @@ const (
 )
 
 type TellPlanRequest struct {
-	Prompt        string          `json:"prompt"`
-	BuildMode     BuildMode       `json:"buildMode"`
-	ConnectStream bool            `json:"connectStream"`
-	AutoContinue  bool            `json:"autoContinue"`
-	ApiKey        string          `json:"apiKey"`
-	ProjectPaths  map[string]bool `json:"projectPaths"`
+	Prompt         string          `json:"prompt"`
+	BuildMode      BuildMode       `json:"buildMode"`
+	ConnectStream  bool            `json:"connectStream"`
+	AutoContinue   bool            `json:"autoContinue"`
+	IsUserContinue bool            `json:"isUserContinue"`
+	ApiKey         string          `json:"apiKey"`
+	ProjectPaths   map[string]bool `json:"projectPaths"`
 }
 
 type BuildPlanRequest struct {

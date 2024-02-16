@@ -13,6 +13,8 @@ const (
 	ApiErrorTypeTrialMessagesExceeded ApiErrorType = "trial_messages_exceeded"
 	ApiErrorTypeTrialActionNotAllowed ApiErrorType = "trial_action_not_allowed"
 
+	ApiErrorTypeContinueNoMessages ApiErrorType = "continue_no_messages"
+
 	ApiErrorTypeOther ApiErrorType = "other"
 )
 

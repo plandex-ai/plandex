@@ -124,7 +124,7 @@ func doTell(cmd *cobra.Command, args []string) {
 
 	lib.MustCheckOutdatedContextWithOutput()
 
-	tell.TellPlan(prompt, tellBg, tellStop, tellNoBuild)
+	tell.TellPlan(prompt, tellBg, tellStop, tellNoBuild, false)
 }
 
 func prepareEditorCommand(editor string, filename string) *exec.Cmd {

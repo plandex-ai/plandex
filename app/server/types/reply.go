@@ -14,7 +14,7 @@ type parserRes struct {
 	TotalTokens     int
 }
 
-type replyParser struct {
+type ReplyParser struct {
 	lines            []string
 	currentFileLines []string
 	lineIndex        int
@@ -27,8 +27,8 @@ type replyParser struct {
 	numTokensByFile  map[string]int
 }
 
-func NewReplyParser() *replyParser {
-	info := &replyParser{
+func NewReplyParser() *ReplyParser {
+	info := &ReplyParser{
 		lines:            []string{""},
 		currentFileLines: []string{},
 		files:            []string{},
@@ -39,7 +39,7 @@ func NewReplyParser() *replyParser {
 	return info
 }
 
-func (r *replyParser) AddChunk(chunk string, addToTotal bool) {
+func (r *ReplyParser) AddChunk(chunk string, addToTotal bool) {
 	// log.Println("Adding chunk:", strconv.Quote(chunk)) // Logging the chunk that's being processed
 
 	hasNewLine := false
@@ -153,7 +153,7 @@ func (r *replyParser) AddChunk(chunk string, addToTotal bool) {
 	}
 }
 
-func (r *replyParser) Read() parserRes {
+func (r *ReplyParser) Read() parserRes {
 	return parserRes{
 		CurrentFilePath: r.currentFilePath,
 		Files:           r.files,
@@ -163,12 +163,12 @@ func (r *replyParser) Read() parserRes {
 	}
 }
 
-func (r *replyParser) FinishAndRead() parserRes {
+func (r *ReplyParser) FinishAndRead() parserRes {
 	r.AddChunk("\n", false)
 	return r.Read()
 }
 
-func (r *replyParser) GetReplyBeforeCurrentPath() string {
+func (r *ReplyParser) GetReplyBeforeCurrentPath() string {
 	if r.currentFilePath == "" {
 		return strings.Join(r.lines, "\n")
 	}

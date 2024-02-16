@@ -15,7 +15,7 @@ import (
 	"github.com/plandex/plandex/shared"
 )
 
-func TellPlan(prompt string, tellBg, tellStop, tellNoBuild bool) {
+func TellPlan(prompt string, tellBg, tellStop, tellNoBuild, isUserContinue bool) {
 	projectPaths, _, err := fs.GetProjectPaths()
 
 	if err != nil {
@@ -36,12 +36,13 @@ func TellPlan(prompt string, tellBg, tellStop, tellNoBuild bool) {
 		term.StartSpinner("💬 Sending prompt...")
 
 		apiErr := api.Client.TellPlan(lib.CurrentPlanId, lib.CurrentBranch, shared.TellPlanRequest{
-			Prompt:        prompt,
-			ConnectStream: !tellBg,
-			AutoContinue:  !tellStop,
-			ProjectPaths:  projectPaths,
-			BuildMode:     buildMode,
-			ApiKey:        os.Getenv("OPENAI_API_KEY"),
+			Prompt:         prompt,
+			ConnectStream:  !tellBg,
+			AutoContinue:   !tellStop,
+			ProjectPaths:   projectPaths,
+			BuildMode:      buildMode,
+			IsUserContinue: isUserContinue,
+			ApiKey:         os.Getenv("OPENAI_API_KEY"),
 		}, stream.OnStreamPlan)
 
 		term.StopSpinner()
@@ -73,6 +74,11 @@ func TellPlan(prompt string, tellBg, tellStop, tellNoBuild bool) {
 
 			fmt.Fprintln(os.Stderr, "Prompt error:", apiErr.Msg)
 			return false
+		} else if isUserContinue && apiErr.Type == shared.ApiErrorTypeContinueNoMessages {
+			fmt.Println("🤷‍♂️ There's no plan yet to continue")
+			fmt.Println()
+			term.PrintCmds("", "tell")
+			os.Exit(1)
 		}
 
 		if !tellBg {

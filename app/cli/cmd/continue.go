@@ -11,11 +11,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// Variables to be used in the nextCmd
-const continuePrompt = "Continue the plan."
-
-// nextCmd represents the prompt command
-var nextCmd = &cobra.Command{
+var continueCmd = &cobra.Command{
 	Use:     "continue",
 	Aliases: []string{"c"},
 	Short:   "Continue the plan.",
@@ -23,10 +19,10 @@ var nextCmd = &cobra.Command{
 }
 
 func init() {
-	RootCmd.AddCommand(nextCmd)
+	RootCmd.AddCommand(continueCmd)
 
-	nextCmd.Flags().BoolVarP(&tellStop, "stop", "s", false, "Stop after a single reply")
-	nextCmd.Flags().BoolVarP(&tellNoBuild, "no-build", "n", false, "Don't build files")
+	continueCmd.Flags().BoolVarP(&tellStop, "stop", "s", false, "Stop after a single reply")
+	continueCmd.Flags().BoolVarP(&tellNoBuild, "no-build", "n", false, "Don't build files")
 }
 
 func doContinue(cmd *cobra.Command, args []string) {
@@ -44,5 +40,5 @@ func doContinue(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	tell.TellPlan(continuePrompt, tellBg, tellStop, tellNoBuild)
+	tell.TellPlan("", tellBg, tellStop, tellNoBuild, true)
 }

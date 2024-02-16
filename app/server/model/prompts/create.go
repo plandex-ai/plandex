@@ -101,6 +101,16 @@ const SysCreate = Identity + ` A plan is a set of files with an attached context
 
 var CreateSysMsgNumTokens, _ = shared.GetNumTokens(SysCreate)
 
-const PromptWrapperFormatStr = "The user's latest prompt:\n```\n%s\n```\n\n Please respond according to the 'Your instructions' section above. If you're making a plan, remember to precede code blocks with the file path *exactly* as described in 2a, and do not use any other formatting for file paths. **Do not include explanations or any other text apart from the file path in code block labels.** Always use triple backticks to start and end code blocks. Only list out subtasks once for the plan--after that, do not list or describe a subtask that can be implemented in code without including a code block that implements the subtask. Do not ask the user to do anything that you can do yourself with a code block. If you're making a plan, also remember to end every response with either " + `"All tasks have been completed.", "Next, " (plus a brief descripton of the next step), or "The plan cannot be continued." according to your instructions for ending a response.`
+const promptWrapperFormatStr = "The user's latest prompt:\n```\n%s\n```\n\n Please respond according to the 'Your instructions' section above. If you're making a plan, remember to precede code blocks with the file path *exactly* as described in 2a, and do not use any other formatting for file paths. **Do not include explanations or any other text apart from the file path in code block labels.** Always use triple backticks to start and end code blocks. Only list out subtasks once for the plan--after that, do not list or describe a subtask that can be implemented in code without including a code block that implements the subtask. Do not ask the user to do anything that you can do yourself with a code block. If you're making a plan, also remember to end every response with either " + `"All tasks have been completed.", "Next, " (plus a brief descripton of the next step), or "The plan cannot be continued." according to your instructions for ending a response.`
 
-var PromptWrapperTokens, _ = shared.GetNumTokens(fmt.Sprintf(PromptWrapperFormatStr, ""))
+func GetWrappedPrompt(prompt string) string {
+	return fmt.Sprintf(promptWrapperFormatStr, prompt)
+}
+
+var PromptWrapperTokens, _ = shared.GetNumTokens(fmt.Sprintf(promptWrapperFormatStr, ""))
+
+const UserContinuePrompt = "Continue the plan."
+
+const AutoContinuePrompt = "Continue the plan from where you left off in the previous response. Don't repeat any part of your previous response. Don't begin your response with 'Next,'. Continue seamlessly from where your previous response left off. Never begin your response with 'The plan cannot be continued.' or 'All tasks have been completed.'."
+
+const SkippedPathsPrompt = "\n\nSome files have been skipped by the user and *must not* be generated. The user will handle any updates to these files themselves. Skip any parts of the plan that require generating these files. You *must not* generate a file block for any of these files.\nSkipped files:\n"
