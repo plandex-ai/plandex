@@ -261,12 +261,6 @@ func plans(cmd *cobra.Command, args []string) {
 				pathRel, _ := filepath.Rel(fs.Cwd, pathFull)
 				label = fmt.Sprintf("%s (%s)", localPath, pathRel)
 
-				// log.Println("Adding path to tree")
-				// log.Println("label:", label)
-				// log.Println("localPath:", localPath)
-				// log.Println("pathFull:", pathFull)
-				// log.Println("pathRel:", pathRel)
-				// log.Println("basePath:", basePath)
 			}
 
 			branch := tree.AddBranch(label)
@@ -280,7 +274,7 @@ func plans(cmd *cobra.Command, args []string) {
 
 	if len(parentProjectIdsWithPaths) > 0 {
 		fmt.Println()
-		color.New(color.Bold, color.FgHiMagenta).Println("Plans in parent directories")
+		color.New(color.Bold, color.FgHiWhite).Println("Plans in parent directories")
 		color.New(color.FgWhite).Println("cd into a directory to work on a plan in that directory")
 		parentTree := treeprint.NewWithRoot("~")
 
@@ -301,7 +295,7 @@ func plans(cmd *cobra.Command, args []string) {
 
 	if len(childProjectIdsWithPaths) > 0 {
 		fmt.Println()
-		color.New(color.Bold, color.FgHiMagenta).Println("Plans in child directories")
+		color.New(color.Bold, color.FgHiWhite).Println("Plans in child directories")
 		color.New(color.FgWhite).Println("cd into a directory to work on a plan in that directory")
 		childTree := treeprint.New()
 		for _, p := range childProjectIdsWithPaths {
