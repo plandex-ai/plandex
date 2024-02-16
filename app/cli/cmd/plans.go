@@ -8,6 +8,7 @@ import (
 	"plandex/api"
 	"plandex/auth"
 	"plandex/format"
+	"plandex/fs"
 	"plandex/lib"
 	"plandex/term"
 
@@ -15,6 +16,7 @@ import (
 	"github.com/olekukonko/tablewriter"
 	"github.com/plandex/plandex/shared"
 	"github.com/spf13/cobra"
+	"github.com/xlab/treeprint"
 )
 
 func init() {
@@ -33,7 +35,52 @@ func plans(cmd *cobra.Command, args []string) {
 	auth.MustResolveAuthWithOrg()
 	lib.MustResolveProject()
 
-	plans, apiErr := api.Client.ListPlans([]string{lib.CurrentProjectId})
+	errCh := make(chan error)
+
+	var parentProjectIdsWithPaths [][2]string
+	var childProjectIdsWithPaths [][2]string
+
+	go func() {
+		res, err := fs.GetParentProjectIdsWithPaths()
+
+		if err != nil {
+			errCh <- fmt.Errorf("error getting parent project ids with paths: %v", err)
+			return
+		}
+
+		parentProjectIdsWithPaths = res
+		errCh <- nil
+	}()
+
+	go func() {
+		res, err := fs.GetChildProjectIdsWithPaths()
+
+		if err != nil {
+			errCh <- fmt.Errorf("error getting child project ids with paths: %v", err)
+			return
+		}
+
+		childProjectIdsWithPaths = res
+		errCh <- nil
+	}()
+
+	for i := 0; i < 2; i++ {
+		err := <-errCh
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return
+		}
+	}
+
+	projectIds := []string{lib.CurrentProjectId}
+	for _, p := range parentProjectIdsWithPaths {
+		projectIds = append(projectIds, p[1])
+	}
+	for _, p := range childProjectIdsWithPaths {
+		projectIds = append(projectIds, p[1])
+	}
+
+	plans, apiErr := api.Client.ListPlans(projectIds)
 
 	if apiErr != nil {
 		fmt.Fprintln(os.Stderr, "Error getting plans:", apiErr)
@@ -114,6 +161,46 @@ func plans(cmd *cobra.Command, args []string) {
 
 	}
 	table.Render()
+	fmt.Println()
+
+	// Initialize the tree
+	tree := treeprint.New()
+
+	// Function to recursively add paths to the tree
+	var addPathToTree func(tree treeprint.Tree, path string, projectId string)
+	addPathToTree = func(tree treeprint.Tree, path string, projectId string) {
+		parts := strings.SplitN(path, "/", 2)
+		if len(parts) == 1 {
+			// Leaf node
+			tree.AddNode(parts[0] + " - " + projectId)
+		} else {
+			// Need to go deeper
+			subTree := tree.FindByValue(parts[0])
+			if subTree == nil {
+				// Subtree doesn't exist yet, create a new branch
+				subTree = tree.AddBranch(parts[0])
+			}
+			addPathToTree(subTree, parts[1], projectId)
+		}
+	}
+
+	// Adding parent projects to the tree
+	parentTree := tree.AddBranch("Parent Projects")
+	for _, p := range parentProjectIdsWithPaths {
+		relativePath := strings.TrimPrefix(p[0], fs.ProjectRoot+"/")
+		addPathToTree(parentTree, relativePath, p[1])
+	}
+
+	// Adding child projects to the tree
+	childTree := tree.AddBranch("Child Projects")
+	for _, p := range childProjectIdsWithPaths {
+		relativePath := strings.TrimPrefix(p[0], fs.ProjectRoot+"/")
+		addPathToTree(childTree, relativePath, p[1])
+	}
+
+	// Print the tree
+	fmt.Println(tree.String())
+
 	fmt.Println()
 
 	term.PrintCmds("", "tell", "new", "cd", "delete-plan")
