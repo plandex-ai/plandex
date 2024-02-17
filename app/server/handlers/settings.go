@@ -128,5 +128,43 @@ func UpdateSettingsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func getUpdateCommitMsg(settings *shared.PlanSettings, originalSettings *shared.PlanSettings) string {
-	return ""
+	var changes []string
+
+	if settings.MaxConvoTokens != originalSettings.MaxConvoTokens {
+		changes = append(changes, fmt.Sprintf("- max-convo-tokens: %v -> %v", originalSettings.MaxConvoTokens, settings.MaxConvoTokens))
+	}
+
+	if settings.MaxContextTokens != originalSettings.MaxContextTokens {
+		changes = append(changes, fmt.Sprintf("- max-context-tokens: %v -> %v", originalSettings.MaxContextTokens, settings.MaxContextTokens))
+	}
+
+	compareModelSet := func(ms *shared.ModelSet, oms *shared.ModelSet) []string {
+		var modelSetChanges []string
+		if ms == nil && oms == nil {
+			return modelSetChanges
+		}
+		if ms == nil {
+			ms = &shared.DefaultModelSet
+		}
+		if oms == nil {
+			oms = &shared.DefaultModelSet
+		}
+
+		// Example comparison for a ModelSet property. Extend this pattern for other properties.
+		if ms.Planner.MaxConvoTokens != oms.Planner.MaxConvoTokens {
+			modelSetChanges = append(modelSetChanges, fmt.Sprintf("- planner-max-convo-tokens: %v -> %v", oms.Planner.MaxConvoTokens, ms.Planner.MaxConvoTokens))
+		}
+
+		return modelSetChanges
+	}
+
+	modelSetChanges := compareModelSet(settings.ModelSet, originalSettings.ModelSet)
+	changes = append(changes, modelSetChanges...)
+
+	if len(changes) == 0 {
+		return "No changes to settings"
+	}
+
+	return "Updated settings:\n" + strings.Join(changes, "\n")
+}
 }
