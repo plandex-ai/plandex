@@ -2,8 +2,8 @@ package lib
 
 import (
 	"fmt"
+	"log"
 	"os/exec"
-	"plandex/types"
 	"strings"
 	"sync"
 )
@@ -89,33 +89,42 @@ func GitStashCreate(message string) error {
 const PopStashConflictMsg = "overwritten by merge"
 const ConflictMsgFilesEnd = "commit your changes"
 
-func GitStashPop(conflictStrategy string) error {
+func GitStashPop(forceOverwrite bool) error {
 	gitMutex.Lock()
 	defer gitMutex.Unlock()
 
 	res, err := exec.Command("git", "stash", "pop").CombinedOutput()
 
 	if err != nil {
+		log.Println("Error popping git stash:", string(res))
+
 		if strings.Contains(string(res), PopStashConflictMsg) {
-			if conflictStrategy != types.PlanOutdatedStrategyOverwrite {
-				return fmt.Errorf("conflict popping git stash with unsupported conflict strategy: %s", conflictStrategy)
+			log.Println("Conflicts detected")
+
+			if !forceOverwrite {
+				return fmt.Errorf("conflict popping git stash: %s", string(res))
 			}
 
 			// Parse the output to find which files have conflicts
 			conflictFiles := parseConflictFiles(string(res))
+
+			log.Println("Conflicting files:", conflictFiles)
+
 			for _, file := range conflictFiles {
 				// Reset each conflicting file individually
-				err = exec.Command("git", "checkout", "--ours", file).Run()
+				checkoutRes, err := exec.Command("git", "checkout", "--ours", file).CombinedOutput()
 				if err != nil {
-					return fmt.Errorf("error resetting file %s: %v", file, err)
+					return fmt.Errorf("error resetting file %s: %v", file, string(checkoutRes))
 				}
 			}
-			err = exec.Command("git", "stash", "drop").Run()
+			dropRes, err := exec.Command("git", "stash", "drop").CombinedOutput()
 			if err != nil {
-				return fmt.Errorf("error dropping git stash: %v", err)
+				return fmt.Errorf("error dropping git stash: %v", string(dropRes))
 			}
 			return nil
 		} else {
+			log.Println("No conflicts detected")
+
 			return fmt.Errorf("error popping git stash: %v", string(res))
 		}
 	}

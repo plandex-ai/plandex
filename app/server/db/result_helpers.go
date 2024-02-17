@@ -310,17 +310,6 @@ func ApplyPlan(orgId, planId, branch string) error {
 		}
 	}
 
-	planState, err := GetCurrentPlanState(CurrentPlanStateParams{
-		OrgId:                    orgId,
-		PlanId:                   planId,
-		PlanFileResults:          results,
-		PendingBuildDescriptions: pendingBuildDescriptions,
-	})
-
-	if err != nil {
-		return fmt.Errorf("error getting current plan state: %v", err)
-	}
-
 	var pendingDbResults []*PlanFileResult
 
 	for _, result := range results {
@@ -378,9 +367,9 @@ func ApplyPlan(orgId, planId, branch string) error {
 		}
 	}
 
-	msg := "Marked pending results as applied." + "\n\n" + planState.PendingChangesSummary()
+	msg := "Marked pending results as applied."
 
-	err = GitAddAndCommit(orgId, planId, branch, msg)
+	err := GitAddAndCommit(orgId, planId, branch, msg)
 
 	if err != nil {
 		return fmt.Errorf("error committing plan: %v", err)

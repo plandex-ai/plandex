@@ -279,7 +279,7 @@ func ApplyPlanWithOutput(planId, branch string, autoConfirm bool) error {
 					}
 				}
 
-				err := GitStashPop(conflictStrategy)
+				err := GitStashPop(true)
 				if err != nil {
 					fmt.Printf("failed to pop git stash: %v\n", err)
 				}
