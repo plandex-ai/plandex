@@ -3,9 +3,11 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"plandex-server/db"
+	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/plandex/plandex/shared"
@@ -130,12 +132,25 @@ func UpdateSettingsHandler(w http.ResponseWriter, r *http.Request) {
 func getUpdateCommitMsg(settings *shared.PlanSettings, originalSettings *shared.PlanSettings) string {
 	var changes []string
 
+	dasherize := func(fieldName string) string {
+		matches := regexp.MustCompile("([A-Z][a-z0-9]*)").FindAllStringSubmatch(fieldName, -1)
+		var parts []string
+		for _, match := range matches {
+			parts = append(parts, match[0])
+		}
+		return strings.ToLower(strings.Join(parts, "-"))
+	}
+
+	addChange := func(settingName string, original, current interface{}) {
+		changes = append(changes, fmt.Sprintf("- %s: %v -> %v", dasherize(settingName), original, current))
+	}
+
 	if settings.MaxConvoTokens != originalSettings.MaxConvoTokens {
-		changes = append(changes, fmt.Sprintf("- max-convo-tokens: %v -> %v", originalSettings.MaxConvoTokens, settings.MaxConvoTokens))
+		addChange("MaxConvoTokens", originalSettings.MaxConvoTokens, settings.MaxConvoTokens)
 	}
 
 	if settings.MaxContextTokens != originalSettings.MaxContextTokens {
-		changes = append(changes, fmt.Sprintf("- max-context-tokens: %v -> %v", originalSettings.MaxContextTokens, settings.MaxContextTokens))
+		addChange("MaxContextTokens", originalSettings.MaxContextTokens, settings.MaxContextTokens)
 	}
 
 	compareModelSet := func(ms *shared.ModelSet, oms *shared.ModelSet) []string {
@@ -150,10 +165,14 @@ func getUpdateCommitMsg(settings *shared.PlanSettings, originalSettings *shared.
 			oms = &shared.DefaultModelSet
 		}
 
-		// Example comparison for a ModelSet property. Extend this pattern for other properties.
-		if ms.Planner.MaxConvoTokens != oms.Planner.MaxConvoTokens {
-			modelSetChanges = append(modelSetChanges, fmt.Sprintf("- planner-max-convo-tokens: %v -> %v", oms.Planner.MaxConvoTokens, ms.Planner.MaxConvoTokens))
+		checkAndAddModelSetChange := func(propertyName string, original, current interface{}) {
+			if original != current {
+				modelSetChanges = append(modelSetChanges, fmt.Sprintf("- %s: %v -> %v", dasherize(propertyName), original, current))
+			}
 		}
+
+		// Extend this pattern for other properties within ModelSet as needed
+		checkAndAddModelSetChange("Planner.MaxConvoTokens", oms.Planner.MaxConvoTokens, ms.Planner.MaxConvoTokens)
 
 		return modelSetChanges
 	}
@@ -166,5 +185,4 @@ func getUpdateCommitMsg(settings *shared.PlanSettings, originalSettings *shared.
 	}
 
 	return "Updated settings:\n" + strings.Join(changes, "\n")
-}
 }
