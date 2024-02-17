@@ -398,3 +398,13 @@ func ValidatePlanAccess(planId, userId, orgId string) (*Plan, error) {
 
 	return nil, nil
 }
+
+func BumpPlanUpdatedAt(planId string, t time.Time) error {
+	_, err := Conn.Exec("UPDATE plans SET updated_at = $1 WHERE id = $2", t, planId)
+
+	if err != nil {
+		return fmt.Errorf("error updating plan updated at: %v", err)
+	}
+
+	return nil
+}

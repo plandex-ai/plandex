@@ -1,6 +1,10 @@
 package shared
 
-import "time"
+import (
+	"time"
+
+	"github.com/sashabaranov/go-openai"
+)
 
 type Org struct {
 	Id        string `json:"id"`
@@ -193,4 +197,67 @@ type OrgRole struct {
 	IsDefault   bool   `json:"isDefault"`
 	Label       string `json:"label"`
 	Description string `json:"description"`
+}
+
+type ModelProvider string
+
+const ModelProviderOpenAI ModelProvider = "openai"
+
+type BaseModelConfig struct {
+	Provider  ModelProvider `json:"provider"`
+	BaseUrl   string        `json:"baseUrl"`
+	ModelName string        `json:"modelName"`
+	MaxTokens int           `json:"maxTokens"`
+}
+
+type PlannerModelConfig struct {
+	MaxConvoTokens int `json:"maxConvoTokens"`
+}
+
+type TaskModelConfig struct {
+	OpenAIResponseFormat *openai.ChatCompletionResponseFormat `json:"openAIResponseFormat"`
+}
+
+type ModelRole string
+
+const (
+	PlannerRole     ModelRole = "planner"
+	PlanSummaryRole ModelRole = "planSummary"
+	BuilderRole     ModelRole = "builder"
+	NameRole        ModelRole = "name"
+	CommitMsgRole   ModelRole = "commitMsg"
+	ExecStatusRole  ModelRole = "execStatus"
+)
+
+type ModelRoleConfig struct {
+	Role            ModelRole       `json:"role"`
+	BaseModelConfig BaseModelConfig `json:"baseModelConfig"`
+	Temperature     float32         `json:"temperature"`
+	TopP            float32         `json:"topP"`
+}
+
+type PlannerRoleConfig struct {
+	ModelRoleConfig
+	PlannerModelConfig
+}
+
+type TaskRoleConfig struct {
+	ModelRoleConfig
+	TaskModelConfig
+}
+
+type ModelSet struct {
+	Planner     PlannerRoleConfig `json:"planner"`
+	PlanSummary ModelRoleConfig   `json:"planSummary"`
+	Builder     TaskRoleConfig    `json:"builder"`
+	Namer       TaskRoleConfig    `json:"namer"`
+	CommitMsg   TaskRoleConfig    `json:"commitMsg"`
+	ExecStatus  TaskRoleConfig    `json:"execStatus"`
+}
+
+type PlanSettings struct {
+	MaxConvoTokens   *int      `json:"maxConvoTokens"`
+	MaxContextTokens *int      `json:"maxContextTokens"`
+	ModelSet         *ModelSet `json:"modelSet"`
+	UpdatedAt        time.Time `json:"updatedAt"`
 }

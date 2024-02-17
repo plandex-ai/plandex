@@ -58,6 +58,7 @@ func Build(client *openai.Client, plan *db.Plan, branch string, auth *types.Serv
 
 	var modelContext []*db.Context
 	var pendingBuildsByPath map[string][]*types.ActiveBuild
+	var settings *shared.PlanSettings
 
 	err = func() error {
 		defer func() {
@@ -95,7 +96,19 @@ func Build(client *openai.Client, plan *db.Plan, branch string, auth *types.Serv
 			errCh <- nil
 		}()
 
-		for i := 0; i < 2; i++ {
+		go func() {
+			res, err := db.GetPlanSettings(plan, true)
+			if err != nil {
+				log.Printf("Error getting plan settings: %v\n", err)
+				errCh <- fmt.Errorf("error getting plan settings: %v", err)
+				return
+			}
+
+			settings = res
+			errCh <- nil
+		}()
+
+		for i := 0; i < 3; i++ {
 			err = <-errCh
 			if err != nil {
 				log.Printf("Error getting plan data: %v\n", err)
@@ -134,13 +147,13 @@ func Build(client *openai.Client, plan *db.Plan, branch string, auth *types.Serv
 	log.Printf("Starting %d builds\n", len(pendingBuildsByPath))
 
 	for _, pendingBuilds := range pendingBuildsByPath {
-		go execPlanBuild(client, auth.OrgId, auth.User.Id, branch, active, pendingBuilds)
+		go execPlanBuild(client, settings.ModelSet.Builder, auth.OrgId, auth.User.Id, branch, active, pendingBuilds)
 	}
 
 	return len(pendingBuildsByPath), nil
 }
 
-func queueBuilds(client *openai.Client, currentOrgId, currentUserId, planId, branch string, activeBuilds []*types.ActiveBuild) {
+func queueBuilds(client *openai.Client, config shared.TaskRoleConfig, currentOrgId, currentUserId, planId, branch string, activeBuilds []*types.ActiveBuild) {
 	activePlan := GetActivePlan(planId, branch)
 	filePath := activeBuilds[0].Path
 
@@ -157,11 +170,11 @@ func queueBuilds(client *openai.Client, currentOrgId, currentUserId, planId, bra
 		return
 	} else {
 		log.Printf("Not building file %s, will execute now\n", filePath)
-		go execPlanBuild(client, currentOrgId, currentUserId, branch, activePlan, activeBuilds)
+		go execPlanBuild(client, config, currentOrgId, currentUserId, branch, activePlan, activeBuilds)
 	}
 }
 
-func execPlanBuild(client *openai.Client, currentOrgId, currentUserId, branch string, activePlan *types.ActivePlan, activeBuilds []*types.ActiveBuild) {
+func execPlanBuild(client *openai.Client, config shared.TaskRoleConfig, currentOrgId, currentUserId, branch string, activePlan *types.ActivePlan, activeBuilds []*types.ActiveBuild) {
 	log.Printf("execPlanBuild for %d active builds\n", len(activeBuilds))
 
 	if len(activeBuilds) == 0 {
@@ -525,7 +538,7 @@ func execPlanBuild(client *openai.Client, currentOrgId, currentUserId, branch st
 
 				if len(nextBuilds) > 0 {
 					log.Println("Calling execPlanBuild for next build in queue")
-					go execPlanBuild(client, currentOrgId, currentUserId, branch, activePlan, nextBuilds)
+					go execPlanBuild(client, config, currentOrgId, currentUserId, branch, activePlan, nextBuilds)
 				}
 				return
 			}
@@ -683,7 +696,7 @@ func execPlanBuild(client *openai.Client, currentOrgId, currentUserId, branch st
 		// }
 
 		modelReq := openai.ChatCompletionRequest{
-			Model: model.BuilderModel,
+			Model: config.BaseModelConfig.ModelName,
 			Tools: []openai.Tool{
 				{
 					Type:     "function",
@@ -697,9 +710,9 @@ func execPlanBuild(client *openai.Client, currentOrgId, currentUserId, branch st
 				},
 			},
 			Messages:       fileMessages,
-			Temperature:    0.2,
-			TopP:           0.1,
-			ResponseFormat: &openai.ChatCompletionResponseFormat{Type: "json_object"},
+			Temperature:    config.Temperature,
+			TopP:           config.TopP,
+			ResponseFormat: config.OpenAIResponseFormat,
 		}
 
 		stream, err := client.CreateChatCompletionStream(activePlan.Ctx, modelReq)

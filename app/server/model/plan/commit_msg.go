@@ -5,19 +5,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"plandex-server/db"
-	"plandex-server/model"
 	"plandex-server/model/prompts"
 
 	"github.com/plandex/plandex/shared"
 	"github.com/sashabaranov/go-openai"
 )
 
-func genPlanDescription(client *openai.Client, planId, branch string, ctx context.Context) (*db.ConvoMessageDescription, error) {
+func genPlanDescription(client *openai.Client, config shared.TaskRoleConfig, planId, branch string, ctx context.Context) (*db.ConvoMessageDescription, error) {
 
 	descResp, err := client.CreateChatCompletion(
 		ctx,
 		openai.ChatCompletionRequest{
-			Model: model.CommitMsgModel,
+			Model: config.BaseModelConfig.ModelName,
 			Tools: []openai.Tool{
 				{
 					Type:     "function",
@@ -40,7 +39,9 @@ func genPlanDescription(client *openai.Client, planId, branch string, ctx contex
 					Content: GetActivePlan(planId, branch).CurrentReplyContent,
 				},
 			},
-			ResponseFormat: &openai.ChatCompletionResponseFormat{Type: "json_object"},
+			Temperature:    config.Temperature,
+			TopP:           config.TopP,
+			ResponseFormat: config.OpenAIResponseFormat,
 		},
 	)
 

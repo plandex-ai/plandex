@@ -345,6 +345,12 @@ func DeleteContextHandler(w http.ResponseWriter, r *http.Request) {
 
 	branch, err := db.GetDbBranch(planId, branchName)
 
+	if err != nil {
+		log.Printf("Error getting branch: %v\n", err)
+		http.Error(w, "Error getting branch: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
 	// read the request body
 	body, err := io.ReadAll(r.Body)
 	if err != nil {

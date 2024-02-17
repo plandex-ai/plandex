@@ -10,4 +10,5 @@ require (
 	github.com/dlclark/regexp2 v1.10.0 // indirect
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/olekukonko/tablewriter v0.0.5
+	github.com/sashabaranov/go-openai v1.19.4
 )

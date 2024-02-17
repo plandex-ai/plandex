@@ -4,15 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"log"
-	"plandex-server/model"
 	"plandex-server/model/prompts"
 	"strings"
 
 	"github.com/davecgh/go-spew/spew"
+	"github.com/plandex/plandex/shared"
 	"github.com/sashabaranov/go-openai"
 )
 
-func ExecStatusShouldContinue(client *openai.Client, message string, ctx context.Context) (bool, error) {
+func ExecStatusShouldContinue(client *openai.Client, config shared.TaskRoleConfig, message string, ctx context.Context) (bool, error) {
 	log.Println("Checking if plan should continue based on exec status")
 
 	// First try to determine if the plan should continue based on the last paragraph without calling the model
@@ -50,7 +50,7 @@ func ExecStatusShouldContinue(client *openai.Client, message string, ctx context
 	resp, err := client.CreateChatCompletion(
 		ctx,
 		openai.ChatCompletionRequest{
-			Model: model.PlanExecStatusModel,
+			Model: config.BaseModelConfig.ModelName,
 			Tools: []openai.Tool{
 				{
 					Type:     "function",
@@ -64,7 +64,9 @@ func ExecStatusShouldContinue(client *openai.Client, message string, ctx context
 				},
 			},
 			Messages:       messages,
-			ResponseFormat: &openai.ChatCompletionResponseFormat{Type: "json_object"},
+			ResponseFormat: config.OpenAIResponseFormat,
+			Temperature:    config.Temperature,
+			TopP:           config.TopP,
 		},
 	)
 

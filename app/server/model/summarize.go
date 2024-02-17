@@ -7,6 +7,7 @@ import (
 	"plandex-server/model/prompts"
 	"time"
 
+	"github.com/plandex/plandex/shared"
 	"github.com/sashabaranov/go-openai"
 )
 
@@ -19,7 +20,7 @@ type PlanSummaryParams struct {
 	PlanId                      string
 }
 
-func PlanSummary(client *openai.Client, params PlanSummaryParams) (*db.ConvoSummary, error) {
+func PlanSummary(client *openai.Client, config shared.ModelRoleConfig, params PlanSummaryParams) (*db.ConvoSummary, error) {
 	messages := []openai.ChatCompletionMessage{
 		{
 			Role:    openai.ChatMessageRoleSystem,
@@ -42,8 +43,10 @@ func PlanSummary(client *openai.Client, params PlanSummaryParams) (*db.ConvoSumm
 	resp, err := client.CreateChatCompletion(
 		context.Background(),
 		openai.ChatCompletionRequest{
-			Model:    PlanSummaryModel,
-			Messages: messages,
+			Model:       config.BaseModelConfig.ModelName,
+			Messages:    messages,
+			Temperature: config.Temperature,
+			TopP:        config.TopP,
 		},
 	)
 

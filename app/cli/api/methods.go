@@ -1526,3 +1526,67 @@ func (a *Api) DeleteBranch(planId, branch string) *shared.ApiError {
 
 	return nil
 }
+
+func (a *Api) GetSettings(planId, branch string) (*shared.PlanSettings, *shared.ApiError) {
+	serverUrl := fmt.Sprintf("%s/plans/%s/%s/settings", getApiHost(), planId, branch)
+
+	resp, err := authenticatedFastClient.Get(serverUrl)
+
+	if err != nil {
+		return nil, &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error sending request: %s", err)}
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		errorBody, _ := io.ReadAll(resp.Body)
+		apiErr := handleApiError(resp, errorBody)
+		tokenRefreshed, apiErr := refreshTokenIfNeeded(apiErr)
+		if tokenRefreshed {
+			return a.GetSettings(planId, branch)
+		}
+		return nil, apiErr
+	}
+
+	var settings shared.PlanSettings
+	err = json.NewDecoder(resp.Body).Decode(&settings)
+	if err != nil {
+		return nil, &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error decoding response: %s", err)}
+	}
+
+	return &settings, nil
+}
+
+func (a *Api) UpdateSettings(planId, branch string, req shared.UpdateSettingsRequest) *shared.ApiError {
+	serverUrl := fmt.Sprintf("%s/plans/%s/%s/settings", getApiHost(), planId, branch)
+
+	reqBytes, err := json.Marshal(req)
+	if err != nil {
+		return &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error marshalling request: %s", err)}
+	}
+
+	request, err := http.NewRequest(http.MethodPut, serverUrl, bytes.NewBuffer(reqBytes))
+	if err != nil {
+		return &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error creating request: %s", err)}
+	}
+	request.Header.Set("Content-Type", "application/json")
+
+	resp, err := authenticatedFastClient.Do(request)
+	if err != nil {
+		return &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error sending request: %s", err)}
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		errorBody, _ := io.ReadAll(resp.Body)
+
+		apiErr := handleApiError(resp, errorBody)
+		tokenRefreshed, apiErr := refreshTokenIfNeeded(apiErr)
+		if tokenRefreshed {
+			return a.UpdateSettings(planId, branch, req)
+		}
+		return apiErr
+	}
+
+	return nil
+
+}

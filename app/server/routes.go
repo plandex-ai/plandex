@@ -81,6 +81,9 @@ func routes() *mux.Router {
 	r.HandleFunc("/plans/{planId}/branches/{branch}", handlers.DeleteBranchHandler).Methods("DELETE")
 	r.HandleFunc("/plans/{planId}/{branch}/branches", handlers.CreateBranchHandler).Methods("POST")
 
+	r.HandleFunc("/plans/{planId}/{branch}/settings", handlers.GetSettingsHandler).Methods("GET")
+	r.HandleFunc("/plans/{planId}/{branch}/settings", handlers.UpdateSettingsHandler).Methods("PUT")
+
 	return r
 
 }

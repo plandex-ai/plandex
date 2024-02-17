@@ -78,4 +78,7 @@ type ApiClient interface {
 	ListBranches(planId string) ([]*shared.Branch, *shared.ApiError)
 	DeleteBranch(planId, branch string) *shared.ApiError
 	CreateBranch(planId, branch string, req shared.CreateBranchRequest) *shared.ApiError
+
+	GetSettings(planId, branch string) (*shared.PlanSettings, *shared.ApiError)
+	UpdateSettings(planId, branch string, req shared.UpdateSettingsRequest) *shared.ApiError
 }

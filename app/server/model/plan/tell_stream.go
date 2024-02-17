@@ -34,6 +34,7 @@ type activeTellStreamState struct {
 	replyNumTokens        int
 	messages              []openai.ChatCompletionMessage
 	tokensBeforeConvo     int
+	settings              *shared.PlanSettings
 }
 
 func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionStream) {
@@ -55,6 +56,7 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 	missingFileResponse := state.missingFileResponse
 	replyId := state.replyId
 	replyParser := state.replyParser
+	settings := state.settings
 
 	active := GetActivePlan(planId, branch)
 
@@ -126,7 +128,7 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 
 				if len(convo) > 0 {
 					// summarize in the background
-					go summarizeConvo(client, summarizeConvoParams{
+					go summarizeConvo(client, settings.ModelSet.PlanSummary, summarizeConvoParams{
 						planId:        planId,
 						branch:        branch,
 						convo:         convo,
@@ -207,7 +209,7 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 								MadePlan:              false,
 							}
 						} else {
-							description, err = genPlanDescription(client, planId, branch, active.Ctx)
+							description, err = genPlanDescription(client, settings.ModelSet.CommitMsg, planId, branch, active.Ctx)
 							if err != nil {
 								state.onError(fmt.Errorf("failed to generate plan description: %v", err), true, assistantMsg.Id, convoCommitMsg)
 								return
@@ -232,7 +234,7 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 					}()
 
 					go func() {
-						shouldContinue, err = ExecStatusShouldContinue(client, assistantMsg.Message, active.Ctx)
+						shouldContinue, err = ExecStatusShouldContinue(client, settings.ModelSet.ExecStatus, assistantMsg.Message, active.Ctx)
 						if err != nil {
 							state.onError(fmt.Errorf("failed to get exec status: %v", err), false, assistantMsg.Id, convoCommitMsg)
 							errCh <- err
@@ -431,7 +433,7 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 					log.Printf("New file: %s\n", file)
 					if req.BuildMode == shared.BuildModeAuto {
 						log.Printf("Queuing build for %s\n", file)
-						queueBuilds(client, currentOrgId, currentUserId, planId, branch, []*types.ActiveBuild{{
+						queueBuilds(client, settings.ModelSet.Builder, currentOrgId, currentUserId, planId, branch, []*types.ActiveBuild{{
 							ReplyId:      replyId,
 							ReplyContent: active.CurrentReplyContent,
 							FileContent:  fileContents[i],

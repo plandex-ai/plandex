@@ -125,19 +125,19 @@ func loadContexts(w http.ResponseWriter, r *http.Request, auth *types.ServerAuth
 		}
 	}
 
+	err = db.AddPlanContextTokens(planId, branchName, tokensAdded)
+	if err != nil {
+		log.Printf("Error updating plan tokens: %v\n", err)
+		http.Error(w, "Error updating plan tokens: "+err.Error(), http.StatusInternalServerError)
+		return nil, nil
+	}
+
 	commitMsg := shared.SummaryForLoadContext(apiContexts, tokensAdded, totalTokens) + "\n\n" + shared.TableForLoadContext(apiContexts)
 	err = db.GitAddAndCommit(auth.OrgId, planId, branchName, commitMsg)
 
 	if err != nil {
 		log.Printf("Error committing changes: %v\n", err)
 		http.Error(w, "Error committing changes: "+err.Error(), http.StatusInternalServerError)
-		return nil, nil
-	}
-
-	err = db.AddPlanContextTokens(planId, branchName, tokensAdded)
-	if err != nil {
-		log.Printf("Error updating plan tokens: %v\n", err)
-		http.Error(w, "Error updating plan tokens: "+err.Error(), http.StatusInternalServerError)
 		return nil, nil
 	}
 

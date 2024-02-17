@@ -180,3 +180,7 @@ type LogResponse struct {
 type CreateBranchRequest struct {
 	Name string `json:"name"`
 }
+
+type UpdateSettingsRequest struct {
+	Settings *PlanSettings `json:"settings"`
+}

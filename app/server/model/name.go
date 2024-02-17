@@ -6,10 +6,11 @@ import (
 	"fmt"
 	"plandex-server/model/prompts"
 
+	"github.com/plandex/plandex/shared"
 	"github.com/sashabaranov/go-openai"
 )
 
-func GenPlanName(client *openai.Client, planContent string) (string, error) {
+func GenPlanName(client *openai.Client, config shared.TaskRoleConfig, planContent string) (string, error) {
 	messages := []openai.ChatCompletionMessage{
 		{
 			Role:    openai.ChatMessageRoleSystem,
@@ -25,7 +26,7 @@ func GenPlanName(client *openai.Client, planContent string) (string, error) {
 	resp, err := client.CreateChatCompletion(
 		context.Background(),
 		openai.ChatCompletionRequest{
-			Model: NameModel,
+			Model: config.BaseModelConfig.ModelName,
 			Tools: []openai.Tool{
 				{
 					Type:     "function",
@@ -38,9 +39,10 @@ func GenPlanName(client *openai.Client, planContent string) (string, error) {
 					Name: prompts.PlanNameFn.Name,
 				},
 			},
-
+			Temperature:    config.Temperature,
+			TopP:           config.TopP,
 			Messages:       messages,
-			ResponseFormat: &openai.ChatCompletionResponseFormat{Type: "json_object"},
+			ResponseFormat: config.OpenAIResponseFormat,
 		},
 	)
 

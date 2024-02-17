@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"plandex-server/db"
-	"plandex-server/model"
 	"plandex-server/model/lib"
 	"plandex-server/model/prompts"
 	"plandex-server/types"
@@ -338,11 +337,11 @@ func execTellPlan(
 	// }
 
 	modelReq := openai.ChatCompletionRequest{
-		Model:       model.PlannerModel,
+		Model:       state.settings.ModelSet.Planner.BaseModelConfig.ModelName,
 		Messages:    state.messages,
 		Stream:      true,
-		Temperature: 0.6,
-		TopP:        0.7,
+		Temperature: state.settings.ModelSet.Planner.Temperature,
+		TopP:        state.settings.ModelSet.Planner.TopP,
 	}
 
 	stream, err := client.CreateChatCompletionStream(active.ModelStreamCtx, modelReq)
@@ -384,7 +383,7 @@ func execTellPlan(
 			}
 
 			for _, pendingBuilds := range pendingBuildsByPath {
-				queueBuilds(client, auth.OrgId, auth.User.Id, planId, branch, pendingBuilds)
+				queueBuilds(client, state.settings.ModelSet.Builder, auth.OrgId, auth.User.Id, planId, branch, pendingBuilds)
 			}
 		}()
 	}

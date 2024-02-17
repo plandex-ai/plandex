@@ -56,11 +56,20 @@ func (state *activeTellStreamState) loadTellPlan() error {
 	var modelContext []*db.Context
 	var convo []*db.ConvoMessage
 	var summaries []*db.ConvoSummary
+	var settings *shared.PlanSettings
 
 	// get name for plan and rename it's a draft
 	go func() {
+		res, err := db.GetPlanSettings(plan, true)
+		if err != nil {
+			log.Printf("Error getting plan settings: %v\n", err)
+			errCh <- fmt.Errorf("error getting plan settings: %v", err)
+			return
+		}
+		settings = res
+
 		if plan.Name == "draft" {
-			name, err := model.GenPlanName(client, req.Prompt)
+			name, err := model.GenPlanName(client, settings.ModelSet.Namer, req.Prompt)
 
 			if err != nil {
 				log.Printf("Error generating plan name: %v\n", err)
@@ -249,6 +258,7 @@ func (state *activeTellStreamState) loadTellPlan() error {
 	state.modelContext = modelContext
 	state.convo = convo
 	state.summaries = summaries
+	state.settings = settings
 
 	return nil
 }

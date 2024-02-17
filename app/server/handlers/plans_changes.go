@@ -12,7 +12,7 @@ import (
 )
 
 func CurrentPlanHandler(w http.ResponseWriter, r *http.Request) {
-	log.Println("Received request for ListPlanChangesHandler")
+	log.Println("Received request for CurrentPlanHandler")
 
 	auth := authenticate(w, r, true)
 	if auth == nil {

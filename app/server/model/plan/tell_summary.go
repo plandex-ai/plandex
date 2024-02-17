@@ -149,7 +149,7 @@ type summarizeConvoParams struct {
 	currentOrgId  string
 }
 
-func summarizeConvo(client *openai.Client, params summarizeConvoParams) error {
+func summarizeConvo(client *openai.Client, config shared.ModelRoleConfig, params summarizeConvoParams) error {
 	log.Printf("summarizeConvo: Called for plan ID %s on branch %s\n", params.planId, params.branch)
 	log.Printf("summarizeConvo: Starting summarizeConvo for planId: %s\n", params.planId)
 	planId := params.planId
@@ -215,7 +215,7 @@ func summarizeConvo(client *openai.Client, params summarizeConvoParams) error {
 		})
 	}
 
-	summary, err := model.PlanSummary(client, model.PlanSummaryParams{
+	summary, err := model.PlanSummary(client, config, model.PlanSummaryParams{
 		Conversation:                summaryMessages,
 		LatestConvoMessageId:        latestMessageId,
 		LatestConvoMessageCreatedAt: latestMessageSummarizedAt,
