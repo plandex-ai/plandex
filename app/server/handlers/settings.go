@@ -7,6 +7,8 @@ import (
 	"log"
 	"net/http"
 	"plandex-server/db"
+	"reflect"
+	"regexp"
 	"strings"
 
 	"github.com/gorilla/mux"
@@ -131,58 +133,62 @@ func UpdateSettingsHandler(w http.ResponseWriter, r *http.Request) {
 
 func getUpdateCommitMsg(settings *shared.PlanSettings, originalSettings *shared.PlanSettings) string {
 	var changes []string
-
-	dasherize := func(fieldName string) string {
-		matches := regexp.MustCompile("([A-Z][a-z0-9]*)").FindAllStringSubmatch(fieldName, -1)
-		var parts []string
-		for _, match := range matches {
-			parts = append(parts, match[0])
-		}
-		return strings.ToLower(strings.Join(parts, "-"))
-	}
-
-	addChange := func(settingName string, original, current interface{}) {
-		changes = append(changes, fmt.Sprintf("- %s: %v -> %v", dasherize(settingName), original, current))
-	}
-
-	if settings.MaxConvoTokens != originalSettings.MaxConvoTokens {
-		addChange("MaxConvoTokens", originalSettings.MaxConvoTokens, settings.MaxConvoTokens)
-	}
-
-	if settings.MaxContextTokens != originalSettings.MaxContextTokens {
-		addChange("MaxContextTokens", originalSettings.MaxContextTokens, settings.MaxContextTokens)
-	}
-
-	compareModelSet := func(ms *shared.ModelSet, oms *shared.ModelSet) []string {
-		var modelSetChanges []string
-		if ms == nil && oms == nil {
-			return modelSetChanges
-		}
-		if ms == nil {
-			ms = &shared.DefaultModelSet
-		}
-		if oms == nil {
-			oms = &shared.DefaultModelSet
-		}
-
-		checkAndAddModelSetChange := func(propertyName string, original, current interface{}) {
-			if original != current {
-				modelSetChanges = append(modelSetChanges, fmt.Sprintf("- %s: %v -> %v", dasherize(propertyName), original, current))
-			}
-		}
-
-		// Extend this pattern for other properties within ModelSet as needed
-		checkAndAddModelSetChange("Planner.MaxConvoTokens", oms.Planner.MaxConvoTokens, ms.Planner.MaxConvoTokens)
-
-		return modelSetChanges
-	}
-
-	modelSetChanges := compareModelSet(settings.ModelSet, originalSettings.ModelSet)
-	changes = append(changes, modelSetChanges...)
+	compareAny(settings, originalSettings, "settings", &changes)
 
 	if len(changes) == 0 {
 		return "No changes to settings"
 	}
 
 	return "Updated settings:\n" + strings.Join(changes, "\n")
+}
+
+func compareAny(a, b interface{}, path string, changes *[]string) {
+	if reflect.DeepEqual(a, b) {
+		return
+	}
+
+	aVal, bVal := reflect.ValueOf(a), reflect.ValueOf(b)
+	if aVal.Kind() == reflect.Ptr {
+		aVal = aVal.Elem()
+	}
+	if bVal.Kind() == reflect.Ptr {
+		bVal = bVal.Elem()
+	}
+
+	// Handle nil for slices, maps, ptrs
+	if a == nil || b == nil || (aVal.Kind() != bVal.Kind()) {
+		change := fmt.Sprintf("- %s: %v -> %v", path, a, b)
+		*changes = append(*changes, change)
+		return
+	}
+
+	switch aVal.Kind() {
+	case reflect.Struct:
+		for i := 0; i < aVal.NumField(); i++ {
+			fieldName := aVal.Type().Field(i).Name
+			matches := regexp.MustCompile("([A-Z[a-z0-9]*)").FindAllStringSubmatch(fieldName, -1)
+			var parts []string
+			for _, match := range matches {
+				parts = append(parts, match[0])
+			}
+			dasherizedName := strings.ToLower(strings.Join(parts, "-"))
+			compareAny(aVal.Field(i).Interface(), bVal.Field(i).Interface(),
+				path+"."+dasherizedName, changes)
+		}
+	case reflect.Slice, reflect.Array:
+		if aVal.Len() != bVal.Len() {
+			change := fmt.Sprintf("- %s: %v -> %v", path, aVal.Interface(),
+				bVal.Interface())
+			*changes = append(*changes, change)
+			return
+		}
+		for i := 0; i < aVal.Len(); i++ {
+			compareAny(aVal.Index(i).Interface(), bVal.Index(i).Interface(),
+				fmt.Sprintf("%s[%d]", path, i), changes)
+		}
+	default:
+		change := fmt.Sprintf("- %s: %v -> %v", path, aVal.Interface(),
+			bVal.Interface())
+		*changes = append(*changes, change)
+	}
 }

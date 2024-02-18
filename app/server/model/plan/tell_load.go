@@ -155,7 +155,7 @@ func (state *activeTellStreamState) loadTellPlan() error {
 		innerErrCh := make(chan error)
 
 		go func() {
-			if iteration == 0 && missingFileResponse == "" {
+			if iteration == 0 && missingFileResponse == "" && !req.IsUserContinue {
 				num := len(convo) + 1
 
 				userMsg := db.ConvoMessage{

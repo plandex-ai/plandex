@@ -199,7 +199,7 @@ func execTellPlan(
 	log.Printf("Prompt tokens: %d\n", promptTokens)
 	log.Printf("Total tokens before convo: %d\n", state.tokensBeforeConvo)
 
-	if state.tokensBeforeConvo > shared.MaxTokens {
+	if state.tokensBeforeConvo > state.settings.GetPlannerEffectiveMaxTokens() {
 		// token limit already exceeded before adding conversation
 		err := fmt.Errorf("token limit exceeded before adding conversation")
 		log.Printf("Error: %v\n", err)

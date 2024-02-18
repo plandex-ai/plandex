@@ -14,7 +14,9 @@ import (
 	"github.com/plandex/plandex/shared"
 )
 
-func loadContexts(w http.ResponseWriter, r *http.Request, auth *types.ServerAuth, loadReq *shared.LoadContextRequest, planId, branchName string) (*shared.LoadContextResponse, []*db.Context) {
+func loadContexts(w http.ResponseWriter, r *http.Request, auth *types.ServerAuth, loadReq *shared.LoadContextRequest, plan *db.Plan, branchName string) (*shared.LoadContextResponse, []*db.Context) {
+	planId := plan.Id
+
 	branch, err := db.GetDbBranch(planId, branchName)
 	if err != nil {
 		log.Printf("Error getting branch: %v\n", err)
@@ -22,7 +24,14 @@ func loadContexts(w http.ResponseWriter, r *http.Request, auth *types.ServerAuth
 		return nil, nil
 	}
 
-	maxTokens := shared.MaxContextTokens
+	settings, err := db.GetPlanSettings(plan, true)
+	if err != nil {
+		log.Printf("Error getting settings: %v\n", err)
+		http.Error(w, "Error getting settings: "+err.Error(), http.StatusInternalServerError)
+		return nil, nil
+	}
+
+	maxTokens := settings.GetPlannerEffectiveMaxTokens()
 	tokensAdded := 0
 	totalTokens := branch.ContextTokens
 
@@ -51,6 +60,7 @@ func loadContexts(w http.ResponseWriter, r *http.Request, auth *types.ServerAuth
 		res := shared.LoadContextResponse{
 			TokensAdded:       tokensAdded,
 			TotalTokens:       totalTokens,
+			MaxTokens:         maxTokens,
 			MaxTokensExceeded: true,
 		}
 

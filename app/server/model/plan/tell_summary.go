@@ -31,21 +31,21 @@ func (state *activeTellStreamState) summarizeMessagesIfNeeded() bool {
 	}
 
 	log.Printf("Conversation tokens: %d\n", conversationTokens)
-	log.Printf("Max conversation tokens: %d\n", shared.MaxConvoTokens)
+	log.Printf("Max conversation tokens: %d\n", state.settings.GetPlannerMaxConvoTokens())
 
 	// log.Println("Tokens up to timestamp:")
 	// spew.Dump(tokensUpToTimestamp)
 
 	log.Printf("Total tokens: %d\n", tokensBeforeConvo+conversationTokens)
-	log.Printf("Max tokens: %d\n", shared.MaxTokens)
+	log.Printf("Max tokens: %d\n", state.settings.GetPlannerEffectiveMaxTokens())
 
 	var summary *db.ConvoSummary
-	if (tokensBeforeConvo+conversationTokens) > shared.MaxTokens ||
-		conversationTokens > shared.MaxConvoTokens {
+	if (tokensBeforeConvo+conversationTokens) > state.settings.GetPlannerEffectiveMaxTokens() ||
+		conversationTokens > state.settings.GetPlannerMaxConvoTokens() {
 		log.Println("Token limit exceeded. Attempting to reduce via conversation summary.")
 
-		// log.Printf("(tokensBeforeConvo+conversationTokens) > shared.MaxTokens: %v\n", (tokensBeforeConvo+conversationTokens) > shared.MaxTokens)
-		// log.Printf("conversationTokens > shared.MaxConvoTokens: %v\n", conversationTokens > shared.MaxConvoTokens)
+		// log.Printf("(tokensBeforeConvo+conversationTokens) > state.settings.GetPlannerEffectiveMaxTokens(): %v\n", (tokensBeforeConvo+conversationTokens) > state.settings.GetPlannerEffectiveMaxTokens())
+		// log.Printf("conversationTokens > state.settings.GetPlannerMaxConvoTokens(): %v\n", conversationTokens > state.settings.GetPlannerMaxConvoTokens())
 
 		// token limit exceeded after adding conversation
 		// get summary for as much as the conversation as necessary to stay under the token limit
@@ -84,8 +84,8 @@ func (state *activeTellStreamState) summarizeMessagesIfNeeded() bool {
 			log.Printf("Updated conversation tokens: %d\n", updatedConversationTokens)
 			log.Printf("Saved tokens: %d\n", savedTokens)
 
-			if updatedConversationTokens <= shared.MaxConvoTokens &&
-				(tokensBeforeConvo+updatedConversationTokens) <= shared.MaxTokens {
+			if updatedConversationTokens <= state.settings.GetPlannerMaxConvoTokens() &&
+				(tokensBeforeConvo+updatedConversationTokens) <= state.settings.GetPlannerEffectiveMaxTokens() {
 				log.Printf("Summarizing up to %s | saving %d tokens\n", s.LatestConvoMessageCreatedAt.Format(time.RFC3339), savedTokens)
 				summary = s
 				break
@@ -112,7 +112,7 @@ func (state *activeTellStreamState) summarizeMessagesIfNeeded() bool {
 			})
 		}
 	} else {
-		if (tokensBeforeConvo + summary.Tokens) > shared.MaxTokens {
+		if (tokensBeforeConvo + summary.Tokens) > state.settings.GetPlannerEffectiveMaxTokens() {
 			active.StreamDoneCh <- &shared.ApiError{
 				Type:   shared.ApiErrorTypeOther,
 				Status: http.StatusInternalServerError,

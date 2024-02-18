@@ -12,11 +12,19 @@ import (
 	streamtui "plandex/stream_tui"
 	"plandex/term"
 
+	"github.com/fatih/color"
 	"github.com/plandex/plandex/shared"
 )
 
 func TellPlan(prompt string, tellBg, tellStop, tellNoBuild, isUserContinue bool) {
-	projectPaths, _, err := fs.GetProjectPaths()
+	contexts, apiErr := api.Client.ListContext(lib.CurrentPlanId, lib.CurrentBranch)
+
+	if apiErr != nil {
+		color.New(color.FgRed).Fprintln(os.Stderr, "Error getting context:", apiErr)
+		os.Exit(1)
+	}
+
+	projectPaths, _, err := fs.GetProjectPaths(fs.GetBaseDirForContexts(contexts))
 
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Error getting project paths:", err)
@@ -74,7 +82,7 @@ func TellPlan(prompt string, tellBg, tellStop, tellNoBuild, isUserContinue bool)
 
 			fmt.Fprintln(os.Stderr, "Prompt error:", apiErr.Msg)
 			return false
-		} else if isUserContinue && apiErr.Type == shared.ApiErrorTypeContinueNoMessages {
+		} else if apiErr != nil && isUserContinue && apiErr.Type == shared.ApiErrorTypeContinueNoMessages {
 			fmt.Println("🤷‍♂️ There's no plan yet to continue")
 			fmt.Println()
 			term.PrintCmds("", "tell")
@@ -95,7 +103,7 @@ func TellPlan(prompt string, tellBg, tellStop, tellNoBuild, isUserContinue bool)
 				if tellStop {
 					term.PrintCmds("", "continue", "convo", "changes", "log", "rewind")
 				} else if tellNoBuild {
-					term.PrintCmds("", "build", "convo", "log", "rewind")
+					term.PrintCmds("", "convo", "log", "rewind")
 				} else {
 					term.PrintCmds("", "changes", "log", "rewind")
 				}

@@ -44,25 +44,32 @@ var AvailableModels = []BaseModelConfig{
 
 var PlannerModelConfigByName = map[string]PlannerModelConfig{
 	openai.GPT4TurboPreview: {
-		MaxConvoTokens: 10000,
+		MaxConvoTokens:      10000,
+		ReserveOutputTokens: 4096,
 	},
 	openai.GPT4Turbo0125: {
-		MaxConvoTokens: 10000,
+		MaxConvoTokens:      10000,
+		ReserveOutputTokens: 4096,
 	},
 	openai.GPT4Turbo1106: {
-		MaxConvoTokens: 10000,
+		MaxConvoTokens:      10000,
+		ReserveOutputTokens: 4096,
 	},
 	openai.GPT4: {
-		MaxConvoTokens: 2500,
+		MaxConvoTokens:      2500,
+		ReserveOutputTokens: 1000,
 	},
 	openai.GPT3Dot5Turbo: {
-		MaxConvoTokens: 5000,
+		MaxConvoTokens:      5000,
+		ReserveOutputTokens: 2000,
 	},
 	openai.GPT3Dot5Turbo0125: {
-		MaxConvoTokens: 5000,
+		MaxConvoTokens:      5000,
+		ReserveOutputTokens: 2000,
 	},
 	openai.GPT3Dot5Turbo1106: {
-		MaxConvoTokens: 5000,
+		MaxConvoTokens:      5000,
+		ReserveOutputTokens: 2000,
 	},
 }
 
@@ -101,7 +108,7 @@ func init() {
 	DefaultModelSet = ModelSet{
 		Planner: PlannerRoleConfig{
 			ModelRoleConfig: ModelRoleConfig{
-				Role:            PlannerRole,
+				Role:            ModelRolePlannerRole,
 				BaseModelConfig: AvailableModelsByName[openai.GPT4TurboPreview],
 				Temperature:     0.6,
 				TopP:            0.7,
@@ -109,14 +116,14 @@ func init() {
 			PlannerModelConfig: PlannerModelConfigByName[openai.GPT4TurboPreview],
 		},
 		PlanSummary: ModelRoleConfig{
-			Role:            PlanSummaryRole,
+			Role:            ModelRolePlanSummaryRole,
 			BaseModelConfig: AvailableModelsByName[openai.GPT4TurboPreview],
 			Temperature:     0.3,
 			TopP:            0.5,
 		},
 		Builder: TaskRoleConfig{
 			ModelRoleConfig: ModelRoleConfig{
-				Role:            BuilderRole,
+				Role:            ModelRoleBuilderRole,
 				BaseModelConfig: AvailableModelsByName[openai.GPT4TurboPreview],
 				Temperature:     0.3,
 				TopP:            0.1,
@@ -125,7 +132,7 @@ func init() {
 		},
 		Namer: TaskRoleConfig{
 			ModelRoleConfig: ModelRoleConfig{
-				Role:            NameRole,
+				Role:            ModelRoleNameRole,
 				BaseModelConfig: AvailableModelsByName[openai.GPT3Dot5Turbo],
 				Temperature:     1.0,
 				TopP:            0.5,
@@ -134,7 +141,7 @@ func init() {
 		},
 		CommitMsg: TaskRoleConfig{
 			ModelRoleConfig: ModelRoleConfig{
-				Role:            CommitMsgRole,
+				Role:            ModelRoleCommitMsgRole,
 				BaseModelConfig: AvailableModelsByName[openai.GPT3Dot5Turbo],
 				Temperature:     1.0,
 				TopP:            0.5,
@@ -143,7 +150,7 @@ func init() {
 		},
 		ExecStatus: TaskRoleConfig{
 			ModelRoleConfig: ModelRoleConfig{
-				Role:            ExecStatusRole,
+				Role:            ModelRoleExecStatusRole,
 				BaseModelConfig: AvailableModelsByName[openai.GPT4TurboPreview],
 				Temperature:     0.1,
 				TopP:            0.1,

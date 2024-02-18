@@ -254,7 +254,8 @@ func RespondMissingFileHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if authorizePlan(w, planId, auth) == nil {
+	plan := authorizePlan(w, planId, auth)
+	if plan == nil {
 		return
 	}
 
@@ -285,7 +286,7 @@ func RespondMissingFileHandler(w http.ResponseWriter, r *http.Request) {
 				FilePath:    requestBody.FilePath,
 				Body:        requestBody.Body,
 			},
-		}, planId, branch)
+		}, plan, branch)
 		if res == nil {
 			return
 		}

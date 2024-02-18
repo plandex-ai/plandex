@@ -2,11 +2,12 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 	"plandex/api"
 	"plandex/auth"
 	"plandex/lib"
 
-	"github.com/davecgh/go-spew/spew"
+	"github.com/olekukonko/tablewriter"
 	"github.com/plandex/plandex/shared"
 	"github.com/spf13/cobra"
 )
@@ -40,7 +41,7 @@ func models(cmd *cobra.Command, args []string) {
 
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetAutoWrapText(false)
-	table.SetHeader([]string{"Role", "Provider", "Model Name", "Max Tokens", "Temperature", "Top P", "Additional Config"})
+	table.SetHeader([]string{"Role", "Provider", "Model", "Max 🪙", "Temperature", "Top P", "Other"})
 
 	addModelRow := func(role string, config shared.ModelRoleConfig, additionalConfig string) {
 		table.Append([]string{
@@ -54,35 +55,23 @@ func models(cmd *cobra.Command, args []string) {
 		})
 	}
 
-	addModelRow("Planner", modelSet.Planner.ModelRoleConfig, fmt.Sprintf("MaxConvoTokens: %d", modelSet.Planner.PlannerModelConfig.MaxConvoTokens))
-	addModelRow("PlanSummary", modelSet.PlanSummary, "")
+	addModelRow(string(shared.ModelRolePlannerRole), modelSet.Planner.ModelRoleConfig, fmt.Sprintf("max-convo-tokens → %d", modelSet.Planner.PlannerModelConfig.MaxConvoTokens))
+	addModelRow(string(shared.ModelRolePlanSummaryRole), modelSet.PlanSummary, "")
 	// Builder role
 	builderAdditionalConfig := ""
-	if modelSet.Builder.TaskModelConfig.OpenAIResponseFormat != nil {
-		builderAdditionalConfig = fmt.Sprintf("OpenAIResponseFormat: %s", spew.Sdump(modelSet.Builder.TaskModelConfig.OpenAIResponseFormat.Type))
-	}
-	addModelRow("Builder", modelSet.Builder.ModelRoleConfig, builderAdditionalConfig)
+	addModelRow(string(shared.ModelRoleBuilderRole), modelSet.Builder.ModelRoleConfig, builderAdditionalConfig)
 
 	// Namer role
 	namerAdditionalConfig := ""
-	if modelSet.Namer.TaskModelConfig.OpenAIResponseFormat != nil {
-		namerAdditionalConfig = fmt.Sprintf("OpenAIResponseFormat: %s", spew.Sdump(modelSet.Namer.TaskModelConfig.OpenAIResponseFormat.Type))
-	}
-	addModelRow("Namer", modelSet.Namer.ModelRoleConfig, namerAdditionalConfig)
+	addModelRow(string(shared.ModelRoleNameRole), modelSet.Namer.ModelRoleConfig, namerAdditionalConfig)
 
 	// CommitMsg role
 	commitMsgAdditionalConfig := ""
-	if modelSet.CommitMsg.TaskModelConfig.OpenAIResponseFormat != nil {
-		commitMsgAdditionalConfig = fmt.Sprintf("OpenAIResponseFormat: %s", spew.Sdump(modelSet.CommitMsg.TaskModelConfig.OpenAIResponseFormat.Type))
-	}
-	addModelRow("CommitMsg", modelSet.CommitMsg.ModelRoleConfig, commitMsgAdditionalConfig)
+	addModelRow(string(shared.ModelRoleCommitMsgRole), modelSet.CommitMsg.ModelRoleConfig, commitMsgAdditionalConfig)
 
 	// ExecStatus role
 	execStatusAdditionalConfig := ""
-	if modelSet.ExecStatus.TaskModelConfig.OpenAIResponseFormat != nil {
-		execStatusAdditionalConfig = fmt.Sprintf("OpenAIResponseFormat: %s", spew.Sdump(modelSet.ExecStatus.TaskModelConfig.OpenAIResponseFormat.Type))
-	}
-	addModelRow("ExecStatus", modelSet.ExecStatus.ModelRoleConfig, execStatusAdditionalConfig)
+	addModelRow(string(shared.ModelRoleExecStatusRole), modelSet.ExecStatus.ModelRoleConfig, execStatusAdditionalConfig)
 
 	table.Render()
 }

@@ -142,6 +142,7 @@ type LoadContextResponse struct {
 	TokensAdded       int    `json:"tokensAdded"`
 	TotalTokens       int    `json:"totalTokens"`
 	MaxTokensExceeded bool   `json:"maxTokensExceeded"`
+	MaxTokens         int    `json:"maxTokens"`
 	Msg               string `json:"msg"`
 }
 

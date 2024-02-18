@@ -93,11 +93,11 @@ func (m streamUIModel) doRenderBuild(outputStatic bool) string {
 
 		if !finishedAll {
 			lbl = "Build incomplete "
-			bgColor = color.BgBlue
+			bgColor = color.BgRed
 		}
 	}
 
-	head := color.New(bgColor, color.FgHiWhite, color.Bold).Sprint(" 🏗  ") + color.New(color.BgGreen, color.FgHiWhite).Sprint(lbl)
+	head := color.New(bgColor, color.FgHiWhite, color.Bold).Sprint(" 🏗  ") + color.New(bgColor, color.FgHiWhite).Sprint(lbl)
 
 	filePaths := make([]string, 0, len(m.tokensByPath))
 	for filePath := range m.tokensByPath {

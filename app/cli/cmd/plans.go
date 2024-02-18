@@ -176,7 +176,7 @@ func plans(cmd *cobra.Command, args []string) {
 
 			var name string
 			if p.Id == lib.CurrentPlanId {
-				name = color.New(color.Bold, color.FgHiGreen).Sprint(p.Name) + color.New(color.FgWhite).Sprint(" 👈 current")
+				name = color.New(color.Bold, color.FgHiGreen).Sprint(p.Name) + color.New(color.FgWhite).Sprint(" 👈")
 			} else {
 				name = p.Name
 			}

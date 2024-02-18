@@ -54,7 +54,7 @@ func branches(cmd *cobra.Command, args []string) {
 
 		var name string
 		if b.Name == lib.CurrentBranch {
-			name = color.New(color.Bold, color.FgGreen).Sprint(b.Name) + color.New(color.FgWhite).Sprint(" 👈 current")
+			name = color.New(color.Bold, color.FgGreen).Sprint(b.Name) + color.New(color.FgWhite).Sprint(" 👈")
 		} else {
 			name = b.Name
 		}

@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/plandex/plandex/shared"
 	ignore "github.com/sabhiram/go-gitignore"
 )
 
@@ -120,25 +121,27 @@ func IsGitRepo(dir string) bool {
 	return isGitRepo
 }
 
-func GetProjectPaths() (map[string]bool, *ignore.GitIgnore, error) {
+func GetProjectPaths(baseDir string) (map[string]bool, *ignore.GitIgnore, error) {
 	if ProjectRoot == "" {
 		return nil, nil, fmt.Errorf("no project root found")
 	}
 
-	return GetPaths(ProjectRoot)
+	return GetPaths(baseDir, ProjectRoot)
 }
 
-func GetPaths(dir string) (map[string]bool, *ignore.GitIgnore, error) {
-	ignored, err := GetPlandexIgnore()
+func GetPaths(baseDir, currentDir string) (map[string]bool, *ignore.GitIgnore, error) {
+	ignored, err := GetPlandexIgnore(currentDir)
 
 	if err != nil {
 		return nil, nil, err
 	}
 
 	paths := map[string]bool{}
+	ignoredPaths := map[string]bool{}
+
 	dirs := map[string]bool{}
 
-	isGitRepo := ProjectRootIsGitRepo()
+	isGitRepo := IsGitRepo(baseDir)
 
 	errCh := make(chan error)
 	var mu sync.Mutex
@@ -152,7 +155,7 @@ func GetPaths(dir string) (map[string]bool, *ignore.GitIgnore, error) {
 		go func() {
 			// get all tracked files in the repo
 			cmd := exec.Command("git", "ls-files")
-			cmd.Dir = dir
+			cmd.Dir = baseDir
 			out, err := cmd.Output()
 
 			if err != nil {
@@ -165,11 +168,20 @@ func GetPaths(dir string) (map[string]bool, *ignore.GitIgnore, error) {
 			mu.Lock()
 			defer mu.Unlock()
 			for _, file := range files {
-				if ignored != nil && ignored.MatchesPath(file) {
+				absFile := filepath.Join(baseDir, file)
+				relFile, err := filepath.Rel(currentDir, absFile)
+
+				if err != nil {
+					errCh <- fmt.Errorf("error getting relative path: %s", err)
+					return
+				}
+
+				if ignored != nil && ignored.MatchesPath(relFile) {
+					ignoredPaths[relFile] = true
 					continue
 				}
 
-				paths[file] = true
+				paths[relFile] = true
 			}
 
 			errCh <- nil
@@ -179,7 +191,7 @@ func GetPaths(dir string) (map[string]bool, *ignore.GitIgnore, error) {
 		numRoutines++
 		go func() {
 			cmd := exec.Command("git", "ls-files", "--others", "--exclude-standard")
-			cmd.Dir = dir
+			cmd.Dir = baseDir
 			out, err := cmd.Output()
 
 			if err != nil {
@@ -192,11 +204,20 @@ func GetPaths(dir string) (map[string]bool, *ignore.GitIgnore, error) {
 			mu.Lock()
 			defer mu.Unlock()
 			for _, file := range files {
-				if ignored != nil && ignored.MatchesPath(file) {
+				absFile := filepath.Join(baseDir, file)
+				relFile, err := filepath.Rel(currentDir, absFile)
+
+				if err != nil {
+					errCh <- fmt.Errorf("error getting relative path: %s", err)
+					return
+				}
+
+				if ignored != nil && ignored.MatchesPath(relFile) {
+					ignoredPaths[relFile] = true
 					continue
 				}
 
-				paths[file] = true
+				paths[relFile] = true
 			}
 
 			errCh <- nil
@@ -206,29 +227,31 @@ func GetPaths(dir string) (map[string]bool, *ignore.GitIgnore, error) {
 	// get all paths in the directory
 	numRoutines++
 	go func() {
-		err = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		err = filepath.Walk(baseDir, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				return err
 			}
 
 			if info.IsDir() {
-				relPath, err := filepath.Rel(dir, path)
+				relPath, err := filepath.Rel(currentDir, path)
 				if err != nil {
 					return err
 				}
 
 				if ignored != nil && ignored.MatchesPath(relPath) {
+					ignoredPaths[relPath] = true
 					return filepath.SkipDir
 				}
 
 				dirs[relPath] = true
 			} else if !isGitRepo {
-				relPath, err := filepath.Rel(dir, path)
+				relPath, err := filepath.Rel(currentDir, path)
 				if err != nil {
 					return err
 				}
 
 				if ignored != nil && ignored.MatchesPath(relPath) {
+					ignoredPaths[relPath] = true
 					return nil
 				}
 
@@ -259,10 +282,11 @@ func GetPaths(dir string) (map[string]bool, *ignore.GitIgnore, error) {
 	}
 
 	return paths, ignored, nil
+
 }
 
-func GetPlandexIgnore() (*ignore.GitIgnore, error) {
-	ignorePath := filepath.Join(ProjectRoot, ".plandexignore")
+func GetPlandexIgnore(dir string) (*ignore.GitIgnore, error) {
+	ignorePath := filepath.Join(dir, ".plandexignore")
 
 	if _, err := os.Stat(ignorePath); err == nil {
 		ignored, err := ignore.CompileIgnoreFile(ignorePath)
@@ -369,6 +393,46 @@ func GetChildProjectIdsWithPaths(ctx context.Context) ([][2]string, error) {
 	}
 
 	return childProjectIds, nil
+}
+
+func GetBaseDirForContexts(contexts []*shared.Context) string {
+	var paths []string
+
+	for _, context := range contexts {
+		if context.FilePath != "" {
+			paths = append(paths, context.FilePath)
+		}
+	}
+
+	return GetBaseDirForFilePaths(paths)
+}
+
+func GetBaseDirForFilePaths(paths []string) string {
+	baseDir := ProjectRoot
+	dirsUp := 0
+
+	for _, path := range paths {
+		currentDir := ProjectRoot
+
+		pathSplit := strings.Split(path, string(os.PathSeparator))
+
+		n := 0
+		for _, p := range pathSplit {
+			if p == ".." {
+				n++
+				currentDir = filepath.Dir(currentDir)
+			} else {
+				break
+			}
+		}
+
+		if n > dirsUp {
+			dirsUp = n
+			baseDir = currentDir
+		}
+	}
+
+	return baseDir
 }
 
 func findPlandex(baseDir string) string {

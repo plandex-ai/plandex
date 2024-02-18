@@ -211,7 +211,8 @@ type BaseModelConfig struct {
 }
 
 type PlannerModelConfig struct {
-	MaxConvoTokens int `json:"maxConvoTokens"`
+	MaxConvoTokens      int `json:"maxConvoTokens"`
+	ReserveOutputTokens int `json:"maxOutputTokens"`
 }
 
 type TaskModelConfig struct {
@@ -221,12 +222,12 @@ type TaskModelConfig struct {
 type ModelRole string
 
 const (
-	PlannerRole     ModelRole = "planner"
-	PlanSummaryRole ModelRole = "planSummary"
-	BuilderRole     ModelRole = "builder"
-	NameRole        ModelRole = "name"
-	CommitMsgRole   ModelRole = "commitMsg"
-	ExecStatusRole  ModelRole = "execStatus"
+	ModelRolePlannerRole     ModelRole = "core-planner"
+	ModelRolePlanSummaryRole ModelRole = "summarizer"
+	ModelRoleBuilderRole     ModelRole = "builder"
+	ModelRoleNameRole        ModelRole = "names"
+	ModelRoleCommitMsgRole   ModelRole = "commit-messages"
+	ModelRoleExecStatusRole  ModelRole = "auto-complete"
 )
 
 type ModelRoleConfig struct {
@@ -256,8 +257,49 @@ type ModelSet struct {
 }
 
 type PlanSettings struct {
-	MaxConvoTokens   *int      `json:"maxConvoTokens"`
-	MaxContextTokens *int      `json:"maxContextTokens"`
-	ModelSet         *ModelSet `json:"modelSet"`
-	UpdatedAt        time.Time `json:"updatedAt"`
+	MaxConvoTokens      *int      `json:"maxConvoTokens"`
+	MaxTokens           *int      `json:"maxContextTokens"`
+	ReserveOutputTokens *int      `json:"maxOutputTokens"`
+	ModelSet            *ModelSet `json:"modelSet"`
+	UpdatedAt           time.Time `json:"updatedAt"`
+}
+
+func (ps PlanSettings) GetPlannerMaxTokens() int {
+	if ps.MaxTokens == nil {
+		if ps.ModelSet == nil {
+			return DefaultModelSet.Planner.BaseModelConfig.MaxTokens
+		} else {
+			return ps.ModelSet.Planner.BaseModelConfig.MaxTokens
+		}
+	} else {
+		return *ps.MaxTokens
+	}
+}
+
+func (ps PlanSettings) GetPlannerMaxConvoTokens() int {
+	if ps.MaxConvoTokens == nil {
+		if ps.ModelSet == nil {
+			return DefaultModelSet.Planner.PlannerModelConfig.MaxConvoTokens
+		} else {
+			return ps.ModelSet.Planner.PlannerModelConfig.MaxConvoTokens
+		}
+	} else {
+		return *ps.MaxConvoTokens
+	}
+}
+
+func (ps PlanSettings) GetPlannerReserveOutputTokens() int {
+	if ps.ReserveOutputTokens == nil {
+		if ps.ModelSet == nil {
+			return DefaultModelSet.Planner.PlannerModelConfig.ReserveOutputTokens
+		} else {
+			return ps.ModelSet.Planner.PlannerModelConfig.ReserveOutputTokens
+		}
+	} else {
+		return *ps.ReserveOutputTokens
+	}
+}
+
+func (ps PlanSettings) GetPlannerEffectiveMaxTokens() int {
+	return ps.GetPlannerMaxTokens() - ps.GetPlannerReserveOutputTokens()
 }

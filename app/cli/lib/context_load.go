@@ -78,10 +78,13 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 		var plandexIgnored *ignore.GitIgnore
 
 		if !params.ForceSkipIgnore {
-			projectPaths, plandexIgnored, err = fs.GetProjectPaths()
+			baseDir := fs.GetBaseDirForFilePaths(inputFilePaths)
+
+			projectPaths, plandexIgnored, err = fs.GetProjectPaths(baseDir)
 			if err != nil {
 				onErr(fmt.Errorf("failed to get project paths: %v", err))
 			}
+
 			var filteredPaths []string
 			for _, inputFilePath := range inputFilePaths {
 				if _, ok := projectPaths[inputFilePath]; !ok {
@@ -220,6 +223,10 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 	if len(loadContextReq) == 0 {
 		term.StopSpinner()
 		fmt.Println("🤷‍♂️ No context loaded")
+		if len(ignoredPaths) > 0 {
+			fmt.Println()
+			printIgnoredMsg()
+		}
 		os.Exit(0)
 	}
 
@@ -232,15 +239,19 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 	term.StopSpinner()
 
 	if res.MaxTokensExceeded {
-		overage := res.TotalTokens - shared.MaxContextTokens
-		fmt.Printf("🚨 Update would add %d 🪙 and exceed token limit (%d) by %d 🪙\n", res.TokensAdded, shared.MaxContextTokens, overage)
+		overage := res.TotalTokens - res.MaxTokens
+		fmt.Printf("🚨 Update would add %d 🪙 and exceed token limit (%d) by %d 🪙\n", res.TokensAdded, res.MaxTokens, overage)
 		os.Exit(1)
 	}
 
 	fmt.Println("✅ " + res.Msg)
 
 	if len(ignoredPaths) > 0 {
-		fmt.Println("ℹ️  " + color.New(color.FgWhite).Sprint("Due to .gitignore or .plandexignore, some paths weren't loaded.\nUse --force / -f to load ignored paths."))
-		fmt.Println()
+		printIgnoredMsg()
 	}
+}
+
+func printIgnoredMsg() {
+	fmt.Println("ℹ️  " + color.New(color.FgWhite).Sprint("Due to .gitignore or .plandexignore, some paths weren't loaded.\nUse --force / -f to load ignored paths."))
+	fmt.Println()
 }

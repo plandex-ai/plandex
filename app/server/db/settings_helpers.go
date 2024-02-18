@@ -18,11 +18,15 @@ func GetPlanSettings(plan *Plan, fillDefaultModelSet bool) (*shared.PlanSettings
 
 	bytes, err := os.ReadFile(settingsPath)
 
-	if os.IsNotExist(err) {
+	if os.IsNotExist(err) || len(bytes) == 0 {
 		// if it doesn't exist, return default settings object
 		settings = &shared.PlanSettings{
 			UpdatedAt: plan.CreatedAt,
 		}
+		if settings.ModelSet == nil && fillDefaultModelSet {
+			settings.ModelSet = &shared.DefaultModelSet
+		}
+		return settings, nil
 	} else if err != nil {
 		return nil, fmt.Errorf("error reading settings file: %v", err)
 	}

@@ -18,7 +18,7 @@ var PlanNameFn = openai.FunctionDefinition{
 		Properties: map[string]jsonschema.Definition{
 			"planName": {
 				Type:        jsonschema.String,
-				Description: "A *short* lowercase file name for the plan content. Use dashes as word separators. No spaces, numbers, or special characters. **2-3 words max**.",
+				Description: "A *short* lowercase file name for the plan content. Use dashes as word separators. No spaces, numbers, or special characters. **2-3 words max**. 1-2 words if you can. Shorten and abbreviate where possible.",
 			},
 		},
 		Required: []string{"planName"},

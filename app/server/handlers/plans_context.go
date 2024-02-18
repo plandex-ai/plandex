@@ -100,7 +100,7 @@ func LoadContextHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res, _ := loadContexts(w, r, auth, &requestBody, planId, branchName)
+	res, _ := loadContexts(w, r, auth, &requestBody, plan, branchName)
 	if res == nil {
 		return
 	}
@@ -159,7 +159,14 @@ func UpdateContextHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	maxTokens := shared.MaxContextTokens
+	settings, err := db.GetPlanSettings(plan, true)
+	if err != nil {
+		log.Printf("Error getting settings: %v\n", err)
+		http.Error(w, "Error getting settings: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	maxTokens := settings.GetPlannerEffectiveMaxTokens()
 	tokensDiff := 0
 	totalTokens := branch.ContextTokens
 	tokensDiffById := make(map[string]int)
@@ -230,6 +237,7 @@ func UpdateContextHandler(w http.ResponseWriter, r *http.Request) {
 		res := shared.LoadContextResponse{
 			TokensAdded:       tokensDiff,
 			TotalTokens:       totalTokens,
+			MaxTokens:         maxTokens,
 			MaxTokensExceeded: true,
 		}
 
