@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"plandex-server/db"
 	"plandex-server/types"
+	"runtime/debug"
 
 	"github.com/gorilla/mux"
 )
@@ -35,6 +36,13 @@ func lockRepo(w http.ResponseWriter, r *http.Request, auth *types.ServerAuth, sc
 	}
 
 	fn := func(err error) {
+		if r := recover(); r != nil {
+			stackTrace := debug.Stack()
+			log.Printf("Recovered from panic: %v\n", r)
+			log.Printf("Stack trace: %s\n", stackTrace)
+			err = fmt.Errorf("server panic: %v", r)
+			http.Error(w, "Error locking repo: "+err.Error(), http.StatusInternalServerError)
+		}
 
 		err = RollbackRepoIfErr(auth.OrgId, planId, err)
 		if err != nil {
@@ -55,6 +63,8 @@ func RollbackRepoIfErr(orgId, planId string, err error) error {
 	if err == nil {
 		return nil
 	}
+
+	log.Println("Rolling back repo due to error")
 
 	// if any errors, rollback repo
 	err = db.GitClearUncommittedChanges(orgId, planId)

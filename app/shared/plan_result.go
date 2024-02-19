@@ -303,18 +303,19 @@ func (state *CurrentPlanState) PendingChangesSummary() string {
 		})
 
 		if len(pendingNewFiles) > 0 {
-			newMsg := "  📄 New files:\n"
+			newMsg := ""
 			for _, path := range pendingNewFiles {
-				newMsg += fmt.Sprintf("  • %s\n", path)
+				newMsg += fmt.Sprintf("  • new file → %s\n", path)
 			}
 			msgs = append(msgs, newMsg)
 		}
 
 		if len(pendingReplacementPaths) > 0 {
-			updatesMsg := "  ✏️ Edits:\n"
+			// updatesMsg := "  ✏️ Edits:\n"
+			updatesMsg := ""
 
 			for _, path := range pendingReplacementPaths {
-				updatesMsg += fmt.Sprintf("    • %s\n", path)
+				updatesMsg += fmt.Sprintf("    • edit → %s\n", path)
 
 				replacements := pendingReplacementsByPath[path]
 

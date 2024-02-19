@@ -39,6 +39,8 @@ var CmdDesc = map[string][2]string{
 	"branches":      {"br", "list plan branches"},
 	"checkout":      {"co", "checkout or create a branch"},
 	"build":         {"b", "build any pending changes"},
+	"models":        {"", "show model settings"},
+	"set-model":     {"", "update model settings"},
 }
 
 func PrintCmds(prefix string, cmds ...string) {

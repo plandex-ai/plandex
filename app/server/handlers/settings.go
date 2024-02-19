@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"plandex-server/db"
 	"reflect"
-	"regexp"
 	"strings"
 
 	"github.com/gorilla/mux"
@@ -101,7 +100,7 @@ func UpdateSettingsHandler(w http.ResponseWriter, r *http.Request) {
 		defer (*unlockFn)(err)
 	}
 
-	originalSettings, err := db.GetPlanSettings(plan, false)
+	originalSettings, err := db.GetPlanSettings(plan, true)
 
 	if err != nil {
 		log.Println("Error getting settings: ", err)
@@ -127,22 +126,55 @@ func UpdateSettingsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	res := shared.UpdateSettingsResponse{
+		Msg: commitMsg,
+	}
+	bytes, err := json.Marshal(res)
+
+	if err != nil {
+		log.Println("Error marshalling response: ", err)
+		http.Error(w, "Error marshalling response", http.StatusInternalServerError)
+		return
+	}
+
+	w.Write(bytes)
+
 	log.Println("UpdateSettingsHandler processed successfully")
 
 }
 
 func getUpdateCommitMsg(settings *shared.PlanSettings, originalSettings *shared.PlanSettings) string {
+	log.Println("Comparing settings")
+	// log.Println("Original:")
+	// spew.Dump(originalSettings)
+	// log.Println("New:")
+	// spew.Dump(settings)
+
 	var changes []string
-	compareAny(settings, originalSettings, "settings", &changes)
+	compareAny(originalSettings, settings, "", &changes)
 
 	if len(changes) == 0 {
 		return "No changes to settings"
 	}
 
-	return "Updated settings:\n" + strings.Join(changes, "\n")
+	log.Println("Changes to settings:", strings.Join(changes, "\n"))
+
+	s := "⚙️  Updated model settings:"
+
+	for _, change := range changes {
+		s += "\n" + "  • " + change
+	}
+
+	return s
 }
 
 func compareAny(a, b interface{}, path string, changes *[]string) {
+	// log.Println("Comparing", path)
+	if strings.HasSuffix(path, "updated-at") ||
+		strings.HasSuffix(path, "open-ai-response-format") {
+		return
+	}
+
 	if reflect.DeepEqual(a, b) {
 		return
 	}
@@ -155,40 +187,53 @@ func compareAny(a, b interface{}, path string, changes *[]string) {
 		bVal = bVal.Elem()
 	}
 
-	// Handle nil for slices, maps, ptrs
-	if a == nil || b == nil || (aVal.Kind() != bVal.Kind()) {
-		change := fmt.Sprintf("- %s: %v -> %v", path, a, b)
-		*changes = append(*changes, change)
-		return
-	}
+	// log.Println("Comparing", path, aVal.Kind(), bVal.Kind())
+	// log.Println("aVal", aVal)
+	// log.Println("bVal", bVal)
 
 	switch aVal.Kind() {
 	case reflect.Struct:
 		for i := 0; i < aVal.NumField(); i++ {
 			fieldName := aVal.Type().Field(i).Name
-			matches := regexp.MustCompile("([A-Z[a-z0-9]*)").FindAllStringSubmatch(fieldName, -1)
-			var parts []string
-			for _, match := range matches {
-				parts = append(parts, match[0])
+			dasherizedName := shared.Dasherize(fieldName)
+
+			updatedPath := path
+			if !(dasherizedName == "model-set" ||
+				dasherizedName == "model-role-config" ||
+				dasherizedName == "base-model-config" ||
+				dasherizedName == "planner-model-config" ||
+				dasherizedName == "task-model-config") {
+				if updatedPath != "" {
+					updatedPath = updatedPath + "." + dasherizedName
+				} else {
+					if dasherizedName == "model-overrides" {
+						dasherizedName = "overrides"
+					}
+
+					updatedPath = dasherizedName
+				}
 			}
-			dasherizedName := strings.ToLower(strings.Join(parts, "-"))
+
 			compareAny(aVal.Field(i).Interface(), bVal.Field(i).Interface(),
-				path+"."+dasherizedName, changes)
-		}
-	case reflect.Slice, reflect.Array:
-		if aVal.Len() != bVal.Len() {
-			change := fmt.Sprintf("- %s: %v -> %v", path, aVal.Interface(),
-				bVal.Interface())
-			*changes = append(*changes, change)
-			return
-		}
-		for i := 0; i < aVal.Len(); i++ {
-			compareAny(aVal.Index(i).Interface(), bVal.Index(i).Interface(),
-				fmt.Sprintf("%s[%d]", path, i), changes)
+				updatedPath, changes)
 		}
 	default:
-		change := fmt.Sprintf("- %s: %v -> %v", path, aVal.Interface(),
-			bVal.Interface())
+		var a string
+		var b string
+
+		if aVal.IsValid() {
+			a = fmt.Sprintf("%v", aVal.Interface())
+		} else {
+			a = "no override"
+		}
+
+		if bVal.IsValid() {
+			b = fmt.Sprintf("%v", bVal.Interface())
+		} else {
+			b = "no override"
+		}
+
+		change := fmt.Sprintf("%s | %v → %v", path, a, b)
 		*changes = append(*changes, change)
 	}
 }

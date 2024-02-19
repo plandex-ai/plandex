@@ -6,7 +6,9 @@ import (
 	"plandex/api"
 	"plandex/auth"
 	"plandex/lib"
+	"plandex/term"
 
+	"github.com/fatih/color"
 	"github.com/olekukonko/tablewriter"
 	"github.com/plandex/plandex/shared"
 	"github.com/spf13/cobra"
@@ -39,39 +41,65 @@ func models(cmd *cobra.Command, args []string) {
 		modelSet = &shared.DefaultModelSet
 	}
 
+	color.New(color.Bold, color.FgHiCyan).Println("🤖 Models")
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetAutoWrapText(false)
-	table.SetHeader([]string{"Role", "Provider", "Model", "Max 🪙", "Temperature", "Top P", "Other"})
+	table.SetHeader([]string{"Role", "Provider", "Model", "Temperature", "Top P"})
 
-	addModelRow := func(role string, config shared.ModelRoleConfig, additionalConfig string) {
+	addModelRow := func(role string, config shared.ModelRoleConfig) {
 		table.Append([]string{
 			role,
 			string(config.BaseModelConfig.Provider),
 			config.BaseModelConfig.ModelName,
-			fmt.Sprintf("%d", config.BaseModelConfig.MaxTokens),
 			fmt.Sprintf("%.1f", config.Temperature),
 			fmt.Sprintf("%.1f", config.TopP),
-			additionalConfig,
 		})
 	}
 
-	addModelRow(string(shared.ModelRolePlannerRole), modelSet.Planner.ModelRoleConfig, fmt.Sprintf("max-convo-tokens → %d", modelSet.Planner.PlannerModelConfig.MaxConvoTokens))
-	addModelRow(string(shared.ModelRolePlanSummaryRole), modelSet.PlanSummary, "")
-	// Builder role
-	builderAdditionalConfig := ""
-	addModelRow(string(shared.ModelRoleBuilderRole), modelSet.Builder.ModelRoleConfig, builderAdditionalConfig)
-
-	// Namer role
-	namerAdditionalConfig := ""
-	addModelRow(string(shared.ModelRoleNameRole), modelSet.Namer.ModelRoleConfig, namerAdditionalConfig)
-
-	// CommitMsg role
-	commitMsgAdditionalConfig := ""
-	addModelRow(string(shared.ModelRoleCommitMsgRole), modelSet.CommitMsg.ModelRoleConfig, commitMsgAdditionalConfig)
-
-	// ExecStatus role
-	execStatusAdditionalConfig := ""
-	addModelRow(string(shared.ModelRoleExecStatusRole), modelSet.ExecStatus.ModelRoleConfig, execStatusAdditionalConfig)
-
+	addModelRow(string(shared.ModelRolePlanner), modelSet.Planner.ModelRoleConfig)
+	addModelRow(string(shared.ModelRolePlanSummary), modelSet.PlanSummary)
+	addModelRow(string(shared.ModelRoleBuilder), modelSet.Builder.ModelRoleConfig)
+	addModelRow(string(shared.ModelRoleName), modelSet.Namer.ModelRoleConfig)
+	addModelRow(string(shared.ModelRoleCommitMsg), modelSet.CommitMsg.ModelRoleConfig)
+	addModelRow(string(shared.ModelRoleExecStatus), modelSet.ExecStatus.ModelRoleConfig)
 	table.Render()
+
+	fmt.Println()
+
+	color.New(color.Bold, color.FgHiCyan).Println("🧠 Planner Defaults")
+	table = tablewriter.NewWriter(os.Stdout)
+	table.SetAutoWrapText(false)
+	table.SetHeader([]string{"Max Tokens", "Max Convo Tokens", "Reserved Output Tokens"})
+	table.Append([]string{
+		fmt.Sprintf("%d", modelSet.Planner.BaseModelConfig.MaxTokens),
+		fmt.Sprintf("%d", modelSet.Planner.MaxConvoTokens),
+		fmt.Sprintf("%d", modelSet.Planner.ReservedOutputTokens),
+	})
+	table.Render()
+	fmt.Println()
+
+	color.New(color.Bold, color.FgHiCyan).Println("⚙️  Planner Overrides")
+	table = tablewriter.NewWriter(os.Stdout)
+	table.SetAutoWrapText(false)
+	table.SetHeader([]string{"Name", "Value"})
+	if settings.ModelOverrides.MaxTokens == nil {
+		table.Append([]string{"Max Tokens", "no override"})
+	} else {
+		table.Append([]string{"Max Tokens", fmt.Sprintf("%d", *settings.ModelOverrides.MaxTokens)})
+	}
+	if settings.ModelOverrides.MaxConvoTokens == nil {
+		table.Append([]string{"Max Convo Tokens", "no override"})
+	} else {
+		table.Append([]string{"Max Convo Tokens", fmt.Sprintf("%d", *settings.ModelOverrides.MaxConvoTokens)})
+	}
+	if settings.ModelOverrides.ReservedOutputTokens == nil {
+		table.Append([]string{"Reserved Output Tokens", "no override"})
+	} else {
+		table.Append([]string{"Reserved Output Tokens", fmt.Sprintf("%d", *settings.ModelOverrides.ReservedOutputTokens)})
+	}
+	table.Render()
+
+	fmt.Println()
+	term.PrintCmds("", "set-model")
+
 }

@@ -42,7 +42,7 @@ func convo(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	var convMarkdown []string
+	var convo string
 	var totalTokens int
 	for i, msg := range conversation {
 		var author string
@@ -69,25 +69,27 @@ func convo(cmd *cobra.Command, args []string) {
 
 		header := fmt.Sprintf("#### %d | %s | %s | %d 🪙 ", i+1,
 			author, formattedTs, msg.Tokens)
-		convMarkdown = append(convMarkdown, header, msg.Message, "")
+
+		// convMarkdown = append(convMarkdown, header, msg.Message, "")
+
+		md, err := term.GetMarkdown(header + "\n" + msg.Message + "\n\n")
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "Error creating markdown representation:", err)
+			return
+		}
+		convo += md
 
 		if msg.Stopped {
-			convMarkdown = append(convMarkdown, fmt.Sprintf("🛑 **%s**", stoppedEarlyMsg), "")
+			convo += fmt.Sprintf(" 🛑 %s\n\n", color.New(color.Bold, color.FgHiWhite).Sprint(stoppedEarlyMsg))
 		}
 
 		totalTokens += msg.Tokens
 	}
 
-	markdownString, err := term.GetMarkdown(strings.Join(convMarkdown, "\n"))
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error creating markdown representation:", err)
-		return
-	}
-
-	markdownString = strings.ReplaceAll(markdownString, stoppedEarlyMsg, color.New(color.FgHiRed).Sprint(stoppedEarlyMsg))
+	convo = strings.ReplaceAll(convo, stoppedEarlyMsg, color.New(color.FgHiRed).Sprint(stoppedEarlyMsg))
 
 	output :=
-		fmt.Sprintf("\n%s", markdownString) +
+		fmt.Sprintf("\n%s", convo) +
 			term.GetDivisionLine() +
 			color.New(color.Bold, color.FgCyan).Sprint("  Conversation size →") + fmt.Sprintf(" %d 🪙", totalTokens) + "\n\n"
 

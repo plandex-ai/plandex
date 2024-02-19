@@ -185,3 +185,7 @@ type CreateBranchRequest struct {
 type UpdateSettingsRequest struct {
 	Settings *PlanSettings `json:"settings"`
 }
+
+type UpdateSettingsResponse struct {
+	Msg string `json:"msg"`
+}

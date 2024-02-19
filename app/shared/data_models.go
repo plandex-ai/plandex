@@ -211,8 +211,8 @@ type BaseModelConfig struct {
 }
 
 type PlannerModelConfig struct {
-	MaxConvoTokens      int `json:"maxConvoTokens"`
-	ReserveOutputTokens int `json:"maxOutputTokens"`
+	MaxConvoTokens       int `json:"maxConvoTokens"`
+	ReservedOutputTokens int `json:"maxOutputTokens"`
 }
 
 type TaskModelConfig struct {
@@ -222,13 +222,28 @@ type TaskModelConfig struct {
 type ModelRole string
 
 const (
-	ModelRolePlannerRole     ModelRole = "core-planner"
-	ModelRolePlanSummaryRole ModelRole = "summarizer"
-	ModelRoleBuilderRole     ModelRole = "builder"
-	ModelRoleNameRole        ModelRole = "names"
-	ModelRoleCommitMsgRole   ModelRole = "commit-messages"
-	ModelRoleExecStatusRole  ModelRole = "auto-complete"
+	ModelRolePlanner     ModelRole = "planner"
+	ModelRolePlanSummary ModelRole = "summarizer"
+	ModelRoleBuilder     ModelRole = "builder"
+	ModelRoleName        ModelRole = "names"
+	ModelRoleCommitMsg   ModelRole = "commit-messages"
+	ModelRoleExecStatus  ModelRole = "auto-complete"
 )
+
+var AllModelRoles = []ModelRole{ModelRolePlanner, ModelRolePlanSummary, ModelRoleBuilder, ModelRoleName, ModelRoleCommitMsg, ModelRoleExecStatus}
+var ModelRoleDescriptions = map[ModelRole]string{
+	ModelRolePlanner:     "replies to prompts and makes plans",
+	ModelRolePlanSummary: "summarizes conversations exceeding max-convo-tokens",
+	ModelRoleBuilder:     "builds a plan into file diffs",
+	ModelRoleName:        "names plans",
+	ModelRoleCommitMsg:   "writes commit messages",
+	ModelRoleExecStatus:  "determines whether to auto-continue",
+}
+var SettingDescriptions = map[string]string{
+	"max-convo-tokens":       "max conversation 🪙 before summarization",
+	"max-tokens":             "overall 🪙 limit",
+	"reserved-output-tokens": "🪙 reserved for model output",
+}
 
 type ModelRoleConfig struct {
 	Role            ModelRole       `json:"role"`
@@ -256,50 +271,56 @@ type ModelSet struct {
 	ExecStatus  TaskRoleConfig    `json:"execStatus"`
 }
 
-type PlanSettings struct {
-	MaxConvoTokens      *int      `json:"maxConvoTokens"`
-	MaxTokens           *int      `json:"maxContextTokens"`
-	ReserveOutputTokens *int      `json:"maxOutputTokens"`
-	ModelSet            *ModelSet `json:"modelSet"`
-	UpdatedAt           time.Time `json:"updatedAt"`
+type ModelOverrides struct {
+	MaxConvoTokens       *int `json:"maxConvoTokens"`
+	MaxTokens            *int `json:"maxContextTokens"`
+	ReservedOutputTokens *int `json:"maxOutputTokens"`
 }
 
+type PlanSettings struct {
+	ModelOverrides ModelOverrides `json:"modelOverrides"`
+	ModelSet       *ModelSet      `json:"modelSet"`
+	UpdatedAt      time.Time      `json:"updatedAt"`
+}
+
+var ModelOverridePropsDasherized = []string{"max-convo-tokens", "max-tokens", "reserved-output-tokens"}
+
 func (ps PlanSettings) GetPlannerMaxTokens() int {
-	if ps.MaxTokens == nil {
+	if ps.ModelOverrides.MaxTokens == nil {
 		if ps.ModelSet == nil {
 			return DefaultModelSet.Planner.BaseModelConfig.MaxTokens
 		} else {
 			return ps.ModelSet.Planner.BaseModelConfig.MaxTokens
 		}
 	} else {
-		return *ps.MaxTokens
+		return *ps.ModelOverrides.MaxTokens
 	}
 }
 
 func (ps PlanSettings) GetPlannerMaxConvoTokens() int {
-	if ps.MaxConvoTokens == nil {
+	if ps.ModelOverrides.MaxConvoTokens == nil {
 		if ps.ModelSet == nil {
 			return DefaultModelSet.Planner.PlannerModelConfig.MaxConvoTokens
 		} else {
 			return ps.ModelSet.Planner.PlannerModelConfig.MaxConvoTokens
 		}
 	} else {
-		return *ps.MaxConvoTokens
+		return *ps.ModelOverrides.MaxConvoTokens
 	}
 }
 
-func (ps PlanSettings) GetPlannerReserveOutputTokens() int {
-	if ps.ReserveOutputTokens == nil {
+func (ps PlanSettings) GetPlannerReservedOutputTokens() int {
+	if ps.ModelOverrides.ReservedOutputTokens == nil {
 		if ps.ModelSet == nil {
-			return DefaultModelSet.Planner.PlannerModelConfig.ReserveOutputTokens
+			return DefaultModelSet.Planner.PlannerModelConfig.ReservedOutputTokens
 		} else {
-			return ps.ModelSet.Planner.PlannerModelConfig.ReserveOutputTokens
+			return ps.ModelSet.Planner.PlannerModelConfig.ReservedOutputTokens
 		}
 	} else {
-		return *ps.ReserveOutputTokens
+		return *ps.ModelOverrides.ReservedOutputTokens
 	}
 }
 
 func (ps PlanSettings) GetPlannerEffectiveMaxTokens() int {
-	return ps.GetPlannerMaxTokens() - ps.GetPlannerReserveOutputTokens()
+	return ps.GetPlannerMaxTokens() - ps.GetPlannerReservedOutputTokens()
 }
