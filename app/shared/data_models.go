@@ -173,8 +173,9 @@ type PlanFileResult struct {
 }
 
 type CurrentPlanFiles struct {
-	Files       map[string]string `json:"files"`
-	ContextShas map[string]string `json:"contextShas"`
+	Files           map[string]string    `json:"files"`
+	ContextShas     map[string]string    `json:"contextShas"`
+	UpdatedAtByPath map[string]time.Time `json:"updatedAtByPath"`
 }
 
 type PlanFileResultsByPath map[string][]*PlanFileResult

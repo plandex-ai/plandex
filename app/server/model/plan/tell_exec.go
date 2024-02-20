@@ -382,8 +382,19 @@ func execTellPlan(
 				return
 			}
 
+			buildState := &activeBuildStreamState{
+				client:        client,
+				auth:          auth,
+				currentOrgId:  currentOrgId,
+				currentUserId: currentUserId,
+				plan:          plan,
+				branch:        branch,
+				settings:      state.settings,
+				modelContext:  state.modelContext,
+			}
+
 			for _, pendingBuilds := range pendingBuildsByPath {
-				queueBuilds(client, state.settings.ModelSet.Builder, auth.OrgId, auth.User.Id, planId, branch, pendingBuilds)
+				buildState.queueBuilds(pendingBuilds)
 			}
 		}()
 	}

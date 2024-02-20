@@ -433,7 +433,18 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 					log.Printf("New file: %s\n", file)
 					if req.BuildMode == shared.BuildModeAuto {
 						log.Printf("Queuing build for %s\n", file)
-						queueBuilds(client, settings.ModelSet.Builder, currentOrgId, currentUserId, planId, branch, []*types.ActiveBuild{{
+						buildState := &activeBuildStreamState{
+							client:        client,
+							auth:          auth,
+							currentOrgId:  currentOrgId,
+							currentUserId: currentUserId,
+							plan:          plan,
+							branch:        branch,
+							settings:      settings,
+							modelContext:  state.modelContext,
+						}
+
+						buildState.queueBuilds([]*types.ActiveBuild{{
 							ReplyId:      replyId,
 							ReplyContent: active.CurrentReplyContent,
 							FileContent:  fileContents[i],

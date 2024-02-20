@@ -134,6 +134,7 @@ func (planState *CurrentPlanState) GetFilesBeforeReplacement(
 
 	files := make(map[string]string)
 	shas := make(map[string]string)
+	updatedAtByPath := make(map[string]time.Time)
 
 	for path, planResults := range planRes.FileResultsByPath {
 		updated := files[path]
@@ -172,6 +173,8 @@ func (planState *CurrentPlanState) GetFilesBeforeReplacement(
 			if !allSucceeded {
 				return nil, fmt.Errorf("plan replacement failed: %s", path)
 			}
+
+			updatedAtByPath[path] = planRes.CreatedAt
 		}
 
 		files[path] = updated
