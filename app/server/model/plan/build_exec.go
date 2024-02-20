@@ -175,6 +175,9 @@ func (fileState *activeBuildStreamFileState) buildFile() {
 		}
 	}
 
+	fileState.currentState = currentState
+	fileState.contextPart = contextPart
+
 	if currentState == "" {
 		log.Printf("File %s not found in model context or current plan. Creating new file.\n", filePath)
 
@@ -201,9 +204,6 @@ func (fileState *activeBuildStreamFileState) buildFile() {
 		fileState.onFinishBuildFile(planRes)
 		return
 	}
-
-	fileState.currentState = currentState
-	fileState.contextPart = contextPart
 
 	log.Println("Getting file from model: " + filePath)
 	// log.Println("File context:", fileContext)
