@@ -27,7 +27,7 @@ type StreamMessage struct {
 
 	ReplyChunk string `json:"replyChunk,omitempty"`
 
-	BuildInfo       *BuildInfo               `json:"planTokenCount,omitempty"`
+	BuildInfo       *BuildInfo               `json:"buildInfo,omitempty"`
 	Description     *ConvoMessageDescription `json:"description,omitempty"`
 	Error           *ApiError                `json:"error,omitempty"`
 	MissingFilePath string                   `json:"missingFilePath,omitempty"`
