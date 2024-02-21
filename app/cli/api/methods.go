@@ -1564,6 +1564,8 @@ func (a *Api) UpdateSettings(planId, branch string, req shared.UpdateSettingsReq
 		return nil, &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error marshalling request: %s", err)}
 	}
 
+	log.Println("UpdateSettings", string(reqBytes))
+
 	request, err := http.NewRequest(http.MethodPut, serverUrl, bytes.NewBuffer(reqBytes))
 	if err != nil {
 		return nil, &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error creating request: %s", err)}

@@ -31,8 +31,7 @@ var ShouldAutoContinueFn = openai.FunctionDefinition{
 		Type: jsonschema.Object,
 		Properties: map[string]jsonschema.Definition{
 			"shouldContinue": {
-				Type:        jsonschema.Boolean,
-				Description: "Whether the plan should automatically continue.",
+				Type: jsonschema.Boolean,
 			},
 		},
 		Required: []string{"shouldContinue"},

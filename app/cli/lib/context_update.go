@@ -128,7 +128,7 @@ func checkOutdatedAndMaybeUpdateContext(doUpdate bool) (*types.ContextOutdatedRe
 
 	contexts, err := api.Client.ListContext(CurrentPlanId, CurrentBranch)
 	if err != nil {
-		return nil, fmt.Errorf("error retrieving context: %w", err)
+		return nil, fmt.Errorf("error retrieving context: %v", err)
 	}
 
 	var errs []error
@@ -267,7 +267,7 @@ func checkOutdatedAndMaybeUpdateContext(doUpdate bool) (*types.ContextOutdatedRe
 	} else if doUpdate {
 		res, err := api.Client.UpdateContext(CurrentPlanId, CurrentBranch, req)
 		if err != nil {
-			return nil, fmt.Errorf("failed to update context: %w", err)
+			return nil, fmt.Errorf("failed to update context: %v", err)
 		}
 		msg = res.Msg
 	}

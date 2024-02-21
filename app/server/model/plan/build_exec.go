@@ -32,7 +32,7 @@ func Build(client *openai.Client, plan *db.Plan, branch string, auth *types.Serv
 		return 0, err
 	}
 
-	pendingBuildsByPath, err := state.loadBuild()
+	pendingBuildsByPath, err := state.loadPendingBuilds()
 	if err != nil {
 		return onErr(err)
 	}
@@ -53,7 +53,7 @@ func Build(client *openai.Client, plan *db.Plan, branch string, auth *types.Serv
 	log.Printf("Starting %d builds\n", len(pendingBuildsByPath))
 
 	for _, pendingBuilds := range pendingBuildsByPath {
-		go state.execPlanBuild(pendingBuilds)
+		go state.queueBuilds(pendingBuilds)
 	}
 
 	return len(pendingBuildsByPath), nil
@@ -64,30 +64,37 @@ func (state *activeBuildStreamState) queueBuilds(activeBuilds []*types.ActiveBui
 	branch := state.branch
 
 	activePlan := GetActivePlan(planId, branch)
-	filePath := activeBuilds[0].Path
 
-	// log.Printf("Queue:")
-	// spew.Dump(activePlan.BuildQueuesByPath[filePath])
+	queueBuild := func(activeBuild *types.ActiveBuild) {
+		filePath := activeBuild.Path
 
-	UpdateActivePlan(planId, branch, func(active *types.ActivePlan) {
-		active.BuildQueuesByPath[filePath] = append(active.BuildQueuesByPath[filePath], activeBuilds...)
-	})
-	log.Printf("Queued %d build(s) for file %s\n", len(activeBuilds), filePath)
+		// log.Printf("Queue:")
+		// spew.Dump(activePlan.BuildQueuesByPath[filePath])
 
-	if activePlan.IsBuildingByPath[filePath] {
-		log.Printf("Already building file %s\n", filePath)
-		return
-	} else {
-		log.Printf("Not building file %s, will execute now\n", filePath)
-		go state.execPlanBuild(activeBuilds)
+		UpdateActivePlan(planId, branch, func(active *types.ActivePlan) {
+			active.BuildQueuesByPath[filePath] = append(active.BuildQueuesByPath[filePath], activeBuilds...)
+		})
+		log.Printf("Queued %d build(s) for file %s\n", len(activeBuilds), filePath)
+
+		if activePlan.IsBuildingByPath[filePath] {
+			log.Printf("Already building file %s\n", filePath)
+			return
+		} else {
+			log.Printf("Not building file %s, will execute now\n", filePath)
+			go state.execPlanBuild(activeBuild)
+		}
+	}
+
+	for _, activeBuild := range activeBuilds {
+		queueBuild(activeBuild)
 	}
 }
 
-func (buildState *activeBuildStreamState) execPlanBuild(activeBuilds []*types.ActiveBuild) {
-	log.Printf("execPlanBuild for %d active builds\n", len(activeBuilds))
+func (buildState *activeBuildStreamState) execPlanBuild(activeBuild *types.ActiveBuild) {
+	log.Println("execPlanBuild")
 
-	if len(activeBuilds) == 0 {
-		log.Println("No active builds")
+	if activeBuild == nil {
+		log.Println("No active build")
 		return
 	}
 
@@ -95,7 +102,7 @@ func (buildState *activeBuildStreamState) execPlanBuild(activeBuilds []*types.Ac
 	branch := buildState.branch
 
 	activePlan := GetActivePlan(planId, branch)
-	filePath := activeBuilds[0].Path
+	filePath := activeBuild.Path
 
 	// stream initial status to client
 	buildInfo := &shared.BuildInfo{
@@ -111,9 +118,9 @@ func (buildState *activeBuildStreamState) execPlanBuild(activeBuilds []*types.Ac
 	fileState := &activeBuildStreamFileState{
 		activeBuildStreamState: buildState,
 		filePath:               filePath,
-		activeBuilds:           activeBuilds,
+		activeBuild:            activeBuild,
 	}
-	err := fileState.loadBuildFile(activeBuilds)
+	err := fileState.loadBuildFile(activeBuild)
 	if err != nil {
 		log.Printf("Error loading build file: %v\n", err)
 		return
@@ -124,7 +131,7 @@ func (buildState *activeBuildStreamState) execPlanBuild(activeBuilds []*types.Ac
 
 func (fileState *activeBuildStreamFileState) buildFile() {
 	filePath := fileState.filePath
-	activeBuilds := fileState.activeBuilds
+	activeBuild := fileState.activeBuild
 	planId := fileState.plan.Id
 	branch := fileState.branch
 	currentPlan := fileState.currentPlanState
@@ -194,12 +201,12 @@ func (fileState *activeBuildStreamFileState) buildFile() {
 
 		// new file
 		planRes := &db.PlanFileResult{
-			OrgId:           currentOrgId,
-			PlanId:          planId,
-			PlanBuildId:     build.Id,
-			ConvoMessageIds: build.ConvoMessageIds,
-			Path:            filePath,
-			Content:         activeBuilds[0].FileContent,
+			OrgId:          currentOrgId,
+			PlanId:         planId,
+			PlanBuildId:    build.Id,
+			ConvoMessageId: build.ConvoMessageId,
+			Path:           filePath,
+			Content:        activeBuild.FileContent,
 		}
 		fileState.onFinishBuildFile(planRes)
 		return
@@ -208,35 +215,12 @@ func (fileState *activeBuildStreamFileState) buildFile() {
 	log.Println("Getting file from model: " + filePath)
 	// log.Println("File context:", fileContext)
 
-	replacePrompt := prompts.GetReplacePrompt(filePath)
-	currentStatePrompt := prompts.GetBuildCurrentStatePrompt(filePath, currentState)
-	sysPrompt := prompts.GetBuildSysPrompt(filePath, currentStatePrompt)
-
-	var mergedReply string
-	for _, activeBuild := range activeBuilds {
-		mergedReply += "\n\n" + activeBuild.ReplyContent
-	}
-
-	log.Println("Num active builds: " + fmt.Sprintf("%d", len(activeBuilds)))
-	// log.Println("Merged reply:")
-	// log.Println(mergedReply)
+	sysPrompt := prompts.GetBuildSysPrompt(filePath, currentState, activeBuild.FileDescription, activeBuild.FileContent)
 
 	fileMessages := []openai.ChatCompletionMessage{
 		{
 			Role:    openai.ChatMessageRoleSystem,
 			Content: sysPrompt,
-		},
-		{
-			Role:    openai.ChatMessageRoleUser,
-			Content: activePlan.Prompt,
-		},
-		{
-			Role:    openai.ChatMessageRoleAssistant,
-			Content: mergedReply,
-		},
-		{
-			Role:    openai.ChatMessageRoleUser,
-			Content: replacePrompt,
 		},
 	}
 
@@ -251,13 +235,13 @@ func (fileState *activeBuildStreamFileState) buildFile() {
 		Tools: []openai.Tool{
 			{
 				Type:     "function",
-				Function: prompts.ReplaceFn,
+				Function: prompts.ListReplacementsFn,
 			},
 		},
 		ToolChoice: openai.ToolChoice{
 			Type: "function",
 			Function: openai.ToolFunction{
-				Name: prompts.ReplaceFn.Name,
+				Name: prompts.ListReplacementsFn.Name,
 			},
 		},
 		Messages:       fileMessages,

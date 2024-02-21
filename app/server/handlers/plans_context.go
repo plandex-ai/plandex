@@ -2,15 +2,11 @@ package handlers
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"plandex-server/db"
-	"sync"
 
 	"github.com/gorilla/mux"
 	"github.com/plandex/plandex/shared"
@@ -101,6 +97,7 @@ func LoadContextHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	res, _ := loadContexts(w, r, auth, &requestBody, plan, branchName)
+
 	if res == nil {
 		return
 	}
@@ -136,13 +133,6 @@ func UpdateContextHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	branch, err := db.GetDbBranch(planId, branchName)
-	if err != nil {
-		log.Printf("Error getting branch: %v\n", err)
-		http.Error(w, "Error getting branch: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
 	// read the request body
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -159,89 +149,29 @@ func UpdateContextHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	settings, err := db.GetPlanSettings(plan, true)
+	ctx, cancel := context.WithCancel(context.Background())
+	unlockFn := lockRepo(w, r, auth, db.LockScopeWrite, ctx, cancel)
+	if unlockFn == nil {
+		return
+	} else {
+		defer (*unlockFn)(err)
+	}
+
+	updateRes, err := db.UpdateContexts(db.UpdateContextsParams{
+		Req:   &requestBody,
+		OrgId: auth.OrgId,
+		Plan:  plan,
+	})
+
 	if err != nil {
-		log.Printf("Error getting settings: %v\n", err)
-		http.Error(w, "Error getting settings: "+err.Error(), http.StatusInternalServerError)
+		log.Printf("Error error updating contexts: %v\n", err)
+		http.Error(w, "Error error updating contexts: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	maxTokens := settings.GetPlannerEffectiveMaxTokens()
-	tokensDiff := 0
-	totalTokens := branch.ContextTokens
-	tokensDiffById := make(map[string]int)
-	contextsById := make(map[string]*db.Context)
-	var updatedContexts []*shared.Context
-
-	numFiles := 0
-	numUrls := 0
-	numTrees := 0
-
-	var mu sync.Mutex
-	errCh := make(chan error)
-
-	for id, params := range requestBody {
-		go func(id string, params *shared.UpdateContextParams) {
-			context, err := db.GetContext(auth.OrgId, planId, id, true)
-
-			if err != nil {
-				errCh <- fmt.Errorf("error getting context: %v", err)
-				return
-			}
-
-			// spew.Dump(context)
-
-			mu.Lock()
-			defer mu.Unlock()
-
-			contextsById[id] = context
-			updatedContexts = append(updatedContexts, context.ToApi())
-			updateNumTokens, err := shared.GetNumTokens(params.Body)
-
-			if err != nil {
-				errCh <- fmt.Errorf("error getting num tokens: %v", err)
-				return
-			}
-
-			tokenDiff := updateNumTokens - context.NumTokens
-			tokensDiffById[id] = tokenDiff
-			tokensDiff += tokenDiff
-			totalTokens += tokenDiff
-
-			context.NumTokens = updateNumTokens
-
-			switch context.ContextType {
-			case shared.ContextFileType:
-				numFiles++
-			case shared.ContextURLType:
-				numUrls++
-			case shared.ContextDirectoryTreeType:
-				numTrees++
-			}
-
-			errCh <- nil
-		}(id, params)
-	}
-
-	for i := 0; i < len(requestBody); i++ {
-		err := <-errCh
-		if err != nil {
-			log.Printf("Error updating context: %v\n", err)
-			http.Error(w, "Error updating context: "+err.Error(), http.StatusInternalServerError)
-			return
-		}
-	}
-
-	if totalTokens > maxTokens {
-		log.Printf("The total number of tokens (%d) exceeds the maximum allowed (%d)", totalTokens, maxTokens)
-		res := shared.LoadContextResponse{
-			TokensAdded:       tokensDiff,
-			TotalTokens:       totalTokens,
-			MaxTokens:         maxTokens,
-			MaxTokensExceeded: true,
-		}
-
-		bytes, err := json.Marshal(res)
+	if updateRes.MaxTokensExceeded {
+		log.Printf("The total number of tokens (%d) exceeds the maximum allowed (%d)", updateRes.TotalTokens, updateRes.MaxTokens)
+		bytes, err := json.Marshal(updateRes)
 
 		if err != nil {
 			log.Printf("Error marshalling response: %v\n", err)
@@ -253,52 +183,7 @@ func UpdateContextHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	unlockFn := lockRepo(w, r, auth, db.LockScopeWrite, ctx, cancel)
-	if unlockFn == nil {
-		return
-	} else {
-		defer (*unlockFn)(err)
-	}
-
-	errCh = make(chan error)
-
-	for id, params := range requestBody {
-		go func(id string, params *shared.UpdateContextParams) {
-
-			context := contextsById[id]
-
-			hash := sha256.Sum256([]byte(params.Body))
-			sha := hex.EncodeToString(hash[:])
-
-			context.Body = params.Body
-			context.Sha = sha
-
-			errCh <- db.StoreContext(context)
-		}(id, params)
-	}
-
-	for i := 0; i < len(requestBody); i++ {
-		err := <-errCh
-		if err != nil {
-			log.Printf("Error creating context: %v\n", err)
-			http.Error(w, "Error creating context: "+err.Error(), http.StatusInternalServerError)
-			return
-		}
-	}
-
-	updateRes := &shared.ContextUpdateResult{
-		UpdatedContexts: updatedContexts,
-		TokenDiffsById:  tokensDiffById,
-		TokensDiff:      tokensDiff,
-		TotalTokens:     totalTokens,
-		NumFiles:        numFiles,
-		NumUrls:         numUrls,
-		NumTrees:        numTrees,
-	}
-
-	commitMsg := shared.SummaryForUpdateContext(updateRes) + "\n\n" + shared.TableForContextUpdate(updateRes)
-	err = db.GitAddAndCommit(auth.OrgId, planId, branchName, commitMsg)
+	err = db.GitAddAndCommit(auth.OrgId, planId, branchName, updateRes.Msg)
 
 	if err != nil {
 		log.Printf("Error committing changes: %v\n", err)
@@ -306,20 +191,7 @@ func UpdateContextHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = db.AddPlanContextTokens(planId, branchName, tokensDiff)
-	if err != nil {
-		log.Printf("Error updating plan tokens: %v\n", err)
-		http.Error(w, "Error updating plan tokens: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	res := shared.UpdateContextResponse{
-		TokensAdded: tokensDiff,
-		TotalTokens: totalTokens,
-		Msg:         commitMsg,
-	}
-
-	bytes, err := json.Marshal(res)
+	bytes, err := json.Marshal(updateRes)
 
 	if err != nil {
 		log.Printf("Error marshalling response: %v\n", err)

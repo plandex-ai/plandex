@@ -186,6 +186,8 @@ func (planState *CurrentPlanState) GetFilesBeforeReplacement(
 func (state *CurrentPlanState) PendingChangesSummary() string {
 	var msgs []string
 
+	msgs = append(msgs, "🏗️  Build pending changes")
+
 	descByConvoMessageId := make(map[string]*ConvoMessageDescription)
 	for _, desc := range state.PendingBuildDescriptions {
 		if desc.ConvoMessageId == "" {
@@ -205,10 +207,8 @@ func (state *CurrentPlanState) PendingChangesSummary() string {
 
 	for _, result := range state.PlanResult.Results {
 		convoIds := map[string]bool{}
-		for _, convoMessageId := range result.ConvoMessageIds {
-			if descByConvoMessageId[convoMessageId] != nil {
-				convoIds[convoMessageId] = true
-			}
+		if descByConvoMessageId[result.ConvoMessageId] != nil {
+			convoIds[result.ConvoMessageId] = true
 		}
 		var uniqueConvoIds []string
 		for convoId := range convoIds {
@@ -257,10 +257,10 @@ func (state *CurrentPlanState) PendingChangesSummary() string {
 		var descMsgs []string
 
 		if len(ch.descs) == 0 {
-			descMsgs = append(descMsgs, "🏗️  Changes")
+			descMsgs = append(descMsgs, "  ✏️  Changes")
 		} else {
 			for _, desc := range ch.descs {
-				descMsgs = append(descMsgs, fmt.Sprintf("🏗️  %s", desc.CommitMsg))
+				descMsgs = append(descMsgs, fmt.Sprintf("  ✏️  %s", desc.CommitMsg))
 			}
 		}
 
@@ -306,27 +306,16 @@ func (state *CurrentPlanState) PendingChangesSummary() string {
 		})
 
 		if len(pendingNewFiles) > 0 {
-			newMsg := ""
 			for _, path := range pendingNewFiles {
-				newMsg += fmt.Sprintf("  • new file → %s\n", path)
+				msgs = append(msgs, fmt.Sprintf("    • new file → %s", path))
 			}
-			msgs = append(msgs, newMsg)
 		}
 
 		if len(pendingReplacementPaths) > 0 {
-			// updatesMsg := "  ✏️ Edits:\n"
-			updatesMsg := ""
-
 			for _, path := range pendingReplacementPaths {
-				updatesMsg += fmt.Sprintf("    • edit → %s\n", path)
-
-				replacements := pendingReplacementsByPath[path]
-
-				for _, replacement := range replacements {
-					updatesMsg += fmt.Sprintf("      ✅ %s\n", replacement.Summary)
-				}
+				msgs = append(msgs, fmt.Sprintf("    • edit → %s", path))
 			}
-			msgs = append(msgs, updatesMsg)
+
 		}
 
 	}

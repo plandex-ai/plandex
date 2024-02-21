@@ -29,10 +29,10 @@ type activeBuildStreamState struct {
 type activeBuildStreamFileState struct {
 	*activeBuildStreamState
 	filePath         string
-	convoMessageIds  []string
+	convoMessageId   string
 	build            *db.PlanBuild
 	currentPlanState *shared.CurrentPlanState
-	activeBuilds     []*types.ActiveBuild
+	activeBuild      *types.ActiveBuild
 	buffer           string
 	contextPart      *db.Context
 	currentState     string
@@ -46,6 +46,7 @@ func (fileState *activeBuildStreamFileState) listenStream(stream *openai.ChatCom
 	branch := fileState.branch
 	currentState := fileState.currentState
 	contextPart := fileState.contextPart
+	activeBuild := fileState.activeBuild
 
 	activePlan := GetActivePlan(planId, branch)
 
@@ -120,18 +121,20 @@ func (fileState *activeBuildStreamFileState) listenStream(stream *openai.ChatCom
 			var streamed types.StreamedReplacements
 			err = json.Unmarshal([]byte(fileState.buffer), &streamed)
 			if err == nil && len(streamed.Replacements) > 0 {
-				log.Printf("File %s: Parsed replacements\n", filePath)
+				log.Printf("File %s: Parsed streamed replacements\n", filePath)
+				spew.Dump(streamed)
 
 				planFileResult, allSucceeded := getPlanResult(
 					planResultParams{
-						orgId:           currentOrgId,
-						planId:          planId,
-						planBuildId:     build.Id,
-						convoMessageIds: build.ConvoMessageIds,
-						filePath:        filePath,
-						currentState:    currentState,
-						context:         contextPart,
-						replacements:    streamed.Replacements,
+						orgId:                currentOrgId,
+						planId:               planId,
+						planBuildId:          build.Id,
+						convoMessageId:       build.ConvoMessageId,
+						filePath:             filePath,
+						currentState:         currentState,
+						context:              contextPart,
+						fileContent:          activeBuild.FileContent,
+						streamedReplacements: streamed.Replacements,
 					},
 				)
 

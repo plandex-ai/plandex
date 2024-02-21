@@ -2,6 +2,7 @@ package plan
 
 import (
 	"plandex-server/db"
+	"plandex-server/types"
 	"sort"
 	"strings"
 
@@ -10,14 +11,15 @@ import (
 )
 
 type planResultParams struct {
-	orgId           string
-	planId          string
-	planBuildId     string
-	convoMessageIds []string
-	filePath        string
-	currentState    string
-	context         *db.Context
-	replacements    []*shared.Replacement
+	orgId                string
+	planId               string
+	planBuildId          string
+	convoMessageId       string
+	filePath             string
+	currentState         string
+	context              *db.Context
+	fileContent          string
+	streamedReplacements []*types.StreamedReplacement
 }
 
 func getPlanResult(params planResultParams) (*db.PlanFileResult, bool) {
@@ -27,8 +29,38 @@ func getPlanResult(params planResultParams) (*db.PlanFileResult, bool) {
 	filePath := params.filePath
 	currentState := params.currentState
 	contextPart := params.context
-	replacements := params.replacements
+	streamedReplacements := params.streamedReplacements
 	updated := params.currentState
+	fileContent := params.fileContent
+
+	currentStateLines := strings.Split(currentState, "\n")
+	fileContentLines := strings.Split(fileContent, "\n")
+
+	var replacements []*shared.Replacement
+	for _, streamedReplacement := range streamedReplacements {
+		var old string
+		var new string
+
+		if streamedReplacement.Old.StartLine == streamedReplacement.Old.EndLine {
+			old = currentStateLines[streamedReplacement.Old.StartLine-1]
+		} else {
+			old = strings.Join(currentStateLines[streamedReplacement.Old.StartLine-1:streamedReplacement.Old.EndLine], "\n")
+		}
+
+		if streamedReplacement.New.StartLine == streamedReplacement.New.EndLine {
+			new = fileContentLines[streamedReplacement.New.StartLine-1]
+		} else {
+			new = strings.Join(fileContentLines[streamedReplacement.New.StartLine-1:streamedReplacement.New.EndLine], "\n")
+		}
+
+		replacement := &shared.Replacement{
+			Old:     old,
+			New:     new,
+			Summary: streamedReplacement.ShortSummary,
+		}
+
+		replacements = append(replacements, replacement)
+	}
 
 	sort.Slice(replacements, func(i, j int) bool {
 		iIdx := strings.Index(updated, replacements[i].Old)
@@ -51,15 +83,15 @@ func getPlanResult(params planResultParams) (*db.PlanFileResult, bool) {
 	}
 
 	return &db.PlanFileResult{
-		OrgId:           orgId,
-		PlanId:          planId,
-		PlanBuildId:     planBuildId,
-		ConvoMessageIds: params.convoMessageIds,
-		Content:         "",
-		Path:            filePath,
-		Replacements:    replacements,
-		ContextSha:      contextSha,
-		ContextBody:     contextBody,
-		AnyFailed:       !allSucceeded,
+		OrgId:          orgId,
+		PlanId:         planId,
+		PlanBuildId:    planBuildId,
+		ConvoMessageId: params.convoMessageId,
+		Content:        "",
+		Path:           filePath,
+		Replacements:   replacements,
+		ContextSha:     contextSha,
+		ContextBody:    contextBody,
+		AnyFailed:      !allSucceeded,
 	}, allSucceeded
 }

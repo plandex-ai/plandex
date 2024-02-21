@@ -10,7 +10,7 @@ import (
 	"github.com/plandex/plandex/shared"
 )
 
-func (state *activeBuildStreamState) loadBuild() (map[string][]*types.ActiveBuild, error) {
+func (state *activeBuildStreamState) loadPendingBuilds() (map[string][]*types.ActiveBuild, error) {
 	client := state.client
 	plan := state.plan
 	branch := state.branch
@@ -118,7 +118,7 @@ func (state *activeBuildStreamState) loadBuild() (map[string][]*types.ActiveBuil
 	return pendingBuildsByPath, nil
 }
 
-func (state *activeBuildStreamFileState) loadBuildFile(activeBuilds []*types.ActiveBuild) error {
+func (state *activeBuildStreamFileState) loadBuildFile(activeBuild *types.ActiveBuild) error {
 
 	currentOrgId := state.currentOrgId
 	currentUserId := state.currentUserId
@@ -128,15 +128,7 @@ func (state *activeBuildStreamFileState) loadBuildFile(activeBuilds []*types.Act
 
 	activePlan := GetActivePlan(planId, branch)
 
-	var convoMessageIds []string
-	added := map[string]bool{}
-
-	for _, activeBuild := range activeBuilds {
-		if !added[activeBuild.ReplyId] {
-			convoMessageIds = append(convoMessageIds, activeBuild.ReplyId)
-			added[activeBuild.ReplyId] = true
-		}
-	}
+	convoMessageId := activeBuild.ReplyId
 
 	if !activePlan.IsBuildingByPath[filePath] {
 		UpdateActivePlan(activePlan.Id, activePlan.Branch, func(ap *types.ActivePlan) {
@@ -145,10 +137,10 @@ func (state *activeBuildStreamFileState) loadBuildFile(activeBuilds []*types.Act
 	}
 
 	build := &db.PlanBuild{
-		OrgId:           currentOrgId,
-		PlanId:          planId,
-		ConvoMessageIds: convoMessageIds,
-		FilePath:        filePath,
+		OrgId:          currentOrgId,
+		PlanId:         planId,
+		ConvoMessageId: convoMessageId,
+		FilePath:       filePath,
 	}
 	err := db.StorePlanBuild(build)
 
@@ -227,7 +219,7 @@ func (state *activeBuildStreamFileState) loadBuildFile(activeBuilds []*types.Act
 	}
 
 	state.filePath = filePath
-	state.convoMessageIds = convoMessageIds
+	state.convoMessageId = convoMessageId
 	state.build = build
 	state.currentPlanState = currentPlan
 

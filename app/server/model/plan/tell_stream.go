@@ -344,11 +344,12 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 			// log.Printf("content: %s\n", content)
 
 			replyParser.AddChunk(content, true)
-			res := replyParser.Read()
-			files := res.Files
-			fileContents := res.FileContents
-			state.replyNumTokens = res.TotalTokens
-			currentFile := res.CurrentFilePath
+			parserRes := replyParser.Read()
+			files := parserRes.Files
+			fileContents := parserRes.FileContents
+			state.replyNumTokens = parserRes.TotalTokens
+			currentFile := parserRes.CurrentFilePath
+			fileDescriptions := parserRes.FileDescriptions
 
 			// log.Printf("currentFile: %s\n", currentFile)
 			// log.Println("files:")
@@ -445,10 +446,11 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 						}
 
 						buildState.queueBuilds([]*types.ActiveBuild{{
-							ReplyId:      replyId,
-							ReplyContent: active.CurrentReplyContent,
-							FileContent:  fileContents[i],
-							Path:         file,
+							ReplyId:         replyId,
+							Idx:             i,
+							FileDescription: fileDescriptions[i],
+							FileContent:     fileContents[i],
+							Path:            file,
 						}})
 					}
 					replyFiles = append(replyFiles, file)

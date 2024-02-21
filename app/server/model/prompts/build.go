@@ -1,235 +1,148 @@
 package prompts
 
 import (
-	"encoding/json"
 	"fmt"
+	"strings"
 
-	"github.com/plandex/plandex/shared"
 	"github.com/sashabaranov/go-openai"
 	"github.com/sashabaranov/go-openai/jsonschema"
 )
 
-func GetBuildSysPrompt(filePath, currentStatePrompt string) string {
-	return fmt.Sprintf(`
-[YOUR INSTRUCTIONS]
-
-You are an AI replacer. You apply changes from a plan to a given code file using the 'writeReplacements' function. You call 'writeReplacements' with a valid JSON array of replacements.
-
-Each replacement is an object with 3 properties: 'old', 'new', and 'summary'. 'old' is the *exact* old text to replace. 'new' is the new text to replace it with. 'summary' is a brief 1 line summary of the change.
-
-Use your judgment on how to logically apply the changes from the plan in a series of replacements. Use both the code and the plan description to determine the correct order of replacements. BE COMPLETELY SURE that replacements are inserted logically at the correct locations in the file and do not break any syntax or logic rules of the programming language.
-
-Lean toward using fewer replacements. If you can apply all the changes in a single replacement, and that replacement isn't very long, do that. If you need to use multiple replacements, that's fine too, but try to use as few as possible.
-
-DO NOT INCLUDE any sections that are just comments, placeholders, references to the original file, or TODOs that are not yet implemented. Only include actual changes that move the plan forward and are ready to be applied to the file.
-
-These replacements will be applied automatically by a program to the file exactly as written, so the 'old' text must be an EXACT SUBSTRING of the **current state of the file**. The current state of the file will be provided below, labelled with '**Current state of file for %s:**'. It does *not* include any of the suggested changes from the latest response. The 'old' text MUST be an exact substring of the current state of the file, not the suggested changes from the latest response.
-
-Pay special attention to any special characters in the strings, extra spaces, or anything else that might cause 'old' not to be an exact substring.
-
-The 'old' text should be unique and unambiguous in the current file. It must not overlap with any other 'old' text in the list of replacements. Make the 'old' text as short as it can be while still being unique and unambiguous. If the 'old' text can be a single line, it should be. If it must be multiple lines, it should be as few lines as possible.
-
-The 'new' text must include the full text of the replacement without any placeholders or references to the original file. DO NOT INCLUDE text like "// ... existing code", "// ... rest of the file", or other equivalents with different wording/formatting/syntax in the 'new' text. Only include the actual code that should be inserted.
-
-For the 'new' text, apart from the exceptions I mentioned in the previous paragraph, do not make any additional modifications on top of the changes from the plan unless absolutely necessary to apply the change correctly. Don't add additional comments. Don't escape characters (like emoji or other characters) unless they are also escaped in the plan. Keep as closely as possible to the changes as suggested in the plan, down to specific characters and formatting.
-
-You MUST call only 'writeReplacements'--don't call any other function or produce any other output.
-
-You MUST only generate replacements for the *current file*--don't generate replacements for any other file. If other files are present in the plan, ignore them. Only generate replacements for the current file.
-
-Replacement examples below. Note: >>> and <<< indicate the start and end of an example response.
-
-1.)
-If the current file is 'main.go' and the state is:
-`+"```"+`
-package main
-
-import "fmt"
-
-func main() {
-	fmt.Println("Hello, world!")
+func GetBuildSysPrompt(filePath, currentState, desc, changes string) string {
+	return listReplacementsPrompt + "\n\n" + getBuildCurrentStatePrompt(filePath, currentState) + "\n\n" + getBuildPrompt(desc, changes)
 }
-`+"```"+`
 
-And the previous response was:
+func getBuildPrompt(desc, changes string) string {
+	s := ""
 
->>>
-You can change the main.go file to print the current time instead of "Hello, world!".:
-
-- main.go:
-`+"```"+`
-func main() {
-	fmt.Println(time.Now())
-}
-`+"```"+`
-
-You'll also need to import the time package:
-
-- main.go:
-`+"```"+`
-import (
-	"fmt"
-	"time"
-)
-`+"```"+`
-<<<
-
-Then you would call the 'writeReplacements' function like this:
-
-writeReplacements({
-	replacements: [
-		{
-			old: "import \"fmt\"",
-			new: "import (\n\t\"fmt\"\n\t\"time\"\n)",
-			summary: "Import time package"
-		},
-		{
-			old: "fmt.Println(\"Hello, world!\")",
-			new: "fmt.Println(time.Now())",
-			summary: "Print current time"
-		}
+	if desc != "" {
+		s += "Description of the proposed changes from AI-generated plan:\n```\n" + desc + "\n```\n\n"
 	}
-})
 
-2.)
-If the current file is 'helpers.go' and the state is:
-`+"```"+`
-package helpers
+	withLineNums := ""
+	for i, line := range strings.Split(changes, "\n") {
+		withLineNums += fmt.Sprintf("%d: %s\n", i+1, line)
+	}
 
-func Add(a, b int) int {
-	return a + b
-}
-`+"```"+`
+	s += "Proposed changes:\n```\n" + withLineNums + "\n```"
 
-And the previous response was:
+	s += "\n\n" + "Now call the 'listReplacements' function with a valid JSON array of replacements according to your instructions. You must always call 'listReplacements' with one or more valid replacements. Don't call any other function."
 
->>>
-Add another function to the helpers.go file that subtracts two numbers:
-
-- helpers.go:
-`+"```"+`
-func Subtract(a, b int) int {
-	return a - b
-}
-`+"```"+`
-<<<
-
-Then you would call the 'writeReplacements' function like this:
-
-writeReplacements({
-	replacements: [
-		{
-			old: "\n}",
-			new: "\n}\n\nfunc Subtract(a, b int) int {\n\treturn a - b\n}",
-			summary: "Add Subtract function"
-		}
-	]
-})
-
-3.)
-If the current file is 'main.go' and the state is:
-`+"```"+`
-package main
-
-import "fmt"
-
-func main() {
-	fmt.Println("Hello, world!")
-}
-`+"```"+`
-
-And the previous response was:
-
->>>
-You can change the main.go file to print "I love you!" in addition to "Hello, world!".:
-
-- main.go:
-`+"```"+`
-func main() {
-	fmt.Println("Hello, world!")
-	fmt.Println("I love you!")
-}
-`+"```"+`
-<<<
-
-Then you would call the 'writeReplacements' function like this:
-
-writeReplacements({
-	replacements: [
-		{
-			old: "fmt.Println(\"Hello, world!\")",
-			new: "fmt.Println(\"Hello, world!\")\n\tfmt.Println(\"I love you!\")",
-			summary: "Also print \"I love you!\""
-		}
-	]
-})
-
-[END INSTRUCTIONS]
-%s
-`, filePath, currentStatePrompt)
+	return s
 }
 
-func GetBuildCurrentStatePrompt(filePath, currentState string) string {
+func getBuildCurrentStatePrompt(filePath, currentState string) string {
 	if currentState == "" {
 		return ""
 	}
-	return fmt.Sprintf("**The current file is %s. Current state of the file:**\n```\n%s\n```", filePath, currentState) + "\n\n"
+
+	withLineNums := ""
+	for i, line := range strings.Split(currentState, "\n") {
+		withLineNums += fmt.Sprintf("%d: %s\n", i+1, line)
+	}
+
+	return fmt.Sprintf("**The current file is %s. Original state of the file:**\n```\n%s\n```", filePath, withLineNums) + "\n\n"
 }
 
-var ReplaceFn = openai.FunctionDefinition{
-	Name: "writeReplacements",
+var listReplacementsPrompt = `	
+	You are an AI that analyzes a code file and an AI-generated plan to update the code file and produces a list of replacements. 
+	
+	[YOUR INSTRUCTIONS]
+	Call the 'listReplacements' function with a valid JSON array of replacements. Each replacement is an object with properties: 'shortSummary', 'changeSections', 'old', and 'new'.
+	
+	The 'shortSummary' property is a brief summary of the change. 
+	
+	'shortSummary' examples: 
+		- 'Update loop that aggregates the results to iterate 10 times instead of 5 and log the value of someVar.'
+		- 'Change the value of someVar to 10.'
+		- 'Update the Org model to include StripeCustomerId and StripeSubscriptionId fields.'
+
+	The 'changeSections' property is a description of what section of the original file will be replaced, and what section of code from the proposed changes will replace it. Refer to sections of code using line numbers, how the section begins, and how the section ends. It must be extremely clear which line(s) of code from the original file will be replaced with which line(s) of code from the proposed changes.
+	
+	'changeSections' example:
+	---
+	The section to be replaced begins on line 10 of the original file with 'for i := 0; i < 10; i++ {...' and ends on line 15 of the original file with '}'
+
+	The new code begins on line 17 of the proposed changes with 'for i := 0; i < 10; i++ {...' and ends on line 25 of the proposed changes with '}'
+  ---
+
+	If only a single line needs to be replaced, you can reference a single line from the original file and the proposed changes rather than a range of lines like this:
+	---
+	The section to be replaced is on line 10 of the original file with 'someVar = 5'
+
+	The new code is on line 12 of the proposed changes with 'someVar = 10'
+	---
+
+	The 'old' property is an object with two properties: 'startLine' and 'endLine'.
+
+	'startLine' is the line number where the section to be replaced begins in the original file. 'endLine' is the line number where the section to be replaced ends in the original file. For a single line replacement, 'startLine' and 'endLine' will be the same.
+
+	The 'new' property is also an object with two properties: 'startLine' and 'endLine'.
+
+	'startLine' is the line number where the new section begins in the code block included with the proposed changes. 'endLine' is the line number where the new section ends in the code block included with the proposed changes. For a single line replacement, 'startLine' and 'endLine' will be the same.
+
+	Example function call with all keys:
+	---
+	listReplacements([{
+		shortSummary: "Insert function ExecQuery after GetResults function.",
+		changeSections: "The section to be replaced is on line 5 of the original file with '\\n'\n\nThe new code starts on line 3 of the proposed changes with 'func ExecQuery()...' and ends on line 10 of the proposed changes with '}'",
+		old: {
+			startLine: 5,
+			endLine: 5,
+		},
+		new: {
+			startLine: 3,
+			endLine: 10,
+		}
+	}])
+	---
+	[END YOUR INSTRUCTIONS]
+`
+var ListReplacementsFn = openai.FunctionDefinition{
+	Name: "listReplacements",
 	Parameters: &jsonschema.Definition{
 		Type: jsonschema.Object,
 		Properties: map[string]jsonschema.Definition{
 			"replacements": {
-				Type:        jsonschema.Array,
-				Description: "A list of replacements to apply to the file",
+				Type: jsonschema.Array,
 				Items: &jsonschema.Definition{
 					Type: jsonschema.Object,
 					Properties: map[string]jsonschema.Definition{
+						"shortSummary": {
+							Type: jsonschema.String,
+						},
+						"changeSections": {
+							Type: jsonschema.String,
+						},
 						"old": {
-							Type:        jsonschema.String,
-							Description: "The old text to replace. Must be an exact substring of the current state of the file.",
+							Type: jsonschema.Object,
+							Properties: map[string]jsonschema.Definition{
+								"startLine": {
+									Type: jsonschema.Integer,
+								},
+								"endLine": {
+									Type: jsonschema.Integer,
+								},
+							},
+							Required: []string{"startLine", "endLine"},
 						},
 						"new": {
-							Type:        jsonschema.String,
-							Description: "The new text to replace it with from the changes suggested in the previous response.",
-						},
-						"summary": {
-							Type:        jsonschema.String,
-							Description: "A brief 1 line summary of the change.",
+							Type: jsonschema.Object,
+							Properties: map[string]jsonschema.Definition{
+								"startLine": {
+									Type: jsonschema.Integer,
+								},
+								"endLine": {
+									Type: jsonschema.Integer,
+								},
+							},
+							Required: []string{"startLine", "endLine"},
 						},
 					},
-					Required: []string{"old", "new", "summary"},
+					Required: []string{"shortSummary", "changeSections", "old", "new"},
 				},
 			},
 		},
 		Required: []string{"replacements"},
 	},
-}
-
-func GetReplacePrompt(filePath string) string {
-	return fmt.Sprintf(`
-					Based on your instructions, apply the changes from the plan to %s. Call the 'writeReplacements' function with a JSON array of replacements to apply to the file from your previous response. You *must always call the 'writeReplacements' function*. Don't call any other function.`, filePath)
-}
-
-func GetCorrectReplacementPrompt(replacements []*shared.Replacement, currentState string) (string, error) {
-	msg := "There were errors with the replacements you suggested."
-	for i, replacement := range replacements {
-
-		if replacement.Failed {
-			bytes, err := json.Marshal(replacement)
-			if err != nil {
-				return "", fmt.Errorf("failed to marshal replacement: %w", err)
-			}
-
-			msg += fmt.Sprintf("\n- The replacement at index %d was invalid. The replacement you suggested was:\n\n```%s```\n\n", i, string(bytes))
-
-			msg += fmt.Sprintf("\n- The string `%s` (which you set for the 'old' key of this replacement) was not found in the current state of the file.", replacement.Old)
-		}
-
-	}
-	msg += "\n\nPlease review these errors and try again to call the 'writeReplacements' function with corrected replacements. Pay special attention to any special characters in the strings, extra spaces, or anything else that might cause the strings to not match exactly. You MUST call 'writeReplacements' with an updated list of replacements. Don't call any other function, produce any other output, or call 'writeReplacements' with the same list of replacements as before--it must be called with an updated list of replacements to fix the errors."
-
-	return msg, nil
 }

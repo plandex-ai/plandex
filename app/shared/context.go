@@ -17,6 +17,7 @@ type ContextUpdateResult struct {
 	NumFiles        int
 	NumUrls         int
 	NumTrees        int
+	MaxTokens       int
 }
 
 func (c *Context) TypeAndIcon() (string, string) {

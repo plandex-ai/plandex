@@ -17,7 +17,7 @@ func (state *activeBuildStreamFileState) onFinishBuild() {
 	branch := state.branch
 	currentOrgId := state.currentOrgId
 	currentUserId := state.currentUserId
-	convoMessageIds := state.convoMessageIds
+	convoMessageId := state.convoMessageId
 	build := state.build
 
 	activePlan := GetActivePlan(planId, branch)
@@ -26,12 +26,9 @@ func (state *activeBuildStreamFileState) onFinishBuild() {
 	stillStreaming := false
 	var doneCh chan bool
 	ap := GetActivePlan(planId, branch)
-	for _, convoMessageId := range convoMessageIds {
-		if ap.CurrentStreamingReplyId == convoMessageId {
-			stillStreaming = true
-			doneCh = ap.CurrentReplyDoneCh
-			break
-		}
+	if ap.CurrentStreamingReplyId == convoMessageId {
+		stillStreaming = true
+		doneCh = ap.CurrentReplyDoneCh
 	}
 	if stillStreaming {
 		log.Println("Reply is still streaming, waiting for it to finish before finishing build")
@@ -174,7 +171,7 @@ func (fileState *activeBuildStreamFileState) onFinishBuildFile(planRes *db.PlanF
 	currentOrgId := fileState.currentOrgId
 	currentUserId := fileState.currentUserId
 	build := fileState.build
-	activeBuilds := fileState.activeBuilds
+	activeBuild := fileState.activeBuild
 
 	activePlan := GetActivePlan(planId, branch)
 	filePath := fileState.filePath
@@ -238,9 +235,7 @@ func (fileState *activeBuildStreamFileState) onFinishBuildFile(planRes *db.PlanF
 		return
 	}
 
-	for _, build := range activeBuilds {
-		build.Success = true
-	}
+	activeBuild.Success = true
 
 	UpdateActivePlan(planId, branch, func(ap *types.ActivePlan) {
 		ap.BuiltFiles[filePath] = true
@@ -265,20 +260,18 @@ func (fileState *activeBuildStreamFileState) onFinishBuildFile(planRes *db.PlanF
 			log.Printf("File %s finished, but not all builds finished\n", filePath)
 		} else {
 			log.Printf("Processing next build for file %s\n", filePath)
-			var nextBuilds []*types.ActiveBuild
-			for _, build := range activePlan.BuildQueuesByPath[filePath] {
-				if !build.BuildFinished() && len(nextBuilds) < 5 {
-					nextBuilds = append(nextBuilds, build)
+			queue := activePlan.BuildQueuesByPath[filePath]
+			var nextBuild *types.ActiveBuild
+			for _, build := range queue {
+				if !build.BuildFinished() {
+					nextBuild = build
+					break
 				}
 			}
 
-			// log.Println("Next builds:")
-			// spew.Dump(nextBuilds)
-			log.Printf("%d builds left for file %s\n", len(nextBuilds), filePath)
-
-			if len(nextBuilds) > 0 {
+			if nextBuild != nil {
 				log.Println("Calling execPlanBuild for next build in queue")
-				go fileState.execPlanBuild(nextBuilds)
+				go fileState.execPlanBuild(nextBuild)
 			}
 			return
 		}
@@ -291,16 +284,14 @@ func (fileState *activeBuildStreamFileState) onBuildFileError(err error) {
 	branch := fileState.branch
 	filePath := fileState.filePath
 	build := fileState.build
-	activeBuilds := fileState.activeBuilds
+	activeBuild := fileState.activeBuild
 
 	activePlan := GetActivePlan(planId, branch)
 
 	log.Printf("Error for file %s: %v\n", filePath, err)
 
-	for _, build := range activeBuilds {
-		build.Success = false
-		build.Error = err
-	}
+	activeBuild.Success = false
+	activeBuild.Error = err
 
 	activePlan.StreamDoneCh <- &shared.ApiError{
 		Type:   shared.ApiErrorTypeOther,

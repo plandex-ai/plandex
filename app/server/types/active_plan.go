@@ -14,13 +14,14 @@ import (
 )
 
 type ActiveBuild struct {
-	ReplyId      string
-	ReplyContent string
-	FileContent  string
-	Path         string
-	Buffer       string
-	Success      bool
-	Error        error
+	ReplyId         string
+	FileDescription string
+	FileContent     string
+	Path            string
+	Idx             int
+	Buffer          string
+	Success         bool
+	Error           error
 }
 
 type ActivePlan struct {
@@ -160,7 +161,6 @@ func (b *ActiveBuild) BuildFinished() bool {
 
 func (ap *ActivePlan) PendingBuildsByPath(orgId, userId string, convoMessagesArg []*db.ConvoMessage) (map[string][]*ActiveBuild, error) {
 	var planDescs []*db.ConvoMessageDescription
-	var currentPlan *shared.CurrentPlanState
 	var convoMessagesById map[string]*db.ConvoMessage
 
 	errCh := make(chan error)
@@ -170,16 +170,6 @@ func (ap *ActivePlan) PendingBuildsByPath(orgId, userId string, convoMessagesArg
 		planDescs, err = db.GetPendingBuildDescriptions(orgId, ap.Id)
 		if err != nil {
 			errCh <- fmt.Errorf("error getting pending build descriptions: %v", err)
-			return
-		}
-
-		currentPlan, err = db.GetCurrentPlanState(db.CurrentPlanStateParams{
-			OrgId:                    orgId,
-			PlanId:                   ap.Id,
-			PendingBuildDescriptions: planDescs,
-		})
-		if err != nil {
-			errCh <- fmt.Errorf("error getting current plan state: %v", err)
 			return
 		}
 
@@ -233,16 +223,23 @@ func (ap *ActivePlan) PendingBuildsByPath(orgId, userId string, convoMessagesArg
 				return nil, fmt.Errorf("no convo message for ID: %s", desc.ConvoMessageId)
 			}
 
-			for _, file := range desc.Files {
+			convoMessage := convoMessagesById[desc.ConvoMessageId]
+
+			replyParser := NewReplyParser()
+			replyParser.AddChunk(convoMessage.Message, false)
+			parserRes := replyParser.FinishAndRead()
+
+			for i, file := range desc.Files {
 				if activeBuildsByPath[file] == nil {
 					activeBuildsByPath[file] = []*ActiveBuild{}
 				}
 
 				activeBuildsByPath[file] = append(activeBuildsByPath[file], &ActiveBuild{
-					ReplyId:      desc.ConvoMessageId,
-					FileContent:  currentPlan.CurrentPlanFiles.Files[file],
-					Path:         file,
-					ReplyContent: convoMessagesById[desc.ConvoMessageId].Message,
+					ReplyId:         desc.ConvoMessageId,
+					Idx:             i,
+					FileContent:     parserRes.FileContents[i],
+					Path:            file,
+					FileDescription: parserRes.FileDescriptions[i],
 				})
 			}
 		}

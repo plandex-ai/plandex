@@ -275,13 +275,17 @@ func GetPlanResult(planFileResults []*shared.PlanFileResult) *shared.PlanResult 
 	}
 }
 
-func ApplyPlan(orgId, planId, branch string) error {
+func ApplyPlan(orgId, userId, branchName string, plan *Plan) error {
+	planId := plan.Id
+
 	resultsDir := getPlanResultsDir(orgId, planId)
 
 	errCh := make(chan error)
 
 	var results []*PlanFileResult
 	var pendingBuildDescriptions []*ConvoMessageDescription
+	contextsById := make(map[string]*Context)
+	contextsByPath := make(map[string]*Context)
 
 	go func() {
 		res, err := GetPlanFileResults(orgId, planId)
@@ -303,7 +307,24 @@ func ApplyPlan(orgId, planId, branch string) error {
 		errCh <- nil
 	}()
 
-	for i := 0; i < 2; i++ {
+	go func() {
+		res, err := GetPlanContexts(orgId, planId, false)
+		if err != nil {
+			errCh <- fmt.Errorf("error getting contexts: %v", err)
+			return
+		}
+
+		for _, context := range res {
+			contextsById[context.Id] = context
+			if context.FilePath != "" {
+				contextsByPath[context.FilePath] = context
+			}
+		}
+
+		errCh <- nil
+	}()
+
+	for i := 0; i < 3; i++ {
 		err := <-errCh
 		if err != nil {
 			return fmt.Errorf("error applying plan: %v", err)
@@ -319,7 +340,36 @@ func ApplyPlan(orgId, planId, branch string) error {
 		}
 	}
 
-	errCh = make(chan error, len(pendingDbResults)+len(pendingBuildDescriptions))
+	pendingNewFilesSet := make(map[string]bool)
+	pendingUpdatedFilesSet := make(map[string]bool)
+	for _, result := range pendingDbResults {
+		if len(result.Replacements) == 0 && result.Content != "" {
+			pendingNewFilesSet[result.Path] = true
+		} else if !pendingNewFilesSet[result.Path] {
+			pendingUpdatedFilesSet[result.Path] = true
+		}
+	}
+
+	var loadContextRes *shared.LoadContextResponse
+	var updateContextRes *shared.UpdateContextResponse
+
+	var currentPlanState *shared.CurrentPlanState
+	if len(pendingNewFilesSet) > 0 || len(pendingUpdatedFilesSet) > 0 {
+		res, err := GetCurrentPlanState(CurrentPlanStateParams{
+			OrgId:                    orgId,
+			PlanId:                   plan.Id,
+			PlanFileResults:          results,
+			PendingBuildDescriptions: pendingBuildDescriptions,
+		})
+
+		if err != nil {
+			return fmt.Errorf("error getting current plan state: %v", err)
+		}
+
+		currentPlanState = res
+	}
+
+	errCh = make(chan error)
 	now := time.Now()
 
 	for _, result := range pendingDbResults {
@@ -360,16 +410,96 @@ func ApplyPlan(orgId, planId, branch string) error {
 		}(description)
 	}
 
-	for i := 0; i < len(pendingDbResults)+len(pendingBuildDescriptions); i++ {
+	if len(pendingNewFilesSet) > 0 {
+		go func() {
+			loadReq := shared.LoadContextRequest{}
+			for path := range pendingNewFilesSet {
+				loadReq = append(loadReq, &shared.LoadContextParams{
+					ContextType: shared.ContextFileType,
+					Name:        path,
+					FilePath:    path,
+					Body:        currentPlanState.CurrentPlanFiles.Files[path],
+				})
+			}
+
+			res, _, err := LoadContexts(
+				LoadContextsParams{
+					OrgId:      orgId,
+					UserId:     userId,
+					Plan:       plan,
+					BranchName: branchName,
+					Req:        &loadReq,
+				},
+			)
+
+			if err != nil {
+				errCh <- fmt.Errorf("error loading context: %v", err)
+				return
+			}
+
+			loadContextRes = res
+			errCh <- nil
+		}()
+	}
+
+	if len(pendingUpdatedFilesSet) > 0 {
+		go func() {
+			updateReq := shared.UpdateContextRequest{}
+			for path := range pendingUpdatedFilesSet {
+				context := contextsByPath[path]
+				updateReq[context.Id] = &shared.UpdateContextParams{
+					Body: currentPlanState.CurrentPlanFiles.Files[path],
+				}
+			}
+
+			res, err := UpdateContexts(
+				UpdateContextsParams{
+					OrgId:      orgId,
+					Plan:       plan,
+					BranchName: branchName,
+					Req:        &updateReq,
+				},
+			)
+
+			if err != nil {
+				errCh <- fmt.Errorf("error updating context: %v", err)
+				return
+			}
+
+			updateContextRes = res
+			errCh <- nil
+
+		}()
+
+	}
+
+	numRoutines := len(pendingDbResults) +
+		len(pendingBuildDescriptions)
+	if len(pendingNewFilesSet) > 0 {
+		numRoutines++
+	}
+	if len(pendingUpdatedFilesSet) > 0 {
+		numRoutines++
+	}
+
+	for i := 0; i < numRoutines; i++ {
 		err := <-errCh
 		if err != nil {
 			return fmt.Errorf("error applying plan: %v", err)
 		}
 	}
 
-	msg := "Marked pending results as applied."
+	msg := "✅ Marked pending results as applied"
 
-	err := GitAddAndCommit(orgId, planId, branch, msg)
+	if loadContextRes != nil && !loadContextRes.MaxTokensExceeded {
+		msg += "\n\n" + loadContextRes.Msg
+	}
+
+	if updateContextRes != nil && !updateContextRes.MaxTokensExceeded {
+		msg += "\n\n" + updateContextRes.Msg
+	}
+
+	err := GitAddAndCommit(orgId, plan.Id, branchName, msg)
 
 	if err != nil {
 		return fmt.Errorf("error committing plan: %v", err)

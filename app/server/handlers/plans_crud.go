@@ -435,8 +435,6 @@ func GetCurrentBranchByPlanIdHandler(w http.ResponseWriter, r *http.Request) {
 
 	query += "(" + strings.Join(orConditions, " OR ") + ") AND archived_at IS NULL AND deleted_at IS NULL"
 
-	log.Println("query: ", query)
-
 	var branches []db.Branch
 	err = db.Conn.Select(&branches, query, queryArgs...)
 

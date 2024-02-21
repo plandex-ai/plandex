@@ -75,7 +75,8 @@ func ApplyPlanHandler(w http.ResponseWriter, r *http.Request) {
 	branch := vars["branch"]
 	log.Println("planId: ", planId)
 
-	if authorizePlan(w, planId, auth) == nil {
+	plan := authorizePlan(w, planId, auth)
+	if plan == nil {
 		return
 	}
 
@@ -88,7 +89,7 @@ func ApplyPlanHandler(w http.ResponseWriter, r *http.Request) {
 		defer (*unlockFn)(err)
 	}
 
-	err = db.ApplyPlan(auth.OrgId, planId, branch)
+	err = db.ApplyPlan(auth.OrgId, auth.User.Id, branch, plan)
 
 	if err != nil {
 		log.Printf("Error applying plan: %v\n", err)

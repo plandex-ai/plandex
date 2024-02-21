@@ -2,38 +2,42 @@ package types
 
 import (
 	"strings"
-
-	"github.com/davecgh/go-spew/spew"
 )
 
 type parserRes struct {
-	CurrentFilePath string
-	Files           []string
-	FileContents    []string
-	NumTokensByFile map[string]int
-	TotalTokens     int
+	CurrentFilePath  string
+	Files            []string
+	FileContents     []string
+	FileDescriptions []string
+	NumTokensByFile  map[string]int
+	TotalTokens      int
 }
 
 type ReplyParser struct {
-	lines            []string
-	currentFileLines []string
-	lineIndex        int
-	maybeFilePath    string
-	currentFilePath  string
-	currentFileIdx   int
-	files            []string
-	fileContents     []string
-	numTokens        int
-	numTokensByFile  map[string]int
+	lines                     []string
+	currentFileLines          []string
+	lineIndex                 int
+	maybeFilePath             string
+	currentFilePath           string
+	currentFileIdx            int
+	files                     []string
+	fileContents              []string
+	fileDescriptions          []string
+	currentDescriptionLines   []string
+	currentDescriptionLineIdx int
+	numTokens                 int
+	numTokensByFile           map[string]int
 }
 
 func NewReplyParser() *ReplyParser {
 	info := &ReplyParser{
-		lines:            []string{""},
-		currentFileLines: []string{},
-		files:            []string{},
-		fileContents:     []string{},
-		numTokensByFile:  make(map[string]int),
+		lines:                   []string{""},
+		currentFileLines:        []string{},
+		files:                   []string{},
+		fileContents:            []string{},
+		currentDescriptionLines: []string{""},
+		fileDescriptions:        []string{},
+		numTokensByFile:         make(map[string]int),
 	}
 
 	return info
@@ -61,6 +65,12 @@ func (r *ReplyParser) AddChunk(chunk string, addToTotal bool) {
 		r.lines = append(r.lines, "")
 		hasNewLine = true
 		r.lineIndex++
+
+		if r.currentFilePath == "" {
+			r.currentDescriptionLines = append(r.currentDescriptionLines, "")
+			r.currentDescriptionLineIdx++
+		}
+
 	} else {
 		chunkLines := strings.Split(chunk, "\n")
 
@@ -68,13 +78,28 @@ func (r *ReplyParser) AddChunk(chunk string, addToTotal bool) {
 
 		currentLine := r.lines[r.lineIndex]
 		currentLine += chunkLines[0]
-
 		// log.Println("Current line:", strconv.Quote(currentLine))
 		r.lines[r.lineIndex] = currentLine
+
+		if r.currentFilePath == "" {
+			// log.Println("Current file path is empty--adding to current description...")
+			// log.Println("Current description lines:", r.currentDescriptionLines)
+			// log.Printf("Current description line index: %d\n", r.currentDescriptionLineIdx)
+
+			currentDescLine := r.currentDescriptionLines[r.currentDescriptionLineIdx]
+			currentDescLine += chunkLines[0]
+			r.currentDescriptionLines[r.currentDescriptionLineIdx] = currentDescLine
+		}
 
 		if len(chunkLines) > 1 {
 			r.lines = append(r.lines, chunkLines[1])
 			r.lineIndex++
+
+			if r.currentFilePath == "" {
+				r.currentDescriptionLines = append(r.currentDescriptionLines, chunkLines[1])
+				r.currentDescriptionLineIdx++
+			}
+
 			hasNewLine = true
 
 			if len(chunkLines) > 2 {
@@ -108,6 +133,11 @@ func (r *ReplyParser) AddChunk(chunk string, addToTotal bool) {
 			r.fileContents = append(r.fileContents, "")
 			r.maybeFilePath = ""
 			r.currentFileLines = []string{}
+
+			r.fileDescriptions = append(r.fileDescriptions, strings.Join(r.currentDescriptionLines[0:len(r.currentDescriptionLines)-2], "\n"))
+			r.currentDescriptionLines = []string{""}
+			r.currentDescriptionLineIdx = 0
+
 			// log.Println("Confirmed file path:", r.currentFilePath) // Logging the confirmed file path
 
 			return
@@ -142,7 +172,7 @@ func (r *ReplyParser) AddChunk(chunk string, addToTotal bool) {
 			r.files = append(r.files, r.currentFilePath)
 			r.currentFilePath = ""
 
-			spew.Dump(r.files)
+			// spew.Dump(r.files)
 		} else {
 			// log.Println("Adding tokens to current file...") // Logging token addition
 
@@ -155,11 +185,12 @@ func (r *ReplyParser) AddChunk(chunk string, addToTotal bool) {
 
 func (r *ReplyParser) Read() parserRes {
 	return parserRes{
-		CurrentFilePath: r.currentFilePath,
-		Files:           r.files,
-		FileContents:    r.fileContents,
-		NumTokensByFile: r.numTokensByFile,
-		TotalTokens:     r.numTokens,
+		CurrentFilePath:  r.currentFilePath,
+		Files:            r.files,
+		FileContents:     r.fileContents,
+		NumTokensByFile:  r.numTokensByFile,
+		TotalTokens:      r.numTokens,
+		FileDescriptions: r.fileDescriptions,
 	}
 }
 

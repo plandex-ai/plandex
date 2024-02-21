@@ -5,7 +5,7 @@ import (
 	"github.com/sashabaranov/go-openai/jsonschema"
 )
 
-const SysShortSummary = "You are an AI summarizer that summarizes text, including programs, documentation, websites, and more. Most text will be related to software development."
+const SysShortSummary = "You are an AI summarizer that summarizes text, including programs, documentation, websites, and more. Most text will be related to software development. You produce a brief summary of the text. A few sentences at most."
 
 var ShortSummaryFn = openai.FunctionDefinition{
 	Name: "summarize",
@@ -13,8 +13,7 @@ var ShortSummaryFn = openai.FunctionDefinition{
 		Type: jsonschema.Object,
 		Properties: map[string]jsonschema.Definition{
 			"summary": {
-				Type:        jsonschema.String,
-				Description: "A brief summary of the text. A few sentences at most",
+				Type: jsonschema.String,
 			},
 		},
 		Required: []string{"summary"},

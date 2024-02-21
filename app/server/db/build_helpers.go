@@ -3,22 +3,17 @@ package db
 import (
 	"fmt"
 	"time"
-
-	"github.com/lib/pq"
 )
 
 func StorePlanBuild(build *PlanBuild) error {
-	if build.ConvoMessageIds == nil || len(build.ConvoMessageIds) == 0 {
-		return fmt.Errorf("error storing plan build: ConvoMessageIds cannot be nil or empty")
-	}
 
-	query := `INSERT INTO plan_builds (org_id, plan_id, convo_message_ids, file_path) VALUES (:org_id, :plan_id, :convo_message_ids, :file_path) RETURNING id, created_at, updated_at`
+	query := `INSERT INTO plan_builds (org_id, plan_id, convo_message_id, file_path) VALUES (:org_id, :plan_id, :convo_message_id, :file_path) RETURNING id, created_at, updated_at`
 
 	args := map[string]interface{}{
-		"org_id":            build.OrgId,
-		"plan_id":           build.PlanId,
-		"convo_message_ids": pq.Array(build.ConvoMessageIds),
-		"file_path":         build.FilePath,
+		"org_id":           build.OrgId,
+		"plan_id":          build.PlanId,
+		"convo_message_id": build.ConvoMessageId,
+		"file_path":        build.FilePath,
 	}
 
 	row, err := Conn.NamedQuery(query, args)
