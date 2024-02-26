@@ -49,7 +49,7 @@ type CurrentPlanStateParams struct {
 	OrgId                    string
 	PlanId                   string
 	PlanFileResults          []*PlanFileResult
-	PendingBuildDescriptions []*ConvoMessageDescription
+	ConvoMessageDescriptions []*ConvoMessageDescription
 }
 
 func GetCurrentPlanState(params CurrentPlanStateParams) (*shared.CurrentPlanState, error) {
@@ -57,7 +57,7 @@ func GetCurrentPlanState(params CurrentPlanStateParams) (*shared.CurrentPlanStat
 	planId := params.PlanId
 
 	var dbPlanFileResults []*PlanFileResult
-	var pendingBuildDescriptions []*shared.ConvoMessageDescription
+	var convoMessageDescriptions []*shared.ConvoMessageDescription
 
 	errCh := make(chan error)
 
@@ -78,19 +78,19 @@ func GetCurrentPlanState(params CurrentPlanStateParams) (*shared.CurrentPlanStat
 	}()
 
 	go func() {
-		if params.PendingBuildDescriptions == nil {
-			res, err := GetPendingBuildDescriptions(orgId, planId)
+		if params.ConvoMessageDescriptions == nil {
+			res, err := GetConvoMessageDescriptions(orgId, planId)
 			if err != nil {
 				errCh <- fmt.Errorf("error getting latest plan build description: %v", err)
 				return
 			}
 
 			for _, desc := range res {
-				pendingBuildDescriptions = append(pendingBuildDescriptions, desc.ToApi())
+				convoMessageDescriptions = append(convoMessageDescriptions, desc.ToApi())
 			}
 		} else {
-			for _, desc := range params.PendingBuildDescriptions {
-				pendingBuildDescriptions = append(pendingBuildDescriptions, desc.ToApi())
+			for _, desc := range params.ConvoMessageDescriptions {
+				convoMessageDescriptions = append(convoMessageDescriptions, desc.ToApi())
 			}
 		}
 
@@ -113,7 +113,7 @@ func GetCurrentPlanState(params CurrentPlanStateParams) (*shared.CurrentPlanStat
 
 	planState := &shared.CurrentPlanState{
 		PlanResult:               planResult,
-		PendingBuildDescriptions: pendingBuildDescriptions,
+		ConvoMessageDescriptions: convoMessageDescriptions,
 	}
 
 	currentPlanFiles, err := planState.GetFiles()
@@ -127,7 +127,7 @@ func GetCurrentPlanState(params CurrentPlanStateParams) (*shared.CurrentPlanStat
 	return planState, nil
 }
 
-func GetPendingBuildDescriptions(orgId, planId string) ([]*ConvoMessageDescription, error) {
+func GetConvoMessageDescriptions(orgId, planId string) ([]*ConvoMessageDescription, error) {
 	var descriptions []*ConvoMessageDescription
 	descriptionsDir := getPlanDescriptionsDir(orgId, planId)
 	files, err := os.ReadDir(descriptionsDir)
@@ -283,7 +283,7 @@ func ApplyPlan(orgId, userId, branchName string, plan *Plan) error {
 	errCh := make(chan error)
 
 	var results []*PlanFileResult
-	var pendingBuildDescriptions []*ConvoMessageDescription
+	var convoMessageDescriptions []*ConvoMessageDescription
 	contextsById := make(map[string]*Context)
 	contextsByPath := make(map[string]*Context)
 
@@ -298,12 +298,12 @@ func ApplyPlan(orgId, userId, branchName string, plan *Plan) error {
 	}()
 
 	go func() {
-		res, err := GetPendingBuildDescriptions(orgId, planId)
+		res, err := GetConvoMessageDescriptions(orgId, planId)
 		if err != nil {
 			errCh <- fmt.Errorf("error getting latest plan build description: %v", err)
 			return
 		}
-		pendingBuildDescriptions = res
+		convoMessageDescriptions = res
 		errCh <- nil
 	}()
 
@@ -359,7 +359,7 @@ func ApplyPlan(orgId, userId, branchName string, plan *Plan) error {
 			OrgId:                    orgId,
 			PlanId:                   plan.Id,
 			PlanFileResults:          results,
-			PendingBuildDescriptions: pendingBuildDescriptions,
+			ConvoMessageDescriptions: convoMessageDescriptions,
 		})
 
 		if err != nil {
@@ -395,7 +395,7 @@ func ApplyPlan(orgId, userId, branchName string, plan *Plan) error {
 		}(result)
 	}
 
-	for _, description := range pendingBuildDescriptions {
+	for _, description := range convoMessageDescriptions {
 		go func(description *ConvoMessageDescription) {
 			description.AppliedAt = &now
 
@@ -474,7 +474,7 @@ func ApplyPlan(orgId, userId, branchName string, plan *Plan) error {
 	}
 
 	numRoutines := len(pendingDbResults) +
-		len(pendingBuildDescriptions)
+		len(convoMessageDescriptions)
 	if len(pendingNewFilesSet) > 0 {
 		numRoutines++
 	}

@@ -1,10 +1,6 @@
 package shared
 
 import (
-	"fmt"
-	"log"
-	"sort"
-	"strings"
 	"time"
 )
 
@@ -90,234 +86,38 @@ func (r PlanResult) NumPendingForPath(path string) int {
 	return res
 }
 
-func ApplyReplacements(content string, replacements []*Replacement, setFailed bool) (string, bool) {
-	updated := content
-	lastInsertedIdx := 0
-
-	allSucceeded := true
-
-	for _, replacement := range replacements {
-		pre := updated[:lastInsertedIdx]
-		sub := updated[lastInsertedIdx:]
-		originalIdx := strings.Index(sub, replacement.Old)
-
-		if originalIdx == -1 {
-			allSucceeded = false
-			if setFailed {
-				replacement.Failed = true
-			}
-
-			log.Println("Replacement failed: " + replacement.Old + " -> " + replacement.New)
-			log.Println("Pre: " + pre)
-			log.Println("Sub: " + sub)
-			log.Println("Updated: " + updated)
-
-		} else {
-			replaced := strings.Replace(sub, replacement.Old, replacement.New, 1)
-
-			updated = pre + replaced
-			lastInsertedIdx = lastInsertedIdx + originalIdx + len(replacement.New)
+func (desc *ConvoMessageDescription) NumBuildsPendingByPath() map[string]int {
+	res := map[string]int{}
+	if !desc.DidBuild && len(desc.Files) > 0 {
+		for _, file := range desc.Files {
+			res[file]++
 		}
 	}
-
-	return updated, allSucceeded
+	return res
 }
 
-func (planState *CurrentPlanState) GetFiles() (*CurrentPlanFiles, error) {
-	return planState.GetFilesBeforeReplacement("")
+func (desc *ConvoMessageDescription) HasPendingBuilds() bool {
+	return len(desc.NumBuildsPendingByPath()) > 0
 }
 
-func (planState *CurrentPlanState) GetFilesBeforeReplacement(
-	replacementId string,
-) (*CurrentPlanFiles, error) {
-	planRes := planState.PlanResult
-
-	files := make(map[string]string)
-	shas := make(map[string]string)
-	updatedAtByPath := make(map[string]time.Time)
-
-	for path, planResults := range planRes.FileResultsByPath {
-		updated := files[path]
-
-	PlanResLoop:
-		for _, planRes := range planResults {
-
-			if !planRes.IsPending() {
-				continue
-			}
-
-			if len(planRes.Replacements) == 0 {
-				if updated != "" {
-					return nil, fmt.Errorf("plan updates out of order: %s", path)
-				}
-
-				updated = planRes.Content
-				files[path] = updated
-				continue
-			} else if updated == "" {
-				updated = planRes.ContextBody
-				shas[path] = planRes.ContextSha
-			}
-
-			replacements := []*Replacement{}
-			for _, replacement := range planRes.Replacements {
-				if replacement.Id == replacementId {
-					break PlanResLoop
-				}
-				replacements = append(replacements, replacement)
-			}
-
-			var allSucceeded bool
-			updated, allSucceeded = ApplyReplacements(updated, replacements, false)
-
-			if !allSucceeded {
-				return nil, fmt.Errorf("plan replacement failed: %s", path)
-			}
-
-			updatedAtByPath[path] = planRes.CreatedAt
+func NumBuildsPendingByPath(planDescs []*ConvoMessageDescription) map[string]int {
+	res := map[string]int{}
+	for _, desc := range planDescs {
+		for file, num := range desc.NumBuildsPendingByPath() {
+			res[file] += num
 		}
-
-		files[path] = updated
 	}
-
-	return &CurrentPlanFiles{Files: files, ContextShas: shas}, nil
+	return res
 }
 
-func (state *CurrentPlanState) PendingChangesSummary() string {
-	var msgs []string
+func HasPendingBuilds(planDescs []*ConvoMessageDescription) bool {
+	return len(NumBuildsPendingByPath(planDescs)) > 0
+}
 
-	msgs = append(msgs, "🏗️  Build pending changes")
+func (c *CurrentPlanState) NumBuildsPendingByPath() map[string]int {
+	return NumBuildsPendingByPath(c.ConvoMessageDescriptions)
+}
 
-	descByConvoMessageId := make(map[string]*ConvoMessageDescription)
-	for _, desc := range state.PendingBuildDescriptions {
-		if desc.ConvoMessageId == "" {
-			log.Println("Warning: ConvoMessageId is empty for description:", desc)
-			continue
-		}
-
-		descByConvoMessageId[desc.ConvoMessageId] = desc
-	}
-
-	type changeset struct {
-		descsSet map[string]bool
-		descs    []*ConvoMessageDescription
-		results  []*PlanFileResult
-	}
-	byDescs := map[string]*changeset{}
-
-	for _, result := range state.PlanResult.Results {
-		convoIds := map[string]bool{}
-		if descByConvoMessageId[result.ConvoMessageId] != nil {
-			convoIds[result.ConvoMessageId] = true
-		}
-		var uniqueConvoIds []string
-		for convoId := range convoIds {
-			uniqueConvoIds = append(uniqueConvoIds, convoId)
-		}
-
-		composite := strings.Join(uniqueConvoIds, "|")
-		if _, ok := byDescs[composite]; !ok {
-			byDescs[composite] = &changeset{
-				descsSet: make(map[string]bool),
-			}
-		}
-
-		ch := byDescs[composite]
-		ch.results = append(byDescs[composite].results, result)
-
-		for _, convoMessageId := range uniqueConvoIds {
-			if desc, ok := descByConvoMessageId[convoMessageId]; ok {
-				if !ch.descsSet[convoMessageId] {
-					ch.descs = append(ch.descs, desc)
-					ch.descsSet[convoMessageId] = true
-				}
-			} else {
-				log.Println("Warning: no description for convo message id:", convoMessageId)
-			}
-		}
-	}
-
-	var sortedChangesets []*changeset
-	for _, ch := range byDescs {
-		sortedChangesets = append(sortedChangesets, ch)
-	}
-
-	sort.Slice(sortedChangesets, func(i, j int) bool {
-		// put changesets with no descriptions last, otherwise sort by date
-		if len(sortedChangesets[i].descs) == 0 {
-			return false
-		}
-		if len(sortedChangesets[j].descs) == 0 {
-			return true
-		}
-		return sortedChangesets[i].descs[0].CreatedAt.Before(sortedChangesets[j].descs[0].CreatedAt)
-	})
-
-	for _, ch := range sortedChangesets {
-		var descMsgs []string
-
-		if len(ch.descs) == 0 {
-			descMsgs = append(descMsgs, "  ✏️  Changes")
-		} else {
-			for _, desc := range ch.descs {
-				descMsgs = append(descMsgs, fmt.Sprintf("  ✏️  %s", desc.CommitMsg))
-			}
-		}
-
-		pendingNewFilesSet := make(map[string]bool)
-		pendingReplacementPathsSet := make(map[string]bool)
-		pendingReplacementsByPath := make(map[string][]*Replacement)
-
-		for _, result := range ch.results {
-
-			if result.IsPending() {
-				if len(result.Replacements) == 0 && result.Content != "" {
-					pendingNewFilesSet[result.Path] = true
-				} else {
-					pendingReplacementPathsSet[result.Path] = true
-					pendingReplacementsByPath[result.Path] = append(pendingReplacementsByPath[result.Path], result.Replacements...)
-				}
-			}
-		}
-
-		if len(pendingNewFilesSet) == 0 && len(pendingReplacementPathsSet) == 0 {
-			continue
-		}
-
-		msgs = append(msgs, descMsgs...)
-
-		var pendingNewFiles []string
-		var pendingReplacementPaths []string
-
-		for path := range pendingNewFilesSet {
-			pendingNewFiles = append(pendingNewFiles, path)
-		}
-
-		for path := range pendingReplacementPathsSet {
-			pendingReplacementPaths = append(pendingReplacementPaths, path)
-		}
-
-		sort.Slice(pendingReplacementPaths, func(i, j int) bool {
-			return pendingReplacementPaths[i] < pendingReplacementPaths[j]
-		})
-
-		sort.Slice(pendingNewFiles, func(i, j int) bool {
-			return pendingNewFiles[i] < pendingNewFiles[j]
-		})
-
-		if len(pendingNewFiles) > 0 {
-			for _, path := range pendingNewFiles {
-				msgs = append(msgs, fmt.Sprintf("    • new file → %s", path))
-			}
-		}
-
-		if len(pendingReplacementPaths) > 0 {
-			for _, path := range pendingReplacementPaths {
-				msgs = append(msgs, fmt.Sprintf("    • edit → %s", path))
-			}
-
-		}
-
-	}
-	return strings.Join(msgs, "\n")
+func (c *CurrentPlanState) HasPendingBuilds() bool {
+	return len(c.NumBuildsPendingByPath()) > 0
 }

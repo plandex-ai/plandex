@@ -3,8 +3,6 @@ package types
 import (
 	"context"
 	"encoding/json"
-	"fmt"
-	"log"
 	"net/http"
 	"plandex-server/db"
 	"time"
@@ -157,96 +155,4 @@ func (ap *ActivePlan) NumSubscribers() int {
 
 func (b *ActiveBuild) BuildFinished() bool {
 	return b.Success || b.Error != nil
-}
-
-func (ap *ActivePlan) PendingBuildsByPath(orgId, userId string, convoMessagesArg []*db.ConvoMessage) (map[string][]*ActiveBuild, error) {
-	var planDescs []*db.ConvoMessageDescription
-	var convoMessagesById map[string]*db.ConvoMessage
-
-	errCh := make(chan error)
-
-	go func() {
-		var err error
-		planDescs, err = db.GetPendingBuildDescriptions(orgId, ap.Id)
-		if err != nil {
-			errCh <- fmt.Errorf("error getting pending build descriptions: %v", err)
-			return
-		}
-
-		errCh <- nil
-	}()
-
-	go func() {
-		var convoMessages []*db.ConvoMessage
-		if convoMessagesArg == nil {
-			var err error
-			convoMessages, err = db.GetPlanConvo(orgId, ap.Id)
-
-			if err != nil {
-				errCh <- fmt.Errorf("error getting plan convo: %v", err)
-				return
-			}
-		} else {
-			convoMessages = convoMessagesArg
-		}
-
-		convoMessagesById = map[string]*db.ConvoMessage{}
-		for _, msg := range convoMessages {
-			convoMessagesById[msg.Id] = msg
-		}
-
-		errCh <- nil
-	}()
-
-	for i := 0; i < 2; i++ {
-		err := <-errCh
-		if err != nil {
-			log.Printf("Error getting plan data: %v\n", err)
-			return nil, err
-		}
-	}
-
-	// log.Println("planDescs:")
-	// spew.Dump(planDescs)
-
-	activeBuildsByPath := map[string][]*ActiveBuild{}
-
-	for _, desc := range planDescs {
-		if !desc.DidBuild && len(desc.Files) > 0 {
-			if desc.ConvoMessageId == "" {
-				log.Printf("No convo message ID for description: %v\n", desc)
-				return nil, fmt.Errorf("no convo message ID for description: %v", desc)
-			}
-
-			if convoMessagesById[desc.ConvoMessageId] == nil {
-				log.Printf("No convo message for ID: %s\n", desc.ConvoMessageId)
-				return nil, fmt.Errorf("no convo message for ID: %s", desc.ConvoMessageId)
-			}
-
-			convoMessage := convoMessagesById[desc.ConvoMessageId]
-
-			replyParser := NewReplyParser()
-			replyParser.AddChunk(convoMessage.Message, false)
-			parserRes := replyParser.FinishAndRead()
-
-			for i, file := range desc.Files {
-				if activeBuildsByPath[file] == nil {
-					activeBuildsByPath[file] = []*ActiveBuild{}
-				}
-
-				activeBuildsByPath[file] = append(activeBuildsByPath[file], &ActiveBuild{
-					ReplyId:         desc.ConvoMessageId,
-					Idx:             i,
-					FileContent:     parserRes.FileContents[i],
-					Path:            file,
-					FileDescription: parserRes.FileDescriptions[i],
-				})
-			}
-		}
-	}
-
-	// log.Println("activeBuildsByPath:")
-	// spew.Dump(activeBuildsByPath)
-
-	return activeBuildsByPath, nil
 }

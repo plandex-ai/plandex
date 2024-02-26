@@ -190,7 +190,7 @@ type PlanResult struct {
 type CurrentPlanState struct {
 	PlanResult               *PlanResult                `json:"planResult"`
 	CurrentPlanFiles         *CurrentPlanFiles          `json:"currentPlanFiles"`
-	PendingBuildDescriptions []*ConvoMessageDescription `json:"pendingBuildDescriptions"`
+	ConvoMessageDescriptions []*ConvoMessageDescription `json:"convoMessageDescriptions"`
 }
 
 type OrgRole struct {

@@ -90,7 +90,7 @@ func (state *activeBuildStreamFileState) onFinishBuild() {
 
 		// get plan descriptions
 		var planDescs []*db.ConvoMessageDescription
-		planDescs, err = db.GetPendingBuildDescriptions(currentOrgId, planId)
+		planDescs, err = db.GetConvoMessageDescriptions(currentOrgId, planId)
 		if err != nil {
 			log.Printf("Error getting pending build descriptions: %v\n", err)
 			return fmt.Errorf("error getting pending build descriptions: %v", err)
@@ -101,7 +101,7 @@ func (state *activeBuildStreamFileState) onFinishBuild() {
 		currentPlan, err = db.GetCurrentPlanState(db.CurrentPlanStateParams{
 			OrgId:                    currentOrgId,
 			PlanId:                   planId,
-			PendingBuildDescriptions: planDescs,
+			ConvoMessageDescriptions: planDescs,
 		})
 		if err != nil {
 			log.Printf("Error getting current plan state: %v\n", err)
