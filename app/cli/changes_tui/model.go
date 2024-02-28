@@ -43,10 +43,10 @@ type keymap = struct {
 	start,
 	end,
 	switchView,
-	reject,
+	// reject,
 	copy,
 	applyAll,
-	rejectAll,
+	// rejectAll,
 	quit bubbleKey.Binding
 }
 
@@ -120,10 +120,10 @@ func initialModel() *changesUIModel {
 				bubbleKey.WithHelp("tab", "switch view"),
 			),
 
-			reject: bubbleKey.NewBinding(
-				bubbleKey.WithKeys("r"),
-				bubbleKey.WithHelp("r", "reject change"),
-			),
+			// reject: bubbleKey.NewBinding(
+			// 	bubbleKey.WithKeys("r"),
+			// 	bubbleKey.WithHelp("r", "reject change"),
+			// ),
 
 			copy: bubbleKey.NewBinding(
 				bubbleKey.WithKeys("c"),
@@ -135,10 +135,10 @@ func initialModel() *changesUIModel {
 				bubbleKey.WithHelp("ctrl+a", "apply all changes"),
 			),
 
-			rejectAll: bubbleKey.NewBinding(
-				bubbleKey.WithKeys("ctrl+r"),
-				bubbleKey.WithHelp("ctrl+r", "reject all changes"),
-			),
+			// rejectAll: bubbleKey.NewBinding(
+			// 	bubbleKey.WithKeys("ctrl+r"),
+			// 	bubbleKey.WithHelp("ctrl+r", "reject all changes"),
+			// ),
 
 			quit: bubbleKey.NewBinding(
 				bubbleKey.WithKeys("q", "ctrl+c"),

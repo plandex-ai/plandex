@@ -117,7 +117,7 @@ func (m changesUIModel) renderMainViewFooter() string {
 		Width(m.width - sidebarWidth).
 		Inherit(topBorderStyle).
 		Foreground(lipgloss.Color(helpTextColor))
-	footer := ` (r)eject change • (c)opy to clipboard`
+	footer := ` (c)opy change to clipboard`
 	return style.Render(footer)
 }
 

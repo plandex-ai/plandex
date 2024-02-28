@@ -63,16 +63,16 @@ func (m changesUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case bubbleKey.Matches(msg, m.keymap.switchView):
 			m.switchView()
 
-		case bubbleKey.Matches(msg, m.keymap.reject):
-			m.rejectChange()
+		// case bubbleKey.Matches(msg, m.keymap.reject):
+		// 	m.rejectChange()
 
 		case bubbleKey.Matches(msg, m.keymap.applyAll):
 			m.shouldApplyAll = true
 			return m, tea.Quit
 
-		case bubbleKey.Matches(msg, m.keymap.rejectAll):
-			m.shouldRejectAll = true
-			return m, tea.Quit
+		// case bubbleKey.Matches(msg, m.keymap.rejectAll):
+		// 	m.shouldRejectAll = true
+		// 	return m, tea.Quit
 
 		case bubbleKey.Matches(msg, m.keymap.copy):
 			m.copyCurrentChange()
