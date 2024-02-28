@@ -1,6 +1,10 @@
 package shared
 
+type ModelProvider string
+
 const ModelProviderOpenAI ModelProvider = "openai"
+
+type ModelRole string
 
 const (
 	ModelRolePlanner     ModelRole = "planner"

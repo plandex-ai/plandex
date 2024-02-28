@@ -3,9 +3,7 @@ package plan
 import (
 	"fmt"
 	"plandex-server/db"
-	"time"
 
-	"github.com/plandex/plandex/shared"
 	"github.com/sashabaranov/go-openai"
 )
 
@@ -15,13 +13,6 @@ func Stop(planId, branch, currentUserId, currentOrgId string) error {
 	if active == nil {
 		return fmt.Errorf("no active plan with id %s", planId)
 	}
-
-	active.Stream(shared.StreamMessage{
-		Type: shared.StreamMessageAborted,
-	})
-
-	// give some time for stream message to be processed before canceling
-	time.Sleep(100 * time.Millisecond)
 
 	active.CancelFn()
 

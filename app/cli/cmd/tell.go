@@ -36,9 +36,9 @@ func init() {
 	RootCmd.AddCommand(tellCmd)
 
 	tellCmd.Flags().StringVarP(&tellPromptFile, "file", "f", "", "File containing prompt")
-	// tellCmd.Flags().BoolVar(&tellBg, "bg", false, "Execute autonomously in the background") // Not implemented yet
 	tellCmd.Flags().BoolVarP(&tellStop, "stop", "s", false, "Stop after a single reply")
 	tellCmd.Flags().BoolVarP(&tellNoBuild, "no-build", "n", false, "Don't build files")
+	tellCmd.Flags().BoolVar(&tellBg, "bg", false, "Execute autonomously in the background")
 }
 
 func doTell(cmd *cobra.Command, args []string) {

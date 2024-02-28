@@ -22,7 +22,7 @@ var buildBg bool
 var buildCmd = &cobra.Command{
 	Use:     "build",
 	Aliases: []string{"b"},
-	Short:   "Send a prompt for the current plan.",
+	Short:   "Build pending changes",
 	// Long:  ``,
 	Args: cobra.NoArgs,
 	Run:  build,
@@ -30,7 +30,6 @@ var buildCmd = &cobra.Command{
 
 func init() {
 	RootCmd.AddCommand(buildCmd)
-
 	buildCmd.Flags().BoolVar(&buildBg, "bg", false, "Execute autonomously in the background")
 }
 
@@ -93,7 +92,7 @@ func build(cmd *cobra.Command, args []string) {
 			}
 
 			fmt.Println()
-			term.PrintCmds("", "changes", "log")
+			term.PrintCmds("", "changes", "apply", "log")
 
 			os.Exit(0)
 		}()

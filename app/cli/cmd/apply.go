@@ -12,6 +12,7 @@ var autoConfirm bool
 
 func init() {
 	applyCmd.Flags().BoolVarP(&autoConfirm, "yes", "y", false, "Automatically confirm unless plan is outdated")
+
 	RootCmd.AddCommand(applyCmd)
 }
 

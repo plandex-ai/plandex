@@ -136,6 +136,8 @@ func authenticate(w http.ResponseWriter, r *http.Request, requireOrg bool) *type
 		permissionsMap[types.Permission(permission)] = true
 	}
 
+	log.Printf("UserId: %s, Email: %s, OrgId: %s\n", authToken.UserId, user.Email, parsed.OrgId)
+
 	return &types.ServerAuth{
 		AuthToken:   authToken,
 		User:        user,

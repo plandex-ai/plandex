@@ -23,6 +23,7 @@ func init() {
 
 	continueCmd.Flags().BoolVarP(&tellStop, "stop", "s", false, "Stop after a single reply")
 	continueCmd.Flags().BoolVarP(&tellNoBuild, "no-build", "n", false, "Don't build files")
+	continueCmd.Flags().BoolVar(&tellBg, "bg", false, "Execute autonomously in the background")
 }
 
 func doContinue(cmd *cobra.Command, args []string) {

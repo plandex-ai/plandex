@@ -23,6 +23,10 @@ func ApplyPlanWithOutput(planId, branch string, autoConfirm bool) error {
 		return fmt.Errorf("error getting current plan state: %s", apiErr.Msg)
 	}
 
+	if currentPlanState.HasPendingBuilds() {
+
+	}
+
 	currentPlanFiles := currentPlanState.CurrentPlanFiles
 	planResByPath := currentPlanState.PlanResult.FileResultsByPath
 

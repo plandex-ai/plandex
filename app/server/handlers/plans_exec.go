@@ -11,6 +11,7 @@ import (
 	"plandex-server/model"
 	modelPlan "plandex-server/model/plan"
 	"plandex-server/types"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/plandex/plandex/shared"
@@ -95,11 +96,7 @@ func TellPlanHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if requestBody.ConnectStream {
-		active := modelPlan.GetActivePlan(planId, branch)
-		subscriptionId, ch := modelPlan.SubscribePlan(planId, branch)
-		startResponseStream(w, ch, active, func() {
-			modelPlan.UnsubscribePlan(planId, branch, subscriptionId)
-		})
+		startResponseStream(w, auth, planId, branch, false)
 	}
 
 	log.Println("Successfully processed request for TellPlanHandler")
@@ -162,11 +159,7 @@ func BuildPlanHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if requestBody.ConnectStream {
-		active := modelPlan.GetActivePlan(planId, branch)
-		subscriptionId, ch := modelPlan.SubscribePlan(planId, branch)
-		startResponseStream(w, ch, active, func() {
-			modelPlan.UnsubscribePlan(planId, branch, subscriptionId)
-		})
+		startResponseStream(w, auth, planId, branch, false)
 	}
 
 	log.Println("Successfully processed request for BuildPlanHandler")
@@ -174,20 +167,43 @@ func BuildPlanHandler(w http.ResponseWriter, r *http.Request) {
 
 func ConnectPlanHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for ConnectPlanHandler")
-	auth := authenticate(w, r, true)
-	if auth == nil {
-		return
-	}
 
 	vars := mux.Vars(r)
 	planId := vars["planId"]
-
+	branch := vars["branch"]
 	log.Println("planId: ", planId)
+	log.Println("branch: ", branch)
+	active := modelPlan.GetActivePlan(planId, branch)
+	isProxy := r.URL.Query().Get("proxy") == "true"
 
-	if authorizePlan(w, planId, auth) == nil {
+	if active == nil {
+		if isProxy {
+			log.Println("No active plan on proxied request")
+			http.Error(w, "No active plan", http.StatusNotFound)
+			return
+		}
+
+		log.Println("No active plan -- proxying request")
+
+		proxyActivePlanMethod(w, r, planId, branch, "connect")
 		return
 	}
 
+	auth := authenticate(w, r, true)
+	if auth == nil {
+		log.Println("No auth")
+		return
+	}
+
+	plan := authorizePlan(w, planId, auth)
+	if plan == nil {
+		log.Println("No plan")
+		return
+	}
+
+	startResponseStream(w, auth, planId, branch, true)
+
+	log.Println("Successfully processed request for ConnectPlanHandler")
 }
 
 func StopPlanHandler(w http.ResponseWriter, r *http.Request) {
@@ -199,8 +215,14 @@ func StopPlanHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("planId: ", planId)
 	log.Println("branch: ", branch)
 	active := modelPlan.GetActivePlan(planId, branch)
+	isProxy := r.URL.Query().Get("proxy") == "true"
 
 	if active == nil {
+		if isProxy {
+			log.Println("No active plan on proxied request")
+			http.Error(w, "No active plan", http.StatusNotFound)
+			return
+		}
 		proxyActivePlanMethod(w, r, planId, branch, "stop")
 		return
 	}
@@ -214,6 +236,16 @@ func StopPlanHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.Println("Sending stream aborted message to client")
+
+	active.Stream(shared.StreamMessage{
+		Type: shared.StreamMessageAborted,
+	})
+
+	// give some time for stream message to be processed before canceling
+	log.Println("Sleeping for 100ms before canceling")
+	time.Sleep(100 * time.Millisecond)
+
 	var err error
 	ctx, cancel := context.WithCancel(context.Background())
 	unlockFn := lockRepo(w, r, auth, db.LockScopeWrite, ctx, cancel)
@@ -223,6 +255,7 @@ func StopPlanHandler(w http.ResponseWriter, r *http.Request) {
 		defer (*unlockFn)(err)
 	}
 
+	log.Println("Stopping plan")
 	err = modelPlan.Stop(planId, branch, auth.User.Id, auth.OrgId)
 
 	if err != nil {
@@ -242,9 +275,16 @@ func RespondMissingFileHandler(w http.ResponseWriter, r *http.Request) {
 	branch := vars["branch"]
 	log.Println("planId: ", planId)
 	log.Println("branch: ", branch)
+	isProxy := r.URL.Query().Get("proxy") == "true"
 
 	active := modelPlan.GetActivePlan(planId, branch)
 	if active == nil {
+		if isProxy {
+			log.Println("No active plan on proxied request")
+			http.Error(w, "No active plan", http.StatusNotFound)
+			return
+		}
+
 		proxyActivePlanMethod(w, r, planId, branch, "respond_missing_file")
 		return
 	}

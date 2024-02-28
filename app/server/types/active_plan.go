@@ -3,8 +3,10 @@ package types
 import (
 	"context"
 	"encoding/json"
+	"log"
 	"net/http"
 	"plandex-server/db"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -20,6 +22,15 @@ type ActiveBuild struct {
 	Buffer          string
 	Success         bool
 	Error           error
+}
+
+type subscription struct {
+	ch           chan string
+	ctx          context.Context
+	cancelFn     context.CancelFunc
+	mu           sync.Mutex // Protects the messageQueue
+	messageQueue []string
+	cond         *sync.Cond // Used to wait for and signal new messages
 }
 
 type ActivePlan struct {
@@ -45,12 +56,14 @@ type ActivePlan struct {
 	RepliesFinished         bool
 	StreamDoneCh            chan *shared.ApiError
 	ModelStreamId           string
-	IsBackground            bool
+	MissingFilePath         string
 	MissingFileResponseCh   chan shared.RespondMissingFileChoice
 	AllowOverwritePaths     map[string]bool
 	SkippedPaths            map[string]bool
+	StoredReplyIds          []string
 	streamCh                chan string
-	subscriptions           map[string]chan string
+	subscriptions           map[string]*subscription
+	subscriptionMu          sync.Mutex
 }
 
 func NewActivePlan(planId, branch, prompt string, buildOnly bool) *ActivePlan {
@@ -78,18 +91,30 @@ func NewActivePlan(planId, branch, prompt string, buildOnly bool) *ActivePlan {
 		AllowOverwritePaths:   map[string]bool{},
 		SkippedPaths:          map[string]bool{},
 		streamCh:              make(chan string),
-		subscriptions:         map[string]chan string{},
+		subscriptions:         map[string]*subscription{},
+		subscriptionMu:        sync.Mutex{},
 	}
 
 	go func() {
+		defer func() {
+			log.Println("ActivePlan stream manager returned")
+			if r := recover(); r != nil {
+				log.Printf("Recovered in send to subscriber: %v\n", r)
+			}
+		}()
 		for {
 			select {
 			case <-active.Ctx.Done():
 				return
 			case msg := <-active.streamCh:
-				for _, ch := range active.subscriptions {
-					ch <- msg
+				var subscriptions map[string]*subscription
+				active.subscriptionMu.Lock()
+				subscriptions = active.subscriptions
+				active.subscriptionMu.Unlock()
+				for _, sub := range subscriptions {
+					sub.enqueueMessage(msg)
 				}
+
 			}
 		}
 	}()
@@ -107,6 +132,9 @@ func (ap *ActivePlan) Stream(msg shared.StreamMessage) {
 		}
 		return
 	}
+
+	// log.Printf("ActivePlan: sending stream message: %s\n", string(msgJson))
+
 	ap.streamCh <- string(msgJson)
 
 	if msg.Type == shared.StreamMessageFinished {
@@ -139,20 +167,81 @@ func (ap *ActivePlan) PathFinished(path string) bool {
 }
 
 func (ap *ActivePlan) Subscribe() (string, chan string) {
+	ap.subscriptionMu.Lock()
+	defer ap.subscriptionMu.Unlock()
 	id := uuid.New().String()
-	ch := make(chan string)
-	ap.subscriptions[id] = ch
-	return id, ch
+	sub := newSubscription()
+	ap.subscriptions[id] = sub
+	return id, sub.ch
 }
 
 func (ap *ActivePlan) Unsubscribe(id string) {
-	delete(ap.subscriptions, id)
+	ap.subscriptionMu.Lock()
+	defer ap.subscriptionMu.Unlock()
+
+	sub, ok := ap.subscriptions[id]
+
+	if ok {
+		sub.cancelFn()
+		sub.cond.Signal()
+		delete(ap.subscriptions, id)
+	}
 }
 
 func (ap *ActivePlan) NumSubscribers() int {
+	ap.subscriptionMu.Lock()
+	defer ap.subscriptionMu.Unlock()
 	return len(ap.subscriptions)
 }
 
 func (b *ActiveBuild) BuildFinished() bool {
 	return b.Success || b.Error != nil
+}
+
+func newSubscription() *subscription {
+	ctx, cancel := context.WithCancel(context.Background())
+	sub := &subscription{
+		ch:           make(chan string),
+		ctx:          ctx,
+		cancelFn:     cancel,
+		messageQueue: make([]string, 0),
+	}
+	sub.mu = sync.Mutex{}
+	sub.cond = sync.NewCond(&sub.mu)
+	go sub.processMessages()
+	return sub
+}
+
+func (sub *subscription) processMessages() {
+	for {
+		sub.mu.Lock()
+		for len(sub.messageQueue) == 0 {
+			sub.cond.Wait()           // Automatically unlocks sub.mu and waits; re-locks sub.mu upon waking.
+			if sub.ctx.Err() != nil { // Check if context is cancelled after waking up.
+				sub.mu.Unlock()
+				return
+			}
+		}
+		// At this point, there is at least one message in the queue
+		msg := sub.messageQueue[0]
+		sub.messageQueue = sub.messageQueue[1:]
+		sub.mu.Unlock()
+
+		select {
+		case <-sub.ctx.Done():
+			log.Println("ActivePlan: subscription context done, aborting send")
+			return
+		case sub.ch <- msg:
+			// Message sent, proceed to next
+		}
+	}
+}
+
+// Adding a message to the subscription's queue
+func (sub *subscription) enqueueMessage(msg string) {
+	// log.Printf("ActivePlan: enqueueing message: %s\n", msg)
+	sub.mu.Lock()
+	sub.messageQueue = append(sub.messageQueue, msg)
+	sub.mu.Unlock()
+	sub.cond.Signal() // Signal the waiting goroutine that a new message is available
 }

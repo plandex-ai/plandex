@@ -26,7 +26,7 @@ func init() {
 	// Set the output of the logger to the file
 	log.SetOutput(file)
 
-	log.Println("Starting Plandex - logging initialized")
+	// log.Println("Starting Plandex - logging initialized")
 }
 
 func main() {

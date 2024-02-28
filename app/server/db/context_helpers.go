@@ -313,6 +313,10 @@ func UpdateContexts(params UpdateContextsParams) (*shared.UpdateContextResponse,
 		return nil, fmt.Errorf("error getting branch: %v", err)
 	}
 
+	if branch == nil {
+		return nil, fmt.Errorf("branch not found")
+	}
+
 	settings, err := GetPlanSettings(plan, true)
 	if err != nil {
 		return nil, fmt.Errorf("error getting settings: %v", err)

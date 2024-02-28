@@ -88,16 +88,18 @@ func SubscribePlan(planId, branch string) (string, chan string) {
 }
 
 func UnsubscribePlan(planId, branch, subscriptionId string) {
-	log.Printf("Unsubscribing from plan %s\n", planId)
+	log.Printf("UnsubscribePlan %s - %s - %s\n", planId, branch, subscriptionId)
 
 	active := GetActivePlan(planId, branch)
 
 	if active == nil {
+		log.Printf("No active plan found for plan ID %s on branch %s\n", planId, branch)
 		return
 	}
 
 	UpdateActivePlan(planId, branch, func(activePlan *types.ActivePlan) {
 		activePlan.Unsubscribe(subscriptionId)
+		log.Printf("Unsubscribed from plan %s - %s - %s\n", planId, branch, subscriptionId)
 	})
 }
 

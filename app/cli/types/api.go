@@ -42,7 +42,7 @@ type ApiClient interface {
 
 	ListPlans(projectIds []string) ([]*shared.Plan, *shared.ApiError)
 	ListArchivedPlans(projectIds []string) ([]*shared.Plan, *shared.ApiError)
-	ListPlansRunning(projectIds []string) ([]*shared.Plan, *shared.ApiError)
+	ListPlansRunning(projectIds []string, includeRecent bool) (*shared.ListPlansRunningResponse, *shared.ApiError)
 
 	GetCurrentBranchByPlanId(projectId string, req shared.GetCurrentBranchByPlanIdRequest) (map[string]*shared.Branch, *shared.ApiError)
 

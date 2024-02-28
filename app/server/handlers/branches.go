@@ -39,7 +39,7 @@ func ListBranchesHandler(w http.ResponseWriter, r *http.Request) {
 		defer (*unlockFn)(err)
 	}
 
-	branches, err := db.ListBranches(auth.OrgId, planId)
+	branches, err := db.ListPlanBranches(auth.OrgId, planId)
 
 	if err != nil {
 		log.Printf("Error getting branches: %v\n", err)

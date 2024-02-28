@@ -37,8 +37,8 @@ func (state *activeTellStreamState) loadTellPlan() error {
 			PlanId:   planId,
 			Branch:   branch,
 			Scope:    lockScope,
-			Ctx:      active.ModelStreamCtx,
-			CancelFn: active.CancelModelStreamFn,
+			Ctx:      active.Ctx,
+			CancelFn: active.CancelFn,
 		},
 	)
 
@@ -144,6 +144,9 @@ func (state *activeTellStreamState) loadTellPlan() error {
 			return
 		}
 		convo = res
+		UpdateActivePlan(planId, branch, func(ap *types.ActivePlan) {
+			ap.MessageNum = len(convo)
+		})
 
 		promptTokens, err := shared.GetNumTokens(req.Prompt)
 		if err != nil {

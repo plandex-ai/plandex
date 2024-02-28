@@ -6,6 +6,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/lib/pq"
 )
 
@@ -32,6 +33,9 @@ func LockRepo(params LockRepoParams) (string, error) {
 }
 
 func lockRepo(params LockRepoParams, numRetry int) (string, error) {
+	log.Println("locking repo")
+	spew.Dump(params)
+
 	orgId := params.OrgId
 	userId := params.UserId
 	planId := params.PlanId
@@ -136,6 +140,8 @@ func lockRepo(params LockRepoParams, numRetry int) (string, error) {
 	}
 
 	if !canAcquire {
+		log.Println("can't acquire lock. canRetry:", canRetry, "numRetry:", numRetry)
+
 		if canRetry {
 			// 10 second timeout
 			if numRetry > 20 {
@@ -219,7 +225,7 @@ func lockRepo(params LockRepoParams, numRetry int) (string, error) {
 				return
 
 			default:
-				_, err := Conn.Exec("UPDATE repo_locks SET last_heartbeat_at = NOW() WHERE id = $1", newLock.Id)
+				res, err := Conn.Exec("UPDATE repo_locks SET last_heartbeat_at = NOW() WHERE id = $1", newLock.Id)
 
 				if err != nil {
 					log.Printf("Error updating repo lock last heartbeat: %v\n", err)
@@ -232,21 +238,40 @@ func lockRepo(params LockRepoParams, numRetry int) (string, error) {
 					}
 				}
 
+				// check if 0 rows were updated
+				rowsAffected, err := res.RowsAffected()
+				if err != nil {
+					log.Printf("Error getting rows affected: %v\n", err)
+					cancelFn()
+					return
+				}
+
+				if rowsAffected == 0 {
+					log.Printf("Lock not found: %s | stopping heartbeat loop\n", newLock.Id)
+					return
+				}
+
 				time.Sleep(lockHeartbeatInterval)
 			}
 
 		}
 	}()
 
+	log.Println("repo locked. id:", newLock.Id)
+
 	return newLock.Id, nil
 }
 
 func UnlockRepo(id string) error {
+	log.Println("unlocking repo:", id)
+
 	query := "DELETE FROM repo_locks WHERE id = $1"
 	_, err := Conn.Exec(query, id)
 	if err != nil {
 		return fmt.Errorf("error removing lock: %v", err)
 	}
+
+	log.Println("repo unlocked successfully:", id)
 
 	return nil
 }

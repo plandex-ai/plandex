@@ -8,6 +8,8 @@ import (
 	"os"
 	"plandex-server/db"
 	"plandex-server/host"
+
+	"github.com/plandex/plandex/shared"
 )
 
 func proxyActivePlanMethod(w http.ResponseWriter, r *http.Request, planId, branch, method string) {
@@ -27,13 +29,23 @@ func proxyActivePlanMethod(w http.ResponseWriter, r *http.Request, planId, branc
 
 	if modelStream.InternalIp == host.Ip {
 		// No active plan for this plan or else we wouldn't be calling proxyActivePlanMethod -- set the model stream to finished because something went wrong
-		db.SetModelStreamFinished(modelStream.Id)
+		err := db.SetModelStreamFinished(modelStream.Id)
+		if err != nil {
+			log.Printf("Error setting model stream %s to finished: %v\n", modelStream.Id, err)
+		}
+
+		err = db.SetPlanStatus(planId, branch, shared.PlanStatusError, "No active stream for plan")
+		if err != nil {
+			log.Printf("Error setting plan %s status to error: %v\n", planId, err)
+		}
+
 		log.Printf("No active plan for plan %s\n", planId)
 		http.Error(w, "No active plan for plan", http.StatusNotFound)
 		return
 	} else {
 		log.Printf("Forwarding request to %s\n", modelStream.InternalIp)
 		proxyUrl := fmt.Sprintf("http://%s:%s/plans/%s/%s/%s", modelStream.InternalIp, os.Getenv("EXTERNAL_PORT"), planId, branch, method)
+		proxyUrl += "?proxy=true"
 		proxyRequest(w, r, proxyUrl)
 		return
 	}

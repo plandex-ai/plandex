@@ -12,6 +12,7 @@ type StreamMessageType string
 
 const (
 	StreamMessageStart             StreamMessageType = "start"
+	StreamMessageConnectActive     StreamMessageType = "connectActive"
 	StreamMessageReply             StreamMessageType = "reply"
 	StreamMessageDescribing        StreamMessageType = "describing"
 	StreamMessageRepliesFinished   StreamMessageType = "repliesFinished"
@@ -32,4 +33,8 @@ type StreamMessage struct {
 	Error           *ApiError                `json:"error,omitempty"`
 	MissingFilePath string                   `json:"missingFilePath,omitempty"`
 	ModelStreamId   string                   `json:"modelStreamId,omitempty"`
+
+	InitPrompt    string   `json:"initPrompt,omitempty"`
+	InitReplies   []string `json:"initReplies,omitempty"`
+	InitBuildOnly bool     `json:"initBuildOnly,omitempty"`
 }

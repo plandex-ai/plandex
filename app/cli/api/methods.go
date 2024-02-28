@@ -232,13 +232,16 @@ func (a *Api) ListArchivedPlans(projectIds []string) ([]*shared.Plan, *shared.Ap
 	return plans, nil
 }
 
-func (a *Api) ListPlansRunning(projectIds []string) ([]*shared.Plan, *shared.ApiError) {
+func (a *Api) ListPlansRunning(projectIds []string, includeRecent bool) (*shared.ListPlansRunningResponse, *shared.ApiError) {
 	serverUrl := fmt.Sprintf("%s/plans/ps?", getApiHost())
 	parts := []string{}
 	for _, projectId := range projectIds {
 		parts = append(parts, fmt.Sprintf("projectId=%s", projectId))
 	}
 	serverUrl += strings.Join(parts, "&")
+	if includeRecent {
+		serverUrl += "&recent=true"
+	}
 
 	resp, err := authenticatedFastClient.Get(serverUrl)
 	if err != nil {
@@ -251,18 +254,18 @@ func (a *Api) ListPlansRunning(projectIds []string) ([]*shared.Plan, *shared.Api
 		apiErr := handleApiError(resp, errorBody)
 		tokenRefreshed, apiErr := refreshTokenIfNeeded(apiErr)
 		if tokenRefreshed {
-			return a.ListPlansRunning(projectIds)
+			return a.ListPlansRunning(projectIds, includeRecent)
 		}
 		return nil, apiErr
 	}
 
-	var plans []*shared.Plan
-	err = json.NewDecoder(resp.Body).Decode(&plans)
+	var respBody *shared.ListPlansRunningResponse
+	err = json.NewDecoder(resp.Body).Decode(&respBody)
 	if err != nil {
 		return nil, &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error decoding response: %v", err)}
 	}
 
-	return plans, nil
+	return respBody, nil
 }
 
 func (a *Api) GetCurrentBranchByPlanId(projectId string, req shared.GetCurrentBranchByPlanIdRequest) (map[string]*shared.Branch, *shared.ApiError) {
@@ -468,6 +471,9 @@ func (a *Api) TellPlan(planId, branch string, req shared.TellPlanRequest, onStre
 	if req.ConnectStream {
 		log.Println("Connecting stream")
 		connectPlanRespStream(resp.Body, onStream)
+	} else {
+		// log.Println("Background exec - not connecting stream")
+		resp.Body.Close()
 	}
 
 	return nil
@@ -518,6 +524,9 @@ func (a *Api) BuildPlan(planId, branch string, req shared.BuildPlanRequest, onSt
 	if req.ConnectStream {
 		log.Println("Connecting stream")
 		connectPlanRespStream(resp.Body, onStream)
+	} else {
+		// log.Println("Background exec - not connecting stream")
+		resp.Body.Close()
 	}
 
 	return nil
@@ -570,7 +579,6 @@ func (a *Api) ConnectPlan(planId, branch string, onStream types.OnStreamPlan) *s
 	if err != nil {
 		return &shared.ApiError{Msg: fmt.Sprintf("error sending request: %v", err)}
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode >= 400 {
 		errorBody, _ := io.ReadAll(resp.Body)

@@ -218,30 +218,52 @@ func (m *streamUIModel) scrollEnd() {
 }
 
 func (m *streamUIModel) streamUpdate(msg *shared.StreamMessage) (tea.Model, tea.Cmd) {
+
+	checkMissingFileFn := func() {
+		if msg.MissingFilePath != "" {
+			m.promptingMissingFile = true
+			m.missingFilePath = msg.MissingFilePath
+
+			bytes, err := os.ReadFile(m.missingFilePath)
+			if err != nil {
+				log.Println("failed to read file:", err)
+				m.err = fmt.Errorf("failed to read file: %w", err)
+				return
+			}
+			m.missingFileContent = string(bytes)
+
+			numTokens, err := shared.GetNumTokens(m.missingFileContent)
+
+			if err != nil {
+				log.Println("failed to get num tokens:", err)
+				m.err = fmt.Errorf("failed to get num tokens: %w", err)
+				return
+			}
+
+			m.missingFileTokens = numTokens
+		}
+	}
+
 	// log.Println("streamUI received message:", msg.Type)
 	switch msg.Type {
 
+	case shared.StreamMessageConnectActive:
+
+		if msg.InitPrompt != "" {
+			m.prompt = msg.InitPrompt
+		}
+		if msg.InitBuildOnly {
+			m.buildOnly = true
+		}
+		if len(msg.InitReplies) > 0 {
+			m.reply = strings.Join(msg.InitReplies, "\n\n👉 ")
+		}
+		m.updateReplyDisplay()
+
+		checkMissingFileFn()
+
 	case shared.StreamMessagePromptMissingFile:
-		m.promptingMissingFile = true
-		m.missingFilePath = msg.MissingFilePath
-
-		bytes, err := os.ReadFile(m.missingFilePath)
-		if err != nil {
-			log.Println("failed to read file:", err)
-			m.err = fmt.Errorf("failed to read file: %w", err)
-			return m, nil
-		}
-		m.missingFileContent = string(bytes)
-
-		numTokens, err := shared.GetNumTokens(m.missingFileContent)
-
-		if err != nil {
-			log.Println("failed to get num tokens:", err)
-			m.err = fmt.Errorf("failed to get num tokens: %w", err)
-			return m, nil
-		}
-
-		m.missingFileTokens = numTokens
+		checkMissingFileFn()
 
 	case shared.StreamMessageReply:
 		if m.starting {

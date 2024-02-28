@@ -95,32 +95,27 @@ func (fileState *activeBuildStreamFileState) listenStream(stream *openai.ChatCom
 			var content string
 			delta := response.Choices[0].Delta
 
-			if len(delta.ToolCalls) == 0 {
-				log.Println("Stream chunk missing function call. Response:")
-				spew.Dump(response)
+			if len(delta.ToolCalls) > 0 {
+				content = delta.ToolCalls[0].Function.Arguments
 
-				fileState.onBuildFileError(fmt.Errorf("stream chunk missing function call. Reason: %s, File: %s", choice.FinishReason, filePath))
-				return
+				buildInfo := &shared.BuildInfo{
+					Path:      filePath,
+					NumTokens: 1,
+					Finished:  false,
+				}
+
+				// log.Printf("%s: %s", filePath, content)
+				activePlan.Stream(shared.StreamMessage{
+					Type:      shared.StreamMessageBuildInfo,
+					BuildInfo: buildInfo,
+				})
+
+				fileState.buffer += content
 			}
-
-			content = delta.ToolCalls[0].Function.Arguments
-			buildInfo := &shared.BuildInfo{
-				Path:      filePath,
-				NumTokens: 1,
-				Finished:  false,
-			}
-
-			// log.Printf("%s: %s", filePath, content)
-			activePlan.Stream(shared.StreamMessage{
-				Type:      shared.StreamMessageBuildInfo,
-				BuildInfo: buildInfo,
-			})
-
-			fileState.buffer += content
 
 			var streamed types.StreamedReplacements
 			err = json.Unmarshal([]byte(fileState.buffer), &streamed)
-			if err == nil && len(streamed.Replacements) > 0 {
+			if err == nil {
 				log.Printf("File %s: Parsed streamed replacements\n", filePath)
 				spew.Dump(streamed)
 
@@ -162,6 +157,13 @@ func (fileState *activeBuildStreamFileState) listenStream(stream *openai.ChatCom
 				})
 
 				fileState.onFinishBuildFile(planFileResult)
+				return
+			} else if len(delta.ToolCalls) == 0 {
+				log.Println("Stream chunk missing function call. Response:")
+				spew.Dump(response)
+				spew.Dump(fileState)
+
+				fileState.onBuildFileError(fmt.Errorf("stream chunk missing function call. Reason: %s, File: %s", choice.FinishReason, filePath))
 				return
 			}
 		}

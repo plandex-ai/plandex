@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/lib/pq"
 	"github.com/plandex/plandex/shared"
 )
 
@@ -114,7 +115,7 @@ func GetDbBranch(planId, name string) (*Branch, error) {
 	return &branch, nil
 }
 
-func ListBranches(orgId, planId string) ([]*Branch, error) {
+func ListPlanBranches(orgId, planId string) ([]*Branch, error) {
 	var branches []*Branch
 	err := Conn.Select(&branches, "SELECT * FROM branches WHERE plan_id = $1 ORDER BY created_at", planId)
 
@@ -141,6 +142,17 @@ func ListBranches(orgId, planId string) ([]*Branch, error) {
 	}
 
 	return res, nil
+}
+
+func ListBranchesForPlans(orgId string, planIds []string) ([]*Branch, error) {
+	var branches []*Branch
+	err := Conn.Select(&branches, "SELECT * FROM branches WHERE plan_id = ANY($1) ORDER BY created_at", pq.Array(planIds))
+
+	if err != nil {
+		return nil, fmt.Errorf("error listing branches: %v", err)
+	}
+
+	return branches, nil
 }
 
 func DeleteBranch(orgId, planId, branch string) error {

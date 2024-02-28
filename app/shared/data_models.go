@@ -39,19 +39,6 @@ type Project struct {
 	LastActivePlanId string `json:"lastActivePlanId"`
 }
 
-type PlanStatus string
-
-const (
-	PlanStatusDraft      PlanStatus = "draft"
-	PlanStatusReplying   PlanStatus = "replying"
-	PlanStatusDescribing PlanStatus = "describing"
-	PlanStatusBuilding   PlanStatus = "building"
-	PlanStatusPrompting  PlanStatus = "prompting"
-	PlanStatusFinished   PlanStatus = "finished"
-	PlanStatusStopped    PlanStatus = "stopped"
-	PlanStatusError      PlanStatus = "error"
-)
-
 type Plan struct {
 	Id              string     `json:"id"`
 	OwnerId         string     `json:"ownerId"`
@@ -67,6 +54,7 @@ type Plan struct {
 
 type Branch struct {
 	Id              string     `json:"id"`
+	PlanId          string     `json:"planId"`
 	OwnerId         string     `json:"ownerId"`
 	ParentBranchId  *string    `json:"parentBranchId"`
 	Name            string     `json:"name"`
@@ -200,8 +188,6 @@ type OrgRole struct {
 	Description string `json:"description"`
 }
 
-type ModelProvider string
-
 type BaseModelConfig struct {
 	Provider  ModelProvider `json:"provider"`
 	BaseUrl   string        `json:"baseUrl"`
@@ -217,8 +203,6 @@ type PlannerModelConfig struct {
 type TaskModelConfig struct {
 	OpenAIResponseFormat *openai.ChatCompletionResponseFormat `json:"openAIResponseFormat"`
 }
-
-type ModelRole string
 
 type ModelRoleConfig struct {
 	Role            ModelRole       `json:"role"`

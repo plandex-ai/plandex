@@ -37,7 +37,7 @@ func activatePlan(client *openai.Client, plan *db.Plan, branch string, auth *typ
 		InternalIp: host.Ip,
 		Branch:     branch,
 	}
-	err = db.StoreModelStream(modelStream, active.ModelStreamCtx, active.CancelModelStreamFn)
+	err = db.StoreModelStream(modelStream, active.Ctx, active.CancelFn)
 	if err != nil {
 		log.Printf("Tell: Error storing model stream for plan ID %s on branch %s: %v\n", plan.Id, branch, err) // Log error storing model stream
 		log.Printf("Error storing model stream: %v\n", err)

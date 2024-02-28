@@ -41,6 +41,9 @@ var CmdDesc = map[string][2]string{
 	"build":         {"b", "build any pending changes"},
 	"models":        {"", "show model settings"},
 	"set-model":     {"", "update model settings"},
+	"ps":            {"", "list active and recently finished plan streams"},
+	"stop":          {"", "stop an active plan stream"},
+	"connect":       {"conn", "connect to an active plan stream"},
 }
 
 func PrintCmds(prefix string, cmds ...string) {

@@ -15,7 +15,7 @@ var OnStreamPlan types.OnStreamPlan = func(params types.OnStreamPlanParams) {
 	}
 
 	if params.Msg.Type == shared.StreamMessageStart {
-		log.Println("Stream started")
+		// log.Println("Stream started")
 		return
 	}
 

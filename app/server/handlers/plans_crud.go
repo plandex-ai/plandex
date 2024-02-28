@@ -9,7 +9,9 @@ import (
 	"os"
 	"plandex-server/db"
 	"plandex-server/types"
+	"sort"
 	"strings"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/plandex/plandex/shared"
@@ -282,8 +284,8 @@ func ListPlansHandler(w http.ResponseWriter, r *http.Request) {
 	plans, err := db.ListOwnedPlans(projectIds, auth.User.Id, false)
 
 	if err != nil {
-		log.Printf("Error listing plan ids: %v\n", err)
-		http.Error(w, "Error listing plan ids: "+err.Error(), http.StatusInternalServerError)
+		log.Printf("Error listing plans: %v\n", err)
+		http.Error(w, "Error listing plans: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -295,8 +297,8 @@ func ListPlansHandler(w http.ResponseWriter, r *http.Request) {
 	bytes, err := json.Marshal(apiPlans)
 
 	if err != nil {
-		log.Printf("Error marshalling plan ids: %v\n", err)
-		http.Error(w, "Error marshalling plan ids: "+err.Error(), http.StatusInternalServerError)
+		log.Printf("Error marshalling plans: %v\n", err)
+		http.Error(w, "Error marshalling plans: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -359,6 +361,7 @@ func ListPlansRunningHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	projectIds := r.URL.Query()["projectId"]
+	includeRecent := r.URL.Query().Get("recent") == "true"
 
 	log.Println("projectIds: ", projectIds)
 
@@ -374,8 +377,138 @@ func ListPlansRunningHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// TODO: implement when status is figured out
+	plans, err := db.ListOwnedPlans(projectIds, auth.User.Id, false)
 
+	if err != nil {
+		log.Printf("Error listing plans: %v\n", err)
+		http.Error(w, "Error listing plans: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	var planIds []string
+	for _, plan := range plans {
+		planIds = append(planIds, plan.Id)
+	}
+
+	errCh := make(chan error)
+	var streams []*db.ModelStream
+	var branches []*db.Branch
+
+	go func() {
+		var err error
+		if includeRecent {
+			streams, err = db.GetActiveOrRecentModelStreams(planIds)
+		} else {
+			streams, err = db.GetActiveModelStreams(planIds)
+		}
+		if err != nil {
+			errCh <- fmt.Errorf("error getting recent model streams: %v", err)
+			return
+		}
+		errCh <- nil
+	}()
+
+	go func() {
+		var err error
+		branches, err = db.ListBranchesForPlans(auth.OrgId, planIds)
+		if err != nil {
+			errCh <- fmt.Errorf("error getting branches: %v", err)
+			return
+		}
+		errCh <- nil
+	}()
+
+	for i := 0; i < 2; i++ {
+		err := <-errCh
+		if err != nil {
+			log.Println(err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+
+	res := shared.ListPlansRunningResponse{
+		Branches:                   []*shared.Branch{},
+		StreamStartedAtByBranchId:  map[string]time.Time{},
+		StreamFinishedAtByBranchId: map[string]time.Time{},
+		PlansById:                  map[string]*shared.Plan{},
+		StreamIdByBranchId:         map[string]string{},
+	}
+
+	var apiPlansById = make(map[string]*shared.Plan)
+	for _, plan := range plans {
+		apiPlan := plan.ToApi()
+		apiPlansById[plan.Id] = apiPlan
+	}
+
+	var apiBranchesByComposite = make(map[string]*shared.Branch)
+	for _, branch := range branches {
+		apiBranch := branch.ToApi()
+		apiBranchesByComposite[branch.PlanId+"|"+branch.Name] = apiBranch
+	}
+
+	addedBranches := make(map[string]bool)
+	for _, stream := range streams {
+		branchComposite := stream.PlanId + "|" + stream.Branch
+		apiBranch, ok := apiBranchesByComposite[branchComposite]
+		if !ok {
+			log.Printf("Stream %s has no branch\n", stream.Id)
+			http.Error(w, "Stream has no branch", http.StatusInternalServerError)
+			return
+		}
+
+		apiPlan, ok := apiPlansById[stream.PlanId]
+		if !ok {
+			log.Printf("Stream %s has no plan\n", stream.Id)
+			http.Error(w, "Stream has no plan", http.StatusInternalServerError)
+			return
+		}
+
+		if !addedBranches[branchComposite] {
+			res.Branches = append(res.Branches, apiBranch)
+			addedBranches[branchComposite] = true
+		}
+
+		res.StreamStartedAtByBranchId[apiBranch.Id] = stream.CreatedAt
+		if stream.FinishedAt != nil {
+			res.StreamFinishedAtByBranchId[apiBranch.Id] = *stream.FinishedAt
+		}
+		res.StreamIdByBranchId[apiBranch.Id] = stream.Id
+
+		res.PlansById[stream.PlanId] = apiPlan
+	}
+
+	sort.Slice(res.Branches, func(i, j int) bool {
+		iComposite := res.Branches[i].PlanId + "|" + res.Branches[i].Name
+		jComposite := res.Branches[j].PlanId + "|" + res.Branches[j].Name
+		iFinishedAt, iOk := res.StreamFinishedAtByBranchId[iComposite]
+		jFinishedAt, jOk := res.StreamFinishedAtByBranchId[jComposite]
+		iCreatedAt := res.StreamStartedAtByBranchId[iComposite]
+		jCreatedAt := res.StreamStartedAtByBranchId[jComposite]
+
+		if iOk && jOk {
+			return iFinishedAt.Before(jFinishedAt) // Sort finished streams by finishedAt in ascending order.
+		}
+		if iOk {
+			return false // Place i after j if i is finished and j is not.
+		}
+		if jOk {
+			return true // Place i before j if i is not finished and j is.
+		}
+		return iCreatedAt.Before(jCreatedAt) // Sort by createdAt in ascending order if both are unfinished.
+	})
+
+	bytes, err := json.Marshal(res)
+
+	if err != nil {
+		log.Printf("Error marshalling response: %v\n", err)
+		http.Error(w, "Error marshalling response: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	log.Println("Successfully processed ListPlansRunningHandler request")
+
+	w.Write(bytes)
 }
 
 func GetCurrentBranchByPlanIdHandler(w http.ResponseWriter, r *http.Request) {
@@ -404,8 +537,8 @@ func GetCurrentBranchByPlanIdHandler(w http.ResponseWriter, r *http.Request) {
 	plans, err := db.ListOwnedPlans([]string{projectId}, auth.User.Id, false)
 
 	if err != nil {
-		log.Printf("Error listing plan ids: %v\n", err)
-		http.Error(w, "Error listing plan ids: "+err.Error(), http.StatusInternalServerError)
+		log.Printf("Error listing plans: %v\n", err)
+		http.Error(w, "Error listing plans: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 

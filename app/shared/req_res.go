@@ -1,5 +1,7 @@
 package shared
 
+import "time"
+
 type StartTrialResponse struct {
 	UserId   string `json:"userId"`
 	Token    string `json:"token"`
@@ -87,6 +89,14 @@ type CreatePlanResponse struct {
 
 type GetCurrentBranchByPlanIdRequest struct {
 	CurrentBranchByPlanId map[string]string `json:"currentBranchByPlanId"`
+}
+
+type ListPlansRunningResponse struct {
+	Branches                   []*Branch            `json:"branches"`
+	StreamStartedAtByBranchId  map[string]time.Time `json:"streamStartedAtByBranchId"`
+	StreamFinishedAtByBranchId map[string]time.Time `json:"streamFinishedAtByBranchId"`
+	StreamIdByBranchId         map[string]string    `json:"streamIdByBranchId"`
+	PlansById                  map[string]*Plan     `json:"plansById"`
 }
 
 type BuildMode string

@@ -6,6 +6,9 @@ import (
 	"fmt"
 	"log"
 	"time"
+
+	"github.com/lib/pq"
+	"github.com/plandex/plandex/shared"
 )
 
 const modelStreamHeartbeatInterval = 1 * time.Second
@@ -39,7 +42,6 @@ func StoreModelStream(stream *ModelStream, ctx context.Context, cancelFn context
 		for {
 			select {
 			case <-ctx.Done():
-				// log.Printf("case <-stream.Ctx.Done(): %s\n", stream.Id)
 				err := SetModelStreamFinished(stream.Id)
 				if err != nil {
 					log.Printf("Error setting model stream %s finished: %v\n", stream.Id, err)
@@ -104,12 +106,40 @@ func GetActiveModelStream(planId, branch string) (*ModelStream, error) {
 			return nil, fmt.Errorf("error setting model stream finished: %v", err)
 		}
 
+		err = SetPlanStatus(planId, branch, shared.PlanStatusError, "Model stream has not sent a heartbeat in 5 seconds")
+
+		if err != nil {
+			return nil, fmt.Errorf("error setting plan status to error: %v", err)
+		}
+
 		return nil, nil
 	} else {
 		log.Printf("Model stream %s sent heartbeat %d seconds ago\n", stream.Id, int(time.Since(stream.LastHeartbeatAt).Seconds()))
 	}
 
 	return &stream, nil
+}
+
+func GetActiveOrRecentModelStreams(planIds []string) ([]*ModelStream, error) {
+	var streams []*ModelStream
+	err := Conn.Select(&streams, "SELECT * FROM model_streams WHERE plan_id = ANY($1) AND (finished_at IS NULL OR finished_at > NOW() - INTERVAL '1 hour') ORDER BY created_at", pq.Array(planIds))
+
+	if err != nil {
+		return nil, fmt.Errorf("error getting active or recent model streams: %v", err)
+	}
+
+	return streams, nil
+}
+
+func GetActiveModelStreams(planIds []string) ([]*ModelStream, error) {
+	var streams []*ModelStream
+	err := Conn.Select(&streams, "SELECT * FROM model_streams WHERE plan_id = ANY($1) AND finished_at IS NULL ORDER BY created_at", pq.Array(planIds))
+
+	if err != nil {
+		return nil, fmt.Errorf("error getting active  model streams: %v", err)
+	}
+
+	return streams, nil
 }
 
 // func StoreModelStreamSubscription(subscription *ModelStreamSubscription) error {

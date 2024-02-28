@@ -30,6 +30,9 @@ func (state *CurrentPlanState) PendingChangesSummary() string {
 	byDescs := map[string]*changeset{}
 
 	for _, result := range state.PlanResult.Results {
+		// log.Println("result:")
+		// spew.Dump(result)
+
 		convoIds := map[string]bool{}
 		if descByConvoMessageId[result.ConvoMessageId] != nil {
 			convoIds[result.ConvoMessageId] = true
@@ -49,9 +52,11 @@ func (state *CurrentPlanState) PendingChangesSummary() string {
 		ch := byDescs[composite]
 		ch.results = append(byDescs[composite].results, result)
 
+		// log.Println("uniqueConvoIds:", uniqueConvoIds)
+
 		for _, convoMessageId := range uniqueConvoIds {
 			if desc, ok := descByConvoMessageId[convoMessageId]; ok {
-				if !ch.descsSet[convoMessageId] {
+				if !ch.descsSet[convoMessageId] && !desc.DidBuild {
 					ch.descs = append(ch.descs, desc)
 					ch.descsSet[convoMessageId] = true
 				}
@@ -81,11 +86,14 @@ func (state *CurrentPlanState) PendingChangesSummary() string {
 		var descMsgs []string
 
 		if len(ch.descs) == 0 {
-			descMsgs = append(descMsgs, "  ✏️  Changes")
-		} else {
-			for _, desc := range ch.descs {
-				descMsgs = append(descMsgs, fmt.Sprintf("  ✏️  %s", desc.CommitMsg))
-			}
+			// log.Println("Warning: no descriptions for changeset")
+			// spew.Dump(ch)
+			continue
+			// descMsgs = append(descMsgs, "  ✏️  Changes")
+		}
+
+		for _, desc := range ch.descs {
+			descMsgs = append(descMsgs, fmt.Sprintf("  ✏️  %s", desc.CommitMsg))
 		}
 
 		pendingNewFilesSet := make(map[string]bool)

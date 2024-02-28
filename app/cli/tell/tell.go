@@ -120,7 +120,9 @@ func TellPlan(prompt string, tellBg, tellStop, tellNoBuild, isUserContinue bool)
 	}
 
 	if tellBg {
-		fmt.Println("✅ Prompt sent")
+		fmt.Println("✅ Plan is active in the background")
+		fmt.Println()
+		term.PrintCmds("", "ps", "connect", "stop")
 	} else {
 		// Wait for stream UI to quit
 		select {}

@@ -158,9 +158,10 @@ func UpdateContextHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	updateRes, err := db.UpdateContexts(db.UpdateContextsParams{
-		Req:   &requestBody,
-		OrgId: auth.OrgId,
-		Plan:  plan,
+		Req:        &requestBody,
+		OrgId:      auth.OrgId,
+		Plan:       plan,
+		BranchName: branchName,
 	})
 
 	if err != nil {

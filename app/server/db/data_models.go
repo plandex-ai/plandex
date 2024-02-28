@@ -173,6 +173,7 @@ type Branch struct {
 func (branch *Branch) ToApi() *shared.Branch {
 	return &shared.Branch{
 		Id:              branch.Id,
+		PlanId:          branch.PlanId,
 		OwnerId:         branch.OwnerId,
 		ParentBranchId:  branch.ParentBranchId,
 		Name:            branch.Name,

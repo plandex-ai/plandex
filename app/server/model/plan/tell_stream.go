@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/plandex/plandex/shared"
 	"github.com/sashabaranov/go-openai"
 )
@@ -138,7 +139,7 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 					})
 				}
 
-				log.Println("Locking repo for assistant reply and description")
+				log.Println("Locking repo to store assistant reply and description")
 
 				repoLockId, err := db.LockRepo(
 					db.LockRepoParams{
@@ -200,6 +201,8 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 					errCh := make(chan error, 2)
 
 					go func() {
+						log.Println("getting description for assistant message: ", assistantMsg.Id)
+
 						if len(replyFiles) == 0 {
 							description = &db.ConvoMessageDescription{
 								OrgId:                 currentOrgId,
@@ -209,6 +212,7 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 								MadePlan:              false,
 							}
 						} else {
+							log.Println("Generating plan description")
 							description, err = genPlanDescription(client, settings.ModelSet.CommitMsg, planId, branch, active.Ctx)
 							if err != nil {
 								state.onError(fmt.Errorf("failed to generate plan description: %v", err), true, assistantMsg.Id, convoCommitMsg)
@@ -222,6 +226,7 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 							description.Files = replyFiles
 						}
 
+						log.Println("Storing description")
 						err = db.StoreDescription(description)
 
 						if err != nil {
@@ -229,6 +234,9 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 							errCh <- err
 							return
 						}
+
+						log.Println("Description stored")
+						spew.Dump(description)
 
 						errCh <- nil
 					}()
@@ -295,10 +303,24 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 					log.Printf("Won't continue plan. Build finished: %v\n", buildFinished)
 
 					if buildFinished {
+						log.Println("Plan is finished")
 						active.Stream(shared.StreamMessage{
 							Type: shared.StreamMessageFinished,
 						})
 					} else {
+						log.Println("Plan is still building")
+						log.Println("Updating status to building")
+						err := db.SetPlanStatus(planId, branch, shared.PlanStatusBuilding, "")
+						if err != nil {
+							log.Printf("Error setting plan status to building: %v\n", err)
+							active.StreamDoneCh <- &shared.ApiError{
+								Type:   shared.ApiErrorTypeOther,
+								Status: http.StatusInternalServerError,
+								Msg:    "Error setting plan status to building",
+							}
+							return
+						}
+
 						log.Println("Sending RepliesFinished stream message")
 						active.Stream(shared.StreamMessage{
 							Type: shared.StreamMessageRepliesFinished,
@@ -341,8 +363,6 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 				ReplyChunk: content,
 			})
 
-			// log.Printf("content: %s\n", content)
-
 			replyParser.AddChunk(content, true)
 			parserRes := replyParser.Read()
 			files := parserRes.Files
@@ -364,7 +384,7 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 
 				// attempting to overwrite a file that isn't in context
 				// we will stop the stream and ask the user what to do
-				err := db.SetPlanStatus(planId, branch, shared.PlanStatusPrompting, "")
+				err := db.SetPlanStatus(planId, branch, shared.PlanStatusMissingFile, "")
 
 				if err != nil {
 					log.Printf("Error setting plan %s status to prompting: %v\n", planId, err)
@@ -375,6 +395,10 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 					}
 					return
 				}
+
+				UpdateActivePlan(planId, branch, func(ap *types.ActivePlan) {
+					ap.MissingFilePath = currentFile
+				})
 
 				log.Printf("Prompting user for missing file: %s\n", currentFile)
 
@@ -393,11 +417,21 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 				log.Printf("Stopped stream for missing file: %s\n", currentFile)
 
 				// wait for user response to come in
-				userChoice := <-active.MissingFileResponseCh
+				var userChoice shared.RespondMissingFileChoice
+				select {
+				case <-active.Ctx.Done():
+					log.Println("Context cancelled while waiting for missing file response")
+					return
+				case userChoice = <-active.MissingFileResponseCh:
+				}
 
 				log.Printf("User choice for missing file: %s\n", userChoice)
 
 				active.ResetModelCtx()
+
+				UpdateActivePlan(planId, branch, func(ap *types.ActivePlan) {
+					ap.MissingFilePath = ""
+				})
 
 				log.Println("Continuing stream")
 
@@ -502,6 +536,7 @@ func (state *activeTellStreamState) storeAssistantReply() (*db.ConvoMessage, str
 
 	UpdateActivePlan(planId, branch, func(ap *types.ActivePlan) {
 		ap.MessageNum = num
+		ap.StoredReplyIds = append(ap.StoredReplyIds, replyId)
 	})
 
 	return &assistantMsg, commitMsg, err

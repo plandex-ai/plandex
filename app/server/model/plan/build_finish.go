@@ -43,6 +43,8 @@ func (state *activeBuildStreamFileState) onFinishBuild() {
 		return
 	}
 
+	log.Println("Locking repo for finished build")
+
 	repoLockId, err := db.LockRepo(
 		db.LockRepoParams{
 			OrgId:       currentOrgId,
@@ -96,6 +98,13 @@ func (state *activeBuildStreamFileState) onFinishBuild() {
 			return fmt.Errorf("error getting pending build descriptions: %v", err)
 		}
 
+		var unbuiltDescs []*db.ConvoMessageDescription
+		for _, desc := range planDescs {
+			if !desc.DidBuild {
+				unbuiltDescs = append(unbuiltDescs, desc)
+			}
+		}
+
 		// get fresh current plan state
 		var currentPlan *shared.CurrentPlanState
 		currentPlan, err = db.GetCurrentPlanState(db.CurrentPlanStateParams{
@@ -109,7 +118,7 @@ func (state *activeBuildStreamFileState) onFinishBuild() {
 		}
 
 		descErrCh := make(chan error)
-		for _, desc := range planDescs {
+		for _, desc := range unbuiltDescs {
 			if len(desc.Files) > 0 {
 				desc.DidBuild = true
 			}
@@ -126,7 +135,7 @@ func (state *activeBuildStreamFileState) onFinishBuild() {
 			}(desc)
 		}
 
-		for range planDescs {
+		for range unbuiltDescs {
 			err = <-descErrCh
 			if err != nil {
 				log.Printf("Error storing description: %v\n", err)
