@@ -1,6 +1,7 @@
 package shared
 
 import (
+	"log"
 	"time"
 )
 
@@ -67,12 +68,50 @@ func (p PlanFileResultsByPath) NumPending() int {
 	return numPending
 }
 
-func (p PlanFileResultsByPath) OriginalContextForPath(path string) string {
-	planResults := p[path]
-	if len(planResults) == 0 {
-		return ""
+func (p PlanFileResultsByPath) ConflictedPaths(filesByPath map[string]string) map[string]bool {
+	conflictedPaths := map[string]bool{}
+
+	for path, body := range filesByPath {
+		planRes := p[path]
+
+		// log.Println("Checking for conflicts in path:", path)
+		// log.Println("Body:")
+		// log.Println(body)
+
+		if planRes == nil {
+			continue
+		}
+
+		updated := body
+
+		noConflicts := true
+		for _, res := range planRes {
+
+			log.Println("res:", res.Id)
+			if len(res.Replacements) == 0 {
+				continue
+			}
+
+			var succeeded bool
+			updated, succeeded = ApplyReplacements(updated, res.Replacements, false)
+
+			// log.Println("updated:", updated)
+			// log.Println("succeeded:", succeeded)
+
+			if !succeeded {
+				noConflicts = false
+				break
+			}
+		}
+
+		// log.Println("No conflicts:", noConflicts)
+
+		if !noConflicts {
+			conflictedPaths[path] = true
+		}
 	}
-	return planResults[0].ContextBody
+
+	return conflictedPaths
 }
 
 func (r PlanResult) NumPendingForPath(path string) int {
@@ -88,7 +127,7 @@ func (r PlanResult) NumPendingForPath(path string) int {
 
 func (desc *ConvoMessageDescription) NumBuildsPendingByPath() map[string]int {
 	res := map[string]int{}
-	if !desc.DidBuild && len(desc.Files) > 0 {
+	if (!desc.DidBuild && len(desc.Files) > 0) || len(desc.BuildPathsInvalidated) > 0 {
 		for _, file := range desc.Files {
 			res[file]++
 		}

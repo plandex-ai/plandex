@@ -3,6 +3,7 @@ package db
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"sort"
@@ -50,6 +51,7 @@ type CurrentPlanStateParams struct {
 	PlanId                   string
 	PlanFileResults          []*PlanFileResult
 	ConvoMessageDescriptions []*ConvoMessageDescription
+	Contexts                 []*Context
 }
 
 func GetCurrentPlanState(params CurrentPlanStateParams) (*shared.CurrentPlanState, error) {
@@ -58,6 +60,7 @@ func GetCurrentPlanState(params CurrentPlanStateParams) (*shared.CurrentPlanStat
 
 	var dbPlanFileResults []*PlanFileResult
 	var convoMessageDescriptions []*shared.ConvoMessageDescription
+	contextsByPath := map[string]*Context{}
 
 	errCh := make(chan error)
 
@@ -97,7 +100,29 @@ func GetCurrentPlanState(params CurrentPlanStateParams) (*shared.CurrentPlanStat
 		errCh <- nil
 	}()
 
-	for i := 0; i < 2; i++ {
+	go func() {
+		var contexts []*Context
+		if params.Contexts == nil {
+			res, err := GetPlanContexts(orgId, planId, true)
+			if err != nil {
+				errCh <- fmt.Errorf("error getting contexts: %v", err)
+				return
+			}
+			contexts = res
+		} else {
+			contexts = params.Contexts
+		}
+
+		for _, context := range contexts {
+			if context.FilePath != "" {
+				contextsByPath[context.FilePath] = context
+			}
+		}
+
+		errCh <- nil
+	}()
+
+	for i := 0; i < 3; i++ {
 		err := <-errCh
 		if err != nil {
 			return nil, err
@@ -105,15 +130,29 @@ func GetCurrentPlanState(params CurrentPlanStateParams) (*shared.CurrentPlanStat
 	}
 
 	var apiPlanFileResults []*shared.PlanFileResult
+	pendingResultPaths := map[string]bool{}
 
 	for _, dbPlanFileResult := range dbPlanFileResults {
-		apiPlanFileResults = append(apiPlanFileResults, dbPlanFileResult.ToApi())
+		apiResult := dbPlanFileResult.ToApi()
+		apiPlanFileResults = append(apiPlanFileResults, apiResult)
+
+		if apiResult.IsPending() {
+			pendingResultPaths[apiResult.Path] = true
+		}
 	}
 	planResult := GetPlanResult(apiPlanFileResults)
+
+	pendingContextsByPath := map[string]*shared.Context{}
+	for path, context := range contextsByPath {
+		if pendingResultPaths[path] {
+			pendingContextsByPath[path] = context.ToApi()
+		}
+	}
 
 	planState := &shared.CurrentPlanState{
 		PlanResult:               planResult,
 		ConvoMessageDescriptions: convoMessageDescriptions,
+		ContextsByPath:           pendingContextsByPath,
 	}
 
 	currentPlanFiles, err := planState.GetFiles()
@@ -543,6 +582,67 @@ func RejectAllResults(orgId, planId string) error {
 		err := <-errCh
 		if err != nil {
 			return fmt.Errorf("error rejecting plan: %v", err)
+		}
+	}
+
+	return nil
+}
+
+func DeletePendingResultsForPaths(orgId, planId string, paths map[string]bool) error {
+	// log.Println("Deleting pending results for paths")
+	resultsDir := getPlanResultsDir(orgId, planId)
+	files, err := os.ReadDir(resultsDir)
+
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+
+		return fmt.Errorf("error reading results dir: %v", err)
+	}
+
+	errCh := make(chan error, len(files))
+
+	for _, file := range files {
+		resultId := strings.TrimSuffix(file.Name(), ".json")
+
+		go func(resultId string) {
+			bytes, err := os.ReadFile(filepath.Join(resultsDir, resultId+".json"))
+
+			if err != nil {
+				errCh <- fmt.Errorf("error reading result file: %v", err)
+				return
+			}
+
+			var result PlanFileResult
+			err = json.Unmarshal(bytes, &result)
+
+			if err != nil {
+				errCh <- fmt.Errorf("error unmarshalling result file: %v", err)
+				return
+			}
+
+			// log.Printf("Checking pending result: %s", resultId)
+
+			if result.ToApi().IsPending() && paths[result.Path] {
+				log.Printf("Deleting pending result: %s", resultId)
+
+				err = os.Remove(filepath.Join(resultsDir, resultId+".json"))
+
+				if err != nil {
+					errCh <- fmt.Errorf("error deleting result file: %v", err)
+					return
+				}
+			}
+
+			errCh <- nil
+		}(resultId)
+	}
+
+	for i := 0; i < len(files); i++ {
+		err := <-errCh
+		if err != nil {
+			return fmt.Errorf("error deleting pending results: %v", err)
 		}
 	}
 

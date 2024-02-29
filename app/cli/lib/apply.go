@@ -49,7 +49,11 @@ func ApplyPlanWithOutput(planId, branch string, autoConfirm bool) error {
 	var err error
 
 	for path := range currentPlanFiles.Files {
-		contextSha := currentPlanFiles.ContextShas[path]
+		context := currentPlanState.ContextsByPath[path]
+		var contextSha string
+		if context != nil {
+			contextSha = currentPlanState.ContextsByPath[path].Sha
+		}
 
 		if contextSha == "" {
 			// the path wasn't in context

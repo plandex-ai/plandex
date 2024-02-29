@@ -40,9 +40,9 @@ func (m streamUIModel) renderHelp() string {
 	style := lipgloss.NewStyle().Width(m.width).Foreground(lipgloss.Color(helpTextColor)).BorderStyle(lipgloss.NormalBorder()).BorderTop(true).BorderForeground(lipgloss.Color(borderColor))
 
 	if m.buildOnly {
-		return style.Render(" (s)top")
+		return style.Render(" (s)top • (b)ackground")
 	} else {
-		return style.Render(" (s)top • (j/k) scroll • (d/u) page • (g/G) start/end")
+		return style.Render(" (s)top • (b)ackground • (j/k) scroll • (d/u) page • (g/G) start/end")
 	}
 }
 

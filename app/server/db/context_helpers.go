@@ -184,6 +184,17 @@ func LoadContexts(params LoadContextsParams) (*shared.LoadContextResponse, []*Co
 	branchName := params.BranchName
 	userId := params.UserId
 
+	filesToLoad := map[string]string{}
+	for _, context := range *req {
+		if context.ContextType == shared.ContextFileType {
+			filesToLoad[context.FilePath] = context.Body
+		}
+	}
+	err := invalidateConflictedResults(orgId, planId, filesToLoad)
+	if err != nil {
+		return nil, nil, fmt.Errorf("error invalidating conflicted results: %v", err)
+	}
+
 	tokensAdded := 0
 
 	paramsByTempId := make(map[string]*shared.LoadContextParams)
@@ -392,6 +403,13 @@ func UpdateContexts(params UpdateContextsParams) (*shared.UpdateContextResponse,
 		}(id, params)
 	}
 
+	for i := 0; i < len(*req); i++ {
+		err := <-errCh
+		if err != nil {
+			return nil, fmt.Errorf("error getting context: %v", err)
+		}
+	}
+
 	updateRes := &shared.ContextUpdateResult{
 		UpdatedContexts: updatedContexts,
 		TokenDiffsById:  tokenDiffsById,
@@ -412,15 +430,18 @@ func UpdateContexts(params UpdateContextsParams) (*shared.UpdateContextResponse,
 		}, nil
 	}
 
-	for i := 0; i < len(*req); i++ {
-		err := <-errCh
-		if err != nil {
-			return nil, fmt.Errorf("error getting context: %v", err)
+	filesToLoad := map[string]string{}
+	for _, context := range updatedContexts {
+		if context.ContextType == shared.ContextFileType {
+			filesToLoad[context.FilePath] = (*req)[context.Id].Body
 		}
+	}
+	err = invalidateConflictedResults(orgId, planId, filesToLoad)
+	if err != nil {
+		return nil, fmt.Errorf("error invalidating conflicted results: %v", err)
 	}
 
 	errCh = make(chan error)
-	dbContextsCh := make(chan *Context)
 
 	for id, params := range *req {
 		go func(id string, params *shared.UpdateContextParams) {
@@ -440,17 +461,14 @@ func UpdateContexts(params UpdateContextsParams) (*shared.UpdateContextResponse,
 				return
 			}
 
-			dbContextsCh <- context
+			errCh <- nil
 		}(id, params)
 	}
 
-	var dbContexts []*Context
 	for i := 0; i < len(*req); i++ {
-		select {
-		case err := <-errCh:
+		err := <-errCh
+		if err != nil {
 			return nil, fmt.Errorf("error storing context: %v", err)
-		case dbContext := <-dbContextsCh:
-			dbContexts = append(dbContexts, dbContext)
 		}
 	}
 
@@ -466,4 +484,81 @@ func UpdateContexts(params UpdateContextsParams) (*shared.UpdateContextResponse,
 		TotalTokens: totalTokens,
 		Msg:         commitMsg,
 	}, nil
+}
+
+func invalidateConflictedResults(orgId, planId string, filesToLoad map[string]string) error {
+	descriptions, err := GetConvoMessageDescriptions(orgId, planId)
+	if err != nil {
+		return fmt.Errorf("error getting pending build descriptions: %v", err)
+	}
+
+	currentPlan, err := GetCurrentPlanState(CurrentPlanStateParams{
+		OrgId:                    orgId,
+		PlanId:                   planId,
+		ConvoMessageDescriptions: descriptions,
+	})
+
+	if err != nil {
+		return fmt.Errorf("error getting current plan state: %v", err)
+	}
+
+	conflictPaths := currentPlan.PlanResult.FileResultsByPath.ConflictedPaths(filesToLoad)
+
+	// log.Println("invalidateConflictedResults - Conflicted paths:", conflictPaths)
+
+	if len(conflictPaths) > 0 {
+		errCh := make(chan error)
+		numRoutines := 0
+
+		for _, desc := range descriptions {
+			if !desc.DidBuild || desc.AppliedAt != nil {
+				continue
+			}
+
+			for _, path := range desc.Files {
+				if _, found := conflictPaths[path]; found {
+					if desc.BuildPathsInvalidated == nil {
+						desc.BuildPathsInvalidated = make(map[string]bool)
+					}
+					desc.BuildPathsInvalidated[path] = true
+
+					// log.Printf("Invalidating build for path: %s, desc: %s\n", path, desc.Id)
+
+					go func(desc *ConvoMessageDescription) {
+						err := StoreDescription(desc)
+
+						if err != nil {
+							errCh <- fmt.Errorf("error storing description: %v", err)
+							return
+						}
+
+						errCh <- nil
+					}(desc)
+
+					numRoutines++
+				}
+			}
+		}
+
+		go func() {
+			err := DeletePendingResultsForPaths(orgId, planId, conflictPaths)
+
+			if err != nil {
+				errCh <- fmt.Errorf("error deleting pending results: %v", err)
+				return
+			}
+
+			errCh <- nil
+		}()
+		numRoutines++
+
+		for i := 0; i < numRoutines; i++ {
+			err := <-errCh
+			if err != nil {
+				return fmt.Errorf("error storing description: %v", err)
+			}
+		}
+	}
+
+	return nil
 }

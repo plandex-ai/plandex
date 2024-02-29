@@ -73,7 +73,6 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 	ignoredPaths := make(map[string]string)
 
 	if len(inputFilePaths) > 0 {
-
 		projectPaths := make(map[string]bool)
 		var plandexIgnored *ignore.GitIgnore
 
@@ -220,6 +219,19 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 		}
 	}
 
+	filesToLoad := map[string]string{}
+	for _, context := range loadContextReq {
+		if context.ContextType == shared.ContextFileType {
+			filesToLoad[context.FilePath] = context.Body
+		}
+	}
+
+	hasConflicts, err := checkContextConflicts(filesToLoad)
+
+	if err != nil {
+		onErr(fmt.Errorf("failed to check context conflicts: %v", err))
+	}
+
 	if len(loadContextReq) == 0 {
 		term.StopSpinner()
 		fmt.Println("🤷‍♂️ No context loaded")
@@ -242,6 +254,17 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 		overage := res.TotalTokens - res.MaxTokens
 		fmt.Printf("🚨 Update would add %d 🪙 and exceed token limit (%d) by %d 🪙\n", res.TokensAdded, res.MaxTokens, overage)
 		os.Exit(1)
+	}
+
+	if hasConflicts {
+		term.StartSpinner("🏗️  Starting build...")
+		_, err := buildPlanInlineFn()
+
+		if err != nil {
+			onErr(fmt.Errorf("failed to build plan: %v", err))
+		}
+
+		fmt.Println()
 	}
 
 	fmt.Println("✅ " + res.Msg)

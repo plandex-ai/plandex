@@ -2,18 +2,12 @@ package cmd
 
 import (
 	"fmt"
-	"log"
 	"os"
-	"plandex/api"
 	"plandex/auth"
-	"plandex/fs"
 	"plandex/lib"
-	"plandex/stream"
-	streamtui "plandex/stream_tui"
+	"plandex/plan_exec"
 	"plandex/term"
 
-	"github.com/fatih/color"
-	"github.com/plandex/plandex/shared"
 	"github.com/spf13/cobra"
 )
 
@@ -47,57 +41,29 @@ func build(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	lib.MustCheckOutdatedContextWithOutput()
-
-	contexts, apiErr := api.Client.ListContext(lib.CurrentPlanId, lib.CurrentBranch)
-
-	if apiErr != nil {
-		color.New(color.FgRed).Fprintln(os.Stderr, "Error getting context:", apiErr)
-		os.Exit(1)
-	}
-
-	projectPaths, _, err := fs.GetProjectPaths(fs.GetBaseDirForContexts(contexts))
+	didBuild, err := plan_exec.Build(plan_exec.ExecParams{
+		CurrentPlanId:        lib.CurrentPlanId,
+		CurrentBranch:        lib.CurrentBranch,
+		CheckOutdatedContext: func() { lib.MustCheckOutdatedContext(false) },
+	}, buildBg)
 
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error getting project paths:", err)
+		fmt.Fprintln(os.Stderr, err)
 		return
 	}
 
-	apiErr = api.Client.BuildPlan(lib.CurrentPlanId, lib.CurrentBranch, shared.BuildPlanRequest{
-		ConnectStream: !buildBg,
-		ProjectPaths:  projectPaths,
-		ApiKey:        os.Getenv("OPENAI_API_KEY"),
-	}, stream.OnStreamPlan)
-
-	if apiErr != nil {
-		if apiErr.Msg == shared.NoBuildsErr {
-			streamtui.Quit()
-			fmt.Println("🤷‍♂️ This plan has no pending changes to build")
-			return
-		}
-
-		fmt.Fprintln(os.Stderr, "Error building plan:", apiErr.Msg)
+	if !didBuild {
+		fmt.Println()
+		term.PrintCmds("", "log", "tell", "continue")
 		return
 	}
 
 	if buildBg {
 		fmt.Println("🏗️ Building plan in the background")
+		fmt.Println()
+		term.PrintCmds("", "ps", "connect", "stop")
 	} else {
-		go func() {
-			err := streamtui.StartStreamUI("", true)
-
-			if err != nil {
-				log.Printf("Error starting stream UI: %v\n", err)
-				os.Exit(1)
-			}
-
-			fmt.Println()
-			term.PrintCmds("", "changes", "apply", "log")
-
-			os.Exit(0)
-		}()
-
-		// Wait for the stream to finish
-		select {}
+		fmt.Println()
+		term.PrintCmds("", "changes", "apply", "log")
 	}
 }

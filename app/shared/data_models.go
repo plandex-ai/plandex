@@ -113,17 +113,18 @@ type ConvoSummary struct {
 }
 
 type ConvoMessageDescription struct {
-	Id                    string     `json:"id"`
-	ConvoMessageId        string     `json:"convoMessageId"`
-	SummarizedToMessageId string     `json:"summarizedToMessageId"`
-	MadePlan              bool       `json:"madePlan"`
-	CommitMsg             string     `json:"commitMsg"`
-	Files                 []string   `json:"files"`
-	DidBuild              bool       `json:"didBuild"`
-	Error                 string     `json:"error"`
-	AppliedAt             *time.Time `json:"appliedAt,omitempty"`
-	CreatedAt             time.Time  `json:"createdAt"`
-	UpdatedAt             time.Time  `json:"updatedAt"`
+	Id                    string          `json:"id"`
+	ConvoMessageId        string          `json:"convoMessageId"`
+	SummarizedToMessageId string          `json:"summarizedToMessageId"`
+	MadePlan              bool            `json:"madePlan"`
+	CommitMsg             string          `json:"commitMsg"`
+	Files                 []string        `json:"files"`
+	DidBuild              bool            `json:"didBuild"`
+	BuildPathsInvalidated map[string]bool `json:"buildPathsInvalidated"`
+	Error                 string          `json:"error"`
+	AppliedAt             *time.Time      `json:"appliedAt,omitempty"`
+	CreatedAt             time.Time       `json:"createdAt"`
+	UpdatedAt             time.Time       `json:"updatedAt"`
 }
 
 type PlanBuild struct {
@@ -149,8 +150,6 @@ type PlanFileResult struct {
 	ConvoMessageId string         `json:"convoMessageId"`
 	PlanBuildId    string         `json:"planBuildId"`
 	Path           string         `json:"path"`
-	ContextBody    string         `json:"contextBody"`
-	ContextSha     string         `json:"contextSha"`
 	Content        string         `json:"content"`
 	AnyFailed      bool           `json:"anyFailed"`
 	AppliedAt      *time.Time     `json:"appliedAt,omitempty"`
@@ -162,7 +161,6 @@ type PlanFileResult struct {
 
 type CurrentPlanFiles struct {
 	Files           map[string]string    `json:"files"`
-	ContextShas     map[string]string    `json:"contextShas"`
 	UpdatedAtByPath map[string]time.Time `json:"updatedAtByPath"`
 }
 
@@ -179,6 +177,7 @@ type CurrentPlanState struct {
 	PlanResult               *PlanResult                `json:"planResult"`
 	CurrentPlanFiles         *CurrentPlanFiles          `json:"currentPlanFiles"`
 	ConvoMessageDescriptions []*ConvoMessageDescription `json:"convoMessageDescriptions"`
+	ContextsByPath           map[string]*Context        `json:"contextsByPath"`
 }
 
 type OrgRole struct {

@@ -34,7 +34,6 @@ type activeBuildStreamFileState struct {
 	currentPlanState *shared.CurrentPlanState
 	activeBuild      *types.ActiveBuild
 	buffer           string
-	contextPart      *db.Context
 	currentState     string
 }
 
@@ -45,7 +44,6 @@ func (fileState *activeBuildStreamFileState) listenStream(stream *openai.ChatCom
 	planId := fileState.plan.Id
 	branch := fileState.branch
 	currentState := fileState.currentState
-	contextPart := fileState.contextPart
 	activeBuild := fileState.activeBuild
 
 	activePlan := GetActivePlan(planId, branch)
@@ -127,7 +125,6 @@ func (fileState *activeBuildStreamFileState) listenStream(stream *openai.ChatCom
 						convoMessageId:       build.ConvoMessageId,
 						filePath:             filePath,
 						currentState:         currentState,
-						context:              contextPart,
 						fileContent:          activeBuild.FileContent,
 						streamedReplacements: streamed.Replacements,
 					},

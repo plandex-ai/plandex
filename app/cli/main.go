@@ -9,10 +9,20 @@ import (
 	"plandex/auth"
 	"plandex/cmd"
 	"plandex/fs"
+	"plandex/lib"
+	"plandex/plan_exec"
 )
 
 func init() {
+	// inter-package dependency injections to avoid circular imports
 	auth.SetApiClient(api.Client)
+	lib.SetBuildPlanInlineFn(func() (bool, error) {
+		return plan_exec.Build(plan_exec.ExecParams{
+			CurrentPlanId:        lib.CurrentPlanId,
+			CurrentBranch:        lib.CurrentBranch,
+			CheckOutdatedContext: func() { lib.MustCheckOutdatedContext(true) },
+		}, false)
+	})
 
 	// set up a file logger
 	// TODO: log rotation

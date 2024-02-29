@@ -17,7 +17,6 @@ type planResultParams struct {
 	convoMessageId       string
 	filePath             string
 	currentState         string
-	context              *db.Context
 	fileContent          string
 	streamedReplacements []*types.StreamedReplacement
 }
@@ -28,7 +27,6 @@ func getPlanResult(params planResultParams) (*db.PlanFileResult, bool) {
 	planBuildId := params.planBuildId
 	filePath := params.filePath
 	currentState := params.currentState
-	contextPart := params.context
 	streamedReplacements := params.streamedReplacements
 	updated := params.currentState
 	fileContent := params.fileContent
@@ -70,13 +68,6 @@ func getPlanResult(params planResultParams) (*db.PlanFileResult, bool) {
 
 	_, allSucceeded := shared.ApplyReplacements(currentState, replacements, true)
 
-	var contextSha string
-	var contextBody string
-	if contextPart != nil {
-		contextSha = contextPart.Sha
-		contextBody = contextPart.Body
-	}
-
 	for _, replacement := range replacements {
 		id := uuid.New().String()
 		replacement.Id = id
@@ -90,8 +81,6 @@ func getPlanResult(params planResultParams) (*db.PlanFileResult, bool) {
 		Content:        "",
 		Path:           filePath,
 		Replacements:   replacements,
-		ContextSha:     contextSha,
-		ContextBody:    contextBody,
 		AnyFailed:      !allSucceeded,
 	}, allSucceeded
 }

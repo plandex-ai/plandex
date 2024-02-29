@@ -18,8 +18,10 @@ import (
 	"github.com/plandex/plandex/shared"
 )
 
-func MustCheckOutdatedContextWithOutput() {
-	term.StartSpinner("🔬 Checking context...")
+func MustCheckOutdatedContext(quiet bool) {
+	if !quiet {
+		term.StartSpinner("🔬 Checking context...")
+	}
 
 	outdatedRes, err := CheckOutdatedContext()
 	if err != nil {
@@ -27,10 +29,14 @@ func MustCheckOutdatedContextWithOutput() {
 		panic(fmt.Errorf("failed to check outdated context: %s", err))
 	}
 
-	term.StopSpinner()
+	if !quiet {
+		term.StopSpinner()
+	}
 
 	if len(outdatedRes.UpdatedContexts) == 0 {
-		fmt.Println("✅ Context is up to date")
+		if !quiet {
+			fmt.Println("✅ Context is up to date")
+		}
 		return
 	}
 	types := []string{}
@@ -90,7 +96,7 @@ func MustCheckOutdatedContextWithOutput() {
 	}
 
 	if confirmed {
-		MustUpdateContextWithOuput()
+		MustUpdateContext()
 	}
 
 	if canceled {
@@ -99,7 +105,7 @@ func MustCheckOutdatedContextWithOutput() {
 
 }
 
-func MustUpdateContextWithOuput() {
+func MustUpdateContext() {
 	term.StartSpinner("🔄 Updating context...")
 
 	updateRes, err := UpdateContext()
@@ -141,8 +147,10 @@ func checkOutdatedAndMaybeUpdateContext(doUpdate bool) (*types.ContextOutdatedRe
 	var numTrees int
 	var mu sync.Mutex
 	var wg sync.WaitGroup
+	contextsById := map[string]*shared.Context{}
 
 	for _, context := range contexts {
+		contextsById[context.Id] = context
 
 		if context.ContextType == shared.ContextFileType {
 			wg.Add(1)
@@ -259,17 +267,43 @@ func checkOutdatedAndMaybeUpdateContext(doUpdate bool) (*types.ContextOutdatedRe
 	}
 
 	var msg string
+	var hasConflicts bool
 
 	if len(req) == 0 {
 		return &types.ContextOutdatedResult{
 			Msg: "Context is up to date",
 		}, nil
 	} else if doUpdate {
-		res, err := api.Client.UpdateContext(CurrentPlanId, CurrentBranch, req)
+		filesToLoad := map[string]string{}
+		for id := range req {
+			context := contextsById[id]
+			if context.ContextType == shared.ContextFileType {
+				filesToLoad[context.FilePath] = context.Body
+			}
+		}
+
+		var err error
+		hasConflicts, err = checkContextConflicts(filesToLoad)
 		if err != nil {
-			return nil, fmt.Errorf("failed to update context: %v", err)
+			return nil, fmt.Errorf("failed to check context conflicts: %v", err)
+		}
+
+		res, apiErr := api.Client.UpdateContext(CurrentPlanId, CurrentBranch, req)
+		if apiErr != nil {
+			return nil, fmt.Errorf("failed to update context: %v", apiErr)
 		}
 		msg = res.Msg
+	}
+
+	if hasConflicts {
+		term.StartSpinner("🏗️  Starting build...")
+		_, err := buildPlanInlineFn()
+
+		if err != nil {
+			return nil, fmt.Errorf("failed to build plan: %v", err)
+		}
+
+		fmt.Println()
 	}
 
 	return &types.ContextOutdatedResult{

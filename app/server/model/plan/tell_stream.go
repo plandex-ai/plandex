@@ -209,6 +209,7 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 								PlanId:                planId,
 								ConvoMessageId:        assistantMsg.Id,
 								SummarizedToMessageId: summarizedToMessageId,
+								BuildPathsInvalidated: map[string]bool{},
 								MadePlan:              false,
 							}
 						} else {
@@ -578,6 +579,7 @@ func (state *activeTellStreamState) onError(streamErr error, storeDesc bool, con
 			SummarizedToMessageId: summarizedToMessageId,
 			MadePlan:              false,
 			ConvoMessageId:        convoMessageId,
+			BuildPathsInvalidated: map[string]bool{},
 			Error:                 streamErr.Error(),
 		})
 		if err == nil {

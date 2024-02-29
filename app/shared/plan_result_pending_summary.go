@@ -10,8 +10,6 @@ import (
 func (state *CurrentPlanState) PendingChangesSummary() string {
 	var msgs []string
 
-	msgs = append(msgs, "🏗️  Build pending changes")
-
 	descByConvoMessageId := make(map[string]*ConvoMessageDescription)
 	for _, desc := range state.ConvoMessageDescriptions {
 		if desc.ConvoMessageId == "" {
@@ -56,7 +54,7 @@ func (state *CurrentPlanState) PendingChangesSummary() string {
 
 		for _, convoMessageId := range uniqueConvoIds {
 			if desc, ok := descByConvoMessageId[convoMessageId]; ok {
-				if !ch.descsSet[convoMessageId] && !desc.DidBuild {
+				if !ch.descsSet[convoMessageId] && (!desc.DidBuild || len(desc.BuildPathsInvalidated) > 0) {
 					ch.descs = append(ch.descs, desc)
 					ch.descsSet[convoMessageId] = true
 				}
@@ -81,6 +79,36 @@ func (state *CurrentPlanState) PendingChangesSummary() string {
 		}
 		return sortedChangesets[i].descs[0].CreatedAt.Before(sortedChangesets[j].descs[0].CreatedAt)
 	})
+
+	isRebuild := true
+	rebuildPathsSet := make(map[string]bool)
+	for _, ch := range sortedChangesets {
+		allRebuild := true
+		for _, desc := range ch.descs {
+			if len(desc.BuildPathsInvalidated) == 0 {
+				allRebuild = false
+				break
+			} else {
+				for path := range desc.BuildPathsInvalidated {
+					rebuildPathsSet[path] = true
+				}
+			}
+		}
+		if !allRebuild {
+			isRebuild = false
+			break
+		}
+	}
+
+	if isRebuild {
+		msgs = append(msgs, "🏗️  Rebuild paths invalidated by context update")
+		for path := range rebuildPathsSet {
+			msgs = append(msgs, fmt.Sprintf("  • rebuild → %s", path))
+		}
+		return strings.Join(msgs, "\n")
+	}
+
+	msgs = append(msgs, "🏗️  Build pending changes")
 
 	for _, ch := range sortedChangesets {
 		var descMsgs []string

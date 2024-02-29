@@ -5,7 +5,7 @@ import (
 	"os"
 	"plandex/auth"
 	"plandex/lib"
-	"plandex/tell"
+	"plandex/plan_exec"
 	"plandex/term"
 
 	"github.com/spf13/cobra"
@@ -34,12 +34,15 @@ func doContinue(cmd *cobra.Command, args []string) {
 
 	auth.MustResolveAuthWithOrg()
 	lib.MustResolveProject()
-	lib.MustCheckOutdatedContextWithOutput()
 
 	if lib.CurrentPlanId == "" {
 		fmt.Fprintln(os.Stderr, "No current plan")
 		return
 	}
 
-	tell.TellPlan("", tellBg, tellStop, tellNoBuild, true)
+	plan_exec.TellPlan(plan_exec.ExecParams{
+		CurrentPlanId:        lib.CurrentPlanId,
+		CurrentBranch:        lib.CurrentBranch,
+		CheckOutdatedContext: func() { lib.MustCheckOutdatedContext(false) },
+	}, "", tellBg, tellStop, tellNoBuild, true)
 }

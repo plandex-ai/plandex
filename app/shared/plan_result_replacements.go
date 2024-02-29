@@ -18,6 +18,8 @@ func ApplyReplacements(content string, replacements []*Replacement, setFailed bo
 		sub := updated[lastInsertedIdx:]
 		originalIdx := strings.Index(sub, replacement.Old)
 
+		// log.Println("originalIdx:", originalIdx)
+
 		if originalIdx == -1 {
 			allSucceeded = false
 			if setFailed {
@@ -72,8 +74,9 @@ func (planState *CurrentPlanState) GetFilesBeforeReplacement(
 				files[path] = updated
 				continue
 			} else if updated == "" {
-				updated = planRes.ContextBody
-				shas[path] = planRes.ContextSha
+				context := planState.ContextsByPath[path]
+				updated = context.Body
+				shas[path] = context.Sha
 			}
 
 			replacements := []*Replacement{}
@@ -97,5 +100,5 @@ func (planState *CurrentPlanState) GetFilesBeforeReplacement(
 		files[path] = updated
 	}
 
-	return &CurrentPlanFiles{Files: files, ContextShas: shas}, nil
+	return &CurrentPlanFiles{Files: files, UpdatedAtByPath: updatedAtByPath}, nil
 }

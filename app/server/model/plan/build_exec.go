@@ -11,7 +11,12 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
-func Build(client *openai.Client, plan *db.Plan, branch string, auth *types.ServerAuth) (int, error) {
+func Build(
+	client *openai.Client,
+	plan *db.Plan,
+	branch string,
+	auth *types.ServerAuth,
+) (int, error) {
 	log.Printf("Build: Called with plan ID %s on branch %s\n", plan.Id, branch)
 	log.Println("Build: Starting Build operation")
 
@@ -24,11 +29,16 @@ func Build(client *openai.Client, plan *db.Plan, branch string, auth *types.Serv
 		branch:        branch,
 	}
 
-	active := GetActivePlan(plan.Id, branch)
+	streamDone := func() {
+		active := GetActivePlan(plan.Id, branch)
+		if active != nil {
+			active.StreamDoneCh <- nil
+		}
+	}
 
 	onErr := func(err error) (int, error) {
 		log.Printf("Build error: %v\n", err)
-		active.StreamDoneCh <- nil
+		streamDone()
 		return 0, err
 	}
 
@@ -39,7 +49,7 @@ func Build(client *openai.Client, plan *db.Plan, branch string, auth *types.Serv
 
 	if len(pendingBuildsByPath) == 0 {
 		log.Println("No pending builds")
-		active.StreamDoneCh <- nil
+		streamDone()
 		return 0, nil
 	}
 
@@ -157,24 +167,9 @@ func (fileState *activeBuildStreamFileState) buildFile() {
 
 	if fileInCurrentPlan {
 		log.Printf("File %s found in current plan.\n", filePath)
-		if contextPart == nil {
-			log.Println("No context - using current plan state.")
-			currentState = currentPlanFile
-		} else {
-			currentFileUpdatedAt := currentPlan.CurrentPlanFiles.UpdatedAtByPath[filePath]
-			contextFileUpdatedAt := contextPart.UpdatedAt
-
-			if currentFileUpdatedAt.After(contextFileUpdatedAt) {
-				log.Println("Current plan file is newer than context. Using current plan state.")
-				currentState = currentPlanFile
-			} else {
-				log.Println("Context is newer than current plan file. Using context state.")
-				currentState = contextPart.Body
-			}
-		}
+		currentState = currentPlanFile
 	} else if contextPart != nil {
 		log.Printf("File %s found in model context. Using context state.\n", filePath)
-
 		currentState = contextPart.Body
 
 		if currentState == "" {
@@ -183,7 +178,6 @@ func (fileState *activeBuildStreamFileState) buildFile() {
 	}
 
 	fileState.currentState = currentState
-	fileState.contextPart = contextPart
 
 	if currentState == "" {
 		log.Printf("File %s not found in model context or current plan. Creating new file.\n", filePath)

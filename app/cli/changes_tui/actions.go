@@ -181,7 +181,7 @@ func (m *changesUIModel) updateMainView(scrollReplacement bool) {
 	// var updateMsg types.ChangesUIViewportsUpdate
 
 	if m.selectedNewFile() || m.selectedFullFile() {
-		originalFile := m.currentPlan.PlanResult.FileResultsByPath.OriginalContextForPath(m.selectionInfo.currentPath)
+		originalFile := m.currentPlan.ContextsByPath[m.selectionInfo.currentPath].Body
 
 		var updatedFile string
 

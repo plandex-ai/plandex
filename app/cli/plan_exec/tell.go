@@ -1,4 +1,4 @@
-package tell
+package plan_exec
 
 import (
 	"fmt"
@@ -7,7 +7,6 @@ import (
 	"plandex/api"
 	"plandex/auth"
 	"plandex/fs"
-	"plandex/lib"
 	"plandex/stream"
 	streamtui "plandex/stream_tui"
 	"plandex/term"
@@ -16,8 +15,17 @@ import (
 	"github.com/plandex/plandex/shared"
 )
 
-func TellPlan(prompt string, tellBg, tellStop, tellNoBuild, isUserContinue bool) {
-	contexts, apiErr := api.Client.ListContext(lib.CurrentPlanId, lib.CurrentBranch)
+func TellPlan(
+	params ExecParams,
+	prompt string,
+	tellBg,
+	tellStop,
+	tellNoBuild,
+	isUserContinue bool,
+) {
+	params.CheckOutdatedContext()
+
+	contexts, apiErr := api.Client.ListContext(params.CurrentPlanId, params.CurrentBranch)
 
 	if apiErr != nil {
 		color.New(color.FgRed).Fprintln(os.Stderr, "Error getting context:", apiErr)
@@ -41,9 +49,13 @@ func TellPlan(prompt string, tellBg, tellStop, tellNoBuild, isUserContinue bool)
 			buildMode = shared.BuildModeAuto
 		}
 
-		term.StartSpinner("💬 Sending prompt...")
+		if isUserContinue {
+			term.StartSpinner("⚡️ Continuing plan...")
+		} else {
+			term.StartSpinner("💬 Sending prompt...")
+		}
 
-		apiErr := api.Client.TellPlan(lib.CurrentPlanId, lib.CurrentBranch, shared.TellPlanRequest{
+		apiErr := api.Client.TellPlan(params.CurrentPlanId, params.CurrentBranch, shared.TellPlanRequest{
 			Prompt:         prompt,
 			ConnectStream:  !tellBg,
 			AutoContinue:   !tellStop,
@@ -57,8 +69,6 @@ func TellPlan(prompt string, tellBg, tellStop, tellNoBuild, isUserContinue bool)
 
 		if apiErr != nil {
 			if apiErr.Type == shared.ApiErrorTypeTrialMessagesExceeded {
-				streamtui.Quit()
-
 				fmt.Fprintf(os.Stderr, "\n🚨 You've reached the free trial limit of %d messages per plan\n", apiErr.TrialMessagesExceededError.MaxReplies)
 
 				res, err := term.ConfirmYesNo("Upgrade now?")

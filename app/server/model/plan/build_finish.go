@@ -100,7 +100,7 @@ func (state *activeBuildStreamFileState) onFinishBuild() {
 
 		var unbuiltDescs []*db.ConvoMessageDescription
 		for _, desc := range planDescs {
-			if !desc.DidBuild {
+			if !desc.DidBuild || len(desc.BuildPathsInvalidated) > 0 {
 				unbuiltDescs = append(unbuiltDescs, desc)
 			}
 		}
@@ -121,6 +121,7 @@ func (state *activeBuildStreamFileState) onFinishBuild() {
 		for _, desc := range unbuiltDescs {
 			if len(desc.Files) > 0 {
 				desc.DidBuild = true
+				desc.BuildPathsInvalidated = map[string]bool{}
 			}
 
 			go func(desc *db.ConvoMessageDescription) {

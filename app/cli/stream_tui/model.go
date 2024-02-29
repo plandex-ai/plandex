@@ -98,7 +98,7 @@ func initialModel(prestartReply, prompt string, buildOnly bool) *streamUIModel {
 		reply:     prestartReply,
 		keymap: keymap{
 			quit: bubbleKey.NewBinding(
-				bubbleKey.WithKeys("ctrl+c"),
+				bubbleKey.WithKeys("b", "ctrl+c", "esc"),
 				bubbleKey.WithHelp("ctrl+c", "quit"),
 			),
 

@@ -36,7 +36,7 @@ func (ap *ActivePlan) PendingBuildsByPath(orgId, userId string, convoMessagesArg
 	activeBuildsByPath := map[string][]*ActiveBuild{}
 
 	for _, desc := range planDescs {
-		if !desc.DidBuild && len(desc.Files) > 0 {
+		if (!desc.DidBuild && len(desc.Files) > 0) || len(desc.BuildPathsInvalidated) > 0 {
 			if desc.ConvoMessageId == "" {
 				log.Printf("No convo message ID for description: %v\n", desc)
 				return nil, fmt.Errorf("no convo message ID for description: %v", desc)
@@ -54,6 +54,11 @@ func (ap *ActivePlan) PendingBuildsByPath(orgId, userId string, convoMessagesArg
 			parserRes := replyParser.FinishAndRead()
 
 			for i, file := range desc.Files {
+
+				if desc.DidBuild && !desc.BuildPathsInvalidated[file] {
+					continue
+				}
+
 				if activeBuildsByPath[file] == nil {
 					activeBuildsByPath[file] = []*ActiveBuild{}
 				}

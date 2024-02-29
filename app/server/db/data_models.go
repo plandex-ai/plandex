@@ -21,14 +21,15 @@ type AuthToken struct {
 }
 
 type Org struct {
-	Id                 string    `db:"id"`
-	Name               string    `db:"name"`
-	Domain             *string   `db:"domain"`
-	AutoAddDomainUsers bool      `db:"auto_add_domain_users"`
-	OwnerId            string    `db:"owner_id"`
-	IsTrial            bool      `db:"is_trial"`
-	CreatedAt          time.Time `db:"created_at"`
-	UpdatedAt          time.Time `db:"updated_at"`
+	Id                 string  `db:"id"`
+	Name               string  `db:"name"`
+	Domain             *string `db:"domain"`
+	AutoAddDomainUsers bool    `db:"auto_add_domain_users"`
+	OwnerId            string  `db:"owner_id"`
+	IsTrial            bool    `db:"is_trial"`
+
+	CreatedAt time.Time `db:"created_at"`
+	UpdatedAt time.Time `db:"updated_at"`
 }
 
 func (org *Org) ToApi() *shared.Org {
@@ -355,19 +356,20 @@ func (msg *ConvoMessage) ToApi() *shared.ConvoMessage {
 }
 
 type ConvoMessageDescription struct {
-	Id                    string     `json:"id"`
-	OrgId                 string     `json:"orgId"`
-	PlanId                string     `json:"planId"`
-	ConvoMessageId        string     `json:"convoMessageId"`
-	SummarizedToMessageId string     `json:"summarizedToMessageId"`
-	MadePlan              bool       `json:"madePlan"`
-	CommitMsg             string     `json:"commitMsg"`
-	Files                 []string   `json:"files"`
-	Error                 string     `json:"error"`
-	DidBuild              bool       `json:"didBuild"`
-	AppliedAt             *time.Time `json:"appliedAt,omitempty"`
-	CreatedAt             time.Time  `json:"createdAt"`
-	UpdatedAt             time.Time  `json:"updatedAt"`
+	Id                    string          `json:"id"`
+	OrgId                 string          `json:"orgId"`
+	PlanId                string          `json:"planId"`
+	ConvoMessageId        string          `json:"convoMessageId"`
+	SummarizedToMessageId string          `json:"summarizedToMessageId"`
+	MadePlan              bool            `json:"madePlan"`
+	CommitMsg             string          `json:"commitMsg"`
+	Files                 []string        `json:"files"`
+	Error                 string          `json:"error"`
+	DidBuild              bool            `json:"didBuild"`
+	BuildPathsInvalidated map[string]bool `json:"buildPathsInvalidated"`
+	AppliedAt             *time.Time      `json:"appliedAt,omitempty"`
+	CreatedAt             time.Time       `json:"createdAt"`
+	UpdatedAt             time.Time       `json:"updatedAt"`
 }
 
 func (desc *ConvoMessageDescription) ToApi() *shared.ConvoMessageDescription {
@@ -379,6 +381,7 @@ func (desc *ConvoMessageDescription) ToApi() *shared.ConvoMessageDescription {
 		CommitMsg:             desc.CommitMsg,
 		Files:                 desc.Files,
 		DidBuild:              desc.DidBuild,
+		BuildPathsInvalidated: desc.BuildPathsInvalidated,
 		Error:                 desc.Error,
 		CreatedAt:             desc.CreatedAt,
 		UpdatedAt:             desc.UpdatedAt,
@@ -392,8 +395,6 @@ type PlanFileResult struct {
 	ConvoMessageId string                `json:"convoMessageId"`
 	PlanBuildId    string                `json:"planBuildId"`
 	Path           string                `json:"path"`
-	ContextSha     string                `json:"contextSha"`
-	ContextBody    string                `json:"contextBody"`
 	Content        string                `json:"content,omitempty"`
 	Replacements   []*shared.Replacement `json:"replacements"`
 	AnyFailed      bool                  `json:"anyFailed"`
@@ -410,8 +411,6 @@ func (res *PlanFileResult) ToApi() *shared.PlanFileResult {
 		PlanBuildId:    res.PlanBuildId,
 		ConvoMessageId: res.ConvoMessageId,
 		Path:           res.Path,
-		ContextSha:     res.ContextSha,
-		ContextBody:    res.ContextBody,
 		Content:        res.Content,
 		AnyFailed:      res.AnyFailed,
 		AppliedAt:      res.AppliedAt,

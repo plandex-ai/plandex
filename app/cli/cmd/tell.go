@@ -6,7 +6,7 @@ import (
 	"os/exec"
 	"plandex/auth"
 	"plandex/lib"
-	"plandex/tell"
+	"plandex/plan_exec"
 	"plandex/term"
 	"strings"
 
@@ -67,54 +67,7 @@ func doTell(cmd *cobra.Command, args []string) {
 		}
 		prompt = string(bytes)
 	} else {
-		editor := os.Getenv("EDITOR")
-		if editor == "" {
-			editor = os.Getenv("VISUAL")
-			if editor == "" {
-				editor = defaultEditor
-			}
-		}
-
-		tempFile, err := os.CreateTemp(os.TempDir(), "plandex_prompt_*")
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "Failed to create temporary file:", err)
-			return
-		}
-
-		instructions := getEditorInstructions(editor)
-		filename := tempFile.Name()
-		err = os.WriteFile(filename, []byte(instructions), 0644)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "Failed to write instructions to temporary file:", err)
-			return
-		}
-
-		editorCmd := prepareEditorCommand(editor, filename)
-		editorCmd.Stdin = os.Stdin
-		editorCmd.Stdout = os.Stdout
-		editorCmd.Stderr = os.Stderr
-		err = editorCmd.Run()
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "Error opening editor:", err)
-			return
-		}
-
-		bytes, err := os.ReadFile(tempFile.Name())
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "Error reading temporary file:", err)
-			return
-		}
-
-		prompt = string(bytes)
-
-		err = os.Remove(tempFile.Name())
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "Error removing temporary file:", err)
-			return
-		}
-
-		prompt = strings.TrimPrefix(prompt, strings.TrimSpace(instructions))
-		prompt = strings.TrimSpace(prompt)
+		prompt = getEditorPrompt()
 	}
 
 	if prompt == "" {
@@ -122,9 +75,11 @@ func doTell(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	lib.MustCheckOutdatedContextWithOutput()
-
-	tell.TellPlan(prompt, tellBg, tellStop, tellNoBuild, false)
+	plan_exec.TellPlan(plan_exec.ExecParams{
+		CurrentPlanId:        lib.CurrentPlanId,
+		CurrentBranch:        lib.CurrentBranch,
+		CheckOutdatedContext: func() { lib.MustCheckOutdatedContext(false) },
+	}, prompt, tellBg, tellStop, tellNoBuild, false)
 }
 
 func prepareEditorCommand(editor string, filename string) *exec.Cmd {
@@ -141,5 +96,59 @@ func prepareEditorCommand(editor string, filename string) *exec.Cmd {
 func getEditorInstructions(editor string) string {
 
 	return "Write your prompt below, then save and exit to send it to Plandex.\n\n"
+
+}
+
+func getEditorPrompt() string {
+	editor := os.Getenv("EDITOR")
+	if editor == "" {
+		editor = os.Getenv("VISUAL")
+		if editor == "" {
+			editor = defaultEditor
+		}
+	}
+
+	tempFile, err := os.CreateTemp(os.TempDir(), "plandex_prompt_*")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "Failed to create temporary file:", err)
+		os.Exit(1)
+	}
+
+	instructions := getEditorInstructions(editor)
+	filename := tempFile.Name()
+	err = os.WriteFile(filename, []byte(instructions), 0644)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "Failed to write instructions to temporary file:", err)
+		os.Exit(1)
+	}
+
+	editorCmd := prepareEditorCommand(editor, filename)
+	editorCmd.Stdin = os.Stdin
+	editorCmd.Stdout = os.Stdout
+	editorCmd.Stderr = os.Stderr
+	err = editorCmd.Run()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "Error opening editor:", err)
+		os.Exit(1)
+	}
+
+	bytes, err := os.ReadFile(tempFile.Name())
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "Error reading temporary file:", err)
+		os.Exit(1)
+	}
+
+	prompt := string(bytes)
+
+	err = os.Remove(tempFile.Name())
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "Error removing temporary file:", err)
+		os.Exit(1)
+	}
+
+	prompt = strings.TrimPrefix(prompt, strings.TrimSpace(instructions))
+	prompt = strings.TrimSpace(prompt)
+
+	return prompt
 
 }
