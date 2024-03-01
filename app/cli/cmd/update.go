@@ -24,5 +24,5 @@ func update(cmd *cobra.Command, args []string) {
 	auth.MustResolveAuthWithOrg()
 	lib.MustResolveProject()
 
-	lib.MustUpdateContext()
+	lib.MustUpdateContext(nil)
 }

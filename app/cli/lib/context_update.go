@@ -18,26 +18,24 @@ import (
 	"github.com/plandex/plandex/shared"
 )
 
-func MustCheckOutdatedContext(quiet bool) {
+func MustCheckOutdatedContext(cancelOpt, quiet bool, maybeContexts []*shared.Context) (contextOutdated, updated, canceled bool) {
 	if !quiet {
 		term.StartSpinner("🔬 Checking context...")
 	}
 
-	outdatedRes, err := CheckOutdatedContext()
+	outdatedRes, err := CheckOutdatedContext(maybeContexts)
 	if err != nil {
 		term.StopSpinner()
 		panic(fmt.Errorf("failed to check outdated context: %s", err))
 	}
 
-	if !quiet {
-		term.StopSpinner()
-	}
+	term.StopSpinner()
 
 	if len(outdatedRes.UpdatedContexts) == 0 {
 		if !quiet {
 			fmt.Println("✅ Context is up to date")
 		}
-		return
+		return false, false, false
 	}
 	types := []string{}
 	if outdatedRes.NumFiles > 0 {
@@ -89,26 +87,29 @@ func MustCheckOutdatedContext(quiet bool) {
 
 	fmt.Println()
 
-	confirmed, canceled, err := term.ConfirmYesNoCancel("Update context now?")
+	var confirmed bool
+
+	if cancelOpt {
+		confirmed, canceled, err = term.ConfirmYesNoCancel("Update context now?")
+	} else {
+		confirmed, err = term.ConfirmYesNo("Update context now?")
+	}
 
 	if err != nil {
 		panic(fmt.Errorf("failed to get user input: %s", err))
 	}
 
 	if confirmed {
-		MustUpdateContext()
+		MustUpdateContext(maybeContexts)
 	}
 
-	if canceled {
-		os.Exit(0)
-	}
-
+	return true, confirmed, canceled
 }
 
-func MustUpdateContext() {
+func MustUpdateContext(maybeContexts []*shared.Context) {
 	term.StartSpinner("🔄 Updating context...")
 
-	updateRes, err := UpdateContext()
+	updateRes, err := UpdateContext(maybeContexts)
 
 	if err != nil {
 		term.StopSpinner()
@@ -122,19 +123,25 @@ func MustUpdateContext() {
 
 }
 
-func UpdateContext() (*types.ContextOutdatedResult, error) {
-	return checkOutdatedAndMaybeUpdateContext(true)
+func UpdateContext(maybeContexts []*shared.Context) (*types.ContextOutdatedResult, error) {
+	return checkOutdatedAndMaybeUpdateContext(true, maybeContexts)
 }
 
-func CheckOutdatedContext() (*types.ContextOutdatedResult, error) {
-	return checkOutdatedAndMaybeUpdateContext(false)
+func CheckOutdatedContext(maybeContexts []*shared.Context) (*types.ContextOutdatedResult, error) {
+	return checkOutdatedAndMaybeUpdateContext(false, maybeContexts)
 }
 
-func checkOutdatedAndMaybeUpdateContext(doUpdate bool) (*types.ContextOutdatedResult, error) {
+func checkOutdatedAndMaybeUpdateContext(doUpdate bool, maybeContexts []*shared.Context) (*types.ContextOutdatedResult, error) {
+	var contexts []*shared.Context
 
-	contexts, err := api.Client.ListContext(CurrentPlanId, CurrentBranch)
-	if err != nil {
-		return nil, fmt.Errorf("error retrieving context: %v", err)
+	if maybeContexts == nil {
+		var apiErr *shared.ApiError
+		contexts, apiErr = api.Client.ListContext(CurrentPlanId, CurrentBranch)
+		if apiErr != nil {
+			return nil, fmt.Errorf("error retrieving context: %v", apiErr)
+		}
+	} else {
+		contexts = maybeContexts
 	}
 
 	var errs []error
@@ -297,7 +304,7 @@ func checkOutdatedAndMaybeUpdateContext(doUpdate bool) (*types.ContextOutdatedRe
 
 	if hasConflicts {
 		term.StartSpinner("🏗️  Starting build...")
-		_, err := buildPlanInlineFn()
+		_, err := buildPlanInlineFn(nil) // don't pass in outdated contexts -- nil value causes them to be refetched, which is what we want since they were just updated
 
 		if err != nil {
 			return nil, fmt.Errorf("failed to build plan: %v", err)

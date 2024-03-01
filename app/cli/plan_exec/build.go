@@ -2,6 +2,7 @@ package plan_exec
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"plandex/api"
 	"plandex/fs"
@@ -14,8 +15,6 @@ import (
 )
 
 func Build(params ExecParams, buildBg bool) (bool, error) {
-	params.CheckOutdatedContext()
-
 	term.StartSpinner("🏗️  Starting build...")
 
 	contexts, apiErr := api.Client.ListContext(params.CurrentPlanId, params.CurrentBranch)
@@ -23,6 +22,14 @@ func Build(params ExecParams, buildBg bool) (bool, error) {
 	if apiErr != nil {
 		color.New(color.FgRed).Fprintln(os.Stderr, "Error getting context:", apiErr)
 		os.Exit(1)
+	}
+
+	anyOutdated, didUpdate, _ := params.CheckOutdatedContext(false, contexts)
+
+	if anyOutdated && !didUpdate {
+		term.StopSpinner()
+		log.Println("Build canceled")
+		return false, nil
 	}
 
 	projectPaths, _, err := fs.GetProjectPaths(fs.GetBaseDirForContexts(contexts))

@@ -23,13 +23,23 @@ func TellPlan(
 	tellNoBuild,
 	isUserContinue bool,
 ) {
-	params.CheckOutdatedContext()
-
 	contexts, apiErr := api.Client.ListContext(params.CurrentPlanId, params.CurrentBranch)
 
 	if apiErr != nil {
 		color.New(color.FgRed).Fprintln(os.Stderr, "Error getting context:", apiErr)
 		os.Exit(1)
+	}
+
+	anyOutdated, didUpdate, canceled := params.CheckOutdatedContext(true, contexts)
+
+	if anyOutdated && !didUpdate && canceled {
+		term.StopSpinner()
+		if isUserContinue {
+			log.Println("Plan won't continue")
+		} else {
+			log.Println("Prompt not sent")
+		}
+		os.Exit(0)
 	}
 
 	projectPaths, _, err := fs.GetProjectPaths(fs.GetBaseDirForContexts(contexts))

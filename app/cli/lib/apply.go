@@ -1,227 +1,81 @@
 package lib
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
 	"os"
 	"path/filepath"
 	"plandex/api"
 	"plandex/fs"
 	"plandex/term"
-	"plandex/types"
 
 	"github.com/fatih/color"
-	"github.com/olekukonko/tablewriter"
-	"github.com/plandex/plandex/shared"
 )
 
-func ApplyPlanWithOutput(planId, branch string, autoConfirm bool) error {
+func ApplyPlan(planId, branch string, autoConfirm bool) error {
+	term.StartSpinner("🔬 Checking plan state...")
+
 	currentPlanState, apiErr := api.Client.GetCurrentPlanState(planId, branch)
 
 	if apiErr != nil {
+		term.StopSpinner()
 		return fmt.Errorf("error getting current plan state: %s", apiErr.Msg)
 	}
 
 	if currentPlanState.HasPendingBuilds() {
+		plansRunningRes, apiErr := api.Client.ListPlansRunning([]string{CurrentProjectId}, false)
 
-	}
-
-	currentPlanFiles := currentPlanState.CurrentPlanFiles
-	planResByPath := currentPlanState.PlanResult.FileResultsByPath
-
-	if len(currentPlanFiles.Files) == 0 {
-		fmt.Println("🤷‍♂️ No changes to apply")
-		return nil
-	}
-
-	aborted := false
-
-	// check if any files have been modified since the plan result was generated
-	pathsRemoved := []string{}
-	pathsOutdated := []string{}
-	pathsUnmodified := []string{}
-	pathsNew := []string{}
-	pathsRemovedOrOutdatedSet := map[string]bool{}
-	outdatedCanMergeSet := map[string]bool{}
-
-	canMergeAllOutdated := true
-	var err error
-
-	for path := range currentPlanFiles.Files {
-		context := currentPlanState.ContextsByPath[path]
-		var contextSha string
-		if context != nil {
-			contextSha = currentPlanState.ContextsByPath[path].Sha
+		if apiErr != nil {
+			term.StopSpinner()
+			return fmt.Errorf("error getting running plans: %s", apiErr.Msg)
 		}
 
-		if contextSha == "" {
-			// the path wasn't in context
-			pathsNew = append(pathsNew, path)
-			continue
-		}
-
-		// Compute destination path
-		dstPath := filepath.Join(fs.ProjectRoot, path)
-
-		// Check if the file has been removed
-		_, err := os.Stat(dstPath)
-
-		if os.IsNotExist(err) {
-			pathsRemoved = append(pathsRemoved, path)
-			pathsRemovedOrOutdatedSet[path] = true
-		} else if err != nil {
-			return fmt.Errorf("failed to check existence of %s: %w", dstPath, err)
-		}
-
-		// Read the file
-		bytes, err := os.ReadFile(dstPath)
-
-		if err != nil {
-			return fmt.Errorf("failed to read %s: %w", dstPath, err)
-		}
-
-		// Get the sha of the file
-		hash := sha256.Sum256(bytes)
-		fileSha := hex.EncodeToString(hash[:])
-
-		if fileSha == contextSha {
-			pathsUnmodified = append(pathsUnmodified, path)
-		} else {
-			pathsOutdated = append(pathsOutdated, path)
-			pathsRemovedOrOutdatedSet[path] = true
-
-			planRes := planResByPath[path]
-
-			updated := string(bytes)
-			allSucceeded := true
-			for _, res := range planRes {
-				var succeeded bool
-				updated, succeeded = shared.ApplyReplacements(updated, res.Replacements, false)
-				if !succeeded {
-					allSucceeded = false
-					canMergeAllOutdated = false
-					break
-				}
+		for _, b := range plansRunningRes.Branches {
+			if b.PlanId == planId && b.Name == branch {
+				fmt.Println("This plan is currently active. Please wait for it to finish before applying.")
+				fmt.Println()
+				term.PrintCmds("", "ps", "connect")
+				return nil
 			}
-			outdatedCanMergeSet[path] = allSucceeded
-		}
-	}
-
-	table := tablewriter.NewWriter(os.Stdout)
-	table.SetHeader([]string{"Path", "Status"})
-	table.SetAutoWrapText(false)
-
-	numConflicts := len(pathsRemoved) + len(pathsOutdated)
-	hasConflicts := numConflicts > 0
-
-	if hasConflicts {
-		suffix := ""
-		verb := "has"
-		if numConflicts > 1 {
-			suffix = "s"
-			verb = "have"
 		}
 
-		color.New(color.Bold).Printf("⚠️  %d file%s in context %s been modified since the plan was generated\n\n", numConflicts, suffix, verb)
+		term.StopSpinner()
 
-		for _, path := range pathsRemoved {
-			table.Rich([]string{path, "🔴 Removed"}, []tablewriter.Colors{
-				{tablewriter.FgHiRedColor, tablewriter.Bold},
-				{tablewriter.FgHiWhiteColor},
-			})
-		}
-
-		for _, path := range pathsOutdated {
-			s := "🟡 Modified"
-			if outdatedCanMergeSet[path] {
-				s += "  " + color.New(color.BgGreen).Sprint(" Can still apply changes ")
-			} else {
-				s += "  " + color.New(color.BgRed).Sprint(" Can't apply changes ")
-			}
-
-			table.Rich([]string{path, s}, []tablewriter.Colors{
-				{tablewriter.FgHiYellowColor, tablewriter.Bold},
-				{tablewriter.FgHiWhiteColor},
-			})
-		}
-	} else {
-		numUnmodified := len(pathsUnmodified) + len(pathsNew)
-		suffix := ""
-
-		if numUnmodified > 1 {
-			suffix = "s"
-		}
-
-		color.New(color.Bold).Printf("⚡️ %d file%s will be updated\n\n", numUnmodified, suffix)
-	}
-
-	for _, path := range pathsUnmodified {
-		table.Rich([]string{path, "🟢 Ready for update"}, []tablewriter.Colors{
-			{tablewriter.FgHiGreenColor, tablewriter.Bold},
-			{tablewriter.FgHiWhiteColor},
-		})
-	}
-
-	for _, path := range pathsNew {
-		table.Rich([]string{path, "🔵 New file"}, []tablewriter.Colors{
-			{tablewriter.FgHiCyanColor, tablewriter.Bold},
-			{tablewriter.FgHiWhiteColor},
-		})
-	}
-
-	table.Render()
-
-	var conflictStrategy string
-
-	if hasConflicts {
+		fmt.Println("This plan has changes that need to be built before applying")
 		fmt.Println()
 
-		if conflictStrategy == "" {
-			options := []string{
-				types.PlanOutdatedStrategyOverwrite,
-			}
+		shouldBuild, err := term.ConfirmYesNo("Build changes now?")
 
-			if len(currentPlanFiles.Files) > (len(pathsRemoved) + len(pathsOutdated)) {
-				options = append(options, types.PlanOutdatedStrategyApplyUnmodified)
-			}
+		if err != nil {
+			return fmt.Errorf("failed to get confirmation user input: %s", err)
+		}
 
-			if canMergeAllOutdated {
-				options = append(options, types.PlanOutdatedStrategyApplyNoConflicts)
-			}
+		if !shouldBuild {
+			fmt.Println("Apply plan canceled")
+			os.Exit(0)
+		}
 
-			options = append(options,
-				// types.PlanOutdatedStrategyRebuild, // TODO: implement rebuild
-				types.PlanOutdatedStrategyCancel,
-			)
+		_, err = buildPlanInlineFn(nil)
 
-			choice, err := term.SelectFromList("🤔 How do you want to handle it?", options)
-
-			if err != nil {
-				return fmt.Errorf("failed to get user input: %w", err)
-			}
-
-			conflictStrategy = choice
+		if err != nil {
+			return fmt.Errorf("failed to build plan: %w", err)
 		}
 	}
 
-	switch conflictStrategy {
-	case types.PlanOutdatedStrategyOverwrite:
-		fmt.Println("⚡️ Overwriting modifications")
+	anyOutdated, didUpdate, _ := MustCheckOutdatedContext(false, true, nil)
 
-	case types.PlanOutdatedStrategyApplyUnmodified:
-		fmt.Println("⚡️ Applying only new and unmodified files")
+	if anyOutdated && !didUpdate {
+		term.StopSpinner()
+		fmt.Println("Apply plan canceled")
+		os.Exit(0)
+	}
 
-	case types.PlanOutdatedStrategyApplyNoConflicts:
-		// nothing to do
+	term.StopSpinner()
 
-	case types.PlanOutdatedStrategyRebuild:
-		fmt.Println("⚡️ Rebuilding the plan with updated context")
-		// TODO: rebuild the plan
-		return nil
+	currentPlanFiles := currentPlanState.CurrentPlanFiles
 
-	case types.PlanOutdatedStrategyCancel:
-		aborted = true
+	if len(currentPlanFiles.Files) == 0 {
+		term.StopSpinner()
+		fmt.Println("🤷‍♂️ No changes to apply")
 		return nil
 	}
 
@@ -230,6 +84,7 @@ func ApplyPlanWithOutput(planId, branch string, autoConfirm bool) error {
 	hasUncommittedChanges := false
 	if isRepo {
 		// Check if there are any uncommitted changes
+		var err error
 		hasUncommittedChanges, err = CheckUncommittedChanges()
 
 		if err != nil {
@@ -237,22 +92,14 @@ func ApplyPlanWithOutput(planId, branch string, autoConfirm bool) error {
 		}
 	}
 
-	toApply := map[string]string{}
-	for path, content := range currentPlanFiles.Files {
-		outdated := pathsRemovedOrOutdatedSet[path]
-		if outdated {
-			if conflictStrategy == types.PlanOutdatedStrategyOverwrite || conflictStrategy == types.PlanOutdatedStrategyApplyNoConflicts {
-				toApply[path] = content
-			}
-		} else {
-			toApply[path] = content
-		}
-	}
+	toApply := currentPlanFiles.Files
+
+	var aborted bool
 
 	if len(toApply) == 0 {
 		fmt.Println("🤷‍♂️ No changes to apply")
 	} else {
-		if !autoConfirm && !hasConflicts {
+		if !autoConfirm {
 			fmt.Println()
 			numToApply := len(toApply)
 			suffix := ""
@@ -321,7 +168,7 @@ func ApplyPlanWithOutput(planId, branch string, autoConfirm bool) error {
 
 		if isRepo {
 			// Commit the changes
-			err = GitAddAndCommit(fs.ProjectRoot, color.New(color.BgBlue, color.FgHiWhite, color.Bold).Sprintln(" 🤖 Plandex ")+currentPlanState.PendingChangesSummary(), true)
+			err := GitAddAndCommit(fs.ProjectRoot, color.New(color.BgBlue, color.FgHiWhite, color.Bold).Sprintln(" 🤖 Plandex ")+currentPlanState.PendingChangesSummary(), true)
 			if err != nil {
 				aborted = true
 				return fmt.Errorf("failed to commit changes: %w", err)

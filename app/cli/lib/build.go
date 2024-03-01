@@ -1,7 +1,9 @@
 package lib
 
-var buildPlanInlineFn func() (bool, error)
+import "github.com/plandex/plandex/shared"
 
-func SetBuildPlanInlineFn(fn func() (bool, error)) {
+var buildPlanInlineFn func(maybeContexts []*shared.Context) (bool, error)
+
+func SetBuildPlanInlineFn(fn func(maybeContexts []*shared.Context) (bool, error)) {
 	buildPlanInlineFn = fn
 }

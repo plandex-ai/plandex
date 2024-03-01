@@ -11,16 +11,20 @@ import (
 	"plandex/fs"
 	"plandex/lib"
 	"plandex/plan_exec"
+
+	"github.com/plandex/plandex/shared"
 )
 
 func init() {
 	// inter-package dependency injections to avoid circular imports
 	auth.SetApiClient(api.Client)
-	lib.SetBuildPlanInlineFn(func() (bool, error) {
+	lib.SetBuildPlanInlineFn(func(maybeContexts []*shared.Context) (bool, error) {
 		return plan_exec.Build(plan_exec.ExecParams{
-			CurrentPlanId:        lib.CurrentPlanId,
-			CurrentBranch:        lib.CurrentBranch,
-			CheckOutdatedContext: func() { lib.MustCheckOutdatedContext(true) },
+			CurrentPlanId: lib.CurrentPlanId,
+			CurrentBranch: lib.CurrentBranch,
+			CheckOutdatedContext: func(cancelOpt bool, maybeContexts []*shared.Context) (bool, bool, bool) {
+				return lib.MustCheckOutdatedContext(cancelOpt, true, maybeContexts)
+			},
 		}, false)
 	})
 

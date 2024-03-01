@@ -32,7 +32,7 @@ func apply(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	err := lib.ApplyPlanWithOutput(lib.CurrentPlanId, lib.CurrentBranch, autoConfirm)
+	err := lib.ApplyPlan(lib.CurrentPlanId, lib.CurrentBranch, autoConfirm)
 
 	if err != nil {
 		fmt.Println("Error applying plan:", err)

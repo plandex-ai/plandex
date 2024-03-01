@@ -8,6 +8,7 @@ import (
 	"plandex/plan_exec"
 	"plandex/term"
 
+	"github.com/plandex/plandex/shared"
 	"github.com/spf13/cobra"
 )
 
@@ -41,8 +42,10 @@ func doContinue(cmd *cobra.Command, args []string) {
 	}
 
 	plan_exec.TellPlan(plan_exec.ExecParams{
-		CurrentPlanId:        lib.CurrentPlanId,
-		CurrentBranch:        lib.CurrentBranch,
-		CheckOutdatedContext: func() { lib.MustCheckOutdatedContext(false) },
+		CurrentPlanId: lib.CurrentPlanId,
+		CurrentBranch: lib.CurrentBranch,
+		CheckOutdatedContext: func(cancelOpt bool, maybeContexts []*shared.Context) (bool, bool, bool) {
+			return lib.MustCheckOutdatedContext(cancelOpt, false, maybeContexts)
+		},
 	}, "", tellBg, tellStop, tellNoBuild, true)
 }
