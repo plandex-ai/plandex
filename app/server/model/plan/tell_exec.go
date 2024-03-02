@@ -5,9 +5,9 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"strings"
 
 	"plandex-server/db"
+	"plandex-server/model"
 	"plandex-server/model/lib"
 	"plandex-server/model/prompts"
 	"plandex-server/types"
@@ -344,21 +344,14 @@ func execTellPlan(
 		TopP:        state.settings.ModelSet.Planner.TopP,
 	}
 
-	stream, err := client.CreateChatCompletionStream(active.ModelStreamCtx, modelReq)
+	stream, err := model.CreateChatCompletionStreamWithRetries(client, active.ModelStreamCtx, modelReq)
 	if err != nil {
-		log.Printf("Error creating proposal GPT4 stream: %v\n", err)
-		log.Println(err)
-
-		errStr := err.Error()
-		if strings.Contains(errStr, "status code: 400") &&
-			strings.Contains(errStr, "reduce the length of the messages") {
-			log.Println("Token limit exceeded")
-		}
+		log.Printf("Error starting reply stream: %v\n", err)
 
 		active.StreamDoneCh <- &shared.ApiError{
 			Type:   shared.ApiErrorTypeOther,
 			Status: http.StatusInternalServerError,
-			Msg:    "Error creating proposal GPT4 stream",
+			Msg:    "Error starting reply stream: " + err.Error(),
 		}
 		return
 	}

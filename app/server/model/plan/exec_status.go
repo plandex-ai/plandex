@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"log"
+	"plandex-server/model"
 	"plandex-server/model/prompts"
 	"strings"
 
@@ -47,7 +48,8 @@ func ExecStatusShouldContinue(client *openai.Client, config shared.TaskRoleConfi
 
 	log.Println("Calling model to check if plan should continue")
 
-	resp, err := client.CreateChatCompletion(
+	resp, err := model.CreateChatCompletionWithRetries(
+		client,
 		ctx,
 		openai.ChatCompletionRequest{
 			Model: config.BaseModelConfig.ModelName,

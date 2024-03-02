@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"plandex-server/db"
+	"plandex-server/model"
 	"plandex-server/model/prompts"
 
 	"github.com/plandex/plandex/shared"
@@ -13,7 +14,8 @@ import (
 
 func genPlanDescription(client *openai.Client, config shared.TaskRoleConfig, planId, branch string, ctx context.Context) (*db.ConvoMessageDescription, error) {
 
-	descResp, err := client.CreateChatCompletion(
+	descResp, err := model.CreateChatCompletionWithRetries(
+		client,
 		ctx,
 		openai.ChatCompletionRequest{
 			Model: config.BaseModelConfig.ModelName,

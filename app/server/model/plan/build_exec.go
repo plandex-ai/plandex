@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"plandex-server/db"
+	"plandex-server/model"
 	"plandex-server/model/prompts"
 	"plandex-server/types"
 
@@ -244,9 +245,10 @@ func (fileState *activeBuildStreamFileState) buildFile() {
 		ResponseFormat: config.OpenAIResponseFormat,
 	}
 
-	stream, err := client.CreateChatCompletionStream(activePlan.Ctx, modelReq)
+	stream, err := model.CreateChatCompletionStreamWithRetries(client, activePlan.Ctx, modelReq)
 	if err != nil {
 		log.Printf("Error creating plan file stream for path '%s': %v\n", filePath, err)
+		fileState.onBuildFileError(fmt.Errorf("error creating plan file stream for path '%s': %v", filePath, err))
 		return
 	}
 

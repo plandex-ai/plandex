@@ -23,7 +23,8 @@ func GenPlanName(client *openai.Client, config shared.TaskRoleConfig, planConten
 		Content: prompts.GetPlanNamePrompt(planContent),
 	})
 
-	resp, err := client.CreateChatCompletion(
+	resp, err := CreateChatCompletionWithRetries(
+		client,
 		context.Background(),
 		openai.ChatCompletionRequest{
 			Model: config.BaseModelConfig.ModelName,

@@ -1,6 +1,7 @@
 package plan
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -149,7 +150,7 @@ type summarizeConvoParams struct {
 	currentOrgId  string
 }
 
-func summarizeConvo(client *openai.Client, config shared.ModelRoleConfig, params summarizeConvoParams) error {
+func summarizeConvo(client *openai.Client, config shared.ModelRoleConfig, params summarizeConvoParams, ctx context.Context) error {
 	log.Printf("summarizeConvo: Called for plan ID %s on branch %s\n", params.planId, params.branch)
 	log.Printf("summarizeConvo: Starting summarizeConvo for planId: %s\n", params.planId)
 	planId := params.planId
@@ -222,7 +223,7 @@ func summarizeConvo(client *openai.Client, config shared.ModelRoleConfig, params
 		NumMessages:                 numMessagesSummarized + 1,
 		OrgId:                       currentOrgId,
 		PlanId:                      planId,
-	})
+	}, ctx)
 
 	if err != nil {
 		log.Printf("summarizeConvo: Error generating plan summary for plan %s: %v\n", params.planId, err)

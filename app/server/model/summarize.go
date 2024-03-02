@@ -20,7 +20,7 @@ type PlanSummaryParams struct {
 	PlanId                      string
 }
 
-func PlanSummary(client *openai.Client, config shared.ModelRoleConfig, params PlanSummaryParams) (*db.ConvoSummary, error) {
+func PlanSummary(client *openai.Client, config shared.ModelRoleConfig, params PlanSummaryParams, ctx context.Context) (*db.ConvoSummary, error) {
 	messages := []openai.ChatCompletionMessage{
 		{
 			Role:    openai.ChatMessageRoleSystem,
@@ -40,8 +40,9 @@ func PlanSummary(client *openai.Client, config shared.ModelRoleConfig, params Pl
 	// fmt.Println("summarizing messages:")
 	// spew.Dump(messages)
 
-	resp, err := client.CreateChatCompletion(
-		context.Background(),
+	resp, err := CreateChatCompletionWithRetries(
+		client,
+		ctx,
 		openai.ChatCompletionRequest{
 			Model:       config.BaseModelConfig.ModelName,
 			Messages:    messages,
