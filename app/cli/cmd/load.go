@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 	"plandex/auth"
 	"plandex/lib"
 	"plandex/term"
@@ -39,7 +38,7 @@ func contextLoad(cmd *cobra.Command, args []string) {
 	lib.MustResolveProject()
 
 	if lib.CurrentPlanId == "" {
-		fmt.Fprintln(os.Stderr, "No current plan")
+		fmt.Println("🤷‍♂️ No current plan")
 		return
 	}
 

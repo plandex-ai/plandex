@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 	"plandex/api"
 	"plandex/auth"
 	"plandex/lib"
@@ -51,7 +50,7 @@ func checkout(cmd *cobra.Command, args []string) {
 	branches, apiErr := api.Client.ListBranches(lib.CurrentPlanId)
 
 	if apiErr != nil {
-		fmt.Println("Error getting branches:", apiErr)
+		term.OutputErrorAndExit("Error getting branches: %v", apiErr)
 		return
 	}
 
@@ -62,8 +61,7 @@ func checkout(cmd *cobra.Command, args []string) {
 			if idx > 0 && idx <= len(branches) {
 				branchName = branches[idx-1].Name
 			} else {
-				fmt.Fprintf(os.Stderr, "🚨 Branch %d not found\n", idx)
-				os.Exit(1)
+				term.OutputErrorAndExit("Branch %d not found", idx)
 			}
 		} else {
 			for _, b := range branches {
@@ -79,7 +77,7 @@ func checkout(cmd *cobra.Command, args []string) {
 			res, err := term.ConfirmYesNo("Create it now?")
 
 			if err != nil {
-				fmt.Println("Error getting user input:", err)
+				term.OutputErrorAndExit("Error getting user input: %v", err)
 			}
 
 			if res {
@@ -102,14 +100,14 @@ func checkout(cmd *cobra.Command, args []string) {
 		selected, err := term.SelectFromList("Select a branch", opts)
 
 		if err != nil {
-			fmt.Println("Error selecting branch:", err)
+			term.OutputErrorAndExit("Error selecting branch: %v", err)
 			return
 		}
 
 		if selected == OptCreateNewBranch {
 			branchName, err = term.GetUserStringInput("Branch name")
 			if err != nil {
-				fmt.Println("Error getting branch name:", err)
+				term.OutputErrorAndExit("Error getting branch name: %v", err)
 				return
 			}
 			willCreate = true
@@ -119,8 +117,7 @@ func checkout(cmd *cobra.Command, args []string) {
 	}
 
 	if branchName == "" {
-		fmt.Fprintln(os.Stderr, "🚨 Branch not found")
-		os.Exit(1)
+		term.OutputErrorAndExit("Branch not found")
 	}
 
 	if willCreate {
@@ -129,7 +126,7 @@ func checkout(cmd *cobra.Command, args []string) {
 
 		if err != nil {
 			term.StopSpinner()
-			fmt.Println("Error creating branch:", err)
+			term.OutputErrorAndExit("Error creating branch: %v", err)
 			return
 		}
 
@@ -140,7 +137,7 @@ func checkout(cmd *cobra.Command, args []string) {
 	err := lib.WriteCurrentBranch(branchName)
 
 	if err != nil {
-		fmt.Println("Error setting current branch:", err)
+		term.OutputErrorAndExit("Error setting current branch: %v", err)
 		return
 	}
 

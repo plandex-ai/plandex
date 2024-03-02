@@ -11,7 +11,6 @@ import (
 	streamtui "plandex/stream_tui"
 	"plandex/term"
 
-	"github.com/fatih/color"
 	"github.com/plandex/plandex/shared"
 )
 
@@ -26,8 +25,7 @@ func TellPlan(
 	contexts, apiErr := api.Client.ListContext(params.CurrentPlanId, params.CurrentBranch)
 
 	if apiErr != nil {
-		color.New(color.FgRed).Fprintln(os.Stderr, "Error getting context:", apiErr)
-		os.Exit(1)
+		term.OutputErrorAndExit("Error getting context: %v", apiErr)
 	}
 
 	anyOutdated, didUpdate, canceled := params.CheckOutdatedContext(true, contexts)
@@ -45,8 +43,7 @@ func TellPlan(
 	projectPaths, _, err := fs.GetProjectPaths(fs.GetBaseDirForContexts(contexts))
 
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error getting project paths:", err)
-		return
+		term.OutputErrorAndExit("Error getting project paths: %v", err)
 	}
 
 	var fn func() bool
@@ -84,15 +81,13 @@ func TellPlan(
 				res, err := term.ConfirmYesNo("Upgrade now?")
 
 				if err != nil {
-					fmt.Fprintln(os.Stderr, "Error prompting upgrade trial:", err)
-					return false
+					term.OutputErrorAndExit("Error prompting upgrade trial: %v", err)
 				}
 
 				if res {
 					err := auth.ConvertTrial()
 					if err != nil {
-						fmt.Fprintln(os.Stderr, "Error converting trial:", err)
-						return false
+						term.OutputErrorAndExit("Error converting trial: %v", err)
 					}
 					// retry action after converting trial
 					return fn()
@@ -100,13 +95,12 @@ func TellPlan(
 				return false
 			}
 
-			fmt.Fprintln(os.Stderr, "Prompt error:", apiErr.Msg)
-			return false
+			term.OutputErrorAndExit("Prompt error: %v", apiErr.Msg)
 		} else if apiErr != nil && isUserContinue && apiErr.Type == shared.ApiErrorTypeContinueNoMessages {
 			fmt.Println("🤷‍♂️ There's no plan yet to continue")
 			fmt.Println()
 			term.PrintCmds("", "tell")
-			os.Exit(1)
+			os.Exit(0)
 		}
 
 		if !tellBg {
@@ -114,8 +108,7 @@ func TellPlan(
 				err := streamtui.StartStreamUI(prompt, false)
 
 				if err != nil {
-					log.Printf("Error starting stream UI: %v\n", err)
-					os.Exit(1)
+					term.OutputErrorAndExit("Error starting stream UI: %v", err)
 				}
 
 				fmt.Println()

@@ -29,8 +29,7 @@ func listContext(cmd *cobra.Command, args []string) {
 	contexts, err := api.Client.ListContext(lib.CurrentPlanId, lib.CurrentBranch)
 
 	if err != nil {
-		color.New(color.FgRed).Fprintln(os.Stderr, "Error listing context:", err)
-		os.Exit(1)
+		term.OutputErrorAndExit("Error listing context: %v", err)
 	}
 
 	totalTokens := 0

@@ -2,6 +2,7 @@ package term
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"strings"
@@ -109,7 +110,7 @@ func PageOutput(output string) {
 	cmd.Stderr = os.Stderr
 
 	if err := cmd.Run(); err != nil {
-		fmt.Fprintln(os.Stderr, "Failed to page output:", err)
+		OutputErrorAndExit("Failed to page output: %v", err)
 	}
 }
 
@@ -123,7 +124,7 @@ func PageOutputReverse(output string) {
 	cmd.Env = append(os.Environ(), "LESS=FRX", "LESSCHARSET=utf-8")
 
 	if err := cmd.Run(); err != nil {
-		fmt.Fprintln(os.Stderr, "Failed to page output with colors:", err)
+		OutputErrorAndExit("Failed to page output: %v", err)
 	}
 }
 
@@ -131,7 +132,7 @@ func GetDivisionLine() string {
 	// Get the terminal width
 	terminalWidth, err := getTerminalWidth()
 	if err != nil {
-		fmt.Println("Error fetching terminal size:", err)
+		log.Println("Error fetching terminal size:", err)
 		terminalWidth = 50 // default width if unable to fetch width
 	}
 	return strings.Repeat("─", terminalWidth)

@@ -30,15 +30,14 @@ func init() {
 
 func build(cmd *cobra.Command, args []string) {
 	if os.Getenv("OPENAI_API_KEY") == "" {
-		term.OutputNoApiKeyMsg()
-		os.Exit(1)
+		term.OutputNoApiKeyMsgAndExit()
 	}
 
 	auth.MustResolveAuthWithOrg()
 	lib.MustResolveProject()
 
 	if lib.CurrentPlanId == "" {
-		fmt.Fprintln(os.Stderr, "No current plan")
+		fmt.Println("🤷‍♂️ No current plan")
 		return
 	}
 
@@ -51,8 +50,7 @@ func build(cmd *cobra.Command, args []string) {
 	}, buildBg)
 
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return
+		term.OutputErrorAndExit("Error building plan: %v", err)
 	}
 
 	if !didBuild {

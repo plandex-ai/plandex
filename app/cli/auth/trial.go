@@ -2,7 +2,6 @@ package auth
 
 import (
 	"fmt"
-	"os"
 	"plandex/term"
 	"plandex/types"
 
@@ -23,8 +22,7 @@ func ConvertTrial() error {
 	}
 
 	if hasAccount {
-		fmt.Println("🚨 Can't convert a trial into an account that already exists")
-		os.Exit(1)
+		term.OutputErrorAndExit("Can't convert a trial into an account that already exists")
 	}
 
 	name, err := term.GetUserStringInput("Your name:")

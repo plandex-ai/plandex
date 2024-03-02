@@ -38,7 +38,7 @@ func branches(cmd *cobra.Command, args []string) {
 	branches, apiErr := api.Client.ListBranches(lib.CurrentPlanId)
 
 	if apiErr != nil {
-		fmt.Println("Error getting branches:", apiErr)
+		term.OutputErrorAndExit("Error getting branches: %v", apiErr)
 		return
 	}
 

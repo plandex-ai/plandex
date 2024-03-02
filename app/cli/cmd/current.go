@@ -38,7 +38,7 @@ func current(cmd *cobra.Command, args []string) {
 
 	plan, err := api.Client.GetPlan(lib.CurrentPlanId)
 	if err != nil {
-		fmt.Println("Error getting plan:", err)
+		term.OutputErrorAndExit("Error getting plan: %v", err)
 		return
 	}
 
@@ -49,8 +49,7 @@ func current(cmd *cobra.Command, args []string) {
 	})
 
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error getting current branches:", err)
-		return
+		term.OutputErrorAndExit("Error getting current branches: %v", err)
 	}
 
 	table := tablewriter.NewWriter(os.Stdout)

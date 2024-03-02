@@ -38,15 +38,13 @@ func runLog(cmd *cobra.Command, args []string) {
 
 	res, apiErr := api.Client.ListLogs(lib.CurrentPlanId, lib.CurrentBranch)
 	if apiErr != nil {
-		fmt.Printf("Error getting logs: %v\n", apiErr)
-		return
+		term.OutputErrorAndExit("Error getting logs: %v", apiErr)
 	}
 
 	withLocalTimestamps, err := convertTimestampsToLocal(res.Body)
 
 	if err != nil {
-		fmt.Printf("Error converting timestamps: %v\n", err)
-		return
+		term.OutputErrorAndExit("Error converting timestamps: %v", err)
 	}
 
 	term.PageOutput(withLocalTimestamps)

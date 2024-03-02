@@ -32,7 +32,7 @@ func models(cmd *cobra.Command, args []string) {
 	settings, err := api.Client.GetSettings(lib.CurrentPlanId, lib.CurrentBranch)
 
 	if err != nil {
-		fmt.Println("Error getting settings:", err)
+		term.OutputErrorAndExit("Error getting settings: %v", err)
 		return
 	}
 

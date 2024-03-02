@@ -2,7 +2,6 @@ package lib
 
 import (
 	"fmt"
-	"os"
 	"plandex/api"
 	"plandex/term"
 
@@ -13,7 +12,7 @@ func SelectActiveStream(args []string) (string, string, bool) {
 	res, apiErr := api.Client.ListPlansRunning([]string{CurrentProjectId}, false)
 
 	if apiErr != nil {
-		fmt.Println("Error getting running plans:", apiErr)
+		term.OutputErrorAndExit("Error getting running plans: %v", apiErr)
 		return "", "", false
 	}
 
@@ -69,8 +68,7 @@ func SelectActiveStream(args []string) (string, string, bool) {
 			selected, err := term.SelectFromList("Select an active plan", opts)
 
 			if err != nil {
-				fmt.Fprintln(os.Stderr, "Error selecting plan:", err)
-				return "", "", false
+				term.OutputErrorAndExit("Error selecting plan: %v", err)
 			}
 
 			for _, p := range res.PlansById {
@@ -134,8 +132,7 @@ func SelectActiveStream(args []string) (string, string, bool) {
 			selected, err := term.SelectFromList("Select a branch", opts)
 
 			if err != nil {
-				fmt.Fprintln(os.Stderr, "Error selecting branch:", err)
-				return "", "", false
+				term.OutputErrorAndExit("Error selecting branch: %v", err)
 			}
 
 			branch = selected

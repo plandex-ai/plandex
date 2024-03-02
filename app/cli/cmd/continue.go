@@ -29,15 +29,14 @@ func init() {
 
 func doContinue(cmd *cobra.Command, args []string) {
 	if os.Getenv("OPENAI_API_KEY") == "" {
-		term.OutputNoApiKeyMsg()
-		os.Exit(1)
+		term.OutputNoApiKeyMsgAndExit()
 	}
 
 	auth.MustResolveAuthWithOrg()
 	lib.MustResolveProject()
 
 	if lib.CurrentPlanId == "" {
-		fmt.Fprintln(os.Stderr, "No current plan")
+		fmt.Println("🤷‍♂️ No current plan")
 		return
 	}
 

@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 	"plandex/api"
 	"plandex/auth"
 	"plandex/lib"
@@ -10,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 )
 
@@ -49,7 +49,7 @@ func deleteBranch(cmd *cobra.Command, args []string) {
 	branches, apiErr := api.Client.ListBranches(lib.CurrentPlanId)
 
 	if apiErr != nil {
-		fmt.Println("Error getting branches:", apiErr)
+		term.OutputErrorAndExit("Error getting branches: %v", apiErr)
 		return
 	}
 
@@ -70,7 +70,7 @@ func deleteBranch(cmd *cobra.Command, args []string) {
 		sel, err := term.SelectFromList("Select a branch to delete", opts)
 
 		if err != nil {
-			fmt.Println("Error selecting branch:", err)
+			term.OutputErrorAndExit("Error selecting branch: %v", err)
 			return
 		}
 
@@ -84,8 +84,7 @@ func deleteBranch(cmd *cobra.Command, args []string) {
 		if idx > 0 && idx <= len(branches) {
 			branch = branches[idx-1].Name
 		} else {
-			fmt.Fprintln(os.Stderr, "Error: index out of range")
-			os.Exit(1)
+			term.OutputErrorAndExit("Branch index out of range")
 		}
 	} else {
 		for _, b := range branches {
@@ -96,8 +95,7 @@ func deleteBranch(cmd *cobra.Command, args []string) {
 		}
 
 		if branch == "" {
-			fmt.Fprintln(os.Stderr, "Error: branch not found")
-			os.Exit(1)
+			term.OutputErrorAndExit("Branch not found")
 		}
 	}
 
@@ -110,18 +108,18 @@ func deleteBranch(cmd *cobra.Command, args []string) {
 	}
 
 	if !found {
-		fmt.Printf("🤷‍♂️ Branch '%s' does not exist\n", branch)
+		fmt.Printf("🤷‍♂️ Branch %s does not exist\n", color.New(color.Bold, color.FgHiCyan).Sprint(branch))
 		return
 	}
 
 	apiErr = api.Client.DeleteBranch(lib.CurrentPlanId, branch)
 
 	if apiErr != nil {
-		fmt.Println("Error deleting branch:", apiErr)
+		term.OutputErrorAndExit("Error deleting branch: %v", apiErr)
 		return
 	}
 
-	fmt.Printf("✅ Deleted branch '%s'\n", branch)
+	fmt.Printf("✅ Deleted branch %s\n", color.New(color.Bold, color.FgHiCyan).Sprint(branch))
 
 	fmt.Println()
 	term.PrintCmds("", "branches")

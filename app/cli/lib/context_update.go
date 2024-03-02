@@ -113,8 +113,7 @@ func MustUpdateContext(maybeContexts []*shared.Context) {
 
 	if err != nil {
 		term.StopSpinner()
-		fmt.Fprintln(os.Stderr, "Error updating context:", err)
-		os.Exit(1)
+		term.OutputErrorAndExit("Error updating context: %v", err)
 	}
 
 	term.StopSpinner()

@@ -45,7 +45,7 @@ func resolveProject(mustResolve, shouldCreate bool) {
 			"🤷‍♂️ No plans in current directory\nTry %s to create a plan or %s to see plans in nearby directories\n",
 			color.New(color.Bold, color.FgHiCyan).Sprint("plandex new"),
 			color.New(color.Bold, color.FgHiCyan).Sprint("plandex plans"))
-		os.Exit(1)
+		os.Exit(0)
 	}
 
 	if fs.PlandexDir == "" {

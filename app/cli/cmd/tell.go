@@ -44,15 +44,14 @@ func init() {
 
 func doTell(cmd *cobra.Command, args []string) {
 	if os.Getenv("OPENAI_API_KEY") == "" {
-		term.OutputNoApiKeyMsg()
-		os.Exit(1)
+		term.OutputNoApiKeyMsgAndExit()
 	}
 
 	auth.MustResolveAuthWithOrg()
 	lib.MustResolveProject()
 
 	if lib.CurrentPlanId == "" {
-		fmt.Fprintln(os.Stderr, "No current plan")
+		fmt.Println("🤷‍♂️ No current plan")
 		return
 	}
 
@@ -63,8 +62,7 @@ func doTell(cmd *cobra.Command, args []string) {
 	} else if tellPromptFile != "" {
 		bytes, err := os.ReadFile(tellPromptFile)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "Error reading prompt file:", err)
-			return
+			term.OutputErrorAndExit("Error reading prompt file: %v", err)
 		}
 		prompt = string(bytes)
 	} else {
@@ -72,7 +70,7 @@ func doTell(cmd *cobra.Command, args []string) {
 	}
 
 	if prompt == "" {
-		fmt.Fprintln(os.Stderr, "🤷‍♂️ No prompt to send")
+		fmt.Println("🤷‍♂️ No prompt to send")
 		return
 	}
 
@@ -113,16 +111,14 @@ func getEditorPrompt() string {
 
 	tempFile, err := os.CreateTemp(os.TempDir(), "plandex_prompt_*")
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Failed to create temporary file:", err)
-		os.Exit(1)
+		term.OutputErrorAndExit("Failed to create temporary file: %v", err)
 	}
 
 	instructions := getEditorInstructions(editor)
 	filename := tempFile.Name()
 	err = os.WriteFile(filename, []byte(instructions), 0644)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Failed to write instructions to temporary file:", err)
-		os.Exit(1)
+		term.OutputErrorAndExit("Failed to write instructions to temporary file: %v", err)
 	}
 
 	editorCmd := prepareEditorCommand(editor, filename)
@@ -131,22 +127,19 @@ func getEditorPrompt() string {
 	editorCmd.Stderr = os.Stderr
 	err = editorCmd.Run()
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error opening editor:", err)
-		os.Exit(1)
+		term.OutputErrorAndExit("Error opening editor: %v", err)
 	}
 
 	bytes, err := os.ReadFile(tempFile.Name())
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error reading temporary file:", err)
-		os.Exit(1)
+		term.OutputErrorAndExit("Error reading temporary file: %v", err)
 	}
 
 	prompt := string(bytes)
 
 	err = os.Remove(tempFile.Name())
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error removing temporary file:", err)
-		os.Exit(1)
+		term.OutputErrorAndExit("Error removing temporary file: %v", err)
 	}
 
 	prompt = strings.TrimPrefix(prompt, strings.TrimSpace(instructions))

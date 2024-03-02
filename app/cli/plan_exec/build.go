@@ -10,7 +10,6 @@ import (
 	streamtui "plandex/stream_tui"
 	"plandex/term"
 
-	"github.com/fatih/color"
 	"github.com/plandex/plandex/shared"
 )
 
@@ -20,8 +19,7 @@ func Build(params ExecParams, buildBg bool) (bool, error) {
 	contexts, apiErr := api.Client.ListContext(params.CurrentPlanId, params.CurrentBranch)
 
 	if apiErr != nil {
-		color.New(color.FgRed).Fprintln(os.Stderr, "Error getting context:", apiErr)
-		os.Exit(1)
+		term.OutputErrorAndExit("Error getting context: %v", apiErr)
 	}
 
 	anyOutdated, didUpdate, _ := params.CheckOutdatedContext(false, contexts)
@@ -35,7 +33,6 @@ func Build(params ExecParams, buildBg bool) (bool, error) {
 	projectPaths, _, err := fs.GetProjectPaths(fs.GetBaseDirForContexts(contexts))
 
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error getting project paths:", err)
 		return false, fmt.Errorf("error getting project paths: %v", err)
 	}
 
@@ -53,7 +50,6 @@ func Build(params ExecParams, buildBg bool) (bool, error) {
 			return false, nil
 		}
 
-		fmt.Fprintln(os.Stderr, "Error building plan:", apiErr.Msg)
 		return false, fmt.Errorf("error building plan: %v", apiErr.Msg)
 	}
 

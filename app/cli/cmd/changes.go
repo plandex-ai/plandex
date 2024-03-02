@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 	"plandex/api"
 	"plandex/auth"
 	"plandex/changes_tui"
@@ -35,17 +34,15 @@ func changes(cmd *cobra.Command, args []string) {
 
 	if apiErr != nil {
 		term.StopSpinner()
-		fmt.Fprintf(os.Stderr, "Error getting current plan state: %s\n", apiErr.Msg)
-		return
+		term.OutputErrorAndExit("Error getting current plan state: %s", apiErr.Msg)
 	}
 
 	if currentPlanState.HasPendingBuilds() {
 		plansRunningRes, apiErr := api.Client.ListPlansRunning([]string{lib.CurrentProjectId}, false)
 
 		if apiErr != nil {
-			// return fmt.Errorf("error getting running plans: %s", apiErr.Msg)
 			term.StopSpinner()
-			fmt.Fprintf(os.Stderr, "Error getting running plans: %s\n", apiErr.Msg)
+			term.OutputErrorAndExit("Error getting running plans: %s", apiErr.Msg)
 		}
 
 		viewIncomplete := false
@@ -57,8 +54,7 @@ func changes(cmd *cobra.Command, args []string) {
 				res, err := term.ConfirmYesNo("View potentially incomplete changes anyway?")
 
 				if err != nil {
-					fmt.Fprintf(os.Stderr, "Error getting confirmation user input: %s\n", err)
-					return
+					term.OutputErrorAndExit("Error getting confirmation user input: %v", err)
 				}
 
 				if res {
@@ -86,8 +82,7 @@ func changes(cmd *cobra.Command, args []string) {
 			}, false)
 
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error building plan: %v\n", err)
-				return
+				term.OutputErrorAndExit("Error building plan: %v\n", err)
 			}
 
 			if !didBuild {
@@ -104,7 +99,7 @@ func changes(cmd *cobra.Command, args []string) {
 	err := changes_tui.StartChangesUI()
 
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error starting changes UI: %v\n", err)
+		term.OutputErrorAndExit("Error starting changes UI: %v\n", err)
 	}
 
 }

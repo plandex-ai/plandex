@@ -130,13 +130,13 @@ func ApplyPlan(planId, branch string, autoConfirm bool) error {
 					// clear any partially applied changes before popping the stash
 					err := GitClearUncommittedChanges()
 					if err != nil {
-						fmt.Printf("failed to clear uncommitted changes: %v\n", err)
+						term.OutputErrorAndExit("Failed to clear uncommitted changes: %v", err)
 					}
 				}
 
 				err := GitStashPop(true)
 				if err != nil {
-					fmt.Printf("failed to pop git stash: %v\n", err)
+					term.OutputErrorAndExit("Failed to pop git stash: %v", err)
 				}
 			}()
 		}

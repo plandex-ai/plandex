@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 	"plandex/api"
 	"plandex/auth"
 	"plandex/lib"
@@ -33,8 +32,7 @@ func convo(cmd *cobra.Command, args []string) {
 
 	conversation, apiErr := api.Client.ListConvo(lib.CurrentPlanId, lib.CurrentBranch)
 	if apiErr != nil {
-		fmt.Fprintln(os.Stderr, "Error loading conversation:", apiErr.Msg)
-		return
+		term.OutputErrorAndExit("Error loading conversation: %v", apiErr.Msg)
 	}
 
 	if len(conversation) == 0 {
@@ -74,8 +72,7 @@ func convo(cmd *cobra.Command, args []string) {
 
 		md, err := term.GetMarkdown(header + "\n" + msg.Message + "\n\n")
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "Error creating markdown representation:", err)
-			return
+			term.OutputErrorAndExit("Error creating markdown representation: %v", err)
 		}
 		convo += md
 

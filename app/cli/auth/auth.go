@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"plandex/fs"
+	"plandex/term"
 	"plandex/types"
 )
 
@@ -46,18 +47,18 @@ func MustResolveAuth(requireOrg bool) {
 		orgs, apiErr := apiClient.ListOrgs()
 
 		if apiErr != nil {
-			panic(fmt.Errorf("error listing orgs: %v", apiErr.Msg))
+			term.OutputErrorAndExit("Error listing orgs: %v", apiErr.Msg)
 		}
 
 		orgId, orgName, err := resolveOrgAuth(orgs)
 
 		if err != nil {
-			panic(fmt.Errorf("error resolving org: %v", err))
+			term.OutputErrorAndExit("Error resolving org: %v", err)
 		}
 
 		if orgId == "" {
 			// still no org--exit now
-			os.Exit(1)
+			term.OutputErrorAndExit("No org")
 		}
 
 		Current.OrgId = orgId
@@ -66,7 +67,7 @@ func MustResolveAuth(requireOrg bool) {
 		err = writeCurrentAuth()
 
 		if err != nil {
-			panic(fmt.Errorf("error writing auth: %v", err))
+			term.OutputErrorAndExit("Error writing auth: %v", err)
 		}
 	}
 
@@ -91,8 +92,7 @@ func RefreshInvalidToken() error {
 			host = "Plandex Cloud"
 		}
 
-		fmt.Printf("🚨 Account %s not found on %s\n", Current.Email, host)
-		os.Exit(1)
+		term.OutputErrorAndExit("Account %s not found on %s", Current.Email, host)
 	}
 
 	return nil

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"plandex/auth"
 	"plandex/lib"
+	"plandex/term"
 
 	"github.com/spf13/cobra"
 )
@@ -35,7 +36,7 @@ func apply(cmd *cobra.Command, args []string) {
 	err := lib.ApplyPlan(lib.CurrentPlanId, lib.CurrentBranch, autoConfirm)
 
 	if err != nil {
-		fmt.Println("Error applying plan:", err)
+		term.OutputErrorAndExit("Error applying plan: %v", err)
 		return
 	}
 }

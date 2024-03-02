@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 	"plandex/api"
 	"plandex/auth"
 	"plandex/lib"
@@ -42,8 +41,7 @@ func cd(cmd *cobra.Command, args []string) {
 	plans, apiErr := api.Client.ListPlans([]string{lib.CurrentProjectId})
 
 	if apiErr != nil {
-		fmt.Fprintln(os.Stderr, "Error getting plans:", apiErr.Msg)
-		os.Exit(1)
+		term.OutputErrorAndExit("Error getting plans: %v", apiErr)
 	}
 
 	if len(plans) == 0 {
@@ -63,8 +61,7 @@ func cd(cmd *cobra.Command, args []string) {
 		selected, err := term.SelectFromList("Select a plan", opts)
 
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "Error selecting plan:", err)
-			return
+			term.OutputErrorAndExit("Error selecting plan: %v", err)
 		}
 
 		for _, p := range plans {
@@ -81,8 +78,7 @@ func cd(cmd *cobra.Command, args []string) {
 			if idx > 0 && idx <= len(plans) {
 				plan = plans[idx-1]
 			} else {
-				fmt.Fprintln(os.Stderr, "Error: index out of range")
-				os.Exit(1)
+				term.OutputErrorAndExit("Plan index out of range")
 			}
 		} else {
 			for _, p := range plans {
@@ -95,14 +91,12 @@ func cd(cmd *cobra.Command, args []string) {
 	}
 
 	if plan == nil {
-		fmt.Fprintln(os.Stderr, "🚨 Plan not found")
-		os.Exit(1)
+		term.OutputErrorAndExit("Plan not found")
 	}
 
 	err := lib.WriteCurrentPlan(plan.Id)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error setting current plan:", err)
-		os.Exit(1)
+		term.OutputErrorAndExit("Error setting current plan: %v", err)
 	}
 
 	// reload current plan, which will also handle setting the right branch
@@ -115,7 +109,7 @@ func cd(cmd *cobra.Command, args []string) {
 	// give the SetProjectPlan request some time to be sent before exiting
 	time.Sleep(50 * time.Millisecond)
 
-	fmt.Fprintln(os.Stderr, "✅ Changed current plan to "+color.New(color.FgGreen, color.Bold).Sprint(plan.Name))
+	fmt.Println("✅ Changed current plan to " + color.New(color.FgGreen, color.Bold).Sprint(plan.Name))
 
 	fmt.Println()
 	term.PrintCmds("", "current")

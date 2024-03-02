@@ -44,30 +44,26 @@ func new(cmd *cobra.Command, args []string) {
 			res, err := term.ConfirmYesNo("Upgrade trial now?")
 
 			if err != nil {
-				fmt.Fprintln(os.Stderr, "Error prompting upgrade trial:", err)
-				return
+				term.OutputErrorAndExit("Error prompting upgrade trial: %v", err)
 			}
 
 			if res {
 				err := auth.ConvertTrial()
 				if err != nil {
-					fmt.Fprintln(os.Stderr, "Error converting trial:", err)
-					return
+					term.OutputErrorAndExit("Error converting trial: %v", err)
 				}
 			}
 
 			return
 		}
 
-		fmt.Fprintln(os.Stderr, "Error creating plan:", apiErr.Msg)
-		return
+		term.OutputErrorAndExit("Error creating plan: %v", apiErr.Msg)
 	}
 
 	err := lib.WriteCurrentPlan(res.Id)
 
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error setting current plan:", err)
-		return
+		term.OutputErrorAndExit("Error setting current plan: %v", err)
 	}
 
 	if name == "" {

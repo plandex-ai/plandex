@@ -22,8 +22,7 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 
 	onErr := func(err error) {
 		term.StopSpinner()
-		fmt.Fprintf(os.Stderr, "Failed to load context: %v\n", err)
-		os.Exit(1)
+		term.OutputErrorAndExit("Failed to load context: %v", err)
 	}
 
 	var loadContextReq shared.LoadContextRequest
@@ -252,8 +251,7 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 
 	if res.MaxTokensExceeded {
 		overage := res.TotalTokens - res.MaxTokens
-		fmt.Printf("🚨 Update would add %d 🪙 and exceed token limit (%d) by %d 🪙\n", res.TokensAdded, res.MaxTokens, overage)
-		os.Exit(1)
+		term.OutputErrorAndExit("Update would add %d 🪙 and exceed token limit (%d) by %d 🪙\n", res.TokensAdded, res.MaxTokens, overage)
 	}
 
 	if hasConflicts {

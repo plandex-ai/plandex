@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 	"plandex/api"
 	"plandex/auth"
 	"plandex/lib"
@@ -28,7 +27,7 @@ func stop(cmd *cobra.Command, args []string) {
 	lib.MustResolveProject()
 
 	if lib.CurrentPlanId == "" {
-		fmt.Fprintln(os.Stderr, "No current plan")
+		fmt.Println("🤷‍♂️ No current plan")
 		return
 	}
 
@@ -41,8 +40,7 @@ func stop(cmd *cobra.Command, args []string) {
 	apiErr := api.Client.StopPlan(planId, branch)
 
 	if apiErr != nil {
-		fmt.Fprintln(os.Stderr, "Error stopping stream:", apiErr.Msg)
-		return
+		term.OutputErrorAndExit("Error stopping stream: %v", apiErr.Msg)
 	}
 
 	fmt.Println("✅ Plan stream stopped")

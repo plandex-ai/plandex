@@ -56,3 +56,10 @@ func Dasherize(s string) string {
 func Compact(s string) string {
 	return strings.ReplaceAll(Dasherize(s), "-", "")
 }
+
+func Capitalize(s string) string {
+	if s == "" {
+		return ""
+	}
+	return strings.ToUpper(s[:1]) + s[1:]
+}

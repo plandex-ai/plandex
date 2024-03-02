@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 	"plandex/api"
 	"plandex/auth"
 	"plandex/lib"
@@ -36,7 +35,7 @@ func rewind(cmd *cobra.Command, args []string) {
 	lib.MustResolveProject()
 
 	if lib.CurrentPlanId == "" {
-		fmt.Fprintln(os.Stderr, "No current plan")
+		fmt.Println("🤷‍♂️ No current plan")
 		return
 	}
 
@@ -50,8 +49,7 @@ func rewind(cmd *cobra.Command, args []string) {
 	logsRes, apiErr := api.Client.ListLogs(lib.CurrentPlanId, lib.CurrentBranch)
 
 	if apiErr != nil {
-		fmt.Printf("Error getting logs: %v\n", apiErr)
-		return
+		term.OutputErrorAndExit("Error getting logs: %v", apiErr)
 	}
 
 	var targetSha string
@@ -76,8 +74,7 @@ func rewind(cmd *cobra.Command, args []string) {
 		steps = 1
 		targetSha = logsRes.Shas[1]
 	} else {
-		fmt.Fprintln(os.Stderr, "Invalid steps or sha. Steps must be a positive integer, and sha must be a valid commit hash.")
-		os.Exit(1)
+		term.OutputErrorAndExit("Invalid steps or sha. Steps must be a positive integer, and sha must be a valid commit hash.")
 	}
 
 	// log.Println("Rewinding to", targetSha)
@@ -86,8 +83,7 @@ func rewind(cmd *cobra.Command, args []string) {
 	_, apiErr = api.Client.RewindPlan(lib.CurrentPlanId, lib.CurrentBranch, shared.RewindPlanRequest{Sha: targetSha})
 
 	if apiErr != nil {
-		fmt.Fprintf(os.Stderr, "Error rewinding plan: %v\n", apiErr)
-		return
+		term.OutputErrorAndExit("Error rewinding plan: %v", apiErr)
 	}
 
 	var msg string

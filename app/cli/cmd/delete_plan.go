@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 
@@ -46,8 +45,7 @@ func del(cmd *cobra.Command, args []string) {
 		nameOrIdx = strings.TrimSpace(args[0])
 
 		if all {
-			fmt.Fprintln(os.Stderr, "🚨 Can't use both --all and a plan name or index")
-			return
+			term.OutputErrorAndExit("Can't use both --all and a plan name or index")
 		}
 	}
 	var plan *shared.Plan
@@ -55,8 +53,7 @@ func del(cmd *cobra.Command, args []string) {
 	plans, apiErr := api.Client.ListPlans([]string{lib.CurrentProjectId})
 
 	if apiErr != nil {
-		fmt.Fprintln(os.Stderr, "Error getting plans:", apiErr.Msg)
-		os.Exit(1)
+		term.OutputErrorAndExit("Error getting plans: %v", apiErr)
 	}
 
 	if len(plans) == 0 {
@@ -76,8 +73,7 @@ func del(cmd *cobra.Command, args []string) {
 		selected, err := term.SelectFromList("Select a plan", opts)
 
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "Error selecting plan:", err)
-			return
+			term.OutputErrorAndExit("Error selecting plan: %v", err)
 		}
 
 		for _, p := range plans {
@@ -95,8 +91,7 @@ func del(cmd *cobra.Command, args []string) {
 			if idx > 0 && idx <= len(plans) {
 				plan = plans[idx-1]
 			} else {
-				fmt.Fprintln(os.Stderr, "Error: index out of range")
-				os.Exit(1)
+				term.OutputErrorAndExit("Plan index out of range")
 			}
 		} else {
 			for _, p := range plans {
@@ -109,34 +104,30 @@ func del(cmd *cobra.Command, args []string) {
 	}
 
 	if plan == nil {
-		fmt.Fprintln(os.Stderr, "🚨 Plan not found")
-		os.Exit(1)
+		term.OutputErrorAndExit("Plan not found")
 	}
 
 	apiErr = api.Client.DeletePlan(plan.Id)
 
 	if apiErr != nil {
-		fmt.Fprintln(os.Stderr, "Error deleting plan:", apiErr.Msg)
-		return
+		term.OutputErrorAndExit("Error deleting plan: %s", apiErr.Msg)
 	}
 
 	if lib.CurrentPlanId == plan.Id {
 		err := lib.ClearCurrentPlan()
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "Error clearing current plan:", err)
-			return
+			term.OutputErrorAndExit("Error clearing current plan: %v", err)
 		}
 	}
 
-	fmt.Printf("✅ Deleted plan %s\n", color.New(color.Bold).Sprint(plan.Name))
+	fmt.Printf("✅ Deleted plan %s\n", color.New(color.Bold, color.FgHiCyan).Sprint(plan.Name))
 }
 
 func delAll() {
 	err := api.Client.DeleteAllPlans(lib.CurrentProjectId)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error deleting all  plans:", err)
-		return
+		term.OutputErrorAndExit("Error deleting all  plans: %v", err)
 	}
 
-	fmt.Fprintln(os.Stderr, "✅ Deleted all plans")
+	fmt.Println("✅ Deleted all plans")
 }

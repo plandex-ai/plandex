@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -11,6 +10,7 @@ import (
 	"plandex/fs"
 	"plandex/lib"
 	"plandex/plan_exec"
+	"plandex/term"
 
 	"github.com/plandex/plandex/shared"
 )
@@ -33,8 +33,7 @@ func init() {
 
 	file, err := os.OpenFile(filepath.Join(fs.HomePlandexDir, "plandex.log"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error opening log file: %v\n", err)
-		os.Exit(1)
+		term.OutputErrorAndExit("Error opening log file: %v", err)
 	}
 
 	// Set the output of the logger to the file

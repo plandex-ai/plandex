@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"plandex/api"
 	"plandex/auth"
@@ -33,7 +32,7 @@ func connect(cmd *cobra.Command, args []string) {
 	lib.MustResolveProject()
 
 	if lib.CurrentPlanId == "" {
-		fmt.Fprintln(os.Stderr, "No current plan")
+		fmt.Println("🤷‍♂️ No current plan")
 		return
 	}
 
@@ -46,16 +45,14 @@ func connect(cmd *cobra.Command, args []string) {
 	apiErr := api.Client.ConnectPlan(planId, branch, stream.OnStreamPlan)
 
 	if apiErr != nil {
-		fmt.Fprintln(os.Stderr, "Error connecting to stream:", apiErr.Msg)
-		return
+		term.OutputErrorAndExit("Error connecting to stream: %v", apiErr)
 	}
 
 	go func() {
 		err := streamtui.StartStreamUI("", false)
 
 		if err != nil {
-			log.Printf("Error starting stream UI: %v\n", err)
-			os.Exit(1)
+			term.OutputErrorAndExit("Error starting stream UI", err)
 		}
 
 		fmt.Println()

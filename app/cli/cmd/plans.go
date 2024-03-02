@@ -82,8 +82,7 @@ func plans(cmd *cobra.Command, args []string) {
 	for i := 0; i < 2; i++ {
 		err := <-errCh
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			return
+			term.OutputErrorAndExit("%v", err)
 		}
 	}
 
@@ -110,8 +109,7 @@ func plans(cmd *cobra.Command, args []string) {
 	plans, apiErr := api.Client.ListPlans(projectIds)
 
 	if apiErr != nil {
-		fmt.Fprintln(os.Stderr, "Error getting plans:", apiErr)
-		return
+		term.OutputErrorAndExit("Error getting plans: %v", apiErr)
 	}
 
 	log.Println("listed")
@@ -145,8 +143,7 @@ func plans(cmd *cobra.Command, args []string) {
 		currentBranchNamesByPlanId, err := lib.GetCurrentBranchNamesByPlanId(currentProjectPlanIds)
 
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "Error getting current branches:", err)
-			return
+			term.OutputErrorAndExit("Error getting current branches: %v", err)
 		}
 
 		currentBranchesByPlanId, apiErr := api.Client.GetCurrentBranchByPlanId(lib.CurrentProjectId, shared.GetCurrentBranchByPlanIdRequest{
@@ -154,8 +151,7 @@ func plans(cmd *cobra.Command, args []string) {
 		})
 
 		if apiErr != nil {
-			fmt.Fprintln(os.Stderr, "Error getting current branches:", apiErr)
-			return
+			term.OutputErrorAndExit("Error getting current branches: %v", apiErr)
 		}
 
 		table := tablewriter.NewWriter(os.Stdout)
@@ -284,8 +280,7 @@ func plans(cmd *cobra.Command, args []string) {
 			rel, err := filepath.Rel(fs.HomeDir, p[0])
 
 			if err != nil {
-				fmt.Fprintln(os.Stderr, "Error getting relative path:", err)
-				return
+				term.OutputErrorAndExit("Error getting relative path: %v", err)
 			}
 
 			addPathToTreeFn(parentTree, "", rel, p[1], true)
@@ -302,8 +297,7 @@ func plans(cmd *cobra.Command, args []string) {
 			rel, err := filepath.Rel(fs.Cwd, p[0])
 
 			if err != nil {
-				fmt.Fprintln(os.Stderr, "Error getting relative path:", err)
-				return
+				term.OutputErrorAndExit("Error getting relative path: %v", err)
 			}
 
 			addPathToTreeFn(childTree, "", rel, p[1], false)

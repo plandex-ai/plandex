@@ -33,21 +33,21 @@ func modelsSet(cmd *cobra.Command, args []string) {
 
 	originalSettings, apiErr := api.Client.GetSettings(lib.CurrentPlanId, lib.CurrentBranch)
 	if apiErr != nil {
-		fmt.Println("Error getting current settings:", apiErr)
+		term.OutputErrorAndExit("Error getting current settings: %v", apiErr)
 		return
 	}
 
 	// Marshal and unmarshal to make a deep copy of the settings
 	jsonBytes, err := json.Marshal(originalSettings)
 	if err != nil {
-		fmt.Println("Error marshalling settings:", err)
+		term.OutputErrorAndExit("Error marshalling settings: %v", err)
 		return
 	}
 
 	var settings *shared.PlanSettings
 	err = json.Unmarshal(jsonBytes, &settings)
 	if err != nil {
-		fmt.Println("Error unmarshalling settings:", err)
+		term.OutputErrorAndExit("Error unmarshalling settings: %v", err)
 		return
 	}
 
@@ -97,7 +97,7 @@ func modelsSet(cmd *cobra.Command, args []string) {
 				return
 			}
 
-			fmt.Println("Error selecting setting or role:", err)
+			term.OutputErrorAndExit("Error selecting setting or role: %v", err)
 			return
 		}
 
@@ -141,7 +141,7 @@ func modelsSet(cmd *cobra.Command, args []string) {
 					return
 				}
 
-				fmt.Println("Error getting value:", err)
+				term.OutputErrorAndExit("Error getting value: %v", err)
 				return
 			}
 		}
@@ -206,7 +206,7 @@ func modelsSet(cmd *cobra.Command, args []string) {
 					return
 				}
 
-				fmt.Println("Error selecting property:", err)
+				term.OutputErrorAndExit("Error selecting property: %v", err)
 				return
 			}
 
@@ -225,7 +225,7 @@ func modelsSet(cmd *cobra.Command, args []string) {
 						return
 					}
 
-					fmt.Println("Error selecting model:", err)
+					term.OutputErrorAndExit("Error selecting model: %v", err)
 					return
 				}
 
@@ -259,7 +259,7 @@ func modelsSet(cmd *cobra.Command, args []string) {
 							return
 						}
 
-						fmt.Println("Error getting value:", err)
+						term.OutputErrorAndExit("Error getting value: %v", err)
 						return
 					}
 				}
@@ -361,7 +361,7 @@ func modelsSet(cmd *cobra.Command, args []string) {
 			Settings: settings,
 		})
 	if apiErr != nil {
-		fmt.Println("Error updating settings:", apiErr)
+		term.OutputErrorAndExit("Error updating settings: %v", apiErr)
 		return
 	}
 
