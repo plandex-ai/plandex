@@ -5,6 +5,7 @@ import (
 	"plandex/term"
 	"plandex/types"
 
+	"github.com/fatih/color"
 	"github.com/plandex/plandex/shared"
 )
 
@@ -29,7 +30,7 @@ func promptInitialAuth() error {
 		}
 
 	case AuthAccountOption:
-		err = selectOrSignInOrCreate()
+		err = SelectOrSignInOrCreate()
 
 		if err != nil {
 			return fmt.Errorf("error selecting or signing in to account: %v", err)
@@ -41,7 +42,7 @@ func promptInitialAuth() error {
 
 const AddAccountOption = "Add another account"
 
-func selectOrSignInOrCreate() error {
+func SelectOrSignInOrCreate() error {
 	accounts, err := loadAccounts()
 
 	if err != nil {
@@ -90,6 +91,10 @@ func selectOrSignInOrCreate() error {
 		return fmt.Errorf("error selecting account: account not found")
 	}
 
+	setAuth(&types.ClientAuth{
+		ClientAccount: *selected,
+	})
+
 	term.StartSpinner("")
 	orgs, apiErr := apiClient.ListOrgs()
 	term.StopSpinner()
@@ -113,6 +118,11 @@ func selectOrSignInOrCreate() error {
 	if err != nil {
 		return fmt.Errorf("error setting auth: %v", err)
 	}
+
+	fmt.Printf("✅ Signed in as %s | Org: %s\n", color.New(color.Bold, color.FgHiGreen).Sprintf("<%s> %s", Current.UserName, Current.Email), color.New(color.FgHiCyan).Sprint(Current.OrgName))
+	fmt.Println()
+
+	term.PrintCmds("", "new", "plans")
 
 	return nil
 }

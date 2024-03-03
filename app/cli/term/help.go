@@ -2,6 +2,8 @@ package term
 
 import (
 	"fmt"
+	"io"
+	"os"
 	"strings"
 
 	"github.com/fatih/color"
@@ -40,14 +42,14 @@ var CmdDesc = map[string][2]string{
 }
 
 func PrintCmds(prefix string, cmds ...string) {
-	printCmds(prefix, []color.Attribute{color.Bold, color.FgHiWhite, color.BgCyan}, cmds...)
+	printCmds(os.Stderr, prefix, []color.Attribute{color.Bold, color.FgHiWhite, color.BgCyan}, cmds...)
 }
 
 func PrintCmdsWithColors(prefix string, colors []color.Attribute, cmds ...string) {
-	printCmds(prefix, colors, cmds...)
+	printCmds(os.Stderr, prefix, colors, cmds...)
 }
 
-func printCmds(prefix string, colors []color.Attribute, cmds ...string) {
+func printCmds(w io.Writer, prefix string, colors []color.Attribute, cmds ...string) {
 	for _, cmd := range cmds {
 		config, ok := CmdDesc[cmd]
 		if !ok {
@@ -69,7 +71,7 @@ func printCmds(prefix string, colors []color.Attribute, cmds ...string) {
 		}
 		styled := color.New(colors...).Sprintf(" plandex %s ", cmd)
 
-		fmt.Printf("%s%s 👉 %s\n", prefix, styled, desc)
+		fmt.Fprintf(w, "%s%s 👉 %s\n", prefix, styled, desc)
 	}
 
 }
@@ -83,48 +85,52 @@ func PrintCustomCmd(prefix, cmd, alias, desc string) {
 
 // PrintCustomHelp prints the custom help output for the Plandex CLI
 func PrintCustomHelp() {
-	color.New(color.Bold, color.BgGreen).Println(" Usage ")
-	color.New(color.Bold).Println("  plandex [command] [flags]")
-	color.New(color.Bold).Println("  pdx [command] [flags]")
-	fmt.Println()
+	builder := &strings.Builder{}
 
-	color.New(color.Bold, color.BgGreen).Println(" Help ")
-	color.New(color.Bold).Println("  plandex help")
-	color.New(color.Bold).Println("  plandex [command] --help")
-	fmt.Println()
+	color.New(color.Bold, color.BgGreen).Fprintln(builder, " Usage ")
+	color.New(color.Bold).Fprintln(builder, "  plandex [command] [flags]")
+	color.New(color.Bold).Fprintln(builder, "  pdx [command] [flags]")
+	fmt.Fprintln(builder)
 
-	color.New(color.Bold, color.BgMagenta).Println(" Getting Started ")
-	PrintCmdsWithColors(" ", []color.Attribute{color.Bold}, "new", "load", "tell", "changes", "apply")
-	fmt.Println()
+	color.New(color.Bold, color.BgGreen).Fprintln(builder, " Help ")
+	color.New(color.Bold).Fprintln(builder, "  plandex help")
+	color.New(color.Bold).Fprintln(builder, "  plandex [command] --help")
+	fmt.Fprintln(builder)
 
-	color.New(color.Bold, color.BgBlue).Println(" Plans ")
-	PrintCmdsWithColors(" ", []color.Attribute{color.Bold}, "new", "plans", "cd", "current", "delete-plan")
-	fmt.Println()
+	color.New(color.Bold, color.BgMagenta).Fprintln(builder, " Getting Started ")
+	printCmds(builder, " ", []color.Attribute{color.Bold}, "new", "load", "tell", "changes", "apply")
+	fmt.Fprintln(builder)
 
-	color.New(color.Bold, color.BgBlue).Println(" Changes ")
-	PrintCmdsWithColors(" ", []color.Attribute{color.Bold}, "changes", "apply")
-	fmt.Println()
+	color.New(color.Bold, color.BgBlue).Fprintln(builder, " Plans ")
+	printCmds(builder, " ", []color.Attribute{color.Bold}, "new", "plans", "cd", "current", "delete-plan")
+	fmt.Fprintln(builder)
 
-	color.New(color.Bold, color.BgBlue).Println(" Context ")
-	PrintCmdsWithColors(" ", []color.Attribute{color.Bold}, "load", "ls", "rm", "update", "clear")
-	fmt.Println()
+	color.New(color.Bold, color.BgBlue).Fprintln(builder, " Changes ")
+	printCmds(builder, " ", []color.Attribute{color.Bold}, "changes", "apply")
+	fmt.Fprintln(builder)
 
-	color.New(color.Bold, color.BgBlue).Println(" Branches ")
-	PrintCmdsWithColors(" ", []color.Attribute{color.Bold}, "branches", "checkout", "delete-branch")
-	fmt.Println()
+	color.New(color.Bold, color.BgBlue).Fprintln(builder, " Context ")
+	printCmds(builder, " ", []color.Attribute{color.Bold}, "load", "ls", "rm", "update", "clear")
+	fmt.Fprintln(builder)
 
-	color.New(color.Bold, color.BgBlue).Println(" History ")
-	PrintCmdsWithColors(" ", []color.Attribute{color.Bold}, "convo", "log", "rewind")
-	fmt.Println()
+	color.New(color.Bold, color.BgBlue).Fprintln(builder, " Branches ")
+	printCmds(builder, " ", []color.Attribute{color.Bold}, "branches", "checkout", "delete-branch")
+	fmt.Fprintln(builder)
 
-	color.New(color.Bold, color.BgBlue).Println(" Execution ")
-	PrintCmdsWithColors(" ", []color.Attribute{color.Bold}, "tell", "continue", "build")
-	fmt.Println()
+	color.New(color.Bold, color.BgBlue).Fprintln(builder, " History ")
+	printCmds(builder, " ", []color.Attribute{color.Bold}, "convo", "log", "rewind")
+	fmt.Fprintln(builder)
 
-	color.New(color.Bold, color.BgBlue).Println(" Active Plans ")
-	PrintCmdsWithColors(" ", []color.Attribute{color.Bold}, "ps", "connect", "stop")
-	fmt.Println()
+	color.New(color.Bold, color.BgBlue).Fprintln(builder, " Execution ")
+	printCmds(builder, " ", []color.Attribute{color.Bold}, "tell", "continue", "build")
+	fmt.Fprintln(builder)
 
-	color.New(color.Bold, color.BgBlue).Println(" AI Models ")
-	PrintCmdsWithColors(" ", []color.Attribute{color.Bold}, "models", "set-model")
+	color.New(color.Bold, color.BgBlue).Fprintln(builder, " Active Plans ")
+	printCmds(builder, " ", []color.Attribute{color.Bold}, "ps", "connect", "stop")
+	fmt.Fprintln(builder)
+
+	color.New(color.Bold, color.BgBlue).Fprintln(builder, " AI Models ")
+	printCmds(builder, " ", []color.Attribute{color.Bold}, "models", "set-model")
+
+	fmt.Print(builder.String())
 }

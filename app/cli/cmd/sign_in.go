@@ -1,6 +1,11 @@
 package cmd
 
-import "github.com/spf13/cobra"
+import (
+	"plandex/auth"
+	"plandex/term"
+
+	"github.com/spf13/cobra"
+)
 
 var signInCmd = &cobra.Command{
 	Use:   "sign-in",
@@ -14,5 +19,9 @@ func init() {
 }
 
 func signIn(cmd *cobra.Command, args []string) {
+	err := auth.SelectOrSignInOrCreate()
 
+	if err != nil {
+		term.OutputErrorAndExit("Error signing in: %v", err)
+	}
 }

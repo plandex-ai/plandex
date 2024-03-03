@@ -2,6 +2,7 @@ package term
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/fatih/color"
 	"github.com/plandex-ai/survey/v2"
@@ -16,6 +17,10 @@ func SelectFromList(msg string, options []string) (string, error) {
 	}
 	err := survey.AskOne(prompt, &selected)
 	if err != nil {
+		if err.Error() == "interrupt" {
+			os.Exit(0)
+		}
+
 		return "", err
 	}
 

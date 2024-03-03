@@ -2,6 +2,7 @@ package term
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/cqroot/prompt"
 	"github.com/cqroot/prompt/input"
@@ -10,11 +11,23 @@ import (
 )
 
 func GetUserStringInput(msg string) (string, error) {
-	return prompt.New().Ask(msg).Input("")
+	res, err := prompt.New().Ask(msg).Input("")
+
+	if err.Error() == "user quit prompt" {
+		os.Exit(0)
+	}
+
+	return res, err
 }
 
 func GetUserPasswordInput(msg string) (string, error) {
-	return prompt.New().Ask(msg).Input("", input.WithEchoMode(input.EchoPassword))
+	res, err := prompt.New().Ask(msg).Input("", input.WithEchoMode(input.EchoPassword))
+
+	if err.Error() == "user quit prompt" {
+		os.Exit(0)
+	}
+
+	return res, err
 }
 
 func GetUserKeyInput() (rune, error) {

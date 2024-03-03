@@ -3,6 +3,7 @@ package streamtui
 import (
 	"fmt"
 	"log"
+	"plandex/term"
 	"sync"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -45,20 +46,24 @@ func StartStreamUI(prompt string, buildOnly bool) error {
 
 	if mod.err != nil {
 		fmt.Println()
-		color.New(color.FgHiRed, color.Bold).Printf("error in stream UI: %v\n", mod.err)
-		return fmt.Errorf("error in stream UI: %v", mod.err)
+		term.OutputErrorAndExit(mod.err.Error())
 	}
 
 	if mod.apiErr != nil {
 		fmt.Println()
-		color.New(color.FgHiRed, color.Bold).Printf("error in stream UI: %s\n", mod.apiErr.Msg)
-		return fmt.Errorf("error in stream UI: %v", mod.apiErr)
+		term.OutputErrorAndExit(mod.apiErr.Msg)
 	}
 
 	if mod.stopped {
 		fmt.Println()
-		color.New(color.BgBlack, color.Bold, color.FgHiRed).Print(" 🛑 stopped early ")
+		color.New(color.BgBlack, color.Bold, color.FgHiRed).Print(" 🛑 Stopped early ")
 		fmt.Println()
+		term.PrintCmds("", "log", "rewind", "tell")
+	} else {
+		fmt.Println()
+		color.New(color.BgBlack, color.Bold, color.FgGreen).Print(" ✅ Plan is active in the background ")
+		fmt.Println()
+		term.PrintCmds("", "ps", "connect", "stop")
 	}
 
 	return nil
