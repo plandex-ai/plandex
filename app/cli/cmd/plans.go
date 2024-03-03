@@ -114,8 +114,6 @@ func plans(cmd *cobra.Command, args []string) {
 		term.OutputErrorAndExit("Error getting plans: %v", apiErr)
 	}
 
-	log.Println("listed")
-
 	if len(plans) == 0 {
 		fmt.Println("🤷‍♂️ No plans")
 		fmt.Println()

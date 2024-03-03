@@ -5,10 +5,8 @@ import (
 	"log"
 	"plandex/api"
 	"plandex/lib"
-	"strings"
 
 	"github.com/atotto/clipboard"
-	"github.com/fatih/color"
 	"github.com/muesli/reflow/wrap"
 	"github.com/plandex/plandex/shared"
 )
@@ -181,8 +179,6 @@ func (m *changesUIModel) updateMainView(scrollReplacement bool) {
 	// var updateMsg types.ChangesUIViewportsUpdate
 
 	if m.selectedNewFile() || m.selectedFullFile() {
-		originalFile := m.currentPlan.ContextsByPath[m.selectionInfo.currentPath].Body
-
 		var updatedFile string
 
 		if m.selectedNewFile() {
@@ -191,44 +187,8 @@ func (m *changesUIModel) updateMainView(scrollReplacement bool) {
 			updatedFile = m.currentPlan.CurrentPlanFiles.Files[m.selectionInfo.currentPath]
 		}
 
-		wrapWidth := m.fileViewport.Width - 2
-		fileSegments := []string{}
-		replacementSegments := map[int]bool{}
-
-		if originalFile == "" {
-			// the file is new, so all lines are new and should be highlighted
-			fileSegments = append(fileSegments, updatedFile)
-			replacementSegments[0] = true
-		} else {
-			lastFoundIdx := 0
-			updatedLines := strings.Split(updatedFile, "\n")
-			for i, line := range updatedLines {
-				fileSegments = append(fileSegments, line+"\n")
-				originalIdx := strings.Index(originalFile, line)
-				if originalIdx == -1 || originalIdx < lastFoundIdx {
-					replacementSegments[i] = true
-				} else {
-					lastFoundIdx = originalIdx + len(line)
-					replacementSegments[i] = false
-				}
-			}
-		}
-
-		for i, segment := range fileSegments {
-			wrapped := wrap.String(segment, wrapWidth)
-			isReplacement := replacementSegments[i]
-			if isReplacement {
-				lines := strings.Split(wrapped, "\n")
-				for j, line := range lines {
-					lines[j] = color.New(color.FgHiGreen).Sprint(line)
-				}
-				wrapped = strings.Join(lines, "\n")
-			}
-			fileSegments[i] = wrapped
-		}
-
-		m.fileViewport.SetContent(strings.Join(fileSegments, ""))
-
+		wrapped := wrap.String(updatedFile, m.fileViewport.Width-2)
+		m.fileViewport.SetContent(wrapped)
 	} else {
 		oldRes := m.getReplacementOldDisplay()
 		m.changeOldViewport.SetContent(oldRes.oldDisplay)

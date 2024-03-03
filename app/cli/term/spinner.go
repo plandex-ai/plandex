@@ -7,7 +7,7 @@ import (
 )
 
 const withMissageMinDuration = 700 * time.Millisecond
-const withoutMissageMinDuration = 200 * time.Millisecond
+const withoutMissageMinDuration = 350 * time.Millisecond
 
 var s = spinner.New(spinner.CharSets[33], 100*time.Millisecond)
 var startedAt time.Time
