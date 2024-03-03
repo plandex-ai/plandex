@@ -22,6 +22,7 @@ func TellPlan(
 	tellNoBuild,
 	isUserContinue bool,
 ) {
+	term.StartSpinner("")
 	contexts, apiErr := api.Client.ListContext(params.CurrentPlanId, params.CurrentBranch)
 
 	if apiErr != nil {
@@ -40,7 +41,7 @@ func TellPlan(
 		os.Exit(0)
 	}
 
-	projectPaths, _, err := fs.GetProjectPaths(fs.GetBaseDirForContexts(contexts))
+	paths, err := fs.GetProjectPaths(fs.GetBaseDirForContexts(contexts))
 
 	if err != nil {
 		term.OutputErrorAndExit("Error getting project paths: %v", err)
@@ -66,7 +67,7 @@ func TellPlan(
 			Prompt:         prompt,
 			ConnectStream:  !tellBg,
 			AutoContinue:   !tellStop,
-			ProjectPaths:   projectPaths,
+			ProjectPaths:   paths.ActivePaths,
 			BuildMode:      buildMode,
 			IsUserContinue: isUserContinue,
 			ApiKey:         os.Getenv("OPENAI_API_KEY"),

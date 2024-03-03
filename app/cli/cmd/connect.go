@@ -42,7 +42,9 @@ func connect(cmd *cobra.Command, args []string) {
 		return
 	}
 
+	term.StartSpinner("")
 	apiErr := api.Client.ConnectPlan(planId, branch, stream.OnStreamPlan)
+	term.StopSpinner()
 
 	if apiErr != nil {
 		term.OutputErrorAndExit("Error connecting to stream: %v", apiErr)

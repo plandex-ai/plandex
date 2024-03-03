@@ -12,7 +12,7 @@ import (
 )
 
 func ApplyPlan(planId, branch string, autoConfirm bool) error {
-	term.StartSpinner("🔬 Checking plan state...")
+	term.StartSpinner("")
 
 	currentPlanState, apiErr := api.Client.GetCurrentPlanState(planId, branch)
 
@@ -159,7 +159,9 @@ func ApplyPlan(planId, branch string, autoConfirm bool) error {
 			}
 		}
 
+		term.StartSpinner("")
 		apiErr := api.Client.ApplyPlan(planId, branch)
+		term.StopSpinner()
 
 		if apiErr != nil {
 			aborted = true

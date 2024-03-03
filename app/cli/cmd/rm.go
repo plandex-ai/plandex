@@ -30,6 +30,7 @@ func contextRm(cmd *cobra.Command, args []string) {
 		return
 	}
 
+	term.StartSpinner("")
 	contexts, err := api.Client.ListContext(lib.CurrentPlanId, lib.CurrentBranch)
 
 	if err != nil {
@@ -61,6 +62,7 @@ func contextRm(cmd *cobra.Command, args []string) {
 		res, err := api.Client.DeleteContext(lib.CurrentPlanId, lib.CurrentBranch, shared.DeleteContextRequest{
 			Ids: deleteIds,
 		})
+		term.StopSpinner()
 
 		if err != nil {
 			term.OutputErrorAndExit("Error deleting context: %v", err)
@@ -68,6 +70,7 @@ func contextRm(cmd *cobra.Command, args []string) {
 
 		fmt.Println("✅ " + res.Msg)
 	} else {
+		term.StopSpinner()
 		fmt.Println("🤷‍♂️ No context removed")
 	}
 }

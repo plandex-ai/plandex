@@ -47,7 +47,9 @@ func checkout(cmd *cobra.Command, args []string) {
 		nameOrIdx = strings.TrimSpace(args[0])
 	}
 
+	term.StartSpinner("")
 	branches, apiErr := api.Client.ListBranches(lib.CurrentPlanId)
+	term.StopSpinner()
 
 	if apiErr != nil {
 		term.OutputErrorAndExit("Error getting branches: %v", apiErr)
@@ -121,16 +123,15 @@ func checkout(cmd *cobra.Command, args []string) {
 	}
 
 	if willCreate {
-		term.StartSpinner("🌱 Creating branch...")
+		term.StartSpinner("")
 		err := api.Client.CreateBranch(lib.CurrentPlanId, lib.CurrentBranch, shared.CreateBranchRequest{Name: branchName})
+		term.StopSpinner()
 
 		if err != nil {
-			term.StopSpinner()
 			term.OutputErrorAndExit("Error creating branch: %v", err)
 			return
 		}
 
-		term.StopSpinner()
 		// fmt.Printf("✅ Created branch %s\n", color.New(color.Bold, color.FgHiGreen).Sprint(branchName))
 	}
 

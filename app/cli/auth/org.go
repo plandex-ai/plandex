@@ -70,10 +70,12 @@ func createOrg() (*shared.Org, error) {
 		return nil, fmt.Errorf("error prompting auto add domain users: %v", err)
 	}
 
+	term.StartSpinner("")
 	res, apiErr := apiClient.CreateOrg(shared.CreateOrgRequest{
 		Name:               name,
 		AutoAddDomainUsers: autoAddDomainUsers,
 	})
+	term.StopSpinner()
 
 	if apiErr != nil {
 		return nil, fmt.Errorf("error creating org: %v", apiErr.Msg)

@@ -46,6 +46,7 @@ func rewind(cmd *cobra.Command, args []string) {
 		stepsOrSha = "1"
 	}
 
+	term.StartSpinner("")
 	logsRes, apiErr := api.Client.ListLogs(lib.CurrentPlanId, lib.CurrentBranch)
 
 	if apiErr != nil {
@@ -81,6 +82,7 @@ func rewind(cmd *cobra.Command, args []string) {
 
 	// Rewind to the target sha
 	_, apiErr = api.Client.RewindPlan(lib.CurrentPlanId, lib.CurrentBranch, shared.RewindPlanRequest{Sha: targetSha})
+	term.StopSpinner()
 
 	if apiErr != nil {
 		term.OutputErrorAndExit("Error rewinding plan: %v", apiErr)

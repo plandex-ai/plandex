@@ -33,7 +33,9 @@ func ps(cmd *cobra.Command, args []string) {
 		return
 	}
 
+	term.StartSpinner("")
 	res, apiErr := api.Client.ListPlansRunning([]string{lib.CurrentProjectId}, true)
+	term.StopSpinner()
 
 	if apiErr != nil {
 		term.OutputErrorAndExit("Error getting running plans: %v", apiErr)

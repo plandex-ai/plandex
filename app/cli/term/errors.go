@@ -15,6 +15,7 @@ func OutputNoApiKeyMsgAndExit() {
 }
 
 func OutputErrorAndExit(msg string, args ...interface{}) {
+	StopSpinner()
 	msg = fmt.Sprintf(msg, args...)
 
 	displayMsg := ""

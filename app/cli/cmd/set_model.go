@@ -31,7 +31,10 @@ func modelsSet(cmd *cobra.Command, args []string) {
 	auth.MustResolveAuthWithOrg()
 	lib.MustResolveProject()
 
+	term.StartSpinner("")
 	originalSettings, apiErr := api.Client.GetSettings(lib.CurrentPlanId, lib.CurrentBranch)
+	term.StopSpinner()
+
 	if apiErr != nil {
 		term.OutputErrorAndExit("Error getting current settings: %v", apiErr)
 		return
@@ -354,12 +357,15 @@ func modelsSet(cmd *cobra.Command, args []string) {
 		return
 	}
 
+	term.StartSpinner("")
 	res, apiErr := api.Client.UpdateSettings(
 		lib.CurrentPlanId,
 		lib.CurrentBranch,
 		shared.UpdateSettingsRequest{
 			Settings: settings,
 		})
+	term.StopSpinner()
+
 	if apiErr != nil {
 		term.OutputErrorAndExit("Error updating settings: %v", apiErr)
 		return

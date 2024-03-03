@@ -43,6 +43,7 @@ func ConvertTrial() error {
 		return fmt.Errorf("error prompting auto add domain users: %v", err)
 	}
 
+	term.StartSpinner("")
 	res, apiErr := apiClient.ConvertTrial(shared.ConvertTrialRequest{
 		Email:                 email,
 		Pin:                   pin,
@@ -50,6 +51,7 @@ func ConvertTrial() error {
 		OrgName:               orgName,
 		OrgAutoAddDomainUsers: autoAddDomainUsers,
 	})
+	term.StopSpinner()
 
 	if apiErr != nil {
 		return fmt.Errorf("error converting trial: %v", apiErr)
@@ -80,12 +82,10 @@ func startTrial() error {
 
 	res, apiErr := apiClient.StartTrial()
 
+	term.StopSpinner()
 	if apiErr != nil {
-		term.StopSpinner()
 		return fmt.Errorf("error starting trial: %v", apiErr.Msg)
 	}
-
-	term.StopSpinner()
 
 	err := setAuth(&types.ClientAuth{
 		ClientAccount: types.ClientAccount{

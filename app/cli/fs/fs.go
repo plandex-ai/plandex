@@ -121,25 +121,33 @@ func IsGitRepo(dir string) bool {
 	return isGitRepo
 }
 
-func GetProjectPaths(baseDir string) (map[string]bool, *ignore.GitIgnore, error) {
+type ProjectPaths struct {
+	ActivePaths    map[string]bool
+	AllPaths       map[string]bool
+	PlandexIgnored *ignore.GitIgnore
+	IgnoredPaths   map[string]string
+}
+
+func GetProjectPaths(baseDir string) (*ProjectPaths, error) {
 	if ProjectRoot == "" {
-		return nil, nil, fmt.Errorf("no project root found")
+		return nil, fmt.Errorf("no project root found")
 	}
 
 	return GetPaths(baseDir, ProjectRoot)
 }
 
-func GetPaths(baseDir, currentDir string) (map[string]bool, *ignore.GitIgnore, error) {
+func GetPaths(baseDir, currentDir string) (*ProjectPaths, error) {
 	ignored, err := GetPlandexIgnore(currentDir)
 
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	paths := map[string]bool{}
-	ignoredPaths := map[string]bool{}
+	allPaths := map[string]bool{}
+	activePaths := map[string]bool{}
 
-	dirs := map[string]bool{}
+	allDirs := map[string]bool{}
+	activeDirs := map[string]bool{}
 
 	isGitRepo := IsGitRepo(baseDir)
 
@@ -177,11 +185,10 @@ func GetPaths(baseDir, currentDir string) (map[string]bool, *ignore.GitIgnore, e
 				}
 
 				if ignored != nil && ignored.MatchesPath(relFile) {
-					ignoredPaths[relFile] = true
 					continue
 				}
 
-				paths[relFile] = true
+				activePaths[relFile] = true
 			}
 
 			errCh <- nil
@@ -213,11 +220,10 @@ func GetPaths(baseDir, currentDir string) (map[string]bool, *ignore.GitIgnore, e
 				}
 
 				if ignored != nil && ignored.MatchesPath(relFile) {
-					ignoredPaths[relFile] = true
 					continue
 				}
 
-				paths[relFile] = true
+				activePaths[relFile] = true
 			}
 
 			errCh <- nil
@@ -233,30 +239,40 @@ func GetPaths(baseDir, currentDir string) (map[string]bool, *ignore.GitIgnore, e
 			}
 
 			if info.IsDir() {
-				relPath, err := filepath.Rel(currentDir, path)
-				if err != nil {
-					return err
+				if info.Name() == ".git" {
+					return filepath.SkipDir
 				}
-
-				if ignored != nil && ignored.MatchesPath(relPath) {
-					ignoredPaths[relPath] = true
+				if info.Name() == ".plandex" || info.Name() == ".plandex-dev" {
 					return filepath.SkipDir
 				}
 
-				dirs[relPath] = true
-			} else if !isGitRepo {
 				relPath, err := filepath.Rel(currentDir, path)
 				if err != nil {
 					return err
 				}
 
+				allDirs[relPath] = true
+
 				if ignored != nil && ignored.MatchesPath(relPath) {
-					ignoredPaths[relPath] = true
+					return filepath.SkipDir
+				}
+
+				activeDirs[relPath] = true
+			} else {
+				relPath, err := filepath.Rel(currentDir, path)
+				if err != nil {
+					return err
+				}
+
+				allPaths[relPath] = true
+
+				if ignored != nil && ignored.MatchesPath(relPath) {
 					return nil
 				}
 
-				// lock isn't need here because isGitRepo is false, which makes this the only routine
-				paths[relPath] = true
+				mu.Lock()
+				defer mu.Unlock()
+				activePaths[relPath] = true
 			}
 
 			return nil
@@ -273,16 +289,35 @@ func GetPaths(baseDir, currentDir string) (map[string]bool, *ignore.GitIgnore, e
 	for i := 0; i < numRoutines; i++ {
 		err := <-errCh
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 	}
 
-	for dir := range dirs {
-		paths[dir] = true
+	for dir := range allDirs {
+		allPaths[dir] = true
 	}
 
-	return paths, ignored, nil
+	for dir := range activeDirs {
+		activePaths[dir] = true
+	}
 
+	ignoredPaths := map[string]string{}
+	for path := range allPaths {
+		if _, ok := activePaths[path]; !ok {
+			if ignored != nil && ignored.MatchesPath(path) {
+				ignoredPaths[path] = "plandex"
+			} else {
+				ignoredPaths[path] = "git"
+			}
+		}
+	}
+
+	return &ProjectPaths{
+		ActivePaths:    activePaths,
+		AllPaths:       allPaths,
+		PlandexIgnored: ignored,
+		IgnoredPaths:   ignoredPaths,
+	}, nil
 }
 
 func GetPlandexIgnore(dir string) (*ignore.GitIgnore, error) {

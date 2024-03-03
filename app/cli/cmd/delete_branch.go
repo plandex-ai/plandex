@@ -46,7 +46,9 @@ func deleteBranch(cmd *cobra.Command, args []string) {
 		return
 	}
 
+	term.StartSpinner("")
 	branches, apiErr := api.Client.ListBranches(lib.CurrentPlanId)
+	term.StopSpinner()
 
 	if apiErr != nil {
 		term.OutputErrorAndExit("Error getting branches: %v", apiErr)
@@ -112,7 +114,9 @@ func deleteBranch(cmd *cobra.Command, args []string) {
 		return
 	}
 
+	term.StartSpinner("")
 	apiErr = api.Client.DeleteBranch(lib.CurrentPlanId, branch)
+	term.StopSpinner()
 
 	if apiErr != nil {
 		term.OutputErrorAndExit("Error deleting branch: %v", apiErr)

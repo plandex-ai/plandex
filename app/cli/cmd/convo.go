@@ -30,7 +30,10 @@ func convo(cmd *cobra.Command, args []string) {
 	auth.MustResolveAuthWithOrg()
 	lib.MustResolveProject()
 
+	term.StartSpinner("")
 	conversation, apiErr := api.Client.ListConvo(lib.CurrentPlanId, lib.CurrentBranch)
+	term.StopSpinner()
+
 	if apiErr != nil {
 		term.OutputErrorAndExit("Error loading conversation: %v", apiErr.Msg)
 	}

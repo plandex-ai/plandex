@@ -90,7 +90,9 @@ func selectOrSignInOrCreate() error {
 		return fmt.Errorf("error selecting account: account not found")
 	}
 
+	term.StartSpinner("")
 	orgs, apiErr := apiClient.ListOrgs()
+	term.StopSpinner()
 
 	if apiErr != nil {
 		return fmt.Errorf("error listing orgs: %v", apiErr.Msg)
@@ -164,7 +166,10 @@ func promptSignInNewAccount() error {
 }
 
 func verifyEmail(email, host string) (bool, string, error) {
+
+	term.StartSpinner("")
 	res, apiErr := apiClient.CreateEmailVerification(email, host, "")
+	term.StopSpinner()
 
 	if apiErr != nil {
 		return false, "", fmt.Errorf("error creating email verification: %v", apiErr.Msg)
@@ -182,10 +187,12 @@ func verifyEmail(email, host string) (bool, string, error) {
 }
 
 func signIn(email, pin, host string) error {
+	term.StartSpinner("")
 	res, apiErr := apiClient.SignIn(shared.SignInRequest{
 		Email: email,
 		Pin:   pin,
 	}, host)
+	term.StopSpinner()
 
 	if apiErr != nil {
 		return fmt.Errorf("error signing in: %v", apiErr.Msg)
@@ -225,11 +232,13 @@ func createAccount(email, pin, host string) error {
 		return fmt.Errorf("error prompting name: %v", err)
 	}
 
+	term.StartSpinner("🌟 Creating account...")
 	res, apiErr := apiClient.CreateAccount(shared.CreateAccountRequest{
 		Email:    email,
 		UserName: name,
 		Pin:      pin,
 	}, host)
+	term.StopSpinner()
 
 	if apiErr != nil {
 		return fmt.Errorf("error creating account: %v", apiErr.Msg)

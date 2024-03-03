@@ -26,7 +26,9 @@ func listContext(cmd *cobra.Command, args []string) {
 	auth.MustResolveAuthWithOrg()
 	lib.MustResolveProject()
 
+	term.StartSpinner("")
 	contexts, err := api.Client.ListContext(lib.CurrentPlanId, lib.CurrentBranch)
+	term.StopSpinner()
 
 	if err != nil {
 		term.OutputErrorAndExit("Error listing context: %v", err)

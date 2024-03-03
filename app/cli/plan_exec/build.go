@@ -14,7 +14,7 @@ import (
 )
 
 func Build(params ExecParams, buildBg bool) (bool, error) {
-	term.StartSpinner("🏗️  Starting build...")
+	term.StartSpinner("")
 
 	contexts, apiErr := api.Client.ListContext(params.CurrentPlanId, params.CurrentBranch)
 
@@ -30,7 +30,7 @@ func Build(params ExecParams, buildBg bool) (bool, error) {
 		return false, nil
 	}
 
-	projectPaths, _, err := fs.GetProjectPaths(fs.GetBaseDirForContexts(contexts))
+	paths, err := fs.GetProjectPaths(fs.GetBaseDirForContexts(contexts))
 
 	if err != nil {
 		return false, fmt.Errorf("error getting project paths: %v", err)
@@ -38,7 +38,7 @@ func Build(params ExecParams, buildBg bool) (bool, error) {
 
 	apiErr = api.Client.BuildPlan(params.CurrentPlanId, params.CurrentBranch, shared.BuildPlanRequest{
 		ConnectStream: !buildBg,
-		ProjectPaths:  projectPaths,
+		ProjectPaths:  paths.ActivePaths,
 		ApiKey:        os.Getenv("OPENAI_API_KEY"),
 	}, stream.OnStreamPlan)
 

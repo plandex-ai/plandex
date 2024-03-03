@@ -44,7 +44,9 @@ func MustResolveAuth(requireOrg bool) {
 	Current = &auth
 
 	if requireOrg && Current.OrgId == "" {
+		term.StartSpinner("")
 		orgs, apiErr := apiClient.ListOrgs()
+		term.StopSpinner()
 
 		if apiErr != nil {
 			term.OutputErrorAndExit("Error listing orgs: %v", apiErr.Msg)

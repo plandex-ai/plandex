@@ -37,7 +37,9 @@ func stop(cmd *cobra.Command, args []string) {
 		return
 	}
 
+	term.StartSpinner("")
 	apiErr := api.Client.StopPlan(planId, branch)
+	term.StopSpinner()
 
 	if apiErr != nil {
 		term.OutputErrorAndExit("Error stopping stream: %v", apiErr.Msg)

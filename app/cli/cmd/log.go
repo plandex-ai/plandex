@@ -36,7 +36,10 @@ func runLog(cmd *cobra.Command, args []string) {
 		return
 	}
 
+	term.StartSpinner("")
 	res, apiErr := api.Client.ListLogs(lib.CurrentPlanId, lib.CurrentBranch)
+	term.StopSpinner()
+
 	if apiErr != nil {
 		term.OutputErrorAndExit("Error getting logs: %v", apiErr)
 	}

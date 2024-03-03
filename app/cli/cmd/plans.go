@@ -106,7 +106,9 @@ func plans(cmd *cobra.Command, args []string) {
 		return
 	}
 
+	term.StartSpinner("")
 	plans, apiErr := api.Client.ListPlans(projectIds)
+	term.StopSpinner()
 
 	if apiErr != nil {
 		term.OutputErrorAndExit("Error getting plans: %v", apiErr)

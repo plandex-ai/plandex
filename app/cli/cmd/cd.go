@@ -38,7 +38,9 @@ func cd(cmd *cobra.Command, args []string) {
 
 	var plan *shared.Plan
 
+	term.StartSpinner("")
 	plans, apiErr := api.Client.ListPlans([]string{lib.CurrentProjectId})
+	term.StopSpinner()
 
 	if apiErr != nil {
 		term.OutputErrorAndExit("Error getting plans: %v", apiErr)

@@ -6,7 +6,8 @@ import (
 	"github.com/briandowns/spinner"
 )
 
-const minDuration = 700 * time.Millisecond
+const withMissageMinDuration = 700 * time.Millisecond
+const withoutMissageMinDuration = 400 * time.Millisecond
 
 var s = spinner.New(spinner.CharSets[33], 100*time.Millisecond)
 var startedAt time.Time
@@ -32,8 +33,11 @@ func StartSpinner(msg string) {
 
 func StopSpinner() {
 	elapsed := time.Since(startedAt)
-	if elapsed < minDuration {
-		time.Sleep(minDuration - elapsed)
+
+	if lastMessage != "" && elapsed < withMissageMinDuration {
+		time.Sleep(withMissageMinDuration - elapsed)
+	} else if elapsed < withoutMissageMinDuration {
+		time.Sleep(withoutMissageMinDuration - elapsed)
 	}
 
 	s.Stop()

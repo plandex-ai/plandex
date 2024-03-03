@@ -35,7 +35,9 @@ func new(cmd *cobra.Command, args []string) {
 	auth.MustResolveAuthWithOrg()
 	lib.MustResolveOrCreateProject()
 
+	term.StartSpinner("")
 	res, apiErr := api.Client.CreatePlan(lib.CurrentProjectId, shared.CreatePlanRequest{Name: name})
+	term.StopSpinner()
 
 	if apiErr != nil {
 		if apiErr.Type == shared.ApiErrorTypeTrialPlansExceeded {

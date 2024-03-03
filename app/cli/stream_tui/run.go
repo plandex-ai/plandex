@@ -57,7 +57,7 @@ func StartStreamUI(prompt string, buildOnly bool) error {
 
 	if mod.stopped {
 		fmt.Println()
-		color.New(color.BgBlack, color.Bold, color.FgHiRed).Print(" 🛑 stopped early by user ")
+		color.New(color.BgBlack, color.Bold, color.FgHiRed).Print(" 🛑 stopped early ")
 		fmt.Println()
 	}
 

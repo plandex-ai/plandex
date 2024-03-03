@@ -27,7 +27,9 @@ func clearAllContext(cmd *cobra.Command, args []string) {
 		return
 	}
 
+	term.StartSpinner("")
 	contexts, err := api.Client.ListContext(lib.CurrentPlanId, lib.CurrentBranch)
+	term.StopSpinner()
 
 	if err != nil {
 		term.OutputErrorAndExit("Error retrieving context: %v", err)

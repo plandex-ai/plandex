@@ -28,7 +28,7 @@ func changes(cmd *cobra.Command, args []string) {
 	auth.MustResolveAuthWithOrg()
 	lib.MustResolveProject()
 
-	term.StartSpinner("🔬 Checking plan state...")
+	term.StartSpinner("")
 
 	currentPlanState, apiErr := api.Client.GetCurrentPlanState(lib.CurrentPlanId, lib.CurrentBranch)
 

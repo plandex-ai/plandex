@@ -29,7 +29,9 @@ func models(cmd *cobra.Command, args []string) {
 	auth.MustResolveAuthWithOrg()
 	lib.MustResolveProject()
 
+	term.StartSpinner("")
 	settings, err := api.Client.GetSettings(lib.CurrentPlanId, lib.CurrentBranch)
+	term.StopSpinner()
 
 	if err != nil {
 		term.OutputErrorAndExit("Error getting settings: %v", err)

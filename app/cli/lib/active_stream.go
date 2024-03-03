@@ -9,7 +9,9 @@ import (
 )
 
 func SelectActiveStream(args []string) (string, string, bool) {
+	term.StartSpinner("")
 	res, apiErr := api.Client.ListPlansRunning([]string{CurrentProjectId}, false)
+	term.StopSpinner()
 
 	if apiErr != nil {
 		term.OutputErrorAndExit("Error getting running plans: %v", apiErr)

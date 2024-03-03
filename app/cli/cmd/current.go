@@ -36,7 +36,10 @@ func current(cmd *cobra.Command, args []string) {
 		return
 	}
 
+	term.StartSpinner("")
 	plan, err := api.Client.GetPlan(lib.CurrentPlanId)
+	term.StopSpinner()
+
 	if err != nil {
 		term.OutputErrorAndExit("Error getting plan: %v", err)
 		return

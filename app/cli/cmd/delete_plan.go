@@ -50,7 +50,9 @@ func del(cmd *cobra.Command, args []string) {
 	}
 	var plan *shared.Plan
 
+	term.StartSpinner("")
 	plans, apiErr := api.Client.ListPlans([]string{lib.CurrentProjectId})
+	term.StopSpinner()
 
 	if apiErr != nil {
 		term.OutputErrorAndExit("Error getting plans: %v", apiErr)
@@ -107,7 +109,9 @@ func del(cmd *cobra.Command, args []string) {
 		term.OutputErrorAndExit("Plan not found")
 	}
 
+	term.StartSpinner("")
 	apiErr = api.Client.DeletePlan(plan.Id)
+	term.StopSpinner()
 
 	if apiErr != nil {
 		term.OutputErrorAndExit("Error deleting plan: %s", apiErr.Msg)
@@ -124,7 +128,10 @@ func del(cmd *cobra.Command, args []string) {
 }
 
 func delAll() {
+	term.StartSpinner("")
 	err := api.Client.DeleteAllPlans(lib.CurrentProjectId)
+	term.StopSpinner()
+
 	if err != nil {
 		term.OutputErrorAndExit("Error deleting all  plans: %v", err)
 	}
