@@ -1,19 +1,11 @@
-func init() {
-	var helpCmd = &cobra.Command{
-		Use:   "help",
-		Short: "Display help for Plandex",
-		Long:  `Display help for Plandex.`,
-		Run: func(cmd *cobra.Command, args []string) {
-			term.PrintCustomHelp()
-		},
-	}
-
-	RootCmd.AddCommand(helpCmd)
-}package cmd
+package cmd
 
 import (
-	"github.com/spf13/cobra"
+	"log"
+
 	"plandex/term"
+
+	"github.com/spf13/cobra"
 )
 
 // RootCmd represents the base command when called without any subcommands
@@ -36,4 +28,18 @@ func Execute() {
 
 func run(cmd *cobra.Command, args []string) {
 
+}
+
+func init() {
+	var helpCmd = &cobra.Command{
+		Use:     "help",
+		Aliases: []string{"h"},
+		Short:   "Display help for Plandex",
+		Long:    `Display help for Plandex.`,
+		Run: func(cmd *cobra.Command, args []string) {
+			term.PrintCustomHelp()
+		},
+	}
+
+	RootCmd.AddCommand(helpCmd)
 }

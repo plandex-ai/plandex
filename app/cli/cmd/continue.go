@@ -15,7 +15,7 @@ import (
 var continueCmd = &cobra.Command{
 	Use:     "continue",
 	Aliases: []string{"c"},
-	Short:   "Continue the plan.",
+	Short:   "Continue the plan",
 	Run:     doContinue,
 }
 

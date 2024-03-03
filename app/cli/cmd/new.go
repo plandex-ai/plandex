@@ -20,7 +20,7 @@ var name string
 var newCmd = &cobra.Command{
 	Use:     "new",
 	Aliases: []string{"n"},
-	Short:   "Start a new plan.",
+	Short:   "Start a new plan",
 	// Long:  ``,
 	Args: cobra.ExactArgs(0),
 	Run:  new,

@@ -17,7 +17,7 @@ var logCmd = &cobra.Command{
 	Use:     "log",
 	Aliases: []string{"history", "logs"},
 	Short:   "Show plan history",
-	Long:    `Show plan history.`,
+	Long:    `Show plan history`,
 	Args:    cobra.NoArgs,
 	Run:     runLog,
 }

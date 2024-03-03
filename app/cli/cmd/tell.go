@@ -27,7 +27,7 @@ var tellNoBuild bool
 var tellCmd = &cobra.Command{
 	Use:     "tell [prompt]",
 	Aliases: []string{"t"},
-	Short:   "Send a prompt for the current plan.",
+	Short:   "Send a prompt for the current plan",
 	// Long:  ``,
 	Args: cobra.RangeArgs(0, 1),
 	Run:  doTell,

@@ -16,7 +16,7 @@ import (
 // convoCmd represents the convo command
 var convoCmd = &cobra.Command{
 	Use:   "convo",
-	Short: "Display complete conversation history.",
+	Short: "Display complete conversation history",
 	Run:   convo,
 }
 

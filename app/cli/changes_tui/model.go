@@ -141,7 +141,7 @@ func initialModel() *changesUIModel {
 			// ),
 
 			quit: bubbleKey.NewBinding(
-				bubbleKey.WithKeys("q", "ctrl+c", "esc"),
+				bubbleKey.WithKeys("q", "ctrl+c"),
 				bubbleKey.WithHelp("q", "quit"),
 			),
 		},

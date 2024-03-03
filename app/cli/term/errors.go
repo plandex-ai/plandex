@@ -30,8 +30,11 @@ func OutputErrorAndExit(msg string, args ...interface{}) {
 			for n := 0; n < i; n++ {
 				displayMsg += "  "
 			}
+			if i > 0 {
+				displayMsg += "→ "
+			}
 
-			displayMsg += "→ " + shared.Capitalize(part)
+			displayMsg += shared.Capitalize(part)
 		}
 	} else {
 		displayMsg = shared.Capitalize(msg)
