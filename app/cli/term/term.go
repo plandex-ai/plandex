@@ -1,5 +1,49 @@
 package term
 
+// PrintCustomHelp prints the custom help output for the Plandex CLI
+func PrintCustomHelp() {
+	fmt.Println("Usage:")
+	fmt.Println("  plandex [command] [flags]")
+	fmt.Println("  pdx [command] [flags]")
+	fmt.Println()
+
+	// Core functionalities
+	fmt.Println("Core Commands:")
+	PrintCmds("", "new", "load", "tell", "changes", "apply", "continue")
+	fmt.Println()
+
+	// Plan management
+	fmt.Println("Plan Management:")
+	PrintCmds("", "current", "plans", "cd", "delete-plan")
+	fmt.Println()
+
+	// Branch management
+	fmt.Println("Branch Management:")
+	PrintCmds("", "branches", "checkout", "delete-branch")
+	fmt.Println()
+
+	// Context management
+	fmt.Println("Context Management:")
+	PrintCmds("", "ls", "rm", "clear")
+	fmt.Println()
+
+	// Advanced features
+	fmt.Println("Advanced Features:")
+	PrintCmds("", "build", "models", "set-model", "log", "convo", "rewind")
+	fmt.Println()
+
+	// Streaming and collaboration
+	fmt.Println("Streaming and Collaboration:")
+	PrintCmds("", "ps", "connect", "stop")
+	fmt.Println()
+
+	// Help and settings
+	fmt.Println("Help and Settings:")
+	PrintCmds("", "help", "sign-in")
+	fmt.Println()
+}
+package term
+
 import (
 	"fmt"
 	"log"
