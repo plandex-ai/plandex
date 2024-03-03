@@ -270,9 +270,11 @@ func GetPaths(baseDir, currentDir string) (*ProjectPaths, error) {
 					return nil
 				}
 
-				mu.Lock()
-				defer mu.Unlock()
-				activePaths[relPath] = true
+				if !isGitRepo {
+					mu.Lock()
+					defer mu.Unlock()
+					activePaths[relPath] = true
+				}
 			}
 
 			return nil

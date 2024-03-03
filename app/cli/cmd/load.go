@@ -49,5 +49,6 @@ func contextLoad(cmd *cobra.Command, args []string) {
 		ForceSkipIgnore: forceSkipIgnore,
 	})
 
+	fmt.Println()
 	term.PrintCmds("", "ls", "tell")
 }

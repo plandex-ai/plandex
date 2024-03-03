@@ -79,8 +79,11 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 		}
 
 		// fmt.Println("active paths", len(paths.ActivePaths))
-		// fmt.Println("ignored paths", len(paths.IgnoredPaths))
 		// fmt.Println("all paths", len(paths.AllPaths))
+		// fmt.Println("ignored paths", len(paths.IgnoredPaths))
+
+		// spew.Dump(paths.IgnoredPaths)
+		// spew.Dump(paths.ActivePaths)
 
 		if !params.ForceSkipIgnore {
 			var filteredPaths []string
