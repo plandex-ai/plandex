@@ -11,14 +11,14 @@ import (
 	"github.com/fatih/color"
 )
 
-func ApplyPlan(planId, branch string, autoConfirm bool) error {
+func MustApplyPlan(planId, branch string, autoConfirm bool) {
 	term.StartSpinner("")
 
 	currentPlanState, apiErr := api.Client.GetCurrentPlanState(planId, branch)
 
 	if apiErr != nil {
 		term.StopSpinner()
-		return fmt.Errorf("error getting current plan state: %s", apiErr.Msg)
+		term.OutputErrorAndExit("Error getting current plan state: %v", apiErr)
 	}
 
 	if currentPlanState.HasPendingBuilds() {
@@ -26,7 +26,7 @@ func ApplyPlan(planId, branch string, autoConfirm bool) error {
 
 		if apiErr != nil {
 			term.StopSpinner()
-			return fmt.Errorf("error getting running plans: %s", apiErr.Msg)
+			term.OutputErrorAndExit("Error getting running plans: %v", apiErr)
 		}
 
 		for _, b := range plansRunningRes.Branches {
@@ -34,7 +34,7 @@ func ApplyPlan(planId, branch string, autoConfirm bool) error {
 				fmt.Println("This plan is currently active. Please wait for it to finish before applying.")
 				fmt.Println()
 				term.PrintCmds("", "ps", "connect")
-				return nil
+				return
 			}
 		}
 
@@ -46,7 +46,7 @@ func ApplyPlan(planId, branch string, autoConfirm bool) error {
 		shouldBuild, err := term.ConfirmYesNo("Build changes now?")
 
 		if err != nil {
-			return fmt.Errorf("failed to get confirmation user input: %s", err)
+			term.OutputErrorAndExit("failed to get confirmation user input: %s", err)
 		}
 
 		if !shouldBuild {
@@ -57,7 +57,7 @@ func ApplyPlan(planId, branch string, autoConfirm bool) error {
 		_, err = buildPlanInlineFn(nil)
 
 		if err != nil {
-			return fmt.Errorf("failed to build plan: %w", err)
+			term.OutputErrorAndExit("failed to build plan: %v", err)
 		}
 	}
 
@@ -76,7 +76,7 @@ func ApplyPlan(planId, branch string, autoConfirm bool) error {
 	if len(currentPlanFiles.Files) == 0 {
 		term.StopSpinner()
 		fmt.Println("🤷‍♂️ No changes to apply")
-		return nil
+		return
 	}
 
 	isRepo := fs.ProjectRootIsGitRepo()
@@ -88,7 +88,8 @@ func ApplyPlan(planId, branch string, autoConfirm bool) error {
 		hasUncommittedChanges, err = CheckUncommittedChanges()
 
 		if err != nil {
-			return fmt.Errorf("error checking for uncommitted changes: %w", err)
+			term.OutputSimpleError("Error checking for uncommitted changes:")
+			term.OutputUnformattedErrorAndExit(err.Error())
 		}
 	}
 
@@ -109,12 +110,12 @@ func ApplyPlan(planId, branch string, autoConfirm bool) error {
 			shouldContinue, err := term.ConfirmYesNo("Apply changes to %d file%s?", numToApply, suffix)
 
 			if err != nil {
-				return fmt.Errorf("failed to get confirmation user input: %s", err)
+				term.OutputErrorAndExit("failed to get confirmation user input: %s", err)
 			}
 
 			if !shouldContinue {
 				aborted = true
-				return nil
+				return
 			}
 		}
 
@@ -122,7 +123,8 @@ func ApplyPlan(planId, branch string, autoConfirm bool) error {
 			// If there are uncommitted changes, stash them
 			err := GitStashCreate("Plandex auto-stash")
 			if err != nil {
-				return fmt.Errorf("failed to create git stash: %w", err)
+				term.OutputSimpleError("Failed to create git stash:")
+				term.OutputUnformattedErrorAndExit(err.Error())
 			}
 
 			defer func() {
@@ -130,13 +132,15 @@ func ApplyPlan(planId, branch string, autoConfirm bool) error {
 					// clear any partially applied changes before popping the stash
 					err := GitClearUncommittedChanges()
 					if err != nil {
-						term.OutputErrorAndExit("Failed to clear uncommitted changes: %v", err)
+						term.OutputSimpleError("Failed to clear uncommitted changes:")
+						term.OutputUnformattedErrorAndExit(err.Error())
 					}
 				}
 
 				err := GitStashPop(true)
 				if err != nil {
-					term.OutputErrorAndExit("Failed to pop git stash: %v", err)
+					term.OutputSimpleError("Failed to pop git stash:")
+					term.OutputUnformattedErrorAndExit(err.Error())
 				}
 			}()
 		}
@@ -148,14 +152,14 @@ func ApplyPlan(planId, branch string, autoConfirm bool) error {
 			err := os.MkdirAll(filepath.Dir(dstPath), 0755)
 			if err != nil {
 				aborted = true
-				return fmt.Errorf("failed to create directory %s: %w", filepath.Dir(dstPath), err)
+				term.OutputErrorAndExit("failed to create directory %s: %v", filepath.Dir(dstPath), err)
 			}
 
 			// Write the file
 			err = os.WriteFile(dstPath, []byte(content), 0644)
 			if err != nil {
 				aborted = true
-				return fmt.Errorf("failed to write %s: %w", dstPath, err)
+				term.OutputErrorAndExit("failed to write %s: %v", dstPath, err)
 			}
 		}
 
@@ -165,7 +169,7 @@ func ApplyPlan(planId, branch string, autoConfirm bool) error {
 
 		if apiErr != nil {
 			aborted = true
-			return fmt.Errorf("failed to set pending results applied: %s", apiErr.Msg)
+			term.OutputErrorAndExit("failed to set pending results applied: %s", apiErr.Msg)
 		}
 
 		if isRepo {
@@ -173,13 +177,13 @@ func ApplyPlan(planId, branch string, autoConfirm bool) error {
 			err := GitAddAndCommit(fs.ProjectRoot, color.New(color.BgBlue, color.FgHiWhite, color.Bold).Sprintln(" 🤖 Plandex ")+currentPlanState.PendingChangesSummary(), true)
 			if err != nil {
 				aborted = true
-				return fmt.Errorf("failed to commit changes: %w", err)
+				// return fmt.Errorf("failed to commit changes: %w", err)
+				term.OutputSimpleError("Failed to commit changes:")
+				term.OutputUnformattedErrorAndExit(err.Error())
 			}
 		}
 
 		fmt.Println("✅ Applied changes")
 	}
-
-	return nil
 
 }

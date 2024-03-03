@@ -23,11 +23,7 @@ func StartChangesUI() error {
 	}
 
 	if m.(changesUIModel).shouldApplyAll {
-		err := lib.ApplyPlan(lib.CurrentPlanId, lib.CurrentBranch, false)
-
-		if err != nil {
-			return fmt.Errorf("error applying plan: %v", err)
-		}
+		lib.MustApplyPlan(lib.CurrentPlanId, lib.CurrentBranch, false)
 	} else if m.(changesUIModel).shouldRejectAll {
 		err := api.Client.RejectAllChanges(lib.CurrentPlanId, lib.CurrentBranch)
 

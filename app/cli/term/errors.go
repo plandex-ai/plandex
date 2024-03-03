@@ -14,6 +14,11 @@ func OutputNoApiKeyMsgAndExit() {
 	os.Exit(1)
 }
 
+func OutputSimpleError(msg string, args ...interface{}) {
+	msg = fmt.Sprintf(msg, args...)
+	fmt.Fprintln(os.Stderr, color.New(color.FgHiRed, color.Bold).Sprint("🚨 "+shared.Capitalize(msg)))
+}
+
 func OutputErrorAndExit(msg string, args ...interface{}) {
 	StopSpinner()
 	msg = fmt.Sprintf(msg, args...)
@@ -34,12 +39,23 @@ func OutputErrorAndExit(msg string, args ...interface{}) {
 				displayMsg += "→ "
 			}
 
-			displayMsg += shared.Capitalize(part)
+			s := shared.Capitalize(part)
+			if i == 0 {
+				s = color.New(color.FgHiRed, color.Bold).Sprint("🚨 " + s)
+			}
+
+			displayMsg += s
 		}
 	} else {
-		displayMsg = shared.Capitalize(msg)
+		displayMsg = color.New(color.FgHiRed, color.Bold).Sprint("🚨 " + msg)
 	}
 
-	fmt.Fprintln(os.Stderr, color.New(color.FgHiRed, color.Bold).Sprint("🚨 "+displayMsg))
+	fmt.Fprintln(os.Stderr, color.New(color.FgHiRed, color.Bold).Sprint(displayMsg))
+	os.Exit(1)
+}
+
+func OutputUnformattedErrorAndExit(msg string) {
+	StopSpinner()
+	fmt.Fprintln(os.Stderr, msg)
 	os.Exit(1)
 }
