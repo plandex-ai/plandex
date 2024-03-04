@@ -8,7 +8,7 @@
 
 🧠 Relies on the OpenAI API and requires an `OPENAI_API_KEY` environment variable. Support for Open Source models, Google Gemini, and Anthropic Claude is coming soon.
 
-✅ Supports Mac and Linux, as well as Windows via [Git bash](https://gitforwindows.org) or [WSL](https://learn.microsoft.com/en-us/windows/wsl/about). Runs from a single binary with no dependencies and a small footprint. Fast and efficient. Works with every programming language and technology.
+✅ Supports Mac and Linux, as well as Windows via [Git bash](https://gitforwindows.org) or [WSL](https://learn.microsoft.com/en-us/windows/wsl/about). Runs from a single binary with no dependencies. Small, fast, and efficient. Works with any programming language or technology.
 
 ## Install 📥
 
@@ -109,7 +109,7 @@ Plandex follows best practices for network and data security. As I'm also the fo
 
 ### Ignore sensitive files
 
-Plandex respects .gitignore and won't load any files that you're ignoring. You can also add a .plandexignore file with ignore patterns to any directory.
+Plandex respects `.gitignore` and won't load any files that you're ignoring. You can also add a `.plandexignore` file with ignore patterns to any directory.
 
 ### API key security
 
@@ -133,12 +133,12 @@ Data sent to the OpenAI API is subject to OpenAI's privacy policy.
 
 ## Roadmap 🗺️
 
-- Support for Open Source models, Google Gemini, and Anthropic Claude in addition to OpenAI ✨
-- Plan sharing and team collaboration 🤝
-- GPT4-Vision support; add images and screenshots to context 🖼️
-- VSCode extension 💻
-- Github integration 🔌
-- Web dashboard and GUI 🌐
+- 🧠 Support for Open Source models, Google Gemini, and Anthropic Claude in addition to OpenAI
+- 🤝 Plan sharing and team collaboration
+- 🖼️ GPT4-Vision support; add images and screenshots to context
+- 💻 VSCode extension
+- 🔌 Github integration
+- 🌐 Web dashboard and GUI
 
 This list will grow and be prioritized based on your feedback.
 
@@ -172,7 +172,7 @@ Please star ⭐, fork ⑂, explore 🔍, and contribute 🤝
 
 Hi, I'm Dane. I've been building and launching software products for 17 years. I went through YCombinator in winter 2018 with my devops security company, EnvKey, which I continue to run today. I'm fascinated by LLMs and their potential to transform the practice of software development.
 
-I live with my wife and 4 year old daughter on the SF peninsula. I grew up in the Finger Lakes region of upstate New York. I like reading fiction, listening to podcasts, fitness, and surfing. I started Brazilian Jiu-Jitsu recently and am pretty absorbed with that these days as well.
+I live with my wife and 4 year old daughter on the SF peninsula in California. I grew up in the Finger Lakes region of upstate New York. I like reading fiction, listening to podcasts, fitness, and surfing. I started Brazilian Jiu-Jitsu recently and am pretty absorbed with that these days as well.
 
 ## Possible co-founder? 😎
 
