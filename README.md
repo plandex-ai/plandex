@@ -54,7 +54,7 @@ plandex [command] --help
 
 ## Plandex Cloud ☁️
 
-Plandex Cloud is the easiest and most reliable way to use Plandex. You'll be prompted to start an anonymous trial (no email required) when you create your first plan with `plandex new`. Anonymous trial accounts are limited to 10 plans and 10 replies per plan. You can upgrade to a full account at any time with a name and email.
+Plandex Cloud is the easiest and most reliable way to use Plandex. You'll be prompted to start an anonymous trial (no email required) when you create your first plan with `plandex new`. Anonymous trial accounts are limited to 10 plans and 10 replies per plan. You can upgrade to a full account at any time with your name and email.
 
 Plandex Cloud accounts are free for now. In the future, there will be a monthly fee comparable to other popular AI tools.
 
