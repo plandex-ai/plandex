@@ -19,7 +19,7 @@ curl -s https://plandex.ai/install.sh | bash
 - 🏗️ Go beyond autocomplete to build complex functionality with AI
 - 🚫 Stop the mouse-centered, copy-pasting-back-and-forth madness of coding with ChatGPT
 - 📑 Manage context efficiently in the terminal
-- ⚡️ Ensure the AI model is always working with the latest version of your files
+- ⚡️ Ensure AI models are always working with the latest version of your files
 - 🚧 Experiment, revise, and review in a protected sandbox before applying changes
 - ⏪ Rewind and retry as needed with version control
 - 🌱 Explore multiple approaches with branches
