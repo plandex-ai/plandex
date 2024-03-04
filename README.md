@@ -2,13 +2,13 @@
 
 💻 Plandex is an open source, terminal-based AI programming engine with long-running agents, automatic file updates, versioning, branches, and diff review.
 
-🔄 It enables a tight feedback loop between programmer and AI.
+🔄 Enables a tight feedback loop between programmer and AI.
 
-🔮 It helps you churn through your backlog, learn new technologies, get unstuck, and spend less time on tedious tasks.
+🔮 Helps you churn through your backlog, learn new technologies, get unstuck, and spend less time on tedious tasks.
 
-🧠 It relies on the OpenAI API and requires an `OPENAI_API_KEY` environment variable. Support for Open Source models, Google Gemini, and Anthropic Claude is coming soon.
+🧠 Relies on the OpenAI API and requires an `OPENAI_API_KEY` environment variable. Support for Open Source models, Google Gemini, and Anthropic Claude is coming soon.
 
-✅ It supports Mac and Linux, as well as Windows via [Git bash](https://gitforwindows.org) or [WSL](https://learn.microsoft.com/en-us/windows/wsl/about).
+✅ Supports Mac and Linux, as well as Windows via [Git bash](https://gitforwindows.org) or [WSL](https://learn.microsoft.com/en-us/windows/wsl/about).
 
 ## Install 📥
 
