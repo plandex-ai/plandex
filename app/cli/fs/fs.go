@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"plandex/term"
 	"plandex/types"
 	"strings"
 	"sync"
@@ -29,12 +30,12 @@ func init() {
 	var err error
 	Cwd, err = os.Getwd()
 	if err != nil {
-		panic(err)
+		term.OutputErrorAndExit("Error getting current working directory: %v", err)
 	}
 
 	home, err := os.UserHomeDir()
 	if err != nil {
-		panic("Couldn't find home dir:" + err.Error())
+		term.OutputErrorAndExit("Couldn't find home dir: %v", err.Error())
 	}
 	HomeDir = home
 
@@ -47,7 +48,7 @@ func init() {
 	// Create the home plandex directory if it doesn't exist
 	err = os.MkdirAll(HomePlandexDir, os.ModePerm)
 	if err != nil {
-		panic(err)
+		term.OutputErrorAndExit(err.Error())
 	}
 
 	CacheDir = filepath.Join(HomePlandexDir, "cache")
@@ -56,11 +57,11 @@ func init() {
 
 	err = os.MkdirAll(filepath.Join(CacheDir, "tiktoken"), os.ModePerm)
 	if err != nil {
-		panic(err)
+		term.OutputErrorAndExit(err.Error())
 	}
 	err = os.Setenv("TIKTOKEN_CACHE_DIR", CacheDir)
 	if err != nil {
-		panic(err)
+		term.OutputErrorAndExit(err.Error())
 	}
 
 	PlandexDir = findPlandex(Cwd)
@@ -357,7 +358,7 @@ func GetParentProjectIdsWithPaths() ([][2]string, error) {
 			err = json.Unmarshal(bytes, &settings)
 
 			if err != nil {
-				panic(fmt.Errorf("error unmarshalling project.json: %v", err))
+				term.OutputErrorAndExit("error unmarshalling project.json: %v", err)
 			}
 
 			projectId := string(settings.Id)
@@ -411,7 +412,7 @@ func GetChildProjectIdsWithPaths(ctx context.Context) ([][2]string, error) {
 				err = json.Unmarshal(bytes, &settings)
 
 				if err != nil {
-					panic(fmt.Errorf("error unmarshalling project.json: %v", err))
+					term.OutputErrorAndExit("error unmarshalling project.json: %v", err)
 				}
 
 				projectId := string(settings.Id)

@@ -3,6 +3,7 @@ package changes_tui
 import (
 	"fmt"
 	"log"
+	"plandex/term"
 
 	"github.com/plandex/plandex/shared"
 )
@@ -64,7 +65,7 @@ outer:
 	if err != nil {
 		err = fmt.Errorf("error getting current plan state: %v", err)
 		log.Println(err)
-		panic(err)
+		term.OutputErrorAndExit(err.Error())
 	}
 
 	m.selectionInfo = &selectionInfo{

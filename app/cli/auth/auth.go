@@ -15,7 +15,7 @@ func MustResolveAuthWithOrg() {
 
 func MustResolveAuth(requireOrg bool) {
 	if apiClient == nil {
-		panic(fmt.Errorf("error resolving auth: api client not set"))
+		term.OutputErrorAndExit("error resolving auth: api client not set")
 	}
 
 	// load HomeAuthPath file into ClientAuth struct
@@ -26,19 +26,19 @@ func MustResolveAuth(requireOrg bool) {
 			err = promptInitialAuth()
 
 			if err != nil {
-				panic(fmt.Errorf("error resolving auth: %v", err))
+				term.OutputErrorAndExit("error resolving auth: %v", err)
 			}
 
 			return
 		} else {
-			panic(fmt.Errorf("error reading auth.json: %v", err))
+			term.OutputErrorAndExit("error reading auth.json: %v", err)
 		}
 	}
 
 	var auth types.ClientAuth
 	err = json.Unmarshal(bytes, &auth)
 	if err != nil {
-		panic(fmt.Errorf("error unmarshalling auth.json: %v", err))
+		term.OutputErrorAndExit("error unmarshalling auth.json: %v", err)
 	}
 
 	Current = &auth

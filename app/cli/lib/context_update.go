@@ -26,7 +26,7 @@ func MustCheckOutdatedContext(cancelOpt, quiet bool, maybeContexts []*shared.Con
 	outdatedRes, err := CheckOutdatedContext(maybeContexts)
 	if err != nil {
 		term.StopSpinner()
-		panic(fmt.Errorf("failed to check outdated context: %s", err))
+		term.OutputErrorAndExit("failed to check outdated context: %s", err)
 	}
 
 	term.StopSpinner()
@@ -96,7 +96,7 @@ func MustCheckOutdatedContext(cancelOpt, quiet bool, maybeContexts []*shared.Con
 	}
 
 	if err != nil {
-		panic(fmt.Errorf("failed to get user input: %s", err))
+		term.OutputErrorAndExit("failed to get user input: %s", err)
 	}
 
 	if confirmed {

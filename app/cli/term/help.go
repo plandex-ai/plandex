@@ -39,6 +39,7 @@ var CmdDesc = map[string][2]string{
 	"ps":            {"", "list active and recently finished plan streams"},
 	"stop":          {"", "stop an active plan stream"},
 	"connect":       {"conn", "connect to an active plan stream"},
+	"sign-in":       {"", "sign in to an existing account or create a new one"},
 }
 
 func PrintCmds(prefix string, cmds ...string) {
@@ -98,6 +99,9 @@ func PrintCustomHelp() {
 	fmt.Fprintln(builder)
 
 	color.New(color.Bold, color.BgMagenta).Fprintln(builder, " Getting Started ")
+	fmt.Fprintf(builder, "  Create a new plan in your project's root directory with %s\n\n", color.New(color.Bold, color.BgCyan).Sprint(" plandex new "))
+
+	color.New(color.Bold, color.BgMagenta).Fprintln(builder, " Key Commands ")
 	printCmds(builder, " ", []color.Attribute{color.Bold}, "new", "load", "tell", "changes", "apply")
 	fmt.Fprintln(builder)
 
@@ -131,6 +135,11 @@ func PrintCustomHelp() {
 
 	color.New(color.Bold, color.BgBlue).Fprintln(builder, " AI Models ")
 	printCmds(builder, " ", []color.Attribute{color.Bold}, "models", "set-model")
+	fmt.Fprintln(builder)
+
+	color.New(color.Bold, color.BgBlue).Fprintln(builder, " Accounts ")
+	printCmds(builder, " ", []color.Attribute{color.Bold}, "sign-in")
+	fmt.Fprintln(builder)
 
 	fmt.Print(builder.String())
 }

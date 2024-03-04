@@ -5,6 +5,7 @@ import (
 	"log"
 	"plandex/api"
 	"plandex/lib"
+	"plandex/term"
 
 	"github.com/charmbracelet/bubbles/help"
 	bubbleKey "github.com/charmbracelet/bubbles/key"
@@ -59,7 +60,7 @@ func initialModel() *changesUIModel {
 	if apiErr != nil {
 		err := fmt.Errorf("error getting current plan state: %v", apiErr.Msg)
 		log.Println(err)
-		panic(err)
+		term.OutputErrorAndExit(err.Error())
 	}
 
 	initialState := changesUIModel{

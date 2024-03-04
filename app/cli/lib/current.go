@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"plandex/api"
 	"plandex/fs"
+	"plandex/term"
 	"plandex/types"
 
 	"github.com/fatih/color"
@@ -36,7 +37,7 @@ func resolveProject(mustResolve, shouldCreate bool) {
 	if fs.PlandexDir == "" && mustResolve && shouldCreate {
 		_, _, err := fs.FindOrCreatePlandex()
 		if err != nil {
-			panic(fmt.Errorf("error finding or creating plandex: %v", err))
+			term.OutputErrorAndExit("error finding or creating plandex: %v", err)
 		}
 	}
 
@@ -61,21 +62,21 @@ func resolveProject(mustResolve, shouldCreate bool) {
 		log.Println("Initializing project")
 		mustInitProject()
 	} else if err != nil {
-		panic(fmt.Errorf("error checking if project.json exists: %v", err))
+		term.OutputErrorAndExit("error checking if project.json exists: %v", err)
 	}
 
 	// read project.json
 	bytes, err := os.ReadFile(path)
 
 	if err != nil {
-		panic(fmt.Errorf("error reading project.json: %v", err))
+		term.OutputErrorAndExit("error reading project.json: %v", err)
 	}
 
 	var settings types.CurrentProjectSettings
 	err = json.Unmarshal(bytes, &settings)
 
 	if err != nil {
-		panic(fmt.Errorf("error unmarshalling project.json: %v", err))
+		term.OutputErrorAndExit("error unmarshalling project.json: %v", err)
 	}
 
 	CurrentProjectId = settings.Id
@@ -86,7 +87,7 @@ func resolveProject(mustResolve, shouldCreate bool) {
 	err = os.MkdirAll(HomeCurrentProjectDir, os.ModePerm)
 
 	if err != nil {
-		panic(fmt.Errorf("error creating project dir: %v", err))
+		term.OutputErrorAndExit("error creating project dir: %v", err)
 	}
 
 	MustLoadCurrentPlan()
@@ -94,7 +95,7 @@ func resolveProject(mustResolve, shouldCreate bool) {
 
 func MustLoadCurrentPlan() {
 	if CurrentProjectId == "" {
-		panic("No current project")
+		term.OutputErrorAndExit("No current project")
 	}
 
 	// Check if the file exists
@@ -103,19 +104,19 @@ func MustLoadCurrentPlan() {
 	if os.IsNotExist(err) {
 		return
 	} else if err != nil {
-		panic(fmt.Errorf("error checking if current_plan.json exists: %v", err))
+		term.OutputErrorAndExit("error checking if current_plan.json exists: %v", err)
 	}
 
 	// Read the contents of the file
 	fileBytes, err := os.ReadFile(HomeCurrentPlanPath)
 	if err != nil {
-		panic(fmt.Errorf("error reading current_plan.json: %v", err))
+		term.OutputErrorAndExit("error reading current_plan.json: %v", err)
 	}
 
 	var currentPlan types.CurrentPlanSettings
 	err = json.Unmarshal(fileBytes, &currentPlan)
 	if err != nil {
-		panic(fmt.Errorf("error unmarshalling current_plan.json: %v", err))
+		term.OutputErrorAndExit("error unmarshalling current_plan.json: %v", err)
 	}
 
 	CurrentPlanId = currentPlan.Id
@@ -124,14 +125,14 @@ func MustLoadCurrentPlan() {
 		err = loadCurrentBranch()
 
 		if err != nil {
-			panic(fmt.Errorf("error loading current branch: %v", err))
+			term.OutputErrorAndExit("error loading current branch: %v", err)
 		}
 
 		if CurrentBranch == "" {
 			err = WriteCurrentBranch("main")
 
 			if err != nil {
-				panic(fmt.Errorf("error setting current branch: %v", err))
+				term.OutputErrorAndExit("error setting current branch: %v", err)
 			}
 		}
 	}
@@ -156,13 +157,13 @@ func loadCurrentBranch() error {
 
 	fileBytes, err := os.ReadFile(path)
 	if err != nil {
-		panic(fmt.Errorf("error reading settings.json: %v", err))
+		term.OutputErrorAndExit("error reading settings.json: %v", err)
 	}
 
 	var settings types.PlanSettings
 	err = json.Unmarshal(fileBytes, &settings)
 	if err != nil {
-		panic(fmt.Errorf("error unmarshalling settings.json: %v", err))
+		term.OutputErrorAndExit("error unmarshalling settings.json: %v", err)
 	}
 
 	CurrentBranch = settings.Branch
@@ -175,7 +176,7 @@ func mustInitProject() {
 	res, apiErr := api.Client.CreateProject(shared.CreateProjectRequest{Name: filepath.Base(fs.ProjectRoot)})
 
 	if apiErr != nil {
-		panic(fmt.Errorf("error creating project: %v", apiErr.Msg))
+		term.OutputErrorAndExit("error creating project: %v", apiErr.Msg)
 	}
 
 	log.Println("Project created:", res.Id)
@@ -189,13 +190,13 @@ func mustInitProject() {
 	})
 
 	if err != nil {
-		panic(fmt.Errorf("error marshalling project settings: %v", err))
+		term.OutputErrorAndExit("error marshalling project settings: %v", err)
 	}
 
 	err = os.WriteFile(path, bytes, os.ModePerm)
 
 	if err != nil {
-		panic(fmt.Errorf("error writing project.json: %v", err))
+		term.OutputErrorAndExit("error writing project.json: %v", err)
 	}
 
 	log.Println("Wrote project.json")
@@ -205,7 +206,7 @@ func mustInitProject() {
 	err = os.MkdirAll(dir, os.ModePerm)
 
 	if err != nil {
-		panic(fmt.Errorf("error creating project dir: %v", err))
+		term.OutputErrorAndExit("error creating project dir: %v", err)
 	}
 
 	path = filepath.Join(dir, "current_plan.json")
@@ -214,13 +215,13 @@ func mustInitProject() {
 	})
 
 	if err != nil {
-		panic(fmt.Errorf("error marshalling plan settings: %v", err))
+		term.OutputErrorAndExit("error marshalling plan settings: %v", err)
 	}
 
 	err = os.WriteFile(path, bytes, os.ModePerm)
 
 	if err != nil {
-		panic(fmt.Errorf("error writing current_plan.json: %v", err))
+		term.OutputErrorAndExit("error writing current_plan.json: %v", err)
 	}
 
 	log.Println("Wrote current_plan.json")
