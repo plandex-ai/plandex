@@ -54,7 +54,7 @@ func CreatePlanHandler(w http.ResponseWriter, r *http.Request) {
 				writeApiError(w, shared.ApiError{
 					Type:   shared.ApiErrorTypeTrialPlansExceeded,
 					Status: http.StatusForbidden,
-					Msg:    "User has reached max number of free trial plans",
+					Msg:    "User has reached max number of anonymous trial plans",
 					TrialPlansExceededError: &shared.TrialPlansExceededError{
 						MaxPlans: types.TrialMaxPlans,
 					},

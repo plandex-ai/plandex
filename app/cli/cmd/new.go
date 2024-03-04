@@ -41,9 +41,9 @@ func new(cmd *cobra.Command, args []string) {
 
 	if apiErr != nil {
 		if apiErr.Type == shared.ApiErrorTypeTrialPlansExceeded {
-			fmt.Fprintf(os.Stderr, "🚨 You've reached the free trial limit of %d plans\n", apiErr.TrialPlansExceededError.MaxPlans)
+			fmt.Fprintf(os.Stderr, "🚨 You've reached the Plandex Cloud anonymous trial limit of %d plans\n", apiErr.TrialPlansExceededError.MaxPlans)
 
-			res, err := term.ConfirmYesNo("Upgrade trial now?")
+			res, err := term.ConfirmYesNo("Upgrade to an unlimited free account?")
 
 			if err != nil {
 				term.OutputErrorAndExit("Error prompting upgrade trial: %v", err)

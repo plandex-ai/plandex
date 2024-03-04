@@ -102,43 +102,43 @@ func PrintCustomHelp() {
 	fmt.Fprintf(builder, "  Create a new plan in your project's root directory with %s\n\n", color.New(color.Bold, color.BgCyan).Sprint(" plandex new "))
 
 	color.New(color.Bold, color.BgMagenta).Fprintln(builder, " Key Commands ")
-	printCmds(builder, " ", []color.Attribute{color.Bold}, "new", "load", "tell", "changes", "apply")
+	printCmds(builder, " ", []color.Attribute{color.Bold, color.FgHiMagenta}, "new", "load", "tell", "changes", "apply")
 	fmt.Fprintln(builder)
 
-	color.New(color.Bold, color.BgBlue).Fprintln(builder, " Plans ")
-	printCmds(builder, " ", []color.Attribute{color.Bold}, "new", "plans", "cd", "current", "delete-plan")
+	color.New(color.Bold, color.BgCyan).Fprintln(builder, " Plans ")
+	printCmds(builder, " ", []color.Attribute{color.Bold, color.FgHiCyan}, "new", "plans", "cd", "current", "delete-plan")
 	fmt.Fprintln(builder)
 
-	color.New(color.Bold, color.BgBlue).Fprintln(builder, " Changes ")
-	printCmds(builder, " ", []color.Attribute{color.Bold}, "changes", "apply")
+	color.New(color.Bold, color.BgCyan).Fprintln(builder, " Changes ")
+	printCmds(builder, " ", []color.Attribute{color.Bold, color.FgHiCyan}, "changes", "apply")
 	fmt.Fprintln(builder)
 
-	color.New(color.Bold, color.BgBlue).Fprintln(builder, " Context ")
-	printCmds(builder, " ", []color.Attribute{color.Bold}, "load", "ls", "rm", "update", "clear")
+	color.New(color.Bold, color.BgCyan).Fprintln(builder, " Context ")
+	printCmds(builder, " ", []color.Attribute{color.Bold, color.FgHiCyan}, "load", "ls", "rm", "update", "clear")
 	fmt.Fprintln(builder)
 
-	color.New(color.Bold, color.BgBlue).Fprintln(builder, " Branches ")
-	printCmds(builder, " ", []color.Attribute{color.Bold}, "branches", "checkout", "delete-branch")
+	color.New(color.Bold, color.BgCyan).Fprintln(builder, " Branches ")
+	printCmds(builder, " ", []color.Attribute{color.Bold, color.FgHiCyan}, "branches", "checkout", "delete-branch")
 	fmt.Fprintln(builder)
 
-	color.New(color.Bold, color.BgBlue).Fprintln(builder, " History ")
-	printCmds(builder, " ", []color.Attribute{color.Bold}, "convo", "log", "rewind")
+	color.New(color.Bold, color.BgCyan).Fprintln(builder, " History ")
+	printCmds(builder, " ", []color.Attribute{color.Bold, color.FgHiCyan}, "convo", "log", "rewind")
 	fmt.Fprintln(builder)
 
-	color.New(color.Bold, color.BgBlue).Fprintln(builder, " Execution ")
-	printCmds(builder, " ", []color.Attribute{color.Bold}, "tell", "continue", "build")
+	color.New(color.Bold, color.BgCyan).Fprintln(builder, " Control ")
+	printCmds(builder, " ", []color.Attribute{color.Bold, color.FgHiCyan}, "tell", "continue", "build")
 	fmt.Fprintln(builder)
 
-	color.New(color.Bold, color.BgBlue).Fprintln(builder, " Active Plans ")
-	printCmds(builder, " ", []color.Attribute{color.Bold}, "ps", "connect", "stop")
+	color.New(color.Bold, color.BgCyan).Fprintln(builder, " Streams ")
+	printCmds(builder, " ", []color.Attribute{color.Bold, color.FgHiCyan}, "ps", "connect", "stop")
 	fmt.Fprintln(builder)
 
-	color.New(color.Bold, color.BgBlue).Fprintln(builder, " AI Models ")
-	printCmds(builder, " ", []color.Attribute{color.Bold}, "models", "set-model")
+	color.New(color.Bold, color.BgCyan).Fprintln(builder, " AI Models ")
+	printCmds(builder, " ", []color.Attribute{color.Bold, color.FgHiCyan}, "models", "set-model")
 	fmt.Fprintln(builder)
 
-	color.New(color.Bold, color.BgBlue).Fprintln(builder, " Accounts ")
-	printCmds(builder, " ", []color.Attribute{color.Bold}, "sign-in")
+	color.New(color.Bold, color.BgCyan).Fprintln(builder, " Accounts ")
+	printCmds(builder, " ", []color.Attribute{color.Bold, color.FgHiCyan}, "sign-in")
 	fmt.Fprintln(builder)
 
 	fmt.Print(builder.String())

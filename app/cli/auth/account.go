@@ -10,8 +10,8 @@ import (
 )
 
 const (
-	AuthFreeTrialOption = "Start a free trial on Plandex Cloud (no email or credit card required)"
-	AuthAccountOption   = "Sign in, create an account, or accept an invite"
+	AuthFreeTrialOption = "Start an anonymous trial on Plandex Cloud (no email required)"
+	AuthAccountOption   = "Sign in or create an account"
 )
 
 func promptInitialAuth() error {

@@ -57,7 +57,7 @@ func CreateOrgHandler(w http.ResponseWriter, r *http.Request) {
 		writeApiError(w, shared.ApiError{
 			Type:   shared.ApiErrorTypeTrialActionNotAllowed,
 			Status: http.StatusForbidden,
-			Msg:    "Free trial user can't create org",
+			Msg:    "Anonymous trial user can't create org",
 		})
 		return
 	}
@@ -164,7 +164,7 @@ func ListOrgRolesHandler(w http.ResponseWriter, r *http.Request) {
 		writeApiError(w, shared.ApiError{
 			Type:   shared.ApiErrorTypeTrialActionNotAllowed,
 			Status: http.StatusForbidden,
-			Msg:    "Free trial user can't list org roles",
+			Msg:    "Anonymous trial user can't list org roles",
 		})
 		return
 	}

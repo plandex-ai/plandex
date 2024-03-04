@@ -1,6 +1,0 @@
-In 'deploy.sh' it seems that the tag will not be added on the 'px cdk deploy
-  "plandex-stack-*" line.                                                     
-                                                                              
-  I'm thinking a better idea would be to generate the tag in the deploy script
-  and then pass it to the cdk script with an environment variable. Please make
-  the updates.   

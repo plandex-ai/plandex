@@ -11,7 +11,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-const tokenExpirationDays = 90 // (free trial tokens don't expire)
+const tokenExpirationDays = 90 // (trial tokens don't expire)
 
 func CreateAuthToken(userId string, isTrial bool, tx *sql.Tx) (token, id string, err error) {
 	uid := uuid.New()
@@ -40,7 +40,7 @@ func ValidateAuthToken(token string) (*AuthToken, error) {
 	tokenHash := hex.EncodeToString(hashBytes[:])
 
 	var authToken AuthToken
-	// free trial tokens don't expire
+	// trial tokens don't expire
 	err = Conn.Get(&authToken, "SELECT * FROM auth_tokens WHERE token_hash = $1 AND (created_at > $2 OR is_trial = TRUE) AND deleted_at IS NULL", tokenHash, time.Now().AddDate(0, 0, -tokenExpirationDays))
 
 	if err != nil {

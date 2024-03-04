@@ -23,7 +23,7 @@ func InviteUserHandler(w http.ResponseWriter, r *http.Request) {
 		writeApiError(w, shared.ApiError{
 			Type:   shared.ApiErrorTypeTrialActionNotAllowed,
 			Status: http.StatusForbidden,
-			Msg:    "Free trial user can't invite other users",
+			Msg:    "Anonymous trial user can't invite other users",
 		})
 
 		return
@@ -138,7 +138,7 @@ func ListPendingInvitesHandler(w http.ResponseWriter, r *http.Request) {
 		writeApiError(w, shared.ApiError{
 			Type:   shared.ApiErrorTypeTrialActionNotAllowed,
 			Status: http.StatusForbidden,
-			Msg:    "Free trial user can't list invites",
+			Msg:    "Anonymous trial user can't list invites",
 		})
 		return
 	}
@@ -179,7 +179,7 @@ func ListAcceptedInvitesHandler(w http.ResponseWriter, r *http.Request) {
 		writeApiError(w, shared.ApiError{
 			Type:   shared.ApiErrorTypeTrialActionNotAllowed,
 			Status: http.StatusForbidden,
-			Msg:    "Free trial user can't list invites",
+			Msg:    "Anonymous trial user can't list invites",
 		})
 		return
 	}
@@ -220,7 +220,7 @@ func ListAllInvitesHandler(w http.ResponseWriter, r *http.Request) {
 		writeApiError(w, shared.ApiError{
 			Type:   shared.ApiErrorTypeTrialActionNotAllowed,
 			Status: http.StatusForbidden,
-			Msg:    "Free trial user can't list invites",
+			Msg:    "Anonymous trial user can't list invites",
 		})
 		return
 	}
@@ -261,7 +261,7 @@ func DeleteInviteHandler(w http.ResponseWriter, r *http.Request) {
 		writeApiError(w, shared.ApiError{
 			Type:   shared.ApiErrorTypeTrialActionNotAllowed,
 			Status: http.StatusForbidden,
-			Msg:    "Free trial user can't delete invites",
+			Msg:    "Anonymous trial user can't delete invites",
 		})
 		return
 	}

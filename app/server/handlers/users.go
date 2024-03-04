@@ -23,7 +23,7 @@ func ListUsersHandler(w http.ResponseWriter, r *http.Request) {
 		writeApiError(w, shared.ApiError{
 			Type:   shared.ApiErrorTypeTrialActionNotAllowed,
 			Status: http.StatusForbidden,
-			Msg:    "Free trial user can't list users",
+			Msg:    "Anonymous trial user can't list users",
 		})
 		return
 	}
@@ -58,7 +58,7 @@ func DeleteOrgUserHandler(w http.ResponseWriter, r *http.Request) {
 		writeApiError(w, shared.ApiError{
 			Type:   shared.ApiErrorTypeTrialActionNotAllowed,
 			Status: http.StatusForbidden,
-			Msg:    "Free trial user can't delete users",
+			Msg:    "Anonymous trial user can't delete users",
 		})
 		return
 	}
