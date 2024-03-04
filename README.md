@@ -14,15 +14,15 @@ curl -s https://plandex.ai/install.sh | bash
 
 ## Why Plandex? 🤔
 
-- Go beyond autocomplete to build complex functionality with AI 🏗️
-- Stop the mouse-centered, copy-pasting-back-and-forth madness of coding with ChatGPT 🚫🖱️
-- Manage context efficiently in the terminal 📑
-- Ensure the AI model is always working with the latest version of your files ⚡️
-- Experiment, revise, and review in a protected sandbox before applying changes 🚧
-- Rewind and retry as needed with version control ⏪
-- Explore multiple approaches with branches 🌱
-- Work on multiple tasks in parallel 🏎️ 🏎️ 🏎️
-- Try different models and model settings 🧠 🌡️
+- 🏗️ Go beyond autocomplete to build complex functionality with AI
+- 🖱️🚫 Stop the mouse-centered, copy-pasting-back-and-forth madness of coding with ChatGPT
+- 📑 Manage context efficiently in the terminal
+- ⚡️ Ensure the AI model is always working with the latest version of your files
+- 🚧 Experiment, revise, and review in a protected sandbox before applying changes
+- ⏪ Rewind and retry as needed with version control
+- 🌱 Explore multiple approaches with branches
+- 🏎️ 🏎️ 🏎️ Work on multiple tasks in parallel
+- 🧠 🌡️ Try different models and model settings
 
 ## Get started 🚀
 
