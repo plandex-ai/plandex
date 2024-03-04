@@ -8,7 +8,7 @@
 
 🧠 Relies on the OpenAI API and requires an `OPENAI_API_KEY` environment variable. Support for Open Source models, Google Gemini, and Anthropic Claude is coming soon.
 
-✅ Supports Mac and Linux, as well as Windows via [Git bash](https://gitforwindows.org) or [WSL](https://learn.microsoft.com/en-us/windows/wsl/about).
+✅ Supports Mac and Linux, as well as Windows via [Git bash](https://gitforwindows.org) or [WSL](https://learn.microsoft.com/en-us/windows/wsl/about). Runs from a single binary with no dependencies.
 
 ## Install 📥
 
