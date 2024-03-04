@@ -1,5 +1,3 @@
-# Plandex
-
 ## Build large features and entire projects with AI.
 
 🤖 Plandex is an open source, terminal-based AI programming engine with long-running agents, automatic file updates, versioning, branches, and diff review.
