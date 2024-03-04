@@ -60,76 +60,15 @@ Plandex Cloud accounts are free for now. In the future, it will have a monthly f
 
 ## Self-hosting 🏠
 
-#### Anywhere
-
-The Plandex server runs from a Dockerfile at `app/Dockerfile.server`. It requires a PostgreSQL database and these environment variables:
-
-```bash
-export DATABASE_URL=postgres://user:password@host:5432/plandex # replace with your own database URL
-export GOENV=production
-```
-
-Authentication emails are sent through AWS SES, so you'll need an AWS account with SES enabled. You'll be able to sub in SMTP credentials in the future (PRs welcome).
-
-#### AWS
-
-Run `./infra/deploy.sh` to deploy a production-ready Cloudformation stack to AWS.
-
-It requires an AWS account in ~/.aws/credentials, and these environment variables:
-
-```bash
-AWS_PROFILE=your-aws-profile
-AWS_REGION=your-aws-region
-NOTIFY_EMAIL=your-email # AWS cloudwatch alerts and notifications
-NOTIFY_SMS=country-code-plus-full-number # e.g. +14155552671 | for urgent AWS alerts
-CERTIFICATE_ARN=your-aws-cert-manager-arn # for HTTPS -- must be a valid certificate in AWS Certificate Manager in the same region
-```
-
-#### Locally
-
-To run the Plandex server locally, run it in development mode with `./dev.sh`. You'll need a PostgreSQL database running locally as well as these environment variables:
-
-```bash
-export DATABASE_URL=postgres://user:password@localhost:5432/plandex # replace with your own local database URL
-export GOENV=development
-```
-
-Authentication codes will be copied to your clipboard with a system notification instead of being sent by email.
-
-To use the `plandex` CLI tool with a local server, first set the `PLANDEX_ENV` environment variable to `development` like this:
-
-```bash
-export PLANDEX_ENV=development
-plandex new
-```
+[Read about self-hosting Plandex here.](./HOSTING.md)
 
 ## Security 🔐
 
-Plandex follows best practices for network and data security. As I'm also the founder of a devops-security company ([EnvKey](https://envkey.com)), this is an area I have experience in and take extremely seriously. Data is encrypted in transit and at rest. The database runs within a private, hardened network.
-
-#### Ignores sensitive files
-
-Plandex respects `.gitignore` and won't load any files that you're ignoring. You can also add a `.plandexignore` file with ignore patterns to any directory.
-
-#### API key security
-
-Plandex is a bring-your-own-API-key tool. On the server, API keys are only stored ephemerally in RAM while they are in active use. They are never written to disk, logged, or stored in a database.
-
-It's up to you to manage your API keys securely. Try to avoid storing them in multiple places, exposing them to third party services, or sending them around in plain text. If you'd like some help, please do check out the aforementioned [EnvKey](https://envkey.com). It's open source, end-to-end encrypted, easy to use, and free for up to 3 users. To set your `OPENAI_API_KEY` with EnvKey, you'd add it to an app in the EnvKey UI or CLI, then run `eval $(envkey-source)` in your terminal.
-
-#### Third party services
-
-Plandex Cloud relies on AWS for all database and hosting services, Github for code storage, and the OpenAI API for AI models. No other third party services are used.
+Plandex follows best practices for network and data security. [Read more here.](./SECURITY.md)
 
 ## Privacy and data retention 🛡️
 
-Data you send to Plandex Cloud is retained in order to debug and improve Plandex. In the future, this data may also be used to train and fine-tune models to improve performance.
-
-That said, if you delete a plan or delete your account, all associated data will be removed from the database. It will still be included in database backups for up to 7 days, then it will no longer exist anywhere on our servers.
-
-If you self-host Plandex, no data will be sent to Plandex Cloud for any reason.
-
-Data sent to the OpenAI API is subject to OpenAI's privacy policy.
+[Read about Plandex's privacy and data retention policies here.](./PRIVACY.md)
 
 ## Roadmap 🗺️
 
