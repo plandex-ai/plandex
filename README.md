@@ -1,6 +1,6 @@
 # Plandex
 
-🏗️ Build large features and entire projects with AI.
+## Build large features and entire projects with AI.
 
 🤖 Plandex is an open source, terminal-based AI programming engine with long-running agents, automatic file updates, versioning, branches, and diff review.
 
@@ -16,7 +16,7 @@ curl -s https://plandex.ai/install.sh | bash
 
 ## Why Plandex? 🤔
 
-- Go beyond autocomplete to build complex functionality with AI 🛠️
+- Go beyond autocomplete to build complex functionality with AI 🏗️
 - Stop the mouse-centered, copy-pasting-back-and-forth madness of coding with ChatGPT 🚫🖱️
 - Manage context efficiently in the terminal 📑
 - Ensure the AI model is always working with the latest version of your files ⚡️
