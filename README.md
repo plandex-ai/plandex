@@ -6,7 +6,7 @@
 
 🔮 It helps you churn through your backlog, learn new technologies, get unstuck, and spend less time on tedious tasks.
 
-🧠 It relies on the OpenAI API and requires an OPENAI_API_KEY environment variable. Support for Open Source models, Google Gemini, and Anthropic Claude is coming soon.
+🧠 It relies on the OpenAI API and requires an `OPENAI_API_KEY` environment variable. Support for Open Source models, Google Gemini, and Anthropic Claude is coming soon.
 
 ## Install 📥
 
