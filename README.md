@@ -8,6 +8,8 @@
 
 🧠 It relies on the OpenAI API and requires an `OPENAI_API_KEY` environment variable. Support for Open Source models, Google Gemini, and Anthropic Claude is coming soon.
 
+✅ It supports Mac and Linux, as well as Windows via [Git bash](https://gitforwindows.org) or [WSL](https://learn.microsoft.com/en-us/windows/wsl/about).
+
 ## Install 📥
 
 curl -s https://plandex.ai/install.sh | bash
@@ -93,6 +95,13 @@ export GOENV=development
 ```
 
 Authentication codes will be copied to your clipboard with a system notification instead of being sent by email.
+
+To use the `plandex` CLI tool with a local server, first set the `PLANDEX_ENV` environment variable to `development` like this:
+
+```bash
+export PLANDEX_ENV=development
+plandex new
+```
 
 ## Security 🔐
 
