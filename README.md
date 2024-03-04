@@ -1,14 +1,14 @@
 ## 🌟 Build large features and entire projects with AI.
 
-💻 Plandex is an open source, terminal-based AI programming engine with long-running agents, automatic file updates, versioning, branches, and diff review.
+💻 Plandex is an open source, terminal-based **AI programming engine** with long-running agents, automatic file updates, versioning, branches, and diff review.
 
-🔄 Enables a tight feedback loop between programmer and AI.
+🔄 Enables a **tight feedback loop** between programmer and AI.
 
-🔮 Helps you churn through your backlog, learn new technologies, get unstuck, and spend less time on tedious tasks.
+🔮 Helps you churn through your backlog, work with unfamiliar technologies, get unstuck, and spend less time on tedious tasks. **Makes programming more fun.**
 
-🧠 Relies on the OpenAI API and requires an `OPENAI_API_KEY` environment variable. Support for Open Source models, Google Gemini, and Anthropic Claude is coming soon.
+🧠 Relies on the **OpenAI API** and requires an `OPENAI_API_KEY` environment variable. Support for Open Source models, Google Gemini, and Anthropic Claude is coming soon.
 
-✅ Supports Mac and Linux, as well as Windows via [Git bash](https://gitforwindows.org) or [WSL](https://learn.microsoft.com/en-us/windows/wsl/about). Runs from a single binary with no dependencies. Small, fast, and efficient. Works with any programming language or technology.
+✅ **Supports Mac, Linux, and Windows** (Windows supported via [Git bash](https://gitforwindows.org) or [WSL](https://learn.microsoft.com/en-us/windows/wsl/about)). Runs from a single binary with no dependencies. Small, fast, and efficient. Works with any programming language, framework, or technology.
 
 ## Install 📥
 
@@ -18,12 +18,12 @@ curl -s https://plandex.ai/install.sh | bash
 
 - 🏗️ Go beyond autocomplete to build complex functionality with AI
 - 🚫 Stop the mouse-centered, copy-pasting-back-and-forth madness of coding with ChatGPT
-- 📑 Manage context efficiently in the terminal—load or remove multiple files or directories in one command with glob patterns
-- ⚡️ Ensure AI models are always working with the latest version of your files
+- 📑 Manage context efficiently in the terminal—load or remove entire directories recursively or multiple files with glob patterns
+- ⚡️ Ensure AI models always have the latest versions of files in context
 - 🚧 Experiment, revise, and review in a protected sandbox before applying changes
-- ⏪ Rewind and retry as needed with version control
+- ⏪ Rewind and retry as needed with baked-in version control
 - 🌱 Explore multiple approaches with branches
-- 🏎️ Work on multiple tasks in parallel
+- 🏎️ Run tasks in the background or work on multiple tasks in parallel
 - 🌡️ Try different models and model settings
 
 ## Get started 🚀
@@ -56,7 +56,9 @@ plandex [command] --help
 
 Plandex Cloud is the easiest and most reliable way to use Plandex. You'll be prompted to start an anonymous trial (no email required) when you create your first plan with `plandex new`. Anonymous trial accounts are limited to 10 plans and 10 replies per plan. You can upgrade to a full account at any time with a name and email.
 
-Plandex Cloud accounts are free for now. In the future, it will have a monthly fee comparable to other popular AI co-pilot tools.
+Plandex Cloud accounts are free for now. In the future, there will be a monthly fee comparable to other popular AI tools.
+
+Plandex Cloud is a bring-your-own-API-key service. We call model providers on your behalf with your API key. You'll need your own account with the model provider. Any API costs incurred with the model provider are your responsibility.
 
 ## Self-hosting 🏠
 
@@ -106,6 +108,9 @@ Please star ⭐, fork ⑂, explore 🔍, and contribute 🤝
 - [Cursor](https://github.com/getcursor/cursor)
 - [Github Copilot](https://github.com/features/copilot)
 - [Replit Ghostwriter](https://replit.com/ai)
+- [Grimoire](https://chat.openai.com/g/g-n7Rs0IK86-grimoire)
+
+In my humble and admittedly biased opinion, Plandex is currently more effective for robust end-to-end development than any of these tools. That said, they all have their strengths and are impressive in different ways. All have features that Plandex lacks. I hope to learn from all of them and incorporate as many of their good ideas as possible.
 
 ## About the developer 👋
 

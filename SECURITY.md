@@ -8,7 +8,7 @@ Plandex respects `.gitignore` and won't load any files that you're ignoring. You
 
 #### API key security
 
-Plandex is a bring-your-own-API-key tool. On the server, API keys are only stored ephemerally in RAM while they are in active use. They are never written to disk, logged, or stored in a database.
+Plandex is a bring-your-own-API-key tool. On the server, API keys are only stored ephemerally in RAM while they are in active use. They are never written to disk, logged, or stored in a database. As soon as a plan stream ends, the API key is removed from memory and no longer exists anywhere on our servers.
 
 It's up to you to manage your API keys securely. Try to avoid storing them in multiple places, exposing them to third party services, or sending them around in plain text. If you'd like some help, please do check out the aforementioned [EnvKey](https://envkey.com). It's open source, end-to-end encrypted, easy to use, and free for up to 3 users. To set your `OPENAI_API_KEY` with EnvKey, you'd add it to an app in the EnvKey UI or CLI, then run `eval $(envkey-source)` in your terminal.
 
