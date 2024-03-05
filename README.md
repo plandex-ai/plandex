@@ -76,7 +76,7 @@ Plandex follows best practices for network and data security. [Read more here.](
 
 - 🧠 Support for Open Source models, Google Gemini, and Anthropic Claude in addition to OpenAI
 - 🤝 Plan sharing and team collaboration
-- 🖼️ Support for GPT4-Vision and other multi-modalmodels; add images and screenshots to context
+- 🖼️ Support for GPT4-Vision and other multi-modal models—add images and screenshots to context
 - 💻 VSCode extension
 - 🔌 Github integration
 - 🌐 Web dashboard and GUI
