@@ -63,8 +63,6 @@ Plandex Cloud is the easiest and most reliable way to use Plandex. You'll be pro
 
 Plandex Cloud accounts are free for now. In the future, there will be a monthly fee comparable to other popular AI tools.
 
-Plandex Cloud is a bring-your-own-API-key service. We call model providers like OpenAI on your behalf with your API key. You'll need your own account with the model provider. Any API costs incurred with the model provider while using Plandex are your responsibility.
-
 ## Self-hosting 🏠
 
 [Read about self-hosting Plandex here.](./HOSTING.md)
@@ -114,8 +112,6 @@ Please star ⭐, fork ⑂, explore 🔍, and contribute 🤝
 - [Github Copilot](https://github.com/features/copilot)
 - [Replit Ghostwriter](https://replit.com/ai)
 - [Grimoire](https://chat.openai.com/g/g-n7Rs0IK86-grimoire)
-
-In my humble and biased opinion, Plandex is currently more effective for robust end-to-end development than any of these tools. That said, they all have their strengths and are impressive in different ways. All have features that Plandex lacks. I hope to learn from all of them and incorporate as many of their good ideas as possible.
 
 ## About the developer 👋
 
