@@ -4,6 +4,6 @@ Data you send to Plandex Cloud is retained in order to debug and improve Plandex
 
 That said, if you delete a plan or delete your account, all associated data will be removed from the database. It will still be included in database backups for up to 7 days, then it will no longer exist anywhere on our servers.
 
-If you self-host Plandex, no data will be sent to Plandex Cloud for any reason.
+If you self-host Plandex, no data will be sent to Plandex Cloud.
 
-Data sent to the OpenAI API is subject to OpenAI's privacy policy.
+Data sent to a model provider like OpenAI is subject to the model provider's privacy and data retention policies.
