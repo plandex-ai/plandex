@@ -18,7 +18,7 @@ import (
 func GetSettingsHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for GetSettingsHandler")
 
-	auth := authenticate(w, r, true)
+	auth := Authenticate(w, r, true)
 	if auth == nil {
 		return
 	}
@@ -67,7 +67,7 @@ func GetSettingsHandler(w http.ResponseWriter, r *http.Request) {
 func UpdateSettingsHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for UpdateSettingsHandler")
 
-	auth := authenticate(w, r, true)
+	auth := Authenticate(w, r, true)
 	if auth == nil {
 		return
 	}

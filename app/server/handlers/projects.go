@@ -14,7 +14,7 @@ import (
 func CreateProjectHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for CreateProjectHandler")
 
-	auth := authenticate(w, r, true)
+	auth := Authenticate(w, r, true)
 	if auth == nil {
 		return
 	}
@@ -104,7 +104,7 @@ func CreateProjectHandler(w http.ResponseWriter, r *http.Request) {
 func ListProjectsHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for ListProjectsHandler")
 
-	auth := authenticate(w, r, true)
+	auth := Authenticate(w, r, true)
 	if auth == nil {
 		return
 	}
@@ -142,7 +142,7 @@ func ListProjectsHandler(w http.ResponseWriter, r *http.Request) {
 
 func ProjectSetPlanHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for UpdateProjectSetPlanHandler")
-	auth := authenticate(w, r, true)
+	auth := Authenticate(w, r, true)
 	if auth == nil {
 		return
 	}
@@ -191,7 +191,7 @@ func ProjectSetPlanHandler(w http.ResponseWriter, r *http.Request) {
 
 func RenameProjectHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for RenameProjectHandler")
-	auth := authenticate(w, r, true)
+	auth := Authenticate(w, r, true)
 	if auth == nil {
 		return
 	}

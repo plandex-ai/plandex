@@ -15,7 +15,7 @@ import (
 func ListBranchesHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for ListBranchesHandler")
 
-	auth := authenticate(w, r, true)
+	auth := Authenticate(w, r, true)
 	if auth == nil {
 		return
 	}
@@ -63,7 +63,7 @@ func ListBranchesHandler(w http.ResponseWriter, r *http.Request) {
 func CreateBranchHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for CreateBranchHandler")
 
-	auth := authenticate(w, r, true)
+	auth := Authenticate(w, r, true)
 	if auth == nil {
 		return
 	}
@@ -152,7 +152,7 @@ func CreateBranchHandler(w http.ResponseWriter, r *http.Request) {
 func DeleteBranchHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for DeleteBranchHandler")
 
-	auth := authenticate(w, r, true)
+	auth := Authenticate(w, r, true)
 	if auth == nil {
 		return
 	}

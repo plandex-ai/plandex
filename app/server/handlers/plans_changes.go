@@ -14,7 +14,7 @@ import (
 func CurrentPlanHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for CurrentPlanHandler")
 
-	auth := authenticate(w, r, true)
+	auth := Authenticate(w, r, true)
 	if auth == nil {
 		return
 	}
@@ -65,7 +65,7 @@ func CurrentPlanHandler(w http.ResponseWriter, r *http.Request) {
 func ApplyPlanHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for ApplyPlanHandler")
 
-	auth := authenticate(w, r, true)
+	auth := Authenticate(w, r, true)
 	if auth == nil {
 		return
 	}
@@ -103,7 +103,7 @@ func ApplyPlanHandler(w http.ResponseWriter, r *http.Request) {
 func RejectAllChangesHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for RejectAllChangesHandler")
 
-	auth := authenticate(w, r, true)
+	auth := Authenticate(w, r, true)
 	if auth == nil {
 		return
 	}
@@ -139,7 +139,7 @@ func RejectAllChangesHandler(w http.ResponseWriter, r *http.Request) {
 func RejectResultHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for RejectResultHandler")
 
-	auth := authenticate(w, r, true)
+	auth := Authenticate(w, r, true)
 	if auth == nil {
 		return
 	}
@@ -177,7 +177,7 @@ func RejectResultHandler(w http.ResponseWriter, r *http.Request) {
 func RejectReplacementHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for RejectReplacementHandler")
 
-	auth := authenticate(w, r, true)
+	auth := Authenticate(w, r, true)
 	if auth == nil {
 		return
 	}
@@ -214,7 +214,7 @@ func RejectReplacementHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func ArchivePlanHandler(w http.ResponseWriter, r *http.Request) {
-	auth := authenticate(w, r, true)
+	auth := Authenticate(w, r, true)
 	if auth == nil {
 		return
 	}

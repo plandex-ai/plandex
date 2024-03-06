@@ -74,6 +74,11 @@ else
   generate_and_save_stack_tag
 fi
 
+# If DOCKERFILE_PATH is not set, set it to the default value
+if [ -z "$DOCKERFILE_PATH" ]; then
+  export DOCKERFILE_PATH="server/Dockerfile"
+fi
+
 # Function to ensure the ECR repository exists
 ensure_ecr_repository_exists() {
   # Check if the ECR repository exists
@@ -122,7 +127,7 @@ build_and_push_image() {
 
   # Build the Docker image
   cd ../app
-  docker build -t plandex-server:$IMAGE_TAG -f Dockerfile.server .
+  docker build -t plandex-server:$IMAGE_TAG -f $DOCKERFILE_PATH .
   cd -
 
   # Tag the image for the ECR repository

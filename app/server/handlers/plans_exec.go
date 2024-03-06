@@ -6,8 +6,8 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"os"
 	"plandex-server/db"
+	"plandex-server/hooks"
 	"plandex-server/model"
 	modelPlan "plandex-server/model/plan"
 	"plandex-server/types"
@@ -22,7 +22,7 @@ const TrialMaxReplies = 10
 func TellPlanHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for TellPlanHandler")
 
-	auth := authenticate(w, r, true)
+	auth := Authenticate(w, r, true)
 	if auth == nil {
 		return
 	}
@@ -62,28 +62,13 @@ func TellPlanHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if os.Getenv("IS_CLOUD") != "" {
-		user, err := db.GetUser(auth.User.Id)
-
-		if err != nil {
-			log.Printf("Error getting user: %v\n", err)
-			http.Error(w, "Error getting user: "+err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		if user.IsTrial {
-			if plan.TotalReplies >= types.TrialMaxReplies {
-				writeApiError(w, shared.ApiError{
-					Type:   shared.ApiErrorTypeTrialMessagesExceeded,
-					Status: http.StatusForbidden,
-					Msg:    "Anonymous trial message limit exceeded",
-					TrialMessagesExceededError: &shared.TrialMessagesExceededError{
-						MaxReplies: types.TrialMaxReplies,
-					},
-				})
-				return
-			}
-		}
+	err = hooks.ExecHook("will_tell_plan", hooks.HookParams{
+		W:    w,
+		User: auth.User,
+		Plan: plan,
+	})
+	if err != nil {
+		return
 	}
 
 	client := model.NewClient(requestBody.ApiKey)
@@ -104,7 +89,7 @@ func TellPlanHandler(w http.ResponseWriter, r *http.Request) {
 
 func BuildPlanHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for BuildPlanHandler")
-	auth := authenticate(w, r, true)
+	auth := Authenticate(w, r, true)
 	if auth == nil {
 		return
 	}
@@ -189,7 +174,7 @@ func ConnectPlanHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	auth := authenticate(w, r, true)
+	auth := Authenticate(w, r, true)
 	if auth == nil {
 		log.Println("No auth")
 		return
@@ -227,7 +212,7 @@ func StopPlanHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	auth := authenticate(w, r, true)
+	auth := Authenticate(w, r, true)
 	if auth == nil {
 		return
 	}
@@ -289,7 +274,7 @@ func RespondMissingFileHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	auth := authenticate(w, r, true)
+	auth := Authenticate(w, r, true)
 	if auth == nil {
 		return
 	}

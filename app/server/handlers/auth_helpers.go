@@ -12,7 +12,7 @@ import (
 	"github.com/plandex/plandex/shared"
 )
 
-func authenticate(w http.ResponseWriter, r *http.Request, requireOrg bool) *types.ServerAuth {
+func Authenticate(w http.ResponseWriter, r *http.Request, requireOrg bool) *types.ServerAuth {
 	log.Println("authenticating request")
 
 	authHeader := r.Header.Get("Authorization")
@@ -57,7 +57,7 @@ func authenticate(w http.ResponseWriter, r *http.Request, requireOrg bool) *type
 	if err != nil {
 		log.Printf("error validating auth token: %v\n", err)
 
-		writeApiError(w, shared.ApiError{
+		WriteApiError(w, shared.ApiError{
 			Type:   shared.ApiErrorTypeInvalidToken,
 			Status: http.StatusUnauthorized,
 			Msg:    "Invalid auth token",

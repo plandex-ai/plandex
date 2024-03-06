@@ -14,7 +14,7 @@ import (
 func ListOrgsHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for ListOrgsHandler")
 
-	auth := authenticate(w, r, false)
+	auth := Authenticate(w, r, false)
 	if auth == nil {
 		return
 	}
@@ -48,13 +48,13 @@ func ListOrgsHandler(w http.ResponseWriter, r *http.Request) {
 func CreateOrgHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for CreateOrgHandler")
 
-	auth := authenticate(w, r, false)
+	auth := Authenticate(w, r, false)
 	if auth == nil {
 		return
 	}
 
 	if auth.User.IsTrial {
-		writeApiError(w, shared.ApiError{
+		WriteApiError(w, shared.ApiError{
 			Type:   shared.ApiErrorTypeTrialActionNotAllowed,
 			Status: http.StatusForbidden,
 			Msg:    "Anonymous trial user can't create org",
@@ -155,13 +155,13 @@ func CreateOrgHandler(w http.ResponseWriter, r *http.Request) {
 func ListOrgRolesHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for ListOrgRolesHandler")
 
-	auth := authenticate(w, r, true)
+	auth := Authenticate(w, r, true)
 	if auth == nil {
 		return
 	}
 
 	if auth.User.IsTrial {
-		writeApiError(w, shared.ApiError{
+		WriteApiError(w, shared.ApiError{
 			Type:   shared.ApiErrorTypeTrialActionNotAllowed,
 			Status: http.StatusForbidden,
 			Msg:    "Anonymous trial user can't list org roles",

@@ -53,6 +53,14 @@ func Connect() error {
 }
 
 func MigrationsUp() error {
+	return migrationsUp("migrations")
+}
+
+func MigrationsUpWithDir(dir string) error {
+	return migrationsUp(dir)
+}
+
+func migrationsUp(dir string) error {
 	if Conn == nil {
 		return errors.New("db not initialized")
 	}
@@ -64,7 +72,7 @@ func MigrationsUp() error {
 	}
 
 	m, err := migrate.NewWithDatabaseInstance(
-		"file://migrations",
+		"file://"+dir,
 		"postgres", driver)
 
 	if err != nil {

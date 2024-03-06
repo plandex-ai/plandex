@@ -15,7 +15,7 @@ import (
 func ListLogsHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for ListLogsHandler")
 
-	auth := authenticate(w, r, true)
+	auth := Authenticate(w, r, true)
 	if auth == nil {
 		return
 	}
@@ -68,7 +68,7 @@ func ListLogsHandler(w http.ResponseWriter, r *http.Request) {
 func RewindPlanHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for RewindPlanHandler")
 
-	auth := authenticate(w, r, true)
+	auth := Authenticate(w, r, true)
 	if auth == nil {
 		return
 	}

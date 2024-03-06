@@ -14,13 +14,13 @@ import (
 
 func ListUsersHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received a request for ListUsersHandler")
-	auth := authenticate(w, r, true)
+	auth := Authenticate(w, r, true)
 	if auth == nil {
 		return
 	}
 
 	if auth.User.IsTrial {
-		writeApiError(w, shared.ApiError{
+		WriteApiError(w, shared.ApiError{
 			Type:   shared.ApiErrorTypeTrialActionNotAllowed,
 			Status: http.StatusForbidden,
 			Msg:    "Anonymous trial user can't list users",
@@ -49,13 +49,13 @@ func ListUsersHandler(w http.ResponseWriter, r *http.Request) {
 
 func DeleteOrgUserHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received a request for DeleteOrgUserHandler")
-	auth := authenticate(w, r, true)
+	auth := Authenticate(w, r, true)
 	if auth == nil {
 		return
 	}
 
 	if auth.User.IsTrial {
-		writeApiError(w, shared.ApiError{
+		WriteApiError(w, shared.ApiError{
 			Type:   shared.ApiErrorTypeTrialActionNotAllowed,
 			Status: http.StatusForbidden,
 			Msg:    "Anonymous trial user can't delete users",

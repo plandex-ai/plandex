@@ -6,8 +6,8 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"os"
 	"plandex-server/db"
+	"plandex-server/hooks"
 	"plandex-server/types"
 	"sort"
 	"strings"
@@ -20,7 +20,7 @@ import (
 func CreatePlanHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for CreatePlanHandler")
 
-	auth := authenticate(w, r, true)
+	auth := Authenticate(w, r, true)
 	if auth == nil {
 		return
 	}
@@ -40,28 +40,9 @@ func CreatePlanHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if os.Getenv("IS_CLOUD") != "" {
-		user, err := db.GetUser(auth.User.Id)
-
-		if err != nil {
-			log.Printf("Error getting user: %v\n", err)
-			http.Error(w, "Error getting user: "+err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		if user.IsTrial {
-			if user.NumNonDraftPlans >= types.TrialMaxPlans {
-				writeApiError(w, shared.ApiError{
-					Type:   shared.ApiErrorTypeTrialPlansExceeded,
-					Status: http.StatusForbidden,
-					Msg:    "User has reached max number of anonymous trial plans",
-					TrialPlansExceededError: &shared.TrialPlansExceededError{
-						MaxPlans: types.TrialMaxPlans,
-					},
-				})
-				return
-			}
-		}
+	err := hooks.ExecHook("will_create_plan", hooks.HookParams{W: w, User: auth.User})
+	if err != nil {
+		return
 	}
 
 	// read the request body
@@ -145,7 +126,7 @@ func CreatePlanHandler(w http.ResponseWriter, r *http.Request) {
 func GetPlanHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for GetPlanHandler")
 
-	auth := authenticate(w, r, true)
+	auth := Authenticate(w, r, true)
 	if auth == nil {
 		return
 	}
@@ -175,7 +156,7 @@ func GetPlanHandler(w http.ResponseWriter, r *http.Request) {
 func DeletePlanHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for DeletePlanHandler")
 
-	auth := authenticate(w, r, true)
+	auth := Authenticate(w, r, true)
 	if auth == nil {
 		return
 	}
@@ -232,7 +213,7 @@ func DeletePlanHandler(w http.ResponseWriter, r *http.Request) {
 func DeleteAllPlansHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for DeleteAllPlansHandler")
 
-	auth := authenticate(w, r, true)
+	auth := Authenticate(w, r, true)
 	if auth == nil {
 		return
 	}
@@ -260,7 +241,7 @@ func DeleteAllPlansHandler(w http.ResponseWriter, r *http.Request) {
 func ListPlansHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for ListPlans")
 
-	auth := authenticate(w, r, true)
+	auth := Authenticate(w, r, true)
 	if auth == nil {
 		return
 	}
@@ -307,7 +288,7 @@ func ListPlansHandler(w http.ResponseWriter, r *http.Request) {
 
 func ListArchivedPlansHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for ListArchivedPlansHandler")
-	auth := authenticate(w, r, true)
+	auth := Authenticate(w, r, true)
 	if auth == nil {
 		return
 	}
@@ -355,7 +336,7 @@ func ListArchivedPlansHandler(w http.ResponseWriter, r *http.Request) {
 
 func ListPlansRunningHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for ListPlansRunningHandler")
-	auth := authenticate(w, r, true)
+	auth := Authenticate(w, r, true)
 	if auth == nil {
 		return
 	}
@@ -513,7 +494,7 @@ func ListPlansRunningHandler(w http.ResponseWriter, r *http.Request) {
 
 func GetCurrentBranchByPlanIdHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for CurrentBranchByPlanIdHandler")
-	auth := authenticate(w, r, true)
+	auth := Authenticate(w, r, true)
 	if auth == nil {
 		return
 	}

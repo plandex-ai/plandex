@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 
 	"plandex-server/db"
+	"plandex-server/hooks"
 	"plandex-server/model"
 	"plandex-server/model/lib"
 	"plandex-server/model/prompts"
@@ -58,21 +58,15 @@ func execTellPlan(
 
 	active := GetActivePlan(plan.Id, branch)
 
-	if os.Getenv("IS_CLOUD") != "" &&
-		missingFileResponse == "" {
-		log.Println("execTellPlan: IS_CLOUD environment variable is set")
-		if auth.User.IsTrial {
-			if plan.TotalReplies >= types.TrialMaxReplies {
-				active.StreamDoneCh <- &shared.ApiError{
-					Type:   shared.ApiErrorTypeTrialMessagesExceeded,
-					Status: http.StatusForbidden,
-					Msg:    "Anonymous trial message limit exceeded",
-					TrialMessagesExceededError: &shared.TrialMessagesExceededError{
-						MaxReplies: types.TrialMaxReplies,
-					},
-				}
-				return
-			}
+	if missingFileResponse == "" {
+		err := hooks.ExecHook("will_exec_plan", hooks.HookParams{
+			User:         auth.User,
+			Plan:         plan,
+			StreamDoneCh: active.StreamDoneCh,
+		})
+
+		if err != nil {
+			return
 		}
 	}
 

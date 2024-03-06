@@ -14,13 +14,13 @@ import (
 
 func InviteUserHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received a request for InviteUserHandler")
-	auth := authenticate(w, r, true)
+	auth := Authenticate(w, r, true)
 	if auth == nil {
 		return
 	}
 
 	if auth.User.IsTrial {
-		writeApiError(w, shared.ApiError{
+		WriteApiError(w, shared.ApiError{
 			Type:   shared.ApiErrorTypeTrialActionNotAllowed,
 			Status: http.StatusForbidden,
 			Msg:    "Anonymous trial user can't invite other users",
@@ -129,13 +129,13 @@ func InviteUserHandler(w http.ResponseWriter, r *http.Request) {
 
 func ListPendingInvitesHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received a request for ListInvitesHandler")
-	auth := authenticate(w, r, true)
+	auth := Authenticate(w, r, true)
 	if auth == nil {
 		return
 	}
 
 	if auth.User.IsTrial {
-		writeApiError(w, shared.ApiError{
+		WriteApiError(w, shared.ApiError{
 			Type:   shared.ApiErrorTypeTrialActionNotAllowed,
 			Status: http.StatusForbidden,
 			Msg:    "Anonymous trial user can't list invites",
@@ -170,13 +170,13 @@ func ListPendingInvitesHandler(w http.ResponseWriter, r *http.Request) {
 
 func ListAcceptedInvitesHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received a request for ListAcceptedInvitesHandler")
-	auth := authenticate(w, r, true)
+	auth := Authenticate(w, r, true)
 	if auth == nil {
 		return
 	}
 
 	if auth.User.IsTrial {
-		writeApiError(w, shared.ApiError{
+		WriteApiError(w, shared.ApiError{
 			Type:   shared.ApiErrorTypeTrialActionNotAllowed,
 			Status: http.StatusForbidden,
 			Msg:    "Anonymous trial user can't list invites",
@@ -211,13 +211,13 @@ func ListAcceptedInvitesHandler(w http.ResponseWriter, r *http.Request) {
 
 func ListAllInvitesHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received a request for ListAllInvitesHandler")
-	auth := authenticate(w, r, true)
+	auth := Authenticate(w, r, true)
 	if auth == nil {
 		return
 	}
 
 	if auth.User.IsTrial {
-		writeApiError(w, shared.ApiError{
+		WriteApiError(w, shared.ApiError{
 			Type:   shared.ApiErrorTypeTrialActionNotAllowed,
 			Status: http.StatusForbidden,
 			Msg:    "Anonymous trial user can't list invites",
@@ -252,13 +252,13 @@ func ListAllInvitesHandler(w http.ResponseWriter, r *http.Request) {
 
 func DeleteInviteHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received a request for DeleteInviteHandler")
-	auth := authenticate(w, r, true)
+	auth := Authenticate(w, r, true)
 	if auth == nil {
 		return
 	}
 
 	if auth.User.IsTrial {
-		writeApiError(w, shared.ApiError{
+		WriteApiError(w, shared.ApiError{
 			Type:   shared.ApiErrorTypeTrialActionNotAllowed,
 			Status: http.StatusForbidden,
 			Msg:    "Anonymous trial user can't delete invites",

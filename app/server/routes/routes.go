@@ -1,4 +1,4 @@
-package main
+package routes
 
 import (
 	"fmt"
@@ -8,9 +8,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
-func routes() *mux.Router {
-	r := mux.NewRouter()
-
+func AddRoutes(r *mux.Router) {
 	r.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "OK")
 	})
@@ -81,7 +79,4 @@ func routes() *mux.Router {
 
 	r.HandleFunc("/plans/{planId}/{branch}/settings", handlers.GetSettingsHandler).Methods("GET")
 	r.HandleFunc("/plans/{planId}/{branch}/settings", handlers.UpdateSettingsHandler).Methods("PUT")
-
-	return r
-
 }

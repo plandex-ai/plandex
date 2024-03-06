@@ -226,7 +226,7 @@ func SignInHandler(w http.ResponseWriter, r *http.Request) {
 func SignOutHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for SignOutHandler")
 
-	auth := authenticate(w, r, false)
+	auth := Authenticate(w, r, false)
 	if auth == nil {
 		return
 	}
