@@ -11,33 +11,15 @@ export GOENV=production
 
 The server listens on port 8088 by default.
 
-Authentication emails are sent through AWS SES, so you'll need an AWS account with SES enabled. You'll be able to sub in SMTP credentials in the future (PRs welcome).
+The server also requires access to a persistent file system. It should be mounted to the container. In production, the `/plandex-server` directory is used by default as the base directory to read and write files. You can use the `PLANDEX_BASE_DIR` environment variable to change this.
 
-## AWS
+Authentication emails are sent through AWS SES in production, so you'll need an AWS account with SES enabled. You'll be able to sub in SMTP credentials in the future (PRs welcome).
 
-Run `./infra/deploy.sh` to deploy a production-ready Cloudformation stack to AWS with built-in autoscaling, clustering, network security, secrets management, backups, and alerts. This is the same infrastructure Plandex Cloud runs on.
+If you set `export GOENV=development` instead of `production`:
 
-Fair warning: this will cost signficantly more than paying for Plandex Cloud (once billing is enabled) or self-hosting with a lighter setup.
+- Authentication tokens will be copied to the clipboard instead of sent via email, and a system notification will pop up to let you know that the token is ready to paste.
 
-It requires an AWS account in ~/.aws/credentials, and these environment variables:
-
-```bash
-export AWS_PROFILE=your-aws-profile
-export AWS_REGION=your-aws-region
-export NOTIFY_EMAIL=your-email # AWS cloudwatch alerts and notifications
-export NOTIFY_SMS=country-code-plus-full-number # e.g. +14155552671 | for urgent AWS alerts
-export CERTIFICATE_ARN=your-aws-cert-manager-arn # for HTTPS -- must be a valid certificate in AWS Certificate Manager in the same region
-
-./infra/deploy.sh
-```
-
-To deploy a new build when only the app code has changed (not the infrastructure), run `./infra/deploy.sh --image-only`
-
-If the infrastructure _has_ changed, run `./infra/deploy.sh` again.
-
-## SES sandbox
-
-Note that in order to send authentication emails with SES, you'll either need to make a request to AWS get out of the SES sandbox, verify an email domain, or verify email addresses individually. [Read more here.](https://docs.aws.amazon.com/ses/latest/DeveloperGuide/request-production-access.html)
+- The default base directory will be `$HOME/plandex-server` instead of `/plandex-server`. It can still be overridden with `PLANDEX_BASE_DIR`.
 
 ## Create a new account
 
