@@ -3,3 +3,6 @@
 plandex
 plandex-server
 node_modules/
+/tools/
+/static/
+/infra/
