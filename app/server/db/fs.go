@@ -14,10 +14,13 @@ func init() {
 		panic(fmt.Errorf("error getting user home dir: %v", err))
 	}
 
-	if os.Getenv("GOENV") == "development" {
-		BaseDir = filepath.Join(home, "plandex-server")
-	} else {
-		BaseDir = "/plandex-server"
+	BaseDir = os.Getenv("PLANDEX_BASE_DIR")
+	if BaseDir == "" {
+		if os.Getenv("GOENV") == "development" {
+			BaseDir = filepath.Join(home, "plandex-server")
+		} else {
+			BaseDir = "/plandex-server"
+		}
 	}
 }
 
