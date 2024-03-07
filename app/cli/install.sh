@@ -65,7 +65,7 @@ fi
 
 welcome_plandex () {
   echo "Plandex $VERSION Quick Install"
-  echo "Copyright (c) 2023 Plandex Inc."
+  echo "Copyright (c) 2024 Plandex Inc."
   echo ""
 }
 
