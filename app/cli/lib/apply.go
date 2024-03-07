@@ -120,7 +120,18 @@ func MustApplyPlan(planId, branch string, autoConfirm bool) {
 		}
 
 		if isRepo && hasUncommittedChanges {
-			// If there are uncommitted changes, stash them
+			// If there are uncommitted changes, first checkout any files that will be applied, then stash the changes
+
+			// Checkout the files that will be applied
+			// It's safe to do this with the confidence that no work will be lost because we just ensured the plan is using the latest state of all these files
+			for path := range toApply {
+				err := GitCheckoutFile(path)
+				if err != nil {
+					term.OutputSimpleError("Failed to reset file %s: %v", path, err)
+					term.OutputUnformattedErrorAndExit(err.Error())
+				}
+			}
+
 			err := GitStashCreate("Plandex auto-stash")
 			if err != nil {
 				term.OutputSimpleError("Failed to create git stash:")

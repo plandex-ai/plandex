@@ -95,6 +95,10 @@ func GitStashPop(forceOverwrite bool) error {
 
 	res, err := exec.Command("git", "stash", "pop").CombinedOutput()
 
+	// we should no longer have conflicts since we are forcing an update before
+	// running the 'apply' command as well as resetting any files with uncommitted change
+	// still leaving this though in case something goes wrong
+
 	if err != nil {
 		log.Println("Error popping git stash:", string(res))
 
@@ -146,6 +150,18 @@ func GitClearUncommittedChanges() error {
 	res, err = exec.Command("git", "clean", "-d", "-f").CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("error cleaning untracked files | err: %v, output: %s", err, string(res))
+	}
+
+	return nil
+}
+
+func GitCheckoutFile(path string) error {
+	gitMutex.Lock()
+	defer gitMutex.Unlock()
+
+	res, err := exec.Command("git", "checkout", path).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("error checking out file %s | err: %v, output: %s", path, err, string(res))
 	}
 
 	return nil
