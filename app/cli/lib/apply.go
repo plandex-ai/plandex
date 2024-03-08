@@ -8,8 +8,6 @@ import (
 	"plandex/api"
 	"plandex/fs"
 	"plandex/term"
-
-	"github.com/davecgh/go-spew/spew"
 )
 
 func MustApplyPlan(planId, branch string, autoConfirm bool) {
@@ -102,37 +100,10 @@ func MustApplyPlan(planId, branch string, autoConfirm bool) {
 	var errArgs []interface{}
 	var unformattedErrMsg string
 
-	defer func() {
-		if aborted {
-			// clear any partially applied changes before popping the stash
-			err := GitClearUncommittedChanges()
-			if err != nil {
-				log.Printf("Failed to clear uncommitted changes: %v", err)
-			}
-		}
-
-		if stashed {
-			err := GitStashPop(true)
-			if err != nil {
-				log.Printf("Failed to pop git stash: %v", err)
-			}
-		}
-
-		if errMsg != "" {
-			if unformattedErrMsg == "" {
-				term.OutputErrorAndExit(errMsg, errArgs...)
-			} else {
-				term.OutputSimpleError(errMsg, errArgs...)
-				term.OutputUnformattedErrorAndExit(unformattedErrMsg)
-			}
-		}
-	}()
-
 	if len(toApply) == 0 {
 		fmt.Println("🤷‍♂️ No changes to apply")
 	} else {
 		if !autoConfirm {
-			fmt.Println()
 			numToApply := len(toApply)
 			suffix := ""
 			if numToApply > 1 {
@@ -145,10 +116,35 @@ func MustApplyPlan(planId, branch string, autoConfirm bool) {
 			}
 
 			if !shouldContinue {
-				aborted = true
-				return
+				os.Exit(0)
 			}
 		}
+
+		defer func() {
+			if aborted {
+				// clear any partially applied changes before popping the stash
+				err := GitClearUncommittedChanges()
+				if err != nil {
+					log.Printf("Failed to clear uncommitted changes: %v", err)
+				}
+			}
+
+			if stashed {
+				err := GitStashPop(true)
+				if err != nil {
+					log.Printf("Failed to pop git stash: %v", err)
+				}
+			}
+
+			if errMsg != "" {
+				if unformattedErrMsg == "" {
+					term.OutputErrorAndExit(errMsg, errArgs...)
+				} else {
+					term.OutputSimpleError(errMsg, errArgs...)
+					term.OutputUnformattedErrorAndExit(unformattedErrMsg)
+				}
+			}
+		}()
 
 		if isRepo && hasUncommittedChanges {
 			// If there are uncommitted changes, first checkout any files that will be applied, then stash the changes
@@ -243,12 +239,12 @@ func MustApplyPlan(planId, branch string, autoConfirm bool) {
 
 		if isRepo {
 			// Commit the changes
-			msg := "🤖 Plandex" + currentPlanState.PendingChangesSummary()
+			msg := currentPlanState.PendingChangesSummaryForApply()
 
 			log.Println("Committing changes with message:")
 			log.Println(msg)
 
-			spew.Dump(currentPlanState)
+			// spew.Dump(currentPlanState)
 
 			err := GitAddAndCommit(fs.ProjectRoot, msg, true)
 			if err != nil {

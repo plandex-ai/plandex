@@ -144,7 +144,7 @@ func (state *activeBuildStreamFileState) onFinishBuild() {
 			}
 		}
 
-		err = db.GitAddAndCommit(currentOrgId, planId, branch, currentPlan.PendingChangesSummary())
+		err = db.GitAddAndCommit(currentOrgId, planId, branch, currentPlan.PendingChangesSummaryForBuild())
 
 		if err != nil {
 			log.Printf("Error committing plan build: %v\n", err)
