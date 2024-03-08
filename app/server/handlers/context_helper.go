@@ -19,7 +19,9 @@ func loadContexts(w http.ResponseWriter, r *http.Request, auth *types.ServerAuth
 	if unlockFn == nil {
 		return nil, nil
 	} else {
-		defer (*unlockFn)(err)
+		defer func() {
+			(*unlockFn)(err)
+		}()
 	}
 
 	res, dbContexts, err := db.LoadContexts(db.LoadContextsParams{

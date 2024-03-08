@@ -36,7 +36,9 @@ func ListBranchesHandler(w http.ResponseWriter, r *http.Request) {
 	if unlockFn == nil {
 		return
 	} else {
-		defer (*unlockFn)(err)
+		defer func() {
+			(*unlockFn)(err)
+		}()
 	}
 
 	branches, err := db.ListPlanBranches(auth.OrgId, planId)
@@ -110,7 +112,9 @@ func CreateBranchHandler(w http.ResponseWriter, r *http.Request) {
 	if unlockFn == nil {
 		return
 	} else {
-		defer (*unlockFn)(err)
+		defer func() {
+			(*unlockFn)(err)
+		}()
 	}
 
 	tx, err := db.Conn.Begin()

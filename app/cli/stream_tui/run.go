@@ -3,6 +3,7 @@ package streamtui
 import (
 	"fmt"
 	"log"
+	"os"
 	"plandex/term"
 	"sync"
 
@@ -56,14 +57,16 @@ func StartStreamUI(prompt string, buildOnly bool) error {
 
 	if mod.stopped {
 		fmt.Println()
-		color.New(color.BgBlack, color.Bold, color.FgHiRed).Print(" 🛑 Stopped early ")
+		color.New(color.BgBlack, color.Bold, color.FgHiRed).Println(" 🛑 Stopped early ")
 		fmt.Println()
 		term.PrintCmds("", "log", "rewind", "tell")
-	} else {
+		os.Exit(0)
+	} else if mod.background {
 		fmt.Println()
-		color.New(color.BgBlack, color.Bold, color.FgGreen).Print(" ✅ Plan is active in the background ")
+		color.New(color.BgBlack, color.Bold, color.FgHiGreen).Println(" ✅ Plan is active in the background ")
 		fmt.Println()
 		term.PrintCmds("", "ps", "connect", "stop")
+		os.Exit(0)
 	}
 
 	return nil

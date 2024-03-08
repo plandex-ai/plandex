@@ -32,7 +32,9 @@ func ListConvoHandler(w http.ResponseWriter, r *http.Request) {
 	if unlockFn == nil {
 		return
 	} else {
-		defer (*unlockFn)(err)
+		defer func() {
+			(*unlockFn)(err)
+		}()
 	}
 
 	convoMessage, err := db.GetPlanConvo(auth.OrgId, planId)

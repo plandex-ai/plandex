@@ -34,7 +34,9 @@ func ListContextHandler(w http.ResponseWriter, r *http.Request) {
 	if unlockFn == nil {
 		return
 	} else {
-		defer (*unlockFn)(err)
+		defer func() {
+			(*unlockFn)(err)
+		}()
 	}
 
 	dbContexts, err := db.GetPlanContexts(auth.OrgId, planId, false)
@@ -154,7 +156,9 @@ func UpdateContextHandler(w http.ResponseWriter, r *http.Request) {
 	if unlockFn == nil {
 		return
 	} else {
-		defer (*unlockFn)(err)
+		defer func() {
+			(*unlockFn)(err)
+		}()
 	}
 
 	updateRes, err := db.UpdateContexts(db.UpdateContextsParams{
@@ -253,7 +257,9 @@ func DeleteContextHandler(w http.ResponseWriter, r *http.Request) {
 	if unlockFn == nil {
 		return
 	} else {
-		defer (*unlockFn)(err)
+		defer func() {
+			(*unlockFn)(err)
+		}()
 	}
 
 	dbContexts, err := db.GetPlanContexts(auth.OrgId, planId, false)

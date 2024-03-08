@@ -81,7 +81,7 @@ func (m streamUIModel) doRenderBuild(outputStatic bool) string {
 	lbl := "Building plan "
 	bgColor := color.BgGreen
 	if outputStatic {
-		if m.finished {
+		if m.finished || len(m.finishedByPath) == len(m.tokensByPath) {
 			lbl = "Built plan "
 		} else if m.stopped || m.err != nil || m.apiErr != nil {
 			lbl = "Build incomplete "

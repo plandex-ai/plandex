@@ -155,6 +155,18 @@ func GitClearUncommittedChanges() error {
 	return nil
 }
 
+func GitFileHasUncommittedChanges(path string) (bool, error) {
+	gitMutex.Lock()
+	defer gitMutex.Unlock()
+
+	res, err := exec.Command("git", "status", "--porcelain", path).CombinedOutput()
+	if err != nil {
+		return false, fmt.Errorf("error checking for uncommitted changes for file %s | err: %v, output: %s", path, err, string(res))
+	}
+
+	return strings.TrimSpace(string(res)) != "", nil
+}
+
 func GitCheckoutFile(path string) error {
 	gitMutex.Lock()
 	defer gitMutex.Unlock()

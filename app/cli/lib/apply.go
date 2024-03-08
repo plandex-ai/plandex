@@ -2,13 +2,12 @@ package lib
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"plandex/api"
 	"plandex/fs"
 	"plandex/term"
-
-	"github.com/fatih/color"
 )
 
 func MustApplyPlan(planId, branch string, autoConfirm bool) {
@@ -96,6 +95,36 @@ func MustApplyPlan(planId, branch string, autoConfirm bool) {
 	toApply := currentPlanFiles.Files
 
 	var aborted bool
+	var stashed bool
+	var errMsg string
+	var errArgs []interface{}
+	var unformattedErrMsg string
+
+	defer func() {
+		if aborted {
+			// clear any partially applied changes before popping the stash
+			err := GitClearUncommittedChanges()
+			if err != nil {
+				log.Printf("Failed to clear uncommitted changes: %v", err)
+			}
+		}
+
+		if stashed {
+			err := GitStashPop(true)
+			if err != nil {
+				log.Printf("Failed to pop git stash: %v", err)
+			}
+		}
+
+		if errMsg != "" {
+			if unformattedErrMsg == "" {
+				term.OutputErrorAndExit(errMsg, errArgs...)
+			} else {
+				term.OutputSimpleError(errMsg, errArgs...)
+				term.OutputUnformattedErrorAndExit(unformattedErrMsg)
+			}
+		}
+	}()
 
 	if len(toApply) == 0 {
 		fmt.Println("🤷‍♂️ No changes to apply")
@@ -125,35 +154,56 @@ func MustApplyPlan(planId, branch string, autoConfirm bool) {
 			// Checkout the files that will be applied
 			// It's safe to do this with the confidence that no work will be lost because we just ensured the plan is using the latest state of all these files
 			for path := range toApply {
-				err := GitCheckoutFile(path)
+				exists := true
+				_, err := os.Stat(filepath.Join(fs.ProjectRoot, path))
 				if err != nil {
-					term.OutputSimpleError("Failed to reset file %s: %v", path, err)
-					term.OutputUnformattedErrorAndExit(err.Error())
+					if os.IsNotExist(err) {
+						exists = false
+					} else {
+						errMsg = "Error checking for file %s:"
+						errArgs = append(errArgs, path)
+						unformattedErrMsg = err.Error()
+						aborted = true
+						return
+					}
+				}
+
+				if exists {
+					hasChanges, err := GitFileHasUncommittedChanges(path)
+
+					if err != nil {
+						errMsg = "Error checking for uncommitted changes for file %s:"
+						errArgs = append(errArgs, path)
+						unformattedErrMsg = err.Error()
+						aborted = true
+						return
+					}
+
+					// log.Printf("File %s has uncommitted changes: %v", path, hasChanges)
+
+					if hasChanges {
+						err := os.Remove(filepath.Join(fs.ProjectRoot, path))
+						if err != nil {
+							errMsg = "Failed to remove file prior to update %s:"
+							errArgs = append(errArgs, path)
+							unformattedErrMsg = err.Error()
+							aborted = true
+							return
+						}
+
+						GitCheckoutFile(path) // ignore error to cover untracked files
+					}
 				}
 			}
 
 			err := GitStashCreate("Plandex auto-stash")
 			if err != nil {
-				term.OutputSimpleError("Failed to create git stash:")
-				term.OutputUnformattedErrorAndExit(err.Error())
+				errMsg = "Failed to create git stash:"
+				unformattedErrMsg = err.Error()
+				aborted = true
+				return
 			}
-
-			defer func() {
-				if aborted {
-					// clear any partially applied changes before popping the stash
-					err := GitClearUncommittedChanges()
-					if err != nil {
-						term.OutputSimpleError("Failed to clear uncommitted changes:")
-						term.OutputUnformattedErrorAndExit(err.Error())
-					}
-				}
-
-				err := GitStashPop(true)
-				if err != nil {
-					term.OutputSimpleError("Failed to pop git stash:")
-					term.OutputUnformattedErrorAndExit(err.Error())
-				}
-			}()
+			stashed = true
 		}
 
 		for path, content := range toApply {
@@ -163,14 +213,18 @@ func MustApplyPlan(planId, branch string, autoConfirm bool) {
 			err := os.MkdirAll(filepath.Dir(dstPath), 0755)
 			if err != nil {
 				aborted = true
-				term.OutputErrorAndExit("failed to create directory %s: %v", filepath.Dir(dstPath), err)
+				errMsg = "failed to create directory %s:"
+				errArgs = append(errArgs, filepath.Dir(dstPath))
+				return
 			}
 
 			// Write the file
 			err = os.WriteFile(dstPath, []byte(content), 0644)
 			if err != nil {
 				aborted = true
-				term.OutputErrorAndExit("failed to write %s: %v", dstPath, err)
+				errMsg = "failed to write %s:"
+				errArgs = append(errArgs, dstPath)
+				return
 			}
 		}
 
@@ -180,12 +234,21 @@ func MustApplyPlan(planId, branch string, autoConfirm bool) {
 
 		if apiErr != nil {
 			aborted = true
-			term.OutputErrorAndExit("failed to set pending results applied: %s", apiErr.Msg)
+			errMsg = "failed to set pending results applied: %s"
+			errArgs = append(errArgs, apiErr.Msg)
+			return
 		}
 
 		if isRepo {
 			// Commit the changes
-			err := GitAddAndCommit(fs.ProjectRoot, color.New(color.BgBlue, color.FgHiWhite, color.Bold).Sprintln(" 🤖 Plandex ")+currentPlanState.PendingChangesSummary(), true)
+			msg := "🤖 Plandex" + currentPlanState.PendingChangesSummary()
+
+			// log.Println("Committing changes with message:")
+			// log.Println(msg)
+
+			// spew.Dump(currentPlanState)
+
+			err := GitAddAndCommit(fs.ProjectRoot, msg, true)
 			if err != nil {
 				aborted = true
 				// return fmt.Errorf("failed to commit changes: %w", err)

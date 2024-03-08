@@ -59,8 +59,9 @@ type streamUIModel struct {
 
 	prompt string
 
-	stopped  bool
-	finished bool
+	stopped    bool
+	background bool
+	finished   bool
 
 	err    error
 	apiErr *shared.ApiError

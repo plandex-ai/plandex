@@ -54,6 +54,7 @@ func (m streamUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch {
 
 		case bubbleKey.Matches(msg, m.keymap.quit):
+			m.background = true
 			return &m, tea.Quit
 
 		case bubbleKey.Matches(msg, m.keymap.stop):

@@ -252,7 +252,9 @@ func StopPlanHandler(w http.ResponseWriter, r *http.Request) {
 	if unlockFn == nil {
 		return
 	} else {
-		defer (*unlockFn)(err)
+		defer func() {
+			(*unlockFn)(err)
+		}()
 	}
 
 	log.Println("Stopping plan")

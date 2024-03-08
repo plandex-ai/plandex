@@ -40,7 +40,9 @@ func GetSettingsHandler(w http.ResponseWriter, r *http.Request) {
 	if unlockFn == nil {
 		return
 	} else {
-		defer (*unlockFn)(err)
+		defer func() {
+			(*unlockFn)(err)
+		}()
 	}
 
 	settings, err := db.GetPlanSettings(plan, true)
@@ -98,7 +100,9 @@ func UpdateSettingsHandler(w http.ResponseWriter, r *http.Request) {
 	if unlockFn == nil {
 		return
 	} else {
-		defer (*unlockFn)(err)
+		defer func() {
+			(*unlockFn)(err)
+		}()
 	}
 
 	originalSettings, err := db.GetPlanSettings(plan, true)

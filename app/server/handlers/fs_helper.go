@@ -36,6 +36,9 @@ func lockRepo(w http.ResponseWriter, r *http.Request, auth *types.ServerAuth, sc
 	}
 
 	fn := func(err error) {
+		log.Println("Unlocking repo in deferred unlock function")
+		log.Printf("err: %v\n", err)
+
 		if r := recover(); r != nil {
 			stackTrace := debug.Stack()
 			log.Printf("Recovered from panic: %v\n", r)
@@ -44,6 +47,7 @@ func lockRepo(w http.ResponseWriter, r *http.Request, auth *types.ServerAuth, sc
 			http.Error(w, "Error locking repo: "+err.Error(), http.StatusInternalServerError)
 		}
 
+		log.Println("Rolling back repo if error")
 		err = RollbackRepoIfErr(auth.OrgId, planId, err)
 		if err != nil {
 			log.Printf("Error rolling back repo: %v\n", err)
@@ -61,6 +65,7 @@ func lockRepo(w http.ResponseWriter, r *http.Request, auth *types.ServerAuth, sc
 func RollbackRepoIfErr(orgId, planId string, err error) error {
 	// if no error, return nil
 	if err == nil {
+		log.Println("No error, not rolling back repo")
 		return nil
 	}
 

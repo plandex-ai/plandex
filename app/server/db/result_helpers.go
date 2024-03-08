@@ -188,7 +188,7 @@ func GetConvoMessageDescriptions(orgId, planId string) ([]*ConvoMessageDescripti
 			bytes, err := os.ReadFile(filepath.Join(descriptionsDir, file.Name()))
 
 			if err != nil {
-				errCh <- fmt.Errorf("error reading description file: %v", err)
+				errCh <- fmt.Errorf("error reading description file %s: %v", file.Name(), err)
 				return
 			}
 
@@ -196,7 +196,7 @@ func GetConvoMessageDescriptions(orgId, planId string) ([]*ConvoMessageDescripti
 			err = json.Unmarshal(bytes, &description)
 
 			if err != nil {
-				errCh <- fmt.Errorf("error unmarshalling description file: %v", err)
+				errCh <- fmt.Errorf("error unmarshalling description file %s: %v", file.Name(), err)
 				return
 			}
 
@@ -366,7 +366,7 @@ func ApplyPlan(orgId, userId, branchName string, plan *Plan) error {
 	for i := 0; i < 3; i++ {
 		err := <-errCh
 		if err != nil {
-			return fmt.Errorf("error applying plan: %v", err)
+			return err
 		}
 	}
 

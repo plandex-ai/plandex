@@ -36,7 +36,9 @@ func ListLogsHandler(w http.ResponseWriter, r *http.Request) {
 	if unlockFn == nil {
 		return
 	} else {
-		defer (*unlockFn)(err)
+		defer func() {
+			(*unlockFn)(err)
+		}()
 	}
 
 	body, shas, err := db.GetGitCommitHistory(auth.OrgId, planId, branch)
@@ -104,7 +106,9 @@ func RewindPlanHandler(w http.ResponseWriter, r *http.Request) {
 	if unlockFn == nil {
 		return
 	} else {
-		defer (*unlockFn)(err)
+		defer func() {
+			(*unlockFn)(err)
+		}()
 	}
 
 	err = db.GitRewindToSha(auth.OrgId, planId, branch, requestBody.Sha)

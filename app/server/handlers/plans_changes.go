@@ -35,7 +35,9 @@ func CurrentPlanHandler(w http.ResponseWriter, r *http.Request) {
 	if unlockFn == nil {
 		return
 	} else {
-		defer (*unlockFn)(err)
+		defer func() {
+			(*unlockFn)(err)
+		}()
 	}
 
 	planState, err := db.GetCurrentPlanState(db.CurrentPlanStateParams{
@@ -86,7 +88,9 @@ func ApplyPlanHandler(w http.ResponseWriter, r *http.Request) {
 	if unlockFn == nil {
 		return
 	} else {
-		defer (*unlockFn)(err)
+		defer func() {
+			(*unlockFn)(err)
+		}()
 	}
 
 	err = db.ApplyPlan(auth.OrgId, auth.User.Id, branch, plan)
@@ -122,7 +126,9 @@ func RejectAllChangesHandler(w http.ResponseWriter, r *http.Request) {
 	if unlockFn == nil {
 		return
 	} else {
-		defer (*unlockFn)(err)
+		defer func() {
+			(*unlockFn)(err)
+		}()
 	}
 
 	err = db.RejectAllResults(auth.OrgId, planId)
@@ -160,7 +166,9 @@ func RejectResultHandler(w http.ResponseWriter, r *http.Request) {
 	if unlockFn == nil {
 		return
 	} else {
-		defer (*unlockFn)(err)
+		defer func() {
+			(*unlockFn)(err)
+		}()
 	}
 
 	err = db.RejectPlanFileResult(auth.OrgId, planId, resultId, time.Now())
@@ -199,7 +207,9 @@ func RejectReplacementHandler(w http.ResponseWriter, r *http.Request) {
 	if unlockFn == nil {
 		return
 	} else {
-		defer (*unlockFn)(err)
+		defer func() {
+			(*unlockFn)(err)
+		}()
 	}
 
 	err = db.RejectReplacement(auth.OrgId, planId, resultId, replacementId)
