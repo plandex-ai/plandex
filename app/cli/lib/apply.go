@@ -241,8 +241,8 @@ func MustApplyPlan(planId, branch string, autoConfirm bool) {
 			// Commit the changes
 			msg := currentPlanState.PendingChangesSummaryForApply()
 
-			log.Println("Committing changes with message:")
-			log.Println(msg)
+			// log.Println("Committing changes with message:")
+			// log.Println(msg)
 
 			// spew.Dump(currentPlanState)
 

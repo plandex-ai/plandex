@@ -138,6 +138,13 @@ func (state *CurrentPlanState) pendingChangesSummary(forApply bool) string {
 			descMsgs = append(descMsgs, fmt.Sprintf("  ✏️  %s", desc.CommitMsg))
 		}
 
+		msgs = append(msgs, descMsgs...)
+
+		// for an apply commit message, we don't need to list file updates
+		if forApply {
+			continue
+		}
+
 		pendingNewFilesSet := make(map[string]bool)
 		pendingReplacementPathsSet := make(map[string]bool)
 		pendingReplacementsByPath := make(map[string][]*Replacement)
@@ -155,13 +162,6 @@ func (state *CurrentPlanState) pendingChangesSummary(forApply bool) string {
 		}
 
 		if len(pendingNewFilesSet) == 0 && len(pendingReplacementPathsSet) == 0 {
-			continue
-		}
-
-		msgs = append(msgs, descMsgs...)
-
-		// for an apply commit message, we don't need to list file updates
-		if forApply {
 			continue
 		}
 
