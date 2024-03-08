@@ -169,11 +169,12 @@ func StoreContext(context *Context) error {
 }
 
 type LoadContextsParams struct {
-	Req        *shared.LoadContextRequest
-	OrgId      string
-	Plan       *Plan
-	BranchName string
-	UserId     string
+	Req                      *shared.LoadContextRequest
+	OrgId                    string
+	Plan                     *Plan
+	BranchName               string
+	UserId                   string
+	SkipConflictInvalidation bool
 }
 
 func LoadContexts(params LoadContextsParams) (*shared.LoadContextResponse, []*Context, error) {
@@ -190,9 +191,12 @@ func LoadContexts(params LoadContextsParams) (*shared.LoadContextResponse, []*Co
 			filesToLoad[context.FilePath] = context.Body
 		}
 	}
-	err := invalidateConflictedResults(orgId, planId, filesToLoad)
-	if err != nil {
-		return nil, nil, fmt.Errorf("error invalidating conflicted results: %v", err)
+
+	if !params.SkipConflictInvalidation {
+		err := invalidateConflictedResults(orgId, planId, filesToLoad)
+		if err != nil {
+			return nil, nil, fmt.Errorf("error invalidating conflicted results: %v", err)
+		}
 	}
 
 	tokensAdded := 0
@@ -305,11 +309,12 @@ func LoadContexts(params LoadContextsParams) (*shared.LoadContextResponse, []*Co
 }
 
 type UpdateContextsParams struct {
-	Req          *shared.UpdateContextRequest
-	OrgId        string
-	Plan         *Plan
-	BranchName   string
-	ContextsById map[string]*Context
+	Req                      *shared.UpdateContextRequest
+	OrgId                    string
+	Plan                     *Plan
+	BranchName               string
+	ContextsById             map[string]*Context
+	SkipConflictInvalidation bool
 }
 
 func UpdateContexts(params UpdateContextsParams) (*shared.UpdateContextResponse, error) {
@@ -436,9 +441,12 @@ func UpdateContexts(params UpdateContextsParams) (*shared.UpdateContextResponse,
 			filesToLoad[context.FilePath] = (*req)[context.Id].Body
 		}
 	}
-	err = invalidateConflictedResults(orgId, planId, filesToLoad)
-	if err != nil {
-		return nil, fmt.Errorf("error invalidating conflicted results: %v", err)
+
+	if !params.SkipConflictInvalidation {
+		err = invalidateConflictedResults(orgId, planId, filesToLoad)
+		if err != nil {
+			return nil, fmt.Errorf("error invalidating conflicted results: %v", err)
+		}
 	}
 
 	errCh = make(chan error)

@@ -8,6 +8,8 @@ import (
 	"plandex/api"
 	"plandex/fs"
 	"plandex/term"
+
+	"github.com/davecgh/go-spew/spew"
 )
 
 func MustApplyPlan(planId, branch string, autoConfirm bool) {
@@ -243,10 +245,10 @@ func MustApplyPlan(planId, branch string, autoConfirm bool) {
 			// Commit the changes
 			msg := "🤖 Plandex" + currentPlanState.PendingChangesSummary()
 
-			// log.Println("Committing changes with message:")
-			// log.Println(msg)
+			log.Println("Committing changes with message:")
+			log.Println(msg)
 
-			// spew.Dump(currentPlanState)
+			spew.Dump(currentPlanState)
 
 			err := GitAddAndCommit(fs.ProjectRoot, msg, true)
 			if err != nil {

@@ -185,7 +185,9 @@ func GetConvoMessageDescriptions(orgId, planId string) ([]*ConvoMessageDescripti
 
 	for _, file := range files {
 		go func(file os.DirEntry) {
-			bytes, err := os.ReadFile(filepath.Join(descriptionsDir, file.Name()))
+			path := filepath.Join(descriptionsDir, file.Name())
+
+			bytes, err := os.ReadFile(path)
 
 			if err != nil {
 				errCh <- fmt.Errorf("error reading description file %s: %v", file.Name(), err)
@@ -196,7 +198,11 @@ func GetConvoMessageDescriptions(orgId, planId string) ([]*ConvoMessageDescripti
 			err = json.Unmarshal(bytes, &description)
 
 			if err != nil {
-				errCh <- fmt.Errorf("error unmarshalling description file %s: %v", file.Name(), err)
+				log.Println("Error unmarshalling description file:", path)
+				log.Println("bytes:")
+				log.Println(string(bytes))
+
+				errCh <- fmt.Errorf("error unmarshalling description file %s: %v", path, err)
 				return
 			}
 
@@ -463,11 +469,12 @@ func ApplyPlan(orgId, userId, branchName string, plan *Plan) error {
 
 			res, _, err := LoadContexts(
 				LoadContextsParams{
-					OrgId:      orgId,
-					UserId:     userId,
-					Plan:       plan,
-					BranchName: branchName,
-					Req:        &loadReq,
+					OrgId:                    orgId,
+					UserId:                   userId,
+					Plan:                     plan,
+					BranchName:               branchName,
+					Req:                      &loadReq,
+					SkipConflictInvalidation: true, // no need to invalidate conflicts when applying plan--and fixes race condition since invalidation check loads description
 				},
 			)
 
@@ -493,10 +500,11 @@ func ApplyPlan(orgId, userId, branchName string, plan *Plan) error {
 
 			res, err := UpdateContexts(
 				UpdateContextsParams{
-					OrgId:      orgId,
-					Plan:       plan,
-					BranchName: branchName,
-					Req:        &updateReq,
+					OrgId:                    orgId,
+					Plan:                     plan,
+					BranchName:               branchName,
+					Req:                      &updateReq,
+					SkipConflictInvalidation: true, // no need to invalidate conflicts when applying plan--and fixes race condition since invalidation check loads description
 				},
 			)
 
