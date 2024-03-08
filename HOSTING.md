@@ -1,7 +1,14 @@
 # Plandex self-hosting 🏠
 
-## Anywhere
+Plandex is designed to be self-hosted. This is a guide to help you get started.
 
+You can either run Plandex from source or from a Docker image.
+
+## Run from source
+
+## Run from Docker
+
+<!--
 The Plandex server runs from a Dockerfile at `app/Dockerfile.server`. It requires a PostgreSQL database (ideally v14) and these environment variables:
 
 ```bash
@@ -27,4 +34,4 @@ Once the server is running, you can create a new account by running `plandex sig
 
 ```bash
 plandex sign-in # follow the prompts to create a new account on your self-hosted server
-```
+``` -->

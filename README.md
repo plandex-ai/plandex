@@ -101,9 +101,11 @@ Plandex Cloud follows best practices for network and data security. And whether 
 - 🧠 Support for open source models, Google Gemini, and Anthropic Claude in addition to OpenAI
 - 🤝 Plan sharing and team collaboration
 - 🖼️ Support for GPT4-Vision and other multi-modal models—add images and screenshots to context
-- 🖥️ VSCode extension
+- 🖥️ VSCode and JetBrains extensions
 - 🔌 Github integration
 - 🌐 Web dashboard and GUI
+- 🔐 SOC2 compliance
+- 🛩️ Fine-tuned models
 
 This list will grow and be prioritized based on your feedback.
 
