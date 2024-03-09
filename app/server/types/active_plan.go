@@ -44,6 +44,8 @@ type ActivePlan struct {
 	CancelFn                context.CancelFunc
 	ModelStreamCtx          context.Context
 	CancelModelStreamFn     context.CancelFunc
+	SummaryCtx              context.Context
+	SummaryCancelFn         context.CancelFunc
 	Contexts                []*db.Context
 	ContextsByPath          map[string]*db.Context
 	Files                   []string
@@ -71,6 +73,9 @@ func NewActivePlan(planId, branch, prompt string, buildOnly bool) *ActivePlan {
 	// child context for model stream so we can cancel it separately if needed
 	modelStreamCtx, cancelModelStream := context.WithCancel(ctx)
 
+	// we don't want to cancel summaries unless the whole plan is stopped or there's an error -- if the active plan finishes, we want summaries to continue -- so they get their own context
+	summaryCtx, cancelSummary := context.WithCancel(context.Background())
+
 	active := ActivePlan{
 		Id:                    planId,
 		BuildOnly:             buildOnly,
@@ -80,6 +85,8 @@ func NewActivePlan(planId, branch, prompt string, buildOnly bool) *ActivePlan {
 		CancelFn:              cancel,
 		ModelStreamCtx:        modelStreamCtx,
 		CancelModelStreamFn:   cancelModelStream,
+		SummaryCtx:            summaryCtx,
+		SummaryCancelFn:       cancelSummary,
 		BuildQueuesByPath:     map[string][]*ActiveBuild{},
 		Contexts:              []*db.Context{},
 		ContextsByPath:        map[string]*db.Context{},

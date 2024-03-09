@@ -2,7 +2,6 @@ package plan
 
 import (
 	"plandex-server/db"
-	"plandex-server/types"
 	"sort"
 	"strings"
 
@@ -11,14 +10,14 @@ import (
 )
 
 type planResultParams struct {
-	orgId                string
-	planId               string
-	planBuildId          string
-	convoMessageId       string
-	filePath             string
-	currentState         string
-	fileContent          string
-	streamedReplacements []*types.StreamedReplacement
+	orgId           string
+	planId          string
+	planBuildId     string
+	convoMessageId  string
+	filePath        string
+	currentState    string
+	fileContent     string
+	streamedChanges []*shared.StreamedChange
 }
 
 func getPlanResult(params planResultParams) (*db.PlanFileResult, bool) {
@@ -27,7 +26,7 @@ func getPlanResult(params planResultParams) (*db.PlanFileResult, bool) {
 	planBuildId := params.planBuildId
 	filePath := params.filePath
 	currentState := params.currentState
-	streamedReplacements := params.streamedReplacements
+	streamedChanges := params.streamedChanges
 	updated := params.currentState
 	fileContent := params.fileContent
 
@@ -35,26 +34,38 @@ func getPlanResult(params planResultParams) (*db.PlanFileResult, bool) {
 	fileContentLines := strings.Split(fileContent, "\n")
 
 	var replacements []*shared.Replacement
-	for _, streamedReplacement := range streamedReplacements {
+	for _, streamedChange := range streamedChanges {
 		var old string
 		var new string
 
-		if streamedReplacement.Old.StartLine == streamedReplacement.Old.EndLine {
-			old = currentStateLines[streamedReplacement.Old.StartLine-1]
+		if streamedChange.New.StartLine == streamedChange.New.EndLine {
+			new = fileContentLines[streamedChange.New.StartLine-1]
 		} else {
-			old = strings.Join(currentStateLines[streamedReplacement.Old.StartLine-1:streamedReplacement.Old.EndLine], "\n")
+			new = strings.Join(fileContentLines[streamedChange.New.StartLine-1:streamedChange.New.EndLine], "\n")
 		}
 
-		if streamedReplacement.New.StartLine == streamedReplacement.New.EndLine {
-			new = fileContentLines[streamedReplacement.New.StartLine-1]
-		} else {
-			new = strings.Join(fileContentLines[streamedReplacement.New.StartLine-1:streamedReplacement.New.EndLine], "\n")
+		switch streamedChange.ChangeType {
+
+		case shared.StreamedChangeTypeReplace:
+			if streamedChange.Old.StartLine == streamedChange.Old.EndLine {
+				old = currentStateLines[streamedChange.Old.StartLine-1]
+			} else {
+				old = strings.Join(currentStateLines[streamedChange.Old.StartLine-1:streamedChange.Old.EndLine], "\n")
+			}
+
+		case shared.StreamedChangeTypeAppend:
+			old = currentStateLines[streamedChange.Old.EndLine-1]
+			new = old + "\n" + new
+
+		case shared.StreamedChangeTypePrepend:
+			old = currentStateLines[streamedChange.Old.StartLine-1]
+			new = new + "\n" + old
 		}
 
 		replacement := &shared.Replacement{
-			Old:     old,
-			New:     new,
-			Summary: streamedReplacement.ShortSummary,
+			Old:            old,
+			New:            new,
+			StreamedChange: streamedChange,
 		}
 
 		replacements = append(replacements, replacement)

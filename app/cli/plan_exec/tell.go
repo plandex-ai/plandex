@@ -115,11 +115,9 @@ func TellPlan(
 				fmt.Println()
 
 				if tellStop {
-					term.PrintCmds("", "continue", "convo", "changes", "log", "rewind")
-				} else if tellNoBuild {
-					term.PrintCmds("", "convo", "log", "rewind")
+					term.PrintCmds("", "continue", "changes", "apply", "log", "rewind")
 				} else {
-					term.PrintCmds("", "changes", "log", "rewind")
+					term.PrintCmds("", "changes", "apply", "log", "rewind")
 				}
 				os.Exit(0)
 			}()

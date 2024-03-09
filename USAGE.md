@@ -16,6 +16,8 @@ When you create a plan, Plandex will automatically name your plan after you give
 plandex new -n foo-adapters-component
 ```
 
+If you don't give your plan a name up front, it will be named 'draft' until you give it a task. To keep things tidy, you can only have one active plan named 'draft'. If you create a new draft plan, any existing draft plan will be removed.
+
 ### Loading context
 
 After creating a plan, load any relevant files, directories, directory layouts, urls, or other data into the plan context.
@@ -76,19 +78,19 @@ plandex rewind a7c8d66 # rewind to a specific state
 If you want to try a different approach but also keep the current one around, you can use branches. Create a new branch before rewinding.
 
 ```bash
-plandex checkout new-approach
+plandex checkout new-approach # create a new branch and switch to it
 plandex rewind 2
 plandex tell 'write the tests before the components.'
 plandex branches # see all branches
-plandex delete-branch new-approach # delete a branch (sends you back to the main branch if you delete the current branch)
+plandex delete-branch new-approach # delete a branch
 ```
 
 ### Continue
 
 If a plan has stopped and you just want to continue where you left off, you can use the `continue` command.
 
-```
-plandex continue
+```bash
+plandex continue # continue the current plan
 ```
 
 ### Background tasks
@@ -102,9 +104,9 @@ plandex tell --bg 'now add another similar component for widget adapters'
 To see plans that are currently running (or recently finished) and their current status, use the `ps` command. You can connect to a running plan's stream to check on it. Or you can stop it.
 
 ```bash
-plandex ps
-plandex connect
-plandex stop
+plandex ps # show active and recently finished plans
+plandex connect # select an active plan to connect to
+plandex stop # select an active plan to stop
 ```
 
 ### Context management
@@ -112,7 +114,7 @@ plandex stop
 You can see the plan's current context with the `ls` command. You can remove context with the `rm` command or clear it all with the `clear` command.
 
 ```bash
-plandex ls
+plandex ls # list all context in current plan
 plandex rm component.ts # remove by name
 plandex rm 2 # remove by number in the `plandex ls` list
 plandex rm lib/**/*.js # remove by glob pattern
@@ -122,7 +124,7 @@ plandex clear # remove all context
 If files in context are modified outside of Plandex, you will be prompted to update them the next time you interact with the AI. You can also update them manually with the `update` command.
 
 ```bash
-plandex update
+plandex update # update files in context
 ```
 
 ### Plans
@@ -130,11 +132,11 @@ plandex update
 When you have multiple plans, you can list them with the `plans` command, switch between them with the `cd` command, see the current plan with the `current` command, and delete plans with the `delete-plan` command. Archiving of plans will be added in the future for plans that you want to keep around but aren't currently working on.
 
 ```
-plandex plans
+plandex plans # list all plans
 plandex cd # select from a list of plans
 plandex cd some-other-plan # cd to a plan by name
 plandex cd 2 # cd to a plan by number in the `plandex plans` list
-plandex current
+plandex current # show the current plan
 plandex delete-plan # select from a list of plans to delete
 plandex delete-plan some-plan # delete a plan by name
 plandex delete-plan 4 # delete a plan by number in the `plandex plans` list
@@ -145,7 +147,7 @@ plandex delete-plan 4 # delete a plan by number in the `plandex plans` list
 You can see the full conversation history with the `convo` command.
 
 ```bash
-plandex convo
+plandex convo # show the full conversation history
 ```
 
 ### Conversation summaries
@@ -157,7 +159,7 @@ Every time the AI model replies, Plandex will summarize the conversation so far 
 You can see the current AI models and model settings with the `models` command and change them with the `set-model` command.
 
 ```bash
-plandex models
+plandex models # show the current AI models and model settings
 plandex set-model # select from a list of models and settings
 plandex set-model planner gpt-4 # set the main planner model to gpt-4
 plandex set-model builder temperature 0.1 # set the builder model's temperature to 0.1
@@ -169,7 +171,7 @@ Model changes are versioned and can be rewound or applied to a branch just like 
 
 ### .plandex and teams
 
-When you run `plandex new` for the first time in any directory, Plandex will create a `.plandex` directory there for light project-level config. While the `.plandex` directory can be safely added to version control, if multiple developers are using Plandex with the same project, then for now you should add `.plandex/` to .gitignore (or the ignore file for whatever VCS you use). When orgs and teams are fully implemented (they're currently a WIP), it can be re-added to version control so that all team members can work from the same org and project.
+When you run `plandex new` for the first time in any directory, Plandex will create a `.plandex` directory there for light project-level config. While the `.plandex` directory can be safely added to version control, **if multiple developers are using Plandex with the same project, then for now you should add `.plandex/` to .gitignore (or the ignore file for whatever VCS you use).** When orgs and teams are fully implemented (currently a WIP), it can be re-added to version control so that all team members can work from the same org and project.
 
 ### Directories
 
@@ -179,20 +181,21 @@ When you run `plandex plans`, in addition to showing you plans in the current di
 
 ```bash
 cd your-project
-plandex new -n root-project-plan # cwd is your-project, current plan is root-project-plan
-plandex load file.go # loads your-project/file.go
-cd some-subdirectory
-plandex new -n subdir-plan1
-plandex load subfile.go # loads your-project/some-subdirectory/subfile.go
-plandex new -n subdir-plan2 # some-subdirectory current plan is now subdir-plan2
+plandex new -n root-project-plan # cwd is 'your-project'
+plandex current # 'your-project' current plan is root-project-plan
+plandex load file.go # loads 'your-project/file.go'
+cd some-subdirectory # cwd is now 'some-subdirectory'
+plandex new -n subdir-plan1 # current plan is subdir-plan1
+plandex load subfile.go # loads 'some-subdirectory/subfile.go'
+plandex new -n subdir-plan2 # current plan is now subdir-plan2
 plandex plans # shows subdir-plan1 and subdir-plan2 in current directory + root-project-plan in parent directory
-cd ../ # cwd is now your-project, current plan is root-project-plan
-plandex plans # shows root-project-plan in current directory + subdir-plan1 and subdir-plan2 in child directory some-subdirectory
-cd some-subdirectory # cwd is now some-subdirectory, current plan is subdir-plan2
-plandex cd subdir-plan1 # cwd is still some-subdirectory, current plan is now subdir-plan1
+cd ../ # cwd is now 'your-project', current plan is root-project-plan
+plandex plans # shows root-project-plan in current directory + subdir-plan1 and subdir-plan2 in child directory 'some-subdirectory'
+cd some-subdirectory # cwd is now 'some-subdirectory', current plan is subdir-plan2
+plandex cd subdir-plan1 # cwd is still 'some-subdirectory', current plan is now subdir-plan1
 ```
 
-One last tidbit on this topic: you can also load context from parent or sibling directories if needed by using `..` in your load paths.
+One more thing to note on directories: you can load context from parent or sibling directories if needed by using `..` in your load paths.
 
 ```bash
 cd your-project

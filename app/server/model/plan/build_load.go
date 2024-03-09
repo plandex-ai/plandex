@@ -130,12 +130,6 @@ func (state *activeBuildStreamFileState) loadBuildFile(activeBuild *types.Active
 
 	convoMessageId := activeBuild.ReplyId
 
-	if !activePlan.IsBuildingByPath[filePath] {
-		UpdateActivePlan(activePlan.Id, activePlan.Branch, func(ap *types.ActivePlan) {
-			ap.IsBuildingByPath[filePath] = true
-		})
-	}
-
 	build := &db.PlanBuild{
 		OrgId:          currentOrgId,
 		PlanId:         planId,

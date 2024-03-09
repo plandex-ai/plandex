@@ -1,26 +1,28 @@
 ## 🌟 Build large features and entire projects with AI.
 
-🔮 Plandex is an open source, terminal-based AI programming engine with long-running agents, automatic file updates, versioning, branches, and diff review.
+🔮 Plandex is an open source, terminal-based AI programming engine with long-running agents, context management, versioning, branches, diff review, a protected sandbox for changes, and automatic file updates.
 
-🔄 It enables a tight feedback loop between programmer and AI.
+🥇 It's the best tool available for driving robust, end-to-end software development with AI.
 
 💪 It helps you churn through your backlog, work with unfamiliar technologies, get unstuck, and spend less time on tedious tasks.
 
 🧠 Plandex relies on the OpenAI API and requires an `OPENAI_API_KEY` environment variable. Support for open source models, Google Gemini, and Anthropic Claude is coming soon.
 
-✅ Plandex supports Mac, Linux, and Windows (Windows supported via [Git bash](https://gitforwindows.org) or [WSL](https://learn.microsoft.com/en-us/windows/wsl/about)). It runs from a single binary with no dependencies.
+✅ Plandex supports Mac, Linux, FreeBSD, and Windows. It runs from a single binary with no dependencies.
 
 ## Install 📥
 
-Run the quick install script:
+### Quick install
 
 ```bash
 curl -sL https://plandex.ai/install.sh | bash
 ```
 
-Or grab the appropriate binary for your platform from the latest [release](https://github.com/plandex-ai/plandex/releases) and put it somewhere in your `PATH`.
+### Manual install
 
-Or build from source with Go:
+Grab the appropriate binary for your platform from the latest [release](https://github.com/plandex-ai/plandex/releases) and put it somewhere in your `PATH`.
+
+### Build from source
 
 ```bash
 git clone plandex-ai/plandex.git
@@ -29,18 +31,23 @@ go build -o plandex
 cp plandex /usr/local/bin # adapt as needed for your system
 ```
 
+### Windows
+
+Windows is supported via [Git bash](https://gitforwindows.org) or [WSL](https://learn.microsoft.com/en-us/windows/wsl/about).
+
 ## Why Plandex? 🤔
 
 - 🏗️ Go beyond autocomplete to build complex functionality with AI.
 - 🚫 Stop the mouse-centered, copy-pasting madness of coding with ChatGPT.
+- 🔄 Tighten the feedback loop between programmer and AI.
 - 📑 Manage context efficiently in the terminal.
 - ⚡️ Ensure AI models always have the latest versions of files in context.
-- 🪙 Retain tight control over what's in context and how many tokens you're using.
+- 🪙 Retain granular control over what's in context and how many tokens you're using.
 - 🚧 Experiment, revise, and review in a protected sandbox before applying changes.
 - ⏪ Rewind and retry as needed with baked-in version control.
 - 🌱 Explore multiple approaches with branches.
 - 🏎️ Run tasks in the background or work on multiple tasks in parallel.
-- 🎛️ Try different models and model settings and compare results.
+- 🎛️ Try different models and model settings, then compare results.
 
 ## Get started 🚀
 
@@ -88,7 +95,7 @@ Plandex Cloud accounts are free for now. In the future, there will be a monthly 
 
 [Read about self-hosting Plandex here.](./HOSTING.md)
 
-## Plandex security 🔐
+## Security 🔐
 
 Plandex Cloud follows best practices for network and data security. And whether cloud or self-hosted, Plandex protects model provider API keys (like your OpenAI API key). [Read more here.](./SECURITY.md)
 

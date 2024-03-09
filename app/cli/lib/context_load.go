@@ -236,7 +236,6 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 		term.StopSpinner()
 		fmt.Println("🤷‍♂️ No context loaded")
 		if len(ignoredPaths) > 0 {
-			fmt.Println()
 			printIgnoredMsg()
 		}
 		os.Exit(0)
@@ -274,6 +273,6 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 }
 
 func printIgnoredMsg() {
-	fmt.Println("ℹ️  " + color.New(color.FgWhite).Sprint("Due to .gitignore or .plandexignore, some paths weren't loaded.\nUse --force / -f to load ignored paths."))
 	fmt.Println()
+	fmt.Println("ℹ️  " + color.New(color.FgWhite).Sprint("Due to .gitignore or .plandexignore, some paths weren't loaded.\nUse --force / -f to load ignored paths."))
 }

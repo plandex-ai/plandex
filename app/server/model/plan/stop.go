@@ -14,6 +14,7 @@ func Stop(planId, branch, currentUserId, currentOrgId string) error {
 		return fmt.Errorf("no active plan with id %s", planId)
 	}
 
+	active.SummaryCancelFn()
 	active.CancelFn()
 
 	if !active.BuildOnly && !active.RepliesFinished {

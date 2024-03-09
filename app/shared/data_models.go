@@ -137,12 +137,12 @@ type PlanBuild struct {
 }
 
 type Replacement struct {
-	Id         string     `json:"id"`
-	Old        string     `json:"old"`
-	New        string     `json:"new"`
-	Summary    string     `json:"summary"`
-	Failed     bool       `json:"failed"`
-	RejectedAt *time.Time `json:"rejectedAt,omitempty"`
+	Id             string          `json:"id"`
+	Old            string          `json:"old"`
+	New            string          `json:"new"`
+	Failed         bool            `json:"failed"`
+	RejectedAt     *time.Time      `json:"rejectedAt,omitempty"`
+	StreamedChange *StreamedChange `json:"streamedChange"`
 }
 
 type PlanFileResult struct {

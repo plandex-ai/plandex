@@ -34,7 +34,7 @@ func startResponseStream(w http.ResponseWriter, auth *types.ServerAuth, planId, 
 	}
 
 	log.Println("Response stream manager: sending initial message")
-	err = sendStreamMessage(w, active, string(bytes))
+	err = sendStreamMessage(w, string(bytes))
 	if err != nil {
 		log.Println("Response stream manager: error sending initial message:", err)
 		return
@@ -69,7 +69,7 @@ func startResponseStream(w http.ResponseWriter, auth *types.ServerAuth, planId, 
 			return
 		case msg := <-ch:
 			// log.Println("Response stream manager: sending message:", msg)
-			err = sendStreamMessage(w, active, msg)
+			err = sendStreamMessage(w, msg)
 			if err != nil {
 				return
 			}
@@ -78,7 +78,7 @@ func startResponseStream(w http.ResponseWriter, auth *types.ServerAuth, planId, 
 
 }
 
-func sendStreamMessage(w http.ResponseWriter, active *types.ActivePlan, msg string) error {
+func sendStreamMessage(w http.ResponseWriter, msg string) error {
 	bytes := []byte(msg + shared.STREAM_MESSAGE_SEPARATOR)
 
 	// log.Printf("Response stream manager: writing message to client: %s\n", msg)
@@ -143,7 +143,7 @@ func initConnectActive(auth *types.ServerAuth, planId, branch string, w http.Res
 	}
 
 	log.Println("Response stream manager: sending connect message")
-	err = sendStreamMessage(w, active, string(bytes))
+	err = sendStreamMessage(w, string(bytes))
 
 	if err != nil {
 		return fmt.Errorf("error sending connect message: %v", err)
@@ -179,7 +179,7 @@ func initConnectActive(auth *types.ServerAuth, planId, branch string, w http.Res
 				return fmt.Errorf("error marshalling message: %v", err)
 			}
 
-			err = sendStreamMessage(w, active, string(bytes))
+			err = sendStreamMessage(w, string(bytes))
 
 			if err != nil {
 				return fmt.Errorf("error sending message: %v", err)

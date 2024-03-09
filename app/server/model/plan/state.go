@@ -5,6 +5,7 @@ import (
 	"plandex-server/db"
 	"plandex-server/types"
 	"strings"
+	"time"
 
 	"github.com/plandex/plandex/shared"
 )
@@ -57,6 +58,16 @@ func CreateActivePlan(planId, branch, prompt string, buildOnly bool) *types.Acti
 						log.Printf("Error setting plan %s status to error: %v\n", planId, err)
 					}
 
+					log.Println("Sending error message to client")
+					activePlan.Stream(shared.StreamMessage{
+						Type:  shared.StreamMessageError,
+						Error: apiErr,
+					})
+
+					log.Println("Stopping any active summary stream")
+					activePlan.SummaryCancelFn()
+
+					time.Sleep(50 * time.Millisecond)
 				}
 
 				activePlan.CancelFn()

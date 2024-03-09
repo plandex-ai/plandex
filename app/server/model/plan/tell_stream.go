@@ -136,7 +136,7 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 						summaries:     summaries,
 						promptMessage: promptMessage,
 						currentOrgId:  currentOrgId,
-					}, active.Ctx)
+					}, active.SummaryCtx)
 				}
 
 				log.Println("Locking repo to store assistant reply and description")

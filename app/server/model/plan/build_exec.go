@@ -74,16 +74,17 @@ func (state *activeBuildStreamState) queueBuilds(activeBuilds []*types.ActiveBui
 	planId := state.plan.Id
 	branch := state.branch
 
-	activePlan := GetActivePlan(planId, branch)
-
 	queueBuild := func(activeBuild *types.ActiveBuild) {
 		filePath := activeBuild.Path
 
 		// log.Printf("Queue:")
 		// spew.Dump(activePlan.BuildQueuesByPath[filePath])
 
+		var activePlan *types.ActivePlan
+
 		UpdateActivePlan(planId, branch, func(active *types.ActivePlan) {
 			active.BuildQueuesByPath[filePath] = append(active.BuildQueuesByPath[filePath], activeBuilds...)
+			activePlan = active
 		})
 		log.Printf("Queued %d build(s) for file %s\n", len(activeBuilds), filePath)
 
@@ -92,6 +93,11 @@ func (state *activeBuildStreamState) queueBuilds(activeBuilds []*types.ActiveBui
 			return
 		} else {
 			log.Printf("Not building file %s, will execute now\n", filePath)
+
+			UpdateActivePlan(planId, branch, func(active *types.ActivePlan) {
+				active.IsBuildingByPath[filePath] = true
+			})
+
 			go state.execPlanBuild(activeBuild)
 		}
 	}
@@ -114,6 +120,12 @@ func (buildState *activeBuildStreamState) execPlanBuild(activeBuild *types.Activ
 
 	activePlan := GetActivePlan(planId, branch)
 	filePath := activeBuild.Path
+
+	if !activePlan.IsBuildingByPath[filePath] {
+		UpdateActivePlan(activePlan.Id, activePlan.Branch, func(ap *types.ActivePlan) {
+			ap.IsBuildingByPath[filePath] = true
+		})
+	}
 
 	// stream initial status to client
 	buildInfo := &shared.BuildInfo{
@@ -169,6 +181,9 @@ func (fileState *activeBuildStreamFileState) buildFile() {
 	if fileInCurrentPlan {
 		log.Printf("File %s found in current plan.\n", filePath)
 		currentState = currentPlanFile
+
+		log.Println("\n\nCurrent state:\n", currentState, "\n\n")
+
 	} else if contextPart != nil {
 		log.Printf("File %s found in model context. Using context state.\n", filePath)
 		currentState = contextPart.Body
@@ -176,6 +191,8 @@ func (fileState *activeBuildStreamFileState) buildFile() {
 		if currentState == "" {
 			log.Println("Context state is empty. That's bad.")
 		}
+
+		log.Println("\n\nCurrent state:\n", currentState, "\n\n")
 	}
 
 	fileState.currentState = currentState

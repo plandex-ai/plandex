@@ -5,6 +5,8 @@ import (
 	"log"
 	"strings"
 	"time"
+
+	"github.com/davecgh/go-spew/spew"
 )
 
 func ApplyReplacements(content string, replacements []*Replacement, setFailed bool) (string, bool) {
@@ -26,10 +28,11 @@ func ApplyReplacements(content string, replacements []*Replacement, setFailed bo
 				replacement.Failed = true
 			}
 
-			log.Println("Replacement failed: " + replacement.Old + " -> " + replacement.New)
-			log.Println("Pre: " + pre)
-			log.Println("Sub: " + sub)
-			log.Println("Updated: " + updated)
+			log.Println("Replacement failed: ")
+			log.Println(spew.Sdump(replacement))
+
+			log.Println("Sub: ")
+			log.Println(spew.Sdump(sub))
 
 		} else {
 			replaced := strings.Replace(sub, replacement.Old, replacement.New, 1)
@@ -91,7 +94,7 @@ func (planState *CurrentPlanState) GetFilesBeforeReplacement(
 			updated, allSucceeded = ApplyReplacements(updated, replacements, false)
 
 			if !allSucceeded {
-				return nil, fmt.Errorf("plan replacement failed: %s", path)
+				return nil, fmt.Errorf("plan replacement failed - %s", path)
 			}
 
 			updatedAtByPath[path] = planRes.CreatedAt

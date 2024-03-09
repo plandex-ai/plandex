@@ -5,6 +5,7 @@ import (
 	streamtui "plandex/stream_tui"
 	"plandex/types"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/plandex/plandex/shared"
 )
 
@@ -15,12 +16,12 @@ var OnStreamPlan types.OnStreamPlan = func(params types.OnStreamPlanParams) {
 	}
 
 	if params.Msg.Type == shared.StreamMessageStart {
-		// log.Println("Stream started")
+		log.Println("Stream started")
 		return
 	}
 
-	// log.Println("Stream message:")
-	// log.Println(spew.Sdump(*params.Msg))
+	log.Println("Stream message:")
+	log.Println(spew.Sdump(*params.Msg))
 
 	streamtui.Send(*params.Msg)
 }

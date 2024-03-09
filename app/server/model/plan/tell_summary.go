@@ -48,6 +48,8 @@ func (state *activeTellStreamState) summarizeMessagesIfNeeded() bool {
 		// log.Printf("(tokensBeforeConvo+conversationTokens) > state.settings.GetPlannerEffectiveMaxTokens(): %v\n", (tokensBeforeConvo+conversationTokens) > state.settings.GetPlannerEffectiveMaxTokens())
 		// log.Printf("conversationTokens > state.settings.GetPlannerMaxConvoTokens(): %v\n", conversationTokens > state.settings.GetPlannerMaxConvoTokens())
 
+		log.Printf("Num summaries: %d\n", len(summaries))
+
 		// token limit exceeded after adding conversation
 		// get summary for as much as the conversation as necessary to stay under the token limit
 		for _, s := range summaries {
@@ -215,6 +217,8 @@ func summarizeConvo(client *openai.Client, config shared.ModelRoleConfig, params
 			Content: GetActivePlan(planId, branch).CurrentReplyContent,
 		})
 	}
+
+	log.Printf("Calling model for plan summary. Summarizing %d messages\n", len(summaryMessages))
 
 	summary, err := model.PlanSummary(client, config, model.PlanSummaryParams{
 		Conversation:                summaryMessages,

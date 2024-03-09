@@ -101,7 +101,7 @@ func (m changesUIModel) renderMainViewHeader() string {
 		header = fmt.Sprintf(" %s New file: %s", icon, m.selectionInfo.currentPath)
 
 	} else {
-		header = " 👉 " + m.selectionInfo.currentRep.Summary
+		header = " 👉 " + m.selectionInfo.currentRep.StreamedChange.ShortSummary
 	}
 
 	return style.Render(header)

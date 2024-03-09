@@ -194,6 +194,9 @@ func (state *activeTellStreamState) loadTellPlan() error {
 				convoMessageIds = append(convoMessageIds, convoMessage.Id)
 			}
 
+			log.Println("getting plan summaries")
+			log.Println("convoMessageIds:", convoMessageIds)
+
 			res, err := db.GetPlanSummaries(planId, convoMessageIds)
 			if err != nil {
 				log.Printf("Error getting plan summaries: %v\n", err)
@@ -201,6 +204,8 @@ func (state *activeTellStreamState) loadTellPlan() error {
 				return
 			}
 			summaries = res
+
+			log.Printf("got %d plan summaries", len(summaries))
 
 			innerErrCh <- nil
 		}()
