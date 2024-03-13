@@ -141,10 +141,12 @@ func StoreContext(context *Context) error {
 	metaPath := filepath.Join(contextDir, metaFilename)
 
 	originalBody := context.Body
+	originalBody = strings.ReplaceAll(originalBody, "\\`\\`\\`", "\\\\`\\\\`\\\\`")
+	originalBody = strings.ReplaceAll(originalBody, "```", "\\`\\`\\`")
 
 	bodyFilename := context.Id + ".body"
 	bodyPath := filepath.Join(contextDir, bodyFilename)
-	body := []byte(context.Body)
+	body := []byte(originalBody)
 	context.Body = ""
 
 	// Convert the ModelContextPart to JSON

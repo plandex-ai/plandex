@@ -5,12 +5,13 @@ import (
 )
 
 type parserRes struct {
-	CurrentFilePath  string
-	Files            []string
-	FileContents     []string
-	FileDescriptions []string
-	NumTokensByFile  map[string]int
-	TotalTokens      int
+	CurrentFilePath    string
+	Files              []string
+	FileContents       []string
+	FileDescriptions   []string
+	RepliesBeforeFiles []string
+	NumTokensByFile    map[string]int
+	TotalTokens        int
 }
 
 type ReplyParser struct {

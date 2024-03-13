@@ -25,10 +25,10 @@ Grab the appropriate binary for your platform from the latest [release](https://
 ### Build from source
 
 ```bash
-git clone plandex-ai/plandex.git
+git clone https://github.com/plandex-ai/plandex.git
 cd plandex/app/cli
-go build -o plandex
-cp plandex /usr/local/bin # adapt as needed for your system
+go build -ldflags "-X plandex/version.Version=$(cat version.txt)"
+mv plandex /usr/local/bin # adapt as needed for your system
 ```
 
 ### Windows

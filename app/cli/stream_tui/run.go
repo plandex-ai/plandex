@@ -118,6 +118,6 @@ func Send(msg shared.StreamMessage) {
 	}
 	mu.Lock()
 	defer mu.Unlock()
-	log.Printf("sending stream message to UI: %s\n", msg.Type)
+	// log.Printf("sending stream message to UI: %s\n", msg.Type)
 	ui.Send(msg)
 }

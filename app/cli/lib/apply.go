@@ -8,6 +8,7 @@ import (
 	"plandex/api"
 	"plandex/fs"
 	"plandex/term"
+	"strings"
 )
 
 func MustApplyPlan(planId, branch string, autoConfirm bool) {
@@ -215,6 +216,8 @@ func MustApplyPlan(planId, branch string, autoConfirm bool) {
 				errArgs = append(errArgs, filepath.Dir(dstPath))
 				return
 			}
+
+			content = strings.ReplaceAll(content, "\\`\\`\\`", "```")
 
 			// Write the file
 			err = os.WriteFile(dstPath, []byte(content), 0644)

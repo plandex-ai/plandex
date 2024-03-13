@@ -45,135 +45,55 @@ func getBuildCurrentStatePrompt(filePath, currentState string) string {
 }
 
 var listChangesPrompt = `	
-	You are an AI that analyzes a code file and an AI-generated plan to update the code file and produces a list of changes.
-	
-	There are four types of changes:
-	
-	1 - Replace: replace a section of code in the original file with a section of code from the proposed updates.
+  You are an AI that analyzes a code file and an AI-generated plan to update the code file and produces a list of changes.
+  
+  [YOUR INSTRUCTIONS]
+  Call the 'listChanges' function with a valid JSON object that includes the 'changes' keys.
 
-	2 - Append: add a section of code from the proposed update immediately after a section of code in the original file.
+  'changes': An array of changes. Each change is an object with properties: 'summary', 'section', 'old', and 'new'.
+  
+  The 'summary' property is a brief summary of the change. 
+  
+  'summary' examples: 
+    - 'Update loop that aggregates the results to iterate 10 times instead of 5 and log the value of someVar.'
+    - 'Change the value of someVar to 10.'
+    - 'Update the Org model to include StripeCustomerId and StripeSubscriptionId fields.'
+    - 'Add function ExecQuery to execute a query.'
 
-	3 - Prepend: add a section of code from the proposed updates immediately before a section of code in the original file.
+  The 'section' property is a description of what section of code from the original file will be replaced.
+    
+  Refer to sections of code using line numbers, how the section begins, and how the section ends. It must be extremely clear which line(s) of code from the original file will be replaced.
 
-	[YOUR INSTRUCTIONS]
-	Call the 'listChanges' function with a valid JSON array of changes. Each replacement is an object with properties: 'shortSummary', 'changeSections', 'changeType', 'old', and 'new'.
-	
-	The 'shortSummary' property is a brief summary of the change. 
-	
-	'shortSummary' examples: 
-		- 'Update loop that aggregates the results to iterate 10 times instead of 5 and log the value of someVar.'
-		- 'Change the value of someVar to 10.'
-		- 'Update the Org model to include StripeCustomerId and StripeSubscriptionId fields.'
-		- 'Add function ExecQuery to execute a query.'
-
-	The 'changeSections' property is a description of: 
-		- The type of change (replace, append, prepend).
-		- If the type of change is 'replace', what section of code from the original file will be replaced.
-		- If the type of change is 'append', what section of code from the original file will have new code appended immediately after it.
-		- If the type of change is 'prepend', what section of code from the original file will have new code prepended immediately before it.
-		- What section of code from the proposed updates will be added.
-	
-	Refer to sections of code using line numbers, how the section begins, and how the section ends. 
-	
-	If the change type is 'replace', it must be extremely clear which line(s) of code from the original file will be replaced with which line(s) of code from the proposed updates.
-
-	If the change type is 'append' or 'prepend', it must be extremely clear which line(s) of code from the original file will have which line(s) of code from the proposed updates appended or prepended to them.
-	
-	'changeSections' examples:
-	---
-	Type: replace
-
-	The section to be replaced begins on line 10 of the original file with 'for i := 0; i < 10; i++ {...' and ends on line 15 of the original file with '}'
-
-	The new code begins on line 17 of the proposed updates with 'for i := 0; i < 10; i++ {...' and ends on line 25 of the proposed updates with '}'
+  'section' examples:
+  ---
+  Begins line 10 of the original file with 'for i := 0; i < 10; i++ {...'  
+  Ends on line 15 of the original file with '}'
   ---
 
-	---
-	Type: append
+  The 'old' property is an object with two properties: 'startLine' and 'endLine'.
 
-	The section that should have code appended to it begins on line 10 of the original file with 'func GetResults() {...' and ends on line 15 of the original file with '}'
+  'startLine' is the line number where the section to be replaced begins in the original file. 'endLine' is the line number where the section to be replaced ends in the original file. For a single line replacement, 'startLine' and 'endLine' will be the same.
 
-	The new code begins on line 10 of the proposed updates with 'func ExecQuery() {...' and ends on line 15 of the proposed updates with '}'
-	---
+  The 'new' property is a string that represents the new code that will replace the old code. The new code must be valid and consistent with the intention of the plan. If the the proposed update is to remove code, the 'new' property should be an empty string. 
+  
+  If the proposed update includes references to the original code in comments like "// rest of the function..." or "# existing init code...", or "// rest of the main function..." or "// rest of your function..." or any other reference to the original code, you *MUST* ensure that the comment making the reference is *NOT* included in the 'new' property. If the reference comment is included in the 'new' property the resulting code obviously won't work, so NEVER include the reference comment in the 'new' property. Instead include the actual code that the reference is pointing to so that the change results in the exact code that is intended.
 
-	---
-	Type: prepend
+  Example function call with all keys:
+  ---
+  listChanges([{
+    summary: "Insert function ExecQuery after GetResults function.",
+    section' "Begins line 10 of the original file with 'for i := 0; i < 10; i++ {...'\nEnds on line 15 of the original file with '}'",
+    old: {
+      startLine: 5,
+      endLine: 5,
+    },
+    new: "execQuery()\nreturn",
+  }])
+  ---
 
-	The section that should have code prepended to it begins on line 10 of the original file with 'func GetResults() {...' and ends on line 15 of the original file with '}'
-
-	The new code begins on line 10 of the proposed updates with 'func ExecQuery() {...' and ends on line 15 of the proposed updates with '}'
-	---
-
-	If the change type is 'replace' and only a single line needs to be replaced, you can reference a single line from the original file and the proposed updates rather than a range of lines like this:
-	---
-	Type: replace
-
-	The section to be replaced is on line 10 of the original file with 'someVar = 5'
-
-	The new code is on line 12 of the proposed updates with 'someVar = 10'
-	---
-
-	To append to the end of the file, you can reference a single line, the last line of the original file, for the new code to be appended to like this:
-	---
-	Type: append
-
-	Line 15 of the original file with '}'
-
-	The new code begins on line 10 of the proposed updates with 'func ExecQuery() {...' and ends on line 15 of the proposed updates with '}'
-	--
-
-	To prepend to the beginning of the file, you can reference a single line, the first line of the original file, for the new code to be prepended to like this:
-
-	---
-	Type: prepend
-
-	Line 1 of the original file with 'package main'
-
-	The new code begins on line 10 of the proposed updates with 'func ExecQuery() {...' and ends on line 15 of the proposed updates with '}'
-	---
-
-	The 'changeType' property is an integer that represents the type of change. The value of 'changeType' corresponds to the type of change as follows:
-	- 1: replace
-	- 2: append
-	- 3: prepend
-	You must include the 'changeType' property in each change object and it must be one of the above values (1, 2, or 3).
-
-	The 'old' property is an object with two properties: 'startLine' and 'endLine'.
-
-	If the changeType is 'replace': 'startLine' is the line number where the section to be replaced begins in the original file. 'endLine' is the line number where the section to be replaced ends in the original file. For a single line replacement, 'startLine' and 'endLine' will be the same.
-
-	If the changeType is 'append', 'startLine' and 'endLine' are both the same: the line number where the section to have code appended to it ends in the original file.
-
-	If the changeType is 'prepend', 'startLine' and 'endLine' are both the same: the line number where the section to have code prepended to it begins in the original file.
-
-	The 'new' property is also an object with two properties: 'startLine' and 'endLine'.
-
-	'startLine' is the line number where the new section begins in the code block included with the proposed updates. 'endLine' is the line number where the new section ends in the code block included with the proposed updates. For a single line replacement, 'startLine' and 'endLine' will be the same.
-
-	Example function call with all keys:
-	---
-	listChanges([{
-		shortSummary: "Insert function ExecQuery after GetResults function.",
-		changeSections: "Type: replace\nThe section to be replaced is on line 5 of the original file with '\\n'\n\nThe new code starts on line 3 of the proposed updates with 'func ExecQuery()...' and ends on line 10 of the proposed updates with '}'",
-		changeType: 1,
-		old: {
-			startLine: 5,
-			endLine: 5,
-		},
-		new: {
-			startLine: 3,
-			endLine: 10,
-		}
-	}])
-	---
-
-	Very important notes:
-
-	- Apply changes intelligently in order to avoid syntax errors, breaking code, or removing code from the original file that should not be removed. Consider the reason behind the update and make sure the result is consistent with the intention of the plan.
-
-	- If the code block with the proposed updates includes references to the original code file, like this comment "// rest of the function here..." or "# rest of the code here" or "/* rest of the functionality goes here */", **do not include these references** when constructing the changes. In these cases, only replace the code that is actually changing and leave out the references to the original code file. The code should be ready for use and should not contain any artifacts of the planning process.
-
-	[END YOUR INSTRUCTIONS]
+  Apply changes intelligently in order to avoid syntax errors, breaking code, or removing code from the original file that should not be removed. Consider the reason behind the update and make sure the result is consistent with the intention of the plan.
+ 
+  [END YOUR INSTRUCTIONS]
 `
 var ListReplacementsFn = openai.FunctionDefinition{
 	Name: "listChanges",
@@ -185,14 +105,11 @@ var ListReplacementsFn = openai.FunctionDefinition{
 				Items: &jsonschema.Definition{
 					Type: jsonschema.Object,
 					Properties: map[string]jsonschema.Definition{
-						"shortSummary": {
+						"summary": {
 							Type: jsonschema.String,
 						},
-						"changeSections": {
+						"section": {
 							Type: jsonschema.String,
-						},
-						"changeType": {
-							Type: jsonschema.Integer,
 						},
 						"old": {
 							Type: jsonschema.Object,
@@ -207,19 +124,10 @@ var ListReplacementsFn = openai.FunctionDefinition{
 							Required: []string{"startLine", "endLine"},
 						},
 						"new": {
-							Type: jsonschema.Object,
-							Properties: map[string]jsonschema.Definition{
-								"startLine": {
-									Type: jsonschema.Integer,
-								},
-								"endLine": {
-									Type: jsonschema.Integer,
-								},
-							},
-							Required: []string{"startLine", "endLine"},
+							Type: jsonschema.String,
 						},
 					},
-					Required: []string{"shortSummary", "changeSections", "changeType", "old", "new"},
+					Required: []string{"summary", "section", "old", "new"},
 				},
 			},
 		},

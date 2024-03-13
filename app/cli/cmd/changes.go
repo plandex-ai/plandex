@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"log"
 	"plandex/api"
 	"plandex/auth"
 	"plandex/changes_tui"
@@ -9,6 +10,7 @@ import (
 	"plandex/plan_exec"
 	"plandex/term"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/plandex/plandex/shared"
 	"github.com/spf13/cobra"
 )
@@ -37,7 +39,7 @@ func changes(cmd *cobra.Command, args []string) {
 		term.OutputErrorAndExit("Error getting current plan state: %s", apiErr.Msg)
 	}
 
-	if currentPlanState.HasPendingBuilds() {
+	for currentPlanState.HasPendingBuilds() {
 		plansRunningRes, apiErr := api.Client.ListPlansRunning([]string{lib.CurrentProjectId}, false)
 
 		if apiErr != nil {
@@ -91,12 +93,22 @@ func changes(cmd *cobra.Command, args []string) {
 				term.PrintCmds("", "build", "log", "rewind")
 				return
 			}
+
+			term.ResumeSpinner()
+			currentPlanState, apiErr = api.Client.GetCurrentPlanState(lib.CurrentPlanId, lib.CurrentBranch)
+
+			if apiErr != nil {
+				term.StopSpinner()
+				term.OutputErrorAndExit("Error getting current plan state: %s", apiErr.Msg)
+			}
 		}
 	}
 
 	term.StopSpinner()
 
-	err := changes_tui.StartChangesUI()
+	log.Println(spew.Sdump(currentPlanState.PlanResult.ReplacementsByPath["app/cli/main.go"]))
+
+	err := changes_tui.StartChangesUI(currentPlanState)
 
 	if err != nil {
 		term.OutputErrorAndExit("Error starting changes UI: %v\n", err)

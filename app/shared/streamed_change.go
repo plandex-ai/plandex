@@ -5,18 +5,18 @@ type StreamedChangeSection struct {
 	EndLine   int `json:"endLine"`
 }
 
-type StreamedChangeType int
+// type StreamedChangeType int
 
-const (
-	StreamedChangeTypeReplace StreamedChangeType = 1
-	StreamedChangeTypeAppend  StreamedChangeType = 2
-	StreamedChangeTypePrepend StreamedChangeType = 3
-)
+// const (
+// 	StreamedChangeTypeSimple  StreamedChangeType = 1
+// 	StreamedChangeTypeComplex StreamedChangeType = 2
+// )
 
 type StreamedChange struct {
-	ShortSummary   string                `json:"shortSummary"`
-	ChangeSections string                `json:"changeSections"`
-	ChangeType     StreamedChangeType    `json:"changeType"`
-	Old            StreamedChangeSection `json:"old"`
-	New            StreamedChangeSection `json:"new"`
+	Summary string `json:"summary"`
+	Section string `json:"section"`
+	// ChangeType     StreamedChangeType    `json:"changeType"`
+	Old StreamedChangeSection `json:"old"`
+	// New            StreamedChangeSection `json:"new"`
+	New string `json:"new"`
 }

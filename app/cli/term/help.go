@@ -15,7 +15,7 @@ var CmdDesc = map[string][2]string{
 	"cd":      {"", "set current plan by name or index"},
 	"load":    {"l", "load files, dirs, urls, notes or piped data into context"},
 	"tell":    {"t", "describe a task, ask a question, or chat"},
-	"changes": {"ch", "show plan changes"},
+	"changes": {"ch", "review plan changes"},
 	// "diffs":       {"d", "show diffs between plan and project files"},
 	// "preview":     {"pv", "preview the plan in a branch"},
 	"apply":    {"ap", "apply plan changes to project files"},

@@ -9,5 +9,6 @@ type StreamedFile struct {
 }
 
 type StreamedChanges struct {
-	Changes []*shared.StreamedChange `json:"changes"`
+	References string                   `json:"references"`
+	Changes    []*shared.StreamedChange `json:"changes"`
 }

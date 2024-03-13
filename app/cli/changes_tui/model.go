@@ -1,12 +1,6 @@
 package changes_tui
 
 import (
-	"fmt"
-	"log"
-	"plandex/api"
-	"plandex/lib"
-	"plandex/term"
-
 	"github.com/charmbracelet/bubbles/help"
 	bubbleKey "github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/viewport"
@@ -55,14 +49,7 @@ func (m changesUIModel) Init() tea.Cmd {
 	return nil
 }
 
-func initialModel() *changesUIModel {
-	currentPlan, apiErr := api.Client.GetCurrentPlanState(lib.CurrentPlanId, lib.CurrentBranch)
-	if apiErr != nil {
-		err := fmt.Errorf("error getting current plan state: %v", apiErr.Msg)
-		log.Println(err)
-		term.OutputErrorAndExit(err.Error())
-	}
-
+func initialModel(currentPlan *shared.CurrentPlanState) *changesUIModel {
 	initialState := changesUIModel{
 		currentPlan:              currentPlan,
 		selectedFileIndex:        0,

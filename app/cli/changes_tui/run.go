@@ -6,10 +6,11 @@ import (
 	"plandex/lib"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/plandex/plandex/shared"
 )
 
-func StartChangesUI() error {
-	initial := initialModel()
+func StartChangesUI(currentPlan *shared.CurrentPlanState) error {
+	initial := initialModel(currentPlan)
 
 	if len(initial.currentPlan.PlanResult.SortedPaths) == 0 {
 		fmt.Println("🤷‍♂️ No changes pending")

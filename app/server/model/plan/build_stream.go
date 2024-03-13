@@ -115,7 +115,7 @@ func (fileState *activeBuildStreamFileState) listenStream(stream *openai.ChatCom
 			err = json.Unmarshal([]byte(fileState.buffer), &streamed)
 			if err == nil {
 				log.Printf("File %s: Parsed streamed replacements\n", filePath)
-				// spew.Dump(streamed)
+				spew.Dump(streamed)
 
 				planFileResult, allSucceeded := getPlanResult(
 					planResultParams{
