@@ -9,3 +9,4 @@ node_modules/
 /infra/
 .DS_Store
 .goreleaser.yml
+dist/
