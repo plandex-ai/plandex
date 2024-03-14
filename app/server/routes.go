@@ -65,8 +65,7 @@ func routes() *mux.Router {
 	r.HandleFunc("/plans/{planId}/{branch}/apply", handlers.ApplyPlanHandler).Methods("PATCH")
 	r.HandleFunc("/plans/{planId}/{branch}/archive", handlers.ArchivePlanHandler).Methods("PATCH")
 	r.HandleFunc("/plans/{planId}/{branch}/reject_all", handlers.RejectAllChangesHandler).Methods("PATCH")
-	r.HandleFunc("/plans/{planId}/{branch}/results/{resultId}/reject", handlers.RejectResultHandler).Methods("PATCH")
-	r.HandleFunc("/plans/{planId}/{branch}/results/{resultId}/replacements/{replacementId}/reject", handlers.RejectReplacementHandler).Methods("PATCH")
+	r.HandleFunc("/plans/{planId}/{branch}/reject_file", handlers.RejectFileHandler).Methods("PATCH")
 
 	r.HandleFunc("/plans/{planId}/{branch}/context", handlers.ListContextHandler).Methods("GET")
 	r.HandleFunc("/plans/{planId}/{branch}/context", handlers.LoadContextHandler).Methods("POST")

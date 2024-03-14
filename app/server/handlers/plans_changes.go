@@ -3,12 +3,14 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"plandex-server/db"
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/plandex/plandex/shared"
 )
 
 func CurrentPlanHandler(w http.ResponseWriter, r *http.Request) {
@@ -31,7 +33,7 @@ func CurrentPlanHandler(w http.ResponseWriter, r *http.Request) {
 	var err error
 
 	ctx, cancel := context.WithCancel(context.Background())
-	unlockFn := lockRepo(w, r, auth, db.LockScopeRead, ctx, cancel)
+	unlockFn := lockRepo(w, r, auth, db.LockScopeRead, ctx, cancel, true)
 	if unlockFn == nil {
 		return
 	} else {
@@ -84,7 +86,7 @@ func ApplyPlanHandler(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 	ctx, cancel := context.WithCancel(context.Background())
-	unlockFn := lockRepo(w, r, auth, db.LockScopeWrite, ctx, cancel)
+	unlockFn := lockRepo(w, r, auth, db.LockScopeWrite, ctx, cancel, true)
 	if unlockFn == nil {
 		return
 	} else {
@@ -114,7 +116,8 @@ func RejectAllChangesHandler(w http.ResponseWriter, r *http.Request) {
 
 	vars := mux.Vars(r)
 	planId := vars["planId"]
-	log.Println("planId: ", planId)
+	branch := vars["branch"]
+	log.Println("planId: ", planId, "branch: ", branch)
 
 	if authorizePlan(w, planId, auth) == nil {
 		return
@@ -122,7 +125,7 @@ func RejectAllChangesHandler(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 	ctx, cancel := context.WithCancel(context.Background())
-	unlockFn := lockRepo(w, r, auth, db.LockScopeWrite, ctx, cancel)
+	unlockFn := lockRepo(w, r, auth, db.LockScopeWrite, ctx, cancel, true)
 	if unlockFn == nil {
 		return
 	} else {
@@ -139,10 +142,18 @@ func RejectAllChangesHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	err = db.GitAddAndCommit(auth.OrgId, planId, branch, "🚫 Rejected all pending changes")
+
+	if err != nil {
+		log.Printf("Error committing rejected changes: %v\n", err)
+		http.Error(w, "Error committing rejected changes: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
 	log.Println("Successfully rejected all changes for plan", planId)
 }
 
-func RejectResultHandler(w http.ResponseWriter, r *http.Request) {
+func RejectFileHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for RejectResultHandler")
 
 	auth := authenticate(w, r, true)
@@ -152,17 +163,24 @@ func RejectResultHandler(w http.ResponseWriter, r *http.Request) {
 
 	vars := mux.Vars(r)
 	planId := vars["planId"]
-	resultId := vars["resultId"]
+	branch := vars["branch"]
 
-	log.Println("planId: ", planId, "resultId: ", resultId)
+	log.Println("planId: ", planId, "branch: ", branch)
 
 	if authorizePlan(w, planId, auth) == nil {
 		return
 	}
 
-	var err error
+	var req shared.RejectFileRequest
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		log.Printf("Error decoding request: %v\n", err)
+		http.Error(w, "Error decoding request: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
-	unlockFn := lockRepo(w, r, auth, db.LockScopeWrite, ctx, cancel)
+	unlockFn := lockRepo(w, r, auth, db.LockScopeWrite, ctx, cancel, true)
 	if unlockFn == nil {
 		return
 	} else {
@@ -171,7 +189,7 @@ func RejectResultHandler(w http.ResponseWriter, r *http.Request) {
 		}()
 	}
 
-	err = db.RejectPlanFileResult(auth.OrgId, planId, resultId, time.Now())
+	err = db.RejectPlanFile(auth.OrgId, planId, req.FilePath, time.Now())
 
 	if err != nil {
 		log.Printf("Error rejecting result: %v\n", err)
@@ -179,48 +197,15 @@ func RejectResultHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Println("Successfully rejected plan result", resultId)
-}
-
-func RejectReplacementHandler(w http.ResponseWriter, r *http.Request) {
-	log.Println("Received request for RejectReplacementHandler")
-
-	auth := authenticate(w, r, true)
-	if auth == nil {
-		return
-	}
-
-	vars := mux.Vars(r)
-	planId := vars["planId"]
-	resultId := vars["resultId"]
-	replacementId := vars["replacementId"]
-
-	log.Println("planId: ", planId, "resultId: ", resultId, "replacementId: ", replacementId)
-
-	if authorizePlan(w, planId, auth) == nil {
-		return
-	}
-
-	var err error
-	ctx, cancel := context.WithCancel(context.Background())
-	unlockFn := lockRepo(w, r, auth, db.LockScopeWrite, ctx, cancel)
-	if unlockFn == nil {
-		return
-	} else {
-		defer func() {
-			(*unlockFn)(err)
-		}()
-	}
-
-	err = db.RejectReplacement(auth.OrgId, planId, resultId, replacementId)
+	err = db.GitAddAndCommit(auth.OrgId, planId, branch, fmt.Sprintf("🚫 Rejected pending changes to file: %s", req.FilePath))
 
 	if err != nil {
-		log.Printf("Error rejecting replacement: %v\n", err)
-		http.Error(w, "Error rejecting replacement: "+err.Error(), http.StatusInternalServerError)
+		log.Printf("Error committing rejected changes: %v\n", err)
+		http.Error(w, "Error committing rejected changes: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	log.Println("Successfully rejected replacement", replacementId)
+	log.Println("Successfully rejected plan file", req.FilePath)
 }
 
 func ArchivePlanHandler(w http.ResponseWriter, r *http.Request) {

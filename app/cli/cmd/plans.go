@@ -156,7 +156,7 @@ func plans(cmd *cobra.Command, args []string) {
 
 		table := tablewriter.NewWriter(os.Stdout)
 		table.SetAutoWrapText(false)
-		table.SetHeader([]string{"#", "Name", "Updated", "Created" /*"Branches",*/, "Branch", "Context", "Convo"})
+		table.SetHeader([]string{"#", "Name", "Updated" /*, "Created" /*"Branches",*/, "Branch", "Context", "Convo"})
 
 		currentProjectPlans := plansByProjectId[lib.CurrentProjectId]
 		if len(parentProjectIdsWithPaths) > 0 || len(childProjectIdsWithPaths) > 0 {
@@ -183,7 +183,7 @@ func plans(cmd *cobra.Command, args []string) {
 				num,
 				name,
 				format.Time(p.UpdatedAt),
-				format.Time(p.CreatedAt),
+				// format.Time(p.CreatedAt),
 				// strconv.Itoa(p.ActiveBranches),
 				currentBranch.Name,
 				strconv.Itoa(currentBranch.ContextTokens) + " 🪙",

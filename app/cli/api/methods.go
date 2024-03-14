@@ -737,13 +737,20 @@ func (a *Api) RejectAllChanges(planId, branch string) *shared.ApiError {
 	return nil
 }
 
-func (a *Api) RejectResult(planId, branch, resultId string) *shared.ApiError {
-	serverUrl := fmt.Sprintf("%s/plans/%s/%s/results/%s/reject", getApiHost(), planId, branch, resultId)
+func (a *Api) RejectFile(planId, branch, filePath string) *shared.ApiError {
+	serverUrl := fmt.Sprintf("%s/plans/%s/%s/reject_file", getApiHost(), planId, branch)
 
-	req, err := http.NewRequest(http.MethodPatch, serverUrl, nil)
+	reqBytes, err := json.Marshal(shared.RejectFileRequest{FilePath: filePath})
+
+	if err != nil {
+		return &shared.ApiError{Msg: fmt.Sprintf("error marshalling request: %v", err)}
+	}
+
+	req, err := http.NewRequest(http.MethodPatch, serverUrl, bytes.NewBuffer(reqBytes))
 	if err != nil {
 		return &shared.ApiError{Msg: fmt.Sprintf("error creating request: %v", err)}
 	}
+	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := authenticatedFastClient.Do(req)
 	if err != nil {
@@ -756,35 +763,7 @@ func (a *Api) RejectResult(planId, branch, resultId string) *shared.ApiError {
 		apiErr := handleApiError(resp, errorBody)
 		didRefresh, apiErr := refreshTokenIfNeeded(apiErr)
 		if didRefresh {
-			a.RejectResult(planId, branch, resultId)
-		}
-		return apiErr
-	}
-
-	return nil
-}
-
-func (a *Api) RejectReplacement(planId, branch, resultId, replacementId string) *shared.ApiError {
-	serverUrl := fmt.Sprintf("%s/plans/%s/%s/results/%s/replacements/%s/reject", getApiHost(), planId, branch, resultId, replacementId)
-
-	req, err := http.NewRequest(http.MethodPatch, serverUrl, nil)
-	if err != nil {
-		return &shared.ApiError{Msg: fmt.Sprintf("error creating request: %v", err)}
-	}
-
-	resp, err := authenticatedFastClient.Do(req)
-	if err != nil {
-		return &shared.ApiError{Msg: fmt.Sprintf("error sending request: %v", err)}
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode >= 400 {
-		errorBody, _ := io.ReadAll(resp.Body)
-		apiErr := handleApiError(resp, errorBody)
-
-		didRefresh, apiErr := refreshTokenIfNeeded(apiErr)
-		if didRefresh {
-			a.RejectReplacement(planId, branch, resultId, replacementId)
+			a.RejectFile(planId, branch, filePath)
 		}
 		return apiErr
 	}

@@ -174,6 +174,10 @@ type DeleteContextResponse struct {
 	Msg           string `json:"msg"`
 }
 
+type RejectFileRequest struct {
+	FilePath string `json:"filePath"`
+}
+
 type RewindPlanRequest struct {
 	Sha string `json:"sha"`
 }

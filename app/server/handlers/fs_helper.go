@@ -12,10 +12,16 @@ import (
 	"github.com/gorilla/mux"
 )
 
-func lockRepo(w http.ResponseWriter, r *http.Request, auth *types.ServerAuth, scope db.LockScope, ctx context.Context, cancelFn context.CancelFunc) *func(err error) {
+func lockRepo(w http.ResponseWriter, r *http.Request, auth *types.ServerAuth, scope db.LockScope, ctx context.Context, cancelFn context.CancelFunc, requireBranch bool) *func(err error) {
 	vars := mux.Vars(r)
 	planId := vars["planId"]
 	branch := vars["branch"]
+
+	if requireBranch && branch == "" {
+		log.Println("Branch not specified")
+		http.Error(w, "Branch not specified", http.StatusBadRequest)
+		return nil
+	}
 
 	repoLockId, err := db.LockRepo(
 		db.LockRepoParams{

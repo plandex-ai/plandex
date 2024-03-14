@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"log"
 	"plandex/api"
 	"plandex/auth"
 	"plandex/changes_tui"
@@ -10,7 +9,6 @@ import (
 	"plandex/plan_exec"
 	"plandex/term"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/plandex/plandex/shared"
 	"github.com/spf13/cobra"
 )
@@ -105,8 +103,6 @@ func changes(cmd *cobra.Command, args []string) {
 	}
 
 	term.StopSpinner()
-
-	log.Println(spew.Sdump(currentPlanState.PlanResult.ReplacementsByPath["app/cli/main.go"]))
 
 	err := changes_tui.StartChangesUI(currentPlanState)
 

@@ -11,22 +11,25 @@ import (
 	"github.com/plandex/plandex/shared"
 )
 
-func (m *changesUIModel) rejectChange() {
-	if m.selectionInfo == nil || m.selectionInfo.currentRep == nil {
-		log.Println("can't drop change; no change is currently selected")
-		return
-	}
-
-	err := api.Client.RejectReplacement(lib.CurrentPlanId, lib.CurrentBranch, m.selectionInfo.currentRes.Id, m.selectionInfo.currentRep.Id)
+func (m *changesUIModel) rejectFile() (*shared.CurrentPlanState, *shared.ApiError) {
+	err := api.Client.RejectFile(lib.CurrentPlanId, lib.CurrentBranch, m.selectionInfo.currentPath)
 
 	if err != nil {
-		log.Printf("error dropping change: %v", err)
-		return
+		log.Printf("error rejecting file changes: %v", err)
+		return nil, err
 	}
 
+	planState, err := api.Client.GetCurrentPlanState(lib.CurrentPlanId, lib.CurrentBranch)
+
+	if err != nil {
+		log.Printf("error getting current plan state: %v", err)
+		return nil, err
+	}
+
+	return planState, nil
 }
 
-func (m changesUIModel) copyCurrentChange() error {
+func (m *changesUIModel) copyCurrentChange() error {
 	selectionInfo := m.selectionInfo
 	if selectionInfo.currentRep == nil {
 		return fmt.Errorf("no change is currently selected")
@@ -36,6 +39,8 @@ func (m changesUIModel) copyCurrentChange() error {
 	if err := clipboard.WriteAll(selectionInfo.currentRep.New); err != nil {
 		return fmt.Errorf("failed to copy to clipboard: %v", err)
 	}
+
+	m.didCopy = true
 
 	return nil
 }

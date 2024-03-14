@@ -3,8 +3,10 @@ package changes_tui
 import (
 	"github.com/charmbracelet/bubbles/help"
 	bubbleKey "github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/plandex/plandex/shared"
 )
 
@@ -24,6 +26,12 @@ type changesUIModel struct {
 	height                   int
 	shouldApplyAll           bool
 	shouldRejectAll          bool
+	didCopy                  bool
+	isRejectingFile          bool
+	isConfirmingRejectFile   bool
+	rejectFileErr            *shared.ApiError
+	justRejectedFile         bool
+	spinner                  spinner.Model
 }
 
 type keymap = struct {
@@ -38,10 +46,11 @@ type keymap = struct {
 	start,
 	end,
 	switchView,
-	// reject,
+	reject,
 	copy,
 	applyAll,
-	// rejectAll,
+	yes,
+	no,
 	quit bubbleKey.Binding
 }
 
@@ -50,11 +59,16 @@ func (m changesUIModel) Init() tea.Cmd {
 }
 
 func initialModel(currentPlan *shared.CurrentPlanState) *changesUIModel {
+	s := spinner.New()
+	s.Spinner = spinner.Points
+	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
+
 	initialState := changesUIModel{
 		currentPlan:              currentPlan,
 		selectedFileIndex:        0,
 		selectedReplacementIndex: 0,
 		help:                     help.New(),
+		spinner:                  s,
 		keymap: keymap{
 			up: bubbleKey.NewBinding(
 				bubbleKey.WithKeys("up"),
@@ -108,10 +122,10 @@ func initialModel(currentPlan *shared.CurrentPlanState) *changesUIModel {
 				bubbleKey.WithHelp("tab", "switch view"),
 			),
 
-			// reject: bubbleKey.NewBinding(
-			// 	bubbleKey.WithKeys("r"),
-			// 	bubbleKey.WithHelp("r", "reject change"),
-			// ),
+			reject: bubbleKey.NewBinding(
+				bubbleKey.WithKeys("r"),
+				bubbleKey.WithHelp("r", "reject file"),
+			),
 
 			copy: bubbleKey.NewBinding(
 				bubbleKey.WithKeys("c"),
@@ -123,10 +137,15 @@ func initialModel(currentPlan *shared.CurrentPlanState) *changesUIModel {
 				bubbleKey.WithHelp("ctrl+a", "apply all changes"),
 			),
 
-			// rejectAll: bubbleKey.NewBinding(
-			// 	bubbleKey.WithKeys("ctrl+r"),
-			// 	bubbleKey.WithHelp("ctrl+r", "reject all changes"),
-			// ),
+			yes: bubbleKey.NewBinding(
+				bubbleKey.WithKeys("y"),
+				bubbleKey.WithHelp("y", "yes"),
+			),
+
+			no: bubbleKey.NewBinding(
+				bubbleKey.WithKeys("n"),
+				bubbleKey.WithHelp("n", "no"),
+			),
 
 			quit: bubbleKey.NewBinding(
 				bubbleKey.WithKeys("q", "ctrl+c"),

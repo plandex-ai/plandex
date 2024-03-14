@@ -48,7 +48,7 @@ func branches(cmd *cobra.Command, args []string) {
 
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetAutoWrapText(false)
-	table.SetHeader([]string{"#", "Name", "Updated", "Created", "Context", "Convo"})
+	table.SetHeader([]string{"#", "Name", "Updated" /* "Created",*/, "Context", "Convo"})
 
 	for i, b := range branches {
 		num := strconv.Itoa(i + 1)
@@ -67,7 +67,7 @@ func branches(cmd *cobra.Command, args []string) {
 			num,
 			name,
 			format.Time(b.UpdatedAt),
-			format.Time(b.CreatedAt),
+			// format.Time(b.CreatedAt),
 			strconv.Itoa(b.ContextTokens) + " 🪙",
 			strconv.Itoa(b.ConvoTokens) + " 🪙",
 		}

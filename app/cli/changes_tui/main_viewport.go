@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/fatih/color"
 )
 
 func (m changesUIModel) renderMainView() string {
@@ -117,7 +118,12 @@ func (m changesUIModel) renderMainViewFooter() string {
 		Width(m.width - sidebarWidth).
 		Inherit(topBorderStyle).
 		Foreground(lipgloss.Color(helpTextColor))
-	footer := ` (c)opy change to clipboard`
+	var footer string
+	if m.didCopy {
+		footer = color.New(color.Bold, color.FgHiCyan).Sprint(` copied to clipboard`)
+	} else {
+		footer = ` (c)opy change to clipboard • (r)eject file`
+	}
 	return style.Render(footer)
 }
 
@@ -135,7 +141,7 @@ func (m changesUIModel) renderScrollFooter() string {
 	var footer string
 
 	if m.selectedNewFile() || m.selectedFullFile() {
-		footer = ` (j/k) scroll • (d/u) page • (g/G) start/end`
+		footer = ` (j/k) scroll • (d/u) page • (g/G) start/end • (r)eject file changes`
 	} else {
 		footer = ` (j/k) scroll`
 		if m.oldScrollable() && m.newScrollable() {

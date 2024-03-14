@@ -575,7 +575,7 @@ func RejectAllResults(orgId, planId string) error {
 		resultId := strings.TrimSuffix(file.Name(), ".json")
 
 		go func(resultId string) {
-			err := RejectPlanFileResult(orgId, planId, resultId, now)
+			err := RejectPlanFile(orgId, planId, resultId, now)
 
 			if err != nil {
 				errCh <- fmt.Errorf("error rejecting result: %v", err)
@@ -657,38 +657,43 @@ func DeletePendingResultsForPaths(orgId, planId string, paths map[string]bool) e
 	return nil
 }
 
-func RejectPlanFileResult(orgId, planId, resultId string, now time.Time) error {
+func RejectPlanFile(orgId, planId, file string, now time.Time) error {
 	resultsDir := getPlanResultsDir(orgId, planId)
-
-	bytes, err := os.ReadFile(filepath.Join(resultsDir, resultId+".json"))
-
-	if err != nil {
-		return fmt.Errorf("error reading result file: %v", err)
-	}
-
-	var result PlanFileResult
-	err = json.Unmarshal(bytes, &result)
+	results, err := GetPlanFileResults(orgId, planId)
 
 	if err != nil {
-		return fmt.Errorf("error unmarshalling result file: %v", err)
+		return fmt.Errorf("error getting plan file results: %v", err)
 	}
 
-	if result.RejectedAt != nil {
-		return nil
+	errCh := make(chan error, len(results))
+
+	for _, result := range results {
+		go func(result *PlanFileResult) {
+			if result.Path == file && result.AppliedAt == nil && result.RejectedAt == nil {
+				result.RejectedAt = &now
+			}
+
+			bytes, err := json.MarshalIndent(result, "", "  ")
+
+			if err != nil {
+				errCh <- fmt.Errorf("error marshalling result: %v", err)
+			}
+
+			err = os.WriteFile(filepath.Join(resultsDir, result.Id+".json"), bytes, 0644)
+
+			if err != nil {
+				errCh <- fmt.Errorf("error writing result file: %v", err)
+			}
+
+			errCh <- nil
+		}(result)
 	}
 
-	result.RejectedAt = &now
-
-	bytes, err = json.MarshalIndent(result, "", "  ")
-
-	if err != nil {
-		return fmt.Errorf("error marshalling result: %v", err)
-	}
-
-	err = os.WriteFile(filepath.Join(resultsDir, resultId+".json"), bytes, 0644)
-
-	if err != nil {
-		return fmt.Errorf("error writing result file: %v", err)
+	for i := 0; i < len(results); i++ {
+		err := <-errCh
+		if err != nil {
+			return fmt.Errorf("error rejecting plan: %v", err)
+		}
 	}
 
 	return nil

@@ -15,7 +15,7 @@ func loadContexts(w http.ResponseWriter, r *http.Request, auth *types.ServerAuth
 	var err error
 
 	ctx, cancel := context.WithCancel(context.Background())
-	unlockFn := lockRepo(w, r, auth, db.LockScopeWrite, ctx, cancel)
+	unlockFn := lockRepo(w, r, auth, db.LockScopeWrite, ctx, cancel, true)
 	if unlockFn == nil {
 		return nil, nil
 	} else {

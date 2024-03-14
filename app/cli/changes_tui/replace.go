@@ -23,6 +23,9 @@ func (m changesUIModel) getReplacementOldDisplay() oldReplacementRes {
 	oldContent := m.selectionInfo.currentRep.Old
 	originalFile := m.selectionInfo.currentFilesBeforeReplacement.Files[m.selectionInfo.currentPath]
 
+	oldContent = strings.ReplaceAll(oldContent, "\\`\\`\\`", "```")
+	originalFile = strings.ReplaceAll(originalFile, "\\`\\`\\`", "```")
+
 	// log.Printf("oldContent: %v", oldContent)
 	// log.Printf("originalFile: %v", originalFile)
 
@@ -113,6 +116,9 @@ func (m changesUIModel) getReplacementOldDisplay() oldReplacementRes {
 
 func (m changesUIModel) getReplacementNewDisplay(prependContent, appendContent string) (string, string) {
 	newContent := m.selectionInfo.currentRep.New
+
+	newContent = strings.ReplaceAll(newContent, "\\`\\`\\`", "```")
+
 	newContent = wrap.String(newContent, m.changeNewViewport.Width-6)
 
 	newContentLines := strings.Split(newContent, "\n")

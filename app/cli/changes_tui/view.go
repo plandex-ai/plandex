@@ -5,6 +5,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/viewport"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/fatih/color"
 )
 
 var borderColor = lipgloss.Color("#444")
@@ -15,6 +16,14 @@ var topBorderStyle = lipgloss.NewStyle().
 	BorderForeground(borderColor)
 
 func (m changesUIModel) View() string {
+	if m.isConfirmingRejectFile {
+		return m.renderConfirmRejectFile()
+	}
+
+	if m.isRejectingFile {
+		return m.renderIsRejectingFile()
+	}
+
 	help := m.renderHelp()
 
 	tabs := m.renderPathTabs()
@@ -135,7 +144,7 @@ func (m changesUIModel) renderHelp() string {
 		help += "(↑/↓) select change • "
 	}
 
-	help += "(ctrl+a) apply changes • (q)uit"
+	help += "(ctrl+a) apply all changes • (q)uit"
 	style := lipgloss.NewStyle().Width(m.width).Inherit(topBorderStyle).Foreground(lipgloss.Color(helpTextColor))
 	return style.Render(help)
 }
@@ -204,6 +213,22 @@ func (m *changesUIModel) scrollReplacementIntoView(oldContent, newContent string
 	if m.newScrollable() {
 		scrollView(newContent, &m.changeNewViewport)
 	}
+}
+
+func (m changesUIModel) renderConfirmRejectFile() string {
+	style := lipgloss.NewStyle().Padding(1).BorderStyle(lipgloss.NormalBorder()).BorderForeground(lipgloss.Color(borderColor)).Width(m.width - 2).Height(m.height - 2)
+
+	prompt := color.New(color.FgHiWhite, color.Bold).Sprintf("🧐 Are you sure you want to reject changes to ") +
+		color.New(color.Bold, color.FgHiMagenta).Sprint(m.selectionInfo.currentPath) + "?\n\n" +
+		color.New(color.FgHiCyan, color.Bold).Sprintf("(y)es | (n)o")
+
+	return style.Render(prompt)
+}
+
+func (m changesUIModel) renderIsRejectingFile() string {
+	style := lipgloss.NewStyle().Padding(1).BorderStyle(lipgloss.NormalBorder()).BorderForeground(lipgloss.Color(borderColor)).Width(m.width - 2).Height(m.height - 2)
+
+	return style.Render(m.spinner.View())
 }
 
 func getSnippetScrollPosition(totalLines, viewportHeight, snippetLineIndex, snippetHeight int) int {

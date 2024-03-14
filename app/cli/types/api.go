@@ -63,8 +63,7 @@ type ApiClient interface {
 	GetCurrentPlanState(planId, branch string) (*shared.CurrentPlanState, *shared.ApiError)
 	ApplyPlan(planId, branch string) *shared.ApiError
 	RejectAllChanges(planId, branch string) *shared.ApiError
-	RejectResult(planId, branch, resultId string) *shared.ApiError
-	RejectReplacement(planId, branch, resultId, replacementId string) *shared.ApiError
+	RejectFile(planId, branch, filePath string) *shared.ApiError
 
 	LoadContext(planId, branch string, req shared.LoadContextRequest) (*shared.LoadContextResponse, *shared.ApiError)
 	UpdateContext(planId, branch string, req shared.UpdateContextRequest) (*shared.UpdateContextResponse, *shared.ApiError)
