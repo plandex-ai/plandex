@@ -2,10 +2,10 @@
   <img src="path_to_your_logo.png" alt="Your Project Logo" width="200"/>
 </p>
 
-<h1 align="center">Plandex</h1>
+<h2 align="center">A terminal-based AI programming engine for complex tasks.</h1>
 
 <p align="center">
-  A terminal-based AI programming engine for complex tasks.
+  
 </p>
 
 <p align="center">
@@ -13,24 +13,11 @@
   <a href="LICENSE">
     <img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License Badge" />
   </a>
-
-  <a href="https://www.postgresql.org">
-    <img src="https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL Badge" />
-  </a>
-
-  <a href="https://golang.org">
-    <img src="https://img.shields.io/badge/Go-00ADD8?style=for-the-badge&logo=go&logoColor=white" alt="Go Badge" />
-  </a>
-
   <a href="https://github.com/your_username/your_project/pulls">
     <img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg" alt="PRs Welcome" />
   </a>
   <a href="https://github.com/your_username/your_project/issues">
     <img src="https://img.shields.io/github/issues-closed/your_username/your_project.svg" alt="Issues Closed" />
-  </a>
-
-  <a href="https://discord.com/channels/1214825831973785600/1214825831973785603">
-    <img src="https://img.shields.io/badge/Discord-7289DA?style=for-the-badge&logo=discord&logoColor=white" alt="Discord Badge" />
   </a>
 
 </p>
@@ -41,6 +28,10 @@
     <b>Demo Video</b>
   </a>
   · -->
+  <a href="USAGE.md">
+    <b>Website</b>
+  </a>
+  ·
   <a href="USAGE.md">
     <b>Docs</b>
   </a>
