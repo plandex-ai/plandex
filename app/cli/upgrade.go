@@ -15,7 +15,7 @@ import (
 )
 
 func checkForUpgrade() {
-	latestVersionURL := "https://example.com/plandex/latest-version" // Placeholder URL
+	latestVersionURL := "https://plandex.ai/cli-version.txt"
 	resp, err := http.Get(latestVersionURL)
 	if err != nil {
 		log.Println("Error checking latest version:", err)

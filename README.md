@@ -55,7 +55,7 @@
 
 💪 Plandex helps you churn through your backlog, work with unfamiliar technologies, get unstuck, and spend less time on the boring stuff.
 
-🏎️ Plandex keeps you, the developer, in the driver's seat. LLMs get better at coding every day, but they still make a **lot** of mistakes. Good results require significant hand-holding. Rather than assuming LLM output will always be great, Plandex focuses on the inevitable failure cases, offering easy escape hatches and corrective options when a plan goes off the rails or a file patch doesn't get generated quite right. Plandex tightens the feedback loop between the programmer and the AI, making it quick and easy to review changes, reject mistakes, and get a wayward task back on track.
+🏎️ Plandex keeps you, the developer, in the driver's seat. LLMs get better at coding every day, but they still make a **lot** of mistakes. Good results require significant hand-holding. Rather than assuming LLM output will always be great, Plandex focuses on the inevitable failure cases, offering easy escape hatches and recovery options when a plan goes off the rails or a file patch doesn't get generated quite right. Plandex tightens the feedback loop between the programmer and the AI, making it easy to review changes, reject mistakes, and get a wayward task back on track.
 
 🧠 Plandex relies on the OpenAI API and requires an `OPENAI_API_KEY` environment variable. Support for open source models, Google Gemini, and Anthropic Claude is coming soon.
 
@@ -133,9 +133,9 @@ plandex [command] --help
 
 ## Limitations ⚠️
 
-- Plandex is only as smart as the underlying model. As long as the best AI models are still making all kinds of mistakes when coding, Plandex will also make mistakes. Used judiciously, Plandex can provide a huge boost to your productivity, but as with any other AI tool, you shouldn't expect perfect results. Always review a plan carefully before applying changes, especially if security is involved. Plandex is deliberately designed to get you 80-95% of the way there rather than 100%.
+- Plandex can provide a huge boost to your productivity, but as with any other AI tool, you shouldn't expect perfect results. Always review a plan carefully before applying changes, especially if security is involved. Plandex is deliberately designed to get you 80-95% of the way there rather than 100%.
 
-- Due to the error-prone nature of LLMs, automatically applied file updates also aren't perfect. While it's likely these can be improved over time with better prompting strategies (contributions welcome!!), and **will** be improved over time as models get smarter, be prepared for occasional updates that aren't quite right. Use the `plandex changes` command to review pending updates in a TUI. If a file update has mistakes, make those changes yourself with copy-and-paste and reject the file in the changes TUI.
+- Due to the reasoning limitations of LLMs, automatically applied file updates also aren't perfect. While these can be improved over time with better prompting strategies (contributions welcome!!) and better models, for the time being, be prepared for occasional updates that aren't quite right. Use the `plandex changes` command to review pending updates in a TUI. If a file update has mistakes, make those changes yourself with copy-and-paste and reject the file in the changes TUI.
 
 ## License 📜
 
@@ -143,9 +143,9 @@ Plandex is open source under the MIT License.
 
 ## Plandex Cloud ☁️
 
-Plandex Cloud is the easiest and most reliable way to use Plandex. You'll be prompted to start an anonymous trial (no email required) when you create your first plan with `plandex new`. Trial accounts are limited to 10 plans and 10 AI model replies per plan. You can upgrade to a full account with your name and email.
+Plandex Cloud is the easiest and most reliable way to use Plandex. You'll be prompted to start an anonymous trial (no email required) when you create your first plan with `plandex new`. Trial accounts are limited to 10 plans and 10 AI model replies per plan. You can upgrade to an unlimited account with your name and email.
 
-Plandex Cloud accounts are free for now. In the future, they will cost $15 per month after the trial ends.
+Unlimited Plandex Cloud accounts are free for now. In the future, they will cost somewhere in the $10-20 per month range.
 
 ## Self-hosting 🏠
 
