@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="plandex-logo.png" alt="Plandex Logo" width="200"/>
+  <img src="plandex-logo.png" alt="Plandex Logo" width="100"/>
 </p>
 
 <h1 align="center">Plandex</h1>
@@ -8,15 +8,13 @@
 
 <p align="center">
   <!-- Badges -->
-  <a href="LICENSE">
-    <img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License Badge" />
-  </a>
-  <a href="https://github.com/your_username/your_project/pulls">
-    <img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg" alt="PRs Welcome" />
-  </a>
-  <a href="https://github.com/your_username/your_project/issues">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License Badge" /></a> 
+<a href="https://github.com/your_username/your_project/pulls"><img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg" alt="PRs Welcome" /></a> 
+<a href="https://github.com/plandex-ai/plandex/releases"><img src="https://img.shields.io/github/v/release/plandex-ai/plandex" alt="Release" /></a>
+
+  <!-- <a href="https://github.com/your_username/your_project/issues">
     <img src="https://img.shields.io/github/issues-closed/your_username/your_project.svg" alt="Issues Closed" />
-  </a>
+  </a> -->
 
 </p>
 
@@ -26,10 +24,14 @@
     <b>Demo Video</b>
   </a>
   · -->
-  <a href="USAGE.md">
-    <b>Website</b>
+  <a href="#install-">
+    <b>Install</b>
   </a>
   ·
+  <!-- <a href="https://plandex.ai">
+    <b>Website</b>
+  </a>
+  · -->
   <a href="USAGE.md">
     <b>Docs</b>
   </a>
@@ -37,6 +39,14 @@
   <a href="HOSTING.md">
     <b>Self-Hosting</b>
   </a>
+  ·
+  <a href="DEVELOPMENT.md">
+    <b>Development</b>
+  </a>
+  ·
+  <a href="https://discord.com/channels/1214825831973785600/1214825831973785603">
+    <b>Discord</b>
+  </a>  
 </p>
 
 ## 🌟 Build large features and entire projects faster with AI.
@@ -121,11 +131,11 @@ plandex [command] --help
 - 🏎️ Run tasks in the background or work on multiple tasks in parallel.
 - 🎛️ Try different models and model settings, then compare results.
 
-## Limitations 🤷‍♂️
+## Limitations ⚠️
 
-- Plandex is only as smart as the underlying model. As long as the best AI models are still making all kinds of mistakes when coding, Plandex will also make mistakes. Used judiciously, Plandex can provide a huge boost to your productivity, but as with any other AI-based tool, you shouldn't expect perfect results. Always review a plan carefully before applying changes, especially if security is involved. Plandex is deliberately designed to get you 90-99% of the way there rather than 100%.
+- Plandex is only as smart as the underlying model. As long as the best AI models are still making all kinds of mistakes when coding, Plandex will also make mistakes. Used judiciously, Plandex can provide a huge boost to your productivity, but as with any other AI tool, you shouldn't expect perfect results. Always review a plan carefully before applying changes, especially if security is involved. Plandex is deliberately designed to get you 80-95% of the way there rather than 100%.
 
-- Due to the error-prone nature of LLMs, automatically applied file updates also aren't perfect. While it's likely these can be improved over time with better prompting strategies (contributions welcome!!), and **will** be improved over time as models get smarter, be prepared for occasional updates that aren't quite right. Use the `plandex changes` command to review pending updates in a TUI. If a file update has mistakes, make those changes yourself with copy-and-paste and reject the file in the TUI.
+- Due to the error-prone nature of LLMs, automatically applied file updates also aren't perfect. While it's likely these can be improved over time with better prompting strategies (contributions welcome!!), and **will** be improved over time as models get smarter, be prepared for occasional updates that aren't quite right. Use the `plandex changes` command to review pending updates in a TUI. If a file update has mistakes, make those changes yourself with copy-and-paste and reject the file in the changes TUI.
 
 ## License 📜
 
@@ -135,7 +145,7 @@ Plandex is open source under the MIT License.
 
 Plandex Cloud is the easiest and most reliable way to use Plandex. You'll be prompted to start an anonymous trial (no email required) when you create your first plan with `plandex new`. Trial accounts are limited to 10 plans and 10 AI model replies per plan. You can upgrade to a full account with your name and email.
 
-Plandex Cloud accounts are free for now. At some point in the future, they will cost $15 per month after the anonymous free trial ends.
+Plandex Cloud accounts are free for now. In the future, they will cost $15 per month after the trial ends.
 
 ## Self-hosting 🏠
 

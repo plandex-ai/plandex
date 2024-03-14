@@ -7,3 +7,4 @@ node_modules/
 /tools/
 /static/
 /infra/
+.DS_Store
