@@ -2,10 +2,10 @@
   <img src="path_to_your_logo.png" alt="Your Project Logo" width="200"/>
 </p>
 
-<h2 align="center">A terminal-based AI programming engine for complex tasks.</h1>
+<h3 align="center">A terminal-based AI programming engine for complex tasks.</h3>
 
 <p align="center">
-  
+    💪 Plandex helps you churn through your backlog, work with unfamiliar technologies, get unstuck, and spend less time on busy-work.
 </p>
 
 <p align="center">
@@ -41,11 +41,9 @@
   </a>
 </p>
 
-## 🌟 Build large features and entire projects with AI.
+## 🌟 Build large features and entire projects faster with AI.
 
 🔮 Plandex is an open source, terminal-based AI programming engine with long-running agents, context management, versioning, branches, diff review, a protected sandbox for changes, and automatic file updates.
-
-💪 It helps you churn through your backlog, work with unfamiliar technologies, get unstuck, and spend less time on tedious tasks.
 
 🏎️ Plandex keeps you, the developer, in the driver's seat. LLMs get better at coding every day, but they still make a **lot** of mistakes. Good results require significant hand-holding. Rather than assuming LLM output will always be great, Plandex focuses on the inevitable failure cases, offering easy escape hatches and corrective options when a plan goes off the rails or a file patch doesn't get generated quite right. Plandex tightens the feedback loop between the programmer and the AI, making it quick and easy to review changes, reject mistakes, and get a wayward task back on track.
 
