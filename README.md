@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="plandex-logo.png" alt="Plandex Logo" width="100"/>
+  <img src="plandex-logo.png" alt="Plandex Logo" width="180" />
 </p>
 
 <h1 align="center">Plandex</h1>
@@ -49,7 +49,7 @@
   </a>  
 </p>
 
-## 🌟 Build large features and entire projects faster with AI.
+## 🌟 Build large features and entire projects with AI.
 
 🔮 Plandex is an open source, terminal-based AI programming engine with long-running agents, context management, versioning, branches, diff review, a protected sandbox for changes, and automatic file updates.
 
