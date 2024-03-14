@@ -7,7 +7,7 @@ SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 PLATFORM=
 ARCH=
 VERSION=
-RELEASES_URL="https://github.com/user/plandex/releases/download"
+RELEASES_URL="https://github.com/plandex-ai/plandex/releases/download"
 
 # Set platform
 case "$(uname -s)" in
@@ -36,16 +36,8 @@ esac
 # Set arch
 if [[ "$(uname -m)" == 'x86_64' ]]; then
   ARCH="amd64"
-elif [[ "$(uname -m)" == armv5* ]]; then
-  ARCH="armv5"
-elif [[ "$(uname -m)" == armv6* ]]; then
-  ARCH="armv6"
-elif [[ "$(uname -m)" == armv7* ]]; then
-  ARCH="armv7"
 elif [[ "$(uname -m)" == 'arm64' || "$(uname -m)" == 'aarch64' ]]; then
   ARCH="arm64"
-else
-  ARCH="386"
 fi
 
 if [[ "$(cat /proc/1/cgroup 2> /dev/null | grep docker | wc -l)" > 0 ]] || [ -f /.dockerenv ]; then
@@ -56,7 +48,7 @@ fi
 
 # Set Version
 if [[ -z "${PLANDEX_VERSION}" ]]; then  
-  VERSION=$(curl -s "https://api.github.com/repos/user/plandex/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+  VERSION=$(curl -s "https://api.github.com/repos/plandex-ai/plandex/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
 else
   VERSION=$PLANDEX_VERSION
   echo "Using custom version $VERSION"
