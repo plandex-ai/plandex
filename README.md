@@ -2,7 +2,9 @@
   <img src="path_to_your_logo.png" alt="Your Project Logo" width="200"/>
 </p>
 
-<h1 align="center">A terminal-based AI programming engine for complex tasks.</h1>
+<h1 align="center">Plandex</h1>
+
+<p align="center"><i>A terminal-based AI programming engine for complex tasks.</i></p>
 
 <p align="center">
   <!-- Badges -->
