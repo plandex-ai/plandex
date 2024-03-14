@@ -48,6 +48,12 @@ Windows is supported via [Git bash](https://gitforwindows.org) or [WSL](https://
 - 🏎️ Run tasks in the background or work on multiple tasks in parallel.
 - 🎛️ Try different models and model settings, then compare results.
 
+## Limitations 🤷‍♂️
+
+- Plandex is only as smart as the underlying model. As long as the best AI models are still making all kinds of mistakes when coding, Plandex will also make mistakes. Used judiciously, Plandex can provide a huge boost to your productivity, but as with any other AI-based tool, you shouldn't expect perfect results. Always review a plan carefully before applying changes, especially if security is involved. Plandex is deliberately designed to get you 90-99% of the way there rather than 100%.
+
+- Due to the error-prone nature of LLMs, automatically applied file updates are also far from perfect. While it's likely these can be improved over time (contributions welcome!!), and **will** be improved over time as models get smarter, be prepared for occasional updates that aren't quite right. Use the `plandex changes` command to review pending updates in a TUI. If a file update has mistakes, make those changes yourself with copy-and-paste and reject the file in the TUI.
+
 ## Get started 🚀
 
 If you don't have an OpenAI account, first [sign up here.](https://platform.openai.com/signup)
@@ -88,7 +94,7 @@ Plandex is open source under the MIT License.
 
 Plandex Cloud is the easiest and most reliable way to use Plandex. You'll be prompted to start an anonymous trial (no email required) when you create your first plan with `plandex new`. Trial accounts are limited to 10 plans and 10 AI model replies per plan. You can upgrade to a full account with your name and email.
 
-Plandex Cloud accounts are free for now. In the future, there will be a monthly fee comparable to other popular AI tools.
+Plandex Cloud accounts are free for now. At some point in the future, they will cost $15 per month after the anonymous free trial ends.
 
 ## Self-hosting 🏠
 
