@@ -1,3 +1,55 @@
+<p align="center">
+  <img src="path_to_your_logo.png" alt="Your Project Logo" width="200"/>
+</p>
+
+<h1 align="center">Plandex</h1>
+
+<p align="center">
+  A terminal-based AI programming engine for complex tasks.
+</p>
+
+<p align="center">
+  <!-- Badges -->
+  <a href="LICENSE">
+    <img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License Badge" />
+  </a>
+
+  <a href="https://www.postgresql.org">
+    <img src="https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL Badge" />
+  </a>
+
+  <a href="https://golang.org">
+    <img src="https://img.shields.io/badge/Go-00ADD8?style=for-the-badge&logo=go&logoColor=white" alt="Go Badge" />
+  </a>
+
+  <a href="https://github.com/your_username/your_project/pulls">
+    <img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg" alt="PRs Welcome" />
+  </a>
+  <a href="https://github.com/your_username/your_project/issues">
+    <img src="https://img.shields.io/github/issues-closed/your_username/your_project.svg" alt="Issues Closed" />
+  </a>
+
+  <a href="https://discord.com/channels/1214825831973785600/1214825831973785603">
+    <img src="https://img.shields.io/badge/Discord-7289DA?style=for-the-badge&logo=discord&logoColor=white" alt="Discord Badge" />
+  </a>
+
+</p>
+
+<p align="center">
+  <!-- Call to Action Links -->
+  <!-- <a href="LINK_TO_DEMO">
+    <b>Demo Video</b>
+  </a>
+  · -->
+  <a href="USAGE.md">
+    <b>Docs</b>
+  </a>
+  ·
+  <a href="HOSTING.md">
+    <b>Self-Hosting</b>
+  </a>
+</p>
+
 ## 🌟 Build large features and entire projects with AI.
 
 🔮 Plandex is an open source, terminal-based AI programming engine with long-running agents, context management, versioning, branches, diff review, a protected sandbox for changes, and automatic file updates.
@@ -35,25 +87,6 @@ mv plandex /usr/local/bin # adapt as needed for your system
 
 Windows is supported via [Git bash](https://gitforwindows.org) or [WSL](https://learn.microsoft.com/en-us/windows/wsl/about).
 
-## Why Plandex? 🤔
-
-- 🏗️ Go beyond autocomplete to build complex functionality with AI.
-- 🚫 Stop the mouse-centered, copy-pasting madness of coding with ChatGPT.
-- 📑 Manage context efficiently in the terminal.
-- ⚡️ Ensure AI models always have the latest versions of files in context.
-- 🪙 Retain granular control over what's in context and how many tokens you're using.
-- 🚧 Experiment, revise, and review in a protected sandbox before applying changes.
-- ⏪ Rewind and retry as needed.
-- 🌱 Explore multiple approaches with branches.
-- 🏎️ Run tasks in the background or work on multiple tasks in parallel.
-- 🎛️ Try different models and model settings, then compare results.
-
-## Limitations 🤷‍♂️
-
-- Plandex is only as smart as the underlying model. As long as the best AI models are still making all kinds of mistakes when coding, Plandex will also make mistakes. Used judiciously, Plandex can provide a huge boost to your productivity, but as with any other AI-based tool, you shouldn't expect perfect results. Always review a plan carefully before applying changes, especially if security is involved. Plandex is deliberately designed to get you 90-99% of the way there rather than 100%.
-
-- Due to the error-prone nature of LLMs, automatically applied file updates are also far from perfect. While it's likely these can be improved over time (contributions welcome!!), and **will** be improved over time as models get smarter, be prepared for occasional updates that aren't quite right. Use the `plandex changes` command to review pending updates in a TUI. If a file update has mistakes, make those changes yourself with copy-and-paste and reject the file in the TUI.
-
 ## Get started 🚀
 
 If you don't have an OpenAI account, first [sign up here.](https://platform.openai.com/signup)
@@ -85,6 +118,25 @@ For help on any command:
 ```
 plandex [command] --help
 ```
+
+## Why Plandex? 🤔
+
+- 🏗️ Go beyond autocomplete to build complex functionality with AI.
+- 🚫 Stop the mouse-centered, copy-pasting madness of coding with ChatGPT.
+- 📑 Manage context efficiently in the terminal.
+- ⚡️ Ensure AI models always have the latest versions of files in context.
+- 🪙 Retain granular control over what's in context and how many tokens you're using.
+- 🚧 Experiment, revise, and review in a protected sandbox before applying changes.
+- ⏪ Rewind and retry as needed.
+- 🌱 Explore multiple approaches with branches.
+- 🏎️ Run tasks in the background or work on multiple tasks in parallel.
+- 🎛️ Try different models and model settings, then compare results.
+
+## Limitations 🤷‍♂️
+
+- Plandex is only as smart as the underlying model. As long as the best AI models are still making all kinds of mistakes when coding, Plandex will also make mistakes. Used judiciously, Plandex can provide a huge boost to your productivity, but as with any other AI-based tool, you shouldn't expect perfect results. Always review a plan carefully before applying changes, especially if security is involved. Plandex is deliberately designed to get you 90-99% of the way there rather than 100%.
+
+- Due to the error-prone nature of LLMs, automatically applied file updates also aren't perfect. While it's likely these can be improved over time with better prompting strategies (contributions welcome!!), and **will** be improved over time as models get smarter, be prepared for occasional updates that aren't quite right. Use the `plandex changes` command to review pending updates in a TUI. If a file update has mistakes, make those changes yourself with copy-and-paste and reject the file in the TUI.
 
 ## License 📜
 
