@@ -1,5 +1,6 @@
 .plandex/
 .plandex-dev/
+.envkey
 plandex
 plandex-server
 node_modules/
