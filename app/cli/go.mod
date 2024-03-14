@@ -45,6 +45,7 @@ require (
 )
 
 require (
+	github.com/Masterminds/semver v1.5.0
 	github.com/PuerkitoBio/goquery v1.8.1
 	github.com/briandowns/spinner v1.23.0
 	github.com/charmbracelet/bubbles v0.17.2-0.20240108170749-ec883029c8e6

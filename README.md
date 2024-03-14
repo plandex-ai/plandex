@@ -2,9 +2,9 @@
 
 🔮 Plandex is an open source, terminal-based AI programming engine with long-running agents, context management, versioning, branches, diff review, a protected sandbox for changes, and automatic file updates.
 
-🥇 It's the best tool available for driving robust, end-to-end software development with AI.
-
 💪 It helps you churn through your backlog, work with unfamiliar technologies, get unstuck, and spend less time on tedious tasks.
+
+🏎️ Plandex keeps you, the developer, in the driver's seat. LLMs get better at coding every day, but they still make a **lot** of mistakes. Good results require significant hand-holding. Rather than assuming LLM output will always be great, Plandex focuses on the inevitable failure cases, offering easy escape hatches and corrective options when a plan goes off the rails or a file patch doesn't get generated quite right. Plandex tightens the feedback loop between the programmer and the AI, making it quick and easy to review changes, reject mistakes, and get a wayward task back on track.
 
 🧠 Plandex relies on the OpenAI API and requires an `OPENAI_API_KEY` environment variable. Support for open source models, Google Gemini, and Anthropic Claude is coming soon.
 
@@ -39,7 +39,6 @@ Windows is supported via [Git bash](https://gitforwindows.org) or [WSL](https://
 
 - 🏗️ Go beyond autocomplete to build complex functionality with AI.
 - 🚫 Stop the mouse-centered, copy-pasting madness of coding with ChatGPT.
-- 🔄 Tighten the feedback loop between programmer and AI.
 - 📑 Manage context efficiently in the terminal.
 - ⚡️ Ensure AI models always have the latest versions of files in context.
 - 🪙 Retain granular control over what's in context and how many tokens you're using.
@@ -109,6 +108,7 @@ Plandex Cloud follows best practices for network and data security. And whether 
 - 🤝 Plan sharing and team collaboration
 - 🖼️ Support for GPT4-Vision and other multi-modal models—add images and screenshots to context
 - 🖥️ VSCode and JetBrains extensions
+- 📦 Community plugins and modules
 - 🔌 Github integration
 - 🌐 Web dashboard and GUI
 - 🔐 SOC2 compliance

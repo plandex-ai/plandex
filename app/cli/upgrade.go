@@ -2,14 +2,16 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"os"
 	"os/exec"
+	"plandex/term"
 	"plandex/version"
-	"github.com/inconshreveable/go-update"
+
 	"github.com/Masterminds/semver"
+	"github.com/inconshreveable/go-update"
 )
 
 func checkForUpgrade() {
@@ -21,7 +23,7 @@ func checkForUpgrade() {
 	}
 	defer resp.Body.Close()
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		log.Println("Error reading response body:", err)
 		return
@@ -49,42 +51,6 @@ func checkForUpgrade() {
 
 		if confirmed {
 			err := doUpgrade(latestVersion.String())
-			if err != nil {
-				log.Println("Upgrade failed:", err)
-				return
-			}
-			fmt.Println("Upgrade successful. Restarting Plandex...")
-			restartPlandex()
-		}
-	}
-}
-
-func checkForUpgrade() {
-	latestVersionURL := "https://example.com/plandex/latest-version" // Placeholder URL
-	resp, err := http.Get(latestVersionURL)
-	if err != nil {
-		log.Println("Error checking latest version:", err)
-		return
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		log.Println("Error reading response body:", err)
-		return
-	}
-
-	latestVersion := string(body)
-	if latestVersion > version.Version {
-		fmt.Println("A new version of Plandex is available:", latestVersion)
-		confirmed, err := term.ConfirmYesNo("Do you want to upgrade to the latest version?")
-		if err != nil {
-			log.Println("Error reading input:", err)
-			return
-		}
-
-		if confirmed {
-			err := doUpgrade(latestVersion)
 			if err != nil {
 				log.Println("Upgrade failed:", err)
 				return
