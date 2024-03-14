@@ -2,16 +2,62 @@ package main
 
 import (
 	"fmt"
-	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
 	"os/exec"
-	"plandex/term"
 	"plandex/version"
-
 	"github.com/inconshreveable/go-update"
+	"github.com/Masterminds/semver"
 )
+
+func checkForUpgrade() {
+	latestVersionURL := "https://example.com/plandex/latest-version" // Placeholder URL
+	resp, err := http.Get(latestVersionURL)
+	if err != nil {
+		log.Println("Error checking latest version:", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Println("Error reading response body:", err)
+		return
+	}
+
+	latestVersion, err := semver.NewVersion(string(body))
+	if err != nil {
+		log.Println("Error parsing latest version:", err)
+		return
+	}
+
+	currentVersion, err := semver.NewVersion(version.Version)
+	if err != nil {
+		log.Println("Error parsing current version:", err)
+		return
+	}
+
+	if latestVersion.GreaterThan(currentVersion) {
+		fmt.Println("A new version of Plandex is available:", latestVersion)
+		confirmed, err := term.ConfirmYesNo("Do you want to upgrade to the latest version?")
+		if err != nil {
+			log.Println("Error reading input:", err)
+			return
+		}
+
+		if confirmed {
+			err := doUpgrade(latestVersion.String())
+			if err != nil {
+				log.Println("Upgrade failed:", err)
+				return
+			}
+			fmt.Println("Upgrade successful. Restarting Plandex...")
+			restartPlandex()
+		}
+	}
+}
 
 func checkForUpgrade() {
 	latestVersionURL := "https://example.com/plandex/latest-version" // Placeholder URL
