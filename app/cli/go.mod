@@ -53,6 +53,7 @@ require (
 	github.com/charmbracelet/glow v1.5.1
 	github.com/cqroot/prompt v0.9.3
 	github.com/eiannone/keyboard v0.0.0-20220611211555-0d226195f203
+	github.com/inconshreveable/go-update v0.0.0-20160112193335-8152e7eb6ccf
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/mattn/go-runewidth v0.0.15 // indirect
 	github.com/pkoukk/tiktoken-go v0.1.6 // indirect

@@ -48,14 +48,15 @@ func getPlanResult(params planResultParams) (*db.PlanFileResult, bool) {
 
 		new := streamedChange.New
 
+		log.Printf("getPlanResult - streamedChange.Old.StartLine: %d\n", streamedChange.Old.StartLine)
+		log.Printf("getPlanResult - streamedChange.Old.EndLine: %d\n", streamedChange.Old.EndLine)
+
 		if streamedChange.Old.StartLine == streamedChange.Old.EndLine {
 			old = currentStateLines[streamedChange.Old.StartLine-1]
 		} else {
 			old = strings.Join(currentStateLines[streamedChange.Old.StartLine-1:streamedChange.Old.EndLine], "\n")
 		}
 
-		log.Printf("getPlanResult - streamedChange.Old.StartLine: %d\n", streamedChange.Old.StartLine)
-		log.Printf("getPlanResult - streamedChange.Old.EndLine: %d\n", streamedChange.Old.EndLine)
 		log.Printf("getPlanResult - old: %s\n", old)
 
 		replacement := &shared.Replacement{
