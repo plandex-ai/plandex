@@ -8,3 +8,4 @@ node_modules/
 /static/
 /infra/
 .DS_Store
+.goreleaser.yml
