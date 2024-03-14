@@ -43,7 +43,7 @@ Windows is supported via [Git bash](https://gitforwindows.org) or [WSL](https://
 - ⚡️ Ensure AI models always have the latest versions of files in context.
 - 🪙 Retain granular control over what's in context and how many tokens you're using.
 - 🚧 Experiment, revise, and review in a protected sandbox before applying changes.
-- ⏪ Rewind and retry as needed with baked-in version control.
+- ⏪ Rewind and retry as needed.
 - 🌱 Explore multiple approaches with branches.
 - 🏎️ Run tasks in the background or work on multiple tasks in parallel.
 - 🎛️ Try different models and model settings, then compare results.
