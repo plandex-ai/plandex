@@ -1,0 +1,113 @@
+project_name: plandex
+release:
+  github:
+    owner: plandex-ai
+    name: plandex
+  name_template: '{{.Tag}}'
+builds:
+  - id: plandex
+    goos:
+      - linux
+      - darwin
+      - windows
+      - freebsd
+    goarch:
+      - amd64
+      - arm64
+    goarm:
+      - "6"
+    gomips:
+      - hardfloat
+    goamd64:
+      - v1
+    targets:
+      - linux_amd64_v1
+      - linux_arm64
+      - darwin_amd64_v1
+      - darwin_arm64
+      - windows_amd64_v1
+      - windows_arm64
+      - freebsd_amd64_v1
+      - freebsd_arm64
+    dir: .
+    main: main.go
+    binary: plandex
+    builder: go
+    gobinary: go
+    command: build
+    ldflags:
+      - -X 'main.Version=0.7.0' - -s -w -extldflags "-static" -X 'plandex/version.Version={{.Version}}'
+    env:
+      - CGO_ENABLED=0
+archives:
+  - id: default
+    name_template: plandex_{{ .Version }}_{{ if eq .Os "darwin" }}Darwin{{ else if eq .Os "linux" }}Linux{{ else if eq .Os "windows" }}Windows{{ else if eq .Os "freebsd" }}FreeBSD{{ end }}_{{ if eq .Arch "amd64" }}x86_64{{ else if eq .Arch "arm64" }}arm64{{ end }}
+    format: tar.gz
+    files:
+      - src: license*
+      - src: LICENSE*
+      - src: readme*
+      - src: README*
+      - src: changelog*
+      - src: CHANGELOG*
+snapshot:
+  name_template: '{{ .Tag }}-next'
+checksum:
+  name_template: checksums.txt
+  algorithm: sha256
+dist: dist
+env_files:
+  github_token: ~/.config/goreleaser/github_token
+  gitlab_token: ~/.config/goreleaser/gitlab_token
+  gitea_token: ~/.config/goreleaser/gitea_token
+source:
+  name_template: '{{ .ProjectName }}-{{ .Version }}'
+  format: tar.gz
+gomod:
+  gobinary: go
+announce:
+  twitter:
+    message_template: '{{ .ProjectName }} {{ .Tag }} is out! Check it out at {{ .ReleaseURL }}'
+  mastodon:
+    message_template: '{{ .ProjectName }} {{ .Tag }} is out! Check it out at {{ .ReleaseURL }}'
+    server: ""
+  reddit:
+    title_template: '{{ .ProjectName }} {{ .Tag }} is out!'
+    url_template: '{{ .ReleaseURL }}'
+  slack:
+    message_template: '{{ .ProjectName }} {{ .Tag }} is out! Check it out at {{ .ReleaseURL }}'
+    username: GoReleaser
+  discord:
+    message_template: '{{ .ProjectName }} {{ .Tag }} is out! Check it out at {{ .ReleaseURL }}'
+    author: GoReleaser
+    color: "3888754"
+    icon_url: https://goreleaser.com/static/avatar.png
+  teams:
+    title_template: '{{ .ProjectName }} {{ .Tag }} is out!'
+    message_template: '{{ .ProjectName }} {{ .Tag }} is out! Check it out at {{ .ReleaseURL }}'
+    color: '#2D313E'
+    icon_url: https://goreleaser.com/static/avatar.png
+  smtp:
+    subject_template: '{{ .ProjectName }} {{ .Tag }} is out!'
+    body_template: 'You can view details from: {{ .ReleaseURL }}'
+  mattermost:
+    message_template: '{{ .ProjectName }} {{ .Tag }} is out! Check it out at {{ .ReleaseURL }}'
+    title_template: '{{ .ProjectName }} {{ .Tag }} is out!'
+    username: GoReleaser
+  linkedin:
+    message_template: '{{ .ProjectName }} {{ .Tag }} is out! Check it out at {{ .ReleaseURL }}'
+  telegram:
+    message_template: '{{ .ProjectName }} {{ mdv2escape .Tag }} is out! Check it out at {{ mdv2escape .ReleaseURL }}'
+    parse_mode: MarkdownV2
+  webhook:
+    message_template: '{ "message": "{{ .ProjectName }} {{ .Tag }} is out! Check it out at {{ .ReleaseURL }}"}'
+    content_type: application/json; charset=utf-8
+  opencollective:
+    title_template: '{{ .Tag }}'
+    message_template: '{{ .ProjectName }} {{ .Tag }} is out!<br/>Check it out at <a href="{{ .ReleaseURL }}">{{ .ReleaseURL }}</a>'
+git:
+  tag_sort: -version:refname
+github_urls:
+  download: https://github.com
+gitlab_urls:
+  download: https://gitlab.com
