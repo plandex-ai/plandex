@@ -1,14 +1,18 @@
 package main
 
 import (
+	"archive/tar"
+	"compress/gzip"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"plandex/term"
 	"plandex/version"
+	"runtime"
 
 	"github.com/Masterminds/semver"
 	"github.com/inconshreveable/go-update"
@@ -62,17 +66,59 @@ func checkForUpgrade() {
 }
 
 func doUpgrade(version string) error {
-	// Placeholder for download URL. This should point to the actual binary location.
-	downloadURL := fmt.Sprintf("https://github.com/plandex-ai/plandex/releases/download/%s/plandex_%s_%s_%s.tar.gz", version, version, "os", "arch")
+	tag := fmt.Sprintf("cli/v%s", version)
+	escapedTag := url.QueryEscape(tag)
+
+	downloadURL := fmt.Sprintf("https://github.com/plandex-ai/plandex/releases/download/%s/plandex_%s_%s_%s.tar.gz", escapedTag, version, runtime.GOOS, runtime.GOARCH)
 	resp, err := http.Get(downloadURL)
 	if err != nil {
 		return fmt.Errorf("failed to download the update: %w", err)
 	}
 	defer resp.Body.Close()
 
-	err = update.Apply(resp.Body, update.Options{})
+	// Create a temporary file to save the downloaded archive
+	tempFile, err := os.CreateTemp("", "*.tar.gz")
 	if err != nil {
-		return fmt.Errorf("failed to apply the update: %w", err)
+		return fmt.Errorf("failed to create temporary file: %w", err)
+	}
+	defer os.Remove(tempFile.Name()) // Clean up file afterwards
+
+	// Copy the response body to the temporary file
+	_, err = io.Copy(tempFile, resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to save the downloaded archive: %w", err)
+	}
+
+	_, err = tempFile.Seek(0, 0)
+	if err != nil {
+		return fmt.Errorf("failed to seek in temporary file: %w", err)
+	}
+
+	// Now, extract the binary from the tempFile
+	gzr, err := gzip.NewReader(tempFile)
+	if err != nil {
+		return fmt.Errorf("failed to create gzip reader: %w", err)
+	}
+	defer gzr.Close()
+
+	tarReader := tar.NewReader(gzr)
+	for {
+		header, err := tarReader.Next()
+		if err == io.EOF {
+			break // End of archive
+		}
+		if err != nil {
+			return fmt.Errorf("failed to read tar header: %w", err)
+		}
+
+		// Check if the current file is the binary
+		if header.Typeflag == tar.TypeReg && (header.Name == "plandex" || header.Name == "plandex.exe") {
+			err = update.Apply(tarReader, update.Options{})
+			if err != nil {
+				return fmt.Errorf("failed to apply update: %w", err)
+			}
+			break
+		}
 	}
 
 	return nil

@@ -48,7 +48,7 @@ fi
 
 # Set Version
 if [[ -z "${PLANDEX_VERSION}" ]]; then  
-  VERSION=$(curl -s "https://api.github.com/repos/plandex-ai/plandex/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+  VERSION=$(curl -sL https://plandex.ai/cli-version.txt)
 else
   VERSION=$PLANDEX_VERSION
   echo "Using custom version $VERSION"
@@ -68,7 +68,9 @@ cleanup () {
 }
 
 download_plandex () {
-  url="${RELEASES_URL}/${VERSION}/plandex_${VERSION}_${PLATFORM}_${ARCH}.tar.gz"
+  ENCODED_TAG="cli%2Fv${VERSION}"
+
+  url="${RELEASES_URL}/${ENCODED_TAG}/plandex_${VERSION}_${PLATFORM}_${ARCH}.tar.gz"
 
   mkdir plandex_install_tmp
   cd plandex_install_tmp
