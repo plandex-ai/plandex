@@ -13,7 +13,7 @@ import (
 func GetUserStringInput(msg string) (string, error) {
 	res, err := prompt.New().Ask(msg).Input("")
 
-	if err.Error() == "user quit prompt" {
+	if err != nil && err.Error() == "user quit prompt" {
 		os.Exit(0)
 	}
 
@@ -23,7 +23,7 @@ func GetUserStringInput(msg string) (string, error) {
 func GetUserPasswordInput(msg string) (string, error) {
 	res, err := prompt.New().Ask(msg).Input("", input.WithEchoMode(input.EchoPassword))
 
-	if err.Error() == "user quit prompt" {
+	if err != nil && err.Error() == "user quit prompt" {
 		os.Exit(0)
 	}
 

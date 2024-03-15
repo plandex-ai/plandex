@@ -13,12 +13,16 @@ import (
 	"plandex/term"
 	"plandex/version"
 	"runtime"
+	"strings"
 
 	"github.com/Masterminds/semver"
+	"github.com/fatih/color"
 	"github.com/inconshreveable/go-update"
 )
 
 func checkForUpgrade() {
+	term.StartSpinner("")
+	defer term.StopSpinner()
 	latestVersionURL := "https://plandex.ai/cli-version.txt"
 	resp, err := http.Get(latestVersionURL)
 	if err != nil {
@@ -33,7 +37,10 @@ func checkForUpgrade() {
 		return
 	}
 
-	latestVersion, err := semver.NewVersion(string(body))
+	versionStr := string(body)
+	versionStr = strings.TrimSpace(versionStr)
+
+	latestVersion, err := semver.NewVersion(versionStr)
 	if err != nil {
 		log.Println("Error parsing latest version:", err)
 		return
@@ -46,20 +53,23 @@ func checkForUpgrade() {
 	}
 
 	if latestVersion.GreaterThan(currentVersion) {
-		fmt.Println("A new version of Plandex is available:", latestVersion)
-		confirmed, err := term.ConfirmYesNo("Do you want to upgrade to the latest version?")
+		term.StopSpinner()
+		fmt.Println("A new version of Plandex is available:", color.New(color.Bold, color.FgHiGreen).Sprint(versionStr))
+		fmt.Printf("Current version: %s\n", color.New(color.Bold, color.FgHiCyan).Sprint(version.Version))
+		confirmed, err := term.ConfirmYesNo("Upgrade to the latest version?")
 		if err != nil {
 			log.Println("Error reading input:", err)
 			return
 		}
 
 		if confirmed {
+			term.ResumeSpinner()
 			err := doUpgrade(latestVersion.String())
 			if err != nil {
 				log.Println("Upgrade failed:", err)
 				return
 			}
-			fmt.Println("Upgrade successful. Restarting Plandex...")
+			term.StopSpinner()
 			restartPlandex()
 		}
 	}
@@ -131,11 +141,22 @@ func restartPlandex() {
 	}
 
 	cmd := exec.Command(exe, os.Args[1:]...)
+	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	err = cmd.Start()
 	if err != nil {
 		log.Fatalf("Failed to restart: %v", err)
 	}
+
+	err = cmd.Wait()
+
+	// If the process exited with an error, exit with the same error code
+	if exitErr, ok := err.(*exec.ExitError); ok {
+		os.Exit(exitErr.ExitCode())
+	} else if err != nil {
+		log.Fatalf("Failed to restart: %v", err)
+	}
+
 	os.Exit(0)
 }
