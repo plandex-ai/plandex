@@ -8,7 +8,6 @@
 
 <p align="center">
   <!-- Badges -->
-  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License Badge" /></a> 
 <a href="https://github.com/your_username/your_project/pulls"><img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg" alt="PRs Welcome" /></a> 
 <a href="https://github.com/plandex-ai/plandex/releases"><img src="https://img.shields.io/github/v/release/plandex-ai/plandex" alt="Release" /></a>
 
@@ -135,17 +134,13 @@ plandex [command] --help
 
 - Plandex can provide a huge boost to your productivity, but as with any other AI tool, you shouldn't expect perfect results. Always review a plan carefully before applying changes, especially if security is involved. Plandex is deliberately designed to get you 80-95% of the way there rather than 100%.
 
-- Due to the reasoning limitations of LLMs, automatically applied file updates also aren't perfect. While these can be improved over time with better prompting strategies (contributions welcome!!) and better models, for the time being, be prepared for occasional updates that aren't quite right. Use the `plandex changes` command to review pending updates in a TUI. If a file update has mistakes, make those changes yourself with copy-and-paste and reject the file in the changes TUI.
-
-## License 📜
-
-Plandex is open source under the MIT License.
+- Due to the reasoning limitations of LLMs, automatically applied file updates also aren't perfect. While these can be improved over time with better prompting strategies (contributions welcome) and better models, for the time being, be prepared for occasional updates that aren't quite right. Use the `plandex changes` command to review pending updates in a TUI. If a file update has mistakes, make those changes yourself with copy-and-paste and reject the file in the changes TUI.
 
 ## Plandex Cloud ☁️
 
 Plandex Cloud is the easiest and most reliable way to use Plandex. You'll be prompted to start an anonymous trial (no email required) when you create your first plan with `plandex new`. Trial accounts are limited to 10 plans and 10 AI model replies per plan. You can upgrade to an unlimited account with your name and email.
 
-Unlimited Plandex Cloud accounts are free for now. In the future, they will cost somewhere in the $10-20 per month range.
+Plandex Cloud accounts are free for now. In the future, they will cost somewhere in the $10-20 per month range.
 
 ## Self-hosting 🏠
 
