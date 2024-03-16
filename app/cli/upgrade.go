@@ -21,6 +21,14 @@ import (
 )
 
 func checkForUpgrade() {
+	if os.Getenv("PLANDEX_SKIP_UPGRADE") != "" {
+		return
+	}
+
+	if version.Version == "development" {
+		return
+	}
+
 	term.StartSpinner("")
 	defer term.StopSpinner()
 	latestVersionURL := "https://plandex.ai/cli-version.txt"
@@ -71,6 +79,8 @@ func checkForUpgrade() {
 			}
 			term.StopSpinner()
 			restartPlandex()
+		} else {
+			fmt.Println("Note: set PLANDEX_SKIP_UPGRADE=1 to stop upgrade prompts")
 		}
 	}
 }
