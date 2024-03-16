@@ -119,25 +119,25 @@ plandex [command] --help
 
 ## Why Plandex?  🤔
 
-🏗️  Go beyond autocomplete to build complex functionality with AI.
+<p>🏗️  Go beyond autocomplete to build complex functionality with AI.</p>
   
-🚫  Stop the mouse-centered, copy-pasting madness of coding with ChatGPT.
+<p>🚫  Stop the mouse-centered, copy-pasting madness of coding with ChatGPT.</p>
   
-📑  Manage context efficiently in the terminal.
+<p>📑  Manage context efficiently in the terminal.</p>
   
-⚡️  Ensure AI models always have the latest versions of files in context.
+<p>⚡️  Ensure AI models always have the latest versions of files in context.</p>
   
-🪙  Retain granular control over what's in context and how many tokens you're using.
+<p>🪙  Retain granular control over what's in context and how many tokens you're using.</p>
   
-🚧  Experiment, revise, and review in a protected sandbox before applying changes.
+<p>🚧  Experiment, revise, and review in a protected sandbox before applying changes.</p>
   
-⏪  Rewind and retry as needed.
+<p>⏪  Rewind and retry as needed.</p>
   
-🌱  Explore multiple approaches with branches.
+<p>🌱  Explore multiple approaches with branches.</p>
   
-🏎️  Run tasks in the background or work on multiple tasks in parallel.
+<p>🏎️  Run tasks in the background or work on multiple tasks in parallel.</p>
   
-🎛️  Try different models and model settings, then compare results.
+<p>🎛️  Try different models and model settings, then compare results.</p>
 
 ## Limitations  ⚠️
 
@@ -165,23 +165,23 @@ Plandex Cloud follows best practices for network and data security. And whether 
 
 ## Roadmap  🗺️
 
-🧠  Support for open source models, Google Gemini, and Anthropic Claude in addition to OpenAI
+<p>🧠  Support for open source models, Google Gemini, and Anthropic Claude in addition to OpenAI</p>
   
-🤝  Plan sharing and team collaboration
+<p>🤝  Plan sharing and team collaboration</p>
   
-🖼️  Support for GPT4-Vision and other multi-modal models—add images and screenshots to context
+<p>🖼️  Support for GPT4-Vision and other multi-modal models—add images and screenshots to context</p>
   
-🖥️  VSCode and JetBrains extensions
+<p>🖥️  VSCode and JetBrains extensions</p>
   
-📦  Community plugins and modules
+<p>📦  Community plugins and modules</p>
   
-🔌  Github integration
+<p>🔌  Github integration</p>
   
-🌐  Web dashboard and GUI
+<p>🌐  Web dashboard and GUI</p>
   
-🔐  SOC2 compliance
+<p>🔐  SOC2 compliance</p>
   
-🛩️  Fine-tuned models
+<p>🛩️  Fine-tuned models</p>
 
 This list will grow and be prioritized based on your feedback.
 
@@ -196,7 +196,7 @@ Speaking of feedback, feel free to give yours, ask questions, report a bug, or j
 ## Contributors  👥
 
 🙌  Contributors are welcomed, celebrated, and high fived a lot.
-  
+
 ⭐️  Please star, fork, explore, and contribute to Plandex.
   
 Work on tests, evals, prompts, and bug fixes is especially appreciated.
