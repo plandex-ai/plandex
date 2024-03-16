@@ -59,7 +59,7 @@
 
 💪  Plandex helps you churn through your backlog, work with unfamiliar technologies, get unstuck, and spend less time on the boring stuff.
 
-🏎️  Plandex keeps you, the developer, in the driver's seat. Though LLMs are extremely useful for coding, they still make a **lot** of mistakes. Rather than assuming LLM output will be always be good, Plandex focuses on the inevitable failure cases, offering easy escape hatches and recovery options when a plan goes off the rails or a file patch is generated incorrectly. Plandex tightens the feedback loop between the programmer and the AI, making it easy to review changes, reject mistakes, and get a wayward task back on track.
+🏎️  Plandex keeps you, the developer, in the driver's seat. Though LLMs are extremely useful for coding, they still make a **lot** of mistakes. Rather than assuming LLM output will be always be good, Plandex focuses on the inevitable failure cases, offering easy escape hatches and recovery options when a plan goes off the rails or a file patch is generated incorrectly. Plandex tightens the feedback loop between the programmer and the AI, making it easy to review changes, reject mistakes, and quickly get a wayward task back on track.
 
 🧠  Plandex relies on the OpenAI API and requires an `OPENAI_API_KEY` environment variable. Support for open source models, Google Gemini, and Anthropic Claude is coming soon.
 
@@ -124,16 +124,16 @@ plandex [command] --help
 
 ## Why Plandex?  🤔
 
-🏗️  Go beyond autocomplete to build complex functionality with AI.<br><br>
-🚫  Stop the mouse-centered, copy-pasting madness of coding with ChatGPT.<br><br>
-📑  Manage context efficiently in the terminal.<br><br>
-⚡️  Ensure AI models always have the latest versions of files in context.<br><br>
-🪙  Retain granular control over what's in context and how many tokens you're using.<br><br>
-🚧  Experiment, revise, and review in a protected sandbox before applying changes.<br><br>
-⏪  Rewind and retry as needed.<br><br>
-🌱  Explore multiple approaches with branches.<br><br>
-🏎️  Run tasks in the background or work on multiple tasks in parallel.<br><br>
-🎛️  Try different models and model settings, then compare results.<br><br>
+🏗️  Go beyond autocomplete to build complex functionality with AI.<br>
+🚫  Stop the mouse-centered, copy-pasting madness of coding with ChatGPT.<br>
+📑  Manage context efficiently in the terminal.<br>
+⚡️  Ensure AI models always have the latest versions of files in context.<br>
+🪙  Retain granular control over what's in context and how many tokens you're using.<br>
+🚧  Experiment, revise, and review in a protected sandbox before applying changes.<br>
+⏪  Rewind and retry as needed.<br>
+🌱  Explore multiple approaches with branches.<br>
+🔀  Run tasks in the background or work on multiple tasks in parallel.<br>
+🎛️  Try different models and model settings, then compare results.<br>
 
 ## Limitations  ⚠️
 
