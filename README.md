@@ -48,7 +48,7 @@
   </a>  
 </p>
 
-## 🌟 Build large features and entire projects with AI.
+## 🌟  Build large features and entire projects with AI.
 
 🔮  Plandex is an open source, terminal-based AI programming engine with long-running agents, context management, versioning, branches, diff review, a protected sandbox for changes, and automatic file updates.
 
@@ -119,16 +119,16 @@ plandex [command] --help
 
 ## Why Plandex?  🤔
 
-- 🏗️  Go beyond autocomplete to build complex functionality with AI.
-- 🚫  Stop the mouse-centered, copy-pasting madness of coding with ChatGPT.
-- 📑  Manage context efficiently in the terminal.
-- ⚡️  Ensure AI models always have the latest versions of files in context.
-- 🪙  Retain granular control over what's in context and how many tokens you're using.
-- 🚧  Experiment, revise, and review in a protected sandbox before applying changes.
-- ⏪  Rewind and retry as needed.
-- 🌱  Explore multiple approaches with branches.
-- 🏎️  Run tasks in the background or work on multiple tasks in parallel.
-- 🎛️  Try different models and model settings, then compare results.
+🏗️  Go beyond autocomplete to build complex functionality with AI.
+🚫  Stop the mouse-centered, copy-pasting madness of coding with ChatGPT.
+📑  Manage context efficiently in the terminal.
+⚡️  Ensure AI models always have the latest versions of files in context.
+🪙  Retain granular control over what's in context and how many tokens you're using.
+🚧  Experiment, revise, and review in a protected sandbox before applying changes.
+⏪  Rewind and retry as needed.
+🌱  Explore multiple approaches with branches.
+🏎️  Run tasks in the background or work on multiple tasks in parallel.
+🎛️  Try different models and model settings, then compare results.
 
 ## Limitations  ⚠️
 
@@ -156,15 +156,15 @@ Plandex Cloud follows best practices for network and data security. And whether 
 
 ## Roadmap  🗺️
 
-- 🧠  Support for open source models, Google Gemini, and Anthropic Claude in addition to OpenAI
-- 🤝  Plan sharing and team collaboration
-- 🖼️  Support for GPT4-Vision and other multi-modal models—add images and screenshots to context
-- 🖥️  VSCode and JetBrains extensions
-- 📦  Community plugins and modules
-- 🔌  Github integration
-- 🌐  Web dashboard and GUI
-- 🔐  SOC2 compliance
-- 🛩️  Fine-tuned models
+🧠  Support for open source models, Google Gemini, and Anthropic Claude in addition to OpenAI
+🤝  Plan sharing and team collaboration
+🖼️  Support for GPT4-Vision and other multi-modal models—add images and screenshots to context
+🖥️  VSCode and JetBrains extensions
+📦  Community plugins and modules
+🔌  Github integration
+🌐  Web dashboard and GUI
+🔐  SOC2 compliance
+🛩️  Fine-tuned models
 
 This list will grow and be prioritized based on your feedback.
 
