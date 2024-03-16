@@ -120,14 +120,23 @@ plandex [command] --help
 ## Why Plandex?  🤔
 
 🏗️  Go beyond autocomplete to build complex functionality with AI.
+  
 🚫  Stop the mouse-centered, copy-pasting madness of coding with ChatGPT.
+  
 📑  Manage context efficiently in the terminal.
+  
 ⚡️  Ensure AI models always have the latest versions of files in context.
+  
 🪙  Retain granular control over what's in context and how many tokens you're using.
+  
 🚧  Experiment, revise, and review in a protected sandbox before applying changes.
+  
 ⏪  Rewind and retry as needed.
+  
 🌱  Explore multiple approaches with branches.
+  
 🏎️  Run tasks in the background or work on multiple tasks in parallel.
+  
 🎛️  Try different models and model settings, then compare results.
 
 ## Limitations  ⚠️
@@ -157,13 +166,21 @@ Plandex Cloud follows best practices for network and data security. And whether 
 ## Roadmap  🗺️
 
 🧠  Support for open source models, Google Gemini, and Anthropic Claude in addition to OpenAI
+  
 🤝  Plan sharing and team collaboration
+  
 🖼️  Support for GPT4-Vision and other multi-modal models—add images and screenshots to context
+  
 🖥️  VSCode and JetBrains extensions
+  
 📦  Community plugins and modules
+  
 🔌  Github integration
+  
 🌐  Web dashboard and GUI
+  
 🔐  SOC2 compliance
+  
 🛩️  Fine-tuned models
 
 This list will grow and be prioritized based on your feedback.
@@ -179,9 +196,9 @@ Speaking of feedback, feel free to give yours, ask questions, report a bug, or j
 ## Contributors  👥
 
 🙌  Contributors are welcomed, celebrated, and high fived a lot.
-
+  
 ⭐️  Please star, fork, explore, and contribute to Plandex.
-
+  
 Work on tests, evals, prompts, and bug fixes is especially appreciated.
 
 ## Comparable tools ⚖️
@@ -197,20 +214,20 @@ Work on tests, evals, prompts, and bug fixes is especially appreciated.
 - [Replit Ghostwriter](https://replit.com/ai)
 - [Grimoire](https://chat.openai.com/g/g-n7Rs0IK86-grimoire)
 
-## About the developer 👋
+## About the developer  👋
 
 Hi, I'm Dane. I've been building and launching software products for 17 years. I went through YCombinator in winter 2018 with my devops security company, [EnvKey](https://envkey.com), which I continue to run today. I'm fascinated by LLMs and their potential to transform the practice of software development.
 
 I live with my wife and 4 year old daughter on the SF peninsula in California. I grew up in the Finger Lakes region of upstate New York. I like reading fiction, listening to podcasts, fitness, and surfing. I started Brazilian Jiu-Jitsu recently and am pretty absorbed with that these days as well.
 
-## Possible co-founder? 😎
+## Possible co-founder?  😎
 
 I'm looking for a technical co-founder or two with experience in some combination of Golang|Devops|TypeScript|React|AI/ML to help me get Plandex off the ground as an open source project, a product, and a fun, WFH-friendly company. If you're interested, please reach out (dane@plandex.ai) or jump in and start contributing.
 
-## Possible employee? 👩‍💻
+## Possible employee?  👩‍💻
 
 While I'm not currently hiring for Plandex, I hope to in the future. If you're an experienced Golang or TypeScript engineer and are interested in working remotely on Plandex for a salary at some point with a group of smart, nice, and fun people, please reach out (dane@plandex.ai) or jump in and start contributing.
 
-## Possible investor? 💰
+## Possible investor?  💰
 
 I'd love for Plandex's users and contributors to own a significant share of the cap table. Please reach out (dane@plandex.ai) if you're an angel investor and are interested in investing.
