@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="plandex-logo.png" alt="Plandex Logo" width="180" />
+  <img src="plandex-logo-new.png" alt="Plandex Logo" width="200" />
 </p>
 
 <h1 align="center">Plandex</h1>
