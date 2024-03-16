@@ -120,23 +120,14 @@ plandex [command] --help
 ## Why Plandex?  🤔
 
 🏗️  Go beyond autocomplete to build complex functionality with AI.<br><br>
-  
 🚫  Stop the mouse-centered, copy-pasting madness of coding with ChatGPT.<br><br>
-  
 📑  Manage context efficiently in the terminal.<br><br>
-  
 ⚡️  Ensure AI models always have the latest versions of files in context.<br><br>
-  
 🪙  Retain granular control over what's in context and how many tokens you're using.<br><br>
-  
 🚧  Experiment, revise, and review in a protected sandbox before applying changes.<br><br>
-  
 ⏪  Rewind and retry as needed.<br><br>
-  
 🌱  Explore multiple approaches with branches.<br><br>
-  
 🏎️  Run tasks in the background or work on multiple tasks in parallel.<br><br>
-  
 🎛️  Try different models and model settings, then compare results.<br><br>
 
 ## Limitations  ⚠️
@@ -166,21 +157,13 @@ Plandex Cloud follows best practices for network and data security. And whether 
 ## Roadmap  🗺️
 
 🧠  Support for open source models, Google Gemini, and Anthropic Claude in addition to OpenAI<br><br>
-  
 🤝  Plan sharing and team collaboration<br><br>
-  
 🖼️  Support for GPT4-Vision and other multi-modal models—add images and screenshots to context<br><br>
-  
 🖥️  VSCode and JetBrains extensions<br><br>
-  
 📦  Community plugins and modules<br><br>
-  
 🔌  Github integration<br><br>
-  
 🌐  Web dashboard and GUI<br><br>
-  
 🔐  SOC2 compliance<br><br>
-  
 🛩️  Fine-tuned models<br><br>
 
 This list will grow and be prioritized based on your feedback.
