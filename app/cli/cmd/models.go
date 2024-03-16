@@ -43,7 +43,7 @@ func models(cmd *cobra.Command, args []string) {
 		modelSet = &shared.DefaultModelSet
 	}
 
-	color.New(color.Bold, color.FgHiCyan).Println("🤖 Models")
+	color.New(color.Bold, term.ColorHiCyan).Println("🤖 Models")
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetAutoWrapText(false)
 	table.SetHeader([]string{"Role", "Provider", "Model", "Temperature", "Top P"})
@@ -68,7 +68,7 @@ func models(cmd *cobra.Command, args []string) {
 
 	fmt.Println()
 
-	color.New(color.Bold, color.FgHiCyan).Println("🧠 Planner Defaults")
+	color.New(color.Bold, term.ColorHiCyan).Println("🧠 Planner Defaults")
 	table = tablewriter.NewWriter(os.Stdout)
 	table.SetAutoWrapText(false)
 	table.SetHeader([]string{"Max Tokens", "Max Convo Tokens", "Reserved Output Tokens"})
@@ -80,7 +80,7 @@ func models(cmd *cobra.Command, args []string) {
 	table.Render()
 	fmt.Println()
 
-	color.New(color.Bold, color.FgHiCyan).Println("⚙️  Planner Overrides")
+	color.New(color.Bold, term.ColorHiCyan).Println("⚙️  Planner Overrides")
 	table = tablewriter.NewWriter(os.Stdout)
 	table.SetAutoWrapText(false)
 	table.SetHeader([]string{"Name", "Value"})

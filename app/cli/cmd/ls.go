@@ -69,7 +69,7 @@ func listContext(cmd *cobra.Command, args []string) {
 
 	tokensTbl := tablewriter.NewWriter(os.Stdout)
 	tokensTbl.SetAutoWrapText(false)
-	tokensTbl.Append([]string{color.New(color.FgHiCyan, color.Bold).Sprintf("Total tokens →") + color.New(color.Bold).Sprintf(" %d 🪙", totalTokens)})
+	tokensTbl.Append([]string{color.New(term.ColorHiCyan, color.Bold).Sprintf("Total tokens →") + color.New(color.Bold).Sprintf(" %d 🪙", totalTokens)})
 
 	tokensTbl.Render()
 

@@ -119,7 +119,7 @@ func SelectOrSignInOrCreate() error {
 		return fmt.Errorf("error setting auth: %v", err)
 	}
 
-	fmt.Printf("✅ Signed in as %s | Org: %s\n", color.New(color.Bold, color.FgHiGreen).Sprintf("<%s> %s", Current.UserName, Current.Email), color.New(color.FgHiCyan).Sprint(Current.OrgName))
+	fmt.Printf("✅ Signed in as %s | Org: %s\n", color.New(color.Bold, term.ColorHiGreen).Sprintf("<%s> %s", Current.UserName, Current.Email), color.New(term.ColorHiCyan).Sprint(Current.OrgName))
 	fmt.Println()
 
 	term.PrintCmds("", "new", "plans")

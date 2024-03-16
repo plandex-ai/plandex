@@ -1,6 +1,7 @@
 package changes_tui
 
 import (
+	"plandex/term"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/viewport"
@@ -219,8 +220,8 @@ func (m changesUIModel) renderConfirmRejectFile() string {
 	style := lipgloss.NewStyle().Padding(1).BorderStyle(lipgloss.NormalBorder()).BorderForeground(lipgloss.Color(borderColor)).Width(m.width - 2).Height(m.height - 2)
 
 	prompt := color.New(color.Bold).Sprintf("🧐 Are you sure you want to reject changes to ") +
-		color.New(color.Bold, color.FgHiMagenta).Sprint(m.selectionInfo.currentPath) + "?\n\n" +
-		color.New(color.FgHiCyan, color.Bold).Sprintf("(y)es | (n)o")
+		color.New(color.Bold, term.ColorHiMagenta).Sprint(m.selectionInfo.currentPath) + "?\n\n" +
+		color.New(term.ColorHiCyan, color.Bold).Sprintf("(y)es | (n)o")
 
 	return style.Render(prompt)
 }

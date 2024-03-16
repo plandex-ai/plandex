@@ -80,7 +80,7 @@ func MustCheckOutdatedContext(cancelOpt, quiet bool, maybeContexts []*shared.Con
 	if len(outdatedRes.UpdatedContexts) == 1 {
 		phrase = "has been"
 	}
-	color.New(color.FgHiCyan, color.Bold).Printf("%s in context %s modified 👇\n\n", msg, phrase)
+	color.New(term.ColorHiCyan, color.Bold).Printf("%s in context %s modified 👇\n\n", msg, phrase)
 
 	tableString := tableForContextOutdated(outdatedRes)
 	fmt.Println(tableString)

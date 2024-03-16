@@ -1,6 +1,7 @@
 package changes_tui
 
 import (
+	"plandex/term"
 	"strings"
 
 	"github.com/fatih/color"
@@ -89,7 +90,7 @@ func (m changesUIModel) getReplacementOldDisplay() oldReplacementRes {
 
 	oldContentLines := strings.Split(oldContent, "\n")
 	for i, line := range oldContentLines {
-		oldContentLines[i] = color.New(color.FgHiRed).Sprint(line)
+		oldContentLines[i] = color.New(term.ColorHiRed).Sprint(line)
 	}
 	oldContent = strings.Join(oldContentLines, "\n")
 
@@ -123,7 +124,7 @@ func (m changesUIModel) getReplacementNewDisplay(prependContent, appendContent s
 
 	newContentLines := strings.Split(newContent, "\n")
 	for i, line := range newContentLines {
-		newContentLines[i] = color.New(color.FgHiGreen).Sprint(line)
+		newContentLines[i] = color.New(term.ColorHiGreen).Sprint(line)
 	}
 	newContent = strings.Join(newContentLines, "\n")
 

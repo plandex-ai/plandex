@@ -1,6 +1,7 @@
 package changes_tui
 
 import (
+	"plandex/term"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
@@ -28,7 +29,7 @@ func (m changesUIModel) renderPathTabs() string {
 
 		tab := " 📄 " + path + "  "
 
-		pathColor := color.FgHiGreen
+		pathColor := term.ColorHiGreen
 		bgColor := color.BgGreen
 
 		if selected {

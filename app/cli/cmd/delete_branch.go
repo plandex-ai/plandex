@@ -110,7 +110,7 @@ func deleteBranch(cmd *cobra.Command, args []string) {
 	}
 
 	if !found {
-		fmt.Printf("🤷‍♂️ Branch %s does not exist\n", color.New(color.Bold, color.FgHiCyan).Sprint(branch))
+		fmt.Printf("🤷‍♂️ Branch %s does not exist\n", color.New(color.Bold, term.ColorHiCyan).Sprint(branch))
 		return
 	}
 
@@ -123,7 +123,7 @@ func deleteBranch(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	fmt.Printf("✅ Deleted branch %s\n", color.New(color.Bold, color.FgHiCyan).Sprint(branch))
+	fmt.Printf("✅ Deleted branch %s\n", color.New(color.Bold, term.ColorHiCyan).Sprint(branch))
 
 	fmt.Println()
 	term.PrintCmds("", "branches")

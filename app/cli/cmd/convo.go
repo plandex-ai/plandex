@@ -86,7 +86,7 @@ func convo(cmd *cobra.Command, args []string) {
 		totalTokens += msg.Tokens
 	}
 
-	convo = strings.ReplaceAll(convo, stoppedEarlyMsg, color.New(color.FgHiRed).Sprint(stoppedEarlyMsg))
+	convo = strings.ReplaceAll(convo, stoppedEarlyMsg, color.New(term.ColorHiRed).Sprint(stoppedEarlyMsg))
 
 	output :=
 		fmt.Sprintf("\n%s", convo) +

@@ -124,7 +124,7 @@ func del(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	fmt.Printf("✅ Deleted plan %s\n", color.New(color.Bold, color.FgHiCyan).Sprint(plan.Name))
+	fmt.Printf("✅ Deleted plan %s\n", color.New(color.Bold, term.ColorHiCyan).Sprint(plan.Name))
 }
 
 func delAll() {

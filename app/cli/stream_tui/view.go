@@ -5,6 +5,8 @@ import (
 	"sort"
 	"strings"
 
+	"plandex/term"
+
 	"github.com/charmbracelet/lipgloss"
 	"github.com/fatih/color"
 )
@@ -156,7 +158,7 @@ func (m streamUIModel) doRenderBuild(outputStatic bool) string {
 func (m streamUIModel) renderMissingFilePrompt() string {
 	style := lipgloss.NewStyle().Padding(1).BorderStyle(lipgloss.NormalBorder()).BorderForeground(lipgloss.Color(borderColor)).Width(m.width - 2).Height(m.height - 2)
 
-	prompt := "📄 " + color.New(color.Bold, color.FgHiYellow).Sprint(m.missingFilePath) + " isn't in context."
+	prompt := "📄 " + color.New(color.Bold, term.ColorHiYellow).Sprint(m.missingFilePath) + " isn't in context."
 
 	prompt += "\n\n"
 
@@ -169,11 +171,11 @@ func (m streamUIModel) renderMissingFilePrompt() string {
 
 	prompt += strings.Join(words, " ")
 
-	prompt += "\n\n" + color.New(color.FgHiMagenta, color.Bold).Sprintln("🧐 What do you want to do?")
+	prompt += "\n\n" + color.New(term.ColorHiMagenta, color.Bold).Sprintln("🧐 What do you want to do?")
 
 	for i, opt := range missingFileSelectOpts {
 		if i == m.missingFileSelectedIdx {
-			prompt += color.New(color.FgHiCyan, color.Bold).Sprint(" > " + opt)
+			prompt += color.New(term.ColorHiCyan, color.Bold).Sprint(" > " + opt)
 		} else {
 			prompt += "   " + opt
 		}

@@ -62,8 +62,8 @@ func checkForUpgrade() {
 
 	if latestVersion.GreaterThan(currentVersion) {
 		term.StopSpinner()
-		fmt.Println("A new version of Plandex is available:", color.New(color.Bold, color.FgHiGreen).Sprint(versionStr))
-		fmt.Printf("Current version: %s\n", color.New(color.Bold, color.FgHiCyan).Sprint(version.Version))
+		fmt.Println("A new version of Plandex is available:", color.New(color.Bold, term.ColorHiGreen).Sprint(versionStr))
+		fmt.Printf("Current version: %s\n", color.New(color.Bold, term.ColorHiCyan).Sprint(version.Version))
 		confirmed, err := term.ConfirmYesNo("Upgrade to the latest version?")
 		if err != nil {
 			log.Println("Error reading input:", err)

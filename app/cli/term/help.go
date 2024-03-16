@@ -43,7 +43,7 @@ var CmdDesc = map[string][2]string{
 }
 
 func PrintCmds(prefix string, cmds ...string) {
-	printCmds(os.Stderr, prefix, []color.Attribute{color.Bold, color.FgHiWhite, color.BgCyan}, cmds...)
+	printCmds(os.Stderr, prefix, []color.Attribute{color.Bold, color.FgHiWhite, color.BgCyan, color.FgHiWhite}, cmds...)
 }
 
 func PrintCmdsWithColors(prefix string, colors []color.Attribute, cmds ...string) {
@@ -80,7 +80,7 @@ func printCmds(w io.Writer, prefix string, colors []color.Attribute, cmds ...str
 func PrintCustomCmd(prefix, cmd, alias, desc string) {
 	cmd = strings.Replace(cmd, alias, fmt.Sprintf("(%s)", alias), 1)
 	// desc += color.New(color.FgWhite).Sprintf(" • alias → %s", color.New(color.Bold).Sprint(alias))
-	styled := color.New(color.Bold, color.FgHiWhite, color.BgCyan).Sprintf(" plandex %s ", cmd)
+	styled := color.New(color.Bold, color.FgHiWhite, color.BgCyan, color.FgHiWhite).Sprintf(" plandex %s ", cmd)
 	fmt.Printf("%s%s 👉 %s\n", prefix, styled, desc)
 }
 
@@ -88,57 +88,57 @@ func PrintCustomCmd(prefix, cmd, alias, desc string) {
 func PrintCustomHelp() {
 	builder := &strings.Builder{}
 
-	color.New(color.Bold, color.BgGreen).Fprintln(builder, " Usage ")
+	color.New(color.Bold, color.BgGreen, color.FgHiWhite).Fprintln(builder, " Usage ")
 	color.New(color.Bold).Fprintln(builder, "  plandex [command] [flags]")
 	color.New(color.Bold).Fprintln(builder, "  pdx [command] [flags]")
 	fmt.Fprintln(builder)
 
-	color.New(color.Bold, color.BgGreen).Fprintln(builder, " Help ")
+	color.New(color.Bold, color.BgGreen, color.FgHiWhite).Fprintln(builder, " Help ")
 	color.New(color.Bold).Fprintln(builder, "  plandex help")
 	color.New(color.Bold).Fprintln(builder, "  plandex [command] --help")
 	fmt.Fprintln(builder)
 
-	color.New(color.Bold, color.BgMagenta).Fprintln(builder, " Getting Started ")
-	fmt.Fprintf(builder, "  Create a new plan in your project's root directory with %s\n\n", color.New(color.Bold, color.BgCyan).Sprint(" plandex new "))
+	color.New(color.Bold, color.BgMagenta, color.FgHiWhite).Fprintln(builder, " Getting Started ")
+	fmt.Fprintf(builder, "  Create a new plan in your project's root directory with %s\n\n", color.New(color.Bold, color.BgCyan, color.FgHiWhite).Sprint(" plandex new "))
 
-	color.New(color.Bold, color.BgMagenta).Fprintln(builder, " Key Commands ")
-	printCmds(builder, " ", []color.Attribute{color.Bold, color.FgHiMagenta}, "new", "load", "tell", "changes", "apply")
+	color.New(color.Bold, color.BgMagenta, color.FgHiWhite).Fprintln(builder, " Key Commands ")
+	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiMagenta}, "new", "load", "tell", "changes", "apply")
 	fmt.Fprintln(builder)
 
-	color.New(color.Bold, color.BgCyan).Fprintln(builder, " Plans ")
-	printCmds(builder, " ", []color.Attribute{color.Bold, color.FgHiCyan}, "new", "plans", "cd", "current", "delete-plan")
+	color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Plans ")
+	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "new", "plans", "cd", "current", "delete-plan")
 	fmt.Fprintln(builder)
 
-	color.New(color.Bold, color.BgCyan).Fprintln(builder, " Changes ")
-	printCmds(builder, " ", []color.Attribute{color.Bold, color.FgHiCyan}, "changes", "apply")
+	color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Changes ")
+	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "changes", "apply")
 	fmt.Fprintln(builder)
 
-	color.New(color.Bold, color.BgCyan).Fprintln(builder, " Context ")
-	printCmds(builder, " ", []color.Attribute{color.Bold, color.FgHiCyan}, "load", "ls", "rm", "update", "clear")
+	color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Context ")
+	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "load", "ls", "rm", "update", "clear")
 	fmt.Fprintln(builder)
 
-	color.New(color.Bold, color.BgCyan).Fprintln(builder, " Branches ")
-	printCmds(builder, " ", []color.Attribute{color.Bold, color.FgHiCyan}, "branches", "checkout", "delete-branch")
+	color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Branches ")
+	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "branches", "checkout", "delete-branch")
 	fmt.Fprintln(builder)
 
-	color.New(color.Bold, color.BgCyan).Fprintln(builder, " History ")
-	printCmds(builder, " ", []color.Attribute{color.Bold, color.FgHiCyan}, "convo", "log", "rewind")
+	color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " History ")
+	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "convo", "log", "rewind")
 	fmt.Fprintln(builder)
 
-	color.New(color.Bold, color.BgCyan).Fprintln(builder, " Control ")
-	printCmds(builder, " ", []color.Attribute{color.Bold, color.FgHiCyan}, "tell", "continue", "build")
+	color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Control ")
+	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "tell", "continue", "build")
 	fmt.Fprintln(builder)
 
-	color.New(color.Bold, color.BgCyan).Fprintln(builder, " Streams ")
-	printCmds(builder, " ", []color.Attribute{color.Bold, color.FgHiCyan}, "ps", "connect", "stop")
+	color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Streams ")
+	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "ps", "connect", "stop")
 	fmt.Fprintln(builder)
 
-	color.New(color.Bold, color.BgCyan).Fprintln(builder, " AI Models ")
-	printCmds(builder, " ", []color.Attribute{color.Bold, color.FgHiCyan}, "models", "set-model")
+	color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " AI Models ")
+	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "models", "set-model")
 	fmt.Fprintln(builder)
 
-	color.New(color.Bold, color.BgCyan).Fprintln(builder, " Accounts ")
-	printCmds(builder, " ", []color.Attribute{color.Bold, color.FgHiCyan}, "sign-in")
+	color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Accounts ")
+	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "sign-in")
 	fmt.Fprintln(builder)
 
 	fmt.Print(builder.String())

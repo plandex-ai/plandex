@@ -160,19 +160,19 @@ func plans(cmd *cobra.Command, args []string) {
 
 		currentProjectPlans := plansByProjectId[lib.CurrentProjectId]
 		if len(parentProjectIdsWithPaths) > 0 || len(childProjectIdsWithPaths) > 0 {
-			color.New(color.Bold, color.FgHiGreen).Print("Plans in current directory\n")
+			color.New(color.Bold, term.ColorHiGreen).Print("Plans in current directory\n")
 		} else {
 			fmt.Println()
 		}
 		for i, p := range currentProjectPlans {
 			num := strconv.Itoa(i + 1)
 			if p.Id == lib.CurrentPlanId {
-				num = color.New(color.Bold, color.FgHiGreen).Sprint(num)
+				num = color.New(color.Bold, term.ColorHiGreen).Sprint(num)
 			}
 
 			var name string
 			if p.Id == lib.CurrentPlanId {
-				name = color.New(color.Bold, color.FgHiGreen).Sprint(p.Name) + fmt.Sprint(" 👈")
+				name = color.New(color.Bold, term.ColorHiGreen).Sprint(p.Name) + fmt.Sprint(" 👈")
 			} else {
 				name = p.Name
 			}
@@ -206,12 +206,8 @@ func plans(cmd *cobra.Command, args []string) {
 		}
 		table.Render()
 
-		fmt.Println()
-		term.PrintCmds("", "new", "cd", "delete-plan")
 	} else {
 		fmt.Println("🤷‍♂️ No plans in current directory")
-		fmt.Println()
-		term.PrintCmds("", "new")
 	}
 
 	var addPathToTreeFn func(tree treeprint.Tree, basePath, localPath, projectId string, isParent bool)
@@ -262,15 +258,23 @@ func plans(cmd *cobra.Command, args []string) {
 			plans := plansByProjectId[projectId]
 
 			for _, p := range plans {
-				branch.AddNode(color.New(color.FgHiCyan).Sprint(p.Name))
+				branch.AddNode(color.New(term.ColorHiCyan).Sprint(p.Name))
 			}
 		}
 	}
 
+	var c color.Attribute
+	if term.IsDarkBg {
+		c = color.FgWhite
+	} else {
+		c = color.FgBlack
+	}
+
 	if len(parentProjectIdsWithPaths) > 0 {
 		fmt.Println()
+
 		color.New(color.Bold).Println("Plans in parent directories")
-		fmt.Println("cd into a directory to work on a plan in that directory")
+		color.New(c).Println("cd into a directory to work on a plan in that directory")
 		parentTree := treeprint.NewWithRoot("~")
 
 		for i := len(parentProjectIdsWithPaths) - 1; i >= 0; i-- {
@@ -290,7 +294,7 @@ func plans(cmd *cobra.Command, args []string) {
 	if len(childProjectIdsWithPaths) > 0 {
 		fmt.Println()
 		color.New(color.Bold).Println("Plans in child directories")
-		fmt.Println("cd into a directory to work on a plan in that directory")
+		color.New(c).Println("cd into a directory to work on a plan in that directory")
 		childTree := treeprint.New()
 		for _, p := range childProjectIdsWithPaths {
 			rel, err := filepath.Rel(fs.Cwd, p[0])
@@ -304,5 +308,12 @@ func plans(cmd *cobra.Command, args []string) {
 		fmt.Println(childTree.String())
 	} else {
 		fmt.Println()
+	}
+
+	fmt.Println()
+	if len(currentProjectPlanIds) > 0 {
+		term.PrintCmds("", "new", "cd", "delete-plan")
+	} else {
+		term.PrintCmds("", "new")
 	}
 }

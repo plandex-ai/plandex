@@ -25,7 +25,7 @@ func checkContextConflicts(filesByPath map[string]string) (bool, error) {
 
 	if len(conflictedPaths) > 0 {
 		term.StopSpinner()
-		color.New(color.Bold, color.FgHiYellow).Println("⚠️  Some updates conflict with pending changes:")
+		color.New(color.Bold, term.ColorHiYellow).Println("⚠️  Some updates conflict with pending changes:")
 		for path := range conflictedPaths {
 			fmt.Println("📄 " + path)
 		}

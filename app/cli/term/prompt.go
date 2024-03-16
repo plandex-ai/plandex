@@ -47,8 +47,8 @@ func GetUserKeyInput() (rune, error) {
 }
 
 func ConfirmYesNo(fmtStr string, fmtArgs ...interface{}) (bool, error) {
-	color.New(color.FgHiMagenta, color.Bold).Printf(fmtStr+" (y)es | (n)o", fmtArgs...)
-	color.New(color.FgHiMagenta, color.Bold).Print("> ")
+	color.New(ColorHiMagenta, color.Bold).Printf(fmtStr+" (y)es | (n)o", fmtArgs...)
+	color.New(ColorHiMagenta, color.Bold).Print("> ")
 
 	char, err := GetUserKeyInput()
 	if err != nil {
@@ -62,14 +62,14 @@ func ConfirmYesNo(fmtStr string, fmtArgs ...interface{}) (bool, error) {
 		return false, nil
 	} else {
 		fmt.Println()
-		color.New(color.FgHiRed, color.Bold).Print("Invalid input.\nEnter 'y' for yes or 'n' for no.\n\n")
+		color.New(ColorHiRed, color.Bold).Print("Invalid input.\nEnter 'y' for yes or 'n' for no.\n\n")
 		return ConfirmYesNo(fmtStr, fmtArgs...)
 	}
 }
 
 func ConfirmYesNoCancel(fmtStr string, fmtArgs ...interface{}) (bool, bool, error) {
-	color.New(color.FgHiMagenta, color.Bold).Printf(fmtStr+" (y)es | (n)o | (c)ancel", fmtArgs...)
-	color.New(color.FgHiMagenta, color.Bold).Print("> ")
+	color.New(ColorHiMagenta, color.Bold).Printf(fmtStr+" (y)es | (n)o | (c)ancel", fmtArgs...)
+	color.New(ColorHiMagenta, color.Bold).Print("> ")
 
 	char, err := GetUserKeyInput()
 	if err != nil {
@@ -85,7 +85,7 @@ func ConfirmYesNoCancel(fmtStr string, fmtArgs ...interface{}) (bool, bool, erro
 		return false, true, nil
 	} else {
 		fmt.Println()
-		color.New(color.FgHiRed, color.Bold).Print("Invalid input.\nEnter 'y' for yes, 'n' for no, or 'c' for cancel.\n\n")
+		color.New(ColorHiRed, color.Bold).Print("Invalid input.\nEnter 'y' for yes, 'n' for no, or 'c' for cancel.\n\n")
 		return ConfirmYesNoCancel(fmtStr, fmtArgs...)
 	}
 }

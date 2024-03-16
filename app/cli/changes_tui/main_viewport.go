@@ -2,6 +2,7 @@ package changes_tui
 
 import (
 	"fmt"
+	"plandex/term"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/fatih/color"
@@ -120,7 +121,7 @@ func (m changesUIModel) renderMainViewFooter() string {
 		Foreground(lipgloss.Color(helpTextColor))
 	var footer string
 	if m.didCopy {
-		footer = color.New(color.Bold, color.FgHiCyan).Sprint(` copied to clipboard`)
+		footer = color.New(color.Bold, term.ColorHiCyan).Sprint(` copied to clipboard`)
 	} else {
 		footer = ` (c)opy change to clipboard • (r)eject file`
 	}
