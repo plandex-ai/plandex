@@ -50,17 +50,17 @@
 
 ## 🌟 Build large features and entire projects with AI.
 
-🔮 Plandex is an open source, terminal-based AI programming engine with long-running agents, context management, versioning, branches, diff review, a protected sandbox for changes, and automatic file updates.
+🔮  Plandex is an open source, terminal-based AI programming engine with long-running agents, context management, versioning, branches, diff review, a protected sandbox for changes, and automatic file updates.
 
-💪 Plandex helps you churn through your backlog, work with unfamiliar technologies, get unstuck, and spend less time on the boring stuff.
+💪  Plandex helps you churn through your backlog, work with unfamiliar technologies, get unstuck, and spend less time on the boring stuff.
 
-🏎️ Plandex keeps you, the developer, in the driver's seat. Though LLMs are extremely useful for coding, they still make a **lot** of mistakes. Rather than assuming LLM output will be always be good, Plandex focuses on the inevitable failure cases, offering easy escape hatches and recovery options when a plan goes off the rails or a file patch is generated incorrectly. Plandex tightens the feedback loop between the programmer and the AI, making it easy to review changes, reject mistakes, and get a wayward task back on track.
+🏎️  Plandex keeps you, the developer, in the driver's seat. Though LLMs are extremely useful for coding, they still make a **lot** of mistakes. Rather than assuming LLM output will be always be good, Plandex focuses on the inevitable failure cases, offering easy escape hatches and recovery options when a plan goes off the rails or a file patch is generated incorrectly. Plandex tightens the feedback loop between the programmer and the AI, making it easy to review changes, reject mistakes, and get a wayward task back on track.
 
-🧠 Plandex relies on the OpenAI API and requires an `OPENAI_API_KEY` environment variable. Support for open source models, Google Gemini, and Anthropic Claude is coming soon.
+🧠  Plandex relies on the OpenAI API and requires an `OPENAI_API_KEY` environment variable. Support for open source models, Google Gemini, and Anthropic Claude is coming soon.
 
-✅ Plandex supports Mac, Linux, FreeBSD, and Windows. It runs from a single binary with no dependencies.
+✅  Plandex supports Mac, Linux, FreeBSD, and Windows. It runs from a single binary with no dependencies.
 
-## Install 📥
+## Install  📥
 
 ### Quick install
 
@@ -85,7 +85,7 @@ mv plandex /usr/local/bin # adapt as needed for your system
 
 Windows is supported via [Git bash](https://gitforwindows.org) or [WSL](https://learn.microsoft.com/en-us/windows/wsl/about).
 
-## Get started 🚀
+## Get started  🚀
 
 If you don't have an OpenAI account, first [sign up here.](https://platform.openai.com/signup)
 
@@ -99,11 +99,11 @@ plandex new
 
 After any plandex command is run, commands that could make sense to run next will be suggested. You can learn to use Plandex quickly by jumping in and following these suggestions.
 
-## Usage 🛠️
+## Usage  🛠️
 
 [Here's a quick overview of the commands and functionality.](./USAGE.md)
 
-## Help ℹ️
+## Help  ℹ️
 
 To see all available commands:
 
@@ -117,58 +117,58 @@ For help on any command:
 plandex [command] --help
 ```
 
-## Why Plandex? 🤔
+## Why Plandex?  🤔
 
-- 🏗️ Go beyond autocomplete to build complex functionality with AI.
-- 🚫 Stop the mouse-centered, copy-pasting madness of coding with ChatGPT.
-- 📑 Manage context efficiently in the terminal.
-- ⚡️ Ensure AI models always have the latest versions of files in context.
-- 🪙 Retain granular control over what's in context and how many tokens you're using.
-- 🚧 Experiment, revise, and review in a protected sandbox before applying changes.
-- ⏪ Rewind and retry as needed.
-- 🌱 Explore multiple approaches with branches.
-- 🏎️ Run tasks in the background or work on multiple tasks in parallel.
-- 🎛️ Try different models and model settings, then compare results.
+- 🏗️  Go beyond autocomplete to build complex functionality with AI.
+- 🚫  Stop the mouse-centered, copy-pasting madness of coding with ChatGPT.
+- 📑  Manage context efficiently in the terminal.
+- ⚡️  Ensure AI models always have the latest versions of files in context.
+- 🪙  Retain granular control over what's in context and how many tokens you're using.
+- 🚧  Experiment, revise, and review in a protected sandbox before applying changes.
+- ⏪  Rewind and retry as needed.
+- 🌱  Explore multiple approaches with branches.
+- 🏎️  Run tasks in the background or work on multiple tasks in parallel.
+- 🎛️  Try different models and model settings, then compare results.
 
-## Limitations ⚠️
+## Limitations  ⚠️
 
 - Plandex can provide a huge boost to your productivity, but as with any other AI tool, you shouldn't expect perfect results. Always review a plan carefully before applying changes, especially if security is involved. Plandex is designed to get you 80-90% of the way there rather than 100%.
 
 - Due to the reasoning limitations of LLMs, automatically applied file updates also aren't perfect. While these can be improved over time with better prompting strategies (contributions welcome) and better models, be prepared for occasional updates that aren't quite right. Use the `plandex changes` command to review pending updates in a TUI. If a file update has mistakes, make those changes yourself with copy-and-paste and reject the file in the changes TUI.
 
-## Plandex Cloud ☁️
+## Plandex Cloud  ☁️
 
 Plandex Cloud is the easiest and most reliable way to use Plandex. You'll be prompted to start an anonymous trial (no email required) when you create your first plan with `plandex new`. Trial accounts are limited to 10 plans and 10 AI model replies per plan. You can upgrade to an unlimited account with your name and email.
 
 Plandex Cloud accounts are free for now. In the future, they will cost somewhere in the $10-20 per month range.
 
-## Self-hosting 🏠
+## Self-hosting  🏠
 
 [Read about self-hosting Plandex here.](./HOSTING.md)
 
-## Security 🔐
+## Security  🔐
 
 Plandex Cloud follows best practices for network and data security. And whether cloud or self-hosted, Plandex protects model provider API keys (like your OpenAI API key). [Read more here.](./SECURITY.md)
 
-## Privacy and data retention 🛡️
+## Privacy and data retention  🛡️
 
 [Read about Plandex Cloud's privacy and data retention policies here.](./PRIVACY.md)
 
-## Roadmap 🗺️
+## Roadmap  🗺️
 
-- 🧠 Support for open source models, Google Gemini, and Anthropic Claude in addition to OpenAI
-- 🤝 Plan sharing and team collaboration
-- 🖼️ Support for GPT4-Vision and other multi-modal models—add images and screenshots to context
-- 🖥️ VSCode and JetBrains extensions
-- 📦 Community plugins and modules
-- 🔌 Github integration
-- 🌐 Web dashboard and GUI
-- 🔐 SOC2 compliance
-- 🛩️ Fine-tuned models
+- 🧠  Support for open source models, Google Gemini, and Anthropic Claude in addition to OpenAI
+- 🤝  Plan sharing and team collaboration
+- 🖼️  Support for GPT4-Vision and other multi-modal models—add images and screenshots to context
+- 🖥️  VSCode and JetBrains extensions
+- 📦  Community plugins and modules
+- 🔌  Github integration
+- 🌐  Web dashboard and GUI
+- 🔐  SOC2 compliance
+- 🛩️  Fine-tuned models
 
 This list will grow and be prioritized based on your feedback.
 
-## Discord and discussion 💬
+## Discord and discussion  💬
 
 Speaking of feedback, feel free to give yours, ask questions, report a bug, or just hang out:
 
@@ -176,11 +176,11 @@ Speaking of feedback, feel free to give yours, ask questions, report a bug, or j
 - [Discussions](https://github.com/plandex-ai/plandex/discussions)
 - [Issues](https://github.com/plandex-ai/plandex/issues)
 
-## Contributors 👥
+## Contributors  👥
 
-Contributors are welcomed, celebrated, and high fived a lot 🙌
+🙌  Contributors are welcomed, celebrated, and high fived a lot.
 
-Please star ⭐, fork ⑂, explore 🔍, and contribute 💻
+⭐️  Please star, fork, explore, and contribute to Plandex.
 
 Work on tests, evals, prompts, and bug fixes is especially appreciated.
 
