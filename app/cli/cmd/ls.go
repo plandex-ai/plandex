@@ -60,12 +60,8 @@ func listContext(cmd *cobra.Command, args []string) {
 			format.Time(context.UpdatedAt),
 		}
 		table.Rich(row, []tablewriter.Colors{
-			{tablewriter.FgHiWhiteColor, tablewriter.Bold},
+			{tablewriter.Bold},
 			{tablewriter.FgHiGreenColor, tablewriter.Bold},
-			{tablewriter.FgHiWhiteColor},
-			{tablewriter.FgHiWhiteColor},
-			{tablewriter.FgHiWhiteColor},
-			{tablewriter.FgHiWhiteColor},
 		})
 	}
 
@@ -73,7 +69,7 @@ func listContext(cmd *cobra.Command, args []string) {
 
 	tokensTbl := tablewriter.NewWriter(os.Stdout)
 	tokensTbl.SetAutoWrapText(false)
-	tokensTbl.Append([]string{color.New(color.FgHiCyan, color.Bold).Sprintf("Total tokens →") + color.New(color.FgHiWhite, color.Bold).Sprintf(" %d 🪙", totalTokens)})
+	tokensTbl.Append([]string{color.New(color.FgHiCyan, color.Bold).Sprintf("Total tokens →") + color.New(color.Bold).Sprintf(" %d 🪙", totalTokens)})
 
 	tokensTbl.Render()
 

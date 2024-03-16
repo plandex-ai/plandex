@@ -141,7 +141,7 @@ func (m changesUIModel) renderScrollFooter() string {
 	var footer string
 
 	if m.selectedNewFile() || m.selectedFullFile() {
-		footer = ` (j/k) scroll • (d/u) page • (g/G) start/end • (r)eject file changes`
+		footer = ` (j/k) scroll • (d/u) page • (g/G) start/end • (r)eject file`
 	} else {
 		footer = ` (j/k) scroll`
 		if m.oldScrollable() && m.newScrollable() {

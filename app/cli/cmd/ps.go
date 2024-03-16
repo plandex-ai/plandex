@@ -83,8 +83,7 @@ func ps(cmd *cobra.Command, args []string) {
 			}
 		} else {
 			style = []tablewriter.Colors{
-				{tablewriter.FgHiWhiteColor, tablewriter.Bold},
-				{tablewriter.FgHiWhiteColor},
+				{tablewriter.Bold},
 			}
 		}
 

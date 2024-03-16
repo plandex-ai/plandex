@@ -80,7 +80,7 @@ func convo(cmd *cobra.Command, args []string) {
 		convo += md
 
 		if msg.Stopped {
-			convo += fmt.Sprintf(" 🛑 %s\n\n", color.New(color.Bold, color.FgHiWhite).Sprint(stoppedEarlyMsg))
+			convo += fmt.Sprintf(" 🛑 %s\n\n", color.New(color.Bold).Sprint(stoppedEarlyMsg))
 		}
 
 		totalTokens += msg.Tokens

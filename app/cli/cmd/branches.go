@@ -58,7 +58,7 @@ func branches(cmd *cobra.Command, args []string) {
 
 		var name string
 		if b.Name == lib.CurrentBranch {
-			name = color.New(color.Bold, color.FgGreen).Sprint(b.Name) + color.New(color.FgWhite).Sprint(" 👈")
+			name = color.New(color.Bold, color.FgGreen).Sprint(b.Name) + " 👈"
 		} else {
 			name = b.Name
 		}
@@ -79,8 +79,7 @@ func branches(cmd *cobra.Command, args []string) {
 			}
 		} else {
 			style = []tablewriter.Colors{
-				{tablewriter.FgHiWhiteColor, tablewriter.Bold},
-				{tablewriter.FgHiWhiteColor},
+				{tablewriter.Bold},
 			}
 		}
 

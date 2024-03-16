@@ -172,7 +172,7 @@ func plans(cmd *cobra.Command, args []string) {
 
 			var name string
 			if p.Id == lib.CurrentPlanId {
-				name = color.New(color.Bold, color.FgHiGreen).Sprint(p.Name) + color.New(color.FgWhite).Sprint(" 👈")
+				name = color.New(color.Bold, color.FgHiGreen).Sprint(p.Name) + fmt.Sprint(" 👈")
 			} else {
 				name = p.Name
 			}
@@ -197,8 +197,7 @@ func plans(cmd *cobra.Command, args []string) {
 				}
 			} else {
 				style = []tablewriter.Colors{
-					{tablewriter.FgHiWhiteColor, tablewriter.Bold},
-					{tablewriter.FgHiWhiteColor},
+					{tablewriter.Bold},
 				}
 			}
 
@@ -270,8 +269,8 @@ func plans(cmd *cobra.Command, args []string) {
 
 	if len(parentProjectIdsWithPaths) > 0 {
 		fmt.Println()
-		color.New(color.Bold, color.FgHiWhite).Println("Plans in parent directories")
-		color.New(color.FgWhite).Println("cd into a directory to work on a plan in that directory")
+		color.New(color.Bold).Println("Plans in parent directories")
+		fmt.Println("cd into a directory to work on a plan in that directory")
 		parentTree := treeprint.NewWithRoot("~")
 
 		for i := len(parentProjectIdsWithPaths) - 1; i >= 0; i-- {
@@ -290,8 +289,8 @@ func plans(cmd *cobra.Command, args []string) {
 
 	if len(childProjectIdsWithPaths) > 0 {
 		fmt.Println()
-		color.New(color.Bold, color.FgHiWhite).Println("Plans in child directories")
-		color.New(color.FgWhite).Println("cd into a directory to work on a plan in that directory")
+		color.New(color.Bold).Println("Plans in child directories")
+		fmt.Println("cd into a directory to work on a plan in that directory")
 		childTree := treeprint.New()
 		for _, p := range childProjectIdsWithPaths {
 			rel, err := filepath.Rel(fs.Cwd, p[0])

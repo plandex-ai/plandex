@@ -218,7 +218,7 @@ func (m *changesUIModel) scrollReplacementIntoView(oldContent, newContent string
 func (m changesUIModel) renderConfirmRejectFile() string {
 	style := lipgloss.NewStyle().Padding(1).BorderStyle(lipgloss.NormalBorder()).BorderForeground(lipgloss.Color(borderColor)).Width(m.width - 2).Height(m.height - 2)
 
-	prompt := color.New(color.FgHiWhite, color.Bold).Sprintf("🧐 Are you sure you want to reject changes to ") +
+	prompt := color.New(color.Bold).Sprintf("🧐 Are you sure you want to reject changes to ") +
 		color.New(color.Bold, color.FgHiMagenta).Sprint(m.selectionInfo.currentPath) + "?\n\n" +
 		color.New(color.FgHiCyan, color.Bold).Sprintf("(y)es | (n)o")
 
