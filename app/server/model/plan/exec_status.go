@@ -13,28 +13,26 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
-func ExecStatusShouldContinue(client *openai.Client, config shared.TaskRoleConfig, message string, ctx context.Context) (bool, error) {
+func ExecStatusShouldContinue(client *openai.Client, config shared.TaskRoleConfig, prompt, message string, ctx context.Context) (bool, error) {
 	log.Println("Checking if plan should continue based on exec status")
 
 	// First try to determine if the plan should continue based on the last paragraph without calling the model
 	paragraphs := strings.Split(message, "\n\n")
-	lastParagraphLower := strings.ToLower(paragraphs[len(paragraphs)-1])
+	lastParagraph := paragraphs[len(paragraphs)-1]
+	lastParagraphLower := strings.ToLower(lastParagraph)
 
 	// log.Printf("Last paragraph: %s\n", lastParagraphLower)
 
 	if lastParagraphLower != "" {
 		if strings.Contains(lastParagraphLower, "all tasks have been completed") ||
 			strings.Contains(lastParagraphLower, "plan cannot be continued") {
-
 			log.Println("Plan cannot be continued based on last paragraph")
-
 			return false, nil
 		}
 
-		if strings.Index(lastParagraphLower, "next,") < 3 {
-
+		nextIdx := strings.Index(lastParagraph, "Next, ")
+		if nextIdx >= 0 {
 			log.Println("Plan can be continued based on last paragraph")
-
 			return true, nil
 		}
 	}
@@ -42,7 +40,7 @@ func ExecStatusShouldContinue(client *openai.Client, config shared.TaskRoleConfi
 	messages := []openai.ChatCompletionMessage{
 		{
 			Role:    openai.ChatMessageRoleSystem,
-			Content: prompts.GetExecStatusShouldContinue(message), // Ensure this function is correctly defined in your package
+			Content: prompts.GetExecStatusShouldContinue(prompt, message), // Ensure this function is correctly defined in your package
 		},
 	}
 
@@ -82,7 +80,8 @@ func ExecStatusShouldContinue(client *openai.Client, config shared.TaskRoleConfi
 
 	var strRes string
 	var res struct {
-		ShouldContinue bool `json:"shouldContinue"`
+		Reasoning      string `json:"reasoning"`
+		ShouldContinue bool   `json:"shouldContinue"`
 	}
 
 	for _, choice := range resp.Choices {
@@ -113,6 +112,8 @@ func ExecStatusShouldContinue(client *openai.Client, config shared.TaskRoleConfi
 		// Instead of erroring out, just don't continue the plan
 		return false, nil
 	}
+
+	log.Printf("Plan exec status response: %v\n", res)
 
 	return res.ShouldContinue, nil
 }

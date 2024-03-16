@@ -243,7 +243,7 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 					}()
 
 					go func() {
-						shouldContinue, err = ExecStatusShouldContinue(client, settings.ModelSet.ExecStatus, assistantMsg.Message, active.Ctx)
+						shouldContinue, err = ExecStatusShouldContinue(client, settings.ModelSet.ExecStatus, promptMessage.Content, assistantMsg.Message, active.Ctx)
 						if err != nil {
 							state.onError(fmt.Errorf("failed to get exec status: %v", err), false, assistantMsg.Id, convoCommitMsg)
 							errCh <- err

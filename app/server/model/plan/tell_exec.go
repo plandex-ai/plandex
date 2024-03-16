@@ -265,6 +265,7 @@ func execTellPlan(
 			}
 		}
 
+		state.promptMessage = promptMessage
 		state.messages = append(state.messages, *promptMessage)
 	} else {
 		log.Println("Missing file response:", missingFileResponse, "setting replyParser")

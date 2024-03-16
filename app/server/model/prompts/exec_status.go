@@ -9,20 +9,26 @@ const SysExecStatusShouldContinue = `You are tasked with evaluating a response g
 
 Your goal is to determine whether the plan created by AI 1 should automatically continue or if it is considered complete. To do this, you need to analyze the latest message of the plan from AI 1 carefully and decide based on the following criteria:
 
-Assess whether AI 1 has indicated that all tasks and subtasks within the plan have been completed.
+Assess whether the user has given the AI a task to do or whether the user is just chatting with the AI. If the user is just chatting, the plan should not continue. If the AI is not clearly working on a task in its response, the plan should not continue.
+
+Assess whether AI 1 has indicated that all tasks and subtasks within the plan have been completed. If so, the plan should not continue.
 
 Assess whether AI 1 has concluded with a statement that indicates either the user needs to take specific actions before the plan can proceed, or that the plan can't automatically continue for any other reason. If so, the plan should not continue.
 
 If AI 1 has outlined a clear next step necessary to finish the plan but has not executed it, the plan should continue.
 
-You *must* call the shouldAutoContinue function with a JSON object containing the key 'shouldContinue'. 
+You *must* call the shouldAutoContinue function with a JSON object containing the keys 'reasoning' and 'shouldContinue'. 
 
-Set 'shouldContinue' to true if the plan should automatically continue based on the outlined criteria or false otherwise.
+Set 'reasoning' to a string briefly and succinctly explaining your reasoning for why the plan should or should not continue, based on your instructions above.
+
+Set 'shouldContinue' to true if the plan should automatically continue based on your instructions above, or false otherwise.
 
 You must always call 'shouldAutoContinue'. Don't call any other function.`
 
-func GetExecStatusShouldContinue(message string) string {
-	return SysExecStatusShouldContinue + "\n\n**Here is the latest message of the plan from AI 1:**\n" + message
+func GetExecStatusShouldContinue(userPrompt, message string) string {
+	return SysExecStatusShouldContinue +
+		"\n\n**Here is the user's prompt:**\n" + userPrompt + "\n\n" +
+		"\n\n**Here is the latest message of the plan from AI 1:**\n" + message
 }
 
 var ShouldAutoContinueFn = openai.FunctionDefinition{
@@ -30,10 +36,13 @@ var ShouldAutoContinueFn = openai.FunctionDefinition{
 	Parameters: &jsonschema.Definition{
 		Type: jsonschema.Object,
 		Properties: map[string]jsonschema.Definition{
+			"reasoning": {
+				Type: jsonschema.String,
+			},
 			"shouldContinue": {
 				Type: jsonschema.Boolean,
 			},
 		},
-		Required: []string{"shouldContinue"},
+		Required: []string{"reasoning", "shouldContinue"},
 	},
 }
