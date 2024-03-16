@@ -48,6 +48,11 @@
   </a>  
 </p>
 
+<p align="center">
+  <img src="demo.gif" alt="Plandex CLI demo GIF">
+</p>
+
+
 ## 🌟  Build large features and entire projects with AI.
 
 🔮  Plandex is an open source, terminal-based AI programming engine with long-running agents, context management, versioning, branches, diff review, a protected sandbox for changes, and automatic file updates.
