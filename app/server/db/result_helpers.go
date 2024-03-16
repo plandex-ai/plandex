@@ -109,6 +109,8 @@ func GetCurrentPlanState(params CurrentPlanStateParams) (*shared.CurrentPlanStat
 				return
 			}
 			contexts = res
+
+			log.Println("Got contexts:", len(contexts))
 		} else {
 			contexts = params.Contexts
 		}
@@ -144,10 +146,10 @@ func GetCurrentPlanState(params CurrentPlanStateParams) (*shared.CurrentPlanStat
 
 	pendingContextsByPath := map[string]*shared.Context{}
 	for path, context := range contextsByPath {
-		if pendingResultPaths[path] {
-			pendingContextsByPath[path] = context.ToApi()
-		}
+		pendingContextsByPath[path] = context.ToApi()
 	}
+
+	log.Println("Pending contexts by path:", len(pendingContextsByPath))
 
 	planState := &shared.CurrentPlanState{
 		PlanResult:               planResult,

@@ -135,7 +135,7 @@ func (r *ReplyParser) AddChunk(chunk string, addToTotal bool) {
 			r.maybeFilePath = ""
 			r.currentFileLines = []string{}
 
-			r.fileDescriptions = append(r.fileDescriptions, strings.Join(r.currentDescriptionLines[0:len(r.currentDescriptionLines)-2], "\n"))
+			r.fileDescriptions = append(r.fileDescriptions, strings.Join(r.currentDescriptionLines[0:len(r.currentDescriptionLines)-4], "\n"))
 			r.currentDescriptionLines = []string{""}
 			r.currentDescriptionLineIdx = 0
 

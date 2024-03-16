@@ -62,8 +62,8 @@ func (m streamUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if apiErr != nil {
 				log.Println("stop plan api error:", apiErr)
 				m.apiErr = apiErr
-				return &m, nil
 			}
+			return m, tea.Quit
 
 		case bubbleKey.Matches(msg, m.keymap.scrollDown) && !m.promptingMissingFile:
 			m.scrollDown()

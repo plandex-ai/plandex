@@ -78,6 +78,11 @@ func (planState *CurrentPlanState) GetFilesBeforeReplacement(
 				continue
 			} else if updated == "" {
 				context := planState.ContextsByPath[path]
+
+				if context == nil {
+					log.Printf("No context for path: %s\n", path)
+				}
+
 				updated = context.Body
 				shas[path] = context.Sha
 			}

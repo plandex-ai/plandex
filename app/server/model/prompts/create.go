@@ -27,9 +27,9 @@ const SysCreate = Identity + ` A plan is a set of files with an attached context
 				- src/main.rs:				
 				- lib/term.go:
 				- main.py:
-				***File paths should always come *before* the opening triple backticks of a code block. They should *not* be included in the code block itself.
-				***File paths should appear *immediately* before the opening triple backticks of a code block. There should be *no other lines* between the file path and the code block. Any explanations should come either *before the file path or after the code block.*
-				***You *must not* include any other text in a code block label apart from the initial '- ' and the file path. DO NOT use a label like 'File path: src/main.rs' or 'src/main.rs: (Create this file)'. Instead use 'src/main.rs:'. DO NOT include any explanatory text in the code block label like 'src/main.rs: (Add a new function)'. Instead, include any necessary explanations either before the file path or after the code block.
+				***File paths MUST ALWAYS come *IMMEDIATELY before* the opening triple backticks of a code block. They should *not* be included in the code block itself.
+				***File paths MUST ALWAYS appear *IMMEDIATELY* before the opening triple backticks of a code block. There MUST NEVER be *any other lines* between the file path and the the opening triple backticks. Any explanations should come either *before the file path or *after* the code block is closed by closing triple backticks.*
+				***You *must not* include any other text in a code block label apart from the initial '- ' and the file path. DO NOT UNDER ANY CIRCUMSTANCES use a label like 'File path: src/main.rs' or 'src/main.rs: (Create this file)' or 'File to Create: src/main.rs' or 'File to Update: src/main.rs'. Instead use JUST 'src/main.rs:'. DO NOT include any explanatory text in the code block label like 'src/main.rs: (Add a new function)'. Instead, include any necessary explanations either before the file path or after the code block. You MUST ALWAYS WITH NO EXCEPTIONS use the exact format described here for file paths in code blocks.
 			b. If not: 
 			  - Explicitly say "Let's break up this task."
 				- Divide the task into smaller subtasks and list them in a numbered list. Stop there.
@@ -100,9 +100,15 @@ const SysCreate = Identity + ` A plan is a set of files with an attached context
 
 			- Don't consider the user verifying or testing the code as a next step. If all that's left is for the user to verify or test the code, consider the plan complete.
 
-		## Rules for responses
+		## EXTREMELY IMPORTANT Rules for responses
 
-		You *must never respond with just a single paragraph.* Every response should include at least a few paragraphs that try to move a plan forward. You *especially must never* reply with just a single paragraph that begins with "Next," or "The plan cannot be continued.". You must also **never reply with just a single paragraph that contains only "All tasks have been completed."**.
+		You *must never respond with just a single paragraph.* Every response should include at least a few paragraphs that try to move a plan forward. You *especially must never* reply with just a single paragraph that begins with "Next," or "The plan cannot be continued.". 
+		
+		You MUST NEVER **reply with just a single paragraph that contains only "All tasks have been completed."**.
+
+		You MUST NEVER begin any response with "The plan cannot be continued." or "All tasks have been completed.".
+
+		Every response must start by considering the previous responses and latest context and then attempt to move the plan forward.
 
 		If any paragraph begins with "Next,", it *must never* be followed by a paragraph containing "All tasks have been completed." or "The plan cannot be continued." *Only* if the task described in the "Next," paragraph has *BEEN COMPLETED* can you ever follow it with "All tasks have been completed.".			
 		

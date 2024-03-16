@@ -56,18 +56,21 @@ var listChangesPrompt = `
   
   'summary' examples: 
     - 'Update loop that aggregates the results to iterate 10 times instead of 5 and log the value of someVar.'
-    - 'Change the value of someVar to 10.'
     - 'Update the Org model to include StripeCustomerId and StripeSubscriptionId fields.'
     - 'Add function ExecQuery to execute a query.'
 
   The 'section' property is a description of what section of code from the original file will be replaced.
     
-  Refer to sections of code using line numbers, how the section begins, and how the section ends. It must be extremely clear which line(s) of code from the original file will be replaced.
+  Refer to sections of code with how the section begins and how the section ends. It must be extremely clear which line(s) of code from the original file will be replaced. Include at LEAST 3-5 lines each for describing where the code begins and ends and more if the exact location of where the section begins or ends is ambiguous with only 3-5 lines. Never describe a section as beginning or ending with only braces, brackets, parentheses, or newlines. Include as many lines as necessary to be sure that the section start and end locations include some code that does something. Even if you have to output a large number of lines to follow this rule, do so.
+	
+	Sections of code begin and end with *entire* lines. Never begin or end a section in the middle of a line.
+
+	Abbreviate long lines of code with '...'. Include as many characters/words as needed to clearly disambiguate a line and no more.
 
   'section' examples:
   ---
-  Begins line 10 of the original file with 'for i := 0; i < 10; i++ {...'  
-  Ends on line 15 of the original file with '}'
+  Begins: 'for i := 0; i < 10; i++ {...'  
+  Ends: '    }\n  }\n}'
   ---
 
   The 'old' property is an object with two properties: 'startLine' and 'endLine'.
@@ -76,22 +79,24 @@ var listChangesPrompt = `
 
   The 'new' property is a string that represents the new code that will replace the old code. The new code must be valid and consistent with the intention of the plan. If the the proposed update is to remove code, the 'new' property should be an empty string. 
   
-  If the proposed update includes references to the original code in comments like "// rest of the function..." or "# existing init code...", or "// rest of the main function..." or "// rest of your function..." or any other reference to the original code, you *MUST* ensure that the comment making the reference is *NOT* included in the 'new' property. If the reference comment is included in the 'new' property the resulting code obviously won't work, so NEVER include the reference comment in the 'new' property. Instead include the actual code that the reference is pointing to so that the change results in the exact code that is intended.
+  If the proposed update includes references to the original code in comments like "// rest of the function..." or "# existing init code...", or "// rest of the main function..." or "// rest of your function..." or **any other reference to the original code,** you *MUST* ensure that the comment making the reference is *NOT* included in the 'new' property. Instead, include the **exact code** from the original file that the comment is referencing. Do not be overly strict in identifying references. If there is a comment that seems like it could plausibly be a reference and there is code in the original file that could plausibly be the code being referenced, then treat that as a reference and handle it accordingly by including the code from the original file in the 'new' property instead of the comment. YOU MUST NOT MISS ANY REFERENCES.
 
   Example function call with all keys:
   ---
   listChanges([{
-    summary: "Insert function ExecQuery after GetResults function.",
-    section' "Begins line 10 of the original file with 'for i := 0; i < 10; i++ {...'\nEnds on line 15 of the original file with '}'",
+    summary: "Insert function ExecQuery after GetResults function in loop body.",
+    section' "Begins: 'for i := 0; i < 10; i++ {...'\nEnds with '    }\n  }\n}'",
     old: {
       startLine: 5,
-      endLine: 5,
+      endLine: 10,
     },
-    new: "execQuery()\nreturn",
+    new: "      execQuery()\n    }\n  }\n}",
   }])
   ---
 
   Apply changes intelligently in order to avoid syntax errors, breaking code, or removing code from the original file that should not be removed. Consider the reason behind the update and make sure the result is consistent with the intention of the plan.
+
+	Pay EXTREMELY close attention to opening and closing brackets, parentheses, and braces. Never leave them unbalanced when the changes are applied.
  
   [END YOUR INSTRUCTIONS]
 `
