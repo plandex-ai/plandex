@@ -42,8 +42,8 @@
   <a href="DEVELOPMENT.md">
     <b>Development</b>
   </a>
-  ·
-  <!-- <a href="https://discord.com/channels/1214825831973785600/1214825831973785603">
+  <!-- ·
+  <a href="https://discord.com/channels/1214825831973785600/1214825831973785603">
     <b>Discord</b>
   </a>   -->
 </p>
