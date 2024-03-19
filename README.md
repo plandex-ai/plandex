@@ -162,11 +162,9 @@ Plandex Cloud accounts are free for now. In the future, they will cost somewhere
 
 - Due to the reasoning limitations of LLMs, automatically applied file updates also aren't perfect. While these can be improved over time with better prompting strategies (contributions welcome) and better models, be prepared for occasional updates that aren't quite right. Use the `plandex changes` command to review pending updates in a TUI. If a file update has mistakes, make those changes yourself with copy-and-paste and reject the file in the changes TUI.
 
-- The more direction and detail you provide, the better the results will be. Working with Plandex often involves giving it a prompt, seeing that the results aren't quite right, then using `plandex rewind` to go back and iterate on the prompt or add context before trying again. Branches are also useful for trying different approaches.
+- The more direction and detail you provide, the better the results will be. Working with Plandex often involves giving it a prompt, seeing that the results are a bit off, then using `plandex rewind` to go back and iterate on the prompt or add context before trying again. Branches are also useful for trying different approaches.
 
-- Plandex can sometimes be a bit "lazy" on large tasks. It will try to skip parts of a task or say the task is complete when it isn't yet. Rather than expending a lot of effort trying to get Plandex *not* to be lazy, it's usually better to continue the plan with another prompt that fills in the gaps.
-
-- While it can be tempting to just dump your entire project into context if it fits under the token limit, you will tend to see better results (and pay less) by being more selective about what's loaded into context. 
+- While it can be tempting to just dump your entire project into context if it fits under the token limit, with current models you will tend to see better results (and pay less) by being more selective about what's loaded into context.
 
 ## Security  🔐
 
