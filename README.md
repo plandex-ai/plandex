@@ -200,9 +200,7 @@ Speaking of feedback, feel free to give yours, ask questions, report a bug, or j
 
 ## Contributors  👥
 
-🙌  Contributors are welcomed, celebrated, and high fived a lot.
-
-⭐️  Please star, fork, explore, and contribute to Plandex.
+⭐️  Please star, fork, explore, and contribute to Plandex. There's a lot of work to do and so much that can be improved.
 
 Work on tests, evals, prompts, and bug fixes is especially appreciated.
 
@@ -224,15 +222,3 @@ Work on tests, evals, prompts, and bug fixes is especially appreciated.
 Hi, I'm Dane. I've been building and launching software products for 17 years. I went through YCombinator in winter 2018 with my devops security company, [EnvKey](https://envkey.com), which I continue to run today. I'm fascinated by LLMs and their potential to transform the practice of software development.
 
 I live with my wife and 4 year old daughter on the SF peninsula in California. I grew up in the Finger Lakes region of upstate New York. I like reading fiction, listening to podcasts, fitness, and surfing. I started Brazilian Jiu-Jitsu recently and am pretty absorbed with that these days as well.
-
-## Possible co-founder?  😎
-
-I'm looking for a technical co-founder or two with experience in some combination of Golang|Devops|TypeScript|React|AI/ML to help me get Plandex off the ground as an open source project, a product, and a fun, WFH-friendly company. If you're interested, please reach out (dane@plandex.ai) or jump in and start contributing.
-
-## Possible employee?  👩‍💻
-
-While I'm not currently hiring for Plandex, I hope to in the future. If you're an experienced Golang or TypeScript engineer and are interested in working remotely on Plandex for a salary at some point with a group of smart, nice, and fun people, please reach out (dane@plandex.ai) or jump in and start contributing.
-
-## Possible investor?  💰
-
-I'd love for Plandex's users and contributors to own a significant share of the cap table. Please reach out (dane@plandex.ai) if you're an angel investor and are interested in investing.
