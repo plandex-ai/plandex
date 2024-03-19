@@ -74,12 +74,14 @@ curl -sL https://plandex.ai/install.sh | bash
 ```
 
 <details>
- <summary><b>Manual install</b><br><br></summary>
+ <summary><b>Manual install</b></summary>
+ <br>
 Grab the appropriate binary for your platform from the latest <a href="https://github.com/plandex-ai/plandex/releases">release</a> and put it somewhere in your <code>PATH</code>.
 </details>
 
 <details>
-<summary><b>Build from source</b><br><br></summary>
+<summary><b>Build from source</b></summary>
+<br>
 
 <pre><code>git clone https://github.com/plandex-ai/plandex.git
 cd plandex/app/cli
@@ -89,7 +91,8 @@ mv plandex /usr/local/bin # adapt as needed for your system
 </details>
 
 <details>
-<summary><b>Windows</b><br><br></summary>
+<summary><b>Windows</b></summary>
+<br>
 Windows is supported via <a href="https://gitforwindows.org">Git bash</a> or <a href="https://learn.microsoft.com/en-us/windows/wsl/about">WSL</a>.
 </details>
 
