@@ -73,11 +73,13 @@
 curl -sL https://plandex.ai/install.sh | bash
 ```
 
-### Manual install
-
+<details>
+ <summary><bold>Manual install</bold></summary>
 Grab the appropriate binary for your platform from the latest [release](https://github.com/plandex-ai/plandex/releases) and put it somewhere in your `PATH`.
+</details>
 
-### Build from source
+<details>
+<summary><b>Build from source</b></summary>
 
 ```bash
 git clone https://github.com/plandex-ai/plandex.git
@@ -85,10 +87,12 @@ cd plandex/app/cli
 go build -ldflags "-X plandex/version.Version=$(cat version.txt)"
 mv plandex /usr/local/bin # adapt as needed for your system
 ```
+</details>
 
-### Windows
-
+<details>
+<summary><b>Windows</b></summary>
 Windows is supported via [Git bash](https://gitforwindows.org) or [WSL](https://learn.microsoft.com/en-us/windows/wsl/about).
+</details>
 
 ## Get started  🚀
 
@@ -135,12 +139,6 @@ plandex [command] --help
 🔀  Run tasks in the background or work on multiple tasks in parallel.<br>
 🎛️  Try different models and model settings, then compare results.<br>
 
-## Limitations  ⚠️
-
-- Plandex can provide a huge boost to your productivity, but as with any other AI tool, you shouldn't expect perfect results. Always review a plan carefully before applying changes, especially if security is involved. Plandex is designed to get you 80-90% of the way there rather than 100%.
-
-- Due to the reasoning limitations of LLMs, automatically applied file updates also aren't perfect. While these can be improved over time with better prompting strategies (contributions welcome) and better models, be prepared for occasional updates that aren't quite right. Use the `plandex changes` command to review pending updates in a TUI. If a file update has mistakes, make those changes yourself with copy-and-paste and reject the file in the changes TUI.
-
 ## Plandex Cloud  ☁️
 
 Plandex Cloud is the easiest and most reliable way to use Plandex. You'll be prompted to start an anonymous trial (no email required) when you create your first plan with `plandex new`. Trial accounts are limited to 10 plans and 10 AI model replies per plan. You can upgrade to an unlimited account with your name and email.
@@ -150,6 +148,18 @@ Plandex Cloud accounts are free for now. In the future, they will cost somewhere
 ## Self-hosting  🏠
 
 [Read about self-hosting Plandex here.](./HOSTING.md)
+
+## Limitations and guidance ⚠️
+
+- Plandex can provide a significant boost to your productivity, but as with any other AI tool, you shouldn't expect perfect results. Always review a plan carefully before applying changes, especially if security is involved. Plandex is designed to get you 80-90% of the way there rather than 100%.
+
+- Due to the reasoning limitations of LLMs, automatically applied file updates also aren't perfect. While these can be improved over time with better prompting strategies (contributions welcome) and better models, be prepared for occasional updates that aren't quite right. Use the `plandex changes` command to review pending updates in a TUI. If a file update has mistakes, make those changes yourself with copy-and-paste and reject the file in the changes TUI.
+
+- The more direction and detail you provide, the better the results will be. Working with Plandex often involves giving it a prompt, seeing that the results aren't quite right, then using `plandex rewind` to go back and iterate on the prompt or add context before trying again. Branches are also useful for trying different approaches.
+
+- Plandex can sometimes be a bit "lazy" on large tasks. It will try to skip parts of a task or say the task is complete when it isn't yet. Rather than expending a lot of effort trying to get Plandex *not* to be lazy, it's usually better to continue the plan with another prompt that fills in the gaps.
+
+- While it can be tempting to just dump your entire project into context if it fits under the token limit, you will tend to see better results (and pay less) by being more selective about what's loaded into context. 
 
 ## Security  🔐
 
