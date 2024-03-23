@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="plandex-logo-dark-bg.png" alt="Plandex Logo" width="400" />
+  <img src="plandex-logo-dark-bg.png" alt="Plandex Logo" width="600" />
 </p>
 
-<p align="center"><strong>🔮 A terminal-based AI programming engine for complex tasks.</strong></p>
+<p align="center">🔮 A terminal-based AI programming engine for complex tasks.</p>
 
 <p align="center">
   <!-- Badges -->
