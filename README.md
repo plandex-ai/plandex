@@ -1,10 +1,10 @@
 <p align="center">
-  <img src="plandex-logo-new.png" alt="Plandex Logo" width="180" />
+  <img src="plandex-logo-adaptive.svg" alt="Plandex Logo" width="1063" />
 </p>
 
 <h1 align="center">Plandex</h1>
 
-<p align="center"><i>A terminal-based AI programming engine for complex tasks.</i></p>
+<p align="center"><strong>🔮 A terminal-based AI programming engine for complex tasks.</strong></p>
 
 <p align="center">
   <!-- Badges -->
