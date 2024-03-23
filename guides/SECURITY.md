@@ -18,4 +18,4 @@ It's also up to you to manage your API keys securely. Try to avoid storing them 
 - [EnvKey](https://envkey.com) for configuration and secrets management (only used in development so far).
 - Github for code storage.
 - OpenAI (called on your behalf) for AI models (other model providers will be added in the future).
-- See the [privacy overview](./PRIVACY.md) for more details on third parties and data retention.
+- See the [privacy overview](./guides/PRIVACY.md) for more details on third parties and data retention.

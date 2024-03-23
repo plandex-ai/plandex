@@ -1,9 +1,9 @@
 <h1 align="center">
  <a href="https://plandex.ai">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="plandex-logo-dark.png"/>
-    <source media="(prefers-color-scheme: light)" srcset="plandex-logo-light.png"/>
-    <img width="500" src="plandex-logo-dark-bg.png"/>
+    <source media="(prefers-color-scheme: dark)" srcset="images/plandex-logo-dark.png"/>
+    <source media="(prefers-color-scheme: light)" srcset="images/plandex-logo-light.png"/>
+    <img width="500" src="images/plandex-logo-dark-bg.png"/>
   </picture>
  </a>
  <br />
@@ -125,7 +125,7 @@ After any plandex command is run, commands that could make sense to run next wil
 
 ## Usage  🛠️
 
-[Here's a quick overview of the commands and functionality.](./USAGE.md)
+[Here's a quick overview of the commands and functionality.](./guides/USAGE.md)
 
 ## Help  ℹ️
 
@@ -162,7 +162,7 @@ Plandex Cloud accounts are free for now. In the future, they will cost somewhere
 
 ## Self-hosting  🏠
 
-[Read about self-hosting Plandex here.](./HOSTING.md)
+[Read about self-hosting Plandex here.](./guides/HOSTING.md)
 
 ## Limitations and guidance ⚠️
 
@@ -176,11 +176,11 @@ Plandex Cloud accounts are free for now. In the future, they will cost somewhere
 
 ## Security  🔐
 
-Plandex Cloud follows best practices for network and data security. And whether cloud or self-hosted, Plandex protects model provider API keys (like your OpenAI API key). [Read more here.](./SECURITY.md)
+Plandex Cloud follows best practices for network and data security. And whether cloud or self-hosted, Plandex protects model provider API keys (like your OpenAI API key). [Read more here.](./guides/SECURITY.md)
 
 ## Privacy and data retention  🛡️
 
-[Read about Plandex Cloud's privacy and data retention policies here.](./PRIVACY.md)
+[Read about Plandex Cloud's privacy and data retention policies here.](./guides/PRIVACY.md)
 
 ## Roadmap  🗺️
 
