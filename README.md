@@ -9,7 +9,8 @@
 <p align="center">
   <!-- Badges -->
 <a href="https://github.com/plandex-ai/plandex/pulls"><img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg" alt="PRs Welcome" /></a> 
-<a href="https://github.com/plandex-ai/plandex/releases"><img src="https://img.shields.io/github/v/release/plandex-ai/plandex" alt="Release" /></a>
+<a href="https://github.com/plandex-ai/plandex/releases?q=cli"><img src="https://img.shields.io/github/v/release/plandex-ai/plandex?filter=cli*" alt="Release" /></a>
+<a href="https://github.com/plandex-ai/plandex/releases?q=server"><img src="https://img.shields.io/github/v/release/plandex-ai/plandex?filter=server*" alt="Release" /></a>
 
   <!-- <a href="https://github.com/your_username/your_project/issues">
     <img src="https://img.shields.io/github/issues-closed/your_username/your_project.svg" alt="Issues Closed" />
