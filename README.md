@@ -1,6 +1,6 @@
-![Plandex Logo](plandex-logo-adaptive.svg)
-
-<h1 align="center">Plandex</h1>
+<p align="center">
+  <img src="plandex-logo-dark-bg" alt="Plandex Logo" width="800" />
+</p>
 
 <p align="center"><strong>🔮 A terminal-based AI programming engine for complex tasks.</strong></p>
 
