@@ -8,12 +8,15 @@ import (
 	"plandex-server/db"
 	"plandex-server/model"
 	"plandex-server/types"
+	"strings"
 	"time"
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/plandex/plandex/shared"
 	"github.com/sashabaranov/go-openai"
 )
+
+const MaxBuildStreamErrorRetries = 3 // uses naive exponential backoff so be careful about setting this too high
 
 type activeBuildStreamState struct {
 	client        *openai.Client
@@ -33,8 +36,8 @@ type activeBuildStreamFileState struct {
 	build            *db.PlanBuild
 	currentPlanState *shared.CurrentPlanState
 	activeBuild      *types.ActiveBuild
-	buffer           string
 	currentState     string
+	numRetry         int
 }
 
 func (fileState *activeBuildStreamFileState) listenStream(stream *openai.ChatCompletionStream) {
@@ -61,7 +64,7 @@ func (fileState *activeBuildStreamFileState) listenStream(stream *openai.ChatCom
 			return
 		case <-timer.C:
 			// Timer triggered because no new chunk was received in time
-			fileState.onBuildFileError(fmt.Errorf("stream timeout due to inactivity for file '%s'", filePath))
+			fileState.retryOrError(fmt.Errorf("stream timeout due to inactivity for file '%s'", filePath))
 			return
 		default:
 			response, err := stream.Recv()
@@ -77,15 +80,17 @@ func (fileState *activeBuildStreamFileState) listenStream(stream *openai.ChatCom
 
 				if err == context.Canceled {
 					log.Printf("File %s: Stream canceled\n", filePath)
+					log.Println("current buffer:")
+					log.Println(fileState.activeBuild.Buffer)
 					return
 				}
 
-				fileState.onBuildFileError(fmt.Errorf("stream error for file '%s': %v", filePath, err))
+				fileState.retryOrError(fmt.Errorf("stream error for file '%s': %v", filePath, err))
 				return
 			}
 
 			if len(response.Choices) == 0 {
-				fileState.onBuildFileError(fmt.Errorf("stream error: no choices"))
+				fileState.retryOrError(fmt.Errorf("stream error: no choices"))
 				return
 			}
 
@@ -95,6 +100,14 @@ func (fileState *activeBuildStreamFileState) listenStream(stream *openai.ChatCom
 
 			if len(delta.ToolCalls) > 0 {
 				content = delta.ToolCalls[0].Function.Arguments
+
+				trimmed := strings.TrimSpace(content)
+				if trimmed == "{%invalidjson%}" || trimmed == "``(no output)``````" {
+					log.Println("File", filePath+":", "%invalidjson%} token in streamed chunk")
+					fileState.retryOrError(fmt.Errorf("invalid JSON in streamed chunk for file '%s'", filePath))
+
+					return
+				}
 
 				buildInfo := &shared.BuildInfo{
 					Path:      filePath,
@@ -108,11 +121,19 @@ func (fileState *activeBuildStreamFileState) listenStream(stream *openai.ChatCom
 					BuildInfo: buildInfo,
 				})
 
-				fileState.buffer += content
+				fileState.activeBuild.Buffer += content
+				fileState.activeBuild.BufferTokens++
+
+				// After a reasonable threshhold, if buffer has significantly more tokens than original file + proposed changes, something is wrong
+				if fileState.activeBuild.BufferTokens > 500 && fileState.activeBuild.BufferTokens > int(float64(fileState.activeBuild.CurrentFileTokens+fileState.activeBuild.FileContentTokens)*1.5) {
+					fileState.retryOrError(fmt.Errorf("stream buffer tokens too high for file '%s'", filePath))
+					return
+				}
 			}
 
 			var streamed types.StreamedChanges
-			err = json.Unmarshal([]byte(fileState.buffer), &streamed)
+			err = json.Unmarshal([]byte(fileState.activeBuild.Buffer), &streamed)
+
 			if err == nil {
 				log.Printf("File %s: Parsed streamed replacements\n", filePath)
 				spew.Dump(streamed)
@@ -138,6 +159,7 @@ func (fileState *activeBuildStreamFileState) listenStream(stream *openai.ChatCom
 						}
 					}
 
+					// no retry here as this should never happen
 					fileState.onBuildFileError(fmt.Errorf("replacements failed for file '%s'", filePath))
 					return
 
@@ -160,10 +182,26 @@ func (fileState *activeBuildStreamFileState) listenStream(stream *openai.ChatCom
 				spew.Dump(response)
 				spew.Dump(fileState)
 
-				fileState.onBuildFileError(fmt.Errorf("stream chunk missing function call. Reason: %s, File: %s", choice.FinishReason, filePath))
+				fileState.retryOrError(fmt.Errorf("stream chunk missing function call. Reason: %s, File: %s", choice.FinishReason, filePath))
 				return
 			}
 		}
 	}
 
+}
+
+func (fileState *activeBuildStreamFileState) retryOrError(err error) {
+	if fileState.numRetry < MaxBuildStreamErrorRetries {
+		fileState.numRetry++
+		fileState.activeBuild.Buffer = ""
+		fileState.activeBuild.BufferTokens = 0
+		log.Printf("Retrying build file '%s' due to error: %v\n", fileState.filePath, err)
+
+		// Exponential backoff
+		time.Sleep(time.Duration(fileState.numRetry*fileState.numRetry) * time.Second)
+
+		fileState.buildFile()
+	} else {
+		fileState.onBuildFileError(err)
+	}
 }

@@ -160,10 +160,8 @@ func initConnectActive(auth *types.ServerAuth, planId, branch string, w http.Res
 					buildInfo.NumTokens = 0
 					buildInfo.Finished = true
 				} else {
-					tokens, err := shared.GetNumTokens(build.Buffer)
-					if err != nil {
-						return fmt.Errorf("error getting tokens for build with ReplyId %s: %v", build.ReplyId, err)
-					}
+					tokens := build.BufferTokens
+
 					buildInfo.Finished = false
 					buildInfo.NumTokens += tokens
 				}

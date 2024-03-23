@@ -18,7 +18,7 @@ import (
 	"github.com/plandex/plandex/shared"
 )
 
-func MustCheckOutdatedContext(cancelOpt, quiet bool, maybeContexts []*shared.Context) (contextOutdated, updated, canceled bool) {
+func MustCheckOutdatedContext(quiet bool, maybeContexts []*shared.Context) (contextOutdated, updated bool) {
 	if !quiet {
 		term.StartSpinner("🔬 Checking context...")
 	}
@@ -29,13 +29,15 @@ func MustCheckOutdatedContext(cancelOpt, quiet bool, maybeContexts []*shared.Con
 		term.OutputErrorAndExit("failed to check outdated context: %s", err)
 	}
 
-	term.StopSpinner()
+	if !quiet {
+		term.StopSpinner()
+	}
 
 	if len(outdatedRes.UpdatedContexts) == 0 {
 		if !quiet {
 			fmt.Println("✅ Context is up to date")
 		}
-		return false, false, false
+		return false, false
 	}
 	types := []string{}
 	if outdatedRes.NumFiles > 0 {
@@ -89,11 +91,7 @@ func MustCheckOutdatedContext(cancelOpt, quiet bool, maybeContexts []*shared.Con
 
 	var confirmed bool
 
-	if cancelOpt {
-		confirmed, canceled, err = term.ConfirmYesNoCancel("Update context now?")
-	} else {
-		confirmed, err = term.ConfirmYesNo("Update context now?")
-	}
+	confirmed, err = term.ConfirmYesNo("Update context now?")
 
 	if err != nil {
 		term.OutputErrorAndExit("failed to get user input: %s", err)
@@ -101,9 +99,11 @@ func MustCheckOutdatedContext(cancelOpt, quiet bool, maybeContexts []*shared.Con
 
 	if confirmed {
 		MustUpdateContext(maybeContexts)
+		return true, true
+	} else {
+		return true, false
 	}
 
-	return true, confirmed, canceled
 }
 
 func MustUpdateContext(maybeContexts []*shared.Context) {

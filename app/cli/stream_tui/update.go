@@ -310,6 +310,10 @@ func (m *streamUIModel) streamUpdate(msg *shared.StreamMessage) (tea.Model, tea.
 
 		m.updateViewportDimensions()
 
+		if m.processing && !m.finished {
+			return m, m.spinner.Tick
+		}
+
 	case shared.StreamMessageDescribing:
 		m.processing = true
 		return m, m.spinner.Tick
@@ -319,6 +323,7 @@ func (m *streamUIModel) streamUpdate(msg *shared.StreamMessage) (tea.Model, tea.
 		return m, tea.Quit
 
 	case shared.StreamMessageFinished:
+		// log.Println("stream finished")
 		m.finished = true
 		return m, tea.Quit
 

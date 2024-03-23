@@ -22,7 +22,7 @@ func Build(params ExecParams, buildBg bool) (bool, error) {
 		term.OutputErrorAndExit("Error getting context: %v", apiErr)
 	}
 
-	anyOutdated, didUpdate, _ := params.CheckOutdatedContext(false, contexts)
+	anyOutdated, didUpdate := params.CheckOutdatedContext(contexts)
 
 	if anyOutdated && !didUpdate {
 		term.StopSpinner()

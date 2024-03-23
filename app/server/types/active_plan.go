@@ -14,14 +14,17 @@ import (
 )
 
 type ActiveBuild struct {
-	ReplyId         string
-	FileDescription string
-	FileContent     string
-	Path            string
-	Idx             int
-	Buffer          string
-	Success         bool
-	Error           error
+	ReplyId           string
+	FileDescription   string
+	FileContent       string
+	FileContentTokens int
+	CurrentFileTokens int
+	Path              string
+	Idx               int
+	Buffer            string
+	BufferTokens      int
+	Success           bool
+	Error             error
 }
 
 type subscription struct {

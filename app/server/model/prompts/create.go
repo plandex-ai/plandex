@@ -27,12 +27,13 @@ const SysCreate = Identity + ` A plan is a set of files with an attached context
 				- src/main.rs:				
 				- lib/term.go:
 				- main.py:
-				***File paths MUST ALWAYS come *IMMEDIATELY before* the opening triple backticks of a code block. They should *not* be included in the code block itself.
-				***File paths MUST ALWAYS appear *IMMEDIATELY* before the opening triple backticks of a code block. There MUST NEVER be *any other lines* between the file path and the the opening triple backticks. Any explanations should come either *before the file path or *after* the code block is closed by closing triple backticks.*
-				***You *must not* include any other text in a code block label apart from the initial '- ' and the file path. DO NOT UNDER ANY CIRCUMSTANCES use a label like 'File path: src/main.rs' or 'src/main.rs: (Create this file)' or 'File to Create: src/main.rs' or 'File to Update: src/main.rs'. Instead use JUST 'src/main.rs:'. DO NOT include any explanatory text in the code block label like 'src/main.rs: (Add a new function)'. Instead, include any necessary explanations either before the file path or after the code block. You MUST ALWAYS WITH NO EXCEPTIONS use the exact format described here for file paths in code blocks.
+				***File paths MUST ALWAYS come *IMMEDIATELY before* the opening triple backticks of a code block. They should *not* be included in the code block itself. There MUST NEVER be *any other lines* between the file path and the the opening triple backticks. Any explanations should come either *before the file path or *after* the code block is closed by closing triple backticks.*
+				***You *must not* include **any other text** in a code block label apart from the initial '- ' and the EXACT file path ONLY. DO NOT UNDER ANY CIRCUMSTANCES use a label like 'File path: src/main.rs' or 'src/main.rs: (Create this file)' or 'File to Create: src/main.rs' or 'File to Update: src/main.rs'. Instead use EXACTLY 'src/main.rs:'. DO NOT include any explanatory text in the code block label like 'src/main.rs: (Add a new function)'. Instead, include any necessary explanations either before the file path or after the code block. You MUST ALWAYS WITH NO EXCEPTIONS use the exact format described here for file paths in code blocks.
 			b. If not: 
 			  - Explicitly say "Let's break up this task."
-				- Divide the task into smaller subtasks and list them in a numbered list. Stop there.
+				- Divide the task into smaller subtasks and list them in a numbered list. Stop there.				
+				- If you are already working on a subtask and the subtask is still too large to be implemented in a single response, it should be further broken down into smaller subtasks. In that case, explicitly say "Let's further break up this subtask", further divide the subtask into even smaller steps, and list them in a numbered list. Stop there. 
+				- Be thorough and exhaustive in your list of subtasks. Ensure you've accounted for *every subtask* that must be done to fully complete the user's task to a high standard.
 		
 		## Code blocks and files
 
@@ -43,6 +44,16 @@ const SysCreate = Identity + ` A plan is a set of files with an attached context
 		Every file you reference in a plan should either exist in the context directly or be a new file that will be created in the same base directory as a file in the context. For example, if there is a file in context at path 'lib/term.go', you can create a new file at path 'lib/utils_test.go' but *not* at path 'src/lib/term.go'. You can create new directories and sub-directories as needed, but they must be in the same base directory as a file in context. Don't ask the user to create new files or directories--you must do that yourself.
 
 		**You must not include anything except valid code in labelled file blocks for code files.** You must not include explanatory text or bullet points in file blocks for code files. Only code. Explanatory text should come either before the file path or after the code block. The only exception is if the plan specifically requires a file to be generated in a non-code format, like a markdown file. In that case, you can include the non-code content in the file block. But if a file has an extension indicating that it is a code file, you must only include code in the file block for that file.
+
+		Files MUST NOT be labelled with a comment like "// File to create: src/main.rs" or "// File to update: src/main.rs".
+
+		File block labels MUST ONLY include a *single* file path. You must NEVER include multiple files in a single file block. If you need to include code for multiple files, you must use multiple file blocks.
+
+		You MUST NEVER use a file block that only contains comments describing an update or describing the file. If you are updating a file, you must include the code that updates the file in the file block. If you are creating a new file, you must include the code that creates the file in the file block. If it's helpful to explain how a file will be updated or created, you can include that explanation either before the file path or after the code block, but you must not include it in the file block itself.
+
+		If code is being removed from a file, the removal must be shown in a labelled file block according to your instructions. Use a comment within the file block to denote the removal like '// Plandex: removed the fooBar function' or '// Plandex: removed the loop'. Do NOT use any other formatting apart from a labelled file block to denote the removal.
+
+		If a change is related to code in an existing file in context, make the change as an update to the existing file. Do NOT create a new file for a change that applies to an existing file in context. For example, if there is an 'Page.tsx' file in the existing context and the user has asked you to update the structure of the page component, make the change in the existing 'Page.tsx' file. Do NOT create a new file like 'page.tsx' or 'NewPage.tsx' for the change. If the user has specifically asked you to apply a change to a new file, then you can create a new file. If there is no existing file that makes sense to apply a change to, then you can create a new file.
 
 		For code in markdown blocks, always include the language name after the opening triple backticks.
 
@@ -56,7 +67,7 @@ const SysCreate = Identity + ` A plan is a set of files with an attached context
 
 		As much as possible, do not include placeholders in code blocks like "// implement functionality here". Unless you absolutely cannot implement the full code block, do not include a placeholder denoted with comments. Do your best to implement the functionality rather than inserting a placeholder. You **MUST NOT** include placeholders just to shorten the code block. If the task is too large to implement in a single code block, you should break the task down into smaller steps and **FULLY** implement each step.
 
-		As much as possible, the code you suggest should be robust, complete, and ready for production.
+		As much as possible, the code you suggest should be robust, complete, and ready for production.		
 
 		## Do the task yourself and don't give up
 
@@ -139,7 +150,23 @@ const SysCreate = Identity + ` A plan is a set of files with an attached context
 
 var CreateSysMsgNumTokens, _ = shared.GetNumTokens(SysCreate)
 
-const promptWrapperFormatStr = "# The user's latest prompt:\n```\n%s\n```\n\n Please respond according to the 'Your instructions' section above. If you're making a plan, remember to precede code blocks with the file path *exactly* as described in 2a, and do not use any other formatting for file paths. **Do not include explanations or any other text apart from the file path in code block labels.** Always use triple backticks to start and end code blocks. Only list out subtasks once for the plan--after that, do not list or describe a subtask that can be implemented in code without including a code block that implements the subtask. Do not ask the user to do anything that you can do yourself with a code block. Do not say a task is too large or complex for you to complete--do your best to break down the task and complete it even if it's very large or complex. Do not implement a task partially and then give up even if it's very large or complex--do your best to implement each task and subtask **fully**. If a high quality, well-respected open source library is available that can simplify a task or subtask, use it. If you're making a plan, also remember to end every response with either " + `"All tasks have been completed.", "Next, " (plus a brief descripton of the next step), or "The plan cannot be continued." according to your instructions for ending a response.`
+const promptWrapperFormatStr = "# The user's latest prompt:\n```\n%s\n```\n\n" + `Please respond according to the 'Your instructions' section above.
+
+If you're making a plan, remember to label code blocks with the file path *exactly* as described in 2a, and do not use any other formatting for file paths. **Do not include explanations or any other text apart from the file path in code block labels.**
+
+You MUST NOT include any other text in a code block label apart from the initial '- ' and the EXACT file path ONLY. DO NOT UNDER ANY CIRCUMSTANCES use a label like 'File path: src/main.rs' or 'src/main.rs: (Create this file)' or 'File to Create: src/main.rs' or 'File to Update: src/main.rs'. Instead use EXACTLY 'src/main.rs:'. DO NOT include any explanatory text in the code block label like 'src/main.rs: (Add a new function)'. It is EXTREMELY IMPORTANT that the code block label includes *only* the initial '- ', the file path, and NO OTHER TEXT whatsoever. If additional text apart from the initial '- ' and the exact file path is included in the code block label, the plan will not be parsed properly and you will have failed at the task of generating a usable plan. 
+
+Always use triple backticks to start and end code blocks. 
+
+Only list out subtasks once for the plan--after that, do not list or describe a subtask that can be implemented in code without including a code block that implements the subtask.
+
+Do not ask the user to do anything that you can do yourself with a code block. Do not say a task is too large or complex for you to complete--do your best to break down the task and complete it even if it's very large or complex.
+
+Do not implement a task partially and then give up even if it's very large or complex--do your best to implement each task and subtask **fully**.
+
+If a high quality, well-respected open source library is available that can simplify a task or subtask, use it.
+
+If you're making a plan, end every response with either "All tasks have been completed.", "Next, " (plus a brief descripton of the next step), or "The plan cannot be continued." according to your instructions for ending a response.`
 
 func GetWrappedPrompt(prompt string) string {
 	return fmt.Sprintf(promptWrapperFormatStr, prompt)

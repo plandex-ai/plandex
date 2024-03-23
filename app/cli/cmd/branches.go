@@ -53,12 +53,12 @@ func branches(cmd *cobra.Command, args []string) {
 	for i, b := range branches {
 		num := strconv.Itoa(i + 1)
 		if b.Name == lib.CurrentBranch {
-			num = color.New(color.Bold, color.FgGreen).Sprint(num)
+			num = color.New(color.Bold, term.ColorHiGreen).Sprint(num)
 		}
 
 		var name string
 		if b.Name == lib.CurrentBranch {
-			name = color.New(color.Bold, color.FgGreen).Sprint(b.Name) + " 👈"
+			name = color.New(color.Bold, term.ColorHiGreen).Sprint(b.Name) + " 👈"
 		} else {
 			name = b.Name
 		}

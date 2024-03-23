@@ -15,6 +15,8 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
+const MaxAutoContinueIterations = 30
+
 type activeTellStreamState struct {
 	client                *openai.Client
 	req                   *shared.TellPlanRequest
@@ -290,7 +292,7 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 					ap.CurrentReplyDoneCh = nil
 				})
 
-				if req.AutoContinue && shouldContinue {
+				if req.AutoContinue && shouldContinue && iteration < MaxAutoContinueIterations {
 					log.Println("Auto continue plan")
 					// continue plan
 					execTellPlan(client, plan, branch, auth, req, iteration+1, "", false)
@@ -480,12 +482,21 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 							modelContext:  state.modelContext,
 						}
 
+						fileContentTokens, err := shared.GetNumTokens(fileContents[i])
+
+						if err != nil {
+							log.Printf("Error getting num tokens for file %s: %v\n", file, err)
+							state.onError(fmt.Errorf("error getting num tokens for file %s: %v", file, err), true, "", "")
+							return
+						}
+
 						buildState.queueBuilds([]*types.ActiveBuild{{
-							ReplyId:         replyId,
-							Idx:             i,
-							FileDescription: fileDescriptions[i],
-							FileContent:     fileContents[i],
-							Path:            file,
+							ReplyId:           replyId,
+							Idx:               i,
+							FileDescription:   fileDescriptions[i],
+							FileContent:       fileContents[i],
+							FileContentTokens: fileContentTokens,
+							Path:              file,
 						}})
 					}
 					replyFiles = append(replyFiles, file)
@@ -505,17 +516,12 @@ func (state *activeTellStreamState) storeAssistantReply() (*db.ConvoMessage, str
 	branch := state.branch
 	auth := state.auth
 	replyNumTokens := state.replyNumTokens
-	iteration := state.iteration
 	replyId := state.replyId
 	convo := state.convo
-	missingFileResponse := state.missingFileResponse
 
 	num := len(convo) + 1
-	if iteration == 0 && missingFileResponse == "" {
-		num++
-	}
 
-	log.Printf("Storing assistant reply num %d\n", num)
+	log.Printf("storing assistant reply | len(convo) %d | num %d\n", len(convo), num)
 
 	assistantMsg := db.ConvoMessage{
 		Id:      replyId,

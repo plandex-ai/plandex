@@ -51,6 +51,9 @@ func PrintCmdsWithColors(prefix string, colors []color.Attribute, cmds ...string
 }
 
 func printCmds(w io.Writer, prefix string, colors []color.Attribute, cmds ...string) {
+	if os.Getenv("PLANDEX_DISABLE_SUGGESTIONS") != "" {
+		return
+	}
 	for _, cmd := range cmds {
 		config, ok := CmdDesc[cmd]
 		if !ok {

@@ -190,6 +190,12 @@ func GetPaths(baseDir, currentDir string) (*ProjectPaths, error) {
 				}
 
 				activePaths[relFile] = true
+
+				parentDir := relFile
+				for parentDir != "." && parentDir != "/" && parentDir != "" {
+					parentDir = filepath.Dir(parentDir)
+					activeDirs[parentDir] = true
+				}
 			}
 
 			errCh <- nil
@@ -225,6 +231,12 @@ func GetPaths(baseDir, currentDir string) (*ProjectPaths, error) {
 				}
 
 				activePaths[relFile] = true
+
+				parentDir := relFile
+				for parentDir != "." && parentDir != "/" && parentDir != "" {
+					parentDir = filepath.Dir(parentDir)
+					activeDirs[parentDir] = true
+				}
 			}
 
 			errCh <- nil
@@ -257,8 +269,6 @@ func GetPaths(baseDir, currentDir string) (*ProjectPaths, error) {
 				if ignored != nil && ignored.MatchesPath(relPath) {
 					return filepath.SkipDir
 				}
-
-				activeDirs[relPath] = true
 			} else {
 				relPath, err := filepath.Rel(currentDir, path)
 				if err != nil {
@@ -275,6 +285,12 @@ func GetPaths(baseDir, currentDir string) (*ProjectPaths, error) {
 					mu.Lock()
 					defer mu.Unlock()
 					activePaths[relPath] = true
+
+					parentDir := relPath
+					for parentDir != "." && parentDir != "/" && parentDir != "" {
+						parentDir = filepath.Dir(parentDir)
+						activeDirs[parentDir] = true
+					}
 				}
 			}
 

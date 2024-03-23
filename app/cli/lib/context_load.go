@@ -78,6 +78,8 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 			onErr(fmt.Errorf("failed to get project paths: %v", err))
 		}
 
+		// log.Println(spew.Sdump(paths))
+
 		// fmt.Println("active paths", len(paths.ActivePaths))
 		// fmt.Println("all paths", len(paths.AllPaths))
 		// fmt.Println("ignored paths", len(paths.IgnoredPaths))
@@ -88,11 +90,19 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 		if !params.ForceSkipIgnore {
 			var filteredPaths []string
 			for _, inputFilePath := range inputFilePaths {
+				// log.Println("inputFilePath", inputFilePath)
+
 				if _, ok := paths.ActivePaths[inputFilePath]; !ok {
+					// log.Println("not active", inputFilePath)
+
 					if _, ok := paths.IgnoredPaths[inputFilePath]; ok {
+						// log.Println("ignored", inputFilePath)
+
 						ignoredPaths[inputFilePath] = paths.IgnoredPaths[inputFilePath]
 					}
 				} else {
+					// log.Println("active", inputFilePath)
+
 					filteredPaths = append(filteredPaths, inputFilePath)
 				}
 			}

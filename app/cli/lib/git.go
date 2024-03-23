@@ -21,7 +21,32 @@ func GitAddAndCommit(dir, message string, lockMutex bool) error {
 		return fmt.Errorf("error adding files to git repository for dir: %s, err: %v", dir, err)
 	}
 
-	err = GitCommit(dir, message, false)
+	err = GitCommit(dir, message, nil, false)
+	if err != nil {
+		return fmt.Errorf("error committing files to git repository for dir: %s, err: %v", dir, err)
+	}
+
+	return nil
+}
+
+func GitAddAndCommitPaths(dir, message string, paths []string, lockMutex bool) error {
+	if len(paths) == 0 {
+		return nil
+	}
+
+	if lockMutex {
+		gitMutex.Lock()
+		defer gitMutex.Unlock()
+	}
+
+	for _, path := range paths {
+		err := GitAdd(dir, path, false)
+		if err != nil {
+			return fmt.Errorf("error adding file %s to git repository for dir: %s, err: %v", path, dir, err)
+		}
+	}
+
+	err := GitCommit(dir, message, paths, false)
 	if err != nil {
 		return fmt.Errorf("error committing files to git repository for dir: %s, err: %v", dir, err)
 	}
@@ -43,13 +68,19 @@ func GitAdd(repoDir, path string, lockMutex bool) error {
 	return nil
 }
 
-func GitCommit(repoDir, commitMsg string, lockMutex bool) error {
+func GitCommit(repoDir, commitMsg string, paths []string, lockMutex bool) error {
 	if lockMutex {
 		gitMutex.Lock()
 		defer gitMutex.Unlock()
 	}
 
-	res, err := exec.Command("git", "-C", repoDir, "commit", "-m", commitMsg, "--allow-empty").CombinedOutput()
+	args := []string{"-C", repoDir, "commit", "-m", commitMsg, "--allow-empty"}
+
+	if len(paths) > 0 {
+		args = append(args, paths...)
+	}
+
+	res, err := exec.Command("git", args...).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("error committing files to git repository for dir: %s, err: %v, output: %s", repoDir, err, string(res))
 	}
@@ -173,6 +204,8 @@ func GitCheckoutFile(path string) error {
 
 	res, err := exec.Command("git", "checkout", path).CombinedOutput()
 	if err != nil {
+		log.Println("Error checking out file:", string(res))
+
 		return fmt.Errorf("error checking out file %s | err: %v, output: %s", path, err, string(res))
 	}
 

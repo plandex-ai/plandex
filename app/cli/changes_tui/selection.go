@@ -57,11 +57,16 @@ outer:
 	var currentFilesBeforeReplacement *shared.CurrentPlanFiles
 	var err error
 
+	// log.Println("currentRep: ", currentRep)
+
 	if currentRep == nil {
 		currentFilesBeforeReplacement = m.currentPlan.CurrentPlanFiles
 	} else {
 		currentFilesBeforeReplacement, err = m.currentPlan.GetFilesBeforeReplacement(currentRep.Id)
 	}
+
+	// log.Println(spew.Sdump(currentFilesBeforeReplacement))
+
 	if err != nil {
 		err = fmt.Errorf("error getting current plan state: %v", err)
 		log.Println(err)

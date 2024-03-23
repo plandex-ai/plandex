@@ -24,6 +24,8 @@ func (m changesUIModel) getReplacementOldDisplay() oldReplacementRes {
 	oldContent := m.selectionInfo.currentRep.Old
 	originalFile := m.selectionInfo.currentFilesBeforeReplacement.Files[m.selectionInfo.currentPath]
 
+	// log.Println(originalFile)
+
 	oldContent = strings.ReplaceAll(oldContent, "\\`\\`\\`", "```")
 	originalFile = strings.ReplaceAll(originalFile, "\\`\\`\\`", "```")
 
@@ -35,18 +37,23 @@ func (m changesUIModel) getReplacementOldDisplay() oldReplacementRes {
 		panic("old content not found in full file") // should never happen
 	}
 
+	// Convert originalFile to a slice of runes to properly handle multi-byte characters
+	originalFileRunes := []rune(originalFile)
+
 	toPrepend := ""
 	numLinesPrepended := 0
 	for i := fileIdx - 1; i >= 0; i-- {
-		s := string(originalFile[i])
+		s := string(originalFileRunes[i])
+		// Prepend the string representation of the rune
 		toPrepend = s + toPrepend
-		if originalFile[i] == '\n' {
+		if originalFileRunes[i] == '\n' {
 			numLinesPrepended++
 			if numLinesPrepended == replacementPrependLines {
 				break
 			}
 		}
 	}
+
 	prependedToStart := strings.Index(originalFile, toPrepend) == 0
 
 	toPrepend = strings.TrimLeft(toPrepend, "\n")
@@ -56,13 +63,15 @@ func (m changesUIModel) getReplacementOldDisplay() oldReplacementRes {
 
 	toAppend := ""
 	numLinesAppended := 0
-	for i := fileIdx + len(oldContent); i < len(originalFile); i++ {
-		s := string(originalFile[i])
+	// Convert originalFile to a slice of runes to properly handle multi-byte characters
+	for i := fileIdx + len([]rune(oldContent)); i < len(originalFileRunes); i++ {
+		s := string(originalFileRunes[i])
+
 		if s == "\t" {
 			s = "  "
 		}
 		toAppend += s
-		if originalFile[i] == '\n' {
+		if originalFileRunes[i] == '\n' {
 			numLinesAppended++
 			if numLinesAppended == replacementAppendLines {
 				break
@@ -80,7 +89,12 @@ func (m changesUIModel) getReplacementOldDisplay() oldReplacementRes {
 	wrapWidth := m.changeOldViewport.Width - 6
 	toPrepend = wrap.String(toPrepend, wrapWidth)
 	oldContent = wrap.String(oldContent, wrapWidth)
+
+	// log.Println("toAppend", toAppend)
+
 	toAppend = wrap.String(toAppend, wrapWidth)
+
+	// log.Println("toAppend after wrap", toAppend)
 
 	toPrependLines := strings.Split(toPrepend, "\n")
 	for i, line := range toPrependLines {

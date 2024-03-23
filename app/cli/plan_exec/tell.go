@@ -29,9 +29,9 @@ func TellPlan(
 		term.OutputErrorAndExit("Error getting context: %v", apiErr)
 	}
 
-	anyOutdated, didUpdate, canceled := params.CheckOutdatedContext(true, contexts)
+	anyOutdated, didUpdate := params.CheckOutdatedContext(contexts)
 
-	if anyOutdated && !didUpdate && canceled {
+	if anyOutdated && !didUpdate {
 		term.StopSpinner()
 		if isUserContinue {
 			log.Println("Plan won't continue")

@@ -77,8 +77,8 @@ func doTell(cmd *cobra.Command, args []string) {
 	plan_exec.TellPlan(plan_exec.ExecParams{
 		CurrentPlanId: lib.CurrentPlanId,
 		CurrentBranch: lib.CurrentBranch,
-		CheckOutdatedContext: func(cancelOpt bool, maybeContexts []*shared.Context) (bool, bool, bool) {
-			return lib.MustCheckOutdatedContext(cancelOpt, false, maybeContexts)
+		CheckOutdatedContext: func(maybeContexts []*shared.Context) (bool, bool) {
+			return lib.MustCheckOutdatedContext(false, maybeContexts)
 		},
 	}, prompt, tellBg, tellStop, tellNoBuild, false)
 }

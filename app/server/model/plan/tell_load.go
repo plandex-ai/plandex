@@ -156,12 +156,15 @@ func (state *activeTellStreamState) loadTellPlan() error {
 		}
 
 		innerErrCh := make(chan error)
+		var userMsg *db.ConvoMessage
 
 		go func() {
 			if iteration == 0 && missingFileResponse == "" && !req.IsUserContinue {
 				num := len(convo) + 1
 
-				userMsg := db.ConvoMessage{
+				log.Printf("storing user message | len(convo): %d | num: %d\n", len(convo), num)
+
+				userMsg = &db.ConvoMessage{
 					OrgId:   currentOrgId,
 					PlanId:  planId,
 					UserId:  currentUserId,
@@ -171,7 +174,7 @@ func (state *activeTellStreamState) loadTellPlan() error {
 					Message: req.Prompt,
 				}
 
-				_, err = db.StoreConvoMessage(&userMsg, auth.User.Id, branch, true)
+				_, err = db.StoreConvoMessage(userMsg, auth.User.Id, branch, true)
 
 				if err != nil {
 					log.Printf("Error storing user message: %v\n", err)
@@ -216,6 +219,10 @@ func (state *activeTellStreamState) loadTellPlan() error {
 				errCh <- err
 				return
 			}
+		}
+
+		if userMsg != nil {
+			convo = append(convo, userMsg)
 		}
 
 		errCh <- nil

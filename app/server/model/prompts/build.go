@@ -75,7 +75,9 @@ var listChangesPrompt = `
 
   The 'old' property is an object with two properties: 'startLine' and 'endLine'.
 
-  'startLine' is the line number where the section to be replaced begins in the original file. 'endLine' is the line number where the section to be replaced ends in the original file. For a single line replacement, 'startLine' and 'endLine' will be the same.
+  'startLine' is the line number where the section to be replaced begins in the original file. 'endLine' is the line number where the section to be replaced ends in the original file. For a single line replacement, 'startLine' and 'endLine' will be the same. 
+	
+	Line numbers in 'startLine' and 'endLine' are 1-indexed. 1 is the minimum line number. The maximum line number is the number of lines in the original file. 'startLine' and 'endLine' must be valid line numbers in the original file, greater than or equal to 1 and less than or equal to the number of lines in the original file. You MUST refer to 1-indexed line numbers exactly as they are labeled in the original file. If the 'startLine' or 'endLine' is the first line of the file, 'startLine' or 'endLine' will be 1. If the 'startLine' or 'endLine' is the last line of the file, 'startLine' or 'endLine' will be the number of lines in the file. 'startLine' must NEVER be 0, -1, or any other number less than 1. 
 
   The 'new' property is a string that represents the new code that will replace the old code. The new code must be valid and consistent with the intention of the plan. If the the proposed update is to remove code, the 'new' property should be an empty string. 
   
@@ -96,7 +98,11 @@ var listChangesPrompt = `
 
   Apply changes intelligently in order to avoid syntax errors, breaking code, or removing code from the original file that should not be removed. Consider the reason behind the update and make sure the result is consistent with the intention of the plan.
 
-	Pay EXTREMELY close attention to opening and closing brackets, parentheses, and braces. Never leave them unbalanced when the changes are applied.
+	You ABSOLUTELY MUST NOT ovewrite or delete code from the original file unless the plan *clearly intends* for the code to be overwritten or removed. Do NOT replace a full section of code with only new code unless that is the clear intention of the plan. Instead, merge the original code and the proposed changes together intelligently according to the intention of the plan. 
+
+	Pay *EXTREMELY close attention* to opening and closing brackets, parentheses, and braces. Never leave them unbalanced when the changes are applied.
+
+	The 'listChanges' function MUST be called *valid JSON*. Double quotes within json properties of the 'listChanges' function call parameters JSON object *must be properly escaped* with a backslash.
  
   [END YOUR INSTRUCTIONS]
 `

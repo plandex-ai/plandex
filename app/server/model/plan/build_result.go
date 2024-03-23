@@ -51,10 +51,27 @@ func getPlanResult(params planResultParams) (*db.PlanFileResult, bool) {
 		log.Printf("getPlanResult - streamedChange.Old.StartLine: %d\n", streamedChange.Old.StartLine)
 		log.Printf("getPlanResult - streamedChange.Old.EndLine: %d\n", streamedChange.Old.EndLine)
 
-		if streamedChange.Old.StartLine == streamedChange.Old.EndLine {
-			old = currentStateLines[streamedChange.Old.StartLine-1]
+		startLine := streamedChange.Old.StartLine
+		endLine := streamedChange.Old.EndLine
+
+		if startLine < 1 {
+			startLine = 1
+		}
+		if startLine > len(currentStateLines) {
+			startLine = len(currentStateLines)
+		}
+
+		if endLine < 1 {
+			endLine = 1
+		}
+		if endLine > len(currentStateLines) {
+			endLine = len(currentStateLines)
+		}
+
+		if startLine == endLine {
+			old = currentStateLines[startLine-1]
 		} else {
-			old = strings.Join(currentStateLines[streamedChange.Old.StartLine-1:streamedChange.Old.EndLine], "\n")
+			old = strings.Join(currentStateLines[startLine-1:endLine], "\n")
 		}
 
 		log.Printf("getPlanResult - old: %s\n", old)

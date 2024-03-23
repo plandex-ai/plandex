@@ -37,6 +37,8 @@ func changes(cmd *cobra.Command, args []string) {
 		term.OutputErrorAndExit("Error getting current plan state: %s", apiErr.Msg)
 	}
 
+	// log.Println(spew.Sdump(currentPlanState))
+
 	for currentPlanState.HasPendingBuilds() {
 		plansRunningRes, apiErr := api.Client.ListPlansRunning([]string{lib.CurrentProjectId}, false)
 
@@ -76,8 +78,8 @@ func changes(cmd *cobra.Command, args []string) {
 			didBuild, err := plan_exec.Build(plan_exec.ExecParams{
 				CurrentPlanId: lib.CurrentPlanId,
 				CurrentBranch: lib.CurrentBranch,
-				CheckOutdatedContext: func(cancelOpt bool, maybeContexts []*shared.Context) (bool, bool, bool) {
-					return lib.MustCheckOutdatedContext(cancelOpt, true, maybeContexts)
+				CheckOutdatedContext: func(maybeContexts []*shared.Context) (bool, bool) {
+					return lib.MustCheckOutdatedContext(true, maybeContexts)
 				},
 			}, false)
 

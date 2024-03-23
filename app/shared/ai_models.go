@@ -111,15 +111,15 @@ func init() {
 				Role:            ModelRolePlanner,
 				BaseModelConfig: AvailableModelsByName[openai.GPT4TurboPreview],
 				Temperature:     0.4,
-				TopP:            0.4,
+				TopP:            0.3,
 			},
 			PlannerModelConfig: PlannerModelConfigByName[openai.GPT4TurboPreview],
 		},
 		PlanSummary: ModelRoleConfig{
 			Role:            ModelRolePlanSummary,
 			BaseModelConfig: AvailableModelsByName[openai.GPT4TurboPreview],
-			Temperature:     0.3,
-			TopP:            0.3,
+			Temperature:     0.2,
+			TopP:            0.2,
 		},
 		Builder: TaskRoleConfig{
 			ModelRoleConfig: ModelRoleConfig{

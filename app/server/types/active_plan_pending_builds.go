@@ -63,12 +63,17 @@ func (ap *ActivePlan) PendingBuildsByPath(orgId, userId string, convoMessagesArg
 					activeBuildsByPath[file] = []*ActiveBuild{}
 				}
 
+				if err != nil {
+					return nil, fmt.Errorf("error getting tokens for file '%s': %v", file, err)
+				}
+
 				activeBuildsByPath[file] = append(activeBuildsByPath[file], &ActiveBuild{
-					ReplyId:         desc.ConvoMessageId,
-					Idx:             i,
-					FileContent:     parserRes.FileContents[i],
-					Path:            file,
-					FileDescription: parserRes.FileDescriptions[i],
+					ReplyId:           desc.ConvoMessageId,
+					Idx:               i,
+					FileContent:       parserRes.FileContents[i],
+					FileContentTokens: parserRes.NumTokensByFile[file],
+					Path:              file,
+					FileDescription:   parserRes.FileDescriptions[i],
 				})
 			}
 		}

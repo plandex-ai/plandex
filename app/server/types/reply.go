@@ -135,7 +135,14 @@ func (r *ReplyParser) AddChunk(chunk string, addToTotal bool) {
 			r.maybeFilePath = ""
 			r.currentFileLines = []string{}
 
-			r.fileDescriptions = append(r.fileDescriptions, strings.Join(r.currentDescriptionLines[0:len(r.currentDescriptionLines)-4], "\n"))
+			var fileDescription string
+			if len(r.currentDescriptionLines) > 4 {
+				fileDescription = strings.Join(r.currentDescriptionLines[0:len(r.currentDescriptionLines)-4], "\n")
+				r.fileDescriptions = append(r.fileDescriptions, fileDescription)
+			} else {
+				r.fileDescriptions = append(r.fileDescriptions, "")
+			}
+
 			r.currentDescriptionLines = []string{""}
 			r.currentDescriptionLineIdx = 0
 
@@ -223,13 +230,29 @@ func lineHasFilePath(line string) bool {
 
 func extractFilePath(line string) string {
 	p := strings.ReplaceAll(line, "**", "")
+	p = strings.ReplaceAll(p, "`", "")
+	p = strings.ReplaceAll(p, "'", "")
+	p = strings.ReplaceAll(p, `"`, "")
 	p = strings.TrimPrefix(p, "-")
 	p = strings.TrimSpace(p)
 	p = strings.TrimPrefix(p, "file:")
+	p = strings.TrimPrefix(p, "file path:")
+	p = strings.TrimPrefix(p, "File path:")
+	p = strings.TrimPrefix(p, "File Path:")
 	p = strings.TrimSuffix(p, ":")
 	p = strings.TrimSpace(p)
 
-	split := strings.Split(p, " ")
+	// split := strings.Split(p, " ")
+	// if len(split) > 1 {
+	// 	p = split[0]
+	// }
+
+	split := strings.Split(p, ": ")
+	if len(split) > 1 {
+		p = split[len(split)-1]
+	}
+
+	split = strings.Split(p, " (")
 	if len(split) > 1 {
 		p = split[0]
 	}

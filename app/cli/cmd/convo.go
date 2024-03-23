@@ -91,7 +91,7 @@ func convo(cmd *cobra.Command, args []string) {
 	output :=
 		fmt.Sprintf("\n%s", convo) +
 			term.GetDivisionLine() +
-			color.New(color.Bold, color.FgCyan).Sprint("  Conversation size →") + fmt.Sprintf(" %d 🪙", totalTokens) + "\n\n"
+			color.New(color.Bold, term.ColorHiCyan).Sprint("  Conversation size →") + fmt.Sprintf(" %d 🪙", totalTokens) + "\n\n"
 
 	term.PageOutput(output)
 }

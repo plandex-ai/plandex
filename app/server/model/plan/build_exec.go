@@ -182,7 +182,7 @@ func (fileState *activeBuildStreamFileState) buildFile() {
 		log.Printf("File %s found in current plan.\n", filePath)
 		currentState = currentPlanFile
 
-		log.Println("\n\nCurrent state:\n", currentState, "\n\n")
+		// log.Println("\n\nCurrent state:\n", currentState, "\n\n")
 
 	} else if contextPart != nil {
 		log.Printf("File %s found in model context. Using context state.\n", filePath)
@@ -192,7 +192,7 @@ func (fileState *activeBuildStreamFileState) buildFile() {
 			log.Println("Context state is empty. That's bad.")
 		}
 
-		log.Println("\n\nCurrent state:\n", currentState, "\n\n")
+		// log.Println("\n\nCurrent state:\n", currentState, "\n\n")
 	}
 
 	fileState.currentState = currentState
@@ -222,6 +222,18 @@ func (fileState *activeBuildStreamFileState) buildFile() {
 		}
 		fileState.onFinishBuildFile(planRes)
 		return
+	} else {
+		currentNumTokens, err := shared.GetNumTokens(currentState)
+
+		if err != nil {
+			log.Printf("Error getting num tokens for current state: %v\n", err)
+			fileState.onBuildFileError(fmt.Errorf("error getting num tokens for current state: %v", err))
+			return
+		}
+
+		log.Printf("Current state num tokens: %d\n", currentNumTokens)
+
+		activeBuild.CurrentFileTokens = currentNumTokens
 	}
 
 	log.Println("Getting file from model: " + filePath)

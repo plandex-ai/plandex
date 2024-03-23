@@ -60,11 +60,15 @@ func (planState *CurrentPlanState) GetFilesBeforeReplacement(
 
 	for path, planResults := range planRes.FileResultsByPath {
 		updated := files[path]
+		// log.Println("path: ", path)
 
 	PlanResLoop:
 		for _, planRes := range planResults {
 
+			// log.Println("planRes: ", planRes.Id)
+
 			if !planRes.IsPending() {
+				// log.Println("Plan result is not pending -- continuing loop")
 				continue
 			}
 
@@ -75,35 +79,61 @@ func (planState *CurrentPlanState) GetFilesBeforeReplacement(
 
 				updated = planRes.Content
 				files[path] = updated
+				updatedAtByPath[path] = planRes.CreatedAt
+
+				// log.Println("No replacements for plan result -- creating file and continuing loop")
+
 				continue
 			} else if updated == "" {
 				context := planState.ContextsByPath[path]
 
 				if context == nil {
 					log.Printf("No context for path: %s\n", path)
+					return nil, fmt.Errorf("no context for path: %s", path)
 				}
+
+				// log.Println("No updated content -- setting to context body")
 
 				updated = context.Body
 				shas[path] = context.Sha
 			}
 
 			replacements := []*Replacement{}
+			foundTarget := false
 			for _, replacement := range planRes.Replacements {
 				if replacement.Id == replacementId {
-					break PlanResLoop
+					// log.Println("Found target replacement")
+					foundTarget = true
+					break
 				}
 				replacements = append(replacements, replacement)
 			}
 
-			var allSucceeded bool
-			updated, allSucceeded = ApplyReplacements(updated, replacements, false)
+			if len(replacements) > 0 {
+				// log.Println("Applying replacements: ")
+				// for _, replacement := range replacements {
+				// 	log.Println(replacement.Id)
+				// }
 
-			if !allSucceeded {
-				return nil, fmt.Errorf("plan replacement failed - %s", path)
+				var allSucceeded bool
+				updated, allSucceeded = ApplyReplacements(updated, replacements, false)
+
+				if !allSucceeded {
+					return nil, fmt.Errorf("plan replacement failed - %s", path)
+				}
+
+				// log.Println("Updated content: ")
+				// log.Println(updated)
+
+				updatedAtByPath[path] = planRes.CreatedAt
 			}
 
-			updatedAtByPath[path] = planRes.CreatedAt
+			if foundTarget {
+				break PlanResLoop
+			}
 		}
+
+		// log.Println("Setting updated content for path: ", path)
 
 		files[path] = updated
 	}

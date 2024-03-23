@@ -54,6 +54,17 @@ func contextRm(cmd *cobra.Command, args []string) {
 					deleteIds[context.Id] = true
 					break
 				}
+
+				// Check if id is a parent directory
+				parentDir := context.FilePath
+				for parentDir != "." && parentDir != "/" && parentDir != "" {
+					if parentDir == id {
+						deleteIds[context.Id] = true
+						break
+					}
+					parentDir = filepath.Dir(parentDir) // Move up one directory
+				}
+
 			}
 		}
 	}

@@ -22,8 +22,8 @@ func init() {
 		return plan_exec.Build(plan_exec.ExecParams{
 			CurrentPlanId: lib.CurrentPlanId,
 			CurrentBranch: lib.CurrentBranch,
-			CheckOutdatedContext: func(cancelOpt bool, maybeContexts []*shared.Context) (bool, bool, bool) {
-				return lib.MustCheckOutdatedContext(cancelOpt, true, maybeContexts)
+			CheckOutdatedContext: func(maybeContexts []*shared.Context) (bool, bool) {
+				return lib.MustCheckOutdatedContext(true, maybeContexts)
 			},
 		}, false)
 	})

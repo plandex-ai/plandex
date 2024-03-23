@@ -59,7 +59,7 @@ func current(cmd *cobra.Command, args []string) {
 	table.SetAutoWrapText(false)
 	table.SetHeader([]string{"Current Plan", "Updated", "Created" /*"Branches",*/, "Branch", "Context", "Convo"})
 
-	name := color.New(color.Bold, color.FgGreen).Sprint(plan.Name)
+	name := color.New(color.Bold, term.ColorHiGreen).Sprint(plan.Name)
 	branch := currentBranchesByPlanId[lib.CurrentPlanId]
 
 	row := []string{

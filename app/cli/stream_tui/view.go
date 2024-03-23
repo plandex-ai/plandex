@@ -83,6 +83,8 @@ func (m streamUIModel) doRenderBuild(outputStatic bool) string {
 	lbl := "Building plan "
 	bgColor := color.BgGreen
 	if outputStatic {
+		// log.Printf("m.finished: %v, len(m.finishedByPath): %d, len(m.tokensByPath): %d", m.finished, len(m.finishedByPath), len(m.tokensByPath))
+
 		if m.finished || len(m.finishedByPath) == len(m.tokensByPath) {
 			lbl = "Built plan "
 		} else if m.stopped || m.err != nil || m.apiErr != nil {
