@@ -3,13 +3,14 @@
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="plandex-logo-dark.png"/>
     <source media="(prefers-color-scheme: light)" srcset="plandex-logo-light.png"/>
-    <img height="120" src="plandex-logo-dark-bg.png"/>
+    <img width="500" src="plandex-logo-dark-bg.png"/>
   </picture>
  </a>
  <br />
 </h1>
 
-<p align="center">🔮 A terminal-based AI programming engine for complex tasks.</p>
+<h1 align="center">
+<p align="center"><strong>🔮 A terminal-based AI programming engine for complex tasks.</strong></p>
 
 <p align="center">
   <!-- Badges -->
@@ -53,7 +54,7 @@
     <b>Discord</b>
   </a>   -->
 </p>
-
+</h1>
 
 
 https://github.com/plandex-ai/plandex/assets/545350/c2ee3bcd-1512-493f-bdd5-e3a4ca534a36
