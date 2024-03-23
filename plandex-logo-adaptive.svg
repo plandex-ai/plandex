@@ -1,0 +1,16 @@
+<svg width="1063" height="210" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    @media (prefers-color-scheme: dark) {
+      .dark { display: block; }
+      .light { display: none; }
+    }
+    @media (prefers-color-scheme: light), (prefers-color-scheme: no-preference) {
+      .dark { display: none; }
+      .light { display: block; }
+    }
+  </style>
+  <!-- Light Mode Image -->
+  <image href="plandex-logo-light.png" width="1063" height="210" class="light"/>
+  <!-- Dark Mode Image -->
+  <image href="plandex-logo-dark.png" width="1063" height="210" class="dark"/>
+</svg>
