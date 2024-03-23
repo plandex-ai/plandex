@@ -10,7 +10,7 @@
     }
   </style>
   <!-- Light Mode Image -->
-  <image href="plandex-logo-light.png" width="1063" height="210" class="light"/>
+  <image src="plandex-logo-light.png" width="1063" height="210" class="light"/>
   <!-- Dark Mode Image -->
-  <image href="plandex-logo-dark.png" width="1063" height="210" class="dark"/>
+  <image src="plandex-logo-dark.png" width="1063" height="210" class="dark"/>
 </svg>
