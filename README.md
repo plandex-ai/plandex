@@ -1,6 +1,13 @@
-<p align="center">
-  <img src="plandex-logo-dark-bg.png" alt="Plandex Logo" width="600" />
-</p>
+<h1 align="center">
+ <a href="https://plandex.ai">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="plandex-logo-dark.png"/>
+    <source media="(prefers-color-scheme: light)" srcset="plandex-logo-light.png"/>
+    <img height="120" src="plandex-logo-dark-bg.png"/>
+  </picture>
+ </a>
+ <br />
+</h1>
 
 <p align="center">🔮 A terminal-based AI programming engine for complex tasks.</p>
 
