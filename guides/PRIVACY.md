@@ -19,4 +19,4 @@ Data sent to a model provider like OpenAI is subject to the model provider's pri
 
 ## Self-hosting
 
-If you [self-host](./guides/HOSTING.md) Plandex, no data will be sent to Plandex Cloud or to any third party, except for the data you send to model providers like OpenAI.
+If you [self-host](HOSTING.md) Plandex, no data will be sent to Plandex Cloud or to any third party, except for the data you send to model providers like OpenAI.
