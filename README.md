@@ -9,7 +9,6 @@
  <br />
 </h1>
 
-<h1 align="center">
 <p align="center"><strong>🔮 A terminal-based AI programming engine for complex tasks.</strong></p>
 
 <p align="center">
@@ -54,7 +53,8 @@
     <b>Discord</b>
   </a>   -->
 </p>
-</h1>
+
+<h1 align="center"></h1>
 
 
 https://github.com/plandex-ai/plandex/assets/545350/c2ee3bcd-1512-493f-bdd5-e3a4ca534a36
