@@ -1,6 +1,4 @@
-<p align="center">
-  <img src="plandex-logo-adaptive.svg" alt="Plandex Logo" width="1063" />
-</p>
+![Plandex Logo](plandex-logo-adaptive.svg)
 
 <h1 align="center">Plandex</h1>
 
