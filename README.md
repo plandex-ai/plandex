@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="plandex-logo-dark-bg.png" alt="Plandex Logo" width="800" />
+  <img src="plandex-logo-dark-bg.png" alt="Plandex Logo" width="400" />
 </p>
 
 <p align="center"><strong>🔮 A terminal-based AI programming engine for complex tasks.</strong></p>
