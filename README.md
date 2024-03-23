@@ -50,7 +50,8 @@
 </p>
 
 <p align="center">
-  <img src="demo.gif" alt="Plandex CLI demo GIF">
+  <a href="https://vimeo.com/926634577?share=copy">
+  <img src="plandex-intro-vimeo.png" alt="Plandex Intro Video">
 </p>
 
 
