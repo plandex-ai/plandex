@@ -50,7 +50,7 @@
 </p>
 
 <p align="center">
-  <a href="https://vimeo.com/926634577">
+  <a href="https://vimeo.com/926634577" target="_blank">
   <img src="plandex-intro-vimeo.png" alt="Plandex Intro Video">
 </p>
 
