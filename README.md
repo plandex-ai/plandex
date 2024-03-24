@@ -10,9 +10,10 @@
   </picture>
  </a>
  <br />
+ <br />
 </h1>
-<br/>
-<br/>
+<br />
+<br />
 
 <p align="center"><strong>🔮 A terminal-based AI programming engine for complex tasks.</strong></p>
 
@@ -61,7 +62,13 @@
   </a>   -->
 </p>
 
+<br/>
+<br/>
+
 https://github.com/plandex-ai/plandex/assets/545350/c2ee3bcd-1512-493f-bdd5-e3a4ca534a36
+
+<br/>
+<br/>
 
 
 ## 🌟  Build large features and entire projects with AI.
