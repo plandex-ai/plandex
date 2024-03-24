@@ -29,7 +29,7 @@
     <b>Demo Video</b>
   </a>
   · -->
-  <a href="#install-">
+  <a href="#install">
     <b>Install</b>
   </a>
   ·
