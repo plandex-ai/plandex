@@ -33,12 +33,12 @@
     <b>Install</b>
   </a>
   ·
-  <!-- <a href="https://plandex.ai">
+  <a href="https://plandex.ai">
     <b>Website</b>
   </a>
-  · -->
+  ·
   <a href="USAGE.md">
-    <b>Docs</b>
+    <b>Usage</b>
   </a>
   ·
   <a href="HOSTING.md">
