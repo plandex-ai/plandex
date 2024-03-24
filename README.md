@@ -1,4 +1,7 @@
-<h1 align="center" style="padding: 30px 0;">
+
+<br/>
+<br/>
+<h1 align="center">
  <a href="https://plandex.ai">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="images/plandex-logo-dark.png"/>
@@ -8,6 +11,8 @@
  </a>
  <br />
 </h1>
+<br/>
+<br/>
 
 <p align="center"><strong>🔮 A terminal-based AI programming engine for complex tasks.</strong></p>
 
@@ -23,7 +28,9 @@
 
 </p>
 
-<p align="center" style="margin-bottom: 20px;">
+<br/>
+
+<p align="center">
   <!-- Call to Action Links -->
   <!-- <a href="LINK_TO_DEMO">
     <b>Demo Video</b>
