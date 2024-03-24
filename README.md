@@ -1,13 +1,8 @@
-<br/>
 <h1 align="center">
  <a href="https://plandex.ai">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="images/plandex-logo-dark.png"/>
-    <source media="(prefers-color-scheme: light)" srcset="images/plandex-logo-light.png"/>
     <img width="370" src="images/plandex-logo-dark-bg.png"/>
-  </picture>
  </a>
- <br />
  <br />
 </h1>
 <br />
