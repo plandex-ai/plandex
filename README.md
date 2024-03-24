@@ -1,3 +1,4 @@
+<br/>
 <h1 align="center">
  <a href="https://plandex.ai">
   <picture>
@@ -6,6 +7,7 @@
     <img width="350" src="images/plandex-logo-dark-bg.png"/>
   </picture>
  </a>
+ <br />
  <br />
 </h1>
 <br />
