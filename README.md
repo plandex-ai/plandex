@@ -4,7 +4,7 @@
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="images/plandex-logo-dark.png"/>
     <source media="(prefers-color-scheme: light)" srcset="images/plandex-logo-light.png"/>
-    <img width="300" src="images/plandex-logo-dark-bg.png"/>
+    <img width="350" src="images/plandex-logo-dark-bg.png"/>
   </picture>
  </a>
  <br />
