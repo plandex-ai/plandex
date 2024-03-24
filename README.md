@@ -1,9 +1,9 @@
-<h1 align="center">
+<h1 align="center" style="padding: 30px 0;">
  <a href="https://plandex.ai">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="images/plandex-logo-dark.png"/>
     <source media="(prefers-color-scheme: light)" srcset="images/plandex-logo-light.png"/>
-    <img width="500" src="images/plandex-logo-dark-bg.png"/>
+    <img width="400" src="images/plandex-logo-dark-bg.png"/>
   </picture>
  </a>
  <br />
@@ -23,7 +23,7 @@
 
 </p>
 
-<p align="center">
+<p align="center" style="margin-bottom: 20px;">
   <!-- Call to Action Links -->
   <!-- <a href="LINK_TO_DEMO">
     <b>Demo Video</b>
