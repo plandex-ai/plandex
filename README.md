@@ -25,10 +25,6 @@
 
 <p align="center">
   <!-- Call to Action Links -->
-  <!-- <a href="LINK_TO_DEMO">
-    <b>Demo Video</b>
-  </a>
-  · -->
   <a href="#install">
     <b>Install</b>
   </a>
@@ -57,11 +53,11 @@
 <br/>
 <br/>
 
-<!-- https://github.com/plandex-ai/plandex/assets/545350/c2ee3bcd-1512-493f-bdd5-e3a4ca534a36 -->
+https://github.com/plandex-ai/plandex/assets/545350/c2ee3bcd-1512-493f-bdd5-e3a4ca534a36
 
-<video src="https://private-user-images.githubusercontent.com/545350/316262841-c2ee3bcd-1512-493f-bdd5-e3a4ca534a36.mp4?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3MTEzMDk5NTEsIm5iZiI6MTcxMTMwOTY1MSwicGF0aCI6Ii81NDUzNTAvMzE2MjYyODQxLWMyZWUzYmNkLTE1MTItNDkzZi1iZGQ1LWUzYTRjYTUzNGEzNi5tcDQ_WC1BbXotQWxnb3JpdGhtPUFXUzQtSE1BQy1TSEEyNTYmWC1BbXotQ3JlZGVudGlhbD1BS0lBVkNPRFlMU0E1M1BRSzRaQSUyRjIwMjQwMzI0JTJGdXMtZWFzdC0xJTJGczMlMkZhd3M0X3JlcXVlc3QmWC1BbXotRGF0ZT0yMDI0MDMyNFQxOTQ3MzFaJlgtQW16LUV4cGlyZXM9MzAwJlgtQW16LVNpZ25hdHVyZT1kN2QxZmFkOGNmNjk1YzMxOGVkMGU0MmM1MDcxZjgwOWFmOWMxYmNkMmQ0YTdjODk4ZjY2MjFkNTk3YTIyYzk2JlgtQW16LVNpZ25lZEhlYWRlcnM9aG9zdCZhY3Rvcl9pZD0wJmtleV9pZD0wJnJlcG9faWQ9MCJ9.ffo1aRTmtiF_GS0rYnMBDD7PQsZIzUuvAZoZZAm4qBY" data-canonical-src="https://private-user-images.githubusercontent.com/545350/316262841-c2ee3bcd-1512-493f-bdd5-e3a4ca534a36.mp4?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3MTEzMDk5NTEsIm5iZiI6MTcxMTMwOTY1MSwicGF0aCI6Ii81NDUzNTAvMzE2MjYyODQxLWMyZWUzYmNkLTE1MTItNDkzZi1iZGQ1LWUzYTRjYTUzNGEzNi5tcDQ_WC1BbXotQWxnb3JpdGhtPUFXUzQtSE1BQy1TSEEyNTYmWC1BbXotQ3JlZGVudGlhbD1BS0lBVkNPRFlMU0E1M1BRSzRaQSUyRjIwMjQwMzI0JTJGdXMtZWFzdC0xJTJGczMlMkZhd3M0X3JlcXVlc3QmWC1BbXotRGF0ZT0yMDI0MDMyNFQxOTQ3MzFaJlgtQW16LUV4cGlyZXM9MzAwJlgtQW16LVNpZ25hdHVyZT1kN2QxZmFkOGNmNjk1YzMxOGVkMGU0MmM1MDcxZjgwOWFmOWMxYmNkMmQ0YTdjODk4ZjY2MjFkNTk3YTIyYzk2JlgtQW16LVNpZ25lZEhlYWRlcnM9aG9zdCZhY3Rvcl9pZD0wJmtleV9pZD0wJnJlcG9faWQ9MCJ9.ffo1aRTmtiF_GS0rYnMBDD7PQsZIzUuvAZoZZAm4qBY" controls="controls" muted="muted" class="d-block rounded-bottom-2 border-top width-fit" style="max-height:640px; min-height: 200px" poster="images/video-poster.png" >
-
-  </video>
+<a href="https://player.vimeo.com/video/926634577">
+  <img src="images/plandex-intro-vimeo.png" alt="Plandex intro video" width="100%"/>
+</a>
 
 <br/>
 
