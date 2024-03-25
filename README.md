@@ -33,15 +33,15 @@
     <b>Website</b>
   </a>
   · -->
-  <a href="USAGE.md">
+  <a href="./guides/USAGE.md">
     <b>Usage</b>
   </a>
   ·
-  <a href="HOSTING.md">
+  <a href="./guides/HOSTING.md">
     <b>Self-Hosting</b>
   </a>
   ·
-  <a href="DEVELOPMENT.md">
+  <a href="./guides/DEVELOPMENT.md">
     <b>Development</b>
   </a>
   <!-- ·
