@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"plandex-server/db"
+	"plandex-server/host"
 	"plandex-server/model"
 	modelPlan "plandex-server/model/plan"
 	"plandex-server/types"
@@ -20,7 +21,7 @@ import (
 const TrialMaxReplies = 10
 
 func TellPlanHandler(w http.ResponseWriter, r *http.Request) {
-	log.Println("Received request for TellPlanHandler")
+	log.Println("Received request for TellPlanHandler", "ip:", host.Ip)
 
 	auth := authenticate(w, r, true)
 	if auth == nil {
@@ -103,7 +104,7 @@ func TellPlanHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func BuildPlanHandler(w http.ResponseWriter, r *http.Request) {
-	log.Println("Received request for BuildPlanHandler")
+	log.Println("Received request for BuildPlanHandler", "ip:", host.Ip)
 	auth := authenticate(w, r, true)
 	if auth == nil {
 		return
@@ -166,7 +167,7 @@ func BuildPlanHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func ConnectPlanHandler(w http.ResponseWriter, r *http.Request) {
-	log.Println("Received request for ConnectPlanHandler")
+	log.Println("Received request for ConnectPlanHandler", "ip:", host.Ip)
 
 	vars := mux.Vars(r)
 	planId := vars["planId"]
@@ -207,7 +208,7 @@ func ConnectPlanHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func StopPlanHandler(w http.ResponseWriter, r *http.Request) {
-	log.Println("Received request for StopPlanHandler")
+	log.Println("Received request for StopPlanHandler", "ip:", host.Ip)
 
 	vars := mux.Vars(r)
 	planId := vars["planId"]
@@ -270,7 +271,7 @@ func StopPlanHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func RespondMissingFileHandler(w http.ResponseWriter, r *http.Request) {
-	log.Println("Received request for RespondMissingFileHandler")
+	log.Println("Received request for RespondMissingFileHandler", "ip:", host.Ip)
 
 	vars := mux.Vars(r)
 	planId := vars["planId"]

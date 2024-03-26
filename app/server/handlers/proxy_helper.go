@@ -44,8 +44,10 @@ func proxyActivePlanMethod(w http.ResponseWriter, r *http.Request, planId, branc
 		return
 	} else {
 		log.Printf("Forwarding request to %s\n", modelStream.InternalIp)
-		proxyUrl := fmt.Sprintf("http://%s:%s/plans/%s/%s/%s", modelStream.InternalIp, os.Getenv("EXTERNAL_PORT"), planId, branch, method)
+		proxyUrl := fmt.Sprintf("http://%s:%s/plans/%s/%s/%s", modelStream.InternalIp, os.Getenv("PORT"), planId, branch, method)
 		proxyUrl += "?proxy=true"
+
+		log.Printf("Proxy url: %s\n", proxyUrl)
 		proxyRequest(w, r, proxyUrl)
 		return
 	}

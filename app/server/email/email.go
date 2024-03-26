@@ -21,11 +21,10 @@ func SendVerificationEmail(email string, pin string) error {
 		textBody := fmt.Sprintf("Hi there,\n\nYour pin is: %s", pin)
 
 		if os.Getenv("IS_CLOUD") == "" {
-			return sendEmailViaSES(email, subject, htmlBody, textBody)
-		} else {
 			return sendEmailViaSMTP(email, subject, htmlBody, textBody)
+		} else {
+			return sendEmailViaSES(email, subject, htmlBody, textBody)
 		}
-
 	}
 
 	if os.Getenv("GOENV") == "development" {

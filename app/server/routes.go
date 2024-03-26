@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"os"
 	"plandex-server/handlers"
 
 	"github.com/gorilla/mux"
@@ -12,7 +13,19 @@ func routes() *mux.Router {
 	r := mux.NewRouter()
 
 	r.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, "OK")
+		fmt.Fprint(w, "OK")
+	})
+
+	r.HandleFunc("/version", func(w http.ResponseWriter, r *http.Request) {
+		// get version from version.txt
+		bytes, err := os.ReadFile("version.txt")
+
+		if err != nil {
+			http.Error(w, "Error getting version", http.StatusInternalServerError)
+			return
+		}
+
+		fmt.Fprint(w, string(bytes))
 	})
 
 	r.HandleFunc("/accounts/start_trial", handlers.StartTrialHandler).Methods("POST")
