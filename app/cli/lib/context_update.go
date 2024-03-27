@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"plandex/api"
+	"plandex/fs"
 	"plandex/term"
 	"plandex/types"
 	"plandex/url"
@@ -29,9 +30,7 @@ func MustCheckOutdatedContext(quiet bool, maybeContexts []*shared.Context) (cont
 		term.OutputErrorAndExit("failed to check outdated context: %s", err)
 	}
 
-	if !quiet {
-		term.StopSpinner()
-	}
+	term.StopSpinner()
 
 	if len(outdatedRes.UpdatedContexts) == 0 {
 		if !quiet {
@@ -155,6 +154,25 @@ func checkOutdatedAndMaybeUpdateContext(doUpdate bool, maybeContexts []*shared.C
 	var wg sync.WaitGroup
 	contextsById := map[string]*shared.Context{}
 
+	var paths *fs.ProjectPaths
+	var hasDirectoryTreeWithIgnoredPaths bool
+
+	for _, context := range contexts {
+		if context.ContextType == shared.ContextDirectoryTreeType && !context.ForceSkipIgnore {
+			hasDirectoryTreeWithIgnoredPaths = true
+			break
+		}
+	}
+
+	if hasDirectoryTreeWithIgnoredPaths {
+		baseDir := fs.GetBaseDirForContexts(contexts)
+		var err error
+		paths, err = fs.GetProjectPaths(baseDir)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get project paths: %v", err)
+		}
+	}
+
 	for _, context := range contexts {
 		contextsById[context.Id] = context
 
@@ -198,7 +216,8 @@ func checkOutdatedAndMaybeUpdateContext(doUpdate bool, maybeContexts []*shared.C
 			go func(context *shared.Context) {
 				defer wg.Done()
 				flattenedPaths, err := ParseInputPaths([]string{context.FilePath}, &types.LoadContextParams{
-					NamesOnly: true,
+					NamesOnly:       true,
+					ForceSkipIgnore: context.ForceSkipIgnore,
 				})
 
 				mu.Lock()
@@ -208,6 +227,22 @@ func checkOutdatedAndMaybeUpdateContext(doUpdate bool, maybeContexts []*shared.C
 					errs = append(errs, fmt.Errorf("failed to get the directory tree %s: %v", context.FilePath, err))
 					return
 				}
+
+				if !context.ForceSkipIgnore {
+					if paths == nil {
+						errs = append(errs, fmt.Errorf("project paths are nil"))
+						return
+					}
+
+					var filteredPaths []string
+					for _, path := range flattenedPaths {
+						if _, ok := paths.ActivePaths[path]; ok {
+							filteredPaths = append(filteredPaths, path)
+						}
+					}
+					flattenedPaths = filteredPaths
+				}
+
 				body := strings.Join(flattenedPaths, "\n")
 				bytes := []byte(body)
 

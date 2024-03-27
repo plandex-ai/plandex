@@ -53,7 +53,7 @@ func lockRepo(w http.ResponseWriter, r *http.Request, auth *types.ServerAuth, sc
 			http.Error(w, "Error locking repo: "+err.Error(), http.StatusInternalServerError)
 		}
 
-		log.Println("Rolling back repo if error")
+		// log.Println("Rolling back repo if error")
 		err = RollbackRepoIfErr(auth.OrgId, planId, err)
 		if err != nil {
 			log.Printf("Error rolling back repo: %v\n", err)

@@ -26,11 +26,29 @@ func OutputErrorAndExit(msg string, args ...interface{}) {
 	displayMsg := ""
 	errorParts := strings.Split(msg, ": ")
 
+	addedErrors := map[string]bool{}
+
 	if len(errorParts) > 1 {
-		for i, part := range errorParts {
+		var lastPart string
+		i := 0
+		for _, part := range errorParts {
+			// don't repeat the same error message
+			if _, ok := addedErrors[strings.ToLower(part)]; ok {
+				continue
+			}
+
+			if len(lastPart) < 10 && i > 0 {
+				lastPart = lastPart + ": " + part
+				displayMsg += ": " + part
+				addedErrors[strings.ToLower(lastPart)] = true
+				addedErrors[strings.ToLower(part)] = true
+				continue
+			}
+
 			if i != 0 {
 				displayMsg += "\n"
 			}
+
 			// indent the error message
 			for n := 0; n < i; n++ {
 				displayMsg += "  "
@@ -45,6 +63,10 @@ func OutputErrorAndExit(msg string, args ...interface{}) {
 			}
 
 			displayMsg += s
+
+			addedErrors[strings.ToLower(part)] = true
+			lastPart = part
+			i++
 		}
 	} else {
 		displayMsg = color.New(ColorHiRed, color.Bold).Sprint("🚨 " + msg)

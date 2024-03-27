@@ -171,7 +171,37 @@ Model changes are versioned and can be rewound or applied to a branch just like 
 
 ### .plandex and teams
 
-When you run `plandex new` for the first time in any directory, Plandex will create a `.plandex` directory there for light project-level config. While the `.plandex` directory can be safely added to version control, **if multiple developers are using Plandex with the same project, then for now you should add `.plandex/` to .gitignore (or the ignore file for whatever VCS you use).** When orgs and teams are fully implemented (currently a WIP), it can be re-added to version control so that all team members can work from the same org and project.
+When you run `plandex new` for the first time in any directory, Plandex will create a `.plandex` directory there for light project-level config. The `.plandex` directory can be safely added to version control. 
+
+### Orgs
+
+If multiple people are using Plandex with the same project, they should all join the same **org** so that they aren't overwriting each other's `.plandex` directories.
+
+When creating a new org, you have the option of automatically granting access to anyone with an email address on your domain. If you choose not to do this, or you want to invite someone from outside your email domain, you can use `plandex invite`.
+
+```bash
+plandex invite # follow prompts to invite a new user
+```
+
+To join an org you've been invited to, use `plandex sign-in`.
+
+```bash
+plandex sign-in # follow the prompts to sign in to your org
+```
+
+To list users and pending invites:
+
+```bash
+plandex users
+```
+
+To revoke an invite or remove a user:
+
+```bash
+plandex revoke # follow prompts to revoke an invite or remove a user
+```
+
+Orgs will be the basis for plan sharing and collaboriation in future releases. 
 
 ### Directories
 
@@ -179,7 +209,7 @@ So far, we've assumed you're running `plandex new` to create plans in your proje
 
 When you run `plandex plans`, in addition to showing you plans in the current directory, Plandex will also show you plans in nearby parent directories or subdirectories. This helps you keep track of what plans you're working on and where they are in your project hierarchy. If you want to switch to a plan in a different directory, first `cd` into that directory, then run `plandex cd` to select the plan.
 
-```bash
+<!-- ```bash
 cd your-project
 plandex new -n root-project-plan # cwd is 'your-project'
 plandex current # 'your-project' current plan is root-project-plan
@@ -193,16 +223,13 @@ cd ../ # cwd is now 'your-project', current plan is root-project-plan
 plandex plans # shows root-project-plan in current directory + subdir-plan1 and subdir-plan2 in child directory 'some-subdirectory'
 cd some-subdirectory # cwd is now 'some-subdirectory', current plan is subdir-plan2
 plandex cd subdir-plan1 # cwd is still 'some-subdirectory', current plan is now subdir-plan1
-```
+``` -->
 
 One more thing to note on directories: you can load context from parent or sibling directories if needed by using `..` in your load paths.
 
 ```bash
-cd your-project
-cd some-subdirectory
-plandex cd subdir-plan1
-plandex load ../file.go # loads your-project/file.go into subdir-plan1 context
-plandex load ../other-subdirectory/test.go # loads your-project/other-subdirectory/test.go into subdir-plan1 context
+plandex load ../file.go # loads file.go from parent directory
+plandex load ../sibling-dir/test.go # loads test.go from sibling directory
 ```
 
 ### Ignoring files

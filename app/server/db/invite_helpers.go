@@ -7,8 +7,9 @@ import (
 	"strings"
 )
 
-func CreateInvite(invite *Invite) error {
-	_, err := Conn.NamedExec(`INSERT INTO invites (id, org_id, email, name, inviter_id) VALUES (:id, :org_id, :email, :name, :inviter_id)`, invite)
+func CreateInvite(invite *Invite, tx *sql.Tx) error {
+	err := tx.QueryRow("INSERT INTO invites (org_id, email, name, inviter_id) RETURNING id", invite.OrgId, invite.Email, invite.Name, invite.InviterId).Scan(&invite.Id)
+
 	if err != nil {
 		return fmt.Errorf("error creating invite: %v", err)
 	}
@@ -21,6 +22,10 @@ func GetInvite(id string) (*Invite, error) {
 	err := Conn.Get(&invite, "SELECT * FROM invites WHERE id = $1", id)
 
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+
 		return nil, fmt.Errorf("error getting invite: %v", err)
 	}
 

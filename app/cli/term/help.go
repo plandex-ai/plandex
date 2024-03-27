@@ -39,7 +39,7 @@ var CmdDesc = map[string][2]string{
 	"ps":            {"", "list active and recently finished plan streams"},
 	"stop":          {"", "stop an active plan stream"},
 	"connect":       {"conn", "connect to an active plan stream"},
-	"sign-in":       {"", "sign in to an existing account or create a new one"},
+	"sign-in":       {"", "sign in, accept an invite, or create an account"},
 }
 
 func PrintCmds(prefix string, cmds ...string) {

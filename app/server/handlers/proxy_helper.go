@@ -8,6 +8,7 @@ import (
 	"os"
 	"plandex-server/db"
 	"plandex-server/host"
+	"time"
 
 	"github.com/plandex/plandex/shared"
 )
@@ -54,7 +55,9 @@ func proxyActivePlanMethod(w http.ResponseWriter, r *http.Request, planId, branc
 }
 
 func proxyRequest(w http.ResponseWriter, originalRequest *http.Request, url string) {
-	client := &http.Client{}
+	client := &http.Client{
+		Timeout: time.Second * 10,
+	}
 
 	// Create a new request based on the original request
 	req, err := http.NewRequest(originalRequest.Method, url, originalRequest.Body)

@@ -11,7 +11,7 @@ import (
 
 const (
 	AuthFreeTrialOption = "Start an anonymous trial on Plandex Cloud (no email required)"
-	AuthAccountOption   = "Sign in or create an account"
+	AuthAccountOption   = "Sign in, accept an invite, or create an account"
 )
 
 func promptInitialAuth() error {
@@ -185,9 +185,9 @@ func verifyEmail(email, host string) (bool, string, error) {
 		return false, "", fmt.Errorf("error creating email verification: %v", apiErr.Msg)
 	}
 
-	fmt.Println("✉️  You'll now receive a 6 character pin by email")
+	fmt.Println("✉️  You'll now receive a 6 character pin by email. It will be valid for 5 minutes.")
 
-	pin, err := term.GetUserPasswordInput("Please enter it here:")
+	pin, err := term.GetUserPasswordInput("Please enter your pin:")
 
 	if err != nil {
 		return false, "", fmt.Errorf("error prompting pin: %v", err)

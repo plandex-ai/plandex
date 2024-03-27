@@ -1,0 +1,14 @@
+Let's add the following commands to the 'app/cli/cmd' directory.
+
+For all commands, look at the cli/types/api.go and shared/req_res.go files for the API request and response types.
+
+Commands:
+
+invite.go - invite a new user to the org. look at the 'checkout' command on accepting optional parameters or prompting if parameters aren't provided.
+
+users.go - list all users in the org, as well as all pending invites in the org, then list them in a table like the one in the 'plans' command.
+
+revoke.go - revoke an invite or remove a user from the org. optionally accept an email parameter. if email is supplied, revoke the user or invite with that email. if email is not supplied, prompt the user to select a user or invite to revoke, similar to how branches are selected in the 'checkout' command.
+
+
+

@@ -120,6 +120,10 @@ func GitListBranches(orgId, planId string) ([]string, error) {
 
 	branches := strings.Split(strings.TrimSpace(out.String()), "\n")
 
+	if len(branches) == 0 || (len(branches) == 1 && branches[0] == "") {
+		return []string{"main"}, nil
+	}
+
 	return branches, nil
 }
 

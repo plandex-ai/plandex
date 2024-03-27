@@ -178,9 +178,9 @@ func MustApplyPlan(planId, branch string, autoConfirm bool) {
 		return
 	} else {
 		if isRepo {
-			fmt.Println("✏️ Plandex can commit these updates with an automatically generated message.")
+			fmt.Println("✏️  Plandex can commit these updates with an automatically generated message.")
 			fmt.Println()
-			fmt.Println("ℹ️ Only the files that Plandex is updating will be included the commit. Any other changes, staged or unstaged, will remain exactly as they are.")
+			fmt.Println("ℹ️  Only the files that Plandex is updating will be included the commit. Any other changes, staged or unstaged, will remain exactly as they are.")
 			fmt.Println()
 
 			confirmed, err := term.ConfirmYesNo("Commit Plandex updates now?")

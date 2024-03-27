@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"plandex-server/db"
+	"plandex-server/email"
 	"plandex-server/types"
 	"strings"
 
@@ -110,17 +111,52 @@ func InviteUserHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// start a transaction
+	tx, err := db.Conn.Begin()
+	if err != nil {
+		log.Printf("Error starting transaction: %v\n", err)
+		http.Error(w, "Error starting transaction: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Ensure that rollback is attempted in case of failure
+	defer func() {
+		if err != nil {
+			if rbErr := tx.Rollback(); rbErr != nil {
+				log.Printf("transaction rollback error: %v\n", rbErr)
+			} else {
+				log.Println("transaction rolled back")
+			}
+		}
+	}()
+
 	err = db.CreateInvite(&db.Invite{
 		OrgId:     auth.OrgId,
 		OrgRoleId: req.OrgRoleId,
 		Email:     req.Email,
 		Name:      req.Name,
 		InviterId: currentUserId,
-	})
+	}, tx)
 
 	if err != nil {
 		log.Printf("Error creating invite: %v\n", err)
 		http.Error(w, "Error creating invite: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	err = email.SendInviteEmail(req.Email, req.Name, auth.User.Name, org.Name)
+
+	if err != nil {
+		log.Printf("Error sending invite email: %v\n", err)
+		http.Error(w, "Error sending invite email: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// commit transaction
+	err = tx.Commit()
+	if err != nil {
+		log.Printf("Error committing transaction: %v\n", err)
+		http.Error(w, "Error committing transaction: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -277,9 +313,9 @@ func DeleteInviteHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if invite.OrgId != auth.OrgId {
-		log.Printf("Invite does not belong to org: %v\n", inviteId)
-		http.Error(w, "Invite does not belong to org: "+inviteId, http.StatusBadRequest)
+	if invite == nil || invite.OrgId != auth.OrgId {
+		log.Printf("Invite not found: %v\n", inviteId)
+		http.Error(w, "Invite not found: "+inviteId, http.StatusNotFound)
 		return
 	}
 

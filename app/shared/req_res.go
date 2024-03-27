@@ -139,11 +139,12 @@ type RespondMissingFileRequest struct {
 }
 
 type LoadContextParams struct {
-	ContextType ContextType `json:"contextType"`
-	Name        string      `json:"name"`
-	Url         string      `json:"url"`
-	FilePath    string      `json:"file_path"`
-	Body        string      `json:"body"`
+	ContextType     ContextType `json:"contextType"`
+	Name            string      `json:"name"`
+	Url             string      `json:"url"`
+	FilePath        string      `json:"file_path"`
+	Body            string      `json:"body"`
+	ForceSkipIgnore bool        `json:"forceSkipIgnore"`
 }
 
 type LoadContextRequest []*LoadContextParams

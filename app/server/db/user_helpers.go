@@ -60,3 +60,14 @@ func ListUsers(orgId string) ([]*User, error) {
 func CreateUser(user *User, tx *sql.Tx) error {
 	return tx.QueryRow("INSERT INTO users (name, email, domain, is_trial) VALUES ($1, $2, $3, $4) RETURNING id", user.Name, user.Email, user.Domain, user.IsTrial).Scan(&user.Id)
 }
+
+func NumUsersWithRole(orgId, roleId string) (int, error) {
+	var count int
+	err := Conn.Get(&count, "SELECT COUNT(*) FROM orgs_users WHERE org_id = $1 AND org_role_id = $2", orgId, roleId)
+
+	if err != nil {
+		return 0, fmt.Errorf("error counting users with role: %v", err)
+	}
+
+	return count, nil
+}

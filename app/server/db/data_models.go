@@ -298,34 +298,36 @@ type repoLock struct {
 // This allows us to store them in a git repo and use git to manage history.
 
 type Context struct {
-	Id          string             `json:"id"`
-	OrgId       string             `json:"orgId"`
-	OwnerId     string             `json:"ownerId"`
-	PlanId      string             `json:"planId"`
-	ContextType shared.ContextType `json:"contextType"`
-	Name        string             `json:"name"`
-	Url         string             `json:"url"`
-	FilePath    string             `json:"filePath"`
-	Sha         string             `json:"sha"`
-	NumTokens   int                `json:"numTokens"`
-	Body        string             `json:"body,omitempty"`
-	CreatedAt   time.Time          `json:"createdAt"`
-	UpdatedAt   time.Time          `json:"updatedAt"`
+	Id              string             `json:"id"`
+	OrgId           string             `json:"orgId"`
+	OwnerId         string             `json:"ownerId"`
+	PlanId          string             `json:"planId"`
+	ContextType     shared.ContextType `json:"contextType"`
+	Name            string             `json:"name"`
+	Url             string             `json:"url"`
+	FilePath        string             `json:"filePath"`
+	Sha             string             `json:"sha"`
+	NumTokens       int                `json:"numTokens"`
+	Body            string             `json:"body,omitempty"`
+	ForceSkipIgnore bool               `json:"forceSkipIgnore"`
+	CreatedAt       time.Time          `json:"createdAt"`
+	UpdatedAt       time.Time          `json:"updatedAt"`
 }
 
 func (context *Context) ToApi() *shared.Context {
 	return &shared.Context{
-		Id:          context.Id,
-		OwnerId:     context.OwnerId,
-		ContextType: context.ContextType,
-		Name:        context.Name,
-		Url:         context.Url,
-		FilePath:    context.FilePath,
-		Sha:         context.Sha,
-		NumTokens:   context.NumTokens,
-		Body:        context.Body,
-		CreatedAt:   context.CreatedAt,
-		UpdatedAt:   context.UpdatedAt,
+		Id:              context.Id,
+		OwnerId:         context.OwnerId,
+		ContextType:     context.ContextType,
+		Name:            context.Name,
+		Url:             context.Url,
+		FilePath:        context.FilePath,
+		Sha:             context.Sha,
+		NumTokens:       context.NumTokens,
+		Body:            context.Body,
+		ForceSkipIgnore: context.ForceSkipIgnore,
+		CreatedAt:       context.CreatedAt,
+		UpdatedAt:       context.UpdatedAt,
 	}
 }
 

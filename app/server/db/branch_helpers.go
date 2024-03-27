@@ -123,11 +123,15 @@ func ListPlanBranches(orgId, planId string) ([]*Branch, error) {
 		return nil, fmt.Errorf("error listing branches: %v", err)
 	}
 
+	// log.Println("branches: ", spew.Sdump(branches))
+
 	gitBranches, err := GitListBranches(orgId, planId)
 
 	if err != nil {
 		return nil, fmt.Errorf("error listing git branches: %v", err)
 	}
+
+	// log.Println("gitBranches: ", spew.Sdump(gitBranches))
 
 	var nameSet = make(map[string]bool)
 	for _, name := range gitBranches {

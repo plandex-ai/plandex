@@ -28,19 +28,19 @@ func getPlanResult(params planResultParams) (*db.PlanFileResult, bool) {
 	filePath := params.filePath
 	currentState := params.currentState
 	streamedChanges := params.streamedChanges
-	fileContent := params.fileContent
+	// fileContent := params.fileContent
 
 	currentStateLines := strings.Split(currentState, "\n")
 	// fileContentLines := strings.Split(fileContent, "\n")
 
-	log.Printf("\n\ngetPlanResult - path: %s\n", filePath)
-	log.Println("getPlanResult - currentState:")
-	log.Println(currentState)
-	log.Println("getPlanResult - currentStateLines:")
-	log.Println(currentStateLines)
-	log.Println("getPlanResult - fileContent:")
-	log.Println(fileContent)
-	log.Print("\n\n")
+	// log.Printf("\n\ngetPlanResult - path: %s\n", filePath)
+	// log.Println("getPlanResult - currentState:")
+	// log.Println(currentState)
+	// log.Println("getPlanResult - currentStateLines:")
+	// log.Println(currentStateLines)
+	// log.Println("getPlanResult - fileContent:")
+	// log.Println(fileContent)
+	// log.Print("\n\n")
 
 	var replacements []*shared.Replacement
 	for _, streamedChange := range streamedChanges {

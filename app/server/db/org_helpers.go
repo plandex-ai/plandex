@@ -75,7 +75,7 @@ func CreateOrg(req *shared.CreateOrgRequest, userId string, domain *string, tx *
 		OwnerId:            userId,
 	}
 
-	err := tx.QueryRow("INSERT INTO orgs (name, domain, auto_add_domain_users, owner_id) VALUES ($1, $2, $3, $4) RETURNING id", req.Name, domain, req.AutoAddDomainUsers, userId).Scan(&org.Id)
+	err := tx.QueryRow("INSERT INTO orgs (name, domain, auto_add_domain_users, owner_id, is_trial) VALUES ($1, $2, $3, $4, false) RETURNING id", req.Name, domain, req.AutoAddDomainUsers, userId).Scan(&org.Id)
 
 	if err != nil {
 		if IsNonUniqueErr(err) {

@@ -78,17 +78,18 @@ const (
 )
 
 type Context struct {
-	Id          string      `json:"id"`
-	OwnerId     string      `json:"ownerId"`
-	ContextType ContextType `json:"contextType"`
-	Name        string      `json:"name"`
-	Url         string      `json:"url"`
-	FilePath    string      `json:"file_path"`
-	Sha         string      `json:"sha"`
-	NumTokens   int         `json:"numTokens"`
-	Body        string      `json:"body,omitempty"`
-	CreatedAt   time.Time   `json:"createdAt"`
-	UpdatedAt   time.Time   `json:"updatedAt"`
+	Id              string      `json:"id"`
+	OwnerId         string      `json:"ownerId"`
+	ContextType     ContextType `json:"contextType"`
+	Name            string      `json:"name"`
+	Url             string      `json:"url"`
+	FilePath        string      `json:"file_path"`
+	Sha             string      `json:"sha"`
+	NumTokens       int         `json:"numTokens"`
+	Body            string      `json:"body,omitempty"`
+	ForceSkipIgnore bool        `json:"forceSkipIgnore"`
+	CreatedAt       time.Time   `json:"createdAt"`
+	UpdatedAt       time.Time   `json:"updatedAt"`
 }
 
 type ConvoMessage struct {

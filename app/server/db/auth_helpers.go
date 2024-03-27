@@ -87,7 +87,7 @@ func ValidateEmailVerification(email, pin string) (id string, err error) {
 	err = Conn.QueryRow(query, pinHash, email, time.Now().Add(-emailVerificationExpirationMinutes*time.Minute)).Scan(&id, &authTokenId)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return "", errors.New("invalid pin")
+			return "", errors.New("invalid or expired pin")
 		}
 		return "", fmt.Errorf("error validating email verification: %v", err)
 	}

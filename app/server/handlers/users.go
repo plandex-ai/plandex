@@ -98,6 +98,30 @@ func DeleteOrgUserHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// verify user isn't the only org owner
+	ownerRoleId, err := db.GetOrgOwnerRoleId()
+	if err != nil {
+		log.Printf("Error getting org owner role id: %v\n", err)
+		http.Error(w, "Error getting org owner role id: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if user.OrgRoleId == ownerRoleId {
+		numOwners, err := db.NumUsersWithRole(auth.OrgId, ownerRoleId)
+
+		if err != nil {
+			log.Printf("Error getting number of org owners: %v\n", err)
+			http.Error(w, "Error getting number of org owners: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		if numOwners == 1 {
+			log.Println("Cannot delete the only org owner")
+			http.Error(w, "Cannot delete the only org owner", http.StatusForbidden)
+			return
+		}
+	}
+
 	// start a transaction
 	tx, err := db.Conn.Begin()
 	if err != nil {
