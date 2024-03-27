@@ -21,10 +21,11 @@ type ApiClient interface {
 	SignIn(req shared.SignInRequest, customHost string) (*shared.SessionResponse, *shared.ApiError)
 	SignOut() *shared.ApiError
 
+	GetOrgSession() *shared.ApiError
 	ListOrgs() ([]*shared.Org, *shared.ApiError)
 	CreateOrg(req shared.CreateOrgRequest) (*shared.CreateOrgResponse, *shared.ApiError)
 
-	ListUsers() ([]*shared.User, *shared.ApiError)
+	ListUsers() (*shared.ListUsersResponse, *shared.ApiError)
 	DeleteUser(userId string) *shared.ApiError
 
 	ListOrgRoles() ([]*shared.OrgRole, *shared.ApiError)

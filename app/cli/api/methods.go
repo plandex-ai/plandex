@@ -1132,6 +1132,23 @@ func (a *Api) CreateOrg(req shared.CreateOrgRequest) (*shared.CreateOrgResponse,
 	return &createOrgResponse, nil
 }
 
+func (a *Api) GetOrgSession() *shared.ApiError {
+	serverUrl := getApiHost() + "/orgs/session"
+	resp, err := authenticatedFastClient.Get(serverUrl)
+	if err != nil {
+		return &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error sending request: %v", err)}
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		errorBody, _ := io.ReadAll(resp.Body)
+		apiErr := handleApiError(resp, errorBody)
+		return apiErr
+	}
+
+	return nil
+}
+
 func (a *Api) ListOrgs() ([]*shared.Org, *shared.ApiError) {
 	serverUrl := getApiHost() + "/orgs"
 	resp, err := authenticatedFastClient.Get(serverUrl)
@@ -1402,7 +1419,7 @@ func (a *Api) SignOut() *shared.ApiError {
 	return nil
 }
 
-func (a *Api) ListUsers() ([]*shared.User, *shared.ApiError) {
+func (a *Api) ListUsers() (*shared.ListUsersResponse, *shared.ApiError) {
 	serverUrl := getApiHost() + "/users"
 	resp, err := authenticatedFastClient.Get(serverUrl)
 	if err != nil {
@@ -1420,13 +1437,13 @@ func (a *Api) ListUsers() ([]*shared.User, *shared.ApiError) {
 		return nil, apiErr
 	}
 
-	var users []*shared.User
-	err = json.NewDecoder(resp.Body).Decode(&users)
+	var r *shared.ListUsersResponse
+	err = json.NewDecoder(resp.Body).Decode(&r)
 	if err != nil {
 		return nil, &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error decoding response: %v", err)}
 	}
 
-	return users, nil
+	return r, nil
 }
 
 func (a *Api) ListBranches(planId string) ([]*shared.Branch, *shared.ApiError) {

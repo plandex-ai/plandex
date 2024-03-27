@@ -32,9 +32,32 @@ func ListUsersHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Println("Error listing users: ", err)
 		http.Error(w, "Error listing users: "+err.Error(), http.StatusInternalServerError)
+		return
 	}
 
-	bytes, err := json.Marshal(users)
+	apiUsers := make([]*shared.User, 0, len(users))
+	for _, user := range users {
+		apiUsers = append(apiUsers, user.ToApi())
+	}
+
+	orgUsers, err := db.ListOrgUsers(auth.OrgId)
+	if err != nil {
+		log.Println("Error listing org users: ", err)
+		http.Error(w, "Error listing org users: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	orgUsersByUserId := make(map[string]*shared.OrgUser)
+	for _, orgUser := range orgUsers {
+		orgUsersByUserId[orgUser.UserId] = orgUser.ToApi()
+	}
+
+	resp := shared.ListUsersResponse{
+		Users:            apiUsers,
+		OrgUsersByUserId: orgUsersByUserId,
+	}
+
+	bytes, err := json.Marshal(resp)
 
 	if err != nil {
 		log.Println("Error marshalling users: ", err)
@@ -66,20 +89,22 @@ func DeleteOrgUserHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	userId := vars["userId"]
 
-	user, err := db.GetUser(userId)
+	log.Println("userId: ", userId)
+
+	orgUser, err := db.GetOrgUser(userId, auth.OrgId)
 
 	if err != nil {
-		log.Printf("Error getting user: %v\n", err)
-		http.Error(w, "Error getting user: "+err.Error(), http.StatusInternalServerError)
+		log.Printf("Error getting org user: %v\n", err)
+		http.Error(w, "Error getting org user: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	// ensure current user can invite target user
-	removePermission := types.Permission(strings.Join([]string{string(types.PermissionRemoveUser), user.OrgRoleId}, "|"))
+	// ensure current user can remove target user
+	removePermission := types.Permission(strings.Join([]string{string(types.PermissionRemoveUser), orgUser.OrgRoleId}, "|"))
 
 	if !auth.HasPermission(removePermission) {
-		log.Printf("User does not have permission to invite user with role: %v\n", user.OrgRoleId)
-		http.Error(w, "User does not have permission to invite user with role: "+user.OrgRoleId, http.StatusForbidden)
+		log.Printf("User does not have permission to remove user with role: %v\n", orgUser.OrgRoleId)
+		http.Error(w, "User does not have permission to remove user with role: "+orgUser.OrgRoleId, http.StatusForbidden)
 		return
 	}
 
@@ -106,7 +131,7 @@ func DeleteOrgUserHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if user.OrgRoleId == ownerRoleId {
+	if orgUser.OrgRoleId == ownerRoleId {
 		numOwners, err := db.NumUsersWithRole(auth.OrgId, ownerRoleId)
 
 		if err != nil {
@@ -141,7 +166,7 @@ func DeleteOrgUserHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
-	err = db.DeleteOrgUser(userId, auth.OrgId, tx)
+	err = db.DeleteOrgUser(auth.OrgId, userId, tx)
 
 	if err != nil {
 		log.Println("Error deleting org user: ", err)
@@ -149,7 +174,7 @@ func DeleteOrgUserHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	invite, err := db.GetInviteForOrgUser(auth.OrgId, userId)
+	invite, err := db.GetActiveInviteByEmail(auth.OrgId, auth.User.Email)
 
 	if err != nil {
 		log.Println("Error getting invite for org user: ", err)
@@ -165,6 +190,14 @@ func DeleteOrgUserHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Error deleting invite: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
+	}
+
+	err = tx.Commit()
+
+	if err != nil {
+		log.Println("Error committing transaction: ", err)
+		http.Error(w, "Error committing transaction: "+err.Error(), http.StatusInternalServerError)
+		return
 	}
 
 	log.Println("Successfully processed request for DeleteOrgUserHandler")

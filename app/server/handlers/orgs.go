@@ -152,6 +152,18 @@ func CreateOrgHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write(bytes)
 }
 
+func GetOrgSessionHandler(w http.ResponseWriter, r *http.Request) {
+	log.Println("Received request for GetOrgSessionHandler")
+
+	auth := authenticate(w, r, true)
+
+	if auth == nil {
+		return
+	}
+
+	log.Println("Successfully got org session")
+}
+
 func ListOrgRolesHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for ListOrgRolesHandler")
 

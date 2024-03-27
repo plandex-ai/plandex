@@ -97,7 +97,7 @@ func authenticate(w http.ResponseWriter, r *http.Request, requireOrg bool) *type
 
 	if !isMember {
 		// check if there's an invite for this user and accept it if so (adds the user to the org)
-		invite, err := db.GetInviteForOrgUser(parsed.OrgId, authToken.UserId)
+		invite, err := db.GetActiveInviteByEmail(parsed.OrgId, user.Email)
 
 		if err != nil {
 			log.Printf("error getting invite for org user: %v\n", err)
@@ -106,6 +106,8 @@ func authenticate(w http.ResponseWriter, r *http.Request, requireOrg bool) *type
 		}
 
 		if invite != nil {
+			log.Println("accepting invite")
+
 			err := db.AcceptInvite(invite, authToken.UserId)
 
 			if err != nil {

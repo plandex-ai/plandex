@@ -35,6 +35,7 @@ func routes() *mux.Router {
 	r.HandleFunc("/accounts", handlers.CreateAccountHandler).Methods("POST")
 	r.HandleFunc("/accounts/convert_trial", handlers.ConvertTrialHandler).Methods("POST")
 
+	r.HandleFunc("/orgs/session", handlers.GetOrgSessionHandler).Methods("GET")
 	r.HandleFunc("/orgs", handlers.ListOrgsHandler).Methods("GET")
 	r.HandleFunc("/orgs", handlers.CreateOrgHandler).Methods("POST")
 

@@ -119,6 +119,12 @@ func SelectOrSignInOrCreate() error {
 		return fmt.Errorf("error setting auth: %v", err)
 	}
 
+	apiErr = apiClient.GetOrgSession()
+
+	if apiErr != nil {
+		return fmt.Errorf("error getting org session: %v", apiErr.Msg)
+	}
+
 	fmt.Printf("✅ Signed in as %s | Org: %s\n", color.New(color.Bold, term.ColorHiGreen).Sprintf("<%s> %s", Current.UserName, Current.Email), color.New(term.ColorHiCyan).Sprint(Current.OrgName))
 	fmt.Println()
 

@@ -25,7 +25,7 @@ func init() {
 func listUsersAndInvites(cmd *cobra.Command, args []string) {
 	auth.MustResolveAuthWithOrg()
 
-	var users []*shared.User
+	var userResp *shared.ListUsersResponse
 	var pendingInvites []*shared.Invite
 	var orgRoles []*shared.OrgRole
 
@@ -35,7 +35,7 @@ func listUsersAndInvites(cmd *cobra.Command, args []string) {
 
 	go func() {
 		var err *shared.ApiError
-		users, err = api.Client.ListUsers()
+		userResp, err = api.Client.ListUsers()
 		if err != nil {
 			errCh <- fmt.Errorf("error fetching users: %s", err.Msg)
 			return
@@ -81,14 +81,14 @@ func listUsersAndInvites(cmd *cobra.Command, args []string) {
 
 	// Display users and pending invites in a table
 	table := tablewriter.NewWriter(os.Stdout)
-	table.SetHeader([]string{"Type", "Email", "Name", "Role", "Status"})
+	table.SetHeader([]string{"Email", "Name", "Role", "Status"})
 
-	for _, user := range users {
-		table.Append([]string{"User", user.Email, user.Name, orgRolesById[user.OrgRoleId].Label, "Active"})
+	for _, user := range userResp.Users {
+		table.Append([]string{user.Email, user.Name, orgRolesById[userResp.OrgUsersByUserId[user.Id].OrgRoleId].Label, "Active"})
 	}
 
 	for _, invite := range pendingInvites {
-		table.Append([]string{"Invite", invite.Email, invite.Name, orgRolesById[invite.OrgRoleId].Label, "Pending"})
+		table.Append([]string{invite.Email, invite.Name, orgRolesById[invite.OrgRoleId].Label, "Pending"})
 	}
 
 	table.Render()

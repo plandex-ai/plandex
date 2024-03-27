@@ -6,6 +6,7 @@ import (
 	"plandex/auth"
 	"plandex/term"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/plandex/plandex/shared"
 	"github.com/spf13/cobra"
 )
@@ -29,7 +30,7 @@ func revoke(cmd *cobra.Command, args []string) {
 		email = args[0]
 	}
 
-	var users []*shared.User
+	var userResp *shared.ListUsersResponse
 	var pendingInvites []*shared.Invite
 	errCh := make(chan error)
 
@@ -37,7 +38,7 @@ func revoke(cmd *cobra.Command, args []string) {
 
 	go func() {
 		var err *shared.ApiError
-		users, err = api.Client.ListUsers()
+		userResp, err = api.Client.ListUsers()
 		if err != nil {
 			errCh <- fmt.Errorf("error fetching users: %s", err.Msg)
 			return
@@ -74,14 +75,18 @@ func revoke(cmd *cobra.Command, args []string) {
 	labelToEmail := make(map[string]string)
 
 	// Combine users and invites for selection
-	combinedList := make([]string, 0, len(users)+len(pendingInvites))
-	for _, user := range users {
+	combinedList := make([]string, 0, len(userResp.Users)+len(pendingInvites))
+	for _, user := range userResp.Users {
+		spew.Dump(user)
+
 		label := fmt.Sprintf("%s <%s>", user.Name, user.Email)
 		labelToEmail[label] = user.Email
 		combinedList = append(combinedList, label)
 		emailToUserMap[user.Email] = userInfo{Id: user.Id, IsInvite: false}
 	}
 	for _, invite := range pendingInvites {
+		spew.Dump(invite)
+
 		label := fmt.Sprintf("%s <%s> (invite pending)", invite.Name, invite.Email)
 		labelToEmail[label] = invite.Email
 		combinedList = append(combinedList, label)
@@ -97,8 +102,14 @@ func revoke(cmd *cobra.Command, args []string) {
 		email = labelToEmail[selected]
 	}
 
+	if email == "" {
+		term.OutputErrorAndExit("No user or invite selected")
+	}
+
 	// Determine if email belongs to a user or an invite and revoke accordingly
 	if userInfo, exists := emailToUserMap[email]; exists {
+		spew.Dump(userInfo)
+
 		if userInfo.IsInvite {
 			if err := api.Client.DeleteInvite(userInfo.Id); err != nil {
 				term.OutputErrorAndExit("Failed to revoke invite: %v", err)

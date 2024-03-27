@@ -46,7 +46,6 @@ type User struct {
 	Domain           string    `db:"domain"`
 	NumNonDraftPlans int       `db:"num_non_draft_plans"`
 	IsTrial          bool      `db:"is_trial"`
-	OrgRoleId        string    `db:"org_role_id"`
 	CreatedAt        time.Time `db:"created_at"`
 	UpdatedAt        time.Time `db:"updated_at"`
 }
@@ -56,7 +55,6 @@ func (user *User) ToApi() *shared.User {
 		Id:               user.Id,
 		Name:             user.Name,
 		Email:            user.Email,
-		OrgRoleId:        user.OrgRoleId,
 		NumNonDraftPlans: user.NumNonDraftPlans,
 		IsTrial:          user.IsTrial,
 	}
@@ -68,7 +66,7 @@ type Invite struct {
 	Email      string     `db:"email"`
 	Name       string     `db:"name"`
 	InviterId  string     `db:"inviter_id"`
-	InviteeId  string     `db:"invitee_id"`
+	InviteeId  *string    `db:"invitee_id"`
 	OrgRoleId  string     `db:"org_role_id"`
 	AcceptedAt *time.Time `db:"accepted_at"`
 	CreatedAt  time.Time  `db:"created_at"`
@@ -92,9 +90,18 @@ func (invite *Invite) ToApi() *shared.Invite {
 type OrgUser struct {
 	Id        string    `db:"id"`
 	OrgId     string    `db:"org_id"`
+	OrgRoleId string    `db:"org_role_id"`
 	UserId    string    `db:"user_id"`
 	CreatedAt time.Time `db:"created_at"`
 	UpdatedAt time.Time `db:"updated_at"`
+}
+
+func (orgUser *OrgUser) ToApi() *shared.OrgUser {
+	return &shared.OrgUser{
+		OrgId:     orgUser.OrgId,
+		OrgRoleId: orgUser.OrgRoleId,
+		UserId:    orgUser.UserId,
+	}
 }
 
 type Project struct {

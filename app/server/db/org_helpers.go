@@ -3,8 +3,10 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"log"
 	"strings"
 
+	"github.com/lib/pq"
 	"github.com/plandex/plandex/shared"
 )
 
@@ -31,7 +33,7 @@ func GetAccessibleOrgsForUser(user *User) ([]*Org, error) {
 
 	if len(orgIds) > 0 {
 		var orgsFromInvites []*Org
-		err = Conn.Select(&orgsFromInvites, "SELECT * FROM orgs WHERE id IN (?)", strings.Join(orgIds, ","))
+		err = Conn.Select(&orgsFromInvites, "SELECT * FROM orgs WHERE id = ANY($1)", pq.Array(orgIds))
 		if err != nil {
 			return nil, fmt.Errorf("error getting orgs from invites: %v", err)
 		}
@@ -87,7 +89,13 @@ func CreateOrg(req *shared.CreateOrgRequest, userId string, domain *string, tx *
 		return nil, fmt.Errorf("error creating org: %v", err)
 	}
 
-	_, err = tx.Exec("INSERT INTO orgs_users (org_id, user_id) VALUES ($1, $2)", org.Id, userId)
+	orgRoleId, err := GetOrgOwnerRoleId()
+
+	if err != nil {
+		return nil, fmt.Errorf("error getting org owner role id: %v", err)
+	}
+
+	_, err = tx.Exec("INSERT INTO orgs_users (org_id, user_id, org_role_id) VALUES ($1, $2, $3)", org.Id, userId, orgRoleId)
 
 	if err != nil {
 		return nil, fmt.Errorf("error adding org membership: %v", err)
@@ -141,6 +149,8 @@ func AddOrgDomainUsers(orgId, domain string, tx *sql.Tx) error {
 }
 
 func DeleteOrgUser(orgId, userId string, tx *sql.Tx) error {
+	log.Printf("Deleting org user, org: %s | user: %s\n", orgId, userId)
+
 	_, err := tx.Exec("DELETE FROM orgs_users WHERE org_id = $1 AND user_id = $2", orgId, userId)
 
 	if err != nil {

@@ -1,8 +1,6 @@
 # Using Plandex 🛠️
 
-## Commands and concepts 🪄
-
-### New plan
+## New plan 🪄
 
 ```bash
 cd your-project
@@ -18,7 +16,7 @@ plandex new -n foo-adapters-component
 
 If you don't give your plan a name up front, it will be named 'draft' until you give it a task. To keep things tidy, you can only have one active plan named 'draft'. If you create a new draft plan, any existing draft plan will be removed.
 
-### Loading context
+## Loading context 📄
 
 After creating a plan, load any relevant files, directories, directory layouts, urls, or other data into the plan context.
 
@@ -32,7 +30,7 @@ npm test | plandex load # loads the output of `npm test`
 npm load -n 'add logging statements to all the code you generate.' # load a note into context
 ```
 
-### Tasks
+## Tasks ⚡️
 
 Now give the AI a task to do.
 
@@ -48,7 +46,7 @@ quote> add the needed reducer and action as well. write tests for the new code.'
 plandex tell --file task.txt # or -f task.txt
 ```
 
-### Changes
+## Changes 🏗️
 
 Plandex will stream the response to your terminal and build up a set of changes along the way. It will continue as long as necessary and create or update as many files as needed to complete the task. You can stop it at any time if it starts going in the wrong direction or if feedback would be helpful.
 
@@ -66,7 +64,7 @@ plandex apply
 
 If you're in a git repo, Plandex will automatically add a commit with a nicely formatted message describing the changes. Any uncommitted changes that were present in your working directory beforehand will be unaffected.
 
-### Rewind
+## Rewind ⏪ 
 
 If you want to rewind and try a different approach, you can use `log` to show a list of updates and `rewind` commands to go back in time.
 
@@ -77,7 +75,7 @@ plandex rewind 3 # go back 3 steps
 plandex rewind a7c8d66 # rewind to a specific state
 ```
 
-### Branches
+## Branches 🌱
 
 If you want to try a different approach but also keep the current one around, you can use branches. Create a new branch before rewinding.
 
@@ -89,7 +87,7 @@ plandex branches # see all branches
 plandex delete-branch new-approach # delete a branch
 ```
 
-### Continue
+## Continue ▶️
 
 If a plan has stopped and you just want to continue where you left off, you can use the `continue` command.
 
@@ -97,7 +95,7 @@ If a plan has stopped and you just want to continue where you left off, you can 
 plandex continue # continue the current plan
 ```
 
-### Background tasks
+## Background tasks 🚞
 
 If you want to run a command in the background, use the --bg flag.
 
@@ -113,7 +111,7 @@ plandex connect # select an active plan to connect to
 plandex stop # select an active plan to stop
 ```
 
-### Context management
+## Context management 📑
 
 You can see the plan's current context with the `ls` command. You can remove context with the `rm` command or clear it all with the `clear` command.
 
@@ -132,7 +130,7 @@ If files in context are modified outside of Plandex, you will be prompted to upd
 plandex update # update files in context
 ```
 
-### Plans
+## Plans 🌟
 
 When you have multiple plans, you can list them with the `plans` command, switch between them with the `cd` command, see the current plan with the `current` command, and delete plans with the `delete-plan` command. Archiving of plans will be added in the future for plans that you want to keep around but aren't currently working on.
 
@@ -147,7 +145,7 @@ plandex delete-plan some-plan # delete a plan by name
 plandex delete-plan 4 # delete a plan by number in the `plandex plans` list
 ```
 
-### Conversation history
+## Conversation history 💬
 
 You can see the full conversation history with the `convo` command.
 
@@ -155,11 +153,11 @@ You can see the full conversation history with the `convo` command.
 plandex convo # show the full conversation history
 ```
 
-### Conversation summaries
+## Conversation summaries 🤏
 
 Every time the AI model replies, Plandex will summarize the conversation so far in the background and store the summary in case it's needed later. When the conversation size in tokens exceeds the model's limit, Plandex will automatically replace some number of older messages with the corresponding summary. It will summarize as many messages as necessary to keep the conversation size under the limit.
 
-### Model settings
+## Model settings 🧠
 
 You can see the current AI models and model settings with the `models` command and change them with the `set-model` command.
 
@@ -174,7 +172,7 @@ plandex set-model max-convo-tokens 20000  # set how large the conversation can g
 
 Model changes are versioned and can be rewound or applied to a branch just like any other change.
 
-### .plandex directory and teams
+## .plandex directory and orgs 👥
 
 When you run `plandex new` for the first time in any directory, Plandex will create a `.plandex` directory there for light project-level config.  
 
@@ -183,7 +181,7 @@ If multiple people are using Plandex with the same project, you should either:
 - Put `.plandex/` in `.gitignore` 
 - **Commit** the `.plandex` directory and get everyone into the same **org** in Plandex.
 
-### Orgs
+### Orgs 
 
 When creating a new org, you have the option of automatically granting access to anyone with an email address on your domain. If you choose not to do this, or you want to invite someone from outside your email domain, you can use `plandex invite`.
 
@@ -195,7 +193,7 @@ To revoke an invite or remove a user, use `plandex revoke`.
 
 Orgs will be the basis for plan sharing and collaboration in future releases. 
 
-### Directories
+## Directories 📂
 
 So far, we've assumed you're running `plandex new` to create plans in your project's root directory. While that is the most common use case, it can be useful to create plans in subdirectories of your project too. That's because context file paths in Plandex are specified relative to the directory where the plan was created. So if you're working on a plan for just one part of your project, you might want to create the plan in a subdirectory in order to shorten paths when loading context or referencing files in your prompts. This can also help with plan organization if you have a lot of plans.
 
@@ -224,7 +222,7 @@ plandex load ../file.go # loads file.go from parent directory
 plandex load ../sibling-dir/test.go # loads test.go from sibling directory
 ```
 
-### Ignoring files
+## Ignoring files 🙈
 
 Plandex respects `.gitignore` and won't load any files that you're ignoring. You can also add a `.plandexignore` file with ignore patterns to any directory.
 

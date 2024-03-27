@@ -8,7 +8,7 @@ import (
 )
 
 func CreateInvite(invite *Invite, tx *sql.Tx) error {
-	err := tx.QueryRow("INSERT INTO invites (org_id, email, name, inviter_id) RETURNING id", invite.OrgId, invite.Email, invite.Name, invite.InviterId).Scan(&invite.Id)
+	err := tx.QueryRow("INSERT INTO invites (org_id, email, name, inviter_id, org_role_id) VALUES ($1, $2, $3, $4, $5) RETURNING id", invite.OrgId, invite.Email, invite.Name, invite.InviterId, invite.OrgRoleId).Scan(&invite.Id)
 
 	if err != nil {
 		return fmt.Errorf("error creating invite: %v", err)
@@ -32,9 +32,9 @@ func GetInvite(id string) (*Invite, error) {
 	return &invite, nil
 }
 
-func GetInviteForOrgUser(orgId, userId string) (*Invite, error) {
+func GetActiveInviteByEmail(orgId, email string) (*Invite, error) {
 	var invite Invite
-	err := Conn.Get(&invite, "SELECT * FROM invites WHERE org_id = $1 AND invitee_id = $2", orgId, userId)
+	err := Conn.Get(&invite, "SELECT * FROM invites WHERE org_id = $1 AND email = $2 AND accepted_at IS NULL", orgId, email)
 
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -52,7 +52,7 @@ func ListPendingInvites(orgId string) ([]*Invite, error) {
 	err := Conn.Select(&invites, "SELECT * FROM invites WHERE org_id = $1 AND accepted_at IS NULL", orgId)
 
 	if err != nil {
-		return nil, fmt.Errorf("error getting invites for org: %v", err)
+		return nil, fmt.Errorf("error getting pending invites for org: %v", err)
 	}
 
 	return invites, nil
@@ -63,7 +63,7 @@ func ListAllInvites(orgId string) ([]*Invite, error) {
 	err := Conn.Select(&invites, "SELECT * FROM invites WHERE org_id = $1", orgId)
 
 	if err != nil {
-		return nil, fmt.Errorf("error getting invites for org: %v", err)
+		return nil, fmt.Errorf("error getting all invites for org: %v", err)
 	}
 
 	return invites, nil
@@ -74,7 +74,7 @@ func ListAcceptedInvites(orgId string) ([]*Invite, error) {
 	err := Conn.Select(&invites, "SELECT * FROM invites WHERE org_id = $1 AND accepted_at IS NOT NULL", orgId)
 
 	if err != nil {
-		return nil, fmt.Errorf("error getting invites for org: %v", err)
+		return nil, fmt.Errorf("error getting accepted invites for org: %v", err)
 	}
 
 	return invites, nil
@@ -100,9 +100,9 @@ func DeleteInvite(id string, tx *sql.Tx) error {
 	var err error
 
 	if tx == nil {
-		_, err = tx.Exec(query, id)
-	} else {
 		_, err = Conn.Exec(query, id)
+	} else {
+		_, err = tx.Exec(query, id)
 	}
 
 	if err != nil {
@@ -136,7 +136,7 @@ func AcceptInvite(invite *Invite, inviteeId string) error {
 	}
 
 	// create org user
-	err = CreateOrgUser(invite.OrgId, invite.InviteeId, invite.OrgRoleId, tx)
+	err = CreateOrgUser(invite.OrgId, inviteeId, invite.OrgRoleId, tx)
 
 	if err != nil {
 		return fmt.Errorf("error creating org user: %v", err)
@@ -148,7 +148,7 @@ func AcceptInvite(invite *Invite, inviteeId string) error {
 		return fmt.Errorf("error committing transaction: %v", err)
 	}
 
-	invite.InviteeId = inviteeId
+	invite.InviteeId = &inviteeId
 
 	return nil
 }

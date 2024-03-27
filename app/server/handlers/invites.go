@@ -97,7 +97,7 @@ func InviteUserHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// ensure invite isn't already active
-	invite, err := db.GetInviteForOrgUser(auth.OrgId, req.Email)
+	invite, err := db.GetActiveInviteByEmail(auth.OrgId, req.Email)
 
 	if err != nil {
 		log.Printf("Error getting invite: %v\n", err)

@@ -204,3 +204,8 @@ type UpdateSettingsRequest struct {
 type UpdateSettingsResponse struct {
 	Msg string `json:"msg"`
 }
+
+type ListUsersResponse struct {
+	Users            []*User             `json:"users"`
+	OrgUsersByUserId map[string]*OrgUser `json:"orgUsersByUserId"`
+}

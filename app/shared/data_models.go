@@ -17,8 +17,13 @@ type User struct {
 	Name             string `json:"name"`
 	Email            string `json:"email"`
 	IsTrial          bool   `json:"isTrial"`
-	OrgRoleId        string `json:"orgRoleId"`
 	NumNonDraftPlans int    `json:"numNonDraftPlans"`
+}
+
+type OrgUser struct {
+	OrgId     string `json:"orgId"`
+	UserId    string `json:"userId"`
+	OrgRoleId string `json:"orgRoleId"`
 }
 
 type Invite struct {
@@ -28,7 +33,7 @@ type Invite struct {
 	Name       string     `json:"name"`
 	OrgRoleId  string     `json:"orgRoleId"`
 	InviterId  string     `json:"inviterId"`
-	InviteeId  string     `json:"inviteeId"`
+	InviteeId  *string    `json:"inviteeId"`
 	AcceptedAt *time.Time `json:"acceptedAt"`
 	CreatedAt  time.Time  `json:"createdAt"`
 }
