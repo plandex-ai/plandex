@@ -64,7 +64,7 @@ plandex apply
 
 If you're in a git repo, Plandex will automatically add a commit with a nicely formatted message describing the changes. Any uncommitted changes that were present in your working directory beforehand will be unaffected.
 
-## Rewind    
+## Rewind  ⏪  
 
 If you want to rewind and try a different approach, you can use `log` to show a list of updates and `rewind` commands to go back in time.
 
@@ -172,7 +172,7 @@ plandex set-model max-convo-tokens 20000  # set how large the conversation can g
 
 Model changes are versioned and can be rewound or applied to a branch just like any other change.
 
-## .plandex directory    
+## .plandex directory  ⚙️
 
 When you run `plandex new` for the first time in any directory, Plandex will create a `.plandex` directory there for light project-level config.  
 
