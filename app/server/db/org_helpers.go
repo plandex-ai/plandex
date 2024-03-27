@@ -6,6 +6,7 @@ import (
 	"log"
 	"strings"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/lib/pq"
 	"github.com/plandex/plandex/shared"
 )
@@ -21,15 +22,20 @@ func GetAccessibleOrgsForUser(user *User) ([]*Org, error) {
 		return nil, fmt.Errorf("error getting orgs for user: %v", err)
 	}
 
-	orgIds := make([]string, len(orgUsers))
-	for i, ou := range orgUsers {
-		orgIds[i] = ou.OrgId
+	orgIds := []string{}
+	for _, ou := range orgUsers {
+		orgIds = append(orgIds, ou.OrgId)
 	}
 
-	err = Conn.Select(&orgs, "SELECT * FROM orgs WHERE id = ANY($1)", pq.Array(orgIds))
+	if len(orgIds) > 0 {
+		err = Conn.Select(&orgs, "SELECT * FROM orgs WHERE id = ANY($1)", pq.Array(orgIds))
 
-	if err != nil {
-		return nil, fmt.Errorf("error getting orgs for user: %v", err)
+		if err != nil {
+			return nil, fmt.Errorf("error getting orgs for user: %v", err)
+		}
+	} else {
+		log.Println("No orgs found for user")
+		return orgs, nil
 	}
 
 	// access via invitation
@@ -39,10 +45,12 @@ func GetAccessibleOrgsForUser(user *User) ([]*Org, error) {
 		return nil, fmt.Errorf("error getting invites for user: %v", err)
 	}
 
-	orgIds = make([]string, len(invites))
+	orgIds = []string{}
 	for _, invite := range invites {
 		orgIds = append(orgIds, invite.OrgId)
 	}
+
+	log.Println(spew.Sdump(orgIds))
 
 	if len(orgIds) > 0 {
 		var orgsFromInvites []*Org
