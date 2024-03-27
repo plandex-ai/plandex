@@ -37,11 +37,15 @@ npm load -n 'add logging statements to all the code you generate.' # load a note
 Now give the AI a task to do.
 
 ```bash
-plandex tell # with no arguments, vim or nano will open and you can type your task there
+# with no arguments, vim or nano will open and you can type your task there
+plandex tell 
+# you can pass a task directly as a string 
+# press enter for line breaks while inside the quotes
 plandex tell 'build another component like this one that displays foo adapters in the table rather than bar adapters.
 quote> use the same layout and styles, but update the column headers and formatting to match the new data.
-quote> add the needed reducer and action as well. write tests for the new code.' # you can pass a task directly as a string (press enter for line breaks while inside the quotes)
-plandex tell -f task.txt # load a task from a file
+quote> add the needed reducer and action as well. write tests for the new code.' 
+# load a task from a file
+plandex tell --file task.txt # or -f task.txt
 ```
 
 ### Changes
@@ -118,6 +122,7 @@ plandex ls # list all context in current plan
 plandex rm component.ts # remove by name
 plandex rm 2 # remove by number in the `plandex ls` list
 plandex rm lib/**/*.js # remove by glob pattern
+plandex rm lib # remove whole directory
 plandex clear # remove all context
 ```
 
@@ -169,37 +174,24 @@ plandex set-model max-convo-tokens 20000  # set how large the conversation can g
 
 Model changes are versioned and can be rewound or applied to a branch just like any other change.
 
-### .plandex and teams
+### .plandex directory and teams
 
-When you run `plandex new` for the first time in any directory, Plandex will create a `.plandex` directory there for light project-level config. The `.plandex` directory can be safely added to version control. 
+When you run `plandex new` for the first time in any directory, Plandex will create a `.plandex` directory there for light project-level config.  
+
+If multiple people are using Plandex with the same project, you should either:
+
+- Put `.plandex/` in `.gitignore` 
+- **Commit** the `.plandex` directory and get everyone into the same **org** in Plandex.
 
 ### Orgs
 
-If multiple people are using Plandex with the same project, they should all join the same **org** so that they aren't overwriting each other's `.plandex` directories.
-
 When creating a new org, you have the option of automatically granting access to anyone with an email address on your domain. If you choose not to do this, or you want to invite someone from outside your email domain, you can use `plandex invite`.
-
-```bash
-plandex invite # follow prompts to invite a new user
-```
 
 To join an org you've been invited to, use `plandex sign-in`.
 
-```bash
-plandex sign-in # follow the prompts to sign in to your org
-```
+To list users and pending invites, use `plandex users`.
 
-To list users and pending invites:
-
-```bash
-plandex users
-```
-
-To revoke an invite or remove a user:
-
-```bash
-plandex revoke # follow prompts to revoke an invite or remove a user
-```
+To revoke an invite or remove a user, use `plandex revoke`.
 
 Orgs will be the basis for plan sharing and collaboration in future releases. 
 
