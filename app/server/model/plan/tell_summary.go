@@ -66,8 +66,8 @@ func (state *activeTellStreamState) summarizeMessagesIfNeeded() bool {
 
 				log.Println("timestamp:", timestamp)
 
-				log.Println("Conversation summary:")
-				spew.Dump(s)
+				// log.Println("Conversation summary:")
+				// spew.Dump(s)
 
 				log.Println("tokensUpToTimestamp:")
 				spew.Dump(tokensUpToTimestamp)

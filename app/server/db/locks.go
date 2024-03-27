@@ -6,7 +6,6 @@ import (
 	"log"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/lib/pq"
 )
 
@@ -34,7 +33,7 @@ func LockRepo(params LockRepoParams) (string, error) {
 
 func lockRepo(params LockRepoParams, numRetry int) (string, error) {
 	log.Println("locking repo")
-	spew.Dump(params)
+	// spew.Dump(params)
 
 	orgId := params.OrgId
 	userId := params.UserId
