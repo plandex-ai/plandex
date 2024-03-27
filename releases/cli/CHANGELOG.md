@@ -1,3 +1,11 @@
+## Version 0.8.0
+- `plandex invite` command to invite users to an org
+- `plandex users` command to list users and pending invites for an org
+- `plandex revoke` command to revoke an invite or remove a user from an org
+- `plandex sign-in` fixes
+- Fix for context update of directory tree when some paths are ignored
+- Fix for `plandex branches` command showing no branches immediately after plan creation rather than showing the default 'main' branch
+
 ## Version 0.7.3
 - Fixes for changes TUI replacement view
 - Fixes for changes TUI text encoding issue
