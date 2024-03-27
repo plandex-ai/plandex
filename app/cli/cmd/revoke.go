@@ -6,7 +6,6 @@ import (
 	"plandex/auth"
 	"plandex/term"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/plandex/plandex/shared"
 	"github.com/spf13/cobra"
 )
@@ -77,16 +76,12 @@ func revoke(cmd *cobra.Command, args []string) {
 	// Combine users and invites for selection
 	combinedList := make([]string, 0, len(userResp.Users)+len(pendingInvites))
 	for _, user := range userResp.Users {
-		spew.Dump(user)
-
 		label := fmt.Sprintf("%s <%s>", user.Name, user.Email)
 		labelToEmail[label] = user.Email
 		combinedList = append(combinedList, label)
 		emailToUserMap[user.Email] = userInfo{Id: user.Id, IsInvite: false}
 	}
 	for _, invite := range pendingInvites {
-		spew.Dump(invite)
-
 		label := fmt.Sprintf("%s <%s> (invite pending)", invite.Name, invite.Email)
 		labelToEmail[label] = invite.Email
 		combinedList = append(combinedList, label)
@@ -108,8 +103,6 @@ func revoke(cmd *cobra.Command, args []string) {
 
 	// Determine if email belongs to a user or an invite and revoke accordingly
 	if userInfo, exists := emailToUserMap[email]; exists {
-		spew.Dump(userInfo)
-
 		if userInfo.IsInvite {
 			if err := api.Client.DeleteInvite(userInfo.Id); err != nil {
 				term.OutputErrorAndExit("Failed to revoke invite: %v", err)

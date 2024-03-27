@@ -212,6 +212,8 @@ Speaking of feedback, feel free to give yours, ask questions, or report a bug:
 
 Work on tests, evals, prompts, and bug fixes is especially appreciated.
 
+[Here's an overview on setting up a development environment.](./guides/DEVELOPMENT.md)
+
 ## Comparable tools ⚖️
 
 - [Aider](https://github.com/paul-gauthier/aider)
@@ -224,6 +226,7 @@ Work on tests, evals, prompts, and bug fixes is especially appreciated.
 - [Github Copilot](https://github.com/features/copilot)
 - [Replit Ghostwriter](https://replit.com/ai)
 - [Grimoire](https://chat.openai.com/g/g-n7Rs0IK86-grimoire)
+- [Devin](https://devinai.ai/)
 
 ## About the developer  👋
 
