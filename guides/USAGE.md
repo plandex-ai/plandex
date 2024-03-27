@@ -201,7 +201,7 @@ To revoke an invite or remove a user:
 plandex revoke # follow prompts to revoke an invite or remove a user
 ```
 
-Orgs will be the basis for plan sharing and collaboriation in future releases. 
+Orgs will be the basis for plan sharing and collaboration in future releases. 
 
 ### Directories
 
