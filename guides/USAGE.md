@@ -172,16 +172,16 @@ plandex set-model max-convo-tokens 20000  # set how large the conversation can g
 
 Model changes are versioned and can be rewound or applied to a branch just like any other change.
 
-## .plandex directory and orgs  👥
+## .plandex directory  ⚙️ 
 
 When you run `plandex new` for the first time in any directory, Plandex will create a `.plandex` directory there for light project-level config.  
 
 If multiple people are using Plandex with the same project, you should either:
 
 - Put `.plandex/` in `.gitignore` 
-- **Commit** the `.plandex` directory and get everyone into the same **org** in Plandex.
+- **Commit** the `.plandex` directory and get everyone into the same **org** in Plandex (see next section).
 
-### Orgs  
+### Orgs  👥
 
 When creating a new org, you have the option of automatically granting access to anyone with an email address on your domain. If you choose not to do this, or you want to invite someone from outside your email domain, you can use `plandex invite`.
 
