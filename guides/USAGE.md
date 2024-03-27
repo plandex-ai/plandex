@@ -181,7 +181,7 @@ If multiple people are using Plandex with the same project, you should either:
 - Put `.plandex/` in `.gitignore` 
 - **Commit** the `.plandex` directory and get everyone into the same **org** in Plandex (see next section).
 
-### Orgs  👥
+## Orgs  👥
 
 When creating a new org, you have the option of automatically granting access to anyone with an email address on your domain. If you choose not to do this, or you want to invite someone from outside your email domain, you can use `plandex invite`.
 
