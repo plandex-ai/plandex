@@ -3,6 +3,8 @@ package db
 import (
 	"database/sql"
 	"fmt"
+
+	"github.com/lib/pq"
 )
 
 func GetUser(userId string) (*User, error) {
@@ -74,7 +76,19 @@ func ListOrgUsers(orgId string) ([]*OrgUser, error) {
 
 func ListUsers(orgId string) ([]*User, error) {
 	var users []*User
-	err := Conn.Select(&users, "SELECT u.* FROM users u INNER JOIN orgs_users ou ON u.id = ou.user_id WHERE ou.org_id = $1", orgId)
+
+	orgUsers, err := ListOrgUsers(orgId)
+
+	if err != nil {
+		return nil, fmt.Errorf("error listing users: %v", err)
+	}
+
+	userIds := make([]string, len(orgUsers))
+	for i, ou := range orgUsers {
+		userIds[i] = ou.UserId
+	}
+
+	err = Conn.Select(&users, "SELECT * FROM users WHERE id = ANY($1)", pq.Array(userIds))
 
 	if err != nil {
 		return nil, fmt.Errorf("error listing users: %v", err)

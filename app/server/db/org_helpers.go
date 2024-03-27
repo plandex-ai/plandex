@@ -12,8 +12,21 @@ import (
 
 func GetAccessibleOrgsForUser(user *User) ([]*Org, error) {
 	// direct access
+	var orgUsers []*OrgUser
 	var orgs []*Org
-	err := Conn.Select(&orgs, "SELECT o.* FROM orgs o JOIN orgs_users ou ON o.id = ou.org_id WHERE ou.user_id = $1", user.Id)
+
+	err := Conn.Select(&orgUsers, "SELECT * FROM orgs_users WHERE user_id = $1", user.Id)
+
+	if err != nil {
+		return nil, fmt.Errorf("error getting orgs for user: %v", err)
+	}
+
+	orgIds := make([]string, len(orgUsers))
+	for i, ou := range orgUsers {
+		orgIds[i] = ou.OrgId
+	}
+
+	err = Conn.Select(&orgs, "SELECT * FROM orgs WHERE id = ANY($1)", pq.Array(orgIds))
 
 	if err != nil {
 		return nil, fmt.Errorf("error getting orgs for user: %v", err)
@@ -26,7 +39,7 @@ func GetAccessibleOrgsForUser(user *User) ([]*Org, error) {
 		return nil, fmt.Errorf("error getting invites for user: %v", err)
 	}
 
-	var orgIds []string
+	orgIds = make([]string, len(invites))
 	for _, invite := range invites {
 		orgIds = append(orgIds, invite.OrgId)
 	}

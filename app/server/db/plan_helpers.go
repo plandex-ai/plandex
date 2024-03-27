@@ -376,7 +376,7 @@ func ValidatePlanAccess(planId, userId, orgId string) (*Plan, error) {
 		return nil, nil
 	}
 
-	hasProjectAccess, err := ValidateProjectAccess(plan.ProjectId, userId, orgId)
+	hasProjectAccess, err := ProjectExists(orgId, plan.ProjectId)
 
 	if err != nil {
 		return nil, fmt.Errorf("error validating project membership: %v", err)

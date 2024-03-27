@@ -39,9 +39,8 @@ type Invite struct {
 }
 
 type Project struct {
-	Id               string `json:"id"`
-	Name             string `json:"name"`
-	LastActivePlanId string `json:"lastActivePlanId"`
+	Id   string `json:"id"`
+	Name string `json:"name"`
 }
 
 type Plan struct {

@@ -60,20 +60,11 @@ func CreateProjectHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
-	var projectId string
-	err = tx.QueryRow("INSERT INTO projects (org_id, name) VALUES ($1, $2) RETURNING id", auth.OrgId, requestBody.Name).Scan(&projectId)
+	projectId, err := db.CreateProject(auth.OrgId, requestBody.Name, tx)
 
 	if err != nil {
 		log.Printf("Error creating project: %v\n", err)
 		http.Error(w, "Error creating project: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	_, err = tx.Exec("INSERT INTO users_projects (user_id, org_id, project_id) VALUES ($1, $2, $3)", auth.User.Id, auth.OrgId, projectId)
-
-	if err != nil {
-		log.Printf("Error adding owner to project: %v\n", err)
-		http.Error(w, "Error adding owner to project: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -109,7 +100,7 @@ func ListProjectsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rows, err := db.Conn.Query("SELECT project.id, project.name FROM users_projects INNER JOIN project ON users_projects.project_id = project.id WHERE users_projects.user_id = $1 AND users_projects.org_id = $2", auth)
+	rows, err := db.Conn.Query("SELECT id, name FROM projects WHERE org_id = $1", auth.OrgId)
 
 	if err != nil {
 		log.Printf("Error listing projects: %v\n", err)

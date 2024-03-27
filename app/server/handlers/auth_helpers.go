@@ -152,17 +152,17 @@ func authenticate(w http.ResponseWriter, r *http.Request, requireOrg bool) *type
 func authorizeProject(w http.ResponseWriter, projectId string, auth *types.ServerAuth) bool {
 	log.Println("authorizing project")
 
-	hasProjectAccess, err := db.ValidateProjectAccess(projectId, auth.User.Id, auth.OrgId)
+	projectExists, err := db.ProjectExists(auth.OrgId, projectId)
 
 	if err != nil {
-		log.Printf("error validating project membership: %v\n", err)
-		http.Error(w, "error validating project membership", http.StatusInternalServerError)
+		log.Printf("error validating project: %v\n", err)
+		http.Error(w, "error validating project", http.StatusInternalServerError)
 		return false
 	}
 
-	if !hasProjectAccess {
-		log.Println("user is not a member of the project")
-		http.Error(w, "not a member of project", http.StatusUnauthorized)
+	if !projectExists {
+		log.Println("project does not exist in org")
+		http.Error(w, "project does not exist in org", http.StatusNotFound)
 		return false
 	}
 

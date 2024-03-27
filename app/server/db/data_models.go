@@ -105,30 +105,18 @@ func (orgUser *OrgUser) ToApi() *shared.OrgUser {
 }
 
 type Project struct {
-	Id               string    `db:"id"`
-	OrgId            string    `db:"org_id"`
-	Name             string    `db:"name"`
-	LastActivePlanId string    `db:"last_active_plan_id"`
-	CreatedAt        time.Time `db:"created_at"`
-	UpdatedAt        time.Time `db:"updated_at"`
+	Id        string    `db:"id"`
+	OrgId     string    `db:"org_id"`
+	Name      string    `db:"name"`
+	CreatedAt time.Time `db:"created_at"`
+	UpdatedAt time.Time `db:"updated_at"`
 }
 
 func (project *Project) ToApi() *shared.Project {
 	return &shared.Project{
-		Id:               project.Id,
-		Name:             project.Name,
-		LastActivePlanId: project.LastActivePlanId,
+		Id:   project.Id,
+		Name: project.Name,
 	}
-}
-
-type UserProject struct {
-	Id               string    `db:"id"`
-	OrgId            string    `db:"org_id"`
-	UserId           string    `db:"user_id"`
-	ProjectId        string    `db:"project_id"`
-	LastActivePlanId string    `db:"last_active_plan_id"`
-	CreatedAt        time.Time `db:"created_at"`
-	UpdatedAt        time.Time `db:"updated_at"`
 }
 
 type Plan struct {
