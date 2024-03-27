@@ -44,10 +44,10 @@
   <a href="./guides/DEVELOPMENT.md">
     <b>Development</b>
   </a>
-  <!-- ·
-  <a href="https://discord.com/channels/1214825831973785600/1214825831973785603">
+  ·
+  <a href="https://discord.gg/plandex-ai">
     <b>Discord</b>
-  </a>   -->
+  </a>  
 </p>
 
 <br/>
@@ -198,11 +198,11 @@ Plandex Cloud follows best practices for network and data security. And whether 
 
 This list will grow and be prioritized based on your feedback.
 
-## Discussion  💬
+## Discussion and discord  💬
 
-Speaking of feedback, feel free to give yours, ask questions, or report a bug:
+Speaking of feedback, feel free to give yours, ask questions, report a bug, or just hang out:
 
-<!-- - [Discord](https://discord.com/channels/1214825831973785600/1214825831973785603) -->
+- [Discord](https://discord.gg/plandex-ai)
 - [Discussions](https://github.com/plandex-ai/plandex/discussions)
 - [Issues](https://github.com/plandex-ai/plandex/issues)
 
