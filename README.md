@@ -9,7 +9,7 @@
 </h1>
 <br />
 
-<p align="center"><strong>🔮 An open source, terminal-based AI programming engine for complex tasks.</strong></p>
+<p align="center"><strong>🔮 An open source, terminal-based AI coding engine for complex tasks.</strong></p>
 
 <p align="center">
   <!-- Badges -->
