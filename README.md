@@ -9,7 +9,7 @@
 </h1>
 <br />
 
-<p align="center"><strong>🔮 A terminal-based AI programming engine for complex tasks.</strong></p>
+<p align="center"><strong>🔮 An open source, terminal-based AI programming engine for complex tasks.</strong></p>
 
 <p align="center">
   <!-- Badges -->
@@ -51,6 +51,9 @@
 </p>
 
 <br/>
+
+<p>Plandex uses long-running agents to complete tasks that require many steps. It breaks up large tasks into smaller subtasks, then implements each one, continuing until it finishes the job. It helps you churn through your backlog, work with unfamiliar technologies, get unstuck, and spend less time on the boring stuff. </p>
+
 <br/>
 
 <!-- Vimeo link is nicer on mobile than embedded video... downside is it navigates to vimeo in same tab (no way to add target=_blank) -->
@@ -63,13 +66,11 @@
 <br/>
 <br/>
 
-## 🌟  Build large features and entire projects with AI.
+## 🌟  Build complex software with LLMs.
 
-🔮  Plandex is an open source, terminal-based AI programming engine with long-running agents, context management, versioning, branches, diff review, a protected sandbox for changes, and automatic file updates.
+⚡️  Changes are accumulated in a protected sandbox so that you can review them before automatically applying them to your project files. Built-in version control allows you to easily go backwards and try a different approach. Branches allow you to try multiple approaches and compare the results.
 
-💪  Plandex helps you churn through your backlog, work with unfamiliar technologies, get unstuck, and spend less time on the boring stuff.
-
-🏎️  Plandex keeps you, the developer, in the driver's seat. Though LLMs are extremely useful for coding, they still make a **lot** of mistakes. Rather than assuming LLM output will be always be good, Plandex focuses on the inevitable failure cases, offering easy escape hatches and recovery options when a plan goes off the rails or a file patch is generated incorrectly. Plandex tightens the feedback loop between the programmer and the AI, making it easy to review changes, reject mistakes, and quickly get a wayward task back on track.
+📑  Manage context efficiently in the terminal. Easily add files or entire directories to context, and keep them updated automatically as you work so that models are always working with the latest state of your project.
 
 🧠  Plandex relies on the OpenAI API and requires an `OPENAI_API_KEY` environment variable. Support for open source models, Google Gemini, and Anthropic Claude is coming soon.
 
