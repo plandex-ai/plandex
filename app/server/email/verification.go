@@ -26,7 +26,7 @@ func SendVerificationEmail(email string, pin string) error {
 	if os.Getenv("GOENV") == "development" {
 		// Development environment
 
-		if os.Getenv("PIN2LOG") == "yes" {
+		if os.Getenv("PIN2LOG") == "true" {
 				// Dump pin to log output
 				fmt.Printf("Development mode: Verification pin is %s for email %s\n", pin, email)
 		} else {
