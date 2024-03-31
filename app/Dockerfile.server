@@ -18,7 +18,7 @@ WORKDIR /app/server
 
 ENV GOOS=linux
 ENV GOARCH=amd64
-RUN (rm plandex-server || true) && go build -o plandex-server .
+RUN (rm -f plandex-server || true) && go build -o plandex-server .
 
 ENV PORT=8080
 EXPOSE 8080
