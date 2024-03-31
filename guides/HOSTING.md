@@ -1,8 +1,8 @@
 # Plandex self-hosting 🏠
 
-## Get started
+## Requirements
 
-The Plandex server requires a PostgreSQL database (ideally v14), a persistent file system, git, and these environment variables:
+The Plandex server requires a PostgreSQL database (ideally v14), a persistent file system, git, and these environment variables (if using the docker build command below):
 
 ```bash
 export DATABASE_URL=postgres://user:password@host:5432/plandex # replace with your own database URL
@@ -13,7 +13,9 @@ export SMTP_USER=user
 export SMTP_PASSWORD=password
 ```
 
-The server listens on port 8088 by default.
+Or, if you are using the `docker compose` option below, cp `app/_env` to `app/.env` and set the values in that file.
+
+## Using Docker Build
 
 It can be run from a Dockerfile at `app/Dockerfile.server`:
 
@@ -23,8 +25,8 @@ VERSION=$(cat app/server/version.txt) # or use the version you want
 git checkout server/v$VERSION
 cd plandex/app
 mkdir ~/plandex-server # or another directory where you want to store files
-docker build -t plandex-server -f Dockerfile.server . 
-docker run -p 8088:8088 \
+docker build -t plandex-server -f Dockerfile.server .
+docker run -p 8080:8080 \
   -v ~/plandex-server:/plandex-server \
   -e DATABASE_URL \
   -e GOENV \
@@ -34,6 +36,19 @@ docker run -p 8088:8088 \
   -e SMTP_PASSWORD \
   plandex-server
 ```
+
+## Using Docker Compose
+
+If you don't have, or don't want to spend the time to setup, a PostgreSQL server you can use the `docker-compose.yml` file.
+
+```bash
+cd plandex/app
+cp _env .env
+#edit .env
+docker compose up
+```
+
+## Run From Source
 
 Or you can run it from source:
 
@@ -46,11 +61,15 @@ export PLANDEX_BASE_DIR=~/plandex-server # or another directory where you want t
 go run main.go
 ```
 
+## Notes
+
+The server listens on port 8080 by default.
+
 The server requires access to a persistent file system. If you're using Docker, it should be mounted to the container. In production, the `/plandex-server` directory is used by default as the base directory to read and write files. You can use the `PLANDEX_BASE_DIR` environment variable to change this.
 
 In production, authentication emails are sent through SMTP. You can use a service like SendGrid or your own SMTP server.
 
-## Development mode
+### Development Mode
 
 If you set `export GOENV=development` instead of `production`:
 
@@ -58,11 +77,11 @@ If you set `export GOENV=development` instead of `production`:
 
 - The default base directory will be `$HOME/plandex-server` instead of `/plandex-server`. It can still be overridden with `PLANDEX_BASE_DIR`.
 
-## Health check
+### Health Check
 
 You can check if the server is running by sending a GET request to `/health`. If all is well, it will return a 200 status code.
 
-## Create a new account
+### Create a New Account
 
 Once the server is running, you can create a new account by running `plandex sign-in` on your local machine.
 
