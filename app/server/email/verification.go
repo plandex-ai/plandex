@@ -25,20 +25,22 @@ func SendVerificationEmail(email string, pin string) error {
 
 	if os.Getenv("GOENV") == "development" {
 		// Development environment
-		// Copy pin to clipboard
-		if err := clipboard.WriteAll(pin); err != nil {
-			return fmt.Errorf("error copying pin to clipboard in dev: %v", err)
+
+		if os.Getenv("PIN2LOG") == "yes" {
+				// Dump pin to log output
+				fmt.Printf("Development mode: Verification pin is %s for email %s\n", pin, email)
+		} else {
+			// Copy pin to clipboard
+			if err := clipboard.WriteAll(pin); err != nil {
+				return fmt.Errorf("error copying pin to clipboard in dev: %v", err)
+			}
+
+			// Send notification
+			err := beeep.Notify("Verification Pin", fmt.Sprintf("Verification pin %s copied to clipboard %s", pin, email), "")
+			if err != nil {
+				return fmt.Errorf("error sending notification in dev: %v", err)
+			}
 		}
-
-		// Dump pin to log output
-		fmt.Printf("Development mode: Verification pin is %s for email %s\n", pin, email)
-
-		// Send notification
-		err := beeep.Notify("Verification Pin", fmt.Sprintf("Verification pin %s copied to clipboard %s", pin, email), "")
-		if err != nil {
-			return fmt.Errorf("error sending notification in dev: %v", err)
-		}
-
 	}
 
 	return nil
