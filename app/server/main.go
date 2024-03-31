@@ -31,6 +31,10 @@ func main() {
 		log.Fatal("Error running migrations: ", err)
 	}
 
+	if os.Getenv("GOENV") == "development" {
+		log.Println("In development mode.")
+	}
+
 	// Get externalPort from the environment variable or default to 8088
 	externalPort := os.Getenv("PORT")
 	if externalPort == "" {
