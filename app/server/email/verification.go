@@ -2,6 +2,7 @@ package email
 
 import (
 	"fmt"
+	"log"
 	"os"
 
 	"github.com/atotto/clipboard"
@@ -28,7 +29,7 @@ func SendVerificationEmail(email string, pin string) error {
 
 		if os.Getenv("PIN2LOG") == "true" {
 				// Dump pin to log output
-				fmt.Printf("Development mode: Verification pin is %s for email %s\n", pin, email)
+				log.Println(fmt.Sprintf("Development mode: Verification pin is %s for email %s", pin, email))
 		} else {
 			// Copy pin to clipboard
 			if err := clipboard.WriteAll(pin); err != nil {

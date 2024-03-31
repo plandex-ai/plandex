@@ -4,9 +4,9 @@ services:
   plandex-postgres:
     image: postgres
     environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: $POSTGRES_DB
+      POSTGRES_USER: $POSTGRES_USER
+      POSTGRES_PASSWORD: $POSTGRES_PASSWORD
     ports:
       - "5432:5432"
     networks:
@@ -17,13 +17,12 @@ services:
       dockerfile: Dockerfile.server
     volumes:
       - "$HOME/projects/plandex-server:/plandex-server"
-      - "/tmp/.X11-unix:/tmp/.X11-unix"
     ports:
       - "8080:8080"
     environment:
-      DATABASE_URL: "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@plandex-postgres:5432/${POSTGRES_DB}?sslmode=disable"
-      GOENV: ${GOENV}
-      DISPLAY: ${DISPLAY}
+      DATABASE_URL: "postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@plandex-postgres:5432/$POSTGRES_DB?sslmode=disable"
+      GOENV: $GOENV
+      PIN2LOG: $PIN2LOG
     networks:
       - plandex-network
 
