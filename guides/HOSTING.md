@@ -73,6 +73,8 @@ In production, authentication emails are sent through SMTP. You can use a servic
 
 If you set `export GOENV=development` instead of `production`:
 
+ - If you want to log the verification pin to the console instead of copying it to the clipboard, you can set `export PIN2LOG=true`.
+
 - Authentication tokens will be copied to the clipboard instead of sent via email, and a system notification will pop up to let you know that the token is ready to paste. (SMTP environment variables are not required in development mode.)
 
 - The default base directory will be `$HOME/plandex-server` instead of `/plandex-server`. It can still be overridden with `PLANDEX_BASE_DIR`.
