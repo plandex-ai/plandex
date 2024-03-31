@@ -1,14 +1,18 @@
-version: '3.8'
-
 services:
   plandex-postgres:
-    image: postgres
+    image: postgres:latest
+    restart: always
     environment:
-      POSTGRES_DB: $POSTGRES_DB
-      POSTGRES_USER: $POSTGRES_USER
       POSTGRES_PASSWORD: $POSTGRES_PASSWORD
+      PLANDEX_DB: $PLANDEX_DB
+      PLANDEX_USER: $PLANDEX_USER
+      PLANDEX_PASSWORD: $PLANDEX_PASSWORD
+      #PGDATA: /var/lib/postgresql/data/pgdata
     ports:
       - "5432:5432"
+    volumes:
+      - ./init-db:/docker-entrypoint-initdb.d
+      - $PGDATA_DIR:/var/lib/postgresql/data
     networks:
       - plandex-network
   plandex-server:
@@ -16,11 +20,11 @@ services:
       context: .
       dockerfile: Dockerfile.server
     volumes:
-      - "$HOME/projects/plandex-server:/plandex-server"
+      - "$PLANDEX_DATA_DIR:/plandex-server"
     ports:
       - "8080:8080"
     environment:
-      DATABASE_URL: "postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@plandex-postgres:5432/$POSTGRES_DB?sslmode=disable"
+      DATABASE_URL: "postgres://$PLANDEX_USER:$PLANDEX_PASSWORD@plandex-postgres:5432/$PLANDEX_DB?sslmode=disable"
       GOENV: $GOENV
       PIN2LOG: $PIN2LOG
     networks:
