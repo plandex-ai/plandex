@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  plandex-postgres:
+    image: postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5432:5432"
+    networks:
+      - plandex-network
+  plandex-server:
+    build:
+      context: .
+      dockerfile: Dockerfile.server
+    volumes:
+      - "$HOME/projects/plandex-server:/plandex-server"
+      - "/tmp/.X11-unix:/tmp/.X11-unix"
+    ports:
+      - "8088:8088"
+    environment:
+      DATABASE_URL: "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@plandex-postgres:5432/${POSTGRES_DB}?sslmode=disable"
+      GOENV: ${GOENV}
+      DISPLAY: ${DISPLAY}
+    networks:
+      - plandex-network
+
+networks:
+  plandex-network:
+    driver: bridge
