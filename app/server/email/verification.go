@@ -21,6 +21,11 @@ func SendVerificationEmail(email string, pin string) error {
 		} else {
 			return sendEmailViaSES(email, subject, htmlBody, textBody)
 		}
+func SendVerificationEmail(email string, pin string) error {
+	// Check if the environment is production
+	if os.Getenv("GOENV") == "production" {
+		// Production environment - send email using AWS SES
+		// ... existing code ...
 	}
 
 	if os.Getenv("GOENV") == "development" {
@@ -30,6 +35,8 @@ func SendVerificationEmail(email string, pin string) error {
 			return fmt.Errorf("error copying pin to clipboard in dev: %v", err)
 		}
 
+		// Dump pin to log output
+		fmt.Printf("Development mode: Verification pin is %s for email %s\n", pin, email)
 		// Send notification
 		err := beeep.Notify("Verification Pin", fmt.Sprintf("Verification pin %s copied to clipboard %s", pin, email), "")
 		if err != nil {
