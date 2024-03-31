@@ -10,3 +10,5 @@ node_modules/
 .DS_Store
 .goreleaser.yml
 dist/
+
+.aider.*
