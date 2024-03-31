@@ -19,7 +19,7 @@ services:
       - "$HOME/projects/plandex-server:/plandex-server"
       - "/tmp/.X11-unix:/tmp/.X11-unix"
     ports:
-      - "8088:8088"
+      - "8080:8080"
     environment:
       DATABASE_URL: "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@plandex-postgres:5432/${POSTGRES_DB}?sslmode=disable"
       GOENV: ${GOENV}
