@@ -15,6 +15,16 @@ export SMTP_PASSWORD=password
 
 Or, if you are using the `docker compose` option below, cp `app/_env` to `app/.env` and set the values in that file.
 
+### PostgreSQL Database
+
+A user and database needs to be created in postgres.
+
+```sql
+CREATE USER 'user' WITH PASSWORD 'password';
+CREATE DATABASE 'plandex' OWNER 'user';
+GRANT ALL PRIVILEGES ON DATABASE 'plandex' TO 'user';
+```
+
 ## Using Docker Build
 
 It can be run from a Dockerfile at `app/Dockerfile.server`:
@@ -45,6 +55,7 @@ If you don't have, or don't want to spend the time to setup, a PostgreSQL server
 cd plandex/app
 cp _env .env
 #edit .env
+docker compose build
 docker compose up
 ```
 
