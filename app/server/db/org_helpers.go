@@ -6,7 +6,6 @@ import (
 	"log"
 	"strings"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/lib/pq"
 	"github.com/plandex/plandex/shared"
 )
@@ -50,7 +49,7 @@ func GetAccessibleOrgsForUser(user *User) ([]*Org, error) {
 		orgIds = append(orgIds, invite.OrgId)
 	}
 
-	log.Println(spew.Sdump(orgIds))
+	// log.Println(spew.Sdump(orgIds))
 
 	if len(orgIds) > 0 {
 		var orgsFromInvites []*Org
