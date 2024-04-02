@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"fmt"
 	"log"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -27,6 +29,14 @@ func InitGitRepo(orgId, planId string) error {
 	res, err := exec.Command("git", "-C", dir, "init", "-b", "main").CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("error initializing git repository with 'main' as default branch for dir: %s, err: %v, output: %s", dir, err, string(res))
+	}
+
+	// Configure user name and email for the repository
+	if err := setGitConfig(dir, "user.email", "server@plandex.ai"); err != nil {
+		return err
+	}
+	if err := setGitConfig(dir, "user.name", "Plandex"); err != nil {
+		return err
 	}
 
 	return nil
@@ -312,5 +322,29 @@ func gitCommit(repoDir, commitMsg string) error {
 		return fmt.Errorf("error committing files to git repository for dir: %s, err: %v, output: %s", repoDir, err, string(res))
 	}
 
+	return nil
+}
+
+func gitRemoveIndexLockFileIfExists(repoDir string) error {
+	// Remove the lock file if it exists
+	lockFilePath := filepath.Join(repoDir, ".git", "index.lock")
+	_, err := os.Stat(lockFilePath)
+
+	if err == nil {
+		if err := os.Remove(lockFilePath); err != nil {
+			return fmt.Errorf("error removing lock file: %v", err)
+		}
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("error checking lock file: %v", err)
+	}
+
+	return nil
+}
+
+func setGitConfig(repoDir, key, value string) error {
+	res, err := exec.Command("git", "-C", repoDir, "config", key, value).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("error setting git config %s to %s for dir: %s, err: %v, output: %s", key, value, repoDir, err, string(res))
+	}
 	return nil
 }

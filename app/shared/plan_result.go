@@ -1,7 +1,6 @@
 package shared
 
 import (
-	"log"
 	"time"
 )
 
@@ -87,7 +86,7 @@ func (p PlanFileResultsByPath) ConflictedPaths(filesByPath map[string]string) ma
 		noConflicts := true
 		for _, res := range planRes {
 
-			log.Println("res:", res.Id)
+			// log.Println("res:", res.Id)
 			if len(res.Replacements) == 0 {
 				continue
 			}

@@ -152,7 +152,8 @@ func AddOrgDomainUsers(orgId, domain string, tx *sql.Tx) error {
 		var valueStrings []string
 		var valueArgs []interface{}
 		for i, user := range usersForDomain {
-			valueStrings = append(valueStrings, fmt.Sprintf("($%d, $%d)", i*2+1, i*2+2))
+			num := i * 2
+			valueStrings = append(valueStrings, fmt.Sprintf("($%d, $%d)", num+1, num+2))
 			valueArgs = append(valueArgs, orgId, user.Id)
 		}
 

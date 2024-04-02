@@ -144,7 +144,7 @@ func (fileState *activeBuildStreamFileState) listenStream(stream *openai.ChatCom
 
 			if err == nil {
 				log.Printf("File %s: Parsed streamed replacements\n", filePath)
-				spew.Dump(streamed)
+				// spew.Dump(streamed)
 
 				planFileResult, allSucceeded := getPlanResult(
 					planResultParams{
@@ -187,8 +187,8 @@ func (fileState *activeBuildStreamFileState) listenStream(stream *openai.ChatCom
 				return
 			} else if len(delta.ToolCalls) == 0 {
 				log.Println("Stream chunk missing function call. Response:")
-				spew.Dump(response)
-				spew.Dump(fileState)
+				log.Println(spew.Sdump(response))
+				log.Println(spew.Sdump(fileState))
 
 				fileState.retryOrError(fmt.Errorf("stream chunk missing function call. Reason: %s, File: %s", choice.FinishReason, filePath))
 				return

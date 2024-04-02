@@ -70,7 +70,7 @@ func (state *activeTellStreamState) summarizeMessagesIfNeeded() bool {
 				// spew.Dump(s)
 
 				log.Println("tokensUpToTimestamp:")
-				spew.Dump(tokensUpToTimestamp)
+				log.Println(spew.Sdump(tokensUpToTimestamp))
 
 				active.StreamDoneCh <- &shared.ApiError{
 					Type:   shared.ApiErrorTypeOther,
