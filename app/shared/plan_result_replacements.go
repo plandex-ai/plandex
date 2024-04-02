@@ -11,14 +11,11 @@ import (
 
 func ApplyReplacements(content string, replacements []*Replacement, setFailed bool) (string, bool) {
 	updated := content
-	lastInsertedIdx := 0
 
 	allSucceeded := true
 
 	for _, replacement := range replacements {
-		pre := updated[:lastInsertedIdx]
-		sub := updated[lastInsertedIdx:]
-		originalIdx := strings.Index(sub, replacement.Old)
+		originalIdx := strings.Index(updated, replacement.Old)
 
 		// log.Println("originalIdx:", originalIdx)
 
@@ -28,17 +25,14 @@ func ApplyReplacements(content string, replacements []*Replacement, setFailed bo
 				replacement.Failed = true
 			}
 
-			log.Println("Replacement failed: ")
+			log.Println("Replacement failed:")
 			log.Println(spew.Sdump(replacement))
 
-			log.Println("Sub: ")
-			log.Println(spew.Sdump(sub))
+			log.Println("Updated:")
+			log.Println(updated)
 
 		} else {
-			replaced := strings.Replace(sub, replacement.Old, replacement.New, 1)
-
-			updated = pre + replaced
-			lastInsertedIdx = lastInsertedIdx + originalIdx + len(replacement.New)
+			updated = strings.Replace(updated, replacement.Old, replacement.New, 1)
 		}
 	}
 

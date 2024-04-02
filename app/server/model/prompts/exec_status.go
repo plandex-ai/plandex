@@ -26,9 +26,12 @@ Set 'shouldContinue' to true if the plan should automatically continue based on 
 You must always call 'shouldAutoContinue'. Don't call any other function.`
 
 func GetExecStatusShouldContinue(userPrompt, message string) string {
-	return SysExecStatusShouldContinue +
-		"\n\n**Here is the user's prompt:**\n" + userPrompt + "\n\n" +
-		"\n\n**Here is the latest message of the plan from AI 1:**\n" + message
+	s := SysExecStatusShouldContinue
+	if userPrompt != "" {
+		s += "\n\n**Here is the user's prompt:**\n" + userPrompt
+	}
+	s += "\n\n**Here is the latest message of the plan from AI 1:**\n" + message
+	return s
 }
 
 var ShouldAutoContinueFn = openai.FunctionDefinition{

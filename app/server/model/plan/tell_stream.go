@@ -10,12 +10,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/plandex/plandex/shared"
 	"github.com/sashabaranov/go-openai"
 )
 
-const MaxAutoContinueIterations = 30
+const MaxAutoContinueIterations = 50
 
 type activeTellStreamState struct {
 	client                *openai.Client
@@ -203,6 +202,7 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 					errCh := make(chan error, 2)
 
 					go func() {
+						log.Println("getting description")
 						log.Println("getting description for assistant message: ", assistantMsg.Id)
 
 						if len(replyFiles) == 0 {
@@ -239,13 +239,22 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 						}
 
 						log.Println("Description stored")
-						spew.Dump(description)
+						// spew.Dump(description)
 
 						errCh <- nil
 					}()
 
 					go func() {
-						shouldContinue, err = ExecStatusShouldContinue(client, settings.ModelSet.ExecStatus, promptMessage.Content, assistantMsg.Message, active.Ctx)
+						// One of the below is nil occasionally, causing crash
+						log.Println("Getting exec status")
+						var prompt string
+						if promptMessage == nil {
+							log.Println("Prompt message is nil")
+						} else {
+							prompt = promptMessage.Content
+						}
+
+						shouldContinue, err = ExecStatusShouldContinue(client, settings.ModelSet.ExecStatus, prompt, assistantMsg.Message, active.Ctx)
 						if err != nil {
 							state.onError(fmt.Errorf("failed to get exec status: %v", err), false, assistantMsg.Id, convoCommitMsg)
 							errCh <- err

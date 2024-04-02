@@ -1,7 +1,6 @@
 package plan
 
 import (
-	"log"
 	"plandex-server/db"
 	"sort"
 	"strings"
@@ -48,8 +47,8 @@ func getPlanResult(params planResultParams) (*db.PlanFileResult, bool) {
 
 		new := streamedChange.New
 
-		log.Printf("getPlanResult - streamedChange.Old.StartLine: %d\n", streamedChange.Old.StartLine)
-		log.Printf("getPlanResult - streamedChange.Old.EndLine: %d\n", streamedChange.Old.EndLine)
+		// log.Printf("getPlanResult - streamedChange.Old.StartLine: %d\n", streamedChange.Old.StartLine)
+		// log.Printf("getPlanResult - streamedChange.Old.EndLine: %d\n", streamedChange.Old.EndLine)
 
 		startLine := streamedChange.Old.StartLine
 		endLine := streamedChange.Old.EndLine
@@ -74,7 +73,7 @@ func getPlanResult(params planResultParams) (*db.PlanFileResult, bool) {
 			old = strings.Join(currentStateLines[startLine-1:endLine], "\n")
 		}
 
-		log.Printf("getPlanResult - old: %s\n", old)
+		// log.Printf("getPlanResult - old: %s\n", old)
 
 		replacement := &shared.Replacement{
 			Old:            old,

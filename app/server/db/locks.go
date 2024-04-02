@@ -190,6 +190,13 @@ func lockRepo(params LockRepoParams, numRetry int) (string, error) {
 		return "", fmt.Errorf("error inserting new lock: %v", err)
 	}
 
+	// check if git lock file exists
+	// remove it if so
+	err = gitRemoveIndexLockFileIfExists(getPlanDir(orgId, planId))
+	if err != nil {
+		return "", fmt.Errorf("error removing lock file: %v", err)
+	}
+
 	branches, err := GitListBranches(orgId, planId)
 	if err != nil {
 		return "", fmt.Errorf("error getting branches: %v", err)
