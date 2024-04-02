@@ -10,7 +10,6 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/gorilla/mux"
 	"github.com/plandex/plandex/shared"
 )
@@ -113,11 +112,11 @@ func UpdateSettingsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Println("Original settings:")
-	spew.Dump(originalSettings)
+	// log.Println("Original settings:")
+	// spew.Dump(originalSettings)
 
-	log.Println("req.Settings:")
-	spew.Dump(req.Settings)
+	// log.Println("req.Settings:")
+	// spew.Dump(req.Settings)
 
 	err = db.StorePlanSettings(plan, req.Settings)
 
@@ -155,7 +154,7 @@ func UpdateSettingsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func getUpdateCommitMsg(settings *shared.PlanSettings, originalSettings *shared.PlanSettings) string {
-	log.Println("Comparing settings")
+	// log.Println("Comparing settings")
 	// log.Println("Original:")
 	// spew.Dump(originalSettings)
 	// log.Println("New:")
@@ -168,7 +167,7 @@ func getUpdateCommitMsg(settings *shared.PlanSettings, originalSettings *shared.
 		return "No changes to settings"
 	}
 
-	log.Println("Changes to settings:", strings.Join(changes, "\n"))
+	// log.Println("Changes to settings:", strings.Join(changes, "\n"))
 
 	s := "⚙️  Updated model settings:"
 
@@ -203,9 +202,9 @@ func compareAny(a, b interface{}, path string, changes *[]string) {
 		bVal = bVal.Elem()
 	}
 
-	log.Println("Comparing", path, aVal.Kind(), bVal.Kind())
-	log.Println("aVal", aVal)
-	log.Println("bVal", bVal)
+	// log.Println("Comparing", path, aVal.Kind(), bVal.Kind())
+	// log.Println("aVal", aVal)
+	// log.Println("bVal", bVal)
 
 	switch aVal.Kind() {
 	case reflect.Struct:
@@ -230,7 +229,7 @@ func compareAny(a, b interface{}, path string, changes *[]string) {
 				}
 			}
 
-			log.Println("field", fieldName, "updatedPath", updatedPath)
+			// log.Println("field", fieldName, "updatedPath", updatedPath)
 
 			compareAny(aVal.Field(i).Interface(), bVal.Field(i).Interface(),
 				updatedPath, changes)

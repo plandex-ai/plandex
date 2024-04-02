@@ -218,9 +218,8 @@ func execTellPlan(
 	state.replyId = uuid.New().String()
 	state.replyParser = types.NewReplyParser()
 
-	var promptMessage *openai.ChatCompletionMessage
 	if missingFileResponse == "" {
-
+		var promptMessage *openai.ChatCompletionMessage
 		if req.IsUserContinue {
 			if len(state.messages) == 0 {
 				active.StreamDoneCh <- &shared.ApiError{

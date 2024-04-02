@@ -126,6 +126,14 @@ func (fileState *activeBuildStreamFileState) listenStream(stream *openai.ChatCom
 
 				// After a reasonable threshhold, if buffer has significantly more tokens than original file + proposed changes, something is wrong
 				if fileState.activeBuild.BufferTokens > 500 && fileState.activeBuild.BufferTokens > int(float64(fileState.activeBuild.CurrentFileTokens+fileState.activeBuild.FileContentTokens)*1.5) {
+					log.Printf("File %s: Stream buffer tokens too high\n", filePath)
+					log.Printf("Current file tokens: %d\n", fileState.activeBuild.CurrentFileTokens)
+					log.Printf("File content tokens: %d\n", fileState.activeBuild.FileContentTokens)
+					log.Printf("Cutoff: %d\n", int(float64(fileState.activeBuild.CurrentFileTokens+fileState.activeBuild.FileContentTokens)*1.5))
+					log.Printf("Buffer tokens: %d\n", fileState.activeBuild.BufferTokens)
+					log.Println("Buffer:")
+					log.Println(fileState.activeBuild.Buffer)
+
 					fileState.retryOrError(fmt.Errorf("stream buffer tokens too high for file '%s'", filePath))
 					return
 				}
@@ -136,7 +144,7 @@ func (fileState *activeBuildStreamFileState) listenStream(stream *openai.ChatCom
 
 			if err == nil {
 				log.Printf("File %s: Parsed streamed replacements\n", filePath)
-				spew.Dump(streamed)
+				// spew.Dump(streamed)
 
 				planFileResult, allSucceeded := getPlanResult(
 					planResultParams{
@@ -179,8 +187,8 @@ func (fileState *activeBuildStreamFileState) listenStream(stream *openai.ChatCom
 				return
 			} else if len(delta.ToolCalls) == 0 {
 				log.Println("Stream chunk missing function call. Response:")
-				spew.Dump(response)
-				spew.Dump(fileState)
+				log.Println(spew.Sdump(response))
+				log.Println(spew.Sdump(fileState))
 
 				fileState.retryOrError(fmt.Errorf("stream chunk missing function call. Reason: %s, File: %s", choice.FinishReason, filePath))
 				return

@@ -40,7 +40,7 @@ func ExecStatusShouldContinue(client *openai.Client, config shared.TaskRoleConfi
 	messages := []openai.ChatCompletionMessage{
 		{
 			Role:    openai.ChatMessageRoleSystem,
-			Content: prompts.GetExecStatusShouldContinue(prompt, message), // Ensure this function is correctly defined in your package
+			Content: prompts.GetExecStatusShouldContinue(prompt, message),
 		},
 	}
 
@@ -95,7 +95,7 @@ func ExecStatusShouldContinue(client *openai.Client, config shared.TaskRoleConfi
 
 	if strRes == "" {
 		log.Println("No shouldAutoContinue function call found in response")
-		spew.Dump(resp)
+		log.Println(spew.Sdump(resp))
 
 		// return false, fmt.Errorf("no shouldAutoContinue function call found in response")
 
