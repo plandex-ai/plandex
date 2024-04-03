@@ -14,7 +14,7 @@ import (
 
 var contextRmCmd = &cobra.Command{
 	Use:     "rm",
-	Aliases: []string{"remove"},
+	Aliases: []string{"remove", "unload"},
 	Short:   "Remove context",
 	Long:    `Remove context by index, name, or glob.`,
 	Args:    cobra.MinimumNArgs(1),
