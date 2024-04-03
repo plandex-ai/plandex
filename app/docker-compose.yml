@@ -11,7 +11,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - ./init-db:/docker-entrypoint-initdb.d
+      - ./scripts/init-db:/docker-entrypoint-initdb.d
       - $PGDATA_DIR:/var/lib/postgresql/data
     networks:
       - plandex-network
@@ -21,14 +21,22 @@ services:
       dockerfile: Dockerfile.server
     volumes:
       - "$PLANDEX_DATA_DIR:/plandex-server"
+      - "./scripts:/scripts" # Mount the directory containing wait-for-it.sh
     ports:
       - "8080:8080"
     environment:
       DATABASE_URL: "postgres://$PLANDEX_USER:$PLANDEX_PASSWORD@plandex-postgres:5432/$PLANDEX_DB?sslmode=disable"
       GOENV: $GOENV
-      PIN2LOG: $PIN2LOG
     networks:
       - plandex-network
+    depends_on:
+      - plandex-postgres
+    command:
+      [
+        "/bin/sh",
+        "-c",
+        "/scripts/wait-for-it.sh plandex-postgres:5432 -- ./plandex-server"
+      ]
 
 networks:
   plandex-network:
