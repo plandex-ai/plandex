@@ -40,6 +40,9 @@ var CmdDesc = map[string][2]string{
 	"stop":          {"", "stop an active plan stream"},
 	"connect":       {"conn", "connect to an active plan stream"},
 	"sign-in":       {"", "sign in, accept an invite, or create an account"},
+	"invite":        {"", "invite a user to join your org"},
+	"revoke":        {"", "revoke an invite or remove a user from your org"},
+	"users":         {"", "list users and pending invites in your org"},
 }
 
 func PrintCmds(prefix string, cmds ...string) {
@@ -141,7 +144,7 @@ func PrintCustomHelp() {
 	fmt.Fprintln(builder)
 
 	color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Accounts ")
-	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "sign-in")
+	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "sign-in", "invite", "revoke", "users")
 	fmt.Fprintln(builder)
 
 	fmt.Print(builder.String())
