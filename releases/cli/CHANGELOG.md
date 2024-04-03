@@ -1,3 +1,9 @@
+## Version 0.8.1
+- Fix for missing 'host' key when creating an account or signing in to a self-hosted server (https://github.com/plandex-ai/plandex/issues/11)
+- `add` alias for `load` command + `unload` alias for `rm` command (https://github.com/plandex-ai/plandex/issues/12)
+- Add `invite`, `revoke`, and `users` commands to `plandex help` output
+- A bit of cleanup of extraneous logging
+
 ## Version 0.8.0
 - `plandex invite` command to invite users to an org
 - `plandex users` command to list users and pending invites for an org
