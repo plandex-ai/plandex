@@ -228,6 +228,7 @@ func signIn(email, pin, host string) error {
 			Token:    res.Token,
 			IsTrial:  false,
 			IsCloud:  host == "",
+			Host:     host,
 		},
 		OrgId:   orgId,
 		OrgName: orgName,
@@ -268,6 +269,7 @@ func createAccount(email, pin, host string) error {
 			Token:    res.Token,
 			IsTrial:  false,
 			IsCloud:  host == "",
+			Host:     host,
 		},
 	})
 
