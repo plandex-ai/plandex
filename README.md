@@ -52,7 +52,7 @@
 
 <br/>
 
-<p>Plandex uses long-running agents to complete tasks that require many steps. It breaks up large tasks into smaller subtasks, then implements each one, continuing until it finishes the job. It helps you churn through your backlog, work with unfamiliar technologies, get unstuck, and spend less time on the boring stuff. </p>
+<p>Plandex uses long-running agents to complete tasks that span multiple files and require many steps. It breaks up large tasks into smaller subtasks, then implements each one, continuing until it finishes the job. It helps you churn through your backlog, work with unfamiliar technologies, get unstuck, and spend less time on the boring stuff. </p>
 
 <br/>
 
@@ -70,7 +70,7 @@
 
 ⚡️  Changes are accumulated in a protected sandbox so that you can review them before automatically applying them to your project files. Built-in version control allows you to easily go backwards and try a different approach. Branches allow you to try multiple approaches and compare the results.
 
-📑  Manage context efficiently in the terminal. Easily add files or entire directories to context, and keep them updated automatically as you work so that models are always working with the latest state of your project.
+📑  Manage context efficiently in the terminal. Easily add files or entire directories to context, and keep them updated automatically as you work so that models always have the latest state of your project.
 
 🧠  Plandex relies on the OpenAI API and requires an `OPENAI_API_KEY` environment variable. Support for open source models, Google Gemini, and Anthropic Claude is coming soon.
 
