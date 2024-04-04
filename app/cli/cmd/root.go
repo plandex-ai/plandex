@@ -27,7 +27,6 @@ func Execute() {
 }
 
 func run(cmd *cobra.Command, args []string) {
-
 }
 
 func init() {
