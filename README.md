@@ -109,7 +109,7 @@ mv plandex /usr/local/bin # adapt as needed for your system
 <summary><b>Windows</b></summary>
 <br>
 <p>
-Windows is supported via <a href="https://gitforwindows.org">Git bash</a> or <a href="https://learn.microsoft.com/en-us/windows/wsl/about">WSL</a>.
+Windows is supported via <a href="https://learn.microsoft.com/en-us/windows/wsl/about">WSL</a>.
 </p>
 </details>
 
