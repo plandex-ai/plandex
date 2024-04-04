@@ -27,7 +27,7 @@ plandex load tests/**/*.ts # loads all .ts files in tests and its subdirectories
 plandex load . --tree # loads the layout of the current directory and its subdirectories (file names only)
 plandex load https://redux.js.org/usage/writing-tests # loads the text-only content of the url
 npm test | plandex load # loads the output of `npm test`
-npm load -n 'add logging statements to all the code you generate.' # load a note into context
+plandex load -n 'add logging statements to all the code you generate.' # load a note into context
 ```
 
 ## Tasks  ⚡️
