@@ -82,8 +82,24 @@ download_plandex () {
 
   if [ "$PLATFORM" == "darwin" ] || $IS_DOCKER ; then
     if [[ -d /usr/local/bin ]]; then
-      mv plandex /usr/local/bin/
-      echo "Plandex is installed in /usr/local/bin"
+      if ! mv plandex /usr/local/bin/ 2>/dev/null; then
+        echo "Permission denied when attempting to move Plandex to /usr/local/bin."
+        if hash sudo 2>/dev/null; then
+          echo "Attempting to use sudo to complete installation."
+          sudo mv plandex /usr/local/bin/
+          if [[ $? -eq 0 ]]; then
+            echo "Plandex is installed in /usr/local/bin."
+          else
+            echo "Failed to install Plandex using sudo. Please manually move Plandex to a directory in your PATH."
+            exit 1
+          fi
+        else
+          echo "sudo not found. Please manually move Plandex to a directory in your PATH."
+          exit 1
+        fi
+      else
+        echo "Plandex is installed in /usr/local/bin."
+      fi
     else
       echo >&2 'Error: /usr/local/bin does not exist. Create this directory with appropriate permissions, then re-install.'
       cleanup
