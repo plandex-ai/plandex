@@ -49,7 +49,7 @@ docker run -p 8080:8080 \
 
 ## Using Docker Compose
 
-If you don't have, or don't want to spend the time to setup, a PostgreSQL server you can use the `docker-compose.yml` file.
+If you don't have, or don't want to spend the time to setup a PostgreSQL server, you can use the `docker-compose.yml` file.
 
 ```bash
 cd plandex/app
@@ -65,9 +65,10 @@ Or you can run it from source:
 
 ```bash
 git clone https://github.com/plandex-ai/plandex.git
+cd plandex/
 VERSION=$(cat app/server/version.txt) # or use the version you want
 git checkout server/v$VERSION
-cd plandex/app/server
+cd app/server
 export PLANDEX_BASE_DIR=~/plandex-server # or another directory where you want to store files
 go run main.go
 ```
