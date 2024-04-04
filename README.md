@@ -97,6 +97,7 @@ Grab the appropriate binary for your platform from the latest <a href="https://g
 
 <p>
 <pre><code>git clone https://github.com/plandex-ai/plandex.git
+git clone https://github.com/plandex-ai/survey.git
 cd plandex/app/cli
 go build -ldflags "-X plandex/version.Version=$(cat version.txt)"
 mv plandex /usr/local/bin # adapt as needed for your system
