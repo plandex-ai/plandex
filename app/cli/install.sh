@@ -126,5 +126,5 @@ cleanup
 
 echo "Installation complete. Info:"
 echo ""
-plandex -h
+plandex help
 
