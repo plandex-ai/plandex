@@ -147,18 +147,23 @@ func AddOrgDomainUsers(orgId, domain string, tx *sql.Tx) error {
 	}
 
 	if len(usersForDomain) > 0 {
+		memberRoleId, err := GetOrgMemberRoleId()
+
+		if err != nil {
+			return fmt.Errorf("error getting org member role id: %v", err)
+		}
 
 		// create org users for each user
 		var valueStrings []string
 		var valueArgs []interface{}
 		for i, user := range usersForDomain {
-			num := i * 2
-			valueStrings = append(valueStrings, fmt.Sprintf("($%d, $%d)", num+1, num+2))
-			valueArgs = append(valueArgs, orgId, user.Id)
+			num := i * 3
+			valueStrings = append(valueStrings, fmt.Sprintf("($%d, $%d, $%d)", num+1, num+2, num+3))
+			valueArgs = append(valueArgs, orgId, user.Id, memberRoleId)
 		}
 
 		// Join all value strings and execute a single query
-		stmt := fmt.Sprintf("INSERT INTO orgs_users (org_id, user_id) VALUES %s", strings.Join(valueStrings, ","))
+		stmt := fmt.Sprintf("INSERT INTO orgs_users (org_id, user_id, org_role_id) VALUES %s ON CONFLICT ON CONSTRAINT org_user_unique DO NOTHING", strings.Join(valueStrings, ","))
 		_, err = tx.Exec(stmt, valueArgs...)
 
 		if err != nil {
