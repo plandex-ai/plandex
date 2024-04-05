@@ -1,3 +1,11 @@
+## Version 0.8.2
+- Fix for creating an org that auto-adds users based on email domain (https://github.com/plandex-ai/plandex/issues/24)
+- Fix for possible crash after error in file build
+- Added crash prevention measures across the board
+- Fix for occasional "replacements failed" error
+- Reliability and improvements for file updates
+- Fix for role name of auto-continue model
+
 ## Version 0.8.1
 - Fixes for two potential server crashes
 - Fix for server git repo remaining in locked state after a crash, which caused various issues
