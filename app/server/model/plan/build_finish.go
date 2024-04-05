@@ -20,12 +20,16 @@ func (state *activeBuildStreamFileState) onFinishBuild() {
 	convoMessageId := state.convoMessageId
 	build := state.build
 
-	activePlan := GetActivePlan(planId, branch)
-
 	// first check if any of the messages we're building hasen't finished streaming yet
 	stillStreaming := false
 	var doneCh chan bool
 	ap := GetActivePlan(planId, branch)
+
+	if ap == nil {
+		log.Println("onFinishBuild - Active plan not found")
+		return
+	}
+
 	if ap.CurrentStreamingReplyId == convoMessageId {
 		stillStreaming = true
 		doneCh = ap.CurrentReplyDoneCh
@@ -38,6 +42,12 @@ func (state *activeBuildStreamFileState) onFinishBuild() {
 	// Check again if build is finished
 	// (more builds could have been queued while we were waiting for the reply to finish streaming)
 	ap = GetActivePlan(planId, branch)
+
+	if ap == nil {
+		log.Println("onFinishBuild - Active plan not found")
+		return
+	}
+
 	if !ap.BuildFinished() {
 		log.Println("Build not finished after waiting for reply to finish streaming")
 		return
@@ -53,14 +63,14 @@ func (state *activeBuildStreamFileState) onFinishBuild() {
 			Branch:      branch,
 			PlanBuildId: build.Id,
 			Scope:       db.LockScopeWrite,
-			Ctx:         activePlan.Ctx,
-			CancelFn:    activePlan.CancelFn,
+			Ctx:         ap.Ctx,
+			CancelFn:    ap.CancelFn,
 		},
 	)
 
 	if err != nil {
 		log.Printf("Error locking repo for finished build: %v\n", err)
-		activePlan.StreamDoneCh <- &shared.ApiError{
+		ap.StreamDoneCh <- &shared.ApiError{
 			Type:   shared.ApiErrorTypeOther,
 			Status: http.StatusInternalServerError,
 			Msg:    "Error locking repo for finished build: " + err.Error(),
@@ -148,7 +158,7 @@ func (state *activeBuildStreamFileState) onFinishBuild() {
 
 		if err != nil {
 			log.Printf("Error committing plan build: %v\n", err)
-			activePlan.StreamDoneCh <- &shared.ApiError{
+			ap.StreamDoneCh <- &shared.ApiError{
 				Type:   shared.ApiErrorTypeOther,
 				Status: http.StatusInternalServerError,
 				Msg:    "Error committing plan build: " + err.Error(),
@@ -169,7 +179,7 @@ func (state *activeBuildStreamFileState) onFinishBuild() {
 	active := GetActivePlan(planId, branch)
 
 	if active != nil && (active.RepliesFinished || active.BuildOnly) {
-		activePlan.Stream(shared.StreamMessage{
+		active.Stream(shared.StreamMessage{
 			Type: shared.StreamMessageFinished,
 		})
 	}
@@ -184,6 +194,12 @@ func (fileState *activeBuildStreamFileState) onFinishBuildFile(planRes *db.PlanF
 	activeBuild := fileState.activeBuild
 
 	activePlan := GetActivePlan(planId, branch)
+
+	if activePlan == nil {
+		log.Println("onFinishBuildFile - Active plan not found")
+		return
+	}
+
 	filePath := fileState.filePath
 
 	finished := false

@@ -1,6 +1,10 @@
 package shared
 
 type StreamedChangeSection struct {
+	MaybeStartLine int    `json:"maybeStartLine"`
+	MaybeEndLine   int    `json:"maybeEndLine"`
+	Err            string `json:"err"`
+
 	StartLine int `json:"startLine"`
 	EndLine   int `json:"endLine"`
 }

@@ -12,7 +12,7 @@ const (
 	ModelRoleBuilder     ModelRole = "builder"
 	ModelRoleName        ModelRole = "names"
 	ModelRoleCommitMsg   ModelRole = "commit-messages"
-	ModelRoleExecStatus  ModelRole = "auto-complete"
+	ModelRoleExecStatus  ModelRole = "auto-continue"
 )
 
 var AllModelRoles = []ModelRole{ModelRolePlanner, ModelRolePlanSummary, ModelRoleBuilder, ModelRoleName, ModelRoleCommitMsg, ModelRoleExecStatus}

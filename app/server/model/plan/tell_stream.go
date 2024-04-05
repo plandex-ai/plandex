@@ -62,6 +62,11 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 
 	active := GetActivePlan(planId, branch)
 
+	if active == nil {
+		log.Printf("listenStream - Active plan not found for plan ID %s on branch %s\n", planId, branch)
+		return
+	}
+
 	replyFiles := []string{}
 	chunksReceived := 0
 	maybeRedundantBacktickContent := ""
@@ -477,7 +482,7 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 						continue
 					}
 
-					log.Printf("New file: %s\n", file)
+					log.Printf("Detected file: %s\n", file)
 					if req.BuildMode == shared.BuildModeAuto {
 						log.Printf("Queuing build for %s\n", file)
 						buildState := &activeBuildStreamState{
@@ -532,6 +537,12 @@ func (state *activeTellStreamState) storeAssistantReply() (*db.ConvoMessage, str
 
 	log.Printf("storing assistant reply | len(convo) %d | num %d\n", len(convo), num)
 
+	activePlan := GetActivePlan(planId, branch)
+
+	if activePlan == nil {
+		return nil, "", fmt.Errorf("active plan not found")
+	}
+
 	assistantMsg := db.ConvoMessage{
 		Id:      replyId,
 		OrgId:   currentOrgId,
@@ -540,7 +551,7 @@ func (state *activeTellStreamState) storeAssistantReply() (*db.ConvoMessage, str
 		Role:    openai.ChatMessageRoleAssistant,
 		Tokens:  replyNumTokens,
 		Num:     num,
-		Message: GetActivePlan(planId, branch).CurrentReplyContent,
+		Message: activePlan.CurrentReplyContent,
 	}
 
 	commitMsg, err := db.StoreConvoMessage(&assistantMsg, auth.User.Id, branch, false)
@@ -567,6 +578,12 @@ func (state *activeTellStreamState) onError(streamErr error, storeDesc bool, con
 	summarizedToMessageId := state.summarizedToMessageId
 
 	active := GetActivePlan(planId, branch)
+
+	if active == nil {
+		log.Printf("tellStream onError - Active plan not found for plan ID %s on branch %s\n", planId, branch)
+		return
+	}
+
 	active.StreamDoneCh <- &shared.ApiError{
 		Type:   shared.ApiErrorTypeOther,
 		Status: http.StatusInternalServerError,

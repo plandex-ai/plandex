@@ -9,7 +9,14 @@ import (
 )
 
 func GetBuildSysPrompt(filePath, currentState, desc, changes string) string {
-	return listChangesPrompt + "\n\n" + getBuildCurrentStatePrompt(filePath, currentState) + "\n\n" + getBuildPrompt(desc, changes)
+	currentStateWithLineNums := ""
+	var lastLineNum int
+	for i, line := range strings.Split(currentState, "\n") {
+		currentStateWithLineNums += fmt.Sprintf("%d: %s\n", i+1, line)
+		lastLineNum = i + 1
+	}
+
+	return getListChangesPrompt(lastLineNum) + "\n\n" + getBuildCurrentStatePrompt(filePath, currentStateWithLineNums) + "\n\n" + getBuildPrompt(desc, changes)
 }
 
 func getBuildPrompt(desc, changes string) string {
@@ -31,33 +38,32 @@ func getBuildPrompt(desc, changes string) string {
 	return s
 }
 
-func getBuildCurrentStatePrompt(filePath, currentState string) string {
-	if currentState == "" {
+func getBuildCurrentStatePrompt(filePath, withLineNums string) string {
+	if withLineNums == "" {
 		return ""
-	}
-
-	withLineNums := ""
-	for i, line := range strings.Split(currentState, "\n") {
-		withLineNums += fmt.Sprintf("%d: %s\n", i+1, line)
 	}
 
 	return fmt.Sprintf("**The current file is %s. Original state of the file:**\n```\n%s\n```", filePath, withLineNums) + "\n\n"
 }
 
-var listChangesPrompt = `	
+func getListChangesPrompt(lastLineNum int) string {
+	return fmt.Sprintf(`	
   You are an AI that analyzes a code file and an AI-generated plan to update the code file and produces a list of changes.
   
   [YOUR INSTRUCTIONS]
   Call the 'listChanges' function with a valid JSON object that includes the 'changes' keys.
 
-  'changes': An array of changes. Each change is an object with properties: 'summary', 'section', 'old', and 'new'.
+  'changes': An array of NON-OVERLAPPING changes. Each change is an object with properties: 'summary', 'section', 'old', and 'new'.
   
-  The 'summary' property is a brief summary of the change. 
+  The 'summary' property is a brief summary of the change. At the end of the summary, consider if this change will overlap with any ensuing changes. If it will, include those changes in *this* change instead. Continue the summary and includes those ensuing changes that would otherwise overlap. Changes that remove code are especially likely to overlap with ensuing changes. 
   
   'summary' examples: 
     - 'Update loop that aggregates the results to iterate 10 times instead of 5 and log the value of someVar.'
     - 'Update the Org model to include StripeCustomerId and StripeSubscriptionId fields.'
     - 'Add function ExecQuery to execute a query.'
+		
+	'summary' that is larger to avoid overlap:
+		- 'Insert function ExecQuery after GetResults function in loop body. Update loop that aggregates the results to iterate 10 times instead of 5 and log the value of someVar. Add function ExecQuery to execute a query.'
 
   The 'section' property is a description of what section of code from the original file will be replaced.
     
@@ -73,11 +79,25 @@ var listChangesPrompt = `
   Ends: '    }\n  }\n}'
   ---
 
-  The 'old' property is an object with two properties: 'startLine' and 'endLine'.
+  The 'old' property is an object with 5 properties: 'maybeStartLine', 'maybeEndLine', 'err', 'startLine' and 'endLine'.
 
-  'startLine' is the line number where the section to be replaced begins in the original file. 'endLine' is the line number where the section to be replaced ends in the original file. For a single line replacement, 'startLine' and 'endLine' will be the same. 
-	
-	Line numbers in 'startLine' and 'endLine' are 1-indexed. 1 is the minimum line number. The maximum line number is the number of lines in the original file. 'startLine' and 'endLine' must be valid line numbers in the original file, greater than or equal to 1 and less than or equal to the number of lines in the original file. You MUST refer to 1-indexed line numbers exactly as they are labeled in the original file. If the 'startLine' or 'endLine' is the first line of the file, 'startLine' or 'endLine' will be 1. If the 'startLine' or 'endLine' is the last line of the file, 'startLine' or 'endLine' will be the number of lines in the file. 'startLine' must NEVER be 0, -1, or any other number less than 1. 
+		'maybeStartLine' is the line number where the section to be replaced begins in the original file. 'maybeEndLine' is the line number where the section to be replaced ends in the original file. For a single line replacement, 'maybeStartLine' and 'maybeEndLine' will be the same.
+
+		'maybeEndLine' MUST ABSOLUTELY ALWAYS be greater than or equal to 'maybeStartLine'.
+		
+		Line numbers in 'maybeStartLine' and 'maybeEndLine' are 1-indexed. 1 is the minimum line number. The maximum line number is %d, the number of lines in the original file. 'maybeStartLine' and 'maybeEndLine' MUST be valid line numbers in the original file, greater than or equal to 1 and less than or equal to %d. 
+		
+		You MUST refer to 1-indexed line numbers exactly as they are labeled in the original file. If the 'maybeStartLine' or 'maybeEndLine' is the first line of the file, 'maybeStartLine' or 'maybeEndLine' will be 1. 
+		
+		If the 'maybeStartLine' or 'maybeEndLine' is the last line of the file, 'maybeStartLine' or 'maybeEndLine' will be %d.
+		
+		Both 'maybeStartLine' and 'maybeEndLine' must NEVER be 0, -1, or any other number less than 1. They must NEVER be a number higher than %d.
+
+		'err' is a string. If 'maybeEndLine' is greater than or equal to 'maybeStartLine', 'err' must be an empty string. Otherwise, 'err' must be a string that describes how the section from the original file can be better described in order to make the line numbers unambiguous and correct.
+
+		'startLine' is the line number where the section to be replaced begins in the original file. *'startLine' MUST be an integer greater than 0.* If 'err' is not set or is an empty string, 'startLine' must be equal to 'maybeStartLine'. If 'err' is set and is *not* an empty string, 'startLine' should be the *corrected* line number where the section to be replaced begins in the original file.
+		
+		'endLine' is the line number where the section to be replaced ends in the original file. *'endLine' MUST be an integer greater than 0.* If 'err' is not set or is an empty string, 'endLine' must be equal to 'maybeEndLine'. If 'err' is set and is *not* an empty string, 'endLine' should be the *corrected* line number where the section to be replaced ends in the original file.
 
   The 'new' property is a string that represents the new code that will replace the old code. The new code must be valid and consistent with the intention of the plan. If the the proposed update is to remove code, the 'new' property should be an empty string. 
   
@@ -87,14 +107,34 @@ var listChangesPrompt = `
   ---
   listChanges([{
     summary: "Insert function ExecQuery after GetResults function in loop body.",
-    section' "Begins: 'for i := 0; i < 10; i++ {...'\nEnds with '    }\n  }\n}'",
+    section' "Begins: 'for i := 0; i < 10; i++ {...'\nEnds: '    }\n  }\n}'",
     old: {
+			maybeStartLine: 5,
+			maybeEndLine: 10,
+			err: "",
       startLine: 5,
       endLine: 10,
     },
     new: "      execQuery()\n    }\n  }\n}",
   }])
   ---
+
+	Example function calls with errors:
+	---
+	listChanges([{
+		summary: "Insert function ExecQuery after GetResults function in loop body.",
+		section' "Begins: 'for i := 0; i < 10; i++ {...'\nEnds: '    }\n  }\n}'",
+		old: {
+			maybeStartLine: 5,
+			maybeEndLine: 4,
+			err: "maybeStartLine is greater than maybeEndLine. The 'begins' section is ambiguous. Here's a better 'begins' section: '// Loop up to 10\nfor i := 0; i < 10; i++ {\n	// Loop body'",
+			startLine: 5,
+			endLine: 10,
+		},
+		new: "      execQuery()\n    }\n  }\n}",
+	}])
+
+	You ABSOLUTELY MUST NOT generate overlapping changes. The start line of each change MUST be **greater than** the end line of the previous change. Group smaller changes together into larger changes where necessary to avoid overlap. Only generate multiple changes when you are ABSOLUTELY CERTAIN that they do not overlap--otherwise group them together into a single change.
 
   Apply changes intelligently in order to avoid syntax errors, breaking code, or removing code from the original file that should not be removed. Consider the reason behind the update and make sure the result is consistent with the intention of the plan.
 
@@ -105,7 +145,9 @@ var listChangesPrompt = `
 	The 'listChanges' function MUST be called *valid JSON*. Double quotes within json properties of the 'listChanges' function call parameters JSON object *must be properly escaped* with a backslash.
  
   [END YOUR INSTRUCTIONS]
-`
+`, lastLineNum, lastLineNum, lastLineNum, lastLineNum)
+}
+
 var ListReplacementsFn = openai.FunctionDefinition{
 	Name: "listChanges",
 	Parameters: &jsonschema.Definition{
@@ -125,6 +167,15 @@ var ListReplacementsFn = openai.FunctionDefinition{
 						"old": {
 							Type: jsonschema.Object,
 							Properties: map[string]jsonschema.Definition{
+								"maybeStartLine": {
+									Type: jsonschema.Integer,
+								},
+								"maybeEndLine": {
+									Type: jsonschema.Integer,
+								},
+								"err": {
+									Type: jsonschema.String,
+								},
 								"startLine": {
 									Type: jsonschema.Integer,
 								},
@@ -132,7 +183,7 @@ var ListReplacementsFn = openai.FunctionDefinition{
 									Type: jsonschema.Integer,
 								},
 							},
-							Required: []string{"startLine", "endLine"},
+							Required: []string{"maybeStartLine", "maybeEndLine", "startLine", "endLine"},
 						},
 						"new": {
 							Type: jsonschema.String,

@@ -13,6 +13,10 @@ import (
 )
 
 func genPlanDescription(client *openai.Client, config shared.TaskRoleConfig, planId, branch string, ctx context.Context) (*db.ConvoMessageDescription, error) {
+	activePlan := GetActivePlan(planId, branch)
+	if activePlan == nil {
+		return nil, fmt.Errorf("active plan not found")
+	}
 
 	descResp, err := model.CreateChatCompletionWithRetries(
 		client,
@@ -38,7 +42,7 @@ func genPlanDescription(client *openai.Client, config shared.TaskRoleConfig, pla
 				},
 				{
 					Role:    openai.ChatMessageRoleAssistant,
-					Content: GetActivePlan(planId, branch).CurrentReplyContent,
+					Content: activePlan.CurrentReplyContent,
 				},
 			},
 			Temperature:    config.Temperature,

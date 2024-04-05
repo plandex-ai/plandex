@@ -128,6 +128,10 @@ func (state *activeBuildStreamFileState) loadBuildFile(activeBuild *types.Active
 
 	activePlan := GetActivePlan(planId, branch)
 
+	if activePlan == nil {
+		return fmt.Errorf("active plan not found")
+	}
+
 	convoMessageId := activeBuild.ReplyId
 
 	build := &db.PlanBuild{

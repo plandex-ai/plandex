@@ -58,6 +58,11 @@ func execTellPlan(
 
 	active := GetActivePlan(plan.Id, branch)
 
+	if active == nil {
+		log.Printf("execTellPlan: Active plan not found for plan ID %s on branch %s\n", plan.Id, branch)
+		return
+	}
+
 	if os.Getenv("IS_CLOUD") != "" &&
 		missingFileResponse == "" {
 		log.Println("execTellPlan: IS_CLOUD environment variable is set")

@@ -22,6 +22,11 @@ func (state *activeTellStreamState) summarizeMessagesIfNeeded() bool {
 
 	active := GetActivePlan(state.plan.Id, state.branch)
 
+	if active == nil {
+		log.Println("summarizeMessagesIfNeeded - Active plan not found")
+		return false
+	}
+
 	conversationTokens := 0
 	tokensUpToTimestamp := make(map[int64]int)
 	for _, convoMessage := range convo {

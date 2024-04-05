@@ -1,0 +1,2 @@
+let's create a basic pong game using C and OpenGL. create all the files for 
+  the project so that it will be ready to compile and run

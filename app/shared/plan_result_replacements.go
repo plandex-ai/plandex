@@ -10,33 +10,83 @@ import (
 )
 
 func ApplyReplacements(content string, replacements []*Replacement, setFailed bool) (string, bool) {
-	updated := content
+	apply := func(replacements []*Replacement) (string, int) {
+		updated := content
+		lastInsertedIdx := 0
 
-	allSucceeded := true
+		for i, replacement := range replacements {
+			// log.Println("replacement.Old:\n", replacement.Old)
+			// log.Println("updated:\n", updated)
+			// log.Println("lastInsertedIdx:", lastInsertedIdx)
 
-	for _, replacement := range replacements {
-		originalIdx := strings.Index(updated, replacement.Old)
+			pre := updated[:lastInsertedIdx]
+			sub := updated[lastInsertedIdx:]
+			originalIdx := strings.Index(updated, replacement.Old)
 
-		// log.Println("originalIdx:", originalIdx)
+			// log.Println("originalIdx:", originalIdx)
 
-		if originalIdx == -1 {
-			allSucceeded = false
-			if setFailed {
-				replacement.Failed = true
+			if originalIdx == -1 {
+				if setFailed {
+					replacement.Failed = true
+				}
+
+				log.Println("Replacement failed at index:", i)
+				log.Println("Replacement:")
+				log.Println(spew.Sdump(replacement))
+
+				log.Println("Updated:")
+				log.Println(updated)
+
+				return updated, i
+			} else {
+				// log.Printf("originalIdx: %d, len(replacement.Old): %d\n", originalIdx, len(replacement.Old))
+				// log.Println("Old: ", replacement.Old)
+				// log.Println("New: ", replacement.New)
+				replaced := strings.Replace(sub, replacement.Old, replacement.New, 1)
+
+				// log.Println("replaced:")
+				// log.Println(replaced)
+
+				updated = pre + replaced
+
+				// log.Printf("lastInsertedIdx: %d, originalIdx: %d, len(replacement.New): %d\n", lastInsertedIdx, originalIdx, len(replacement.New))
+
+				// log.Println("updated after replacement:")
+				// log.Println(updated)
+
+				lastInsertedIdx = lastInsertedIdx + originalIdx + len(replacement.New)
+			}
+		}
+
+		return updated, -1
+	}
+
+	for {
+		res, failedAtIndex := apply(replacements)
+
+		if failedAtIndex == 0 {
+			return res, false
+		} else if failedAtIndex > 0 {
+			// check if there's overlap between the failed replacement and the previous replacement
+			// if there is, remove the previous one and try again
+			failed := replacements[failedAtIndex]
+			prev := replacements[failedAtIndex-1]
+
+			hasOverlap := failed.StreamedChange.Old.StartLine <= prev.StreamedChange.Old.EndLine
+
+			if hasOverlap {
+				replacements = append(replacements[:failedAtIndex-1], replacements[failedAtIndex:]...)
+
+				continue
+			} else {
+				return res, false
 			}
 
-			log.Println("Replacement failed:")
-			log.Println(spew.Sdump(replacement))
-
-			log.Println("Updated:")
-			log.Println(updated)
-
 		} else {
-			updated = strings.Replace(updated, replacement.Old, replacement.New, 1)
+			return res, true
 		}
 	}
 
-	return updated, allSucceeded
 }
 
 func (planState *CurrentPlanState) GetFiles() (*CurrentPlanFiles, error) {

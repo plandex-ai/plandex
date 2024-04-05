@@ -18,6 +18,12 @@ func startResponseStream(w http.ResponseWriter, auth *types.ServerAuth, planId, 
 
 	active := modelPlan.GetActivePlan(planId, branch)
 
+	if active == nil {
+		log.Printf("Response stream manager: active plan not found for plan ID %s on branch %s\n", planId, branch)
+		http.Error(w, "Active plan not found", http.StatusNotFound)
+		return
+	}
+
 	w.Header().Set("Transfer-Encoding", "chunked")
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 
@@ -97,6 +103,10 @@ func initConnectActive(auth *types.ServerAuth, planId, branch string, w http.Res
 	log.Println("Response stream manager: initializing connection to active plan")
 
 	active := modelPlan.GetActivePlan(planId, branch)
+
+	if active == nil {
+		return fmt.Errorf("active plan not found for plan ID %s on branch %s", planId, branch)
+	}
 
 	msg := shared.StreamMessage{
 		Type: shared.StreamMessageConnectActive,

@@ -239,6 +239,8 @@ func (fileState *activeBuildStreamFileState) buildFile() {
 	log.Println("Getting file from model: " + filePath)
 	// log.Println("File context:", fileContext)
 
+	// log.Println("currentState:", currentState)
+
 	sysPrompt := prompts.GetBuildSysPrompt(filePath, currentState, activeBuild.FileDescription, activeBuild.FileContent)
 
 	fileMessages := []openai.ChatCompletionMessage{

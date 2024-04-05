@@ -1,6 +1,7 @@
 package plan
 
 import (
+	"log"
 	"plandex-server/db"
 	"sort"
 	"strings"
@@ -53,6 +54,14 @@ func getPlanResult(params planResultParams) (*db.PlanFileResult, bool) {
 		startLine := streamedChange.Old.StartLine
 		endLine := streamedChange.Old.EndLine
 
+		if startLine == 0 && streamedChange.Old.MaybeStartLine != 0 {
+			startLine = streamedChange.Old.MaybeStartLine
+		}
+
+		if endLine == 0 && streamedChange.Old.MaybeEndLine != 0 {
+			endLine = streamedChange.Old.MaybeEndLine
+		}
+
 		if startLine < 1 {
 			startLine = 1
 		}
@@ -89,6 +98,12 @@ func getPlanResult(params planResultParams) (*db.PlanFileResult, bool) {
 		jIdx := strings.Index(currentState, replacements[j].Old)
 		return iIdx < jIdx
 	})
+
+	log.Println("Will apply replacements")
+	// log.Println("currentState:", currentState)
+
+	// log.Println("Replacements:")
+	// spew.Dump(replacements)
 
 	_, allSucceeded := shared.ApplyReplacements(currentState, replacements, true)
 

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	"plandex-server/db"
 	"plandex-server/model"
 	"plandex-server/types"
@@ -50,6 +51,11 @@ func (fileState *activeBuildStreamFileState) listenStream(stream *openai.ChatCom
 	activeBuild := fileState.activeBuild
 
 	activePlan := GetActivePlan(planId, branch)
+
+	if activePlan == nil {
+		log.Printf("listenStream - Active plan not found for plan ID %s on branch %s\n", planId, branch)
+		return
+	}
 
 	defer stream.Close()
 
@@ -125,11 +131,12 @@ func (fileState *activeBuildStreamFileState) listenStream(stream *openai.ChatCom
 				fileState.activeBuild.BufferTokens++
 
 				// After a reasonable threshhold, if buffer has significantly more tokens than original file + proposed changes, something is wrong
-				if fileState.activeBuild.BufferTokens > 500 && fileState.activeBuild.BufferTokens > int(float64(fileState.activeBuild.CurrentFileTokens+fileState.activeBuild.FileContentTokens)*1.5) {
+				cutoff := int(math.Max(float64(fileState.activeBuild.CurrentFileTokens+fileState.activeBuild.FileContentTokens), 500) * 1.5)
+				if fileState.activeBuild.BufferTokens > 500 && fileState.activeBuild.BufferTokens > cutoff {
 					log.Printf("File %s: Stream buffer tokens too high\n", filePath)
 					log.Printf("Current file tokens: %d\n", fileState.activeBuild.CurrentFileTokens)
 					log.Printf("File content tokens: %d\n", fileState.activeBuild.FileContentTokens)
-					log.Printf("Cutoff: %d\n", int(float64(fileState.activeBuild.CurrentFileTokens+fileState.activeBuild.FileContentTokens)*1.5))
+					log.Printf("Cutoff: %d\n", cutoff)
 					log.Printf("Buffer tokens: %d\n", fileState.activeBuild.BufferTokens)
 					log.Println("Buffer:")
 					log.Println(fileState.activeBuild.Buffer)

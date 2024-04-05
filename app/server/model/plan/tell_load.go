@@ -26,6 +26,10 @@ func (state *activeTellStreamState) loadTellPlan() error {
 
 	active := GetActivePlan(plan.Id, branch)
 
+	if active == nil {
+		return fmt.Errorf("no active plan with id %s", plan.Id)
+	}
+
 	lockScope := db.LockScopeWrite
 	if iteration > 0 || missingFileResponse != "" {
 		lockScope = db.LockScopeRead
