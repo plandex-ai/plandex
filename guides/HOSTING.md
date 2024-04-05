@@ -11,6 +11,7 @@ export SMTP_HOST=smtp.example.com
 export SMTP_PORT=587
 export SMTP_USER=user
 export SMTP_PASSWORD=password
+export SMTP_FROM=user@example.com # optional, if not set then SMTP_USER is used
 ```
 
 Or, if you are using the `docker compose` option below, cp `app/_env` to `app/.env` and set the values in that file.
