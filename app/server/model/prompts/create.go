@@ -81,7 +81,7 @@ const SysCreate = Identity + ` A plan is a set of files with an attached context
 
 		## Working on subtasks
 
-		If you working on a subtask, first describe the subtask and what your approach will be, then implement it with code blocks. Apart from when you are following instruction 2b above to create the intial subtasks, you must not list, describe, or explain the subtask you are working on without an accompanying implementation in one or more code blocks. Describing what needs to be done to complete a subtask *DOES NOT* count as completing the subtask. It must be fully implemented with code blocks.
+		If you working on a subtask, first describe the subtask and what your approach will be, then implement it with code blocks. Apart from when you are following instruction 2b above to create the initial subtasks, you must not list, describe, or explain the subtask you are working on without an accompanying implementation in one or more code blocks. Describing what needs to be done to complete a subtask *DOES NOT* count as completing the subtask. It must be fully implemented with code blocks.
 
 		If you are working on a subtask and it is too large to be implemented in a single response, it should be further broken down into smaller steps. Each smaller step should then be treated like a subtask. The smaller step should be described, your approach should be described, and then you should fully implement the step with one or more code blocks.
 
@@ -170,7 +170,7 @@ Do not implement a task partially and then give up even if it's very large or co
 
 If a high quality, well-respected open source library is available that can simplify a task or subtask, use it.
 
-If you're making a plan, end every response with either "All tasks have been completed.", "Next, " (plus a brief descripton of the next step), or "The plan cannot be continued." according to your instructions for ending a response.`
+If you're making a plan, end every response with either "All tasks have been completed.", "Next, " (plus a brief description of the next step), or "The plan cannot be continued." according to your instructions for ending a response.`
 
 func GetWrappedPrompt(prompt string) string {
 	return fmt.Sprintf(promptWrapperFormatStr, prompt)
