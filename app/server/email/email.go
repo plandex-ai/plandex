@@ -57,9 +57,14 @@ func sendEmailViaSMTP(recipient, subject, htmlBody, textBody string) error {
 	smtpPort := os.Getenv("SMTP_PORT")
 	smtpUser := os.Getenv("SMTP_USER")
 	smtpPassword := os.Getenv("SMTP_PASSWORD")
+	smtpFrom := os.Getenv("SMTP_FROM")
 
 	if smtpHost == "" || smtpPort == "" || smtpUser == "" || smtpPassword == "" {
 		return fmt.Errorf("SMTP settings not found in environment variables")
+	}
+
+	if smtpFrom == "" {
+		smtpFrom = smtpUser
 	}
 
 	smtpAddress := fmt.Sprintf("%s:%s", smtpHost, smtpPort)
@@ -68,7 +73,7 @@ func sendEmailViaSMTP(recipient, subject, htmlBody, textBody string) error {
 
 	// Generate a MIME boundary
 	boundary := "BOUNDARY1234567890"
-	header := fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: %s\r\nMIME-Version: 1.0\r\nContent-Type: multipart/alternative; boundary=\"%s\"\r\n\r\n", smtpUser, recipient, subject, boundary)
+	header := fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: %s\r\nMIME-Version: 1.0\r\nContent-Type: multipart/alternative; boundary=\"%s\"\r\n\r\n", smtpFrom, recipient, subject, boundary)
 
 	// Prepare the text body part
 	textPart := fmt.Sprintf("--%s\r\nContent-Type: text/plain; charset=\"UTF-8\"\r\n\r\n%s\r\n", boundary, textBody)
@@ -82,7 +87,7 @@ func sendEmailViaSMTP(recipient, subject, htmlBody, textBody string) error {
 	// Combine the parts to form the full email message
 	message := []byte(header + textPart + htmlPart + endBoundary)
 
-	err := smtp.SendMail(smtpAddress, auth, smtpUser, []string{recipient}, message)
+	err := smtp.SendMail(smtpAddress, auth, smtpFrom, []string{recipient}, message)
 	if err != nil {
 		return fmt.Errorf("error sending email via SMTP: %v", err)
 	}
