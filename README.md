@@ -151,7 +151,7 @@ plandex [command] --help
 🚫  Stop the mouse-centered, copy-pasting madness of coding with ChatGPT.<br>
 📑  Manage context efficiently in the terminal.<br>
 ⚡️  Ensure AI models always have the latest versions of files in context.<br>
-🪙  Retain granular control over what's in context and how many tokens you're using.<br>
+🧐  Retain granular control over what's in context and how many tokens you're using.<br>
 🚧  Experiment, revise, and review in a protected sandbox before applying changes.<br>
 ⏪  Rewind and retry as needed.<br>
 🌱  Explore multiple approaches with branches.<br>
