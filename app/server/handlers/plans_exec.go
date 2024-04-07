@@ -87,7 +87,7 @@ func TellPlanHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	client := model.NewClient(requestBody.ApiKey)
+	client := model.NewClient(requestBody.Endpoint, requestBody.ApiKey)
 	err = modelPlan.Tell(client, plan, branch, auth, &requestBody)
 
 	if err != nil {
