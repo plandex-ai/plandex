@@ -144,7 +144,7 @@ func BuildPlanHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client := model.NewClient(requestBody.ApiKey)
+	client := model.NewClient(requestBody.Endpoint, requestBody.ApiKey)
 	numBuilds, err := modelPlan.Build(client, plan, branch, auth)
 
 	if err != nil {
