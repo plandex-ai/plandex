@@ -5,6 +5,7 @@
 ```bash
 cd your-project
 export OPENAI_API_KEY=...
+export OPENAI_ENDPOINT=... #optional e.g. https://<your-proxy>/v1
 plandex new
 ```
 
