@@ -72,7 +72,7 @@
 
 📑  Manage context efficiently in the terminal. Easily add files or entire directories to context, and keep them updated automatically as you work so that models always have the latest state of your project.
 
-🧠  Plandex relies on the OpenAI API and requires an `OPENAI_API_KEY` environment variable. Support for open source models, Google Gemini, and Anthropic Claude is coming soon.
+🧠  Plandex relies on the OpenAI API and requires an `OPENAI_API_KEY` environment variable. Support for open source models, Google Gemini, and Anthropic Claude is coming soon. And  an `OPENAI_ENDPOINT` environment variable is required for custom OpenAI endpoint.
 
 ✅  Plandex supports Mac, Linux, FreeBSD, and Windows. It runs from a single binary with no dependencies.
 
