@@ -594,6 +594,10 @@ github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINE
 github.com/pkg/sftp v1.13.1/go.mod h1:3HaPG6Dq1ILlpPZRO0HVMrsydcdLt6HRDccSgb87qRg=
 github.com/pkoukk/tiktoken-go v0.1.6 h1:JF0TlJzhTbrI30wCvFuiw6FzP2+/bR+FIxUdgEAcUsw=
 github.com/pkoukk/tiktoken-go v0.1.6/go.mod h1:9NiV+i9mJKGj1rYOT+njbv+ZwA/zJxYdewGl6qVatpg=
+github.com/plandex-ai/survey/v2 v2.0.0-20231118010015-cee0f8b2c085 h1:p+WvOXBT2sYv2zFMo8hf0U6wc3/6D6qtFgpLa0VOXa0=
+github.com/plandex-ai/survey/v2 v2.0.0-20231118010015-cee0f8b2c085/go.mod h1:RiBOKRDB5fOQrOzsiAPAN57hYqFKPkCxgSK7twcDOys=
+github.com/plandex-ai/survey/v2 v2.3.7 h1:u1o6bflbaBpW8i8krm+91Z2cOcvZcMVS+AjV+rgR8Rk=
+github.com/plandex-ai/survey/v2 v2.3.7/go.mod h1:RiBOKRDB5fOQrOzsiAPAN57hYqFKPkCxgSK7twcDOys=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/posener/complete v1.1.1/go.mod h1:em0nMJCgc9GFtwrmVmEMR/ZL6WyhyjMBndrE9hABlRI=

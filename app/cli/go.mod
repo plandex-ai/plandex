@@ -9,7 +9,7 @@ require (
 	github.com/muesli/reflow v0.3.0
 	github.com/muesli/termenv v0.15.2
 	github.com/olekukonko/tablewriter v0.0.5
-	github.com/plandex-ai/survey/v2 v2.0.0-00010101000000-000000000000
+	github.com/plandex-ai/survey/v2 v2.3.7
 	github.com/spf13/cobra v1.8.0
 	golang.org/x/term v0.17.0
 )
@@ -66,5 +66,3 @@ require (
 )
 
 replace github.com/plandex/plandex/shared => ../shared
-
-replace github.com/plandex-ai/survey/v2 => ../../../survey
