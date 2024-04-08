@@ -13,6 +13,9 @@ const OPENAI_STREAM_CHUNK_TIMEOUT = time.Duration(30) * time.Second
 
 func NewClient(apiKey string) *openai.Client {
 	config := openai.DefaultConfig(apiKey)
+	if os.Getenv("OPENAI_API_BASE") != "" {
+		config.BaseURL = os.Getenv("OPENAI_API_BASE")
+	}
 	return openai.NewClientWithConfig(config)
 }
 
