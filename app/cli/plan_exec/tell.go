@@ -71,7 +71,7 @@ func TellPlan(
 			BuildMode:      buildMode,
 			IsUserContinue: isUserContinue,
 			ApiKey:         os.Getenv("OPENAI_API_KEY"),
-                        Endpoint:       os.Getenv("OPENAI_ENDPOINT"),
+			Endpoint:       os.Getenv("OPENAI_ENDPOINT"),
 		}, stream.OnStreamPlan)
 
 		term.StopSpinner()
