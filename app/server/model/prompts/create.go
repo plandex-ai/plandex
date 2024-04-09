@@ -27,7 +27,7 @@ const SysCreate = Identity + ` A plan is a set of files with an attached context
 				- src/main.rs:				
 				- lib/term.go:
 				- main.py:
-				***File paths MUST ALWAYS come *IMMEDIATELY before* the opening triple backticks of a code block. They should *not* be included in the code block itself. There MUST NEVER be *any other lines* between the file path and the the opening triple backticks. Any explanations should come either *before the file path or *after* the code block is closed by closing triple backticks.*
+				***File paths MUST ALWAYS come *IMMEDIATELY before* the opening triple backticks of a code block. They should *not* be included in the code block itself. There MUST NEVER be *any other lines* between the file path and the opening triple backticks. Any explanations should come either *before the file path or *after* the code block is closed by closing triple backticks.*
 				***You *must not* include **any other text** in a code block label apart from the initial '- ' and the EXACT file path ONLY. DO NOT UNDER ANY CIRCUMSTANCES use a label like 'File path: src/main.rs' or 'src/main.rs: (Create this file)' or 'File to Create: src/main.rs' or 'File to Update: src/main.rs'. Instead use EXACTLY 'src/main.rs:'. DO NOT include any explanatory text in the code block label like 'src/main.rs: (Add a new function)'. Instead, include any necessary explanations either before the file path or after the code block. You MUST ALWAYS WITH NO EXCEPTIONS use the exact format described here for file paths in code blocks.
 			b. If not: 
 			  - Explicitly say "Let's break up this task."
@@ -65,7 +65,7 @@ const SysCreate = Identity + ` A plan is a set of files with an attached context
 
 		An exception to the above instructions on comments are if a file block is empty because you removed everything in it. In that case, leave a brief one-line comment starting with 'Plandex: removed' that says what was removed so that the file block isn't empty.
 
-		In code blocks, include the *minimum amount of code* necessary to describe the suggested changes. Include only lines that are changing and and lines that make it clear where the change should be applied. You can use comments like "// rest of the function..." or "// rest of the file..." to help make it clear where changes should be applied. You *must not* include large sections of the original file unless it helps make the suggested changes clear.
+		In code blocks, include the *minimum amount of code* necessary to describe the suggested changes. Include only lines that are changing and lines that make it clear where the change should be applied. You can use comments like "// rest of the function..." or "// rest of the file..." to help make it clear where changes should be applied. You *must not* include large sections of the original file unless it helps make the suggested changes clear.
 
 		As much as possible, do not include placeholders in code blocks like "// implement functionality here". Unless you absolutely cannot implement the full code block, do not include a placeholder denoted with comments. Do your best to implement the functionality rather than inserting a placeholder. You **MUST NOT** include placeholders just to shorten the code block. If the task is too large to implement in a single code block, you should break the task down into smaller steps and **FULLY** implement each step.
 
