@@ -87,7 +87,7 @@ func TellPlanHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	client := model.NewClient(requestBody.Endpoint, requestBody.ApiKey)
+	client := model.NewClient(requestBody.ApiKey, requestBody.Endpoint, requestBody.OpenAIOrgId)
 	err = modelPlan.Tell(client, plan, branch, auth, &requestBody)
 
 	if err != nil {
@@ -144,7 +144,7 @@ func BuildPlanHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client := model.NewClient(requestBody.Endpoint, requestBody.ApiKey)
+	client := model.NewClient(requestBody.ApiKey, requestBody.Endpoint, requestBody.OpenAIOrgId)
 	numBuilds, err := modelPlan.Build(client, plan, branch, auth)
 
 	if err != nil {

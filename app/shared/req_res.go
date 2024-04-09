@@ -114,6 +114,7 @@ type TellPlanRequest struct {
 	IsUserContinue bool            `json:"isUserContinue"`
 	ApiKey         string          `json:"apiKey"`
 	Endpoint       string          `json:"endpoint"`
+	OpenAIOrgId    string          `json:"openAIOrgId"`
 	ProjectPaths   map[string]bool `json:"projectPaths"`
 }
 
@@ -121,6 +122,7 @@ type BuildPlanRequest struct {
 	ConnectStream bool            `json:"connectStream"`
 	ApiKey        string          `json:"apiKey"`
 	Endpoint      string          `json:"endpoint"`
+	OpenAIOrgId   string          `json:"openAIOrgId"`
 	ProjectPaths  map[string]bool `json:"projectPaths"`
 }
 

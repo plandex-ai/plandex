@@ -123,6 +123,7 @@ Then [generate an API key here.](https://platform.openai.com/account/api-keys)
 cd your-project
 export OPENAI_API_KEY=...
 export OPENAI_ENDPOINT=... # optional e.g. https://<your-proxy>/v1
+export OPENAI_ORG_ID=... # optional - set the OrgID if you have multiple OpenAI orgs
 plandex new
 ```
 
