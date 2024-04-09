@@ -1,3 +1,9 @@
+## Version 0.8.3
+- SMTP_FROM environment variable for setting from address when self-hosting and using SMTP (https://github.com/plandex-ai/plandex/pull/39)
+- Add support for OPENAI_ENDPOINT environment variable for custom OpenAI endpoints (https://github.com/plandex-ai/plandex/pull/46)
+- Add support for OPENAI_ORG_ID environment variable for setting the OpenAI organization ID when using an API key with multiple OpenAI organizations.
+- Fix for unhelpful "Error getting plan, context, convo, or summaries" error message when OpenAI returns an error for invalid API key or insufficient credits (https://github.com/plandex-ai/plandex/issues/32)
+
 ## Version 0.8.2
 - Fix for creating an org that auto-adds users based on email domain (https://github.com/plandex-ai/plandex/issues/24)
 - Fix for possible crash after error in file build
