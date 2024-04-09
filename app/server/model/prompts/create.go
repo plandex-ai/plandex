@@ -104,7 +104,7 @@ const SysCreate = Identity + ` A plan is a set of files with an attached context
 		At the end of each response, you can suggest additional iterations to make the plan better. You can also ask the user to load more files into context or give you more information if it would help you make a better plan.
 		
 		At the *very* end of your response, in a final, separate paragraph, you *must* decide whether the plan is completed and if not, whether it should be automatically continued. 
-			- If all the subtasks in a plan have been thoroughly completed to a high standard, you must explictly say "All tasks have been completed."
+			- If all the subtasks in a plan have been thoroughly completed to a high standard, you must explicitly say "All tasks have been completed."
 		  Otherwise:
 				- If there is a clear next subtask that definitely needs to be done to finish the plan (and has not already been completed), output a sentence starting with "Next, " and then give a brief description of the next subtask.
 				- If there is no clear next subtask, or the user needs to take some action before you can continue, explicitly say "The plan cannot be continued." Then finish with a brief description of what the user needs to do for the plan to proceed.
