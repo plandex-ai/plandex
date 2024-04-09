@@ -261,7 +261,7 @@ func (state *activeTellStreamState) loadTellPlan() error {
 				active.StreamDoneCh <- &shared.ApiError{
 					Type:   shared.ApiErrorTypeOther,
 					Status: http.StatusInternalServerError,
-					Msg:    "Error getting plan, context, convo, or summaries",
+					Msg:    fmt.Sprintf("Error loading plan: %v", err),
 				}
 				return err
 			}
