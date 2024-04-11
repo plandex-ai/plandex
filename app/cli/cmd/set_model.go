@@ -125,7 +125,7 @@ func modelsSet(cmd *cobra.Command, args []string) {
 
 	if len(args) > 1 {
 		if role != "" {
-			propertyCompact = shared.Compact(args[1])
+			propertyCompact = args[1]
 		} else {
 			value = args[1]
 		}
