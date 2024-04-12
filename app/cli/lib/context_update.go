@@ -153,6 +153,7 @@ func checkOutdatedAndMaybeUpdateContext(doUpdate bool, maybeContexts []*shared.C
 	var mu sync.Mutex
 	var wg sync.WaitGroup
 	contextsById := map[string]*shared.Context{}
+	deleteIds := map[string]bool{}
 
 	var paths *fs.ProjectPaths
 	var hasDirectoryTreeWithIgnoredPaths bool
@@ -180,10 +181,17 @@ func checkOutdatedAndMaybeUpdateContext(doUpdate bool, maybeContexts []*shared.C
 			wg.Add(1)
 			go func(context *shared.Context) {
 				defer wg.Done()
-				fileContent, err := os.ReadFile(context.FilePath)
-
+				
 				mu.Lock()
 				defer mu.Unlock()
+
+				if _, err := os.Stat(context.FilePath); os.IsNotExist(err) {
+					deleteIds[context.Id] = true
+					return
+				}
+
+				fileContent, err := os.ReadFile(context.FilePath)
+
 				if err != nil {
 					errs = append(errs, fmt.Errorf("failed to read the file %s: %v", context.FilePath, err))
 					return
@@ -310,7 +318,7 @@ func checkOutdatedAndMaybeUpdateContext(doUpdate bool, maybeContexts []*shared.C
 	var msg string
 	var hasConflicts bool
 
-	if len(req) == 0 {
+	if len(req) == 0 && len(deleteIds) == 0{
 		return &types.ContextOutdatedResult{
 			Msg: "Context is up to date",
 		}, nil
@@ -329,11 +337,23 @@ func checkOutdatedAndMaybeUpdateContext(doUpdate bool, maybeContexts []*shared.C
 			return nil, fmt.Errorf("failed to check context conflicts: %v", err)
 		}
 
-		res, apiErr := api.Client.UpdateContext(CurrentPlanId, CurrentBranch, req)
-		if apiErr != nil {
-			return nil, fmt.Errorf("failed to update context: %v", apiErr)
+		if len(req) > 0 {
+			res, apiErr := api.Client.UpdateContext(CurrentPlanId, CurrentBranch, req)
+			if apiErr != nil {
+				return nil, fmt.Errorf("failed to update context: %v", apiErr)
+			}
+			msg = res.Msg
 		}
-		msg = res.Msg
+		
+		if len(deleteIds) > 0 {
+			req, apiErr := api.Client.DeleteContext(CurrentPlanId, CurrentBranch, shared.DeleteContextRequest{
+				Ids: deleteIds,
+			})
+			if apiErr != nil {
+				return nil, fmt.Errorf("failed to delete contexts: %v", apiErr)
+			}
+			msg += " " + req.Msg
+		}
 	}
 
 	if hasConflicts {
