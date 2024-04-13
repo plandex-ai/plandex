@@ -26,7 +26,7 @@ func genPlanDescription(client *openai.Client, config shared.TaskRoleConfig, pla
 			Tools: []openai.Tool{
 				{
 					Type:     "function",
-					Function: prompts.DescribePlanFn,
+					Function: &prompts.DescribePlanFn,
 				},
 			},
 			ToolChoice: openai.ToolChoice{

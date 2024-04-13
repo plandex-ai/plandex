@@ -31,7 +31,7 @@ func GenPlanName(client *openai.Client, config shared.TaskRoleConfig, planConten
 			Tools: []openai.Tool{
 				{
 					Type:     "function",
-					Function: prompts.PlanNameFn,
+					Function: &prompts.PlanNameFn,
 				},
 			},
 			ToolChoice: openai.ToolChoice{

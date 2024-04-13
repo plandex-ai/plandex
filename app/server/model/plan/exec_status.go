@@ -54,7 +54,7 @@ func ExecStatusShouldContinue(client *openai.Client, config shared.TaskRoleConfi
 			Tools: []openai.Tool{
 				{
 					Type:     "function",
-					Function: prompts.ShouldAutoContinueFn,
+					Function: &prompts.ShouldAutoContinueFn,
 				},
 			},
 			ToolChoice: openai.ToolChoice{

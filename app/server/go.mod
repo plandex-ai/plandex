@@ -8,11 +8,11 @@ require (
 	github.com/gorilla/mux v1.8.1
 	github.com/pkg/errors v0.9.1
 	github.com/plandex/plandex/shared v0.0.0-00010101000000-000000000000
-	github.com/sashabaranov/go-openai v1.19.4
+	github.com/sashabaranov/go-openai v1.21.0
 )
 
 require (
-	github.com/dlclark/regexp2 v1.10.0 // indirect
+	github.com/dlclark/regexp2 v1.11.0 // indirect
 	github.com/go-toast/toast v0.0.0-20190211030409-01e6764cf0a4 // indirect
 	github.com/godbus/dbus/v5 v5.1.0 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect

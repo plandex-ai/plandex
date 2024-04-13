@@ -7,6 +7,16 @@ import (
 var AvailableModels = []BaseModelConfig{
 	{
 		Provider:  ModelProviderOpenAI,
+		ModelName: openai.GPT4Turbo,
+		MaxTokens: 128000,
+	},
+	{
+		Provider:  ModelProviderOpenAI,
+		ModelName: openai.GPT4Turbo20240409,
+		MaxTokens: 128000,
+	},
+	{
+		Provider:  ModelProviderOpenAI,
 		ModelName: openai.GPT4TurboPreview,
 		MaxTokens: 128000,
 	},

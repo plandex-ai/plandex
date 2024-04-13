@@ -261,7 +261,7 @@ func (fileState *activeBuildStreamFileState) buildFile() {
 		Tools: []openai.Tool{
 			{
 				Type:     "function",
-				Function: prompts.ListReplacementsFn,
+				Function: &prompts.ListReplacementsFn,
 			},
 		},
 		ToolChoice: openai.ToolChoice{
