@@ -7,11 +7,14 @@ require (
 	github.com/pkoukk/tiktoken-go v0.1.6
 )
 
-require github.com/mattn/go-runewidth v0.0.9 // indirect
+require (
+	github.com/mattn/go-runewidth v0.0.15 // indirect
+	github.com/rivo/uniseg v0.2.0 // indirect
+)
 
 require (
-	github.com/dlclark/regexp2 v1.10.0 // indirect
-	github.com/google/uuid v1.3.0 // indirect
+	github.com/dlclark/regexp2 v1.11.0 // indirect
+	github.com/google/uuid v1.6.0 // indirect
 	github.com/olekukonko/tablewriter v0.0.5
-	github.com/sashabaranov/go-openai v1.19.4
+	github.com/sashabaranov/go-openai v1.21.0
 )
