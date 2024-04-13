@@ -125,7 +125,7 @@ func modelsSet(cmd *cobra.Command, args []string) {
 
 	if len(args) > 1 {
 		if role != "" {
-			propertyCompact = args[1]
+			propertyCompact = shared.Compact(args[1])
 		} else {
 			value = args[1]
 		}
@@ -189,7 +189,7 @@ func modelsSet(cmd *cobra.Command, args []string) {
 	if role != "" {
 		if !(propertyCompact == "temperature" || propertyCompact == "topp") {
 			for _, m := range shared.AvailableModels {
-				if propertyCompact == m.ModelName {
+				if propertyCompact == shared.Compact(m.ModelName) {
 					selectedModel = &m
 					break
 				}
