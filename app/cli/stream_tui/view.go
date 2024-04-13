@@ -117,13 +117,21 @@ func (m streamUIModel) doRenderBuild(outputStatic bool) string {
 		} else if tokens > 0 {
 			block += fmt.Sprintf(" %d 🪙", tokens)
 		}
+		maybeBlockWidth := lipgloss.Width(block)
+
+		if maybeBlockWidth > m.width {
+			maxWidth := m.width - lipgloss.Width("⋯")
+			runes := []rune(block)
+			firstHalf := string(runes[:maxWidth/2])
+			secondHalf := string(runes[len(runes)-maxWidth/2:])
+			block = firstHalf + "⋯" + secondHalf
+		}
 
 		maybePrefix := ""
 		if rowIdx > 0 {
 			maybePrefix = " | "
+			maybeBlockWidth += lipgloss.Width(maybePrefix)
 		}
-
-		maybeBlockWidth := lipgloss.Width(maybePrefix + block)
 
 		if lineWidth+maybeBlockWidth > m.width {
 			lineWidth = 0
