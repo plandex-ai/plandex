@@ -380,6 +380,9 @@ func execTellPlan(
 				return
 			}
 
+			log.Printf("Tell plan: found %d pending builds\n", len(pendingBuildsByPath))
+			// spew.Dump(pendingBuildsByPath)x
+
 			buildState := &activeBuildStreamState{
 				client:        client,
 				auth:          auth,
