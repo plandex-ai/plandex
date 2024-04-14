@@ -53,6 +53,14 @@ var AvailableModels = []BaseModelConfig{
 }
 
 var PlannerModelConfigByName = map[string]PlannerModelConfig{
+	openai.GPT4Turbo: {
+		MaxConvoTokens:       10000,
+		ReservedOutputTokens: 4096,
+	},
+	openai.GPT4Turbo20240409: {
+		MaxConvoTokens:       10000,
+		ReservedOutputTokens: 4096,
+	},
 	openai.GPT4TurboPreview: {
 		MaxConvoTokens:       10000,
 		ReservedOutputTokens: 4096,
@@ -84,6 +92,12 @@ var PlannerModelConfigByName = map[string]PlannerModelConfig{
 }
 
 var TaskModelConfigByName = map[string]TaskModelConfig{
+	openai.GPT4Turbo: {
+		OpenAIResponseFormat: &openai.ChatCompletionResponseFormat{Type: "json_object"},
+	},
+	openai.GPT4Turbo20240409: {
+		OpenAIResponseFormat: &openai.ChatCompletionResponseFormat{Type: "json_object"},
+	},
 	openai.GPT4TurboPreview: {
 		OpenAIResponseFormat: &openai.ChatCompletionResponseFormat{Type: "json_object"},
 	},
@@ -108,14 +122,81 @@ var TaskModelConfigByName = map[string]TaskModelConfig{
 }
 
 var AvailableModelsByName = map[string]BaseModelConfig{}
-var DefaultModelSet ModelSet
+
+var Gpt4TurboPreviewLatestModelSet ModelSet
+var Gpt4TurboLatestModelSet ModelSet
+
+var BuiltInModelSets = []*ModelSet{
+	&Gpt4TurboLatestModelSet,
+	&Gpt4TurboPreviewLatestModelSet,
+}
+
+var DefaultModelSet *ModelSet = &Gpt4TurboLatestModelSet
 
 func init() {
 	for _, model := range AvailableModels {
 		AvailableModelsByName[model.ModelName] = model
 	}
 
-	DefaultModelSet = ModelSet{
+	Gpt4TurboLatestModelSet = ModelSet{
+		Name:        "gpt-4-turbo-latest",
+		Description: "Uses latest version of OpenAI gpt-4-turbo model first released on 2024-04-09 for heavy lifting, latest version of gpt-3.5-turbo for lighter tasks.",
+		Planner: PlannerRoleConfig{
+			ModelRoleConfig: ModelRoleConfig{
+				Role:            ModelRolePlanner,
+				BaseModelConfig: AvailableModelsByName[openai.GPT4Turbo],
+				Temperature:     0.4,
+				TopP:            0.3,
+			},
+			PlannerModelConfig: PlannerModelConfigByName[openai.GPT4Turbo],
+		},
+		PlanSummary: ModelRoleConfig{
+			Role:            ModelRolePlanSummary,
+			BaseModelConfig: AvailableModelsByName[openai.GPT4Turbo],
+			Temperature:     0.2,
+			TopP:            0.2,
+		},
+		Builder: TaskRoleConfig{
+			ModelRoleConfig: ModelRoleConfig{
+				Role:            ModelRoleBuilder,
+				BaseModelConfig: AvailableModelsByName[openai.GPT4Turbo],
+				Temperature:     0.2,
+				TopP:            0.2,
+			},
+			TaskModelConfig: TaskModelConfigByName[openai.GPT4Turbo],
+		},
+		Namer: TaskRoleConfig{
+			ModelRoleConfig: ModelRoleConfig{
+				Role:            ModelRoleName,
+				BaseModelConfig: AvailableModelsByName[openai.GPT3Dot5Turbo],
+				Temperature:     0.8,
+				TopP:            0.5,
+			},
+			TaskModelConfig: TaskModelConfigByName[openai.GPT3Dot5Turbo],
+		},
+		CommitMsg: TaskRoleConfig{
+			ModelRoleConfig: ModelRoleConfig{
+				Role:            ModelRoleCommitMsg,
+				BaseModelConfig: AvailableModelsByName[openai.GPT3Dot5Turbo],
+				Temperature:     0.8,
+				TopP:            0.5,
+			},
+			TaskModelConfig: TaskModelConfigByName[openai.GPT3Dot5Turbo],
+		},
+		ExecStatus: TaskRoleConfig{
+			ModelRoleConfig: ModelRoleConfig{
+				Role:            ModelRoleExecStatus,
+				BaseModelConfig: AvailableModelsByName[openai.GPT4Turbo],
+				Temperature:     0.1,
+				TopP:            0.1,
+			},
+			TaskModelConfig: TaskModelConfigByName[openai.GPT4Turbo],
+		},
+	}
+
+	Gpt4TurboPreviewLatestModelSet = ModelSet{
+		Name:        "gpt-4-turbo-preview-latest",
+		Description: "Uses latest version of OpenAI's gpt-4-turbo-preview model first released on 2024-11-06 for heavy lifting, latest version of gpt-3.5-turbo for lighter tasks.",
 		Planner: PlannerRoleConfig{
 			ModelRoleConfig: ModelRoleConfig{
 				Role:            ModelRolePlanner,
@@ -168,4 +249,5 @@ func init() {
 			TaskModelConfig: TaskModelConfigByName[openai.GPT4TurboPreview],
 		},
 	}
+
 }

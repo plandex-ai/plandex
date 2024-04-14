@@ -226,6 +226,8 @@ type TaskRoleConfig struct {
 }
 
 type ModelSet struct {
+	Name        string            `json:"name"`
+	Description string            `json:"description"`
 	Planner     PlannerRoleConfig `json:"planner"`
 	PlanSummary ModelRoleConfig   `json:"planSummary"`
 	Builder     TaskRoleConfig    `json:"builder"`
