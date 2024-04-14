@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"log"
 	"time"
@@ -44,7 +45,7 @@ func lockRepo(params LockRepoParams, numRetry int) (string, error) {
 	ctx := params.Ctx
 	cancelFn := params.CancelFn
 
-	tx, err := Conn.Begin()
+	tx, err := Conn.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelRepeatableRead})
 	if err != nil {
 		return "", fmt.Errorf("error starting transaction: %v", err)
 	}

@@ -128,6 +128,7 @@ func (buildState *activeBuildStreamState) execPlanBuild(activeBuild *types.Activ
 	}
 
 	// stream initial status to client
+	log.Printf("streaming initial build info for file %s\n", filePath)
 	buildInfo := &shared.BuildInfo{
 		Path:      filePath,
 		NumTokens: 0,
@@ -261,7 +262,7 @@ func (fileState *activeBuildStreamFileState) buildFile() {
 		Tools: []openai.Tool{
 			{
 				Type:     "function",
-				Function: prompts.ListReplacementsFn,
+				Function: &prompts.ListReplacementsFn,
 			},
 		},
 		ToolChoice: openai.ToolChoice{

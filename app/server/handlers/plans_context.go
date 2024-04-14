@@ -277,7 +277,7 @@ func DeleteContextHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	err = db.ContextRemove(toRemove)
+	err = db.ContextRemove(auth.OrgId, planId, toRemove)
 
 	if err != nil {
 		log.Printf("Error deleting contexts: %v\n", err)

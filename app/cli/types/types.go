@@ -28,10 +28,13 @@ type LoadContextParams struct {
 type ContextOutdatedResult struct {
 	Msg             string
 	UpdatedContexts []*shared.Context
+	RemovedContexts []*shared.Context
 	TokenDiffsById  map[string]int
 	NumFiles        int
 	NumUrls         int
 	NumTrees        int
+	NumFilesRemoved int
+	NumTreesRemoved int
 }
 
 const (

@@ -98,13 +98,16 @@ func GetContext(orgId, planId, contextId string, includeBody bool) (*Context, er
 	return &context, nil
 }
 
-func ContextRemove(contexts []*Context) error {
+func ContextRemove(orgId, planId string, contexts []*Context) error {
 	// remove files
 	numFiles := len(contexts) * 2
 
+	filesToUpdate := make(map[string]string)
+
 	errCh := make(chan error, numFiles)
 	for _, context := range contexts {
-		contextDir := getPlanContextDir(context.OrgId, context.PlanId)
+		filesToUpdate[context.FilePath] = ""
+		contextDir := getPlanContextDir(orgId, planId)
 		for _, ext := range []string{".meta", ".body"} {
 			go func(context *Context, dir, ext string) {
 				errCh <- os.Remove(filepath.Join(dir, context.Id+ext))
@@ -117,6 +120,11 @@ func ContextRemove(contexts []*Context) error {
 		if err != nil {
 			return fmt.Errorf("error removing context file: %v", err)
 		}
+	}
+
+	err := invalidateConflictedResults(orgId, planId, filesToUpdate)
+	if err != nil {
+		return fmt.Errorf("error invalidating conflicted results: %v", err)
 	}
 
 	return nil
@@ -497,7 +505,7 @@ func UpdateContexts(params UpdateContextsParams) (*shared.UpdateContextResponse,
 	}, nil
 }
 
-func invalidateConflictedResults(orgId, planId string, filesToLoad map[string]string) error {
+func invalidateConflictedResults(orgId, planId string, filesToUpdate map[string]string) error {
 	descriptions, err := GetConvoMessageDescriptions(orgId, planId)
 	if err != nil {
 		return fmt.Errorf("error getting pending build descriptions: %v", err)
@@ -513,7 +521,7 @@ func invalidateConflictedResults(orgId, planId string, filesToLoad map[string]st
 		return fmt.Errorf("error getting current plan state: %v", err)
 	}
 
-	conflictPaths := currentPlan.PlanResult.FileResultsByPath.ConflictedPaths(filesToLoad)
+	conflictPaths := currentPlan.PlanResult.FileResultsByPath.ConflictedPaths(filesToUpdate)
 
 	// log.Println("invalidateConflictedResults - Conflicted paths:", conflictPaths)
 
