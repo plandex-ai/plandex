@@ -221,12 +221,26 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 		}
 	}
 
+	contexts, _ := api.Client.ListContext(CurrentPlanId, CurrentBranch)
+
 	for i := 0; i < len(inputFilePaths)+len(inputUrls); i++ {
 		select {
 		case err := <-errCh:
 			onErr(err)
 		case context := <-contextCh:
-			loadContextReq = append(loadContextReq, context)
+			exists := false
+			for _, c := range contexts {
+				if c.FilePath == context.FilePath && c.Url == context.Url {
+					exists = true
+					break
+				}
+			}
+
+			if exists {
+				fmt.Printf("\n⚠️ Context '%s' has already been loaded\n", context.Name)
+			} else {
+				loadContextReq = append(loadContextReq, context)
+			}
 		}
 	}
 
