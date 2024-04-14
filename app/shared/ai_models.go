@@ -53,6 +53,10 @@ var AvailableModels = []BaseModelConfig{
 }
 
 var PlannerModelConfigByName = map[string]PlannerModelConfig{
+	openai.GPT4Turbo: {
+		MaxConvoTokens:       10000,
+		ReservedOutputTokens: 4096,
+	},
 	openai.GPT4TurboPreview: {
 		MaxConvoTokens:       10000,
 		ReservedOutputTokens: 4096,
@@ -84,6 +88,9 @@ var PlannerModelConfigByName = map[string]PlannerModelConfig{
 }
 
 var TaskModelConfigByName = map[string]TaskModelConfig{
+	openai.GPT4Turbo: {
+		OpenAIResponseFormat: &openai.ChatCompletionResponseFormat{Type: "json_object"},
+	},
 	openai.GPT4TurboPreview: {
 		OpenAIResponseFormat: &openai.ChatCompletionResponseFormat{Type: "json_object"},
 	},
@@ -119,26 +126,26 @@ func init() {
 		Planner: PlannerRoleConfig{
 			ModelRoleConfig: ModelRoleConfig{
 				Role:            ModelRolePlanner,
-				BaseModelConfig: AvailableModelsByName[openai.GPT4TurboPreview],
+				BaseModelConfig: AvailableModelsByName[openai.GPT4Turbo],
 				Temperature:     0.4,
 				TopP:            0.3,
 			},
-			PlannerModelConfig: PlannerModelConfigByName[openai.GPT4TurboPreview],
+			PlannerModelConfig: PlannerModelConfigByName[openai.GPT4Turbo],
 		},
 		PlanSummary: ModelRoleConfig{
 			Role:            ModelRolePlanSummary,
-			BaseModelConfig: AvailableModelsByName[openai.GPT4TurboPreview],
+			BaseModelConfig: AvailableModelsByName[openai.GPT4Turbo],
 			Temperature:     0.2,
 			TopP:            0.2,
 		},
 		Builder: TaskRoleConfig{
 			ModelRoleConfig: ModelRoleConfig{
 				Role:            ModelRoleBuilder,
-				BaseModelConfig: AvailableModelsByName[openai.GPT4TurboPreview],
+				BaseModelConfig: AvailableModelsByName[openai.GPT4Turbo],
 				Temperature:     0.2,
 				TopP:            0.2,
 			},
-			TaskModelConfig: TaskModelConfigByName[openai.GPT4TurboPreview],
+			TaskModelConfig: TaskModelConfigByName[openai.GPT4Turbo],
 		},
 		Namer: TaskRoleConfig{
 			ModelRoleConfig: ModelRoleConfig{
@@ -161,11 +168,11 @@ func init() {
 		ExecStatus: TaskRoleConfig{
 			ModelRoleConfig: ModelRoleConfig{
 				Role:            ModelRoleExecStatus,
-				BaseModelConfig: AvailableModelsByName[openai.GPT4TurboPreview],
+				BaseModelConfig: AvailableModelsByName[openai.GPT4Turbo],
 				Temperature:     0.1,
 				TopP:            0.1,
 			},
-			TaskModelConfig: TaskModelConfigByName[openai.GPT4TurboPreview],
+			TaskModelConfig: TaskModelConfigByName[openai.GPT4Turbo],
 		},
 	}
 }
