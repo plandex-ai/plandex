@@ -6,12 +6,22 @@ To set up a development environment, first install dependencies:
 - [reflex](https://github.com/cespare/reflex) 0.3.1 - for watching files and rebuilding in development. Install with `go install github.com/cespare/reflex@v0.3.1`
 - PostreSQL 14 - https://www.postgresql.org/download/
 
+Make sure `$GOPATH` is in your $PATH
+
+```bash
+# print $GOPATH
+echo $GOPATH
+
+# if it's empty
+export GOPATH=<path-to-go-folder>
+```
+
 Make sure the PostgreSQL server is running and create a database called `plandex`.
 
 Then make sure the following environment variables are set:
 
 ```bash
-export DATABASE_URL=postgres://user:password@host:5432/plandex # replace with your own database URL
+export DATABASE_URL=postgres://user:password@host:5432/plandex?sslmode=disable # replace with your own database URL
 export GOENV=development
 ```
 

@@ -11,6 +11,7 @@ import (
 	"plandex/types"
 	"plandex/url"
 	"strings"
+	"sync"
 
 	"github.com/fatih/color"
 	"github.com/plandex/plandex/shared"
@@ -65,10 +66,29 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 		}
 	}
 
-	contextCh := make(chan *shared.LoadContextParams)
-	errCh := make(chan error)
+	var contextMu sync.Mutex
 
+	errCh := make(chan error)
 	ignoredPaths := make(map[string]string)
+
+	numRoutines := 0
+
+	// filter out already loaded contexts
+	alreadyLoadedByComposite := make(map[string]string)
+	existingContexts, apiErr := api.Client.ListContext(CurrentPlanId, CurrentBranch)
+	if apiErr != nil {
+		onErr(fmt.Errorf("failed to list contexts: %v", apiErr.Msg))
+	}
+
+	existsByComposite := make(map[string]bool)
+	for _, context := range existingContexts {
+		switch context.ContextType {
+		case shared.ContextFileType, shared.ContextDirectoryTreeType:
+			existsByComposite[strings.Join([]string{string(context.ContextType), context.FilePath}, "|")] = true
+		case shared.ContextURLType:
+			existsByComposite[strings.Join([]string{string(context.ContextType), context.Url}, "|")] = true
+		}
+	}
 
 	if len(inputFilePaths) > 0 {
 		baseDir := fs.GetBaseDirForFilePaths(inputFilePaths)
@@ -111,7 +131,13 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 
 		if params.NamesOnly {
 			for _, inputFilePath := range inputFilePaths {
+				composite := strings.Join([]string{string(shared.ContextDirectoryTreeType), inputFilePath}, "|")
+				if existsByComposite[composite] {
+					alreadyLoadedByComposite[composite] = inputFilePath
+					continue
+				}
 
+				numRoutines++
 				go func(inputFilePath string) {
 					flattenedPaths, err := ParseInputPaths([]string{inputFilePath}, params)
 					if err != nil {
@@ -143,13 +169,17 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 						name = "parent"
 					}
 
-					contextCh <- &shared.LoadContextParams{
+					contextMu.Lock()
+					defer contextMu.Unlock()
+					loadContextReq = append(loadContextReq, &shared.LoadContextParams{
 						ContextType:     shared.ContextDirectoryTreeType,
 						Name:            name,
 						Body:            body,
 						FilePath:        inputFilePath,
 						ForceSkipIgnore: params.ForceSkipIgnore,
-					}
+					})
+
+					errCh <- nil
 				}(inputFilePath)
 			}
 
@@ -176,7 +206,14 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 			inputFilePaths = flattenedPaths
 
 			for _, path := range flattenedPaths {
+				composite := strings.Join([]string{string(shared.ContextFileType), path}, "|")
 
+				if existsByComposite[composite] {
+					alreadyLoadedByComposite[composite] = path
+					continue
+				}
+
+				numRoutines++
 				go func(path string) {
 					fileContent, err := os.ReadFile(path)
 					if err != nil {
@@ -185,12 +222,17 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 					}
 					body := string(fileContent)
 
-					contextCh <- &shared.LoadContextParams{
+					contextMu.Lock()
+					defer contextMu.Unlock()
+
+					loadContextReq = append(loadContextReq, &shared.LoadContextParams{
 						ContextType: shared.ContextFileType,
 						Name:        path,
 						Body:        body,
 						FilePath:    path,
-					}
+					})
+
+					errCh <- nil
 				}(path)
 			}
 		}
@@ -198,6 +240,13 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 
 	if len(inputUrls) > 0 {
 		for _, u := range inputUrls {
+			composite := strings.Join([]string{string(shared.ContextURLType), u}, "|")
+			if existsByComposite[composite] {
+				alreadyLoadedByComposite[composite] = u
+				continue
+			}
+
+			numRoutines++
 			go func(u string) {
 				body, err := url.FetchURLContent(u)
 				if err != nil {
@@ -211,22 +260,25 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 					name = name[:20] + "⋯" + name[len(name)-20:]
 				}
 
-				contextCh <- &shared.LoadContextParams{
+				contextMu.Lock()
+				defer contextMu.Unlock()
+
+				loadContextReq = append(loadContextReq, &shared.LoadContextParams{
 					ContextType: shared.ContextURLType,
 					Name:        name,
 					Body:        body,
 					Url:         u,
-				}
+				})
+
+				errCh <- nil
 			}(u)
 		}
 	}
 
-	for i := 0; i < len(inputFilePaths)+len(inputUrls); i++ {
-		select {
-		case err := <-errCh:
+	for i := 0; i < numRoutines; i++ {
+		err := <-errCh
+		if err != nil {
 			onErr(err)
-		case context := <-contextCh:
-			loadContextReq = append(loadContextReq, context)
 		}
 	}
 
@@ -246,6 +298,9 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 	if len(loadContextReq) == 0 {
 		term.StopSpinner()
 		fmt.Println("🤷‍♂️ No context loaded")
+		if len(alreadyLoadedByComposite) > 0 {
+			printAlreadyLoadedMsg(alreadyLoadedByComposite)
+		}
 		if len(ignoredPaths) > 0 {
 			printIgnoredMsg()
 		}
@@ -278,8 +333,29 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 
 	fmt.Println("✅ " + res.Msg)
 
+	if len(alreadyLoadedByComposite) > 0 {
+		printAlreadyLoadedMsg(alreadyLoadedByComposite)
+	}
+
 	if len(ignoredPaths) > 0 {
 		printIgnoredMsg()
+	}
+}
+
+func printAlreadyLoadedMsg(alreadyLoadedByComposite map[string]string) {
+	fmt.Println()
+	pronoun := "they're"
+	if len(alreadyLoadedByComposite) == 1 {
+		pronoun = "it's"
+	}
+	fmt.Printf("🙅‍♂️ Skipped because %s already in context:\n", pronoun)
+	for composite, name := range alreadyLoadedByComposite {
+		parts := strings.Split(composite, "|")
+		contextType := parts[0]
+
+		_, icon := GetContextLabelAndIcon(shared.ContextType(contextType))
+
+		fmt.Printf("  • %s %s\n", icon, name)
 	}
 }
 

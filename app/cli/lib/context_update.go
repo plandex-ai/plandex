@@ -465,7 +465,7 @@ func tableForContextOutdated(updatedContexts []*shared.Context, tokenDiffsById m
 	table.SetAutoWrapText(false)
 
 	for _, context := range updatedContexts {
-		t, icon := GetContextTypeAndIcon(context)
+		t, icon := GetContextLabelAndIcon(context.ContextType)
 		diff := tokenDiffsById[context.Id]
 
 		diffStr := "+" + strconv.Itoa(diff)

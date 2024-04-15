@@ -45,7 +45,7 @@ func lockRepo(params LockRepoParams, numRetry int) (string, error) {
 	ctx := params.Ctx
 	cancelFn := params.CancelFn
 
-	tx, err := Conn.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+	tx, err := Conn.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelRepeatableRead})
 	if err != nil {
 		return "", fmt.Errorf("error starting transaction: %v", err)
 	}
