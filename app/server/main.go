@@ -35,10 +35,10 @@ func main() {
 		log.Println("In development mode.")
 	}
 
-	// Get externalPort from the environment variable or default to 8088
+	// Get externalPort from the environment variable or default to 8080
 	externalPort := os.Getenv("PORT")
 	if externalPort == "" {
-		externalPort = "8088"
+		externalPort = "8080"
 	}
 
 	go startServer(externalPort, routes())

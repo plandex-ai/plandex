@@ -35,8 +35,8 @@ Now from the root directory of this repo, run:
 
 This creates watchers with `reflex` to rebuild both the server and the CLI when relevant files change.
 
-The server runs on port 8088 by default.
+The server runs on port 8080 by default.
 
-After each build, the CLI is copied to `/usr/local/bin/plandex` so you can use it with just `plandex` in any directory. A `pdx` alias is also created.
+After each build, the CLI is copied to `/usr/local/bin/plandex` (which can also be changed with the environment variable `PLANDEX_OUT_DIR`) so you can use it with just `plandex` in any directory. A `pdx` alias is also created.
 
 When running the Plandex CLI, set `export PLANDEX_ENV=development` to run in development mode, which connects to the development server by default.

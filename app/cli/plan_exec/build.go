@@ -40,7 +40,7 @@ func Build(params ExecParams, buildBg bool) (bool, error) {
 		ConnectStream: !buildBg,
 		ProjectPaths:  paths.ActivePaths,
 		ApiKey:        os.Getenv("OPENAI_API_KEY"),
-		Endpoint:      os.Getenv("OPENAI_ENDPOINT"),
+		Endpoint:      os.Getenv("OPENAI_API_BASE"),
 		OpenAIOrgId:   os.Getenv("OPENAI_ORG_ID"),
 	}, stream.OnStreamPlan)
 

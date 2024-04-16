@@ -3,6 +3,7 @@
 .envkey
 plandex
 plandex-server
+*.exe
 node_modules/
 /tools/
 /static/

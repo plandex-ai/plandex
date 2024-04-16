@@ -13,7 +13,7 @@ Support for more model providers is coming soon.
 ```bash
 cd your-project
 export OPENAI_API_KEY=...
-export OPENAI_ENDPOINT=... # optional e.g. https://<your-proxy>/v1
+export OPENAI_API_BASE=... # optional e.g. https://<your-proxy>/v1
 export OPENAI_ORG_ID=... # optional - set the OrgID if you have multiple OpenAI orgs
 plandex new
 ```
