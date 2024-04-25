@@ -7,6 +7,7 @@ import (
 	"plandex/auth"
 	"plandex/lib"
 	"plandex/term"
+	"strconv"
 
 	"github.com/fatih/color"
 	"github.com/olekukonko/tablewriter"
@@ -14,11 +15,26 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var customModelsOnly bool
+
 func init() {
-	RootCmd.AddCommand(modelsCmd)
 	RootCmd.AddCommand(modelsCmd)
 	modelsCmd.AddCommand(listAvailableModelsCmd)
 	modelsCmd.AddCommand(createCustomModelCmd)
+
+	listAvailableModelsCmd.Flags().BoolVarP(&customModelsOnly, "custom", "c", false, "List custom models only")
+}
+
+var modelsCmd = &cobra.Command{
+	Use:   "models",
+	Short: "Show model settings",
+	Run:   models,
+}
+
+var listAvailableModelsCmd = &cobra.Command{
+	Use:   "available",
+	Short: "List all available models",
+	Run:   listAvailableModels,
 }
 
 var createCustomModelCmd = &cobra.Command{
@@ -28,16 +44,57 @@ var createCustomModelCmd = &cobra.Command{
 }
 
 func createCustomModel(cmd *cobra.Command, args []string) {
-	model := shared.CustomModel{}
-	term.Ask("Enter model name:", &model.ModelName)
-	term.Ask("Enter provider:", &model.Provider)
-	term.Ask("Enter base URL:", &model.BaseUrl)
-	term.Ask("Enter max tokens:", &model.MaxTokens)
-	term.Ask("Enter API key environment variable:", &model.ApiKeyEnvVar)
-	term.Ask("Enter description (optional):", &model.Description)
+	model := &shared.CustomModel{}
+
+	modelName, err := term.GetUserStringInput("Enter model name:")
+	if err != nil {
+		term.OutputErrorAndExit("Error reading model name: %v", err)
+		return
+	}
+	model.ModelName = modelName
+
+	provider, err := term.GetUserStringInput("Enter provider:")
+	if err != nil {
+		term.OutputErrorAndExit("Error reading provider: %v", err)
+		return
+	}
+	model.Provider = provider
+
+	baseUrl, err := term.GetUserStringInput("Enter base URL:")
+	if err != nil {
+		term.OutputErrorAndExit("Error reading base URL: %v", err)
+		return
+	}
+	model.BaseUrl = baseUrl
+
+	maxTokensStr, err := term.GetUserStringInput("Enter max tokens:")
+	if err != nil {
+		term.OutputErrorAndExit("Error reading max tokens: %v", err)
+		return
+	}
+	maxTokens, err := strconv.Atoi(maxTokensStr)
+	if err != nil {
+		term.OutputErrorAndExit("Invalid number for max tokens: %v", err)
+		return
+	}
+	model.MaxTokens = maxTokens
+
+	apiKeyEnvVar, err := term.GetUserStringInput("Enter API key environment variable:")
+	if err != nil {
+		term.OutputErrorAndExit("Error reading API key environment variable: %v", err)
+		return
+	}
+	model.ApiKeyEnvVar = apiKeyEnvVar
+
+	description, err := term.GetUserStringInput("Enter description (optional):")
+	if err != nil {
+		term.OutputErrorAndExit("Error reading description: %v", err)
+		return
+	}
+	model.Description = description
 
 	term.StartSpinner("Creating model...")
-	err := api.Client.CreateCustomModel(model)
+	err = api.Client.CreateCustomModel(model)
 	term.StopSpinner()
 
 	if err != nil {
@@ -46,19 +103,6 @@ func createCustomModel(cmd *cobra.Command, args []string) {
 	}
 
 	fmt.Println("Model created successfully.")
-}
-
-var modelsCmd = &cobra.Command{
-	Use:   "models",
-	Short: "Show model settings",
-	Run:   models,
-	Run:   models,
-}
-
-var listAvailableModelsCmd = &cobra.Command{
-	Use:   "available",
-	Short: "List all available models",
-	Run:   listAvailableModels,
 }
 
 func models(cmd *cobra.Command, args []string) {
@@ -147,29 +191,146 @@ func models(cmd *cobra.Command, args []string) {
 		table.Append([]string{"Reserved Output Tokens", fmt.Sprintf("%d", *settings.ModelOverrides.ReservedOutputTokens)})
 	}
 	table.Render()
-
 	fmt.Println()
-	term.PrintCmds("", "set-model")
 
-	term.PrintCmds("", "set-model")
+	term.PrintCmds("", "set-model", "models available")
 }
 
 func listAvailableModels(cmd *cobra.Command, args []string) {
-	term.StartSpinner("Fetching models...")
-	models, err := api.Client.ListAvailableModels()
-	term.StopSpinner()
+	auth.MustResolveAuthWithOrg()
+	lib.MustResolveProject()
 
-	if err != nil {
-		term.OutputErrorAndExit("Error fetching models: %v", err)
+	if lib.CurrentPlanId == "" {
+		fmt.Println("🤷‍♂️ No current plan")
 		return
 	}
 
-	table := tablewriter.NewWriter(os.Stdout)
-	table.SetHeader([]string{"Name", "Provider", "Max Tokens", "Description"})
-	for _, model := range models {
-		table.Append([]string{model.ModelName, string(model.Provider), strconv.Itoa(model.MaxTokens), model.Description})
+	term.StartSpinner("")
+
+	customModels, err := api.Client.ListCustomModels()
+
+	term.StopSpinner()
+
+	if err != nil {
+		term.OutputErrorAndExit("Error fetching custom models: %v", err)
+		return
 	}
-	table.Render()
+
+	if !customModelsOnly {
+		color.New(color.Bold, term.ColorHiCyan).Println("🏠 Built-in Models")
+		builtIn := shared.AvailableModels
+		table := tablewriter.NewWriter(os.Stdout)
+		table.SetAutoWrapText(false)
+		table.SetHeader([]string{"Provider", "Name", "🪙", "🔑", "Url"})
+		for _, model := range builtIn {
+			table.Append([]string{string(model.Provider), model.ModelName, strconv.Itoa(model.MaxTokens), model.ApiKeyEnvVar, model.BaseUrl})
+		}
+		table.Render()
+		fmt.Println()
+	}
+
+	if len(customModels) > 0 {
+		color.New(color.Bold, term.ColorHiCyan).Println("🛠️ Custom Models")
+		table := tablewriter.NewWriter(os.Stdout)
+		table.SetAutoWrapText(false)
+		table.SetHeader([]string{"#", "Provider", "Name", "🪙", "🔑", "Url"})
+		for i, model := range customModels {
+			table.Append([]string{fmt.Sprintf("%d", i+1), model.ModelName, string(model.Provider), strconv.Itoa(model.MaxTokens), model.ApiKeyEnvVar, model.BaseUrl})
+		}
+		table.Render()
+	} else if customModelsOnly {
+		fmt.Println("🤷‍♂️ No custom models")
+		fmt.Println()
+	}
+
+	if customModelsOnly {
+		term.PrintCmds("", "models", "set-model")
+	} else {
+		term.PrintCmds("", "models available --custom", "models", "set-model")
+	}
 }
+func createCustomModel(cmd *cobra.Command, args []string) {
+	model := &shared.CustomModel{}
+
+	term.StartSpinner("Creating model...")
+	err := api.Client.CreateCustomModel(model)
+	term.StopSpinner()
+
+	if err != nil {
+		term.OutputErrorAndExit("Error creating model: %v", err)
+		return
+	}
+
+	fmt.Println("Model created successfully.")
+var deleteCustomModelCmd = &cobra.Command{
+	Use:   "delete [name-or-index]",
+	Short: "Delete a custom model by name or index",
+	Args:  cobra.MaximumNArgs(1),
+	Run:   deleteCustomModel,
+}
+
+func deleteCustomModel(cmd *cobra.Command, args []string) {
+	var models []shared.CustomModel
+	var err error
+
+	term.StartSpinner("Fetching custom models...")
+	models, err = api.Client.ListCustomModels()
+	term.StopSpinner()
+
+	if err != nil {
+		term.OutputErrorAndExit("Error fetching custom models: %v", err)
+		return
+	}
+
+	if len(models) == 0 {
+		fmt.Println("No custom models available to delete.")
+		return
+	}
+
+	var modelToDelete *shared.CustomModel
+
+	if len(args) == 1 {
+		input := args[0]
+		// Try to parse input as index
+		index, err := strconv.Atoi(input)
+		if err == nil && index > 0 && index <= len(models) {
+			modelToDelete = &models[index-1]
+		} else {
+			// Search by name
+			for _, m := range models {
+				if m.ModelName == input {
+					modelToDelete = &m
+					break
+				}
+			}
+		}
+	}
+
+	if modelToDelete == nil {
+		fmt.Println("Select a model to delete:")
+		for i, model := range models {
+			fmt.Printf("%d: %s\n", i+1, model.ModelName)
+		}
+		var selectedIndex int
+		fmt.Scanln(&selectedIndex)
+		if selectedIndex < 1 || selectedIndex > len(models) {
+			fmt.Println("Invalid selection.")
+			return
+		}
+		modelToDelete = &models[selectedIndex-1]
+	}
+
+	term.StartSpinner(fmt.Sprintf("Deleting model '%s'...", modelToDelete.ModelName))
+	err = api.Client.DeleteCustomModel(modelToDelete.Id)
+	term.StopSpinner()
+
+	if err != nil {
+		term.OutputErrorAndExit("Error deleting custom model: %v", err)
+		return
+	}
+
+	fmt.Printf("Custom model '%s' deleted successfully.\n", modelToDelete.ModelName)
+}
+
 
 
