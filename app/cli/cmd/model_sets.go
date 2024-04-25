@@ -6,24 +6,25 @@ import (
 	"plandex/term"
 	"strconv"
 
+	"github.com/fatih/color"
 	"github.com/plandex/plandex/shared"
 	"github.com/spf13/cobra"
 )
 
 var modelSetsCmd = &cobra.Command{
-	Use:   "model-sets",
-	Short: "Manage model sets",
+	Use:   "model-packs",
+	Short: "Manage model packs",
 }
 
 var listModelSetsCmd = &cobra.Command{
 	Use:   "list",
-	Short: "List all model sets",
+	Short: "List all model packs",
 	Run:   listModelSets,
 }
 
 var createModelSetCmd = &cobra.Command{
 	Use:   "create",
-	Short: "Create a model set",
+	Short: "Create a model pack",
 	Run:   createModelSet,
 }
 
@@ -135,36 +136,124 @@ func createModelSet(cmd *cobra.Command, args []string) {
 	set.Description = description
 
 	// Selecting models for each role
-	set.Planner = selectModelForRole("Planner")
-	set.PlanSummary = selectModelForRole("Plan Summary")
-	set.Builder = selectModelForRole("Builder")
-	set.Namer = selectModelForRole("Namer")
-	set.CommitMsg = selectModelForRole("Commit Message")
-	set.ExecStatus = selectModelForRole("Execution Status")
+	set.Planner = getPlannerRoleConfig()
+	set.PlanSummary = getModelRoleConfig(shared.ModelRolePlanSummary)
+	set.Builder = getModelRoleConfig(shared.ModelRoleBuilder)
+	set.Namer = getModelRoleConfig(shared.ModelRoleName)
+	set.CommitMsg = getModelRoleConfig(shared.ModelRoleCommitMsg)
+	set.ExecStatus = getModelRoleConfig(shared.ModelRoleExecStatus)
 
-	term.StartSpinner("Creating model set...")
-	err = api.Client.CreateModelSet(set)
+	term.StartSpinner("")
+	apiErr := api.Client.CreateModelSet(set)
 	term.StopSpinner()
 
-	if err != nil {
-		term.OutputErrorAndExit("Error creating model set: %v", err)
+	if apiErr != nil {
+		term.OutputErrorAndExit("Error creating model set: %v", apiErr.Msg)
 		return
 	}
 
-	fmt.Println("Model set created successfully.")
+	fmt.Println("✅ Created model pack", color.New(color.Bold, term.ColorHiCyan).Sprint())
 }
 
-func selectModelForRole(role string) string {
-	term.StartSpinner(fmt.Sprintf("Fetching models for role: %s...", role))
-	models, err := api.Client.ListAvailableModels()
-	term.StopSpinner()
+func getModelRoleConfig(role string) shared.ModelRoleConfig {
+	fmt.Printf("Configuring %s\n", role)
 
+	modelName, err := term.GetUserStringInput("Enter the model name for " + role + ":")
 	if err != nil {
-		term.OutputErrorAndExit("Error fetching models: %v", err)
+		term.OutputErrorAndExit("Error reading model name: %v", err)
 	}
 
-	modelNames := make([]string, len(models))
-	for i, model := range models {
+	provider, err := term.GetUserStringInput("Enter the provider for " + role + ":")
+	if err != nil {
+		term.OutputErrorAndExit("Error reading provider: %v", err)
+	}
+
+	baseUrl, err := term.GetUserStringInput("Enter the base URL for " + role + ":")
+	if err != nil {
+		term.OutputErrorAndExit("Error reading base URL: %v", err)
+	}
+
+	maxTokensStr, err := term.GetUserStringInput("Enter the maximum tokens for " + role + ":")
+	if err != nil {
+		term.OutputErrorAndExit("Error reading maximum tokens: %v", err)
+	}
+	maxTokens, err := strconv.Atoi(maxTokensStr)
+	if err != nil {
+		term.OutputErrorAndExit("Invalid number for maximum tokens: %v", err)
+	}
+
+	temperatureStr, err := term.GetUserStringInput("Enter the temperature for " + role + ":")
+	if err != nil {
+		term.OutputErrorAndExit("Error reading temperature: %v", err)
+	}
+	temperature, err := strconv.ParseFloat(temperatureStr, 32)
+	if err != nil {
+		term.OutputErrorAndExit("Invalid number for temperature: %v", err)
+	}
+
+	topPStr, err := term.GetUserStringInput("Enter the top P for " + role + ":")
+	if err != nil {
+		term.OutputErrorAndExit("Error reading top P: %v", err)
+	}
+	topP, err := strconv.ParseFloat(topPStr, 32)
+	if err != nil {
+		term.OutputErrorAndExit("Invalid number for top P: %v", err)
+	}
+
+	return shared.ModelRoleConfig{
+		BaseModelConfig: shared.BaseModelConfig{
+			Provider:    provider,
+			BaseUrl:     baseUrl,
+			ModelName:   modelName,
+			MaxTokens:   maxTokens,
+			ApiKeyEnvVar: "API_KEY_ENV_VAR", // This should be set appropriately
+		},
+		Temperature: float32(temperature),
+		TopP:        float32(topP),
+	}
+}
+
+func getPlannerRoleConfig(role string) shared.PlannerRoleConfig {
+	modelConfig := getModelRoleConfig(role)
+
+	maxConvoTokensStr, err := term.GetUserStringInput("Enter the maximum conversation tokens for " + role + ":")
+	if err != nil {
+		term.OutputErrorAndExit("Error reading maximum conversation tokens: %v", err)
+	}
+	maxConvoTokens, err := strconv.Atoi(maxConvoTokensStr)
+	if err != nil {
+		term.OutputErrorAndExit("Invalid number for maximum conversation tokens: %v", err)
+	}
+
+	reservedOutputTokensStr, err := term.GetUserStringInput("Enter the reserved output tokens for " + role + ":")
+	if err != nil {
+		term.OutputErrorAndExit("Error reading reserved output tokens: %v", err)
+	}
+	reservedOutputTokens, err := strconv.Atoi(reservedOutputTokensStr)
+	if err != nil {
+		term.OutputErrorAndExit("Invalid number for reserved output tokens: %v", err)
+	}
+
+	return shared.PlannerRoleConfig{
+		ModelRoleConfig: modelConfig,
+		PlannerModelConfig: shared.PlannerModelConfig{
+			MaxConvoTokens:       maxConvoTokens,
+			ReservedOutputTokens: reservedOutputTokens,
+		},
+	}
+}
+
+func selectModelForRole(role shared.ModelRole) *shared.BaseModelConfig {
+	term.StartSpinner(fmt.Sprintf("Fetching models for role: %s...", role))
+	customModel, apiErr := api.Client.ListCustomModels()
+	term.StopSpinner()
+
+	if apiErr != nil {
+		term.OutputErrorAndExit("Error fetching models: %v", apiErr)
+	}
+
+	modelNames := make([]string, len(customModel))
+	for i, model := range customModel {
 		modelNames[i] = fmt.Sprintf("%s (%s)", model.ModelName, model.Provider)
 	}
 
@@ -173,6 +262,15 @@ func selectModelForRole(role string) string {
 		term.OutputErrorAndExit("Error selecting model: %v", err)
 	}
 
-	return models[selected].ModelName
+	var idx int
+	for i, name := range modelNames {
+		if name == selected {
+			idx = i
+			break
+		}
+	}
+
+	return customModel[idx].BaseModelConfig
 }
+
 
