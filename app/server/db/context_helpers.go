@@ -308,7 +308,7 @@ func LoadContexts(params LoadContextsParams) (*shared.LoadContextResponse, []*Co
 
 	commitMsg := shared.SummaryForLoadContext(apiContexts, tokensAdded, totalTokens)
 
-	if len(apiContexts) > 1 {
+	if len(apiContexts) > 0 {
 		commitMsg += "\n\n" + shared.TableForLoadContext(apiContexts)
 	}
 
