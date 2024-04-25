@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"plandex/api"
 	"plandex/term"
+	"strconv"
+
+	"github.com/plandex/plandex/shared"
 	"github.com/spf13/cobra"
 )
 
@@ -39,11 +42,8 @@ var deleteModelSetCmd = &cobra.Command{
 }
 
 func deleteModelSet(cmd *cobra.Command, args []string) {
-	var modelSets []shared.ModelSet
-	var err error
-
-	term.StartSpinner("Fetching model sets...")
-	modelSets, err = api.Client.ListModelSets()
+	term.StartSpinner("")
+	modelSets, err := api.Client.ListModelSets()
 	term.StopSpinner()
 
 	if err != nil {
@@ -63,12 +63,12 @@ func deleteModelSet(cmd *cobra.Command, args []string) {
 		// Try to parse input as index
 		index, err := strconv.Atoi(input)
 		if err == nil && index > 0 && index <= len(modelSets) {
-			setToDelete = &modelSets[index-1]
+			setToDelete = modelSets[index-1]
 		} else {
 			// Search by name
 			for _, s := range modelSets {
 				if s.Name == input {
-					setToDelete = &s
+					setToDelete = s
 					break
 				}
 			}
@@ -86,10 +86,10 @@ func deleteModelSet(cmd *cobra.Command, args []string) {
 			fmt.Println("Invalid selection.")
 			return
 		}
-		setToDelete = &modelSets[selectedIndex-1]
+		setToDelete = modelSets[selectedIndex-1]
 	}
 
-	term.StartSpinner(fmt.Sprintf("Deleting model set '%s'...", setToDelete.Name))
+	term.StartSpinner("")
 	err = api.Client.DeleteModelSet(setToDelete.Id)
 	term.StopSpinner()
 
@@ -134,7 +134,13 @@ func createModelSet(cmd *cobra.Command, args []string) {
 	}
 	set.Description = description
 
-	// Additional details would be prompted here similarly
+	// Selecting models for each role
+	set.Planner = selectModelForRole("Planner")
+	set.PlanSummary = selectModelForRole("Plan Summary")
+	set.Builder = selectModelForRole("Builder")
+	set.Namer = selectModelForRole("Namer")
+	set.CommitMsg = selectModelForRole("Commit Message")
+	set.ExecStatus = selectModelForRole("Execution Status")
 
 	term.StartSpinner("Creating model set...")
 	err = api.Client.CreateModelSet(set)
@@ -148,4 +154,25 @@ func createModelSet(cmd *cobra.Command, args []string) {
 	fmt.Println("Model set created successfully.")
 }
 
+func selectModelForRole(role string) string {
+	term.StartSpinner(fmt.Sprintf("Fetching models for role: %s...", role))
+	models, err := api.Client.ListAvailableModels()
+	term.StopSpinner()
+
+	if err != nil {
+		term.OutputErrorAndExit("Error fetching models: %v", err)
+	}
+
+	modelNames := make([]string, len(models))
+	for i, model := range models {
+		modelNames[i] = fmt.Sprintf("%s (%s)", model.ModelName, model.Provider)
+	}
+
+	selected, err := term.SelectFromList(fmt.Sprintf("Select a model for the %s role:", role), modelNames)
+	if err != nil {
+		term.OutputErrorAndExit("Error selecting model: %v", err)
+	}
+
+	return models[selected].ModelName
+}
 
