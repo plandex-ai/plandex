@@ -1602,3 +1602,59 @@ func (a *Api) UpdateSettings(planId, branch string, req shared.UpdateSettingsReq
 	return &updateRes, nil
 
 }
+func (a *Api) CreateCustomModel(model shared.CustomModel) *shared.ApiError {
+	serverUrl := a.baseUrl + "/custom_models"
+	body, err := json.Marshal(model)
+	if err != nil {
+		return &shared.ApiError{Msg: "Failed to marshal model"}
+	}
+
+	resp, err := a.client.Post(serverUrl, "application/json", bytes.NewBuffer(body))
+	if err != nil {
+		return &shared.ApiError{Msg: "Failed to create custom model"}
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return &shared.ApiError{Msg: "Failed to create custom model"}
+	}
+
+	return nil
+}
+
+func (a *Api) ListCustomModels() ([]shared.CustomModel, *shared.ApiError) {
+	serverUrl := a.baseUrl + "/custom_models"
+	resp, err := a.client.Get(serverUrl)
+	if err != nil {
+		return nil, &shared.ApiError{Msg: "Failed to list custom models"}
+	}
+	defer resp.Body.Close()
+
+	var models []shared.CustomModel
+	if err := json.NewDecoder(resp.Body).Decode(&models); err != nil {
+		return nil, &shared.ApiError{Msg: "Failed to decode custom models"}
+	}
+
+	return models, nil
+}
+
+func (a *Api) DeleteCustomModel(modelId string) *shared.ApiError {
+	serverUrl := a.baseUrl + "/custom_models/" + modelId
+	req, err := http.NewRequest("DELETE", serverUrl, nil)
+	if err != nil {
+		return &shared.ApiError{Msg: "Failed to create request"}
+	}
+
+	resp, err := a.client.Do(req)
+	if err != nil {
+		return &shared.ApiError{Msg: "Failed to delete custom model"}
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return &shared.ApiError{Msg: "Failed to delete custom model"}
+	}
+
+	return nil
+}
+

@@ -81,4 +81,14 @@ type ApiClient interface {
 
 	GetSettings(planId, branch string) (*shared.PlanSettings, *shared.ApiError)
 	UpdateSettings(planId, branch string, req shared.UpdateSettingsRequest) (*shared.UpdateSettingsResponse, *shared.ApiError)
+	// Custom models management
+	CreateCustomModel(model shared.CustomModel) *shared.ApiError
+	ListCustomModels() ([]shared.CustomModel, *shared.ApiError)
+	DeleteCustomModel(modelId string) *shared.ApiError
+
+	// Model sets management
+	CreateModelSet(set shared.ModelSet) *shared.ApiError
+	ListModelSets() ([]shared.ModelSet, *shared.ApiError)
+	DeleteModelSet(setId string) *shared.ApiError
 }
+
