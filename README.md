@@ -72,7 +72,7 @@
 
 📑  Manage context efficiently in the terminal. Easily add files or entire directories to context, and keep them updated automatically as you work so that models always have the latest state of your project.
 
-🧠  Plandex relies on the OpenAI API and requires an `OPENAI_API_KEY` environment variable. Support for open source models, Google Gemini, and Anthropic Claude is coming soon. Use the `OPENAI_API_BASE`  environment variable for a custom OpenAI endpoint.
+🧠  By default, Plandex relies on the OpenAI API and requires an `OPENAI_API_KEY` environment variable. You can also use it with a wide range of other models, including Anthropic Claude, Google Gemini, Mixtral, Llama and many more via OpenRouter.ai, Together.ai, or any other OpenAI-compatible provider.
 
 ✅  Plandex supports Mac, Linux, FreeBSD, and Windows. It runs from a single binary with no dependencies.
 
@@ -115,15 +115,21 @@ Windows is supported via <a href="https://learn.microsoft.com/en-us/windows/wsl/
 
 ## Get started  🚀
 
-If you don't have an OpenAI account, first [sign up here.](https://platform.openai.com/signup)
+Plandex uses OpenAI by default. If you don't have an OpenAI account, first [sign up here.](https://platform.openai.com/signup)
 
 Then [generate an API key here.](https://platform.openai.com/account/api-keys)
 
 ```bash
 cd your-project
+
 export OPENAI_API_KEY=...
 export OPENAI_API_BASE=... # optional e.g. https://<your-proxy>/v1
 export OPENAI_ORG_ID=... # optional - set the OrgID if you have multiple OpenAI orgs
+
+# optional - set api keys for any other providers you're using
+export OPENROUTER_API_KEY=...
+export TOGETHER_API_KEY...
+
 plandex new
 ```
 
@@ -190,9 +196,9 @@ Plandex Cloud follows best practices for network and data security. And whether 
 
 ## Roadmap  🗺️
 
-🧠  Support for open source models, Google Gemini, and Anthropic Claude in addition to OpenAI<br>
+🧠  Support for open source models, Google Gemini, and Anthropic Claude in addition to OpenAI ✅ - released April 2024<br>
 🤝  Plan sharing and team collaboration<br>
-🖼️  Support for GPT4-Vision and other multi-modal models—add images and screenshots to context<br>
+🖼️  Support for multi-modal models—add images and screenshots to context<br>
 🖥️  VSCode and JetBrains extensions<br>
 📦  Community plugins and modules<br>
 🔌  Github integration<br>
@@ -209,6 +215,12 @@ Speaking of feedback, feel free to give yours, ask questions, report a bug, or j
 - [Discord](https://discord.gg/plandex-ai)
 - [Discussions](https://github.com/plandex-ai/plandex/discussions)
 - [Issues](https://github.com/plandex-ai/plandex/issues)
+
+## Twitter / X / whatever it's called these days 🐦
+
+Follow [@PlandexAI](https://twitter.com/PlandexAI) for updates and AI coding content.
+
+Follow [@Danenania](https://twitter.com/Danenania), the creator of Plandex, for more wide-ranging dev stuff.
 
 ## Contributors  👥
 

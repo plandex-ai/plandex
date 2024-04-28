@@ -1,20 +1,28 @@
 # Using Plandex  🛠️
 
-## OpenAI API key  🔑
+## Provider API key(s)  🔑
+
+By default, Plandex uses the OpenAI API. While you can now use Plandex with many different providers and models, for some functionality Plandex has requirements that only OpenAI models, for the time being, can satisfy. That means you'll need an OpenAI account to get started even if you plan to use other model providers. 
 
 If you don't have an OpenAI account, first [sign up here.](https://platform.openai.com/signup)
 
 Then [generate an API key here.](https://platform.openai.com/account/api-keys)
 
-Support for more model providers is coming soon.
+You'll also need API keys for any other providers you plan on using, like OpenRouter.ai (Anthropic, Gemini, and open source models), Together.ai (open source models), Replicate, Ollama, and more. 
 
 ## New plan  🪄
 
 ```bash
 cd your-project
+
 export OPENAI_API_KEY=...
 export OPENAI_API_BASE=... # optional e.g. https://<your-proxy>/v1
 export OPENAI_ORG_ID=... # optional - set the OrgID if you have multiple OpenAI orgs
+
+# optional - set api keys for any other providers you're using
+export OPENROUTER_API_KEY=...
+export TOGETHER_API_KEY...
+
 plandex new
 ```
 
@@ -142,17 +150,30 @@ plandex update # update files in context
 
 ## Plans  🌟
 
-When you have multiple plans, you can list them with the `plans` command, switch between them with the `cd` command, see the current plan with the `current` command, and delete plans with the `delete-plan` command. Archiving of plans will be added in the future for plans that you want to keep around but aren't currently working on.
+When you have multiple plans, you can list them with the `plans` command, switch between them with the `cd` command, see the current plan with the `current` command, and delete plans with the `delete-plan` command. 
+
+You can archive plans you want to keep around but aren't currently working on with the `archive` command. You can see archived plans in the current directory with `plans --archived`. You can unarchive a plan with the `unarchive` command.
 
 ```
 plandex plans # list all plans
+
 plandex cd # select from a list of plans
 plandex cd some-other-plan # cd to a plan by name
 plandex cd 2 # cd to a plan by number in the `plandex plans` list
+
 plandex current # show the current plan
+
 plandex delete-plan # select from a list of plans to delete
 plandex delete-plan some-plan # delete a plan by name
 plandex delete-plan 4 # delete a plan by number in the `plandex plans` list
+
+plandex archive # select from a list of plans to archive
+plandex archive some-plan # archive a plan by name
+plandex archive 2 # archive a plan by number in the `plandex plans` list
+
+plandex unarchive # select from a list of archived plans to unarchive
+plandex unarchive some-plan # unarchive a plan by name
+plandex unarchive 2 # unarchive a plan by number in the `plandex plans --archived` list
 ```
 
 ## Conversation history  💬
@@ -167,20 +188,62 @@ plandex convo # show the full conversation history
 
 Every time the AI model replies, Plandex will summarize the conversation so far in the background and store the summary in case it's needed later. When the conversation size in tokens exceeds the model's limit, Plandex will automatically replace some number of older messages with the corresponding summary. It will summarize as many messages as necessary to keep the conversation size under the limit.
 
+You can see the latest summary with the `summary` command.
+
+```bash
+plandex summary # show the latest conversation summary
+```
+
 ## Model settings  🧠
 
 You can see the current AI models and model settings with the `models` command and change them with the `set-model` command.
 
 ```bash
 plandex models # show the current AI models and model settings
+plandex models available # show all available models
 plandex set-model # select from a list of models and settings
-plandex set-model planner gpt-4 # set the main planner model to gpt-4
+plandex set-model planner openrouter/anthropic/claude-opus-3 # set the main planner model to Claude Opus 3 from OpenRouter.ai
 plandex set-model builder temperature 0.1 # set the builder model's temperature to 0.1
 plandex set-model max-tokens 4000 # set the planner model overall token limit to 4000
 plandex set-model max-convo-tokens 20000  # set how large the conversation can grow before Plandex starts using summaries
 ```
 
 Model changes are versioned and can be rewound or applied to a branch just like any other change.
+
+### Model defaults  
+
+`set-model` udpates model settings for the current plan. If you want to change the default model settings for all new plans, use `set-model default`.
+
+```bash
+plandex models default # show the default model settings
+plandex set-model default # select from a list of models and settings
+plandex set-model default planner openai/gpt-4 # set the default planner model to OpenAI gpt-4
+```
+
+### Custom models
+
+Use `models add` to add a custom model and use any provider that is compatible with OpenAI, including OpenRouter.ai, Together.ai, Ollama, Replicate, and more.
+
+```bash
+plandex models add # add a custom model
+plandex models available --custom # show all available custom models
+plandex models delete # delete a custom model
+```
+
+### Model packs
+
+Instead of changing models for each role one by one, a model pack lets you switch out all roles at once. You can create your own model packs with `model-packs create`, list built-in and custom model packs with `model-packs`, and remove custom model packs with `model-packs delete`.
+
+```bash
+plandex set-model # select from a list of model packs for the current plan
+plandex set-model default # select from a list of model packs to set as the default for all new plans
+plandex set-model gpt-4-turbo-latest # set the current plan's model pack by name
+plandex set-model default gpt-4-turbo-latest # set the default model pack for all new plans
+
+plandex model-packs # list built-in and custom model packs
+plandex model-packs create # create a new custom model pack
+plandex model-packs --custom # list only custom model packs
+```
 
 ## .plandex directory  ⚙️
 

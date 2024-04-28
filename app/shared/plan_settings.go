@@ -2,7 +2,26 @@ package shared
 
 type ModelProvider string
 
-const ModelProviderOpenAI ModelProvider = "openai"
+const (
+	ModelProviderOpenAI     ModelProvider = "openai"
+	ModelProviderTogether   ModelProvider = "together"
+	ModelProviderOpenRouter ModelProvider = "openrouter"
+	ModelProviderCustom     ModelProvider = "custom"
+)
+
+var AllModelProviders = []string{string(ModelProviderOpenAI), string(ModelProviderTogether), string(ModelProviderCustom)}
+
+var BaseUrlByProvider = map[ModelProvider]string{
+	ModelProviderOpenAI:     OpenAIV1BaseUrl,
+	ModelProviderTogether:   "https://api.together.xyz/v1",
+	ModelProviderOpenRouter: "https://openrouter.ai/api/v1",
+}
+
+var ApiKeyByProvider = map[ModelProvider]string{
+	ModelProviderOpenAI:     OpenAIEnvVar,
+	ModelProviderTogether:   "TOGETHER_API_KEY",
+	ModelProviderOpenRouter: "OPENROUTER_API_KEY",
+}
 
 type ModelRole string
 
@@ -34,10 +53,10 @@ var ModelOverridePropsDasherized = []string{"max-convo-tokens", "max-tokens", "r
 
 func (ps PlanSettings) GetPlannerMaxTokens() int {
 	if ps.ModelOverrides.MaxTokens == nil {
-		if ps.ModelSet == nil {
-			return DefaultModelSet.Planner.BaseModelConfig.MaxTokens
+		if ps.ModelPack == nil {
+			return DefaultModelPack.Planner.BaseModelConfig.MaxTokens
 		} else {
-			return ps.ModelSet.Planner.BaseModelConfig.MaxTokens
+			return ps.ModelPack.Planner.BaseModelConfig.MaxTokens
 		}
 	} else {
 		return *ps.ModelOverrides.MaxTokens
@@ -46,10 +65,10 @@ func (ps PlanSettings) GetPlannerMaxTokens() int {
 
 func (ps PlanSettings) GetPlannerMaxConvoTokens() int {
 	if ps.ModelOverrides.MaxConvoTokens == nil {
-		if ps.ModelSet == nil {
-			return DefaultModelSet.Planner.PlannerModelConfig.MaxConvoTokens
+		if ps.ModelPack == nil {
+			return DefaultModelPack.Planner.PlannerModelConfig.MaxConvoTokens
 		} else {
-			return ps.ModelSet.Planner.PlannerModelConfig.MaxConvoTokens
+			return ps.ModelPack.Planner.PlannerModelConfig.MaxConvoTokens
 		}
 	} else {
 		return *ps.ModelOverrides.MaxConvoTokens
@@ -58,10 +77,10 @@ func (ps PlanSettings) GetPlannerMaxConvoTokens() int {
 
 func (ps PlanSettings) GetPlannerReservedOutputTokens() int {
 	if ps.ModelOverrides.ReservedOutputTokens == nil {
-		if ps.ModelSet == nil {
-			return DefaultModelSet.Planner.PlannerModelConfig.ReservedOutputTokens
+		if ps.ModelPack == nil {
+			return DefaultModelPack.Planner.PlannerModelConfig.ReservedOutputTokens
 		} else {
-			return ps.ModelSet.Planner.PlannerModelConfig.ReservedOutputTokens
+			return ps.ModelPack.Planner.PlannerModelConfig.ReservedOutputTokens
 		}
 	} else {
 		return *ps.ModelOverrides.ReservedOutputTokens
@@ -70,4 +89,27 @@ func (ps PlanSettings) GetPlannerReservedOutputTokens() int {
 
 func (ps PlanSettings) GetPlannerEffectiveMaxTokens() int {
 	return ps.GetPlannerMaxTokens() - ps.GetPlannerReservedOutputTokens()
+}
+
+func (ps PlanSettings) GetRequiredEnvVars() map[string]bool {
+	envVars := map[string]bool{}
+
+	ms := ps.ModelPack
+	if ms == nil {
+		ms = DefaultModelPack
+	}
+
+	envVars[ms.Planner.BaseModelConfig.ApiKeyEnvVar] = true
+	envVars[ms.Builder.BaseModelConfig.ApiKeyEnvVar] = true
+	envVars[ms.PlanSummary.BaseModelConfig.ApiKeyEnvVar] = true
+	envVars[ms.Namer.BaseModelConfig.ApiKeyEnvVar] = true
+	envVars[ms.CommitMsg.BaseModelConfig.ApiKeyEnvVar] = true
+	envVars[ms.ExecStatus.BaseModelConfig.ApiKeyEnvVar] = true
+
+	// for backward compatibility with <= 0.8.4 server versions
+	if len(envVars) == 0 {
+		envVars["OPENAI_API_KEY"] = true
+	}
+
+	return envVars
 }

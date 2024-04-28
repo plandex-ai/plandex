@@ -3,6 +3,7 @@ package model
 import (
 	"context"
 	"fmt"
+	"log"
 	"plandex-server/db"
 	"plandex-server/model/prompts"
 	"time"
@@ -37,7 +38,7 @@ func PlanSummary(client *openai.Client, config shared.ModelRoleConfig, params Pl
 		Content: prompts.PlanSummary,
 	})
 
-	// fmt.Println("summarizing messages:")
+	fmt.Println("summarizing messages:")
 	// spew.Dump(messages)
 
 	resp, err := CreateChatCompletionWithRetries(
@@ -63,10 +64,13 @@ func PlanSummary(client *openai.Client, config shared.ModelRoleConfig, params Pl
 
 	content := resp.Choices[0].Message.Content
 
+	log.Println("Plan summary content:")
+	log.Println(content)
+
 	return &db.ConvoSummary{
 		OrgId:                       params.OrgId,
 		PlanId:                      params.PlanId,
-		Summary:                     content,
+		Summary:                     "## Summary of the plan so far:\n\n" + content,
 		Tokens:                      resp.Usage.CompletionTokens,
 		LatestConvoMessageId:        params.LatestConvoMessageId,
 		LatestConvoMessageCreatedAt: params.LatestConvoMessageCreatedAt,

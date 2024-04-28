@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
 )
 
@@ -97,7 +98,7 @@ func ListUsers(orgId string) ([]*User, error) {
 	return users, nil
 }
 
-func CreateUser(user *User, tx *sql.Tx) error {
+func CreateUser(user *User, tx *sqlx.Tx) error {
 	return tx.QueryRow("INSERT INTO users (name, email, domain, is_trial) VALUES ($1, $2, $3, $4) RETURNING id", user.Name, user.Email, user.Domain, user.IsTrial).Scan(&user.Id)
 }
 

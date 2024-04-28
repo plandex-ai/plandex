@@ -6,6 +6,7 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/muesli/reflow/wrap"
+	"github.com/plandex/plandex/shared"
 )
 
 const replacementPrependLines = 20
@@ -32,13 +33,21 @@ func (m changesUIModel) getReplacementOldDisplay() oldReplacementRes {
 	// log.Printf("oldContent: %v", oldContent)
 	// log.Printf("originalFile: %v", originalFile)
 
-	fileIdx := strings.Index(originalFile, oldContent)
-	if fileIdx == -1 {
-		panic("old content not found in full file") // should never happen
+	if m.selectionInfo.currentRes.ReplaceWithLineNums {
+		originalFile = shared.AddLineNums(originalFile)
 	}
 
 	// Convert originalFile to a slice of runes to properly handle multi-byte characters
 	originalFileRunes := []rune(originalFile)
+
+	// Convert oldContent to a slice of runes
+	oldContentRunes := []rune(oldContent)
+
+	// Find the index of oldContentRunes in originalFileRunes
+	fileIdx := shared.IndexRunes(originalFileRunes, oldContentRunes)
+	if fileIdx == -1 {
+		term.OutputErrorAndExit("Could not find replacement in original file")
+	}
 
 	toPrepend := ""
 	numLinesPrepended := 0
@@ -60,6 +69,8 @@ func (m changesUIModel) getReplacementOldDisplay() oldReplacementRes {
 	if !prependedToStart {
 		toPrepend = "…\n" + toPrepend
 	}
+
+	toPrepend = shared.RemoveLineNums(toPrepend)
 
 	toAppend := ""
 	numLinesAppended := 0
@@ -85,9 +96,11 @@ func (m changesUIModel) getReplacementOldDisplay() oldReplacementRes {
 	if !appendedToEnd {
 		toAppend += "\n…"
 	}
+	toAppend = shared.RemoveLineNums(toAppend)
 
 	wrapWidth := m.changeOldViewport.Width - 6
 	toPrepend = wrap.String(toPrepend, wrapWidth)
+	oldContent = shared.RemoveLineNums(oldContent)
 	oldContent = wrap.String(oldContent, wrapWidth)
 
 	// log.Println("toAppend", toAppend)

@@ -172,6 +172,55 @@ func GetPlanHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write(bytes)
 }
 
+func RenamePlanHandler(w http.ResponseWriter, r *http.Request) {
+	log.Println("Received request for RenamePlanHandler")
+
+	auth := authenticate(w, r, true)
+	if auth == nil {
+		return
+	}
+
+	vars := mux.Vars(r)
+	planId := vars["planId"]
+
+	log.Println("planId: ", planId)
+
+	plan := authorizePlan(w, planId, auth)
+
+	if plan == nil {
+		return
+	}
+
+	var requestBody shared.RenamePlanRequest
+	if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {
+		log.Printf("Error parsing request body: %v\n", err)
+		http.Error(w, "Error parsing request body", http.StatusBadRequest)
+		return
+	}
+
+	if plan.OwnerId != auth.User.Id {
+		log.Println("Only the plan owner can rename a plan")
+		http.Error(w, "Only the plan owner can rename a plan", http.StatusForbidden)
+		return
+	}
+
+	if requestBody.Name == "" {
+		log.Println("Name cannot be empty")
+		http.Error(w, "Name cannot be empty", http.StatusBadRequest)
+		return
+	}
+
+	err := db.RenamePlan(planId, requestBody.Name, nil)
+
+	if err != nil {
+		log.Printf("Error renaming plan: %v\n", err)
+		http.Error(w, "Error renaming plan: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	log.Println("Successfully renamed plan")
+}
+
 func DeletePlanHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for DeletePlanHandler")
 
@@ -328,7 +377,7 @@ func ListArchivedPlansHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	plans, err := db.ListOwnedPlans(projectIds, "", true)
+	plans, err := db.ListOwnedPlans(projectIds, auth.User.Id, true)
 
 	if err != nil {
 		log.Printf("Error listing plans: %v\n", err)

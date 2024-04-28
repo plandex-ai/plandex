@@ -6,6 +6,7 @@ import (
 	"log"
 	"strings"
 
+	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
 	"github.com/plandex/plandex/shared"
 )
@@ -89,7 +90,7 @@ func ValidateOrgMembership(userId string, orgId string) (bool, error) {
 	return count > 0, nil
 }
 
-func CreateOrg(req *shared.CreateOrgRequest, userId string, domain *string, tx *sql.Tx) (*Org, error) {
+func CreateOrg(req *shared.CreateOrgRequest, userId string, domain *string, tx *sqlx.Tx) (*Org, error) {
 	org := &Org{
 		Name:               req.Name,
 		Domain:             domain,
@@ -139,7 +140,7 @@ func GetOrgForDomain(domain string) (*Org, error) {
 	return &org, nil
 }
 
-func AddOrgDomainUsers(orgId, domain string, tx *sql.Tx) error {
+func AddOrgDomainUsers(orgId, domain string, tx *sqlx.Tx) error {
 	usersForDomain, err := GetUsersForDomain(domain)
 
 	if err != nil {
@@ -174,7 +175,7 @@ func AddOrgDomainUsers(orgId, domain string, tx *sql.Tx) error {
 	return nil
 }
 
-func DeleteOrgUser(orgId, userId string, tx *sql.Tx) error {
+func DeleteOrgUser(orgId, userId string, tx *sqlx.Tx) error {
 	log.Printf("Deleting org user, org: %s | user: %s\n", orgId, userId)
 
 	_, err := tx.Exec("DELETE FROM orgs_users WHERE org_id = $1 AND user_id = $2", orgId, userId)
@@ -186,7 +187,7 @@ func DeleteOrgUser(orgId, userId string, tx *sql.Tx) error {
 	return nil
 }
 
-func CreateOrgUser(orgId, userId, orgRoleId string, tx *sql.Tx) error {
+func CreateOrgUser(orgId, userId, orgRoleId string, tx *sqlx.Tx) error {
 	query := "INSERT INTO orgs_users (org_id, user_id, org_role_id) VALUES ($1, $2, $3)"
 	var err error
 	if tx == nil {

@@ -25,15 +25,18 @@ import (
 	"github.com/xlab/treeprint"
 )
 
+var archivedOnly bool
+
 func init() {
 	RootCmd.AddCommand(plansCmd)
+	plansCmd.Flags().BoolVarP(&archivedOnly, "archived", "a", false, "List archived plans")
 }
 
 // plansCmd represents the list command
 var plansCmd = &cobra.Command{
 	Use:     "plans",
 	Aliases: []string{"pl"},
-	Short:   "List all available plans",
+	Short:   "List plans",
 	Run:     plans,
 }
 
@@ -41,6 +44,14 @@ func plans(cmd *cobra.Command, args []string) {
 	auth.MustResolveAuthWithOrg()
 	lib.MaybeResolveProject()
 
+	if archivedOnly {
+		listArchived()
+	} else {
+		listActive()
+	}
+}
+
+func listActive() {
 	errCh := make(chan error)
 
 	var parentProjectIdsWithPaths [][2]string
@@ -312,8 +323,66 @@ func plans(cmd *cobra.Command, args []string) {
 
 	fmt.Println()
 	if len(currentProjectPlanIds) > 0 {
-		term.PrintCmds("", "new", "cd", "delete-plan")
+		term.PrintCmds("", "new", "cd", "delete-plan", "plans --archived", "archive")
 	} else {
-		term.PrintCmds("", "new")
+		term.PrintCmds("", "new", "plans --archived")
 	}
+}
+
+func listArchived() {
+	var projectIds []string
+
+	if lib.CurrentProjectId != "" {
+		projectIds = append(projectIds, lib.CurrentProjectId)
+	}
+
+	term.StartSpinner("")
+	plans, apiErr := api.Client.ListArchivedPlans(projectIds)
+	term.StopSpinner()
+
+	if apiErr != nil {
+		term.OutputErrorAndExit("Error getting plans: %v", apiErr)
+	}
+
+	if len(plans) == 0 {
+		fmt.Println("🤷‍♂️ No archived plans")
+		fmt.Println()
+		term.PrintCmds("", "archive")
+		return
+	}
+
+	table := tablewriter.NewWriter(os.Stdout)
+	table.SetAutoWrapText(false)
+	table.SetHeader([]string{"#", "Name", "Updated"})
+
+	for i, p := range plans {
+		num := strconv.Itoa(i + 1)
+		if p.Id == lib.CurrentPlanId {
+			num = color.New(color.Bold, term.ColorHiGreen).Sprint(num)
+		}
+
+		row := []string{
+			num,
+			p.Name,
+			format.Time(p.UpdatedAt),
+		}
+
+		var style []tablewriter.Colors
+		if p.Name == lib.CurrentPlanId {
+			style = []tablewriter.Colors{
+				{tablewriter.FgHiGreenColor, tablewriter.Bold},
+			}
+		} else {
+			style = []tablewriter.Colors{
+				{tablewriter.Bold},
+			}
+		}
+
+		table.Rich(row, style)
+
+	}
+	table.Render()
+
+	fmt.Println()
+	term.PrintCmds("", "unarchive")
 }

@@ -24,7 +24,10 @@ func init() {
 
 func InitGitRepo(orgId, planId string) error {
 	dir := getPlanDir(orgId, planId)
+	return initGitRepo(dir)
+}
 
+func initGitRepo(dir string) error {
 	// Set the default branch name to 'main' for the new repository
 	res, err := exec.Command("git", "-C", dir, "init", "-b", "main").CombinedOutput()
 	if err != nil {
@@ -329,6 +332,9 @@ func gitRemoveIndexLockFileIfExists(repoDir string) error {
 	// Remove the lock file if it exists
 	lockFilePath := filepath.Join(repoDir, ".git", "index.lock")
 	_, err := os.Stat(lockFilePath)
+
+	// log.Println("lockFilePath:", lockFilePath)
+	// log.Println("exists:", err == nil)
 
 	if err == nil {
 		if err := os.Remove(lockFilePath); err != nil {

@@ -126,7 +126,7 @@ func UpdateSettingsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	commitMsg := getUpdateCommitMsg(req.Settings, originalSettings)
+	commitMsg := getUpdateCommitMsg(req.Settings, originalSettings, false)
 
 	err = db.GitAddAndCommit(auth.OrgId, planId, branch, commitMsg)
 
@@ -153,7 +153,127 @@ func UpdateSettingsHandler(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func getUpdateCommitMsg(settings *shared.PlanSettings, originalSettings *shared.PlanSettings) string {
+func GetDefaultSettingsHandler(w http.ResponseWriter, r *http.Request) {
+	log.Println("Received request for GetDefaultSettingsHandler")
+
+	auth := authenticate(w, r, true)
+	if auth == nil {
+		return
+	}
+
+	settings, err := db.GetOrgDefaultSettings(auth.OrgId, true)
+
+	if err != nil {
+		log.Println("Error getting default settings: ", err)
+		http.Error(w, "Error getting default settings", http.StatusInternalServerError)
+		return
+	}
+
+	bytes, err := json.Marshal(settings)
+
+	if err != nil {
+		log.Println("Error marshalling default settings: ", err)
+		http.Error(w, "Error marshalling default settings", http.StatusInternalServerError)
+		return
+	}
+
+	w.Write(bytes)
+
+	log.Println("GetDefaultSettingsHandler processed successfully")
+}
+
+func UpdateDefaultSettingsHandler(w http.ResponseWriter, r *http.Request) {
+	log.Println("Received request for UpdateDefaultSettingsHandler")
+
+	auth := authenticate(w, r, true)
+
+	if auth == nil {
+		return
+	}
+
+	var req shared.UpdateSettingsRequest
+	err := json.NewDecoder(r.Body).Decode(&req)
+
+	if err != nil {
+		log.Println("Error decoding request body: ", err)
+		http.Error(w, "Error decoding request body", http.StatusInternalServerError)
+		return
+	}
+
+	tx, err := db.Conn.Beginx()
+
+	if err != nil {
+		log.Println("Error starting transaction: ", err)
+		http.Error(w, "Error starting transaction", http.StatusInternalServerError)
+		return
+	}
+	// Ensure that rollback is attempted in case of failure
+	defer func() {
+		if err != nil {
+			if rbErr := tx.Rollback(); rbErr != nil {
+				log.Printf("transaction rollback error: %v\n", rbErr)
+			} else {
+				log.Println("transaction rolled back")
+			}
+		}
+	}()
+
+	originalSettings, err := db.GetOrgDefaultSettingsForUpdate(auth.OrgId, tx, true)
+
+	if err != nil {
+		log.Println("Error getting default settings: ", err)
+		http.Error(w, "Error getting default settings", http.StatusInternalServerError)
+		return
+	}
+
+	// log.Println("Original settings:")
+	// spew.Dump(originalSettings)
+
+	// log.Println("req.Settings:")
+	// spew.Dump(req.Settings)
+
+	if !req.Settings.UpdatedAt.Equal(originalSettings.UpdatedAt) {
+		err = fmt.Errorf("default settings have been updated since you last fetched them")
+		log.Println("Error updating default settings: ", err)
+		http.Error(w, "Error updating default settings: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	err = db.StoreOrgDefaultSettings(auth.OrgId, req.Settings, tx)
+
+	if err != nil {
+		log.Println("Error storing default settings: ", err)
+		http.Error(w, "Error storing default settings: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	err = tx.Commit()
+
+	if err != nil {
+		log.Println("Error committing transaction: ", err)
+		http.Error(w, "Error committing transaction: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	commitMsg := getUpdateCommitMsg(req.Settings, originalSettings, true)
+
+	res := shared.UpdateSettingsResponse{
+		Msg: commitMsg,
+	}
+	bytes, err := json.Marshal(res)
+
+	if err != nil {
+		log.Println("Error marshalling response: ", err)
+		http.Error(w, "Error marshalling response", http.StatusInternalServerError)
+		return
+	}
+
+	w.Write(bytes)
+
+	log.Println("UpdateDefaultSettingsHandler processed successfully")
+}
+
+func getUpdateCommitMsg(settings *shared.PlanSettings, originalSettings *shared.PlanSettings, isOrgDefault bool) string {
 	// log.Println("Comparing settings")
 	// log.Println("Original:")
 	// spew.Dump(originalSettings)
@@ -168,8 +288,12 @@ func getUpdateCommitMsg(settings *shared.PlanSettings, originalSettings *shared.
 	}
 
 	// log.Println("Changes to settings:", strings.Join(changes, "\n"))
-
-	s := "⚙️  Updated model settings:"
+	var s string
+	if isOrgDefault {
+		s = "⚙️  Updated org-wide default settings:"
+	} else {
+		s = "⚙️  Updated model settings:"
+	}
 
 	for _, change := range changes {
 		s += "\n" + "  • " + change

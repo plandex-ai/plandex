@@ -8,14 +8,14 @@ import (
 )
 
 func (state *CurrentPlanState) PendingChangesSummaryForBuild() string {
-	return state.pendingChangesSummary(false)
+	return state.pendingChangesSummary(false, "")
 }
 
-func (state *CurrentPlanState) PendingChangesSummaryForApply() string {
-	return state.pendingChangesSummary(true)
+func (state *CurrentPlanState) PendingChangesSummaryForApply(commitSummary string) string {
+	return state.pendingChangesSummary(true, commitSummary)
 }
 
-func (state *CurrentPlanState) pendingChangesSummary(forApply bool) string {
+func (state *CurrentPlanState) pendingChangesSummary(forApply bool, commitSummary string) string {
 	var msgs []string
 
 	descByConvoMessageId := make(map[string]*ConvoMessageDescription)
@@ -93,7 +93,7 @@ func (state *CurrentPlanState) pendingChangesSummary(forApply bool) string {
 	rebuildPathsSet := make(map[string]bool)
 
 	if forApply {
-		msgs = append(msgs, "🤖 Plandex → apply pending changes")
+		msgs = append(msgs, "🤖 Plandex → "+commitSummary)
 	} else {
 		for _, ch := range sortedChangesets {
 			allRebuild := true
@@ -127,11 +127,8 @@ func (state *CurrentPlanState) pendingChangesSummary(forApply bool) string {
 	for _, ch := range sortedChangesets {
 		var descMsgs []string
 
-		if len(ch.descs) == 0 {
-			// log.Println("Warning: no descriptions for changeset")
-			// spew.Dump(ch)
+		if len(ch.descs) <= 1 {
 			continue
-			// descMsgs = append(descMsgs, "  ✏️  Changes")
 		}
 
 		for _, desc := range ch.descs {

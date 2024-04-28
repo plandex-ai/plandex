@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"log"
 	"strings"
+
+	"github.com/jmoiron/sqlx"
 )
 
-func CreateInvite(invite *Invite, tx *sql.Tx) error {
+func CreateInvite(invite *Invite, tx *sqlx.Tx) error {
 	err := tx.QueryRow("INSERT INTO invites (org_id, email, name, inviter_id, org_role_id) VALUES ($1, $2, $3, $4, $5) RETURNING id", invite.OrgId, invite.Email, invite.Name, invite.InviterId, invite.OrgRoleId).Scan(&invite.Id)
 
 	if err != nil {
@@ -95,7 +97,7 @@ func GetPendingInvitesForEmail(email string) ([]*Invite, error) {
 	return invites, nil
 }
 
-func DeleteInvite(id string, tx *sql.Tx) error {
+func DeleteInvite(id string, tx *sqlx.Tx) error {
 	query := "DELETE FROM invites WHERE id = $1"
 	var err error
 
@@ -114,7 +116,7 @@ func DeleteInvite(id string, tx *sql.Tx) error {
 
 func AcceptInvite(invite *Invite, inviteeId string) error {
 	// start a transaction
-	tx, err := Conn.Begin()
+	tx, err := Conn.Beginx()
 	if err != nil {
 		return fmt.Errorf("error starting transaction: %v", err)
 	}

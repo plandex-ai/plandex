@@ -1,9 +1,10 @@
 package shared
 
 import (
+	"database/sql/driver"
+	"encoding/json"
+	"fmt"
 	"time"
-
-	"github.com/sashabaranov/go-openai"
 )
 
 type Org struct {
@@ -142,26 +143,28 @@ type PlanBuild struct {
 }
 
 type Replacement struct {
-	Id             string          `json:"id"`
-	Old            string          `json:"old"`
-	New            string          `json:"new"`
-	Failed         bool            `json:"failed"`
-	RejectedAt     *time.Time      `json:"rejectedAt,omitempty"`
-	StreamedChange *StreamedChange `json:"streamedChange"`
+	Id             string                      `json:"id"`
+	Old            string                      `json:"old"`
+	New            string                      `json:"new"`
+	Failed         bool                        `json:"failed"`
+	RejectedAt     *time.Time                  `json:"rejectedAt,omitempty"`
+	StreamedChange *StreamedChangeWithLineNums `json:"streamedChange"`
 }
 
 type PlanFileResult struct {
-	Id             string         `json:"id"`
-	ConvoMessageId string         `json:"convoMessageId"`
-	PlanBuildId    string         `json:"planBuildId"`
-	Path           string         `json:"path"`
-	Content        string         `json:"content"`
-	AnyFailed      bool           `json:"anyFailed"`
-	AppliedAt      *time.Time     `json:"appliedAt,omitempty"`
-	RejectedAt     *time.Time     `json:"rejectedAt,omitempty"`
-	Replacements   []*Replacement `json:"replacements"`
-	CreatedAt      time.Time      `json:"createdAt"`
-	UpdatedAt      time.Time      `json:"updatedAt"`
+	Id                  string         `json:"id"`
+	TypeVersion         int            `json:"typeVersion"`
+	ReplaceWithLineNums bool           `json:"replaceWithLineNums"`
+	ConvoMessageId      string         `json:"convoMessageId"`
+	PlanBuildId         string         `json:"planBuildId"`
+	Path                string         `json:"path"`
+	Content             string         `json:"content"`
+	AnyFailed           bool           `json:"anyFailed"`
+	AppliedAt           *time.Time     `json:"appliedAt,omitempty"`
+	RejectedAt          *time.Time     `json:"rejectedAt,omitempty"`
+	Replacements        []*Replacement `json:"replacements"`
+	CreatedAt           time.Time      `json:"createdAt"`
+	UpdatedAt           time.Time      `json:"updatedAt"`
 }
 
 type CurrentPlanFiles struct {
@@ -192,20 +195,37 @@ type OrgRole struct {
 	Description string `json:"description"`
 }
 
+type ModelCompatibility struct {
+	IsOpenAICompatible        bool `json:"isOpenAICompatible"`
+	HasJsonResponseMode       bool `json:"hasJsonMode"`
+	HasStreaming              bool `json:"hasStreaming"`
+	HasFunctionCalling        bool `json:"hasFunctionCalling"`
+	HasStreamingFunctionCalls bool `json:"hasStreamingFunctionCalls"`
+}
+
 type BaseModelConfig struct {
-	Provider  ModelProvider `json:"provider"`
-	BaseUrl   string        `json:"baseUrl"`
-	ModelName string        `json:"modelName"`
-	MaxTokens int           `json:"maxTokens"`
+	Provider       ModelProvider `json:"provider"`
+	CustomProvider *string       `json:"customProvider,omitempty"`
+	BaseUrl        string        `json:"baseUrl"`
+	ModelName      string        `json:"modelName"`
+	MaxTokens      int           `json:"maxTokens"`
+	ApiKeyEnvVar   string        `json:"apiKeyEnvVar"`
+	ModelCompatibility
+}
+
+type AvailableModel struct {
+	Id string `json:"id"`
+	BaseModelConfig
+	Description                 string    `json:"description"`
+	DefaultMaxConvoTokens       int       `json:"defaultMaxConvoTokens"`
+	DefaultReservedOutputTokens int       `json:"defaultReservedOutputTokens"`
+	CreatedAt                   time.Time `json:"createdAt"`
+	UpdatedAt                   time.Time `json:"updatedAt"`
 }
 
 type PlannerModelConfig struct {
 	MaxConvoTokens       int `json:"maxConvoTokens"`
 	ReservedOutputTokens int `json:"maxOutputTokens"`
-}
-
-type TaskModelConfig struct {
-	OpenAIResponseFormat *openai.ChatCompletionResponseFormat `json:"openAIResponseFormat"`
 }
 
 type ModelRoleConfig struct {
@@ -215,23 +235,57 @@ type ModelRoleConfig struct {
 	TopP            float32         `json:"topP"`
 }
 
+func (m *ModelRoleConfig) Scan(src interface{}) error {
+	if src == nil {
+		return nil
+	}
+	switch s := src.(type) {
+	case []byte:
+		return json.Unmarshal(s, m)
+	case string:
+		return json.Unmarshal([]byte(s), m)
+	default:
+		return fmt.Errorf("unsupported data type: %T", src)
+	}
+}
+
+func (m ModelRoleConfig) Value() (driver.Value, error) {
+	return json.Marshal(m)
+}
+
 type PlannerRoleConfig struct {
 	ModelRoleConfig
 	PlannerModelConfig
 }
 
-type TaskRoleConfig struct {
-	ModelRoleConfig
-	TaskModelConfig
+func (p *PlannerRoleConfig) Scan(src interface{}) error {
+	if src == nil {
+		return nil
+	}
+	switch s := src.(type) {
+	case []byte:
+		return json.Unmarshal(s, p)
+	case string:
+		return json.Unmarshal([]byte(s), p)
+	default:
+		return fmt.Errorf("unsupported data type: %T", src)
+	}
 }
 
-type ModelSet struct {
+func (p PlannerRoleConfig) Value() (driver.Value, error) {
+	return json.Marshal(p)
+}
+
+type ModelPack struct {
+	Id          string            `json:"id"`
+	Name        string            `json:"name"`
+	Description string            `json:"description"`
 	Planner     PlannerRoleConfig `json:"planner"`
 	PlanSummary ModelRoleConfig   `json:"planSummary"`
-	Builder     TaskRoleConfig    `json:"builder"`
-	Namer       TaskRoleConfig    `json:"namer"`
-	CommitMsg   TaskRoleConfig    `json:"commitMsg"`
-	ExecStatus  TaskRoleConfig    `json:"execStatus"`
+	Builder     ModelRoleConfig   `json:"builder"`
+	Namer       ModelRoleConfig   `json:"namer"`
+	CommitMsg   ModelRoleConfig   `json:"commitMsg"`
+	ExecStatus  ModelRoleConfig   `json:"execStatus"`
 }
 
 type ModelOverrides struct {
@@ -242,6 +296,24 @@ type ModelOverrides struct {
 
 type PlanSettings struct {
 	ModelOverrides ModelOverrides `json:"modelOverrides"`
-	ModelSet       *ModelSet      `json:"modelSet"`
+	ModelPack      *ModelPack     `json:"modelPack"`
 	UpdatedAt      time.Time      `json:"updatedAt"`
+}
+
+func (p *PlanSettings) Scan(src interface{}) error {
+	if src == nil {
+		return nil
+	}
+	switch s := src.(type) {
+	case []byte:
+		return json.Unmarshal(s, p)
+	case string:
+		return json.Unmarshal([]byte(s), p)
+	default:
+		return fmt.Errorf("unsupported data type: %T", src)
+	}
+}
+
+func (p PlanSettings) Value() (driver.Value, error) {
+	return json.Marshal(p)
 }

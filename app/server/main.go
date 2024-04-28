@@ -16,6 +16,7 @@ import (
 )
 
 func main() {
+
 	err := host.LoadIp()
 	if err != nil {
 		log.Fatal("Error loading IP: ", err)

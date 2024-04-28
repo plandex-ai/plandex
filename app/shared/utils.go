@@ -2,6 +2,7 @@ package shared
 
 import (
 	"crypto/rand"
+	"fmt"
 	"regexp"
 	"strings"
 	"time"
@@ -62,4 +63,43 @@ func Capitalize(s string) string {
 		return ""
 	}
 	return strings.ToUpper(s[:1]) + s[1:]
+}
+
+func AddLineNums(s string) string {
+	var res string
+	for i, line := range strings.Split(s, "\n") {
+		res += fmt.Sprintf("pdx-%d: %s\n", i+1, line)
+	}
+	return res
+}
+
+func RemoveLineNums(s string) string {
+	return regexp.MustCompile(`(?m)^pdx-\d+: `).ReplaceAllString(s, "")
+}
+
+// indexRunes searches for the slice of runes `needle` in the slice of runes `haystack`
+// and returns the index of the first rune of `needle` in `haystack`, or -1 if `needle` is not present.
+func IndexRunes(haystack []rune, needle []rune) int {
+	if len(needle) == 0 {
+		return 0
+	}
+	if len(haystack) == 0 {
+		return -1
+	}
+
+	// Search for the needle
+	for i := 0; i <= len(haystack)-len(needle); i++ {
+		found := true
+		for j := 0; j < len(needle); j++ {
+			if haystack[i+j] != needle[j] {
+				found = false
+				break
+			}
+		}
+		if found {
+			return i
+		}
+	}
+
+	return -1
 }

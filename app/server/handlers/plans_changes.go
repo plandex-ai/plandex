@@ -4,9 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"plandex-server/db"
+	modelPlan "plandex-server/model/plan"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -85,6 +87,23 @@ func ApplyPlanHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var err error
+
+	// read the request body
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		log.Printf("Error reading request body: %v\n", err)
+		http.Error(w, "Error reading request body", http.StatusInternalServerError)
+		return
+	}
+	defer r.Body.Close()
+
+	var requestBody shared.ApplyPlanRequest
+	if err := json.Unmarshal(body, &requestBody); err != nil {
+		log.Printf("Error parsing request body: %v\n", err)
+		http.Error(w, "Error parsing request body", http.StatusBadRequest)
+		return
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 	unlockFn := lockRepo(w, r, auth, db.LockScopeWrite, ctx, cancel, true)
 	if unlockFn == nil {
@@ -95,13 +114,43 @@ func ApplyPlanHandler(w http.ResponseWriter, r *http.Request) {
 		}()
 	}
 
-	err = db.ApplyPlan(auth.OrgId, auth.User.Id, branch, plan)
+	settings, err := db.GetPlanSettings(plan, true)
+	if err != nil {
+		log.Printf("Error getting plan settings: %v\n", err)
+		http.Error(w, "Error getting plan settings: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	currentPlan, err := db.ApplyPlan(auth.OrgId, auth.User.Id, branch, plan)
 
 	if err != nil {
 		log.Printf("Error applying plan: %v\n", err)
 		http.Error(w, "Error applying plan: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	clients := initClients(
+		initClientsParams{
+			w:           w,
+			apiKeys:     requestBody.ApiKeys,
+			openAIBase:  requestBody.OpenAIBase,
+			openAIOrgId: requestBody.OpenAIOrgId,
+			plan:        plan,
+		},
+	)
+
+	envVar := settings.ModelPack.CommitMsg.BaseModelConfig.ApiKeyEnvVar
+	client := clients[envVar]
+
+	s, err := modelPlan.GenCommitMsgForPendingResults(client, settings.ModelPack.CommitMsg, currentPlan, r.Context())
+
+	if err != nil {
+		log.Printf("Error generating commit message: %v\n", err)
+		http.Error(w, "Error generating commit message: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Write([]byte(s))
 
 	log.Println("Successfully applied plan", planId)
 }
@@ -254,4 +303,94 @@ func ArchivePlanHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Println("Successfully archived plan", planId)
+}
+
+func UnarchivePlanHandler(w http.ResponseWriter, r *http.Request) {
+	auth := authenticate(w, r, true)
+	if auth == nil {
+		return
+	}
+
+	log.Println("Received request for UnarchivePlanHandler")
+
+	vars := mux.Vars(r)
+	planId := vars["planId"]
+	log.Println("planId: ", planId)
+
+	plan := authorizePlanArchive(w, planId, auth)
+
+	if plan == nil {
+		return
+	}
+
+	if plan.ArchivedAt == nil {
+		log.Println("Plan isn't archived")
+		http.Error(w, "Plan isn't archived", http.StatusBadRequest)
+		return
+	}
+
+	res, err := db.Conn.Exec("UPDATE plans SET archived_at = NULL WHERE id = $1", planId)
+
+	if err != nil {
+		log.Printf("Error archiving plan: %v\n", err)
+		http.Error(w, "Error archiving plan: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		log.Printf("Error getting rows affected: %v\n", err)
+		http.Error(w, "Error getting rows affected: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if rowsAffected == 0 {
+		log.Println("Plan not found")
+		http.Error(w, "Not found", http.StatusNotFound)
+		return
+	}
+
+	log.Println("Successfully unarchived plan", planId)
+}
+
+func GetPlanDiffsHandler(w http.ResponseWriter, r *http.Request) {
+	log.Println("Received request for GetPlanDiffs")
+
+	auth := authenticate(w, r, true)
+	if auth == nil {
+		return
+	}
+
+	vars := mux.Vars(r)
+	planId := vars["planId"]
+	branch := vars["branch"]
+
+	log.Println("planId: ", planId, "branch: ", branch)
+
+	if authorizePlan(w, planId, auth) == nil {
+		return
+	}
+
+	var err error
+	ctx, cancel := context.WithCancel(context.Background())
+	unlockFn := lockRepo(w, r, auth, db.LockScopeRead, ctx, cancel, true)
+	if unlockFn == nil {
+		return
+	} else {
+		defer func() {
+			(*unlockFn)(err)
+		}()
+	}
+
+	diffs, err := db.GetPlanDiffs(auth.OrgId, planId)
+
+	if err != nil {
+		log.Printf("Error getting plan diffs: %v\n", err)
+		http.Error(w, "Error getting plan diffs: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Write([]byte(diffs))
+
+	log.Println("Successfully retrieved plan diffs")
 }

@@ -11,7 +11,11 @@ import (
 )
 
 func GetUserStringInput(msg string) (string, error) {
-	res, err := prompt.New().Ask(msg).Input("")
+	return GetUserStringInputWithDefault(msg, "")
+}
+
+func GetUserStringInputWithDefault(msg, def string) (string, error) {
+	res, err := prompt.New().Ask(msg).Input(def)
 
 	if err != nil && err.Error() == "user quit prompt" {
 		os.Exit(0)

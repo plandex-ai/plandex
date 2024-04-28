@@ -43,9 +43,6 @@ func init() {
 }
 
 func doTell(cmd *cobra.Command, args []string) {
-	if os.Getenv("OPENAI_API_KEY") == "" {
-		term.OutputNoApiKeyMsgAndExit()
-	}
 
 	auth.MustResolveAuthWithOrg()
 	lib.MustResolveProject()
@@ -54,6 +51,8 @@ func doTell(cmd *cobra.Command, args []string) {
 		fmt.Println("🤷‍♂️ No current plan")
 		return
 	}
+
+	apiKeys := lib.MustVerifyApiKeys()
 
 	var prompt string
 
@@ -77,6 +76,7 @@ func doTell(cmd *cobra.Command, args []string) {
 	plan_exec.TellPlan(plan_exec.ExecParams{
 		CurrentPlanId: lib.CurrentPlanId,
 		CurrentBranch: lib.CurrentBranch,
+		ApiKeys:       apiKeys,
 		CheckOutdatedContext: func(maybeContexts []*shared.Context) (bool, bool) {
 			return lib.MustCheckOutdatedContext(false, maybeContexts)
 		},

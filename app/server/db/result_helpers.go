@@ -322,7 +322,7 @@ func GetPlanResult(planFileResults []*shared.PlanFileResult) *shared.PlanResult 
 	}
 }
 
-func ApplyPlan(orgId, userId, branchName string, plan *Plan) error {
+func ApplyPlan(orgId, userId, branchName string, plan *Plan) (*shared.CurrentPlanState, error) {
 	planId := plan.Id
 
 	resultsDir := getPlanResultsDir(orgId, planId)
@@ -374,7 +374,7 @@ func ApplyPlan(orgId, userId, branchName string, plan *Plan) error {
 	for i := 0; i < 3; i++ {
 		err := <-errCh
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
@@ -410,7 +410,7 @@ func ApplyPlan(orgId, userId, branchName string, plan *Plan) error {
 		})
 
 		if err != nil {
-			return fmt.Errorf("error getting current plan state: %v", err)
+			return nil, fmt.Errorf("error getting current plan state: %v", err)
 		}
 
 		currentPlanState = res
@@ -534,7 +534,7 @@ func ApplyPlan(orgId, userId, branchName string, plan *Plan) error {
 	for i := 0; i < numRoutines; i++ {
 		err := <-errCh
 		if err != nil {
-			return fmt.Errorf("error applying plan: %v", err)
+			return nil, fmt.Errorf("error applying plan: %v", err)
 		}
 	}
 
@@ -551,10 +551,10 @@ func ApplyPlan(orgId, userId, branchName string, plan *Plan) error {
 	err := GitAddAndCommit(orgId, plan.Id, branchName, msg)
 
 	if err != nil {
-		return fmt.Errorf("error committing plan: %v", err)
+		return nil, fmt.Errorf("error committing plan: %v", err)
 	}
 
-	return nil
+	return currentPlanState, nil
 }
 
 func RejectAllResults(orgId, planId string) error {

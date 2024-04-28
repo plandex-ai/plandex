@@ -1,0 +1,21 @@
+I want to add functionality on both the CLI (cobra commands, api calls) and server (routes, handlers, db access functions) that allow a user to create, list, and delete custom models, and also create, list, or delete model sets for their org. I also want to add commands that list all the available models and model sets, including both built-in and user-created models and model sets.
+
+Use the existing functionality for models and model sets as a guide and follow the same architecture, coding style, and ux.
+
+Here are the commands/subcommands I want to add:
+
+`plandex models available` - list all available models, both built-in and custom, in a nicely formatted table (use tablewriter like the other commands)
+
+`plandex models create` - use terminal prompts in a similar way to the 'set-model' command to prompt the user for all necessary values to create a custom model, then call the api function to store it on the server
+
+`plandex models delete` - prompt the user to choose from a list of custom models to delete 
+
+`plandex model-sets` - list all available model sets, both built-in and user-created
+
+`plandex model-sets create` - use terminal prompts in a similar way to the 'set-model' command to prompt the user for all necessary values to create a model set, then call the api function to store it on the server
+
+Add all the required CLI and server code to make this work. Put the server-side handlers in 'app/server/handlers/models.go'. Create a new file in 'app/server/db/' for the db access functions.
+
+On the client-side, update the Api interface and implementation to add the new api calls.
+
+

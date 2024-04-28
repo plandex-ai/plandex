@@ -51,9 +51,14 @@ func listContext(cmd *cobra.Command, args []string) {
 
 		t, icon := lib.GetContextLabelAndIcon(context.ContextType)
 
+		name := context.Name
+		if len(name) > 40 {
+			name = name[:20] + "⋯" + name[len(name)-20:]
+		}
+
 		row := []string{
 			strconv.Itoa(i + 1),
-			" " + icon + " " + context.Name,
+			" " + icon + " " + name,
 			t,
 			strconv.Itoa(context.NumTokens), //+ " 🪙",
 			format.Time(context.CreatedAt),

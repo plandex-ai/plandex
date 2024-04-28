@@ -17,10 +17,10 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
-func Tell(client *openai.Client, plan *db.Plan, branch string, auth *types.ServerAuth, req *shared.TellPlanRequest) error {
+func Tell(clients map[string]*openai.Client, plan *db.Plan, branch string, auth *types.ServerAuth, req *shared.TellPlanRequest) error {
 	log.Printf("Tell: Called with plan ID %s on branch %s\n", plan.Id, branch)
 
-	_, err := activatePlan(client, plan, branch, auth, req.Prompt, false)
+	_, err := activatePlan(clients, plan, branch, auth, req.Prompt, false)
 
 	if err != nil {
 		log.Printf("Error activating plan: %v\n", err)
@@ -28,7 +28,7 @@ func Tell(client *openai.Client, plan *db.Plan, branch string, auth *types.Serve
 	}
 
 	go execTellPlan(
-		client,
+		clients,
 		plan,
 		branch,
 		auth,
@@ -43,7 +43,7 @@ func Tell(client *openai.Client, plan *db.Plan, branch string, auth *types.Serve
 }
 
 func execTellPlan(
-	client *openai.Client,
+	clients map[string]*openai.Client,
 	plan *db.Plan,
 	branch string,
 	auth *types.ServerAuth,
@@ -96,7 +96,7 @@ func execTellPlan(
 	}
 
 	state := &activeTellStreamState{
-		client:              client,
+		clients:             clients,
 		req:                 req,
 		auth:                auth,
 		currentOrgId:        currentOrgId,
@@ -196,12 +196,13 @@ func execTellPlan(
 		promptTokens = prompts.PromptWrapperTokens + numPromptTokens
 	}
 
-	state.tokensBeforeConvo = prompts.CreateSysMsgNumTokens + modelContextTokens + promptTokens
+	state.tokensBeforeConvo = prompts.CreateSysMsgNumTokens + modelContextTokens + state.latestSummaryTokens + promptTokens
 
 	// print out breakdown of token usage
 	log.Printf("System message tokens: %d\n", prompts.CreateSysMsgNumTokens)
 	log.Printf("Context tokens: %d\n", modelContextTokens)
 	log.Printf("Prompt tokens: %d\n", promptTokens)
+	log.Printf("Latest summary tokens: %d\n", state.latestSummaryTokens)
 	log.Printf("Total tokens before convo: %d\n", state.tokensBeforeConvo)
 
 	if state.tokensBeforeConvo > state.settings.GetPlannerEffectiveMaxTokens() {
@@ -216,7 +217,7 @@ func execTellPlan(
 		return
 	}
 
-	if !state.summarizeMessagesIfNeeded() {
+	if !state.summarizeEarlyMessagesIfNeeded() {
 		return
 	}
 
@@ -246,6 +247,8 @@ func execTellPlan(
 					Role:    openai.ChatMessageRoleUser,
 					Content: prompts.GetWrappedPrompt(lastMessage.Content),
 				}
+
+				state.userPrompt = lastMessage.Content
 			} else {
 				// otherwise we'll use the continue prompt
 				promptMessage = &openai.ChatCompletionMessage{
@@ -262,6 +265,8 @@ func execTellPlan(
 			} else {
 				prompt = prompts.AutoContinuePrompt
 			}
+
+			state.userPrompt = prompt
 
 			promptMessage = &openai.ChatCompletionMessage{
 				Role:    openai.ChatMessageRoleUser,
@@ -336,18 +341,21 @@ func execTellPlan(
 		}
 	}
 
-	// log.Println("\n\nMessages:")
-	// for _, message := range messages {
+	log.Printf("\n\nMessages: %d\n", len(state.messages))
+	// for _, message := range state.messages {
 	// 	log.Printf("%s: %s\n", message.Role, message.Content)
 	// }
 
 	modelReq := openai.ChatCompletionRequest{
-		Model:       state.settings.ModelSet.Planner.BaseModelConfig.ModelName,
+		Model:       state.settings.ModelPack.Planner.BaseModelConfig.ModelName,
 		Messages:    state.messages,
 		Stream:      true,
-		Temperature: state.settings.ModelSet.Planner.Temperature,
-		TopP:        state.settings.ModelSet.Planner.TopP,
+		Temperature: state.settings.ModelPack.Planner.Temperature,
+		TopP:        state.settings.ModelPack.Planner.TopP,
 	}
+
+	envVar := state.settings.ModelPack.Planner.BaseModelConfig.ApiKeyEnvVar
+	client := clients[envVar]
 
 	stream, err := model.CreateChatCompletionStreamWithRetries(client, active.ModelStreamCtx, modelReq)
 	if err != nil {
@@ -384,7 +392,7 @@ func execTellPlan(
 			// spew.Dump(pendingBuildsByPath)x
 
 			buildState := &activeBuildStreamState{
-				client:        client,
+				clients:       clients,
 				auth:          auth,
 				currentOrgId:  currentOrgId,
 				currentUserId: currentUserId,

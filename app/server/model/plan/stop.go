@@ -17,13 +17,6 @@ func Stop(planId, branch, currentUserId, currentOrgId string) error {
 	active.SummaryCancelFn()
 	active.CancelFn()
 
-	// rollback repo in case there are uncommitted builds
-	err := db.GitClearUncommittedChanges(currentOrgId, planId)
-
-	if err != nil {
-		return fmt.Errorf("error clearing uncommitted changes: %v", err)
-	}
-
 	if !active.BuildOnly && !active.RepliesFinished {
 		num := active.MessageNum + 1
 

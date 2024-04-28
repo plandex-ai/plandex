@@ -1,7 +1,6 @@
 package db
 
 import (
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -10,6 +9,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
 	"github.com/plandex/plandex/shared"
 	"github.com/sashabaranov/go-openai"
@@ -17,7 +17,7 @@ import (
 
 func CreatePlan(orgId, projectId, userId, name string) (*Plan, error) {
 	// start a transaction
-	tx, err := Conn.Begin()
+	tx, err := Conn.Beginx()
 	if err != nil {
 		return nil, fmt.Errorf("error starting transaction: %v", err)
 	}
@@ -216,8 +216,13 @@ func SetPlanStatus(planId, branch string, status shared.PlanStatus, errStr strin
 	return nil
 }
 
-func RenamePlan(planId string, name string, tx *sql.Tx) error {
-	_, err := tx.Exec("UPDATE plans SET name = $1 WHERE id = $2", name, planId)
+func RenamePlan(planId string, name string, tx *sqlx.Tx) error {
+	var err error
+	if tx == nil {
+		_, err = Conn.Exec("UPDATE plans SET name = $1 WHERE id = $2", name, planId)
+	} else {
+		_, err = tx.Exec("UPDATE plans SET name = $1 WHERE id = $2", name, planId)
+	}
 
 	if err != nil {
 		return fmt.Errorf("error renaming plan: %v", err)
@@ -226,7 +231,7 @@ func RenamePlan(planId string, name string, tx *sql.Tx) error {
 	return nil
 }
 
-func IncActiveBranches(planId string, inc int, tx *sql.Tx) error {
+func IncActiveBranches(planId string, inc int, tx *sqlx.Tx) error {
 	_, err := tx.Exec("UPDATE plans SET active_branches = active_branches + $1 WHERE id = $2", inc, planId)
 
 	if err != nil {
@@ -236,7 +241,7 @@ func IncActiveBranches(planId string, inc int, tx *sql.Tx) error {
 	return nil
 }
 
-func IncNumNonDraftPlans(userId string, tx *sql.Tx) error {
+func IncNumNonDraftPlans(userId string, tx *sqlx.Tx) error {
 	_, err := tx.Exec("UPDATE users SET num_non_draft_plans = num_non_draft_plans + 1 WHERE id = $1", userId)
 
 	if err != nil {

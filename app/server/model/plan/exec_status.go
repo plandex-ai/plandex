@@ -13,7 +13,7 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
-func ExecStatusShouldContinue(client *openai.Client, config shared.TaskRoleConfig, prompt, message string, ctx context.Context) (bool, error) {
+func ExecStatusShouldContinue(client *openai.Client, config shared.ModelRoleConfig, prompt, message string, ctx context.Context) (bool, error) {
 	log.Println("Checking if plan should continue based on exec status")
 
 	// First try to determine if the plan should continue based on the last paragraph without calling the model
@@ -46,6 +46,11 @@ func ExecStatusShouldContinue(client *openai.Client, config shared.TaskRoleConfi
 
 	log.Println("Calling model to check if plan should continue")
 
+	var responseFormat *openai.ChatCompletionResponseFormat
+	if config.BaseModelConfig.HasJsonResponseMode {
+		responseFormat = &openai.ChatCompletionResponseFormat{Type: "json_object"}
+	}
+
 	resp, err := model.CreateChatCompletionWithRetries(
 		client,
 		ctx,
@@ -64,7 +69,7 @@ func ExecStatusShouldContinue(client *openai.Client, config shared.TaskRoleConfi
 				},
 			},
 			Messages:       messages,
-			ResponseFormat: config.OpenAIResponseFormat,
+			ResponseFormat: responseFormat,
 			Temperature:    config.Temperature,
 			TopP:           config.TopP,
 		},

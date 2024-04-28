@@ -11,12 +11,12 @@ import (
 )
 
 func (state *activeBuildStreamState) loadPendingBuilds() (map[string][]*types.ActiveBuild, error) {
-	client := state.client
+	clients := state.clients
 	plan := state.plan
 	branch := state.branch
 	auth := state.auth
 
-	active, err := activatePlan(client, plan, branch, auth, "", true)
+	active, err := activatePlan(clients, plan, branch, auth, "", true)
 
 	if err != nil {
 		log.Printf("Error activating plan: %v\n", err)

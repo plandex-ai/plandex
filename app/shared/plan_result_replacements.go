@@ -21,9 +21,14 @@ func ApplyReplacements(content string, replacements []*Replacement, setFailed bo
 
 			pre := updated[:lastInsertedIdx]
 			sub := updated[lastInsertedIdx:]
-			originalIdx := strings.Index(updated, replacement.Old)
+			originalIdx := strings.Index(sub, replacement.Old)
 
 			// log.Println("originalIdx:", originalIdx)
+
+			// only for use with full replacements, which we aren't using now
+			// if originalIdx == -1 {
+			// 	originalIdx = getUniqueFuzzyIndex(updated, replacement.Old)
+			// }
 
 			if originalIdx == -1 {
 				if setFailed {
@@ -38,6 +43,7 @@ func ApplyReplacements(content string, replacements []*Replacement, setFailed bo
 				log.Println(updated)
 
 				return updated, i
+
 			} else {
 				// log.Printf("originalIdx: %d, len(replacement.Old): %d\n", originalIdx, len(replacement.Old))
 				// log.Println("Old: ", replacement.Old)
@@ -61,31 +67,34 @@ func ApplyReplacements(content string, replacements []*Replacement, setFailed bo
 		return updated, -1
 	}
 
-	for {
-		res, failedAtIndex := apply(replacements)
+	res, failedAtIndex := apply(replacements)
 
-		if failedAtIndex == 0 {
-			return res, false
-		} else if failedAtIndex > 0 {
-			// check if there's overlap between the failed replacement and the previous replacement
-			// if there is, remove the previous one and try again
-			failed := replacements[failedAtIndex]
-			prev := replacements[failedAtIndex-1]
+	return res, failedAtIndex == -1
 
-			hasOverlap := failed.StreamedChange.Old.StartLine <= prev.StreamedChange.Old.EndLine
+	// for {
 
-			if hasOverlap {
-				replacements = append(replacements[:failedAtIndex-1], replacements[failedAtIndex:]...)
+	// 	if failedAtIndex == 0 {
+	// 		return res, false
+	// 	} else if failedAtIndex > 0 {
+	// 		// check if there's overlap between the failed replacement and the previous replacement
+	// 		// if there is, remove the previous one and try again
+	// 		failed := replacements[failedAtIndex]
+	// 		prev := replacements[failedAtIndex-1]
 
-				continue
-			} else {
-				return res, false
-			}
+	// 		hasOverlap := failed.StreamedChange.Old.StartLine <= prev.StreamedChange.Old.EndLine
 
-		} else {
-			return res, true
-		}
-	}
+	// 		if hasOverlap {
+	// 			replacements = append(replacements[:failedAtIndex-1], replacements[failedAtIndex:]...)
+
+	// 			continue
+	// 		} else {
+	// 			return res, false
+	// 		}
+
+	// 	} else {
+	// 		return res, true
+	// 	}
+	// }
 
 }
 
@@ -160,9 +169,23 @@ func (planState *CurrentPlanState) GetFilesBeforeReplacement(
 				// }
 
 				var allSucceeded bool
-				updated, allSucceeded = ApplyReplacements(updated, replacements, false)
+
+				maybeWithLineNums := updated
+				if planRes.ReplaceWithLineNums {
+					maybeWithLineNums = AddLineNums(updated)
+				}
+
+				updated, allSucceeded = ApplyReplacements(maybeWithLineNums, replacements, false)
+
+				updated = RemoveLineNums(updated)
 
 				if !allSucceeded {
+					log.Println("updated:")
+					log.Println(updated)
+
+					log.Println("replacements:")
+					log.Println(spew.Sdump(replacements))
+
 					return nil, fmt.Errorf("plan replacement failed - %s", path)
 				}
 
@@ -184,3 +207,37 @@ func (planState *CurrentPlanState) GetFilesBeforeReplacement(
 
 	return &CurrentPlanFiles{Files: files, UpdatedAtByPath: updatedAtByPath}, nil
 }
+
+// func getUniqueFuzzyIndex(doc, s string) int {
+// 	words := strings.Fields(s)
+// 	if len(words) < 2 {
+// 		return -1
+// 	}
+
+// 	searchStart := regexp.QuoteMeta(words[0])
+// 	searchEnd := regexp.QuoteMeta(words[len(words)-1])
+
+// 	// Loop to expand search pattern gradually from both ends towards the center
+// 	for i := 0; i < len(words)/2; i++ { // Ensure we do not go out of bounds
+// 		// Construct the regex pattern
+// 		regexPattern := fmt.Sprintf("%s.*%s", searchStart, searchEnd)
+// 		re, err := regexp.Compile(regexPattern)
+// 		if err != nil {
+// 			return -1 // Handle regex compilation error
+// 		}
+
+// 		// Find all matches of the pattern in the document
+// 		matches := re.FindAllStringIndex(doc, -1)
+// 		if len(matches) == 1 {
+// 			return matches[0][0] // Return the start index of the unique match
+// 		}
+
+// 		// Update search strings if possible
+// 		if i+1 < len(words)/2 {
+// 			searchStart += " " + regexp.QuoteMeta(words[i+1])
+// 			searchEnd = regexp.QuoteMeta(words[len(words)-i-2]) + " " + searchEnd
+// 		}
+// 	}
+
+// 	return -1
+// }

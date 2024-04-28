@@ -77,9 +77,13 @@ func routes() *mux.Router {
 
 	r.HandleFunc("/plans/{planId}/{branch}/current_plan", handlers.CurrentPlanHandler).Methods("GET")
 	r.HandleFunc("/plans/{planId}/{branch}/apply", handlers.ApplyPlanHandler).Methods("PATCH")
-	r.HandleFunc("/plans/{planId}/{branch}/archive", handlers.ArchivePlanHandler).Methods("PATCH")
+	r.HandleFunc("/plans/{planId}/archive", handlers.ArchivePlanHandler).Methods("PATCH")
+	r.HandleFunc("/plans/{planId}/unarchive", handlers.UnarchivePlanHandler).Methods("PATCH")
+
+	r.HandleFunc("/plans/{planId}/rename", handlers.RenamePlanHandler).Methods("PATCH")
 	r.HandleFunc("/plans/{planId}/{branch}/reject_all", handlers.RejectAllChangesHandler).Methods("PATCH")
 	r.HandleFunc("/plans/{planId}/{branch}/reject_file", handlers.RejectFileHandler).Methods("PATCH")
+	r.HandleFunc("/plans/{planId}/{branch}/diffs", handlers.GetPlanDiffsHandler).Methods("GET")
 
 	r.HandleFunc("/plans/{planId}/{branch}/context", handlers.ListContextHandler).Methods("GET")
 	r.HandleFunc("/plans/{planId}/{branch}/context", handlers.LoadContextHandler).Methods("POST")
@@ -96,6 +100,19 @@ func routes() *mux.Router {
 
 	r.HandleFunc("/plans/{planId}/{branch}/settings", handlers.GetSettingsHandler).Methods("GET")
 	r.HandleFunc("/plans/{planId}/{branch}/settings", handlers.UpdateSettingsHandler).Methods("PUT")
+
+	r.HandleFunc("/plans/{planId}/{branch}/status", handlers.GetPlanStatusHandler).Methods("GET")
+
+	r.HandleFunc("/custom_models", handlers.ListCustomModelsHandler).Methods("GET")
+	r.HandleFunc("/custom_models", handlers.CreateCustomModelHandler).Methods("POST")
+	r.HandleFunc("/custom_models/{modelId}", handlers.DeleteAvailableModelHandler).Methods("DELETE")
+
+	r.HandleFunc("/model_sets", handlers.ListModelPacksHandler).Methods("GET")
+	r.HandleFunc("/model_sets", handlers.CreateModelPackHandler).Methods("POST")
+	r.HandleFunc("/model_sets/{setId}", handlers.DeleteModelPackHandler).Methods("DELETE")
+
+	r.HandleFunc("/default_settings", handlers.GetDefaultSettingsHandler).Methods("GET")
+	r.HandleFunc("/default_settings", handlers.UpdateDefaultSettingsHandler).Methods("PUT")
 
 	return r
 

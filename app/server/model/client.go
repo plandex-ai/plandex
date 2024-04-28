@@ -11,7 +11,23 @@ import (
 
 const OPENAI_STREAM_CHUNK_TIMEOUT = time.Duration(30) * time.Second
 
-func NewClient(apiKey, endpoint, orgId string) *openai.Client {
+func InitClients(apiKeys map[string]string, endpointsByApiKeyEnvVar map[string]string, openAIEndpoint, orgId string) map[string]*openai.Client {
+	clients := make(map[string]*openai.Client)
+	for key, apiKey := range apiKeys {
+		var clientEndpoint string
+		var clientOrgId string
+		if key == "OPENAI_API_KEY" {
+			clientEndpoint = openAIEndpoint
+			clientOrgId = orgId
+		} else {
+			clientEndpoint = endpointsByApiKeyEnvVar[key]
+		}
+		clients[key] = newClient(apiKey, clientEndpoint, clientOrgId)
+	}
+	return clients
+}
+
+func newClient(apiKey, endpoint, orgId string) *openai.Client {
 	config := openai.DefaultConfig(apiKey)
 	if endpoint != "" {
 		config.BaseURL = endpoint

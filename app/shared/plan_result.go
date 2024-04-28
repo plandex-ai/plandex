@@ -91,8 +91,15 @@ func (p PlanFileResultsByPath) ConflictedPaths(filesByPath map[string]string) ma
 				continue
 			}
 
+			maybeWithLineNums := updated
+			if res.ReplaceWithLineNums {
+				maybeWithLineNums = AddLineNums(updated)
+			}
+
 			var succeeded bool
-			updated, succeeded = ApplyReplacements(updated, res.Replacements, false)
+			updated, succeeded = ApplyReplacements(maybeWithLineNums, res.Replacements, false)
+
+			updated = RemoveLineNums(updated)
 
 			// log.Println("updated:", updated)
 			// log.Println("succeeded:", succeeded)

@@ -159,10 +159,12 @@ func initConnectActive(auth *types.ServerAuth, planId, branch string, w http.Res
 		return fmt.Errorf("error sending connect message: %v", err)
 	}
 
-	// if we're connecting to an active stream and there are active builds, send initial build info
-	if len(active.BuildQueuesByPath) > 0 {
+	buildQueuesByPath := modelPlan.GetActivePlan(planId, branch).BuildQueuesByPath
 
-		for path, queue := range active.BuildQueuesByPath {
+	// if we're connecting to an active stream and there are active builds, send initial build info
+	if len(buildQueuesByPath) > 0 {
+
+		for path, queue := range buildQueuesByPath {
 			buildInfo := shared.BuildInfo{Path: path}
 
 			for _, build := range queue {
@@ -170,7 +172,7 @@ func initConnectActive(auth *types.ServerAuth, planId, branch string, w http.Res
 					buildInfo.NumTokens = 0
 					buildInfo.Finished = true
 				} else {
-					tokens := build.BufferTokens
+					tokens := build.WithLineNumsBufferTokens
 
 					buildInfo.Finished = false
 					buildInfo.NumTokens += tokens

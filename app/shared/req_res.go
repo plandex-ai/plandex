@@ -107,23 +107,27 @@ const (
 )
 
 type TellPlanRequest struct {
-	Prompt         string          `json:"prompt"`
-	BuildMode      BuildMode       `json:"buildMode"`
-	ConnectStream  bool            `json:"connectStream"`
-	AutoContinue   bool            `json:"autoContinue"`
-	IsUserContinue bool            `json:"isUserContinue"`
-	ApiKey         string          `json:"apiKey"`
-	Endpoint       string          `json:"endpoint"`
-	OpenAIOrgId    string          `json:"openAIOrgId"`
-	ProjectPaths   map[string]bool `json:"projectPaths"`
+	Prompt         string            `json:"prompt"`
+	BuildMode      BuildMode         `json:"buildMode"`
+	ConnectStream  bool              `json:"connectStream"`
+	AutoContinue   bool              `json:"autoContinue"`
+	IsUserContinue bool              `json:"isUserContinue"`
+	ApiKey         string            `json:"apiKey"`   // deprecated
+	Endpoint       string            `json:"endpoint"` // deprecated
+	ApiKeys        map[string]string `json:"apiKeys"`
+	OpenAIBase     string            `json:"openAIBase"`
+	OpenAIOrgId    string            `json:"openAIOrgId"`
+	ProjectPaths   map[string]bool   `json:"projectPaths"`
 }
 
 type BuildPlanRequest struct {
-	ConnectStream bool            `json:"connectStream"`
-	ApiKey        string          `json:"apiKey"`
-	Endpoint      string          `json:"endpoint"`
-	OpenAIOrgId   string          `json:"openAIOrgId"`
-	ProjectPaths  map[string]bool `json:"projectPaths"`
+	ConnectStream bool              `json:"connectStream"`
+	ApiKey        string            `json:"apiKey"`   // deprecated
+	Endpoint      string            `json:"endpoint"` // deprecated
+	ApiKeys       map[string]string `json:"apiKeys"`
+	OpenAIBase    string            `json:"openAIBase"`
+	OpenAIOrgId   string            `json:"openAIOrgId"`
+	ProjectPaths  map[string]bool   `json:"projectPaths"`
 }
 
 const NoBuildsErr string = "No builds"
@@ -212,4 +216,14 @@ type UpdateSettingsResponse struct {
 type ListUsersResponse struct {
 	Users            []*User             `json:"users"`
 	OrgUsersByUserId map[string]*OrgUser `json:"orgUsersByUserId"`
+}
+
+type ApplyPlanRequest struct {
+	ApiKeys     map[string]string `json:"apiKeys"`
+	OpenAIBase  string            `json:"openAIBase"`
+	OpenAIOrgId string            `json:"openAIOrgId"`
+}
+
+type RenamePlanRequest struct {
+	Name string `json:"name"`
 }

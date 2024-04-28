@@ -13,18 +13,26 @@ import (
 	"github.com/plandex/plandex/shared"
 )
 
+// const MaxConcurrentBuildStreams = 3 // otherwise we get EOF errors from openai
+
 type ActiveBuild struct {
-	ReplyId           string
-	FileDescription   string
-	FileContent       string
-	FileContentTokens int
-	CurrentFileTokens int
-	Path              string
-	Idx               int
-	Buffer            string
-	BufferTokens      int
-	Success           bool
-	Error             error
+	ReplyId                  string
+	FileDescription          string
+	FileContent              string
+	FileContentTokens        int
+	CurrentFileTokens        int
+	Path                     string
+	Idx                      int
+	WithLineNumsBuffer       string
+	WithLineNumsBufferTokens int
+	VerifyBuffer             string
+	VerifyBufferTokens       int
+	// FullChangeBuffer         string
+	// FullChangeBufferTokens   int
+	FixBuffer       string
+	FixBufferTokens int
+	Success         bool
+	Error           error
 }
 
 type subscription struct {
@@ -38,6 +46,8 @@ type subscription struct {
 
 type ActivePlan struct {
 	Id                      string
+	UserId                  string
+	OrgId                   string
 	CurrentStreamingReplyId string
 	CurrentReplyDoneCh      chan bool
 	Branch                  string
@@ -71,7 +81,7 @@ type ActivePlan struct {
 	subscriptionMu          sync.Mutex
 }
 
-func NewActivePlan(planId, branch, prompt string, buildOnly bool) *ActivePlan {
+func NewActivePlan(orgId, userId, planId, branch, prompt string, buildOnly bool) *ActivePlan {
 	ctx, cancel := context.WithCancel(context.Background())
 	// child context for model stream so we can cancel it separately if needed
 	modelStreamCtx, cancelModelStream := context.WithCancel(ctx)
@@ -81,6 +91,8 @@ func NewActivePlan(planId, branch, prompt string, buildOnly bool) *ActivePlan {
 
 	active := ActivePlan{
 		Id:                    planId,
+		OrgId:                 orgId,
+		UserId:                userId,
 		BuildOnly:             buildOnly,
 		Branch:                branch,
 		Prompt:                prompt,

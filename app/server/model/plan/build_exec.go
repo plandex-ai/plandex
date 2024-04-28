@@ -13,7 +13,7 @@ import (
 )
 
 func Build(
-	client *openai.Client,
+	clients map[string]*openai.Client,
 	plan *db.Plan,
 	branch string,
 	auth *types.ServerAuth,
@@ -22,7 +22,7 @@ func Build(
 	log.Println("Build: Starting Build operation")
 
 	state := activeBuildStreamState{
-		client:        client,
+		clients:       clients,
 		auth:          auth,
 		currentOrgId:  auth.OrgId,
 		currentUserId: auth.User.Id,
@@ -80,19 +80,25 @@ func (state *activeBuildStreamState) queueBuilds(activeBuilds []*types.ActiveBui
 		// log.Printf("Queue:")
 		// spew.Dump(activePlan.BuildQueuesByPath[filePath])
 
-		var activePlan *types.ActivePlan
+		var isBuilding bool
 
 		UpdateActivePlan(planId, branch, func(active *types.ActivePlan) {
 			active.BuildQueuesByPath[filePath] = append(active.BuildQueuesByPath[filePath], activeBuilds...)
-			activePlan = active
+			isBuilding = active.IsBuildingByPath[filePath]
 		})
 		log.Printf("Queued %d build(s) for file %s\n", len(activeBuilds), filePath)
 
-		if activePlan.IsBuildingByPath[filePath] {
+		if isBuilding {
 			log.Printf("Already building file %s\n", filePath)
 			return
 		} else {
-			log.Printf("Not building file %s, will execute now\n", filePath)
+			log.Printf("Not building file %s\n", filePath)
+
+			active := GetActivePlan(planId, branch)
+			if active == nil {
+				log.Printf("Active plan not found for plan ID %s and branch %s\n", planId, branch)
+				return
+			}
 
 			UpdateActivePlan(planId, branch, func(active *types.ActivePlan) {
 				active.IsBuildingByPath[filePath] = true
@@ -119,6 +125,10 @@ func (buildState *activeBuildStreamState) execPlanBuild(activeBuild *types.Activ
 	branch := buildState.branch
 
 	activePlan := GetActivePlan(planId, branch)
+	if activePlan == nil {
+		log.Printf("Active plan not found for plan ID %s and branch %s\n", planId, branch)
+		return
+	}
 	filePath := activeBuild.Path
 
 	if !activePlan.IsBuildingByPath[filePath] {
@@ -160,11 +170,14 @@ func (fileState *activeBuildStreamFileState) buildFile() {
 	branch := fileState.branch
 	currentPlan := fileState.currentPlanState
 	currentOrgId := fileState.currentOrgId
-	client := fileState.client
-	config := fileState.settings.ModelSet.Builder
 	build := fileState.build
 
 	activePlan := GetActivePlan(planId, branch)
+
+	if activePlan == nil {
+		log.Printf("Active plan not found for plan ID %s and branch %s\n", planId, branch)
+		return
+	}
 
 	log.Printf("Building file %s\n", filePath)
 
@@ -237,12 +250,31 @@ func (fileState *activeBuildStreamFileState) buildFile() {
 		activeBuild.CurrentFileTokens = currentNumTokens
 	}
 
-	log.Println("Getting file from model: " + filePath)
+	fileState.buildFileLineNums()
+}
+
+func (fileState *activeBuildStreamFileState) buildFileLineNums() {
+	filePath := fileState.filePath
+	activeBuild := fileState.activeBuild
+	clients := fileState.clients
+	planId := fileState.plan.Id
+	branch := fileState.branch
+	config := fileState.settings.ModelPack.Builder
+	currentState := fileState.currentState
+
+	activePlan := GetActivePlan(planId, branch)
+
+	if activePlan == nil {
+		log.Printf("Active plan not found for plan ID %s and branch %s\n", planId, branch)
+		return
+	}
+
+	log.Println("buildFileLineNums - getting file from model: " + filePath)
 	// log.Println("File context:", fileContext)
 
 	// log.Println("currentState:", currentState)
 
-	sysPrompt := prompts.GetBuildSysPrompt(filePath, currentState, activeBuild.FileDescription, activeBuild.FileContent)
+	sysPrompt := prompts.GetBuildLineNumbersSysPrompt(filePath, currentState, activeBuild.FileDescription, activeBuild.FileContent)
 
 	fileMessages := []openai.ChatCompletionMessage{
 		{
@@ -251,11 +283,19 @@ func (fileState *activeBuildStreamFileState) buildFile() {
 		},
 	}
 
-	log.Println("Calling model for file: " + filePath)
+	log.Println("buildFileLineNums - calling model for file: " + filePath)
 
 	// for _, msg := range fileMessages {
 	// 	log.Printf("%s: %s\n", msg.Role, msg.Content)
 	// }
+
+	var responseFormat *openai.ChatCompletionResponseFormat
+	if config.BaseModelConfig.HasJsonResponseMode {
+		responseFormat = &openai.ChatCompletionResponseFormat{Type: "json_object"}
+	}
+
+	// log.Println("responseFormat:", responseFormat)
+	// log.Println("Model:", config.BaseModelConfig.ModelName)
 
 	modelReq := openai.ChatCompletionRequest{
 		Model: config.BaseModelConfig.ModelName,
@@ -274,8 +314,11 @@ func (fileState *activeBuildStreamFileState) buildFile() {
 		Messages:       fileMessages,
 		Temperature:    config.Temperature,
 		TopP:           config.TopP,
-		ResponseFormat: config.OpenAIResponseFormat,
+		ResponseFormat: responseFormat,
 	}
+
+	envVar := config.BaseModelConfig.ApiKeyEnvVar
+	client := clients[envVar]
 
 	stream, err := model.CreateChatCompletionStreamWithRetries(client, activePlan.Ctx, modelReq)
 	if err != nil {
@@ -284,6 +327,79 @@ func (fileState *activeBuildStreamFileState) buildFile() {
 		return
 	}
 
-	go fileState.listenStream(stream)
-
+	go fileState.listenStreamChangesWithLineNums(stream)
 }
+
+// func (fileState *activeBuildStreamFileState) buildFileFullChanges() {
+// 	filePath := fileState.filePath
+// 	activeBuild := fileState.activeBuild
+// 	clients := fileState.clients
+// 	planId := fileState.plan.Id
+// 	branch := fileState.branch
+// 	config := fileState.settings.ModelPack.Builder
+// 	currentState := fileState.currentState
+
+// 	activePlan := GetActivePlan(planId, branch)
+
+// 	if activePlan == nil {
+// 		log.Printf("Active plan not found for plan ID %s and branch %s\n", planId, branch)
+// 		return
+// 	}
+
+// 	log.Println("buildFileFullChanges - getting file from model: " + filePath)
+// 	// log.Println("File context:", fileContext)
+
+// 	// log.Println("currentState:", currentState)
+
+// 	sysPrompt := prompts.GetBuildFullChangesSysPrompt(filePath, currentState, activeBuild.FileDescription, activeBuild.FileContent)
+
+// 	fileMessages := []openai.ChatCompletionMessage{
+// 		{
+// 			Role:    openai.ChatMessageRoleSystem,
+// 			Content: sysPrompt,
+// 		},
+// 	}
+
+// 	log.Println("buildFileFullChanges - calling model for file: " + filePath)
+
+// 	// for _, msg := range fileMessages {
+// 	// 	log.Printf("%s: %s\n", msg.Role, msg.Content)
+// 	// }
+
+// 	var responseFormat *openai.ChatCompletionResponseFormat
+// 	if config.BaseModelConfig.HasJsonResponseMode {
+// 		responseFormat = &openai.ChatCompletionResponseFormat{Type: "json_object"}
+// 	}
+
+// 	modelReq := openai.ChatCompletionRequest{
+// 		Model: config.BaseModelConfig.ModelName,
+// 		Tools: []openai.Tool{
+// 			{
+// 				Type:     "function",
+// 				Function: &prompts.ListReplacementsFullFn,
+// 			},
+// 		},
+// 		ToolChoice: openai.ToolChoice{
+// 			Type: "function",
+// 			Function: openai.ToolFunction{
+// 				Name: prompts.ListReplacementsFullFn.Name,
+// 			},
+// 		},
+// 		Messages:       fileMessages,
+// 		Temperature:    config.Temperature,
+// 		TopP:           config.TopP,
+// 		ResponseFormat: responseFormat,
+// 	}
+
+// 	envVar := config.BaseModelConfig.ApiKeyEnvVar
+// 	client := clients[envVar]
+
+// 	stream, err := model.CreateChatCompletionStreamWithRetries(client, activePlan.Ctx, modelReq)
+// 	if err != nil {
+// 		log.Printf("Error creating plan file stream for path '%s': %v\n", filePath, err)
+// 		fileState.onBuildFileError(fmt.Errorf("error creating plan file stream for path '%s': %v", filePath, err))
+// 		return
+// 	}
+
+// 	go fileState.listenStreamFullChanges(stream)
+// }

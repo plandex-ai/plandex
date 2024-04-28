@@ -1,8 +1,9 @@
 package db
 
 import (
-	"database/sql"
 	"fmt"
+
+	"github.com/jmoiron/sqlx"
 )
 
 func ProjectExists(orgId, projectId string) (bool, error) {
@@ -16,7 +17,7 @@ func ProjectExists(orgId, projectId string) (bool, error) {
 	return count > 0, nil
 }
 
-func CreateProject(orgId, name string, tx *sql.Tx) (string, error) {
+func CreateProject(orgId, name string, tx *sqlx.Tx) (string, error) {
 	var projectId string
 	err := tx.QueryRow("INSERT INTO projects (org_id, name) VALUES ($1, $2) RETURNING id", orgId, name).Scan(&projectId)
 

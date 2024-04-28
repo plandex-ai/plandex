@@ -19,9 +19,11 @@ func init() {
 	// inter-package dependency injections to avoid circular imports
 	auth.SetApiClient(api.Client)
 	lib.SetBuildPlanInlineFn(func(maybeContexts []*shared.Context) (bool, error) {
+		apiKeys := lib.MustVerifyApiKeys()
 		return plan_exec.Build(plan_exec.ExecParams{
 			CurrentPlanId: lib.CurrentPlanId,
 			CurrentBranch: lib.CurrentBranch,
+			ApiKeys:       apiKeys,
 			CheckOutdatedContext: func(maybeContexts []*shared.Context) (bool, bool) {
 				return lib.MustCheckOutdatedContext(true, maybeContexts)
 			},
