@@ -13,7 +13,7 @@ import (
 )
 
 func (state *activeTellStreamState) loadTellPlan() error {
-	client := state.client
+	clients := state.clients
 	req := state.req
 	auth := state.auth
 	plan := state.plan
@@ -61,6 +61,7 @@ func (state *activeTellStreamState) loadTellPlan() error {
 	var convo []*db.ConvoMessage
 	var summaries []*db.ConvoSummary
 	var settings *shared.PlanSettings
+	var latestSummaryTokens int
 
 	// get name for plan and rename it's a draft
 	go func() {
@@ -73,7 +74,10 @@ func (state *activeTellStreamState) loadTellPlan() error {
 		settings = res
 
 		if plan.Name == "draft" {
-			name, err := model.GenPlanName(client, settings.ModelSet.Namer, req.Prompt)
+			envVar := settings.ModelPack.Namer.BaseModelConfig.ApiKeyEnvVar
+			client := clients[envVar]
+
+			name, err := model.GenPlanName(client, settings.ModelPack.Namer, req.Prompt)
 
 			if err != nil {
 				log.Printf("Error generating plan name: %v\n", err)
@@ -81,7 +85,7 @@ func (state *activeTellStreamState) loadTellPlan() error {
 				return
 			}
 
-			tx, err := db.Conn.Begin()
+			tx, err := db.Conn.Beginx()
 			if err != nil {
 				log.Printf("Error starting transaction: %v\n", err)
 				errCh <- fmt.Errorf("error starting transaction: %v", err)
@@ -214,6 +218,16 @@ func (state *activeTellStreamState) loadTellPlan() error {
 
 			log.Printf("got %d plan summaries", len(summaries))
 
+			if len(summaries) > 0 {
+				var err error
+				latestSummaryTokens, err = shared.GetNumTokens(summaries[len(summaries)-1].Summary)
+				if err != nil {
+					log.Printf("Error getting latest summary tokens: %v\n", err)
+					innerErrCh <- fmt.Errorf("error getting latest summary tokens: %v", err)
+					return
+				}
+			}
+
 			innerErrCh <- nil
 		}()
 
@@ -277,6 +291,7 @@ func (state *activeTellStreamState) loadTellPlan() error {
 	state.modelContext = modelContext
 	state.convo = convo
 	state.summaries = summaries
+	state.latestSummaryTokens = latestSummaryTokens
 	state.settings = settings
 
 	return nil

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"math/rand"
 	"time"
 
 	"github.com/lib/pq"
@@ -45,7 +46,7 @@ func lockRepo(params LockRepoParams, numRetry int) (string, error) {
 	ctx := params.Ctx
 	cancelFn := params.CancelFn
 
-	tx, err := Conn.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelRepeatableRead})
+	tx, err := Conn.BeginTxx(ctx, &sql.TxOptions{Isolation: sql.LevelRepeatableRead})
 	if err != nil {
 		return "", fmt.Errorf("error starting transaction: %v", err)
 	}
@@ -69,6 +70,11 @@ func lockRepo(params LockRepoParams, numRetry int) (string, error) {
 	fn := func() error {
 		rows, err := tx.Query(query, queryArgs...)
 		if err != nil {
+			if pqErr, ok := err.(*pq.Error); ok && (pqErr.Code == "40001" || pqErr.Code == "40P01") {
+				// return concurrency errors directly for retries
+				return err
+			}
+
 			return fmt.Errorf("error getting repo locks: %v", err)
 		}
 
@@ -101,7 +107,26 @@ func lockRepo(params LockRepoParams, numRetry int) (string, error) {
 
 		return nil
 	}
-	if err := fn(); err != nil {
+	err = fn()
+	if err != nil {
+		if pqErr, ok := err.(*pq.Error); ok && (pqErr.Code == "40001" || pqErr.Code == "40P01") {
+			if numRetry > 10 {
+				err = fmt.Errorf("plan is currently being updated by another user")
+				return "", err
+			}
+
+			log.Printf("Serialization or deadlock error, retrying transaction: %v\n", err)
+
+			wait := time.Duration(numRetry) * 300 * time.Millisecond * time.Duration(rand.Intn(500)*int(time.Millisecond))
+
+			select {
+			case <-ctx.Done():
+				return "", fmt.Errorf("context finished during retry transaction")
+			case <-time.After(wait):
+				return lockRepo(params, numRetry+1)
+			}
+		}
+
 		return "", err
 	}
 

@@ -2,21 +2,20 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 	"plandex/api"
 	"plandex/auth"
 	"plandex/lib"
 	"plandex/term"
 
+	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 )
 
 var renameCmd = &cobra.Command{
-	Use:     "rename [new-name]",
-	Aliases: []string{"rn"},
-	Short:   "Rename the current plan",
-	Args:    cobra.MaximumNArgs(1),
-	Run:     rename,
+	Use:   "rename [new-name]",
+	Short: "Rename the current plan",
+	Args:  cobra.MaximumNArgs(1),
+	Run:   rename,
 }
 
 func init() {
@@ -27,23 +26,28 @@ func rename(cmd *cobra.Command, args []string) {
 	auth.MustResolveAuthWithOrg()
 	lib.MustResolveProject()
 
+	if lib.CurrentPlanId == "" {
+		fmt.Println("🤷‍♂️ No current plan")
+		return
+	}
+
 	var newName string
 	if len(args) > 0 {
 		newName = args[0]
 	} else {
 		var err error
-		newName, err = term.Prompt("Enter new name for the current plan:")
+		newName, err = term.GetUserStringInput("New name:")
 		if err != nil {
 			term.OutputErrorAndExit("Error reading new name: %v", err)
 		}
 	}
 
 	if newName == "" {
-		fmt.Println("No new name provided.")
+		fmt.Println("🤷‍♂️ No new name provided")
 		return
 	}
 
-	term.StartSpinner("Renaming plan")
+	term.StartSpinner("")
 	err := api.Client.RenamePlan(lib.CurrentPlanId, newName)
 	term.StopSpinner()
 
@@ -51,5 +55,5 @@ func rename(cmd *cobra.Command, args []string) {
 		term.OutputErrorAndExit("Error renaming plan: %v", err)
 	}
 
-	fmt.Printf("✅ Plan renamed to %s\n", newName)
+	fmt.Printf("✅ Plan renamed to %s\n", color.New(color.Bold, term.ColorHiGreen).Sprint(newName))
 }

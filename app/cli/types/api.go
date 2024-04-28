@@ -60,11 +60,14 @@ type ApiClient interface {
 	StopPlan(planId, branch string) *shared.ApiError
 
 	ArchivePlan(planId string) *shared.ApiError
+	UnarchivePlan(planId string) *shared.ApiError
+	RenamePlan(planId string, name string) *shared.ApiError
 
 	GetCurrentPlanState(planId, branch string) (*shared.CurrentPlanState, *shared.ApiError)
-	ApplyPlan(planId, branch string) *shared.ApiError
+	ApplyPlan(planId, branch string, req shared.ApplyPlanRequest) (string, *shared.ApiError)
 	RejectAllChanges(planId, branch string) *shared.ApiError
 	RejectFile(planId, branch, filePath string) *shared.ApiError
+	GetPlanDiffs(planId, branch string) (string, *shared.ApiError)
 
 	LoadContext(planId, branch string, req shared.LoadContextRequest) (*shared.LoadContextResponse, *shared.ApiError)
 	UpdateContext(planId, branch string, req shared.UpdateContextRequest) (*shared.UpdateContextResponse, *shared.ApiError)
@@ -72,6 +75,7 @@ type ApiClient interface {
 	ListContext(planId, branch string) ([]*shared.Context, *shared.ApiError)
 
 	ListConvo(planId, branch string) ([]*shared.ConvoMessage, *shared.ApiError)
+	GetPlanStatus(planId, branch string) (string, *shared.ApiError)
 	ListLogs(planId, branch string) (*shared.LogResponse, *shared.ApiError)
 	RewindPlan(planId, branch string, req shared.RewindPlanRequest) (*shared.RewindPlanResponse, *shared.ApiError)
 
@@ -81,14 +85,15 @@ type ApiClient interface {
 
 	GetSettings(planId, branch string) (*shared.PlanSettings, *shared.ApiError)
 	UpdateSettings(planId, branch string, req shared.UpdateSettingsRequest) (*shared.UpdateSettingsResponse, *shared.ApiError)
-	// Custom models management
-	CreateCustomModel(model shared.CustomModel) *shared.ApiError
-	ListCustomModels() ([]shared.CustomModel, *shared.ApiError)
-	DeleteCustomModel(modelId string) *shared.ApiError
 
-	// Model sets management
-	CreateModelSet(set shared.ModelSet) *shared.ApiError
-	ListModelSets() ([]shared.ModelSet, *shared.ApiError)
-	DeleteModelSet(setId string) *shared.ApiError
+	GetOrgDefaultSettings() (*shared.PlanSettings, *shared.ApiError)
+	UpdateOrgDefaultSettings(req shared.UpdateSettingsRequest) (*shared.UpdateSettingsResponse, *shared.ApiError)
+
+	CreateCustomModel(model *shared.AvailableModel) *shared.ApiError
+	ListCustomModels() ([]*shared.AvailableModel, *shared.ApiError)
+	DeleteAvailableModel(modelId string) *shared.ApiError
+
+	CreateModelPack(set *shared.ModelPack) *shared.ApiError
+	ListModelPacks() ([]*shared.ModelPack, *shared.ApiError)
+	DeleteModelPack(setId string) *shared.ApiError
 }
-

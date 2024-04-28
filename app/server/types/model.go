@@ -8,7 +8,15 @@ type StreamedFile struct {
 	Content string `json:"content"`
 }
 
-type StreamedChanges struct {
-	References string                   `json:"references"`
-	Changes    []*shared.StreamedChange `json:"changes"`
+type StreamedChangesWithLineNums struct {
+	Changes []*shared.StreamedChangeWithLineNums `json:"changes"`
+}
+
+// type StreamedChangesFull struct {
+// 	Changes []*shared.StreamedChangeFull `json:"changes"`
+// }
+
+type StreamedVerifyResult struct {
+	Reasoning string `json:"reasoning"`
+	IsCorrect bool   `json:"isCorrect"`
 }

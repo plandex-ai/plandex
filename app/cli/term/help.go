@@ -11,38 +11,53 @@ import (
 
 var CmdDesc = map[string][2]string{
 	"new":     {"", "start a new plan"},
+	"rename":  {"", "rename the current plan"},
 	"current": {"cu", "show current plan"},
 	"cd":      {"", "set current plan by name or index"},
 	"load":    {"l", "load files, dirs, urls, notes or piped data into context"},
 	"tell":    {"t", "describe a task, ask a question, or chat"},
-	"changes": {"ch", "review plan changes"},
-	// "diffs":       {"d", "show diffs between plan and project files"},
+	"changes": {"ch", "review plan changes in a TUI"},
+	"diff":    {"", "review plan changes in 'git diff' format"},
+	"summary": {"", "show the latest summary of the current plan"},
 	// "preview":     {"pv", "preview the plan in a branch"},
-	"apply":    {"ap", "apply plan changes to project files"},
-	"continue": {"c", "continue the plan"},
+	"apply":     {"ap", "apply plan changes to project files"},
+	"archive":   {"arc", "archive a plan"},
+	"unarchive": {"unarc", "unarchive a plan"},
+	"continue":  {"c", "continue the plan"},
 	// "status":      {"s", "show status of the plan"},
-	"rewind":        {"rw", "rewind to a previous state"},
-	"ls":            {"", "list everything in context"},
-	"rm":            {"", "remove context by name, index, or glob"},
-	"clear":         {"", "remove all context"},
-	"delete-plan":   {"dp", "delete plan by name or index"},
-	"delete-branch": {"db", "delete a branch by name or index"},
-	"plans":         {"pl", "list plans"},
-	"update":        {"u", "update outdated context"},
-	"log":           {"", "show log of plan updates"},
-	"convo":         {"", "show plan conversation"},
-	"branches":      {"br", "list plan branches"},
-	"checkout":      {"co", "checkout or create a branch"},
-	"build":         {"b", "build any pending changes"},
-	"models":        {"", "show model settings"},
-	"set-model":     {"", "update model settings"},
-	"ps":            {"", "list active and recently finished plan streams"},
-	"stop":          {"", "stop an active plan stream"},
-	"connect":       {"conn", "connect to an active plan stream"},
-	"sign-in":       {"", "sign in, accept an invite, or create an account"},
-	"invite":        {"", "invite a user to join your org"},
-	"revoke":        {"", "revoke an invite or remove a user from your org"},
-	"users":         {"", "list users and pending invites in your org"},
+	"rewind":                    {"rw", "rewind to a previous state"},
+	"ls":                        {"", "list everything in context"},
+	"rm":                        {"", "remove context by name, index, or glob"},
+	"clear":                     {"", "remove all context"},
+	"delete-plan":               {"dp", "delete plan by name or index"},
+	"delete-branch":             {"db", "delete a branch by name or index"},
+	"plans":                     {"pl", "list plans"},
+	"plans --archived":          {"", "list archived plans"},
+	"update":                    {"u", "update outdated context"},
+	"log":                       {"", "show log of plan updates"},
+	"convo":                     {"", "show plan conversation"},
+	"branches":                  {"br", "list plan branches"},
+	"checkout":                  {"co", "checkout or create a branch"},
+	"build":                     {"b", "build any pending changes"},
+	"models":                    {"", "show current plan model settings"},
+	"models default":            {"", "show org-wide default model settings for new plans"},
+	"models available":          {"", "show all available models"},
+	"models available --custom": {"", "show available custom models only"},
+	"models delete":             {"", "delete a custom model"},
+	"models add":                {"", "add a custom model"},
+	"model-packs":               {"", "show all available model packs"},
+	"model-packs create":        {"", "create a new custom model pack"},
+	"model-packs delete":        {"", "delete a custom model pack"},
+	"model-packs --custom":      {"", "show custom model packs only"},
+	"set-model":                 {"", "update current plan model settings"},
+	"set-model default":         {"", "update org-wide default model settings for new plans"},
+	"ps":                        {"", "list active and recently finished plan streams"},
+	"stop":                      {"", "stop an active plan stream"},
+	"connect":                   {"conn", "connect to an active plan stream"},
+	"sign-in":                   {"", "sign in, accept an invite, or create an account"},
+	"invite":                    {"", "invite a user to join your org"},
+	"revoke":                    {"", "revoke an invite or remove a user from your org"},
+	"users":                     {"", "list users and pending invites in your org"},
 }
 
 func PrintCmds(prefix string, cmds ...string) {
@@ -108,15 +123,15 @@ func PrintCustomHelp() {
 	fmt.Fprintf(builder, "  Create a new plan in your project's root directory with %s\n\n", color.New(color.Bold, color.BgCyan, color.FgHiWhite).Sprint(" plandex new "))
 
 	color.New(color.Bold, color.BgMagenta, color.FgHiWhite).Fprintln(builder, " Key Commands ")
-	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiMagenta}, "new", "load", "tell", "changes", "apply")
+	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiMagenta}, "new", "load", "tell", "changes", "diffs", "apply")
 	fmt.Fprintln(builder)
 
 	color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Plans ")
-	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "new", "plans", "cd", "current", "delete-plan")
+	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "new", "plans", "cd", "current", "delete-plan", "rename", "archive", "plans --archived", "unarchive")
 	fmt.Fprintln(builder)
 
 	color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Changes ")
-	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "changes", "apply")
+	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "changes", "diff", "apply")
 	fmt.Fprintln(builder)
 
 	color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Context ")
@@ -140,7 +155,7 @@ func PrintCustomHelp() {
 	fmt.Fprintln(builder)
 
 	color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " AI Models ")
-	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "models", "set-model")
+	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "models", "models default", "models available", "set-model", "set-model default", "models available --custom", "models add", "models delete", "model-packs", "model-packs --custom", "model-packs create", "model-packs delete")
 	fmt.Fprintln(builder)
 
 	color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Accounts ")

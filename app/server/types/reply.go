@@ -159,7 +159,7 @@ func (r *ReplyParser) AddChunk(chunk string, addToTotal bool) {
 		// log.Println("Current file path is empty--checking for possible file path...")
 
 		var gotPath string
-		if lineHasFilePath(prevFullLineTrimmed) {
+		if lineMaybeHasFilePath(prevFullLineTrimmed) {
 			gotPath = extractFilePath(prevFullLineTrimmed)
 		} else {
 			// log.Println("No possible file path detected.", strconv.Quote(prevFullLineTrimmed))
@@ -215,7 +215,7 @@ func (r *ReplyParser) GetReplyBeforeCurrentPath() string {
 	var idx int
 	for i := len(r.lines) - 1; i >= 0; i-- {
 		line := r.lines[i]
-		if lineHasFilePath(line) && r.currentFilePath == extractFilePath(line) {
+		if lineMaybeHasFilePath(line) && r.currentFilePath == extractFilePath(line) {
 			idx = i
 			break
 		}
@@ -224,8 +224,8 @@ func (r *ReplyParser) GetReplyBeforeCurrentPath() string {
 	return strings.Join(r.lines[:idx], "\n")
 }
 
-func lineHasFilePath(line string) bool {
-	return (strings.HasPrefix(line, "-")) || strings.HasPrefix(line, "-file:") || strings.HasPrefix(line, "- file:") || (strings.HasPrefix(line, "**") && strings.HasSuffix(line, "**"))
+func lineMaybeHasFilePath(line string) bool {
+	return (strings.HasPrefix(line, "-")) || strings.HasPrefix(line, "-file:") || strings.HasPrefix(line, "- file:") || (strings.HasPrefix(line, "**") && strings.HasSuffix(line, "**")) || (strings.HasPrefix(line, "#") && strings.HasSuffix(line, ":"))
 }
 
 func extractFilePath(line string) string {

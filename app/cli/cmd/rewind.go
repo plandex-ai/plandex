@@ -103,7 +103,7 @@ func rewind(cmd *cobra.Command, args []string) {
 	fmt.Println(msg)
 	fmt.Println()
 
-	term.PrintCmds("", "log")
+	term.PrintCmds("", "log", "continue")
 
 	// fmt.Println(rwRes.LatestCommit)
 }

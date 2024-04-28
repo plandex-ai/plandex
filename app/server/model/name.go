@@ -10,7 +10,7 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
-func GenPlanName(client *openai.Client, config shared.TaskRoleConfig, planContent string) (string, error) {
+func GenPlanName(client *openai.Client, config shared.ModelRoleConfig, planContent string) (string, error) {
 	messages := []openai.ChatCompletionMessage{
 		{
 			Role:    openai.ChatMessageRoleSystem,
@@ -22,6 +22,11 @@ func GenPlanName(client *openai.Client, config shared.TaskRoleConfig, planConten
 		Role:    openai.ChatMessageRoleUser,
 		Content: prompts.GetPlanNamePrompt(planContent),
 	})
+
+	var responseFormat *openai.ChatCompletionResponseFormat
+	if config.BaseModelConfig.HasJsonResponseMode {
+		responseFormat = &openai.ChatCompletionResponseFormat{Type: "json_object"}
+	}
 
 	resp, err := CreateChatCompletionWithRetries(
 		client,
@@ -43,7 +48,7 @@ func GenPlanName(client *openai.Client, config shared.TaskRoleConfig, planConten
 			Temperature:    config.Temperature,
 			TopP:           config.TopP,
 			Messages:       messages,
-			ResponseFormat: config.OpenAIResponseFormat,
+			ResponseFormat: responseFormat,
 		},
 	)
 

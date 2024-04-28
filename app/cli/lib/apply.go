@@ -8,6 +8,8 @@ import (
 	"plandex/fs"
 	"plandex/term"
 	"strings"
+
+	"github.com/plandex/plandex/shared"
 )
 
 func MustApplyPlan(planId, branch string, autoConfirm bool) {
@@ -108,7 +110,20 @@ func MustApplyPlan(planId, branch string, autoConfirm bool) {
 		term.OutputSimpleError(errMsg, unformattedErrMsg)
 	}
 
-	apiErr = api.Client.ApplyPlan(planId, branch)
+	apiKeys := MustVerifyApiKeysSilent()
+
+	var commitSummary string
+
+	openAIBase := os.Getenv("OPENAI_API_BASE")
+	if openAIBase == "" {
+		openAIBase = os.Getenv("OPENAI_ENDPOINT")
+	}
+
+	commitSummary, apiErr = api.Client.ApplyPlan(planId, branch, shared.ApplyPlanRequest{
+		ApiKeys:     apiKeys,
+		OpenAIBase:  openAIBase,
+		OpenAIOrgId: os.Getenv("OPENAI_ORG_ID"),
+	})
 
 	if apiErr != nil {
 		onErr("failed to set pending results applied: %s", apiErr.Msg)
@@ -191,7 +206,7 @@ func MustApplyPlan(planId, branch string, autoConfirm bool) {
 
 			if confirmed {
 				// Commit the changes
-				msg := currentPlanState.PendingChangesSummaryForApply()
+				msg := currentPlanState.PendingChangesSummaryForApply(commitSummary)
 
 				// log.Println("Committing changes with message:")
 				// log.Println(msg)

@@ -9,11 +9,11 @@ import (
 	"os"
 	"plandex-server/db"
 	"plandex-server/host"
-	"plandex-server/model"
 	modelPlan "plandex-server/model/plan"
 	"plandex-server/types"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/gorilla/mux"
 	"github.com/plandex/plandex/shared"
 )
@@ -57,7 +57,7 @@ func TellPlanHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if requestBody.ApiKey == "" {
+	if requestBody.ApiKey == "" && len(requestBody.ApiKeys) == 0 {
 		log.Println("API key is required")
 		http.Error(w, "API key is required", http.StatusBadRequest)
 		return
@@ -87,8 +87,18 @@ func TellPlanHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	client := model.NewClient(requestBody.ApiKey, requestBody.Endpoint, requestBody.OpenAIOrgId)
-	err = modelPlan.Tell(client, plan, branch, auth, &requestBody)
+	clients := initClients(
+		initClientsParams{
+			w:           w,
+			apiKey:      requestBody.ApiKey,
+			apiKeys:     requestBody.ApiKeys,
+			endpoint:    requestBody.Endpoint,
+			openAIBase:  requestBody.OpenAIBase,
+			openAIOrgId: requestBody.OpenAIOrgId,
+			plan:        plan,
+		},
+	)
+	err = modelPlan.Tell(clients, plan, branch, auth, &requestBody)
 
 	if err != nil {
 		log.Printf("Error telling plan: %v\n", err)
@@ -138,14 +148,26 @@ func BuildPlanHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if requestBody.ApiKey == "" {
+	if requestBody.ApiKey == "" && len(requestBody.ApiKeys) == 0 {
+		spew.Dump(requestBody)
+
 		log.Println("API key is required")
 		http.Error(w, "API key is required", http.StatusBadRequest)
 		return
 	}
 
-	client := model.NewClient(requestBody.ApiKey, requestBody.Endpoint, requestBody.OpenAIOrgId)
-	numBuilds, err := modelPlan.Build(client, plan, branch, auth)
+	clients := initClients(
+		initClientsParams{
+			w:           w,
+			apiKey:      requestBody.ApiKey,
+			apiKeys:     requestBody.ApiKeys,
+			endpoint:    requestBody.Endpoint,
+			openAIBase:  requestBody.OpenAIBase,
+			openAIOrgId: requestBody.OpenAIOrgId,
+			plan:        plan,
+		},
+	)
+	numBuilds, err := modelPlan.Build(clients, plan, branch, auth)
 
 	if err != nil {
 		log.Printf("Error building plan: %v\n", err)

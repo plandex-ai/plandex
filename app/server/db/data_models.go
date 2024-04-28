@@ -289,6 +289,88 @@ type repoLock struct {
 	CreatedAt       time.Time `db:"created_at"`
 }
 
+type ModelPack struct {
+	Id          string                   `db:"id"`
+	OrgId       string                   `db:"org_id"`
+	Name        string                   `db:"name"`
+	Description string                   `db:"description"`
+	Planner     shared.PlannerRoleConfig `db:"planner"`
+	PlanSummary shared.ModelRoleConfig   `db:"plan_summary"`
+	Builder     shared.ModelRoleConfig   `db:"builder"`
+	Namer       shared.ModelRoleConfig   `db:"namer"`
+	CommitMsg   shared.ModelRoleConfig   `db:"commit_msg"`
+	ExecStatus  shared.ModelRoleConfig   `db:"exec_status"`
+	CreatedAt   time.Time                `db:"created_at"`
+}
+
+func (modelPack *ModelPack) ToApi() *shared.ModelPack {
+	return &shared.ModelPack{
+		Id:          modelPack.Id,
+		Name:        modelPack.Name,
+		Description: modelPack.Description,
+		Planner:     modelPack.Planner,
+		PlanSummary: modelPack.PlanSummary,
+		Builder:     modelPack.Builder,
+		Namer:       modelPack.Namer,
+		CommitMsg:   modelPack.CommitMsg,
+		ExecStatus:  modelPack.ExecStatus,
+	}
+}
+
+type AvailableModel struct {
+	Id                          string               `db:"id"`
+	OrgId                       string               `db:"org_id"`
+	Provider                    shared.ModelProvider `db:"provider"`
+	CustomProvider              *string              `db:"custom_provider"`
+	BaseUrl                     string               `db:"base_url"`
+	ModelName                   string               `db:"model_name"`
+	Description                 string               `db:"description"`
+	MaxTokens                   int                  `db:"max_tokens"`
+	ApiKeyEnvVar                string               `db:"api_key_env_var"`
+	IsOpenAICompatible          bool                 `db:"is_openai_compatible"`
+	HasJsonResponseMode         bool                 `db:"has_json_mode"`
+	HasStreaming                bool                 `db:"has_streaming"`
+	HasFunctionCalling          bool                 `db:"has_function_calling"`
+	HasStreamingFunctionCalls   bool                 `db:"has_streaming_function_calls"`
+	DefaultMaxConvoTokens       int                  `db:"default_max_convo_tokens"`
+	DefaultReservedOutputTokens int                  `db:"default_reserved_output_tokens"`
+	CreatedAt                   time.Time            `db:"created_at"`
+	UpdatedAt                   time.Time            `db:"updated_at"`
+}
+
+func (model *AvailableModel) ToApi() *shared.AvailableModel {
+	return &shared.AvailableModel{
+		Id: model.Id,
+		BaseModelConfig: shared.BaseModelConfig{
+			Provider:       model.Provider,
+			CustomProvider: model.CustomProvider,
+			BaseUrl:        model.BaseUrl,
+			ModelName:      model.ModelName,
+			MaxTokens:      model.MaxTokens,
+			ApiKeyEnvVar:   model.ApiKeyEnvVar,
+			ModelCompatibility: shared.ModelCompatibility{
+				IsOpenAICompatible:        model.IsOpenAICompatible,
+				HasJsonResponseMode:       model.HasJsonResponseMode,
+				HasStreaming:              model.HasStreaming,
+				HasFunctionCalling:        model.HasFunctionCalling,
+				HasStreamingFunctionCalls: model.HasStreamingFunctionCalls,
+			}},
+		Description:                 model.Description,
+		DefaultMaxConvoTokens:       model.DefaultMaxConvoTokens,
+		DefaultReservedOutputTokens: model.DefaultReservedOutputTokens,
+		CreatedAt:                   model.CreatedAt,
+		UpdatedAt:                   model.UpdatedAt,
+	}
+}
+
+type DefaultPlanSettings struct {
+	Id           string              `db:"id"`
+	OrgId        string              `db:"org_id"`
+	PlanSettings shared.PlanSettings `db:"plan_settings"`
+	CreatedAt    time.Time           `db:"created_at"`
+	UpdatedAt    time.Time           `db:"updated_at"`
+}
+
 // Models below are stored in files, not in the database.
 // This allows us to store them in a git repo and use git to manage history.
 
@@ -386,34 +468,38 @@ func (desc *ConvoMessageDescription) ToApi() *shared.ConvoMessageDescription {
 }
 
 type PlanFileResult struct {
-	Id             string                `json:"id"`
-	OrgId          string                `json:"orgId"`
-	PlanId         string                `json:"planId"`
-	ConvoMessageId string                `json:"convoMessageId"`
-	PlanBuildId    string                `json:"planBuildId"`
-	Path           string                `json:"path"`
-	Content        string                `json:"content,omitempty"`
-	Replacements   []*shared.Replacement `json:"replacements"`
-	AnyFailed      bool                  `json:"anyFailed"`
-	Error          string                `json:"error"`
-	AppliedAt      *time.Time            `json:"appliedAt,omitempty"`
-	RejectedAt     *time.Time            `json:"rejectedAt,omitempty"`
-	CreatedAt      time.Time             `json:"createdAt"`
-	UpdatedAt      time.Time             `json:"updatedAt"`
+	Id                  string                `json:"id"`
+	TypeVersion         int                   `json:"typeVersion"`
+	ReplaceWithLineNums bool                  `json:"replaceWithLineNums"`
+	OrgId               string                `json:"orgId"`
+	PlanId              string                `json:"planId"`
+	ConvoMessageId      string                `json:"convoMessageId"`
+	PlanBuildId         string                `json:"planBuildId"`
+	Path                string                `json:"path"`
+	Content             string                `json:"content,omitempty"`
+	Replacements        []*shared.Replacement `json:"replacements"`
+	AnyFailed           bool                  `json:"anyFailed"`
+	Error               string                `json:"error"`
+	AppliedAt           *time.Time            `json:"appliedAt,omitempty"`
+	RejectedAt          *time.Time            `json:"rejectedAt,omitempty"`
+	CreatedAt           time.Time             `json:"createdAt"`
+	UpdatedAt           time.Time             `json:"updatedAt"`
 }
 
 func (res *PlanFileResult) ToApi() *shared.PlanFileResult {
 	return &shared.PlanFileResult{
-		Id:             res.Id,
-		PlanBuildId:    res.PlanBuildId,
-		ConvoMessageId: res.ConvoMessageId,
-		Path:           res.Path,
-		Content:        res.Content,
-		AnyFailed:      res.AnyFailed,
-		AppliedAt:      res.AppliedAt,
-		RejectedAt:     res.RejectedAt,
-		Replacements:   res.Replacements,
-		CreatedAt:      res.CreatedAt,
-		UpdatedAt:      res.UpdatedAt,
+		Id:                  res.Id,
+		TypeVersion:         res.TypeVersion,
+		ReplaceWithLineNums: res.ReplaceWithLineNums,
+		PlanBuildId:         res.PlanBuildId,
+		ConvoMessageId:      res.ConvoMessageId,
+		Path:                res.Path,
+		Content:             res.Content,
+		AnyFailed:           res.AnyFailed,
+		AppliedAt:           res.AppliedAt,
+		RejectedAt:          res.RejectedAt,
+		Replacements:        res.Replacements,
+		CreatedAt:           res.CreatedAt,
+		UpdatedAt:           res.UpdatedAt,
 	}
 }

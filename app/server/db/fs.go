@@ -64,8 +64,12 @@ func DeletePlanDir(orgId, planId string) error {
 	return nil
 }
 
+func getOrgDir(orgId string) string {
+	return filepath.Join(BaseDir, "orgs", orgId)
+}
+
 func getPlanDir(orgId, planId string) string {
-	return filepath.Join(BaseDir, "orgs", orgId, "plans", planId)
+	return filepath.Join(getOrgDir(orgId), "plans", planId)
 }
 
 func getPlanContextDir(orgId, planId string) string {

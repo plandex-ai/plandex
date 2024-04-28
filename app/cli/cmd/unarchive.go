@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 	"plandex/api"
 	"plandex/auth"
 	"plandex/lib"
@@ -11,12 +10,13 @@ import (
 	"strings"
 
 	"github.com/fatih/color"
+	"github.com/plandex/plandex/shared"
 	"github.com/spf13/cobra"
 )
 
 var unarchiveCmd = &cobra.Command{
 	Use:     "unarchive [name-or-index]",
-	Aliases: []string{"uar"},
+	Aliases: []string{"unarc"},
 	Short:   "Unarchive a plan",
 	Args:    cobra.MaximumNArgs(1),
 	Run:     unarchive,
@@ -37,7 +37,7 @@ func unarchive(cmd *cobra.Command, args []string) {
 
 	var plan *shared.Plan
 
-	term.StartSpinner("Loading archived plans")
+	term.StartSpinner("")
 	plans, apiErr := api.Client.ListArchivedPlans([]string{lib.CurrentProjectId})
 	term.StopSpinner()
 
@@ -46,7 +46,7 @@ func unarchive(cmd *cobra.Command, args []string) {
 	}
 
 	if len(plans) == 0 {
-		fmt.Println("🤷‍♂️ No archived plans available to unarchive")
+		fmt.Println("🤷‍♂️ No archived plans")
 		return
 	}
 
@@ -56,7 +56,7 @@ func unarchive(cmd *cobra.Command, args []string) {
 			opts[i] = p.Name
 		}
 
-		selected, err := term.SelectFromList("Select a plan to unarchive", opts)
+		selected, err := term.SelectFromList("Select a plan:", opts)
 		if err != nil {
 			term.OutputErrorAndExit("Error selecting plan: %v", err)
 		}
@@ -90,5 +90,8 @@ func unarchive(cmd *cobra.Command, args []string) {
 		term.OutputErrorAndExit("Error unarchiving plan: %v", err)
 	}
 
-	fmt.Printf("✅ Plan %s unarchived successfully\n", color.New(color.Bold).Sprint(plan.Name))
+	fmt.Printf("✅ Plan %s unarchived\n", color.New(color.Bold, term.ColorHiGreen).Sprint(plan.Name))
+
+	fmt.Println()
+	term.PrintCmds("", "plans", "current")
 }

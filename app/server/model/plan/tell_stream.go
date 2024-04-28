@@ -17,7 +17,7 @@ import (
 const MaxAutoContinueIterations = 50
 
 type activeTellStreamState struct {
-	client                *openai.Client
+	clients               map[string]*openai.Client
 	req                   *shared.TellPlanRequest
 	auth                  *types.ServerAuth
 	currentOrgId          string
@@ -31,6 +31,8 @@ type activeTellStreamState struct {
 	missingFileResponse   shared.RespondMissingFileChoice
 	summaries             []*db.ConvoSummary
 	summarizedToMessageId string
+	latestSummaryTokens   int
+	userPrompt            string
 	promptMessage         *openai.ChatCompletionMessage
 	replyParser           *types.ReplyParser
 	replyNumTokens        int
@@ -42,7 +44,7 @@ type activeTellStreamState struct {
 func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionStream) {
 	defer stream.Close()
 
-	client := state.client
+	clients := state.clients
 	auth := state.auth
 	req := state.req
 	plan := state.plan
@@ -133,17 +135,20 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 				}
 				// log.Println("summarize convo:", spew.Sdump(convo))
 
-				if len(convo) > 0 {
-					// summarize in the background
-					go summarizeConvo(client, settings.ModelSet.PlanSummary, summarizeConvoParams{
-						planId:        planId,
-						branch:        branch,
-						convo:         convo,
-						summaries:     summaries,
-						promptMessage: promptMessage,
-						currentOrgId:  currentOrgId,
-					}, active.SummaryCtx)
-				}
+				log.Println("summarize convo")
+				envVar := settings.ModelPack.PlanSummary.BaseModelConfig.ApiKeyEnvVar
+				client := clients[envVar]
+
+				// summarize in the background
+				go summarizeConvo(client, settings.ModelPack.PlanSummary, summarizeConvoParams{
+					planId:       planId,
+					branch:       branch,
+					convo:        convo,
+					summaries:    summaries,
+					userPrompt:   state.userPrompt,
+					currentOrgId: currentOrgId,
+					currentReply: active.CurrentReplyContent,
+				}, active.SummaryCtx)
 
 				log.Println("Locking repo to store assistant reply and description")
 
@@ -221,7 +226,11 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 							}
 						} else {
 							log.Println("Generating plan description")
-							description, err = genPlanDescription(client, settings.ModelSet.CommitMsg, planId, branch, active.Ctx)
+
+							envVar := settings.ModelPack.CommitMsg.BaseModelConfig.ApiKeyEnvVar
+							client := clients[envVar]
+
+							description, err = genPlanDescription(client, settings.ModelPack.CommitMsg, planId, branch, active.Ctx)
 							if err != nil {
 								state.onError(fmt.Errorf("failed to generate plan description: %v", err), true, assistantMsg.Id, convoCommitMsg)
 								return
@@ -259,7 +268,10 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 							prompt = promptMessage.Content
 						}
 
-						shouldContinue, err = ExecStatusShouldContinue(client, settings.ModelSet.ExecStatus, prompt, assistantMsg.Message, active.Ctx)
+						envVar := state.settings.ModelPack.ExecStatus.BaseModelConfig.ApiKeyEnvVar
+						client := clients[envVar]
+
+						shouldContinue, err = ExecStatusShouldContinue(client, settings.ModelPack.ExecStatus, prompt, assistantMsg.Message, active.Ctx)
 						if err != nil {
 							state.onError(fmt.Errorf("failed to get exec status: %v", err), false, assistantMsg.Id, convoCommitMsg)
 							errCh <- err
@@ -309,7 +321,7 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 				if req.AutoContinue && shouldContinue && iteration < MaxAutoContinueIterations {
 					log.Println("Auto continue plan")
 					// continue plan
-					execTellPlan(client, plan, branch, auth, req, iteration+1, "", false)
+					execTellPlan(clients, plan, branch, auth, req, iteration+1, "", false)
 				} else {
 					var buildFinished bool
 					UpdateActivePlan(planId, branch, func(ap *types.ActivePlan) {
@@ -454,7 +466,7 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 
 				// continue plan
 				execTellPlan(
-					client,
+					clients,
 					plan,
 					branch,
 					auth,
@@ -486,7 +498,7 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 					if req.BuildMode == shared.BuildModeAuto {
 						log.Printf("Queuing build for %s\n", file)
 						buildState := &activeBuildStreamState{
-							client:        client,
+							clients:       clients,
 							auth:          auth,
 							currentOrgId:  currentOrgId,
 							currentUserId: currentUserId,

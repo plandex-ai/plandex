@@ -2,11 +2,9 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 	"plandex/auth"
 	"plandex/lib"
 	"plandex/plan_exec"
-	"plandex/term"
 
 	"github.com/plandex/plandex/shared"
 	"github.com/spf13/cobra"
@@ -28,10 +26,6 @@ func init() {
 }
 
 func doContinue(cmd *cobra.Command, args []string) {
-	if os.Getenv("OPENAI_API_KEY") == "" {
-		term.OutputNoApiKeyMsgAndExit()
-	}
-
 	auth.MustResolveAuthWithOrg()
 	lib.MustResolveProject()
 
@@ -40,9 +34,12 @@ func doContinue(cmd *cobra.Command, args []string) {
 		return
 	}
 
+	apiKeys := lib.MustVerifyApiKeys()
+
 	plan_exec.TellPlan(plan_exec.ExecParams{
 		CurrentPlanId: lib.CurrentPlanId,
 		CurrentBranch: lib.CurrentBranch,
+		ApiKeys:       apiKeys,
 		CheckOutdatedContext: func(maybeContexts []*shared.Context) (bool, bool) {
 			return lib.MustCheckOutdatedContext(false, maybeContexts)
 		},

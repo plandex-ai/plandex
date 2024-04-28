@@ -2,72 +2,76 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 	"plandex/api"
+	"plandex/auth"
 	"plandex/term"
 	"strconv"
 
 	"github.com/fatih/color"
+	"github.com/olekukonko/tablewriter"
 	"github.com/plandex/plandex/shared"
 	"github.com/spf13/cobra"
 )
 
-var modelSetsCmd = &cobra.Command{
+var customModelPacksOnly bool
+
+var modelPacksCmd = &cobra.Command{
 	Use:   "model-packs",
-	Short: "Manage model packs",
-}
-
-var listModelSetsCmd = &cobra.Command{
-	Use:   "list",
 	Short: "List all model packs",
-	Run:   listModelSets,
+	Run:   listModelPacks,
 }
 
-var createModelSetCmd = &cobra.Command{
+var createModelPackCmd = &cobra.Command{
 	Use:   "create",
 	Short: "Create a model pack",
-	Run:   createModelSet,
+	Run:   createModelPack,
+}
+
+var deleteModelPackCmd = &cobra.Command{
+	Use:     "delete [name-or-index]",
+	Aliases: []string{"rm"},
+	Short:   "Delete a model pack by name or index",
+	Args:    cobra.MaximumNArgs(1),
+	Run:     deleteModelPack,
 }
 
 func init() {
-	RootCmd.AddCommand(modelSetsCmd)
-	modelSetsCmd.AddCommand(listModelSetsCmd)
-	modelSetsCmd.AddCommand(createModelSetCmd)
-	modelSetsCmd.AddCommand(deleteModelSetCmd)
+	RootCmd.AddCommand(modelPacksCmd)
+	modelPacksCmd.AddCommand(createModelPackCmd)
+	modelPacksCmd.AddCommand(deleteModelPackCmd)
+
+	modelPacksCmd.Flags().BoolVarP(&customModelPacksOnly, "custom", "c", false, "Only show custom model packs")
 }
 
-var deleteModelSetCmd = &cobra.Command{
-	Use:   "delete [name-or-index]",
-	Short: "Delete a model set by name or index",
-	Args:  cobra.MaximumNArgs(1),
-	Run:   deleteModelSet,
-}
+func deleteModelPack(cmd *cobra.Command, args []string) {
+	auth.MustResolveAuthWithOrg()
 
-func deleteModelSet(cmd *cobra.Command, args []string) {
 	term.StartSpinner("")
-	modelSets, err := api.Client.ListModelSets()
+	modelPacks, err := api.Client.ListModelPacks()
 	term.StopSpinner()
 
 	if err != nil {
-		term.OutputErrorAndExit("Error fetching model sets: %v", err)
+		term.OutputErrorAndExit("Error fetching model packs: %v", err)
 		return
 	}
 
-	if len(modelSets) == 0 {
-		fmt.Println("No model sets available to delete.")
+	if len(modelPacks) == 0 {
+		fmt.Println("🤷‍♂️ No custom model packs")
 		return
 	}
 
-	var setToDelete *shared.ModelSet
+	var setToDelete *shared.ModelPack
 
 	if len(args) == 1 {
 		input := args[0]
 		// Try to parse input as index
 		index, err := strconv.Atoi(input)
-		if err == nil && index > 0 && index <= len(modelSets) {
-			setToDelete = modelSets[index-1]
+		if err == nil && index > 0 && index <= len(modelPacks) {
+			setToDelete = modelPacks[index-1]
 		} else {
 			// Search by name
-			for _, s := range modelSets {
+			for _, s := range modelPacks {
 				if s.Name == input {
 					setToDelete = s
 					break
@@ -77,155 +81,116 @@ func deleteModelSet(cmd *cobra.Command, args []string) {
 	}
 
 	if setToDelete == nil {
-		fmt.Println("Select a model set to delete:")
-		for i, set := range modelSets {
-			fmt.Printf("%d: %s\n", i+1, set.Name)
+		opts := make([]string, len(modelPacks))
+		for i, mp := range modelPacks {
+			opts[i] = mp.Name
 		}
+
+		selected, err := term.SelectFromList("Select a custom model pack:", opts)
+
+		if err != nil {
+			term.OutputErrorAndExit("Error selecting model pack: %v", err)
+		}
+
 		var selectedIndex int
-		fmt.Scanln(&selectedIndex)
-		if selectedIndex < 1 || selectedIndex > len(modelSets) {
-			fmt.Println("Invalid selection.")
-			return
+		for i, opt := range opts {
+			if opt == selected {
+				selectedIndex = i
+				break
+			}
 		}
-		setToDelete = modelSets[selectedIndex-1]
+
+		setToDelete = modelPacks[selectedIndex]
 	}
 
 	term.StartSpinner("")
-	err = api.Client.DeleteModelSet(setToDelete.Id)
+	err = api.Client.DeleteModelPack(setToDelete.Id)
 	term.StopSpinner()
 
 	if err != nil {
-		term.OutputErrorAndExit("Error deleting model set: %v", err)
+		term.OutputErrorAndExit("Error deleting model pack: %v", err)
 		return
 	}
 
-	fmt.Printf("Model set '%s' deleted successfully.\n", setToDelete.Name)
+	fmt.Printf("✅ Deleted model pack %s\n", color.New(color.Bold, term.ColorHiCyan).Sprint(setToDelete.Name))
+
+	fmt.Println()
+
+	term.PrintCmds("", "model-packs", "model-packs --custom", "model-packs create")
 }
 
-func listModelSets(cmd *cobra.Command, args []string) {
-	term.StartSpinner("Fetching model sets...")
-	builtInModelSets := shared.BuiltInModelSets // Assuming this is already defined in the shared package
-	customModelSets, err := api.Client.ListModelSets()
+func listModelPacks(cmd *cobra.Command, args []string) {
+	auth.MustResolveAuthWithOrg()
+
+	term.StartSpinner("")
+	builtInModelPacks := shared.BuiltInModelPacks
+	customModelPacks, err := api.Client.ListModelPacks()
 	term.StopSpinner()
 
 	if err != nil {
-		term.OutputErrorAndExit("Error fetching model sets: %v", err)
+		term.OutputErrorAndExit("Error fetching model packs: %v", err)
 		return
 	}
 
-	fmt.Println("Available Model Sets:")
-	table := tablewriter.NewWriter(os.Stdout)
-	table.SetHeader([]string{"Name", "Description", "Type"})
-
-	for _, set := range builtInModelSets {
-		table.Append([]string{set.Name, set.Description, "Built-in"})
+	if !customModelPacksOnly {
+		color.New(color.Bold, term.ColorHiCyan).Println("🏠 Built-in Model Packs")
+		table := tablewriter.NewWriter(os.Stdout)
+		table.SetAutoWrapText(true)
+		table.SetRowLine(true)
+		table.SetHeader([]string{"Name", "Description"})
+		for _, set := range builtInModelPacks {
+			table.Append([]string{set.Name, set.Description})
+		}
+		table.Render()
+		fmt.Println()
 	}
 
-	for _, set := range customModelSets {
-		table.Append([]string{set.Name, set.Description, "Custom"})
+	if len(customModelPacks) > 0 {
+		color.New(color.Bold, term.ColorHiCyan).Println("🛠️  Custom Model Packs")
+		table := tablewriter.NewWriter(os.Stdout)
+		table.SetAutoWrapText(true)
+		table.SetRowLine(true)
+		table.SetHeader([]string{"#", "Name", "Description"})
+		for i, set := range customModelPacks {
+			table.Append([]string{fmt.Sprintf("%d", i+1), set.Name, set.Description})
+		}
+		table.Render()
+
+		fmt.Println()
+	} else if customModelPacksOnly {
+		fmt.Println("🤷‍♂️ No custom model packs")
+		fmt.Println()
 	}
 
-	table.Render()
+	if customModelPacksOnly && len(customModelPacks) > 0 {
+		term.PrintCmds("", "model-packs create", "model-packs delete")
+	} else if len(customModelPacks) > 0 {
+		term.PrintCmds("", "model-packs --custom", "model-packs create", "model-packs delete")
+	} else {
+		term.PrintCmds("", "model-packs create")
+	}
+
 }
 
-func createModelSet(cmd *cobra.Command, args []string) {
-	set := &shared.ModelSet{}
+func createModelPack(cmd *cobra.Command, args []string) {
+	auth.MustResolveAuthWithOrg()
 
-	name, err := term.GetUserStringInput("Enter model set name:")
+	mp := &shared.ModelPack{}
+
+	name, err := term.GetUserStringInput("Enter model pack name:")
 	if err != nil {
-		term.OutputErrorAndExit("Error reading model set name: %v", err)
+		term.OutputErrorAndExit("Error reading model pack name: %v", err)
 		return
 	}
-	set.Name = name
+	mp.Name = name
 
 	description, err := term.GetUserStringInput("Enter description:")
 	if err != nil {
 		term.OutputErrorAndExit("Error reading description: %v", err)
 		return
 	}
-	set.Description = description
+	mp.Description = description
 
-	// Selecting models for each role
-	set.Planner = getPlannerRoleConfig()
-	set.PlanSummary = getModelRoleConfig(shared.ModelRolePlanSummary)
-	set.Builder = getModelRoleConfig(shared.ModelRoleBuilder)
-	set.Namer = getModelRoleConfig(shared.ModelRoleName)
-	set.CommitMsg = getModelRoleConfig(shared.ModelRoleCommitMsg)
-	set.ExecStatus = getModelRoleConfig(shared.ModelRoleExecStatus)
-
-	term.StartSpinner("")
-	apiErr := api.Client.CreateModelSet(set)
-	term.StopSpinner()
-
-	if apiErr != nil {
-		term.OutputErrorAndExit("Error creating model set: %v", apiErr.Msg)
-		return
-	}
-
-	fmt.Println("✅ Created model pack", color.New(color.Bold, term.ColorHiCyan).Sprint())
-}
-
-func getModelRoleConfig(modelRole shared.ModelRole) shared.ModelRoleConfig {
-	role := string(modelRole)
-
-	baseModelConfig := selectModelForRole(modelRole)
-
-	temperatureStr, err := term.GetUserStringInput("Enter the temperature for " + role + ":")
-	if err != nil {
-		term.OutputErrorAndExit("Error reading temperature: %v", err)
-	}
-	temperature, err := strconv.ParseFloat(temperatureStr, 32)
-	if err != nil {
-		term.OutputErrorAndExit("Invalid number for temperature: %v", err)
-	}
-
-	topPStr, err := term.GetUserStringInput("Enter the top P for " + role + ":")
-	if err != nil {
-		term.OutputErrorAndExit("Error reading top P: %v", err)
-	}
-	topP, err := strconv.ParseFloat(topPStr, 32)
-	if err != nil {
-		term.OutputErrorAndExit("Invalid number for top P: %v", err)
-	}
-
-	return shared.ModelRoleConfig{
-		BaseModelConfig: baseModelConfig,
-		Temperature:     float32(temperature),
-		TopP:            float32(topP),
-	}
-}
-
-func getPlannerRoleConfig() shared.PlannerRoleConfig {
-	modelConfig := getModelRoleConfig(shared.ModelRolePlanner)
-
-	maxConvoTokensStr, err := term.GetUserStringInput("Max Convo Tokens:")
-	if err != nil {
-		term.OutputErrorAndExit("Error reading max-convo-tokens: %v", err)
-	}
-	maxConvoTokens, err := strconv.Atoi(maxConvoTokensStr)
-	if err != nil {
-		term.OutputErrorAndExit("Invalid number for max-convo-tokens: %v", err)
-	}
-
-	reservedOutputTokensStr, err := term.GetUserStringInput("Reserved Output Tokens:")
-	if err != nil {
-		term.OutputErrorAndExit("Error reading reserved-output-tokens: %v", err)
-	}
-	reservedOutputTokens, err := strconv.Atoi(reservedOutputTokensStr)
-	if err != nil {
-		term.OutputErrorAndExit("Invalid number for reserved-output-tokens: %v", err)
-	}
-
-	return shared.PlannerRoleConfig{
-		ModelRoleConfig: modelConfig,
-		PlannerModelConfig: shared.PlannerModelConfig{
-			MaxConvoTokens:       maxConvoTokens,
-			ReservedOutputTokens: reservedOutputTokens,
-		},
-	}
-}
-
-func selectModelForRole(role shared.ModelRole) shared.BaseModelConfig {
 	term.StartSpinner("")
 	customModels, apiErr := api.Client.ListCustomModels()
 	term.StopSpinner()
@@ -234,24 +199,201 @@ func selectModelForRole(role shared.ModelRole) shared.BaseModelConfig {
 		term.OutputErrorAndExit("Error fetching models: %v", apiErr)
 	}
 
-	opts := make([]string, len(customModels))
-	for i, model := range customModels {
-		opts[i] = fmt.Sprintf("%s (%s)", model.ModelName, model.Provider)
+	// Selecting models for each role
+	mp.Planner = getPlannerRoleConfig(customModels)
+	mp.PlanSummary = getModelRoleConfig(customModels, shared.ModelRolePlanSummary)
+	mp.Builder = getModelRoleConfig(customModels, shared.ModelRoleBuilder)
+	mp.Namer = getModelRoleConfig(customModels, shared.ModelRoleName)
+	mp.CommitMsg = getModelRoleConfig(customModels, shared.ModelRoleCommitMsg)
+	mp.ExecStatus = getModelRoleConfig(customModels, shared.ModelRoleExecStatus)
+
+	term.StartSpinner("")
+	apiErr = api.Client.CreateModelPack(mp)
+	term.StopSpinner()
+
+	if apiErr != nil {
+		term.OutputErrorAndExit("Error creating model pack: %v", apiErr.Msg)
+		return
 	}
 
-	selected, err := term.SelectFromList(fmt.Sprintf("Select a model for the %s role:", role), opts)
+	fmt.Println("✅ Created model pack", color.New(color.Bold, term.ColorHiCyan).Sprint(mp.Name))
+
+	fmt.Println()
+
+	term.PrintCmds("", "model-packs", "model-packs --custom", "model-packs delete")
+}
+
+func getModelRoleConfig(customModels []*shared.AvailableModel, modelRole shared.ModelRole) shared.ModelRoleConfig {
+	_, modelConfig := getModelWithRoleConfig(customModels, modelRole)
+	return modelConfig
+}
+
+func getModelWithRoleConfig(customModels []*shared.AvailableModel, modelRole shared.ModelRole) (*shared.AvailableModel, shared.ModelRoleConfig) {
+	role := string(modelRole)
+
+	model := getModelForRole(customModels, modelRole)
+
+	temperatureStr, err := term.GetUserStringInputWithDefault("Temperature for "+role+":", fmt.Sprintf("%.1f", shared.DefaultConfigByRole[modelRole].Temperature))
 	if err != nil {
-		term.OutputErrorAndExit("Error selecting model: %v", err)
+		term.OutputErrorAndExit("Error reading temperature: %v", err)
+	}
+	temperature, err := strconv.ParseFloat(temperatureStr, 32)
+	if err != nil {
+		term.OutputErrorAndExit("Invalid number for temperature: %v", err)
 	}
 
-	var idx int
-	for i, opt := range opts {
-		if opt == selected {
-			idx = i
-			break
+	topPStr, err := term.GetUserStringInputWithDefault("Top P for "+role+":", fmt.Sprintf("%.1f", shared.DefaultConfigByRole[modelRole].TopP))
+	if err != nil {
+		term.OutputErrorAndExit("Error reading top P: %v", err)
+	}
+	topP, err := strconv.ParseFloat(topPStr, 32)
+	if err != nil {
+		term.OutputErrorAndExit("Invalid number for top P: %v", err)
+	}
+
+	return model, shared.ModelRoleConfig{
+		Role:            modelRole,
+		BaseModelConfig: model.BaseModelConfig,
+		Temperature:     float32(temperature),
+		TopP:            float32(topP),
+	}
+}
+
+func getPlannerRoleConfig(customModels []*shared.AvailableModel) shared.PlannerRoleConfig {
+	model, modelConfig := getModelWithRoleConfig(customModels, shared.ModelRolePlanner)
+
+	return shared.PlannerRoleConfig{
+		ModelRoleConfig: modelConfig,
+		PlannerModelConfig: shared.PlannerModelConfig{
+			MaxConvoTokens:       model.DefaultMaxConvoTokens,
+			ReservedOutputTokens: model.DefaultReservedOutputTokens,
+		},
+	}
+}
+
+func getModelForRole(customModels []*shared.AvailableModel, role shared.ModelRole) *shared.AvailableModel {
+	color.New(color.Bold).Printf("Select a model for the %s role 👇\n", role)
+	return selectModelForRole(customModels, role, false)
+}
+
+func selectModelForRole(customModels []*shared.AvailableModel, role shared.ModelRole, includeProviderGoBack bool) *shared.AvailableModel {
+	var providers []string
+	addedProviders := map[string]bool{}
+
+	builtInModels := shared.FilterCompatibleModels(shared.AvailableModels, role)
+
+	for _, m := range builtInModels {
+		var p string
+		if m.Provider == shared.ModelProviderCustom {
+			p = *m.CustomProvider
+		} else {
+			p = string(m.Provider)
+		}
+
+		if !addedProviders[p] {
+			providers = append(providers, p)
+			addedProviders[p] = true
 		}
 	}
 
-	return customModels[idx].BaseModelConfig
-}
+	customModels = shared.FilterCompatibleModels(customModels, role)
 
+	for _, m := range customModels {
+		var p string
+		if m.Provider == shared.ModelProviderCustom {
+			p = *m.CustomProvider
+		} else {
+			p = string(m.Provider)
+		}
+
+		if !addedProviders[p] {
+			providers = append(providers, p)
+			addedProviders[p] = true
+		}
+	}
+
+	for {
+		var opts []string
+		opts = append(opts, providers...)
+		if includeProviderGoBack {
+			opts = append(opts, goBack)
+		}
+		provider, err := term.SelectFromList("Select a provider:", opts)
+		if err != nil {
+			if err.Error() == "interrupt" {
+				return nil
+			}
+
+			term.OutputErrorAndExit("Error selecting provider: %v", err)
+			return nil
+		}
+
+		if provider == goBack {
+			break
+		}
+
+		var selectableModels []*shared.AvailableModel
+		opts = []string{}
+
+		for _, m := range shared.AvailableModels {
+			var p string
+			if m.Provider == shared.ModelProviderCustom {
+				p = *m.CustomProvider
+			} else {
+				p = string(m.Provider)
+			}
+
+			if p == provider {
+				label := fmt.Sprintf("%s → %s | max %d 🪙", m.Provider, m.ModelName, m.MaxTokens)
+				opts = append(opts, label)
+				selectableModels = append(selectableModels, m)
+			}
+		}
+
+		for _, m := range customModels {
+			var p string
+			if m.Provider == shared.ModelProviderCustom {
+				p = *m.CustomProvider
+			} else {
+				p = string(m.Provider)
+			}
+
+			if p == provider {
+				label := fmt.Sprintf("%s → %s | max %d 🪙", p, m.ModelName, m.MaxTokens)
+				opts = append(opts, label)
+				selectableModels = append(selectableModels, m)
+			}
+		}
+
+		opts = append(opts, goBack)
+
+		selection, err := term.SelectFromList("Select a model:", opts)
+
+		if err != nil {
+			if err.Error() == "interrupt" {
+				return nil
+			}
+
+			term.OutputErrorAndExit("Error selecting model: %v", err)
+			return nil
+		}
+
+		if selection == goBack {
+			continue
+		}
+
+		var idx int
+		for i := range opts {
+			if opts[i] == selection {
+				idx = i
+				break
+			}
+		}
+
+		return selectableModels[idx]
+
+	}
+
+	return nil
+
+}

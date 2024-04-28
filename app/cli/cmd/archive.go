@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 	"plandex/api"
 	"plandex/auth"
 	"plandex/lib"
@@ -11,12 +10,13 @@ import (
 	"strings"
 
 	"github.com/fatih/color"
+	"github.com/plandex/plandex/shared"
 	"github.com/spf13/cobra"
 )
 
 var archiveCmd = &cobra.Command{
 	Use:     "archive [name-or-index]",
-	Aliases: []string{"ar"},
+	Aliases: []string{"arc"},
 	Short:   "Archive a plan",
 	Args:    cobra.MaximumNArgs(1),
 	Run:     archive,
@@ -37,7 +37,7 @@ func archive(cmd *cobra.Command, args []string) {
 
 	var plan *shared.Plan
 
-	term.StartSpinner("Loading plans")
+	term.StartSpinner("")
 	plans, apiErr := api.Client.ListPlans([]string{lib.CurrentProjectId})
 	term.StopSpinner()
 
@@ -90,5 +90,9 @@ func archive(cmd *cobra.Command, args []string) {
 		term.OutputErrorAndExit("Error archiving plan: %v", err)
 	}
 
-	fmt.Printf("✅ Plan %s archived successfully\n", color.New(color.Bold).Sprint(plan.Name))
+	fmt.Printf("✅ Plan %s archived\n", color.New(color.Bold, term.ColorHiYellow).Sprint(plan.Name))
+
+	fmt.Println()
+
+	term.PrintCmds("", "plans --archived", "unarchive")
 }

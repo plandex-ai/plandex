@@ -1,6 +1,7 @@
 package plan
 
 import (
+	"context"
 	"log"
 	"plandex-server/db"
 	"plandex-server/types"
@@ -18,8 +19,8 @@ func GetActivePlan(planId, branch string) *types.ActivePlan {
 	return activePlans.Get(strings.Join([]string{planId, branch}, "|"))
 }
 
-func CreateActivePlan(planId, branch, prompt string, buildOnly bool) *types.ActivePlan {
-	activePlan := types.NewActivePlan(planId, branch, prompt, buildOnly)
+func CreateActivePlan(orgId, userId, planId, branch, prompt string, buildOnly bool) *types.ActivePlan {
+	activePlan := types.NewActivePlan(orgId, userId, planId, branch, prompt, buildOnly)
 	key := strings.Join([]string{planId, branch}, "|")
 
 	activePlans.Set(key, activePlan)
@@ -35,7 +36,7 @@ func CreateActivePlan(planId, branch, prompt string, buildOnly bool) *types.Acti
 					log.Printf("Error setting plan %s status to stopped: %v\n", planId, err)
 				}
 
-				DeleteActivePlan(planId, branch)
+				DeleteActivePlan(orgId, userId, planId, branch)
 
 				return
 			case apiErr := <-activePlan.StreamDoneCh:
@@ -71,7 +72,7 @@ func CreateActivePlan(planId, branch, prompt string, buildOnly bool) *types.Acti
 				}
 
 				activePlan.CancelFn()
-				DeleteActivePlan(planId, branch)
+				DeleteActivePlan(orgId, userId, planId, branch)
 				return
 			}
 		}
@@ -80,7 +81,38 @@ func CreateActivePlan(planId, branch, prompt string, buildOnly bool) *types.Acti
 	return activePlan
 }
 
-func DeleteActivePlan(planId, branch string) {
+func DeleteActivePlan(orgId, userId, planId, branch string) {
+	ctx, cancelFn := context.WithCancel(context.Background())
+
+	repoLockId, err := db.LockRepo(
+		db.LockRepoParams{
+			UserId:   userId,
+			OrgId:    orgId,
+			PlanId:   planId,
+			Branch:   branch,
+			Scope:    db.LockScopeWrite,
+			Ctx:      ctx,
+			CancelFn: cancelFn,
+		},
+	)
+
+	if err != nil {
+		log.Printf("Error locking repo for plan %s: %v\n", planId, err)
+	} else {
+
+		defer func() {
+			err := db.UnlockRepo(repoLockId)
+			if err != nil {
+				log.Printf("Error unlocking repo for plan %s: %v\n", planId, err)
+			}
+		}()
+
+		err := db.GitClearUncommittedChanges(orgId, planId)
+		if err != nil {
+			log.Printf("Error clearing uncommitted changes for plan %s: %v\n", planId, err)
+		}
+	}
+
 	activePlans.Delete(strings.Join([]string{planId, branch}, "|"))
 }
 

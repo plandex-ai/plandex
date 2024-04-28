@@ -286,6 +286,11 @@ func (fileState *activeBuildStreamFileState) onFinishBuildFile(planRes *db.PlanF
 			log.Printf("File %s finished, but not all builds finished\n", filePath)
 		} else {
 			log.Printf("Processing next build for file %s\n", filePath)
+			activePlan := GetActivePlan(planId, branch)
+			if activePlan == nil {
+				log.Printf("Active plan not found for plan ID %s and branch %s\n", planId, branch)
+				return
+			}
 			queue := activePlan.BuildQueuesByPath[filePath]
 			var nextBuild *types.ActiveBuild
 			for _, build := range queue {
@@ -311,8 +316,14 @@ func (fileState *activeBuildStreamFileState) onBuildFileError(err error) {
 	filePath := fileState.filePath
 	build := fileState.build
 	activeBuild := fileState.activeBuild
+	currentOrgId := fileState.currentOrgId
 
 	activePlan := GetActivePlan(planId, branch)
+
+	if activePlan == nil {
+		log.Println("onBuildFileError - Active plan not found")
+		return
+	}
 
 	log.Printf("Error for file %s: %v\n", filePath, err)
 
@@ -336,5 +347,12 @@ func (fileState *activeBuildStreamFileState) onBuildFileError(err error) {
 	err = db.SetBuildError(build)
 	if err != nil {
 		log.Printf("Error setting build error: %v\n", err)
+	}
+
+	// rollback repo in case there are uncommitted builds
+	err = db.GitClearUncommittedChanges(currentOrgId, planId)
+
+	if err != nil {
+		log.Printf("Error clearing uncommitted changes: %v\n", err)
 	}
 }
