@@ -9,7 +9,12 @@ Here is a list of all the environment variables (and their defaults) that you ca
 OPENAI_API_BASE= # Your OpenAI server, such as http://localhost:1234/v1 Defaults to empty.
 OPENAI_API_KEY= # Your OpenAI key.
 
-# Plandex specific
+# optional - set api keys for any other providers you're using
+export OPENROUTER_API_KEY= # Your OpenRouter.ai API key.
+export TOGETHER_API_KEY = # Your Together.ai API key.
+# etc.
+
+# --- Plandex specific ---
 
 PLANDEX_DATA_DIR= # A directory to put plandex data files (cache etc.) to
 PLANDEX_ENV= # Set this to development in order to use custom API host. Defaults to empty.
