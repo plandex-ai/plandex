@@ -8,6 +8,7 @@ import (
 	"plandex-server/model/prompts"
 	"plandex-server/types"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/plandex/plandex/shared"
 	"github.com/sashabaranov/go-openai"
 )
@@ -160,7 +161,11 @@ func (buildState *activeBuildStreamState) execPlanBuild(activeBuild *types.Activ
 		return
 	}
 
-	fileState.buildFile()
+	if activeBuild.IsVerification {
+		fileState.verifyFileBuild()
+	} else {
+		fileState.buildFile()
+	}
 }
 
 func (fileState *activeBuildStreamFileState) buildFile() {
@@ -209,7 +214,7 @@ func (fileState *activeBuildStreamFileState) buildFile() {
 		// log.Println("\n\nCurrent state:\n", currentState, "\n\n")
 	}
 
-	fileState.currentState = currentState
+	fileState.preBuildState = currentState
 
 	if currentState == "" {
 		log.Printf("File %s not found in model context or current plan. Creating new file.\n", filePath)
@@ -234,6 +239,12 @@ func (fileState *activeBuildStreamFileState) buildFile() {
 			Path:           filePath,
 			Content:        activeBuild.FileContent,
 		}
+
+		fileState.updated = activeBuild.FileContent
+
+		log.Println("build exec - Plan file result:")
+		spew.Dump(planRes)
+
 		fileState.onFinishBuildFile(planRes)
 		return
 	} else {
@@ -260,7 +271,7 @@ func (fileState *activeBuildStreamFileState) buildFileLineNums() {
 	planId := fileState.plan.Id
 	branch := fileState.branch
 	config := fileState.settings.ModelPack.Builder
-	currentState := fileState.currentState
+	originalFile := fileState.preBuildState
 
 	activePlan := GetActivePlan(planId, branch)
 
@@ -274,7 +285,7 @@ func (fileState *activeBuildStreamFileState) buildFileLineNums() {
 
 	// log.Println("currentState:", currentState)
 
-	sysPrompt := prompts.GetBuildLineNumbersSysPrompt(filePath, currentState, activeBuild.FileDescription, activeBuild.FileContent)
+	sysPrompt := prompts.GetBuildLineNumbersSysPrompt(filePath, originalFile, activeBuild.FileDescription, activeBuild.FileContent)
 
 	fileMessages := []openai.ChatCompletionMessage{
 		{

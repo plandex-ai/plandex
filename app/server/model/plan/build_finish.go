@@ -202,63 +202,66 @@ func (fileState *activeBuildStreamFileState) onFinishBuildFile(planRes *db.PlanF
 
 	filePath := fileState.filePath
 
-	finished := false
+	buildFinished := false
 	log.Println("onFinishBuildFile: " + filePath)
 
-	repoLockId, err := db.LockRepo(
-		db.LockRepoParams{
-			OrgId:       currentOrgId,
-			UserId:      currentUserId,
-			PlanId:      planId,
-			Branch:      branch,
-			PlanBuildId: build.Id,
-			Scope:       db.LockScopeWrite,
-			Ctx:         activePlan.Ctx,
-			CancelFn:    activePlan.CancelFn,
-		},
-	)
-	if err != nil {
-		log.Printf("Error locking repo for build file: %v\n", err)
-		activePlan.StreamDoneCh <- &shared.ApiError{
-			Type:   shared.ApiErrorTypeOther,
-			Status: http.StatusInternalServerError,
-			Msg:    "Error locking repo for build file: " + err.Error(),
-		}
-		return
-	}
+	if planRes != nil {
 
-	err = func() error {
-		var err error
-		defer func() {
-			if err != nil {
-				log.Printf("Error: %v\n", err)
-				err = db.GitClearUncommittedChanges(currentOrgId, planId)
-				if err != nil {
-					log.Printf("Error clearing uncommitted changes: %v\n", err)
-				}
-			}
-
-			err := db.UnlockRepo(repoLockId)
-			if err != nil {
-				log.Printf("Error unlocking repo: %v\n", err)
-			}
-		}()
-
-		err = db.StorePlanResult(planRes)
+		repoLockId, err := db.LockRepo(
+			db.LockRepoParams{
+				OrgId:       currentOrgId,
+				UserId:      currentUserId,
+				PlanId:      planId,
+				Branch:      branch,
+				PlanBuildId: build.Id,
+				Scope:       db.LockScopeWrite,
+				Ctx:         activePlan.Ctx,
+				CancelFn:    activePlan.CancelFn,
+			},
+		)
 		if err != nil {
-			log.Printf("Error storing plan result: %v\n", err)
+			log.Printf("Error locking repo for build file: %v\n", err)
 			activePlan.StreamDoneCh <- &shared.ApiError{
 				Type:   shared.ApiErrorTypeOther,
 				Status: http.StatusInternalServerError,
-				Msg:    "Error storing plan result: " + err.Error(),
+				Msg:    "Error locking repo for build file: " + err.Error(),
 			}
-			return err
+			return
 		}
-		return nil
-	}()
 
-	if err != nil {
-		return
+		err = func() error {
+			var err error
+			defer func() {
+				if err != nil {
+					log.Printf("Error: %v\n", err)
+					err = db.GitClearUncommittedChanges(currentOrgId, planId)
+					if err != nil {
+						log.Printf("Error clearing uncommitted changes: %v\n", err)
+					}
+				}
+
+				err := db.UnlockRepo(repoLockId)
+				if err != nil {
+					log.Printf("Error unlocking repo: %v\n", err)
+				}
+			}()
+
+			err = db.StorePlanResult(planRes)
+			if err != nil {
+				log.Printf("Error storing plan result: %v\n", err)
+				activePlan.StreamDoneCh <- &shared.ApiError{
+					Type:   shared.ApiErrorTypeOther,
+					Status: http.StatusInternalServerError,
+					Msg:    "Error storing plan result: " + err.Error(),
+				}
+				return err
+			}
+			return nil
+		}()
+
+		if err != nil {
+			return
+		}
 	}
 
 	activeBuild.Success = true
@@ -266,18 +269,31 @@ func (fileState *activeBuildStreamFileState) onFinishBuildFile(planRes *db.PlanF
 	UpdateActivePlan(planId, branch, func(ap *types.ActivePlan) {
 		ap.BuiltFiles[filePath] = true
 		if ap.BuildFinished() {
-			finished = true
+			buildFinished = true
 		}
 	})
 
 	log.Printf("Finished building file %s\n", filePath)
 
-	if finished {
-		UpdateActivePlan(planId, branch, func(ap *types.ActivePlan) {
-			ap.IsBuildingByPath[filePath] = false
-		})
-		log.Println("Finished building plan, calling onFinishBuild")
-		fileState.onFinishBuild()
+	if buildFinished {
+		if activeBuild.IsVerification {
+			UpdateActivePlan(planId, branch, func(ap *types.ActivePlan) {
+				ap.IsBuildingByPath[filePath] = false
+			})
+			log.Println("Finished building plan, calling onFinishBuild")
+			fileState.onFinishBuild()
+		} else {
+			go fileState.execPlanBuild(&types.ActiveBuild{
+				ReplyId:               activeBuild.ReplyId,
+				FileDescription:       activeBuild.FileDescription,
+				FileContent:           activeBuild.FileContent,
+				Path:                  activeBuild.Path,
+				Idx:                   activeBuild.Idx,
+				IsVerification:        true,
+				ToVerifyPreBuildState: fileState.preBuildState,
+				ToVerifyUpdatedState:  fileState.updated,
+			})
+		}
 	} else {
 		if activePlan.PathFinished(filePath) {
 			UpdateActivePlan(planId, branch, func(ap *types.ActivePlan) {

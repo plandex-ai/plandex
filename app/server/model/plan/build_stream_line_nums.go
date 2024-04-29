@@ -23,7 +23,7 @@ func (fileState *activeBuildStreamFileState) listenStreamChangesWithLineNums(str
 	currentOrgId := fileState.currentOrgId
 	planId := fileState.plan.Id
 	branch := fileState.branch
-	currentState := fileState.currentState
+	preBuildState := fileState.preBuildState
 	activeBuild := fileState.activeBuild
 
 	activePlan := GetActivePlan(planId, branch)
@@ -136,14 +136,14 @@ func (fileState *activeBuildStreamFileState) listenStreamChangesWithLineNums(str
 					overlapStrategy = OverlapStrategySkip
 				}
 
-				planFileResult, _, allSucceeded, err := getPlanResult(
+				planFileResult, updatedFile, allSucceeded, err := getPlanResult(
 					planResultParams{
 						orgId:                       currentOrgId,
 						planId:                      planId,
 						planBuildId:                 build.Id,
 						convoMessageId:              build.ConvoMessageId,
 						filePath:                    filePath,
-						currentState:                currentState,
+						preBuildState:               preBuildState,
 						fileContent:                 activeBuild.FileContent,
 						streamedChangesWithLineNums: streamed.Changes,
 						overlapStrategy:             overlapStrategy,
@@ -179,29 +179,14 @@ func (fileState *activeBuildStreamFileState) listenStreamChangesWithLineNums(str
 					Type:      shared.StreamMessageBuildInfo,
 					BuildInfo: buildInfo,
 				})
+
+				fileState.updated = updatedFile
+
+				log.Println("build stream - Plan file result:")
+				log.Printf("updatedFile exists: %v\n", updatedFile != "")
+				log.Printf("toVerifyPlanFileResult exists: %v\n", planFileResult != nil)
+
 				fileState.onFinishBuildFile(planFileResult)
-
-				// The verification loop below works, but is too heavy on tokens and also seems to hit OpenAI rate limits on complex tasks
-				// Going back to a simple build for now
-				// Semaphores may help to throttle calls, but had trouble getting them to work
-
-				// hash := sha256.Sum256([]byte(updatedFile))
-				// sha := hex.EncodeToString(hash[:])
-
-				// log.Printf("listenStream - %s - updated content hash: %s\n", filePath, sha)
-
-				// fileState.updated = updatedFile
-				// fileState.initialPlanFileResult = planFileResult
-
-				// select {
-				// case <-activePlan.Ctx.Done():
-				// 	log.Println("listenStream - Context canceled. Exiting.")
-				// 	return
-				// case <-time.After(time.Duration(rand.Intn(1001)) * time.Millisecond):
-				// 	break
-				// }
-				// fileState.verifyFileBuild()
-
 				return
 			} else if len(delta.ToolCalls) == 0 {
 				log.Println("listenStream - Stream chunk missing function call.")

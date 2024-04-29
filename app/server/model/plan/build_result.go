@@ -24,7 +24,7 @@ type planResultParams struct {
 	planBuildId                 string
 	convoMessageId              string
 	filePath                    string
-	currentState                string
+	preBuildState               string
 	fileContent                 string
 	overlapStrategy             OverlapStrategy
 	streamedChangesWithLineNums []*shared.StreamedChangeWithLineNums
@@ -35,20 +35,20 @@ func getPlanResult(params planResultParams) (*db.PlanFileResult, string, bool, e
 	planId := params.planId
 	planBuildId := params.planBuildId
 	filePath := params.filePath
-	currentState := params.currentState
+	preBuildState := params.preBuildState
 	streamedChangesWithLineNums := params.streamedChangesWithLineNums
 	// fileContent := params.fileContent
 
-	currentState = shared.AddLineNums(currentState)
+	preBuildState = shared.AddLineNums(preBuildState)
 
-	currentStateLines := strings.Split(currentState, "\n")
+	preBuildStateLines := strings.Split(preBuildState, "\n")
 	// fileContentLines := strings.Split(fileContent, "\n")
 
 	// log.Printf("\n\ngetPlanResult - path: %s\n", filePath)
-	// log.Println("getPlanResult - currentState:")
-	// log.Println(currentState)
-	// log.Println("getPlanResult - currentStateLines:")
-	// log.Println(currentStateLines)
+	// log.Println("getPlanResult - preBuildState:")
+	// log.Println(preBuildState)
+	// log.Println("getPlanResult - preBuildStateLines:")
+	// log.Println(preBuildStateLines)
 	// log.Println("getPlanResult - fileContent:")
 	// log.Println(fileContent)
 	// log.Print("\n\n")
@@ -76,18 +76,18 @@ func getPlanResult(params planResultParams) (*db.PlanFileResult, string, bool, e
 			return nil, "", false, fmt.Errorf("error getting lines from streamedChange: %v", err)
 		}
 
-		if startLine > len(currentStateLines) {
-			log.Printf("Start line is greater than currentStateLines length: %d > %d\n", startLine, len(currentStateLines))
-			return nil, "", false, fmt.Errorf("start line is greater than currentStateLines length: %d > %d", startLine, len(currentStateLines))
+		if startLine > len(preBuildStateLines) {
+			log.Printf("Start line is greater than preBuildStateLines length: %d > %d\n", startLine, len(preBuildStateLines))
+			return nil, "", false, fmt.Errorf("start line is greater than preBuildStateLines length: %d > %d", startLine, len(preBuildStateLines))
 		}
 
 		if endLine < 1 {
 			log.Printf("End line is less than 1: %d\n", endLine)
 			return nil, "", false, fmt.Errorf("end line is less than 1: %d", endLine)
 		}
-		if endLine > len(currentStateLines) {
-			log.Printf("End line is greater than currentStateLines length: %d > %d\n", endLine, len(currentStateLines))
-			return nil, "", false, fmt.Errorf("end line is greater than currentStateLines length: %d > %d", endLine, len(currentStateLines))
+		if endLine > len(preBuildStateLines) {
+			log.Printf("End line is greater than preBuildStateLines length: %d > %d\n", endLine, len(preBuildStateLines))
+			return nil, "", false, fmt.Errorf("end line is greater than preBuildStateLines length: %d > %d", endLine, len(preBuildStateLines))
 		}
 
 		if startLine < highestEndLine {
@@ -115,9 +115,9 @@ func getPlanResult(params planResultParams) (*db.PlanFileResult, string, bool, e
 		}
 
 		if startLine == endLine {
-			old = currentStateLines[startLine-1]
+			old = preBuildStateLines[startLine-1]
 		} else {
-			old = strings.Join(currentStateLines[startLine-1:endLine], "\n")
+			old = strings.Join(preBuildStateLines[startLine-1:endLine], "\n")
 		}
 
 		// log.Printf("getPlanResult - old: %s\n", old)
@@ -132,18 +132,18 @@ func getPlanResult(params planResultParams) (*db.PlanFileResult, string, bool, e
 	}
 
 	sort.Slice(replacements, func(i, j int) bool {
-		iIdx := strings.Index(currentState, replacements[i].Old)
-		jIdx := strings.Index(currentState, replacements[j].Old)
+		iIdx := strings.Index(preBuildState, replacements[i].Old)
+		jIdx := strings.Index(preBuildState, replacements[j].Old)
 		return iIdx < jIdx
 	})
 
 	log.Println("Will apply replacements")
-	// log.Println("currentState:", currentState)
+	// log.Println("preBuildState:", preBuildState)
 
 	// log.Println("Replacements:")
 	// spew.Dump(replacements)
 
-	updated, allSucceeded := shared.ApplyReplacements(currentState, replacements, true)
+	updated, allSucceeded := shared.ApplyReplacements(preBuildState, replacements, true)
 
 	updated = shared.RemoveLineNums(updated)
 

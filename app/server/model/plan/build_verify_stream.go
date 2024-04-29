@@ -69,7 +69,10 @@ func (fileState *activeBuildStreamFileState) listenStreamVerifyOutput(stream *op
 					Type:      shared.StreamMessageBuildInfo,
 					BuildInfo: buildInfo,
 				})
-				fileState.onFinishBuildFile(fileState.initialPlanFileResult)
+
+				log.Println("build verify - error - Plan file result:")
+
+				fileState.onFinishBuildFile(nil)
 				return
 			}
 
@@ -83,7 +86,8 @@ func (fileState *activeBuildStreamFileState) listenStreamVerifyOutput(stream *op
 					Type:      shared.StreamMessageBuildInfo,
 					BuildInfo: buildInfo,
 				})
-				fileState.onFinishBuildFile(fileState.initialPlanFileResult)
+				log.Println("build verify - no choices - Plan file result:")
+				fileState.onFinishBuildFile(nil)
 				return
 			}
 
@@ -108,7 +112,8 @@ func (fileState *activeBuildStreamFileState) listenStreamVerifyOutput(stream *op
 						Type:      shared.StreamMessageBuildInfo,
 						BuildInfo: buildInfo,
 					})
-					fileState.onFinishBuildFile(fileState.initialPlanFileResult)
+					log.Println("build verify - invalid json - Plan file result:")
+					fileState.onFinishBuildFile(nil)
 					return
 				}
 
@@ -145,7 +150,8 @@ func (fileState *activeBuildStreamFileState) listenStreamVerifyOutput(stream *op
 						Type:      shared.StreamMessageBuildInfo,
 						BuildInfo: buildInfo,
 					})
-					fileState.onFinishBuildFile(fileState.initialPlanFileResult)
+					log.Println("build verify - streamed.IsCorrect - Plan file result:")
+					fileState.onFinishBuildFile(nil)
 				} else {
 					log.Printf("listenStreamVerifyOutput - File %s: Streamed verify result is incorrect: %s\n", filePath, streamed.Reasoning)
 
@@ -174,7 +180,8 @@ func (fileState *activeBuildStreamFileState) listenStreamVerifyOutput(stream *op
 						Type:      shared.StreamMessageBuildInfo,
 						BuildInfo: buildInfo,
 					})
-					fileState.onFinishBuildFile(fileState.initialPlanFileResult)
+					log.Println("build verify - retry - Plan file result:")
+					fileState.onFinishBuildFile(nil)
 				} else {
 					fileState.verifyRetryOrError(fmt.Errorf("listenStreamVerifyOutput - stream chunk missing function call. Reason: %s, File: %s", choice.FinishReason, filePath))
 				}

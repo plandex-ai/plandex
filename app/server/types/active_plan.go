@@ -29,10 +29,13 @@ type ActiveBuild struct {
 	VerifyBufferTokens       int
 	// FullChangeBuffer         string
 	// FullChangeBufferTokens   int
-	FixBuffer       string
-	FixBufferTokens int
-	Success         bool
-	Error           error
+	FixBuffer             string
+	FixBufferTokens       int
+	Success               bool
+	Error                 error
+	IsVerification        bool
+	ToVerifyPreBuildState string
+	ToVerifyUpdatedState  string
 }
 
 type subscription struct {

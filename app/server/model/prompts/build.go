@@ -8,21 +8,21 @@ import (
 	"github.com/sashabaranov/go-openai/jsonschema"
 )
 
-func GetBuildLineNumbersSysPrompt(filePath, currentState, desc, changes string) string {
+func GetBuildLineNumbersSysPrompt(filePath, preBuildState, desc, changes string) string {
 	// hash := sha256.Sum256([]byte(currentState))
 	// sha := hex.EncodeToString(hash[:])
 
 	// log.Println("GetBuildLineNumbersSysPrompt currentState sha:", sha)
 
-	currentStateWithLineNums := shared.AddLineNums(currentState)
+	preBuildStateWithLineNums := shared.AddLineNums(preBuildState)
 
-	return getListChangesLineNumsPrompt() + "\n\n" + getBuildCurrentStatePrompt(filePath, currentStateWithLineNums) + "\n\n" + getBuildPromptWithLineNums(desc, changes)
+	return getListChangesLineNumsPrompt() + "\n\n" + getPreBuildStatePrompt(filePath, preBuildStateWithLineNums) + "\n\n" + getBuildPromptWithLineNums(desc, changes)
 }
 
 func GetBuildFixesLineNumbersSysPrompt(desc, changes, updated, reasoning string) string {
 	// hash := sha256.Sum256([]byte(updated))
 	// sha := hex.EncodeToString(hash[:])
-	// log.Println("GetBuildFixesLineNumbersSysPrompt currentState sha:", sha)
+	// log.Println("GetBuildFixesLineNumbersSysPrompt updated sha:", sha)
 
 	updatedWithLineNums := shared.AddLineNums(updated)
 
@@ -59,12 +59,12 @@ func getBuildPromptForFixesWithLineNums(desc, changes, updated, reasoning string
 	return s
 }
 
-func getBuildCurrentStatePrompt(filePath, currentState string) string {
-	if currentState == "" {
+func getPreBuildStatePrompt(filePath, preBuildState string) string {
+	if preBuildState == "" {
 		return ""
 	}
 
-	return fmt.Sprintf("**The current file is %s. Original state of the file:**\n```\n%s\n```", filePath, currentState) + "\n\n"
+	return fmt.Sprintf("**The current file is %s. Original state of the file:**\n```\n%s\n```", filePath, preBuildState) + "\n\n"
 }
 
 const replacementIntro = `
@@ -128,7 +128,9 @@ If the 'hasChange' property is false, the 'new' property must be an empty string
 `
 
 const lineNumsRulesPrompt = `
-You ABSOLUTELY MUST NOT generate overlapping changes. Group smaller changes together into larger changes where necessary to avoid overlap. Only generate multiple changes when you are ABSOLUTELY CERTAIN that they do not overlap--otherwise group them together into a single change. If changes are close to each other (within several lines), group them together into a single change. Lean towards grouping changes together and making fewer, larger changes rather than many small changes, unless the changes are completely independent of each other and not close to each other in the file. It's ok to have just one change if that's all that's needed.
+You ABSOLUTELY MUST NOT generate overlapping changes. Group smaller changes together into larger changes where necessary to avoid overlap. Only generate multiple changes when you are ABSOLUTELY CERTAIN that they do not overlap--otherwise group them together into a single change. If changes are close to each other (within several lines), group them together into a single change. You MUST group changes together and make fewer, larger changes rather than many small changes, unless the changes are completely independent of each other and not close to each other in the file. You MUST NEVER generate changes that are adjacent or close to adjacent. Adjacent or closely adjacent changes MUST ALWAYS be grouped into a single larger change.
+
+Furthermore, unless doing so would require a very large change because some changes are far apart in the file, it's ideal to call the 'listChangesWithLineNums' with just a SINGLE change.
 
 Changes must be ordered in the array according to the order they appear in the file. The 'startLineString' of each 'old' property must come after the 'endLineString' of the previous 'old' property. Changes MUST NOT overlap. If a change is dependent on another change or intersects with it, group those changes together into a single change.
 `
@@ -277,37 +279,63 @@ var ListReplacementsFn = openai.FunctionDefinition{
 	},
 }
 
-func GetVerifyPrompt(currentState, desc, changes string) string {
-	return `
-Based on an original file, an AI-generated plan, and an updated file, determine whether the proposed changes were applied correctly to the updated file. Is the syntax in the updated file correct? Were the changes applied correctly or was some code from the original file removed or overwritten that should not have been? Does the updated file as a whole make sense and was it updated consistently with the intention of the plan? Were all comments in the proposed changes that referenced the original code correctly handled in the updated file by including the exact code from the original file that the comment was referencing?
+func GetVerifyPrompt(preBuildState, updated, desc, changes string) string {
+	s := `
+Based on an original file (if one exists), an AI-generated plan, and an updated file, determine whether the proposed changes were applied correctly to the updated file. Is the syntax in the updated file correct? Were the changes applied correctly or was some code from the original file removed or overwritten that should not have been? Does the updated file as a whole make sense and was it updated consistently with the intention of the plan? Were all comments in the proposed changes that referenced the original code correctly handled in the updated file by including the exact code from the original file that the comment was referencing?
+
+If there is no original file, it means that a new file was created from scratch based on the AI-generated plan. In this case, the syntax in the new file must be valid and consistent with the intention of the plan. You must ensure there are no syntax errors or other clear mistakes in the new file.
 
 Call the 'verifyOutput' function with a valid JSON object that include the 'reasoning' and 'isCorrect' keys.
 
 'reasoning': Succinctly explain whether the proposed changes were or were not applied correctly and whether the syntax is valid. If the changes were not applied correctly or the syntax isn't valid, briefly explain what went wrong and what needs to be done to fix the errors. If the syntax isn't valid only because the syntax wasn't valid in the original file, explain that the syntax, though incorrect, is consistent with the original file and that the changes were applied correctly.
 
 'isCorrect': A boolean that indicates whether the proposed changes were applied correctly. If the proposed changes were applied correctly, set 'isCorrect' to true. If the proposed changes were not applied correctly, set 'isCorrect' to false.
+`
 
+	if preBuildState != "" {
+		s += `
 --
 
-**Original file:**
+## **Original file:**
 
-` + currentState + `
+` + preBuildState + `
 
 --
+`
+	}
 
-**Description of the proposed updates from AI-generated plan:**
+	s += `
+## **Description of the proposed updates from AI-generated plan:**
 
 ` + desc + `
 
 --
 
-**Proposed updates:**
+## **Proposed updates:**
 
 ` + changes + `
 
 --
+`
+
+	if preBuildState != "" {
+		s += `
+	
+## **Updated file:**
+
+`
+	} else {
+		s += `
+	## **New file:**
+
+	`
+	}
+
+	s += updated + `
 
 Now call the 'verifyOutput' function with a valid JSON object that includes the 'reasoning', and 'isCorrect' keys. You must always call 'verifyOutput' with a valid JSON object. Don't call any other function.`
+
+	return s
 }
 
 var VerifyOutputFn = openai.FunctionDefinition{

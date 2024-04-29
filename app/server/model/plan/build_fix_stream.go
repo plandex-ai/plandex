@@ -73,7 +73,8 @@ func (fileState *activeBuildStreamFileState) listenStreamFixChanges(stream *open
 					Type:      shared.StreamMessageBuildInfo,
 					BuildInfo: buildInfo,
 				})
-				fileState.onFinishBuildFile(fileState.initialPlanFileResult)
+				log.Println("Build fix stream - Plan file result:")
+				fileState.onFinishBuildFile(nil)
 				return
 			}
 
@@ -87,7 +88,8 @@ func (fileState *activeBuildStreamFileState) listenStreamFixChanges(stream *open
 					Type:      shared.StreamMessageBuildInfo,
 					BuildInfo: buildInfo,
 				})
-				fileState.onFinishBuildFile(fileState.initialPlanFileResult)
+				log.Println("Build fix stream - Plan file result:")
+				fileState.onFinishBuildFile(nil)
 				return
 			}
 
@@ -111,7 +113,8 @@ func (fileState *activeBuildStreamFileState) listenStreamFixChanges(stream *open
 						Type:      shared.StreamMessageBuildInfo,
 						BuildInfo: buildInfo,
 					})
-					fileState.onFinishBuildFile(fileState.initialPlanFileResult)
+					log.Println("Build fix stream - Plan file result:")
+					fileState.onFinishBuildFile(nil)
 
 					return
 				}
@@ -151,7 +154,8 @@ func (fileState *activeBuildStreamFileState) listenStreamFixChanges(stream *open
 						Type:      shared.StreamMessageBuildInfo,
 						BuildInfo: buildInfo,
 					})
-					fileState.onFinishBuildFile(fileState.initialPlanFileResult)
+					log.Println("Build fix stream - Plan file result:")
+					fileState.onFinishBuildFile(nil)
 					return
 				}
 			}
@@ -177,7 +181,7 @@ func (fileState *activeBuildStreamFileState) listenStreamFixChanges(stream *open
 						planBuildId:                 build.Id,
 						convoMessageId:              build.ConvoMessageId,
 						filePath:                    filePath,
-						currentState:                fileState.updated,
+						preBuildState:               fileState.updated,
 						fileContent:                 activeBuild.FileContent,
 						streamedChangesWithLineNums: streamed.Changes,
 						overlapStrategy:             overlapStrategy,
@@ -195,7 +199,8 @@ func (fileState *activeBuildStreamFileState) listenStreamFixChanges(stream *open
 						Type:      shared.StreamMessageBuildInfo,
 						BuildInfo: buildInfo,
 					})
-					fileState.onFinishBuildFile(fileState.initialPlanFileResult)
+					log.Println("Build fix stream - Plan file result:")
+					fileState.onFinishBuildFile(nil)
 					return
 				}
 
@@ -213,15 +218,8 @@ func (fileState *activeBuildStreamFileState) listenStreamFixChanges(stream *open
 
 				}
 
-				// merge replacements
-				var replacements []*shared.Replacement
-				replacements = append(replacements, fileState.initialPlanFileResult.Replacements...)
-				replacements = append(replacements, planFileResult.Replacements...)
-
-				planFileResult.Replacements = replacements
-
-				// log.Println("listenStreamFixChanges - Plan file result:")
-				// spew.Dump(planFileResult)
+				log.Println("listenStreamFixChanges - Plan file result:")
+				spew.Dump(planFileResult)
 
 				fileState.onFinishBuildFile(planFileResult)
 				return
@@ -237,7 +235,8 @@ func (fileState *activeBuildStreamFileState) listenStreamFixChanges(stream *open
 					Type:      shared.StreamMessageBuildInfo,
 					BuildInfo: buildInfo,
 				})
-				fileState.onFinishBuildFile(fileState.initialPlanFileResult)
+				log.Println("Build fix stream - Plan file result:")
+				fileState.onFinishBuildFile(nil)
 				return
 			}
 		}

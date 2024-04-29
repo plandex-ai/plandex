@@ -28,13 +28,12 @@ type activeBuildStreamFileState struct {
 	build              *db.PlanBuild
 	currentPlanState   *shared.CurrentPlanState
 	activeBuild        *types.ActiveBuild
-	currentState       string
+	preBuildState      string
 	lineNumsNumRetry   int
 	verifyFileNumRetry int
 	fixFileNumRetry    int
 	// fullChangesRetry            int
 	streamedChangesWithLineNums []*shared.StreamedChangeWithLineNums
 	updated                     string
-	initialPlanFileResult       *db.PlanFileResult
 	incorrectlyUpdatedReasoning string
 }
