@@ -1,3 +1,17 @@
+## Version 0.9.0
+- Support for custom models, model packs, and default models (see CLI 0.9.0 release notes for details).
+- Better accuracy for updates to existing files.
+- Plandex is less likely to screw up braces, parentheses, and other code structures.
+- Plandex is less likely to mistakenly remove code that it shouldn't.
+- Plandex is now much better at working through very long plans without skipping tasks, repeating tasks it's already done, or otherwise losing track of what it's doing.
+- Server-side support for `plandex diff` command to show pending plan changes in `git diff` format.
+- Server-side support for archiving and unarchiving plans.
+- Server-side support for `plandex summary` command.
+- Server-side support for `plandex rename` command.
+- Descriptive top-line for `plandex apply` commit messages instead of just "applied pending changes".
+- Better message in `plandex log` when a single piece of context is loaded or updated.
+- Fixes for some rare potential deadlocks and conflicts when building a file or stopping astream.
+
 ## Version 0.8.4
 - Add support for new OpenAI models: `gpt-4-turbo` and `gpt-4-turbo-2024-04-09`
 - Make `gpt-4-turbo` model the new default model for the planner, builder, and auto-continue roles -- in testing it seems to be better at reasoning and significantly less lazy than the previous default for these roles, `gpt-4-turbo-preview` -- any plan that has not previously had its model settings modified will now use `gpt-4-turbo` by default (those that have been modified will need to be updated manually) -- remember that you can always use `plandex set-model` to change models for your plans
