@@ -385,6 +385,10 @@ func updateModelSettings(args []string, originalSettings *shared.PlanSettings) *
 						}
 
 						selectedModel = selectModelForRole(customModels, role, true)
+
+						if selectedModel != nil {
+							break Outer
+						}
 					} else if selection == "Set temperature" {
 						propertyCompact = "temperature"
 						break Outer
