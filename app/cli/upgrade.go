@@ -135,6 +135,9 @@ func doUpgrade(version string) error {
 		if header.Typeflag == tar.TypeReg && (header.Name == "plandex" || header.Name == "plandex.exe") {
 			err = update.Apply(tarReader, update.Options{})
 			if err != nil {
+				if os.IsPermission(err) {
+					return fmt.Errorf("failed to apply update due to permission error, please try running again with 'sudo': %w", err)
+				}
 				return fmt.Errorf("failed to apply update: %w", err)
 			}
 			break
