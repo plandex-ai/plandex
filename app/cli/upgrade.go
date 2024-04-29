@@ -3,8 +3,10 @@ package main
 import (
 	"archive/tar"
 	"compress/gzip"
+	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"log"
 	"net/http"
 	"net/url"
@@ -135,7 +137,7 @@ func doUpgrade(version string) error {
 		if header.Typeflag == tar.TypeReg && (header.Name == "plandex" || header.Name == "plandex.exe") {
 			err = update.Apply(tarReader, update.Options{})
 			if err != nil {
-				if os.IsPermission(err) {
+				if errors.Is(err, fs.ErrPermission) {
 					return fmt.Errorf("failed to apply update due to permission error, please try running again with 'sudo': %w", err)
 				}
 				return fmt.Errorf("failed to apply update: %w", err)
