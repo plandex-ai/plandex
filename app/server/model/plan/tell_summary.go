@@ -295,8 +295,8 @@ func summarizeConvo(client *openai.Client, config shared.ModelRoleConfig, params
 			})
 		}
 
-		log.Println("Current reply content:")
-		log.Println(active.CurrentReplyContent)
+		// log.Println("Current reply content:")
+		// log.Println(active.CurrentReplyContent)
 
 		summaryMessages = append(summaryMessages, &openai.ChatCompletionMessage{
 			Role:    openai.ChatMessageRoleAssistant,
@@ -313,8 +313,8 @@ func summarizeConvo(client *openai.Client, config shared.ModelRoleConfig, params
 
 	log.Printf("Calling model for plan summary. Summarizing %d messages\n", len(summaryMessages))
 
-	log.Println("Summary messages:")
-	spew.Dump(summaryMessages)
+	// log.Println("Summary messages:")
+	// spew.Dump(summaryMessages)
 
 	summary, err := model.PlanSummary(client, config, model.PlanSummaryParams{
 		Conversation:                summaryMessages,
