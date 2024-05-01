@@ -103,6 +103,7 @@ func (m streamUIModel) doRenderBuild(outputStatic bool) string {
 	sort.Strings(filePaths)
 
 	var rows [][]string
+	rows = append(rows, []string{})
 	lineWidth := 0
 	lineNum := 0
 	rowIdx := 0
@@ -137,15 +138,12 @@ func (m streamUIModel) doRenderBuild(outputStatic bool) string {
 			lineWidth = 0
 			lineNum++
 			rowIdx = 0
+			rows = append(rows, []string{})
 		} else {
 			block = maybePrefix + block
 		}
 
 		defBlockWidth := lipgloss.Width(block)
-
-		if len(rows) <= lineNum {
-			rows = append(rows, []string{})
-		}
 
 		row := rows[lineNum]
 		row = append(row, block)
