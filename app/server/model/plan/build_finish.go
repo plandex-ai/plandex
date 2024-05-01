@@ -283,15 +283,17 @@ func (fileState *activeBuildStreamFileState) onFinishBuildFile(planRes *db.PlanF
 			log.Println("Finished building plan, calling onFinishBuild")
 			fileState.onFinishBuild()
 		} else {
+			log.Println("queuing verification build")
+			log.Println("preBuildState:\n", fileState.preBuildState)
+			log.Println("updated:\n", fileState.updated)
+
 			go fileState.execPlanBuild(&types.ActiveBuild{
-				ReplyId:               activeBuild.ReplyId,
-				FileDescription:       activeBuild.FileDescription,
-				FileContent:           activeBuild.FileContent,
-				Path:                  activeBuild.Path,
-				Idx:                   activeBuild.Idx,
-				IsVerification:        true,
-				ToVerifyPreBuildState: fileState.preBuildState,
-				ToVerifyUpdatedState:  fileState.updated,
+				ReplyId:         activeBuild.ReplyId,
+				FileDescription: activeBuild.FileDescription,
+				FileContent:     activeBuild.FileContent,
+				Path:            activeBuild.Path,
+				Idx:             activeBuild.Idx,
+				IsVerification:  true,
 			})
 		}
 	} else {

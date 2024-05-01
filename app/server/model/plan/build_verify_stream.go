@@ -166,6 +166,7 @@ func (fileState *activeBuildStreamFileState) listenStreamVerifyOutput(stream *op
 					}
 					fileState.fixFileLineNums()
 				}
+				return
 			} else if len(delta.ToolCalls) == 0 {
 				log.Println("listenStreamVerifyOutput - Stream chunk missing function call. Buffer:")
 				// log.Println(spew.Sdump(response))
