@@ -76,7 +76,7 @@ func checkForUpgrade() {
 			term.ResumeSpinner()
 			err := doUpgrade(latestVersion.String())
 			if err != nil {
-				log.Println("Upgrade failed:", err)
+				term.OutputErrorAndExit("Failed to upgrade: %v", err)
 				return
 			}
 			term.StopSpinner()
@@ -138,7 +138,7 @@ func doUpgrade(version string) error {
 			err = update.Apply(tarReader, update.Options{})
 			if err != nil {
 				if errors.Is(err, fs.ErrPermission) {
-					return fmt.Errorf("failed to apply update due to permission error, please try running again with 'sudo': %w", err)
+					return fmt.Errorf("failed to apply update due to permission error; please try running your command again with 'sudo': %w", err)
 				}
 				return fmt.Errorf("failed to apply update: %w", err)
 			}
@@ -152,7 +152,7 @@ func doUpgrade(version string) error {
 func restartPlandex() {
 	exe, err := os.Executable()
 	if err != nil {
-		log.Fatalf("Failed to determine executable path: %v", err)
+		term.OutputErrorAndExit("Failed to determine executable path: %v", err)
 	}
 
 	cmd := exec.Command(exe, os.Args[1:]...)
@@ -161,7 +161,7 @@ func restartPlandex() {
 	cmd.Stderr = os.Stderr
 	err = cmd.Start()
 	if err != nil {
-		log.Fatalf("Failed to restart: %v", err)
+		term.OutputErrorAndExit("Failed to restart: %v", err)
 	}
 
 	err = cmd.Wait()
@@ -170,7 +170,7 @@ func restartPlandex() {
 	if exitErr, ok := err.(*exec.ExitError); ok {
 		os.Exit(exitErr.ExitCode())
 	} else if err != nil {
-		log.Fatalf("Failed to restart: %v", err)
+		term.OutputErrorAndExit("Failed to restart: %v", err)
 	}
 
 	os.Exit(0)
