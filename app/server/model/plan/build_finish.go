@@ -287,14 +287,16 @@ func (fileState *activeBuildStreamFileState) onFinishBuildFile(planRes *db.PlanF
 			log.Println("preBuildState:\n", fileState.preBuildState)
 			log.Println("updated:\n", fileState.updated)
 
-			go fileState.execPlanBuild(&types.ActiveBuild{
-				ReplyId:         activeBuild.ReplyId,
-				FileDescription: activeBuild.FileDescription,
-				FileContent:     activeBuild.FileContent,
-				Path:            activeBuild.Path,
-				Idx:             activeBuild.Idx,
-				IsVerification:  true,
-			})
+go fileState.execPlanBuild(&types.ActiveBuild{
+    ReplyId:         activeBuild.ReplyId,
+    FileDescription:        activeBuild.FileDescription, 
+    FileContent:            activeBuild.FileContent,
+    Path:                   activeBuild.Path,
+    Idx:                    activeBuild.Idx,
+    IsVerification:         true,
+    ToVerifyPreBuildState:  fileState.preBuildState,
+    ToVerifyUpdatedState:   fileState.updated,
+})
 		}
 	} else {
 		if activePlan.PathFinished(filePath) {
@@ -374,3 +376,4 @@ func (fileState *activeBuildStreamFileState) onBuildFileError(err error) {
 		log.Printf("Error clearing uncommitted changes: %v\n", err)
 	}
 }
+
