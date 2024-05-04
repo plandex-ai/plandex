@@ -2,6 +2,7 @@
 .plandex-dev/
 .envkey
 plandex
+plandex-dev
 plandex-server
 *.exe
 node_modules/
