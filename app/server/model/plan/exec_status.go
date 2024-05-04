@@ -9,11 +9,17 @@ import (
 	"strings"
 
 	"github.com/davecgh/go-spew/spew"
-	"github.com/plandex/plandex/shared"
 	"github.com/sashabaranov/go-openai"
 )
 
-func ExecStatusShouldContinue(client *openai.Client, config shared.ModelRoleConfig, prompt, message string, ctx context.Context) (bool, error) {
+func (state *activeTellStreamState) execStatusShouldContinue(prompt, message string, ctx context.Context) (bool, error) {
+	settings := state.settings
+	clients := state.clients
+	config := settings.ModelPack.ExecStatus
+
+	envVar := config.BaseModelConfig.ApiKeyEnvVar
+	client := clients[envVar]
+
 	log.Println("Checking if plan should continue based on exec status")
 
 	// First try to determine if the plan should continue based on the last paragraph without calling the model

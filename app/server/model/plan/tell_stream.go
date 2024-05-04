@@ -268,10 +268,7 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 							prompt = promptMessage.Content
 						}
 
-						envVar := state.settings.ModelPack.ExecStatus.BaseModelConfig.ApiKeyEnvVar
-						client := clients[envVar]
-
-						shouldContinue, err = ExecStatusShouldContinue(client, settings.ModelPack.ExecStatus, prompt, assistantMsg.Message, active.Ctx)
+						shouldContinue, err = state.execStatusShouldContinue(prompt, assistantMsg.Message, active.Ctx)
 						if err != nil {
 							state.onError(fmt.Errorf("failed to get exec status: %v", err), false, assistantMsg.Id, convoCommitMsg)
 							errCh <- err
