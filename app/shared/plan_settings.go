@@ -9,7 +9,12 @@ const (
 	ModelProviderCustom     ModelProvider = "custom"
 )
 
-var AllModelProviders = []string{string(ModelProviderOpenAI), string(ModelProviderTogether), string(ModelProviderCustom)}
+var AllModelProviders = []string{
+	string(ModelProviderOpenAI),
+	string(ModelProviderOpenRouter),
+	string(ModelProviderTogether),
+	string(ModelProviderCustom),
+}
 
 var BaseUrlByProvider = map[ModelProvider]string{
 	ModelProviderOpenAI:     OpenAIV1BaseUrl,

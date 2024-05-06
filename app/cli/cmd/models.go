@@ -312,12 +312,12 @@ func listAvailableModels(cmd *cobra.Command, args []string) {
 
 	if customModelsOnly {
 		if len(customModels) > 0 {
-			term.PrintCmds("", "models", "set-model", "models create", "models delete")
+			term.PrintCmds("", "models", "set-model", "models add", "models delete")
 		} else {
-			term.PrintCmds("", "models create")
+			term.PrintCmds("", "models add")
 		}
 	} else {
-		term.PrintCmds("", "models available --custom", "models", "set-model", "models create", "models delete")
+		term.PrintCmds("", "models available --custom", "models", "set-model", "models add", "models delete")
 	}
 }
 
@@ -336,7 +336,7 @@ func deleteCustomModel(cmd *cobra.Command, args []string) {
 	if len(models) == 0 {
 		fmt.Println("🤷‍♂️ No custom models")
 		fmt.Println()
-		term.PrintCmds("", "models create")
+		term.PrintCmds("", "models add")
 		return
 	}
 
@@ -402,7 +402,7 @@ func deleteCustomModel(cmd *cobra.Command, args []string) {
 	fmt.Printf("✅ Deleted custom model %s\n", color.New(color.Bold, term.ColorHiCyan).Sprint(string(modelToDelete.Provider)+" → "+modelToDelete.ModelName))
 
 	fmt.Println()
-	term.PrintCmds("", "models available", "models create")
+	term.PrintCmds("", "models available", "models add")
 }
 
 func renderSettings(settings *shared.PlanSettings) {
