@@ -107,7 +107,7 @@ func checkout(cmd *cobra.Command, args []string) {
 		}
 
 		if selected == OptCreateNewBranch {
-			branchName, err = term.GetUserStringInput("Branch name")
+			branchName, err = term.GetRequiredUserStringInput("Branch name")
 			if err != nil {
 				term.OutputErrorAndExit("Error getting branch name: %v", err)
 				return

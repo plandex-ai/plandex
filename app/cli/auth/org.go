@@ -59,7 +59,7 @@ func promptNoOrgs() (*shared.Org, error) {
 }
 
 func createOrg() (*shared.Org, error) {
-	name, err := term.GetUserStringInput("Org name:")
+	name, err := term.GetRequiredUserStringInput("Org name:")
 	if err != nil {
 		return nil, fmt.Errorf("error prompting org name: %v", err)
 	}

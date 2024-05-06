@@ -177,7 +177,7 @@ func createModelPack(cmd *cobra.Command, args []string) {
 
 	mp := &shared.ModelPack{}
 
-	name, err := term.GetUserStringInput("Enter model pack name:")
+	name, err := term.GetRequiredUserStringInput("Enter model pack name:")
 	if err != nil {
 		term.OutputErrorAndExit("Error reading model pack name: %v", err)
 		return

@@ -36,7 +36,7 @@ func rename(cmd *cobra.Command, args []string) {
 		newName = args[0]
 	} else {
 		var err error
-		newName, err = term.GetUserStringInput("New name:")
+		newName, err = term.GetRequiredUserStringInput("New name:")
 		if err != nil {
 			term.OutputErrorAndExit("Error reading new name: %v", err)
 		}

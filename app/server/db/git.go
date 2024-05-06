@@ -338,6 +338,10 @@ func gitRemoveIndexLockFileIfExists(repoDir string) error {
 
 	if err == nil {
 		if err := os.Remove(lockFilePath); err != nil {
+			if os.IsNotExist(err) {
+				return nil
+			}
+
 			return fmt.Errorf("error removing lock file: %v", err)
 		}
 	} else if !os.IsNotExist(err) {

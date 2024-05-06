@@ -45,14 +45,14 @@ func invite(cmd *cobra.Command, args []string) {
 
 	if email == "" {
 		var err error
-		email, err = term.GetUserStringInput("Email:")
+		email, err = term.GetRequiredUserStringInput("Email:")
 		if err != nil {
 			term.OutputErrorAndExit("Failed to get email: %v", err)
 		}
 	}
 	if name == "" {
 		var err error
-		name, err = term.GetUserStringInput("Name:")
+		name, err = term.GetRequiredUserStringInput("Name:")
 		if err != nil {
 			term.OutputErrorAndExit("Failed to get name: %v", err)
 		}

@@ -82,7 +82,7 @@ func createCustomModel(cmd *cobra.Command, args []string) {
 	model.Provider = shared.ModelProvider(provider)
 
 	if model.Provider == shared.ModelProviderCustom {
-		customProvider, err := term.GetUserStringInput("Custom provider:")
+		customProvider, err := term.GetRequiredUserStringInput("Custom provider:")
 		if err != nil {
 			term.OutputErrorAndExit("Error reading custom provider: %v", err)
 			return
@@ -91,7 +91,7 @@ func createCustomModel(cmd *cobra.Command, args []string) {
 	}
 
 	fmt.Println("For model name, be sure to enter the exact, case-sensitive name of the model as it appears in the provider's API docs. Ex: 'gpt-4-turbo', 'meta-llama/Llama-3-70b-chat-hf'")
-	modelName, err := term.GetUserStringInput("Model name:")
+	modelName, err := term.GetRequiredUserStringInput("Model name:")
 	if err != nil {
 		term.OutputErrorAndExit("Error reading model name: %v", err)
 		return
@@ -107,7 +107,7 @@ func createCustomModel(cmd *cobra.Command, args []string) {
 	model.Description = description
 
 	if model.Provider == shared.ModelProviderCustom {
-		baseUrl, err := term.GetUserStringInput("Base URL:")
+		baseUrl, err := term.GetRequiredUserStringInput("Base URL:")
 		if err != nil {
 			term.OutputErrorAndExit("Error reading base URL: %v", err)
 			return
@@ -118,7 +118,13 @@ func createCustomModel(cmd *cobra.Command, args []string) {
 	}
 
 	apiKeyDefault := shared.ApiKeyByProvider[model.Provider]
-	apiKeyEnvVar, err := term.GetUserStringInputWithDefault("API key environment variable:", apiKeyDefault)
+	var apiKeyEnvVar string
+	if apiKeyDefault == "" {
+		apiKeyEnvVar, err = term.GetRequiredUserStringInput("API key environment variable:")
+	} else {
+		apiKeyEnvVar, err = term.GetUserStringInputWithDefault("API key environment variable:", apiKeyDefault)
+	}
+
 	if err != nil {
 		term.OutputErrorAndExit("Error reading API key environment variable: %v", err)
 		return
@@ -127,7 +133,7 @@ func createCustomModel(cmd *cobra.Command, args []string) {
 
 	fmt.Println("Max Tokens is the total maximum context size of the model.")
 
-	maxTokensStr, err := term.GetUserStringInput("Max Tokens:")
+	maxTokensStr, err := term.GetRequiredUserStringInput("Max Tokens:")
 	if err != nil {
 		term.OutputErrorAndExit("Error reading max tokens: %v", err)
 		return
@@ -140,7 +146,7 @@ func createCustomModel(cmd *cobra.Command, args []string) {
 	model.MaxTokens = maxTokens
 
 	fmt.Println("'Default Max Convo Tokens' is the default maximum size a conversation can reach in the 'planner' role before it is shortened by summarization. For models with 8k context, ~2500 is recommended. For 128k context, ~10000 is recommended.")
-	maxConvoTokensStr, err := term.GetUserStringInput("Default Max Convo Tokens:")
+	maxConvoTokensStr, err := term.GetRequiredUserStringInput("Default Max Convo Tokens:")
 	if err != nil {
 		term.OutputErrorAndExit("Error reading max convo tokens: %v", err)
 		return
@@ -153,7 +159,7 @@ func createCustomModel(cmd *cobra.Command, args []string) {
 	model.DefaultMaxConvoTokens = maxConvoTokens
 
 	fmt.Println("'Default Reserved Output Tokens' is the default number of tokens reserved for model output in the 'planner' role. This ensures the model has enough tokens to generate a response. For models with 8k context, ~1000 is recommended. For 128k context, ~4000 is recommended.")
-	reservedOutputTokensStr, err := term.GetUserStringInput("Default Reserved Output Tokens:")
+	reservedOutputTokensStr, err := term.GetRequiredUserStringInput("Default Reserved Output Tokens:")
 	if err != nil {
 		term.OutputErrorAndExit("Error reading reserved output tokens: %v", err)
 		return

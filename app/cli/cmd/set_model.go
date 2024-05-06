@@ -409,7 +409,7 @@ func updateModelSettings(args []string, originalSettings *shared.PlanSettings) *
 							msg += "top-p (0.0 to 1.0)"
 						}
 						var err error
-						value, err = term.GetUserStringInput(msg)
+						value, err = term.GetRequiredUserStringInput(msg)
 						if err != nil {
 							if err.Error() == "interrupt" {
 								return nil

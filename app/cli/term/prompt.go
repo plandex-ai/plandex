@@ -10,6 +10,20 @@ import (
 	"github.com/fatih/color"
 )
 
+func GetRequiredUserStringInput(msg string) (string, error) {
+	res, err := GetUserStringInput(msg)
+	if err != nil {
+		return "", fmt.Errorf("failed to get user input: %s", err)
+	}
+
+	if res == "" {
+		color.New(color.Bold, ColorHiRed).Println("🚨 This input is required")
+		return GetRequiredUserStringInput(msg)
+	}
+
+	return res, nil
+}
+
 func GetUserStringInput(msg string) (string, error) {
 	return GetUserStringInputWithDefault(msg, "")
 }

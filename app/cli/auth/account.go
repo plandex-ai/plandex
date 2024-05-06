@@ -149,19 +149,19 @@ func promptSignInNewAccount() error {
 	var email string
 
 	if selected == SignInCloudOption {
-		email, err = term.GetUserStringInput("Your email:")
+		email, err = term.GetRequiredUserStringInput("Your email:")
 
 		if err != nil {
 			return fmt.Errorf("error prompting email: %v", err)
 		}
 	} else {
-		host, err = term.GetUserStringInput("Host:")
+		host, err = term.GetRequiredUserStringInput("Host:")
 
 		if err != nil {
 			return fmt.Errorf("error prompting host: %v", err)
 		}
 
-		email, err = term.GetUserStringInput("Your email:")
+		email, err = term.GetRequiredUserStringInput("Your email:")
 
 		if err != nil {
 			return fmt.Errorf("error prompting email: %v", err)
