@@ -153,6 +153,11 @@ type LoadContextParams struct {
 	FilePath        string      `json:"file_path"`
 	Body            string      `json:"body"`
 	ForceSkipIgnore bool        `json:"forceSkipIgnore"`
+
+	// For naming piped data
+	ApiKeys     map[string]string `json:"apiKeys"`
+	OpenAIBase  string            `json:"openAIBase"`
+	OpenAIOrgId string            `json:"openAIOrgId"`
 }
 
 type LoadContextRequest []*LoadContextParams

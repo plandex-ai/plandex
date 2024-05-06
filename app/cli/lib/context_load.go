@@ -45,9 +45,18 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 		}
 
 		if len(pipedData) > 0 {
+			apiKeys := MustVerifyApiKeysSilent()
+			openAIBase := os.Getenv("OPENAI_API_BASE")
+			if openAIBase == "" {
+				openAIBase = os.Getenv("OPENAI_ENDPOINT")
+			}
+
 			loadContextReq = append(loadContextReq, &shared.LoadContextParams{
 				ContextType: shared.ContextPipedDataType,
 				Body:        string(pipedData),
+				ApiKeys:     apiKeys,
+				OpenAIBase:  openAIBase,
+				OpenAIOrgId: os.Getenv("OPENAI_ORG_ID"),
 			})
 		}
 	}
