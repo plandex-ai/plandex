@@ -17,6 +17,10 @@ Assess whether AI 1 has concluded with a statement that indicates either the use
 
 If AI 1 has outlined a clear next step necessary to finish the plan but has not executed it, the plan should continue.
 
+You might also be supplied with a summary of the plan if one is available. If the summary is available, it will include  a list of tasks to be done in the plan and whether each one has been implemented in code yet or not. If the summary is available and all tasks have been completed, the plan should not continue. If the summary is available and there are still tasks to be done, the plan should continue.
+
+If a summary is not available, the message from AI 1 that came prior to the user's prompt might also be provided. If it is provided, consider it when determining whether the plan should continue or is complete.
+
 You *must* call the shouldAutoContinue function with a JSON object containing the keys 'reasoning' and 'shouldContinue'. 
 
 Set 'reasoning' to a string briefly and succinctly explaining your reasoning for why the plan should or should not continue, based on your instructions above.
@@ -25,8 +29,15 @@ Set 'shouldContinue' to true if the plan should automatically continue based on 
 
 You must always call 'shouldAutoContinue'. Don't call any other function.`
 
-func GetExecStatusShouldContinue(userPrompt, message string) string {
+func GetExecStatusShouldContinue(summary, prevAssistantMsg, userPrompt, message string) string {
 	s := SysExecStatusShouldContinue
+
+	if summary != "" {
+		s += "\n\n**Here is the latest summary of the plan:**\n" + summary
+	} else if prevAssistantMsg != "" {
+		s += "\n\n**Here is the previous message AI 1:**\n" + prevAssistantMsg
+	}
+
 	if userPrompt != "" {
 		s += "\n\n**Here is the user's prompt:**\n" + userPrompt
 	}

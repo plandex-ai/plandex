@@ -43,10 +43,27 @@ func (state *activeTellStreamState) execStatusShouldContinue(prompt, message str
 		}
 	}
 
+	var latestSummary string
+
+	if len(state.summaries) > 0 {
+		latestSummary = state.summaries[len(state.summaries)-1].Summary
+	}
+
+	var prevAssistantMsg string
+	if len(state.convo) > 1 {
+		// iterate backwards from len(state.convo) - 2 to 0
+		for i := len(state.convo) - 2; i >= 0; i-- {
+			if state.convo[i].Role == "assistant" {
+				prevAssistantMsg = state.convo[i].Message
+				break
+			}
+		}
+	}
+
 	messages := []openai.ChatCompletionMessage{
 		{
 			Role:    openai.ChatMessageRoleSystem,
-			Content: prompts.GetExecStatusShouldContinue(prompt, message),
+			Content: prompts.GetExecStatusShouldContinue(latestSummary, prevAssistantMsg, prompt, message),
 		},
 	}
 
