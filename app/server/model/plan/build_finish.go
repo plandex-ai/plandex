@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"plandex-server/db"
 	"plandex-server/types"
+	"strings"
 
 	"github.com/plandex/plandex/shared"
 )
@@ -157,6 +158,11 @@ func (state *activeBuildStreamFileState) onFinishBuild() {
 		err = db.GitAddAndCommit(currentOrgId, planId, branch, currentPlan.PendingChangesSummaryForBuild())
 
 		if err != nil {
+			if strings.Contains(err.Error(), "nothing to commit") {
+				log.Println("Nothing to commit")
+				return nil
+			}
+
 			log.Printf("Error committing plan build: %v\n", err)
 			ap.StreamDoneCh <- &shared.ApiError{
 				Type:   shared.ApiErrorTypeOther,
@@ -202,7 +208,6 @@ func (fileState *activeBuildStreamFileState) onFinishBuildFile(planRes *db.PlanF
 
 	filePath := fileState.filePath
 
-	buildFinished := false
 	log.Println("onFinishBuildFile: " + filePath)
 
 	if planRes != nil {
@@ -266,66 +271,61 @@ func (fileState *activeBuildStreamFileState) onFinishBuildFile(planRes *db.PlanF
 
 	activeBuild.Success = true
 
-	UpdateActivePlan(planId, branch, func(ap *types.ActivePlan) {
-		ap.BuiltFiles[filePath] = true
-		if ap.BuildFinished() {
-			buildFinished = true
-		}
-	})
-
-	log.Printf("Finished building file %s\n", filePath)
-
-	if buildFinished {
-		if activeBuild.IsVerification {
-			UpdateActivePlan(planId, branch, func(ap *types.ActivePlan) {
-				ap.IsBuildingByPath[filePath] = false
-			})
-			log.Println("Finished building plan, calling onFinishBuild")
-			fileState.onFinishBuild()
-		} else {
-			log.Println("queuing verification build")
-			log.Println("preBuildState:\n", fileState.preBuildState)
-			log.Println("updated:\n", fileState.updated)
-
-go fileState.execPlanBuild(&types.ActiveBuild{
-    ReplyId:         activeBuild.ReplyId,
-    FileDescription:        activeBuild.FileDescription, 
-    FileContent:            activeBuild.FileContent,
-    Path:                   activeBuild.Path,
-    Idx:                    activeBuild.Idx,
-    IsVerification:         true,
-    ToVerifyPreBuildState:  fileState.preBuildState,
-    ToVerifyUpdatedState:   fileState.updated,
-})
-		}
-	} else {
-		if activePlan.PathFinished(filePath) {
-			UpdateActivePlan(planId, branch, func(ap *types.ActivePlan) {
-				ap.IsBuildingByPath[filePath] = false
-			})
-			log.Printf("File %s finished, but not all builds finished\n", filePath)
-		} else {
-			log.Printf("Processing next build for file %s\n", filePath)
-			activePlan := GetActivePlan(planId, branch)
-			if activePlan == nil {
-				log.Printf("Active plan not found for plan ID %s and branch %s\n", planId, branch)
-				return
-			}
-			queue := activePlan.BuildQueuesByPath[filePath]
-			var nextBuild *types.ActiveBuild
-			for _, build := range queue {
-				if !build.BuildFinished() {
-					nextBuild = build
-					break
-				}
-			}
-
-			if nextBuild != nil {
-				log.Println("Calling execPlanBuild for next build in queue")
-				go fileState.execPlanBuild(nextBuild)
-			}
+	// if more builds are queued, start the next one regardless of whether this is a verification build or not, then return
+	if !activePlan.PathQueueEmpty(filePath) {
+		log.Printf("Processing next build for file %s\n", filePath)
+		activePlan := GetActivePlan(planId, branch)
+		if activePlan == nil {
+			log.Printf("Active plan not found for plan ID %s and branch %s\n", planId, branch)
 			return
 		}
+		queue := activePlan.BuildQueuesByPath[filePath]
+		var nextBuild *types.ActiveBuild
+		for _, build := range queue {
+			if !build.BuildFinished() {
+				nextBuild = build
+				break
+			}
+		}
+
+		if nextBuild != nil {
+			log.Println("Calling execPlanBuild for next build in queue")
+			go fileState.execPlanBuild(nextBuild)
+		}
+		return
+	}
+
+	// otherwise:
+	// if this is a verification build, check if the build is finished and call onFinishBuild if it is
+	// if this is not a verification build, trigger the verification build
+	if activeBuild.IsVerification {
+		buildFinished := false
+
+		UpdateActivePlan(planId, branch, func(ap *types.ActivePlan) {
+			ap.BuiltFiles[filePath] = true
+			ap.IsBuildingByPath[filePath] = false
+			if ap.BuildFinished() {
+				buildFinished = true
+			}
+		})
+
+		log.Printf("Finished building file %s\n", filePath)
+
+		if buildFinished {
+			log.Println("Finished building plan, calling onFinishBuild")
+			fileState.onFinishBuild()
+		}
+	} else {
+		go fileState.execPlanBuild(&types.ActiveBuild{
+			ReplyId:               activeBuild.ReplyId,
+			FileDescription:       activeBuild.FileDescription,
+			FileContent:           activeBuild.FileContent,
+			Path:                  activeBuild.Path,
+			Idx:                   activeBuild.Idx,
+			IsVerification:        true,
+			ToVerifyPreBuildState: fileState.preBuildState,
+			ToVerifyUpdatedState:  fileState.updated,
+		})
 	}
 
 }
@@ -376,4 +376,3 @@ func (fileState *activeBuildStreamFileState) onBuildFileError(err error) {
 		log.Printf("Error clearing uncommitted changes: %v\n", err)
 	}
 }
-

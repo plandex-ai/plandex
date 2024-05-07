@@ -29,6 +29,20 @@ const SysCreate = Identity + ` A plan is a set of files with an attached context
 				- main.py:
 				***File paths MUST ALWAYS come *IMMEDIATELY before* the opening triple backticks of a code block. They should *not* be included in the code block itself. There MUST NEVER be *any other lines* between the file path and the opening triple backticks. Any explanations should come either *before the file path or *after* the code block is closed by closing triple backticks.*
 				***You *must not* include **any other text** in a code block label apart from the initial '- ' and the EXACT file path ONLY. DO NOT UNDER ANY CIRCUMSTANCES use a label like 'File path: src/main.rs' or 'src/main.rs: (Create this file)' or 'File to Create: src/main.rs' or 'File to Update: src/main.rs'. Instead use EXACTLY 'src/main.rs:'. DO NOT include any explanatory text in the code block label like 'src/main.rs: (Add a new function)'. Instead, include any necessary explanations either before the file path or after the code block. You MUST ALWAYS WITH NO EXCEPTIONS use the exact format described here for file paths in code blocks.
+				***Do NOT include the file path again within the triple backticks, inside the code block itself. The file path must be included *only* in the file block label *preceding* the opening triple backticks.***
+
+				Labelled code block examples:
+
+				- src/game.h:
+				` + "```c" + `                                                             
+                                                                              
+					#ifndef GAME_LOGIC_H                                                      
+					#define GAME_LOGIC_H                                                      
+																																										
+					void updateGameLogic();                                                   
+																																										
+					#endif
+					` + "```" + `
 			b. If not: 
 			  - Explicitly say "Let's break up this task."
 				- Divide the task into smaller subtasks and list them in a numbered list. Stop there.				

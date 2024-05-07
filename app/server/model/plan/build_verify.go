@@ -28,13 +28,12 @@ func (fileState *activeBuildStreamFileState) verifyFileBuild() {
 
 	log.Printf("verifyFileBuild - Verifying file %s\n", filePath)
 
-	log.Println("verifyFileBuild - Getting file from model: " + filePath)
 	// log.Println("File context:", fileContext)
 
-	log.Printf("preBuildState has content: %v\n", preBuildState != "")
-	log.Printf("updated has content: %v\n", updated != "")
-	log.Printf("activeBuild.FileDescription has content: %v\n", activeBuild.FileDescription != "")
-	log.Printf("activeBuild.FileContent has content: %v\n", activeBuild.FileContent != "")
+	// log.Printf("preBuildState has content: %v\n", preBuildState != "")
+	// log.Printf("updated has content: %v\n", updated != "")
+	// log.Printf("activeBuild.FileDescription has content: %v\n", activeBuild.FileDescription != "")
+	// log.Printf("activeBuild.FileContent has content: %v\n", activeBuild.FileContent != "")
 
 	sysPrompt := prompts.GetVerifyPrompt(preBuildState, updated, activeBuild.FileDescription, activeBuild.FileContent)
 

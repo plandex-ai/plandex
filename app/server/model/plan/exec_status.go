@@ -12,7 +12,7 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
-func (state *activeTellStreamState) execStatusShouldContinue(prompt, message string, ctx context.Context) (bool, error) {
+func (state *activeTellStreamState) execStatusShouldContinue(message string, ctx context.Context) (bool, error) {
 	settings := state.settings
 	clients := state.clients
 	config := settings.ModelPack.ExecStatus
@@ -63,11 +63,14 @@ func (state *activeTellStreamState) execStatusShouldContinue(prompt, message str
 	messages := []openai.ChatCompletionMessage{
 		{
 			Role:    openai.ChatMessageRoleSystem,
-			Content: prompts.GetExecStatusShouldContinue(latestSummary, prevAssistantMsg, prompt, message),
+			Content: prompts.GetExecStatusShouldContinue(latestSummary, prevAssistantMsg, state.userPrompt, message),
 		},
 	}
 
 	log.Println("Calling model to check if plan should continue")
+
+	log.Println("messages:")
+	log.Println(spew.Sdump(messages))
 
 	var responseFormat *openai.ChatCompletionResponseFormat
 	if config.BaseModelConfig.HasJsonResponseMode {

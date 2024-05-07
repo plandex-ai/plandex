@@ -187,6 +187,16 @@ func getFixChangesLineNumsPrompt() string {
 	return `
 	You are an AI that analyzes an incorrect updated file, the changes that should have been applied to the file, a description of the problems with the file, and a plan to fix them, and then produces a list of changes to apply to the *incorrect updated file* that will fix *ALL* the problems.
 
+	Problems you MUST fix include:
+	- Syntax errors
+	- Incorrectly applied changes
+	- Incorrectly removed code
+	- Incorrectly overwritten code
+	- Incorrectly duplicated code
+	- Incorrectly applied comments that reference the original code
+
+	If the updated includes references to the original code in comments like "// rest of the function..." or "# existing init code...", or "// rest of the main function..." or "// rest of your function..." or "// Existing methods..." **any other reference to the original code, the file is incorrect. References like these must be handled by including the exact code from the original file that the comment is referencing.
+
 	[YOUR INSTRUCTIONS]
 	` + lineNumsFunctionCallPrompt + `
 
@@ -195,6 +205,8 @@ func getFixChangesLineNumsPrompt() string {
   ` + lineNumsOldPrompt + `
 	
 	` + changeLineInclusionAndNewPrompt + `
+
+	You MUST ensure the line numbers for the 'old' property correctly remove *ALL* code that has problems and that the 'new' property correctly fixes *ALL* the problems present in the updated file. You MUST NOT miss any problems, fail to fix any problems, or introduce any new problems.
 
   Example function call with all keys:
   ---
@@ -283,11 +295,13 @@ func GetVerifyPrompt(preBuildState, updated, desc, changes string) string {
 	s := `
 Based on an original file (if one exists), an AI-generated plan, and an updated file, determine whether the proposed changes were applied correctly to the updated file. Is the syntax in the updated file correct? Were the changes applied correctly or was some code from the original file removed or overwritten that should not have been? Does the updated file as a whole make sense and was it updated consistently with the intention of the plan? Were *all* comments in the proposed changes that referenced the original code correctly handled in the updated file by including the exact code from the original file that the comment was referencing? Did any code get duplicated that should not have been?
 
+If the updated includes references to the original code in comments like "// rest of the function..." or "# existing init code...", or "// rest of the main function..." or "// rest of your function..." or "// Existing methods...", "// Existing code..." **any other reference to the original code**, the file is incorrect. References like these must be handled by including the exact code from the original file that the comment is referencing.
+
 If there is no original file, it means that a new file was created from scratch based on the AI-generated plan. In this case, the syntax in the new file must be valid and consistent with the intention of the plan. You must ensure there are no syntax errors or other clear mistakes in the new file.
 
 Call the 'verifyOutput' function with a valid JSON object that include the 'reasoning' and 'isCorrect' keys.
 
-'reasoning': Succinctly explain whether the proposed changes were or were not applied correctly and whether the syntax is valid. If the changes were not applied correctly or the syntax isn't valid, briefly explain what went wrong and what needs to be done to fix the errors. If the syntax isn't valid only because the syntax wasn't valid in the original file, explain that the syntax, though incorrect, is consistent with the original file and that the changes were applied correctly.
+'reasoning': Succinctly explain whether the proposed changes were or were not applied correctly and whether the syntax is valid. If the changes were not applied correctly or the syntax isn't valid, list *EVERY* problem and what needs to be done to fix *ALL* the errors. If the syntax isn't valid only because the syntax wasn't valid in the original file, explain that the syntax, though incorrect, is consistent with the original file and that the changes were applied correctly.
 
 'isCorrect': A boolean that indicates whether the proposed changes were applied correctly. If the proposed changes were applied correctly, set 'isCorrect' to true. If the proposed changes were not applied correctly, set 'isCorrect' to false.
 `

@@ -175,14 +175,14 @@ func (ap *ActivePlan) ResetModelCtx() {
 
 func (ap *ActivePlan) BuildFinished() bool {
 	for path := range ap.BuildQueuesByPath {
-		if !ap.PathFinished(path) {
+		if ap.IsBuildingByPath[path] || !ap.PathQueueEmpty(path) {
 			return false
 		}
 	}
 	return true
 }
 
-func (ap *ActivePlan) PathFinished(path string) bool {
+func (ap *ActivePlan) PathQueueEmpty(path string) bool {
 	for _, build := range ap.BuildQueuesByPath[path] {
 		if !build.BuildFinished() {
 			return false

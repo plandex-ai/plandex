@@ -70,7 +70,7 @@ func (fileState *activeBuildStreamFileState) listenStreamVerifyOutput(stream *op
 					BuildInfo: buildInfo,
 				})
 
-				log.Println("build verify - error - Plan file result:")
+				log.Println("build verify - error")
 
 				fileState.onFinishBuildFile(nil)
 				return
@@ -86,7 +86,7 @@ func (fileState *activeBuildStreamFileState) listenStreamVerifyOutput(stream *op
 					Type:      shared.StreamMessageBuildInfo,
 					BuildInfo: buildInfo,
 				})
-				log.Println("build verify - no choices - Plan file result:")
+				log.Println("build verify - no choices")
 				fileState.onFinishBuildFile(nil)
 				return
 			}
@@ -112,7 +112,7 @@ func (fileState *activeBuildStreamFileState) listenStreamVerifyOutput(stream *op
 						Type:      shared.StreamMessageBuildInfo,
 						BuildInfo: buildInfo,
 					})
-					log.Println("build verify - invalid json - Plan file result:")
+					log.Println("build verify - invalid json")
 					fileState.onFinishBuildFile(nil)
 					return
 				}
@@ -150,7 +150,7 @@ func (fileState *activeBuildStreamFileState) listenStreamVerifyOutput(stream *op
 						Type:      shared.StreamMessageBuildInfo,
 						BuildInfo: buildInfo,
 					})
-					log.Println("build verify - streamed.IsCorrect - Plan file result:")
+					log.Println("build verify - streamed.IsCorrect")
 					fileState.onFinishBuildFile(nil)
 				} else {
 					log.Printf("listenStreamVerifyOutput - File %s: Streamed verify result is incorrect: %s\n", filePath, streamed.Reasoning)
@@ -168,7 +168,7 @@ func (fileState *activeBuildStreamFileState) listenStreamVerifyOutput(stream *op
 				}
 				return
 			} else if len(delta.ToolCalls) == 0 {
-				log.Println("listenStreamVerifyOutput - Stream chunk missing function call. Buffer:")
+				log.Println("listenStreamVerifyOutput - Stream chunk missing function call.")
 				// log.Println(spew.Sdump(response))
 
 				if fileState.verifyFileNumRetry > 0 {
@@ -181,7 +181,7 @@ func (fileState *activeBuildStreamFileState) listenStreamVerifyOutput(stream *op
 						Type:      shared.StreamMessageBuildInfo,
 						BuildInfo: buildInfo,
 					})
-					log.Println("build verify - retry - Plan file result:")
+					log.Println("build verify - retry")
 					fileState.onFinishBuildFile(nil)
 				} else {
 					fileState.verifyRetryOrError(fmt.Errorf("listenStreamVerifyOutput - stream chunk missing function call. Reason: %s, File: %s", choice.FinishReason, filePath))

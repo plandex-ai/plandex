@@ -56,7 +56,6 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 	convo := state.convo
 	summaries := state.summaries
 	summarizedToMessageId := state.summarizedToMessageId
-	promptMessage := state.promptMessage
 	iteration := state.iteration
 	missingFileResponse := state.missingFileResponse
 	replyId := state.replyId
@@ -262,14 +261,7 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 					go func() {
 						// One of the below is nil occasionally, causing crash
 						log.Println("Getting exec status")
-						var prompt string
-						if promptMessage == nil {
-							log.Println("Prompt message is nil")
-						} else {
-							prompt = promptMessage.Content
-						}
-
-						shouldContinue, err = state.execStatusShouldContinue(prompt, assistantMsg.Message, active.Ctx)
+						shouldContinue, err = state.execStatusShouldContinue(assistantMsg.Message, active.Ctx)
 						if err != nil {
 							state.onError(fmt.Errorf("failed to get exec status: %v", err), false, assistantMsg.Id, convoCommitMsg)
 							errCh <- err
