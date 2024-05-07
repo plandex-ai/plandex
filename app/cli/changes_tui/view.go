@@ -83,10 +83,8 @@ func (m *changesUIModel) updateViewportSizes() {
 	if m.selectedNewFile() || m.selectedFullFile() {
 		fileViewHeight := mainViewHeight
 
-		if m.fileScrollable() {
-			footerHeight := lipgloss.Height(m.renderScrollFooter())
-			fileViewHeight -= footerHeight
-		}
+		footerHeight := lipgloss.Height(m.renderScrollFooter())
+		fileViewHeight -= footerHeight
 
 		m.fileViewport.Width = mainViewWidth
 		m.fileViewport.Height = fileViewHeight

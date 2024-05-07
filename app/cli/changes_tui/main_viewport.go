@@ -19,9 +19,7 @@ func (m changesUIModel) renderMainView() string {
 
 		fileViews := []string{fileView}
 
-		if m.fileScrollable() {
-			fileViews = append(fileViews, m.renderScrollFooter())
-		}
+		fileViews = append(fileViews, m.renderScrollFooter())
 
 		fileContainer := lipgloss.JoinVertical(lipgloss.Left, fileViews...)
 
@@ -142,7 +140,12 @@ func (m changesUIModel) renderScrollFooter() string {
 	var footer string
 
 	if m.selectedNewFile() || m.selectedFullFile() {
-		footer = ` (j/k) scroll • (d/u) page • (g/G) start/end • (r)eject file`
+		if m.fileScrollable() {
+			footer = ` (j/k) scroll • (d/u) page • (g/G) start/end • (r)eject file`
+		} else {
+			footer = ` (r)eject file`
+		}
+
 	} else {
 		footer = ` (j/k) scroll`
 		if m.oldScrollable() && m.newScrollable() {
