@@ -17,6 +17,16 @@ func Stop(planId, branch, currentUserId, currentOrgId string) error {
 	active.SummaryCancelFn()
 	active.CancelFn()
 
+	return nil
+}
+
+func StorePartialReply(planId, branch, currentUserId, currentOrgId string) error {
+	active := GetActivePlan(planId, branch)
+
+	if active == nil {
+		return fmt.Errorf("no active plan with id %s", planId)
+	}
+
 	if !active.BuildOnly && !active.RepliesFinished {
 		num := active.MessageNum + 1
 

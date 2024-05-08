@@ -277,19 +277,29 @@ func StopPlanHandler(w http.ResponseWriter, r *http.Request) {
 	} else {
 		defer func() {
 			(*unlockFn)(err)
+
+			if err == nil {
+				err = modelPlan.Stop(planId, branch, auth.User.Id, auth.OrgId)
+
+				if err != nil {
+					log.Printf("Error stopping plan: %v\n", err)
+					http.Error(w, "Error stopping plan", http.StatusInternalServerError)
+					return
+				}
+
+				log.Println("Successfully processed request for StopPlanHandler")
+			}
 		}()
 	}
 
 	log.Println("Stopping plan")
-	err = modelPlan.Stop(planId, branch, auth.User.Id, auth.OrgId)
+	err = modelPlan.StorePartialReply(planId, branch, auth.User.Id, auth.OrgId)
 
 	if err != nil {
-		log.Printf("Error stopping plan: %v\n", err)
-		http.Error(w, "Error stopping plan", http.StatusInternalServerError)
+		log.Printf("Error storing partial reply: %v\n", err)
+		http.Error(w, "Error storing partial reply", http.StatusInternalServerError)
 		return
 	}
-
-	log.Println("Successfully processed request for StopPlanHandler")
 }
 
 func RespondMissingFileHandler(w http.ResponseWriter, r *http.Request) {
