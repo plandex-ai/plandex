@@ -295,38 +295,57 @@ func (fileState *activeBuildStreamFileState) onFinishBuildFile(planRes *db.PlanF
 		return
 	}
 
+	buildFinished := false
+
+	UpdateActivePlan(planId, branch, func(ap *types.ActivePlan) {
+		ap.BuiltFiles[filePath] = true
+		ap.IsBuildingByPath[filePath] = false
+		if ap.BuildFinished() {
+			buildFinished = true
+		}
+	})
+
+	log.Printf("Finished building file %s\n", filePath)
+
+	if buildFinished {
+		log.Println("Finished building plan, calling onFinishBuild")
+		fileState.onFinishBuild()
+	}
+
+	// Verification logic below is disabled for now pending more work on prompts
+
 	// otherwise:
 	// if this is a verification build, check if the build is finished and call onFinishBuild if it is
 	// if this is not a verification build, trigger the verification build
-	if activeBuild.IsVerification {
-		buildFinished := false
+	// if activeBuild.IsVerification {
+	// 	buildFinished := false
 
-		UpdateActivePlan(planId, branch, func(ap *types.ActivePlan) {
-			ap.BuiltFiles[filePath] = true
-			ap.IsBuildingByPath[filePath] = false
-			if ap.BuildFinished() {
-				buildFinished = true
-			}
-		})
+	// 	UpdateActivePlan(planId, branch, func(ap *types.ActivePlan) {
+	// 		ap.BuiltFiles[filePath] = true
+	// 		ap.IsBuildingByPath[filePath] = false
+	// 		if ap.BuildFinished() {
+	// 			buildFinished = true
+	// 		}
+	// 	})
 
-		log.Printf("Finished building file %s\n", filePath)
+	// 	log.Printf("Finished building file %s\n", filePath)
 
-		if buildFinished {
-			log.Println("Finished building plan, calling onFinishBuild")
-			fileState.onFinishBuild()
-		}
-	} else {
-		go fileState.execPlanBuild(&types.ActiveBuild{
-			ReplyId:               activeBuild.ReplyId,
-			FileDescription:       activeBuild.FileDescription,
-			FileContent:           activeBuild.FileContent,
-			Path:                  activeBuild.Path,
-			Idx:                   activeBuild.Idx,
-			IsVerification:        true,
-			ToVerifyPreBuildState: fileState.preBuildState,
-			ToVerifyUpdatedState:  fileState.updated,
-		})
-	}
+	// 	if buildFinished {
+	// 		log.Println("Finished building plan, calling onFinishBuild")
+	// 		fileState.onFinishBuild()
+	// 	}
+	// } else {
+	// 	go fileState.execPlanBuild(&types.ActiveBuild{
+	// 		ReplyId:               activeBuild.ReplyId,
+	// 		FileDescription:       activeBuild.FileDescription,
+	// 		FileContent:           activeBuild.FileContent,
+	// 		Path:                  activeBuild.Path,
+	// 		Idx:                   activeBuild.Idx,
+	// 		IsVerification:        true,
+	// 		ToVerifyPreBuildState: fileState.preBuildState,
+	// 		ToVerifyUpdatedState:  fileState.updated,
+	// 	})
+	// }
 
 }
 
