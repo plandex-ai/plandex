@@ -1,3 +1,8 @@
+## Version 0.9.1
+- Improvements to auto-continue check. Plandex now does a better job determining whether a plan is finished or should automatically continue by incorporating the either the latest plan summary or the previous conversation message (if the summary isn't ready yet) into the auto-continue check. Previously the check was using only the latest conversation message.
+- Fix for 'exit status 128' errors in a couple of edge case scenarios.
+- Data that is piped into `plandex load` is now automatically given a name in `context ls` via a call to the `namer` role model (previously it had no name, making multiple pipes hard to disambiguate).
+
 ## Version 0.9.0
 - Support for custom models, model packs, and default models (see CLI 0.9.0 release notes for details).
 - Better accuracy for updates to existing files.
