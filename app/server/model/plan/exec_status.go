@@ -68,9 +68,11 @@ func (state *activeTellStreamState) execStatusShouldContinue(message string, ctx
 	}
 
 	log.Println("Calling model to check if plan should continue")
+	log.Println("Has latest summary:", latestSummary != "")
+	log.Println("Has prev assistant msg:", prevAssistantMsg != "")
 
-	log.Println("messages:")
-	log.Println(spew.Sdump(messages))
+	// log.Println("messages:")
+	// log.Println(spew.Sdump(messages))
 
 	var responseFormat *openai.ChatCompletionResponseFormat
 	if config.BaseModelConfig.HasJsonResponseMode {
