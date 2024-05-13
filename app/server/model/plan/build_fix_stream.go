@@ -23,7 +23,6 @@ func (fileState *activeBuildStreamFileState) listenStreamFixChanges(stream *open
 	currentOrgId := fileState.currentOrgId
 	planId := fileState.plan.Id
 	branch := fileState.branch
-	activeBuild := fileState.activeBuild
 
 	activePlan := GetActivePlan(planId, branch)
 
@@ -174,17 +173,16 @@ func (fileState *activeBuildStreamFileState) listenStreamFixChanges(stream *open
 					overlapStrategy = OverlapStrategySkip
 				}
 
-				planFileResult, _, allSucceeded, err := getPlanResult(
-					planResultParams{
-						orgId:                       currentOrgId,
-						planId:                      planId,
-						planBuildId:                 build.Id,
-						convoMessageId:              build.ConvoMessageId,
-						filePath:                    filePath,
-						preBuildState:               fileState.updated,
-						fileContent:                 activeBuild.FileContent,
-						streamedChangesWithLineNums: streamed.Changes,
-						overlapStrategy:             overlapStrategy,
+				planFileResult, _, allSucceeded, err := GetPlanResult(
+					PlanResultParams{
+						OrgId:                       currentOrgId,
+						PlanId:                      planId,
+						PlanBuildId:                 build.Id,
+						ConvoMessageId:              build.ConvoMessageId,
+						FilePath:                    filePath,
+						PreBuildState:               fileState.updated,
+						StreamedChangesWithLineNums: streamed.Changes,
+						OverlapStrategy:             overlapStrategy,
 					},
 				)
 

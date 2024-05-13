@@ -1,6 +1,8 @@
 package types
 
 import (
+	"strings"
+
 	"github.com/plandex/plandex/shared"
 )
 
@@ -9,7 +11,8 @@ type StreamedFile struct {
 }
 
 type StreamedChangesWithLineNums struct {
-	Changes []*shared.StreamedChangeWithLineNums `json:"changes"`
+	Problems string                               `json:"problems"`
+	Changes  []*shared.StreamedChangeWithLineNums `json:"changes"`
 }
 
 // type StreamedChangesFull struct {
@@ -17,6 +20,38 @@ type StreamedChangesWithLineNums struct {
 // }
 
 type StreamedVerifyResult struct {
-	Reasoning string `json:"reasoning"`
-	IsCorrect bool   `json:"isCorrect"`
+	SyntaxErrorsReasoning      string `json:"syntaxErrorsReasoning"`
+	HasSyntaxErrors            bool   `json:"hasSyntaxErrors"`
+	RemovedCodeErrorsReasoning string `json:"removedCodeErrorsReasoning"`
+	HasRemovedCodeErrors       bool   `json:"hasRemovedCodeErrors"`
+	DuplicationErrorsReasoning string `json:"duplicationErrorsReasoning"`
+	HasDuplicationErrors       bool   `json:"hasDuplicationErrors"`
+	ReferenceErrorsReasoning   string `json:"referenceErrorsReasoning"`
+	HasReferenceErrors         bool   `json:"hasReferenceErrors"`
+}
+
+func (s *StreamedVerifyResult) IsCorrect() bool {
+	return !s.HasRemovedCodeErrors && !s.HasDuplicationErrors && !s.HasReferenceErrors && !s.HasSyntaxErrors
+}
+
+func (s *StreamedVerifyResult) GetReasoning() string {
+	res := []string{}
+
+	if s.HasSyntaxErrors {
+		res = append(res, s.SyntaxErrorsReasoning)
+	}
+
+	if s.HasRemovedCodeErrors {
+		res = append(res, s.RemovedCodeErrorsReasoning)
+	}
+
+	if s.HasDuplicationErrors {
+		res = append(res, s.DuplicationErrorsReasoning)
+	}
+
+	if s.HasReferenceErrors {
+		res = append(res, s.ReferenceErrorsReasoning)
+	}
+
+	return strings.Join(res, "\n")
 }

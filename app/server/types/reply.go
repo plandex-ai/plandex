@@ -208,14 +208,18 @@ func (r *ReplyParser) FinishAndRead() parserRes {
 }
 
 func (r *ReplyParser) GetReplyBeforeCurrentPath() string {
-	if r.currentFilePath == "" {
+	return r.GetReplyBeforePath(r.currentFilePath)
+}
+
+func (r *ReplyParser) GetReplyBeforePath(path string) string {
+	if path == "" {
 		return strings.Join(r.lines, "\n")
 	}
 
 	var idx int
 	for i := len(r.lines) - 1; i >= 0; i-- {
 		line := r.lines[i]
-		if lineMaybeHasFilePath(line) && r.currentFilePath == extractFilePath(line) {
+		if lineMaybeHasFilePath(line) && path == extractFilePath(line) {
 			idx = i
 			break
 		}

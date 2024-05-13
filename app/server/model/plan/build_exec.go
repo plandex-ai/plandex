@@ -285,7 +285,7 @@ func (fileState *activeBuildStreamFileState) buildFileLineNums() {
 
 	// log.Println("currentState:", currentState)
 
-	sysPrompt := prompts.GetBuildLineNumbersSysPrompt(filePath, originalFile, activeBuild.FileDescription, activeBuild.FileContent)
+	sysPrompt := prompts.GetBuildLineNumbersSysPrompt(filePath, originalFile, fmt.Sprintf("%s\n\n```%s```", activeBuild.FileDescription, activeBuild.FileContent))
 
 	fileMessages := []openai.ChatCompletionMessage{
 		{

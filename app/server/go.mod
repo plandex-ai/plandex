@@ -38,7 +38,7 @@ require (
 	github.com/golang-migrate/migrate/v4 v4.17.0
 	github.com/jmoiron/sqlx v1.3.5
 	github.com/lib/pq v1.10.9
-	golang.org/x/sync v0.7.0
+	github.com/smacker/go-tree-sitter v0.0.0-20240423010953-8ba036550382
 )
 
 replace github.com/plandex/plandex/shared => ../shared

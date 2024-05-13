@@ -34,7 +34,7 @@ func (fileState *activeBuildStreamFileState) fixFileLineNums() {
 	log.Println("fixFileLineNums - getting file from model: " + filePath)
 	// log.Println("File context:", fileContext)
 
-	sysPrompt := prompts.GetBuildFixesLineNumbersSysPrompt(activeBuild.FileDescription, activeBuild.FileContent, incorrectlyUpdated, reasoning)
+	sysPrompt := prompts.GetBuildFixesLineNumbersSysPrompt(fileState.preBuildState, fmt.Sprintf("%s\n\n```%s```", activeBuild.FileDescription, activeBuild.FileContent), incorrectlyUpdated, reasoning)
 
 	fileMessages := []openai.ChatCompletionMessage{
 		{

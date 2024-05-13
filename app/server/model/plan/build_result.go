@@ -18,31 +18,28 @@ const (
 	OverlapStrategyError
 )
 
-type planResultParams struct {
-	orgId                       string
-	planId                      string
-	planBuildId                 string
-	convoMessageId              string
-	filePath                    string
-	preBuildState               string
-	fileContent                 string
-	overlapStrategy             OverlapStrategy
-	streamedChangesWithLineNums []*shared.StreamedChangeWithLineNums
+type PlanResultParams struct {
+	OrgId                       string
+	PlanId                      string
+	PlanBuildId                 string
+	ConvoMessageId              string
+	FilePath                    string
+	PreBuildState               string
+	OverlapStrategy             OverlapStrategy
+	StreamedChangesWithLineNums []*shared.StreamedChangeWithLineNums
 }
 
-func getPlanResult(params planResultParams) (*db.PlanFileResult, string, bool, error) {
-	orgId := params.orgId
-	planId := params.planId
-	planBuildId := params.planBuildId
-	filePath := params.filePath
-	preBuildState := params.preBuildState
-	streamedChangesWithLineNums := params.streamedChangesWithLineNums
-	// fileContent := params.fileContent
+func GetPlanResult(params PlanResultParams) (*db.PlanFileResult, string, bool, error) {
+	orgId := params.OrgId
+	planId := params.PlanId
+	planBuildId := params.PlanBuildId
+	filePath := params.FilePath
+	preBuildState := params.PreBuildState
+	streamedChangesWithLineNums := params.StreamedChangesWithLineNums
 
 	preBuildState = shared.AddLineNums(preBuildState)
 
 	preBuildStateLines := strings.Split(preBuildState, "\n")
-	// fileContentLines := strings.Split(fileContent, "\n")
 
 	// log.Printf("\n\ngetPlanResult - path: %s\n", filePath)
 	// log.Println("getPlanResult - preBuildState:")
@@ -93,7 +90,7 @@ func getPlanResult(params planResultParams) (*db.PlanFileResult, string, bool, e
 		if startLine < highestEndLine {
 			log.Printf("Start line is less than highestEndLine: %d < %d\n", startLine, highestEndLine)
 
-			if params.overlapStrategy == OverlapStrategyError {
+			if params.OverlapStrategy == OverlapStrategyError {
 				return nil, "", false, fmt.Errorf("start line is less than highestEndLine: %d < %d", startLine,
 					highestEndLine)
 			} else {
@@ -102,7 +99,7 @@ func getPlanResult(params planResultParams) (*db.PlanFileResult, string, bool, e
 		}
 
 		if endLine < highestEndLine {
-			if params.overlapStrategy == OverlapStrategyError {
+			if params.OverlapStrategy == OverlapStrategyError {
 				log.Printf("End line is less than highestEndLine: %d < %d\n", endLine, highestEndLine)
 				return nil, "", false, fmt.Errorf("end line is less than highestEndLine: %d < %d", endLine, highestEndLine)
 			} else {
@@ -164,7 +161,7 @@ func getPlanResult(params planResultParams) (*db.PlanFileResult, string, bool, e
 		OrgId:               orgId,
 		PlanId:              planId,
 		PlanBuildId:         planBuildId,
-		ConvoMessageId:      params.convoMessageId,
+		ConvoMessageId:      params.ConvoMessageId,
 		Content:             "",
 		Path:                filePath,
 		Replacements:        replacements,

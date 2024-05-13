@@ -17,6 +17,32 @@ var fullCompatibility = ModelCompatibility{
 
 var AvailableModels = []*AvailableModel{
 	{
+		Description:                 "OpenAI's latest gpt-4o model, first released on 2024-05-13",
+		DefaultMaxConvoTokens:       10000,
+		DefaultReservedOutputTokens: 4096,
+		BaseModelConfig: BaseModelConfig{
+			Provider:           ModelProviderOpenAI,
+			ModelName:          "gpt-4o",
+			MaxTokens:          128000,
+			ApiKeyEnvVar:       OpenAIEnvVar,
+			ModelCompatibility: fullCompatibility,
+			BaseUrl:            OpenAIV1BaseUrl,
+		},
+	},
+	{
+		Description:                 "OpenAI's gpt-4o model, pinned to version released on 2024-05-13",
+		DefaultMaxConvoTokens:       10000,
+		DefaultReservedOutputTokens: 4096,
+		BaseModelConfig: BaseModelConfig{
+			Provider:           ModelProviderOpenAI,
+			ModelName:          "gpt-4o-2024-05-13",
+			MaxTokens:          128000,
+			ApiKeyEnvVar:       OpenAIEnvVar,
+			ModelCompatibility: fullCompatibility,
+			BaseUrl:            OpenAIV1BaseUrl,
+		},
+	},
+	{
 		Description:                 "OpenAI's latest gpt-4-turbo model, first released on 2024-04-09",
 		DefaultMaxConvoTokens:       10000,
 		DefaultReservedOutputTokens: 4096,
@@ -276,8 +302,10 @@ var Gpt4TurboPreviewLatestModelPack ModelPack
 var Gpt4TurboLatestModelPack ModelPack
 var OpenRouterClaudeOpusGPT4TurboModelPack ModelPack
 var TogetherMixtral8x22BModelPack ModelPack
+var Gpt4oLatestModelPack ModelPack
 
 var BuiltInModelPacks = []*ModelPack{
+	&Gpt4oLatestModelPack,
 	&Gpt4TurboLatestModelPack,
 	&Gpt4TurboPreviewLatestModelPack,
 	&OpenRouterClaudeOpusGPT4TurboModelPack,
@@ -351,6 +379,50 @@ var RequiredCompatibilityByRole = map[ModelRole]ModelCompatibility{
 func init() {
 	for _, model := range AvailableModels {
 		AvailableModelsByName[model.ModelName] = model
+	}
+
+	Gpt4oLatestModelPack = ModelPack{
+		Name:        "gpt-4o-latest",
+		Description: "Uses OpenAI's latest gpt-4o model, first released on 2024-05-13, for heavy lifting, latest version of gpt-3.5-turbo for lighter tasks.",
+		Planner: PlannerRoleConfig{
+			ModelRoleConfig: ModelRoleConfig{
+				Role:            ModelRolePlanner,
+				BaseModelConfig: AvailableModelsByName["gpt-4o"].BaseModelConfig,
+				Temperature:     DefaultConfigByRole[ModelRolePlanner].Temperature,
+				TopP:            DefaultConfigByRole[ModelRolePlanner].TopP,
+			},
+			PlannerModelConfig: getPlannerModelConfig("gpt-4o"),
+		},
+		PlanSummary: ModelRoleConfig{
+			Role:            ModelRolePlanSummary,
+			BaseModelConfig: AvailableModelsByName["gpt-4o"].BaseModelConfig,
+			Temperature:     DefaultConfigByRole[ModelRolePlanSummary].Temperature,
+			TopP:            DefaultConfigByRole[ModelRolePlanSummary].TopP,
+		},
+		Builder: ModelRoleConfig{
+			Role:            ModelRoleBuilder,
+			BaseModelConfig: AvailableModelsByName["gpt-4o"].BaseModelConfig,
+			Temperature:     DefaultConfigByRole[ModelRoleBuilder].Temperature,
+			TopP:            DefaultConfigByRole[ModelRoleBuilder].TopP,
+		},
+		Namer: ModelRoleConfig{
+			Role:            ModelRoleName,
+			BaseModelConfig: AvailableModelsByName[openai.GPT3Dot5Turbo].BaseModelConfig,
+			Temperature:     DefaultConfigByRole[ModelRoleName].Temperature,
+			TopP:            DefaultConfigByRole[ModelRoleName].TopP,
+		},
+		CommitMsg: ModelRoleConfig{
+			Role:            ModelRoleCommitMsg,
+			BaseModelConfig: AvailableModelsByName[openai.GPT3Dot5Turbo].BaseModelConfig,
+			Temperature:     DefaultConfigByRole[ModelRoleCommitMsg].Temperature,
+			TopP:            DefaultConfigByRole[ModelRoleCommitMsg].TopP,
+		},
+		ExecStatus: ModelRoleConfig{
+			Role:            ModelRoleExecStatus,
+			BaseModelConfig: AvailableModelsByName["gpt-4o"].BaseModelConfig,
+			Temperature:     DefaultConfigByRole[ModelRoleExecStatus].Temperature,
+			TopP:            DefaultConfigByRole[ModelRoleExecStatus].TopP,
+		},
 	}
 
 	Gpt4TurboLatestModelPack = ModelPack{

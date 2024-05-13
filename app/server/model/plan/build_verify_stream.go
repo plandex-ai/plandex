@@ -140,7 +140,7 @@ func (fileState *activeBuildStreamFileState) listenStreamVerifyOutput(stream *op
 				log.Printf("listenStreamVerifyOutput - File %s: Parsed streamed verify result\n", filePath)
 				// spew.Dump(streamed)
 
-				if streamed.IsCorrect {
+				if streamed.IsCorrect() {
 					buildInfo := &shared.BuildInfo{
 						Path:      filePath,
 						NumTokens: 0,
@@ -153,9 +153,10 @@ func (fileState *activeBuildStreamFileState) listenStreamVerifyOutput(stream *op
 					log.Println("build verify - streamed.IsCorrect")
 					fileState.onFinishBuildFile(nil)
 				} else {
-					log.Printf("listenStreamVerifyOutput - File %s: Streamed verify result is incorrect: %s\n", filePath, streamed.Reasoning)
 
-					fileState.incorrectlyUpdatedReasoning = streamed.Reasoning
+					log.Printf("listenStreamVerifyOutput - File %s: Streamed verify result is incorrect\n", filePath)
+
+					fileState.incorrectlyUpdatedReasoning = streamed.GetReasoning()
 
 					select {
 					case <-activePlan.Ctx.Done():

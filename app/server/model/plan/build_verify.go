@@ -35,7 +35,9 @@ func (fileState *activeBuildStreamFileState) verifyFileBuild() {
 	// log.Printf("activeBuild.FileDescription has content: %v\n", activeBuild.FileDescription != "")
 	// log.Printf("activeBuild.FileContent has content: %v\n", activeBuild.FileContent != "")
 
-	sysPrompt := prompts.GetVerifyPrompt(preBuildState, updated, activeBuild.FileDescription, activeBuild.FileContent)
+	sysPrompt := prompts.GetVerifyPrompt(preBuildState, updated,
+		fmt.Sprintf("%s\n\n```%s```", activeBuild.FileDescription, activeBuild.FileContent),
+	)
 
 	log.Println("verify sysPrompt:\n", sysPrompt)
 

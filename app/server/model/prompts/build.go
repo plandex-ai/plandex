@@ -8,7 +8,7 @@ import (
 	"github.com/sashabaranov/go-openai/jsonschema"
 )
 
-func GetBuildLineNumbersSysPrompt(filePath, preBuildState, desc, changes string) string {
+func GetBuildLineNumbersSysPrompt(filePath, preBuildState, changes string) string {
 	// hash := sha256.Sum256([]byte(currentState))
 	// sha := hex.EncodeToString(hash[:])
 
@@ -16,25 +16,21 @@ func GetBuildLineNumbersSysPrompt(filePath, preBuildState, desc, changes string)
 
 	preBuildStateWithLineNums := shared.AddLineNums(preBuildState)
 
-	return getListChangesLineNumsPrompt() + "\n\n" + getPreBuildStatePrompt(filePath, preBuildStateWithLineNums) + "\n\n" + getBuildPromptWithLineNums(desc, changes)
+	return getListChangesLineNumsPrompt() + "\n\n" + getPreBuildStatePrompt(filePath, preBuildStateWithLineNums) + "\n\n" + getBuildPromptWithLineNums(changes)
 }
 
-func GetBuildFixesLineNumbersSysPrompt(desc, changes, updated, reasoning string) string {
+func GetBuildFixesLineNumbersSysPrompt(original, changes, updated, reasoning string) string {
 	// hash := sha256.Sum256([]byte(updated))
 	// sha := hex.EncodeToString(hash[:])
 	// log.Println("GetBuildFixesLineNumbersSysPrompt updated sha:", sha)
 
 	updatedWithLineNums := shared.AddLineNums(updated)
 
-	return getFixChangesLineNumsPrompt() + "\n\n" + getBuildPromptForFixesWithLineNums(desc, changes, updatedWithLineNums, reasoning)
+	return getFixChangesLineNumsPrompt() + "\n\n" + getBuildPromptForFixesWithLineNums(original, changes, updatedWithLineNums, reasoning)
 }
 
-func getBuildPromptWithLineNums(desc, changes string) string {
+func getBuildPromptWithLineNums(changes string) string {
 	s := ""
-
-	if desc != "" {
-		s += "Description of the proposed updates from AI-generated plan:\n```\n" + desc + "\n```\n\n"
-	}
 
 	s += "Proposed updates:\n```\n" + changes + "\n```"
 
@@ -43,16 +39,16 @@ func getBuildPromptWithLineNums(desc, changes string) string {
 	return s
 }
 
-func getBuildPromptForFixesWithLineNums(desc, changes, updated, reasoning string) string {
+func getBuildPromptForFixesWithLineNums(original, changes, updated, reasoning string) string {
 	s := ""
 
-	if desc != "" {
-		s += "Description of the proposed updates from AI-generated plan:\n```\n" + desc + "\n```\n\n"
+	if original != "" {
+		s += "**Original file:**\n```\n" + original + "\n```"
 	}
 
-	s += "Proposed updates:\n```\n" + changes + "\n```"
+	s += "**Proposed updates**:\n```\n" + changes + "\n```"
 
-	s += fmt.Sprintf("**The incorrect updated file is:**\n```\n%s\n```\n\n**The problems with the file are:**\n\n%s", updated, reasoning)
+	s += fmt.Sprintf("**The incorrectly updated file is:**\n```\n%s\n```\n\n**The problems with the file are:**\n\n%s", updated, reasoning)
 
 	s += "\n\n" + "Now call the 'listChangesWithLineNums' function with a valid JSON array of changes according to your instructions. You must always call 'listChangesWithLineNums' with one or more valid changes. Don't call any other function."
 
@@ -71,9 +67,7 @@ const replacementIntro = `
 You are an AI that analyzes a code file and an AI-generated plan to update the code file and produces a list of changes.
 `
 
-const lineNumsFunctionCallPrompt = `
-Call the 'listChangesWithLineNums' function with a valid JSON object that includes the 'changes' keys.
-
+const changesKeyPrompt = `
 'changes': An array of NON-OVERLAPPING changes. Each change is an object with properties: 'summary', 'hasChange', 'old', 'startLineIncludedReasoning', 'startLineIncluded', 'endLineIncludedReasoning', 'endLineIncluded', and 'new'.
 
 Note: all line numbers that are used below are prefixed with 'pdx-', like this 'pdx-5: for i := 0; i < 10; i++ {'. This is to help you identify the line numbers in the file. You *must* include the 'pdx-' prefix in the line numbers in the 'old' property.
@@ -138,7 +132,7 @@ Changes must be ordered in the array according to the order they appear in the f
 const changeRulesPrompt = `
 Apply changes intelligently in order to avoid syntax errors, breaking code, or removing code from the original file that should not be removed. Consider the reason behind the update and make sure the result is consistent with the intention of the plan.
 
-You ABSOLUTELY MUST NOT overwrite or delete code from the original file unless the plan *clearly intends* for the code to be overwritten or removed. Do NOT replace a full section of code with only new code unless that is the clear intention of the plan. Instead, merge the original code and the proposed changes together intelligently according to the intention of the plan. 
+You ABSOLUTELY MUST NOT overwrite or delete code from the original file unless the plan *clearly intends* for the code to be overwritten or removed. Do NOT replace a full section of code with only new code unless that is the clear intention of the plan. Instead, merge the original code and the proposed updates together intelligently according to the intention of the plan. 
 
 Pay *EXTREMELY close attention* to opening and closing brackets, parentheses, and braces. Never leave them unbalanced when the changes are applied. Also pay *EXTREMELY close attention* to newlines and indentation. Make sure that the indentation of the new code is consistent with the indentation of the original code, and syntactically correct.
 `
@@ -152,7 +146,10 @@ func getListChangesLineNumsPrompt() string {
 	return replacementIntro + `
 
 	[YOUR INSTRUCTIONS]
-	` + lineNumsFunctionCallPrompt + `
+
+	Call the 'listChangesWithLineNums' function with a valid JSON object that includes the 'changes' keys.
+
+	` + changesKeyPrompt + `
 
 	` + summaryChangePrompt + `
 
@@ -185,10 +182,12 @@ func getListChangesLineNumsPrompt() string {
 func getFixChangesLineNumsPrompt() string {
 
 	return `
-	You are an AI that analyzes an incorrect updated file, the changes that should have been applied to the file, a description of the problems with the file, and a plan to fix them, and then produces a list of changes to apply to the *incorrect updated file* that will fix *ALL* the problems.
+	You are an AI that analyzes an original file (if present), an incorrectly updated file, the changes that were proposed, and a description of the problems with the file, and then produces a list of changes to apply to the *incorrectly updated file* that will fix *ALL* the problems.
 
 	Problems you MUST fix include:
-	- Syntax errors
+	- Syntax errors, including unbalanced brackets, parentheses, braces, quotes, indentation, and other code structure errors
+	- Missing or incorrectly scoped declarations
+	- Any other errors that make the code invalid and would prevent it from being run as-is for the programming language being used
 	- Incorrectly applied changes
 	- Incorrectly removed code
 	- Incorrectly overwritten code
@@ -198,7 +197,13 @@ func getFixChangesLineNumsPrompt() string {
 	If the updated includes references to the original code in comments like "// rest of the function..." or "# existing init code...", or "// rest of the main function..." or "// rest of your function..." or "// Existing methods..." **any other reference to the original code, the file is incorrect. References like these must be handled by including the exact code from the original file that the comment is referencing.
 
 	[YOUR INSTRUCTIONS]
-	` + lineNumsFunctionCallPrompt + `
+	Call the 'listChangesWithLineNums' function with a valid JSON object that includes the 'problems' and 'changes' keys.
+
+	'problems': A string that describes all problems present within the updated file. Explain the cause of each problem and how it should be fixed. Do not just restate that there is a syntax error on a specific line. Explain what the syntax error is and how to fix it. Be exhaustive and include *every* problem that is present in the file.
+
+	 Since you are fixing an incorrectly updated file, you *MUST* include the 'problems' key and you *MUST* describe *all* problems present in the file. If you cannot identify any problems immediately, output a few hypotheses about what might be wrong and then explain which of them are actually present in the file. The file definitely does have problems, so you *must* identify them.
+
+	` + changesKeyPrompt + `
 
 	` + summaryChangePrompt + `
 
@@ -207,6 +212,8 @@ func getFixChangesLineNumsPrompt() string {
 	` + changeLineInclusionAndNewPrompt + `
 
 	You MUST ensure the line numbers for the 'old' property correctly remove *ALL* code that has problems and that the 'new' property correctly fixes *ALL* the problems present in the updated file. You MUST NOT miss any problems, fail to fix any problems, or introduce any new problems.
+
+	Because you are implementing a fix, be more willing to make larger changes in order to fix all the problems. Smaller changes are more error-prone, and the fact that you are fixing a file means a line-number based change already failed. This likely means there was some tricky structural challenge in applying the changes with line numbers, so be prepared to make a larger change in order to avoid continuing to fail to fix the file.
 
   Example function call with all keys:
   ---
@@ -235,6 +242,9 @@ var ListReplacementsFn = openai.FunctionDefinition{
 	Parameters: &jsonschema.Definition{
 		Type: jsonschema.Object,
 		Properties: map[string]jsonschema.Definition{
+			"problems": {
+				Type: jsonschema.String,
+			},
 			"changes": {
 				Type: jsonschema.Array,
 				Items: &jsonschema.Definition{
@@ -291,19 +301,39 @@ var ListReplacementsFn = openai.FunctionDefinition{
 	},
 }
 
-func GetVerifyPrompt(preBuildState, updated, desc, changes string) string {
+func GetVerifyPrompt(preBuildState, updated, changes string) string {
 	s := `
-Based on an original file (if one exists), an AI-generated plan, and an updated file, determine whether the proposed changes were applied correctly to the updated file. Is the syntax in the updated file correct? Were the changes applied correctly or was some code from the original file removed or overwritten that should not have been? Does the updated file as a whole make sense and was it updated consistently with the intention of the plan? Were *all* comments in the proposed changes that referenced the original code correctly handled in the updated file by including the exact code from the original file that the comment was referencing? Did any code get duplicated that should not have been?
+Based on an original file (if one exists), an AI-generated plan, and an updated file, determine whether the updated file's syntax is correct and whether the proposed updates were applied correctly to the updated file.
 
-If the updated includes references to the original code in comments like "// rest of the function..." or "# existing init code...", or "// rest of the main function..." or "// rest of your function..." or "// Existing methods...", "// Existing code..." **any other reference to the original code**, the file is incorrect. References like these must be handled by including the exact code from the original file that the comment is referencing.
+You must consider whether any of the following problems are present in the updated file:
+- Syntax errors, including unbalanced brackets, parentheses, braces, quotes, indentation, and other code structure errors
+- Missing or incorrectly scoped declarations
+- Any other errors that make the code invalid and would prevent it from being run as-is for the programming language being used
+- Code from the original file was incorrectly removed or overwritten.
+- Code was incorrectly duplicated. For example, if a file should have a single main function, but instead of updating the existing main function, the updated file includes multiple main functions, then the file is incorrect. The same applies to any other functions or elements that should not be duplicated.
+- Incorrectly included comments that reference the original code.. If the updated file includes comments like "// rest of the function..." or "# existing init code...", or "// rest of the main function..." or "// rest of your function..." or "// Existing methods...", "// Existing code..." **any other reference to the original code**, the file is incorrect. References like these must be handled by including the exact code from the original file that the comment is referencing.
 
 If there is no original file, it means that a new file was created from scratch based on the AI-generated plan. In this case, the syntax in the new file must be valid and consistent with the intention of the plan. You must ensure there are no syntax errors or other clear mistakes in the new file.
 
-Call the 'verifyOutput' function with a valid JSON object that include the 'reasoning' and 'isCorrect' keys.
+Call the 'verifyOutput' function with a valid JSON object that include the following keys:
 
-'reasoning': Succinctly explain whether the proposed changes were or were not applied correctly and whether the syntax is valid. If the changes were not applied correctly or the syntax isn't valid, list *EVERY* problem and what needs to be done to fix *ALL* the errors. If the syntax isn't valid only because the syntax wasn't valid in the original file, explain that the syntax, though incorrect, is consistent with the original file and that the changes were applied correctly.
+'syntaxErrorsReasoning': A string that succinctly explains whether there are any syntax or scoping errors in the updated file. Explain all syntax errors, scoping errors, or other code structure errors that are present in the updated file. 
 
-'isCorrect': A boolean that indicates whether the proposed changes were applied correctly. If the proposed changes were applied correctly, set 'isCorrect' to true. If the proposed changes were not applied correctly, set 'isCorrect' to false.
+'hasSyntaxErrors': A boolean that indicates whether there are any syntax errors in the updated file, based on the reasoning provided in 'syntaxErrorsReasoning'.
+
+'removedCodeErrorsReasoning': A string that succinctly explains whether any code was incorrectly removed or overwritten in the updated file. First explain whether any code was removed or overwritten, then explain whether the removal or overwriting was deliberate and consistent with the plan.
+
+'hasRemovedCodeErrors': A boolean that indicates whether any code was *incorrectly* removed or overwritten in the updated file, based on the reasoning provided in 'removedCodeErrorsReasoning'. If code was *incorrectly* removed or overwritten, set 'hasRemovedCodeErrors' to true. If code was *correctly* removed or overwritten, consistent with the intention of the plan, set 'hasRemovedCodeErrors' to false.
+
+'duplicationErrorsReasoning': A string that succinctly explains whether any code was *incorrectly* duplicated in the updated file. First explain whether any code, functions, or other elements are duplicated in the updated file, then explain whether the duplication is deliberate and consistent with the plan, and whether the duplication is correct and valid in the programming language being used.
+
+'hasDuplicationErrors': A boolean that indicates whether any code was *incorrectly* duplicated in the updated file, based on the reasoning provided in 'duplicationErrorsReasoning'. If code was *incorrectly* duplicated, set 'hasDuplicationErrors' to true. If code was *correctly* duplicated, consistent with the intention of the plan, set 'hasDuplicationErrors' to false.
+
+'referenceErrorsReasoning': A string that succinctly explains whether any comments in the updated file are placeholders/references that should have been replaced with code from the original file. These are comments like "// rest of the function..." or "# existing init code...", or "// rest of the main function..." or "// rest of your function..." or "// Existing methods...", "// Existing code..." or other  comments which reference code from the original file. Only include comments that *are not* present in the original file and *are* present in the proposed updates. If there are no such comments, explain that there are no reference errors.
+
+'hasReferenceErrors': A boolean that indicates whether any comments in the updated file are placeholders/references that should be replaced with code from the original file, based on the reasoning provided in 'referenceErrorsReasoning'.
+
+In each of the reasoning keys above, be exhaustive and include *every* problem that is present in the file. But if there are no problems in a reasoning key, do NOT invent problems--explain according to your instructions for each key that there are no problems in that category.
 `
 
 	if preBuildState != "" {
@@ -319,12 +349,6 @@ Call the 'verifyOutput' function with a valid JSON object that include the 'reas
 	}
 
 	s += `
-## **Description of the proposed updates from AI-generated plan:**
-
-` + desc + `
-
---
-
 ## **Proposed updates:**
 
 ` + changes + `
@@ -357,90 +381,32 @@ var VerifyOutputFn = openai.FunctionDefinition{
 	Parameters: &jsonschema.Definition{
 		Type: jsonschema.Object,
 		Properties: map[string]jsonschema.Definition{
-			"reasoning": {
+			"syntaxErrorsReasoning": {
 				Type: jsonschema.String,
 			},
-			"isCorrect": {
+			"hasSyntaxErrors": {
+				Type: jsonschema.Boolean,
+			},
+			"removedCodeErrorsReasoning": {
+				Type: jsonschema.String,
+			},
+			"hasRemovedCodeErrors": {
+				Type: jsonschema.Boolean,
+			},
+			"duplicationErrorsReasoning": {
+				Type: jsonschema.String,
+			},
+			"hasDuplicationErrors": {
+				Type: jsonschema.Boolean,
+			},
+			"referenceErrorsReasoning": {
+				Type: jsonschema.String,
+			},
+			"hasReferenceErrors": {
 				Type: jsonschema.Boolean,
 			},
 		},
+		Required: []string{"syntaxErrorsReasoning", "hasSyntaxErrors",
+			"removedCodeErrorsReasoning", "hasRemovedCodeErrors", "duplicationErrorsReasoning", "hasDuplicationErrors", "referenceErrorsReasoning", "hasReferenceErrors"},
 	},
 }
-
-// Saving the prompts below to maybe take a stab at full replacements in the future -- not robust enough for now
-
-// func GetBuildFullChangesSysPrompt(filePath, currentState, desc, changes string) string {
-
-// 	return fullChangesPrompt + "\n\n" + getBuildCurrentStatePrompt(filePath, currentState) + "\n\n" + getBuildPromptWithFullChanges(desc, changes)
-// }
-
-// func getBuildPromptWithFullChanges(desc, changes string) string {
-// 	s := ""
-
-// 	if desc != "" {
-// 		s += "Description of the proposed updates from AI-generated plan:\n```\n" + desc + "\n```\n\n"
-// 	}
-
-// 	s += "Proposed updates:\n```\n" + changes + "\n```"
-
-// 	s += "\n\n" + "Now call the 'listChangesFull' function with a valid JSON array of changes according to your instructions. You must always call 'listChangesFull' with one or more valid changes. Don't call any other function."
-
-// 	return s
-// }
-
-// var ListReplacementsFullFn = openai.FunctionDefinition{
-// 	Name: "listChangesFull",
-// 	Parameters: &jsonschema.Definition{
-// 		Type: jsonschema.Object,
-// 		Properties: map[string]jsonschema.Definition{
-// 			"changes": {
-// 				Type: jsonschema.Array,
-// 				Items: &jsonschema.Definition{
-// 					Type: jsonschema.Object,
-// 					Properties: map[string]jsonschema.Definition{
-// 						"summary": {
-// 							Type: jsonschema.String,
-// 						},
-// 						"old": {
-// 							Type: jsonschema.String,
-// 						},
-// 						"new": {
-// 							Type: jsonschema.String,
-// 						},
-// 					},
-// 					Required: []string{"summary", "old", "new"},
-// 				},
-// 			},
-// 		},
-// 		Required: []string{"changes"},
-// 	},
-// }
-
-// const fullChangesPrompt = replacementIntro + `
-
-// 	[YOUR INSTRUCTIONS]
-// 	Call the 'listChangesFull' function with a valid JSON object that includes the 'changes' keys.
-
-// 	'changes': An array of NON-OVERLAPPING changes. Each change is an object with properties: 'summary', 'old', and 'new'.
-
-// 	` + summaryPrompt + `
-
-//   The 'old' property is the *exact* old text to replace. 'old' must be an EXACT SUBSTRING of the original file. 'old' *must only include entire lines and *no partial lines*. Pay *extremely* close attention to quotes, indentation, newlines, spaces and special characters. All double quotes inside 'old' MUST ALWAYS be escaped with a backslash. Apart from escaped double quotes, the 'old' property must be an exact match of the original code that will be replaced. 'old' must be large enough to be *unique and unambiguous* within the file. If the 'old' property occurs in multiple places in the file, you must include enough context to ensure that the 'old' property is unambiguous. Expand 'old' as necessary. 'old' must be an *exact* match of the original code that will be replaced.
-
-//   ` + changeNewPrompt + `
-
-//   Example function call with all keys:
-//   ---
-//   listChangesFull([{
-//     summary: "Insert function ExecQuery after GetResults function in loop body.",
-//     old: "      GetResults()\n    }\n   }\n }",
-//     new: "      GetResults()\n     execQuery()\n    }\n  }\n}",
-//   }])
-//   ---
-
-// 	` + changeRulesPrompt + `
-
-// 	The 'listChangesFull' function MUST be called *valid JSON*. Double quotes within json properties of the 'listChangesFull' function call parameters JSON object *must be properly escaped* with a backslash.
-
-//   [END YOUR INSTRUCTIONS]
-// `
