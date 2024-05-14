@@ -110,7 +110,7 @@ func (m streamUIModel) doRenderBuild(outputStatic bool) string {
 
 	for _, filePath := range filePaths {
 		tokens := m.tokensByPath[filePath]
-		finished := m.finishedByPath[filePath]
+		finished := m.finished || m.finishedByPath[filePath]
 		block := fmt.Sprintf("📄 %s", filePath)
 
 		if finished {

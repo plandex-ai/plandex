@@ -312,7 +312,7 @@ var BuiltInModelPacks = []*ModelPack{
 	&TogetherMixtral8x22BModelPack,
 }
 
-var DefaultModelPack *ModelPack = &Gpt4TurboLatestModelPack
+var DefaultModelPack *ModelPack = &Gpt4oLatestModelPack
 
 func getPlannerModelConfig(name string) PlannerModelConfig {
 	return PlannerModelConfig{
