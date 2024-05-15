@@ -17,6 +17,30 @@ var fullCompatibility = ModelCompatibility{
 
 var AvailableModels = []*AvailableModel{
 	{
+		Description:                 "OpenAI's latest gpt-4o model, currently points to gpt-4o-2024-05-13",
+		DefaultMaxConvoTokens:       10000,
+		DefaultReservedOutputTokens: 4096,
+		BaseModelConfig: BaseModelConfig{
+			Provider:           ModelProviderOpenAI,
+			ModelName:          openai.GPT4o,
+			MaxTokens:          128000,
+			ApiKeyEnvVar:       OpenAIEnvVar,
+			ModelCompatibility: fullCompatibility,
+			BaseUrl:            OpenAIV1BaseUrl,
+		}},
+	{
+		Description:                 "OpenAI's latest gpt-4o model, first released on 2024-05-13",
+		DefaultMaxConvoTokens:       10000,
+		DefaultReservedOutputTokens: 4096,
+		BaseModelConfig: BaseModelConfig{
+			Provider:           ModelProviderOpenAI,
+			ModelName:          openai.GPT4o20240513,
+			MaxTokens:          128000,
+			ApiKeyEnvVar:       OpenAIEnvVar,
+			ModelCompatibility: fullCompatibility,
+			BaseUrl:            OpenAIV1BaseUrl,
+		}},
+	{
 		Description:                 "OpenAI's latest gpt-4-turbo model, first released on 2024-04-09",
 		DefaultMaxConvoTokens:       10000,
 		DefaultReservedOutputTokens: 4096,
