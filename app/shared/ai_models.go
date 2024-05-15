@@ -296,12 +296,14 @@ var AvailableModels = []*AvailableModel{
 
 var AvailableModelsByName = map[string]*AvailableModel{}
 
+var Gpt4oModelPack ModelPack
 var Gpt4TurboPreviewLatestModelPack ModelPack
 var Gpt4TurboLatestModelPack ModelPack
 var OpenRouterClaudeOpusGPT4TurboModelPack ModelPack
 var TogetherMixtral8x22BModelPack ModelPack
 
 var BuiltInModelPacks = []*ModelPack{
+	&Gpt4oModelPack,
 	&Gpt4TurboLatestModelPack,
 	&Gpt4TurboPreviewLatestModelPack,
 	&OpenRouterClaudeOpusGPT4TurboModelPack,
@@ -376,6 +378,50 @@ func init() {
 	for _, model := range AvailableModels {
 		AvailableModelsByName[model.ModelName] = model
 	}
+
+	Gpt4oModelPack = ModelPack{
+		Name:        "gpt-4o",
+		Description: "Uses latest version of OpenAI gpt-4o model (first released on 2024-05-13) currently points to gpt-4o-2024-05-13.",
+		Planner: PlannerRoleConfig{
+			ModelRoleConfig: ModelRoleConfig{
+				Role:            ModelRolePlanner,
+				BaseModelConfig: AvailableModelsByName[openai.GPT4o].BaseModelConfig,
+				Temperature:     DefaultConfigByRole[ModelRolePlanner].Temperature,
+				TopP:            DefaultConfigByRole[ModelRolePlanner].TopP,
+			},
+			PlannerModelConfig: getPlannerModelConfig(openai.GPT4o),
+		},
+		PlanSummary: ModelRoleConfig{
+			Role:            ModelRolePlanSummary,
+			BaseModelConfig: AvailableModelsByName[openai.GPT4o].BaseModelConfig,
+			Temperature:     DefaultConfigByRole[ModelRolePlanSummary].Temperature,
+			TopP:            DefaultConfigByRole[ModelRolePlanSummary].TopP,
+		},
+		Builder: ModelRoleConfig{
+			Role:            ModelRoleBuilder,
+			BaseModelConfig: AvailableModelsByName[openai.GPT4o].BaseModelConfig,
+			Temperature:     DefaultConfigByRole[ModelRoleBuilder].Temperature,
+			TopP:            DefaultConfigByRole[ModelRoleBuilder].TopP,
+		},
+		Namer: ModelRoleConfig{
+			Role:            ModelRoleName,
+			BaseModelConfig: AvailableModelsByName[openai.GPT3Dot5Turbo].BaseModelConfig,
+			Temperature:     DefaultConfigByRole[ModelRoleName].Temperature,
+			TopP:            DefaultConfigByRole[ModelRoleName].TopP,
+		},
+		CommitMsg: ModelRoleConfig{
+			Role:            ModelRoleCommitMsg,
+			BaseModelConfig: AvailableModelsByName[openai.GPT3Dot5Turbo].BaseModelConfig,
+			Temperature:     DefaultConfigByRole[ModelRoleCommitMsg].Temperature,
+			TopP:            DefaultConfigByRole[ModelRoleCommitMsg].TopP,
+		},
+		ExecStatus: ModelRoleConfig{
+			Role:            ModelRoleExecStatus,
+			BaseModelConfig: AvailableModelsByName[openai.GPT4o].BaseModelConfig,
+			Temperature:     DefaultConfigByRole[ModelRoleExecStatus].Temperature,
+			TopP:            DefaultConfigByRole[ModelRoleExecStatus].TopP,
+		},
+	}	
 
 	Gpt4TurboLatestModelPack = ModelPack{
 		Name:        "gpt-4-turbo-latest",
