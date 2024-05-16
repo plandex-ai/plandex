@@ -73,8 +73,8 @@ func GetPlanResult(ctx context.Context, params PlanResultParams) (*db.PlanFileRe
 		new := streamedChange.New
 
 		if streamedChange.Old.EntireFile {
-			old = preBuildState
 			replacements = append(replacements, &shared.Replacement{
+				EntireFile:     true,
 				Old:            old,
 				New:            new,
 				StreamedChange: streamedChange,

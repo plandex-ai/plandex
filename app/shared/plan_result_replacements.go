@@ -21,7 +21,14 @@ func ApplyReplacements(content string, replacements []*Replacement, setFailed bo
 
 			pre := updated[:lastInsertedIdx]
 			sub := updated[lastInsertedIdx:]
-			originalIdx := strings.Index(sub, replacement.Old)
+
+			var originalIdx int
+
+			if replacement.EntireFile {
+				originalIdx = 0
+			} else {
+				originalIdx = strings.Index(sub, replacement.Old)
+			}
 
 			// log.Println("originalIdx:", originalIdx)
 
@@ -47,6 +54,9 @@ func ApplyReplacements(content string, replacements []*Replacement, setFailed bo
 
 				return updated, i
 
+			} else if replacement.EntireFile {
+				updated = replacement.New
+				lastInsertedIdx = 0
 			} else {
 				// log.Printf("originalIdx: %d, len(replacement.Old): %d\n", originalIdx, len(replacement.Old))
 				// log.Println("Old: ", replacement.Old)

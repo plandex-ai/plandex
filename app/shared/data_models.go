@@ -145,6 +145,7 @@ type PlanBuild struct {
 type Replacement struct {
 	Id             string                      `json:"id"`
 	Old            string                      `json:"old"`
+	EntireFile     bool                        `json:"entireFile"`
 	New            string                      `json:"new"`
 	Failed         bool                        `json:"failed"`
 	RejectedAt     *time.Time                  `json:"rejectedAt,omitempty"`

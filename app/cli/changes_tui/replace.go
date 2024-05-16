@@ -22,8 +22,15 @@ type oldReplacementRes struct {
 }
 
 func (m changesUIModel) getReplacementOldDisplay() oldReplacementRes {
-	oldContent := m.selectionInfo.currentRep.Old
+
 	originalFile := m.selectionInfo.currentFilesBeforeReplacement.Files[m.selectionInfo.currentPath]
+
+	var oldContent string
+	if m.selectionInfo.currentRep.EntireFile {
+		oldContent = originalFile
+	} else {
+		oldContent = m.selectionInfo.currentRep.Old
+	}
 
 	// log.Println(originalFile)
 
