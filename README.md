@@ -232,7 +232,17 @@ Plandex Cloud accounts are free for now. In the future, they will cost somewhere
 
 ## Self-hosting  🏠
 
-[Read about self-hosting Plandex here.](./guides/HOSTING.md)
+Self-contained script for easy local mode and self-hosting:
+
+```bash
+git clone https://github.com/plandex-ai/plandex.git
+cd plandex/app
+./start_local.sh
+```
+
+Requires git, docker, and docker-compose.
+
+[Read more about self-hosting Plandex here.](./guides/HOSTING.md)
 
 <br/>
 

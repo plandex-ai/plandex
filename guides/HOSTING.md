@@ -1,5 +1,13 @@
 # Plandex self-hosting 🏠
 
+## Quick start script ⚡️
+
+```bash
+git clone https://github.com/plandex-ai/plandex.git
+cd plandex/app
+./start_local.sh
+``` 
+
 ## Requirements
 
 The Plandex server requires a PostgreSQL database (ideally v14), a persistent file system, git, and these environment variables (if using the docker build command below):

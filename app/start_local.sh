@@ -8,9 +8,6 @@ if ! [ -x "$(command -v git)" ]; then
     exit 1
 fi
 
-VERSION=$(cat ./server/version.txt) # or use the version you want
-git checkout server/v$VERSION
-
 if ! [ -x "$(command -v docker)" ]; then
     echo 'Error: docker is not installed.' >&2
     echo 'Please install docker before running this setup script.' >&2
