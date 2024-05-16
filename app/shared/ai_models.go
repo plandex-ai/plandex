@@ -22,7 +22,7 @@ var AvailableModels = []*AvailableModel{
 		DefaultReservedOutputTokens: 4096,
 		BaseModelConfig: BaseModelConfig{
 			Provider:           ModelProviderOpenAI,
-			ModelName:          "gpt-4o",
+			ModelName:          openai.GPT4o,
 			MaxTokens:          128000,
 			ApiKeyEnvVar:       OpenAIEnvVar,
 			ModelCompatibility: fullCompatibility,
@@ -346,6 +346,14 @@ var DefaultConfigByRole = map[ModelRole]ModelRoleConfig{
 		Temperature: 0.1,
 		TopP:        0.1,
 	},
+	ModelRoleVerifier: {
+		Temperature: 0.2,
+		TopP:        0.2,
+	},
+	ModelRoleAutoFix: {
+		Temperature: 0.1,
+		TopP:        0.1,
+	},
 }
 
 var RequiredCompatibilityByRole = map[ModelRole]ModelCompatibility{
@@ -374,6 +382,18 @@ var RequiredCompatibilityByRole = map[ModelRole]ModelCompatibility{
 		IsOpenAICompatible: true,
 		HasFunctionCalling: true,
 	},
+	ModelRoleVerifier: {
+		IsOpenAICompatible:        true,
+		HasStreaming:              true,
+		HasFunctionCalling:        true,
+		HasStreamingFunctionCalls: true,
+	},
+	ModelRoleAutoFix: {
+		IsOpenAICompatible:        true,
+		HasStreaming:              true,
+		HasFunctionCalling:        true,
+		HasStreamingFunctionCalls: true,
+	},
 }
 
 func init() {
@@ -383,25 +403,25 @@ func init() {
 
 	Gpt4oLatestModelPack = ModelPack{
 		Name:        "gpt-4o-latest",
-		Description: "Uses OpenAI's latest gpt-4o model, first released on 2024-05-13, for heavy lifting, latest version of gpt-3.5-turbo for lighter tasks.",
+		Description: "Uses OpenAI's latest gpt-4o model, first released on 2024-05-13, for heavy lifting, and latest version of gpt-3.5-turbo for lighter tasks.",
 		Planner: PlannerRoleConfig{
 			ModelRoleConfig: ModelRoleConfig{
 				Role:            ModelRolePlanner,
-				BaseModelConfig: AvailableModelsByName["gpt-4o"].BaseModelConfig,
+				BaseModelConfig: AvailableModelsByName[openai.GPT4o].BaseModelConfig,
 				Temperature:     DefaultConfigByRole[ModelRolePlanner].Temperature,
 				TopP:            DefaultConfigByRole[ModelRolePlanner].TopP,
 			},
-			PlannerModelConfig: getPlannerModelConfig("gpt-4o"),
+			PlannerModelConfig: getPlannerModelConfig(openai.GPT4o),
 		},
 		PlanSummary: ModelRoleConfig{
 			Role:            ModelRolePlanSummary,
-			BaseModelConfig: AvailableModelsByName["gpt-4o"].BaseModelConfig,
+			BaseModelConfig: AvailableModelsByName[openai.GPT4o].BaseModelConfig,
 			Temperature:     DefaultConfigByRole[ModelRolePlanSummary].Temperature,
 			TopP:            DefaultConfigByRole[ModelRolePlanSummary].TopP,
 		},
 		Builder: ModelRoleConfig{
 			Role:            ModelRoleBuilder,
-			BaseModelConfig: AvailableModelsByName["gpt-4o"].BaseModelConfig,
+			BaseModelConfig: AvailableModelsByName[openai.GPT4o].BaseModelConfig,
 			Temperature:     DefaultConfigByRole[ModelRoleBuilder].Temperature,
 			TopP:            DefaultConfigByRole[ModelRoleBuilder].TopP,
 		},
@@ -419,9 +439,21 @@ func init() {
 		},
 		ExecStatus: ModelRoleConfig{
 			Role:            ModelRoleExecStatus,
-			BaseModelConfig: AvailableModelsByName["gpt-4o"].BaseModelConfig,
+			BaseModelConfig: AvailableModelsByName[openai.GPT4o].BaseModelConfig,
 			Temperature:     DefaultConfigByRole[ModelRoleExecStatus].Temperature,
 			TopP:            DefaultConfigByRole[ModelRoleExecStatus].TopP,
+		},
+		Verifier: &ModelRoleConfig{
+			Role:            ModelRoleVerifier,
+			BaseModelConfig: AvailableModelsByName[openai.GPT4o].BaseModelConfig,
+			Temperature:     DefaultConfigByRole[ModelRoleVerifier].Temperature,
+			TopP:            DefaultConfigByRole[ModelRoleVerifier].TopP,
+		},
+		AutoFix: &ModelRoleConfig{
+			Role:            ModelRoleAutoFix,
+			BaseModelConfig: AvailableModelsByName[openai.GPT4o].BaseModelConfig,
+			Temperature:     DefaultConfigByRole[ModelRoleAutoFix].Temperature,
+			TopP:            DefaultConfigByRole[ModelRoleAutoFix].TopP,
 		},
 	}
 

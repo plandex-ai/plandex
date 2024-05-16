@@ -5,6 +5,7 @@ import (
 	"log"
 	"plandex-server/model"
 	"plandex-server/model/prompts"
+	"strings"
 
 	"github.com/sashabaranov/go-openai"
 )
@@ -15,9 +16,8 @@ func (fileState *activeBuildStreamFileState) fixFileLineNums() {
 	clients := fileState.clients
 	planId := fileState.plan.Id
 	branch := fileState.branch
-	config := fileState.settings.ModelPack.Builder
+	config := fileState.settings.ModelPack.GetAutoFix()
 	incorrectlyUpdated := fileState.updated
-	reasoning := fileState.incorrectlyUpdatedReasoning
 
 	activePlan := GetActivePlan(planId, branch)
 
@@ -33,6 +33,21 @@ func (fileState *activeBuildStreamFileState) fixFileLineNums() {
 
 	log.Println("fixFileLineNums - getting file from model: " + filePath)
 	// log.Println("File context:", fileContext)
+
+	reasoning := ""
+	if len(fileState.syntaxErrors) > 0 {
+		reasoning += "The following are syntax errors identified by the tree-sitter library. Here are line numbers:\n\n" + strings.Join(fileState.syntaxErrors, "\n")
+	}
+
+	if fileState.verificationErrors != "" {
+		if len(fileState.syntaxErrors) > 0 {
+			reasoning += "\n\n"
+			reasoning += "The following are other problems identified in the file:\n\n"
+		} else {
+			reasoning += "Here are the problems identified in the file:\n\n"
+		}
+		reasoning += fileState.verificationErrors
+	}
 
 	sysPrompt := prompts.GetBuildFixesLineNumbersSysPrompt(fileState.preBuildState, fmt.Sprintf("%s\n\n```%s```", activeBuild.FileDescription, activeBuild.FileContent), incorrectlyUpdated, reasoning)
 

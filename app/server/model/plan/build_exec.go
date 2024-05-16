@@ -6,9 +6,9 @@ import (
 	"plandex-server/db"
 	"plandex-server/model"
 	"plandex-server/model/prompts"
+	"plandex-server/syntax"
 	"plandex-server/types"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/plandex/plandex/shared"
 	"github.com/sashabaranov/go-openai"
 )
@@ -230,22 +230,34 @@ func (fileState *activeBuildStreamFileState) buildFile() {
 			BuildInfo: buildInfo,
 		})
 
-		// new file
-		planRes := &db.PlanFileResult{
-			OrgId:          currentOrgId,
-			PlanId:         planId,
-			PlanBuildId:    build.Id,
-			ConvoMessageId: build.ConvoMessageId,
-			Path:           filePath,
-			Content:        activeBuild.FileContent,
+		// validate syntax of new file
+		validationRes, err := syntax.Validate(activePlan.Ctx, filePath, activeBuild.FileContent)
+
+		if err != nil {
+			log.Printf("Error validating syntax for new file '%s': %v\n", filePath, err)
+			fileState.onBuildFileError(fmt.Errorf("error validating syntax for new file '%s': %v", filePath, err))
+			return
 		}
 
-		fileState.updated = activeBuild.FileContent
+		// new file
+		planRes := &db.PlanFileResult{
+			OrgId:           currentOrgId,
+			PlanId:          planId,
+			PlanBuildId:     build.Id,
+			ConvoMessageId:  build.ConvoMessageId,
+			Path:            filePath,
+			Content:         activeBuild.FileContent,
+			WillCheckSyntax: validationRes.HasParser && !validationRes.TimedOut,
+			SyntaxValid:     validationRes.Valid,
+			SyntaxErrors:    validationRes.Errors,
+		}
 
 		log.Println("build exec - Plan file result:")
-		spew.Dump(planRes)
+		// spew.Dump(planRes)
 
-		fileState.onFinishBuildFile(planRes)
+		fileState.isNewFile = true
+
+		fileState.onFinishBuildFile(planRes, activeBuild.FileContent)
 		return
 	} else {
 		currentNumTokens, err := shared.GetNumTokens(currentState)
@@ -340,77 +352,3 @@ func (fileState *activeBuildStreamFileState) buildFileLineNums() {
 
 	go fileState.listenStreamChangesWithLineNums(stream)
 }
-
-// func (fileState *activeBuildStreamFileState) buildFileFullChanges() {
-// 	filePath := fileState.filePath
-// 	activeBuild := fileState.activeBuild
-// 	clients := fileState.clients
-// 	planId := fileState.plan.Id
-// 	branch := fileState.branch
-// 	config := fileState.settings.ModelPack.Builder
-// 	currentState := fileState.currentState
-
-// 	activePlan := GetActivePlan(planId, branch)
-
-// 	if activePlan == nil {
-// 		log.Printf("Active plan not found for plan ID %s and branch %s\n", planId, branch)
-// 		return
-// 	}
-
-// 	log.Println("buildFileFullChanges - getting file from model: " + filePath)
-// 	// log.Println("File context:", fileContext)
-
-// 	// log.Println("currentState:", currentState)
-
-// 	sysPrompt := prompts.GetBuildFullChangesSysPrompt(filePath, currentState, activeBuild.FileDescription, activeBuild.FileContent)
-
-// 	fileMessages := []openai.ChatCompletionMessage{
-// 		{
-// 			Role:    openai.ChatMessageRoleSystem,
-// 			Content: sysPrompt,
-// 		},
-// 	}
-
-// 	log.Println("buildFileFullChanges - calling model for file: " + filePath)
-
-// 	// for _, msg := range fileMessages {
-// 	// 	log.Printf("%s: %s\n", msg.Role, msg.Content)
-// 	// }
-
-// 	var responseFormat *openai.ChatCompletionResponseFormat
-// 	if config.BaseModelConfig.HasJsonResponseMode {
-// 		responseFormat = &openai.ChatCompletionResponseFormat{Type: "json_object"}
-// 	}
-
-// 	modelReq := openai.ChatCompletionRequest{
-// 		Model: config.BaseModelConfig.ModelName,
-// 		Tools: []openai.Tool{
-// 			{
-// 				Type:     "function",
-// 				Function: &prompts.ListReplacementsFullFn,
-// 			},
-// 		},
-// 		ToolChoice: openai.ToolChoice{
-// 			Type: "function",
-// 			Function: openai.ToolFunction{
-// 				Name: prompts.ListReplacementsFullFn.Name,
-// 			},
-// 		},
-// 		Messages:       fileMessages,
-// 		Temperature:    config.Temperature,
-// 		TopP:           config.TopP,
-// 		ResponseFormat: responseFormat,
-// 	}
-
-// 	envVar := config.BaseModelConfig.ApiKeyEnvVar
-// 	client := clients[envVar]
-
-// 	stream, err := model.CreateChatCompletionStreamWithRetries(client, activePlan.Ctx, modelReq)
-// 	if err != nil {
-// 		log.Printf("Error creating plan file stream for path '%s': %v\n", filePath, err)
-// 		fileState.onBuildFileError(fmt.Errorf("error creating plan file stream for path '%s': %v", filePath, err))
-// 		return
-// 	}
-
-// 	go fileState.listenStreamFullChanges(stream)
-// }

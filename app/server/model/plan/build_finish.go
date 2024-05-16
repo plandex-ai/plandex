@@ -191,7 +191,7 @@ func (state *activeBuildStreamFileState) onFinishBuild() {
 	}
 }
 
-func (fileState *activeBuildStreamFileState) onFinishBuildFile(planRes *db.PlanFileResult) {
+func (fileState *activeBuildStreamFileState) onFinishBuildFile(planRes *db.PlanFileResult, updated string) {
 	planId := fileState.plan.Id
 	branch := fileState.branch
 	currentOrgId := fileState.currentOrgId
@@ -269,6 +269,31 @@ func (fileState *activeBuildStreamFileState) onFinishBuildFile(planRes *db.PlanF
 		}
 	}
 
+	// if we have a syntax error, fix it if we aren't out of retries
+	if planRes != nil && planRes.WillCheckSyntax && !planRes.SyntaxValid {
+		if planRes.IsFix {
+			if planRes.FixEpoch >= FixSyntaxEpochs-1 {
+				// we're out of retries, just continue on to queue processing
+			} else {
+				fileState.syntaxNumEpoch++
+				fileState.syntaxNumRetry = 0
+				fileState.isFixingSyntax = true
+				fileState.syntaxErrors = planRes.SyntaxErrors
+				fileState.preBuildState = fileState.updated
+				fileState.updated = updated
+				go fileState.fixFileLineNums()
+				return
+			}
+		} else {
+			fileState.isFixingSyntax = true
+			fileState.syntaxErrors = planRes.SyntaxErrors
+			fileState.preBuildState = fileState.updated
+			fileState.updated = updated
+			go fileState.fixFileLineNums()
+			return
+		}
+	}
+
 	activeBuild.Success = true
 
 	// if more builds are queued, start the next one regardless of whether this is a verification build or not, then return
@@ -295,57 +320,37 @@ func (fileState *activeBuildStreamFileState) onFinishBuildFile(planRes *db.PlanF
 		return
 	}
 
-	buildFinished := false
-
-	UpdateActivePlan(planId, branch, func(ap *types.ActivePlan) {
-		ap.BuiltFiles[filePath] = true
-		ap.IsBuildingByPath[filePath] = false
-		if ap.BuildFinished() {
-			buildFinished = true
-		}
-	})
-
-	log.Printf("Finished building file %s\n", filePath)
-
-	if buildFinished {
-		log.Println("Finished building plan, calling onFinishBuild")
-		fileState.onFinishBuild()
-	}
-
-	// Verification logic below is disabled for now pending more work on prompts
-
 	// otherwise:
-	// if this is a verification build, check if the build is finished and call onFinishBuild if it is
+	// if this is a verification build or a new file build (new files aren't verified), check if the build is finished and call onFinishBuild if it is
 	// if this is not a verification build, trigger the verification build
-	// if activeBuild.IsVerification {
-	// 	buildFinished := false
+	if activeBuild.IsVerification || fileState.isNewFile || (planRes != nil && !planRes.CanVerify) {
+		buildFinished := false
 
-	// 	UpdateActivePlan(planId, branch, func(ap *types.ActivePlan) {
-	// 		ap.BuiltFiles[filePath] = true
-	// 		ap.IsBuildingByPath[filePath] = false
-	// 		if ap.BuildFinished() {
-	// 			buildFinished = true
-	// 		}
-	// 	})
+		UpdateActivePlan(planId, branch, func(ap *types.ActivePlan) {
+			ap.BuiltFiles[filePath] = true
+			ap.IsBuildingByPath[filePath] = false
+			if ap.BuildFinished() {
+				buildFinished = true
+			}
+		})
 
-	// 	log.Printf("Finished building file %s\n", filePath)
+		log.Printf("Finished building file %s\n", filePath)
 
-	// 	if buildFinished {
-	// 		log.Println("Finished building plan, calling onFinishBuild")
-	// 		fileState.onFinishBuild()
-	// 	}
-	// } else {
-	// 	go fileState.execPlanBuild(&types.ActiveBuild{
-	// 		ReplyId:               activeBuild.ReplyId,
-	// 		FileDescription:       activeBuild.FileDescription,
-	// 		FileContent:           activeBuild.FileContent,
-	// 		Path:                  activeBuild.Path,
-	// 		Idx:                   activeBuild.Idx,
-	// 		IsVerification:        true,
-	// 		ToVerifyPreBuildState: fileState.preBuildState,
-	// 		ToVerifyUpdatedState:  fileState.updated,
-	// 	})
-	// }
+		if buildFinished {
+			log.Println("Finished building plan, calling onFinishBuild")
+			fileState.onFinishBuild()
+		}
+	} else {
+		go fileState.execPlanBuild(&types.ActiveBuild{
+			ReplyId:              activeBuild.ReplyId,
+			FileDescription:      activeBuild.FileDescription,
+			FileContent:          activeBuild.FileContent,
+			Path:                 activeBuild.Path,
+			Idx:                  activeBuild.Idx,
+			IsVerification:       true,
+			ToVerifyUpdatedState: updated,
+		})
+	}
 
 }
 

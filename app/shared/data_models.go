@@ -163,8 +163,17 @@ type PlanFileResult struct {
 	AppliedAt           *time.Time     `json:"appliedAt,omitempty"`
 	RejectedAt          *time.Time     `json:"rejectedAt,omitempty"`
 	Replacements        []*Replacement `json:"replacements"`
-	CreatedAt           time.Time      `json:"createdAt"`
-	UpdatedAt           time.Time      `json:"updatedAt"`
+
+	CanVerify    bool       `json:"canVerify"`
+	RanVerifyAt  *time.Time `json:"ranVerifyAt,omitempty"`
+	VerifyPassed bool       `json:"verifyPassed"`
+
+	IsFix       bool `json:"isFix"`
+	IsSyntaxFix bool `json:"isSyntaxFix"`
+	IsOtherFix  bool `json:"isOtherFix"`
+
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
 }
 
 type CurrentPlanFiles struct {
@@ -286,6 +295,24 @@ type ModelPack struct {
 	Namer       ModelRoleConfig   `json:"namer"`
 	CommitMsg   ModelRoleConfig   `json:"commitMsg"`
 	ExecStatus  ModelRoleConfig   `json:"execStatus"`
+
+	// optional for backwards compatibility
+	Verifier *ModelRoleConfig `json:"verifier"`
+	AutoFix  *ModelRoleConfig `json:"autoFix"`
+}
+
+func (m *ModelPack) GetVerifier() ModelRoleConfig {
+	if m.Verifier == nil {
+		return m.Builder
+	}
+	return *m.Verifier
+}
+
+func (m *ModelPack) GetAutoFix() ModelRoleConfig {
+	if m.AutoFix == nil {
+		return m.Builder
+	}
+	return *m.AutoFix
 }
 
 type ModelOverrides struct {

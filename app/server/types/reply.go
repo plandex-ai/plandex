@@ -1,6 +1,7 @@
 package types
 
 import (
+	"os"
 	"strings"
 )
 
@@ -229,7 +230,20 @@ func (r *ReplyParser) GetReplyBeforePath(path string) string {
 }
 
 func lineMaybeHasFilePath(line string) bool {
-	return (strings.HasPrefix(line, "-")) || strings.HasPrefix(line, "-file:") || strings.HasPrefix(line, "- file:") || (strings.HasPrefix(line, "**") && strings.HasSuffix(line, "**")) || (strings.HasPrefix(line, "#") && strings.HasSuffix(line, ":"))
+	couldBe := (strings.HasPrefix(line, "-")) || strings.HasPrefix(line, "-file:") || strings.HasPrefix(line, "- file:") || (strings.HasPrefix(line, "**") && strings.HasSuffix(line, "**")) || (strings.HasPrefix(line, "#") && strings.HasSuffix(line, ":"))
+
+	if couldBe {
+		extracted := extractFilePath(line)
+
+		extSplit := strings.Split(extracted, ".")
+		hasExt := len(extSplit) > 1 && !strings.Contains(extSplit[len(extSplit)-1], " ")
+		hasFileSep := strings.Contains(extracted, string(os.PathSeparator))
+		hasSpaces := strings.Contains(extracted, " ")
+
+		return !(!hasExt && !hasFileSep && hasSpaces)
+	}
+
+	return couldBe
 }
 
 func extractFilePath(line string) string {

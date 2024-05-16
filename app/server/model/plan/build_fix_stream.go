@@ -9,6 +9,7 @@ import (
 	"math/rand"
 	"plandex-server/model"
 	"plandex-server/types"
+	"sort"
 	"strings"
 	"time"
 
@@ -44,7 +45,7 @@ func (fileState *activeBuildStreamFileState) listenStreamFixChanges(stream *open
 			return
 		case <-timer.C:
 			// Timer triggered because no new chunk was received in time
-			fileState.fixRetryOrError(fmt.Errorf("listenStreamFixChanges - stream timeout due to inactivity for file '%s'", filePath))
+			fileState.fixRetryOrAbort(fmt.Errorf("listenStreamFixChanges - stream timeout due to inactivity for file '%s'", filePath))
 			return
 		default:
 			response, err := stream.Recv()
@@ -63,32 +64,12 @@ func (fileState *activeBuildStreamFileState) listenStreamFixChanges(stream *open
 					return
 				}
 
-				buildInfo := &shared.BuildInfo{
-					Path:      filePath,
-					NumTokens: 0,
-					Finished:  true,
-				}
-				activePlan.Stream(shared.StreamMessage{
-					Type:      shared.StreamMessageBuildInfo,
-					BuildInfo: buildInfo,
-				})
-				log.Println("Build fix stream - Plan file result:")
-				fileState.onFinishBuildFile(nil)
+				fileState.fixRetryOrAbort(fmt.Errorf("listenStreamFixChanges - stream error: %v", err))
 				return
 			}
 
 			if len(response.Choices) == 0 {
-				buildInfo := &shared.BuildInfo{
-					Path:      filePath,
-					NumTokens: 0,
-					Finished:  true,
-				}
-				activePlan.Stream(shared.StreamMessage{
-					Type:      shared.StreamMessageBuildInfo,
-					BuildInfo: buildInfo,
-				})
-				log.Println("Build fix stream - Plan file result:")
-				fileState.onFinishBuildFile(nil)
+				fileState.fixRetryOrAbort(fmt.Errorf("listenStreamFixChanges - stream error: no choices"))
 				return
 			}
 
@@ -101,20 +82,7 @@ func (fileState *activeBuildStreamFileState) listenStreamFixChanges(stream *open
 				trimmed := strings.TrimSpace(content)
 				if trimmed == "{%invalidjson%}" || trimmed == "``(no output)``````" {
 					log.Println("listenStreamFixChanges - File", filePath+":", "%invalidjson%} token in streamed chunk")
-					fileState.fixRetryOrError(fmt.Errorf("listenStreamFixChanges - invalid JSON in streamed chunk for file '%s'", filePath))
-
-					buildInfo := &shared.BuildInfo{
-						Path:      filePath,
-						NumTokens: 0,
-						Finished:  true,
-					}
-					activePlan.Stream(shared.StreamMessage{
-						Type:      shared.StreamMessageBuildInfo,
-						BuildInfo: buildInfo,
-					})
-					log.Println("Build fix stream - Plan file result:")
-					fileState.onFinishBuildFile(nil)
-
+					fileState.fixRetryOrAbort(fmt.Errorf("listenStreamFixChanges - invalid JSON in streamed chunk for file '%s'", filePath))
 					return
 				}
 
@@ -144,17 +112,7 @@ func (fileState *activeBuildStreamFileState) listenStreamFixChanges(stream *open
 					log.Println("Buffer:")
 					log.Println(fileState.activeBuild.FixBuffer)
 
-					buildInfo := &shared.BuildInfo{
-						Path:      filePath,
-						NumTokens: 0,
-						Finished:  true,
-					}
-					activePlan.Stream(shared.StreamMessage{
-						Type:      shared.StreamMessageBuildInfo,
-						BuildInfo: buildInfo,
-					})
-					log.Println("Build fix stream - Plan file result:")
-					fileState.onFinishBuildFile(nil)
+					fileState.fixRetryOrAbort(fmt.Errorf("listenStreamFixChanges - stream buffer tokens too high for file '%s'", filePath))
 					return
 				}
 			}
@@ -166,14 +124,49 @@ func (fileState *activeBuildStreamFileState) listenStreamFixChanges(stream *open
 				log.Printf("listenStreamFixChanges - File %s: Parsed streamed replacements\n", filePath)
 				// spew.Dump(streamed)
 
-				fileState.streamedChangesWithLineNums = streamed.Changes
+				sorted := []*shared.StreamedChangeWithLineNums{}
+
+				// Sort the streamed changes by start line
+				for _, change := range streamed.Changes {
+					if change.HasChange {
+						sorted = append(sorted, change)
+					}
+				}
+
+				// Sort the streamed changes by start line
+				sort.Slice(sorted, func(i, j int) bool {
+					var iStartLine int
+					var jStartLine int
+
+					// Convert the line number part to an integer
+					iStartLine, _, err := sorted[i].GetLines()
+
+					if err != nil {
+						log.Printf("listenStream - Error getting start line for change %v: %v\n", sorted[i], err)
+						fileState.lineNumsRetryOrError(fmt.Errorf("listenStream - error getting start line for change %v: %v", sorted[i], err))
+						return false
+					}
+
+					jStartLine, _, err = sorted[j].GetLines()
+
+					if err != nil {
+						log.Printf("listenStream - Error getting start line for change %v: %v\n", sorted[j], err)
+						fileState.lineNumsRetryOrError(fmt.Errorf("listenStream - error getting start line for change %v: %v", sorted[j], err))
+						return false
+					}
+
+					return iStartLine < jStartLine
+				})
+
+				fileState.streamedChangesWithLineNums = sorted
 
 				var overlapStrategy OverlapStrategy = OverlapStrategyError
 				if fileState.fixFileNumRetry > 1 {
 					overlapStrategy = OverlapStrategySkip
 				}
 
-				planFileResult, _, allSucceeded, err := GetPlanResult(
+				planFileResult, updated, allSucceeded, err := GetPlanResult(
+					activePlan.Ctx,
 					PlanResultParams{
 						OrgId:                       currentOrgId,
 						PlanId:                      planId,
@@ -183,22 +176,20 @@ func (fileState *activeBuildStreamFileState) listenStreamFixChanges(stream *open
 						PreBuildState:               fileState.updated,
 						StreamedChangesWithLineNums: streamed.Changes,
 						OverlapStrategy:             overlapStrategy,
+
+						IsFix:       true,
+						IsSyntaxFix: fileState.isFixingSyntax,
+						IsOtherFix:  fileState.isFixingOther,
+
+						FixEpoch: fileState.syntaxNumEpoch,
+
+						CheckSyntax: true,
 					},
 				)
 
 				if err != nil {
 					log.Println("listenStreamFixChanges - Error getting plan result:", err)
-					buildInfo := &shared.BuildInfo{
-						Path:      filePath,
-						NumTokens: 0,
-						Finished:  true,
-					}
-					activePlan.Stream(shared.StreamMessage{
-						Type:      shared.StreamMessageBuildInfo,
-						BuildInfo: buildInfo,
-					})
-					log.Println("Build fix stream - Plan file result:")
-					fileState.onFinishBuildFile(nil)
+					fileState.fixRetryOrAbort(fmt.Errorf("listenStreamFixChanges - error getting plan result for file '%s': %v", filePath, err))
 					return
 				}
 
@@ -217,31 +208,36 @@ func (fileState *activeBuildStreamFileState) listenStreamFixChanges(stream *open
 				}
 
 				log.Println("listenStreamFixChanges - Plan file result:")
-				spew.Dump(planFileResult)
+				// spew.Dump(planFileResult)
 
-				fileState.onFinishBuildFile(planFileResult)
+				// reset fix state
+				fileState.isFixingSyntax = false
+				fileState.isFixingOther = false
+
+				// if we are below the number of FixSyntaxRetries, and the syntax is invalid, short-circuit here and retry
+				// otherwise if the syntax is invalid but we're out of retries, continue to onFinishBuildFile, which will handle epoch-based retries (i.e. running additional fixes on top of this failed fix) if applicable
+				if planFileResult.WillCheckSyntax && !planFileResult.SyntaxValid {
+					if fileState.syntaxNumRetry < FixSyntaxRetries {
+						fileState.isFixingSyntax = true
+						fileState.syntaxNumRetry++
+						go fileState.fixFileLineNums()
+						return
+					}
+				}
+
+				fileState.onFinishBuildFile(planFileResult, updated)
 				return
 			} else if len(delta.ToolCalls) == 0 {
 				log.Println("listenStreamFixChanges - Stream chunk missing function call.")
 
-				buildInfo := &shared.BuildInfo{
-					Path:      filePath,
-					NumTokens: 0,
-					Finished:  true,
-				}
-				activePlan.Stream(shared.StreamMessage{
-					Type:      shared.StreamMessageBuildInfo,
-					BuildInfo: buildInfo,
-				})
-				log.Println("Build fix stream - Plan file result:")
-				fileState.onFinishBuildFile(nil)
+				fileState.fixRetryOrAbort(fmt.Errorf("listenStreamFixChanges - stream chunk missing function call. File: %s", filePath))
 				return
 			}
 		}
 	}
 }
 
-func (fileState *activeBuildStreamFileState) fixRetryOrError(err error) {
+func (fileState *activeBuildStreamFileState) fixRetryOrAbort(err error) {
 	if fileState.fixFileNumRetry < MaxBuildStreamErrorRetries {
 		fileState.fixFileNumRetry++
 		fileState.activeBuild.FixBuffer = ""
@@ -249,10 +245,12 @@ func (fileState *activeBuildStreamFileState) fixRetryOrError(err error) {
 		log.Printf("Retrying fix file '%s' due to error: %v\n", fileState.filePath, err)
 
 		// Exponential backoff
-		time.Sleep(time.Duration(fileState.fixFileNumRetry*fileState.fixFileNumRetry)*time.Second + time.Duration(rand.Intn(1001))*time.Millisecond)
+		time.Sleep(time.Duration((fileState.verifyFileNumRetry*fileState.verifyFileNumRetry)/2)*200*time.Millisecond + time.Duration(rand.Intn(500))*time.Millisecond)
 
 		fileState.fixFileLineNums()
 	} else {
-		fileState.onBuildFileError(err)
+		log.Printf("Aborting fix file '%s' due to error: %v\n", fileState.filePath, err)
+
+		fileState.onFinishBuildFile(nil, "")
 	}
 }

@@ -41,7 +41,7 @@ func (fileState *activeBuildStreamFileState) listenStreamVerifyOutput(stream *op
 			return
 		case <-timer.C:
 			// Timer triggered because no new chunk was received in time
-			fileState.verifyRetryOrError(fmt.Errorf("listenStreamVerifyOutput - stream timeout due to inactivity for file '%s'", filePath))
+			fileState.verifyRetryOrAbort(fmt.Errorf("listenStreamVerifyOutput - stream timeout due to inactivity for file '%s'", filePath))
 			return
 		default:
 			response, err := stream.Recv()
@@ -60,34 +60,12 @@ func (fileState *activeBuildStreamFileState) listenStreamVerifyOutput(stream *op
 					return
 				}
 
-				buildInfo := &shared.BuildInfo{
-					Path:      filePath,
-					NumTokens: 0,
-					Finished:  true,
-				}
-				activePlan.Stream(shared.StreamMessage{
-					Type:      shared.StreamMessageBuildInfo,
-					BuildInfo: buildInfo,
-				})
-
-				log.Println("build verify - error")
-
-				fileState.onFinishBuildFile(nil)
+				fileState.verifyRetryOrAbort(fmt.Errorf("listenStreamVerifyOutput - stream error: %v", err))
 				return
 			}
 
 			if len(response.Choices) == 0 {
-				buildInfo := &shared.BuildInfo{
-					Path:      filePath,
-					NumTokens: 0,
-					Finished:  true,
-				}
-				activePlan.Stream(shared.StreamMessage{
-					Type:      shared.StreamMessageBuildInfo,
-					BuildInfo: buildInfo,
-				})
-				log.Println("build verify - no choices")
-				fileState.onFinishBuildFile(nil)
+				fileState.verifyRetryOrAbort(fmt.Errorf("listenStreamVerifyOutput - stream error: no choices"))
 				return
 			}
 
@@ -101,19 +79,7 @@ func (fileState *activeBuildStreamFileState) listenStreamVerifyOutput(stream *op
 				trimmed := strings.TrimSpace(content)
 				if trimmed == "{%invalidjson%}" || trimmed == "``(no output)``````" {
 					log.Println("File", filePath+":", "%invalidjson%} token in streamed chunk")
-					fileState.verifyRetryOrError(fmt.Errorf("invalid JSON in streamed chunk for file '%s'", filePath))
-
-					buildInfo := &shared.BuildInfo{
-						Path:      filePath,
-						NumTokens: 0,
-						Finished:  true,
-					}
-					activePlan.Stream(shared.StreamMessage{
-						Type:      shared.StreamMessageBuildInfo,
-						BuildInfo: buildInfo,
-					})
-					log.Println("build verify - invalid json")
-					fileState.onFinishBuildFile(nil)
+					fileState.verifyRetryOrAbort(fmt.Errorf("invalid JSON in streamed chunk for file '%s'", filePath))
 					return
 				}
 
@@ -151,12 +117,16 @@ func (fileState *activeBuildStreamFileState) listenStreamVerifyOutput(stream *op
 						BuildInfo: buildInfo,
 					})
 					log.Println("build verify - streamed.IsCorrect")
-					fileState.onFinishBuildFile(nil)
+					fileState.onFinishBuildFile(nil, "")
 				} else {
 
 					log.Printf("listenStreamVerifyOutput - File %s: Streamed verify result is incorrect\n", filePath)
 
-					fileState.incorrectlyUpdatedReasoning = streamed.GetReasoning()
+					fileState.verificationErrors = streamed.GetReasoning()
+					fileState.isFixingOther = true
+
+					// log.Println("Verification errors:")
+					// log.Println(fileState.verificationErrors)
 
 					select {
 					case <-activePlan.Ctx.Done():
@@ -172,28 +142,14 @@ func (fileState *activeBuildStreamFileState) listenStreamVerifyOutput(stream *op
 				log.Println("listenStreamVerifyOutput - Stream chunk missing function call.")
 				// log.Println(spew.Sdump(response))
 
-				if fileState.verifyFileNumRetry > 0 {
-					buildInfo := &shared.BuildInfo{
-						Path:      filePath,
-						NumTokens: 0,
-						Finished:  true,
-					}
-					activePlan.Stream(shared.StreamMessage{
-						Type:      shared.StreamMessageBuildInfo,
-						BuildInfo: buildInfo,
-					})
-					log.Println("build verify - retry")
-					fileState.onFinishBuildFile(nil)
-				} else {
-					fileState.verifyRetryOrError(fmt.Errorf("listenStreamVerifyOutput - stream chunk missing function call. Reason: %s, File: %s", choice.FinishReason, filePath))
-				}
+				fileState.verifyRetryOrAbort(fmt.Errorf("listenStreamVerifyOutput - stream chunk missing function call. Reason: %s, File: %s", choice.FinishReason, filePath))
 			}
 		}
 	}
 
 }
 
-func (fileState *activeBuildStreamFileState) verifyRetryOrError(err error) {
+func (fileState *activeBuildStreamFileState) verifyRetryOrAbort(err error) {
 	if fileState.verifyFileNumRetry < MaxBuildStreamErrorRetries {
 		fileState.verifyFileNumRetry++
 		fileState.activeBuild.VerifyBuffer = ""
@@ -201,10 +157,12 @@ func (fileState *activeBuildStreamFileState) verifyRetryOrError(err error) {
 		log.Printf("Retrying verify file '%s' due to error: %v\n", fileState.filePath, err)
 
 		// Exponential backoff
-		time.Sleep(time.Duration(fileState.verifyFileNumRetry*fileState.verifyFileNumRetry)*time.Second + time.Duration(rand.Intn(1001))*time.Millisecond)
+		time.Sleep(time.Duration((fileState.verifyFileNumRetry*fileState.verifyFileNumRetry)/2)*200*time.Millisecond + time.Duration(rand.Intn(500))*time.Millisecond)
 
-		fileState.buildFile()
+		fileState.verifyFileBuild()
 	} else {
-		fileState.onBuildFileError(err)
+		log.Printf("Aborting verify file '%s' due to error: %v\n", fileState.filePath, err)
+
+		fileState.onFinishBuildFile(nil, "")
 	}
 }

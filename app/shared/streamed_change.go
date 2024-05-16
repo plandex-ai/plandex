@@ -12,6 +12,7 @@ type StreamedChangeSection struct {
 	EndLine         int    `json:"endLine"`
 	StartLineString string `json:"startLineString"`
 	EndLineString   string `json:"endLineString"`
+	EntireFile      bool   `json:"entireFile"`
 }
 
 type StreamedChangeWithLineNums struct {
@@ -39,6 +40,10 @@ type StreamedVerifyFunction struct {
 func (streamedChange StreamedChangeWithLineNums) GetLines() (int, int, error) {
 	var startLine, endLine int
 	var err error
+
+	if streamedChange.Old.EntireFile {
+		return 1, -1, nil
+	}
 
 	if streamedChange.Old.StartLineString == "" {
 		startLine = streamedChange.Old.StartLine

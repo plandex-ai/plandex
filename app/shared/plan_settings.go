@@ -37,9 +37,11 @@ const (
 	ModelRoleName        ModelRole = "names"
 	ModelRoleCommitMsg   ModelRole = "commit-messages"
 	ModelRoleExecStatus  ModelRole = "auto-continue"
+	ModelRoleVerifier    ModelRole = "verifier"
+	ModelRoleAutoFix     ModelRole = "auto-fix"
 )
 
-var AllModelRoles = []ModelRole{ModelRolePlanner, ModelRolePlanSummary, ModelRoleBuilder, ModelRoleName, ModelRoleCommitMsg, ModelRoleExecStatus}
+var AllModelRoles = []ModelRole{ModelRolePlanner, ModelRolePlanSummary, ModelRoleBuilder, ModelRoleName, ModelRoleCommitMsg, ModelRoleExecStatus, ModelRoleVerifier, ModelRoleAutoFix}
 var ModelRoleDescriptions = map[ModelRole]string{
 	ModelRolePlanner:     "replies to prompts and makes plans",
 	ModelRolePlanSummary: "summarizes conversations exceeding max-convo-tokens",
@@ -47,6 +49,8 @@ var ModelRoleDescriptions = map[ModelRole]string{
 	ModelRoleName:        "names plans",
 	ModelRoleCommitMsg:   "writes commit messages",
 	ModelRoleExecStatus:  "determines whether to auto-continue",
+	ModelRoleVerifier:    "verifies file correctness",
+	ModelRoleAutoFix:     "automatically fixes syntax errors",
 }
 var SettingDescriptions = map[string]string{
 	"max-convo-tokens":       "max conversation 🪙 before summarization",
@@ -110,6 +114,7 @@ func (ps PlanSettings) GetRequiredEnvVars() map[string]bool {
 	envVars[ms.Namer.BaseModelConfig.ApiKeyEnvVar] = true
 	envVars[ms.CommitMsg.BaseModelConfig.ApiKeyEnvVar] = true
 	envVars[ms.ExecStatus.BaseModelConfig.ApiKeyEnvVar] = true
+	envVars[ms.Verifier.BaseModelConfig.ApiKeyEnvVar] = true
 
 	// for backward compatibility with <= 0.8.4 server versions
 	if len(envVars) == 0 {

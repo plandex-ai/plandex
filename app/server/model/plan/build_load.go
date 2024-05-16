@@ -156,6 +156,7 @@ func (state *activeBuildStreamFileState) loadBuildFile(activeBuild *types.Active
 	}
 
 	var currentPlan *shared.CurrentPlanState
+	var convo []*db.ConvoMessage
 
 	repoLockId, err := db.LockRepo(
 		db.LockRepoParams{
@@ -190,26 +191,54 @@ func (state *activeBuildStreamFileState) loadBuildFile(activeBuild *types.Active
 			}
 		}()
 
-		res, err := db.GetCurrentPlanState(db.CurrentPlanStateParams{
-			OrgId:  currentOrgId,
-			PlanId: planId,
-		})
-		if err != nil {
-			log.Printf("Error getting current plan state: %v\n", err)
-			UpdateActivePlan(activePlan.Id, activePlan.Branch, func(ap *types.ActivePlan) {
-				ap.IsBuildingByPath[filePath] = false
-			})
-			activePlan.StreamDoneCh <- &shared.ApiError{
-				Type:   shared.ApiErrorTypeOther,
-				Status: http.StatusInternalServerError,
-				Msg:    "Error getting current plan state: " + err.Error(),
-			}
-			return err
-		}
-		currentPlan = res
+		errCh := make(chan error)
 
-		log.Println("Got current plan state")
+		go func() {
+			res, err := db.GetCurrentPlanState(db.CurrentPlanStateParams{
+				OrgId:  currentOrgId,
+				PlanId: planId,
+			})
+			if err != nil {
+				log.Printf("Error getting current plan state: %v\n", err)
+				UpdateActivePlan(activePlan.Id, activePlan.Branch, func(ap *types.ActivePlan) {
+					ap.IsBuildingByPath[filePath] = false
+				})
+				activePlan.StreamDoneCh <- &shared.ApiError{
+					Type:   shared.ApiErrorTypeOther,
+					Status: http.StatusInternalServerError,
+					Msg:    "Error getting current plan state: " + err.Error(),
+				}
+				errCh <- fmt.Errorf("error getting current plan state: %v", err)
+				return
+			}
+			currentPlan = res
+
+			log.Println("Got current plan state")
+			errCh <- nil
+		}()
+
+		go func() {
+			res, err := db.GetPlanConvo(currentOrgId, planId)
+			if err != nil {
+				log.Printf("Error getting plan convo: %v\n", err)
+				errCh <- fmt.Errorf("error getting plan convo: %v", err)
+				return
+			}
+			convo = res
+
+			errCh <- nil
+		}()
+
+		for i := 0; i < 2; i++ {
+			err = <-errCh
+			if err != nil {
+				log.Printf("Error getting plan data: %v\n", err)
+				return err
+			}
+		}
+
 		return nil
+
 	}()
 
 	if err != nil {
@@ -220,6 +249,7 @@ func (state *activeBuildStreamFileState) loadBuildFile(activeBuild *types.Active
 	state.convoMessageId = convoMessageId
 	state.build = build
 	state.currentPlanState = currentPlan
+	state.convo = convo
 
 	return nil
 

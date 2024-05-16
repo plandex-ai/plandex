@@ -37,7 +37,7 @@ Based on the existing summary and the conversation so far, make a summary of the
 
 - Begin with a summary of the user's messages, with particular focus any tasks they have given you. Your summary of the tasks should reflect the latest version of each task--if they have changed over time, summarize the latest state of each task that was given and omit anything that is now obsolete. Condense this information as much as possible while still being clear and retaining the meaning of the original messages.
 
-- Next, if the plan has been broken down into subtasks, include ALL those subtasks *verbatim* in the summary as a numbered list, then mark whether each subtask has been implemented in code during the conversation. You must include ALL subtasks, even if they have not been mentioned in the latest messages. If this conversation began with an existing summary, include ALL the subtasks from the existing summary.
+- Next, if the plan has been broken down into subtasks, include ALL those subtasks *verbatim* in the summary as a numbered list, then mark whether each subtask has been implemented in code during the conversation. *Subtasks MUST ALWAYS be numbered.* You must include ALL subtasks, even if they have not been mentioned in the latest messages. If this conversation began with an existing summary, include ALL the subtasks from the existing summary.
 
 - Mark whether each subtask has been implemented in code during the conversation. A subtask has been implemented if *ANY* code blocks related to it have been included in the conversation. Do not be overly strict. Mark a subtask as implemented if it has been dealt with at all during the conversation. If a subtask has been implemented, mark it as implemented in code in the summary. 
 
@@ -55,7 +55,13 @@ Based on the existing summary and the conversation so far, make a summary of the
 
 - Do not include code in the summary. Explain in words what has been done and what needs to be done.
 
-- Treat the summary as *append-only*. Keep as much information as possible from the existing summary and add the new information from the latest messages. The summary is meant to be a record of the entire plan as it evolves over time. 
+- Treat the summary as *append-only*. Keep as much information as possible from the existing summary and add the new information from the latest messages. The summary is meant to be a record of the entire plan as it evolves over time.
+
+- If a subtask has been implemented in code, but the code contains one or more placeholders in comments for functionality that *has not been implemented*, like "// Add logic here" or "// Implement the function", or "# Update the state" or " # Finish impelementation", or any similar placeholder comments that describe tasks that still remain to be implemented. If comments like these are not followed by the *actual implementation in code*, and this task described in the placeholder comment is not *already* in the list of subtasks, then you MUST append a new subtask to the end of the list for each placeholder comment that has not been implemented, and mark it as not implemented in code. If the task described in the placeholder comment is already in the list of subtasks, then you MUST NOT add it again. When introducing a new subtask baced on a placeholder comment, it should be added as a FULL subtask, not a sub-subtask. It MUST be added to the end of the list.
+
+- If a new subtask is introduced during the plan, and it is not already in the list of subtasks, and it has not already been implemented in code, then you MUST add it to the list of subtasks and mark it as not implemented in code.
+
+- Do NOT duplicate subtasks or sub-subtasks in the list. If the plan or a comment placeholder introduces a new subtask or sub-subtask that is already in the list or is functionally equivalent to a subtask or sub-subtask in the list, do NOT add it to the list again.
 
 Output only the summary of the current state of the plan and nothing else.
 `

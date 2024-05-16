@@ -11,12 +11,10 @@ import (
 
 func (fileState *activeBuildStreamFileState) verifyFileBuild() {
 	filePath := fileState.filePath
-	activeBuild := fileState.activeBuild
 	planId := fileState.plan.Id
 	branch := fileState.branch
 	clients := fileState.clients
-	config := fileState.settings.ModelPack.Builder
-	preBuildState := fileState.activeBuild.ToVerifyPreBuildState
+	config := fileState.settings.ModelPack.GetVerifier()
 	updated := fileState.activeBuild.ToVerifyUpdatedState
 
 	activePlan := GetActivePlan(planId, branch)
@@ -35,8 +33,16 @@ func (fileState *activeBuildStreamFileState) verifyFileBuild() {
 	// log.Printf("activeBuild.FileDescription has content: %v\n", activeBuild.FileDescription != "")
 	// log.Printf("activeBuild.FileContent has content: %v\n", activeBuild.FileContent != "")
 
-	sysPrompt := prompts.GetVerifyPrompt(preBuildState, updated,
-		fmt.Sprintf("%s\n\n```%s```", activeBuild.FileDescription, activeBuild.FileContent),
+	verifyState, err := fileState.GetVerifyState()
+
+	if err != nil {
+		log.Printf("Error getting verify state for file '%s': %v\n", filePath, err)
+		fileState.onBuildFileError(fmt.Errorf("error getting verify state for file '%s': %v", filePath, err))
+		return
+	}
+
+	sysPrompt := prompts.GetVerifyPrompt(verifyState.preBuildFileState, updated,
+		verifyState.proposedChanges,
 	)
 
 	log.Println("verify sysPrompt:\n", sysPrompt)

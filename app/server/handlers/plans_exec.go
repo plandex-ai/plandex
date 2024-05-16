@@ -13,7 +13,6 @@ import (
 	"plandex-server/types"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/gorilla/mux"
 	"github.com/plandex/plandex/shared"
 )
@@ -149,8 +148,6 @@ func BuildPlanHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if requestBody.ApiKey == "" && len(requestBody.ApiKeys) == 0 {
-		spew.Dump(requestBody)
-
 		log.Println("API key is required")
 		http.Error(w, "API key is required", http.StatusBadRequest)
 		return

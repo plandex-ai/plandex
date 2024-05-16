@@ -8,7 +8,10 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
-const MaxBuildStreamErrorRetries = 3 // uses naive exponential backoff so be careful about setting this too high
+const MaxBuildStreamErrorRetries = 3 // uses semi-exponential backoff so be careful with this
+
+const FixSyntaxRetries = 2
+const FixSyntaxEpochs = 2
 
 type activeBuildStreamState struct {
 	clients       map[string]*openai.Client
@@ -19,6 +22,7 @@ type activeBuildStreamState struct {
 	branch        string
 	settings      *shared.PlanSettings
 	modelContext  []*db.Context
+	convo         []*db.ConvoMessage
 }
 
 type activeBuildStreamFileState struct {
@@ -32,8 +36,18 @@ type activeBuildStreamFileState struct {
 	lineNumsNumRetry   int
 	verifyFileNumRetry int
 	fixFileNumRetry    int
-	// fullChangesRetry            int
+
+	syntaxNumRetry int
+	syntaxNumEpoch int
+
+	isFixingSyntax bool
+	isFixingOther  bool
+
 	streamedChangesWithLineNums []*shared.StreamedChangeWithLineNums
 	updated                     string
-	incorrectlyUpdatedReasoning string
+
+	verificationErrors string
+	syntaxErrors       []string
+
+	isNewFile bool
 }

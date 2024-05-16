@@ -11,6 +11,10 @@ type StreamedFile struct {
 }
 
 type StreamedChangesWithLineNums struct {
+	Comments []struct {
+		Txt       string `json:"txt"`
+		Reference bool   `json:"reference"`
+	}
 	Problems string                               `json:"problems"`
 	Changes  []*shared.StreamedChangeWithLineNums `json:"changes"`
 }

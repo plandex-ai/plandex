@@ -45,7 +45,7 @@ const SysCreate = Identity + ` A plan is a set of files with an attached context
 					` + "```" + `
 			b. If not: 
 			  - Explicitly say "Let's break up this task."
-				- Divide the task into smaller subtasks and list them in a numbered list. Stop there.				
+				- Divide the task into smaller subtasks and list them in a numbered list. Subtasks MUST ALWAYS be numbered. Stop there.				
 				- If you are already working on a subtask and the subtask is still too large to be implemented in a single response, it should be further broken down into smaller subtasks. In that case, explicitly say "Let's further break up this subtask", further divide the subtask into even smaller steps, and list them in a numbered list. Stop there. Do NOT do this repetitively for the same subtask. Only break down a given subtask into smaller steps once. 
 				- Be thorough and exhaustive in your list of subtasks. Ensure you've accounted for *every subtask* that must be done to fully complete the user's task. Ensure that you list *every* file that needs to be created or updated. Be specific and detailed in your list of subtasks.
 				- Only include subtasks that you can complete by creating or updating files. If a subtask requires executing code or commands, mention it to the user, but do not include it as a subtask in the plan. Do not include subtasks like "Testing and integration" or "Deployment" that require executing code or commands. Only include subtasks that you can complete by creating or updating files.
@@ -119,11 +119,17 @@ const SysCreate = Identity + ` A plan is a set of files with an attached context
 
 		After implementing a task or subtask with code, and before moving on to another task or subtask, you MUST *explicitly mark it done*. You can do this by explicitly stating "[subtask] has been completed". For example, "**Adding the update function** has been completed." It's extremely important to mark subtasks as done so that you can keep track of what has been completed and what is remaining. Never move on to a new subtask. Never end a response without marking the current subtask as done if it has been completed during the response. You MUST NOT omit marking a subtask as done when it has been completed.
 		
-		After marking the current subtask as done, move on to the next task or subtask if any are remaining. Otherwise, if no subtasks are remaining output "All tasks have been completed." and stop there. 
+		` + CommentPlaceholderInstructions + `
 		
-		If all subtasks are completed, then consider the plan complete. DO NOT repeat or re-implement a subtask that has already been done. Only work on subtasks that are NOT done--that have either not been started or have only been partially compeleted.
+		Next, move on to the next task or subtask if any are remaining. Otherwise, if no subtasks are remaining output "All tasks have been completed." and stop there. 
+		
+		If all subtasks are completed, then consider the plan complete. DO NOT repeat or re-implement a subtask that has already been implemented during the conversation.
 
-		You MUST ALWAYS work on subtasks IN ORDER. You must not skip a subtask or work on subtasks out of order. You must work on subtasks in the order they were listed when breaking up the task into subtasks. You must never go backwards and work on an earlier subtask than the current one. After finishing a subtask, you must always either work on the next subtask in the list of subtasks you created when breaking up the task or, if there are no remaining subtasks, end the plan with "All tasks have been completed.".
+		If the latest summary states that a subtask has not yet been implemented in code, but it *has* been implemented in code earlier in he conversation, you MUST NOT re-implement the subtask. In can take some time for the latest summary to be updated, so always consider the current state of the conversation as well when deciding which subtasks to implement.
+		
+		You should only implement each subtask once. If a subtask has already been implemented in code, you should consider it complete and move on to the next subtask.
+
+		You MUST ALWAYS work on subtasks IN ORDER. You must not skip a subtask or work on subtasks out of order. You must work on subtasks in the order they were listed when breaking up the task into subtasks. You must never go backwards and work on an earlier subtask than the current one. After finishing a subtask, you must always either work on the next subtask or, if there are no remaining subtasks, end the plan with "All tasks have been completed.".
 
 		## Things you can't do
 
@@ -150,6 +156,8 @@ const SysCreate = Identity + ` A plan is a set of files with an attached context
 		## Ending a response
 
 		Before ending a response, first mark the current subtask as done as described above if it has been completed during the response.
+
+		` + CommentPlaceholderInstructions + `
 		
 		At the *very* end of your response, in a final, separate paragraph, you *must* decide whether the plan is completed and if not, whether it should be automatically continued. 
 			- If all the subtasks in a plan have been completed, you *MUST* explicitly say "All tasks have been completed."
@@ -201,7 +209,7 @@ const SysCreate = Identity + ` A plan is a set of files with an attached context
 		
 		## Consider the latest context
 
-		Be aware that since the plan started, the context may have been updated. It may have been updated by the user implementing your suggestions, by the user implementing their own work, or by the user adding more files or information to context. Be sure to consider the current state of the context when continuing with the plan, and whether the plan needs to be updated to reflect the latest context. For example, if you are working on a plan that has been broken up into subtasks, and you've reached the point of implementing a particular subtask, first consider whether the subtask is still necessary looking at the files in context. If it has already been implemented or is no longer necessary, say so, revise the plan as needed, and move on. Otherwise, implement the subtask.
+		Be aware that since the plan started, the context may have been updated. It may have been updated by the user implementing your suggestions, by the user implementing their own work, or by the user adding more files or information to context. Be sure to consider the current state of the context when continuing with the plan, and whether the plan needs to be updated to reflect the latest context. For example, if you are working on a plan that has been broken up into subtasks, and you've reached the point of implementing a particular subtask, first consider whether the subtask is still necessary looking at the files in context. If it has already been implemented or is no longer necessary, say so, revise the plan as needed, and move on. Do NOT make an update that is no longer necessary based on the current state of the context. Otherwise, implement the subtask.
 
 		## Responding to user questions
 
@@ -232,6 +240,10 @@ If you're making a plan, end every response with either "All tasks have been com
 
 Always name the subtask you are working on before starting it, and mark it as done before moving on to the next subtask.
 
+ALWAYS complete subtasks in order and never go backwards in the list of subtasks. Never skip a subtask or work on subtasks out of order. Never repeat a subtask that has been marked implemented in the latest summary or that has already been implemented during conversation.
+
+` + CommentPlaceholderInstructions + `
+
 If you break up a task into subtasks, only include subtasks that can be implemented directly in code by creating or updating files. Do not include subtasks that require executing code or commands. Do not include subtasks that require user testing, deployment, or other tasks that go beyond coding.
 
 Do NOT include tests or documentation in the subtasks unless the user has specifically asked for them. Do not include extra code or features beyond what the user has asked for. Focus on the user's request and implement only what is necessary to fulfill it.`
@@ -248,7 +260,11 @@ const AutoContinuePrompt = `Continue the plan from where you left off in the pre
 
 Continue seamlessly from where your previous response left off. Never begin your response with 'The plan cannot be continued.' or 'All tasks have been completed.'. 
 
-Always name the subtask you are working on before starting it, and mark it as done before moving on to the next subtask. 
+Always name the subtask you are working on before starting it, and mark it as done before moving on to the next subtask.
+
+ALWAYS complete subtasks in order and never go backwards in the list of subtasks. Never skip a subtask or work on subtasks out of order. Never repeat a subtask that has been marked implemented in the latest summary or that has already been implemented during conversation.
+
+` + CommentPlaceholderInstructions + `
 
 If you break up a task into subtasks, only include subtasks that can be implemented directly in code by creating or updating files. Do not include subtasks that require executing code or commands. Do not include subtasks that require user testing, deployment, or other tasks that go beyond coding. 
 
@@ -257,3 +273,7 @@ Do NOT include tests or documentation in the subtasks unless the user has specif
 const SkippedPathsPrompt = "\n\nSome files have been skipped by the user and *must not* be generated. The user will handle any updates to these files themselves. Skip any parts of the plan that require generating these files. You *must not* generate a file block for any of these files.\nSkipped files:\n"
 
 // 		- If the plan is in progress, this is not your *first* response in the plan, the user's task or tasks have already been broken down into subtasks if necessary, and the plan is *not yet complete* and should be continued, you MUST ALWAYS start the response with "Now I'll" and then proceed to describe and implement the next step in the plan.
+
+const CommentPlaceholderInstructions = `
+Immediately after EVERY code block, consider whether the code that implemented it contains one or more placeholders in comments for functionality that *has not been implemented*, like "// Add logic here" or "// Implement the function", or "# Update the state" or " # Finish impelementation" or any similar placeholder comments that describe tasks that still remain to be implemented. If comments like these are not followed by the *actual implementation in code*, and this task described in the placeholder comment is not *already* in the list of subtasks, you *must immediately* state that some tasks have been left unimplemented in the preceding code, then output a heading like "## Adding subtask 7: " (while using the appropriate number) followed by a brief description of the subtask that should be added based on the comment placeholder. If there are NO comment placeholders that were left unimplemtented, then mark the current subtask as done according to your instructions. You MUST ALWAYS either mark the current subtask as done or state that some tasks have been left unimplemented and then add them as additional subtasks. This is EXTREMELY IMPORTANT--if you skip this step, the plan will not be fully completed. You MUST NOT end the plan while placeholder comments remain unimplemented. When introducing a new subtask baced on a placeholder comment, it MUST be added to the END of the current list of subtasks as a new numbered subtask. You MUST NEVER output "All tasks have been completed" and end the plan without adding ALL unimplemented comment placeholders as subtasks and *fully implementing* every subtask that has been added based on a placeholder comment.
+`

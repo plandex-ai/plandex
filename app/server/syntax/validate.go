@@ -3,6 +3,7 @@ package syntax
 import (
 	"path/filepath"
 	"strings"
+	"time"
 
 	tree_sitter "github.com/smacker/go-tree-sitter"
 
@@ -10,10 +11,13 @@ import (
 	"fmt"
 )
 
+const parserTimeout = 500 * time.Millisecond
+
 type ValidationRes = struct {
 	Ext       string
 	Lang      string
 	HasParser bool
+	TimedOut  bool
 	Valid     bool
 	Errors    []string
 }
@@ -26,6 +30,10 @@ func Validate(ctx context.Context, path, file string) (*ValidationRes, error) {
 	if parser == nil {
 		return &ValidationRes{Ext: ext, Lang: lang, HasParser: false}, nil
 	}
+
+	// Set a timeout duration for the parsing operations
+	ctx, cancel := context.WithTimeout(ctx, parserTimeout)
+	defer cancel()
 
 	// Parse the content
 	tree, err := parser.ParseCtx(ctx, nil, []byte(file))
@@ -42,6 +50,11 @@ func Validate(ctx context.Context, path, file string) (*ValidationRes, error) {
 		if fallbackParser != nil {
 			fallbackTree, err := fallbackParser.ParseCtx(ctx, nil, []byte(file))
 			if err != nil || fallbackTree == nil {
+
+				if err != nil && strings.Contains(err.Error(), "timeout") {
+					return &ValidationRes{Ext: ext, Lang: lang, HasParser: true, TimedOut: true}, nil
+				}
+
 				return nil, fmt.Errorf("failed to parse the content with fallback parser: %v", err)
 			}
 			defer fallbackTree.Close()

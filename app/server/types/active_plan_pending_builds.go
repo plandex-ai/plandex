@@ -66,6 +66,7 @@ func (ap *ActivePlan) PendingBuildsByPath(orgId, userId string, convoMessagesArg
 				}
 
 				fileContent := parserRes.FileContents[i]
+				fileDesc := parserRes.FileDescriptions[i]
 
 				numTokens, err := shared.GetNumTokens(fileContent)
 
@@ -80,7 +81,7 @@ func (ap *ActivePlan) PendingBuildsByPath(orgId, userId string, convoMessagesArg
 					FileContent:       fileContent,
 					FileContentTokens: numTokens,
 					Path:              file,
-					FileDescription:   parserRes.FileDescriptions[i],
+					FileDescription:   fileDesc,
 				})
 			}
 		}

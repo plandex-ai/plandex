@@ -1,12 +1,14 @@
 package plan
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"plandex-server/db"
-	"sort"
+	"plandex-server/syntax"
 	"strings"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/google/uuid"
 	"github.com/plandex/plandex/shared"
 )
@@ -27,9 +29,16 @@ type PlanResultParams struct {
 	PreBuildState               string
 	OverlapStrategy             OverlapStrategy
 	StreamedChangesWithLineNums []*shared.StreamedChangeWithLineNums
+
+	CheckSyntax bool
+
+	IsFix       bool
+	IsSyntaxFix bool
+	IsOtherFix  bool
+	FixEpoch    int
 }
 
-func GetPlanResult(params PlanResultParams) (*db.PlanFileResult, string, bool, error) {
+func GetPlanResult(ctx context.Context, params PlanResultParams) (*db.PlanFileResult, string, bool, error) {
 	orgId := params.OrgId
 	planId := params.PlanId
 	planBuildId := params.PlanBuildId
@@ -63,6 +72,16 @@ func GetPlanResult(params PlanResultParams) (*db.PlanFileResult, string, bool, e
 
 		new := streamedChange.New
 
+		if streamedChange.Old.EntireFile {
+			old = preBuildState
+			replacements = append(replacements, &shared.Replacement{
+				Old:            old,
+				New:            new,
+				StreamedChange: streamedChange,
+			})
+			continue
+		}
+
 		// log.Printf("getPlanResult - streamedChange.Old.StartLine: %d\n", streamedChange.Old.StartLine)
 		// log.Printf("getPlanResult - streamedChange.Old.EndLine: %d\n", streamedChange.Old.EndLine)
 
@@ -89,6 +108,9 @@ func GetPlanResult(params PlanResultParams) (*db.PlanFileResult, string, bool, e
 
 		if startLine < highestEndLine {
 			log.Printf("Start line is less than highestEndLine: %d < %d\n", startLine, highestEndLine)
+
+			log.Printf("streamedChange:\n")
+			log.Println(spew.Sdump(streamedChangesWithLineNums))
 
 			if params.OverlapStrategy == OverlapStrategyError {
 				return nil, "", false, fmt.Errorf("start line is less than highestEndLine: %d < %d", startLine,
@@ -128,12 +150,6 @@ func GetPlanResult(params PlanResultParams) (*db.PlanFileResult, string, bool, e
 		replacements = append(replacements, replacement)
 	}
 
-	sort.Slice(replacements, func(i, j int) bool {
-		iIdx := strings.Index(preBuildState, replacements[i].Old)
-		jIdx := strings.Index(preBuildState, replacements[j].Old)
-		return iIdx < jIdx
-	})
-
 	log.Println("Will apply replacements")
 	// log.Println("preBuildState:", preBuildState)
 
@@ -155,7 +171,7 @@ func GetPlanResult(params PlanResultParams) (*db.PlanFileResult, string, bool, e
 		replacement.Id = id
 	}
 
-	return &db.PlanFileResult{
+	res := db.PlanFileResult{
 		TypeVersion:         1,
 		ReplaceWithLineNums: true,
 		OrgId:               orgId,
@@ -166,5 +182,29 @@ func GetPlanResult(params PlanResultParams) (*db.PlanFileResult, string, bool, e
 		Path:                filePath,
 		Replacements:        replacements,
 		AnyFailed:           !allSucceeded,
-	}, updated, allSucceeded, nil
+		CanVerify:           !params.IsOtherFix,
+		IsFix:               params.IsFix,
+		IsSyntaxFix:         params.IsSyntaxFix,
+		IsOtherFix:          params.IsOtherFix,
+		FixEpoch:            params.FixEpoch,
+	}
+
+	if params.CheckSyntax {
+		// validate syntax (if we have a parser)
+		validationRes, err := syntax.Validate(ctx, filePath, updated)
+
+		if err != nil {
+			log.Println("Error validating syntax:", err)
+			return nil, "", false, fmt.Errorf("error validating syntax: %v", err)
+		}
+
+		res.WillCheckSyntax = validationRes.HasParser && !validationRes.TimedOut
+		res.SyntaxValid = validationRes.Valid
+		res.SyntaxErrors = validationRes.Errors
+
+	}
+
+	// spew.Dump(res)
+
+	return &res, updated, allSucceeded, nil
 }

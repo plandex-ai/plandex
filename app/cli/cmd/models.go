@@ -445,6 +445,8 @@ func renderSettings(settings *shared.PlanSettings) {
 	addModelRow(string(shared.ModelRoleName), modelPack.Namer)
 	addModelRow(string(shared.ModelRoleCommitMsg), modelPack.CommitMsg)
 	addModelRow(string(shared.ModelRoleExecStatus), modelPack.ExecStatus)
+	addModelRow(string(shared.ModelRoleVerifier), modelPack.GetVerifier())
+	addModelRow(string(shared.ModelRoleAutoFix), modelPack.GetAutoFix())
 	table.Render()
 
 	fmt.Println()

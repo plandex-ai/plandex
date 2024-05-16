@@ -9,6 +9,7 @@ import (
 	"math/rand"
 	"plandex-server/model"
 	"plandex-server/types"
+	"sort"
 	"strings"
 	"time"
 
@@ -128,7 +129,41 @@ func (fileState *activeBuildStreamFileState) listenStreamChangesWithLineNums(str
 				log.Printf("listenStream - File %s: Parsed streamed replacements\n", filePath)
 				// spew.Dump(streamed)
 
-				fileState.streamedChangesWithLineNums = streamed.Changes
+				sorted := []*shared.StreamedChangeWithLineNums{}
+
+				// Sort the streamed changes by start line
+				for _, change := range streamed.Changes {
+					if change.HasChange {
+						sorted = append(sorted, change)
+					}
+				}
+
+				// Sort the streamed changes by start line
+				sort.Slice(sorted, func(i, j int) bool {
+					var iStartLine int
+					var jStartLine int
+
+					// Convert the line number part to an integer
+					iStartLine, _, err := sorted[i].GetLines()
+
+					if err != nil {
+						log.Printf("listenStream - Error getting start line for change %v: %v\n", sorted[i], err)
+						fileState.lineNumsRetryOrError(fmt.Errorf("listenStream - error getting start line for change %v: %v", sorted[i], err))
+						return false
+					}
+
+					jStartLine, _, err = sorted[j].GetLines()
+
+					if err != nil {
+						log.Printf("listenStream - Error getting start line for change %v: %v\n", sorted[j], err)
+						fileState.lineNumsRetryOrError(fmt.Errorf("listenStream - error getting start line for change %v: %v", sorted[j], err))
+						return false
+					}
+
+					return iStartLine < jStartLine
+				})
+
+				fileState.streamedChangesWithLineNums = sorted
 
 				var overlapStrategy OverlapStrategy = OverlapStrategyError
 				if fileState.lineNumsNumRetry > 1 {
@@ -136,6 +171,7 @@ func (fileState *activeBuildStreamFileState) listenStreamChangesWithLineNums(str
 				}
 
 				planFileResult, updatedFile, allSucceeded, err := GetPlanResult(
+					activePlan.Ctx,
 					PlanResultParams{
 						OrgId:                       currentOrgId,
 						PlanId:                      planId,
@@ -145,6 +181,7 @@ func (fileState *activeBuildStreamFileState) listenStreamChangesWithLineNums(str
 						PreBuildState:               preBuildState,
 						StreamedChangesWithLineNums: streamed.Changes,
 						OverlapStrategy:             overlapStrategy,
+						CheckSyntax:                 false,
 					},
 				)
 
@@ -165,7 +202,6 @@ func (fileState *activeBuildStreamFileState) listenStreamChangesWithLineNums(str
 					// no retry here as this should never happen
 					fileState.onBuildFileError(fmt.Errorf("listenStream - replacements failed for file '%s'", filePath))
 					return
-
 				}
 
 				buildInfo := &shared.BuildInfo{
@@ -184,13 +220,14 @@ func (fileState *activeBuildStreamFileState) listenStreamChangesWithLineNums(str
 				log.Printf("updatedFile exists: %v\n", updatedFile != "")
 				log.Printf("toVerifyPlanFileResult exists: %v\n", planFileResult != nil)
 
-				fileState.onFinishBuildFile(planFileResult)
+				fileState.onFinishBuildFile(planFileResult, updatedFile)
 				return
 			} else if len(delta.ToolCalls) == 0 {
 				log.Println("listenStream - Stream chunk missing function call.")
 				// log.Println(spew.Sdump(response))
 				// log.Println(spew.Sdump(fileState))
 
+				// log.Println("Current buffer:")
 				// log.Println(fileState.activeBuild.WithLineNumsBuffer)
 
 				fileState.lineNumsRetryOrError(fmt.Errorf("listenStream - stream chunk missing function call. Reason: %s, File: %s", choice.FinishReason, filePath))
@@ -218,7 +255,7 @@ func (fileState *activeBuildStreamFileState) lineNumsRetryOrError(err error) {
 		case <-activePlan.Ctx.Done():
 			log.Println("lineNumsRetryOrError - Context canceled. Exiting.")
 			return
-		case <-time.After(time.Duration(fileState.lineNumsNumRetry*fileState.lineNumsNumRetry)*time.Second + time.Duration(rand.Intn(1001))*time.Millisecond):
+		case <-time.After(time.Duration((fileState.verifyFileNumRetry*fileState.verifyFileNumRetry)/2)*200*time.Millisecond + time.Duration(rand.Intn(500))*time.Millisecond):
 			break
 		}
 
