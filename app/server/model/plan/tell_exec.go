@@ -36,6 +36,7 @@ func Tell(clients map[string]*openai.Client, plan *db.Plan, branch string, auth 
 		0,
 		"",
 		req.BuildMode == shared.BuildModeAuto,
+		"",
 	)
 
 	log.Printf("Tell: Tell operation completed successfully for plan ID %s on branch %s\n", plan.Id, branch)
@@ -51,6 +52,7 @@ func execTellPlan(
 	iteration int,
 	missingFileResponse shared.RespondMissingFileChoice,
 	shouldBuildPending bool,
+	autoContinueNextTask string,
 ) {
 	log.Printf("execTellPlan: Called for plan ID %s on branch %s, iteration %d\n", plan.Id, branch, iteration)
 	currentUserId := auth.User.Id
@@ -264,6 +266,16 @@ func execTellPlan(
 				prompt = req.Prompt
 			} else {
 				prompt = prompts.AutoContinuePrompt
+
+				if autoContinueNextTask != "" {
+					prompt += `
+					Here is the next task:
+				
+					` + autoContinueNextTask + `
+					
+					Continue seamlessly with this task.
+				`
+				}
 			}
 
 			state.userPrompt = prompt

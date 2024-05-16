@@ -3,7 +3,9 @@ package plan
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
+	"plandex-server/db"
 	"plandex-server/model"
 	"plandex-server/model/prompts"
 	"strings"
@@ -12,7 +14,7 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
-func (state *activeTellStreamState) execStatusShouldContinue(message string, ctx context.Context) (bool, error) {
+func (state *activeTellStreamState) execStatusShouldContinue(message string, latestSummaryCh chan *db.ConvoSummary, ctx context.Context) (bool, string, error) {
 	settings := state.settings
 	clients := state.clients
 	config := settings.ModelPack.ExecStatus
@@ -30,23 +32,11 @@ func (state *activeTellStreamState) execStatusShouldContinue(message string, ctx
 	// log.Printf("Last paragraph: %s\n", lastParagraphLower)
 
 	if lastParagraphLower != "" {
-		if strings.Contains(lastParagraphLower, "all tasks have been completed") ||
-			strings.Contains(lastParagraphLower, "plan cannot be continued") {
-			log.Println("Plan cannot be continued based on last paragraph")
-			return false, nil
-		}
-
 		nextIdx := strings.Index(lastParagraph, "Next, ")
 		if nextIdx >= 0 {
 			log.Println("Plan can be continued based on last paragraph")
-			return true, nil
+			return true, lastParagraph, nil
 		}
-	}
-
-	var latestSummary string
-
-	if len(state.summaries) > 0 {
-		latestSummary = state.summaries[len(state.summaries)-1].Summary
 	}
 
 	var prevAssistantMsg string
@@ -60,15 +50,33 @@ func (state *activeTellStreamState) execStatusShouldContinue(message string, ctx
 		}
 	}
 
+	var latestSummary *db.ConvoSummary
+
+	if latestSummaryCh != nil {
+		log.Println("Waiting for latest summary")
+		select {
+		case <-ctx.Done():
+			log.Println("Context cancelled while waiting for latest summary")
+			return false, "", fmt.Errorf("context cancelled while waiting for latest summary")
+		case latestSummary = <-latestSummaryCh:
+			log.Println("Got latest summary")
+		}
+	}
+
+	var summary string
+	if latestSummary != nil {
+		summary = latestSummary.Summary
+	}
+
 	messages := []openai.ChatCompletionMessage{
 		{
 			Role:    openai.ChatMessageRoleSystem,
-			Content: prompts.GetExecStatusShouldContinue(latestSummary, prevAssistantMsg, state.userPrompt, message),
+			Content: prompts.GetExecStatusShouldContinue(summary, prevAssistantMsg, state.userPrompt, message),
 		},
 	}
 
 	log.Println("Calling model to check if plan should continue")
-	log.Println("Has latest summary:", latestSummary != "")
+	log.Println("Has latest summary:", summary != "")
 	log.Println("Has prev assistant msg:", prevAssistantMsg != "")
 
 	// log.Println("messages:")
@@ -108,11 +116,15 @@ func (state *activeTellStreamState) execStatusShouldContinue(message string, ctx
 		// return false, fmt.Errorf("error during plan exec status check model call: %v", err)
 
 		// Instead of erroring out, just don't continue the plan
-		return false, nil
+		return false, "", nil
 	}
 
 	var strRes string
 	var res struct {
+		Comments []struct {
+			Txt               string `json:"txt"`
+			IsTodoPlaceholder bool   `json:"isTodoPlaceholder"`
+		} `json:"comments"`
 		Reasoning      string `json:"reasoning"`
 		ShouldContinue bool   `json:"shouldContinue"`
 	}
@@ -133,7 +145,7 @@ func (state *activeTellStreamState) execStatusShouldContinue(message string, ctx
 		// return false, fmt.Errorf("no shouldAutoContinue function call found in response")
 
 		// Instead of erroring out, just don't continue the plan
-		return false, nil
+		return false, "", nil
 	}
 
 	err = json.Unmarshal([]byte(strRes), &res)
@@ -143,10 +155,10 @@ func (state *activeTellStreamState) execStatusShouldContinue(message string, ctx
 		// return false, fmt.Errorf("error unmarshalling plan exec status response: %v", err)
 
 		// Instead of erroring out, just don't continue the plan
-		return false, nil
+		return false, "", nil
 	}
 
 	log.Printf("Plan exec status response: %v\n", res)
 
-	return res.ShouldContinue, nil
+	return res.ShouldContinue, res.Reasoning, nil
 }

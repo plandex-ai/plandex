@@ -11,21 +11,36 @@ Your goal is to determine whether the plan created by AI 1 should automatically 
 
 Assess whether the user has given the AI a task to do or whether the user is just chatting with the AI. If the user is just chatting, the plan should not continue. If the AI is not clearly working on a task in its response, the plan should not continue.
 
-Assess whether AI 1 has indicated that all tasks and subtasks within the plan have been completed. If so, the plan should not continue.
-
-Assess whether AI 1 has concluded with a statement that indicates either the user needs to take specific actions before the plan can proceed, or that the plan can't automatically continue for any other reason. If so, the plan should not continue.
-
-If AI 1 has outlined a clear next step necessary to finish the plan but has not executed it, the plan should continue.
-
-You might also be supplied with a summary of the plan if one is available. If the summary is available, it will include  a list of tasks to be done in the plan and whether each one has been implemented in code yet or not. If the summary is available and all tasks have been completed, the plan should not continue. If the summary is available and there are still tasks to be done, the plan should continue.
+You might be supplied with a summary of the plan if one is available. If the summary is available, it will include  a list of tasks to be done in the plan and whether each one has been implemented in code yet or not. If the summary is available and all tasks have been completed, the plan should not continue. If the summary is available and there are still tasks to be done, the plan should continue *unless* *all* the remaining unfinished tasks have been *fully* implemented in the latest message from AI 1. If between the latest summary and the latest message from AI 1 all tasks have been fully implemented, the plan should not continue.
 
 If a summary is not available, the message from AI 1 that came prior to the user's prompt might also be provided. If it is provided, consider it when determining whether the plan should continue or is complete.
 
-You *must* call the shouldAutoContinue function with a JSON object containing the keys 'reasoning' and 'shouldContinue'. 
+If any new subtasks have been added to plan that haven't been implemented yet, either in the latest summary, the latest message from AI 1, or the previous message from AI 1, the plan should continue.
+
+If A1 1 has indicated that the plan is complete, but there are still subtasks remaining that have not been implemented, the plan should continue despite AI 1's statement that the plan is complete. The plan should only be considered complete if all tasks and subtasks have been fully implemented.
+
+If no subtasks are remaining to be implemented:
+  - Assess whether AI 1 has concluded with a statement that indicates either the user needs to take specific actions before the plan can proceed, or that the plan can't automatically continue for any other reason. If so, the plan should not continue.
+
+	- If AI 1 has outlined a clear next step necessary to finish the plan but has not executed it, the plan should continue.
+
+You *must* call the shouldAutoContinue function with a JSON object containing the keys 'comments', 'reasoning', and 'shouldContinue'. 
+
+The 'comments' key is an array of objects with two properties: 'txt' and 'isTodoPlaceholder'. 'txt' is the exact text of a code comment. 'isTodoPlaceholder' is a boolean that indicates whether the comment is a placeholder for a task that has not yet been implemented. This includes comments like "// Add logic here" or "// Implement the function", or "# Update the state" or " # Finish implementation" or any similar placeholder comments that describe tasks that still remain to be implemented. A todo placeholder does NOT have to exactly match any of the previous examples. Use your judgment to determine whether a comment is a todo placeholder.
+
+In 'comments', you must list EVERY comment included in any code blocks within AI 1's latest response. Only list *code comments* that are valid comments for the programming language being used. Do not list logging statements or any other non-comment text that is not a valid code comment. If are no code blocks in AI 1's response or there are no comments within code blocks, 'comments' must be an empty array.
+
+If any of the comments in the 'comments' array are todo placeholders, the plan MUST continue.
 
 Set 'reasoning' to a string briefly and succinctly explaining your reasoning for why the plan should or should not continue, based on your instructions above.
 
+If there are any todo placeholders in the 'comments' array, list them ALL in 'reasoning'.
+
+If the plan should continue, also state what the immediate next step should be in 'reasoning'.
+
 Set 'shouldContinue' to true if the plan should automatically continue based on your instructions above, or false otherwise.
+
+If any of the comments in the 'comments' array are todo placeholders, 'shouldContinue' must be true.
 
 You must always call 'shouldAutoContinue'. Don't call any other function.`
 
@@ -50,6 +65,21 @@ var ShouldAutoContinueFn = openai.FunctionDefinition{
 	Parameters: &jsonschema.Definition{
 		Type: jsonschema.Object,
 		Properties: map[string]jsonschema.Definition{
+			"comments": {
+				Type: jsonschema.Array,
+				Items: &jsonschema.Definition{
+					Type: jsonschema.Object,
+					Properties: map[string]jsonschema.Definition{
+						"txt": {
+							Type: jsonschema.String,
+						},
+						"isTodoPlaceholder": {
+							Type: jsonschema.Boolean,
+						},
+					},
+					Required: []string{"txt", "isTodoPlaceholder"},
+				},
+			},
 			"reasoning": {
 				Type: jsonschema.String,
 			},
@@ -57,6 +87,6 @@ var ShouldAutoContinueFn = openai.FunctionDefinition{
 				Type: jsonschema.Boolean,
 			},
 		},
-		Required: []string{"reasoning", "shouldContinue"},
+		Required: []string{"comments", "reasoning", "shouldContinue"},
 	},
 }

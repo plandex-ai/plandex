@@ -220,6 +220,12 @@ func summarizeConvo(client *openai.Client, config shared.ModelRoleConfig, params
 	userPrompt := params.userPrompt
 	currentOrgId := params.currentOrgId
 	currentReply := params.currentReply
+	active := GetActivePlan(planId, branch)
+
+	if active == nil {
+		log.Printf("Active plan not found for plan ID %s and branch %s\n", planId, branch)
+		return fmt.Errorf("active plan not found for plan ID %s and branch %s", planId, branch)
+	}
 
 	log.Println("Generating plan summary for planId:", planId)
 
@@ -316,6 +322,9 @@ func summarizeConvo(client *openai.Client, config shared.ModelRoleConfig, params
 	// log.Println("Summary messages:")
 	// spew.Dump(summaryMessages)
 
+	latestSummaryCh := make(chan *db.ConvoSummary, 1)
+	active.LatestSummaryCh = latestSummaryCh
+
 	summary, err := model.PlanSummary(client, config, model.PlanSummaryParams{
 		Conversation:                summaryMessages,
 		LatestConvoMessageId:        latestMessageId,
@@ -338,6 +347,8 @@ func summarizeConvo(client *openai.Client, config shared.ModelRoleConfig, params
 		log.Printf("Error storing plan summary for plan %s: %v\n", planId, err)
 		return err
 	}
+
+	latestSummaryCh <- summary
 
 	return nil
 }

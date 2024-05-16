@@ -59,6 +59,7 @@ type ActivePlan struct {
 	CancelModelStreamFn     context.CancelFunc
 	SummaryCtx              context.Context
 	SummaryCancelFn         context.CancelFunc
+	LatestSummaryCh         chan *db.ConvoSummary
 	Contexts                []*db.Context
 	ContextsByPath          map[string]*db.Context
 	Files                   []string

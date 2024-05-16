@@ -374,12 +374,10 @@ func (fileState *activeBuildStreamFileState) onBuildFileError(err error) {
 	activeBuild.Success = false
 	activeBuild.Error = err
 
-	if activePlan != nil {
-		activePlan.StreamDoneCh <- &shared.ApiError{
-			Type:   shared.ApiErrorTypeOther,
-			Status: http.StatusInternalServerError,
-			Msg:    err.Error(),
-		}
+	activePlan.StreamDoneCh <- &shared.ApiError{
+		Type:   shared.ApiErrorTypeOther,
+		Status: http.StatusInternalServerError,
+		Msg:    err.Error(),
 	}
 
 	if err != nil {

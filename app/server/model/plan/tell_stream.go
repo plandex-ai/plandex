@@ -15,7 +15,7 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
-const MaxAutoContinueIterations = 50
+const MaxAutoContinueIterations = 100
 
 func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionStream) {
 	defer stream.Close()
@@ -108,7 +108,8 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 					state.onError(fmt.Errorf("failed to set plan status to describing: %v", err), true, "", "")
 					return
 				}
-				// log.Println("summarize convo:", spew.Sdump(convo))
+
+				latestSummaryCh := active.LatestSummaryCh
 
 				log.Println("summarize convo")
 				envVar := settings.ModelPack.PlanSummary.BaseModelConfig.ApiKeyEnvVar
@@ -152,6 +153,7 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 				log.Println("Locked repo for assistant reply and description")
 
 				var shouldContinue bool
+				var nextTask string
 				err = func() error {
 					defer func() {
 						if err != nil {
@@ -234,9 +236,8 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 					}()
 
 					go func() {
-						// One of the below is nil occasionally, causing crash
 						log.Println("Getting exec status")
-						shouldContinue, err = state.execStatusShouldContinue(assistantMsg.Message, active.Ctx)
+						shouldContinue, nextTask, err = state.execStatusShouldContinue(assistantMsg.Message, latestSummaryCh, active.Ctx)
 						if err != nil {
 							state.onError(fmt.Errorf("failed to get exec status: %v", err), false, assistantMsg.Id, convoCommitMsg)
 							errCh <- err
@@ -286,7 +287,7 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 				if req.AutoContinue && shouldContinue && iteration < MaxAutoContinueIterations {
 					log.Println("Auto continue plan")
 					// continue plan
-					execTellPlan(clients, plan, branch, auth, req, iteration+1, "", false)
+					execTellPlan(clients, plan, branch, auth, req, iteration+1, "", false, nextTask)
 				} else {
 					var buildFinished bool
 					UpdateActivePlan(planId, branch, func(ap *types.ActivePlan) {
@@ -439,6 +440,7 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 					iteration, // keep the same iteration
 					userChoice,
 					false,
+					"",
 				)
 				return
 			}
