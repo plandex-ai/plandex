@@ -1,3 +1,73 @@
+## Version 1.0.0
+##   ☄️  🌅   gpt-4o is the real deal for coding
+
+- gpt-4o, OpenAI's latest model, is the new default model for Plandex. 4o is much better than gpt-4-turbo (the previous default model) in early testing for coding tasks and agent workflows.
+- If you have not used `plandex set-model` or `plandex set-model default` previously to set a custom model, you will now be use gpt-4o by default. If you *have* used one of those commands, use `plandex set-model` or `plandex set-model default` and select the new `gpt-4o-latest` model-pack to upgrade. 
+ 
+##   🛰️  🏥   Reliability improvements: 90% reduction in syntax errors in early testing
+
+- Automatic syntax and logic validation with an auto-correction step for file updates.
+- Significantly improves reliability and reduces syntax errors, mistaken duplication or removal of code, placeholders that reference other code and other similar issues. 
+- With a set of ~30 internal evals spanning 5 common languages, syntax errors were reduced by over 90% on average with gpt-4o. 
+- Logical errors are also reduced (I'm still working on evals for those to get more precise numbers).
+- Plandex is now much better at handling large files and plans that make many updates to the same file. Both could be problematic in previous versions.
+- Plandex is much more resilient to incorrectly labelled file blocks when the model uses the file label format incorrectly to explain something rather than for a file. i.e. "Run this script" and then a bash script block. Previously Plandex would mistakenly create a file called "Run this script". It now ignores blocks like these.
+
+##   🧠  🚞   Improvements to core planning engine: better memory and less laziness allow you to accomplish larger and more complex tasks without errors or stopping early
+
+- Plandex is now much better at working through long plans without skipping tasks, repeating tasks it's already done, or otherwise losing track of what it's doing.
+- Plandex is much less likely to leave TODO placeholders in comments instead of fully completing a task, or to otherwise leave a task incomplete.
+- Plandex is much less likely to end a plan before all tasks are completed.
+
+##   🏎️  📈   Performance improvements: 2x faster planning and execution
+
+- gpt-4o is twice as fast as gpt-4-turbo for planning, summarization, builds, and more.
+- If you find it's streaming too fast and you aren't able to review the output, try using the `--stop / -s` flag with `plandex tell` or `plandex continue`. It will stop the plan after a single response so you can review it before proceeding. Use `plandex continue` to proceed with the plan once you're ready.
+- Speaking of which, if you're in exploratory mode and want to use less tokens, you can also use the `--no-build / -n` flag with `plandex tell` and `plandex continue`. This prevents Plandex from building files until you run `plandex build` manually.
+
+##   💰  🪙   2x cost reduction: gpt-4o is half the per-token price of gpt-4-turbo
+
+- For the same quantity of tokens, with improved quality and 2x speed, you'll pay half-price.
+
+##   👩‍💻  🎭   New `plandex-dev` and `pdxd` alias in development mode
+
+- In order to avoid conflicts/overwrites with the `plandex` CLI and `pdx` alias, a new `plandex-dev` command and `pdxd` alias have been added in development mode. 
+
+##  🐛  🛠️   Bug fixes
+
+- Fix for a potential panic during account creation (https://github.com/plandex-ai/plandex/issues/76)
+- Fixes for some account creation flow issues (https://github.com/plandex-ai/plandex/issues/106)
+- Fix for occasional "Stream buffer tokens too high" error (https://github.com/plandex-ai/plandex/issues/34).
+- Fix for potential panic when updating model settings. Might possibly be the cause of or somehow related to https://github.com/plandex-ai/plandex/issues/121 but hard to be sure (maybe AWS was just being flakey).
+- Attempted fix for rare git repo race condition @jesseswell_1 caught that gives error ending with: 
+```
+Exit status 128, output
+      * Fatal: unable to write new_index file
+```
+
+##   📚  🤔   Readme updates
+
+- The [readme](https://github.com/plandex-ai/plandex) has been revamped to be more informative and easier to navigate.
+
+##  🏡  📦   Easy self-contained startup script for local mode and self-hosting
+
+```bash
+git clone https://github.com/plandex-ai/plandex.git
+cd plandex/app
+./start_local.sh
+``` 
+
+- Sincere thanks to @ZanzyTHEbar aka @daofficialwizard on Discord who wrote the script! 🙏🙏
+
+##   🚀  ☝️   Upgrading   
+
+- As always, cloud has already been updated with the latest version. To upgrade the CLI, run any `plandex` command (like `plandex version` or `plandex help` or whatever command you were about to run anyway 🙂)
+
+##   💬  📆   Join me for office hours every Friday 12:30-1:30pm PST in Discord, starting May 17th
+
+- I'll be available by voice and text chat to answer questions, talk about the new version, and hear about your use cases. Come on over and hang out! 
+- Join the discord to get a reminder when office hours are starting: https://discord.gg/plandex-ai
+
 ## Version 0.9.1
 - Improvements to auto-continue check. Plandex now does a better job determining whether a plan is finished or should automatically continue by incorporating the either the latest plan summary or the previous conversation message (if the summary isn't ready yet) into the auto-continue check. Previously the check was using only the latest conversation message.
 - Fix for 'exit status 128' errors in a couple of edge case scenarios.
