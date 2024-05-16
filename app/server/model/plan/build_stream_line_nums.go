@@ -107,7 +107,7 @@ func (fileState *activeBuildStreamFileState) listenStreamChangesWithLineNums(str
 				fileState.activeBuild.WithLineNumsBufferTokens++
 
 				// After a reasonable threshhold, if buffer has significantly more tokens than original file + proposed changes, something is wrong
-				cutoff := int(math.Max(float64(fileState.activeBuild.CurrentFileTokens+fileState.activeBuild.FileContentTokens), 500) * 2)
+				cutoff := int(math.Max(float64(fileState.activeBuild.CurrentFileTokens+fileState.activeBuild.FileContentTokens), 500) * 20)
 				if fileState.activeBuild.WithLineNumsBufferTokens > 500 && fileState.activeBuild.WithLineNumsBufferTokens > cutoff {
 					log.Printf("File %s: Stream buffer tokens too high\n", filePath)
 					log.Printf("Current file tokens: %d\n", fileState.activeBuild.CurrentFileTokens)
