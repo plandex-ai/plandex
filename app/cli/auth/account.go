@@ -175,10 +175,23 @@ func promptSignInNewAccount() error {
 	}
 
 	if hasAccount {
-		return signIn(email, pin, host)
+		err := signIn(email, pin, host)
+		if err != nil {
+			return fmt.Errorf("error signing in: %v", err)
+		}
 	} else {
-		return createAccount(email, pin, host)
+		err := createAccount(email, pin, host)
+		if err != nil {
+			return fmt.Errorf("error creating account: %v", err)
+		}
 	}
+
+	fmt.Printf("✅ Signed in as %s | Org: %s\n", color.New(color.Bold, term.ColorHiGreen).Sprintf("<%s> %s", Current.UserName, Current.Email), color.New(term.ColorHiCyan).Sprint(Current.OrgName))
+	fmt.Println()
+
+	term.PrintCmds("", "new", "plans")
+
+	return nil
 }
 
 func verifyEmail(email, host string) (bool, string, error) {
@@ -244,6 +257,9 @@ func signIn(email, pin, host string) error {
 	if err != nil {
 		return fmt.Errorf("error writing auth: %v", err)
 	}
+
+	fmt.Printf("✅ Signed in as %s | Org: %s\n", color.New(color.Bold, term.ColorHiGreen).Sprintf("<%s> %s", Current.UserName, Current.Email), color.New(term.ColorHiCyan).Sprint(Current.OrgName))
+	fmt.Println()
 
 	return nil
 }
