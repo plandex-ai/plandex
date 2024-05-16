@@ -247,7 +247,7 @@ Requires git, docker, and docker-compose.
 
 <br/>
 
-## 🌟  Build complex software with LLMs
+## Build complex software with LLMs  🌟
 
 ⚡️  Changes are accumulated in a protected sandbox so that you can review them before automatically applying them to your project files. Built-in version control allows you to easily go backwards and try a different approach. Branches allow you to try multiple approaches and compare the results.
 
