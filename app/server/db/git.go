@@ -353,7 +353,7 @@ func retryGitOperation(operation func() error) error {
 		}
 
 		if exitError, ok := err.(*exec.ExitError); ok {
-			if exitError.ExitCode() == 128 && strings.Contains(string(exitError.Stderr), "unable to write new_index file") {
+			if exitError.ExitCode() == 128 && strings.Contains(string(exitError.Stderr), "new_index file") {
 				log.Printf("Retry attempt %d failed due to 'unable to write new_index file'. Waiting %v before retrying. Error: %v", attempt+1, retryInterval, err)
 				time.Sleep(retryInterval)
 				retryInterval *= 2

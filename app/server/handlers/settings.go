@@ -304,31 +304,39 @@ func getUpdateCommitMsg(settings *shared.PlanSettings, originalSettings *shared.
 func compareAny(a, b interface{}, path string, changes *[]string) {
 	aVal, bVal := reflect.ValueOf(a), reflect.ValueOf(b)
 
-	// Check if either value is invalid and return to prevent panic
+	// Check validity as before
 	if !aVal.IsValid() || !bVal.IsValid() {
 		return
 	}
 
-	// If both values are pointers, get the elements they point to
+	// Dereference pointers
 	if aVal.Kind() == reflect.Ptr && bVal.Kind() == reflect.Ptr {
 		aVal = aVal.Elem()
 		bVal = bVal.Elem()
 	}
 
-	// Check again for validity after dereferencing pointers
+	// Check validity after dereferencing
 	if !aVal.IsValid() || !bVal.IsValid() {
 		return
 	}
 
-	if reflect.DeepEqual(a, b) {
+	// Ensure we can safely call Interface()
+	if !aVal.CanInterface() || !bVal.CanInterface() {
+		return
+	}
+
+	if reflect.DeepEqual(aVal.Interface(), bVal.Interface()) {
 		return // No difference found
 	}
 
-	// Continue with the comparison
 	switch aVal.Kind() {
 	case reflect.Struct:
 		for i := 0; i < aVal.NumField(); i++ {
-			fieldName := aVal.Type().Field(i).Name
+			field := aVal.Type().Field(i)
+			if !field.IsExported() {
+				continue // Skip unexported fields
+			}
+			fieldName := field.Name
 			dasherizedName := shared.Dasherize(fieldName)
 
 			updatedPath := path

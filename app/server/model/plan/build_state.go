@@ -10,8 +10,8 @@ import (
 
 const MaxBuildStreamErrorRetries = 3 // uses semi-exponential backoff so be careful with this
 
-const FixSyntaxRetries = 3
-const FixSyntaxEpochs = 3
+const FixSyntaxRetries = 2
+const FixSyntaxEpochs = 2
 
 type activeBuildStreamState struct {
 	clients       map[string]*openai.Client
