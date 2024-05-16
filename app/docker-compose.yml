@@ -2,17 +2,19 @@ services:
   plandex-postgres:
     image: postgres:latest
     restart: always
-    environment:
-      POSTGRES_PASSWORD: $POSTGRES_PASSWORD
-      PLANDEX_DB: $PLANDEX_DB
-      PLANDEX_USER: $PLANDEX_USER
-      PLANDEX_PASSWORD: $PLANDEX_PASSWORD
-      #PGDATA: /var/lib/postgresql/data/pgdata
+    env_file:
+      - ./.env
+    #environment:
+    #  POSTGRES_PASSWORD: $POSTGRES_PASSWORD
+    #  PLANDEX_DB: $PLANDEX_DB
+    #  PLANDEX_USER: $PLANDEX_USER
+    #  PLANDEX_PASSWORD: $PLANDEX_PASSWORD
+    #  #PGDATA: /var/lib/postgresql/data/pgdata
     ports:
       - "5432:5432"
     volumes:
       - ./scripts/init-db:/docker-entrypoint-initdb.d
-      - $PGDATA_DIR:/var/lib/postgresql/data
+      - ${PGDATA_DIR}:/var/lib/postgresql/data
     networks:
       - plandex-network
   plandex-server:
@@ -20,12 +22,12 @@ services:
       context: .
       dockerfile: Dockerfile.server
     volumes:
-      - "$PLANDEX_DATA_DIR:/plandex-server"
+      - "${PLANDEX_DATA_DIR}:/plandex-server"
       - "./scripts:/scripts" # Mount the directory containing wait-for-it.sh
     ports:
       - "8080:8080"
     environment:
-      DATABASE_URL: "postgres://$PLANDEX_USER:$PLANDEX_PASSWORD@plandex-postgres:5432/$PLANDEX_DB?sslmode=disable"
+      DATABASE_URL: "postgres://${PLANDEX_USER}:${PLANDEX_PASSWORD}@plandex-postgres:5432/${PLANDEX_DB}?sslmode=disable"
       GOENV: $GOENV
     networks:
       - plandex-network
