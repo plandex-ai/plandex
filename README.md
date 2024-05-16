@@ -78,7 +78,8 @@
 <div align="center" width="400">
   <h4>🔥🔥🔥 <a href="https://github.com/plandex-ai/plandex/releases/tag/server%2Fv1.0.0">Plandex 1.0.0 Release</a> 🔥🔥🔥</h4>
   → gpt-4o support and automatic error-correction<br/>
-  → over 90% reduction in errors<br>
+  → over 90% reduction in errors in early testing<br>
+  → improved planning and memory, reduced laziness<br/>
   → 2x faster planning and execution<br/>
   → 2x cost reduction<br/>
 </div>
@@ -329,7 +330,7 @@ Speaking of feedback, feel free to give yours, ask questions, report a bug, or j
 
 ## Weekly office hours  📆
 
-Join me (Dane 👋) for office hours every Friday 11am-12:30pm PST in Discord. I'll be available by voice and text chat to answer questions, talk about the new version, learn about your use cases, and show you AI coding techniques. [Join the discord](https://discord.gg/plandex-ai) to get a reminder when they're starting.
+Join me (Dane 👋) for office hours every Friday 12:30pm-1:30pm PST in Discord. I'll be available by voice and text chat to answer questions, talk about the new version, learn about your use cases, and show you AI coding techniques. [Join the discord](https://discord.gg/plandex-ai) to get a reminder when they're starting.
 
 <br/>
 
