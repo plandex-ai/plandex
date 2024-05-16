@@ -214,13 +214,7 @@ func signIn(email, pin, host string) error {
 		return fmt.Errorf("error signing in: %v", apiErr.Msg)
 	}
 
-	orgId, orgName, err := resolveOrgAuth(res.Orgs)
-
-	if err != nil {
-		return fmt.Errorf("error resolving org: %v", err)
-	}
-
-	err = setAuth(&types.ClientAuth{
+	err := setAuth(&types.ClientAuth{
 		ClientAccount: types.ClientAccount{
 			Email:    res.Email,
 			UserId:   res.UserId,
@@ -230,12 +224,25 @@ func signIn(email, pin, host string) error {
 			IsCloud:  host == "",
 			Host:     host,
 		},
-		OrgId:   orgId,
-		OrgName: orgName,
 	})
 
 	if err != nil {
 		return fmt.Errorf("error setting auth: %v", err)
+	}
+
+	orgId, orgName, err := resolveOrgAuth(res.Orgs)
+
+	if err != nil {
+		return fmt.Errorf("error resolving org: %v", err)
+	}
+
+	Current.OrgId = orgId
+	Current.OrgName = orgName
+
+	err = writeCurrentAuth()
+
+	if err != nil {
+		return fmt.Errorf("error writing auth: %v", err)
 	}
 
 	return nil
