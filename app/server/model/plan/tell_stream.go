@@ -297,6 +297,8 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 
 					log.Printf("Won't continue plan. Build finished: %v\n", buildFinished)
 
+					time.Sleep(50 * time.Millisecond)
+
 					if buildFinished {
 						log.Println("Plan is finished")
 						active.Stream(shared.StreamMessage{

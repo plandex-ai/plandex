@@ -45,7 +45,7 @@ func (fileState *activeBuildStreamFileState) verifyFileBuild() {
 		verifyState.proposedChanges,
 	)
 
-	log.Println("verify sysPrompt:\n", sysPrompt)
+	// log.Println("verify sysPrompt:\n", sysPrompt)
 
 	fileMessages := []openai.ChatCompletionMessage{
 		{

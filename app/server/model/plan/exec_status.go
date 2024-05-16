@@ -121,7 +121,8 @@ func (state *activeTellStreamState) execStatusShouldContinue(message string, lat
 
 	var strRes string
 	var res struct {
-		Comments []struct {
+		MessageFinishedSubtasks []string `json:"messageSubtasksFinished"`
+		Comments                []struct {
 			Txt               string `json:"txt"`
 			IsTodoPlaceholder bool   `json:"isTodoPlaceholder"`
 		} `json:"comments"`

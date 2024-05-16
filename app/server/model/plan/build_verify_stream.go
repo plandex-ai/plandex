@@ -117,6 +117,9 @@ func (fileState *activeBuildStreamFileState) listenStreamVerifyOutput(stream *op
 						BuildInfo: buildInfo,
 					})
 					log.Println("build verify - streamed.IsCorrect")
+
+					time.Sleep(50 * time.Millisecond)
+
 					fileState.onFinishBuildFile(nil, "")
 				} else {
 

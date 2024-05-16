@@ -213,6 +213,7 @@ func (fileState *activeBuildStreamFileState) listenStreamChangesWithLineNums(str
 					Type:      shared.StreamMessageBuildInfo,
 					BuildInfo: buildInfo,
 				})
+				time.Sleep(50 * time.Millisecond)
 
 				fileState.updated = updatedFile
 

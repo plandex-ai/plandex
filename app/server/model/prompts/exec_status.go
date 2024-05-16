@@ -19,12 +19,14 @@ If any new subtasks have been added to plan that haven't been implemented yet, e
 
 If A1 1 has indicated that the plan is complete, but there are still subtasks remaining that have not been implemented, the plan should continue despite AI 1's statement that the plan is complete. The plan should only be considered complete if all tasks and subtasks have been fully implemented.
 
+DO NOT only go by the latest summary when considering whether subtasks are complete. You MUST also consider the latest message from AI 1 and the previous message from AI 1 if it is provided. If the latest or previous message from AI 1 has new subtasks that have not been implemented, the plan should continue. If the latest or previous message from AI 1 has *finished* subtasks that are not marked as implemented in the summary, you MUST consider them as implemented. 
+
 If no subtasks are remaining to be implemented:
   - Assess whether AI 1 has concluded with a statement that indicates either the user needs to take specific actions before the plan can proceed, or that the plan can't automatically continue for any other reason. If so, the plan should not continue.
 
-	- If AI 1 has outlined a clear next step necessary to finish the plan but has not executed it, the plan should continue.
+You *must* call the shouldAutoContinue function with a JSON object containing the keys 'messageSubtasksFinished', 'comments', 'reasoning', and 'shouldContinue'. 
 
-You *must* call the shouldAutoContinue function with a JSON object containing the keys 'comments', 'reasoning', and 'shouldContinue'. 
+The 'messageSubtasksFinished' key is an array of strings that represent subtasks that have been completed in the latest message OR the previous message (if included) from AI 1. If there are no subtasks that have been completed in the latest message, 'messageSubtasksFinished' must be an empty array. These MUST ONLY be subtasks that AI one has clearly stated are finished or done or implemented in either the latest or previous message. Do NOT list any subtasks from the summary in 'messageSubtasksFinished'. If there are no subtasks that have been completed in the latest message, 'messageSubtasksFinished' must be an empty array.
 
 The 'comments' key is an array of objects with two properties: 'txt' and 'isTodoPlaceholder'. 'txt' is the exact text of a code comment. 'isTodoPlaceholder' is a boolean that indicates whether the comment is a placeholder for a task that has not yet been implemented. This includes comments like "// Add logic here" or "// Implement the function", or "# Update the state" or " # Finish implementation" or any similar placeholder comments that describe tasks that still remain to be implemented. A todo placeholder does NOT have to exactly match any of the previous examples. Use your judgment to determine whether a comment is a todo placeholder.
 
@@ -34,9 +36,13 @@ If any of the comments in the 'comments' array are todo placeholders, the plan M
 
 Set 'reasoning' to a string briefly and succinctly explaining your reasoning for why the plan should or should not continue, based on your instructions above.
 
+Take into account both the latest message from AI 1, the previous message from AI 1 if it is provided, and the latest summary if it is provided. If a subtask is marked as completed in *either* the summary, the latest message, or the previous message from AI 1, it should be considered as implemented.
+
+Between all of these sources, explain whether all subtasks have been implemented or whether there are still subtasks remaining that have not yet been completed.
+
 If there are any todo placeholders in the 'comments' array, list them ALL in 'reasoning'.
 
-If the plan should continue, also state what the immediate next step should be in 'reasoning'.
+If the plan should continue, also state what the immediate next step should be in 'reasoning'. You MUST NOT state any subtasks that have been marked implemented in the summary or completed in the latest message or previous message from AI 1. You MUST only state what the next unimplemented subtask is and that should be done next.
 
 Set 'shouldContinue' to true if the plan should automatically continue based on your instructions above, or false otherwise.
 
@@ -65,6 +71,12 @@ var ShouldAutoContinueFn = openai.FunctionDefinition{
 	Parameters: &jsonschema.Definition{
 		Type: jsonschema.Object,
 		Properties: map[string]jsonschema.Definition{
+			"messageFinishedSubtasks": {
+				Type: jsonschema.Array,
+				Items: &jsonschema.Definition{
+					Type: jsonschema.String,
+				},
+			},
 			"comments": {
 				Type: jsonschema.Array,
 				Items: &jsonschema.Definition{

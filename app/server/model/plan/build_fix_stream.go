@@ -225,6 +225,17 @@ func (fileState *activeBuildStreamFileState) listenStreamFixChanges(stream *open
 					}
 				}
 
+				buildInfo := &shared.BuildInfo{
+					Path:      filePath,
+					NumTokens: 0,
+					Finished:  true,
+				}
+				activePlan.Stream(shared.StreamMessage{
+					Type:      shared.StreamMessageBuildInfo,
+					BuildInfo: buildInfo,
+				})
+				time.Sleep(50 * time.Millisecond)
+
 				fileState.onFinishBuildFile(planFileResult, updated)
 				return
 			} else if len(delta.ToolCalls) == 0 {
@@ -250,6 +261,24 @@ func (fileState *activeBuildStreamFileState) fixRetryOrAbort(err error) {
 		fileState.fixFileLineNums()
 	} else {
 		log.Printf("Aborting fix file '%s' due to error: %v\n", fileState.filePath, err)
+
+		activePlan := GetActivePlan(fileState.plan.Id, fileState.branch)
+
+		if activePlan == nil {
+			log.Println("fixRetryOrAbort - Active plan not found")
+			return
+		}
+
+		buildInfo := &shared.BuildInfo{
+			Path:      fileState.filePath,
+			NumTokens: 0,
+			Finished:  true,
+		}
+		activePlan.Stream(shared.StreamMessage{
+			Type:      shared.StreamMessageBuildInfo,
+			BuildInfo: buildInfo,
+		})
+		time.Sleep(50 * time.Millisecond)
 
 		fileState.onFinishBuildFile(nil, "")
 	}
