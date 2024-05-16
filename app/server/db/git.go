@@ -164,7 +164,7 @@ func GitClearUncommittedChanges(orgId, planId string) error {
 
 // Not used currently but may be good to handle these errors specifically later if locking can't fully prevent them
 // func isLockFileError(output string) bool {
-// 	return strings.Contains(output, "fatal: Unable to create") && strings.Contains(output, ".git/index.lock': File exists")
+// 	return strings.Contains(output, "fatal: Unable to create") && strings.Contains output, ".git/index.lock': File exists")
 // }
 
 func gitCheckoutBranch(repoDir, branch string) error {
@@ -294,40 +294,21 @@ func processGitHistoryOutput(raw string) [][2]string {
 }
 
 func gitAdd(repoDir, path string) error {
-	var err error
-	retryInterval := initialGitRetryInterval
-
-	for attempt := 0; attempt < maxGitRetries; attempt++ {
-		res, err := exec.Command("git", "-C", repoDir, "add", path).CombinedOutput()
-		if err == nil {
-			return nil
-		}
-
-		log.Printf("Retry attempt %d failed. Waiting %v before retrying. Error: %v", attempt+1, retryInterval, err)
-		time.Sleep(retryInterval)
-		retryInterval *= 2
+	res, err := exec.Command("git", "-C", repoDir, "add", path).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("error adding files to git repository for dir: %s, err: %v, output: %s", repoDir, err, string(res))
 	}
 
-	return fmt.Errorf("error adding files to git repository for dir: %s, err: %v, output: %s", repoDir, err, string(res))
+	return nil
 }
 
 func gitCommit(repoDir, commitMsg string) error {
-	var err error
-	retryInterval := initialGitRetryInterval
-
-	for attempt := 0; attempt < maxGitRetries; attempt++ {
-		res, err := exec.Command("git", "-C", repoDir, "commit", "-m", commitMsg).CombinedOutput()
-		if err == nil {
-			return nil
-		}
-
-		log.Printf("Retry attempt %d failed. Waiting %v before retrying. Error: %v", attempt+1, retryInterval, err)
-		time.Sleep(retryInterval)
-		retryInterval *= 2
+	res, err := exec.Command("git", "-C", repoDir, "commit", "-m", commitMsg).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("error committing files to git repository for dir: %s, err: %v, output: %s", repoDir, err, string(res))
 	}
 
-	return fmt.Errorf("error committing files to git repository for dir: %s, err: %v, output: %s", repoDir, err, string(res))
-}
+	return nil
 }
 
 func gitRemoveIndexLockFileIfExists(repoDir string) error {
@@ -371,12 +352,17 @@ func retryGitOperation(operation func() error) error {
 			return nil
 		}
 
-		log.Printf("Retry attempt %d failed. Waiting %v before retrying. Error: %v", attempt+1, retryInterval, err)
-		time.Sleep(retryInterval)
-	retryInterval *= 2
+		if exitError, ok := err.(*exec.ExitError); ok {
+			if exitError.ExitCode() == 128 && strings.Contains(string(exitError.Stderr), "unable to write new_index file") {
+				log.Printf("Retry attempt %d failed due to 'unable to write new_index file'. Waiting %v before retrying. Error: %v", attempt+1, retryInterval, err)
+				time.Sleep(retryInterval)
+				retryInterval *= 2
+				continue
+			}
+		}
+
+		return err
 	}
 
 	return fmt.Errorf("operation failed after %d attempts: %v", maxGitRetries, err)
 }
-
-
