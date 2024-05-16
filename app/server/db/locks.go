@@ -13,6 +13,8 @@ import (
 
 const lockHeartbeatInterval = 700 * time.Millisecond
 const lockHeartbeatTimeout = 4 * time.Second
+const maxRetries = 10
+const initialRetryInterval = 100 * time.Millisecond
 
 // distributed locking to ensure only one user can write to a plan repo at a time
 // multiple readers are allowed, but read locks block writes
@@ -110,14 +112,14 @@ func lockRepo(params LockRepoParams, numRetry int) (string, error) {
 	err = fn()
 	if err != nil {
 		if pqErr, ok := err.(*pq.Error); ok && (pqErr.Code == "40001" || pqErr.Code == "40P01") {
-			if numRetry > 10 {
+			if numRetry > maxRetries {
 				err = fmt.Errorf("plan is currently being updated by another user")
 				return "", err
 			}
 
 			log.Printf("Serialization or deadlock error, retrying transaction: %v\n", err)
 
-			wait := time.Duration(numRetry) * 300 * time.Millisecond * time.Duration(rand.Intn(500)*int(time.Millisecond))
+			wait := initialRetryInterval * time.Duration(1<<numRetry) * time.Duration(rand.Intn(500)*int(time.Millisecond))
 
 			select {
 			case <-ctx.Done():

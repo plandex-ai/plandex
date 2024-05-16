@@ -14,6 +14,9 @@ import (
 	"github.com/fatih/color"
 )
 
+const maxGitRetries = 5
+const initialGitRetryInterval = 100 * time.Millisecond
+
 func init() {
 	// ensure git is available
 	cmd := exec.Command("git", "--version")
@@ -48,43 +51,22 @@ func initGitRepo(dir string) error {
 func GitAddAndCommit(orgId, planId, branch, message string) error {
 	dir := getPlanDir(orgId, planId)
 
-	err := gitAdd(dir, ".")
+	err := retryGitOperation(func() error {
+		return gitAdd(dir, ".")
+	})
 	if err != nil {
 		return fmt.Errorf("error adding files to git repository for dir: %s, err: %v", dir, err)
 	}
 
-	err = gitCommit(dir, message)
+	err = retryGitOperation(func() error {
+		return gitCommit(dir, message)
+	})
 	if err != nil {
 		return fmt.Errorf("error committing files to git repository for dir: %s, err: %v", dir, err)
 	}
 
 	return nil
 }
-
-// func GitAddAndAmendCommit(orgId, planId, branch, addMessage string) error {
-// 	dir := getPlanDir(orgId, planId)
-
-// 	err := gitAdd(dir, ".")
-// 	if err != nil {
-// 		return fmt.Errorf("error adding files to git repository for dir: %s, err: %v", dir, err)
-// 	}
-
-// 	// Get the latest commit message
-// 	_, latestCommitMsg, err := getLatestCommit(dir)
-// 	if err != nil {
-// 		return fmt.Errorf("error getting latest commit message for dir: %s, err: %v", dir, err)
-// 	}
-
-// 	// Amend the latest commit with the new message
-// 	message := latestCommitMsg + "\n\n" + addMessage
-// 	res, err := exec.Command("git", "-C", dir, "commit", "--amend", "-m", message).CombinedOutput()
-
-// 	if err != nil {
-// 		return fmt.Errorf("error amending commit for dir: %s, err: %v, output: %s", dir, err, string(res))
-// 	}
-
-// 	return nil
-// }
 
 func GitRewindToSha(orgId, planId, branch, sha string) error {
 	dir := getPlanDir(orgId, planId)
@@ -215,9 +197,7 @@ func gitCheckoutBranch(repoDir, branch string) error {
 }
 
 func gitRewindToSha(repoDir, sha string) error {
-	res, err := exec.Command("git", "-C", repoDir, "reset", "--hard",
-		sha).CombinedOutput()
-
+	res, err := exec.Command("git", "-C", repoDir, "reset", "--hard", sha).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("error executing git reset for dir: %s, sha: %s, err: %v, output: %s", repoDir, sha, err, string(res))
 	}
@@ -232,8 +212,7 @@ func getLatestCommit(dir string) (sha, body string, err error) {
 	cmd.Stdout = &out
 	err = cmd.Run()
 	if err != nil {
-		return "", "", fmt.Errorf("error getting git history for dir: %s, err: %v",
-			dir, err)
+		return "", "", fmt.Errorf("error getting git history for dir: %s, err: %v", dir, err)
 	}
 
 	// Process the log output to get it in the desired format.
@@ -254,8 +233,7 @@ func getGitCommitHistory(dir string) (body string, shas []string, err error) {
 	cmd.Stdout = &out
 	err = cmd.Run()
 	if err != nil {
-		return "", nil, fmt.Errorf("error getting git history for dir: %s, err: %v",
-			dir, err)
+		return "", nil, fmt.Errorf("error getting git history for dir: %s, err: %v", dir, err)
 	}
 
 	// Process the log output to get it in the desired format.
@@ -316,21 +294,40 @@ func processGitHistoryOutput(raw string) [][2]string {
 }
 
 func gitAdd(repoDir, path string) error {
-	res, err := exec.Command("git", "-C", repoDir, "add", path).CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("error adding files to git repository for dir: %s, err: %v, output: %s", repoDir, err, string(res))
+	var err error
+	retryInterval := initialGitRetryInterval
+
+	for attempt := 0; attempt < maxGitRetries; attempt++ {
+		res, err := exec.Command("git", "-C", repoDir, "add", path).CombinedOutput()
+		if err == nil {
+			return nil
+		}
+
+		log.Printf("Retry attempt %d failed. Waiting %v before retrying. Error: %v", attempt+1, retryInterval, err)
+		time.Sleep(retryInterval)
+		retryInterval *= 2
 	}
 
-	return nil
+	return fmt.Errorf("error adding files to git repository for dir: %s, err: %v, output: %s", repoDir, err, string(res))
 }
 
 func gitCommit(repoDir, commitMsg string) error {
-	res, err := exec.Command("git", "-C", repoDir, "commit", "-m", commitMsg).CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("error committing files to git repository for dir: %s, err: %v, output: %s", repoDir, err, string(res))
+	var err error
+	retryInterval := initialGitRetryInterval
+
+	for attempt := 0; attempt < maxGitRetries; attempt++ {
+		res, err := exec.Command("git", "-C", repoDir, "commit", "-m", commitMsg).CombinedOutput()
+		if err == nil {
+			return nil
+		}
+
+		log.Printf("Retry attempt %d failed. Waiting %v before retrying. Error: %v", attempt+1, retryInterval, err)
+		time.Sleep(retryInterval)
+		retryInterval *= 2
 	}
 
-	return nil
+	return fmt.Errorf("error committing files to git repository for dir: %s, err: %v, output: %s", repoDir, err, string(res))
+}
 }
 
 func gitRemoveIndexLockFileIfExists(repoDir string) error {
@@ -363,3 +360,23 @@ func setGitConfig(repoDir, key, value string) error {
 	}
 	return nil
 }
+
+func retryGitOperation(operation func() error) error {
+	var err error
+	retryInterval := initialGitRetryInterval
+
+	for attempt := 0; attempt < maxGitRetries; attempt++ {
+		err = operation()
+		if err == nil {
+			return nil
+		}
+
+		log.Printf("Retry attempt %d failed. Waiting %v before retrying. Error: %v", attempt+1, retryInterval, err)
+		time.Sleep(retryInterval)
+	retryInterval *= 2
+	}
+
+	return fmt.Errorf("operation failed after %d attempts: %v", maxGitRetries, err)
+}
+
+
