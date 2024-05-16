@@ -114,7 +114,8 @@ func (ps PlanSettings) GetRequiredEnvVars() map[string]bool {
 	envVars[ms.Namer.BaseModelConfig.ApiKeyEnvVar] = true
 	envVars[ms.CommitMsg.BaseModelConfig.ApiKeyEnvVar] = true
 	envVars[ms.ExecStatus.BaseModelConfig.ApiKeyEnvVar] = true
-	envVars[ms.Verifier.BaseModelConfig.ApiKeyEnvVar] = true
+	envVars[ms.GetVerifier().BaseModelConfig.ApiKeyEnvVar] = true
+	envVars[ms.GetAutoFix().BaseModelConfig.ApiKeyEnvVar] = true
 
 	// for backward compatibility with <= 0.8.4 server versions
 	if len(envVars) == 0 {

@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"plandex-server/db"
 	"reflect"
-	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/plandex/plandex/shared"
@@ -303,33 +302,29 @@ func getUpdateCommitMsg(settings *shared.PlanSettings, originalSettings *shared.
 }
 
 func compareAny(a, b interface{}, path string, changes *[]string) {
-	// log.Println("Comparing", path)
-	// log.Println("a")
-	// spew.Dump(a)
-	// log.Println("b")
-	// spew.Dump(b)
+	aVal, bVal := reflect.ValueOf(a), reflect.ValueOf(b)
 
-	if strings.HasSuffix(path, "updated-at") ||
-		strings.HasSuffix(path, "open-ai-response-format") {
+	// Check if either value is invalid and return to prevent panic
+	if !aVal.IsValid() || !bVal.IsValid() {
+		return
+	}
+
+	// If both values are pointers, get the elements they point to
+	if aVal.Kind() == reflect.Ptr && bVal.Kind() == reflect.Ptr {
+		aVal = aVal.Elem()
+		bVal = bVal.Elem()
+	}
+
+	// Check again for validity after dereferencing pointers
+	if !aVal.IsValid() || !bVal.IsValid() {
 		return
 	}
 
 	if reflect.DeepEqual(a, b) {
-		return
+		return // No difference found
 	}
 
-	aVal, bVal := reflect.ValueOf(a), reflect.ValueOf(b)
-	if aVal.Kind() == reflect.Ptr {
-		aVal = aVal.Elem()
-	}
-	if bVal.Kind() == reflect.Ptr {
-		bVal = bVal.Elem()
-	}
-
-	// log.Println("Comparing", path, aVal.Kind(), bVal.Kind())
-	// log.Println("aVal", aVal)
-	// log.Println("bVal", bVal)
-
+	// Continue with the comparison
 	switch aVal.Kind() {
 	case reflect.Struct:
 		for i := 0; i < aVal.NumField(); i++ {
@@ -348,33 +343,27 @@ func compareAny(a, b interface{}, path string, changes *[]string) {
 					if dasherizedName == "model-overrides" {
 						dasherizedName = "overrides"
 					}
-
 					updatedPath = dasherizedName
 				}
 			}
 
-			// log.Println("field", fieldName, "updatedPath", updatedPath)
-
-			compareAny(aVal.Field(i).Interface(), bVal.Field(i).Interface(),
-				updatedPath, changes)
+			compareAny(aVal.Field(i).Interface(), bVal.Field(i).Interface(), updatedPath, changes)
 		}
 	default:
-		var a string
-		var b string
-
+		var aStr, bStr string
 		if aVal.IsValid() {
-			a = fmt.Sprintf("%v", aVal.Interface())
+			aStr = fmt.Sprintf("%v", aVal.Interface())
 		} else {
-			a = "no override"
+			aStr = "no override"
 		}
 
 		if bVal.IsValid() {
-			b = fmt.Sprintf("%v", bVal.Interface())
+			bStr = fmt.Sprintf("%v", bVal.Interface())
 		} else {
-			b = "no override"
+			bStr = "no override"
 		}
 
-		change := fmt.Sprintf("%s | %v → %v", path, a, b)
+		change := fmt.Sprintf("%s | %v → %v", path, aStr, bStr)
 		*changes = append(*changes, change)
 	}
 }
