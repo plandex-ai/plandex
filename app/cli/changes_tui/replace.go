@@ -19,6 +19,7 @@ type oldReplacementRes struct {
 	numLinesPrepended int
 	appendContent     string
 	numLinesAppended  int
+	entireFile        bool
 }
 
 func (m changesUIModel) getReplacementOldDisplay() oldReplacementRes {
@@ -51,9 +52,15 @@ func (m changesUIModel) getReplacementOldDisplay() oldReplacementRes {
 	oldContentRunes := []rune(oldContent)
 
 	// Find the index of oldContentRunes in originalFileRunes
-	fileIdx := shared.IndexRunes(originalFileRunes, oldContentRunes)
-	if fileIdx == -1 {
-		term.OutputErrorAndExit("Could not find replacement in original file")
+	var fileIdx int
+
+	if m.selectionInfo.currentRep.EntireFile {
+		fileIdx = 0
+	} else {
+		fileIdx = shared.IndexRunes(originalFileRunes, oldContentRunes)
+		if fileIdx == -1 {
+			term.OutputErrorAndExit("Could not find replacement in original file")
+		}
 	}
 
 	toPrepend := ""
@@ -146,6 +153,7 @@ func (m changesUIModel) getReplacementOldDisplay() oldReplacementRes {
 		numLinesPrepended,
 		toAppend,
 		numLinesAppended,
+		m.selectionInfo.currentRep.EntireFile,
 	}
 }
 
