@@ -70,7 +70,7 @@
 
 <br>
 
-<h3 align="center">Reliable AI driven development in your terminal.<br/>Build entire features and apps with a robust and scalable workflow.</h3>
+<h3 align="center">AI driven development in your terminal.<br/>Build entire features and apps with a robust workflow.</h3>
 <br/>
 
 ---
