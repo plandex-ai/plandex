@@ -99,7 +99,7 @@
 
 ## More examples  🎥
 
-<h4>👉  <a href="https://www.youtube.com/watch?v=rnlepfh7TN4">Fixing a tricky real-world bug in 5 minutes with Claude Opus 3 and Plandex</a></h4>
+<h4><a href="https://www.youtube.com/watch?v=rnlepfh7TN4">Fixing a tricky real-world bug in 5 minutes with Claude Opus 3 and Plandex</a></h4>
 
 <br/>
 
@@ -202,7 +202,7 @@ After any plandex command is run, commands that could make sense to run next wil
 
 ## Docs  🛠️
 
-👉  [A quick overview of the commands and functionality.](./guides/USAGE.md)
+[Here's a quick overview of the commands and functionality.](./guides/USAGE.md)
 
 <!-- <br/>
 
