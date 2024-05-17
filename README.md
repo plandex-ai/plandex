@@ -111,7 +111,7 @@
 - [Docs](#docs-%EF%B8%8F)
 - [Plandex Cloud](#plandex-cloud-%EF%B8%8F)
 - [Self-hosting](#self-hosting-)
-- [Build complex software](#build-complex-software-with-llms)
+- [Build complex software](#build-complex-software-with-llms-)
 - [Why Plandex?](#why-plandex-)
 - [Limitations and guidance](#limitationsand-guidance-%EF%B8%8F)
 - [Security](#security-)
