@@ -70,7 +70,7 @@
 
 <br>
 
-<h3 align="center"><strong>🌟  Reliable AI driven development in your terminal  🌟<br/>🏗️  Build entire features and apps with a robust and scalable workflow  🏗️</strong></h3>
+<h3 align="center">Reliable AI driven development in your terminal.<br/>Build entire features and apps with a robust and scalable workflow.</h3>
 <br/>
 
 ---
@@ -80,8 +80,7 @@
   → gpt-4o support and automatic error-correction<br/>
   → over 90% reduction in errors in early testing<br>
   → improved planning and memory, reduced laziness<br/>
-  → 2x faster planning and execution<br/>
-  → 2x cost reduction<br/>
+  → 2x faster planning and execution, 2x cost reduction<br/>
 </div>
 
 ---
@@ -98,7 +97,7 @@
 <br/>
 <br/>
 
-## Want to see a more in-depth example?  🎥
+## More examples  🎥
 
 <h4>👉  <a href="https://www.youtube.com/watch?v=rnlepfh7TN4">Fixing a tricky real-world bug in 5 minutes with Claude Opus 3 and Plandex</a></h4>
 
@@ -127,9 +126,9 @@
 
 ## Overview  📚
 
-<p>Plandex is a <strong>reliable and developer-friendly</strong> AI coding agent in your terminal. Designed for <strong>real-world use-cases</strong>, Plandex is great for working on <strong>large, complex tasks</strong> in existing codebases with LLMs.</p>
+<p>Plandex is a <strong>reliable and developer-friendly</strong> AI coding agent in your terminal. Designed for <strong>real-world use-cases</strong>, Plandex is great for working on <strong>large, complex tasks</strong> in existing codebases.</p>
 
-<p>Though it focuses on <strong>robustness and reliability</strong> for large tasks and file updates, Plandex also excels at <strong>accelerating new projects</strong> and <strong>quick one-off tasks.</strong></p> 
+<p>Though it focuses on <strong>robustness and reliability</strong> for large tasks, Plandex is also good for <strong>accelerating new projects</strong> and <strong>quick one-off tasks.</strong></p> 
 
 <p>Plandex can plan out and complete <strong>tasks that span many files and steps.</strong> It breaks up large tasks into smaller subtasks, then implements each one, continuing until it finishes the job. <strong>Build entire features and projects</strong> with a structured, version-controlled, team-friendly approach to AI-driven engineering.</p>
 
@@ -197,7 +196,7 @@ export TOGETHER_API_KEY...
 plandex new
 ```
 
-After any plandex command is run, commands that could make sense to run next will be suggested. You can learn to use Plandex quickly by jumping in and following these suggestions.
+After any plandex command is run, commands that could make sense to run next will be suggested. You can learn to use Plandex quickly by jumping in and following these suggestions. You can see a list of all commands with `plandex help` or get help on a specific command with `plandex [command] --help`. You can use the `pdx` alias instead of `plandex` to type a bit less, and most common commands have their own aliases as well.
 
 <br/>
 
