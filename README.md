@@ -138,7 +138,7 @@
 
 ## Install  📥
 
-### 1-Minute Quick Install
+### Quick Install
 
 ```bash
 curl -sL https://plandex.ai/install.sh | bash
