@@ -109,3 +109,21 @@ Once the server is running, you can create a new account by running `plandex sig
 ```bash
 plandex sign-in # follow the prompts to create a new account on your self-hosted server
 ```
+
+### Note: Local CLI Files
+
+If you use the Plandex CLI and then for some reason you reset the database or use a new one, you'll need to remove the local files that the CLI creates in directories where you used Plandex in order to start fresh. Otherwise, the CLI will with an account that doesn't exist in the new database and you'll get errors. This could also happen if you use Plandex Cloud and then switch to self-hosting.
+
+To resolve this, remove the following in any directory you used the CLI in:
+
+- `.plandex-dev` directory if you ran the CLI with `PLANDEX_ENV=development`
+- `.plandex` directory otherwise
+
+Then run `plandex sign-in` again to create a new account.
+
+If you're still having trouble with accounts, you can also remove following from your $HOME directory to fully reset them:
+
+- `.plandex-home-dev` directory if you ran the CLI with `PLANDEX_ENV=development`
+- `.plandex-home` directory otherwise
+
+

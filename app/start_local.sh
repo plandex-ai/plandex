@@ -20,11 +20,16 @@ if ! [ -x "$(command -v docker-compose)" ]; then
     exit 1
 fi
 
-cp _env .env
-
-echo "Setup Plandex, please add custom details to the .env file that has been created ..."
-
-echo "For security and stability please add custom values to the .env file that has been created ..."
+# copy the _env file to .env unless it already exists
+if [ -f .env ]; then
+    echo ".env file already exists, won't overwrite it with _env"
+    echo "Add any custom values to .env"
+else
+    echo "Copying _env file to .env"
+    cp _env .env
+    echo ".env has been populated with default values"
+    echo "Add any custom values to .env"
+fi
 
 echo "Setup complete!"
 

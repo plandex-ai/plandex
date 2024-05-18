@@ -26,6 +26,8 @@ services:
       - "./scripts:/scripts" # Mount the directory containing wait-for-it.sh
     ports:
       - "8080:8080"
+    env_file:
+      - ./.env
     environment:
       DATABASE_URL: "postgres://${PLANDEX_USER}:${PLANDEX_PASSWORD}@plandex-postgres:5432/${PLANDEX_DB}?sslmode=disable"
       GOENV: $GOENV
