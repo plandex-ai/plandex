@@ -121,7 +121,7 @@ To resolve this, remove the following in any directory you used the CLI in:
 
 Then run `plandex sign-in` again to create a new account.
 
-If you're still having trouble with accounts, you can also remove following from your $HOME directory to fully reset them:
+If you're still having trouble with accounts, you can also remove the following from your $HOME directory to fully reset them:
 
 - `.plandex-home-dev` directory if you ran the CLI with `PLANDEX_ENV=development`
 - `.plandex-home` directory otherwise
