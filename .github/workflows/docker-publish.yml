@@ -1,4 +1,4 @@
-name: Build and Publish Docker Image
+name: Build and publish Docker Image if a new Github release was created
 
 on:
   release:
