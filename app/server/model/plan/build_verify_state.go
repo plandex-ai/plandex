@@ -6,6 +6,8 @@ import (
 	"plandex-server/db"
 	"plandex-server/types"
 	"time"
+
+	"github.com/davecgh/go-spew/spew"
 )
 
 type verifyState struct {
@@ -21,6 +23,9 @@ func (fileState *activeBuildStreamFileState) GetVerifyState() (*verifyState, err
 	fileResults := planState.PlanResult.FileResultsByPath[path]
 
 	if fileResults == nil {
+		log.Println("No file results for path: ", path)
+		log.Println(spew.Sdump(planState.PlanResult.FileResultsByPath))
+
 		return nil, fmt.Errorf("no file results for path: %s", path)
 	}
 
