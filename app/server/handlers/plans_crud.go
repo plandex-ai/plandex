@@ -324,13 +324,20 @@ func ListPlansHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	authorizedProjectIds := []string{}
 	for _, projectId := range projectIds {
-		if !authorizeProject(w, projectId, auth) {
-			return
+		if authorizeProjectOptional(w, projectId, auth, false) {
+			authorizedProjectIds = append(authorizedProjectIds, projectId)
 		}
 	}
 
-	plans, err := db.ListOwnedPlans(projectIds, auth.User.Id, false)
+	if len(authorizedProjectIds) == 0 {
+		log.Println("No authorized project ids provided")
+		http.Error(w, "No authorized project ids provided", http.StatusForbidden)
+		return
+	}
+
+	plans, err := db.ListOwnedPlans(authorizedProjectIds, auth.User.Id, false)
 
 	if err != nil {
 		log.Printf("Error listing plans: %v\n", err)

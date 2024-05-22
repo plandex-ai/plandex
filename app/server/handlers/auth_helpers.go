@@ -150,6 +150,10 @@ func authenticate(w http.ResponseWriter, r *http.Request, requireOrg bool) *type
 }
 
 func authorizeProject(w http.ResponseWriter, projectId string, auth *types.ServerAuth) bool {
+	return authorizeProjectOptional(w, projectId, auth, true)
+}
+
+func authorizeProjectOptional(w http.ResponseWriter, projectId string, auth *types.ServerAuth, shouldErr bool) bool {
 	log.Println("authorizing project")
 
 	projectExists, err := db.ProjectExists(auth.OrgId, projectId)
@@ -160,13 +164,13 @@ func authorizeProject(w http.ResponseWriter, projectId string, auth *types.Serve
 		return false
 	}
 
-	if !projectExists {
+	if !projectExists && shouldErr {
 		log.Println("project does not exist in org")
 		http.Error(w, "project does not exist in org", http.StatusNotFound)
 		return false
 	}
 
-	return true
+	return projectExists
 }
 
 func authorizeProjectRename(w http.ResponseWriter, projectId string, auth *types.ServerAuth) bool {
