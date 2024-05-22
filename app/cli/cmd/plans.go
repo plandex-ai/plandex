@@ -150,6 +150,23 @@ func listActive() {
 		}
 	}
 
+	// remove paths with no plans from parentProjectIdsWithPaths and childProjectIdsWithPaths
+	var parentProjectIdsWithPathsFiltered [][2]string
+	for _, p := range parentProjectIdsWithPaths {
+		if len(plansByProjectId[p[1]]) > 0 {
+			parentProjectIdsWithPathsFiltered = append(parentProjectIdsWithPathsFiltered, p)
+		}
+	}
+	parentProjectIdsWithPaths = parentProjectIdsWithPathsFiltered
+
+	var childProjectIdsWithPathsFiltered [][2]string
+	for _, p := range childProjectIdsWithPaths {
+		if len(plansByProjectId[p[1]]) > 0 {
+			childProjectIdsWithPathsFiltered = append(childProjectIdsWithPathsFiltered, p)
+		}
+	}
+	childProjectIdsWithPaths = childProjectIdsWithPathsFiltered
+
 	if len(currentProjectPlanIds) > 0 {
 		currentBranchNamesByPlanId, err := lib.GetCurrentBranchNamesByPlanId(currentProjectPlanIds)
 
