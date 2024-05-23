@@ -217,9 +217,8 @@ func (fileState *activeBuildStreamFileState) listenStreamChangesWithLineNums(str
 
 				fileState.updated = updatedFile
 
-				log.Println("build stream - Plan file result:")
+				log.Println("build stream - Plan file result:", planFileResult != nil)
 				log.Printf("updatedFile exists: %v\n", updatedFile != "")
-				log.Printf("toVerifyPlanFileResult exists: %v\n", planFileResult != nil)
 
 				fileState.onFinishBuildFile(planFileResult, updatedFile)
 				return

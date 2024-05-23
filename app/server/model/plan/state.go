@@ -101,7 +101,7 @@ func DeleteActivePlan(orgId, userId, planId, branch string) {
 	} else {
 
 		defer func() {
-			err := db.UnlockRepo(repoLockId)
+			err := db.DeleteRepoLock(repoLockId)
 			if err != nil {
 				log.Printf("Error unlocking repo for plan %s: %v\n", planId, err)
 			}

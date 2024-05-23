@@ -126,6 +126,54 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 					currentReply: active.CurrentReplyContent,
 				}, active.SummaryCtx)
 
+				var generatedDescription *db.ConvoMessageDescription
+				var shouldContinue bool
+				var nextTask string
+				var errCh = make(chan error, 2)
+
+				go func() {
+					if len(replyFiles) > 0 {
+						log.Println("Generating plan description")
+
+						envVar := settings.ModelPack.CommitMsg.BaseModelConfig.ApiKeyEnvVar
+						client := clients[envVar]
+
+						res, err := genPlanDescription(client, settings.ModelPack.CommitMsg, planId, branch, active.Ctx)
+						if err != nil {
+							errCh <- fmt.Errorf("failed to generate plan description: %v", err)
+							return
+						}
+
+						generatedDescription = res
+						generatedDescription.OrgId = currentOrgId
+						generatedDescription.SummarizedToMessageId = summarizedToMessageId
+						generatedDescription.MadePlan = true
+						generatedDescription.Files = replyFiles
+					}
+					errCh <- nil
+				}()
+
+				go func() {
+					log.Println("Getting exec status")
+					shouldContinue, nextTask, err = state.execStatusShouldContinue(active.CurrentReplyContent, latestSummaryCh, active.Ctx)
+					if err != nil {
+						errCh <- fmt.Errorf("failed to get exec status: %v", err)
+						return
+					}
+
+					log.Printf("Should continue: %v\n", shouldContinue)
+
+					errCh <- nil
+				}()
+
+				for i := 0; i < 2; i++ {
+					err := <-errCh
+					if err != nil {
+						state.onError(err, true, "", "")
+						return
+					}
+				}
+
 				log.Println("Locking repo to store assistant reply and description")
 
 				repoLockId, err := db.LockRepo(
@@ -152,8 +200,6 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 
 				log.Println("Locked repo for assistant reply and description")
 
-				var shouldContinue bool
-				var nextTask string
 				err = func() error {
 					defer func() {
 						if err != nil {
@@ -166,7 +212,7 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 
 						log.Println("Unlocking repo for assistant reply and description")
 
-						err = db.UnlockRepo(repoLockId)
+						err = db.DeleteRepoLock(repoLockId)
 						if err != nil {
 							log.Printf("Error unlocking repo: %v\n", err)
 							active.StreamDoneCh <- &shared.ApiError{
@@ -184,77 +230,32 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 						return err
 					}
 
+					log.Println("getting description for assistant message: ", assistantMsg.Id)
+
 					var description *db.ConvoMessageDescription
-
-					errCh := make(chan error, 2)
-
-					go func() {
-						log.Println("getting description")
-						log.Println("getting description for assistant message: ", assistantMsg.Id)
-
-						if len(replyFiles) == 0 {
-							description = &db.ConvoMessageDescription{
-								OrgId:                 currentOrgId,
-								PlanId:                planId,
-								ConvoMessageId:        assistantMsg.Id,
-								SummarizedToMessageId: summarizedToMessageId,
-								BuildPathsInvalidated: map[string]bool{},
-								MadePlan:              false,
-							}
-						} else {
-							log.Println("Generating plan description")
-
-							envVar := settings.ModelPack.CommitMsg.BaseModelConfig.ApiKeyEnvVar
-							client := clients[envVar]
-
-							description, err = genPlanDescription(client, settings.ModelPack.CommitMsg, planId, branch, active.Ctx)
-							if err != nil {
-								state.onError(fmt.Errorf("failed to generate plan description: %v", err), true, assistantMsg.Id, convoCommitMsg)
-								return
-							}
-
-							description.OrgId = currentOrgId
-							description.ConvoMessageId = assistantMsg.Id
-							description.SummarizedToMessageId = summarizedToMessageId
-							description.MadePlan = true
-							description.Files = replyFiles
+					if len(replyFiles) == 0 {
+						description = &db.ConvoMessageDescription{
+							OrgId:                 currentOrgId,
+							PlanId:                planId,
+							ConvoMessageId:        assistantMsg.Id,
+							SummarizedToMessageId: summarizedToMessageId,
+							BuildPathsInvalidated: map[string]bool{},
+							MadePlan:              false,
 						}
-
-						log.Println("Storing description")
-						err = db.StoreDescription(description)
-
-						if err != nil {
-							state.onError(fmt.Errorf("failed to store description: %v", err), false, assistantMsg.Id, convoCommitMsg)
-							errCh <- err
-							return
-						}
-
-						log.Println("Description stored")
-						// spew.Dump(description)
-
-						errCh <- nil
-					}()
-
-					go func() {
-						log.Println("Getting exec status")
-						shouldContinue, nextTask, err = state.execStatusShouldContinue(assistantMsg.Message, latestSummaryCh, active.Ctx)
-						if err != nil {
-							state.onError(fmt.Errorf("failed to get exec status: %v", err), false, assistantMsg.Id, convoCommitMsg)
-							errCh <- err
-							return
-						}
-
-						log.Printf("Should continue: %v\n", shouldContinue)
-
-						errCh <- nil
-					}()
-
-					for i := 0; i < 2; i++ {
-						err = <-errCh
-						if err != nil {
-							return err
-						}
+					} else {
+						description = generatedDescription
+						description.ConvoMessageId = assistantMsg.Id
 					}
+
+					log.Println("Storing description")
+					err = db.StoreDescription(description)
+
+					if err != nil {
+						state.onError(fmt.Errorf("failed to store description: %v", err), false, assistantMsg.Id, convoCommitMsg)
+						return err
+					}
+					log.Println("Description stored")
+					// spew.Dump(description)
 
 					log.Println("Comitting reply message and description")
 
@@ -263,7 +264,6 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 						state.onError(fmt.Errorf("failed to commit: %v", err), false, assistantMsg.Id, convoCommitMsg)
 						return err
 					}
-
 					log.Println("Assistant reply and description committed")
 
 					return nil
@@ -585,7 +585,7 @@ func (state *activeTellStreamState) onError(streamErr error, storeDesc bool, con
 		} else {
 
 			defer func() {
-				err := db.UnlockRepo(repoLockId)
+				err := db.DeleteRepoLock(repoLockId)
 				if err != nil {
 					log.Printf("Error unlocking repo for plan %s: %v\n", planId, err)
 				}
