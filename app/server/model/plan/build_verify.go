@@ -41,6 +41,13 @@ func (fileState *activeBuildStreamFileState) verifyFileBuild() {
 		return
 	}
 
+	if verifyState == nil {
+		log.Printf("verifyFileBuild - Verify state not found for file '%s'\n", filePath)
+		log.Println("finishing file build")
+		fileState.onFinishBuildFile(nil, "")
+		return
+	}
+
 	sysPrompt := prompts.GetVerifyPrompt(verifyState.preBuildFileState, updated,
 		verifyState.proposedChanges,
 	)
