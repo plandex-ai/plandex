@@ -257,7 +257,7 @@ func (state *activeTellStreamState) loadTellPlan() error {
 				}
 			}
 
-			err = db.UnlockRepo(repoLockId)
+			err = db.DeleteRepoLock(repoLockId)
 			if err != nil {
 				log.Printf("Error unlocking repo: %v\n", err)
 				active.StreamDoneCh <- &shared.ApiError{

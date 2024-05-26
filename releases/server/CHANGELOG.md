@@ -1,3 +1,10 @@
+## Version 1.0.1
+- Fix for occasional 'Error getting verify state for file' error
+- Fix for occasional 'Fatal: unable to write new_index file' error
+- Fix for occasional 'nothing to commit, working tree clean' error
+- When hitting OpenAI rate limits, Plandex will now parse error messages that include a recommended wait time and automatically wait that long before retrying, up to 30 seconds (https://github.com/plandex-ai/plandex/issues/123)
+- Some prompt updates to encourage creation of multiple smaller files rather than one mega-file when generating files for a new feature or project. Multiple smaller files are faster to generate, use less tokens, and have a lower error rate compared to a continually updated large file.
+
 ## Version 1.0.0
 ##   ☄️  🌅   gpt-4o is the real deal for coding
 

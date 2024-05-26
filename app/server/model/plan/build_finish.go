@@ -93,7 +93,7 @@ func (state *activeBuildStreamFileState) onFinishBuild() {
 				log.Println("Cleared uncommitted changes")
 			}
 
-			err := db.UnlockRepo(repoLockId)
+			err := db.DeleteRepoLock(repoLockId)
 			if err != nil {
 				log.Printf("Error unlocking repo: %v\n", err)
 			}
@@ -238,18 +238,22 @@ func (fileState *activeBuildStreamFileState) onFinishBuildFile(planRes *db.PlanF
 			var err error
 			defer func() {
 				if err != nil {
-					log.Printf("Error: %v\n", err)
+					log.Printf("Error storing plan result: %v\n", err)
 					err = db.GitClearUncommittedChanges(currentOrgId, planId)
 					if err != nil {
 						log.Printf("Error clearing uncommitted changes: %v\n", err)
 					}
 				}
 
-				err := db.UnlockRepo(repoLockId)
+				log.Println("Plan result stored successfully. Unlocking repo.")
+
+				err := db.DeleteRepoLock(repoLockId)
 				if err != nil {
 					log.Printf("Error unlocking repo: %v\n", err)
 				}
 			}()
+
+			log.Println("Storing plan result")
 
 			err = db.StorePlanResult(planRes)
 			if err != nil {
@@ -261,6 +265,8 @@ func (fileState *activeBuildStreamFileState) onFinishBuildFile(planRes *db.PlanF
 				}
 				return err
 			}
+
+			log.Println("Plan result stored")
 			return nil
 		}()
 

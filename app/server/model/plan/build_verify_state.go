@@ -6,8 +6,6 @@ import (
 	"plandex-server/db"
 	"plandex-server/types"
 	"time"
-
-	"github.com/davecgh/go-spew/spew"
 )
 
 type verifyState struct {
@@ -24,9 +22,7 @@ func (fileState *activeBuildStreamFileState) GetVerifyState() (*verifyState, err
 
 	if fileResults == nil {
 		log.Println("No file results for path: ", path)
-		log.Println(spew.Sdump(planState.PlanResult.FileResultsByPath))
-
-		return nil, fmt.Errorf("no file results for path: %s", path)
+		return nil, nil
 	}
 
 	proposedChanges := ""
@@ -131,7 +127,7 @@ func (fileState *activeBuildStreamFileState) MarkLatestResultVerified(passed boo
 				}
 			}
 
-			err := db.UnlockRepo(repoLockId)
+			err := db.DeleteRepoLock(repoLockId)
 			if err != nil {
 				log.Printf("Error unlocking repo: %v\n", err)
 			}

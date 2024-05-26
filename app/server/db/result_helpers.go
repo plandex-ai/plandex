@@ -36,6 +36,8 @@ func StorePlanResult(result *PlanFileResult) error {
 		return fmt.Errorf("error creating results dir: %v", err)
 	}
 
+	log.Printf("Storing plan result: %s", result.Id)
+
 	err = os.WriteFile(filepath.Join(resultsDir, result.Id+".json"), bytes, 0644)
 
 	if err != nil {
@@ -135,11 +137,22 @@ func GetCurrentPlanState(params CurrentPlanStateParams) (*shared.CurrentPlanStat
 	pendingResultPaths := map[string]bool{}
 
 	for _, dbPlanFileResult := range dbPlanFileResults {
+		// log.Printf("Plan file result: %s", dbPlanFileResult.Id)
+
 		apiResult := dbPlanFileResult.ToApi()
 		apiPlanFileResults = append(apiPlanFileResults, apiResult)
 
 		if apiResult.IsPending() {
+			// log.Printf("Pending result: %s", dbPlanFileResult.Id)
+
 			pendingResultPaths[apiResult.Path] = true
+		} else {
+			// log.Printf("Not pending result: %s", apiResult.Id)
+			// log.Printf("Applied at: %v", apiResult.AppliedAt)
+			// log.Printf("Rejected at: %v", apiResult.RejectedAt)
+			// log.Printf("Content: %v", apiResult.Content != "")
+			// log.Printf("Num Replacement: %d", len(apiResult.Replacements))
+			// log.Printf("Num Pending Replacements: %v", apiResult.NumPendingReplacements())
 		}
 	}
 	planResult := GetPlanResult(apiPlanFileResults)
@@ -249,6 +262,8 @@ func GetPlanFileResults(orgId, planId string) ([]*PlanFileResult, error) {
 	resultCh := make(chan *PlanFileResult, len(files))
 
 	for _, file := range files {
+		// log.Printf("Result file: %s", file.Name())
+
 		go func(file os.DirEntry) {
 
 			bytes, err := os.ReadFile(filepath.Join(resultsDir, file.Name()))
@@ -298,6 +313,7 @@ func GetPlanResult(planFileResults []*shared.PlanFileResult) *shared.PlanResult 
 			resByPath[planFileRes.Path] = append(resByPath[planFileRes.Path], planFileRes)
 
 			if !hasPath {
+				// log.Printf("Adding res path: %s", planFileRes.Path)
 				paths = append(paths, planFileRes.Path)
 			}
 		}

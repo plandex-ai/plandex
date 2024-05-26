@@ -43,7 +43,7 @@ func (state *activeBuildStreamState) loadPendingBuilds() (map[string][]*types.Ac
 
 	err = func() error {
 		defer func() {
-			err := db.UnlockRepo(repoLockId)
+			err := db.DeleteRepoLock(repoLockId)
 			if err != nil {
 				log.Printf("Error unlocking repo: %v\n", err)
 			}
@@ -158,6 +158,8 @@ func (state *activeBuildStreamFileState) loadBuildFile(activeBuild *types.Active
 	var currentPlan *shared.CurrentPlanState
 	var convo []*db.ConvoMessage
 
+	log.Println("Locking repo for load build file")
+
 	repoLockId, err := db.LockRepo(
 		db.LockRepoParams{
 			OrgId:       currentOrgId,
@@ -183,9 +185,13 @@ func (state *activeBuildStreamFileState) loadBuildFile(activeBuild *types.Active
 		return err
 	}
 
+	log.Println("Locked repo for load build file")
+
 	err = func() error {
 		defer func() {
-			err := db.UnlockRepo(repoLockId)
+			log.Printf("Unlocking repo for load build file")
+
+			err := db.DeleteRepoLock(repoLockId)
 			if err != nil {
 				log.Printf("Error unlocking repo: %v\n", err)
 			}
