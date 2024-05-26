@@ -27,16 +27,32 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 
 	var loadContextReq shared.LoadContextRequest
 
-	if params.Note != "" {
-		loadContextReq = append(loadContextReq, &shared.LoadContextParams{
-			ContextType: shared.ContextNoteType,
-			Body:        params.Note,
-		})
-	}
 	fileInfo, err := os.Stdin.Stat()
 	if err != nil {
 		onErr(fmt.Errorf("failed to stat stdin: %v", err))
 	}
+
+	var apiKeys map[string]string
+	var openAIBase string
+
+	if params.Note != "" || fileInfo.Mode()&os.ModeNamedPipe != 0 {
+		apiKeys = MustVerifyApiKeysSilent()
+		openAIBase = os.Getenv("OPENAI_API_BASE")
+		if openAIBase == "" {
+			openAIBase = os.Getenv("OPENAI_ENDPOINT")
+		}
+	}
+
+	if params.Note != "" {
+		loadContextReq = append(loadContextReq, &shared.LoadContextParams{
+			ContextType: shared.ContextNoteType,
+			Body:        params.Note,
+			ApiKeys:     apiKeys,
+			OpenAIBase:  openAIBase,
+			OpenAIOrgId: os.Getenv("OPENAI_ORG_ID"),
+		})
+	}
+
 	if fileInfo.Mode()&os.ModeNamedPipe != 0 {
 		reader := bufio.NewReader(os.Stdin)
 		pipedData, err := io.ReadAll(reader)
@@ -45,11 +61,6 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 		}
 
 		if len(pipedData) > 0 {
-			apiKeys := MustVerifyApiKeysSilent()
-			openAIBase := os.Getenv("OPENAI_API_BASE")
-			if openAIBase == "" {
-				openAIBase = os.Getenv("OPENAI_ENDPOINT")
-			}
 
 			loadContextReq = append(loadContextReq, &shared.LoadContextParams{
 				ContextType: shared.ContextPipedDataType,

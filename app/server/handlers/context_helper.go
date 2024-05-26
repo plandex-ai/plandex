@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"plandex-server/db"
@@ -10,19 +11,21 @@ import (
 	"plandex-server/types"
 
 	"github.com/plandex/plandex/shared"
+	"github.com/sashabaranov/go-openai"
 )
 
 func loadContexts(w http.ResponseWriter, r *http.Request, auth *types.ServerAuth, loadReq *shared.LoadContextRequest, plan *db.Plan, branchName string) (*shared.LoadContextResponse, []*db.Context) {
 	var err error
+	var settings *shared.PlanSettings
+	var client *openai.Client
 
-	// get name for piped data if present (there will only be one)
 	for _, context := range *loadReq {
-		if context.ContextType == shared.ContextPipedDataType {
-			settings, err := db.GetPlanSettings(plan, true)
+		if context.ContextType == shared.ContextPipedDataType || context.ContextType == shared.ContextNoteType {
+			settings, err = db.GetPlanSettings(plan, true)
 
 			if err != nil {
-				log.Printf("Error generating name for piped data: %v\n", err)
-				http.Error(w, "Error generating name for piped data: "+err.Error(), http.StatusInternalServerError)
+				log.Printf("Error getting plan settings: %v\n", err)
+				http.Error(w, "Error getting plan settings: "+err.Error(), http.StatusInternalServerError)
 				return nil, nil
 			}
 
@@ -37,19 +40,52 @@ func loadContexts(w http.ResponseWriter, r *http.Request, auth *types.ServerAuth
 			)
 
 			envVar := settings.ModelPack.Namer.BaseModelConfig.ApiKeyEnvVar
-			client := clients[envVar]
-
-			name, err := model.GenPipedDataName(client, settings.ModelPack.Namer, context.Body)
-
-			if err != nil {
-				log.Printf("Error generating name for piped data: %v\n", err)
-				http.Error(w, "Error generating name for piped data: "+err.Error(), http.StatusInternalServerError)
-				return nil, nil
-			}
-
-			context.Name = name
+			client = clients[envVar]
 
 			break
+		}
+	}
+
+	// get name for piped data or notes if present
+	num := 0
+	errCh := make(chan error, len(*loadReq))
+	for _, context := range *loadReq {
+		if context.ContextType == shared.ContextPipedDataType {
+			num++
+
+			go func(context *shared.LoadContextParams) {
+				name, err := model.GenPipedDataName(client, settings.ModelPack.Namer, context.Body)
+
+				if err != nil {
+					errCh <- fmt.Errorf("error generating name for piped data: %v", err)
+				}
+
+				context.Name = name
+				errCh <- nil
+			}(context)
+		} else if context.ContextType == shared.ContextNoteType {
+			num++
+
+			go func(context *shared.LoadContextParams) {
+				name, err := model.GenNoteName(client, settings.ModelPack.Namer, context.Body)
+
+				if err != nil {
+					errCh <- fmt.Errorf("error generating name for note: %v", err)
+				}
+
+				context.Name = name
+				errCh <- nil
+			}(context)
+		}
+	}
+	if num > 0 {
+		for i := 0; i < num; i++ {
+			err := <-errCh
+			if err != nil {
+				log.Printf("Error: %v\n", err)
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return nil, nil
+			}
 		}
 	}
 
