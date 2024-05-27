@@ -39,7 +39,7 @@ services:
       [
         "/bin/sh",
         "-c",
-        "/scripts/wait-for-it.sh plandex-postgres:5432 -- ./plandex-server"
+        "/scripts/wait-for-it.sh plandex-postgres:5432 -- /plandex-server"
       ]
 
 networks:
