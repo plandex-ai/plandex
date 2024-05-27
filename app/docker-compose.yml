@@ -22,7 +22,7 @@ services:
       context: .
       dockerfile: Dockerfile.server
     volumes:
-      - "${PLANDEX_DATA_DIR}:/plandex-server"
+      - "${PLANDEX_DATA_DIR}:/root/plandex-server"
       - "./scripts:/scripts" # Mount the directory containing wait-for-it.sh
     ports:
       - "8080:8080"
@@ -39,7 +39,7 @@ services:
       [
         "/bin/sh",
         "-c",
-        "/scripts/wait-for-it.sh plandex-postgres:5432 -- /plandex-server"
+        "/scripts/wait-for-it.sh plandex-postgres:5432 -- ./plandex-server"
       ]
 
 networks:
