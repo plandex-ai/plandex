@@ -81,3 +81,10 @@ func OutputUnformattedErrorAndExit(msg string) {
 	fmt.Fprintln(os.Stderr, msg)
 	os.Exit(1)
 }
+
+func OutputNoCurrentPlanErrorAndExit() {
+	fmt.Println("🤷‍♂️ No current plan")
+	fmt.Println()
+	PrintCmds("", "new", "cd")
+	os.Exit(1)
+}
