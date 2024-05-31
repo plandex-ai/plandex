@@ -66,43 +66,8 @@ var AvailableModels = []*AvailableModel{
 			ApiKeyEnvVar:       OpenAIEnvVar,
 			ModelCompatibility: fullCompatibility,
 			BaseUrl:            OpenAIV1BaseUrl,
-		}},
-	{
-		Description:                 "OpenAI's latest gpt-4-turbo-preview model, first released on 2024-11-06",
-		DefaultMaxConvoTokens:       10000,
-		DefaultReservedOutputTokens: 4096,
-		BaseModelConfig: BaseModelConfig{
-			Provider:           ModelProviderOpenAI,
-			ModelName:          openai.GPT4TurboPreview,
-			MaxTokens:          128000,
-			ApiKeyEnvVar:       OpenAIEnvVar,
-			ModelCompatibility: fullCompatibility,
-			BaseUrl:            OpenAIV1BaseUrl,
-		}},
-	{
-		Description:                 "OpenAI's gpt-4-turbo-preview, pinned to version released on 2024-01-25",
-		DefaultMaxConvoTokens:       10000,
-		DefaultReservedOutputTokens: 4096,
-		BaseModelConfig: BaseModelConfig{
-			Provider:           ModelProviderOpenAI,
-			ModelName:          openai.GPT4Turbo0125,
-			MaxTokens:          128000,
-			ApiKeyEnvVar:       OpenAIEnvVar,
-			ModelCompatibility: fullCompatibility,
-			BaseUrl:            OpenAIV1BaseUrl,
-		}},
-	{
-		Description:                 "OpenAI's gpt-4-turbo-preview, pinned to version released on 2023-11-06",
-		DefaultMaxConvoTokens:       10000,
-		DefaultReservedOutputTokens: 4096,
-		BaseModelConfig: BaseModelConfig{
-			Provider:           ModelProviderOpenAI,
-			ModelName:          openai.GPT4Turbo1106,
-			MaxTokens:          128000,
-			ApiKeyEnvVar:       OpenAIEnvVar,
-			ModelCompatibility: fullCompatibility,
-			BaseUrl:            OpenAIV1BaseUrl,
-		}},
+		},
+	},
 	{
 		Description:                 "OpenAI's gpt-4 model",
 		DefaultMaxConvoTokens:       2500,
@@ -298,7 +263,6 @@ var AvailableModels = []*AvailableModel{
 
 var AvailableModelsByName = map[string]*AvailableModel{}
 
-var Gpt4TurboPreviewLatestModelPack ModelPack
 var Gpt4TurboLatestModelPack ModelPack
 var OpenRouterClaudeOpusGPT4TurboModelPack ModelPack
 var TogetherMixtral8x22BModelPack ModelPack
@@ -307,7 +271,6 @@ var Gpt4oLatestModelPack ModelPack
 var BuiltInModelPacks = []*ModelPack{
 	&Gpt4oLatestModelPack,
 	&Gpt4TurboLatestModelPack,
-	&Gpt4TurboPreviewLatestModelPack,
 	&OpenRouterClaudeOpusGPT4TurboModelPack,
 	&TogetherMixtral8x22BModelPack,
 }
@@ -501,53 +464,9 @@ func init() {
 		},
 	}
 
-	Gpt4TurboPreviewLatestModelPack = ModelPack{
-		Name:        "gpt-4-turbo-preview-latest",
-		Description: "Uses latest version of OpenAI's gpt-4-turbo-preview model (first released on 2024-11-06) for heavy lifting, latest version of gpt-3.5-turbo for lighter tasks.",
-		Planner: PlannerRoleConfig{
-			ModelRoleConfig: ModelRoleConfig{
-				Role:            ModelRolePlanner,
-				BaseModelConfig: AvailableModelsByName[openai.GPT4TurboPreview].BaseModelConfig,
-				Temperature:     DefaultConfigByRole[ModelRolePlanner].Temperature,
-				TopP:            DefaultConfigByRole[ModelRolePlanner].TopP,
-			},
-			PlannerModelConfig: getPlannerModelConfig(openai.GPT4TurboPreview),
-		},
-		PlanSummary: ModelRoleConfig{
-			Role:            ModelRolePlanSummary,
-			BaseModelConfig: AvailableModelsByName[openai.GPT4TurboPreview].BaseModelConfig,
-			Temperature:     DefaultConfigByRole[ModelRolePlanSummary].Temperature,
-			TopP:            DefaultConfigByRole[ModelRolePlanSummary].TopP,
-		},
-		Builder: ModelRoleConfig{
-			Role:            ModelRoleBuilder,
-			BaseModelConfig: AvailableModelsByName[openai.GPT4TurboPreview].BaseModelConfig,
-			Temperature:     DefaultConfigByRole[ModelRoleBuilder].Temperature,
-			TopP:            DefaultConfigByRole[ModelRoleBuilder].TopP,
-		},
-		Namer: ModelRoleConfig{
-			Role:            ModelRoleName,
-			BaseModelConfig: AvailableModelsByName[openai.GPT3Dot5Turbo].BaseModelConfig,
-			Temperature:     DefaultConfigByRole[ModelRoleName].Temperature,
-			TopP:            DefaultConfigByRole[ModelRoleName].TopP,
-		},
-		CommitMsg: ModelRoleConfig{
-			Role:            ModelRoleCommitMsg,
-			BaseModelConfig: AvailableModelsByName[openai.GPT3Dot5Turbo].BaseModelConfig,
-			Temperature:     DefaultConfigByRole[ModelRoleCommitMsg].Temperature,
-			TopP:            DefaultConfigByRole[ModelRoleCommitMsg].TopP,
-		},
-		ExecStatus: ModelRoleConfig{
-			Role:            ModelRoleExecStatus,
-			BaseModelConfig: AvailableModelsByName[openai.GPT4TurboPreview].BaseModelConfig,
-			Temperature:     DefaultConfigByRole[ModelRoleExecStatus].Temperature,
-			TopP:            DefaultConfigByRole[ModelRoleExecStatus].TopP,
-		},
-	}
-
 	OpenRouterClaudeOpusGPT4TurboModelPack = ModelPack{
-		Name:        "claude-opus/gpt-4-turbo",
-		Description: "Uses Anthropic's Claude Opus model (via OpenRouter) for planning, Claude Sonnet for summarization, gpt-4-turbo for builds and auto-continue, and gpt-3.5-turbo for lighter tasks.",
+		Name:        "claude-opus/gpt-4o",
+		Description: "Uses Anthropic's Claude Opus model (via OpenRouter) for planning, Claude Sonnet for summarization, gpt-4o for builds and auto-continue, and gpt-3.5-turbo for lighter tasks.",
 		Planner: PlannerRoleConfig{
 			ModelRoleConfig: ModelRoleConfig{
 				Role:            ModelRolePlanner,
@@ -565,7 +484,7 @@ func init() {
 		},
 		Builder: ModelRoleConfig{
 			Role:            ModelRoleBuilder,
-			BaseModelConfig: AvailableModelsByName[openai.GPT4Turbo].BaseModelConfig,
+			BaseModelConfig: AvailableModelsByName[openai.GPT4o].BaseModelConfig,
 			Temperature:     DefaultConfigByRole[ModelRoleBuilder].Temperature,
 			TopP:            DefaultConfigByRole[ModelRoleBuilder].TopP,
 		},
@@ -583,15 +502,15 @@ func init() {
 		},
 		ExecStatus: ModelRoleConfig{
 			Role:            ModelRoleExecStatus,
-			BaseModelConfig: AvailableModelsByName[openai.GPT4Turbo].BaseModelConfig,
+			BaseModelConfig: AvailableModelsByName[openai.GPT4o].BaseModelConfig,
 			Temperature:     DefaultConfigByRole[ModelRoleBuilder].Temperature,
 			TopP:            DefaultConfigByRole[ModelRoleBuilder].TopP,
 		},
 	}
 
 	TogetherMixtral8x22BModelPack = ModelPack{
-		Name:        "Mixtral-8x22b/Mixtral-8x7b/gpt-4-turbo",
-		Description: "Uses Together.ai's Mixtral-8x22B for planning and summarization, gpt-4-turbo for builds and auto-continue, and Mixtral-8x7B for lighter tasks.",
+		Name:        "Mixtral-8x22b/Mixtral-8x7b/gpt-4o",
+		Description: "Uses Together.ai's Mixtral-8x22B for planning and summarization, gpt-4o for builds and auto-continue, and Mixtral-8x7B for lighter tasks.",
 		Planner: PlannerRoleConfig{
 			ModelRoleConfig: ModelRoleConfig{
 				Role:            ModelRolePlanner,
@@ -609,7 +528,7 @@ func init() {
 		},
 		Builder: ModelRoleConfig{
 			Role:            ModelRoleBuilder,
-			BaseModelConfig: AvailableModelsByName[openai.GPT4Turbo].BaseModelConfig,
+			BaseModelConfig: AvailableModelsByName[openai.GPT4o].BaseModelConfig,
 			Temperature:     DefaultConfigByRole[ModelRoleBuilder].Temperature,
 			TopP:            DefaultConfigByRole[ModelRoleBuilder].TopP,
 		},
@@ -627,7 +546,7 @@ func init() {
 		},
 		ExecStatus: ModelRoleConfig{
 			Role:            ModelRoleExecStatus,
-			BaseModelConfig: AvailableModelsByName[openai.GPT4Turbo].BaseModelConfig,
+			BaseModelConfig: AvailableModelsByName[openai.GPT4o].BaseModelConfig,
 			Temperature:     DefaultConfigByRole[ModelRoleExecStatus].Temperature,
 			TopP:            DefaultConfigByRole[ModelRoleExecStatus].TopP,
 		},
