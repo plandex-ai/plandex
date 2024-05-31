@@ -52,6 +52,9 @@ func runLog(cmd *cobra.Command, args []string) {
 
 	term.PageOutput(withLocalTimestamps)
 
+	fmt.Println()
+	term.PrintCmds("", "rewind", "continue", "convo", "convo 1", "convo 2-5")
+
 }
 
 func convertTimestampsToLocal(input string) (string, error) {

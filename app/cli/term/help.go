@@ -36,6 +36,9 @@ var CmdDesc = map[string][2]string{
 	"update":                    {"u", "update outdated context"},
 	"log":                       {"", "show log of plan updates"},
 	"convo":                     {"", "show plan conversation"},
+	"convo 1":                   {"", "show a specific message in the conversation"},
+	"convo 2-5":                 {"", "show a range of messages in the conversation"},
+	"convo --plain":             {"", "show conversation in plain text"},
 	"branches":                  {"br", "list plan branches"},
 	"checkout":                  {"co", "checkout or create a branch"},
 	"build":                     {"b", "build any pending changes"},
@@ -143,7 +146,7 @@ func PrintCustomHelp() {
 	fmt.Fprintln(builder)
 
 	color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " History ")
-	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "convo", "log", "rewind")
+	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "log", "rewind", "convo", "convo 1", "convo 2-5", "convo --plain")
 	fmt.Fprintln(builder)
 
 	color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Control ")
