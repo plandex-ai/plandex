@@ -155,6 +155,8 @@ const commentsPrompt = `
 The 'comments' key is an array of objects with two properties: 'txt' and 'reference'. 'txt' is the exact text of a code comment. 'reference' is a boolean that indicates whether the comment is a placeholder of or reference to the original code, like "// rest of the function..." or "# existing init code...", or "// rest of the main function" or "// rest of your function..." or "// Existing methods..." or "// Remaining methods" or "// Existing code..." or "// ... existing setup code ..."" or other comments which reference code from the original file. References DO NOT need to exactly match any of the previous examples. Use your judgement to determine whether each comment is a reference. If 'reference' is true, the comment is a placeholder or reference to the original code. If 'reference' is false, the comment is not a placeholder or reference to the original code.
 
 In 'comments', you must list EVERY comment included in the proposed updates. Only list *code comments* that are valid comments for the programming language being used. Do not list logging statements or any other non-comment text that is not a valid code comment. If there are no code comments in the proposed updates, 'comments' must be an empty array.
+
+If there are multiple identical comments in the proposed updates, you MUST list them *all* in the 'comments' array--list each identical comment as a separate object in the array.
 `
 
 func getListChangesLineNumsPrompt() string {
@@ -374,6 +376,12 @@ Call the 'verifyOutput' function with a valid JSON object that include the follo
 
 'hasDuplicationErrors': A boolean that indicates whether any code was *incorrectly* duplicated in the updated file, based on the reasoning provided in 'duplicationErrorsReasoning'. If code was *incorrectly* duplicated, set 'hasDuplicationErrors' to true. If code was *correctly* duplicated, consistent with the intention of the plan, set 'hasDuplicationErrors' to false.
 
+'comments':  an array of objects with two properties: 'txt' and 'reference'. 'txt' is the exact text of a code comment. 'reference' is a boolean that indicates whether the comment is a placeholder of or reference to the original code, like "// rest of the function..." or "# existing init code...", or "// rest of the main function" or "// rest of your function..." or "// Existing methods..." or "// Remaining methods" or "// Existing code..." or "// ... existing setup code ..."" or other comments which reference code from the original file. References DO NOT need to exactly match any of the previous examples. Use your judgement to determine whether each comment is a reference. If 'reference' is true, the comment is a placeholder or reference to the original code. If 'reference' is false, the comment is not a placeholder or reference to the original code.
+
+In 'comments', you must list EVERY comment included in the *updated file*. Only list *code comments* that are valid comments for the programming language being used. Do not list logging statements or any other non-comment text that is not a valid code comment. If there are no code comments in the *updated file*, 'comments' must be an empty array.
+
+If there are multiple identical comments in the *updated file*, you MUST list them *all* in the 'comments' array--list each identical comment as a separate object in the array.
+
 'referenceErrorsReasoning': A string that succinctly explains whether any comments in the updated file are placeholders/references that should have been replaced with code from the original file. These are comments like "// rest of the function..." or "# existing init code...", or "// rest of the main function..." or "// rest of your function..." or "// Existing methods...", "// Existing code..." or other  comments which reference code from the original file. Only include comments that *are not* present in the original file and *are* present in the proposed updates. If there are no such comments, explain that there are no reference errors.
 
 'hasReferenceErrors': A boolean that indicates whether any comments in the updated file are placeholders/references that should be replaced with code from the original file, based on the reasoning provided in 'referenceErrorsReasoning'.
@@ -446,6 +454,21 @@ var VerifyOutputFn = openai.FunctionDefinition{
 			"hasDuplicationErrors": {
 				Type: jsonschema.Boolean,
 			},
+			"comments": {
+				Type: jsonschema.Array,
+				Items: &jsonschema.Definition{
+					Type: jsonschema.Object,
+					Properties: map[string]jsonschema.Definition{
+						"txt": {
+							Type: jsonschema.String,
+						},
+						"reference": {
+							Type: jsonschema.Boolean,
+						},
+					},
+					Required: []string{"txt", "reference"},
+				},
+			},
 			"referenceErrorsReasoning": {
 				Type: jsonschema.String,
 			},
@@ -454,6 +477,6 @@ var VerifyOutputFn = openai.FunctionDefinition{
 			},
 		},
 		Required: []string{"syntaxErrorsReasoning", "hasSyntaxErrors",
-			"removedCodeErrorsReasoning", "hasRemovedCodeErrors", "duplicationErrorsReasoning", "hasDuplicationErrors", "referenceErrorsReasoning", "hasReferenceErrors"},
+			"removedCodeErrorsReasoning", "hasRemovedCodeErrors", "duplicationErrorsReasoning", "hasDuplicationErrors", "comments", "referenceErrorsReasoning", "hasReferenceErrors"},
 	},
 }
