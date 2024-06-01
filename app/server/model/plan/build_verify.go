@@ -3,6 +3,7 @@ package plan
 import (
 	"fmt"
 	"log"
+	"plandex-server/db"
 	"plandex-server/model"
 	"plandex-server/model/prompts"
 
@@ -48,11 +49,27 @@ func (fileState *activeBuildStreamFileState) verifyFileBuild() {
 		return
 	}
 
-	sysPrompt := prompts.GetVerifyPrompt(verifyState.preBuildFileState, updated,
+	var diff string
+	if verifyState.preBuildFileState != "" {
+		diff, err = db.GetDiffsForBuild(verifyState.preBuildFileState, updated)
+
+		if err != nil {
+			log.Printf("Error getting diffs for file '%s': %v\n", filePath, err)
+			fileState.onBuildFileError(fmt.Errorf("error getting diffs for file '%s': %v", filePath, err))
+			return
+		}
+	}
+
+	log.Println("verifyFileBuild - got diff for file: " + filePath)
+
+	sysPrompt := prompts.GetVerifyPrompt(
+		verifyState.preBuildFileState,
+		updated,
 		verifyState.proposedChanges,
+		diff,
 	)
 
-	// log.Println("verify sysPrompt:\n", sysPrompt)
+	// log.Println("verifyFileBuild - verify prompt:\n", sysPrompt)
 
 	fileMessages := []openai.ChatCompletionMessage{
 		{

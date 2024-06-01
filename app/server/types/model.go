@@ -1,6 +1,7 @@
 package types
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/plandex/plandex/shared"
@@ -24,14 +25,23 @@ type StreamedChangesWithLineNums struct {
 // }
 
 type StreamedVerifyResult struct {
-	SyntaxErrorsReasoning      string `json:"syntaxErrorsReasoning"`
-	HasSyntaxErrors            bool   `json:"hasSyntaxErrors"`
+	SyntaxErrorsReasoning string `json:"syntaxErrorsReasoning"`
+	HasSyntaxErrors       bool   `json:"hasSyntaxErrors"`
+	Removed               []struct {
+		Code      string `json:"code"`
+		Reasoning string `json:"reasoning"`
+		Correct   bool   `json:"correct"`
+	} `json:"removed"`
 	RemovedCodeErrorsReasoning string `json:"removedCodeErrorsReasoning"`
 	HasRemovedCodeErrors       bool   `json:"hasRemovedCodeErrors"`
 	DuplicationErrorsReasoning string `json:"duplicationErrorsReasoning"`
 	HasDuplicationErrors       bool   `json:"hasDuplicationErrors"`
-	ReferenceErrorsReasoning   string `json:"referenceErrorsReasoning"`
-	HasReferenceErrors         bool   `json:"hasReferenceErrors"`
+	Comments                   []struct {
+		Txt       string `json:"txt"`
+		Reference bool   `json:"reference"`
+	} `json:"comments"`
+	ReferenceErrorsReasoning string `json:"referenceErrorsReasoning"`
+	HasReferenceErrors       bool   `json:"hasReferenceErrors"`
 }
 
 func (s *StreamedVerifyResult) IsCorrect() bool {
@@ -46,6 +56,12 @@ func (s *StreamedVerifyResult) GetReasoning() string {
 	}
 
 	if s.HasRemovedCodeErrors {
+		for _, removed := range s.Removed {
+			if !removed.Correct {
+				res = append(res, fmt.Sprintf("\nIncorrectly removed code:\n```\n%s```\n\nReason: %s", removed.Code, removed.Reasoning))
+			}
+		}
+
 		res = append(res, s.RemovedCodeErrorsReasoning)
 	}
 
