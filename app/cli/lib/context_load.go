@@ -81,6 +81,10 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 			if url.IsValidURL(resource) {
 				inputUrls = append(inputUrls, resource)
 			} else {
+				if strings.HasPrefix(resource, "."+string(os.PathSeparator)) {
+					resource = resource[2:]
+				}
+
 				inputFilePaths = append(inputFilePaths, resource)
 			}
 		}
@@ -318,12 +322,43 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 	if len(loadContextReq) == 0 {
 		term.StopSpinner()
 		fmt.Println("🤷‍♂️ No context loaded")
+
+		didOutputReason := false
 		if len(alreadyLoadedByComposite) > 0 {
 			printAlreadyLoadedMsg(alreadyLoadedByComposite)
+			didOutputReason = true
 		}
 		if len(ignoredPaths) > 0 {
 			printIgnoredMsg()
+			didOutputReason = true
 		}
+
+		if !didOutputReason {
+			fmt.Println()
+			fmt.Printf("Use %s to load a file or URL:", color.New(color.BgCyan, color.FgHiWhite).Sprint(" plandex load [file-path|url] "))
+			fmt.Println()
+			fmt.Println("plandex load file.c file.h")
+			fmt.Println("plandex load https://github.com/some-org/some-repo/README.md")
+
+			fmt.Println()
+			fmt.Printf("%s with the --recursive/-r flag:\n", color.New(color.Bold, term.ColorHiCyan).Sprint("Load a whole directory"))
+			fmt.Println("plandex load app/src -r")
+
+			fmt.Println()
+			fmt.Printf("%s with the --tree flag:\n", color.New(color.Bold, term.ColorHiCyan).Sprint("Load a directory layout (file names only)"))
+
+			fmt.Println()
+			fmt.Printf("%s file paths are relative to the current directory\n", color.New(color.Bold, term.ColorHiYellow).Sprint("Note:"))
+
+			fmt.Println()
+			fmt.Printf("%s with the -n flag:\n", color.New(color.Bold, term.ColorHiCyan).Sprint("Load a note"))
+			fmt.Println("plandex load -n 'Some note here'")
+
+			fmt.Println()
+			fmt.Printf("%s from any command:\n", color.New(color.Bold, term.ColorHiCyan).Sprint("Pipe data in"))
+			fmt.Println("npm test | plandex load")
+		}
+
 		os.Exit(0)
 	}
 
