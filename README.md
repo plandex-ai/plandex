@@ -173,23 +173,62 @@ Windows is supported via <a href="https://learn.microsoft.com/en-us/windows/wsl/
 
 Plandex uses OpenAI by default. If you don't have an OpenAI account, first [sign up here.](https://platform.openai.com/signup)
 
-Then [generate an API key here.](https://platform.openai.com/account/api-keys)
+Then [generate an API key here](https://platform.openai.com/account/api-keys) and `export` it.
 
 ```bash
-cd your-project
-
 export OPENAI_API_KEY=...
-export OPENAI_API_BASE=... # optional e.g. https://<your-proxy>/v1
-export OPENAI_ORG_ID=... # optional - set the OrgID if you have multiple OpenAI orgs
+```
 
-# optional - set api keys for any other providers you're using
-export OPENROUTER_API_KEY=...
-export TOGETHER_API_KEY...
 
+Now `cd` into your **project's directory.** Make a new directory first with `mkdir your-project-dir` if you're starting on a new project.
+
+```bash
+cd your-project-dir
+```
+
+
+Then **start your first plan** with `plandex new`.
+
+```bash
 plandex new
 ```
 
-After any plandex command is run, commands that could make sense to run next will be suggested. You can learn to use Plandex quickly by jumping in and following these suggestions. You can see a list of all commands with `plandex help` or get help on a specific command with `plandex [command] --help`. You can use the `pdx` alias instead of `plandex` to type a bit less, and most common commands have their own aliases as well.
+
+Load any relevant files, directories, or urls **into the LLM's context** with `plandex load`.
+
+```bash
+plandex load some-file.ts another-file.ts
+plandex load src/components -r # load a whole directory
+plandex load https://raw.githubusercontent.com/plandex-ai/plandex/main/README.md
+```
+
+
+Now **send your prompt.** You can pass it in as a file:
+
+```bash
+plandex tell -f prompt.txt
+```
+
+
+Write it in vim:
+
+```bash
+plandex tell # tell with no arguments opens vim so you can write your prompt there
+```
+
+
+Or pass it inline (use enter for line breaks):
+
+```bash
+plandex tell "add a new line chart showing the number of foobars over time to components/charts.tsx"
+```
+
+
+After any plandex command is run, commands that could make sense to run next will be suggested. You can learn to use Plandex quickly by jumping in and following these suggestions.
+
+You can see a list of all commands with `plandex help` or get help on a specific command with `plandex [command] --help`.
+
+You can use the `pdx` alias instead of `plandex` to type a bit less, and most common commands have their own aliases as well.
 
 <br/>
 
