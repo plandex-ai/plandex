@@ -100,7 +100,7 @@
 
 ## Learn more about Plandex  🧐
 
-- [Overview](#-overview)
+- [Overview](#overview-)
 - [Install](#install)
 - [Get started](#get-started-)
 - [Docs](./guides/USAGE.md)
@@ -270,14 +270,12 @@ plandex [command] --help
 
 🏗️  Go beyond autocomplete to build complex functionality with AI.<br>
 🚫  Stop the mouse-centered, copy-pasting madness of coding with ChatGPT.<br>
-📑  Manage context efficiently in the terminal.<br>
-⚡️  Ensure AI models always have the latest versions of files in context.<br>
-🪙  Retain granular control over what's in context and how many tokens you're using.<br>
-🚧  Experiment, revise, and review in a protected sandbox before applying changes.<br>
-⏪  Rewind and retry as needed.<br>
+⚡️  Ensure the model always have the latest versions of files in context.<br>
+🪙  Retain granular control over what's in the model's context and how many tokens you're using.<br>
+⏪  Rewind, iterate, and retry as needed until you get your prompt just right.<br>
 🌱  Explore multiple approaches with branches.<br>
 🔀  Run tasks in the background or work on multiple tasks in parallel.<br>
-🎛️  Try different models and model settings, then compare results.<br>
+🎛️  Try different models and temperatures, then compare results.<br>
 
 <br/>
 
