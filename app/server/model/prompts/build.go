@@ -159,6 +159,20 @@ In 'comments', you must list EVERY comment included in the proposed updates. Onl
 If there are multiple identical comments in the proposed updates, you MUST list them *all* in the 'comments' array--list each identical comment as a separate object in the array.
 `
 
+const problemsStrategyPrompt = `
+In the 'problems' key, you MUST explain how you will strategically generate changes in order to avoid any problems in the updated file. You should explain which changes you will make and how you will *avoid* making any overlapping or invalid changes. Consider whether any changes are close together or whether any change is potentially contained by another. If so, group those changes together into a single change.
+
+You must consider whether you will apply partial changes or replace the entire file. If the original file is long, you MUST NOT replace the entire file with a single change. Instead, you should apply changes to specific sections of the file. If the original file is short and the changes are complex, you may consider replacing the entire file with a single change.
+
+You must consider how you will avoid *incorrectly removing or overwriting code* from the original file. Explain whether any code from the original file needs to be merged with the proposed updates in order to avoid removing or overwriting code that should not be removed. 
+
+You must consider how you will avoid including any references in the updated file if any are present in the proposed updates. 
+
+You must consider how you will *avoid incorrect duplication* in making your changes. For example if a 'main' function is present in the original file and the proposed updates include update code for the 'main' function, you must ensure the changes are applied within the existing 'main' function rather than incorrectly adding a duplicate 'main' function.
+
+If the proposed updates include large sections that are identical to the original file, consider whether the changes can be made more minimal in order to only replace sections of code that are *changing*. If you are making the changes more minimal and specific, explain how you will do this without generating any overlapping changes or introducing any new problems.
+`
+
 func getListChangesLineNumsPrompt() string {
 
 	return replacementIntro + `
@@ -170,12 +184,8 @@ func getListChangesLineNumsPrompt() string {
 	` + lineNumsRulesPrompt + `
 
 	` + commentsPrompt + `
-
-	In the 'problems' key, you MUST explain how you will strategically generate changes in order to avoid any problems in the updated file. You should explain which changes you will make and how you will *avoid* making any overlapping or invalid changes. Consider whether any changes are close together or whether any change is potentially contained by another. If so, group those changes together into a single change. 
 	
-	You must also consider how you will avoid including any references in the updated file if any are present in the proposed updates. 
-	
-	You must also consider how you will *avoid incorrect duplication* in making your changes. For example if a 'main' function is present in the original file and the proposed updates include update code for the 'main' function, you must ensure the changes are applied within the existing 'main' function rather than incorrectly adding a duplicate 'main' function.
+	` + problemsStrategyPrompt + `
 
 	` + changesKeyPrompt + `
 
@@ -230,8 +240,12 @@ func getFixChangesLineNumsPrompt() string {
 
 	'problems': A string that describes all problems present within the updated file. Explain the cause of each problem and how it should be fixed. Do not just restate that there is a syntax error on a specific line. Explain what the syntax error is and how to fix it. Be exhaustive and include *every* problem that is present in the file.
 
-	Since you are fixing an incorrectly updated file, you *MUST* include the 'problems' key and you *MUST* describe *all* problems present in the file. If there are multiple problems, list each one individually. If there are multiple identical problems, list each one individually
+	Since you are fixing an incorrectly updated file, you *MUST* include the 'problems' key and you *MUST* describe *all* problems present in the file. If there are multiple problems, list each one individually. If there are multiple identical problems, list each one individually.
 
+	You should also explain your strategy for generating changes in the 'problems' key according to these instructions:
+	
+	` + problemsStrategyPrompt + ` 
+	
 	` + changesKeyPrompt + `
 
 	` + summaryChangePrompt + `
