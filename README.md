@@ -39,11 +39,12 @@
   <!--  · 
   <a href="https://discord.gg/plandex-ai">
     <b>Discord</b>
-  </a>  -->
+  </a>  
    · 
   <a href="#weekly-office-hours-">
     <b>Office Hours</b>
   </a>  
+  -->
 </p>
 
 <br>
@@ -75,20 +76,8 @@
 <br>
 
 <h3 align="center">AI driven development in your terminal.<br/>Build entire features and apps with a robust workflow.</h3>
+
 <br/>
-
----
-
-<div align="center" width="400">
-  <h4>🔥🔥🔥 <a href="https://github.com/plandex-ai/plandex/releases/tag/server%2Fv1.0.0">Plandex 1.0.0 Release</a> 🔥🔥🔥</h4>
-  → gpt-4o support and automatic error-correction<br/>
-  → over 90% reduction in errors in early testing<br>
-  → improved planning and memory, reduced laziness<br/>
-  → 2x faster planning and execution, 50% cost reduction per token<br/>
-</div>
-
----
-
 <br/>
 
 <!-- Vimeo link is nicer on mobile than embedded video... downside is it navigates to vimeo in same tab (no way to add target=_blank) -->
@@ -103,9 +92,9 @@
 
 ## More examples  🎥
 
-<h4><a href="https://www.youtube.com/watch?v=rnlepfh7TN4">Fixing a tricky real-world bug in 5 minutes with Claude Opus 3 and Plandex</a></h4>
+<h4>👉  <a href="https://www.youtube.com/watch?v=0ULjQx25S_Y">Building Pong in C/OpenGL with GPT-4o and Plandex</a></h4>
 
-<h4><a href="https://www.youtube.com/watch?v=0ULjQx25S_Y">Building Pong in C/OpenGL with GPT-4o and Plandex</a></h4>
+<h4>👉  <a href="https://www.youtube.com/watch?v=rnlepfh7TN4">Fixing a tricky real-world bug in 5 minutes with Claude Opus 3 and Plandex</a></h4>
 
 <br/>
 
@@ -114,20 +103,18 @@
 - [Overview](#-overview)
 - [Install](#install)
 - [Get started](#get-started-)
-- [Docs](#docs-%EF%B8%8F)
-- [Plandex Cloud](#plandex-cloud-%EF%B8%8F)
-- [Self-hosting](#self-hosting-)
-- [Build complex software](#build-complex-software-with-llms-)
-- [Why Plandex?](#why-plandex-)
-- [Limitations and guidance](#limitationsand-guidance-%EF%B8%8F)
-- [Security](#security-)
-- [Privacy and data retention](#privacy-and-data-retention-%EF%B8%8F)
+- [Docs](./guides/USAGE.md)
+- [About](#build-complex-software-with-llms-)
+  - [Build complex software](#build-complex-software-with-llms-)
+  - [Why Plandex?](#why-plandex-)
+  - [Plandex Cloud](#plandex-cloud-%EF%B8%8F)
+  - [Self-hosting](#self-hosting-)
+  - [Limitations and guidance](#limitationsand-guidance-%EF%B8%8F)
+  - [Security](#security-)
+  - [Privacy and data retention](#privacy-and-data-retention-%EF%B8%8F)
 - [Roadmap](#roadmap-%EF%B8%8F)
 - [Discussion and discord](#discussion-and-discord-)
-- [Weekly office hours](#weekly-office-hours-)
-- [Twitter / X](#twitter--x-)
 - [Contributors](#contributors-)
-- [About the developer](#about-the-developer-)
 <br/>
 
 ## Overview  📚
@@ -228,30 +215,6 @@ plandex [command] --help
 
 <br/>
 
-## Plandex Cloud  ☁️
-
-Plandex Cloud is the easiest and most reliable way to use Plandex. You'll be prompted to start an anonymous trial (no email required) when you create your first plan with `plandex new`. Trial accounts are limited to 10 plans and 10 AI model replies per plan. You can upgrade to an unlimited account with your name and email.
-
-Plandex Cloud accounts are free for now. In the future, they will cost somewhere in the $10-20 per month range.
-
-<br/>
-
-## Self-hosting  🏠
-
-Self-contained script for easy local mode and self-hosting:
-
-```bash
-git clone https://github.com/plandex-ai/plandex.git
-cd plandex/app
-./start_local.sh
-```
-
-Requires git, docker, and docker-compose.
-
-[Read more about self-hosting Plandex here.](./guides/HOSTING.md)
-
-<br/>
-
 ## Build complex software with LLMs  🌟
 
 ⚡️  Changes are accumulated in a protected sandbox so that you can review them before automatically applying them to your project files. Built-in version control allows you to easily go backwards and try a different approach. Branches allow you to try multiple approaches and compare the results.
@@ -276,6 +239,30 @@ Requires git, docker, and docker-compose.
 🌱  Explore multiple approaches with branches.<br>
 🔀  Run tasks in the background or work on multiple tasks in parallel.<br>
 🎛️  Try different models and model settings, then compare results.<br>
+
+<br/>
+
+## Plandex Cloud  ☁️
+
+Plandex Cloud is the easiest and most reliable way to use Plandex. You'll be prompted to start an anonymous trial (no email required) when you create your first plan with `plandex new`. Trial accounts are limited to 10 plans and 10 AI model replies per plan. You can upgrade to an unlimited account with your name and email.
+
+Plandex Cloud accounts are free for now. In the future, they will cost somewhere in the $10-20 per month range.
+
+<br/>
+
+## Self-hosting  🏠
+
+Self-contained script for easy local mode and self-hosting:
+
+```bash
+git clone https://github.com/plandex-ai/plandex.git
+cd plandex/app
+./start_local.sh
+```
+
+Requires git, docker, and docker-compose.
+
+[Read more about self-hosting Plandex here.](./guides/HOSTING.md)
 
 <br/>
 
@@ -333,20 +320,6 @@ Speaking of feedback, feel free to give yours, ask questions, report a bug, or j
 
 <br/>
 
-## Weekly office hours  📆
-
-Join me (Dane 👋) for office hours every Friday 12:30pm-1:30pm PST in Discord. I'll be available by voice and text chat to answer questions, learn about your use cases, and show you AI coding techniques. [Join the discord](https://discord.gg/plandex-ai) to get a reminder when they're starting.
-
-<br/>
-
-## Twitter / X  🐦
-
-Follow [@Danenania](https://twitter.com/Danenania), the creator of Plandex, for musings on AI, prompt engineering, and open source.
-
-Follow [@PlandexAI](https://twitter.com/PlandexAI) for Plandex-specific updates.
-
-<br/>
-
 ## Contributors  👥
 
 ⭐️  Please star, fork, explore, and contribute to Plandex. There's a lot of work to do and so much that can be improved.
@@ -355,10 +328,4 @@ Work on tests, evals, prompts, and bug fixes is especially appreciated.
 
 [Here's an overview on setting up a development environment.](./guides/DEVELOPMENT.md)
 
-<br/>
 
-## About the developer  👋
-
-Hi, I'm Dane. I've been building and launching software products for 17 years. I went through YCombinator in winter 2018 with my devops security company, [EnvKey](https://envkey.com), which I continue to run today. I'm fascinated by LLMs and their potential to transform the practice of software development.
-
-I live with my wife and 5 year old daughter on the SF peninsula in California. I grew up in the Finger Lakes region of upstate New York. I like reading fiction, listening to podcasts, fitness, and surfing.
