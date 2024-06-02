@@ -14,7 +14,7 @@
 <p align="center">
   <!-- Call to Action Links -->
   <a href="#install">
-    <b>1-Minute Install</b>
+    <b>30-Second Install</b>
   </a>
    · 
   <!-- <a href="https://plandex.ai">
