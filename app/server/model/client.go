@@ -71,17 +71,15 @@ func createChatCompletionStream(
 		// for retriable errors, retry with exponential backoff
 		if numRetry < 5 {
 			// check if the error message contains a retry duration
-			if duration := parseRetryAfter(err.Error()); duration != nil {
-				// ensure wait duration is less than 20 seconds
-				if *duration > 20*time.Second {
-					return nil, err
+			func retryWithParsedDuration(client Client, ctx context.Context, req Request, numRetry int, retryFunc func(Client, context.Context, Request, int) (Response, error)) (Response, error) {
+				if duration := parseRetryAfter(err.Error()); duration != nil {
+					log.Printf("Retry duration found: %v\n", *duration)
+					waitDuration := time.Duration(float64(*duration) * 1.5)
+					time.Sleep(waitDuration)
+					return retryFunc(client, ctx, req, numRetry+1)
 				}
-
-				log.Printf("Retry duration found: %v\n", *duration)
-				// wait for the duration times 1.5 to give some buffer
-				waitDuration := time.Duration(float64(*duration) * 1.5)
-				time.Sleep(waitDuration)
-				return createChatCompletionStream(client, ctx, req, numRetry+1)
+				waitBackoff(numRetry)
+				return retryFunc(client, ctx, req, numRetry+1)
 			}
 
 			waitBackoff(numRetry)
@@ -126,23 +124,19 @@ func createChatCompletion(
 		// for retriable errors, retry with exponential backoff
 		if numRetry < 5 {
 			// check if the error message contains a retry duration
-			if duration := parseRetryAfter(err.Error()); duration != nil {
-				log.Printf("Retry duration found: %v\n", *duration)
-
-				// ensure wait duration is less than 20 seconds
-				if *duration > 20*time.Second {
-					return openai.ChatCompletionResponse{}, err
+			func retryWithParsedDuration(client Client, ctx context.Context, req Request, numRetry int, retryFunc func(Client, context.Context, Request, int) (Response, error)) (Response, error) {
+				if duration := parseRetryAfter(err.Error()); duration != nil {
+					log.Printf("Retry duration found: %v\n", *duration)
+					waitDuration := time.Duration(float64(*duration) * 1.5)
+					time.Sleep(waitDuration)
+					return retryFunc(client, ctx, req, numRetry+1)
 				}
-
-				// wait for the duration times 1.5 to give some buffer
-				waitDuration := time.Duration(float64(*duration) * 1.5)
-
-				time.Sleep(waitDuration)
-				return createChatCompletion(client, ctx, req, numRetry+1)
+				waitBackoff(numRetry)
+				return retryFunc(client, ctx, req, numRetry+1)
 			}
-
+			
 			waitBackoff(numRetry)
-			return createChatCompletion(client, ctx, req, numRetry+1)
+			return createChatCompletionStream(client, ctx, req, numRetry+1)
 		}
 
 		log.Println("Max retries reached - no retry")
@@ -186,19 +180,21 @@ func waitBackoff(numRetry int) {
 	time.Sleep(d)
 }
 
-// parseRetryAfter takes an error message and returns the retry duration or nil if no duration is found.
-func parseRetryAfter(errorMessage string) *time.Duration {
-	// Regex pattern to find the duration in seconds or milliseconds
-	pattern := regexp.MustCompile(`try again in (\d+(\.\d+)?(ms|s))`)
-	match := pattern.FindStringSubmatch(errorMessage)
-	if len(match) > 1 {
-		durationStr := match[1] // the duration string including the unit
-		duration, err := time.ParseDuration(durationStr)
-		if err != nil {
-			fmt.Println("Error parsing duration:", err)
-			return nil
-		}
-		return &duration
+// Unit tests for parseRetryAfter function
+func TestParseRetryAfter(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected *time.Duration
+	}{
+		{"try again in 5s", time.Duration(5) * time.Second},
+		{"try again in 500ms", time.Duration(500) * time.Millisecond},
+		{"no retry info", nil},
 	}
-	return nil
+	
+	for _, test := range tests {
+		result := parseRetryAfter(test.input)
+		if result == nil && test.expected != nil || result != nil && *result != *test.expected {
+			t.Errorf("parseRetryAfter(%q) = %v; want %v", test.input, result, test.expected)
+		}
+	}
 }
