@@ -69,21 +69,19 @@ func createChatCompletionStream(
 		}
 
 		// for retriable errors, retry with exponential backoff
-		if numRetry < 5 {
-			// check if the error message contains a retry duration
-			func retryWithParsedDuration(client Client, ctx context.Context, req Request, numRetry int, retryFunc func(Client, context.Context, Request, int) (Response, error)) (Response, error) {
-				if duration := parseRetryAfter(err.Error()); duration != nil {
-					log.Printf("Retry duration found: %v\n", *duration)
-					waitDuration := time.Duration(float64(*duration) * 1.5)
-					time.Sleep(waitDuration)
-					return retryFunc(client, ctx, req, numRetry+1)
-				}
-				waitBackoff(numRetry)
+		// for retriable errors, retry with exponential backoff
+		func retryWithParsedDuration(client Client, ctx context.Context, req Request, numRetry int, retryFunc func(Client, context.Context, Request, int) (Response, error)) (Response, error) {
+			if duration := parseRetryAfter(err.Error()); duration != nil {
+				log.Printf("Retry duration found: %v\n", *duration)
+				waitDuration := time.Duration(float64(*duration) * 1.5)
+				time.Sleep(waitDuration)
 				return retryFunc(client, ctx, req, numRetry+1)
 			}
-
 			waitBackoff(numRetry)
-			return createChatCompletionStream(client, ctx, req, numRetry+1)
+			return retryFunc(client, ctx, req, numRetry+1)
+		}
+		if numRetry < 5 {
+			return retryWithParsedDuration(client, ctx, req, numRetry, createChatCompletionStream)
 		}
 
 		log.Println("Max retries reached - no retry")
@@ -186,9 +184,11 @@ func TestParseRetryAfter(t *testing.T) {
 		input    string
 		expected *time.Duration
 	}{
-		{"try again in 5s", time.Duration(5) * time.Second},
-		{"try again in 500ms", time.Duration(500) * time.Millisecond},
+		{"try again in 5s", func() *time.Duration { d, _ := time.ParseDuration("5s"); return &d }()},
+		{"try again in 500ms", func() *time.Duration { d, _ := time.ParseDuration("500ms"); return &d }()},
 		{"no retry info", nil},
+		{"invalid format", nil},
+		{"", nil},
 	}
 	
 	for _, test := range tests {
