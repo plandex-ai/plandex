@@ -333,7 +333,7 @@ Plandex Cloud follows best practices for network and data security. And whether 
 
 ## Roadmap  🗺️
 
-🧠  Support for open source models, Google Gemini, and Anthropic Claude in addition to OpenAI ✅ - released April 2024<br>
+🧠  Support for open source models, Google Gemini, and Anthropic Claude in addition to OpenAI  ✅ released<br>
 🤝  Plan sharing and team collaboration<br>
 🖼️  Support for multi-modal models—add images and screenshots to context<br>
 🖥️  VSCode and JetBrains extensions<br>
