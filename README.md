@@ -270,7 +270,7 @@ plandex [command] --help
 
 🏗️  Go beyond autocomplete to build complex functionality with AI.<br>
 🚫  Stop the mouse-centered, copy-pasting madness of coding with ChatGPT.<br>
-⚡️  Ensure the model always have the latest versions of files in context.<br>
+⚡️  Ensure the model always has the latest versions of files in context.<br>
 🪙  Retain granular control over what's in the model's context and how many tokens you're using.<br>
 ⏪  Rewind, iterate, and retry as needed until you get your prompt just right.<br>
 🌱  Explore multiple approaches with branches.<br>
