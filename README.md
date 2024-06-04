@@ -119,13 +119,13 @@
 
 ## Overview  📚
 
-<p>Plandex is a <strong>reliable and developer-friendly</strong> AI coding agent in your terminal. Designed for <strong>real-world use-cases</strong>, Plandex is great for working on <strong>large, complex tasks</strong> in existing codebases.</p>
+<p>Churn through your backlog, work with unfamiliar technologies, get unstuck, and <strong>spend less time on the boring stuff.</strong></p>
 
-<p>Though it focuses on <strong>robustness and reliability</strong> for large tasks, Plandex is also good for <strong>accelerating new projects</strong> and <strong>quick one-off tasks.</strong></p> 
+<p>Plandex is a <strong>reliable and developer-friendly</strong> AI coding agent in your terminal.</p>
 
-<p>Plandex can plan out and complete <strong>tasks that span many files and steps.</strong> It breaks up large tasks into smaller subtasks, then implements each one, continuing until it finishes the job. <strong>Build entire features and projects</strong> with a structured, version-controlled, team-friendly approach to AI-driven engineering.</p>
-
-<p>Plandex helps you churn through your backlog, work with unfamiliar technologies, get unstuck, and <strong>spend less time on the boring stuff.</strong></p>
+<p>Plandex can plan out and complete <strong>large tasks</strong> that span many files and steps.</p>
+ 
+<p>Designed for <strong>real-world use-cases</strong>, Plandex can help you build a new app quickly, add new features to an existing codebase, write tests and scripts, understand code, and fix bugs. </p>
 
 <br/>
 
