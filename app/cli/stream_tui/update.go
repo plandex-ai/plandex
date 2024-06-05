@@ -63,6 +63,7 @@ func (m streamUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				log.Println("stop plan api error:", apiErr)
 				m.apiErr = apiErr
 			}
+			m.stopped = true
 			return m, tea.Quit
 
 		case bubbleKey.Matches(msg, m.keymap.scrollDown) && !m.promptingMissingFile:
@@ -140,6 +141,8 @@ func (m *streamUIModel) updateReplyDisplay() {
 }
 
 func (m *streamUIModel) updateViewportDimensions() {
+	// log.Println("updateViewportDimensions")
+
 	w, h := m.getViewportDimensions()
 	m.mainViewport.Width = w
 	m.mainViewport.Height = h
@@ -153,8 +156,11 @@ func (m *streamUIModel) getViewportDimensions() (int, int) {
 
 	var buildHeight int
 	if m.building {
-		buildHeight = lipgloss.Height(m.renderBuild())
+		buildHeight = len(m.getRows(false))
 	}
+
+	// log.Println("building:", m.building)
+	// log.Println("buildHeight:", buildHeight)
 
 	var processingHeight int
 	if m.starting || m.processing {
