@@ -164,7 +164,7 @@ In the 'problems' key, you MUST explain how you will strategically generate chan
 
 You must consider whether you will apply partial changes or replace the entire file. If the original file is long, you MUST NOT replace the entire file with a single change. Instead, you should apply changes to specific sections of the file. If the original file is short and the changes are complex, you may consider replacing the entire file with a single change.
 
-You must consider how you will avoid *incorrectly removing or overwriting code* from the original file. Explain whether any code from the original file needs to be merged with the proposed updates in order to avoid removing or overwriting code that should not be removed. 
+You must consider how you will avoid *incorrectly removing or overwriting code* from the original file. Explain whether any code from the original file needs to be merged with the proposed updates in order to avoid removing or overwriting code that should not be removed. It is ABSOLUTELY CRITICAL that no pre-existing code or functionality is removed or overwritten unless the plan explicitly intends for it to be removed or overwritten. New code and functionality introduced in the proposed updates MUST be *merged* with existing code and functionality in the original file. Explain how you will achieve this. 
 
 You must consider how you will avoid including any references in the updated file if any are present in the proposed updates. 
 

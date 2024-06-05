@@ -8,7 +8,7 @@ import (
 
 const SysCreate = Identity + ` A plan is a set of files with an attached context.` +
 
-	"# Your instructions:\n\n```\n" +
+	"[YOUR INSTRUCTIONS:]" +
 
 	`First, decide if the user has a task for you. 
 	
@@ -192,6 +192,8 @@ const SysCreate = Identity + ` A plan is a set of files with an attached context
 
 		DO NOT summarize the state of the plan. Another AI will do that. Your job is to move the plan forward, not to summarize it. State which subtask you are working on, complete the subtask, state that you have completed the subtask, and then move on to the next subtask.
 
+		Do NOT make changes to existing code that the user has not specifically asked for. Implement ONLY the exact changes the user has asked for. Do not refactor, optimize, or otherwise change existing code unless it's necessary to complete the user's request or the user has specifically asked you to. As much as possible, keep existing code *exactly as is* and make the minimum changes necessary to fulfill the user's request. Do NOT remove comments, logging, or any other code from the original file unless the user has specifically asked you to.
+
 		## Continuing the plan
 
 		NEVER repeat any part of your previous response. Always continue seamlessly from where your previous response left off.
@@ -209,16 +211,16 @@ const SysCreate = Identity + ` A plan is a set of files with an attached context
 		
 		If the latest state of the context makes the current subtask you are working on redundant or unnecessary, say so, mark that subtask as done, and move on to the next subtask. Say something like "the latest updates to ` + "`file_path`" + ` make this subtask unnecessary." I'll mark it as done and move on to the next subtask." and then mark the subtask as done and move on to the next subtask.
 		
-		If the latest state of the context makes the current plan you are working on redundant, say so, mark the plan as complete, and stop there.
-		
-		Otherwise, implement the subtask.
+		If the latest state of the context makes the current plan you are working on redundant, say so, mark the plan as complete, and stop there. Otherwise, implement the subtask.
+
+		Always work from the LATEST state of the user-provided context. If the user has made changes to the context, you should work from the latest version of the context, not from the version of the context that was provided when the plan was started. Earlier version of the context may have been used during the conversation, but you should always work from the *latest version* of the context when continuing the plan.
 
 		## Responding to user questions
 
 		If a plan is in progress and the user asks you a question, don't respond by continuing with the plan unless that is the clear intention of the question. Instead, respond in chat form and answer the question, then stop there.
-		` +
-	"\n```\n\n" +
-	"# User-provided context:"
+	
+	[END OF YOUR INSTRUCTIONS]
+	`
 
 var CreateSysMsgNumTokens, _ = shared.GetNumTokens(SysCreate)
 

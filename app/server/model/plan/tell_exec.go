@@ -162,7 +162,7 @@ func execTellPlan(
 		return
 	}
 
-	systemMessageText := prompts.SysCreate + modelContextText
+	systemMessageText := prompts.SysCreate
 	systemMessage := openai.ChatCompletionMessage{
 		Role:    openai.ChatMessageRoleSystem,
 		Content: systemMessageText,
@@ -362,9 +362,18 @@ func execTellPlan(
 	}
 
 	log.Printf("\n\nMessages: %d\n", len(state.messages))
-	// for _, message := range state.messages {
-	// 	log.Printf("%s: %s\n", message.Role, message.Content)
-	// }
+
+	if modelContextText != "" {
+		// insert model context at second to last message
+		state.messages = append(state.messages[:len(state.messages)-1], append([]openai.ChatCompletionMessage{{
+			Role:    openai.ChatMessageRoleSystem,
+			Content: "# User-provided context:\n\n" + modelContextText,
+		}}, state.messages[len(state.messages)-1:]...)...)
+	}
+
+	for _, message := range state.messages {
+		log.Printf("%s: %s\n", message.Role, message.Content)
+	}
 
 	modelReq := openai.ChatCompletionRequest{
 		Model:       state.settings.ModelPack.Planner.BaseModelConfig.ModelName,

@@ -122,7 +122,7 @@ func (fileState *activeBuildStreamFileState) listenStreamFixChanges(stream *open
 
 			if err == nil {
 				log.Printf("listenStreamFixChanges - File %s: Parsed streamed replacements\n", filePath)
-				// spew.Dump(streamed)
+				spew.Dump(streamed)
 
 				sorted := []*shared.StreamedChangeWithLineNums{}
 
