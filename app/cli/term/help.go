@@ -27,7 +27,7 @@ var CmdDesc = map[string][2]string{
 	// "status":      {"s", "show status of the plan"},
 	"rewind":                    {"rw", "rewind to a previous state"},
 	"ls":                        {"", "list everything in context"},
-	"rm":                        {"", "remove context by name, index, or glob"},
+	"rm":                        {"", "remove context by index, range, name, or glob"},
 	"clear":                     {"", "remove all context"},
 	"delete-plan":               {"dp", "delete plan by name or index"},
 	"delete-branch":             {"db", "delete a branch by name or index"},
