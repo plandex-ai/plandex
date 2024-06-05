@@ -14,7 +14,7 @@
 <p align="center">
   <!-- Call to Action Links -->
   <a href="#install">
-    <b>1-Minute Install</b>
+    <b>30-Second Install</b>
   </a>
    · 
   <!-- <a href="https://plandex.ai">
@@ -39,11 +39,12 @@
   <!--  · 
   <a href="https://discord.gg/plandex-ai">
     <b>Discord</b>
-  </a>  -->
+  </a>  
    · 
   <a href="#weekly-office-hours-">
     <b>Office Hours</b>
   </a>  
+  -->
 </p>
 
 <br>
@@ -75,20 +76,8 @@
 <br>
 
 <h3 align="center">AI driven development in your terminal.<br/>Build entire features and apps with a robust workflow.</h3>
+
 <br/>
-
----
-
-<div align="center" width="400">
-  <h4>🔥🔥🔥 <a href="https://github.com/plandex-ai/plandex/releases/tag/server%2Fv1.0.0">Plandex 1.0.0 Release</a> 🔥🔥🔥</h4>
-  → gpt-4o support and automatic error-correction<br/>
-  → over 90% reduction in errors in early testing<br>
-  → improved planning and memory, reduced laziness<br/>
-  → 2x faster planning and execution, 50% cost reduction per token<br/>
-</div>
-
----
-
 <br/>
 
 <!-- Vimeo link is nicer on mobile than embedded video... downside is it navigates to vimeo in same tab (no way to add target=_blank) -->
@@ -103,42 +92,38 @@
 
 ## More examples  🎥
 
-<h4><a href="https://www.youtube.com/watch?v=rnlepfh7TN4">Fixing a tricky real-world bug in 5 minutes with Claude Opus 3 and Plandex</a></h4>
+<h4>👉  <a href="https://www.youtube.com/watch?v=0ULjQx25S_Y">Building Pong in C/OpenGL with GPT-4o and Plandex</a></h4>
 
-<h4><a href="https://www.youtube.com/watch?v=0ULjQx25S_Y">Building Pong in C/OpenGL with GPT-4o and Plandex</a></h4>
+<h4>👉  <a href="https://www.youtube.com/watch?v=rnlepfh7TN4">Fixing a tricky real-world bug in 5 minutes with Claude Opus 3 and Plandex</a></h4>
 
 <br/>
 
 ## Learn more about Plandex  🧐
 
-- [Overview](#-overview)
+- [Overview](#overview-)
 - [Install](#install)
 - [Get started](#get-started-)
-- [Docs](#docs-%EF%B8%8F)
-- [Plandex Cloud](#plandex-cloud-%EF%B8%8F)
-- [Self-hosting](#self-hosting-)
-- [Build complex software](#build-complex-software-with-llms-)
-- [Why Plandex?](#why-plandex-)
-- [Limitations and guidance](#limitationsand-guidance-%EF%B8%8F)
-- [Security](#security-)
-- [Privacy and data retention](#privacy-and-data-retention-%EF%B8%8F)
+- [Docs](./guides/USAGE.md)
+- [About](#build-complex-software-with-llms-)
+  - [Build complex software](#build-complex-software-with-llms-)
+  - [Why Plandex?](#why-plandex-)
+  - [Plandex Cloud](#plandex-cloud-%EF%B8%8F)
+  - [Self-hosting](#self-hosting-)
+  - [Limitations and guidance](#limitationsand-guidance-%EF%B8%8F)
+  - [Security](#security-)
+  - [Privacy and data retention](#privacy-and-data-retention-%EF%B8%8F)
 - [Roadmap](#roadmap-%EF%B8%8F)
 - [Discussion and discord](#discussion-and-discord-)
-- [Weekly office hours](#weekly-office-hours-)
-- [Twitter / X](#twitter--x-)
 - [Contributors](#contributors-)
-- [About the developer](#about-the-developer-)
 <br/>
 
 ## Overview  📚
 
-<p>Plandex is a <strong>reliable and developer-friendly</strong> AI coding agent in your terminal. Designed for <strong>real-world use-cases</strong>, Plandex is great for working on <strong>large, complex tasks</strong> in existing codebases.</p>
+<p>Churn through your backlog, work with unfamiliar technologies, get unstuck, and <strong>spend less time on the boring stuff.</strong></p>
 
-<p>Though it focuses on <strong>robustness and reliability</strong> for large tasks, Plandex is also good for <strong>accelerating new projects</strong> and <strong>quick one-off tasks.</strong></p> 
-
-<p>Plandex can plan out and complete <strong>tasks that span many files and steps.</strong> It breaks up large tasks into smaller subtasks, then implements each one, continuing until it finishes the job. <strong>Build entire features and projects</strong> with a structured, version-controlled, team-friendly approach to AI-driven engineering.</p>
-
-<p>Plandex helps you churn through your backlog, work with unfamiliar technologies, get unstuck, and <strong>spend less time on the boring stuff.</strong></p>
+<p>Plandex is a <strong>reliable and developer-friendly</strong> AI coding agent in your terminal. It can plan out and complete <strong>large tasks</strong> that span many files and steps.</p>
+ 
+<p>Designed for <strong>real-world use-cases</strong>, Plandex can help you build a new app quickly, add new features to an existing codebase, write tests and scripts, understand code, and fix bugs. </p>
 
 <br/>
 
@@ -186,23 +171,62 @@ Windows is supported via <a href="https://learn.microsoft.com/en-us/windows/wsl/
 
 Plandex uses OpenAI by default. If you don't have an OpenAI account, first [sign up here.](https://platform.openai.com/signup)
 
-Then [generate an API key here.](https://platform.openai.com/account/api-keys)
+Then [generate an API key here](https://platform.openai.com/account/api-keys) and `export` it.
 
 ```bash
-cd your-project
-
 export OPENAI_API_KEY=...
-export OPENAI_API_BASE=... # optional e.g. https://<your-proxy>/v1
-export OPENAI_ORG_ID=... # optional - set the OrgID if you have multiple OpenAI orgs
+```
 
-# optional - set api keys for any other providers you're using
-export OPENROUTER_API_KEY=...
-export TOGETHER_API_KEY...
 
+Now `cd` into your **project's directory.** Make a new directory first with `mkdir your-project-dir` if you're starting on a new project.
+
+```bash
+cd your-project-dir
+```
+
+
+Then **start your first plan** with `plandex new`.
+
+```bash
 plandex new
 ```
 
-After any plandex command is run, commands that could make sense to run next will be suggested. You can learn to use Plandex quickly by jumping in and following these suggestions. You can see a list of all commands with `plandex help` or get help on a specific command with `plandex [command] --help`. You can use the `pdx` alias instead of `plandex` to type a bit less, and most common commands have their own aliases as well.
+
+Load any relevant files, directories, or urls **into the LLM's context** with `plandex load`.
+
+```bash
+plandex load some-file.ts another-file.ts
+plandex load src/components -r # load a whole directory
+plandex load https://raw.githubusercontent.com/plandex-ai/plandex/main/README.md
+```
+
+
+Now **send your prompt.** You can pass it in as a file:
+
+```bash
+plandex tell -f prompt.txt
+```
+
+
+Write it in vim:
+
+```bash
+plandex tell # tell with no arguments opens vim so you can write your prompt there
+```
+
+
+Or pass it inline (use enter for line breaks):
+
+```bash
+plandex tell "add a new line chart showing the number of foobars over time to components/charts.tsx"
+```
+
+
+After any plandex command is run, commands that could make sense to run next will be suggested. You can learn to use Plandex quickly by jumping in and following these suggestions.
+
+You can see a list of all commands with `plandex help` or get help on a specific command with `plandex [command] --help`.
+
+You can use the `pdx` alias instead of `plandex` to type a bit less, and most common commands have their own aliases as well.
 
 <br/>
 
@@ -228,6 +252,31 @@ plandex [command] --help
 
 <br/>
 
+## Build complex software with LLMs  🌟
+
+⚡️  Changes are accumulated in a protected sandbox so that you can review them before automatically applying them to your project files. Built-in version control allows you to easily go backwards and try a different approach. Branches allow you to try multiple approaches and compare the results.
+
+📑  Manage context efficiently in the terminal. Easily add files or entire directories to context, and keep them updated automatically as you work so that models always have the latest state of your project.
+
+🧠  By default, Plandex relies on the OpenAI API and requires an `OPENAI_API_KEY` environment variable. You can also use it with a wide range of other models, including Anthropic Claude, Google Gemini, Mixtral, Llama and many more via OpenRouter.ai, Together.ai, or any other OpenAI-compatible provider.
+
+✅  Plandex supports Mac, Linux, FreeBSD, and Windows. It runs from a single binary with no dependencies.
+
+<br/>
+
+## Why Plandex?  🤔
+
+🏗️  Go beyond autocomplete to build complex functionality with AI.<br>
+🚫  Stop the mouse-centered, copy-pasting madness of coding with ChatGPT.<br>
+⚡️  Ensure the model always has the latest versions of files in context.<br>
+🪙  Retain granular control over what's in the model's context and how many tokens you're using.<br>
+⏪  Rewind, iterate, and retry as needed until you get your prompt just right.<br>
+🌱  Explore multiple approaches with branches.<br>
+🔀  Run tasks in the background or work on multiple tasks in parallel.<br>
+🎛️  Try different models and temperatures, then compare results.<br>
+
+<br/>
+
 ## Plandex Cloud  ☁️
 
 Plandex Cloud is the easiest and most reliable way to use Plandex. You'll be prompted to start an anonymous trial (no email required) when you create your first plan with `plandex new`. Trial accounts are limited to 10 plans and 10 AI model replies per plan. You can upgrade to an unlimited account with your name and email.
@@ -249,33 +298,6 @@ cd plandex/app
 Requires git, docker, and docker-compose.
 
 [Read more about self-hosting Plandex here.](./guides/HOSTING.md)
-
-<br/>
-
-## Build complex software with LLMs  🌟
-
-⚡️  Changes are accumulated in a protected sandbox so that you can review them before automatically applying them to your project files. Built-in version control allows you to easily go backwards and try a different approach. Branches allow you to try multiple approaches and compare the results.
-
-📑  Manage context efficiently in the terminal. Easily add files or entire directories to context, and keep them updated automatically as you work so that models always have the latest state of your project.
-
-🧠  By default, Plandex relies on the OpenAI API and requires an `OPENAI_API_KEY` environment variable. You can also use it with a wide range of other models, including Anthropic Claude, Google Gemini, Mixtral, Llama and many more via OpenRouter.ai, Together.ai, or any other OpenAI-compatible provider.
-
-✅  Plandex supports Mac, Linux, FreeBSD, and Windows. It runs from a single binary with no dependencies.
-
-<br/>
-
-## Why Plandex?  🤔
-
-🏗️  Go beyond autocomplete to build complex functionality with AI.<br>
-🚫  Stop the mouse-centered, copy-pasting madness of coding with ChatGPT.<br>
-📑  Manage context efficiently in the terminal.<br>
-⚡️  Ensure AI models always have the latest versions of files in context.<br>
-🪙  Retain granular control over what's in context and how many tokens you're using.<br>
-🚧  Experiment, revise, and review in a protected sandbox before applying changes.<br>
-⏪  Rewind and retry as needed.<br>
-🌱  Explore multiple approaches with branches.<br>
-🔀  Run tasks in the background or work on multiple tasks in parallel.<br>
-🎛️  Try different models and model settings, then compare results.<br>
 
 <br/>
 
@@ -309,7 +331,7 @@ Plandex Cloud follows best practices for network and data security. And whether 
 
 ## Roadmap  🗺️
 
-🧠  Support for open source models, Google Gemini, and Anthropic Claude in addition to OpenAI ✅ - released April 2024<br>
+🧠  Support for open source models, Google Gemini, and Anthropic Claude in addition to OpenAI  ✅ released<br>
 🤝  Plan sharing and team collaboration<br>
 🖼️  Support for multi-modal models—add images and screenshots to context<br>
 🖥️  VSCode and JetBrains extensions<br>
@@ -333,20 +355,6 @@ Speaking of feedback, feel free to give yours, ask questions, report a bug, or j
 
 <br/>
 
-## Weekly office hours  📆
-
-Join me (Dane 👋) for office hours every Friday 12:30pm-1:30pm PST in Discord. I'll be available by voice and text chat to answer questions, learn about your use cases, and show you AI coding techniques. [Join the discord](https://discord.gg/plandex-ai) to get a reminder when they're starting.
-
-<br/>
-
-## Twitter / X  🐦
-
-Follow [@Danenania](https://twitter.com/Danenania), the creator of Plandex, for musings on AI, prompt engineering, and open source.
-
-Follow [@PlandexAI](https://twitter.com/PlandexAI) for Plandex-specific updates.
-
-<br/>
-
 ## Contributors  👥
 
 ⭐️  Please star, fork, explore, and contribute to Plandex. There's a lot of work to do and so much that can be improved.
@@ -355,10 +363,4 @@ Work on tests, evals, prompts, and bug fixes is especially appreciated.
 
 [Here's an overview on setting up a development environment.](./guides/DEVELOPMENT.md)
 
-<br/>
 
-## About the developer  👋
-
-Hi, I'm Dane. I've been building and launching software products for 17 years. I went through YCombinator in winter 2018 with my devops security company, [EnvKey](https://envkey.com), which I continue to run today. I'm fascinated by LLMs and their potential to transform the practice of software development.
-
-I live with my wife and 5 year old daughter on the SF peninsula in California. I grew up in the Finger Lakes region of upstate New York. I like reading fiction, listening to podcasts, fitness, and surfing.
