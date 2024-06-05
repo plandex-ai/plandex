@@ -18,31 +18,15 @@ var contextRmCmd = &cobra.Command{
 	Use:     "rm",
 	Aliases: []string{"remove", "unload"},
 	Short:   "Remove context",
-	Long:    `Remove context by index, name, or glob.`,
-	Args:    cobra.MinimumNArgs(1),
-	Run:     contextRm,
-}
-
-func parseIndices(args []string) map[int]bool {
-	indices := map[int]bool{}
-	for _, arg := range args {
-		if strings.Contains(arg, "-") {
-			parts := strings.Split(arg, "-")
-			start, err1 := strconv.Atoi(parts[0])
-			end, err2 := strconv.Atoi(parts[1])
-			if err1 == nil && err2 == nil && start <= end {
-				for i := start; i <= end; i++ {
-					indices[i] = true
-				}
-			}
-		} else {
-			index, err := strconv.Atoi(arg)
-			if err == nil {
-				indices[index] = true
-			}
-		}
-	}
-	return indices
+	Long: `Remove context by index, range, name, or glob.
+	
+	plandex rm 1 # Remove by index in the 'plandex ls' list
+	plandex rm 1-3
+	plandex rm some-file.ts
+	plandex rm app/*.py
+	`,
+	Args: cobra.MinimumNArgs(1),
+	Run:  contextRm,
 }
 
 func contextRm(cmd *cobra.Command, args []string) {
@@ -118,4 +102,24 @@ func init() {
 	RootCmd.AddCommand(contextRmCmd)
 }
 
-
+func parseIndices(args []string) map[int]bool {
+	indices := map[int]bool{}
+	for _, arg := range args {
+		if strings.Contains(arg, "-") {
+			parts := strings.Split(arg, "-")
+			start, err1 := strconv.Atoi(parts[0])
+			end, err2 := strconv.Atoi(parts[1])
+			if err1 == nil && err2 == nil && start <= end {
+				for i := start; i <= end; i++ {
+					indices[i] = true
+				}
+			}
+		} else {
+			index, err := strconv.Atoi(arg)
+			if err == nil {
+				indices[index] = true
+			}
+		}
+	}
+	return indices
+}
