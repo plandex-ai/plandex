@@ -133,7 +133,10 @@ func (m streamUIModel) getRows(static bool) []string {
 			block += " ✅"
 		} else if tokens > 0 {
 			block += fmt.Sprintf(" %d 🪙", tokens)
+		} else {
+			block += " " + m.buildSpinner.View()
 		}
+
 		maybeBlockWidth := lipgloss.Width(block)
 
 		if maybeBlockWidth > m.width {

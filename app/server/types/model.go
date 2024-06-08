@@ -11,7 +11,7 @@ type StreamedFile struct {
 	Content string `json:"content"`
 }
 
-type StreamedChangesWithLineNums struct {
+type ChangesWithLineNums struct {
 	Comments []struct {
 		Txt       string `json:"txt"`
 		Reference bool   `json:"reference"`
@@ -24,7 +24,7 @@ type StreamedChangesWithLineNums struct {
 // 	Changes []*shared.StreamedChangeFull `json:"changes"`
 // }
 
-type StreamedVerifyResult struct {
+type VerifyResult struct {
 	SyntaxErrorsReasoning string `json:"syntaxErrorsReasoning"`
 	HasSyntaxErrors       bool   `json:"hasSyntaxErrors"`
 	Removed               []struct {
@@ -44,11 +44,11 @@ type StreamedVerifyResult struct {
 	HasReferenceErrors       bool   `json:"hasReferenceErrors"`
 }
 
-func (s *StreamedVerifyResult) IsCorrect() bool {
+func (s *VerifyResult) IsCorrect() bool {
 	return !s.HasRemovedCodeErrors && !s.HasDuplicationErrors && !s.HasReferenceErrors && !s.HasSyntaxErrors
 }
 
-func (s *StreamedVerifyResult) GetReasoning() string {
+func (s *VerifyResult) GetReasoning() string {
 	res := []string{}
 
 	if s.HasSyntaxErrors {

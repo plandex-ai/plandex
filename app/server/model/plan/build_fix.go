@@ -1,12 +1,15 @@
 package plan
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"plandex-server/model"
 	"plandex-server/model/prompts"
+	"plandex-server/types"
 	"strings"
 
+	"github.com/plandex/plandex/shared"
 	"github.com/sashabaranov/go-openai"
 )
 
@@ -95,12 +98,62 @@ func (fileState *activeBuildStreamFileState) fixFileLineNums() {
 	envVar := config.BaseModelConfig.ApiKeyEnvVar
 	client := clients[envVar]
 
-	stream, err := model.CreateChatCompletionStreamWithRetries(client, activePlan.Ctx, modelReq)
-	if err != nil {
-		log.Printf("Error creating plan file stream for path '%s': %v\n", filePath, err)
-		fileState.onBuildFileError(fmt.Errorf("error creating plan file stream for path '%s': %v", filePath, err))
-		return
-	}
+	if config.BaseModelConfig.HasStreamingFunctionCalls {
 
-	go fileState.listenStreamFixChanges(stream)
+		stream, err := model.CreateChatCompletionStreamWithRetries(client, activePlan.Ctx, modelReq)
+		if err != nil {
+			log.Printf("Error creating plan file stream for path '%s': %v\n", filePath, err)
+			fileState.onBuildFileError(fmt.Errorf("error creating plan file stream for path '%s': %v", filePath, err))
+			return
+		}
+
+		go fileState.listenStreamFixChanges(stream)
+	} else {
+		buildInfo := &shared.BuildInfo{
+			Path:      filePath,
+			NumTokens: 0,
+			Finished:  false,
+		}
+		activePlan.Stream(shared.StreamMessage{
+			Type:      shared.StreamMessageBuildInfo,
+			BuildInfo: buildInfo,
+		})
+
+		resp, err := model.CreateChatCompletionWithRetries(client, activePlan.Ctx, modelReq)
+
+		if err != nil {
+			log.Printf("Error building file '%s': %v\n", filePath, err)
+			fileState.onBuildFileError(fmt.Errorf("error building file '%s': %v", filePath, err))
+			return
+		}
+
+		var s string
+		var res types.ChangesWithLineNums
+
+		for _, choice := range resp.Choices {
+			if len(choice.Message.ToolCalls) == 1 &&
+				choice.Message.ToolCalls[0].Function.Name == prompts.ListReplacementsFn.Name {
+				fnCall := choice.Message.ToolCalls[0].Function
+				s = fnCall.Arguments
+				break
+			}
+		}
+
+		if s == "" {
+			log.Println("no ListReplacements function call found in response")
+			fileState.fixRetryOrAbort(fmt.Errorf("no ListReplacements function call found in response"))
+			return
+		}
+
+		bytes := []byte(s)
+
+		err = json.Unmarshal(bytes, &res)
+		if err != nil {
+			log.Printf("Error unmarshalling fix response: %v\n", err)
+			fileState.fixRetryOrAbort(fmt.Errorf("error unmarshalling fix response: %v", err))
+			return
+		}
+
+		fileState.onFixResult(res)
+	}
 }

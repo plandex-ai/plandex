@@ -371,9 +371,9 @@ func execTellPlan(
 		}}, state.messages[len(state.messages)-1:]...)...)
 	}
 
-	for _, message := range state.messages {
-		log.Printf("%s: %s\n", message.Role, message.Content)
-	}
+	// for _, message := range state.messages {
+	// 	log.Printf("%s: %s\n", message.Role, message.Content)
+	// }
 
 	modelReq := openai.ChatCompletionRequest{
 		Model:       state.settings.ModelPack.Planner.BaseModelConfig.ModelName,
