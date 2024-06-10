@@ -13,6 +13,16 @@ var fullCompatibility = ModelCompatibility{
 	HasStreaming:              true,
 	HasFunctionCalling:        true,
 	HasStreamingFunctionCalls: true,
+	HasImageSupport:           true,
+}
+
+var fullCompatibilityExceptImage = ModelCompatibility{
+	IsOpenAICompatible:        true,
+	HasJsonResponseMode:       true,
+	HasStreaming:              true,
+	HasFunctionCalling:        true,
+	HasStreamingFunctionCalls: true,
+	HasImageSupport:           false,
 }
 
 var AvailableModels = []*AvailableModel{
@@ -51,7 +61,7 @@ var AvailableModels = []*AvailableModel{
 			ModelName:          openai.GPT4Turbo,
 			MaxTokens:          128000,
 			ApiKeyEnvVar:       OpenAIEnvVar,
-			ModelCompatibility: fullCompatibility,
+			ModelCompatibility: fullCompatibilityExceptImage,
 			BaseUrl:            OpenAIV1BaseUrl,
 		}},
 
@@ -64,7 +74,7 @@ var AvailableModels = []*AvailableModel{
 			ModelName:          openai.GPT4Turbo20240409,
 			MaxTokens:          128000,
 			ApiKeyEnvVar:       OpenAIEnvVar,
-			ModelCompatibility: fullCompatibility,
+			ModelCompatibility: fullCompatibilityExceptImage,
 			BaseUrl:            OpenAIV1BaseUrl,
 		},
 	},
@@ -96,7 +106,7 @@ var AvailableModels = []*AvailableModel{
 			ModelName:          openai.GPT3Dot5Turbo,
 			MaxTokens:          16385,
 			ApiKeyEnvVar:       OpenAIEnvVar,
-			ModelCompatibility: fullCompatibility,
+			ModelCompatibility: fullCompatibilityExceptImage,
 			BaseUrl:            OpenAIV1BaseUrl,
 		},
 	},
@@ -109,7 +119,7 @@ var AvailableModels = []*AvailableModel{
 			ModelName:          openai.GPT3Dot5Turbo0125,
 			MaxTokens:          16385,
 			ApiKeyEnvVar:       OpenAIEnvVar,
-			ModelCompatibility: fullCompatibility,
+			ModelCompatibility: fullCompatibilityExceptImage,
 			BaseUrl:            OpenAIV1BaseUrl,
 		},
 	},
@@ -122,7 +132,7 @@ var AvailableModels = []*AvailableModel{
 			ModelName:          openai.GPT3Dot5Turbo1106,
 			MaxTokens:          16385,
 			ApiKeyEnvVar:       OpenAIEnvVar,
-			ModelCompatibility: fullCompatibility,
+			ModelCompatibility: fullCompatibilityExceptImage,
 			BaseUrl:            OpenAIV1BaseUrl,
 		},
 	},

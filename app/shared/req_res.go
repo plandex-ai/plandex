@@ -1,6 +1,10 @@
 package shared
 
-import "time"
+import (
+	"time"
+
+	"github.com/sashabaranov/go-openai"
+)
 
 type StartTrialResponse struct {
 	UserId   string `json:"userId"`
@@ -147,12 +151,13 @@ type RespondMissingFileRequest struct {
 }
 
 type LoadContextParams struct {
-	ContextType     ContextType `json:"contextType"`
-	Name            string      `json:"name"`
-	Url             string      `json:"url"`
-	FilePath        string      `json:"file_path"`
-	Body            string      `json:"body"`
-	ForceSkipIgnore bool        `json:"forceSkipIgnore"`
+	ContextType     ContextType           `json:"contextType"`
+	Name            string                `json:"name"`
+	Url             string                `json:"url"`
+	FilePath        string                `json:"file_path"`
+	Body            string                `json:"body"`
+	ForceSkipIgnore bool                  `json:"forceSkipIgnore"`
+	ImageDetail     openai.ImageURLDetail `json:"imageDetail"`
 
 	// For naming piped data
 	ApiKeys     map[string]string `json:"apiKeys"`
@@ -190,6 +195,10 @@ type DeleteContextResponse struct {
 
 type RejectFileRequest struct {
 	FilePath string `json:"filePath"`
+}
+
+type RejectFilesRequest struct {
+	Paths []string `json:"paths"`
 }
 
 type RewindPlanRequest struct {

@@ -20,7 +20,7 @@ func loadContexts(w http.ResponseWriter, r *http.Request, auth *types.ServerAuth
 	var client *openai.Client
 
 	for _, context := range *loadReq {
-		if context.ContextType == shared.ContextPipedDataType || context.ContextType == shared.ContextNoteType {
+		if context.ContextType == shared.ContextPipedDataType || context.ContextType == shared.ContextNoteType || context.ContextType == shared.ContextImageType {
 			settings, err = db.GetPlanSettings(plan, true)
 
 			if err != nil {
@@ -43,6 +43,17 @@ func loadContexts(w http.ResponseWriter, r *http.Request, auth *types.ServerAuth
 			client = clients[envVar]
 
 			break
+		}
+	}
+
+	// ensure image compatibility if we're loading an image
+	for _, context := range *loadReq {
+		if context.ContextType == shared.ContextImageType {
+			if !settings.ModelPack.Planner.BaseModelConfig.HasImageSupport {
+				log.Printf("Error loading context: %s does not support images in context\n", settings.ModelPack.Planner.BaseModelConfig.ModelName)
+				http.Error(w, fmt.Sprintf("Error loading context: %s does not support images in context", settings.ModelPack.Planner.BaseModelConfig.ModelName), http.StatusBadRequest)
+				return nil, nil
+			}
 		}
 	}
 

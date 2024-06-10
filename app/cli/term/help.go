@@ -16,11 +16,12 @@ var CmdDesc = map[string][2]string{
 	"cd":      {"", "set current plan by name or index"},
 	"load":    {"l", "load files, dirs, urls, notes or piped data into context"},
 	"tell":    {"t", "describe a task, ask a question, or chat"},
-	"changes": {"ch", "review plan changes in a TUI"},
-	"diff":    {"", "review plan changes in 'git diff' format"},
+	"changes": {"ch", "review pending changes in a TUI"},
+	"diff":    {"", "review pending changes in 'git diff' format"},
 	"summary": {"", "show the latest summary of the current plan"},
 	// "preview":     {"pv", "preview the plan in a branch"},
-	"apply":     {"ap", "apply plan changes to project files"},
+	"apply":     {"ap", "apply pending changes to project files"},
+	"reject":    {"rj", "reject pending changes to one or more project files"},
 	"archive":   {"arc", "archive a plan"},
 	"unarchive": {"unarc", "unarchive a plan"},
 	"continue":  {"c", "continue the plan"},
@@ -126,7 +127,7 @@ func PrintCustomHelp() {
 	fmt.Fprintf(builder, "  Create a new plan in your project's root directory with %s\n\n", color.New(color.Bold, color.BgCyan, color.FgHiWhite).Sprint(" plandex new "))
 
 	color.New(color.Bold, color.BgMagenta, color.FgHiWhite).Fprintln(builder, " Key Commands ")
-	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiMagenta}, "new", "load", "tell", "changes", "diffs", "apply")
+	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiMagenta}, "new", "load", "tell", "changes", "diffs", "apply", "reject")
 	fmt.Fprintln(builder)
 
 	color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Plans ")
@@ -134,7 +135,7 @@ func PrintCustomHelp() {
 	fmt.Fprintln(builder)
 
 	color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Changes ")
-	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "changes", "diff", "apply")
+	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "changes", "diff", "apply", "reject")
 	fmt.Fprintln(builder)
 
 	color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Context ")

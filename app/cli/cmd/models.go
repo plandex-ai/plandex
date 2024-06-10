@@ -192,6 +192,12 @@ func createCustomModel(cmd *cobra.Command, args []string) {
 		return
 	}
 
+	model.ModelCompatibility.HasImageSupport, err = term.ConfirmYesNo("Is multi-modal image support enabled?")
+	if err != nil {
+		term.OutputErrorAndExit("Error confirming image support: %v", err)
+		return
+	}
+
 	term.StartSpinner("")
 	apiErr := api.Client.CreateCustomModel(model)
 	term.StopSpinner()

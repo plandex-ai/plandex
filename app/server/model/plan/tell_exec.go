@@ -162,7 +162,7 @@ func execTellPlan(
 		return
 	}
 
-	systemMessageText := prompts.SysCreate
+	systemMessageText := prompts.SysCreate + modelContextText
 	systemMessage := openai.ChatCompletionMessage{
 		Role:    openai.ChatMessageRoleSystem,
 		Content: systemMessageText,
@@ -177,6 +177,40 @@ func execTellPlan(
 
 	state.messages = []openai.ChatCompletionMessage{
 		systemMessage,
+	}
+
+	// Add a separate message for image contexts
+	for _, context := range state.modelContext {
+		if context.ContextType == shared.ContextImageType {
+			if !state.settings.ModelPack.Planner.BaseModelConfig.HasImageSupport {
+				err = fmt.Errorf("%s does not support images in context", state.settings.ModelPack.Planner.BaseModelConfig.ModelName)
+				log.Println(err)
+				active.StreamDoneCh <- &shared.ApiError{
+					Type:   shared.ApiErrorTypeOther,
+					Status: http.StatusBadRequest,
+					Msg:    "Model does not support images in context",
+				}
+				return
+			}
+
+			imageMessage := openai.ChatCompletionMessage{
+				Role: openai.ChatMessageRoleUser,
+				MultiContent: []openai.ChatMessagePart{
+					{
+						Type: openai.ChatMessagePartTypeText,
+						Text: fmt.Sprintf("Image: %s", context.Name),
+					},
+					{
+						Type: openai.ChatMessagePartTypeImageURL,
+						ImageURL: &openai.ChatMessageImageURL{
+							URL:    shared.GetImageDataURI(context.Body, context.FilePath),
+							Detail: context.ImageDetail,
+						},
+					},
+				},
+			}
+			state.messages = append(state.messages, imageMessage)
+		}
 	}
 
 	var (
@@ -228,7 +262,7 @@ func execTellPlan(
 
 	if missingFileResponse == "" {
 		var promptMessage *openai.ChatCompletionMessage
-		if req.IsUserContinue && iteration == 0 {
+		if req.IsUserContinue {
 			if len(state.messages) == 0 {
 				active.StreamDoneCh <- &shared.ApiError{
 					Type:   shared.ApiErrorTypeContinueNoMessages,
@@ -241,7 +275,7 @@ func execTellPlan(
 			// if the user is continuing the plan, we need to check whether the previous message was a user message or assistant message
 			lastMessage := state.messages[len(state.messages)-1]
 
-			log.Println("User is continuing plan. Last message role:\n\n", lastMessage.Role)
+			log.Println("User is continuing plan. Last message:\n\n", lastMessage.Content)
 
 			if lastMessage.Role == openai.ChatMessageRoleUser {
 				// if last message was a user message, we want to remove it from the messages array and then use that last message as the prompt so we can continue from where the user left off
@@ -362,15 +396,6 @@ func execTellPlan(
 	}
 
 	log.Printf("\n\nMessages: %d\n", len(state.messages))
-
-	if modelContextText != "" {
-		// insert model context at second to last message
-		state.messages = append(state.messages[:len(state.messages)-1], append([]openai.ChatCompletionMessage{{
-			Role:    openai.ChatMessageRoleSystem,
-			Content: "# User-provided context:\n\n" + modelContextText,
-		}}, state.messages[len(state.messages)-1:]...)...)
-	}
-
 	// for _, message := range state.messages {
 	// 	log.Printf("%s: %s\n", message.Role, message.Content)
 	// }

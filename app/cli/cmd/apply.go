@@ -17,7 +17,7 @@ func init() {
 }
 
 var applyCmd = &cobra.Command{
-	Use:     "apply [name-or-index]",
+	Use:     "apply",
 	Aliases: []string{"ap"},
 	Short:   "Apply a plan to the project",
 	Run:     apply,
