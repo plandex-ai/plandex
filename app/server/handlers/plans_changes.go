@@ -301,7 +301,12 @@ func RejectFilesHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	msg := "🚫 Rejected pending changes to files:"
+	msg := "🚫 Rejected pending changes to file"
+	if len(req.Paths) > 1 {
+		msg += "s"
+	}
+	msg += ":"
+
 	for _, path := range req.Paths {
 		msg += fmt.Sprintf("\n • %s", path)
 	}

@@ -50,7 +50,7 @@ func main() {
 	// Manually check for help flags at the root level
 	if len(os.Args) == 2 && (os.Args[1] == "-h" || os.Args[1] == "--help") {
 		// Display your custom help here
-		term.PrintCustomHelp()
+		term.PrintCustomHelp(true)
 		os.Exit(0)
 	}
 

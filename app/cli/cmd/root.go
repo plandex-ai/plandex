@@ -8,6 +8,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var helpShowAll bool
+
 // RootCmd represents the base command when called without any subcommands
 var RootCmd = &cobra.Command{
 	Use: `plandex [command] [flags]`,
@@ -36,9 +38,12 @@ func init() {
 		Short:   "Display help for Plandex",
 		Long:    `Display help for Plandex.`,
 		Run: func(cmd *cobra.Command, args []string) {
-			term.PrintCustomHelp()
+			term.PrintCustomHelp(helpShowAll)
 		},
 	}
 
 	RootCmd.AddCommand(helpCmd)
+
+	// add an --all/-a flag
+	helpCmd.Flags().BoolVarP(&helpShowAll, "all", "a", false, "Show all commands")
 }

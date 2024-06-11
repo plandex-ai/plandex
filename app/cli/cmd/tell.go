@@ -94,9 +94,7 @@ func prepareEditorCommand(editor string, filename string) *exec.Cmd {
 }
 
 func getEditorInstructions(editor string) string {
-
-	return "Write your prompt below, then save and exit to send it to Plandex.\n\n"
-
+	return "👉  Write your prompt below, then save and exit to send it to Plandex.\n• To save and exit, press ESC, then type :wq! and press ENTER.\n• To exit without saving, press ESC, then type :q! and press ENTER.\n\n\n"
 }
 
 func getEditorPrompt() string {
