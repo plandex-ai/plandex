@@ -62,7 +62,7 @@ require (
 	github.com/sabhiram/go-gitignore v0.0.0-20210923224102-525f6e181f06
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/xlab/treeprint v1.2.0
-	golang.org/x/image v0.17.0
+	golang.org/x/image v0.17.0 // indirect
 	golang.org/x/text v0.16.0 // indirect
 )
 
