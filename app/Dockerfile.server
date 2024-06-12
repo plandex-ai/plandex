@@ -16,6 +16,7 @@ RUN cd server && go mod download
 # Copy the actual source code
 COPY ./server ./server
 COPY ./shared ./shared
+COPY ./scripts /scripts
 
 # Set working directory to server
 WORKDIR /app/server

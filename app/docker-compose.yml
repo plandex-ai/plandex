@@ -23,7 +23,6 @@ services:
       dockerfile: Dockerfile.server
     volumes:
       - "${PLANDEX_DATA_DIR}:/plandex-server"
-      - "./scripts:/scripts" # Mount the directory containing wait-for-it.sh
     ports:
       - "8080:8080"
     env_file:
