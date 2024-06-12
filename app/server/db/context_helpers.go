@@ -229,7 +229,15 @@ func LoadContexts(params LoadContextsParams) (*shared.LoadContextResponse, []*Co
 
 	for _, context := range *req {
 		tempId := uuid.New().String()
-		numTokens, err := shared.GetNumTokens(context.Body)
+
+		var numTokens int
+		var err error
+
+		if context.ContextType == shared.ContextImageType {
+			numTokens, err = shared.GetImageTokens(context.Body, context.ImageDetail)
+		} else {
+			numTokens, err = shared.GetNumTokens(context.Body)
+		}
 
 		if err != nil {
 			return nil, nil, fmt.Errorf("error getting num tokens: %v", err)
@@ -272,6 +280,7 @@ func LoadContexts(params LoadContextsParams) (*shared.LoadContextResponse, []*Co
 				Sha:             sha,
 				Body:            params.Body,
 				ForceSkipIgnore: params.ForceSkipIgnore,
+				ImageDetail:     params.ImageDetail,
 			}
 
 			err := StoreContext(&context)
@@ -392,7 +401,15 @@ func UpdateContexts(params UpdateContextsParams) (*shared.UpdateContextResponse,
 
 			contextsById[id] = context
 			updatedContexts = append(updatedContexts, context.ToApi())
-			updateNumTokens, err := shared.GetNumTokens(params.Body)
+
+			var updateNumTokens int
+			var err error
+
+			if context.ContextType == shared.ContextImageType {
+				updateNumTokens, err = shared.GetImageTokens(params.Body, context.ImageDetail)
+			} else {
+				updateNumTokens, err = shared.GetNumTokens(params.Body)
+			}
 
 			if err != nil {
 				errCh <- fmt.Errorf("error getting num tokens: %v", err)

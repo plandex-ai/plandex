@@ -72,14 +72,15 @@ func createChatCompletionStream(
 		if numRetry < 5 {
 			// check if the error message contains a retry duration
 			if duration := parseRetryAfter(err.Error()); duration != nil {
-				// ensure wait duration is less than 20 seconds
-				if *duration > 20*time.Second {
-					return nil, err
-				}
+				// wait for the duration times 3 to give some buffer
+				waitDuration := time.Duration(float64(*duration) * 3)
 
-				log.Printf("Retry duration found: %v\n", *duration)
-				// wait for the duration times 1.5 to give some buffer
-				waitDuration := time.Duration(float64(*duration) * 1.5)
+				// ensure wait duration is 60 seconds or less - for really long retries just error out
+				if waitDuration > 120*time.Second {
+					return nil, err
+				} else if waitDuration > 60*time.Second {
+					waitDuration = 60 * time.Second
+				}
 				time.Sleep(waitDuration)
 				return createChatCompletionStream(client, ctx, req, numRetry+1)
 			}
@@ -129,13 +130,15 @@ func createChatCompletion(
 			if duration := parseRetryAfter(err.Error()); duration != nil {
 				log.Printf("Retry duration found: %v\n", *duration)
 
-				// ensure wait duration is less than 20 seconds
-				if *duration > 20*time.Second {
-					return openai.ChatCompletionResponse{}, err
-				}
+				// wait for the duration times 3 to give some buffer
+				waitDuration := time.Duration(float64(*duration) * 3)
 
-				// wait for the duration times 1.5 to give some buffer
-				waitDuration := time.Duration(float64(*duration) * 1.5)
+				// ensure wait duration is 60 seconds or less - for really long retries just error out
+				if waitDuration > 120*time.Second {
+					return openai.ChatCompletionResponse{}, err
+				} else if waitDuration > 60*time.Second {
+					waitDuration = 60 * time.Second
+				}
 
 				time.Sleep(waitDuration)
 				return createChatCompletion(client, ctx, req, numRetry+1)

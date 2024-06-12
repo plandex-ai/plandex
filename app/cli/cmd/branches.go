@@ -31,8 +31,7 @@ func branches(cmd *cobra.Command, args []string) {
 	lib.MustResolveProject()
 
 	if lib.CurrentPlanId == "" {
-		fmt.Println("🤷‍♂️ No current plan")
-		return
+		term.OutputNoCurrentPlanErrorAndExit()
 	}
 
 	term.StartSpinner("")

@@ -16,7 +16,7 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
-func (state *activeTellStreamState) summarizeEarlyMessagesIfNeeded() bool {
+func (state *activeTellStreamState) injectSummariesAsNeeded() bool {
 	convo := state.convo
 	summaries := state.summaries
 	tokensBeforeConvo := state.tokensBeforeConvo
@@ -170,36 +170,6 @@ func (state *activeTellStreamState) summarizeEarlyMessagesIfNeeded() bool {
 	return true
 }
 
-// func (state *activeTellStreamState) insertLatestSummary(){
-// 	if len(state.summaries) == 0 {
-// 		return
-// 	}
-
-// 	latestSummary := state.summaries[len(state.summaries)-1]
-// 	var insertAtIndex int
-
-// 	for i, convoMessage := range state.convo {
-// 		if convoMessage.Id == latestSummary.LatestConvoMessageId {
-// 			insertAtIndex = i
-// 			break
-// 		}
-// 	}
-
-// 	if insertAtIndex < 2 {
-// 		return
-// 	}
-
-// 	state.convo = append(state.convo[:insertAtIndex], append([]*db.ConvoMessage{
-// 		{
-// 			Id:        latestSummary.Id, // use summary id as message id
-// 			Role:      openai.ChatMessageRoleAssistant,
-// 			Message:   latestSummary.Summary,
-// 			CreatedAt: latestSummary.CreatedAt,
-// 		},
-// 	}, state.convo[insertAtIndex:]...)...)
-
-// }
-
 type summarizeConvoParams struct {
 	planId       string
 	branch       string
@@ -248,8 +218,11 @@ func summarizeConvo(client *openai.Client, config shared.ModelRoleConfig, params
 		numMessagesSummarized = latestSummary.NumMessages
 	}
 
-	// log.Println("Latest summary:")
+	// log.Println("Generating plan summary - latest summary:")
 	// spew.Dump(latestSummary)
+
+	// log.Println("Generating plan summary - convo:")
+	// spew.Dump(convo)
 
 	if latestSummary == nil {
 		for _, convoMessage := range convo {
@@ -287,6 +260,9 @@ func summarizeConvo(client *openai.Client, config shared.ModelRoleConfig, params
 		latestMessageSummarizedAt = latestConvoMessage.CreatedAt
 	}
 
+	log.Println("generating summary - latestMessageId:", latestMessageId)
+	log.Println("generating summary - latestMessageSummarizedAt:", latestMessageSummarizedAt)
+
 	if userPrompt != "" {
 		active := GetActivePlan(planId, branch)
 		if active == nil {
@@ -319,7 +295,7 @@ func summarizeConvo(client *openai.Client, config shared.ModelRoleConfig, params
 
 	log.Printf("Calling model for plan summary. Summarizing %d messages\n", len(summaryMessages))
 
-	// log.Println("Summary messages:")
+	// log.Println("Generating summary - summary messages:")
 	// spew.Dump(summaryMessages)
 
 	latestSummaryCh := make(chan *db.ConvoSummary, 1)
@@ -340,6 +316,9 @@ func summarizeConvo(client *openai.Client, config shared.ModelRoleConfig, params
 	}
 
 	log.Printf("summarizeConvo: Summary generated and stored for plan %s\n", params.planId)
+
+	// log.Println("Generated summary:")
+	// spew.Dump(summary)
 
 	err = db.StoreSummary(summary)
 

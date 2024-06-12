@@ -1,9 +1,9 @@
 package cmd
 
 import (
-	"fmt"
 	"plandex/auth"
 	"plandex/lib"
+	"plandex/term"
 
 	"github.com/spf13/cobra"
 )
@@ -17,7 +17,7 @@ func init() {
 }
 
 var applyCmd = &cobra.Command{
-	Use:     "apply [name-or-index]",
+	Use:     "apply",
 	Aliases: []string{"ap"},
 	Short:   "Apply a plan to the project",
 	Run:     apply,
@@ -28,8 +28,7 @@ func apply(cmd *cobra.Command, args []string) {
 	lib.MustResolveProject()
 
 	if lib.CurrentPlanId == "" {
-		fmt.Println("🤷‍♂️ No current plan")
-		return
+		term.OutputNoCurrentPlanErrorAndExit()
 	}
 
 	lib.MustApplyPlan(lib.CurrentPlanId, lib.CurrentBranch, autoConfirm)

@@ -16,18 +16,19 @@ var CmdDesc = map[string][2]string{
 	"cd":      {"", "set current plan by name or index"},
 	"load":    {"l", "load files, dirs, urls, notes or piped data into context"},
 	"tell":    {"t", "describe a task, ask a question, or chat"},
-	"changes": {"ch", "review plan changes in a TUI"},
-	"diff":    {"", "review plan changes in 'git diff' format"},
+	"changes": {"ch", "review pending changes in a TUI"},
+	"diff":    {"", "review pending changes in 'git diff' format"},
 	"summary": {"", "show the latest summary of the current plan"},
 	// "preview":     {"pv", "preview the plan in a branch"},
-	"apply":     {"ap", "apply plan changes to project files"},
+	"apply":     {"ap", "apply pending changes to project files"},
+	"reject":    {"rj", "reject pending changes to one or more project files"},
 	"archive":   {"arc", "archive a plan"},
 	"unarchive": {"unarc", "unarchive a plan"},
 	"continue":  {"c", "continue the plan"},
 	// "status":      {"s", "show status of the plan"},
 	"rewind":                    {"rw", "rewind to a previous state"},
 	"ls":                        {"", "list everything in context"},
-	"rm":                        {"", "remove context by name, index, or glob"},
+	"rm":                        {"", "remove context by index, range, name, or glob"},
 	"clear":                     {"", "remove all context"},
 	"delete-plan":               {"dp", "delete plan by name or index"},
 	"delete-branch":             {"db", "delete a branch by name or index"},
@@ -36,6 +37,9 @@ var CmdDesc = map[string][2]string{
 	"update":                    {"u", "update outdated context"},
 	"log":                       {"", "show log of plan updates"},
 	"convo":                     {"", "show plan conversation"},
+	"convo 1":                   {"", "show a specific message in the conversation"},
+	"convo 2-5":                 {"", "show a range of messages in the conversation"},
+	"convo --plain":             {"", "show conversation in plain text"},
 	"branches":                  {"br", "list plan branches"},
 	"checkout":                  {"co", "checkout or create a branch"},
 	"build":                     {"b", "build any pending changes"},
@@ -106,7 +110,7 @@ func PrintCustomCmd(prefix, cmd, alias, desc string) {
 }
 
 // PrintCustomHelp prints the custom help output for the Plandex CLI
-func PrintCustomHelp() {
+func PrintCustomHelp(all bool) {
 	builder := &strings.Builder{}
 
 	color.New(color.Bold, color.BgGreen, color.FgHiWhite).Fprintln(builder, " Usage ")
@@ -116,51 +120,66 @@ func PrintCustomHelp() {
 
 	color.New(color.Bold, color.BgGreen, color.FgHiWhite).Fprintln(builder, " Help ")
 	color.New(color.Bold).Fprintln(builder, "  plandex help")
+	color.New(color.Bold).Fprintln(builder, "  plandex help --all # show all commands")
 	color.New(color.Bold).Fprintln(builder, "  plandex [command] --help")
 	fmt.Fprintln(builder)
 
 	color.New(color.Bold, color.BgMagenta, color.FgHiWhite).Fprintln(builder, " Getting Started ")
-	fmt.Fprintf(builder, "  Create a new plan in your project's root directory with %s\n\n", color.New(color.Bold, color.BgCyan, color.FgHiWhite).Sprint(" plandex new "))
-
-	color.New(color.Bold, color.BgMagenta, color.FgHiWhite).Fprintln(builder, " Key Commands ")
-	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiMagenta}, "new", "load", "tell", "changes", "diffs", "apply")
+	fmt.Fprintln(builder)
+	fmt.Fprintf(builder, "  1 - Create a new plan in your project's root directory with %s\n", color.New(color.Bold, color.BgCyan, color.FgHiWhite).Sprint(" plandex new "))
+	fmt.Fprintln(builder)
+	fmt.Fprintf(builder, "  2 - Load any relevant context with %s\n", color.New(color.Bold, color.BgCyan, color.FgHiWhite).Sprint(" plandex load [file-path-or-url] "))
+	fmt.Fprintln(builder)
+	fmt.Fprintf(builder, "  3 - Describe a task, ask a question, or chat with %s\n", color.New(color.Bold, color.BgCyan, color.FgHiWhite).Sprint(" plandex tell "))
 	fmt.Fprintln(builder)
 
-	color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Plans ")
-	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "new", "plans", "cd", "current", "delete-plan", "rename", "archive", "plans --archived", "unarchive")
-	fmt.Fprintln(builder)
+	if all {
+		color.New(color.Bold, color.BgMagenta, color.FgHiWhite).Fprintln(builder, " Key Commands ")
+		printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiMagenta}, "new", "load", "tell", "changes", "diff", "apply", "reject")
+		fmt.Fprintln(builder)
 
-	color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Changes ")
-	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "changes", "diff", "apply")
-	fmt.Fprintln(builder)
+		color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Plans ")
+		printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "new", "plans", "cd", "current", "delete-plan", "rename", "archive", "plans --archived", "unarchive")
+		fmt.Fprintln(builder)
 
-	color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Context ")
-	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "load", "ls", "rm", "update", "clear")
-	fmt.Fprintln(builder)
+		color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Changes ")
+		printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "changes", "diff", "apply", "reject")
+		fmt.Fprintln(builder)
 
-	color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Branches ")
-	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "branches", "checkout", "delete-branch")
-	fmt.Fprintln(builder)
+		color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Context ")
+		printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "load", "ls", "rm", "update", "clear")
+		fmt.Fprintln(builder)
 
-	color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " History ")
-	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "convo", "log", "rewind")
-	fmt.Fprintln(builder)
+		color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Branches ")
+		printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "branches", "checkout", "delete-branch")
+		fmt.Fprintln(builder)
 
-	color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Control ")
-	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "tell", "continue", "build")
-	fmt.Fprintln(builder)
+		color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " History ")
+		printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "log", "rewind", "convo", "convo 1", "convo 2-5", "convo --plain")
+		fmt.Fprintln(builder)
 
-	color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Streams ")
-	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "ps", "connect", "stop")
-	fmt.Fprintln(builder)
+		color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Control ")
+		printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "tell", "continue", "build")
+		fmt.Fprintln(builder)
 
-	color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " AI Models ")
-	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "models", "models default", "models available", "set-model", "set-model default", "models available --custom", "models add", "models delete", "model-packs", "model-packs --custom", "model-packs create", "model-packs delete")
-	fmt.Fprintln(builder)
+		color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Streams ")
+		printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "ps", "connect", "stop")
+		fmt.Fprintln(builder)
 
-	color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Accounts ")
-	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "sign-in", "invite", "revoke", "users")
-	fmt.Fprintln(builder)
+		color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " AI Models ")
+		printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "models", "models default", "models available", "set-model", "set-model default", "models available --custom", "models add", "models delete", "model-packs", "model-packs --custom", "model-packs create", "model-packs delete")
+		fmt.Fprintln(builder)
+
+		color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Accounts ")
+		printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "sign-in", "invite", "revoke", "users")
+		fmt.Fprintln(builder)
+	} else {
+
+		// in the same style as 'getting started' section, output See All Commands
+
+		color.New(color.Bold, color.BgHiBlue, color.FgHiWhite).Fprintln(builder, " Use 'plandex help --all' or 'plandex help -a' for a list of all commands ")
+
+	}
 
 	fmt.Print(builder.String())
 }

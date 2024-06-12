@@ -50,3 +50,26 @@ var PipedDataNameFn = openai.FunctionDefinition{
 func GetPipedDataNamePrompt(text string) string {
 	return SysPipedDataName + "\n\nContent:\n" + text
 }
+
+type NoteNameRes struct {
+	Name string `json:"name"`
+}
+
+const SysNoteName = "You are an AI namer that creates a name for an arbitrary text note. Call the 'nameNote' function with a valid JSON object that includes the 'name' key. 'name' is a *short* lowercase name for the data. Use dashes as word separators. No spaces, numbers, or special characters. Shorten and abbreviate where possible. You must ALWAYS call the 'nameNote' function. Don't call any other function."
+
+var NoteNameFn = openai.FunctionDefinition{
+	Name: "nameNote",
+	Parameters: &jsonschema.Definition{
+		Type: jsonschema.Object,
+		Properties: map[string]jsonschema.Definition{
+			"name": {
+				Type: jsonschema.String,
+			},
+		},
+		Required: []string{"name"},
+	},
+}
+
+func GetNoteNamePrompt(text string) string {
+	return SysNoteName + "\n\nNote:\n" + text
+}

@@ -32,8 +32,7 @@ func build(cmd *cobra.Command, args []string) {
 	lib.MustResolveProject()
 
 	if lib.CurrentPlanId == "" {
-		fmt.Println("🤷‍♂️ No current plan")
-		return
+		term.OutputNoCurrentPlanErrorAndExit()
 	}
 
 	apiKeys := lib.MustVerifyApiKeys()
@@ -63,6 +62,6 @@ func build(cmd *cobra.Command, args []string) {
 		term.PrintCmds("", "ps", "connect", "stop")
 	} else {
 		fmt.Println()
-		term.PrintCmds("", "changes", "apply", "log")
+		term.PrintCmds("", "changes", "apply", "reject", "log")
 	}
 }

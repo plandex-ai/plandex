@@ -83,6 +83,7 @@ func routes() *mux.Router {
 	r.HandleFunc("/plans/{planId}/rename", handlers.RenamePlanHandler).Methods("PATCH")
 	r.HandleFunc("/plans/{planId}/{branch}/reject_all", handlers.RejectAllChangesHandler).Methods("PATCH")
 	r.HandleFunc("/plans/{planId}/{branch}/reject_file", handlers.RejectFileHandler).Methods("PATCH")
+	r.HandleFunc("/plans/{planId}/{branch}/reject_files", handlers.RejectFilesHandler).Methods("PATCH")
 	r.HandleFunc("/plans/{planId}/{branch}/diffs", handlers.GetPlanDiffsHandler).Methods("GET")
 
 	r.HandleFunc("/plans/{planId}/{branch}/context", handlers.ListContextHandler).Methods("GET")

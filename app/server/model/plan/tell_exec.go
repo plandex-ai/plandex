@@ -179,6 +179,40 @@ func execTellPlan(
 		systemMessage,
 	}
 
+	// Add a separate message for image contexts
+	for _, context := range state.modelContext {
+		if context.ContextType == shared.ContextImageType {
+			if !state.settings.ModelPack.Planner.BaseModelConfig.HasImageSupport {
+				err = fmt.Errorf("%s does not support images in context", state.settings.ModelPack.Planner.BaseModelConfig.ModelName)
+				log.Println(err)
+				active.StreamDoneCh <- &shared.ApiError{
+					Type:   shared.ApiErrorTypeOther,
+					Status: http.StatusBadRequest,
+					Msg:    "Model does not support images in context",
+				}
+				return
+			}
+
+			imageMessage := openai.ChatCompletionMessage{
+				Role: openai.ChatMessageRoleUser,
+				MultiContent: []openai.ChatMessagePart{
+					{
+						Type: openai.ChatMessagePartTypeText,
+						Text: fmt.Sprintf("Image: %s", context.Name),
+					},
+					{
+						Type: openai.ChatMessagePartTypeImageURL,
+						ImageURL: &openai.ChatMessageImageURL{
+							URL:    shared.GetImageDataURI(context.Body, context.FilePath),
+							Detail: context.ImageDetail,
+						},
+					},
+				},
+			}
+			state.messages = append(state.messages, imageMessage)
+		}
+	}
+
 	var (
 		numPromptTokens int
 		promptTokens    int
@@ -219,7 +253,7 @@ func execTellPlan(
 		return
 	}
 
-	if !state.summarizeEarlyMessagesIfNeeded() {
+	if !state.injectSummariesAsNeeded() {
 		return
 	}
 
@@ -241,8 +275,12 @@ func execTellPlan(
 			// if the user is continuing the plan, we need to check whether the previous message was a user message or assistant message
 			lastMessage := state.messages[len(state.messages)-1]
 
+			log.Println("User is continuing plan. Last message:\n\n", lastMessage.Content)
+
 			if lastMessage.Role == openai.ChatMessageRoleUser {
 				// if last message was a user message, we want to remove it from the messages array and then use that last message as the prompt so we can continue from where the user left off
+
+				log.Println("User is continuing plan. Last message was user message. Using last user message as prompt")
 
 				state.messages = state.messages[:len(state.messages)-1]
 				promptMessage = &openai.ChatCompletionMessage{
@@ -252,6 +290,10 @@ func execTellPlan(
 
 				state.userPrompt = lastMessage.Content
 			} else {
+
+				// if the last message was an assistant message, we'll use the user continue prompt
+				log.Println("User is continuing plan. Last message was assistant message. Using user continue prompt")
+
 				// otherwise we'll use the continue prompt
 				promptMessage = &openai.ChatCompletionMessage{
 					Role:    openai.ChatMessageRoleUser,

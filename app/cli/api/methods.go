@@ -848,6 +848,40 @@ func (a *Api) RejectFile(planId, branch, filePath string) *shared.ApiError {
 	return nil
 }
 
+func (a *Api) RejectFiles(planId, branch string, paths []string) *shared.ApiError {
+	serverUrl := fmt.Sprintf("%s/plans/%s/%s/reject_files", getApiHost(), planId, branch)
+
+	reqBytes, err := json.Marshal(shared.RejectFilesRequest{Paths: paths})
+
+	if err != nil {
+		return &shared.ApiError{Msg: fmt.Sprintf("error marshalling request: %v", err)}
+	}
+
+	req, err := http.NewRequest(http.MethodPatch, serverUrl, bytes.NewBuffer(reqBytes))
+	if err != nil {
+		return &shared.ApiError{Msg: fmt.Sprintf("error creating request: %v", err)}
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := authenticatedFastClient.Do(req)
+	if err != nil {
+		return &shared.ApiError{Msg: fmt.Sprintf("error sending request: %v", err)}
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		errorBody, _ := io.ReadAll(resp.Body)
+		apiErr := handleApiError(resp, errorBody)
+		didRefresh, apiErr := refreshTokenIfNeeded(apiErr)
+		if didRefresh {
+			a.RejectFiles(planId, branch, paths)
+		}
+		return apiErr
+	}
+
+	return nil
+}
+
 func (a *Api) LoadContext(planId, branch string, req shared.LoadContextRequest) (*shared.LoadContextResponse, *shared.ApiError) {
 	serverUrl := fmt.Sprintf("%s/plans/%s/%s/context", getApiHost(), planId, branch)
 	reqBytes, err := json.Marshal(req)

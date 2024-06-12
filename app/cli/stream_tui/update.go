@@ -25,11 +25,18 @@ func (m streamUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 
 	case spinner.TickMsg:
+		var cmds []tea.Cmd
 		if m.processing || m.starting {
 			spinnerModel, cmd := m.spinner.Update(msg)
 			m.spinner = spinnerModel
-			return m, cmd
+			cmds = append(cmds, cmd)
 		}
+		if m.building {
+			buildSpinnerModel, cmd := m.buildSpinner.Update(msg)
+			m.buildSpinner = buildSpinnerModel
+			cmds = append(cmds, cmd)
+		}
+		return m, tea.Batch(cmds...)
 
 	case tea.WindowSizeMsg:
 		m.windowResized(msg.Width, msg.Height)
@@ -63,6 +70,7 @@ func (m streamUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				log.Println("stop plan api error:", apiErr)
 				m.apiErr = apiErr
 			}
+			m.stopped = true
 			return m, tea.Quit
 
 		case bubbleKey.Matches(msg, m.keymap.scrollDown) && !m.promptingMissingFile:
@@ -140,6 +148,8 @@ func (m *streamUIModel) updateReplyDisplay() {
 }
 
 func (m *streamUIModel) updateViewportDimensions() {
+	// log.Println("updateViewportDimensions")
+
 	w, h := m.getViewportDimensions()
 	m.mainViewport.Width = w
 	m.mainViewport.Height = h
@@ -153,8 +163,11 @@ func (m *streamUIModel) getViewportDimensions() (int, int) {
 
 	var buildHeight int
 	if m.building {
-		buildHeight = lipgloss.Height(m.renderBuild())
+		buildHeight = len(m.getRows(false))
 	}
+
+	// log.Println("building:", m.building)
+	// log.Println("buildHeight:", buildHeight)
 
 	var processingHeight int
 	if m.starting || m.processing {
@@ -310,13 +323,22 @@ func (m *streamUIModel) streamUpdate(msg *shared.StreamMessage) (tea.Model, tea.
 
 		m.updateViewportDimensions()
 
+		cmds := []tea.Cmd{m.buildSpinner.Tick}
 		if m.processing && !m.finished {
-			return m, m.spinner.Tick
+			cmds = append(cmds, m.spinner.Tick)
 		}
+		return m, tea.Batch(cmds...)
 
 	case shared.StreamMessageDescribing:
 		m.processing = true
-		return m, m.spinner.Tick
+
+		cmds := []tea.Cmd{m.spinner.Tick}
+
+		if m.building {
+			cmds = append(cmds, m.buildSpinner.Tick)
+		}
+
+		return m, tea.Batch(cmds...)
 
 	case shared.StreamMessageError:
 		m.apiErr = msg.Error
@@ -334,6 +356,9 @@ func (m *streamUIModel) streamUpdate(msg *shared.StreamMessage) (tea.Model, tea.
 	case shared.StreamMessageRepliesFinished:
 		m.processing = false
 
+		if m.building {
+			return m, m.buildSpinner.Tick
+		}
 	}
 
 	return m, nil

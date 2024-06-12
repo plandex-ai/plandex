@@ -675,6 +675,32 @@ func DeletePendingResultsForPaths(orgId, planId string, paths map[string]bool) e
 	return nil
 }
 
+func RejectPlanFiles(orgId, planId string, files []string, now time.Time) error {
+	errCh := make(chan error, len(files))
+
+	for _, file := range files {
+		go func(file string) {
+			err := RejectPlanFile(orgId, planId, file, now)
+
+			if err != nil {
+				errCh <- err
+				return
+			}
+
+			errCh <- nil
+		}(file)
+	}
+
+	for i := 0; i < len(files); i++ {
+		err := <-errCh
+		if err != nil {
+			return fmt.Errorf("error rejecting plan files: %v", err)
+		}
+	}
+
+	return nil
+}
+
 func RejectPlanFile(orgId, planId, file string, now time.Time) error {
 	resultsDir := getPlanResultsDir(orgId, planId)
 	results, err := GetPlanFileResults(orgId, planId)
@@ -689,6 +715,9 @@ func RejectPlanFile(orgId, planId, file string, now time.Time) error {
 		go func(result *PlanFileResult) {
 			if result.Path == file && result.AppliedAt == nil && result.RejectedAt == nil {
 				result.RejectedAt = &now
+			} else {
+				errCh <- nil
+				return
 			}
 
 			bytes, err := json.MarshalIndent(result, "", "  ")

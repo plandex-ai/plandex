@@ -21,6 +21,9 @@ func GetContextLabelAndIcon(contextType shared.ContextType) (string, string) {
 	case shared.ContextPipedDataType:
 		icon = "↔️ "
 		lbl = "piped"
+	case shared.ContextImageType:
+		icon = "🖼️ "
+		lbl = "image"
 	}
 
 	return lbl, icon

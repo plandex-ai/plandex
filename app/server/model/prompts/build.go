@@ -43,12 +43,12 @@ func getBuildPromptForFixesWithLineNums(original, changes, updated, reasoning st
 	s := ""
 
 	if original != "" {
-		s += "**Original file:**\n```\n" + original + "\n```"
+		s += "**Original file:**\n\n```\n" + original + "\n```"
 	}
 
-	s += "**Proposed updates**:\n```\n" + changes + "\n```"
+	s += "**Proposed updates:**\n\n" + changes + "\n\n--\n\n"
 
-	s += fmt.Sprintf("**The incorrectly updated file is:**\n```\n%s\n```\n\n**The problems with the file are:**\n\n%s", updated, reasoning)
+	s += fmt.Sprintf("**The incorrectly updated file is:**\n\n```\n%s\n```\n\n**The problems with the file are:**\n\n%s\n\n--", updated, reasoning)
 
 	s += "\n\n" + "Now call the 'listChangesWithLineNums' function with a valid JSON array of changes according to your instructions. You must always call 'listChangesWithLineNums' with one or more valid changes. Don't call any other function."
 
@@ -152,9 +152,25 @@ The 'listChangesWithLineNums' function MUST be called *valid JSON*. Double quote
 `
 
 const commentsPrompt = `
-The 'comments' key is an array of objects with two properties: 'txt' and 'reference'. 'txt' is the exact text of a code comment. 'reference' is a boolean that indicates whether the comment is a placeholder of or reference to the original code, like "// rest of the function..." or "# existing init code...", or "// rest of the main function" or "// rest of your function..." or "// Existing methods..." or "// Remaining methods" or "// Existing code..." or "// ... existing setup code ..."" or other comments which reference code from the original file. References DO NOT need to exactly match any of the previous examples. Use your judgement to determine whether each comment is a reference. If 'reference' is true, the comment is a placeholder or reference to the original code. If 'reference' is false, the comment is not a placeholder or reference to the original code.
+The 'comments' key is an array of objects with two properties: 'txt' and 'reference'. 'txt' is the exact text of a code comment. 'reference' is a boolean that indicates whether the comment is a placeholder of or reference to the original code, like "// rest of the function..." or "# existing init code...", or "// rest of the main function" or "// rest of your function..." or "// Existing methods..." or "// Remaining methods" or "// Existing code..." or "// ... existing setup code ..." or "// ... existing code ..." or "// ..." or other comments which reference code from the original file. References DO NOT need to exactly match any of the previous examples. Use your judgement to determine whether each comment is a reference. If 'reference' is true, the comment is a placeholder or reference to the original code. If 'reference' is false, the comment is not a placeholder or reference to the original code.
 
 In 'comments', you must list EVERY comment included in the proposed updates. Only list *code comments* that are valid comments for the programming language being used. Do not list logging statements or any other non-comment text that is not a valid code comment. If there are no code comments in the proposed updates, 'comments' must be an empty array.
+
+If there are multiple identical comments in the proposed updates, you MUST list them *all* in the 'comments' array--list each identical comment as a separate object in the array.
+`
+
+const problemsStrategyPrompt = `
+In the 'problems' key, you MUST explain how you will strategically generate changes in order to avoid any problems in the updated file. You should explain which changes you will make and how you will *avoid* making any overlapping or invalid changes. Consider whether any changes are close together or whether any change is potentially contained by another. If so, group those changes together into a single change.
+
+You must consider whether you will apply partial changes or replace the entire file. If the original file is long, you MUST NOT replace the entire file with a single change. Instead, you should apply changes to specific sections of the file. If the original file is short and the changes are complex, you may consider replacing the entire file with a single change.
+
+You must consider how you will avoid *incorrectly removing or overwriting code* from the original file. Explain whether any code from the original file needs to be merged with the proposed updates in order to avoid removing or overwriting code that should not be removed. It is ABSOLUTELY CRITICAL that no pre-existing code or functionality is removed or overwritten unless the plan explicitly intends for it to be removed or overwritten. New code and functionality introduced in the proposed updates MUST be *merged* with existing code and functionality in the original file. Explain how you will achieve this. 
+
+You must consider how you will avoid including any references in the updated file if any are present in the proposed updates. 
+
+You must consider how you will *avoid incorrect duplication* in making your changes. For example if a 'main' function is present in the original file and the proposed updates include update code for the 'main' function, you must ensure the changes are applied within the existing 'main' function rather than incorrectly adding a duplicate 'main' function.
+
+If the proposed updates include large sections that are identical to the original file, consider whether the changes can be made more minimal in order to only replace sections of code that are *changing*. If you are making the changes more minimal and specific, explain how you will do this without generating any overlapping changes or introducing any new problems.
 `
 
 func getListChangesLineNumsPrompt() string {
@@ -168,12 +184,8 @@ func getListChangesLineNumsPrompt() string {
 	` + lineNumsRulesPrompt + `
 
 	` + commentsPrompt + `
-
-	In the 'problems' key, you MUST explain how you will strategically generate changes in order to avoid any problems in the updated file. You should explain which changes you will make and how you will *avoid* making any overlapping or invalid changes. Consider whether any changes are close together or whether any change is potentially contained by another. If so, group those changes together into a single change. 
 	
-	You must also consider how you will avoid including any references in the updated file if any are present in the proposed updates. 
-	
-	You must also consider how you will *avoid incorrect duplication* in making your changes. For example if a 'main' function is present in the original file and the proposed updates include update code for the 'main' function, you must ensure the changes are applied within the existing 'main' function rather than incorrectly adding a duplicate 'main' function.
+	` + problemsStrategyPrompt + `
 
 	` + changesKeyPrompt + `
 
@@ -224,12 +236,16 @@ func getFixChangesLineNumsPrompt() string {
 	[YOUR INSTRUCTIONS]
 	Call the 'listChangesWithLineNums' function with a valid JSON object that includes the 'comments','problems' and 'changes' keys.
 	
-	` + commentsPrompt + `
+	'comments': Since this is a fix, comments must be an empty array.
 
 	'problems': A string that describes all problems present within the updated file. Explain the cause of each problem and how it should be fixed. Do not just restate that there is a syntax error on a specific line. Explain what the syntax error is and how to fix it. Be exhaustive and include *every* problem that is present in the file.
 
-	Since you are fixing an incorrectly updated file, you *MUST* include the 'problems' key and you *MUST* describe *all* problems present in the file. If you cannot identify any problems immediately, output a few hypotheses about what might be wrong and then explain which of them are actually present in the file. The file definitely does have problems, so you *must* identify them.
+	Since you are fixing an incorrectly updated file, you *MUST* include the 'problems' key and you *MUST* describe *all* problems present in the file. If there are multiple problems, list each one individually. If there are multiple identical problems, list each one individually.
 
+	You should also explain your strategy for generating changes in the 'problems' key according to these instructions:
+	
+	` + problemsStrategyPrompt + ` 
+	
 	` + changesKeyPrompt + `
 
 	` + summaryChangePrompt + `
@@ -239,8 +255,6 @@ func getFixChangesLineNumsPrompt() string {
 	` + changeLineInclusionAndNewPrompt + `
 
 	You MUST ensure the line numbers for the 'old' property correctly remove *ALL* code that has problems and that the 'new' property correctly fixes *ALL* the problems present in the updated file. You MUST NOT miss any problems, fail to fix any problems, or introduce any new problems.
-
-	Because you are implementing a fix, be more willing to make larger changes in order to fix all the problems. Smaller changes are more error-prone, and the fact that you are fixing a file means a line-number based change already failed. This likely means there was some tricky structural challenge in applying the changes with line numbers, so be prepared to make a larger change in order to avoid continuing to fail to fix the file.
 
   Example change object:
   ---
@@ -346,9 +360,9 @@ var ListReplacementsFn = openai.FunctionDefinition{
 	},
 }
 
-func GetVerifyPrompt(preBuildState, updated, changes string) string {
+func GetVerifyPrompt(preBuildState, updated, changes, diff string) string {
 	s := `
-Based on an original file (if one exists), an AI-generated plan, and an updated file, determine whether the updated file's syntax is correct and whether the proposed updates were applied correctly to the updated file.
+Based on an original file (if one exists), an AI-generated plan, an updated file, and a diff between the original and updated file, determine whether the updated file's syntax is correct and whether the proposed updates were applied correctly to the updated file.
 
 You must consider whether any of the following problems are present in the updated file:
 - Syntax errors, including unbalanced brackets, parentheses, braces, quotes, indentation, and other code structure errors
@@ -366,13 +380,26 @@ Call the 'verifyOutput' function with a valid JSON object that include the follo
 
 'hasSyntaxErrors': A boolean that indicates whether there are any syntax errors in the updated file, based on the reasoning provided in 'syntaxErrorsReasoning'.
 
-'removedCodeErrorsReasoning': A string that succinctly explains whether any code was incorrectly removed or overwritten in the updated file. First explain whether any code was removed or overwritten, then explain whether the removal or overwriting was deliberate and consistent with the plan.
+'removed': an array of objects with three properties: 'code', 'reasoning', and 'correct'. 
+   - 'code' is a string. It shows the section of code that was removed or overwritten in the updated file. This can be abbreviated by detailing how the section starts and end and describing the purpose of the code. If the section is longer than a few lines, rather than reproducding a long section of code verbatim, provide a summary of the code that was removed or overwritten, as well as the exact code which starts and ends the section. The summary and start/end code should be details enough to disambiguate the section of code that was removed or overwritten from any other similar sections of code in the file.
+   - 'reasoning' is a string that explains whether, based on the proposed changes, this section was deliberately removed consistent with the intention of the plan, or whether the plan did NOT specify that this section should be removed, and the code was therefore removed incorrectly. Also consider whether this removal breaks the syntax or functionality of the code in the updated file based on the programming language being used--if it does, explain this and state that the removal was incorrect. If the removal either wasn't intended by the proposed updates *or* breaks the syntax or functionality of the code, the removal is incorrect. If the removal was consistent with the intention of the plan *and* did not break the syntax or functionality of the code, the removal is correct.
+   - 'correct' is a boolean that indicates whether the removal or overwriting was correct based on the 'reasoning' provided. If the removal was correct, set 'correct' to true. If the removal was incorrect, set 'correct' to false.
 
-'hasRemovedCodeErrors': A boolean that indicates whether any code was *incorrectly* removed or overwritten in the updated file, based on the reasoning provided in 'removedCodeErrorsReasoning'. If code was *incorrectly* removed or overwritten, set 'hasRemovedCodeErrors' to true. If code was *correctly* removed or overwritten, consistent with the intention of the plan, set 'hasRemovedCodeErrors' to false.
+Based on supplied diffs, you must list EVERY code section that was removed or overwritten in the updated file in 'removed'. If there are no code sections that were removed or overwritten, 'removed' must be an empty array. If multiple code sections were removed or overwritten, list each one as a separate object in the 'removed' array. If multiple identical code sections were removed or overwritten, you MUST list them *all* in the 'removed' array--list each identical code section as a separate object in the array. Do NOT include removals that only modify whitespace. Do NOT include sections that were moved or refactored, only sections that were fully removed or overwritten.
+
+'removedCodeErrorsReasoning': A string that succinctly explains whether any code was incorrectly removed or overwritten in the updated file based on the 'removed' array. If code was incorrectly removed or overwritten, succinctly explain why it was incorrect, and how the file can be corrected. If code was correctly removed or overwritten, consistent with the intention of the plan, state this.
+
+'hasRemovedCodeErrors': A boolean that indicates whether any code was *incorrectly* removed or overwritten in the updated file, based on the reasoning provided in 'removedCodeErrorsReasoning'.
 
 'duplicationErrorsReasoning': A string that succinctly explains whether any code was *incorrectly* duplicated in the updated file. First explain whether any code, functions, or other elements are duplicated in the updated file, then explain whether the duplication is deliberate and consistent with the plan, and whether the duplication is correct and valid in the programming language being used.
 
 'hasDuplicationErrors': A boolean that indicates whether any code was *incorrectly* duplicated in the updated file, based on the reasoning provided in 'duplicationErrorsReasoning'. If code was *incorrectly* duplicated, set 'hasDuplicationErrors' to true. If code was *correctly* duplicated, consistent with the intention of the plan, set 'hasDuplicationErrors' to false.
+
+'comments':  an array of objects with two properties: 'txt' and 'reference'. 'txt' is the exact text of a code comment. 'reference' is a boolean that indicates whether the comment is a placeholder of or reference to the original code, like  "// rest of the function..." or "# existing init code...", or "// rest of the main function" or "// rest of your function..." or "// Existing methods..." or "// Remaining methods" or "// Existing code..." or "// ... existing setup code ..." or "// ... existing code ..." or "// ..." or other comments which reference code from the original file. References DO NOT need to exactly match any of the previous examples. Use your judgement to determine whether each comment is a reference. If 'reference' is true, the comment is a placeholder or reference to the original code. If 'reference' is false, the comment is not a placeholder or reference to the original code.
+
+In 'comments', you must list EVERY comment included in the *updated file*. Only list *code comments* that are valid comments for the programming language being used. Do not list logging statements or any other non-comment text that is not a valid code comment. If there are no code comments in the *updated file*, 'comments' must be an empty array.
+
+If there are multiple identical comments in the *updated file*, you MUST list them *all* in the 'comments' array--list each identical comment as a separate object in the array.
 
 'referenceErrorsReasoning': A string that succinctly explains whether any comments in the updated file are placeholders/references that should have been replaced with code from the original file. These are comments like "// rest of the function..." or "# existing init code...", or "// rest of the main function..." or "// rest of your function..." or "// Existing methods...", "// Existing code..." or other  comments which reference code from the original file. Only include comments that *are not* present in the original file and *are* present in the proposed updates. If there are no such comments, explain that there are no reference errors.
 
@@ -395,10 +422,11 @@ In each of the reasoning keys above, be exhaustive and include *every* problem t
 
 	s += `
 ## **Proposed updates:**
+[START PROPOSED UPDATES]
 
 ` + changes + `
 
---
+[END PROPOSED UPDATES]
 `
 
 	if preBuildState != "" {
@@ -414,9 +442,15 @@ In each of the reasoning keys above, be exhaustive and include *every* problem t
 	`
 	}
 
-	s += updated + `
+	s += updated + "\n\n"
 
-Now call the 'verifyOutput' function with a valid JSON object that includes the 'reasoning', and 'isCorrect' keys. You must always call 'verifyOutput' with a valid JSON object. Don't call any other function.
+	if diff != "" {
+		s += "**Diff:**\n\n" + diff + "\n\n"
+	}
+
+	s += `
+
+Now call the 'verifyOutput' function with a valid JSON object. Don't call any other function.
 
 You absolutely MUST generate PERFECTLY VALID JSON. Pay extremely close attention to the JSON syntax and structure. Double quotes within JSON properties *MUST* be properly escaped with a backslash.`
 
@@ -434,6 +468,24 @@ var VerifyOutputFn = openai.FunctionDefinition{
 			"hasSyntaxErrors": {
 				Type: jsonschema.Boolean,
 			},
+			"removed": {
+				Type: jsonschema.Array,
+				Items: &jsonschema.Definition{
+					Type: jsonschema.Object,
+					Properties: map[string]jsonschema.Definition{
+						"code": {
+							Type: jsonschema.String,
+						},
+						"reasoning": {
+							Type: jsonschema.String,
+						},
+						"correct": {
+							Type: jsonschema.Boolean,
+						},
+					},
+					Required: []string{"code", "reasoning", "correct"},
+				},
+			},
 			"removedCodeErrorsReasoning": {
 				Type: jsonschema.String,
 			},
@@ -446,6 +498,21 @@ var VerifyOutputFn = openai.FunctionDefinition{
 			"hasDuplicationErrors": {
 				Type: jsonschema.Boolean,
 			},
+			"comments": {
+				Type: jsonschema.Array,
+				Items: &jsonschema.Definition{
+					Type: jsonschema.Object,
+					Properties: map[string]jsonschema.Definition{
+						"txt": {
+							Type: jsonschema.String,
+						},
+						"reference": {
+							Type: jsonschema.Boolean,
+						},
+					},
+					Required: []string{"txt", "reference"},
+				},
+			},
 			"referenceErrorsReasoning": {
 				Type: jsonschema.String,
 			},
@@ -453,7 +520,7 @@ var VerifyOutputFn = openai.FunctionDefinition{
 				Type: jsonschema.Boolean,
 			},
 		},
-		Required: []string{"syntaxErrorsReasoning", "hasSyntaxErrors",
-			"removedCodeErrorsReasoning", "hasRemovedCodeErrors", "duplicationErrorsReasoning", "hasDuplicationErrors", "referenceErrorsReasoning", "hasReferenceErrors"},
+		Required: []string{"syntaxErrorsReasoning", "hasSyntaxErrors", "removed",
+			"removedCodeErrorsReasoning", "hasRemovedCodeErrors", "duplicationErrorsReasoning", "hasDuplicationErrors", "comments", "referenceErrorsReasoning", "hasReferenceErrors"},
 	},
 }

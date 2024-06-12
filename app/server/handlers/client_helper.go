@@ -48,23 +48,38 @@ func initClients(params initClientsParams) map[string]*openai.Client {
 			continue
 		}
 
-		if planSettings.ModelPack.Planner.BaseModelConfig.ApiKeyEnvVar == envVar {
-			endpointsByApiKeyEnvVar[envVar] = planSettings.ModelPack.Planner.BaseModelConfig.BaseUrl
+		if planSettings.ModelPack.PlanSummary.BaseModelConfig.ApiKeyEnvVar == envVar {
+			endpointsByApiKeyEnvVar[envVar] = planSettings.ModelPack.PlanSummary.BaseModelConfig.BaseUrl
 			continue
 		}
 
-		if planSettings.ModelPack.Planner.BaseModelConfig.ApiKeyEnvVar == envVar {
-			endpointsByApiKeyEnvVar[envVar] = planSettings.ModelPack.Planner.BaseModelConfig.BaseUrl
+		if planSettings.ModelPack.Builder.BaseModelConfig.ApiKeyEnvVar == envVar {
+			endpointsByApiKeyEnvVar[envVar] = planSettings.ModelPack.Builder.BaseModelConfig.BaseUrl
 			continue
 		}
 
-		if planSettings.ModelPack.Planner.BaseModelConfig.ApiKeyEnvVar == envVar {
-			endpointsByApiKeyEnvVar[envVar] = planSettings.ModelPack.Planner.BaseModelConfig.BaseUrl
+		if planSettings.ModelPack.Namer.BaseModelConfig.ApiKeyEnvVar == envVar {
+			endpointsByApiKeyEnvVar[envVar] = planSettings.ModelPack.Namer.BaseModelConfig.BaseUrl
 			continue
 		}
 
-		if planSettings.ModelPack.Planner.BaseModelConfig.ApiKeyEnvVar == envVar {
-			endpointsByApiKeyEnvVar[envVar] = planSettings.ModelPack.Planner.BaseModelConfig.BaseUrl
+		if planSettings.ModelPack.CommitMsg.BaseModelConfig.ApiKeyEnvVar == envVar {
+			endpointsByApiKeyEnvVar[envVar] = planSettings.ModelPack.CommitMsg.BaseModelConfig.BaseUrl
+			continue
+		}
+
+		if planSettings.ModelPack.ExecStatus.BaseModelConfig.ApiKeyEnvVar == envVar {
+			endpointsByApiKeyEnvVar[envVar] = planSettings.ModelPack.ExecStatus.BaseModelConfig.BaseUrl
+			continue
+		}
+
+		if planSettings.ModelPack.GetVerifier().BaseModelConfig.ApiKeyEnvVar == envVar {
+			endpointsByApiKeyEnvVar[envVar] = planSettings.ModelPack.GetVerifier().BaseModelConfig.BaseUrl
+			continue
+		}
+
+		if planSettings.ModelPack.GetAutoFix().BaseModelConfig.ApiKeyEnvVar == envVar {
+			endpointsByApiKeyEnvVar[envVar] = planSettings.ModelPack.GetAutoFix().BaseModelConfig.BaseUrl
 			continue
 		}
 	}

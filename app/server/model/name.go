@@ -160,3 +160,82 @@ func GenPipedDataName(client *openai.Client, config shared.ModelRoleConfig, pipe
 	return nameRes.Name, nil
 
 }
+
+func GenNoteName(client *openai.Client, config shared.ModelRoleConfig, note string) (string, error) {
+	messages := []openai.ChatCompletionMessage{
+		{
+			Role:    openai.ChatMessageRoleSystem,
+			Content: prompts.GetNoteNamePrompt(note),
+		},
+	}
+
+	var responseFormat *openai.ChatCompletionResponseFormat
+	if config.BaseModelConfig.HasJsonResponseMode {
+		responseFormat = &openai.ChatCompletionResponseFormat{Type: "json_object"}
+	}
+
+	log.Println("calling piped data name model")
+	// log.Printf("model: %s\n", config.BaseModelConfig.ModelName)
+	// log.Printf("temperature: %f\n", config.Temperature)
+	// log.Printf("topP: %f\n", config.TopP)
+
+	// log.Printf("messages: %v\n", messages)
+	// log.Println(spew.Sdump(messages))
+
+	resp, err := CreateChatCompletionWithRetries(
+		client,
+		context.Background(),
+		openai.ChatCompletionRequest{
+			Model: config.BaseModelConfig.ModelName,
+			Tools: []openai.Tool{
+				{
+					Type:     "function",
+					Function: &prompts.NoteNameFn,
+				},
+			},
+			ToolChoice: openai.ToolChoice{
+				Type: "function",
+				Function: openai.ToolFunction{
+					Name: prompts.NoteNameFn.Name,
+				},
+			},
+			Temperature:    config.Temperature,
+			TopP:           config.TopP,
+			Messages:       messages,
+			ResponseFormat: responseFormat,
+		},
+	)
+
+	var res string
+	var nameRes prompts.NoteNameRes
+
+	if err != nil {
+		fmt.Printf("Error during piped data name model call: %v\n", err)
+		return "", err
+	}
+
+	for _, choice := range resp.Choices {
+		if len(choice.Message.ToolCalls) == 1 &&
+			choice.Message.ToolCalls[0].Function.Name == prompts.NoteNameFn.Name {
+			fnCall := choice.Message.ToolCalls[0].Function
+			res = fnCall.Arguments
+			break
+		}
+	}
+
+	if res == "" {
+		fmt.Println("no nameNote function call found in response")
+		return "", err
+	}
+
+	bytes := []byte(res)
+
+	err = json.Unmarshal(bytes, &nameRes)
+	if err != nil {
+		fmt.Printf("Error unmarshalling piped data name response: %v\n", err)
+		return "", err
+	}
+
+	return nameRes.Name, nil
+
+}

@@ -2,6 +2,7 @@ package db
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -122,6 +123,46 @@ func GetPlanDiffs(orgId, planId string) (string, error) {
 
 	if err != nil {
 		return "", fmt.Errorf("error getting diffs: %v", err)
+	}
+
+	return string(res), nil
+}
+
+func GetDiffsForBuild(original, updated string) (string, error) {
+	// create temp directory
+	tempDirPath, err := os.MkdirTemp("", "tmp-diffs-*")
+
+	if err != nil {
+		return "", fmt.Errorf("error creating temp dir: %v", err)
+	}
+
+	defer func() {
+		go os.RemoveAll(tempDirPath)
+	}()
+
+	// write the original file to the temp dir
+	err = os.WriteFile(filepath.Join(tempDirPath, "original"), []byte(original), 0644)
+	if err != nil {
+		return "", fmt.Errorf("error writing original file: %v", err)
+	}
+
+	// write the updated file to the temp dir
+	err = os.WriteFile(filepath.Join(tempDirPath, "updated"), []byte(updated), 0644)
+	if err != nil {
+		return "", fmt.Errorf("error writing updated file: %v", err)
+	}
+
+	res, err := exec.Command("git", "-C", tempDirPath, "diff", "--no-color", "--no-index", "original", "updated").CombinedOutput()
+
+	if err != nil {
+		exitError, ok := err.(*exec.ExitError)
+		if ok && exitError.ExitCode() == 1 {
+			// Exit status 1 means diffs were found, which is expected
+		} else {
+			log.Printf("Error getting diffs: %v\n", err)
+			log.Printf("Diff output: %s\n", res)
+			return "", fmt.Errorf("error getting diffs: %v", err)
+		}
 	}
 
 	return string(res), nil
