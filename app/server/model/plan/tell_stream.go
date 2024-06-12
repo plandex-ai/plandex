@@ -111,21 +111,6 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 
 				latestSummaryCh := active.LatestSummaryCh
 
-				log.Println("summarize convo")
-				envVar := settings.ModelPack.PlanSummary.BaseModelConfig.ApiKeyEnvVar
-				client := clients[envVar]
-
-				// summarize in the background
-				go summarizeConvo(client, settings.ModelPack.PlanSummary, summarizeConvoParams{
-					planId:       planId,
-					branch:       branch,
-					convo:        convo,
-					summaries:    summaries,
-					userPrompt:   state.userPrompt,
-					currentOrgId: currentOrgId,
-					currentReply: active.CurrentReplyContent,
-				}, active.SummaryCtx)
-
 				var generatedDescription *db.ConvoMessageDescription
 				var shouldContinue bool
 				var nextTask string
@@ -223,7 +208,8 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 						}
 					}()
 
-					assistantMsg, convoCommitMsg, err := state.storeAssistantReply()
+					assistantMsg, convoCommitMsg, err := state.storeAssistantReply() // updates state.convo
+					convo = state.convo
 
 					if err != nil {
 						state.onError(fmt.Errorf("failed to store assistant message: %v", err), true, "", "")
@@ -272,6 +258,22 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 				if err != nil {
 					return
 				}
+
+				// summarize convo needs to come *after* the reply is stored in order to correctly summarize the latest message
+				log.Println("summarize convo")
+				envVar := settings.ModelPack.PlanSummary.BaseModelConfig.ApiKeyEnvVar
+				client := clients[envVar]
+
+				// summarize in the background
+				go summarizeConvo(client, settings.ModelPack.PlanSummary, summarizeConvoParams{
+					planId:       planId,
+					branch:       branch,
+					convo:        convo,
+					summaries:    summaries,
+					userPrompt:   state.userPrompt,
+					currentOrgId: currentOrgId,
+					currentReply: active.CurrentReplyContent,
+				}, active.SummaryCtx)
 
 				log.Println("Sending active.CurrentReplyDoneCh <- true")
 
@@ -546,6 +548,9 @@ func (state *activeTellStreamState) storeAssistantReply() (*db.ConvoMessage, str
 		ap.MessageNum = num
 		ap.StoredReplyIds = append(ap.StoredReplyIds, replyId)
 	})
+
+	convo = append(convo, &assistantMsg)
+	state.convo = convo
 
 	return &assistantMsg, commitMsg, err
 }

@@ -2,7 +2,7 @@
 
 ## Provider API key(s)  🔑
 
-By default, Plandex uses the OpenAI API. While you can now use Plandex with many different providers and models, for some functionality Plandex has requirements that only OpenAI models, for the time being, can satisfy. That means you'll need an OpenAI account to get started even if you plan to use other model providers. 
+By default, Plandex uses the OpenAI API. While you can use Plandex with many different providers and models, Plandex requires reliable function calling, which can still be a challenge to find in non-OpenAI models. For getting started, it's recommended to begin with OpenAI.
 
 If you don't have an OpenAI account, first [sign up here.](https://platform.openai.com/signup)
 
@@ -10,19 +10,30 @@ Then [generate an API key here.](https://platform.openai.com/account/api-keys)
 
 You'll also need API keys for any other providers you plan on using, like OpenRouter.ai (Anthropic, Gemini, and open source models), Together.ai (open source models), Replicate, Ollama, and more. 
 
-## New plan  🪄
+## Environment variables  💻
 
 ```bash
-cd your-project
-
 export OPENAI_API_KEY=...
-export OPENAI_API_BASE=... # optional e.g. https://<your-proxy>/v1
-export OPENAI_ORG_ID=... # optional - set the OrgID if you have multiple OpenAI orgs
+
+export OPENAI_API_BASE=... # optional - set a different base url for OpenAI calls e.g. https://<your-proxy>/v1
+export OPENAI_ORG_ID=... # optional - set the OpenAI OrgID if you have multiple orgs
 
 # optional - set api keys for any other providers you're using
 export OPENROUTER_API_KEY=...
 export TOGETHER_API_KEY...
+```
 
+## New plan  🪄
+
+Now `cd` into your **project's directory.** Make a new directory first with `mkdir your-project-dir` if you're starting on a new project.
+
+```bash
+cd your-project-dir
+```
+
+Then **start your first plan** with `plandex new`.
+
+```bash
 plandex new
 ```
 
@@ -36,7 +47,7 @@ If you don't give your plan a name up front, it will be named 'draft' until you 
 
 ## Loading context  📄
 
-After creating a plan, load any relevant files, directories, directory layouts, urls, or other data into the plan context.
+After creating a plan, load any relevant files, images, directories, directory layouts, urls, or other data into the plan context.
 
 ```bash
 plandex load component.ts action.ts reducer.ts
@@ -46,7 +57,10 @@ plandex load . --tree # loads the layout of the current directory and its subdir
 plandex load https://redux.js.org/usage/writing-tests # loads the text-only content of the url
 npm test | plandex load # loads the output of `npm test`
 plandex load -n 'add logging statements to all the code you generate.' # load a note into context
+plandex load ui-mockup.png # load an image into context (GPT-4o only so far)
 ```
+
+For loading images, png, jpeg, non-animated gif, and webp formats are supported. So far, this feature is only available with the default OpenAI GPT-4o model.
 
 ## Tasks  ⚡️
 
@@ -137,6 +151,7 @@ You can see the plan's current context with the `ls` command. You can remove con
 plandex ls # list all context in current plan
 plandex rm component.ts # remove by name
 plandex rm 2 # remove by number in the `plandex ls` list
+plandex rm 2-5 # remove a range of indices
 plandex rm lib/**/*.js # remove by glob pattern
 plandex rm lib # remove whole directory
 plandex clear # remove all context
@@ -184,6 +199,20 @@ You can see the full conversation history with the `convo` command.
 plandex convo # show the full conversation history
 ```
 
+You can output the conversation in plain text with no ANSI codes with the `--plain` or `-p` flag.
+
+```bash
+plandex convo --plain
+```
+
+You can also show a specific message number or range of messages.
+
+```bash
+plandex convo 1 # show the initial prompt
+plandex convo 1-5 # show messages 1 through 5
+plandex convo 2- # show messages 2 through the end of the conversation
+```
+
 ## Conversation summaries  🤏
 
 Every time the AI model replies, Plandex will summarize the conversation so far in the background and store the summary in case it's needed later. When the conversation size in tokens exceeds the model's limit, Plandex will automatically replace some number of older messages with the corresponding summary. It will summarize as many messages as necessary to keep the conversation size under the limit.
@@ -192,6 +221,12 @@ You can see the latest summary with the `summary` command.
 
 ```bash
 plandex summary # show the latest conversation summary
+```
+
+As with the `convo` command, you can output the summary in plain text with no ANSI codes with the `--plain` or `-p` flag.
+
+```bash
+plandex summary --plain
 ```
 
 ## Model settings  🧠

@@ -67,6 +67,7 @@ type ApiClient interface {
 	ApplyPlan(planId, branch string, req shared.ApplyPlanRequest) (string, *shared.ApiError)
 	RejectAllChanges(planId, branch string) *shared.ApiError
 	RejectFile(planId, branch, filePath string) *shared.ApiError
+	RejectFiles(planId, branch string, paths []string) *shared.ApiError
 	GetPlanDiffs(planId, branch string) (string, *shared.ApiError)
 
 	LoadContext(planId, branch string, req shared.LoadContextRequest) (*shared.LoadContextResponse, *shared.ApiError)

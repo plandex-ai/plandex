@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"math/rand"
 	"plandex-server/model"
 	"plandex-server/types"
 	"strings"
@@ -99,47 +98,14 @@ func (fileState *activeBuildStreamFileState) listenStreamVerifyOutput(stream *op
 				fileState.activeBuild.VerifyBufferTokens++
 			}
 
-			var streamed types.StreamedVerifyResult
+			var streamed types.VerifyResult
 			err = json.Unmarshal([]byte(fileState.activeBuild.VerifyBuffer), &streamed)
 
 			if err == nil {
 				log.Printf("listenStreamVerifyOutput - File %s: Parsed streamed verify result\n", filePath)
 				// spew.Dump(streamed)
 
-				if streamed.IsCorrect() {
-					buildInfo := &shared.BuildInfo{
-						Path:      filePath,
-						NumTokens: 0,
-						Finished:  true,
-					}
-					activePlan.Stream(shared.StreamMessage{
-						Type:      shared.StreamMessageBuildInfo,
-						BuildInfo: buildInfo,
-					})
-					log.Println("build verify - streamed.IsCorrect")
-
-					time.Sleep(50 * time.Millisecond)
-
-					fileState.onFinishBuildFile(nil, "")
-				} else {
-
-					log.Printf("listenStreamVerifyOutput - File %s: Streamed verify result is incorrect\n", filePath)
-
-					fileState.verificationErrors = streamed.GetReasoning()
-					fileState.isFixingOther = true
-
-					// log.Println("Verification errors:")
-					// log.Println(fileState.verificationErrors)
-
-					select {
-					case <-activePlan.Ctx.Done():
-						log.Println("listenStreamVerifyOutput - Context canceled. Exiting.")
-						return
-					case <-time.After(time.Duration(rand.Intn(1001)) * time.Millisecond):
-						break
-					}
-					fileState.fixFileLineNums()
-				}
+				fileState.onVerifyResult(streamed)
 				return
 			} else if len(delta.ToolCalls) == 0 {
 				log.Println("listenStreamVerifyOutput - Stream chunk missing function call.")
@@ -150,22 +116,4 @@ func (fileState *activeBuildStreamFileState) listenStreamVerifyOutput(stream *op
 		}
 	}
 
-}
-
-func (fileState *activeBuildStreamFileState) verifyRetryOrAbort(err error) {
-	if fileState.verifyFileNumRetry < MaxBuildStreamErrorRetries {
-		fileState.verifyFileNumRetry++
-		fileState.activeBuild.VerifyBuffer = ""
-		fileState.activeBuild.VerifyBufferTokens = 0
-		log.Printf("Retrying verify file '%s' due to error: %v\n", fileState.filePath, err)
-
-		// Exponential backoff
-		time.Sleep(time.Duration((fileState.verifyFileNumRetry*fileState.verifyFileNumRetry)/2)*200*time.Millisecond + time.Duration(rand.Intn(500))*time.Millisecond)
-
-		fileState.verifyFileBuild()
-	} else {
-		log.Printf("Aborting verify file '%s' due to error: %v\n", fileState.filePath, err)
-
-		fileState.onFinishBuildFile(nil, "")
-	}
 }

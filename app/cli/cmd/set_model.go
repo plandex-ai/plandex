@@ -15,8 +15,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const goBack = "← Go back"
-
 var provider string
 
 func init() {
@@ -217,7 +215,7 @@ func updateModelSettings(args []string, originalSettings *shared.PlanSettings) *
 				opts = append(opts, "Custom | "+ms.Name)
 			}
 
-			opts = append(opts, goBack)
+			opts = append(opts, lib.GoBack)
 
 			selection, err := term.SelectFromList("Select a model pack:", opts)
 			if err != nil {
@@ -229,7 +227,7 @@ func updateModelSettings(args []string, originalSettings *shared.PlanSettings) *
 				return nil
 			}
 
-			if selection == goBack {
+			if selection == lib.GoBack {
 				return updateModelSettings([]string{}, originalSettings)
 			}
 
@@ -359,7 +357,7 @@ func updateModelSettings(args []string, originalSettings *shared.PlanSettings) *
 						"Set top-p",
 					}
 
-					opts = append(opts, goBack)
+					opts = append(opts, lib.GoBack)
 
 					selection, err := term.SelectFromList("Select a property to update:", opts)
 					if err != nil {
@@ -371,7 +369,7 @@ func updateModelSettings(args []string, originalSettings *shared.PlanSettings) *
 						return nil
 					}
 
-					if selection == goBack {
+					if selection == lib.GoBack {
 						return updateModelSettings([]string{}, originalSettings)
 					}
 
@@ -384,7 +382,7 @@ func updateModelSettings(args []string, originalSettings *shared.PlanSettings) *
 							term.OutputErrorAndExit("Error fetching models: %v", apiErr)
 						}
 
-						selectedModel = selectModelForRole(customModels, role, true)
+						selectedModel = lib.SelectModelForRole(customModels, role, true)
 
 						if selectedModel != nil {
 							break Outer

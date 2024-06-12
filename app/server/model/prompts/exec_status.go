@@ -42,7 +42,7 @@ Between all of these sources, explain whether all subtasks have been implemented
 
 If there are any todo placeholders in the 'comments' array, list them ALL in 'reasoning'.
 
-If the plan should continue, also state what the immediate next step should be in 'reasoning'. You MUST NOT state any subtasks that have been marked implemented in the summary or completed in the latest message or previous message from AI 1. You MUST only state what the next unimplemented subtask is and that should be done next.
+If the plan should continue, you MUST state what the immediate next step should be in 'reasoning'. You MUST NOT state any subtasks that have been marked implemented in the summary or completed in the latest message or previous message from AI 1. You MUST only state what the next unimplemented subtask is and that should be done next. Subtasks MUST ALWAYS be completed in order. If subtask 3 was just completed in the latest message, and subtask 4 is the next unimplemented subtask in numerical order, you MUST state that subtask 4 should be done next. You MUST NOT skip any subtasks. You MUST NOT repeat any subtasks that have already been completed, either in the summary or in the latest or previous message from AI 1. If there is no immediate next subtask, you MUST state that the plan is complete.
 
 Set 'shouldContinue' to true if the plan should automatically continue based on your instructions above, or false otherwise.
 

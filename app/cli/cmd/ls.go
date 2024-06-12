@@ -49,7 +49,7 @@ func listContext(cmd *cobra.Command, args []string) {
 	for i, context := range contexts {
 		totalTokens += context.NumTokens
 
-		t, icon := lib.GetContextLabelAndIcon(context.ContextType)
+		t, icon := context.TypeAndIcon()
 
 		name := context.Name
 		if len(name) > 40 {

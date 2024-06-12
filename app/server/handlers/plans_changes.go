@@ -203,7 +203,7 @@ func RejectAllChangesHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func RejectFileHandler(w http.ResponseWriter, r *http.Request) {
-	log.Println("Received request for RejectResultHandler")
+	log.Println("Received request for RejectFileHandler")
 
 	auth := authenticate(w, r, true)
 	if auth == nil {
@@ -255,6 +255,70 @@ func RejectFileHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Println("Successfully rejected plan file", req.FilePath)
+}
+
+func RejectFilesHandler(w http.ResponseWriter, r *http.Request) {
+	log.Println("Received request for RejectFilesHandler")
+
+	auth := authenticate(w, r, true)
+	if auth == nil {
+		return
+	}
+
+	vars := mux.Vars(r)
+	planId := vars["planId"]
+	branch := vars["branch"]
+
+	log.Println("planId: ", planId, "branch: ", branch)
+
+	if authorizePlan(w, planId, auth) == nil {
+		return
+	}
+
+	var req shared.RejectFilesRequest
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		log.Printf("Error decoding request: %v\n", err)
+		http.Error(w, "Error decoding request: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	unlockFn := lockRepo(w, r, auth, db.LockScopeWrite, ctx, cancel, true)
+	if unlockFn == nil {
+		return
+	} else {
+		defer func() {
+			(*unlockFn)(err)
+		}()
+	}
+
+	err = db.RejectPlanFiles(auth.OrgId, planId, req.Paths, time.Now())
+
+	if err != nil {
+		log.Printf("Error rejecting result: %v\n", err)
+		http.Error(w, "Error rejecting result: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	msg := "🚫 Rejected pending changes to file"
+	if len(req.Paths) > 1 {
+		msg += "s"
+	}
+	msg += ":"
+
+	for _, path := range req.Paths {
+		msg += fmt.Sprintf("\n • %s", path)
+	}
+	err = db.GitAddAndCommit(auth.OrgId, planId, branch, msg)
+
+	if err != nil {
+		log.Printf("Error committing rejected changes: %v\n", err)
+		http.Error(w, "Error committing rejected changes: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	log.Println("Successfully rejected plan files", req.Paths)
 }
 
 func ArchivePlanHandler(w http.ResponseWriter, r *http.Request) {

@@ -15,11 +15,12 @@ var borderColor = lipgloss.Color("#444")
 var helpTextColor = lipgloss.Color("#ddd")
 
 func (m streamUIModel) View() string {
+
 	if m.promptingMissingFile {
 		return m.renderMissingFilePrompt()
 	}
 
-	var views []string
+	views := []string{}
 	if !m.buildOnly {
 		views = append(views, m.renderMainView())
 	}
@@ -80,29 +81,42 @@ func (m streamUIModel) doRenderBuild(outputStatic bool) string {
 		style = lipgloss.NewStyle().Width(m.width).BorderStyle(lipgloss.NormalBorder()).BorderTop(true).BorderForeground(lipgloss.Color(borderColor))
 	}
 
-	lbl := "Building plan "
-	bgColor := color.BgGreen
-	built := false
-	if outputStatic {
-		// log.Printf("m.finished: %v, len(m.finishedByPath): %d, len(m.tokensByPath): %d", m.finished, len(m.finishedByPath), len(m.tokensByPath))
+	// log.Println("filePaths:", filePaths)
+	// log.Println("len(resRows):", len(resRows))
 
-		if m.finished || len(m.finishedByPath) == len(m.tokensByPath) {
-			lbl = "Built plan "
-			built = true
-		} else if m.stopped || m.err != nil || m.apiErr != nil {
-			lbl = "Build incomplete "
-			bgColor = color.BgRed
-		}
-	}
+	resRows := m.getRows(outputStatic)
 
-	head := color.New(bgColor, color.FgHiWhite, color.Bold).Sprint(" 🏗  ") + color.New(bgColor, color.FgHiWhite).Sprint(lbl)
+	res := style.Render(strings.Join(resRows, "\n"))
 
+	// log.Println("\n\n", res, "\n\n")
+
+	return res
+}
+
+func (m streamUIModel) getRows(static bool) []string {
 	filePaths := make([]string, 0, len(m.tokensByPath))
 	for filePath := range m.tokensByPath {
 		filePaths = append(filePaths, filePath)
 	}
 
 	sort.Strings(filePaths)
+
+	lbl := "Building plan "
+	bgColor := color.BgGreen
+	built := false
+	if static {
+		// log.Printf("m.finished: %v, m.stopped: %v, len(m.finishedByPath): %d, len(m.tokensByPath): %d", m.finished, len(m.finishedByPath), len(m.tokensByPath))
+
+		if m.stopped || m.err != nil || m.apiErr != nil {
+			lbl = "Build incomplete "
+			bgColor = color.BgRed
+		} else {
+			lbl = "Built plan "
+			built = true
+		}
+	}
+
+	head := color.New(bgColor, color.FgHiWhite, color.Bold).Sprint(" 🏗  ") + color.New(bgColor, color.FgHiWhite).Sprint(lbl)
 
 	var rows [][]string
 	rows = append(rows, []string{})
@@ -119,11 +133,14 @@ func (m streamUIModel) doRenderBuild(outputStatic bool) string {
 			block += " ✅"
 		} else if tokens > 0 {
 			block += fmt.Sprintf(" %d 🪙", tokens)
+		} else {
+			block += " " + m.buildSpinner.View()
 		}
+
 		maybeBlockWidth := lipgloss.Width(block)
 
 		if maybeBlockWidth > m.width {
-			maxWidth := m.width - lipgloss.Width("⋯")
+			maxWidth := m.width - (lipgloss.Width("⋯"))
 			runes := []rune(block)
 			firstHalf := string(runes[:maxWidth/2])
 			secondHalf := string(runes[len(runes)-maxWidth/2:])
@@ -159,10 +176,10 @@ func (m streamUIModel) doRenderBuild(outputStatic bool) string {
 
 	resRows[0] = head
 	for i, row := range rows {
-		resRows[i+1] = strings.Join(row, "")
+		resRows[i+1] = lipgloss.JoinHorizontal(lipgloss.Left, row...)
 	}
 
-	return style.Render(strings.Join(resRows, "\n"))
+	return resRows
 }
 
 func (m streamUIModel) renderMissingFilePrompt() string {

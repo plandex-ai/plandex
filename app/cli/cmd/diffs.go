@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"fmt"
 	"plandex/api"
 	"plandex/auth"
 	"plandex/lib"
@@ -26,8 +25,7 @@ func diffs(cmd *cobra.Command, args []string) {
 	lib.MaybeResolveProject()
 
 	if lib.CurrentPlanId == "" {
-		fmt.Println("🤷‍♂️ No current plan")
-		return
+		term.OutputNoCurrentPlanErrorAndExit()
 	}
 
 	diffs, err := api.Client.GetPlanDiffs(lib.CurrentPlanId, lib.CurrentBranch)

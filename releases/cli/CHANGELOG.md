@@ -1,3 +1,64 @@
+## Version 1.1.0
+## Support for loading images into context with gpt-4o 🖼️
+
+- You can now load images into context with `plandex load path/to/image.png`. Supported image formats are png, jpeg, non-animated gif, and webp. So far, this feature is only available with the default OpenAI GPT-4o model.
+
+![plandex-load-images](https://github.com/plandex-ai/plandex/blob/main/releases/images/cli/1.1.0/plandex-images.gif)
+
+## No more hard OpenAI requirement for builder, verifier, and auto-fix roles 🧠
+
+- Non-OpenAI models can now be used for *all* roles, including the builder, verifier, and auto-fix roles, since streaming function calls are no longer required for these roles.
+
+- Note that reliable function calling is still required for these roles. In testing, it was difficult to find models that worked reliably enough for these roles, despite claimed support for function calling. For this reason, using non-OpenAI models for these roles should be considered experimental. Still, this provides a path forward for using open source, local, and other non-OpenAI models for these roles in the future as they improve.
+
+## Reject pending changes with `plandex reject` 🚫
+
+- You can now reject pending changes to one or more files with the `plandex reject` command. Running it with no arguments will reject all pending changes after confirmation. You can also reject changes to specific files by passing one or more file paths as arguments.
+
+![plandex-reject](https://github.com/plandex-ai/plandex/blob/main/releases/images/cli/1.1.0/plandex-reject.gif)
+
+## Summarization and auto-continue fixes 🛤 ️
+
+- Fixes for summarization and auto-continue issues that could Plandex to lose track of where it is in the plan and repeat tasks or do tasks out of order, especially when using `tell` and `continue` after the initial `tell`.
+
+## Verification and auto-fix improvements 🛠️
+
+- Improvements to the verification and auto-fix step. Plandex is now more likely to catch and fix placeholder references like "// ... existing code ..." as well as incorrect removal or overwriting of code.
+
+## Stale context fixes 🔄
+
+- After a context file is updated, Plandex is less likely to use an old version of the code from earlier in the conversation--it now uses the latest version much more reliably.
+
+## `plandex convo` command improvements 🗣️
+
+- Added a `--plain / -p` flag to `plandex convo` and `plandex summary` that outputs the conversation/summary in plain text with no ANSI codes.
+- `plandex convo` now accepts a message number or range of messages to display (e.g. `plandex convo 1`, `plandex convo 1-5`, `plandex convo 2-`). Use `plandex convo 1` to show the initial prompt.
+
+## Context management improvements 📄
+
+- Give notes added to context with `plandex load -n 'some note'` an auto-generated name in the `context ls` list.
+- `plandex rm` can now accept a range of indices to remove (e.g. `plandex rm 1-5`)
+- Better help text if `plandex load` is run with incorrect arguments
+- Fix for `plandex load` issue loading paths that begin with `./`
+
+## Better rate limit tolerance 🕰️
+
+- Increase wait times when receiving rate limit errors from OpenAI API (common with new OpenAI accounts that haven't spent $50)
+
+## Built-in model updates 🧠
+
+- Removed 'gpt-4-turbo-preview' from list of built-in models and model packs
+
+## Other fixes 🐞
+
+- Fixes for some occasional rendering issues when streaming plans and build counts
+- Fix for `plandex set-model` model selection showing built-in model options that aren't compatible with the selected role--now only compatible models are shown
+
+## Help updates 📚
+
+- `plandex help` now shows a brief overview on getting started with Plandex rather than the full command list
+- `plandex help --all` or `plandex help -a` shows the full command list
+
 ## Version 1.0.0
 - CLI updates for the 1.0.0 release
 - See the [server/v1.0.0 release notes](https://github.com/plandex-ai/plandex/releases/tag/server%2Fv1.0.0) for full details

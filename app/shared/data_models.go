@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"time"
+
+	"github.com/sashabaranov/go-openai"
 )
 
 type Org struct {
@@ -80,21 +82,23 @@ const (
 	ContextNoteType          ContextType = "note"
 	ContextDirectoryTreeType ContextType = "directory tree"
 	ContextPipedDataType     ContextType = "piped data"
+	ContextImageType         ContextType = "image"
 )
 
 type Context struct {
-	Id              string      `json:"id"`
-	OwnerId         string      `json:"ownerId"`
-	ContextType     ContextType `json:"contextType"`
-	Name            string      `json:"name"`
-	Url             string      `json:"url"`
-	FilePath        string      `json:"file_path"`
-	Sha             string      `json:"sha"`
-	NumTokens       int         `json:"numTokens"`
-	Body            string      `json:"body,omitempty"`
-	ForceSkipIgnore bool        `json:"forceSkipIgnore"`
-	CreatedAt       time.Time   `json:"createdAt"`
-	UpdatedAt       time.Time   `json:"updatedAt"`
+	Id              string                `json:"id"`
+	OwnerId         string                `json:"ownerId"`
+	ContextType     ContextType           `json:"contextType"`
+	Name            string                `json:"name"`
+	Url             string                `json:"url"`
+	FilePath        string                `json:"file_path"`
+	Sha             string                `json:"sha"`
+	NumTokens       int                   `json:"numTokens"`
+	Body            string                `json:"body,omitempty"`
+	ForceSkipIgnore bool                  `json:"forceSkipIgnore"`
+	ImageDetail     openai.ImageURLDetail `json:"imageDetail,omitempty"`
+	CreatedAt       time.Time             `json:"createdAt"`
+	UpdatedAt       time.Time             `json:"updatedAt"`
 }
 
 type ConvoMessage struct {
@@ -211,6 +215,7 @@ type ModelCompatibility struct {
 	HasStreaming              bool `json:"hasStreaming"`
 	HasFunctionCalling        bool `json:"hasFunctionCalling"`
 	HasStreamingFunctionCalls bool `json:"hasStreamingFunctionCalls"`
+	HasImageSupport           bool `json:"hasImageSupport"`
 }
 
 type BaseModelConfig struct {
