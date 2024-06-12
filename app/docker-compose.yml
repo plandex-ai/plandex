@@ -4,12 +4,6 @@ services:
     restart: always
     env_file:
       - ./.env
-    #environment:
-    #  POSTGRES_PASSWORD: $POSTGRES_PASSWORD
-    #  PLANDEX_DB: $PLANDEX_DB
-    #  PLANDEX_USER: $PLANDEX_USER
-    #  PLANDEX_PASSWORD: $PLANDEX_PASSWORD
-    #  #PGDATA: /var/lib/postgresql/data/pgdata
     ports:
       - "5432:5432"
     volumes:
@@ -28,7 +22,7 @@ services:
     env_file:
       - ./.env
     environment:
-      DATABASE_URL: "postgres://${PLANDEX_USER}:${PLANDEX_PASSWORD}@plandex-postgres:5432/${PLANDEX_DB}?sslmode=disable"
+      DATABASE_URL: "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@plandex-postgres:5432/${POSTGRES_USER}?sslmode=disable"
       GOENV: $GOENV
     networks:
       - plandex-network
