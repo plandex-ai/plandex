@@ -1,97 +1,12 @@
 # This configuration compares LLM output of 2 prompts x 2 GPT models across 3 test cases.
 # Learn more: https://promptfoo.dev/docs/configuration/guide
-description: 'Verification'
+description: "Verification"
 
 prompts:
   - file://prompt.txt
 
 providers:
-  - id: openai:gpt-4o
-    config: 
-      tools: [{
-        "type": "function",
-        "function": {
-          "name": "verifyOutput",
-          "parameters": {
-            "type": "object",
-            "properties": {
-              "syntaxErrorsReasoning": {
-                "type": "string"
-              },
-              "hasSyntaxErrors": {
-                "type": "boolean"
-              },
-              "removed": {
-                "type": "array",
-                "items": {
-                  "type": "object",
-                  "properties": {
-                    "code": {
-                      "type": "string"
-                    },
-                    "reasoning": {
-                      "type": "string"
-                    },
-                    "correct": {
-                      "type": "boolean"
-                    }
-                  },
-                  "required": ["code", "reasoning", "correct"]
-                }
-              },
-              "removedCodeErrorsReasoning": {
-                "type": "string"
-              },
-              "hasRemovedCodeErrors": {
-                "type": "boolean"
-              },
-              "duplicationErrorsReasoning": {
-                "type": "string"
-              },
-              "hasDuplicationErrors": {
-                "type": "boolean"
-              },
-              "comments": {
-                "type": "array",
-                "items": {
-                  "type": "object",
-                  "properties": {
-                    "txt": {
-                      "type": "string"
-                    },
-                    "reference": {
-                      "type": "boolean"
-                    }
-                  },
-                  "required": ["txt", "reference"]
-                }
-              },
-              "referenceErrorsReasoning": {
-                "type": "string"
-              },
-              "hasReferenceErrors": {
-                "type": "boolean"
-              }
-            },
-            "required": [
-              "syntaxErrorsReasoning",
-              "hasSyntaxErrors",
-              "removed",
-              "removedCodeErrorsReasoning",
-              "hasRemovedCodeErrors",
-              "duplicationErrorsReasoning",
-              "hasDuplicationErrors",
-              "comments",
-              "referenceErrorsReasoning",
-              "hasReferenceErrors"
-            ]
-          }
-        }
-      }]
-      tool_choice: 
-        type: function
-        function: 
-          name: verifyOutput
+  - file://verify.provider.yml
 
 tests:
   - vars:
@@ -111,7 +26,7 @@ tests:
             args.hasDuplicationErrors ||
             args.hasReferenceErrors            
           )
-  
+
   - vars:
       preBuildState: file://tests/shared/pre_build.go
       changes: file://tests/removal/changes.md

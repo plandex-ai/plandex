@@ -1,101 +1,12 @@
 # This configuration compares LLM output of 2 prompts x 2 GPT models across 3 test cases.
 # Learn more: https://promptfoo.dev/docs/configuration/guide
-description: 'Fixes'
+description: "Fixes"
 
 prompts:
   - file://prompt.txt
 
 providers:
-  - id: openai:gpt-4o
-    config: 
-      tools: [{
-        "type": "function",
-        "function": {
-          "name": "listChangesWithLineNums",
-          "parameters": {
-            "type": "object",
-            "properties": {
-              "comments": {
-                "type": "array",
-                "items": {
-                  "type": "object",
-                  "properties": {
-                    "txt": {
-                      "type": "string"
-                    },
-                    "reference": {
-                      "type": "boolean"
-                    }
-                  },
-                  "required": ["txt", "reference"]
-                }
-              },
-              "problems": {
-                "type": "string"
-              },
-              "changes": {
-                "type": "array",
-                "items": {
-                  "type": "object",
-                  "properties": {
-                    "summary": {
-                      "type": "string"
-                    },
-                    "hasChange": {
-                      "type": "boolean"
-                    },
-                    "old": {
-                      "type": "object",
-                      "properties": {
-                        "entireFile": {
-                          "type": "boolean"
-                        },
-                        "startLineString": {
-                          "type": "string"
-                        },
-                        "endLineString": {
-                          "type": "string"
-                        }
-                      },
-                      "required": ["startLineString", "endLineString"]
-                    },
-                    "startLineIncludedReasoning": {
-                      "type": "string"
-                    },
-                    "startLineIncluded": {
-                      "type": "boolean"
-                    },
-                    "endLineIncludedReasoning": {
-                      "type": "string"
-                    },
-                    "endLineIncluded": {
-                      "type": "boolean"
-                    },
-                    "new": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "summary",
-                    "hasChange",
-                    "old",
-                    "startLineIncludedReasoning",
-                    "startLineIncluded",
-                    "endLineIncludedReasoning",
-                    "endLineIncluded",
-                    "new"
-                  ]
-                }
-              }
-            },
-            "required": ["comments", "problems", "changes"]
-          }
-        }
-      }]
-      tool_choice: 
-        type: function
-        function: 
-          name: listChangesWithLineNums
+  - file://fix.provider.yml
 
 tests:
   - vars:

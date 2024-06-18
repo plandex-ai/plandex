@@ -3,12 +3,12 @@
 # Detect zsh and trigger it if its the shell
 if [ -n "$ZSH_VERSION" ]; then
   # shell is zsh
+  echo "Detected zsh"
   zsh -c "source ~/.zshrc && $*"
 fi
 
 # Detect if reflex is installed and install it if not
 if ! [ -x "$(command -v reflex)" ]; then
-  echo 'Error: reflex is not installed. Installing it now...' >&2
 
   # Check if the $GOPATH is empty
   if [ -z "$GOPATH" ]; then
@@ -16,6 +16,7 @@ if ! [ -x "$(command -v reflex)" ]; then
     exit 1
   fi
 
+  echo 'Error: reflex is not installed. Installing it now...' >&2
   go get -u github.com/cespare/reflex
 fi
 
@@ -27,10 +28,7 @@ terminate() {
 
 trap terminate SIGTERM SIGINT
 
-# Incase cd fails, exit the script
-cd app || exit 1
-
-(cd cli && ./dev.sh)
+(cd .. && cd cli && ./dev.sh)
 
 reflex -r '^(cli|shared)/.*\.(go|mod|sum)$' -- sh -c 'cd cli && ./dev.sh' &
 pid1=$!
