@@ -39,41 +39,52 @@ func main() {
 				log.Fatalf("Error reading properties file: %v", err)
 			}
 			for _, line := range strings.Split(string(properties), "\n") {
-				if len(line) > 0 {
-					parts := strings.SplitN(line, "=", 2)
-					if len(parts) == 2 {
-						key := strings.TrimSpace(parts[0])
-						value := strings.TrimSpace(parts[1])
-						if key == "nested_parameters_json" {
-							// Read the file path from the nested_parameters_json key
-							parametersJsonFile := filepath.Join(filepath.Dir(path), value)
-							jsonParameters, err := os.ReadFile(parametersJsonFile)
-							if err != nil {
-								log.Fatalf("Error reading nested parameters JSON file: %v", err)
-							}
-							// Parse the JSON string
-							var nestedParameters map[string]interface{}
-
-							// We marshal and unmarshal the JSON to ensure that the nested properties are properly formatted for the template, and to ensure that the data is correct json
-
-							err = json.Unmarshal(jsonParameters, &nestedParameters)
-
-							if err != nil {
-								log.Fatalf("Error unmarshalling nested parameters JSON: %v", err)
-							}
-
-							parameters, err := json.Marshal(nestedParameters)
-							if err != nil {
-								log.Fatalf("Error marshalling nested parameters JSON: %v", err)
-							}
-
-							// Add the nested properties to the variables
-							variables["parameters"] = string(parameters)
-						} else {
-							variables[key] = value
-						}
-					}
+				if len(line) == 0 {
+					continue
 				}
+				parts := strings.SplitN(line, "=", 2)
+
+				if len(parts) > 2 {
+					log.Fatalf("Invalid line in properties file: %s", line)
+				}
+
+				if len(parts) < 2 {
+					log.Fatalf("Invalid line in properties file: %s", line)
+				}
+
+				key := strings.TrimSpace(parts[0])
+				value := strings.TrimSpace(parts[1])
+
+				if key != "nested_parameters_json" {
+					variables[key] = value
+					continue
+				}
+
+				// Read the file path from the nested_parameters_json key
+				parametersJsonFile := filepath.Join(filepath.Dir(path), value)
+				jsonParameters, err := os.ReadFile(parametersJsonFile)
+				if err != nil {
+					log.Fatalf("Error reading nested parameters JSON file: %v", err)
+				}
+				// Parse the JSON string
+				var nestedParameters map[string]interface{}
+
+				// We marshal and unmarshal the JSON to ensure that the nested properties are properly formatted 
+				// for the template, and to ensure that the data is correct json
+
+				err = json.Unmarshal(jsonParameters, &nestedParameters)
+
+				if err != nil {
+					log.Fatalf("Error un-marshalling nested parameters JSON: %v", err)
+				}
+
+				parameters, err := json.Marshal(nestedParameters)
+				if err != nil {
+					log.Fatalf("Error marshalling nested parameters JSON: %v", err)
+				}
+
+				// Add the nested properties to the variables
+				variables["parameters"] = string(parameters)
 			}
 
 			// Parse and execute the template
