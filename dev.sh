@@ -1,5 +1,24 @@
 #!/bin/bash
 
+# Detect zsh and trigger it if its the shell
+if [ -n "$ZSH_VERSION" ]; then
+  # shell is zsh
+  zsh -c "source ~/.zshrc && $*"
+fi
+
+# Detect if reflex is installed and install it if not
+if ! [ -x "$(command -v reflex)" ]; then
+  echo 'Error: reflex is not installed. Installing it now...' >&2
+
+  # Check if the $GOPATH is empty
+  if [ -z "$GOPATH" ]; then
+    echo "Error: $GOPATH is not set. Please set it to continue..." >&2
+    exit 1
+  fi
+
+  go get -u github.com/cespare/reflex
+fi
+
 terminate() {
   pkill -f 'plandex-server' # Assuming plandex-server is the name of your process
   kill -TERM "$pid1" 2>/dev/null
@@ -8,7 +27,8 @@ terminate() {
 
 trap terminate SIGTERM SIGINT
 
-cd app
+# Incase cd fails, exit the script
+cd app || exit 1
 
 (cd cli && ./dev.sh)
 
