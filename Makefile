@@ -12,7 +12,7 @@ MAIN_PACKAGE = main
 BINARY_NAME = plandex
 
 # Check the PLANDEX_ENVIRONMENT environment variable, reassign the BINARY_NAME if necessary
-ifeq ($(PLANDEX_ENVIRONMENT),development)
+ifeq ($(PLANDEX_ENV),development)
 BINARY_NAME = plandex-dev
 endif
 
