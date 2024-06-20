@@ -42,7 +42,7 @@ func (m streamUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.windowResized(msg.Width, msg.Height)
 
 	case shared.StreamMessage:
-		return m.streamUpdate(&msg)
+		return m.streamUpdate(&msg, false)
 
 	case delayFileRestartMsg:
 		m.finishedByPath[msg.path] = false
@@ -231,8 +231,7 @@ func (m *streamUIModel) scrollEnd() {
 	}
 }
 
-func (m *streamUIModel) streamUpdate(msg *shared.StreamMessage) (tea.Model, tea.Cmd) {
-
+func (m *streamUIModel) streamUpdate(msg *shared.StreamMessage, deferUIUpdate bool) (tea.Model, tea.Cmd) {
 	checkMissingFileFn := func() {
 		if msg.MissingFilePath != "" {
 			m.promptingMissingFile = true
@@ -259,7 +258,25 @@ func (m *streamUIModel) streamUpdate(msg *shared.StreamMessage) (tea.Model, tea.
 	}
 
 	// log.Println("streamUI received message:", msg.Type)
+
 	switch msg.Type {
+
+	case shared.StreamMessageMulti:
+		cmds := []tea.Cmd{}
+		for _, subMsg := range msg.StreamMessages {
+			teaModel, cmd := m.streamUpdate(&subMsg, true)
+
+			m = teaModel.(*streamUIModel)
+
+			if cmd != nil {
+				cmds = append(cmds, cmd)
+			}
+		}
+
+		m.updateReplyDisplay()
+		m.updateViewportDimensions()
+
+		return m, tea.Batch(cmds...)
 
 	case shared.StreamMessageConnectActive:
 
@@ -270,7 +287,7 @@ func (m *streamUIModel) streamUpdate(msg *shared.StreamMessage) (tea.Model, tea.
 			m.buildOnly = true
 		}
 		if len(msg.InitReplies) > 0 {
-			m.reply = strings.Join(msg.InitReplies, "\n\n👉 ")
+			m.reply = strings.Join(msg.InitReplies, "\n\n👇\n")
 		}
 		m.updateReplyDisplay()
 
@@ -289,14 +306,17 @@ func (m *streamUIModel) streamUpdate(msg *shared.StreamMessage) (tea.Model, tea.
 			if m.promptedMissingFile {
 				m.promptedMissingFile = false
 			} else {
-				m.reply += "\n\n👉 "
+				m.reply += "\n\n👇\n"
 			}
 		}
 
 		// log.Println("reply chunk:", msg.ReplyChunk)
 
 		m.reply += msg.ReplyChunk
-		m.updateReplyDisplay()
+
+		if !deferUIUpdate {
+			m.updateReplyDisplay()
+		}
 
 	case shared.StreamMessageBuildInfo:
 		if m.starting {
@@ -321,7 +341,9 @@ func (m *streamUIModel) streamUpdate(msg *shared.StreamMessage) (tea.Model, tea.
 			m.tokensByPath[msg.BuildInfo.Path] += msg.BuildInfo.NumTokens
 		}
 
-		m.updateViewportDimensions()
+		if !deferUIUpdate {
+			m.updateViewportDimensions()
+		}
 
 		cmds := []tea.Cmd{m.buildSpinner.Tick}
 		if m.processing && !m.finished {
