@@ -1,0 +1,13 @@
+- description: "Removal of code errors"
+  vars:
+      preBuildState: file://assets/shared/pre_build.go
+      changes: file://assets/removal/changes.md
+      postBuildState: file://assets/removal/post_build.go
+      diffs: file://assets/removal/diff.txt
+  assert:
+    - type: is-json
+    - type: is-valid-openai-tools-call
+    - type: javascript
+      value: |
+        var args = JSON.parse(output[0].function.arguments)
+        return args.hasRemovedCodeErrors

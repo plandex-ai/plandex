@@ -1,41 +1,9 @@
 # This configuration compares LLM output of 2 prompts x 2 GPT models across 3 test cases.
 # Learn more: https://promptfoo.dev/docs/configuration/guide
-description: "Verification"
+description: "verify"
 
 prompts:
-  - file://prompt.txt
-
+  - file://verify.prompt.txt
 providers:
   - file://verify.provider.yml
-
-tests:
-  - vars:
-      preBuildState: file://tests/shared/pre_build.go
-      changes: file://tests/valid/changes.md
-      postBuildState: file://tests/valid/post_build.go
-      diffs: file://tests/valid/diff.txt
-    assert:
-      - type: is-json
-      - type: is-valid-openai-tools-call
-      - type: javascript
-        value: |
-          var args = JSON.parse(output[0].function.arguments)
-          return !(
-            args.hasSyntaxErrors ||
-            args.hasRemovedCodeErrors ||
-            args.hasDuplicationErrors ||
-            args.hasReferenceErrors            
-          )
-
-  - vars:
-      preBuildState: file://tests/shared/pre_build.go
-      changes: file://tests/removal/changes.md
-      postBuildState: file://tests/removal/post_build.go
-      diffs: file://tests/removal/diff.txt
-    assert:
-      - type: is-json
-      - type: is-valid-openai-tools-call
-      - type: javascript
-        value: |
-          var args = JSON.parse(output[0].function.arguments)
-          return args.hasRemovedCodeErrors
+tests: tests/*.test.yml

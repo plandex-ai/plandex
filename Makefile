@@ -33,8 +33,11 @@ clean:
 test: render
 	@$(GOTEST) -v ./...
 
-render:
-	@cd app/scripts && go run render_config.go
+gen-test:
+	@$(GOCMD) run app/scripts/cmd/gen/gen.go $(filter-out $@,$(MAKECMDGOALS))
+
+gen-provider:
+	@$(GOCMD) run app/scripts/cmd/provider/gen_provider.go
 
 # Get dependencies
 deps:
@@ -42,5 +45,18 @@ deps:
 
 # Default target
 default: build
+
+# Usage
+help:
+	@echo "Usage:"
+	@echo "  make dev - to run the development scripts"
+	@echo "  make gen-test <directory_path> - to create a new promptfoo eval directory structure"
+	@echo "  make gen-provider - to create a new promptfoo provider file from the promptfoo diretory structure"
+	@echo "  make clean - to remove generated files and directories"
+	@echo "  make help - to display this help message"
+
+# Prevents make from interpreting the arguments as targets
+%:
+	@:
 
 .PHONY: all render build clean test deps
