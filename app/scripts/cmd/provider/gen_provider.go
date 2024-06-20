@@ -9,7 +9,7 @@ import (
 	"text/template"
 )
 
-var testDir = "../../test/evals/promptfoo-poc"
+var testDir = "test/evals/promptfoo-poc"
 var templFile = testDir + "/templates/" + "/provider.template.yml"
 
 func main() {

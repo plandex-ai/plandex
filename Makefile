@@ -35,9 +35,12 @@ test: render
 
 #### Evals and Providers ####
 
-# TODO: Implement eval command
+# TODO: Implement eval all
 eval:
-	@echo "Eval command not implemented yet"
+	@cd test/evals/promptfoo-poc/$(filter-out $@,$(MAKECMDGOALS)) && promptfoo eval --no-cache
+
+view-eval:
+	@cd test/evals/promptfoo-poc/$(filter-out $@,$(MAKECMDGOALS)) && promptfoo view
 
 gen-eval:
 	@$(GOCMD) run app/scripts/cmd/gen/gen.go test/evals/promptfoo-poc/$(filter-out $@,$(MAKECMDGOALS))
@@ -58,6 +61,8 @@ default: build
 help:
 	@echo "Usage:"
 	@echo "  make dev - to run the development scripts"
+	@echo "  make eval <directory_name> - to run the promptfoo eval command on a specific directory"
+	@echo "  make view-eval - to view the promptfoo eval output"
 	@echo "  make gen-eval <directory_name> - to create a new promptfoo eval directory structure"
 	@echo "  make gen-provider - to create a new promptfoo provider file from the promptfoo diretory structure"
 	@echo "  make clean - to remove generated files and directories"
