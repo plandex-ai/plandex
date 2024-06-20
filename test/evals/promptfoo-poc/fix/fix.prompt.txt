@@ -138,5 +138,3 @@ The 'listChangesWithLineNums' function MUST be called *valid JSON*. Double quote
 --
 
 Now call the 'listChangesWithLineNums' function with a valid JSON array of changes according to your instructions. You must always call 'listChangesWithLineNums' with one or more valid changes. Don't call any other function.
-
-
