@@ -33,11 +33,19 @@ clean:
 test: render
 	@$(GOTEST) -v ./...
 
+#### Evals and Providers ####
+
+# TODO: Implement eval command
+eval:
+	@echo "Eval command not implemented yet"
+
 gen-eval:
 	@$(GOCMD) run app/scripts/cmd/gen/gen.go test/evals/promptfoo-poc/$(filter-out $@,$(MAKECMDGOALS))
 
 gen-provider:
 	@$(GOCMD) run app/scripts/cmd/provider/gen_provider.go
+
+#### End Evals and Providers ####
 
 # Get dependencies
 deps:
