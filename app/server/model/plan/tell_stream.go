@@ -292,7 +292,7 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 				if req.AutoContinue && shouldContinue && iteration < MaxAutoContinueIterations {
 					log.Println("Auto continue plan")
 					// continue plan
-					execTellPlan(clients, plan, branch, auth, req, iteration+1, "", false, nextTask)
+					execTellPlan(clients, plan, branch, auth, req, iteration+1, "", false, nextTask, 0)
 				} else {
 					var buildFinished bool
 					UpdateActivePlan(planId, branch, func(ap *types.ActivePlan) {
@@ -448,6 +448,7 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 					userChoice,
 					false,
 					"",
+					0,
 				)
 				return
 			}
