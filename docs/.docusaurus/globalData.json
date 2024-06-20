@@ -1,0 +1,78 @@
+{
+  "docusaurus-plugin-content-docs": {
+    "default": {
+      "path": "/docs",
+      "versions": [
+        {
+          "name": "current",
+          "label": "Next",
+          "isLast": true,
+          "path": "/docs",
+          "mainDocId": "introduction",
+          "docs": [
+            {
+              "id": "advanced-topics/custom-models",
+              "path": "/docs/advanced-topics/custom-models",
+              "sidebar": "docs"
+            },
+            {
+              "id": "advanced-topics/model-packs",
+              "path": "/docs/advanced-topics/model-packs",
+              "sidebar": "docs"
+            },
+            {
+              "id": "advanced-topics/model-settings",
+              "path": "/docs/advanced-topics/model-settings",
+              "sidebar": "docs"
+            },
+            {
+              "id": "cli-reference",
+              "path": "/docs/cli-reference",
+              "sidebar": "docs"
+            },
+            {
+              "id": "core-concepts/branches",
+              "path": "/docs/core-concepts/branches",
+              "sidebar": "docs"
+            },
+            {
+              "id": "core-concepts/context-management",
+              "path": "/docs/core-concepts/context-management",
+              "sidebar": "docs"
+            },
+            {
+              "id": "core-concepts/plans",
+              "path": "/docs/core-concepts/plans",
+              "sidebar": "docs"
+            },
+            {
+              "id": "installation",
+              "path": "/docs/installation",
+              "sidebar": "docs"
+            },
+            {
+              "id": "introduction",
+              "path": "/docs/introduction",
+              "sidebar": "docs"
+            },
+            {
+              "id": "quick-start",
+              "path": "/docs/quick-start",
+              "sidebar": "docs"
+            }
+          ],
+          "draftIds": [],
+          "sidebars": {
+            "docs": {
+              "link": {
+                "path": "/docs/introduction",
+                "label": "Intro"
+              }
+            }
+          }
+        }
+      ],
+      "breadcrumbs": true
+    }
+  }
+}

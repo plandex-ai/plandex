@@ -1,0 +1,24 @@
+{
+  "id": "quick-start",
+  "title": "Quick Start Guide",
+  "description": "Step 1: Create a New Plan",
+  "source": "@site/docs/quick-start.md",
+  "sourceDirName": ".",
+  "slug": "/quick-start",
+  "permalink": "/docs/quick-start",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/plandex-ai/plandex/edit/main/website/docs/quick-start.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "docs",
+  "previous": {
+    "title": "Installation",
+    "permalink": "/docs/installation"
+  },
+  "next": {
+    "title": "Plans",
+    "permalink": "/docs/core-concepts/plans"
+  }
+}
