@@ -20,7 +20,7 @@ To run or create evals, you will need to have the following installed:
 To run the evaluations, you can cd into the relevant directory and use the following command:
 
 ```bash
-make evals
+make eval <name_of_eval_dir>
 ```
 
 Or, you can run all the evaluations by running the following command:
