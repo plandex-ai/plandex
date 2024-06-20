@@ -21,7 +21,7 @@ func main() {
 		log.Fatalf("Error creating directory: %s", err)
 	}
 
-	f, err := os.Create(fmt.Sprintf("%s/%s", dirPath, "promptfooconfig.yml"))
+	f, err := os.Create(fmt.Sprintf("%s/%s", dirPath, "promptfooconfig.yaml"))
 	if err != nil {
 		log.Fatalf("Error creating file: %s", err)
 	}
@@ -51,7 +51,7 @@ func main() {
 		}
 	}
 
-	// Template for promptfooconfig.yml
+	// Template for promptfooconfig.yaml
 	ymlTemplate := `description: "{{ .Name }}"
 
 prompts:
@@ -63,7 +63,7 @@ providers:
 tests: tests/*.tests.yml
 `
 
-	// Populate promptfooconfig.yml
+	// Populate promptfooconfig.yaml
 	promptFooConfigTmpl, err := template.New("yml").Parse(ymlTemplate)
 	if err != nil {
 		log.Fatalf("Error creating template: %s", err)
@@ -91,9 +91,9 @@ nested_parameters_json={{ .Name }}.parameters.json
 	}
 	defer configFile.Close()
 
-	file, err := os.Create(fmt.Sprintf("%s/promptfooconfig.yml", dirPath))
+	file, err := os.Create(fmt.Sprintf("%s/promptfooconfig.yaml", dirPath))
 	if err != nil {
-		log.Fatalf("Error creating promptfooconfig.yml: %s", err)
+		log.Fatalf("Error creating promptfooconfig.yaml: %s", err)
 	}
 	defer file.Close()
 
