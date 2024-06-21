@@ -7,9 +7,7 @@ on:
 jobs:
   build_and_push:
     runs-on: ubuntu-latest
-    env:
-      SANITIZED_REF_NAME: ${{ github.ref_name && replace(github.ref_name, '/', '-') }}
-
+    
     steps:
       - name: Check out the repo
         uses: actions/checkout@v2
@@ -23,6 +21,10 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
+
+      - name: Sanitize ref name
+        id: sanitize
+        run: echo "SANITIZED_REF_NAME=${GITHUB_REF_NAME//\//-}" >> $GITHUB_ENV
 
       - name: Build and push
         uses: docker/build-push-action@v2
