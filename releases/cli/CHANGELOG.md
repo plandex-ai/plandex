@@ -1,3 +1,21 @@
+## Version 1.1.1
+## Fix for terminal flickering when streaming plans 📺
+
+Improvements to stream handling that greatly reduce flickering in the terminal when streaming a plan, especially when many files are being built simultaneously. CPU usage is also reduced on both the client and server side.
+
+## Claude 3.5 Sonnet model pack is now built-in 🧠
+
+You can now easily use Claude 3.5 Sonnet with Plandex through OpenRouter.ai.
+
+1. Create an account at [OpenRouter.ai](https://openrouter.ai) if you don't already have one.
+2. [Generate an OpenRouter API key](https://openrouter.ai/keys).
+3. Run `export OPENROUTER_API_KEY=...` in your terminal.
+4. Run `plandex set-model`, select `choose a model pack to change all roles at once` and then choose either `anthropic-claude-3.5-sonnet` (which uses Claude 3.5 Sonnet for all heavy lifting and Claude 3 Haiku for lighter tasks) or `anthropic-claude-3.5-sonnet-gpt-4o` (which uses Claude 3.5 Sonnet for planning and summarization, gpt-4o for builds, and gpt-3.5-turbo for lighter tasks)
+
+[plandex-claude-3.5-sonnet](https://github.com/plandex-ai/plandex/blob/main/releases/images/cli/1.1.1/clause-3-5-sonnet.gif)
+
+Remember, you can run `plandex model-packs` for details on all built-in model packs.
+
 ## Version 1.1.0
 ## Support for loading images into context with gpt-4o 🖼️
 

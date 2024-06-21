@@ -21,6 +21,8 @@ const (
 	StreamMessageAborted           StreamMessageType = "aborted"
 	StreamMessageFinished          StreamMessageType = "finished"
 	StreamMessageError             StreamMessageType = "error"
+
+	StreamMessageMulti StreamMessageType = "multi"
 )
 
 type StreamMessage struct {
@@ -37,4 +39,6 @@ type StreamMessage struct {
 	InitPrompt    string   `json:"initPrompt,omitempty"`
 	InitReplies   []string `json:"initReplies,omitempty"`
 	InitBuildOnly bool     `json:"initBuildOnly,omitempty"`
+
+	StreamMessages []StreamMessage `json:"streamMessages,omitempty"`
 }

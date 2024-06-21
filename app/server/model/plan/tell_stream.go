@@ -16,6 +16,8 @@ import (
 )
 
 const MaxAutoContinueIterations = 100
+const MaxSendRate = 30 * time.Millisecond
+const MaxTellStreamRetries = 4
 
 func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionStream) {
 	defer stream.Close()
@@ -80,8 +82,6 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 					return
 				}
 
-				state.onError(fmt.Errorf("stream error: %v", err), true, "", "")
-				return
 			}
 
 			if len(response.Choices) == 0 {
@@ -98,10 +98,13 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 
 			if choice.FinishReason != "" {
 				log.Println("Model stream finished")
+				active.FlushStreamBuffer()
+				time.Sleep(100 * time.Millisecond)
 
 				active.Stream(shared.StreamMessage{
 					Type: shared.StreamMessageDescribing,
 				})
+				active.FlushStreamBuffer()
 
 				err := db.SetPlanStatus(planId, branch, shared.PlanStatusDescribing, "")
 				if err != nil {
@@ -570,7 +573,7 @@ func (state *activeTellStreamState) onError(streamErr error, storeDesc bool, con
 		return
 	}
 
-	storeDescAndReply := func() {
+	storeDescAndReply := func() error {
 		ctx, cancelFn := context.WithCancel(context.Background())
 
 		repoLockId, err := db.LockRepo(
@@ -587,6 +590,7 @@ func (state *activeTellStreamState) onError(streamErr error, storeDesc bool, con
 
 		if err != nil {
 			log.Printf("Error locking repo for plan %s: %v\n", planId, err)
+			return err
 		} else {
 
 			defer func() {
@@ -599,6 +603,7 @@ func (state *activeTellStreamState) onError(streamErr error, storeDesc bool, con
 			err := db.GitClearUncommittedChanges(state.currentOrgId, planId)
 			if err != nil {
 				log.Printf("Error clearing uncommitted changes for plan %s: %v\n", planId, err)
+				return err
 			}
 		}
 
@@ -613,6 +618,7 @@ func (state *activeTellStreamState) onError(streamErr error, storeDesc bool, con
 				storedMessage = true
 			} else {
 				log.Printf("Error storing assistant message after stream error: %v\n", err)
+				return err
 			}
 		}
 
@@ -630,6 +636,7 @@ func (state *activeTellStreamState) onError(streamErr error, storeDesc bool, con
 				storedDesc = true
 			} else {
 				log.Printf("Error storing description after stream error: %v\n", err)
+				return err
 			}
 		}
 
@@ -637,8 +644,11 @@ func (state *activeTellStreamState) onError(streamErr error, storeDesc bool, con
 			err := db.GitAddAndCommit(currentOrgId, planId, branch, commitMsg)
 			if err != nil {
 				log.Printf("Error committing after stream error: %v\n", err)
+				return err
 			}
 		}
+
+		return nil
 	}
 
 	storeDescAndReply()
