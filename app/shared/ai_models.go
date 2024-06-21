@@ -498,7 +498,7 @@ func init() {
 
 	OpenRouterClaude3Dot5SonnetGPT4TurboModelPack = ModelPack{
 		Name:        "anthropic-claude-3.5-sonnet-gpt-4o",
-		Description: "Uses Anthropic's Claude 3.5 Sonnet model (via OpenRouter) for planning, OpenAI gpt-4o for builds, and auto-continue, and summarization, and gpt-3.5-turbo for lighter tasks.",
+		Description: "Uses Anthropic's Claude 3.5 Sonnet model (via OpenRouter) for planning, summarization, and auto-continue, OpenAI gpt-4o for builds, and gpt-3.5-turbo for lighter tasks.",
 		Planner: PlannerRoleConfig{
 			ModelRoleConfig: ModelRoleConfig{
 				Role:            ModelRolePlanner,
@@ -510,7 +510,7 @@ func init() {
 		},
 		PlanSummary: ModelRoleConfig{
 			Role:            ModelRolePlanSummary,
-			BaseModelConfig: AvailableModelsByName[openai.GPT4o].BaseModelConfig,
+			BaseModelConfig: AvailableModelsByName["anthropic/claude-3.5-sonnet"].BaseModelConfig,
 			Temperature:     DefaultConfigByRole[ModelRolePlanSummary].Temperature,
 			TopP:            DefaultConfigByRole[ModelRolePlanSummary].TopP,
 		},
