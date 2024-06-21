@@ -1,5 +1,9 @@
 id: {{ .provider_id }}
 config:
+  temperature: {{ .temperature }}
+  max_tokens: {{ .max_tokens }}
+  response_format: { type: {{ .response_format }} }
+  top_p: {{ .top_p }}
   tools:
     [
       {

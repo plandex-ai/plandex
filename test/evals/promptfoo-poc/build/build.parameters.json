@@ -16,7 +16,7 @@
         "required": ["txt", "reference"]
       }
     },
-    "problems": {
+    "filePath": {
       "type": "string"
     },
     "changes": {
@@ -74,5 +74,5 @@
       }
     }
   },
-  "required": ["comments", "problems", "changes"]
+  "required": ["comments", "filePath", "changes"]
 }
