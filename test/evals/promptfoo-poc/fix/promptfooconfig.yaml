@@ -1,0 +1,119 @@
+# This configuration compares LLM output of 2 prompts x 2 GPT models across 3 test cases.
+# Learn more: https://promptfoo.dev/docs/configuration/guide
+description: 'Fixes'
+
+prompts:
+  - file://prompt.txt
+
+providers:
+  - id: openai:gpt-4o
+    config: 
+      tools: [{
+        "type": "function",
+        "function": {
+          "name": "listChangesWithLineNums",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "comments": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "txt": {
+                      "type": "string"
+                    },
+                    "reference": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": ["txt", "reference"]
+                }
+              },
+              "problems": {
+                "type": "string"
+              },
+              "changes": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "summary": {
+                      "type": "string"
+                    },
+                    "hasChange": {
+                      "type": "boolean"
+                    },
+                    "old": {
+                      "type": "object",
+                      "properties": {
+                        "entireFile": {
+                          "type": "boolean"
+                        },
+                        "startLineString": {
+                          "type": "string"
+                        },
+                        "endLineString": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["startLineString", "endLineString"]
+                    },
+                    "startLineIncludedReasoning": {
+                      "type": "string"
+                    },
+                    "startLineIncluded": {
+                      "type": "boolean"
+                    },
+                    "endLineIncludedReasoning": {
+                      "type": "string"
+                    },
+                    "endLineIncluded": {
+                      "type": "boolean"
+                    },
+                    "new": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "summary",
+                    "hasChange",
+                    "old",
+                    "startLineIncludedReasoning",
+                    "startLineIncluded",
+                    "endLineIncludedReasoning",
+                    "endLineIncluded",
+                    "new"
+                  ]
+                }
+              }
+            },
+            "required": ["comments", "problems", "changes"]
+          }
+        }
+      }]
+      tool_choice: 
+        type: function
+        function: 
+          name: listChangesWithLineNums
+
+tests:
+  - vars:
+      preBuildState: file://tests/shared/pre_build.go
+      changes: file://tests/removal/changes.md
+      problems: file://tests/removal/problems.txt
+      postBuildState: file://tests/removal/post_build.go
+    assert:
+      - type: is-json
+      - type: is-valid-openai-tools-call
+      - type: javascript
+        value: |
+          var args = JSON.parse(output[0].function.arguments)
+          return (
+            args.problems && 
+            args.changes.length > 0 &&
+            args.changes.some(
+              change => change.hasChange && 
+                        change.new.includes("var contextRmCmd = &cobra.Command{")
+            )
+          )

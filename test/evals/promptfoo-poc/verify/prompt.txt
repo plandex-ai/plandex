@@ -1,0 +1,74 @@
+Based on an original file (if one exists), an AI-generated plan, an updated file and a set of diffs (if one exists), determine whether the updated file's syntax is correct and whether the proposed updates were applied correctly to the updated file.
+
+You must consider whether any of the following problems are present in the updated file:
+- Syntax errors, including unbalanced brackets, parentheses, braces, quotes, indentation, and other code structure errors
+- Missing or incorrectly scoped declarations
+- Any other errors that make the code invalid and would prevent it from being run as-is for the programming language being used
+- Code from the original file was incorrectly removed or overwritten.
+- Code was incorrectly duplicated. For example, if a file should have a single main function, but instead of updating the existing main function, the updated file includes multiple main functions, then the file is incorrect. The same applies to any other functions or elements that should not be duplicated.
+- Incorrectly included comments that reference the original code.. If the updated file includes comments like "// rest of the function..." or "# existing init code...", or "// rest of the main function..." or "// rest of your function..." or "// Existing methods...", "// Existing code..." **any other reference to the original code**, the file is incorrect. References like these must be handled by including the exact code from the original file that the comment is referencing.
+
+If there is no original file, it means that a new file was created from scratch based on the AI-generated plan. In this case, the syntax in the new file must be valid and consistent with the intention of the plan. You must ensure there are no syntax errors or other clear mistakes in the new file.
+
+Call the 'verifyOutput' function with a valid JSON object that include the following keys:
+
+'syntaxErrorsReasoning': A string that succinctly explains whether there are any syntax or scoping errors in the updated file. Explain all syntax errors, scoping errors, or other code structure errors that are present in the updated file. 
+
+'hasSyntaxErrors': A boolean that indicates whether there are any syntax errors in the updated file, based on the reasoning provided in 'syntaxErrorsReasoning'.
+
+'removed': an array of objects with three properties: 'code', 'reasoning', and 'correct'. 
+   - 'code' is a string. It shows the section of code that was removed or overwritten in the updated file. This can be abbreviated by detailing how the section starts and end and describing the purpose of the code. If the section is longer than a few lines, rather than reproducding a long section of code verbatim, provide a summary of the code that was removed or overwritten, as well as the exact code which starts and ends the section. The summary and start/end code should be details enough to disambiguate the section of code that was removed or overwritten from any other similar sections of code in the file.
+   - 'reasoning' is a string that explains whether, based on the proposed changes, this section was deliberately removed consistent with the intention of the plan, or whether the plan did NOT specify that this section should be removed, and the code was therefore removed incorrectly. Also consider whether this removal breaks the syntax or functionality of the code in the updated file based on the programming language being used--if it does, explain this and state that the removal was incorrect. If the removal either wasn't intended by the proposed updates *or* breaks the syntax or functionality of the code, the removal is incorrect. If the removal was consistent with the intention of the plan *and* did not break the syntax or functionality of the code, the removal is correct.
+   - 'correct' is a boolean that indicates whether the removal or overwriting was correct based on the 'reasoning' provided. If the removal was correct, set 'correct' to true. If the removal was incorrect, set 'correct' to false.
+
+Based on supplied diffs, you must list EVERY code section that was removed or overwritten in the updated file in 'removed'. If there are no code sections that were removed or overwritten, 'removed' must be an empty array. If multiple code sections were removed or overwritten, list each one as a separate object in the 'removed' array. If multiple identical code sections were removed or overwritten, you MUST list them *all* in the 'removed' array--list each identical code section as a separate object in the array. Do NOT include removals that only modify whitespace. Do NOT include sections that were moved or refactored, only sections that were fully removed or overwritten.
+
+'removedCodeErrorsReasoning': A string that succinctly explains whether any code was incorrectly removed or overwritten in the updated file based on the 'removed' array. If code was incorrectly removed or overwritten, succinctly explain why it was incorrect, and how the file can be corrected. If code was correctly removed or overwritten, consistent with the intention of the plan, state this.
+
+'hasRemovedCodeErrors': A boolean that indicates whether any code was *incorrectly* removed or overwritten in the updated file, based on the reasoning provided in 'removedCodeErrorsReasoning'.
+
+'duplicationErrorsReasoning': A string that succinctly explains whether any code was *incorrectly* duplicated in the updated file. First explain whether any code, functions, or other elements are duplicated in the updated file, then explain whether the duplication is deliberate and consistent with the plan, and whether the duplication is correct and valid in the programming language being used.
+
+'hasDuplicationErrors': A boolean that indicates whether any code was *incorrectly* duplicated in the updated file, based on the reasoning provided in 'duplicationErrorsReasoning'. If code was *incorrectly* duplicated, set 'hasDuplicationErrors' to true. If code was *correctly* duplicated, consistent with the intention of the plan, set 'hasDuplicationErrors' to false.
+
+'comments':  an array of objects with two properties: 'txt' and 'reference'. 'txt' is the exact text of a code comment. 'reference' is a boolean that indicates whether the comment is a placeholder of or reference to the original code, like "// rest of the function..." or "# existing init code...", or "// rest of the main function" or "// rest of your function..." or "// Existing methods..." or "// Remaining methods" or "// Existing code..." or "// ... existing setup code ..."" or other comments which reference code from the original file. References DO NOT need to exactly match any of the previous examples. Use your judgement to determine whether each comment is a reference. If 'reference' is true, the comment is a placeholder or reference to the original code. If 'reference' is false, the comment is not a placeholder or reference to the original code.
+
+In 'comments', you must list EVERY comment included in the *updated file*. Only list *code comments* that are valid comments for the programming language being used. Do not list logging statements or any other non-comment text that is not a valid code comment. If there are no code comments in the *updated file*, 'comments' must be an empty array.
+
+If there are multiple identical comments in the *updated file*, you MUST list them *all* in the 'comments' array--list each identical comment as a separate object in the array.
+
+'referenceErrorsReasoning': A string that succinctly explains whether any comments in the updated file are placeholders/references that should have been replaced with code from the original file. These are comments like "// rest of the function..." or "# existing init code...", or "// rest of the main function..." or "// rest of your function..." or "// Existing methods...", "// Existing code..." or other  comments which reference code from the original file. Only include comments that *are not* present in the original file and *are* present in the proposed updates. If there are no such comments, explain that there are no reference errors.
+
+'hasReferenceErrors': A boolean that indicates whether any comments in the updated file are placeholders/references that should be replaced with code from the original file, based on the reasoning provided in 'referenceErrorsReasoning'.
+
+In each of the reasoning keys above, be exhaustive and include *every* problem that is present in the file. But if there are no problems in a reasoning key, do NOT invent problems--explain according to your instructions for each key that there are no problems in that category.
+
+--
+
+## **Original file:**
+
+{{preBuildState}}
+
+--
+
+## **Proposed updates:**
+
+{{changes}}
+
+--
+
+## **Updated file:**
+
+{{postBuildState}}
+
+--
+
+## **Diffs:**
+
+{{diffs}}
+
+--
+
+Now call the 'verifyOutput' function with a valid JSON object. Don't call any other function.
+
+You absolutely MUST generate PERFECTLY VALID JSON. Pay extremely close attention to the JSON syntax and structure. Double quotes within JSON properties *MUST* be properly escaped with a backslash.

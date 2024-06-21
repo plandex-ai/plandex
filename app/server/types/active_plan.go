@@ -13,6 +13,8 @@ import (
 	"github.com/plandex/plandex/shared"
 )
 
+const MaxStreamRate = 50 * time.Millisecond
+
 // const MaxConcurrentBuildStreams = 3 // otherwise we get EOF errors from openai
 
 type ActiveBuild struct {
@@ -77,9 +79,14 @@ type ActivePlan struct {
 	AllowOverwritePaths     map[string]bool
 	SkippedPaths            map[string]bool
 	StoredReplyIds          []string
-	streamCh                chan string
-	subscriptions           map[string]*subscription
-	subscriptionMu          sync.Mutex
+
+	subscriptions  map[string]*subscription
+	subscriptionMu sync.Mutex
+
+	streamCh              chan string
+	streamMu              sync.Mutex
+	lastStreamMessageSent time.Time
+	streamMessageBuffer   []shared.StreamMessage
 }
 
 func NewActivePlan(orgId, userId, planId, branch, prompt string, buildOnly bool) *ActivePlan {
@@ -145,7 +152,53 @@ func NewActivePlan(orgId, userId, planId, branch, prompt string, buildOnly bool)
 	return &active
 }
 
+func (ap *ActivePlan) FlushStreamBuffer() {
+	// log.Println("ActivePlan: flush stream buffer")
+
+	ap.streamMu.Lock()
+	if len(ap.streamMessageBuffer) == 0 {
+		// log.Println("ActivePlan: stream buffer empty")
+		ap.streamMu.Unlock()
+		return
+	}
+
+	// log.Printf("ActivePlan: flushing %d messages from stream buffer\n", len(ap.streamMessageBuffer))
+
+	// construct a multi message from the buffer
+	multiMsg := shared.StreamMessage{
+		Type:           shared.StreamMessageMulti,
+		StreamMessages: ap.streamMessageBuffer,
+	}
+	ap.streamMessageBuffer = []shared.StreamMessage{}
+
+	ap.streamMu.Unlock()
+
+	ap.Stream(multiMsg)
+}
+
 func (ap *ActivePlan) Stream(msg shared.StreamMessage) {
+	// log.Printf("ActivePlan: received Stream message: %v\n", msg)
+
+	ap.streamMu.Lock()
+	defer ap.streamMu.Unlock()
+
+	if msg.Type != shared.StreamMessageFinished {
+		if time.Since(ap.lastStreamMessageSent) < MaxStreamRate {
+			// log.Println("ActivePlan: stream rate limiting -- buffering message")
+			ap.streamMessageBuffer = append(ap.streamMessageBuffer, msg)
+			return
+		} else if len(ap.streamMessageBuffer) > 0 {
+			// log.Println("ActivePlan: stream buffer not empty -- flushing buffer before sending message")
+			ap.streamMessageBuffer = append(ap.streamMessageBuffer, msg)
+
+			// unlock before recursive call
+			ap.streamMu.Unlock()
+			ap.FlushStreamBuffer()
+			ap.streamMu.Lock() // re-lock after recursive call
+			return
+		}
+	}
+
 	msgJson, err := json.Marshal(msg)
 	if err != nil {
 		ap.StreamDoneCh <- &shared.ApiError{
@@ -158,10 +211,34 @@ func (ap *ActivePlan) Stream(msg shared.StreamMessage) {
 
 	// log.Printf("ActivePlan: sending stream message: %s\n", string(msgJson))
 
+	if msg.Type == shared.StreamMessageFinished {
+		// send full buffer if we got a finished message
+		if len(ap.streamMessageBuffer) > 0 {
+			// log.Println("ActivePlan: finished message -- sending stream buffer first")
+
+			// unlock before recursive call
+			ap.streamMu.Unlock()
+			ap.FlushStreamBuffer()
+			ap.streamMu.Lock() // re-lock after recursive call
+
+			// sleep a little before the final message
+			time.Sleep(50 * time.Millisecond)
+		}
+	}
+
+	// log.Println("ActivePlan: sending stream message")
+
 	ap.streamCh <- string(msgJson)
 
+	// log.Println("ActivePlan: sent stream message")
+
+	now := time.Now()
+	if now.After(ap.lastStreamMessageSent) {
+		ap.lastStreamMessageSent = now
+	}
+
 	if msg.Type == shared.StreamMessageFinished {
-		// Wait briefly allow last stream message to be sent
+		// Wait briefly to allow last stream message to be sent
 		time.Sleep(100 * time.Millisecond)
 		ap.StreamDoneCh <- nil
 	}
