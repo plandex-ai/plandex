@@ -6,6 +6,10 @@
 - Improvements to stream handling that greatly reduce flickering in the terminal when streaming a plan, especially when many files are being built simultaneously. CPU usage is also reduced on both the client and server side.
 - Claude 3.5 Sonnet model and model pack (via OpenRouter.ai) is now built-in.
 
+## Version 1.1.1
+- Improvements to stream handling that greatly reduce flickering in the terminal when streaming a plan, especially when many files are being built simultaneously. CPU usage is also reduced on both the client and server side.
+- Claude 3.5 Sonnet model and model pack (via OpenRouter.ai) is now built-in.
+
 ## Version 1.1.0
 - Give notes added to context with `plandex load -n 'some note'` automatically generated names in `context ls` list.
 - Fixes for summarization and auto-continue issues that could Plandex to lose track of where it is in the plan and repeat tasks or do tasks out of order, especially when using `tell` and `continue` after the initial `tell`.
