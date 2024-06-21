@@ -1,0 +1,14 @@
+id: {{ .provider_id }}
+config:
+  tools:
+    [
+      {
+        "type": "{{ .tool_type }}",
+        "function":
+          { "name": "{{ .function_name }}", "parameters": {{ .parameters }} },
+      },
+    ]
+  tool_choice:
+    type: "{{ .tool_choice_type }}"
+    function:
+      name: "{{ .tool_choice_function_name }}"

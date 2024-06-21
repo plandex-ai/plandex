@@ -1,0 +1,20 @@
+- description: "Check Fix with Line numbers"
+  vars:
+    preBuildState: file://assets/shared/pre_build.go
+    changes: file://assets/removal/changes.md
+    problems: file://assets/removal/problems.txt
+    postBuildState: file://assets/removal/post_build.go
+  assert:
+    - type: is-json
+    - type: is-valid-openai-tools-call
+    - type: javascript
+      value: |
+        var args = JSON.parse(output[0].function.arguments)
+        return (
+          args.problems && 
+          args.changes.length > 0 &&
+          args.changes.some(
+            change => change.hasChange && 
+                      change.new.includes("var contextRmCmd = &cobra.Command{")
+          )
+        )

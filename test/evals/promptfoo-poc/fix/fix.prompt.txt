@@ -84,12 +84,12 @@ You MUST ensure the line numbers for the 'old' property correctly remove *ALL* c
   Example change object:
   ---
   {
-    summary: "Fix syntax error in loop body.",
-    old: {
-      startLineString: "pdx-5: for i := 0; i < 10; i++ { ",
-      endLineString: "pdx-7: }",
+    "summary": "Fix syntax error in loop body.",
+   	"old": {
+      "startLineString": "pdx-5: for i := 0; i < 10; i++ { ",
+      "endLineString": "pdx-7: }"
     },
-    new: "for i := 0; i < 10; i++ {\n  execQuery()\n  }\n  }\n}",
+    "new": "for i := 0; i < 10; i++ {\n  execQuery()\n  }\n  }\n}"
   }
   ---
 
@@ -138,5 +138,3 @@ The 'listChangesWithLineNums' function MUST be called *valid JSON*. Double quote
 --
 
 Now call the 'listChangesWithLineNums' function with a valid JSON array of changes according to your instructions. You must always call 'listChangesWithLineNums' with one or more valid changes. Don't call any other function.
-
-
