@@ -1,3 +1,5 @@
+# TODO: Add support for more dynamic creation, support for multiple tools, different API providers parameters, etc.
+
 id: {{ .provider_id }}
 config:
   temperature: {{ .temperature }}
