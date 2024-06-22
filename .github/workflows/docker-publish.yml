@@ -7,7 +7,7 @@ on:
 jobs:
   build_and_push:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Check out the repo
         uses: actions/checkout@v2
@@ -30,17 +30,18 @@ jobs:
         id: check_tag
         run: |
           if [[ ! "${GITHUB_REF_NAME}" =~ ^server ]]; then
-            echo "The tag does not start with 'server'."
-            echo "skip" >> $GITHUB_ENV
+            echo "::set-output name=skip::true"
+          else
+            echo "::set-output name=skip::false"
           fi
         shell: bash
 
       - name: Skip build if tag does not start with 'server'
-        if: env.skip == 'skip'
+        if: steps.check_tag.outputs.skip == 'true'
         run: echo "Skipping build because the tag does not start with 'server'."
 
       - name: Build and push
-        if: env.skip != 'skip'
+        if: steps.check_tag.outputs.skip == 'false'
         uses: docker/build-push-action@v2
         with:
           context: ./app/
