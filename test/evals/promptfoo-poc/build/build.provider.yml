@@ -1,5 +1,9 @@
 id: openai:gpt-4o
 config:
+  temperature: 0.1
+  max_tokens: 4096
+  response_format: { type: json_object }
+  top_p: 0.1
   tools:
     [
       {
@@ -68,9 +72,9 @@ config:
                           },
                         "type": "array",
                       },
-                    "problems": { "type": "string" },
+                    "filePath": { "type": "string" },
                   },
-                "required": ["comments", "problems", "changes"],
+                "required": ["comments", "filePath", "changes"],
                 "type": "object",
               },
           },

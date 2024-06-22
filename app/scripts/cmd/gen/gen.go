@@ -71,6 +71,10 @@ tests: tests/*.tests.yml
 
 	// Template for config.properties
 	propertiesTemplate := `provider_id=openai:gpt-4o
+temperature=
+max_tokens=
+top_p=
+response_format=
 function_name=
 tool_type=function
 function_param_type=object

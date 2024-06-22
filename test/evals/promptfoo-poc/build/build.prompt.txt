@@ -83,16 +83,18 @@ If the 'hasChange' property is false, the 'new' property must be an empty string
 If *any* change has the 'entireFile' key in the 'old' property set to true, the corresponding 'new' key MUST be the entire updated file, and there MUST only be a single change in the 'changes' array.
 
 Example change object:
-  ---
+
+```json
   {
-    "summary": "Fix syntax error in loop body.",
-   	"old": {
-      "startLineString": "pdx-5: for i := 0; i < 10; i++ { ",
-      "endLineString": "pdx-7: }"
+    summary: "Fix syntax error in loop body.",
+   	old: {
+      startLineString: "pdx-5: for i := 0; i < 10; i++ { ",
+      endLineString: "pdx-7: }"
     },
-    "new": "for i := 0; i < 10; i++ {\n  execQuery()\n  }\n  }\n}"
+    new: "for i := 0; i < 10; i++ {\n  execQuery()\n  }\n  }\n}"
   }
-  ---
+```
+
 
 Apply changes intelligently **in order** to avoid syntax errors, breaking code, or removing code from the original file that should not be removed. Consider the reason behind the update and make sure the result is consistent with the intention of the plan.
 

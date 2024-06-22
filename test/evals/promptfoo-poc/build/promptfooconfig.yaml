@@ -4,4 +4,4 @@ prompts:
   - file://build.prompt.txt
 providers:
   - file://build.provider.yml
-tests: tests/*.tests.yml
+tests: tests/*.test.yml
