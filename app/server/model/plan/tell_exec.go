@@ -278,7 +278,7 @@ func execTellPlan(
 			// if the user is continuing the plan, we need to check whether the previous message was a user message or assistant message
 			lastMessage := state.messages[len(state.messages)-1]
 
-			log.Println("User is continuing plan. Last message:\n\n", lastMessage.Content)
+			log.Println("User is continuing plan.") // Last message:\n\n", lastMessage.Content)
 
 			if lastMessage.Role == openai.ChatMessageRoleUser {
 				// if last message was a user message, we want to remove it from the messages array and then use that last message as the prompt so we can continue from where the user left off

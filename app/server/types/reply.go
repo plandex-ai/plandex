@@ -5,7 +5,8 @@ import (
 	"strings"
 )
 
-type parserRes struct {
+type ReplyParserRes struct {
+	MaybeFilePath      string
 	CurrentFilePath    string
 	Files              []string
 	FileContents       []string
@@ -192,8 +193,9 @@ func (r *ReplyParser) AddChunk(chunk string, addToTotal bool) {
 	}
 }
 
-func (r *ReplyParser) Read() parserRes {
-	return parserRes{
+func (r *ReplyParser) Read() ReplyParserRes {
+	return ReplyParserRes{
+		MaybeFilePath:    r.maybeFilePath,
 		CurrentFilePath:  r.currentFilePath,
 		Files:            r.files,
 		FileContents:     r.fileContents,
@@ -203,7 +205,7 @@ func (r *ReplyParser) Read() parserRes {
 	}
 }
 
-func (r *ReplyParser) FinishAndRead() parserRes {
+func (r *ReplyParser) FinishAndRead() ReplyParserRes {
 	r.AddChunk("\n", false)
 	return r.Read()
 }

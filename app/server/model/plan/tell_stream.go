@@ -8,6 +8,7 @@ import (
 	"plandex-server/db"
 	"plandex-server/model"
 	"plandex-server/types"
+	"strconv"
 	"strings"
 	"time"
 
@@ -46,10 +47,13 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 		return
 	}
 
-	replyFiles := []string{}
-	chunksReceived := 0
-	maybeRedundantBacktickContent := ""
+	var lastParserRes *types.ReplyParserRes
+	var maybeRedundantMissingFileContent string
+	var chunksReceived int
 
+	replyFiles := []string{}
+
+	var tempBuffer string
 	// Create a timer that will trigger if no chunk is received within the specified duration
 	timer := time.NewTimer(model.OPENAI_STREAM_CHUNK_TIMEOUT)
 	defer timer.Stop()
@@ -333,45 +337,138 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 				return
 			}
 
-			chunksReceived++
 			delta := choice.Delta
 			content := delta.Content
 
+			chunksReceived++
+
+			log.Println("tell stream CHUNK: ", strconv.Quote(content))
+
 			if missingFileResponse != "" {
-				if maybeRedundantBacktickContent != "" {
+				if maybeRedundantMissingFileContent != "" {
 					if strings.Contains(content, "\n") {
-						maybeRedundantBacktickContent = ""
+						maybeRedundantMissingFileContent = ""
 					} else {
-						maybeRedundantBacktickContent += content
+						maybeRedundantMissingFileContent += content
 					}
 					continue
-				} else if chunksReceived < 3 && strings.Contains(content, "```") {
-					// received closing triple backticks in first 3 chunks after missing file response
+				} else if chunksReceived < 3 && strings.Contains(maybeRedundantMissingFileContent+content, "```") {
+					// received triple backticks in first 6 chunks after missing file response
 					// means this is a redundant start of a new file block, so just ignore it
 
-					maybeRedundantBacktickContent += content
+					maybeRedundantMissingFileContent += content
 					continue
 				}
 			}
 
+			tempBuffer += content
+			filteredBuffer := tempBuffer
+
+			log.Println("tell stream BUFFER: ", strconv.Quote(filteredBuffer))
+
+			if lastParserRes != nil && lastParserRes.MaybeFilePath != "" {
+				if strings.HasSuffix(filteredBuffer, "\n") {
+					// keep buffering so we don't end on a newline
+					continue
+				}
+
+				if strings.Contains(filteredBuffer, "-->") {
+					// this is an arrow denoting a code block, so we need to remove it
+					filteredBuffer = strings.Replace(filteredBuffer, "-->", "", -1)
+					// remove 1 newline
+					filteredBuffer = strings.Replace(filteredBuffer, "\n", "", 1)
+				} else if strings.HasSuffix(filteredBuffer, "-") {
+					// keep buffering since this might be a partial arrow
+					continue
+				}
+			}
+
+			if lastParserRes != nil {
+				log.Println("tell stream currentFilePath: ", lastParserRes.CurrentFilePath)
+			}
+
+			if lastParserRes != nil && lastParserRes.CurrentFilePath != "" {
+				if strings.Contains(filteredBuffer, "```") {
+					if strings.HasSuffix(filteredBuffer, "```") {
+						// if the buffer ends with triple backticks, keep buffering
+						log.Println("tell Stream - buffer ends with triple backticks, keep buffering")
+						continue
+					} else {
+						if strings.Contains(filteredBuffer, "<--") {
+							if strings.HasSuffix(filteredBuffer, "<--") {
+								// if the buffer ends with an arrow, wait for the newline
+								log.Println("tell Stream - buffer ends with arrow, keep buffering")
+								continue
+							}
+
+							log.Println("tell Stream - buffer contains arrow, filtering buffer")
+							// those were the closing backticks
+
+							// remove the closing arrow
+							filteredBuffer = strings.Replace(filteredBuffer, "<--", "", -1)
+
+							// remove 1 newline from the end of the buffer
+							filteredBuffer = shared.ReplaceReverse(filteredBuffer, "\n", "", 1)
+
+							// count the number of triple backticks in the buffer
+							backtickCount := strings.Count(filteredBuffer, "```")
+
+							// if more than one, we need to escape all except the last one
+							if backtickCount > 1 {
+								filteredBuffer = strings.Replace(filteredBuffer, "```", "\\`\\`\\`", backtickCount-1)
+							}
+
+						} else if strings.HasSuffix(filteredBuffer, "<") || strings.HasSuffix(filteredBuffer, "<-") {
+							// keep buffering since this might be a partial closing arrow
+							log.Println("tell Stream - buffer ends with partial closing arrow, keep buffering")
+							continue
+						} else if strings.HasSuffix(filteredBuffer, "\n") {
+							// keep buffering so we don't end on a newline
+							log.Println("tell Stream - buffer ends with newline, keep buffering")
+							continue
+						} else if strings.HasSuffix(filteredBuffer, "`") {
+							// keep buffering since this might be a partial triple backtick and we don't want to break them up
+							log.Println("tell Stream - buffer ends with partial triple backtick, keep buffering")
+							continue
+						} else {
+							log.Println("tell Stream - buffer does not contain arrow, escaping backticks")
+							// no closing arrow
+							// so we need to escape any and all backticks
+							filteredBuffer = strings.Replace(filteredBuffer, "```", "\\`\\`\\`", -1)
+						}
+					}
+				} else if strings.HasSuffix(filteredBuffer, "`") {
+					// keep buffering since this might be a partial triple backtick
+					log.Println("tell Stream - buffer ends with partial triple backtick, keep buffering")
+					continue
+				}
+			}
+
+			log.Println("tell Stream - filteredBuffer: ", strconv.Quote(filteredBuffer))
+			log.Println()
+
 			UpdateActivePlan(planId, branch, func(ap *types.ActivePlan) {
-				ap.CurrentReplyContent += content
+				ap.CurrentReplyContent += filteredBuffer
 				ap.NumTokens++
 			})
 
-			// log.Printf("Sending stream msg: %s", content)
-			active.Stream(shared.StreamMessage{
-				Type:       shared.StreamMessageReply,
-				ReplyChunk: content,
-			})
-
-			replyParser.AddChunk(content, true)
+			replyParser.AddChunk(filteredBuffer, true)
 			parserRes := replyParser.Read()
+			lastParserRes = &parserRes
 			files := parserRes.Files
 			fileContents := parserRes.FileContents
 			state.replyNumTokens = parserRes.TotalTokens
 			currentFile := parserRes.CurrentFilePath
 			fileDescriptions := parserRes.FileDescriptions
+
+			// log.Printf("Sending stream msg: %s", filteredBuffer)
+			active.Stream(shared.StreamMessage{
+				Type:       shared.StreamMessageReply,
+				ReplyChunk: filteredBuffer,
+			})
+
+			// clear temp buffer
+			tempBuffer = ""
 
 			// log.Printf("currentFile: %s\n", currentFile)
 			// log.Println("files:")

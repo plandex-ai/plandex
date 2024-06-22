@@ -155,6 +155,9 @@ func (planState *CurrentPlanState) GetFilesBeforeReplacement(
 
 				if context == nil {
 					log.Printf("No context for path: %s\n", path)
+
+					spew.Dump(planRes)
+
 					return nil, fmt.Errorf("no context for path: %s", path)
 				}
 

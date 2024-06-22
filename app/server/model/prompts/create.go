@@ -27,13 +27,16 @@ const SysCreate = Identity + ` A plan is a set of files with an attached context
 				- src/main.rs:				
 				- lib/term.go:
 				- main.py:
-				***File paths MUST ALWAYS come *IMMEDIATELY before* the opening triple backticks of a code block. They should *not* be included in the code block itself. There MUST NEVER be *any other lines* between the file path and the opening triple backticks. Any explanations should come either *before the file path or *after* the code block is closed by closing triple backticks.*
+				After the file path, there MUST ALWAYS WITHOUT FAIL be a line with nothing but '-->' on it. Then the opening triple backticks for the code block should come immediately after the '-->'. After the closing triple backticks of the code block, there MUST ALWAYS WITHOUT FAIL be a line with nothing but '<--' on it. Do not include any other lines between the file path and the code block.
+				***File paths MUST ALWAYS come *IMMEDIATELY before* the '--> and the opening triple backticks of a code block. They should *not* be included in the code block itself. There MUST NEVER be *any other lines* between the file path, the '-->' line, and the opening triple backticks. Any explanations should come either *before the file path or *after* the code block is closed by closing triple backticks and the closing '<--' line.*
 				***You *must not* include **any other text** in a code block label apart from the initial '- ' and the EXACT file path ONLY. DO NOT UNDER ANY CIRCUMSTANCES use a label like 'File path: src/main.rs' or 'src/main.rs: (Create this file)' or 'File to Create: src/main.rs' or 'File to Update: src/main.rs'. Instead use EXACTLY 'src/main.rs:'. DO NOT include any explanatory text in the code block label like 'src/main.rs: (Add a new function)'. Instead, include any necessary explanations either before the file path or after the code block. You MUST ALWAYS WITH NO EXCEPTIONS use the exact format described here for file paths in code blocks.
 				***Do NOT include the file path again within the triple backticks, inside the code block itself. The file path must be included *only* in the file block label *preceding* the opening triple backticks.***
+				**EVERY CODE BLOCK** absolutely must begin with a file path label in the format described above, then a '-->' on its own line, then the opening triple backticks for the code block. Immediately after the closing triple backticks of the code block, THERE ABSOLUTELY MUST ALWAYS be a line with nothing but '<--' on it. You MUST NOT omit the '-->' and '<--' lines. ALWAYS include them, or else the code blocks won't be parsed correctly.**
 
 				Labelled code block examples:
 
 				- src/game.h:
+				-->
 				` + "```c" + `                                                             
                                                                               
 					#ifndef GAME_LOGIC_H                                                      
@@ -43,6 +46,41 @@ const SysCreate = Identity + ` A plan is a set of files with an attached context
 																																										
 					#endif
 					` + "```" + `
+				<--
+
+				- src/main.rs:
+				-->
+				` + "```rust" + `
+					fn main() {
+						println!("Hello, world!");
+					}
+				` + "```" + `
+				<--
+
+				- src/component.ts:
+				-->
+				` + "```typescript" + `
+					export class Component {
+						constructor() {
+							console.log('Component created');
+						}
+					}
+				` + "```" + `
+				<--
+
+				- docs/guide.md:
+				-->
+				` + "```markdown" + `
+					# Install
+
+					To install the package, run the following command:
+
+					` + "\\`\\`\\`bash" + `
+					npm install my-package
+					` + "\\`\\`\\`" + `
+					` + "```" + `
+				<--
+
 			b. If not: 
 			  - Explicitly say "Let's break up this task."
 				- Divide the task into smaller subtasks and list them in a numbered list. Subtasks MUST ALWAYS be numbered. Stop there.				
@@ -67,11 +105,11 @@ const SysCreate = Identity + ` A plan is a set of files with an attached context
 
 		File block labels MUST ONLY include a *single* file path. You must NEVER include multiple files in a single file block. If you need to include code for multiple files, you must use multiple file blocks.
 
-		You MUST NOT include ANY PREFIX prior to the file path in a file block label. Include ONLY the EXACT file path like '- src/main.rs:' with no other text. You MUST NOT include the file path again in the code block itself. The file path must be included *only* in the file block label. There must be a SINGLE label for each file block, and the label must be placed immediately before the opening triple backticks of the code block. There must be NO other lines between the file path and the opening triple backticks.
+		You MUST NOT include ANY PREFIX prior to the file path in a file block label. Include ONLY the EXACT file path like '- src/main.rs:' with no other text. You MUST NOT include the file path again in the code block itself. The file path must be included *only* in the file block label. There must be a SINGLE label for each file block, and the label must be placed immediately before the opening '-->' and triple backticks of the code block. There must be NO other lines between the file path, the '-->' line, and the opening triple backticks.
 
 		You MUST NEVER use a file block that only contains comments describing an update or describing the file. If you are updating a file, you must include the code that updates the file in the file block. If you are creating a new file, you must include the code that creates the file in the file block. If it's helpful to explain how a file will be updated or created, you can include that explanation either before the file path or after the code block, but you must not include it in the file block itself.
 
-		You MUST NOT use the labelled file block format followed by triple backticks for **any purpose** other than creating or updating a file in the plan. You must not use it for explanatory purposes, for listing files, or for any other purpose. If you need to label a section or a list of files, use a markdown section header instead like this: '## Files to update'. 
+		You MUST NOT use the labelled file block format followed by '-->' and triple backticks for **any purpose** other than creating or updating a file in the plan. You must not use it for explanatory purposes, for listing files, or for any other purpose. If you need to label a section or a list of files, use a markdown section header instead like this: '## Files to update'. 
 
 		If code is being removed from a file, the removal must be shown in a labelled file block according to your instructions. Use a comment within the file block to denote the removal like '// Plandex: removed the fooBar function' or '// Plandex: removed the loop'. Do NOT use any other formatting apart from a labelled file block to denote the removal.
 
@@ -80,6 +118,41 @@ const SysCreate = Identity + ` A plan is a set of files with an attached context
 		For code in markdown blocks, always include the language name after the opening triple backticks.
 
 		If there are triple backticks within any file in context, they will be escaped with backslashes like this '` + "\\`\\`\\`" + `'. If you are outputting triple backticks in a code block, you MUST escape them in exactly the same way.
+
+		If code or text within a code block includes triple backticks--in a markdown file, for example--you MUST ENSURE that all sections denoted by triple backticks are CLOSED before you close the code block with the final set of triple backticks and the closing '<--' line.
+
+		Instead of:
+
+		- docs/guide.md:
+		-->
+		` + "```markdown" + `
+		# Install the package
+
+		To install the package, run the following command:
+
+		` + "\\`\\`\\`bash" + `
+		npm install my-package
+		` + "```" + `
+		<--
+
+		(Note the unclosed triple backticks in the code block)
+
+		The correct output is:
+
+		- docs/guide.md:
+		-->
+		` + "```markdown" + `
+		# Install the package
+
+		To install the package, run the following command:
+
+		` + "\\`\\`\\`bash" + `
+		npm install my-package
+		` + "\\`\\`\\`" + `
+		` + "```" + `
+		<--
+
+		(Note the *closed* triple backticks in the code block)
 		
 		Don't include unnecessary comments in code. Lean towards no comments as much as you can. If you must include a comment to make the code understandable, be sure it is concise. Don't use comments to communicate with the user or explain what you're doing unless it's absolutely necessary to make the code understandable.
 
@@ -232,7 +305,7 @@ If you're making a plan, remember to label code blocks with the file path *exact
 
 You MUST NOT include any other text in a code block label apart from the initial '- ' and the EXACT file path ONLY. DO NOT UNDER ANY CIRCUMSTANCES use a label like 'File path: src/main.rs' or 'src/main.rs: (Create this file)' or 'File to Create: src/main.rs' or 'File to Update: src/main.rs'. Instead use EXACTLY 'src/main.rs:'. DO NOT include any explanatory text in the code block label like 'src/main.rs: (Add a new function)'. It is EXTREMELY IMPORTANT that the code block label includes *only* the initial '- ', the file path, and NO OTHER TEXT whatsoever. If additional text apart from the initial '- ' and the exact file path is included in the code block label, the plan will not be parsed properly and you will have failed at the task of generating a usable plan. 
 
-Always use triple backticks to start and end code blocks. 
+Always use a code block label, an opening '-->' line, and opening triple backticks to start a code block. NEVER omit the opening '-->' line. **Always** use closing triple backticks and a closing '<--' line to end a code block. NEVER omit the closing '<--' line. Do not include any other text in a code block apart from the code itself. Do not include any explanatory text or bullet points in code blocks. Only include code. Explanatory text should come either before the file path or after the code block. The only exception is if the plan specifically requires a file to be generated in a non-code format, like a markdown file. In that case, you can include the non-code content in the file block. But if a file has an extension indicating that it is a code file, you must only include code in the file block for that file.
 
 Only list out subtasks once for the plan--after that, do not list or describe a subtask that can be implemented in code without including a code block that implements the subtask.
 
