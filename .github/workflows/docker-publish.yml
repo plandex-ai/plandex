@@ -12,6 +12,9 @@ jobs:
       - name: Check out the repo
         uses: actions/checkout@v2
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v1
         with:
@@ -19,14 +22,21 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
-
       - name: Sanitize ref name
         id: sanitize
         run: echo "SANITIZED_REF_NAME=${GITHUB_REF_NAME//\//-}" >> $GITHUB_ENV
 
+      - name: Check if the release tag starts with 'server'
+        id: check_tag
+        run: |
+          if [[ ! "${GITHUB_REF_NAME}" =~ ^server ]]; then
+            echo "The tag does not start with 'server'."
+            exit 1
+          fi
+        shell: bash
+
       - name: Build and push
+        if: steps.check_tag.outcome == 'success'
         uses: docker/build-push-action@v2
         with:
           context: ./app/
