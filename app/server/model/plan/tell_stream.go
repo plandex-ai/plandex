@@ -372,13 +372,13 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 					continue
 				}
 
-				if strings.Contains(filteredBuffer, "-->") {
-					// this is an arrow denoting a code block, so we need to remove it
-					filteredBuffer = strings.Replace(filteredBuffer, "-->", "", -1)
+				if strings.Contains(filteredBuffer, "<block>") {
+					// this is an block tag denoting a code block, so we need to remove it
+					filteredBuffer = strings.Replace(filteredBuffer, "<block>", "", -1)
 					// remove 1 newline
 					filteredBuffer = strings.Replace(filteredBuffer, "\n", "", 1)
-				} else if strings.HasSuffix(filteredBuffer, "-") {
-					// keep buffering since this might be a partial arrow
+				} else if isSuffixPrefix(filteredBuffer, "<block>") {
+					// keep buffering since this might be a partial block tag
 					continue
 				}
 			}
@@ -394,18 +394,18 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 						log.Println("tell Stream - buffer ends with triple backticks, keep buffering")
 						continue
 					} else {
-						if strings.Contains(filteredBuffer, "<--") {
-							if strings.HasSuffix(filteredBuffer, "<--") {
-								// if the buffer ends with an arrow, wait for the newline
-								log.Println("tell Stream - buffer ends with arrow, keep buffering")
+						if strings.Contains(filteredBuffer, "</block>") {
+							if strings.HasSuffix(filteredBuffer, "</block>") {
+								// if the buffer ends with an block tag, wait for the newline
+								log.Println("tell Stream - buffer ends with block tag, keep buffering")
 								continue
 							}
 
-							log.Println("tell Stream - buffer contains arrow, filtering buffer")
+							log.Println("tell Stream - buffer contains block tag, filtering buffer")
 							// those were the closing backticks
 
-							// remove the closing arrow
-							filteredBuffer = strings.Replace(filteredBuffer, "<--", "", -1)
+							// remove the closing block tag
+							filteredBuffer = strings.Replace(filteredBuffer, "</block>", "", -1)
 
 							// remove 1 newline from the end of the buffer
 							filteredBuffer = shared.ReplaceReverse(filteredBuffer, "\n", "", 1)
@@ -418,9 +418,9 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 								filteredBuffer = strings.Replace(filteredBuffer, "```", "\\`\\`\\`", backtickCount-1)
 							}
 
-						} else if strings.HasSuffix(filteredBuffer, "<") || strings.HasSuffix(filteredBuffer, "<-") {
-							// keep buffering since this might be a partial closing arrow
-							log.Println("tell Stream - buffer ends with partial closing arrow, keep buffering")
+						} else if isSuffixPrefix(filteredBuffer, "</code>") {
+							// keep buffering since this might be a partial closing block tag
+							log.Println("tell Stream - buffer ends with partial closing block tag, keep buffering")
 							continue
 						} else if strings.HasSuffix(filteredBuffer, "\n") {
 							// keep buffering so we don't end on a newline
@@ -431,8 +431,8 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 							log.Println("tell Stream - buffer ends with partial triple backtick, keep buffering")
 							continue
 						} else {
-							log.Println("tell Stream - buffer does not contain arrow, escaping backticks")
-							// no closing arrow
+							log.Println("tell Stream - buffer does not contain block tag, escaping backticks")
+							// no closing block tag
 							// so we need to escape any and all backticks
 							filteredBuffer = strings.Replace(filteredBuffer, "```", "\\`\\`\\`", -1)
 						}
@@ -756,4 +756,16 @@ func (state *activeTellStreamState) onError(streamErr error, storeDesc bool, con
 		Status: http.StatusInternalServerError,
 		Msg:    "Stream error: " + streamErr.Error(),
 	}
+}
+
+func isSuffixPrefix(a, b string) bool {
+	// Iterate through the lengths of possible prefixes of b
+	for i := 1; i <= len(b); i++ {
+		prefix := b[:i]
+		// Check if the end of a matches this prefix of b
+		if len(prefix) <= len(a) && a[len(a)-len(prefix):] == prefix {
+			return true
+		}
+	}
+	return false
 }
