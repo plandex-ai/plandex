@@ -15,6 +15,15 @@ Keep the following in mind:
 - Don't include just a single giant Core Concepts section. Break it up into smaller, more digestible sections that are easier to navigate and understand. Some areas are more advanced or niche than others, so they should be separated out into their own sections. For example, model settings offers a lot of customizability, but most users won't need to change these settings. Before making your plan, also consider all the different features and aspects of the tool and how they can be logically broken down.
 
 
+-
+
+Be sure the docs are THOROUGH and don't leave anything out. At the beginning of your response, after you've made a list of what should be included in the docs site, evaluate whether that list is thorough or whether more sections should be added.
+
+For example, in the CLI reference do not just list every command. You should do that as well, but you also need a section on every command that explains it in more detial, including flags and parameters, and how to use it, examples, etc.
+
+-
+
+Be sure to properly use docusaurus _category.json files to structure the sidebar. Also be sure the sidebar is properly ordered and nested. Als explain how you will properly generate the sidebar structure during the planning phase of your response.
 
 
 
