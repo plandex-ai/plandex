@@ -1,12 +1,5 @@
 {
   "label": "Core Concepts",
   "position": 4,
-  "collapsible": false,
-  "items": [
-    "core-concepts/plans",
-    "core-concepts/context-management",
-    "core-concepts/branches",
-    "core-concepts/rewind-and-history",
-    "core-concepts/background-tasks"
-  ]
+  "collapsible": false
 }

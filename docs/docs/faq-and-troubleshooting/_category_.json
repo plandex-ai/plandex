@@ -1,9 +1,5 @@
 {
   "label": "FAQ and Troubleshooting",
   "position": 7,
-  "collapsible": false,
-  "items": [
-    "faq-and-troubleshooting/common-issues",
-    "faq-and-troubleshooting/tips-and-tricks"
-  ]
+  "collapsible": false
 }

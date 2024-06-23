@@ -1,11 +1,5 @@
 {
   "label": "Installation",
   "position": 2,
-  "collapsible": false,
-  "items": [
-    "installation/quick-install",
-    "installation/manual-install",
-    "installation/build-from-source",
-    "installation/windows-install"
-  ]
+  "collapsible": false
 }

@@ -1,11 +1,5 @@
 {
   "label": "Advanced Topics",
   "position": 5,
-  "collapsible": false,
-  "items": [
-    "advanced-topics/model-settings",
-    "advanced-topics/custom-models",
-    "advanced-topics/self-hosting",
-    "advanced-topics/security-and-privacy"
-  ]
+  "collapsible": false
 }

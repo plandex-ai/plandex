@@ -1,10 +1,5 @@
 {
   "label": "CLI Reference",
   "position": 6,
-  "collapsible": false,
-  "items": [
-    "cli-reference/command-list",
-    "cli-reference/detailed-command-usage",
-    "cli-reference/aliases-and-shortcuts"
-  ]
+  "collapsible": false
 }
