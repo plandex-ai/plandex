@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/env bash
 
 # Detect zsh and trigger it if its the shell
 if [ -n "$ZSH_VERSION" ]; then
