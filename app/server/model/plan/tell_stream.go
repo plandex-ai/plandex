@@ -8,7 +8,6 @@ import (
 	"plandex-server/db"
 	"plandex-server/model"
 	"plandex-server/types"
-	"strconv"
 	"strings"
 	"time"
 
@@ -342,7 +341,7 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 
 			chunksReceived++
 
-			log.Println("tell stream CHUNK: ", strconv.Quote(content))
+			// log.Println("tell stream CHUNK: ", strconv.Quote(content))
 
 			if missingFileResponse != "" {
 				if maybeRedundantMissingFileContent != "" {
@@ -364,7 +363,7 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 			tempBuffer += content
 			filteredBuffer := tempBuffer
 
-			log.Println("tell stream BUFFER: ", strconv.Quote(filteredBuffer))
+			// log.Println("tell stream BUFFER: ", strconv.Quote(filteredBuffer))
 
 			if lastParserRes != nil && lastParserRes.MaybeFilePath != "" {
 				if strings.HasSuffix(filteredBuffer, "\n") {
@@ -384,24 +383,24 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 			}
 
 			if lastParserRes != nil {
-				log.Println("tell stream currentFilePath: ", lastParserRes.CurrentFilePath)
+				// log.Println("tell stream currentFilePath: ", lastParserRes.CurrentFilePath)
 			}
 
 			if lastParserRes != nil && lastParserRes.CurrentFilePath != "" {
 				if strings.Contains(filteredBuffer, "```") {
 					if strings.HasSuffix(filteredBuffer, "```") {
 						// if the buffer ends with triple backticks, keep buffering
-						log.Println("tell Stream - buffer ends with triple backticks, keep buffering")
+						// log.Println("tell Stream - buffer ends with triple backticks, keep buffering")
 						continue
 					} else {
 						if strings.Contains(filteredBuffer, "</block>") {
 							if strings.HasSuffix(filteredBuffer, "</block>") {
 								// if the buffer ends with an block tag, wait for the newline
-								log.Println("tell Stream - buffer ends with block tag, keep buffering")
+								// log.Println("tell Stream - buffer ends with block tag, keep buffering")
 								continue
 							}
 
-							log.Println("tell Stream - buffer contains block tag, filtering buffer")
+							// log.Println("tell Stream - buffer contains block tag, filtering buffer")
 							// those were the closing backticks
 
 							// remove the closing block tag
@@ -418,20 +417,20 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 								filteredBuffer = strings.Replace(filteredBuffer, "```", "\\`\\`\\`", backtickCount-1)
 							}
 
-						} else if isSuffixPrefix(filteredBuffer, "</code>") {
+						} else if isSuffixPrefix(filteredBuffer, "</block>") {
 							// keep buffering since this might be a partial closing block tag
-							log.Println("tell Stream - buffer ends with partial closing block tag, keep buffering")
+							// log.Println("tell Stream - buffer ends with partial closing block tag, keep buffering")
 							continue
 						} else if strings.HasSuffix(filteredBuffer, "\n") {
 							// keep buffering so we don't end on a newline
-							log.Println("tell Stream - buffer ends with newline, keep buffering")
+							// log.Println("tell Stream - buffer ends with newline, keep buffering")
 							continue
 						} else if strings.HasSuffix(filteredBuffer, "`") {
 							// keep buffering since this might be a partial triple backtick and we don't want to break them up
-							log.Println("tell Stream - buffer ends with partial triple backtick, keep buffering")
+							// log.Println("tell Stream - buffer ends with partial triple backtick, keep buffering")
 							continue
 						} else {
-							log.Println("tell Stream - buffer does not contain block tag, escaping backticks")
+							// log.Println("tell Stream - buffer does not contain block tag, escaping backticks")
 							// no closing block tag
 							// so we need to escape any and all backticks
 							filteredBuffer = strings.Replace(filteredBuffer, "```", "\\`\\`\\`", -1)
@@ -439,13 +438,13 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 					}
 				} else if strings.HasSuffix(filteredBuffer, "`") {
 					// keep buffering since this might be a partial triple backtick
-					log.Println("tell Stream - buffer ends with partial triple backtick, keep buffering")
+					// log.Println("tell Stream - buffer ends with partial triple backtick, keep buffering")
 					continue
 				}
 			}
 
-			log.Println("tell Stream - filteredBuffer: ", strconv.Quote(filteredBuffer))
-			log.Println()
+			// log.Println("tell Stream - filteredBuffer: ", strconv.Quote(filteredBuffer))
+			// log.Println()
 
 			UpdateActivePlan(planId, branch, func(ap *types.ActivePlan) {
 				ap.CurrentReplyContent += filteredBuffer

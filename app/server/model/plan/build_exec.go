@@ -9,6 +9,7 @@ import (
 	"plandex-server/model/prompts"
 	"plandex-server/syntax"
 	"plandex-server/types"
+	"strings"
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/plandex/plandex/shared"
@@ -242,13 +243,16 @@ func (fileState *activeBuildStreamFileState) buildFile() {
 		}
 
 		// new file
+		content := activeBuild.FileContent
+		content = strings.ReplaceAll(content, "\\`\\`\\`", "```")
+
 		planRes := &db.PlanFileResult{
 			OrgId:           currentOrgId,
 			PlanId:          planId,
 			PlanBuildId:     build.Id,
 			ConvoMessageId:  build.ConvoMessageId,
 			Path:            filePath,
-			Content:         activeBuild.FileContent,
+			Content:         content,
 			WillCheckSyntax: validationRes.HasParser && !validationRes.TimedOut,
 			SyntaxValid:     validationRes.Valid,
 			SyntaxErrors:    validationRes.Errors,

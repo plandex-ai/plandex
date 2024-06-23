@@ -1,0 +1,20 @@
+[2K
+#### 1 | 💬 You | Sat Jun 15, 2024 | 10:42am PDT | 472 🪙 
+I have a standard docusaurus installation set up in the `docs` dir. Based on `README.md`, the contents of the `guides` dir, the `plandex` command's help text which I've added to context, and the details on each command, which I've also added to context, generate a well-organized docs site.
+
+Keep the following in mind:
+
+- I don't want a website or a blog enabled for docusaurus, just the docs.
+- Don't just copy each guide into its own page. Start fresh and organize all the content in a way that makes sense and makes the docs as easy as possible to navigate and get started with.
+- Keep the language and examples the same, but feel free to reorganize the content as you see fit.
+- Dark mode should be the default.
+- Introduce concepts gently and in a logical order--start with the basics and build up to more advanced topics or topics that are related to more niche use cases.
+- Before making your plan, write about what makes a good docs site and how this applies to the given task. Explain how you plan to structure the docs to make it as user-friendly, digestible, and informative as possible, and why you think this is the best way to do it. Explain what the key information is that a user needs to know to get started with Plandex, and then how additional information should be presented gradually as the user becomes more familiar with the tool.
+- Include a CLI reference which lists all the commands and their options, organized in a user-friendly way. This should be a separate page from the guides.
+- In the installation section, include an explanation of WSL and how to install the CLI on Windows. Also note that Plandex won't work in the Windows CMD shell. The WSL terminal is required.
+- Don't include just a single giant Core Concepts section. Break it up into smaller, more digestible sections that are easier to navigate and understand. Some areas are more advanced or niche than others, so they should be separated out into their own sections. For example, model settings offers a lot of customizability, but most users won't need to change these settings. Before making your plan, also consider all the different features and aspects of the tool and how they can be logically broken down.
+
+
+
+
+

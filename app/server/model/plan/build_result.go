@@ -76,6 +76,8 @@ func GetPlanResult(ctx context.Context, params PlanResultParams) (*db.PlanFileRe
 
 		new := streamedChange.New
 
+		new = strings.ReplaceAll(new, "\\`\\`\\`", "```")
+
 		if streamedChange.Old.EntireFile {
 			replacements = append(replacements, &shared.Replacement{
 				EntireFile:     true,
