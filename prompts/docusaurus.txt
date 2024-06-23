@@ -14,8 +14,7 @@ Keep the following in mind:
 - In the installation section, include an explanation of WSL and how to install the CLI on Windows. Also note that Plandex won't work in the Windows CMD shell. The WSL terminal is required.
 - Don't include just a single giant Core Concepts section. Break it up into smaller, more digestible sections that are easier to navigate and understand. Some areas are more advanced or niche than others, so they should be separated out into their own sections. For example, model settings offers a lot of customizability, but most users won't need to change these settings. Before making your plan, also consider all the different features and aspects of the tool and how they can be logically broken down.
 
-
--
+Add all docs to the `docs/docs` dir. Be sure to include all necessary files and directories, and be sure to structure the sidebar properly.
 
 Be sure the docs are THOROUGH and don't leave anything out. At the beginning of your response, after you've made a list of what should be included in the docs site, evaluate whether that list is thorough or whether more sections should be added.
 
