@@ -1,0 +1,18 @@
+- description: "Test for Template Insertion"
+  vars:
+    postBuildState: file://assets/valid/post_build.go
+    preBuildState: file://assets/shared/pre_build.go
+    changes: file://assets/valid/changes.md
+    diffs: file://assets/valid/diff.txt
+  assert:
+    - type: is-json
+    - type: is-valid-openai-tools-call
+    - type: not-contains
+      value: "{{"
+    - type: not-contains
+      value: "}}"
+    - type: javascript
+      value: "output.includes('{{') === false && output.includes('}}') === false"
+    - type: regex
+      value: "^(?!.*\\{\\{.*\\}\\}).*$"  # Ensure no templated content is present
+    

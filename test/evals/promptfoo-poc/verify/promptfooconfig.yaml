@@ -6,4 +6,353 @@ prompts:
   - file://verify.prompt.txt
 providers:
   - file://verify.provider.yml
-tests: tests/*.test.yml
+tests:
+  - vars:
+      preBuildState: |
+        package main
+
+        func main() {
+            fmt.Println("Hello, world!")
+        }
+      changes: >-
+        Update the 'main' function to add a new 'hello' function that takes a
+        name as an argument and prints 'Hello, <name>!'. Replace the existing
+        print statement in 'main' with a call to this new function, passing a
+        default name.
+      postBuildState: |
+        package main
+
+        func main() {
+            hello("Universe")
+        }
+
+        func hello(name string) {
+            fmt.Println("Hello, ", name, "!")
+        }
+      diffs: |-
+        -    fmt.Println("Hello, world!")
+        +    hello("Universe")
+  - vars:
+      preBuildState: |-
+        import java.util.*;
+        public class Example {
+            public static void main(String[] args) {
+                System.out.println("Starting application...");
+            }
+        }
+      changes: >-
+        Introduce a new method 'greet' that prints a greeting message. Modify
+        'main' to call this new method. Ensure to catch any syntax errors.
+      postBuildState: |-
+        import java.util.*;
+        public class Example {
+            public static void main(String[] args) {
+                greet();
+            }
+            public static void greet() {
+                System.out.println("Greetings from the application.");
+            }
+        }
+      diffs: |-
+        -        System.out.println("Starting application...");
+        +        greet();
+  - vars:
+      preBuildState: |
+        def main():
+            print("Initial setup complete")
+
+        if __name__ == "__main__":
+            main()
+      changes: >-
+        Refactor the 'main' function to include error handling for a potential
+        FileNotFoundError. This change should preserve the initial print
+        statement but should add a try-except block around it.
+      postBuildingState: |
+        def main():
+            try:
+                print("Initial setup complete")
+                # Simulated file operation
+            except FileNotFoundError:
+                print("Error: File not found.")
+
+        if __name__ == "__main__":
+            main()
+      diffs: |-
+        -    print("Initial setup complete")
+        +    try:
+        +        print("Initial setup complete")
+        +        # Simulated file operation
+        +    except FileNotFoundError:
+        +        print("Error: File not found.")
+  - vars:
+      preBuildState: "package main\n\nimport \"fmt\"\n\nfunc main() {\n\tfmt.Println(\"Hello World\")\n}"
+      changes: >-
+        Add a new function to print 'Hello Universe' and remove the 'Hello
+        World' print statement.
+      postBuildState: "package main\n\nimport \"fmt\"\n\nfunc main() {\n\tprintHelloUniverse()\n}\n\nfunc printHelloUniverse() {\n\tfmt.Println(\"Hello Universe\")\n}"
+      diffs: |-
+        --- pre
+        +++ post
+        @@ -2,5 +2,9 @@
+         
+         func main() {
+        -   fmt.Println("Hello World")
+        +   printHelloUniverse()
+         }
+         
+        +func printHelloUniverse() {
+        +   fmt.Println("Hello Universe")
+        +}
+        +
+  - vars:
+      preBuildState: "package testpack\n\nfunc sum(a int, b int) int {\n\treturn a + b\n}\n\nfunc main() {\n\t// Call the sum function\n}"
+      changes: >-
+        Implement the call to sum function within main with parameters 5 and 3.
+        Correctly handle the return value.
+      postBuildState: "package testpack\n\nfunc sum(a int, b int) int {\n\treturn a + b\n}\n\nfunc main() {\n\tresult := sum(5, 3)\n\t// TODO: Use the result\n}"
+      diffs: |-
+        --- pre
+        +++ post
+        @@ -5,5 +5,6 @@
+         
+         func main() {
+        -   // Call the sum function
+        +   result := sum(5, 3)
+        +   // TODO: Use the result
+         }
+  - vars:
+      preBuildState: |-
+        import json
+
+        def convert_to_json(data):
+            # incomplete function needs proper implementation
+            pass
+      changes: >-
+        Complete the 'convert_to_json' function to correctly convert a Python
+        dictionary into a JSON string. Ensure proper error handling.
+      postBuildState: |-
+        import json
+
+        def convert_to_json(data):
+            try:
+                json_string = json.dumps(data)
+                return json_string
+            except TypeError as e:
+                return str(e)
+      diffs: |-
+        --- pre
+        +++ post
+        @@ -1,5 +1,8 @@
+         import json
+         
+         def convert_to_json(data):
+        -    # incomplete function needs proper implementation
+        -    pass
+        +    try:
+        +        json_string = json.dumps(data)
+        +        return json_string
+        +    except TypeError as e:
+        +        return str(e)
+  - vars:
+      preBuildState: |
+        package main
+
+        func main() {
+            println("Hello, World!")
+        }
+      changes: >-
+        Add a new function to reverse a string and call it with 'Hello, World!'
+        as the parameter.
+      postBuildState: |
+        package main
+
+        func main() {
+            println(reverse("!dlroW ,olleH"))
+        }
+
+        func reverse(s string) string {
+            runes := []rune(s)
+            for i, j := 0, len(runes)-1; i < j; i, j = i+1, j-1 {
+                runes[i], runes[j] = runes[j], runes[i]
+            }
+            return string(runes)
+        }
+      diffs: |
+        -    println("Hello, World!")
+        +    println(reverse("!dlroW ,olleH"))
+        +func reverse(s string) string {
+        +    runes := []rune(s)
+        +    for i, j := 0, len(runes)-1; i < j; i, j = i+1, j-1 {
+        +        runes[i], runes[j] = runes[j], runes[i]
+        +    }
+        +    return string(runes)
+        +}
+  - vars:
+      preBuildState: |
+        import java.util.*;
+
+        class Solution {
+            public static void main(String[] args) {
+                System.out.println("Array before sort: " + Arrays.toString(args));
+                Arrays.sort(args);
+                System.out.println("Array after sort: " + Arrays.toString(args));
+            }
+        }
+      changes: Introduce a syntax error by missing a semicolon in the sort line.
+      postBuildState: |
+        import java.util.*;
+
+        class Solution {
+            public static void main(String[] args) {
+                System.out.println("Array before sort: " + Arrays.toString(args))
+                Arrays.sort(args);
+                System.out.println("Array after sort: " + Arrays.toString(args));
+            }
+        }
+      diffs: >
+        -        System.out.println("Array before sort: " +
+        Arrays.toString(args));
+
+        +        System.out.println("Array before sort: " +
+        Arrays.toString(args))
+  - vars:
+      preBuildState: |-
+        def greet(name):
+            print(f"Hello, {name}!")
+      changes: >-
+        Refactor the greet function into a class with a static method, but
+        introduce duplicate class definitions.
+      postBuildState: |
+        class Greeter:
+            @staticmethod
+            def greet(name):
+                print(f"Hello, {name}!")
+
+        class Greeter:
+            @staticmethod
+            def greet(name):
+                print(f"Welcome, {name}!")
+      diffs: |
+        -def greet(name):
+        -    print(f"Hello, {name}!")
+        +class Greeter:
+        +    @staticmethod
+        +    def greet(name):
+        +        print(f"Hello, {name}!")
+        +
+        class Greeter:
+        +    @staticmethod
+        +    def greet(name):
+        +        print(f"Welcome, {name}!")
+  - vars:
+      preBuildState: |-
+        package main
+
+        import "fmt"
+
+        func main() {
+            fmt.Println("Hello, World!")
+        }
+      changes: |-
+        1. Update the 'Hello, World!' string to include the current date.
+        2. Add error handling for the fmt.Println function.
+      postBuildState: |-
+        package main
+
+        import (
+            "fmt"
+            "time"
+        )
+
+        func main() {
+            current_time := time.Now().Format("2006-01-02")
+            if _, err := fmt.Println("Hello, World! Current date: ", current_time); err != nil {
+                panic(err)
+            }
+        }
+      diffs: >-
+        - fmt.Println("Hello, World!")
+
+        + current_time := time.Now().Format("2006-01-02")
+
+        + if _, err := fmt.Println("Hello, World! Current date: ",
+        current_time); err != nil {
+
+        +     panic(err)
+
+        + }
+  - vars:
+      preBuildState: |-
+        public class HelloWorld {
+            public static void main(String[] args) {
+                System.out.println("Hello, world!");
+            }
+        }
+      changes: |-
+        1. Translate the code from Java to Python.
+        2. Include a comment suggesting future improvements.
+      postBuildState: |-
+        # Future improvements: optimize greeting efficiency
+        def main():
+            print("Hello, world!")
+
+        if __name__ == "__main__":
+            main()
+      diffs: |-
+        - public class HelloWorld {
+        -     public static void main(String[] args) {
+        -         System.out.println("Hello, world!");
+        -     }
+        - }
+        + # Future improvements: optimize greeting efficiency
+        + def main():
+        +     print("Hello, world!")
+        + 
+        + if __name__ == "__main__":
+        +     main()
+  - vars:
+      preBuildState: |-
+        function add(a, b) {
+            return a + b;
+        }
+      changes: |-
+        1. Add TypeScript type annotations.
+        2. Implement error handling for non-numeric inputs.
+      postBuildState: |-
+        function add(a: number, b: number): number {
+            if (typeof a !== 'number' || typeof b !== 'number') {
+                throw new Error('Input must be numbers');
+            }
+            return a + b;
+        }
+      diffs: |-
+        - function add(a, b) {
+        + function add(a: number, b: number): number {
+        +     if (typeof a !== 'number' || typeof b !== 'number') {
+        +         throw new Error('Input must be numbers');
+        +     }
+            return a + b;
+        }
+  - vars:
+      preBuildState: "package main\n\nimport \"fmt\"\n\nfunc main() {\n\tfmt.Println(\"Hello World\")\n}"
+      changes: >-
+        Add a new function to print 'Hello Universe' and refactor the 'Hello
+        World' print statement into its own function.
+      postBuildState: "package main\n\nimport \"fmt\"\n\nfunc printHelloWorld() {\n\tfmt.Println(\"Hello World\")\n}\n\nfunc printHelloUniverse() {\n\tfmt.Println(\"Hello Universe\")\n}\n\nfunc main() {\n\tprintHelloWorld()\n\tprintHelloUniverse()\n}"
+      diffs: "- 4,5 + 4,11 @@ func main() {\n\tfmt.Println(\"Hello World\")\n+}\n\n+func printHelloUniverse() {\n+\tfmt.Println(\"Hello Universe\")\n+}\n\n+func main() {"
+  - vars:
+      preBuildState: "package main\n\nimport \"fmt\"\n\nfunc main() {\n\tfmt.Println(\"Starting application...\")\n\t// TODO: Implement feature X\n}"
+      changes: >-
+        Implement the missing feature X by adding a function that prints
+        'Feature X implemented'.
+      postBuildState: "package main\n\nimport \"fmt\"\n\nfunc featureX() {\n\tfmt.Println(\"Feature X implemented\")\n}\n\nfunc main() {\n\tfmt.Println(\"Starting application...\")\n\tfeatureX()\n}"
+      diffs: "- 5,5 + 5,7 @@ func main() {\n\t// TODO: Implement feature X\n+func featureX() {\n+\tfmt.Println(\"Feature X implemented\")\n }"
+  - vars:
+      preBuildState: "class Calculator {\n\tprivate int result = 0;\n\n\tpublic void add(int number) {\n\t\tresult += number;\n\t}\n\n\t// TODO: Subtract method\n}"
+      changes: Implement the subtract method.
+      postBuildState: "class Calculator {\n\tprivate int result = 0;\n\n\tpublic void add(int number) {\n\t\tresult += number;\n\t}\n\n\tpublic void subtract(int number) {\n\t\tresult -= number;\n\t}\n}"
+      diffs: "- 6,6 + 6,9 @@\n\t// TODO: Subtract method\n+public void subtract(int number) {\n+\tresult -= number;\n+}"
+  - assert:
+      - type: is-json
+      - type: is-valid-openai-tools-call
+      

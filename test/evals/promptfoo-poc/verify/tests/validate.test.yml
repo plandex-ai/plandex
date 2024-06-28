@@ -1,8 +1,8 @@
 - description: "Validation of the code changes"
   vars:
+    postBuildState: file://assets/valid/post_build.go
     preBuildState: file://assets/shared/pre_build.go
     changes: file://assets/valid/changes.md
-    postBuildState: file://assets/valid/post_build.go
     diffs: file://assets/valid/diff.txt
   assert:
     - type: is-json
