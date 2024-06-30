@@ -1,3 +1,8 @@
+---
+sidebar_position: 6
+sidebar_label: CLI Reference
+---
+
 # Command List
 
 This section provides a comprehensive list of all Plandex CLI commands.

@@ -16,9 +16,11 @@
   },
   "dependencies": {
     "@docusaurus/core": "3.4.0",
+    "@docusaurus/plugin-client-redirects": "^3.4.0",
     "@docusaurus/preset-classic": "3.4.0",
     "@mdx-js/react": "^3.0.0",
     "clsx": "^2.0.0",
+    "docusaurus-lunr-search": "^3.4.0",
     "prism-react-renderer": "^2.3.0",
     "react": "^18.0.0",
     "react-dom": "^18.0.0"
