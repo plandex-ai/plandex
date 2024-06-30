@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"path/filepath"
 	"plandex/auth"
 	"plandex/lib"
 	"plandex/term"
@@ -45,6 +46,8 @@ func contextLoad(cmd *cobra.Command, args []string) {
 		return
 	}
 
+	cleanPaths(args)
+
 	lib.MustLoadContext(args, &types.LoadContextParams{
 		Note:            note,
 		Recursive:       recursive,
@@ -55,4 +58,15 @@ func contextLoad(cmd *cobra.Command, args []string) {
 
 	fmt.Println()
 	term.PrintCmds("", "ls", "tell")
+}
+
+func cleanPaths(paths []string) {
+	for i := range paths {
+		paths[i] = filepath.Clean(paths[i])
+
+		// Remove trailing slash if it's not the root path
+		if len(paths[i]) > 1 && paths[i][len(paths[i])-1] == '/' {
+			paths[i] = paths[i][:len(paths[i])-1]
+		}
+	}
 }
