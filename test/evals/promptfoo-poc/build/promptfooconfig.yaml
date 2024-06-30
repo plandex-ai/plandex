@@ -1,0 +1,7 @@
+description: "build"
+
+prompts:
+  - file://build.prompt.txt
+providers:
+  - file://build.provider.yml
+tests: tests/*.test.yml

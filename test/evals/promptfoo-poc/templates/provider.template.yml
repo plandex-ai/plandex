@@ -1,0 +1,20 @@
+# TODO: Add support for more dynamic creation, support for multiple tools, different API providers parameters, etc.
+
+id: {{ .provider_id }}
+config:
+  temperature: {{ .temperature }}
+  max_tokens: {{ .max_tokens }}
+  response_format: { type: {{ .response_format }} }
+  top_p: {{ .top_p }}
+  tools:
+    [
+      {
+        "type": "{{ .tool_type }}",
+        "function":
+          { "name": "{{ .function_name }}", "parameters": {{ .parameters }} },
+      },
+    ]
+  tool_choice:
+    type: "{{ .tool_choice_type }}"
+    function:
+      name: "{{ .tool_choice_function_name }}"

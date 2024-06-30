@@ -1,0 +1,18 @@
+id: openai:gpt-4o
+config:
+  temperature: 0.1
+  max_tokens: 4096
+  response_format: { type: json_object }
+  top_p: 0.1
+  tools:
+    [
+      {
+        "type": "function",
+        "function":
+          { "name": "verifyOutput", "parameters": {"properties":{"comments":{"items":{"properties":{"reference":{"type":"boolean"},"txt":{"type":"string"}},"required":["txt","reference"],"type":"object"},"type":"array"},"duplicationErrorsReasoning":{"type":"string"},"hasDuplicationErrors":{"type":"boolean"},"hasReferenceErrors":{"type":"boolean"},"hasRemovedCodeErrors":{"type":"boolean"},"hasSyntaxErrors":{"type":"boolean"},"referenceErrorsReasoning":{"type":"string"},"removed":{"items":{"properties":{"code":{"type":"string"},"correct":{"type":"boolean"},"reasoning":{"type":"string"}},"required":["code","reasoning","correct"],"type":"object"},"type":"array"},"removedCodeErrorsReasoning":{"type":"string"},"syntaxErrorsReasoning":{"type":"string"}},"required":["syntaxErrorsReasoning","hasSyntaxErrors","removed","removedCodeErrorsReasoning","hasRemovedCodeErrors","duplicationErrorsReasoning","hasDuplicationErrors","comments","referenceErrorsReasoning","hasReferenceErrors"],"type":"object"} },
+      },
+    ]
+  tool_choice:
+    type: "function"
+    function:
+      name: "verifyOutput"

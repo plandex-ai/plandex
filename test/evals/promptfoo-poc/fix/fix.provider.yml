@@ -1,0 +1,18 @@
+id: openai:gpt-4o
+config:
+  temperature: 0.1
+  max_tokens: 4096
+  response_format: { type: json_object }
+  top_p: 0.1
+  tools:
+    [
+      {
+        "type": "function",
+        "function":
+          { "name": "listChangesWithLineNums", "parameters": {"properties":{"changes":{"items":{"properties":{"endLineIncluded":{"type":"boolean"},"endLineIncludedReasoning":{"type":"string"},"hasChange":{"type":"boolean"},"new":{"type":"string"},"old":{"properties":{"endLineString":{"type":"string"},"entireFile":{"type":"boolean"},"startLineString":{"type":"string"}},"required":["startLineString","endLineString"],"type":"object"},"startLineIncluded":{"type":"boolean"},"startLineIncludedReasoning":{"type":"string"},"summary":{"type":"string"}},"required":["summary","hasChange","old","startLineIncludedReasoning","startLineIncluded","endLineIncludedReasoning","endLineIncluded","new"],"type":"object"},"type":"array"},"comments":{"items":{"properties":{"reference":{"type":"boolean"},"txt":{"type":"string"}},"required":["txt","reference"],"type":"object"},"type":"array"},"problems":{"type":"string"}},"required":["comments","problems","changes"],"type":"object"} },
+      },
+    ]
+  tool_choice:
+    type: "function"
+    function:
+      name: "listChangesWithLineNums"

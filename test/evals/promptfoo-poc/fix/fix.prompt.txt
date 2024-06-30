@@ -79,19 +79,22 @@ If *any* change has the 'entireFile' key in the 'old' property set to true, the 
 
 You MUST ensure the line numbers for the 'old' property correctly remove *ALL* code that has problems and that the 'new' property correctly fixes *ALL* the problems present in the updated file. You MUST NOT miss any problems, fail to fix any problems, or introduce any new problems.
 
-	Because you are implementing a fix, be more willing to make larger changes in order to fix all the problems. Smaller changes are more error-prone, and the fact that you are fixing a file means a line-number based change already failed. This likely means there was some tricky structural challenge in applying the changes with line numbers, so be prepared to make a larger change in order to avoid continuing to fail to fix the file.
 
-  Example change object:
-  ---
-  {
-    summary: "Fix syntax error in loop body.",
-    old: {
-      startLineString: "pdx-5: for i := 0; i < 10; i++ { ",
-      endLineString: "pdx-7: }",
-    },
-    new: "for i := 0; i < 10; i++ {\n  execQuery()\n  }\n  }\n}",
-  }
-  ---
+Because you are implementing a fix, be more willing to make larger changes in order to fix all the problems. Smaller changes are more error-prone, and the fact that you are fixing a file means a line-number based change already failed. This likely means there was some tricky structural challenge in applying the changes with line numbers, so be prepared to make a larger change in order to avoid continuing to fail to fix the file.
+
+Example change object:
+  
+```json
+{
+  "summary": "Fix syntax error in loop body.",
+ 	"old": {
+    "startLineString": "pdx-5: for i := 0; i < 10; i++ { ",
+    "endLineString": "pdx-7: }"
+  },
+  "new": "for i := 0; i < 10; i++ {\n  execQuery()\n  }\n  }\n}"
+}
+```
+
 
 You ABSOLUTELY MUST NOT generate overlapping changes. Group smaller changes together into larger changes where necessary to avoid overlap. Only generate multiple changes when you are ABSOLUTELY CERTAIN that they do not overlap--otherwise group them together into a single change. If changes are close to each other (within several lines), group them together into a single change. You MUST group changes together and make fewer, larger changes rather than many small changes, unless the changes are completely independent of each other and not close to each other in the file. You MUST NEVER generate changes that are adjacent or close to adjacent. Adjacent or closely adjacent changes MUST ALWAYS be grouped into a single larger change.
 
@@ -138,5 +141,3 @@ The 'listChangesWithLineNums' function MUST be called *valid JSON*. Double quote
 --
 
 Now call the 'listChangesWithLineNums' function with a valid JSON array of changes according to your instructions. You must always call 'listChangesWithLineNums' with one or more valid changes. Don't call any other function.
-
-
