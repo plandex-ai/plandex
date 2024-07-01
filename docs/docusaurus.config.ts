@@ -68,8 +68,13 @@ const config: Config = {
           position: 'right',
         },
         {
-          label: 'Twitter',
-          href: 'https://twitter.com/PlandexAI',
+          label: 'X',
+          href: 'https://x.com/PlandexAI',
+          position: 'right',
+        },
+        {
+          label: 'YouTube',
+          href: 'https://www.youtube.com/@plandex-ny5ry',
           position: 'right',
         },
       ],

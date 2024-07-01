@@ -4,6 +4,7 @@ description: Plandex is an open source, terminal-based AI coding engine that hel
 sidebar_position: 1
 sidebar_label: Intro
 ---
+
 # Introduction
 
 Plandex is an open source, terminal-based AI coding engine that helps you work on complex, real-world development tasks with LLMs.
@@ -17,7 +18,7 @@ Plandex gives the LLM its own version-controlled staging area/sandbox (separate 
 - Iterate on your code and the LLM's plan at the same time without the changes becoming intertwined and difficult to disentangle.
 - Review proposed changes across multiple files as a whole (rejecting any that aren't correct) to be sure that broken updates or hallucinations don't make it into your project files.
 - Branch or rewind the LLM's plan in order to explore multiple paths or revert to the exact step where a task went off the rails.
-- Apply proposed changes to your project once you're happy with them. You can optionally group them together as a single commit in your git repo with an automatically generated commit message. Plandex is resilient to messy git states and will leave any work you have in-progress unaffected. You can also use Plandex in directories that are *not* git repos while still retaining all the aforementioned benefits.
+- Apply proposed changes to your project once you're happy with them. You can optionally group the changes together as a single commit in your git repo with an automatically generated commit message. Plandex is resilient to messy git states and will leave any work you have in-progress unaffected. You can also use Plandex in directories that are *not* git repos while still retaining all the aforementioned benefits.
 
 Apart from version control, Plandex also helps you manage what's in the LLM's context:
 
@@ -25,16 +26,18 @@ Apart from version control, Plandex also helps you manage what's in the LLM's co
 - Files you add to context are kept up-to-date automatically so that the LLM is always using the latest version.
 - Load the text content of URLs into context in order to add relevant documentation or other supporting info. You can also pipe in the output of commands or add notes.
 - Unlike IDE-based tools that automatically and opaquely load context in the background, Plandex gives the developer precise control of what's in the LLM's context. You never have to wonder what's been loaded or whether it's up-to-date. This is crucial to getting good results and keeping a handle on costs, particularly when you want to go beyond auto-complete and work on larger tasks.
-- Like other interactions with the LLM, all context updates are version-controlled in the LLM's sandbox, meaning you can try loading different context in different branches or rewind and modify context as needed to improve results.
+- Like other interactions with the LLM, all context updates are version-controlled in the LLM's sandbox, meaning you can try loading different context in different branches or rewind the plan state and modify context as needed to improve results.
 
 ## Use Cases
 
-- Create new projects from scratch.
+- Build new projects from scratch.
 - Add features to existing projects.
 - Write tests.
+- Write scripts.
 - Fix bugs.
 - Refactor.
 - Work with unfamiliar technologies.
+- Ask questions about code.
 - Understand a codebase. 
 
 ## Focus
@@ -67,4 +70,5 @@ Join our growing community and help guide Plandex's development.
 
 - [GitHub](https://github.com/plandex-ai/plandex) - post an [issue](https://github.com/plandex-ai/plandex/issues), start a [discussion](https://github.com/plandex-ai/plandex/discussions), or [fork and contribute.](https://github.com/plandex-ai/plandex/fork)
 - [Discord](https://discord.gg/plandex-ai) - ask for help, give feedback, share your use cases, or just hang out.
-- [X](https://x.com/PlandexAI) - follow for updates on new versions and other AI-coding related content.
+- [X](https://x.com/PlandexAI) - follow for updates on new versions and other AI coding content.
+- [YouTube](https://www.youtube.com/@plandex-ny5ry) - subscribe to watch various tasks and projects get completed with Plandex.
