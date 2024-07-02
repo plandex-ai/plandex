@@ -10,4 +10,4 @@ defaultTest:
   assert:
     - type: is-json
     - type: is-valid-openai-tools-call
-tests: tests/*.yml
+tests: tests/*.test.yml
