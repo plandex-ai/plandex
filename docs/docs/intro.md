@@ -54,7 +54,7 @@ Plandex uses OpenAI models by default, as so far we've found them to offer the b
 
 That said, you can also use it with a wide range of other models, including Anthropic Claude, Google Gemini, Mixtral, Llama and many more via OpenRouter.ai, Together.ai, or any other OpenAI-compatible provider.
 
-## Languages and platforms
+## Languages and Platforms
 
 You can use Plandex to work with any language or framework that the underlying LLM has been trained on. For the largest models, this includes just about any language or framework you can think of, though output quality will tend to be best for those that are more popular and therefore better represented in the training data.
 
