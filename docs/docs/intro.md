@@ -11,7 +11,7 @@ Plandex is an open source, terminal-based AI coding engine that helps you work o
 
 It combines multiple agents to complete tasks that span many files and model responses. When you give Plandex a task, it continues working automatically until the task is determined to be complete.   
 
-## Overview
+## A Version-Controlled Sandbox
 
 Plandex gives the LLM its own version-controlled staging area/sandbox (separate from your project's git repo) where all of its proposed changes are accumulated. This allows you to:
 
@@ -19,6 +19,8 @@ Plandex gives the LLM its own version-controlled staging area/sandbox (separate 
 - Review proposed changes across multiple files as a whole (rejecting any that aren't correct) to be sure that broken updates or hallucinations don't make it into your project files.
 - Branch or rewind the LLM's plan in order to explore multiple paths or revert to the exact step where a task went off the rails.
 - Apply proposed changes to your project once you're happy with them. You can optionally group the changes together as a single commit in your git repo with an automatically generated commit message. Plandex is resilient to messy git states and will leave any work you have in-progress unaffected. You can also use Plandex in directories that are *not* git repos while still retaining all the aforementioned benefits.
+
+## Context Management
 
 Apart from version control, Plandex also helps you manage what's in the LLM's context:
 

@@ -17,13 +17,25 @@ export OPENAI_API_KEY=...
 
 ## Create A Plan
 
-Now `cd` into your **project's directory.** Make a new directory first with `mkdir your-project-dir` if you're starting on a new project.
+If you're starting on a new project, make a directory first:
+
+```bash
+mkdir your-project-dir
+```
+
+Now `cd` into your **project's directory.** 
 
 ```bash
 cd your-project-dir
 ```
 
-Then **create your first plan** with `plandex new`.
+For a new project, you might also want to initialize a git repo. Plandex doesn't require that your project is in a git repo, but it does integrate well with git if you use it.
+
+```bash
+git init
+```
+
+Now **create your first plan** with `plandex new`.
 
 ```bash
 plandex new
@@ -36,7 +48,9 @@ Load any relevant files, directories, or urls **into the LLM's context** with `p
 ```bash
 plandex load some-file.ts another-file.ts
 plandex load src/components -r # load a whole directory
-plandex load https://raw.githubusercontent.com/plandex-ai/plandex/main/README.md
+plandex load src/**/*.ts # load files matching a glob pattern
+plandex load https://raw.githubusercontent.com/plandex-ai/plandex/main/README.md # load the text content of a url
+plandex load images/mockup.png # load an image
 ```
 
 ## Send A Prompt
@@ -61,11 +75,11 @@ plandex tell "add a new line chart showing the number of foobars over time to co
 
 Plandex will make a plan for your task and then implement that plan in code.
 
-**The changes won't yet be applied to your project's files.** Instead, they'll accumulate in Plandex's sandbox. 
+**The changes won't yet be applied to your project files.** Instead, they'll accumulate in Plandex's sandbox. 
 
 ## Review The Changes
 
-When Plandex has finished with your task, you can review the proposed changes with the `diff` command, which shows them in `git diff` format:
+When Plandex has finished with your task, you can review the proposed changes with the `plandex diff` command, which shows them in `git diff` format:
 
 ```bash
 plandex diff
@@ -99,7 +113,7 @@ Seeing the conversation history can also be helpful when rewinding, since `pland
 
 ### 3. Reject incorrect files.
 
-While we're working hard to get file updates as reliable as possible, bad updates can still happen. If a plan is correct but it was applied incorrectly to a file, you can either [apply the changes](#apply-the-changes) and then fix the problems manually, *or* you can reject the updates to that file and then make the proposed changes yourself manually. 
+While we're working hard to make file updates as reliable as possible, bad updates can still happen. If the plan's changes were applied incorrectly to a file, you can either [apply the changes](#apply-the-changes) and then fix the problems manually, *or* you can reject the updates to that file and then make the proposed changes yourself manually. 
 
 To reject changes to a file (or multiple files), you can run `plandex reject` with the file path(s):
 
