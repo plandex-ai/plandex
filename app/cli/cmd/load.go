@@ -23,7 +23,7 @@ var contextLoadCmd = &cobra.Command{
 	Use:     "load [files-or-urls...]",
 	Aliases: []string{"l", "add"},
 	Short:   "Load context from various inputs",
-	Long:    `Load context from a file path, a directory, a URL, a string, or piped data.`,
+	Long:    `Load context from a file path, a directory, a URL, an image, a note, or piped data.`,
 	Run:     contextLoad,
 }
 

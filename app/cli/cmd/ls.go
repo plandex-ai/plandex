@@ -17,7 +17,7 @@ import (
 
 var contextCmd = &cobra.Command{
 	Use:     "ls",
-	Aliases: []string{"ls"},
+	Aliases: []string{"list-context"},
 	Short:   "List everything in context",
 	Run:     listContext,
 }
