@@ -309,7 +309,7 @@ Requires git, docker, and docker-compose.
 
 - Due to the reasoning limitations of LLMs, automatically applied file updates also aren't perfect. While these were significantly improved in the 1.0.0 release, mistakes and errors are still possible. Use the `plandex changes` command to review pending updates in a TUI, or `plandex diffs` to review them in git diff format. If a file update has mistakes, make those changes yourself with copy-and-paste and reject the file in the changes TUI.
 
-- The more direction and detail you provide, the better the results will be. Working with Plandex often involves giving it a prompt, seeing that the results are a bit off, then using `plandex rewind` to go back and iterate on the prompt or add context before trying again. Branches are also useful for expermination.
+- The more direction and detail you provide, the better the results will be. Working with Plandex often involves giving it a prompt, seeing that the results are a bit off, then using `plandex rewind` to go back and iterate on the prompt or add context before trying again. Branches are also useful for experimentation.
 
 - If you want to go step-by-step rather than having Plandex attempt do everything at once, use `plandex tell` and `plandex continue` with the `--stop / -s` flag, which will prevent it from automatically continuing for multiple responses. Use `plandex continue` to proceed with the plan once you're ready.
 
