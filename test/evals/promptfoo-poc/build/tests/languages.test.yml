@@ -1,21 +1,4 @@
 - vars:
-    filePath: utility_functions.go
-    preBuildState: "package utils\n\nfunc Add(a int, b int) int {\n\treturn a + b\n}\n\nfunc Subtract(a int, b int) int {\n\treturn a - b\n}"
-    changes: >-
-      1. Add a new function `Multiply(a int, b int) int` that returns the
-      multiplication of two integers.
-
-      2. Modify `Add` function to log the inputs and output.
-
-      3. Remove the `Subtract` function.
-- vars:
-    filePath: server_setup.go
-    preBuildState: "package server\n\nimport (\n\t\"log\"\n\t\"net/http\"\n)\n\nfunc init() {\n\tlog.Println(\"Server starting...\")\n}\n\nfunc handler(w http.ResponseWriter, r *http.Request) {\n\tw.Write([]byte(\"Hello, world!\"))\n}"
-    changes: |-
-      1. Update the `handler` function to log the request method and URI.
-      2. Add a new endpoint for `/api` that returns `API is live`.
-      3. Ensure logging of server startup includes timestamp.
-- vars:
     filePath: data_models.go
     preBuildInState: "package models\n\ntype User struct {\n\tID        string\n\tUsername  string\n\tEmail     string\n}\n\ntype Post struct {\n\tID      string\n\tContent string\n\tAuthor  string\n}"
     changes: >-
