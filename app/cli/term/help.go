@@ -119,7 +119,7 @@ func PrintCustomHelp(all bool) {
 	fmt.Fprintln(builder)
 
 	color.New(color.Bold, color.BgGreen, color.FgHiWhite).Fprintln(builder, " Help ")
-	color.New(color.Bold).Fprintln(builder, "  plandex help")
+	color.New(color.Bold).Fprintln(builder, "  plandex help # show basic usage")
 	color.New(color.Bold).Fprintln(builder, "  plandex help --all # show all commands")
 	color.New(color.Bold).Fprintln(builder, "  plandex [command] --help")
 	fmt.Fprintln(builder)
@@ -155,7 +155,7 @@ func PrintCustomHelp(all bool) {
 		fmt.Fprintln(builder)
 
 		color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " History ")
-		printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "log", "rewind", "convo", "convo 1", "convo 2-5", "convo --plain")
+		printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "log", "rewind", "convo", "convo 1", "convo 2-5", "convo --plain", "summary")
 		fmt.Fprintln(builder)
 
 		color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Control ")
