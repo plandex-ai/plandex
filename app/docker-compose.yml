@@ -16,7 +16,7 @@ services:
       context: .
       dockerfile: Dockerfile.server
     volumes:
-      - "${PLANDEX_DATA_DIR}:/plandex-server"
+      - "${PLANDEX_DATA_DIR}:${PLANDEX_BASE_DIR}"
     ports:
       - "8080:8080"
     env_file:
@@ -24,6 +24,8 @@ services:
     environment:
       DATABASE_URL: "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@plandex-postgres:5432/${POSTGRES_DATABASE}?sslmode=disable"
       GOENV: $GOENV
+      PLANDEX_BASE_DIR: $PLANDEX_BASE_DIR
+
     networks:
       - plandex-network
     depends_on:
