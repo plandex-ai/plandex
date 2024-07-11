@@ -1,6 +1,6 @@
 - vars:
     filePath: data_models.go
-    preBuildInState: "package models\n\ntype User struct {\n\tID        string\n\tUsername  string\n\tEmail     string\n}\n\ntype Post struct {\n\tID      string\n\tContent string\n\tAuthor  string\n}"
+    preBuildInState: "package models \n\ntype User struct {\n\tID        string\n\tUsername  string\n\tEmail     string\n}\n\ntype Post struct {\n\tID      string\n\tContent string\n\tAuthor  string\n}"
     changes: >-
       1. Add a `CreatedAt` timestamp field to both `User` and `Post` structs.
 
@@ -10,19 +10,19 @@
       3. Update `Post` to include a slice of `Comment` references.
 - vars:
     filePath: router.go
-    preBuildState: "// Package router implements a simple HTTP request router\npackage router\n\nimport (\n\t\"net/http\"\n)\n\ntype HandlerFn func(http.ResponseWriter, *http.Request)\n\ntype Router struct {\n\tpaths map[string]HandlerFn\n}\n\n// New creates a new Router\nfunc New() *Router {\n\treturn &Router{\n\t\tpaths: make(map[string]HandlerFn),\n\t}\n}\n\n// Register registers a new route with a handler\nfunc (r *Router) Register(path string, handler HandlerFn) {\n\tr.paths[path] = handler\n}\n\n// ServeHTTP implements http.Handler\nfunc (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {\n\tif handler, ok := r.paths[req.URL.Path]; ok {\n\t\thandler(w, req)\n\t} else {\n\t\tw.WriteHeader(http.StatusNotFound)\n\t\tw.Write([]byte(\"404 - Not Found\"))\n\t}\n}"
-    changes: "// Added logging\n\nfunc (r *Router) Register(path string, handler HandlerFn) {\n\tlog.Printf(\"Registering path: %s\", path)\n\tr.paths[path] = handler\n}\n\n// Added middleware support\n\ntype MiddlewareFn func(HandlerFn) HandlerFn\n\nvar middlewares []MiddlewareFn\n\n// Use adds a new middleware\nfunc Use(middleware MiddlewareFn) {\n\tmiddlewares = append(middlewares, middleware)\n}\n\n// wrappedHandler wraps the registered handlers with the applied middlewares\nfunc wrappedHandler(handler HandlerFn) HandlerFn {\n\tfor _, middleware := range middlewares {\n\t\thandler = middleware(handler)\n\t}\n\treturn handler\n}\n\n// Apply middlewares to handlers\nfunc (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {\n\tif handler, ok := r.paths[req.URL.Path]; ok {\n\t\thandler = wrappedHandler(handler)\n\t\thandler(w, req)\n\t} else {\n\t\tw.WriteHeader(http.StatusNotFound)\n\t\tw.Write([]byte(\"404 - Not Found\"))\n\t}\n}"
+    preBuildInState: "// Package router implements a simple HTTP request router\npackage router\n\nimport (\n\t\"net/http\"\n)\n\ntype HandlerFn func(http.ResponseWriter, *http.Request)\n\ntype Router struct {\n\tpaths map[string]HandlerFn\n}\n\n// New creates a new Router\nfunc New() *Router {\n\treturn &Router{\n\t\tpaths: make(map[string]HandlerFn),\n\t}\n}\n\n// Register registers a new route with a handler\nfunc (r *Router) Register(path string, handler HandlerFn) {\n\tr.paths[path] = handler\n}\n\n// ServeHTTP implements http.Handler\nfunc (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {\n\tif handler, ok := r.paths[req.URL.Path]; ok {\n\t\thandler(w, req)\n\t} else {\n\t\tw.WriteHeader(http.StatusNotFound)\n\t\tw.Write([]byte(\"404 - Not Found\"))\n\t}\n}"
+    changes: "// Added logging\n\n func (r *Router) Register(path string, handler HandlerFn) {\n\tlog.Printf(\"Registering path: %s\", path)\n\tr.paths[path] = handler\n}\n\n// Added middleware support\n\ntype MiddlewareFn func(HandlerFn) HandlerFn\n\nvar middlewares []MiddlewareFn\n\n// Use adds a new middleware\nfunc Use(middleware MiddlewareFn) {\n\tmiddlewares = append(middlewares, middleware)\n}\n\n// wrappedHandler wraps the registered handlers with the applied middlewares\nfunc wrappedHandler(handler HandlerFn) HandlerFn {\n\tfor _, middleware := range middlewares {\n\t\thandler = middleware(handler)\n\t}\n\treturn handler\n}\n\n// Apply middlewares to handlers\nfunc (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {\n\tif handler, ok := r.paths[req.URL.Path]; ok {\n\t\thandler = wrappedHandler(handler)\n\t\thandler(w, req)\n\t} else {\n\t\tw.WriteHeader(http.StatusNotFound)\n\t\tw.Write([]byte(\"404 - Not Found\"))\n\t}\n}"
 - vars:
     filePath: middleware.go
-    preBuildState: "package middleware\n\n// Middleware defines a function to process middleware\ntype Middleware func(next Handler) Handler\n\n// Handler defines the request handler used by the middleware\ntype Handler func() error\n\n// Chain chains the middleware functions\nfunc Chain(middlewares ...Middleware) Middleware {\n\treturn func(next Handler) Handler {\n\t\tfor i := len(middlewares) - 1; i >= 0; i-- {\n\t\t\tmiddleware := middlewares[i]\n\t\t\tnext = middleware(next)\n\t\t}\n\t\treturn next\n\t}\n}"
+    preBuildInState: "package middleware \n\n// Middleware defines a function to process middleware\ntype Middleware func(next Handler) Handler\n\n// Handler defines the request handler used by the middleware\ntype Handler func() error\n\n// Chain chains the middleware functions\nfunc Chain(middlewares ...Middleware) Middleware {\n\treturn func(next Handler) Handler {\n\t\tfor i := len(middlewares) - 1; i >= 0; i-- {\n\t\t\tmiddleware := middlewares[i]\n\t\t\tnext = middleware(next)\n\t\t}\n\t\treturn next\n\t}\n}"
     changes: "// Modified the Chain function to accept context for more flexible middleware handling\nimport \"context\"\n\n// Middleware now uses context\n\ntype Middleware func(ctx context.Context, next Handler) Handler\n\n// Handler now accepts context\n\ntype Handler func(ctx context.Context) error\n\n// Chain now also accepts context and passes it down the middleware chain\nfunc Chain(middlewares ...Middleware) Middleware {\n\treturn func(ctx context.Context, next Handler) Handler {\n\t\tfor i := len(middlewares) - 1; i >= 0; i-- {\n\t\t\tmiddleware := middlewares[i]\n\t\t\tnext = middleware(ctx, next)\n\t\t}\n\t\treturn next\n\t}\n}"
 - vars:
     filePath: auth.go
-    preBuildState: "package auth\n\n// User represents a user entity\n\ntype User struct {\n\tID   string\n\tName string\n}\n\n// AuthService interface for authentication\n\ntype AuthService interface {\n\tLogin(username, password string) (*User, error)\n\tRegister(user User) error\n}"
+    preBuildInState: "package auth \n\n// User represents a user entity\n\ntype User struct {\n\tID   string\n\tName string\n}\n\n// AuthService interface for authentication\n\ntype AuthService interface {\n\tLogin(username, password string) (*User, error)\n\tRegister(user User) error\n}"
     changes: "// Implementing AuthService using mock data for testing purposes\n\ntype MockAuthService struct{}\n\n// Mock Login function\ntype MockAuthService func(username, password string) (*User, error) {\n\treturn &User{ID: \"1\", Name: \"Test User\"}, nil\n}\n\n// Mock Register function\n\ntype MockAuthService func(user User) error {\n\treturn nil\n}\n\n// Added ValidateToken middleware function\n\nfunc ValidateToken(token string) bool {\n\t// This is a mock implementation\n\treturn token == \"valid-token\"\n}"
 - vars:
     filePath: utils/sort_functions.go
-    preBuildState: |-
+    preBuildInState: |-
       package utils
 
       func sortIntegers(input []int) {
@@ -43,7 +43,7 @@
       3. Update `main` function to call `printValues` after sorting.
 - vars:
     filePath: database/connection.go
-    preBuildState: |-
+    preBuildInState: |-
       package database
 
       import "database/sql"
@@ -68,7 +68,7 @@
       database connection.
 - vars:
     filePath: handlers/user_handler.go
-    preBuildState: |-
+    preBuildInState: |-
       package handlers
 
       import (
@@ -94,7 +94,7 @@
       prevent abuse.
 - vars:
     filePath: network_config.go
-    preBuildState: |-
+    preBuildInState: |-
       package network
 
       func InitializeNetwork() {
@@ -111,7 +111,7 @@
       network configuration is successful.
 - vars:
     filePath: data_processor.py
-    preBuildState: |-
+    preBuildInState: |-
       import sys
 
       # Main processing function
@@ -128,7 +128,7 @@
       to validate input data before processing.
 - vars:
     filePath: user_management.js
-    preBuildState: |-
+    preBuildInState: |-
       class UserManager {
           constructor(users) {
               this.users = users;

@@ -1,0 +1,1 @@
+package auth // User represents a user entitytype User struct {ID   stringName string}// AuthService interface for authenticationtype AuthService interface {Login(username, password string) (*User, error)Register(user User) error}

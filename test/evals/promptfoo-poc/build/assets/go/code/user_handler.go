@@ -1,0 +1,1 @@
+package handlersimport (  "fmt"  "net/http")func UserSignup(w http.ResponseWriter, r *http.Request) {  // Handles user signup}func UserLogin(w http.ResponseWriter, r *http.Request) {  // Handles user login}

@@ -1,0 +1,1 @@
+package models type User struct {ID        stringUsername  stringEmail     string}type Post struct {ID      stringContent stringAuthor  string}

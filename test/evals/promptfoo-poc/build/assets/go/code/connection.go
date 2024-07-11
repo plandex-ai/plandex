@@ -1,0 +1,1 @@
+package databaseimport "database/sql"var db *sql.DBfunc init() {  // Initialize database connection}func GetConnection() *sql.DB {  return db}
