@@ -53,16 +53,24 @@ func main() {
 		// Generate the source file path
 		sourceFilePath := filepath.Join(codeDir, fileName)
 
+		// Write the formatted preBuildInState content to the source file
+		formattedPreBuildContent := formatCode(entry.Vars.PreBuildInState)
+
+		err = os.WriteFile(sourceFilePath, []byte(formattedPreBuildContent), 0644)
+		if err != nil {
+			fmt.Printf("Error writing source file: %v\n", err)
+			return
+		}
 
 		// Write the preBuildInState content to the source file
-		preBuildContent := strings.ReplaceAll(entry.Vars.PreBuildInState, "\n", "")
+		/* preBuildContent := strings.ReplaceAll(entry.Vars.PreBuildInState, "\n", "")
 		preBuildContent = strings.ReplaceAll(preBuildContent, "\t", "")
 
 		err = os.WriteFile(sourceFilePath, []byte(preBuildContent), 0644)
 		if err != nil {
 			fmt.Printf("Error writing source file: %v\n", err)
 			return
-		}
+		} */
 
 		// Format the Go source file if applicable
 		//if fileExt == ".go" {
@@ -89,6 +97,18 @@ func main() {
 	}
 
 	fmt.Println("Files have been successfully generated.")
+}
+
+// formatCode formats the code content with pdx-<line num>: prefix
+func formatCode(code string) string {
+	var formattedCode strings.Builder
+	lines := strings.Split(code, "\n")
+
+	for i, line := range lines {
+		formattedCode.WriteString(fmt.Sprintf("pdx-%d: %s\n", i+1, line))
+	}
+
+	return formattedCode.String()
 }
 
 // formatChanges formats the changes content into the specified markdown format
