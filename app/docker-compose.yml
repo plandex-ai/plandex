@@ -22,7 +22,7 @@ services:
     env_file:
       - ./.env
     environment:
-      DATABASE_URL: "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@plandex-postgres:5432/${POSTGRES_USER}?sslmode=disable"
+      DATABASE_URL: "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@plandex-postgres:5432/${POSTGRES_DATABASE}?sslmode=disable"
       GOENV: $GOENV
     networks:
       - plandex-network
