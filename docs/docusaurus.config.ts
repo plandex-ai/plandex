@@ -1,8 +1,8 @@
 import {themes as prismThemes} from 'prism-react-renderer';
 import type {Config} from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
-import search from "docusaurus-lunr-search"
-import redirect from "@docusaurus/plugin-client-redirects"
+// import search from "docusaurus-lunr-search"
+// import redirect from "@docusaurus/plugin-client-redirects"
 
 const config: Config = {
   title: 'Plandex Docs',
@@ -40,10 +40,10 @@ const config: Config = {
         theme: {
           customCss: './src/css/custom.css',
         },
+        
       } satisfies Preset.Options,
     ],
   ],
-
   themeConfig: {
     // Replace with your project's social card
     image: 'img/plandex-social-preview.png',
@@ -51,10 +51,13 @@ const config: Config = {
       defaultMode: "dark",
     },  
     navbar: {
-      title: 'Plandex Docs',
+      title: '',
       logo: {
         alt: 'Plandex Logo',
-        src: 'img/plandex-logo-thumb.png',
+        src: 'img/plandex-logo-light.png',
+        srcDark: 'img/plandex-logo-dark.png',
+        href: "https://plandex.ai",
+        height: "2.7rem",
       },
       items: [
         {
@@ -87,15 +90,23 @@ const config: Config = {
       theme: prismThemes.github,
       darkTheme: prismThemes.dracula,
     },
+
+    algolia: {
+      // The application ID provided by Algolia
+      appId: 'EG57NOYLYX',
+      // Public API key: it is safe to commit it
+      apiKey: 'a811f8bcdd87a8b3fe7f22a353b968ef',
+      indexName: 'plandex',
+    }
   } satisfies Preset.ThemeConfig,
 
-  plugins: [
-    search,
-    [
-      '@docusaurus/plugin-client-redirects',
-      { redirects: [{ from: '/', to: '/intro'}] },
-    ],
-  ]
+  // plugins: [
+  //   search,
+  //   // [
+  //   //   '@docusaurus/plugin-client-redirects',
+  //   //   { redirects: [{ from: '/', to: '/intro'}] },
+  //   // ],
+  // ]
 };
 
 export default config;

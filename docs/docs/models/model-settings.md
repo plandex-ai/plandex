@@ -5,21 +5,21 @@ sidebar_label: Settings
 
 # Model Settings
 
+Plandex gives you a number of ways to control the models and models settings used in your plans. Changes to models and model settings are [version controlled](../core-concepts/version-control.md) and can be [branched](../core-concepts/branches.md).
+
 ## `models` and `set-model`
 
-You can see the current AI models and model settings with the `models` command and change them with the `set-model` command.
+You can see the current plan's models and model settings with the `models` command and change them with the `set-model` command.
 
 ```bash
 plandex models # show the current AI models and model settings
 plandex models available # show all available models
 plandex set-model # select from a list of models and settings
-plandex set-model planner openrouter/anthropic/claude-opus-3 # set the main planner model to Claude Opus 3 from OpenRouter.ai
+plandex set-model planner openrouter/anthropic/claude-3.5-sonnet # set the main planner model to Claude Sonnet 3.5 from OpenRouter.ai
 plandex set-model builder temperature 0.1 # set the builder model's temperature to 0.1
 plandex set-model max-tokens 4000 # set the planner model overall token limit to 4000
 plandex set-model max-convo-tokens 20000  # set how large the conversation can grow before Plandex starts using summaries
 ```
-
-Model changes are [versioned](../core-concepts/version-control.md) and can be rewound or applied to a [branch](../core-concepts/branches.md) just like any other change.
 
 ## Model Defaults  
 
@@ -48,8 +48,8 @@ Instead of changing models for each role one by one, a model pack lets you switc
 ```bash
 plandex set-model # select from a list of model packs for the current plan
 plandex set-model default # select from a list of model packs to set as the default for all new plans
-plandex set-model gpt-4-turbo-latest # set the current plan's model pack by name
-plandex set-model default gpt-4-turbo-latest # set the default model pack for all new plans
+plandex set-model anthropic-claude-3.5-sonnet-gpt-4o # set the current plan's model pack by name
+plandex set-model default Mixtral-8x22b/Mixtral-8x7b/gpt-4o # set the default model pack for all new plans
 
 plandex model-packs # list built-in and custom model packs
 plandex model-packs create # create a new custom model pack

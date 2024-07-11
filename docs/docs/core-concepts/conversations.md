@@ -5,7 +5,7 @@ sidebar_label: Conversations
 
 # Conversations
 
-Each time you send a prompt to Plandex or Plandex responds, the plan's **conversation** is updated.
+Each time you send a prompt to Plandex or Plandex responds, the plan's **conversation** is updated. Conversations are [version controlled](./version-control.md) and can be [branched](./branches.md).
 
 ## Conversation History
 

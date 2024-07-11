@@ -1,5 +1,5 @@
 ---
-sidebar_position: 6
+sidebar_position: 8
 sidebar_label: CLI Reference
 ---
 
@@ -170,10 +170,12 @@ pdx l component.ts # alias
 
 ### ls
 
-List everything in context. Output includes index, name, type, token size, when the context added, and when the context was last updated.
+List everything in the current plan's context. Output includes index, name, type, token size, when the context added, and when the context was last updated.
 
 ```bash
 plandex ls
+
+plandex list-context # longer alias
 ```
 
 ### rm
@@ -181,16 +183,22 @@ plandex ls
 Remove context by index, range, name, or glob.
 
 ```bash
-plandex rm
+plandex rm some-file.ts # by name
+plandex rm app/**/*.ts # by glob pattern
+plandex rm 4 # by index in `plandex ls`
+plandx rm 2-4 # by range of indices
 
+plandex remove # longer alias
+plandex unload # longer alias
 ```
 
 ### update
 
-Update outdated context.
+Update any outdated context.
 
 ```bash
 plandex update
+pdx u # alias
 ```
 
 ### clear
@@ -208,8 +216,20 @@ plandex clear
 Describe a task, ask a question, or chat.
 
 ```bash
-plandex tell
+plandex tell -f prompt.txt # from file
+plandex tell # open vim to write prompt
+plandex tell "add a cancel button to the left of the submit button" # inline
+
+pdx t # alias
 ```
+
+`--file/-f`: File path containing prompt.
+
+`--stop/-s`: Stop after a single model response (don't auto-continue).
+
+`--no-build/-n`: Don't build proposed changes into pending file updates.
+
+`--bg`: Run task in the background.
 
 ### continue
 
@@ -217,15 +237,26 @@ Continue the plan.
 
 ```bash
 plandex continue
+
+pdx c # alias
 ```
+
+`--stop/-s`: Stop after a single model response (don't auto-continue).
+
+`--no-build/-n`: Don't build proposed changes into pending file updates.
+
+`--bg`: Run task in the background.
 
 ### build
 
-Build any pending changes.
+Build any unbuilt pending changes from the plan conversation.
 
 ```bash
 plandex build
+pdx b # alias
 ```
+
+`--bg`: Build in the background.
 
 ## Changes
 
@@ -251,15 +282,24 @@ Apply pending changes to project files.
 
 ```bash
 plandex apply
+pdx ap # alias
 ```
+
+`--yes/-y`: Skip confirmation.
 
 ### reject
 
 Reject pending changes to one or more project files.
 
 ```bash
-plandex reject
+plandex reject file.ts # one file
+plandex reject file.ts another-file.ts # multiple files
+plandex reject --all # all pending files
+
+pdx rj file.ts # alias
 ```
+
+`--all/-a`: Reject all pending files.
 
 ## History
 
@@ -269,6 +309,9 @@ Show plan history.
 
 ```bash
 plandex log
+
+plandex history # alias
+plandex logs # alias
 ```
 
 ### rewind
@@ -276,25 +319,47 @@ plandex log
 Rewind to a previous state.
 
 ```bash
-plandex rewind
+plandex rewind # rewind 1 step
+plandex rewind 3 # rewind 3 steps
+plandex rewind a7c8d66 # rewind to a specific step from `plandex log`
 ```
+
+With no arguments, Plandex rewinds one step.
+
+With one argument, Plandex rewinds the specified number of steps (if an integer is passed) or rewinds to the specified step (if a hash from `plandex log` is passed).
 
 ### convo
 
-Show plan conversation.
+Show the current plan's conversation.
 
 ```bash
 plandex convo
+plandex convo 1 # show a specific message
+plandex convo 1-5 # show a range of messages
+plandex convo 3- # show all messages from 3 to the end
 ```
+
+`--plain/-p`: Output conversation in plain text with no ANSI codes.
+
+### summary
+
+Show the latest summary of the current plan.
+
+```bash
+plandex summary
+```
+
+`--plain/-p`: Output summary in plain text with no ANSI codes.
 
 ## Branches
 
 ### branches
 
-List plan branches.
+List plan branches. Output includes index, name, when the branch was last updated, the number of tokens in context, and the number of tokens in the conversation (prior to summarization).
 
 ```bash
 plandex branches
+pdx br # alias
 ```
 
 ### checkout
@@ -302,7 +367,10 @@ plandex branches
 Checkout or create a branch.
 
 ```bash
-plandex checkout
+plandex checkout # select from a list of branches or prompt to create a new branch
+plandex checkout some-branch # checkout by name or create a new branch with that name
+
+pdx co # alias
 ```
 
 ### delete-branch
@@ -310,14 +378,22 @@ plandex checkout
 Delete a branch by name or index.
 
 ```bash
-plandex delete-branch
+plandex delete-branch # select from a list of branches
+plandex delete-branch some-branch # by name
+plandex delete-branch 4 # by index in `plandex branches`
+
+pdx db # alias
 ```
+
+With no arguments, Plandex prompts you with a list of branches to select from.
+
+With one argument, Plandex deletes a branch by name or by index in the `plandex branches` list.
 
 ## Background Tasks / Streams
 
 ### ps
 
-List active and recently finished plan streams.
+List active and recently finished plan streams. Output includes stream ID, plan name, branch name, when the stream was started, and the stream's status (active, finished, stopped, errored, or waiting for a missing file to be selected).
 
 ```bash
 plandex ps
@@ -328,23 +404,38 @@ plandex ps
 Connect to an active plan stream.
 
 ```bash
-plandex connect
+plandex connect # select from a list of active streams
+plandex connect a4de # by stream ID in `plandex ps`
+plandex connect some-plan main # by plan name and branch name
 ```
+
+With no arguments, Plandex prompts you with a list of active streams to select from.
+
+With one argument, Plandex connects to a stream by stream ID in the `plandex ps` list.
+
+With two arguments, Plandex connects to a stream by plan name and branch name.
 
 ### stop
 
 Stop an active plan stream.
 
 ```bash
-plandex stop
+plandex stop # select from a list of active streams
+plandex stop a4de # by stream ID in `plandex ps`
+plandex stop some-plan main # by plan name and branch name
 ```
 
+With no arguments, Plandex prompts you with a list of active streams to select from.
+
+With one argument, Plandex connects to a stream by stream ID in the `plandex ps` list.
+
+With two arguments, Plandex connects to a stream by plan name and branch name.
 
 ## Models
 
 ### models
 
-Show plan model settings.
+Show current plan models and model settings.
 
 ```bash
 plandex models
@@ -352,7 +443,7 @@ plandex models
 
 ### models default
 
-Show org-wide default model settings for new plans.
+Show org-wide default models and model settings for new plans.
 
 ```bash
 plandex models default
@@ -360,27 +451,63 @@ plandex models default
 
 ### models available
 
-Show all available models.
+Show available models.
 
 ```bash
-plandex models available
+plandex models available # show all available models
+plandex models available --custom # show available custom models only
 ```
+
+`--custom`: Show available custom models only.
 
 ### set-model
 
-Update current plan model settings.
+Update current plan models or model settings.
 
 ```bash
-plandex set-model
+plandex set-model # select from a list of models and settings
+plandex set-model planner openai/gpt-4 # set the model for a role
+plandex set-model gpt-4-turbo-latest # set the current plan's model pack by name (sets all model roles at once—see `model-packs` below)
+plandex set-model builder temperature 0.1 # set a model setting for a role
+plandex set-model max-tokens 4000 # set the planner model overall token limit to 4000
+plandex set-model max-convo-tokens 20000  # set how large the conversation can grow before Plandex starts using summaries
 ```
+
+With no arguments, Plandex prompts you to select from a list of models and settings.
+
+With arguments, can take one of the following forms:
+
+- `plandex set-model [role] [model]`: Set the model for a role.
+- `plandex set-model [model-pack]`: Set the current plan's model pack by name.
+- `plandex set-model [role] [setting] [value]`: Set a model setting for a role.
+- `plandex set-model [setting] [value]`: Set a model setting for the current plan.
+
+Models are specified as `provider/model-name`, e.g. `openai/gpt-4`, `openrouter/anthropic/claude-opus-3`, `together/mistralai/Mixtral-8x22B-Instruct-v0.1`, etc.
+
+See all the model roles [here](./models/roles.md).
+
+Model role settings:
+
+- `temperature`: Higher temperature means more randomness, which can produce more creativity but also more errors.
+- `top-p`: Top-p sampling is a way to prevent the model from generating improbable text by only considering the most likely tokens.
+
+Plan settings:
+
+- `max-tokens`: The overall token limit for the planner model.
+- `max-convo-tokens`: How large the conversation can grow before Plandex starts using summaries.
+- `reserved-output-tokens`: The number of tokens reserved for output from the model.
 
 ### set-model default
 
 Update org-wide default model settings for new plans.
 
 ```bash
-plandex set-model default
+plandex set-model default # select from a list of models and settings
+plandex set-model default planner openai/gpt-4 # set the model for a role
+# etc. — same options as `set-model` above
 ```
+
+Works exactly the same as `set-model` above, but sets the default model settings for all new plans instead of only the current plan.
 
 ### models add
 
@@ -390,12 +517,16 @@ Add a custom model.
 plandex models add
 ```
 
+Plandex will prompt you for all required information to add a custom model.
+
 ### models delete
 
 Delete a custom model.
 
 ```bash
-plandex models delete
+plandex models delete # select from a list of custom models
+plandex models delete some-model # by name
+plandex models delete 4 # by index in `plandex models available --custom`
 ```
 
 ### model-packs
@@ -414,14 +545,17 @@ Create a new custom model pack.
 plandex model-packs create
 ```
 
+Plandex will prompt you for all required information to create a custom model pack.
+
 ### model-packs delete
 
 Delete a custom model pack.
 
 ```bash
 plandex model-packs delete
+plandex model-packs delete some-model-pack # by name
+plandex model-packs delete 4 # by index in `plandex model-packs --custom`
 ```
-
 
 ## Account Management
 
@@ -433,20 +567,26 @@ Sign in, accept an invite, or create an account.
 plandex sign-in
 ```
 
+Plandex will prompt you for all required information to sign in, accept an invite, or create an account.
+
 ### invite
 
 Invite a user to join your org.
 
 ```bash
-plandex invite
+plandex invite # prompt for email, name, and role
+plandex invite name@domain.com 'Full Name' member # invite with email, name, and role 
 ```
+
+Users can be invited as `member`, `admin`, or `owner`.
 
 ### revoke
 
 Revoke an invite or remove a user from your org.
 
 ```bash
-plandex revoke
+plandex revoke # select from a list of users and invites
+plandex revoke name@domain.com # by email
 ```
 
 ### users

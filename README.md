@@ -21,7 +21,7 @@
     <b>Website</b>
   </a>
    ·  -->
-  <a href="./guides/USAGE.md">
+  <a href="https://docs.plandex.ai/">
     <b>Docs</b>
   </a>
    · 
@@ -29,13 +29,13 @@
     <b>Examples</b>
   </a>
    · 
-  <a href="./guides/HOSTING.md">
+  <a href="https://docs.plandex.ai/hosting/self-hosting">
     <b>Self-Hosting</b>
   </a>
-   · 
+   <!-- · 
   <a href="./guides/DEVELOPMENT.md">
     <b>Development</b>
-  </a>
+  </a> -->
   <!--  · 
   <a href="https://discord.gg/plandex-ai">
     <b>Discord</b>
@@ -52,7 +52,6 @@
 [![Discord Follow](https://dcbadge.vercel.app/api/server/plandex-ai?style=flat)](https://discord.gg/plandex-ai)
 [![GitHub Repo stars](https://img.shields.io/github/stars/plandex-ai/plandex?style=social)](https://github.com/plandex-ai/plandex)
 [![Twitter Follow](https://img.shields.io/twitter/follow/PlandexAI?style=social)](https://twitter.com/PlandexAI)
-[![Twitter Follow](https://img.shields.io/twitter/follow/Danenania?style=social)](https://twitter.com/Danenania)
 
 </div>
 
@@ -103,15 +102,9 @@
 - [Overview](#overview-)
 - [Install](#install)
 - [Get started](#get-started-)
-- [Docs](./guides/USAGE.md)
-- [About](#build-complex-software-with-llms-)
-  - [Build complex software](#build-complex-software-with-llms-)
-  - [Why Plandex?](#why-plandex-)
-  - [Plandex Cloud](#plandex-cloud-%EF%B8%8F)
-  - [Self-hosting](#self-hosting-)
-  - [Limitations and guidance](#limitationsand-guidance-%EF%B8%8F)
-  - [Security](#security-)
-  - [Privacy and data retention](#privacy-and-data-retention-%EF%B8%8F)
+- [Docs](https://docs.plandex.ai/)
+- [Build complex software](#build-complex-software-with-llms-)
+- [Why Plandex?](#why-plandex-)
 - [Roadmap](#roadmap-%EF%B8%8F)
 - [Discussion and discord](#discussion-and-discord-)
 - [Contributors](#contributors-)
@@ -129,41 +122,13 @@
 
 ## Install  📥
 
-### Quick Install
-
 ```bash
 curl -sL https://plandex.ai/install.sh | bash
 ```
 
-<details>
- <summary><b>Manual install</b></summary>
- <br>
-<p>
-Grab the appropriate binary for your platform from the latest <a href="https://github.com/plandex-ai/plandex/releases">release</a> and put it somewhere in your <code>PATH</code>.
-</p>
-</details>
+**Note:** Windows is supported via [WSL](https://learn.microsoft.com/en-us/windows/wsl/install). Plandex only works correctly on Windows in the WSL shell. It doesn't work in the Windows CMD prompt or PowerShell.
 
-<details>
-<summary><b>Build from source</b></summary>
-
-<p>
-<pre><code>git clone https://github.com/plandex-ai/plandex.git
-git clone https://github.com/plandex-ai/survey.git
-cd plandex/app/cli
-go build -ldflags "-X plandex/version.Version=$(cat version.txt)"
-mv plandex /usr/local/bin # adapt as needed for your system
-</code></pre>
-</p>
-</details>
-
-<details>
-<summary><b>Windows</b></summary>
-<br>
-<p>
-Windows is supported via <a href="https://learn.microsoft.com/en-us/windows/wsl/about">WSL</a>.
-</p>
-</details>
-
+[More installation options.](https://docs.plandex.ai/install)
 
 <br/>
 
@@ -192,12 +157,15 @@ plandex new
 ```
 
 
-Load any relevant files, directories, or urls **into the LLM's context** with `plandex load`.
+Load any relevant files, directories, directory layouts, urls, or images **into the LLM's context** with `plandex load`.
 
 ```bash
 plandex load some-file.ts another-file.ts
 plandex load src/components -r # load a whole directory
-plandex load https://raw.githubusercontent.com/plandex-ai/plandex/main/README.md
+plandex load src --tree # load a directory layout (file names only)
+plandex load src/**/*.ts # load files matching a glob pattern
+plandex load https://raw.githubusercontent.com/plandex-ai/plandex/main/README.md # load the text content of a url
+plandex load images/mockup.png # load an image
 ```
 
 
@@ -221,34 +189,16 @@ Or pass it inline (use enter for line breaks):
 plandex tell "add a new line chart showing the number of foobars over time to components/charts.tsx"
 ```
 
+Plandex will make a plan for your task and then implement that plan in code. **The changes won't yet be applied to your project files.** Instead, they'll accumulate in Plandex's sandbox.
 
-After any plandex command is run, commands that could make sense to run next will be suggested. You can learn to use Plandex quickly by jumping in and following these suggestions.
-
-You can see a list of all commands with `plandex help` or get help on a specific command with `plandex [command] --help`.
-
-You can use the `pdx` alias instead of `plandex` to type a bit less, and most common commands have their own aliases as well.
+To learn about reviewing changes, iterating on the plan, and applying changes to your project, **[continue with the full quickstart.](https://docs.plandex.ai/quick-start#review-the-changes)**
 
 <br/>
 
 ## Docs  🛠️
 
-[Here's a quick overview of the commands and functionality.](./guides/USAGE.md)
+### [👉  Full documentation.](https://docs.plandex.ai/)
 
-<!-- <br/>
-
-## Help  ℹ️
-
-To see all available commands:
-
-```
-plandex help
-```
-
-For help on any command:
-
-```
-plandex [command] --help
-``` -->
 
 <br/>
 
@@ -277,6 +227,7 @@ plandex [command] --help
 
 <br/>
 
+<<<<<<< HEAD
 ## Plandex Cloud  ☁️
 
 Plandex Cloud is the easiest and most reliable way to use Plandex. You'll be prompted to start an anonymous trial (no email required) when you create your first plan with `plandex new`. Trial accounts are limited to 10 plans and 10 AI model replies per plan. You can upgrade to an unlimited account with your name and email.
@@ -329,6 +280,8 @@ Plandex Cloud follows best practices for network and data security. And whether 
 
 <br/>
 
+=======
+>>>>>>> 1e668b3 (finish up docs, update readme for new docs, remove guides dir in favor of docs)
 ## Roadmap  🗺️
 
 🧠  Support for open source models, Google Gemini, and Anthropic Claude in addition to OpenAI  ✅ released<br>
@@ -361,6 +314,6 @@ Speaking of feedback, feel free to give yours, ask questions, report a bug, or j
 
 Work on tests, evals, prompts, and bug fixes is especially appreciated.
 
-[Here's an overview on setting up a development environment.](./guides/DEVELOPMENT.md)
+[Here's an overview on setting up a development environment.](https://docs.plandex.ai/development)
 
 

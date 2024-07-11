@@ -13,7 +13,7 @@ A plan includes:
 - Your conversation with the model. 
 - Any proposed changes that have been accumulated during the course of the conversation.
 
-Plans support version control and branches.
+Plans support [version control](./version-control.md) and [branches](./branches.md).
 
 ## Creating a New Plan
 

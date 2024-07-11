@@ -5,7 +5,15 @@ sidebar_label: Providers
 
 # Model Providers
 
-By default, Plandex uses the OpenAI models, but you can use models from any provider that provides an OpenAI-compatible API, like [OpenRouter.ai](https://openrouter.ai/) (Anthropic, Gemini, and open source models), [Together.ai](https://together.ai) (open source models), [Replicate](https://replicate.com/), [Ollama](https://ollama.com/), and more.
+By default, Plandex uses OpenAI models, but you can use models from any provider that provides an OpenAI-compatible API, like [OpenRouter.ai](https://openrouter.ai/) (Anthropic, Gemini, and open source models), [Together.ai](https://together.ai) (open source models), [Replicate](https://replicate.com/), [Ollama](https://ollama.com/), and more.
+
+## Limitations
+
+While you can use Plandex with many different providers and models as described above, Plandex requires reliable function calling, which can still be a challenge to find in non-OpenAI models. Additionally, Plandex's prompts have mainly been written and tested against OpenAI models.  
+
+For these reasons, OpenAI models will tend to provide the best experience, and it's recommended to start with the defaults.
+
+In the future, we plan to offer prompts that are tailored for different models, and we also expect that other models and providers will catch up on the reliability front. Until then, **support for non-OpenAI models should generally be considered experimental.**
 
 ## OpenAI
 
@@ -44,11 +52,3 @@ If you have multiple OpenAI orgs, you can specify which org to use:
 ```bash
 export OPENAI_ORG_ID=... # optional - set the OpenAI OrgID if you have multiple orgs
 ```
-
-## Limitations
-
-While you can use Plandex with many different providers and models as described above, Plandex requires reliable function calling, which can still be a challenge to find in non-OpenAI models. Additionally, Plandex's prompts have mainly been written and tested against OpenAI models.  
-
-For these reasons, OpenAI models will tend to provide the best experience, and it's recommended to start with the defaults.
-
-In the future, we plan to offer prompts that are tailored for different models, and we also expect that other models and providers will catch up on the reliability front. Until then, support for non-OpenAI models should generally be considered experimental.

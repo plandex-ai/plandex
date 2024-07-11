@@ -43,11 +43,12 @@ plandex new
 
 ## Load In Context
 
-Load any relevant files, directories, or urls **into the LLM's context** with `plandex load`.
+Load any relevant files, directories, directory layouts, urls, or images **into the LLM's context** with `plandex load`.
 
 ```bash
 plandex load some-file.ts another-file.ts
 plandex load src/components -r # load a whole directory
+plandex load src --tree # load a directory layout (file names only)
 plandex load src/**/*.ts # load files matching a glob pattern
 plandex load https://raw.githubusercontent.com/plandex-ai/plandex/main/README.md # load the text content of a url
 plandex load images/mockup.png # load an image
@@ -73,9 +74,7 @@ Or pass it inline (use enter for line breaks):
 plandex tell "add a new line chart showing the number of foobars over time to components/charts.tsx"
 ```
 
-Plandex will make a plan for your task and then implement that plan in code.
-
-**The changes won't yet be applied to your project files.** Instead, they'll accumulate in Plandex's sandbox. 
+Plandex will make a plan for your task and then implement that plan in code. **The changes won't yet be applied to your project files.** Instead, they'll accumulate in Plandex's sandbox. 
 
 ## Review The Changes
 
@@ -127,7 +126,7 @@ Once the bad update is rejected, copy the changes from the plan's output or run 
 
 ## Apply The Changes
 
-Once you're happy with the plan's changes, you can apply them to your project files with `plandex apply`:
+Once you're happy (enough) with the plan's changes, you can apply them to your project files with `plandex apply`:
 
 ```bash
 plandex apply

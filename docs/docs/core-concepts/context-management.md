@@ -7,6 +7,8 @@ sidebar_label: Context
 
 Context in Plandex refers to  files, directories, URLs, images, notes or piped in data that the LLM uses to understand and work on your project. Context is always associated with a [plan](./plans.md)
 
+Changes to context are [version controlled](./version-control.md) and can be [branched](./branches.md).
+
 ## Loading Context
 
 To load files, directories, directory layouts, urls, images, notes, or piped data into a plan's context, use the `plandex load` command.
@@ -24,6 +26,7 @@ You can also load multiple files using glob patterns:
 
 ```bash
 plandex load tests/**/*.ts # loads all .ts files in 'tests' and its subdirectories
+plandex load * # loads all files in the current directory
 ```
 
 You can load context from parent or sibling directories if needed by using `..` in your load paths.
@@ -39,6 +42,7 @@ You can load an entire directory with the `--recursive/-r` flag:
 
 ```bash
 plandex load lib -r # loads lib, all its files and all its subdirectories
+plandex load * -r # loads all files in the current directory and all its subdirectories
 ```
 
 ### Loading Directory Layouts

@@ -11,26 +11,7 @@ Plandex is an open source, terminal-based AI coding engine that helps you work o
 
 It combines multiple agents to complete tasks that span many files and model responses. When you give Plandex a task, it continues working automatically until the task is determined to be complete.   
 
-## A Version-Controlled Sandbox
-
-Plandex gives the LLM its own version-controlled staging area/sandbox (separate from your project's git repo) where all of its proposed changes are accumulated. This allows you to:
-
-- Iterate on your code and the LLM's plan at the same time without the changes becoming intertwined and difficult to disentangle.
-- Review proposed changes across multiple files as a whole (rejecting any that aren't correct) to be sure that broken updates or hallucinations don't make it into your project files.
-- Branch or rewind the LLM's plan in order to explore multiple paths or revert to the exact step where a task went off the rails.
-- Apply proposed changes to your project once you're happy with them. You can optionally group the changes together as a single commit in your git repo with an automatically generated commit message. Plandex is resilient to messy git states and will leave any work you have in-progress unaffected. You can also use Plandex in directories that are *not* git repos while still retaining all the aforementioned benefits.
-
-## Context Management
-
-Apart from version control, Plandex also helps you manage what's in the LLM's context:
-
-- Add files or directories to context from the terminal instead of copying and pasting or clicking around in a UI. 
-- Files you add to context are kept up-to-date automatically so that the LLM is always using the latest version.
-- Load the text content of URLs into context in order to add relevant documentation or other supporting info. You can also pipe in the output of commands or add notes.
-- Unlike IDE-based tools that automatically and opaquely load context in the background, Plandex gives the developer precise control of what's in the LLM's context. You never have to wonder what's been loaded or whether it's up-to-date. This is crucial to getting good results and keeping a handle on costs, particularly when you want to go beyond auto-complete and work on larger tasks.
-- Like other interactions with the LLM, all context updates are version-controlled in the LLM's sandbox, meaning you can try loading different context in different branches or rewind the plan state and modify context as needed to improve results.
-
-## Use Cases
+## Use cases
 
 - Build new projects from scratch.
 - Add features to existing projects.
@@ -42,9 +23,32 @@ Apart from version control, Plandex also helps you manage what's in the LLM's co
 - Ask questions about code.
 - Understand a codebase. 
 
+## What makes Plandex different?
+
+### Version Control
+
+Plandex gives the LLM its own version-controlled staging area/sandbox (separate from your project's git repo) where all of its proposed changes are accumulated. This allows you to:
+
+- Iterate on your code and the LLM's plan at the same time without the changes becoming intertwined and difficult to disentangle.
+- Review proposed changes across multiple files as a whole (rejecting any that aren't correct) to be sure that broken updates or hallucinations don't make it into your project files.
+- Branch or rewind the LLM's plan in order to explore multiple paths or revert to the exact step where a task went off the rails.
+
+### Context Management
+
+Apart from version control, Plandex also helps you manage what's in the LLM's context:
+
+- Add files or directories to context from the terminal instead of copying and pasting or clicking around in a UI. 
+- Files you add to context are kept up-to-date automatically so that the LLM is always using the latest version.
+- Unlike IDE-based tools that automatically and opaquely load context in the background, Plandex gives the developer precise control of what's in the LLM's context. You never have to wonder what's been loaded or whether it's up-to-date. This is crucial to getting good results and keeping a handle on costs, particularly when you want to go beyond auto-complete and work on larger tasks.
+
 ## Focus
 
-For now, Plandex is focused on 1. planning out the changes needed to complete a task, and 2. creating or updating all the necessary files to complete that task. It doesn't yet do automatic execution of code or automatic selection of context—both are left to the developer.
+For now, Plandex is focused on: 
+
+1. Planning out the changes needed to complete a task.
+2. Creating or updating all the necessary files to complete that task. 
+
+It doesn't yet do automatic execution of code or automatic selection of context—both are left to the developer.
 
 In other words, Plandex isn't (yet) shooting for full autonomy. While we do plan to move in this direction over time, we think the current level of model capabilities make Plandex's focus a sweet spot for achieving real productivity gains.
 
@@ -64,7 +68,7 @@ Plandex is cross-platform and easy to install. It supports Mac, Linux, FreeBSD, 
 
 ## Hosting
 
-Plandex runs on a client-server architecture. The Plandex server is open source and can be self-hosted. A cloud-hosting option is also offered for getting started as quickly as possible with minimal setup.
+Plandex runs on a client-server architecture. The Plandex server is open source and can be self-hosted. A cloud-hosted option is also offered for getting started as quickly as possible with minimal setup.
 
 ## Community
 

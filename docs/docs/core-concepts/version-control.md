@@ -10,8 +10,8 @@ Just about every aspect of a Plandex plan is version-controlled, and anything th
 - Adding, removing, or updating context.
 - When you send a prompt.
 - When Plandex responds.
-- When Plandex builds a file into a pending change.
-- When a file with pending changes is rejected.
+- When Plandex builds the plan's proposed updates to a file into a pending change.
+- When pending changes are rejected.
 - When pending changes are applied to your project.
 - When models or model settings are updated.
 
@@ -33,9 +33,9 @@ plandex rewind 3  # Rewind 3 steps
 plandex rewind a7c8d66  # Rewind to a specific step
 ```
 
-## Data Loss / Branches
+## Preventing History Loss With Branches
 
-Note that currently, there's no way to undo a `rewind` and recover any data that may have been cleared as a result. That said, you can use `rewind` without losing any history with [branches](./branches.md). Use `plandex checkout` to a create a new branch before executing `rewind`, and the original branch will still include the history from before the `rewind`.
+Note that currently, there's no way to undo a `rewind` and recover any history that may have been cleared as a result. That said, you can use `rewind` without losing any history with [branches](./branches.md). Use `plandex checkout` to a create a new branch before executing `rewind`, and the original branch will still include the history from before the `rewind`.
 
 ```bash
 plandex checkout undo-changes # create a new branch called 'undo-changes'
