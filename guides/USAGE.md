@@ -52,6 +52,8 @@ After creating a plan, load any relevant files, images, directories, directory l
 ```bash
 plandex load component.ts action.ts reducer.ts
 plandex load lib -r # loads lib and all its subdirectories
+plandex load * # loads all files in the current directory 
+plandex load * -r # loads all files in the current directory and all sub directories
 plandex load tests/**/*.ts # loads all .ts files in tests and its subdirectories
 plandex load . --tree # loads the layout of the current directory and its subdirectories (file names only)
 plandex load https://redux.js.org/usage/writing-tests # loads the text-only content of the url
