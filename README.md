@@ -227,61 +227,6 @@ To learn about reviewing changes, iterating on the plan, and applying changes to
 
 <br/>
 
-<<<<<<< HEAD
-## Plandex Cloud  ☁️
-
-Plandex Cloud is the easiest and most reliable way to use Plandex. You'll be prompted to start an anonymous trial (no email required) when you create your first plan with `plandex new`. Trial accounts are limited to 10 plans and 10 AI model replies per plan. You can upgrade to an unlimited account with your name and email.
-
-Plandex Cloud accounts are free for now. In the future, they will cost somewhere in the $10-20 per month range.
-
-<br/>
-
-## Self-hosting  🏠
-
-Self-contained script for easy local mode and self-hosting:
-
-```bash
-git clone https://github.com/plandex-ai/plandex.git
-cd plandex/app
-./start_local.sh
-```
-
-Requires git, docker, and docker-compose.
-
-[Read more about self-hosting Plandex here.](./guides/HOSTING.md)
-
-<br/>
-
-## Limitations and guidance ⚠️
-
-#### **Note  →** while the caveats below still apply to some extent, Plandex's [1.0.0 release](https://github.com/plandex-ai/plandex/releases/tag/server%2Fv1.0.0) that provides gpt-4o support and automatic error-correction is a major step forward in reliability and accuracy, with over 90% reduction in syntax errors and significantly stronger planning capabilities.
-
-- Plandex can provide a significant boost to your productivity, but as with any other AI tool, you shouldn't expect perfect results. Always review a plan before applying changes, especially if security is involved. Plandex is designed to get you 90-95% of the way there rather than 100%.
-
-- Due to the reasoning limitations of LLMs, automatically applied file updates also aren't perfect. While these were significantly improved in the 1.0.0 release, mistakes and errors are still possible. Use the `plandex changes` command to review pending updates in a TUI, or `plandex diffs` to review them in git diff format. If a file update has mistakes, make those changes yourself with copy-and-paste and reject the file in the changes TUI.
-
-- The more direction and detail you provide, the better the results will be. Working with Plandex often involves giving it a prompt, seeing that the results are a bit off, then using `plandex rewind` to go back and iterate on the prompt or add context before trying again. Branches are also useful for experimentation.
-
-- If you want to go step-by-step rather than having Plandex attempt do everything at once, use `plandex tell` and `plandex continue` with the `--stop / -s` flag, which will prevent it from automatically continuing for multiple responses. Use `plandex continue` to proceed with the plan once you're ready.
-
-- While it can be tempting to just dump your entire project into context if it fits under the token limit, and that can work just fine, you will tend to see better results (and pay less) by being more selective about what's loaded into context.
-
-<br/>
-
-## Security  🔐
-
-Plandex Cloud follows best practices for network and data security. And whether cloud or self-hosted, Plandex protects model provider API keys (like your OpenAI API key). [Read more here.](./guides/SECURITY.md)
-
-<br/>
-
-## Privacy and data retention  🛡️
-
-[Read about Plandex Cloud's privacy and data retention policies here.](./guides/PRIVACY.md)
-
-<br/>
-
-=======
->>>>>>> 1e668b3 (finish up docs, update readme for new docs, remove guides dir in favor of docs)
 ## Roadmap  🗺️
 
 🧠  Support for open source models, Google Gemini, and Anthropic Claude in addition to OpenAI  ✅ released<br>
