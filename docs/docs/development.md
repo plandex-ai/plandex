@@ -9,7 +9,7 @@ To set up a development environment, first install dependencies:
 
 - Go 1.21.3 - [install here](https://go.dev/doc/install)
 - [reflex](https://github.com/cespare/reflex) 0.3.1 - for watching files and rebuilding in development. Install with `go install github.com/cespare/reflex@v0.3.1`
-- PostreSQL 14 - https://www.postgresql.org/download/
+- PostgreSQL 14 - https://www.postgresql.org/download/
 
 Make sure `$GOPATH` is in your $PATH
 

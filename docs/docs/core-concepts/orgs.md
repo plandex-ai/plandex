@@ -39,7 +39,7 @@ To list users and pending invites, use `plandex users`:
 plandex users
 ```
 
-## Reovking Users and Invites
+## Revoking Users and Invites
 
 To revoke an invite or remove a user, use `plandex revoke`:
 

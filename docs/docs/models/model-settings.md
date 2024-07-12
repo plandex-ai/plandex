@@ -23,7 +23,7 @@ plandex set-model max-convo-tokens 20000  # set how large the conversation can g
 
 ## Model Defaults  
 
-`set-model` udpates model settings for the current plan. If you want to change the default model settings for all new plans, use `set-model default`.
+`set-model` updates model settings for the current plan. If you want to change the default model settings for all new plans, use `set-model default`.
 
 ```bash
 plandex models default # show the default model settings
