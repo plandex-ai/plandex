@@ -5,7 +5,6 @@ import (
 	"log"
 	"plandex/api"
 	"plandex/lib"
-	"strings"
 
 	"github.com/atotto/clipboard"
 	"github.com/muesli/reflow/wrap"
@@ -192,8 +191,6 @@ func (m *changesUIModel) updateMainView(scrollReplacement bool) {
 		} else {
 			updatedFile = m.currentPlan.CurrentPlanFiles.Files[m.selectionInfo.currentPath]
 		}
-
-		updatedFile = strings.ReplaceAll(updatedFile, "\\`\\`\\`", "```")
 
 		wrapped := wrap.String(updatedFile, m.fileViewport.Width-2)
 		m.fileViewport.SetContent(wrapped)
