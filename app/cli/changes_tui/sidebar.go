@@ -1,6 +1,7 @@
 package changes_tui
 
 import (
+	"plandex/term"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
@@ -30,7 +31,7 @@ func (m changesUIModel) renderSidebar() string {
 		if m.hasNewFile() && i == 0 {
 			createdFile = true
 			selected := m.selectedNewFile()
-			fgColor := color.FgHiGreen
+			fgColor := term.ColorHiGreen
 			bgColor := color.BgGreen
 			icon := "🌟"
 
@@ -58,10 +59,10 @@ func (m changesUIModel) renderSidebar() string {
 		selected := currentRep != nil && rep.Id == currentRep.Id
 		s := ""
 
-		fgColor := color.FgHiGreen
+		fgColor := term.ColorHiGreen
 		bgColor := color.BgGreen
 		if rep.Failed {
-			fgColor = color.FgHiRed
+			fgColor = term.ColorHiRed
 			bgColor = color.BgRed
 			anyFailed = true
 		} else if rep.RejectedAt != nil {
@@ -98,10 +99,10 @@ func (m changesUIModel) renderSidebar() string {
 	}
 
 	if anyApplied {
-		fgColor := color.FgHiGreen
+		fgColor := term.ColorHiGreen
 		bgColor := color.BgGreen
 		if anyFailed {
-			fgColor = color.FgHiRed
+			fgColor = term.ColorHiRed
 			bgColor = color.BgRed
 		}
 

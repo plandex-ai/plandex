@@ -11,12 +11,12 @@ import (
 )
 
 func (state *activeBuildStreamState) loadPendingBuilds() (map[string][]*types.ActiveBuild, error) {
-	client := state.client
+	clients := state.clients
 	plan := state.plan
 	branch := state.branch
 	auth := state.auth
 
-	active, err := activatePlan(client, plan, branch, auth, "", true)
+	active, err := activatePlan(clients, plan, branch, auth, "", true)
 
 	if err != nil {
 		log.Printf("Error activating plan: %v\n", err)
@@ -43,7 +43,7 @@ func (state *activeBuildStreamState) loadPendingBuilds() (map[string][]*types.Ac
 
 	err = func() error {
 		defer func() {
-			err := db.UnlockRepo(repoLockId)
+			err := db.DeleteRepoLock(repoLockId)
 			if err != nil {
 				log.Printf("Error unlocking repo: %v\n", err)
 			}
@@ -128,13 +128,11 @@ func (state *activeBuildStreamFileState) loadBuildFile(activeBuild *types.Active
 
 	activePlan := GetActivePlan(planId, branch)
 
-	convoMessageId := activeBuild.ReplyId
-
-	if !activePlan.IsBuildingByPath[filePath] {
-		UpdateActivePlan(activePlan.Id, activePlan.Branch, func(ap *types.ActivePlan) {
-			ap.IsBuildingByPath[filePath] = true
-		})
+	if activePlan == nil {
+		return fmt.Errorf("active plan not found")
 	}
+
+	convoMessageId := activeBuild.ReplyId
 
 	build := &db.PlanBuild{
 		OrgId:          currentOrgId,
@@ -158,6 +156,9 @@ func (state *activeBuildStreamFileState) loadBuildFile(activeBuild *types.Active
 	}
 
 	var currentPlan *shared.CurrentPlanState
+	var convo []*db.ConvoMessage
+
+	log.Println("Locking repo for load build file")
 
 	repoLockId, err := db.LockRepo(
 		db.LockRepoParams{
@@ -184,34 +185,66 @@ func (state *activeBuildStreamFileState) loadBuildFile(activeBuild *types.Active
 		return err
 	}
 
+	log.Println("Locked repo for load build file")
+
 	err = func() error {
 		defer func() {
-			err := db.UnlockRepo(repoLockId)
+			log.Printf("Unlocking repo for load build file")
+
+			err := db.DeleteRepoLock(repoLockId)
 			if err != nil {
 				log.Printf("Error unlocking repo: %v\n", err)
 			}
 		}()
 
-		res, err := db.GetCurrentPlanState(db.CurrentPlanStateParams{
-			OrgId:  currentOrgId,
-			PlanId: planId,
-		})
-		if err != nil {
-			log.Printf("Error getting current plan state: %v\n", err)
-			UpdateActivePlan(activePlan.Id, activePlan.Branch, func(ap *types.ActivePlan) {
-				ap.IsBuildingByPath[filePath] = false
-			})
-			activePlan.StreamDoneCh <- &shared.ApiError{
-				Type:   shared.ApiErrorTypeOther,
-				Status: http.StatusInternalServerError,
-				Msg:    "Error getting current plan state: " + err.Error(),
-			}
-			return err
-		}
-		currentPlan = res
+		errCh := make(chan error)
 
-		log.Println("Got current plan state")
+		go func() {
+			res, err := db.GetCurrentPlanState(db.CurrentPlanStateParams{
+				OrgId:  currentOrgId,
+				PlanId: planId,
+			})
+			if err != nil {
+				log.Printf("Error getting current plan state: %v\n", err)
+				UpdateActivePlan(activePlan.Id, activePlan.Branch, func(ap *types.ActivePlan) {
+					ap.IsBuildingByPath[filePath] = false
+				})
+				activePlan.StreamDoneCh <- &shared.ApiError{
+					Type:   shared.ApiErrorTypeOther,
+					Status: http.StatusInternalServerError,
+					Msg:    "Error getting current plan state: " + err.Error(),
+				}
+				errCh <- fmt.Errorf("error getting current plan state: %v", err)
+				return
+			}
+			currentPlan = res
+
+			log.Println("Got current plan state")
+			errCh <- nil
+		}()
+
+		go func() {
+			res, err := db.GetPlanConvo(currentOrgId, planId)
+			if err != nil {
+				log.Printf("Error getting plan convo: %v\n", err)
+				errCh <- fmt.Errorf("error getting plan convo: %v", err)
+				return
+			}
+			convo = res
+
+			errCh <- nil
+		}()
+
+		for i := 0; i < 2; i++ {
+			err = <-errCh
+			if err != nil {
+				log.Printf("Error getting plan data: %v\n", err)
+				return err
+			}
+		}
+
 		return nil
+
 	}()
 
 	if err != nil {
@@ -222,6 +255,7 @@ func (state *activeBuildStreamFileState) loadBuildFile(activeBuild *types.Active
 	state.convoMessageId = convoMessageId
 	state.build = build
 	state.currentPlanState = currentPlan
+	state.convo = convo
 
 	return nil
 

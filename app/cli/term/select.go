@@ -11,7 +11,7 @@ import (
 func SelectFromList(msg string, options []string) (string, error) {
 	var selected string
 	prompt := &survey.Select{
-		Message:       color.New(color.FgHiMagenta, color.Bold).Sprint(msg),
+		Message:       color.New(ColorHiMagenta, color.Bold).Sprint(msg),
 		Options:       convertToStringSlice(options),
 		FilterMessage: "",
 	}

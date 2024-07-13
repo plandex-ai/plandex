@@ -1,0 +1,7 @@
+POSTGRES_PASSWORD=plandex
+POSTGRES_USER=plandex
+POSTGRES_DATABASE=plandex
+PGDATA_DIR=/var/lib/postgresql/data
+PLANDEX_DATA_DIR=/var/lib/plandex/data # local path to store plandex data (outside container)
+GOENV=development
+PLANDEX_BASE_DIR=/plandex-server # container path to store plandex data (inside container)

@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"plandex-server/db"
 	"plandex-server/hooks"
-	"plandex-server/model"
+	"plandex-server/host"
 	modelPlan "plandex-server/model/plan"
 	"plandex-server/types"
 	"time"
@@ -20,7 +20,7 @@ import (
 const TrialMaxReplies = 10
 
 func TellPlanHandler(w http.ResponseWriter, r *http.Request) {
-	log.Println("Received request for TellPlanHandler")
+	log.Println("Received request for TellPlanHandler", "ip:", host.Ip)
 
 	auth := Authenticate(w, r, true)
 	if auth == nil {
@@ -56,7 +56,7 @@ func TellPlanHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if requestBody.ApiKey == "" {
+	if requestBody.ApiKey == "" && len(requestBody.ApiKeys) == 0 {
 		log.Println("API key is required")
 		http.Error(w, "API key is required", http.StatusBadRequest)
 		return
@@ -71,8 +71,18 @@ func TellPlanHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client := model.NewClient(requestBody.ApiKey)
-	err = modelPlan.Tell(client, plan, branch, auth, &requestBody)
+	clients := initClients(
+		initClientsParams{
+			w:           w,
+			apiKey:      requestBody.ApiKey,
+			apiKeys:     requestBody.ApiKeys,
+			endpoint:    requestBody.Endpoint,
+			openAIBase:  requestBody.OpenAIBase,
+			openAIOrgId: requestBody.OpenAIOrgId,
+			plan:        plan,
+		},
+	)
+	err = modelPlan.Tell(clients, plan, branch, auth, &requestBody)
 
 	if err != nil {
 		log.Printf("Error telling plan: %v\n", err)
@@ -88,7 +98,7 @@ func TellPlanHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func BuildPlanHandler(w http.ResponseWriter, r *http.Request) {
-	log.Println("Received request for BuildPlanHandler")
+	log.Println("Received request for BuildPlanHandler", "ip:", host.Ip)
 	auth := Authenticate(w, r, true)
 	if auth == nil {
 		return
@@ -122,14 +132,24 @@ func BuildPlanHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if requestBody.ApiKey == "" {
+	if requestBody.ApiKey == "" && len(requestBody.ApiKeys) == 0 {
 		log.Println("API key is required")
 		http.Error(w, "API key is required", http.StatusBadRequest)
 		return
 	}
 
-	client := model.NewClient(requestBody.ApiKey)
-	numBuilds, err := modelPlan.Build(client, plan, branch, auth)
+	clients := initClients(
+		initClientsParams{
+			w:           w,
+			apiKey:      requestBody.ApiKey,
+			apiKeys:     requestBody.ApiKeys,
+			endpoint:    requestBody.Endpoint,
+			openAIBase:  requestBody.OpenAIBase,
+			openAIOrgId: requestBody.OpenAIOrgId,
+			plan:        plan,
+		},
+	)
+	numBuilds, err := modelPlan.Build(clients, plan, branch, auth)
 
 	if err != nil {
 		log.Printf("Error building plan: %v\n", err)
@@ -151,7 +171,7 @@ func BuildPlanHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func ConnectPlanHandler(w http.ResponseWriter, r *http.Request) {
-	log.Println("Received request for ConnectPlanHandler")
+	log.Println("Received request for ConnectPlanHandler", "ip:", host.Ip)
 
 	vars := mux.Vars(r)
 	planId := vars["planId"]
@@ -192,7 +212,7 @@ func ConnectPlanHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func StopPlanHandler(w http.ResponseWriter, r *http.Request) {
-	log.Println("Received request for StopPlanHandler")
+	log.Println("Received request for StopPlanHandler", "ip:", host.Ip)
 
 	vars := mux.Vars(r)
 	planId := vars["planId"]
@@ -233,27 +253,39 @@ func StopPlanHandler(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 	ctx, cancel := context.WithCancel(context.Background())
-	unlockFn := lockRepo(w, r, auth, db.LockScopeWrite, ctx, cancel)
+	unlockFn := lockRepo(w, r, auth, db.LockScopeWrite, ctx, cancel, true)
 	if unlockFn == nil {
 		return
 	} else {
-		defer (*unlockFn)(err)
+		defer func() {
+			(*unlockFn)(err)
+
+			if err == nil {
+				err = modelPlan.Stop(planId, branch, auth.User.Id, auth.OrgId)
+
+				if err != nil {
+					log.Printf("Error stopping plan: %v\n", err)
+					http.Error(w, "Error stopping plan", http.StatusInternalServerError)
+					return
+				}
+
+				log.Println("Successfully processed request for StopPlanHandler")
+			}
+		}()
 	}
 
 	log.Println("Stopping plan")
-	err = modelPlan.Stop(planId, branch, auth.User.Id, auth.OrgId)
+	err = modelPlan.StorePartialReply(planId, branch, auth.User.Id, auth.OrgId)
 
 	if err != nil {
-		log.Printf("Error stopping plan: %v\n", err)
-		http.Error(w, "Error stopping plan", http.StatusInternalServerError)
+		log.Printf("Error storing partial reply: %v\n", err)
+		http.Error(w, "Error storing partial reply", http.StatusInternalServerError)
 		return
 	}
-
-	log.Println("Successfully processed request for StopPlanHandler")
 }
 
 func RespondMissingFileHandler(w http.ResponseWriter, r *http.Request) {
-	log.Println("Received request for RespondMissingFileHandler")
+	log.Println("Received request for RespondMissingFileHandler", "ip:", host.Ip)
 
 	vars := mux.Vars(r)
 	planId := vars["planId"]

@@ -1,7 +1,6 @@
 package shared
 
 import (
-	"log"
 	"time"
 )
 
@@ -87,13 +86,20 @@ func (p PlanFileResultsByPath) ConflictedPaths(filesByPath map[string]string) ma
 		noConflicts := true
 		for _, res := range planRes {
 
-			log.Println("res:", res.Id)
+			// log.Println("res:", res.Id)
 			if len(res.Replacements) == 0 {
 				continue
 			}
 
+			maybeWithLineNums := updated
+			if res.ReplaceWithLineNums {
+				maybeWithLineNums = AddLineNums(updated)
+			}
+
 			var succeeded bool
-			updated, succeeded = ApplyReplacements(updated, res.Replacements, false)
+			updated, succeeded = ApplyReplacements(maybeWithLineNums, res.Replacements, false)
+
+			updated = RemoveLineNums(updated)
 
 			// log.Println("updated:", updated)
 			// log.Println("succeeded:", succeeded)

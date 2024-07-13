@@ -1,7 +1,12 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-go build && \
-rm -f /usr/local/bin/plandex && \
-cp plandex /usr/local/bin/plandex && \
-ln -sf /usr/local/bin/plandex /usr/local/bin/pdx && \
-echo built 'plandex' cli and added 'pdx' alias to /usr/local/bin
+OUT="${PLANDEX_DEV_CLI_OUT_DIR:-/usr/local/bin}"
+NAME="${PLANDEX_DEV_CLI_NAME:-plandex-dev}"
+ALIAS="${PLANDEX_DEV_CLI_ALIAS:-pdxd}"
+
+# Double quote to prevent globbing and word splitting.
+go build -o "$NAME" &&
+    rm -f "$OUT"/"$NAME" &&
+    cp "$NAME" "$OUT"/"$NAME" &&
+    ln -sf "$OUT"/"$NAME" "$OUT"/"$ALIAS" &&
+    echo built "$NAME" cli and added "$ALIAS" alias to "$OUT"

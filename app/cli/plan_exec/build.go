@@ -22,7 +22,7 @@ func Build(params ExecParams, buildBg bool) (bool, error) {
 		term.OutputErrorAndExit("Error getting context: %v", apiErr)
 	}
 
-	anyOutdated, didUpdate, _ := params.CheckOutdatedContext(false, contexts)
+	anyOutdated, didUpdate := params.CheckOutdatedContext(contexts)
 
 	if anyOutdated && !didUpdate {
 		term.StopSpinner()
@@ -36,10 +36,29 @@ func Build(params ExecParams, buildBg bool) (bool, error) {
 		return false, fmt.Errorf("error getting project paths: %v", err)
 	}
 
+	var legacyApiKey, openAIBase, openAIOrgId string
+
+	if params.ApiKeys["OPENAI_API_KEY"] != "" {
+		legacyApiKey = params.ApiKeys["OPENAI_API_KEY"]
+		openAIBase = os.Getenv("OPENAI_API_BASE")
+		if openAIBase == "" {
+			openAIBase = os.Getenv("OPENAI_ENDPOINT")
+		}
+		openAIOrgId = os.Getenv("OPENAI_ORG_ID")
+	}
+
+	// log.Println("Building plan...")
+	// log.Println("API keys:", params.ApiKeys)
+	// log.Println("Legacy API key:", legacyApiKey)
+
 	apiErr = api.Client.BuildPlan(params.CurrentPlanId, params.CurrentBranch, shared.BuildPlanRequest{
 		ConnectStream: !buildBg,
 		ProjectPaths:  paths.ActivePaths,
-		ApiKey:        os.Getenv("OPENAI_API_KEY"),
+		ApiKey:        legacyApiKey, // deprecated
+		Endpoint:      openAIBase,   // deprecated
+		ApiKeys:       params.ApiKeys,
+		OpenAIBase:    openAIBase,
+		OpenAIOrgId:   openAIOrgId,
 	}, stream.OnStreamPlan)
 
 	term.StopSpinner()

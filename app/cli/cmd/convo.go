@@ -13,15 +13,20 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var plainTextOutput bool
+
 // convoCmd represents the convo command
 var convoCmd = &cobra.Command{
-	Use:   "convo",
+	Use:   "convo [msg-range]",
 	Short: "Display complete conversation history",
+	Long:  `Display complete conversation history. Optionally specify a message number or range of messages (e.g. '1' or '5' or '1-5' or '5-')`,
 	Run:   convo,
 }
 
 func init() {
 	RootCmd.AddCommand(convoCmd)
+
+	convoCmd.Flags().BoolVarP(&plainTextOutput, "plain", "p", false, "Output conversation in plain text with no ANSI codes")
 }
 
 const stoppedEarlyMsg = "You stopped the reply early"
@@ -43,9 +48,46 @@ func convo(cmd *cobra.Command, args []string) {
 		return
 	}
 
+	var msgRange string
+	var msgRangeStart, msgRangeEnd int
+	if len(args) > 0 {
+		msgRange = args[0]
+	}
+	if msgRange != "" {
+		// validate either a number or a range of numbers
+		if strings.Contains(msgRange, "-") {
+			_, err := fmt.Sscanf(msgRange, "%d-%d", &msgRangeStart, &msgRangeEnd)
+			if err != nil {
+				_, err := fmt.Sscanf(msgRange, "%d-", &msgRangeStart)
+
+				if err != nil {
+					term.OutputErrorAndExit("Invalid message range: %s", msgRange)
+				}
+
+				msgRangeEnd = len(conversation)
+			}
+		} else {
+			_, err := fmt.Sscanf(msgRange, "%d", &msgRangeStart)
+			if err != nil {
+				term.OutputErrorAndExit("Invalid message number: %s", msgRange)
+			}
+			msgRangeEnd = msgRangeStart
+		}
+	}
+
 	var convo string
 	var totalTokens int
+	var didCut bool
 	for i, msg := range conversation {
+		if msgRangeStart > 0 && msg.Num < msgRangeStart {
+			didCut = true
+			continue
+		}
+		if msgRangeEnd > 0 && msg.Num > msgRangeEnd {
+			didCut = true
+			break
+		}
+
 		var author string
 		if msg.Role == "assistant" {
 			author = "🤖 Plandex"
@@ -71,27 +113,45 @@ func convo(cmd *cobra.Command, args []string) {
 		header := fmt.Sprintf("#### %d | %s | %s | %d 🪙 ", i+1,
 			author, formattedTs, msg.Tokens)
 
-		// convMarkdown = append(convMarkdown, header, msg.Message, "")
-
-		md, err := term.GetMarkdown(header + "\n" + msg.Message + "\n\n")
-		if err != nil {
-			term.OutputErrorAndExit("Error creating markdown representation: %v", err)
+		if plainTextOutput {
+			convo += header + "\n" + msg.Message + "\n\n"
+		} else {
+			md, err := term.GetMarkdown(header + "\n" + msg.Message + "\n\n")
+			if err != nil {
+				term.OutputErrorAndExit("Error creating markdown representation: %v", err)
+			}
+			convo += md
 		}
-		convo += md
 
-		if msg.Stopped {
-			convo += fmt.Sprintf(" 🛑 %s\n\n", color.New(color.Bold, color.FgHiWhite).Sprint(stoppedEarlyMsg))
+		if !didCut && msg.Stopped {
+			if plainTextOutput {
+				convo += fmt.Sprintf(" 🛑 %s\n\n", stoppedEarlyMsg)
+			} else {
+				convo += fmt.Sprintf(" 🛑 %s\n\n", color.New(color.Bold).Sprint(stoppedEarlyMsg))
+			}
 		}
 
 		totalTokens += msg.Tokens
 	}
 
-	convo = strings.ReplaceAll(convo, stoppedEarlyMsg, color.New(color.FgHiRed).Sprint(stoppedEarlyMsg))
+	if !plainTextOutput {
+		convo = strings.ReplaceAll(convo, stoppedEarlyMsg, color.New(term.ColorHiRed).Sprint(stoppedEarlyMsg))
+	}
 
 	output :=
-		fmt.Sprintf("\n%s", convo) +
-			term.GetDivisionLine() +
-			color.New(color.Bold, color.FgCyan).Sprint("  Conversation size →") + fmt.Sprintf(" %d 🪙", totalTokens) + "\n\n"
+		fmt.Sprintf("\n%s", convo)
 
-	term.PageOutput(output)
+	if !plainTextOutput && !didCut {
+		output += term.GetDivisionLine() +
+			color.New(color.Bold, term.ColorHiCyan).Sprint("  Conversation size →") + fmt.Sprintf(" %d 🪙", totalTokens) + "\n\n"
+	}
+
+	if plainTextOutput {
+		fmt.Println(output)
+	} else {
+		term.PageOutput(output)
+
+		fmt.Println()
+		term.PrintCmds("", "convo 1", "convo 2-5", "convo --plain", "log")
+	}
 }

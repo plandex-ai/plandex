@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 	"plandex/auth"
 	"plandex/lib"
 	"plandex/plan_exec"
@@ -29,23 +28,21 @@ func init() {
 }
 
 func build(cmd *cobra.Command, args []string) {
-	if os.Getenv("OPENAI_API_KEY") == "" {
-		term.OutputNoApiKeyMsgAndExit()
-	}
-
 	auth.MustResolveAuthWithOrg()
 	lib.MustResolveProject()
 
 	if lib.CurrentPlanId == "" {
-		fmt.Println("🤷‍♂️ No current plan")
-		return
+		term.OutputNoCurrentPlanErrorAndExit()
 	}
+
+	apiKeys := lib.MustVerifyApiKeys()
 
 	didBuild, err := plan_exec.Build(plan_exec.ExecParams{
 		CurrentPlanId: lib.CurrentPlanId,
 		CurrentBranch: lib.CurrentBranch,
-		CheckOutdatedContext: func(cancelOpt bool, maybeContexts []*shared.Context) (bool, bool, bool) {
-			return lib.MustCheckOutdatedContext(cancelOpt, false, maybeContexts)
+		ApiKeys:       apiKeys,
+		CheckOutdatedContext: func(maybeContexts []*shared.Context) (bool, bool) {
+			return lib.MustCheckOutdatedContext(false, maybeContexts)
 		},
 	}, buildBg)
 
@@ -65,6 +62,6 @@ func build(cmd *cobra.Command, args []string) {
 		term.PrintCmds("", "ps", "connect", "stop")
 	} else {
 		fmt.Println()
-		term.PrintCmds("", "changes", "apply", "log")
+		term.PrintCmds("", "changes", "apply", "reject", "log")
 	}
 }

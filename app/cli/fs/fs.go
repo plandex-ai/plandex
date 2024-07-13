@@ -156,7 +156,47 @@ func GetPaths(baseDir, currentDir string) (*ProjectPaths, error) {
 	var mu sync.Mutex
 	numRoutines := 0
 
+	deletedFiles := map[string]bool{}
+
 	if isGitRepo {
+
+		// Use git status to find deleted files
+		numRoutines++
+		go func() {
+			cmd := exec.Command("git", "rev-parse", "--show-toplevel")
+			output, err := cmd.Output()
+			if err != nil {
+				errCh <- fmt.Errorf("error getting git root: %s", err)
+				return
+			}
+			repoRoot := strings.TrimSpace(string(output))
+
+			cmd = exec.Command("git", "status", "--porcelain")
+			cmd.Dir = baseDir
+			out, err := cmd.Output()
+			if err != nil {
+				errCh <- fmt.Errorf("error getting git status: %s", err)
+			}
+
+			lines := strings.Split(string(out), "\n")
+
+			for _, line := range lines {
+				line = strings.TrimSpace(line)
+				if strings.HasPrefix(line, "D ") {
+					path := strings.TrimSpace(line[2:])
+					absPath := filepath.Join(repoRoot, path)
+					relPath, err := filepath.Rel(currentDir, absPath)
+					if err != nil {
+						errCh <- fmt.Errorf("error getting relative path: %s", err)
+						return
+					}
+					deletedFiles[relPath] = true
+				}
+			}
+
+			errCh <- nil
+		}()
+
 		// combine `git ls-files` and `git ls-files --others --exclude-standard`
 		// to get all files in the repo
 
@@ -190,6 +230,12 @@ func GetPaths(baseDir, currentDir string) (*ProjectPaths, error) {
 				}
 
 				activePaths[relFile] = true
+
+				parentDir := relFile
+				for parentDir != "." && parentDir != "/" && parentDir != "" {
+					parentDir = filepath.Dir(parentDir)
+					activeDirs[parentDir] = true
+				}
 			}
 
 			errCh <- nil
@@ -225,6 +271,12 @@ func GetPaths(baseDir, currentDir string) (*ProjectPaths, error) {
 				}
 
 				activePaths[relFile] = true
+
+				parentDir := relFile
+				for parentDir != "." && parentDir != "/" && parentDir != "" {
+					parentDir = filepath.Dir(parentDir)
+					activeDirs[parentDir] = true
+				}
 			}
 
 			errCh <- nil
@@ -257,8 +309,6 @@ func GetPaths(baseDir, currentDir string) (*ProjectPaths, error) {
 				if ignored != nil && ignored.MatchesPath(relPath) {
 					return filepath.SkipDir
 				}
-
-				activeDirs[relPath] = true
 			} else {
 				relPath, err := filepath.Rel(currentDir, path)
 				if err != nil {
@@ -275,6 +325,12 @@ func GetPaths(baseDir, currentDir string) (*ProjectPaths, error) {
 					mu.Lock()
 					defer mu.Unlock()
 					activePaths[relPath] = true
+
+					parentDir := relPath
+					for parentDir != "." && parentDir != "/" && parentDir != "" {
+						parentDir = filepath.Dir(parentDir)
+						activeDirs[parentDir] = true
+					}
 				}
 			}
 
@@ -302,6 +358,11 @@ func GetPaths(baseDir, currentDir string) (*ProjectPaths, error) {
 
 	for dir := range activeDirs {
 		activePaths[dir] = true
+	}
+
+	// remove deleted files from active paths
+	for path := range deletedFiles {
+		delete(activePaths, path)
 	}
 
 	ignoredPaths := map[string]string{}

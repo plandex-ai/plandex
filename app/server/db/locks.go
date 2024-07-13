@@ -2,16 +2,19 @@ package db
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"log"
+	"math/rand"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/lib/pq"
 )
 
 const lockHeartbeatInterval = 700 * time.Millisecond
-const lockHeartbeatTimeout = 4 * time.Second
+const lockHeartbeatTimeout = 10 * time.Second
+const maxRetries = 10
+const initialRetryInterval = 100 * time.Millisecond
 
 // distributed locking to ensure only one user can write to a plan repo at a time
 // multiple readers are allowed, but read locks block writes
@@ -33,8 +36,8 @@ func LockRepo(params LockRepoParams) (string, error) {
 }
 
 func lockRepo(params LockRepoParams, numRetry int) (string, error) {
-	log.Println("locking repo")
-	spew.Dump(params)
+	log.Printf("locking repo. orgId: %s | planId: %s | scope: %s, \n", params.OrgId, params.PlanId, params.Scope)
+	// spew.Dump(params)
 
 	orgId := params.OrgId
 	userId := params.UserId
@@ -45,7 +48,7 @@ func lockRepo(params LockRepoParams, numRetry int) (string, error) {
 	ctx := params.Ctx
 	cancelFn := params.CancelFn
 
-	tx, err := Conn.Begin()
+	tx, err := Conn.BeginTxx(ctx, &sql.TxOptions{Isolation: sql.LevelRepeatableRead})
 	if err != nil {
 		return "", fmt.Errorf("error starting transaction: %v", err)
 	}
@@ -67,10 +70,17 @@ func lockRepo(params LockRepoParams, numRetry int) (string, error) {
 	var locks []*repoLock
 
 	fn := func() error {
+		log.Println("obtaining repo lock with query")
 		rows, err := tx.Query(query, queryArgs...)
 		if err != nil {
+			if pqErr, ok := err.(*pq.Error); ok && (pqErr.Code == "40001" || pqErr.Code == "40P01") {
+				// return concurrency errors directly for retries
+				return err
+			}
+
 			return fmt.Errorf("error getting repo locks: %v", err)
 		}
+		log.Println("repo lock query executed")
 
 		defer rows.Close()
 
@@ -101,7 +111,27 @@ func lockRepo(params LockRepoParams, numRetry int) (string, error) {
 
 		return nil
 	}
-	if err := fn(); err != nil {
+	err = fn()
+	if err != nil {
+		if pqErr, ok := err.(*pq.Error); ok && (pqErr.Code == "40001" || pqErr.Code == "40P01") {
+			if numRetry > maxRetries {
+				err = fmt.Errorf("plan is currently being updated by another user")
+				log.Println("max retries reached on serialization error, returning error")
+				return "", err
+			}
+
+			log.Printf("Serialization or deadlock error, retrying transaction: %v\n", err)
+
+			wait := initialRetryInterval * time.Duration(1<<numRetry) * time.Duration(rand.Intn(500)*int(time.Millisecond))
+
+			select {
+			case <-ctx.Done():
+				return "", fmt.Errorf("context finished during retry transaction")
+			case <-time.After(wait):
+				return lockRepo(params, numRetry+1)
+			}
+		}
+
 		return "", err
 	}
 
@@ -155,6 +185,8 @@ func lockRepo(params LockRepoParams, numRetry int) (string, error) {
 		return "", err
 	}
 
+	log.Println("can acquire lock - inserting new lock")
+
 	// Insert the new lock
 	var lockPlanBuildId *string
 	if planBuildId != "" {
@@ -191,6 +223,13 @@ func lockRepo(params LockRepoParams, numRetry int) (string, error) {
 		return "", fmt.Errorf("error inserting new lock: %v", err)
 	}
 
+	// check if git lock file exists
+	// remove it if so
+	err = gitRemoveIndexLockFileIfExists(getPlanDir(orgId, planId))
+	if err != nil {
+		return "", fmt.Errorf("error removing lock file: %v", err)
+	}
+
 	branches, err := GitListBranches(orgId, planId)
 	if err != nil {
 		return "", fmt.Errorf("error getting branches: %v", err)
@@ -218,7 +257,7 @@ func lockRepo(params LockRepoParams, numRetry int) (string, error) {
 			select {
 			case <-ctx.Done():
 				// log.Printf("case <-stream.Ctx.Done(): %s\n", newLock.Id)
-				err := UnlockRepo(newLock.Id)
+				err := DeleteRepoLock(newLock.Id)
 				if err != nil {
 					log.Printf("Error unlocking repo: %v\n", err)
 				}
@@ -262,8 +301,8 @@ func lockRepo(params LockRepoParams, numRetry int) (string, error) {
 	return newLock.Id, nil
 }
 
-func UnlockRepo(id string) error {
-	log.Println("unlocking repo:", id)
+func DeleteRepoLock(id string) error {
+	log.Println("deleting repo lock:", id)
 
 	query := "DELETE FROM repo_locks WHERE id = $1"
 	_, err := Conn.Exec(query, id)
@@ -271,7 +310,7 @@ func UnlockRepo(id string) error {
 		return fmt.Errorf("error removing lock: %v", err)
 	}
 
-	log.Println("repo unlocked successfully:", id)
+	log.Println("repo lock deleted successfully:", id)
 
 	return nil
 }

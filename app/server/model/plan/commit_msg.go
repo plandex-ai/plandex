@@ -12,7 +12,16 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
-func genPlanDescription(client *openai.Client, config shared.TaskRoleConfig, planId, branch string, ctx context.Context) (*db.ConvoMessageDescription, error) {
+func genPlanDescription(client *openai.Client, config shared.ModelRoleConfig, planId, branch string, ctx context.Context) (*db.ConvoMessageDescription, error) {
+	activePlan := GetActivePlan(planId, branch)
+	if activePlan == nil {
+		return nil, fmt.Errorf("active plan not found")
+	}
+
+	var responseFormat *openai.ChatCompletionResponseFormat
+	if config.BaseModelConfig.HasJsonResponseMode {
+		responseFormat = &openai.ChatCompletionResponseFormat{Type: "json_object"}
+	}
 
 	descResp, err := model.CreateChatCompletionWithRetries(
 		client,
@@ -22,7 +31,7 @@ func genPlanDescription(client *openai.Client, config shared.TaskRoleConfig, pla
 			Tools: []openai.Tool{
 				{
 					Type:     "function",
-					Function: prompts.DescribePlanFn,
+					Function: &prompts.DescribePlanFn,
 				},
 			},
 			ToolChoice: openai.ToolChoice{
@@ -38,12 +47,12 @@ func genPlanDescription(client *openai.Client, config shared.TaskRoleConfig, pla
 				},
 				{
 					Role:    openai.ChatMessageRoleAssistant,
-					Content: GetActivePlan(planId, branch).CurrentReplyContent,
+					Content: activePlan.CurrentReplyContent,
 				},
 			},
 			Temperature:    config.Temperature,
 			TopP:           config.TopP,
-			ResponseFormat: config.OpenAIResponseFormat,
+			ResponseFormat: responseFormat,
 		},
 	)
 
@@ -81,4 +90,56 @@ func genPlanDescription(client *openai.Client, config shared.TaskRoleConfig, pla
 		PlanId:    planId,
 		CommitMsg: desc.CommitMsg,
 	}, nil
+}
+
+func GenCommitMsgForPendingResults(client *openai.Client, config shared.ModelRoleConfig, current *shared.CurrentPlanState, ctx context.Context) (string, error) {
+	s := ""
+
+	num := 0
+	for _, desc := range current.ConvoMessageDescriptions {
+		if desc.MadePlan && desc.DidBuild && len(desc.BuildPathsInvalidated) == 0 && desc.AppliedAt == nil {
+			s += desc.CommitMsg + "\n"
+			num++
+		}
+	}
+
+	if num <= 1 {
+		return s, nil
+	}
+
+	messages := []openai.ChatCompletionMessage{
+		{
+			Role:    openai.ChatMessageRoleSystem,
+			Content: prompts.SysPendingResults,
+		},
+		{
+			Role:    openai.ChatMessageRoleUser,
+			Content: "Pending changes:\n\n" + s,
+		},
+	}
+
+	resp, err := model.CreateChatCompletionWithRetries(
+		client,
+		ctx,
+		openai.ChatCompletionRequest{
+			Model:       config.BaseModelConfig.ModelName,
+			Messages:    messages,
+			Temperature: config.Temperature,
+			TopP:        config.TopP,
+		},
+	)
+
+	if err != nil {
+		fmt.Println("PlanSummary err:", err)
+
+		return "", err
+	}
+
+	if len(resp.Choices) == 0 {
+		return "", fmt.Errorf("no response from GPT")
+	}
+
+	content := resp.Choices[0].Message.Content
+
+	return content, nil
 }

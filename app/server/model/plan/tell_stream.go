@@ -1,6 +1,7 @@
 package plan
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -10,38 +11,18 @@ import (
 	"strings"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/plandex/plandex/shared"
 	"github.com/sashabaranov/go-openai"
 )
 
-type activeTellStreamState struct {
-	client                *openai.Client
-	req                   *shared.TellPlanRequest
-	auth                  *types.ServerAuth
-	currentOrgId          string
-	currentUserId         string
-	plan                  *db.Plan
-	branch                string
-	iteration             int
-	replyId               string
-	modelContext          []*db.Context
-	convo                 []*db.ConvoMessage
-	missingFileResponse   shared.RespondMissingFileChoice
-	summaries             []*db.ConvoSummary
-	summarizedToMessageId string
-	promptMessage         *openai.ChatCompletionMessage
-	replyParser           *types.ReplyParser
-	replyNumTokens        int
-	messages              []openai.ChatCompletionMessage
-	tokensBeforeConvo     int
-	settings              *shared.PlanSettings
-}
+const MaxAutoContinueIterations = 100
+const MaxSendRate = 30 * time.Millisecond
+const MaxTellStreamRetries = 4
 
 func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionStream) {
 	defer stream.Close()
 
-	client := state.client
+	clients := state.clients
 	auth := state.auth
 	req := state.req
 	plan := state.plan
@@ -52,7 +33,6 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 	convo := state.convo
 	summaries := state.summaries
 	summarizedToMessageId := state.summarizedToMessageId
-	promptMessage := state.promptMessage
 	iteration := state.iteration
 	missingFileResponse := state.missingFileResponse
 	replyId := state.replyId
@@ -60,6 +40,11 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 	settings := state.settings
 
 	active := GetActivePlan(planId, branch)
+
+	if active == nil {
+		log.Printf("listenStream - Active plan not found for plan ID %s on branch %s\n", planId, branch)
+		return
+	}
 
 	replyFiles := []string{}
 	chunksReceived := 0
@@ -97,8 +82,6 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 					return
 				}
 
-				state.onError(fmt.Errorf("stream error: %v", err), true, "", "")
-				return
 			}
 
 			if len(response.Choices) == 0 {
@@ -115,28 +98,68 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 
 			if choice.FinishReason != "" {
 				log.Println("Model stream finished")
+				active.FlushStreamBuffer()
+				time.Sleep(100 * time.Millisecond)
 
 				active.Stream(shared.StreamMessage{
 					Type: shared.StreamMessageDescribing,
 				})
+				active.FlushStreamBuffer()
 
 				err := db.SetPlanStatus(planId, branch, shared.PlanStatusDescribing, "")
 				if err != nil {
 					state.onError(fmt.Errorf("failed to set plan status to describing: %v", err), true, "", "")
 					return
 				}
-				// log.Println("summarize convo:", spew.Sdump(convo))
 
-				if len(convo) > 0 {
-					// summarize in the background
-					go summarizeConvo(client, settings.ModelSet.PlanSummary, summarizeConvoParams{
-						planId:        planId,
-						branch:        branch,
-						convo:         convo,
-						summaries:     summaries,
-						promptMessage: promptMessage,
-						currentOrgId:  currentOrgId,
-					}, active.Ctx)
+				latestSummaryCh := active.LatestSummaryCh
+
+				var generatedDescription *db.ConvoMessageDescription
+				var shouldContinue bool
+				var nextTask string
+				var errCh = make(chan error, 2)
+
+				go func() {
+					if len(replyFiles) > 0 {
+						log.Println("Generating plan description")
+
+						envVar := settings.ModelPack.CommitMsg.BaseModelConfig.ApiKeyEnvVar
+						client := clients[envVar]
+
+						res, err := genPlanDescription(client, settings.ModelPack.CommitMsg, planId, branch, active.Ctx)
+						if err != nil {
+							errCh <- fmt.Errorf("failed to generate plan description: %v", err)
+							return
+						}
+
+						generatedDescription = res
+						generatedDescription.OrgId = currentOrgId
+						generatedDescription.SummarizedToMessageId = summarizedToMessageId
+						generatedDescription.MadePlan = true
+						generatedDescription.Files = replyFiles
+					}
+					errCh <- nil
+				}()
+
+				go func() {
+					log.Println("Getting exec status")
+					shouldContinue, nextTask, err = state.execStatusShouldContinue(active.CurrentReplyContent, latestSummaryCh, active.Ctx)
+					if err != nil {
+						errCh <- fmt.Errorf("failed to get exec status: %v", err)
+						return
+					}
+
+					log.Printf("Should continue: %v\n", shouldContinue)
+
+					errCh <- nil
+				}()
+
+				for i := 0; i < 2; i++ {
+					err := <-errCh
+					if err != nil {
+						state.onError(err, true, "", "")
+						return
+					}
 				}
 
 				log.Println("Locking repo to store assistant reply and description")
@@ -165,7 +188,6 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 
 				log.Println("Locked repo for assistant reply and description")
 
-				var shouldContinue bool
 				err = func() error {
 					defer func() {
 						if err != nil {
@@ -178,7 +200,7 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 
 						log.Println("Unlocking repo for assistant reply and description")
 
-						err = db.UnlockRepo(repoLockId)
+						err = db.DeleteRepoLock(repoLockId)
 						if err != nil {
 							log.Printf("Error unlocking repo: %v\n", err)
 							active.StreamDoneCh <- &shared.ApiError{
@@ -189,78 +211,40 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 						}
 					}()
 
-					assistantMsg, convoCommitMsg, err := state.storeAssistantReply()
+					assistantMsg, convoCommitMsg, err := state.storeAssistantReply() // updates state.convo
+					convo = state.convo
 
 					if err != nil {
 						state.onError(fmt.Errorf("failed to store assistant message: %v", err), true, "", "")
 						return err
 					}
 
+					log.Println("getting description for assistant message: ", assistantMsg.Id)
+
 					var description *db.ConvoMessageDescription
-
-					errCh := make(chan error, 2)
-
-					go func() {
-						log.Println("getting description for assistant message: ", assistantMsg.Id)
-
-						if len(replyFiles) == 0 {
-							description = &db.ConvoMessageDescription{
-								OrgId:                 currentOrgId,
-								PlanId:                planId,
-								ConvoMessageId:        assistantMsg.Id,
-								SummarizedToMessageId: summarizedToMessageId,
-								BuildPathsInvalidated: map[string]bool{},
-								MadePlan:              false,
-							}
-						} else {
-							log.Println("Generating plan description")
-							description, err = genPlanDescription(client, settings.ModelSet.CommitMsg, planId, branch, active.Ctx)
-							if err != nil {
-								state.onError(fmt.Errorf("failed to generate plan description: %v", err), true, assistantMsg.Id, convoCommitMsg)
-								return
-							}
-
-							description.OrgId = currentOrgId
-							description.ConvoMessageId = assistantMsg.Id
-							description.SummarizedToMessageId = summarizedToMessageId
-							description.MadePlan = true
-							description.Files = replyFiles
+					if len(replyFiles) == 0 {
+						description = &db.ConvoMessageDescription{
+							OrgId:                 currentOrgId,
+							PlanId:                planId,
+							ConvoMessageId:        assistantMsg.Id,
+							SummarizedToMessageId: summarizedToMessageId,
+							BuildPathsInvalidated: map[string]bool{},
+							MadePlan:              false,
 						}
-
-						log.Println("Storing description")
-						err = db.StoreDescription(description)
-
-						if err != nil {
-							state.onError(fmt.Errorf("failed to store description: %v", err), false, assistantMsg.Id, convoCommitMsg)
-							errCh <- err
-							return
-						}
-
-						log.Println("Description stored")
-						spew.Dump(description)
-
-						errCh <- nil
-					}()
-
-					go func() {
-						shouldContinue, err = ExecStatusShouldContinue(client, settings.ModelSet.ExecStatus, assistantMsg.Message, active.Ctx)
-						if err != nil {
-							state.onError(fmt.Errorf("failed to get exec status: %v", err), false, assistantMsg.Id, convoCommitMsg)
-							errCh <- err
-							return
-						}
-
-						log.Printf("Should continue: %v\n", shouldContinue)
-
-						errCh <- nil
-					}()
-
-					for i := 0; i < 2; i++ {
-						err = <-errCh
-						if err != nil {
-							return err
-						}
+					} else {
+						description = generatedDescription
+						description.ConvoMessageId = assistantMsg.Id
 					}
+
+					log.Println("Storing description")
+					err = db.StoreDescription(description)
+
+					if err != nil {
+						state.onError(fmt.Errorf("failed to store description: %v", err), false, assistantMsg.Id, convoCommitMsg)
+						return err
+					}
+					log.Println("Description stored")
+					// spew.Dump(description)
 
 					log.Println("Comitting reply message and description")
 
@@ -269,7 +253,6 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 						state.onError(fmt.Errorf("failed to commit: %v", err), false, assistantMsg.Id, convoCommitMsg)
 						return err
 					}
-
 					log.Println("Assistant reply and description committed")
 
 					return nil
@@ -278,6 +261,22 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 				if err != nil {
 					return
 				}
+
+				// summarize convo needs to come *after* the reply is stored in order to correctly summarize the latest message
+				log.Println("summarize convo")
+				envVar := settings.ModelPack.PlanSummary.BaseModelConfig.ApiKeyEnvVar
+				client := clients[envVar]
+
+				// summarize in the background
+				go summarizeConvo(client, settings.ModelPack.PlanSummary, summarizeConvoParams{
+					planId:       planId,
+					branch:       branch,
+					convo:        convo,
+					summaries:    summaries,
+					userPrompt:   state.userPrompt,
+					currentOrgId: currentOrgId,
+					currentReply: active.CurrentReplyContent,
+				}, active.SummaryCtx)
 
 				log.Println("Sending active.CurrentReplyDoneCh <- true")
 
@@ -290,10 +289,10 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 					ap.CurrentReplyDoneCh = nil
 				})
 
-				if req.AutoContinue && shouldContinue {
+				if req.AutoContinue && shouldContinue && iteration < MaxAutoContinueIterations {
 					log.Println("Auto continue plan")
 					// continue plan
-					execTellPlan(client, plan, branch, auth, req, iteration+1, "", false)
+					execTellPlan(clients, plan, branch, auth, req, iteration+1, "", false, nextTask, 0)
 				} else {
 					var buildFinished bool
 					UpdateActivePlan(planId, branch, func(ap *types.ActivePlan) {
@@ -302,6 +301,8 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 					})
 
 					log.Printf("Won't continue plan. Build finished: %v\n", buildFinished)
+
+					time.Sleep(50 * time.Millisecond)
 
 					if buildFinished {
 						log.Println("Plan is finished")
@@ -438,7 +439,7 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 
 				// continue plan
 				execTellPlan(
-					client,
+					clients,
 					plan,
 					branch,
 					auth,
@@ -446,6 +447,8 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 					iteration, // keep the same iteration
 					userChoice,
 					false,
+					"",
+					0,
 				)
 				return
 			}
@@ -466,11 +469,11 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 						continue
 					}
 
-					log.Printf("New file: %s\n", file)
+					log.Printf("Detected file: %s\n", file)
 					if req.BuildMode == shared.BuildModeAuto {
 						log.Printf("Queuing build for %s\n", file)
 						buildState := &activeBuildStreamState{
-							client:        client,
+							clients:       clients,
 							auth:          auth,
 							currentOrgId:  currentOrgId,
 							currentUserId: currentUserId,
@@ -480,12 +483,21 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 							modelContext:  state.modelContext,
 						}
 
+						fileContentTokens, err := shared.GetNumTokens(fileContents[i])
+
+						if err != nil {
+							log.Printf("Error getting num tokens for file %s: %v\n", file, err)
+							state.onError(fmt.Errorf("error getting num tokens for file %s: %v", file, err), true, "", "")
+							return
+						}
+
 						buildState.queueBuilds([]*types.ActiveBuild{{
-							ReplyId:         replyId,
-							Idx:             i,
-							FileDescription: fileDescriptions[i],
-							FileContent:     fileContents[i],
-							Path:            file,
+							ReplyId:           replyId,
+							Idx:               i,
+							FileDescription:   fileDescriptions[i],
+							FileContent:       fileContents[i],
+							FileContentTokens: fileContentTokens,
+							Path:              file,
 						}})
 					}
 					replyFiles = append(replyFiles, file)
@@ -505,17 +517,18 @@ func (state *activeTellStreamState) storeAssistantReply() (*db.ConvoMessage, str
 	branch := state.branch
 	auth := state.auth
 	replyNumTokens := state.replyNumTokens
-	iteration := state.iteration
 	replyId := state.replyId
 	convo := state.convo
-	missingFileResponse := state.missingFileResponse
 
 	num := len(convo) + 1
-	if iteration == 0 && missingFileResponse == "" {
-		num++
-	}
 
-	log.Printf("Storing assistant reply num %d\n", num)
+	log.Printf("storing assistant reply | len(convo) %d | num %d\n", len(convo), num)
+
+	activePlan := GetActivePlan(planId, branch)
+
+	if activePlan == nil {
+		return nil, "", fmt.Errorf("active plan not found")
+	}
 
 	assistantMsg := db.ConvoMessage{
 		Id:      replyId,
@@ -525,7 +538,7 @@ func (state *activeTellStreamState) storeAssistantReply() (*db.ConvoMessage, str
 		Role:    openai.ChatMessageRoleAssistant,
 		Tokens:  replyNumTokens,
 		Num:     num,
-		Message: GetActivePlan(planId, branch).CurrentReplyContent,
+		Message: activePlan.CurrentReplyContent,
 	}
 
 	commitMsg, err := db.StoreConvoMessage(&assistantMsg, auth.User.Id, branch, false)
@@ -540,6 +553,9 @@ func (state *activeTellStreamState) storeAssistantReply() (*db.ConvoMessage, str
 		ap.StoredReplyIds = append(ap.StoredReplyIds, replyId)
 	})
 
+	convo = append(convo, &assistantMsg)
+	state.convo = convo
+
 	return &assistantMsg, commitMsg, err
 }
 
@@ -552,47 +568,95 @@ func (state *activeTellStreamState) onError(streamErr error, storeDesc bool, con
 	summarizedToMessageId := state.summarizedToMessageId
 
 	active := GetActivePlan(planId, branch)
+
+	if active == nil {
+		log.Printf("tellStream onError - Active plan not found for plan ID %s on branch %s\n", planId, branch)
+		return
+	}
+
+	storeDescAndReply := func() error {
+		ctx, cancelFn := context.WithCancel(context.Background())
+
+		repoLockId, err := db.LockRepo(
+			db.LockRepoParams{
+				UserId:   state.currentUserId,
+				OrgId:    state.currentOrgId,
+				PlanId:   planId,
+				Branch:   branch,
+				Scope:    db.LockScopeWrite,
+				Ctx:      ctx,
+				CancelFn: cancelFn,
+			},
+		)
+
+		if err != nil {
+			log.Printf("Error locking repo for plan %s: %v\n", planId, err)
+			return err
+		} else {
+
+			defer func() {
+				err := db.DeleteRepoLock(repoLockId)
+				if err != nil {
+					log.Printf("Error unlocking repo for plan %s: %v\n", planId, err)
+				}
+			}()
+
+			err := db.GitClearUncommittedChanges(state.currentOrgId, planId)
+			if err != nil {
+				log.Printf("Error clearing uncommitted changes for plan %s: %v\n", planId, err)
+				return err
+			}
+		}
+
+		storedMessage := false
+		storedDesc := false
+
+		if convoMessageId == "" {
+			assistantMsg, msg, err := state.storeAssistantReply()
+			if err == nil {
+				convoMessageId = assistantMsg.Id
+				commitMsg = msg
+				storedMessage = true
+			} else {
+				log.Printf("Error storing assistant message after stream error: %v\n", err)
+				return err
+			}
+		}
+
+		if storeDesc && convoMessageId != "" {
+			err := db.StoreDescription(&db.ConvoMessageDescription{
+				OrgId:                 currentOrgId,
+				PlanId:                planId,
+				SummarizedToMessageId: summarizedToMessageId,
+				MadePlan:              false,
+				ConvoMessageId:        convoMessageId,
+				BuildPathsInvalidated: map[string]bool{},
+				Error:                 streamErr.Error(),
+			})
+			if err == nil {
+				storedDesc = true
+			} else {
+				log.Printf("Error storing description after stream error: %v\n", err)
+				return err
+			}
+		}
+
+		if storedMessage || storedDesc {
+			err := db.GitAddAndCommit(currentOrgId, planId, branch, commitMsg)
+			if err != nil {
+				log.Printf("Error committing after stream error: %v\n", err)
+				return err
+			}
+		}
+
+		return nil
+	}
+
+	storeDescAndReply()
+
 	active.StreamDoneCh <- &shared.ApiError{
 		Type:   shared.ApiErrorTypeOther,
 		Status: http.StatusInternalServerError,
 		Msg:    "Stream error: " + streamErr.Error(),
-	}
-
-	storedMessage := false
-	storedDesc := false
-
-	if convoMessageId == "" {
-		assistantMsg, msg, err := state.storeAssistantReply()
-		if err == nil {
-			convoMessageId = assistantMsg.Id
-			commitMsg = msg
-			storedMessage = true
-		} else {
-			log.Printf("Error storing assistant message after stream error: %v\n", err)
-		}
-	}
-
-	if storeDesc && convoMessageId != "" {
-		err := db.StoreDescription(&db.ConvoMessageDescription{
-			OrgId:                 currentOrgId,
-			PlanId:                planId,
-			SummarizedToMessageId: summarizedToMessageId,
-			MadePlan:              false,
-			ConvoMessageId:        convoMessageId,
-			BuildPathsInvalidated: map[string]bool{},
-			Error:                 streamErr.Error(),
-		})
-		if err == nil {
-			storedDesc = true
-		} else {
-			log.Printf("Error storing description after stream error: %v\n", err)
-		}
-	}
-
-	if storedMessage || storedDesc {
-		err := db.GitAddAndCommit(currentOrgId, planId, branch, commitMsg)
-		if err != nil {
-			log.Printf("Error committing after stream error: %v\n", err)
-		}
 	}
 }

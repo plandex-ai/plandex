@@ -36,9 +36,10 @@ type streamUIModel struct {
 
 	mainViewport viewport.Model
 
-	processing bool
-	starting   bool
-	spinner    spinner.Model
+	processing   bool
+	starting     bool
+	spinner      spinner.Model
+	buildSpinner spinner.Model
 
 	building       bool
 	tokensByPath   map[string]int
@@ -59,8 +60,9 @@ type streamUIModel struct {
 
 	prompt string
 
-	stopped  bool
-	finished bool
+	stopped    bool
+	background bool
+	finished   bool
 
 	err    error
 	apiErr *shared.ApiError
@@ -91,6 +93,9 @@ func initialModel(prestartReply, prompt string, buildOnly bool) *streamUIModel {
 	s := spinner.New()
 	s.Spinner = spinner.Points
 	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
+
+	buildSpinner := spinner.New()
+	buildSpinner.Spinner = spinner.MiniDot
 
 	initialState := streamUIModel{
 		buildOnly: buildOnly,
@@ -156,6 +161,7 @@ func initialModel(prestartReply, prompt string, buildOnly bool) *streamUIModel {
 		tokensByPath:   make(map[string]int),
 		finishedByPath: make(map[string]bool),
 		spinner:        s,
+		buildSpinner:   buildSpinner,
 		atScrollBottom: true,
 		starting:       true,
 	}

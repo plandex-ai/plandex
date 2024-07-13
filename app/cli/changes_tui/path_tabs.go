@@ -1,6 +1,7 @@
 package changes_tui
 
 import (
+	"plandex/term"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
@@ -28,20 +29,8 @@ func (m changesUIModel) renderPathTabs() string {
 
 		tab := " 📄 " + path + "  "
 
-		results := m.currentPlan.PlanResult.FileResultsByPath[path]
-		pathColor := color.FgHiGreen
+		pathColor := term.ColorHiGreen
 		bgColor := color.BgGreen
-		anyFailed := false
-		for _, result := range results {
-			if result.AnyFailed {
-				anyFailed = true
-				break
-			}
-		}
-		if anyFailed {
-			pathColor = color.FgHiRed
-			bgColor = color.BgRed
-		}
 
 		if selected {
 			tab = color.New(color.Bold, bgColor, color.FgHiWhite).Sprint(tab)

@@ -5,6 +5,8 @@ import (
 	"sort"
 	"strings"
 
+	"plandex/term"
+
 	"github.com/charmbracelet/lipgloss"
 	"github.com/fatih/color"
 )
@@ -13,11 +15,12 @@ var borderColor = lipgloss.Color("#444")
 var helpTextColor = lipgloss.Color("#ddd")
 
 func (m streamUIModel) View() string {
+
 	if m.promptingMissingFile {
 		return m.renderMissingFilePrompt()
 	}
 
-	var views []string
+	views := []string{}
 	if !m.buildOnly {
 		views = append(views, m.renderMainView())
 	}
@@ -78,19 +81,19 @@ func (m streamUIModel) doRenderBuild(outputStatic bool) string {
 		style = lipgloss.NewStyle().Width(m.width).BorderStyle(lipgloss.NormalBorder()).BorderTop(true).BorderForeground(lipgloss.Color(borderColor))
 	}
 
-	lbl := "Building plan "
-	bgColor := color.BgGreen
-	if outputStatic {
-		if m.finished {
-			lbl = "Built plan "
-		} else if m.stopped || m.err != nil || m.apiErr != nil {
-			lbl = "Build incomplete "
-			bgColor = color.BgRed
-		}
-	}
+	// log.Println("filePaths:", filePaths)
+	// log.Println("len(resRows):", len(resRows))
 
-	head := color.New(bgColor, color.FgHiWhite, color.Bold).Sprint(" 🏗  ") + color.New(bgColor, color.FgHiWhite).Sprint(lbl)
+	resRows := m.getRows(outputStatic)
 
+	res := style.Render(strings.Join(resRows, "\n"))
+
+	// log.Println("\n\n", res, "\n\n")
+
+	return res
+}
+
+func (m streamUIModel) getRows(static bool) []string {
 	filePaths := make([]string, 0, len(m.tokensByPath))
 	for filePath := range m.tokensByPath {
 		filePaths = append(filePaths, filePath)
@@ -98,42 +101,68 @@ func (m streamUIModel) doRenderBuild(outputStatic bool) string {
 
 	sort.Strings(filePaths)
 
+	lbl := "Building plan "
+	bgColor := color.BgGreen
+	built := false
+	if static {
+		// log.Printf("m.finished: %v, m.stopped: %v, len(m.finishedByPath): %d, len(m.tokensByPath): %d", m.finished, len(m.finishedByPath), len(m.tokensByPath))
+
+		if m.stopped || m.err != nil || m.apiErr != nil {
+			lbl = "Build incomplete "
+			bgColor = color.BgRed
+		} else {
+			lbl = "Built plan "
+			built = true
+		}
+	}
+
+	head := color.New(bgColor, color.FgHiWhite, color.Bold).Sprint(" 🏗  ") + color.New(bgColor, color.FgHiWhite).Sprint(lbl)
+
 	var rows [][]string
+	rows = append(rows, []string{})
 	lineWidth := 0
 	lineNum := 0
 	rowIdx := 0
 
 	for _, filePath := range filePaths {
 		tokens := m.tokensByPath[filePath]
-		finished := m.finishedByPath[filePath]
+		finished := m.finished || m.finishedByPath[filePath] || built
 		block := fmt.Sprintf("📄 %s", filePath)
 
 		if finished {
 			block += " ✅"
 		} else if tokens > 0 {
 			block += fmt.Sprintf(" %d 🪙", tokens)
+		} else {
+			block += " " + m.buildSpinner.View()
+		}
+
+		maybeBlockWidth := lipgloss.Width(block)
+
+		if maybeBlockWidth > m.width {
+			maxWidth := m.width - (lipgloss.Width("⋯"))
+			runes := []rune(block)
+			firstHalf := string(runes[:maxWidth/2])
+			secondHalf := string(runes[len(runes)-maxWidth/2:])
+			block = firstHalf + "⋯" + secondHalf
 		}
 
 		maybePrefix := ""
 		if rowIdx > 0 {
 			maybePrefix = " | "
+			maybeBlockWidth += lipgloss.Width(maybePrefix)
 		}
-
-		maybeBlockWidth := lipgloss.Width(maybePrefix + block)
 
 		if lineWidth+maybeBlockWidth > m.width {
 			lineWidth = 0
 			lineNum++
 			rowIdx = 0
+			rows = append(rows, []string{})
 		} else {
 			block = maybePrefix + block
 		}
 
 		defBlockWidth := lipgloss.Width(block)
-
-		if len(rows) <= lineNum {
-			rows = append(rows, []string{})
-		}
 
 		row := rows[lineNum]
 		row = append(row, block)
@@ -147,16 +176,16 @@ func (m streamUIModel) doRenderBuild(outputStatic bool) string {
 
 	resRows[0] = head
 	for i, row := range rows {
-		resRows[i+1] = strings.Join(row, "")
+		resRows[i+1] = lipgloss.JoinHorizontal(lipgloss.Left, row...)
 	}
 
-	return style.Render(strings.Join(resRows, "\n"))
+	return resRows
 }
 
 func (m streamUIModel) renderMissingFilePrompt() string {
 	style := lipgloss.NewStyle().Padding(1).BorderStyle(lipgloss.NormalBorder()).BorderForeground(lipgloss.Color(borderColor)).Width(m.width - 2).Height(m.height - 2)
 
-	prompt := "📄 " + color.New(color.Bold, color.FgHiYellow).Sprint(m.missingFilePath) + " isn't in context."
+	prompt := "📄 " + color.New(color.Bold, term.ColorHiYellow).Sprint(m.missingFilePath) + " isn't in context."
 
 	prompt += "\n\n"
 
@@ -169,11 +198,11 @@ func (m streamUIModel) renderMissingFilePrompt() string {
 
 	prompt += strings.Join(words, " ")
 
-	prompt += "\n\n" + color.New(color.FgHiMagenta, color.Bold).Sprintln("🧐 What do you want to do?")
+	prompt += "\n\n" + color.New(term.ColorHiMagenta, color.Bold).Sprintln("🧐 What do you want to do?")
 
 	for i, opt := range missingFileSelectOpts {
 		if i == m.missingFileSelectedIdx {
-			prompt += color.New(color.FgHiCyan, color.Bold).Sprint(" > " + opt)
+			prompt += color.New(term.ColorHiCyan, color.Bold).Sprint(" > " + opt)
 		} else {
 			prompt += "   " + opt
 		}

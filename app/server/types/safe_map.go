@@ -32,9 +32,10 @@ func (sm *SafeMap[V]) Delete(key string) {
 func (sm *SafeMap[V]) Update(key string, fn func(V)) {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
-	item := sm.items[key]
-	fn(item)
-	sm.items[key] = item
+	if item, ok := sm.items[key]; ok {
+		fn(item)
+		sm.items[key] = item
+	}
 }
 
 func (sm *SafeMap[V]) Items() map[string]V {

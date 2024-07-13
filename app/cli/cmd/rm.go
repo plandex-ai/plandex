@@ -7,6 +7,8 @@ import (
 	"plandex/auth"
 	"plandex/lib"
 	"plandex/term"
+	"strconv"
+	"strings"
 
 	"github.com/plandex/plandex/shared"
 	"github.com/spf13/cobra"
@@ -14,11 +16,17 @@ import (
 
 var contextRmCmd = &cobra.Command{
 	Use:     "rm",
-	Aliases: []string{"remove"},
+	Aliases: []string{"remove", "unload"},
 	Short:   "Remove context",
-	Long:    `Remove context by index, name, or glob.`,
-	Args:    cobra.MinimumNArgs(1),
-	Run:     contextRm,
+	Long: `Remove context by index, range, name, or glob.
+	
+	plandex rm 1 # Remove by index in the 'plandex ls' list
+	plandex rm 1-3
+	plandex rm some-file.ts
+	plandex rm app/*.py
+	`,
+	Args: cobra.MinimumNArgs(1),
+	Run:  contextRm,
 }
 
 func contextRm(cmd *cobra.Command, args []string) {
@@ -26,8 +34,7 @@ func contextRm(cmd *cobra.Command, args []string) {
 	lib.MustResolveProject()
 
 	if lib.CurrentPlanId == "" {
-		fmt.Println("🤷‍♂️ No current plan")
-		return
+		term.OutputNoCurrentPlanErrorAndExit()
 	}
 
 	term.StartSpinner("")
@@ -38,10 +45,15 @@ func contextRm(cmd *cobra.Command, args []string) {
 	}
 
 	deleteIds := map[string]bool{}
+	indices := parseIndices(args)
 
 	for i, context := range contexts {
+		if indices[i+1] {
+			deleteIds[context.Id] = true
+			continue
+		}
 		for _, id := range args {
-			if fmt.Sprintf("%d", i+1) == id || context.Name == id || context.FilePath == id || context.Url == id {
+			if context.Name == id || context.FilePath == id || context.Url == id {
 				deleteIds[context.Id] = true
 				break
 			} else if context.FilePath != "" {
@@ -54,6 +66,17 @@ func contextRm(cmd *cobra.Command, args []string) {
 					deleteIds[context.Id] = true
 					break
 				}
+
+				// Check if id is a parent directory
+				parentDir := context.FilePath
+				for parentDir != "." && parentDir != "/" && parentDir != "" {
+					if parentDir == id {
+						deleteIds[context.Id] = true
+						break
+					}
+					parentDir = filepath.Dir(parentDir) // Move up one directory
+				}
+
 			}
 		}
 	}
@@ -77,4 +100,26 @@ func contextRm(cmd *cobra.Command, args []string) {
 
 func init() {
 	RootCmd.AddCommand(contextRmCmd)
+}
+
+func parseIndices(args []string) map[int]bool {
+	indices := map[int]bool{}
+	for _, arg := range args {
+		if strings.Contains(arg, "-") {
+			parts := strings.Split(arg, "-")
+			start, err1 := strconv.Atoi(parts[0])
+			end, err2 := strconv.Atoi(parts[1])
+			if err1 == nil && err2 == nil && start <= end {
+				for i := start; i <= end; i++ {
+					indices[i] = true
+				}
+			}
+		} else {
+			index, err := strconv.Atoi(arg)
+			if err == nil {
+				indices[index] = true
+			}
+		}
+	}
+	return indices
 }

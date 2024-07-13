@@ -1,19 +1,22 @@
 package plan
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"plandex-server/db"
 	"plandex-server/model"
 	"plandex-server/model/prompts"
+	"plandex-server/syntax"
 	"plandex-server/types"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/plandex/plandex/shared"
 	"github.com/sashabaranov/go-openai"
 )
 
 func Build(
-	client *openai.Client,
+	clients map[string]*openai.Client,
 	plan *db.Plan,
 	branch string,
 	auth *types.ServerAuth,
@@ -22,7 +25,7 @@ func Build(
 	log.Println("Build: Starting Build operation")
 
 	state := activeBuildStreamState{
-		client:        client,
+		clients:       clients,
 		auth:          auth,
 		currentOrgId:  auth.OrgId,
 		currentUserId: auth.User.Id,
@@ -74,24 +77,36 @@ func (state *activeBuildStreamState) queueBuilds(activeBuilds []*types.ActiveBui
 	planId := state.plan.Id
 	branch := state.branch
 
-	activePlan := GetActivePlan(planId, branch)
-
 	queueBuild := func(activeBuild *types.ActiveBuild) {
 		filePath := activeBuild.Path
 
 		// log.Printf("Queue:")
 		// spew.Dump(activePlan.BuildQueuesByPath[filePath])
 
+		var isBuilding bool
+
 		UpdateActivePlan(planId, branch, func(active *types.ActivePlan) {
 			active.BuildQueuesByPath[filePath] = append(active.BuildQueuesByPath[filePath], activeBuilds...)
+			isBuilding = active.IsBuildingByPath[filePath]
 		})
 		log.Printf("Queued %d build(s) for file %s\n", len(activeBuilds), filePath)
 
-		if activePlan.IsBuildingByPath[filePath] {
+		if isBuilding {
 			log.Printf("Already building file %s\n", filePath)
 			return
 		} else {
-			log.Printf("Not building file %s, will execute now\n", filePath)
+			log.Printf("Not building file %s\n", filePath)
+
+			active := GetActivePlan(planId, branch)
+			if active == nil {
+				log.Printf("Active plan not found for plan ID %s and branch %s\n", planId, branch)
+				return
+			}
+
+			UpdateActivePlan(planId, branch, func(active *types.ActivePlan) {
+				active.IsBuildingByPath[filePath] = true
+			})
+
 			go state.execPlanBuild(activeBuild)
 		}
 	}
@@ -113,9 +128,20 @@ func (buildState *activeBuildStreamState) execPlanBuild(activeBuild *types.Activ
 	branch := buildState.branch
 
 	activePlan := GetActivePlan(planId, branch)
+	if activePlan == nil {
+		log.Printf("Active plan not found for plan ID %s and branch %s\n", planId, branch)
+		return
+	}
 	filePath := activeBuild.Path
 
+	if !activePlan.IsBuildingByPath[filePath] {
+		UpdateActivePlan(activePlan.Id, activePlan.Branch, func(ap *types.ActivePlan) {
+			ap.IsBuildingByPath[filePath] = true
+		})
+	}
+
 	// stream initial status to client
+	log.Printf("streaming initial build info for file %s\n", filePath)
 	buildInfo := &shared.BuildInfo{
 		Path:      filePath,
 		NumTokens: 0,
@@ -137,7 +163,11 @@ func (buildState *activeBuildStreamState) execPlanBuild(activeBuild *types.Activ
 		return
 	}
 
-	fileState.buildFile()
+	if activeBuild.IsVerification {
+		fileState.verifyFileBuild()
+	} else {
+		fileState.buildFile()
+	}
 }
 
 func (fileState *activeBuildStreamFileState) buildFile() {
@@ -147,11 +177,14 @@ func (fileState *activeBuildStreamFileState) buildFile() {
 	branch := fileState.branch
 	currentPlan := fileState.currentPlanState
 	currentOrgId := fileState.currentOrgId
-	client := fileState.client
-	config := fileState.settings.ModelSet.Builder
 	build := fileState.build
 
 	activePlan := GetActivePlan(planId, branch)
+
+	if activePlan == nil {
+		log.Printf("Active plan not found for plan ID %s and branch %s\n", planId, branch)
+		return
+	}
 
 	log.Printf("Building file %s\n", filePath)
 
@@ -169,6 +202,9 @@ func (fileState *activeBuildStreamFileState) buildFile() {
 	if fileInCurrentPlan {
 		log.Printf("File %s found in current plan.\n", filePath)
 		currentState = currentPlanFile
+
+		// log.Println("\n\nCurrent state:\n", currentState, "\n\n")
+
 	} else if contextPart != nil {
 		log.Printf("File %s found in model context. Using context state.\n", filePath)
 		currentState = contextPart.Body
@@ -176,9 +212,11 @@ func (fileState *activeBuildStreamFileState) buildFile() {
 		if currentState == "" {
 			log.Println("Context state is empty. That's bad.")
 		}
+
+		// log.Println("\n\nCurrent state:\n", currentState, "\n\n")
 	}
 
-	fileState.currentState = currentState
+	fileState.preBuildState = currentState
 
 	if currentState == "" {
 		log.Printf("File %s not found in model context or current plan. Creating new file.\n", filePath)
@@ -194,23 +232,74 @@ func (fileState *activeBuildStreamFileState) buildFile() {
 			BuildInfo: buildInfo,
 		})
 
+		// validate syntax of new file
+		validationRes, err := syntax.Validate(activePlan.Ctx, filePath, activeBuild.FileContent)
+
+		if err != nil {
+			log.Printf("Error validating syntax for new file '%s': %v\n", filePath, err)
+			fileState.onBuildFileError(fmt.Errorf("error validating syntax for new file '%s': %v", filePath, err))
+			return
+		}
+
 		// new file
 		planRes := &db.PlanFileResult{
-			OrgId:          currentOrgId,
-			PlanId:         planId,
-			PlanBuildId:    build.Id,
-			ConvoMessageId: build.ConvoMessageId,
-			Path:           filePath,
-			Content:        activeBuild.FileContent,
+			OrgId:           currentOrgId,
+			PlanId:          planId,
+			PlanBuildId:     build.Id,
+			ConvoMessageId:  build.ConvoMessageId,
+			Path:            filePath,
+			Content:         activeBuild.FileContent,
+			WillCheckSyntax: validationRes.HasParser && !validationRes.TimedOut,
+			SyntaxValid:     validationRes.Valid,
+			SyntaxErrors:    validationRes.Errors,
 		}
-		fileState.onFinishBuildFile(planRes)
+
+		log.Println("build exec - Plan file result:")
+		// spew.Dump(planRes)
+
+		fileState.isNewFile = true
+
+		fileState.onFinishBuildFile(planRes, activeBuild.FileContent)
+		return
+	} else {
+		currentNumTokens, err := shared.GetNumTokens(currentState)
+
+		if err != nil {
+			log.Printf("Error getting num tokens for current state: %v\n", err)
+			fileState.onBuildFileError(fmt.Errorf("error getting num tokens for current state: %v", err))
+			return
+		}
+
+		log.Printf("Current state num tokens: %d\n", currentNumTokens)
+
+		activeBuild.CurrentFileTokens = currentNumTokens
+	}
+
+	fileState.buildFileLineNums()
+}
+
+func (fileState *activeBuildStreamFileState) buildFileLineNums() {
+	filePath := fileState.filePath
+	activeBuild := fileState.activeBuild
+	clients := fileState.clients
+	planId := fileState.plan.Id
+	branch := fileState.branch
+	config := fileState.settings.ModelPack.Builder
+	originalFile := fileState.preBuildState
+
+	activePlan := GetActivePlan(planId, branch)
+
+	if activePlan == nil {
+		log.Printf("Active plan not found for plan ID %s and branch %s\n", planId, branch)
 		return
 	}
 
-	log.Println("Getting file from model: " + filePath)
+	log.Println("buildFileLineNums - getting file from model: " + filePath)
 	// log.Println("File context:", fileContext)
 
-	sysPrompt := prompts.GetBuildSysPrompt(filePath, currentState, activeBuild.FileDescription, activeBuild.FileContent)
+	// log.Println("currentState:", currentState)
+
+	sysPrompt := prompts.GetBuildLineNumbersSysPrompt(filePath, originalFile, fmt.Sprintf("%s\n\n```%s```", activeBuild.FileDescription, activeBuild.FileContent))
 
 	fileMessages := []openai.ChatCompletionMessage{
 		{
@@ -219,18 +308,26 @@ func (fileState *activeBuildStreamFileState) buildFile() {
 		},
 	}
 
-	log.Println("Calling model for file: " + filePath)
+	log.Println("buildFileLineNums - calling model for file: " + filePath)
 
 	// for _, msg := range fileMessages {
 	// 	log.Printf("%s: %s\n", msg.Role, msg.Content)
 	// }
+
+	var responseFormat *openai.ChatCompletionResponseFormat
+	if config.BaseModelConfig.HasJsonResponseMode {
+		responseFormat = &openai.ChatCompletionResponseFormat{Type: "json_object"}
+	}
+
+	// log.Println("responseFormat:", responseFormat)
+	// log.Println("Model:", config.BaseModelConfig.ModelName)
 
 	modelReq := openai.ChatCompletionRequest{
 		Model: config.BaseModelConfig.ModelName,
 		Tools: []openai.Tool{
 			{
 				Type:     "function",
-				Function: prompts.ListReplacementsFn,
+				Function: &prompts.ListReplacementsFn,
 			},
 		},
 		ToolChoice: openai.ToolChoice{
@@ -242,16 +339,62 @@ func (fileState *activeBuildStreamFileState) buildFile() {
 		Messages:       fileMessages,
 		Temperature:    config.Temperature,
 		TopP:           config.TopP,
-		ResponseFormat: config.OpenAIResponseFormat,
+		ResponseFormat: responseFormat,
 	}
 
-	stream, err := model.CreateChatCompletionStreamWithRetries(client, activePlan.Ctx, modelReq)
-	if err != nil {
-		log.Printf("Error creating plan file stream for path '%s': %v\n", filePath, err)
-		fileState.onBuildFileError(fmt.Errorf("error creating plan file stream for path '%s': %v", filePath, err))
-		return
-	}
+	envVar := config.BaseModelConfig.ApiKeyEnvVar
+	client := clients[envVar]
 
-	go fileState.listenStream(stream)
+	if config.BaseModelConfig.HasStreamingFunctionCalls {
+		stream, err := model.CreateChatCompletionStreamWithRetries(client, activePlan.Ctx, modelReq)
+		if err != nil {
+			log.Printf("Error creating plan file stream for path '%s': %v\n", filePath, err)
+			fileState.onBuildFileError(fmt.Errorf("error creating plan file stream for path '%s': %v", filePath, err))
+			return
+		}
+
+		go fileState.listenStreamChangesWithLineNums(stream)
+	} else {
+
+		log.Println("request:")
+		log.Println(spew.Sdump(modelReq))
+
+		resp, err := model.CreateChatCompletionWithRetries(client, activePlan.Ctx, modelReq)
+
+		if err != nil {
+			log.Printf("Error building file '%s': %v\n", filePath, err)
+			fileState.onBuildFileError(fmt.Errorf("error building file '%s': %v", filePath, err))
+			return
+		}
+
+		var s string
+		var res types.ChangesWithLineNums
+
+		for _, choice := range resp.Choices {
+			if len(choice.Message.ToolCalls) == 1 &&
+				choice.Message.ToolCalls[0].Function.Name == prompts.ListReplacementsFn.Name {
+				fnCall := choice.Message.ToolCalls[0].Function
+				s = fnCall.Arguments
+				break
+			}
+		}
+
+		if s == "" {
+			log.Println("no ListReplacements function call found in response")
+			fileState.lineNumsRetryOrError(fmt.Errorf("no ListReplacements function call found in response"))
+			return
+		}
+
+		bytes := []byte(s)
+
+		err = json.Unmarshal(bytes, &res)
+		if err != nil {
+			log.Printf("Error unmarshalling build response: %v\n", err)
+			fileState.lineNumsRetryOrError(fmt.Errorf("error unmarshalling build response: %v", err))
+			return
+		}
+
+		fileState.onBuildResult(res)
+	}
 
 }

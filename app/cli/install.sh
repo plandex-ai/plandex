@@ -7,7 +7,7 @@ SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 PLATFORM=
 ARCH=
 VERSION=
-RELEASES_URL="https://github.com/user/plandex/releases/download"
+RELEASES_URL="https://github.com/plandex-ai/plandex/releases/download"
 
 # Set platform
 case "$(uname -s)" in
@@ -36,16 +36,8 @@ esac
 # Set arch
 if [[ "$(uname -m)" == 'x86_64' ]]; then
   ARCH="amd64"
-elif [[ "$(uname -m)" == armv5* ]]; then
-  ARCH="armv5"
-elif [[ "$(uname -m)" == armv6* ]]; then
-  ARCH="armv6"
-elif [[ "$(uname -m)" == armv7* ]]; then
-  ARCH="armv7"
 elif [[ "$(uname -m)" == 'arm64' || "$(uname -m)" == 'aarch64' ]]; then
   ARCH="arm64"
-else
-  ARCH="386"
 fi
 
 if [[ "$(cat /proc/1/cgroup 2> /dev/null | grep docker | wc -l)" > 0 ]] || [ -f /.dockerenv ]; then
@@ -56,7 +48,7 @@ fi
 
 # Set Version
 if [[ -z "${PLANDEX_VERSION}" ]]; then  
-  VERSION=$(curl -s "https://api.github.com/repos/user/plandex/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+  VERSION=$(curl -sL https://plandex.ai/cli-version.txt)
 else
   VERSION=$PLANDEX_VERSION
   echo "Using custom version $VERSION"
@@ -65,7 +57,7 @@ fi
 
 welcome_plandex () {
   echo "Plandex $VERSION Quick Install"
-  echo "Copyright (c) 2023 Plandex Inc."
+  echo "Copyright (c) 2024 Plandex Inc."
   echo ""
 }
 
@@ -76,7 +68,9 @@ cleanup () {
 }
 
 download_plandex () {
-  url="${RELEASES_URL}/${VERSION}/plandex_${VERSION}_${PLATFORM}_${ARCH}.tar.gz"
+  ENCODED_TAG="cli%2Fv${VERSION}"
+
+  url="${RELEASES_URL}/${ENCODED_TAG}/plandex_${VERSION}_${PLATFORM}_${ARCH}.tar.gz"
 
   mkdir plandex_install_tmp
   cd plandex_install_tmp
@@ -88,8 +82,24 @@ download_plandex () {
 
   if [ "$PLATFORM" == "darwin" ] || $IS_DOCKER ; then
     if [[ -d /usr/local/bin ]]; then
-      mv plandex /usr/local/bin/
-      echo "Plandex is installed in /usr/local/bin"
+      if ! mv plandex /usr/local/bin/ 2>/dev/null; then
+        echo "Permission denied when attempting to move Plandex to /usr/local/bin."
+        if hash sudo 2>/dev/null; then
+          echo "Attempting to use sudo to complete installation."
+          sudo mv plandex /usr/local/bin/
+          if [[ $? -eq 0 ]]; then
+            echo "Plandex is installed in /usr/local/bin."
+          else
+            echo "Failed to install Plandex using sudo. Please manually move Plandex to a directory in your PATH."
+            exit 1
+          fi
+        else
+          echo "sudo not found. Please manually move Plandex to a directory in your PATH."
+          exit 1
+        fi
+      else
+        echo "Plandex is installed in /usr/local/bin."
+      fi
     else
       echo >&2 'Error: /usr/local/bin does not exist. Create this directory with appropriate permissions, then re-install.'
       cleanup
@@ -132,5 +142,5 @@ cleanup
 
 echo "Installation complete. Info:"
 echo ""
-plandex -h
+plandex help
 

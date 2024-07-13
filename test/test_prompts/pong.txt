@@ -1,0 +1,7 @@
+Let's create a basic pong game using C and OpenGL. For now let's make it 1-player pong with the computer as the opponent. Create a basic AI for the computer that will move the paddle up and down based on the ball's position.
+
+Create all the necessary functionality for the project so that it will be ready to compile and run.
+
+Include a script that will install any necessary dependencies that are missing on Mac OSC. Prefer homebrew where possible for package management.
+
+Also include a Makefile that will compile the project.

@@ -9,7 +9,7 @@ import (
 )
 
 func ConvertTrial() error {
-	email, err := term.GetUserStringInput("Your email:")
+	email, err := term.GetRequiredUserStringInput("Your email:")
 
 	if err != nil {
 		return fmt.Errorf("error prompting email: %v", err)
@@ -31,7 +31,7 @@ func ConvertTrial() error {
 		return fmt.Errorf("error prompting name: %v", err)
 	}
 
-	orgName, err := term.GetUserStringInput("Org name:")
+	orgName, err := term.GetRequiredUserStringInput("Org name:")
 
 	if err != nil {
 		return fmt.Errorf("error prompting org name: %v", err)

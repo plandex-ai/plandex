@@ -22,12 +22,6 @@ func StorePlanBuild(build *PlanBuild) error {
 	}
 	defer row.Close()
 
-	if err != nil {
-		return fmt.Errorf("error storing plan build: %v", err)
-	}
-
-	defer row.Close()
-
 	if row.Next() {
 		var createdAt, updatedAt time.Time
 		var id string

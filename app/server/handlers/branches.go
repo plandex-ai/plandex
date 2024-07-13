@@ -32,11 +32,13 @@ func ListBranchesHandler(w http.ResponseWriter, r *http.Request) {
 	var err error
 
 	ctx, cancel := context.WithCancel(context.Background())
-	unlockFn := lockRepo(w, r, auth, db.LockScopeRead, ctx, cancel)
+	unlockFn := lockRepo(w, r, auth, db.LockScopeRead, ctx, cancel, false)
 	if unlockFn == nil {
 		return
 	} else {
-		defer (*unlockFn)(err)
+		defer func() {
+			(*unlockFn)(err)
+		}()
 	}
 
 	branches, err := db.ListPlanBranches(auth.OrgId, planId)
@@ -106,14 +108,16 @@ func CreateBranchHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	unlockFn := lockRepo(w, r, auth, db.LockScopeWrite, ctx, cancel)
+	unlockFn := lockRepo(w, r, auth, db.LockScopeWrite, ctx, cancel, true)
 	if unlockFn == nil {
 		return
 	} else {
-		defer (*unlockFn)(err)
+		defer func() {
+			(*unlockFn)(err)
+		}()
 	}
 
-	tx, err := db.Conn.Begin()
+	tx, err := db.Conn.Beginx()
 	if err != nil {
 		log.Printf("Error starting transaction: %v\n", err)
 		http.Error(w, "Error starting transaction: "+err.Error(), http.StatusInternalServerError)
@@ -193,7 +197,7 @@ func DeleteBranchHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	defer func() {
-		err := db.UnlockRepo(repoLockId)
+		err := db.DeleteRepoLock(repoLockId)
 		if err != nil {
 			log.Printf("Error unlocking repo: %v\n", err)
 		}

@@ -1,17 +1,22 @@
 package cmd
 
 import (
-	"log"
-
+	"fmt"
+	"os"
 	"plandex/term"
 
+	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 )
+
+var helpShowAll bool
 
 // RootCmd represents the base command when called without any subcommands
 var RootCmd = &cobra.Command{
 	Use: `plandex [command] [flags]`,
 	// Short: "Plandex: iterative development with AI",
+	SilenceErrors: true,
+	SilenceUsage:  true,
 	Run: func(cmd *cobra.Command, args []string) {
 		run(cmd, args)
 	},
@@ -22,12 +27,30 @@ var RootCmd = &cobra.Command{
 func Execute() {
 	if err := RootCmd.Execute(); err != nil {
 		// term.OutputErrorAndExit("Error executing root command: %v", err)
-		log.Fatalf("Error executing root command: %v", err)
+		// log.Fatalf("Error executing root command: %v", err)
+
+		// output the error message to stderr
+		term.OutputSimpleError("Error: %v", err)
+
+		fmt.Println()
+
+		color.New(color.Bold, color.BgGreen, color.FgHiWhite).Println(" Usage ")
+		color.New(color.Bold).Println("  plandex [command] [flags]")
+		color.New(color.Bold).Println("  pdx [command] [flags]")
+		fmt.Println()
+
+		color.New(color.Bold, color.BgGreen, color.FgHiWhite).Println(" Help ")
+		color.New(color.Bold).Println("  plandex help # show basic usage")
+		color.New(color.Bold).Println("  plandex help --all # show all commands")
+		color.New(color.Bold).Println("  plandex [command] --help")
+		fmt.Println()
+
+		os.Exit(1)
+
 	}
 }
 
 func run(cmd *cobra.Command, args []string) {
-
 }
 
 func init() {
@@ -37,9 +60,12 @@ func init() {
 		Short:   "Display help for Plandex",
 		Long:    `Display help for Plandex.`,
 		Run: func(cmd *cobra.Command, args []string) {
-			term.PrintCustomHelp()
+			term.PrintCustomHelp(helpShowAll)
 		},
 	}
 
 	RootCmd.AddCommand(helpCmd)
+
+	// add an --all/-a flag
+	helpCmd.Flags().BoolVarP(&helpShowAll, "all", "a", false, "Show all commands")
 }

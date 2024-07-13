@@ -1,0 +1,1 @@
+The command definition for 'contextRmCmd' was incorrectly removed. The proposed updates did not specify this removal, and it breaks the functionality of the command. To correct this, the command definition should be re-added to the updated file.

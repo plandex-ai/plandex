@@ -35,8 +35,7 @@ func checkout(cmd *cobra.Command, args []string) {
 	lib.MustResolveProject()
 
 	if lib.CurrentPlanId == "" {
-		fmt.Println("🤷‍♂️ No current plan")
-		return
+		term.OutputNoCurrentPlanErrorAndExit()
 	}
 
 	branchName := ""
@@ -75,7 +74,7 @@ func checkout(cmd *cobra.Command, args []string) {
 		}
 
 		if branchName == "" {
-			fmt.Printf("🌱 Branch %s not found\n", color.New(color.Bold, color.FgHiCyan).Sprint(nameOrIdx))
+			fmt.Printf("🌱 Branch %s not found\n", color.New(color.Bold, term.ColorHiCyan).Sprint(nameOrIdx))
 			res, err := term.ConfirmYesNo("Create it now?")
 
 			if err != nil {
@@ -107,7 +106,7 @@ func checkout(cmd *cobra.Command, args []string) {
 		}
 
 		if selected == OptCreateNewBranch {
-			branchName, err = term.GetUserStringInput("Branch name")
+			branchName, err = term.GetRequiredUserStringInput("Branch name")
 			if err != nil {
 				term.OutputErrorAndExit("Error getting branch name: %v", err)
 				return
@@ -132,7 +131,7 @@ func checkout(cmd *cobra.Command, args []string) {
 			return
 		}
 
-		// fmt.Printf("✅ Created branch %s\n", color.New(color.Bold, color.FgHiGreen).Sprint(branchName))
+		// fmt.Printf("✅ Created branch %s\n", color.New(color.Bold, term.ColorHiGreen).Sprint(branchName))
 	}
 
 	err := lib.WriteCurrentBranch(branchName)
@@ -142,7 +141,7 @@ func checkout(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	fmt.Printf("✅ Checked out branch %s\n", color.New(color.Bold, color.FgHiGreen).Sprint(branchName))
+	fmt.Printf("✅ Checked out branch %s\n", color.New(color.Bold, term.ColorHiGreen).Sprint(branchName))
 
 	fmt.Println()
 	term.PrintCmds("", "load", "tell", "branches", "delete-branch")

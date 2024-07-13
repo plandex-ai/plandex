@@ -13,15 +13,28 @@ import (
 	"github.com/plandex/plandex/shared"
 )
 
+const MaxStreamRate = 50 * time.Millisecond
+
+// const MaxConcurrentBuildStreams = 3 // otherwise we get EOF errors from openai
+
 type ActiveBuild struct {
-	ReplyId         string
-	FileDescription string
-	FileContent     string
-	Path            string
-	Idx             int
-	Buffer          string
-	Success         bool
-	Error           error
+	ReplyId                  string
+	FileDescription          string
+	FileContent              string
+	FileContentTokens        int
+	CurrentFileTokens        int
+	Path                     string
+	Idx                      int
+	WithLineNumsBuffer       string
+	WithLineNumsBufferTokens int
+	VerifyBuffer             string
+	VerifyBufferTokens       int
+	FixBuffer                string
+	FixBufferTokens          int
+	Success                  bool
+	Error                    error
+	IsVerification           bool
+	ToVerifyUpdatedState     string
 }
 
 type subscription struct {
@@ -35,6 +48,8 @@ type subscription struct {
 
 type ActivePlan struct {
 	Id                      string
+	UserId                  string
+	OrgId                   string
 	CurrentStreamingReplyId string
 	CurrentReplyDoneCh      chan bool
 	Branch                  string
@@ -44,6 +59,9 @@ type ActivePlan struct {
 	CancelFn                context.CancelFunc
 	ModelStreamCtx          context.Context
 	CancelModelStreamFn     context.CancelFunc
+	SummaryCtx              context.Context
+	SummaryCancelFn         context.CancelFunc
+	LatestSummaryCh         chan *db.ConvoSummary
 	Contexts                []*db.Context
 	ContextsByPath          map[string]*db.Context
 	Files                   []string
@@ -61,18 +79,28 @@ type ActivePlan struct {
 	AllowOverwritePaths     map[string]bool
 	SkippedPaths            map[string]bool
 	StoredReplyIds          []string
-	streamCh                chan string
-	subscriptions           map[string]*subscription
-	subscriptionMu          sync.Mutex
+
+	subscriptions  map[string]*subscription
+	subscriptionMu sync.Mutex
+
+	streamCh              chan string
+	streamMu              sync.Mutex
+	lastStreamMessageSent time.Time
+	streamMessageBuffer   []shared.StreamMessage
 }
 
-func NewActivePlan(planId, branch, prompt string, buildOnly bool) *ActivePlan {
+func NewActivePlan(orgId, userId, planId, branch, prompt string, buildOnly bool) *ActivePlan {
 	ctx, cancel := context.WithCancel(context.Background())
 	// child context for model stream so we can cancel it separately if needed
 	modelStreamCtx, cancelModelStream := context.WithCancel(ctx)
 
+	// we don't want to cancel summaries unless the whole plan is stopped or there's an error -- if the active plan finishes, we want summaries to continue -- so they get their own context
+	summaryCtx, cancelSummary := context.WithCancel(context.Background())
+
 	active := ActivePlan{
 		Id:                    planId,
+		OrgId:                 orgId,
+		UserId:                userId,
 		BuildOnly:             buildOnly,
 		Branch:                branch,
 		Prompt:                prompt,
@@ -80,6 +108,8 @@ func NewActivePlan(planId, branch, prompt string, buildOnly bool) *ActivePlan {
 		CancelFn:              cancel,
 		ModelStreamCtx:        modelStreamCtx,
 		CancelModelStreamFn:   cancelModelStream,
+		SummaryCtx:            summaryCtx,
+		SummaryCancelFn:       cancelSummary,
 		BuildQueuesByPath:     map[string][]*ActiveBuild{},
 		Contexts:              []*db.Context{},
 		ContextsByPath:        map[string]*db.Context{},
@@ -122,7 +152,53 @@ func NewActivePlan(planId, branch, prompt string, buildOnly bool) *ActivePlan {
 	return &active
 }
 
+func (ap *ActivePlan) FlushStreamBuffer() {
+	// log.Println("ActivePlan: flush stream buffer")
+
+	ap.streamMu.Lock()
+	if len(ap.streamMessageBuffer) == 0 {
+		// log.Println("ActivePlan: stream buffer empty")
+		ap.streamMu.Unlock()
+		return
+	}
+
+	// log.Printf("ActivePlan: flushing %d messages from stream buffer\n", len(ap.streamMessageBuffer))
+
+	// construct a multi message from the buffer
+	multiMsg := shared.StreamMessage{
+		Type:           shared.StreamMessageMulti,
+		StreamMessages: ap.streamMessageBuffer,
+	}
+	ap.streamMessageBuffer = []shared.StreamMessage{}
+
+	ap.streamMu.Unlock()
+
+	ap.Stream(multiMsg)
+}
+
 func (ap *ActivePlan) Stream(msg shared.StreamMessage) {
+	// log.Printf("ActivePlan: received Stream message: %v\n", msg)
+
+	ap.streamMu.Lock()
+	defer ap.streamMu.Unlock()
+
+	if msg.Type != shared.StreamMessageFinished {
+		if time.Since(ap.lastStreamMessageSent) < MaxStreamRate {
+			// log.Println("ActivePlan: stream rate limiting -- buffering message")
+			ap.streamMessageBuffer = append(ap.streamMessageBuffer, msg)
+			return
+		} else if len(ap.streamMessageBuffer) > 0 {
+			// log.Println("ActivePlan: stream buffer not empty -- flushing buffer before sending message")
+			ap.streamMessageBuffer = append(ap.streamMessageBuffer, msg)
+
+			// unlock before recursive call
+			ap.streamMu.Unlock()
+			ap.FlushStreamBuffer()
+			ap.streamMu.Lock() // re-lock after recursive call
+			return
+		}
+	}
+
 	msgJson, err := json.Marshal(msg)
 	if err != nil {
 		ap.StreamDoneCh <- &shared.ApiError{
@@ -135,10 +211,34 @@ func (ap *ActivePlan) Stream(msg shared.StreamMessage) {
 
 	// log.Printf("ActivePlan: sending stream message: %s\n", string(msgJson))
 
+	if msg.Type == shared.StreamMessageFinished {
+		// send full buffer if we got a finished message
+		if len(ap.streamMessageBuffer) > 0 {
+			// log.Println("ActivePlan: finished message -- sending stream buffer first")
+
+			// unlock before recursive call
+			ap.streamMu.Unlock()
+			ap.FlushStreamBuffer()
+			ap.streamMu.Lock() // re-lock after recursive call
+
+			// sleep a little before the final message
+			time.Sleep(50 * time.Millisecond)
+		}
+	}
+
+	// log.Println("ActivePlan: sending stream message")
+
 	ap.streamCh <- string(msgJson)
 
+	// log.Println("ActivePlan: sent stream message")
+
+	now := time.Now()
+	if now.After(ap.lastStreamMessageSent) {
+		ap.lastStreamMessageSent = now
+	}
+
 	if msg.Type == shared.StreamMessageFinished {
-		// Wait briefly allow last stream message to be sent
+		// Wait briefly to allow last stream message to be sent
 		time.Sleep(100 * time.Millisecond)
 		ap.StreamDoneCh <- nil
 	}
@@ -150,14 +250,14 @@ func (ap *ActivePlan) ResetModelCtx() {
 
 func (ap *ActivePlan) BuildFinished() bool {
 	for path := range ap.BuildQueuesByPath {
-		if !ap.PathFinished(path) {
+		if ap.IsBuildingByPath[path] || !ap.PathQueueEmpty(path) {
 			return false
 		}
 	}
 	return true
 }
 
-func (ap *ActivePlan) PathFinished(path string) bool {
+func (ap *ActivePlan) PathQueueEmpty(path string) bool {
 	for _, build := range ap.BuildQueuesByPath[path] {
 		if !build.BuildFinished() {
 			return false

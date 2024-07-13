@@ -1,0 +1,11 @@
+# This configuration compares LLM output of 2 prompts x 2 GPT models across 3 test cases.
+# Learn more: https://promptfoo.dev/docs/configuration/guide
+description: "fix"
+
+prompts:
+  - file://fix.prompt.txt
+
+providers:
+  - file://fix.provider.yml
+
+tests: tests/*.test.yml

@@ -1,6 +1,9 @@
 package types
 
-import "plandex-server/db"
+import (
+	"log"
+	"plandex-server/db"
+)
 
 type ServerAuth struct {
 	AuthToken   *db.AuthToken
@@ -14,7 +17,14 @@ func (a *ServerAuth) HasPermission(permission Permission) bool {
 		return false
 	}
 
-	return a.Permissions[permission]
+	log.Println("checking permission", permission)
+	// log.Println("permissions", spew.Sdump(a.Permissions))
+
+	_, res := a.Permissions[permission]
+
+	log.Println("has permission:", res)
+
+	return res
 }
 
 type Permission string

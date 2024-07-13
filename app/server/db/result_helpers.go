@@ -36,6 +36,8 @@ func StorePlanResult(result *PlanFileResult) error {
 		return fmt.Errorf("error creating results dir: %v", err)
 	}
 
+	log.Printf("Storing plan result: %s", result.Id)
+
 	err = os.WriteFile(filepath.Join(resultsDir, result.Id+".json"), bytes, 0644)
 
 	if err != nil {
@@ -109,6 +111,8 @@ func GetCurrentPlanState(params CurrentPlanStateParams) (*shared.CurrentPlanStat
 				return
 			}
 			contexts = res
+
+			log.Println("Got contexts:", len(contexts))
 		} else {
 			contexts = params.Contexts
 		}
@@ -133,21 +137,32 @@ func GetCurrentPlanState(params CurrentPlanStateParams) (*shared.CurrentPlanStat
 	pendingResultPaths := map[string]bool{}
 
 	for _, dbPlanFileResult := range dbPlanFileResults {
+		// log.Printf("Plan file result: %s", dbPlanFileResult.Id)
+
 		apiResult := dbPlanFileResult.ToApi()
 		apiPlanFileResults = append(apiPlanFileResults, apiResult)
 
 		if apiResult.IsPending() {
+			// log.Printf("Pending result: %s", dbPlanFileResult.Id)
+
 			pendingResultPaths[apiResult.Path] = true
+		} else {
+			// log.Printf("Not pending result: %s", apiResult.Id)
+			// log.Printf("Applied at: %v", apiResult.AppliedAt)
+			// log.Printf("Rejected at: %v", apiResult.RejectedAt)
+			// log.Printf("Content: %v", apiResult.Content != "")
+			// log.Printf("Num Replacement: %d", len(apiResult.Replacements))
+			// log.Printf("Num Pending Replacements: %v", apiResult.NumPendingReplacements())
 		}
 	}
 	planResult := GetPlanResult(apiPlanFileResults)
 
 	pendingContextsByPath := map[string]*shared.Context{}
 	for path, context := range contextsByPath {
-		if pendingResultPaths[path] {
-			pendingContextsByPath[path] = context.ToApi()
-		}
+		pendingContextsByPath[path] = context.ToApi()
 	}
+
+	log.Println("Pending contexts by path:", len(pendingContextsByPath))
 
 	planState := &shared.CurrentPlanState{
 		PlanResult:               planResult,
@@ -185,10 +200,12 @@ func GetConvoMessageDescriptions(orgId, planId string) ([]*ConvoMessageDescripti
 
 	for _, file := range files {
 		go func(file os.DirEntry) {
-			bytes, err := os.ReadFile(filepath.Join(descriptionsDir, file.Name()))
+			path := filepath.Join(descriptionsDir, file.Name())
+
+			bytes, err := os.ReadFile(path)
 
 			if err != nil {
-				errCh <- fmt.Errorf("error reading description file: %v", err)
+				errCh <- fmt.Errorf("error reading description file %s: %v", file.Name(), err)
 				return
 			}
 
@@ -196,7 +213,11 @@ func GetConvoMessageDescriptions(orgId, planId string) ([]*ConvoMessageDescripti
 			err = json.Unmarshal(bytes, &description)
 
 			if err != nil {
-				errCh <- fmt.Errorf("error unmarshalling description file: %v", err)
+				log.Println("Error unmarshalling description file:", path)
+				log.Println("bytes:")
+				log.Println(string(bytes))
+
+				errCh <- fmt.Errorf("error unmarshalling description file %s: %v", path, err)
 				return
 			}
 
@@ -241,6 +262,8 @@ func GetPlanFileResults(orgId, planId string) ([]*PlanFileResult, error) {
 	resultCh := make(chan *PlanFileResult, len(files))
 
 	for _, file := range files {
+		// log.Printf("Result file: %s", file.Name())
+
 		go func(file os.DirEntry) {
 
 			bytes, err := os.ReadFile(filepath.Join(resultsDir, file.Name()))
@@ -290,6 +313,7 @@ func GetPlanResult(planFileResults []*shared.PlanFileResult) *shared.PlanResult 
 			resByPath[planFileRes.Path] = append(resByPath[planFileRes.Path], planFileRes)
 
 			if !hasPath {
+				// log.Printf("Adding res path: %s", planFileRes.Path)
 				paths = append(paths, planFileRes.Path)
 			}
 		}
@@ -314,7 +338,7 @@ func GetPlanResult(planFileResults []*shared.PlanFileResult) *shared.PlanResult 
 	}
 }
 
-func ApplyPlan(orgId, userId, branchName string, plan *Plan) error {
+func ApplyPlan(orgId, userId, branchName string, plan *Plan) (*shared.CurrentPlanState, error) {
 	planId := plan.Id
 
 	resultsDir := getPlanResultsDir(orgId, planId)
@@ -366,7 +390,7 @@ func ApplyPlan(orgId, userId, branchName string, plan *Plan) error {
 	for i := 0; i < 3; i++ {
 		err := <-errCh
 		if err != nil {
-			return fmt.Errorf("error applying plan: %v", err)
+			return nil, err
 		}
 	}
 
@@ -402,7 +426,7 @@ func ApplyPlan(orgId, userId, branchName string, plan *Plan) error {
 		})
 
 		if err != nil {
-			return fmt.Errorf("error getting current plan state: %v", err)
+			return nil, fmt.Errorf("error getting current plan state: %v", err)
 		}
 
 		currentPlanState = res
@@ -463,11 +487,12 @@ func ApplyPlan(orgId, userId, branchName string, plan *Plan) error {
 
 			res, _, err := LoadContexts(
 				LoadContextsParams{
-					OrgId:      orgId,
-					UserId:     userId,
-					Plan:       plan,
-					BranchName: branchName,
-					Req:        &loadReq,
+					OrgId:                    orgId,
+					UserId:                   userId,
+					Plan:                     plan,
+					BranchName:               branchName,
+					Req:                      &loadReq,
+					SkipConflictInvalidation: true, // no need to invalidate conflicts when applying plan--and fixes race condition since invalidation check loads description
 				},
 			)
 
@@ -493,10 +518,11 @@ func ApplyPlan(orgId, userId, branchName string, plan *Plan) error {
 
 			res, err := UpdateContexts(
 				UpdateContextsParams{
-					OrgId:      orgId,
-					Plan:       plan,
-					BranchName: branchName,
-					Req:        &updateReq,
+					OrgId:                    orgId,
+					Plan:                     plan,
+					BranchName:               branchName,
+					Req:                      &updateReq,
+					SkipConflictInvalidation: true, // no need to invalidate conflicts when applying plan--and fixes race condition since invalidation check loads description
 				},
 			)
 
@@ -524,7 +550,7 @@ func ApplyPlan(orgId, userId, branchName string, plan *Plan) error {
 	for i := 0; i < numRoutines; i++ {
 		err := <-errCh
 		if err != nil {
-			return fmt.Errorf("error applying plan: %v", err)
+			return nil, fmt.Errorf("error applying plan: %v", err)
 		}
 	}
 
@@ -541,10 +567,10 @@ func ApplyPlan(orgId, userId, branchName string, plan *Plan) error {
 	err := GitAddAndCommit(orgId, plan.Id, branchName, msg)
 
 	if err != nil {
-		return fmt.Errorf("error committing plan: %v", err)
+		return nil, fmt.Errorf("error committing plan: %v", err)
 	}
 
-	return nil
+	return currentPlanState, nil
 }
 
 func RejectAllResults(orgId, planId string) error {
@@ -567,7 +593,7 @@ func RejectAllResults(orgId, planId string) error {
 		resultId := strings.TrimSuffix(file.Name(), ".json")
 
 		go func(resultId string) {
-			err := RejectPlanFileResult(orgId, planId, resultId, now)
+			err := RejectPlanFile(orgId, planId, resultId, now)
 
 			if err != nil {
 				errCh <- fmt.Errorf("error rejecting result: %v", err)
@@ -649,38 +675,72 @@ func DeletePendingResultsForPaths(orgId, planId string, paths map[string]bool) e
 	return nil
 }
 
-func RejectPlanFileResult(orgId, planId, resultId string, now time.Time) error {
+func RejectPlanFiles(orgId, planId string, files []string, now time.Time) error {
+	errCh := make(chan error, len(files))
+
+	for _, file := range files {
+		go func(file string) {
+			err := RejectPlanFile(orgId, planId, file, now)
+
+			if err != nil {
+				errCh <- err
+				return
+			}
+
+			errCh <- nil
+		}(file)
+	}
+
+	for i := 0; i < len(files); i++ {
+		err := <-errCh
+		if err != nil {
+			return fmt.Errorf("error rejecting plan files: %v", err)
+		}
+	}
+
+	return nil
+}
+
+func RejectPlanFile(orgId, planId, file string, now time.Time) error {
 	resultsDir := getPlanResultsDir(orgId, planId)
-
-	bytes, err := os.ReadFile(filepath.Join(resultsDir, resultId+".json"))
-
-	if err != nil {
-		return fmt.Errorf("error reading result file: %v", err)
-	}
-
-	var result PlanFileResult
-	err = json.Unmarshal(bytes, &result)
+	results, err := GetPlanFileResults(orgId, planId)
 
 	if err != nil {
-		return fmt.Errorf("error unmarshalling result file: %v", err)
+		return fmt.Errorf("error getting plan file results: %v", err)
 	}
 
-	if result.RejectedAt != nil {
-		return nil
+	errCh := make(chan error, len(results))
+
+	for _, result := range results {
+		go func(result *PlanFileResult) {
+			if result.Path == file && result.AppliedAt == nil && result.RejectedAt == nil {
+				result.RejectedAt = &now
+			} else {
+				errCh <- nil
+				return
+			}
+
+			bytes, err := json.MarshalIndent(result, "", "  ")
+
+			if err != nil {
+				errCh <- fmt.Errorf("error marshalling result: %v", err)
+			}
+
+			err = os.WriteFile(filepath.Join(resultsDir, result.Id+".json"), bytes, 0644)
+
+			if err != nil {
+				errCh <- fmt.Errorf("error writing result file: %v", err)
+			}
+
+			errCh <- nil
+		}(result)
 	}
 
-	result.RejectedAt = &now
-
-	bytes, err = json.MarshalIndent(result, "", "  ")
-
-	if err != nil {
-		return fmt.Errorf("error marshalling result: %v", err)
-	}
-
-	err = os.WriteFile(filepath.Join(resultsDir, resultId+".json"), bytes, 0644)
-
-	if err != nil {
-		return fmt.Errorf("error writing result file: %v", err)
+	for i := 0; i < len(results); i++ {
+		err := <-errCh
+		if err != nil {
+			return fmt.Errorf("error rejecting plan: %v", err)
+		}
 	}
 
 	return nil

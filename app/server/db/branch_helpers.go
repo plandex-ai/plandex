@@ -5,11 +5,12 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
 	"github.com/plandex/plandex/shared"
 )
 
-func CreateBranch(plan *Plan, parentBranch *Branch, name string, tx *sql.Tx) (*Branch, error) {
+func CreateBranch(plan *Plan, parentBranch *Branch, name string, tx *sqlx.Tx) (*Branch, error) {
 
 	query := `INSERT INTO branches (org_id, owner_id, plan_id, parent_branch_id, name, status, context_tokens, convo_tokens) 
 	VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
@@ -123,11 +124,15 @@ func ListPlanBranches(orgId, planId string) ([]*Branch, error) {
 		return nil, fmt.Errorf("error listing branches: %v", err)
 	}
 
+	// log.Println("branches: ", spew.Sdump(branches))
+
 	gitBranches, err := GitListBranches(orgId, planId)
 
 	if err != nil {
 		return nil, fmt.Errorf("error listing git branches: %v", err)
 	}
+
+	// log.Println("gitBranches: ", spew.Sdump(gitBranches))
 
 	var nameSet = make(map[string]bool)
 	for _, name := range gitBranches {
@@ -156,7 +161,11 @@ func ListBranchesForPlans(orgId string, planIds []string) ([]*Branch, error) {
 }
 
 func DeleteBranch(orgId, planId, branch string) error {
-	tx, err := Conn.Begin()
+	tx, err := Conn.Beginx()
+
+	if err != nil {
+		return fmt.Errorf("error starting transaction: %v", err)
+	}
 
 	// Ensure that rollback is attempted in case of failure
 	defer func() {
@@ -168,10 +177,6 @@ func DeleteBranch(orgId, planId, branch string) error {
 			}
 		}
 	}()
-
-	if err != nil {
-		return fmt.Errorf("error starting transaction: %v", err)
-	}
 
 	_, err = tx.Exec("DELETE FROM branches WHERE plan_id = $1 AND name = $2", planId, branch)
 

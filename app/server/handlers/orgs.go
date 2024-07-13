@@ -79,7 +79,7 @@ func CreateOrgHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// start a transaction
-	tx, err := db.Conn.Begin()
+	tx, err := db.Conn.Beginx()
 	if err != nil {
 		log.Printf("Error starting transaction: %v\n", err)
 		http.Error(w, "Error starting transaction: "+err.Error(), http.StatusInternalServerError)
@@ -150,6 +150,18 @@ func CreateOrgHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Successfully created org")
 
 	w.Write(bytes)
+}
+
+func GetOrgSessionHandler(w http.ResponseWriter, r *http.Request) {
+	log.Println("Received request for GetOrgSessionHandler")
+
+	auth := authenticate(w, r, true)
+
+	if auth == nil {
+		return
+	}
+
+	log.Println("Successfully got org session")
 }
 
 func ListOrgRolesHandler(w http.ResponseWriter, r *http.Request) {

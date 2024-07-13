@@ -25,15 +25,18 @@ import (
 	"github.com/xlab/treeprint"
 )
 
+var archivedOnly bool
+
 func init() {
 	RootCmd.AddCommand(plansCmd)
+	plansCmd.Flags().BoolVarP(&archivedOnly, "archived", "a", false, "List archived plans")
 }
 
 // plansCmd represents the list command
 var plansCmd = &cobra.Command{
 	Use:     "plans",
 	Aliases: []string{"pl"},
-	Short:   "List all available plans",
+	Short:   "List plans",
 	Run:     plans,
 }
 
@@ -41,6 +44,14 @@ func plans(cmd *cobra.Command, args []string) {
 	auth.MustResolveAuthWithOrg()
 	lib.MaybeResolveProject()
 
+	if archivedOnly {
+		listArchived()
+	} else {
+		listActive()
+	}
+}
+
+func listActive() {
 	errCh := make(chan error)
 
 	var parentProjectIdsWithPaths [][2]string
@@ -139,6 +150,23 @@ func plans(cmd *cobra.Command, args []string) {
 		}
 	}
 
+	// remove paths with no plans from parentProjectIdsWithPaths and childProjectIdsWithPaths
+	var parentProjectIdsWithPathsFiltered [][2]string
+	for _, p := range parentProjectIdsWithPaths {
+		if len(plansByProjectId[p[1]]) > 0 {
+			parentProjectIdsWithPathsFiltered = append(parentProjectIdsWithPathsFiltered, p)
+		}
+	}
+	parentProjectIdsWithPaths = parentProjectIdsWithPathsFiltered
+
+	var childProjectIdsWithPathsFiltered [][2]string
+	for _, p := range childProjectIdsWithPaths {
+		if len(plansByProjectId[p[1]]) > 0 {
+			childProjectIdsWithPathsFiltered = append(childProjectIdsWithPathsFiltered, p)
+		}
+	}
+	childProjectIdsWithPaths = childProjectIdsWithPathsFiltered
+
 	if len(currentProjectPlanIds) > 0 {
 		currentBranchNamesByPlanId, err := lib.GetCurrentBranchNamesByPlanId(currentProjectPlanIds)
 
@@ -156,23 +184,23 @@ func plans(cmd *cobra.Command, args []string) {
 
 		table := tablewriter.NewWriter(os.Stdout)
 		table.SetAutoWrapText(false)
-		table.SetHeader([]string{"#", "Name", "Updated", "Created" /*"Branches",*/, "Branch", "Context", "Convo"})
+		table.SetHeader([]string{"#", "Name", "Updated" /*, "Created" /*"Branches",*/, "Branch", "Context", "Convo"})
 
 		currentProjectPlans := plansByProjectId[lib.CurrentProjectId]
 		if len(parentProjectIdsWithPaths) > 0 || len(childProjectIdsWithPaths) > 0 {
-			color.New(color.Bold, color.FgHiGreen).Print("Plans in current directory\n")
+			color.New(color.Bold, term.ColorHiGreen).Print("Plans in current directory\n")
 		} else {
 			fmt.Println()
 		}
 		for i, p := range currentProjectPlans {
 			num := strconv.Itoa(i + 1)
 			if p.Id == lib.CurrentPlanId {
-				num = color.New(color.Bold, color.FgHiGreen).Sprint(num)
+				num = color.New(color.Bold, term.ColorHiGreen).Sprint(num)
 			}
 
 			var name string
 			if p.Id == lib.CurrentPlanId {
-				name = color.New(color.Bold, color.FgHiGreen).Sprint(p.Name) + color.New(color.FgWhite).Sprint(" 👈")
+				name = color.New(color.Bold, term.ColorHiGreen).Sprint(p.Name) + fmt.Sprint(" 👈")
 			} else {
 				name = p.Name
 			}
@@ -183,7 +211,7 @@ func plans(cmd *cobra.Command, args []string) {
 				num,
 				name,
 				format.Time(p.UpdatedAt),
-				format.Time(p.CreatedAt),
+				// format.Time(p.CreatedAt),
 				// strconv.Itoa(p.ActiveBranches),
 				currentBranch.Name,
 				strconv.Itoa(currentBranch.ContextTokens) + " 🪙",
@@ -197,8 +225,7 @@ func plans(cmd *cobra.Command, args []string) {
 				}
 			} else {
 				style = []tablewriter.Colors{
-					{tablewriter.FgHiWhiteColor, tablewriter.Bold},
-					{tablewriter.FgHiWhiteColor},
+					{tablewriter.Bold},
 				}
 			}
 
@@ -207,12 +234,8 @@ func plans(cmd *cobra.Command, args []string) {
 		}
 		table.Render()
 
-		fmt.Println()
-		term.PrintCmds("", "new", "cd", "delete-plan")
 	} else {
 		fmt.Println("🤷‍♂️ No plans in current directory")
-		fmt.Println()
-		term.PrintCmds("", "new")
 	}
 
 	var addPathToTreeFn func(tree treeprint.Tree, basePath, localPath, projectId string, isParent bool)
@@ -263,15 +286,23 @@ func plans(cmd *cobra.Command, args []string) {
 			plans := plansByProjectId[projectId]
 
 			for _, p := range plans {
-				branch.AddNode(color.New(color.FgHiCyan).Sprint(p.Name))
+				branch.AddNode(color.New(term.ColorHiCyan).Sprint(p.Name))
 			}
 		}
 	}
 
+	var c color.Attribute
+	if term.IsDarkBg {
+		c = color.FgWhite
+	} else {
+		c = color.FgBlack
+	}
+
 	if len(parentProjectIdsWithPaths) > 0 {
 		fmt.Println()
-		color.New(color.Bold, color.FgHiWhite).Println("Plans in parent directories")
-		color.New(color.FgWhite).Println("cd into a directory to work on a plan in that directory")
+
+		color.New(color.Bold).Println("Plans in parent directories")
+		color.New(c).Println("cd into a directory to work on a plan in that directory")
 		parentTree := treeprint.NewWithRoot("~")
 
 		for i := len(parentProjectIdsWithPaths) - 1; i >= 0; i-- {
@@ -290,8 +321,8 @@ func plans(cmd *cobra.Command, args []string) {
 
 	if len(childProjectIdsWithPaths) > 0 {
 		fmt.Println()
-		color.New(color.Bold, color.FgHiWhite).Println("Plans in child directories")
-		color.New(color.FgWhite).Println("cd into a directory to work on a plan in that directory")
+		color.New(color.Bold).Println("Plans in child directories")
+		color.New(c).Println("cd into a directory to work on a plan in that directory")
 		childTree := treeprint.New()
 		for _, p := range childProjectIdsWithPaths {
 			rel, err := filepath.Rel(fs.Cwd, p[0])
@@ -306,4 +337,69 @@ func plans(cmd *cobra.Command, args []string) {
 	} else {
 		fmt.Println()
 	}
+
+	fmt.Println()
+	if len(currentProjectPlanIds) > 0 {
+		term.PrintCmds("", "new", "cd", "delete-plan", "plans --archived", "archive")
+	} else {
+		term.PrintCmds("", "new", "plans --archived")
+	}
+}
+
+func listArchived() {
+	var projectIds []string
+
+	if lib.CurrentProjectId != "" {
+		projectIds = append(projectIds, lib.CurrentProjectId)
+	}
+
+	term.StartSpinner("")
+	plans, apiErr := api.Client.ListArchivedPlans(projectIds)
+	term.StopSpinner()
+
+	if apiErr != nil {
+		term.OutputErrorAndExit("Error getting plans: %v", apiErr)
+	}
+
+	if len(plans) == 0 {
+		fmt.Println("🤷‍♂️ No archived plans")
+		fmt.Println()
+		term.PrintCmds("", "archive")
+		return
+	}
+
+	table := tablewriter.NewWriter(os.Stdout)
+	table.SetAutoWrapText(false)
+	table.SetHeader([]string{"#", "Name", "Updated"})
+
+	for i, p := range plans {
+		num := strconv.Itoa(i + 1)
+		if p.Id == lib.CurrentPlanId {
+			num = color.New(color.Bold, term.ColorHiGreen).Sprint(num)
+		}
+
+		row := []string{
+			num,
+			p.Name,
+			format.Time(p.UpdatedAt),
+		}
+
+		var style []tablewriter.Colors
+		if p.Name == lib.CurrentPlanId {
+			style = []tablewriter.Colors{
+				{tablewriter.FgHiGreenColor, tablewriter.Bold},
+			}
+		} else {
+			style = []tablewriter.Colors{
+				{tablewriter.Bold},
+			}
+		}
+
+		table.Rich(row, style)
+
+	}
+	table.Render()
+
+	fmt.Println()
+	term.PrintCmds("", "unarchive")
 }

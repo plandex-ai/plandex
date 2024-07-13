@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"plandex-server/db"
 	"plandex-server/model"
+	"plandex-server/model/prompts"
 	"time"
 
 	"github.com/davecgh/go-spew/spew"
@@ -15,12 +16,17 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
-func (state *activeTellStreamState) summarizeMessagesIfNeeded() bool {
+func (state *activeTellStreamState) injectSummariesAsNeeded() bool {
 	convo := state.convo
 	summaries := state.summaries
 	tokensBeforeConvo := state.tokensBeforeConvo
 
 	active := GetActivePlan(state.plan.Id, state.branch)
+
+	if active == nil {
+		log.Println("summarizeMessagesIfNeeded - Active plan not found")
+		return false
+	}
 
 	conversationTokens := 0
 	tokensUpToTimestamp := make(map[int64]int)
@@ -48,6 +54,8 @@ func (state *activeTellStreamState) summarizeMessagesIfNeeded() bool {
 		// log.Printf("(tokensBeforeConvo+conversationTokens) > state.settings.GetPlannerEffectiveMaxTokens(): %v\n", (tokensBeforeConvo+conversationTokens) > state.settings.GetPlannerEffectiveMaxTokens())
 		// log.Printf("conversationTokens > state.settings.GetPlannerMaxConvoTokens(): %v\n", conversationTokens > state.settings.GetPlannerMaxConvoTokens())
 
+		log.Printf("Num summaries: %d\n", len(summaries))
+
 		// token limit exceeded after adding conversation
 		// get summary for as much as the conversation as necessary to stay under the token limit
 		for _, s := range summaries {
@@ -64,11 +72,11 @@ func (state *activeTellStreamState) summarizeMessagesIfNeeded() bool {
 
 				log.Println("timestamp:", timestamp)
 
-				log.Println("Conversation summary:")
-				spew.Dump(s)
+				// log.Println("Conversation summary:")
+				// spew.Dump(s)
 
 				log.Println("tokensUpToTimestamp:")
-				spew.Dump(tokensUpToTimestamp)
+				log.Println(spew.Sdump(tokensUpToTimestamp))
 
 				active.StreamDoneCh <- &shared.ApiError{
 					Type:   shared.ApiErrorTypeOther,
@@ -105,12 +113,25 @@ func (state *activeTellStreamState) summarizeMessagesIfNeeded() bool {
 		}
 	}
 
+	var latestSummary *db.ConvoSummary
+	if len(summaries) > 0 {
+		latestSummary = summaries[len(summaries)-1]
+	}
+
 	if summary == nil {
 		for _, convoMessage := range convo {
 			state.messages = append(state.messages, openai.ChatCompletionMessage{
 				Role:    convoMessage.Role,
 				Content: convoMessage.Message,
 			})
+
+			// add the latest summary as a conversation message if this is the last message summarized, in order to reinforce the current state of the plan to the model
+			if latestSummary != nil && convoMessage.Id == latestSummary.LatestConvoMessageId {
+				state.messages = append(state.messages, openai.ChatCompletionMessage{
+					Role:    openai.ChatMessageRoleAssistant,
+					Content: latestSummary.Summary,
+				})
+			}
 		}
 	} else {
 		if (tokensBeforeConvo + summary.Tokens) > state.settings.GetPlannerEffectiveMaxTokens() {
@@ -134,6 +155,14 @@ func (state *activeTellStreamState) summarizeMessagesIfNeeded() bool {
 					Role:    convoMessage.Role,
 					Content: convoMessage.Message,
 				})
+
+				// add the latest summary as a conversation message if this is the last message summarized, in order to reinforce the current state of the plan to the model
+				if latestSummary != nil && convoMessage.Id == latestSummary.LatestConvoMessageId {
+					state.messages = append(state.messages, openai.ChatCompletionMessage{
+						Role:    openai.ChatMessageRoleAssistant,
+						Content: latestSummary.Summary,
+					})
+				}
 			}
 		}
 	}
@@ -142,12 +171,13 @@ func (state *activeTellStreamState) summarizeMessagesIfNeeded() bool {
 }
 
 type summarizeConvoParams struct {
-	planId        string
-	branch        string
-	convo         []*db.ConvoMessage
-	summaries     []*db.ConvoSummary
-	promptMessage *openai.ChatCompletionMessage
-	currentOrgId  string
+	planId       string
+	branch       string
+	convo        []*db.ConvoMessage
+	summaries    []*db.ConvoSummary
+	userPrompt   string
+	currentReply string
+	currentOrgId string
 }
 
 func summarizeConvo(client *openai.Client, config shared.ModelRoleConfig, params summarizeConvoParams, ctx context.Context) error {
@@ -157,8 +187,15 @@ func summarizeConvo(client *openai.Client, config shared.ModelRoleConfig, params
 	branch := params.branch
 	convo := params.convo
 	summaries := params.summaries
-	promptMessage := params.promptMessage
+	userPrompt := params.userPrompt
 	currentOrgId := params.currentOrgId
+	currentReply := params.currentReply
+	active := GetActivePlan(planId, branch)
+
+	if active == nil {
+		log.Printf("Active plan not found for plan ID %s and branch %s\n", planId, branch)
+		return fmt.Errorf("active plan not found for plan ID %s and branch %s", planId, branch)
+	}
 
 	log.Println("Generating plan summary for planId:", planId)
 
@@ -181,8 +218,11 @@ func summarizeConvo(client *openai.Client, config shared.ModelRoleConfig, params
 		numMessagesSummarized = latestSummary.NumMessages
 	}
 
-	// log.Println("Latest summary:")
+	// log.Println("Generating plan summary - latest summary:")
 	// spew.Dump(latestSummary)
+
+	// log.Println("Generating plan summary - convo:")
+	// spew.Dump(convo)
 
 	if latestSummary == nil {
 		for _, convoMessage := range convo {
@@ -192,6 +232,7 @@ func summarizeConvo(client *openai.Client, config shared.ModelRoleConfig, params
 			})
 			latestMessageId = convoMessage.Id
 			latestMessageSummarizedAt = convoMessage.CreatedAt
+			numMessagesSummarized++
 		}
 	} else {
 		summaryMessages = append(summaryMessages, &openai.ChatCompletionMessage{
@@ -199,28 +240,72 @@ func summarizeConvo(client *openai.Client, config shared.ModelRoleConfig, params
 			Content: latestSummary.Summary,
 		})
 
+		var found bool
+		for _, convoMessage := range convo {
+			if convoMessage.Id == latestSummary.LatestConvoMessageId {
+				found = true
+				continue
+			}
+			if found {
+				summaryMessages = append(summaryMessages, &openai.ChatCompletionMessage{
+					Role:    convoMessage.Role,
+					Content: convoMessage.Message,
+				})
+				numMessagesSummarized++
+			}
+		}
+
 		latestConvoMessage := convo[len(convo)-1]
 		latestMessageId = latestConvoMessage.Id
 		latestMessageSummarizedAt = latestConvoMessage.CreatedAt
+	}
+
+	log.Println("generating summary - latestMessageId:", latestMessageId)
+	log.Println("generating summary - latestMessageSummarizedAt:", latestMessageSummarizedAt)
+
+	if userPrompt != "" {
+		active := GetActivePlan(planId, branch)
+		if active == nil {
+			log.Printf("Active plan not found for plan ID %s and branch %s\n", planId, branch)
+			return fmt.Errorf("active plan not found for plan ID %s and branch %s", planId, branch)
+		}
+
+		if userPrompt != prompts.UserContinuePrompt && userPrompt != prompts.AutoContinuePrompt {
+			summaryMessages = append(summaryMessages, &openai.ChatCompletionMessage{
+				Role:    openai.ChatMessageRoleUser,
+				Content: userPrompt,
+			})
+		}
+
+		// log.Println("Current reply content:")
+		// log.Println(active.CurrentReplyContent)
 
 		summaryMessages = append(summaryMessages, &openai.ChatCompletionMessage{
-			Role:    latestConvoMessage.Role,
-			Content: latestConvoMessage.Message,
+			Role:    openai.ChatMessageRoleAssistant,
+			Content: active.CurrentReplyContent,
 		})
 	}
 
-	if promptMessage != nil {
-		summaryMessages = append(summaryMessages, promptMessage, &openai.ChatCompletionMessage{
+	if currentReply != "" {
+		summaryMessages = append(summaryMessages, &openai.ChatCompletionMessage{
 			Role:    openai.ChatMessageRoleAssistant,
-			Content: GetActivePlan(planId, branch).CurrentReplyContent,
+			Content: currentReply,
 		})
 	}
+
+	log.Printf("Calling model for plan summary. Summarizing %d messages\n", len(summaryMessages))
+
+	// log.Println("Generating summary - summary messages:")
+	// spew.Dump(summaryMessages)
+
+	latestSummaryCh := make(chan *db.ConvoSummary, 1)
+	active.LatestSummaryCh = latestSummaryCh
 
 	summary, err := model.PlanSummary(client, config, model.PlanSummaryParams{
 		Conversation:                summaryMessages,
 		LatestConvoMessageId:        latestMessageId,
 		LatestConvoMessageCreatedAt: latestMessageSummarizedAt,
-		NumMessages:                 numMessagesSummarized + 1,
+		NumMessages:                 numMessagesSummarized,
 		OrgId:                       currentOrgId,
 		PlanId:                      planId,
 	}, ctx)
@@ -232,12 +317,17 @@ func summarizeConvo(client *openai.Client, config shared.ModelRoleConfig, params
 
 	log.Printf("summarizeConvo: Summary generated and stored for plan %s\n", params.planId)
 
+	// log.Println("Generated summary:")
+	// spew.Dump(summary)
+
 	err = db.StoreSummary(summary)
 
 	if err != nil {
 		log.Printf("Error storing plan summary for plan %s: %v\n", planId, err)
 		return err
 	}
+
+	latestSummaryCh <- summary
 
 	return nil
 }

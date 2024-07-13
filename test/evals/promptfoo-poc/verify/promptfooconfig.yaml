@@ -1,0 +1,9 @@
+# This configuration compares LLM output of 2 prompts x 2 GPT models across 3 test cases.
+# Learn more: https://promptfoo.dev/docs/configuration/guide
+description: "verify"
+
+prompts:
+  - file://verify.prompt.txt
+providers:
+  - file://verify.provider.yml
+tests: tests/*.test.yml

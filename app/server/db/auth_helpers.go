@@ -8,12 +8,13 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 )
 
 const tokenExpirationDays = 90 // (trial tokens don't expire)
 
-func CreateAuthToken(userId string, isTrial bool, tx *sql.Tx) (token, id string, err error) {
+func CreateAuthToken(userId string, isTrial bool, tx *sqlx.Tx) (token, id string, err error) {
 	uid := uuid.New()
 	bytes := uid[:]
 	hashBytes := sha256.Sum256(bytes)
@@ -87,7 +88,7 @@ func ValidateEmailVerification(email, pin string) (id string, err error) {
 	err = Conn.QueryRow(query, pinHash, email, time.Now().Add(-emailVerificationExpirationMinutes*time.Minute)).Scan(&id, &authTokenId)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return "", errors.New("invalid pin")
+			return "", errors.New("invalid or expired pin")
 		}
 		return "", fmt.Errorf("error validating email verification: %v", err)
 	}

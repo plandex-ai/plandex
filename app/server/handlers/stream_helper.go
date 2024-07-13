@@ -18,6 +18,12 @@ func startResponseStream(w http.ResponseWriter, auth *types.ServerAuth, planId, 
 
 	active := modelPlan.GetActivePlan(planId, branch)
 
+	if active == nil {
+		log.Printf("Response stream manager: active plan not found for plan ID %s on branch %s\n", planId, branch)
+		http.Error(w, "Active plan not found", http.StatusNotFound)
+		return
+	}
+
 	w.Header().Set("Transfer-Encoding", "chunked")
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 
@@ -34,7 +40,7 @@ func startResponseStream(w http.ResponseWriter, auth *types.ServerAuth, planId, 
 	}
 
 	log.Println("Response stream manager: sending initial message")
-	err = sendStreamMessage(w, active, string(bytes))
+	err = sendStreamMessage(w, string(bytes))
 	if err != nil {
 		log.Println("Response stream manager: error sending initial message:", err)
 		return
@@ -69,7 +75,7 @@ func startResponseStream(w http.ResponseWriter, auth *types.ServerAuth, planId, 
 			return
 		case msg := <-ch:
 			// log.Println("Response stream manager: sending message:", msg)
-			err = sendStreamMessage(w, active, msg)
+			err = sendStreamMessage(w, msg)
 			if err != nil {
 				return
 			}
@@ -78,7 +84,7 @@ func startResponseStream(w http.ResponseWriter, auth *types.ServerAuth, planId, 
 
 }
 
-func sendStreamMessage(w http.ResponseWriter, active *types.ActivePlan, msg string) error {
+func sendStreamMessage(w http.ResponseWriter, msg string) error {
 	bytes := []byte(msg + shared.STREAM_MESSAGE_SEPARATOR)
 
 	// log.Printf("Response stream manager: writing message to client: %s\n", msg)
@@ -97,6 +103,10 @@ func initConnectActive(auth *types.ServerAuth, planId, branch string, w http.Res
 	log.Println("Response stream manager: initializing connection to active plan")
 
 	active := modelPlan.GetActivePlan(planId, branch)
+
+	if active == nil {
+		return fmt.Errorf("active plan not found for plan ID %s on branch %s", planId, branch)
+	}
 
 	msg := shared.StreamMessage{
 		Type: shared.StreamMessageConnectActive,
@@ -143,16 +153,18 @@ func initConnectActive(auth *types.ServerAuth, planId, branch string, w http.Res
 	}
 
 	log.Println("Response stream manager: sending connect message")
-	err = sendStreamMessage(w, active, string(bytes))
+	err = sendStreamMessage(w, string(bytes))
 
 	if err != nil {
 		return fmt.Errorf("error sending connect message: %v", err)
 	}
 
-	// if we're connecting to an active stream and there are active builds, send initial build info
-	if len(active.BuildQueuesByPath) > 0 {
+	buildQueuesByPath := modelPlan.GetActivePlan(planId, branch).BuildQueuesByPath
 
-		for path, queue := range active.BuildQueuesByPath {
+	// if we're connecting to an active stream and there are active builds, send initial build info
+	if len(buildQueuesByPath) > 0 {
+
+		for path, queue := range buildQueuesByPath {
 			buildInfo := shared.BuildInfo{Path: path}
 
 			for _, build := range queue {
@@ -160,10 +172,8 @@ func initConnectActive(auth *types.ServerAuth, planId, branch string, w http.Res
 					buildInfo.NumTokens = 0
 					buildInfo.Finished = true
 				} else {
-					tokens, err := shared.GetNumTokens(build.Buffer)
-					if err != nil {
-						return fmt.Errorf("error getting tokens for build with ReplyId %s: %v", build.ReplyId, err)
-					}
+					tokens := build.WithLineNumsBufferTokens
+
 					buildInfo.Finished = false
 					buildInfo.NumTokens += tokens
 				}
@@ -179,7 +189,7 @@ func initConnectActive(auth *types.ServerAuth, planId, branch string, w http.Res
 				return fmt.Errorf("error marshalling message: %v", err)
 			}
 
-			err = sendStreamMessage(w, active, string(bytes))
+			err = sendStreamMessage(w, string(bytes))
 
 			if err != nil {
 				return fmt.Errorf("error sending message: %v", err)

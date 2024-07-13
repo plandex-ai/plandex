@@ -3,7 +3,6 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"plandex/api"
 	"plandex/auth"
 	"plandex/lib"
@@ -16,14 +15,26 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var provider string
+
 func init() {
 	RootCmd.AddCommand(modelsSetCmd)
+
+	modelsSetCmd.AddCommand(defaultModelSetCmd)
+
 }
 
 var modelsSetCmd = &cobra.Command{
-	Use:   "set-model [role-or-setting] [property-or-value] [value]",
-	Short: "Update model settings",
+	Use:   "set-model [model-set-or-role-or-setting] [property-or-value] [value]",
+	Short: "Update current plan model settings",
 	Run:   modelsSet,
+	Args:  cobra.MaximumNArgs(3),
+}
+
+var defaultModelSetCmd = &cobra.Command{
+	Use:   "default [model-set-or-role-or-setting] [property-or-value] [value]",
+	Short: "Update org-wide default model settings",
+	Run:   defaultModelsSet,
 	Args:  cobra.MaximumNArgs(3),
 }
 
@@ -40,320 +51,9 @@ func modelsSet(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	// Marshal and unmarshal to make a deep copy of the settings
-	jsonBytes, err := json.Marshal(originalSettings)
-	if err != nil {
-		term.OutputErrorAndExit("Error marshalling settings: %v", err)
-		return
-	}
+	settings := updateModelSettings(args, originalSettings)
 
-	var settings *shared.PlanSettings
-	err = json.Unmarshal(jsonBytes, &settings)
-	if err != nil {
-		term.OutputErrorAndExit("Error unmarshalling settings: %v", err)
-		return
-	}
-
-	var roleOrSetting, propertyCompact, value string
-	var role shared.ModelRole
-	var settingCompact string
-	var settingDasherized string
-	var selectedModel *shared.BaseModelConfig
-	var temperature *float64
-	var topP *float64
-
-	if len(args) > 0 {
-		roleOrSetting = args[0]
-		for _, r := range shared.AllModelRoles {
-			if strings.EqualFold(string(r), roleOrSetting) {
-				role = r
-				break
-			}
-		}
-		if role == "" {
-			for _, s := range shared.ModelOverridePropsDasherized {
-				compact := shared.Compact(s)
-				if strings.EqualFold(compact, shared.Compact(roleOrSetting)) {
-					settingCompact = compact
-					settingDasherized = s
-					break
-				}
-			}
-		}
-	}
-
-	if role == "" && settingCompact == "" {
-		// Prompt user to select between updating a top-level setting or a modelset role
-		opts := []string{}
-		for _, role := range shared.AllModelRoles {
-			label := fmt.Sprintf("🤖 role | %s → %s", role, shared.ModelRoleDescriptions[role])
-			opts = append(opts, label)
-		}
-		for _, setting := range shared.ModelOverridePropsDasherized {
-			label := fmt.Sprintf("⚙️  override | %s → %s", shared.Dasherize(setting), shared.SettingDescriptions[setting])
-			opts = append(opts, label)
-		}
-
-		selection, err := term.SelectFromList("Select a role or override to update:", opts)
-		if err != nil {
-			if err.Error() == "interrupt" {
-				return
-			}
-
-			term.OutputErrorAndExit("Error selecting setting or role: %v", err)
-			return
-		}
-
-		idx := 0
-		for i, opt := range opts {
-			if opt == selection {
-				idx = i
-				break
-			}
-		}
-
-		if idx < len(shared.AllModelRoles) {
-			role = shared.AllModelRoles[idx]
-		} else {
-			settingDasherized = shared.ModelOverridePropsDasherized[idx-len(shared.AllModelRoles)]
-			settingCompact = shared.Compact(settingDasherized)
-
-			log.Printf("Selected setting: %s", settingDasherized)
-			log.Printf("Selected setting compact: %s", settingCompact)
-		}
-	}
-
-	if len(args) > 1 {
-		if role != "" {
-			propertyCompact = shared.Compact(args[1])
-		} else {
-			value = args[1]
-		}
-	}
-
-	if len(args) > 2 {
-		value = args[2]
-	}
-
-	if settingCompact != "" {
-		if value == "" {
-			var err error
-			value, err = term.GetUserStringInput(fmt.Sprintf("Set %s (leave blank for no value)", settingDasherized))
-			if err != nil {
-				if err.Error() == "interrupt" {
-					return
-				}
-
-				term.OutputErrorAndExit("Error getting value: %v", err)
-				return
-			}
-		}
-
-		switch settingCompact {
-		case "maxconvotokens":
-			if value == "" {
-				settings.ModelOverrides.MaxConvoTokens = nil
-			} else {
-				n, err := strconv.Atoi(value)
-				if err != nil {
-					fmt.Println("Invalid value for max-convo-tokens:", value)
-					return
-				}
-				settings.ModelOverrides.MaxConvoTokens = &n
-			}
-		case "maxtokens":
-			if value == "" {
-				settings.ModelOverrides.MaxTokens = nil
-			} else {
-				n, err := strconv.Atoi(value)
-				if err != nil {
-					fmt.Println("Invalid value for max-tokens:", value)
-					return
-				}
-				settings.ModelOverrides.MaxTokens = &n
-			}
-		case "reservedoutputtokens":
-			if value == "" {
-				settings.ModelOverrides.ReservedOutputTokens = nil
-			} else {
-				n, err := strconv.Atoi(value)
-				if err != nil {
-					fmt.Println("Invalid value for reserved-output-tokens:", value)
-					return
-				}
-				settings.ModelOverrides.ReservedOutputTokens = &n
-			}
-		}
-	}
-
-	if role != "" {
-		if !(propertyCompact == "temperature" || propertyCompact == "topp") {
-			for _, m := range shared.AvailableModels {
-				if propertyCompact == m.ModelName {
-					selectedModel = &m
-					break
-				}
-			}
-		}
-
-		if selectedModel == nil && propertyCompact == "" {
-			opts := []string{
-				"Select a model",
-				"Set temperature",
-				"Set top-p",
-			}
-
-			selection, err := term.SelectFromList("Select a property to update:", opts)
-			if err != nil {
-				if err.Error() == "interrupt" {
-					return
-				}
-
-				term.OutputErrorAndExit("Error selecting property: %v", err)
-				return
-			}
-
-			if selection == "Select a model" {
-
-				var opts []string
-				for _, m := range shared.AvailableModels {
-					label := fmt.Sprintf("%s → %s | max %d 🪙", m.Provider, m.ModelName, m.MaxTokens)
-					opts = append(opts, label)
-				}
-
-				selection, err := term.SelectFromList("Select a model:", opts)
-
-				if err != nil {
-					if err.Error() == "interrupt" {
-						return
-					}
-
-					term.OutputErrorAndExit("Error selecting model: %v", err)
-					return
-				}
-
-				for i := range opts {
-					if opts[i] == selection {
-						selectedModel = &shared.AvailableModels[i]
-						break
-					}
-				}
-
-			} else if selection == "Set temperature" {
-				propertyCompact = "temperature"
-			} else if selection == "Set top-p" {
-				propertyCompact = "topp"
-			}
-		}
-
-		if selectedModel == nil {
-			if propertyCompact != "" {
-				if value == "" {
-					msg := "Set"
-					if propertyCompact == "temperature" {
-						msg += "temperature (-2.0 to 2.0)"
-					} else if propertyCompact == "topp" {
-						msg += "top-p (0.0 to 1.0)"
-					}
-					var err error
-					value, err = term.GetUserStringInput(msg)
-					if err != nil {
-						if err.Error() == "interrupt" {
-							return
-						}
-
-						term.OutputErrorAndExit("Error getting value: %v", err)
-						return
-					}
-				}
-
-				switch propertyCompact {
-				case "temperature":
-					f, err := strconv.ParseFloat(value, 32)
-					if err != nil || f < -2.0 || f > 2.0 {
-						fmt.Println("Invalid value for temperature:", value)
-						return
-					}
-					temperature = &f
-				case "topp":
-					f, err := strconv.ParseFloat(value, 32)
-					if err != nil || f < 0.0 || f > 1.0 {
-						fmt.Println("Invalid value for top-p:", value)
-						return
-					}
-					topP = &f
-				}
-			}
-		}
-
-		if settings.ModelSet == nil {
-			settings.ModelSet = &shared.DefaultModelSet
-		}
-
-		switch role {
-		case shared.ModelRolePlanner:
-			if selectedModel != nil {
-				settings.ModelSet.Planner.BaseModelConfig = *selectedModel
-				settings.ModelSet.Planner.PlannerModelConfig = shared.PlannerModelConfigByName[selectedModel.ModelName]
-			} else if temperature != nil {
-				settings.ModelSet.Planner.Temperature = float32(*temperature)
-			} else if topP != nil {
-				settings.ModelSet.Planner.TopP = float32(*topP)
-			}
-
-		case shared.ModelRolePlanSummary:
-			if selectedModel != nil {
-				settings.ModelSet.PlanSummary.BaseModelConfig = *selectedModel
-			} else if temperature != nil {
-				settings.ModelSet.PlanSummary.Temperature = float32(*temperature)
-			} else if topP != nil {
-				settings.ModelSet.PlanSummary.TopP = float32(*topP)
-			}
-
-		case shared.ModelRoleBuilder:
-			if selectedModel != nil {
-				settings.ModelSet.Builder.BaseModelConfig = *selectedModel
-				settings.ModelSet.Builder.TaskModelConfig = shared.TaskModelConfigByName[selectedModel.ModelName]
-			} else if temperature != nil {
-				settings.ModelSet.Builder.Temperature = float32(*temperature)
-			} else if topP != nil {
-				settings.ModelSet.Builder.TopP = float32(*topP)
-			}
-
-		case shared.ModelRoleName:
-			if selectedModel != nil {
-				settings.ModelSet.Namer.BaseModelConfig = *selectedModel
-				settings.ModelSet.Namer.TaskModelConfig = shared.TaskModelConfigByName[selectedModel.ModelName]
-			} else if temperature != nil {
-				settings.ModelSet.Namer.Temperature = float32(*temperature)
-			} else if topP != nil {
-				settings.ModelSet.Namer.TopP = float32(*topP)
-			}
-
-		case shared.ModelRoleCommitMsg:
-			if selectedModel != nil {
-				settings.ModelSet.CommitMsg.BaseModelConfig = *selectedModel
-				settings.ModelSet.CommitMsg.TaskModelConfig = shared.TaskModelConfigByName[selectedModel.ModelName]
-			} else if temperature != nil {
-				settings.ModelSet.CommitMsg.Temperature = float32(*temperature)
-			} else if topP != nil {
-				settings.ModelSet.CommitMsg.TopP = float32(*topP)
-			}
-
-		case shared.ModelRoleExecStatus:
-			if selectedModel != nil {
-				settings.ModelSet.ExecStatus.BaseModelConfig = *selectedModel
-				settings.ModelSet.ExecStatus.TaskModelConfig = shared.TaskModelConfigByName[selectedModel.ModelName]
-			} else if temperature != nil {
-				settings.ModelSet.ExecStatus.Temperature = float32(*temperature)
-			} else if topP != nil {
-				settings.ModelSet.ExecStatus.TopP = float32(*topP)
-			}
-		}
-	}
-
-	if reflect.DeepEqual(originalSettings, settings) {
-		fmt.Println("🤷‍♂️ No model settings were updated")
+	if settings == nil {
 		return
 	}
 
@@ -373,5 +73,442 @@ func modelsSet(cmd *cobra.Command, args []string) {
 
 	fmt.Println(res.Msg)
 	fmt.Println()
-	term.PrintCmds("", "models", "log", "rewind")
+	term.PrintCmds("", "models", "set-model default", "log")
+}
+
+func defaultModelsSet(cmd *cobra.Command, args []string) {
+	auth.MustResolveAuthWithOrg()
+
+	term.StartSpinner("")
+	originalSettings, apiErr := api.Client.GetOrgDefaultSettings()
+	term.StopSpinner()
+
+	if apiErr != nil {
+		term.OutputErrorAndExit("Error getting current settings: %v", apiErr)
+		return
+	}
+
+	settings := updateModelSettings(args, originalSettings)
+
+	if settings == nil {
+		return
+	}
+
+	term.StartSpinner("")
+	res, apiErr := api.Client.UpdateOrgDefaultSettings(
+		shared.UpdateSettingsRequest{
+			Settings: settings,
+		})
+	term.StopSpinner()
+
+	if apiErr != nil {
+		term.OutputErrorAndExit("Error updating settings: %v", apiErr)
+		return
+	}
+
+	fmt.Println(res.Msg)
+	fmt.Println()
+	term.PrintCmds("", "models", "set-model default", "log")
+}
+
+func updateModelSettings(args []string, originalSettings *shared.PlanSettings) *shared.PlanSettings {
+	// Marshal and unmarshal to make a deep copy of the settings
+	jsonBytes, err := json.Marshal(originalSettings)
+	if err != nil {
+		term.OutputErrorAndExit("Error marshalling settings: %v", err)
+		return nil
+	}
+
+	var settings *shared.PlanSettings
+	err = json.Unmarshal(jsonBytes, &settings)
+	if err != nil {
+		term.OutputErrorAndExit("Error unmarshalling settings: %v", err)
+		return nil
+	}
+
+	var modelSetOrRoleOrSetting, propertyCompact, value string
+	var modelPack *shared.ModelPack
+	var role shared.ModelRole
+	var settingCompact string
+	var settingDasherized string
+	var selectedModel *shared.AvailableModel
+	var temperature *float64
+	var topP *float64
+
+	if len(args) > 0 {
+		modelSetOrRoleOrSetting = args[0]
+
+		for _, ms := range shared.BuiltInModelPacks {
+			if strings.EqualFold(ms.Name, modelSetOrRoleOrSetting) {
+				modelPack = ms
+				break
+			}
+		}
+
+		if modelPack == nil {
+			for _, r := range shared.AllModelRoles {
+				if strings.EqualFold(string(r), modelSetOrRoleOrSetting) {
+					role = r
+					break
+				}
+			}
+			if role == "" {
+				for _, s := range shared.ModelOverridePropsDasherized {
+					compact := shared.Compact(s)
+					if strings.EqualFold(compact, shared.Compact(modelSetOrRoleOrSetting)) {
+						settingCompact = compact
+						settingDasherized = s
+						break
+					}
+				}
+			}
+		}
+	}
+
+	if modelPack == nil && role == "" && settingCompact == "" {
+		// Prompt user to select between updating a model-set, a top-level setting or a model role
+		opts := []string{"🎛️  choose a model pack to change all roles at once"}
+
+		for _, role := range shared.AllModelRoles {
+			label := fmt.Sprintf("🤖 role | %s → %s", role, shared.ModelRoleDescriptions[role])
+			opts = append(opts, label)
+		}
+		for _, setting := range shared.ModelOverridePropsDasherized {
+			label := fmt.Sprintf("⚙️  override | %s → %s", shared.Dasherize(setting), shared.SettingDescriptions[setting])
+			opts = append(opts, label)
+		}
+
+		selection, err := term.SelectFromList("Choose a new model pack, or select a role or override to update:", opts)
+		if err != nil {
+			if err.Error() == "interrupt" {
+				return nil
+			}
+
+			term.OutputErrorAndExit("Error selecting setting or role: %v", err)
+			return nil
+		}
+
+		idx := 0
+		for i, opt := range opts {
+			if opt == selection {
+				idx = i
+				break
+			}
+		}
+
+		if idx == 0 {
+			var opts []string
+			for _, ms := range shared.BuiltInModelPacks {
+				opts = append(opts, "Built-in | "+ms.Name)
+			}
+
+			term.StartSpinner("")
+			customModelPacks, apiErr := api.Client.ListModelPacks()
+			term.StopSpinner()
+
+			if apiErr != nil {
+				term.OutputErrorAndExit("Error getting custom model packs: %v", apiErr)
+				return nil
+			}
+
+			for _, ms := range customModelPacks {
+				opts = append(opts, "Custom | "+ms.Name)
+			}
+
+			opts = append(opts, lib.GoBack)
+
+			selection, err := term.SelectFromList("Select a model pack:", opts)
+			if err != nil {
+				if err.Error() == "interrupt" {
+					return nil
+				}
+
+				term.OutputErrorAndExit("Error selecting model pack: %v", err)
+				return nil
+			}
+
+			if selection == lib.GoBack {
+				return updateModelSettings([]string{}, originalSettings)
+			}
+
+			var idx int
+			for i, opt := range opts {
+				if opt == selection {
+					idx = i
+					break
+				}
+			}
+
+			if idx < len(shared.BuiltInModelPacks) {
+				modelPack = shared.BuiltInModelPacks[idx]
+			} else {
+				modelPack = customModelPacks[idx-len(shared.BuiltInModelPacks)]
+			}
+
+		} else if idx < len(shared.AllModelRoles)+1 {
+			role = shared.AllModelRoles[idx-1]
+		} else {
+			settingDasherized = shared.ModelOverridePropsDasherized[idx-(len(shared.AllModelRoles)+1)]
+			settingCompact = shared.Compact(settingDasherized)
+		}
+	}
+
+	if modelPack == nil {
+		if len(args) > 1 {
+			if role != "" {
+				propertyCompact = strings.ToLower(shared.Compact(args[1]))
+			} else {
+				value = args[1]
+			}
+		}
+
+		if len(args) > 2 {
+			value = args[2]
+		}
+
+		if settingCompact != "" {
+			if value == "" {
+				var err error
+				value, err = term.GetUserStringInput(fmt.Sprintf("Set %s (leave blank for no value)", settingDasherized))
+				if err != nil {
+					if err.Error() == "interrupt" {
+						return nil
+					}
+
+					term.OutputErrorAndExit("Error getting value: %v", err)
+					return nil
+				}
+			}
+
+			switch settingCompact {
+			case "maxconvotokens":
+				if value == "" {
+					settings.ModelOverrides.MaxConvoTokens = nil
+				} else {
+					n, err := strconv.Atoi(value)
+					if err != nil {
+						fmt.Println("Invalid value for max-convo-tokens:", value)
+						return nil
+					}
+					settings.ModelOverrides.MaxConvoTokens = &n
+				}
+			case "maxtokens":
+				if value == "" {
+					settings.ModelOverrides.MaxTokens = nil
+				} else {
+					n, err := strconv.Atoi(value)
+					if err != nil {
+						fmt.Println("Invalid value for max-tokens:", value)
+						return nil
+					}
+					settings.ModelOverrides.MaxTokens = &n
+				}
+			case "reservedoutputtokens":
+				if value == "" {
+					settings.ModelOverrides.ReservedOutputTokens = nil
+				} else {
+					n, err := strconv.Atoi(value)
+					if err != nil {
+						fmt.Println("Invalid value for reserved-output-tokens:", value)
+						return nil
+					}
+					settings.ModelOverrides.ReservedOutputTokens = &n
+				}
+			}
+		}
+
+		if role != "" {
+			if !(propertyCompact == "temperature" || propertyCompact == "topp") {
+				term.StartSpinner("")
+				customModels, apiErr := api.Client.ListCustomModels()
+				term.StopSpinner()
+
+				if apiErr != nil {
+					term.OutputErrorAndExit("Error fetching models: %v", apiErr)
+				}
+
+				customModels = shared.FilterCompatibleModels(customModels, role)
+				builtInModels := shared.FilterCompatibleModels(shared.AvailableModels, role)
+
+				allModels := append(customModels, builtInModels...)
+
+				for _, m := range allModels {
+					var p string
+					if m.Provider == shared.ModelProviderCustom {
+						p = *m.CustomProvider
+					} else {
+						p = string(m.Provider)
+					}
+					p = strings.ToLower(p)
+
+					if propertyCompact == fmt.Sprintf("%s/%s", p, shared.Compact(m.ModelName)) {
+						selectedModel = m
+						break
+					}
+				}
+			}
+
+			if selectedModel == nil && propertyCompact == "" {
+			Outer:
+				for {
+					opts := []string{
+						"Select a model",
+						"Set temperature",
+						"Set top-p",
+					}
+
+					opts = append(opts, lib.GoBack)
+
+					selection, err := term.SelectFromList("Select a property to update:", opts)
+					if err != nil {
+						if err.Error() == "interrupt" {
+							return nil
+						}
+
+						term.OutputErrorAndExit("Error selecting property: %v", err)
+						return nil
+					}
+
+					if selection == lib.GoBack {
+						return updateModelSettings([]string{}, originalSettings)
+					}
+
+					if selection == "Select a model" {
+						term.StartSpinner("")
+						customModels, apiErr := api.Client.ListCustomModels()
+						term.StopSpinner()
+
+						if apiErr != nil {
+							term.OutputErrorAndExit("Error fetching models: %v", apiErr)
+						}
+
+						selectedModel = lib.SelectModelForRole(customModels, role, true)
+
+						if selectedModel != nil {
+							break Outer
+						}
+					} else if selection == "Set temperature" {
+						propertyCompact = "temperature"
+						break Outer
+					} else if selection == "Set top-p" {
+						propertyCompact = "topp"
+						break Outer
+					}
+				}
+			}
+
+			if selectedModel == nil {
+				if propertyCompact != "" {
+					if value == "" {
+						msg := "Set"
+						if propertyCompact == "temperature" {
+							msg += "temperature (-2.0 to 2.0)"
+						} else if propertyCompact == "topp" {
+							msg += "top-p (0.0 to 1.0)"
+						}
+						var err error
+						value, err = term.GetRequiredUserStringInput(msg)
+						if err != nil {
+							if err.Error() == "interrupt" {
+								return nil
+							}
+
+							term.OutputErrorAndExit("Error getting value: %v", err)
+							return nil
+						}
+					}
+
+					switch propertyCompact {
+					case "temperature":
+						f, err := strconv.ParseFloat(value, 32)
+						if err != nil || f < -2.0 || f > 2.0 {
+							fmt.Println("Invalid value for temperature:", value)
+							return nil
+						}
+						temperature = &f
+					case "topp":
+						f, err := strconv.ParseFloat(value, 32)
+						if err != nil || f < 0.0 || f > 1.0 {
+							fmt.Println("Invalid value for top-p:", value)
+							return nil
+						}
+						topP = &f
+					}
+				}
+			}
+
+			if settings.ModelPack == nil {
+				settings.ModelPack = shared.DefaultModelPack
+			}
+
+			switch role {
+			case shared.ModelRolePlanner:
+				if selectedModel != nil {
+					settings.ModelPack.Planner.BaseModelConfig = selectedModel.BaseModelConfig
+					settings.ModelPack.Planner.PlannerModelConfig = shared.PlannerModelConfig{
+						MaxConvoTokens:       selectedModel.DefaultMaxConvoTokens,
+						ReservedOutputTokens: selectedModel.DefaultReservedOutputTokens,
+					}
+				} else if temperature != nil {
+					settings.ModelPack.Planner.Temperature = float32(*temperature)
+				} else if topP != nil {
+					settings.ModelPack.Planner.TopP = float32(*topP)
+				}
+
+			case shared.ModelRolePlanSummary:
+				if selectedModel != nil {
+					settings.ModelPack.PlanSummary.BaseModelConfig = selectedModel.BaseModelConfig
+				} else if temperature != nil {
+					settings.ModelPack.PlanSummary.Temperature = float32(*temperature)
+				} else if topP != nil {
+					settings.ModelPack.PlanSummary.TopP = float32(*topP)
+				}
+
+			case shared.ModelRoleBuilder:
+				if selectedModel != nil {
+					settings.ModelPack.Builder.BaseModelConfig = selectedModel.BaseModelConfig
+				} else if temperature != nil {
+					settings.ModelPack.Builder.Temperature = float32(*temperature)
+				} else if topP != nil {
+					settings.ModelPack.Builder.TopP = float32(*topP)
+				}
+
+			case shared.ModelRoleName:
+				if selectedModel != nil {
+					settings.ModelPack.Namer.BaseModelConfig = selectedModel.BaseModelConfig
+				} else if temperature != nil {
+					settings.ModelPack.Namer.Temperature = float32(*temperature)
+				} else if topP != nil {
+					settings.ModelPack.Namer.TopP = float32(*topP)
+				}
+
+			case shared.ModelRoleCommitMsg:
+				if selectedModel != nil {
+					settings.ModelPack.CommitMsg.BaseModelConfig = selectedModel.BaseModelConfig
+				} else if temperature != nil {
+					settings.ModelPack.CommitMsg.Temperature = float32(*temperature)
+				} else if topP != nil {
+					settings.ModelPack.CommitMsg.TopP = float32(*topP)
+				}
+
+			case shared.ModelRoleExecStatus:
+				if selectedModel != nil {
+					settings.ModelPack.ExecStatus.BaseModelConfig = selectedModel.BaseModelConfig
+				} else if temperature != nil {
+					settings.ModelPack.ExecStatus.Temperature = float32(*temperature)
+				} else if topP != nil {
+					settings.ModelPack.ExecStatus.TopP = float32(*topP)
+				}
+			}
+		}
+	} else {
+		settings.ModelPack = modelPack
+	}
+
+	if reflect.DeepEqual(originalSettings, settings) {
+		fmt.Println("🤷‍♂️ No model settings were updated")
+		return nil
+	} else {
+		return settings
+	}
 }

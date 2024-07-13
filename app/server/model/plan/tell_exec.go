@@ -17,10 +17,10 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
-func Tell(client *openai.Client, plan *db.Plan, branch string, auth *types.ServerAuth, req *shared.TellPlanRequest) error {
+func Tell(clients map[string]*openai.Client, plan *db.Plan, branch string, auth *types.ServerAuth, req *shared.TellPlanRequest) error {
 	log.Printf("Tell: Called with plan ID %s on branch %s\n", plan.Id, branch)
 
-	_, err := activatePlan(client, plan, branch, auth, req.Prompt, false)
+	_, err := activatePlan(clients, plan, branch, auth, req.Prompt, false)
 
 	if err != nil {
 		log.Printf("Error activating plan: %v\n", err)
@@ -28,7 +28,7 @@ func Tell(client *openai.Client, plan *db.Plan, branch string, auth *types.Serve
 	}
 
 	go execTellPlan(
-		client,
+		clients,
 		plan,
 		branch,
 		auth,
@@ -36,6 +36,8 @@ func Tell(client *openai.Client, plan *db.Plan, branch string, auth *types.Serve
 		0,
 		"",
 		req.BuildMode == shared.BuildModeAuto,
+		"",
+		0,
 	)
 
 	log.Printf("Tell: Tell operation completed successfully for plan ID %s on branch %s\n", plan.Id, branch)
@@ -43,7 +45,7 @@ func Tell(client *openai.Client, plan *db.Plan, branch string, auth *types.Serve
 }
 
 func execTellPlan(
-	client *openai.Client,
+	clients map[string]*openai.Client,
 	plan *db.Plan,
 	branch string,
 	auth *types.ServerAuth,
@@ -51,12 +53,19 @@ func execTellPlan(
 	iteration int,
 	missingFileResponse shared.RespondMissingFileChoice,
 	shouldBuildPending bool,
+	autoContinueNextTask string,
+	numErrorRetry int,
 ) {
 	log.Printf("execTellPlan: Called for plan ID %s on branch %s, iteration %d\n", plan.Id, branch, iteration)
 	currentUserId := auth.User.Id
 	currentOrgId := auth.OrgId
 
 	active := GetActivePlan(plan.Id, branch)
+
+	if active == nil {
+		log.Printf("execTellPlan: Active plan not found for plan ID %s on branch %s\n", plan.Id, branch)
+		return
+	}
 
 	if missingFileResponse == "" {
 		err := hooks.ExecHook("will_exec_plan", hooks.HookParams{
@@ -85,15 +94,16 @@ func execTellPlan(
 	}
 
 	state := &activeTellStreamState{
-		client:              client,
-		req:                 req,
-		auth:                auth,
-		currentOrgId:        currentOrgId,
-		currentUserId:       currentUserId,
-		plan:                plan,
-		branch:              branch,
-		iteration:           iteration,
-		missingFileResponse: missingFileResponse,
+		clients:                clients,
+		req:                    req,
+		auth:                   auth,
+		currentOrgId:           currentOrgId,
+		currentUserId:          currentUserId,
+		plan:                   plan,
+		branch:                 branch,
+		iteration:              iteration,
+		missingFileResponse:    missingFileResponse,
+		currentReplyNumRetries: numErrorRetry,
 	}
 
 	err = state.loadTellPlan()
@@ -166,6 +176,40 @@ func execTellPlan(
 		systemMessage,
 	}
 
+	// Add a separate message for image contexts
+	for _, context := range state.modelContext {
+		if context.ContextType == shared.ContextImageType {
+			if !state.settings.ModelPack.Planner.BaseModelConfig.HasImageSupport {
+				err = fmt.Errorf("%s does not support images in context", state.settings.ModelPack.Planner.BaseModelConfig.ModelName)
+				log.Println(err)
+				active.StreamDoneCh <- &shared.ApiError{
+					Type:   shared.ApiErrorTypeOther,
+					Status: http.StatusBadRequest,
+					Msg:    "Model does not support images in context",
+				}
+				return
+			}
+
+			imageMessage := openai.ChatCompletionMessage{
+				Role: openai.ChatMessageRoleUser,
+				MultiContent: []openai.ChatMessagePart{
+					{
+						Type: openai.ChatMessagePartTypeText,
+						Text: fmt.Sprintf("Image: %s", context.Name),
+					},
+					{
+						Type: openai.ChatMessagePartTypeImageURL,
+						ImageURL: &openai.ChatMessageImageURL{
+							URL:    shared.GetImageDataURI(context.Body, context.FilePath),
+							Detail: context.ImageDetail,
+						},
+					},
+				},
+			}
+			state.messages = append(state.messages, imageMessage)
+		}
+	}
+
 	var (
 		numPromptTokens int
 		promptTokens    int
@@ -185,12 +229,13 @@ func execTellPlan(
 		promptTokens = prompts.PromptWrapperTokens + numPromptTokens
 	}
 
-	state.tokensBeforeConvo = prompts.CreateSysMsgNumTokens + modelContextTokens + promptTokens
+	state.tokensBeforeConvo = prompts.CreateSysMsgNumTokens + modelContextTokens + state.latestSummaryTokens + promptTokens
 
 	// print out breakdown of token usage
 	log.Printf("System message tokens: %d\n", prompts.CreateSysMsgNumTokens)
 	log.Printf("Context tokens: %d\n", modelContextTokens)
 	log.Printf("Prompt tokens: %d\n", promptTokens)
+	log.Printf("Latest summary tokens: %d\n", state.latestSummaryTokens)
 	log.Printf("Total tokens before convo: %d\n", state.tokensBeforeConvo)
 
 	if state.tokensBeforeConvo > state.settings.GetPlannerEffectiveMaxTokens() {
@@ -205,16 +250,15 @@ func execTellPlan(
 		return
 	}
 
-	if !state.summarizeMessagesIfNeeded() {
+	if !state.injectSummariesAsNeeded() {
 		return
 	}
 
 	state.replyId = uuid.New().String()
 	state.replyParser = types.NewReplyParser()
 
-	var promptMessage *openai.ChatCompletionMessage
 	if missingFileResponse == "" {
-
+		var promptMessage *openai.ChatCompletionMessage
 		if req.IsUserContinue {
 			if len(state.messages) == 0 {
 				active.StreamDoneCh <- &shared.ApiError{
@@ -228,15 +272,25 @@ func execTellPlan(
 			// if the user is continuing the plan, we need to check whether the previous message was a user message or assistant message
 			lastMessage := state.messages[len(state.messages)-1]
 
+			log.Println("User is continuing plan. Last message:\n\n", lastMessage.Content)
+
 			if lastMessage.Role == openai.ChatMessageRoleUser {
 				// if last message was a user message, we want to remove it from the messages array and then use that last message as the prompt so we can continue from where the user left off
+
+				log.Println("User is continuing plan. Last message was user message. Using last user message as prompt")
 
 				state.messages = state.messages[:len(state.messages)-1]
 				promptMessage = &openai.ChatCompletionMessage{
 					Role:    openai.ChatMessageRoleUser,
 					Content: prompts.GetWrappedPrompt(lastMessage.Content),
 				}
+
+				state.userPrompt = lastMessage.Content
 			} else {
+
+				// if the last message was an assistant message, we'll use the user continue prompt
+				log.Println("User is continuing plan. Last message was assistant message. Using user continue prompt")
+
 				// otherwise we'll use the continue prompt
 				promptMessage = &openai.ChatCompletionMessage{
 					Role:    openai.ChatMessageRoleUser,
@@ -251,7 +305,19 @@ func execTellPlan(
 				prompt = req.Prompt
 			} else {
 				prompt = prompts.AutoContinuePrompt
+
+				if autoContinueNextTask != "" {
+					prompt += `
+					Here is the next task:
+				
+					` + autoContinueNextTask + `
+					
+					Continue seamlessly with this task.
+				`
+				}
 			}
+
+			state.userPrompt = prompt
 
 			promptMessage = &openai.ChatCompletionMessage{
 				Role:    openai.ChatMessageRoleUser,
@@ -259,6 +325,7 @@ func execTellPlan(
 			}
 		}
 
+		state.promptMessage = promptMessage
 		state.messages = append(state.messages, *promptMessage)
 	} else {
 		log.Println("Missing file response:", missingFileResponse, "setting replyParser")
@@ -325,18 +392,21 @@ func execTellPlan(
 		}
 	}
 
-	// log.Println("\n\nMessages:")
-	// for _, message := range messages {
+	log.Printf("\n\nMessages: %d\n", len(state.messages))
+	// for _, message := range state.messages {
 	// 	log.Printf("%s: %s\n", message.Role, message.Content)
 	// }
 
 	modelReq := openai.ChatCompletionRequest{
-		Model:       state.settings.ModelSet.Planner.BaseModelConfig.ModelName,
+		Model:       state.settings.ModelPack.Planner.BaseModelConfig.ModelName,
 		Messages:    state.messages,
 		Stream:      true,
-		Temperature: state.settings.ModelSet.Planner.Temperature,
-		TopP:        state.settings.ModelSet.Planner.TopP,
+		Temperature: state.settings.ModelPack.Planner.Temperature,
+		TopP:        state.settings.ModelPack.Planner.TopP,
 	}
+
+	envVar := state.settings.ModelPack.Planner.BaseModelConfig.ApiKeyEnvVar
+	client := clients[envVar]
 
 	stream, err := model.CreateChatCompletionStreamWithRetries(client, active.ModelStreamCtx, modelReq)
 	if err != nil {
@@ -369,8 +439,11 @@ func execTellPlan(
 				return
 			}
 
+			log.Printf("Tell plan: found %d pending builds\n", len(pendingBuildsByPath))
+			// spew.Dump(pendingBuildsByPath)x
+
 			buildState := &activeBuildStreamState{
-				client:        client,
+				clients:       clients,
 				auth:          auth,
 				currentOrgId:  currentOrgId,
 				currentUserId: currentUserId,

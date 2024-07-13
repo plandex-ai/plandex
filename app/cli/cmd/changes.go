@@ -37,7 +37,9 @@ func changes(cmd *cobra.Command, args []string) {
 		term.OutputErrorAndExit("Error getting current plan state: %s", apiErr.Msg)
 	}
 
-	if currentPlanState.HasPendingBuilds() {
+	// log.Println(spew.Sdump(currentPlanState))
+
+	for currentPlanState.HasPendingBuilds() {
 		plansRunningRes, apiErr := api.Client.ListPlansRunning([]string{lib.CurrentProjectId}, false)
 
 		if apiErr != nil {
@@ -73,11 +75,14 @@ func changes(cmd *cobra.Command, args []string) {
 		if !viewIncomplete {
 			fmt.Println("This plan has unbuilt changes. Building now.")
 
+			apiKeys := lib.MustVerifyApiKeys()
+
 			didBuild, err := plan_exec.Build(plan_exec.ExecParams{
 				CurrentPlanId: lib.CurrentPlanId,
 				CurrentBranch: lib.CurrentBranch,
-				CheckOutdatedContext: func(cancelOpt bool, maybeContexts []*shared.Context) (bool, bool, bool) {
-					return lib.MustCheckOutdatedContext(cancelOpt, true, maybeContexts)
+				ApiKeys:       apiKeys,
+				CheckOutdatedContext: func(maybeContexts []*shared.Context) (bool, bool) {
+					return lib.MustCheckOutdatedContext(true, maybeContexts)
 				},
 			}, false)
 
@@ -91,12 +96,20 @@ func changes(cmd *cobra.Command, args []string) {
 				term.PrintCmds("", "build", "log", "rewind")
 				return
 			}
+
+			term.ResumeSpinner()
+			currentPlanState, apiErr = api.Client.GetCurrentPlanState(lib.CurrentPlanId, lib.CurrentBranch)
+
+			if apiErr != nil {
+				term.StopSpinner()
+				term.OutputErrorAndExit("Error getting current plan state: %s", apiErr.Msg)
+			}
 		}
 	}
 
 	term.StopSpinner()
 
-	err := changes_tui.StartChangesUI()
+	err := changes_tui.StartChangesUI(currentPlanState)
 
 	if err != nil {
 		term.OutputErrorAndExit("Error starting changes UI: %v\n", err)

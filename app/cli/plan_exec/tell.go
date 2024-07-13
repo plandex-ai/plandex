@@ -29,9 +29,9 @@ func TellPlan(
 		term.OutputErrorAndExit("Error getting context: %v", apiErr)
 	}
 
-	anyOutdated, didUpdate, canceled := params.CheckOutdatedContext(true, contexts)
+	anyOutdated, didUpdate := params.CheckOutdatedContext(contexts)
 
-	if anyOutdated && !didUpdate && canceled {
+	if anyOutdated && !didUpdate {
 		term.StopSpinner()
 		if isUserContinue {
 			log.Println("Plan won't continue")
@@ -63,6 +63,18 @@ func TellPlan(
 			term.StartSpinner("💬 Sending prompt...")
 		}
 
+		var legacyApiKey, openAIBase, openAIOrgId string
+
+		if params.ApiKeys["OPENAI_API_KEY"] != "" {
+			openAIBase = os.Getenv("OPENAI_API_BASE")
+			if openAIBase == "" {
+				openAIBase = os.Getenv("OPENAI_ENDPOINT")
+			}
+
+			legacyApiKey = params.ApiKeys["OPENAI_API_KEY"]
+			openAIOrgId = params.ApiKeys["OPENAI_ORG_ID"]
+		}
+
 		apiErr := api.Client.TellPlan(params.CurrentPlanId, params.CurrentBranch, shared.TellPlanRequest{
 			Prompt:         prompt,
 			ConnectStream:  !tellBg,
@@ -70,7 +82,11 @@ func TellPlan(
 			ProjectPaths:   paths.ActivePaths,
 			BuildMode:      buildMode,
 			IsUserContinue: isUserContinue,
-			ApiKey:         os.Getenv("OPENAI_API_KEY"),
+			ApiKey:         legacyApiKey, // deprecated
+			Endpoint:       openAIBase,   // deprecated
+			ApiKeys:        params.ApiKeys,
+			OpenAIBase:     openAIBase,
+			OpenAIOrgId:    openAIOrgId,
 		}, stream.OnStreamPlan)
 
 		term.StopSpinner()
@@ -115,11 +131,9 @@ func TellPlan(
 				fmt.Println()
 
 				if tellStop {
-					term.PrintCmds("", "continue", "convo", "changes", "log", "rewind")
-				} else if tellNoBuild {
-					term.PrintCmds("", "convo", "log", "rewind")
+					term.PrintCmds("", "continue", "changes", "diff", "apply", "reject", "log", "rewind")
 				} else {
-					term.PrintCmds("", "changes", "log", "rewind")
+					term.PrintCmds("", "changes", "diff", "apply", "reject", "log", "rewind")
 				}
 				os.Exit(0)
 			}()

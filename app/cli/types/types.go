@@ -1,6 +1,9 @@
 package types
 
-import "github.com/plandex/plandex/shared"
+import (
+	"github.com/plandex/plandex/shared"
+	"github.com/sashabaranov/go-openai"
+)
 
 type ClientAccount struct {
 	IsCloud  bool   `json:"isCloud"`
@@ -23,15 +26,19 @@ type LoadContextParams struct {
 	Recursive       bool
 	NamesOnly       bool
 	ForceSkipIgnore bool
+	ImageDetail     openai.ImageURLDetail
 }
 
 type ContextOutdatedResult struct {
 	Msg             string
 	UpdatedContexts []*shared.Context
+	RemovedContexts []*shared.Context
 	TokenDiffsById  map[string]int
 	NumFiles        int
 	NumUrls         int
 	NumTrees        int
+	NumFilesRemoved int
+	NumTreesRemoved int
 }
 
 const (

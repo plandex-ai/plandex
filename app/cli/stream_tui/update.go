@@ -25,17 +25,24 @@ func (m streamUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 
 	case spinner.TickMsg:
+		var cmds []tea.Cmd
 		if m.processing || m.starting {
 			spinnerModel, cmd := m.spinner.Update(msg)
 			m.spinner = spinnerModel
-			return m, cmd
+			cmds = append(cmds, cmd)
 		}
+		if m.building {
+			buildSpinnerModel, cmd := m.buildSpinner.Update(msg)
+			m.buildSpinner = buildSpinnerModel
+			cmds = append(cmds, cmd)
+		}
+		return m, tea.Batch(cmds...)
 
 	case tea.WindowSizeMsg:
 		m.windowResized(msg.Width, msg.Height)
 
 	case shared.StreamMessage:
-		return m.streamUpdate(&msg)
+		return m.streamUpdate(&msg, false)
 
 	case delayFileRestartMsg:
 		m.finishedByPath[msg.path] = false
@@ -54,6 +61,7 @@ func (m streamUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch {
 
 		case bubbleKey.Matches(msg, m.keymap.quit):
+			m.background = true
 			return &m, tea.Quit
 
 		case bubbleKey.Matches(msg, m.keymap.stop):
@@ -61,8 +69,9 @@ func (m streamUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if apiErr != nil {
 				log.Println("stop plan api error:", apiErr)
 				m.apiErr = apiErr
-				return &m, nil
 			}
+			m.stopped = true
+			return m, tea.Quit
 
 		case bubbleKey.Matches(msg, m.keymap.scrollDown) && !m.promptingMissingFile:
 			m.scrollDown()
@@ -139,6 +148,8 @@ func (m *streamUIModel) updateReplyDisplay() {
 }
 
 func (m *streamUIModel) updateViewportDimensions() {
+	// log.Println("updateViewportDimensions")
+
 	w, h := m.getViewportDimensions()
 	m.mainViewport.Width = w
 	m.mainViewport.Height = h
@@ -152,8 +163,11 @@ func (m *streamUIModel) getViewportDimensions() (int, int) {
 
 	var buildHeight int
 	if m.building {
-		buildHeight = lipgloss.Height(m.renderBuild())
+		buildHeight = len(m.getRows(false))
 	}
+
+	// log.Println("building:", m.building)
+	// log.Println("buildHeight:", buildHeight)
 
 	var processingHeight int
 	if m.starting || m.processing {
@@ -217,8 +231,7 @@ func (m *streamUIModel) scrollEnd() {
 	}
 }
 
-func (m *streamUIModel) streamUpdate(msg *shared.StreamMessage) (tea.Model, tea.Cmd) {
-
+func (m *streamUIModel) streamUpdate(msg *shared.StreamMessage, deferUIUpdate bool) (tea.Model, tea.Cmd) {
 	checkMissingFileFn := func() {
 		if msg.MissingFilePath != "" {
 			m.promptingMissingFile = true
@@ -245,7 +258,25 @@ func (m *streamUIModel) streamUpdate(msg *shared.StreamMessage) (tea.Model, tea.
 	}
 
 	// log.Println("streamUI received message:", msg.Type)
+
 	switch msg.Type {
+
+	case shared.StreamMessageMulti:
+		cmds := []tea.Cmd{}
+		for _, subMsg := range msg.StreamMessages {
+			teaModel, cmd := m.streamUpdate(&subMsg, true)
+
+			m = teaModel.(*streamUIModel)
+
+			if cmd != nil {
+				cmds = append(cmds, cmd)
+			}
+		}
+
+		m.updateReplyDisplay()
+		m.updateViewportDimensions()
+
+		return m, tea.Batch(cmds...)
 
 	case shared.StreamMessageConnectActive:
 
@@ -256,7 +287,7 @@ func (m *streamUIModel) streamUpdate(msg *shared.StreamMessage) (tea.Model, tea.
 			m.buildOnly = true
 		}
 		if len(msg.InitReplies) > 0 {
-			m.reply = strings.Join(msg.InitReplies, "\n\n👉 ")
+			m.reply = strings.Join(msg.InitReplies, "\n\n👇\n")
 		}
 		m.updateReplyDisplay()
 
@@ -275,14 +306,17 @@ func (m *streamUIModel) streamUpdate(msg *shared.StreamMessage) (tea.Model, tea.
 			if m.promptedMissingFile {
 				m.promptedMissingFile = false
 			} else {
-				m.reply += "\n\n👉 "
+				m.reply += "\n\n👇\n"
 			}
 		}
 
 		// log.Println("reply chunk:", msg.ReplyChunk)
 
 		m.reply += msg.ReplyChunk
-		m.updateReplyDisplay()
+
+		if !deferUIUpdate {
+			m.updateReplyDisplay()
+		}
 
 	case shared.StreamMessageBuildInfo:
 		if m.starting {
@@ -307,17 +341,33 @@ func (m *streamUIModel) streamUpdate(msg *shared.StreamMessage) (tea.Model, tea.
 			m.tokensByPath[msg.BuildInfo.Path] += msg.BuildInfo.NumTokens
 		}
 
-		m.updateViewportDimensions()
+		if !deferUIUpdate {
+			m.updateViewportDimensions()
+		}
+
+		cmds := []tea.Cmd{m.buildSpinner.Tick}
+		if m.processing && !m.finished {
+			cmds = append(cmds, m.spinner.Tick)
+		}
+		return m, tea.Batch(cmds...)
 
 	case shared.StreamMessageDescribing:
 		m.processing = true
-		return m, m.spinner.Tick
+
+		cmds := []tea.Cmd{m.spinner.Tick}
+
+		if m.building {
+			cmds = append(cmds, m.buildSpinner.Tick)
+		}
+
+		return m, tea.Batch(cmds...)
 
 	case shared.StreamMessageError:
 		m.apiErr = msg.Error
 		return m, tea.Quit
 
 	case shared.StreamMessageFinished:
+		// log.Println("stream finished")
 		m.finished = true
 		return m, tea.Quit
 
@@ -328,6 +378,9 @@ func (m *streamUIModel) streamUpdate(msg *shared.StreamMessage) (tea.Model, tea.
 	case shared.StreamMessageRepliesFinished:
 		m.processing = false
 
+		if m.building {
+			return m, m.buildSpinner.Tick
+		}
 	}
 
 	return m, nil

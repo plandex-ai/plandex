@@ -16,6 +16,7 @@ type ContextUpdateResult struct {
 	TotalTokens     int
 	NumFiles        int
 	NumUrls         int
+	NumImages       int
 	NumTrees        int
 	MaxTokens       int
 }
@@ -39,6 +40,9 @@ func (c *Context) TypeAndIcon() (string, string) {
 	case ContextPipedDataType:
 		icon = "↔️ "
 		t = "piped"
+	case ContextImageType:
+		icon = "🖼️ "
+		t = "image"
 	}
 
 	return t, icon

@@ -35,8 +35,7 @@ func rewind(cmd *cobra.Command, args []string) {
 	lib.MustResolveProject()
 
 	if lib.CurrentPlanId == "" {
-		fmt.Println("🤷‍♂️ No current plan")
-		return
+		term.OutputNoCurrentPlanErrorAndExit()
 	}
 
 	var stepsOrSha string
@@ -103,7 +102,7 @@ func rewind(cmd *cobra.Command, args []string) {
 	fmt.Println(msg)
 	fmt.Println()
 
-	term.PrintCmds("", "log")
+	term.PrintCmds("", "log", "continue")
 
 	// fmt.Println(rwRes.LatestCommit)
 }

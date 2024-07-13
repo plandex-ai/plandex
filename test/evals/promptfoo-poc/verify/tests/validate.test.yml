@@ -1,0 +1,18 @@
+- description: "Validation of the code changes"
+  vars:
+    preBuildState: file://assets/shared/pre_build.go
+    changes: file://assets/valid/changes.md
+    postBuildState: file://assets/valid/post_build.go
+    diffs: file://assets/valid/diff.txt
+  assert:
+    - type: is-json
+    - type: is-valid-openai-tools-call
+    - type: javascript
+      value: |
+        var args = JSON.parse(output[0].function.arguments)
+        return !(
+          args.hasSyntaxErrors ||
+          args.hasRemovedCodeErrors ||
+          args.hasDuplicationErrors ||
+          args.hasReferenceErrors            
+        )

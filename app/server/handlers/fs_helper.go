@@ -12,10 +12,16 @@ import (
 	"github.com/gorilla/mux"
 )
 
-func lockRepo(w http.ResponseWriter, r *http.Request, auth *types.ServerAuth, scope db.LockScope, ctx context.Context, cancelFn context.CancelFunc) *func(err error) {
+func lockRepo(w http.ResponseWriter, r *http.Request, auth *types.ServerAuth, scope db.LockScope, ctx context.Context, cancelFn context.CancelFunc, requireBranch bool) *func(err error) {
 	vars := mux.Vars(r)
 	planId := vars["planId"]
 	branch := vars["branch"]
+
+	if requireBranch && branch == "" {
+		log.Println("Branch not specified")
+		http.Error(w, "Branch not specified", http.StatusBadRequest)
+		return nil
+	}
 
 	repoLockId, err := db.LockRepo(
 		db.LockRepoParams{
@@ -36,6 +42,9 @@ func lockRepo(w http.ResponseWriter, r *http.Request, auth *types.ServerAuth, sc
 	}
 
 	fn := func(err error) {
+		log.Println("Unlocking repo in deferred unlock function")
+		log.Printf("err: %v\n", err)
+
 		if r := recover(); r != nil {
 			stackTrace := debug.Stack()
 			log.Printf("Recovered from panic: %v\n", r)
@@ -44,12 +53,13 @@ func lockRepo(w http.ResponseWriter, r *http.Request, auth *types.ServerAuth, sc
 			http.Error(w, "Error locking repo: "+err.Error(), http.StatusInternalServerError)
 		}
 
+		// log.Println("Rolling back repo if error")
 		err = RollbackRepoIfErr(auth.OrgId, planId, err)
 		if err != nil {
 			log.Printf("Error rolling back repo: %v\n", err)
 		}
 
-		err = db.UnlockRepo(repoLockId)
+		err = db.DeleteRepoLock(repoLockId)
 		if err != nil {
 			log.Printf("Error unlocking repo: %v\n", err)
 		}
@@ -61,6 +71,7 @@ func lockRepo(w http.ResponseWriter, r *http.Request, auth *types.ServerAuth, sc
 func RollbackRepoIfErr(orgId, planId string, err error) error {
 	// if no error, return nil
 	if err == nil {
+		log.Println("No error, not rolling back repo")
 		return nil
 	}
 

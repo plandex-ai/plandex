@@ -31,8 +31,7 @@ func branches(cmd *cobra.Command, args []string) {
 	lib.MustResolveProject()
 
 	if lib.CurrentPlanId == "" {
-		fmt.Println("🤷‍♂️ No current plan")
-		return
+		term.OutputNoCurrentPlanErrorAndExit()
 	}
 
 	term.StartSpinner("")
@@ -48,17 +47,17 @@ func branches(cmd *cobra.Command, args []string) {
 
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetAutoWrapText(false)
-	table.SetHeader([]string{"#", "Name", "Updated", "Created", "Context", "Convo"})
+	table.SetHeader([]string{"#", "Name", "Updated" /* "Created",*/, "Context", "Convo"})
 
 	for i, b := range branches {
 		num := strconv.Itoa(i + 1)
 		if b.Name == lib.CurrentBranch {
-			num = color.New(color.Bold, color.FgGreen).Sprint(num)
+			num = color.New(color.Bold, term.ColorHiGreen).Sprint(num)
 		}
 
 		var name string
 		if b.Name == lib.CurrentBranch {
-			name = color.New(color.Bold, color.FgGreen).Sprint(b.Name) + color.New(color.FgWhite).Sprint(" 👈")
+			name = color.New(color.Bold, term.ColorHiGreen).Sprint(b.Name) + " 👈"
 		} else {
 			name = b.Name
 		}
@@ -67,7 +66,7 @@ func branches(cmd *cobra.Command, args []string) {
 			num,
 			name,
 			format.Time(b.UpdatedAt),
-			format.Time(b.CreatedAt),
+			// format.Time(b.CreatedAt),
 			strconv.Itoa(b.ContextTokens) + " 🪙",
 			strconv.Itoa(b.ConvoTokens) + " 🪙",
 		}
@@ -79,8 +78,7 @@ func branches(cmd *cobra.Command, args []string) {
 			}
 		} else {
 			style = []tablewriter.Colors{
-				{tablewriter.FgHiWhiteColor, tablewriter.Bold},
-				{tablewriter.FgHiWhiteColor},
+				{tablewriter.Bold},
 			}
 		}
 

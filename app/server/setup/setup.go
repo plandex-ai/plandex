@@ -36,6 +36,10 @@ func MustInitDb() {
 }
 
 func StartServer(r *mux.Router) {
+	if os.Getenv("GOENV") == "development" {
+		log.Println("In development mode.")
+	}
+
 	// Get externalPort from the environment variable or default to 8088
 	externalPort := os.Getenv("PORT")
 	if externalPort == "" {

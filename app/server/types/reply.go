@@ -1,16 +1,19 @@
 package types
 
 import (
+	"os"
 	"strings"
 )
 
-type parserRes struct {
-	CurrentFilePath  string
-	Files            []string
-	FileContents     []string
-	FileDescriptions []string
-	NumTokensByFile  map[string]int
-	TotalTokens      int
+type ReplyParserRes struct {
+	MaybeFilePath      string
+	CurrentFilePath    string
+	Files              []string
+	FileContents       []string
+	FileDescriptions   []string
+	RepliesBeforeFiles []string
+	NumTokensByFile    map[string]int
+	TotalTokens        int
 }
 
 type ReplyParser struct {
@@ -134,7 +137,14 @@ func (r *ReplyParser) AddChunk(chunk string, addToTotal bool) {
 			r.maybeFilePath = ""
 			r.currentFileLines = []string{}
 
-			r.fileDescriptions = append(r.fileDescriptions, strings.Join(r.currentDescriptionLines[0:len(r.currentDescriptionLines)-2], "\n"))
+			var fileDescription string
+			if len(r.currentDescriptionLines) > 4 {
+				fileDescription = strings.Join(r.currentDescriptionLines[0:len(r.currentDescriptionLines)-4], "\n")
+				r.fileDescriptions = append(r.fileDescriptions, fileDescription)
+			} else {
+				r.fileDescriptions = append(r.fileDescriptions, "")
+			}
+
 			r.currentDescriptionLines = []string{""}
 			r.currentDescriptionLineIdx = 0
 
@@ -151,7 +161,7 @@ func (r *ReplyParser) AddChunk(chunk string, addToTotal bool) {
 		// log.Println("Current file path is empty--checking for possible file path...")
 
 		var gotPath string
-		if lineHasFilePath(prevFullLineTrimmed) {
+		if lineMaybeHasFilePath(prevFullLineTrimmed) {
 			gotPath = extractFilePath(prevFullLineTrimmed)
 		} else {
 			// log.Println("No possible file path detected.", strconv.Quote(prevFullLineTrimmed))
@@ -183,8 +193,9 @@ func (r *ReplyParser) AddChunk(chunk string, addToTotal bool) {
 	}
 }
 
-func (r *ReplyParser) Read() parserRes {
-	return parserRes{
+func (r *ReplyParser) Read() ReplyParserRes {
+	return ReplyParserRes{
+		MaybeFilePath:    r.maybeFilePath,
 		CurrentFilePath:  r.currentFilePath,
 		Files:            r.files,
 		FileContents:     r.fileContents,
@@ -194,20 +205,24 @@ func (r *ReplyParser) Read() parserRes {
 	}
 }
 
-func (r *ReplyParser) FinishAndRead() parserRes {
+func (r *ReplyParser) FinishAndRead() ReplyParserRes {
 	r.AddChunk("\n", false)
 	return r.Read()
 }
 
 func (r *ReplyParser) GetReplyBeforeCurrentPath() string {
-	if r.currentFilePath == "" {
+	return r.GetReplyBeforePath(r.currentFilePath)
+}
+
+func (r *ReplyParser) GetReplyBeforePath(path string) string {
+	if path == "" {
 		return strings.Join(r.lines, "\n")
 	}
 
 	var idx int
 	for i := len(r.lines) - 1; i >= 0; i-- {
 		line := r.lines[i]
-		if lineHasFilePath(line) && r.currentFilePath == extractFilePath(line) {
+		if lineMaybeHasFilePath(line) && path == extractFilePath(line) {
 			idx = i
 			break
 		}
@@ -216,19 +231,53 @@ func (r *ReplyParser) GetReplyBeforeCurrentPath() string {
 	return strings.Join(r.lines[:idx], "\n")
 }
 
-func lineHasFilePath(line string) bool {
-	return (strings.HasPrefix(line, "-")) || strings.HasPrefix(line, "-file:") || strings.HasPrefix(line, "- file:") || (strings.HasPrefix(line, "**") && strings.HasSuffix(line, "**"))
+func lineMaybeHasFilePath(line string) bool {
+	couldBe := (strings.HasPrefix(line, "-")) || strings.HasPrefix(line, "-file:") || strings.HasPrefix(line, "- file:") || (strings.HasPrefix(line, "**") && strings.HasSuffix(line, "**")) || (strings.HasPrefix(line, "#") && strings.HasSuffix(line, ":"))
+
+	if couldBe {
+		extracted := extractFilePath(line)
+
+		extSplit := strings.Split(extracted, ".")
+		hasExt := len(extSplit) > 1 && !strings.Contains(extSplit[len(extSplit)-1], " ")
+		hasFileSep := strings.Contains(extracted, string(os.PathSeparator))
+		hasSpaces := strings.Contains(extracted, " ")
+
+		return !(!hasExt && !hasFileSep && hasSpaces)
+	}
+
+	return couldBe
 }
 
 func extractFilePath(line string) string {
 	p := strings.ReplaceAll(line, "**", "")
+	p = strings.ReplaceAll(p, "`", "")
+	p = strings.ReplaceAll(p, "'", "")
+	p = strings.ReplaceAll(p, `"`, "")
 	p = strings.TrimPrefix(p, "-")
+	p = strings.TrimPrefix(p, "####")
+	p = strings.TrimPrefix(p, "###")
+	p = strings.TrimPrefix(p, "##")
+	p = strings.TrimPrefix(p, "#")
 	p = strings.TrimSpace(p)
 	p = strings.TrimPrefix(p, "file:")
+	p = strings.TrimPrefix(p, "file path:")
+	p = strings.TrimPrefix(p, "filepath:")
+	p = strings.TrimPrefix(p, "File path:")
+	p = strings.TrimPrefix(p, "File Path:")
 	p = strings.TrimSuffix(p, ":")
 	p = strings.TrimSpace(p)
 
-	split := strings.Split(p, " ")
+	// split := strings.Split(p, " ")
+	// if len(split) > 1 {
+	// 	p = split[0]
+	// }
+
+	split := strings.Split(p, ": ")
+	if len(split) > 1 {
+		p = split[len(split)-1]
+	}
+
+	split = strings.Split(p, " (")
 	if len(split) > 1 {
 		p = split[0]
 	}

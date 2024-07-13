@@ -8,6 +8,7 @@ import (
 	"os"
 	"plandex-server/db"
 	"plandex-server/host"
+	"time"
 
 	"github.com/plandex/plandex/shared"
 )
@@ -44,15 +45,19 @@ func proxyActivePlanMethod(w http.ResponseWriter, r *http.Request, planId, branc
 		return
 	} else {
 		log.Printf("Forwarding request to %s\n", modelStream.InternalIp)
-		proxyUrl := fmt.Sprintf("http://%s:%s/plans/%s/%s/%s", modelStream.InternalIp, os.Getenv("EXTERNAL_PORT"), planId, branch, method)
+		proxyUrl := fmt.Sprintf("http://%s:%s/plans/%s/%s/%s", modelStream.InternalIp, os.Getenv("PORT"), planId, branch, method)
 		proxyUrl += "?proxy=true"
+
+		log.Printf("Proxy url: %s\n", proxyUrl)
 		proxyRequest(w, r, proxyUrl)
 		return
 	}
 }
 
 func proxyRequest(w http.ResponseWriter, originalRequest *http.Request, url string) {
-	client := &http.Client{}
+	client := &http.Client{
+		Timeout: time.Second * 10,
+	}
 
 	// Create a new request based on the original request
 	req, err := http.NewRequest(originalRequest.Method, url, originalRequest.Body)

@@ -3,50 +3,89 @@ package plan
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
+	"plandex-server/db"
 	"plandex-server/model"
 	"plandex-server/model/prompts"
 	"strings"
 
 	"github.com/davecgh/go-spew/spew"
-	"github.com/plandex/plandex/shared"
 	"github.com/sashabaranov/go-openai"
 )
 
-func ExecStatusShouldContinue(client *openai.Client, config shared.TaskRoleConfig, message string, ctx context.Context) (bool, error) {
+func (state *activeTellStreamState) execStatusShouldContinue(message string, latestSummaryCh chan *db.ConvoSummary, ctx context.Context) (bool, string, error) {
+	settings := state.settings
+	clients := state.clients
+	config := settings.ModelPack.ExecStatus
+
+	envVar := config.BaseModelConfig.ApiKeyEnvVar
+	client := clients[envVar]
+
 	log.Println("Checking if plan should continue based on exec status")
 
 	// First try to determine if the plan should continue based on the last paragraph without calling the model
 	paragraphs := strings.Split(message, "\n\n")
-	lastParagraphLower := strings.ToLower(paragraphs[len(paragraphs)-1])
+	lastParagraph := paragraphs[len(paragraphs)-1]
+	lastParagraphLower := strings.ToLower(lastParagraph)
 
 	// log.Printf("Last paragraph: %s\n", lastParagraphLower)
 
 	if lastParagraphLower != "" {
-		if strings.Contains(lastParagraphLower, "all tasks have been completed") ||
-			strings.Contains(lastParagraphLower, "plan cannot be continued") {
-
-			log.Println("Plan cannot be continued based on last paragraph")
-
-			return false, nil
-		}
-
-		if strings.Index(lastParagraphLower, "next,") < 3 {
-
+		nextIdx := strings.Index(lastParagraph, "Next, ")
+		if nextIdx >= 0 {
 			log.Println("Plan can be continued based on last paragraph")
-
-			return true, nil
+			return true, lastParagraph, nil
 		}
+	}
+
+	var prevAssistantMsg string
+	if len(state.convo) > 1 {
+		// iterate backwards from len(state.convo) - 2 to 0
+		for i := len(state.convo) - 2; i >= 0; i-- {
+			if state.convo[i].Role == "assistant" {
+				prevAssistantMsg = state.convo[i].Message
+				break
+			}
+		}
+	}
+
+	var latestSummary *db.ConvoSummary
+
+	if latestSummaryCh != nil {
+		log.Println("Waiting for latest summary")
+		select {
+		case <-ctx.Done():
+			log.Println("Context cancelled while waiting for latest summary")
+			return false, "", fmt.Errorf("context cancelled while waiting for latest summary")
+		case latestSummary = <-latestSummaryCh:
+			log.Println("Got latest summary")
+		}
+	}
+
+	var summary string
+	if latestSummary != nil {
+		summary = latestSummary.Summary
 	}
 
 	messages := []openai.ChatCompletionMessage{
 		{
 			Role:    openai.ChatMessageRoleSystem,
-			Content: prompts.GetExecStatusShouldContinue(message), // Ensure this function is correctly defined in your package
+			Content: prompts.GetExecStatusShouldContinue(summary, prevAssistantMsg, state.userPrompt, message),
 		},
 	}
 
 	log.Println("Calling model to check if plan should continue")
+	log.Println("Has latest summary:", summary != "")
+	log.Println("Has prev assistant msg:", prevAssistantMsg != "")
+
+	// log.Println("messages:")
+	// log.Println(spew.Sdump(messages))
+
+	var responseFormat *openai.ChatCompletionResponseFormat
+	if config.BaseModelConfig.HasJsonResponseMode {
+		responseFormat = &openai.ChatCompletionResponseFormat{Type: "json_object"}
+	}
 
 	resp, err := model.CreateChatCompletionWithRetries(
 		client,
@@ -56,7 +95,7 @@ func ExecStatusShouldContinue(client *openai.Client, config shared.TaskRoleConfi
 			Tools: []openai.Tool{
 				{
 					Type:     "function",
-					Function: prompts.ShouldAutoContinueFn,
+					Function: &prompts.ShouldAutoContinueFn,
 				},
 			},
 			ToolChoice: openai.ToolChoice{
@@ -66,7 +105,7 @@ func ExecStatusShouldContinue(client *openai.Client, config shared.TaskRoleConfi
 				},
 			},
 			Messages:       messages,
-			ResponseFormat: config.OpenAIResponseFormat,
+			ResponseFormat: responseFormat,
 			Temperature:    config.Temperature,
 			TopP:           config.TopP,
 		},
@@ -77,12 +116,18 @@ func ExecStatusShouldContinue(client *openai.Client, config shared.TaskRoleConfi
 		// return false, fmt.Errorf("error during plan exec status check model call: %v", err)
 
 		// Instead of erroring out, just don't continue the plan
-		return false, nil
+		return false, "", nil
 	}
 
 	var strRes string
 	var res struct {
-		ShouldContinue bool `json:"shouldContinue"`
+		MessageFinishedSubtasks []string `json:"messageSubtasksFinished"`
+		Comments                []struct {
+			Txt               string `json:"txt"`
+			IsTodoPlaceholder bool   `json:"isTodoPlaceholder"`
+		} `json:"comments"`
+		Reasoning      string `json:"reasoning"`
+		ShouldContinue bool   `json:"shouldContinue"`
 	}
 
 	for _, choice := range resp.Choices {
@@ -96,12 +141,12 @@ func ExecStatusShouldContinue(client *openai.Client, config shared.TaskRoleConfi
 
 	if strRes == "" {
 		log.Println("No shouldAutoContinue function call found in response")
-		spew.Dump(resp)
+		log.Println(spew.Sdump(resp))
 
 		// return false, fmt.Errorf("no shouldAutoContinue function call found in response")
 
 		// Instead of erroring out, just don't continue the plan
-		return false, nil
+		return false, "", nil
 	}
 
 	err = json.Unmarshal([]byte(strRes), &res)
@@ -111,8 +156,10 @@ func ExecStatusShouldContinue(client *openai.Client, config shared.TaskRoleConfi
 		// return false, fmt.Errorf("error unmarshalling plan exec status response: %v", err)
 
 		// Instead of erroring out, just don't continue the plan
-		return false, nil
+		return false, "", nil
 	}
 
-	return res.ShouldContinue, nil
+	log.Printf("Plan exec status response: %v\n", res)
+
+	return res.ShouldContinue, res.Reasoning, nil
 }

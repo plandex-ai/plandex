@@ -1,0 +1,1 @@
+DROP TABLE IF EXISTS default_plan_settings;

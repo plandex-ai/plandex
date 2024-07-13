@@ -97,7 +97,7 @@ func Authenticate(w http.ResponseWriter, r *http.Request, requireOrg bool) *type
 
 	if !isMember {
 		// check if there's an invite for this user and accept it if so (adds the user to the org)
-		invite, err := db.GetInviteForOrgUser(parsed.OrgId, authToken.UserId)
+		invite, err := db.GetActiveInviteByEmail(parsed.OrgId, user.Email)
 
 		if err != nil {
 			log.Printf("error getting invite for org user: %v\n", err)
@@ -106,6 +106,8 @@ func Authenticate(w http.ResponseWriter, r *http.Request, requireOrg bool) *type
 		}
 
 		if invite != nil {
+			log.Println("accepting invite")
+
 			err := db.AcceptInvite(invite, authToken.UserId)
 
 			if err != nil {
@@ -148,23 +150,27 @@ func Authenticate(w http.ResponseWriter, r *http.Request, requireOrg bool) *type
 }
 
 func authorizeProject(w http.ResponseWriter, projectId string, auth *types.ServerAuth) bool {
+	return authorizeProjectOptional(w, projectId, auth, true)
+}
+
+func authorizeProjectOptional(w http.ResponseWriter, projectId string, auth *types.ServerAuth, shouldErr bool) bool {
 	log.Println("authorizing project")
 
-	hasProjectAccess, err := db.ValidateProjectAccess(projectId, auth.User.Id, auth.OrgId)
+	projectExists, err := db.ProjectExists(auth.OrgId, projectId)
 
 	if err != nil {
-		log.Printf("error validating project membership: %v\n", err)
-		http.Error(w, "error validating project membership", http.StatusInternalServerError)
+		log.Printf("error validating project: %v\n", err)
+		http.Error(w, "error validating project", http.StatusInternalServerError)
 		return false
 	}
 
-	if !hasProjectAccess {
-		log.Println("user is not a member of the project")
-		http.Error(w, "not a member of project", http.StatusUnauthorized)
+	if !projectExists && shouldErr {
+		log.Println("project does not exist in org")
+		http.Error(w, "project does not exist in org", http.StatusNotFound)
 		return false
 	}
 
-	return true
+	return projectExists
 }
 
 func authorizeProjectRename(w http.ResponseWriter, projectId string, auth *types.ServerAuth) bool {

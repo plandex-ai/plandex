@@ -7,8 +7,9 @@ import (
 	"plandex/api"
 	"plandex/fs"
 	"plandex/term"
+	"strings"
 
-	"github.com/fatih/color"
+	"github.com/plandex/plandex/shared"
 )
 
 func MustApplyPlan(planId, branch string, autoConfirm bool) {
@@ -61,7 +62,7 @@ func MustApplyPlan(planId, branch string, autoConfirm bool) {
 		}
 	}
 
-	anyOutdated, didUpdate, _ := MustCheckOutdatedContext(false, true, nil)
+	anyOutdated, didUpdate := MustCheckOutdatedContext(true, nil)
 
 	if anyOutdated && !didUpdate {
 		term.StopSpinner()
@@ -69,121 +70,161 @@ func MustApplyPlan(planId, branch string, autoConfirm bool) {
 		os.Exit(0)
 	}
 
-	term.StopSpinner()
-
 	currentPlanFiles := currentPlanState.CurrentPlanFiles
+	isRepo := fs.ProjectRootIsGitRepo()
 
-	if len(currentPlanFiles.Files) == 0 {
+	toApply := currentPlanFiles.Files
+
+	if len(toApply) == 0 {
 		term.StopSpinner()
 		fmt.Println("🤷‍♂️ No changes to apply")
 		return
 	}
 
-	isRepo := fs.ProjectRootIsGitRepo()
-
-	hasUncommittedChanges := false
-	if isRepo {
-		// Check if there are any uncommitted changes
-		var err error
-		hasUncommittedChanges, err = CheckUncommittedChanges()
+	if !autoConfirm {
+		term.StopSpinner()
+		numToApply := len(toApply)
+		suffix := ""
+		if numToApply > 1 {
+			suffix = "s"
+		}
+		shouldContinue, err := term.ConfirmYesNo("Apply changes to %d file%s?", numToApply, suffix)
 
 		if err != nil {
-			term.OutputSimpleError("Error checking for uncommitted changes:")
-			term.OutputUnformattedErrorAndExit(err.Error())
+			term.OutputErrorAndExit("failed to get confirmation user input: %s", err)
 		}
+
+		if !shouldContinue {
+			os.Exit(0)
+		}
+		term.ResumeSpinner()
 	}
 
-	toApply := currentPlanFiles.Files
+	onErr := func(errMsg string, errArgs ...interface{}) {
+		term.StopSpinner()
+		term.OutputErrorAndExit(errMsg, errArgs...)
+	}
 
-	var aborted bool
+	onGitErr := func(errMsg, unformattedErrMsg string) {
+		term.StopSpinner()
+		term.OutputSimpleError(errMsg, unformattedErrMsg)
+	}
 
-	if len(toApply) == 0 {
-		fmt.Println("🤷‍♂️ No changes to apply")
-	} else {
-		if !autoConfirm {
-			fmt.Println()
-			numToApply := len(toApply)
-			suffix := ""
-			if numToApply > 1 {
-				suffix = "s"
-			}
-			shouldContinue, err := term.ConfirmYesNo("Apply changes to %d file%s?", numToApply, suffix)
+	apiKeys := MustVerifyApiKeysSilent()
 
-			if err != nil {
-				term.OutputErrorAndExit("failed to get confirmation user input: %s", err)
-			}
+	var commitSummary string
 
-			if !shouldContinue {
-				aborted = true
+	openAIBase := os.Getenv("OPENAI_API_BASE")
+	if openAIBase == "" {
+		openAIBase = os.Getenv("OPENAI_ENDPOINT")
+	}
+
+	commitSummary, apiErr = api.Client.ApplyPlan(planId, branch, shared.ApplyPlanRequest{
+		ApiKeys:     apiKeys,
+		OpenAIBase:  openAIBase,
+		OpenAIOrgId: os.Getenv("OPENAI_ORG_ID"),
+	})
+
+	if apiErr != nil {
+		onErr("failed to set pending results applied: %s", apiErr.Msg)
+		return
+	}
+
+	var updatedFiles []string
+	for path, content := range toApply {
+		// Compute destination path
+		dstPath := filepath.Join(fs.ProjectRoot, path)
+
+		content = strings.ReplaceAll(content, "\\`\\`\\`", "```")
+
+		// Check if the file exists
+		var exists bool
+		_, err := os.Stat(dstPath)
+		if err == nil {
+			exists = true
+		} else {
+			if os.IsNotExist(err) {
+				exists = false
+			} else {
+				onErr("failed to check if %s exists:", dstPath)
 				return
 			}
 		}
 
-		if isRepo && hasUncommittedChanges {
-			// If there are uncommitted changes, stash them
-			err := GitStashCreate("Plandex auto-stash")
+		if exists {
+			// read file content
+			bytes, err := os.ReadFile(dstPath)
+
 			if err != nil {
-				term.OutputSimpleError("Failed to create git stash:")
-				term.OutputUnformattedErrorAndExit(err.Error())
+				onErr("failed to read %s:", dstPath)
+				return
 			}
 
-			defer func() {
-				if aborted {
-					// clear any partially applied changes before popping the stash
-					err := GitClearUncommittedChanges()
-					if err != nil {
-						term.OutputSimpleError("Failed to clear uncommitted changes:")
-						term.OutputUnformattedErrorAndExit(err.Error())
-					}
-				}
+			// Check if the file has changed
+			if string(bytes) == content {
+				// log.Println("File is unchanged, skipping")
+				continue
+			} else {
+				updatedFiles = append(updatedFiles, path)
+			}
+		} else {
+			updatedFiles = append(updatedFiles, path)
 
-				err := GitStashPop(true)
-				if err != nil {
-					term.OutputSimpleError("Failed to pop git stash:")
-					term.OutputUnformattedErrorAndExit(err.Error())
-				}
-			}()
-		}
-
-		for path, content := range toApply {
-			// Compute destination path
-			dstPath := filepath.Join(fs.ProjectRoot, path)
 			// Create the directory if it doesn't exist
 			err := os.MkdirAll(filepath.Dir(dstPath), 0755)
 			if err != nil {
-				aborted = true
-				term.OutputErrorAndExit("failed to create directory %s: %v", filepath.Dir(dstPath), err)
-			}
-
-			// Write the file
-			err = os.WriteFile(dstPath, []byte(content), 0644)
-			if err != nil {
-				aborted = true
-				term.OutputErrorAndExit("failed to write %s: %v", dstPath, err)
+				onErr("failed to create directory %s:", filepath.Dir(dstPath))
+				return
 			}
 		}
 
-		term.StartSpinner("")
-		apiErr := api.Client.ApplyPlan(planId, branch)
-		term.StopSpinner()
-
-		if apiErr != nil {
-			aborted = true
-			term.OutputErrorAndExit("failed to set pending results applied: %s", apiErr.Msg)
+		// Write the file
+		err = os.WriteFile(dstPath, []byte(content), 0644)
+		if err != nil {
+			onErr("failed to write %s:", dstPath)
+			return
 		}
+	}
 
+	term.StopSpinner()
+
+	if len(updatedFiles) == 0 {
+		fmt.Println("✅ Applied changes, but no files were updated")
+		return
+	} else {
 		if isRepo {
-			// Commit the changes
-			err := GitAddAndCommit(fs.ProjectRoot, color.New(color.BgBlue, color.FgHiWhite, color.Bold).Sprintln(" 🤖 Plandex ")+currentPlanState.PendingChangesSummary(), true)
+			fmt.Println("✏️  Plandex can commit these updates with an automatically generated message.")
+			fmt.Println()
+			fmt.Println("ℹ️  Only the files that Plandex is updating will be included the commit. Any other changes, staged or unstaged, will remain exactly as they are.")
+			fmt.Println()
+
+			confirmed, err := term.ConfirmYesNo("Commit Plandex updates now?")
+
 			if err != nil {
-				aborted = true
-				// return fmt.Errorf("failed to commit changes: %w", err)
-				term.OutputSimpleError("Failed to commit changes:")
-				term.OutputUnformattedErrorAndExit(err.Error())
+				onErr("failed to get confirmation user input: %s", err)
+			}
+
+			if confirmed {
+				// Commit the changes
+				msg := currentPlanState.PendingChangesSummaryForApply(commitSummary)
+
+				// log.Println("Committing changes with message:")
+				// log.Println(msg)
+
+				// spew.Dump(currentPlanState)
+
+				err := GitAddAndCommitPaths(fs.ProjectRoot, msg, updatedFiles, true)
+				if err != nil {
+					onGitErr("Failed to commit changes:", err.Error())
+				}
 			}
 		}
 
-		fmt.Println("✅ Applied changes")
+		suffix := ""
+		if len(updatedFiles) > 1 {
+			suffix = "s"
+		}
+		fmt.Printf("✅ Applied changes, %d file%s updated\n", len(updatedFiles), suffix)
 	}
 
 }

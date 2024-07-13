@@ -37,6 +37,8 @@ func ParseInputPaths(fileOrDirPaths []string, params *types.LoadContextParams) (
 					}
 
 					if !(params.Recursive || params.NamesOnly) {
+						// log.Println("path", path, "info.Name()", info.Name())
+
 						return fmt.Errorf("cannot process directory %s: --recursive or --tree flag not set", path)
 					}
 

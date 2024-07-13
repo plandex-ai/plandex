@@ -1,5 +1,16 @@
 .plandex/
 .plandex-dev/
+.envkey
 plandex
+plandex-dev
 plandex-server
+*.exe
 node_modules/
+/tools/
+/static/
+/infra/
+.DS_Store
+.goreleaser.yml
+dist/
+
+.aider.*

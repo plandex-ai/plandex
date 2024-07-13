@@ -3,6 +3,9 @@ package db
 import (
 	"database/sql"
 	"fmt"
+
+	"github.com/jmoiron/sqlx"
+	"github.com/lib/pq"
 )
 
 func GetUser(userId string) (*User, error) {
@@ -46,9 +49,47 @@ func GetUsersForDomain(domain string) ([]*User, error) {
 	return users, nil
 }
 
+func GetOrgUser(userId, orgId string) (*OrgUser, error) {
+	var orgUser OrgUser
+	err := Conn.Get(&orgUser, "SELECT * FROM orgs_users WHERE user_id = $1 AND org_id = $2", userId, orgId)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+
+		return nil, fmt.Errorf("error getting org user: %v", err)
+	}
+
+	return &orgUser, nil
+}
+
+func ListOrgUsers(orgId string) ([]*OrgUser, error) {
+	var orgUsers []*OrgUser
+	err := Conn.Select(&orgUsers, "SELECT * FROM orgs_users WHERE org_id = $1", orgId)
+
+	if err != nil {
+		return nil, fmt.Errorf("error listing org users: %v", err)
+	}
+
+	return orgUsers, nil
+}
+
 func ListUsers(orgId string) ([]*User, error) {
 	var users []*User
-	err := Conn.Select(&users, "SELECT u.* FROM users u INNER JOIN orgs_users ou ON u.id = ou.user_id WHERE ou.org_id = $1", orgId)
+
+	orgUsers, err := ListOrgUsers(orgId)
+
+	if err != nil {
+		return nil, fmt.Errorf("error listing users: %v", err)
+	}
+
+	userIds := make([]string, len(orgUsers))
+	for i, ou := range orgUsers {
+		userIds[i] = ou.UserId
+	}
+
+	err = Conn.Select(&users, "SELECT * FROM users WHERE id = ANY($1)", pq.Array(userIds))
 
 	if err != nil {
 		return nil, fmt.Errorf("error listing users: %v", err)
@@ -57,6 +98,17 @@ func ListUsers(orgId string) ([]*User, error) {
 	return users, nil
 }
 
-func CreateUser(user *User, tx *sql.Tx) error {
+func CreateUser(user *User, tx *sqlx.Tx) error {
 	return tx.QueryRow("INSERT INTO users (name, email, domain, is_trial) VALUES ($1, $2, $3, $4) RETURNING id", user.Name, user.Email, user.Domain, user.IsTrial).Scan(&user.Id)
+}
+
+func NumUsersWithRole(orgId, roleId string) (int, error) {
+	var count int
+	err := Conn.Get(&count, "SELECT COUNT(*) FROM orgs_users WHERE org_id = $1 AND org_role_id = $2", orgId, roleId)
+
+	if err != nil {
+		return 0, fmt.Errorf("error counting users with role: %v", err)
+	}
+
+	return count, nil
 }

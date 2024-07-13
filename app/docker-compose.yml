@@ -1,0 +1,42 @@
+services:
+  plandex-postgres:
+    image: postgres:latest
+    restart: always
+    env_file:
+      - ./.env
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./scripts/init-db:/docker-entrypoint-initdb.d
+      - ${PGDATA_DIR}:/var/lib/postgresql/data
+    networks:
+      - plandex-network
+  plandex-server:
+    build:
+      context: .
+      dockerfile: Dockerfile.server
+    volumes:
+      - "${PLANDEX_DATA_DIR}:${PLANDEX_BASE_DIR}"
+    ports:
+      - "8080:8080"
+    env_file:
+      - ./.env
+    environment:
+      DATABASE_URL: "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@plandex-postgres:5432/${POSTGRES_DATABASE}?sslmode=disable"
+      GOENV: $GOENV
+      PLANDEX_BASE_DIR: $PLANDEX_BASE_DIR
+
+    networks:
+      - plandex-network
+    depends_on:
+      - plandex-postgres
+    command:
+      [
+        "/bin/sh",
+        "-c",
+        "/scripts/wait-for-it.sh plandex-postgres:5432 -- ./plandex-server"
+      ]
+
+networks:
+  plandex-network:
+    driver: bridge

@@ -14,10 +14,13 @@ func init() {
 		panic(fmt.Errorf("error getting user home dir: %v", err))
 	}
 
-	if os.Getenv("GOENV") == "development" {
-		BaseDir = filepath.Join(home, "plandex-server")
-	} else {
-		BaseDir = "/plandex-server"
+	BaseDir = os.Getenv("PLANDEX_BASE_DIR")
+	if BaseDir == "" {
+		if os.Getenv("GOENV") == "development" {
+			BaseDir = filepath.Join(home, "plandex-server")
+		} else {
+			BaseDir = "/plandex-server"
+		}
 	}
 }
 
@@ -61,8 +64,12 @@ func DeletePlanDir(orgId, planId string) error {
 	return nil
 }
 
+func getOrgDir(orgId string) string {
+	return filepath.Join(BaseDir, "orgs", orgId)
+}
+
 func getPlanDir(orgId, planId string) string {
-	return filepath.Join(BaseDir, "orgs", orgId, "plans", planId)
+	return filepath.Join(getOrgDir(orgId), "plans", planId)
 }
 
 func getPlanContextDir(orgId, planId string) string {

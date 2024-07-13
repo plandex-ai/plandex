@@ -1,6 +1,10 @@
 package shared
 
-import "time"
+import (
+	"time"
+
+	"github.com/sashabaranov/go-openai"
+)
 
 type StartTrialResponse struct {
 	UserId   string `json:"userId"`
@@ -107,19 +111,27 @@ const (
 )
 
 type TellPlanRequest struct {
-	Prompt         string          `json:"prompt"`
-	BuildMode      BuildMode       `json:"buildMode"`
-	ConnectStream  bool            `json:"connectStream"`
-	AutoContinue   bool            `json:"autoContinue"`
-	IsUserContinue bool            `json:"isUserContinue"`
-	ApiKey         string          `json:"apiKey"`
-	ProjectPaths   map[string]bool `json:"projectPaths"`
+	Prompt         string            `json:"prompt"`
+	BuildMode      BuildMode         `json:"buildMode"`
+	ConnectStream  bool              `json:"connectStream"`
+	AutoContinue   bool              `json:"autoContinue"`
+	IsUserContinue bool              `json:"isUserContinue"`
+	ApiKey         string            `json:"apiKey"`   // deprecated
+	Endpoint       string            `json:"endpoint"` // deprecated
+	ApiKeys        map[string]string `json:"apiKeys"`
+	OpenAIBase     string            `json:"openAIBase"`
+	OpenAIOrgId    string            `json:"openAIOrgId"`
+	ProjectPaths   map[string]bool   `json:"projectPaths"`
 }
 
 type BuildPlanRequest struct {
-	ConnectStream bool            `json:"connectStream"`
-	ApiKey        string          `json:"apiKey"`
-	ProjectPaths  map[string]bool `json:"projectPaths"`
+	ConnectStream bool              `json:"connectStream"`
+	ApiKey        string            `json:"apiKey"`   // deprecated
+	Endpoint      string            `json:"endpoint"` // deprecated
+	ApiKeys       map[string]string `json:"apiKeys"`
+	OpenAIBase    string            `json:"openAIBase"`
+	OpenAIOrgId   string            `json:"openAIOrgId"`
+	ProjectPaths  map[string]bool   `json:"projectPaths"`
 }
 
 const NoBuildsErr string = "No builds"
@@ -139,11 +151,18 @@ type RespondMissingFileRequest struct {
 }
 
 type LoadContextParams struct {
-	ContextType ContextType `json:"contextType"`
-	Name        string      `json:"name"`
-	Url         string      `json:"url"`
-	FilePath    string      `json:"file_path"`
-	Body        string      `json:"body"`
+	ContextType     ContextType           `json:"contextType"`
+	Name            string                `json:"name"`
+	Url             string                `json:"url"`
+	FilePath        string                `json:"file_path"`
+	Body            string                `json:"body"`
+	ForceSkipIgnore bool                  `json:"forceSkipIgnore"`
+	ImageDetail     openai.ImageURLDetail `json:"imageDetail"`
+
+	// For naming piped data
+	ApiKeys     map[string]string `json:"apiKeys"`
+	OpenAIBase  string            `json:"openAIBase"`
+	OpenAIOrgId string            `json:"openAIOrgId"`
 }
 
 type LoadContextRequest []*LoadContextParams
@@ -174,6 +193,14 @@ type DeleteContextResponse struct {
 	Msg           string `json:"msg"`
 }
 
+type RejectFileRequest struct {
+	FilePath string `json:"filePath"`
+}
+
+type RejectFilesRequest struct {
+	Paths []string `json:"paths"`
+}
+
 type RewindPlanRequest struct {
 	Sha string `json:"sha"`
 }
@@ -198,4 +225,19 @@ type UpdateSettingsRequest struct {
 
 type UpdateSettingsResponse struct {
 	Msg string `json:"msg"`
+}
+
+type ListUsersResponse struct {
+	Users            []*User             `json:"users"`
+	OrgUsersByUserId map[string]*OrgUser `json:"orgUsersByUserId"`
+}
+
+type ApplyPlanRequest struct {
+	ApiKeys     map[string]string `json:"apiKeys"`
+	OpenAIBase  string            `json:"openAIBase"`
+	OpenAIOrgId string            `json:"openAIOrgId"`
+}
+
+type RenamePlanRequest struct {
+	Name string `json:"name"`
 }

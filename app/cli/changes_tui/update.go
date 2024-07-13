@@ -5,8 +5,16 @@ import (
 	"time"
 
 	bubbleKey "github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/plandex/plandex/shared"
 )
+
+type toggleDidCopyOffMsg struct{}
+type finishedRejectFile struct {
+	planState *shared.CurrentPlanState
+	err       *shared.ApiError
+}
 
 func (m changesUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// log.Println("msg:", msg)
@@ -26,7 +34,50 @@ func (m changesUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.scrollReplacementIntoView(msg.ScrollReplacement.OldContent, msg.ScrollReplacement.NewContent, msg.ScrollReplacement.NumLinesPrepended)
 		}
 
+	case spinner.TickMsg:
+		if m.isRejectingFile {
+			spinnerModel, cmd := m.spinner.Update(msg)
+			m.spinner = spinnerModel
+			return m, cmd
+		}
+
+	case toggleDidCopyOffMsg:
+		m.didCopy = false
+
+	case finishedRejectFile:
+		m.justRejectedFile = true
+
+		if msg.err != nil {
+			m.rejectFileErr = msg.err
+			return m, tea.Quit
+		}
+
+		m.currentPlan = msg.planState
+
+		if len(msg.planState.PlanResult.SortedPaths) == 0 {
+			return m, tea.Quit
+		}
+
+		m.isRejectingFile = false
+		m.justRejectedFile = false
+		m.selectedFileIndex = 0
+		m.selectedReplacementIndex = 0
+		m.setSelectionInfo()
+		m.updateMainView(true)
+
 	case tea.KeyMsg:
+		if m.isConfirmingRejectFile {
+			if !bubbleKey.Matches(msg, m.keymap.yes) && !bubbleKey.Matches(msg, m.keymap.no) &&
+				!bubbleKey.Matches(msg, m.keymap.quit) {
+				return m, nil
+			}
+		}
+
+		if m.isRejectingFile {
+			if !bubbleKey.Matches(msg, m.keymap.quit) {
+				return m, nil
+			}
+		}
 
 		switch {
 
@@ -63,19 +114,43 @@ func (m changesUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case bubbleKey.Matches(msg, m.keymap.switchView):
 			m.switchView()
 
-		// case bubbleKey.Matches(msg, m.keymap.reject):
-		// 	m.rejectChange()
+		case bubbleKey.Matches(msg, m.keymap.reject):
+			m.isConfirmingRejectFile = true
+
+		case bubbleKey.Matches(msg, m.keymap.yes):
+			m.isRejectingFile = true
+			m.isConfirmingRejectFile = false
+			started := time.Now()
+			go func() {
+				planState, err := m.rejectFile()
+
+				// If the rejectFile call took less than 500ms, wait a bit so the spinner
+				// doesn't flash jarringly.
+				elapsed := time.Since(started)
+				if elapsed < 500*time.Millisecond {
+					time.Sleep((500 * time.Millisecond) - elapsed)
+				}
+
+				if err != nil {
+					program.Send(finishedRejectFile{err: err})
+					return
+				}
+				program.Send(finishedRejectFile{planState: planState})
+			}()
+			return m, m.spinner.Tick
+
+		case bubbleKey.Matches(msg, m.keymap.no):
+			m.isConfirmingRejectFile = false
 
 		case bubbleKey.Matches(msg, m.keymap.applyAll):
 			m.shouldApplyAll = true
 			return m, tea.Quit
 
-		// case bubbleKey.Matches(msg, m.keymap.rejectAll):
-		// 	m.shouldRejectAll = true
-		// 	return m, tea.Quit
-
 		case bubbleKey.Matches(msg, m.keymap.copy):
 			m.copyCurrentChange()
+			time.AfterFunc(1*time.Second, func() {
+				program.Send(toggleDidCopyOffMsg{})
+			})
 
 		case bubbleKey.Matches(msg, m.keymap.quit):
 			return m, tea.Quit

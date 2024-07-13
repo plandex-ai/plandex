@@ -29,8 +29,7 @@ func ps(cmd *cobra.Command, args []string) {
 	lib.MustResolveProject()
 
 	if lib.CurrentPlanId == "" {
-		fmt.Println("🤷‍♂️ No current plan")
-		return
+		term.OutputNoCurrentPlanErrorAndExit()
 	}
 
 	term.StartSpinner("")
@@ -83,8 +82,7 @@ func ps(cmd *cobra.Command, args []string) {
 			}
 		} else {
 			style = []tablewriter.Colors{
-				{tablewriter.FgHiWhiteColor, tablewriter.Bold},
-				{tablewriter.FgHiWhiteColor},
+				{tablewriter.Bold},
 			}
 		}
 

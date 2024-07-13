@@ -43,17 +43,15 @@ func init() {
 }
 
 func doTell(cmd *cobra.Command, args []string) {
-	if os.Getenv("OPENAI_API_KEY") == "" {
-		term.OutputNoApiKeyMsgAndExit()
-	}
 
 	auth.MustResolveAuthWithOrg()
 	lib.MustResolveProject()
 
 	if lib.CurrentPlanId == "" {
-		fmt.Println("🤷‍♂️ No current plan")
-		return
+		term.OutputNoCurrentPlanErrorAndExit()
 	}
+
+	apiKeys := lib.MustVerifyApiKeys()
 
 	var prompt string
 
@@ -77,8 +75,9 @@ func doTell(cmd *cobra.Command, args []string) {
 	plan_exec.TellPlan(plan_exec.ExecParams{
 		CurrentPlanId: lib.CurrentPlanId,
 		CurrentBranch: lib.CurrentBranch,
-		CheckOutdatedContext: func(cancelOpt bool, maybeContexts []*shared.Context) (bool, bool, bool) {
-			return lib.MustCheckOutdatedContext(cancelOpt, false, maybeContexts)
+		ApiKeys:       apiKeys,
+		CheckOutdatedContext: func(maybeContexts []*shared.Context) (bool, bool) {
+			return lib.MustCheckOutdatedContext(false, maybeContexts)
 		},
 	}, prompt, tellBg, tellStop, tellNoBuild, false)
 }
@@ -95,9 +94,7 @@ func prepareEditorCommand(editor string, filename string) *exec.Cmd {
 }
 
 func getEditorInstructions(editor string) string {
-
-	return "Write your prompt below, then save and exit to send it to Plandex.\n\n"
-
+	return "👉  Write your prompt below, then save and exit to send it to Plandex.\n• To save and exit, press ESC, then type :wq! and press ENTER.\n• To exit without saving, press ESC, then type :q! and press ENTER.\n\n\n"
 }
 
 func getEditorPrompt() string {

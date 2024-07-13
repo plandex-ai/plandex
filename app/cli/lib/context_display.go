@@ -2,26 +2,29 @@ package lib
 
 import "github.com/plandex/plandex/shared"
 
-func GetContextTypeAndIcon(context *shared.Context) (string, string) {
+func GetContextLabelAndIcon(contextType shared.ContextType) (string, string) {
 	var icon string
-	var t string
-	switch context.ContextType {
+	var lbl string
+	switch contextType {
 	case shared.ContextFileType:
 		icon = "📄"
-		t = "file"
+		lbl = "file"
 	case shared.ContextURLType:
 		icon = "🌎"
-		t = "url"
+		lbl = "url"
 	case shared.ContextDirectoryTreeType:
 		icon = "🗂 "
-		t = "tree"
+		lbl = "tree"
 	case shared.ContextNoteType:
 		icon = "✏️ "
-		t = "note"
+		lbl = "note"
 	case shared.ContextPipedDataType:
 		icon = "↔️ "
-		t = "piped"
+		lbl = "piped"
+	case shared.ContextImageType:
+		icon = "🖼️ "
+		lbl = "image"
 	}
 
-	return t, icon
+	return lbl, icon
 }

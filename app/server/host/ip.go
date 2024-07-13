@@ -18,7 +18,7 @@ func LoadIp() error {
 		return nil
 	}
 
-	if os.Getenv("IS_AWS_ECS") != "" {
+	if os.Getenv("IS_CLOUD") != "" {
 		var err error
 		Ip, err = getAwsIp()
 
@@ -45,7 +45,9 @@ type ecsMetadata struct {
 var awsIp string
 
 func getAwsIp() (string, error) {
-	const ecsMetadataURL = "http://169.254.170.2/v2/metadata"
+	ecsMetadataURL := os.Getenv("ECS_CONTAINER_METADATA_URI")
+
+	log.Printf("Getting ECS metadata from %s\n", ecsMetadataURL)
 
 	resp, err := http.Get(ecsMetadataURL)
 	if err != nil {

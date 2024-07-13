@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"log"
 	"plandex-server/db"
+
+	"github.com/plandex/plandex/shared"
 )
 
 func (ap *ActivePlan) PendingBuildsByPath(orgId, userId string, convoMessagesArg []*db.ConvoMessage) (map[string][]*ActiveBuild, error) {
@@ -63,12 +65,23 @@ func (ap *ActivePlan) PendingBuildsByPath(orgId, userId string, convoMessagesArg
 					activeBuildsByPath[file] = []*ActiveBuild{}
 				}
 
+				fileContent := parserRes.FileContents[i]
+				fileDesc := parserRes.FileDescriptions[i]
+
+				numTokens, err := shared.GetNumTokens(fileContent)
+
+				if err != nil {
+					log.Printf("Error getting num tokens for file content: %v\n", err)
+					return nil, fmt.Errorf("error getting num tokens for file content: %v", err)
+				}
+
 				activeBuildsByPath[file] = append(activeBuildsByPath[file], &ActiveBuild{
-					ReplyId:         desc.ConvoMessageId,
-					Idx:             i,
-					FileContent:     parserRes.FileContents[i],
-					Path:            file,
-					FileDescription: parserRes.FileDescriptions[i],
+					ReplyId:           desc.ConvoMessageId,
+					Idx:               i,
+					FileContent:       fileContent,
+					FileContentTokens: numTokens,
+					Path:              file,
+					FileDescription:   fileDesc,
 				})
 			}
 		}

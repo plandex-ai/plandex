@@ -2,8 +2,10 @@ package changes_tui
 
 import (
 	"fmt"
+	"plandex/term"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/fatih/color"
 )
 
 func (m changesUIModel) renderMainView() string {
@@ -17,9 +19,7 @@ func (m changesUIModel) renderMainView() string {
 
 		fileViews := []string{fileView}
 
-		if m.fileScrollable() {
-			fileViews = append(fileViews, m.renderScrollFooter())
-		}
+		fileViews = append(fileViews, m.renderScrollFooter())
 
 		fileContainer := lipgloss.JoinVertical(lipgloss.Left, fileViews...)
 
@@ -101,7 +101,7 @@ func (m changesUIModel) renderMainViewHeader() string {
 		header = fmt.Sprintf(" %s New file: %s", icon, m.selectionInfo.currentPath)
 
 	} else {
-		header = " 👉 " + m.selectionInfo.currentRep.Summary
+		header = " 👉 " + m.selectionInfo.currentRep.StreamedChange.Summary
 	}
 
 	return style.Render(header)
@@ -117,7 +117,12 @@ func (m changesUIModel) renderMainViewFooter() string {
 		Width(m.width - sidebarWidth).
 		Inherit(topBorderStyle).
 		Foreground(lipgloss.Color(helpTextColor))
-	footer := ` (c)opy change to clipboard`
+	var footer string
+	if m.didCopy {
+		footer = color.New(color.Bold, term.ColorHiCyan).Sprint(` copied to clipboard`)
+	} else {
+		footer = ` (c)opy change to clipboard • (r)eject file`
+	}
 	return style.Render(footer)
 }
 
@@ -135,7 +140,12 @@ func (m changesUIModel) renderScrollFooter() string {
 	var footer string
 
 	if m.selectedNewFile() || m.selectedFullFile() {
-		footer = ` (j/k) scroll • (d/u) page • (g/G) start/end`
+		if m.fileScrollable() {
+			footer = ` (j/k) scroll • (d/u) page • (g/G) start/end • (r)eject file`
+		} else {
+			footer = ` (r)eject file`
+		}
+
 	} else {
 		footer = ` (j/k) scroll`
 		if m.oldScrollable() && m.newScrollable() {

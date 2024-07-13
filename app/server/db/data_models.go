@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/plandex/plandex/shared"
+	"github.com/sashabaranov/go-openai"
 )
 
 // The models below should only be used server-side.
@@ -46,7 +47,6 @@ type User struct {
 	Domain           string    `db:"domain"`
 	NumNonDraftPlans int       `db:"num_non_draft_plans"`
 	IsTrial          bool      `db:"is_trial"`
-	OrgRoleId        string    `db:"org_role_id"`
 	CreatedAt        time.Time `db:"created_at"`
 	UpdatedAt        time.Time `db:"updated_at"`
 }
@@ -56,7 +56,6 @@ func (user *User) ToApi() *shared.User {
 		Id:               user.Id,
 		Name:             user.Name,
 		Email:            user.Email,
-		OrgRoleId:        user.OrgRoleId,
 		NumNonDraftPlans: user.NumNonDraftPlans,
 		IsTrial:          user.IsTrial,
 	}
@@ -68,7 +67,7 @@ type Invite struct {
 	Email      string     `db:"email"`
 	Name       string     `db:"name"`
 	InviterId  string     `db:"inviter_id"`
-	InviteeId  string     `db:"invitee_id"`
+	InviteeId  *string    `db:"invitee_id"`
 	OrgRoleId  string     `db:"org_role_id"`
 	AcceptedAt *time.Time `db:"accepted_at"`
 	CreatedAt  time.Time  `db:"created_at"`
@@ -92,36 +91,33 @@ func (invite *Invite) ToApi() *shared.Invite {
 type OrgUser struct {
 	Id        string    `db:"id"`
 	OrgId     string    `db:"org_id"`
+	OrgRoleId string    `db:"org_role_id"`
 	UserId    string    `db:"user_id"`
 	CreatedAt time.Time `db:"created_at"`
 	UpdatedAt time.Time `db:"updated_at"`
 }
 
+func (orgUser *OrgUser) ToApi() *shared.OrgUser {
+	return &shared.OrgUser{
+		OrgId:     orgUser.OrgId,
+		OrgRoleId: orgUser.OrgRoleId,
+		UserId:    orgUser.UserId,
+	}
+}
+
 type Project struct {
-	Id               string    `db:"id"`
-	OrgId            string    `db:"org_id"`
-	Name             string    `db:"name"`
-	LastActivePlanId string    `db:"last_active_plan_id"`
-	CreatedAt        time.Time `db:"created_at"`
-	UpdatedAt        time.Time `db:"updated_at"`
+	Id        string    `db:"id"`
+	OrgId     string    `db:"org_id"`
+	Name      string    `db:"name"`
+	CreatedAt time.Time `db:"created_at"`
+	UpdatedAt time.Time `db:"updated_at"`
 }
 
 func (project *Project) ToApi() *shared.Project {
 	return &shared.Project{
-		Id:               project.Id,
-		Name:             project.Name,
-		LastActivePlanId: project.LastActivePlanId,
+		Id:   project.Id,
+		Name: project.Name,
 	}
-}
-
-type UserProject struct {
-	Id               string    `db:"id"`
-	OrgId            string    `db:"org_id"`
-	UserId           string    `db:"user_id"`
-	ProjectId        string    `db:"project_id"`
-	LastActivePlanId string    `db:"last_active_plan_id"`
-	CreatedAt        time.Time `db:"created_at"`
-	UpdatedAt        time.Time `db:"updated_at"`
 }
 
 type Plan struct {
@@ -294,38 +290,123 @@ type repoLock struct {
 	CreatedAt       time.Time `db:"created_at"`
 }
 
+type ModelPack struct {
+	Id          string                   `db:"id"`
+	OrgId       string                   `db:"org_id"`
+	Name        string                   `db:"name"`
+	Description string                   `db:"description"`
+	Planner     shared.PlannerRoleConfig `db:"planner"`
+	PlanSummary shared.ModelRoleConfig   `db:"plan_summary"`
+	Builder     shared.ModelRoleConfig   `db:"builder"`
+	Namer       shared.ModelRoleConfig   `db:"namer"`
+	CommitMsg   shared.ModelRoleConfig   `db:"commit_msg"`
+	ExecStatus  shared.ModelRoleConfig   `db:"exec_status"`
+	CreatedAt   time.Time                `db:"created_at"`
+}
+
+func (modelPack *ModelPack) ToApi() *shared.ModelPack {
+	return &shared.ModelPack{
+		Id:          modelPack.Id,
+		Name:        modelPack.Name,
+		Description: modelPack.Description,
+		Planner:     modelPack.Planner,
+		PlanSummary: modelPack.PlanSummary,
+		Builder:     modelPack.Builder,
+		Namer:       modelPack.Namer,
+		CommitMsg:   modelPack.CommitMsg,
+		ExecStatus:  modelPack.ExecStatus,
+	}
+}
+
+type AvailableModel struct {
+	Id                          string               `db:"id"`
+	OrgId                       string               `db:"org_id"`
+	Provider                    shared.ModelProvider `db:"provider"`
+	CustomProvider              *string              `db:"custom_provider"`
+	BaseUrl                     string               `db:"base_url"`
+	ModelName                   string               `db:"model_name"`
+	Description                 string               `db:"description"`
+	MaxTokens                   int                  `db:"max_tokens"`
+	ApiKeyEnvVar                string               `db:"api_key_env_var"`
+	IsOpenAICompatible          bool                 `db:"is_openai_compatible"`
+	HasJsonResponseMode         bool                 `db:"has_json_mode"`
+	HasStreaming                bool                 `db:"has_streaming"`
+	HasFunctionCalling          bool                 `db:"has_function_calling"`
+	HasStreamingFunctionCalls   bool                 `db:"has_streaming_function_calls"`
+	DefaultMaxConvoTokens       int                  `db:"default_max_convo_tokens"`
+	DefaultReservedOutputTokens int                  `db:"default_reserved_output_tokens"`
+	CreatedAt                   time.Time            `db:"created_at"`
+	UpdatedAt                   time.Time            `db:"updated_at"`
+}
+
+func (model *AvailableModel) ToApi() *shared.AvailableModel {
+	return &shared.AvailableModel{
+		Id: model.Id,
+		BaseModelConfig: shared.BaseModelConfig{
+			Provider:       model.Provider,
+			CustomProvider: model.CustomProvider,
+			BaseUrl:        model.BaseUrl,
+			ModelName:      model.ModelName,
+			MaxTokens:      model.MaxTokens,
+			ApiKeyEnvVar:   model.ApiKeyEnvVar,
+			ModelCompatibility: shared.ModelCompatibility{
+				IsOpenAICompatible:        model.IsOpenAICompatible,
+				HasJsonResponseMode:       model.HasJsonResponseMode,
+				HasStreaming:              model.HasStreaming,
+				HasFunctionCalling:        model.HasFunctionCalling,
+				HasStreamingFunctionCalls: model.HasStreamingFunctionCalls,
+			}},
+		Description:                 model.Description,
+		DefaultMaxConvoTokens:       model.DefaultMaxConvoTokens,
+		DefaultReservedOutputTokens: model.DefaultReservedOutputTokens,
+		CreatedAt:                   model.CreatedAt,
+		UpdatedAt:                   model.UpdatedAt,
+	}
+}
+
+type DefaultPlanSettings struct {
+	Id           string              `db:"id"`
+	OrgId        string              `db:"org_id"`
+	PlanSettings shared.PlanSettings `db:"plan_settings"`
+	CreatedAt    time.Time           `db:"created_at"`
+	UpdatedAt    time.Time           `db:"updated_at"`
+}
+
 // Models below are stored in files, not in the database.
 // This allows us to store them in a git repo and use git to manage history.
 
 type Context struct {
-	Id          string             `json:"id"`
-	OrgId       string             `json:"orgId"`
-	OwnerId     string             `json:"ownerId"`
-	PlanId      string             `json:"planId"`
-	ContextType shared.ContextType `json:"contextType"`
-	Name        string             `json:"name"`
-	Url         string             `json:"url"`
-	FilePath    string             `json:"filePath"`
-	Sha         string             `json:"sha"`
-	NumTokens   int                `json:"numTokens"`
-	Body        string             `json:"body,omitempty"`
-	CreatedAt   time.Time          `json:"createdAt"`
-	UpdatedAt   time.Time          `json:"updatedAt"`
+	Id              string                `json:"id"`
+	OrgId           string                `json:"orgId"`
+	OwnerId         string                `json:"ownerId"`
+	PlanId          string                `json:"planId"`
+	ContextType     shared.ContextType    `json:"contextType"`
+	Name            string                `json:"name"`
+	Url             string                `json:"url"`
+	FilePath        string                `json:"filePath"`
+	Sha             string                `json:"sha"`
+	NumTokens       int                   `json:"numTokens"`
+	Body            string                `json:"body,omitempty"`
+	ForceSkipIgnore bool                  `json:"forceSkipIgnore"`
+	ImageDetail     openai.ImageURLDetail `json:"imageDetail,omitempty"`
+	CreatedAt       time.Time             `json:"createdAt"`
+	UpdatedAt       time.Time             `json:"updatedAt"`
 }
 
 func (context *Context) ToApi() *shared.Context {
 	return &shared.Context{
-		Id:          context.Id,
-		OwnerId:     context.OwnerId,
-		ContextType: context.ContextType,
-		Name:        context.Name,
-		Url:         context.Url,
-		FilePath:    context.FilePath,
-		Sha:         context.Sha,
-		NumTokens:   context.NumTokens,
-		Body:        context.Body,
-		CreatedAt:   context.CreatedAt,
-		UpdatedAt:   context.UpdatedAt,
+		Id:              context.Id,
+		OwnerId:         context.OwnerId,
+		ContextType:     context.ContextType,
+		Name:            context.Name,
+		Url:             context.Url,
+		FilePath:        context.FilePath,
+		Sha:             context.Sha,
+		NumTokens:       context.NumTokens,
+		Body:            context.Body,
+		ForceSkipIgnore: context.ForceSkipIgnore,
+		CreatedAt:       context.CreatedAt,
+		UpdatedAt:       context.UpdatedAt,
 	}
 }
 
@@ -382,6 +463,7 @@ func (desc *ConvoMessageDescription) ToApi() *shared.ConvoMessageDescription {
 		Files:                 desc.Files,
 		DidBuild:              desc.DidBuild,
 		BuildPathsInvalidated: desc.BuildPathsInvalidated,
+		AppliedAt:             desc.AppliedAt,
 		Error:                 desc.Error,
 		CreatedAt:             desc.CreatedAt,
 		UpdatedAt:             desc.UpdatedAt,
@@ -389,34 +471,58 @@ func (desc *ConvoMessageDescription) ToApi() *shared.ConvoMessageDescription {
 }
 
 type PlanFileResult struct {
-	Id             string                `json:"id"`
-	OrgId          string                `json:"orgId"`
-	PlanId         string                `json:"planId"`
-	ConvoMessageId string                `json:"convoMessageId"`
-	PlanBuildId    string                `json:"planBuildId"`
-	Path           string                `json:"path"`
-	Content        string                `json:"content,omitempty"`
-	Replacements   []*shared.Replacement `json:"replacements"`
-	AnyFailed      bool                  `json:"anyFailed"`
-	Error          string                `json:"error"`
-	AppliedAt      *time.Time            `json:"appliedAt,omitempty"`
-	RejectedAt     *time.Time            `json:"rejectedAt,omitempty"`
-	CreatedAt      time.Time             `json:"createdAt"`
-	UpdatedAt      time.Time             `json:"updatedAt"`
+	Id                  string                `json:"id"`
+	TypeVersion         int                   `json:"typeVersion"`
+	ReplaceWithLineNums bool                  `json:"replaceWithLineNums"`
+	OrgId               string                `json:"orgId"`
+	PlanId              string                `json:"planId"`
+	ConvoMessageId      string                `json:"convoMessageId"`
+	PlanBuildId         string                `json:"planBuildId"`
+	Path                string                `json:"path"`
+	Content             string                `json:"content,omitempty"`
+	Replacements        []*shared.Replacement `json:"replacements"`
+	AnyFailed           bool                  `json:"anyFailed"`
+	Error               string                `json:"error"`
+
+	CanVerify    bool       `json:"canVerify"`
+	RanVerifyAt  *time.Time `json:"ranVerifyAt,omitempty"`
+	VerifyPassed bool       `json:"verifyPassed"`
+
+	WillCheckSyntax bool     `json:"willCheckSyntax"`
+	SyntaxValid     bool     `json:"syntaxValid"`
+	SyntaxErrors    []string `json:"syntaxErrors"`
+
+	IsFix       bool `json:"isFix"`
+	IsSyntaxFix bool `json:"isSyntaxFix"`
+	IsOtherFix  bool `json:"isOtherFix"`
+	FixEpoch    int  `json:"fixEpoch"`
+
+	AppliedAt  *time.Time `json:"appliedAt,omitempty"`
+	RejectedAt *time.Time `json:"rejectedAt,omitempty"`
+	CreatedAt  time.Time  `json:"createdAt"`
+	UpdatedAt  time.Time  `json:"updatedAt"`
 }
 
 func (res *PlanFileResult) ToApi() *shared.PlanFileResult {
 	return &shared.PlanFileResult{
-		Id:             res.Id,
-		PlanBuildId:    res.PlanBuildId,
-		ConvoMessageId: res.ConvoMessageId,
-		Path:           res.Path,
-		Content:        res.Content,
-		AnyFailed:      res.AnyFailed,
-		AppliedAt:      res.AppliedAt,
-		RejectedAt:     res.RejectedAt,
-		Replacements:   res.Replacements,
-		CreatedAt:      res.CreatedAt,
-		UpdatedAt:      res.UpdatedAt,
+		Id:                  res.Id,
+		TypeVersion:         res.TypeVersion,
+		ReplaceWithLineNums: res.ReplaceWithLineNums,
+		PlanBuildId:         res.PlanBuildId,
+		ConvoMessageId:      res.ConvoMessageId,
+		Path:                res.Path,
+		Content:             res.Content,
+		AnyFailed:           res.AnyFailed,
+		AppliedAt:           res.AppliedAt,
+		RejectedAt:          res.RejectedAt,
+		Replacements:        res.Replacements,
+		CanVerify:           res.CanVerify,
+		RanVerifyAt:         res.RanVerifyAt,
+		VerifyPassed:        res.VerifyPassed,
+		IsFix:               res.IsFix,
+		IsSyntaxFix:         res.IsSyntaxFix,
+		IsOtherFix:          res.IsOtherFix,
+		CreatedAt:           res.CreatedAt,
+		UpdatedAt:           res.UpdatedAt,
 	}
 }

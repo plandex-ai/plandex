@@ -19,11 +19,13 @@ func init() {
 	// inter-package dependency injections to avoid circular imports
 	auth.SetApiClient(api.Client)
 	lib.SetBuildPlanInlineFn(func(maybeContexts []*shared.Context) (bool, error) {
+		apiKeys := lib.MustVerifyApiKeys()
 		return plan_exec.Build(plan_exec.ExecParams{
 			CurrentPlanId: lib.CurrentPlanId,
 			CurrentBranch: lib.CurrentBranch,
-			CheckOutdatedContext: func(cancelOpt bool, maybeContexts []*shared.Context) (bool, bool, bool) {
-				return lib.MustCheckOutdatedContext(cancelOpt, true, maybeContexts)
+			ApiKeys:       apiKeys,
+			CheckOutdatedContext: func(maybeContexts []*shared.Context) (bool, bool) {
+				return lib.MustCheckOutdatedContext(true, maybeContexts)
 			},
 		}, false)
 	})
@@ -43,5 +45,14 @@ func init() {
 }
 
 func main() {
+	checkForUpgrade()
+
+	// Manually check for help flags at the root level
+	if len(os.Args) == 2 && (os.Args[1] == "-h" || os.Args[1] == "--help") {
+		// Display your custom help here
+		term.PrintCustomHelp(true)
+		os.Exit(0)
+	}
+
 	cmd.Execute()
 }

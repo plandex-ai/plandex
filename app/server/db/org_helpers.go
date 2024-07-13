@@ -3,18 +3,39 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"log"
 	"strings"
 
+	"github.com/jmoiron/sqlx"
+	"github.com/lib/pq"
 	"github.com/plandex/plandex/shared"
 )
 
 func GetAccessibleOrgsForUser(user *User) ([]*Org, error) {
 	// direct access
+	var orgUsers []*OrgUser
 	var orgs []*Org
-	err := Conn.Select(&orgs, "SELECT o.* FROM orgs o JOIN orgs_users ou ON o.id = ou.org_id WHERE ou.user_id = $1", user.Id)
+
+	err := Conn.Select(&orgUsers, "SELECT * FROM orgs_users WHERE user_id = $1", user.Id)
 
 	if err != nil {
 		return nil, fmt.Errorf("error getting orgs for user: %v", err)
+	}
+
+	orgIds := []string{}
+	for _, ou := range orgUsers {
+		orgIds = append(orgIds, ou.OrgId)
+	}
+
+	if len(orgIds) > 0 {
+		err = Conn.Select(&orgs, "SELECT * FROM orgs WHERE id = ANY($1)", pq.Array(orgIds))
+
+		if err != nil {
+			return nil, fmt.Errorf("error getting orgs for user: %v", err)
+		}
+	} else {
+		log.Println("No orgs found for user")
+		return orgs, nil
 	}
 
 	// access via invitation
@@ -24,14 +45,16 @@ func GetAccessibleOrgsForUser(user *User) ([]*Org, error) {
 		return nil, fmt.Errorf("error getting invites for user: %v", err)
 	}
 
-	var orgIds []string
+	orgIds = []string{}
 	for _, invite := range invites {
 		orgIds = append(orgIds, invite.OrgId)
 	}
 
+	// log.Println(spew.Sdump(orgIds))
+
 	if len(orgIds) > 0 {
 		var orgsFromInvites []*Org
-		err = Conn.Select(&orgsFromInvites, "SELECT * FROM orgs WHERE id IN (?)", strings.Join(orgIds, ","))
+		err = Conn.Select(&orgsFromInvites, "SELECT * FROM orgs WHERE id = ANY($1)", pq.Array(orgIds))
 		if err != nil {
 			return nil, fmt.Errorf("error getting orgs from invites: %v", err)
 		}
@@ -67,7 +90,7 @@ func ValidateOrgMembership(userId string, orgId string) (bool, error) {
 	return count > 0, nil
 }
 
-func CreateOrg(req *shared.CreateOrgRequest, userId string, domain *string, tx *sql.Tx) (*Org, error) {
+func CreateOrg(req *shared.CreateOrgRequest, userId string, domain *string, tx *sqlx.Tx) (*Org, error) {
 	org := &Org{
 		Name:               req.Name,
 		Domain:             domain,
@@ -75,7 +98,7 @@ func CreateOrg(req *shared.CreateOrgRequest, userId string, domain *string, tx *
 		OwnerId:            userId,
 	}
 
-	err := tx.QueryRow("INSERT INTO orgs (name, domain, auto_add_domain_users, owner_id) VALUES ($1, $2, $3, $4) RETURNING id", req.Name, domain, req.AutoAddDomainUsers, userId).Scan(&org.Id)
+	err := tx.QueryRow("INSERT INTO orgs (name, domain, auto_add_domain_users, owner_id, is_trial) VALUES ($1, $2, $3, $4, false) RETURNING id", req.Name, domain, req.AutoAddDomainUsers, userId).Scan(&org.Id)
 
 	if err != nil {
 		if IsNonUniqueErr(err) {
@@ -87,7 +110,13 @@ func CreateOrg(req *shared.CreateOrgRequest, userId string, domain *string, tx *
 		return nil, fmt.Errorf("error creating org: %v", err)
 	}
 
-	_, err = tx.Exec("INSERT INTO orgs_users (org_id, user_id) VALUES ($1, $2)", org.Id, userId)
+	orgRoleId, err := GetOrgOwnerRoleId()
+
+	if err != nil {
+		return nil, fmt.Errorf("error getting org owner role id: %v", err)
+	}
+
+	_, err = tx.Exec("INSERT INTO orgs_users (org_id, user_id, org_role_id) VALUES ($1, $2, $3)", org.Id, userId, orgRoleId)
 
 	if err != nil {
 		return nil, fmt.Errorf("error adding org membership: %v", err)
@@ -111,7 +140,7 @@ func GetOrgForDomain(domain string) (*Org, error) {
 	return &org, nil
 }
 
-func AddOrgDomainUsers(orgId, domain string, tx *sql.Tx) error {
+func AddOrgDomainUsers(orgId, domain string, tx *sqlx.Tx) error {
 	usersForDomain, err := GetUsersForDomain(domain)
 
 	if err != nil {
@@ -119,17 +148,23 @@ func AddOrgDomainUsers(orgId, domain string, tx *sql.Tx) error {
 	}
 
 	if len(usersForDomain) > 0 {
+		memberRoleId, err := GetOrgMemberRoleId()
+
+		if err != nil {
+			return fmt.Errorf("error getting org member role id: %v", err)
+		}
 
 		// create org users for each user
 		var valueStrings []string
 		var valueArgs []interface{}
 		for i, user := range usersForDomain {
-			valueStrings = append(valueStrings, fmt.Sprintf("($%d, $%d)", i*2+1, i*2+2))
-			valueArgs = append(valueArgs, orgId, user.Id)
+			num := i * 3
+			valueStrings = append(valueStrings, fmt.Sprintf("($%d, $%d, $%d)", num+1, num+2, num+3))
+			valueArgs = append(valueArgs, orgId, user.Id, memberRoleId)
 		}
 
 		// Join all value strings and execute a single query
-		stmt := fmt.Sprintf("INSERT INTO orgs_users (org_id, user_id) VALUES %s", strings.Join(valueStrings, ","))
+		stmt := fmt.Sprintf("INSERT INTO orgs_users (org_id, user_id, org_role_id) VALUES %s ON CONFLICT ON CONSTRAINT org_user_unique DO NOTHING", strings.Join(valueStrings, ","))
 		_, err = tx.Exec(stmt, valueArgs...)
 
 		if err != nil {
@@ -140,7 +175,9 @@ func AddOrgDomainUsers(orgId, domain string, tx *sql.Tx) error {
 	return nil
 }
 
-func DeleteOrgUser(orgId, userId string, tx *sql.Tx) error {
+func DeleteOrgUser(orgId, userId string, tx *sqlx.Tx) error {
+	log.Printf("Deleting org user, org: %s | user: %s\n", orgId, userId)
+
 	_, err := tx.Exec("DELETE FROM orgs_users WHERE org_id = $1 AND user_id = $2", orgId, userId)
 
 	if err != nil {
@@ -150,7 +187,7 @@ func DeleteOrgUser(orgId, userId string, tx *sql.Tx) error {
 	return nil
 }
 
-func CreateOrgUser(orgId, userId, orgRoleId string, tx *sql.Tx) error {
+func CreateOrgUser(orgId, userId, orgRoleId string, tx *sqlx.Tx) error {
 	query := "INSERT INTO orgs_users (org_id, user_id, org_role_id) VALUES ($1, $2, $3)"
 	var err error
 	if tx == nil {

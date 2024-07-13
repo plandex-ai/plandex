@@ -11,7 +11,7 @@ import (
 
 const (
 	AuthFreeTrialOption = "Start an anonymous trial on Plandex Cloud (no email required)"
-	AuthAccountOption   = "Sign in or create an account"
+	AuthAccountOption   = "Sign in, accept an invite, or create an account"
 )
 
 func promptInitialAuth() error {
@@ -119,7 +119,13 @@ func SelectOrSignInOrCreate() error {
 		return fmt.Errorf("error setting auth: %v", err)
 	}
 
-	fmt.Printf("✅ Signed in as %s | Org: %s\n", color.New(color.Bold, color.FgHiGreen).Sprintf("<%s> %s", Current.UserName, Current.Email), color.New(color.FgHiCyan).Sprint(Current.OrgName))
+	apiErr = apiClient.GetOrgSession()
+
+	if apiErr != nil {
+		return fmt.Errorf("error getting org session: %v", apiErr.Msg)
+	}
+
+	fmt.Printf("✅ Signed in as %s | Org: %s\n", color.New(color.Bold, term.ColorHiGreen).Sprintf("<%s> %s", Current.UserName, Current.Email), color.New(term.ColorHiCyan).Sprint(Current.OrgName))
 	fmt.Println()
 
 	term.PrintCmds("", "new", "plans")
@@ -143,19 +149,19 @@ func promptSignInNewAccount() error {
 	var email string
 
 	if selected == SignInCloudOption {
-		email, err = term.GetUserStringInput("Your email:")
+		email, err = term.GetRequiredUserStringInput("Your email:")
 
 		if err != nil {
 			return fmt.Errorf("error prompting email: %v", err)
 		}
 	} else {
-		host, err = term.GetUserStringInput("Host:")
+		host, err = term.GetRequiredUserStringInput("Host:")
 
 		if err != nil {
 			return fmt.Errorf("error prompting host: %v", err)
 		}
 
-		email, err = term.GetUserStringInput("Your email:")
+		email, err = term.GetRequiredUserStringInput("Your email:")
 
 		if err != nil {
 			return fmt.Errorf("error prompting email: %v", err)
@@ -169,10 +175,23 @@ func promptSignInNewAccount() error {
 	}
 
 	if hasAccount {
-		return signIn(email, pin, host)
+		err := signIn(email, pin, host)
+		if err != nil {
+			return fmt.Errorf("error signing in: %v", err)
+		}
 	} else {
-		return createAccount(email, pin, host)
+		err := createAccount(email, pin, host)
+		if err != nil {
+			return fmt.Errorf("error creating account: %v", err)
+		}
 	}
+
+	fmt.Printf("✅ Signed in as %s | Org: %s\n", color.New(color.Bold, term.ColorHiGreen).Sprintf("<%s> %s", Current.UserName, Current.Email), color.New(term.ColorHiCyan).Sprint(Current.OrgName))
+	fmt.Println()
+
+	term.PrintCmds("", "new", "plans")
+
+	return nil
 }
 
 func verifyEmail(email, host string) (bool, string, error) {
@@ -185,9 +204,9 @@ func verifyEmail(email, host string) (bool, string, error) {
 		return false, "", fmt.Errorf("error creating email verification: %v", apiErr.Msg)
 	}
 
-	fmt.Println("✉️  You'll now receive a 6 character pin by email")
+	fmt.Println("✉️  You'll now receive a 6 character pin by email. It will be valid for 5 minutes.")
 
-	pin, err := term.GetUserPasswordInput("Please enter it here:")
+	pin, err := term.GetUserPasswordInput("Please enter your pin:")
 
 	if err != nil {
 		return false, "", fmt.Errorf("error prompting pin: %v", err)
@@ -208,13 +227,7 @@ func signIn(email, pin, host string) error {
 		return fmt.Errorf("error signing in: %v", apiErr.Msg)
 	}
 
-	orgId, orgName, err := resolveOrgAuth(res.Orgs)
-
-	if err != nil {
-		return fmt.Errorf("error resolving org: %v", err)
-	}
-
-	err = setAuth(&types.ClientAuth{
+	err := setAuth(&types.ClientAuth{
 		ClientAccount: types.ClientAccount{
 			Email:    res.Email,
 			UserId:   res.UserId,
@@ -222,14 +235,31 @@ func signIn(email, pin, host string) error {
 			Token:    res.Token,
 			IsTrial:  false,
 			IsCloud:  host == "",
+			Host:     host,
 		},
-		OrgId:   orgId,
-		OrgName: orgName,
 	})
 
 	if err != nil {
 		return fmt.Errorf("error setting auth: %v", err)
 	}
+
+	orgId, orgName, err := resolveOrgAuth(res.Orgs)
+
+	if err != nil {
+		return fmt.Errorf("error resolving org: %v", err)
+	}
+
+	Current.OrgId = orgId
+	Current.OrgName = orgName
+
+	err = writeCurrentAuth()
+
+	if err != nil {
+		return fmt.Errorf("error writing auth: %v", err)
+	}
+
+	fmt.Printf("✅ Signed in as %s | Org: %s\n", color.New(color.Bold, term.ColorHiGreen).Sprintf("<%s> %s", Current.UserName, Current.Email), color.New(term.ColorHiCyan).Sprint(Current.OrgName))
+	fmt.Println()
 
 	return nil
 }
@@ -262,6 +292,7 @@ func createAccount(email, pin, host string) error {
 			Token:    res.Token,
 			IsTrial:  false,
 			IsCloud:  host == "",
+			Host:     host,
 		},
 	})
 

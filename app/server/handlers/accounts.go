@@ -41,7 +41,7 @@ func CreateAccountHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// start a transaction
-	tx, err := db.Conn.Begin()
+	tx, err := db.Conn.Beginx()
 	if err != nil {
 		log.Printf("Error starting transaction: %v\n", err)
 		http.Error(w, "Error starting transaction: "+err.Error(), http.StatusInternalServerError)

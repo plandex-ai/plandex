@@ -1,0 +1,13 @@
+I want to integrate this app with Stripe on the backend. For now let’s just concern ourselves with the backend portion (no frontend or client-side logic yet).
+
+I want to start with a single Stripe plan. Assuming IS_CLOUD == “1”, each org should be on this plan after the user converts from a free trial. The price should be $15 per user per month.
+
+We should add functionality to add and remove users.
+
+There should be no proration and no immediate charge when a user is added (or removed). The org will simply be charged once per month based on how many users they have at that point.
+
+We should also add webhook callbacks for charge successful, charge failed, and subscription canceled events. Implement these webhooks and the associated routes.
+
+The Stripe secret key will be available in an environment variable.
+
+Don't add the stripe library dependency. I'll take care of that.

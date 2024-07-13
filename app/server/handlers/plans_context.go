@@ -30,11 +30,13 @@ func ListContextHandler(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 	ctx, cancel := context.WithCancel(context.Background())
-	unlockFn := lockRepo(w, r, auth, db.LockScopeRead, ctx, cancel)
+	unlockFn := lockRepo(w, r, auth, db.LockScopeRead, ctx, cancel, true)
 	if unlockFn == nil {
 		return
 	} else {
-		defer (*unlockFn)(err)
+		defer func() {
+			(*unlockFn)(err)
+		}()
 	}
 
 	dbContexts, err := db.GetPlanContexts(auth.OrgId, planId, false)
@@ -150,11 +152,13 @@ func UpdateContextHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	unlockFn := lockRepo(w, r, auth, db.LockScopeWrite, ctx, cancel)
+	unlockFn := lockRepo(w, r, auth, db.LockScopeWrite, ctx, cancel, true)
 	if unlockFn == nil {
 		return
 	} else {
-		defer (*unlockFn)(err)
+		defer func() {
+			(*unlockFn)(err)
+		}()
 	}
 
 	updateRes, err := db.UpdateContexts(db.UpdateContextsParams{
@@ -249,11 +253,13 @@ func DeleteContextHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	unlockFn := lockRepo(w, r, auth, db.LockScopeWrite, ctx, cancel)
+	unlockFn := lockRepo(w, r, auth, db.LockScopeWrite, ctx, cancel, true)
 	if unlockFn == nil {
 		return
 	} else {
-		defer (*unlockFn)(err)
+		defer func() {
+			(*unlockFn)(err)
+		}()
 	}
 
 	dbContexts, err := db.GetPlanContexts(auth.OrgId, planId, false)
@@ -271,7 +277,7 @@ func DeleteContextHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	err = db.ContextRemove(toRemove)
+	err = db.ContextRemove(auth.OrgId, planId, toRemove)
 
 	if err != nil {
 		log.Printf("Error deleting contexts: %v\n", err)

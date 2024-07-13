@@ -111,7 +111,7 @@ func cd(cmd *cobra.Command, args []string) {
 	// give the SetProjectPlan request some time to be sent before exiting
 	time.Sleep(50 * time.Millisecond)
 
-	fmt.Println("✅ Changed current plan to " + color.New(color.FgGreen, color.Bold).Sprint(plan.Name))
+	fmt.Println("✅ Changed current plan to " + color.New(term.ColorHiGreen, color.Bold).Sprint(plan.Name))
 
 	fmt.Println()
 	term.PrintCmds("", "current")

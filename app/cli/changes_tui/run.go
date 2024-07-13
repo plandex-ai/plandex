@@ -2,35 +2,53 @@ package changes_tui
 
 import (
 	"fmt"
-	"plandex/api"
 	"plandex/lib"
+	"plandex/term"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/plandex/plandex/shared"
 )
 
-func StartChangesUI() error {
-	initial := initialModel()
+var program *tea.Program
+
+func StartChangesUI(currentPlan *shared.CurrentPlanState) error {
+	initial := initialModel(currentPlan)
 
 	if len(initial.currentPlan.PlanResult.SortedPaths) == 0 {
 		fmt.Println("🤷‍♂️ No changes pending")
 		return nil
 	}
 
-	m, err := tea.NewProgram(initial, tea.WithAltScreen()).Run()
+	program = tea.NewProgram(initial, tea.WithAltScreen())
+
+	m, err := program.Run()
 
 	if err != nil {
 		return fmt.Errorf("error running changes UI: %v", err)
 	}
 
-	if m.(changesUIModel).shouldApplyAll {
+	var mod *changesUIModel
+	c, ok := m.(*changesUIModel)
+
+	if ok {
+		mod = c
+	} else {
+		c := m.(changesUIModel)
+		mod = &c
+	}
+
+	if mod.shouldApplyAll {
 		lib.MustApplyPlan(lib.CurrentPlanId, lib.CurrentBranch, false)
-	} else if m.(changesUIModel).shouldRejectAll {
-		err := api.Client.RejectAllChanges(lib.CurrentPlanId, lib.CurrentBranch)
+	}
 
-		if err != nil {
-			return fmt.Errorf("error rejecting plan: %v", err)
-		}
+	if mod.rejectFileErr != nil {
+		fmt.Println()
+		term.OutputErrorAndExit("Server error: " + mod.rejectFileErr.Msg)
+	}
 
+	if mod.justRejectedFile && len(mod.currentPlan.PlanResult.SortedPaths) == 0 {
+		fmt.Println("🚫 All changes rejected")
+		return nil
 	}
 
 	return nil

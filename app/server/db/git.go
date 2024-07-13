@@ -4,13 +4,18 @@ import (
 	"bytes"
 	"fmt"
 	"log"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/fatih/color"
 )
+
+const maxGitRetries = 5
+const initialGitRetryInterval = 100 * time.Millisecond
 
 func init() {
 	// ensure git is available
@@ -22,11 +27,22 @@ func init() {
 
 func InitGitRepo(orgId, planId string) error {
 	dir := getPlanDir(orgId, planId)
+	return initGitRepo(dir)
+}
 
+func initGitRepo(dir string) error {
 	// Set the default branch name to 'main' for the new repository
 	res, err := exec.Command("git", "-C", dir, "init", "-b", "main").CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("error initializing git repository with 'main' as default branch for dir: %s, err: %v, output: %s", dir, err, string(res))
+	}
+
+	// Configure user name and email for the repository
+	if err := setGitConfig(dir, "user.email", "server@plandex.ai"); err != nil {
+		return err
+	}
+	if err := setGitConfig(dir, "user.name", "Plandex"); err != nil {
+		return err
 	}
 
 	return nil
@@ -35,12 +51,16 @@ func InitGitRepo(orgId, planId string) error {
 func GitAddAndCommit(orgId, planId, branch, message string) error {
 	dir := getPlanDir(orgId, planId)
 
-	err := gitAdd(dir, ".")
+	err := retryGitWriteOperationIfIndexFileErr(func() error {
+		return gitAdd(dir, ".")
+	})
 	if err != nil {
 		return fmt.Errorf("error adding files to git repository for dir: %s, err: %v", dir, err)
 	}
 
-	err = gitCommit(dir, message)
+	err = retryGitWriteOperationIfIndexFileErr(func() error {
+		return gitCommit(dir, message)
+	})
 	if err != nil {
 		return fmt.Errorf("error committing files to git repository for dir: %s, err: %v", dir, err)
 	}
@@ -48,35 +68,12 @@ func GitAddAndCommit(orgId, planId, branch, message string) error {
 	return nil
 }
 
-// func GitAddAndAmendCommit(orgId, planId, branch, addMessage string) error {
-// 	dir := getPlanDir(orgId, planId)
-
-// 	err := gitAdd(dir, ".")
-// 	if err != nil {
-// 		return fmt.Errorf("error adding files to git repository for dir: %s, err: %v", dir, err)
-// 	}
-
-// 	// Get the latest commit message
-// 	_, latestCommitMsg, err := getLatestCommit(dir)
-// 	if err != nil {
-// 		return fmt.Errorf("error getting latest commit message for dir: %s, err: %v", dir, err)
-// 	}
-
-// 	// Amend the latest commit with the new message
-// 	message := latestCommitMsg + "\n\n" + addMessage
-// 	res, err := exec.Command("git", "-C", dir, "commit", "--amend", "-m", message).CombinedOutput()
-
-// 	if err != nil {
-// 		return fmt.Errorf("error amending commit for dir: %s, err: %v, output: %s", dir, err, string(res))
-// 	}
-
-// 	return nil
-// }
-
 func GitRewindToSha(orgId, planId, branch, sha string) error {
 	dir := getPlanDir(orgId, planId)
 
-	err := gitRewindToSha(dir, sha)
+	err := retryGitWriteOperationIfIndexFileErr(func() error {
+		return gitRewindToSha(dir, sha)
+	})
 	if err != nil {
 		return fmt.Errorf("error rewinding git repository for dir: %s, err: %v", dir, err)
 	}
@@ -120,48 +117,74 @@ func GitListBranches(orgId, planId string) ([]string, error) {
 
 	branches := strings.Split(strings.TrimSpace(out.String()), "\n")
 
+	if len(branches) == 0 || (len(branches) == 1 && branches[0] == "") {
+		return []string{"main"}, nil
+	}
+
 	return branches, nil
 }
 
 func GitCreateBranch(orgId, planId, branch, newBranch string) error {
 	dir := getPlanDir(orgId, planId)
 
-	res, err := exec.Command("git", "-C", dir, "checkout", "-b", newBranch).CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("error creating git branch for dir: %s, err: %v, output: %s", dir, err, string(res))
-	}
+	err := retryGitWriteOperationIfIndexFileErr(func() error {
+		res, err := exec.Command("git", "-C", dir, "checkout", "-b", newBranch).CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("error creating git branch for dir: %s, err: %v, output: %s", dir, err, string(res))
+		}
+		return nil
+	})
 
-	return nil
+	return err
 }
 
 func GitDeleteBranch(orgId, planId, branchName string) error {
 	dir := getPlanDir(orgId, planId)
 
-	res, err := exec.Command("git", "-C", dir, "branch", "-D", branchName).CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("error deleting git branch for dir: %s, err: %v, output: %s", dir, err, string(res))
-	}
+	err := retryGitWriteOperationIfIndexFileErr(func() error {
+		res, err := exec.Command("git", "-C", dir, "branch", "-D", branchName).CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("error deleting git branch for dir: %s, err: %v, output: %s", dir, err, string(res))
+		}
+		return nil
+	})
 
-	return nil
+	return err
 }
 
 func GitClearUncommittedChanges(orgId, planId string) error {
 	dir := getPlanDir(orgId, planId)
 
-	// Reset staged changes
-	res, err := exec.Command("git", "-C", dir, "reset", "--hard").CombinedOutput()
+	err := retryGitWriteOperationIfIndexFileErr(func() error {
+		// Reset staged changes
+		res, err := exec.Command("git", "-C", dir, "reset", "--hard").CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("error resetting staged changes | err: %v, output: %s", err, string(res))
+		}
+		return nil
+	})
+
 	if err != nil {
-		return fmt.Errorf("error resetting staged changes | err: %v, output: %s", err, string(res))
+		return err
 	}
 
-	// Clean untracked files
-	res, err = exec.Command("git", "-C", dir, "clean", "-d", "-f").CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("error cleaning untracked files | err: %v, output: %s", err, string(res))
-	}
+	err = retryGitWriteOperationIfIndexFileErr(func() error {
+		// Clean untracked files
+		res, err := exec.Command("git", "-C", dir, "clean", "-d", "-f").CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("error cleaning untracked files | err: %v, output: %s", err, string(res))
+		}
 
-	return nil
+		return nil
+	})
+
+	return err
 }
+
+// Not used currently but may be good to handle these errors specifically later if locking can't fully prevent them
+// func isLockFileError(output string) bool {
+// 	return strings.Contains(output, "fatal: Unable to create") && strings.Contains output, ".git/index.lock': File exists")
+// }
 
 func gitCheckoutBranch(repoDir, branch string) error {
 	// get current branch and only checkout if it's not the same
@@ -182,20 +205,21 @@ func gitCheckoutBranch(repoDir, branch string) error {
 		return nil
 	}
 
-	log.Println("checking out branch:", branch)
+	err = retryGitWriteOperationIfIndexFileErr(func() error {
+		log.Println("checking out branch:", branch)
+		res, err := exec.Command("git", "-C", repoDir, "checkout", branch).CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("error checking out git branch for dir: %s, err: %v, output: %s", repoDir, err, string(res))
+		}
 
-	res, err := exec.Command("git", "-C", repoDir, "checkout", branch).CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("error checking out git branch for dir: %s, err: %v, output: %s", repoDir, err, string(res))
-	}
+		return nil
+	})
 
-	return nil
+	return err
 }
 
 func gitRewindToSha(repoDir, sha string) error {
-	res, err := exec.Command("git", "-C", repoDir, "reset", "--hard",
-		sha).CombinedOutput()
-
+	res, err := exec.Command("git", "-C", repoDir, "reset", "--hard", sha).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("error executing git reset for dir: %s, sha: %s, err: %v, output: %s", repoDir, sha, err, string(res))
 	}
@@ -210,8 +234,7 @@ func getLatestCommit(dir string) (sha, body string, err error) {
 	cmd.Stdout = &out
 	err = cmd.Run()
 	if err != nil {
-		return "", "", fmt.Errorf("error getting git history for dir: %s, err: %v",
-			dir, err)
+		return "", "", fmt.Errorf("error getting git history for dir: %s, err: %v", dir, err)
 	}
 
 	// Process the log output to get it in the desired format.
@@ -232,8 +255,7 @@ func getGitCommitHistory(dir string) (body string, shas []string, err error) {
 	cmd.Stdout = &out
 	err = cmd.Run()
 	if err != nil {
-		return "", nil, fmt.Errorf("error getting git history for dir: %s, err: %v",
-			dir, err)
+		return "", nil, fmt.Errorf("error getting git history for dir: %s, err: %v", dir, err)
 	}
 
 	// Process the log output to get it in the desired format.
@@ -309,4 +331,71 @@ func gitCommit(repoDir, commitMsg string) error {
 	}
 
 	return nil
+}
+
+func gitRemoveIndexLockFileIfExists(repoDir string) error {
+	// Remove the lock file if it exists
+	lockFilePath := filepath.Join(repoDir, ".git", "index.lock")
+	_, err := os.Stat(lockFilePath)
+
+	// log.Println("lockFilePath:", lockFilePath)
+	// log.Println("exists:", err == nil)
+
+	if err == nil {
+		if err := os.Remove(lockFilePath); err != nil {
+			if os.IsNotExist(err) {
+				return nil
+			}
+
+			return fmt.Errorf("error removing lock file: %v", err)
+		}
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("error checking lock file: %v", err)
+	}
+
+	return nil
+}
+
+func setGitConfig(repoDir, key, value string) error {
+	res, err := exec.Command("git", "-C", repoDir, "config", key, value).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("error setting git config %s to %s for dir: %s, err: %v, output: %s", key, value, repoDir, err, string(res))
+	}
+	return nil
+}
+
+func retryGitWriteOperationIfIndexFileErr(operation func() error) error {
+	var err error
+	retryInterval := initialGitRetryInterval
+
+	for attempt := 0; attempt < maxGitRetries; attempt++ {
+		err = operation()
+		if err == nil {
+			return nil
+		}
+
+		log.Printf("Retry attempt %d failed. Error: %v", attempt+1, err)
+
+		if exitError, ok := err.(*exec.ExitError); ok {
+			errorOutput := string(exitError.Stderr)
+			log.Printf("git operation error output: %s", errorOutput)
+
+			if exitError.ExitCode() == 128 && (strings.Contains(string(exitError.Stderr), "new_index file") ||
+				strings.Contains(string(exitError.Stderr), "index.lock')")) {
+
+				log.Printf("Retry attempt %d failed due to 'unable to write new_index file'. Waiting %v before retrying. Error: %v", attempt+1, retryInterval, err)
+				time.Sleep(retryInterval)
+				retryInterval *= 2
+				continue
+			} else {
+				log.Printf("Non-index file error: %v", err)
+			}
+		} else {
+			log.Printf("Non-exit error: %v", err)
+		}
+
+		return err
+	}
+
+	return fmt.Errorf("operation failed after %d attempts: %v", maxGitRetries, err)
 }
