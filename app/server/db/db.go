@@ -53,7 +53,12 @@ func Connect() error {
 }
 
 func MigrationsUp() error {
-	return migrationsUp("migrations")
+	migrationsDir := "migrations"
+	if os.Getenv("MIGRATIONS_DIR") != "" {
+		migrationsDir = os.Getenv("MIGRATIONS_DIR")
+	}
+
+	return migrationsUp(migrationsDir)
 }
 
 func MigrationsUpWithDir(dir string) error {
