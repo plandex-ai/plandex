@@ -38,9 +38,6 @@ trap terminate SIGTERM SIGINT
 
 cd ../
 
-echo "PWD:"
-pwd
-
 reflex -r '^(cli|shared)/.*\.(go|mod|sum)$' -- sh -c 'cd cli && ./dev.sh' &
 pid1=$!
 
