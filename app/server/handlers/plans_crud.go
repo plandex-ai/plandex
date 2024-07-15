@@ -40,7 +40,7 @@ func CreatePlanHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := hooks.ExecHook("will_create_plan", hooks.HookParams{W: w, User: auth.User})
+	err := hooks.ExecHook(hooks.WillCreatePlan, hooks.HookParams{W: w, User: auth.User})
 	if err != nil {
 		return
 	}
@@ -156,7 +156,7 @@ func GetPlanHandler(w http.ResponseWriter, r *http.Request) {
 func RenamePlanHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for RenamePlanHandler")
 
-	auth := authenticate(w, r, true)
+	auth := Authenticate(w, r, true)
 	if auth == nil {
 		return
 	}

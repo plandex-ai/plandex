@@ -13,7 +13,7 @@ import (
 func CreateCustomModelHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for CreateCustomModelHandler")
 
-	auth := authenticate(w, r, true)
+	auth := Authenticate(w, r, true)
 	if auth == nil {
 		return
 	}
@@ -56,7 +56,7 @@ func CreateCustomModelHandler(w http.ResponseWriter, r *http.Request) {
 func ListCustomModelsHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for ListCustomModelsHandler")
 
-	auth := authenticate(w, r, true)
+	auth := Authenticate(w, r, true)
 	if auth == nil {
 		return
 	}
@@ -76,7 +76,7 @@ func ListCustomModelsHandler(w http.ResponseWriter, r *http.Request) {
 func DeleteAvailableModelHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for DeleteAvailableModelHandler")
 
-	auth := authenticate(w, r, true)
+	auth := Authenticate(w, r, true)
 	if auth == nil {
 		return
 	}
@@ -96,7 +96,7 @@ func DeleteAvailableModelHandler(w http.ResponseWriter, r *http.Request) {
 func CreateModelPackHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for CreateModelPackHandler")
 
-	auth := authenticate(w, r, true)
+	auth := Authenticate(w, r, true)
 	if auth == nil {
 		return
 	}
@@ -133,7 +133,7 @@ func CreateModelPackHandler(w http.ResponseWriter, r *http.Request) {
 func ListModelPacksHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for ListModelPacksHandler")
 
-	auth := authenticate(w, r, true)
+	auth := Authenticate(w, r, true)
 	if auth == nil {
 		return
 	}
@@ -159,7 +159,7 @@ func ListModelPacksHandler(w http.ResponseWriter, r *http.Request) {
 func DeleteModelPackHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for DeleteModelPackHandler")
 
-	auth := authenticate(w, r, true)
+	auth := Authenticate(w, r, true)
 	if auth == nil {
 		return
 	}

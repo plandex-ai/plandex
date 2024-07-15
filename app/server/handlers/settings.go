@@ -155,7 +155,7 @@ func UpdateSettingsHandler(w http.ResponseWriter, r *http.Request) {
 func GetDefaultSettingsHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for GetDefaultSettingsHandler")
 
-	auth := authenticate(w, r, true)
+	auth := Authenticate(w, r, true)
 	if auth == nil {
 		return
 	}
@@ -184,7 +184,7 @@ func GetDefaultSettingsHandler(w http.ResponseWriter, r *http.Request) {
 func UpdateDefaultSettingsHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for UpdateDefaultSettingsHandler")
 
-	auth := authenticate(w, r, true)
+	auth := Authenticate(w, r, true)
 
 	if auth == nil {
 		return

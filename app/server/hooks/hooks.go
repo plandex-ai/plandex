@@ -7,6 +7,13 @@ import (
 	"github.com/plandex/plandex/shared"
 )
 
+const (
+	CreateAccount  = "create_account"
+	WillCreatePlan = "will_create_plan"
+	WillTellPlan   = "will_tell_plan"
+	WillExecPlan   = "will_exec_plan"
+)
+
 type HookParams struct {
 	W            http.ResponseWriter
 	User         *db.User

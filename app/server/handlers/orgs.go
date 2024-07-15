@@ -155,7 +155,7 @@ func CreateOrgHandler(w http.ResponseWriter, r *http.Request) {
 func GetOrgSessionHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for GetOrgSessionHandler")
 
-	auth := authenticate(w, r, true)
+	auth := Authenticate(w, r, true)
 
 	if auth == nil {
 		return

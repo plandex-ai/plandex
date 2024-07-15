@@ -370,7 +370,7 @@ func ArchivePlanHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func UnarchivePlanHandler(w http.ResponseWriter, r *http.Request) {
-	auth := authenticate(w, r, true)
+	auth := Authenticate(w, r, true)
 	if auth == nil {
 		return
 	}
@@ -420,7 +420,7 @@ func UnarchivePlanHandler(w http.ResponseWriter, r *http.Request) {
 func GetPlanDiffsHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for GetPlanDiffs")
 
-	auth := authenticate(w, r, true)
+	auth := Authenticate(w, r, true)
 	if auth == nil {
 		return
 	}

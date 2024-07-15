@@ -61,7 +61,7 @@ func ListConvoHandler(w http.ResponseWriter, r *http.Request) {
 func GetPlanStatusHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received a request for GetPlanStatusHandler")
 
-	auth := authenticate(w, r, true)
+	auth := Authenticate(w, r, true)
 	if auth == nil {
 		return
 	}

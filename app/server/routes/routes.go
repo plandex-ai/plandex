@@ -3,6 +3,7 @@ package routes
 import (
 	"fmt"
 	"net/http"
+	"os"
 	"plandex-server/handlers"
 
 	"github.com/gorilla/mux"
@@ -10,7 +11,19 @@ import (
 
 func AddRoutes(r *mux.Router) {
 	r.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, "OK")
+		fmt.Fprint(w, "OK")
+	})
+
+	r.HandleFunc("/version", func(w http.ResponseWriter, r *http.Request) {
+		// get version from version.txt
+		bytes, err := os.ReadFile("version.txt")
+
+		if err != nil {
+			http.Error(w, "Error getting version", http.StatusInternalServerError)
+			return
+		}
+
+		fmt.Fprint(w, string(bytes))
 	})
 
 	r.HandleFunc("/accounts/email_verifications", handlers.CreateEmailVerificationHandler).Methods("POST")
@@ -18,6 +31,7 @@ func AddRoutes(r *mux.Router) {
 	r.HandleFunc("/accounts/sign_out", handlers.SignOutHandler).Methods("POST")
 	r.HandleFunc("/accounts", handlers.CreateAccountHandler).Methods("POST")
 
+	r.HandleFunc("/orgs/session", handlers.GetOrgSessionHandler).Methods("GET")
 	r.HandleFunc("/orgs", handlers.ListOrgsHandler).Methods("GET")
 	r.HandleFunc("/orgs", handlers.CreateOrgHandler).Methods("POST")
 
@@ -59,10 +73,14 @@ func AddRoutes(r *mux.Router) {
 
 	r.HandleFunc("/plans/{planId}/{branch}/current_plan", handlers.CurrentPlanHandler).Methods("GET")
 	r.HandleFunc("/plans/{planId}/{branch}/apply", handlers.ApplyPlanHandler).Methods("PATCH")
-	r.HandleFunc("/plans/{planId}/{branch}/archive", handlers.ArchivePlanHandler).Methods("PATCH")
+	r.HandleFunc("/plans/{planId}/archive", handlers.ArchivePlanHandler).Methods("PATCH")
+	r.HandleFunc("/plans/{planId}/unarchive", handlers.UnarchivePlanHandler).Methods("PATCH")
+
+	r.HandleFunc("/plans/{planId}/rename", handlers.RenamePlanHandler).Methods("PATCH")
 	r.HandleFunc("/plans/{planId}/{branch}/reject_all", handlers.RejectAllChangesHandler).Methods("PATCH")
-	r.HandleFunc("/plans/{planId}/{branch}/results/{resultId}/reject", handlers.RejectResultHandler).Methods("PATCH")
-	r.HandleFunc("/plans/{planId}/{branch}/results/{resultId}/replacements/{replacementId}/reject", handlers.RejectReplacementHandler).Methods("PATCH")
+	r.HandleFunc("/plans/{planId}/{branch}/reject_file", handlers.RejectFileHandler).Methods("PATCH")
+	r.HandleFunc("/plans/{planId}/{branch}/reject_files", handlers.RejectFilesHandler).Methods("PATCH")
+	r.HandleFunc("/plans/{planId}/{branch}/diffs", handlers.GetPlanDiffsHandler).Methods("GET")
 
 	r.HandleFunc("/plans/{planId}/{branch}/context", handlers.ListContextHandler).Methods("GET")
 	r.HandleFunc("/plans/{planId}/{branch}/context", handlers.LoadContextHandler).Methods("POST")
@@ -79,4 +97,17 @@ func AddRoutes(r *mux.Router) {
 
 	r.HandleFunc("/plans/{planId}/{branch}/settings", handlers.GetSettingsHandler).Methods("GET")
 	r.HandleFunc("/plans/{planId}/{branch}/settings", handlers.UpdateSettingsHandler).Methods("PUT")
+
+	r.HandleFunc("/plans/{planId}/{branch}/status", handlers.GetPlanStatusHandler).Methods("GET")
+
+	r.HandleFunc("/custom_models", handlers.ListCustomModelsHandler).Methods("GET")
+	r.HandleFunc("/custom_models", handlers.CreateCustomModelHandler).Methods("POST")
+	r.HandleFunc("/custom_models/{modelId}", handlers.DeleteAvailableModelHandler).Methods("DELETE")
+
+	r.HandleFunc("/model_sets", handlers.ListModelPacksHandler).Methods("GET")
+	r.HandleFunc("/model_sets", handlers.CreateModelPackHandler).Methods("POST")
+	r.HandleFunc("/model_sets/{setId}", handlers.DeleteModelPackHandler).Methods("DELETE")
+
+	r.HandleFunc("/default_settings", handlers.GetDefaultSettingsHandler).Methods("GET")
+	r.HandleFunc("/default_settings", handlers.UpdateDefaultSettingsHandler).Methods("PUT")
 }
