@@ -15,9 +15,9 @@ type Entry struct {
 }
 
 type Vars struct {
-	FilePath       string `yaml:"filePath"`
+	FilePath        string `yaml:"filePath"`
 	PreBuildInState string `yaml:"preBuildInState"`
-	Changes        string `yaml:"changes"`
+	Changes         string `yaml:"changes"`
 }
 
 func main() {
@@ -111,7 +111,6 @@ func formatCode(code string) string {
 	return formattedCode.String()
 }
 
-// formatChanges formats the changes content into the specified markdown format
 func formatChanges(changes string) string {
 	var formattedChanges strings.Builder
 	lines := strings.Split(changes, "\n")
@@ -119,13 +118,14 @@ func formatChanges(changes string) string {
 
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
-		if len(line) > 0 {
-			if strings.HasPrefix(line, strconv.Itoa(subtaskCounter) + ".") {
-				formattedChanges.WriteString(fmt.Sprintf("### Subtask %d: %s\n\n", subtaskCounter, strings.TrimPrefix(line, strconv.Itoa(subtaskCounter) + ".")))
-				subtaskCounter++
-			} else {
-				formattedChanges.WriteString(fmt.Sprintf("%s\n\n", line))
-			}
+		if len(line) == 0 {
+			continue
+		}
+		if strings.HasPrefix(line, strconv.Itoa(subtaskCounter)+".") {
+			formattedChanges.WriteString(fmt.Sprintf("### Subtask %d: %s\n\n", subtaskCounter, strings.TrimPrefix(line, strconv.Itoa(subtaskCounter)+".")))
+			subtaskCounter++
+		} else {
+			formattedChanges.WriteString(fmt.Sprintf("%s\n\n", line))
 		}
 	}
 

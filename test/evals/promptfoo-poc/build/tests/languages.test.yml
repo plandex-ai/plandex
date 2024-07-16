@@ -1,25 +1,7 @@
 - vars:
     filePath: data_models.go
     preBuildInState: "package models \n\ntype User struct {\n\tID        string\n\tUsername  string\n\tEmail     string\n}\n\ntype Post struct {\n\tID      string\n\tContent string\n\tAuthor  string\n}"
-    changes: >-
-      1. Add a `CreatedAt` timestamp field to both `User` and `Post` structs.
-
-      2. Add a new struct `Comment` with fields `ID`, `Content`, `Author`, and
-      `CreatedAt`.
-
-      3. Update `Post` to include a slice of `Comment` references.
-- vars:
-    filePath: router.go
-    preBuildInState: "// Package router implements a simple HTTP request router\npackage router\n\nimport (\n\t\"net/http\"\n)\n\ntype HandlerFn func(http.ResponseWriter, *http.Request)\n\ntype Router struct {\n\tpaths map[string]HandlerFn\n}\n\n// New creates a new Router\nfunc New() *Router {\n\treturn &Router{\n\t\tpaths: make(map[string]HandlerFn),\n\t}\n}\n\n// Register registers a new route with a handler\nfunc (r *Router) Register(path string, handler HandlerFn) {\n\tr.paths[path] = handler\n}\n\n// ServeHTTP implements http.Handler\nfunc (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {\n\tif handler, ok := r.paths[req.URL.Path]; ok {\n\t\thandler(w, req)\n\t} else {\n\t\tw.WriteHeader(http.StatusNotFound)\n\t\tw.Write([]byte(\"404 - Not Found\"))\n\t}\n}"
-    changes: "// Added logging\n\n func (r *Router) Register(path string, handler HandlerFn) {\n\tlog.Printf(\"Registering path: %s\", path)\n\tr.paths[path] = handler\n}\n\n// Added middleware support\n\ntype MiddlewareFn func(HandlerFn) HandlerFn\n\nvar middlewares []MiddlewareFn\n\n// Use adds a new middleware\nfunc Use(middleware MiddlewareFn) {\n\tmiddlewares = append(middlewares, middleware)\n}\n\n// wrappedHandler wraps the registered handlers with the applied middlewares\nfunc wrappedHandler(handler HandlerFn) HandlerFn {\n\tfor _, middleware := range middlewares {\n\t\thandler = middleware(handler)\n\t}\n\treturn handler\n}\n\n// Apply middlewares to handlers\nfunc (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {\n\tif handler, ok := r.paths[req.URL.Path]; ok {\n\t\thandler = wrappedHandler(handler)\n\t\thandler(w, req)\n\t} else {\n\t\tw.WriteHeader(http.StatusNotFound)\n\t\tw.Write([]byte(\"404 - Not Found\"))\n\t}\n}"
-- vars:
-    filePath: middleware.go
-    preBuildInState: "package middleware \n\n// Middleware defines a function to process middleware\ntype Middleware func(next Handler) Handler\n\n// Handler defines the request handler used by the middleware\ntype Handler func() error\n\n// Chain chains the middleware functions\nfunc Chain(middlewares ...Middleware) Middleware {\n\treturn func(next Handler) Handler {\n\t\tfor i := len(middlewares) - 1; i >= 0; i-- {\n\t\t\tmiddleware := middlewares[i]\n\t\t\tnext = middleware(next)\n\t\t}\n\t\treturn next\n\t}\n}"
-    changes: "// Modified the Chain function to accept context for more flexible middleware handling\nimport \"context\"\n\n// Middleware now uses context\n\ntype Middleware func(ctx context.Context, next Handler) Handler\n\n// Handler now accepts context\n\ntype Handler func(ctx context.Context) error\n\n// Chain now also accepts context and passes it down the middleware chain\nfunc Chain(middlewares ...Middleware) Middleware {\n\treturn func(ctx context.Context, next Handler) Handler {\n\t\tfor i := len(middlewares) - 1; i >= 0; i-- {\n\t\t\tmiddleware := middlewares[i]\n\t\t\tnext = middleware(ctx, next)\n\t\t}\n\t\treturn next\n\t}\n}"
-- vars:
-    filePath: auth.go
-    preBuildInState: "package auth \n\n// User represents a user entity\n\ntype User struct {\n\tID   string\n\tName string\n}\n\n// AuthService interface for authentication\n\ntype AuthService interface {\n\tLogin(username, password string) (*User, error)\n\tRegister(user User) error\n}"
-    changes: "// Implementing AuthService using mock data for testing purposes\n\ntype MockAuthService struct{}\n\n// Mock Login function\ntype MockAuthService func(username, password string) (*User, error) {\n\treturn &User{ID: \"1\", Name: \"Test User\"}, nil\n}\n\n// Mock Register function\n\ntype MockAuthService func(user User) error {\n\treturn nil\n}\n\n// Added ValidateToken middleware function\n\nfunc ValidateToken(token string) bool {\n\t// This is a mock implementation\n\treturn token == \"valid-token\"\n}"
+    changes: "1. Add a `CreatedAt` timestamp field to both `User` and `Post` structs.\n2. Add a new struct `Comment` with fields `ID`, `Content`, `Author`, and `CreatedAt`.\n3. Update `Post` to include a slice of `Comment` references."
 - vars:
     filePath: utils/sort_functions.go
     preBuildInState: |-
@@ -34,13 +16,7 @@
         sortIntegers(values)
         // Output should be a sorted array
       }
-    changes: >-
-      1. Correct the sorting logic in `sortIntegers` function to actually sort
-      the integers.
-
-      2. Add a new function `printValues` to print the sorted array.
-
-      3. Update `main` function to call `printValues` after sorting.
+    changes: "1. Correct the sorting logic in `sortIntegers` function to actually sort the integers.\n2. Add a new function `printValues` to print the sorted array.\n3. Update `main` function to call `printValues` after sorting."
 - vars:
     filePath: database/connection.go
     preBuildInState: |-
@@ -57,15 +33,7 @@
       func GetConnection() *sql.DB {
         return db
       }
-    changes: >-
-      1. Update `init` function to include error handling and retry logic for
-      database connection.
-
-      2. Add logging for successful connection or failure in the `init`
-      method.
-
-      3. Provide a new function `CloseConnection` to properly close the
-      database connection.
+    changes: "1. Update `init` function to include error handling and retry logic for database connection.\n2. Add logging for successful connection or failure in the `init` method.\n3. Provide a new function `CloseConnection` to properly close the database connection."
 - vars:
     filePath: handlers/user_handler.go
     preBuildInState: |-
@@ -83,15 +51,7 @@
       func UserLogin(w http.ResponseWriter, r *http.Request) {
         // Handles user login
       }
-    changes: >-
-      1. Add input validation for `UserSignup` to check for valid email and
-      password.
-
-      2. Ensure `UserLogin` checks for correct user credentials and returns an
-      error message on failure.
-
-      3. Introduce rate limiting on both `UserSignup` and `UserLogin` to
-      prevent abuse.
+    changes: "1. Add input validation for `UserSignup` to check for valid email and password.\n2. Ensure `UserLogin` checks for correct user credentials and returns an error message on failure.\n3. Introduce rate limiting on both `UserSignup` and `UserLogin` to prevent abuse."
 - vars:
     filePath: network_config.go
     preBuildInState: |-
@@ -104,11 +64,7 @@
       func ConfigureIP(ipAddress string) {
        // Code to configure IP address
       }
-    changes: >-
-      Replace the entire InitializeNetwork function to support dynamic network
-      configurations based on environmental variables. Add a new function
-      VerifyConnectivity that pings a set of predefined addresses to ensure
-      network configuration is successful.
+    changes: "1. Replace the entire InitializeNetwork function to support dynamic network configurations based on environmental variables. \n2. Add a new function VerifyConnectivity that pings a set of predefined addresses to ensure network configuration is successful."
 - vars:
     filePath: data_processor.py
     preBuildInState: |-
@@ -122,10 +78,7 @@
       if __name__ == '__main__':
           inputData = sys.argv[1]
           processData(inputData)
-    changes: >-
-      Add error handling to processData to catch and log exceptions. Update
-      the # TODO comment with a more descriptive message. Add a new function
-      to validate input data before processing.
+    changes: "1. Add error handling to processData to catch and log exceptions\n2. Update the # TODO comment with a more descriptive message. Add a new function to validate input data before processing."
 - vars:
     filePath: user_management.js
     preBuildInState: |-
@@ -142,7 +95,4 @@
               return this.users.find(u => u.username === username);
           }
       }
-    changes: >-
-      Update the addUser method to prevent adding users with duplicate
-      usernames. Modify the findUser method to log an error if the user is not
-      found. Add a method to remove a user by username.
+    changes: "1. Update the addUser method to prevent adding users with duplicate usernames. \n2. Modify the findUser method to log an error if the user is not found. \n3. Add a method to remove a user by username."
