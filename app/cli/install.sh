@@ -9,6 +9,15 @@ ARCH=
 VERSION=
 RELEASES_URL="https://github.com/plandex-ai/plandex/releases/download"
 
+ # Ensure cleanup happens on exit and on specific signals
+trap cleanup EXIT
+trap cleanup INT TERM
+
+cleanup () {
+  cd "${SCRIPT_DIR}"
+  rm -rf plandex_install_tmp
+}
+
 # Set platform
 case "$(uname -s)" in
  Darwin)
@@ -61,12 +70,6 @@ welcome_plandex () {
   echo ""
 }
 
-cleanup () {
-  echo "Cleaning up..."
-  cd "${SCRIPT_DIR}"
-  rm -rf plandex_install_tmp
-}
-
 download_plandex () {
   ENCODED_TAG="cli%2Fv${VERSION}"
 
@@ -102,7 +105,6 @@ download_plandex () {
       fi
     else
       echo >&2 'Error: /usr/local/bin does not exist. Create this directory with appropriate permissions, then re-install.'
-      cleanup
       exit 1
     fi
   elif [ "$PLATFORM" == "windows" ]; then
@@ -138,7 +140,6 @@ download_plandex () {
 
 welcome_plandex
 download_plandex
-cleanup
 
 echo "Installation complete. Info:"
 echo ""
