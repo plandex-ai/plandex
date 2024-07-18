@@ -47,7 +47,7 @@ else
 fi
 
 # Set Version
-if [[ -z "${PLANDEX_VERSION}" ]]; then  
+if [[ -z "${PLANDEX_VERSION}" ]]; then
   VERSION=$(curl -sL https://plandex.ai/cli-version.txt)
 else
   VERSION=$PLANDEX_VERSION
@@ -72,7 +72,7 @@ download_plandex () {
 
   url="${RELEASES_URL}/${ENCODED_TAG}/plandex_${VERSION}_${PLATFORM}_${ARCH}.tar.gz"
 
-  mkdir plandex_install_tmp
+  mkdir -p plandex_install_tmp
   cd plandex_install_tmp
 
   echo "Downloading Plandex tarball from $url"
@@ -114,7 +114,7 @@ download_plandex () {
     if [ $UID -eq 0 ]
     then
       # we are root
-      mv plandex /usr/local/bin/  
+      mv plandex /usr/local/bin/
     elif hash sudo 2>/dev/null;
     then
       # not root, but can sudo
@@ -123,9 +123,9 @@ download_plandex () {
       echo "ERROR: This script must be run as root or be able to sudo to complete the installation."
       exit 1
     fi
-    
+
     echo "Plandex is installed in /usr/local/bin"
-  fi  
+  fi
 
   # create 'pdx' alias, but don't ovewrite existing pdx command
   if [ ! -x "$(command -v pdx)" ]; then
