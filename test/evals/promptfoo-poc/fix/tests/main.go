@@ -65,25 +65,25 @@ func processEntry(entry Entry) {
 	sourceFilePath := filepath.Join(codeDir, fileName)
 
 	// Write the formatted preBuildState content to the source file
-	formattedPreBuildContent := formatCode(entry.Vars.PreBuildState)
-	err := os.WriteFile(sourceFilePath, []byte(formattedPreBuildContent), 0644)
+	//formattedPreBuildContent := formatCode(entry.Vars.PreBuildState)
+	err := os.WriteFile(sourceFilePath, []byte(entry.Vars.PreBuildState), 0644)
 	if err != nil {
 		fmt.Printf("Error writing source file: %v\n", err)
 		return
 	}
-
+	
+	// Generate the changes file path
+	fileNameWithoutExt := strings.TrimSuffix(fileName, fileExt)
+	
 	// Write the incorrectlyUpdatedFile content to a file
-	incorrectlyUpdatedFilePath := filepath.Join(codeDir, "incorrectly_updated_file"+fileExt)
+	incorrectlyUpdatedFilePath := filepath.Join(codeDir, fileNameWithoutExt+".incorrectly_updated_file"+fileExt)
 	err = os.WriteFile(incorrectlyUpdatedFilePath, []byte(entry.Vars.IncorrectlyUpdatedFile), 0644)
 	if err != nil {
 		fmt.Printf("Error writing incorrectlyUpdatedFile file: %v\n", err)
 		return
 	}
-
-	// Generate the changes file path
-	fileNameWithoutExt := strings.TrimSuffix(fileName, fileExt)
+	
 	changesFilePath := filepath.Join(changesDir, fileNameWithoutExt+".changes.md")
-
 	changesContent := formatChanges(entry.Vars.Changes)
 
 	// Write the changes content to the changes file

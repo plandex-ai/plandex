@@ -1,5 +1,5 @@
-pdx-1: public class HelloWorld {
-pdx-2: 	public static void main(String[] args) {
-pdx-3: 		System.out.println("Hello, World!");
-pdx-4: 	}
-pdx-5: }
+public class HelloWorld {
+	public static void main(String[] args) {
+		System.out.println("Hello, World!");
+	}
+}
