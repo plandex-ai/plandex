@@ -1,0 +1,1 @@
+The update introduced a duplicate print statement of 'Hello, World!' that should have been replaced. The correct update should only contain one print statement 'Goodbye, World!', and the comment '// print farewell message' is correctly added but the old print statement was not removed.

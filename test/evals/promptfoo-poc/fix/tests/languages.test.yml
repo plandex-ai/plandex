@@ -1,4 +1,5 @@
 - vars:
+    filePath: "main.go"
     preBuildState: "package main\n\nimport (\n\t\"fmt\"\n)\n\nfunc main() {\n\tfmt.Println(\"Hello, world!\")\n}\n"
     changes: |-
       1. Remove the import block as it's no longer needed.
@@ -13,6 +14,7 @@
       2. The 'fmt.Println' statement intended to update the message to
       'Goodbye, world!' but removed the required package to run successfully.
 - vars:
+    filePath: "main.py"
     preBuildState: "def initialize(params):\n\t# existing init code\n\treturn True\n"
     changes: >-
       1. Add error handling for parameter validation.
@@ -27,6 +29,7 @@
       actual necessary code for parameter setup, and the comment used as a
       placeholder does not represent the original initialization code.
 - vars:
+    filePath: "main.js"
     preBuildState: "class DatabaseConnector {\n\t// Existing methods\n}\n"
     changes: |-
       1. Add a method 'connect()' that establishes a database connection.
@@ -38,6 +41,7 @@
       to establish a database connection, especially with the latest security
       standards as intended.
 - vars:
+    filePath: "loop.go"
     preBuildState: |
       package main
 
@@ -65,6 +69,7 @@
       introduced due to an extra space before the closing brace. Additionally,
       the added comment is too vague and does not follow best practices.
 - vars:
+    filePath: "add.go"
     preBuildState: |
       func add(a int, b int) int {
           return a + b
@@ -86,6 +91,7 @@
       does not match the new expected return of a tuple containing float64 and
       error.
 - vars:
+    filePath: "dataprocessor.py"
     preBuildState: |
       class DataProcessor:
           def processData(self, data):
@@ -112,6 +118,7 @@
       missing newline before the definition of helperFunction which is
       violating PEP 8 style guidelines.
 - vars:
+    filePath: "print.go"
     preBuildState: |-
       package main
 
@@ -140,6 +147,7 @@
       farewell message' is correctly added but the old print statement was not
       removed.
 - vars:
+    filePath: "calculatesum.go"
     preBuildState: |-
       func calculateSum(numbers []int) int {
           sum := 0
@@ -169,6 +177,7 @@
       nil. This introduces a mismatch in return types that prevents the code
       from compiling.
 - vars:
+    filePath: "globalconfig.go"
     preBuildState: |-
       var GlobalConfig = map[string]string{
           "path": "/default/path",
@@ -201,6 +210,7 @@
       code which does not align with the update instructions. Also, the
       comment '// Configuration settings' is correctly added.
 - vars:
+    filePath: "hello.go"
     preBuildState: "package main\n\nimport (\n\t\"fmt\"\n)\n\nfunc main() {\n\tfmt.Println(\"Hello, world!\")\n}"
     changes: Remove the import statement for fmt and the Println statement.
     incorrectlyUpdatedFile: |-
@@ -217,6 +227,7 @@
       where code was removed were not added, which might be required for
       clarity in some projects.
 - vars:
+    filePath: "api.js"
     preBuildState: "function fetchData() {\n\tconst apiURL = 'https://api.example.com/data';\n\tfetch(apiURL)\n\t\t.then((response) => response.json())\n\t\t.then((data) => console.log(data))\n\t\t.catch((error) => console.error('Error:', error));\n}"
     changes: >-
       Update the fetchData function to include error handling for failed HTTP
@@ -231,6 +242,7 @@
       fetch statement improves the function, but the comment issue could lead
       to misunderstandings about the code's completeness.
 - vars:
+    filePath: "HelloWorld.java"
     preBuildState: "public class HelloWorld {\n\tpublic static void main(String[] args) {\n\t\tSystem.out.println(\"Hello, World!\");\n\t}\n}"
     changes: >-
       Add a comment header above the class that describes the purpose of the
@@ -245,6 +257,7 @@
       These comments should be replaced with the exact code they're referring
       to if any, or removed if unnecessary.
 - vars:
+    filePath: "arithmetic.go"
     preBuildState: "// Simple Go program to perform arithmetic operations\n\npackage main\n\nimport (\n\t\"fmt\"\n)\n\nfunc main() {\n\tvar a, b int = 4, 2\n\tfmt.Println(\"Sum:\", a+b)\n\tfmt.Println(\"Difference:\", a-b)\n\tfmt.Println(\"Product:\n\n\", a*b)\n\tfmt.Println(\"Quotient:\", a/b)\n}"
     changes: |-
       1. Fix the newline error in the Product print statement.
@@ -262,6 +275,7 @@
 
       4. An incorrect comment was added at the end of the Product line.
 - vars:
+    filePath: "index.html"
     preBuildState: "HTML template\n\n<!DOCTYPE html>\n<html>\n<head>\n\t<title>Page Title</title>\n</head>\n<body>\n\n\t<h1>This is a Heading</h1>\n\t<p>This is a paragraph.</p>\n\n</body>\n</html>"
     changes: |-
       1. Update the title of the HTML page to 'Updated Title'.
@@ -275,7 +289,8 @@
 
       3. No other syntax errors or missing declarations are present.
 - vars:
-    preBuildState: "JavaScript function to calculate age\n\nfunction calculateAge(birthYear) {\n\tconst currentYear = new Date().getFullYear();\n\treturn currentYear - birthYear;\n}\n\nconsole.log(calculateAge(1990));"
+    filePath: "age.js"
+    preBuildState: "//JavaScript function to calculate age\n\nfunction calculateAge(birthYear) {\n\tconst currentYear = new Date().getFullYear();\n\treturn currentYear - birthYear;\n}\n\nconsole.log(calculateAge(1990));"
     changes: |-
       1. Add error handling to ensure 'birthYear' is not in the future.
       2. Ensure the function prints a message instead of returning the age.

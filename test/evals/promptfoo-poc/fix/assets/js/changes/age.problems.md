@@ -1,0 +1,3 @@
+1. The error handling logic for 'birthYear' being in the future has been added, but it does not prevent the rest of the function from executing.
+2. The console.log statement to print the age is always executed, even when the birthYear is in the future.
+3. The original function's return statement was replaced with a console.log, but the final console.log outside the function incorrectly remains, intending to demonstrate the function's usage.
