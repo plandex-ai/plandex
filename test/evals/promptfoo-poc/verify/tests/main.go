@@ -15,11 +15,11 @@ type Entry struct {
 }
 
 type Vars struct {
-	FilePath               string `yaml:"filePath"`
-	PreBuildState          string `yaml:"preBuildState"`
-	Changes                string `yaml:"changes"`
-	IncorrectlyUpdatedFile string `yaml:"incorrectlyUpdatedFile"`
-	Problems               string `yaml:"problems"`
+	FilePath        string `yaml:"filePath"`
+	PreBuildState   string `yaml:"preBuildState"`
+	Changes         string `yaml:"changes"`
+	PostBuildState  string `yaml:"postBuildState"`
+	Diffs           string `yaml:"diffs"`
 }
 
 func main() {
@@ -51,8 +51,6 @@ func processEntry(entry Entry) {
 	fileExt := filepath.Ext(fileName)
 	language := strings.TrimPrefix(fileExt, ".")
 
-
-
 	// Create the directory paths
 	codeDir := filepath.Join("..", "assets", language, "code")
 	changesDir := filepath.Join("..", "assets", language, "changes")
@@ -65,21 +63,21 @@ func processEntry(entry Entry) {
 	sourceFilePath := filepath.Join(codeDir, fileName)
 
 	// Write the formatted preBuildState content to the source file
-	//formattedPreBuildContent := formatCode(entry.Vars.PreBuildState)
-	err := os.WriteFile(sourceFilePath, []byte(entry.Vars.PreBuildState), 0644)
+	formattedPreBuildContent := formatCode(entry.Vars.PreBuildState)
+	err := os.WriteFile(sourceFilePath, []byte(formattedPreBuildContent), 0644)
 	if err != nil {
 		fmt.Printf("Error writing source file: %v\n", err)
 		return
 	}
-	
+
 	// Generate the changes file path
 	fileNameWithoutExt := strings.TrimSuffix(fileName, fileExt)
 	
-	// Write the incorrectlyUpdatedFile content to a file
-	incorrectlyUpdatedFilePath := filepath.Join(codeDir, fileNameWithoutExt+".incorrectly_updated_file"+fileExt)
-	err = os.WriteFile(incorrectlyUpdatedFilePath, []byte(entry.Vars.IncorrectlyUpdatedFile), 0644)
+	// Write the postBuildState content to a file
+	postBuildStatePath := filepath.Join(codeDir, fileNameWithoutExt+".post"+fileExt)
+	err = os.WriteFile(postBuildStatePath, []byte(entry.Vars.PostBuildState), 0644)
 	if err != nil {
-		fmt.Printf("Error writing incorrectlyUpdatedFile file: %v\n", err)
+		fmt.Printf("Error writing postBuildState file: %v\n", err)
 		return
 	}
 	
@@ -93,13 +91,13 @@ func processEntry(entry Entry) {
 		return
 	}
 
-	// Generate the problems file path
-	problemsFilePath := filepath.Join(changesDir, fileNameWithoutExt+".problems.md")
+	// Generate the diffs file path
+	diffsFilePath := filepath.Join(changesDir, fileNameWithoutExt+".diff.txt")
 
-	// Write the problems content to the problems file
-	err = os.WriteFile(problemsFilePath, []byte(entry.Vars.Problems), 0644)
+	// Write the diffs content to the diffs file
+	err = os.WriteFile(diffsFilePath, []byte(entry.Vars.Diffs), 0644)
 	if err != nil {
-		fmt.Printf("Error writing problems file: %v\n", err)
+		fmt.Printf("Error writing diffs file: %v\n", err)
 		return
 	}
 }

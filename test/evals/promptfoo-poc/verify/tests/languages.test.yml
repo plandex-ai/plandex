@@ -1,4 +1,5 @@
 - vars:
+    filePath: 'hello.go'
     preBuildState: |
       package main
 
@@ -24,6 +25,7 @@
       -    fmt.Println("Hello, world!")
       +    hello("Universe")
 - vars:
+    filePath: 'start.java'
     preBuildState: |-
       import java.util.*;
       public class Example {
@@ -48,6 +50,7 @@
       -        System.out.println("Starting application...");
       +        greet();
 - vars:
+    filePath: 'main.py'
     preBuildState: |
       def main():
           print("Initial setup complete")
@@ -76,6 +79,7 @@
       +    except FileNotFoundError:
       +        print("Error: File not found.")
 - vars:
+    filePath: 'hello_universe.go'
     preBuildState: "package main\n\nimport \"fmt\"\n\nfunc main() {\n\tfmt.Println(\"Hello World\")\n}"
     changes: >-
       Add a new function to print 'Hello Universe' and remove the 'Hello
@@ -96,6 +100,7 @@
       +}
       +
 - vars:
+    filePath: 'sum.go'
     preBuildState: "package testpack\n\nfunc sum(a int, b int) int {\n\treturn a + b\n}\n\nfunc main() {\n\t// Call the sum function\n}"
     changes: >-
       Implement the call to sum function within main with parameters 5 and 3.
@@ -112,6 +117,7 @@
       +   // TODO: Use the result
        }
 - vars:
+    filePath: 'json.py'
     preBuildState: |-
       import json
 
@@ -145,6 +151,7 @@
       +    except TypeError as e:
       +        return str(e)
 - vars:
+    filePath: 'reverse.go'
     preBuildState: |
       package main
 
@@ -179,6 +186,7 @@
       +    return string(runes)
       +}
 - vars:
+    filePath: 'solution.java'
     preBuildState: |
       import java.util.*;
 
@@ -207,6 +215,7 @@
       +        System.out.println("Array before sort: " +
       Arrays.toString(args))
 - vars:
+    filePath: 'greet.py'
     preBuildState: |-
       def greet(name):
           print(f"Hello, {name}!")
@@ -236,6 +245,7 @@
       +    def greet(name):
       +        print(f"Welcome, {name}!")
 - vars:
+    filePath: 'hello_date.go'
     preBuildState: |-
       package main
 
@@ -270,6 +280,7 @@
       +     panic(err)
       + }
 - vars:
+    filePath: 'hello_world.java'
     preBuildState: |-
       public class HelloWorld {
           public static void main(String[] args) {
@@ -299,6 +310,7 @@
       + if __name__ == "__main__":
       +     main()
 - vars:
+    filePath: 'add.ts'
     preBuildState: |-
       function add(a, b) {
           return a + b;
@@ -322,6 +334,7 @@
           return a + b;
       }
 - vars:
+    filePath: 'main_hello_universe.go'
     preBuildState: "package main\n\nimport \"fmt\"\n\nfunc main() {\n\tfmt.Println(\"Hello World\")\n}"
     changes: >-
       Add a new function to print 'Hello Universe' and refactor the 'Hello
@@ -329,6 +342,7 @@
     postBuildState: "package main\n\nimport \"fmt\"\n\nfunc printHelloWorld() {\n\tfmt.Println(\"Hello World\")\n}\n\nfunc printHelloUniverse() {\n\tfmt.Println(\"Hello Universe\")\n}\n\nfunc main() {\n\tprintHelloWorld()\n\tprintHelloUniverse()\n}"
     diffs: "- 4,5 + 4,11 @@ func main() {\n\tfmt.Println(\"Hello World\")\n+}\n\n+func printHelloUniverse() {\n+\tfmt.Println(\"Hello Universe\")\n+}\n\n+func main() {"
 - vars:
+    filePath: 'feature_x.go'
     preBuildState: "package main\n\nimport \"fmt\"\n\nfunc main() {\n\tfmt.Println(\"Starting application...\")\n\t// TODO: Implement feature X\n}"
     changes: >-
       Implement the missing feature X by adding a function that prints
@@ -336,6 +350,7 @@
     postBuildState: "package main\n\nimport \"fmt\"\n\nfunc featureX() {\n\tfmt.Println(\"Feature X implemented\")\n}\n\nfunc main() {\n\tfmt.Println(\"Starting application...\")\n\tfeatureX()\n}"
     diffs: "- 5,5 + 5,7 @@ func main() {\n\t// TODO: Implement feature X\n+func featureX() {\n+\tfmt.Println(\"Feature X implemented\")\n }"
 - vars:
+    filePath: 'calculator.java'
     preBuildState: "class Calculator {\n\tprivate int result = 0;\n\n\tpublic void add(int number) {\n\t\tresult += number;\n\t}\n\n\t// TODO: Subtract method\n}"
     changes: Implement the subtract method.
     postBuildState: "class Calculator {\n\tprivate int result = 0;\n\n\tpublic void add(int number) {\n\t\tresult += number;\n\t}\n\n\tpublic void subtract(int number) {\n\t\tresult -= number;\n\t}\n}"

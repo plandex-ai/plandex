@@ -1,0 +1,11 @@
+- public class HelloWorld {
+-     public static void main(String[] args) {
+-         System.out.println("Hello, world!");
+-     }
+- }
++ # Future improvements: optimize greeting efficiency
++ def main():
++     print("Hello, world!")
++ 
++ if __name__ == "__main__":
++     main()

@@ -1,0 +1,2 @@
+-        System.out.println("Starting application...");
++        greet();
