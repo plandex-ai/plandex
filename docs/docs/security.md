@@ -6,7 +6,7 @@ sidebar_label: Security
 # Security
 ## Ignoring Sensitive Files
 
-Plandex respects `.gitignore` and won't load any files that you're ignoring. You can also add a `.plandexignore` file with ignore patterns to any directory.
+Plandex respects `.gitignore` and won't load any files that you're ignoring unless you use the `--force/-f` flag with `plandex load`. You can also add a `.plandexignore` file with ignore patterns to any directory.
 
 ## API Key Security
 
