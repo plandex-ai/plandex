@@ -1,5 +1,3 @@
-- 5,5 + 5,7 @@ func main() {
-	// TODO: Implement feature X
 +func featureX() {
 +	fmt.Println("Feature X implemented")
- }
++}

@@ -1,6 +1,6 @@
- ### Subtask 1: Parse the range of indices from the command-line arguments.  
-                                                               
-                                                        ```                      
+### Subtask 1: Parse the range of indices from the command-line arguments.
+
+```go
     package cmd                                                               
                                                                               
     import (                                                                  
@@ -41,4 +41,4 @@
     	}                                                                         
     	return indices, nil                                                       
     }
-	```
+```
