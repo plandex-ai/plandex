@@ -1,0 +1,12 @@
+--- /mnt/data/Projects/Clients/plandex/test/evals/promptfoo-poc/verify/assets/ts/code/add.ts	2024-07-29 19:59:02.908860048 +0100
++++ /mnt/data/Projects/Clients/plandex/test/evals/promptfoo-poc/verify/assets/ts/code/add.post.ts	2024-07-19 16:33:23.976712064 +0100
+@@ -1,3 +1,6 @@
+-function add(a, b) {
++function add(a: number, b: number): number {
++    if (typeof a !== 'number' || typeof b !== 'number') {
++        throw new Error('Input must be numbers');
++    }
+     return a + b;
+-}
++}
+\ No newline at end of file
