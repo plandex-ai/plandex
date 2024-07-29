@@ -104,7 +104,7 @@ plandex tell "the line chart should be centered and have a width and height of 8
 
 ### 2. Rewind the plan.
 
-You can use `plandex rewind` to an earlier step in the plan, load in new context or update the prompt as needed, then proceed from there with another `plandex tell` or a `plandex continue` (which continues from where the plan left off).
+You can use `plandex rewind` to revert to an earlier step in the plan, load in new context or update the prompt as needed, then proceed from there with another `plandex tell` or a `plandex continue` (which continues from where the plan left off).
 
 Use `plandex log` for a list of all changes in a plan. You can rewind one step by running `plandex rewind` with no arguments, go back a specific number of steps (`plandex rewind 3`), or rewind to a specific change with a hash `plandex rewind e7e06e0`.
 

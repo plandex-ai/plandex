@@ -9,6 +9,15 @@ ARCH=
 VERSION=
 RELEASES_URL="https://github.com/plandex-ai/plandex/releases/download"
 
+ # Ensure cleanup happens on exit and on specific signals
+trap cleanup EXIT
+trap cleanup INT TERM
+
+cleanup () {
+  cd "${SCRIPT_DIR}"
+  rm -rf plandex_install_tmp
+}
+
 # Set platform
 case "$(uname -s)" in
  Darwin)
@@ -47,7 +56,7 @@ else
 fi
 
 # Set Version
-if [[ -z "${PLANDEX_VERSION}" ]]; then  
+if [[ -z "${PLANDEX_VERSION}" ]]; then
   VERSION=$(curl -sL https://plandex.ai/cli-version.txt)
 else
   VERSION=$PLANDEX_VERSION
@@ -61,18 +70,12 @@ welcome_plandex () {
   echo ""
 }
 
-cleanup () {
-  echo "Cleaning up..."
-  cd "${SCRIPT_DIR}"
-  rm -rf plandex_install_tmp
-}
-
 download_plandex () {
   ENCODED_TAG="cli%2Fv${VERSION}"
 
   url="${RELEASES_URL}/${ENCODED_TAG}/plandex_${VERSION}_${PLATFORM}_${ARCH}.tar.gz"
 
-  mkdir plandex_install_tmp
+  mkdir -p plandex_install_tmp
   cd plandex_install_tmp
 
   echo "Downloading Plandex tarball from $url"
@@ -102,7 +105,6 @@ download_plandex () {
       fi
     else
       echo >&2 'Error: /usr/local/bin does not exist. Create this directory with appropriate permissions, then re-install.'
-      cleanup
       exit 1
     fi
   elif [ "$PLATFORM" == "windows" ]; then
@@ -114,7 +116,7 @@ download_plandex () {
     if [ $UID -eq 0 ]
     then
       # we are root
-      mv plandex /usr/local/bin/  
+      mv plandex /usr/local/bin/
     elif hash sudo 2>/dev/null;
     then
       # not root, but can sudo
@@ -123,9 +125,9 @@ download_plandex () {
       echo "ERROR: This script must be run as root or be able to sudo to complete the installation."
       exit 1
     fi
-    
+
     echo "Plandex is installed in /usr/local/bin"
-  fi  
+  fi
 
   # create 'pdx' alias, but don't ovewrite existing pdx command
   if [ ! -x "$(command -v pdx)" ]; then
@@ -138,7 +140,6 @@ download_plandex () {
 
 welcome_plandex
 download_plandex
-cleanup
 
 echo "Installation complete. Info:"
 echo ""

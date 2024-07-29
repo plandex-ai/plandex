@@ -29,7 +29,7 @@ plandex tell "add a new line chart showing the number of foobars over time to co
 
 ## Plan Stream TUI
 
-After you send a prompt with `plandex tell`, you'll see the plan stream TUI. The model's response(s) are streamed here. You'll see several hotkeys listed along the bottom row that allow you to stop the plan (s), send the plan to the background (b), scroll/page the streamed text, or jump the beginning or end of the stream. If you're a vim user, you'll notice Plandex's scrolling hotkeys are the same as vim's.
+After you send a prompt with `plandex tell`, you'll see the plan stream TUI. The model's responses are streamed here. You'll see several hotkeys listed along the bottom row that allow you to stop the plan (s), send the plan to the background (b), scroll/page the streamed text, or jump to the beginning or end of the stream. If you're a vim user, you'll notice Plandex's scrolling hotkeys are the same as vim's.
 
 Note that scrolling the terminal window itself won't work while you're in the stream TUI. Use the scroll hotkeys instead. 
 
@@ -176,6 +176,6 @@ There's not necessarily one right answer on whether to use an ongoing conversati
 
 - Bad results tend to beget more bad results. Rewinding and iterating on the prompt is often more effective for correcting a wayward task than continuing to send more `tell` commands. Even if you are specifically prompting the model to *correct* a problem, having the wrong approach in its context will tend to bias it toward additional errors. Using `rewind` to the give the model a clean slate can work better in these scenarios.
 
-- Iterating on a prompt file with the `rewind` approach until you find your way to an effective prompt has another benefit: you can keep the final version of the prompt that produced a given set of changes right alongside the changes themselves in your codebase. This can be helpful for other developers (or your future self) if want to revisit a task later.
+- Iterating on a prompt file with the `rewind` approach until you find your way to an effective prompt has another benefit: you can keep the final version of the prompt that produced a given set of changes right alongside the changes themselves in your codebase. This can be helpful for other developers (or your future self) if you want to revisit a task later.
 
 - A downside of the `rewind` approach is that it can involve re-running early steps of a plan over and over, which can be **a lot** more expensive than iterating with additional `tell` commands.
