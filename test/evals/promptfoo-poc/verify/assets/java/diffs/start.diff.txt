@@ -1,17 +1,13 @@
---- /mnt/data/Projects/Clients/plandex/test/evals/promptfoo-poc/verify/assets/java/code/start.java	2024-07-29 18:50:13.847522220 +0100
+--- /mnt/data/Projects/Clients/plandex/test/evals/promptfoo-poc/verify/assets/java/code/start.java	2024-07-29 18:52:45.519014083 +0100
 +++ /mnt/data/Projects/Clients/plandex/test/evals/promptfoo-poc/verify/assets/java/code/start.post.java	2024-07-19 16:33:23.972711964 +0100
 @@ -1,6 +1,9 @@
--pdx-1: import java.util.*;
--pdx-2: public class Example {
--pdx-3:     public static void main(String[] args) {
--pdx-4:         System.out.println("Starting application...");
--pdx-5:     }
--pdx-6: }
-+import java.util.*;
-+public class Example {
-+    public static void main(String[] args) {
+ import java.util.*;
+ public class Example {
+     public static void main(String[] args) {
+-        System.out.println("Starting application...");
 +        greet();
-+    }
+     }
+-}
 +    public static void greet() {
 +        System.out.println("Greetings from the application.");
 +    }
