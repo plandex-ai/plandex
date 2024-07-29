@@ -1,0 +1,24 @@
+--- /mnt/data/Projects/Clients/plandex/test/evals/promptfoo-poc/verify/assets/java/code/calculator.java	2024-07-29 18:50:13.847522220 +0100
++++ /mnt/data/Projects/Clients/plandex/test/evals/promptfoo-poc/verify/assets/java/code/calculator.post.java	2024-07-19 16:33:23.976712064 +0100
+@@ -1,9 +1,11 @@
+-pdx-1: class Calculator {
+-pdx-2: 	private int result = 0;
+-pdx-3: 
+-pdx-4: 	public void add(int number) {
+-pdx-5: 		result += number;
+-pdx-6: 	}
+-pdx-7: 
+-pdx-8: 	// TODO: Subtract method
+-pdx-9: }
++class Calculator {
++	private int result = 0;
++
++	public void add(int number) {
++		result += number;
++	}
++
++	public void subtract(int number) {
++		result -= number;
++	}
++}
+\ No newline at end of file

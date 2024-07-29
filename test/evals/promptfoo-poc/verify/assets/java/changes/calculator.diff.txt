@@ -1,5 +1,0 @@
-- 6,6 + 6,9 @@
-	// TODO: Subtract method
-+public void subtract(int number) {
-+	result -= number;
-+}
