@@ -1,9 +1,11 @@
 package main
 
+import "fmt"
+
 func main() {
-    hello("Universe")
+    hello("World")
 }
 
 func hello(name string) {
-    fmt.Println("Hello, ", name, "!")
+    fmt.Println("Hello,", name, "!")
 }

@@ -1,0 +1,20 @@
+--- /mnt/data/Projects/Clients/plandex/test/evals/promptfoo-poc/verify/assets/go/code/hello_date.go	2024-07-29 18:43:21.838342068 +0100
++++ /mnt/data/Projects/Clients/plandex/test/evals/promptfoo-poc/verify/assets/go/code/hello_date.post.go	2024-07-19 16:33:23.976712064 +0100
+@@ -1,7 +1,13 @@
+ package main
+ 
+-import "fmt"
++import (
++    "fmt"
++    "time"
++)
+ 
+ func main() {
+-    fmt.Println("Hello, World!")
+-}
++    current_time := time.Now().Format("2006-01-02")
++    if _, err := fmt.Println("Hello, World! Current date: ", current_time); err != nil {
++        panic(err)
++    }
++}
+\ No newline at end of file

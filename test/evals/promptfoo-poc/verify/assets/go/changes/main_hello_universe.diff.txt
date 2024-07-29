@@ -1,9 +1,0 @@
-- 4,5 + 4,11 @@ func main() {
-	fmt.Println("Hello World")
-+}
-
-+func printHelloUniverse() {
-+	fmt.Println("Hello Universe")
-+}
-
-+func main() {

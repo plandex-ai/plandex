@@ -1,0 +1,18 @@
+--- /mnt/data/Projects/Clients/plandex/test/evals/promptfoo-poc/verify/assets/go/code/reverse.go	2024-07-29 18:44:00.443175861 +0100
++++ /mnt/data/Projects/Clients/plandex/test/evals/promptfoo-poc/verify/assets/go/code/reverse.post.go	2024-07-19 16:33:23.972711964 +0100
+@@ -1,6 +1,13 @@
+ package main
+ 
+ func main() {
+-    println("Hello, World!")
++    println(reverse("!dlroW ,olleH"))
++}
++
++func reverse(s string) string {
++    runes := []rune(s)
++    for i, j := 0, len(runes)-1; i < j; i, j = i+1, j-1 {
++        runes[i], runes[j] = runes[j], runes[i]
++    }
++    return string(runes)
+ }
+- 

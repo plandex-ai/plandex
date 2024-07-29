@@ -1,0 +1,13 @@
+--- /mnt/data/Projects/Clients/plandex/test/evals/promptfoo-poc/verify/assets/go/code/hello.go	2024-07-29 18:43:45.794858671 +0100
++++ /mnt/data/Projects/Clients/plandex/test/evals/promptfoo-poc/verify/assets/go/code/hello.post.go	2024-07-29 18:15:19.250753752 +0100
+@@ -3,6 +3,9 @@
+ import "fmt"
+ 
+ func main() {
+-    fmt.Println("Hello, world!")
++    hello("World")
+ }
+ 
++func hello(name string) {
++    fmt.Println("Hello,", name, "!")
++}
