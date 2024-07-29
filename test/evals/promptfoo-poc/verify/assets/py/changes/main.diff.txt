@@ -1,6 +1,0 @@
--    print("Initial setup complete")
-+    try:
-+        print("Initial setup complete")
-+        # Simulated file operation
-+    except FileNotFoundError:
-+        print("Error: File not found.")
