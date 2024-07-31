@@ -95,8 +95,8 @@ When you run `plandex new` for the first time in any directory, Plandex will cre
 
 If multiple people are using Plandex with the same project, you should either:
 
-- Put `.plandex/` in `.gitignore` 
 - **Commit** the `.plandex` directory and get everyone into the same [org](./orgs.md) in Plandex.
+- Put `.plandex/` in `.gitignore`
 
 ## Project Directories
 

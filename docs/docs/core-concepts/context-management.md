@@ -5,7 +5,7 @@ sidebar_label: Context
 
 # Context Management
 
-Context in Plandex refers to  files, directories, URLs, images, notes or piped in data that the LLM uses to understand and work on your project. Context is always associated with a [plan](./plans.md)
+Context in Plandex refers to files, directories, URLs, images, notes, or piped in data that the LLM uses to understand and work on your project. Context is always associated with a [plan](./plans.md)
 
 Changes to context are [version controlled](./version-control.md) and can be [branched](./branches.md).
 
@@ -93,6 +93,12 @@ npm test | plandex load # loads the output of `npm test`
 ### Ignoring files
 
 If you're in a git repo, Plandex respects `.gitignore` and won't load any files that you're ignoring. You can also add a `.plandexignore` file with ignore patterns to any directory.
+
+You can force Plandex to load ignored files with the `--force/-f` flag:
+
+```bash
+plandex load .env --force # loads the .env file even if it's in .gitignore or .plandexignore
+```
 
 ## Viewing Context
 

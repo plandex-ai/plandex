@@ -9,7 +9,7 @@ While so far Plandex is mainly focused on a single-user experience, we plan to a
 
 ## Multiple Users
 
-That said, orgs are helpful already if you have multiple users using Plandex in the same project. Because Plandex outputs a `.plandex` file containing a bit of non-sensitive config data in each directory a plan is created in, you'll have problems with multiple users unless you either get each user into the same org or put `.plandex` in your `.gitignore` file.  Each user will overwrite other users' `.plandex` files on every push, and no one will be happy.
+Orgs are helpful already if you have multiple users using Plandex in the same project. Because Plandex outputs a `.plandex` file containing a bit of non-sensitive config data in each directory a plan is created in, you'll have problems with multiple users unless you either get each user into the same org or put `.plandex` in your `.gitignore` file. Otherwise, each user will overwrite other users' `.plandex` files on every push, and no one will be happy.
 
 ## Domain Access
 

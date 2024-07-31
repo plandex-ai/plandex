@@ -76,7 +76,7 @@ GRANT ALL PRIVILEGES ON DATABASE 'plandex' TO 'user';
 
 ### Environment Variables
 
-Set `GOENV` to either `development` or `production` as described above in the [Development vs. Production](#development-vs-production) section above:
+Set `GOENV` to either `development` or `production` as described above in the [Development vs. Production](#development-vs-production) section:
 
 ```bash
 export GOENV=development
@@ -162,7 +162,7 @@ plandex sign-in # follow the prompts to create a new account on your self-hosted
 
 ## Note On Local CLI Files
 
-If you use the Plandex CLI and then for some reason you reset the database or use a new one, you'll need to remove the local files that the CLI creates in directories where you used Plandex in order to start fresh. Otherwise, the CLI will with an account that doesn't exist in the new database and you'll get errors. This could also happen if you use Plandex Cloud and then switch to self-hosting.
+If you use the Plandex CLI and then for some reason you reset the database or use a new one, you'll need to remove the local files that the CLI creates in directories where you used Plandex in order to start fresh. Otherwise, the CLI will attempt to authenticate with an account that doesn't exist in the new database and you'll get errors. This could also happen if you use Plandex Cloud and then switch to self-hosting.
 
 To resolve this, remove the following in any directory you used the CLI in:
 

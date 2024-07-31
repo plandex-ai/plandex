@@ -5,7 +5,7 @@ sidebar_label: Version Control
 
 # Version Control
 
-Just about every aspect of a Plandex plan is version-controlled, and anything that can happen during a Plandex plan creates a new version in the plan's history. This includes:
+Just about every aspect of a Plandex plan is version-controlled, and anything that can happen during a plan creates a new version in the plan's history. This includes:
 
 - Adding, removing, or updating context.
 - When you send a prompt.
@@ -45,7 +45,7 @@ plandex checkout main # main branch still retains original history
 
 ## Viewing Conversation
 
-While the Plandex history includes an entry for each message in the conversion, message content isn't included. To see the conversation history, use the `plandex convo` command:
+While the Plandex history includes an entry for each message in the conversation, message content isn't included. To see the full conversation history, use the `plandex convo` command:
 
 ```bash
 plandex convo
