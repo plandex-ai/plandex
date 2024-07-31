@@ -135,10 +135,15 @@ func CreateAccountHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	var orgId string
+	if org != nil {
+		orgId = org.Id
+	}
+
 	err = hooks.ExecHook(hooks.CreateAccount, hooks.HookParams{
 		W:     w,
 		User:  &user,
-		OrgId: org.Id,
+		OrgId: orgId,
 	})
 	if err != nil {
 		return
