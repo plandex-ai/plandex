@@ -49,7 +49,7 @@
 
 <br>
 
-[![Discord Follow](https://dcbadge.vercel.app/api/server/plandex-ai?style=flat)](https://discord.gg/plandex-ai)
+[![Discord](https://img.shields.io/discord/1214825831973785600.svg?style=flat&logo=discord&label=Discord&refresh=1)](https://discord.gg/plandex-ai)
 [![GitHub Repo stars](https://img.shields.io/github/stars/plandex-ai/plandex?style=social)](https://github.com/plandex-ai/plandex)
 [![Twitter Follow](https://img.shields.io/twitter/follow/PlandexAI?style=social)](https://twitter.com/PlandexAI)
 
