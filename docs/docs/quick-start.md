@@ -5,6 +5,17 @@ sidebar_label: Quickstart
 
 # Quickstart
 
+## Install Plandex
+
+```bash
+curl -sL https://plandex.ai/install.sh | bash
+```
+
+[Click here for more installation options.](./install.md)
+
+Note that Windows is supported via [WSL](https://learn.microsoft.com/en-us/windows/wsl/about). Plandex only works correctly on Windows in the WSL shell. It doesn't work in the Windows CMD prompt or PowerShell.
+
+
 ## Set `OPENAI_API_KEY`
 
 Plandex uses OpenAI by default. If you don't have an OpenAI account, first [sign up here.](https://platform.openai.com/signup)
