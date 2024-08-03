@@ -17,10 +17,10 @@
     <b>30-Second Install</b>
   </a>
    · 
-  <!-- <a href="https://plandex.ai">
+  <a href="https://plandex.ai">
     <b>Website</b>
   </a>
-   ·  -->
+   · 
   <a href="https://docs.plandex.ai/">
     <b>Docs</b>
   </a>
