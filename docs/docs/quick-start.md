@@ -54,7 +54,7 @@ plandex new
 
 ## Load In Context
 
-Load any relevant files, directories, directory layouts, urls, or images **into the LLM's context** with `plandex load`.
+Load any relevant files, directories, directory layouts, urls, or images **into the LLM's context** with `plandex load`. You can also pipe in the results of a command.
 
 ```bash
 plandex load some-file.ts another-file.ts
@@ -63,6 +63,7 @@ plandex load src --tree # load a directory layout (file names only)
 plandex load src/**/*.ts # load files matching a glob pattern
 plandex load https://raw.githubusercontent.com/plandex-ai/plandex/main/README.md # load the text content of a url
 plandex load images/mockup.png # load an image
+npm test | plandex load # pipe in the output of a command
 ```
 
 ## Send A Prompt
