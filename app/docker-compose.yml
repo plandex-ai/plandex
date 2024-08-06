@@ -9,6 +9,8 @@ services:
     volumes:
       - ./scripts/init-db:/docker-entrypoint-initdb.d
       - ${PGDATA_DIR}:/var/lib/postgresql/data
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
     networks:
       - plandex-network
   plandex-server:
@@ -17,6 +19,8 @@ services:
       dockerfile: Dockerfile.server
     volumes:
       - "${PLANDEX_DATA_DIR}:${PLANDEX_BASE_DIR}"
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
     ports:
       - "8080:8080"
     env_file:
