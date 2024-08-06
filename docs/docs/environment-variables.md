@@ -80,7 +80,7 @@ DATABASE_URL=postgres://plandex:<password>@<host>:<port>/plandex?sslmode=disable
 If you're running in production mode (with `GOENV=production`, typically on a remote server), you'll need SMTP credentials:
 
 ```bash
-SMTP_HOST= # Youe SMTP host.
+SMTP_HOST= # Your SMTP host.
 SMTP_PORT= # Set this to 1025 e.g. if you are using mailhog.
 SMTP_USER= # SMTP username.
 SMTP_PASSWORD= # SMTP password.
