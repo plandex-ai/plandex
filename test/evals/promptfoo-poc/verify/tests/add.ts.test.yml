@@ -1,0 +1,15 @@
+- description: "Verify add functionality implementation"
+  vars:
+    preBuildState: file://assets/ts/code/add.ts
+    changes: file://assets/ts/changes/add.changes.md
+    postBuildState: file://assets/ts/code/add.post.ts
+    diffs: file://assets/ts/diffs/add.diff.txt
+  assert:
+    - type: is-json
+    - type: is-valid-openai-tools-call
+    - type: javascript
+      value: |
+        var args = JSON.parse(output[0].function.arguments)
+        return args.hasRemovedCodeErrors && args.changes.some(
+          change => change.hasChange and change.new.includes("function add(a: number, b: number): number")
+        )

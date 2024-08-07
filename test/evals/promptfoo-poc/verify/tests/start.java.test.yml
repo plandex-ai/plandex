@@ -1,0 +1,15 @@
+- description: "Verify start functionality implementation"
+  vars:
+    preBuildState: file://assets/java/code/start.java
+    changes: file://assets/java/changes/start.changes.md
+    postBuildState: file://assets/java/code/start.post.java
+    diffs: file://assets/java/diffs/start.diff.txt
+  assert:
+    - type: is-json
+    - type: is-valid-openai-tools-call
+    - type: javascript
+      value: |
+        var args = JSON.parse(output[0].function.arguments)
+        return args.hasRemovedCodeErrors && args.changes.some(
+          change => change.hasChange and change.new.includes("public void greet()")
+        )
