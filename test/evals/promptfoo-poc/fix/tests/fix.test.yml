@@ -1,9 +1,9 @@
 - description: "Check Fix with Line numbers"
   vars:
-    preBuildState: file://assets/shared/pre_build.go
-    changes: file://assets/removal/changes.md
-    problems: file://assets/removal/problems.txt
-    postBuildState: file://assets/removal/post_build.go
+    preBuildState: file://assets/go/removal.go
+    changes: file://assets/go/changes/removal.changes.md
+    problems: file://assets/go/problems/removal.problems.txt
+    postBuildState: file://assets/go/removal.post.go
   assert:
     - type: javascript
       value: |
