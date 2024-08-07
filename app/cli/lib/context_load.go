@@ -12,6 +12,7 @@ import (
 	"plandex/term"
 	"plandex/types"
 	"plandex/url"
+	"plandex/utils"
 	"strings"
 	"sync"
 
@@ -87,6 +88,7 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 					resource = resource[2:]
 				}
 
+				resource = utils.EnsureValidPath(resource)
 				inputFilePaths = append(inputFilePaths, resource)
 			}
 		}
