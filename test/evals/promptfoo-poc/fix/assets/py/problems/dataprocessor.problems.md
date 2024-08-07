@@ -1,0 +1,1 @@
+The processData function was implemented correctly, but the helperFunction was not removed as required. Additionally, there's a missing newline before the definition of helperFunction which is violating PEP 8 style guidelines.

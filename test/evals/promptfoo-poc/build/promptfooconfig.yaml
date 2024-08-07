@@ -4,4 +4,8 @@ prompts:
   - file://build.prompt.txt
 providers:
   - file://build.provider.yml
+defaultTest:
+  assert:
+    - type: is-json
+    - type: is-valid-openai-tools-call
 tests: tests/*.test.yml

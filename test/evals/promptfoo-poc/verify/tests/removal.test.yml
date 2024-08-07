@@ -1,9 +1,9 @@
 - description: "Removal of code errors"
   vars:
-      preBuildState: file://assets/shared/pre_build.go
-      changes: file://assets/removal/changes.md
-      postBuildState: file://assets/removal/post_build.go
-      diffs: file://assets/removal/diff.txt
+    postBuildState: file://assets/go/code/removal.post.go
+    preBuildState: file://assets/go/code/removal.go
+    changes: file://assets/go/changes/removal.changes.md
+    diffs: file://assets/go/diffs/removal.diff.txt
   assert:
     - type: is-json
     - type: is-valid-openai-tools-call

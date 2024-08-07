@@ -7,5 +7,9 @@ prompts:
 
 providers:
   - file://fix.provider.yml
+defaultTest:
+  assert:
+    - type: is-json
+    - type: is-valid-openai-tools-call
 
 tests: tests/*.test.yml

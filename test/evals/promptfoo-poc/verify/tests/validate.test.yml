@@ -1,9 +1,9 @@
 - description: "Validation of the code changes"
   vars:
-    preBuildState: file://assets/shared/pre_build.go
-    changes: file://assets/valid/changes.md
-    postBuildState: file://assets/valid/post_build.go
-    diffs: file://assets/valid/diff.txt
+    postBuildState: file://assets/go/code/valid.post.go
+    preBuildState: file://assets/go/code/valid.go
+    changes: file://assets/go/changes/valid.changes.md
+    diffs: file://assets/go/diffs/valid.diff.txt
   assert:
     - type: is-json
     - type: is-valid-openai-tools-call

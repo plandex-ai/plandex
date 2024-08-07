@@ -1,0 +1,14 @@
+--- /mnt/data/Projects/Clients/plandex/test/evals/promptfoo-poc/verify/assets/py/code/greet.py	2024-07-29 18:54:05.768877313 +0100
++++ /mnt/data/Projects/Clients/plandex/test/evals/promptfoo-poc/verify/assets/py/code/greet.post.py	2024-07-19 16:33:23.976712064 +0100
+@@ -1,2 +1,9 @@
+-def greet(name):
+-    print(f"Hello, {name}!")
++class Greeter:
++    @staticmethod
++    def greet(name):
++        print(f"Hello, {name}!")
++
++class Greeter:
++    @staticmethod
++    def greet(name):
++        print(f"Welcome, {name}!")
