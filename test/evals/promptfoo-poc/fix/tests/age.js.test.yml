@@ -1,0 +1,13 @@
+- description: "Verify calculateAge function implementation"
+  vars:
+    preBuildState: file://assets/js/code/age.js
+    changes: file://assets/js/changes/age.changes.md
+    problems: file://assets/js/problems/age.problems.txt
+    postBuildState: file://assets/js/code/age.post.js
+  assert:
+    - type: javascript
+      value: |
+        var args = JSON.parse(output[0].function.arguments)
+        return args.problems && args.changes.length > 0 && args.changes.some(
+          change => change.hasChange and change.new.includes("console.error(\"Birth year cannot be in the future.\")")
+        )
