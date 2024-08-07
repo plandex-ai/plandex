@@ -420,7 +420,7 @@ func deleteCustomModel(cmd *cobra.Command, args []string) {
 func renderSettings(settings *shared.PlanSettings) {
 	modelPack := settings.ModelPack
 
-	color.New(color.Bold, term.ColorHiCyan).Println("🎛️  Current Model Set")
+	color.New(color.Bold, term.ColorHiCyan).Println("🎛️  Current Model Pack")
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetAutoFormatHeaders(false)
 	table.SetAutoWrapText(true)

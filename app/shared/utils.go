@@ -103,3 +103,26 @@ func IndexRunes(haystack []rune, needle []rune) int {
 
 	return -1
 }
+
+func ReplaceReverse(s, old, new string, n int) string {
+	// If n is negative, there is no limit to the number of replacements
+	if n == 0 {
+		return s
+	}
+
+	if n < 0 {
+		return strings.Replace(s, old, new, -1)
+	}
+
+	// If n is positive, replace the last n occurrences of old with new
+	var res string
+	for i := 0; i < n; i++ {
+		idx := strings.LastIndex(s, old)
+		if idx == -1 {
+			break
+		}
+		res = s[:idx] + new + s[idx+len(old):]
+		s = res
+	}
+	return res
+}

@@ -374,7 +374,12 @@ func retryGitWriteOperationIfIndexFileErr(operation func() error) error {
 			return nil
 		}
 
+		log.Printf("Retry attempt %d failed. Error: %v", attempt+1, err)
+
 		if exitError, ok := err.(*exec.ExitError); ok {
+			errorOutput := string(exitError.Stderr)
+			log.Printf("git operation error output: %s", errorOutput)
+
 			if exitError.ExitCode() == 128 && (strings.Contains(string(exitError.Stderr), "new_index file") ||
 				strings.Contains(string(exitError.Stderr), "index.lock')")) {
 
@@ -382,7 +387,11 @@ func retryGitWriteOperationIfIndexFileErr(operation func() error) error {
 				time.Sleep(retryInterval)
 				retryInterval *= 2
 				continue
+			} else {
+				log.Printf("Non-index file error: %v", err)
 			}
+		} else {
+			log.Printf("Non-exit error: %v", err)
 		}
 
 		return err

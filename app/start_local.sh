@@ -20,6 +20,9 @@ if ! [ -x "$(command -v docker-compose)" ]; then
     exit 1
 fi
 
+# make sure that we are in the same directory as the script
+cd "$(dirname "$0")"
+
 # copy the _env file to .env unless it already exists
 if [ -f .env ]; then
     echo ".env file already exists, won't overwrite it with _env"

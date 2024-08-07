@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Detect zsh and trigger it if its the shell
 if [ -n "$ZSH_VERSION" ]; then
@@ -6,6 +6,12 @@ if [ -n "$ZSH_VERSION" ]; then
   echo "Detected zsh"
   zsh -c "source ~/.zshrc && $*"
 fi
+
+# Get the directory of the script
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Change to the script directory
+cd "$SCRIPT_DIR" || exit 1
 
 # Detect if reflex is installed and install it if not
 if ! [ -x "$(command -v reflex)" ]; then
@@ -29,6 +35,11 @@ terminate() {
 trap terminate SIGTERM SIGINT
 
 (cd .. && cd cli && ./dev.sh)
+
+cd ../
+
+echo "PWD:"
+pwd
 
 reflex -r '^(cli|shared)/.*\.(go|mod|sum)$' -- sh -c 'cd cli && ./dev.sh' &
 pid1=$!

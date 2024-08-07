@@ -37,6 +37,7 @@ func Tell(clients map[string]*openai.Client, plan *db.Plan, branch string, auth 
 		"",
 		req.BuildMode == shared.BuildModeAuto,
 		"",
+		0,
 	)
 
 	log.Printf("Tell: Tell operation completed successfully for plan ID %s on branch %s\n", plan.Id, branch)
@@ -53,6 +54,7 @@ func execTellPlan(
 	missingFileResponse shared.RespondMissingFileChoice,
 	shouldBuildPending bool,
 	autoContinueNextTask string,
+	numErrorRetry int,
 ) {
 	log.Printf("execTellPlan: Called for plan ID %s on branch %s, iteration %d\n", plan.Id, branch, iteration)
 	currentUserId := auth.User.Id
@@ -98,15 +100,16 @@ func execTellPlan(
 	}
 
 	state := &activeTellStreamState{
-		clients:             clients,
-		req:                 req,
-		auth:                auth,
-		currentOrgId:        currentOrgId,
-		currentUserId:       currentUserId,
-		plan:                plan,
-		branch:              branch,
-		iteration:           iteration,
-		missingFileResponse: missingFileResponse,
+		clients:                clients,
+		req:                    req,
+		auth:                   auth,
+		currentOrgId:           currentOrgId,
+		currentUserId:          currentUserId,
+		plan:                   plan,
+		branch:                 branch,
+		iteration:              iteration,
+		missingFileResponse:    missingFileResponse,
+		currentReplyNumRetries: numErrorRetry,
 	}
 
 	err = state.loadTellPlan()
