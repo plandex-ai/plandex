@@ -5,7 +5,7 @@ var GlobalConfig = map[string]string{
 }
 
 func init() {
-    // Load additional settings
+    // GlobalConfig holds configuration settings.
     GlobalConfig["debug"] = "false"
     GlobalConfig["path"] = "/new/default/path" // duplicated update
 }
