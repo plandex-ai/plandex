@@ -1,0 +1,13 @@
+- description: "Verify HelloWorld class header and functionality"
+  vars:
+    preBuildState: file://assets/java/code/HelloWorld.java
+    changes: file://assets/java/changes/HelloWorld.changes.md
+    problems: file://assets/java/problems/HelloWorld.problems.txt
+    postBuildState: file://assets/java/code/HelloWorld.post.java
+  assert:
+    - type: javascript
+      value: |
+        var args = JSON.parse(output[0].function.arguments)
+        return args.problems && args.changes.length > 0 && args.changes.some(
+          change => change.hasChange and change.new.includes("/* This class demonstrates printing \"Hello, World!\" to the console. */")
+        )

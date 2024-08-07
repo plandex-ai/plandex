@@ -1,0 +1,13 @@
+- description: "Verify HTML page title and paragraph updates"
+  vars:
+    preBuildState: file://assets/html/code/index.html
+    changes: file://assets/html/changes/index.changes.md
+    problems: file://assets/html/problems/index.problems.txt
+    postBuildState: file://assets/html/code/index.post.html
+  assert:
+    - type: javascript
+      value: |
+        var args = JSON.parse(output[0].function.arguments)
+        return args.problems && args.changes.length > 0 && args.changes.some(
+          change => change.hasChange and change.new.includes("<title>Updated Title</title>")
+        )
