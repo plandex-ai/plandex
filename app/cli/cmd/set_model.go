@@ -473,6 +473,24 @@ func updateModelSettings(args []string, originalSettings *shared.PlanSettings) *
 					settings.ModelPack.Builder.TopP = float32(*topP)
 				}
 
+			case shared.ModelRoleAutoFix:
+				if selectedModel != nil {
+					settings.ModelPack.AutoFix.BaseModelConfig = selectedModel.BaseModelConfig
+				} else if temperature != nil {
+					settings.ModelPack.AutoFix.Temperature = float32(*temperature)
+				} else if topP != nil {
+					settings.ModelPack.AutoFix.TopP = float32(*topP)
+				}
+
+			case shared.ModelRoleVerifier:
+				if selectedModel != nil {
+					settings.ModelPack.Verifier.BaseModelConfig = selectedModel.BaseModelConfig
+				} else if temperature != nil {
+					settings.ModelPack.Verifier.Temperature = float32(*temperature)
+				} else if topP != nil {
+					settings.ModelPack.Verifier.TopP = float32(*topP)
+				}
+
 			case shared.ModelRoleName:
 				if selectedModel != nil {
 					settings.ModelPack.Namer.BaseModelConfig = selectedModel.BaseModelConfig
