@@ -2,6 +2,7 @@ package db
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 )
@@ -15,6 +16,7 @@ func init() {
 	}
 
 	BaseDir = os.Getenv("PLANDEX_BASE_DIR")
+
 	if BaseDir == "" {
 		if os.Getenv("GOENV") == "development" {
 			BaseDir = filepath.Join(home, "plandex-server")
@@ -22,6 +24,8 @@ func init() {
 			BaseDir = "/plandex-server"
 		}
 	}
+
+	log.Printf("File system dir: %v\n", BaseDir)
 }
 
 func InitPlan(orgId, planId string) error {
