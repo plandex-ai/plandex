@@ -28,6 +28,7 @@ type Org struct {
 	AutoAddDomainUsers bool    `db:"auto_add_domain_users"`
 	OwnerId            string  `db:"owner_id"`
 	IsTrial            bool    `db:"is_trial"`
+	StripeCustomerId   *string `db:"stripe_customer_id"`
 
 	CreatedAt time.Time `db:"created_at"`
 	UpdatedAt time.Time `db:"updated_at"`
