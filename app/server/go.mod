@@ -40,7 +40,6 @@ require (
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/lib/pq v1.10.9
 	github.com/smacker/go-tree-sitter v0.0.0-20240625050157-a31a98a7c0f6
-	github.com/stripe/stripe-go/v78 v78.12.0
 	github.com/stripe/stripe-go/v79 v79.7.0
 )
 

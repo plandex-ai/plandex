@@ -96,8 +96,6 @@ github.com/stretchr/testify v1.7.1/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/
 github.com/stretchr/testify v1.7.4/go.mod h1:yNjHg4UonilssWZ8iaSj1OCr/vHnekPRkoO+kdMU+MU=
 github.com/stretchr/testify v1.8.3 h1:RP3t2pwF7cMEbC1dqtB6poj3niw/9gnV4Cjg5oW5gtY=
 github.com/stretchr/testify v1.8.3/go.mod h1:sz/lmYIOXD/1dqDmKjjqLyZ2RngseejIcXlSw2iwfAo=
-github.com/stripe/stripe-go/v78 v78.12.0 h1:YzKjO5Cx1dTfSkqBXzg6GFG7LnRHkZiU0+k0vSF5yt4=
-github.com/stripe/stripe-go/v78 v78.12.0/go.mod h1:GjncxVLUc1xoIOidFqVwq+y3pYiG7JLVWiVQxTsLrvQ=
 github.com/stripe/stripe-go/v79 v79.7.0 h1:6oRLRWVvkDObiiSLc0PJZz5zxyMIRj/f9dqs9dn1LB4=
 github.com/stripe/stripe-go/v79 v79.7.0/go.mod h1:cuH6X0zC8peY6f1AubHwgJ/fJSn2dh5pfiCr6CjyKVU=
 github.com/tadvi/systray v0.0.0-20190226123456-11a2b8fa57af h1:6yITBqGTE2lEeTPG04SN9W+iWHCRyHqlVYILiSXziwk=
