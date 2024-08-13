@@ -10,4 +10,6 @@
     - type: javascript
       value: |
         var args = JSON.parse(output[0].function.arguments)
-        return args.hasRemovedCodeErrors
+        return args.hasRemovedCodeErrors && args.changes.some(
+          change => change.hasChange && change.new.includes("deleteIds[context.Id] = true")
+        )
