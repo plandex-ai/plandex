@@ -8,11 +8,11 @@ require (
 	github.com/gorilla/mux v1.8.1
 	github.com/pkg/errors v0.9.1
 	github.com/plandex/plandex/shared v0.0.0-00010101000000-000000000000
-	github.com/sashabaranov/go-openai v1.27.0
+	github.com/sashabaranov/go-openai v1.28.1
 )
 
 require (
-	github.com/dlclark/regexp2 v1.11.2 // indirect
+	github.com/dlclark/regexp2 v1.11.4 // indirect
 	github.com/go-toast/toast v0.0.0-20190211030409-01e6764cf0a4 // indirect
 	github.com/godbus/dbus/v5 v5.1.0 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
@@ -27,13 +27,13 @@ require (
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/tadvi/systray v0.0.0-20190226123456-11a2b8fa57af // indirect
 	go.uber.org/atomic v1.11.0 // indirect
-	golang.org/x/image v0.18.0 // indirect
-	golang.org/x/sys v0.22.0 // indirect
+	golang.org/x/image v0.19.0 // indirect
+	golang.org/x/sys v0.24.0 // indirect
 )
 
 require (
 	github.com/atotto/clipboard v0.1.4
-	github.com/aws/aws-sdk-go v1.55.3
+	github.com/aws/aws-sdk-go v1.55.5
 	github.com/fatih/color v1.17.0
 	github.com/gen2brain/beeep v0.0.0-20240516210008-9c006672e7f4
 	github.com/golang-migrate/migrate/v4 v4.17.1
