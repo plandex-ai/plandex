@@ -1,1 +1,0 @@
-DROP IF TABLE EXISTS subscription_plans;

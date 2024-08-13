@@ -33,6 +33,7 @@ func MustInitDb() {
 	if err != nil {
 		log.Fatal("Error running migrations: ", err)
 	}
+
 }
 
 func StartServer(r *mux.Router) {
