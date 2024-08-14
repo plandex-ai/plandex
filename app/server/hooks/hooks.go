@@ -12,12 +12,15 @@ const (
 	WillCreatePlan = "will_create_plan"
 	WillTellPlan   = "will_tell_plan"
 	WillExecPlan   = "will_exec_plan"
+
+	CreateOrg = "create_org"
 )
 
 type HookParams struct {
 	W            http.ResponseWriter
 	User         *db.User
 	OrgId        string
+	Org          *db.Org
 	Plan         *db.Plan
 	StreamDoneCh chan *shared.ApiError
 }

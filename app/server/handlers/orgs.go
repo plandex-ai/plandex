@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"plandex-server/db"
+	"plandex-server/hooks"
 	"plandex-server/types"
 
 	"github.com/plandex/plandex/shared"
@@ -125,6 +126,15 @@ func CreateOrgHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Error adding org domain users: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
+	}
+
+	err = hooks.ExecHook(hooks.CreateOrg, hooks.HookParams{
+		W:    w,
+		User: auth.User,
+		Org:  org,
+	})
+	if err != nil {
+		return
 	}
 
 	err = tx.Commit()
