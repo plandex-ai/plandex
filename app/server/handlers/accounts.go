@@ -140,7 +140,7 @@ func CreateAccountHandler(w http.ResponseWriter, r *http.Request) {
 		orgId = org.Id
 	}
 
-	err = hooks.ExecHook(hooks.CreateAccount, hooks.HookParams{
+	err = hooks.ExecHook(tx, hooks.CreateAccount, hooks.HookParams{
 		W:     w,
 		User:  &user,
 		OrgId: orgId,

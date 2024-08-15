@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"plandex-server/db"
 
+	"github.com/jmoiron/sqlx"
 	"github.com/plandex/plandex/shared"
 )
 
@@ -25,7 +26,7 @@ type HookParams struct {
 	StreamDoneCh chan *shared.ApiError
 }
 
-type Hook func(params HookParams) error
+type Hook func(tx *sqlx.Tx, params HookParams) error
 
 var hooks = make(map[string]Hook)
 
@@ -33,10 +34,10 @@ func RegisterHook(name string, hook Hook) {
 	hooks[name] = hook
 }
 
-func ExecHook(name string, params HookParams) error {
+func ExecHook(tx *sqlx.Tx, name string, params HookParams) error {
 	hook, ok := hooks[name]
 	if !ok {
 		return nil
 	}
-	return hook(params)
+	return hook(tx, params)
 }

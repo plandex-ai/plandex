@@ -128,7 +128,7 @@ func CreateOrgHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	err = hooks.ExecHook(hooks.CreateOrg, hooks.HookParams{
+	err = hooks.ExecHook(tx, hooks.CreateOrg, hooks.HookParams{
 		W:    w,
 		User: auth.User,
 		Org:  org,

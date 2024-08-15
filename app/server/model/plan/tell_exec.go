@@ -68,7 +68,7 @@ func execTellPlan(
 	}
 
 	if missingFileResponse == "" {
-		err := hooks.ExecHook(hooks.WillExecPlan, hooks.HookParams{
+		err := hooks.ExecHook(nil, hooks.WillExecPlan, hooks.HookParams{
 			User:         auth.User,
 			Plan:         plan,
 			StreamDoneCh: active.StreamDoneCh,

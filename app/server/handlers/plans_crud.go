@@ -40,7 +40,7 @@ func CreatePlanHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := hooks.ExecHook(hooks.WillCreatePlan, hooks.HookParams{W: w, User: auth.User})
+	err := hooks.ExecHook(nil, hooks.WillCreatePlan, hooks.HookParams{W: w, User: auth.User})
 	if err != nil {
 		return
 	}

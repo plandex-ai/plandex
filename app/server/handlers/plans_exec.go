@@ -62,7 +62,7 @@ func TellPlanHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = hooks.ExecHook(hooks.WillTellPlan, hooks.HookParams{
+	err = hooks.ExecHook(nil, hooks.WillTellPlan, hooks.HookParams{
 		W:    w,
 		User: auth.User,
 		Plan: plan,
