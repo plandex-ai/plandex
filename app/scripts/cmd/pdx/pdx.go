@@ -10,15 +10,33 @@ import (
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Println("Usage: go run main.go <directory>")
+		fmt.Println("pdx_app <directory>")
 		return
 	}
 
 	dir := os.Args[1]
-	err := filepath.Walk(dir, processFile)
+
+	// detect if we are in a directory or a file
+	fileInfo, err := os.Stat(dir)
 	if err != nil {
-		fmt.Printf("Error walking the directory: %v\n", err)
+		fmt.Printf("Error getting file info: %v\n", err)
+		return
 	}
+
+	if fileInfo.IsDir() {
+		fmt.Print("Processing directory\n")
+		err := filepath.Walk(dir, processFile)
+		if err != nil {
+			fmt.Printf("Error walking the directory: %v\n", err)
+		}
+	} else {
+		fmt.Print("Processing file\n")
+		err = processFile(dir, fileInfo, nil)
+		if err != nil {
+			fmt.Printf("Error processing file %s: %v\n", dir, err)
+		}
+	}
+
 }
 
 func processFile(path string, info os.FileInfo, err error) error {
@@ -33,8 +51,8 @@ func processFile(path string, info os.FileInfo, err error) error {
 	}
 
 	if matched {
-		modifyFile(path)
 	}
+	modifyFile(path)
 
 	return nil
 }
