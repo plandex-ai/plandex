@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/rs/cors"
 )
 
 func MustLoadIp() {
@@ -48,7 +49,26 @@ func StartServer(r *mux.Router) {
 	}
 
 	routes.AddRoutes(r)
-	go startServer(externalPort, r)
+
+	// Enable CORS based on environment
+	var corsHandler http.Handler
+	if os.Getenv("GOENV") == "development" {
+		corsHandler = cors.New(cors.Options{
+			AllowedOrigins:   []string{"*"},
+			AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE"},
+			AllowedHeaders:   []string{"Content-Type", "Authorization"},
+			AllowCredentials: true,
+		}).Handler(r)
+	} else {
+		corsHandler = cors.New(cors.Options{
+			AllowedOrigins:   []string{"http://app.plandex.ai", "http://localhost:55000"},
+			AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE"},
+			AllowedHeaders:   []string{"Content-Type", "Authorization"},
+			AllowCredentials: true,
+		}).Handler(r)
+	}
+
+	go startServer(externalPort, corsHandler)
 	log.Println("Started server on port " + externalPort)
 
 	sigTermChan := make(chan os.Signal, 1)
@@ -72,8 +92,8 @@ func StartServer(r *mux.Router) {
 	select {}
 }
 
-func startServer(port string, routes *mux.Router) {
-	err := http.ListenAndServe(fmt.Sprintf(":%s", port), routes)
+func startServer(port string, handler http.Handler) {
+	err := http.ListenAndServe(fmt.Sprintf(":%s", port), handler)
 	if err != nil {
 		log.Fatalf("Failed to start server on port %s: %v", port, err)
 	}
