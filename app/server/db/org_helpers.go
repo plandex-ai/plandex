@@ -11,6 +11,8 @@ import (
 	"github.com/plandex/plandex/shared"
 )
 
+const orgFields = "id, name, domain, auto_add_domain_users, owner_id, is_trial, created_at, updated_at"
+
 func GetAccessibleOrgsForUser(user *User) ([]*Org, error) {
 	// direct access
 	var orgUsers []*OrgUser
@@ -28,7 +30,8 @@ func GetAccessibleOrgsForUser(user *User) ([]*Org, error) {
 	}
 
 	if len(orgIds) > 0 {
-		err = Conn.Select(&orgs, "SELECT * FROM orgs WHERE id = ANY($1)", pq.Array(orgIds))
+		query := fmt.Sprintf("SELECT %s FROM orgs WHERE id = ANY($1)", orgFields)
+		err = Conn.Select(&orgs, query, pq.Array(orgIds))
 
 		if err != nil {
 			return nil, fmt.Errorf("error getting orgs for user: %v", err)
@@ -54,7 +57,8 @@ func GetAccessibleOrgsForUser(user *User) ([]*Org, error) {
 
 	if len(orgIds) > 0 {
 		var orgsFromInvites []*Org
-		err = Conn.Select(&orgsFromInvites, "SELECT * FROM orgs WHERE id = ANY($1)", pq.Array(orgIds))
+		query := fmt.Sprintf("SELECT %s FROM orgs WHERE id = ANY($1)", orgFields)
+		err = Conn.Select(&orgsFromInvites, query, pq.Array(orgIds))
 		if err != nil {
 			return nil, fmt.Errorf("error getting orgs from invites: %v", err)
 		}
@@ -66,7 +70,8 @@ func GetAccessibleOrgsForUser(user *User) ([]*Org, error) {
 
 func GetOrg(orgId string) (*Org, error) {
 	var org Org
-	err := Conn.Get(&org, "SELECT * FROM orgs WHERE id = $1", orgId)
+	query := fmt.Sprintf("SELECT %s FROM orgs WHERE id = $1", orgFields)
+	err := Conn.Get(&org, query, orgId)
 
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -127,7 +132,8 @@ func CreateOrg(req *shared.CreateOrgRequest, userId string, domain *string, tx *
 
 func GetOrgForDomain(domain string) (*Org, error) {
 	var org Org
-	err := Conn.Get(&org, "SELECT * FROM orgs WHERE domain = $1", domain)
+	query := fmt.Sprintf("SELECT %s FROM orgs WHERE domain = $1", orgFields)
+	err := Conn.Get(&org, query, domain)
 
 	if err != nil {
 		if err == sql.ErrNoRows {

@@ -54,14 +54,14 @@ func StartServer(r *mux.Router) {
 	var corsHandler http.Handler
 	if os.Getenv("GOENV") == "development" {
 		corsHandler = cors.New(cors.Options{
-			AllowedOrigins:   []string{"http://localhost"},
+			AllowedOrigins:   []string{"*"},
 			AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE"},
 			AllowedHeaders:   []string{"Content-Type", "Authorization"},
 			AllowCredentials: true,
 		}).Handler(r)
 	} else {
 		corsHandler = cors.New(cors.Options{
-			AllowedOrigins:   []string{"http://app.plandex.ai", "http://localhost"},
+			AllowedOrigins:   []string{"http://app.plandex.ai", "http://localhost:55000"},
 			AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE"},
 			AllowedHeaders:   []string{"Content-Type", "Authorization"},
 			AllowCredentials: true,
@@ -98,4 +98,3 @@ func startServer(port string, handler http.Handler) {
 		log.Fatalf("Failed to start server on port %s: %v", port, err)
 	}
 }
-

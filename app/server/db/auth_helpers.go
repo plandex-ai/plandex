@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/google/uuid"
@@ -33,6 +34,7 @@ func ValidateAuthToken(token string) (*AuthToken, error) {
 	uid, err := uuid.Parse(token)
 
 	if err != nil {
+		log.Println("error parsing token", err)
 		return nil, errors.New("invalid token")
 	}
 
@@ -46,6 +48,7 @@ func ValidateAuthToken(token string) (*AuthToken, error) {
 
 	if err != nil {
 		if err == sql.ErrNoRows {
+			log.Println("auth token error - no rows found")
 			return nil, errors.New("invalid token")
 		}
 
