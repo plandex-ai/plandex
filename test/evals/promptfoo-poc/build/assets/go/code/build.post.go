@@ -1,123 +1,122 @@
-pdx-1: package cmd
-pdx-2: 
-pdx-3: import (
-pdx-4: 	"fmt"
-pdx-5: 	"path/filepath"
-pdx-6: 	"plandex/api"
-pdx-7: 	"plandex/auth"
-pdx-8: 	"plandex/lib"
-pdx-9: 	"plandex/term"
-pdx-10: 	"strconv"
-pdx-11: 	"strings"
-pdx-12: 
-pdx-13: 	"github.com/plandex/plandex/shared"
-pdx-14: 	"github.com/spf13/cobra"
-pdx-15: )
-pdx-16: 
-pdx-17: func parseRange(arg string) ([]int, error) {
-pdx-18: 	var indices []int 
-pdx-19: 	parts := strings.Split(arg, "-")
-pdx-20: 	if len(parts) == 2 {
-pdx-21: 		start, err := strconv.Atoi(parts[0])
-pdx-22: 		if err != nil {
-pdx-23: 			return nil, err
-pdx-24: 		}
-pdx-25: 		end, err := strconv.Atoi(parts[1])
-pdx-26: 		if err != nil {
-pdx-27: 			return nil, err
-pdx-28: 		}
-pdx-29: 		for i := start; i <= end; i++ {
-pdx-30: 			indices = append(indices, i)
-pdx-31: 		}
-pdx-32: 	} else {
-pdx-33: 		index, err := strconv.Atoi(arg)
-pdx-34: 		if err != nil {
-pdx-35: 			return nil, err
-pdx-36: 		}
-pdx-37: 		indices = append(indices, index)
-pdx-38: 	}
-pdx-39: 	return indices, nil
-pdx-40: }
-pdx-41: 
-pdx-42: func contextRm(cmd *cobra.Command, args []string) {
-pdx-43: 	auth.MustResolveAuthWithOrg()
-pdx-44: 	lib.MustResolveProject()
-pdx-45: 
-pdx-46: 	if lib.CurrentPlanId == "" {
-pdx-47: 		fmt.Println("🤷‍♂️ No current plan")
-pdx-48: 		return
-pdx-49: 	}
-pdx-50: 
-pdx-51: 	term.StartSpinner("")
-pdx-52: 	contexts, err := api.Client.ListContext(lib.CurrentPlanId, lib.CurrentBranch)
-pdx-53: 
-pdx-54: 	if err != nil {
-pdx-55: 		term.OutputErrorAndExit("Error retrieving context: %v", err)
-pdx-56: 	}
-pdx-57: 
-pdx-58: 	deleteIds := map[string]bool{}
-pdx-59: 
-pdx-60: 	for _, arg := range args {
-pdx-61: 		indices, err := parseRange(arg)
-pdx-62: 		if err != nil {
-pdx-63: 			term.OutputErrorAndExit("Error parsing range: %v", err)
-pdx-64: 		}
-pdx-65: 
-pdx-66: 		for _, index := range indices {
-pdx-67: 			if index > 0 && index <= len(contexts) {
-pdx-68: 				context := contexts[index-1]
-pdx-69: 				deleteIds[context.Id] = true
-pdx-70: 			}
-pdx-71: 		}
-pdx-72: 	}
-pdx-73: 
-pdx-74: 	for i, context := range contexts {
-pdx-75: 		for _, id := range args {
-pdx-76: 			if fmt.Sprintf("%d", i+1) == id || context.Name == id || context.FilePath == id || context.Url == id {
-pdx-77: 				deleteIds[context.Id] = true
-pdx-78: 				break
-pdx-79: 			} else if context.FilePath != "" {
-pdx-80: 				// Check if id is a glob pattern
-pdx-81: 				matched, err := filepath.Match(id, context.FilePath)
-pdx-82: 				if err != nil {
-pdx-83: 					term.OutputErrorAndExit("Error matching glob pattern: %v", err)
-pdx-84: 				}
-pdx-85: 				if matched {
-pdx-86: 					deleteIds[context.Id] = true
-pdx-87: 					break
-pdx-88: 				}
-pdx-89: 
-pdx-90: 				// Check if id is a parent directory
-pdx-91: 				parentDir := context.FilePath
-pdx-92: 				for parentDir != "." && parentDir != "/" && parentDir != "" {
-pdx-93: 					if parentDir == id {
-pdx-94: 						deleteIds[context.Id] = true
-pdx-95: 						break
-pdx-96: 					}
-pdx-97: 					parentDir = filepath.Dir(parentDir) // Move up one directory
-pdx-98: 				}
-pdx-99: 			}
-pdx-100: 		}
-pdx-101: 	}
-pdx-102: 
-pdx-103: 	if len(deleteIds) > 0 {
-pdx-104: 		res, err := api.Client.DeleteContext(lib.CurrentPlanId, lib.CurrentBranch, shared.DeleteContextRequest{
-pdx-105: 			Ids: deleteIds,
-pdx-106: 		})
-pdx-107: 		term.StopSpinner()
-pdx-108: 
-pdx-109: 		if err != nil {
-pdx-110: 			term.OutputErrorAndExit("Error deleting context: %v", err)
-pdx-111: 		}
-pdx-112: 
-pdx-113: 		fmt.Println("✅ " + res.Msg)
-pdx-114: 	} else {
-pdx-115: 		term.StopSpinner()
-pdx-116: 		fmt.Println("🤷‍♂️ No context removed")
-pdx-117: 	}
-pdx-118: }
-pdx-119: 
-pdx-120: func init() {
-pdx-121: 	RootCmd.AddCommand(contextRmCmd)
-pdx-122: }
-pdx-123: 
+package cmd
+
+import (
+	"fmt"
+	"path/filepath"
+	"plandex/api"
+	"plandex/auth"
+	"plandex/lib"
+	"plandex/term"
+	"strconv"
+	"strings"
+
+	"github.com/plandex/plandex/shared"
+	"github.com/spf13/cobra"
+)
+
+func parseRange(arg string) ([]int, error) {
+	var indices []int
+	parts := strings.Split(arg, "-")
+	if len(parts) == 2 {
+		start, err := strconv.Atoi(parts[0])
+		if err != nil {
+			return nil, err
+		}
+		end, err := strconv.Atoi(parts[1])
+		if err != nil {
+			return nil, err
+		}
+		for i := start; i <= end; i++ {
+			indices = append(indices, i)
+		}
+	} else {
+		index, err := strconv.Atoi(arg)
+		if err != nil {
+			return nil, err
+		}
+		indices = append(indices, index)
+	}
+	return indices, nil
+}
+
+func contextRm(cmd *cobra.Command, args []string) {
+	auth.MustResolveAuthWithOrg()
+	lib.MustResolveProject()
+
+	if lib.CurrentPlanId == "" {
+		fmt.Println("🤷‍♂️ No current plan")
+		return
+	}
+
+	term.StartSpinner("")
+	contexts, err := api.Client.ListContext(lib.CurrentPlanId, lib.CurrentBranch)
+
+	if err != nil {
+		term.OutputErrorAndExit("Error retrieving context: %v", err)
+	}
+
+	deleteIds := map[string]bool{}
+
+	for _, arg := range args {
+		indices, err := parseRange(arg)
+		if err != nil {
+			term.OutputErrorAndExit("Error parsing range: %v", err)
+		}
+
+		for _, index := range indices {
+			if index > 0 && index <= len(contexts) {
+				context := contexts[index-1]
+				deleteIds[context.Id] = true
+			}
+		}
+	}
+
+	for i, context := range contexts {
+		for _, id := range args {
+			if fmt.Sprintf("%d", i+1) == id || context.Name == id || context.FilePath == id || context.Url == id {
+				deleteIds[context.Id] = true
+				break
+			} else if context.FilePath != "" {
+				// Check if id is a glob pattern
+				matched, err := filepath.Match(id, context.FilePath)
+				if err != nil {
+					term.OutputErrorAndExit("Error matching glob pattern: %v", err)
+				}
+				if matched {
+					deleteIds[context.Id] = true
+					break
+				}
+
+				// Check if id is a parent directory
+				parentDir := context.FilePath
+				for parentDir != "." && parentDir != "/" && parentDir != "" {
+					if parentDir == id {
+						deleteIds[context.Id] = true
+						break
+					}
+					parentDir = filepath.Dir(parentDir) // Move up one directory
+				}
+			}
+		}
+	}
+
+	if len(deleteIds) > 0 {
+		res, err := api.Client.DeleteContext(lib.CurrentPlanId, lib.CurrentBranch, shared.DeleteContextRequest{
+			Ids: deleteIds,
+		})
+		term.StopSpinner()
+
+		if err != nil {
+			term.OutputErrorAndExit("Error deleting context: %v", err)
+		}
+
+		fmt.Println("✅ " + res.Msg)
+	} else {
+		term.StopSpinner()
+		fmt.Println("🤷‍♂️ No context removed")
+	}
+}
+
+func init() {
+	RootCmd.AddCommand(contextRmCmd)
+}

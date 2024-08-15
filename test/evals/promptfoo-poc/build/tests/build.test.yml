@@ -1,5 +1,0 @@
-- description: "Check Build with Line numbers"
-  vars:
-    preBuildState: file://assets/shared/pre_build.go
-    changes: file://assets/build/changes.md
-    filePath: parse.go
