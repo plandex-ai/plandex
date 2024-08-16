@@ -1,0 +1,15 @@
+- description: "Verify sorting logic and output"
+  vars:
+    preBuildState: file://assets/go/code/sort_functions.go
+    changes: file://assets/go/changes/sort_functions.changes.md
+    filePath: sort_functions.go
+    postBuildState: file://assets/go/code/sort_functions.post.go
+  assert:
+    - type: is-json
+    - type: is-valid-openai-tools-call
+    - type: javascript
+      value: |
+        var args = JSON.parse(output[0].function.arguments)
+        return args.hasRemovedCodeErrors && args.changes.some(
+          change => change.hasChange and change.new.includes("printValues(sortedValues)")
+        )
