@@ -1,0 +1,15 @@
+- description: "Verify user handler functions for signup, login, and validation"
+  vars:
+    preBuildState: file://assets/go/code/user_handler.go
+    changes: file://assets/go/changes/user_handler.changes.md
+    filePath: user_handler.go
+    postBuildState: file://assets/go/code/user_handler.post.go
+  assert:
+    - type: is-json
+    - type: is-valid-openai-tools-call
+    - type: javascript
+      value: |
+        var args = JSON.parse(output[0].function.arguments)
+        return args.hasRemovedCodeErrors && args.changes.some(
+          change => change.hasChange and change.new.includes("rateLimit(\"signup\", email)")
+        )

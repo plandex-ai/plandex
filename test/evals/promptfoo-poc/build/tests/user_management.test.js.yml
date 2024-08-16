@@ -1,0 +1,15 @@
+- description: "Verify UserManager class implementation"
+  vars:
+    preBuildState: file://assets/js/code/user_management.js
+    changes: file://assets/js/changes/user_management.changes.md
+    filePath: user_management.js
+    postBuildState: file://assets/js/code/user_management.post.js
+  assert:
+    - type: is-json
+    - type: is-valid-openai-tools-call
+    - type: javascript
+      value: |
+        var args = JSON.parse(output[0].function.arguments)
+        return args.hasRemovedCodeErrors && args.changes.some(
+          change => change.hasChange and change.new.includes("removeUser(username)")
+        )

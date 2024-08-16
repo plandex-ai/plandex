@@ -1,0 +1,15 @@
+- description: "Verify server setup and logging"
+  vars:
+    preBuildState: file://assets/go/code/server_setup.go
+    changes: file://assets/go/changes/server_setup.changes.md
+    filePath: server_setup.go
+    postBuildState: file://assets/go/code/server_setup.post.go
+  assert:
+    - type: is-json
+    - type: is-valid-openai-tools-call
+    - type: javascript
+      value: |
+        var args = JSON.parse(output[0].function.arguments)
+        return args.hasRemovedCodeErrors && args.changes.some(
+          change => change.hasChange and change.new.includes("log.Printf(\"Server starting at %s...")
+        )
