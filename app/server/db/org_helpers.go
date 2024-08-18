@@ -219,3 +219,33 @@ func ListOrgRoles(orgId string) ([]*OrgRole, error) {
 
 	return orgRoles, nil
 }
+
+func AddToOrgForDomain(userId, domain string, tx *sqlx.Tx) (string, error) {
+	org, err := GetOrgForDomain(domain)
+
+	if err != nil {
+		return "", fmt.Errorf("error getting org for domain: %v", err)
+	}
+
+	if org != nil && org.AutoAddDomainUsers {
+		// get org owner role id
+		orgOwnerRoleId, err := GetOrgOwnerRoleId()
+
+		if err != nil {
+			return "", fmt.Errorf("error getting org owner role id: %v", err)
+		}
+
+		err = CreateOrgUser(org.Id, userId, orgOwnerRoleId, tx)
+
+		if err != nil {
+			return "", fmt.Errorf("error adding org user: %v", err)
+		}
+	}
+
+	var orgId string
+	if org != nil {
+		orgId = org.Id
+	}
+
+	return orgId, nil
+}

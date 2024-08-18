@@ -6,15 +6,6 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
-type StartTrialResponse struct {
-	UserId   string `json:"userId"`
-	Token    string `json:"token"`
-	OrgId    string `json:"orgId"`
-	Email    string `json:"email"`
-	UserName string `json:"userName"`
-	OrgName  string `json:"orgName"`
-}
-
 type CreateEmailVerificationRequest struct {
 	Email  string `json:"email"`
 	UserId string `json:"userId"`
@@ -22,6 +13,11 @@ type CreateEmailVerificationRequest struct {
 
 type CreateEmailVerificationResponse struct {
 	HasAccount bool `json:"hasAccount"`
+}
+
+type VerifyEmailPinRequest struct {
+	Email string `json:"email"`
+	Pin   string `json:"pin"`
 }
 
 type SignInRequest struct {

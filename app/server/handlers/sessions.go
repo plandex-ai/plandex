@@ -95,6 +95,42 @@ func CreateEmailVerificationHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write(bytes)
 }
 
+func CheckEmailPinHandler(w http.ResponseWriter, r *http.Request) {
+	log.Println("Received request for VerifyEmailPinHandler")
+
+	// read the request body
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		log.Printf("Error reading request body: %v\n", err)
+		http.Error(w, "Error reading request body: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	var req shared.VerifyEmailPinRequest
+	err = json.Unmarshal(body, &req)
+	if err != nil {
+		log.Printf("Error unmarshalling request: %v\n", err)
+		http.Error(w, "Error unmarshalling request: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	req.Email = strings.ToLower(req.Email)
+
+	_, err = db.ValidateEmailVerification(req.Email, req.Pin)
+
+	if err != nil {
+		if err.Error() == db.InvalidOrExpiredPinError {
+			http.Error(w, "Invalid or expired pin", http.StatusNotFound)
+			return
+		}
+
+		log.Printf("Error validating email verification: %v\n", err)
+		http.Error(w, "Error validating email verification: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	log.Println("Successfully verified email pin")
+}
+
 func SignInHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for SignInHandler")
 

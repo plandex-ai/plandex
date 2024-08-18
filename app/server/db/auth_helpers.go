@@ -76,6 +76,8 @@ func CreateEmailVerification(email string, userId, pinHash string) error {
 // email verifications expire in 5 minutes
 const emailVerificationExpirationMinutes = 5
 
+const InvalidOrExpiredPinError = "invalid or expired pin"
+
 func ValidateEmailVerification(email, pin string) (id string, err error) {
 	pinHashBytes := sha256.Sum256([]byte(pin))
 	pinHash := hex.EncodeToString(pinHashBytes[:])
@@ -91,7 +93,7 @@ func ValidateEmailVerification(email, pin string) (id string, err error) {
 	err = Conn.QueryRow(query, pinHash, email, time.Now().Add(-emailVerificationExpirationMinutes*time.Minute)).Scan(&id, &authTokenId)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return "", errors.New("invalid or expired pin")
+			return "", errors.New(InvalidOrExpiredPinError)
 		}
 		return "", fmt.Errorf("error validating email verification: %v", err)
 	}
