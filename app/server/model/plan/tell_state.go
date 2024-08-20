@@ -30,6 +30,7 @@ type activeTellStreamState struct {
 	replyNumTokens         int
 	messages               []openai.ChatCompletionMessage
 	tokensBeforeConvo      int
+	totalRequestTokens     int
 	settings               *shared.PlanSettings
 	currentReplyNumRetries int
 }

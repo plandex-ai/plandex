@@ -97,6 +97,7 @@ func (state *activeTellStreamState) injectSummariesAsNeeded() bool {
 				(tokensBeforeConvo+updatedConversationTokens) <= state.settings.GetPlannerEffectiveMaxTokens() {
 				log.Printf("Summarizing up to %s | saving %d tokens\n", s.LatestConvoMessageCreatedAt.Format(time.RFC3339), savedTokens)
 				summary = s
+				conversationTokens = updatedConversationTokens
 				break
 			}
 		}
@@ -134,7 +135,7 @@ func (state *activeTellStreamState) injectSummariesAsNeeded() bool {
 			}
 		}
 	} else {
-		if (tokensBeforeConvo + summary.Tokens) > state.settings.GetPlannerEffectiveMaxTokens() {
+		if (tokensBeforeConvo + conversationTokens) > state.settings.GetPlannerEffectiveMaxTokens() {
 			active.StreamDoneCh <- &shared.ApiError{
 				Type:   shared.ApiErrorTypeOther,
 				Status: http.StatusInternalServerError,
@@ -166,6 +167,8 @@ func (state *activeTellStreamState) injectSummariesAsNeeded() bool {
 			}
 		}
 	}
+
+	state.totalRequestTokens = tokensBeforeConvo + conversationTokens
 
 	return true
 }

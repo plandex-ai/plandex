@@ -69,9 +69,11 @@ func execTellPlan(
 
 	if missingFileResponse == "" {
 		err := hooks.ExecHook(hooks.WillExecPlan, hooks.HookParams{
-			User:         auth.User,
-			Plan:         plan,
-			StreamDoneCh: active.StreamDoneCh,
+			User: auth.User,
+			Plan: plan,
+			WillExecPlanParams: &hooks.WillExecPlanParams{
+				StreamDoneCh: active.StreamDoneCh,
+			},
 		})
 
 		if err != nil {
@@ -227,6 +229,20 @@ func execTellPlan(
 			return
 		}
 		promptTokens = prompts.PromptWrapperTokens + numPromptTokens
+	} else if iteration > 0 && missingFileResponse == "" {
+		numPromptTokens, err = shared.GetNumTokens(prompts.AutoContinuePrompt)
+
+		if err != nil {
+			err = fmt.Errorf("error getting number of tokens in auto continue prompt: %v", err)
+			log.Println(err)
+			active.StreamDoneCh <- &shared.ApiError{
+				Type:   shared.ApiErrorTypeOther,
+				Status: http.StatusInternalServerError,
+				Msg:    "Error getting number of tokens in auto continue prompt",
+			}
+			return
+		}
+		promptTokens = prompts.PromptWrapperTokens + numPromptTokens
 	}
 
 	state.tokensBeforeConvo = prompts.CreateSysMsgNumTokens + modelContextTokens + state.latestSummaryTokens + promptTokens
@@ -307,13 +323,27 @@ func execTellPlan(
 				prompt = prompts.AutoContinuePrompt
 
 				if autoContinueNextTask != "" {
-					prompt += `
+					toAdd := `
 					Here is the next task:
 				
 					` + autoContinueNextTask + `
 					
 					Continue seamlessly with this task.
 				`
+
+					tokens, err := shared.GetNumTokens(toAdd)
+					if err != nil {
+						log.Printf("Error getting num tokens for auto continue next task: %v\n", err)
+						active.StreamDoneCh <- &shared.ApiError{
+							Type:   shared.ApiErrorTypeOther,
+							Status: http.StatusInternalServerError,
+							Msg:    "Error getting num tokens for auto continue next task",
+						}
+						return
+					}
+
+					prompt += toAdd
+					state.totalRequestTokens += tokens
 				}
 			}
 
@@ -397,6 +427,19 @@ func execTellPlan(
 	// 	log.Printf("%s: %s\n", message.Role, message.Content)
 	// }
 
+	err = hooks.ExecHook(hooks.WillSendModelRequest, hooks.HookParams{
+		User:  auth.User,
+		OrgId: auth.OrgId,
+		Plan:  plan,
+		WillSendModelRequestParams: &hooks.WillSendModelRequestParams{
+			StreamDoneCh:       active.StreamDoneCh,
+			TotalRequestTokens: state.totalRequestTokens,
+		},
+	})
+	if err != nil {
+		return
+	}
+
 	modelReq := openai.ChatCompletionRequest{
 		Model:       state.settings.ModelPack.Planner.BaseModelConfig.ModelName,
 		Messages:    state.messages,
@@ -440,7 +483,7 @@ func execTellPlan(
 			}
 
 			log.Printf("Tell plan: found %d pending builds\n", len(pendingBuildsByPath))
-			// spew.Dump(pendingBuildsByPath)x
+			// spew.Dump(pendingBuildsByPath)
 
 			buildState := &activeBuildStreamState{
 				clients:       clients,

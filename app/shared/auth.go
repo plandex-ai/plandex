@@ -15,6 +15,9 @@ const (
 
 	ApiErrorTypeContinueNoMessages ApiErrorType = "continue_no_messages"
 
+	ApiErrorTypeCloudInsufficientCredits ApiErrorType = "cloud_insufficient_credits"
+	ApiErrorTypeCloudMonthlyMaxReached   ApiErrorType = "cloud_monthly_max_reached"
+
 	ApiErrorTypeOther ApiErrorType = "other"
 )
 
