@@ -77,7 +77,14 @@ func (state *activeTellStreamState) loadTellPlan() error {
 			envVar := settings.ModelPack.Namer.BaseModelConfig.ApiKeyEnvVar
 			client := clients[envVar]
 
-			name, err := model.GenPlanName(client, settings.ModelPack.Namer, req.Prompt)
+			name, err := model.GenPlanName(
+				auth,
+				plan,
+				settings,
+				client,
+				req.Prompt,
+				active.Ctx,
+			)
 
 			if err != nil {
 				log.Printf("Error generating plan name: %v\n", err)

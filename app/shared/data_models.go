@@ -10,9 +10,11 @@ import (
 )
 
 type Org struct {
-	Id        string `json:"id"`
-	Name      string `json:"name"`
-	IsPending bool   `json:"isPending"`
+	Id   string `json:"id"`
+	Name string `json:"name"`
+
+	// optional cloud attributes
+	IntegratedModelsMode bool `json:"integratedModelsMode,omitempty"`
 }
 
 type User struct {

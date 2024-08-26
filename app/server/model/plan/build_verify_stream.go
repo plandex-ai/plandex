@@ -5,17 +5,19 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"plandex-server/hooks"
 	"plandex-server/model"
 	"plandex-server/types"
 	"strings"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/plandex/plandex/shared"
 	"github.com/sashabaranov/go-openai"
 )
 
 func (fileState *activeBuildStreamFileState) listenStreamVerifyOutput(stream *openai.ChatCompletionStream) {
-
+	auth := fileState.auth
 	filePath := fileState.filePath
 	planId := fileState.plan.Id
 	branch := fileState.branch
@@ -33,13 +35,58 @@ func (fileState *activeBuildStreamFileState) listenStreamVerifyOutput(stream *op
 	timer := time.NewTimer(model.OPENAI_STREAM_CHUNK_TIMEOUT)
 	defer timer.Stop()
 
+	streamFinished := false
+
+	execHookOnStop := func(sendStreamErr bool) {
+		err := hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
+			User:  auth.User,
+			OrgId: auth.OrgId,
+			Plan:  fileState.plan,
+			DidSendModelRequestParams: &hooks.DidSendModelRequestParams{
+				InputTokens:   fileState.inputTokens,
+				OutputTokens:  fileState.activeBuild.VerifyBufferTokens,
+				ModelName:     fileState.settings.ModelPack.GetVerifier().BaseModelConfig.ModelName,
+				ModelProvider: fileState.settings.ModelPack.GetVerifier().BaseModelConfig.Provider,
+				ModelPackName: fileState.settings.ModelPack.Name,
+				ModelRole:     shared.ModelRoleVerifier,
+				Purpose:       "Verified file update",
+			},
+		})
+
+		if err != nil {
+			log.Printf("Error executing did send model request hook after cancel or error: %v\n", err)
+
+			if sendStreamErr {
+				activePlan := GetActivePlan(planId, branch)
+
+				if activePlan == nil {
+					log.Printf(" Active plan not found for plan ID %s on branch %s\n", planId, branch)
+					return
+				}
+
+				activePlan.StreamDoneCh <- err
+			}
+
+		}
+	}
+
 	for {
 		select {
 		case <-activePlan.Ctx.Done():
 			// The main context was canceled (not the timer)
+			if !streamFinished {
+				execHookOnStop(false)
+			}
 			return
 		case <-timer.C:
+			log.Println("\nVerify: stream timeout due to inactivity")
+			if streamFinished {
+				log.Println("\nVerify stream finished-timed out waiting for usage chunk")
+				return
+			}
+
 			// Timer triggered because no new chunk was received in time
+			execHookOnStop(false)
 			fileState.verifyRetryOrAbort(fmt.Errorf("listenStreamVerifyOutput - stream timeout due to inactivity for file '%s'", filePath))
 			return
 		default:
@@ -53,6 +100,7 @@ func (fileState *activeBuildStreamFileState) listenStreamVerifyOutput(stream *op
 				timer.Reset(model.OPENAI_STREAM_CHUNK_TIMEOUT)
 			} else {
 				log.Printf("listenStreamVerifyOutput - File %s: Error receiving stream chunk: %v\n", filePath, err)
+				execHookOnStop(false)
 
 				if err == context.Canceled {
 					log.Printf("listenStreamVerifyOutput - File %s: Stream canceled\n", filePath)
@@ -64,13 +112,50 @@ func (fileState *activeBuildStreamFileState) listenStreamVerifyOutput(stream *op
 			}
 
 			if len(response.Choices) == 0 {
+				if response.Usage != nil {
+					log.Println("Fix stream usage:")
+					spew.Dump(response.Usage)
+
+					apiErr := hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
+						User:  auth.User,
+						OrgId: auth.OrgId,
+						Plan:  fileState.plan,
+						DidSendModelRequestParams: &hooks.DidSendModelRequestParams{
+							InputTokens:   response.Usage.PromptTokens,
+							OutputTokens:  response.Usage.CompletionTokens,
+							ModelName:     fileState.settings.ModelPack.GetVerifier().BaseModelConfig.ModelName,
+							ModelProvider: fileState.settings.ModelPack.GetVerifier().BaseModelConfig.Provider,
+							ModelPackName: fileState.settings.ModelPack.Name,
+							ModelRole:     shared.ModelRoleVerifier,
+							Purpose:       "Verified file update",
+						},
+					})
+
+					if apiErr != nil {
+						// stream has already finished so just log the error
+						log.Printf("Verify stream: executing did send model request hook: %v\n", err)
+
+						// ensure the active plan is still available
+						activePlan := GetActivePlan(planId, branch)
+
+						if activePlan == nil {
+							log.Printf(" Active plan not found for plan ID %s on branch %s\n", planId, branch)
+							return
+						}
+
+						activePlan.StreamDoneCh <- apiErr
+					}
+					return
+				}
+
+				execHookOnStop(false)
 				fileState.verifyRetryOrAbort(fmt.Errorf("listenStreamVerifyOutput - stream error: no choices"))
 				return
 			}
 
 			choice := response.Choices[0]
 			var content string
-			delta := response.Choices[0].Delta
+			delta := choice.Delta
 
 			if len(delta.ToolCalls) > 0 {
 				content = delta.ToolCalls[0].Function.Arguments
@@ -78,6 +163,7 @@ func (fileState *activeBuildStreamFileState) listenStreamVerifyOutput(stream *op
 				trimmed := strings.TrimSpace(content)
 				if trimmed == "{%invalidjson%}" || trimmed == "``(no output)``````" {
 					log.Println("File", filePath+":", "%invalidjson%} token in streamed chunk")
+					execHookOnStop(false)
 					fileState.verifyRetryOrAbort(fmt.Errorf("invalid JSON in streamed chunk for file '%s'", filePath))
 					return
 				}
@@ -104,13 +190,21 @@ func (fileState *activeBuildStreamFileState) listenStreamVerifyOutput(stream *op
 			if err == nil {
 				log.Printf("listenStreamVerifyOutput - File %s: Parsed streamed verify result\n", filePath)
 				// spew.Dump(streamed)
-
+				streamFinished = true // Stream finished successfully
 				fileState.onVerifyResult(streamed)
-				return
-			} else if len(delta.ToolCalls) == 0 {
-				log.Println("listenStreamVerifyOutput - Stream chunk missing function call.")
-				// log.Println(spew.Sdump(response))
 
+				// Reset the timer for the usage chunk
+				if !timer.Stop() {
+					<-timer.C
+				}
+				timer.Reset(model.OPENAI_USAGE_CHUNK_TIMEOUT)
+
+				continue // continue for usage chunk
+			} else if len(delta.ToolCalls) == 0 {
+
+				log.Printf("listenStreamVerifyOuput - File %s: Stream chunk missing function call. Reason: %s\n", filePath, choice.FinishReason)
+
+				execHookOnStop(false)
 				fileState.verifyRetryOrAbort(fmt.Errorf("listenStreamVerifyOutput - stream chunk missing function call. Reason: %s, File: %s", choice.FinishReason, filePath))
 			}
 		}

@@ -17,8 +17,9 @@ type ClientAccount struct {
 
 type ClientAuth struct {
 	ClientAccount
-	OrgId   string `json:"orgId"`
-	OrgName string `json:"orgName"`
+	OrgId                string `json:"orgId"`
+	OrgName              string `json:"orgName"`
+	IntegratedModelsMode bool   `json:"integratedModelsMode"`
 }
 
 type LoadContextParams struct {

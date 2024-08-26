@@ -237,3 +237,26 @@ type ApplyPlanRequest struct {
 type RenamePlanRequest struct {
 	Name string `json:"name"`
 }
+
+// Cloud requests and responses
+type CreateCloudOrgRequest struct {
+	CreateOrgRequest
+	IntegratedModelsMode bool `json:"integratedModelsMode"`
+}
+
+type StartTrialRequest struct {
+	Account CreateAccountRequest  `json:"account"`
+	Org     CreateCloudOrgRequest `json:"org"`
+}
+
+type StartTrialResponse struct {
+	UserId                  string `json:"userId"`
+	Token                   string `json:"token"`
+	OrgId                   string `json:"orgId"`
+	StripeCustomerId        string `json:"stripeCustomerId"`
+	TrialPaymentAmountCents int    `json:"trialPaymentAmount"`
+}
+
+type TrialPaymentRequest struct {
+	StripeToken string `json:"stripeToken"`
+}

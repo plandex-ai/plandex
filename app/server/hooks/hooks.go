@@ -1,7 +1,6 @@
 package hooks
 
 import (
-	"net/http"
 	"plandex-server/db"
 
 	"github.com/plandex/plandex/shared"
@@ -16,33 +15,32 @@ const (
 	DidSendModelRequest  = "did_send_model_request"
 )
 
-type WillExecPlanParams struct {
-	StreamDoneCh chan *shared.ApiError
-}
-
 type WillSendModelRequestParams struct {
-	StreamDoneCh       chan *shared.ApiError
-	TotalRequestTokens int
-	ModelName          string
+	InputTokens  int
+	OutputTokens int
+	ModelName    string
 }
 
 type DidSendModelRequestParams struct {
-	InputTokens int
-	ModelName   string
+	InputTokens   int
+	OutputTokens  int
+	ModelName     string
+	ModelProvider shared.ModelProvider
+	ModelRole     shared.ModelRole
+	ModelPackName string
+	Purpose       string
 }
 
 type HookParams struct {
-	W     http.ResponseWriter
 	User  *db.User
 	OrgId string
 	Plan  *db.Plan
 
-	WillExecPlanParams         *WillExecPlanParams
 	WillSendModelRequestParams *WillSendModelRequestParams
 	DidSendModelRequestParams  *DidSendModelRequestParams
 }
 
-type Hook func(params HookParams) error
+type Hook func(params HookParams) *shared.ApiError
 
 var hooks = make(map[string]Hook)
 
@@ -50,7 +48,7 @@ func RegisterHook(name string, hook Hook) {
 	hooks[name] = hook
 }
 
-func ExecHook(name string, params HookParams) error {
+func ExecHook(name string, params HookParams) *shared.ApiError {
 	hook, ok := hooks[name]
 	if !ok {
 		return nil

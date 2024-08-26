@@ -1,6 +1,9 @@
 package prompts
 
 import (
+	"fmt"
+
+	"github.com/plandex/plandex/shared"
 	"github.com/sashabaranov/go-openai"
 	"github.com/sashabaranov/go-openai/jsonschema"
 )
@@ -65,3 +68,14 @@ Based on the existing summary and the conversation so far, make a summary of the
 
 Output only the summary of the current state of the plan and nothing else.
 `
+
+var PlanSummaryNumTokens int
+
+func init() {
+	var err error
+	PlanSummaryNumTokens, err = shared.GetNumTokens(PlanSummary)
+
+	if err != nil {
+		panic(fmt.Sprintf("Error getting num tokens for plan summary prompt: %v\n", err))
+	}
+}

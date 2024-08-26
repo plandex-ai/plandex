@@ -65,7 +65,7 @@ func loadContexts(w http.ResponseWriter, r *http.Request, auth *types.ServerAuth
 			num++
 
 			go func(context *shared.LoadContextParams) {
-				name, err := model.GenPipedDataName(client, settings.ModelPack.Namer, context.Body)
+				name, err := model.GenPipedDataName(auth, plan, settings, client, context.Body)
 
 				if err != nil {
 					errCh <- fmt.Errorf("error generating name for piped data: %v", err)
@@ -78,7 +78,7 @@ func loadContexts(w http.ResponseWriter, r *http.Request, auth *types.ServerAuth
 			num++
 
 			go func(context *shared.LoadContextParams) {
-				name, err := model.GenNoteName(client, settings.ModelPack.Namer, context.Body)
+				name, err := model.GenNoteName(auth, plan, settings, client, context.Body)
 
 				if err != nil {
 					errCh <- fmt.Errorf("error generating name for note: %v", err)

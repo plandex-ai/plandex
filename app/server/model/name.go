@@ -5,17 +5,38 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"plandex-server/db"
+	"plandex-server/hooks"
 	"plandex-server/model/prompts"
+	"plandex-server/types"
 
 	"github.com/plandex/plandex/shared"
 	"github.com/sashabaranov/go-openai"
 )
 
-func GenPlanName(client *openai.Client, config shared.ModelRoleConfig, planContent string) (string, error) {
+func GenPlanName(
+	auth *types.ServerAuth,
+	plan *db.Plan,
+	settings *shared.PlanSettings,
+	client *openai.Client,
+	planContent string,
+	ctx context.Context,
+) (string, error) {
+	config := settings.ModelPack.Namer
+	content := prompts.GetPlanNamePrompt(planContent)
+
+	contentTokens, err := shared.GetNumTokens(content)
+
+	if err != nil {
+		return "", fmt.Errorf("error getting num tokens for content: %v", err)
+	}
+
+	numTokens := prompts.ExtraTokensPerRequest + prompts.ExtraTokensPerMessage + contentTokens
+
 	messages := []openai.ChatCompletionMessage{
 		{
 			Role:    openai.ChatMessageRoleSystem,
-			Content: prompts.GetPlanNamePrompt(planContent),
+			Content: content,
 		},
 	}
 
@@ -24,9 +45,23 @@ func GenPlanName(client *openai.Client, config shared.ModelRoleConfig, planConte
 		responseFormat = &openai.ChatCompletionResponseFormat{Type: "json_object"}
 	}
 
+	apiErr := hooks.ExecHook(hooks.WillSendModelRequest, hooks.HookParams{
+		User:  auth.User,
+		OrgId: auth.OrgId,
+		Plan:  plan,
+		WillSendModelRequestParams: &hooks.WillSendModelRequestParams{
+			InputTokens:  numTokens,
+			OutputTokens: shared.AvailableModelsByName[config.BaseModelConfig.ModelName].DefaultReservedOutputTokens,
+			ModelName:    config.BaseModelConfig.ModelName,
+		},
+	})
+	if apiErr != nil {
+		return "", err
+	}
+
 	resp, err := CreateChatCompletionWithRetries(
 		client,
-		context.Background(),
+		ctx,
 		openai.ChatCompletionRequest{
 			Model: config.BaseModelConfig.ModelName,
 			Tools: []openai.Tool{
@@ -65,6 +100,35 @@ func GenPlanName(client *openai.Client, config shared.ModelRoleConfig, planConte
 		}
 	}
 
+	var inputTokens int
+	var outputTokens int
+	if resp.Usage.CompletionTokens > 0 {
+		inputTokens = resp.Usage.PromptTokens
+		outputTokens = resp.Usage.CompletionTokens
+	} else {
+		inputTokens = numTokens
+		outputTokens, err = shared.GetNumTokens(res)
+
+		if err != nil {
+			return "", fmt.Errorf("error getting num tokens for content: %v", err)
+		}
+	}
+
+	apiErr = hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
+		User:  auth.User,
+		OrgId: auth.OrgId,
+		Plan:  plan,
+		DidSendModelRequestParams: &hooks.DidSendModelRequestParams{
+			InputTokens:   inputTokens,
+			OutputTokens:  outputTokens,
+			ModelName:     config.BaseModelConfig.ModelName,
+			ModelProvider: config.BaseModelConfig.Provider,
+			ModelPackName: settings.ModelPack.Name,
+			ModelRole:     shared.ModelRolePlanSummary,
+			Purpose:       "Generated plan name",
+		},
+	})
+
 	if res == "" {
 		fmt.Println("no namePlan function call found in response")
 		return "", err
@@ -82,17 +146,49 @@ func GenPlanName(client *openai.Client, config shared.ModelRoleConfig, planConte
 
 }
 
-func GenPipedDataName(client *openai.Client, config shared.ModelRoleConfig, pipedContent string) (string, error) {
+func GenPipedDataName(
+	auth *types.ServerAuth,
+	plan *db.Plan,
+	settings *shared.PlanSettings,
+	client *openai.Client,
+	pipedContent string,
+) (string, error) {
+	config := settings.ModelPack.Namer
+
+	content := prompts.GetPipedDataNamePrompt(pipedContent)
+
+	contentTokens, err := shared.GetNumTokens(content)
+
+	if err != nil {
+		return "", fmt.Errorf("error getting num tokens for content: %v", err)
+	}
+
 	messages := []openai.ChatCompletionMessage{
 		{
 			Role:    openai.ChatMessageRoleSystem,
-			Content: prompts.GetPipedDataNamePrompt(pipedContent),
+			Content: content,
 		},
 	}
+
+	numTokens := prompts.ExtraTokensPerRequest + prompts.ExtraTokensPerMessage + contentTokens
 
 	var responseFormat *openai.ChatCompletionResponseFormat
 	if config.BaseModelConfig.HasJsonResponseMode {
 		responseFormat = &openai.ChatCompletionResponseFormat{Type: "json_object"}
+	}
+
+	apiErr := hooks.ExecHook(hooks.WillSendModelRequest, hooks.HookParams{
+		User:  auth.User,
+		OrgId: auth.OrgId,
+		Plan:  plan,
+		WillSendModelRequestParams: &hooks.WillSendModelRequestParams{
+			InputTokens:  numTokens,
+			OutputTokens: shared.AvailableModelsByName[config.BaseModelConfig.ModelName].DefaultReservedOutputTokens,
+			ModelName:    config.BaseModelConfig.ModelName,
+		},
+	})
+	if apiErr != nil {
+		return "", err
 	}
 
 	log.Println("calling piped data name model")
@@ -144,6 +240,39 @@ func GenPipedDataName(client *openai.Client, config shared.ModelRoleConfig, pipe
 		}
 	}
 
+	var inputTokens int
+	var outputTokens int
+	if resp.Usage.CompletionTokens > 0 {
+		inputTokens = resp.Usage.PromptTokens
+		outputTokens = resp.Usage.CompletionTokens
+	} else {
+		inputTokens = numTokens
+		outputTokens, err = shared.GetNumTokens(res)
+
+		if err != nil {
+			return "", fmt.Errorf("error getting num tokens for content: %v", err)
+		}
+	}
+
+	apiErr = hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
+		User:  auth.User,
+		OrgId: auth.OrgId,
+		Plan:  plan,
+		DidSendModelRequestParams: &hooks.DidSendModelRequestParams{
+			InputTokens:   inputTokens,
+			OutputTokens:  outputTokens,
+			ModelName:     config.BaseModelConfig.ModelName,
+			ModelProvider: config.BaseModelConfig.Provider,
+			ModelPackName: settings.ModelPack.Name,
+			ModelRole:     shared.ModelRolePlanSummary,
+			Purpose:       "Generated name for data piped into context",
+		},
+	})
+
+	if apiErr != nil {
+		return "", fmt.Errorf("error executing hook: %v", apiErr)
+	}
+
 	if res == "" {
 		fmt.Println("no namePipedData function call found in response")
 		return "", err
@@ -161,17 +290,49 @@ func GenPipedDataName(client *openai.Client, config shared.ModelRoleConfig, pipe
 
 }
 
-func GenNoteName(client *openai.Client, config shared.ModelRoleConfig, note string) (string, error) {
+func GenNoteName(
+	auth *types.ServerAuth,
+	plan *db.Plan,
+	settings *shared.PlanSettings,
+	client *openai.Client,
+	note string,
+) (string, error) {
+	config := settings.ModelPack.Namer
+
+	content := prompts.GetNoteNamePrompt(note)
+
+	contentTokens, err := shared.GetNumTokens(content)
+
+	if err != nil {
+		return "", fmt.Errorf("error getting num tokens for content: %v", err)
+	}
+
+	numTokens := prompts.ExtraTokensPerRequest + prompts.ExtraTokensPerMessage + contentTokens
+
 	messages := []openai.ChatCompletionMessage{
 		{
 			Role:    openai.ChatMessageRoleSystem,
-			Content: prompts.GetNoteNamePrompt(note),
+			Content: content,
 		},
 	}
 
 	var responseFormat *openai.ChatCompletionResponseFormat
 	if config.BaseModelConfig.HasJsonResponseMode {
 		responseFormat = &openai.ChatCompletionResponseFormat{Type: "json_object"}
+	}
+
+	apiErr := hooks.ExecHook(hooks.WillSendModelRequest, hooks.HookParams{
+		User:  auth.User,
+		OrgId: auth.OrgId,
+		Plan:  plan,
+		WillSendModelRequestParams: &hooks.WillSendModelRequestParams{
+			InputTokens:  numTokens,
+			OutputTokens: shared.AvailableModelsByName[config.BaseModelConfig.ModelName].DefaultReservedOutputTokens,
+			ModelName:    config.BaseModelConfig.ModelName,
+		},
+	})
+	if apiErr != nil {
+		return "", err
 	}
 
 	log.Println("calling piped data name model")
@@ -221,6 +382,39 @@ func GenNoteName(client *openai.Client, config shared.ModelRoleConfig, note stri
 			res = fnCall.Arguments
 			break
 		}
+	}
+
+	var inputTokens int
+	var outputTokens int
+	if resp.Usage.CompletionTokens > 0 {
+		inputTokens = resp.Usage.PromptTokens
+		outputTokens = resp.Usage.CompletionTokens
+	} else {
+		inputTokens = numTokens
+		outputTokens, err = shared.GetNumTokens(res)
+
+		if err != nil {
+			return "", fmt.Errorf("error getting num tokens for content: %v", err)
+		}
+	}
+
+	apiErr = hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
+		User:  auth.User,
+		OrgId: auth.OrgId,
+		Plan:  plan,
+		DidSendModelRequestParams: &hooks.DidSendModelRequestParams{
+			InputTokens:   inputTokens,
+			OutputTokens:  outputTokens,
+			ModelName:     config.BaseModelConfig.ModelName,
+			ModelProvider: config.BaseModelConfig.Provider,
+			ModelPackName: settings.ModelPack.Name,
+			ModelRole:     shared.ModelRolePlanSummary,
+			Purpose:       "Generated name for note added to context",
+		},
+	})
+
+	if apiErr != nil {
+		return "", fmt.Errorf("error executing hook: %v", apiErr)
 	}
 
 	if res == "" {

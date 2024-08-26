@@ -68,15 +68,12 @@ func execTellPlan(
 	}
 
 	if missingFileResponse == "" {
-		err := hooks.ExecHook(hooks.WillExecPlan, hooks.HookParams{
+		apiErr := hooks.ExecHook(hooks.WillExecPlan, hooks.HookParams{
 			User: auth.User,
 			Plan: plan,
-			WillExecPlanParams: &hooks.WillExecPlanParams{
-				StreamDoneCh: active.StreamDoneCh,
-			},
 		})
 
-		if err != nil {
+		if apiErr != nil {
 			return
 		}
 	}
@@ -230,18 +227,7 @@ func execTellPlan(
 		}
 		promptTokens = prompts.PromptWrapperTokens + numPromptTokens
 	} else if iteration > 0 && missingFileResponse == "" {
-		numPromptTokens, err = shared.GetNumTokens(prompts.AutoContinuePrompt)
-
-		if err != nil {
-			err = fmt.Errorf("error getting number of tokens in auto continue prompt: %v", err)
-			log.Println(err)
-			active.StreamDoneCh <- &shared.ApiError{
-				Type:   shared.ApiErrorTypeOther,
-				Status: http.StatusInternalServerError,
-				Msg:    "Error getting number of tokens in auto continue prompt",
-			}
-			return
-		}
+		numPromptTokens = prompts.AutoContinuePromptTokens
 		promptTokens = prompts.PromptWrapperTokens + numPromptTokens
 	}
 
@@ -427,23 +413,28 @@ func execTellPlan(
 	// 	log.Printf("%s: %s\n", message.Role, message.Content)
 	// }
 
-	err = hooks.ExecHook(hooks.WillSendModelRequest, hooks.HookParams{
+	apiErr := hooks.ExecHook(hooks.WillSendModelRequest, hooks.HookParams{
 		User:  auth.User,
 		OrgId: auth.OrgId,
 		Plan:  plan,
 		WillSendModelRequestParams: &hooks.WillSendModelRequestParams{
-			StreamDoneCh:       active.StreamDoneCh,
-			TotalRequestTokens: state.totalRequestTokens,
+			InputTokens:  state.totalRequestTokens,
+			OutputTokens: state.settings.ModelPack.Planner.ReservedOutputTokens,
+			ModelName:    state.settings.ModelPack.Planner.BaseModelConfig.ModelName,
 		},
 	})
-	if err != nil {
+	if apiErr != nil {
+		active.StreamDoneCh <- apiErr
 		return
 	}
 
 	modelReq := openai.ChatCompletionRequest{
-		Model:       state.settings.ModelPack.Planner.BaseModelConfig.ModelName,
-		Messages:    state.messages,
-		Stream:      true,
+		Model:    state.settings.ModelPack.Planner.BaseModelConfig.ModelName,
+		Messages: state.messages,
+		Stream:   true,
+		StreamOptions: &openai.StreamOptions{
+			IncludeUsage: true,
+		},
 		Temperature: state.settings.ModelPack.Planner.Temperature,
 		TopP:        state.settings.ModelPack.Planner.TopP,
 	}

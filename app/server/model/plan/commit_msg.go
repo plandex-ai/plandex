@@ -3,16 +3,29 @@ package plan
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"plandex-server/db"
+	"plandex-server/hooks"
 	"plandex-server/model"
 	"plandex-server/model/prompts"
+	"plandex-server/types"
 
 	"github.com/plandex/plandex/shared"
 	"github.com/sashabaranov/go-openai"
 )
 
-func genPlanDescription(client *openai.Client, config shared.ModelRoleConfig, planId, branch string, ctx context.Context) (*db.ConvoMessageDescription, error) {
+func (state *activeTellStreamState) genPlanDescription() (*db.ConvoMessageDescription, error) {
+	auth := state.auth
+	plan := state.plan
+	planId := plan.Id
+	branch := state.branch
+	settings := state.settings
+	clients := state.clients
+	config := settings.ModelPack.CommitMsg
+	envVar := config.BaseModelConfig.ApiKeyEnvVar
+	client := clients[envVar]
+
 	activePlan := GetActivePlan(planId, branch)
 	if activePlan == nil {
 		return nil, fmt.Errorf("active plan not found")
@@ -23,9 +36,25 @@ func genPlanDescription(client *openai.Client, config shared.ModelRoleConfig, pl
 		responseFormat = &openai.ChatCompletionResponseFormat{Type: "json_object"}
 	}
 
+	numTokens := prompts.ExtraTokensPerRequest + (prompts.ExtraTokensPerMessage * 2) + prompts.SysDescribeNumTokens + activePlan.NumTokens
+
+	apiErr := hooks.ExecHook(hooks.WillSendModelRequest, hooks.HookParams{
+		User:  auth.User,
+		OrgId: auth.OrgId,
+		Plan:  plan,
+		WillSendModelRequestParams: &hooks.WillSendModelRequestParams{
+			InputTokens:  numTokens,
+			OutputTokens: shared.AvailableModelsByName[config.BaseModelConfig.ModelName].DefaultReservedOutputTokens,
+			ModelName:    config.BaseModelConfig.ModelName,
+		},
+	})
+	if apiErr != nil {
+		return nil, errors.New(apiErr.Msg)
+	}
+
 	descResp, err := model.CreateChatCompletionWithRetries(
 		client,
-		ctx,
+		activePlan.Ctx,
 		openai.ChatCompletionRequest{
 			Model: config.BaseModelConfig.ModelName,
 			Tools: []openai.Tool{
@@ -73,6 +102,39 @@ func genPlanDescription(client *openai.Client, config shared.ModelRoleConfig, pl
 		}
 	}
 
+	var inputTokens int
+	var outputTokens int
+	if descResp.Usage.CompletionTokens > 0 {
+		inputTokens = descResp.Usage.PromptTokens
+		outputTokens = descResp.Usage.CompletionTokens
+	} else {
+		inputTokens = numTokens
+		outputTokens, err = shared.GetNumTokens(descStrRes)
+
+		if err != nil {
+			return nil, fmt.Errorf("error getting num tokens for content: %v", err)
+		}
+	}
+
+	apiErr = hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
+		User:  auth.User,
+		OrgId: auth.OrgId,
+		Plan:  plan,
+		DidSendModelRequestParams: &hooks.DidSendModelRequestParams{
+			InputTokens:   inputTokens,
+			OutputTokens:  outputTokens,
+			ModelName:     config.BaseModelConfig.ModelName,
+			ModelProvider: config.BaseModelConfig.Provider,
+			ModelPackName: settings.ModelPack.Name,
+			ModelRole:     shared.ModelRoleCommitMsg,
+			Purpose:       "Generated commit message for suggested changes",
+		},
+	})
+
+	if apiErr != nil {
+		return nil, errors.New(apiErr.Msg)
+	}
+
 	if descStrRes == "" {
 		fmt.Println("no describePlan function call found in response")
 		return nil, fmt.Errorf("no describePlan function call found in response")
@@ -92,7 +154,9 @@ func genPlanDescription(client *openai.Client, config shared.ModelRoleConfig, pl
 	}, nil
 }
 
-func GenCommitMsgForPendingResults(client *openai.Client, config shared.ModelRoleConfig, current *shared.CurrentPlanState, ctx context.Context) (string, error) {
+func GenCommitMsgForPendingResults(auth *types.ServerAuth, plan *db.Plan, client *openai.Client, settings *shared.PlanSettings, current *shared.CurrentPlanState, ctx context.Context) (string, error) {
+	config := settings.ModelPack.CommitMsg
+
 	s := ""
 
 	num := 0
@@ -107,6 +171,30 @@ func GenCommitMsgForPendingResults(client *openai.Client, config shared.ModelRol
 		return s, nil
 	}
 
+	content := "Pending changes:\n\n" + s
+
+	contentTokens, err := shared.GetNumTokens(content)
+
+	if err != nil {
+		return "", fmt.Errorf("error getting num tokens for content: %v", err)
+	}
+
+	numTokens := prompts.ExtraTokensPerRequest + (prompts.ExtraTokensPerMessage * 2) + prompts.SysPendingResultsNumTokens + contentTokens
+
+	apiErr := hooks.ExecHook(hooks.WillSendModelRequest, hooks.HookParams{
+		User:  auth.User,
+		OrgId: auth.OrgId,
+		Plan:  plan,
+		WillSendModelRequestParams: &hooks.WillSendModelRequestParams{
+			InputTokens:  numTokens,
+			OutputTokens: shared.AvailableModelsByName[config.BaseModelConfig.ModelName].DefaultReservedOutputTokens,
+			ModelName:    config.BaseModelConfig.ModelName,
+		},
+	})
+	if apiErr != nil {
+		return "", errors.New(apiErr.Msg)
+	}
+
 	messages := []openai.ChatCompletionMessage{
 		{
 			Role:    openai.ChatMessageRoleSystem,
@@ -114,7 +202,7 @@ func GenCommitMsgForPendingResults(client *openai.Client, config shared.ModelRol
 		},
 		{
 			Role:    openai.ChatMessageRoleUser,
-			Content: "Pending changes:\n\n" + s,
+			Content: content,
 		},
 	}
 
@@ -139,7 +227,40 @@ func GenCommitMsgForPendingResults(client *openai.Client, config shared.ModelRol
 		return "", fmt.Errorf("no response from GPT")
 	}
 
-	content := resp.Choices[0].Message.Content
+	commitMsg := resp.Choices[0].Message.Content
 
-	return content, nil
+	var inputTokens int
+	var outputTokens int
+	if resp.Usage.CompletionTokens > 0 {
+		inputTokens = resp.Usage.PromptTokens
+		outputTokens = resp.Usage.CompletionTokens
+	} else {
+		inputTokens = numTokens
+		outputTokens, err = shared.GetNumTokens(commitMsg)
+
+		if err != nil {
+			return "", fmt.Errorf("error getting num tokens for content: %v", err)
+		}
+	}
+
+	apiErr = hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
+		User:  auth.User,
+		OrgId: auth.OrgId,
+		Plan:  plan,
+		DidSendModelRequestParams: &hooks.DidSendModelRequestParams{
+			InputTokens:   inputTokens,
+			OutputTokens:  outputTokens,
+			ModelName:     config.BaseModelConfig.ModelName,
+			ModelProvider: config.BaseModelConfig.Provider,
+			ModelPackName: settings.ModelPack.Name,
+			ModelRole:     shared.ModelRoleCommitMsg,
+			Purpose:       "Generated commit message for pending changes",
+		},
+	})
+
+	if apiErr != nil {
+		return "", errors.New(apiErr.Msg)
+	}
+
+	return commitMsg, nil
 }

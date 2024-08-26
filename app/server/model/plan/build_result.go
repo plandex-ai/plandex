@@ -230,7 +230,6 @@ func (fileState *activeBuildStreamFileState) onBuildResult(res types.ChangesWith
 
 	sorted := []*shared.StreamedChangeWithLineNums{}
 
-	// Sort the streamed changes by start line
 	for _, change := range res.Changes {
 		if change.HasChange {
 			sorted = append(sorted, change)

@@ -224,7 +224,7 @@ const SysCreate = Identity + ` A plan is a set of files with an attached context
 	[END OF YOUR INSTRUCTIONS]
 	`
 
-var CreateSysMsgNumTokens, _ = shared.GetNumTokens(SysCreate)
+var CreateSysMsgNumTokens int
 
 const promptWrapperFormatStr = "# The user's latest prompt:\n```\n%s\n```\n\n" + `Please respond according to the 'Your instructions' section above.
 
@@ -256,7 +256,7 @@ func GetWrappedPrompt(prompt string) string {
 	return fmt.Sprintf(promptWrapperFormatStr, prompt)
 }
 
-var PromptWrapperTokens, _ = shared.GetNumTokens(fmt.Sprintf(promptWrapperFormatStr, ""))
+var PromptWrapperTokens int
 
 const UserContinuePrompt = "Continue the plan."
 
@@ -272,6 +272,30 @@ If you break up a task into subtasks, only include subtasks that can be implemen
 
 Do NOT include tests or documentation in the subtasks unless the user has specifically asked for them. Do not include extra code or features beyond what the user has asked for. Focus on the user's request and implement only what is necessary to fulfill it.`
 
+var AutoContinuePromptTokens int
+
 const SkippedPathsPrompt = "\n\nSome files have been skipped by the user and *must not* be generated. The user will handle any updates to these files themselves. Skip any parts of the plan that require generating these files. You *must not* generate a file block for any of these files.\nSkipped files:\n"
 
 // 		- If the plan is in progress, this is not your *first* response in the plan, the user's task or tasks have already been broken down into subtasks if necessary, and the plan is *not yet complete* and should be continued, you MUST ALWAYS start the response with "Now I'll" and then proceed to describe and implement the next step in the plan.
+
+func init() {
+	var err error
+	CreateSysMsgNumTokens, err = shared.GetNumTokens(SysCreate)
+
+	if err != nil {
+		panic(fmt.Sprintf("Error getting number of tokens for sys msg: %v", err))
+	}
+
+	PromptWrapperTokens, err = shared.GetNumTokens(fmt.Sprintf(promptWrapperFormatStr, ""))
+
+	if err != nil {
+		panic(fmt.Sprintf("Error getting number of tokens for prompt wrapper: %v", err))
+	}
+
+	AutoContinuePromptTokens, err = shared.GetNumTokens(AutoContinuePrompt)
+
+	if err != nil {
+		panic(fmt.Sprintf("Error getting number of tokens for auto continue prompt: %v", err))
+	}
+
+}

@@ -72,12 +72,12 @@ func CreateAccountHandler(w http.ResponseWriter, r *http.Request) {
 	token := res.Token
 	orgId := res.OrgId
 
-	err = hooks.ExecHook(hooks.CreateAccount, hooks.HookParams{
-		W:     w,
+	apiErr := hooks.ExecHook(hooks.CreateAccount, hooks.HookParams{
 		User:  user,
 		OrgId: orgId,
 	})
-	if err != nil {
+	if apiErr != nil {
+		WriteApiError(w, *apiErr)
 		return
 	}
 
