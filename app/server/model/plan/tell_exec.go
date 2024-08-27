@@ -68,13 +68,12 @@ func execTellPlan(
 	}
 
 	if missingFileResponse == "" {
-		err := hooks.ExecHook(nil, hooks.WillExecPlan, hooks.HookParams{
-			User:         auth.User,
-			Plan:         plan,
-			StreamDoneCh: active.StreamDoneCh,
+		apiErr := hooks.ExecHook(nil, hooks.WillExecPlan, hooks.HookParams{
+			User: auth.User,
+			Plan: plan,
 		})
 
-		if err != nil {
+		if apiErr != nil {
 			return
 		}
 	}
@@ -227,6 +226,9 @@ func execTellPlan(
 			return
 		}
 		promptTokens = prompts.PromptWrapperTokens + numPromptTokens
+	} else if iteration > 0 && missingFileResponse == "" {
+		numPromptTokens = prompts.AutoContinuePromptTokens
+		promptTokens = prompts.PromptWrapperTokens + numPromptTokens
 	}
 
 	state.tokensBeforeConvo = prompts.CreateSysMsgNumTokens + modelContextTokens + state.latestSummaryTokens + promptTokens
@@ -307,13 +309,27 @@ func execTellPlan(
 				prompt = prompts.AutoContinuePrompt
 
 				if autoContinueNextTask != "" {
-					prompt += `
+					toAdd := `
 					Here is the next task:
 				
 					` + autoContinueNextTask + `
 					
 					Continue seamlessly with this task.
 				`
+
+					tokens, err := shared.GetNumTokens(toAdd)
+					if err != nil {
+						log.Printf("Error getting num tokens for auto continue next task: %v\n", err)
+						active.StreamDoneCh <- &shared.ApiError{
+							Type:   shared.ApiErrorTypeOther,
+							Status: http.StatusInternalServerError,
+							Msg:    "Error getting num tokens for auto continue next task",
+						}
+						return
+					}
+
+					prompt += toAdd
+					state.totalRequestTokens += tokens
 				}
 			}
 
@@ -397,10 +413,28 @@ func execTellPlan(
 	// 	log.Printf("%s: %s\n", message.Role, message.Content)
 	// }
 
+	apiErr := hooks.ExecHook(hooks.WillSendModelRequest, hooks.HookParams{
+		User:  auth.User,
+		OrgId: auth.OrgId,
+		Plan:  plan,
+		WillSendModelRequestParams: &hooks.WillSendModelRequestParams{
+			InputTokens:  state.totalRequestTokens,
+			OutputTokens: state.settings.ModelPack.Planner.ReservedOutputTokens,
+			ModelName:    state.settings.ModelPack.Planner.BaseModelConfig.ModelName,
+		},
+	})
+	if apiErr != nil {
+		active.StreamDoneCh <- apiErr
+		return
+	}
+
 	modelReq := openai.ChatCompletionRequest{
-		Model:       state.settings.ModelPack.Planner.BaseModelConfig.ModelName,
-		Messages:    state.messages,
-		Stream:      true,
+		Model:    state.settings.ModelPack.Planner.BaseModelConfig.ModelName,
+		Messages: state.messages,
+		Stream:   true,
+		StreamOptions: &openai.StreamOptions{
+			IncludeUsage: true,
+		},
 		Temperature: state.settings.ModelPack.Planner.Temperature,
 		TopP:        state.settings.ModelPack.Planner.TopP,
 	}
@@ -440,7 +474,7 @@ func execTellPlan(
 			}
 
 			log.Printf("Tell plan: found %d pending builds\n", len(pendingBuildsByPath))
-			// spew.Dump(pendingBuildsByPath)x
+			// spew.Dump(pendingBuildsByPath)
 
 			buildState := &activeBuildStreamState{
 				clients:       clients,

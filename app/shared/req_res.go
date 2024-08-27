@@ -6,15 +6,6 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
-type StartTrialResponse struct {
-	UserId   string `json:"userId"`
-	Token    string `json:"token"`
-	OrgId    string `json:"orgId"`
-	Email    string `json:"email"`
-	UserName string `json:"userName"`
-	OrgName  string `json:"orgName"`
-}
-
 type CreateEmailVerificationRequest struct {
 	Email  string `json:"email"`
 	UserId string `json:"userId"`
@@ -22,6 +13,11 @@ type CreateEmailVerificationRequest struct {
 
 type CreateEmailVerificationResponse struct {
 	HasAccount bool `json:"hasAccount"`
+}
+
+type VerifyEmailPinRequest struct {
+	Email string `json:"email"`
+	Pin   string `json:"pin"`
 }
 
 type SignInRequest struct {
@@ -240,4 +236,27 @@ type ApplyPlanRequest struct {
 
 type RenamePlanRequest struct {
 	Name string `json:"name"`
+}
+
+// Cloud requests and responses
+type CreateCloudOrgRequest struct {
+	CreateOrgRequest
+	IntegratedModelsMode bool `json:"integratedModelsMode"`
+}
+
+type StartTrialRequest struct {
+	Account CreateAccountRequest  `json:"account"`
+	Org     CreateCloudOrgRequest `json:"org"`
+}
+
+type StartTrialResponse struct {
+	UserId                  string `json:"userId"`
+	Token                   string `json:"token"`
+	OrgId                   string `json:"orgId"`
+	StripeCustomerId        string `json:"stripeCustomerId"`
+	TrialPaymentAmountCents int    `json:"trialPaymentAmount"`
+}
+
+type TrialPaymentRequest struct {
+	StripeToken string `json:"stripeToken"`
 }

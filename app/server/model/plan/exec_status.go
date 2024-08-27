@@ -6,15 +6,19 @@ import (
 	"fmt"
 	"log"
 	"plandex-server/db"
+	"plandex-server/hooks"
 	"plandex-server/model"
 	"plandex-server/model/prompts"
 	"strings"
 
 	"github.com/davecgh/go-spew/spew"
+	"github.com/plandex/plandex/shared"
 	"github.com/sashabaranov/go-openai"
 )
 
 func (state *activeTellStreamState) execStatusShouldContinue(message string, latestSummaryCh chan *db.ConvoSummary, ctx context.Context) (bool, string, error) {
+	auth := state.auth
+	plan := state.plan
 	settings := state.settings
 	clients := state.clients
 	config := settings.ModelPack.ExecStatus
@@ -68,10 +72,35 @@ func (state *activeTellStreamState) execStatusShouldContinue(message string, lat
 		summary = latestSummary.Summary
 	}
 
+	content := prompts.GetExecStatusShouldContinue(summary, prevAssistantMsg, state.userPrompt, message)
+
+	contentTokens, err := shared.GetNumTokens(content)
+
+	if err != nil {
+		log.Printf("Error getting num tokens for content: %v\n", err)
+		return false, "", fmt.Errorf("error getting num tokens for content: %v", err)
+	}
+
+	numTokens := prompts.ExtraTokensPerRequest + prompts.ExtraTokensPerMessage + contentTokens
+
+	apiErr := hooks.ExecHook(hooks.WillSendModelRequest, hooks.HookParams{
+		User:  auth.User,
+		OrgId: auth.OrgId,
+		Plan:  plan,
+		WillSendModelRequestParams: &hooks.WillSendModelRequestParams{
+			InputTokens:  numTokens,
+			OutputTokens: shared.AvailableModelsByName[config.BaseModelConfig.ModelName].DefaultReservedOutputTokens,
+			ModelName:    config.BaseModelConfig.ModelName,
+		},
+	})
+	if apiErr != nil {
+		return false, "", err
+	}
+
 	messages := []openai.ChatCompletionMessage{
 		{
 			Role:    openai.ChatMessageRoleSystem,
-			Content: prompts.GetExecStatusShouldContinue(summary, prevAssistantMsg, state.userPrompt, message),
+			Content: content,
 		},
 	}
 
@@ -137,6 +166,39 @@ func (state *activeTellStreamState) execStatusShouldContinue(message string, lat
 			strRes = fnCall.Arguments
 			break
 		}
+	}
+
+	var inputTokens int
+	var outputTokens int
+	if resp.Usage.CompletionTokens > 0 {
+		inputTokens = resp.Usage.PromptTokens
+		outputTokens = resp.Usage.CompletionTokens
+	} else {
+		inputTokens = numTokens
+		outputTokens, err = shared.GetNumTokens(strRes)
+
+		if err != nil {
+			return false, "", fmt.Errorf("error getting num tokens for res: %v", err)
+		}
+	}
+
+	apiErr = hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
+		User:  auth.User,
+		OrgId: auth.OrgId,
+		Plan:  plan,
+		DidSendModelRequestParams: &hooks.DidSendModelRequestParams{
+			InputTokens:   inputTokens,
+			OutputTokens:  outputTokens,
+			ModelName:     config.BaseModelConfig.ModelName,
+			ModelProvider: config.BaseModelConfig.Provider,
+			ModelPackName: settings.ModelPack.Name,
+			ModelRole:     shared.ModelRolePlanSummary,
+			Purpose:       "Evaluate if plan should auto-continue",
+		},
+	})
+
+	if apiErr != nil {
+		return false, "", fmt.Errorf("error executing hook: %v", apiErr)
 	}
 
 	if strRes == "" {

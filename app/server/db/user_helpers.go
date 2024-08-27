@@ -3,6 +3,7 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
@@ -98,8 +99,29 @@ func ListUsers(orgId string) ([]*User, error) {
 	return users, nil
 }
 
-func CreateUser(user *User, tx *sqlx.Tx) error {
-	return tx.QueryRow("INSERT INTO users (name, email, domain, is_trial) VALUES ($1, $2, $3, $4) RETURNING id", user.Name, user.Email, user.Domain, user.IsTrial).Scan(&user.Id)
+func CreateUser(name, email string, tx *sqlx.Tx) (*User, error) {
+	emailSplit := strings.Split(email, "@")
+	if len(emailSplit) != 2 {
+		return nil, fmt.Errorf("invalid email: %v", email)
+	}
+	domain := emailSplit[1]
+
+	user := User{
+		Name:   name,
+		Email:  email,
+		Domain: domain,
+	}
+
+	err := tx.QueryRow("INSERT INTO users (name, email, domain, is_trial) VALUES ($1, $2, $3, $4) RETURNING id", user.Name, user.Email, user.Domain, user.IsTrial).Scan(&user.Id)
+
+	if err != nil {
+		if IsNonUniqueErr(err) {
+			return nil, fmt.Errorf("user already exists for email: %v", email)
+		}
+		return nil, fmt.Errorf("error creating user: %v", err)
+	}
+
+	return &user, nil
 }
 
 func NumUsersWithRole(orgId, roleId string) (int, error) {

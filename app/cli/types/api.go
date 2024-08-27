@@ -12,7 +12,7 @@ type OnStreamPlanParams struct {
 type OnStreamPlan func(params OnStreamPlanParams)
 
 type ApiClient interface {
-	StartTrial() (*shared.StartTrialResponse, *shared.ApiError)
+	StartTrial(req shared.StartTrialRequest) (*shared.StartTrialResponse, *shared.ApiError)
 	ConvertTrial(req shared.ConvertTrialRequest) (*shared.SessionResponse, *shared.ApiError)
 
 	CreateEmailVerification(email, customHost, userId string) (*shared.CreateEmailVerificationResponse, *shared.ApiError)

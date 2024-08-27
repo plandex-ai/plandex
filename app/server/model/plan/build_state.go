@@ -50,4 +50,6 @@ type activeBuildStreamFileState struct {
 	syntaxErrors       []string
 
 	isNewFile bool
+
+	inputTokens int
 }

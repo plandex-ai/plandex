@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"plandex-server/db"
+	"plandex-server/hooks"
 	"plandex-server/model"
 	"plandex-server/model/prompts"
 	"plandex-server/syntax"
@@ -279,6 +280,7 @@ func (fileState *activeBuildStreamFileState) buildFile() {
 }
 
 func (fileState *activeBuildStreamFileState) buildFileLineNums() {
+	auth := fileState.auth
 	filePath := fileState.filePath
 	activeBuild := fileState.activeBuild
 	clients := fileState.clients
@@ -306,6 +308,33 @@ func (fileState *activeBuildStreamFileState) buildFileLineNums() {
 			Role:    openai.ChatMessageRoleSystem,
 			Content: sysPrompt,
 		},
+	}
+
+	promptTokens, err := shared.GetNumTokens(sysPrompt)
+
+	if err != nil {
+		log.Printf("Error getting num tokens for prompt: %v\n", err)
+		fileState.onBuildFileError(fmt.Errorf("error getting num tokens for prompt: %v", err))
+		return
+	}
+
+	inputTokens := prompts.ExtraTokensPerRequest + prompts.ExtraTokensPerMessage + promptTokens
+
+	fileState.inputTokens = inputTokens
+
+	apiErr := hooks.ExecHook(hooks.WillSendModelRequest, hooks.HookParams{
+		User:  auth.User,
+		OrgId: auth.OrgId,
+		Plan:  fileState.plan,
+		WillSendModelRequestParams: &hooks.WillSendModelRequestParams{
+			InputTokens:  inputTokens,
+			OutputTokens: shared.AvailableModelsByName[fileState.settings.ModelPack.Builder.BaseModelConfig.ModelName].DefaultReservedOutputTokens,
+			ModelName:    fileState.settings.ModelPack.Builder.BaseModelConfig.ModelName,
+		},
+	})
+	if apiErr != nil {
+		activePlan.StreamDoneCh <- apiErr
+		return
 	}
 
 	log.Println("buildFileLineNums - calling model for file: " + filePath)

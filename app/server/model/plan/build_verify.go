@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"plandex-server/db"
+	"plandex-server/hooks"
 	"plandex-server/model"
 	"plandex-server/model/prompts"
 	"plandex-server/types"
@@ -14,6 +15,7 @@ import (
 )
 
 func (fileState *activeBuildStreamFileState) verifyFileBuild() {
+	auth := fileState.auth
 	filePath := fileState.filePath
 	planId := fileState.plan.Id
 	branch := fileState.branch
@@ -79,6 +81,33 @@ func (fileState *activeBuildStreamFileState) verifyFileBuild() {
 			Role:    openai.ChatMessageRoleSystem,
 			Content: sysPrompt,
 		},
+	}
+
+	promptTokens, err := shared.GetNumTokens(sysPrompt)
+
+	if err != nil {
+		log.Printf("Error getting num tokens for prompt: %v\n", err)
+		fileState.onBuildFileError(fmt.Errorf("error getting num tokens for prompt: %v", err))
+		return
+	}
+
+	inputTokens := prompts.ExtraTokensPerRequest + prompts.ExtraTokensPerMessage + promptTokens
+
+	fileState.inputTokens = inputTokens
+
+	apiErr := hooks.ExecHook(hooks.WillSendModelRequest, hooks.HookParams{
+		User:  auth.User,
+		OrgId: auth.OrgId,
+		Plan:  fileState.plan,
+		WillSendModelRequestParams: &hooks.WillSendModelRequestParams{
+			InputTokens:  inputTokens,
+			OutputTokens: shared.AvailableModelsByName[fileState.settings.ModelPack.GetVerifier().BaseModelConfig.ModelName].DefaultReservedOutputTokens,
+			ModelName:    fileState.settings.ModelPack.GetVerifier().BaseModelConfig.ModelName,
+		},
+	})
+	if apiErr != nil {
+		activePlan.StreamDoneCh <- apiErr
+		return
 	}
 
 	log.Println("verifyFileBuild - Calling verify model for file: " + filePath)

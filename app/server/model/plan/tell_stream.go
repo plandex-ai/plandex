@@ -6,11 +6,13 @@ import (
 	"log"
 	"net/http"
 	"plandex-server/db"
+	"plandex-server/hooks"
 	"plandex-server/model"
 	"plandex-server/types"
 	"strings"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/plandex/plandex/shared"
 	"github.com/sashabaranov/go-openai"
 )
@@ -54,17 +56,63 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 	timer := time.NewTimer(model.OPENAI_STREAM_CHUNK_TIMEOUT)
 	defer timer.Stop()
 
+	streamFinished := false
+
+	execHookOnStop := func(sendStreamErr bool) {
+		err := hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
+			User:  auth.User,
+			OrgId: auth.OrgId,
+			Plan:  plan,
+			DidSendModelRequestParams: &hooks.DidSendModelRequestParams{
+				InputTokens:   state.totalRequestTokens,
+				OutputTokens:  active.NumTokens,
+				ModelName:     state.settings.ModelPack.Planner.BaseModelConfig.ModelName,
+				ModelProvider: state.settings.ModelPack.Planner.BaseModelConfig.Provider,
+				ModelPackName: state.settings.ModelPack.Name,
+				ModelRole:     shared.ModelRolePlanner,
+				Purpose:       "Generated plan reply",
+			},
+		})
+
+		if err != nil {
+			log.Printf("Error executing did send model request hook after cancel or error: %v\n", err)
+
+			if sendStreamErr {
+				activePlan := GetActivePlan(planId, branch)
+
+				if activePlan == nil {
+					log.Printf(" Active plan not found for plan ID %s on branch %s\n", planId, branch)
+					return
+				}
+
+				activePlan.StreamDoneCh <- err
+			}
+		}
+	}
+
+mainLoop:
 	for {
 		select {
 		case <-active.Ctx.Done():
 			// The main modelContext was canceled (not the timer)
 			log.Println("\nTell: stream canceled")
+
+			if !streamFinished {
+				execHookOnStop(false)
+			}
+
 			return
 		case <-timer.C:
 			// Timer triggered because no new chunk was received in time
 			log.Println("\nTell: stream timeout due to inactivity")
-			state.onError(fmt.Errorf("stream timeout due to inactivity"), true, "", "")
-			return
+			if streamFinished {
+				log.Println("Tell stream finished—timed out waiting for usage chunk")
+				return
+			} else {
+				state.onError(fmt.Errorf("stream timeout due to inactivity"), true, "", "")
+				continue mainLoop
+			}
+
 		default:
 			response, err := stream.Recv()
 
@@ -79,19 +127,55 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 			if err != nil {
 				if err.Error() == "context canceled" {
 					log.Println("Tell: stream context canceled")
+					execHookOnStop(true)
 					return
 				}
-
 			}
 
 			if len(response.Choices) == 0 {
+				if response.Usage != nil {
+
+					log.Println("Tell stream usage:")
+					spew.Dump(response.Usage)
+
+					apiErr := hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
+						User:  auth.User,
+						OrgId: auth.OrgId,
+						Plan:  plan,
+						DidSendModelRequestParams: &hooks.DidSendModelRequestParams{
+							InputTokens:   response.Usage.PromptTokens,
+							OutputTokens:  response.Usage.CompletionTokens,
+							ModelName:     state.settings.ModelPack.Planner.BaseModelConfig.ModelName,
+							ModelProvider: state.settings.ModelPack.Planner.BaseModelConfig.Provider,
+							ModelPackName: state.settings.ModelPack.Name,
+							ModelRole:     shared.ModelRolePlanner,
+							Purpose:       "Generated plan reply",
+						},
+					})
+
+					if apiErr != nil {
+						log.Printf("Tell stream: error executing did send model request hook: %v\n", err)
+
+						// ensure the active plan is still available
+						activePlan := GetActivePlan(planId, branch)
+
+						if activePlan == nil {
+							log.Printf(" Active plan not found for plan ID %s on branch %s\n", planId, branch)
+							return
+						}
+
+						activePlan.StreamDoneCh <- apiErr
+					}
+					return
+				}
+
 				state.onError(fmt.Errorf("stream finished with no choices"), true, "", "")
-				return
+				continue mainLoop
 			}
 
 			if len(response.Choices) > 1 {
 				state.onError(fmt.Errorf("stream finished with more than one choice"), true, "", "")
-				return
+				continue mainLoop
 			}
 
 			choice := response.Choices[0]
@@ -109,7 +193,7 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 				err := db.SetPlanStatus(planId, branch, shared.PlanStatusDescribing, "")
 				if err != nil {
 					state.onError(fmt.Errorf("failed to set plan status to describing: %v", err), true, "", "")
-					return
+					continue mainLoop
 				}
 
 				latestSummaryCh := active.LatestSummaryCh
@@ -123,10 +207,7 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 					if len(replyFiles) > 0 {
 						log.Println("Generating plan description")
 
-						envVar := settings.ModelPack.CommitMsg.BaseModelConfig.ApiKeyEnvVar
-						client := clients[envVar]
-
-						res, err := genPlanDescription(client, settings.ModelPack.CommitMsg, planId, branch, active.Ctx)
+						res, err := state.genPlanDescription()
 						if err != nil {
 							errCh <- fmt.Errorf("failed to generate plan description: %v", err)
 							return
@@ -158,7 +239,7 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 					err := <-errCh
 					if err != nil {
 						state.onError(err, true, "", "")
-						return
+						continue mainLoop
 					}
 				}
 
@@ -183,7 +264,7 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 						Status: http.StatusInternalServerError,
 						Msg:    "Error locking repo",
 					}
-					return
+					continue mainLoop
 				}
 
 				log.Println("Locked repo for assistant reply and description")
@@ -259,7 +340,7 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 				}()
 
 				if err != nil {
-					return
+					continue mainLoop
 				}
 
 				// summarize convo needs to come *after* the reply is stored in order to correctly summarize the latest message
@@ -268,15 +349,29 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 				client := clients[envVar]
 
 				// summarize in the background
-				go summarizeConvo(client, settings.ModelPack.PlanSummary, summarizeConvoParams{
-					planId:       planId,
-					branch:       branch,
-					convo:        convo,
-					summaries:    summaries,
-					userPrompt:   state.userPrompt,
-					currentOrgId: currentOrgId,
-					currentReply: active.CurrentReplyContent,
-				}, active.SummaryCtx)
+				go func() {
+					err := summarizeConvo(client, settings.ModelPack.PlanSummary, summarizeConvoParams{
+						user:                  auth.User,
+						plan:                  plan,
+						branch:                branch,
+						convo:                 convo,
+						summaries:             summaries,
+						userPrompt:            state.userPrompt,
+						currentOrgId:          currentOrgId,
+						currentReply:          active.CurrentReplyContent,
+						currentReplyNumTokens: active.NumTokens,
+						modelPackName:         settings.ModelPack.Name,
+					}, active.SummaryCtx)
+
+					if err != nil {
+						log.Printf("Error summarizing convo: %v\n", err)
+						active.StreamDoneCh <- &shared.ApiError{
+							Type:   shared.ApiErrorTypeOther,
+							Status: http.StatusInternalServerError,
+							Msg:    fmt.Sprintf("Error summarizing convo: %v", err),
+						}
+					}
+				}()
 
 				log.Println("Sending active.CurrentReplyDoneCh <- true")
 
@@ -320,7 +415,7 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 								Status: http.StatusInternalServerError,
 								Msg:    "Error setting plan status to building",
 							}
-							return
+							continue mainLoop
 						}
 
 						log.Println("Sending RepliesFinished stream message")
@@ -330,7 +425,13 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 					}
 				}
 
-				return
+				// Reset the timer for the usage chunk
+				if !timer.Stop() {
+					<-timer.C
+				}
+				timer.Reset(model.OPENAI_USAGE_CHUNK_TIMEOUT)
+				streamFinished = true
+				continue
 			}
 
 			chunksReceived++
@@ -344,13 +445,13 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 					} else {
 						maybeRedundantBacktickContent += content
 					}
-					continue
+					continue // skip processing this chunk
 				} else if chunksReceived < 3 && strings.Contains(content, "```") {
 					// received closing triple backticks in first 3 chunks after missing file response
 					// means this is a redundant start of a new file block, so just ignore it
 
 					maybeRedundantBacktickContent += content
-					continue
+					continue // skip processing this chunk
 				}
 			}
 
@@ -395,7 +496,7 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 						Status: http.StatusInternalServerError,
 						Msg:    "Error setting plan status to prompting",
 					}
-					return
+					continue mainLoop
 				}
 
 				UpdateActivePlan(planId, branch, func(ap *types.ActivePlan) {
@@ -423,6 +524,7 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 				select {
 				case <-active.Ctx.Done():
 					log.Println("Context cancelled while waiting for missing file response")
+					execHookOnStop(true)
 					return
 				case userChoice = <-active.MissingFileResponseCh:
 				}
@@ -488,7 +590,7 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 						if err != nil {
 							log.Printf("Error getting num tokens for file %s: %v\n", file, err)
 							state.onError(fmt.Errorf("error getting num tokens for file %s: %v", file, err), true, "", "")
-							return
+							continue mainLoop
 						}
 
 						buildState.queueBuilds([]*types.ActiveBuild{{

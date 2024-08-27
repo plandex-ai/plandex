@@ -12,6 +12,7 @@ import (
 )
 
 const OPENAI_STREAM_CHUNK_TIMEOUT = time.Duration(30) * time.Second
+const OPENAI_USAGE_CHUNK_TIMEOUT = time.Duration(5) * time.Second
 
 func InitClients(apiKeys map[string]string, endpointsByApiKeyEnvVar map[string]string, openAIEndpoint, orgId string) map[string]*openai.Client {
 	clients := make(map[string]*openai.Client)

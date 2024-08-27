@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	AuthFreeTrialOption = "Start an anonymous trial on Plandex Cloud (no email required)"
+	AuthFreeTrialOption = "Start a trial on Plandex Cloud"
 	AuthAccountOption   = "Sign in, accept an invite, or create an account"
 )
 
@@ -186,9 +186,6 @@ func promptSignInNewAccount() error {
 		}
 	}
 
-	fmt.Printf("✅ Signed in as %s | Org: %s\n", color.New(color.Bold, term.ColorHiGreen).Sprintf("<%s> %s", Current.UserName, Current.Email), color.New(term.ColorHiCyan).Sprint(Current.OrgName))
-	fmt.Println()
-
 	term.PrintCmds("", "new", "plans")
 
 	return nil
@@ -314,6 +311,9 @@ func createAccount(email, pin, host string) error {
 	if err != nil {
 		return fmt.Errorf("error writing auth: %v", err)
 	}
+
+	fmt.Printf("✅ Signed in as %s | Org: %s\n", color.New(color.Bold, term.ColorHiGreen).Sprintf("<%s> %s", Current.UserName, Current.Email), color.New(term.ColorHiCyan).Sprint(Current.OrgName))
+	fmt.Println()
 
 	return nil
 }

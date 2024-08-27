@@ -59,93 +59,25 @@ func CreateAccountHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
-	// create user
-	emailSplit := strings.Split(req.Email, "@")
-	if len(emailSplit) != 2 {
-		log.Printf("Invalid email: %v\n", req.Email)
-		http.Error(w, "Invalid email: "+req.Email, http.StatusBadRequest)
-		return
-	}
-	domain := emailSplit[1]
-
-	user := db.User{
-		Name:   req.UserName,
-		Email:  req.Email,
-		Domain: domain,
-	}
-	err = db.CreateUser(&user, tx)
+	res, err := db.CreateAccount(req.UserName, req.Email, emailVerificationId, tx)
 
 	if err != nil {
-		if db.IsNonUniqueErr(err) {
-			log.Printf("User already exists for email: %v\n", req.Email)
-			http.Error(w, "User already exists for email: "+req.Email, http.StatusConflict)
-			return
-		}
-
-		log.Printf("Error creating user: %v\n", err)
-		http.Error(w, "Error creating user: "+err.Error(), http.StatusInternalServerError)
+		log.Printf("Error creating account: %v\n", err)
+		http.Error(w, "Error creating account: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
+	user := res.User
 	userId := user.Id
+	token := res.Token
+	orgId := res.OrgId
 
-	// create auth token
-	token, authTokenId, err := db.CreateAuthToken(userId, false, tx)
-
-	if err != nil {
-		log.Printf("Error creating auth token: %v\n", err)
-		http.Error(w, "Error creating auth token: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	// update email verification with user and auth token ids
-	_, err = tx.Exec("UPDATE email_verifications SET user_id = $1, auth_token_id = $2 WHERE id = $3", userId, authTokenId, emailVerificationId)
-
-	if err != nil {
-		log.Printf("Error updating email verification: %v\n", err)
-		http.Error(w, "Error updating email verification: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	// add to org matching domain if one exists and auto add domain users is true for that org
-	org, err := db.GetOrgForDomain(domain)
-
-	if err != nil {
-		log.Printf("Error getting org for domain: %v\n", err)
-		http.Error(w, "Error getting org for domain: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	if org != nil && org.AutoAddDomainUsers {
-		// get org owner role id
-		orgOwnerRoleId, err := db.GetOrgOwnerRoleId()
-
-		if err != nil {
-			log.Printf("Error getting org owner role: %v\n", err)
-			http.Error(w, "Error getting org owner role: "+err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		err = db.CreateOrgUser(org.Id, userId, orgOwnerRoleId, tx)
-
-		if err != nil {
-			log.Printf("Error adding org user: %v\n", err)
-			http.Error(w, "Error adding org user: "+err.Error(), http.StatusInternalServerError)
-			return
-		}
-	}
-
-	var orgId string
-	if org != nil {
-		orgId = org.Id
-	}
-
-	err = hooks.ExecHook(tx, hooks.CreateAccount, hooks.HookParams{
-		W:     w,
-		User:  &user,
+	apiErr := hooks.ExecHook(tx, hooks.CreateAccount, hooks.HookParams{
+		User:  user,
 		OrgId: orgId,
 	})
-	if err != nil {
+	if apiErr != nil {
+		WriteApiError(w, *apiErr)
 		return
 	}
 
@@ -158,7 +90,7 @@ func CreateAccountHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// get orgs
-	orgs, err := db.GetAccessibleOrgsForUser(&user)
+	orgs, err := db.GetAccessibleOrgsForUser(user)
 
 	if err != nil {
 		log.Printf("Error getting orgs for user: %v\n", err)

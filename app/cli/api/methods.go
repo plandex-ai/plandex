@@ -13,10 +13,15 @@ import (
 	"github.com/plandex/plandex/shared"
 )
 
-func (a *Api) StartTrial() (*shared.StartTrialResponse, *shared.ApiError) {
+func (a *Api) StartTrial(req shared.StartTrialRequest) (*shared.StartTrialResponse, *shared.ApiError) {
 	serverUrl := cloudApiHost + "/accounts/start_trial"
 
-	resp, err := unauthenticatedClient.Post(serverUrl, "application/json", nil)
+	reqBytes, err := json.Marshal(req)
+	if err != nil {
+		return nil, &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error marshalling request: %v", err)}
+	}
+
+	resp, err := unauthenticatedClient.Post(serverUrl, "application/json", bytes.NewBuffer(reqBytes))
 	if err != nil {
 		return nil, &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error sending request: %v", err)}
 	}
