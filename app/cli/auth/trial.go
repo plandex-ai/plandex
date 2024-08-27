@@ -67,8 +67,9 @@ func ConvertTrial() error {
 			IsCloud:  true,
 			IsTrial:  false,
 		},
-		OrgId:   res.Orgs[0].Id,
-		OrgName: res.Orgs[0].Id,
+		OrgId:                res.Orgs[0].Id,
+		OrgName:              res.Orgs[0].Id,
+		IntegratedModelsMode: res.Orgs[0].IntegratedModelsMode,
 	})
 
 	if err != nil {

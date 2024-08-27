@@ -19,7 +19,10 @@ func init() {
 	// inter-package dependency injections to avoid circular imports
 	auth.SetApiClient(api.Client)
 	lib.SetBuildPlanInlineFn(func(maybeContexts []*shared.Context) (bool, error) {
-		apiKeys := lib.MustVerifyApiKeys()
+		var apiKeys map[string]string
+		if !auth.Current.IntegratedModelsMode {
+			apiKeys = lib.MustVerifyApiKeys()
+		}
 		return plan_exec.Build(plan_exec.ExecParams{
 			CurrentPlanId: lib.CurrentPlanId,
 			CurrentBranch: lib.CurrentBranch,

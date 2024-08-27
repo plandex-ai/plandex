@@ -21,7 +21,7 @@ type ApiClient interface {
 	SignIn(req shared.SignInRequest, customHost string) (*shared.SessionResponse, *shared.ApiError)
 	SignOut() *shared.ApiError
 
-	GetOrgSession() *shared.ApiError
+	GetOrgSession() (*shared.Org, *shared.ApiError)
 	ListOrgs() ([]*shared.Org, *shared.ApiError)
 	CreateOrg(req shared.CreateOrgRequest) (*shared.CreateOrgResponse, *shared.ApiError)
 

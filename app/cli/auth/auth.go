@@ -52,19 +52,20 @@ func MustResolveAuth(requireOrg bool) {
 			term.OutputErrorAndExit("Error listing orgs: %v", apiErr.Msg)
 		}
 
-		orgId, orgName, err := resolveOrgAuth(orgs)
+		org, err := resolveOrgAuth(orgs)
 
 		if err != nil {
 			term.OutputErrorAndExit("Error resolving org: %v", err)
 		}
 
-		if orgId == "" {
+		if org.Id == "" {
 			// still no org--exit now
 			term.OutputErrorAndExit("No org")
 		}
 
-		Current.OrgId = orgId
-		Current.OrgName = orgName
+		Current.OrgId = org.Id
+		Current.OrgName = org.Name
+		Current.IntegratedModelsMode = org.IntegratedModelsMode
 
 		err = writeCurrentAuth()
 

@@ -103,23 +103,24 @@ func SelectOrSignInOrCreate() error {
 		return fmt.Errorf("error listing orgs: %v", apiErr.Msg)
 	}
 
-	orgId, orgName, err := resolveOrgAuth(orgs)
+	org, err := resolveOrgAuth(orgs)
 
 	if err != nil {
 		return fmt.Errorf("error resolving org: %v", err)
 	}
 
 	err = setAuth(&types.ClientAuth{
-		ClientAccount: *selected,
-		OrgId:         orgId,
-		OrgName:       orgName,
+		ClientAccount:        *selected,
+		OrgId:                org.Id,
+		OrgName:              org.Name,
+		IntegratedModelsMode: org.IntegratedModelsMode,
 	})
 
 	if err != nil {
 		return fmt.Errorf("error setting auth: %v", err)
 	}
 
-	apiErr = apiClient.GetOrgSession()
+	_, apiErr = apiClient.GetOrgSession()
 
 	if apiErr != nil {
 		return fmt.Errorf("error getting org session: %v", apiErr.Msg)
@@ -240,14 +241,15 @@ func signIn(email, pin, host string) error {
 		return fmt.Errorf("error setting auth: %v", err)
 	}
 
-	orgId, orgName, err := resolveOrgAuth(res.Orgs)
+	org, err := resolveOrgAuth(res.Orgs)
 
 	if err != nil {
 		return fmt.Errorf("error resolving org: %v", err)
 	}
 
-	Current.OrgId = orgId
-	Current.OrgName = orgName
+	Current.OrgId = org.Id
+	Current.OrgName = org.Name
+	Current.IntegratedModelsMode = org.IntegratedModelsMode
 
 	err = writeCurrentAuth()
 
@@ -297,14 +299,15 @@ func createAccount(email, pin, host string) error {
 		return fmt.Errorf("error setting auth: %v", err)
 	}
 
-	orgId, orgName, err := resolveOrgAuth(res.Orgs)
+	org, err := resolveOrgAuth(res.Orgs)
 
 	if err != nil {
 		return fmt.Errorf("error resolving org: %v", err)
 	}
 
-	Current.OrgId = orgId
-	Current.OrgName = orgName
+	Current.OrgId = org.Id
+	Current.OrgName = org.Name
+	Current.IntegratedModelsMode = org.IntegratedModelsMode
 
 	err = writeCurrentAuth()
 

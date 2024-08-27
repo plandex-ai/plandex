@@ -1304,21 +1304,33 @@ func (a *Api) CreateOrg(req shared.CreateOrgRequest) (*shared.CreateOrgResponse,
 	return &createOrgResponse, nil
 }
 
-func (a *Api) GetOrgSession() *shared.ApiError {
+func (a *Api) GetOrgSession() (*shared.Org, *shared.ApiError) {
 	serverUrl := getApiHost() + "/orgs/session"
 	resp, err := authenticatedFastClient.Get(serverUrl)
 	if err != nil {
-		return &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error sending request: %v", err)}
+		return nil, &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error sending request: %v", err)}
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode >= 400 {
 		errorBody, _ := io.ReadAll(resp.Body)
 		apiErr := handleApiError(resp, errorBody)
-		return apiErr
+		tokenRefreshed, apiErr := refreshTokenIfNeeded(apiErr)
+		if tokenRefreshed {
+			return a.GetOrgSession()
+		}
+		return nil, apiErr
 	}
 
-	return nil
+	var org *shared.Org
+
+	err = json.NewDecoder(resp.Body).Decode(&org)
+
+	if err != nil {
+		return nil, &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error decoding response: %v", err)}
+	}
+
+	return org, nil
 }
 
 func (a *Api) ListOrgs() ([]*shared.Org, *shared.ApiError) {
