@@ -6,7 +6,6 @@ import (
 	"log"
 	"net/http"
 	"plandex-server/db"
-	"plandex-server/types"
 
 	"github.com/plandex/plandex/shared"
 )
@@ -27,9 +26,12 @@ func ListOrgsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var apiOrgs []*shared.Org
-	for _, org := range orgs {
-		apiOrgs = append(apiOrgs, org.ToApi())
+	apiOrgs, apiErr := toApiOrgs(orgs)
+
+	if apiErr != nil {
+		log.Printf("Error converting orgs to api: %v\n", apiErr)
+		writeApiError(w, *apiErr)
+		return
 	}
 
 	bytes, err := json.Marshal(apiOrgs)
@@ -54,7 +56,7 @@ func CreateOrgHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if auth.User.IsTrial {
-		WriteApiError(w, shared.ApiError{
+		writeApiError(w, shared.ApiError{
 			Type:   shared.ApiErrorTypeTrialActionNotAllowed,
 			Status: http.StatusForbidden,
 			Msg:    "Anonymous trial user can't create org",
@@ -161,6 +163,24 @@ func GetOrgSessionHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	org, apiErr := getApiOrg(auth.OrgId)
+
+	if apiErr != nil {
+		log.Printf("Error converting org to api: %v\n", apiErr)
+		writeApiError(w, *apiErr)
+		return
+	}
+
+	bytes, err := json.Marshal(org)
+
+	if err != nil {
+		log.Printf("Error marshalling response: %v\n", err)
+		http.Error(w, "Error marshalling response: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Write(bytes)
+
 	log.Println("Successfully got org session")
 }
 
@@ -173,7 +193,7 @@ func ListOrgRolesHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if auth.User.IsTrial {
-		WriteApiError(w, shared.ApiError{
+		writeApiError(w, shared.ApiError{
 			Type:   shared.ApiErrorTypeTrialActionNotAllowed,
 			Status: http.StatusForbidden,
 			Msg:    "Anonymous trial user can't list org roles",
@@ -181,7 +201,7 @@ func ListOrgRolesHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !auth.HasPermission(types.PermissionListOrgRoles) {
+	if !auth.HasPermission(shared.PermissionListOrgRoles) {
 		log.Println("User cannot list org roles")
 		http.Error(w, "User cannot list org roles", http.StatusForbidden)
 		return

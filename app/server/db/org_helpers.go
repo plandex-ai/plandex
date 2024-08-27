@@ -19,20 +19,20 @@ func GetAccessibleOrgsForUser(user *User) ([]*Org, error) {
 	var orgs []*Org
 
 	err := Conn.Select(&orgUsers, "SELECT * FROM orgs_users WHERE user_id = $1", user.Id)
-
 	if err != nil {
 		return nil, fmt.Errorf("error getting orgs for user: %v", err)
 	}
 
+	orgRoleIdByOrgId := map[string]string{}
 	orgIds := []string{}
 	for _, ou := range orgUsers {
 		orgIds = append(orgIds, ou.OrgId)
+		orgRoleIdByOrgId[ou.OrgId] = ou.OrgRoleId
 	}
 
 	if len(orgIds) > 0 {
 		query := fmt.Sprintf("SELECT %s FROM orgs WHERE id = ANY($1)", orgFields)
 		err = Conn.Select(&orgs, query, pq.Array(orgIds))
-
 		if err != nil {
 			return nil, fmt.Errorf("error getting orgs for user: %v", err)
 		}
@@ -43,7 +43,6 @@ func GetAccessibleOrgsForUser(user *User) ([]*Org, error) {
 
 	// access via invitation
 	invites, err := GetPendingInvitesForEmail(user.Email)
-
 	if err != nil {
 		return nil, fmt.Errorf("error getting invites for user: %v", err)
 	}
@@ -51,9 +50,8 @@ func GetAccessibleOrgsForUser(user *User) ([]*Org, error) {
 	orgIds = []string{}
 	for _, invite := range invites {
 		orgIds = append(orgIds, invite.OrgId)
+		orgRoleIdByOrgId[invite.OrgId] = invite.OrgRoleId
 	}
-
-	// log.Println(spew.Sdump(orgIds))
 
 	if len(orgIds) > 0 {
 		var orgsFromInvites []*Org
@@ -67,7 +65,6 @@ func GetAccessibleOrgsForUser(user *User) ([]*Org, error) {
 
 	return orgs, nil
 }
-
 func GetOrg(orgId string) (*Org, error) {
 	var org Org
 	query := fmt.Sprintf("SELECT %s FROM orgs WHERE id = $1", orgFields)

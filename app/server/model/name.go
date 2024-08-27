@@ -45,7 +45,7 @@ func GenPlanName(
 		responseFormat = &openai.ChatCompletionResponseFormat{Type: "json_object"}
 	}
 
-	apiErr := hooks.ExecHook(hooks.WillSendModelRequest, hooks.HookParams{
+	_, apiErr := hooks.ExecHook(hooks.WillSendModelRequest, hooks.HookParams{
 		User:  auth.User,
 		OrgId: auth.OrgId,
 		Plan:  plan,
@@ -114,7 +114,7 @@ func GenPlanName(
 		}
 	}
 
-	apiErr = hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
+	_, apiErr = hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
 		User:  auth.User,
 		OrgId: auth.OrgId,
 		Plan:  plan,
@@ -177,7 +177,7 @@ func GenPipedDataName(
 		responseFormat = &openai.ChatCompletionResponseFormat{Type: "json_object"}
 	}
 
-	apiErr := hooks.ExecHook(hooks.WillSendModelRequest, hooks.HookParams{
+	_, apiErr := hooks.ExecHook(hooks.WillSendModelRequest, hooks.HookParams{
 		User:  auth.User,
 		OrgId: auth.OrgId,
 		Plan:  plan,
@@ -254,7 +254,7 @@ func GenPipedDataName(
 		}
 	}
 
-	apiErr = hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
+	_, apiErr = hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
 		User:  auth.User,
 		OrgId: auth.OrgId,
 		Plan:  plan,
@@ -321,7 +321,7 @@ func GenNoteName(
 		responseFormat = &openai.ChatCompletionResponseFormat{Type: "json_object"}
 	}
 
-	apiErr := hooks.ExecHook(hooks.WillSendModelRequest, hooks.HookParams{
+	_, apiErr := hooks.ExecHook(hooks.WillSendModelRequest, hooks.HookParams{
 		User:  auth.User,
 		OrgId: auth.OrgId,
 		Plan:  plan,
@@ -398,7 +398,7 @@ func GenNoteName(
 		}
 	}
 
-	apiErr = hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
+	_, apiErr = hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
 		User:  auth.User,
 		OrgId: auth.OrgId,
 		Plan:  plan,

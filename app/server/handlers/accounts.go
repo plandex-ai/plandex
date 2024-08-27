@@ -72,12 +72,12 @@ func CreateAccountHandler(w http.ResponseWriter, r *http.Request) {
 	token := res.Token
 	orgId := res.OrgId
 
-	apiErr := hooks.ExecHook(hooks.CreateAccount, hooks.HookParams{
+	_, apiErr := hooks.ExecHook(hooks.CreateAccount, hooks.HookParams{
 		User:  user,
 		OrgId: orgId,
 	})
 	if apiErr != nil {
-		WriteApiError(w, *apiErr)
+		writeApiError(w, *apiErr)
 		return
 	}
 
@@ -98,9 +98,12 @@ func CreateAccountHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var apiOrgs []*shared.Org
-	for _, org := range orgs {
-		apiOrgs = append(apiOrgs, org.ToApi())
+	apiOrgs, apiErr := toApiOrgs(orgs)
+
+	if apiErr != nil {
+		log.Printf("Error converting orgs to API orgs: %v\n", apiErr)
+		writeApiError(w, *apiErr)
+		return
 	}
 
 	resp := shared.SessionResponse{

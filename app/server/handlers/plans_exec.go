@@ -56,24 +56,19 @@ func TellPlanHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if requestBody.ApiKey == "" && len(requestBody.ApiKeys) == 0 {
-		log.Println("API key is required")
-		http.Error(w, "API key is required", http.StatusBadRequest)
-		return
-	}
-
-	apiErr := hooks.ExecHook(hooks.WillTellPlan, hooks.HookParams{
+	_, apiErr := hooks.ExecHook(hooks.WillTellPlan, hooks.HookParams{
 		User: auth.User,
 		Plan: plan,
 	})
 	if apiErr != nil {
-		WriteApiError(w, *apiErr)
+		writeApiError(w, *apiErr)
 		return
 	}
 
 	clients := initClients(
 		initClientsParams{
 			w:           w,
+			auth:        auth,
 			apiKey:      requestBody.ApiKey,
 			apiKeys:     requestBody.ApiKeys,
 			endpoint:    requestBody.Endpoint,
@@ -132,15 +127,10 @@ func BuildPlanHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if requestBody.ApiKey == "" && len(requestBody.ApiKeys) == 0 {
-		log.Println("API key is required")
-		http.Error(w, "API key is required", http.StatusBadRequest)
-		return
-	}
-
 	clients := initClients(
 		initClientsParams{
 			w:           w,
+			auth:        auth,
 			apiKey:      requestBody.ApiKey,
 			apiKeys:     requestBody.ApiKeys,
 			endpoint:    requestBody.Endpoint,
@@ -371,7 +361,7 @@ func authorizePlanExecUpdate(w http.ResponseWriter, planId string, auth *types.S
 		return nil
 	}
 
-	if plan.OwnerId != auth.User.Id && !auth.HasPermission(types.PermissionUpdateAnyPlan) {
+	if plan.OwnerId != auth.User.Id && !auth.HasPermission(shared.PermissionUpdateAnyPlan) {
 		log.Println("User does not have permission to update plan")
 		http.Error(w, "User does not have permission to update plan", http.StatusForbidden)
 		return nil

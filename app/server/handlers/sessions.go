@@ -233,9 +233,12 @@ func SignInHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var apiOrgs []*shared.Org
-	for _, org := range orgs {
-		apiOrgs = append(apiOrgs, org.ToApi())
+	apiOrgs, apiErr := toApiOrgs(orgs)
+
+	if apiErr != nil {
+		log.Printf("Error converting orgs to api orgs: %v\n", apiErr)
+		writeApiError(w, *apiErr)
+		return
 	}
 
 	resp := shared.SessionResponse{

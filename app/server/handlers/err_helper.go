@@ -8,7 +8,7 @@ import (
 	"github.com/plandex/plandex/shared"
 )
 
-func WriteApiError(w http.ResponseWriter, apiErr shared.ApiError) {
+func writeApiError(w http.ResponseWriter, apiErr shared.ApiError) {
 	bytes, err := json.Marshal(apiErr)
 	if err != nil {
 		log.Printf("Error marshalling response: %v\n", err)

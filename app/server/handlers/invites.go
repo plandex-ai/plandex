@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"plandex-server/db"
 	"plandex-server/email"
-	"plandex-server/types"
 	"strings"
 
 	"github.com/gorilla/mux"
@@ -21,7 +20,7 @@ func InviteUserHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if auth.User.IsTrial {
-		WriteApiError(w, shared.ApiError{
+		writeApiError(w, shared.ApiError{
 			Type:   shared.ApiErrorTypeTrialActionNotAllowed,
 			Status: http.StatusForbidden,
 			Msg:    "Anonymous trial user can't invite other users",
@@ -42,7 +41,7 @@ func InviteUserHandler(w http.ResponseWriter, r *http.Request) {
 	req.Email = strings.ToLower(req.Email)
 
 	// ensure current user can invite target user
-	permission := types.Permission(strings.Join([]string{string(types.PermissionInviteUser), req.OrgRoleId}, "|"))
+	permission := shared.Permission(strings.Join([]string{string(shared.PermissionInviteUser), req.OrgRoleId}, "|"))
 
 	if !auth.HasPermission(permission) {
 		log.Printf("User does not have permission to invite user with role: %v\n", req.OrgRoleId)
@@ -171,7 +170,7 @@ func ListPendingInvitesHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if auth.User.IsTrial {
-		WriteApiError(w, shared.ApiError{
+		writeApiError(w, shared.ApiError{
 			Type:   shared.ApiErrorTypeTrialActionNotAllowed,
 			Status: http.StatusForbidden,
 			Msg:    "Anonymous trial user can't list invites",
@@ -212,7 +211,7 @@ func ListAcceptedInvitesHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if auth.User.IsTrial {
-		WriteApiError(w, shared.ApiError{
+		writeApiError(w, shared.ApiError{
 			Type:   shared.ApiErrorTypeTrialActionNotAllowed,
 			Status: http.StatusForbidden,
 			Msg:    "Anonymous trial user can't list invites",
@@ -253,7 +252,7 @@ func ListAllInvitesHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if auth.User.IsTrial {
-		WriteApiError(w, shared.ApiError{
+		writeApiError(w, shared.ApiError{
 			Type:   shared.ApiErrorTypeTrialActionNotAllowed,
 			Status: http.StatusForbidden,
 			Msg:    "Anonymous trial user can't list invites",
@@ -294,7 +293,7 @@ func DeleteInviteHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if auth.User.IsTrial {
-		WriteApiError(w, shared.ApiError{
+		writeApiError(w, shared.ApiError{
 			Type:   shared.ApiErrorTypeTrialActionNotAllowed,
 			Status: http.StatusForbidden,
 			Msg:    "Anonymous trial user can't delete invites",
@@ -320,9 +319,9 @@ func DeleteInviteHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// ensure current user can remove target invite
-	removePermission := types.Permission(strings.Join([]string{string(types.PermissionRemoveUser), invite.OrgRoleId}, "|"))
+	removePermission := shared.Permission(strings.Join([]string{string(shared.PermissionRemoveUser), invite.OrgRoleId}, "|"))
 
-	invitePermission := types.Permission(strings.Join([]string{string(types.PermissionInviteUser), invite.OrgRoleId}, "|"))
+	invitePermission := shared.Permission(strings.Join([]string{string(shared.PermissionInviteUser), invite.OrgRoleId}, "|"))
 
 	if !(auth.HasPermission(removePermission) ||
 		(auth.User.Id == invite.InviterId && auth.HasPermission(invitePermission))) {

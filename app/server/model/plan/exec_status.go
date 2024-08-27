@@ -83,7 +83,7 @@ func (state *activeTellStreamState) execStatusShouldContinue(message string, lat
 
 	numTokens := prompts.ExtraTokensPerRequest + prompts.ExtraTokensPerMessage + contentTokens
 
-	apiErr := hooks.ExecHook(hooks.WillSendModelRequest, hooks.HookParams{
+	_, apiErr := hooks.ExecHook(hooks.WillSendModelRequest, hooks.HookParams{
 		User:  auth.User,
 		OrgId: auth.OrgId,
 		Plan:  plan,
@@ -182,7 +182,7 @@ func (state *activeTellStreamState) execStatusShouldContinue(message string, lat
 		}
 	}
 
-	apiErr = hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
+	_, apiErr = hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
 		User:  auth.User,
 		OrgId: auth.OrgId,
 		Plan:  plan,

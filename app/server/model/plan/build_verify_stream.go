@@ -38,7 +38,7 @@ func (fileState *activeBuildStreamFileState) listenStreamVerifyOutput(stream *op
 	streamFinished := false
 
 	execHookOnStop := func(sendStreamErr bool) {
-		err := hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
+		_, apiErr := hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
 			User:  auth.User,
 			OrgId: auth.OrgId,
 			Plan:  fileState.plan,
@@ -53,8 +53,8 @@ func (fileState *activeBuildStreamFileState) listenStreamVerifyOutput(stream *op
 			},
 		})
 
-		if err != nil {
-			log.Printf("Error executing did send model request hook after cancel or error: %v\n", err)
+		if apiErr != nil {
+			log.Printf("Error executing did send model request hook after cancel or error: %v\n", apiErr)
 
 			if sendStreamErr {
 				activePlan := GetActivePlan(planId, branch)
@@ -64,7 +64,7 @@ func (fileState *activeBuildStreamFileState) listenStreamVerifyOutput(stream *op
 					return
 				}
 
-				activePlan.StreamDoneCh <- err
+				activePlan.StreamDoneCh <- apiErr
 			}
 
 		}
@@ -116,7 +116,7 @@ func (fileState *activeBuildStreamFileState) listenStreamVerifyOutput(stream *op
 					log.Println("Fix stream usage:")
 					spew.Dump(response.Usage)
 
-					apiErr := hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
+					_, apiErr := hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
 						User:  auth.User,
 						OrgId: auth.OrgId,
 						Plan:  fileState.plan,

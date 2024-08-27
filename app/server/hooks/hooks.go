@@ -3,6 +3,7 @@ package hooks
 import (
 	"plandex-server/db"
 
+	"github.com/jmoiron/sqlx"
 	"github.com/plandex/plandex/shared"
 )
 
@@ -13,6 +14,8 @@ const (
 	WillExecPlan         = "will_exec_plan"
 	WillSendModelRequest = "will_send_model_request"
 	DidSendModelRequest  = "did_send_model_request"
+	GetIntegratedModels  = "get_integrated_models"
+	GetApiOrgs           = "get_api_orgs"
 )
 
 type WillSendModelRequestParams struct {
@@ -35,12 +38,24 @@ type HookParams struct {
 	User  *db.User
 	OrgId string
 	Plan  *db.Plan
+	Tx    *sqlx.Tx
 
 	WillSendModelRequestParams *WillSendModelRequestParams
 	DidSendModelRequestParams  *DidSendModelRequestParams
+	GetApiOrgIds               []string
 }
 
-type Hook func(params HookParams) *shared.ApiError
+type GetIntegratedModelsResult struct {
+	IntegratedModelsMode bool
+	ApiKeys              map[string]string
+}
+
+type HookResult struct {
+	GetIntegratedModelsResult *GetIntegratedModelsResult
+	ApiOrgsById               map[string]*shared.Org
+}
+
+type Hook func(params HookParams) (HookResult, *shared.ApiError)
 
 var hooks = make(map[string]Hook)
 
@@ -48,10 +63,10 @@ func RegisterHook(name string, hook Hook) {
 	hooks[name] = hook
 }
 
-func ExecHook(name string, params HookParams) *shared.ApiError {
+func ExecHook(name string, params HookParams) (HookResult, *shared.ApiError) {
 	hook, ok := hooks[name]
 	if !ok {
-		return nil
+		return HookResult{}, nil
 	}
 	return hook(params)
 }

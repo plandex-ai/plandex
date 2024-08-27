@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"plandex-server/db"
 	"plandex-server/hooks"
-	"plandex-server/types"
 	"sort"
 	"strings"
 	"time"
@@ -25,7 +24,7 @@ func CreatePlanHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !auth.HasPermission(types.PermissionCreatePlan) {
+	if !auth.HasPermission(shared.PermissionCreatePlan) {
 		log.Println("User does not have permission to create a plan")
 		http.Error(w, "User does not have permission to create a plan", http.StatusForbidden)
 		return
@@ -40,9 +39,9 @@ func CreatePlanHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	apiErr := hooks.ExecHook(hooks.WillCreatePlan, hooks.HookParams{User: auth.User})
+	_, apiErr := hooks.ExecHook(hooks.WillCreatePlan, hooks.HookParams{User: auth.User})
 	if apiErr != nil {
-		WriteApiError(w, *apiErr)
+		writeApiError(w, *apiErr)
 		return
 	}
 
