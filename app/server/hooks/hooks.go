@@ -14,8 +14,10 @@ const (
 	WillExecPlan         = "will_exec_plan"
 	WillSendModelRequest = "will_send_model_request"
 	DidSendModelRequest  = "did_send_model_request"
-	GetIntegratedModels  = "get_integrated_models"
-	GetApiOrgs           = "get_api_orgs"
+
+	CreateOrg           = "create_org"
+	GetIntegratedModels = "get_integrated_models"
+	GetApiOrgs          = "get_api_orgs"
 )
 
 type WillSendModelRequestParams struct {
@@ -34,6 +36,10 @@ type DidSendModelRequestParams struct {
 	Purpose       string
 }
 
+type CreateOrgHookRequestParams struct {
+	Org *db.Org
+}
+
 type HookParams struct {
 	User  *db.User
 	OrgId string
@@ -42,6 +48,7 @@ type HookParams struct {
 
 	WillSendModelRequestParams *WillSendModelRequestParams
 	DidSendModelRequestParams  *DidSendModelRequestParams
+	CreateOrgHookRequestParams *CreateOrgHookRequestParams
 	GetApiOrgIds               []string
 }
 
