@@ -1,0 +1,6 @@
+
+Add a cmd/credits.go file with a command that calls GetOrgSession to get the current org and then if IntegratedModelsMode is true, displays the current credit balance formatted in dollars, to 4 decimal places.
+
+If IntegratedModelsMode isn't true, output that the org isn't using integrated models mode and nothing else.
+
+Display the current balance nicely in a table.
