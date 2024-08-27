@@ -15,9 +15,9 @@ func ApplyReplacements(content string, replacements []*Replacement, setFailed bo
 		lastInsertedIdx := 0
 
 		for i, replacement := range replacements {
-			// log.Println("replacement.Old:\n", replacement.Old)
-			// log.Println("updated:\n", updated)
-			// log.Println("lastInsertedIdx:", lastInsertedIdx)
+			log.Println("replacement.Old:\n", replacement.Old)
+			log.Println("updated:\n", updated)
+			log.Println("lastInsertedIdx:", lastInsertedIdx)
 
 			pre := updated[:lastInsertedIdx]
 			sub := updated[lastInsertedIdx:]
@@ -165,6 +165,9 @@ func (planState *CurrentPlanState) GetFilesBeforeReplacement(
 
 				updated = context.Body
 				shas[path] = context.Sha
+
+				log.Println("setting updated content to context body. updated:")
+				log.Println(updated)
 			}
 
 			replacements := []*Replacement{}
@@ -190,6 +193,9 @@ func (planState *CurrentPlanState) GetFilesBeforeReplacement(
 				if planRes.ReplaceWithLineNums {
 					maybeWithLineNums = AddLineNums(updated)
 				}
+
+				log.Println("Before replacements. updated:")
+				log.Println(updated)
 
 				updated, allSucceeded = ApplyReplacements(maybeWithLineNums, replacements, false)
 

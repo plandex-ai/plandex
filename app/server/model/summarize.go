@@ -48,7 +48,7 @@ func PlanSummary(client *openai.Client, config shared.ModelRoleConfig, params Pl
 
 	numTokens += prompts.PlanSummaryNumTokens
 
-	apiErr := hooks.ExecHook(hooks.WillSendModelRequest, hooks.HookParams{
+	_, apiErr := hooks.ExecHook(hooks.WillSendModelRequest, hooks.HookParams{
 		User:  params.User,
 		OrgId: params.OrgId,
 		Plan:  params.Plan,
@@ -102,7 +102,7 @@ func PlanSummary(client *openai.Client, config shared.ModelRoleConfig, params Pl
 		}
 	}
 
-	apiErr = hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
+	_, apiErr = hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
 		User:  params.User,
 		OrgId: params.OrgId,
 		Plan:  params.Plan,

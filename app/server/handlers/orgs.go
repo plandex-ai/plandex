@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"plandex-server/db"
 	"plandex-server/hooks"
-	"plandex-server/types"
 
 	"github.com/plandex/plandex/shared"
 )
@@ -28,9 +27,12 @@ func ListOrgsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var apiOrgs []*shared.Org
-	for _, org := range orgs {
-		apiOrgs = append(apiOrgs, org.ToApi())
+	apiOrgs, apiErr := toApiOrgs(orgs)
+
+	if apiErr != nil {
+		log.Printf("Error converting orgs to api: %v\n", apiErr)
+		writeApiError(w, *apiErr)
+		return
 	}
 
 	bytes, err := json.Marshal(apiOrgs)
@@ -55,7 +57,7 @@ func CreateOrgHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if auth.User.IsTrial {
-		WriteApiError(w, shared.ApiError{
+		writeApiError(w, shared.ApiError{
 			Type:   shared.ApiErrorTypeTrialActionNotAllowed,
 			Status: http.StatusForbidden,
 			Msg:    "Anonymous trial user can't create org",
@@ -128,12 +130,16 @@ func CreateOrgHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	err = hooks.ExecHook(tx, hooks.CreateOrg, hooks.HookParams{
-		W:    w,
+	_, apiErr := hooks.ExecHook(hooks.CreateOrg, hooks.HookParams{
 		User: auth.User,
-		Org:  org,
+		Tx:   tx,
+
+		CreateOrgHookRequestParams: &hooks.CreateOrgHookRequestParams{
+			Org: org,
+		},
 	})
-	if err != nil {
+	if apiErr != nil {
+		writeApiError(w, *apiErr)
 		return
 	}
 
@@ -171,6 +177,24 @@ func GetOrgSessionHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	org, apiErr := getApiOrg(auth.OrgId)
+
+	if apiErr != nil {
+		log.Printf("Error converting org to api: %v\n", apiErr)
+		writeApiError(w, *apiErr)
+		return
+	}
+
+	bytes, err := json.Marshal(org)
+
+	if err != nil {
+		log.Printf("Error marshalling response: %v\n", err)
+		http.Error(w, "Error marshalling response: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Write(bytes)
+
 	log.Println("Successfully got org session")
 }
 
@@ -183,7 +207,7 @@ func ListOrgRolesHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if auth.User.IsTrial {
-		WriteApiError(w, shared.ApiError{
+		writeApiError(w, shared.ApiError{
 			Type:   shared.ApiErrorTypeTrialActionNotAllowed,
 			Status: http.StatusForbidden,
 			Msg:    "Anonymous trial user can't list org roles",
@@ -191,7 +215,7 @@ func ListOrgRolesHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !auth.HasPermission(types.PermissionListOrgRoles) {
+	if !auth.HasPermission(shared.PermissionListOrgRoles) {
 		log.Println("User cannot list org roles")
 		http.Error(w, "User cannot list org roles", http.StatusForbidden)
 		return

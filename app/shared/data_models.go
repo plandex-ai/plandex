@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/sashabaranov/go-openai"
+	"github.com/shopspring/decimal"
 )
 
 type Org struct {
@@ -14,7 +15,8 @@ type Org struct {
 	Name string `json:"name"`
 
 	// optional cloud attributes
-	IntegratedModelsMode bool `json:"integratedModelsMode,omitempty"`
+	IntegratedModelsMode bool                `json:"integratedModelsMode,omitempty"`
+	CloudBillingFields   *CloudBillingFields `json:"cloudBillingFields,omitempty"`
 }
 
 type User struct {
@@ -351,4 +353,16 @@ func (p *PlanSettings) Scan(src interface{}) error {
 
 func (p PlanSettings) Value() (driver.Value, error) {
 	return json.Marshal(p)
+}
+
+type CloudBillingFields struct {
+	CreditsBalance        decimal.Decimal `json:"creditsBalance"`
+	MonthlyGrant          decimal.Decimal `json:"monthlyGrant"`
+	AutoRebuyEnabled      bool            `json:"autoRebuyEnabled"`
+	AutoRebuyMinThreshold decimal.Decimal `json:"autoRebuyMinThreshold"`
+	AutoRebuyToBalance    decimal.Decimal `json:"autoRebuyToBalance"`
+	NotifyThreshold       decimal.Decimal `json:"notifyThreshold"`
+	MaxThresholdPerMonth  decimal.Decimal `json:"maxThresholdPerMonth"`
+	BillingCycleStartedAt time.Time       `json:"billingCycleStartedAt"`
+	TrialPaid             bool            `json:"trialPaid"`
 }

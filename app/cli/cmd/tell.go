@@ -51,7 +51,10 @@ func doTell(cmd *cobra.Command, args []string) {
 		term.OutputNoCurrentPlanErrorAndExit()
 	}
 
-	apiKeys := lib.MustVerifyApiKeys()
+	var apiKeys map[string]string
+	if !auth.Current.IntegratedModelsMode {
+		apiKeys = lib.MustVerifyApiKeys()
+	}
 
 	var prompt string
 

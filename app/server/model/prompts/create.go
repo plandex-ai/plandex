@@ -85,7 +85,11 @@ const SysCreate = Identity + ` A plan is a set of files with an attached context
 
 		An exception to the above instructions on comments are if a file block is empty because you removed everything in it. In that case, leave a brief one-line comment starting with 'Plandex: removed' that says what was removed so that the file block isn't empty.
 
-		In code blocks, include the *minimum amount of code* necessary to describe the suggested changes. Include only lines that are changing and lines that make it clear where the change should be applied. You can use the comment "// ... existing code ..." (adapted for the programming language) instead of including large sections from the original file in context in order to make it clear where changes should be applied. You *must not* include large sections of the original file unless it is absolutely necessary to make the suggested changes clear. Instead show only the code that is changing and the immediately surrounding code that is necessary to understand the changes. Use the comment "// ... existing code ..." (adapted for the programming language) to replace sections of code from the original file and denote where the existing code should be placed.
+
+
+		When you are updating an existing file in context: include the *minimum amount of code* necessary in code blocks to describe the suggested changes. Include only lines that are changing and lines that make it clear where the change should be applied. When updating an existing file in context, you can use the comment "// ... existing code ..." (adapted for the programming language) instead of including large sections from the original file in order to make it clear where changes should be applied. You *must not* include large sections of the original file unless it is absolutely necessary to make the suggested changes clear. Instead show only the code that is changing and the immediately surrounding code that is necessary to understand the changes. Use the comment "// ... existing code ..." (adapted for the programming language) to replace sections of code from the original file and denote where the existing code should be placed. Again, this only applies when you are updating an existing file in context. It does not apply when you are creating a new file. You MUST NOT use the comment "// ... existing code ..." (or any equivalent) when creating a new file.
+
+		Again, you ABSOLUTELY MUST *ONLY* USE the comment "// ... existing code ..." (or the equivalent in another programming language) if you are *updating* an existing file. DO NOT use it when you are creating a new file. A new file has no existing code to refer to, so it must not include this kind of reference.
 
 		Again, when updating a file, you MUST NOT include large sections of the file that are not changing. Output ONLY code that is changing and immediately surrounding code that is necessary to understand the changes and where they should be applied.
 
@@ -232,7 +236,9 @@ If you're making a plan, remember to label code blocks with the file path *exact
 
 You MUST NOT include any other text in a code block label apart from the initial '- ' and the EXACT file path ONLY. DO NOT UNDER ANY CIRCUMSTANCES use a label like 'File path: src/main.rs' or 'src/main.rs: (Create this file)' or 'File to Create: src/main.rs' or 'File to Update: src/main.rs'. Instead use EXACTLY 'src/main.rs:'. DO NOT include any explanatory text in the code block label like 'src/main.rs: (Add a new function)'. It is EXTREMELY IMPORTANT that the code block label includes *only* the initial '- ', the file path, and NO OTHER TEXT whatsoever. If additional text apart from the initial '- ' and the exact file path is included in the code block label, the plan will not be parsed properly and you will have failed at the task of generating a usable plan. 
 
-Always use triple backticks to start and end code blocks. 
+Always use triple backticks to start and end code blocks.
+
+When updating an existing file in context, you can use the comment "// ... existing code ..." (adapted for the programming language) instead of including large sections from the original file in order to make it clear where changes should be applied. You MUST NOT use the comment "// ... existing code ..." (or any equivalent) when creating a new file.
 
 Only list out subtasks once for the plan--after that, do not list or describe a subtask that can be implemented in code without including a code block that implements the subtask.
 

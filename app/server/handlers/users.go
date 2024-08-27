@@ -5,7 +5,6 @@ import (
 	"log"
 	"net/http"
 	"plandex-server/db"
-	"plandex-server/types"
 	"strings"
 
 	"github.com/gorilla/mux"
@@ -20,7 +19,7 @@ func ListUsersHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if auth.User.IsTrial {
-		WriteApiError(w, shared.ApiError{
+		writeApiError(w, shared.ApiError{
 			Type:   shared.ApiErrorTypeTrialActionNotAllowed,
 			Status: http.StatusForbidden,
 			Msg:    "Anonymous trial user can't list users",
@@ -78,7 +77,7 @@ func DeleteOrgUserHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if auth.User.IsTrial {
-		WriteApiError(w, shared.ApiError{
+		writeApiError(w, shared.ApiError{
 			Type:   shared.ApiErrorTypeTrialActionNotAllowed,
 			Status: http.StatusForbidden,
 			Msg:    "Anonymous trial user can't delete users",
@@ -100,7 +99,7 @@ func DeleteOrgUserHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// ensure current user can remove target user
-	removePermission := types.Permission(strings.Join([]string{string(types.PermissionRemoveUser), orgUser.OrgRoleId}, "|"))
+	removePermission := shared.Permission(strings.Join([]string{string(shared.PermissionRemoveUser), orgUser.OrgRoleId}, "|"))
 
 	if !auth.HasPermission(removePermission) {
 		log.Printf("User does not have permission to remove user with role: %v\n", orgUser.OrgRoleId)

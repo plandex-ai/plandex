@@ -15,7 +15,9 @@ const (
 	WillSendModelRequest = "will_send_model_request"
 	DidSendModelRequest  = "did_send_model_request"
 
-	CreateOrg = "create_org"
+	CreateOrg           = "create_org"
+	GetIntegratedModels = "get_integrated_models"
+	GetApiOrgs          = "get_api_orgs"
 )
 
 type WillSendModelRequestParams struct {
@@ -34,7 +36,7 @@ type DidSendModelRequestParams struct {
 	Purpose       string
 }
 
-type CreateHookRequestParams struct {
+type CreateOrgHookRequestParams struct {
 	Org *db.Org
 }
 
@@ -42,12 +44,25 @@ type HookParams struct {
 	User  *db.User
 	OrgId string
 	Plan  *db.Plan
+	Tx    *sqlx.Tx
 
 	WillSendModelRequestParams *WillSendModelRequestParams
 	DidSendModelRequestParams  *DidSendModelRequestParams
+	CreateOrgHookRequestParams *CreateOrgHookRequestParams
+	GetApiOrgIds               []string
 }
 
-type Hook func(tx *sqlx.Tx, params HookParams) *shared.ApiError
+type GetIntegratedModelsResult struct {
+	IntegratedModelsMode bool
+	ApiKeys              map[string]string
+}
+
+type HookResult struct {
+	GetIntegratedModelsResult *GetIntegratedModelsResult
+	ApiOrgsById               map[string]*shared.Org
+}
+
+type Hook func(params HookParams) (HookResult, *shared.ApiError)
 
 var hooks = make(map[string]Hook)
 
@@ -55,10 +70,10 @@ func RegisterHook(name string, hook Hook) {
 	hooks[name] = hook
 }
 
-func ExecHook(tx *sqlx.Tx, name string, params HookParams) *shared.ApiError {
+func ExecHook(name string, params HookParams) (HookResult, *shared.ApiError) {
 	hook, ok := hooks[name]
 	if !ok {
-		return nil
+		return HookResult{}, nil
 	}
-	return hook(tx, params)
+	return hook(params)
 }

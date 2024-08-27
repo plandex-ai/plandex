@@ -27,12 +27,12 @@ var fullCompatibilityExceptImage = ModelCompatibility{
 
 var AvailableModels = []*AvailableModel{
 	{
-		Description:                 "OpenAI's latest gpt-4o model, first released on 2024-05-13",
+		Description:                 "OpenAI's gpt-4o model, pinned to version released on 2024-08-06",
 		DefaultMaxConvoTokens:       10000,
-		DefaultReservedOutputTokens: 4096,
+		DefaultReservedOutputTokens: 16384,
 		BaseModelConfig: BaseModelConfig{
 			Provider:           ModelProviderOpenAI,
-			ModelName:          openai.GPT4o,
+			ModelName:          "gpt-4o-2024-08-06",
 			MaxTokens:          128000,
 			ApiKeyEnvVar:       OpenAIEnvVar,
 			ModelCompatibility: fullCompatibility,
@@ -53,7 +53,20 @@ var AvailableModels = []*AvailableModel{
 		},
 	},
 	{
-		Description:                 "OpenAI's latest gpt-4-turbo model, first released on 2024-04-09",
+		Description:                 "OpenAI's latest gpt-4-o model",
+		DefaultMaxConvoTokens:       10000,
+		DefaultReservedOutputTokens: 4096,
+		BaseModelConfig: BaseModelConfig{
+			Provider:           ModelProviderOpenAI,
+			ModelName:          openai.GPT4o,
+			MaxTokens:          128000,
+			ApiKeyEnvVar:       OpenAIEnvVar,
+			ModelCompatibility: fullCompatibilityExceptImage,
+			BaseUrl:            OpenAIV1BaseUrl,
+		},
+	},
+	{
+		Description:                 "OpenAI's latest gpt-4-turbo model",
 		DefaultMaxConvoTokens:       10000,
 		DefaultReservedOutputTokens: 4096,
 		BaseModelConfig: BaseModelConfig{
@@ -63,38 +76,32 @@ var AvailableModels = []*AvailableModel{
 			ApiKeyEnvVar:       OpenAIEnvVar,
 			ModelCompatibility: fullCompatibilityExceptImage,
 			BaseUrl:            OpenAIV1BaseUrl,
-		}},
-
+		},
+	},
 	{
-		Description:                 "OpenAI's gpt-4-turbo, pinned to version released on 2024-04-09",
+		Description:                 "OpenAI's gpt-4o-mini model, pinned to version released on 2024-07-18",
 		DefaultMaxConvoTokens:       10000,
-		DefaultReservedOutputTokens: 4096,
+		DefaultReservedOutputTokens: 16384,
 		BaseModelConfig: BaseModelConfig{
 			Provider:           ModelProviderOpenAI,
-			ModelName:          openai.GPT4Turbo20240409,
+			ModelName:          "gpt-4o-mini-2024-07-18",
 			MaxTokens:          128000,
 			ApiKeyEnvVar:       OpenAIEnvVar,
-			ModelCompatibility: fullCompatibilityExceptImage,
+			ModelCompatibility: fullCompatibility,
 			BaseUrl:            OpenAIV1BaseUrl,
 		},
 	},
 	{
-		Description:                 "OpenAI's gpt-4 model",
-		DefaultMaxConvoTokens:       2500,
-		DefaultReservedOutputTokens: 1000,
+		Description:                 "OpenAI's latest gpt-4o-mini model",
+		DefaultMaxConvoTokens:       10000,
+		DefaultReservedOutputTokens: 16384,
 		BaseModelConfig: BaseModelConfig{
-			Provider:     ModelProviderOpenAI,
-			ModelName:    openai.GPT4,
-			MaxTokens:    8000,
-			ApiKeyEnvVar: OpenAIEnvVar,
-			ModelCompatibility: ModelCompatibility{
-				IsOpenAICompatible:        true,
-				HasJsonResponseMode:       false,
-				HasStreaming:              true,
-				HasFunctionCalling:        true,
-				HasStreamingFunctionCalls: true,
-			},
-			BaseUrl: OpenAIV1BaseUrl,
+			Provider:           ModelProviderOpenAI,
+			ModelName:          "gpt-4o-mini",
+			MaxTokens:          128000,
+			ApiKeyEnvVar:       OpenAIEnvVar,
+			ModelCompatibility: fullCompatibility,
+			BaseUrl:            OpenAIV1BaseUrl,
 		},
 	},
 	{
@@ -104,32 +111,6 @@ var AvailableModels = []*AvailableModel{
 		BaseModelConfig: BaseModelConfig{
 			Provider:           ModelProviderOpenAI,
 			ModelName:          openai.GPT3Dot5Turbo,
-			MaxTokens:          16385,
-			ApiKeyEnvVar:       OpenAIEnvVar,
-			ModelCompatibility: fullCompatibilityExceptImage,
-			BaseUrl:            OpenAIV1BaseUrl,
-		},
-	},
-	{
-		Description:                 "OpenAI's gpt-3.5-turbo, pinned to version released on 2024-01-25",
-		DefaultMaxConvoTokens:       5000,
-		DefaultReservedOutputTokens: 2000,
-		BaseModelConfig: BaseModelConfig{
-			Provider:           ModelProviderOpenAI,
-			ModelName:          openai.GPT3Dot5Turbo0125,
-			MaxTokens:          16385,
-			ApiKeyEnvVar:       OpenAIEnvVar,
-			ModelCompatibility: fullCompatibilityExceptImage,
-			BaseUrl:            OpenAIV1BaseUrl,
-		},
-	},
-	{
-		Description:                 "OpenAI's gpt-3.5-turbo, pinned to version released on 2023-11-06",
-		DefaultMaxConvoTokens:       5000,
-		DefaultReservedOutputTokens: 2000,
-		BaseModelConfig: BaseModelConfig{
-			Provider:           ModelProviderOpenAI,
-			ModelName:          openai.GPT3Dot5Turbo1106,
 			MaxTokens:          16385,
 			ApiKeyEnvVar:       OpenAIEnvVar,
 			ModelCompatibility: fullCompatibilityExceptImage,
@@ -271,7 +252,7 @@ var AvailableModels = []*AvailableModel{
 		},
 	},
 	{
-		Description:                 "Google Gemini Pro 1.5 preview via OpenRouter",
+		Description:                 "Google Gemini Pro 1.5 via OpenRouter",
 		DefaultMaxConvoTokens:       100000,
 		DefaultReservedOutputTokens: 22937,
 		BaseModelConfig: BaseModelConfig{
@@ -298,8 +279,10 @@ var OpenRouterClaude3Dot5SonnetGPT4TurboModelPack ModelPack
 var OpenRouterClaude3Dot5SonnetModelPack ModelPack
 var TogetherMixtral8x22BModelPack ModelPack
 var Gpt4oLatestModelPack ModelPack
+var Gpt4o8062024ModelPack ModelPack
 
 var BuiltInModelPacks = []*ModelPack{
+	&Gpt4o8062024ModelPack,
 	&Gpt4oLatestModelPack,
 	&Gpt4TurboLatestModelPack,
 	&OpenRouterClaude3Dot5SonnetModelPack,
@@ -396,9 +379,65 @@ func init() {
 		AvailableModelsByName[model.ModelName] = model
 	}
 
+	Gpt4o8062024ModelPack = ModelPack{
+		Name:        "gpt-4o-2024-08-06",
+		Description: "Uses OpenAI's gpt-4o model, pinned to version released on 2024-08-06, for heavy lifting, and latest version of gpt-4o-mini for lighter tasks.",
+		Planner: PlannerRoleConfig{
+			ModelRoleConfig: ModelRoleConfig{
+				Role:            ModelRolePlanner,
+				BaseModelConfig: AvailableModelsByName["gpt-4o-2024-08-06"].BaseModelConfig,
+				Temperature:     DefaultConfigByRole[ModelRolePlanner].Temperature,
+				TopP:            DefaultConfigByRole[ModelRolePlanner].TopP,
+			},
+			PlannerModelConfig: getPlannerModelConfig("gpt-4o-2024-08-06"),
+		},
+		PlanSummary: ModelRoleConfig{
+			Role:            ModelRolePlanSummary,
+			BaseModelConfig: AvailableModelsByName["gpt-4o-2024-08-06"].BaseModelConfig,
+			Temperature:     DefaultConfigByRole[ModelRolePlanSummary].Temperature,
+			TopP:            DefaultConfigByRole[ModelRolePlanSummary].TopP,
+		},
+		Builder: ModelRoleConfig{
+			Role:            ModelRoleBuilder,
+			BaseModelConfig: AvailableModelsByName["gpt-4o-2024-08-06"].BaseModelConfig,
+			Temperature:     DefaultConfigByRole[ModelRoleBuilder].Temperature,
+			TopP:            DefaultConfigByRole[ModelRoleBuilder].TopP,
+		},
+		Namer: ModelRoleConfig{
+			Role:            ModelRoleName,
+			BaseModelConfig: AvailableModelsByName["gpt-4o-mini"].BaseModelConfig,
+			Temperature:     DefaultConfigByRole[ModelRoleName].Temperature,
+			TopP:            DefaultConfigByRole[ModelRoleName].TopP,
+		},
+		CommitMsg: ModelRoleConfig{
+			Role:            ModelRoleCommitMsg,
+			BaseModelConfig: AvailableModelsByName["gpt-4o-mini"].BaseModelConfig,
+			Temperature:     DefaultConfigByRole[ModelRoleCommitMsg].Temperature,
+			TopP:            DefaultConfigByRole[ModelRoleCommitMsg].TopP,
+		},
+		ExecStatus: ModelRoleConfig{
+			Role:            ModelRoleExecStatus,
+			BaseModelConfig: AvailableModelsByName["gpt-4o-2024-08-06"].BaseModelConfig,
+			Temperature:     DefaultConfigByRole[ModelRoleExecStatus].Temperature,
+			TopP:            DefaultConfigByRole[ModelRoleExecStatus].TopP,
+		},
+		Verifier: &ModelRoleConfig{
+			Role:            ModelRoleVerifier,
+			BaseModelConfig: AvailableModelsByName["gpt-4o-2024-08-06"].BaseModelConfig,
+			Temperature:     DefaultConfigByRole[ModelRoleVerifier].Temperature,
+			TopP:            DefaultConfigByRole[ModelRoleVerifier].TopP,
+		},
+		AutoFix: &ModelRoleConfig{
+			Role:            ModelRoleAutoFix,
+			BaseModelConfig: AvailableModelsByName["gpt-4o-2024-08-06"].BaseModelConfig,
+			Temperature:     DefaultConfigByRole[ModelRoleAutoFix].Temperature,
+			TopP:            DefaultConfigByRole[ModelRoleAutoFix].TopP,
+		},
+	}
+
 	Gpt4oLatestModelPack = ModelPack{
 		Name:        "gpt-4o-latest",
-		Description: "Uses OpenAI's latest gpt-4o model, first released on 2024-05-13, for heavy lifting, and latest version of gpt-3.5-turbo for lighter tasks.",
+		Description: "Uses OpenAI's latest gpt-4o model for heavy lifting, and latest version of gpt-4o-mini for lighter tasks.",
 		Planner: PlannerRoleConfig{
 			ModelRoleConfig: ModelRoleConfig{
 				Role:            ModelRolePlanner,
@@ -422,13 +461,13 @@ func init() {
 		},
 		Namer: ModelRoleConfig{
 			Role:            ModelRoleName,
-			BaseModelConfig: AvailableModelsByName[openai.GPT3Dot5Turbo].BaseModelConfig,
+			BaseModelConfig: AvailableModelsByName["gpt-4o-mini"].BaseModelConfig,
 			Temperature:     DefaultConfigByRole[ModelRoleName].Temperature,
 			TopP:            DefaultConfigByRole[ModelRoleName].TopP,
 		},
 		CommitMsg: ModelRoleConfig{
 			Role:            ModelRoleCommitMsg,
-			BaseModelConfig: AvailableModelsByName[openai.GPT3Dot5Turbo].BaseModelConfig,
+			BaseModelConfig: AvailableModelsByName["gpt-4o-mini"].BaseModelConfig,
 			Temperature:     DefaultConfigByRole[ModelRoleCommitMsg].Temperature,
 			TopP:            DefaultConfigByRole[ModelRoleCommitMsg].TopP,
 		},
@@ -454,7 +493,7 @@ func init() {
 
 	Gpt4TurboLatestModelPack = ModelPack{
 		Name:        "gpt-4-turbo-latest",
-		Description: "Uses latest version of OpenAI gpt-4-turbo model (first released on 2024-04-09) for heavy lifting, latest version of gpt-3.5-turbo for lighter tasks.",
+		Description: "Uses latest version of OpenAI gpt-4-turbo model (first released on 2024-04-09) for heavy lifting, latest version of gpt-4o-mini for lighter tasks.",
 		Planner: PlannerRoleConfig{
 			ModelRoleConfig: ModelRoleConfig{
 				Role:            ModelRolePlanner,
@@ -478,13 +517,13 @@ func init() {
 		},
 		Namer: ModelRoleConfig{
 			Role:            ModelRoleName,
-			BaseModelConfig: AvailableModelsByName[openai.GPT3Dot5Turbo].BaseModelConfig,
+			BaseModelConfig: AvailableModelsByName["gpt-4o-mini"].BaseModelConfig,
 			Temperature:     DefaultConfigByRole[ModelRoleName].Temperature,
 			TopP:            DefaultConfigByRole[ModelRoleName].TopP,
 		},
 		CommitMsg: ModelRoleConfig{
 			Role:            ModelRoleCommitMsg,
-			BaseModelConfig: AvailableModelsByName[openai.GPT3Dot5Turbo].BaseModelConfig,
+			BaseModelConfig: AvailableModelsByName["gpt-4o-mini"].BaseModelConfig,
 			Temperature:     DefaultConfigByRole[ModelRoleCommitMsg].Temperature,
 			TopP:            DefaultConfigByRole[ModelRoleCommitMsg].TopP,
 		},
@@ -498,7 +537,7 @@ func init() {
 
 	OpenRouterClaude3Dot5SonnetGPT4TurboModelPack = ModelPack{
 		Name:        "anthropic-claude-3.5-sonnet-gpt-4o",
-		Description: "Uses Anthropic's Claude 3.5 Sonnet model (via OpenRouter) for planning, summarization, and auto-continue, OpenAI gpt-4o for builds, and gpt-3.5-turbo for lighter tasks.",
+		Description: "Uses Anthropic's Claude 3.5 Sonnet model (via OpenRouter) for planning, summarization, and auto-continue, OpenAI gpt-4o for builds, and gpt-4o-mini for lighter tasks.",
 		Planner: PlannerRoleConfig{
 			ModelRoleConfig: ModelRoleConfig{
 				Role:            ModelRolePlanner,
@@ -522,13 +561,13 @@ func init() {
 		},
 		Namer: ModelRoleConfig{
 			Role:            ModelRoleName,
-			BaseModelConfig: AvailableModelsByName[openai.GPT3Dot5Turbo].BaseModelConfig,
+			BaseModelConfig: AvailableModelsByName["gpt-4o-mini"].BaseModelConfig,
 			Temperature:     DefaultConfigByRole[ModelRoleName].Temperature,
 			TopP:            DefaultConfigByRole[ModelRoleName].TopP,
 		},
 		CommitMsg: ModelRoleConfig{
 			Role:            ModelRoleCommitMsg,
-			BaseModelConfig: AvailableModelsByName[openai.GPT3Dot5Turbo].BaseModelConfig,
+			BaseModelConfig: AvailableModelsByName["gpt-4o-mini"].BaseModelConfig,
 			Temperature:     DefaultConfigByRole[ModelRoleCommitMsg].Temperature,
 			TopP:            DefaultConfigByRole[ModelRoleCommitMsg].TopP,
 		},

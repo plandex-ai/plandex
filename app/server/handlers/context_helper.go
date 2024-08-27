@@ -32,6 +32,7 @@ func loadContexts(w http.ResponseWriter, r *http.Request, auth *types.ServerAuth
 			clients := initClients(
 				initClientsParams{
 					w:           w,
+					auth:        auth,
 					apiKeys:     context.ApiKeys,
 					openAIBase:  context.OpenAIBase,
 					openAIOrgId: context.OpenAIOrgId,

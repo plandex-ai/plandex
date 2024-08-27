@@ -95,7 +95,7 @@ func (fileState *activeBuildStreamFileState) verifyFileBuild() {
 
 	fileState.inputTokens = inputTokens
 
-	apiErr := hooks.ExecHook(hooks.WillSendModelRequest, hooks.HookParams{
+	_, apiErr := hooks.ExecHook(hooks.WillSendModelRequest, hooks.HookParams{
 		User:  auth.User,
 		OrgId: auth.OrgId,
 		Plan:  fileState.plan,

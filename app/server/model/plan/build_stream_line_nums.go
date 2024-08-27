@@ -39,7 +39,7 @@ func (fileState *activeBuildStreamFileState) listenStreamChangesWithLineNums(str
 	streamFinished := false
 
 	execHookOnStop := func(sendStreamErr bool) {
-		apiErr := hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
+		_, apiErr := hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
 			User:  auth.User,
 			OrgId: auth.OrgId,
 			Plan:  fileState.plan,
@@ -117,7 +117,7 @@ func (fileState *activeBuildStreamFileState) listenStreamChangesWithLineNums(str
 					log.Println("Build stream usage:")
 					spew.Dump(response.Usage)
 
-					apiErr := hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
+					_, apiErr := hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
 						User:  auth.User,
 						OrgId: auth.OrgId,
 						Plan:  fileState.plan,

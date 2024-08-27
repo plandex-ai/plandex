@@ -38,7 +38,7 @@ func (state *activeTellStreamState) genPlanDescription() (*db.ConvoMessageDescri
 
 	numTokens := prompts.ExtraTokensPerRequest + (prompts.ExtraTokensPerMessage * 2) + prompts.SysDescribeNumTokens + activePlan.NumTokens
 
-	apiErr := hooks.ExecHook(hooks.WillSendModelRequest, hooks.HookParams{
+	_, apiErr := hooks.ExecHook(hooks.WillSendModelRequest, hooks.HookParams{
 		User:  auth.User,
 		OrgId: auth.OrgId,
 		Plan:  plan,
@@ -116,7 +116,7 @@ func (state *activeTellStreamState) genPlanDescription() (*db.ConvoMessageDescri
 		}
 	}
 
-	apiErr = hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
+	_, apiErr = hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
 		User:  auth.User,
 		OrgId: auth.OrgId,
 		Plan:  plan,
@@ -181,7 +181,7 @@ func GenCommitMsgForPendingResults(auth *types.ServerAuth, plan *db.Plan, client
 
 	numTokens := prompts.ExtraTokensPerRequest + (prompts.ExtraTokensPerMessage * 2) + prompts.SysPendingResultsNumTokens + contentTokens
 
-	apiErr := hooks.ExecHook(hooks.WillSendModelRequest, hooks.HookParams{
+	_, apiErr := hooks.ExecHook(hooks.WillSendModelRequest, hooks.HookParams{
 		User:  auth.User,
 		OrgId: auth.OrgId,
 		Plan:  plan,
@@ -243,7 +243,7 @@ func GenCommitMsgForPendingResults(auth *types.ServerAuth, plan *db.Plan, client
 		}
 	}
 
-	apiErr = hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
+	_, apiErr = hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
 		User:  auth.User,
 		OrgId: auth.OrgId,
 		Plan:  plan,

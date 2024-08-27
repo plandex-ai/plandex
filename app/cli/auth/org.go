@@ -8,7 +8,7 @@ import (
 	"github.com/plandex/plandex/shared"
 )
 
-func resolveOrgAuth(orgs []*shared.Org) (string, string, error) {
+func resolveOrgAuth(orgs []*shared.Org) (*shared.Org, error) {
 	var org *shared.Org
 	var err error
 
@@ -16,7 +16,7 @@ func resolveOrgAuth(orgs []*shared.Org) (string, string, error) {
 		org, err = promptNoOrgs()
 
 		if err != nil {
-			return "", "", fmt.Errorf("error prompting no orgs: %v", err)
+			return nil, fmt.Errorf("error prompting no orgs: %v", err)
 		}
 
 	} else if len(orgs) == 1 {
@@ -25,21 +25,11 @@ func resolveOrgAuth(orgs []*shared.Org) (string, string, error) {
 		org, err = selectOrg(orgs)
 
 		if err != nil {
-			return "", "", fmt.Errorf("error selecting org: %v", err)
+			return nil, fmt.Errorf("error selecting org: %v", err)
 		}
 	}
 
-	var (
-		orgId   string
-		orgName string
-	)
-
-	if org != nil {
-		orgId = org.Id
-		orgName = org.Name
-	}
-
-	return orgId, orgName, nil
+	return org, nil
 }
 
 func promptNoOrgs() (*shared.Org, error) {

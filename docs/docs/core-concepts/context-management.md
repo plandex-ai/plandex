@@ -5,7 +5,7 @@ sidebar_label: Context
 
 # Context Management
 
-Context in Plandex refers to files, directories, URLs, images, notes, or piped in data that the LLM uses to understand and work on your project. Context is always associated with a [plan](./plans.md)
+Context in Plandex refers to files, directories, URLs, images, notes, or piped in data that the LLM uses to understand and work on your project. Context is always associated with a [plan](./plans.md).
 
 Changes to context are [version controlled](./version-control.md) and can be [branched](./branches.md).
 

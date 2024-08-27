@@ -132,6 +132,7 @@ func ApplyPlanHandler(w http.ResponseWriter, r *http.Request) {
 	clients := initClients(
 		initClientsParams{
 			w:           w,
+			auth:        auth,
 			apiKeys:     requestBody.ApiKeys,
 			openAIBase:  requestBody.OpenAIBase,
 			openAIOrgId: requestBody.OpenAIOrgId,

@@ -75,7 +75,10 @@ func changes(cmd *cobra.Command, args []string) {
 		if !viewIncomplete {
 			fmt.Println("This plan has unbuilt changes. Building now.")
 
-			apiKeys := lib.MustVerifyApiKeys()
+			var apiKeys map[string]string
+			if !auth.Current.IntegratedModelsMode {
+				apiKeys = lib.MustVerifyApiKeys()
+			}
 
 			didBuild, err := plan_exec.Build(plan_exec.ExecParams{
 				CurrentPlanId: lib.CurrentPlanId,

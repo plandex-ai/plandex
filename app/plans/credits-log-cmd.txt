@@ -1,0 +1,7 @@
+I want to add a 'plandex credits log' command to the 'cli/cmd' directory. I want it to show all debits and credits from the credits_transactions table in a nicely formated way.
+
+You will need to add an API handler and route for this endpoint in server/cloud/ and also do the CLI side of the endpoint in cli/types/api.go and cli/api/methods.go.
+
+We will also need a client-side version of the CreditsTransaction type in shared/data_models.go that includes appropriate attributes, as well as a ToApi method for the server-side CreditsTransaction type in server/cloud/types/credits.go
+
+Think through anything else we will need to make this work. Also think about the best way to format and display this data for maximum developer-friendliness. 

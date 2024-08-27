@@ -59,7 +59,7 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 	streamFinished := false
 
 	execHookOnStop := func(sendStreamErr bool) {
-		err := hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
+		_, apiErr := hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
 			User:  auth.User,
 			OrgId: auth.OrgId,
 			Plan:  plan,
@@ -74,8 +74,8 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 			},
 		})
 
-		if err != nil {
-			log.Printf("Error executing did send model request hook after cancel or error: %v\n", err)
+		if apiErr != nil {
+			log.Printf("Error executing did send model request hook after cancel or error: %v\n", apiErr)
 
 			if sendStreamErr {
 				activePlan := GetActivePlan(planId, branch)
@@ -85,7 +85,7 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 					return
 				}
 
-				activePlan.StreamDoneCh <- err
+				activePlan.StreamDoneCh <- apiErr
 			}
 		}
 	}
@@ -138,7 +138,7 @@ mainLoop:
 					log.Println("Tell stream usage:")
 					spew.Dump(response.Usage)
 
-					apiErr := hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
+					_, apiErr := hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
 						User:  auth.User,
 						OrgId: auth.OrgId,
 						Plan:  plan,
