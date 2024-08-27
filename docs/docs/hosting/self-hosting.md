@@ -5,7 +5,7 @@ sidebar_label: Self-Hosting
 
 # Self-Hosting
 
-Plandex is open source and uses a client-server architecture. The server can be self-hosted. You can run either run it locally or on a cloud server that you control. 
+Plandex is open source and uses a client-server architecture. The server can be self-hosted. You can either run it locally or on a cloud server that you control. 
 
 ## Quickstart
 

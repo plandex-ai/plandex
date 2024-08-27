@@ -106,7 +106,7 @@ plandex build
 
 This will show a smaller version of the plan stream TUI that only includes the `Building Plan` section.
 
-Like full plan streams, build streams can stopped with the `s` hotkey or sent to the background with the `b` hotkey. They can also be run fully in the background with the `--bg` flag:
+Like full plan streams, build streams can be stopped with the `s` hotkey or sent to the background with the `b` hotkey. They can also be run fully in the background with the `--bg` flag:
 
 ```bash
 plandex build --bg
