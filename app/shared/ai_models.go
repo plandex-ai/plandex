@@ -30,7 +30,6 @@ var AvailableModels = []*AvailableModel{
 		Description:                 "OpenAI's gpt-4o model, pinned to version released on 2024-08-06",
 		DefaultMaxConvoTokens:       10000,
 		DefaultReservedOutputTokens: 16384,
-		CloudCreditsEnabled:         true,
 		BaseModelConfig: BaseModelConfig{
 			Provider:           ModelProviderOpenAI,
 			ModelName:          "gpt-4o-2024-08-06",
@@ -44,7 +43,6 @@ var AvailableModels = []*AvailableModel{
 		Description:                 "OpenAI's gpt-4o model, pinned to version released on 2024-05-13",
 		DefaultMaxConvoTokens:       10000,
 		DefaultReservedOutputTokens: 4096,
-		CloudCreditsEnabled:         true,
 		BaseModelConfig: BaseModelConfig{
 			Provider:           ModelProviderOpenAI,
 			ModelName:          "gpt-4o-2024-05-13",
@@ -58,7 +56,6 @@ var AvailableModels = []*AvailableModel{
 		Description:                 "OpenAI's latest gpt-4-o model",
 		DefaultMaxConvoTokens:       10000,
 		DefaultReservedOutputTokens: 4096,
-		CloudCreditsEnabled:         true,
 		BaseModelConfig: BaseModelConfig{
 			Provider:           ModelProviderOpenAI,
 			ModelName:          openai.GPT4o,
@@ -72,7 +69,6 @@ var AvailableModels = []*AvailableModel{
 		Description:                 "OpenAI's latest gpt-4-turbo model",
 		DefaultMaxConvoTokens:       10000,
 		DefaultReservedOutputTokens: 4096,
-		CloudCreditsEnabled:         true,
 		BaseModelConfig: BaseModelConfig{
 			Provider:           ModelProviderOpenAI,
 			ModelName:          openai.GPT4Turbo,
@@ -86,7 +82,6 @@ var AvailableModels = []*AvailableModel{
 		Description:                 "OpenAI's gpt-4o-mini model, pinned to version released on 2024-07-18",
 		DefaultMaxConvoTokens:       10000,
 		DefaultReservedOutputTokens: 16384,
-		CloudCreditsEnabled:         true,
 		BaseModelConfig: BaseModelConfig{
 			Provider:           ModelProviderOpenAI,
 			ModelName:          "gpt-4o-mini-2024-07-18",
@@ -100,7 +95,6 @@ var AvailableModels = []*AvailableModel{
 		Description:                 "OpenAI's latest gpt-4o-mini model",
 		DefaultMaxConvoTokens:       10000,
 		DefaultReservedOutputTokens: 16384,
-		CloudCreditsEnabled:         true,
 		BaseModelConfig: BaseModelConfig{
 			Provider:           ModelProviderOpenAI,
 			ModelName:          "gpt-4o-mini",
@@ -114,7 +108,6 @@ var AvailableModels = []*AvailableModel{
 		Description:                 "OpenAI's latest gpt-3.5-turbo model",
 		DefaultMaxConvoTokens:       5000,
 		DefaultReservedOutputTokens: 2000,
-		CloudCreditsEnabled:         true,
 		BaseModelConfig: BaseModelConfig{
 			Provider:           ModelProviderOpenAI,
 			ModelName:          openai.GPT3Dot5Turbo,
@@ -128,7 +121,6 @@ var AvailableModels = []*AvailableModel{
 		Description:                 "Anthropic Claude 3.5 Sonnet via OpenRouter",
 		DefaultMaxConvoTokens:       15000,
 		DefaultReservedOutputTokens: 4096,
-		CloudCreditsEnabled:         true,
 		BaseModelConfig: BaseModelConfig{
 			Provider:     ModelProviderOpenRouter,
 			ModelName:    "anthropic/claude-3.5-sonnet",
@@ -187,7 +179,6 @@ var AvailableModels = []*AvailableModel{
 		Description:                 "Anthropic Claude 3 Haiku via OpenRouter",
 		DefaultMaxConvoTokens:       15000,
 		DefaultReservedOutputTokens: 4096,
-		CloudCreditsEnabled:         true,
 		BaseModelConfig: BaseModelConfig{
 			Provider:     ModelProviderOpenRouter,
 			ModelName:    "anthropic/claude-3-haiku",
@@ -264,7 +255,6 @@ var AvailableModels = []*AvailableModel{
 		Description:                 "Google Gemini Pro 1.5 via OpenRouter",
 		DefaultMaxConvoTokens:       100000,
 		DefaultReservedOutputTokens: 22937,
-		CloudCreditsEnabled:         true,
 		BaseModelConfig: BaseModelConfig{
 			Provider:     ModelProviderOpenRouter,
 			ModelName:    "google/gemini-pro-1.5",
