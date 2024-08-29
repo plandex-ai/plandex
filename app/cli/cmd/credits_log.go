@@ -60,7 +60,7 @@ func creditsLog(cmd *cobra.Command, args []string) {
 		var sign string
 		var c color.Attribute
 
-		desc := transaction.CreatedAt.Local().Format("2006-01-02 15:04:05.000 PDT") + "\n"
+		desc := transaction.CreatedAt.Local().Format("2006-01-02 15:04:05.000 EST") + "\n"
 
 		if transaction.TransactionType == "debit" {
 			sign = "-"
@@ -82,9 +82,7 @@ func creditsLog(cmd *cobra.Command, args []string) {
 			price := transaction.DebitModelPricePerToken.Mul(decimal.NewFromInt(1000000)).Mul(surchargePct.Add(decimal.NewFromInt(1))).StringFixed(4)
 
 			for i := 0; i < 2; i++ {
-				if strings.HasSuffix(price, "0") {
-					price = price[:len(price)-1]
-				}
+				price = strings.TrimSuffix(price, "0")
 			}
 
 			desc += fmt.Sprintf("⚡️ %s\n🧠 %s/%s → %s\n💳 Price → $%s per 1M 🪙\n💸 Used → %d 🪙\n", *transaction.DebitPurpose, string(*transaction.DebitModelProvider), *transaction.DebitModelName, t, price, *transaction.DebitTokens)
@@ -105,16 +103,12 @@ func creditsLog(cmd *cobra.Command, args []string) {
 
 		amountStr := transaction.Amount.StringFixed(6)
 		for i := 0; i < 4; i++ {
-			if strings.HasSuffix(amountStr, "0") {
-				amountStr = amountStr[:len(amountStr)-1]
-			}
+			amountStr = strings.TrimSuffix(amountStr, "0")
 		}
 
 		balanceStr := transaction.EndBalance.StringFixed(4)
 		for i := 0; i < 2; i++ {
-			if strings.HasSuffix(balanceStr, "0") {
-				balanceStr = balanceStr[:len(balanceStr)-1]
-			}
+			balanceStr = strings.TrimSuffix(balanceStr, "0")
 		}
 
 		table.Append([]string{
