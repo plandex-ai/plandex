@@ -2026,3 +2026,32 @@ func (a *Api) DeleteModelPack(setId string) *shared.ApiError {
 
 	return nil
 }
+
+func (a *Api) GetCreditsTransactions() ([]*shared.CreditsTransaction, *shared.ApiError) {
+	serverUrl := fmt.Sprintf("%s/billing/credits_transactions", getApiHost())
+
+	resp, err := authenticatedFastClient.Get(serverUrl)
+	if err != nil {
+		return nil, &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error sending request: %v", err)}
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		errorBody, _ := io.ReadAll(resp.Body)
+
+		apiErr := handleApiError(resp, errorBody)
+		tokenRefreshed, apiErr := refreshTokenIfNeeded(apiErr)
+		if tokenRefreshed {
+			return a.GetCreditsTransactions()
+		}
+		return nil, apiErr
+	}
+
+	var transactions []*shared.CreditsTransaction
+	err = json.NewDecoder(resp.Body).Decode(&transactions)
+	if err != nil {
+		return nil, &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error decoding response: %v", err)}
+	}
+
+	return transactions, nil
+}

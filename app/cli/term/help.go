@@ -62,6 +62,8 @@ var CmdDesc = map[string][2]string{
 	"invite":                    {"", "invite a user to join your org"},
 	"revoke":                    {"", "revoke an invite or remove a user from your org"},
 	"users":                     {"", "list users and pending invites in your org"},
+	"credits":                   {"", "show Plandex Cloud credits balance"},
+	"credits log":               {"", "show Plandex Cloud credits transaction log"},
 }
 
 func PrintCmds(prefix string, cmds ...string) {
