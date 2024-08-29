@@ -171,12 +171,6 @@ func ProjectSetPlanHandler(w http.ResponseWriter, r *http.Request) {
 
 	// update statement here -- need auth / current user id
 
-	if err != nil {
-		log.Printf("Error updating project: %v\n", err)
-		http.Error(w, "Error updating project: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
 	log.Println("Successfully set project plan", projectId)
 }
 
