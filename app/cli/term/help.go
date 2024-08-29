@@ -175,6 +175,10 @@ func PrintCustomHelp(all bool) {
 		color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Accounts ")
 		printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "sign-in", "invite", "revoke", "users")
 		fmt.Fprintln(builder)
+
+		color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Cloud ")
+		printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "credits", "credits log")
+
 	} else {
 
 		// in the same style as 'getting started' section, output See All Commands

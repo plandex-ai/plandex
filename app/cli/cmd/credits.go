@@ -6,6 +6,7 @@ import (
 	"plandex/api"
 	"plandex/auth"
 	"plandex/term"
+	"strings"
 
 	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
@@ -42,8 +43,17 @@ func credits(cmd *cobra.Command, args []string) {
 	balanceFloat, _ := balance.Float64()
 	balanceStr := fmt.Sprintf("$%.4f", balanceFloat)
 
+	for i := 0; i < 2; i++ {
+		if strings.HasSuffix(balanceStr, "0") {
+			balanceStr = balanceStr[:len(balanceStr)-1]
+		}
+	}
+
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetHeader([]string{"Credits Balance"})
 	table.Append([]string{balanceStr})
 	table.Render()
+
+	fmt.Println()
+	term.PrintCmds("", "credits log")
 }
