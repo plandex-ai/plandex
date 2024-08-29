@@ -74,14 +74,13 @@ func (fileState *activeBuildStreamFileState) listenStreamFixChanges(stream *open
 		select {
 		case <-activePlan.Ctx.Done():
 			// The main context was canceled (not the timer)
-			if !streamFinished {
-				execHookOnStop(false)
-			}
+			execHookOnStop(false)
 			return
 		case <-timer.C:
 			log.Println("\nFix: stream timed out due to inactivity")
 
 			execHookOnStop(true)
+
 			if streamFinished {
 				log.Println("\nFix stream finished-timed out waiting for usage chunk")
 				return
@@ -100,14 +99,18 @@ func (fileState *activeBuildStreamFileState) listenStreamFixChanges(stream *open
 				timer.Reset(model.OPENAI_STREAM_CHUNK_TIMEOUT)
 			} else {
 				log.Printf("listenStreamFixChanges - File %s: Error receiving stream chunk: %v\n", filePath, err)
-				execHookOnStop(true)
 
 				if err == context.Canceled {
 					log.Printf("listenStreamFixChanges - File %s: Stream canceled\n", filePath)
+					execHookOnStop(false)
 					return
 				}
 
-				fileState.fixRetryOrAbort(fmt.Errorf("listenStreamFixChanges - stream error: %v", err))
+				execHookOnStop(true)
+
+				if !streamFinished {
+					fileState.fixRetryOrAbort(fmt.Errorf("listenStreamFixChanges - stream error: %v", err))
+				}
 				return
 			}
 
@@ -150,6 +153,12 @@ func (fileState *activeBuildStreamFileState) listenStreamFixChanges(stream *open
 				execHookOnStop(true)
 				fileState.fixRetryOrAbort(fmt.Errorf("listenStreamFixChanges - stream error: no choices"))
 				return
+			}
+
+			// if stream finished and it's not a usage chunk, keep listening for usage chunk
+			if streamFinished {
+				log.Printf("listenStreamFixChanges - File %s: Stream finished, no usage chunk-will keep listening\n", filePath)
+				continue
 			}
 
 			var content string
@@ -206,6 +215,8 @@ func (fileState *activeBuildStreamFileState) listenStreamFixChanges(stream *open
 				log.Printf("listenStreamFixChanges - File %s: Parsed streamed replacements\n", filePath)
 				// spew.Dump(streamed)
 				streamFinished = true // Stream finished successfully
+
+				log.Printf("listenStreamFixChanges - File %s: Stream finished\n", filePath)
 				fileState.onFixResult(streamed)
 
 				// Reset the timer for the usage chunk

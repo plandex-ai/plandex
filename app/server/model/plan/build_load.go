@@ -200,6 +200,7 @@ func (state *activeBuildStreamFileState) loadBuildFile(activeBuild *types.Active
 		errCh := make(chan error)
 
 		go func() {
+			log.Println("loadBuildFile - Getting current plan state")
 			res, err := db.GetCurrentPlanState(db.CurrentPlanStateParams{
 				OrgId:  currentOrgId,
 				PlanId: planId,

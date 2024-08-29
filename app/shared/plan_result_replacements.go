@@ -15,9 +15,9 @@ func ApplyReplacements(content string, replacements []*Replacement, setFailed bo
 		lastInsertedIdx := 0
 
 		for i, replacement := range replacements {
-			log.Println("replacement.Old:\n", replacement.Old)
-			log.Println("updated:\n", updated)
-			log.Println("lastInsertedIdx:", lastInsertedIdx)
+			// log.Println("replacement.Old:\n", replacement.Old)
+			// log.Println("updated:\n", updated)
+			// log.Println("lastInsertedIdx:", lastInsertedIdx)
 
 			pre := updated[:lastInsertedIdx]
 			sub := updated[lastInsertedIdx:]
@@ -43,14 +43,14 @@ func ApplyReplacements(content string, replacements []*Replacement, setFailed bo
 				}
 
 				log.Println("Replacement failed at index:", i)
-				log.Println("Replacement:")
-				log.Println(spew.Sdump(replacement))
+				// log.Println("Replacement:")
+				// log.Println(spew.Sdump(replacement))
 
-				log.Println("Updated:")
-				log.Println(updated)
+				// log.Println("Updated:")
+				// log.Println(updated)
 
-				log.Println("All replacements:")
-				log.Println(spew.Sdump(replacements))
+				// log.Println("All replacements:")
+				// log.Println(spew.Sdump(replacements))
 
 				return updated, i
 
@@ -126,7 +126,11 @@ func (planState *CurrentPlanState) GetFilesBeforeReplacement(
 
 	for path, planResults := range planRes.FileResultsByPath {
 		updated := files[path]
-		// log.Println("path: ", path)
+		log.Println("path: ", path)
+		log.Println("planResults: ", len(planResults))
+		// spew.Dump(planResults)
+		// log.Println("before PlanResLoop updated:")
+		// log.Println(updated)
 
 	PlanResLoop:
 		for _, planRes := range planResults {
@@ -166,8 +170,8 @@ func (planState *CurrentPlanState) GetFilesBeforeReplacement(
 				updated = context.Body
 				shas[path] = context.Sha
 
-				log.Println("setting updated content to context body. updated:")
-				log.Println(updated)
+				log.Println("setting updated content to context body")
+				// log.Println(updated)
 			}
 
 			replacements := []*Replacement{}
@@ -194,19 +198,21 @@ func (planState *CurrentPlanState) GetFilesBeforeReplacement(
 					maybeWithLineNums = AddLineNums(updated)
 				}
 
-				log.Println("Before replacements. updated:")
-				log.Println(updated)
+				// log.Println("Before replacements. updated:")
+				// log.Println(updated)
 
 				updated, allSucceeded = ApplyReplacements(maybeWithLineNums, replacements, false)
 
 				updated = RemoveLineNums(updated)
 
 				if !allSucceeded {
-					log.Println("updated:")
-					log.Println(updated)
+					log.Println("Failed to apply replacements")
 
-					log.Println("replacements:")
-					log.Println(spew.Sdump(replacements))
+					// log.Println("replacements:")
+					// log.Println(spew.Sdump(replacements))
+
+					// log.Println("updated:")
+					// log.Println(updated)
 
 					return nil, fmt.Errorf("plan replacement failed - %s", path)
 				}

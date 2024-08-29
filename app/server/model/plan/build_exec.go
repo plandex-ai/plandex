@@ -158,6 +158,8 @@ func (buildState *activeBuildStreamState) execPlanBuild(activeBuild *types.Activ
 		filePath:               filePath,
 		activeBuild:            activeBuild,
 	}
+
+	log.Println("execPlanBuild - fileState.loadBuildFile()")
 	err := fileState.loadBuildFile(activeBuild)
 	if err != nil {
 		log.Printf("Error loading build file: %v\n", err)
@@ -165,8 +167,10 @@ func (buildState *activeBuildStreamState) execPlanBuild(activeBuild *types.Activ
 	}
 
 	if activeBuild.IsVerification {
+		log.Println("execPlanBuild - fileState.verifyFileBuild()")
 		fileState.verifyFileBuild()
 	} else {
+		log.Println("execPlanBuild - fileState.buildFile()")
 		fileState.buildFile()
 	}
 }
@@ -189,10 +193,12 @@ func (fileState *activeBuildStreamFileState) buildFile() {
 
 	log.Printf("Building file %s\n", filePath)
 
-	log.Println("activePlan.ContextsByPath files:")
-	for k := range activePlan.ContextsByPath {
-		log.Println(k)
-	}
+	log.Printf("%d files in context\n", len(activePlan.ContextsByPath))
+
+	// log.Println("activePlan.ContextsByPath files:")
+	// for k := range activePlan.ContextsByPath {
+	// 	log.Println(k)
+	// }
 
 	// get relevant file context (if any)
 	contextPart := activePlan.ContextsByPath[filePath]
@@ -369,6 +375,9 @@ func (fileState *activeBuildStreamFileState) buildFileLineNums() {
 		Temperature:    config.Temperature,
 		TopP:           config.TopP,
 		ResponseFormat: responseFormat,
+		StreamOptions: &openai.StreamOptions{
+			IncludeUsage: true,
+		},
 	}
 
 	envVar := config.BaseModelConfig.ApiKeyEnvVar
@@ -382,6 +391,7 @@ func (fileState *activeBuildStreamFileState) buildFileLineNums() {
 			return
 		}
 
+		log.Printf("File %s: calling listenStreamChangesWithLineNums\n", filePath)
 		go fileState.listenStreamChangesWithLineNums(stream)
 	} else {
 
@@ -422,6 +432,9 @@ func (fileState *activeBuildStreamFileState) buildFileLineNums() {
 			fileState.lineNumsRetryOrError(fmt.Errorf("error unmarshalling build response: %v", err))
 			return
 		}
+
+		// log the file path
+		log.Printf("File %s: calling onBuildResult after non-streaming build\n", filePath)
 
 		fileState.onBuildResult(res)
 	}

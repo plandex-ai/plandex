@@ -23,6 +23,8 @@ func (fileState *activeBuildStreamFileState) listenStreamChangesWithLineNums(str
 	planId := fileState.plan.Id
 	branch := fileState.branch
 
+	log.Printf("listenStream - Listening for streamed changes with line numbers for file %s\n", filePath)
+
 	activePlan := GetActivePlan(planId, branch)
 
 	if activePlan == nil {
@@ -70,13 +72,13 @@ func (fileState *activeBuildStreamFileState) listenStreamChangesWithLineNums(str
 		}
 	}
 
+	log.Printf("listenStream - File %s: Listening for stream chunks\n", filePath)
+
 	for {
 		select {
 		case <-activePlan.Ctx.Done():
 			// The main context was canceled (not the timer)
-			if !streamFinished {
-				execHookOnStop(false)
-			}
+			execHookOnStop(false)
 			return
 		case <-timer.C:
 			log.Println("\nBuild: stream timed out due to inactivity")
@@ -99,22 +101,26 @@ func (fileState *activeBuildStreamFileState) listenStreamChangesWithLineNums(str
 				timer.Reset(model.OPENAI_STREAM_CHUNK_TIMEOUT)
 			} else {
 				log.Printf("listenStream - File %s: Error receiving stream chunk: %v\n", filePath, err)
-				execHookOnStop(true)
 
 				if err == context.Canceled {
 					log.Printf("listenStream - File %s: Stream canceled\n", filePath)
 					// log.Println("current buffer:")
 					// log.Println(fileState.activeBuild.WithLineNumsBuffer)
+					execHookOnStop(false)
 					return
 				}
 
-				fileState.lineNumsRetryOrError(fmt.Errorf("listenStream - stream error for file '%s': %v", filePath, err))
+				execHookOnStop(true)
+
+				if !streamFinished {
+					fileState.lineNumsRetryOrError(fmt.Errorf("listenStream - stream error for file '%s': %v", filePath, err))
+				}
 				return
 			}
 
 			if len(response.Choices) == 0 {
 				if response.Usage != nil {
-					log.Println("Build stream usage:")
+					log.Printf("listenStream - File %s: Stream usage chunk\n", filePath)
 					spew.Dump(response.Usage)
 
 					_, apiErr := hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
@@ -151,6 +157,12 @@ func (fileState *activeBuildStreamFileState) listenStreamChangesWithLineNums(str
 				execHookOnStop(true)
 				fileState.lineNumsRetryOrError(fmt.Errorf("listenStream - stream error: no choices"))
 				return
+			}
+
+			// if stream finished and it's not a usage chunk, keep listening for usage chunk
+			if streamFinished {
+				log.Printf("listenStream - File %s: Stream finished, no usage chunk-will keep listening\n", filePath)
+				continue
 			}
 
 			choice := response.Choices[0]
@@ -208,6 +220,8 @@ func (fileState *activeBuildStreamFileState) listenStreamChangesWithLineNums(str
 				// spew.Dump(streamed)
 
 				streamFinished = true // Stream finished successfully
+
+				log.Printf("listenStream - File %s: calling onBuildResult\n", filePath)
 				fileState.onBuildResult(streamed)
 
 				// Reset the timer for the usage chunk
@@ -215,6 +229,8 @@ func (fileState *activeBuildStreamFileState) listenStreamChangesWithLineNums(str
 					<-timer.C
 				}
 				timer.Reset(model.OPENAI_USAGE_CHUNK_TIMEOUT)
+
+				log.Printf("listenStream - File %s: continue for usage chunk\n", filePath)
 
 				continue // continue for usage chunk
 			} else if len(delta.ToolCalls) == 0 {

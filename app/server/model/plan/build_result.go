@@ -54,15 +54,6 @@ func GetPlanResult(ctx context.Context, params PlanResultParams) (*db.PlanFileRe
 
 	preBuildStateLines := strings.Split(preBuildState, "\n")
 
-	// log.Printf("\n\ngetPlanResult - path: %s\n", filePath)
-	// log.Println("getPlanResult - preBuildState:")
-	// log.Println(preBuildState)
-	// log.Println("getPlanResult - preBuildStateLines:")
-	// log.Println(preBuildStateLines)
-	// log.Println("getPlanResult - fileContent:")
-	// log.Println(fileContent)
-	// log.Print("\n\n")
-
 	var replacements []*shared.Replacement
 
 	var highestEndLine int = 0
@@ -73,7 +64,6 @@ func GetPlanResult(ctx context.Context, params PlanResultParams) (*db.PlanFileRe
 		}
 
 		var old string
-
 		new := streamedChange.New
 
 		if streamedChange.Old.EntireFile {
@@ -86,34 +76,30 @@ func GetPlanResult(ctx context.Context, params PlanResultParams) (*db.PlanFileRe
 			continue
 		}
 
-		// log.Printf("getPlanResult - streamedChange.Old.StartLine: %d\n", streamedChange.Old.StartLine)
-		// log.Printf("getPlanResult - streamedChange.Old.EndLine: %d\n", streamedChange.Old.EndLine)
-
 		startLine, endLine, err := streamedChange.GetLines()
-
 		if err != nil {
-			log.Println("getPlanResult - Error getting lines from streamedChange:", err)
+			log.Printf("getPlanResult - File %s: Error getting lines from streamedChange: %v\n", filePath, err)
 			return nil, "", false, fmt.Errorf("error getting lines from streamedChange: %v", err)
 		}
 
 		if startLine > len(preBuildStateLines) {
-			log.Printf("Start line is greater than preBuildStateLines length: %d > %d\n", startLine, len(preBuildStateLines))
+			log.Printf("getPlanResult - File %s: Start line is greater than preBuildStateLines length: %d > %d\n", filePath, startLine, len(preBuildStateLines))
 			return nil, "", false, fmt.Errorf("start line is greater than preBuildStateLines length: %d > %d", startLine, len(preBuildStateLines))
 		}
 
 		if endLine < 1 {
-			log.Printf("End line is less than 1: %d\n", endLine)
+			log.Printf("getPlanResult - File %s: End line is less than 1: %d\n", filePath, endLine)
 			return nil, "", false, fmt.Errorf("end line is less than 1: %d", endLine)
 		}
 		if endLine > len(preBuildStateLines) {
-			log.Printf("End line is greater than preBuildStateLines length: %d > %d\n", endLine, len(preBuildStateLines))
+			log.Printf("getPlanResult - File %s: End line is greater than preBuildStateLines length: %d > %d\n", filePath, endLine, len(preBuildStateLines))
 			return nil, "", false, fmt.Errorf("end line is greater than preBuildStateLines length: %d > %d", endLine, len(preBuildStateLines))
 		}
 
 		if startLine < highestEndLine {
-			log.Printf("Start line is less than highestEndLine: %d < %d\n", startLine, highestEndLine)
+			log.Printf("getPlanResult - File %s: Start line is less than highestEndLine: %d < %d\n", filePath, startLine, highestEndLine)
 
-			log.Printf("streamedChange:\n")
+			log.Printf("getPlanResult - File %s: streamedChange:\n", filePath)
 			log.Println(spew.Sdump(streamedChangesWithLineNums))
 
 			if params.OverlapStrategy == OverlapStrategyError {
@@ -126,7 +112,7 @@ func GetPlanResult(ctx context.Context, params PlanResultParams) (*db.PlanFileRe
 
 		if endLine < highestEndLine {
 			if params.OverlapStrategy == OverlapStrategyError {
-				log.Printf("End line is less than highestEndLine: %d < %d\n", endLine, highestEndLine)
+				log.Printf("getPlanResult - File %s: End line is less than highestEndLine: %d < %d\n", filePath, endLine, highestEndLine)
 				return nil, "", false, fmt.Errorf("end line is less than highestEndLine: %d < %d", endLine, highestEndLine)
 			} else {
 				continue
@@ -143,8 +129,6 @@ func GetPlanResult(ctx context.Context, params PlanResultParams) (*db.PlanFileRe
 			old = strings.Join(preBuildStateLines[startLine-1:endLine], "\n")
 		}
 
-		// log.Printf("getPlanResult - old: %s\n", old)
-
 		replacement := &shared.Replacement{
 			Old:            old,
 			New:            new,
@@ -154,21 +138,11 @@ func GetPlanResult(ctx context.Context, params PlanResultParams) (*db.PlanFileRe
 		replacements = append(replacements, replacement)
 	}
 
-	log.Println("Will apply replacements")
-	// log.Println("preBuildState:", preBuildState)
-
-	// log.Println("Replacements:")
-	// spew.Dump(replacements)
+	log.Printf("getPlanResult - File %s: Will apply replacements\n", filePath)
 
 	updated, allSucceeded := shared.ApplyReplacements(preBuildState, replacements, true)
 
 	updated = shared.RemoveLineNums(updated)
-
-	// log sha256 hash of updated content
-	// hash := sha256.Sum256([]byte(updated))
-	// sha := hex.EncodeToString(hash[:])
-
-	// log.Printf("apply result - %s - updated content hash: %s\n", filePath, sha)
 
 	for _, replacement := range replacements {
 		id := uuid.New().String()
@@ -194,26 +168,23 @@ func GetPlanResult(ctx context.Context, params PlanResultParams) (*db.PlanFileRe
 	}
 
 	if params.CheckSyntax {
-		// validate syntax (if we have a parser)
 		validationRes, err := syntax.Validate(ctx, filePath, updated)
-
 		if err != nil {
-			log.Println("Error validating syntax:", err)
+			log.Printf("getPlanResult - File %s: Error validating syntax: %v\n", filePath, err)
 			return nil, "", false, fmt.Errorf("error validating syntax: %v", err)
 		}
 
 		res.WillCheckSyntax = validationRes.HasParser && !validationRes.TimedOut
 		res.SyntaxValid = validationRes.Valid
 		res.SyntaxErrors = validationRes.Errors
-
 	}
-
-	// spew.Dump(res)
 
 	return &res, updated, allSucceeded, nil
 }
 
 func (fileState *activeBuildStreamFileState) onBuildResult(res types.ChangesWithLineNums) {
+	log.Printf("onBuildResult - File: %s\n", fileState.filePath)
+
 	filePath := fileState.filePath
 	build := fileState.build
 	currentOrgId := fileState.currentOrgId
@@ -224,7 +195,7 @@ func (fileState *activeBuildStreamFileState) onBuildResult(res types.ChangesWith
 	activePlan := GetActivePlan(planId, branch)
 
 	if activePlan == nil {
-		log.Printf("listenStream - Active plan not found for plan ID %s on branch %s\n", planId, branch)
+		log.Printf("onBuildResult - File %s: Active plan not found for plan ID %s on branch %s\n", filePath, planId, branch)
 		return
 	}
 
@@ -241,25 +212,27 @@ func (fileState *activeBuildStreamFileState) onBuildResult(res types.ChangesWith
 		var iStartLine int
 		var jStartLine int
 
-		// Convert the line number part to an integer
 		iStartLine, _, err := sorted[i].GetLines()
 
 		if err != nil {
-			log.Printf("listenStream - Error getting start line for change %v: %v\n", sorted[i], err)
-			fileState.lineNumsRetryOrError(fmt.Errorf("listenStream - error getting start line for change %v: %v", sorted[i], err))
+			log.Printf("onBuildResult - File %s: Error getting start line for change %v: %v\n", filePath, sorted[i], err)
+			fileState.lineNumsRetryOrError(fmt.Errorf("onBuildResult - error getting start line for change %v: %v", sorted[i], err))
 			return false
 		}
 
 		jStartLine, _, err = sorted[j].GetLines()
 
 		if err != nil {
-			log.Printf("listenStream - Error getting start line for change %v: %v\n", sorted[j], err)
-			fileState.lineNumsRetryOrError(fmt.Errorf("listenStream - error getting start line for change %v: %v", sorted[j], err))
+			log.Printf("onBuildResult - File %s: Error getting start line for change %v: %v\n", filePath, sorted[j], err)
+			fileState.lineNumsRetryOrError(fmt.Errorf("onBuildResult - error getting start line for change %v: %v", sorted[j], err))
 			return false
 		}
 
 		return iStartLine < jStartLine
 	})
+
+	log.Printf("onBuildResult - File %s: fileState.streamedChangesWithLineNums = sorted\n", filePath)
+	log.Printf("onBuildResult - File %s: num changes: %d\n", filePath, len(sorted))
 
 	fileState.streamedChangesWithLineNums = sorted
 
@@ -284,21 +257,20 @@ func (fileState *activeBuildStreamFileState) onBuildResult(res types.ChangesWith
 	)
 
 	if err != nil {
-		log.Println("listenStream - Error getting plan result:", err)
-		fileState.lineNumsRetryOrError(fmt.Errorf("listenStream - error getting plan result for file '%s': %v", filePath, err))
+		log.Printf("onBuildResult - File %s: Error getting plan result: %v\n", filePath, err)
+		fileState.lineNumsRetryOrError(fmt.Errorf("onBuildResult - error getting plan result for file '%s': %v", filePath, err))
 		return
 	}
 
 	if !allSucceeded {
-		log.Println("listenStream - Failed replacements:")
+		log.Printf("onBuildResult - File %s: Failed replacements:\n", filePath)
 		for _, replacement := range planFileResult.Replacements {
 			if replacement.Failed {
 				spew.Dump(replacement)
 			}
 		}
 
-		// no retry here as this should never happen
-		fileState.onBuildFileError(fmt.Errorf("listenStream - replacements failed for file '%s'", filePath))
+		fileState.onBuildFileError(fmt.Errorf("onBuildResult - replacements failed for file '%s'", filePath))
 		return
 	}
 
@@ -315,8 +287,8 @@ func (fileState *activeBuildStreamFileState) onBuildResult(res types.ChangesWith
 
 	fileState.updated = updatedFile
 
-	log.Println("build stream - Plan file result:", planFileResult != nil)
-	log.Printf("updatedFile exists: %v\n", updatedFile != "")
+	log.Printf("onBuildResult - File %s: Plan file result: %v\n", filePath, planFileResult != nil)
+	log.Printf("onBuildResult - File %s: updatedFile exists: %v\n", filePath, updatedFile != "")
 
 	fileState.onFinishBuildFile(planFileResult, updatedFile)
 }
@@ -326,18 +298,18 @@ func (fileState *activeBuildStreamFileState) lineNumsRetryOrError(err error) {
 		fileState.lineNumsNumRetry++
 		fileState.activeBuild.WithLineNumsBuffer = ""
 		fileState.activeBuild.WithLineNumsBufferTokens = 0
-		log.Printf("Retrying line nums build file '%s' due to error: %v\n", fileState.filePath, err)
+		log.Printf("lineNumsRetryOrError - Retrying line nums build file '%s' due to error: %v\n", fileState.filePath, err)
 
 		activePlan := GetActivePlan(fileState.plan.Id, fileState.branch)
 
 		if activePlan == nil {
-			log.Println("lineNumsRetryOrError - Active plan not found")
+			log.Printf("lineNumsRetryOrError - File %s: Active plan not found\n", fileState.filePath)
 			return
 		}
 
 		select {
 		case <-activePlan.Ctx.Done():
-			log.Println("lineNumsRetryOrError - Context canceled. Exiting.")
+			log.Printf("lineNumsRetryOrError - File %s: Context canceled. Exiting.\n", fileState.filePath)
 			return
 		case <-time.After(time.Duration((fileState.verifyFileNumRetry*fileState.verifyFileNumRetry)/2)*200*time.Millisecond + time.Duration(rand.Intn(500))*time.Millisecond):
 			break

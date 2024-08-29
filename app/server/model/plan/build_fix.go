@@ -122,6 +122,9 @@ func (fileState *activeBuildStreamFileState) fixFileLineNums() {
 		Temperature:    config.Temperature,
 		TopP:           config.TopP,
 		ResponseFormat: responseFormat,
+		StreamOptions: &openai.StreamOptions{
+			IncludeUsage: true,
+		},
 	}
 
 	envVar := config.BaseModelConfig.ApiKeyEnvVar

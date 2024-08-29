@@ -106,6 +106,7 @@ func (fileState *activeBuildStreamFileState) verifyFileBuild() {
 		},
 	})
 	if apiErr != nil {
+		log.Printf("verifyFileBuild - Error executing will send model request hook: %v\n", apiErr)
 		activePlan.StreamDoneCh <- apiErr
 		return
 	}
@@ -139,6 +140,9 @@ func (fileState *activeBuildStreamFileState) verifyFileBuild() {
 		Temperature:    config.Temperature,
 		TopP:           config.TopP,
 		ResponseFormat: responseFormat,
+		StreamOptions: &openai.StreamOptions{
+			IncludeUsage: true,
+		},
 	}
 
 	envVar := config.BaseModelConfig.ApiKeyEnvVar

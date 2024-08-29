@@ -96,17 +96,14 @@ mainLoop:
 		case <-active.Ctx.Done():
 			// The main modelContext was canceled (not the timer)
 			log.Println("\nTell: stream canceled")
-
-			if !streamFinished {
-				execHookOnStop(false)
-			}
-
+			execHookOnStop(false)
 			return
 		case <-timer.C:
 			// Timer triggered because no new chunk was received in time
 			log.Println("\nTell: stream timeout due to inactivity")
 			if streamFinished {
 				log.Println("Tell stream finished—timed out waiting for usage chunk")
+				execHookOnStop(true)
 				return
 			} else {
 				state.onError(fmt.Errorf("stream timeout due to inactivity"), true, "", "")
@@ -122,14 +119,16 @@ mainLoop:
 					<-timer.C
 				}
 				timer.Reset(model.OPENAI_STREAM_CHUNK_TIMEOUT)
-			}
-
-			if err != nil {
+			} else {
 				if err.Error() == "context canceled" {
 					log.Println("Tell: stream context canceled")
-					execHookOnStop(true)
+					execHookOnStop(false)
 					return
 				}
+
+				log.Printf("Tell: error receiving stream chunk: %v\n", err)
+				execHookOnStop(true)
+				return
 			}
 
 			if len(response.Choices) == 0 {
@@ -171,6 +170,12 @@ mainLoop:
 
 				state.onError(fmt.Errorf("stream finished with no choices"), true, "", "")
 				continue mainLoop
+			}
+
+			// if stream finished and it's not a usage chunk, keeep listening for usage chunk
+			if streamFinished {
+				log.Println("Tell stream finished—no usage chunk-will keep listening")
+				continue
 			}
 
 			if len(response.Choices) > 1 {

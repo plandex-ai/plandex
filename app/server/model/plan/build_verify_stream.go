@@ -74,19 +74,18 @@ func (fileState *activeBuildStreamFileState) listenStreamVerifyOutput(stream *op
 		select {
 		case <-activePlan.Ctx.Done():
 			// The main context was canceled (not the timer)
-			if !streamFinished {
-				execHookOnStop(false)
-			}
+			execHookOnStop(false)
 			return
 		case <-timer.C:
 			log.Println("\nVerify: stream timeout due to inactivity")
+
+			execHookOnStop(true)
+
 			if streamFinished {
 				log.Println("\nVerify stream finished-timed out waiting for usage chunk")
 				return
 			}
 
-			// Timer triggered because no new chunk was received in time
-			execHookOnStop(false)
 			fileState.verifyRetryOrAbort(fmt.Errorf("listenStreamVerifyOutput - stream timeout due to inactivity for file '%s'", filePath))
 			return
 		default:
@@ -100,14 +99,18 @@ func (fileState *activeBuildStreamFileState) listenStreamVerifyOutput(stream *op
 				timer.Reset(model.OPENAI_STREAM_CHUNK_TIMEOUT)
 			} else {
 				log.Printf("listenStreamVerifyOutput - File %s: Error receiving stream chunk: %v\n", filePath, err)
-				execHookOnStop(false)
 
 				if err == context.Canceled {
 					log.Printf("listenStreamVerifyOutput - File %s: Stream canceled\n", filePath)
+					execHookOnStop(false)
 					return
 				}
 
-				fileState.verifyRetryOrAbort(fmt.Errorf("listenStreamVerifyOutput - stream error: %v", err))
+				execHookOnStop(true)
+
+				if !streamFinished {
+					fileState.verifyRetryOrAbort(fmt.Errorf("listenStreamVerifyOutput - stream error: %v", err))
+				}
 				return
 			}
 
@@ -148,9 +151,15 @@ func (fileState *activeBuildStreamFileState) listenStreamVerifyOutput(stream *op
 					return
 				}
 
-				execHookOnStop(false)
+				execHookOnStop(true)
 				fileState.verifyRetryOrAbort(fmt.Errorf("listenStreamVerifyOutput - stream error: no choices"))
 				return
+			}
+
+			// if stream finished and it's not a usage chunk, keep listening for usage chunk
+			if streamFinished {
+				log.Printf("listenStreamVerifyOutput - File %s: Stream finished, no usage chunk-will keep listening\n", filePath)
+				continue
 			}
 
 			choice := response.Choices[0]
@@ -163,7 +172,7 @@ func (fileState *activeBuildStreamFileState) listenStreamVerifyOutput(stream *op
 				trimmed := strings.TrimSpace(content)
 				if trimmed == "{%invalidjson%}" || trimmed == "``(no output)``````" {
 					log.Println("File", filePath+":", "%invalidjson%} token in streamed chunk")
-					execHookOnStop(false)
+					execHookOnStop(true)
 					fileState.verifyRetryOrAbort(fmt.Errorf("invalid JSON in streamed chunk for file '%s'", filePath))
 					return
 				}
@@ -191,6 +200,8 @@ func (fileState *activeBuildStreamFileState) listenStreamVerifyOutput(stream *op
 				log.Printf("listenStreamVerifyOutput - File %s: Parsed streamed verify result\n", filePath)
 				// spew.Dump(streamed)
 				streamFinished = true // Stream finished successfully
+
+				log.Printf("listenStreamVerifyOutput - File %s: Streamed verify result\n", filePath)
 				fileState.onVerifyResult(streamed)
 
 				// Reset the timer for the usage chunk
@@ -204,7 +215,7 @@ func (fileState *activeBuildStreamFileState) listenStreamVerifyOutput(stream *op
 
 				log.Printf("listenStreamVerifyOuput - File %s: Stream chunk missing function call. Reason: %s\n", filePath, choice.FinishReason)
 
-				execHookOnStop(false)
+				execHookOnStop(true)
 				fileState.verifyRetryOrAbort(fmt.Errorf("listenStreamVerifyOutput - stream chunk missing function call. Reason: %s, File: %s", choice.FinishReason, filePath))
 			}
 		}

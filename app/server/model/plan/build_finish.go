@@ -280,6 +280,7 @@ func (fileState *activeBuildStreamFileState) onFinishBuildFile(planRes *db.PlanF
 		if planRes.IsFix {
 			if planRes.FixEpoch >= FixSyntaxEpochs-1 {
 				// we're out of retries, just continue on to queue processing
+				log.Printf("Out of retries for syntax fix for file %s\n", filePath)
 			} else {
 				fileState.syntaxNumEpoch++
 				fileState.syntaxNumRetry = 0
@@ -287,6 +288,7 @@ func (fileState *activeBuildStreamFileState) onFinishBuildFile(planRes *db.PlanF
 				fileState.syntaxErrors = planRes.SyntaxErrors
 				fileState.preBuildState = fileState.updated
 				fileState.updated = updated
+				log.Printf("Retrying syntax fix for file %s\n", filePath)
 				go fileState.fixFileLineNums()
 				return
 			}
@@ -295,6 +297,7 @@ func (fileState *activeBuildStreamFileState) onFinishBuildFile(planRes *db.PlanF
 			fileState.syntaxErrors = planRes.SyntaxErrors
 			fileState.preBuildState = fileState.updated
 			fileState.updated = updated
+			log.Printf("Fixing syntax for file %s\n", filePath)
 			go fileState.fixFileLineNums()
 			return
 		}
@@ -347,6 +350,8 @@ func (fileState *activeBuildStreamFileState) onFinishBuildFile(planRes *db.PlanF
 			fileState.onFinishBuild()
 		}
 	} else {
+		log.Println("Triggering verification build")
+
 		go fileState.execPlanBuild(&types.ActiveBuild{
 			ReplyId:              activeBuild.ReplyId,
 			FileDescription:      activeBuild.FileDescription,
