@@ -48,27 +48,27 @@ func GetUserPasswordInput(msg string) (string, error) {
 	return res, err
 }
 
-func GetUserKeyInput() (rune, error) {
+func GetUserKeyInput() (rune, keyboard.Key, error) {
 	if err := keyboard.Open(); err != nil {
-		return 0, fmt.Errorf("failed to open keyboard: %s", err)
+		return 0, 0, fmt.Errorf("failed to open keyboard: %s", err)
 	}
 	defer func() {
 		_ = keyboard.Close()
 	}()
 
-	char, _, err := keyboard.GetKey()
+	char, key, err := keyboard.GetKey()
 	if err != nil {
-		return 0, fmt.Errorf("failed to read keypress: %s", err)
+		return 0, 0, fmt.Errorf("failed to read keypress: %s", err)
 	}
 
-	return char, nil
+	return char, key, nil
 }
 
 func ConfirmYesNo(fmtStr string, fmtArgs ...interface{}) (bool, error) {
 	color.New(ColorHiMagenta, color.Bold).Printf(fmtStr+" (y)es | (n)o", fmtArgs...)
 	color.New(ColorHiMagenta, color.Bold).Print("> ")
 
-	char, err := GetUserKeyInput()
+	char, _, err := GetUserKeyInput()
 	if err != nil {
 		return false, fmt.Errorf("failed to get user input: %s", err)
 	}
@@ -89,7 +89,7 @@ func ConfirmYesNoCancel(fmtStr string, fmtArgs ...interface{}) (bool, bool, erro
 	color.New(ColorHiMagenta, color.Bold).Printf(fmtStr+" (y)es | (n)o | (c)ancel", fmtArgs...)
 	color.New(ColorHiMagenta, color.Bold).Print("> ")
 
-	char, err := GetUserKeyInput()
+	char, _, err := GetUserKeyInput()
 	if err != nil {
 		return false, false, fmt.Errorf("failed to get user input: %s", err)
 	}

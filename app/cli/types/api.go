@@ -97,5 +97,6 @@ type ApiClient interface {
 	CreateModelPack(set *shared.ModelPack) *shared.ApiError
 	ListModelPacks() ([]*shared.ModelPack, *shared.ApiError)
 	DeleteModelPack(setId string) *shared.ApiError
-	GetCreditsTransactions() ([]*shared.CreditsTransaction, *shared.ApiError)
+
+	GetCreditsTransactions(pageSize, pageNum int) (*shared.CreditsLogResponse, *shared.ApiError)
 }

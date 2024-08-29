@@ -260,3 +260,14 @@ type StartTrialResponse struct {
 type TrialPaymentRequest struct {
 	StripeToken string `json:"stripeToken"`
 }
+
+type CreditsLogRequest struct {
+	PageSize int `json:"pageSize"`
+	Page     int `json:"page"`
+}
+
+type CreditsLogResponse struct {
+	Transactions []*CreditsTransaction `json:"transactions"`
+	NumPages     int                   `json:"numPages"`
+	NumPagesMax  bool                  `json:"numPagesMax"`
+}

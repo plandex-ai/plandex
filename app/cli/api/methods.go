@@ -2027,8 +2027,8 @@ func (a *Api) DeleteModelPack(setId string) *shared.ApiError {
 	return nil
 }
 
-func (a *Api) GetCreditsTransactions() ([]*shared.CreditsTransaction, *shared.ApiError) {
-	serverUrl := fmt.Sprintf("%s/billing/credits_transactions", getApiHost())
+func (a *Api) GetCreditsTransactions(pageSize, pageNum int) (*shared.CreditsLogResponse, *shared.ApiError) {
+	serverUrl := fmt.Sprintf("%s/billing/credits_transactions?size=%d&page=%d", getApiHost(), pageSize, pageNum)
 
 	resp, err := authenticatedFastClient.Get(serverUrl)
 	if err != nil {
@@ -2042,16 +2042,16 @@ func (a *Api) GetCreditsTransactions() ([]*shared.CreditsTransaction, *shared.Ap
 		apiErr := handleApiError(resp, errorBody)
 		tokenRefreshed, apiErr := refreshTokenIfNeeded(apiErr)
 		if tokenRefreshed {
-			return a.GetCreditsTransactions()
+			return a.GetCreditsTransactions(pageSize, pageNum)
 		}
 		return nil, apiErr
 	}
 
-	var transactions []*shared.CreditsTransaction
-	err = json.NewDecoder(resp.Body).Decode(&transactions)
+	var res *shared.CreditsLogResponse
+	err = json.NewDecoder(resp.Body).Decode(&res)
 	if err != nil {
 		return nil, &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error decoding response: %v", err)}
 	}
 
-	return transactions, nil
+	return res, nil
 }

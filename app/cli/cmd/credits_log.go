@@ -5,14 +5,22 @@ import (
 	"plandex/api"
 	"plandex/auth"
 	"plandex/term"
+	"strconv"
 	"strings"
+	"unicode"
 
+	"github.com/eiannone/keyboard"
 	"github.com/fatih/color"
 	"github.com/olekukonko/tablewriter"
 	"github.com/plandex/plandex/shared"
 	"github.com/shopspring/decimal"
 	"github.com/spf13/cobra"
 )
+
+const MaxCreditsLogPageSize = 500
+
+var logCreditsPageSize int
+var logCreditsPage int
 
 var creditsLogCmd = &cobra.Command{
 	Use:   "log",
@@ -21,21 +29,27 @@ var creditsLogCmd = &cobra.Command{
 }
 
 func init() {
+	creditsLogCmd.Flags().IntVarP(&logCreditsPageSize, "page-size", "s", 20, "Number of transactions to display per page")
+	creditsLogCmd.Flags().IntVarP(&logCreditsPage, "page", "p", 1, "Page number to display")
+
 	// subcommand of 'credits'
 	creditsCmd.AddCommand(creditsLogCmd)
+
 }
 
 func creditsLog(cmd *cobra.Command, args []string) {
 	auth.MustResolveAuthWithOrg()
 
 	term.StartSpinner("")
-	transactions, apiErr := api.Client.GetCreditsTransactions()
+	res, apiErr := api.Client.GetCreditsTransactions(logCreditsPageSize, logCreditsPage)
 	term.StopSpinner()
 
 	if apiErr != nil {
 		term.OutputErrorAndExit("Error getting credits transactions: %v", apiErr)
 		return
 	}
+
+	transactions := res.Transactions
 
 	tableString := &strings.Builder{}
 	table := tablewriter.NewWriter(tableString)
@@ -113,5 +127,122 @@ func creditsLog(cmd *cobra.Command, args []string) {
 
 	table.Render()
 
-	term.PageOutput(tableString.String())
+	pageLine := fmt.Sprintf("Page size %d. Showing page %d of %d", logCreditsPageSize, logCreditsPage, res.NumPages)
+	if res.NumPagesMax {
+		pageLine += "+"
+	}
+
+	output := pageLine + "\n\n" + tableString.String()
+
+	term.PageOutput(output)
+
+	var inputFn func()
+	inputFn = func() {
+
+		fmt.Println("\n" + pageLine)
+
+		prompts := []string{}
+
+		if res.NumPages > 1 && logCreditsPage < res.NumPages {
+			prompts = append(prompts, "Press 'n' for next page")
+		}
+
+		if logCreditsPage > 1 {
+			prompts = append(prompts, "Press 'p' for previous page")
+		}
+
+		prompts = append(prompts, "Press any number to jump to a page")
+
+		prompts = append(prompts, "Press 'q' to quit")
+
+		color.New(term.ColorHiMagenta, color.Bold).Println(strings.Join(prompts, "\n"))
+		color.New(term.ColorHiMagenta, color.Bold).Print("> ")
+
+		char, _, err := term.GetUserKeyInput()
+
+		if err != nil {
+			term.OutputErrorAndExit("Failed to get user input: %v", err)
+		}
+
+		// Check if the input is a digit
+		if unicode.IsDigit(char) {
+			var numberInput strings.Builder
+			numberInput.WriteRune(char)
+
+			fmt.Print(string(char)) // Show the initial digit
+
+			for {
+				char, key, err := term.GetUserKeyInput()
+				if err != nil {
+					term.OutputErrorAndExit("Failed to get user input: %v", err)
+				}
+
+				// If Enter is pressed, commit the input
+				if key == keyboard.KeyEnter {
+					pageNumber, err := strconv.Atoi(numberInput.String())
+					if err != nil {
+						fmt.Println("Invalid page number.")
+						return
+					}
+
+					// Check if the page number is valid
+					if pageNumber >= 1 && (pageNumber <= res.NumPages || res.NumPagesMax) {
+						logCreditsPage = pageNumber
+						creditsLog(cmd, args) // Re-run the log command with the new page
+					} else {
+						fmt.Println()
+						fmt.Println("Invalid page number.")
+						inputFn()
+					}
+					return
+				}
+
+				// If another digit is pressed, add it to the input
+				if unicode.IsDigit(char) {
+					numberInput.WriteRune(char)
+					fmt.Print(string(char)) // Show the digit
+				} else {
+					// Handle invalid input while typing a number
+					fmt.Println()
+					fmt.Println("\nInvalid input. Please enter a valid page number.")
+					inputFn()
+					return
+				}
+			}
+		}
+
+		// Handle non-digit hotkeys
+		fmt.Print(string(char))
+		switch char {
+		case 'n':
+			if logCreditsPage < res.NumPages || res.NumPagesMax {
+				logCreditsPage++
+				creditsLog(cmd, args)
+			} else {
+				fmt.Println()
+				fmt.Println("Already on last page.")
+				inputFn()
+			}
+		case 'p':
+			if logCreditsPage > 1 {
+				logCreditsPage--
+				creditsLog(cmd, args)
+			} else {
+				fmt.Println()
+				fmt.Println("Already on first page.")
+				inputFn()
+			}
+		case 'q':
+			fmt.Println()
+			return
+		default:
+			fmt.Println()
+			fmt.Println("Invalid input.")
+			inputFn()
+		}
+
+	}
+
+	inputFn()
+
 }
