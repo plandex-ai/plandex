@@ -122,16 +122,17 @@ func DeleteOrgUserHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// verify user isn't the only org owner
-	ownerRoleId, err := db.GetOrgOwnerRoleId()
+	orgOwnerRoleId, err := db.GetOrgOwnerRoleId()
+
 	if err != nil {
 		log.Printf("Error getting org owner role id: %v\n", err)
 		http.Error(w, "Error getting org owner role id: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	if orgUser.OrgRoleId == ownerRoleId {
-		numOwners, err := db.NumUsersWithRole(auth.OrgId, ownerRoleId)
+	// verify user isn't the only org owner
+	if orgUser.OrgRoleId == orgOwnerRoleId {
+		numOwners, err := db.NumUsersWithRole(auth.OrgId, orgOwnerRoleId)
 
 		if err != nil {
 			log.Printf("Error getting number of org owners: %v\n", err)

@@ -20,7 +20,7 @@ func SendVerificationEmail(email string, pin string) error {
 		if os.Getenv("IS_CLOUD") == "" {
 			return sendEmailViaSMTP(email, subject, htmlBody, textBody)
 		} else {
-			return sendEmailViaSES(email, subject, htmlBody, textBody)
+			return SendEmailViaSES(email, subject, htmlBody, textBody)
 		}
 	}
 

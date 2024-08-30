@@ -35,6 +35,10 @@ func MustInitDb() {
 		log.Fatal("Error running migrations: ", err)
 	}
 
+	err = db.CacheOrgRoleIds()
+	if err != nil {
+		log.Fatal("Error caching org role ids: ", err)
+	}
 }
 
 func StartServer(r *mux.Router) {

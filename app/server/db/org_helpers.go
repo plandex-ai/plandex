@@ -112,13 +112,12 @@ func CreateOrg(req *shared.CreateOrgRequest, userId string, domain *string, tx *
 		return nil, fmt.Errorf("error creating org: %v", err)
 	}
 
-	orgRoleId, err := GetOrgOwnerRoleId()
-
+	orgOwnerRoleId, err := GetOrgOwnerRoleId()
 	if err != nil {
 		return nil, fmt.Errorf("error getting org owner role id: %v", err)
 	}
 
-	_, err = tx.Exec("INSERT INTO orgs_users (org_id, user_id, org_role_id) VALUES ($1, $2, $3)", org.Id, userId, orgRoleId)
+	_, err = tx.Exec("INSERT INTO orgs_users (org_id, user_id, org_role_id) VALUES ($1, $2, $3)", org.Id, userId, orgOwnerRoleId)
 
 	if err != nil {
 		return nil, fmt.Errorf("error adding org membership: %v", err)
@@ -150,20 +149,20 @@ func AddOrgDomainUsers(orgId, domain string, tx *sqlx.Tx) error {
 		return fmt.Errorf("error getting users for domain: %v", err)
 	}
 
+	orgMemberRoleId, err := GetOrgMemberRoleId()
+
+	if err != nil {
+		return fmt.Errorf("error getting org member role id: %v", err)
+	}
+
 	if len(usersForDomain) > 0 {
-		memberRoleId, err := GetOrgMemberRoleId()
-
-		if err != nil {
-			return fmt.Errorf("error getting org member role id: %v", err)
-		}
-
 		// create org users for each user
 		var valueStrings []string
 		var valueArgs []interface{}
 		for i, user := range usersForDomain {
 			num := i * 3
 			valueStrings = append(valueStrings, fmt.Sprintf("($%d, $%d, $%d)", num+1, num+2, num+3))
-			valueArgs = append(valueArgs, orgId, user.Id, memberRoleId)
+			valueArgs = append(valueArgs, orgId, user.Id, orgMemberRoleId)
 		}
 
 		// Join all value strings and execute a single query
@@ -224,14 +223,13 @@ func AddToOrgForDomain(userId, domain string, tx *sqlx.Tx) (string, error) {
 		return "", fmt.Errorf("error getting org for domain: %v", err)
 	}
 
+	orgOwnerRoleId, err := GetOrgOwnerRoleId()
+
+	if err != nil {
+		return "", fmt.Errorf("error getting org owner role id: %v", err)
+	}
+
 	if org != nil && org.AutoAddDomainUsers {
-		// get org owner role id
-		orgOwnerRoleId, err := GetOrgOwnerRoleId()
-
-		if err != nil {
-			return "", fmt.Errorf("error getting org owner role id: %v", err)
-		}
-
 		err = CreateOrgUser(org.Id, userId, orgOwnerRoleId, tx)
 
 		if err != nil {
