@@ -27,6 +27,19 @@ var fullCompatibilityExceptImage = ModelCompatibility{
 
 var AvailableModels = []*AvailableModel{
 	{
+		Description:                 "OpenAI's latest gpt-4o-mini model, first released on 2024-07-18",
+		DefaultMaxConvoTokens:       10000,
+		DefaultReservedOutputTokens: 16384,
+		BaseModelConfig: BaseModelConfig{
+			Provider:           ModelProviderOpenAI,
+			ModelName:          openai.GPT4oMini,
+			MaxTokens:          128000,
+			ApiKeyEnvVar:       OpenAIEnvVar,
+			ModelCompatibility: fullCompatibility,
+			BaseUrl:            OpenAIV1BaseUrl,
+		},
+	},
+	{
 		Description:                 "OpenAI's latest gpt-4o model, first released on 2024-05-13",
 		DefaultMaxConvoTokens:       10000,
 		DefaultReservedOutputTokens: 4096,
@@ -298,8 +311,10 @@ var OpenRouterClaude3Dot5SonnetGPT4TurboModelPack ModelPack
 var OpenRouterClaude3Dot5SonnetModelPack ModelPack
 var TogetherMixtral8x22BModelPack ModelPack
 var Gpt4oLatestModelPack ModelPack
+var Gpt4oMiniLatestModelPack ModelPack
 
 var BuiltInModelPacks = []*ModelPack{
+	&Gpt4oMiniLatestModelPack,
 	&Gpt4oLatestModelPack,
 	&Gpt4TurboLatestModelPack,
 	&OpenRouterClaude3Dot5SonnetModelPack,
@@ -307,7 +322,7 @@ var BuiltInModelPacks = []*ModelPack{
 	&TogetherMixtral8x22BModelPack,
 }
 
-var DefaultModelPack *ModelPack = &Gpt4oLatestModelPack
+var DefaultModelPack *ModelPack = &Gpt4oMiniLatestModelPack
 
 func getPlannerModelConfig(name string) PlannerModelConfig {
 	return PlannerModelConfig{
@@ -394,6 +409,62 @@ var RequiredCompatibilityByRole = map[ModelRole]ModelCompatibility{
 func init() {
 	for _, model := range AvailableModels {
 		AvailableModelsByName[model.ModelName] = model
+	}
+
+	Gpt4oMiniLatestModelPack = ModelPack{
+		Name:        "gpt-4o-mini-latest",
+		Description: "Uses OpenAI's latest gpt-4o-mini model, first released on 2024-07-18, for heavy lifting, and latest version of gpt-3.5-turbo for lighter tasks.",
+		Planner: PlannerRoleConfig{
+			ModelRoleConfig: ModelRoleConfig{
+				Role:            ModelRolePlanner,
+				BaseModelConfig: AvailableModelsByName[openai.GPT4oMini].BaseModelConfig,
+				Temperature:     DefaultConfigByRole[ModelRolePlanner].Temperature,
+				TopP:            DefaultConfigByRole[ModelRolePlanner].TopP,
+			},
+			PlannerModelConfig: getPlannerModelConfig(openai.GPT4oMini),
+		},
+		PlanSummary: ModelRoleConfig{
+			Role:            ModelRolePlanSummary,
+			BaseModelConfig: AvailableModelsByName[openai.GPT4oMini].BaseModelConfig,
+			Temperature:     DefaultConfigByRole[ModelRolePlanSummary].Temperature,
+			TopP:            DefaultConfigByRole[ModelRolePlanSummary].TopP,
+		},
+		Builder: ModelRoleConfig{
+			Role:            ModelRoleBuilder,
+			BaseModelConfig: AvailableModelsByName[openai.GPT4oMini].BaseModelConfig,
+			Temperature:     DefaultConfigByRole[ModelRoleBuilder].Temperature,
+			TopP:            DefaultConfigByRole[ModelRoleBuilder].TopP,
+		},
+		Namer: ModelRoleConfig{
+			Role:            ModelRoleName,
+			BaseModelConfig: AvailableModelsByName[openai.GPT4oMini].BaseModelConfig,
+			Temperature:     DefaultConfigByRole[ModelRoleName].Temperature,
+			TopP:            DefaultConfigByRole[ModelRoleName].TopP,
+		},
+		CommitMsg: ModelRoleConfig{
+			Role:            ModelRoleCommitMsg,
+			BaseModelConfig: AvailableModelsByName[openai.GPT4oMini].BaseModelConfig,
+			Temperature:     DefaultConfigByRole[ModelRoleCommitMsg].Temperature,
+			TopP:            DefaultConfigByRole[ModelRoleCommitMsg].TopP,
+		},
+		ExecStatus: ModelRoleConfig{
+			Role:            ModelRoleExecStatus,
+			BaseModelConfig: AvailableModelsByName[openai.GPT4oMini].BaseModelConfig,
+			Temperature:     DefaultConfigByRole[ModelRoleExecStatus].Temperature,
+			TopP:            DefaultConfigByRole[ModelRoleExecStatus].TopP,
+		},
+		Verifier: &ModelRoleConfig{
+			Role:            ModelRoleVerifier,
+			BaseModelConfig: AvailableModelsByName[openai.GPT4oMini].BaseModelConfig,
+			Temperature:     DefaultConfigByRole[ModelRoleVerifier].Temperature,
+			TopP:            DefaultConfigByRole[ModelRoleVerifier].TopP,
+		},
+		AutoFix: &ModelRoleConfig{
+			Role:            ModelRoleAutoFix,
+			BaseModelConfig: AvailableModelsByName[openai.GPT4oMini].BaseModelConfig,
+			Temperature:     DefaultConfigByRole[ModelRoleAutoFix].Temperature,
+			TopP:            DefaultConfigByRole[ModelRoleAutoFix].TopP,
+		},
 	}
 
 	Gpt4oLatestModelPack = ModelPack{

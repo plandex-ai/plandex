@@ -48,7 +48,7 @@ func GetImageTokensForDims(width, height int, detail openai.ImageURLDetail) int 
 		highDetailFactor = 170
 	)
 
-	if detail == "low" {
+	if detail == openai.ImageURLDetailLow {
 		return lowDetailTokens
 	}
 

@@ -83,7 +83,7 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 				}
 
 			}
-
+			// spew.Dump(response)
 			if len(response.Choices) == 0 {
 				state.onError(fmt.Errorf("stream finished with no choices"), true, "", "")
 				return
