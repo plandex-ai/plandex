@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"plandex-server/db"
@@ -15,39 +16,17 @@ import (
 func Authenticate(w http.ResponseWriter, r *http.Request, requireOrg bool) *types.ServerAuth {
 	log.Println("authenticating request")
 
-	authHeader := r.Header.Get("Authorization")
+	parsed, err := GetAuthHeader(r)
 
-	if authHeader == "" {
+	if err != nil {
+		log.Printf("error getting auth header: %v\n", err)
+		http.Error(w, "error getting auth header", http.StatusInternalServerError)
+		return nil
+	}
+
+	if parsed == nil {
 		log.Println("no auth header")
 		http.Error(w, "no auth header", http.StatusUnauthorized)
-		return nil
-	}
-
-	if !strings.HasPrefix(authHeader, "Bearer ") {
-		log.Println("invalid auth header")
-		http.Error(w, "invalid auth header", http.StatusUnauthorized)
-		return nil
-	}
-
-	// strip off the "Bearer " prefix
-	encoded := strings.TrimPrefix(authHeader, "Bearer ")
-
-	// decode the base64-encoded credentials
-	bytes, err := base64.StdEncoding.DecodeString(encoded)
-
-	if err != nil {
-		log.Printf("error decoding auth token: %v\n", err)
-		http.Error(w, "error decoding auth token", http.StatusUnauthorized)
-		return nil
-	}
-
-	// parse the credentials
-	var parsed shared.AuthHeader
-	err = json.Unmarshal(bytes, &parsed)
-
-	if err != nil {
-		log.Printf("error parsing auth token: %v\n", err)
-		http.Error(w, "error parsing auth token", http.StatusUnauthorized)
 		return nil
 	}
 
@@ -147,6 +126,167 @@ func Authenticate(w http.ResponseWriter, r *http.Request, requireOrg bool) *type
 		Permissions: permissionsMap,
 	}
 
+}
+
+func GetAuthHeader(r *http.Request) (*shared.AuthHeader, error) {
+	authHeader := r.Header.Get("Authorization")
+
+	// check for a cookie as well for ui requests
+	if authHeader == "" {
+		// Try to get auth token from a cookie as a fallback
+		cookie, err := r.Cookie("authToken")
+		if err != nil {
+			if err == http.ErrNoCookie {
+				return nil, nil
+			}
+			return nil, fmt.Errorf("error retrieving auth cookie: %v", err)
+		}
+		// Use the token from the cookie as the fallback authorization header
+		authHeader = cookie.Value
+	}
+
+	if authHeader == "" {
+		return nil, nil
+	}
+
+	if !strings.HasPrefix(authHeader, "Bearer ") {
+		return nil, fmt.Errorf("invalid auth header")
+	}
+
+	// strip off the "Bearer " prefix
+	encoded := strings.TrimPrefix(authHeader, "Bearer ")
+
+	// decode the base64-encoded credentials
+	bytes, err := base64.StdEncoding.DecodeString(encoded)
+
+	if err != nil {
+		return nil, fmt.Errorf("error decoding auth token: %v", err)
+	}
+
+	// parse the credentials
+	var parsed shared.AuthHeader
+	err = json.Unmarshal(bytes, &parsed)
+
+	if err != nil {
+		return nil, fmt.Errorf("error parsing auth token: %v", err)
+	}
+
+	return &parsed, nil
+}
+
+func SetAuthCookieIfBrowser(w http.ResponseWriter, r *http.Request, user *db.User, token, orgId string) error {
+	isBrowser := false
+	acceptHeader := r.Header.Get("Accept")
+	if strings.Contains(acceptHeader, "text/html") {
+		isBrowser = true
+	}
+	if !isBrowser {
+		return nil
+	}
+
+	if token == "" {
+		authHeader, err := GetAuthHeader(r)
+		if err != nil {
+			return fmt.Errorf("error getting auth header: %v", err)
+		}
+		token = authHeader.Token
+	}
+
+	if token == "" {
+		return fmt.Errorf("no token")
+	}
+
+	// set authToken cookie
+	authHeader := shared.AuthHeader{
+		Token: token,
+		OrgId: orgId,
+	}
+
+	bytes, err := json.Marshal(authHeader)
+
+	if err != nil {
+		return fmt.Errorf("error marshalling auth header: %v", err)
+	}
+
+	// base64 encode
+	token = base64.StdEncoding.EncodeToString(bytes)
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     "authToken",
+		Value:    "Bearer " + token,
+		Secure:   true,
+		HttpOnly: true,
+		SameSite: http.SameSiteStrictMode,
+	})
+
+	storedAccounts, err := GetAccountsFromCookie(r)
+
+	if err != nil {
+		return fmt.Errorf("error getting accounts from cookie: %v", err)
+	}
+
+	found := false
+	for _, account := range storedAccounts {
+		if account.UserId == user.Id {
+			found = true
+
+			account.Token = token
+			account.Email = user.Email
+			account.UserName = user.Name
+			break
+		}
+	}
+
+	if !found {
+		storedAccounts = append(storedAccounts, &shared.ClientAccount{
+			Email:    user.Email,
+			UserName: user.Name,
+			UserId:   user.Id,
+			Token:    token,
+		})
+	}
+
+	bytes, err = json.Marshal(storedAccounts)
+
+	if err != nil {
+		return fmt.Errorf("error marshalling accounts: %v", err)
+	}
+
+	// base64 encode
+	accounts := base64.StdEncoding.EncodeToString(bytes)
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     "accounts",
+		Value:    accounts,
+		Secure:   true,
+		HttpOnly: true,
+		SameSite: http.SameSiteStrictMode,
+	})
+
+	return nil
+}
+
+func GetAccountsFromCookie(r *http.Request) ([]*shared.ClientAccount, error) {
+	accountsCookie, err := r.Cookie("accounts")
+
+	if err == http.ErrNoCookie {
+		return []*shared.ClientAccount{}, nil
+	} else if err != nil {
+		return nil, fmt.Errorf("error getting accounts cookie: %v", err)
+	}
+
+	bytes, err := base64.StdEncoding.DecodeString(accountsCookie.Value)
+	if err != nil {
+		return nil, fmt.Errorf("error decoding accounts cookie: %v", err)
+	}
+
+	var accounts []*shared.ClientAccount
+	err = json.Unmarshal(bytes, &accounts)
+	if err != nil {
+		return nil, fmt.Errorf("error unmarshalling accounts cookie: %v", err)
+	}
+
+	return accounts, nil
 }
 
 func authorizeProject(w http.ResponseWriter, projectId string, auth *types.ServerAuth) bool {

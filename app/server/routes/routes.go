@@ -9,7 +9,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
-func AddRoutes(r *mux.Router) {
+func AddApiRoutes(r *mux.Router) {
 	r.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, "OK")
 	})

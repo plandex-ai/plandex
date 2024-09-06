@@ -1,0 +1,8 @@
+{
+  "watch": [
+    ".",
+    "../shared"
+  ],
+  "ext": "go,mod,sum",
+  "exec": "./dev.sh"
+}

@@ -5,23 +5,6 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
-type ClientAccount struct {
-	IsCloud  bool   `json:"isCloud"`
-	Host     string `json:"host"`
-	Email    string `json:"email"`
-	UserName string `json:"userName"`
-	UserId   string `json:"userId"`
-	Token    string `json:"token"`
-	IsTrial  bool   `json:"isTrial"`
-}
-
-type ClientAuth struct {
-	ClientAccount
-	OrgId                string `json:"orgId"`
-	OrgName              string `json:"orgName"`
-	IntegratedModelsMode bool   `json:"integratedModelsMode"`
-}
-
 type LoadContextParams struct {
 	Note            string
 	Recursive       bool

@@ -40,3 +40,21 @@ type ApiError struct {
 	// only used for trial messages exceeded error
 	TrialMessagesExceededError *TrialMessagesExceededError `json:"trialMessagesExceededError,omitempty"`
 }
+
+type ClientAccount struct {
+	IsCloud  bool   `json:"isCloud"`
+	Host     string `json:"host"`
+	Email    string `json:"email"`
+	UserName string `json:"userName"`
+	UserId   string `json:"userId"`
+	Token    string `json:"token"`
+	IsTrial  bool   `json:"isTrial"`
+}
+
+type ClientAuth struct {
+	ClientAccount
+	OrgId                string `json:"orgId"`
+	OrgName              string `json:"orgName"`
+	OrgIsTrial           bool   `json:"orgIsTrial"`
+	IntegratedModelsMode bool   `json:"integratedModelsMode"`
+}

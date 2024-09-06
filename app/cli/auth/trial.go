@@ -3,7 +3,6 @@ package auth
 import (
 	"fmt"
 	"plandex/term"
-	"plandex/types"
 
 	"github.com/fatih/color"
 	"github.com/plandex/plandex/shared"
@@ -58,8 +57,8 @@ func ConvertTrial() error {
 		return fmt.Errorf("error converting trial: %v", apiErr)
 	}
 
-	err = setAuth(&types.ClientAuth{
-		ClientAccount: types.ClientAccount{
+	err = setAuth(&shared.ClientAuth{
+		ClientAccount: shared.ClientAccount{
 			Email:    res.Email,
 			UserId:   res.UserId,
 			UserName: res.UserName,
@@ -69,6 +68,7 @@ func ConvertTrial() error {
 		},
 		OrgId:                res.Orgs[0].Id,
 		OrgName:              res.Orgs[0].Id,
+		OrgIsTrial:           res.Orgs[0].IsTrial,
 		IntegratedModelsMode: res.Orgs[0].IntegratedModelsMode,
 	})
 
@@ -154,8 +154,8 @@ func startTrial() error {
 		return fmt.Errorf("error starting trial: %v", apiErr)
 	}
 
-	err = setAuth(&types.ClientAuth{
-		ClientAccount: types.ClientAccount{
+	err = setAuth(&shared.ClientAuth{
+		ClientAccount: shared.ClientAccount{
 			Email:    email,
 			UserId:   res.UserId,
 			UserName: name,
@@ -186,8 +186,8 @@ func startTrial() error {
 // 		return fmt.Errorf("error starting trial: %v", apiErr.Msg)
 // 	}
 
-// 	err := setAuth(&types.ClientAuth{
-// 		ClientAccount: types.ClientAccount{
+// 	err := setAuth(&shared.ClientAuth{
+// 		ClientAccount: shared.ClientAccount{
 // 			Email:    res.Email,
 // 			UserId:   res.UserId,
 // 			UserName: res.UserName,

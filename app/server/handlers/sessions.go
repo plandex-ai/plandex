@@ -257,6 +257,14 @@ func SignInHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// org still needs to be selected
+	err = SetAuthCookieIfBrowser(w, r, user, token, "")
+	if err != nil {
+		log.Printf("Error setting auth cookie: %v\n", err)
+		http.Error(w, "Error setting auth cookie: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
 	log.Println("Successfully signed in")
 
 	w.Write(bytes)

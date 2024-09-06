@@ -6,7 +6,8 @@ import (
 	"os"
 	"plandex/fs"
 	"plandex/term"
-	"plandex/types"
+
+	"github.com/plandex/plandex/shared"
 )
 
 func MustResolveAuthWithOrg() {
@@ -35,7 +36,7 @@ func MustResolveAuth(requireOrg bool) {
 		}
 	}
 
-	var auth types.ClientAuth
+	var auth shared.ClientAuth
 	err = json.Unmarshal(bytes, &auth)
 	if err != nil {
 		term.OutputErrorAndExit("error unmarshalling auth.json: %v", err)

@@ -11,8 +11,9 @@ import (
 )
 
 type Org struct {
-	Id   string `json:"id"`
-	Name string `json:"name"`
+	Id      string `json:"id"`
+	Name    string `json:"name"`
+	IsTrial bool   `json:"isTrial"`
 
 	// optional cloud attributes
 	IntegratedModelsMode bool                `json:"integratedModelsMode,omitempty"`

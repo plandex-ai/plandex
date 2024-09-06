@@ -3,7 +3,6 @@ package auth
 import (
 	"fmt"
 	"plandex/term"
-	"plandex/types"
 
 	"github.com/fatih/color"
 	"github.com/plandex/plandex/shared"
@@ -79,7 +78,7 @@ func SelectOrSignInOrCreate() error {
 		return nil
 	}
 
-	var selected *types.ClientAccount
+	var selected *shared.ClientAccount
 	for i, opt := range options {
 		if selectedOpt == opt {
 			selected = accounts[i]
@@ -91,7 +90,7 @@ func SelectOrSignInOrCreate() error {
 		return fmt.Errorf("error selecting account: account not found")
 	}
 
-	setAuth(&types.ClientAuth{
+	setAuth(&shared.ClientAuth{
 		ClientAccount: *selected,
 	})
 
@@ -109,10 +108,11 @@ func SelectOrSignInOrCreate() error {
 		return fmt.Errorf("error resolving org: %v", err)
 	}
 
-	err = setAuth(&types.ClientAuth{
+	err = setAuth(&shared.ClientAuth{
 		ClientAccount:        *selected,
 		OrgId:                org.Id,
 		OrgName:              org.Name,
+		OrgIsTrial:           org.IsTrial,
 		IntegratedModelsMode: org.IntegratedModelsMode,
 	})
 
@@ -225,8 +225,8 @@ func signIn(email, pin, host string) error {
 		return fmt.Errorf("error signing in: %v", apiErr.Msg)
 	}
 
-	err := setAuth(&types.ClientAuth{
-		ClientAccount: types.ClientAccount{
+	err := setAuth(&shared.ClientAuth{
+		ClientAccount: shared.ClientAccount{
 			Email:    res.Email,
 			UserId:   res.UserId,
 			UserName: res.UserName,
@@ -283,8 +283,8 @@ func createAccount(email, pin, host string) error {
 		return fmt.Errorf("error creating account: %v", apiErr.Msg)
 	}
 
-	err = setAuth(&types.ClientAuth{
-		ClientAccount: types.ClientAccount{
+	err = setAuth(&shared.ClientAuth{
+		ClientAccount: shared.ClientAccount{
 			Email:    res.Email,
 			UserId:   res.UserId,
 			UserName: res.UserName,

@@ -121,18 +121,23 @@ func creditsLog(cmd *cobra.Command, args []string) {
 
 	table.Render()
 
-	pageLine := fmt.Sprintf("Page size %d. Showing page %d of %d", logCreditsPageSize, logCreditsPage, res.NumPages)
-	if res.NumPagesMax {
-		pageLine += "+"
-	}
+	var output string
+	var pageLine string
 
-	output := pageLine + "\n\n" + tableString.String()
+	if res.NumPages > 1 {
+		pageLine = fmt.Sprintf("Page size %d. Showing page %d of %d", logCreditsPageSize, logCreditsPage, res.NumPages)
+		if res.NumPagesMax {
+			pageLine = "+"
+		}
+		output = pageLine + "\n\n" + tableString.String()
+	} else {
+		output = tableString.String()
+	}
 
 	term.PageOutput(output)
 
 	var inputFn func()
 	inputFn = func() {
-
 		fmt.Println("\n" + pageLine)
 
 		prompts := []string{}
@@ -145,7 +150,7 @@ func creditsLog(cmd *cobra.Command, args []string) {
 			prompts = append(prompts, "Press 'p' for previous page")
 		}
 
-		prompts = append(prompts, "Press any number to jump to a page")
+		prompts = append(prompts, "Type any number and press enter to jump to a page")
 
 		prompts = append(prompts, "Press 'q' to quit")
 
@@ -195,6 +200,16 @@ func creditsLog(cmd *cobra.Command, args []string) {
 				if unicode.IsDigit(char) {
 					numberInput.WriteRune(char)
 					fmt.Print(string(char)) // Show the digit
+				} else if key == keyboard.KeyBackspace || key == keyboard.KeyBackspace2 {
+					// Handle backspace
+					if numberInput.Len() > 0 {
+						// Remove the last rune
+						input := numberInput.String()
+						numberInput.Reset()
+						numberInput.WriteString(input[:len(input)-1])
+						fmt.Print("\b \b") // Erase the digit
+					}
+
 				} else {
 					// Handle invalid input while typing a number
 					fmt.Println()
@@ -237,6 +252,7 @@ func creditsLog(cmd *cobra.Command, args []string) {
 
 	}
 
-	inputFn()
-
+	if res.NumPages > 1 {
+		inputFn()
+	}
 }

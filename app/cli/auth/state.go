@@ -5,24 +5,25 @@ import (
 	"fmt"
 	"os"
 	"plandex/fs"
-	"plandex/types"
+
+	"github.com/plandex/plandex/shared"
 )
 
-var Current *types.ClientAuth
+var Current *shared.ClientAuth
 
-func loadAccounts() ([]*types.ClientAccount, error) {
+func loadAccounts() ([]*shared.ClientAccount, error) {
 	bytes, err := os.ReadFile(fs.HomeAccountsPath)
 
 	if err != nil {
 		if os.IsNotExist(err) {
 			// no accounts
-			return []*types.ClientAccount{}, nil
+			return []*shared.ClientAccount{}, nil
 		} else {
 			return nil, fmt.Errorf("error reading accounts.json: %v", err)
 		}
 	}
 
-	var accounts []*types.ClientAccount
+	var accounts []*shared.ClientAccount
 	err = json.Unmarshal(bytes, &accounts)
 
 	if err != nil {
@@ -32,7 +33,7 @@ func loadAccounts() ([]*types.ClientAccount, error) {
 	return accounts, nil
 }
 
-func setAuth(auth *types.ClientAuth) error {
+func setAuth(auth *shared.ClientAuth) error {
 	err := storeAccount(&auth.ClientAccount)
 
 	if err != nil {
@@ -50,7 +51,7 @@ func setAuth(auth *types.ClientAuth) error {
 	return nil
 }
 
-func storeAccount(toStore *types.ClientAccount) error {
+func storeAccount(toStore *shared.ClientAccount) error {
 	accounts, err := loadAccounts()
 
 	if err != nil {

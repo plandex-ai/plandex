@@ -52,7 +52,7 @@ func StartServer(r *mux.Router) {
 		externalPort = "8080"
 	}
 
-	routes.AddRoutes(r)
+	routes.AddApiRoutes(r)
 
 	// Enable CORS based on environment
 	var corsHandler http.Handler

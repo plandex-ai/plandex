@@ -163,6 +163,13 @@ func CreateOrgHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	err = SetAuthCookieIfBrowser(w, r, auth.User, "", org.Id)
+	if err != nil {
+		log.Printf("Error setting auth cookie: %v\n", err)
+		http.Error(w, "Error setting auth cookie: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
 	log.Println("Successfully created org")
 
 	w.Write(bytes)
@@ -190,6 +197,13 @@ func GetOrgSessionHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Printf("Error marshalling response: %v\n", err)
 		http.Error(w, "Error marshalling response: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	err = SetAuthCookieIfBrowser(w, r, auth.User, "", org.Id)
+	if err != nil {
+		log.Printf("Error setting auth cookie: %v\n", err)
+		http.Error(w, "Error setting auth cookie: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
