@@ -34,12 +34,7 @@ services:
       - plandex-network
     depends_on:
       - plandex-postgres
-    command:
-      [
-        "/bin/sh",
-        "-c",
-        "/scripts/wait-for-it.sh plandex-postgres:5432 -- ./plandex-server"
-      ]
+    command: [ "/bin/sh", "-c", "/scripts/wait-for-it.sh plandex-postgres:5432 -- ./plandex-server" ]
 
 networks:
   plandex-network:

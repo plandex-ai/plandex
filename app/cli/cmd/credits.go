@@ -40,8 +40,7 @@ func credits(cmd *cobra.Command, args []string) {
 	}
 
 	balance := org.CloudBillingFields.CreditsBalance
-	balanceFloat, _ := balance.Float64()
-	balanceStr := fmt.Sprintf("$%.4f", balanceFloat)
+	balanceStr := fmt.Sprintf("$%s", balance.StringFixed(4))
 
 	for i := 0; i < 2; i++ {
 		if strings.HasSuffix(balanceStr, "0") {

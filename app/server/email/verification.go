@@ -14,8 +14,8 @@ func SendVerificationEmail(email string, pin string) error {
 	if os.Getenv("GOENV") == "production" {
 		// Production environment - send email using AWS SES
 		subject := "Your Plandex Pin"
-		htmlBody := fmt.Sprintf("<p>Hi there,</p><p>Welcome to Plandex!</p><p>Your pin is:<br><strong>%s</strong></p><p>It will be valid for the next 5 minutes. Please return to the terminal and paste in your pin.</p>", pin)
-		textBody := fmt.Sprintf("Hi there,\n\nWelcome to Plandex!\n\nYour pin is:\n%s\n\nIt will be valid for the next 5 minutes. Please return to the terminal and paste in your pin.", pin)
+		htmlBody := fmt.Sprintf("<p>Hi there,</p><p>Welcome to Plandex!</p><p>Your pin is:<br><strong>%s</strong></p><p>It will be valid for the next 10 minutes. Please return to the terminal and paste in your pin.</p>", pin)
+		textBody := fmt.Sprintf("Hi there,\n\nWelcome to Plandex!\n\nYour pin is:\n%s\n\nIt will be valid for the next 10 minutes. Please return to the terminal and paste in your pin.", pin)
 
 		if os.Getenv("IS_CLOUD") == "" {
 			return sendEmailViaSMTP(email, subject, htmlBody, textBody)

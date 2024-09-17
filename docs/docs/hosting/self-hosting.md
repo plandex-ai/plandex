@@ -94,7 +94,13 @@ You'll also need a `DATABASE_URL`:
 export DATABASE_URL=postgres://user:password@host:5432/plandex # replace with your own database URL
 ```
 
-If you're running in production mode, you'll need to connect to SMTP to send emails. Set the following environment variables:
+If you're running in production mode, set `API_HOST` to the host the API server is running on:
+
+```bash
+export API_HOST=api.your-domain.ai
+```
+
+In production mode, you'll also need to connect to SMTP to send emails. Set the following environment variables:
 
 ```bash
 export SMTP_HOST=smtp.example.com
@@ -125,6 +131,7 @@ docker run -p 8080:8080 \
   -v ~/plandex-server:/plandex-server \
   -e DATABASE_URL \
   -e GOENV \
+  -e API_HOST \
   -e SMTP_HOST \ 
   -e SMTP_PORT \
   -e SMTP_USER \
@@ -132,7 +139,7 @@ docker run -p 8080:8080 \
   plandex-server
 ```
 
-The SMTP environment variables above are only required if you're running in [production mode](#development-vs-production).
+The API_HOST and SMTP environment variables above are only required if you're running in [production mode](#development-vs-production).
 
 ### Run From Source
 
@@ -144,6 +151,8 @@ cd plandex/
 VERSION=$(cat app/server/version.txt) # or use the version you want
 git checkout server/v$VERSION
 cd app/server
+export GOENV=development # or production
+export DATABASE_URL=postgres://user:password@host:5432/plandex # replace with your own database URL
 export PLANDEX_BASE_DIR=~/plandex-server # or another directory where you want to store files
 go run main.go
 ```

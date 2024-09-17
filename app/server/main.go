@@ -23,7 +23,13 @@ func main() {
 	}
 
 	r := mux.NewRouter()
-	apiRouter := r.Host("api." + domain).Subrouter()
+
+	var apiRouter *mux.Router
+	if os.Getenv("GOENV") == "development" {
+		apiRouter = r
+	} else {
+		apiRouter = r.Host("api." + domain).Subrouter()
+	}
 
 	setup.MustLoadIp()
 	setup.MustInitDb()

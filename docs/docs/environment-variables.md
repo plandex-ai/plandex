@@ -9,6 +9,13 @@ This is an overview of all the environment variables that can be used with Pland
 
 ## CLI
 
+### General
+
+```bash
+PLANDEX_ENV=development # Set this to 'development' to default to the local development server instead of Plandex Cloud when working on Plandex itself.
+PLANDEX_API_HOST= # Defaults to 'http://localhost:8080' if PLANDEX_ENV is development, otherwise it's 'https://api.plandex.ai'—override this to use a different host.
+```
+
 ### LLM Providers
 
 ```bash
@@ -32,8 +39,6 @@ PLANDEX_SKIP_UPGRADE= # Set this to '1' to skip the auto-upgrade check when runn
 Check out the [Development Guide](./development.md) for more details.
 
 ```bash
-PLANDEX_ENV=development # Set this to 'development' to default to the local development server instead of Plandex Cloud when working on Plandex itself.
-PLANDEX_API_HOST= # Defaults to http://localhost:8080 if PLANDEX_ENV is development, otherwise it's https://api.plandex.ai—override this to use a different host.
 PLANDEX_OUT_DIR=/usr/local/bin # Where the development binary should be output when using dev.sh
 PLANDEX_DEV_CLI_OUT_DIR=/usr/local/bin # Where the development binary should be output when using dev.sh
 PLANDEX_DEV_CLI_NAME=plandex-dev # The name of the development binary when using dev.sh
@@ -50,6 +55,7 @@ Check out the [Self-Hosting Guide](./hosting/self-hosting.md) for more details.
 ```bash
 GOENV=development # Whether to run in development or production mode. Must be 'development' or 'production'
 PLANDEX_BASE_DIR= # The base directory to read and write files. Defaults to '$HOME/plandex-server' in development mode, '/plandex-server' in production.
+API_HOST= # The host the API server listens on. Defaults to 'http://localhost:$PORT'. In production mode, should be a host like 'https://api.your-domain.ai'.
 PORT=8080 # The port the server listens on. Defaults to 8080.
 ```
 
@@ -74,6 +80,13 @@ If you're *not* using docker-compose, you'll need a `DATABASE_URL` environment v
 ```bash
 DATABASE_URL=postgres://plandex:<password>@<host>:<port>/plandex?sslmode=disable
 ```
+
+If you're running in production mode, you'll also need to set `API_HOST` to the host the API server is running on.
+
+```bash
+API_HOST= https://api.your-domain.ai # The host of the API server in production mode. Defaults to 'http://localhost:$PORT' in development mode.
+```
+
 
 ### SMTP
 

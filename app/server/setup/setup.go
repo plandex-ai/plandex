@@ -1,7 +1,7 @@
 package setup
 
 import (
-	"fmt"
+	"context"
 	"log"
 	"net/http"
 	"os"
@@ -46,6 +46,9 @@ func StartServer(r *mux.Router) {
 		log.Println("In development mode.")
 	}
 
+	// Ensure database connection is closed
+	defer db.Conn.Close()
+
 	// Get externalPort from the environment variable or default to 8080
 	externalPort := os.Getenv("PORT")
 	if externalPort == "" {
@@ -72,33 +75,43 @@ func StartServer(r *mux.Router) {
 		}).Handler(r)
 	}
 
-	go startServer(externalPort, corsHandler)
-	log.Println("Started server on port " + externalPort)
-
-	sigTermChan := make(chan os.Signal, 1)
-	signal.Notify(sigTermChan, syscall.SIGTERM)
+	server := &http.Server{
+		Addr:    ":" + externalPort,
+		Handler: corsHandler,
+	}
 
 	go func() {
-		<-sigTermChan
-
-		for {
-			l := plan.NumActivePlans()
-			if l == 0 {
-				break
-			}
-			log.Printf("Waiting for %d active plans to finish...\n", l)
-			time.Sleep(1 * time.Second)
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("Failed to start server: %v", err)
 		}
-
-		os.Exit(0)
 	}()
 
-	select {}
-}
+	log.Println("Started server on port " + externalPort)
 
-func startServer(port string, handler http.Handler) {
-	err := http.ListenAndServe(fmt.Sprintf(":%s", port), handler)
-	if err != nil {
-		log.Fatalf("Failed to start server on port %s: %v", port, err)
+	// Capture SIGTERM and SIGINT signals
+	sigTermChan := make(chan os.Signal, 1)
+	signal.Notify(sigTermChan, syscall.SIGTERM, syscall.SIGINT)
+
+	<-sigTermChan
+	log.Println("Shutting down server gracefully...")
+
+	// Context with a 5-second timeout to allow ongoing requests to finish
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := server.Shutdown(ctx); err != nil {
+		log.Fatalf("Server forced to shutdown: %v", err)
 	}
+
+	// Wait for active plans to complete
+	for {
+		l := plan.NumActivePlans()
+		if l == 0 {
+			break
+		}
+		log.Printf("Waiting for %d active plans to finish...\n", l)
+		time.Sleep(1 * time.Second)
+	}
+
+	log.Println("Shutdown complete")
 }

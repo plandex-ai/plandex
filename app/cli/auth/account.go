@@ -202,7 +202,7 @@ func verifyEmail(email, host string) (bool, string, error) {
 		return false, "", fmt.Errorf("error creating email verification: %v", apiErr.Msg)
 	}
 
-	fmt.Println("✉️  You'll now receive a 6 character pin by email. It will be valid for 5 minutes.")
+	fmt.Println("✉️  You'll now receive a 6 character pin by email. It will be valid for 10 minutes.")
 
 	pin, err := term.GetUserPasswordInput("Please enter your pin:")
 

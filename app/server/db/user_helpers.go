@@ -14,6 +14,10 @@ func GetUser(userId string) (*User, error) {
 	err := Conn.Get(&user, "SELECT * FROM users WHERE id = $1", userId)
 
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+
 		return nil, fmt.Errorf("error getting user: %v", err)
 	}
 

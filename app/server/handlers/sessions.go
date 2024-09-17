@@ -11,6 +11,7 @@ import (
 	"plandex-server/email"
 	"strings"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/plandex/plandex/shared"
 )
 
@@ -33,6 +34,51 @@ func CreateEmailVerificationHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	req.Email = strings.ToLower(req.Email)
+
+	var hasAccount bool
+	if req.UserId == "" {
+		user, err := db.GetUserByEmail(req.Email)
+
+		if err != nil {
+			log.Printf("Error getting user: %v\n", err)
+			http.Error(w, "Error getting user: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		hasAccount = user != nil
+	} else {
+		hasAccount = true
+
+		user, err := db.GetUser(req.UserId)
+
+		if err != nil {
+			log.Printf("Error getting user: %v\n", err)
+			http.Error(w, "Error getting user: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		if user == nil {
+			log.Printf("User not found for id: %v\n", req.UserId)
+			http.Error(w, "User not found", http.StatusNotFound)
+			return
+		}
+
+		if user.Email != req.Email {
+			log.Printf("User email does not match for id: %v\n", req.UserId)
+			http.Error(w, "User email does not match", http.StatusBadRequest)
+			return
+		}
+	}
+
+	if req.RequireUser && !hasAccount {
+		log.Printf("User not found for email: %v\n", req.Email)
+		http.Error(w, "User not found", http.StatusNotFound)
+		return
+	} else if req.RequireNoUser && hasAccount {
+		log.Printf("User already exists for email: %v\n", req.Email)
+		http.Error(w, "User already exists", http.StatusConflict)
+		return
+	}
 
 	// create pin - 6 alphanumeric characters
 	pinBytes, err := shared.GetRandomAlphanumeric(6)
@@ -61,21 +107,6 @@ func CreateEmailVerificationHandler(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Error sending verification email: %v\n", err)
 		http.Error(w, "Error sending verification email: "+err.Error(), http.StatusInternalServerError)
 		return
-	}
-
-	var hasAccount bool
-	if req.UserId == "" {
-		user, err := db.GetUserByEmail(req.Email)
-
-		if err != nil {
-			log.Printf("Error getting user: %v\n", err)
-			http.Error(w, "Error getting user: "+err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		hasAccount = user != nil
-	} else {
-		hasAccount = true
 	}
 
 	res := shared.CreateEmailVerificationResponse{
@@ -114,6 +145,8 @@ func CheckEmailPinHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	req.Email = strings.ToLower(req.Email)
+
+	spew.Dump(req)
 
 	_, err = db.ValidateEmailVerification(req.Email, req.Pin)
 
@@ -165,7 +198,7 @@ func SignInHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if user != nil && user.IsTrial {
+	if user.IsTrial {
 		log.Printf("Trial user can't sign in: %v\n", req.Email)
 		http.Error(w, "Trial user can't sign in", http.StatusForbidden)
 		return
@@ -257,8 +290,14 @@ func SignInHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// org still needs to be selected
-	err = SetAuthCookieIfBrowser(w, r, user, token, "")
+	// with a single org, set the orgId in the cookie
+	// otherwise, the user will be prompted to select an org
+	var orgId string
+	if len(orgs) == 1 {
+		orgId = orgs[0].Id
+	}
+
+	err = SetAuthCookieIfBrowser(w, r, user, token, orgId)
 	if err != nil {
 		log.Printf("Error setting auth cookie: %v\n", err)
 		http.Error(w, "Error setting auth cookie: "+err.Error(), http.StatusInternalServerError)
@@ -283,6 +322,22 @@ func SignOutHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Printf("Error deleting auth token: %v\n", err)
 		http.Error(w, "Error deleting auth token: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	err = ClearAuthCookieIfBrowser(w, r)
+
+	if err != nil {
+		log.Printf("Error clearing auth cookie: %v\n", err)
+		http.Error(w, "Error clearing auth cookie: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	err = ClearAccountFromCookies(w, r, auth.User.Id)
+
+	if err != nil {
+		log.Printf("Error clearing account from cookies: %v\n", err)
+		http.Error(w, "Error clearing account from cookies: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 

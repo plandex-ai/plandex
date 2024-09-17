@@ -98,6 +98,8 @@ func creditsLog(cmd *cobra.Command, args []string) {
 				desc += "Started trial"
 			case shared.CreditTypePurchase:
 				desc += "Purchased credits"
+			case shared.CreditTypeSwitch:
+				desc += "Switched to Integrated Models mode"
 			}
 		}
 

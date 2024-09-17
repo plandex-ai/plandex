@@ -48,9 +48,11 @@ func CreateAccountHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var apiErr *shared.ApiError
+
 	// Ensure that rollback is attempted in case of failure
 	defer func() {
-		if err != nil {
+		if err != nil || apiErr != nil {
 			if rbErr := tx.Rollback(); rbErr != nil {
 				log.Printf("transaction rollback error: %v\n", rbErr)
 			} else {
@@ -72,7 +74,7 @@ func CreateAccountHandler(w http.ResponseWriter, r *http.Request) {
 	token := res.Token
 	orgId := res.OrgId
 
-	_, apiErr := hooks.ExecHook(hooks.CreateAccount, hooks.HookParams{
+	_, apiErr = hooks.ExecHook(hooks.CreateAccount, hooks.HookParams{
 		User:  user,
 		OrgId: orgId,
 	})

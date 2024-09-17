@@ -7,8 +7,10 @@ import (
 )
 
 type CreateEmailVerificationRequest struct {
-	Email  string `json:"email"`
-	UserId string `json:"userId"`
+	Email         string `json:"email"`
+	UserId        string `json:"userId"`
+	RequireUser   bool   `json:"requireUser"`
+	RequireNoUser bool   `json:"requireNoUser"`
 }
 
 type CreateEmailVerificationResponse struct {
@@ -250,15 +252,10 @@ type StartTrialRequest struct {
 }
 
 type StartTrialResponse struct {
-	UserId                  string `json:"userId"`
-	Token                   string `json:"token"`
-	OrgId                   string `json:"orgId"`
-	StripeCustomerId        string `json:"stripeCustomerId"`
-	TrialPaymentAmountCents int    `json:"trialPaymentAmount"`
-}
-
-type TrialPaymentRequest struct {
-	StripeToken string `json:"stripeToken"`
+	UserId           string `json:"userId"`
+	Token            string `json:"token"`
+	OrgId            string `json:"orgId"`
+	StripeCustomerId string `json:"stripeCustomerId"`
 }
 
 type CreditsLogRequest struct {

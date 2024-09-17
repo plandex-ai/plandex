@@ -81,6 +81,8 @@ func CreateOrgHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var apiErr *shared.ApiError
+
 	// start a transaction
 	tx, err := db.Conn.Beginx()
 	if err != nil {
@@ -91,7 +93,7 @@ func CreateOrgHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Ensure that rollback is attempted in case of failure
 	defer func() {
-		if err != nil {
+		if err != nil || apiErr != nil {
 			if rbErr := tx.Rollback(); rbErr != nil {
 				log.Printf("transaction rollback error: %v\n", rbErr)
 			} else {
@@ -130,7 +132,7 @@ func CreateOrgHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	_, apiErr := hooks.ExecHook(hooks.CreateOrg, hooks.HookParams{
+	_, apiErr = hooks.ExecHook(hooks.CreateOrg, hooks.HookParams{
 		User: auth.User,
 		Tx:   tx,
 

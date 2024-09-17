@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"plandex-server/db"
 	"plandex-server/types"
 	"strings"
@@ -14,19 +15,31 @@ import (
 )
 
 func Authenticate(w http.ResponseWriter, r *http.Request, requireOrg bool) *types.ServerAuth {
+	return execAuthenticate(w, r, requireOrg, true)
+}
+
+func AuthenticateOptional(w http.ResponseWriter, r *http.Request, requireOrg bool) *types.ServerAuth {
+	return execAuthenticate(w, r, requireOrg, false)
+}
+
+func execAuthenticate(w http.ResponseWriter, r *http.Request, requireOrg bool, raiseErr bool) *types.ServerAuth {
 	log.Println("authenticating request")
 
 	parsed, err := GetAuthHeader(r)
 
 	if err != nil {
 		log.Printf("error getting auth header: %v\n", err)
-		http.Error(w, "error getting auth header", http.StatusInternalServerError)
+		if raiseErr {
+			http.Error(w, "error getting auth header", http.StatusInternalServerError)
+		}
 		return nil
 	}
 
 	if parsed == nil {
 		log.Println("no auth header")
-		http.Error(w, "no auth header", http.StatusUnauthorized)
+		if raiseErr {
+			http.Error(w, "no auth header", http.StatusUnauthorized)
+		}
 		return nil
 	}
 
@@ -48,7 +61,9 @@ func Authenticate(w http.ResponseWriter, r *http.Request, requireOrg bool) *type
 
 	if err != nil {
 		log.Printf("error getting user: %v\n", err)
-		http.Error(w, "error getting user", http.StatusInternalServerError)
+		if raiseErr {
+			http.Error(w, "error getting user", http.StatusInternalServerError)
+		}
 		return nil
 	}
 
@@ -61,7 +76,9 @@ func Authenticate(w http.ResponseWriter, r *http.Request, requireOrg bool) *type
 
 	if parsed.OrgId == "" {
 		log.Println("no org id")
-		http.Error(w, "no org id", http.StatusUnauthorized)
+		if raiseErr {
+			http.Error(w, "no org id", http.StatusUnauthorized)
+		}
 		return nil
 	}
 
@@ -70,7 +87,9 @@ func Authenticate(w http.ResponseWriter, r *http.Request, requireOrg bool) *type
 
 	if err != nil {
 		log.Printf("error validating org membership: %v\n", err)
-		http.Error(w, "error validating org membership", http.StatusInternalServerError)
+		if raiseErr {
+			http.Error(w, "error validating org membership", http.StatusInternalServerError)
+		}
 		return nil
 	}
 
@@ -80,7 +99,9 @@ func Authenticate(w http.ResponseWriter, r *http.Request, requireOrg bool) *type
 
 		if err != nil {
 			log.Printf("error getting invite for org user: %v\n", err)
-			http.Error(w, "error getting invite for org user", http.StatusInternalServerError)
+			if raiseErr {
+				http.Error(w, "error getting invite for org user", http.StatusInternalServerError)
+			}
 			return nil
 		}
 
@@ -91,13 +112,17 @@ func Authenticate(w http.ResponseWriter, r *http.Request, requireOrg bool) *type
 
 			if err != nil {
 				log.Printf("error accepting invite: %v\n", err)
-				http.Error(w, "error accepting invite", http.StatusInternalServerError)
+				if raiseErr {
+					http.Error(w, "error accepting invite", http.StatusInternalServerError)
+				}
 				return nil
 			}
 
 		} else {
 			log.Println("user is not a member of the org")
-			http.Error(w, "not a member of org", http.StatusUnauthorized)
+			if raiseErr {
+				http.Error(w, "not a member of org", http.StatusUnauthorized)
+			}
 			return nil
 		}
 	}
@@ -107,7 +132,9 @@ func Authenticate(w http.ResponseWriter, r *http.Request, requireOrg bool) *type
 
 	if err != nil {
 		log.Printf("error getting user permissions: %v\n", err)
-		http.Error(w, "error getting user permissions", http.StatusInternalServerError)
+		if raiseErr {
+			http.Error(w, "error getting user permissions", http.StatusInternalServerError)
+		}
 		return nil
 	}
 
@@ -133,16 +160,20 @@ func GetAuthHeader(r *http.Request) (*shared.AuthHeader, error) {
 
 	// check for a cookie as well for ui requests
 	if authHeader == "" {
+		log.Println("no auth header - checking for cookie")
+
 		// Try to get auth token from a cookie as a fallback
 		cookie, err := r.Cookie("authToken")
 		if err != nil {
 			if err == http.ErrNoCookie {
+				log.Println("no auth cookie")
 				return nil, nil
 			}
 			return nil, fmt.Errorf("error retrieving auth cookie: %v", err)
 		}
 		// Use the token from the cookie as the fallback authorization header
 		authHeader = cookie.Value
+		log.Println("got auth header from cookie")
 	}
 
 	if authHeader == "" {
@@ -174,15 +205,85 @@ func GetAuthHeader(r *http.Request) (*shared.AuthHeader, error) {
 	return &parsed, nil
 }
 
-func SetAuthCookieIfBrowser(w http.ResponseWriter, r *http.Request, user *db.User, token, orgId string) error {
-	isBrowser := false
+func ClearAuthCookieIfBrowser(w http.ResponseWriter, r *http.Request) error {
 	acceptHeader := r.Header.Get("Accept")
-	if strings.Contains(acceptHeader, "text/html") {
-		isBrowser = true
-	}
-	if !isBrowser {
+	if acceptHeader == "" {
+		// no accept header, not a browser request
 		return nil
 	}
+
+	// Check for existing auth cookie
+	_, err := r.Cookie("authToken")
+	if err == http.ErrNoCookie {
+		// No auth cookie, nothing to clear
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("error retrieving auth cookie: %v", err)
+	}
+
+	// Clear the authToken cookie
+	http.SetCookie(w, &http.Cookie{
+		Name:     "authToken",
+		Path:     "/",
+		Value:    "",
+		MaxAge:   -1,
+		Secure:   os.Getenv("GOENV") != "development",
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+	})
+
+	return nil
+}
+
+func ClearAccountFromCookies(w http.ResponseWriter, r *http.Request, userId string) error {
+	// Get stored accounts
+	storedAccounts, err := GetAccountsFromCookie(r)
+	if err != nil {
+		return fmt.Errorf("error getting accounts from cookie: %v", err)
+	}
+
+	// Remove the account with the given userId
+	for i, account := range storedAccounts {
+		if account.UserId == userId {
+			storedAccounts = append(storedAccounts[:i], storedAccounts[i+1:]...)
+			break
+		}
+	}
+
+	// Marshal the updated accounts
+	updatedAccountsBytes, err := json.Marshal(storedAccounts)
+	if err != nil {
+		return fmt.Errorf("error marshalling updated accounts: %v", err)
+	}
+
+	// Encode to base64
+	encodedAccounts := base64.StdEncoding.EncodeToString(updatedAccountsBytes)
+
+	// Set the updated accounts cookie
+	http.SetCookie(w, &http.Cookie{
+		Name:     "accounts",
+		Path:     "/",
+		Value:    encodedAccounts,
+		Secure:   os.Getenv("GOENV") != "development",
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+	})
+
+	return nil
+}
+
+func SetAuthCookieIfBrowser(w http.ResponseWriter, r *http.Request, user *db.User, token, orgId string) error {
+	log.Println("setting auth cookie if browser")
+
+	acceptHeader := r.Header.Get("Accept")
+	if acceptHeader == "" {
+		// no accept header, not a browser request
+		log.Println("not a browser request")
+		return nil
+	}
+
+	log.Println("is browser - setting auth cookie")
 
 	if token == "" {
 		authHeader, err := GetAuthHeader(r)
@@ -213,10 +314,11 @@ func SetAuthCookieIfBrowser(w http.ResponseWriter, r *http.Request, user *db.Use
 
 	http.SetCookie(w, &http.Cookie{
 		Name:     "authToken",
+		Path:     "/",
 		Value:    "Bearer " + token,
-		Secure:   true,
+		Secure:   os.Getenv("GOENV") != "development",
 		HttpOnly: true,
-		SameSite: http.SameSiteStrictMode,
+		SameSite: http.SameSiteLaxMode,
 	})
 
 	storedAccounts, err := GetAccountsFromCookie(r)
@@ -257,10 +359,11 @@ func SetAuthCookieIfBrowser(w http.ResponseWriter, r *http.Request, user *db.Use
 
 	http.SetCookie(w, &http.Cookie{
 		Name:     "accounts",
+		Path:     "/",
 		Value:    accounts,
-		Secure:   true,
+		Secure:   os.Getenv("GOENV") != "development",
 		HttpOnly: true,
-		SameSite: http.SameSiteStrictMode,
+		SameSite: http.SameSiteLaxMode,
 	})
 
 	return nil

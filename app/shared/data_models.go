@@ -365,7 +365,14 @@ type CloudBillingFields struct {
 	NotifyThreshold       decimal.Decimal `json:"notifyThreshold"`
 	MaxThresholdPerMonth  decimal.Decimal `json:"maxThresholdPerMonth"`
 	BillingCycleStartedAt time.Time       `json:"billingCycleStartedAt"`
-	TrialPaid             bool            `json:"trialPaid"`
+
+	ChangedBillingMode bool `json:"changedBillingMode"`
+	TrialPaid          bool `json:"trialPaid"`
+
+	StripeSubscriptionId *string    `json:"stripeSubscriptionId"`
+	SubscriptionStatus   *string    `json:"subscriptionStatus"`
+	SubscriptionPausedAt *time.Time `json:"subscriptionPausedAt"`
+	StripePaymentMethod  *string    `json:"stripePaymentMethod"`
 }
 
 type CreditsTransactionType string
@@ -381,6 +388,7 @@ const (
 	CreditTypeTrial    CreditType = "trial"
 	CreditTypeGrant    CreditType = "grant"
 	CreditTypePurchase CreditType = "purchase"
+	CreditTypeSwitch   CreditType = "switch"
 )
 
 type DebitType string
@@ -394,9 +402,9 @@ type CreditsTransaction struct {
 	Id                          string                 `json:"id"`
 	OrgId                       string                 `json:"orgId"`
 	OrgName                     string                 `json:"orgName"`
-	UserId                      string                 `json:"userId"`
-	UserEmail                   string                 `json:"userEmail"`
-	UserName                    string                 `json:"userName"`
+	UserId                      *string                `json:"userId"`
+	UserEmail                   *string                `json:"userEmail"`
+	UserName                    *string                `json:"userName"`
 	TransactionType             CreditsTransactionType `json:"transactionType"`
 	Amount                      decimal.Decimal        `json:"amount"`
 	StartBalance                decimal.Decimal        `json:"startBalance"`
@@ -410,7 +418,8 @@ type CreditsTransaction struct {
 	CreditStripeCustomerId      *string                `json:"creditStripeCustomerId,omitempty"`
 	CreditStripeSubscriptionId  *string                `json:"creditStripeSubscriptionId,omitempty"`
 	CreditStripePriceId         *string                `json:"creditStripePriceId,omitempty"`
-	CreditStripePaymentId       *string                `json:"creditStripePaymentId,omitempty"`
+	CreditStripeInvoiceId       *string                `json:"creditStripeInvoiceId,omitempty"`
+	CreditStripePaymentMethod   *string                `json:"creditStripePaymentMethod,omitempty"`
 	DebitType                   *DebitType             `json:"debitType,omitempty"`
 	DebitTokens                 *int                   `json:"debitTokens,omitempty"`
 	DebitBaseAmount             *decimal.Decimal       `json:"debitBaseAmount,omitempty"`

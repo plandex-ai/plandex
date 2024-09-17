@@ -18,5 +18,6 @@ require (
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/sashabaranov/go-openai v1.24.0
 	github.com/shopspring/decimal v1.4.0
+	github.com/stripe/stripe-go/v79 v79.10.0
 	golang.org/x/image v0.17.0
 )

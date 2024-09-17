@@ -86,7 +86,7 @@ func migrationsUp(dir string) error {
 
 	// Uncomment below (and update migration version) to reset migration state to a specific version after a failure
 	// if os.Getenv("GOENV") == "development" {
-	// 	migrateVersion := 2024062100
+	// 	migrateVersion := 2024082900
 	// 	if err := m.Force(migrateVersion); err != nil {
 	// 		return fmt.Errorf("error forcing migration version: %v", err)
 	// 	}
@@ -107,7 +107,7 @@ func migrationsUp(dir string) error {
 
 	// Uncomment below and edit 'stepsBack' to go back a specific number of migrations
 	// if os.Getenv("GOENV") == "development" {
-	// 	stepsBack := 2
+	// 	stepsBack := 1
 	// 	err = m.Steps(-stepsBack)
 	// 	if err != nil {
 	// 		return fmt.Errorf("error running down migrations: %v", err)

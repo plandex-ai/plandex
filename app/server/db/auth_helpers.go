@@ -73,12 +73,20 @@ func CreateEmailVerification(email string, userId, pinHash string) error {
 	return nil
 }
 
-// email verifications expire in 5 minutes
-const emailVerificationExpirationMinutes = 5
+// email verifications expire in 10 minutes
+const emailVerificationExpirationMinutes = 10
 
 const InvalidOrExpiredPinError = "invalid or expired pin"
 
 func ValidateEmailVerification(email, pin string) (id string, err error) {
+	return validateEmailVerification(email, pin, true, true)
+}
+
+func ValidateEmailPreviouslyVerified(email, pin string) (id string, err error) {
+	return validateEmailVerification(email, pin, false, false)
+}
+
+func validateEmailVerification(email, pin string, enforceExpiration bool, errOnAlreadyVerified bool) (id string, err error) {
 	pinHashBytes := sha256.Sum256([]byte(pin))
 	pinHash := hex.EncodeToString(pinHashBytes[:])
 
@@ -87,10 +95,15 @@ func ValidateEmailVerification(email, pin string) (id string, err error) {
 	query := `SELECT id, auth_token_id 
               FROM email_verifications
               WHERE pin_hash = $1 
-							AND email = $2
-              AND created_at > $3`
+							AND email = $2`
 
-	err = Conn.QueryRow(query, pinHash, email, time.Now().Add(-emailVerificationExpirationMinutes*time.Minute)).Scan(&id, &authTokenId)
+	if enforceExpiration {
+		query += ` AND created_at > $3`
+		err = Conn.QueryRow(query, pinHash, email, time.Now().Add(-emailVerificationExpirationMinutes*time.Minute)).Scan(&id, &authTokenId)
+	} else {
+		err = Conn.QueryRow(query, pinHash, email).Scan(&id, &authTokenId)
+	}
+
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return "", errors.New(InvalidOrExpiredPinError)
@@ -98,8 +111,10 @@ func ValidateEmailVerification(email, pin string) (id string, err error) {
 		return "", fmt.Errorf("error validating email verification: %v", err)
 	}
 
-	if authTokenId != nil {
+	if authTokenId != nil && errOnAlreadyVerified {
 		return "", errors.New("pin already verified")
+	} else if authTokenId == nil && !errOnAlreadyVerified {
+		return "", errors.New("pin not previously verified")
 	}
 
 	return id, nil
