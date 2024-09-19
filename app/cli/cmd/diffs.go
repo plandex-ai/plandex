@@ -28,7 +28,6 @@ func init() {
 }
 
 func diffs(cmd *cobra.Command, args []string) {
-	fmt.Println("HELLO DIFFS AGAIN")
 	auth.MustResolveAuthWithOrg()
 	lib.MaybeResolveProject()
 
