@@ -120,6 +120,44 @@ func validateEmailVerification(email, pin string, enforceExpiration bool, errOnA
 	return id, nil
 }
 
+func CreateSignInCode(userId, orgId, pinHash string) error {
+	_, err := Conn.Exec("INSERT INTO sign_in_codes (user_id, org_id, pin_hash) VALUES ($1, $2, $3)", userId, orgId, pinHash)
+
+	if err != nil {
+		return fmt.Errorf("error creating sign in code: %v", err)
+	}
+
+	return nil
+}
+
+const signInCodeExpirationMinutes = 5
+
+type ValidateSignInCodeRes struct {
+	Id     string
+	OrgId  string
+	UserId string
+}
+
+func ValidateSignInCode(pin string) (*ValidateSignInCodeRes, error) {
+	pinHashBytes := sha256.Sum256([]byte(pin))
+	pinHash := hex.EncodeToString(pinHashBytes[:])
+
+	res := &ValidateSignInCodeRes{}
+	var authTokenId *string
+	query := `SELECT id, org_id, user_id, auth_token_id FROM sign_in_codes WHERE pin_hash = $1 AND created_at > $2`
+	err := Conn.QueryRow(query, pinHash, time.Now().Add(-signInCodeExpirationMinutes*time.Minute)).Scan(&res.Id, &res.OrgId, &res.UserId, &authTokenId)
+
+	if err != nil {
+		return nil, fmt.Errorf("error validating sign in code: %v", err)
+	}
+
+	if authTokenId != nil {
+		return nil, errors.New("sign in code already used")
+	}
+
+	return res, nil
+}
+
 func GetUserPermissions(userId, orgId string) ([]string, error) {
 	var permissions []string
 

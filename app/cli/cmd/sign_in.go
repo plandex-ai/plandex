@@ -16,10 +16,27 @@ var signInCmd = &cobra.Command{
 
 func init() {
 	RootCmd.AddCommand(signInCmd)
+
+	signInCmd.Flags().String("code", "", "Sign in code from the Plandex web UI")
 }
 
 func signIn(cmd *cobra.Command, args []string) {
-	err := auth.SelectOrSignInOrCreate()
+	code, err := cmd.Flags().GetString("code")
+	if err != nil {
+		term.OutputErrorAndExit("Error getting code: %v", err)
+	}
+
+	if code != "" {
+		err = auth.SignInWithCode(code, "")
+
+		if err != nil {
+			term.OutputErrorAndExit("Error signing in: %v", err)
+		}
+
+		return
+	}
+
+	err = auth.SelectOrSignInOrCreate()
 
 	if err != nil {
 		term.OutputErrorAndExit("Error signing in: %v", err)

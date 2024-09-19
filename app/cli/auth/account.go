@@ -13,32 +13,6 @@ const (
 	AuthAccountOption   = "Sign in, accept an invite, or create an account"
 )
 
-func promptInitialAuth() error {
-	selected, err := term.SelectFromList("👋 Hey there!\nIt looks like this is your first time using Plandex on this computer.\nWhat would you like to do?", []string{AuthFreeTrialOption, AuthAccountOption})
-
-	if err != nil {
-		return fmt.Errorf("error selecting auth option: %v", err)
-	}
-
-	switch selected {
-	case AuthFreeTrialOption:
-		err = startTrial()
-
-		if err != nil {
-			return fmt.Errorf("error starting trial: %v", err)
-		}
-
-	case AuthAccountOption:
-		err = SelectOrSignInOrCreate()
-
-		if err != nil {
-			return fmt.Errorf("error selecting or signing in to account: %v", err)
-		}
-	}
-
-	return nil
-}
-
 const AddAccountOption = "Add another account"
 
 func SelectOrSignInOrCreate() error {
@@ -134,6 +108,47 @@ func SelectOrSignInOrCreate() error {
 	return nil
 }
 
+func SignInWithCode(code, host string) error {
+	term.StartSpinner("")
+	res, apiErr := apiClient.SignIn(shared.SignInRequest{
+		Pin:          code,
+		IsSignInCode: true,
+	}, host)
+	term.StopSpinner()
+
+	if apiErr != nil {
+		return fmt.Errorf("error signing in: %v", apiErr.Msg)
+	}
+
+	return handleSignInResponse(res, host)
+}
+
+func promptInitialAuth() error {
+	selected, err := term.SelectFromList("👋 Hey there!\nIt looks like this is your first time using Plandex on this computer.\nWhat would you like to do?", []string{AuthFreeTrialOption, AuthAccountOption})
+
+	if err != nil {
+		return fmt.Errorf("error selecting auth option: %v", err)
+	}
+
+	switch selected {
+	case AuthFreeTrialOption:
+		err = startTrial()
+
+		if err != nil {
+			return fmt.Errorf("error starting trial: %v", err)
+		}
+
+	case AuthAccountOption:
+		err = SelectOrSignInOrCreate()
+
+		if err != nil {
+			return fmt.Errorf("error selecting or signing in to account: %v", err)
+		}
+	}
+
+	return nil
+}
+
 const (
 	SignInCloudOption = "Plandex Cloud"
 	SignInOtherOption = "Another host"
@@ -225,6 +240,10 @@ func signIn(email, pin, host string) error {
 		return fmt.Errorf("error signing in: %v", apiErr.Msg)
 	}
 
+	return handleSignInResponse(res, host)
+}
+
+func handleSignInResponse(res *shared.SessionResponse, host string) error {
 	err := setAuth(&shared.ClientAuth{
 		ClientAccount: shared.ClientAccount{
 			Email:    res.Email,

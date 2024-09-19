@@ -23,8 +23,9 @@ type VerifyEmailPinRequest struct {
 }
 
 type SignInRequest struct {
-	Email string `json:"email"`
-	Pin   string `json:"pin"`
+	Email        string `json:"email"`
+	Pin          string `json:"pin"`
+	IsSignInCode bool   `json:"isSignInCode"`
 }
 
 type CreateAccountRequest struct {

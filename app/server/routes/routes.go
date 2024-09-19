@@ -28,6 +28,7 @@ func AddApiRoutes(r *mux.Router) {
 
 	r.HandleFunc("/accounts/email_verifications", handlers.CreateEmailVerificationHandler).Methods("POST")
 	r.HandleFunc("/accounts/email_verifications/check_pin", handlers.CheckEmailPinHandler).Methods("POST")
+	r.HandleFunc("/accounts/sign_in_codes", handlers.CreateSignInCodeHandler).Methods("POST")
 	r.HandleFunc("/accounts/sign_in", handlers.SignInHandler).Methods("POST")
 	r.HandleFunc("/accounts/sign_out", handlers.SignOutHandler).Methods("POST")
 	r.HandleFunc("/accounts", handlers.CreateAccountHandler).Methods("POST")

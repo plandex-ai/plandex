@@ -11,7 +11,6 @@ import (
 	"plandex-server/email"
 	"strings"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/plandex/plandex/shared"
 )
 
@@ -146,8 +145,6 @@ func CheckEmailPinHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	req.Email = strings.ToLower(req.Email)
 
-	spew.Dump(req)
-
 	_, err = db.ValidateEmailVerification(req.Email, req.Pin)
 
 	if err != nil {
@@ -162,6 +159,43 @@ func CheckEmailPinHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Println("Successfully verified email pin")
+}
+
+// sign in codes allow users to authenticate between different clients
+// like UI to CLI or vice versa
+func CreateSignInCodeHandler(w http.ResponseWriter, r *http.Request) {
+	log.Println("Received request for CreateSignInCodeHandler")
+
+	auth := Authenticate(w, r, true)
+
+	if auth == nil {
+		return
+	}
+
+	// create pin - 6 alphanumeric characters
+	pinBytes, err := shared.GetRandomAlphanumeric(6)
+	if err != nil {
+		log.Printf("Error generating random pin: %v\n", err)
+		http.Error(w, "Error generating random pin: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// get sha256 hash of pin
+	hashBytes := sha256.Sum256(pinBytes)
+	pinHash := hex.EncodeToString(hashBytes[:])
+
+	err = db.CreateSignInCode(auth.User.Id, auth.OrgId, pinHash)
+
+	if err != nil {
+		log.Printf("Error creating sign in code: %v\n", err)
+		http.Error(w, "Error creating sign in code: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	log.Println("Successfully created sign in code")
+
+	// return the pin as a response
+	w.Write(pinBytes)
 }
 
 func SignInHandler(w http.ResponseWriter, r *http.Request) {
@@ -182,34 +216,60 @@ func SignInHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Error unmarshalling request: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	req.Email = strings.ToLower(req.Email)
 
-	user, err := db.GetUserByEmail(req.Email)
+	var user *db.User
+	var emailVerificationId string
+	var signInCodeId string
+	var signInCodeOrgId string
 
-	if err != nil {
-		log.Printf("Error getting user: %v\n", err)
-		http.Error(w, "Error getting user: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
+	if req.IsSignInCode {
+		res, err := db.ValidateSignInCode(req.Pin)
 
-	if user == nil {
-		log.Printf("User not found for email: %v\n", req.Email)
-		http.Error(w, "Not found", http.StatusNotFound)
-		return
-	}
+		if err != nil {
+			log.Printf("Error validating sign in code: %v\n", err)
+			http.Error(w, "Error validating sign in code: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
 
-	if user.IsTrial {
-		log.Printf("Trial user can't sign in: %v\n", req.Email)
-		http.Error(w, "Trial user can't sign in", http.StatusForbidden)
-		return
-	}
+		user, err = db.GetUser(res.UserId)
 
-	emailVerificationId, err := db.ValidateEmailVerification(req.Email, req.Pin)
+		if err != nil {
+			log.Printf("Error getting user: %v\n", err)
+			http.Error(w, "Error getting user: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
 
-	if err != nil {
-		log.Printf("Error validating email verification: %v\n", err)
-		http.Error(w, "Error validating email verification: "+err.Error(), http.StatusInternalServerError)
-		return
+		if user == nil {
+			log.Printf("User not found for id: %v\n", res.UserId)
+			http.Error(w, "User not found", http.StatusNotFound)
+			return
+		}
+
+		signInCodeId = res.Id
+		signInCodeOrgId = res.OrgId
+	} else {
+		req.Email = strings.ToLower(req.Email)
+		user, err = db.GetUserByEmail(req.Email)
+
+		if err != nil {
+			log.Printf("Error getting user: %v\n", err)
+			http.Error(w, "Error getting user: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		if user == nil {
+			log.Printf("User not found for email: %v\n", req.Email)
+			http.Error(w, "Not found", http.StatusNotFound)
+			return
+		}
+
+		emailVerificationId, err = db.ValidateEmailVerification(req.Email, req.Pin)
+
+		if err != nil {
+			log.Printf("Error validating email verification: %v\n", err)
+			http.Error(w, "Error validating email verification: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
 	}
 
 	// start a transaction
@@ -240,8 +300,19 @@ func SignInHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// update email verification with user and auth token ids
-	_, err = tx.Exec("UPDATE email_verifications SET user_id = $1, auth_token_id = $2 WHERE id = $3", user.Id, authTokenId, emailVerificationId)
+	if req.IsSignInCode {
+		// update sign in code with auth token id
+		_, err = tx.Exec("UPDATE sign_in_codes SET auth_token_id = $1 WHERE id = $2", authTokenId, signInCodeId)
+
+		if err != nil {
+			log.Printf("Error updating sign in code: %v\n", err)
+			http.Error(w, "Error updating sign in code: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+	} else {
+		// update email verification with user and auth token ids
+		_, err = tx.Exec("UPDATE email_verifications SET user_id = $1, auth_token_id = $2 WHERE id = $3", user.Id, authTokenId, emailVerificationId)
+	}
 
 	if err != nil {
 		log.Printf("Error updating email verification: %v\n", err)
@@ -264,6 +335,16 @@ func SignInHandler(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Error getting orgs for user: %v\n", err)
 		http.Error(w, "Error getting orgs for user: "+err.Error(), http.StatusInternalServerError)
 		return
+	}
+
+	if req.IsSignInCode {
+		filteredOrgs := []*db.Org{}
+		for _, org := range orgs {
+			if org.Id == signInCodeOrgId {
+				filteredOrgs = append(filteredOrgs, org)
+			}
+		}
+		orgs = filteredOrgs
 	}
 
 	apiOrgs, apiErr := toApiOrgs(orgs)
