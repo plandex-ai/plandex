@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"regexp"
+	"fmt"
 	"plandex/api"
 	"plandex/auth"
 	"plandex/lib"
@@ -8,6 +10,8 @@ import (
 
 	"github.com/spf13/cobra"
 )
+
+// var plainTextOutput bool
 
 var diffsCmd = &cobra.Command{
 	Use:     "diff",
@@ -18,9 +22,13 @@ var diffsCmd = &cobra.Command{
 
 func init() {
 	RootCmd.AddCommand(diffsCmd)
+
+	diffsCmd.Flags().BoolVarP(&plainTextOutput, "plain", "p", false, "Output diffs in plain text with no ANSI codes")
+
 }
 
 func diffs(cmd *cobra.Command, args []string) {
+	fmt.Println("HELLO DIFFS AGAIN")
 	auth.MustResolveAuthWithOrg()
 	lib.MaybeResolveProject()
 
@@ -35,5 +43,15 @@ func diffs(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	term.PageOutput(diffs)
+	if plainTextOutput {
+		fmt.Println(stripANSI(diffs))
+	} else {
+		term.PageOutput(diffs)
+	}
+}
+
+// stripANSI removes ANSI escape codes from the input string
+func stripANSI(input string) string {
+	ansiEscape := regexp.MustCompile(`\x1b\[[0-9;]*[a-zA-Z]`)
+	return ansiEscape.ReplaceAllString(input, "")
 }
