@@ -18,6 +18,7 @@ var CmdDesc = map[string][2]string{
 	"tell":    {"t", "describe a task, ask a question, or chat"},
 	"changes": {"ch", "review pending changes in a TUI"},
 	"diff":    {"", "review pending changes in 'git diff' format"},
+	"diff --plain":    {"", "review pending changes in 'git diff' format with no color formatting"},
 	"summary": {"", "show the latest summary of the current plan"},
 	// "preview":     {"pv", "preview the plan in a branch"},
 	"apply":     {"ap", "apply pending changes to project files"},
@@ -143,7 +144,7 @@ func PrintCustomHelp(all bool) {
 		fmt.Fprintln(builder)
 
 		color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Changes ")
-		printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "changes", "diff", "apply", "reject")
+		printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "changes", "diff", "diff --plain", "apply", "reject")
 		fmt.Fprintln(builder)
 
 		color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Context ")
