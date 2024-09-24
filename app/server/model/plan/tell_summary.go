@@ -9,6 +9,7 @@ import (
 	"plandex-server/db"
 	"plandex-server/model"
 	"plandex-server/model/prompts"
+	"plandex-server/types"
 	"time"
 
 	"github.com/davecgh/go-spew/spew"
@@ -174,8 +175,8 @@ func (state *activeTellStreamState) injectSummariesAsNeeded() bool {
 }
 
 type summarizeConvoParams struct {
+	auth                  *types.ServerAuth
 	plan                  *db.Plan
-	user                  *db.User
 	branch                string
 	convo                 []*db.ConvoMessage
 	summaries             []*db.ConvoSummary
@@ -188,7 +189,6 @@ type summarizeConvoParams struct {
 
 func summarizeConvo(client *openai.Client, config shared.ModelRoleConfig, params summarizeConvoParams, ctx context.Context) error {
 	plan := params.plan
-	user := params.user
 	planId := plan.Id
 	log.Printf("summarizeConvo: Called for plan ID %s on branch %s\n", planId, params.branch)
 	log.Printf("summarizeConvo: Starting summarizeConvo for planId: %s\n", planId)
@@ -197,7 +197,6 @@ func summarizeConvo(client *openai.Client, config shared.ModelRoleConfig, params
 	convo := params.convo
 	summaries := params.summaries
 	userPrompt := params.userPrompt
-	currentOrgId := params.currentOrgId
 	currentReply := params.currentReply
 	active := GetActivePlan(planId, branch)
 
@@ -318,9 +317,8 @@ func summarizeConvo(client *openai.Client, config shared.ModelRoleConfig, params
 		LatestConvoMessageId:        latestMessageId,
 		LatestConvoMessageCreatedAt: latestMessageSummarizedAt,
 		NumMessages:                 numMessagesSummarized,
-		OrgId:                       currentOrgId,
+		Auth:                        params.auth,
 		Plan:                        plan,
-		User:                        user,
 		ModelPackName:               params.modelPackName,
 	}, ctx)
 

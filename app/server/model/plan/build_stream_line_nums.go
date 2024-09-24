@@ -42,9 +42,8 @@ func (fileState *activeBuildStreamFileState) listenStreamChangesWithLineNums(str
 
 	execHookOnStop := func(sendStreamErr bool) {
 		_, apiErr := hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
-			User:  auth.User,
-			OrgId: auth.OrgId,
-			Plan:  fileState.plan,
+			Auth: auth,
+			Plan: fileState.plan,
 			DidSendModelRequestParams: &hooks.DidSendModelRequestParams{
 				InputTokens:   fileState.inputTokens,
 				OutputTokens:  fileState.activeBuild.WithLineNumsBufferTokens,
@@ -124,9 +123,8 @@ func (fileState *activeBuildStreamFileState) listenStreamChangesWithLineNums(str
 					spew.Dump(response.Usage)
 
 					_, apiErr := hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
-						User:  auth.User,
-						OrgId: auth.OrgId,
-						Plan:  fileState.plan,
+						Auth: auth,
+						Plan: fileState.plan,
 						DidSendModelRequestParams: &hooks.DidSendModelRequestParams{
 							InputTokens:   response.Usage.PromptTokens,
 							OutputTokens:  response.Usage.CompletionTokens,

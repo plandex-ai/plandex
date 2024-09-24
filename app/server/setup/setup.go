@@ -47,7 +47,14 @@ func StartServer(r *mux.Router) {
 	}
 
 	// Ensure database connection is closed
-	defer db.Conn.Close()
+	defer func() {
+		log.Println("Closing database connection...")
+		err := db.Conn.Close()
+		if err != nil {
+			log.Printf("Error closing database connection: %v", err)
+		}
+		log.Println("Database connection closed")
+	}()
 
 	// Get externalPort from the environment variable or default to 8080
 	externalPort := os.Getenv("PORT")
@@ -100,7 +107,7 @@ func StartServer(r *mux.Router) {
 	defer cancel()
 
 	if err := server.Shutdown(ctx); err != nil {
-		log.Fatalf("Server forced to shutdown: %v", err)
+		log.Printf("Server forced to shutdown: %v", err)
 	}
 
 	// Wait for active plans to complete

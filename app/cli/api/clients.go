@@ -15,26 +15,25 @@ const slowReqTimeout = 5 * time.Minute
 
 type Api struct{}
 
-var cloudApiHost string
-
+var CloudApiHost string
 var Client types.ApiClient = (*Api)(nil)
 
 func init() {
 	if os.Getenv("PLANDEX_ENV") == "development" {
-		cloudApiHost = os.Getenv("PLANDEX_API_HOST")
-		if cloudApiHost == "" {
-			cloudApiHost = "http://localhost:8080"
+		CloudApiHost = os.Getenv("PLANDEX_API_HOST")
+		if CloudApiHost == "" {
+			CloudApiHost = "http://localhost:8080"
 		}
 	} else {
-		cloudApiHost = "https://api.plandex.ai"
+		CloudApiHost = "https://api.plandex.ai"
 	}
 }
 
-func getApiHost() string {
+func GetApiHost() string {
 	if auth.Current == nil {
 		return ""
 	} else if auth.Current.IsCloud {
-		return cloudApiHost
+		return CloudApiHost
 	} else {
 		return auth.Current.Host
 	}

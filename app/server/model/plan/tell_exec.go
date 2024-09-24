@@ -68,8 +68,9 @@ func execTellPlan(
 	}
 
 	if missingFileResponse == "" {
+		log.Println("Executing WillExecPlanHook")
 		_, apiErr := hooks.ExecHook(hooks.WillExecPlan, hooks.HookParams{
-			User: auth.User,
+			Auth: auth,
 			Plan: plan,
 		})
 
@@ -415,9 +416,8 @@ func execTellPlan(
 	// }
 
 	_, apiErr := hooks.ExecHook(hooks.WillSendModelRequest, hooks.HookParams{
-		User:  auth.User,
-		OrgId: auth.OrgId,
-		Plan:  plan,
+		Auth: auth,
+		Plan: plan,
 		WillSendModelRequestParams: &hooks.WillSendModelRequestParams{
 			InputTokens:  state.totalRequestTokens,
 			OutputTokens: state.settings.ModelPack.Planner.ReservedOutputTokens,

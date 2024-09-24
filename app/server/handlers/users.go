@@ -18,11 +18,18 @@ func ListUsersHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if auth.User.IsTrial {
+	org, err := db.GetOrg(auth.OrgId)
+	if err != nil {
+		log.Printf("Error getting org: %v\n", err)
+		http.Error(w, "Error getting org: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if org.IsTrial {
 		writeApiError(w, shared.ApiError{
 			Type:   shared.ApiErrorTypeTrialActionNotAllowed,
 			Status: http.StatusForbidden,
-			Msg:    "Anonymous trial user can't list users",
+			Msg:    "Trial user can't list users",
 		})
 		return
 	}
@@ -76,11 +83,18 @@ func DeleteOrgUserHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if auth.User.IsTrial {
+	org, err := db.GetOrg(auth.OrgId)
+	if err != nil {
+		log.Printf("Error getting org: %v\n", err)
+		http.Error(w, "Error getting org: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if org.IsTrial {
 		writeApiError(w, shared.ApiError{
 			Type:   shared.ApiErrorTypeTrialActionNotAllowed,
 			Status: http.StatusForbidden,
-			Msg:    "Anonymous trial user can't delete users",
+			Msg:    "Trial user can't delete users",
 		})
 		return
 	}

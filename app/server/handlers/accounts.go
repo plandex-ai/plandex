@@ -5,8 +5,10 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"plandex-server/db"
 	"plandex-server/hooks"
+	"plandex-server/types"
 	"strings"
 
 	"github.com/plandex/plandex/shared"
@@ -14,6 +16,12 @@ import (
 
 func CreateAccountHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for CreateAccountHandler")
+
+	if os.Getenv("IS_CLOUD") != "" {
+		log.Println("Creating accounts is not supported in cloud mode")
+		http.Error(w, "Creating accounts is not supported in cloud mode", http.StatusNotImplemented)
+		return
+	}
 
 	// read the request body
 	body, err := io.ReadAll(r.Body)
@@ -75,8 +83,10 @@ func CreateAccountHandler(w http.ResponseWriter, r *http.Request) {
 	orgId := res.OrgId
 
 	_, apiErr = hooks.ExecHook(hooks.CreateAccount, hooks.HookParams{
-		User:  user,
-		OrgId: orgId,
+		Auth: &types.ServerAuth{
+			User:  user,
+			OrgId: orgId,
+		},
 	})
 	if apiErr != nil {
 		writeApiError(w, *apiErr)

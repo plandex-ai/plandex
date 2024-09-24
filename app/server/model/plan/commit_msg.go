@@ -39,9 +39,8 @@ func (state *activeTellStreamState) genPlanDescription() (*db.ConvoMessageDescri
 	numTokens := prompts.ExtraTokensPerRequest + (prompts.ExtraTokensPerMessage * 2) + prompts.SysDescribeNumTokens + activePlan.NumTokens
 
 	_, apiErr := hooks.ExecHook(hooks.WillSendModelRequest, hooks.HookParams{
-		User:  auth.User,
-		OrgId: auth.OrgId,
-		Plan:  plan,
+		Auth: auth,
+		Plan: plan,
 		WillSendModelRequestParams: &hooks.WillSendModelRequestParams{
 			InputTokens:  numTokens,
 			OutputTokens: shared.AvailableModelsByName[config.BaseModelConfig.ModelName].DefaultReservedOutputTokens,
@@ -117,9 +116,8 @@ func (state *activeTellStreamState) genPlanDescription() (*db.ConvoMessageDescri
 	}
 
 	_, apiErr = hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
-		User:  auth.User,
-		OrgId: auth.OrgId,
-		Plan:  plan,
+		Auth: auth,
+		Plan: plan,
 		DidSendModelRequestParams: &hooks.DidSendModelRequestParams{
 			InputTokens:   inputTokens,
 			OutputTokens:  outputTokens,
@@ -182,9 +180,8 @@ func GenCommitMsgForPendingResults(auth *types.ServerAuth, plan *db.Plan, client
 	numTokens := prompts.ExtraTokensPerRequest + (prompts.ExtraTokensPerMessage * 2) + prompts.SysPendingResultsNumTokens + contentTokens
 
 	_, apiErr := hooks.ExecHook(hooks.WillSendModelRequest, hooks.HookParams{
-		User:  auth.User,
-		OrgId: auth.OrgId,
-		Plan:  plan,
+		Auth: auth,
+		Plan: plan,
 		WillSendModelRequestParams: &hooks.WillSendModelRequestParams{
 			InputTokens:  numTokens,
 			OutputTokens: shared.AvailableModelsByName[config.BaseModelConfig.ModelName].DefaultReservedOutputTokens,
@@ -244,9 +241,8 @@ func GenCommitMsgForPendingResults(auth *types.ServerAuth, plan *db.Plan, client
 	}
 
 	_, apiErr = hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
-		User:  auth.User,
-		OrgId: auth.OrgId,
-		Plan:  plan,
+		Auth: auth,
+		Plan: plan,
 		DidSendModelRequestParams: &hooks.DidSendModelRequestParams{
 			InputTokens:   inputTokens,
 			OutputTokens:  outputTokens,

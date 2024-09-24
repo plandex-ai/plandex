@@ -116,7 +116,7 @@ func CreateUser(name, email string, tx *sqlx.Tx) (*User, error) {
 		Domain: domain,
 	}
 
-	err := tx.QueryRow("INSERT INTO users (name, email, domain, is_trial) VALUES ($1, $2, $3, $4) RETURNING id", user.Name, user.Email, user.Domain, user.IsTrial).Scan(&user.Id)
+	err := tx.QueryRow("INSERT INTO users (name, email, domain) VALUES ($1, $2, $3) RETURNING id", user.Name, user.Email, user.Domain).Scan(&user.Id)
 
 	if err != nil {
 		if IsNonUniqueErr(err) {

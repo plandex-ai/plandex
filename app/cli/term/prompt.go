@@ -68,9 +68,14 @@ func ConfirmYesNo(fmtStr string, fmtArgs ...interface{}) (bool, error) {
 	color.New(ColorHiMagenta, color.Bold).Printf(fmtStr+" (y)es | (n)o", fmtArgs...)
 	color.New(ColorHiMagenta, color.Bold).Print("> ")
 
-	char, _, err := GetUserKeyInput()
+	char, key, err := GetUserKeyInput()
 	if err != nil {
 		return false, fmt.Errorf("failed to get user input: %s", err)
+	}
+
+	if key == keyboard.KeyCtrlC {
+		fmt.Println()
+		os.Exit(0)
 	}
 
 	fmt.Println(string(char))
@@ -89,9 +94,14 @@ func ConfirmYesNoCancel(fmtStr string, fmtArgs ...interface{}) (bool, bool, erro
 	color.New(ColorHiMagenta, color.Bold).Printf(fmtStr+" (y)es | (n)o | (c)ancel", fmtArgs...)
 	color.New(ColorHiMagenta, color.Bold).Print("> ")
 
-	char, _, err := GetUserKeyInput()
+	char, key, err := GetUserKeyInput()
 	if err != nil {
 		return false, false, fmt.Errorf("failed to get user input: %s", err)
+	}
+
+	if key == keyboard.KeyCtrlC {
+		fmt.Println()
+		os.Exit(0)
 	}
 
 	fmt.Println(string(char))

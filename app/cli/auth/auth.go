@@ -10,6 +10,17 @@ import (
 	"github.com/plandex/plandex/shared"
 )
 
+var openUnauthenticatedCloudURL func(msg, path string)
+var openAuthenticatedURL func(msg, path string)
+
+func SetOpenUnauthenticatedCloudURLFn(fn func(msg, path string)) {
+	openUnauthenticatedCloudURL = fn
+}
+
+func SetOpenAuthenticatedURLFn(fn func(msg, path string)) {
+	openAuthenticatedURL = fn
+}
+
 func MustResolveAuthWithOrg() {
 	MustResolveAuth(true)
 }

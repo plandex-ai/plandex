@@ -101,6 +101,8 @@ func creditsLog(cmd *cobra.Command, args []string) {
 			case shared.CreditTypeSwitch:
 				desc += "Switched to Integrated Models mode"
 			}
+
+			desc += "\n"
 		}
 
 		amountStr := transaction.Amount.StringFixed(6)

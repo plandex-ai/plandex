@@ -329,9 +329,8 @@ func (fileState *activeBuildStreamFileState) buildFileLineNums() {
 	fileState.inputTokens = inputTokens
 
 	_, apiErr := hooks.ExecHook(hooks.WillSendModelRequest, hooks.HookParams{
-		User:  auth.User,
-		OrgId: auth.OrgId,
-		Plan:  fileState.plan,
+		Auth: auth,
+		Plan: fileState.plan,
 		WillSendModelRequestParams: &hooks.WillSendModelRequestParams{
 			InputTokens:  inputTokens,
 			OutputTokens: shared.AvailableModelsByName[fileState.settings.ModelPack.Builder.BaseModelConfig.ModelName].DefaultReservedOutputTokens,

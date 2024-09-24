@@ -31,9 +31,8 @@ func initClients(params initClientsParams) map[string]*openai.Client {
 	var endpoint string
 
 	hookResult, apiErr := hooks.ExecHook(hooks.GetIntegratedModels, hooks.HookParams{
-		User:  params.auth.User,
-		OrgId: params.auth.OrgId,
-		Plan:  params.plan,
+		Auth: params.auth,
+		Plan: params.plan,
 	})
 
 	if apiErr != nil {

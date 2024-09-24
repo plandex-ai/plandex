@@ -70,7 +70,8 @@ func StartStreamUI(prompt string, buildOnly bool) error {
 
 	if mod.apiErr != nil {
 		fmt.Println()
-		term.OutputErrorAndExit("Server error: " + mod.apiErr.Msg)
+
+		term.HandleApiError(mod.apiErr)
 	}
 
 	if mod.stopped {

@@ -57,7 +57,7 @@ func TellPlanHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_, apiErr := hooks.ExecHook(hooks.WillTellPlan, hooks.HookParams{
-		User: auth.User,
+		Auth: auth,
 		Plan: plan,
 	})
 	if apiErr != nil {

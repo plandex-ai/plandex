@@ -15,13 +15,13 @@ import (
 
 const tokenExpirationDays = 90 // (trial tokens don't expire)
 
-func CreateAuthToken(userId string, isTrial bool, tx *sqlx.Tx) (token, id string, err error) {
+func CreateAuthToken(userId string, tx *sqlx.Tx) (token, id string, err error) {
 	uid := uuid.New()
 	bytes := uid[:]
 	hashBytes := sha256.Sum256(bytes)
 	hash := hex.EncodeToString(hashBytes[:])
 
-	err = tx.QueryRow("INSERT INTO auth_tokens (user_id, token_hash, is_trial) VALUES ($1, $2, $3) RETURNING id", userId, hash, isTrial).Scan(&id)
+	err = tx.QueryRow("INSERT INTO auth_tokens (user_id, token_hash) VALUES ($1, $2) RETURNING id", userId, hash).Scan(&id)
 
 	if err != nil {
 		return "", "", fmt.Errorf("error creating auth token: %v", err)
@@ -43,8 +43,7 @@ func ValidateAuthToken(token string) (*AuthToken, error) {
 	tokenHash := hex.EncodeToString(hashBytes[:])
 
 	var authToken AuthToken
-	// trial tokens don't expire
-	err = Conn.Get(&authToken, "SELECT * FROM auth_tokens WHERE token_hash = $1 AND (created_at > $2 OR is_trial = TRUE) AND deleted_at IS NULL", tokenHash, time.Now().AddDate(0, 0, -tokenExpirationDays))
+	err = Conn.Get(&authToken, "SELECT * FROM auth_tokens WHERE token_hash = $1 AND created_at > $2 AND deleted_at IS NULL", tokenHash, time.Now().AddDate(0, 0, -tokenExpirationDays))
 
 	if err != nil {
 		if err == sql.ErrNoRows {

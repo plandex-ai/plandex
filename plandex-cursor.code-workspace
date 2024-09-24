@@ -1,0 +1,35 @@
+{
+  "folders": [
+    {
+      "name": "plandex",
+      "path": "."
+    },
+    {
+      "name": "static",
+      "path": "static"
+    },
+    {
+      "name": "cli",
+      "path": "app/cli"
+    },
+    {
+      "name": "server",
+      "path": "app/server"
+    },
+    {
+      "name": "cloud",
+      "path": "app/server/cloud"
+    },
+    {
+      "name": "shared",
+      "path": "app/shared"
+    },
+    {
+      "name": "node",
+      "path": "app/server/cloud/ui/node"
+    }
+  ],
+  "settings": {
+    "git.ignoreLimitWarning": true
+  }
+}

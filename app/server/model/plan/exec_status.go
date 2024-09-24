@@ -84,9 +84,8 @@ func (state *activeTellStreamState) execStatusShouldContinue(message string, lat
 	numTokens := prompts.ExtraTokensPerRequest + prompts.ExtraTokensPerMessage + contentTokens
 
 	_, apiErr := hooks.ExecHook(hooks.WillSendModelRequest, hooks.HookParams{
-		User:  auth.User,
-		OrgId: auth.OrgId,
-		Plan:  plan,
+		Auth: auth,
+		Plan: plan,
 		WillSendModelRequestParams: &hooks.WillSendModelRequestParams{
 			InputTokens:  numTokens,
 			OutputTokens: shared.AvailableModelsByName[config.BaseModelConfig.ModelName].DefaultReservedOutputTokens,
@@ -183,9 +182,8 @@ func (state *activeTellStreamState) execStatusShouldContinue(message string, lat
 	}
 
 	_, apiErr = hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
-		User:  auth.User,
-		OrgId: auth.OrgId,
-		Plan:  plan,
+		Auth: auth,
+		Plan: plan,
 		DidSendModelRequestParams: &hooks.DidSendModelRequestParams{
 			InputTokens:   inputTokens,
 			OutputTokens:  outputTokens,

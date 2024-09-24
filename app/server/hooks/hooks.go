@@ -2,6 +2,7 @@ package hooks
 
 import (
 	"plandex-server/db"
+	"plandex-server/types"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/plandex/plandex/shared"
@@ -16,6 +17,7 @@ const (
 	DidSendModelRequest  = "did_send_model_request"
 
 	CreateOrg           = "create_org"
+	Authenticate        = "authenticate"
 	GetIntegratedModels = "get_integrated_models"
 	GetApiOrgs          = "get_api_orgs"
 )
@@ -40,16 +42,20 @@ type CreateOrgHookRequestParams struct {
 	Org *db.Org
 }
 
-type HookParams struct {
-	User  *db.User
-	OrgId string
-	Plan  *db.Plan
-	Tx    *sqlx.Tx
+type AuthenticateHookRequestParams struct {
+	Path string
+}
 
-	WillSendModelRequestParams *WillSendModelRequestParams
-	DidSendModelRequestParams  *DidSendModelRequestParams
-	CreateOrgHookRequestParams *CreateOrgHookRequestParams
-	GetApiOrgIds               []string
+type HookParams struct {
+	Auth *types.ServerAuth
+	Plan *db.Plan
+	Tx   *sqlx.Tx
+
+	WillSendModelRequestParams    *WillSendModelRequestParams
+	DidSendModelRequestParams     *DidSendModelRequestParams
+	CreateOrgHookRequestParams    *CreateOrgHookRequestParams
+	GetApiOrgIds                  []string
+	AuthenticateHookRequestParams *AuthenticateHookRequestParams
 }
 
 type GetIntegratedModelsResult struct {

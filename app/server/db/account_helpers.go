@@ -24,7 +24,7 @@ func CreateAccount(name, email, emailVerificationId string, tx *sqlx.Tx) (*Creat
 	domain := user.Domain
 
 	// create auth token
-	token, authTokenId, err := CreateAuthToken(userId, false, tx)
+	token, authTokenId, err := CreateAuthToken(userId, tx)
 
 	if err != nil {
 		return nil, fmt.Errorf("error creating auth token: %v", err)

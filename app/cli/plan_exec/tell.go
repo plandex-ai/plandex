@@ -93,19 +93,16 @@ func TellPlan(
 
 		if apiErr != nil {
 			if apiErr.Type == shared.ApiErrorTypeTrialMessagesExceeded {
-				fmt.Fprintf(os.Stderr, "\n🚨 You've reached the Plandex Cloud anonymous trial limit of %d messages per plan\n", apiErr.TrialMessagesExceededError.MaxReplies)
+				fmt.Fprintf(os.Stderr, "\n🚨 You've reached the Plandex Cloud trial limit of %d messages per plan\n", apiErr.TrialMessagesExceededError.MaxReplies)
 
-				res, err := term.ConfirmYesNo("Upgrade to an unlimited free account?")
+				res, err := term.ConfirmYesNo("Upgrade now?")
 
 				if err != nil {
 					term.OutputErrorAndExit("Error prompting upgrade trial: %v", err)
 				}
 
 				if res {
-					err := auth.ConvertTrial()
-					if err != nil {
-						term.OutputErrorAndExit("Error converting trial: %v", err)
-					}
+					auth.ConvertTrial()
 					// retry action after converting trial
 					return fn()
 				}

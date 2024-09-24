@@ -5,12 +5,13 @@ import (
 	"log"
 	"net/http"
 	"plandex/auth"
+	"plandex/term"
 	"strings"
 
 	"github.com/plandex/plandex/shared"
 )
 
-func handleApiError(r *http.Response, errBody []byte) *shared.ApiError {
+func HandleApiError(r *http.Response, errBody []byte) *shared.ApiError {
 	// Check if the response is JSON
 	if r.Header.Get("Content-Type") != "application/json" {
 		return &shared.ApiError{
@@ -29,6 +30,8 @@ func handleApiError(r *http.Response, errBody []byte) *shared.ApiError {
 			Msg:    strings.TrimSpace(string(errBody)),
 		}
 	}
+
+	term.HandleApiError(&apiError)
 
 	return &apiError
 }

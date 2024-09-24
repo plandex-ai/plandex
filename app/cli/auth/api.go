@@ -33,7 +33,7 @@ func SetAuthHeader(req *http.Request) error {
 	}
 
 	// base64 encode
-	token := base64.StdEncoding.EncodeToString(bytes)
+	token := base64.URLEncoding.EncodeToString(bytes)
 
 	req.Header.Set("Authorization", "Bearer "+token)
 

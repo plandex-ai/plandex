@@ -60,9 +60,8 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 
 	execHookOnStop := func(sendStreamErr bool) {
 		_, apiErr := hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
-			User:  auth.User,
-			OrgId: auth.OrgId,
-			Plan:  plan,
+			Auth: auth,
+			Plan: plan,
 			DidSendModelRequestParams: &hooks.DidSendModelRequestParams{
 				InputTokens:   state.totalRequestTokens,
 				OutputTokens:  active.NumTokens,
@@ -138,9 +137,8 @@ mainLoop:
 					spew.Dump(response.Usage)
 
 					_, apiErr := hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
-						User:  auth.User,
-						OrgId: auth.OrgId,
-						Plan:  plan,
+						Auth: auth,
+						Plan: plan,
 						DidSendModelRequestParams: &hooks.DidSendModelRequestParams{
 							InputTokens:   response.Usage.PromptTokens,
 							OutputTokens:  response.Usage.CompletionTokens,
@@ -356,7 +354,7 @@ mainLoop:
 				// summarize in the background
 				go func() {
 					err := summarizeConvo(client, settings.ModelPack.PlanSummary, summarizeConvoParams{
-						user:                  auth.User,
+						auth:                  auth,
 						plan:                  plan,
 						branch:                branch,
 						convo:                 convo,

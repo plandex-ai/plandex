@@ -39,7 +39,7 @@ func CreatePlanHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, apiErr := hooks.ExecHook(hooks.WillCreatePlan, hooks.HookParams{User: auth.User})
+	_, apiErr := hooks.ExecHook(hooks.WillCreatePlan, hooks.HookParams{Auth: auth})
 	if apiErr != nil {
 		writeApiError(w, *apiErr)
 		return

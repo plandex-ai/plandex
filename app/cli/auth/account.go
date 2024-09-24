@@ -9,8 +9,8 @@ import (
 )
 
 const (
-	AuthFreeTrialOption = "Start a trial on Plandex Cloud"
-	AuthAccountOption   = "Sign in, accept an invite, or create an account"
+	AuthTrialOption   = "Start a trial on Plandex Cloud"
+	AuthAccountOption = "Sign in, accept an invite, or create an account"
 )
 
 const AddAccountOption = "Add another account"
@@ -124,19 +124,15 @@ func SignInWithCode(code, host string) error {
 }
 
 func promptInitialAuth() error {
-	selected, err := term.SelectFromList("👋 Hey there!\nIt looks like this is your first time using Plandex on this computer.\nWhat would you like to do?", []string{AuthFreeTrialOption, AuthAccountOption})
+	selected, err := term.SelectFromList("👋 Hey there!\nIt looks like this is your first time using Plandex on this computer.\nWhat would you like to do?", []string{AuthTrialOption, AuthAccountOption})
 
 	if err != nil {
 		return fmt.Errorf("error selecting auth option: %v", err)
 	}
 
 	switch selected {
-	case AuthFreeTrialOption:
-		err = startTrial()
-
-		if err != nil {
-			return fmt.Errorf("error starting trial: %v", err)
-		}
+	case AuthTrialOption:
+		startTrial()
 
 	case AuthAccountOption:
 		err = SelectOrSignInOrCreate()

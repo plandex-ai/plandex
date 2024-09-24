@@ -16,7 +16,6 @@ type AuthToken struct {
 	Id        string     `db:"id"`
 	UserId    string     `db:"user_id"`
 	TokenHash string     `db:"token_hash"`
-	IsTrial   bool       `db:"is_trial"`
 	CreatedAt time.Time  `db:"created_at"`
 	DeletedAt *time.Time `db:"deleted_at"`
 }
@@ -35,8 +34,10 @@ type Org struct {
 
 func (org *Org) ToApi() *shared.Org {
 	return &shared.Org{
-		Id:   org.Id,
-		Name: org.Name,
+		Id:                 org.Id,
+		Name:               org.Name,
+		AutoAddDomainUsers: org.AutoAddDomainUsers,
+		IsTrial:            org.IsTrial,
 	}
 }
 
@@ -46,7 +47,6 @@ type User struct {
 	Email            string    `db:"email"`
 	Domain           string    `db:"domain"`
 	NumNonDraftPlans int       `db:"num_non_draft_plans"`
-	IsTrial          bool      `db:"is_trial"`
 	CreatedAt        time.Time `db:"created_at"`
 	UpdatedAt        time.Time `db:"updated_at"`
 }
@@ -57,7 +57,7 @@ func (user *User) ToApi() *shared.User {
 		Name:             user.Name,
 		Email:            user.Email,
 		NumNonDraftPlans: user.NumNonDraftPlans,
-		IsTrial:          user.IsTrial,
+		IsTrial:          false, // legacy field
 	}
 }
 

@@ -40,9 +40,8 @@ func (fileState *activeBuildStreamFileState) listenStreamFixChanges(stream *open
 
 	execHookOnStop := func(sendStreamErr bool) {
 		_, apiErr := hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
-			User:  auth.User,
-			OrgId: auth.OrgId,
-			Plan:  fileState.plan,
+			Auth: auth,
+			Plan: fileState.plan,
 			DidSendModelRequestParams: &hooks.DidSendModelRequestParams{
 				InputTokens:   fileState.inputTokens,
 				OutputTokens:  fileState.activeBuild.FixBufferTokens,
@@ -120,9 +119,8 @@ func (fileState *activeBuildStreamFileState) listenStreamFixChanges(stream *open
 					spew.Dump(response.Usage)
 
 					_, apiErr := hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
-						User:  auth.User,
-						OrgId: auth.OrgId,
-						Plan:  fileState.plan,
+						Auth: auth,
+						Plan: fileState.plan,
 						DidSendModelRequestParams: &hooks.DidSendModelRequestParams{
 							InputTokens:   response.Usage.PromptTokens,
 							OutputTokens:  response.Usage.CompletionTokens,

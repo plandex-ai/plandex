@@ -217,150 +217,12 @@ func SignInHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var user *db.User
-	var emailVerificationId string
-	var signInCodeId string
-	var signInCodeOrgId string
-
-	if req.IsSignInCode {
-		res, err := db.ValidateSignInCode(req.Pin)
-
-		if err != nil {
-			log.Printf("Error validating sign in code: %v\n", err)
-			http.Error(w, "Error validating sign in code: "+err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		user, err = db.GetUser(res.UserId)
-
-		if err != nil {
-			log.Printf("Error getting user: %v\n", err)
-			http.Error(w, "Error getting user: "+err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		if user == nil {
-			log.Printf("User not found for id: %v\n", res.UserId)
-			http.Error(w, "User not found", http.StatusNotFound)
-			return
-		}
-
-		signInCodeId = res.Id
-		signInCodeOrgId = res.OrgId
-	} else {
-		req.Email = strings.ToLower(req.Email)
-		user, err = db.GetUserByEmail(req.Email)
-
-		if err != nil {
-			log.Printf("Error getting user: %v\n", err)
-			http.Error(w, "Error getting user: "+err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		if user == nil {
-			log.Printf("User not found for email: %v\n", req.Email)
-			http.Error(w, "Not found", http.StatusNotFound)
-			return
-		}
-
-		emailVerificationId, err = db.ValidateEmailVerification(req.Email, req.Pin)
-
-		if err != nil {
-			log.Printf("Error validating email verification: %v\n", err)
-			http.Error(w, "Error validating email verification: "+err.Error(), http.StatusInternalServerError)
-			return
-		}
-	}
-
-	// start a transaction
-	tx, err := db.Conn.Beginx()
-	if err != nil {
-		log.Printf("Error starting transaction: %v\n", err)
-		http.Error(w, "Error starting transaction: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	// Ensure that rollback is attempted in case of failure
-	defer func() {
-		if err != nil {
-			if rbErr := tx.Rollback(); rbErr != nil {
-				log.Printf("transaction rollback error: %v\n", rbErr)
-			} else {
-				log.Println("transaction rolled back")
-			}
-		}
-	}()
-
-	// create auth token
-	token, authTokenId, err := db.CreateAuthToken(user.Id, false, tx)
+	resp, err := ValidateAndSignIn(w, r, req)
 
 	if err != nil {
-		log.Printf("Error creating auth token: %v\n", err)
-		http.Error(w, "Error creating auth token: "+err.Error(), http.StatusInternalServerError)
+		log.Printf("Error signing in: %v\n", err)
+		http.Error(w, "Error signing in: "+err.Error(), http.StatusInternalServerError)
 		return
-	}
-
-	if req.IsSignInCode {
-		// update sign in code with auth token id
-		_, err = tx.Exec("UPDATE sign_in_codes SET auth_token_id = $1 WHERE id = $2", authTokenId, signInCodeId)
-
-		if err != nil {
-			log.Printf("Error updating sign in code: %v\n", err)
-			http.Error(w, "Error updating sign in code: "+err.Error(), http.StatusInternalServerError)
-			return
-		}
-	} else {
-		// update email verification with user and auth token ids
-		_, err = tx.Exec("UPDATE email_verifications SET user_id = $1, auth_token_id = $2 WHERE id = $3", user.Id, authTokenId, emailVerificationId)
-	}
-
-	if err != nil {
-		log.Printf("Error updating email verification: %v\n", err)
-		http.Error(w, "Error updating email verification: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	// commit transaction
-	err = tx.Commit()
-	if err != nil {
-		log.Printf("Error committing transaction: %v\n", err)
-		http.Error(w, "Error committing transaction: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	// get orgs
-	orgs, err := db.GetAccessibleOrgsForUser(user)
-
-	if err != nil {
-		log.Printf("Error getting orgs for user: %v\n", err)
-		http.Error(w, "Error getting orgs for user: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	if req.IsSignInCode {
-		filteredOrgs := []*db.Org{}
-		for _, org := range orgs {
-			if org.Id == signInCodeOrgId {
-				filteredOrgs = append(filteredOrgs, org)
-			}
-		}
-		orgs = filteredOrgs
-	}
-
-	apiOrgs, apiErr := toApiOrgs(orgs)
-
-	if apiErr != nil {
-		log.Printf("Error converting orgs to api orgs: %v\n", apiErr)
-		writeApiError(w, *apiErr)
-		return
-	}
-
-	resp := shared.SessionResponse{
-		UserId:   user.Id,
-		Token:    token,
-		Email:    user.Email,
-		UserName: user.Name,
-		Orgs:     apiOrgs,
 	}
 
 	bytes, err := json.Marshal(resp)
@@ -368,20 +230,6 @@ func SignInHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Printf("Error marshalling response: %v\n", err)
 		http.Error(w, "Error marshalling response: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	// with a single org, set the orgId in the cookie
-	// otherwise, the user will be prompted to select an org
-	var orgId string
-	if len(orgs) == 1 {
-		orgId = orgs[0].Id
-	}
-
-	err = SetAuthCookieIfBrowser(w, r, user, token, orgId)
-	if err != nil {
-		log.Printf("Error setting auth cookie: %v\n", err)
-		http.Error(w, "Error setting auth cookie: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 

@@ -15,8 +15,7 @@ import (
 )
 
 type PlanSummaryParams struct {
-	User                        *db.User
-	OrgId                       string
+	Auth                        *types.ServerAuth
 	Plan                        *db.Plan
 	ActivePlan                  *types.ActivePlan
 	ModelPackName               string
@@ -49,9 +48,8 @@ func PlanSummary(client *openai.Client, config shared.ModelRoleConfig, params Pl
 	numTokens += prompts.PlanSummaryNumTokens
 
 	_, apiErr := hooks.ExecHook(hooks.WillSendModelRequest, hooks.HookParams{
-		User:  params.User,
-		OrgId: params.OrgId,
-		Plan:  params.Plan,
+		Auth: params.Auth,
+		Plan: params.Plan,
 		WillSendModelRequestParams: &hooks.WillSendModelRequestParams{
 			InputTokens:  numTokens,
 			OutputTokens: shared.AvailableModelsByName[config.BaseModelConfig.ModelName].DefaultReservedOutputTokens,
@@ -103,9 +101,8 @@ func PlanSummary(client *openai.Client, config shared.ModelRoleConfig, params Pl
 	}
 
 	_, apiErr = hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
-		User:  params.User,
-		OrgId: params.OrgId,
-		Plan:  params.Plan,
+		Auth: params.Auth,
+		Plan: params.Plan,
 		DidSendModelRequestParams: &hooks.DidSendModelRequestParams{
 			InputTokens:   inputTokens,
 			OutputTokens:  outputTokens,
@@ -125,7 +122,7 @@ func PlanSummary(client *openai.Client, config shared.ModelRoleConfig, params Pl
 	// log.Println(content)
 
 	return &db.ConvoSummary{
-		OrgId:                       params.OrgId,
+		OrgId:                       params.Auth.OrgId,
 		PlanId:                      params.Plan.Id,
 		Summary:                     "## Summary of the plan so far:\n\n" + content,
 		Tokens:                      resp.Usage.CompletionTokens,

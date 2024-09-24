@@ -28,6 +28,11 @@ type SignInRequest struct {
 	IsSignInCode bool   `json:"isSignInCode"`
 }
 
+type UiSignInToken struct {
+	Pin        string `json:"pin"`
+	RedirectTo string `json:"redirectTo"`
+}
+
 type CreateAccountRequest struct {
 	Email    string `json:"email"`
 	Pin      string `json:"pin"`
@@ -242,23 +247,6 @@ type RenamePlanRequest struct {
 }
 
 // Cloud requests and responses
-type CreateCloudOrgRequest struct {
-	CreateOrgRequest
-	IntegratedModelsMode bool `json:"integratedModelsMode"`
-}
-
-type StartTrialRequest struct {
-	Account CreateAccountRequest  `json:"account"`
-	Org     CreateCloudOrgRequest `json:"org"`
-}
-
-type StartTrialResponse struct {
-	UserId           string `json:"userId"`
-	Token            string `json:"token"`
-	OrgId            string `json:"orgId"`
-	StripeCustomerId string `json:"stripeCustomerId"`
-}
-
 type CreditsLogRequest struct {
 	PageSize int `json:"pageSize"`
 	Page     int `json:"page"`

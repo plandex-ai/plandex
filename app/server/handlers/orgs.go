@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"plandex-server/db"
 	"plandex-server/hooks"
 
@@ -51,17 +52,17 @@ func ListOrgsHandler(w http.ResponseWriter, r *http.Request) {
 func CreateOrgHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for CreateOrgHandler")
 
-	auth := Authenticate(w, r, false)
-	if auth == nil {
+	if os.Getenv("IS_CLOUD") != "" {
+		writeApiError(w, shared.ApiError{
+			Type:   shared.ApiErrorTypeOther,
+			Status: http.StatusForbidden,
+			Msg:    "Plandex Cloud orgs can only be created by starting a trial",
+		})
 		return
 	}
 
-	if auth.User.IsTrial {
-		writeApiError(w, shared.ApiError{
-			Type:   shared.ApiErrorTypeTrialActionNotAllowed,
-			Status: http.StatusForbidden,
-			Msg:    "Anonymous trial user can't create org",
-		})
+	auth := Authenticate(w, r, false)
+	if auth == nil {
 		return
 	}
 
@@ -133,7 +134,7 @@ func CreateOrgHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_, apiErr = hooks.ExecHook(hooks.CreateOrg, hooks.HookParams{
-		User: auth.User,
+		Auth: auth,
 		Tx:   tx,
 
 		CreateOrgHookRequestParams: &hooks.CreateOrgHookRequestParams{
@@ -222,11 +223,18 @@ func ListOrgRolesHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if auth.User.IsTrial {
+	org, err := db.GetOrg(auth.OrgId)
+	if err != nil {
+		log.Printf("Error getting org: %v\n", err)
+		http.Error(w, "Error getting org: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if org.IsTrial {
 		writeApiError(w, shared.ApiError{
 			Type:   shared.ApiErrorTypeTrialActionNotAllowed,
 			Status: http.StatusForbidden,
-			Msg:    "Anonymous trial user can't list org roles",
+			Msg:    "Trial user can't list org roles",
 		})
 		return
 	}

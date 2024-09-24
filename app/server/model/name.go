@@ -46,9 +46,8 @@ func GenPlanName(
 	}
 
 	_, apiErr := hooks.ExecHook(hooks.WillSendModelRequest, hooks.HookParams{
-		User:  auth.User,
-		OrgId: auth.OrgId,
-		Plan:  plan,
+		Auth: auth,
+		Plan: plan,
 		WillSendModelRequestParams: &hooks.WillSendModelRequestParams{
 			InputTokens:  numTokens,
 			OutputTokens: shared.AvailableModelsByName[config.BaseModelConfig.ModelName].DefaultReservedOutputTokens,
@@ -115,9 +114,8 @@ func GenPlanName(
 	}
 
 	_, apiErr = hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
-		User:  auth.User,
-		OrgId: auth.OrgId,
-		Plan:  plan,
+		Auth: auth,
+		Plan: plan,
 		DidSendModelRequestParams: &hooks.DidSendModelRequestParams{
 			InputTokens:   inputTokens,
 			OutputTokens:  outputTokens,
@@ -178,9 +176,8 @@ func GenPipedDataName(
 	}
 
 	_, apiErr := hooks.ExecHook(hooks.WillSendModelRequest, hooks.HookParams{
-		User:  auth.User,
-		OrgId: auth.OrgId,
-		Plan:  plan,
+		Auth: auth,
+		Plan: plan,
 		WillSendModelRequestParams: &hooks.WillSendModelRequestParams{
 			InputTokens:  numTokens,
 			OutputTokens: shared.AvailableModelsByName[config.BaseModelConfig.ModelName].DefaultReservedOutputTokens,
@@ -255,9 +252,8 @@ func GenPipedDataName(
 	}
 
 	_, apiErr = hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
-		User:  auth.User,
-		OrgId: auth.OrgId,
-		Plan:  plan,
+		Auth: auth,
+		Plan: plan,
 		DidSendModelRequestParams: &hooks.DidSendModelRequestParams{
 			InputTokens:   inputTokens,
 			OutputTokens:  outputTokens,
@@ -322,9 +318,8 @@ func GenNoteName(
 	}
 
 	_, apiErr := hooks.ExecHook(hooks.WillSendModelRequest, hooks.HookParams{
-		User:  auth.User,
-		OrgId: auth.OrgId,
-		Plan:  plan,
+		Auth: auth,
+		Plan: plan,
 		WillSendModelRequestParams: &hooks.WillSendModelRequestParams{
 			InputTokens:  numTokens,
 			OutputTokens: shared.AvailableModelsByName[config.BaseModelConfig.ModelName].DefaultReservedOutputTokens,
@@ -399,9 +394,8 @@ func GenNoteName(
 	}
 
 	_, apiErr = hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
-		User:  auth.User,
-		OrgId: auth.OrgId,
-		Plan:  plan,
+		Auth: auth,
+		Plan: plan,
 		DidSendModelRequestParams: &hooks.DidSendModelRequestParams{
 			InputTokens:   inputTokens,
 			OutputTokens:  outputTokens,

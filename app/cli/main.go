@@ -11,6 +11,7 @@ import (
 	"plandex/lib"
 	"plandex/plan_exec"
 	"plandex/term"
+	"plandex/ui"
 
 	"github.com/plandex/plandex/shared"
 )
@@ -18,6 +19,13 @@ import (
 func init() {
 	// inter-package dependency injections to avoid circular imports
 	auth.SetApiClient(api.Client)
+
+	auth.SetOpenUnauthenticatedCloudURLFn(ui.OpenUnauthenticatedCloudURL)
+	auth.SetOpenAuthenticatedURLFn(ui.OpenAuthenticatedURL)
+
+	term.SetOpenAuthenticatedURLFn(ui.OpenAuthenticatedURL)
+	term.SetOpenUnauthenticatedCloudURLFn(ui.OpenUnauthenticatedCloudURL)
+
 	lib.SetBuildPlanInlineFn(func(maybeContexts []*shared.Context) (bool, error) {
 		var apiKeys map[string]string
 		if !auth.Current.IntegratedModelsMode {
