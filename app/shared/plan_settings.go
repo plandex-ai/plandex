@@ -3,8 +3,8 @@ package shared
 type ModelProvider string
 
 const (
-	ModelProviderOpenAI     ModelProvider = "openai"
-	ModelProviderTogether   ModelProvider = "together"
+	ModelProviderOpenAI ModelProvider = "openai"
+	// ModelProviderTogether   ModelProvider = "together" // removing for now to simplify
 	ModelProviderOpenRouter ModelProvider = "openrouter"
 	ModelProviderCustom     ModelProvider = "custom"
 )
@@ -12,19 +12,19 @@ const (
 var AllModelProviders = []string{
 	string(ModelProviderOpenAI),
 	string(ModelProviderOpenRouter),
-	string(ModelProviderTogether),
+	// string(ModelProviderTogether),
 	string(ModelProviderCustom),
 }
 
 var BaseUrlByProvider = map[ModelProvider]string{
-	ModelProviderOpenAI:     OpenAIV1BaseUrl,
-	ModelProviderTogether:   "https://api.together.xyz/v1",
+	ModelProviderOpenAI: OpenAIV1BaseUrl,
+	// ModelProviderTogether:   "https://api.together.xyz/v1", // removing for now to simplify
 	ModelProviderOpenRouter: "https://openrouter.ai/api/v1",
 }
 
 var ApiKeyByProvider = map[ModelProvider]string{
-	ModelProviderOpenAI:     OpenAIEnvVar,
-	ModelProviderTogether:   "TOGETHER_API_KEY",
+	ModelProviderOpenAI: OpenAIEnvVar,
+	// ModelProviderTogether:   "TOGETHER_API_KEY", // removing for now to simplify
 	ModelProviderOpenRouter: "OPENROUTER_API_KEY",
 }
 

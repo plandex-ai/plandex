@@ -15,8 +15,8 @@ services:
       - plandex-network
   plandex-server:
     build:
-      context: .
-      dockerfile: Dockerfile.server
+      context: ./server
+      dockerfile: ./server/Dockerfile
     volumes:
       - "${PLANDEX_DATA_DIR}:${PLANDEX_BASE_DIR}"
       - /etc/timezone:/etc/timezone:ro

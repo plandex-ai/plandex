@@ -40,51 +40,12 @@ var AvailableModels = []*AvailableModel{
 		},
 	},
 	{
-		Description:                 "OpenAI's gpt-4o model, pinned to version released on 2024-05-13",
-		DefaultMaxConvoTokens:       10000,
-		DefaultReservedOutputTokens: 4096,
-		BaseModelConfig: BaseModelConfig{
-			Provider:           ModelProviderOpenAI,
-			ModelName:          "gpt-4o-2024-05-13",
-			MaxTokens:          128000,
-			ApiKeyEnvVar:       OpenAIEnvVar,
-			ModelCompatibility: fullCompatibility,
-			BaseUrl:            OpenAIV1BaseUrl,
-		},
-	},
-	{
 		Description:                 "OpenAI's latest gpt-4-o model",
 		DefaultMaxConvoTokens:       10000,
 		DefaultReservedOutputTokens: 4096,
 		BaseModelConfig: BaseModelConfig{
 			Provider:           ModelProviderOpenAI,
 			ModelName:          openai.GPT4o,
-			MaxTokens:          128000,
-			ApiKeyEnvVar:       OpenAIEnvVar,
-			ModelCompatibility: fullCompatibilityExceptImage,
-			BaseUrl:            OpenAIV1BaseUrl,
-		},
-	},
-	{
-		Description:                 "OpenAI's latest gpt-4-turbo model",
-		DefaultMaxConvoTokens:       10000,
-		DefaultReservedOutputTokens: 4096,
-		BaseModelConfig: BaseModelConfig{
-			Provider:           ModelProviderOpenAI,
-			ModelName:          openai.GPT4Turbo,
-			MaxTokens:          128000,
-			ApiKeyEnvVar:       OpenAIEnvVar,
-			ModelCompatibility: fullCompatibilityExceptImage,
-			BaseUrl:            OpenAIV1BaseUrl,
-		},
-	},
-	{
-		Description:                 "OpenAI's gpt-4o-mini model, pinned to version released on 2024-07-18",
-		DefaultMaxConvoTokens:       10000,
-		DefaultReservedOutputTokens: 16384,
-		BaseModelConfig: BaseModelConfig{
-			Provider:           ModelProviderOpenAI,
-			ModelName:          "gpt-4o-mini-2024-07-18",
 			MaxTokens:          128000,
 			ApiKeyEnvVar:       OpenAIEnvVar,
 			ModelCompatibility: fullCompatibility,
@@ -101,19 +62,6 @@ var AvailableModels = []*AvailableModel{
 			MaxTokens:          128000,
 			ApiKeyEnvVar:       OpenAIEnvVar,
 			ModelCompatibility: fullCompatibility,
-			BaseUrl:            OpenAIV1BaseUrl,
-		},
-	},
-	{
-		Description:                 "OpenAI's latest gpt-3.5-turbo model",
-		DefaultMaxConvoTokens:       5000,
-		DefaultReservedOutputTokens: 2000,
-		BaseModelConfig: BaseModelConfig{
-			Provider:           ModelProviderOpenAI,
-			ModelName:          openai.GPT3Dot5Turbo,
-			MaxTokens:          16385,
-			ApiKeyEnvVar:       OpenAIEnvVar,
-			ModelCompatibility: fullCompatibilityExceptImage,
 			BaseUrl:            OpenAIV1BaseUrl,
 		},
 	},
@@ -138,44 +86,6 @@ var AvailableModels = []*AvailableModel{
 		},
 	},
 	{
-		Description:                 "Anthropic Claude 3 Opus via OpenRouter",
-		DefaultMaxConvoTokens:       15000,
-		DefaultReservedOutputTokens: 4096,
-		BaseModelConfig: BaseModelConfig{
-			Provider:     ModelProviderOpenRouter,
-			ModelName:    "anthropic/claude-3-opus",
-			MaxTokens:    200000,
-			ApiKeyEnvVar: ApiKeyByProvider[ModelProviderOpenRouter],
-			ModelCompatibility: ModelCompatibility{
-				IsOpenAICompatible:        true,
-				HasJsonResponseMode:       true,
-				HasStreaming:              true,
-				HasFunctionCalling:        true,
-				HasStreamingFunctionCalls: false,
-			},
-			BaseUrl: BaseUrlByProvider[ModelProviderOpenRouter],
-		},
-	},
-	{
-		Description:                 "Anthropic Claude 3 Sonnet via OpenRouter",
-		DefaultMaxConvoTokens:       15000,
-		DefaultReservedOutputTokens: 4096,
-		BaseModelConfig: BaseModelConfig{
-			Provider:     ModelProviderOpenRouter,
-			ModelName:    "anthropic/claude-3-sonnet",
-			MaxTokens:    200000,
-			ApiKeyEnvVar: ApiKeyByProvider[ModelProviderOpenRouter],
-			ModelCompatibility: ModelCompatibility{
-				IsOpenAICompatible:        true,
-				HasJsonResponseMode:       true,
-				HasStreaming:              true,
-				HasFunctionCalling:        true,
-				HasStreamingFunctionCalls: false,
-			},
-			BaseUrl: BaseUrlByProvider[ModelProviderOpenRouter],
-		},
-	},
-	{
 		Description:                 "Anthropic Claude 3 Haiku via OpenRouter",
 		DefaultMaxConvoTokens:       15000,
 		DefaultReservedOutputTokens: 4096,
@@ -190,75 +100,19 @@ var AvailableModels = []*AvailableModel{
 				HasStreaming:              true,
 				HasFunctionCalling:        true,
 				HasStreamingFunctionCalls: false,
+				HasImageSupport:           true,
 			},
 			BaseUrl: BaseUrlByProvider[ModelProviderOpenRouter],
 		},
 	},
 	{
-		Description:                 "Mixtral-8x22B via Together.ai",
-		DefaultMaxConvoTokens:       10000,
-		DefaultReservedOutputTokens: 4096,
-		BaseModelConfig: BaseModelConfig{
-			Provider:     ModelProviderTogether,
-			ModelName:    "mistralai/Mixtral-8x22B-Instruct-v0.1",
-			MaxTokens:    65536,
-			ApiKeyEnvVar: ApiKeyByProvider[ModelProviderTogether],
-			ModelCompatibility: ModelCompatibility{
-				IsOpenAICompatible:        true,
-				HasJsonResponseMode:       false,
-				HasStreaming:              true,
-				HasFunctionCalling:        false,
-				HasStreamingFunctionCalls: false,
-			},
-			BaseUrl: BaseUrlByProvider[ModelProviderTogether],
-		},
-	},
-	{
-		Description:                 "Mixtral-8x7B via Together.ai",
-		DefaultMaxConvoTokens:       5000,
-		DefaultReservedOutputTokens: 4096,
-		BaseModelConfig: BaseModelConfig{
-			Provider:     ModelProviderTogether,
-			ModelName:    "mistralai/Mixtral-8x7B-Instruct-v0.1",
-			MaxTokens:    32768,
-			ApiKeyEnvVar: ApiKeyByProvider[ModelProviderTogether],
-			ModelCompatibility: ModelCompatibility{
-				IsOpenAICompatible:        true,
-				HasJsonResponseMode:       true,
-				HasStreaming:              true,
-				HasFunctionCalling:        true,
-				HasStreamingFunctionCalls: false,
-			},
-			BaseUrl: BaseUrlByProvider[ModelProviderTogether],
-		},
-	},
-	{
-		Description:                 "CodeLLama-34b via Together.ai",
-		DefaultMaxConvoTokens:       10000,
-		DefaultReservedOutputTokens: 4096,
-		BaseModelConfig: BaseModelConfig{
-			Provider:     ModelProviderTogether,
-			ModelName:    "togethercomputer/CodeLlama-34b-Instruct",
-			MaxTokens:    16384,
-			ApiKeyEnvVar: ApiKeyByProvider[ModelProviderTogether],
-			ModelCompatibility: ModelCompatibility{
-				IsOpenAICompatible:        true,
-				HasJsonResponseMode:       true,
-				HasStreaming:              true,
-				HasFunctionCalling:        true,
-				HasStreamingFunctionCalls: false,
-			},
-			BaseUrl: BaseUrlByProvider[ModelProviderTogether],
-		},
-	},
-	{
 		Description:                 "Google Gemini Pro 1.5 via OpenRouter",
 		DefaultMaxConvoTokens:       100000,
-		DefaultReservedOutputTokens: 22937,
+		DefaultReservedOutputTokens: 32768,
 		BaseModelConfig: BaseModelConfig{
 			Provider:     ModelProviderOpenRouter,
 			ModelName:    "google/gemini-pro-1.5",
-			MaxTokens:    2800000000,
+			MaxTokens:    4000000,
 			ApiKeyEnvVar: ApiKeyByProvider[ModelProviderOpenRouter],
 			ModelCompatibility: ModelCompatibility{
 				IsOpenAICompatible:        true,
@@ -266,6 +120,47 @@ var AvailableModels = []*AvailableModel{
 				HasStreaming:              true,
 				HasFunctionCalling:        true,
 				HasStreamingFunctionCalls: false,
+				HasImageSupport:           true,
+			},
+			BaseUrl: BaseUrlByProvider[ModelProviderOpenRouter],
+		},
+	},
+	{
+		Description:                 "Google Gemini Flash 1.5 via OpenRouter",
+		DefaultMaxConvoTokens:       100000,
+		DefaultReservedOutputTokens: 32768,
+		BaseModelConfig: BaseModelConfig{
+			Provider:     ModelProviderOpenRouter,
+			ModelName:    "google/gemini-flash-1.5",
+			MaxTokens:    4000000,
+			ApiKeyEnvVar: ApiKeyByProvider[ModelProviderOpenRouter],
+			ModelCompatibility: ModelCompatibility{
+				IsOpenAICompatible:        true,
+				HasJsonResponseMode:       true,
+				HasStreaming:              true,
+				HasFunctionCalling:        true,
+				HasStreamingFunctionCalls: false,
+				HasImageSupport:           true,
+			},
+			BaseUrl: BaseUrlByProvider[ModelProviderOpenRouter],
+		},
+	},
+	{
+		Description:                 "DeepSeek V2.5 via OpenRouter",
+		DefaultMaxConvoTokens:       15000,
+		DefaultReservedOutputTokens: 4096,
+		BaseModelConfig: BaseModelConfig{
+			Provider:     ModelProviderOpenRouter,
+			ModelName:    "deepseek/deepseek-chat",
+			MaxTokens:    128000,
+			ApiKeyEnvVar: ApiKeyByProvider[ModelProviderOpenRouter],
+			ModelCompatibility: ModelCompatibility{
+				IsOpenAICompatible:        true,
+				HasJsonResponseMode:       true,
+				HasStreaming:              true,
+				HasFunctionCalling:        true,
+				HasStreamingFunctionCalls: false,
+				HasImageSupport:           false,
 			},
 			BaseUrl: BaseUrlByProvider[ModelProviderOpenRouter],
 		},
@@ -274,20 +169,18 @@ var AvailableModels = []*AvailableModel{
 
 var AvailableModelsByName = map[string]*AvailableModel{}
 
-var Gpt4TurboLatestModelPack ModelPack
-var OpenRouterClaude3Dot5SonnetGPT4TurboModelPack ModelPack
+var OpenRouterClaude3Dot5SonnetGPT4oModelPack ModelPack
 var OpenRouterClaude3Dot5SonnetModelPack ModelPack
-var TogetherMixtral8x22BModelPack ModelPack
 var Gpt4oLatestModelPack ModelPack
 var Gpt4o8062024ModelPack ModelPack
+var GoogleGeminiModelPack ModelPack
 
 var BuiltInModelPacks = []*ModelPack{
 	&Gpt4o8062024ModelPack,
 	&Gpt4oLatestModelPack,
-	&Gpt4TurboLatestModelPack,
 	&OpenRouterClaude3Dot5SonnetModelPack,
-	&OpenRouterClaude3Dot5SonnetGPT4TurboModelPack,
-	&TogetherMixtral8x22BModelPack,
+	&OpenRouterClaude3Dot5SonnetGPT4oModelPack,
+	&GoogleGeminiModelPack,
 }
 
 var DefaultModelPack *ModelPack = &Gpt4oLatestModelPack
@@ -347,7 +240,6 @@ var RequiredCompatibilityByRole = map[ModelRole]ModelCompatibility{
 		IsOpenAICompatible: true,
 		HasStreaming:       true,
 		HasFunctionCalling: true,
-		// HasStreamingFunctionCalls: true -- no longer required
 	},
 	ModelRoleName: {
 		IsOpenAICompatible: true,
@@ -364,13 +256,11 @@ var RequiredCompatibilityByRole = map[ModelRole]ModelCompatibility{
 		IsOpenAICompatible: true,
 		HasStreaming:       true,
 		HasFunctionCalling: true,
-		// HasStreamingFunctionCalls: true -- no longer required
 	},
 	ModelRoleAutoFix: {
 		IsOpenAICompatible: true,
 		HasStreaming:       true,
 		HasFunctionCalling: true,
-		// HasStreamingFunctionCalls: true -- no longer required
 	},
 }
 
@@ -491,51 +381,7 @@ func init() {
 		},
 	}
 
-	Gpt4TurboLatestModelPack = ModelPack{
-		Name:        "gpt-4-turbo-latest",
-		Description: "Uses latest version of OpenAI gpt-4-turbo model (first released on 2024-04-09) for heavy lifting, latest version of gpt-4o-mini for lighter tasks.",
-		Planner: PlannerRoleConfig{
-			ModelRoleConfig: ModelRoleConfig{
-				Role:            ModelRolePlanner,
-				BaseModelConfig: AvailableModelsByName[openai.GPT4Turbo].BaseModelConfig,
-				Temperature:     DefaultConfigByRole[ModelRolePlanner].Temperature,
-				TopP:            DefaultConfigByRole[ModelRolePlanner].TopP,
-			},
-			PlannerModelConfig: getPlannerModelConfig(openai.GPT4Turbo),
-		},
-		PlanSummary: ModelRoleConfig{
-			Role:            ModelRolePlanSummary,
-			BaseModelConfig: AvailableModelsByName[openai.GPT4Turbo].BaseModelConfig,
-			Temperature:     DefaultConfigByRole[ModelRolePlanSummary].Temperature,
-			TopP:            DefaultConfigByRole[ModelRolePlanSummary].TopP,
-		},
-		Builder: ModelRoleConfig{
-			Role:            ModelRoleBuilder,
-			BaseModelConfig: AvailableModelsByName[openai.GPT4Turbo].BaseModelConfig,
-			Temperature:     DefaultConfigByRole[ModelRoleBuilder].Temperature,
-			TopP:            DefaultConfigByRole[ModelRoleBuilder].TopP,
-		},
-		Namer: ModelRoleConfig{
-			Role:            ModelRoleName,
-			BaseModelConfig: AvailableModelsByName["gpt-4o-mini"].BaseModelConfig,
-			Temperature:     DefaultConfigByRole[ModelRoleName].Temperature,
-			TopP:            DefaultConfigByRole[ModelRoleName].TopP,
-		},
-		CommitMsg: ModelRoleConfig{
-			Role:            ModelRoleCommitMsg,
-			BaseModelConfig: AvailableModelsByName["gpt-4o-mini"].BaseModelConfig,
-			Temperature:     DefaultConfigByRole[ModelRoleCommitMsg].Temperature,
-			TopP:            DefaultConfigByRole[ModelRoleCommitMsg].TopP,
-		},
-		ExecStatus: ModelRoleConfig{
-			Role:            ModelRoleExecStatus,
-			BaseModelConfig: AvailableModelsByName[openai.GPT4Turbo].BaseModelConfig,
-			Temperature:     DefaultConfigByRole[ModelRoleExecStatus].Temperature,
-			TopP:            DefaultConfigByRole[ModelRoleExecStatus].TopP,
-		},
-	}
-
-	OpenRouterClaude3Dot5SonnetGPT4TurboModelPack = ModelPack{
+	OpenRouterClaude3Dot5SonnetGPT4oModelPack = ModelPack{
 		Name:        "anthropic-claude-3.5-sonnet-gpt-4o",
 		Description: "Uses Anthropic's Claude 3.5 Sonnet model (via OpenRouter) for planning, summarization, and auto-continue, OpenAI gpt-4o for builds, and gpt-4o-mini for lighter tasks.",
 		Planner: PlannerRoleConfig{
@@ -635,47 +481,59 @@ func init() {
 		},
 	}
 
-	TogetherMixtral8x22BModelPack = ModelPack{
-		Name:        "Mixtral-8x22b/Mixtral-8x7b/gpt-4o",
-		Description: "Uses Together.ai's Mixtral-8x22B for planning and summarization, gpt-4o for builds and auto-continue, and Mixtral-8x7B for lighter tasks.",
+	GoogleGeminiModelPack = ModelPack{
+		Name:        "google-gemini",
+		Description: "Uses Google's Gemini Pro 1.5 model for heavy lifting and Gemini Flash 1.5 for lighter tasks.",
 		Planner: PlannerRoleConfig{
 			ModelRoleConfig: ModelRoleConfig{
 				Role:            ModelRolePlanner,
-				BaseModelConfig: AvailableModelsByName["mistralai/Mixtral-8x22B-Instruct-v0.1"].BaseModelConfig,
+				BaseModelConfig: AvailableModelsByName["google/gemini-pro-1.5"].BaseModelConfig,
 				Temperature:     DefaultConfigByRole[ModelRolePlanner].Temperature,
 				TopP:            DefaultConfigByRole[ModelRolePlanner].TopP,
 			},
-			PlannerModelConfig: getPlannerModelConfig("mistralai/Mixtral-8x22B-Instruct-v0.1"),
+			PlannerModelConfig: getPlannerModelConfig("google/gemini-pro-1.5"),
 		},
 		PlanSummary: ModelRoleConfig{
 			Role:            ModelRolePlanSummary,
-			BaseModelConfig: AvailableModelsByName["mistralai/Mixtral-8x22B-Instruct-v0.1"].BaseModelConfig,
+			BaseModelConfig: AvailableModelsByName["google/gemini-pro-1.5"].BaseModelConfig,
 			Temperature:     DefaultConfigByRole[ModelRolePlanSummary].Temperature,
 			TopP:            DefaultConfigByRole[ModelRolePlanSummary].TopP,
 		},
 		Builder: ModelRoleConfig{
 			Role:            ModelRoleBuilder,
-			BaseModelConfig: AvailableModelsByName[openai.GPT4o].BaseModelConfig,
+			BaseModelConfig: AvailableModelsByName["google/gemini-pro-1.5"].BaseModelConfig,
 			Temperature:     DefaultConfigByRole[ModelRoleBuilder].Temperature,
 			TopP:            DefaultConfigByRole[ModelRoleBuilder].TopP,
 		},
 		Namer: ModelRoleConfig{
 			Role:            ModelRoleName,
-			BaseModelConfig: AvailableModelsByName["mistralai/Mixtral-8x7B-Instruct-v0.1"].BaseModelConfig,
+			BaseModelConfig: AvailableModelsByName["google/gemini-flash-1.5"].BaseModelConfig,
 			Temperature:     DefaultConfigByRole[ModelRoleName].Temperature,
 			TopP:            DefaultConfigByRole[ModelRoleName].TopP,
 		},
 		CommitMsg: ModelRoleConfig{
 			Role:            ModelRoleCommitMsg,
-			BaseModelConfig: AvailableModelsByName["mistralai/Mixtral-8x7B-Instruct-v0.1"].BaseModelConfig,
+			BaseModelConfig: AvailableModelsByName["google/gemini-flash-1.5"].BaseModelConfig,
 			Temperature:     DefaultConfigByRole[ModelRoleCommitMsg].Temperature,
 			TopP:            DefaultConfigByRole[ModelRoleCommitMsg].TopP,
 		},
 		ExecStatus: ModelRoleConfig{
 			Role:            ModelRoleExecStatus,
-			BaseModelConfig: AvailableModelsByName[openai.GPT4o].BaseModelConfig,
+			BaseModelConfig: AvailableModelsByName["google/gemini-pro-1.5"].BaseModelConfig,
 			Temperature:     DefaultConfigByRole[ModelRoleExecStatus].Temperature,
 			TopP:            DefaultConfigByRole[ModelRoleExecStatus].TopP,
+		},
+		Verifier: &ModelRoleConfig{
+			Role:            ModelRoleVerifier,
+			BaseModelConfig: AvailableModelsByName["google/gemini-pro-1.5"].BaseModelConfig,
+			Temperature:     DefaultConfigByRole[ModelRoleVerifier].Temperature,
+			TopP:            DefaultConfigByRole[ModelRoleVerifier].TopP,
+		},
+		AutoFix: &ModelRoleConfig{
+			Role:            ModelRoleAutoFix,
+			BaseModelConfig: AvailableModelsByName["google/gemini-pro-1.5"].BaseModelConfig,
+			Temperature:     DefaultConfigByRole[ModelRoleAutoFix].Temperature,
+			TopP:            DefaultConfigByRole[ModelRoleAutoFix].TopP,
 		},
 	}
 }

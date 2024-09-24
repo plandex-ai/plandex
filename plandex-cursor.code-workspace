@@ -27,6 +27,9 @@
     {
       "name": "node",
       "path": "app/server/cloud/ui/node"
+    },
+    {
+      "path": "infra"
     }
   ],
   "settings": {
