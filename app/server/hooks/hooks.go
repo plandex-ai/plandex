@@ -9,6 +9,8 @@ import (
 )
 
 const (
+	HealthCheck = "health_check"
+
 	CreateAccount        = "create_account"
 	WillCreatePlan       = "will_create_plan"
 	WillTellPlan         = "will_tell_plan"

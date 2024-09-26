@@ -2,15 +2,26 @@ package routes
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"plandex-server/handlers"
+	"plandex-server/hooks"
 
 	"github.com/gorilla/mux"
 )
 
 func AddApiRoutes(r *mux.Router) {
 	r.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+
+		_, apiErr := hooks.ExecHook(hooks.HealthCheck, hooks.HookParams{})
+
+		if apiErr != nil {
+			log.Printf("Error in health check hook: %v\n", apiErr)
+			http.Error(w, apiErr.Msg, apiErr.Status)
+			return
+		}
+
 		fmt.Fprint(w, "OK")
 	})
 
