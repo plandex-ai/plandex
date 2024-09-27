@@ -217,6 +217,7 @@ func SignInHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.Println("Validating and signing in")
 	resp, err := ValidateAndSignIn(w, r, req)
 
 	if err != nil {

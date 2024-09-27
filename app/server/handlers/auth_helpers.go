@@ -11,6 +11,7 @@ import (
 	"plandex-server/hooks"
 	"plandex-server/types"
 	"strings"
+	"time"
 
 	"github.com/plandex/plandex/shared"
 )
@@ -90,6 +91,11 @@ func ClearAuthCookieIfBrowser(w http.ResponseWriter, r *http.Request) error {
 		return fmt.Errorf("error retrieving auth cookie: %v", err)
 	}
 
+	var domain string
+	if os.Getenv("GOENV") == "production" {
+		domain = os.Getenv("APP_SUBDOMAIN") + ".plandex.ai"
+	}
+
 	// Clear the authToken cookie
 	http.SetCookie(w, &http.Cookie{
 		Name:     "authToken",
@@ -99,7 +105,10 @@ func ClearAuthCookieIfBrowser(w http.ResponseWriter, r *http.Request) error {
 		Secure:   os.Getenv("GOENV") != "development",
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
+		Domain:   domain,
 	})
+
+	log.Println("cleared auth cookie")
 
 	return nil
 }
@@ -129,6 +138,10 @@ func ClearAccountFromCookies(w http.ResponseWriter, r *http.Request, userId stri
 	encodedAccounts := base64.URLEncoding.EncodeToString(updatedAccountsBytes)
 
 	// Set the updated accounts cookie
+	var domain string
+	if os.Getenv("GOENV") == "production" {
+		domain = os.Getenv("APP_SUBDOMAIN") + ".plandex.ai"
+	}
 	http.SetCookie(w, &http.Cookie{
 		Name:     "accounts",
 		Path:     "/",
@@ -136,6 +149,7 @@ func ClearAccountFromCookies(w http.ResponseWriter, r *http.Request, userId stri
 		Secure:   os.Getenv("GOENV") != "development",
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
+		Domain:   domain,
 	})
 
 	return nil
@@ -180,14 +194,25 @@ func SetAuthCookieIfBrowser(w http.ResponseWriter, r *http.Request, user *db.Use
 	// base64 encode
 	token = base64.URLEncoding.EncodeToString(bytes)
 
-	http.SetCookie(w, &http.Cookie{
+	var domain string
+	if os.Getenv("GOENV") == "production" {
+		domain = os.Getenv("APP_SUBDOMAIN") + ".plandex.ai"
+	}
+
+	cookie := &http.Cookie{
 		Name:     "authToken",
 		Path:     "/",
 		Value:    "Bearer " + token,
 		Secure:   os.Getenv("GOENV") != "development",
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
-	})
+		Domain:   domain,
+		Expires:  time.Now().Add(time.Hour * 24 * 90),
+	}
+
+	log.Println("setting auth cookie", cookie)
+
+	http.SetCookie(w, cookie)
 
 	storedAccounts, err := GetAccountsFromCookie(r)
 
@@ -232,6 +257,8 @@ func SetAuthCookieIfBrowser(w http.ResponseWriter, r *http.Request, user *db.Use
 		Secure:   os.Getenv("GOENV") != "development",
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
+		Domain:   domain,
+		Expires:  time.Now().Add(time.Hour * 24 * 90),
 	})
 
 	return nil
@@ -309,6 +336,8 @@ func ValidateAndSignIn(w http.ResponseWriter, r *http.Request, req shared.SignIn
 			log.Printf("Error validating email verification: %v\n", err)
 			return nil, fmt.Errorf("error validating email verification: %v", err)
 		}
+
+		log.Println("Email verification successful")
 	}
 
 	// start a transaction
@@ -347,12 +376,14 @@ func ValidateAndSignIn(w http.ResponseWriter, r *http.Request, req shared.SignIn
 		}
 	} else {
 		// update email verification with user and auth token ids
-		_, err = tx.Exec("UPDATE email verifications SET user_id = $1, auth_token_id = $2 WHERE id = $3", user.Id, authTokenId, emailVerificationId)
+		_, err = tx.Exec("UPDATE email_verifications SET user_id = $1, auth_token_id = $2 WHERE id = $3", user.Id, authTokenId, emailVerificationId)
 
 		if err != nil {
 			log.Printf("Error updating email verification: %v\n", err)
 			return nil, fmt.Errorf("error updating email verification: %v", err)
 		}
+
+		log.Println("Email verification updated")
 	}
 
 	// commit transaction
@@ -387,6 +418,7 @@ func ValidateAndSignIn(w http.ResponseWriter, r *http.Request, req shared.SignIn
 		orgId = orgs[0].Id
 	}
 
+	log.Println("Setting auth cookie if browser")
 	err = SetAuthCookieIfBrowser(w, r, user, token, orgId)
 	if err != nil {
 		log.Printf("Error setting auth cookie: %v\n", err)

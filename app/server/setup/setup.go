@@ -2,6 +2,7 @@ package setup
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -9,11 +10,9 @@ import (
 	"plandex-server/db"
 	"plandex-server/host"
 	"plandex-server/model/plan"
-	"plandex-server/routes"
 	"syscall"
 	"time"
 
-	"github.com/gorilla/mux"
 	"github.com/rs/cors"
 )
 
@@ -41,7 +40,13 @@ func MustInitDb() {
 	}
 }
 
-func StartServer(r *mux.Router) {
+var shutdownHooks []func()
+
+func RegisterShutdownHook(hook func()) {
+	shutdownHooks = append(shutdownHooks, hook)
+}
+
+func StartServer(handler http.Handler) {
 	if os.Getenv("GOENV") == "development" {
 		log.Println("In development mode.")
 	}
@@ -62,8 +67,6 @@ func StartServer(r *mux.Router) {
 		externalPort = "8080"
 	}
 
-	routes.AddApiRoutes(r)
-
 	// Enable CORS based on environment
 	var corsHandler http.Handler
 	if os.Getenv("GOENV") == "development" {
@@ -72,14 +75,14 @@ func StartServer(r *mux.Router) {
 			AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE"},
 			AllowedHeaders:   []string{"Content-Type", "Authorization"},
 			AllowCredentials: true,
-		}).Handler(r)
+		}).Handler(handler)
 	} else {
 		corsHandler = cors.New(cors.Options{
-			AllowedOrigins:   []string{"http://app.plandex.ai", "http://localhost:55000"},
+			AllowedOrigins:   []string{fmt.Sprintf("https://%s.plandex.ai", os.Getenv("APP_SUBDOMAIN"))},
 			AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE"},
 			AllowedHeaders:   []string{"Content-Type", "Authorization"},
 			AllowCredentials: true,
-		}).Handler(r)
+		}).Handler(handler)
 	}
 
 	server := &http.Server{
@@ -93,32 +96,55 @@ func StartServer(r *mux.Router) {
 		}
 	}()
 
-	log.Println("Started server on port " + externalPort)
+	log.Println("Started Plandex server on port " + externalPort)
 
 	// Capture SIGTERM and SIGINT signals
 	sigTermChan := make(chan os.Signal, 1)
 	signal.Notify(sigTermChan, syscall.SIGTERM, syscall.SIGINT)
 
 	<-sigTermChan
-	log.Println("Shutting down server gracefully...")
+	log.Println("Plandex server shutting down gracefully...")
 
 	// Context with a 5-second timeout to allow ongoing requests to finish
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	// wait for active plans to finish for up to 2 hours
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Hour)
 	defer cancel()
 
-	if err := server.Shutdown(ctx); err != nil {
-		log.Printf("Server forced to shutdown: %v", err)
+	// Wait for active plans to complete or timeout
+	log.Println("Waiting for any active plans to complete...")
+	select {
+	case <-ctx.Done():
+		log.Println("Timeout waiting for active plans. Forcing shutdown.")
+	case <-waitForActivePlans():
+		log.Println("All active plans finished.")
 	}
 
-	// Wait for active plans to complete
-	for {
-		l := plan.NumActivePlans()
-		if l == 0 {
-			break
-		}
-		log.Printf("Waiting for %d active plans to finish...\n", l)
-		time.Sleep(1 * time.Second)
+	log.Println("Shutting down http server...")
+	ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := server.Shutdown(ctx); err != nil {
+		log.Printf("Http server forced to shutdown: %v", err)
+	}
+
+	// Execute shutdown hooks
+	for _, hook := range shutdownHooks {
+		hook()
 	}
 
 	log.Println("Shutdown complete")
+	os.Exit(0)
+}
+
+func waitForActivePlans() chan struct{} {
+	done := make(chan struct{})
+	go func() {
+		for {
+			if plan.NumActivePlans() == 0 {
+				close(done)
+				return
+			}
+			time.Sleep(1 * time.Second)
+		}
+	}()
+	return done
 }

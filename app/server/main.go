@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"plandex-server/routes"
 	"plandex-server/setup"
 
 	"github.com/gorilla/mux"
@@ -12,6 +13,8 @@ func main() {
 	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
 
 	r := mux.NewRouter()
+	routes.AddHealthRoutes(r)
+	routes.AddApiRoutes(r)
 
 	setup.MustLoadIp()
 	setup.MustInitDb()

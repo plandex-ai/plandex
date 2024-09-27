@@ -1,4 +1,4 @@
 package types
 
-const TrialMaxReplies = 10
-const TrialMaxPlans = 0
+const TrialMaxReplies = 15
+const TrialMaxPlans = 10
