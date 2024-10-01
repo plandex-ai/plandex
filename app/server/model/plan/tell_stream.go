@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/plandex/plandex/shared"
 	"github.com/sashabaranov/go-openai"
 )
@@ -85,6 +86,9 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 			}
 
 			if len(response.Choices) == 0 {
+				log.Println("Tell: stream finished with no choices")
+				spew.Dump(response)
+
 				state.onError(fmt.Errorf("stream finished with no choices"), true, "", "")
 				return
 			}
