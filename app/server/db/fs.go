@@ -15,6 +15,10 @@ func init() {
 		panic(fmt.Errorf("error getting user home dir: %v", err))
 	}
 
+	log.Println("Plandex server home dir:", home)
+	log.Println("os.Getenv(PLANDEX_BASE_DIR):", os.Getenv("PLANDEX_BASE_DIR"))
+	log.Println("GOENV:", os.Getenv("GOENV"))
+
 	BaseDir = os.Getenv("PLANDEX_BASE_DIR")
 
 	if BaseDir == "" {

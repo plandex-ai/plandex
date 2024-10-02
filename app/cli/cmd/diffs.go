@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"fmt"
 	"plandex/api"
 	"plandex/auth"
 	"plandex/lib"
@@ -8,6 +9,8 @@ import (
 
 	"github.com/spf13/cobra"
 )
+
+// var plainTextOutput bool
 
 var diffsCmd = &cobra.Command{
 	Use:     "diff",
@@ -18,6 +21,9 @@ var diffsCmd = &cobra.Command{
 
 func init() {
 	RootCmd.AddCommand(diffsCmd)
+
+	diffsCmd.Flags().BoolVarP(&plainTextOutput, "plain", "p", false, "Output diffs in plain text with no ANSI codes")
+
 }
 
 func diffs(cmd *cobra.Command, args []string) {
@@ -28,12 +34,16 @@ func diffs(cmd *cobra.Command, args []string) {
 		term.OutputNoCurrentPlanErrorAndExit()
 	}
 
-	diffs, err := api.Client.GetPlanDiffs(lib.CurrentPlanId, lib.CurrentBranch)
+	diffs, err := api.Client.GetPlanDiffs(lib.CurrentPlanId, lib.CurrentBranch, plainTextOutput)
 
 	if err != nil {
 		term.OutputErrorAndExit("Error getting plan diffs: %v", err)
 		return
 	}
 
-	term.PageOutput(diffs)
+	if plainTextOutput {
+		fmt.Println(diffs)
+	} else {
+		term.PageOutput(diffs)
+	}
 }

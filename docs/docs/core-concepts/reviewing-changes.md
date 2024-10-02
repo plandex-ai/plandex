@@ -15,7 +15,9 @@ When Plandex has finished with your task, you can review the proposed changes wi
 plandex diff
 ```
 
-Or you can view them in Plandex's changes TUI:
+`--plain/-p`: Outputs the conversation in plain text with no ANSI codes.
+
+You can also view them in Plandex's changes TUI:
 
 ```bash
 plandex changes
