@@ -85,7 +85,7 @@ func (fileState *activeBuildStreamFileState) listenStreamFixChanges(stream *open
 				return
 			}
 
-			fileState.fixRetryOrAbort(fmt.Errorf("listenStreamFixChanges - stream timeout due to inactivity for file '%s'", filePath))
+			fileState.fixRetryOrAbort(fmt.Errorf("listenStreamFixChanges - stream timeout due to inactivity for file '%s' | This usually means the model is not responding.", filePath))
 			return
 		default:
 			response, err := stream.Recv()
@@ -149,7 +149,7 @@ func (fileState *activeBuildStreamFileState) listenStreamFixChanges(stream *open
 				}
 
 				execHookOnStop(true)
-				fileState.fixRetryOrAbort(fmt.Errorf("listenStreamFixChanges - stream error: no choices"))
+				fileState.fixRetryOrAbort(fmt.Errorf("listenStreamFixChanges - stream error: no choices | This usually means the model failed to generate a valid response."))
 				return
 			}
 
@@ -170,7 +170,7 @@ func (fileState *activeBuildStreamFileState) listenStreamFixChanges(stream *open
 				if trimmed == "{%invalidjson%}" || trimmed == "``(no output)``````" {
 					log.Println("listenStreamFixChanges - File", filePath+":", "%invalidjson%} token in streamed chunk")
 					execHookOnStop(true)
-					fileState.fixRetryOrAbort(fmt.Errorf("listenStreamFixChanges - invalid JSON in streamed chunk for file '%s'", filePath))
+					fileState.fixRetryOrAbort(fmt.Errorf("listenStreamFixChanges - invalid JSON in streamed chunk for file '%s' | This usually means the model failed to generate valid JSON.", filePath))
 					return
 				}
 
@@ -201,7 +201,7 @@ func (fileState *activeBuildStreamFileState) listenStreamFixChanges(stream *open
 					log.Println(fileState.activeBuild.FixBuffer)
 
 					execHookOnStop(true)
-					fileState.fixRetryOrAbort(fmt.Errorf("listenStreamFixChanges - stream buffer tokens too high for file '%s'", filePath))
+					fileState.fixRetryOrAbort(fmt.Errorf("listenStreamFixChanges - stream buffer tokens too high for file '%s' | This usually means the model failed to generate valid JSON.", filePath))
 					return
 				}
 			}
@@ -228,7 +228,7 @@ func (fileState *activeBuildStreamFileState) listenStreamFixChanges(stream *open
 				log.Printf("listenStreamFixChanges - File %s: Stream chunk missing function call. Reason: %s\n", filePath, choice.FinishReason)
 
 				execHookOnStop(true)
-				fileState.fixRetryOrAbort(fmt.Errorf("listenStreamFixChanges - stream chunk missing function call. File: %s", filePath))
+				fileState.fixRetryOrAbort(fmt.Errorf("listenStreamFixChanges - stream chunk missing function call. File: %s | This usually means the model failed to generate a valid response.", filePath))
 				return
 			}
 		}

@@ -189,7 +189,7 @@ func (fileState *activeBuildStreamFileState) verifyFileBuild() {
 
 		if s == "" {
 			log.Println("no VerifyOutput function call found in response")
-			fileState.verifyRetryOrAbort(fmt.Errorf("no Verify Output function call found in response"))
+			fileState.verifyRetryOrAbort(fmt.Errorf("No VerifyOutput function call found in response. This usually means the model failed to generate a valid response."))
 			return
 		}
 

@@ -81,7 +81,7 @@ func PlanSummary(client *openai.Client, config shared.ModelRoleConfig, params Pl
 	}
 
 	if len(resp.Choices) == 0 {
-		return nil, fmt.Errorf("no response from GPT")
+		return nil, fmt.Errorf("plan summary - no choices in response. This usually means the model failed to generate a valid response.")
 	}
 
 	content := resp.Choices[0].Message.Content

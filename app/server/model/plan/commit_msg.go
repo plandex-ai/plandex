@@ -135,7 +135,7 @@ func (state *activeTellStreamState) genPlanDescription() (*db.ConvoMessageDescri
 
 	if descStrRes == "" {
 		fmt.Println("no describePlan function call found in response")
-		return nil, fmt.Errorf("no describePlan function call found in response")
+		return nil, fmt.Errorf("No describePlan function call found in response. This usually means the model failed to generate a valid response.")
 	}
 
 	descByteRes := []byte(descStrRes)

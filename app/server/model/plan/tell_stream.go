@@ -105,7 +105,7 @@ mainLoop:
 				execHookOnStop(true)
 				return
 			} else {
-				state.onError(fmt.Errorf("stream timeout due to inactivity"), true, "", "")
+				state.onError(fmt.Errorf("stream timeout due to inactivity | This usually means the model is not responding."), true, "", "")
 				continue mainLoop
 			}
 
@@ -166,7 +166,7 @@ mainLoop:
 					return
 				}
 
-				state.onError(fmt.Errorf("stream finished with no choices"), true, "", "")
+				state.onError(fmt.Errorf("stream finished with no choices | This usually means the model failed to generate a valid response."), true, "", "")
 				continue mainLoop
 			}
 
@@ -177,7 +177,7 @@ mainLoop:
 			}
 
 			if len(response.Choices) > 1 {
-				state.onError(fmt.Errorf("stream finished with more than one choice"), true, "", "")
+				state.onError(fmt.Errorf("stream finished with more than one choice | This usually means the model failed to generate a valid response."), true, "", "")
 				continue mainLoop
 			}
 

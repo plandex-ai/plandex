@@ -85,7 +85,7 @@ func (fileState *activeBuildStreamFileState) listenStreamVerifyOutput(stream *op
 				return
 			}
 
-			fileState.verifyRetryOrAbort(fmt.Errorf("listenStreamVerifyOutput - stream timeout due to inactivity for file '%s'", filePath))
+			fileState.verifyRetryOrAbort(fmt.Errorf("listenStreamVerifyOutput - stream timeout due to inactivity for file '%s' | This usually means the model is not responding.", filePath))
 			return
 		default:
 			response, err := stream.Recv()
@@ -150,7 +150,7 @@ func (fileState *activeBuildStreamFileState) listenStreamVerifyOutput(stream *op
 				}
 
 				execHookOnStop(true)
-				fileState.verifyRetryOrAbort(fmt.Errorf("listenStreamVerifyOutput - stream error: no choices"))
+				fileState.verifyRetryOrAbort(fmt.Errorf("listenStreamVerifyOutput - stream error: no choices | This usually means the model failed to generate a valid response."))
 				return
 			}
 

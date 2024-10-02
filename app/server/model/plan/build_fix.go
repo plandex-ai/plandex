@@ -172,7 +172,7 @@ func (fileState *activeBuildStreamFileState) fixFileLineNums() {
 
 		if s == "" {
 			log.Println("no ListReplacements function call found in response")
-			fileState.fixRetryOrAbort(fmt.Errorf("no ListReplacements function call found in response"))
+			fileState.fixRetryOrAbort(fmt.Errorf("No ListReplacements function call found in response. This usually means the model failed to generate a valid response."))
 			return
 		}
 
@@ -181,7 +181,7 @@ func (fileState *activeBuildStreamFileState) fixFileLineNums() {
 		err = json.Unmarshal(bytes, &res)
 		if err != nil {
 			log.Printf("Error unmarshalling fix response: %v\n", err)
-			fileState.fixRetryOrAbort(fmt.Errorf("error unmarshalling fix response: %v", err))
+			fileState.fixRetryOrAbort(fmt.Errorf("Error unmarshalling fix response: %v | This usually means the model failed to generate valid JSON.", err))
 			return
 		}
 

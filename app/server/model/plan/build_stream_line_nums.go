@@ -87,7 +87,7 @@ func (fileState *activeBuildStreamFileState) listenStreamChangesWithLineNums(str
 				return
 			}
 
-			fileState.lineNumsRetryOrError(fmt.Errorf("listenStream - stream timeout due to inactivity for file '%s'", filePath))
+			fileState.lineNumsRetryOrError(fmt.Errorf("listenStream - stream timeout due to inactivity for file '%s' | This usually means the model is not responding.", filePath))
 			return
 		default:
 			response, err := stream.Recv()
@@ -153,7 +153,7 @@ func (fileState *activeBuildStreamFileState) listenStreamChangesWithLineNums(str
 				}
 
 				execHookOnStop(true)
-				fileState.lineNumsRetryOrError(fmt.Errorf("listenStream - stream error: no choices"))
+				fileState.lineNumsRetryOrError(fmt.Errorf("listenStream - stream error: no choices | This usually means the model failed to generate a valid response."))
 				return
 			}
 
@@ -174,7 +174,7 @@ func (fileState *activeBuildStreamFileState) listenStreamChangesWithLineNums(str
 				if trimmed == "{%invalidjson%}" || trimmed == "``(no output)``````" {
 					log.Println("File", filePath+":", "%invalidjson%} token in streamed chunk")
 					execHookOnStop(true)
-					fileState.lineNumsRetryOrError(fmt.Errorf("invalid JSON in streamed chunk for file '%s'", filePath))
+					fileState.lineNumsRetryOrError(fmt.Errorf("Invalid JSON in streamed chunk for file '%s' | This usually means the model failed to generate valid JSON.", filePath))
 					return
 				}
 
@@ -205,7 +205,7 @@ func (fileState *activeBuildStreamFileState) listenStreamChangesWithLineNums(str
 					log.Println(fileState.activeBuild.WithLineNumsBuffer)
 
 					execHookOnStop(true)
-					fileState.lineNumsRetryOrError(fmt.Errorf("listenStream - stream buffer tokens too high for file '%s'", filePath))
+					fileState.lineNumsRetryOrError(fmt.Errorf("listenStream - stream buffer tokens too high for file '%s' | This usually means the model failed to generate valid JSON.", filePath))
 					return
 				}
 			}
@@ -240,7 +240,7 @@ func (fileState *activeBuildStreamFileState) listenStreamChangesWithLineNums(str
 				// log.Println(fileState.activeBuild.WithLineNumsBuffer)
 
 				execHookOnStop(true)
-				fileState.lineNumsRetryOrError(fmt.Errorf("listenStream - stream chunk missing function call. Reason: %s, File: %s", choice.FinishReason, filePath))
+				fileState.lineNumsRetryOrError(fmt.Errorf("listenStream - stream chunk missing function call. Reason: %s, File: %s | This usually means the model failed to generate a valid response.", choice.FinishReason, filePath))
 				return
 			}
 		}

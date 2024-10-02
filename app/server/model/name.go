@@ -129,7 +129,7 @@ func GenPlanName(
 
 	if res == "" {
 		fmt.Println("no namePlan function call found in response")
-		return "", err
+		return "", fmt.Errorf("No namePlan function call found in response. This usually means the model failed to generate a valid response.")
 	}
 
 	bytes := []byte(res)
@@ -271,7 +271,7 @@ func GenPipedDataName(
 
 	if res == "" {
 		fmt.Println("no namePipedData function call found in response")
-		return "", err
+		return "", fmt.Errorf("No namePipedData function call found in response. This usually means the model failed to generate a valid response.")
 	}
 
 	bytes := []byte(res)
@@ -413,7 +413,7 @@ func GenNoteName(
 
 	if res == "" {
 		fmt.Println("no nameNote function call found in response")
-		return "", err
+		return "", fmt.Errorf("No nameNote function call found in response. This usually means the model failed to generate a valid response.")
 	}
 
 	bytes := []byte(res)
