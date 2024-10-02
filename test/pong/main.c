@@ -30,6 +30,8 @@ void init() {
     initBall();
 }
 
+
+
 void display() {
     glClear(GL_COLOR_BUFFER_BIT);
     renderPaddle();

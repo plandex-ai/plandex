@@ -42,8 +42,8 @@ func doContinue(cmd *cobra.Command, args []string) {
 		CurrentPlanId: lib.CurrentPlanId,
 		CurrentBranch: lib.CurrentBranch,
 		ApiKeys:       apiKeys,
-		CheckOutdatedContext: func(maybeContexts []*shared.Context) (bool, bool) {
-			return lib.MustCheckOutdatedContext(false, maybeContexts)
+		CheckOutdatedContext: func(maybeContexts []*shared.Context) (bool, bool, error) {
+			return lib.CheckOutdatedContextWithOutput(false, maybeContexts)
 		},
 	}, "", tellBg, tellStop, tellNoBuild, true)
 }

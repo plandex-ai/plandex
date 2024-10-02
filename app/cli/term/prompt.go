@@ -73,9 +73,9 @@ func ConfirmYesNo(fmtStr string, fmtArgs ...interface{}) (bool, error) {
 		return false, fmt.Errorf("failed to get user input: %s", err)
 	}
 
+	// ctrl+c == no
 	if key == keyboard.KeyCtrlC {
-		fmt.Println()
-		os.Exit(0)
+		return false, nil
 	}
 
 	fmt.Println(string(char))
@@ -99,9 +99,9 @@ func ConfirmYesNoCancel(fmtStr string, fmtArgs ...interface{}) (bool, bool, erro
 		return false, false, fmt.Errorf("failed to get user input: %s", err)
 	}
 
+	// ctrl+c == cancel
 	if key == keyboard.KeyCtrlC {
-		fmt.Println()
-		os.Exit(0)
+		return false, true, nil
 	}
 
 	fmt.Println(string(char))

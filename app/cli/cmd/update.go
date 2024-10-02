@@ -40,5 +40,5 @@ func update(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	lib.MustUpdateContext(nil)
+	lib.UpdateContextWithOutput(nil)
 }

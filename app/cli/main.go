@@ -35,8 +35,8 @@ func init() {
 			CurrentPlanId: lib.CurrentPlanId,
 			CurrentBranch: lib.CurrentBranch,
 			ApiKeys:       apiKeys,
-			CheckOutdatedContext: func(maybeContexts []*shared.Context) (bool, bool) {
-				return lib.MustCheckOutdatedContext(true, maybeContexts)
+			CheckOutdatedContext: func(maybeContexts []*shared.Context) (bool, bool, error) {
+				return lib.CheckOutdatedContextWithOutput(true, maybeContexts)
 			},
 		}, false)
 	})

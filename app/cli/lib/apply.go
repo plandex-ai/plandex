@@ -62,7 +62,11 @@ func MustApplyPlan(planId, branch string, autoConfirm bool) {
 		}
 	}
 
-	anyOutdated, didUpdate := MustCheckOutdatedContext(true, nil)
+	anyOutdated, didUpdate, err := CheckOutdatedContextWithOutput(true, nil)
+
+	if err != nil {
+		term.OutputErrorAndExit("error checking outdated context: %v", err)
+	}
 
 	if anyOutdated && !didUpdate {
 		term.StopSpinner()

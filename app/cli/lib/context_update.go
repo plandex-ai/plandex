@@ -20,7 +20,7 @@ import (
 	"github.com/plandex/plandex/shared"
 )
 
-func MustCheckOutdatedContext(quiet bool, maybeContexts []*shared.Context) (contextOutdated, updated bool) {
+func CheckOutdatedContextWithOutput(quiet bool, maybeContexts []*shared.Context) (contextOutdated, updated bool, err error) {
 	if !quiet {
 		term.StartSpinner("🔬 Checking context...")
 	}
@@ -28,7 +28,7 @@ func MustCheckOutdatedContext(quiet bool, maybeContexts []*shared.Context) (cont
 	outdatedRes, err := CheckOutdatedContext(maybeContexts)
 	if err != nil {
 		term.StopSpinner()
-		term.OutputErrorAndExit("failed to check outdated context: %s", err)
+		return false, false, fmt.Errorf("failed to check outdated context: %s", err)
 	}
 
 	term.StopSpinner()
@@ -37,7 +37,7 @@ func MustCheckOutdatedContext(quiet bool, maybeContexts []*shared.Context) (cont
 		if !quiet {
 			fmt.Println("✅ Context is up to date")
 		}
-		return false, false
+		return false, false, nil
 	}
 	if len(outdatedRes.UpdatedContexts) > 0 {
 		types := []string{}
@@ -142,28 +142,31 @@ func MustCheckOutdatedContext(quiet bool, maybeContexts []*shared.Context) (cont
 	}
 
 	if confirmed {
-		MustUpdateContext(maybeContexts)
-		return true, true
+		err = UpdateContextWithOutput(maybeContexts)
+		if err != nil {
+			return false, false, fmt.Errorf("error updating context: %v", err)
+		}
+		return true, true, nil
 	} else {
-		return true, false
+		return true, false, nil
 	}
 
 }
 
-func MustUpdateContext(maybeUpdateContexts []*shared.Context) {
+func UpdateContextWithOutput(maybeUpdateContexts []*shared.Context) error {
 	term.StartSpinner("🔄 Updating context...")
 
 	updateRes, err := UpdateContext(maybeUpdateContexts)
 
 	if err != nil {
-		term.StopSpinner()
-		term.OutputErrorAndExit("Error updating context: %v", err)
+		return err
 	}
 
 	term.StopSpinner()
 
 	fmt.Println("✅ " + updateRes.Msg)
 
+	return nil
 }
 
 func UpdateContext(maybeContexts []*shared.Context) (*types.ContextOutdatedResult, error) {

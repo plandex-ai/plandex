@@ -11,6 +11,7 @@ import (
 	streamtui "plandex/stream_tui"
 	"plandex/term"
 
+	"github.com/fatih/color"
 	"github.com/plandex/plandex/shared"
 )
 
@@ -22,14 +23,34 @@ func TellPlan(
 	tellNoBuild,
 	isUserContinue bool,
 ) {
+
+	outputPromptIfTell := func() {
+		if isUserContinue || prompt == "" {
+			return
+		}
+
+		term.StopSpinner()
+		// print prompt so it isn't lost
+		color.New(term.ColorHiCyan, color.Bold).Println("\nYour prompt 👇")
+		fmt.Println()
+		fmt.Println(prompt)
+		fmt.Println()
+	}
+
 	term.StartSpinner("")
 	contexts, apiErr := api.Client.ListContext(params.CurrentPlanId, params.CurrentBranch)
 
 	if apiErr != nil {
+		outputPromptIfTell()
 		term.OutputErrorAndExit("Error getting context: %v", apiErr)
 	}
 
-	anyOutdated, didUpdate := params.CheckOutdatedContext(contexts)
+	anyOutdated, didUpdate, err := params.CheckOutdatedContext(contexts)
+
+	if err != nil {
+		outputPromptIfTell()
+		term.OutputErrorAndExit("Error checking outdated context: %v", err)
+	}
 
 	if anyOutdated && !didUpdate {
 		term.StopSpinner()
@@ -38,12 +59,17 @@ func TellPlan(
 		} else {
 			log.Println("Prompt not sent")
 		}
+
+		outputPromptIfTell()
+		color.New(term.ColorHiRed, color.Bold).Println("🛑 Plan won't continue due to outdated context")
+
 		os.Exit(0)
 	}
 
 	paths, err := fs.GetProjectPaths(fs.GetBaseDirForContexts(contexts))
 
 	if err != nil {
+		outputPromptIfTell()
 		term.OutputErrorAndExit("Error getting project paths: %v", err)
 	}
 
@@ -98,6 +124,7 @@ func TellPlan(
 				res, err := term.ConfirmYesNo("Upgrade now?")
 
 				if err != nil {
+					outputPromptIfTell()
 					term.OutputErrorAndExit("Error prompting upgrade trial: %v", err)
 				}
 
@@ -106,9 +133,12 @@ func TellPlan(
 					// retry action after converting trial
 					return fn()
 				}
+
+				outputPromptIfTell()
 				return false
 			}
 
+			outputPromptIfTell()
 			term.OutputErrorAndExit("Prompt error: %v", apiErr.Msg)
 		} else if apiErr != nil && isUserContinue && apiErr.Type == shared.ApiErrorTypeContinueNoMessages {
 			fmt.Println("🤷‍♂️ There's no plan yet to continue")
@@ -122,6 +152,7 @@ func TellPlan(
 				err := streamtui.StartStreamUI(prompt, false)
 
 				if err != nil {
+					outputPromptIfTell()
 					term.OutputErrorAndExit("Error starting stream UI: %v", err)
 				}
 
@@ -145,6 +176,7 @@ func TellPlan(
 	}
 
 	if tellBg {
+		outputPromptIfTell()
 		fmt.Println("✅ Plan is active in the background")
 		fmt.Println()
 		term.PrintCmds("", "ps", "connect", "stop")
