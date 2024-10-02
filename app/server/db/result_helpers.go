@@ -701,7 +701,7 @@ func RejectPlanFiles(orgId, planId string, files []string, now time.Time) error 
 	return nil
 }
 
-func RejectPlanFile(orgId, planId, file string, now time.Time) error {
+func RejectPlanFile(orgId, planId, filePathOrResultId string, now time.Time) error {
 	resultsDir := getPlanResultsDir(orgId, planId)
 	results, err := GetPlanFileResults(orgId, planId)
 
@@ -713,7 +713,7 @@ func RejectPlanFile(orgId, planId, file string, now time.Time) error {
 
 	for _, result := range results {
 		go func(result *PlanFileResult) {
-			if result.Path == file && result.AppliedAt == nil && result.RejectedAt == nil {
+			if (result.Path == filePathOrResultId || result.Id == filePathOrResultId) && result.AppliedAt == nil && result.RejectedAt == nil {
 				result.RejectedAt = &now
 			} else {
 				errCh <- nil
