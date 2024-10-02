@@ -164,16 +164,22 @@ func (ap *ActivePlan) FlushStreamBuffer() {
 
 	// log.Printf("ActivePlan: flushing %d messages from stream buffer\n", len(ap.streamMessageBuffer))
 
-	// construct a multi message from the buffer
-	multiMsg := shared.StreamMessage{
-		Type:           shared.StreamMessageMulti,
-		StreamMessages: ap.streamMessageBuffer,
+	var msg shared.StreamMessage
+	if len(ap.streamMessageBuffer) == 1 {
+		log.Println("ActivePlan: flushing 1 message from stream buffer")
+		msg = ap.streamMessageBuffer[0]
+	} else {
+		msg = shared.StreamMessage{
+			Type:           shared.StreamMessageMulti,
+			StreamMessages: ap.streamMessageBuffer,
+		}
 	}
+
 	ap.streamMessageBuffer = []shared.StreamMessage{}
 
 	ap.streamMu.Unlock()
 
-	ap.Stream(multiMsg)
+	ap.Stream(msg)
 }
 
 func (ap *ActivePlan) Stream(msg shared.StreamMessage) {
@@ -182,7 +188,8 @@ func (ap *ActivePlan) Stream(msg shared.StreamMessage) {
 	ap.streamMu.Lock()
 	defer ap.streamMu.Unlock()
 
-	if msg.Type != shared.StreamMessageFinished {
+	if msg.Type != shared.StreamMessageFinished &&
+		msg.Type != shared.StreamMessagePromptMissingFile {
 		if time.Since(ap.lastStreamMessageSent) < MaxStreamRate {
 			// log.Println("ActivePlan: stream rate limiting -- buffering message")
 			ap.streamMessageBuffer = append(ap.streamMessageBuffer, msg)
@@ -226,11 +233,11 @@ func (ap *ActivePlan) Stream(msg shared.StreamMessage) {
 		}
 	}
 
-	// log.Println("ActivePlan: sending stream message")
+	// log.Println("ActivePlan: sending stream message:", msg.Type)
 
 	ap.streamCh <- string(msgJson)
 
-	// log.Println("ActivePlan: sent stream message")
+	// log.Println("ActivePlan: sent stream message:", msg.Type)
 
 	now := time.Now()
 	if now.After(ap.lastStreamMessageSent) {

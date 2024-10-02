@@ -258,6 +258,7 @@ func (m *streamUIModel) streamUpdate(msg *shared.StreamMessage, deferUIUpdate bo
 	}
 
 	// log.Println("streamUI received message:", msg.Type)
+	// log.Println(spew.Sdump(msg))
 
 	switch msg.Type {
 
