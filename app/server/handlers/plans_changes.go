@@ -428,6 +428,7 @@ func GetPlanDiffsHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	planId := vars["planId"]
 	branch := vars["branch"]
+	plain := r.URL.Query().Get("plain") == "true"
 
 	log.Println("planId: ", planId, "branch: ", branch)
 
@@ -446,7 +447,7 @@ func GetPlanDiffsHandler(w http.ResponseWriter, r *http.Request) {
 		}()
 	}
 
-	diffs, err := db.GetPlanDiffs(auth.OrgId, planId)
+	diffs, err := db.GetPlanDiffs(auth.OrgId, planId, plain)
 
 	if err != nil {
 		log.Printf("Error getting plan diffs: %v\n", err)

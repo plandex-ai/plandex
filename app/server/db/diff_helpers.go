@@ -10,7 +10,7 @@ import (
 	"github.com/plandex/plandex/shared"
 )
 
-func GetPlanDiffs(orgId, planId string) (string, error) {
+func GetPlanDiffs(orgId, planId string, plain bool) (string, error) {
 	planState, err := GetCurrentPlanState(CurrentPlanStateParams{
 		OrgId:  orgId,
 		PlanId: planId,
@@ -119,7 +119,11 @@ func GetPlanDiffs(orgId, planId string) (string, error) {
 		return "", fmt.Errorf("error adding files to git repository for dir: %s, err: %v", tempDirPath, err)
 	}
 
-	res, err := exec.Command("git", "-C", tempDirPath, "diff", "--cached", "--color=always").CombinedOutput()
+	colorArg := "--color=always"
+	if plain {
+		colorArg = "--no-color"
+	}
+	res, err := exec.Command("git", "-C", tempDirPath, "diff", "--cached", colorArg).CombinedOutput()
 
 	if err != nil {
 		return "", fmt.Errorf("error getting diffs: %v", err)

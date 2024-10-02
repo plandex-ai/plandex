@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"regexp"
 	"fmt"
 	"plandex/api"
 	"plandex/auth"
@@ -35,7 +34,7 @@ func diffs(cmd *cobra.Command, args []string) {
 		term.OutputNoCurrentPlanErrorAndExit()
 	}
 
-	diffs, err := api.Client.GetPlanDiffs(lib.CurrentPlanId, lib.CurrentBranch)
+	diffs, err := api.Client.GetPlanDiffs(lib.CurrentPlanId, lib.CurrentBranch, plainTextOutput)
 
 	if err != nil {
 		term.OutputErrorAndExit("Error getting plan diffs: %v", err)
@@ -43,14 +42,8 @@ func diffs(cmd *cobra.Command, args []string) {
 	}
 
 	if plainTextOutput {
-		fmt.Println(stripANSI(diffs))
+		fmt.Println(diffs)
 	} else {
 		term.PageOutput(diffs)
 	}
-}
-
-// stripANSI removes ANSI escape codes from the input string
-func stripANSI(input string) string {
-	ansiEscape := regexp.MustCompile(`\x1b\[[0-9;]*[a-zA-Z]`)
-	return ansiEscape.ReplaceAllString(input, "")
 }
