@@ -1,35 +1,31 @@
 {
   "folders": [
     {
-      "name": "plandex",
       "path": "."
     },
     {
-      "name": "static",
-      "path": "static"
+      "path": "./static"
+    },   
+    {
+      "path": "./infra"
     },
     {
-      "name": "cli",
-      "path": "app/cli"
+      "path": "./docs"
     },
     {
-      "name": "server",
-      "path": "app/server"
+      "path": "./app/cli"
     },
     {
-      "name": "cloud",
-      "path": "app/server/cloud"
+      "path": "./app/server"
     },
     {
-      "name": "shared",
-      "path": "app/shared"
+      "path": "./app/shared"
     },
     {
-      "name": "node",
-      "path": "app/server/cloud/ui/node"
+      "path": "./app/server/cloud"
     },
     {
-      "path": "infra"
+      "path": "./app/server/cloud/ui/node"
     }
   ],
   "settings": {
