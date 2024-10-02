@@ -18,7 +18,7 @@ if ! [ -x "$(command -v reflex)" ]; then
 
   # Check if the $GOPATH is empty
   if [ -z "$GOPATH" ]; then
-    echo "Error: $GOPATH is not set. Please set it to continue..." >&2
+    echo "Error: GOPATH is not set. Please set it to continue..." >&2
     exit 1
   fi
 

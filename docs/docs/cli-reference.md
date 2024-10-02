@@ -268,6 +268,8 @@ Review pending changes in 'git diff' format.
 plandex diff
 ```
 
+`--plain/-p`: Output diffs in plain text with no ANSI codes.
+
 ### changes
 
 Review pending changes in a TUI.
