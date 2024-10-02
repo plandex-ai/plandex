@@ -8,6 +8,7 @@ import (
 	"plandex/lib"
 	"plandex/term"
 	"strconv"
+	"strings"
 
 	"github.com/fatih/color"
 	"github.com/olekukonko/tablewriter"
@@ -112,6 +113,9 @@ func createCustomModel(cmd *cobra.Command, args []string) {
 			term.OutputErrorAndExit("Error reading base URL: %v", err)
 			return
 		}
+
+		baseUrl = strings.TrimSuffix(baseUrl, "/")
+
 		model.BaseUrl = baseUrl
 	} else {
 		model.BaseUrl = shared.BaseUrlByProvider[model.Provider]
