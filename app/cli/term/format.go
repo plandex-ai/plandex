@@ -1,21 +1,16 @@
 package term
 
 import (
-	"os"
 	"strings"
 
 	"github.com/charmbracelet/glamour"
 	"github.com/charmbracelet/glow/utils"
 	"github.com/muesli/reflow/wordwrap"
 	"github.com/muesli/termenv"
-	"golang.org/x/term"
 )
 
 func GetMarkdown(input string) (string, error) {
-	width, _, err := term.GetSize(int(os.Stdin.Fd()))
-	if err != nil {
-		return "", err
-	}
+	width := getTerminalWidth()
 
 	inputBytes := utils.RemoveFrontmatter([]byte(input))
 
@@ -33,11 +28,8 @@ func GetMarkdown(input string) (string, error) {
 	return string(out), nil
 }
 
-func GetPlain(input string) (string, error) {
-	width, _, err := term.GetSize(int(os.Stdin.Fd()))
-	if err != nil {
-		return "", err
-	}
+func GetPlain(input string) string {
+	width := getTerminalWidth()
 
 	s := wordwrap.String(input, min(width-2, 80))
 
@@ -53,5 +45,5 @@ func GetPlain(input string) (string, error) {
 		c = "251"
 	}
 
-	return termenv.String(s).Foreground(termenv.ANSI256.Color(c)).String(), nil
+	return termenv.String(s).Foreground(termenv.ANSI256.Color(c)).String()
 }

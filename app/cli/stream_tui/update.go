@@ -124,7 +124,7 @@ func (m *streamUIModel) updateReplyDisplay() {
 	s := ""
 
 	if m.prompt != "" {
-		promptTxt, _ := term.GetPlain(m.prompt)
+		promptTxt := term.GetPlain(m.prompt)
 
 		s += color.New(color.BgGreen, color.Bold, color.FgHiWhite).Sprintf(" 💬 User prompt 👇 ")
 		s += "\n\n" + strings.TrimSpace(promptTxt) + "\n"

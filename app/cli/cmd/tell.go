@@ -58,6 +58,7 @@ func doTell(cmd *cobra.Command, args []string) {
 	}
 
 	var prompt string
+	var pipedData string
 
 	if len(args) > 0 {
 		prompt = args[0]
@@ -67,22 +68,30 @@ func doTell(cmd *cobra.Command, args []string) {
 			term.OutputErrorAndExit("Error reading prompt file: %v", err)
 		}
 		prompt = string(bytes)
-	} else {
-		// Check if there's piped input
-		fileInfo, err := os.Stdin.Stat()
-		if err != nil {
-			term.OutputErrorAndExit("Failed to stat stdin: %v", err)
-		}
+	}
 
-		if fileInfo.Mode()&os.ModeNamedPipe != 0 {
-			reader := bufio.NewReader(os.Stdin)
-			pipedData, err := io.ReadAll(reader)
-			if err != nil {
-				term.OutputErrorAndExit("Failed to read piped data: %v", err)
-			}
-			prompt = string(pipedData)
+	// Check if there's piped input
+	fileInfo, err := os.Stdin.Stat()
+	if err != nil {
+		term.OutputErrorAndExit("Failed to stat stdin: %v", err)
+	}
+
+	if fileInfo.Mode()&os.ModeNamedPipe != 0 {
+		reader := bufio.NewReader(os.Stdin)
+		pipedDataBytes, err := io.ReadAll(reader)
+		if err != nil {
+			term.OutputErrorAndExit("Failed to read piped data: %v", err)
+		}
+		pipedData = string(pipedDataBytes)
+	}
+
+	if prompt == "" && pipedData == "" {
+		prompt = getEditorPrompt()
+	} else if pipedData != "" {
+		if prompt != "" {
+			prompt = fmt.Sprintf("%s\n\n---\n\n%s", prompt, pipedData)
 		} else {
-			prompt = getEditorPrompt()
+			prompt = pipedData
 		}
 	}
 

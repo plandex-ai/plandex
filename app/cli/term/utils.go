@@ -2,9 +2,9 @@ package term
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 
 	"golang.org/x/term"
@@ -64,16 +64,38 @@ func PageOutputReverse(output string) {
 
 func GetDivisionLine() string {
 	// Get the terminal width
-	terminalWidth, err := getTerminalWidth()
-	if err != nil {
-		log.Println("Error fetching terminal size:", err)
-		terminalWidth = 50 // default width if unable to fetch width
-	}
+	terminalWidth := getTerminalWidth()
 	return strings.Repeat("─", terminalWidth)
 }
 
-func getTerminalWidth() (int, error) {
-	width, _, err := term.GetSize(int(os.Stdout.Fd()))
+func getTerminalWidth() int {
+	// Try to get terminal size
+	if w, _, err := term.GetSize(int(os.Stdout.Fd())); err == nil {
+		return w
+	}
+
+	// Use tput to get terminal width
+	if w, err := getWidthFromTput(); err == nil {
+		return w
+	}
+
+	// Try to get width from environment variable
+	if w, err := strconv.Atoi(os.Getenv("COLUMNS")); err == nil {
+		return w
+	}
+
+	// Fallback to default width
+	return 50
+}
+
+func getWidthFromTput() (int, error) {
+	cmd := exec.Command("tput", "cols")
+	cmd.Stdin = os.Stdin
+	out, err := cmd.Output()
+	if err != nil {
+		return 0, err
+	}
+	width, err := strconv.Atoi(strings.TrimSpace(string(out)))
 	if err != nil {
 		return 0, err
 	}
