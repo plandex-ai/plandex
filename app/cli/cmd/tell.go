@@ -1,7 +1,9 @@
 package cmd
 
 import (
+	"bufio"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"plandex/auth"
@@ -43,7 +45,6 @@ func init() {
 }
 
 func doTell(cmd *cobra.Command, args []string) {
-
 	auth.MustResolveAuthWithOrg()
 	lib.MustResolveProject()
 
@@ -67,7 +68,22 @@ func doTell(cmd *cobra.Command, args []string) {
 		}
 		prompt = string(bytes)
 	} else {
-		prompt = getEditorPrompt()
+		// Check if there's piped input
+		fileInfo, err := os.Stdin.Stat()
+		if err != nil {
+			term.OutputErrorAndExit("Failed to stat stdin: %v", err)
+		}
+
+		if fileInfo.Mode()&os.ModeNamedPipe != 0 {
+			reader := bufio.NewReader(os.Stdin)
+			pipedData, err := io.ReadAll(reader)
+			if err != nil {
+				term.OutputErrorAndExit("Failed to read piped data: %v", err)
+			}
+			prompt = string(pipedData)
+		} else {
+			prompt = getEditorPrompt()
+		}
 	}
 
 	if prompt == "" {
