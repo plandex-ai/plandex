@@ -51,6 +51,9 @@ func new(cmd *cobra.Command, args []string) {
 
 			if res {
 				auth.ConvertTrial()
+				// re-run the command
+				new(cmd, args)
+				return
 			} else {
 				return
 			}
