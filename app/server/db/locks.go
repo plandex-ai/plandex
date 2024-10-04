@@ -136,10 +136,6 @@ func lockRepo(params LockRepoParams, numRetry int) (string, error) {
 	}
 
 	canAcquire := true
-	canRetry := true
-
-	// log.Println("locks:")
-	// spew.Dump(locks)
 
 	for _, lock := range locks {
 		lockBranch := ""
@@ -148,20 +144,19 @@ func lockRepo(params LockRepoParams, numRetry int) (string, error) {
 		}
 
 		if scope == LockScopeRead {
-			canAcquireThisLock := lock.Scope == LockScopeRead && lockBranch == branch
-			if !canAcquireThisLock {
-				canAcquire = false
+			// if we're trying to acquire a read lock, we can do so unless there's a conflicting write lock
+			// a write lock is conflicting if it's for the same branch or no branch (i.e. main)
+			if lock.Scope == LockScopeWrite {
+				if branch == "" || lockBranch == "" || branch == lockBranch {
+					canAcquire = false
+					break
+				}
 			}
 		} else if scope == LockScopeWrite {
-			canAcquire = false
-
-			// if lock is for the same plan plan and branch, allow parallel writes
-			if planId == lock.PlanId && branch == lockBranch {
-				canAcquire = true
-			}
-
-			if lock.Scope == LockScopeWrite && lockBranch == branch {
-				canRetry = false
+			// if we're trying to acquire a write lock, we can only do so if there's no existing lock (read or write) for the same branch (or no branch)
+			if branch == "" || lockBranch == "" || branch == lockBranch {
+				canAcquire = false
+				break
 			}
 		} else {
 			err = fmt.Errorf("invalid lock scope: %v", scope)
@@ -170,19 +165,15 @@ func lockRepo(params LockRepoParams, numRetry int) (string, error) {
 	}
 
 	if !canAcquire {
-		log.Println("can't acquire lock. canRetry:", canRetry, "numRetry:", numRetry)
+		log.Println("can't acquire lock.", "numRetry:", numRetry)
 
-		if canRetry {
-			// 10 second timeout
-			if numRetry > 20 {
-				err = fmt.Errorf("plan is currently being updated by another user")
-				return "", err
-			}
-			time.Sleep(500 * time.Millisecond)
-			return lockRepo(params, numRetry+1)
+		// 10 second timeout
+		if numRetry > 20 {
+			err = fmt.Errorf("plan is currently being updated by another user or process")
+			return "", err
 		}
-		err = fmt.Errorf("plan is currently being updated by another user")
-		return "", err
+		time.Sleep(500 * time.Millisecond)
+		return lockRepo(params, numRetry+1)
 	}
 
 	log.Println("can acquire lock - inserting new lock")

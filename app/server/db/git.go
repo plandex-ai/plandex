@@ -14,7 +14,7 @@ import (
 	"github.com/fatih/color"
 )
 
-const maxGitRetries = 5
+const maxGitRetries = 6
 const initialGitRetryInterval = 100 * time.Millisecond
 
 func init() {
@@ -51,14 +51,14 @@ func initGitRepo(dir string) error {
 func GitAddAndCommit(orgId, planId, branch, message string) error {
 	dir := getPlanDir(orgId, planId)
 
-	err := retryGitWriteOperationIfIndexFileErr(func() error {
+	err := gitWriteOperation(func() error {
 		return gitAdd(dir, ".")
 	})
 	if err != nil {
 		return fmt.Errorf("error adding files to git repository for dir: %s, err: %v", dir, err)
 	}
 
-	err = retryGitWriteOperationIfIndexFileErr(func() error {
+	err = gitWriteOperation(func() error {
 		return gitCommit(dir, message)
 	})
 	if err != nil {
@@ -71,7 +71,7 @@ func GitAddAndCommit(orgId, planId, branch, message string) error {
 func GitRewindToSha(orgId, planId, branch, sha string) error {
 	dir := getPlanDir(orgId, planId)
 
-	err := retryGitWriteOperationIfIndexFileErr(func() error {
+	err := gitWriteOperation(func() error {
 		return gitRewindToSha(dir, sha)
 	})
 	if err != nil {
@@ -127,7 +127,7 @@ func GitListBranches(orgId, planId string) ([]string, error) {
 func GitCreateBranch(orgId, planId, branch, newBranch string) error {
 	dir := getPlanDir(orgId, planId)
 
-	err := retryGitWriteOperationIfIndexFileErr(func() error {
+	err := gitWriteOperation(func() error {
 		res, err := exec.Command("git", "-C", dir, "checkout", "-b", newBranch).CombinedOutput()
 		if err != nil {
 			return fmt.Errorf("error creating git branch for dir: %s, err: %v, output: %s", dir, err, string(res))
@@ -141,7 +141,7 @@ func GitCreateBranch(orgId, planId, branch, newBranch string) error {
 func GitDeleteBranch(orgId, planId, branchName string) error {
 	dir := getPlanDir(orgId, planId)
 
-	err := retryGitWriteOperationIfIndexFileErr(func() error {
+	err := gitWriteOperation(func() error {
 		res, err := exec.Command("git", "-C", dir, "branch", "-D", branchName).CombinedOutput()
 		if err != nil {
 			return fmt.Errorf("error deleting git branch for dir: %s, err: %v, output: %s", dir, err, string(res))
@@ -155,7 +155,7 @@ func GitDeleteBranch(orgId, planId, branchName string) error {
 func GitClearUncommittedChanges(orgId, planId string) error {
 	dir := getPlanDir(orgId, planId)
 
-	err := retryGitWriteOperationIfIndexFileErr(func() error {
+	err := gitWriteOperation(func() error {
 		// Reset staged changes
 		res, err := exec.Command("git", "-C", dir, "reset", "--hard").CombinedOutput()
 		if err != nil {
@@ -168,7 +168,7 @@ func GitClearUncommittedChanges(orgId, planId string) error {
 		return err
 	}
 
-	err = retryGitWriteOperationIfIndexFileErr(func() error {
+	err = gitWriteOperation(func() error {
 		// Clean untracked files
 		res, err := exec.Command("git", "-C", dir, "clean", "-d", "-f").CombinedOutput()
 		if err != nil {
@@ -205,7 +205,7 @@ func gitCheckoutBranch(repoDir, branch string) error {
 		return nil
 	}
 
-	err = retryGitWriteOperationIfIndexFileErr(func() error {
+	err = gitWriteOperation(func() error {
 		log.Println("checking out branch:", branch)
 		res, err := exec.Command("git", "-C", repoDir, "checkout", branch).CombinedOutput()
 		if err != nil {
@@ -364,7 +364,7 @@ func setGitConfig(repoDir, key, value string) error {
 	return nil
 }
 
-func retryGitWriteOperationIfIndexFileErr(operation func() error) error {
+func gitWriteOperation(operation func() error) error {
 	var err error
 	retryInterval := initialGitRetryInterval
 
@@ -376,22 +376,16 @@ func retryGitWriteOperationIfIndexFileErr(operation func() error) error {
 
 		log.Printf("Retry attempt %d failed. Error: %v", attempt+1, err)
 
-		if exitError, ok := err.(*exec.ExitError); ok {
-			errorOutput := string(exitError.Stderr)
-			log.Printf("git operation error output: %s", errorOutput)
+		isIndexLockError := strings.Contains(err.Error(), "new_index file") ||
+			strings.Contains(err.Error(), "index.lock")
 
-			if exitError.ExitCode() == 128 && (strings.Contains(string(exitError.Stderr), "new_index file") ||
-				strings.Contains(string(exitError.Stderr), "index.lock')")) {
-
-				log.Printf("Retry attempt %d failed due to 'unable to write new_index file'. Waiting %v before retrying. Error: %v", attempt+1, retryInterval, err)
-				time.Sleep(retryInterval)
-				retryInterval *= 2
-				continue
-			} else {
-				log.Printf("Non-index file error: %v", err)
-			}
+		if isIndexLockError {
+			log.Printf("Retry attempt %d failed due to 'unable to write git index file error'. Waiting %v before retrying. Error: %v", attempt+1, retryInterval, err)
+			time.Sleep(retryInterval)
+			retryInterval *= 2
+			continue
 		} else {
-			log.Printf("Non-exit error: %v", err)
+			log.Printf("Non-index file error: %v", err)
 		}
 
 		return err

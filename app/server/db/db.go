@@ -43,10 +43,24 @@ func Connect() error {
 
 	log.Println("connected to database")
 
-	_, err = Conn.Exec("SET TIMEZONE='UTC';")
+	if os.Getenv("GOENV") == "production" {
+		Conn.SetMaxOpenConns(30) // Allow up to 30 concurrent connections per task
+		Conn.SetMaxIdleConns(30) // Keep up to 30 idle connections for reuse
+	}
 
+	_, err = Conn.Exec("SET TIMEZONE='UTC';")
 	if err != nil {
 		return fmt.Errorf("error setting timezone: %v", err)
+	}
+
+	_, err = Conn.Exec("SET lock_timeout = '10s';")
+	if err != nil {
+		return fmt.Errorf("error setting lock timeout: %v", err)
+	}
+
+	_, err = Conn.Exec("SET statement_timeout = '10s';")
+	if err != nil {
+		return fmt.Errorf("error setting statement timeout: %v", err)
 	}
 
 	return nil
