@@ -27,22 +27,9 @@ var fullCompatibilityExceptImage = ModelCompatibility{
 
 var AvailableModels = []*AvailableModel{
 	{
-		Description:                 "OpenAI's gpt-4o model, pinned to version released on 2024-08-06",
+		Description:                 "OpenAI's latest gpt-4o model",
 		DefaultMaxConvoTokens:       10000,
 		DefaultReservedOutputTokens: 16384,
-		BaseModelConfig: BaseModelConfig{
-			Provider:           ModelProviderOpenAI,
-			ModelName:          "gpt-4o-2024-08-06",
-			MaxTokens:          128000,
-			ApiKeyEnvVar:       OpenAIEnvVar,
-			ModelCompatibility: fullCompatibility,
-			BaseUrl:            OpenAIV1BaseUrl,
-		},
-	},
-	{
-		Description:                 "OpenAI's latest gpt-4-o model",
-		DefaultMaxConvoTokens:       10000,
-		DefaultReservedOutputTokens: 4096,
 		BaseModelConfig: BaseModelConfig{
 			Provider:           ModelProviderOpenAI,
 			ModelName:          openai.GPT4o,
@@ -267,62 +254,6 @@ var RequiredCompatibilityByRole = map[ModelRole]ModelCompatibility{
 func init() {
 	for _, model := range AvailableModels {
 		AvailableModelsByName[model.ModelName] = model
-	}
-
-	Gpt4o8062024ModelPack = ModelPack{
-		Name:        "gpt-4o-2024-08-06",
-		Description: "Uses OpenAI's gpt-4o model, pinned to version released on 2024-08-06, for heavy lifting, and latest version of gpt-4o-mini for lighter tasks.",
-		Planner: PlannerRoleConfig{
-			ModelRoleConfig: ModelRoleConfig{
-				Role:            ModelRolePlanner,
-				BaseModelConfig: AvailableModelsByName["gpt-4o-2024-08-06"].BaseModelConfig,
-				Temperature:     DefaultConfigByRole[ModelRolePlanner].Temperature,
-				TopP:            DefaultConfigByRole[ModelRolePlanner].TopP,
-			},
-			PlannerModelConfig: getPlannerModelConfig("gpt-4o-2024-08-06"),
-		},
-		PlanSummary: ModelRoleConfig{
-			Role:            ModelRolePlanSummary,
-			BaseModelConfig: AvailableModelsByName["gpt-4o-2024-08-06"].BaseModelConfig,
-			Temperature:     DefaultConfigByRole[ModelRolePlanSummary].Temperature,
-			TopP:            DefaultConfigByRole[ModelRolePlanSummary].TopP,
-		},
-		Builder: ModelRoleConfig{
-			Role:            ModelRoleBuilder,
-			BaseModelConfig: AvailableModelsByName["gpt-4o-2024-08-06"].BaseModelConfig,
-			Temperature:     DefaultConfigByRole[ModelRoleBuilder].Temperature,
-			TopP:            DefaultConfigByRole[ModelRoleBuilder].TopP,
-		},
-		Namer: ModelRoleConfig{
-			Role:            ModelRoleName,
-			BaseModelConfig: AvailableModelsByName["gpt-4o-mini"].BaseModelConfig,
-			Temperature:     DefaultConfigByRole[ModelRoleName].Temperature,
-			TopP:            DefaultConfigByRole[ModelRoleName].TopP,
-		},
-		CommitMsg: ModelRoleConfig{
-			Role:            ModelRoleCommitMsg,
-			BaseModelConfig: AvailableModelsByName["gpt-4o-mini"].BaseModelConfig,
-			Temperature:     DefaultConfigByRole[ModelRoleCommitMsg].Temperature,
-			TopP:            DefaultConfigByRole[ModelRoleCommitMsg].TopP,
-		},
-		ExecStatus: ModelRoleConfig{
-			Role:            ModelRoleExecStatus,
-			BaseModelConfig: AvailableModelsByName["gpt-4o-2024-08-06"].BaseModelConfig,
-			Temperature:     DefaultConfigByRole[ModelRoleExecStatus].Temperature,
-			TopP:            DefaultConfigByRole[ModelRoleExecStatus].TopP,
-		},
-		Verifier: &ModelRoleConfig{
-			Role:            ModelRoleVerifier,
-			BaseModelConfig: AvailableModelsByName["gpt-4o-2024-08-06"].BaseModelConfig,
-			Temperature:     DefaultConfigByRole[ModelRoleVerifier].Temperature,
-			TopP:            DefaultConfigByRole[ModelRoleVerifier].TopP,
-		},
-		AutoFix: &ModelRoleConfig{
-			Role:            ModelRoleAutoFix,
-			BaseModelConfig: AvailableModelsByName["gpt-4o-2024-08-06"].BaseModelConfig,
-			Temperature:     DefaultConfigByRole[ModelRoleAutoFix].Temperature,
-			TopP:            DefaultConfigByRole[ModelRoleAutoFix].TopP,
-		},
 	}
 
 	Gpt4oLatestModelPack = ModelPack{
