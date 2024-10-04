@@ -129,7 +129,7 @@ func SignInHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if user != nil && user.IsTrial {
+	if user.IsTrial {
 		log.Printf("Trial user can't sign in: %v\n", req.Email)
 		http.Error(w, "Trial user can't sign in", http.StatusForbidden)
 		return
