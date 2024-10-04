@@ -1,0 +1,20 @@
+--- /mnt/data/Projects/Clients/plandex/test/evals/promptfoo-poc/verify/assets/go/code/main_hello_universe.go	2024-07-29 18:43:54.035036980 +0100
++++ /mnt/data/Projects/Clients/plandex/test/evals/promptfoo-poc/verify/assets/go/code/main_hello_universe.post.go	2024-07-19 16:33:23.976712064 +0100
+@@ -2,6 +2,15 @@
+ 
+ import "fmt"
+ 
+-func main() {
++func printHelloWorld() {
+ 	fmt.Println("Hello World")
+ }
++
++func printHelloUniverse() {
++	fmt.Println("Hello Universe")
++}
++
++func main() {
++	printHelloWorld()
++	printHelloUniverse()
++}
+\ No newline at end of file

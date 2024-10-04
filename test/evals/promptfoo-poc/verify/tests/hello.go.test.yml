@@ -1,0 +1,15 @@
+- description: "Verify Hello function implementation"
+  vars:
+    preBuildState: file://assets/go/code/hello.go
+    changes: file://assets/go/changes/hello.changes.md
+    postBuildState: file://assets/go/code/hello.post.go
+    diffs: file://assets/go/diffs/hello.diff.txt
+  assert:
+    - type: is-json
+    - type: is-valid-openai-tools-call
+    - type: javascript
+      value: |
+        var args = JSON.parse(output[0].function.arguments)
+        return args.hasRemovedCodeErrors && args.changes.some(
+          change => change.hasChange && change.new.includes("hello(\"World\")")
+        )

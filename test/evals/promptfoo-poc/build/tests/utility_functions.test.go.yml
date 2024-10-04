@@ -1,0 +1,15 @@
+- description: "Verify utility functions implementation"
+  vars:
+    preBuildState: file://assets/go/code/utility_functions.go
+    changes: file://assets/go/changes/utility_functions.changes.md
+    filePath: utility_functions.go
+    postBuildState: file://assets/go/code/utility_functions.post.go
+  assert:
+    - type: is-json
+    - type: is-valid-openai-tools-call
+    - type: javascript
+      value: |
+        var args = JSON.parse(output[0].function.arguments)
+        return args.hasRemovedCodeErrors && args.changes.some(
+          change => change.hasChange and change.new.includes("Multiply(a int, b int) int")
+        )

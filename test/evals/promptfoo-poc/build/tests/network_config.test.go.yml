@@ -1,0 +1,15 @@
+- description: "Verify network configuration and connectivity"
+  vars:
+    preBuildState: file://assets/go/code/network_config.go
+    changes: file://assets/go/changes/network_config.changes.md
+    filePath: network_config.go
+    postBuildState: file://assets/go/code/network_config.post.go
+  assert:
+    - type: is-json
+    - type: is-valid-openai-tools-call
+    - type: javascript
+      value: |
+        var args = JSON.parse(output[0].function.arguments)
+        return args.hasRemovedCodeErrors && args.changes.some(
+          change => change.hasChange and change.new.includes("VerifyConnectivity()")
+        )

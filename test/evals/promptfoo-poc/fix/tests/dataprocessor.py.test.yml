@@ -1,0 +1,13 @@
+- description: "Verify DataProcessor functionality implementation"
+  vars:
+    preBuildState: file://assets/py/code/dataprocessor.py
+    changes: file://assets/py/changes/dataprocessor.changes.md
+    problems: file://assets/py/problems/dataprocessor.problems.txt
+    postBuildState: file://assets/py/code/dataprocessor.post.py
+  assert:
+    - type: javascript
+      value: |
+        var args = JSON.parse(output[0].function.arguments)
+        return args.problems && args.changes.length > 0 && args.changes.some(
+          change => change.hasChange and change.new.includes("def processData(self, data):")
+        )

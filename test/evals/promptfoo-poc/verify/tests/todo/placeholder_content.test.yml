@@ -1,0 +1,21 @@
+- description: "Test for Placeholder Content"
+  vars:
+    postBuildState: file://assets/valid/post_build.go
+    preBuildState: file://assets/shared/pre_build.go
+    changes: file://assets/valid/changes.md
+    diffs: file://assets/valid/diff.txt
+  assert:
+    - type: is-json
+    - type: is-valid-openai-tools-call
+    - type: not-contains
+      value: "PLACEHOLDER"
+    - type: not-contains
+      value: "TBD"
+    - type: javascript
+      value: "output.includes('PLACEHOLDER') === false && output.includes('TBD') === false"
+    - type: context-faithfulness
+      value: "Generated code should accurately reflect the provided context."
+    - type: context-recall
+      value: "Key elements from the pre-build state should appear in the generated code."
+    - type: context-relevance
+      value: "Generated code should be relevant to the provided pre-build state."

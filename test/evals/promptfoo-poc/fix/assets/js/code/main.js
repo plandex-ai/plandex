@@ -1,0 +1,3 @@
+class DatabaseConnector {
+	// Existing methods
+}

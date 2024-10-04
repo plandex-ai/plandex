@@ -19,6 +19,48 @@ Evals for plandex.
 
 ## Types of Evals
 
+🧑‍💻: Yes, promptfoo offers various methods for evaluating prompts beyond simple assertions. These include heuristics, language model-assisted metrics, and other strategies. Here are some additional methods you can use:
+
+### Deterministic Evaluation Metrics
+
+1. **equals**: Checks if the output matches exactly.
+2. **contains**: Checks if the output contains a substring.
+3. **icontains**: Case-insensitive substring check.
+4. **regex**: Matches the output against a regular expression.
+5. **starts-with**: Checks if the output starts with a specified string.
+6. **is-json**: Validates if the output is valid JSON.
+7. **contains-json**: Checks if the output contains valid JSON.
+8. **is-sql**: Validates if the output is valid SQL.
+9. **contains-sql**: Checks if the output contains valid SQL.
+10. **javascript**: Uses a JavaScript function to validate the output.
+11. **python**: Uses a Python function to validate the output.
+12. **webhook**: Uses a webhook that returns `{pass: true}`.
+13. **rouge-n**: Rouge-N score is above a given threshold.
+14. **levenshtein**: Levenshtein distance is below a threshold.
+15. **latency**: Latency is below a threshold (milliseconds).
+16. **perplexity**: Perplexity is below a threshold.
+17. **cost**: Cost is below a threshold (for models with cost info such as GPT).
+18. **is-valid-openai-function-call**: Ensures the function call matches the function's JSON schema.
+19. **is-valid-openai-tools-call**: Ensures all tool calls match the tools JSON schema.
+
+### Model-assisted Evaluation Metrics
+
+1. **similar**: Uses embeddings and cosine similarity to check if the output is similar to a given text.
+2. **classifier**: Runs the LLM output through a classifier.
+3. **llm-rubric**: Uses a Language Model to grade the output based on a rubric.
+4. **answer-relevance**: Ensures the LLM output is related to the original query.
+5. **context-faithfulness**: Ensures the LLM output uses the context accurately.
+6. **context-recall**: Ensures the ground truth appears in the context.
+7. **context-relevance**: Ensures the context is relevant to the original query.
+8. **factuality**: Ensures the LLM output adheres to the given facts.
+9. **model-graded-closedqa**: Uses a Closed QA method to evaluate the LLM output.
+10. **moderation**: Ensures the outputs are safe.
+11. **select-best**: Compares multiple outputs for a test case and picks the best one.
+
+These methods provide a comprehensive set of tools to evaluate the quality, accuracy, and relevance of LLM outputs. You can combine these methods to create robust and thorough evaluations for your use cases.
+
+Would you like to implement any of these advanced evaluation methods for your test cases? If so, please specify which methods you are interested in, and I can help you integrate them.
+
 ---
 
 ### Build Prompts Evaluations
@@ -88,3 +130,5 @@ Evals for plandex.
    - Ensure the schema is well-documented with clear explanations of each parameter and return type.
 7. **Security Considerations**
    - Evaluate the schema for potential security vulnerabilities or risks.
+
+

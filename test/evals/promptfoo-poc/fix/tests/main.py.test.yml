@@ -1,0 +1,13 @@
+- description: "Verify main initialization function implementation"
+  vars:
+    preBuildState: file://assets/py/code/main.py
+    changes: file://assets/py/changes/main.changes.md
+    problems: file://assets/py/problems/main.problems.txt
+    postBuildState: file://assets/py/code/main.post.py
+  assert:
+    - type: javascript
+      value: |
+        var args = JSON.parse(output[0].function.arguments)
+        return args.problems && args.changes.length > 0 && args.changes.some(
+          change => change.hasChange and change.new.includes("def initialize(params):")
+        )

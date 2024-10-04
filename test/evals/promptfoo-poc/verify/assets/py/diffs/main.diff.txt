@@ -1,0 +1,9 @@
+--- /mnt/data/Projects/Clients/plandex/test/evals/promptfoo-poc/verify/assets/py/code/main.py	2024-07-29 18:54:17.917160176 +0100
++++ /mnt/data/Projects/Clients/plandex/test/evals/promptfoo-poc/verify/assets/py/code/main.post.py	2024-07-19 16:33:23.972711964 +0100
+@@ -1,6 +0,0 @@
+-def main():
+-    print("Initial setup complete")
+-
+-if __name__ == "__main__":
+-    main()
+-

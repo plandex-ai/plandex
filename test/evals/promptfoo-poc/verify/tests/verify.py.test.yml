@@ -1,0 +1,15 @@
+- description: "Verify greet functionality implementation"
+  vars:
+    preBuildState: file://assets/py/code/greet.py
+    changes: file://assets/py/changes/greet.changes.md
+    postBuildState: file://assets/py/code/greet.post.py
+    diffs: file://assets/py/diffs/greet.diff.txt
+  assert:
+    - type: is-json
+    - type: is-valid-openai-tools-call
+    - type: javascript
+      value: |
+        var args = JSON.parse(output[0].function.arguments)
+        return args.hasRemovedCodeErrors && args.changes.some(
+          change => change.hasChange and change.new.includes("class Greet:")
+        )

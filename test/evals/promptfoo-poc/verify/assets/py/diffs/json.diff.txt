@@ -1,0 +1,14 @@
+--- /mnt/data/Projects/Clients/plandex/test/evals/promptfoo-poc/verify/assets/py/code/json.py	2024-07-29 18:54:12.349030502 +0100
++++ /mnt/data/Projects/Clients/plandex/test/evals/promptfoo-poc/verify/assets/py/code/json.post.py	2024-07-19 16:33:23.972711964 +0100
+@@ -1,5 +1,8 @@
+ import json
+ 
+ def convert_to_json(data):
+-    # incomplete function needs proper implementation
+-    pass
++    try:
++        json_string = json.dumps(data)
++        return json_string
++    except TypeError as e:
++        return str(e)
+\ No newline at end of file

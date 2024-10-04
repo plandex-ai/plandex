@@ -6,4 +6,8 @@ prompts:
   - file://verify.prompt.txt
 providers:
   - file://verify.provider.yml
+defaultTest:
+  assert:
+    - type: is-json
+    - type: is-valid-openai-tools-call
 tests: tests/*.test.yml

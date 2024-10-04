@@ -1,0 +1,15 @@
+- description: "Removal of code errors"
+  vars:
+    postBuildState: file://assets/go/code/removal.post.go
+    preBuildState: file://assets/go/code/removal.go
+    changes: file://assets/go/changes/removal.changes.md
+    diffs: file://assets/go/diffs/removal.diff.txt
+  assert:
+    - type: is-json
+    - type: is-valid-openai-tools-call
+    - type: javascript
+      value: |
+        var args = JSON.parse(output[0].function.arguments)
+        return args.hasRemovedCodeErrors && args.changes.some(
+          change => change.hasChange && change.new.includes("deleteIds[context.Id] = true")
+        )

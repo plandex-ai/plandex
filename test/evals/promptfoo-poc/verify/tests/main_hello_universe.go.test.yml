@@ -1,0 +1,15 @@
+- description: "Verify Main Hello Universe function implementation"
+  vars:
+    preBuildState: file://assets/go/code/main_hello_universe.go
+    changes: file://assets/go/changes/main_hello_universe.changes.md
+    postBuildState: file://assets/go/code/main_hello_universe.post.go
+    diffs: file://assets/go/diffs/main_hello_universe.diff.txt
+  assert:
+    - type: is-json
+    - type: is-valid-openai-tools-call
+    - type: javascript
+      value: |
+        var args = JSON.parse(output[0].function.arguments)
+        return args.hasRemovedCodeErrors && args.changes.some(
+          change => change.hasChange && change.new.includes("fmt.Println(\"Hello, Universe!\")")
+        )

@@ -1,0 +1,12 @@
+--- /mnt/data/Projects/Clients/plandex/test/evals/promptfoo-poc/verify/assets/go/code/sum.go	2024-07-29 18:44:07.635331952 +0100
++++ /mnt/data/Projects/Clients/plandex/test/evals/promptfoo-poc/verify/assets/go/code/sum.post.go	2024-07-19 16:33:23.972711964 +0100
+@@ -5,5 +5,6 @@
+ }
+ 
+ func main() {
+-	// Call the sum function
+-}
++	result := sum(5, 3)
++	// TODO: Use the result
++}
+\ No newline at end of file

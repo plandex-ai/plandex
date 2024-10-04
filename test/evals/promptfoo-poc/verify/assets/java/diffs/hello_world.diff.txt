@@ -1,0 +1,15 @@
+--- /mnt/data/Projects/Clients/plandex/test/evals/promptfoo-poc/verify/assets/java/code/hello_world.java	2024-07-29 18:52:27.402594822 +0100
++++ /mnt/data/Projects/Clients/plandex/test/evals/promptfoo-poc/verify/assets/java/code/hello_world.post.java	2024-07-19 16:33:37.025039933 +0100
+@@ -1,5 +1,6 @@
+-public class HelloWorld {
+-    public static void main(String[] args) {
+-        System.out.println("Hello, world!");
+-    }
+-}
++# Future improvements: optimize greeting efficiency
++def main():
++    print("Hello, world!")
++
++if __name__ == "__main__":
++    main()
+\ No newline at end of file

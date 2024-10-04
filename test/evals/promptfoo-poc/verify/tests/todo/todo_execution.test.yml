@@ -1,0 +1,15 @@
+- description: "Test for TODO Execution"
+  vars:
+    postBuildState: file://assets/valid/post_build.go
+    preBuildState: file://assets/shared/pre_build.go
+    changes: file://assets/valid/changes.md
+    diffs: file://assets/valid/diff.txt
+  assert:
+    - type: is-json
+    - type: is-valid-openai-tools-call
+    - type: not-contains
+      value: "TODO"
+    - type: javascript
+      value: "output.includes('TODO') === false"
+    - type: llm-rubric
+      value: "Code should not contain TODO items and must execute all tasks reliably."

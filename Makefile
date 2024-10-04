@@ -70,6 +70,9 @@ help:
 	@echo "  make clean - to remove generated files and directories"
 	@echo "  make help - to display this help message"
 
+devTests:
+	@$(GOCMD) run app/scripts/cmd/dev/dev.go $(filter-out $@,$(MAKECMDGOALS))
+
 # Prevents make from interpreting the arguments as targets
 %:
 	@:

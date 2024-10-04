@@ -1,0 +1,15 @@
+--- /mnt/data/Projects/Clients/plandex/test/evals/promptfoo-poc/verify/assets/go/code/feature_x.go	2024-07-29 18:43:10.438097196 +0100
++++ /mnt/data/Projects/Clients/plandex/test/evals/promptfoo-poc/verify/assets/go/code/feature_x.post.go	2024-07-29 18:25:52.510325316 +0100
+@@ -2,7 +2,11 @@
+ 
+ import "fmt"
+ 
++func featureX() {
++	fmt.Println("Feature X implemented")
++}
++
+ func main() {
+ 	fmt.Println("Starting application...")
+-	// TODO: Implement feature X
++	featureX()
+ }
