@@ -70,7 +70,8 @@ func listActive() {
 	}()
 
 	go func() {
-		ctx, _ := context.WithTimeout(context.Background(), 500*time.Millisecond)
+		ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+		defer cancel()
 
 		res, err := fs.GetChildProjectIdsWithPaths(ctx)
 
