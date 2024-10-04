@@ -380,6 +380,28 @@ func checkOutdatedAndMaybeUpdateContext(doUpdate bool, maybeContexts []*shared.C
 		return nil, fmt.Errorf("failed to check context outdated: %v", errs)
 	}
 
+	var totalContextCount int
+	var totalBodySize int64
+
+	for _, context := range contexts {
+		totalContextCount++
+		totalBodySize += int64(len(context.Body))
+	}
+
+	for _, context := range updatedContexts {
+		if req[context.Id] != nil {
+			totalBodySize += int64(len(req[context.Id].Body)) - int64(len(context.Body))
+		}
+	}
+
+	if totalContextCount > shared.MaxContextCount {
+		return nil, fmt.Errorf("too many contexts to update (found %d, limit is %d)", totalContextCount, shared.MaxContextCount)
+	}
+
+	if totalBodySize > shared.MaxContextBodySize {
+		return nil, fmt.Errorf("total context body size exceeds limit (size %.2f MB, limit %d MB)", float64(totalBodySize)/1024/1024, int(shared.MaxContextBodySize)/1024/1024)
+	}
+
 	var msg string
 	var hasConflicts bool
 

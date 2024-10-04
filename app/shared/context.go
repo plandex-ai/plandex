@@ -9,6 +9,11 @@ import (
 	"github.com/olekukonko/tablewriter"
 )
 
+const (
+	MaxContextBodySize = 10 * 1024 * 1024 // 10MB
+	MaxContextCount    = 500
+)
+
 type ContextUpdateResult struct {
 	UpdatedContexts []*Context
 	TokenDiffsById  map[string]int

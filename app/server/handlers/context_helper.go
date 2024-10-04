@@ -15,6 +15,24 @@ import (
 )
 
 func loadContexts(w http.ResponseWriter, r *http.Request, auth *types.ServerAuth, loadReq *shared.LoadContextRequest, plan *db.Plan, branchName string) (*shared.LoadContextResponse, []*db.Context) {
+	// check file count and size limits
+	totalFiles := 0
+	for _, context := range *loadReq {
+		totalFiles++
+		if totalFiles > shared.MaxContextCount {
+			log.Printf("Error: Too many contexts to load (found %d, limit is %d)\n", totalFiles, shared.MaxContextCount)
+			http.Error(w, fmt.Sprintf("Too many contexts to load (found %d, limit is %d)", totalFiles, shared.MaxContextCount), http.StatusBadRequest)
+			return nil, nil
+		}
+
+		fileSize := int64(len(context.Body))
+		if fileSize > shared.MaxContextBodySize {
+			log.Printf("Error: Context %s exceeds size limit (size %.2f MB, limit %d MB)\n", context.Name, float64(fileSize)/1024/1024, int(shared.MaxContextBodySize)/1024/1024)
+			http.Error(w, fmt.Sprintf("Context %s exceeds size limit (size %.2f MB, limit %d MB)", context.Name, float64(fileSize)/1024/1024, int(shared.MaxContextBodySize)/1024/1024), http.StatusBadRequest)
+			return nil, nil
+		}
+	}
+
 	var err error
 	var settings *shared.PlanSettings
 	var client *openai.Client

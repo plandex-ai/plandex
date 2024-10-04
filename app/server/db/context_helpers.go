@@ -371,6 +371,31 @@ func UpdateContexts(params UpdateContextsParams) (*shared.UpdateContextResponse,
 		contextsById = params.ContextsById
 	}
 
+	var totalContextCount int
+	var totalBodySize int64
+
+	for _, context := range contextsById {
+		totalContextCount++
+		totalBodySize += int64(len(context.Body))
+	}
+
+	for id, params := range *req {
+		if context, ok := contextsById[id]; ok {
+			totalBodySize += int64(len(params.Body)) - int64(len(context.Body))
+		} else {
+			totalContextCount++
+			totalBodySize += int64(len(params.Body))
+		}
+	}
+
+	if totalContextCount > shared.MaxContextCount {
+		return nil, fmt.Errorf("too many contexts to update (found %d, limit is %d)", totalContextCount, shared.MaxContextCount)
+	}
+
+	if totalBodySize > shared.MaxContextBodySize {
+		return nil, fmt.Errorf("total context body size exceeds limit (size %.2f MB, limit %d MB)", float64(totalBodySize)/1024/1024, int(shared.MaxContextBodySize)/1024/1024)
+	}
+
 	var updatedContexts []*shared.Context
 
 	numFiles := 0

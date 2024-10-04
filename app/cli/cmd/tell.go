@@ -16,6 +16,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// test
 const defaultEditor = "vim"
 
 // const defaultEditor = "nano"

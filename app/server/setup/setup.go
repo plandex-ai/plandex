@@ -67,27 +67,31 @@ func StartServer(handler http.Handler) {
 		externalPort = "8080"
 	}
 
+	// Apply the maxBytesMiddleware to limit request size to 100 MB
+	handler = maxBytesMiddleware(handler, 100<<20) // 100 MB limit
+
 	// Enable CORS based on environment
-	var corsHandler http.Handler
 	if os.Getenv("GOENV") == "development" {
-		corsHandler = cors.New(cors.Options{
+		handler = cors.New(cors.Options{
 			AllowedOrigins:   []string{"*"},
-			AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE"},
+			AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 			AllowedHeaders:   []string{"Content-Type", "Authorization"},
 			AllowCredentials: true,
 		}).Handler(handler)
 	} else {
-		corsHandler = cors.New(cors.Options{
+		handler = cors.New(cors.Options{
 			AllowedOrigins:   []string{fmt.Sprintf("https://%s.plandex.ai", os.Getenv("APP_SUBDOMAIN"))},
-			AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE"},
+			AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 			AllowedHeaders:   []string{"Content-Type", "Authorization"},
 			AllowCredentials: true,
 		}).Handler(handler)
 	}
 
 	server := &http.Server{
-		Addr:    ":" + externalPort,
-		Handler: corsHandler,
+		Addr:              ":" + externalPort,
+		Handler:           handler,
+		MaxHeaderBytes:    1 << 20, // 1 MB
+		ReadHeaderTimeout: 5 * time.Second,
 	}
 
 	go func() {
@@ -147,4 +151,11 @@ func waitForActivePlans() chan struct{} {
 		}
 	}()
 	return done
+}
+
+func maxBytesMiddleware(next http.Handler, maxBytes int64) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		r.Body = http.MaxBytesReader(w, r.Body, maxBytes)
+		next.ServeHTTP(w, r)
+	})
 }

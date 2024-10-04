@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"encoding/base64"
 	"fmt"
-
 	"io"
 	"os"
 	"plandex/api"
@@ -215,6 +214,11 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 				onErr(fmt.Errorf("failed to parse input paths: %v", err))
 			}
 
+			// Add this check for the number of files
+			if len(flattenedPaths) > shared.MaxContextCount {
+				onErr(fmt.Errorf("too many files to load (found %d, limit is %d)", len(flattenedPaths), shared.MaxContextCount))
+			}
+
 			if !params.ForceSkipIgnore {
 				var filteredPaths []string
 				for _, path := range flattenedPaths {
@@ -249,6 +253,17 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 
 				numRoutines++
 				go func(path string) {
+					// File size check
+					fileInfo, err := os.Stat(path)
+					if err != nil {
+						errCh <- fmt.Errorf("failed to get file info for %s: %v", path, err)
+						return
+					}
+
+					if fileInfo.Size() > shared.MaxContextBodySize {
+						errCh <- fmt.Errorf("file %s exceeds size limit (size %.2f MB, limit %d MB)", path, float64(fileInfo.Size())/1024/1024, int(shared.MaxContextBodySize)/1024/1024)
+						return
+					}
 
 					fileContent, err := os.ReadFile(path)
 					if err != nil {
