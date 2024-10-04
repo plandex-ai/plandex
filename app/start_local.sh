@@ -15,9 +15,12 @@ if ! [ -x "$(command -v docker)" ]; then
 fi
 
 if ! [ -x "$(command -v docker-compose)" ]; then
-    echo 'Error: docker-compose is not installed.' >&2
-    echo 'Please install docker-compose before running this setup script.' >&2
-    exit 1
+    docker compose 2>&1 > /dev/null
+    if [[ $? -ne 0 ]]; then
+        echo 'Error: docker-compose is not installed.' >&2
+        echo 'Please install docker-compose before running this setup script.' >&2
+        exit 1
+    fi
 fi
 
 # make sure that we are in the same directory as the script
