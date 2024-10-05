@@ -84,7 +84,7 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 				}
 
 			}
-
+			// spew.Dump(response)
 			if len(response.Choices) == 0 {
 				log.Println("Tell: stream finished with no choices")
 				spew.Dump(response)

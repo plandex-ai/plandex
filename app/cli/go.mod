@@ -10,7 +10,7 @@ require (
 	github.com/muesli/termenv v0.15.2
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/plandex-ai/survey/v2 v2.3.7
-	github.com/sashabaranov/go-openai v1.24.0
+	github.com/sashabaranov/go-openai v1.29.0
 	github.com/spf13/cobra v1.8.0
 	golang.org/x/term v0.19.0
 )
