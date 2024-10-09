@@ -144,20 +144,22 @@ func lockRepo(params LockRepoParams, numRetry int) (string, error) {
 		}
 
 		if scope == LockScopeRead {
-			// if we're trying to acquire a read lock, we can do so unless there's a conflicting write lock
-			// a write lock is conflicting if it's for the same branch or no branch (i.e. main)
+			// if we're trying to acquire a read lock, we can do so unless there's a conflicting lock
+			// a write lock always conflicts with a read lock (regardless of branch)
+			// a read lock conflicts if it's for a different branch (since it would need to checkout a different branch in the middle of an already-running read)
 			if lock.Scope == LockScopeWrite {
-				if branch == "" || lockBranch == "" || branch == lockBranch {
+				canAcquire = false
+				break
+			} else if lock.Scope == LockScopeRead {
+				if lockBranch != branch {
 					canAcquire = false
 					break
 				}
 			}
 		} else if scope == LockScopeWrite {
-			// if we're trying to acquire a write lock, we can only do so if there's no existing lock (read or write) for the same branch (or no branch)
-			if branch == "" || lockBranch == "" || branch == lockBranch {
-				canAcquire = false
-				break
-			}
+			// if we're trying to acquire a write lock, we can only do so if there's no other lock (read or write)
+			canAcquire = false
+			break
 		} else {
 			err = fmt.Errorf("invalid lock scope: %v", scope)
 			return "", err
