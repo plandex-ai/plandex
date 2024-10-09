@@ -1,0 +1,18 @@
+# You can specify more than one package
+packages:
+  # The package path just like you would import it in Go
+  - path: "shared"
+
+    # Where this output should be written to.
+    # If you specify a folder it will be written to a file `index.ts` within that folder. By default it is written into the Golang package folder.
+    output_path: "../server/cloud/ui/node/src/types/generated.ts"
+    include_files:
+      - "data_models.go"
+      - "plan_settings.go"
+      - "streamed_change.go"
+      - "plan_status.go"
+
+    type_mappings:
+      time.Time: "string /* RFC3339 */"
+      decimal.Decimal: "string /* decimal.Decimal */"
+      openai.ImageURLDetail: '"high" | "low" | "auto"'

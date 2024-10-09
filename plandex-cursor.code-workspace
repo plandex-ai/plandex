@@ -26,9 +26,6 @@
     },
     {
       "path": "./app/server/cloud/ui/node"
-    },
-    {
-      "path": "../wizard-fork"
     }
   ],
   "settings": {
