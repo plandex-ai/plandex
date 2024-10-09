@@ -1,0 +1,3 @@
+ALTER TABLE repo_locks
+  ALTER COLUMN user_id DROP NOT NULL,
+  ALTER COLUMN org_id DROP NOT NULL;

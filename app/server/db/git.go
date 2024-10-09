@@ -127,29 +127,21 @@ func GitListBranches(orgId, planId string) ([]string, error) {
 func GitCreateBranch(orgId, planId, branch, newBranch string) error {
 	dir := getPlanDir(orgId, planId)
 
-	err := gitWriteOperation(func() error {
-		res, err := exec.Command("git", "-C", dir, "checkout", "-b", newBranch).CombinedOutput()
-		if err != nil {
-			return fmt.Errorf("error creating git branch for dir: %s, err: %v, output: %s", dir, err, string(res))
-		}
-		return nil
-	})
-
-	return err
+	res, err := exec.Command("git", "-C", dir, "checkout", "-b", newBranch).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("error creating git branch for dir: %s, err: %v, output: %s", dir, err, string(res))
+	}
+	return nil
 }
 
 func GitDeleteBranch(orgId, planId, branchName string) error {
 	dir := getPlanDir(orgId, planId)
 
-	err := gitWriteOperation(func() error {
-		res, err := exec.Command("git", "-C", dir, "branch", "-D", branchName).CombinedOutput()
-		if err != nil {
-			return fmt.Errorf("error deleting git branch for dir: %s, err: %v, output: %s", dir, err, string(res))
-		}
-		return nil
-	})
-
-	return err
+	res, err := exec.Command("git", "-C", dir, "branch", "-D", branchName).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("error deleting git branch for dir: %s, err: %v, output: %s", dir, err, string(res))
+	}
+	return nil
 }
 
 func GitClearUncommittedChanges(orgId, planId string) error {
@@ -205,17 +197,13 @@ func gitCheckoutBranch(repoDir, branch string) error {
 		return nil
 	}
 
-	err = gitWriteOperation(func() error {
-		log.Println("checking out branch:", branch)
-		res, err := exec.Command("git", "-C", repoDir, "checkout", branch).CombinedOutput()
-		if err != nil {
-			return fmt.Errorf("error checking out git branch for dir: %s, err: %v, output: %s", repoDir, err, string(res))
-		}
+	log.Println("checking out branch:", branch)
+	res, err := exec.Command("git", "-C", repoDir, "checkout", branch).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("error checking out git branch for dir: %s, err: %v, output: %s", repoDir, err, string(res))
+	}
 
-		return nil
-	})
-
-	return err
+	return nil
 }
 
 func gitRewindToSha(repoDir, sha string) error {

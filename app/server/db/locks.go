@@ -192,13 +192,19 @@ func lockRepo(params LockRepoParams, numRetry int) (string, error) {
 	}
 
 	newLock := &repoLock{
-		OrgId:       orgId,
-		UserId:      userId,
 		PlanId:      planId,
 		PlanBuildId: lockPlanBuildId,
 		Scope:       scope,
 		Branch:      lockBranch,
 	}
+
+	if orgId != "" {
+		newLock.OrgId = &orgId
+	}
+	if userId != "" {
+		newLock.UserId = &userId
+	}
+
 	// log.Println("newLock:")
 	// spew.Dump(newLock)
 
