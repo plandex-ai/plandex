@@ -229,12 +229,12 @@ func lockRepo(params LockRepoParams, numRetry int) (string, error) {
 		return "", fmt.Errorf("error removing lock file: %v", err)
 	}
 
-	branches, err := GitListBranches(orgId, planId)
-	if err != nil {
-		return "", fmt.Errorf("error getting branches: %v", err)
-	}
+	// branches, err := GitListBranches(orgId, planId)
+	// if err != nil {
+	// 	return "", fmt.Errorf("error getting branches: %v", err)
+	// }
 
-	log.Println("branches:", branches)
+	// log.Println("branches:", branches)
 
 	if branch != "" {
 		// checkout the branch

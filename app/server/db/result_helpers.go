@@ -301,6 +301,25 @@ func GetPlanFileResults(orgId, planId string) ([]*PlanFileResult, error) {
 	return results, nil
 }
 
+func GetPlanFileResultById(orgId, planId, resultId string) (*PlanFileResult, error) {
+	resultsDir := getPlanResultsDir(orgId, planId)
+
+	bytes, err := os.ReadFile(filepath.Join(resultsDir, resultId+".json"))
+
+	if err != nil {
+		return nil, fmt.Errorf("error reading result file: %v", err)
+	}
+
+	var result PlanFileResult
+	err = json.Unmarshal(bytes, &result)
+
+	if err != nil {
+		return nil, fmt.Errorf("error unmarshalling result file: %v", err)
+	}
+
+	return &result, nil
+}
+
 func GetPlanResult(planFileResults []*shared.PlanFileResult) *shared.PlanResult {
 	resByPath := make(shared.PlanFileResultsByPath)
 	replacementsByPath := make(map[string][]*shared.Replacement)
