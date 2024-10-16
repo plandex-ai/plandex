@@ -67,6 +67,25 @@ func GetPlanConvo(orgId, planId string) ([]*ConvoMessage, error) {
 	return convo, nil
 }
 
+func GetConvoMessage(orgId, planId, messageId string) (*ConvoMessage, error) {
+	convoDir := getPlanConversationDir(orgId, planId)
+
+	filePath := filepath.Join(convoDir, messageId+".json")
+
+	bytes, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("error reading convo message: %v", err)
+	}
+
+	var convoMessage ConvoMessage
+	err = json.Unmarshal(bytes, &convoMessage)
+	if err != nil {
+		return nil, fmt.Errorf("error unmarshalling convo message: %v", err)
+	}
+
+	return &convoMessage, nil
+}
+
 func StoreConvoMessage(message *ConvoMessage, currentUserId, branch string, commit bool) (string, error) {
 	convoDir := getPlanConversationDir(message.OrgId, message.PlanId)
 

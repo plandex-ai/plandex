@@ -11,7 +11,11 @@ import (
 
 func ApplyReplacements(content string, replacements []*Replacement, setFailed bool) (string, bool) {
 	apply := func(replacements []*Replacement) (string, int) {
+		// log.Println("Applying replacements")
+		// log.Println("original content:\n", content)
+
 		updated := content
+
 		lastInsertedIdx := 0
 
 		for i, replacement := range replacements {
@@ -43,8 +47,8 @@ func ApplyReplacements(content string, replacements []*Replacement, setFailed bo
 				}
 
 				log.Println("Replacement failed at index:", i)
-				// log.Println("Replacement:")
-				// log.Println(spew.Sdump(replacement))
+				log.Println("replacement.Old:")
+				log.Println(replacement.Old)
 
 				// log.Println("Updated:")
 				// log.Println(updated)
@@ -170,7 +174,7 @@ func (planState *CurrentPlanState) GetFilesBeforeReplacement(
 				updated = context.Body
 				shas[path] = context.Sha
 
-				log.Println("setting updated content to context body")
+				// log.Println("setting updated content to context body")
 				// log.Println(updated)
 			}
 

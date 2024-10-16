@@ -48,6 +48,16 @@ func lockRepo(params LockRepoParams, numRetry int) (string, error) {
 	ctx := params.Ctx
 	cancelFn := params.CancelFn
 
+	if orgId == "" {
+		return "", fmt.Errorf("orgId is required")
+	}
+	if planId == "" {
+		return "", fmt.Errorf("planId is required")
+	}
+	if scope != LockScopeRead && scope != LockScopeWrite {
+		return "", fmt.Errorf("invalid lock scope: %s", scope)
+	}
+
 	tx, err := Conn.BeginTxx(ctx, &sql.TxOptions{Isolation: sql.LevelRepeatableRead})
 	if err != nil {
 		return "", fmt.Errorf("error starting transaction: %v", err)
@@ -193,14 +203,12 @@ func lockRepo(params LockRepoParams, numRetry int) (string, error) {
 
 	newLock := &repoLock{
 		PlanId:      planId,
+		OrgId:       orgId,
 		PlanBuildId: lockPlanBuildId,
 		Scope:       scope,
 		Branch:      lockBranch,
 	}
 
-	if orgId != "" {
-		newLock.OrgId = &orgId
-	}
 	if userId != "" {
 		newLock.UserId = &userId
 	}

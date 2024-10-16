@@ -250,7 +250,7 @@ func (fileState *activeBuildStreamFileState) onBuildResult(res types.ChangesWith
 			ConvoMessageId:      build.ConvoMessageId,
 			FilePath:            filePath,
 			PreBuildState:       preBuildState,
-			ChangesWithLineNums: res.Changes,
+			ChangesWithLineNums: sorted,
 			OverlapStrategy:     overlapStrategy,
 			CheckSyntax:         false,
 		},

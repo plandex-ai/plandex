@@ -48,7 +48,7 @@ func (streamedChange StreamedChangeWithLineNums) GetLines() (int, int, error) {
 	if streamedChange.Old.StartLineString == "" {
 		startLine = streamedChange.Old.StartLine
 	} else {
-		startLine, err = extractLineNumber(streamedChange.Old.StartLineString)
+		startLine, err = ExtractLineNumber(streamedChange.Old.StartLineString)
 
 		if err != nil {
 			log.Printf("Error extracting start line number: %v\n", err)
@@ -63,7 +63,7 @@ func (streamedChange StreamedChangeWithLineNums) GetLines() (int, int, error) {
 			endLine = startLine
 		}
 	} else {
-		endLine, err = extractLineNumber(streamedChange.Old.EndLineString)
+		endLine, err = ExtractLineNumber(streamedChange.Old.EndLineString)
 
 		if err != nil {
 			log.Printf("Error extracting end line number: %v\n", err)
@@ -84,12 +84,9 @@ func (streamedChange StreamedChangeWithLineNums) GetLines() (int, int, error) {
 	return startLine, endLine, nil
 }
 
-func extractLineNumber(line string) (int, error) {
+func ExtractLineNumber(line string) (int, error) {
 	// Split the line at the first space to isolate the line number
 	parts := strings.SplitN(line, " ", 2)
-	if len(parts) < 2 {
-		return 0, fmt.Errorf("invalid line format")
-	}
 
 	// Remove the colon from the line number part
 	lineNumberStr := strings.TrimSuffix(parts[0], ":")

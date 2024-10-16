@@ -103,6 +103,43 @@ func GetLatestCommit(orgId, planId, branch string) (sha, body string, err error)
 	return sha, body, nil
 }
 
+func GetLatestCommitShaBeforeTime(orgId, planId, branch string, before time.Time) (sha string, err error) {
+	dir := getPlanDir(orgId, planId)
+
+	log.Printf("ADMIN - GetLatestCommitShaBeforeTime - dir: %s, before: %s", dir, before.Format("2006-01-02T15:04:05Z"))
+
+	// Round up to the next second
+	// roundedTime := before.Add(time.Second).Truncate(time.Second)
+
+	gitFormattedTime := before.Format("2006-01-02 15:04:05+0000")
+
+	// log.Printf("ADMIN - Git formatted time: %s", gitFormattedTime)
+
+	cmd := exec.Command("git", "-C", dir, "log", "-n", "1",
+		"--before="+gitFormattedTime,
+		"--pretty=%h@@|@@%B@>>>@")
+	log.Printf("ADMIN - Executing command: %s", cmd.String())
+	res, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("error getting latest commit before time for dir: %s, err: %v, output: %s", dir, err, string(res))
+	}
+
+	// log.Printf("ADMIN - git log res: %s", string(res))
+
+	output := strings.TrimSpace(string(res))
+
+	// history := processGitHistoryOutput(strings.TrimSpace(string(res)))
+
+	// log.Printf("ADMIN - History: %v", history)
+
+	if output == "" {
+		return "", fmt.Errorf("no commits found before time: %s", before.Format("2006-01-02T15:04:05Z"))
+	}
+
+	sha = strings.Split(output, "@@|@@")[0]
+	return sha, nil
+}
+
 func GitListBranches(orgId, planId string) ([]string, error) {
 	dir := getPlanDir(orgId, planId)
 
@@ -124,7 +161,7 @@ func GitListBranches(orgId, planId string) ([]string, error) {
 	return branches, nil
 }
 
-func GitCreateBranch(orgId, planId, branch, newBranch string) error {
+func GitCreateBranch(orgId, planId, newBranch string) error {
 	dir := getPlanDir(orgId, planId)
 
 	res, err := exec.Command("git", "-C", dir, "checkout", "-b", newBranch).CombinedOutput()
@@ -174,9 +211,14 @@ func GitClearUncommittedChanges(orgId, planId string) error {
 }
 
 // Not used currently but may be good to handle these errors specifically later if locking can't fully prevent them
-// func isLockFileError(output string) bool {
-// 	return strings.Contains(output, "fatal: Unable to create") && strings.Contains output, ".git/index.lock': File exists")
-// }
+//
+//	func isLockFileError(output string) bool {
+//		return strings.Contains(output, "fatal: Unable to create") && strings.Contains output, ".git/index.lock': File exists")
+//	}
+func GitCheckoutBranch(orgId, planId, branch string) error {
+	dir := getPlanDir(orgId, planId)
+	return gitCheckoutBranch(dir, branch)
+}
 
 func gitCheckoutBranch(repoDir, branch string) error {
 	// get current branch and only checkout if it's not the same
@@ -186,6 +228,9 @@ func gitCheckoutBranch(repoDir, branch string) error {
 	cmd.Stdout = &out
 	err := cmd.Run()
 	if err != nil {
+		// log output
+		log.Printf("error getting current git branch for dir: %s, err: %v, output: %s", repoDir, err, out.String())
+
 		return fmt.Errorf("error getting current git branch for dir: %s, err: %v", repoDir, err)
 	}
 

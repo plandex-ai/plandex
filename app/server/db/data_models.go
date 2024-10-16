@@ -280,7 +280,7 @@ const (
 
 type repoLock struct {
 	Id              string    `db:"id"`
-	OrgId           *string   `db:"org_id"`
+	OrgId           string    `db:"org_id"`
 	UserId          *string   `db:"user_id"`
 	PlanId          string    `db:"plan_id"`
 	Scope           LockScope `db:"scope"`

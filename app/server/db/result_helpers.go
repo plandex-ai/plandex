@@ -162,7 +162,7 @@ func GetCurrentPlanState(params CurrentPlanStateParams) (*shared.CurrentPlanStat
 		pendingContextsByPath[path] = context.ToApi()
 	}
 
-	log.Println("Pending contexts by path:", len(pendingContextsByPath))
+	// log.Println("Pending contexts by path:", len(pendingContextsByPath))
 
 	planState := &shared.CurrentPlanState{
 		PlanResult:               planResult,
