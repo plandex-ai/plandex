@@ -66,15 +66,23 @@ func Capitalize(s string) string {
 }
 
 func AddLineNums(s string) string {
+	return AddLineNumsWithPrefix(s, "pdx-")
+}
+
+func AddLineNumsWithPrefix(s, prefix string) string {
 	var res string
 	for i, line := range strings.Split(s, "\n") {
-		res += fmt.Sprintf("pdx-%d: %s\n", i+1, line)
+		res += fmt.Sprintf("%s%d: %s\n", prefix, i+1, line)
 	}
 	return res
 }
 
 func RemoveLineNums(s string) string {
-	return regexp.MustCompile(`(?m)^pdx-\d+: `).ReplaceAllString(s, "")
+	return RemoveLineNumsWithPrefix(s, "pdx-")
+}
+
+func RemoveLineNumsWithPrefix(s, prefix string) string {
+	return regexp.MustCompile(fmt.Sprintf(`(?m)^%s\d+: `, prefix)).ReplaceAllString(s, "")
 }
 
 // indexRunes searches for the slice of runes `needle` in the slice of runes `haystack`

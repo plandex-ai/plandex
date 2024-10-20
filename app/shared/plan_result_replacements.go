@@ -50,8 +50,8 @@ func ApplyReplacements(content string, replacements []*Replacement, setFailed bo
 				log.Println("replacement.Old:")
 				log.Println(replacement.Old)
 
-				// log.Println("Updated:")
-				// log.Println(updated)
+				log.Println("Updated:")
+				log.Println(updated)
 
 				// log.Println("All replacements:")
 				// log.Println(spew.Sdump(replacements))

@@ -41,7 +41,7 @@ func (fileState *activeBuildStreamFileState) onFixResult(res types.ChangesWithLi
 		var jStartLine int
 
 		// Convert the line number part to an integer
-		iStartLine, _, err := sorted[i].GetLines()
+		iStartLine, _, err := sorted[i].Old.GetLines()
 
 		if err != nil {
 			log.Printf("listenStream - Error getting start line for change %v: %v\n", sorted[i], err)
@@ -49,7 +49,7 @@ func (fileState *activeBuildStreamFileState) onFixResult(res types.ChangesWithLi
 			return false
 		}
 
-		jStartLine, _, err = sorted[j].GetLines()
+		jStartLine, _, err = sorted[j].Old.GetLines()
 
 		if err != nil {
 			log.Printf("listenStream - Error getting start line for change %v: %v\n", sorted[j], err)

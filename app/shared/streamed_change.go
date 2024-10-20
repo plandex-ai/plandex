@@ -26,6 +26,35 @@ type StreamedChangeWithLineNums struct {
 	New                        string                `json:"new"`
 }
 
+type StreamedChangeWithLineNumsUpdated struct {
+	Summary                    string                `json:"summary"`
+	Reasoning                  string                `json:"reasoning"`
+	Section                    string                `json:"section"`
+	NewReasoning               string                `json:"newReasoning"`
+	OrderReasoning             string                `json:"orderReasoning"`
+	StructureReasoning         string                `json:"structureReasoning"`
+	ClosingSyntaxReasoning     string                `json:"closingSyntaxReasoning"`
+	InsertBefore               *InsertBefore         `json:"insertBefore"`
+	InsertAfter                *InsertAfter          `json:"insertAfter"`
+	HasChange                  bool                  `json:"hasChange"`
+	Old                        StreamedChangeSection `json:"old"`
+	StartLineIncludedReasoning string                `json:"startLineIncludedReasoning"`
+	StartLineIncluded          bool                  `json:"startLineIncluded"`
+	EndLineIncludedReasoning   string                `json:"endLineIncludedReasoning"`
+	EndLineIncluded            bool                  `json:"endLineIncluded"`
+	New                        StreamedChangeSection `json:"new"`
+}
+
+type InsertBefore struct {
+	ShouldInsertBefore bool   `json:"shouldInsertBefore"`
+	Line               string `json:"line"`
+}
+
+type InsertAfter struct {
+	ShouldInsertAfter bool   `json:"shouldInsertAfter"`
+	Line              string `json:"line"`
+}
+
 // type StreamedChangeFull struct {
 // 	Summary string `json:"summary"`
 // 	Old     string `json:"old"`
@@ -37,18 +66,24 @@ type StreamedVerifyFunction struct {
 	IsCorrect bool   `json:"isCorrect"`
 }
 
-func (streamedChange StreamedChangeWithLineNums) GetLines() (int, int, error) {
+func (streamedChangeSection StreamedChangeSection) GetLines() (int, int, error) {
+	return streamedChangeSection.GetLinesWithPrefix("pdx-")
+}
+
+func (streamedChangeSection StreamedChangeSection) GetLinesWithPrefix(prefix string) (int, int, error) {
 	var startLine, endLine int
 	var err error
 
-	if streamedChange.Old.EntireFile {
+	if streamedChangeSection.EntireFile {
 		return 1, -1, nil
 	}
 
-	if streamedChange.Old.StartLineString == "" {
-		startLine = streamedChange.Old.StartLine
+	if streamedChangeSection.StartLineString == "" {
+		log.Printf("StartLineString is empty\n")
+		// spew.Dump(streamedChangeSection)
+		startLine = streamedChangeSection.StartLine
 	} else {
-		startLine, err = ExtractLineNumber(streamedChange.Old.StartLineString)
+		startLine, err = ExtractLineNumberWithPrefix(streamedChangeSection.StartLineString, prefix)
 
 		if err != nil {
 			log.Printf("Error extracting start line number: %v\n", err)
@@ -56,20 +91,24 @@ func (streamedChange StreamedChangeWithLineNums) GetLines() (int, int, error) {
 		}
 	}
 
-	if streamedChange.Old.EndLineString == "" {
-		if streamedChange.Old.EndLine > 0 {
-			endLine = streamedChange.Old.EndLine
+	if streamedChangeSection.EndLineString == "" {
+		log.Printf("EndLineString is empty\n")
+		// spew.Dump(streamedChangeSection)
+		if streamedChangeSection.EndLine > 0 {
+			endLine = streamedChangeSection.EndLine
 		} else {
 			endLine = startLine
 		}
 	} else {
-		endLine, err = ExtractLineNumber(streamedChange.Old.EndLineString)
+		endLine, err = ExtractLineNumberWithPrefix(streamedChangeSection.EndLineString, prefix)
 
 		if err != nil {
 			log.Printf("Error extracting end line number: %v\n", err)
 			return 0, 0, fmt.Errorf("error extracting end line number: %v", err)
 		}
 	}
+
+	log.Printf("StartLine: %d, EndLine: %d\n", startLine, endLine)
 
 	if startLine > endLine {
 		log.Printf("Start line is greater than end line: %d > %d\n", startLine, endLine)
@@ -85,12 +124,16 @@ func (streamedChange StreamedChangeWithLineNums) GetLines() (int, int, error) {
 }
 
 func ExtractLineNumber(line string) (int, error) {
+	return ExtractLineNumberWithPrefix(line, "pdx-")
+}
+
+func ExtractLineNumberWithPrefix(line, prefix string) (int, error) {
 	// Split the line at the first space to isolate the line number
 	parts := strings.SplitN(line, " ", 2)
 
 	// Remove the colon from the line number part
 	lineNumberStr := strings.TrimSuffix(parts[0], ":")
-	lineNumberStr = strings.TrimPrefix(lineNumberStr, "pdx-")
+	lineNumberStr = strings.TrimPrefix(lineNumberStr, prefix)
 	if lineNumberStr == "" {
 		return 0, fmt.Errorf("no line number found")
 	}
