@@ -81,6 +81,31 @@ func GitRewindToSha(orgId, planId, branch, sha string) error {
 	return nil
 }
 
+func GetCurrentCommitSha(orgId, planId string) (sha string, err error) {
+	dir := getPlanDir(orgId, planId)
+
+	cmd := exec.Command("git", "-C", dir, "rev-parse", "HEAD")
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("error getting current commit SHA for dir: %s, err: %v", dir, err)
+	}
+
+	sha = strings.TrimSpace(string(output))
+	return sha, nil
+}
+
+func GitResetToSha(orgId, planId, sha string) error {
+	dir := getPlanDir(orgId, planId)
+
+	cmd := exec.Command("git", "-C", dir, "reset", "--hard", sha)
+	_, err := cmd.Output()
+	if err != nil {
+		return fmt.Errorf("error resetting git repository to SHA for dir: %s, sha: %s, err: %v", dir, sha, err)
+	}
+
+	return nil
+}
+
 func GetGitCommitHistory(orgId, planId, branch string) (body string, shas []string, err error) {
 	dir := getPlanDir(orgId, planId)
 
