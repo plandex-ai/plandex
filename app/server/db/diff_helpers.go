@@ -132,7 +132,7 @@ func GetPlanDiffs(orgId, planId string, plain bool) (string, error) {
 	return string(res), nil
 }
 
-func GetDiffsForBuild(original, updated string) (string, error) {
+func GetDiffs(original, updated string) (string, error) {
 	// create temp directory
 	tempDirPath, err := os.MkdirTemp("", "tmp-diffs-*")
 
@@ -156,7 +156,9 @@ func GetDiffsForBuild(original, updated string) (string, error) {
 		return "", fmt.Errorf("error writing updated file: %v", err)
 	}
 
-	res, err := exec.Command("git", "-C", tempDirPath, "diff", "--no-color", "--no-index", "original", "updated").CombinedOutput()
+	cmd := exec.Command("git", "-C", tempDirPath, "diff", "--no-color", "--no-index", "original", "updated")
+
+	res, err := cmd.CombinedOutput()
 
 	if err != nil {
 		exitError, ok := err.(*exec.ExitError)
