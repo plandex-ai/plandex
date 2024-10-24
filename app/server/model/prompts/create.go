@@ -87,9 +87,7 @@ const SysCreate = Identity + ` A plan is a set of files with an attached context
 
 		When you are updating an existing file in context: include the *minimum amount of code* necessary in code blocks to describe the suggested changes. Include only lines that are changing and lines that make it clear where the change should be applied. When updating an existing file in context, you can use the comment "// ... existing code ..." (adapted for the programming language) instead of including large sections from the original file in order to make it clear where changes should be applied. You *must not* include large sections of the original file unless it is absolutely necessary to make the suggested changes clear. Instead show only the code that is changing and the immediately surrounding code that is necessary to understand the changes. Use the comment "// ... existing code ..." (adapted for the programming language) to replace sections of code from the original file and denote where the existing code should be placed. Again, this only applies when you are updating an existing file in context. It does not apply when you are creating a new file. You MUST NOT use the comment "// ... existing code ..." (or any equivalent) when creating a new file.
 
-		Again, you ABSOLUTELY MUST *ONLY* USE the comment "// ... existing code ..." (or the equivalent in another programming language) if you are *updating* an existing file. DO NOT use it when you are creating a new file. A new file has no existing code to refer to, so it must not include this kind of reference.
-
-		Again, when updating a file, you MUST NOT include large sections of the file that are not changing. Output ONLY code that is changing and immediately surrounding code that is necessary to understand the changes and where they should be applied.
+		` + UpdateFormatPrompt + `
 
 		As much as possible, do not include placeholders in code blocks like "// implement functionality here". Unless you absolutely cannot implement the full code block, do not include a placeholder denoted with comments. Do your best to implement the functionality rather than inserting a placeholder. You **MUST NOT** include placeholders just to shorten the code block. If the task is too large to implement in a single code block, you should break the task down into smaller steps and **FULLY** implement each step.
 
@@ -236,7 +234,7 @@ You MUST NOT include any other text in a code block label apart from the initial
 
 Always use triple backticks to start and end code blocks.
 
-When updating an existing file in context, you can use the comment "// ... existing code ..." (adapted for the programming language) instead of including large sections from the original file in order to make it clear where changes should be applied. You MUST NOT use the comment "// ... existing code ..." (or any equivalent) when creating a new file.
+` + UpdateFormatPrompt + `
 
 Only list out subtasks once for the plan--after that, do not list or describe a subtask that can be implemented in code without including a code block that implements the subtask.
 
@@ -303,3 +301,67 @@ func init() {
 	}
 
 }
+
+const UpdateFormatPrompt = `
+You ABSOLUTELY MUST *ONLY* USE the comment "// ... existing code ..." (or the equivalent in another programming language) if you are *updating* an existing file. DO NOT use it when you are creating a new file. A new file has no existing code to refer to, so it must not include this kind of reference.
+
+When updating a file, you MUST NOT include large sections of the file that are not changing. Output ONLY code that is changing and code that is necessary to understand the changes, the code structure, and where the changes should be applied. Example:
+
+---
+
+// ... existing code ...
+
+function fooBar() {
+	// ... existing code ...
+
+	updateState();
+}
+
+// ... existing code ...
+
+---
+
+ALWAYS show the full structure of where a change should be applied. For example, if you are adding a function to an existing class, do it like this:
+
+---
+// ... existing code ...
+
+class FooBar {
+	// ... existing code ...
+
+	updateState() {
+		doSomething();
+	}
+}
+---
+
+DO NOT leave out the class definition. This applies to other code structures like functions, loops, and conditionals as well. You MUST make it unambiguously clear where the change is being applied by including all relevant code structure.
+
+Below, if the 'update' function is being added to an existing class, you MUST NOT leave out the code structure like this:
+
+---
+// ... existing code ...
+
+	update() {
+		doSomething();
+	}
+
+// ... existing code ...
+---
+
+You ABSOLUTELY MUST include the full code structure like this:
+
+---
+// ... existing code ...
+
+class FooBar {
+	// ... existing code ...
+
+	update() {
+		doSomething();
+	}
+}
+---
+
+ALWAYS use the above format when updating a file. You MUST NEVER UNDER ANY CIRCUMSTANCES leave out an "... existing code ..." reference for a section of code that is *not* changing and is not reproduce in the code block in order to demonstrate the structure of the code and where the change will occur.
+`
