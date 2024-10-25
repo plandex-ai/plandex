@@ -282,7 +282,7 @@ func (fileState *activeBuildStreamFileState) buildFile() {
 		activeBuild.CurrentFileTokens = currentNumTokens
 	}
 
-	fileState.buildFileLineNums()
+	fileState.buildExpandReferences()
 }
 
 func (fileState *activeBuildStreamFileState) buildFileLineNums() {

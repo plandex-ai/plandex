@@ -159,18 +159,16 @@ var AvailableModelsByName = map[string]*AvailableModel{}
 var OpenRouterClaude3Dot5SonnetGPT4oModelPack ModelPack
 var OpenRouterClaude3Dot5SonnetModelPack ModelPack
 var Gpt4oLatestModelPack ModelPack
-var Gpt4o8062024ModelPack ModelPack
 var GoogleGeminiModelPack ModelPack
 
 var BuiltInModelPacks = []*ModelPack{
-	&Gpt4o8062024ModelPack,
 	&Gpt4oLatestModelPack,
 	&OpenRouterClaude3Dot5SonnetModelPack,
 	&OpenRouterClaude3Dot5SonnetGPT4oModelPack,
 	&GoogleGeminiModelPack,
 }
 
-var DefaultModelPack *ModelPack = &Gpt4oLatestModelPack
+var DefaultModelPack *ModelPack = &OpenRouterClaude3Dot5SonnetGPT4oModelPack
 
 func getPlannerModelConfig(name string) PlannerModelConfig {
 	return PlannerModelConfig{
@@ -332,7 +330,7 @@ func init() {
 		},
 		Builder: ModelRoleConfig{
 			Role:            ModelRoleBuilder,
-			BaseModelConfig: AvailableModelsByName[openai.GPT4o].BaseModelConfig,
+			BaseModelConfig: AvailableModelsByName["anthropic/claude-3.5-sonnet"].BaseModelConfig,
 			Temperature:     DefaultConfigByRole[ModelRoleBuilder].Temperature,
 			TopP:            DefaultConfigByRole[ModelRoleBuilder].TopP,
 		},

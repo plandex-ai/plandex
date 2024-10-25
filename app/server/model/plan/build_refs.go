@@ -6,7 +6,6 @@ import (
 	"log"
 	"math/rand"
 	"plandex-server/db"
-	"plandex-server/external/diff"
 	"plandex-server/hooks"
 	"plandex-server/model"
 	"plandex-server/model/prompts"
@@ -139,6 +138,9 @@ func (fileState *activeBuildStreamFileState) buildExpandReferences() {
 	refsChoice := resp.Choices[0]
 	refsXml := refsChoice.Message.Content
 
+	log.Println("buildExpandReferences - refsXml:")
+	log.Println(refsXml)
+
 	refsSplit := strings.Split(refsXml, "<references>")
 	if len(refsSplit) != 2 {
 		log.Printf("buildExpandReferences - error processing references xml\n")
@@ -224,14 +226,11 @@ func (fileState *activeBuildStreamFileState) buildExpandReferences() {
 
 	fileState.updated = updatedFile
 
-	edits := diff.Strings(originalFile, updatedFile)
-	replacements := []*shared.Replacement{}
-	for _, edit := range edits {
-		old := originalFile[edit.Start:edit.End]
-		replacements = append(replacements, &shared.Replacement{
-			Old: old,
-			New: edit.New,
-		})
+	replacements, err := db.GetDiffReplacements(originalFile, updatedFile)
+	if err != nil {
+		log.Printf("buildExpandReferences - error getting diff replacements: %v\n", err)
+		fileState.expandRefsRetryOrError(fmt.Errorf("error getting diff replacements: %v", err))
+		return
 	}
 
 	res := db.PlanFileResult{
@@ -243,7 +242,7 @@ func (fileState *activeBuildStreamFileState) buildExpandReferences() {
 		Content:        "",
 		Path:           filePath,
 		Replacements:   replacements,
-		CanVerify:      true,
+		CanVerify:      false, // not sure yet whether verification is needed with ref expansion
 	}
 
 	validationRes, err := syntax.Validate(activePlan.Ctx, filePath, updatedFile)

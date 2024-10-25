@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"time"
 
 	"plandex-server/db"
 	"plandex-server/hooks"
@@ -75,11 +76,14 @@ func execTellPlan(
 		})
 
 		if apiErr != nil {
+			time.Sleep(100 * time.Millisecond)
+			active.StreamDoneCh <- apiErr
 			return
 		}
 	}
 
 	planId := plan.Id
+	log.Println("execTellPlan - Setting plan status to replying")
 	err := db.SetPlanStatus(planId, branch, shared.PlanStatusReplying, "")
 	if err != nil {
 		log.Printf("Error setting plan %s status to replying: %v\n", planId, err)
@@ -92,6 +96,7 @@ func execTellPlan(
 		log.Printf("execTellPlan: execTellPlan operation completed for plan ID %s on branch %s, iteration %d\n", plan.Id, branch, iteration)
 		return
 	}
+	log.Println("execTellPlan - Plan status set to replying")
 
 	state := &activeTellStreamState{
 		clients:                clients,
@@ -106,10 +111,12 @@ func execTellPlan(
 		currentReplyNumRetries: numErrorRetry,
 	}
 
+	log.Println("execTellPlan - Loading tell plan")
 	err = state.loadTellPlan()
 	if err != nil {
 		return
 	}
+	log.Println("execTellPlan - Tell plan loaded")
 
 	if iteration == 0 && missingFileResponse == "" {
 		UpdateActivePlan(planId, branch, func(ap *types.ActivePlan) {
