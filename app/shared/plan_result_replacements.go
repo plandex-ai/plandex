@@ -10,18 +10,30 @@ import (
 )
 
 func ApplyReplacements(content string, replacements []*Replacement, setFailed bool) (string, bool) {
+	return applyReplacements(content, replacements, setFailed, false)
+}
+
+func ApplyReplacementsVerbose(content string, replacements []*Replacement, setFailed bool) (string, bool) {
+	return applyReplacements(content, replacements, setFailed, true)
+}
+
+func applyReplacements(content string, replacements []*Replacement, setFailed, verbose bool) (string, bool) {
 	apply := func(replacements []*Replacement) (string, int) {
-		// log.Println("Applying replacements")
-		// log.Println("original content:\n", content)
+		if verbose {
+			log.Println("Applying replacements")
+			log.Println("original content:\n", content)
+		}
 
 		updated := content
 
 		lastInsertedIdx := 0
 
 		for i, replacement := range replacements {
-			// log.Println("replacement.Old:\n", replacement.Old)
-			// log.Println("updated:\n", updated)
-			// log.Println("lastInsertedIdx:", lastInsertedIdx)
+			if verbose {
+				log.Println("replacement.Old:\n", replacement.Old)
+				log.Println("updated:\n", updated)
+				log.Println("lastInsertedIdx:", lastInsertedIdx)
+			}
 
 			pre := updated[:lastInsertedIdx]
 			sub := updated[lastInsertedIdx:]
@@ -34,7 +46,9 @@ func ApplyReplacements(content string, replacements []*Replacement, setFailed bo
 				originalIdx = strings.Index(sub, replacement.Old)
 			}
 
-			// log.Println("originalIdx:", originalIdx)
+			if verbose {
+				log.Println("originalIdx:", originalIdx)
+			}
 
 			// only for use with full replacements, which we aren't using now
 			// if originalIdx == -1 {
@@ -53,8 +67,10 @@ func ApplyReplacements(content string, replacements []*Replacement, setFailed bo
 				log.Println("Updated:")
 				log.Println(updated)
 
-				// log.Println("All replacements:")
-				// log.Println(spew.Sdump(replacements))
+				if verbose {
+					log.Println("All replacements:")
+					log.Println(spew.Sdump(replacements))
+				}
 
 				return updated, i
 
@@ -62,20 +78,25 @@ func ApplyReplacements(content string, replacements []*Replacement, setFailed bo
 				updated = replacement.New
 				lastInsertedIdx = 0
 			} else {
-				// log.Printf("originalIdx: %d, len(replacement.Old): %d\n", originalIdx, len(replacement.Old))
-				// log.Println("Old: ", replacement.Old)
-				// log.Println("New: ", replacement.New)
+				if verbose {
+					log.Printf("originalIdx: %d, len(replacement.Old): %d\n", originalIdx, len(replacement.Old))
+					log.Println("Old: ", replacement.Old)
+					log.Println("New: ", replacement.New)
+				}
 				replaced := strings.Replace(sub, replacement.Old, replacement.New, 1)
 
-				// log.Println("replaced:")
-				// log.Println(replaced)
+				if verbose {
+					log.Println("replaced:")
+					log.Println(replaced)
+				}
 
 				updated = pre + replaced
 
-				// log.Printf("lastInsertedIdx: %d, originalIdx: %d, len(replacement.New): %d\n", lastInsertedIdx, originalIdx, len(replacement.New))
-
-				// log.Println("updated after replacement:")
-				// log.Println(updated)
+				if verbose {
+					log.Printf("lastInsertedIdx: %d, originalIdx: %d, len(replacement.New): %d\n", lastInsertedIdx, originalIdx, len(replacement.New))
+					log.Println("updated after replacement:")
+					log.Println(updated)
+				}
 
 				lastInsertedIdx = lastInsertedIdx + originalIdx + len(replacement.New)
 			}
@@ -122,6 +143,8 @@ func (planState *CurrentPlanState) GetFiles() (*CurrentPlanFiles, error) {
 func (planState *CurrentPlanState) GetFilesBeforeReplacement(
 	replacementId string,
 ) (*CurrentPlanFiles, error) {
+	// log.Println("GetFilesBeforeReplacement")
+
 	planRes := planState.PlanResult
 
 	files := make(map[string]string)
@@ -130,8 +153,8 @@ func (planState *CurrentPlanState) GetFilesBeforeReplacement(
 
 	for path, planResults := range planRes.FileResultsByPath {
 		updated := files[path]
-		log.Println("path: ", path)
-		log.Println("planResults: ", len(planResults))
+		// log.Println("path: ", path)
+
 		// spew.Dump(planResults)
 		// log.Println("before PlanResLoop updated:")
 		// log.Println(updated)
@@ -155,16 +178,12 @@ func (planState *CurrentPlanState) GetFilesBeforeReplacement(
 				files[path] = updated
 				updatedAtByPath[path] = planRes.CreatedAt
 
-				// log.Println("No replacements for plan result -- creating file and continuing loop")
-
 				continue
 			} else if updated == "" {
 				context := planState.ContextsByPath[path]
 
 				if context == nil {
-					log.Printf("No context for path: %s\n", path)
-
-					spew.Dump(planRes)
+					// spew.Dump(planRes)
 
 					return nil, fmt.Errorf("no context for path: %s", path)
 				}
@@ -190,10 +209,6 @@ func (planState *CurrentPlanState) GetFilesBeforeReplacement(
 			}
 
 			if len(replacements) > 0 {
-				// log.Println("Applying replacements: ")
-				// for _, replacement := range replacements {
-				// 	log.Println(replacement.Id)
-				// }
 
 				var allSucceeded bool
 
