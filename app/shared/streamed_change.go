@@ -32,8 +32,7 @@ type StreamedChangeWithLineNumsUpdated struct {
 	Section                    string                `json:"section"`
 	NewReasoning               string                `json:"newReasoning"`
 	OrderReasoning             string                `json:"orderReasoning"`
-	StructureReasoning         string                `json:"structureReasoning"`
-	ClosingSyntaxReasoning     string                `json:"closingSyntaxReasoning"`
+	StructureReasoning         StructureReasoning    `json:"structureReasoning"`
 	InsertBefore               *InsertBefore         `json:"insertBefore"`
 	InsertAfter                *InsertAfter          `json:"insertAfter"`
 	HasChange                  bool                  `json:"hasChange"`
@@ -43,6 +42,17 @@ type StreamedChangeWithLineNumsUpdated struct {
 	EndLineIncludedReasoning   string                `json:"endLineIncludedReasoning"`
 	EndLineIncluded            bool                  `json:"endLineIncluded"`
 	New                        StreamedChangeSection `json:"new"`
+}
+
+type StructureReasoning struct {
+	Old Structure `json:"old"`
+	New Structure `json:"new"`
+}
+
+type Structure struct {
+	Structure       string `json:"structure"`
+	StructureOpens  string `json:"structureOpens"`
+	StructureCloses string `json:"structureCloses"`
 }
 
 type InsertBefore struct {

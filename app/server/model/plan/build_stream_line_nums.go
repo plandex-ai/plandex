@@ -51,7 +51,7 @@ func (fileState *activeBuildStreamFileState) listenStreamChangesWithLineNums(str
 				ModelProvider: fileState.settings.ModelPack.Builder.BaseModelConfig.Provider,
 				ModelPackName: fileState.settings.ModelPack.Name,
 				ModelRole:     shared.ModelRoleBuilder,
-				Purpose:       "Generated file update",
+				Purpose:       "Generated file update (line numbers)",
 			},
 		})
 
@@ -219,8 +219,8 @@ func (fileState *activeBuildStreamFileState) listenStreamChangesWithLineNums(str
 
 				streamFinished = true // Stream finished successfully
 
-				log.Printf("listenStream - File %s: calling onBuildResult\n", filePath)
-				fileState.onBuildResult(streamed)
+				log.Printf("listenStream - File %s: calling onLineNumsBuildResult\n", filePath)
+				fileState.onLineNumsBuildResult(streamed)
 
 				// Reset the timer for the usage chunk
 				if !timer.Stop() {

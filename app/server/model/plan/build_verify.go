@@ -56,7 +56,7 @@ func (fileState *activeBuildStreamFileState) verifyFileBuild() {
 
 	var diff string
 	if verifyState.preBuildFileState != "" {
-		diff, err = db.GetDiffsForBuild(verifyState.preBuildFileState, updated)
+		diff, err = db.GetDiffs(verifyState.preBuildFileState, updated)
 
 		if err != nil {
 			log.Printf("Error getting diffs for file '%s': %v\n", filePath, err)

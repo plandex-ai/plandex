@@ -374,15 +374,16 @@ func (fileState *activeBuildStreamFileState) buildFileLineNums() {
 		Temperature:    config.Temperature,
 		TopP:           config.TopP,
 		ResponseFormat: responseFormat,
-		StreamOptions: &openai.StreamOptions{
-			IncludeUsage: true,
-		},
 	}
 
 	envVar := config.BaseModelConfig.ApiKeyEnvVar
 	client := clients[envVar]
 
 	if config.BaseModelConfig.HasStreamingFunctionCalls {
+		modelReq.StreamOptions = &openai.StreamOptions{
+			IncludeUsage: true,
+		}
+
 		stream, err := model.CreateChatCompletionStreamWithRetries(client, activePlan.Ctx, modelReq)
 		if err != nil {
 			log.Printf("Error creating plan file stream for path '%s': %v\n", filePath, err)
@@ -390,7 +391,6 @@ func (fileState *activeBuildStreamFileState) buildFileLineNums() {
 			return
 		}
 
-		log.Printf("File %s: calling listenStreamChangesWithLineNums\n", filePath)
 		go fileState.listenStreamChangesWithLineNums(stream)
 	} else {
 
@@ -402,6 +402,28 @@ func (fileState *activeBuildStreamFileState) buildFileLineNums() {
 		if err != nil {
 			log.Printf("Error building file '%s': %v\n", filePath, err)
 			fileState.onBuildFileError(fmt.Errorf("error building file '%s': %v", filePath, err))
+			return
+		}
+
+		log.Println("buildFileLineNums - usage:")
+		spew.Dump(resp.Usage)
+
+		_, apiErr = hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
+			Auth: auth,
+			Plan: fileState.plan,
+			DidSendModelRequestParams: &hooks.DidSendModelRequestParams{
+				InputTokens:   resp.Usage.PromptTokens,
+				OutputTokens:  resp.Usage.CompletionTokens,
+				ModelName:     fileState.settings.ModelPack.Builder.BaseModelConfig.ModelName,
+				ModelProvider: fileState.settings.ModelPack.Builder.BaseModelConfig.Provider,
+				ModelPackName: fileState.settings.ModelPack.Name,
+				ModelRole:     shared.ModelRoleBuilder,
+				Purpose:       "Generated file update (ref expansion)",
+			},
+		})
+
+		if apiErr != nil {
+			activePlan.StreamDoneCh <- apiErr
 			return
 		}
 
@@ -419,7 +441,7 @@ func (fileState *activeBuildStreamFileState) buildFileLineNums() {
 
 		if s == "" {
 			log.Println("no ListReplacements function call found in response")
-			fileState.lineNumsRetryOrError(fmt.Errorf("No ListReplacements function call found in response. This usually means the model failed to generate a valid response."))
+			fileState.lineNumsRetryOrError(fmt.Errorf("no ListReplacements function call found in response"))
 			return
 		}
 
@@ -428,14 +450,10 @@ func (fileState *activeBuildStreamFileState) buildFileLineNums() {
 		err = json.Unmarshal(bytes, &res)
 		if err != nil {
 			log.Printf("Error unmarshalling build response: %v\n", err)
-			fileState.lineNumsRetryOrError(fmt.Errorf("Error unmarshalling build response: %v | This usually means the model failed to generate valid JSON.", err))
+			fileState.lineNumsRetryOrError(fmt.Errorf("error unmarshalling build response: %v", err))
 			return
 		}
 
-		// log the file path
-		log.Printf("File %s: calling onBuildResult after non-streaming build\n", filePath)
-
-		fileState.onBuildResult(res)
+		fileState.onLineNumsBuildResult(res)
 	}
-
 }

@@ -115,7 +115,7 @@ func (fileState *activeBuildStreamFileState) listenStreamVerifyOutput(stream *op
 
 			if len(response.Choices) == 0 {
 				if response.Usage != nil {
-					log.Println("Fix stream usage:")
+					log.Println("Verify stream usage:")
 					spew.Dump(response.Usage)
 
 					_, apiErr := hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{

@@ -29,6 +29,7 @@ require (
 	github.com/tadvi/systray v0.0.0-20190226123456-11a2b8fa57af // indirect
 	go.uber.org/atomic v1.11.0 // indirect
 	golang.org/x/image v0.19.0 // indirect
+	golang.org/x/mod v0.11.0 // indirect
 	golang.org/x/sys v0.24.0 // indirect
 )
 
@@ -42,6 +43,7 @@ require (
 	github.com/lib/pq v1.10.9
 	github.com/rs/cors v1.11.0
 	github.com/smacker/go-tree-sitter v0.0.0-20240625050157-a31a98a7c0f6
+	golang.org/x/tools v0.10.0
 )
 
 replace github.com/plandex/plandex/shared => ../shared

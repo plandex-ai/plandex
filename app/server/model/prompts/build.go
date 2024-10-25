@@ -143,7 +143,25 @@ The 'summary' property is a brief summary of the change.
 
 The 'newReasoning' property evaluates what needs to be included in the 'new' section to ensure that *ALL* the code from the *proposed changes* are correctly applied to the resulting file. Carefully consider whether the code from the *proposed updates* contain code structures that need to be properly closed in the resulting file. For example, "the <Route> tag needs to be closed properly in the resulting file, so the 'new' section should end on the closing tag at pdx-new-10: </Route>".
 
-The 'structureReasoning' property list the code structures that are involved in the change. Explain what kind of change should be used to ensure that the code structures are closed properly. For example, if a new method should be added to the end of a class, explain that the change should use the 'insertBefore' property in order to ensure that the method is added *before* the closing brace of the class so that the method stays inside the class and both the method and the class are closed properly.
+The 'structureReasoning' property is an object with 2 properties: 'old' and 'new'.
+
+	The 'old' property is an object with 3 properties: 'structure', 'structureOpens', and 'structureCloses'.
+		
+		'structure' is the *code structure* (e.g. 'function', 'class', 'loop', 'conditional', etc.) that this change is contained by. If the change is not contained within a code structure and is instead at the top level of the file, output 'top level'. This must be the MOST specific, deeply nested code structure that contains the change. You must output only a single structure or 'top level'. Identify the structure unambiguously. If a structure is being *replaced*, the 'structure' property must identify the exact structure that is being replaced. If new code is being added to a structure, the 'structure' property must identify the structure that the new code is being added to.
+
+		'structureOpens' is the entire line from the *original file* that contains the opening symbol of the code structure identified in the 'structure' property, including the line number prefixed with 'pdx-'. Empty if the code structure is 'top level'.
+
+		'structureCloses' is the entire line from the *original file* that contains the closing symbol of the code structure identified in the 'structure' property, including the line number prefixed with 'pdx-'. Empty if the code structure is 'top level'.
+
+		When determining 'structureOpens' and 'structureCloses' properties for 'old', evaluate both the *original file* AND the *proposed updates* to help you identify the correct closing symbol.
+
+	The 'new' property is an object with 3 properties: 'structure', 'structureOpens', and 'structureCloses'.
+
+		'structure' is the *code structure* (e.g. 'function', 'class', 'loop', 'conditional', etc.) in the *proposed updates* that should be inserted. If the code that should be inserted is 'flat' and not contained within a code structure, either because the *proposed updates* themselves are 'flat' or because surrounding code structures in the *proposed updates* are already contained by the *original file*, output 'flat'. If you output a structure and not 'flat', it must be the MOST specific, deeply nested code structure that contains the new code to be inserted. You must output only a single structure or 'flat'. Identify the structure unambiguously. 
+
+		'structureOpens' is the entire line from the *proposed updates* that contains the opening symbol of the code structure identified in the 'structure' property, including the line number prefixed with 'pdx-new-'. Must be an EXACT MATCH to a line from the *proposed updates*. Empty if the code structure is 'flat'.
+
+		'structureCloses' is the entire line from the *proposed updates* that contains the closing symbol of the code structure identified in the 'structure' property, including the line number prefixed with 'pdx-new-'. Must be an EXACT MATCH to a line from the *proposed updates*. Empty if the code structure is 'flat'.
 
 If you are adding new code to the *end* of an existing code structure (and not replacing any existing code), you must use the 'insertBefore' property to add the new code before the closing symbol of the existing code structure.
 
@@ -241,7 +259,7 @@ Expand the lines the 'new' property refers to in the *proposed updates* where ne
 
 If the code from the 'new' section should fully replace the code from the 'old' property, say "Fully replace" and stop.
 
-If the 'old' section spans multiple lines of the *original file*, say "Multiple lins, don't include." and stop.
+If the 'old' section spans multiple lines of the *original file*, say "Multiple lines, don't include." and stop.
 
 Otherwise, if the code from the 'old' property is a *single line* and it's not in the *proposed updates*, state this. In that case, proceed to evaluate whether the code from the old property makes more sense at the beginning or end of the change from the new property. State which makes more sense and why. For example, "The closing </Routes> tag should be included in the final result. It should be added *after* the 'new' code from the *proposed updates*.
 
@@ -303,7 +321,7 @@ You MUST also explicitly state the *order* that all the changes you've listed wi
 `
 
 const originalSectionsPrompt = `
-The 'originalSections' key is an array of objects with four properties: 'description', 'reasoning', 'sectionStartLine', 'sectionEndLine', 'shouldChange', and 'shouldRemove'. In the 'originalSections' key you must logically divide the *original file* into sections based on functionality, logic, code structure, and general organization. 
+The 'originalSections' key is an array of objects with four properties: 'description', 'structure', 'reasoning', 'sectionStartLine', 'sectionEndLine', 'shouldChange', and 'shouldRemove'. In the 'originalSections' key you must logically divide the *original file* into sections based on functionality, logic, code structure, and general organization. 
 
 You must list every section that exists in the *original file*. When large sections of the *original file* are not changing, combine them into a single section. Only include sections from the *original file*. Do NOT include sections from the *proposed updates*.
 
@@ -311,13 +329,20 @@ Don't make the sections overly small and granular unless there is a clear semant
 
 'description' is a brief summary of the section and its purpose.
 
-'reasoning' is a brief evaluation of how this section relates to the *proposed updates*, and whether all or any part of it will be changed, removed, or preserved as is. If only part of the section should be changed, explain which part(s) will change and which will remain the same, and further explain how you will avoid incorrectly removing or overwriting code that should not be removed.
+'structure' is an object with three properties: 'structure', 'structureOpens', and 'structureCloses'.
+	'structure' is the OUTERMOST code structure (namespace, class, function, etc.) of the section. State whether the full structure is contained within the section or whether the section only contains part of the structure. If the seciton is not contained within a structure, output 'top level'.
+	
+	'structureOpens' is the entire line from the *original file* that contains the opening symbol of the code structure identified in the 'structure' property, including the line number prefixed with 'pdx-'. Empty if the code structure is 'top level'. Empty if the the section does not contain the opening symbol of the identified structure. If the section clearly contains an entire structure, like "SomeClass definition", then the 'structureOpens' property must be set and must be the line that opens the structure.
+
+	'structureCloses' is the entire line from the *original file* that contains the closing symbol of the code structure identified in the 'structure' property, including the line number prefixed with 'pdx-'. Empty if the code structure is 'top level'. Empty if the the section does not contain the closing symbol of the identified structure. If the secton clearly contains an entire structure, like "SomeClass definition", then the 'structureCloses' property must be set and must be the line that closes the structure.
+
+'reasoning' is a brief evaluation of how this section relates to the *proposed updates*, and whether all or any part of it will be changed, removed, or preserved as is. If only part of the section should be changed, explain which part(s) will change and which parts will remain the same, and further explain how you will avoid incorrectly removing or overwriting code that should not be removed.
 
 Anytime there is a partial change to a section, it is CRITICAL that you explain BOTH which parts of the section should be *changed* and which parts will be *preserved* and how you will ensure this when generating changes below. You MUST include this explanation in the 'reasoning' key when there's a partial change. It must begin with "To avoid removing". If new code is being added, note *where* in the section it will be added, and include line numbers prefixed with 'pdx-'. For example, "To avoid removing any existing imports, the new imports will be added after the existing imports, which end on pdx-5." or "To avoid removing any existing init code, the new code for checking the GOENV environment variable will be added before the existing init code, which starts on pdx-10."
 
-'sectionStartLine' is the line number, prefixed with 'pdx-', where the section begins in the *original file*. Include only the line number, not the line itself.
+'sectionStartLine' is the line number, prefixed with 'pdx-', where the section begins in the *original file*. Include only the line number, not the line itself. If 'structure.structureOpens' is not empty, 'sectionStartLine' MUST be the same as 'structure.structureOpens'.
 
-'sectionEndLine' is the line number, prefixed with 'pdx-', where the section ends in the *original file*. Include only the line number, not the line itself.
+'sectionEndLine' is the line number, prefixed with 'pdx-', where the section ends in the *original file*. Include only the line number, not the line itself. If 'structure.structureCloses' is not empty, 'sectionEndLine' MUST be the same as 'structure.structureCloses'.
 
 'shouldChange' is a boolean that indicates whether the section should be changed.
 

@@ -339,8 +339,8 @@ func GetPlanResultUpdated(ctx context.Context, params PlanResultParamsUpdated) (
 	return &res, updated, allSucceeded, nil
 }
 
-func (fileState *activeBuildStreamFileState) onBuildResult(res types.ChangesWithLineNums) {
-	log.Printf("onBuildResult - File: %s\n", fileState.filePath)
+func (fileState *activeBuildStreamFileState) onLineNumsBuildResult(res types.ChangesWithLineNums) {
+	log.Printf("onLineNumsBuildResult - File: %s\n", fileState.filePath)
 
 	filePath := fileState.filePath
 	build := fileState.build
@@ -352,7 +352,7 @@ func (fileState *activeBuildStreamFileState) onBuildResult(res types.ChangesWith
 	activePlan := GetActivePlan(planId, branch)
 
 	if activePlan == nil {
-		log.Printf("onBuildResult - File %s: Active plan not found for plan ID %s on branch %s\n", filePath, planId, branch)
+		log.Printf("onLineNumsBuildResult - File %s: Active plan not found for plan ID %s on branch %s\n", filePath, planId, branch)
 		return
 	}
 
@@ -372,24 +372,24 @@ func (fileState *activeBuildStreamFileState) onBuildResult(res types.ChangesWith
 		iStartLine, _, err := sorted[i].Old.GetLines()
 
 		if err != nil {
-			log.Printf("onBuildResult - File %s: Error getting start line for change %v: %v\n", filePath, sorted[i], err)
-			fileState.lineNumsRetryOrError(fmt.Errorf("onBuildResult - error getting start line for change %v: %v", sorted[i], err))
+			log.Printf("onLineNumsBuildResult - File %s: Error getting start line for change %v: %v\n", filePath, sorted[i], err)
+			fileState.lineNumsRetryOrError(fmt.Errorf("onLineNumsBuildResult - error getting start line for change %v: %v", sorted[i], err))
 			return false
 		}
 
 		jStartLine, _, err = sorted[j].Old.GetLines()
 
 		if err != nil {
-			log.Printf("onBuildResult - File %s: Error getting start line for change %v: %v\n", filePath, sorted[j], err)
-			fileState.lineNumsRetryOrError(fmt.Errorf("onBuildResult - error getting start line for change %v: %v", sorted[j], err))
+			log.Printf("onLineNumsBuildResult - File %s: Error getting start line for change %v: %v\n", filePath, sorted[j], err)
+			fileState.lineNumsRetryOrError(fmt.Errorf("onLineNumsBuildResult - error getting start line for change %v: %v", sorted[j], err))
 			return false
 		}
 
 		return iStartLine < jStartLine
 	})
 
-	log.Printf("onBuildResult - File %s: fileState.streamedChangesWithLineNums = sorted\n", filePath)
-	log.Printf("onBuildResult - File %s: num changes: %d\n", filePath, len(sorted))
+	log.Printf("onLineNumsBuildResult - File %s: fileState.streamedChangesWithLineNums = sorted\n", filePath)
+	log.Printf("onLineNumsBuildResult - File %s: num changes: %d\n", filePath, len(sorted))
 
 	fileState.streamedChangesWithLineNums = sorted
 
@@ -414,20 +414,20 @@ func (fileState *activeBuildStreamFileState) onBuildResult(res types.ChangesWith
 	)
 
 	if err != nil {
-		log.Printf("onBuildResult - File %s: Error getting plan result: %v\n", filePath, err)
-		fileState.lineNumsRetryOrError(fmt.Errorf("onBuildResult - error getting plan result for file '%s': %v", filePath, err))
+		log.Printf("onLineNumsBuildResult - File %s: Error getting plan result: %v\n", filePath, err)
+		fileState.lineNumsRetryOrError(fmt.Errorf("onLineNumsBuildResult - error getting plan result for file '%s': %v", filePath, err))
 		return
 	}
 
 	if !allSucceeded {
-		log.Printf("onBuildResult - File %s: Failed replacements:\n", filePath)
+		log.Printf("onLineNumsBuildResult - File %s: Failed replacements:\n", filePath)
 		for _, replacement := range planFileResult.Replacements {
 			if replacement.Failed {
 				spew.Dump(replacement)
 			}
 		}
 
-		fileState.onBuildFileError(fmt.Errorf("onBuildResult - replacements failed for file '%s'", filePath))
+		fileState.onBuildFileError(fmt.Errorf("onLineNumsBuildResult - replacements failed for file '%s'", filePath))
 		return
 	}
 
@@ -444,8 +444,8 @@ func (fileState *activeBuildStreamFileState) onBuildResult(res types.ChangesWith
 
 	fileState.updated = updatedFile
 
-	log.Printf("onBuildResult - File %s: Plan file result: %v\n", filePath, planFileResult != nil)
-	log.Printf("onBuildResult - File %s: updatedFile exists: %v\n", filePath, updatedFile != "")
+	log.Printf("onLineNumsBuildResult - File %s: Plan file result: %v\n", filePath, planFileResult != nil)
+	log.Printf("onLineNumsBuildResult - File %s: updatedFile exists: %v\n", filePath, updatedFile != "")
 
 	fileState.onFinishBuildFile(planFileResult, updatedFile)
 }

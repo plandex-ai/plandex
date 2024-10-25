@@ -27,12 +27,14 @@ type activeBuildStreamState struct {
 
 type activeBuildStreamFileState struct {
 	*activeBuildStreamState
-	filePath           string
-	convoMessageId     string
-	build              *db.PlanBuild
-	currentPlanState   *shared.CurrentPlanState
-	activeBuild        *types.ActiveBuild
-	preBuildState      string
+	filePath         string
+	convoMessageId   string
+	build            *db.PlanBuild
+	currentPlanState *shared.CurrentPlanState
+	activeBuild      *types.ActiveBuild
+	preBuildState    string
+
+	expandRefsNumRetry int
 	lineNumsNumRetry   int
 	verifyFileNumRetry int
 	fixFileNumRetry    int

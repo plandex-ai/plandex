@@ -471,18 +471,20 @@ func (desc *ConvoMessageDescription) ToApi() *shared.ConvoMessageDescription {
 }
 
 type PlanFileResult struct {
-	Id                  string                `json:"id"`
-	TypeVersion         int                   `json:"typeVersion"`
-	ReplaceWithLineNums bool                  `json:"replaceWithLineNums"`
-	OrgId               string                `json:"orgId"`
-	PlanId              string                `json:"planId"`
-	ConvoMessageId      string                `json:"convoMessageId"`
-	PlanBuildId         string                `json:"planBuildId"`
-	Path                string                `json:"path"`
-	Content             string                `json:"content,omitempty"`
-	Replacements        []*shared.Replacement `json:"replacements"`
-	AnyFailed           bool                  `json:"anyFailed"`
-	Error               string                `json:"error"`
+	Id                  string `json:"id"`
+	TypeVersion         int    `json:"typeVersion"`
+	ReplaceWithLineNums bool   `json:"replaceWithLineNums"`
+	OrgId               string `json:"orgId"`
+	PlanId              string `json:"planId"`
+	ConvoMessageId      string `json:"convoMessageId"`
+	PlanBuildId         string `json:"planBuildId"`
+	Path                string `json:"path"`
+	Content             string `json:"content,omitempty"`
+
+	Replacements []*shared.Replacement `json:"replacements"`
+
+	AnyFailed bool   `json:"anyFailed"`
+	Error     string `json:"error"`
 
 	CanVerify    bool       `json:"canVerify"`
 	RanVerifyAt  *time.Time `json:"ranVerifyAt,omitempty"`
