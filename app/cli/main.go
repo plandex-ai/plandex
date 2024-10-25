@@ -25,6 +25,7 @@ func init() {
 
 	term.SetOpenAuthenticatedURLFn(ui.OpenAuthenticatedURL)
 	term.SetOpenUnauthenticatedCloudURLFn(ui.OpenUnauthenticatedCloudURL)
+	term.SetConvertTrialFn(auth.ConvertTrial)
 
 	lib.SetBuildPlanInlineFn(func(maybeContexts []*shared.Context) (bool, error) {
 		var apiKeys map[string]string

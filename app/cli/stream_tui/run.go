@@ -22,7 +22,8 @@ var prestartAbort bool
 
 func StartStreamUI(prompt string, buildOnly bool) error {
 	if prestartErr != nil {
-		term.OutputErrorAndExit("Server error: " + prestartErr.Msg)
+		log.Println("stream UI - prestart error: ", prestartErr)
+		term.HandleApiError(prestartErr)
 	}
 
 	if prestartAbort {
@@ -64,13 +65,16 @@ func StartStreamUI(prompt string, buildOnly bool) error {
 	}
 
 	if mod.err != nil {
+		log.Println("stream UI - error: ", mod.err)
+
 		fmt.Println()
 		term.OutputErrorAndExit(mod.err.Error())
 	}
 
 	if mod.apiErr != nil {
-		fmt.Println()
+		log.Println("stream UI - api error: ", mod.apiErr)
 
+		fmt.Println()
 		term.HandleApiError(mod.apiErr)
 	}
 

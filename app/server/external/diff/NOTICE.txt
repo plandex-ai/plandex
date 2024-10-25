@@ -1,3 +1,0 @@
-This package is copied from https://github.com/golang/tools/tree/master/internal/diff
-
-Unneeded code has been removed. License is included in the LICENSE file of this directory.
