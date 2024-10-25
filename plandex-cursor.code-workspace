@@ -29,6 +29,7 @@
     }
   ],
   "settings": {
-    "git.ignoreLimitWarning": true
+    "git.ignoreLimitWarning": true,
+    "git.enabled": false
   }
 }
