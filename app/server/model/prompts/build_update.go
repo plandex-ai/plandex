@@ -105,13 +105,13 @@ You are an AI that analyzes an *original file* and *proposed updates* to that fi
 
 		**structure**: The *code structure* (e.g. 'function', 'class', 'loop', 'conditional', etc.) that this reference is contained within. If it's not contained within a code structure and is instead at the top level of the file, output 'top level'. This must be the MOST specific, deeply nested code structure that contains the reference. You must output only a single structure or 'top level'. Identify the structure unambiguously.
 
-		**structureOpens**: The entire line from the *original file*, prefixed by 'pdx-', that contains the opening symbol of the code structure identified in the 'structure' property.
+		**structureOpens**: The entire line from the *original file*, prefixed by 'pdx-', that contains the opening symbol of the code structure identified in the 'structure' property. If the structure is 'top level', this MUST be an empty string. Otherwise, it MUST be a line that exists in the *original file* and MUST ALWAYS be prefixed by 'pdx-' (never pdx-new-).
 
-		**structureCloses**: The entire line from the *original file*, prefixed by 'pdx-', that contains the closing symbol of the code structure identified in the 'structure' property.
+		**structureCloses**: The entire line from the *original file*, prefixed by 'pdx-', that contains the closing symbol of the code structure identified in the 'structure' property. If the structure is 'top level', this MUST be an empty string. Otherwise, it MUST be a line that exists in the *original file* and MUST ALWAYS be prefixed by 'pdx-' (never pdx-new-).
 
-		**originalStart**: The starting line number, prefixed by 'pdx-', in the *original file* that the reference is referring to. MUST be less than or equal to the 'originalEnd' line number and MUST be greater than or equal to 1. 
+		**originalStart**: The starting line number, prefixed by 'pdx-', in the *original file* that the reference is referring to. MUST be less than or equal to the 'originalEnd' line number and MUST be greater than or equal to 1. MUST be a line that exists in the *original file* and MUST ALWAYS be prefixed by 'pdx-' (never pdx-new-).
 
-		**originalEnd**: The ending line number, prefixed by 'pdx-', in the *original file* that the reference is referring to. If the referenced code in the *original file* is a single line, the originalStart and originalEnd must be the same. 'originalEnd' MUST be greater than or equal to 'originalStart' and MUST be less than or equal to the last line number in the *original file*.
+		**originalEnd**: The ending line number, prefixed by 'pdx-', in the *original file* that the reference is referring to. If the referenced code in the *original file* is a single line, the originalStart and originalEnd must be the same. 'originalEnd' MUST be greater than or equal to 'originalStart' and MUST be less than or equal to the last line number in the *original file*. MUST be a line that exists in the *original file* and MUST ALWAYS be prefixed by 'pdx-' (never pdx-new-).
 
   **Example:**
 
@@ -200,6 +200,8 @@ You are an AI that analyzes an *original file* and *proposed updates* to that fi
 
 	If there are no clear references in the *proposed updates*, output an empty <references> element. The *proposed updates* often will not inlcude any reference comments. In that case, output an empty <references> element. Do NOT include reference comments that are not present in the *proposed updates* or comments that are not clearly references to a block of code in the *original file* that is left out of the *proposed updates* for the sake of focusing on the specific change that is being made.
 
+	*
+
 	You MUST carefully consider code structures when determining the 'originalStart' and 'originalEnd' lines for a reference. If a reference looks like this:
 
 	pdx-new-1: class MyClass {
@@ -211,6 +213,8 @@ You are an AI that analyzes an *original file* and *proposed updates* to that fi
 	pdx-new-7: }
 
 	The the reference ONLY refers to the code within the 'MyClass' class. If there is additional code before or after the 'MyClass' class, it must not be included. The same applies to other code structures, like functions, loops, conditionals, etc.
+
+	*
 	
 	When setting the 'originalStart' and 'originalEnd' lines for a reference, it is critically important that the code referenced in the *original file* falls COMPLETELY *within* the code structure specified in the 'structure' attribute. Do NOT include the lines that open or close the code structure in the 'originalStart' and 'originalEnd' lines, since these already exist in the *proposed updates*. Only the lines that *do not already exist* in the *proposed updates* can be included in the reference.
 
@@ -226,6 +230,8 @@ You are an AI that analyzes an *original file* and *proposed updates* to that fi
 	pdx-new-8: }
 
 	Then the '// ... existing code ...' reference must include ALL code from the *original file* inside the 'MyClass' structure. The 'originalStart' must be one line *after* the 'structureOpens' line and the 'originalEnd' must be one line *before* the 'structureCloses' line.
+
+	*
 	
 	Similarly, if a reference comes at the end of a structure, preceded by new or changed code, like this:
 
@@ -238,6 +244,8 @@ You are an AI that analyzes an *original file* and *proposed updates* to that fi
 	pdx-new-7: }
 
 	Then the '// ... existing code ...' reference must include ALL code from the *original file* inside the 'MyClass' structure. The 'originalStart' must be one line *after* the 'structureOpens' line and the 'originalEnd' must be one line *before* the 'structureCloses' line.
+
+	*
 
 	If a structure has references at both the beginning and the end, with new or changed code in between, like this:
 
@@ -256,9 +264,102 @@ You are an AI that analyzes an *original file* and *proposed updates* to that fi
 	
 	The last "pdx-new-9: // ... existing code ..." reference must include ALL code from the *original file* inside the 'MyClass' structure that should come *after* the new code. The 'originalEnd' of the last reference must be one line *before* the 'structureCloses' line.
 	
-	In cases like this with multiple references within the same structure, you MUST NOT duplicate code in any of the references. Taken together, the references must cover the entire 'MyClass' structure with no code from the *original file* repeated or left out.
+	In cases like the above example with multiple references within the same structure, you MUST NOT duplicate code in any of the references. Taken together, the references must cover the entire 'MyClass' structure with no code from the *original file* repeated or left out.
+
+  *
 
 	If there are commented out lines that still logically belong to a section that is referenced, you MUST include those lines in the reference.
+
+	You MUST ensure that each reference includes the full logical section that it describes, including any comments that are part of that section. For example, if the description of a reference is "Imports", the reference must include *all* import statements in the section up to the next line that is included in the *proposed updates*, regardless of line breaks, comments, commented out imports, etc.
+
+	For example, if the original file has:
+
+	pdx-1: import { something } from "some-package";
+	pdx-2: import { anotherThing } from "another-package";
+	pdx-3: // import "another";
+	pdx-4:
+	pdx-5:
+	pdx-6: import "yet-another-package";
+	pdx-7: import { exec } from "exec-package";
+	pdx-8:
+	pdx-9: function main() {
+	pdx-10:   exec();
+	pdx-11: }
+
+	And the *proposed updates* have:
+
+	pdx-new-1: // ... existing code ...
+	pdx-new-2: import { logger } from "logger-package";
+	pdx-new-3:
+	pdx-new-4: function main() {
+	pdx-new-5:   exec();
+	pdx-new-6:   logger.info("Hello, world!");
+	pdx-new-7: }
+
+	Then the reference should look like this:
+
+	<references>
+		<reference 
+			comment="// ... existing code ..."
+			description="Imports"
+			proposedLine="pdx-new-1"
+			structure="top level"
+			structureOpens=""
+			structureCloses=""
+			originalStart="pdx-1"
+			originalEnd="pdx-7"
+		/>
+	</references>
+
+	Note that ALL the import statements are included in the reference.
+
+	*
+
+	If a reference *includes* a code structure, DO NOT treat the reference as if it were *inside* the code structure. For example, if the *original file* has:
+
+	pdx-1: class MyClass { 
+	pdx-2:   function update() {
+	pdx-3:     const conn = await getConnection();
+	pdx-4:     const res = await execUpdate(conn);
+	pdx-5:   }
+	pdx-6: }
+	pdx-7:
+	pdx-8: class AnotherClass {
+	pdx-9:   function doSomething() {
+	pdx-10:     const conn = getConnection();
+	pdx-11:     const res = execUpdate(conn);
+	pdx-12:   }
+	pdx-13: }
+
+	And the *proposed updates* have:
+
+	pdx-new-1: class MyClass {
+	pdx-new-2:   function update() {
+	pdx-new-3:     const conn = getConnection();
+	pdx-new-4:     const res = execUpdate(conn);
+	pdx-new-5:   }
+	pdx-new-6: }
+	pdx-new-7:
+	pdx-new-8: // ... existing code ...
+	
+	Then the "// ... existing code ..." reference must include the *entire* 'AnotherClass' structure, including the class definition and closing brace. Do NOT treat the reference as if it were *inside* the 'AnotherClass' structure.
+
+	The reference for the above example would look like this:
+
+	<references>
+		<reference 
+			comment="// ... existing code ..."
+			description="AnotherClass"
+			proposedLine="pdx-new-8"
+			structure="top level"
+			structureOpens=""
+			structureCloses=""
+			originalStart="pdx-8"
+			originalEnd="pdx-13"
+		/>
+	</references>
+
+	*
 
 	Do not include any additional text in your final output. Only output the references.
 `
