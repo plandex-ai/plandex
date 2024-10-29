@@ -19,68 +19,22 @@ type Anchor struct {
 
 type TreeSitterSection []*tree_sitter.Node
 
-const verboseLogging = false
-
-func (s TreeSitterSection) String(sourceLines []string, bytes []byte) string {
-	if verboseLogging {
-		fmt.Println("\n=== section.String START ===")
-		fmt.Printf("Section has %d nodes\n", len(s))
-
-		for i, node := range s {
-			fmt.Printf("Node %d:\n", i)
-			fmt.Printf("  Type: %s\n", node.Type())
-			fmt.Printf("  StartPoint: row=%d col=%d\n", node.StartPoint().Row, node.StartPoint().Column)
-			fmt.Printf("  EndPoint: row=%d col=%d\n", node.EndPoint().Row, node.EndPoint().Column)
-			fmt.Printf("  Content: %q\n", node.Content(bytes))
-		}
-	}
-
-	var b strings.Builder
-	lines := map[int]bool{}
-	for i, node := range s {
-		lineNum := int(node.StartPoint().Row)
-		if verboseLogging {
-			fmt.Printf("Adding line %d from node %d\n", lineNum, i)
-		}
-		lines[lineNum] = true
-	}
-
-	var lineNums []int
-	for lineNum := range lines {
-		lineNums = append(lineNums, lineNum)
-	}
-	sort.Ints(lineNums)
-	if verboseLogging {
-		fmt.Printf("Sorted line numbers: %v\n", lineNums)
-	}
-
-	for _, lineNum := range lineNums {
-		idx := lineNum
-		line := sourceLines[idx]
-		if verboseLogging {
-			fmt.Printf("Writing line %d: %q\n", idx, line)
-		}
-		b.WriteString(line)
-		if idx < len(sourceLines)-1 {
-			if verboseLogging {
-				fmt.Printf("Adding newline after line %d\n", idx)
-			}
-			b.WriteByte('\n')
-		}
-	}
-
-	result := b.String()
-	if verboseLogging {
-		fmt.Printf("Final result: %q\n", result)
-		fmt.Println("=== section.String END ===")
-	}
-	return result
-}
+const verboseLogging = true
 
 func ApplyReferences(ctx context.Context, original, proposed string, references []Reference, parser *tree_sitter.Parser) (string, error) {
 	var b strings.Builder
 
-	matchCurrentN := map[string]int{}
+	write := func(s string, newline bool) {
+		if verboseLogging {
+			fmt.Printf("writing: %q\n", s)
+			fmt.Printf("newline: %v\n", newline)
+		}
+
+		b.WriteString(s)
+		if newline {
+			b.WriteByte('\n')
+		}
+	}
 
 	originalLines := strings.Split(original, "\n")
 	proposedLines := strings.Split(proposed, "\n")
@@ -103,13 +57,12 @@ func ApplyReferences(ctx context.Context, original, proposed string, references 
 	originalNodesByLine := buildNodeIndex(originalTree)
 	proposedNodesByLine := buildNodeIndex(proposedTree)
 
-	originalLinesCache := map[string][]Anchor{}
-	findAnchors := func(s string, pNode *tree_sitter.Node) []Anchor {
-		if idxs, ok := originalLinesCache[s]; ok {
-			return idxs
-		}
-		var result []Anchor
+	findNextAnchor := func(s string, pNode *tree_sitter.Node, fromLine int) *Anchor {
 		for idx, line := range originalLines {
+			if idx < fromLine {
+				continue
+			}
+
 			if strings.TrimSpace(line) == "" {
 				continue
 			}
@@ -134,17 +87,21 @@ func ApplyReferences(ctx context.Context, original, proposed string, references 
 					fmt.Printf("found match: num: %d, endLineNum: %d\n", idx+1, endLineNum)
 				}
 				// fmt.Println(oNode.Content(originalBytes))
-				result = append(result, Anchor{Open: idx + 1, Close: endLineNum})
+				return &Anchor{Open: idx + 1, Close: endLineNum}
 			}
 		}
-		originalLinesCache[s] = result
-		return result
+		return nil
 	}
 
 	proposedUpdatesHaveLine := func(line string, afterLine int) bool {
 		for idx, pLine := range proposedLines {
-			lineNum := idx + 1
-			if lineNum > afterLine && pLine == line {
+			pLineNum := idx + 1
+
+			// if verboseLogging {
+			// 	fmt.Printf("proposedUpdatesHaveLine - lineNum: %d, line: %s, pLine: %s, afterLine: %d\n", pLineNum, line, pLine, afterLine)
+			// }
+
+			if pLineNum > afterLine && pLine == line {
 				return true
 			}
 		}
@@ -153,34 +110,97 @@ func ApplyReferences(ctx context.Context, original, proposed string, references 
 
 	var oLineNum int = 1
 
+	setOLineNum := func(n int) {
+		oLineNum = n
+		if verboseLogging {
+			fmt.Printf("setting oLineNum: %d\n", oLineNum)
+		}
+	}
+
 	var refOpen bool
 	var refStart int
 	var refOriginalParent *tree_sitter.Node
 	var postRefBuffers []strings.Builder
 	closingLinesByPLineNum := map[int]int{}
 	var noMatchUntilStructureClose string
+	depth := 0
 
-	writeRefs := func() {
+	writeToLatestPostRefBuffer := func(s string) {
+		latestBuffer := &postRefBuffers[len(postRefBuffers)-1]
+		latestBuffer.WriteString(s)
+		latestBuffer.WriteByte('\n')
+
+		if verboseLogging {
+			fmt.Printf("writing to latest postRefBuffer: %s\n", s)
+		}
+	}
+
+	addNewPostRefBuffer := func() {
+		postRefBuffers = append(postRefBuffers, strings.Builder{})
+
+		if verboseLogging {
+			fmt.Printf("adding new postRefBuffer\n")
+		}
+	}
+
+	resetPostRefBuffers := func() {
+		postRefBuffers = []strings.Builder{}
+
+		if verboseLogging {
+			fmt.Printf("resetting postRefBuffers\n")
+		}
+	}
+
+	incDepth := func() {
+		depth++
+		if verboseLogging {
+			fmt.Printf("incrementing depth: %d\n", depth)
+		}
+	}
+
+	decDepth := func() {
+		depth--
+		if verboseLogging {
+			fmt.Printf("decrementing depth: %d\n", depth)
+		}
+	}
+
+	writeRefs := func(eof bool) {
 		numRefs := len(postRefBuffers)
 		if numRefs == 1 {
 			if verboseLogging {
+				fmt.Println("writeRefs")
 				fmt.Printf("numRefs == 1, refStart: %d, oLineNum: %d\n", refStart, oLineNum)
 			}
-			fullRef := originalLines[refStart-1 : oLineNum-1]
+
+			var fullRef []string
+			if eof {
+				fullRef = originalLines[refStart-1:]
+			} else {
+				fullRef = originalLines[refStart-1 : oLineNum-1]
+			}
 			if verboseLogging {
 				fmt.Printf("writing fullRef: %s\n", strings.Join(fullRef, "\n"))
+				fmt.Printf("depth: %d\n", depth)
 			}
-			b.WriteString(strings.Join(fullRef, "\n"))
-			b.WriteByte('\n')
-			if verboseLogging {
-				fmt.Printf("writing postRefBuffer:\n%s\n", postRefBuffers[0].String())
+			write(strings.Join(fullRef, "\n"), depth > 0)
+
+			postRefContent := postRefBuffers[0].String()
+
+			if strings.TrimSpace(postRefContent) != "" {
+				if verboseLogging {
+					fmt.Printf("writing postRefBuffer: %s\n", postRefBuffers[0].String())
+				}
+				write(postRefBuffers[0].String(), false)
 			}
-			b.WriteString(postRefBuffers[0].String())
 		} else {
 			if verboseLogging {
 				fmt.Printf("numRefs > 1, refOriginalParent: %s\n", refOriginalParent.Type())
 				fmt.Printf("refOriginalParent.Content(originalBytes):\n%s\n", refOriginalParent.Content(originalBytes))
 			}
+
+			fmt.Println("original parent type:", refOriginalParent.Type())
+			fmt.Printf("numRefs: %d, oLineNum: %d\n", numRefs, oLineNum)
 
 			sections := getSections(refOriginalParent, originalBytes, numRefs, oLineNum)
 
@@ -188,18 +208,20 @@ func ApplyReferences(ctx context.Context, original, proposed string, references 
 				if verboseLogging {
 					fmt.Printf("writing i: %d, section:\n%s\n	", i, section.String(originalLines, originalBytes))
 				}
-				b.WriteString(section.String(originalLines, originalBytes))
+				write(section.String(originalLines, originalBytes), false)
 				if verboseLogging {
 					fmt.Printf("writing postRefBuffer:\n%s\n", postRefBuffers[i].String())
 				}
-				b.WriteString(postRefBuffers[i].String())
+				write(postRefBuffers[i].String(), false)
 			}
 		}
 	}
 
+	reachedContent := false
+
 	for idx, pLine := range proposedLines {
 		if verboseLogging {
-			fmt.Printf("i: %d, pLine: %s\n", idx, pLine)
+			fmt.Printf("\n\ni: %d, pLine: %s, refOpen: %v\n", idx, pLine, refOpen)
 		}
 
 		finalLine := idx == len(proposedLines)-1
@@ -218,36 +240,41 @@ func ApplyReferences(ctx context.Context, original, proposed string, references 
 		}
 
 		if isRef {
-			if refOpen {
-				if verboseLogging {
-					fmt.Printf("refOpen already true, adding to postRefBuffers\n")
-				}
-				latestBuffer := &postRefBuffers[len(postRefBuffers)-1]
-				if len(latestBuffer.String()) > 0 {
-					postRefBuffers = append(postRefBuffers, strings.Builder{})
-				}
-			} else {
+			if !refOpen {
 				refOpen = true
-				refStart = oLineNum + 1
+				refStart = oLineNum
+
 				if verboseLogging {
 					fmt.Printf("setting refStart: %d\n", refStart)
 				}
-				refNode := originalNodesByLine[refStart-1]
-				refOriginalParent = refNode.Parent()
-				postRefBuffers = append(postRefBuffers, strings.Builder{})
+
+				if depth > 0 {
+					refNode := originalNodesByLine[refStart-1]
+					refOriginalParent = refNode.Parent()
+				} else {
+					refOriginalParent = originalTree.RootNode()
+				}
+
 			}
+
+			addNewPostRefBuffer()
 
 			continue
 		}
 
-		if strings.TrimSpace(pLine) == "" {
-			b.WriteString(pLine)
-			b.WriteByte('\n')
-			oLineNum++
-			if verboseLogging {
-				fmt.Printf("newline, incrementing oLineNum: %d\n", oLineNum)
+		if !refOpen {
+			if strings.TrimSpace(pLine) == "" {
+				if reachedContent {
+					write(pLine, true)
+					fmt.Printf("newline, incrementing oLineNum: %d\n", oLineNum)
+					setOLineNum(oLineNum + 1)
+				}
+				continue
 			}
-			continue
+		}
+
+		if strings.TrimSpace(pLine) != "" {
+			reachedContent = true
 		}
 
 		var matching bool
@@ -258,35 +285,34 @@ func ApplyReferences(ctx context.Context, original, proposed string, references 
 				fmt.Printf("isClosingAnchor: %v\n", isClosingAnchor)
 			}
 			matching = true
-			oLineNum = closingLinesByPLineNum[pLineNum]
-			if verboseLogging {
-				fmt.Printf("setting oLineNum: %d\n", oLineNum)
-			}
+			setOLineNum(closingLinesByPLineNum[pLineNum])
 			noMatchUntilStructureClose = ""
 		} else if noMatchUntilStructureClose != pLine {
 			// find all lines in original that match
 			pNode := proposedNodesByLine[idx]
-			anchors := findAnchors(pLine, pNode)
-			if len(anchors) > 0 {
+			anchor := findNextAnchor(pLine, pNode, oLineNum-1)
+			if anchor != nil {
+				fmt.Println("anchor found")
+				fmt.Printf("anchor.Close: %d, anchor.Open: %d\n", anchor.Close, anchor.Open)
 				matching = true
-				currentN := matchCurrentN[pLine]
-				oLineAnchor := anchors[currentN]
-				oLineNum = oLineAnchor.Open
-				if verboseLogging {
-					fmt.Printf("setting oLineNum: %d\n", oLineNum)
-				}
+				setOLineNum(anchor.Open)
 
-				if oLineAnchor.Close != 0 && oLineAnchor.Close != oLineAnchor.Open {
-					originalClosingLine := originalLines[oLineAnchor.Close-1]
+				if anchor.Close != 0 && anchor.Close != anchor.Open {
 
-					if proposedUpdatesHaveLine(originalClosingLine, oLineAnchor.Open) {
+					originalClosingLine := originalLines[anchor.Close-1]
+
+					fmt.Printf("originalClosingLine: %s\n", originalClosingLine)
+
+					if proposedUpdatesHaveLine(originalClosingLine, idx) {
+						// fmt.Printf("proposedUpdatesHaveLine: %v\n", proposedUpdatesHaveLine(originalClosingLine, anchor.Open))
 						closingPLineNum := int(pNode.EndPoint().Row) + 1
-						closingLinesByPLineNum[closingPLineNum] = oLineAnchor.Close
+						closingLinesByPLineNum[closingPLineNum] = anchor.Close
 						noMatchUntilStructureClose = originalClosingLine
+						incDepth()
+					} else {
+						fmt.Println("proposed updates do not have originalClosingLine")
 					}
 				}
-
-				matchCurrentN[pLine] = currentN + 1
 			}
 		}
 
@@ -301,14 +327,15 @@ func ApplyReferences(ctx context.Context, original, proposed string, references 
 					fmt.Printf("closing ref, oLineNum: %d\n", oLineNum)
 				}
 				refOpen = false
-				writeRefs()
-				b.WriteString(pLine)
-				if !finalLine {
-					b.WriteByte('\n')
+				writeRefs(finalLine)
+				write(pLine, !finalLine)
+				setOLineNum(oLineNum + 1)
+				if isClosingAnchor {
+					decDepth()
 				}
 
 				// reset buffers
-				postRefBuffers = []strings.Builder{}
+				resetPostRefBuffers()
 				continue
 			}
 		} else {
@@ -317,32 +344,23 @@ func ApplyReferences(ctx context.Context, original, proposed string, references 
 			}
 		}
 
+		if isClosingAnchor {
+			decDepth()
+		}
+
 		if refOpen {
-			if verboseLogging {
-				fmt.Printf("writing to latest postRefBuffer: %s\n", pLine)
-			}
-			latestBuffer := &postRefBuffers[len(postRefBuffers)-1]
-			latestBuffer.WriteString(pLine)
-			latestBuffer.WriteByte('\n')
-			oLineNum++
-			if verboseLogging {
-				fmt.Printf("incrementing oLineNum: %d\n", oLineNum)
-			}
+			writeToLatestPostRefBuffer(pLine)
 		} else {
 			if verboseLogging {
 				fmt.Printf("writing pLine: %s\n", pLine)
 			}
-			b.WriteString(pLine)
-
-			if !finalLine {
-				b.WriteByte('\n')
-			}
+			write(pLine, !finalLine)
+			setOLineNum(oLineNum + 1)
 		}
-
 	}
 
 	if refOpen {
-		writeRefs()
+		writeRefs(true)
 	}
 
 	if verboseLogging {
@@ -630,4 +648,60 @@ func getNodeDepth(node *tree_sitter.Node) int {
 		current = current.Parent()
 	}
 	return depth
+}
+
+func (s TreeSitterSection) String(sourceLines []string, bytes []byte) string {
+	// if verboseLogging {
+	// 	fmt.Println("\n=== section.String START ===")
+	// 	fmt.Printf("Section has %d nodes\n", len(s))
+
+	// 	for i, node := range s {
+	// 		fmt.Printf("Node %d:\n", i)
+	// 		fmt.Printf("  Type: %s\n", node.Type())
+	// 		fmt.Printf("  StartPoint: row=%d col=%d\n", node.StartPoint().Row, node.StartPoint().Column)
+	// 		fmt.Printf("  EndPoint: row=%d col=%d\n", node.EndPoint().Row, node.EndPoint().Column)
+	// 		fmt.Printf("  Content: %q\n", node.Content(bytes))
+	// 	}
+	// }
+
+	var b strings.Builder
+	lines := map[int]bool{}
+	for _, node := range s {
+		lineNum := int(node.StartPoint().Row)
+		// if verboseLogging {
+		// 	fmt.Printf("Adding line %d from node %d\n", lineNum, i)
+		// }
+		lines[lineNum] = true
+	}
+
+	var lineNums []int
+	for lineNum := range lines {
+		lineNums = append(lineNums, lineNum)
+	}
+	sort.Ints(lineNums)
+	// if verboseLogging {
+	// 	fmt.Printf("Sorted line numbers: %v\n", lineNums)
+	// }
+
+	for _, lineNum := range lineNums {
+		idx := lineNum
+		line := sourceLines[idx]
+		// if verboseLogging {
+		// 	fmt.Printf("Writing line %d: %q\n", idx, line)
+		// }
+		b.WriteString(line)
+		if idx < len(sourceLines)-1 {
+			// if verboseLogging {
+			// 	fmt.Printf("Adding newline after line %d\n", idx)
+			// }
+			b.WriteByte('\n')
+		}
+	}
+
+	result := b.String()
+	// if verboseLogging {
+	// 	fmt.Printf("Final result: %q\n", result)
+	// 	fmt.Println("=== section.String END ===")
+	// }
+	return result
 }
