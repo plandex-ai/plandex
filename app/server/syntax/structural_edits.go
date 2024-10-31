@@ -158,18 +158,11 @@ func ApplyReferences(
 	}
 
 	var oLineNum int = 0
-
-	setOLineNum := func(n int) {
-		oLineNum = n
-		if verboseLogging {
-			fmt.Printf("setting oLineNum: %d\n", oLineNum)
-		}
-	}
-
 	var refOpen bool
 	var refStart int
 	var refOriginalParent *tree_sitter.Node
 	var postRefBuffers []strings.Builder
+
 	closingLinesByPLineNum := map[int]int{}
 	var noMatchUntilStructureClose string
 	depth := 0
@@ -179,6 +172,13 @@ func ApplyReferences(
 	var currentPNodeMatches bool
 
 	lastLineMatched := true
+
+	setOLineNum := func(n int) {
+		oLineNum = n
+		if verboseLogging {
+			fmt.Printf("setting oLineNum: %d\n", oLineNum)
+		}
+	}
 
 	writeToLatestPostRefBuffer := func(s string) {
 		latestBuffer := &postRefBuffers[len(postRefBuffers)-1]
@@ -319,6 +319,13 @@ func ApplyReferences(
 
 		if isRef {
 			if !refOpen {
+				if verboseLogging {
+					fmt.Println("isRef - opening ref")
+					pnode := proposedNodesByLine[idx]
+					fmt.Printf("pnode.Type(): %s\n", pnode.Type())
+					fmt.Printf("pnode.Content(proposedBytes):\n%q\n", pnode.Content(proposedBytes))
+				}
+
 				refOpen = true
 				setOLineNum(oLineNum + 1)
 				refStart = oLineNum
@@ -359,6 +366,11 @@ func ApplyReferences(
 
 		var matching bool
 		isClosingAnchor := closingLinesByPLineNum[pLineNum] != 0
+
+		if verboseLogging {
+			fmt.Printf("currentPNode != nil: %v\n", currentPNode != nil)
+			fmt.Printf("currentPNodeMatches: %v\n", currentPNodeMatches)
+		}
 
 		if isClosingAnchor {
 			if verboseLogging {
@@ -415,14 +427,17 @@ func ApplyReferences(
 			}
 		}
 
-		if pNodeStartsThisLine && pNodeMultiline && currentPNode == nil {
+		if pNodeStartsThisLine && pNodeMultiline && (currentPNode == nil || matching != currentPNodeMatches) {
 			if verboseLogging {
 				fmt.Printf("setting currentPNode: %s\n", pNode.Type())
 				fmt.Printf("pNodeEndsAtIdx: %d\n", pNodeEndsAtIdx)
+				fmt.Printf("content: %q\n", pNode.Content(proposedBytes))
+				fmt.Println(pNode)
 			}
 			currentPNode = pNode
 			currentPNodeEndsAtIdx = pNodeEndsAtIdx
 			currentPNodeMatches = matching
+
 		}
 
 		wroteRefs := false
