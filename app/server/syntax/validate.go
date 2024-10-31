@@ -25,7 +25,7 @@ type ValidationRes = struct {
 func Validate(ctx context.Context, path, file string) (*ValidationRes, error) {
 	ext := filepath.Ext(path)
 
-	parser, lang, fallbackParser, fallbackLang := getParserForExt(ext)
+	parser, lang, fallbackParser, fallbackLang := GetParserForExt(ext)
 
 	if parser == nil {
 		return &ValidationRes{Ext: ext, Lang: lang, HasParser: false}, nil

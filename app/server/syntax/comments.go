@@ -12,7 +12,7 @@ import (
 // StripComments removes all comments from the given source code using the appropriate parser
 func StripComments(ctx context.Context, path, source string) (string, error) {
 	ext := filepath.Ext(path)
-	parser, _, _, _ := getParserForExt(ext)
+	parser, _, _, _ := GetParserForExt(ext)
 
 	// If no parser is available, return the source as is
 	if parser == nil {

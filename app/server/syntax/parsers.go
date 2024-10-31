@@ -34,7 +34,7 @@ import (
 	"github.com/smacker/go-tree-sitter/yaml"
 )
 
-func getParserForExt(ext string) (*tree_sitter.Parser, string, *tree_sitter.Parser, string) {
+func GetParserForExt(ext string) (*tree_sitter.Parser, string, *tree_sitter.Parser, string) {
 	lang, ok := languageByExtension[ext]
 	if !ok {
 		return nil, "", nil, ""
@@ -82,7 +82,7 @@ func getParserForLanguage(lang string) *tree_sitter.Parser {
 		parser.SetLanguage(html.GetLanguage())
 	case "java":
 		parser.SetLanguage(java.GetLanguage())
-	case "javascript":
+	case "javascript", "json":
 		parser.SetLanguage(javascript.GetLanguage())
 	case "kotlin":
 		parser.SetLanguage(kotlin.GetLanguage())
@@ -110,7 +110,7 @@ func getParserForLanguage(lang string) *tree_sitter.Parser {
 		parser.SetLanguage(toml.GetLanguage())
 	case "typescript":
 		parser.SetLanguage(typescript.GetLanguage())
-	case "tsx":
+	case "jsx", "tsx":
 		parser.SetLanguage(tsx.GetLanguage())
 	case "yaml":
 		parser.SetLanguage(yaml.GetLanguage())
@@ -140,6 +140,7 @@ var languageByExtension = map[string]string{
 	".html":       "html",
 	".java":       "java",
 	".js":         "javascript",
+	".json":       "json",
 	".jsx":        "tsx",
 	".kt":         "kotlin",
 	".lua":        "lua",
