@@ -278,7 +278,7 @@ func ApplyReferences(
 				fmt.Printf("numRefs: %d, oLineNum: %d\n", numRefs, oLineNum)
 			}
 
-			sections := getSections(refOriginalParent, originalBytes, numRefs, oLineNum)
+			sections := getSections(refOriginalParent, originalBytes, numRefs, refStart, oLineNum-1)
 
 			for i, section := range sections {
 				if verboseLogging {
@@ -600,7 +600,7 @@ func ApplyReferences(
 // 	return name1 == name2
 // }
 
-func getSections(parent *tree_sitter.Node, bytes []byte, numSections, upToLine int) []TreeSitterSection {
+func getSections(parent *tree_sitter.Node, bytes []byte, numSections, fromLine, upToLine int) []TreeSitterSection {
 	sections := make([]TreeSitterSection, numSections)
 	structures := [][]*tree_sitter.Node{}
 	latestStructure := []*tree_sitter.Node{}
@@ -608,7 +608,7 @@ func getSections(parent *tree_sitter.Node, bytes []byte, numSections, upToLine i
 	cursor := tree_sitter.NewTreeCursor(parent)
 	defer cursor.Close()
 
-	firstLineNum := int(parent.StartPoint().Row)
+	firstLineNum := int(parent.StartPoint().Row) + 1
 	if verboseLogging {
 		fmt.Printf("firstLineNum: %d\n", firstLineNum)
 	}
@@ -616,13 +616,24 @@ func getSections(parent *tree_sitter.Node, bytes []byte, numSections, upToLine i
 	if cursor.GoToFirstChild() {
 		for {
 			node := cursor.CurrentNode()
-			lineNum := int(node.StartPoint().Row)
+			startLineNum := int(node.StartPoint().Row) + 1
+			endLineNum := int(node.EndPoint().Row) + 1
 			if verboseLogging {
-				fmt.Printf("lineNum: %d\n", lineNum)
+				fmt.Printf("startLineNum: %d, endLineNum: %d\n", startLineNum, endLineNum)
 				fmt.Println(node.Type())
 			}
 
-			if lineNum == firstLineNum {
+			if startLineNum < fromLine {
+				if verboseLogging {
+					fmt.Printf("skipping lineNum: %d | before fromLine: %d\n", startLineNum, fromLine)
+				}
+				if !cursor.GoToNextSibling() {
+					break
+				}
+				continue
+			}
+
+			if startLineNum == firstLineNum {
 				if verboseLogging {
 					fmt.Printf("skipping first line\n")
 				}
@@ -632,9 +643,9 @@ func getSections(parent *tree_sitter.Node, bytes []byte, numSections, upToLine i
 				continue
 			}
 
-			if node.EndPoint().Row > uint32(upToLine-1) {
+			if endLineNum > upToLine {
 				if verboseLogging {
-					fmt.Printf("upToLine: %d, node.EndPoint().Row: %d, node.Type(): %s\n", upToLine, node.EndPoint().Row, node.Type())
+					fmt.Printf("upToLine: %d, endLineNum: %d, node.Type(): %s\n", upToLine, endLineNum, node.Type())
 
 					toLog := node.Content(bytes)
 					if len(toLog) > 200 {
@@ -833,6 +844,10 @@ func getNodeDepth(node *tree_sitter.Node) int {
 }
 
 func (s TreeSitterSection) String(sourceLines []string, bytes []byte) string {
+	if len(s) == 0 {
+		return ""
+	}
+
 	firstSection := s[0]
 	startIdx := int(firstSection.StartPoint().Row)
 
@@ -840,7 +855,7 @@ func (s TreeSitterSection) String(sourceLines []string, bytes []byte) string {
 	endIdx := int(lastSection.EndPoint().Row)
 
 	if verboseLogging {
-		fmt.Printf("section.StringstartIdx: %d, endIdx: %d\n", startIdx, endIdx)
+		fmt.Printf("section.String startIdx: %d, endIdx: %d\n", startIdx, endIdx)
 	}
 
 	parent := lastSection.Parent()
