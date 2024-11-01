@@ -3,10 +3,8 @@ package syntax
 import (
 	"context"
 	"fmt"
-	"sort"
 	"strings"
 
-	"github.com/davecgh/go-spew/spew"
 	tree_sitter "github.com/smacker/go-tree-sitter"
 )
 
@@ -35,7 +33,13 @@ func ApplyReferences(
 
 	write := func(s string, newline bool) {
 		if verboseLogging {
-			fmt.Printf("writing: %q\n", s)
+			toLog := s
+
+			if len(toLog) > 200 {
+				toLog = toLog[:100] + "\n...\n" + toLog[len(toLog)-100:]
+			}
+
+			fmt.Printf("writing: %s\n", toLog)
 			fmt.Printf("newline: %v\n", newline)
 		}
 
@@ -269,7 +273,7 @@ func ApplyReferences(
 		} else {
 			if verboseLogging {
 				fmt.Printf("numRefs > 1, refOriginalParent: %s\n", refOriginalParent.Type())
-				fmt.Printf("refOriginalParent.Content(originalBytes):\n%q\n", refOriginalParent.Content(originalBytes))
+				// fmt.Printf("refOriginalParent.Content(originalBytes):\n%q\n", refOriginalParent.Content(originalBytes))
 				fmt.Println("original parent type:", refOriginalParent.Type())
 				fmt.Printf("numRefs: %d, oLineNum: %d\n", numRefs, oLineNum)
 			}
@@ -278,7 +282,8 @@ func ApplyReferences(
 
 			for i, section := range sections {
 				if verboseLogging {
-					fmt.Printf("writing i: %d, section:\n%q\n	", i, section.String(originalLines, originalBytes))
+					fmt.Printf("writing section i: %d\n", i)
+					// fmt.Printf("writing i: %d, section:\n%q\n	", i, section.String(originalLines, originalBytes))
 				}
 				write(section.String(originalLines, originalBytes), false)
 				if verboseLogging {
@@ -323,7 +328,7 @@ func ApplyReferences(
 					fmt.Println("isRef - opening ref")
 					pnode := proposedNodesByLine[idx]
 					fmt.Printf("pnode.Type(): %s\n", pnode.Type())
-					fmt.Printf("pnode.Content(proposedBytes):\n%q\n", pnode.Content(proposedBytes))
+					// fmt.Printf("pnode.Content(proposedBytes):\n%q\n", pnode.Content(proposedBytes))
 				}
 
 				refOpen = true
@@ -336,9 +341,22 @@ func ApplyReferences(
 
 				if depth > 0 {
 					refNode := originalNodesByLine[refStart-1]
-					refOriginalParent = refNode.Parent()
+
+					if verboseLogging {
+						fmt.Printf("refNode.Type(): %s\n", refNode.Type())
+					}
+
+					refOriginalParent = refNode
+
+					// if verboseLogging {
+					// 	fmt.Printf("setting refOriginalParent | refNode.Parent() | Type(): %s\n", refOriginalParent.Type())
+					// }
 				} else {
 					refOriginalParent = originalTree.RootNode()
+
+					if verboseLogging {
+						fmt.Printf("setting refOriginalParent | originalTree.RootNode() | Type(): %s\n", refOriginalParent.Type())
+					}
 				}
 
 			}
@@ -431,8 +449,8 @@ func ApplyReferences(
 			if verboseLogging {
 				fmt.Printf("setting currentPNode: %s\n", pNode.Type())
 				fmt.Printf("pNodeEndsAtIdx: %d\n", pNodeEndsAtIdx)
-				fmt.Printf("content: %q\n", pNode.Content(proposedBytes))
-				fmt.Println(pNode)
+				// fmt.Printf("content: %q\n", pNode.Content(proposedBytes))
+				// fmt.Println(pNode)
 			}
 			currentPNode = pNode
 			currentPNodeEndsAtIdx = pNodeEndsAtIdx
@@ -496,7 +514,7 @@ func ApplyReferences(
 	}
 
 	if verboseLogging {
-		fmt.Printf("final result:\n%s\n", b.String())
+		// fmt.Printf("final result:\n%s\n", b.String())
 	}
 
 	return b.String(), nil
@@ -601,7 +619,7 @@ func getSections(parent *tree_sitter.Node, bytes []byte, numSections, upToLine i
 			lineNum := int(node.StartPoint().Row)
 			if verboseLogging {
 				fmt.Printf("lineNum: %d\n", lineNum)
-				fmt.Println(node.Content(bytes))
+				fmt.Println(node.Type())
 			}
 
 			if lineNum == firstLineNum {
@@ -614,7 +632,17 @@ func getSections(parent *tree_sitter.Node, bytes []byte, numSections, upToLine i
 				continue
 			}
 
-			if node.EndPoint().Row >= uint32(upToLine-1) {
+			if node.EndPoint().Row > uint32(upToLine-1) {
+				if verboseLogging {
+					fmt.Printf("upToLine: %d, node.EndPoint().Row: %d, node.Type(): %s\n", upToLine, node.EndPoint().Row, node.Type())
+
+					toLog := node.Content(bytes)
+					if len(toLog) > 200 {
+						toLog = toLog[:100] + "\n...\n" + toLog[len(toLog)-100:]
+					}
+					fmt.Println(toLog)
+				}
+
 				break
 			}
 
@@ -667,11 +695,6 @@ func getSections(parent *tree_sitter.Node, bytes []byte, numSections, upToLine i
 		var section TreeSitterSection
 		group := structures[startIndex:endIndex]
 
-		if verboseLogging {
-			fmt.Printf("group:\n")
-			spew.Dump(group)
-		}
-
 		for _, s := range group {
 			section = append(section, s...)
 		}
@@ -680,15 +703,24 @@ func getSections(parent *tree_sitter.Node, bytes []byte, numSections, upToLine i
 	}
 
 	if verboseLogging {
-		fmt.Printf("sections:\n")
-		spew.Dump(sections)
+		// fmt.Printf("sections:\n")
+		// spew.Dump(sections)
 
 		fmt.Println("Sections content:")
 		for i, section := range sections {
 			fmt.Printf("section %d:\n", i)
 			for j, node := range section {
 				fmt.Printf("node %d:\n", j)
-				fmt.Println(node.Content(bytes))
+				// fmt.Println(node.Content(bytes))
+
+				if verboseLogging {
+					toLog := node.Content(bytes)
+					if len(toLog) > 200 {
+						toLog = toLog[:100] + "\n...\n" + toLog[len(toLog)-100:]
+					}
+					fmt.Println(toLog)
+				}
+
 			}
 		}
 	}
@@ -801,57 +833,32 @@ func getNodeDepth(node *tree_sitter.Node) int {
 }
 
 func (s TreeSitterSection) String(sourceLines []string, bytes []byte) string {
-	// if verboseLogging {
-	// 	fmt.Println("\n=== section.String START ===")
-	// 	fmt.Printf("Section has %d nodes\n", len(s))
+	firstSection := s[0]
+	startIdx := int(firstSection.StartPoint().Row)
 
-	// 	for i, node := range s {
-	// 		fmt.Printf("Node %d:\n", i)
-	// 		fmt.Printf("  Type: %s\n", node.Type())
-	// 		fmt.Printf("  StartPoint: row=%d col=%d\n", node.StartPoint().Row, node.StartPoint().Column)
-	// 		fmt.Printf("  EndPoint: row=%d col=%d\n", node.EndPoint().Row, node.EndPoint().Column)
-	// 		fmt.Printf("  Content: %q\n", node.Content(bytes))
-	// 	}
-	// }
+	lastSection := s[len(s)-1]
+	endIdx := int(lastSection.EndPoint().Row)
 
-	var b strings.Builder
-	lines := map[int]bool{}
-	for _, node := range s {
-		lineNum := int(node.StartPoint().Row)
-		// if verboseLogging {
-		// 	fmt.Printf("Adding line %d from node %d\n", lineNum, i)
-		// }
-		lines[lineNum] = true
+	if verboseLogging {
+		fmt.Printf("section.StringstartIdx: %d, endIdx: %d\n", startIdx, endIdx)
 	}
 
-	var lineNums []int
-	for lineNum := range lines {
-		lineNums = append(lineNums, lineNum)
+	parent := lastSection.Parent()
+	parentEndNode := parent.Child(int(parent.ChildCount()) - 1)
+	lastLine := sourceLines[endIdx]
+	if lastLine == parentEndNode.Content(bytes) {
+		endIdx--
 	}
-	sort.Ints(lineNums)
-	// if verboseLogging {
-	// 	fmt.Printf("Sorted line numbers: %v\n", lineNums)
-	// }
 
-	for _, lineNum := range lineNums {
-		idx := lineNum
-		line := sourceLines[idx]
-		// if verboseLogging {
-		// 	fmt.Printf("Writing line %d: %q\n", idx, line)
-		// }
-		b.WriteString(line)
-		if idx < len(sourceLines)-1 {
-			// if verboseLogging {
-			// 	fmt.Printf("Adding newline after line %d\n", idx)
-			// }
-			b.WriteByte('\n')
+	result := strings.Join(sourceLines[startIdx:endIdx+1], "\n") + "\n"
+
+	if verboseLogging {
+		toLog := result
+		if len(toLog) > 200 {
+			toLog = toLog[:100] + "\n...\n" + toLog[len(toLog)-100:]
 		}
+		fmt.Printf("section.String result: %s\n", toLog)
 	}
 
-	result := b.String()
-	// if verboseLogging {
-	// 	fmt.Printf("Final result: %q\n", result)
-	// 	fmt.Println("=== section.String END ===")
-	// }
 	return result
 }
