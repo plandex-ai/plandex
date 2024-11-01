@@ -90,14 +90,25 @@ func ApplyReferences(
 	}
 	defer proposedTree.Close()
 
-	originalNodesByLine := buildNodeIndex(originalTree)
-	proposedNodesByLine := buildNodeIndex(proposedTree)
+	fmt.Printf("anchorLines: %v\n", anchorLines)
+
+	originalNodesByLineIndex := buildNodeIndex(originalTree)
+	proposedNodesByLineIndex := buildNodeIndex(proposedTree)
 
 	findNextAnchor := func(s string, pLineNum int, pNode *tree_sitter.Node, fromLine int) *Anchor {
 		oLineNum, ok := anchorLines[pLineNum]
 		if ok {
-			oNode := originalNodesByLine[oLineNum-1]
-			return &Anchor{Open: oLineNum, Close: int(oNode.EndPoint().Row) + 1}
+			fmt.Printf("found anchor in anchorLines: oLineNum: %d, pLineNum: %d\n", oLineNum, pLineNum)
+
+			oNode := originalNodesByLineIndex[oLineNum-1]
+
+			fmt.Printf("oNode.Type(): %s\n", oNode.Type())
+
+			anchor := &Anchor{Open: oLineNum, Close: int(oNode.EndPoint().Row) + 1}
+			fmt.Printf("found anchor: %v\n", anchor)
+			return anchor
+		} else {
+			fmt.Printf("no anchor found in anchorLines: pLineNum: %d\n", pLineNum)
 		}
 
 		for idx, line := range originalLines {
@@ -113,7 +124,7 @@ func ApplyReferences(
 			// 	fmt.Printf("line: %s, idx: %d\n", line, idx)
 			// }
 
-			oNode := originalNodesByLine[idx]
+			oNode := originalNodesByLineIndex[idx]
 
 			if verboseLogging {
 				// fmt.Println("node:")
@@ -260,7 +271,7 @@ func ApplyReferences(
 				}
 			}
 
-			write(strings.Join(fullRef, "\n"), depth > 0)
+			write(strings.Join(fullRef, "\n"), true)
 
 			postRefContent := postRefBuffers[0].String()
 
@@ -326,7 +337,7 @@ func ApplyReferences(
 			if !refOpen {
 				if verboseLogging {
 					fmt.Println("isRef - opening ref")
-					pnode := proposedNodesByLine[idx]
+					pnode := proposedNodesByLineIndex[idx]
 					fmt.Printf("pnode.Type(): %s\n", pnode.Type())
 					// fmt.Printf("pnode.Content(proposedBytes):\n%q\n", pnode.Content(proposedBytes))
 				}
@@ -340,7 +351,7 @@ func ApplyReferences(
 				}
 
 				if depth > 0 {
-					refNode := originalNodesByLine[refStart-1]
+					refNode := originalNodesByLineIndex[refStart-1]
 
 					if verboseLogging {
 						fmt.Printf("refNode.Type(): %s\n", refNode.Type())
@@ -377,7 +388,7 @@ func ApplyReferences(
 			}
 		}
 
-		pNode := proposedNodesByLine[idx]
+		pNode := proposedNodesByLineIndex[idx]
 		pNodeStartsThisLine := pNode.StartPoint().Row == uint32(idx)
 		pNodeEndsAtIdx := int(pNode.EndPoint().Row)
 		pNodeMultiline := pNodeEndsAtIdx > idx

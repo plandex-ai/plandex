@@ -1,6 +1,7 @@
 package plan
 
 import (
+	"fmt"
 	"regexp"
 	"strings"
 )
@@ -32,4 +33,24 @@ func EscapeCdata(xmlString string) string {
 func UnescapeCdata(xmlString string) string {
 	escaped := strings.ReplaceAll(xmlString, "PDX_ESCAPED_CDATA_END", "]]>")
 	return escaped
+}
+
+func GetXMLTag(xmlString, tagName string) (string, error) {
+	openTag := "<" + tagName + ">"
+	closeTag := "</" + tagName + ">"
+
+	split := strings.Split(xmlString, openTag)
+	if len(split) != 2 {
+		return "", fmt.Errorf("error processing xml")
+	}
+	afterOpenTag := split[1]
+
+	split2 := strings.Split(afterOpenTag, closeTag)
+	if len(split2) != 2 {
+		return "", fmt.Errorf("error processing xml")
+	}
+
+	processedXml := openTag + EscapeInvalidXMLAttributeCharacters(split2[0]) + closeTag
+
+	return processedXml, nil
 }

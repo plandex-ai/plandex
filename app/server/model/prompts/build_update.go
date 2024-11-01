@@ -4,20 +4,120 @@ import (
 	"fmt"
 
 	"github.com/plandex/plandex/shared"
-	"github.com/sashabaranov/go-openai"
-	"github.com/sashabaranov/go-openai/jsonschema"
 )
 
-func GetReferencesPrompt(filePath, preBuildState, changesFile, changesDesc string) string {
+func GetSemanticAnchorsPrompt(filePath, preBuildState, changesFile, changesDesc string) string {
 	preBuildStateWithLineNums := shared.AddLineNums(preBuildState)
 	changesWithLineNums := shared.AddLineNumsWithPrefix(changesFile, "pdx-new-")
 
-	s := ReferencesPrompt + "\n\n" + getPreBuildStatePrompt(filePath, preBuildStateWithLineNums) + "\n\n"
+	s := SemanticAnchorsPrompt + "\n\n" + getPreBuildStatePrompt(filePath, preBuildStateWithLineNums) + "\n\n"
 
 	s += fmt.Sprintf("Proposed updates:\n%s\n```\n%s\n```", changesDesc, changesWithLineNums)
 
 	return s
 }
+
+func GetReferencesPrompt(filePath, preBuildState, changesFile, changesDesc string) string {
+	preBuildStateWithLineNums := shared.AddLineNums(preBuildState)
+	changesWithLineNums := shared.AddLineNumsWithPrefix(changesFile, "pdx-new-")
+
+	s := RefsBeginning + ReferencesPrompt + RefsOnlyEnding + "\n\n" + getPreBuildStatePrompt(filePath, preBuildStateWithLineNums) + "\n\n"
+
+	s += fmt.Sprintf("Proposed updates:\n%s\n```\n%s\n```", changesDesc, changesWithLineNums)
+
+	return s
+}
+
+func GetWholeFilePrompt(filePath, preBuildState, changesFile, changesDesc string) string {
+	preBuildStateWithLineNums := shared.AddLineNums(preBuildState)
+	changesWithLineNums := shared.AddLineNumsWithPrefix(changesFile, "pdx-new-")
+
+	s := WholeFileBeginning + ReferencesPrompt + WholeFileEnding + "\n\n" + getPreBuildStatePrompt(filePath, preBuildStateWithLineNums) + "\n\n"
+
+	s += fmt.Sprintf("Proposed updates:\n%s\n```\n%s\n```", changesDesc, changesWithLineNums)
+
+	return s
+}
+
+var SemanticAnchorsPrompt = `
+You are an AI that analyzes an *original file* and *proposed updates* to that file and then identifies *semantic anchors* present in the *proposed updates*.
+
+A semantic anchor is a line in the *proposed updates* that is not exactly equal to a line in the *original file* but is nonetheless intended to match a line in the *original file*.
+
+For example, if the *original file* has:
+
+	pdx-1: function update(name string, id string) {
+	pdx-2:   const tx = await client.startTransaction();
+	pdx-3:   tx.setMode(TransactionMode.Serializable);
+	pdx-4:   const updateQuery = 'UPDATE users SET name = $1 WHERE id = $2';
+	pdx-5:   await tx.execute(updateQuery, name, id);
+	pdx-6:   await client.commit();
+	pdx-7: }
+
+And the *proposed updates* have:
+
+	pdx-new-1: function update(name string, id string, log bool) {
+	pdx-new-2:   // ... existing code ...
+	pdx-new-3:   if (log) {
+	pdx-new-4:     console.log("Updating user");
+	pdx-new-5:   }
+	pdx-new-6: }
+
+Then the line 'pdx-new-1: function update(name string, id string, log bool) {' is a semantic anchor since it is not exactly equal to a line in the *original file* (due to the addition of the 'log' parameter) but is clearly intended to match the line 'pdx-1: function update(name string, id string) {' in the *original file*.
+
+The line 'pdx-new-6: }' is *not* a semantic anchor since it is exactly equal to a line in the *original file*.
+
+Comments that are modified in the *proposed updates* (but are clearly still referring to the same comment in the *original file*) can also be semantic anchors.
+
+For example, if the *original file* has:
+
+pdx-1: function main() {
+pdx-2:    // Get response
+pdx-3:    const response = await getResponse();
+pdx-4:    return response;
+pdx-5: }
+
+And the *proposed updates* have:
+
+pdx-new-1: function main() {
+pdx-new-2:    // Get response and parse JSON body
+pdx-new-3:    let response = await getResponse();
+pdx-new-4:    response = jsonResponse(response);
+pdx-new-5:    return response;
+pdx-new-6: }
+
+Then both the lines 'pdx-new-2:    // Get response and parse JSON body' and 'pdx-new-3:    let response = await getResponse();' are semantic anchors since they are not exactly equal to a line in the *original file* but are clearly intended to match the lines 'pdx-2:    // Get response' and 'pdx-3:    const response = await getResponse();' in the *original file*. The line 'pdx-new-4:    response = jsonResponse(response);' is *not* a semantic anchor since it doesn't refer to any code in the *original file*. The line 'pdx-new-6:    return response;' is *not* a semantic anchor since it is exactly equal to a line in the *original file*.
+
+To mark a line a semantic anchor, it must be very clear from the description of the change and the *proposed updates* that a line from the *proposed updates* is intended to match a line in the *original file*. Do NOT mark lines as semantic anchors simply because they are similar to a line in the *original file*. The line must be clearly intended to match a line in the *original file*. If it's ambiguous whether a line is intended to match a line in the *original file*, it is *not* a semantic anchor.
+
+If a line in the *proposed updates* is identical to a line in the *original file*, but has changed position or is being used in a different context, it is *still not* a semantic anchor. You *must not* under any circumstances mark any line that is identical to a line in the *original file* as a semantic anchor.
+
+If a line in the *proposed updates* is a semantic anchor and there is a comment (or multiple comments) associated with the line that is being modified, carefully consider if the comment should also be marked as a semantic anchor. If the comment or comments clearly map to a corresponding comment in the *original file*, and the comment is modified in the *proposed updates*, then it MUST be marked as a semantic anchor. Correctly marking comments as sematic anchors is just as important as marking other lines of code as semantic anchors.
+
+First, do a succinct paragraph of general reasoning about the *proposed updates* and how they refer to the *original file*, focusing on the structure of each, which elements are changing, and how the changes map to the *original file*. Also make a brief note of any comments that are being modified or introduced in the *proposed updates* and whether/how they map to comments in the *original file*.
+
+Next, output xml with this structure:
+
+<SemanticAnchors>
+	<Anchor
+		reasoning="'update function' signature with 'log' parameter added"
+		proposedLine="pdx-new-1"		
+		originalLine="pdx-1"
+	/>
+</SemanticAnchors>
+
+Explanation of 'Anchor' tag attributes:
+
+	**reasoning**: A brief explanation of why this line in the *proposed updates* is intended to match a line in the *original file*.
+
+	**proposedLine**: The line number, prefixed by 'pdx-new-', in the *proposed updates* that is intended to match a line in the *original file*. MUST be a line that exists in the *proposed updates*.	
+
+	**originalLine**: The line number, prefixed by 'pdx-', in the *original file* that the anchor is referring to. MUST be a line that exists in the *original file* and MUST ALWAYS be prefixed by 'pdx-' (never pdx-new-).
+
+If there are no semantic anchors, output an empty <SemanticAnchors> element. Do NOT invent semantic anchors if there are none. It's common for there to be no semantic anchors in the *proposed updates*. In that case, output an empty <SemanticAnchors> element.
+
+Do NOT include any other text or comments in your output.
+`
 
 var ExampleReferences = `
 A reference comment is a comment that references code in the *original file* for the purpose of making it clear where a change should be applied. Examples of reference comments include:
@@ -34,14 +134,26 @@ A reference comment is a comment that references code in the *original file* for
 	- // rest of the class...
 	- // other properties
 	- // other methods
+	// ... existing properties ...
+	// ... existing values ...
+	// ... existing text ...
 
 Reference comments often won't exactly match one of the above examples, but they will always be referencing a block of code from the *original file* that is left out of the *proposed updates* for the sake of focusing on the specific change that is being made.
+
+Reference comments do NOT need to be valid comments for the given file type. For file types like JSON or plain text that do not use comments, reference comments in the form of '// ... existing properties ...' or '// ... existing values ...' or '// ... existing text ...' can still be present. These MUST be treated as valid reference comments regardless of the file type or the validity of the syntax.
 `
 
-var ReferencesPrompt = `
+const RefsBeginning = `
 You are an AI that analyzes an *original file* and *proposed updates* to that file and then identifies *all* *reference comments* present in the *proposed updates*.
 
-` + ExampleReferences + `
+`
+
+const WholeFileBeginning = `
+After identifying all references, you will output the *entire file* with the *proposed updates* correctly applied. ALL references will be replaced by the appropriate code from the *original file*. You will correctly merge the code from the *original file* with the *proposed updates* and output the entire file.
+
+`
+
+var ReferencesPrompt = ExampleReferences + `
 	
 	*NOT EVERY COMMENT IS A REFERENCE.* If a comment refers to code that is present in the *proposed updates* then it is *not* a reference. Similarly, if a comment explains something about the change being made in the *proposed updates*, it is also *not* a reference.
 
@@ -358,236 +470,263 @@ You are an AI that analyzes an *original file* and *proposed updates* to that fi
 			originalEnd="pdx-13"
 		/>
 	</references>
+`
 
+const RefsOnlyEnding = `
 	*
 
-	Do not include any additional text in your final output. Only output the references.
+	Do NOT include any additional text after the <references> element. The output must end after </references>. DO NOT use the string <references> anywhere else in the output. ONLY use it to start the <references> element.
 `
 
-var UpdatedListReplacementsFn = openai.FunctionDefinition{
-	Name: "listChangesWithLineNums",
-	Parameters: &jsonschema.Definition{
-		Type: jsonschema.Object,
-		Properties: map[string]jsonschema.Definition{
-			"problems": {
-				Type: jsonschema.String,
-			},
-			"originalSections": {
-				Type: jsonschema.Array,
-				Items: &jsonschema.Definition{
-					Type: jsonschema.Object,
-					Properties: map[string]jsonschema.Definition{
-						"description": {
-							Type: jsonschema.String,
-						},
-						"structure": {
-							Type: jsonschema.Object,
-							Properties: map[string]jsonschema.Definition{
-								"structure": {
-									Type: jsonschema.String,
-								},
-								"structureOpens": {
-									Type: jsonschema.String,
-								},
-								"structureCloses": {
-									Type: jsonschema.String,
-								},
-							},
-						},
-						"reasoning": {
-							Type: jsonschema.String,
-						},
-						"sectionStartLine": {
-							Type: jsonschema.String,
-						},
-						"sectionEndLine": {
-							Type: jsonschema.String,
-						},
-						"shouldChange": {
-							Type: jsonschema.Boolean,
-						},
-						"shouldRemove": {
-							Type: jsonschema.Boolean,
-						},
-					},
-					Required: []string{
-						"description",
-						"structure",
-						"reasoning",
-						"sectionStartLine",
-						"sectionEndLine",
-						"shouldChange",
-						"shouldRemove",
-					},
-				},
-			},
-			"entireFileReasoning": {
-				Type: jsonschema.String,
-			},
-			"entireFile": {
-				Type: jsonschema.Boolean,
-			},
-			"changes": {
-				Type: jsonschema.Array,
-				Items: &jsonschema.Definition{
-					Type: jsonschema.Object,
-					Properties: map[string]jsonschema.Definition{
-						"section": {
-							Type: jsonschema.String,
-						},
-						"summary": {
-							Type: jsonschema.String,
-						},
-						"newReasoning": {
-							Type: jsonschema.String,
-						},
-						"reasoning": {
-							Type: jsonschema.String,
-						},
-						"structureReasoning": {
-							Type: jsonschema.Object,
-							Properties: map[string]jsonschema.Definition{
-								"old": {
-									Type: jsonschema.Object,
-									Properties: map[string]jsonschema.Definition{
-										"structure": {
-											Type: jsonschema.String,
-										},
-										"structureOpens": {
-											Type: jsonschema.String,
-										},
-										"structureCloses": {
-											Type: jsonschema.String,
-										},
-									},
-									Required: []string{"structure", "structureOpens", "structureCloses"},
-								},
-								"new": {
-									Type: jsonschema.Object,
-									Properties: map[string]jsonschema.Definition{
-										"structure": {
-											Type: jsonschema.String,
-										},
-										"structureOpens": {
-											Type: jsonschema.String,
-										},
-										"structureCloses": {
-											Type: jsonschema.String,
-										},
-									},
-									Required: []string{"structure", "structureOpens", "structureCloses"},
-								},
-							},
-						},
-						"orderReasoning": {
-							Type: jsonschema.String,
-						},
-						"hasChange": {
-							Type: jsonschema.Boolean,
-						},
-						"insertBefore": {
-							Type: jsonschema.Object,
-							Properties: map[string]jsonschema.Definition{
-								"shouldInsertBefore": {
-									Type: jsonschema.Boolean,
-								},
-								"line": {
-									Type: jsonschema.String,
-								},
-							},
-							Required: []string{"shouldInsertBefore", "firstLine"},
-						},
-						"insertAfter": {
-							Type: jsonschema.Object,
-							Properties: map[string]jsonschema.Definition{
-								"shouldInsertAfter": {
-									Type: jsonschema.Boolean,
-								},
-								"line": {
-									Type: jsonschema.String,
-								},
-							},
-							Required: []string{"shouldInsertAfter", "firstLine"},
-						},
-						"new": {
-							Type: jsonschema.Object,
-							Properties: map[string]jsonschema.Definition{
-								"startLineString": {
-									Type: jsonschema.String,
-								},
-								"endLineString": {
-									Type: jsonschema.String,
-								},
-							},
-							Required: []string{"startLineString", "endLineString"},
-						},
-						"old": {
-							Type: jsonschema.Object,
-							Properties: map[string]jsonschema.Definition{
-								"startLineString": {
-									Type: jsonschema.String,
-								},
-								"endLineString": {
-									Type: jsonschema.String,
-								},
-							},
-							Required: []string{"startLineString", "endLineString"},
-						},
-					},
-					Required: []string{
-						"section",
-						"summary",
-						"newReasoning",
-						"structureReasoning",
-						"orderReasoning",
-						"hasChange",
-						"insertBefore",
-						"insertAfter",
-						"new",
-						"old",
-					},
-				},
-			},
-		},
-		Required: []string{"originalSections", "entireFileReasoning", "entireFile", "problems", "changes"},
-	},
-}
+const WholeFileEnding = `
+	*
 
-func AddImplicitReferencesPrompt(filePath, preBuildState, changesFile, changesDesc string) string {
-	preBuildStateWithLineNums := shared.AddLineNums(preBuildState)
+	Now output the entire file with the *proposed updates* correctly applied. ALL identified references MUST be replaced by the appropriate code from the *original file*. You MUST correctly merge the code from the *original file* with the *proposed updates* and output the entire file. The resulting file MUST NOT include any reference comments.
 
-	s := ImplicitReferencesPrompt + "\n\n" + getPreBuildStatePrompt(filePath, preBuildStateWithLineNums) + "\n\n"
+	The resulting file MUST be syntactically and semantically correct. All code structures must be properly balanced.
+	
+	The full resulting file should be output within a <file> element, like this:
 
-	s += fmt.Sprintf("Proposed updates:\n%s\n```\n%s\n```", changesDesc, changesFile)
+	<file>
+		package main
 
-	return s
-}
+		import "logger"
 
-var ImplicitReferencesPrompt = `
-You are an AI that analyzes an *original file* and *proposed updates* to that file and then rewrites the *proposed updates* to fit this general format:
+		function main() {
+			logger.info("Hello, world!");
+			exec()
+		}
+	</file>
 
-<ProposedUpdatesWithReferences>
-// ... existing code ...
+	Do NOT include line numbers in the <file> element. Do NOT include reference comments in the <file> element. Output the ENTIRE file, no matter how long it is, with NO EXCEPTIONS. Include the resulting file *only* with no other text. Do NOT wrap the file output in triple backticks or any other formatting, except for the <file> element tags.
 
-[code that is being changed]
-
-// ... existing code ...
-
-[code that is being added]
-
-// ... existing code ...
-</ProposedUpdatesWithReferences>
-
-There will not *always* be a need for an "... existing code ..." comment before or after the code that is being changed or added. Only add it if there is a clear semantic reason to do so.
-
-The *proposed updates* will often already include comments similar to "... existing code ...". If so, leave these in place and do not duplicate them. Only add the "... existing code ..." comment if there is a clear semantic reason to do so that is not already accomplished by existing "... existing code ..." (or similar) comments in the *proposed updates*.
-
-In other words, sometimes the *proposed updates* will already have followed this format correctly. In that case, simply repeat the *proposed updates* verbatim inside the <ProposedUpdatesWithReferences> element. 
-
-Other times, there will be missing "... existing code ..." comments that you need to add. In that case, add them as necessary inside the <ProposedUpdatesWithReferences> element.
-
-Inside the <ProposedUpdatesWithReferences> element, include nothing but the code for the *proposed updates* with the addition of any "... existing code ..." comments that you are adding. Don't include any other text. Don't include triple backticks or any other formatting.
+	Do NOT include any additional text after the <file> element. The output must end after </file>. DO NOT use the string <file> anywhere else in the output. ONLY use it to start the <file> element.
 `
+
+// var UpdatedListReplacementsFn = openai.FunctionDefinition{
+// 	Name: "listChangesWithLineNums",
+// 	Parameters: &jsonschema.Definition{
+// 		Type: jsonschema.Object,
+// 		Properties: map[string]jsonschema.Definition{
+// 			"problems": {
+// 				Type: jsonschema.String,
+// 			},
+// 			"originalSections": {
+// 				Type: jsonschema.Array,
+// 				Items: &jsonschema.Definition{
+// 					Type: jsonschema.Object,
+// 					Properties: map[string]jsonschema.Definition{
+// 						"description": {
+// 							Type: jsonschema.String,
+// 						},
+// 						"structure": {
+// 							Type: jsonschema.Object,
+// 							Properties: map[string]jsonschema.Definition{
+// 								"structure": {
+// 									Type: jsonschema.String,
+// 								},
+// 								"structureOpens": {
+// 									Type: jsonschema.String,
+// 								},
+// 								"structureCloses": {
+// 									Type: jsonschema.String,
+// 								},
+// 							},
+// 						},
+// 						"reasoning": {
+// 							Type: jsonschema.String,
+// 						},
+// 						"sectionStartLine": {
+// 							Type: jsonschema.String,
+// 						},
+// 						"sectionEndLine": {
+// 							Type: jsonschema.String,
+// 						},
+// 						"shouldChange": {
+// 							Type: jsonschema.Boolean,
+// 						},
+// 						"shouldRemove": {
+// 							Type: jsonschema.Boolean,
+// 						},
+// 					},
+// 					Required: []string{
+// 						"description",
+// 						"structure",
+// 						"reasoning",
+// 						"sectionStartLine",
+// 						"sectionEndLine",
+// 						"shouldChange",
+// 						"shouldRemove",
+// 					},
+// 				},
+// 			},
+// 			"entireFileReasoning": {
+// 				Type: jsonschema.String,
+// 			},
+// 			"entireFile": {
+// 				Type: jsonschema.Boolean,
+// 			},
+// 			"changes": {
+// 				Type: jsonschema.Array,
+// 				Items: &jsonschema.Definition{
+// 					Type: jsonschema.Object,
+// 					Properties: map[string]jsonschema.Definition{
+// 						"section": {
+// 							Type: jsonschema.String,
+// 						},
+// 						"summary": {
+// 							Type: jsonschema.String,
+// 						},
+// 						"newReasoning": {
+// 							Type: jsonschema.String,
+// 						},
+// 						"reasoning": {
+// 							Type: jsonschema.String,
+// 						},
+// 						"structureReasoning": {
+// 							Type: jsonschema.Object,
+// 							Properties: map[string]jsonschema.Definition{
+// 								"old": {
+// 									Type: jsonschema.Object,
+// 									Properties: map[string]jsonschema.Definition{
+// 										"structure": {
+// 											Type: jsonschema.String,
+// 										},
+// 										"structureOpens": {
+// 											Type: jsonschema.String,
+// 										},
+// 										"structureCloses": {
+// 											Type: jsonschema.String,
+// 										},
+// 									},
+// 									Required: []string{"structure", "structureOpens", "structureCloses"},
+// 								},
+// 								"new": {
+// 									Type: jsonschema.Object,
+// 									Properties: map[string]jsonschema.Definition{
+// 										"structure": {
+// 											Type: jsonschema.String,
+// 										},
+// 										"structureOpens": {
+// 											Type: jsonschema.String,
+// 										},
+// 										"structureCloses": {
+// 											Type: jsonschema.String,
+// 										},
+// 									},
+// 									Required: []string{"structure", "structureOpens", "structureCloses"},
+// 								},
+// 							},
+// 						},
+// 						"orderReasoning": {
+// 							Type: jsonschema.String,
+// 						},
+// 						"hasChange": {
+// 							Type: jsonschema.Boolean,
+// 						},
+// 						"insertBefore": {
+// 							Type: jsonschema.Object,
+// 							Properties: map[string]jsonschema.Definition{
+// 								"shouldInsertBefore": {
+// 									Type: jsonschema.Boolean,
+// 								},
+// 								"line": {
+// 									Type: jsonschema.String,
+// 								},
+// 							},
+// 							Required: []string{"shouldInsertBefore", "firstLine"},
+// 						},
+// 						"insertAfter": {
+// 							Type: jsonschema.Object,
+// 							Properties: map[string]jsonschema.Definition{
+// 								"shouldInsertAfter": {
+// 									Type: jsonschema.Boolean,
+// 								},
+// 								"line": {
+// 									Type: jsonschema.String,
+// 								},
+// 							},
+// 							Required: []string{"shouldInsertAfter", "firstLine"},
+// 						},
+// 						"new": {
+// 							Type: jsonschema.Object,
+// 							Properties: map[string]jsonschema.Definition{
+// 								"startLineString": {
+// 									Type: jsonschema.String,
+// 								},
+// 								"endLineString": {
+// 									Type: jsonschema.String,
+// 								},
+// 							},
+// 							Required: []string{"startLineString", "endLineString"},
+// 						},
+// 						"old": {
+// 							Type: jsonschema.Object,
+// 							Properties: map[string]jsonschema.Definition{
+// 								"startLineString": {
+// 									Type: jsonschema.String,
+// 								},
+// 								"endLineString": {
+// 									Type: jsonschema.String,
+// 								},
+// 							},
+// 							Required: []string{"startLineString", "endLineString"},
+// 						},
+// 					},
+// 					Required: []string{
+// 						"section",
+// 						"summary",
+// 						"newReasoning",
+// 						"structureReasoning",
+// 						"orderReasoning",
+// 						"hasChange",
+// 						"insertBefore",
+// 						"insertAfter",
+// 						"new",
+// 						"old",
+// 					},
+// 				},
+// 			},
+// 		},
+// 		Required: []string{"originalSections", "entireFileReasoning", "entireFile", "problems", "changes"},
+// 	},
+// }
+
+// func AddImplicitReferencesPrompt(filePath, preBuildState, changesFile, changesDesc string) string {
+// 	preBuildStateWithLineNums := shared.AddLineNums(preBuildState)
+
+// 	s := ImplicitReferencesPrompt + "\n\n" + getPreBuildStatePrompt(filePath, preBuildStateWithLineNums) + "\n\n"
+
+// 	s += fmt.Sprintf("Proposed updates:\n%s\n```\n%s\n```", changesDesc, changesFile)
+
+// 	return s
+// }
+
+// var ImplicitReferencesPrompt = `
+// You are an AI that analyzes an *original file* and *proposed updates* to that file and then rewrites the *proposed updates* to fit this general format:
+
+// <ProposedUpdatesWithReferences>
+// // ... existing code ...
+
+// [code that is being changed]
+
+// // ... existing code ...
+
+// [code that is being added]
+
+// // ... existing code ...
+// </ProposedUpdatesWithReferences>
+
+// There will not *always* be a need for an "... existing code ..." comment before or after the code that is being changed or added. Only add it if there is a clear semantic reason to do so.
+
+// The *proposed updates* will often already include comments similar to "... existing code ...". If so, leave these in place and do not duplicate them. Only add the "... existing code ..." comment if there is a clear semantic reason to do so that is not already accomplished by existing "... existing code ..." (or similar) comments in the *proposed updates*.
+
+// In other words, sometimes the *proposed updates* will already have followed this format correctly. In that case, simply repeat the *proposed updates* verbatim inside the <ProposedUpdatesWithReferences> element.
+
+// Other times, there will be missing "... existing code ..." comments that you need to add. In that case, add them as necessary inside the <ProposedUpdatesWithReferences> element.
+
+// Inside the <ProposedUpdatesWithReferences> element, include nothing but the code for the *proposed updates* with the addition of any "... existing code ..." comments that you are adding. Don't include any other text. Don't include triple backticks or any other formatting.
+// `
 
 // var ImplicitReferencesPrompt = `
 // You are an AI that analyzes an *original file* and *proposed updates* to that file and then:
