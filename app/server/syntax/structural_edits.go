@@ -65,17 +65,17 @@ func ApplyChanges(
 	originalLines := strings.Split(original, "\n")
 	proposedLines := strings.Split(proposed, "\n")
 
-	if language == "json" {
-		for i, line := range proposedLines {
-			// keep indentation for syntax parsing
-			content := strings.TrimSpace(line)
-			if removalsByLine[Removal(i+1)] {
-				proposedLines[i] = strings.Replace(line, content, "", 1)
-			} else if refsByLine[Reference(i+1)] {
-				proposedLines[i] = strings.Replace(line, content, "", 1)
-			}
-		}
-	}
+	// if language == "json" {
+	// 	for i, line := range proposedLines {
+	// 		// keep indentation for syntax parsing
+	// 		content := strings.TrimSpace(line)
+	// 		if removalsByLine[Removal(i+1)] {
+	// 			proposedLines[i] = strings.Replace(line, content, "", 1)
+	// 		} else if refsByLine[Reference(i+1)] {
+	// 			proposedLines[i] = strings.Replace(line, content, "", 1)
+	// 		}
+	// 	}
+	// }
 
 	proposedWithoutRemovals := strings.Join(proposedLines, "\n")
 
@@ -362,8 +362,8 @@ func ApplyChanges(
 				}
 
 				refOpen = true
-				setOLineNum(oLineNum + 1)
 				refStart = oLineNum
+				setOLineNum(oLineNum + 1)
 
 				if verboseLogging {
 					fmt.Printf("setting refStart: %d\n", refStart)
@@ -863,12 +863,12 @@ func (s TreeSitterSection) String(sourceLines []string, bytes []byte) string {
 		fmt.Printf("section.String startIdx: %d, endIdx: %d\n", startIdx, endIdx)
 	}
 
-	parent := lastNode.Parent()
-	parentEndNode := parent.Child(int(parent.ChildCount()) - 1)
-	lastLine := sourceLines[endIdx]
-	if lastLine == parentEndNode.Content(bytes) {
-		endIdx--
-	}
+	// parent := lastNode.Parent()
+	// parentEndNode := parent.Child(int(parent.ChildCount()) - 1)
+	// lastLine := sourceLines[endIdx]
+	// if lastLine == parentEndNode.Content(bytes) {
+	// 	endIdx--
+	// }
 
 	result := strings.Join(sourceLines[startIdx:endIdx+1], "\n") + "\n"
 

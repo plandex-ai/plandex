@@ -753,6 +753,229 @@ func TestStructuralReplacements(t *testing.T) {
 				3, 24, 26,
 			},
 		},
+
+		{
+			name: "json multi-level update 2",
+			original: `
+{
+  "name": "vscode-plandex",
+  "displayName": "Plandex",
+  "description": "VSCode extension for Plandex integration",
+  "version": "0.1.0",
+  "publisher": "plandex",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onLanguage:pdx"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "pdx",
+        "aliases": ["Plandex", "pdx"],
+        "extensions": [".pdx"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "pdx",
+        "scopeName": "source.mdx",
+        "path": "./syntaxes/mdx.tmLanguage.json",
+        "embeddedLanguages": {
+          "meta.embedded.block.yaml": "yaml",
+          "meta.embedded.block.markdown": "markdown"
+        }
+      }
+    ],
+    "commands": [
+      {
+        "command": "plandex.tellPlandex",
+        "title": "Tell Plandex",
+        "icon": "$(play)"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "plandex.showFilePicker",
+        "key": "@",
+        "when": "editorTextFocus && editorLangId == pdx"
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "plandex.tellPlandex",
+          "group": "navigation",
+          "when": "editorLangId == pdx"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run package",
+    "compile": "webpack",
+    "watch": "webpack --watch",
+    "package": "webpack --mode production --devtool hidden-source-map",
+    "compile-tests": "tsc -p . --outDir out",
+    "watch-tests": "tsc -p . -w --outDir out",
+    "pretest": "npm run compile-tests && npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js"
+  },
+  "devDependencies": {
+    "@types/glob": "^8.1.0",
+    "@types/mocha": "^10.0.1",
+    "@types/node": "^20.2.5",
+    "@types/vscode": "^1.80.0",
+    "@typescript-eslint/eslint-plugin": "^5.59.8",
+    "@typescript-eslint/parser": "^5.59.8",
+    "eslint": "^8.41.0",
+    "glob": "^8.1.0",
+    "mocha": "^10.2.0",
+    "ts-loader": "^9.4.3",
+    "typescript": "^5.1.3",
+    "webpack": "^5.85.0",
+    "webpack-cli": "^5.1.1"
+  },
+  "dependencies": {
+    "yaml": "^2.3.1"
+  }
+}
+`,
+			proposed: `
+{
+  // ... existing code ...
+
+  "contributes": {
+    // ... existing code ...
+
+    "commands": [
+      {
+        "command": "plandex.tellPlandex",
+        "title": "Tell Plandex",
+        "icon": {
+          "light": "resources/light/play.svg",
+          "dark": "resources/dark/play.svg"
+        }
+      }
+    ],
+
+    // ... existing code ...
+  },
+
+  // ... existing code ...
+}
+`,
+			want: `
+{
+  "name": "vscode-plandex",
+  "displayName": "Plandex",
+  "description": "VSCode extension for Plandex integration",
+  "version": "0.1.0",
+  "publisher": "plandex",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onLanguage:pdx"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "pdx",
+        "aliases": ["Plandex", "pdx"],
+        "extensions": [".pdx"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "pdx",
+        "scopeName": "source.mdx",
+        "path": "./syntaxes/mdx.tmLanguage.json",
+        "embeddedLanguages": {
+          "meta.embedded.block.yaml": "yaml",
+          "meta.embedded.block.markdown": "markdown"
+        }
+      }
+    ],
+    "commands": [
+      {
+        "command": "plandex.tellPlandex",
+        "title": "Tell Plandex",
+        "icon": {
+          "light": "resources/light/play.svg",
+          "dark": "resources/dark/play.svg"
+        }
+      }
+    ],
+
+    "keybindings": [
+      {
+        "command": "plandex.showFilePicker",
+        "key": "@",
+        "when": "editorTextFocus && editorLangId == pdx"
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "plandex.tellPlandex",
+          "group": "navigation",
+          "when": "editorLangId == pdx"
+        }
+      ]
+    }
+  },
+
+  "scripts": {
+    "vscode:prepublish": "npm run package",
+    "compile": "webpack",
+    "watch": "webpack --watch",
+    "package": "webpack --mode production --devtool hidden-source-map",
+    "compile-tests": "tsc -p . --outDir out",
+    "watch-tests": "tsc -p . -w --outDir out",
+    "pretest": "npm run compile-tests && npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js"
+  },
+  "devDependencies": {
+    "@types/glob": "^8.1.0",
+    "@types/mocha": "^10.0.1",
+    "@types/node": "^20.2.5",
+    "@types/vscode": "^1.80.0",
+    "@typescript-eslint/eslint-plugin": "^5.59.8",
+    "@typescript-eslint/parser": "^5.59.8",
+    "eslint": "^8.41.0",
+    "glob": "^8.1.0",
+    "mocha": "^10.2.0",
+    "ts-loader": "^9.4.3",
+    "typescript": "^5.1.3",
+    "webpack": "^5.85.0",
+    "webpack-cli": "^5.1.1"
+  },
+  "dependencies": {
+    "yaml": "^2.3.1"
+  }
+}
+`,
+			language: "json",
+			parser:   getParserForLanguage("json"),
+			references: []Reference{
+				3, 6, 19, 22,
+			},
+		},
+
 		{
 			name: "scala complex structures",
 			original: `
@@ -882,7 +1105,7 @@ class MetricsService(
 	}
 
 	for _, tt := range tests {
-		// if tt.name == "scala complex structures" {
+		// if tt.name == "json multi-level update 2" {
 		t.Run(tt.name, func(t *testing.T) {
 			anchorLines := map[int]int{}
 			if tt.anchorLines != nil {
