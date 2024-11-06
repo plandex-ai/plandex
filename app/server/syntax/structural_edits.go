@@ -19,7 +19,7 @@ type Anchor struct {
 
 type TreeSitterSection []*tree_sitter.Node
 
-const verboseLogging = true
+const verboseLogging = false
 
 func ApplyChanges(
 	ctx context.Context,
@@ -276,7 +276,13 @@ func ApplyChanges(
 				}
 			} else {
 				start := refStart - 1
+				if start < 0 {
+					start = 0
+				}
 				end := oLineNum - 1
+				if end < 1 {
+					end = 0
+				}
 				if verboseLogging {
 					fmt.Printf("writing fullRef\n")
 					fmt.Printf("refStart: %d, oLineNum: %d\n", refStart, oLineNum)
@@ -285,8 +291,8 @@ func ApplyChanges(
 				fullRef = originalLines[start:end]
 				if verboseLogging {
 					fmt.Printf("fullRef refStart: %d, oLineNum-1: %d\n", refStart, oLineNum-1)
-					fmt.Printf("originalLines[refStart-1]: %q\n", originalLines[refStart-1])
-					fmt.Printf("originalLines[oLineNum-1]: %q\n", originalLines[oLineNum-1])
+					fmt.Printf("originalLines[start]: %q\n", originalLines[start])
+					fmt.Printf("originalLines[end]: %q\n", originalLines[end])
 					fmt.Printf("depth: %d\n", depth)
 				}
 			}
@@ -343,6 +349,7 @@ func ApplyChanges(
 			fmt.Printf("currentPNodeEndsAtIdx: %d\n", currentPNodeEndsAtIdx)
 			fmt.Printf("currentPNodeMatches: %v\n", currentPNodeMatches)
 			fmt.Printf("lastLineMatched: %v\n", lastLineMatched)
+			fmt.Printf("depth: %d\n", depth)
 		}
 
 		if isRemoval {
@@ -362,8 +369,8 @@ func ApplyChanges(
 				}
 
 				refOpen = true
-				refStart = oLineNum
 				setOLineNum(oLineNum + 1)
+				refStart = oLineNum
 
 				if verboseLogging {
 					fmt.Printf("setting refStart: %d\n", refStart)
@@ -374,7 +381,7 @@ func ApplyChanges(
 
 					if verboseLogging {
 						fmt.Printf("refNode.Type(): %s\n", refNode.Type())
-						fmt.Printf("refNode.Content(originalBytes): %q\n", refNode.Content(originalBytes))
+						// fmt.Printf("refNode.Content(originalBytes): %q\n", refNode.Content(originalBytes))
 
 						current := refNode
 						depth := 0
@@ -411,10 +418,10 @@ func ApplyChanges(
 		if !refOpen && lastLineMatched && !currentPNodeMatches {
 			if strings.TrimSpace(pLine) == "" {
 				write(pLine, !finalLine)
-				if verboseLogging {
-					fmt.Printf("newline, incrementing oLineNum: %d\n", oLineNum)
+				// Check if next line in original is also blank
+				if oLineNum+1 < len(originalLines) && strings.TrimSpace(originalLines[oLineNum+1]) == "" {
+					setOLineNum(oLineNum + 1)
 				}
-				setOLineNum(oLineNum + 1)
 				continue
 			}
 		}
@@ -863,12 +870,12 @@ func (s TreeSitterSection) String(sourceLines []string, bytes []byte) string {
 		fmt.Printf("section.String startIdx: %d, endIdx: %d\n", startIdx, endIdx)
 	}
 
-	// parent := lastNode.Parent()
-	// parentEndNode := parent.Child(int(parent.ChildCount()) - 1)
-	// lastLine := sourceLines[endIdx]
-	// if lastLine == parentEndNode.Content(bytes) {
-	// 	endIdx--
-	// }
+	parent := lastNode.Parent()
+	parentEndNode := parent.Child(int(parent.ChildCount()) - 1)
+	lastLine := sourceLines[endIdx]
+	if lastLine == parentEndNode.Content(bytes) {
+		endIdx--
+	}
 
 	result := strings.Join(sourceLines[startIdx:endIdx+1], "\n") + "\n"
 
