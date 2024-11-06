@@ -60,7 +60,7 @@ func (fileState *activeBuildStreamFileState) onVerifyResult(res types.VerifyResu
 }
 
 func (fileState *activeBuildStreamFileState) verifyRetryOrAbort(err error) {
-	if fileState.verifyFileNumRetry < MaxBuildStreamErrorRetries {
+	if fileState.verifyFileNumRetry < MaxBuildErrorRetries {
 		fileState.verifyFileNumRetry++
 		fileState.activeBuild.VerifyBuffer = ""
 		fileState.activeBuild.VerifyBufferTokens = 0

@@ -451,7 +451,7 @@ func (fileState *activeBuildStreamFileState) onLineNumsBuildResult(res types.Cha
 }
 
 func (fileState *activeBuildStreamFileState) lineNumsRetryOrError(err error) {
-	if fileState.lineNumsNumRetry < MaxBuildStreamErrorRetries {
+	if fileState.lineNumsNumRetry < MaxBuildErrorRetries {
 		fileState.lineNumsNumRetry++
 		fileState.activeBuild.WithLineNumsBuffer = ""
 		fileState.activeBuild.WithLineNumsBufferTokens = 0

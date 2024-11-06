@@ -172,8 +172,8 @@ mainLoop:
 
 			// if stream finished and it's not a usage chunk, keeep listening for usage chunk
 			if streamFinished {
-				log.Println("Tell stream finished—no usage chunk-will keep listening")
-				continue
+				// log.Println("Tell stream finished—no usage chunk-will keep listening")
+				// continue
 			}
 
 			if len(response.Choices) > 1 {

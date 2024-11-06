@@ -155,7 +155,7 @@ func (fileState *activeBuildStreamFileState) listenStreamFixChanges(stream *open
 
 			// if stream finished and it's not a usage chunk, keep listening for usage chunk
 			if streamFinished {
-				log.Printf("listenStreamFixChanges - File %s: Stream finished, no usage chunk-will keep listening\n", filePath)
+				// log.Printf("listenStreamFixChanges - File %s: Stream finished, no usage chunk-will keep listening\n", filePath)
 				continue
 			}
 

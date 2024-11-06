@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"path/filepath"
 	"plandex-server/db"
+	"plandex-server/syntax"
 	"plandex-server/types"
 
 	"github.com/plandex/plandex/shared"
@@ -133,6 +135,28 @@ func (state *activeBuildStreamFileState) loadBuildFile(activeBuild *types.Active
 	}
 
 	convoMessageId := activeBuild.ReplyId
+
+	ext := filepath.Ext(filePath)
+	parser, lang, backupParser, backupLang := syntax.GetParserForExt(ext)
+
+	if parser != nil {
+		state.parser = parser
+		state.language = lang
+	} else if backupParser != nil {
+		state.parser = backupParser
+		state.language = backupLang
+	}
+
+	if state.parser != nil {
+		validationRes, err := syntax.Validate(activePlan.Ctx, filePath, state.preBuildState)
+		if err != nil {
+			log.Printf(" error validating original file syntax: %v\n", err)
+			return fmt.Errorf("error validating original file syntax: %v", err)
+		}
+		if validationRes.HasParser && !validationRes.TimedOut && !validationRes.Valid {
+			state.preBuildStateSyntaxInvalid = true
+		}
+	}
 
 	build := &db.PlanBuild{
 		OrgId:          currentOrgId,

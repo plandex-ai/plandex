@@ -159,7 +159,7 @@ func (fileState *activeBuildStreamFileState) listenStreamChangesWithLineNums(str
 
 			// if stream finished and it's not a usage chunk, keep listening for usage chunk
 			if streamFinished {
-				log.Printf("listenStream - File %s: Stream finished, no usage chunk-will keep listening\n", filePath)
+				// log.Printf("listenStream - File %s: Stream finished, no usage chunk-will keep listening\n", filePath)
 				continue
 			}
 

@@ -14,6 +14,8 @@ func GetSemanticAnchorsPrompt(filePath, preBuildState, changesFile, changesDesc 
 
 	s += fmt.Sprintf("Proposed updates:\n%s\n```\n%s\n```", changesDesc, changesWithLineNums)
 
+	fmt.Printf("SemanticAnchorsPrompt: %s\n", s)
+
 	return s
 }
 
@@ -90,11 +92,11 @@ Then both the lines 'pdx-new-2:    // Get response and parse JSON body' and 'pdx
 
 To mark a line a semantic anchor, it must be very clear from the description of the change and the *proposed updates* that a line from the *proposed updates* is intended to match a line in the *original file*. Do NOT mark lines as semantic anchors simply because they are similar to a line in the *original file*. The line must be clearly intended to match a line in the *original file*. If it's ambiguous whether a line is intended to match a line in the *original file*, it is *not* a semantic anchor.
 
-If a line in the *proposed updates* is identical to a line in the *original file*, but has changed position or is being used in a different context, it is *still not* a semantic anchor. You *must not* under any circumstances mark any line that is identical to a line in the *original file* as a semantic anchor.
+If a line in the *proposed updates* is identical to a line in the *original file*, but has changed position or is being used in a different context, it is *still NOT* a semantic anchor. You *MUST NOT* under any circumstances mark any line that is identical to a line in the *original file* as a semantic anchor. Semantic anchors are only for lines that have *changed* in the *proposed updates* but are still clearly intended to match a line from the *original file*.
 
 If a line in the *proposed updates* is a semantic anchor and there is a comment (or multiple comments) associated with the line that is being modified, carefully consider if the comment should also be marked as a semantic anchor. If the comment or comments clearly map to a corresponding comment in the *original file*, and the comment is modified in the *proposed updates*, then it MUST be marked as a semantic anchor. Correctly marking comments as sematic anchors is just as important as marking other lines of code as semantic anchors.
 
-First, do a succinct paragraph of general reasoning about the *proposed updates* and how they refer to the *original file*, focusing on the structure of each, which elements are changing, and how the changes map to the *original file*. Also make a brief note of any comments that are being modified or introduced in the *proposed updates* and whether/how they map to comments in the *original file*.
+First, output a single *brief* paragraph of general reasoning about the *proposed updates* and how they refer to the *original file*, focusing on the structure of each, which elements are changing, and how the changes map to the *original file*. Also make a brief note of any comments that are being modified or introduced in the *proposed updates* and whether/how they map to comments in the *original file*. Do NOT output a list of semantic anchors in this paragraph—save that for the next section.
 
 Next, output xml with this structure:
 
@@ -108,7 +110,7 @@ Next, output xml with this structure:
 
 Explanation of 'Anchor' tag attributes:
 
-	**reasoning**: A brief explanation of why this line in the *proposed updates* is intended to match a line in the *original file*.
+	**reasoning**: A brief explanation of why this line in the *proposed updates* is a *semantic anchor*—why it's intended to match a line in the *original file* (even though it's *not* exactly equal to that line).
 
 	**proposedLine**: The line number, prefixed by 'pdx-new-', in the *proposed updates* that is intended to match a line in the *original file*. MUST be a line that exists in the *proposed updates*.	
 

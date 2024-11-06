@@ -282,7 +282,17 @@ func (fileState *activeBuildStreamFileState) buildFile() {
 		activeBuild.CurrentFileTokens = currentNumTokens
 	}
 
-	fileState.buildExpandReferences()
+	if fileState.parser != nil && !fileState.preBuildStateSyntaxInvalid {
+		log.Println("buildFile - building structured edits")
+
+		fileState.buildStructuredEdits()
+	} else {
+		log.Println("buildFile - building expand references")
+		log.Printf("fileState.parser == nil: %v\n", fileState.parser == nil)
+		log.Printf("fileState.preBuildStateSyntaxInvalid: %v\n", fileState.preBuildStateSyntaxInvalid)
+
+		fileState.buildExpandReferences()
+	}
 }
 
 func (fileState *activeBuildStreamFileState) buildFileLineNums() {
@@ -304,7 +314,6 @@ func (fileState *activeBuildStreamFileState) buildFileLineNums() {
 
 	log.Println("buildFileLineNums - getting file from model: " + filePath)
 	// log.Println("File context:", fileContext)
-
 	// log.Println("currentState:", currentState)
 
 	sysPrompt := prompts.GetBuildLineNumbersSysPrompt(filePath, originalFile, fmt.Sprintf("%s\n\n```%s```", activeBuild.FileDescription, activeBuild.FileContent))

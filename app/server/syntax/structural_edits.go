@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/davecgh/go-spew/spew"
 	tree_sitter "github.com/smacker/go-tree-sitter"
 )
 
@@ -20,8 +21,9 @@ type TreeSitterSection []*tree_sitter.Node
 
 const verboseLogging = true
 
-func ApplyReferences(
+func ApplyChanges(
 	ctx context.Context,
+	language string,
 	parser *tree_sitter.Parser,
 	original,
 	proposed string,
@@ -63,13 +65,15 @@ func ApplyReferences(
 	originalLines := strings.Split(original, "\n")
 	proposedLines := strings.Split(proposed, "\n")
 
-	for i, line := range proposedLines {
-		// keep indentation for syntax parsing
-		content := strings.TrimSpace(line)
-		if removalsByLine[Removal(i+1)] {
-			proposedLines[i] = strings.Replace(line, content, "", 1)
-		} else if refsByLine[Reference(i+1)] {
-			proposedLines[i] = strings.Replace(line, content, "", 1)
+	if language == "json" {
+		for i, line := range proposedLines {
+			// keep indentation for syntax parsing
+			content := strings.TrimSpace(line)
+			if removalsByLine[Removal(i+1)] {
+				proposedLines[i] = strings.Replace(line, content, "", 1)
+			} else if refsByLine[Reference(i+1)] {
+				proposedLines[i] = strings.Replace(line, content, "", 1)
+			}
 		}
 	}
 
@@ -90,25 +94,39 @@ func ApplyReferences(
 	}
 	defer proposedTree.Close()
 
-	fmt.Printf("anchorLines: %v\n", anchorLines)
+	if verboseLogging {
+		fmt.Printf("anchorLines: %v\n", anchorLines)
+	}
 
-	originalNodesByLineIndex := buildNodeIndex(originalTree)
-	proposedNodesByLineIndex := buildNodeIndex(proposedTree)
+	oRes := buildNodeIndex(originalTree)
+	pRes := buildNodeIndex(proposedTree)
+
+	originalNodesByLineIndex := oRes.nodesByLine
+	proposedNodesByLineIndex := pRes.nodesByLine
+	originalParentsByLineIndex := oRes.parentsByLine
 
 	findNextAnchor := func(s string, pLineNum int, pNode *tree_sitter.Node, fromLine int) *Anchor {
 		oLineNum, ok := anchorLines[pLineNum]
 		if ok {
-			fmt.Printf("found anchor in anchorLines: oLineNum: %d, pLineNum: %d\n", oLineNum, pLineNum)
+			if verboseLogging {
+				fmt.Printf("found anchor in anchorLines: oLineNum: %d, pLineNum: %d\n", oLineNum, pLineNum)
+			}
 
 			oNode := originalNodesByLineIndex[oLineNum-1]
 
-			fmt.Printf("oNode.Type(): %s\n", oNode.Type())
+			if verboseLogging {
+				fmt.Printf("oNode.Type(): %s\n", oNode.Type())
+			}
 
 			anchor := &Anchor{Open: oLineNum, Close: int(oNode.EndPoint().Row) + 1}
-			fmt.Printf("found anchor: %v\n", anchor)
+			if verboseLogging {
+				fmt.Printf("found anchor: %v\n", anchor)
+			}
 			return anchor
 		} else {
-			fmt.Printf("no anchor found in anchorLines: pLineNum: %d\n", pLineNum)
+			if verboseLogging {
+				fmt.Printf("no anchor found in anchorLines: pLineNum: %d\n", pLineNum)
+			}
 		}
 
 		for idx, line := range originalLines {
@@ -140,10 +158,12 @@ func ApplyReferences(
 			if stringMatch {
 				var endLineNum int
 				if oNode != nil {
-					fmt.Printf("oNode.Type(): %s\n", oNode.Type())
-					fmt.Printf("oNode.EndPoint().Row: %d\n", oNode.EndPoint().Row)
-					// fmt.Printf("%v\n", oNode)
-					// fmt.Printf("oNode.Content(originalBytes):\n%q\n", oNode.Content(originalBytes))
+					if verboseLogging {
+						fmt.Printf("oNode.Type(): %s\n", oNode.Type())
+						fmt.Printf("oNode.EndPoint().Row: %d\n", oNode.EndPoint().Row)
+						// fmt.Printf("%v\n", oNode)
+						// fmt.Printf("oNode.Content(originalBytes):\n%q\n", oNode.Content(originalBytes))
+					}
 					endLineNum = int(oNode.EndPoint().Row) + 1
 				}
 				if verboseLogging {
@@ -271,7 +291,7 @@ func ApplyReferences(
 				}
 			}
 
-			write(strings.Join(fullRef, "\n"), true)
+			write(strings.Join(fullRef, "\n"), !eof)
 
 			postRefContent := postRefBuffers[0].String()
 
@@ -284,12 +304,11 @@ func ApplyReferences(
 		} else {
 			if verboseLogging {
 				fmt.Printf("numRefs > 1, refOriginalParent: %s\n", refOriginalParent.Type())
-				// fmt.Printf("refOriginalParent.Content(originalBytes):\n%q\n", refOriginalParent.Content(originalBytes))
-				fmt.Println("original parent type:", refOriginalParent.Type())
+				fmt.Printf("refOriginalParent.Content(originalBytes):\n%q\n", refOriginalParent.Content(originalBytes))
 				fmt.Printf("numRefs: %d, oLineNum: %d\n", numRefs, oLineNum)
 			}
 
-			sections := getSections(refOriginalParent, originalBytes, numRefs, refStart, oLineNum-1)
+			sections := getSections(refOriginalParent, originalBytes, numRefs, refStart, oLineNum)
 
 			for i, section := range sections {
 				if verboseLogging {
@@ -355,13 +374,25 @@ func ApplyReferences(
 
 					if verboseLogging {
 						fmt.Printf("refNode.Type(): %s\n", refNode.Type())
+						fmt.Printf("refNode.Content(originalBytes): %q\n", refNode.Content(originalBytes))
+
+						current := refNode
+						depth := 0
+						for current != nil {
+							fmt.Printf("parent depth %d type: %s content: %q\n",
+								depth,
+								current.Type(),
+								current.Content(originalBytes))
+							current = current.Parent()
+							depth++
+						}
 					}
 
-					refOriginalParent = refNode
+					refOriginalParent = originalParentsByLineIndex[refStart-1]
 
-					// if verboseLogging {
-					// 	fmt.Printf("setting refOriginalParent | refNode.Parent() | Type(): %s\n", refOriginalParent.Type())
-					// }
+					if verboseLogging {
+						fmt.Printf("setting refOriginalParent | refNode.Parent() | Type(): %s\n", refOriginalParent.Type())
+					}
 				} else {
 					refOriginalParent = originalTree.RootNode()
 
@@ -379,7 +410,7 @@ func ApplyReferences(
 
 		if !refOpen && lastLineMatched && !currentPNodeMatches {
 			if strings.TrimSpace(pLine) == "" {
-				write(pLine, true)
+				write(pLine, !finalLine)
 				if verboseLogging {
 					fmt.Printf("newline, incrementing oLineNum: %d\n", oLineNum)
 				}
@@ -531,86 +562,6 @@ func ApplyReferences(
 	return b.String(), nil
 }
 
-// just using exact string matches for now since there's too much ambiguity in node-based matching
-// func nodesMatch(n1, n2 *tree_sitter.Node, source1, source2 []byte) bool {
-// 	// if verboseLogging {
-// 	// 	fmt.Println("check nodesMatch")
-// 	// }
-// 	if n1 == nil || n2 == nil || !n1.IsNamed() || !n2.IsNamed() {
-// 		// if verboseLogging {
-// 		// 	fmt.Println("nodes not named")
-// 		// }
-// 		return false
-// 	}
-
-// 	if n1.Type() != n2.Type() {
-// 		// if verboseLogging {
-// 		// 	fmt.Println("n1 type != n2 type")
-// 		// }
-// 		return false
-// 	}
-
-// 	// Find first declaration/definition node
-// 	findDeclNode := func(n *tree_sitter.Node) *tree_sitter.Node {
-// 		cursor := tree_sitter.NewTreeCursor(n)
-// 		defer cursor.Close()
-
-// 		var findDecl func() *tree_sitter.Node
-// 		findDecl = func() *tree_sitter.Node {
-// 			nodeType := cursor.CurrentNode().Type()
-// 			if strings.HasSuffix(nodeType, "_declaration") ||
-// 				strings.HasSuffix(nodeType, "_definition") ||
-// 				nodeType == "pair" {
-// 				return cursor.CurrentNode()
-// 			}
-
-// 			if cursor.GoToFirstChild() {
-// 				for {
-// 					if node := findDecl(); node != nil {
-// 						return node
-// 					}
-// 					if !cursor.GoToNextSibling() {
-// 						break
-// 					}
-// 				}
-// 				cursor.GoToParent()
-// 			}
-// 			return nil
-// 		}
-
-// 		return findDecl()
-// 	}
-
-// 	decl1 := findDeclNode(n1)
-// 	decl2 := findDeclNode(n2)
-
-// 	if decl1 == nil || decl2 == nil {
-// 		return false
-// 	}
-
-// 	// if verboseLogging {
-// 	// 	fmt.Printf("found declaration nodes of type: %s and %s\n", decl1.Type(), decl2.Type())
-// 	// }
-
-// 	// Get names from first named child
-// 	name1Node := decl1.NamedChild(0)
-// 	name2Node := decl2.NamedChild(0)
-
-// 	if name1Node == nil || name2Node == nil ||
-// 		!strings.HasSuffix(name1Node.Type(), "identifier") || !strings.HasSuffix(name2Node.Type(), "identifier") {
-// 		return false
-// 	}
-
-// 	name1 := name1Node.Content(source1)
-// 	name2 := name2Node.Content(source2)
-
-// 	// if verboseLogging {
-// 	// 	fmt.Printf("name1: %s, name2: %s\n", name1, name2)
-// 	// }
-
-// 	return name1 == name2
-// }
-
 func getSections(parent *tree_sitter.Node, bytes []byte, numSections, fromLine, upToLine int) []TreeSitterSection {
 	sections := make([]TreeSitterSection, numSections)
 	structures := [][]*tree_sitter.Node{}
@@ -619,19 +570,25 @@ func getSections(parent *tree_sitter.Node, bytes []byte, numSections, fromLine, 
 	cursor := tree_sitter.NewTreeCursor(parent)
 	defer cursor.Close()
 
-	firstLineNum := int(parent.StartPoint().Row) + 1
+	parentFirstLineNum := int(parent.StartPoint().Row) + 1
+	parentEndLineNum := int(parent.EndPoint().Row) + 1
 	if verboseLogging {
-		fmt.Printf("firstLineNum: %d\n", firstLineNum)
+		fmt.Printf("parent.Type(): %s\n", parent.Type())
+		fmt.Printf("parent.Content(bytes):\n%q\n", parent.Content(bytes))
+		fmt.Printf("parentFirstLineNum: %d\n", parentFirstLineNum)
+		fmt.Printf("parentEndLineNum: %d\n", parentEndLineNum)
 	}
 
 	if cursor.GoToFirstChild() {
 		for {
 			node := cursor.CurrentNode()
+
 			startLineNum := int(node.StartPoint().Row) + 1
 			endLineNum := int(node.EndPoint().Row) + 1
 			if verboseLogging {
 				fmt.Printf("startLineNum: %d, endLineNum: %d\n", startLineNum, endLineNum)
 				fmt.Println(node.Type())
+				fmt.Printf("node.Content(bytes):\n%q\n", node.Content(bytes))
 			}
 
 			if startLineNum < fromLine {
@@ -644,7 +601,7 @@ func getSections(parent *tree_sitter.Node, bytes []byte, numSections, fromLine, 
 				continue
 			}
 
-			if startLineNum == firstLineNum {
+			if startLineNum == parentFirstLineNum {
 				if verboseLogging {
 					fmt.Printf("skipping first line\n")
 				}
@@ -665,6 +622,10 @@ func getSections(parent *tree_sitter.Node, bytes []byte, numSections, fromLine, 
 					fmt.Println(toLog)
 				}
 
+				break
+			}
+
+			if endLineNum == parentEndLineNum && !isStructuralNode(node) {
 				break
 			}
 
@@ -691,6 +652,11 @@ func getSections(parent *tree_sitter.Node, bytes []byte, numSections, fromLine, 
 		if len(latestStructure) > 0 {
 			structures = append(structures, latestStructure)
 		}
+	}
+
+	if verboseLogging {
+		fmt.Printf("structures:\n")
+		spew.Dump(structures)
 	}
 
 	numStructural := len(structures)
@@ -725,24 +691,19 @@ func getSections(parent *tree_sitter.Node, bytes []byte, numSections, fromLine, 
 	}
 
 	if verboseLogging {
-		// fmt.Printf("sections:\n")
-		// spew.Dump(sections)
+		fmt.Printf("sections:\n")
+		spew.Dump(sections)
 
 		fmt.Println("Sections content:")
 		for i, section := range sections {
 			fmt.Printf("section %d:\n", i)
 			for j, node := range section {
 				fmt.Printf("node %d:\n", j)
-				// fmt.Println(node.Content(bytes))
-
-				if verboseLogging {
-					toLog := node.Content(bytes)
-					if len(toLog) > 200 {
-						toLog = toLog[:100] + "\n...\n" + toLog[len(toLog)-100:]
-					}
-					fmt.Println(toLog)
+				toLog := node.Content(bytes)
+				if len(toLog) > 200 {
+					toLog = toLog[:100] + "\n...\n" + toLog[len(toLog)-100:]
 				}
-
+				fmt.Println(toLog)
 			}
 		}
 	}
@@ -777,8 +738,15 @@ func isStructuralNode(node *tree_sitter.Node) bool {
 	return false
 }
 
-func buildNodeIndex(tree *tree_sitter.Tree) map[int]*tree_sitter.Node {
+type nodeIndex struct {
+	nodesByLine   map[int]*tree_sitter.Node
+	parentsByLine map[int]*tree_sitter.Node
+}
+
+func buildNodeIndex(tree *tree_sitter.Tree) *nodeIndex {
 	nodesByLine := make(map[int]*tree_sitter.Node)
+	parentsByLine := make(map[int]*tree_sitter.Node)
+
 	root := tree.RootNode()
 
 	// First pass - index direct nodes
@@ -796,6 +764,7 @@ func buildNodeIndex(tree *tree_sitter.Tree) map[int]*tree_sitter.Node {
 				node.StartPoint().Column < existing.StartPoint().Column ||
 				(node.StartPoint().Column == existing.StartPoint().Column && depth < getNodeDepth(existing)) {
 				nodesByLine[line] = node
+				parentsByLine[line] = node.Parent()
 			}
 		}
 
@@ -836,12 +805,16 @@ func buildNodeIndex(tree *tree_sitter.Tree) map[int]*tree_sitter.Node {
 				nodesByLine[line] = root
 			} else {
 				nodesByLine[line] = parent
+				parentsByLine[line] = parent
 			}
 		}
 	}
 
 	// spew.Dump(nodesByLine)
-	return nodesByLine
+	return &nodeIndex{
+		nodesByLine:   nodesByLine,
+		parentsByLine: parentsByLine,
+	}
 }
 
 func getNodeDepth(node *tree_sitter.Node) int {
@@ -859,17 +832,38 @@ func (s TreeSitterSection) String(sourceLines []string, bytes []byte) string {
 		return ""
 	}
 
-	firstSection := s[0]
-	startIdx := int(firstSection.StartPoint().Row)
+	// Find first structural node
+	var firstNode *tree_sitter.Node
+	for _, n := range s {
+		if isStructuralNode(n) {
+			firstNode = n
+			break
+		}
+	}
 
-	lastSection := s[len(s)-1]
-	endIdx := int(lastSection.EndPoint().Row)
+	// Find last structural node
+	var lastNode *tree_sitter.Node
+	for i := len(s) - 1; i >= 0; i-- {
+		if isStructuralNode(s[i]) {
+			lastNode = s[i]
+			break
+		}
+	}
+
+	startIdx := int(firstNode.StartPoint().Row)
+	endIdx := int(lastNode.EndPoint().Row)
 
 	if verboseLogging {
+		for _, node := range s {
+			fmt.Printf("node.Type(): %s\n", node.Type())
+			fmt.Printf("StartPoint().Row: %d\n", node.StartPoint().Row)
+			fmt.Printf("EndPoint().Row: %d\n", node.EndPoint().Row)
+		}
+
 		fmt.Printf("section.String startIdx: %d, endIdx: %d\n", startIdx, endIdx)
 	}
 
-	parent := lastSection.Parent()
+	parent := lastNode.Parent()
 	parentEndNode := parent.Child(int(parent.ChildCount()) - 1)
 	lastLine := sourceLines[endIdx]
 	if lastLine == parentEndNode.Content(bytes) {

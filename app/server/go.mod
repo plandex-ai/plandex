@@ -24,13 +24,14 @@ require (
 	github.com/nu7hatch/gouuid v0.0.0-20131221200532-179d4d0c4d8d // indirect
 	github.com/olekukonko/tablewriter v0.0.5 // indirect
 	github.com/pkoukk/tiktoken-go v0.1.7 // indirect
+	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/shopspring/decimal v1.4.0 // indirect
 	github.com/tadvi/systray v0.0.0-20190226123456-11a2b8fa57af // indirect
 	go.uber.org/atomic v1.11.0 // indirect
 	golang.org/x/image v0.19.0 // indirect
-	golang.org/x/mod v0.11.0 // indirect
 	golang.org/x/sys v0.24.0 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
 require (
@@ -43,7 +44,7 @@ require (
 	github.com/lib/pq v1.10.9
 	github.com/rs/cors v1.11.0
 	github.com/smacker/go-tree-sitter v0.0.0-20240625050157-a31a98a7c0f6
-	golang.org/x/tools v0.10.0
+	github.com/stretchr/testify v1.8.3
 )
 
 replace github.com/plandex/plandex/shared => ../shared

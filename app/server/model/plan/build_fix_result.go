@@ -142,7 +142,7 @@ func (fileState *activeBuildStreamFileState) onFixResult(res types.ChangesWithLi
 }
 
 func (fileState *activeBuildStreamFileState) fixRetryOrAbort(err error) {
-	if fileState.fixFileNumRetry < MaxBuildStreamErrorRetries {
+	if fileState.fixFileNumRetry < MaxBuildErrorRetries {
 		fileState.fixFileNumRetry++
 		fileState.activeBuild.FixBuffer = ""
 		fileState.activeBuild.FixBufferTokens = 0
