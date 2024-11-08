@@ -299,9 +299,21 @@ func ListPlansHandler(w http.ResponseWriter, r *http.Request) {
 
 	log.Println("projectIds: ", projectIds)
 
+	var apiPlans []*shared.Plan
+
+	writePlans := func() {
+		jsonBytes, err := json.Marshal(apiPlans)
+		if err != nil {
+			log.Printf("Error marshalling plans: %v\n", err)
+			http.Error(w, "Error marshalling plans: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.Write(jsonBytes)
+	}
+
 	if len(projectIds) == 0 {
-		log.Println("No project ids provided")
-		http.Error(w, "No project ids provided", http.StatusBadRequest)
+		writePlans()
 		return
 	}
 
@@ -313,8 +325,7 @@ func ListPlansHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(authorizedProjectIds) == 0 {
-		log.Println("No authorized project ids provided")
-		http.Error(w, "No authorized project ids provided", http.StatusForbidden)
+		writePlans()
 		return
 	}
 
@@ -326,20 +337,11 @@ func ListPlansHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var apiPlans []*shared.Plan
 	for _, plan := range plans {
 		apiPlans = append(apiPlans, plan.ToApi())
 	}
 
-	bytes, err := json.Marshal(apiPlans)
-
-	if err != nil {
-		log.Printf("Error marshalling plans: %v\n", err)
-		http.Error(w, "Error marshalling plans: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.Write(bytes)
+	writePlans()
 }
 
 func ListArchivedPlansHandler(w http.ResponseWriter, r *http.Request) {
@@ -353,19 +355,34 @@ func ListArchivedPlansHandler(w http.ResponseWriter, r *http.Request) {
 
 	log.Println("projectIds: ", projectIds)
 
+	var apiPlans []*shared.Plan
+
+	writePlans := func() {
+		jsonBytes, err := json.Marshal(apiPlans)
+		if err != nil {
+			log.Printf("Error marshalling plans: %v\n", err)
+			http.Error(w, "Error marshalling plans: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		log.Println("Successfully processed ListArchivedPlansHandler request")
+
+		w.Write(jsonBytes)
+	}
+
 	if len(projectIds) == 0 {
-		log.Println("No project ids provided")
-		http.Error(w, "No project ids provided", http.StatusBadRequest)
+		writePlans()
 		return
 	}
 
+	authorizedProjectIds := []string{}
 	for _, projectId := range projectIds {
-		if !authorizeProject(w, projectId, auth) {
-			return
+		if authorizeProjectOptional(w, projectId, auth, false) {
+			authorizedProjectIds = append(authorizedProjectIds, projectId)
 		}
 	}
 
-	plans, err := db.ListOwnedPlans(projectIds, auth.User.Id, true)
+	plans, err := db.ListOwnedPlans(authorizedProjectIds, auth.User.Id, true)
 
 	if err != nil {
 		log.Printf("Error listing plans: %v\n", err)
@@ -373,21 +390,11 @@ func ListArchivedPlansHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var apiPlans []*shared.Plan
 	for _, plan := range plans {
 		apiPlans = append(apiPlans, plan.ToApi())
 	}
 
-	jsonBytes, err := json.Marshal(apiPlans)
-	if err != nil {
-		log.Printf("Error marshalling plans: %v\n", err)
-		http.Error(w, "Error marshalling plans: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	log.Println("Successfully processed ListArchivedPlansHandler request")
-
-	w.Write(jsonBytes)
+	writePlans()
 }
 
 func ListPlansRunningHandler(w http.ResponseWriter, r *http.Request) {
