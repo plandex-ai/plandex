@@ -398,10 +398,11 @@ const (
 type CreditType string
 
 const (
-	CreditTypeTrial    CreditType = "trial"
-	CreditTypeGrant    CreditType = "grant"
-	CreditTypePurchase CreditType = "purchase"
-	CreditTypeSwitch   CreditType = "switch"
+	CreditTypeTrial      CreditType = "trial"
+	CreditTypeGrant      CreditType = "grant"
+	CreditTypeAdminGrant CreditType = "admin_grant"
+	CreditTypePurchase   CreditType = "purchase"
+	CreditTypeSwitch     CreditType = "switch"
 )
 
 type DebitType string
