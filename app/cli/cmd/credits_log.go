@@ -77,8 +77,6 @@ func creditsLog(cmd *cobra.Command, args []string) {
 				desc += fmt.Sprintf("Plan → %s\n", *transaction.DebitPlanName)
 			}
 
-			fmt.Printf("base: %s, surcharge: %s\n", transaction.DebitBaseAmount, transaction.DebitSurcharge)
-
 			surchargePct := transaction.DebitSurcharge.Div(*transaction.DebitBaseAmount)
 
 			price := transaction.DebitModelPricePerToken.Mul(decimal.NewFromInt(1000000)).Mul(surchargePct.Add(decimal.NewFromInt(1))).StringFixed(4)

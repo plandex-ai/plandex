@@ -288,7 +288,7 @@ func (m *streamUIModel) streamUpdate(msg *shared.StreamMessage, deferUIUpdate bo
 			m.buildOnly = true
 		}
 		if len(msg.InitReplies) > 0 {
-			m.reply = strings.Join(msg.InitReplies, "\n\n👇\n")
+			m.reply = strings.Join(msg.InitReplies, "\n\n👇\n\n")
 		}
 		m.updateReplyDisplay()
 
@@ -307,7 +307,7 @@ func (m *streamUIModel) streamUpdate(msg *shared.StreamMessage, deferUIUpdate bo
 			if m.promptedMissingFile {
 				m.promptedMissingFile = false
 			} else {
-				m.reply += "\n\n👇\n"
+				m.reply += "\n\n👇\n\n"
 			}
 		}
 
