@@ -135,14 +135,27 @@ func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 	log.Println("buildStructuredEdits - content:")
 	log.Println(content)
 
-	anchorsXmlString, err := GetXMLTag(content, "SemanticAnchors")
+	anchorsXmlString, err := GetXMLTag(content, "PlandexSemanticAnchors")
 	if err != nil {
-		log.Printf("buildStructuredEdits - error parsing SemanticAnchors xml: %v\n", err)
-		fileState.structuredEditRetryOrError(fmt.Errorf("error parsing SemanticAnchors xml xml: %v", err))
+		log.Printf("buildStructuredEdits - error parsing PlandexSemanticAnchors xml: %v\n", err)
+		fileState.structuredEditRetryOrError(fmt.Errorf("error parsing PlandexSemanticAnchors xml xml: %v", err))
 		return
 	}
 
-	var anchorsElement types.SemanticAnchors
+	summaryXmlString, err := GetXMLTag(content, "PlandexSummary")
+	if err != nil {
+		log.Printf("buildStructuredEdits - error parsing PlandexSummary xml: %v\n", err)
+	}
+
+	var summaryElement types.SummaryTag
+	if summaryXmlString != "" {
+		err = xml.Unmarshal([]byte(summaryXmlString), &summaryElement)
+		if err != nil {
+			log.Printf("buildStructuredEdits - error unmarshalling Summary xml: %v\n", err)
+		}
+	}
+
+	var anchorsElement types.SemanticAnchorsTag
 
 	err = xml.Unmarshal([]byte(anchorsXmlString), &anchorsElement)
 	if err != nil {
@@ -216,6 +229,12 @@ func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 		log.Printf("buildStructuredEdits - error getting diff replacements: %v\n", err)
 		fileState.structuredEditRetryOrError(fmt.Errorf("error getting diff replacements: %v", err))
 		return
+	}
+
+	if summaryElement.Content != "" {
+		for _, replacement := range replacements {
+			replacement.Summary = strings.TrimSpace(summaryElement.Content)
+		}
 	}
 
 	res := db.PlanFileResult{

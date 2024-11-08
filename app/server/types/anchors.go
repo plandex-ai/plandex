@@ -2,13 +2,18 @@ package types
 
 import "encoding/xml"
 
-type SemanticAnchors struct {
-	XMLName xml.Name `xml:"SemanticAnchors"`
-	Anchors []Anchor `xml:"Anchor"`
+type SemanticAnchorsTag struct {
+	XMLName xml.Name    `xml:"PlandexSemanticAnchors"`
+	Anchors []AnchorTag `xml:"Anchor"`
 }
 
-type Anchor struct {
+type AnchorTag struct {
 	Reasoning    string `xml:"reasoning,attr"`
 	ProposedLine string `xml:"proposedLine,attr"`
 	OriginalLine string `xml:"originalLine,attr"`
+}
+
+type SummaryTag struct {
+	XMLName xml.Name `xml:"PlandexSummary"`
+	Content string   `xml:",chardata"`
 }

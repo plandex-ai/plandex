@@ -102,15 +102,21 @@ If a line in the *proposed updates* is a semantic anchor and there is a comment 
 
 First, output a single *brief* paragraph of general reasoning about the *proposed updates* and how they refer to the *original file*, focusing on the structure of each, which elements are changing, and how the changes map to the *original file*. Also make a brief note of any comments that are being modified or introduced in the *proposed updates* and whether/how they map to comments in the *original file*. Do NOT output a list of semantic anchors in this paragraph—save that for the next section.
 
-Next, output xml with this structure:
+Next, output a <PlandexSummary> element that gives a very brief, one-sentence summary of the changes being made. Example:
 
-<SemanticAnchors>
+<PlandexSummary>
+	Adds a 'log' parameter to the 'update' function and modifies the 'update' function to use it.
+</PlandexSummary>
+
+Last, output xml with this structure:
+
+<PlandexSemanticAnchors>
 	<Anchor
 		reasoning="'update function' signature with 'log' parameter added"
 		proposedLine="pdx-new-1"		
 		originalLine="pdx-1"
 	/>
-</SemanticAnchors>
+</PlandexSemanticAnchors>
 
 Explanation of 'Anchor' tag attributes:
 
@@ -120,7 +126,9 @@ Explanation of 'Anchor' tag attributes:
 
 	**originalLine**: The line number, prefixed by 'pdx-', in the *original file* that the anchor is referring to. MUST be a line that exists in the *original file* and MUST ALWAYS be prefixed by 'pdx-' (never pdx-new-).
 
-If there are no semantic anchors, output an empty <SemanticAnchors> element. Do NOT invent semantic anchors if there are none. It's common for there to be no semantic anchors in the *proposed updates*. In that case, output an empty <SemanticAnchors> element.
+If there are no semantic anchors, output an empty <PlandexSemanticAnchors> element. Do NOT invent semantic anchors if there are none. It's common for there to be no semantic anchors in the *proposed updates*. In that case, output an empty <PlandexSemanticAnchors> element.
+
+Every response must include a single <PlandexSummary> element and a single <PlandexSemanticAnchors> element.
 
 Do NOT include any other text or comments in your output.
 `
