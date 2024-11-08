@@ -26,6 +26,9 @@
     },
     {
       "path": "./app/server/cloud/ui/node"
+    },
+    {
+      "path": "vscode"
     }
   ],
   "settings": {

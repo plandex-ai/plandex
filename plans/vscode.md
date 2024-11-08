@@ -39,7 +39,7 @@ In the terminal, it should run `plandex new` then `plandex tell -f [location of 
 
 -
 
-Create all necessary files and folders in the `vscode` folder. Create scripts for installing dependencies, running the extension, etc. Again, prefix ALL paths with `vscode/`—you must write all files into this directory.
+Create all necessary files and folders in the `vscode-dos` folder. Create scripts for installing dependencies, running the extension, etc. Again, prefix ALL paths with `vscode-dos/`—you must write all files into this directory.
 
 Write tests for core functionality.
 
