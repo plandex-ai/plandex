@@ -64,14 +64,14 @@ func init() {
 		term.OutputErrorAndExit(err.Error())
 	}
 
-	PlandexDir = findPlandex(Cwd)
+	FindPlandexDir()
 	if PlandexDir != "" {
 		ProjectRoot = Cwd
 	}
 }
 
 func FindOrCreatePlandex() (string, bool, error) {
-	PlandexDir = findPlandex(Cwd)
+	FindPlandexDir()
 	if PlandexDir != "" {
 		ProjectRoot = Cwd
 		return PlandexDir, false, nil
@@ -402,24 +402,30 @@ func GetPlandexIgnore(dir string) (*ignore.GitIgnore, error) {
 	return nil, nil
 }
 
-func GetParentProjectIdsWithPaths() ([][2]string, error) {
+func GetParentProjectIdsWithPaths(currentUserId string) ([][2]string, error) {
 	var parentProjectIds [][2]string
 	currentDir := filepath.Dir(Cwd)
 
 	for currentDir != "/" {
 		plandexDir := findPlandex(currentDir)
-		projectSettingsPath := filepath.Join(plandexDir, "project.json")
+		projectSettingsPath := filepath.Join(plandexDir, "projects-v2.json")
 		if _, err := os.Stat(projectSettingsPath); err == nil {
 			bytes, err := os.ReadFile(projectSettingsPath)
 			if err != nil {
 				return nil, fmt.Errorf("error reading projectId file: %s", err)
 			}
 
-			var settings types.CurrentProjectSettings
-			err = json.Unmarshal(bytes, &settings)
+			var settingsByAccount types.CurrentProjectSettingsByAccount
+			err = json.Unmarshal(bytes, &settingsByAccount)
 
 			if err != nil {
-				term.OutputErrorAndExit("error unmarshalling project.json: %v", err)
+				term.OutputErrorAndExit("error unmarshalling projects-v2.json: %v", err)
+			}
+
+			settings := settingsByAccount[currentUserId]
+
+			if settings == nil {
+				return parentProjectIds, nil
 			}
 
 			projectId := string(settings.Id)
@@ -431,7 +437,7 @@ func GetParentProjectIdsWithPaths() ([][2]string, error) {
 	return parentProjectIds, nil
 }
 
-func GetChildProjectIdsWithPaths(ctx context.Context) ([][2]string, error) {
+func GetChildProjectIdsWithPaths(ctx context.Context, currentUserId string) ([][2]string, error) {
 	var childProjectIds [][2]string
 
 	err := filepath.Walk(Cwd, func(path string, info os.FileInfo, err error) error {
@@ -463,17 +469,23 @@ func GetChildProjectIdsWithPaths(ctx context.Context) ([][2]string, error) {
 
 		if info.IsDir() && path != Cwd {
 			plandexDir := findPlandex(path)
-			projectSettingsPath := filepath.Join(plandexDir, "project.json")
+			projectSettingsPath := filepath.Join(plandexDir, "projects-v2.json")
 			if _, err := os.Stat(projectSettingsPath); err == nil {
 				bytes, err := os.ReadFile(projectSettingsPath)
 				if err != nil {
 					return fmt.Errorf("error reading projectId file: %s", err)
 				}
-				var settings types.CurrentProjectSettings
-				err = json.Unmarshal(bytes, &settings)
+				var settingsByAccount types.CurrentProjectSettingsByAccount
+				err = json.Unmarshal(bytes, &settingsByAccount)
 
 				if err != nil {
-					term.OutputErrorAndExit("error unmarshalling project.json: %v", err)
+					term.OutputErrorAndExit("error unmarshalling projects-v2.json: %v", err)
+				}
+
+				settings := settingsByAccount[currentUserId]
+
+				if settings == nil {
+					return nil
 				}
 
 				projectId := string(settings.Id)
@@ -532,6 +544,10 @@ func GetBaseDirForFilePaths(paths []string) string {
 	}
 
 	return baseDir
+}
+
+func FindPlandexDir() {
+	PlandexDir = findPlandex(Cwd)
 }
 
 func findPlandex(baseDir string) string {

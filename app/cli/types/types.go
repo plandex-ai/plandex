@@ -45,6 +45,10 @@ type CurrentProjectSettings struct {
 	Id string `json:"id"`
 }
 
+type CurrentPlanSettingsByAccount map[string]*CurrentPlanSettings
+type PlanSettingsByAccount map[string]*PlanSettings
+type CurrentProjectSettingsByAccount map[string]*CurrentProjectSettings
+
 type ChangesUIScrollReplacement struct {
 	OldContent        string
 	NewContent        string

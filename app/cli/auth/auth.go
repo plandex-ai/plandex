@@ -85,7 +85,6 @@ func MustResolveAuth(requireOrg bool) {
 			term.OutputErrorAndExit("Error writing auth: %v", err)
 		}
 	}
-
 }
 
 func RefreshInvalidToken() error {

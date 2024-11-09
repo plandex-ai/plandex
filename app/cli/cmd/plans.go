@@ -58,7 +58,7 @@ func listActive() {
 	var childProjectIdsWithPaths [][2]string
 
 	go func() {
-		res, err := fs.GetParentProjectIdsWithPaths()
+		res, err := fs.GetParentProjectIdsWithPaths(auth.Current.UserId)
 
 		if err != nil {
 			errCh <- fmt.Errorf("error getting parent project ids with paths: %v", err)
@@ -73,7 +73,7 @@ func listActive() {
 		ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 		defer cancel()
 
-		res, err := fs.GetChildProjectIdsWithPaths(ctx)
+		res, err := fs.GetChildProjectIdsWithPaths(ctx, auth.Current.UserId)
 
 		if err != nil {
 			log.Println(err.Error())

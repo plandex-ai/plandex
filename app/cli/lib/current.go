@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"plandex/api"
+	"plandex/auth"
 	"plandex/fs"
 	"plandex/term"
 	"plandex/types"
@@ -34,9 +35,15 @@ func MaybeResolveProject() {
 }
 
 func resolveProject(mustResolve, shouldCreate bool) {
-	if fs.PlandexDir == "" && mustResolve && shouldCreate {
-		_, _, err := fs.FindOrCreatePlandex()
-		if err != nil {
+	if fs.PlandexDir == "" {
+		var err error
+		if shouldCreate {
+			_, _, err = fs.FindOrCreatePlandex()
+		} else {
+			fs.FindPlandexDir()
+		}
+
+		if err != nil && mustResolve {
 			term.OutputErrorAndExit("error finding or creating plandex: %v", err)
 		}
 	}
@@ -53,36 +60,51 @@ func resolveProject(mustResolve, shouldCreate bool) {
 		return
 	}
 
-	// check if project.json exists in PlandexDir
-	path := filepath.Join(fs.PlandexDir, "project.json")
+	MigrateLegacyProjectFile(auth.Current.UserId)
+
+	// check if projects-v2.json exists in PlandexDir
+	path := filepath.Join(fs.PlandexDir, "projects-v2.json")
 	_, err := os.Stat(path)
 
 	if os.IsNotExist(err) {
-		log.Println("project.json does not exist")
+		log.Println("projects-v2.json does not exist")
 		log.Println("Initializing project")
-		mustInitProject()
+		mustInitProject(nil)
 	} else if err != nil {
-		term.OutputErrorAndExit("error checking if project.json exists: %v", err)
+		term.OutputErrorAndExit("error checking if projects-v2.json exists: %v", err)
 	}
 
-	// read project.json
-	bytes, err := os.ReadFile(path)
+	var settings *types.CurrentProjectSettings
+	var loadProjectSettings func()
+	loadProjectSettings = func() {
+		// read projects-v2.json
+		bytes, err := os.ReadFile(path)
 
-	if err != nil {
-		term.OutputErrorAndExit("error reading project.json: %v", err)
+		if err != nil {
+			term.OutputErrorAndExit("error reading projects-v2.json: %v", err)
+		}
+
+		var settingsByAccount types.CurrentProjectSettingsByAccount
+		err = json.Unmarshal(bytes, &settingsByAccount)
+
+		if err != nil {
+			term.OutputErrorAndExit("error unmarshalling projects-v2.json: %v", err)
+		}
+
+		settings = settingsByAccount[auth.Current.UserId]
+		if settings == nil {
+			mustInitProject(&settingsByAccount)
+			loadProjectSettings()
+		}
 	}
 
-	var settings types.CurrentProjectSettings
-	err = json.Unmarshal(bytes, &settings)
-
-	if err != nil {
-		term.OutputErrorAndExit("error unmarshalling project.json: %v", err)
-	}
+	loadProjectSettings()
 
 	CurrentProjectId = settings.Id
+	MigrateLegacyCurrentPlanFile(auth.Current.UserId)
 
 	HomeCurrentProjectDir = filepath.Join(fs.HomePlandexDir, CurrentProjectId)
-	HomeCurrentPlanPath = filepath.Join(HomeCurrentProjectDir, "current_plan.json")
+	HomeCurrentPlanPath = filepath.Join(HomeCurrentProjectDir, "current-plans-v2.json")
 
 	err = os.MkdirAll(HomeCurrentProjectDir, os.ModePerm)
 
@@ -91,6 +113,7 @@ func resolveProject(mustResolve, shouldCreate bool) {
 	}
 
 	MustLoadCurrentPlan()
+	MigrateLegacyPlanSettingsFile(auth.Current.UserId)
 }
 
 func MustLoadCurrentPlan() {
@@ -104,22 +127,26 @@ func MustLoadCurrentPlan() {
 	if os.IsNotExist(err) {
 		return
 	} else if err != nil {
-		term.OutputErrorAndExit("error checking if current_plan.json exists: %v", err)
+		term.OutputErrorAndExit("error checking if current-plans-v2.json exists: %v", err)
 	}
 
 	// Read the contents of the file
 	fileBytes, err := os.ReadFile(HomeCurrentPlanPath)
 	if err != nil {
-		term.OutputErrorAndExit("error reading current_plan.json: %v", err)
+		term.OutputErrorAndExit("error reading current-plans-v2.json: %v", err)
 	}
 
-	var currentPlan types.CurrentPlanSettings
-	err = json.Unmarshal(fileBytes, &currentPlan)
+	var currentPlansByAccount types.CurrentPlanSettingsByAccount
+	err = json.Unmarshal(fileBytes, &currentPlansByAccount)
 	if err != nil {
-		term.OutputErrorAndExit("error unmarshalling current_plan.json: %v", err)
+		term.OutputErrorAndExit("error unmarshalling current-plans-v2.json: %v", err)
 	}
 
-	CurrentPlanId = currentPlan.Id
+	currentPlan := currentPlansByAccount[auth.Current.UserId]
+
+	if currentPlan != nil {
+		CurrentPlanId = currentPlan.Id
+	}
 
 	if CurrentPlanId != "" {
 		err = loadCurrentBranch()
@@ -144,7 +171,7 @@ func loadCurrentBranch() error {
 		return fmt.Errorf("no current plan")
 	}
 
-	path := filepath.Join(HomeCurrentProjectDir, CurrentPlanId, "settings.json")
+	path := filepath.Join(HomeCurrentProjectDir, CurrentPlanId, "settings-v2.json")
 
 	// Check if the file exists
 	_, err := os.Stat(path)
@@ -152,18 +179,23 @@ func loadCurrentBranch() error {
 	if os.IsNotExist(err) {
 		return nil
 	} else if err != nil {
-		return fmt.Errorf("error checking if settings.json exists: %v", err)
+		return fmt.Errorf("error checking if settings-v2.json exists: %v", err)
 	}
 
 	fileBytes, err := os.ReadFile(path)
 	if err != nil {
-		term.OutputErrorAndExit("error reading settings.json: %v", err)
+		term.OutputErrorAndExit("error reading settings-v2.json: %v", err)
 	}
 
-	var settings types.PlanSettings
-	err = json.Unmarshal(fileBytes, &settings)
+	var settingsByAccount types.PlanSettingsByAccount
+	err = json.Unmarshal(fileBytes, &settingsByAccount)
 	if err != nil {
-		term.OutputErrorAndExit("error unmarshalling settings.json: %v", err)
+		term.OutputErrorAndExit("error unmarshalling settings-v2.json: %v", err)
+	}
+	settings := settingsByAccount[auth.Current.UserId]
+
+	if settings == nil {
+		return nil
 	}
 
 	CurrentBranch = settings.Branch
@@ -171,8 +203,7 @@ func loadCurrentBranch() error {
 	return nil
 }
 
-func mustInitProject() {
-	log.Println("Calling api.CreateProject()")
+func mustInitProject(existingSettings *types.CurrentProjectSettingsByAccount) {
 	res, apiErr := api.Client.CreateProject(shared.CreateProjectRequest{Name: filepath.Base(fs.ProjectRoot)})
 
 	if apiErr != nil {
@@ -183,11 +214,20 @@ func mustInitProject() {
 
 	CurrentProjectId = res.Id
 
-	// write project.json
-	path := filepath.Join(fs.PlandexDir, "project.json")
-	bytes, err := json.Marshal(types.CurrentProjectSettings{
+	var settingsByAccount types.CurrentProjectSettingsByAccount
+	if existingSettings != nil {
+		settingsByAccount = *existingSettings
+	} else {
+		settingsByAccount = types.CurrentProjectSettingsByAccount{}
+	}
+
+	settingsByAccount[auth.Current.UserId] = &types.CurrentProjectSettings{
 		Id: CurrentProjectId,
-	})
+	}
+
+	// write projects-v2.json
+	path := filepath.Join(fs.PlandexDir, "projects-v2.json")
+	bytes, err := json.Marshal(settingsByAccount)
 
 	if err != nil {
 		term.OutputErrorAndExit("error marshalling project settings: %v", err)
@@ -196,12 +236,12 @@ func mustInitProject() {
 	err = os.WriteFile(path, bytes, os.ModePerm)
 
 	if err != nil {
-		term.OutputErrorAndExit("error writing project.json: %v", err)
+		term.OutputErrorAndExit("error writing projects-v2.json: %v", err)
 	}
 
-	log.Println("Wrote project.json")
+	log.Println("Wrote projects-v2.json")
 
-	// write current_plan.json to PlandexHomeDir/[projectId]/current_plan.json
+	// write current-plans-v2.json to PlandexHomeDir/[projectId]/current-plans-v2.json
 	dir := filepath.Join(fs.HomePlandexDir, CurrentProjectId)
 	err = os.MkdirAll(dir, os.ModePerm)
 
@@ -209,9 +249,11 @@ func mustInitProject() {
 		term.OutputErrorAndExit("error creating project dir: %v", err)
 	}
 
-	path = filepath.Join(dir, "current_plan.json")
-	bytes, err = json.Marshal(types.CurrentPlanSettings{
-		Id: "",
+	path = filepath.Join(dir, "current-plans-v2.json")
+	bytes, err = json.Marshal(types.CurrentPlanSettingsByAccount{
+		auth.Current.UserId: &types.CurrentPlanSettings{
+			Id: "",
+		},
 	})
 
 	if err != nil {
@@ -221,8 +263,8 @@ func mustInitProject() {
 	err = os.WriteFile(path, bytes, os.ModePerm)
 
 	if err != nil {
-		term.OutputErrorAndExit("error writing current_plan.json: %v", err)
+		term.OutputErrorAndExit("error writing current-plans-v2.json: %v", err)
 	}
 
-	log.Println("Wrote current_plan.json")
+	log.Println("Wrote current-plans-v2.json")
 }

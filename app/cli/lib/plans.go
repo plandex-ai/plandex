@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"plandex/auth"
 	"plandex/fs"
 	"plandex/types"
 	"sync"
@@ -70,8 +71,10 @@ func WriteCurrentBranch(branch string) error {
 		return fmt.Errorf("no current plan")
 	}
 
-	settings := types.PlanSettings{
-		Branch: branch,
+	settings := types.PlanSettingsByAccount{
+		auth.Current.UserId: &types.PlanSettings{
+			Branch: branch,
+		},
 	}
 
 	bytes, err := json.Marshal(settings)
@@ -88,7 +91,7 @@ func WriteCurrentBranch(branch string) error {
 		return fmt.Errorf("error creating plan dir: %v", err)
 	}
 
-	path := filepath.Join(dir, "settings.json")
+	path := filepath.Join(dir, "settings-v2.json")
 
 	err = os.WriteFile(path, bytes, 0644)
 
@@ -146,28 +149,33 @@ func getPlanCurrentBranch(planId string) (string, error) {
 		return "", fmt.Errorf("no current project")
 	}
 
-	path := filepath.Join(fs.HomePlandexDir, CurrentProjectId, planId, "settings.json")
+	v2Path := filepath.Join(fs.HomePlandexDir, CurrentProjectId, planId, "settings-v2.json")
 
-	// Check if settings.json exists
-	_, err := os.Stat(path)
+	var settings *types.PlanSettings
 
-	if os.IsNotExist(err) {
+	// check if settings-v2.json exists
+	_, err := os.Stat(v2Path)
+	if err == nil {
+		// read settings-v2.json
+		var settingsByAccount types.PlanSettingsByAccount
+		bytes, err := os.ReadFile(v2Path)
+		if err != nil {
+			return "", fmt.Errorf("error reading settings-v2.json: %v", err)
+		}
+		err = json.Unmarshal(bytes, &settingsByAccount)
+		if err != nil {
+			return "", fmt.Errorf("error unmarshalling settings-v2.json: %v", err)
+		}
+
+		settings = settingsByAccount[auth.Current.UserId]
+	} else if os.IsNotExist(err) {
 		return "main", nil
-	} else if err != nil {
-		return "", fmt.Errorf("error checking if settings.json exists: %v", err)
+	} else {
+		return "", fmt.Errorf("error checking if settings-v2.json exists: %v", err)
 	}
 
-	bytes, err := os.ReadFile(path)
-
-	if err != nil {
-		return "", fmt.Errorf("error reading plan settings: %v", err)
-	}
-
-	var settings types.PlanSettings
-	err = json.Unmarshal(bytes, &settings)
-
-	if err != nil {
-		return "", fmt.Errorf("error unmarshalling plan settings: %v", err)
+	if settings == nil {
+		return "main", nil
 	}
 
 	return settings.Branch, nil
