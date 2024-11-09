@@ -7,6 +7,7 @@ import (
 	"log"
 	"plandex/api"
 	"plandex/term"
+	"strings"
 
 	"github.com/fatih/color"
 	"github.com/pkg/browser"
@@ -20,7 +21,8 @@ func OpenAuthenticatedURL(msg, path string) {
 		log.Fatalf("Error creating sign in code: %v", apiErr)
 	}
 
-	host := api.GetApiHost()
+	apiHost := api.GetApiHost()
+	appHost := strings.Replace(apiHost, "api.", "app.", 1)
 
 	token := shared.UiSignInToken{
 		Pin:        signInCode,
@@ -34,7 +36,7 @@ func OpenAuthenticatedURL(msg, path string) {
 
 	encodedToken := base64.URLEncoding.EncodeToString(jsonToken)
 
-	url := fmt.Sprintf("%s/auth/%s", host, encodedToken)
+	url := fmt.Sprintf("%s/auth/%s", appHost, encodedToken)
 
 	fmt.Printf(
 		"%s\n\nIf it doesn't open automatically, use this URL:\n%s\n",
@@ -50,8 +52,9 @@ func OpenAuthenticatedURL(msg, path string) {
 }
 
 func OpenUnauthenticatedCloudURL(msg, path string) {
-	host := api.CloudApiHost
-	url := fmt.Sprintf("%s%s", host, path)
+	apiHost := api.CloudApiHost
+	appHost := strings.Replace(apiHost, "api.", "app.", 1)
+	url := fmt.Sprintf("%s%s", appHost, path)
 
 	fmt.Printf(
 		"%s\n\nIf it doesn't open automatically, use this URL:\n%s\n",
