@@ -310,9 +310,10 @@ func (p PlannerRoleConfig) Value() (driver.Value, error) {
 }
 
 type ModelPack struct {
-	Id          string            `json:"id"`
-	Name        string            `json:"name"`
-	Description string            `json:"description"`
+	Id          string `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+
 	Planner     PlannerRoleConfig `json:"planner"`
 	PlanSummary ModelRoleConfig   `json:"planSummary"`
 	Builder     ModelRoleConfig   `json:"builder"`
@@ -323,6 +324,7 @@ type ModelPack struct {
 	// optional for backwards compatibility
 	Verifier *ModelRoleConfig `json:"verifier"`
 	AutoFix  *ModelRoleConfig `json:"autoFix"`
+	Search   *ModelRoleConfig `json:"search"`
 }
 
 func (m *ModelPack) GetVerifier() ModelRoleConfig {

@@ -37,8 +37,10 @@ const (
 	ModelRoleName        ModelRole = "names"
 	ModelRoleCommitMsg   ModelRole = "commit-messages"
 	ModelRoleExecStatus  ModelRole = "auto-continue"
-	ModelRoleVerifier    ModelRole = "verifier"
-	ModelRoleAutoFix     ModelRole = "auto-fix"
+	ModelRoleSearch      ModelRole = "search"
+
+	ModelRoleVerifier ModelRole = "verifier"
+	ModelRoleAutoFix  ModelRole = "auto-fix"
 )
 
 var AllModelRoles = []ModelRole{ModelRolePlanner, ModelRolePlanSummary, ModelRoleBuilder, ModelRoleName, ModelRoleCommitMsg, ModelRoleExecStatus, ModelRoleVerifier, ModelRoleAutoFix}
