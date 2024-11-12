@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"plandex/api"
+	"plandex/auth"
 	"plandex/fs"
 	"plandex/term"
 	"strings"
@@ -114,7 +115,10 @@ func MustApplyPlan(planId, branch string, autoConfirm bool) {
 		term.OutputSimpleError(errMsg, unformattedErrMsg)
 	}
 
-	apiKeys := MustVerifyApiKeysSilent()
+	var apiKeys map[string]string
+	if !auth.Current.IntegratedModelsMode {
+		apiKeys = MustVerifyApiKeysSilent()
+	}
 
 	var commitSummary string
 
