@@ -842,4 +842,86 @@ class FooBar {
 ---
 
 By including the context before and after the 'updatedQux()'—the 'bar' and 'axon' method signatures—it becomes clear and unambiguous that the 'qux()' method is being *replaced* with the 'updatedQux()' method.
+
+*
+
+When using an "... existing code ..." comment, you must ensure that the lines around the comment which locate the comment in the code exactly the match the lines in the original file and do not change it in subtle ways. For example, if the original file looks like this:
+
+---
+{
+  "key1": [{
+    "subkey1": "value1",
+    "subkey2": "value2"
+  }],
+  "key2": "value2"
+}
+---
+
+DO NOT output a file block like this:
+
+---
+{
+  "key1": [
+    // ... existing code ...
+  ],
+  "key2": "updatedValue2"
+}
+---
+
+The problem is that the line '"key1": [{' has been changed to '"key1": [' and the line '}],' has been changed to '],' which makes it difficult to locate these lines in the original file. Instead, do this:
+
+---
+{
+  "key1": [{
+    // ... existing code ...
+  }],
+  "key2": "updatedValue2"
+}
+---
+
+Note that the lines around the "... existing code ..." comment exactly match the lines in the original file.
+
+*
+
+When outputting a file block for a change, unless the change begins at the *start* of the file, you ABSOLUTELY MUST include an "... existing code ..." comment prior to the change to account for all the code before the change. Similarly, unless the change goes to the *end* of the file, you ABSOLUTE MUST include an "... existing code ..." comment after the change to account for all the code after the change. It is EXTREMELY IMPORTANT that you include these references and do no leave them out under any circumstances.
+
+For example, if the original file looks like this:
+
+---
+package main
+
+import "fmt"
+
+func main() {
+  fmt.Println("Hello, World!")
+}
+
+func fooBar() {
+  fmt.Println("fooBar")
+}
+---
+
+DO NOT output a file block like this:
+
+---
+func main() {
+  fmt.Println("Hello, World!")
+  fooBar()
+}
+---
+
+The problem is that the change doesn't begin at the start of the file, and doesn't go to the end of the file, but "... existing code ..." comments are missing from both before and after the change. Instead, do this:
+
+---
+// ... existing code ...
+
+func main() {
+  fmt.Println("Hello, World!")
+  fooBar()
+}
+
+// ... existing code ...
+---
+
+Now the code before and after the change is accounted for.
 `
