@@ -66,6 +66,7 @@ var CmdDesc = map[string][2]string{
 	"users":                     {"", "list users and pending invites in your org"},
 	"credits":                   {"", "show Plandex Cloud credits balance"},
 	"credits log":               {"", "show Plandex Cloud credits transaction log"},
+	"billing":                   {"", "show Plandex Cloud billing settings"},
 }
 
 func PrintCmds(prefix string, cmds ...string) {
@@ -179,7 +180,7 @@ func PrintCustomHelp(all bool) {
 		fmt.Fprintln(builder)
 
 		color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Cloud ")
-		printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "credits", "credits log")
+		printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "credits", "credits log", "billing")
 
 	} else {
 
