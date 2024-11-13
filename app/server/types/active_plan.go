@@ -79,6 +79,7 @@ type ActivePlan struct {
 	AllowOverwritePaths     map[string]bool
 	SkippedPaths            map[string]bool
 	StoredReplyIds          []string
+	DidVerifyDiff           bool
 
 	subscriptions  map[string]*subscription
 	subscriptionMu sync.Mutex
@@ -351,4 +352,14 @@ func (sub *subscription) enqueueMessage(msg string) {
 	sub.messageQueue = append(sub.messageQueue, msg)
 	sub.mu.Unlock()
 	sub.cond.Signal() // Signal the waiting goroutine that a new message is available
+}
+
+func (ap *ActivePlan) ShouldVerifyDiff() bool {
+	return !ap.BuildOnly && !ap.DidVerifyDiff && len(ap.BuiltFiles) > 0
+}
+
+func (ap *ActivePlan) Finish() {
+	ap.Stream(shared.StreamMessage{
+		Type: shared.StreamMessageFinished,
+	})
 }

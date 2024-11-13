@@ -280,6 +280,20 @@ const SkippedPathsPrompt = "\n\nSome files have been skipped by the user and *mu
 
 // 		- If the plan is in progress, this is not your *first* response in the plan, the user's task or tasks have already been broken down into subtasks if necessary, and the plan is *not yet complete* and should be continued, you MUST ALWAYS start the response with "Now I'll" and then proceed to describe and implement the next step in the plan.
 
+const VerifyDiffsPrompt = `Below are the diffs for the plan you've created. Based on the diffs, evaluate whether the plan has been completed correctly or whether there are problems to address. Pay particular attention to syntax errors, code that has been incorrectly removed, or code that has been incorrectlyduplicated.
+
+Do not additional features or functionality to the plan. Your job at this stage is to check your work and ensure that the diffs have been generated correctly based on the existing plan, not to increase the scope of the plan or add new tasks beyond fixing any problems in the diffs.
+
+If there are no problems, state in your own words that the plan appears to have been generated correctly and is now complete.
+
+If there are problems, explain the problems and make a plan to fix them. You can use multiple responses to fix all the problems if necessary. If you've identified problems, don't skip any—fix them all thoroughly and don't stop until the plan is correct.
+
+Here are the diffs:
+
+`
+
+var VerifyDiffsPromptTokens int
+
 func init() {
 	var err error
 	CreateSysMsgNumTokens, err = shared.GetNumTokens(SysCreate)
@@ -300,6 +314,11 @@ func init() {
 		panic(fmt.Sprintf("Error getting number of tokens for auto continue prompt: %v", err))
 	}
 
+	VerifyDiffsPromptTokens, err = shared.GetNumTokens(VerifyDiffsPrompt)
+
+	if err != nil {
+		panic(fmt.Sprintf("Error getting number of tokens for verify diffs prompt: %v", err))
+	}
 }
 
 const UpdateFormatPrompt = `
