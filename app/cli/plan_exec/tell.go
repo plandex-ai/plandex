@@ -159,9 +159,9 @@ func TellPlan(
 				fmt.Println()
 
 				if tellStop {
-					term.PrintCmds("", "continue", "changes", "diff", "apply", "reject", "log", "rewind")
+					term.PrintCmds("", "continue", "diff", "diff --ui", "apply", "reject", "log", "rewind")
 				} else {
-					term.PrintCmds("", "changes", "diff", "apply", "reject", "log", "rewind")
+					term.PrintCmds("", "diff", "diff --ui", "apply", "reject", "log", "rewind")
 				}
 				os.Exit(0)
 			}()

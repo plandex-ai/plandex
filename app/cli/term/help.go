@@ -10,16 +10,17 @@ import (
 )
 
 var CmdDesc = map[string][2]string{
-	"new":     {"", "start a new plan"},
-	"rename":  {"", "rename the current plan"},
-	"current": {"cu", "show current plan"},
-	"cd":      {"", "set current plan by name or index"},
-	"load":    {"l", "load files, dirs, urls, notes, images, or piped data into context"},
-	"tell":    {"t", "describe a task, ask a question, or chat"},
-	"changes": {"ch", "review pending changes in a TUI"},
-	"diff":    {"", "review pending changes in 'git diff' format"},
-	"diff --plain":    {"", "review pending changes in 'git diff' format with no color formatting"},
-	"summary": {"", "show the latest summary of the current plan"},
+	"new":          {"", "start a new plan"},
+	"rename":       {"", "rename the current plan"},
+	"current":      {"cu", "show current plan"},
+	"cd":           {"", "set current plan by name or index"},
+	"load":         {"l", "load files, dirs, urls, notes, images, or piped data into context"},
+	"tell":         {"t", "describe a task, ask a question, or chat"},
+	"changes":      {"ch", "review pending changes in a TUI"},
+	"diff":         {"", "review pending changes in 'git diff' format"},
+	"diff --plain": {"", "review pending changes in 'git diff' format with no color formatting"},
+	"diff --ui":    {"", "review pending changes in a local browser UI"},
+	"summary":      {"", "show the latest summary of the current plan"},
 	// "preview":     {"pv", "preview the plan in a branch"},
 	"apply":     {"ap", "apply pending changes to project files"},
 	"reject":    {"rj", "reject pending changes to one or more project files"},
@@ -138,7 +139,7 @@ func PrintCustomHelp(all bool) {
 
 	if all {
 		color.New(color.Bold, color.BgMagenta, color.FgHiWhite).Fprintln(builder, " Key Commands ")
-		printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiMagenta}, "new", "load", "tell", "changes", "diff", "apply", "reject")
+		printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiMagenta}, "new", "load", "tell", "diff", "diff --ui", "apply", "reject")
 		fmt.Fprintln(builder)
 
 		color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Plans ")
@@ -146,7 +147,7 @@ func PrintCustomHelp(all bool) {
 		fmt.Fprintln(builder)
 
 		color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Changes ")
-		printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "changes", "diff", "diff --plain", "apply", "reject")
+		printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "diff", "diff --ui", "diff --plain", "changes", "apply", "reject")
 		fmt.Fprintln(builder)
 
 		color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Context ")

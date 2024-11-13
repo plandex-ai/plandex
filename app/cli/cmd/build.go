@@ -65,6 +65,6 @@ func build(cmd *cobra.Command, args []string) {
 		term.PrintCmds("", "ps", "connect", "stop")
 	} else {
 		fmt.Println()
-		term.PrintCmds("", "changes", "apply", "reject", "log")
+		term.PrintCmds("", "diff", "diff --ui", "apply", "reject", "log")
 	}
 }
