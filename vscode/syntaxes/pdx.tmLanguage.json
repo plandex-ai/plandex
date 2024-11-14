@@ -1,0 +1,39 @@
+{
+  "name": "PDX",
+  "scopeName": "source.pdx",
+  "patterns": [
+    {
+      "include": "text.html.markdown"
+    },
+    {
+      "begin": "---",
+      "end": "---",
+      "name": "markup.raw.yaml.front-matter",
+      "patterns": [
+        {
+          "include": "source.yaml"
+        }
+      ]
+    },
+    {
+      "begin": "<Contexts>",
+      "end": "</Contexts>",
+      "name": "meta.embedded.block.contexts",
+      "patterns": [
+        {
+          "include": "text.html.markdown"
+        }
+      ]
+    },
+    {
+      "begin": "<Prompts>",
+      "end": "</Prompts>",
+      "name": "meta.embedded.block.prompts",
+      "patterns": [
+        {
+          "include": "text.html.markdown"
+        }
+      ]
+    }
+  ]
+}
