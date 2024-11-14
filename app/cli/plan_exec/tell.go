@@ -165,7 +165,7 @@ func TellPlan(
 				if tellStop {
 					term.PrintCmds("", "continue", "diff", "diff --ui", "apply", "reject", "log", "rewind")
 				} else if !isDebugCmd {
-					term.PrintCmds("", "diff", "diff --ui", "apply", "reject", "log", "rewind")
+					term.PrintCmds("", "diff", "diff --ui", "apply", "reject", "debug", "log", "rewind")
 				}
 				close(done)
 			}()

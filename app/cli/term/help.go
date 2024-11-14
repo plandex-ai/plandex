@@ -27,6 +27,7 @@ var CmdDesc = map[string][2]string{
 	"archive":   {"arc", "archive a plan"},
 	"unarchive": {"unarc", "unarchive a plan"},
 	"continue":  {"c", "continue the plan"},
+	"debug":     {"", "repeatedly run a command and make fixes until it succeeds"},
 	// "status":      {"s", "show status of the plan"},
 	"rewind":                    {"rw", "rewind to a previous state"},
 	"ls":                        {"", "list everything in context"},
@@ -140,7 +141,7 @@ func PrintCustomHelp(all bool) {
 
 	if all {
 		color.New(color.Bold, color.BgMagenta, color.FgHiWhite).Fprintln(builder, " Key Commands ")
-		printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiMagenta}, "new", "load", "tell", "diff", "diff --ui", "apply", "reject")
+		printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiMagenta}, "new", "load", "tell", "diff", "diff --ui", "apply", "reject", "debug")
 		fmt.Fprintln(builder)
 
 		color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Plans ")
@@ -164,7 +165,7 @@ func PrintCustomHelp(all bool) {
 		fmt.Fprintln(builder)
 
 		color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Control ")
-		printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "tell", "continue", "build")
+		printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "tell", "continue", "build", "debug")
 		fmt.Fprintln(builder)
 
 		color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Streams ")

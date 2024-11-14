@@ -54,5 +54,5 @@ func contextLoad(cmd *cobra.Command, args []string) {
 	})
 
 	fmt.Println()
-	term.PrintCmds("", "ls", "tell")
+	term.PrintCmds("", "ls", "tell", "debug")
 }
