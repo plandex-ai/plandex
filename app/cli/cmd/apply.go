@@ -8,11 +8,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var autoConfirm bool
+var autoConfirm, autoCommit, noCommit bool
 
 func init() {
 	applyCmd.Flags().BoolVarP(&autoConfirm, "yes", "y", false, "Automatically confirm unless plan is outdated")
-
+	applyCmd.Flags().BoolVarP(&autoCommit, "commit", "c", false, "Commit changes to git")
+	applyCmd.Flags().BoolVarP(&noCommit, "no-commit", "n", false, "Do not commit changes to git")
 	RootCmd.AddCommand(applyCmd)
 }
 
@@ -31,5 +32,5 @@ func apply(cmd *cobra.Command, args []string) {
 		term.OutputNoCurrentPlanErrorAndExit()
 	}
 
-	lib.MustApplyPlan(lib.CurrentPlanId, lib.CurrentBranch, autoConfirm)
+	lib.MustApplyPlan(lib.CurrentPlanId, lib.CurrentBranch, autoConfirm, autoCommit, noCommit)
 }

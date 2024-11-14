@@ -219,7 +219,8 @@ func (state *activeTellStreamState) execStatusShouldContinue(message string, lat
 		return false, "", nil
 	}
 
-	log.Printf("Plan exec status response: %v\n", res)
+	log.Println("Plan exec status response:")
+	log.Println(spew.Sdump(res))
 
 	return res.ShouldContinue, res.Reasoning, nil
 }

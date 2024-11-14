@@ -25,6 +25,7 @@ var tellPromptFile string
 var tellBg bool
 var tellStop bool
 var tellNoBuild bool
+var tellAutoApply bool
 
 // tellCmd represents the prompt command
 var tellCmd = &cobra.Command{
@@ -43,6 +44,11 @@ func init() {
 	tellCmd.Flags().BoolVarP(&tellStop, "stop", "s", false, "Stop after a single reply")
 	tellCmd.Flags().BoolVarP(&tellNoBuild, "no-build", "n", false, "Don't build files")
 	tellCmd.Flags().BoolVar(&tellBg, "bg", false, "Execute autonomously in the background")
+
+	tellCmd.Flags().BoolVarP(&autoConfirm, "yes", "y", false, "Automatically confirm context updates")
+	tellCmd.Flags().BoolVar(&tellAutoApply, "apply", false, "Automatically apply changes (and confirm context updates)")
+	tellCmd.Flags().BoolVarP(&autoCommit, "commit", "c", false, "Commit changes to git when --apply/-a is passed")
+
 }
 
 func doTell(cmd *cobra.Command, args []string) {
@@ -106,9 +112,13 @@ func doTell(cmd *cobra.Command, args []string) {
 		CurrentBranch: lib.CurrentBranch,
 		ApiKeys:       apiKeys,
 		CheckOutdatedContext: func(maybeContexts []*shared.Context) (bool, bool, error) {
-			return lib.CheckOutdatedContextWithOutput(false, maybeContexts)
+			return lib.CheckOutdatedContextWithOutput(false, autoConfirm || tellAutoApply, maybeContexts)
 		},
-	}, prompt, tellBg, tellStop, tellNoBuild, false)
+	}, prompt, tellBg, tellStop, tellNoBuild, false, false, false)
+
+	if tellAutoApply {
+		lib.MustApplyPlan(lib.CurrentPlanId, lib.CurrentBranch, true, autoCommit, !autoCommit)
+	}
 }
 
 func prepareEditorCommand(editor string, filename string) *exec.Cmd {

@@ -79,6 +79,7 @@ type ActivePlan struct {
 	AllowOverwritePaths     map[string]bool
 	SkippedPaths            map[string]bool
 	StoredReplyIds          []string
+	DidEditFiles            bool
 	DidVerifyDiff           bool
 
 	subscriptions  map[string]*subscription
@@ -355,7 +356,17 @@ func (sub *subscription) enqueueMessage(msg string) {
 }
 
 func (ap *ActivePlan) ShouldVerifyDiff() bool {
-	return !ap.BuildOnly && !ap.DidVerifyDiff && len(ap.BuiltFiles) > 0
+	// log.Printf("ShouldVerifyDiff: buildOnly=%v, didVerifyDiff=%v, numBuiltFiles=%d, didEditFiles=%v, hasMultipleBuiltFiles=%v",
+	// 	!ap.BuildOnly,
+	// 	!ap.DidVerifyDiff,
+	// 	len(ap.BuiltFiles),
+	// 	ap.DidEditFiles,
+	// 	len(ap.BuiltFiles) > 3)
+
+	return !ap.BuildOnly &&
+		!ap.DidVerifyDiff &&
+		(len(ap.BuiltFiles) > 0 || len(ap.IsBuildingByPath) > 0) &&
+		(ap.DidEditFiles || len(ap.BuiltFiles) > 3) // verify diff if we edited any files or built more than 3 new files—unlikely to have errors otherwise
 }
 
 func (ap *ActivePlan) Finish() {

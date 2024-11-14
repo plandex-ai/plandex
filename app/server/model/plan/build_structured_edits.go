@@ -40,9 +40,12 @@ func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 
 	if activePlan == nil {
 		log.Printf("Active plan not found for plan ID %s and branch %s\n", planId, branch)
-		fileState.onBuildFileError(fmt.Errorf("active plan not found for plan ID %s and branch %s\n", planId, branch))
+		fileState.onBuildFileError(fmt.Errorf("active plan not found for plan ID %s and branch %s", planId, branch))
 		return
 	}
+
+	proposedContentLines := strings.Split(activeBuild.FileContent, "\n")
+	originalContentLines := strings.Split(originalFile, "\n")
 
 	log.Println("buildStructuredEdits - getting references prompt")
 
@@ -186,7 +189,12 @@ func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 			return
 		}
 
-		anchorLines[proposedLine] = originalLine
+		proposedContent := proposedContentLines[proposedLine-1]
+		originalContent := originalContentLines[originalLine-1]
+
+		if proposedContent != originalContent {
+			anchorLines[proposedLine] = originalLine
+		}
 	}
 
 	fileContentLines := strings.Split(activeBuild.FileContent, "\n")
@@ -272,7 +280,7 @@ func (fileState *activeBuildStreamFileState) structuredEditRetryOrError(err erro
 	if fileState.structuredEditNumRetry < MaxBuildErrorRetries {
 		fileState.structuredEditNumRetry++
 
-		log.Printf("buildStructuredEdits - retrying expand refs file '%s' due to error: %v\n", fileState.filePath, err)
+		log.Printf("buildStructuredEdits - retrying structured edits file '%s' due to error: %v\n", fileState.filePath, err)
 
 		activePlan := GetActivePlan(fileState.plan.Id, fileState.branch)
 

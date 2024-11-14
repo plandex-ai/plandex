@@ -65,22 +65,24 @@ func ApplyChanges(
 	originalLines := strings.Split(original, "\n")
 	proposedLines := strings.Split(proposed, "\n")
 
-	// if language == "json" {
-	// 	for i, line := range proposedLines {
-	// 		// keep indentation for syntax parsing
-	// 		content := strings.TrimSpace(line)
-	// 		if removalsByLine[Removal(i+1)] {
-	// 			proposedLines[i] = strings.Replace(line, content, "", 1)
-	// 		} else if refsByLine[Reference(i+1)] {
-	// 			proposedLines[i] = strings.Replace(line, content, "", 1)
-	// 		}
-	// 	}
-	// }
+	// normalize comments in case the wrong comment symbols were used
+	openingCommentSymbol, closingCommentSymbol := GetCommentSymbols(language)
+	if openingCommentSymbol != "" {
+		for i, line := range proposedLines {
+			// keep indentation for syntax parsing
+			content := strings.TrimSpace(line)
 
-	proposedWithoutRemovals := strings.Join(proposedLines, "\n")
+			if removalsByLine[Removal(i+1)] || refsByLine[Reference(i+1)] {
+				comment := openingCommentSymbol + " ref " + closingCommentSymbol
+				proposedLines[i] = strings.Replace(line, content, comment, 1)
+			}
+		}
+	}
+
+	proposedWithNormalizedComments := strings.Join(proposedLines, "\n")
 
 	originalBytes := []byte(original)
-	proposedBytes := []byte(proposedWithoutRemovals)
+	proposedBytes := []byte(proposedWithNormalizedComments)
 
 	originalTree, err := parser.ParseCtx(ctx, nil, originalBytes)
 	if err != nil {

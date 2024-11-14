@@ -410,6 +410,7 @@ mainLoop:
 
 						if active.ShouldVerifyDiff() {
 							// If we're going to verify the diffs when build finishes, then replies aren't finished yet so we'll just continue here
+							log.Println("Replies aren't finished yet—waiting on verify diff step")
 							continue mainLoop
 						} else {
 							log.Println("Updating status to building")

@@ -303,6 +303,7 @@ func (m *streamUIModel) streamUpdate(msg *shared.StreamMessage, deferUIUpdate bo
 		}
 
 		if m.processing {
+			log.Println("Message reply, setting processing to false")
 			m.processing = false
 			if m.promptedMissingFile {
 				m.promptedMissingFile = false
@@ -353,6 +354,7 @@ func (m *streamUIModel) streamUpdate(msg *shared.StreamMessage, deferUIUpdate bo
 		return m, tea.Batch(cmds...)
 
 	case shared.StreamMessageDescribing:
+		log.Println("Message describing, setting processing to true")
 		m.processing = true
 
 		cmds := []tea.Cmd{m.spinner.Tick}
@@ -377,6 +379,7 @@ func (m *streamUIModel) streamUpdate(msg *shared.StreamMessage, deferUIUpdate bo
 		return m, tea.Quit
 
 	case shared.StreamMessageRepliesFinished:
+		log.Println("Replies finished, setting processing to false")
 		m.processing = false
 
 		if m.building {

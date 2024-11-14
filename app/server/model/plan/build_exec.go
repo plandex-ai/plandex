@@ -280,6 +280,7 @@ func (fileState *activeBuildStreamFileState) buildFile() {
 		log.Printf("Current state num tokens: %d\n", currentNumTokens)
 
 		activeBuild.CurrentFileTokens = currentNumTokens
+		activePlan.DidEditFiles = true
 	}
 
 	if fileState.parser != nil && !fileState.preBuildStateSyntaxInvalid {

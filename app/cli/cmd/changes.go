@@ -85,7 +85,7 @@ func changes(cmd *cobra.Command, args []string) {
 				CurrentBranch: lib.CurrentBranch,
 				ApiKeys:       apiKeys,
 				CheckOutdatedContext: func(maybeContexts []*shared.Context) (bool, bool, error) {
-					return lib.CheckOutdatedContextWithOutput(true, maybeContexts)
+					return lib.CheckOutdatedContextWithOutput(true, false, maybeContexts)
 				},
 			}, false)
 

@@ -21,8 +21,11 @@ func TellPlan(
 	tellBg,
 	tellStop,
 	tellNoBuild,
-	isUserContinue bool,
+	isUserContinue,
+	isDebugCmd,
+	isChatOnly bool,
 ) {
+	done := make(chan struct{})
 
 	outputPromptIfTell := func() {
 		if isUserContinue || prompt == "" {
@@ -108,6 +111,7 @@ func TellPlan(
 			ProjectPaths:   paths.ActivePaths,
 			BuildMode:      buildMode,
 			IsUserContinue: isUserContinue,
+			IsUserDebug:    isDebugCmd,
 			ApiKey:         legacyApiKey, // deprecated
 			Endpoint:       openAIBase,   // deprecated
 			ApiKeys:        params.ApiKeys,
@@ -160,10 +164,10 @@ func TellPlan(
 
 				if tellStop {
 					term.PrintCmds("", "continue", "diff", "diff --ui", "apply", "reject", "log", "rewind")
-				} else {
+				} else if !isDebugCmd {
 					term.PrintCmds("", "diff", "diff --ui", "apply", "reject", "log", "rewind")
 				}
-				os.Exit(0)
+				close(done)
 			}()
 		}
 
@@ -181,7 +185,6 @@ func TellPlan(
 		fmt.Println()
 		term.PrintCmds("", "ps", "connect", "stop")
 	} else {
-		// Wait for stream UI to quit
-		select {}
+		<-done
 	}
 }

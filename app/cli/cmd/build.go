@@ -25,6 +25,7 @@ var buildCmd = &cobra.Command{
 func init() {
 	RootCmd.AddCommand(buildCmd)
 	buildCmd.Flags().BoolVar(&buildBg, "bg", false, "Execute autonomously in the background")
+	buildCmd.Flags().BoolVarP(&autoConfirm, "yes", "y", false, "Automatically confirm context updates")
 }
 
 func build(cmd *cobra.Command, args []string) {
@@ -45,7 +46,7 @@ func build(cmd *cobra.Command, args []string) {
 		CurrentBranch: lib.CurrentBranch,
 		ApiKeys:       apiKeys,
 		CheckOutdatedContext: func(maybeContexts []*shared.Context) (bool, bool, error) {
-			return lib.CheckOutdatedContextWithOutput(false, maybeContexts)
+			return lib.CheckOutdatedContextWithOutput(false, autoConfirm, maybeContexts)
 		},
 	}, buildBg)
 

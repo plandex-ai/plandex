@@ -320,7 +320,12 @@ func execTellPlan(
 		} else {
 			var prompt string
 			if iteration == 0 {
-				prompt = req.Prompt
+				if req.IsUserDebug {
+					prompt = prompts.DebugPrompt + req.Prompt
+					state.totalRequestTokens += prompts.DebugPromptTokens
+				} else {
+					prompt = req.Prompt
+				}
 			} else if verifyDiffs != "" {
 				prompt = prompts.VerifyDiffsPrompt + verifyDiffs
 

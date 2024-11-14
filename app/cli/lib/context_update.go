@@ -20,7 +20,7 @@ import (
 	"github.com/plandex/plandex/shared"
 )
 
-func CheckOutdatedContextWithOutput(quiet bool, maybeContexts []*shared.Context) (contextOutdated, updated bool, err error) {
+func CheckOutdatedContextWithOutput(quiet, autoConfirm bool, maybeContexts []*shared.Context) (contextOutdated, updated bool, err error) {
 	if !quiet {
 		term.StartSpinner("🔬 Checking context...")
 	}
@@ -133,12 +133,14 @@ func CheckOutdatedContextWithOutput(quiet bool, maybeContexts []*shared.Context)
 		fmt.Println(tableString)
 	}
 
-	var confirmed bool
+	confirmed := autoConfirm
 
-	confirmed, err = term.ConfirmYesNo("Update context now?")
+	if !autoConfirm {
+		confirmed, err = term.ConfirmYesNo("Update context now?")
 
-	if err != nil {
-		term.OutputErrorAndExit("failed to get user input: %s", err)
+		if err != nil {
+			term.OutputErrorAndExit("failed to get user input: %s", err)
+		}
 	}
 
 	if confirmed {
@@ -452,7 +454,7 @@ func checkOutdatedAndMaybeUpdateContext(doUpdate bool, maybeContexts []*shared.C
 
 	if hasConflicts {
 		term.StartSpinner("🏗️  Starting build...")
-		_, err := buildPlanInlineFn(nil) // don't pass in outdated contexts -- nil value causes them to be refetched, which is what we want since they were just updated
+		_, err := buildPlanInlineFn(false, nil) // don't pass in outdated contexts -- nil value causes them to be refetched, which is what we want since they were just updated
 
 		if err != nil {
 			return nil, fmt.Errorf("failed to build plan: %v", err)
