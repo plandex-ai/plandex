@@ -1,7 +1,9 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
+	"html/template"
 	"net"
 	"net/http"
 	"plandex/api"
@@ -29,10 +31,8 @@ func init() {
 	RootCmd.AddCommand(diffsCmd)
 
 	diffsCmd.Flags().BoolVarP(&plainTextOutput, "plain", "p", false, "Output diffs in plain text with no ANSI codes")
-
 	diffsCmd.Flags().BoolVar(&showDiffUi, "ui", false, "Show diffs in a browser UI")
 	diffsCmd.Flags().BoolVarP(&diffUiSideBySide, "side-by-side", "s", false, "Show diffs UI in side-by-side view")
-
 }
 
 func diffs(cmd *cobra.Command, args []string) {
@@ -44,21 +44,39 @@ func diffs(cmd *cobra.Command, args []string) {
 	}
 
 	diffs, err := api.Client.GetPlanDiffs(lib.CurrentPlanId, lib.CurrentBranch, plainTextOutput || showDiffUi)
-
 	if err != nil {
 		term.OutputErrorAndExit("Error getting plan diffs: %v", err)
 		return
 	}
 
 	if showDiffUi {
-
-		var outputFormat string
+		outputFormat := "line-by-line"
 		if diffUiSideBySide {
 			outputFormat = "side-by-side"
-		} else {
-			outputFormat = "line-by-line"
 		}
-		html := fmt.Sprintf(htmlTemplate, "`"+diffs+"`", outputFormat)
+
+		// Properly escape the diff content for JavaScript
+		diffJSON, err := json.Marshal(diffs)
+		if err != nil {
+			term.OutputErrorAndExit("Error encoding diff content: %v", err)
+			return
+		}
+
+		// Create template data
+		data := struct {
+			DiffContent  template.JS
+			OutputFormat string
+		}{
+			DiffContent:  template.JS(diffJSON),
+			OutputFormat: outputFormat,
+		}
+
+		// Parse and execute the template
+		tmpl, err := template.New("diff").Parse(htmlTemplate)
+		if err != nil {
+			term.OutputErrorAndExit("Error parsing template: %v", err)
+			return
+		}
 
 		// Use :0 to let the OS pick an available port
 		listener, err := net.Listen("tcp", ":0")
@@ -71,10 +89,14 @@ func diffs(cmd *cobra.Command, args []string) {
 		// Get the actual port chosen
 		port := listener.Addr().(*net.TCPAddr).Port
 
-		// start a web server on a likely unused port
+		// Start web server
 		go func() {
 			http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-				fmt.Fprint(w, html)
+				w.Header().Set("Content-Type", "text/html; charset=utf-8")
+				err := tmpl.Execute(w, data)
+				if err != nil {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+				}
 			})
 			http.Serve(listener, nil)
 		}()
@@ -84,11 +106,8 @@ func diffs(cmd *cobra.Command, args []string) {
 		fmt.Println()
 		color.New(color.Bold).Println("ctrl+c to exit")
 
-		// wait forever
-		select {}
-
+		select {} // wait forever
 	} else {
-
 		if plainTextOutput {
 			fmt.Println(diffs)
 		} else {
@@ -97,8 +116,7 @@ func diffs(cmd *cobra.Command, args []string) {
 	}
 }
 
-var htmlTemplate = `
-	<!doctype html>
+var htmlTemplate = `<!doctype html>
 <html lang="en-us">
   <head>
     <meta charset="utf-8" />
@@ -112,12 +130,13 @@ var htmlTemplate = `
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/diff2html/bundles/js/diff2html-ui.min.js"></script>
   </head>
   <script>
-    const diffString = %s;
+    // Parse the JSON-encoded diff content
+    const diffString = {{.DiffContent}};
 
     document.addEventListener('DOMContentLoaded', function () {
       var targetElement = document.getElementById('myDiffElement');
       var configuration = {
-        outputFormat: '%s'
+        outputFormat: '{{.OutputFormat}}'
       };
       var diff2htmlUi = new Diff2HtmlUI(targetElement, diffString, configuration);
       diff2htmlUi.draw();
@@ -127,5 +146,4 @@ var htmlTemplate = `
   <body>
     <div id="myDiffElement"></div>
   </body>
-</html>
-`
+</html>`
