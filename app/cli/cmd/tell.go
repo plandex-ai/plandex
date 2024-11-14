@@ -52,6 +52,8 @@ func init() {
 }
 
 func doTell(cmd *cobra.Command, args []string) {
+	validateTellFlags()
+
 	auth.MustResolveAuthWithOrg()
 	lib.MustResolveProject()
 
@@ -183,4 +185,16 @@ func getEditorPrompt() string {
 
 	return prompt
 
+}
+
+func validateTellFlags() {
+	if tellAutoApply && tellNoBuild {
+		term.OutputErrorAndExit("🚨 --apply/-a can't be used with --no-build/-n")
+	}
+	if tellAutoApply && tellBg {
+		term.OutputErrorAndExit("🚨 --apply/-a can't be used with --bg")
+	}
+	if autoCommit && !tellAutoApply {
+		term.OutputErrorAndExit("🚨 --commit/-c can only be used with --apply/-a")
+	}
 }
