@@ -25,8 +25,8 @@ func init() {
 	buildCmd.Flags().BoolVar(&tellBg, "bg", false, "Execute autonomously in the background")
 
 	buildCmd.Flags().BoolVarP(&autoConfirm, "yes", "y", false, "Automatically confirm context updates")
-	continueCmd.Flags().BoolVarP(&tellAutoApply, "apply", "a", false, "Automatically apply changes (and confirm context updates)")
-	continueCmd.Flags().BoolVarP(&autoCommit, "commit", "c", false, "Commit changes to git when --apply/-a is passed")
+	buildCmd.Flags().BoolVarP(&tellAutoApply, "apply", "a", false, "Automatically apply changes (and confirm context updates)")
+	buildCmd.Flags().BoolVarP(&autoCommit, "commit", "c", false, "Commit changes to git when --apply/-a is passed")
 }
 
 func build(cmd *cobra.Command, args []string) {
