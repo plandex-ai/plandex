@@ -7,7 +7,7 @@ sidebar_label: Prompts
 
 ## Sending Prompts
 
-To send a prompt to the model, use the `plandex tell` command.
+To send a prompt, use the `plandex tell` command.
 
 You can pass it in as a file with the `--file/-f` flag:
 
@@ -21,47 +21,49 @@ Write it in vim:
 plandex tell # tell with no arguments opens vim so you can write your prompt there
 ```
 
-Or pass it inline (use enter for line breaks):
+Pass it inline (use enter for line breaks):
 
 ```bash
 plandex tell "add a new line chart showing the number of foobars over time to components/charts.tsx"
+```
+
+You can also pipe in the results of another command:
+
+```bash
+git diff | plandex tell
+```
+
+When you pipe in results like this, you can also supply an inline string to give a lbel or additional context to the results:
+
+```bash
+git diff | plandex tell 'git diff output'
 ```
 
 ## Plan Stream TUI
 
 After you send a prompt with `plandex tell`, you'll see the plan stream TUI. The model's responses are streamed here. You'll see several hotkeys listed along the bottom row that allow you to stop the plan (s), send the plan to the background (b), scroll/page the streamed text, or jump to the beginning or end of the stream. If you're a vim user, you'll notice Plandex's scrolling hotkeys are the same as vim's.
 
-Note that scrolling the terminal window itself won't work while you're in the stream TUI. Use the scroll hotkeys instead. 
+Note that scrolling the terminal window itself won't work while you're in the stream TUI. Use the scroll hotkeys instead.
 
 ## Task Prompts
 
-The most common prompt is a **task**. When you give Plandex a task, it will first break down the task into steps, then it will proceed to implement each step in code. Plandex will automatically continue sending model requests until the task is determined to be complete.
+When you give Plandex a task, it will first break down the task into steps, then it will proceed to implement each step in code. Plandex will automatically continue sending model requests until the task is determined to be complete.
 
 ## Conversational Prompts
 
-You can also ask Plandex questions or chat with it about whatever you want:
+If you want to ask Plandex questions or chat without generating files or making changes, use the `plandex chat` command instead of `plandex tell`.
 
 ```bash
-plandex tell "explain every function in lib/math.ts"
+plandex chat "explain every function in lib/math.ts"
 ```
 
-For conversational prompts, Plandex will reply with just a single response and won't automatically continue.
+Plandex will reply with just a single response, won't create or update any files, and won't automatically continue.
 
-Note that Plandex can sometimes be a bit over-eager to interpret conversational prompts as tasks. Its built-in prompts generally give it a bias toward action. For example, responding to a prompt like this:
-
-```bash
-plandex tell "did you forget to add the submit button?"
-```
-
-Plandex is likely to respond by implementing the missing button rather than simply answering the question. Giving an additional nudge to clarify that you're only chatting and aren't implying that you want a task to be done can help.
-
-```bash
-plandex tell "did you forget to add the submit button? don't add it--just answer yes or no."
-```
+`plandex chat` has the same options for passing in a prompt as `plandex tell`. You can pass a string inline, give it a file with `--file/-f`, type the prompt in vim by running `plandex chat` with no arguments, or pipe in the results of another command.
 
 ## Stopping and Continuing
 
-You can prevent Plandex from automatically continuing for multiple responses by passing the `--stop/-s` flag:
+When using `plandex tell`, you can prevent Plandex from automatically continuing for multiple responses by passing the `--stop/-s` flag:
 
 ```bash
 plandex tell -s "write tests for the charting helpers in lib/chart-helpers.ts"
@@ -118,10 +120,10 @@ There's one more thing to keep in mind about builds. If you send a prompt with t
 plandex tell "implement a forgot password email in src/emails" --no-build
 ```
 
-Then you later send *another* prompt with `plandex tell` or continue the plan with `plandex continue` and you *don't* include the `--no-build` flag, any changes that were implemented previously but weren't built will immediately start building when the plan stream begins.
+Then you later send _another_ prompt with `plandex tell` or continue the plan with `plandex continue` and you _don't_ include the `--no-build` flag, any changes that were implemented previously but weren't built will immediately start building when the plan stream begins.
 
 ```bash
-plandex tell "now implement the UI portion of the forgot password flow" 
+plandex tell "now implement the UI portion of the forgot password flow"
 # the above will start building the changes proposed in the earlier prompt that was passed --no-build
 ```
 
@@ -153,7 +155,7 @@ plandex convo
 
 ### Rewind and iterate
 
-Another option is to use Plandex's [version control](./version-control.md) features to rewind to the point just before your prompt was sent and then update it before sending the prompt again. 
+Another option is to use Plandex's [version control](./version-control.md) features to rewind to the point just before your prompt was sent and then update it before sending the prompt again.
 
 You can use `plandex log` to see the plan's history and determine which step to rewind to, then `plandex rewind` with the appropriate hash to rewind to that step:
 
@@ -174,7 +176,7 @@ This makes it easy to continuously iterate on your prompt using `plandex rewind`
 
 There's not necessarily one right answer on whether to use an ongoing conversation or the `rewind` approach with prompt files for iteration. Here are a few things to consider when making the choice:
 
-- Bad results tend to beget more bad results. Rewinding and iterating on the prompt is often more effective for correcting a wayward task than continuing to send more `tell` commands. Even if you are specifically prompting the model to *correct* a problem, having the wrong approach in its context will tend to bias it toward additional errors. Using `rewind` to the give the model a clean slate can work better in these scenarios.
+- Bad results tend to beget more bad results. Rewinding and iterating on the prompt is often more effective for correcting a wayward task than continuing to send more `tell` commands. Even if you are specifically prompting the model to _correct_ a problem, having the wrong approach in its context will tend to bias it toward additional errors. Using `rewind` to the give the model a clean slate can work better in these scenarios.
 
 - Iterating on a prompt file with the `rewind` approach until you find your way to an effective prompt has another benefit: you can keep the final version of the prompt that produced a given set of changes right alongside the changes themselves in your codebase. This can be helpful for other developers (or your future self) if you want to revisit a task later.
 
