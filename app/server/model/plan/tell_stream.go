@@ -387,7 +387,7 @@ mainLoop:
 					ap.CurrentReplyDoneCh = nil
 				})
 
-				if req.AutoContinue && shouldContinue && iteration < MaxAutoContinueIterations {
+				if !req.IsChatOnly && req.AutoContinue && shouldContinue && iteration < MaxAutoContinueIterations {
 					log.Println("Auto continue plan")
 					// continue plan
 					execTellPlan(clients, plan, branch, auth, req, iteration+1, "", false, nextTask, "", 0)
@@ -489,6 +489,7 @@ mainLoop:
 			// Handle file that is present in project paths but not in context
 			// Prompt user for what to do on the client side, stop the stream, and wait for user response before proceeding
 			if currentFile != "" &&
+				!req.IsChatOnly &&
 				active.ContextsByPath[currentFile] == nil &&
 				req.ProjectPaths[currentFile] && !active.AllowOverwritePaths[currentFile] {
 				log.Printf("Attempting to overwrite a file that isn't in context: %s\n", currentFile)
@@ -572,7 +573,7 @@ mainLoop:
 			// log.Println("replyFiles:")
 			// spew.Dump(replyFiles)
 
-			if len(files) > len(replyFiles) {
+			if !req.IsChatOnly && len(files) > len(replyFiles) {
 				log.Printf("%d new files\n", len(files)-len(replyFiles))
 
 				for i, file := range files {

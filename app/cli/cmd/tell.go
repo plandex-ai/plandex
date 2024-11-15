@@ -16,7 +16,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// test
 const defaultEditor = "vim"
 
 // const defaultEditor = "nano"
@@ -66,6 +65,28 @@ func doTell(cmd *cobra.Command, args []string) {
 		apiKeys = lib.MustVerifyApiKeys()
 	}
 
+	prompt := getTellPrompt(args)
+
+	if prompt == "" {
+		fmt.Println("🤷‍♂️ No prompt to send")
+		return
+	}
+
+	plan_exec.TellPlan(plan_exec.ExecParams{
+		CurrentPlanId: lib.CurrentPlanId,
+		CurrentBranch: lib.CurrentBranch,
+		ApiKeys:       apiKeys,
+		CheckOutdatedContext: func(maybeContexts []*shared.Context) (bool, bool, error) {
+			return lib.CheckOutdatedContextWithOutput(false, autoConfirm || tellAutoApply, maybeContexts)
+		},
+	}, prompt, tellBg, tellStop, tellNoBuild, false, false, false)
+
+	if tellAutoApply {
+		lib.MustApplyPlan(lib.CurrentPlanId, lib.CurrentBranch, true, autoCommit, !autoCommit)
+	}
+}
+
+func getTellPrompt(args []string) string {
 	var prompt string
 	var pipedData string
 
@@ -104,23 +125,7 @@ func doTell(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	if prompt == "" {
-		fmt.Println("🤷‍♂️ No prompt to send")
-		return
-	}
-
-	plan_exec.TellPlan(plan_exec.ExecParams{
-		CurrentPlanId: lib.CurrentPlanId,
-		CurrentBranch: lib.CurrentBranch,
-		ApiKeys:       apiKeys,
-		CheckOutdatedContext: func(maybeContexts []*shared.Context) (bool, bool, error) {
-			return lib.CheckOutdatedContextWithOutput(false, autoConfirm || tellAutoApply, maybeContexts)
-		},
-	}, prompt, tellBg, tellStop, tellNoBuild, false, false, false)
-
-	if tellAutoApply {
-		lib.MustApplyPlan(lib.CurrentPlanId, lib.CurrentBranch, true, autoCommit, !autoCommit)
-	}
+	return prompt
 }
 
 func prepareEditorCommand(editor string, filename string) *exec.Cmd {
