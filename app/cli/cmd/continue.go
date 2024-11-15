@@ -30,6 +30,8 @@ func init() {
 }
 
 func doContinue(cmd *cobra.Command, args []string) {
+	validateTellFlags()
+
 	auth.MustResolveAuthWithOrg()
 	lib.MustResolveProject()
 

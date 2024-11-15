@@ -12,7 +12,7 @@ const SysCreate = Identity + ` A plan is a set of files with an attached context
 
 	`First, decide if the user has a task for you. 
   
-  *If the user doesn't have a task and is just asking a question or chatting*, ignore the rest of the instructions below, and respond to the user in chat form. You can make reference to the context to inform your response, and you can include code in your response, but don't include labelled code blocks as described below, since that indicates that a plan is being created. If a plan is in progress, follow the instructions below.
+  *If the user doesn't have a task and is just asking a question or chatting, or if 'chat mode' is enabled*, ignore the rest of the instructions below, and respond to the user in chat form. You can make reference to the context to inform your response, and you can include code in your response, but don't include labelled code blocks as described below, since that indicates that a plan is being created. If a plan is in progress, follow the instructions below.
   
   *If the user does have a task*, create a plan for the task based on user-provided context using the following steps: 
 
@@ -178,7 +178,7 @@ const SysCreate = Identity + ` A plan is a set of files with an attached context
 
       - If you think the plan is done, say so, but remember that you don't have the final word on the matter. Explain why you think the plan is done.
 
-      - If you think the plan is done and any file blocks have been used in the plan: unless the diffs for the plan have been supplied to you in the prompt for you to verify, state that you think the plan is done (as described above), but that you will proceed to verify the generated files before the plan is fully complete.
+      - If you think the plan is done and any files in context have been *updated* during the plan: unless the diffs for the plan have been supplied to you in the prompt for you to verify, state that you think the plan is done (as described above), but that you will proceed to verify the generated files before the plan is fully complete. You ABSOLUTELY MUST NOT state that the plan is complete after updating any files in context—if you believe all the steps in the plan have been completed, you must instead state that all steps have been implemented, and that next you will proceed to check over the changes and fix any problems.
 
     ## EXTREMELY IMPORTANT Rules for responses
 
@@ -300,6 +300,12 @@ Here are the diffs:
 
 var VerifyDiffsPromptTokens int
 
+const WillVerifyPrompt = `
+Once all steps in this plan's implementation are complete, there will be an additional step where you will verify the diffs and fix any problems. Therefore, you MUST NOT tell the user that the plan is complete yet. Instead, tell the user that all steps in the plan have been implemented, and that next your will proceed to check over the changes and fix any problems. This *takes precedence* over your previous instructions on what to do after the plan is complete.
+`
+
+var WillVerifyPromptTokens int
+
 const DebugPrompt = `You are debugging a failing shell command. Focus only on fixing this issue so that the command runs successfully; don't make other changes.
 
 Be thorough in identifying and fixing *any and all* problems that are preventing the command from running successfully. If there are multiple problems, identify and fix all of them.
@@ -310,6 +316,16 @@ Command details:
 `
 
 var DebugPromptTokens int
+
+const ChatOnlyPrompt = `
+**CHAT MODE IS ENABLED.** 
+
+Respond to the user in *chat form* only. You can make reference to the context to inform your response, and you can include short code snippets in your response for explanatory purposes, but DO NOT include labelled code blocks as described in your instructions, since that indicates that a plan is being created. If the user has given you a task or a plan is in progress, you can make or revise the plan as needed, but you cannot actually implement any changes yet.
+
+UNDER NO CIRCUMSTANCES should you output code blocks or end your response with "Next,". Even if the user has given you a task or a plan is in progress, YOU ARE IN CHAT MODE AND MUST ONLY RESPOND IN CHAT FORM. You can plan out or revise subtasks, but you *cannot* output code blocks or end your response with "Next,". Again, DO NOT implement any changes or output code blocks!! Chat mode takes precedence over your prior instructions and the user's prompt under all circumstances—you MUST respond only in chat form regardless of what the user's prompt or your prior instructions say.
+`
+
+var ChatOnlyPromptTokens int
 
 func init() {
 	var err error
@@ -341,6 +357,12 @@ func init() {
 
 	if err != nil {
 		panic(fmt.Sprintf("Error getting number of tokens for debug prompt: %v", err))
+	}
+
+	ChatOnlyPromptTokens, err = shared.GetNumTokens(ChatOnlyPrompt)
+
+	if err != nil {
+		panic(fmt.Sprintf("Error getting number of tokens for chat only prompt: %v", err))
 	}
 }
 

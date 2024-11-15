@@ -36,7 +36,7 @@ func Tell(clients map[string]*openai.Client, plan *db.Plan, branch string, auth 
 		req,
 		0,
 		"",
-		req.BuildMode == shared.BuildModeAuto,
+		!req.IsChatOnly && req.BuildMode == shared.BuildModeAuto,
 		"",
 		"",
 		0,
@@ -320,8 +320,11 @@ func execTellPlan(
 		} else {
 			var prompt string
 			if iteration == 0 {
-				if req.IsUserDebug {
-					prompt = prompts.DebugPrompt + req.Prompt
+				if req.IsChatOnly {
+					prompt = req.Prompt + prompts.ChatOnlyPrompt
+					state.totalRequestTokens += prompts.ChatOnlyPromptTokens
+				} else if req.IsUserDebug {
+					prompt = req.Prompt + prompts.DebugPrompt
 					state.totalRequestTokens += prompts.DebugPromptTokens
 				} else {
 					prompt = req.Prompt
@@ -367,6 +370,11 @@ func execTellPlan(
 					prompt += toAdd
 					state.totalRequestTokens += tokens
 				}
+			}
+
+			if iteration > 0 && verifyDiffs == "" && active.ShouldVerifyDiff() {
+				prompt += prompts.WillVerifyPrompt
+				state.totalRequestTokens += prompts.WillVerifyPromptTokens
 			}
 
 			state.userPrompt = prompt

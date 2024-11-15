@@ -69,7 +69,9 @@ func TellPlan(
 		os.Exit(0)
 	}
 
+	term.StartSpinner("")
 	paths, err := fs.GetProjectPaths(fs.GetBaseDirForContexts(contexts))
+	term.StopSpinner()
 
 	if err != nil {
 		outputPromptIfTell()
@@ -80,7 +82,7 @@ func TellPlan(
 	fn = func() bool {
 
 		var buildMode shared.BuildMode
-		if tellNoBuild {
+		if tellNoBuild || isChatOnly {
 			buildMode = shared.BuildModeNone
 		} else {
 			buildMode = shared.BuildModeAuto
@@ -112,6 +114,7 @@ func TellPlan(
 			BuildMode:      buildMode,
 			IsUserContinue: isUserContinue,
 			IsUserDebug:    isDebugCmd,
+			IsChatOnly:     isChatOnly,
 			ApiKey:         legacyApiKey, // deprecated
 			Endpoint:       openAIBase,   // deprecated
 			ApiKeys:        params.ApiKeys,
@@ -162,10 +165,12 @@ func TellPlan(
 
 				fmt.Println()
 
-				if tellStop {
+				if tellStop && !isChatOnly {
 					term.PrintCmds("", "continue", "diff", "diff --ui", "apply", "reject", "log", "rewind")
-				} else if !isDebugCmd {
-					term.PrintCmds("", "diff", "diff --ui", "apply", "reject", "log", "rewind")
+				} else if !isDebugCmd && !isChatOnly {
+					term.PrintCmds("", "diff", "diff --ui", "apply", "reject", "debug", "log", "rewind")
+				} else if isChatOnly {
+					term.PrintCmds("", "tell", "convo", "summary")
 				}
 				close(done)
 			}()
