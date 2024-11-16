@@ -19,10 +19,11 @@ import (
 const DebugDefaultTries = 5
 
 var debugCmd = &cobra.Command{
-	Use:   "debug [tries] <cmd>",
-	Short: "Debug a failing command with Plandex",
-	Args:  cobra.MinimumNArgs(1),
-	Run:   doDebug,
+	Use:     "debug [tries] <cmd>",
+	Aliases: []string{"db"},
+	Short:   "Debug a failing command with Plandex",
+	Args:    cobra.MinimumNArgs(1),
+	Run:     doDebug,
 }
 
 func init() {

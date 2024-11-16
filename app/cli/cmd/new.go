@@ -76,6 +76,6 @@ func new(cmd *cobra.Command, args []string) {
 	fmt.Printf("✅ Started new plan %s and set it to current plan\n", color.New(color.Bold, term.ColorHiGreen).Sprint(name))
 
 	fmt.Println()
-	term.PrintCmds("", "load", "tell", "plans", "current")
+	term.PrintCmds("", "load", "tell", "chat", "plans", "current")
 
 }
