@@ -33,6 +33,8 @@ plandex convo 2- # show messages 2 through the end of the conversation
 
 Every time the AI model replies, Plandex will summarize the conversation so far in the background and store the summary in case it's needed later. When the conversation size in tokens exceeds the model's limit, Plandex will automatically replace some number of older messages with the corresponding summary. It will summarize as many messages as necessary to keep the conversation size under the limit.
 
+Summaries are also used by the model as a form of working memory to keep track of the state of the plan—what's been implemented and what remains to be done.
+
 You can see the latest summary with the `summary` command.
 
 ```bash

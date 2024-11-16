@@ -23,7 +23,7 @@ if ! [ -x "$(command -v reflex)" ]; then
   fi
 
   echo 'Error: reflex is not installed. Installing it now...' >&2
-  go get -u github.com/cespare/reflex
+  go install github.com/cespare/reflex@latest
 fi
 
 terminate() {

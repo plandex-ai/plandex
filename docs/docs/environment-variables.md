@@ -19,13 +19,13 @@ PLANDEX_API_HOST= # Defaults to 'http://localhost:8080' if PLANDEX_ENV is develo
 ### LLM Providers
 
 ```bash
-OPENAI_API_BASE= # Your OpenAI server, such as http://localhost:1234/v1 Defaults to empty.
-OPENAI_API_KEY= # Your OpenAI key.
-
-# optional - set API keys for any other providers you're using
-export OPENROUTER_API_KEY= # Your OpenRouter.ai API key.
-export TOGETHER_API_KEY = # Your Together.ai API key.
+OPENAI_API_KEY= # Your OpenAI key (if self-hosting or using BYO API Key mode with Plandex Cloud)
+OPENROUTER_API_KEY= # Your OpenRouter.ai API key (if self-hosting or using BYO API Key mode with Plandex Cloud)
+TOGETHER_API_KEY = # Your Together.ai API key (if self-hosting or using BYO API Key mode with Plandex Cloud)
 # etc.
+
+OPENAI_API_BASE= # Your OpenAI server, such as http://localhost:1234/v1 Defaults to empty.
+OPENAI_ORG_ID= # Your OpenAI organization ID. Defaults to empty.
 ```
 
 ### Upgrades

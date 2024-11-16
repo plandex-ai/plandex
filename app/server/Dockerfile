@@ -1,4 +1,4 @@
-FROM --platform=linux/amd64 golang:1.21.3
+FROM --platform=linux/amd64 golang:1.23.3
 
 # Update and install necessary packages including build tools for Tree-sitter
 RUN apt-get update && \

@@ -32,19 +32,6 @@
   <a href="https://docs.plandex.ai/hosting/self-hosting">
     <b>Self-Hosting</b>
   </a>
-   <!-- · 
-  <a href="./guides/DEVELOPMENT.md">
-    <b>Development</b>
-  </a> -->
-  <!--  · 
-  <a href="https://discord.gg/plandex-ai">
-    <b>Discord</b>
-  </a>  
-   · 
-  <a href="#weekly-office-hours-">
-    <b>Office Hours</b>
-  </a>  
-  -->
 </p>
 
 <br>
@@ -101,11 +88,11 @@
 
 - [Overview](#overview-)
 - [Install](#install)
+- [Hosting options](#hosting-options-)
 - [Get started](#get-started-)
 - [Docs](https://docs.plandex.ai/)
 - [Build complex software](#build-complex-software-with-llms-)
 - [Why Plandex?](#why-plandex-)
-- [Roadmap](#roadmap-%EF%B8%8F)
 - [Discussion and discord](#discussion-and-discord-)
 - [Contributors](#contributors-)
 <br/>
@@ -116,7 +103,7 @@
 
 <p>Plandex is a <strong>reliable and developer-friendly</strong> AI coding agent in your terminal. It can plan out and complete <strong>large tasks</strong> that span many files and steps.</p>
  
-<p>Designed for <strong>real-world use-cases</strong>, Plandex can help you build a new app quickly, add new features to an existing codebase, write tests and scripts, understand code, and fix bugs. </p>
+<p>Designed for <strong>real-world use-cases</strong>, Plandex can help you build a new app quickly, add new features to an existing codebase, write tests and scripts, understand code, fix bugs, and automatically debug failing commands (like tests, typecheckers, linters, etc.). </p>
 
 <br/>
 
@@ -132,16 +119,24 @@ curl -sL https://plandex.ai/install.sh | bash
 
 <br/>
 
-## Get started  🚀
+## Hosting options ⚖️
 
-Plandex uses OpenAI by default. If you don't have an OpenAI account, first [sign up here.](https://platform.openai.com/signup)
+| # | Option  | Description |
+|---|---------|--------------------------------|
+| 1 | **Plandex Cloud (Integrated Models)** | No separate accounts or API keys are required. This is the quickest way to get started. If you choose this option, skip ahead to the [Get Started](#get-started-) section below. |
+| 2 | **Plandex Cloud (BYO API Key)** | You'll need accounts and API keys for [OpenRouter.ai](https://openrouter.ai) and [OpenAI](https://platform.openai.com) to get started with the default models. |
+| 3 | **Self-hosted** | First, follow the [self-hosting guide](./hosting/self-hosting.md) to set up your own Plandex server. You'll also need accounts and API keys for [OpenRouter.ai](https://openrouter.ai) and [OpenAI](https://platform.openai.com) to get started with the default models. |
 
-Then [generate an API key here](https://platform.openai.com/account/api-keys) and `export` it.
+If you're going with option 2 or 3 above, you'll need to set the `OPENROUTER_API_KEY` and `OPENAI_API_KEY` environment variables before continuing:
 
 ```bash
+export OPENROUTER_API_KEY=...
 export OPENAI_API_KEY=...
 ```
 
+<br/>
+
+## Get started  🚀
 
 Now `cd` into your **project's directory.** Make a new directory first with `mkdir your-project-dir` if you're starting on a new project.
 
@@ -156,6 +151,7 @@ Then **start your first plan** with `plandex new`.
 plandex new
 ```
 
+☁️ *Note: if you're using Plandex Cloud, you'll be prompted at this point to start a trial.*
 
 Load any relevant files, directories, directory layouts, urls, or images **into the LLM's context** with `plandex load`.
 
@@ -191,6 +187,12 @@ plandex tell "add a new line chart showing the number of foobars over time to co
 
 Plandex will make a plan for your task and then implement that plan in code. **The changes won't yet be applied to your project files.** Instead, they'll accumulate in Plandex's sandbox.
 
+**Note**: if you're not quite ready to give Plandex a task yet and want to ask questions or chat a bit first, you can use `plandex chat` instead of `plandex tell`. It works the same way, but it makes Plandex respond conversationally and prevents it from making any changes yet. Once you're ready, you can use `plandex tell` to go ahead with the implementation.
+
+```bash
+plandex chat "is it clear from the context how to add a new line chart?"
+```
+
 To learn about reviewing changes, iterating on the plan, and applying changes to your project, **[continue with the full quickstart.](https://docs.plandex.ai/quick-start#review-the-changes)**
 
 <br/>
@@ -208,7 +210,7 @@ To learn about reviewing changes, iterating on the plan, and applying changes to
 
 📑  Manage context efficiently in the terminal. Easily add files or entire directories to context, and keep them updated automatically as you work so that models always have the latest state of your project.
 
-🧠  By default, Plandex relies on the OpenAI API and requires an `OPENAI_API_KEY` environment variable. You can also use it with a wide range of other models, including Anthropic Claude, Google Gemini, Mixtral, Llama and many more via OpenRouter.ai, Together.ai, or any other OpenAI-compatible provider.
+🧠  By default, Plandex uses (and is optimized for) a mix of Anthropic models (via OpenRouter.ai) and OpenAI models (via OpenAI's API). You can also use it with a wide range of other models from OpenRouter.ai or any other OpenAI-compatible provider.
 
 ✅  Plandex supports Mac, Linux, FreeBSD, and Windows. It runs from a single binary with no dependencies.
 
@@ -217,35 +219,20 @@ To learn about reviewing changes, iterating on the plan, and applying changes to
 ## Why Plandex?  🤔
 
 🏗️  Go beyond autocomplete to build complex functionality with AI.<br>
-🚫  Stop the mouse-centered, copy-pasting madness of coding with ChatGPT.<br>
+🚫  Stop the mouse-centered, copy-pasting madness of coding with ChatGPT or Claude.<br>
 ⚡️  Ensure the model always has the latest versions of files in context.<br>
 🪙  Retain granular control over what's in the model's context and how many tokens you're using.<br>
 ⏪  Rewind, iterate, and retry as needed until you get your prompt just right.<br>
+❤️‍🩹  Automatically debug failing commands (like tests, typecheckers, linters, etc.).<br>
 🌱  Explore multiple approaches with branches.<br>
 🔀  Run tasks in the background or work on multiple tasks in parallel.<br>
 🎛️  Try different models and temperatures, then compare results.<br>
 
 <br/>
 
-## Roadmap  🗺️
-
-🧠  Support for open source models, Google Gemini, and Anthropic Claude in addition to OpenAI  ✅ released<br>
-🖼️  Support for multi-modal models—add images and screenshots to context ✅ released<br>
-🤝  Plan sharing and team collaboration<br>
-🖥️  VSCode and JetBrains extensions<br>
-📦  Community plugins and modules<br>
-🔌  Github integration<br>
-🌐  Web dashboard and GUI<br>
-🔐  SOC2 compliance<br>
-🛩️  Fine-tuned models<br>
-
-This list will grow and be prioritized based on your feedback.
-
-<br/>
-
 ## Discussion and discord  💬
 
-Speaking of feedback, feel free to give yours, ask questions, report a bug, or just hang out:
+Please feel free to give your feedback, ask questions, report a bug, or just hang out:
 
 - [Discord](https://discord.gg/plandex-ai)
 - [Discussions](https://github.com/plandex-ai/plandex/discussions)
@@ -256,8 +243,6 @@ Speaking of feedback, feel free to give yours, ask questions, report a bug, or j
 ## Contributors  👥
 
 ⭐️  Please star, fork, explore, and contribute to Plandex. There's a lot of work to do and so much that can be improved.
-
-Work on tests, evals, prompts, and bug fixes is especially appreciated.
 
 [Here's an overview on setting up a development environment.](https://docs.plandex.ai/development)
 

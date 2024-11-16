@@ -223,8 +223,6 @@ var RequiredCompatibilityByRole = map[ModelRole]ModelCompatibility{
 	},
 	ModelRoleBuilder: {
 		IsOpenAICompatible: true,
-		HasStreaming:       true,
-		HasFunctionCalling: true,
 	},
 	ModelRoleName: {
 		IsOpenAICompatible: true,

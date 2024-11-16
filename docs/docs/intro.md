@@ -21,7 +21,8 @@ It combines multiple agents to complete tasks that span many files and model res
 - Refactor.
 - Work with unfamiliar technologies.
 - Ask questions about code.
-- Understand a codebase. 
+- Understand a codebase.
+- Auto-debug a failing shell command (tests, type checks, scripts, etc.).
 
 ## What makes Plandex different?
 
@@ -41,24 +42,15 @@ Apart from version control, Plandex also helps you manage what's in the LLM's co
 - Files you add to context are kept up-to-date automatically so that the LLM is always using the latest version.
 - Unlike IDE-based tools that automatically and opaquely load context in the background, Plandex gives the developer precise control of what's in the LLM's context. You never have to wonder what's been loaded or whether it's up-to-date. This is crucial to getting good results and keeping a handle on costs, particularly when you want to go beyond auto-complete and work on larger tasks.
 
-## Focus
+### Automated Debugging
 
-For now, Plandex is focused on: 
-
-1. Planning out the changes needed to complete a task.
-2. Creating or updating all the necessary files to complete that task. 
-
-It doesn't yet do automatic execution of code or automatic selection of context—both are left to the developer.
-
-In other words, Plandex isn't (yet) shooting for full autonomy. While we do plan to move in this direction over time, we think the current level of model capabilities make Plandex's focus a sweet spot for achieving real productivity gains.
-
-Though full autonomy is certainly an enticing prospect, in practice it often means wasting a lot of time and tokens letting the LLM spin its wheels on problems that are trivial for a developer to identify and fix. You can definitely use Plandex to help debug its own code, but for now we think it's best to make this opt-in rather than the default behavior.
+Plandex can repeatedly run a failing terminal command, continually making fixes based on the command's output and retrying until it succeeds.
 
 ## Models
 
-Plandex uses OpenAI models by default, as so far we've found them to offer the best balance between intelligence and reliability.
+By default, Plandex uses a combination of Anthropic and OpenAI models; Anthropic models are served via OpenRouter.ai and OpenAI models are served directly from OpenAI.
 
-That said, you can also use it with a wide range of other models, including Anthropic Claude, Google Gemini, Mixtral, Llama and many more via OpenRouter.ai, Together.ai, or any other OpenAI-compatible provider.
+That said, you can also use it with a wide range of other models from any OpenAI-compatible provider.
 
 ## Languages and Platforms
 

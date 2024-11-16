@@ -15,14 +15,18 @@ curl -sL https://plandex.ai/install.sh | bash
 
 Note that Windows is supported via [WSL](https://learn.microsoft.com/en-us/windows/wsl/about). Plandex only works correctly on Windows in the WSL shell. It doesn't work in the Windows CMD prompt or PowerShell.
 
+## Hosting Options
 
-## Set `OPENAI_API_KEY`
+| # | Option  | Description |
+|---|---------|--------------------------------|
+| 1 | **Plandex Cloud (Integrated Models)** | No separate accounts or API keys are required. This is the quickest way to get started. If you choose this option, skip ahead to the [Create A Plan](#create-a-plan) section below. |
+| 2 | **Plandex Cloud (BYO API Key)** | You'll need accounts and API keys for [OpenRouter.ai](https://openrouter.ai) and [OpenAI](https://platform.openai.com) to get started with the default models. |
+| 3 | **Self-Hosted** | First, follow the [self-hosting guide](./hosting/self-hosting.md) to set up your own Plandex server. You'll also need accounts and API keys for [OpenRouter.ai](https://openrouter.ai) and [OpenAI](https://platform.openai.com) to get started with the default models. |
 
-Plandex uses OpenAI by default. If you don't have an OpenAI account, first [sign up here.](https://platform.openai.com/signup)
-
-Then [generate an API key here](https://platform.openai.com/account/api-keys) and `export` it.
+If you're going with option 2 or 3 above, you'll need to set the `OPENROUTER_API_KEY` and `OPENAI_API_KEY` environment variables before continuing:
 
 ```bash
+export OPENROUTER_API_KEY=...
 export OPENAI_API_KEY=...
 ```
 
@@ -51,6 +55,8 @@ Now **create your first plan** with `plandex new`.
 ```bash
 plandex new
 ```
+
+*Note: if you're using Plandex Cloud, you'll be prompted at this point to start a trial.*
 
 ## Load In Context
 
@@ -86,7 +92,13 @@ Or pass it inline (use enter for line breaks):
 plandex tell "add a new line chart showing the number of foobars over time to components/charts.tsx"
 ```
 
-Plandex will make a plan for your task and then implement that plan in code. **The changes won't yet be applied to your project files.** Instead, they'll accumulate in Plandex's sandbox. 
+Plandex will make a plan for your task and then implement that plan in code. **The changes won't yet be applied to your project files.** Instead, they'll accumulate in Plandex's sandbox.
+
+**Note**: if you're not quite ready to give Plandex a task yet and want to ask questions or chat a bit first, you can use `plandex chat` instead of `plandex tell`. It works the same way, but it makes Plandex respond conversationally and prevents it from making any changes yet. Once you're ready, you can use `plandex tell` to go ahead with the implementation.
+
+```bash
+plandex chat "is it clear from the context how to add a new line chart?"
+```
 
 ## Review The Changes
 
@@ -96,10 +108,10 @@ When Plandex has finished with your task, you can review the proposed changes wi
 plandex diff
 ```
 
-Or you can view them in Plandex's changes TUI:
+Or you can view them in a local browser UI:
 
 ```bash
-plandex changes
+plandex diff --ui
 ```
 
 ## Iterate If Needed
@@ -132,8 +144,6 @@ To reject changes to a file (or multiple files), you can run `plandex reject` wi
 plandex reject components/charts.tsx
 ```
 
-You can also reject changes using the `r` hotkey in the `plandex changes` TUI.
-
 Once the bad update is rejected, copy the changes from the plan's output or run `plandex convo` to output the full conversation and copy them from there. Then apply the updates to that file yourself.
 
 ## Apply The Changes
@@ -146,7 +156,23 @@ plandex apply
 
 If you're in a git repository, Plandex will give you the option of grouping the changes into a git commit with an automatically generated commit message.
 
-You've now experienced the core workflow of Plandex! While there are more commands and options available, those described above are what you'll be using most often. 
+## Auto-Debug Problems
+
+If you have a test suite, type checker, or start command that's failing after you apply the changes, you can use the `plandex debug` command to send the output to Plandex and ask it to automatically fix the problem(s).
+
+```bash
+plandex debug 'npm test'
+```
+
+This will make Plandex run the given command, send the output to the LLM, attempt a fix, apply the changes, and then run the command again to verify that the problem is fixed. By default, Plandex will try up to 5 times before giving up, but you can also specify the number of tries like this:
+
+```bash
+plandex debug 10 'npm test' # try 10 times
+```
+
+---
+
+**You've now experienced the core workflow of Plandex!** While there are more commands and options available, those described above are what you'll be using most often. 
 
 ## CLI Help
 
@@ -164,11 +190,13 @@ Here are the same commands we went through above using aliases to minimize typin
 pdx new
 pdx l some-file.ts another-file.ts # load
 pdx t -f prompt.txt # tell
+pdx ct "is it clear from the context how to add a new line chart?" # chat
 pdx diff
-pdx ch # changes
+pdx diff --ui
 pdx log
 pdx rw e7e06e0 # rewind
 pdx c # continue
 pdx rj components/charts.tsx # reject
 pdx ap # apply
+pdx db 'npm test' # debug
 ```
