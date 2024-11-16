@@ -217,7 +217,7 @@ To learn about reviewing changes, iterating on the plan, and applying changes to
 ## Why Plandex?  🤔
 
 🏗️  Go beyond autocomplete to build complex functionality with AI.<br>
-🚫  Stop the mouse-centered, copy-pasting madness of coding with ChatGPT.<br>
+🚫  Stop the mouse-centered, copy-pasting madness of coding with ChatGPT or Claude.<br>
 ⚡️  Ensure the model always has the latest versions of files in context.<br>
 🪙  Retain granular control over what's in the model's context and how many tokens you're using.<br>
 ⏪  Rewind, iterate, and retry as needed until you get your prompt just right.<br>
