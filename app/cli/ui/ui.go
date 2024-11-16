@@ -42,8 +42,9 @@ func OpenAuthenticatedURL(msg, path string) {
 }
 
 func OpenUnauthenticatedCloudURL(msg, path string) {
-	apiHost := api.CloudApiHost
+	apiHost := api.GetApiHost()
 	appHost := strings.Replace(apiHost, "api.", "app.", 1)
+
 	url := fmt.Sprintf("%s%s", appHost, path)
 
 	OpenURL(msg, url)
