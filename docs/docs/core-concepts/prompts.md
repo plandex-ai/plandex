@@ -33,10 +33,10 @@ You can also pipe in the results of another command:
 git diff | plandex tell
 ```
 
-When you pipe in results like this, you can also supply an inline string to give a lbel or additional context to the results:
+When you pipe in results like this, you can also supply an inline string to give a label or additional context to the results:
 
 ```bash
-git diff | plandex tell 'git diff output'
+git diff | plandex tell "'git diff' output"
 ```
 
 ## Plan Stream TUI
@@ -83,18 +83,28 @@ By default, `plandex tell` opens the plan stream TUI and streams Plandex's respo
 
 You can learn more about using and interacting with background tasks [here](./background-tasks.md).
 
+## Keeping Context Updated
+
+When you send a prompt, whether through `plandex tell` or `plandex chat`, Plandex will check whether the content of any files, directory layouts, or URLs you've loaded into context have changed. If so, you'll be prompted to update the context before continuing.
+
+If you want to automatically update context without being prompted, you can pass the `--yes/-y` flag to `plandex tell` or `plandex continue`:
+
+```bash
+plandex tell -y "add a cancel button to the foobars form in src/components/foobars-form.tsx"
+```
+
 ## Building Files
 
 As Plandex implements your task, files it creates or updates will appear in the `Building Plan` section of the plan stream TUI. Plandex will **build** all changes proposed by the plan into a set of pending changesets for each affected file.
 
-Keep in mind that initially, these changes **will not** be directly applied to your project files. Instead, they will be **pending** in Plandex's version-controlled sandbox. This allows you to review the proposed changes or continue iterating and accumulating more changes. You can view the pending changes with `plandex diff` (for git diff format) or `plandex changes` (to view them in a TUI). Once you're happy with the changes, you can apply them to your project files with `plandex apply`.
+Keep in mind that initially, these changes **will not** be directly applied to your project files. Instead, they will be **pending** in Plandex's version-controlled sandbox. This allows you to review the proposed changes or continue iterating and accumulating more changes. You can view the pending changes with `plandex diff` (for git diff format in the terminal) or `plandex diff --ui` (to view them in a local browser UI). Once you're happy with the changes, you can apply them to your project files with `plandex apply`.
 
 - [Learn more about reviewing changes.](./reviewing-changes.md)
 - [Learn more about version control.](./version-control.md)
 
 ### Skipping builds / `plandex build`
 
-You can skip building files when you send a prompt by passing the `--no-build` flag to `plandex tell` or `plandex continue`. This can be useful if you want to ensure that a plan is on the right track before comitting the time and tokens to build files.
+You can skip building files when you send a prompt by passing the `--no-build` flag to `plandex tell` or `plandex continue`. This can be useful if you want to ensure that a plan is on the right track before building files.
 
 ```bash
 plandex tell "implement sign up and sign in forms in src/components" --no-build
@@ -125,6 +135,22 @@ Then you later send _another_ prompt with `plandex tell` or continue the plan wi
 ```bash
 plandex tell "now implement the UI portion of the forgot password flow"
 # the above will start building the changes proposed in the earlier prompt that was passed --no-build
+```
+
+## Automatically Applying Changes
+
+If you want Plandex to *automatically* apply changes when a plan is complete, you can pass the `--apply/-a` flag to `plandex tell`, `plandex continue`, or `plandex build`:
+
+```bash
+plandex tell "add a new route for updating notification settings to src/routes.ts" --apply
+```
+
+The `--apply/-a` flag will also automatically update context if needed, just as the `--yes/-y` flag does.
+
+When passing `--apply/-a`, you can also use the `--commit/-c` flag to commit the changes to git with an auto-generated commit message. This will only commit the specific changes that were made by the plan. Any other changes in your git repository, staged or unstaged, will remain as they are.
+
+```bash
+plandex tell "add a new route for updating notification settings to src/routes.ts" --apply --commit
 ```
 
 ## Iterating on a Plan

@@ -130,7 +130,7 @@ plandex clear
 
 ## Updating Context
 
-If files in context are modified outside of Plandex, you will be prompted to update them the next time you send a prompt. You can also update any outdated files with the `update` command.
+If files, directory layouts, or URLs in context are modified outside of Plandex, you'll be prompted to update them the next time you send a prompt. You can also update any outdated files with the `update` command.
 
 ```bash
 plandex update # update files in context

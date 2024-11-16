@@ -213,7 +213,7 @@ plandex clear
 
 ### tell
 
-Describe a task, ask a question, or chat.
+Describe a task.
 
 ```bash
 plandex tell -f prompt.txt # from file
@@ -231,6 +231,12 @@ pdx t # alias
 
 `--bg`: Run task in the background.
 
+`--yes/-y`: Automatically confirm context updates.
+
+`--apply/-a`: Automatically apply changes (and confirm context updates).
+
+`--commit/-c`: Commit changes to git when `--apply/-a` is passed.
+
 ### continue
 
 Continue the plan.
@@ -247,6 +253,12 @@ pdx c # alias
 
 `--bg`: Run task in the background.
 
+`--yes/-y`: Automatically confirm context updates.
+
+`--apply/-a`: Automatically apply changes (and confirm context updates).
+
+`--commit/-c`: Commit changes to git when `--apply/-a` is passed.
+
 ### build
 
 Build any unbuilt pending changes from the plan conversation.
@@ -258,17 +270,52 @@ pdx b # alias
 
 `--bg`: Build in the background.
 
+`--yes/-y`: Automatically confirm context updates.
+
+`--apply/-a`: Automatically apply changes (and confirm context updates).
+
+`--commit/-c`: Commit changes to git when `--apply/-a` is passed.
+
+### chat
+
+Ask a question or chat without making any changes.
+
+```bash
+plandex chat "is it clear from the context how to add a new line chart?"
+```
+
+`--file/-f`: File path containing prompt.
+
+`--yes/-y`: Automatically confirm context updates.
+
+### debug
+
+Repeatedly run a command and auto-apply fixes until it succeeds. Defaults to 5 tries before giving up.
+
+```bash
+plandex debug 'npm test' # try 5 times or until it succeeds
+plandex debug 10 'npm test' # try 10 times or until it succeeds
+pdx db 'npm test' # alias
+```
+
+`--commit/-c`: Commit changes to git on each try.
+
 ## Changes
 
 ### diff
 
-Review pending changes in 'git diff' format.
+Review pending changes in 'git diff' format or in a local browser UI.
 
 ```bash
 plandex diff
+plandex diff --ui
 ```
 
 `--plain/-p`: Output diffs in plain text with no ANSI codes.
+
+`--ui/-u`: Review pending changes in a local browser UI.
+
+`--side-by-side/-s`: Show diffs UI in side-by-side view rather than line-by-line.
 
 ### changes
 
@@ -288,6 +335,10 @@ pdx ap # alias
 ```
 
 `--yes/-y`: Skip confirmation.
+
+`--commit/-c`: Commit changes to git.
+
+`--no-commit/-n`: Don't commit changes to git.
 
 ### reject
 
@@ -569,7 +620,9 @@ Sign in, accept an invite, or create an account.
 plandex sign-in
 ```
 
-Plandex will prompt you for all required information to sign in, accept an invite, or create an account.
+`--code/-c`: Sign in with a code from the Plandex Cloud web UI.
+
+Unless you pass `--code/-c` (from the Plandex Cloud web UI), Plandex will prompt you for all required information to sign in, accept an invite, or create an account.
 
 ### invite
 
@@ -599,3 +652,28 @@ List users and pending invites in your org.
 plandex users
 ```
 
+## Plandex Cloud
+
+### billing
+
+Show the billing settings page.
+
+```bash
+plandex billing
+```
+
+### credits
+
+Show your current credits balance.
+
+```bash
+plandex credits
+```
+
+### credits log
+
+Show the credits usage log, including all model calls and responses.
+
+```bash
+plandex credits log
+```
