@@ -11,6 +11,7 @@ type LoadContextParams struct {
 	NamesOnly       bool
 	ForceSkipIgnore bool
 	ImageDetail     openai.ImageURLDetail
+	DefsOnly        bool
 }
 
 type ContextOutdatedResult struct {

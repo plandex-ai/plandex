@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"plandex/api"
+	"plandex/auth"
 	"plandex/fs"
 	"plandex/term"
 	"plandex/types"
@@ -36,11 +37,13 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 	var apiKeys map[string]string
 	var openAIBase string
 
-	if params.Note != "" || fileInfo.Mode()&os.ModeNamedPipe != 0 {
-		apiKeys = MustVerifyApiKeysSilent()
-		openAIBase = os.Getenv("OPENAI_API_BASE")
-		if openAIBase == "" {
-			openAIBase = os.Getenv("OPENAI_ENDPOINT")
+	if !auth.Current.IntegratedModelsMode {
+		if params.Note != "" || fileInfo.Mode()&os.ModeNamedPipe != 0 {
+			apiKeys = MustVerifyApiKeysSilent()
+			openAIBase = os.Getenv("OPENAI_API_BASE")
+			if openAIBase == "" {
+				openAIBase = os.Getenv("OPENAI_ENDPOINT")
+			}
 		}
 	}
 
@@ -62,7 +65,6 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 		}
 
 		if len(pipedData) > 0 {
-
 			loadContextReq = append(loadContextReq, &shared.LoadContextParams{
 				ContextType: shared.ContextPipedDataType,
 				Body:        string(pipedData),
@@ -202,6 +204,7 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 						Body:            body,
 						FilePath:        inputFilePath,
 						ForceSkipIgnore: params.ForceSkipIgnore,
+						DefsOnly:        params.DefsOnly,
 					})
 
 					errCh <- nil
