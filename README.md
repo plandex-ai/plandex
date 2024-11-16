@@ -118,6 +118,7 @@ curl -sL https://plandex.ai/install.sh | bash
 [More installation options.](https://docs.plandex.ai/install)
 
 <br/>
+
 ## Hosting options ⚖️
 
 | # | Option  | Description |
