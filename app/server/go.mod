@@ -1,6 +1,6 @@
 module plandex-server
 
-go 1.21.3
+go 1.23.3
 
 require (
 	github.com/davecgh/go-spew v1.1.1
@@ -8,7 +8,7 @@ require (
 	github.com/gorilla/mux v1.8.1
 	github.com/pkg/errors v0.9.1
 	github.com/plandex/plandex/shared v0.0.0-00010101000000-000000000000
-	github.com/sashabaranov/go-openai v1.31.0
+	github.com/sashabaranov/go-openai v1.35.6
 )
 
 require (
@@ -29,7 +29,7 @@ require (
 	github.com/shopspring/decimal v1.4.0 // indirect
 	github.com/tadvi/systray v0.0.0-20190226123456-11a2b8fa57af // indirect
 	go.uber.org/atomic v1.11.0 // indirect
-	golang.org/x/image v0.19.0 // indirect
+	golang.org/x/image v0.22.0 // indirect
 	golang.org/x/sys v0.24.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
