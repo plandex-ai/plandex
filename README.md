@@ -118,7 +118,6 @@ curl -sL https://plandex.ai/install.sh | bash
 [More installation options.](https://docs.plandex.ai/install)
 
 <br/>
-
 ## Hosting options ⚖️
 
 | # | Option  | Description |
@@ -133,6 +132,8 @@ If you're going with option 2 or 3 above, you'll need to set the `OPENROUTER_API
 export OPENROUTER_API_KEY=...
 export OPENAI_API_KEY=...
 ```
+
+<br/>
 
 ## Get started  🚀
 
@@ -149,7 +150,7 @@ Then **start your first plan** with `plandex new`.
 plandex new
 ```
 
-*Note: if you're using Plandex Cloud, you'll be prompted at this point to start a trial.*
+☁️ *Note: if you're using Plandex Cloud, you'll be prompted at this point to start a trial.*
 
 Load any relevant files, directories, directory layouts, urls, or images **into the LLM's context** with `plandex load`.
 
@@ -208,7 +209,7 @@ To learn about reviewing changes, iterating on the plan, and applying changes to
 
 📑  Manage context efficiently in the terminal. Easily add files or entire directories to context, and keep them updated automatically as you work so that models always have the latest state of your project.
 
-🧠  By default, Plandex uses a mix of Anthropic models (via OpenRouter.ai) and OpenAI models. You can also use it with a wide range of other models from any OpenAI-compatible provider.
+🧠  By default, Plandex uses (and is optimized for) a mix of Anthropic models (via OpenRouter.ai) and OpenAI models (via OpenAI's API). You can also use it with a wide range of other models from OpenRouter.ai or any other OpenAI-compatible provider.
 
 ✅  Plandex supports Mac, Linux, FreeBSD, and Windows. It runs from a single binary with no dependencies.
 
