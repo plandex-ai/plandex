@@ -15,15 +15,13 @@ curl -sL https://plandex.ai/install.sh | bash
 
 Note that Windows is supported via [WSL](https://learn.microsoft.com/en-us/windows/wsl/about). Plandex only works correctly on Windows in the WSL shell. It doesn't work in the Windows CMD prompt or PowerShell.
 
-## Decide How To Use Plandex
-
-Choose from three options:
+## Hosting Options
 
 | # | Option  | Description |
 |---|---------|--------------------------------|
 | 1 | **Plandex Cloud (Integrated Models)** | No separate accounts or API keys are required. This is the quickest way to get started. If you choose this option, skip ahead to the [Create A Plan](#create-a-plan) section below. |
 | 2 | **Plandex Cloud (BYO API Key)** | You'll need accounts and API keys for [OpenRouter.ai](https://openrouter.ai) and [OpenAI](https://platform.openai.com) to get started with the default models. |
-| 3 | **Self-hosted** | First, follow the [self-hosting guide](./hosting/self-hosting.md) to set up your own Plandex server. You'll also need accounts and API keys for [OpenRouter.ai](https://openrouter.ai) and [OpenAI](https://platform.openai.com) to get started with the default models. |
+| 3 | **Self-Hosted** | First, follow the [self-hosting guide](./hosting/self-hosting.md) to set up your own Plandex server. You'll also need accounts and API keys for [OpenRouter.ai](https://openrouter.ai) and [OpenAI](https://platform.openai.com) to get started with the default models. |
 
 If you're going with option 2 or 3 above, you'll need to set the `OPENROUTER_API_KEY` and `OPENAI_API_KEY` environment variables before continuing:
 
@@ -192,7 +190,7 @@ Here are the same commands we went through above using aliases to minimize typin
 pdx new
 pdx l some-file.ts another-file.ts # load
 pdx t -f prompt.txt # tell
-plandex chat "is it clear from the context how to add a new line chart?"
+pdx ct "is it clear from the context how to add a new line chart?" # chat
 pdx diff
 pdx diff --ui
 pdx log

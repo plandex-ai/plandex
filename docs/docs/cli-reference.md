@@ -282,6 +282,7 @@ Ask a question or chat without making any changes.
 
 ```bash
 plandex chat "is it clear from the context how to add a new line chart?"
+pdx ct # alias
 ```
 
 `--file/-f`: File path containing prompt.

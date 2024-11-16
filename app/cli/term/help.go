@@ -16,7 +16,7 @@ var CmdDesc = map[string][2]string{
 	"cd":           {"", "set current plan by name or index"},
 	"load":         {"l", "load files/dirs/urls/notes/images or pipe data into context"},
 	"tell":         {"t", "describe a task to complete"},
-	"chat":         {"", "ask a question or chat"},
+	"chat":         {"ct", "ask a question or chat"},
 	"changes":      {"ch", "review pending changes in a TUI"},
 	"diff":         {"", "review pending changes in 'git diff' format"},
 	"diff --plain": {"", "review pending changes in 'git diff' format with no color formatting"},

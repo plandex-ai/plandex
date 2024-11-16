@@ -166,9 +166,9 @@ func TellPlan(
 				fmt.Println()
 
 				if tellStop && !isChatOnly {
-					term.PrintCmds("", "continue", "diff", "diff --ui", "apply", "reject", "log", "rewind")
+					term.PrintCmds("", "continue", "diff", "diff --ui", "apply", "log")
 				} else if !isDebugCmd && !isChatOnly {
-					term.PrintCmds("", "diff", "diff --ui", "apply", "reject", "debug", "log", "rewind")
+					term.PrintCmds("", "diff", "diff --ui", "apply", "log")
 				} else if isChatOnly {
 					term.PrintCmds("", "tell", "convo", "summary")
 				}

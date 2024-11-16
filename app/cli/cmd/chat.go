@@ -13,7 +13,7 @@ import (
 
 var chatCmd = &cobra.Command{
 	Use:     "chat [prompt]",
-	Aliases: []string{"c"},
+	Aliases: []string{"ct"},
 	Short:   "Chat without making changes",
 	// Long:  ``,
 	Args: cobra.RangeArgs(0, 1),
