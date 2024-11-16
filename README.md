@@ -149,7 +149,7 @@ Then **start your first plan** with `plandex new`.
 plandex new
 ```
 
-☁️ If you're using Plandex Cloud, you'll be prompted at this point to start a trial.
+*Note: if you're using Plandex Cloud, you'll be prompted at this point to start a trial.*
 
 Load any relevant files, directories, directory layouts, urls, or images **into the LLM's context** with `plandex load`.
 

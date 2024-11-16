@@ -58,7 +58,7 @@ Now **create your first plan** with `plandex new`.
 plandex new
 ```
 
-If you're using Plandex Cloud, you'll be prompted at this point to start a trial.
+*Note: if you're using Plandex Cloud, you'll be prompted at this point to start a trial.*
 
 ## Load In Context
 
