@@ -413,7 +413,7 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 
 	if hasConflicts {
 		term.StartSpinner("🏗️  Starting build...")
-		_, err := buildPlanInlineFn(nil)
+		_, err := buildPlanInlineFn(false, nil)
 
 		if err != nil {
 			onErr(fmt.Errorf("failed to build plan: %v", err))

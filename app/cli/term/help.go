@@ -10,22 +10,25 @@ import (
 )
 
 var CmdDesc = map[string][2]string{
-	"new":     {"", "start a new plan"},
-	"rename":  {"", "rename the current plan"},
-	"current": {"cu", "show current plan"},
-	"cd":      {"", "set current plan by name or index"},
-	"load":    {"l", "load files, dirs, urls, notes, images, or piped data into context"},
-	"tell":    {"t", "describe a task, ask a question, or chat"},
-	"changes": {"ch", "review pending changes in a TUI"},
-	"diff":    {"", "review pending changes in 'git diff' format"},
-	"diff --plain":    {"", "review pending changes in 'git diff' format with no color formatting"},
-	"summary": {"", "show the latest summary of the current plan"},
+	"new":          {"", "start a new plan"},
+	"rename":       {"", "rename the current plan"},
+	"current":      {"cu", "show current plan"},
+	"cd":           {"", "set current plan by name or index"},
+	"load":         {"l", "load files/dirs/urls/notes/images or pipe data into context"},
+	"tell":         {"t", "describe a task to complete"},
+	"chat":         {"", "ask a question or chat without making any changes"},
+	"changes":      {"ch", "review pending changes in a TUI"},
+	"diff":         {"", "review pending changes in 'git diff' format"},
+	"diff --plain": {"", "review pending changes in 'git diff' format with no color formatting"},
+	"diff --ui":    {"", "review pending changes in a local browser UI"},
+	"summary":      {"", "show the latest summary of the current plan"},
 	// "preview":     {"pv", "preview the plan in a branch"},
 	"apply":     {"ap", "apply pending changes to project files"},
 	"reject":    {"rj", "reject pending changes to one or more project files"},
 	"archive":   {"arc", "archive a plan"},
 	"unarchive": {"unarc", "unarchive a plan"},
 	"continue":  {"c", "continue the plan"},
+	"debug":     {"", "repeatedly run a command and auto-apply fixes until it succeeds"},
 	// "status":      {"s", "show status of the plan"},
 	"rewind":                    {"rw", "rewind to a previous state"},
 	"ls":                        {"", "list everything in context"},
@@ -65,6 +68,7 @@ var CmdDesc = map[string][2]string{
 	"users":                     {"", "list users and pending invites in your org"},
 	"credits":                   {"", "show Plandex Cloud credits balance"},
 	"credits log":               {"", "show Plandex Cloud credits transaction log"},
+	"billing":                   {"", "show Plandex Cloud billing settings"},
 }
 
 func PrintCmds(prefix string, cmds ...string) {
@@ -133,12 +137,12 @@ func PrintCustomHelp(all bool) {
 	fmt.Fprintln(builder)
 	fmt.Fprintf(builder, "  2 - Load any relevant context with %s\n", color.New(color.Bold, color.BgCyan, color.FgHiWhite).Sprint(" plandex load [file-path-or-url] "))
 	fmt.Fprintln(builder)
-	fmt.Fprintf(builder, "  3 - Describe a task, ask a question, or chat with %s\n", color.New(color.Bold, color.BgCyan, color.FgHiWhite).Sprint(" plandex tell "))
+	fmt.Fprintf(builder, "  3 - Describe a task to complete with %s\n", color.New(color.Bold, color.BgCyan, color.FgHiWhite).Sprint(" plandex tell "))
 	fmt.Fprintln(builder)
 
 	if all {
 		color.New(color.Bold, color.BgMagenta, color.FgHiWhite).Fprintln(builder, " Key Commands ")
-		printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiMagenta}, "new", "load", "tell", "changes", "diff", "apply", "reject")
+		printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiMagenta}, "new", "load", "tell", "diff", "diff --ui", "apply", "reject", "debug", "chat")
 		fmt.Fprintln(builder)
 
 		color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Plans ")
@@ -146,7 +150,7 @@ func PrintCustomHelp(all bool) {
 		fmt.Fprintln(builder)
 
 		color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Changes ")
-		printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "changes", "diff", "diff --plain", "apply", "reject")
+		printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "diff", "diff --ui", "diff --plain", "changes", "apply", "reject")
 		fmt.Fprintln(builder)
 
 		color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Context ")
@@ -162,7 +166,7 @@ func PrintCustomHelp(all bool) {
 		fmt.Fprintln(builder)
 
 		color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Control ")
-		printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "tell", "continue", "build")
+		printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "tell", "continue", "build", "debug", "chat")
 		fmt.Fprintln(builder)
 
 		color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Streams ")
@@ -178,7 +182,7 @@ func PrintCustomHelp(all bool) {
 		fmt.Fprintln(builder)
 
 		color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Cloud ")
-		printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "credits", "credits log")
+		printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "credits", "credits log", "billing")
 
 	} else {
 

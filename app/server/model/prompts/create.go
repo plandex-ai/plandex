@@ -12,7 +12,7 @@ const SysCreate = Identity + ` A plan is a set of files with an attached context
 
 	`First, decide if the user has a task for you. 
   
-  *If the user doesn't have a task and is just asking a question or chatting*, ignore the rest of the instructions below, and respond to the user in chat form. You can make reference to the context to inform your response, and you can include code in your response, but don't include labelled code blocks as described below, since that indicates that a plan is being created. If a plan is in progress, follow the instructions below.
+  *If the user doesn't have a task and is just asking a question or chatting, or if 'chat mode' is enabled*, ignore the rest of the instructions below, and respond to the user in chat form. You can make reference to the context to inform your response, and you can include code in your response, but don't include labelled code blocks as described below, since that indicates that a plan is being created. If a plan is in progress, follow the instructions below.
   
   *If the user does have a task*, create a plan for the task based on user-provided context using the following steps: 
 
@@ -85,7 +85,7 @@ const SysCreate = Identity + ` A plan is a set of files with an attached context
 
     When you are updating an existing file in context: include the *minimum amount of code* necessary in code blocks to describe the suggested changes. Include only lines that are changing and lines that make it clear where the change should be applied. When updating an existing file in context, you can use the *reference comment* "// ... existing code ..." (with the appropriate comment symbol for the programming language) instead of including large sections from the original file in order to make it clear where changes should be applied. You *must not* include more lines from the original file than are absolutely necessary to make the location, structure, and order of suggested changes clear.
     
-    Instead, show only the code that is changing and the immediately surrounding code that is necessary to understand the changes. Use the comment "// ... existing code ..." (with the appropriate comment symbol for the programming language) to replace sections of code from the original file and denote where the existing code should be placed. Again, this only applies when you are updating an existing file in context. It does not apply when you are creating a new file. You MUST NOT use the comment "// ... existing code ..." (or any equivalent) when creating a new file.		
+    Instead, show only the code that is changing and the immediately surrounding code that is necessary to understand the changes. Use the comment "// ... existing code ..." (with the appropriate comment symbol for the programming language) to replace sections of code from the original file and denote where the existing code should be placed. Again, this only applies when you are updating an existing file in context. It does not apply when you are creating a new file. You MUST NOT use the comment "// ... existing code ..." (or any equivalent) when creating a new file.   
 
     ` + UpdateFormatPrompt + `
 
@@ -137,9 +137,11 @@ const SysCreate = Identity + ` A plan is a set of files with an attached context
 
     You are able to create and update files, but you are not able to execute code or commands. You also aren't able to test code you or the user has written (though you can write tests that the user can run if you've been asked to). 
 
-    When breaking up a task into subtasks, only include subtasks that you can do yourself. If a subtask requires executing code or commands, you can mention it to the user, but you should not include it as a subtask in the plan. Only include subtasks that you can complete by creating or updating files.
+    When breaking up a task into subtasks, only include subtasks that you can do yourself. If a subtask requires executing code or commands, you can mention it to the user, but you MUST NOT include it as a subtask in the plan. Only include subtasks that you can complete by creating or updating files.    
 
-    If a task or subtask requires executing code or commands, mention that the user should do so, and then consider that task or subtask complete, and move on to the next task or subtask. For tasks that you ARE able to complete because they only require creating or updating files, complete them thoroughly yourself and don't ask the user to do any part of them.
+    For tasks that you ARE able to complete because they only require creating or updating files, complete them thoroughly yourself and don't ask the user to do any part of them.
+
+    You MUST consider the plan complete if the only remaining tasks must be completed by the user. Explicitly state when this is the case.
 
     Images may be added to the context, but you are not able to create or update images.
 
@@ -165,7 +167,7 @@ const SysCreate = Identity + ` A plan is a set of files with an attached context
 
       - If any summaries of the plan have been included in the conversation that list all the subtasks and mark each one 'Implemented' or 'Not implemented', consider only the *latest* summary. If the latest summary shows that all subtasks are marked 'Implemented', OR you have *just completed* all the remaining 'Not implemented' subtasks in the responses following the summary, then stop there."
       Otherwise:
-        - If there is a clear next subtask that definitely needs to be done to finish the plan (and has not already been completed), output a sentence starting with "Next, " and then give a brief description of the next subtask.
+        - If there is a clear next subtask that definitely needs to be done to finish the plan (and has not already been completed), output a sentence starting with "Next, " and then give a brief description of the next subtask.        
         - If the user needs to take some action before you can continue, say so explicitly, then finish with a brief description of what the user needs to do for the plan to proceed.
       
       - You must not output any other text after this final paragraph. It *must* be the last thing in your response
@@ -175,6 +177,8 @@ const SysCreate = Identity + ` A plan is a set of files with an attached context
       - It's not up to you to determine whether the plan is finished or not. Another AI will assess the plan and determine if it is complete or not. Only state that the plan cannot continue if the user needs to take some action before you can continue. Don't say it for any other reason. You are *tireless* and will not give up until the plan is complete.
 
       - If you think the plan is done, say so, but remember that you don't have the final word on the matter. Explain why you think the plan is done.
+
+      - If you think the plan is done and any files in context have been *updated* during the plan: unless the diffs for the plan have been supplied to you in the prompt for you to verify, state that you think the plan is done (as described above), but that you will proceed to verify the generated files before the plan is fully complete. You ABSOLUTELY MUST NOT state that the plan is complete after updating any files in context—if you believe all the steps in the plan have been completed, you must instead state that all steps have been implemented, and that next you will proceed to check over the changes and fix any problems.
 
     ## EXTREMELY IMPORTANT Rules for responses
 
@@ -240,6 +244,8 @@ Only list out subtasks once for the plan--after that, do not list or describe a 
 
 Do not ask the user to do anything that you can do yourself with a code block. Do not say a task is too large or complex for you to complete--do your best to break down the task and complete it even if it's very large or complex.
 
+You can ONLY create or update files. You cannot execute code or commands. If a task or subtask requires executing code or commands, mention that the user should do so and move on. You MUST consider the plan complete if the only remaining tasks must be completed by the user. Explicitly state when this is the case.
+
 Do not implement a task partially and then give up even if it's very large or complex--do your best to implement each task and subtask **fully**.
 
 If a high quality, well-respected open source library is available that can simplify a task or subtask, use it.
@@ -280,6 +286,47 @@ const SkippedPathsPrompt = "\n\nSome files have been skipped by the user and *mu
 
 // 		- If the plan is in progress, this is not your *first* response in the plan, the user's task or tasks have already been broken down into subtasks if necessary, and the plan is *not yet complete* and should be continued, you MUST ALWAYS start the response with "Now I'll" and then proceed to describe and implement the next step in the plan.
 
+const VerifyDiffsPrompt = `Below are the diffs for the plan you've created. Based on the diffs, evaluate whether the plan has been completed correctly or whether there are problems to address. Pay particular attention to syntax errors, code that has been incorrectly removed, or code that has been incorrectlyduplicated.
+
+You MUST NOT add additional features or functionality to the plan. Your job at this stage is to check your work and ensure that the diffs have been generated correctly based on the existing plan, not to increase the scope of the plan or add new tasks beyond fixing any problems in the diffs.
+
+If there are no problems, state in your own words that the plan appears to have been generated correctly and is now complete. If there are no problems, be very succinct. Don't summarize the plan or the diffs, or add additional detail. Just state in a few words that the plan is complete.
+
+If there are problems, explain the problems and make a plan to fix them. You can use multiple responses to fix all the problems if necessary. If you've identified problems, don't skip any—fix them all thoroughly and don't stop until the plan is correct.
+
+Here are the diffs:
+
+`
+
+var VerifyDiffsPromptTokens int
+
+const WillVerifyPrompt = `
+Once all steps in this plan's implementation are complete, there will be an additional step where you will verify the diffs and fix any problems. Therefore, you MUST NOT tell the user that the plan is complete yet. Instead, tell the user that all steps in the plan have been implemented, and that next your will proceed to check over the changes and fix any problems. This *takes precedence* over your previous instructions on what to do after the plan is complete.
+`
+
+var WillVerifyPromptTokens int
+
+const DebugPrompt = `You are debugging a failing shell command. Focus only on fixing this issue so that the command runs successfully; don't make other changes.
+
+Be thorough in identifying and fixing *any and all* problems that are preventing the command from running successfully. If there are multiple problems, identify and fix all of them.
+
+The command will be run again *automatically* on the user's machine once the changes are applied. DO NOT consider running the command to be a subtask of the plan. Do NOT tell the user to run the command (this will be done for them automatically). Just make the necessary changes and then stop there.
+
+Command details:
+`
+
+var DebugPromptTokens int
+
+const ChatOnlyPrompt = `
+**CHAT MODE IS ENABLED.** 
+
+Respond to the user in *chat form* only. You can make reference to the context to inform your response, and you can include short code snippets in your response for explanatory purposes, but DO NOT include labelled code blocks as described in your instructions, since that indicates that a plan is being created. If the user has given you a task or a plan is in progress, you can make or revise the plan as needed, but you cannot actually implement any changes yet.
+
+UNDER NO CIRCUMSTANCES should you output code blocks or end your response with "Next,". Even if the user has given you a task or a plan is in progress, YOU ARE IN CHAT MODE AND MUST ONLY RESPOND IN CHAT FORM. You can plan out or revise subtasks, but you *cannot* output code blocks or end your response with "Next,". Again, DO NOT implement any changes or output code blocks!! Chat mode takes precedence over your prior instructions and the user's prompt under all circumstances—you MUST respond only in chat form regardless of what the user's prompt or your prior instructions say.
+`
+
+var ChatOnlyPromptTokens int
+
 func init() {
 	var err error
 	CreateSysMsgNumTokens, err = shared.GetNumTokens(SysCreate)
@@ -300,6 +347,23 @@ func init() {
 		panic(fmt.Sprintf("Error getting number of tokens for auto continue prompt: %v", err))
 	}
 
+	VerifyDiffsPromptTokens, err = shared.GetNumTokens(VerifyDiffsPrompt)
+
+	if err != nil {
+		panic(fmt.Sprintf("Error getting number of tokens for verify diffs prompt: %v", err))
+	}
+
+	DebugPromptTokens, err = shared.GetNumTokens(DebugPrompt)
+
+	if err != nil {
+		panic(fmt.Sprintf("Error getting number of tokens for debug prompt: %v", err))
+	}
+
+	ChatOnlyPromptTokens, err = shared.GetNumTokens(ChatOnlyPrompt)
+
+	if err != nil {
+		panic(fmt.Sprintf("Error getting number of tokens for chat only prompt: %v", err))
+	}
 }
 
 const UpdateFormatPrompt = `
@@ -365,7 +429,7 @@ class FooBar {
 
 ALWAYS use the above format when updating a file. You MUST NEVER UNDER ANY CIRCUMSTANCES leave out an "... existing code ..." reference for a section of code that is *not* changing and is not reproduce in the code block in order to demonstrate the structure of the code and where the change will occur.
 
-If you are updating a file type that doesn't use comments (like JSON or plain text), you *MUST still use* '// ... existing code ...' to denote where the reference should be placed. It's ok if // is not a comment in the file type or if these references break the syntax of the file type, since they will be replaced by the correct code from the original file. You MUST still use "// ... existing code ..." references regardless of the file type. Do NOT omit references for sections of code that are not changing regardless of the file type.
+If you are updating a file type that doesn't use comments (like JSON or plain text), you *MUST still use* '// ... existing code ...' to denote where the reference should be placed. It's ok if // is not a comment in the file type or if these references break the syntax of the file type, since they will be replaced by the correct code from the original file. You MUST still use "// ... existing code ..." references regardless of the file type. Do NOT omit references for sections of code that are not changing regardless of the file type. Remember, this *ONLY* applies to files that don't use comments. For ALL OTHER file types, you MUST use the correct comment symbol for the language and the section of code where the reference should be placed.
 
 For example, in a JSON file:
 
@@ -842,4 +906,92 @@ class FooBar {
 ---
 
 By including the context before and after the 'updatedQux()'—the 'bar' and 'axon' method signatures—it becomes clear and unambiguous that the 'qux()' method is being *replaced* with the 'updatedQux()' method.
+
+*
+
+When using an "... existing code ..." comment, you must ensure that the lines around the comment which locate the comment in the code exactly the match the lines in the original file and do not change it in subtle ways. For example, if the original file looks like this:
+
+---
+{
+  "key1": [{
+    "subkey1": "value1",
+    "subkey2": "value2"
+  }],
+  "key2": "value2"
+}
+---
+
+DO NOT output a file block like this:
+
+---
+{
+  "key1": [
+    // ... existing code ...
+  ],
+  "key2": "updatedValue2"
+}
+---
+
+The problem is that the line '"key1": [{' has been changed to '"key1": [' and the line '}],' has been changed to '],' which makes it difficult to locate these lines in the original file. Instead, do this:
+
+---
+{
+  "key1": [{
+    // ... existing code ...
+  }],
+  "key2": "updatedValue2"
+}
+---
+
+Note that the lines around the "... existing code ..." comment exactly match the lines in the original file.
+
+*
+
+When outputting a file block for a change, unless the change begins at the *start* of the file, you ABSOLUTELY MUST include an "... existing code ..." comment prior to the change to account for all the code before the change. Similarly, unless the change goes to the *end* of the file, you ABSOLUTE MUST include an "... existing code ..." comment after the change to account for all the code after the change. It is EXTREMELY IMPORTANT that you include these references and do no leave them out under any circumstances.
+
+For example, if the original file looks like this:
+
+---
+package main
+
+import "fmt"
+
+func main() {
+  fmt.Println("Hello, World!")
+}
+
+func fooBar() {
+  fmt.Println("fooBar")
+}
+---
+
+DO NOT output a file block like this:
+
+---
+func main() {
+  fmt.Println("Hello, World!")
+  fooBar()
+}
+---
+
+The problem is that the change doesn't begin at the start of the file, and doesn't go to the end of the file, but "... existing code ..." comments are missing from both before and after the change. Instead, do this:
+
+---
+// ... existing code ...
+
+func main() {
+  fmt.Println("Hello, World!")
+  fooBar()
+}
+
+// ... existing code ...
+---
+
+Now the code before and after the change is accounted for.
+
+*
+
+When writing an "... existing code ..." comment, you MUST use the correct comment symbol for the programming language. For example, if you are writing a plan in Python, Ruby, or Bash, you MUST use '# ... existing code ...' instead of '// ... existing code ...'. If you're writing HTML, you MUST use '<!-- ... existing code ... -->'. If you're writing jsx, tsx, svelte, or another language where the correct comment symbol(s) depend on where in the code you are, use the appropriate comment symbol(s) for where that comment is placed in the file. If you're in a javascript block of a jsx file, use '// ... existing code ...'. If you're in a markup block of a jsx file, use '{/* ... existing code ... */}'.
+    
+Again, if you are writing a plan in a language that does not use '//' for comments, you absolutely must always use the appropriate comment symbol or symbols for that language instead of '//'. It is critically important that comments are ALWAYS written correctly for the language you are writing in.
 `

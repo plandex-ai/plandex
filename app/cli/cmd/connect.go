@@ -57,7 +57,7 @@ func connect(cmd *cobra.Command, args []string) {
 		}
 
 		fmt.Println()
-		term.PrintCmds("", "changes", "diff", "apply", "reject", "log")
+		term.PrintCmds("", "diff", "diff --ui", "apply", "reject", "log")
 
 		os.Exit(0)
 	}()

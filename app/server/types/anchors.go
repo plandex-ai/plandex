@@ -8,7 +8,7 @@ type SemanticAnchorsTag struct {
 }
 
 type AnchorTag struct {
-	Reasoning    string `xml:"reasoning,attr"`
+	// Reasoning    string `xml:"reasoning,attr"` // better to leave this out since it can cause problems with unmarshalling and isn't used after parsing
 	ProposedLine string `xml:"proposedLine,attr"`
 	OriginalLine string `xml:"originalLine,attr"`
 }

@@ -27,7 +27,7 @@ func init() {
 	term.SetOpenUnauthenticatedCloudURLFn(ui.OpenUnauthenticatedCloudURL)
 	term.SetConvertTrialFn(auth.ConvertTrial)
 
-	lib.SetBuildPlanInlineFn(func(maybeContexts []*shared.Context) (bool, error) {
+	lib.SetBuildPlanInlineFn(func(autoConfirm bool, maybeContexts []*shared.Context) (bool, error) {
 		var apiKeys map[string]string
 		if !auth.Current.IntegratedModelsMode {
 			apiKeys = lib.MustVerifyApiKeys()
@@ -37,7 +37,7 @@ func init() {
 			CurrentBranch: lib.CurrentBranch,
 			ApiKeys:       apiKeys,
 			CheckOutdatedContext: func(maybeContexts []*shared.Context) (bool, bool, error) {
-				return lib.CheckOutdatedContextWithOutput(true, maybeContexts)
+				return lib.CheckOutdatedContextWithOutput(true, autoConfirm, maybeContexts)
 			},
 		}, false)
 	})

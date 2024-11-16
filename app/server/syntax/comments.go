@@ -58,3 +58,24 @@ func findCommentNodes(node *tree_sitter.Node) []*tree_sitter.Node {
 
 	return commentNodes
 }
+
+func GetCommentSymbols(lang string) (string, string) {
+	switch lang {
+	case "c", "cpp", "csharp", "java", "javascript", "go", "rust", "swift", "kotlin", "groovy", "scala", "typescript", "php":
+		return "//", ""
+	case "bash", "dockerfile", "elixir", "hcl", "python", "ruby", "toml", "yaml":
+		return "#", ""
+	case "lua", "elm":
+		return "--", ""
+	case "css":
+		return "/*", "*/"
+	case "html":
+		return "<!--", "-->"
+	case "ocaml":
+		return "(*", "*)"
+	case "svelte", "jsx", "tsx", "json":
+		return "", "" // comments are either not allowed or correct symbols depend on the context
+	}
+
+	return "", ""
+}

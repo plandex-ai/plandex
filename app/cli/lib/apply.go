@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"plandex/api"
+	"plandex/auth"
 	"plandex/fs"
 	"plandex/term"
 	"strings"
@@ -12,7 +13,7 @@ import (
 	"github.com/plandex/plandex/shared"
 )
 
-func MustApplyPlan(planId, branch string, autoConfirm bool) {
+func MustApplyPlan(planId, branch string, autoConfirm, autoCommit, noCommit bool) {
 	term.StartSpinner("")
 
 	currentPlanState, apiErr := api.Client.GetCurrentPlanState(planId, branch)
@@ -55,14 +56,14 @@ func MustApplyPlan(planId, branch string, autoConfirm bool) {
 			os.Exit(0)
 		}
 
-		_, err = buildPlanInlineFn(nil)
+		_, err = buildPlanInlineFn(autoConfirm, nil)
 
 		if err != nil {
 			term.OutputErrorAndExit("failed to build plan: %v", err)
 		}
 	}
 
-	anyOutdated, didUpdate, err := CheckOutdatedContextWithOutput(true, nil)
+	anyOutdated, didUpdate, err := CheckOutdatedContextWithOutput(true, autoConfirm, nil)
 
 	if err != nil {
 		term.OutputErrorAndExit("error checking outdated context: %v", err)
@@ -114,7 +115,10 @@ func MustApplyPlan(planId, branch string, autoConfirm bool) {
 		term.OutputSimpleError(errMsg, unformattedErrMsg)
 	}
 
-	apiKeys := MustVerifyApiKeysSilent()
+	var apiKeys map[string]string
+	if !auth.Current.IntegratedModelsMode {
+		apiKeys = MustVerifyApiKeysSilent()
+	}
 
 	var commitSummary string
 
@@ -196,16 +200,19 @@ func MustApplyPlan(planId, branch string, autoConfirm bool) {
 		fmt.Println("✅ Applied changes, but no files were updated")
 		return
 	} else {
-		if isRepo {
-			fmt.Println("✏️  Plandex can commit these updates with an automatically generated message.")
-			fmt.Println()
-			fmt.Println("ℹ️  Only the files that Plandex is updating will be included the commit. Any other changes, staged or unstaged, will remain exactly as they are.")
-			fmt.Println()
+		if isRepo && !noCommit {
+			confirmed := autoCommit
+			if !autoCommit {
+				fmt.Println("✏️  Plandex can commit these updates with an automatically generated message.")
+				fmt.Println()
+				fmt.Println("ℹ️  Only the files that Plandex is updating will be included the commit. Any other changes, staged or unstaged, will remain exactly as they are.")
+				fmt.Println()
 
-			confirmed, err := term.ConfirmYesNo("Commit Plandex updates now?")
+				confirmed, err = term.ConfirmYesNo("Commit Plandex updates now?")
 
-			if err != nil {
-				onErr("failed to get confirmation user input: %s", err)
+				if err != nil {
+					onErr("failed to get confirmation user input: %s", err)
+				}
 			}
 
 			if confirmed {

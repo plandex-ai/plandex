@@ -14,7 +14,7 @@ func GetSemanticAnchorsPrompt(filePath, preBuildState, changesFile, changesDesc 
 
 	s += fmt.Sprintf("Proposed updates:\n%s\n```\n%s\n```", changesDesc, changesWithLineNums)
 
-	fmt.Printf("SemanticAnchorsPrompt: %s\n", s)
+	// fmt.Printf("SemanticAnchorsPrompt: %s\n", s)
 
 	return s
 }

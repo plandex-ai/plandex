@@ -15,6 +15,7 @@ const FixSyntaxRetries = 2
 const FixSyntaxEpochs = 2
 
 type activeBuildStreamState struct {
+	tellState     *activeTellStreamState
 	clients       map[string]*openai.Client
 	auth          *types.ServerAuth
 	currentOrgId  string

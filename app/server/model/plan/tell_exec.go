@@ -36,7 +36,8 @@ func Tell(clients map[string]*openai.Client, plan *db.Plan, branch string, auth 
 		req,
 		0,
 		"",
-		req.BuildMode == shared.BuildModeAuto,
+		!req.IsChatOnly && req.BuildMode == shared.BuildModeAuto,
+		"",
 		"",
 		0,
 	)
@@ -55,6 +56,7 @@ func execTellPlan(
 	missingFileResponse shared.RespondMissingFileChoice,
 	shouldBuildPending bool,
 	autoContinueNextTask string,
+	verifyDiffs string,
 	numErrorRetry int,
 ) {
 	log.Printf("execTellPlan: Called for plan ID %s on branch %s, iteration %d\n", plan.Id, branch, iteration)
@@ -108,6 +110,7 @@ func execTellPlan(
 		branch:                 branch,
 		iteration:              iteration,
 		missingFileResponse:    missingFileResponse,
+		verifyingDiffs:         verifyDiffs,
 		currentReplyNumRetries: numErrorRetry,
 	}
 
@@ -235,7 +238,11 @@ func execTellPlan(
 		}
 		promptTokens = prompts.PromptWrapperTokens + numPromptTokens
 	} else if iteration > 0 && missingFileResponse == "" {
-		numPromptTokens = prompts.AutoContinuePromptTokens
+		if verifyDiffs != "" {
+			numPromptTokens = prompts.VerifyDiffsPromptTokens
+		} else {
+			numPromptTokens = prompts.AutoContinuePromptTokens
+		}
 		promptTokens = prompts.PromptWrapperTokens + numPromptTokens
 	}
 
@@ -313,7 +320,30 @@ func execTellPlan(
 		} else {
 			var prompt string
 			if iteration == 0 {
-				prompt = req.Prompt
+				if req.IsChatOnly {
+					prompt = req.Prompt + prompts.ChatOnlyPrompt
+					state.totalRequestTokens += prompts.ChatOnlyPromptTokens
+				} else if req.IsUserDebug {
+					prompt = req.Prompt + prompts.DebugPrompt
+					state.totalRequestTokens += prompts.DebugPromptTokens
+				} else {
+					prompt = req.Prompt
+				}
+			} else if verifyDiffs != "" {
+				prompt = prompts.VerifyDiffsPrompt + verifyDiffs
+
+				tokens, err := shared.GetNumTokens(verifyDiffs)
+				if err != nil {
+					log.Printf("Error getting num tokens for verify diffs: %v\n", err)
+					active.StreamDoneCh <- &shared.ApiError{
+						Type:   shared.ApiErrorTypeOther,
+						Status: http.StatusInternalServerError,
+						Msg:    "Error getting num tokens for verify diffs",
+					}
+					return
+				}
+
+				state.totalRequestTokens += tokens
 			} else {
 				prompt = prompts.AutoContinuePrompt
 
@@ -340,6 +370,11 @@ func execTellPlan(
 					prompt += toAdd
 					state.totalRequestTokens += tokens
 				}
+			}
+
+			if iteration > 0 && verifyDiffs == "" && active.ShouldVerifyDiff() {
+				prompt += prompts.WillVerifyPrompt
+				state.totalRequestTokens += prompts.WillVerifyPromptTokens
 			}
 
 			state.userPrompt = prompt
@@ -485,6 +520,7 @@ func execTellPlan(
 			// spew.Dump(pendingBuildsByPath)
 
 			buildState := &activeBuildStreamState{
+				tellState:     state,
 				clients:       clients,
 				auth:          auth,
 				currentOrgId:  currentOrgId,

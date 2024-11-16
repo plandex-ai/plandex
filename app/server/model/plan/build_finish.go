@@ -185,9 +185,11 @@ func (state *activeBuildStreamFileState) onFinishBuild() {
 	active := GetActivePlan(planId, branch)
 
 	if active != nil && (active.RepliesFinished || active.BuildOnly) {
-		active.Stream(shared.StreamMessage{
-			Type: shared.StreamMessageFinished,
-		})
+		if state.tellState != nil {
+			state.tellState.verifyOrFinish()
+		} else {
+			active.Finish()
+		}
 	}
 }
 

@@ -38,23 +38,18 @@ func OpenAuthenticatedURL(msg, path string) {
 
 	url := fmt.Sprintf("%s/auth/%s", appHost, encodedToken)
 
-	fmt.Printf(
-		"%s\n\nIf it doesn't open automatically, use this URL:\n%s\n",
-		color.New(term.ColorHiGreen).Sprintf(msg),
-		url,
-	)
-
-	err = browser.OpenURL(url)
-	if err != nil {
-		fmt.Printf("Failed to open URL automatically: %v\n", err)
-		fmt.Println("Please open the URL manually in your browser.")
-	}
+	OpenURL(msg, url)
 }
 
 func OpenUnauthenticatedCloudURL(msg, path string) {
 	apiHost := api.CloudApiHost
 	appHost := strings.Replace(apiHost, "api.", "app.", 1)
 	url := fmt.Sprintf("%s%s", appHost, path)
+
+	OpenURL(msg, url)
+}
+
+func OpenURL(msg, url string) {
 
 	fmt.Printf(
 		"%s\n\nIf it doesn't open automatically, use this URL:\n%s\n",

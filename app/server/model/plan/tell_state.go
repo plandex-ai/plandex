@@ -33,4 +33,5 @@ type activeTellStreamState struct {
 	totalRequestTokens     int
 	settings               *shared.PlanSettings
 	currentReplyNumRetries int
+	verifyingDiffs         string
 }

@@ -79,6 +79,8 @@ type ActivePlan struct {
 	AllowOverwritePaths     map[string]bool
 	SkippedPaths            map[string]bool
 	StoredReplyIds          []string
+	DidEditFiles            bool
+	DidVerifyDiff           bool
 
 	subscriptions  map[string]*subscription
 	subscriptionMu sync.Mutex
@@ -351,4 +353,24 @@ func (sub *subscription) enqueueMessage(msg string) {
 	sub.messageQueue = append(sub.messageQueue, msg)
 	sub.mu.Unlock()
 	sub.cond.Signal() // Signal the waiting goroutine that a new message is available
+}
+
+func (ap *ActivePlan) ShouldVerifyDiff() bool {
+	// log.Printf("ShouldVerifyDiff: buildOnly=%v, didVerifyDiff=%v, numBuiltFiles=%d, didEditFiles=%v, hasMultipleBuiltFiles=%v",
+	// 	!ap.BuildOnly,
+	// 	!ap.DidVerifyDiff,
+	// 	len(ap.BuiltFiles),
+	// 	ap.DidEditFiles,
+	// 	len(ap.BuiltFiles) > 3)
+
+	return !ap.BuildOnly &&
+		!ap.DidVerifyDiff &&
+		(len(ap.BuiltFiles) > 0 || len(ap.IsBuildingByPath) > 0) &&
+		(ap.DidEditFiles || len(ap.BuiltFiles) > 3) // verify diff if we edited any files or built more than 3 new files—unlikely to have errors otherwise
+}
+
+func (ap *ActivePlan) Finish() {
+	ap.Stream(shared.StreamMessage{
+		Type: shared.StreamMessageFinished,
+	})
 }

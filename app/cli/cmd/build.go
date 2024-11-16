@@ -11,8 +11,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var buildBg bool
-
 var buildCmd = &cobra.Command{
 	Use:     "build",
 	Aliases: []string{"b"},
@@ -24,10 +22,16 @@ var buildCmd = &cobra.Command{
 
 func init() {
 	RootCmd.AddCommand(buildCmd)
-	buildCmd.Flags().BoolVar(&buildBg, "bg", false, "Execute autonomously in the background")
+	buildCmd.Flags().BoolVar(&tellBg, "bg", false, "Execute autonomously in the background")
+
+	buildCmd.Flags().BoolVarP(&autoConfirm, "yes", "y", false, "Automatically confirm context updates")
+	buildCmd.Flags().BoolVarP(&tellAutoApply, "apply", "a", false, "Automatically apply changes (and confirm context updates)")
+	buildCmd.Flags().BoolVarP(&autoCommit, "commit", "c", false, "Commit changes to git when --apply/-a is passed")
 }
 
 func build(cmd *cobra.Command, args []string) {
+	validateTellFlags()
+
 	auth.MustResolveAuthWithOrg()
 	lib.MustResolveProject()
 
@@ -45,9 +49,9 @@ func build(cmd *cobra.Command, args []string) {
 		CurrentBranch: lib.CurrentBranch,
 		ApiKeys:       apiKeys,
 		CheckOutdatedContext: func(maybeContexts []*shared.Context) (bool, bool, error) {
-			return lib.CheckOutdatedContextWithOutput(false, maybeContexts)
+			return lib.CheckOutdatedContextWithOutput(false, autoConfirm, maybeContexts)
 		},
-	}, buildBg)
+	}, tellBg)
 
 	if err != nil {
 		term.OutputErrorAndExit("Error building plan: %v", err)
@@ -59,12 +63,14 @@ func build(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	if buildBg {
+	if tellBg {
 		fmt.Println("🏗️ Building plan in the background")
 		fmt.Println()
 		term.PrintCmds("", "ps", "connect", "stop")
+	} else if tellAutoApply {
+		lib.MustApplyPlan(lib.CurrentPlanId, lib.CurrentBranch, true, autoCommit, !autoCommit)
 	} else {
 		fmt.Println()
-		term.PrintCmds("", "changes", "apply", "reject", "log")
+		term.PrintCmds("", "diff", "diff --ui", "apply", "reject", "log")
 	}
 }

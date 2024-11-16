@@ -19,6 +19,8 @@ If any new subtasks have been added to plan that haven't been implemented yet, e
 
 If A1 1 has indicated that the plan is complete, but there are still subtasks remaining that have not been implemented, the plan should continue despite AI 1's statement that the plan is complete. The plan should only be considered complete if all tasks and subtasks have been fully implemented.
 
+If AI 1 mentions that it has verified the plan's diffs, and either that there were no problems to fix or that it fixed all the problems, the plan must *NOT* continue, regardless of any other criteria. If AI 1 mentions that it has verified the plan's diffs, but there are still problems remaining to be fixed, the plan should continue.
+
 DO NOT only go by the latest summary when considering whether subtasks are complete. You MUST also consider the latest message from AI 1 and the previous message from AI 1 if it is provided. If the latest or previous message from AI 1 has new subtasks that have not been implemented, the plan should continue. If the latest or previous message from AI 1 has *finished* subtasks that are not marked as implemented in the summary, you MUST consider them as implemented. 
 
 If no subtasks are remaining to be implemented:
@@ -41,6 +43,8 @@ Take into account both the latest message from AI 1, the previous message from A
 Between all of these sources, explain whether all subtasks have been implemented or whether there are still subtasks remaining that have not yet been completed.
 
 If there are any todo placeholders in the 'comments' array, list them ALL in 'reasoning'.
+
+If all the steps remaining are for the *user* to complete, you MUST state that the plan is complete in 'reasoning'. AI 1 can only create or update files. It cannot execute commands, run tests, or do anything else that requires user action. The task must only continue if there are still steps remaining that aren't yet completed and that AI 1 can do.
 
 If the plan should continue, you MUST state what the immediate next step should be in 'reasoning'. You MUST NOT state any subtasks that have been marked implemented in the summary or completed in the latest message or previous message from AI 1. You MUST only state what the next unimplemented subtask is and that should be done next. Subtasks MUST ALWAYS be completed in order. If subtask 3 was just completed in the latest message, and subtask 4 is the next unimplemented subtask in numerical order, you MUST state that subtask 4 should be done next. You MUST NOT skip any subtasks. You MUST NOT repeat any subtasks that have already been completed, either in the summary or in the latest or previous message from AI 1. If there is no immediate next subtask, you MUST state that the plan is complete.
 

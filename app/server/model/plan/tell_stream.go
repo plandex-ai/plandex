@@ -387,10 +387,10 @@ mainLoop:
 					ap.CurrentReplyDoneCh = nil
 				})
 
-				if req.AutoContinue && shouldContinue && iteration < MaxAutoContinueIterations {
+				if !req.IsChatOnly && req.AutoContinue && shouldContinue && iteration < MaxAutoContinueIterations {
 					log.Println("Auto continue plan")
 					// continue plan
-					execTellPlan(clients, plan, branch, auth, req, iteration+1, "", false, nextTask, 0)
+					execTellPlan(clients, plan, branch, auth, req, iteration+1, "", false, nextTask, "", 0)
 				} else {
 					var buildFinished bool
 					UpdateActivePlan(planId, branch, func(ap *types.ActivePlan) {
@@ -404,27 +404,32 @@ mainLoop:
 
 					if buildFinished {
 						log.Println("Plan is finished")
-						active.Stream(shared.StreamMessage{
-							Type: shared.StreamMessageFinished,
-						})
+						state.verifyOrFinish()
 					} else {
 						log.Println("Plan is still building")
-						log.Println("Updating status to building")
-						err := db.SetPlanStatus(planId, branch, shared.PlanStatusBuilding, "")
-						if err != nil {
-							log.Printf("Error setting plan status to building: %v\n", err)
-							active.StreamDoneCh <- &shared.ApiError{
-								Type:   shared.ApiErrorTypeOther,
-								Status: http.StatusInternalServerError,
-								Msg:    "Error setting plan status to building",
-							}
-							continue mainLoop
-						}
 
-						log.Println("Sending RepliesFinished stream message")
-						active.Stream(shared.StreamMessage{
-							Type: shared.StreamMessageRepliesFinished,
-						})
+						if active.ShouldVerifyDiff() {
+							// If we're going to verify the diffs when build finishes, then replies aren't finished yet so we'll just continue here
+							log.Println("Replies aren't finished yet—waiting on verify diff step")
+							continue mainLoop
+						} else {
+							log.Println("Updating status to building")
+							err := db.SetPlanStatus(planId, branch, shared.PlanStatusBuilding, "")
+							if err != nil {
+								log.Printf("Error setting plan status to building: %v\n", err)
+								active.StreamDoneCh <- &shared.ApiError{
+									Type:   shared.ApiErrorTypeOther,
+									Status: http.StatusInternalServerError,
+									Msg:    "Error setting plan status to building",
+								}
+								continue mainLoop
+							}
+
+							log.Println("Sending RepliesFinished stream message")
+							active.Stream(shared.StreamMessage{
+								Type: shared.StreamMessageRepliesFinished,
+							})
+						}
 					}
 				}
 
@@ -484,6 +489,7 @@ mainLoop:
 			// Handle file that is present in project paths but not in context
 			// Prompt user for what to do on the client side, stop the stream, and wait for user response before proceeding
 			if currentFile != "" &&
+				!req.IsChatOnly &&
 				active.ContextsByPath[currentFile] == nil &&
 				req.ProjectPaths[currentFile] && !active.AllowOverwritePaths[currentFile] {
 				log.Printf("Attempting to overwrite a file that isn't in context: %s\n", currentFile)
@@ -553,6 +559,7 @@ mainLoop:
 					userChoice,
 					false,
 					"",
+					state.verifyingDiffs,
 					0,
 				)
 				return
@@ -566,7 +573,7 @@ mainLoop:
 			// log.Println("replyFiles:")
 			// spew.Dump(replyFiles)
 
-			if len(files) > len(replyFiles) {
+			if !req.IsChatOnly && len(files) > len(replyFiles) {
 				log.Printf("%d new files\n", len(files)-len(replyFiles))
 
 				for i, file := range files {
@@ -578,6 +585,7 @@ mainLoop:
 					if req.BuildMode == shared.BuildModeAuto {
 						log.Printf("Queuing build for %s\n", file)
 						buildState := &activeBuildStreamState{
+							tellState:     state,
 							clients:       clients,
 							auth:          auth,
 							currentOrgId:  currentOrgId,

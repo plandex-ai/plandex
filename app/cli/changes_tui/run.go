@@ -38,7 +38,7 @@ func StartChangesUI(currentPlan *shared.CurrentPlanState) error {
 	}
 
 	if mod.shouldApplyAll {
-		lib.MustApplyPlan(lib.CurrentPlanId, lib.CurrentBranch, false)
+		lib.MustApplyPlan(lib.CurrentPlanId, lib.CurrentBranch, false, false, false)
 	}
 
 	if mod.rejectFileErr != nil {

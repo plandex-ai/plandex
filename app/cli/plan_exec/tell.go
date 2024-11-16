@@ -21,8 +21,11 @@ func TellPlan(
 	tellBg,
 	tellStop,
 	tellNoBuild,
-	isUserContinue bool,
+	isUserContinue,
+	isDebugCmd,
+	isChatOnly bool,
 ) {
+	done := make(chan struct{})
 
 	outputPromptIfTell := func() {
 		if isUserContinue || prompt == "" {
@@ -66,7 +69,9 @@ func TellPlan(
 		os.Exit(0)
 	}
 
+	term.StartSpinner("")
 	paths, err := fs.GetProjectPaths(fs.GetBaseDirForContexts(contexts))
+	term.StopSpinner()
 
 	if err != nil {
 		outputPromptIfTell()
@@ -77,7 +82,7 @@ func TellPlan(
 	fn = func() bool {
 
 		var buildMode shared.BuildMode
-		if tellNoBuild {
+		if tellNoBuild || isChatOnly {
 			buildMode = shared.BuildModeNone
 		} else {
 			buildMode = shared.BuildModeAuto
@@ -108,6 +113,8 @@ func TellPlan(
 			ProjectPaths:   paths.ActivePaths,
 			BuildMode:      buildMode,
 			IsUserContinue: isUserContinue,
+			IsUserDebug:    isDebugCmd,
+			IsChatOnly:     isChatOnly,
 			ApiKey:         legacyApiKey, // deprecated
 			Endpoint:       openAIBase,   // deprecated
 			ApiKeys:        params.ApiKeys,
@@ -158,12 +165,14 @@ func TellPlan(
 
 				fmt.Println()
 
-				if tellStop {
-					term.PrintCmds("", "continue", "changes", "diff", "apply", "reject", "log", "rewind")
-				} else {
-					term.PrintCmds("", "changes", "diff", "apply", "reject", "log", "rewind")
+				if tellStop && !isChatOnly {
+					term.PrintCmds("", "continue", "diff", "diff --ui", "apply", "reject", "log", "rewind")
+				} else if !isDebugCmd && !isChatOnly {
+					term.PrintCmds("", "diff", "diff --ui", "apply", "reject", "debug", "log", "rewind")
+				} else if isChatOnly {
+					term.PrintCmds("", "tell", "convo", "summary")
 				}
-				os.Exit(0)
+				close(done)
 			}()
 		}
 
@@ -181,7 +190,6 @@ func TellPlan(
 		fmt.Println()
 		term.PrintCmds("", "ps", "connect", "stop")
 	} else {
-		// Wait for stream UI to quit
-		select {}
+		<-done
 	}
 }

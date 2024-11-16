@@ -20,11 +20,29 @@ func WriteCurrentPlan(id string) error {
 		return fmt.Errorf("no current project")
 	}
 
+	var currentPlanSettingsByAccount *types.CurrentPlanSettingsByAccount
+
+	bytes, err := os.ReadFile(HomeCurrentPlanPath)
+	if err == nil {
+		err = json.Unmarshal(bytes, &currentPlanSettingsByAccount)
+		if err != nil {
+			return fmt.Errorf("error unmarshalling current-plans-v2.json: %v", err)
+		}
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("error checking if current-plans-v2.json exists: %v", err)
+	}
+
+	if currentPlanSettingsByAccount == nil {
+		currentPlanSettingsByAccount = &types.CurrentPlanSettingsByAccount{}
+	}
+
 	settings := types.CurrentPlanSettings{
 		Id: id,
 	}
-	bytes, err := json.Marshal(settings)
 
+	(*currentPlanSettingsByAccount)[auth.Current.UserId] = &settings
+
+	bytes, err = json.Marshal(currentPlanSettingsByAccount)
 	if err != nil {
 		return fmt.Errorf("error marshalling current plan: %v", err)
 	}
@@ -48,9 +66,30 @@ func ClearCurrentPlan() error {
 		return fmt.Errorf("no current project")
 	}
 
-	err := os.Remove(HomeCurrentPlanPath)
+	var currentPlanSettingsByAccount *types.CurrentPlanSettingsByAccount
+
+	bytes, err := os.ReadFile(HomeCurrentPlanPath)
+	if err == nil {
+		err = json.Unmarshal(bytes, &currentPlanSettingsByAccount)
+		if err != nil {
+			return fmt.Errorf("error unmarshalling current-plans-v2.json: %v", err)
+		}
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("error checking if current-plans-v2.json exists: %v", err)
+	}
+
+	if currentPlanSettingsByAccount != nil {
+		delete(*currentPlanSettingsByAccount, auth.Current.UserId)
+	}
+
+	bytes, err = json.Marshal(currentPlanSettingsByAccount)
 	if err != nil {
-		return err
+		return fmt.Errorf("error marshalling current plan: %v", err)
+	}
+
+	err = os.WriteFile(HomeCurrentPlanPath, bytes, 0644)
+	if err != nil {
+		return fmt.Errorf("error writing current plan: %v", err)
 	}
 
 	CurrentPlanId = ""
@@ -71,27 +110,45 @@ func WriteCurrentBranch(branch string) error {
 		return fmt.Errorf("no current plan")
 	}
 
-	settings := types.PlanSettingsByAccount{
-		auth.Current.UserId: &types.PlanSettings{
-			Branch: branch,
-		},
-	}
-
-	bytes, err := json.Marshal(settings)
-
-	if err != nil {
-		return fmt.Errorf("error marshalling current plan settings: %v", err)
-	}
-
 	dir := filepath.Join(fs.HomePlandexDir, CurrentProjectId, CurrentPlanId)
 
-	err = os.MkdirAll(dir, os.ModePerm)
+	err := os.MkdirAll(dir, os.ModePerm)
 
 	if err != nil {
 		return fmt.Errorf("error creating plan dir: %v", err)
 	}
 
 	path := filepath.Join(dir, "settings-v2.json")
+
+	var settingsByAccount *types.PlanSettingsByAccount
+
+	bytes, err := os.ReadFile(path)
+	if err == nil {
+		err = json.Unmarshal(bytes, &settingsByAccount)
+		if err != nil {
+			return fmt.Errorf("error unmarshalling settings-v2.json: %v", err)
+		}
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("error checking if settings-v2.json exists: %v", err)
+	}
+
+	if settingsByAccount == nil {
+		settingsByAccount = &types.PlanSettingsByAccount{}
+	}
+
+	existingSettings := (*settingsByAccount)[auth.Current.UserId]
+
+	if existingSettings == nil {
+		existingSettings = &types.PlanSettings{}
+	}
+
+	existingSettings.Branch = branch
+	(*settingsByAccount)[auth.Current.UserId] = existingSettings
+
+	bytes, err = json.Marshal(settingsByAccount)
+	if err != nil {
+		return fmt.Errorf("error marshalling current plan settings: %v", err)
+	}
 
 	err = os.WriteFile(path, bytes, 0644)
 
