@@ -31,7 +31,7 @@ func init() {
 
 func GetApiHost() string {
 	if auth.Current == nil {
-		return ""
+		return CloudApiHost
 	} else if auth.Current.IsCloud {
 		return CloudApiHost
 	} else {
