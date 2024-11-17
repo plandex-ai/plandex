@@ -119,7 +119,7 @@ func loadContexts(w http.ResponseWriter, r *http.Request, auth *types.ServerAuth
 		}
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(r.Context())
 	unlockFn := LockRepo(w, r, auth, db.LockScopeWrite, ctx, cancel, true)
 	if unlockFn == nil {
 		return nil, nil
@@ -129,7 +129,7 @@ func loadContexts(w http.ResponseWriter, r *http.Request, auth *types.ServerAuth
 		}()
 	}
 
-	res, dbContexts, err := db.LoadContexts(db.LoadContextsParams{
+	res, dbContexts, err := db.LoadContexts(ctx, db.LoadContextsParams{
 		OrgId:      auth.OrgId,
 		Plan:       plan,
 		BranchName: branchName,

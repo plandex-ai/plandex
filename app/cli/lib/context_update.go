@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"plandex/api"
 	"plandex/fs"
 	"plandex/term"
@@ -63,6 +64,14 @@ func CheckOutdatedContextWithOutput(quiet, autoConfirm bool, maybeContexts []*sh
 				lbl = "directory trees"
 			}
 			lbl = strconv.Itoa(outdatedRes.NumTrees) + " " + lbl
+			types = append(types, lbl)
+		}
+		if outdatedRes.NumMaps > 0 {
+			lbl := "map"
+			if outdatedRes.NumMaps > 1 {
+				lbl = "maps"
+			}
+			lbl = strconv.Itoa(outdatedRes.NumMaps) + " " + lbl
 			types = append(types, lbl)
 		}
 
@@ -202,6 +211,7 @@ func checkOutdatedAndMaybeUpdateContext(doUpdate bool, maybeContexts []*shared.C
 	var numFiles int
 	var numUrls int
 	var numTrees int
+	var numMaps int
 	var numFilesRemoved int
 	var numTreesRemoved int
 	var mu sync.Mutex
@@ -340,6 +350,118 @@ func checkOutdatedAndMaybeUpdateContext(doUpdate bool, maybeContexts []*shared.C
 				}
 			}(context)
 
+		} else if context.ContextType == shared.ContextMapType {
+			wg.Add(1)
+			go func(context *shared.Context) {
+				defer wg.Done()
+
+				mu.Lock()
+				defer mu.Unlock()
+
+				var removedMapPaths []string
+
+				// Check if any input files have changed
+				var updatedInputs = make(shared.FileMapInputs)
+				var updatedInputShas = map[string]string{}
+
+				for path, part := range context.MapParts {
+					if _, err := os.Stat(path); os.IsNotExist(err) {
+						removedMapPaths = append(removedMapPaths, path)
+					}
+
+					bytes, err := os.ReadFile(path)
+					if err != nil {
+						errs = append(errs, fmt.Errorf("failed to read map file %s: %v", path, err))
+						return
+					}
+
+					hash := sha256.Sum256(bytes)
+					sha := hex.EncodeToString(hash[:])
+
+					if sha != part.Sha {
+						content := string(bytes)
+						updatedInputs[path] = content
+						updatedInputShas[path] = sha
+					}
+				}
+
+				// Check if new files were added
+				flattenedPaths, err := ParseInputPaths([]string{context.FilePath}, &types.LoadContextParams{})
+				if err != nil {
+					errs = append(errs, fmt.Errorf("failed to get the directory tree %s: %v", context.FilePath, err))
+					return
+				}
+
+				for _, path := range flattenedPaths {
+					ext := filepath.Ext(path)
+					if !shared.IsTreeSitterExtension(ext) {
+						continue
+					}
+
+					if _, ok := context.MapParts[path]; !ok {
+						bytes, err := os.ReadFile(path)
+						if err != nil {
+							errs = append(errs, fmt.Errorf("failed to read map file %s: %v", path, err))
+							return
+						}
+						content := string(bytes)
+						updatedInputs[path] = content
+						hash := sha256.Sum256(bytes)
+						sha := hex.EncodeToString(hash[:])
+						updatedInputShas[path] = sha
+					}
+				}
+
+				// If any files changed, get new map
+				if len(updatedInputs) > 0 || len(removedMapPaths) > 0 {
+					updatedParts := make(shared.FileMapParts)
+					for k, v := range context.MapParts {
+						updatedParts[k] = v
+					}
+					var updatedMapBodies shared.FileMapBodies
+					if len(updatedInputs) > 0 {
+						mapRes, apiErr := api.Client.GetFileMap(shared.GetFileMapRequest{
+							MapInputs: updatedInputs,
+						})
+						if apiErr != nil {
+							errs = append(errs, fmt.Errorf("failed to get file map: %v", apiErr))
+							return
+						}
+						updatedMapBodies = mapRes.MapBodies
+
+						// Update map parts with new content
+						for path, body := range mapRes.MapBodies {
+							updatedParts[path] = shared.FileMapPart{
+								Body: body,
+							}
+						}
+					}
+
+					if len(removedMapPaths) > 0 {
+						for _, path := range removedMapPaths {
+							delete(updatedParts, path)
+						}
+					}
+
+					// Combine map parts into single body
+					body := updatedParts.CombinedMap()
+					numTokens, err := shared.GetNumTokens(body)
+					if err != nil {
+						errs = append(errs, fmt.Errorf("failed to get tokens for combined map: %v", err))
+						return
+					}
+
+					tokenDiffsById[context.Id] += (numTokens - context.NumTokens)
+					numMaps++
+					updatedContexts = append(updatedContexts, context)
+					req[context.Id] = &shared.UpdateContextParams{
+						Body:            body,
+						MapBodies:       updatedMapBodies,
+						InputShas:       updatedInputShas,
+						RemovedMapPaths: removedMapPaths,
+					}
+				}
+			}(context)
 		} else if context.ContextType == shared.ContextURLType {
 			wg.Add(1)
 			go func(context *shared.Context) {
@@ -476,6 +598,7 @@ func checkOutdatedAndMaybeUpdateContext(doUpdate bool, maybeContexts []*shared.C
 		NumFiles:        numFiles,
 		NumUrls:         numUrls,
 		NumTrees:        numTrees,
+		NumMaps:         numMaps,
 		NumFilesRemoved: numFilesRemoved,
 		NumTreesRemoved: numTreesRemoved,
 	}, nil

@@ -22,6 +22,7 @@ type ContextOutdatedResult struct {
 	NumFiles        int
 	NumUrls         int
 	NumTrees        int
+	NumMaps         int
 	NumFilesRemoved int
 	NumTreesRemoved int
 }

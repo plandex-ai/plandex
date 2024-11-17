@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"plandex/api"
 	"plandex/auth"
 	"plandex/fs"
@@ -110,7 +111,7 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 	existsByComposite := make(map[string]*shared.Context)
 	for _, context := range existingContexts {
 		switch context.ContextType {
-		case shared.ContextFileType, shared.ContextDirectoryTreeType:
+		case shared.ContextFileType, shared.ContextDirectoryTreeType, shared.ContextMapType:
 			existsByComposite[strings.Join([]string{string(context.ContextType), context.FilePath}, "|")] = context
 		case shared.ContextURLType:
 			existsByComposite[strings.Join([]string{string(context.ContextType), context.Url}, "|")] = context
@@ -118,6 +119,23 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 	}
 
 	if len(inputFilePaths) > 0 {
+		mapInputsByPath := map[string]shared.FileMapInputs{}
+		toLoadMapPaths := []string{}
+		var mapSize int64
+
+		if params.DefsOnly {
+			for _, inputFilePath := range inputFilePaths {
+				composite := strings.Join([]string{string(shared.ContextMapType), inputFilePath}, "|")
+				if existsByComposite[composite] != nil {
+					alreadyLoadedByComposite[composite] = existsByComposite[composite]
+					continue
+				}
+
+				mapInputsByPath[inputFilePath] = shared.FileMapInputs{}
+				toLoadMapPaths = append(toLoadMapPaths, inputFilePath)
+			}
+		}
+
 		baseDir := fs.GetBaseDirForFilePaths(inputFilePaths)
 
 		paths, err := fs.GetProjectPaths(baseDir)
@@ -204,7 +222,6 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 						Body:            body,
 						FilePath:        inputFilePath,
 						ForceSkipIgnore: params.ForceSkipIgnore,
-						DefsOnly:        params.DefsOnly,
 					})
 
 					errCh <- nil
@@ -239,19 +256,48 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 			inputFilePaths = flattenedPaths
 
 			for _, path := range flattenedPaths {
+				var mapInputPath string
+				if params.DefsOnly {
+					for _, inputPath := range toLoadMapPaths {
+						if strings.HasPrefix(path, inputPath) {
+							mapInputPath = inputPath
+							break
+						}
+					}
+
+					if mapInputPath == "" {
+						continue // not a child of any input path
+					}
+
+					ext := filepath.Ext(path)
+					if !shared.IsTreeSitterExtension(ext) {
+						// not a tree-sitter supported extension
+						continue
+					}
+
+					if _, ok := mapInputsByPath[mapInputPath]; !ok {
+						mapInputsByPath[mapInputPath] = shared.FileMapInputs{}
+					}
+
+				}
+
 				var contextType shared.ContextType
 				isImage := shared.IsImageFile(path)
 				if isImage {
 					contextType = shared.ContextImageType
+				} else if params.DefsOnly {
+					contextType = shared.ContextMapType
 				} else {
 					contextType = shared.ContextFileType
 				}
 
-				composite := strings.Join([]string{string(contextType), path}, "|")
+				if !params.DefsOnly {
+					composite := strings.Join([]string{string(contextType), path}, "|")
 
-				if existsByComposite[composite] != nil {
-					alreadyLoadedByComposite[composite] = existsByComposite[composite]
-					continue
+					if existsByComposite[composite] != nil {
+						alreadyLoadedByComposite[composite] = existsByComposite[composite]
+						continue
+					}
 				}
 
 				numRoutines++
@@ -263,7 +309,9 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 						return
 					}
 
-					if fileInfo.Size() > shared.MaxContextBodySize {
+					size := fileInfo.Size()
+
+					if size > shared.MaxContextBodySize {
 						errCh <- fmt.Errorf("file %s exceeds size limit (size %.2f MB, limit %d MB)", path, float64(fileInfo.Size())/1024/1024, int(shared.MaxContextBodySize)/1024/1024)
 						return
 					}
@@ -277,8 +325,20 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 					contextMu.Lock()
 					defer contextMu.Unlock()
 
-					if isImage {
+					if params.DefsOnly {
+						if mapSize+size > shared.MaxContextMapInputSize {
+							errCh <- fmt.Errorf("map size limit exceeded (size %.2f MB, limit %d MB)", float64(mapSize+size)/1024/1024, int(shared.MaxContextBodySize)/1024/1024)
+							return
+						}
 
+						if len(mapInputsByPath[mapInputPath])+1 > shared.MaxContextMapPaths {
+							errCh <- fmt.Errorf("map paths limit exceeded (found %d, limit %d)", len(mapInputsByPath[mapInputPath])+1, shared.MaxContextMapPaths)
+							return
+						}
+
+						mapInputsByPath[mapInputPath][path] = string(fileContent)
+						mapSize += size
+					} else if isImage {
 						loadContextReq = append(loadContextReq, &shared.LoadContextParams{
 							ContextType: shared.ContextImageType,
 							Name:        path,
@@ -297,6 +357,16 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 
 					errCh <- nil
 				}(path)
+			}
+
+			if params.DefsOnly {
+				for _, inputPath := range toLoadMapPaths {
+					loadContextReq = append(loadContextReq, &shared.LoadContextParams{
+						ContextType: shared.ContextMapType,
+						MapInputs:   mapInputsByPath[inputPath],
+						FilePath:    inputPath,
+					})
+				}
 			}
 		}
 	}

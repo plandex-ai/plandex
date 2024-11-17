@@ -24,6 +24,9 @@ func GetContextLabelAndIcon(contextType shared.ContextType) (string, string) {
 	case shared.ContextImageType:
 		icon = "🖼️ "
 		lbl = "image"
+	case shared.ContextMapType:
+		icon = "🗺️ "
+		lbl = "map"
 	}
 
 	return lbl, icon

@@ -156,6 +156,9 @@ type RespondMissingFileRequest struct {
 	Body     string                   `json:"body"`
 }
 
+type FileMapInputs map[string]string
+type FileMapBodies map[string]string
+
 type LoadContextParams struct {
 	ContextType     ContextType           `json:"contextType"`
 	Name            string                `json:"name"`
@@ -165,6 +168,7 @@ type LoadContextParams struct {
 	ForceSkipIgnore bool                  `json:"forceSkipIgnore"`
 	ImageDetail     openai.ImageURLDetail `json:"imageDetail"`
 	DefsOnly        bool                  `json:"defsOnly"`
+	MapInputs       FileMapInputs         `json:"mapInputs"`
 
 	// For naming piped data
 	ApiKeys     map[string]string `json:"apiKeys"`
@@ -183,7 +187,18 @@ type LoadContextResponse struct {
 }
 
 type UpdateContextParams struct {
-	Body string `json:"body"`
+	Body            string            `json:"body"`
+	MapBodies       FileMapBodies     `json:"mapBodies"`
+	InputShas       map[string]string `json:"inputShas"`
+	RemovedMapPaths []string          `json:"removedMapPaths"`
+}
+
+type GetFileMapRequest struct {
+	MapInputs FileMapInputs `json:"mapInputs"`
+}
+
+type GetFileMapResponse struct {
+	MapBodies FileMapBodies `json:"mapBodies"`
 }
 
 type UpdateContextRequest map[string]*UpdateContextParams

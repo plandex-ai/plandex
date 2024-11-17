@@ -387,8 +387,10 @@ type Context struct {
 	Sha             string                `json:"sha"`
 	NumTokens       int                   `json:"numTokens"`
 	Body            string                `json:"body,omitempty"`
+	BodySize        int64                 `json:"bodySize,omitempty"`
 	ForceSkipIgnore bool                  `json:"forceSkipIgnore"`
 	ImageDetail     openai.ImageURLDetail `json:"imageDetail,omitempty"`
+	MapParts        shared.FileMapParts   `json:"mapParts,omitempty"`
 	CreatedAt       time.Time             `json:"createdAt"`
 	UpdatedAt       time.Time             `json:"updatedAt"`
 }
@@ -404,7 +406,10 @@ func (context *Context) ToApi() *shared.Context {
 		Sha:             context.Sha,
 		NumTokens:       context.NumTokens,
 		Body:            context.Body,
+		BodySize:        context.BodySize,
 		ForceSkipIgnore: context.ForceSkipIgnore,
+		ImageDetail:     context.ImageDetail,
+		MapParts:        context.MapParts,
 		CreatedAt:       context.CreatedAt,
 		UpdatedAt:       context.UpdatedAt,
 	}

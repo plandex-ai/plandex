@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/plandex/plandex/shared"
 	tree_sitter "github.com/smacker/go-tree-sitter"
 	"github.com/stretchr/testify/assert"
 )
@@ -18,7 +19,7 @@ func TestStructuralReplacements(t *testing.T) {
 		references  []Reference
 		removals    []Removal
 		want        string
-		language    string
+		language    shared.TreeSitterLanguage
 		parser      *tree_sitter.Parser
 		anchorLines map[int]int
 	}{
@@ -50,7 +51,7 @@ func TestStructuralReplacements(t *testing.T) {
         log.Info("processing user")
         return nil
     }`,
-			language: "go",
+			language: shared.TreeSitterLanguageGo,
 			parser:   getParserForLanguage("go"),
 		},
 		{
@@ -83,7 +84,7 @@ func TestStructuralReplacements(t *testing.T) {
     }
     return update(id)
     }`,
-			language: "go",
+			language: shared.TreeSitterLanguageGo,
 			parser:   getParserForLanguage("go"),
 		},
 		{
@@ -173,7 +174,7 @@ func TestStructuralReplacements(t *testing.T) {
       log.Println("record")
     }
     `,
-			language: "go",
+			language: shared.TreeSitterLanguageGo,
 			parser:   getParserForLanguage("go"),
 		},
 		{
@@ -208,7 +209,7 @@ func TestStructuralReplacements(t *testing.T) {
         commit()
         return nil
     }`,
-			language: "go",
+			language: shared.TreeSitterLanguageGo,
 			parser:   getParserForLanguage("go"),
 		},
 		{
@@ -245,7 +246,7 @@ func TestStructuralReplacements(t *testing.T) {
         commit()
         return nil
     }`,
-			language: "go",
+			language: shared.TreeSitterLanguageGo,
 			parser:   getParserForLanguage("go"),
 		},
 		{
@@ -294,7 +295,7 @@ func TestStructuralReplacements(t *testing.T) {
             "build": "webpack"
         }
     }`,
-			language: "json",
+			language: shared.TreeSitterLanguageJson,
 			parser:   getParserForLanguage("json"),
 		},
 		{
@@ -364,7 +365,7 @@ func TestStructuralReplacements(t *testing.T) {
             this.cache.clear()
         }
     }`,
-			language: "javascript",
+			language: shared.TreeSitterLanguageJavascript,
 			parser:   getParserForLanguage("javascript"),
 		},
 		{
@@ -430,7 +431,7 @@ func TestStructuralReplacements(t *testing.T) {
             }
         }
     }`,
-			language: "typescript",
+			language: shared.TreeSitterLanguageTypescript,
 			parser:   getParserForLanguage("typescript"),
 		},
 		{
@@ -472,7 +473,7 @@ func TestStructuralReplacements(t *testing.T) {
             console.log("finishing")
         },
     }`,
-			language: "javascript",
+			language: shared.TreeSitterLanguageJavascript,
 			parser:   getParserForLanguage("javascript"),
 		},
 		{
@@ -550,7 +551,7 @@ func TestStructuralReplacements(t *testing.T) {
             process.exit(1)
         }
     }`,
-			language: "javascript",
+			language: shared.TreeSitterLanguageJavascript,
 			parser:   getParserForLanguage("javascript"),
 		},
 		{
@@ -578,7 +579,7 @@ func TestStructuralReplacements(t *testing.T) {
       const b = 2;
       const c = 3;
     `,
-			language: "javascript",
+			language: shared.TreeSitterLanguageJavascript,
 			parser:   getParserForLanguage("javascript"),
 		},
 
@@ -748,7 +749,7 @@ func TestStructuralReplacements(t *testing.T) {
   }
 }
 `,
-			language: "json",
+			language: shared.TreeSitterLanguageJson,
 			parser:   getParserForLanguage("json"),
 			references: []Reference{
 				3, 24, 26,
@@ -970,7 +971,7 @@ func TestStructuralReplacements(t *testing.T) {
   }
 }
 `,
-			language: "json",
+			language: shared.TreeSitterLanguageJson,
 			parser:   getParserForLanguage("json"),
 			references: []Reference{
 				3, 6, 19, 22,

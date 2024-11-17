@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/plandex/plandex/shared"
 	tree_sitter "github.com/smacker/go-tree-sitter"
 )
 
@@ -45,15 +46,15 @@ func MapFile(ctx context.Context, filename string, content []byte) (*FileMap, er
 	return m, nil
 }
 
-func mapNode(node *tree_sitter.Node, content []byte, lang string) []Definition {
+func mapNode(node *tree_sitter.Node, content []byte, lang shared.TreeSitterLanguage) []Definition {
 	switch lang {
-	case "dockerfile":
+	case shared.TreeSitterLanguageDockerfile:
 		return mapDockerfile(node, content)
-	case "yaml", "toml", "json", "cue", "hcl":
+	case shared.TreeSitterLanguageYaml, shared.TreeSitterLanguageToml, shared.TreeSitterLanguageJson, shared.TreeSitterLanguageCue, shared.TreeSitterLanguageHcl:
 		return mapConfig(node, content)
-	case "html", "svelte":
+	case shared.TreeSitterLanguageHtml, shared.TreeSitterLanguageSvelte:
 		return mapMarkup(node, content)
-	case "css":
+	case shared.TreeSitterLanguageCss:
 		return mapCSS(node, content)
 	default:
 		return mapTraditional(node, content)

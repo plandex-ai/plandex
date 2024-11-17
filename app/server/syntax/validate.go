@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/plandex/plandex/shared"
 	tree_sitter "github.com/smacker/go-tree-sitter"
 
 	"context"
@@ -15,7 +16,7 @@ const parserTimeout = 500 * time.Millisecond
 
 type ValidationRes = struct {
 	Ext       string
-	Lang      string
+	Lang      shared.TreeSitterLanguage
 	HasParser bool
 	TimedOut  bool
 	Valid     bool

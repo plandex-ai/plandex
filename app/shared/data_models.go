@@ -89,7 +89,16 @@ const (
 	ContextDirectoryTreeType ContextType = "directory tree"
 	ContextPipedDataType     ContextType = "piped data"
 	ContextImageType         ContextType = "image"
+	ContextMapType           ContextType = "map"
 )
+
+type FileMapPart struct {
+	Sha       string `json:"sha"`
+	Body      string `json:"body"`
+	NumTokens int    `json:"numTokens"`
+}
+
+type FileMapParts map[string]FileMapPart
 
 type Context struct {
 	Id              string                `json:"id"`
@@ -101,8 +110,10 @@ type Context struct {
 	Sha             string                `json:"sha"`
 	NumTokens       int                   `json:"numTokens"`
 	Body            string                `json:"body,omitempty"`
+	BodySize        int64                 `json:"bodySize,omitempty"`
 	ForceSkipIgnore bool                  `json:"forceSkipIgnore"`
 	ImageDetail     openai.ImageURLDetail `json:"imageDetail,omitempty"`
+	MapParts        FileMapParts          `json:"mapParts,omitempty"`
 	CreatedAt       time.Time             `json:"createdAt"`
 	UpdatedAt       time.Time             `json:"updatedAt"`
 }

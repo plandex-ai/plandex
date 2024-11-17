@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/davecgh/go-spew/spew"
+	"github.com/plandex/plandex/shared"
 	tree_sitter "github.com/smacker/go-tree-sitter"
 )
 
@@ -23,7 +24,7 @@ const verboseLogging = false
 
 func ApplyChanges(
 	ctx context.Context,
-	language string,
+	language shared.TreeSitterLanguage,
 	parser *tree_sitter.Parser,
 	original,
 	proposed string,

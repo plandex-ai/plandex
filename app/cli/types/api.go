@@ -102,4 +102,5 @@ type ApiClient interface {
 	DeleteModelPack(setId string) *shared.ApiError
 
 	GetCreditsTransactions(pageSize, pageNum int) (*shared.CreditsLogResponse, *shared.ApiError)
+	GetFileMap(req shared.GetFileMapRequest) (*shared.GetFileMapResponse, *shared.ApiError)
 }

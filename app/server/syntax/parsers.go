@@ -32,17 +32,19 @@ import (
 	"github.com/smacker/go-tree-sitter/typescript/tsx"
 	"github.com/smacker/go-tree-sitter/typescript/typescript"
 	"github.com/smacker/go-tree-sitter/yaml"
+
+	"github.com/plandex/plandex/shared"
 )
 
-func GetParserForExt(ext string) (*tree_sitter.Parser, string, *tree_sitter.Parser, string) {
-	lang, ok := languageByExtension[ext]
+func GetParserForExt(ext string) (*tree_sitter.Parser, shared.TreeSitterLanguage, *tree_sitter.Parser, shared.TreeSitterLanguage) {
+	lang, ok := shared.TreeSitterLanguageByExtension[ext]
 	if !ok {
 		return nil, "", nil, ""
 	}
 
 	parser := getParserForLanguage(lang)
 
-	fallback := fallbackByExtension[ext]
+	fallback := shared.TreeSitterLanguageFallbackByExtension[ext]
 	var fallbackParser *tree_sitter.Parser
 	if fallback != "" {
 		fallbackParser = getParserForLanguage(fallback)
@@ -51,116 +53,71 @@ func GetParserForExt(ext string) (*tree_sitter.Parser, string, *tree_sitter.Pars
 	return parser, lang, fallbackParser, fallback
 }
 
-func getParserForLanguage(lang string) *tree_sitter.Parser {
+func getParserForLanguage(lang shared.TreeSitterLanguage) *tree_sitter.Parser {
 	parser := tree_sitter.NewParser()
 	switch lang {
-	case "bash":
+	case shared.TreeSitterLanguageBash:
 		parser.SetLanguage(bash.GetLanguage())
-	case "c":
+	case shared.TreeSitterLanguageC:
 		parser.SetLanguage(c.GetLanguage())
-	case "cpp":
+	case shared.TreeSitterLanguageCpp:
 		parser.SetLanguage(cpp.GetLanguage())
-	case "csharp":
+	case shared.TreeSitterLanguageCsharp:
 		parser.SetLanguage(csharp.GetLanguage())
-	case "css":
+	case shared.TreeSitterLanguageCss:
 		parser.SetLanguage(css.GetLanguage())
-	case "cue":
+	case shared.TreeSitterLanguageCue:
 		parser.SetLanguage(cue.GetLanguage())
-	case "dockerfile":
+	case shared.TreeSitterLanguageDockerfile:
 		parser.SetLanguage(dockerfile.GetLanguage())
-	case "elixir":
+	case shared.TreeSitterLanguageElixir:
 		parser.SetLanguage(elixir.GetLanguage())
-	case "elm":
+	case shared.TreeSitterLanguageElm:
 		parser.SetLanguage(elm.GetLanguage())
-	case "go":
+	case shared.TreeSitterLanguageGo:
 		parser.SetLanguage(golang.GetLanguage())
-	case "groovy":
+	case shared.TreeSitterLanguageGroovy:
 		parser.SetLanguage(groovy.GetLanguage())
-	case "hcl":
+	case shared.TreeSitterLanguageHcl:
 		parser.SetLanguage(hcl.GetLanguage())
-	case "html":
+	case shared.TreeSitterLanguageHtml:
 		parser.SetLanguage(html.GetLanguage())
-	case "java":
+	case shared.TreeSitterLanguageJava:
 		parser.SetLanguage(java.GetLanguage())
-	case "javascript", "json":
+	case shared.TreeSitterLanguageJavascript, shared.TreeSitterLanguageJson:
 		parser.SetLanguage(javascript.GetLanguage())
-	case "kotlin":
+	case shared.TreeSitterLanguageKotlin:
 		parser.SetLanguage(kotlin.GetLanguage())
-	case "lua":
+	case shared.TreeSitterLanguageLua:
 		parser.SetLanguage(lua.GetLanguage())
-	case "ocaml":
+	case shared.TreeSitterLanguageOCaml:
 		parser.SetLanguage(ocaml.GetLanguage())
-	case "php":
+	case shared.TreeSitterLanguagePhp:
 		parser.SetLanguage(php.GetLanguage())
-	case "protobuf":
+	case shared.TreeSitterLanguageProtobuf:
 		parser.SetLanguage(protobuf.GetLanguage())
-	case "python":
+	case shared.TreeSitterLanguagePython:
 		parser.SetLanguage(python.GetLanguage())
-	case "ruby":
+	case shared.TreeSitterLanguageRuby:
 		parser.SetLanguage(ruby.GetLanguage())
-	case "rust":
+	case shared.TreeSitterLanguageRust:
 		parser.SetLanguage(rust.GetLanguage())
-	case "scala":
+	case shared.TreeSitterLanguageScala:
 		parser.SetLanguage(scala.GetLanguage())
-	case "svelte":
+	case shared.TreeSitterLanguageSvelte:
 		parser.SetLanguage(svelte.GetLanguage())
-	case "swift":
+	case shared.TreeSitterLanguageSwift:
 		parser.SetLanguage(swift.GetLanguage())
-	case "toml":
+	case shared.TreeSitterLanguageToml:
 		parser.SetLanguage(toml.GetLanguage())
-	case "typescript":
+	case shared.TreeSitterLanguageTypescript:
 		parser.SetLanguage(typescript.GetLanguage())
-	case "jsx", "tsx":
+	case shared.TreeSitterLanguageJsx, shared.TreeSitterLanguageTsx:
 		parser.SetLanguage(tsx.GetLanguage())
-	case "yaml":
+	case shared.TreeSitterLanguageYaml:
 		parser.SetLanguage(yaml.GetLanguage())
 	default:
 		return nil
 	}
 	return parser
-}
-
-var languageByExtension = map[string]string{
-	".sh":         "bash",
-	".bash":       "bash",
-	".c":          "c",
-	".h":          "c",
-	".cpp":        "cpp",
-	".cc":         "cpp",
-	".cs":         "csharp",
-	".css":        "css",
-	".cue":        "cue",
-	".dockerfile": "dockerfile",
-	".ex":         "elixir",
-	".exs":        "elixir",
-	".elm":        "elm",
-	".go":         "go",
-	".groovy":     "groovy",
-	".hcl":        "hcl",
-	".html":       "html",
-	".java":       "java",
-	".js":         "javascript",
-	".json":       "json",
-	".jsx":        "tsx",
-	".kt":         "kotlin",
-	".lua":        "lua",
-	".ml":         "ocaml",
-	".php":        "php",
-	".proto":      "protobuf",
-	".py":         "python",
-	".rb":         "ruby",
-	".rs":         "rust",
-	".scala":      "scala",
-	".svelte":     "svelte",
-	".swift":      "swift",
-	".toml":       "toml",
-	".ts":         "typescript",
-	".tsx":        "tsx",
-	".yaml":       "yaml",
-	".yml":        "yaml",
-}
-
-var fallbackByExtension = map[string]string{
-	".ts": "tsx",
-	".js": "tsx",
 }

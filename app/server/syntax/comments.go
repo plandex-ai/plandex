@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"sort"
 
+	"github.com/plandex/plandex/shared"
 	tree_sitter "github.com/smacker/go-tree-sitter"
 )
 
@@ -59,21 +60,21 @@ func findCommentNodes(node *tree_sitter.Node) []*tree_sitter.Node {
 	return commentNodes
 }
 
-func GetCommentSymbols(lang string) (string, string) {
+func GetCommentSymbols(lang shared.TreeSitterLanguage) (string, string) {
 	switch lang {
-	case "c", "cpp", "csharp", "java", "javascript", "go", "rust", "swift", "kotlin", "groovy", "scala", "typescript", "php":
+	case shared.TreeSitterLanguageC, shared.TreeSitterLanguageCpp, shared.TreeSitterLanguageCsharp, shared.TreeSitterLanguageJava, shared.TreeSitterLanguageJavascript, shared.TreeSitterLanguageGo, shared.TreeSitterLanguageRust, shared.TreeSitterLanguageSwift, shared.TreeSitterLanguageKotlin, shared.TreeSitterLanguageGroovy, shared.TreeSitterLanguageScala, shared.TreeSitterLanguageTypescript, shared.TreeSitterLanguagePhp:
 		return "//", ""
-	case "bash", "dockerfile", "elixir", "hcl", "python", "ruby", "toml", "yaml":
+	case shared.TreeSitterLanguageBash, shared.TreeSitterLanguageDockerfile, shared.TreeSitterLanguageElixir, shared.TreeSitterLanguageHcl, shared.TreeSitterLanguagePython, shared.TreeSitterLanguageRuby, shared.TreeSitterLanguageToml, shared.TreeSitterLanguageYaml:
 		return "#", ""
-	case "lua", "elm":
+	case shared.TreeSitterLanguageLua, shared.TreeSitterLanguageElm:
 		return "--", ""
-	case "css":
+	case shared.TreeSitterLanguageCss:
 		return "/*", "*/"
-	case "html":
+	case shared.TreeSitterLanguageHtml:
 		return "<!--", "-->"
-	case "ocaml":
+	case shared.TreeSitterLanguageOCaml:
 		return "(*", "*)"
-	case "svelte", "jsx", "tsx", "json":
+	case shared.TreeSitterLanguageSvelte, shared.TreeSitterLanguageJsx, shared.TreeSitterLanguageTsx, shared.TreeSitterLanguageJson:
 		return "", "" // comments are either not allowed or correct symbols depend on the context
 	}
 

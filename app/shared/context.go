@@ -10,8 +10,11 @@ import (
 )
 
 const (
-	MaxContextBodySize = 10 * 1024 * 1024 // 10MB
-	MaxContextCount    = 500
+	MaxContextBodySize     = 10 * 1024 * 1024 // 10MB
+	MaxContextCount        = 500
+	MaxContextMapPaths     = 10000
+	MaxContextMapInputSize = 100 * 1024 * 1024      // 100MB
+	MaxTotalContextSize    = 2 * 1024 * 1024 * 1024 // 2GB
 )
 
 type ContextUpdateResult struct {
@@ -23,6 +26,7 @@ type ContextUpdateResult struct {
 	NumUrls         int
 	NumImages       int
 	NumTrees        int
+	NumMaps         int
 	MaxTokens       int
 }
 
@@ -48,6 +52,9 @@ func (c *Context) TypeAndIcon() (string, string) {
 	case ContextImageType:
 		icon = "🖼️ "
 		t = "image"
+	case ContextMapType:
+		icon = "🗺️ "
+		t = "map"
 	}
 
 	return t, icon
@@ -87,6 +94,7 @@ func SummaryForLoadContext(contexts []*Context, tokensAdded, totalTokens int) st
 	var numFiles int
 	var numTrees int
 	var numUrls int
+	var numMaps int
 
 	for _, context := range contexts {
 		switch context.ContextType {
@@ -100,6 +108,8 @@ func SummaryForLoadContext(contexts []*Context, tokensAdded, totalTokens int) st
 			hasNote = true
 		case ContextPipedDataType:
 			hasPiped = true
+		case ContextMapType:
+			numMaps++
 		}
 	}
 
@@ -131,6 +141,13 @@ func SummaryForLoadContext(contexts []*Context, tokensAdded, totalTokens int) st
 			label = "urls"
 		}
 		added = append(added, fmt.Sprintf("%d %s", numUrls, label))
+	}
+	if numMaps > 0 {
+		label := "map"
+		if numMaps > 1 {
+			label = "maps"
+		}
+		added = append(added, fmt.Sprintf("%d %s", numMaps, label))
 	}
 
 	msg := "Loaded "
@@ -199,6 +216,7 @@ func SummaryForUpdateContext(updateRes *ContextUpdateResult) string {
 	numFiles := updateRes.NumFiles
 	numTrees := updateRes.NumTrees
 	numUrls := updateRes.NumUrls
+	numMaps := updateRes.NumMaps
 	tokensDiff := updateRes.TokensDiff
 	totalTokens := updateRes.TotalTokens
 
@@ -224,6 +242,13 @@ func SummaryForUpdateContext(updateRes *ContextUpdateResult) string {
 			postfix = ""
 		}
 		toAdd = append(toAdd, fmt.Sprintf("%d url%s", numUrls, postfix))
+	}
+	if numMaps > 0 {
+		postfix := "s"
+		if numMaps == 1 {
+			postfix = ""
+		}
+		toAdd = append(toAdd, fmt.Sprintf("%d map%s", numMaps, postfix))
 	}
 
 	if len(toAdd) <= 2 {

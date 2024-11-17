@@ -141,4 +141,6 @@ func addApiRoutes(r *mux.Router, prefix string) {
 
 	r.HandleFunc(prefix+"/default_settings", handlers.GetDefaultSettingsHandler).Methods("GET")
 	r.HandleFunc(prefix+"/default_settings", handlers.UpdateDefaultSettingsHandler).Methods("PUT")
+
+	r.HandleFunc(prefix+"/file_map", handlers.GetFileMapHandler).Methods("POST")
 }
