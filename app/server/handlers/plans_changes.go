@@ -104,7 +104,7 @@ func ApplyPlanHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(r.Context())
 	unlockFn := LockRepo(w, r, auth, db.LockScopeWrite, ctx, cancel, true)
 	if unlockFn == nil {
 		return
@@ -121,7 +121,7 @@ func ApplyPlanHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	currentPlan, err := db.ApplyPlan(auth.OrgId, auth.User.Id, branch, plan)
+	currentPlan, err := db.ApplyPlan(ctx, auth.OrgId, auth.User.Id, branch, plan)
 
 	if err != nil {
 		log.Printf("Error applying plan: %v\n", err)

@@ -1,6 +1,7 @@
 package db
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -105,7 +106,7 @@ func GetCurrentPlanState(params CurrentPlanStateParams) (*shared.CurrentPlanStat
 	go func() {
 		var contexts []*Context
 		if params.Contexts == nil {
-			res, err := GetPlanContexts(orgId, planId, true)
+			res, err := GetPlanContexts(orgId, planId, true, false)
 			if err != nil {
 				errCh <- fmt.Errorf("error getting contexts: %v", err)
 				return
@@ -357,7 +358,7 @@ func GetPlanResult(planFileResults []*shared.PlanFileResult) *shared.PlanResult 
 	}
 }
 
-func ApplyPlan(orgId, userId, branchName string, plan *Plan) (*shared.CurrentPlanState, error) {
+func ApplyPlan(ctx context.Context, orgId, userId, branchName string, plan *Plan) (*shared.CurrentPlanState, error) {
 	planId := plan.Id
 
 	resultsDir := getPlanResultsDir(orgId, planId)
@@ -390,7 +391,7 @@ func ApplyPlan(orgId, userId, branchName string, plan *Plan) (*shared.CurrentPla
 	}()
 
 	go func() {
-		res, err := GetPlanContexts(orgId, planId, false)
+		res, err := GetPlanContexts(orgId, planId, false, false)
 		if err != nil {
 			errCh <- fmt.Errorf("error getting contexts: %v", err)
 			return
@@ -505,6 +506,7 @@ func ApplyPlan(orgId, userId, branchName string, plan *Plan) (*shared.CurrentPla
 			}
 
 			res, _, err := LoadContexts(
+				ctx,
 				LoadContextsParams{
 					OrgId:                    orgId,
 					UserId:                   userId,

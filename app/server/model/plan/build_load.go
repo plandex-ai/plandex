@@ -54,7 +54,7 @@ func (state *activeBuildStreamState) loadPendingBuilds() (map[string][]*types.Ac
 		errCh := make(chan error)
 
 		go func() {
-			res, err := db.GetPlanContexts(auth.OrgId, plan.Id, true)
+			res, err := db.GetPlanContexts(auth.OrgId, plan.Id, true, false)
 			if err != nil {
 				log.Printf("Error getting plan modelContext: %v\n", err)
 				errCh <- fmt.Errorf("error getting plan modelContext: %v", err)

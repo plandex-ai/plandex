@@ -39,7 +39,7 @@ func ListContextHandler(w http.ResponseWriter, r *http.Request) {
 		}()
 	}
 
-	dbContexts, err := db.GetPlanContexts(auth.OrgId, planId, false)
+	dbContexts, err := db.GetPlanContexts(auth.OrgId, planId, false, false)
 
 	if err != nil {
 		log.Printf("Error getting contexts: %v\n", err)
@@ -262,7 +262,7 @@ func DeleteContextHandler(w http.ResponseWriter, r *http.Request) {
 		}()
 	}
 
-	dbContexts, err := db.GetPlanContexts(auth.OrgId, planId, false)
+	dbContexts, err := db.GetPlanContexts(auth.OrgId, planId, false, false)
 
 	if err != nil {
 		log.Printf("Error getting contexts: %v\n", err)

@@ -52,6 +52,9 @@ func listContext(cmd *cobra.Command, args []string) {
 		t, icon := context.TypeAndIcon()
 
 		name := context.Name
+		if name == "" {
+			name = context.FilePath
+		}
 		if len(name) > 40 {
 			name = name[:20] + "⋯" + name[len(name)-20:]
 		}

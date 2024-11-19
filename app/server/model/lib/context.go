@@ -22,6 +22,9 @@ func FormatModelContext(context []*db.Context) (string, int, error) {
 		} else if part.ContextType == shared.ContextFileType {
 			fmtStr = "\n\n- %s:\n\n```\n%s\n```"
 			args = append(args, part.FilePath, part.Body)
+		} else if part.ContextType == shared.ContextMapType {
+			fmtStr = "\n\n- %s | map:\n\n```\n%s\n```"
+			args = append(args, part.FilePath, part.Body)
 		} else if part.Url != "" {
 			fmtStr = "\n\n- %s:\n\n```\n%s\n```"
 			args = append(args, part.Url, part.Body)

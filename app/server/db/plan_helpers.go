@@ -158,7 +158,7 @@ func SyncPlanTokens(orgId, planId, branch string) error {
 
 	go func() {
 		var err error
-		contexts, err = GetPlanContexts(orgId, planId, false)
+		contexts, err = GetPlanContexts(orgId, planId, false, false)
 		errCh <- err
 	}()
 

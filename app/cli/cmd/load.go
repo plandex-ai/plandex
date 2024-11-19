@@ -53,6 +53,7 @@ func contextLoad(cmd *cobra.Command, args []string) {
 		NamesOnly:       namesOnly,
 		ForceSkipIgnore: forceSkipIgnore,
 		ImageDetail:     openai.ImageURLDetail(imageDetail),
+		DefsOnly:        defsOnly,
 	})
 
 	fmt.Println()

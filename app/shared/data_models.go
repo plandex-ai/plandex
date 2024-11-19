@@ -92,13 +92,7 @@ const (
 	ContextMapType           ContextType = "map"
 )
 
-type FileMapPart struct {
-	Sha       string `json:"sha"`
-	Body      string `json:"body"`
-	NumTokens int    `json:"numTokens"`
-}
-
-type FileMapParts map[string]FileMapPart
+type FileMapBodies map[string]string
 
 type Context struct {
 	Id              string                `json:"id"`
@@ -113,7 +107,9 @@ type Context struct {
 	BodySize        int64                 `json:"bodySize,omitempty"`
 	ForceSkipIgnore bool                  `json:"forceSkipIgnore"`
 	ImageDetail     openai.ImageURLDetail `json:"imageDetail,omitempty"`
-	MapParts        FileMapParts          `json:"mapParts,omitempty"`
+	MapParts        FileMapBodies         `json:"mapParts,omitempty"`
+	MapShas         map[string]string     `json:"mapShas,omitempty"`
+	MapTokens       map[string]int        `json:"mapTokens,omitempty"`
 	CreatedAt       time.Time             `json:"createdAt"`
 	UpdatedAt       time.Time             `json:"updatedAt"`
 }

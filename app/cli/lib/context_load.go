@@ -234,10 +234,17 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 				onErr(fmt.Errorf("failed to parse input paths: %v", err))
 			}
 
-			// Add this check for the number of files
-			if len(flattenedPaths) > shared.MaxContextCount {
-				onErr(fmt.Errorf("too many files to load (found %d, limit is %d)", len(flattenedPaths), shared.MaxContextCount))
-			}
+			// // Dump flattenedPaths to JSON file for debugging
+			// debugData, err := json.MarshalIndent(flattenedPaths, "", "  ")
+			// if err != nil {
+			// 	onErr(fmt.Errorf("failed to marshal flattened paths: %v", err))
+			// 	return
+			// }
+
+			// if err := os.WriteFile("flattened_paths_debug.json", debugData, 0644); err != nil {
+			// 	onErr(fmt.Errorf("failed to write debug file: %v", err))
+			// 	return
+			// }
 
 			if !params.ForceSkipIgnore {
 				var filteredPaths []string
@@ -253,13 +260,41 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 				flattenedPaths = filteredPaths
 			}
 
+			// Add this check for the number of files (after filtering out ignored/irrelevant paths)
+			var numPaths int
+			if params.DefsOnly {
+				for _, path := range flattenedPaths {
+					ext := filepath.Ext(path)
+					if shared.IsTreeSitterExtension(ext) {
+						numPaths++
+					}
+				}
+			} else {
+				numPaths = len(flattenedPaths)
+			}
+
+			if numPaths > shared.MaxContextCount {
+				onErr(fmt.Errorf("too many files to load (found %d, limit is %d)", numPaths, shared.MaxContextCount))
+			}
+
 			inputFilePaths = flattenedPaths
 
 			for _, path := range flattenedPaths {
 				var mapInputPath string
 				if params.DefsOnly {
 					for _, inputPath := range toLoadMapPaths {
-						if strings.HasPrefix(path, inputPath) {
+						// Clean and make absolute paths for comparison
+						absPath, err := filepath.Abs(path)
+						if err != nil {
+							continue
+						}
+						absInputPath, err := filepath.Abs(inputPath)
+						if err != nil {
+							continue
+						}
+
+						// Check if paths are equal or if path is under inputPath
+						if absPath == absInputPath || strings.HasPrefix(absPath+string(filepath.Separator), absInputPath+string(filepath.Separator)) {
 							mapInputPath = inputPath
 							break
 						}
@@ -363,6 +398,7 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 				for _, inputPath := range toLoadMapPaths {
 					loadContextReq = append(loadContextReq, &shared.LoadContextParams{
 						ContextType: shared.ContextMapType,
+						Name:        inputPath,
 						MapInputs:   mapInputsByPath[inputPath],
 						FilePath:    inputPath,
 					})

@@ -140,7 +140,7 @@ func (state *activeTellStreamState) loadTellPlan() error {
 		if iteration > 0 || missingFileResponse != "" {
 			modelContext = active.Contexts
 		} else {
-			res, err := db.GetPlanContexts(currentOrgId, planId, true)
+			res, err := db.GetPlanContexts(currentOrgId, planId, true, false)
 			if err != nil {
 				log.Printf("Error getting plan modelContext: %v\n", err)
 				errCh <- fmt.Errorf("error getting plan modelContext: %v", err)

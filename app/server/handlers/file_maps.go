@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"plandex-server/syntax"
 
@@ -17,17 +18,18 @@ func GetFileMapHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	maps := make(shared.FileMapBodies)
-	for filepath, content := range req.Files {
-		fileMap, err := syntax.MapFile(r.Context(), filepath, []byte(content))
+	for path, input := range req.MapInputs {
+		fileMap, err := syntax.MapFile(r.Context(), path, []byte(input))
 		if err != nil {
 			// Skip files that can't be parsed, just log the error
+			log.Printf("Error mapping file %s: %v", path, err)
 			continue
 		}
-		maps[filepath] = fileMap.String()
+		maps[path] = fileMap.String()
 	}
 
 	resp := shared.GetFileMapResponse{
-		Maps: maps,
+		MapBodies: maps,
 	}
 
 	respBytes, err := json.Marshal(resp)

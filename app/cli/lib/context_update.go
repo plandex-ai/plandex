@@ -364,33 +364,50 @@ func checkOutdatedAndMaybeUpdateContext(doUpdate bool, maybeContexts []*shared.C
 				var updatedInputs = make(shared.FileMapInputs)
 				var updatedInputShas = map[string]string{}
 
-				for path, part := range context.MapParts {
-					if _, err := os.Stat(path); os.IsNotExist(err) {
-						removedMapPaths = append(removedMapPaths, path)
-					}
-
+				for path, currentSha := range context.MapShas {
 					bytes, err := os.ReadFile(path)
 					if err != nil {
+						if os.IsNotExist(err) {
+							removedMapPaths = append(removedMapPaths, path)
+							continue
+						}
+
 						errs = append(errs, fmt.Errorf("failed to read map file %s: %v", path, err))
 						return
 					}
 
 					hash := sha256.Sum256(bytes)
-					sha := hex.EncodeToString(hash[:])
+					newSha := hex.EncodeToString(hash[:])
 
-					if sha != part.Sha {
+					if newSha != currentSha {
+						// fmt.Println("path", path, "newSha", newSha, "currentSha", currentSha)
 						content := string(bytes)
 						updatedInputs[path] = content
-						updatedInputShas[path] = sha
+						updatedInputShas[path] = newSha
 					}
 				}
 
 				// Check if new files were added
-				flattenedPaths, err := ParseInputPaths([]string{context.FilePath}, &types.LoadContextParams{})
+				baseDir := fs.GetBaseDirForFilePaths([]string{context.FilePath})
+				paths, err := fs.GetProjectPaths(baseDir)
+				if err != nil {
+					errs = append(errs, fmt.Errorf("failed to get project paths: %v", err))
+					return
+				}
+
+				flattenedPaths, err := ParseInputPaths([]string{context.FilePath}, &types.LoadContextParams{Recursive: true})
 				if err != nil {
 					errs = append(errs, fmt.Errorf("failed to get the directory tree %s: %v", context.FilePath, err))
 					return
 				}
+
+				var filteredPaths []string
+				for _, inputFilePath := range flattenedPaths {
+					if _, ok := paths.ActivePaths[inputFilePath]; ok {
+						filteredPaths = append(filteredPaths, inputFilePath)
+					}
+				}
+				flattenedPaths = filteredPaths
 
 				for _, path := range flattenedPaths {
 					ext := filepath.Ext(path)
@@ -398,12 +415,13 @@ func checkOutdatedAndMaybeUpdateContext(doUpdate bool, maybeContexts []*shared.C
 						continue
 					}
 
-					if _, ok := context.MapParts[path]; !ok {
+					if _, ok := context.MapShas[path]; !ok {
 						bytes, err := os.ReadFile(path)
 						if err != nil {
 							errs = append(errs, fmt.Errorf("failed to read map file %s: %v", path, err))
 							return
 						}
+
 						content := string(bytes)
 						updatedInputs[path] = content
 						hash := sha256.Sum256(bytes)
@@ -411,10 +429,11 @@ func checkOutdatedAndMaybeUpdateContext(doUpdate bool, maybeContexts []*shared.C
 						updatedInputShas[path] = sha
 					}
 				}
-
 				// If any files changed, get new map
 				if len(updatedInputs) > 0 || len(removedMapPaths) > 0 {
-					updatedParts := make(shared.FileMapParts)
+					// fmt.Println("updatedInputs", len(updatedInputs), "removedMapPaths", len(removedMapPaths))
+
+					updatedParts := make(shared.FileMapBodies)
 					for k, v := range context.MapParts {
 						updatedParts[k] = v
 					}
@@ -431,10 +450,21 @@ func checkOutdatedAndMaybeUpdateContext(doUpdate bool, maybeContexts []*shared.C
 
 						// Update map parts with new content
 						for path, body := range mapRes.MapBodies {
-							updatedParts[path] = shared.FileMapPart{
-								Body: body,
+							updatedParts[path] = body
+
+							prevTokens := context.MapTokens[path]
+							numTokens, err := shared.GetNumTokens(body)
+							if err != nil {
+								errs = append(errs, fmt.Errorf("failed to get the number of tokens in the file %s: %v", path, err))
+								return
 							}
+
+							// fmt.Println("path", path, "numTokens", numTokens, "prevTokens", prevTokens)
+
+							tokenDiffsById[context.Id] += numTokens - prevTokens
 						}
+
+						// test this
 					}
 
 					if len(removedMapPaths) > 0 {
@@ -443,19 +473,9 @@ func checkOutdatedAndMaybeUpdateContext(doUpdate bool, maybeContexts []*shared.C
 						}
 					}
 
-					// Combine map parts into single body
-					body := updatedParts.CombinedMap()
-					numTokens, err := shared.GetNumTokens(body)
-					if err != nil {
-						errs = append(errs, fmt.Errorf("failed to get tokens for combined map: %v", err))
-						return
-					}
-
-					tokenDiffsById[context.Id] += (numTokens - context.NumTokens)
 					numMaps++
 					updatedContexts = append(updatedContexts, context)
 					req[context.Id] = &shared.UpdateContextParams{
-						Body:            body,
 						MapBodies:       updatedMapBodies,
 						InputShas:       updatedInputShas,
 						RemovedMapPaths: removedMapPaths,

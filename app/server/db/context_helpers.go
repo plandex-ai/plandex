@@ -1,7 +1,6 @@
 package db
 
 import (
-	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -21,7 +20,7 @@ import (
 
 type Ctx context.Context
 
-func GetPlanContexts(orgId, planId string, includeBody bool) ([]*Context, error) {
+func GetPlanContexts(orgId, planId string, includeBody, includeMapParts bool) ([]*Context, error) {
 	var contexts []*Context
 	contextDir := getPlanContextDir(orgId, planId)
 
@@ -35,31 +34,36 @@ func GetPlanContexts(orgId, planId string, includeBody bool) ([]*Context, error)
 		return nil, fmt.Errorf("error reading context dir: %v", err)
 	}
 
-	errCh := make(chan error, len(files)/2)
-	contextCh := make(chan *Context, len(files)/2)
+	errCh := make(chan error, len(files))
+	var mu sync.Mutex
 
 	// read each context file
 	for _, file := range files {
 		if strings.HasSuffix(file.Name(), ".meta") {
 			go func(file os.DirEntry) {
-				context, err := GetContext(orgId, planId, strings.TrimSuffix(file.Name(), ".meta"), includeBody)
+				context, err := GetContext(orgId, planId, strings.TrimSuffix(file.Name(), ".meta"), includeBody, includeMapParts)
+
+				mu.Lock()
+				defer mu.Unlock()
+				contexts = append(contexts, context)
 
 				if err != nil {
 					errCh <- fmt.Errorf("error reading context file: %v", err)
 					return
 				}
 
-				contextCh <- context
+				errCh <- nil
 			}(file)
+		} else {
+			// only processing meta files here, so just send nil for accurate count
+			errCh <- nil
 		}
 	}
 
-	for i := 0; i < len(files)/2; i++ {
-		select {
-		case err := <-errCh:
+	for i := 0; i < len(files); i++ {
+		err := <-errCh
+		if err != nil {
 			return nil, fmt.Errorf("error reading context files: %v", err)
-		case context := <-contextCh:
-			contexts = append(contexts, context)
 		}
 	}
 
@@ -71,7 +75,7 @@ func GetPlanContexts(orgId, planId string, includeBody bool) ([]*Context, error)
 	return contexts, nil
 }
 
-func GetContext(orgId, planId, contextId string, includeBody bool) (*Context, error) {
+func GetContext(orgId, planId, contextId string, includeBody, includeMapParts bool) (*Context, error) {
 	contextDir := getPlanContextDir(orgId, planId)
 
 	// read the meta file
@@ -100,6 +104,22 @@ func GetContext(orgId, planId, contextId string, includeBody bool) (*Context, er
 		context.Body = string(bodyBytes)
 	}
 
+	if includeMapParts {
+		// read the map parts file
+		mapPartsPath := filepath.Join(contextDir, strings.TrimSuffix(contextId, ".meta")+".map-parts")
+		mapPartsBytes, err := os.ReadFile(mapPartsPath)
+		if !os.IsNotExist(err) {
+			if err != nil {
+				return nil, fmt.Errorf("error reading context map parts file: %v", err)
+			}
+
+			err = json.Unmarshal(mapPartsBytes, &context.MapParts)
+			if err != nil {
+				return nil, fmt.Errorf("error unmarshalling context map parts file: %v", err)
+			}
+		}
+	}
+
 	return &context, nil
 }
 
@@ -113,7 +133,7 @@ func ContextRemove(orgId, planId string, contexts []*Context) error {
 	for _, context := range contexts {
 		filesToUpdate[context.FilePath] = ""
 		contextDir := getPlanContextDir(orgId, planId)
-		for _, ext := range []string{".meta", ".body"} {
+		for _, ext := range []string{".meta", ".body", ".map-parts"} {
 			go func(context *Context, dir, ext string) {
 				errCh <- os.Remove(filepath.Join(dir, context.Id+ext))
 			}(context, contextDir, ext)
@@ -122,7 +142,7 @@ func ContextRemove(orgId, planId string, contexts []*Context) error {
 
 	for i := 0; i < numFiles; i++ {
 		err := <-errCh
-		if err != nil {
+		if err != nil && !os.IsNotExist(err) {
 			return fmt.Errorf("error removing context file: %v", err)
 		}
 	}
@@ -136,6 +156,9 @@ func ContextRemove(orgId, planId string, contexts []*Context) error {
 }
 
 func StoreContext(context *Context) error {
+	// log.Println("Storing context", context.Id)
+	// log.Println("Num tokens", context.NumTokens)
+
 	contextDir := getPlanContextDir(context.OrgId, context.PlanId)
 
 	err := os.MkdirAll(contextDir, os.ModePerm)
@@ -162,6 +185,7 @@ func StoreContext(context *Context) error {
 	body := []byte(originalBody)
 	context.Body = ""
 
+	originalMapParts := context.MapParts
 	var mapPath string
 	var mapBytes []byte
 	if len(context.MapParts) > 0 {
@@ -197,6 +221,7 @@ func StoreContext(context *Context) error {
 	}
 
 	context.Body = originalBody
+	context.MapParts = originalMapParts
 
 	return nil
 }
@@ -264,13 +289,21 @@ func LoadContexts(ctx Ctx, params LoadContextsParams) (*shared.LoadContextRespon
 				return nil, nil, fmt.Errorf("error processing map files: %v", err)
 			}
 
-			mapParts, err := createFileMapParts(mappedFiles)
-			if err != nil {
-				return nil, nil, fmt.Errorf("error creating map parts: %v", err)
+			mapShas := make(map[string]string, len(context.MapInputs))
+			mapTokens := make(map[string]int, len(context.MapInputs))
+			for path, input := range context.MapInputs {
+				hash := sha256.Sum256([]byte(input))
+				mapShas[path] = hex.EncodeToString(hash[:])
+				mapBody := mappedFiles[path]
+				mapTokens[path], err = shared.GetNumTokens(mapBody)
+				if err != nil {
+					return nil, nil, fmt.Errorf("error getting num tokens for %s: %v", path, err)
+				}
 			}
 
-			combinedBody, combinedSha := combineMapParts(mapParts)
-			numTokens, err := shared.GetNumTokens(combinedBody)
+			combinedBody := mappedFiles.CombinedMap()
+
+			numTokens, err = shared.GetNumTokens(combinedBody)
 			if err != nil {
 				return nil, nil, fmt.Errorf("error getting num tokens: %v", err)
 			}
@@ -285,9 +318,10 @@ func LoadContexts(ctx Ctx, params LoadContextsParams) (*shared.LoadContextRespon
 				Url:         context.Url,
 				FilePath:    context.FilePath,
 				NumTokens:   numTokens,
-				Sha:         combinedSha,
 				Body:        combinedBody,
-				MapParts:    mapParts,
+				MapParts:    mappedFiles,
+				MapShas:     mapShas,
+				MapTokens:   mapTokens,
 			}
 
 			mapContextsByFilePath[context.FilePath] = newContext
@@ -460,6 +494,8 @@ func UpdateContexts(params UpdateContextsParams) (*shared.UpdateContextResponse,
 		return nil, fmt.Errorf("total context body size exceeds limit (size %.2f MB, limit %d MB)", float64(totalBodySize)/1024/1024, int(shared.MaxContextBodySize)/1024/1024)
 	}
 
+	//test
+
 	var updatedContexts []*shared.Context
 
 	numFiles := 0
@@ -478,12 +514,14 @@ func UpdateContexts(params UpdateContextsParams) (*shared.UpdateContextResponse,
 				context = contextsById[id]
 			} else {
 				var err error
-				context, err = GetContext(orgId, planId, id, true)
+				context, err = GetContext(orgId, planId, id, true, true)
 
 				if err != nil {
 					errCh <- fmt.Errorf("error getting context: %v", err)
 					return
 				}
+
+				// log.Println("Got context", context.Id, "numTokens", context.NumTokens)
 			}
 
 			mu.Lock()
@@ -492,26 +530,31 @@ func UpdateContexts(params UpdateContextsParams) (*shared.UpdateContextResponse,
 			contextsById[id] = context
 			updatedContexts = append(updatedContexts, context.ToApi())
 
-			var updateNumTokens int
-			var err error
+			if context.ContextType != shared.ContextMapType {
+				var updateNumTokens int
+				var err error
 
-			if context.ContextType == shared.ContextImageType {
-				updateNumTokens, err = shared.GetImageTokens(params.Body, context.ImageDetail)
-			} else {
-				updateNumTokens, err = shared.GetNumTokens(params.Body)
+				if context.ContextType == shared.ContextImageType {
+					updateNumTokens, err = shared.GetImageTokens(params.Body, context.ImageDetail)
+				} else {
+					updateNumTokens, err = shared.GetNumTokens(params.Body)
+
+					// log.Println("len(params.Body)", len(params.Body))
+				}
+
+				// log.Println("Updating context", id, "updateNumTokens", updateNumTokens)
+
+				if err != nil {
+					errCh <- fmt.Errorf("error getting num tokens: %v", err)
+					return
+				}
+
+				tokenDiff := updateNumTokens - context.NumTokens
+				tokenDiffsById[id] = tokenDiff
+				tokensDiff += tokenDiff
+				totalTokens += tokenDiff
+				context.NumTokens = updateNumTokens
 			}
-
-			if err != nil {
-				errCh <- fmt.Errorf("error getting num tokens: %v", err)
-				return
-			}
-
-			tokenDiff := updateNumTokens - context.NumTokens
-			tokenDiffsById[id] = tokenDiff
-			tokensDiff += tokenDiff
-			totalTokens += tokenDiff
-
-			context.NumTokens = updateNumTokens
 
 			switch context.ContextType {
 			case shared.ContextFileType:
@@ -574,14 +617,57 @@ func UpdateContexts(params UpdateContextsParams) (*shared.UpdateContextResponse,
 
 	for id, params := range *req {
 		go func(id string, params *shared.UpdateContextParams) {
-
 			context := contextsById[id]
 
-			hash := sha256.Sum256([]byte(params.Body))
-			sha := hex.EncodeToString(hash[:])
+			if context.ContextType == shared.ContextMapType {
+				oldNumTokens := context.NumTokens
 
-			context.Body = params.Body
-			context.Sha = sha
+				// log.Println("Updating map context", id, "oldNumTokens", oldNumTokens)
+
+				for path, part := range params.MapBodies {
+					context.MapParts[path] = part
+					context.MapShas[path] = params.InputShas[path]
+
+					numTokens, err := shared.GetNumTokens(part)
+					if err != nil {
+						errCh <- fmt.Errorf("error getting num tokens for %s: %v", path, err)
+						return
+					}
+					context.MapTokens[path] = numTokens
+				}
+
+				for _, path := range params.RemovedMapPaths {
+					delete(context.MapParts, path)
+					delete(context.MapShas, path)
+					delete(context.MapTokens, path)
+				}
+
+				context.Body = context.MapParts.CombinedMap()
+				newNumTokens, err := shared.GetNumTokens(context.Body)
+				if err != nil {
+					errCh <- fmt.Errorf("error getting num tokens for %s: %v", context.Id, err)
+					return
+				}
+
+				// log.Println("Updated map context", id, "newNumTokens", newNumTokens)
+
+				tokenDiff := newNumTokens - oldNumTokens
+
+				// log.Println("Updated map context", id, "tokenDiff", tokenDiff)
+
+				tokenDiffsById[id] = tokenDiff
+				tokensDiff += tokenDiff
+
+				// log.Println("Updated map context", id, "tokensDiff", tokensDiff)
+
+				totalTokens += tokenDiff
+
+				// log.Println("Updated map context", id, "totalTokens", totalTokens)
+
+				context.NumTokens = newNumTokens
+			} else {
+				context.Body = params.Body
+			}
 
 			err := StoreContext(context)
 
@@ -692,89 +778,32 @@ func invalidateConflictedResults(orgId, planId string, filesToUpdate map[string]
 	return nil
 }
 
-type fileMapResult struct {
-	path string
-	body string
-	err  error
-}
-
 // processMapFiles handles concurrent processing of multiple files for mapping
-func processMapFiles(ctx Ctx, inputs map[string]string) (map[string]fileMapResult, error) {
-	results := make(chan fileMapResult, len(inputs))
+func processMapFiles(ctx Ctx, inputs map[string]string) (shared.FileMapBodies, error) {
+	bodies := make(shared.FileMapBodies, len(inputs))
+	var mu sync.Mutex
+	errCh := make(chan error, len(inputs))
 
 	for path, content := range inputs {
 		go func(path, content string) {
 			fileMap, err := syntax.MapFile(ctx, path, []byte(content))
 			if err != nil {
-				results <- fileMapResult{path: path, err: err}
+				errCh <- fmt.Errorf("error mapping file %s: %v", path, err)
 				return
 			}
-			results <- fileMapResult{
-				path: path,
-				body: fileMap.String(),
-			}
+			mu.Lock()
+			defer mu.Unlock()
+			bodies[path] = fileMap.String()
+			errCh <- nil
 		}(path, content)
 	}
 
-	// Collect results
-	mapResults := make(map[string]fileMapResult)
 	for i := 0; i < len(inputs); i++ {
-		result := <-results
-		if result.err != nil {
-			return nil, fmt.Errorf("error mapping file %s: %v", result.path, result.err)
-		}
-		mapResults[result.path] = result
-	}
-
-	return mapResults, nil
-}
-
-// createFileMapParts converts mapped files into FileMapParts with tokens and hashes
-func createFileMapParts(mappedFiles map[string]fileMapResult) (shared.FileMapParts, error) {
-	mapParts := make(shared.FileMapParts)
-
-	for path, result := range mappedFiles {
-		hash := sha256.Sum256([]byte(result.body))
-		sha := hex.EncodeToString(hash[:])
-
-		tokens, err := shared.GetNumTokens(result.body)
+		err := <-errCh
 		if err != nil {
-			return nil, fmt.Errorf("error getting num tokens for %s: %v", path, err)
-		}
-
-		mapParts[path] = shared.FileMapPart{
-			Body:      result.body,
-			Sha:       sha,
-			NumTokens: tokens,
+			return nil, err
 		}
 	}
 
-	return mapParts, nil
-}
-
-// combineMapParts creates a combined body and hash from FileMapParts
-func combineMapParts(mapParts shared.FileMapParts) (combinedBody string, combinedSha string) {
-	var combinedMap strings.Builder
-	var combinedHashes bytes.Buffer
-
-	// Sort paths for consistent ordering
-	paths := make([]string, 0, len(mapParts))
-	for path := range mapParts {
-		paths = append(paths, path)
-	}
-	sort.Strings(paths)
-
-	for _, path := range paths {
-		part := mapParts[path]
-		fileHeading := fmt.Sprintf("### %s\n", path)
-		combinedMap.WriteString(fileHeading)
-		combinedMap.WriteString(part.Body)
-		combinedMap.WriteString("\n")
-
-		hash := sha256.Sum256([]byte(part.Body))
-		combinedHashes.Write(hash[:])
-	}
-
-	combinedHash := sha256.Sum256(combinedHashes.Bytes())
-	return combinedMap.String(), hex.EncodeToString(combinedHash[:])
+	return bodies, nil
 }

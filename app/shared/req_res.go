@@ -157,7 +157,6 @@ type RespondMissingFileRequest struct {
 }
 
 type FileMapInputs map[string]string
-type FileMapBodies map[string]string
 
 type LoadContextParams struct {
 	ContextType     ContextType           `json:"contextType"`
@@ -188,8 +187,8 @@ type LoadContextResponse struct {
 
 type UpdateContextParams struct {
 	Body            string            `json:"body"`
-	MapBodies       FileMapBodies     `json:"mapBodies"`
 	InputShas       map[string]string `json:"inputShas"`
+	MapBodies       FileMapBodies     `json:"mapBodies"`
 	RemovedMapPaths []string          `json:"removedMapPaths"`
 }
 

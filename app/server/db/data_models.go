@@ -390,7 +390,9 @@ type Context struct {
 	BodySize        int64                 `json:"bodySize,omitempty"`
 	ForceSkipIgnore bool                  `json:"forceSkipIgnore"`
 	ImageDetail     openai.ImageURLDetail `json:"imageDetail,omitempty"`
-	MapParts        shared.FileMapParts   `json:"mapParts,omitempty"`
+	MapParts        shared.FileMapBodies  `json:"mapParts,omitempty"`
+	MapShas         map[string]string     `json:"mapShas,omitempty"`
+	MapTokens       map[string]int        `json:"mapTokens,omitempty"`
 	CreatedAt       time.Time             `json:"createdAt"`
 	UpdatedAt       time.Time             `json:"updatedAt"`
 }
@@ -410,6 +412,8 @@ func (context *Context) ToApi() *shared.Context {
 		ForceSkipIgnore: context.ForceSkipIgnore,
 		ImageDetail:     context.ImageDetail,
 		MapParts:        context.MapParts,
+		MapShas:         context.MapShas,
+		MapTokens:       context.MapTokens,
 		CreatedAt:       context.CreatedAt,
 		UpdatedAt:       context.UpdatedAt,
 	}
