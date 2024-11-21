@@ -22,19 +22,17 @@ const MaxCreditsLogPageSize = 500
 var logCreditsPageSize int
 var logCreditsPage int
 
-var creditsLogCmd = &cobra.Command{
-	Use:   "log",
+var usageCmd = &cobra.Command{
+	Use:   "usage",
 	Short: "Display the credits transactions log",
 	Run:   creditsLog,
 }
 
 func init() {
-	creditsLogCmd.Flags().IntVarP(&logCreditsPageSize, "page-size", "s", 20, "Number of transactions to display per page")
-	creditsLogCmd.Flags().IntVarP(&logCreditsPage, "page", "p", 1, "Page number to display")
+	usageCmd.Flags().IntVarP(&logCreditsPageSize, "page-size", "s", 20, "Number of transactions to display per page")
+	usageCmd.Flags().IntVarP(&logCreditsPage, "page", "p", 1, "Page number to display")
 
-	// subcommand of 'credits'
-	creditsCmd.AddCommand(creditsLogCmd)
-
+	RootCmd.AddCommand(usageCmd)
 }
 
 func creditsLog(cmd *cobra.Command, args []string) {

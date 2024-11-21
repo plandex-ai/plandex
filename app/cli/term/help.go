@@ -67,7 +67,7 @@ var CmdDesc = map[string][2]string{
 	"revoke":                    {"", "revoke an invite or remove a user from your org"},
 	"users":                     {"", "list users and pending invites in your org"},
 	"credits":                   {"", "show Plandex Cloud credits balance"},
-	"credits log":               {"", "show Plandex Cloud credits transaction log"},
+	"usage":                     {"", "show Plandex Cloud credits transaction log"},
 	"billing":                   {"", "show Plandex Cloud billing settings"},
 }
 
@@ -182,7 +182,7 @@ func PrintCustomHelp(all bool) {
 		fmt.Fprintln(builder)
 
 		color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Cloud ")
-		printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "credits", "credits log", "billing")
+		printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "credits", "usage", "billing")
 
 	} else {
 

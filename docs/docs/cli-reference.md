@@ -671,10 +671,10 @@ Show your current credits balance.
 plandex credits
 ```
 
-### credits log
+### usage
 
 Show the credits usage log, including all model calls and responses.
 
 ```bash
-plandex credits log
+plandex usage
 ```

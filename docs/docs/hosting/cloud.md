@@ -40,7 +40,7 @@ If you're using **Integrated Models Mode**, you can use the billing settings pag
 
 You can also see your credits balance in the terminal with `plandex credits`.
 
-You can see a full history of your usage that includes every model call and response with `plandex credits log`.
+You can see a full history of your usage that includes every model call and response with `plandex usage`.
 
 ## Privacy / Data Retention
 

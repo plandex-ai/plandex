@@ -54,5 +54,5 @@ func credits(cmd *cobra.Command, args []string) {
 	table.Render()
 
 	fmt.Println()
-	term.PrintCmds("", "credits log", "billing")
+	term.PrintCmds("", "usage", "billing")
 }
