@@ -201,7 +201,16 @@ type GetFileMapResponse struct {
 	MapBodies FileMapBodies `json:"mapBodies"`
 }
 
+type GetContextBodyRequest struct {
+	ContextId string `json:"contextId"`
+}
+
+type GetContextBodyResponse struct {
+	Body string `json:"body"`
+}
+
 type UpdateContextRequest map[string]*UpdateContextParams
+
 
 type UpdateContextResponse = LoadContextResponse
 

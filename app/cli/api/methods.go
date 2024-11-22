@@ -2118,6 +2118,34 @@ func (a *Api) GetFileMap(req shared.GetFileMapRequest) (*shared.GetFileMapRespon
 	return &respBody, nil
 }
 
+func (a *Api) GetContextBody(planId, branch, contextId string) (*shared.GetContextBodyResponse, *shared.ApiError) {
+	serverUrl := fmt.Sprintf("%s/plans/%s/%s/context/%s/body", GetApiHost(), planId, branch, contextId)
+
+	resp, err := authenticatedFastClient.Get(serverUrl)
+	if err != nil {
+		return nil, &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error sending request: %v", err)}
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		errorBody, _ := io.ReadAll(resp.Body)
+		apiErr := HandleApiError(resp, errorBody)
+		tokenRefreshed, apiErr := refreshTokenIfNeeded(apiErr)
+		if tokenRefreshed {
+			return a.GetContextBody(planId, branch, contextId)
+		}
+		return nil, apiErr
+	}
+
+	var respBody shared.GetContextBodyResponse
+	err = json.NewDecoder(resp.Body).Decode(&respBody)
+	if err != nil {
+		return nil, &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error decoding response: %v", err)}
+	}
+
+	return &respBody, nil
+}
+
 func (a *Api) AutoLoadContext(planId, branch string, req shared.LoadContextRequest) (*shared.LoadContextResponse, *shared.ApiError) {
 	serverUrl := fmt.Sprintf("%s/plans/%s/%s/auto_load_context", GetApiHost(), planId, branch)
 	reqBytes, err := json.Marshal(req)

@@ -64,6 +64,68 @@ func ListContextHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write(bytes)
 }
 
+func GetContextBodyHandler(w http.ResponseWriter, r *http.Request) {
+	log.Println("Received request for GetContextBodyHandler")
+
+	auth := Authenticate(w, r, true)
+	if auth == nil {
+		return
+	}
+
+	vars := mux.Vars(r)
+	planId := vars["planId"]
+	contextId := vars["contextId"]
+	log.Println("planId:", planId, "contextId:", contextId)
+
+	if authorizePlan(w, planId, auth) == nil {
+		return
+	}
+
+	var err error
+	ctx, cancel := context.WithCancel(context.Background())
+	unlockFn := LockRepo(w, r, auth, db.LockScopeRead, ctx, cancel, true)
+	if unlockFn == nil {
+		return
+	} else {
+		defer func() {
+			(*unlockFn)(err)
+		}()
+	}
+
+	dbContexts, err := db.GetPlanContexts(auth.OrgId, planId, false, false)
+	if err != nil {
+		log.Printf("Error getting contexts: %v\n", err)
+		http.Error(w, "Error getting contexts: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	var targetContext *db.Context
+	for _, dbContext := range dbContexts {
+		if dbContext.Id == contextId {
+			targetContext = dbContext
+			break
+		}
+	}
+
+	if targetContext == nil {
+		http.Error(w, "Context not found", http.StatusNotFound)
+		return
+	}
+
+	response := shared.GetContextBodyResponse{
+		Body: targetContext.Body,
+	}
+
+	bytes, err := json.Marshal(response)
+	if err != nil {
+		log.Printf("Error marshalling response: %v\n", err)
+		http.Error(w, "Error marshalling response: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Write(bytes)
+}
+
 func LoadContextHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for LoadContextHandler")
 
