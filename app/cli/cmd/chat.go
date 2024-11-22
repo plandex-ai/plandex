@@ -25,6 +25,7 @@ func init() {
 
 	chatCmd.Flags().StringVarP(&tellPromptFile, "file", "f", "", "File containing prompt")
 	chatCmd.Flags().BoolVarP(&autoConfirm, "yes", "y", false, "Automatically confirm context updates")
+	chatCmd.Flags().BoolVar(&tellAutoContext, "auto-context", false, "Load and manage context automatically")
 }
 
 func doChat(cmd *cobra.Command, args []string) {
@@ -54,5 +55,8 @@ func doChat(cmd *cobra.Command, args []string) {
 		CheckOutdatedContext: func(maybeContexts []*shared.Context) (bool, bool, error) {
 			return lib.CheckOutdatedContextWithOutput(false, autoConfirm, maybeContexts)
 		},
-	}, prompt, false, false, false, false, false, true)
+	}, prompt, plan_exec.TellFlags{
+		IsChatOnly:  true,
+		AutoContext: tellAutoContext,
+	})
 }

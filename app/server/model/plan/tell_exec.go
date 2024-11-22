@@ -21,7 +21,15 @@ import (
 func Tell(clients map[string]*openai.Client, plan *db.Plan, branch string, auth *types.ServerAuth, req *shared.TellPlanRequest) error {
 	log.Printf("Tell: Called with plan ID %s on branch %s\n", plan.Id, branch)
 
-	_, err := activatePlan(clients, plan, branch, auth, req.Prompt, false)
+	_, err := activatePlan(
+		clients,
+		plan,
+		branch,
+		auth,
+		req.Prompt,
+		false,
+		req.AutoContext,
+	)
 
 	if err != nil {
 		log.Printf("Error activating plan: %v\n", err)
@@ -156,7 +164,17 @@ func execTellPlan(
 		}
 	}
 
-	modelContextText, modelContextTokens, err := lib.FormatModelContext(state.modelContext)
+	// if auto context is enabled, we only include maps and trees on the first iteration, which is the context-gathering step
+	var (
+		includeMaps  = true
+		includeTrees = true
+	)
+	if req.AutoContext && iteration > 0 {
+		includeMaps = false
+		includeTrees = false
+	}
+
+	modelContextText, modelContextTokens, err := lib.FormatModelContext(state.modelContext, includeMaps, includeTrees)
 	if err != nil {
 		err = fmt.Errorf("error formatting model modelContext: %v", err)
 		log.Println(err)
@@ -169,7 +187,17 @@ func execTellPlan(
 		return
 	}
 
-	systemMessageText := prompts.SysCreate + modelContextText
+	var sysCreate string
+	if req.AutoContext {
+		if iteration == 0 {
+			sysCreate = prompts.AutoContextPreamble
+		} else {
+			sysCreate = prompts.SysCreateAutoContext
+		}
+	} else {
+		sysCreate = prompts.SysCreateBasic
+	}
+	systemMessageText := sysCreate + modelContextText
 	systemMessage := openai.ChatCompletionMessage{
 		Role:    openai.ChatMessageRoleSystem,
 		Content: systemMessageText,
@@ -246,10 +274,21 @@ func execTellPlan(
 		promptTokens = prompts.PromptWrapperTokens + numPromptTokens
 	}
 
-	state.tokensBeforeConvo = prompts.CreateSysMsgNumTokens + modelContextTokens + state.latestSummaryTokens + promptTokens
+	var sysCreateTokens int
+	if req.AutoContext {
+		if iteration == 0 {
+			sysCreateTokens = prompts.AutoContextPreambleNumTokens
+		} else {
+			sysCreateTokens = prompts.SysCreateAutoContextNumTokens
+		}
+	} else {
+		sysCreateTokens = prompts.SysCreateBasicNumTokens
+	}
+
+	state.tokensBeforeConvo = sysCreateTokens + modelContextTokens + state.latestSummaryTokens + promptTokens
 
 	// print out breakdown of token usage
-	log.Printf("System message tokens: %d\n", prompts.CreateSysMsgNumTokens)
+	log.Printf("System message tokens: %d\n", sysCreateTokens)
 	log.Printf("Context tokens: %d\n", modelContextTokens)
 	log.Printf("Prompt tokens: %d\n", promptTokens)
 	log.Printf("Latest summary tokens: %d\n", state.latestSummaryTokens)

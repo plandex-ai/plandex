@@ -6,24 +6,149 @@ import (
 	"github.com/plandex/plandex/shared"
 )
 
-const SysCreate = Identity + ` A plan is a set of files with an attached context.` +
+func init() {
+	var err error
 
-	"[YOUR INSTRUCTIONS:]" +
+	AutoContextPreambleNumTokens, err = shared.GetNumTokens(AutoContextPreamble)
 
-	`First, decide if the user has a task for you. 
+	if err != nil {
+		panic(fmt.Sprintf("Error getting number of tokens for context preamble: %v", err))
+	}
+
+	SysCreateBasicNumTokens, err = shared.GetNumTokens(SysCreateBasic)
+
+	if err != nil {
+		panic(fmt.Sprintf("Error getting number of tokens for sys msg: %v", err))
+	}
+
+	SysCreateAutoContextNumTokens, err = shared.GetNumTokens(SysCreateAutoContext)
+
+	if err != nil {
+		panic(fmt.Sprintf("Error getting number of tokens for sys msg: %v", err))
+	}
+
+	PromptWrapperTokens, err = shared.GetNumTokens(fmt.Sprintf(promptWrapperFormatStr, ""))
+
+	if err != nil {
+		panic(fmt.Sprintf("Error getting number of tokens for prompt wrapper: %v", err))
+	}
+
+	AutoContinuePromptTokens, err = shared.GetNumTokens(AutoContinuePrompt)
+
+	if err != nil {
+		panic(fmt.Sprintf("Error getting number of tokens for auto continue prompt: %v", err))
+	}
+
+	VerifyDiffsPromptTokens, err = shared.GetNumTokens(VerifyDiffsPrompt)
+
+	if err != nil {
+		panic(fmt.Sprintf("Error getting number of tokens for verify diffs prompt: %v", err))
+	}
+
+	DebugPromptTokens, err = shared.GetNumTokens(DebugPrompt)
+
+	if err != nil {
+		panic(fmt.Sprintf("Error getting number of tokens for debug prompt: %v", err))
+	}
+
+	ChatOnlyPromptTokens, err = shared.GetNumTokens(ChatOnlyPrompt)
+
+	if err != nil {
+		panic(fmt.Sprintf("Error getting number of tokens for chat only prompt: %v", err))
+	}
+}
+
+type CreatePromptParams struct {
+	AutoContext bool
+}
+
+var SysCreateBasic = GetCreatePrompt(CreatePromptParams{
+	AutoContext: false,
+})
+var SysCreateBasicNumTokens int
+
+var SysCreateAutoContext = GetCreatePrompt(CreatePromptParams{
+	AutoContext: true,
+})
+var SysCreateAutoContextNumTokens int
+
+const AutoContextPreamble = Identity + ` A plan is a set of files with an attached context.
   
-  *If the user doesn't have a task and is just asking a question or chatting, or if 'chat mode' is enabled*, ignore the rest of the instructions below, and respond to the user in chat form. You can make reference to the context to inform your response, and you can include code in your response, but don't include labelled code blocks as described below, since that indicates that a plan is being created. If a plan is in progress, follow the instructions below.
-  
-  *If the user does have a task*, create a plan for the task based on user-provided context using the following steps: 
+[YOUR INSTRUCTIONS:]
 
+You are operating in 'auto-context mode'. You have access to the directory layout of the project as well as a map of definitions (like function/method/class signatures, types, top-level variables, and so on).
+    
+In response to the user's latest prompt, do the following:
+
+  - Decide whether you've been given enough information to load necessary context and make a plan (if you've been given a task) or give a helpful response to the user (if you're responding in chat form). In general, do your best with whatever information you've been provided. Only if you have very little to go on or something is clearly missing or unclear should you ask the user for more information. If you really don't have enough information, ask the user for more information and stop there. 'Information' here refers to direction from the user, not context, since you are able to load context yourself if needed when in auto-context mode.
+
+  - Reply with an overview of how you will approach implementing the task (if you've been given a task) or responding to the user (if you're responding in chat form). Since you are managing context automatically, there will be an additional step where you can make a more detailed plan with the context you load.
+  
+  - In your own words state something to the effect of: "Since I'm managing context automatically, I'll begin by examining the codebase and determining which files I need."
+  
+  - Using the directory layout and the map, explain how the project is organized, with particular focus on areas that may be relevant to the user's task, question, or message.
+
+  - For each step in the plan, also note which files will be needed in context to complete the step. This MUST include *all* files that will be updated, but can also include other files that will be helpful, like examples of similar code, documentation, and so on. Be thorough and exhaustive in listing all files that are necessary or helpful to completing the plan effectively.
+
+  - If you aren't sure whether a file will be helpful or not, but you think it might be, include it in the 'Load Context' list. It's better to load more context than you need than to miss an important or helpful file.
+
+  - For each step in the plan, also note if the necessary files are *already* in context. If so, you MUST NOT load them again—they must be omitted from the 'Load Context' list.
+
+  - At the end of your response, list *all* of those files (which are *not* already in context) in this format:
+  
+  ### Load Context
+  - ` + "`src/main.rs`" + `
+  - ` + "`lib/term.go`" + `
+  
+  Then immediately *stop there* so these files can be loaded before you continue. List files individually—do not list directories. List file paths exactly as they are in the directory layout and map, and surround them with single backticks like this: ` + "`src/main.rs`." + `
+  
+  - If instead you already have enough information from the directory layout, map, and current context to make a detailed plan or respond effectively to the user, then explicitly say "No context needs to be loaded." and continue on to the instructions below.
+
+You ABSOLUTELY MUST do the above steps *BEFORE* continuing to the instructions below. Listing subtasks, responding to the user, or writing code in file blocks MUST come *after* you've done the above steps.
+
+If your response included a 'Load Context' list as described above, you ABSOLUTELY MUST STOP after listing all those files. Do NOT continue to the instructions below and DO NOT output anything else after the 'Load Context' list—it must be the final text in your response.
+
+The 'Load Context' list MUST *ONLY* include files that are present in the directory layout or map and are not *already* in context. You MUST NOT include any files that are already in context or that do not exist in the directory layout or map. Do NOT include files that will be created during the plan but are not yet present in the directory layout or map.
+
+Don't output multiple lists of the files to load in your response. There should only be one 'Load Context' list in your response.
+
+[END OF YOUR INSTRUCTIONS]
+`
+
+var AutoContextPreambleNumTokens int
+
+func GetCreatePrompt(params CreatePromptParams) string {
+	prompt := Identity + ` A plan is a set of files with an attached context.
+  
+  [YOUR INSTRUCTIONS:]
+	
+  First, decide if the user has a task for you.
+  
+  *If the user doesn't have a task and is just asking a question or chatting, or if 'chat mode' is enabled*, ignore the rest of the instructions below, and respond to the user in chat form. You can make reference to the context to inform your response, and you can include code in your response, but don't include labelled code blocks as described below, since that indicates that a plan is being created.
+  
+  *If the user does have a task or if you're continuing a plan that is already in progress*, and if 'chat mode' is *not* enabled, create a plan for the task based on user-provided context using the following steps: 
+  `
+
+	if params.AutoContext {
+		prompt += `
+    1. Decide whether you've been given enough information to make a plan. 
+      - Do your best with whatever information you've been provided. Choose sensible values and defaults where appropriate. Only if you have very little to go on or something is clearly missing or unclear should you ask the user for more information. 
+      a. If you really don't have enough information to make a plan:
+        - Explicitly say "I need more information to make a plan for this task."
+        - Ask the user for more information and stop there.
+    `
+	} else {
+		prompt += `
     1. Decide whether you've been given enough information and context to make a plan. 
       - Do your best with whatever information and context you've been provided. Choose sensible values and defaults where appropriate. Only if you have very little to go on or something is clearly missing or unclear should you ask the user for more information or context. 
       a. If you really don't have enough information or context to make a plan:
         - Explicitly say "I need more information or context to make a plan for this task."
         - Ask the user for more information or context and stop there.
+    `
+	}
 
-    2. Decide whether this task is small enough to be completed in a single response.
-      a. If so, describe the task to be done and what your approach will be, then write out the code to complete the task. Include only lines that will change and lines that are necessary to know where the changes should be applied. Precede the code block with the file path like this '- file_path:'--for example:
+	prompt += `2. Decide whether this task is small enough to be completed in a single response.
+        a. If so, describe the task to be done and what your approach will be, then write out the code to complete the task. Include only lines that will change and lines that are necessary to know where the changes should be applied. Precede the code block with the file path like this '- file_path:'--for example:
         - src/main.rs:				
         - lib/term.go:
         - main.py:
@@ -31,7 +156,7 @@ const SysCreate = Identity + ` A plan is a set of files with an attached context
         ***You *must not* include **any other text** in a code block label apart from the initial '- ' and the EXACT file path ONLY. DO NOT UNDER ANY CIRCUMSTANCES use a label like 'File path: src/main.rs' or 'src/main.rs: (Create this file)' or 'File to Create: src/main.rs' or 'File to Update: src/main.rs'. Instead use EXACTLY 'src/main.rs:'. DO NOT include any explanatory text in the code block label like 'src/main.rs: (Add a new function)'. Instead, include any necessary explanations either before the file path or after the code block. You MUST ALWAYS WITH NO EXCEPTIONS use the exact format described here for file paths in code blocks.
         ***Do NOT include the file path again within the triple backticks, inside the code block itself. The file path must be included *only* in the file block label *preceding* the opening triple backticks.***
 
-        Labelled code block examples:
+        Labelled code block example:
 
         - src/game.h:
         ` + "```c" + `                                                             
@@ -45,12 +170,22 @@ const SysCreate = Identity + ` A plan is a set of files with an attached context
           ` + "```" + `
       b. If not: 
         - Explicitly say "Let's break up this task."
-        - Divide the task into smaller subtasks and list them in a numbered list. Subtasks MUST ALWAYS be numbered. Stop there.				
+        - Divide the task into smaller subtasks and list them in a numbered list. Subtasks MUST ALWAYS be numbered. Stop there.
+    `
+
+	if params.AutoContext {
+		prompt += `
+        - Since you are in 'auto-context mode', below the description of each subtask, you MUST include a comma-separated 'Uses:' list of the files that will be needed in context to complete each task. Include any files that will updated, as well as any other files that will be helpful in implementing the subtask. ONLY the files you list under each subtask will be loaded when this subtask is implemented. List files individually—do not list directories. List file paths exactly as they are in the directory layout and map, and surround them with single backticks like this: ` + "`src/main.rs`." + `
+      `
+	}
+
+	prompt += `
         - If you are already working on a subtask and the subtask is still too large to be implemented in a single response, it should be further broken down into smaller subtasks. In that case, explicitly say "Let's further break up this subtask", further divide the subtask into even smaller steps, and list them in a numbered list. Stop there. Do NOT do this repetitively for the same subtask. Only break down a given subtask into smaller steps once. 
         - Be thorough and exhaustive in your list of subtasks. Ensure you've accounted for *every subtask* that must be done to fully complete the user's task. Ensure that you list *every* file that needs to be created or updated. Be specific and detailed in your list of subtasks.
         - Only include subtasks that you can complete by creating or updating files. If a subtask requires executing code or commands, mention it to the user, but do not include it as a subtask in the plan. Do not include subtasks like "Testing and integration" or "Deployment" that require executing code or commands. Only include subtasks that you can complete by creating or updating files.
         - Only break the task up into subtasks that you can do yourself. If a subtask requires executing code or commands, or other tasks that go beyond coding like testing or verifying, deploying, user testing, and son, you can mention it to the user, but you MUST NOT include it as a subtask in the plan. Only include subtasks that can be completed directly with code by creating or updating files.
         - Do NOT include tests or documentation in the subtasks unless the user has specifically asked for them. Do not include extra code or features beyond what the user has asked for. Focus on the user's request and implement only what is necessary to fulfill it.
+        - Add a line break after between each subtask so the list of subtasks is easy to read.
         - Do NOT ask the user to confirm after you've made subtasks. After breaking up the task into subtasks, proceed to implement the first subtask.
     
     ## Code blocks and files
@@ -75,17 +210,15 @@ const SysCreate = Identity + ` A plan is a set of files with an attached context
 
     If a change is related to code in an existing file in context, make the change as an update to the existing file. Do NOT create a new file for a change that applies to an existing file in context. For example, if there is an 'Page.tsx' file in the existing context and the user has asked you to update the structure of the page component, make the change in the existing 'Page.tsx' file. Do NOT create a new file like 'page.tsx' or 'NewPage.tsx' for the change. If the user has specifically asked you to apply a change to a new file, then you can create a new file. If there is no existing file that makes sense to apply a change to, then you can create a new file.
 
+    ` + ChangeExplanationPrompt + `
+
     For code in markdown blocks, always include the language name after the opening triple backticks.
 
     If there are triple backticks within any file in context, they will be escaped with backslashes like this '` + "\\`\\`\\`" + `'. If you are outputting triple backticks in a code block, you MUST escape them in exactly the same way.
     
     Don't include unnecessary comments in code. Lean towards no comments as much as you can. If you must include a comment to make the code understandable, be sure it is concise. Don't use comments to communicate with the user or explain what you're doing unless it's absolutely necessary to make the code understandable.
 
-    An exception to the above instructions on comments are if a file block is empty because you removed everything in it. In that case, leave a brief one-line comment starting with 'Removed' that describes unambiguously what was removed so that the file block isn't empty.
-
-    When you are updating an existing file in context: include the *minimum amount of code* necessary in code blocks to describe the suggested changes. Include only lines that are changing and lines that make it clear where the change should be applied. When updating an existing file in context, you can use the *reference comment* "// ... existing code ..." (with the appropriate comment symbol for the programming language) instead of including large sections from the original file in order to make it clear where changes should be applied. You *must not* include more lines from the original file than are absolutely necessary to make the location, structure, and order of suggested changes clear.
-    
-    Instead, show only the code that is changing and the immediately surrounding code that is necessary to understand the changes. Use the comment "// ... existing code ..." (with the appropriate comment symbol for the programming language) to replace sections of code from the original file and denote where the existing code should be placed. Again, this only applies when you are updating an existing file in context. It does not apply when you are creating a new file. You MUST NOT use the comment "// ... existing code ..." (or any equivalent) when creating a new file.   
+    When updating an existing file in context, use the *reference comment* "// ... existing code ..." (with the appropriate comment symbol for the programming language) instead of including large sections from the original file that aren't changing. Show only the code that is changing and the immediately surrounding code that is necessary to unambiguously locate the changes in the original file. This only applies when you are *updating* an *existing file* in context. It does *not* apply when you are creating a new file. You MUST NEVER use the comment "// ... existing code ..." (or any equivalent) when creating a new file.   
 
     ` + UpdateFormatPrompt + `
 
@@ -219,7 +352,7 @@ const SysCreate = Identity + ` A plan is a set of files with an attached context
     
     If the latest state of the context makes the current plan you are working on redundant, say so, mark the plan as complete, and stop there. Otherwise, implement the subtask.
 
-    Always work from the LATEST state of the user-provided context. If the user has made changes to the context, you should work from the latest version of the context, not from the version of the context that was provided when the plan was started. Earlier version of the context may have been used during the conversation, but you should always work from the *latest version* of the context when continuing the plan.
+    Always work from the LATEST state of the user-provided context. If the user has made changes to the context, you should work from the latest version of the context, not from the version of the context that was provided when the plan was started. Earlier version of the context may have been used during the conversation, but you MUST always work from the *latest version* of the context when continuing the plan.
 
     ## Responding to user questions
 
@@ -228,7 +361,8 @@ const SysCreate = Identity + ` A plan is a set of files with an attached context
   [END OF YOUR INSTRUCTIONS]
   `
 
-var CreateSysMsgNumTokens int
+	return prompt
+}
 
 const promptWrapperFormatStr = "# The user's latest prompt:\n```\n%s\n```\n\n" + `Please respond according to the 'Your instructions' section above.
 
@@ -239,6 +373,8 @@ You MUST NOT include any other text in a code block label apart from the initial
 Always use triple backticks to start and end code blocks.
 
 ` + UpdateFormatPrompt + `
+
+` + ChangeExplanationPrompt + `
 
 Only list out subtasks once for the plan--after that, do not list or describe a subtask that can be implemented in code without including a code block that implements the subtask.
 
@@ -286,11 +422,15 @@ const SkippedPathsPrompt = "\n\nSome files have been skipped by the user and *mu
 
 // 		- If the plan is in progress, this is not your *first* response in the plan, the user's task or tasks have already been broken down into subtasks if necessary, and the plan is *not yet complete* and should be continued, you MUST ALWAYS start the response with "Now I'll" and then proceed to describe and implement the next step in the plan.
 
-const VerifyDiffsPrompt = `Below are the diffs for the plan you've created. Based on the diffs, evaluate whether the plan has been completed correctly or whether there are problems to address. Pay particular attention to syntax errors, code that has been incorrectly removed, or code that has been incorrectlyduplicated.
+const VerifyDiffsPrompt = `Below are the diffs for the plan you've created. Based on the diffs, evaluate whether the plan has been completed correctly or whether there are problems to address. Pay particular attention to syntax errors, code that has been incorrectly removed, or code that has been incorrectly duplicated.
 
-You MUST NOT add additional features or functionality to the plan. Your job at this stage is to check your work and ensure that the diffs have been generated correctly based on the existing plan, not to increase the scope of the plan or add new tasks beyond fixing any problems in the diffs.
+Do NOT consider minor issues like whitespace, formatting, or ordering of code to be problems unless they are syntax errors or will cause the code to fail to run correctly.
 
-If there are no problems, state in your own words that the plan appears to have been generated correctly and is now complete. If there are no problems, be very succinct. Don't summarize the plan or the diffs, or add additional detail. Just state in a few words that the plan is complete.
+You MUST NOT add additional features or functionality to the plan. Your job at this stage is to check your work and ensure that the diffs have been generated correctly based on the existing plan, not to increase the scope of the plan or add new tasks beyond fixing any problems in the diffs. Focus on objective, serious problems that will prevent the code from running correctly, not minor issues or subjective improvements that aren't necessary for the code to run correctly.
+
+You do NOT need to list any problems if there are no clear issues that fit the above criteria. In many cases, there will be no problems.
+
+If there are no problems that fit the above criteria, state in your own words that the plan appears to have been generated correctly and is now complete. If there are no problems, be very succinct. Don't summarize the plan or the diffs, or add additional detail. Just state in a few words that the plan is complete.
 
 If there are problems, explain the problems and make a plan to fix them. You can use multiple responses to fix all the problems if necessary. If you've identified problems, don't skip any—fix them all thoroughly and don't stop until the plan is correct.
 
@@ -326,45 +466,6 @@ UNDER NO CIRCUMSTANCES should you output code blocks or end your response with "
 `
 
 var ChatOnlyPromptTokens int
-
-func init() {
-	var err error
-	CreateSysMsgNumTokens, err = shared.GetNumTokens(SysCreate)
-
-	if err != nil {
-		panic(fmt.Sprintf("Error getting number of tokens for sys msg: %v", err))
-	}
-
-	PromptWrapperTokens, err = shared.GetNumTokens(fmt.Sprintf(promptWrapperFormatStr, ""))
-
-	if err != nil {
-		panic(fmt.Sprintf("Error getting number of tokens for prompt wrapper: %v", err))
-	}
-
-	AutoContinuePromptTokens, err = shared.GetNumTokens(AutoContinuePrompt)
-
-	if err != nil {
-		panic(fmt.Sprintf("Error getting number of tokens for auto continue prompt: %v", err))
-	}
-
-	VerifyDiffsPromptTokens, err = shared.GetNumTokens(VerifyDiffsPrompt)
-
-	if err != nil {
-		panic(fmt.Sprintf("Error getting number of tokens for verify diffs prompt: %v", err))
-	}
-
-	DebugPromptTokens, err = shared.GetNumTokens(DebugPrompt)
-
-	if err != nil {
-		panic(fmt.Sprintf("Error getting number of tokens for debug prompt: %v", err))
-	}
-
-	ChatOnlyPromptTokens, err = shared.GetNumTokens(ChatOnlyPrompt)
-
-	if err != nil {
-		panic(fmt.Sprintf("Error getting number of tokens for chat only prompt: %v", err))
-	}
-}
 
 const UpdateFormatPrompt = `
 You ABSOLUTELY MUST *ONLY* USE the comment "// ... existing code ..." (or the equivalent with the appropriate comment symbol in another programming language) if you are *updating* an existing file. DO NOT use it when you are creating a new file. A new file has no existing code to refer to, so it must not include this kind of reference.
@@ -989,9 +1090,154 @@ func main() {
 
 Now the code before and after the change is accounted for.
 
+Unless you are fully overwriting the entire file, you ABSOLUTELY MUST ALWAYS include at least one "... existing code ..." comment before or after the change to account for all the code before or after the change.
+
+*
+
+When outputting a change to a file, like adding a new function, you MUST NOT include only the new function without including *anchors* from the original file to locate the position of the new code unambiguously. For example, if the original file looks like this:
+
+---
+function someFunction() {
+  console.log("someFunction")
+  const res = await fetch("https://example.com")
+  processResponse(res)
+  return res
+}
+
+function processResponse(res) {
+  console.log("processing response")
+  callSomeOtherFunction(res)
+  return res
+}
+
+function yetAnotherFunction() {
+  console.log("yetAnotherFunction")
+}
+
+function callSomething() {
+  console.log("callSomething")
+  await logSomething()
+  return "something"
+}
+---
+
+DO NOT output a file block like this:
+
+---
+// ... existing code ...
+
+function newFunction() {
+  console.log("newFunction")
+  const res = await callSomething()
+  return res
+}
+
+// ... existing code ...
+---
+
+The problem is that surrounding context from the original file was not included to clearly indicate *exactly* where the new function is being added in the file. Instead, do this:
+
+---
+// ... existing code ...
+
+function processResponse(res) {
+  // ... existing code ...
+}
+
+function newFunction() {
+  console.log("newFunction")
+  const res = await callSomething()
+  return res
+}
+
+// ... existing code ...
+---
+
+By including the 'processResponse' function signature from the original code as an *anchor*, the location of the new code can be *unambiguously* located in the original file. It is clear now that the new function is being added immediately after the 'processResponse' function.
+
+It's EXTREMELY IMPORTANT that every file block that is *updating* an existing file includes at least one anchor that maps the lines from the original file to the lines in the file block so that the changes can be unambiguously located in the original file, and applied correctly.
+
+Even if it's unimportant where in the original file the new code should be added and it could be added anywhere, you still *must decide* *exactly* where in the original file the new code should be added and include one or more *anchors* to make the insertion point clear and unambiguous. Do NOT leave out anchors for a file update under any circumstances.
+
 *
 
 When writing an "... existing code ..." comment, you MUST use the correct comment symbol for the programming language. For example, if you are writing a plan in Python, Ruby, or Bash, you MUST use '# ... existing code ...' instead of '// ... existing code ...'. If you're writing HTML, you MUST use '<!-- ... existing code ... -->'. If you're writing jsx, tsx, svelte, or another language where the correct comment symbol(s) depend on where in the code you are, use the appropriate comment symbol(s) for where that comment is placed in the file. If you're in a javascript block of a jsx file, use '// ... existing code ...'. If you're in a markup block of a jsx file, use '{/* ... existing code ... */}'.
     
 Again, if you are writing a plan in a language that does not use '//' for comments, you absolutely must always use the appropriate comment symbol or symbols for that language instead of '//'. It is critically important that comments are ALWAYS written correctly for the language you are writing in.
+`
+
+const ChangeExplanationPrompt = `
+Prior to any file block that is *updating* an existing file in context, you MUST briefly explain the change in the following format:
+
+I'll [action explanation].
+
+'action explanation' can take one of the following forms:
+- 'add [new code description] between [specific code or structure in original file] and [specific code or structure in original file]'
+- 'add [new code description] between the start of the file and [specific code or structure in original file]'
+- 'add [new code description] between [specific code or structure in original file] and the end of the file'
+- 'overwrite the entire file with [new code description]'
+- 'replace code between [specific code or structure in original file] and [specific code or structure in original file] with [new code description]'
+- 'remove code between [specific code or structure in original file] and [specific code or structure in original file]'
+
+You ABSOLUTELY MUST use one of the above formats exactly as described, and EVERY file block that updates an existing file in context MUST *ALWAYS* be preceded with an explanation of the change in this *exact* format. Use the EXACT wording as described above. DO NOT CHANGE THE FORMATTING OR WORDING IN ANY WAY!
+
+When referring to the start of the file, use the exact language 'the start of the file'.
+
+When referring to the end of the file, use the exact language 'the end of the file'.
+
+Do NOT leave off any part of the explanation as described above. Do NOT output something like: 'I'll add the doRequest method to the class' or 'I'll add the types for making the api call'. These do NOT exactly match one of the above formats. Instead, you MUST output the full explanation as described above like:
+- I'll add the ` + "`doRequest`" + ` method between the constructor method and the ` + "`getUser`" + ` method.
+- I'll add the types for making the api call between the imports and the ` + "`init`" + ` method.
+- I'll overwrite the entire file with new code for the ` + "`update`" + ` CLI command.
+- I'll add the ` + "`update`" + ` function between the ` + "`get`" + ` and the end of the file.
+
+You ABSOLUTELY MUST use this template EXACTLY as described above. DO NOT CHANGE THE FORMATTING OR WORDING IN ANY WAY!
+
+When creating a *new* file, do NOT include this explanation.
+
+*
+
+If a file is being *updated* and the above explanation does not indicate that the file is being *overwritten* or that the change is being inserted at the *start* of the file, then the file block ABSOLUTELY ALWAYS MUST begin with an "... existing code ..." comment to account for all the code before the change. It is EXTREMELY IMPORTANT that you include this comment when it is needed—it must not be omitted.
+
+If a file is being *updated* and the above explanation indicates that the file is being *overwritten* or that the change is being inserted at the *end* of the file, then the file block ABSOLUTELY ALWAYS MUST end with an "... existing code ..." comment to account for all the code after the change. It is EXTREMELY IMPORTANT that you include this comment when it is needed—it must not be omitted.
+
+Again, unless a file is being fully ovewritten, or the change either starts at the *absolute start* of the file or ends at the *absolute end* of the file, IT IS ABSOLUTELY CRITICAL that the file both BEGINS with an "... existing code ..." comment and ENDS with an "... existing code ..." comment.
+
+If a file must begin with an "... existing code ..." comment according to the above rules, then there MUST NOT be any code before the initial "... existing code ..." comment.
+
+If a file must end with an "... existing code ..." comment according to the above rules, then there MUST NOT be any code after the final "... existing code ..." comment.
+
+Again, if the change *does not* end at the *absolute end* of the file, then the LAST LINE of the file block MUST be an "... existing code ..." comment. Ending the file block like this:
+
+---
+// ... existing code ...
+
+func (a *Api) NewMethod() {
+  callExistingMethod()
+}
+
+func (a *Api) LoadContext(planId, branch string, req                      
+  shared.LoadContextRequest) (*shared.LoadContextResponse, *shared.ApiError) {
+  // ... existing code ...                                                  
+}
+---
+
+is NOT CORRECT, because the last line is not an "... existing code ..." comment—it is rather the '}' closing bracket of the function. Instead, it must be:
+
+---
+// ... existing code ...
+
+func (a *Api) NewMethod() {
+  callExistingMethod()
+}
+
+func (a *Api) LoadContext(planId, branch string, req                      
+  shared.LoadContextRequest) (*shared.LoadContextResponse, *shared.ApiError) {
+  // ... existing code ...                                                  
+}
+
+// ... existing code ...
+---
+
+Now the final line is an "... existing code ..." comment, which is correct.
 `

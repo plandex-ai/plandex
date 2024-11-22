@@ -14,7 +14,14 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
-func loadContexts(w http.ResponseWriter, r *http.Request, auth *types.ServerAuth, loadReq *shared.LoadContextRequest, plan *db.Plan, branchName string) (*shared.LoadContextResponse, []*db.Context) {
+func loadContexts(
+	w http.ResponseWriter,
+	r *http.Request,
+	auth *types.ServerAuth,
+	loadReq *shared.LoadContextRequest,
+	plan *db.Plan,
+	branchName string,
+) (*shared.LoadContextResponse, []*db.Context) {
 	// check file count and size limits
 	totalFiles := 0
 	for _, context := range *loadReq {

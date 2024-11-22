@@ -86,6 +86,20 @@ func TableForLoadContext(contexts []*Context) string {
 	return tableString.String()
 }
 
+func MarkdownTableForLoadContext(contexts []*Context) string {
+	var sb strings.Builder
+	sb.WriteString("| Name | Type | 🪙 |\n")
+	sb.WriteString("|------|------|----|\n")
+
+	for _, context := range contexts {
+		t, icon := context.TypeAndIcon()
+		sb.WriteString(fmt.Sprintf("| %s %s | %s | +%d |\n",
+			icon, context.Name, t, context.NumTokens))
+	}
+
+	return sb.String()
+}
+
 func SummaryForLoadContext(contexts []*Context, tokensAdded, totalTokens int) string {
 
 	var hasNote bool

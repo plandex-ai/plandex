@@ -103,4 +103,5 @@ type ApiClient interface {
 
 	GetCreditsTransactions(pageSize, pageNum int) (*shared.CreditsLogResponse, *shared.ApiError)
 	GetFileMap(req shared.GetFileMapRequest) (*shared.GetFileMapResponse, *shared.ApiError)
+	AutoLoadContext(planId, branch string, req shared.LoadContextRequest) (*shared.LoadContextResponse, *shared.ApiError)
 }

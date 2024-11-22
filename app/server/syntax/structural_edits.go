@@ -210,6 +210,7 @@ func ApplyChanges(
 	var currentPNodeMatches bool
 
 	lastLineMatched := true
+	foundAnyAnchor := false
 
 	setOLineNum := func(n int) {
 		oLineNum = n
@@ -312,12 +313,26 @@ func ApplyChanges(
 			}
 		} else {
 			if verboseLogging {
-				fmt.Printf("numRefs > 1, refOriginalParent: %s\n", refOriginalParent.Type())
+				fmt.Printf("numRefs > 1, refOriginalParent: %s, eof: %v\n", refOriginalParent.Type(), eof)
 				fmt.Printf("refOriginalParent.Content(originalBytes):\n%q\n", refOriginalParent.Content(originalBytes))
 				fmt.Printf("numRefs: %d, oLineNum: %d\n", numRefs, oLineNum)
 			}
 
-			sections := getSections(refOriginalParent, originalBytes, numRefs, refStart, oLineNum)
+			var upToLine int
+			if eof {
+				upToLine = len(originalLines)
+			} else {
+				upToLine = oLineNum
+			}
+
+			sections := getSections(
+				refOriginalParent,
+				originalBytes,
+				numRefs,
+				refStart,
+				upToLine,
+				foundAnyAnchor,
+			)
 
 			for i, section := range sections {
 				if verboseLogging {
@@ -453,6 +468,7 @@ func ApplyChanges(
 			// find next line in original that matches
 			anchor := findNextAnchor(pLine, pLineNum, pNode, oLineNum-1)
 			if anchor != nil {
+				foundAnyAnchor = true
 				if verboseLogging {
 					fmt.Println("anchor found")
 					fmt.Printf("anchor.Close: %d, anchor.Open: %d\n", anchor.Close, anchor.Open)
@@ -572,7 +588,7 @@ func ApplyChanges(
 	return b.String(), nil
 }
 
-func getSections(parent *tree_sitter.Node, bytes []byte, numSections, fromLine, upToLine int) []TreeSitterSection {
+func getSections(parent *tree_sitter.Node, bytes []byte, numSections, fromLine, upToLine int, foundAnyAnchor bool) []TreeSitterSection {
 	sections := make([]TreeSitterSection, numSections)
 	structures := [][]*tree_sitter.Node{}
 	latestStructure := []*tree_sitter.Node{}
@@ -603,19 +619,26 @@ func getSections(parent *tree_sitter.Node, bytes []byte, numSections, fromLine, 
 
 			if startLineNum < fromLine {
 				if verboseLogging {
+					fmt.Println("startLineNum < fromLine, skipping")
 					fmt.Printf("skipping lineNum: %d | before fromLine: %d\n", startLineNum, fromLine)
 				}
 				if !cursor.GoToNextSibling() {
+					if verboseLogging {
+						fmt.Println("no next sibling, breaking")
+					}
 					break
 				}
 				continue
 			}
 
-			if startLineNum == parentFirstLineNum {
+			if startLineNum == parentFirstLineNum && foundAnyAnchor {
 				if verboseLogging {
 					fmt.Printf("skipping first line\n")
 				}
 				if !cursor.GoToNextSibling() {
+					if verboseLogging {
+						fmt.Println("no next sibling, breaking")
+					}
 					break
 				}
 				continue
@@ -623,6 +646,7 @@ func getSections(parent *tree_sitter.Node, bytes []byte, numSections, fromLine, 
 
 			if endLineNum > upToLine {
 				if verboseLogging {
+					fmt.Println("endLineNum > upToLine, breaking")
 					fmt.Printf("upToLine: %d, endLineNum: %d, node.Type(): %s\n", upToLine, endLineNum, node.Type())
 
 					toLog := node.Content(bytes)
@@ -636,6 +660,9 @@ func getSections(parent *tree_sitter.Node, bytes []byte, numSections, fromLine, 
 			}
 
 			if endLineNum == parentEndLineNum && !isStructuralNode(node) {
+				if verboseLogging {
+					fmt.Println("endLineNum == parentEndLineNum && !isStructuralNode(node), breaking")
+				}
 				break
 			}
 
@@ -656,10 +683,16 @@ func getSections(parent *tree_sitter.Node, bytes []byte, numSections, fromLine, 
 			}
 
 			if !cursor.GoToNextSibling() {
+				if verboseLogging {
+					fmt.Println("no next sibling, breaking")
+				}
 				break
 			}
 		}
 		if len(latestStructure) > 0 {
+			if verboseLogging {
+				fmt.Println("appending latestStructure to structures")
+			}
 			structures = append(structures, latestStructure)
 		}
 	}

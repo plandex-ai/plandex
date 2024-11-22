@@ -8,3 +8,14 @@ type ExecParams struct {
 	ApiKeys              map[string]string
 	CheckOutdatedContext func(maybeContexts []*shared.Context) (bool, bool, error)
 }
+
+type TellFlags struct {
+	TellBg               bool
+	TellStop             bool
+	TellNoBuild          bool
+	IsUserContinue       bool
+	IsUserDebug          bool
+	IsChatOnly           bool
+	AutoContext          bool
+	ContinuedAfterAction bool
+}

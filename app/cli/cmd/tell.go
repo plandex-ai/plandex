@@ -6,11 +6,18 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"plandex/api"
 	"plandex/auth"
 	"plandex/lib"
 	"plandex/plan_exec"
 	"plandex/term"
 	"strings"
+	"time"
+
+	"context"
+
+	"os/signal"
+	"syscall"
 
 	"github.com/plandex/plandex/shared"
 	"github.com/spf13/cobra"
@@ -25,6 +32,7 @@ var tellBg bool
 var tellStop bool
 var tellNoBuild bool
 var tellAutoApply bool
+var tellAutoContext bool
 
 // tellCmd represents the prompt command
 var tellCmd = &cobra.Command{
@@ -48,6 +56,7 @@ func init() {
 	tellCmd.Flags().BoolVar(&tellAutoApply, "apply", false, "Automatically apply changes (and confirm context updates)")
 	tellCmd.Flags().BoolVarP(&autoCommit, "commit", "c", false, "Commit changes to git when --apply/-a is passed")
 
+	tellCmd.Flags().BoolVar(&tellAutoContext, "auto-context", false, "Load and manage context automatically")
 }
 
 func doTell(cmd *cobra.Command, args []string) {
@@ -77,9 +86,16 @@ func doTell(cmd *cobra.Command, args []string) {
 		CurrentBranch: lib.CurrentBranch,
 		ApiKeys:       apiKeys,
 		CheckOutdatedContext: func(maybeContexts []*shared.Context) (bool, bool, error) {
-			return lib.CheckOutdatedContextWithOutput(false, autoConfirm || tellAutoApply, maybeContexts)
+			return lib.CheckOutdatedContextWithOutput(false, autoConfirm || tellAutoApply || tellAutoContext, maybeContexts)
 		},
-	}, prompt, tellBg, tellStop, tellNoBuild, false, false, false)
+	}, prompt, plan_exec.TellFlags{
+		TellBg:      tellBg,
+		TellStop:    tellStop,
+		TellNoBuild: tellNoBuild,
+		AutoContext: tellAutoContext,
+	})
+
+	maybeShowDiffs()
 
 	if tellAutoApply {
 		lib.MustApplyPlan(lib.CurrentPlanId, lib.CurrentBranch, true, autoCommit, !autoCommit)
@@ -201,5 +217,60 @@ func validateTellFlags() {
 	}
 	if autoCommit && !tellAutoApply {
 		term.OutputErrorAndExit("🚨 --commit/-c can only be used with --apply/-a")
+	}
+
+	if tellAutoContext && tellBg {
+		term.OutputErrorAndExit("🚨 --auto-context/-c can't be used with --bg")
+	}
+	if tellAutoContext && tellStop {
+		term.OutputErrorAndExit("🚨 --auto-context/-c can't be used with --stop/-s")
+	}
+}
+
+func maybeShowDiffs() {
+	diffs, err := api.Client.GetPlanDiffs(lib.CurrentPlanId, lib.CurrentBranch, plainTextOutput || showDiffUi)
+	if err != nil {
+		term.OutputErrorAndExit("Error getting plan diffs: %v", err)
+		return
+	}
+
+	if len(diffs) > 0 {
+		cmd := exec.Command(os.Args[0], "diffs", "--ui")
+
+		// Create a context that's cancelled when the program exits
+		ctx, cancel := context.WithCancel(context.Background())
+
+		// Ensure cleanup on program exit
+		go func() {
+			// Wait for program exit signal
+			c := make(chan os.Signal, 1)
+			signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+			<-c
+
+			// Cancel context and kill the process
+			cancel()
+			if cmd.Process != nil {
+				cmd.Process.Kill()
+			}
+		}()
+
+		go func() {
+			if err := cmd.Start(); err != nil {
+				fmt.Fprintf(os.Stderr, "Error starting diffs command: %v\n", err)
+				return
+			}
+
+			// Wait in a separate goroutine
+			go cmd.Wait()
+
+			// Wait for either context cancellation or process completion
+			<-ctx.Done()
+			if cmd.Process != nil {
+				cmd.Process.Kill()
+			}
+		}()
+
+		// Give the UI a moment to start
+		time.Sleep(100 * time.Millisecond)
 	}
 }

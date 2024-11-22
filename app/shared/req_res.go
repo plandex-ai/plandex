@@ -122,6 +122,7 @@ type TellPlanRequest struct {
 	IsUserContinue bool              `json:"isUserContinue"`
 	IsUserDebug    bool              `json:"isUserDebug"`
 	IsChatOnly     bool              `json:"isChatOnly"`
+	AutoContext    bool              `json:"autoContext"`
 	ApiKey         string            `json:"apiKey"`   // deprecated
 	Endpoint       string            `json:"endpoint"` // deprecated
 	ApiKeys        map[string]string `json:"apiKeys"`

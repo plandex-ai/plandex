@@ -125,7 +125,7 @@ func doDebug(cmd *cobra.Command, args []string) {
 			CheckOutdatedContext: func(maybeContexts []*shared.Context) (bool, bool, error) {
 				return lib.CheckOutdatedContextWithOutput(false, true, maybeContexts)
 			},
-		}, prompt, false, false, false, false, true, false)
+		}, prompt, plan_exec.TellFlags{IsUserDebug: true})
 
 		lib.MustApplyPlan(lib.CurrentPlanId, lib.CurrentBranch, true, autoCommit, !autoCommit)
 	}

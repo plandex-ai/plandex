@@ -542,6 +542,54 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 	}
 }
 
+func AutoLoadContextFiles(files []string) (string, error) {
+	loadContextReqs := shared.LoadContextRequest{}
+	errCh := make(chan error, len(files))
+	var mu sync.Mutex
+
+	for _, path := range files {
+		go func(path string) {
+			body, err := os.ReadFile(path)
+			if err != nil {
+				errCh <- fmt.Errorf("failed to read file %s: %v", path, err)
+				return
+			}
+
+			mu.Lock()
+			defer mu.Unlock()
+
+			loadContextReqs = append(loadContextReqs, &shared.LoadContextParams{
+				ContextType: shared.ContextFileType,
+				FilePath:    path,
+				Name:        path,
+				Body:        string(body),
+			})
+
+			errCh <- nil
+		}(path)
+	}
+
+	for i := 0; i < len(files); i++ {
+		err := <-errCh
+		if err != nil {
+			return "", fmt.Errorf("failed to load context: %v", err)
+		}
+	}
+
+	res, apiErr := api.Client.AutoLoadContext(CurrentPlanId, CurrentBranch, loadContextReqs)
+
+	if apiErr != nil {
+		return "", fmt.Errorf("failed to load context: %v", apiErr.Msg)
+	}
+
+	if res.MaxTokensExceeded {
+		overage := res.TotalTokens - res.MaxTokens
+		return "", fmt.Errorf("update would add %d 🪙 and exceed token limit (%d) by %d 🪙", res.TokensAdded, res.MaxTokens, overage)
+	}
+
+	return res.Msg, nil
+}
+
 func printAlreadyLoadedMsg(alreadyLoadedByComposite map[string]*shared.Context) {
 	fmt.Println()
 	pronoun := "they're"

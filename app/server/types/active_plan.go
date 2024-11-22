@@ -13,9 +13,7 @@ import (
 	"github.com/plandex/plandex/shared"
 )
 
-const MaxStreamRate = 50 * time.Millisecond
-
-// const MaxConcurrentBuildStreams = 3 // otherwise we get EOF errors from openai
+const MaxStreamRate = 100 * time.Millisecond
 
 type ActiveBuild struct {
 	ReplyId                  string
@@ -76,11 +74,14 @@ type ActivePlan struct {
 	ModelStreamId           string
 	MissingFilePath         string
 	MissingFileResponseCh   chan shared.RespondMissingFileChoice
+	AutoContext             bool
+	AutoLoadContextCh       chan struct{}
 	AllowOverwritePaths     map[string]bool
 	SkippedPaths            map[string]bool
 	StoredReplyIds          []string
 	DidEditFiles            bool
 	DidVerifyDiff           bool
+	IsVerifyingDiff         bool
 
 	subscriptions  map[string]*subscription
 	subscriptionMu sync.Mutex
@@ -91,7 +92,7 @@ type ActivePlan struct {
 	streamMessageBuffer   []shared.StreamMessage
 }
 
-func NewActivePlan(orgId, userId, planId, branch, prompt string, buildOnly bool) *ActivePlan {
+func NewActivePlan(orgId, userId, planId, branch, prompt string, buildOnly, autoContext bool) *ActivePlan {
 	ctx, cancel := context.WithCancel(context.Background())
 	// child context for model stream so we can cancel it separately if needed
 	modelStreamCtx, cancelModelStream := context.WithCancel(ctx)
@@ -120,6 +121,8 @@ func NewActivePlan(orgId, userId, planId, branch, prompt string, buildOnly bool)
 		IsBuildingByPath:      map[string]bool{},
 		StreamDoneCh:          make(chan *shared.ApiError),
 		MissingFileResponseCh: make(chan shared.RespondMissingFileChoice),
+		AutoContext:           autoContext,
+		AutoLoadContextCh:     make(chan struct{}),
 		AllowOverwritePaths:   map[string]bool{},
 		SkippedPaths:          map[string]bool{},
 		streamCh:              make(chan string),
@@ -364,6 +367,7 @@ func (ap *ActivePlan) ShouldVerifyDiff() bool {
 	// 	len(ap.BuiltFiles) > 3)
 
 	return !ap.BuildOnly &&
+		!ap.IsVerifyingDiff &&
 		!ap.DidVerifyDiff &&
 		(len(ap.BuiltFiles) > 0 || len(ap.IsBuildingByPath) > 0) &&
 		(ap.DidEditFiles || len(ap.BuiltFiles) > 3) // verify diff if we edited any files or built more than 3 new files—unlikely to have errors otherwise

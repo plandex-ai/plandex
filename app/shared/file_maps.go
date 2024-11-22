@@ -15,7 +15,11 @@ func (m FileMapBodies) CombinedMap() string {
 	sort.Strings(paths)
 	for _, path := range paths {
 		body := m[path]
-		fileHeading := fmt.Sprintf("### %s\n", path)
+		body = strings.TrimSpace(body)
+		if body == "" {
+			continue
+		}
+		fileHeading := fmt.Sprintf("\n### %s\n", path)
 		combinedMap.WriteString(fileHeading)
 		combinedMap.WriteString(body)
 		combinedMap.WriteString("\n")

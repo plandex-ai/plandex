@@ -204,6 +204,9 @@ mainLoop:
 				var generatedDescription *db.ConvoMessageDescription
 				var shouldContinue bool
 				var nextTask string
+
+				autoLoadContextFiles := state.checkAutoLoadContext()
+
 				var errCh = make(chan error, 2)
 
 				go func() {
@@ -225,18 +228,32 @@ mainLoop:
 					errCh <- nil
 				}()
 
-				go func() {
-					log.Println("Getting exec status")
-					shouldContinue, nextTask, err = state.execStatusShouldContinue(active.CurrentReplyContent, latestSummaryCh, active.Ctx)
-					if err != nil {
-						errCh <- fmt.Errorf("failed to get exec status: %v", err)
-						return
+				if req.IsChatOnly || len(autoLoadContextFiles) > 0 {
+					// no auto continue for chat only
+					if req.IsChatOnly {
+						shouldContinue = false
 					}
 
-					log.Printf("Should continue: %v\n", shouldContinue)
+					// if we're auto-loading context files, we always want to continue for at least another iteration with the loaded context (even if it's chat only)
+					if len(autoLoadContextFiles) > 0 {
+						shouldContinue = true
+					}
 
 					errCh <- nil
-				}()
+				} else {
+					go func() {
+						log.Println("Getting exec status")
+						shouldContinue, nextTask, err = state.execStatusShouldContinue(active.CurrentReplyContent, latestSummaryCh, active.Ctx)
+						if err != nil {
+							errCh <- fmt.Errorf("failed to get exec status: %v", err)
+							return
+						}
+
+						log.Printf("Should continue: %v\n", shouldContinue)
+
+						errCh <- nil
+					}()
+				}
 
 				for i := 0; i < 2; i++ {
 					err := <-errCh
@@ -387,7 +404,32 @@ mainLoop:
 					ap.CurrentReplyDoneCh = nil
 				})
 
-				if !req.IsChatOnly && req.AutoContinue && shouldContinue && iteration < MaxAutoContinueIterations {
+				if len(autoLoadContextFiles) > 0 {
+					log.Println("Sending stream message to load context files")
+
+					active.Stream(shared.StreamMessage{
+						Type:             shared.StreamMessageLoadContext,
+						LoadContextFiles: autoLoadContextFiles,
+					})
+					active.FlushStreamBuffer()
+
+					log.Println("Waiting for client to auto load context (30s timeout)")
+
+					select {
+					case <-active.Ctx.Done():
+						log.Println("Context cancelled while waiting for auto load context")
+						execHookOnStop(true)
+						return
+					case <-time.After(30 * time.Second):
+						log.Println("Timeout waiting for auto load context")
+						state.onError(fmt.Errorf("timeout waiting for auto load context response"), true, "", "")
+						continue mainLoop
+					case <-active.AutoLoadContextCh:
+					}
+				}
+
+				// if we're auto-loading context files, we always want to continue for at least another iteration with the loaded context
+				if len(autoLoadContextFiles) > 0 || (req.AutoContinue && shouldContinue && iteration < MaxAutoContinueIterations) {
 					log.Println("Auto continue plan")
 					// continue plan
 					execTellPlan(clients, plan, branch, auth, req, iteration+1, "", false, nextTask, "", 0)
@@ -403,14 +445,14 @@ mainLoop:
 					time.Sleep(50 * time.Millisecond)
 
 					if buildFinished {
-						log.Println("Plan is finished")
+						log.Println("Reply is finished and build is finished, calling verifyOrFinish")
 						state.verifyOrFinish()
 					} else {
 						log.Println("Plan is still building")
 
 						if active.ShouldVerifyDiff() {
 							// If we're going to verify the diffs when build finishes, then replies aren't finished yet so we'll just continue here
-							log.Println("Replies aren't finished yet—waiting on verify diff step")
+							log.Println("Build isn't finished yet—waiting on verify diff step")
 							continue mainLoop
 						} else {
 							log.Println("Updating status to building")
@@ -515,8 +557,9 @@ mainLoop:
 				log.Printf("Prompting user for missing file: %s\n", currentFile)
 
 				active.Stream(shared.StreamMessage{
-					Type:            shared.StreamMessagePromptMissingFile,
-					MissingFilePath: currentFile,
+					Type:                   shared.StreamMessagePromptMissingFile,
+					MissingFilePath:        currentFile,
+					MissingFileAutoContext: active.AutoContext,
 				})
 
 				log.Printf("Stopping stream for missing file: %s\n", currentFile)
@@ -535,6 +578,10 @@ mainLoop:
 					log.Println("Context cancelled while waiting for missing file response")
 					execHookOnStop(true)
 					return
+				case <-time.After(30 * time.Minute): // long timeout here since we're waiting for user input
+					log.Println("Timeout waiting for missing file choice")
+					state.onError(fmt.Errorf("timeout waiting for missing file choice"), true, "", "")
+					continue mainLoop
 				case userChoice = <-active.MissingFileResponseCh:
 				}
 
@@ -670,6 +717,53 @@ func (state *activeTellStreamState) storeAssistantReply() (*db.ConvoMessage, str
 	state.convo = convo
 
 	return &assistantMsg, commitMsg, err
+}
+
+func (state *activeTellStreamState) checkAutoLoadContext() []string {
+	activePlan := GetActivePlan(state.plan.Id, state.branch)
+
+	if activePlan == nil {
+		return nil
+	}
+
+	if !activePlan.AutoContext {
+		return nil
+	}
+
+	// only load context on the first iteration
+	if state.iteration > 0 {
+		return nil
+	}
+
+	split := strings.Split(activePlan.CurrentReplyContent, "### Load Context")
+
+	if len(split) < 2 {
+		return nil
+	}
+
+	req := state.req
+
+	list := strings.Split(split[1], "\n")
+	files := []string{}
+
+	for _, line := range list {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			continue
+		}
+
+		if strings.HasPrefix(trimmed, "-") {
+			trimmed = strings.TrimPrefix(trimmed, "-")
+			trimmed = strings.ReplaceAll(trimmed, "`", "")
+			trimmed = strings.TrimSpace(trimmed)
+
+			if req.ProjectPaths[trimmed] {
+				files = append(files, trimmed)
+			}
+		}
+	}
+
+	return files
 }
 
 func (state *activeTellStreamState) onError(streamErr error, storeDesc bool, convoMessageId, commitMsg string) {

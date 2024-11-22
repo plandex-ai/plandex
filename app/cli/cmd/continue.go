@@ -51,7 +51,12 @@ func doContinue(cmd *cobra.Command, args []string) {
 		CheckOutdatedContext: func(maybeContexts []*shared.Context) (bool, bool, error) {
 			return lib.CheckOutdatedContextWithOutput(false, autoConfirm || tellAutoApply, maybeContexts)
 		},
-	}, "", tellBg, tellStop, tellNoBuild, true, false, false)
+	}, "", plan_exec.TellFlags{
+		TellBg:         tellBg,
+		TellStop:       tellStop,
+		TellNoBuild:    tellNoBuild,
+		IsUserContinue: true,
+	})
 
 	if tellAutoApply {
 		lib.MustApplyPlan(lib.CurrentPlanId, lib.CurrentBranch, true, autoCommit, !autoCommit)

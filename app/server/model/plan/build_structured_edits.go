@@ -197,22 +197,66 @@ func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 		}
 	}
 
-	fileContentLines := strings.Split(activeBuild.FileContent, "\n")
+	fileContent := activeBuild.FileContent
+	fileContentLines := strings.Split(fileContent, "\n")
 
 	var references []syntax.Reference
 	var removals []syntax.Removal
 
+	var beginsWithRef bool = false
+	var endsWithRef bool = false
+	var foundNonRefLine bool = false
+
 	for i, line := range fileContentLines {
 		line = strings.ToLower(strings.TrimSpace(line))
+
 		if strings.Contains(line, "... existing code ...") {
 			references = append(references, syntax.Reference(i+1))
-		}
-		if strings.Contains(line, "plandex: removed code") {
+			if !foundNonRefLine {
+				beginsWithRef = true
+			}
+			endsWithRef = true
+		} else if strings.Contains(line, "plandex: removed code") {
 			removals = append(removals, syntax.Removal(i+1))
+		} else if line != "" {
+			foundNonRefLine = true
+			endsWithRef = false
 		}
 	}
 
-	updatedFile, err := syntax.ApplyChanges(activePlan.Ctx, fileState.language, parser, originalFile, activeBuild.FileContent, references, removals, anchorLines)
+	if !beginsWithRef &&
+		!strings.Contains(activeBuild.FileDescription, "overwrite the entire file") &&
+		!strings.Contains(activeBuild.FileDescription, "the start of the file") {
+
+		// structured edits handle normalization of comments, so just use // ... existing code ... here
+		fileContentLines = append([]string{"// ... existing code ..."}, fileContentLines...)
+
+		// bump all existing references up by 1
+		for i, ref := range references {
+			references[i] = syntax.Reference(int(ref) + 1)
+		}
+		references = append([]syntax.Reference{syntax.Reference(1)}, references...)
+	}
+
+	if !endsWithRef &&
+		!strings.Contains(activeBuild.FileDescription, "overwrite the entire file") &&
+		!strings.Contains(activeBuild.FileDescription, "the end of the file") {
+		fileContentLines = append(fileContentLines, "// ... existing code ...")
+		references = append(references, syntax.Reference(len(fileContentLines)))
+	}
+
+	fileContent = strings.Join(fileContentLines, "\n")
+
+	updatedFile, err := syntax.ApplyChanges(
+		activePlan.Ctx,
+		fileState.language,
+		parser,
+		originalFile,
+		fileContent,
+		references,
+		removals,
+		anchorLines,
+	)
 	if err != nil {
 		log.Printf("buildStructuredEdits - error applying references: %v\n", err)
 		fileState.structuredEditRetryOrError(fmt.Errorf("error applying references: %v", err))

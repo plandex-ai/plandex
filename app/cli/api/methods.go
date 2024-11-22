@@ -2117,3 +2117,36 @@ func (a *Api) GetFileMap(req shared.GetFileMapRequest) (*shared.GetFileMapRespon
 
 	return &respBody, nil
 }
+
+func (a *Api) AutoLoadContext(planId, branch string, req shared.LoadContextRequest) (*shared.LoadContextResponse, *shared.ApiError) {
+	serverUrl := fmt.Sprintf("%s/plans/%s/%s/auto_load_context", GetApiHost(), planId, branch)
+	reqBytes, err := json.Marshal(req)
+	if err != nil {
+		return nil, &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error marshalling request: %v", err)}
+	}
+
+	// use the slow client since we may be uploading relatively large files
+	resp, err := authenticatedSlowClient.Post(serverUrl, "application/json", bytes.NewBuffer(reqBytes))
+	if err != nil {
+		return nil, &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error sending request: %v", err)}
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		errorBody, _ := io.ReadAll(resp.Body)
+		apiErr := HandleApiError(resp, errorBody)
+		tokenRefreshed, apiErr := refreshTokenIfNeeded(apiErr)
+		if tokenRefreshed {
+			return a.LoadContext(planId, branch, req)
+		}
+		return nil, apiErr
+	}
+
+	var loadContextResponse shared.LoadContextResponse
+	err = json.NewDecoder(resp.Body).Decode(&loadContextResponse)
+	if err != nil {
+		return nil, &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error decoding response: %v", err)}
+	}
+
+	return &loadContextResponse, nil
+}

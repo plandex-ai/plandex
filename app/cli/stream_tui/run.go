@@ -101,8 +101,10 @@ func Quit() {
 		return
 	}
 	mu.Lock()
-	defer mu.Unlock()
-	ui.Quit()
+	if ui != nil {
+		ui.Quit()
+	}
+	mu.Unlock()
 
 	wg.Wait() // Wait for the UI to fully terminate
 
@@ -125,4 +127,18 @@ func Send(msg shared.StreamMessage) {
 	defer mu.Unlock()
 	// log.Printf("sending stream message to UI: %s\n", msg.Type)
 	ui.Send(msg)
+}
+
+func ToggleVisibility(hide bool) {
+	if ui == nil {
+		return
+	}
+	mu.Lock()
+	defer mu.Unlock()
+
+	if hide {
+		ui.Send(tea.ExitAltScreen())
+	} else {
+		ui.Send(tea.EnterAltScreen())
+	}
 }

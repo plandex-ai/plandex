@@ -186,6 +186,7 @@ func (state *activeBuildStreamFileState) onFinishBuild() {
 
 	if active != nil && (active.RepliesFinished || active.BuildOnly) {
 		if state.tellState != nil {
+			log.Println("Build is finished and replies are finished, calling verifyOrFinish")
 			state.tellState.verifyOrFinish()
 		} else {
 			active.Finish()

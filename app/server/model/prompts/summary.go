@@ -42,6 +42,8 @@ Based on the existing summary and the conversation so far, make a summary of the
 
 - Next, if the plan has been broken down into subtasks, include ALL those subtasks *verbatim* in the summary as a numbered list, then mark whether each subtask has been implemented in code during the conversation. *Subtasks MUST ALWAYS be numbered.* You must include ALL subtasks, even if they have not been mentioned in the latest messages. If this conversation began with an existing summary, include ALL the subtasks from the existing summary.
 
+- If any subtask have a 'Uses:' list with a list of files from context, you MUST also include that 'Uses: ' list *verbatim* when adding the subtask to the summary.
+
 - Mark whether each subtask has been implemented in code during the conversation. A subtask has been implemented if *ANY* code blocks related to it have been included in the conversation. Do not be overly strict. Mark a subtask as implemented if it has been dealt with at all during the conversation. If a subtask has been implemented, mark it as implemented in code in the summary. 
 
 - If a subtask has been further broken down into more subtasks, you should include those subtasks in the summary as a numbered list nested under the parent subtask. Just as with subtasks, you should include the name and a brief description of each sub-subtask and mark whether each sub-subtask has been implemented in code during the conversation.

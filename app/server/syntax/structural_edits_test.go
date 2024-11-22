@@ -1104,9 +1104,168 @@ class MetricsService(
 			},
 			parser: getParserForLanguage("scala"),
 		},
+
+		{
+			name: "top-level ambiguous",
+			original: `
+    function someFunction() {
+      console.log("someFunction")
+      const res = await fetch("https://example.com")
+      processResponse(res)
+      return res
+    }
+
+    function processResponse(res) {
+      console.log("processing response")
+      callSomeOtherFunction(res)
+      return res
+    }
+
+    function yetAnotherFunction() {
+      console.log("yetAnotherFunction")
+    }
+
+    function callSomething() {
+      console.log("callSomething")
+      await logSomething()
+      return "something"
+    }
+    `,
+			proposed: `
+    // ... existing code ...
+
+    function newFunction() {
+      console.log("newFunction")
+      const res = await callSomething()
+      return res
+    }
+
+    // ... existing code ...
+    `,
+			references: []Reference{
+				2, 10,
+			},
+			want: `
+    function someFunction() {
+      console.log("someFunction")
+      const res = await fetch("https://example.com")
+      processResponse(res)
+      return res
+    }
+
+    function processResponse(res) {
+      console.log("processing response")
+      callSomeOtherFunction(res)
+      return res
+    }
+
+    function newFunction() {
+      console.log("newFunction")
+      const res = await callSomething()
+      return res
+    }
+
+    function yetAnotherFunction() {
+      console.log("yetAnotherFunction")
+    }
+
+    function callSomething() {
+      console.log("callSomething")
+      await logSomething()
+      return "something"
+    }
+    `,
+			parser: getParserForLanguage("javascript"),
+		},
+
+		{
+			name: "top-level with anchors",
+			original: `
+    function someFunction() {
+      console.log("someFunction")
+      const res = await fetch("https://example.com")
+      processResponse(res)
+      return res
+    }
+
+    function processResponse(res) {
+      console.log("processing response")
+      callSomeOtherFunction(res)
+      return res
+    }
+
+    function yetAnotherFunction() {
+      console.log("yetAnotherFunction")
+      doStuff()
+    }
+
+    function callSomething() {
+      console.log("callSomething")
+      await logSomething()
+      return "something"
+    }
+    `,
+			proposed: `
+    // ... existing code ...
+
+    function processResponse(res) {
+      // ... existing code ...
+    }
+
+    function newFunction() {
+      console.log("newFunction")
+      const res = await callSomething()
+      return res
+    }
+
+    function yetAnotherFunction() {
+      // ... existing code ...
+    }
+
+    // ... existing code ...
+    `,
+			references: []Reference{
+				2, 5, 15, 18,
+			},
+			want: `
+    function someFunction() {
+      console.log("someFunction")
+      const res = await fetch("https://example.com")
+      processResponse(res)
+      return res
+    }
+
+    function processResponse(res) {
+      console.log("processing response")
+      callSomeOtherFunction(res)
+      return res
+    }
+
+    function newFunction() {
+      console.log("newFunction")
+      const res = await callSomething()
+      return res
+    }
+
+    function yetAnotherFunction() {
+      console.log("yetAnotherFunction")
+      doStuff()
+    }
+
+    function callSomething() {
+      console.log("callSomething")
+      await logSomething()
+      return "something"
+    }
+    `,
+			parser: getParserForLanguage("javascript"),
+		},
 	}
 
 	for _, tt := range tests {
+		// if tt.name != "top-level with anchor after" {
+		// 	continue
+		// }
 		t.Run(tt.name, func(t *testing.T) {
 			anchorLines := map[int]int{}
 			if tt.anchorLines != nil {

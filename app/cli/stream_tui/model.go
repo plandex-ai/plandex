@@ -55,6 +55,7 @@ type streamUIModel struct {
 	missingFilePath        string
 	missingFileSelectedIdx int
 	promptedMissingFile    bool
+	autoLoadedMissingFile  bool
 	missingFileContent     string
 	missingFileTokens      int
 

@@ -355,6 +355,95 @@ func RespondMissingFileHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Successfully processed request for RespondMissingFileHandler")
 }
 
+func AutoLoadContextHandler(w http.ResponseWriter, r *http.Request) {
+	log.Println("Received request for AutoLoadContextHandler", "ip:", host.Ip)
+
+	vars := mux.Vars(r)
+	planId := vars["planId"]
+	branch := vars["branch"]
+	log.Println("planId: ", planId)
+	log.Println("branch: ", branch)
+
+	isProxy := r.URL.Query().Get("proxy") == "true"
+
+	active := modelPlan.GetActivePlan(planId, branch)
+	if active == nil {
+		if isProxy {
+			log.Println("No active plan on proxied request")
+			http.Error(w, "No active plan", http.StatusNotFound)
+			return
+		}
+
+		proxyActivePlanMethod(w, r, planId, branch, "auto_load_context")
+		return
+	}
+
+	auth := Authenticate(w, r, true)
+	if auth == nil {
+		return
+	}
+
+	plan := authorizePlan(w, planId, auth)
+	if plan == nil {
+		return
+	}
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		log.Printf("Error reading request body: %v\n", err)
+		http.Error(w, "Error reading request body", http.StatusInternalServerError)
+		return
+	}
+	defer r.Body.Close()
+
+	var requestBody shared.LoadContextRequest
+	if err := json.Unmarshal(body, &requestBody); err != nil {
+		log.Printf("Error parsing request body: %v\n", err)
+		http.Error(w, "Error parsing request body", http.StatusBadRequest)
+		return
+	}
+
+	res, dbContexts := loadContexts(w, r, auth, &requestBody, plan, branch)
+
+	if res == nil {
+		return
+	}
+
+	modelPlan.UpdateActivePlan(planId, branch, func(activePlan *types.ActivePlan) {
+		activePlan.Contexts = append(activePlan.Contexts, dbContexts...)
+		for _, dbContext := range dbContexts {
+			activePlan.ContextsByPath[dbContext.FilePath] = dbContext
+		}
+	})
+
+	var apiContexts []*shared.Context
+	for _, dbContext := range dbContexts {
+		apiContexts = append(apiContexts, dbContext.ToApi())
+	}
+
+	msg := shared.SummaryForLoadContext(apiContexts, res.TokensAdded, res.TotalTokens)
+	markdownRes := shared.LoadContextResponse{
+		TokensAdded:       res.TokensAdded,
+		TotalTokens:       res.TotalTokens,
+		MaxTokensExceeded: res.MaxTokensExceeded,
+		MaxTokens:         res.MaxTokens,
+		Msg:               msg,
+	}
+
+	bytes, err := json.Marshal(markdownRes)
+	if err != nil {
+		log.Printf("Error marshalling response: %v\n", err)
+		http.Error(w, "Error marshalling response", http.StatusInternalServerError)
+		return
+	}
+
+	w.Write(bytes)
+
+	active.AutoLoadContextCh <- struct{}{}
+
+	log.Println("Successfully processed request for AutoLoadContextHandler")
+}
+
 func authorizePlanExecUpdate(w http.ResponseWriter, planId string, auth *types.ServerAuth) *db.Plan {
 	plan := authorizePlan(w, planId, auth)
 	if plan == nil {

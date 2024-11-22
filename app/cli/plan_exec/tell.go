@@ -18,13 +18,16 @@ import (
 func TellPlan(
 	params ExecParams,
 	prompt string,
-	tellBg,
-	tellStop,
-	tellNoBuild,
-	isUserContinue,
-	isDebugCmd,
-	isChatOnly bool,
+	flags TellFlags,
 ) {
+	tellBg := flags.TellBg
+	tellStop := flags.TellStop
+	tellNoBuild := flags.TellNoBuild
+	isUserContinue := flags.IsUserContinue
+	isDebugCmd := flags.IsUserDebug
+	isChatOnly := flags.IsChatOnly
+	autoContext := flags.AutoContext
+
 	done := make(chan struct{})
 
 	outputPromptIfTell := func() {
@@ -115,6 +118,7 @@ func TellPlan(
 			IsUserContinue: isUserContinue,
 			IsUserDebug:    isDebugCmd,
 			IsChatOnly:     isChatOnly,
+			AutoContext:    autoContext,
 			ApiKey:         legacyApiKey, // deprecated
 			Endpoint:       openAIBase,   // deprecated
 			ApiKeys:        params.ApiKeys,
@@ -173,6 +177,7 @@ func TellPlan(
 					term.PrintCmds("", "tell", "convo", "summary")
 				}
 				close(done)
+
 			}()
 		}
 

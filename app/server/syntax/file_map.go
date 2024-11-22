@@ -72,48 +72,108 @@ func mapTraditional(node *tree_sitter.Node, content []byte) []Definition {
 			node := cursor.CurrentNode()
 			nodeType := node.Type()
 
+			if verboseLogging {
+				fmt.Println()
+				fmt.Println("node", nodeType)
+				fmt.Println("content", string(node.Content(content)))
+				fmt.Println()
+			}
+
 			// Check if this is a definition node
 			if isDefinitionNode(nodeType) {
+				if verboseLogging {
+					fmt.Println("definition node", nodeType)
+				}
+
 				def := Definition{
 					Type: nodeType,
 					Line: int(node.StartPoint().Row) + 1,
 				}
 
 				if isAssignmentNode(nodeType) {
+					if verboseLogging {
+						fmt.Println("assignment node", node.Content(content))
+					}
 					// Try different field names for identifiers
 					// fmt.Printf("assignment node: %s\n", nodeType)
 					sig := ""
-					for i := 0; i < int(node.ChildCount()); i++ {
-						child := node.Child(i)
-						// fmt.Printf("child: %s\n", child.Type())
 
-						if strings.HasSuffix(child.Type(), "_spec") {
-							for j := 0; j < int(child.ChildCount()); j++ {
-								subChild := child.Child(j)
-								// fmt.Printf("sub child: %s\n", subChild.Type())
-								if subChild.Type() == "identifier" {
-									sig += string(subChild.Content(content)) + " "
-								}
+					assignmentBoundary := findAssignmentBoundary(node)
+
+					if assignmentBoundary != nil {
+						start := node.StartByte()
+						end := assignmentBoundary.StartByte()
+						sig = string(content[start:end])
+						sig = strings.TrimSuffix(strings.TrimSpace(sig), "=")
+					} else {
+						identifiers := findIdentifier(node)
+						if len(identifiers) > 0 {
+							if verboseLogging {
+								fmt.Println("found identifiers", len(identifiers))
 							}
-							break
+
+							start := node.StartByte()
+							end := identifiers[len(identifiers)-1].EndByte()
+							sig = string(content[start:end])
 						} else {
-							sig += string(child.Content(content)) + " "
+							if verboseLogging {
+								fmt.Println("no identifier found", nodeType)
+							}
+							sig = string(node.Content(content)) + " "
 						}
 					}
 
 					def.Signature = sig
 				} else {
+					if verboseLogging {
+						fmt.Println("not assignment node", nodeType)
+					}
 					// Get signature (up to body)
+
 					if body := findImplementationBoundary(node); body != nil {
 						start := node.StartByte()
-						end := body.StartByte()
+						var end uint32
+						if node == body {
+							if verboseLogging {
+								fmt.Println("node == body")
+							}
+							firstChild := firstDefinitionChild(body)
+							if firstChild != nil {
+								if verboseLogging {
+									fmt.Println("firstChild != nil")
+									fmt.Println("firstChild", firstChild.Type())
+									fmt.Println("firstChild content", string(firstChild.Content(content)))
+								}
+								end = firstChild.StartByte()
+							} else {
+								if verboseLogging {
+									fmt.Println("firstChild == nil")
+								}
+								end = body.EndByte()
+							}
+						} else {
+							end = body.StartByte()
+						}
+						if verboseLogging {
+							fmt.Println("start", start)
+							fmt.Println("end", end)
+						}
 						def.Signature = string(content[start:end])
+						if verboseLogging {
+							fmt.Println("got signature", def.Signature)
+						}
 
 						// If this is a parent type node, recurse into the body
 						if isParentNode(nodeType) {
+							if verboseLogging {
+								fmt.Println("recursing into body", nodeType)
+							}
 							def.Children = mapTraditional(body, content)
 						}
 					} else {
+						if verboseLogging {
+							fmt.Println("no body found", nodeType)
+						}
 						def.Signature = string(node.Content(content))
 					}
 				}
@@ -166,10 +226,12 @@ var parentNodeTypes = map[string]bool{
 	"module_definition":     true, // Ruby
 	"class_definition":      true, // Python/Ruby
 	"class_declaration":     true, // Java/C#/TypeScript
-	"interface_declaration": true, // Java/TypeScript
-	"trait_definition":      true, // Rust
-	"trait_declaration":     true, // PHP
-	"impl_block":            true, // Rust implementations
+	// "interface_declaration": true, // Java/TypeScript
+	// "trait_definition":      true, // Rust
+	// "trait_declaration":     true, // PHP
+	"impl_block": true, // Rust implementations
+	// "type_declaration":      true, // Go
+	"const_declaration": true, // Go
 }
 
 func isParentNode(nodeType string) bool {
@@ -183,8 +245,8 @@ var assignmentNodeTypes = map[string]bool{
 	"variable_declaration":  true,
 
 	// Go
-	"var_declaration":   true,
-	"const_declaration": true,
+	"const_spec":      true,
+	"var_declaration": true,
 
 	// JS/TS
 	"lexical_declaration": true,
@@ -225,7 +287,7 @@ func isAssignmentNode(nodeType string) bool {
 }
 
 // Implementation boundary detection
-var bodyNodeTypes = map[string]bool{
+var implBodyNodeTypes = map[string]bool{
 	"block":                  true,
 	"body":                   true,
 	"suite":                  true,
@@ -234,14 +296,73 @@ var bodyNodeTypes = map[string]bool{
 	"function_body":          true,
 	"do_block":               true,
 	"implementation":         true,
-	"field_declaration_list": true,
+	"field_declaration_list": true, // Go
+	"const_declaration":      true, // Go
+	"method_elem":            true,
+}
+
+var assignmentBodyNodeTypes = map[string]bool{
+	"literal_value":   true,
+	"expression_list": true,
 }
 
 func findImplementationBoundary(node *tree_sitter.Node) *tree_sitter.Node {
+	if implBodyNodeTypes[node.Type()] {
+		return node
+	}
+
 	for i := 0; i < int(node.ChildCount()); i++ {
 		child := node.Child(i)
-		if bodyNodeTypes[child.Type()] {
+
+		if implBodyNodeTypes[child.Type()] {
 			return child
+		} else {
+			found := findImplementationBoundary(child)
+			if found != nil {
+				return found
+			}
+		}
+	}
+	return nil
+}
+
+func findIdentifier(node *tree_sitter.Node) []*tree_sitter.Node {
+	t := node.Type()
+	if t == "identifier" || strings.HasSuffix(t, "_identifier") {
+		return []*tree_sitter.Node{node}
+	}
+
+	nodes := []*tree_sitter.Node{}
+	for i := 0; i < int(node.ChildCount()); i++ {
+		child := node.Child(i)
+		found := findIdentifier(child)
+		if found != nil {
+			nodes = append(nodes, found...)
+		}
+	}
+	return nodes
+}
+
+func firstDefinitionChild(node *tree_sitter.Node) *tree_sitter.Node {
+	for i := 0; i < int(node.ChildCount()); i++ {
+		child := node.Child(i)
+		if isDefinitionNode(child.Type()) {
+			return child
+		}
+	}
+	return nil
+}
+
+func findAssignmentBoundary(node *tree_sitter.Node) *tree_sitter.Node {
+	if assignmentBodyNodeTypes[node.Type()] {
+		return node
+	}
+
+	for i := 0; i < int(node.ChildCount()); i++ {
+		child := node.Child(i)
+		found := findAssignmentBoundary(child)
+		if found != nil {
+			return found
 		}
 	}
 	return nil

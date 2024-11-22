@@ -11,7 +11,15 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
-func activatePlan(clients map[string]*openai.Client, plan *db.Plan, branch string, auth *types.ServerAuth, prompt string, buildOnly bool) (*types.ActivePlan, error) {
+func activatePlan(
+	clients map[string]*openai.Client,
+	plan *db.Plan,
+	branch string,
+	auth *types.ServerAuth,
+	prompt string,
+	buildOnly,
+	autoContext bool,
+) (*types.ActivePlan, error) {
 	active := GetActivePlan(plan.Id, branch)
 	if active != nil {
 		log.Printf("Tell: Active plan found for plan ID %s on branch %s\n", plan.Id, branch) // Log if an active plan is found
@@ -29,7 +37,15 @@ func activatePlan(clients map[string]*openai.Client, plan *db.Plan, branch strin
 		return nil, fmt.Errorf("plan %s branch %s already has an active stream on host %s", plan.Id, branch, modelStream.InternalIp)
 	}
 
-	active = CreateActivePlan(auth.OrgId, auth.User.Id, plan.Id, branch, prompt, buildOnly)
+	active = CreateActivePlan(
+		auth.OrgId,
+		auth.User.Id,
+		plan.Id,
+		branch,
+		prompt,
+		buildOnly,
+		autoContext,
+	)
 
 	modelStream = &db.ModelStream{
 		OrgId:      auth.OrgId,

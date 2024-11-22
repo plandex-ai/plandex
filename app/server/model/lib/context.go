@@ -8,7 +8,7 @@ import (
 	"github.com/plandex/plandex/shared"
 )
 
-func FormatModelContext(context []*db.Context) (string, int, error) {
+func FormatModelContext(context []*db.Context, includeMaps, includeTrees bool) (string, int, error) {
 	var contextMessages []string
 	var numTokens int
 	for _, part := range context {
@@ -17,12 +17,18 @@ func FormatModelContext(context []*db.Context) (string, int, error) {
 		var args []any
 
 		if part.ContextType == shared.ContextDirectoryTreeType {
+			if !includeTrees {
+				continue
+			}
 			fmtStr = "\n\n- %s | directory tree:\n\n```\n%s\n```"
 			args = append(args, part.FilePath, part.Body)
 		} else if part.ContextType == shared.ContextFileType {
 			fmtStr = "\n\n- %s:\n\n```\n%s\n```"
 			args = append(args, part.FilePath, part.Body)
 		} else if part.ContextType == shared.ContextMapType {
+			if !includeMaps {
+				continue
+			}
 			fmtStr = "\n\n- %s | map:\n\n```\n%s\n```"
 			args = append(args, part.FilePath, part.Body)
 		} else if part.Url != "" {

@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"plandex-server/syntax"
@@ -276,7 +277,21 @@ func LoadContexts(ctx Ctx, params LoadContextsParams) (*shared.LoadContextRespon
 	maxTokens := settings.GetPlannerEffectiveMaxTokens()
 	mapContextsByFilePath := make(map[string]Context)
 
+	existingContexts, err := GetPlanContexts(orgId, planId, false, false)
+	if err != nil {
+		return nil, nil, fmt.Errorf("error getting existing contexts: %v", err)
+	}
+	existingContextsByName := make(map[string]bool)
+	for _, context := range existingContexts {
+		existingContextsByName[context.Name] = true
+	}
+
 	for _, context := range *req {
+		if existingContextsByName[context.Name] {
+			log.Println("Context already loaded:", context.Name)
+			continue
+		}
+
 		tempId := uuid.New().String()
 
 		var numTokens int

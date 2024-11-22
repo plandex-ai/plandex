@@ -18,7 +18,7 @@ func (state *activeBuildStreamState) loadPendingBuilds() (map[string][]*types.Ac
 	branch := state.branch
 	auth := state.auth
 
-	active, err := activatePlan(clients, plan, branch, auth, "", true)
+	active, err := activatePlan(clients, plan, branch, auth, "", true, false)
 
 	if err != nil {
 		log.Printf("Error activating plan: %v\n", err)
