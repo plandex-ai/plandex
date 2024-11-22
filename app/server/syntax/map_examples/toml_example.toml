@@ -1,0 +1,107 @@
+# This is a TOML example file demonstrating various TOML syntax elements
+
+# Basic key/value pairs
+title = "TOML Example"
+version = "1.0.0"
+enabled = true
+
+# String with special characters
+description = """
+A multi-line string that can contain "quotes"
+and other special characters like \n or \t
+"""
+
+# Date and time
+created = 1979-05-27T07:32:00Z
+updated = 1979-05-27T00:32:00-07:00
+
+# Numbers
+integer = 42
+float = 3.14159
+scientific = 1e+12
+hex = 0xDEADBEEF
+octal = 0o755
+binary = 0b11010110
+
+# Arrays
+colors = ["red", "yellow", "green"]
+numbers = [1, 2, 3]
+nested_arrays = [[1, 2], [3, 4, 5]]
+mixed_array = [[1, 2], ["a", "b", "c"]]
+
+# Array of tables
+[[fruits]]
+name = "apple"
+color = "red"
+season = "fall"
+
+[[fruits]]
+name = "banana"
+color = "yellow"
+season = "summer"
+
+# Tables
+[server]
+host = "example.com"
+port = 8080
+enabled = true
+
+[server.options]
+timeout = 30
+max_connections = 100
+
+[database]
+url = "postgresql://localhost:5432/mydb"
+max_connections = 100
+
+[database.replica]
+enabled = true
+hosts = [
+    "replica1.example.com",
+    "replica2.example.com"
+]
+
+# Nested tables
+[owner]
+name = "John Doe"
+[owner.preferences]
+theme = "dark"
+notifications = true
+[owner.preferences.display]
+color_scheme = "monokai"
+font_size = 12
+
+# Table with inline tables
+[endpoints]
+status = { url = "/status", method = "GET" }
+health = { url = "/health", method = "GET", timeout = 5 }
+
+# Complex types
+[types]
+primitive_array = [ "red", "yellow", "green" ]
+array_of_integers = [ 1, 2, 3 ]
+array_of_floats = [ 1.1, 2.2, 3.3 ]
+array_of_dates = [ 1979-05-27T07:32:00Z, 1979-05-28T07:32:00Z ]
+array_of_tables = [
+    { x = 1, y = 2, z = 3 },
+    { x = 7, y = 8, z = 9 },
+    { x = 2, y = 4, z = 8 }
+]
+
+# Example configuration
+[app]
+name = "MyApp"
+environment = "production"
+
+[app.logging]
+level = "info"
+format = "json"
+output = "stdout"
+
+[app.features]
+experimental = false
+beta_features = ["feature1", "feature2"]
+
+[app.limits]
+requests_per_second = 1000
+concurrent_connections = 50

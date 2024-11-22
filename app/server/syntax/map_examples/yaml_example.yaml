@@ -1,0 +1,129 @@
+
+# Document metadata
+# Example YAML file demonstrating various syntax elements
+---
+name: YAML Example
+version: 1.0.0
+description: Example YAML file demonstrating various syntax elements
+updated_at: 2024-02-20T15:00:00Z
+
+# Scalar types
+strings:
+  simple: Hello World
+  quoted: "Hello \"quoted\" World"
+  literal: |
+    This is a literal block
+    that preserves newlines
+    and can contain special chars: *&[]
+  folded: >
+    This is a folded block
+    that will be rendered
+    as a single line
+
+numbers:
+  integer: 42
+  float: 3.14159
+  scientific: 1.23e+4
+  infinity: .inf
+  not_a_number: .nan
+
+dates:
+  simple: 2024-02-20
+  datetime: 2024-02-20T15:00:00Z
+  canonical: 2024-02-20T15:00:00.000Z
+
+booleans:
+  true_values: [true, True, TRUE, yes, Yes, YES, on, On, ON]
+  false_values: [false, False, FALSE, no, No, NO, off, Off, OFF]
+
+# Complex types
+arrays:
+  - simple
+  - items
+  - [nested, array]
+  - 
+    - deeply
+    - nested
+    - array
+
+# Mapping types
+object:
+  key1: value1
+  key2: value2
+  nested:
+    key3: value3
+    key4: value4
+
+# Anchors and aliases
+definitions: &defaults
+  timeout: 30
+  retries: 3
+  enabled: true
+
+production:
+  <<: *defaults  # Merge defaults
+  environment: production
+  host: prod.example.com
+
+staging:
+  <<: *defaults
+  environment: staging
+  host: staging.example.com
+  timeout: 60  # Override default
+
+# Complex mapping
+services:
+  - name: web
+    image: nginx:latest
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - NODE_ENV=production
+      - DEBUG=false
+    volumes:
+      - type: bind
+        source: /var/www
+        target: /usr/share/nginx/html
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  - name: database
+    image: postgres:13
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: !vault |
+        $ANSIBLE_VAULT;1.1;AES256
+        31613262363135363132666363366363
+    volumes:
+      - data:/var/lib/postgresql/data
+
+# Sets
+unique_values: !!set
+  ? item1
+  ? item2
+  ? item3
+
+# Binary data
+certificate: !!binary |
+  R0lGODlhDAAMAIQAAP//9/X17unp5WZmZgAAAOf...
+
+# Custom tags
+!!python/object:datetime.datetime
+  year: 2024
+  month: 2
+  day: 20
+  hour: 15
+  minute: 0
+  second: 0
+
+# Explicit typing
+explicit_strings: !!str 42
+explicit_int: !!int "42"
+explicit_float: !!float "3.14159"
+explicit_bool: !!bool "yes"
+
+

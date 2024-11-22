@@ -1,0 +1,67 @@
+# Multi-stage build example
+FROM golang:1.21-alpine AS builder
+
+# Build arguments
+ARG VERSION=1.0.0
+ARG BUILD_DATE
+
+# Set working directory
+WORKDIR /app
+
+# Copy only necessary files for dependency resolution
+COPY go.mod go.sum ./
+
+# Download dependencies
+RUN go mod download
+
+# Copy source code
+COPY . .
+
+# Build the application
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-X main.Version=${VERSION} -X main.BuildDate=${BUILD_DATE}" -o /app/server
+
+# Create final lightweight image
+FROM alpine:latest
+
+# Labels for metadata
+LABEL maintainer="example@example.com" \
+      version="${VERSION}" \
+      description="Example Dockerfile with various syntax elements"
+
+# Environment variables
+ENV APP_ENV=production \
+    PORT=8080
+
+# Create non-root user
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+
+# Install runtime dependencies
+RUN apk add --no-cache \
+    ca-certificates \
+    tzdata
+
+# Set working directory
+WORKDIR /app
+
+# Copy binary from builder stage
+COPY --from=builder /app/server .
+
+# Copy configuration files
+COPY config/production.yaml /etc/app/config.yaml
+
+# Create volume mount points
+VOLUME ["/data", "/logs"]
+
+# Expose ports
+EXPOSE 8080 8443
+
+# Switch to non-root user
+USER appuser
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s \
+    CMD wget --quiet --tries=1 --spider http://localhost:${PORT}/health || exit 1
+
+# Set entry point and default command
+ENTRYPOINT ["/app/server"]
+CMD ["--config", "/etc/app/config.yaml"]

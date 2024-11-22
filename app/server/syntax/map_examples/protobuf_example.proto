@@ -1,0 +1,116 @@
+syntax = "proto3";
+
+package example;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/wrappers.proto";
+
+option go_package = "example/generated";
+option java_package = "com.example.generated";
+option java_multiple_files = true;
+
+// Enum definition
+enum Status {
+  STATUS_UNSPECIFIED = 0;
+  STATUS_PENDING = 1;
+  STATUS_ACTIVE = 2;
+  STATUS_COMPLETED = 3;
+  STATUS_FAILED = 4;
+}
+
+// Message with nested messages and various field types
+message User {
+  // Nested message definition
+  message Address {
+    string street = 1;
+    string city = 2;
+    string state = 3;
+    string country = 4;
+    string postal_code = 5;
+  }
+
+  // Nested enum
+  enum Role {
+    ROLE_UNSPECIFIED = 0;
+    ROLE_ADMIN = 1;
+    ROLE_USER = 2;
+    ROLE_GUEST = 3;
+  }
+
+  // Fields with different types and options
+  string id = 1;
+  string name = 2 [(validate.rules).string = {
+    min_len: 1,
+    max_len: 100
+  }];
+  string email = 3 [(validate.rules).string.email = true];
+  repeated string phone_numbers = 4;
+  Role role = 5;
+  Status status = 6;
+  Address primary_address = 7;
+  repeated Address additional_addresses = 8;
+  map<string, string> metadata = 9;
+  google.protobuf.Timestamp created_at = 10;
+  google.protobuf.Timestamp updated_at = 11;
+  oneof verification {
+    string phone_verification = 12;
+    string email_verification = 13;
+  }
+}
+
+// Message using various repeated and map fields
+message UserList {
+  repeated User users = 1;
+  int32 total_count = 2;
+  string next_page_token = 3;
+}
+
+// Request/Response messages
+message CreateUserRequest {
+  User user = 1;
+}
+
+message UpdateUserRequest {
+  string user_id = 1;
+  User user = 2;
+  google.protobuf.FieldMask update_mask = 3;
+}
+
+message GetUserRequest {
+  string user_id = 1;
+}
+
+message DeleteUserRequest {
+  string user_id = 1;
+}
+
+message ListUsersRequest {
+  int32 page_size = 1;
+  string page_token = 2;
+  string filter = 3;
+}
+
+// Service definition with various RPC patterns
+service UserService {
+  // Unary RPC
+  rpc CreateUser(CreateUserRequest) returns (User);
+  
+  // Unary RPC with custom error responses
+  rpc GetUser(GetUserRequest) returns (User);
+  
+  // Unary RPC with field mask
+  rpc UpdateUser(UpdateUserRequest) returns (User);
+  
+  // Unary RPC returning empty response
+  rpc DeleteUser(DeleteUserRequest) returns (google.protobuf.Empty);
+  
+  // Server streaming RPC
+  rpc ListUsers(ListUsersRequest) returns (stream User);
+  
+  // Client streaming RPC
+  rpc BatchCreateUsers(stream CreateUserRequest) returns (UserList);
+  
+  // Bidirectional streaming RPC
+  rpc ProcessUsers(stream User) returns (stream User);
+}

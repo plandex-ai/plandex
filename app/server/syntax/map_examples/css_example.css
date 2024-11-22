@@ -1,0 +1,143 @@
+/* Global variables */
+:root {
+  --primary-color: #3498db;
+  --secondary-color: #2ecc71;
+  --text-color: #2c3e50;
+  --spacing-unit: 1rem;
+  --border-radius: 4px;
+}
+
+/* Reset and base styles */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Arial', sans-serif;
+  line-height: 1.6;
+  color: var(--text-color);
+}
+
+/* Layout containers */
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: var(--spacing-unit);
+}
+
+/* Grid system */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: var(--spacing-unit);
+}
+
+/* Flexbox components */
+.flex-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* Component styles */
+.button {
+  padding: calc(var(--spacing-unit) / 2) var(--spacing-unit);
+  border-radius: var(--border-radius);
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.button:hover {
+  opacity: 0.9;
+}
+
+.button--primary {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.button--secondary {
+  background-color: var(--secondary-color);
+  color: white;
+}
+
+/* Card component */
+.card {
+  border-radius: var(--border-radius);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  padding: var(--spacing-unit);
+}
+
+/* Media queries */
+@media screen and (max-width: 768px) {
+  .grid {
+    grid-template-columns: repeat(6, 1fr);
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .flex-container {
+    flex-direction: column;
+    gap: var(--spacing-unit);
+  }
+}
+
+/* Animation keyframes */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease-in;
+}
+
+/* Form styles */
+.form-group {
+  margin-bottom: var(--spacing-unit);
+}
+
+.form-input {
+  width: 100%;
+  padding: calc(var(--spacing-unit) / 2);
+  border: 1px solid #ddd;
+  border-radius: var(--border-radius);
+}
+
+/* Navigation */
+.nav {
+  background-color: var(--primary-color);
+  padding: var(--spacing-unit);
+}
+
+.nav__list {
+  list-style: none;
+  display: flex;
+  gap: var(--spacing-unit);
+}
+
+.nav__link {
+  color: white;
+  text-decoration: none;
+}
+
+/* Utility classes */
+.text-center { text-align: center; }
+.text-right { text-align: right; }
+.text-left { text-align: left; }
+
+.mt-1 { margin-top: var(--spacing-unit); }
+.mb-1 { margin-bottom: var(--spacing-unit); }
+.ml-1 { margin-left: var(--spacing-unit); }
+.mr-1 { margin-right: var(--spacing-unit); }

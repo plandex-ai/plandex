@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Example HTML file demonstrating various HTML syntax elements -->
+    <title>HTML Syntax Example</title>
+    <link rel="stylesheet" href="styles.css">
+    <script defer src="main.js"></script>
+</head>
+
+<body>
+    <!-- Header section with navigation -->
+    <header class="main-header" role="banner">
+        <nav class="main-nav" aria-label="Main navigation">
+            <ul class="nav-list">
+                <li><a href="#home" class="nav-link active">Home</a></li>
+                <li><a href="#about" class="nav-link">About</a></li>
+                <li><a href="#contact" class="nav-link">Contact</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <!-- Main content area -->
+    <main id="main-content" role="main">
+        <!-- Hero section -->
+        <section class="hero" aria-labelledby="hero-title">
+            <h1 id="hero-title">Welcome to Our Site</h1>
+            <p class="lead">This is an example of semantic HTML structure.</p>
+        </section>
+
+        <!-- Article with sections -->
+        <article class="content-article">
+            <header>
+                <h2>Main Article</h2>
+                <p class="article-meta">Published on <time datetime="2024-02-20">February 20, 2024</time></p>
+            </header>
+
+            <section class="article-section">
+                <h3>Section One</h3>
+                <p>This section demonstrates text content with <em>emphasis</em> and <strong>strong importance</strong>.</p>
+                <figure>
+                    <img src="example.jpg" alt="Example image" width="600" height="400">
+                    <figcaption>An example image with caption</figcaption>
+                </figure>
+            </section>
+
+            <section class="article-section">
+                <h3>Interactive Elements</h3>
+                <!-- Form example -->
+                <form class="contact-form" action="/submit" method="POST">
+                    <fieldset>
+                        <legend>Contact Information</legend>
+                        
+                        <div class="form-group">
+                            <label for="name">Name:</label>
+                            <input type="text" id="name" name="name" required 
+                                   placeholder="Enter your name">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="email">Email:</label>
+                            <input type="email" id="email" name="email" required 
+                                   placeholder="Enter your email">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="message">Message:</label>
+                            <textarea id="message" name="message" rows="4" 
+                                    placeholder="Your message"></textarea>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary">Send Message</button>
+                    </fieldset>
+                </form>
+            </section>
+
+            <!-- Table example -->
+            <section class="article-section">
+                <h3>Data Table</h3>
+                <table class="data-table">
+                    <caption>Monthly Sales Data</caption>
+                    <thead>
+                        <tr>
+                            <th scope="col">Month</th>
+                            <th scope="col">Sales</th>
+                            <th scope="col">Growth</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <th scope="row">January</th>
+                            <td>$10,000</td>
+                            <td>5%</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">February</th>
+                            <td>$12,000</td>
+                            <td>20%</td>
+                        </tr>
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <th scope="row">Total</th>
+                            <td>$22,000</td>
+                            <td>25%</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </section>
+        </article>
+
+        <!-- Aside content -->
+        <aside class="sidebar" role="complementary">
+            <h2>Related Information</h2>
+            <div class="widget">
+                <h3>Categories</h3>
+                <ul class="category-list">
+                    <li><a href="#tech">Technology</a></li>
+                    <li><a href="#design">Design</a></li>
+                    <li><a href="#business">Business</a></li>
+                </ul>
+            </div>
+        </aside>
+    </main>
+
+    <!-- Footer section -->
+    <footer class="site-footer" role="contentinfo">
+        <div class="footer-content">
+            <p>&copy; 2024 Example Site. All rights reserved.</p>
+            <address>
+                Contact us at: <a href="mailto:info@example.com">info@example.com</a>
+            </address>
+        </div>
+    </footer>
+
+    <!-- Dialog for modal content -->
+    <dialog id="modal" class="modal">
+        <header>
+            <h2>Modal Title</h2>
+            <button type="button" class="close-button" aria-label="Close modal">×</button>
+        </header>
+        <div class="modal-content">
+            <p>This is an example of the dialog element for modal content.</p>
+        </div>
+        <footer>
+            <button type="button" class="btn">Close</button>
+        </footer>
+    </dialog>
+</body>
+</html>
