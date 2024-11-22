@@ -115,6 +115,7 @@ func addApiRoutes(r *mux.Router, prefix string) {
 
 	r.HandleFunc(prefix+"/plans/{planId}/{branch}/context", handlers.ListContextHandler).Methods("GET")
 	r.HandleFunc(prefix+"/plans/{planId}/{branch}/context", handlers.LoadContextHandler).Methods("POST")
+	r.HandleFunc(prefix+"/plans/{planId}/{branch}/context/{contextId}/body", handlers.GetContextBodyHandler).Methods("GET")
 	r.HandleFunc(prefix+"/plans/{planId}/{branch}/context", handlers.UpdateContextHandler).Methods("PUT")
 	r.HandleFunc(prefix+"/plans/{planId}/{branch}/context", handlers.DeleteContextHandler).Methods("DELETE")
 

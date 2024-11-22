@@ -259,7 +259,7 @@ func ApplyChanges(
 		}
 	}
 
-	writeRefs := func(eof bool) {
+	writeRefs := func(eof bool) error {
 		numRefs := len(postRefBuffers)
 		if numRefs == 1 {
 			if verboseLogging {
@@ -287,6 +287,28 @@ func ApplyChanges(
 				if end < 1 {
 					end = 0
 				}
+
+				// Add detailed diagnostic logging for invalid slice bounds
+				if start > end {
+					fmt.Printf("\n=== INVALID SLICE BOUNDS DIAGNOSTIC INFO ===\n")
+					fmt.Printf("start: %d, end: %d\n", start, end)
+					fmt.Printf("refStart: %d, oLineNum: %d\n", refStart, oLineNum)
+					fmt.Printf("depth: %d, refOpen: %v\n", depth, refOpen)
+
+					// Log relevant lines for context
+					fmt.Printf("\nOriginal lines context:\n")
+					startContext := max(0, start-2)
+					endContext := min(len(originalLines), end+3)
+					for i := startContext; i < endContext; i++ {
+						fmt.Printf("line %d: %q\n", i+1, originalLines[i])
+					}
+
+					fmt.Printf("\nProposed lines context:\n")
+					fmt.Printf("=====================================\n\n")
+
+					return fmt.Errorf("invalid slice bounds: start(%d) > end(%d)", start, end)
+				}
+
 				if verboseLogging {
 					fmt.Printf("writing fullRef\n")
 					fmt.Printf("refStart: %d, oLineNum: %d\n", refStart, oLineNum)
@@ -346,6 +368,8 @@ func ApplyChanges(
 				write(postRefBuffers[i].String(), false)
 			}
 		}
+
+		return nil
 	}
 
 	for idx, pLine := range proposedLines {
@@ -538,7 +562,10 @@ func ApplyChanges(
 					fmt.Printf("closing ref, oLineNum: %d\n", oLineNum)
 				}
 				refOpen = false
-				writeRefs(false)
+				err := writeRefs(false)
+				if err != nil {
+					return "", fmt.Errorf("error writing refs: %w", err)
+				}
 				write(pLine, !finalLine)
 				wroteRefs = true
 			}
@@ -578,7 +605,10 @@ func ApplyChanges(
 	}
 
 	if refOpen {
-		writeRefs(true)
+		err := writeRefs(true)
+		if err != nil {
+			return "", fmt.Errorf("error writing refs: %w", err)
+		}
 	}
 
 	if verboseLogging {

@@ -403,11 +403,14 @@ func AutoLoadContextHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.Println("AutoLoadContextHandler - loading contexts")
 	res, dbContexts := loadContexts(w, r, auth, &requestBody, plan, branch)
 
 	if res == nil {
 		return
 	}
+
+	log.Println("AutoLoadContextHandler - updating active plan")
 
 	modelPlan.UpdateActivePlan(planId, branch, func(activePlan *types.ActivePlan) {
 		activePlan.Contexts = append(activePlan.Contexts, dbContexts...)

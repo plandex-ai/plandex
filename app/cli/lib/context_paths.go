@@ -36,10 +36,10 @@ func ParseInputPaths(fileOrDirPaths []string, params *types.LoadContextParams) (
 						return filepath.SkipDir
 					}
 
-					if !(params.Recursive || params.NamesOnly) {
+					if !(params.Recursive || params.NamesOnly || params.DefsOnly) {
 						// log.Println("path", path, "info.Name()", info.Name())
 
-						return fmt.Errorf("cannot process directory %s: --recursive or --tree flag not set", path)
+						return fmt.Errorf("cannot process directory %s: requires --recursive/-r, --tree, or --map flag", path)
 					}
 
 					// calculate directory depth from base

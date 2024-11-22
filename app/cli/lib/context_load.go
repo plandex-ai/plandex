@@ -21,7 +21,13 @@ import (
 )
 
 func MustLoadContext(resources []string, params *types.LoadContextParams) {
-	term.StartSpinner("📥 Loading context...")
+	if params.DefsOnly {
+		term.StartSpinner("🗺️  Building map...")
+	} else if params.NamesOnly {
+		term.StartSpinner("🌳 Loading directory tree...")
+	} else {
+		term.StartSpinner("📥 Loading context...")
+	}
 
 	onErr := func(err error) {
 		term.StopSpinner()
@@ -396,9 +402,18 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 
 			if params.DefsOnly {
 				for _, inputPath := range toLoadMapPaths {
+					var name string
+					if inputPath == "." {
+						name = "cwd"
+					} else if inputPath == ".." {
+						name = "parent"
+					} else {
+						name = inputPath
+					}
+
 					loadContextReq = append(loadContextReq, &shared.LoadContextParams{
 						ContextType: shared.ContextMapType,
-						Name:        inputPath,
+						Name:        name,
 						MapInputs:   mapInputsByPath[inputPath],
 						FilePath:    inputPath,
 					})

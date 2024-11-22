@@ -46,6 +46,19 @@ func RegisterShutdownHook(hook func()) {
 	shutdownHooks = append(shutdownHooks, hook)
 }
 
+func loggingMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+
+		log.Println()
+		log.Printf("Request: %s %s", r.Method, r.URL.Path)
+		next.ServeHTTP(w, r)
+		log.Printf("Completed: %s %s in %v", r.Method, r.URL.Path, time.Since(start))
+		log.Println()
+		log.Println()
+	})
+}
+
 func StartServer(handler http.Handler) {
 	if os.Getenv("GOENV") == "development" {
 		log.Println("In development mode.")
@@ -66,6 +79,9 @@ func StartServer(handler http.Handler) {
 	if externalPort == "" {
 		externalPort = "8080"
 	}
+
+	// Add logging middleware before the maxBytes middleware
+	handler = loggingMiddleware(handler)
 
 	// Apply the maxBytesMiddleware to limit request size to 100 MB
 	handler = maxBytesMiddleware(handler, 100<<20) // 100 MB limit

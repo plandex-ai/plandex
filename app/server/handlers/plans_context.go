@@ -92,7 +92,7 @@ func GetContextBodyHandler(w http.ResponseWriter, r *http.Request) {
 		}()
 	}
 
-	dbContexts, err := db.GetPlanContexts(auth.OrgId, planId, false, false)
+	dbContexts, err := db.GetPlanContexts(auth.OrgId, planId, true, false)
 	if err != nil {
 		log.Printf("Error getting contexts: %v\n", err)
 		http.Error(w, "Error getting contexts: "+err.Error(), http.StatusInternalServerError)

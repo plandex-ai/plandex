@@ -95,8 +95,6 @@ func doTell(cmd *cobra.Command, args []string) {
 		AutoContext: tellAutoContext,
 	})
 
-	maybeShowDiffs()
-
 	if tellAutoApply {
 		lib.MustApplyPlan(lib.CurrentPlanId, lib.CurrentBranch, true, autoCommit, !autoCommit)
 	}

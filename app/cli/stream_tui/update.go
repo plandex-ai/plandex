@@ -349,6 +349,7 @@ func (m *streamUIModel) streamUpdate(msg *shared.StreamMessage, deferUIUpdate bo
 		return m, tea.Batch(cmds...)
 
 	case shared.StreamMessageLoadContext:
+		log.Println("Stream message auto-load context")
 		msg, err := lib.AutoLoadContextFiles(msg.LoadContextFiles)
 		if err != nil {
 			log.Println("failed to auto load context files:", err)

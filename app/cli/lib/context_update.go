@@ -267,6 +267,12 @@ func checkOutdatedAndMaybeUpdateContext(doUpdate bool, maybeContexts []*shared.C
 				sha := hex.EncodeToString(hash[:])
 
 				if sha != context.Sha {
+					// log.Println()
+					// log.Println("context.FilePath", context.FilePath)
+					// log.Println("context.Sha", context.Sha, "sha", sha)
+					// log.Println("fileContent", string(fileContent))
+					// log.Println()
+
 					body := string(fileContent)
 
 					numTokens, err := shared.GetNumTokens(body)
@@ -576,10 +582,13 @@ func checkOutdatedAndMaybeUpdateContext(doUpdate bool, maybeContexts []*shared.C
 		}
 
 		if len(req) > 0 {
+			// log.Println("updating context")
 			res, apiErr := api.Client.UpdateContext(CurrentPlanId, CurrentBranch, req)
 			if apiErr != nil {
 				return nil, fmt.Errorf("failed to update context: %v", apiErr)
 			}
+			// log.Println("updated context")
+			// log.Println("res.Msg", res.Msg)
 			msg = res.Msg
 		}
 

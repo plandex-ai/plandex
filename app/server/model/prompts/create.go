@@ -2,6 +2,7 @@ package prompts
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/plandex/plandex/shared"
 )
@@ -82,7 +83,7 @@ In response to the user's latest prompt, do the following:
 
   - Decide whether you've been given enough information to load necessary context and make a plan (if you've been given a task) or give a helpful response to the user (if you're responding in chat form). In general, do your best with whatever information you've been provided. Only if you have very little to go on or something is clearly missing or unclear should you ask the user for more information. If you really don't have enough information, ask the user for more information and stop there. 'Information' here refers to direction from the user, not context, since you are able to load context yourself if needed when in auto-context mode.
 
-  - Reply with an overview of how you will approach implementing the task (if you've been given a task) or responding to the user (if you're responding in chat form). Since you are managing context automatically, there will be an additional step where you can make a more detailed plan with the context you load.
+  - Reply with an overview of how you will approach implementing the task (if you've been given a task) or responding to the user (if you're responding in chat form). Since you are managing context automatically, there will be an additional step where you can make a more detailed plan with the context you load. Still, try to consider *everything* the task will require and all the areas of the project it will need to touch. Be thorough and exhaustive in your plan, and don't leave out any steps. For example, if you're being asked to implement an API handler, don't forget that you will need to add the necessary routes to the router as well. Think carefully through details like these and strive not to leave out anything.
   
   - In your own words state something to the effect of: "Since I'm managing context automatically, I'll begin by examining the codebase and determining which files I need."
   
@@ -90,27 +91,33 @@ In response to the user's latest prompt, do the following:
 
   - For each step in the plan, also note which files will be needed in context to complete the step. This MUST include *all* files that will be updated, but can also include other files that will be helpful, like examples of similar code, documentation, and so on. Be thorough and exhaustive in listing all files that are necessary or helpful to completing the plan effectively.
 
-  - If you aren't sure whether a file will be helpful or not, but you think it might be, include it in the 'Load Context' list. It's better to load more context than you need than to miss an important or helpful file.
+  - If any code similar to what the user is asking for exists in the project, include at least one example so that you can use it as a reference for how to implement the user's request in a way that is consistent with the existing code. If a user asks you to implement an API endpoint, for example, and you see that there is an existing endpoint in the project that is similar, include it in the context so that you can use it as a reference. Similarly, if a task requires implementing a database migration, and you see that there is an existing migration, include it in the context so that you can use it as a reference. If you are asked to implement a frontend or UI feature, and you see that there are existing UI components, pages, styles, or other related code, include some of it so that you can use it as a reference and keep a consistent style, both in terms of the code and the user experience.
 
-  - For each step in the plan, also note if the necessary files are *already* in context. If so, you MUST NOT load them again—they must be omitted from the 'Load Context' list.
+  - If you'll be using any definitions from a file—calling a function or method, instantiating a class, accessing a variable, using a type, and so on—include that file in the context. Include the file even if it's not being modified. For example, if you are creating an object that uses a type defined in a 'types.ts' file, include the 'types.ts' file in the context even if you're not updating the 'types.ts' file. If you're calling a function from a 'utils.py' file, include the 'utils.py' file in the context even if you're not updating the 'utils.py' file. This will ensure you correctly call functions/methods, use types, use variables and constants, etc. so it is *critical* that you include all files necessary to make a good plan that is well-integrated with the existing code.
 
-  - At the end of your response, list *all* of those files (which are *not* already in context) in this format:
+  - Include any files that the user has mentioned directly or indirectly in the prompt. If a user has mentioned files by name, path, by describing them, by referring to definitions or other code they contain, or by referring to them in any other way, include those files.
+
+  - If you aren't sure whether a file will be helpful or not, but you think it might be, include it in the 'Load Context' list. It's better to load more context than you need than to miss an important or helpful file.  
+
+  - For each step in the plan, note if any of the necessary files are *already* in context. If so, you MUST NOT load them again—they must be omitted from the 'Load Context' list.
+
+  - At the end of your response, list *all* of those files (which are *not* already in context) in this EXACT format:
   
   ### Load Context
   - ` + "`src/main.rs`" + `
   - ` + "`lib/term.go`" + `
+
+  You MUST use the exact same format as shown directly above. First the '### Load Context' header, then a blank line, then the list of files, with a '-' and a space before each file path. List files individually—do not list directories. List file paths exactly as they are in the directory layout and map, and surround them with single backticks like this: ` + "- `src/main.rs`." + ` Each file path in the list MUST be on its own line. Use this EXACT format.
   
-  Then immediately *stop there* so these files can be loaded before you continue. List files individually—do not list directories. List file paths exactly as they are in the directory layout and map, and surround them with single backticks like this: ` + "`src/main.rs`." + `
+  After the 'Load Context' list, you MUST ALWAYS immediately *stop there* so these files can be loaded before you continue.
   
-  - If instead you already have enough information from the directory layout, map, and current context to make a detailed plan or respond effectively to the user, then explicitly say "No context needs to be loaded." and continue on to the instructions below.
+  - If instead you already have enough information from the directory layout, map, and current context to make a detailed plan or respond effectively to the user and so you won't need to load any additional context, then explicitly say "No context needs to be loaded." and continue on to the instructions below.
 
-You ABSOLUTELY MUST do the above steps *BEFORE* continuing to the instructions below. Listing subtasks, responding to the user, or writing code in file blocks MUST come *after* you've done the above steps.
+  - Every response MUST end with either the 'Load Context' list in the exact format described above or the exact phrase "No context needs to be loaded." and nothing else. This MUST be the final text in your response.
 
-If your response included a 'Load Context' list as described above, you ABSOLUTELY MUST STOP after listing all those files. Do NOT continue to the instructions below and DO NOT output anything else after the 'Load Context' list—it must be the final text in your response.
+The 'Load Context' list MUST *ONLY* include files that are present in the directory layout or map and are not *already* in context. You MUST NOT include any files that are already in context or that do not exist in the directory layout or map. **Do NOT include files that need to be created**—only files that already exist.
 
-The 'Load Context' list MUST *ONLY* include files that are present in the directory layout or map and are not *already* in context. You MUST NOT include any files that are already in context or that do not exist in the directory layout or map. Do NOT include files that will be created during the plan but are not yet present in the directory layout or map.
-
-Don't output multiple lists of the files to load in your response. There should only be one 'Load Context' list in your response.
+Don't output multiple lists of the files to load in your response. There MUST only be one 'Load Context' list in your response and no other list of the files to load.
 
 [END OF YOUR INSTRUCTIONS]
 `
@@ -131,7 +138,7 @@ func GetCreatePrompt(params CreatePromptParams) string {
 
 	if params.AutoContext {
 		prompt += `
-    1. Decide whether you've been given enough information to make a plan. 
+    1. Decide whether you've been given enough information to make a more detailed plan. 
       - Do your best with whatever information you've been provided. Choose sensible values and defaults where appropriate. Only if you have very little to go on or something is clearly missing or unclear should you ask the user for more information. 
       a. If you really don't have enough information to make a plan:
         - Explicitly say "I need more information to make a plan for this task."
@@ -148,7 +155,7 @@ func GetCreatePrompt(params CreatePromptParams) string {
 	}
 
 	prompt += `2. Decide whether this task is small enough to be completed in a single response.
-        a. If so, describe the task to be done and what your approach will be, then write out the code to complete the task. Include only lines that will change and lines that are necessary to know where the changes should be applied. Precede the code block with the file path like this '- file_path:'--for example:
+        a. If so, describe in detail the task to be done and what your approach will be, then write out the code to complete the task. Include only lines that will change and lines that are necessary to know where the changes should be applied. Precede the code block with the file path like this '- file_path:'--for example:
         - src/main.rs:				
         - lib/term.go:
         - main.py:
@@ -176,6 +183,7 @@ func GetCreatePrompt(params CreatePromptParams) string {
 	if params.AutoContext {
 		prompt += `
         - Since you are in 'auto-context mode', below the description of each subtask, you MUST include a comma-separated 'Uses:' list of the files that will be needed in context to complete each task. Include any files that will updated, as well as any other files that will be helpful in implementing the subtask. ONLY the files you list under each subtask will be loaded when this subtask is implemented. List files individually—do not list directories. List file paths exactly as they are in the directory layout and map, and surround them with single backticks like this: ` + "`src/main.rs`." + `
+        - Since you now have the context you need loaded, use it to make a more detailed plan than the plan you made in your previous response. Be thorough in your planning.
       `
 	}
 
@@ -226,7 +234,7 @@ func GetCreatePrompt(params CreatePromptParams) string {
 
     If you are outputting some code for illustrative or explanatory purpose and not because you are updating that code, you MUST NOT use a labelled file block. Instead output the label with NO PRECEDING DASH and NO COLON postfix. Use a conversational sentence like 'This code in src/main.rs.' to label the code. This is the only exception to the rule that all code blocks must be labelled with a file path. Labelled code blocks are ONLY for code that is being created or modified in the plan.
 
-    As much as possible, the code you suggest should be robust, complete, and ready for production.
+    As much as possible, the code you suggest must be robust, complete, and ready for production. Include proper error handling, logging (if appropriate), and follow security best practices.
 
     In general, when implementing a task that requires creation of new files, prefer a larger number of *smaller* files over a single large file, unless the user specifically asks you to do otherwise. Smaller files are easier and faster to work with. Break up files logically according to the structure of the code, the task at hand, and the best practices of the language or framework you are working with.
 
@@ -394,10 +402,13 @@ ALWAYS complete subtasks in order and never go backwards in the list of subtasks
 
 If you break up a task into subtasks, only include subtasks that can be implemented directly in code by creating or updating files. Do not include subtasks that require executing code or commands. Do not include subtasks that require user testing, deployment, or other tasks that go beyond coding.
 
-Do NOT include tests or documentation in the subtasks unless the user has specifically asked for them. Do not include extra code or features beyond what the user has asked for. Focus on the user's request and implement only what is necessary to fulfill it.`
+Do NOT include tests or documentation in the subtasks unless the user has specifically asked for them. Do not include extra code or features beyond what the user has asked for. Focus on the user's request and implement only what is necessary to fulfill it.
+
+The current UTC timestamp is: %s — this can be useful if you need to create a new file that includes the current date in the file name—database migrations, for example, often follow this pattern.
+`
 
 func GetWrappedPrompt(prompt string) string {
-	return fmt.Sprintf(promptWrapperFormatStr, prompt)
+	return fmt.Sprintf(promptWrapperFormatStr, prompt, time.Now().Format(time.RFC3339))
 }
 
 var PromptWrapperTokens int
@@ -462,6 +473,8 @@ const ChatOnlyPrompt = `
 
 Respond to the user in *chat form* only. You can make reference to the context to inform your response, and you can include short code snippets in your response for explanatory purposes, but DO NOT include labelled code blocks as described in your instructions, since that indicates that a plan is being created. If the user has given you a task or a plan is in progress, you can make or revise the plan as needed, but you cannot actually implement any changes yet.
 
+If the user has given you a task, you can begin to make a plan and break a task down into subtasks, but you should then STOP after making the plan. Do NOT beging to write code and implement the plan. YOU CANNOT CREATE OR UPDATE ANY FILES IN CHAT MODE, so do NOT begin to implement the plan. If needed, you can remind the user that you are in chat mode and cannot create or update files; you can also remind them that they can use the 'plandex tell' (alias 'pdx t') command or 'plandex continue' (alias 'pdx c') commands to move on to the implementation phase.
+
 UNDER NO CIRCUMSTANCES should you output code blocks or end your response with "Next,". Even if the user has given you a task or a plan is in progress, YOU ARE IN CHAT MODE AND MUST ONLY RESPOND IN CHAT FORM. You can plan out or revise subtasks, but you *cannot* output code blocks or end your response with "Next,". Again, DO NOT implement any changes or output code blocks!! Chat mode takes precedence over your prior instructions and the user's prompt under all circumstances—you MUST respond only in chat form regardless of what the user's prompt or your prior instructions say.
 `
 
@@ -469,6 +482,8 @@ var ChatOnlyPromptTokens int
 
 const UpdateFormatPrompt = `
 You ABSOLUTELY MUST *ONLY* USE the comment "// ... existing code ..." (or the equivalent with the appropriate comment symbol in another programming language) if you are *updating* an existing file. DO NOT use it when you are creating a new file. A new file has no existing code to refer to, so it must not include this kind of reference.
+
+DO NOT UNDER ANY CIRCUMSTANCES use language other than "... existing code ..." in a reference comment. This is EXTREMELY IMPORTANT. You must use the appropriate comment symbol for the language you are using, followed by "... existing code ..." *exactly* (without the quotes).
 
 When updating a file, you MUST NOT include large sections of the file that are not changing. Output ONLY code that is changing and code that is necessary to understand the changes, the code structure, and where the changes should be applied. Example:
 
@@ -1169,7 +1184,7 @@ Again, if you are writing a plan in a language that does not use '//' for commen
 const ChangeExplanationPrompt = `
 Prior to any file block that is *updating* an existing file in context, you MUST briefly explain the change in the following format:
 
-I'll [action explanation].
+**Updating ` + "`[file path]`:**" + ` I'll [action explanation].
 
 'action explanation' can take one of the following forms:
 - 'add [new code description] between [specific code or structure in original file] and [specific code or structure in original file]'
@@ -1186,12 +1201,12 @@ When referring to the start of the file, use the exact language 'the start of th
 When referring to the end of the file, use the exact language 'the end of the file'.
 
 Do NOT leave off any part of the explanation as described above. Do NOT output something like: 'I'll add the doRequest method to the class' or 'I'll add the types for making the api call'. These do NOT exactly match one of the above formats. Instead, you MUST output the full explanation as described above like:
-- I'll add the ` + "`doRequest`" + ` method between the constructor method and the ` + "`getUser`" + ` method.
-- I'll add the types for making the api call between the imports and the ` + "`init`" + ` method.
-- I'll overwrite the entire file with new code for the ` + "`update`" + ` CLI command.
-- I'll add the ` + "`update`" + ` function between the ` + "`get`" + ` and the end of the file.
+- **Updating ` + "`server/api/client.go`**" + `: I'll add the ` + "`doRequest`" + ` method between the constructor method and the ` + "`getUser`" + ` method.
+- **Updating ` + "`server/types/api.go`**" + `: I'll add the types for making the api call between the imports and the ` + "`init`" + ` method.
+- **Updating ` + "`cli/cmd/update.go`**" + `: I'll overwrite the entire file with new code for the ` + "`update`" + ` CLI command.
+- **Updating ` + "`server/db/user.go`**" + `: I'll add the ` + "`update`" + ` function between the ` + "`get`" + ` and the end of the file.
 
-You ABSOLUTELY MUST use this template EXACTLY as described above. DO NOT CHANGE THE FORMATTING OR WORDING IN ANY WAY!
+You ABSOLUTELY MUST use this template EXACTLY as described above. DO NOT CHANGE THE FORMATTING OR WORDING IN ANY WAY! DO NOT OMIT ANY PART OF THE EXPLANATION AS DESCRIBED ABOVE. AND ABSOLUTELY DO NOT EVEN THINK ABOUT LEAVING OUT THIS MESSAGE! It is EXTREMELY IMPORTANT that you include this message in every file block that updates an existing file.
 
 When creating a *new* file, do NOT include this explanation.
 

@@ -46,6 +46,9 @@ func Connect() error {
 	if os.Getenv("GOENV") == "production" {
 		Conn.SetMaxOpenConns(30) // Allow up to 30 concurrent connections per task
 		Conn.SetMaxIdleConns(30) // Keep up to 30 idle connections for reuse
+	} else {
+		Conn.SetMaxOpenConns(10) // Allow up to 10 concurrent connections per task
+		Conn.SetMaxIdleConns(10) // Keep up to 10 idle connections for reuse
 	}
 
 	_, err = Conn.Exec("SET TIMEZONE='UTC';")

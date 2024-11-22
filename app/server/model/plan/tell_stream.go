@@ -228,15 +228,18 @@ mainLoop:
 					errCh <- nil
 				}()
 
-				if req.IsChatOnly || len(autoLoadContextFiles) > 0 {
-					// no auto continue for chat only
-					if req.IsChatOnly {
-						shouldContinue = false
-					}
+				if req.IsChatOnly || len(autoLoadContextFiles) > 0 || active.DidVerifyDiff {
 
 					// if we're auto-loading context files, we always want to continue for at least another iteration with the loaded context (even if it's chat only)
 					if len(autoLoadContextFiles) > 0 {
+						log.Printf("Auto loading context files, so continuing")
 						shouldContinue = true
+					} else if req.IsChatOnly {
+						log.Printf("Chat only, won't continue")
+						shouldContinue = false
+					} else if active.DidVerifyDiff {
+						log.Printf("Did verify diff, won't continue")
+						shouldContinue = false
 					}
 
 					errCh <- nil
@@ -404,6 +407,7 @@ mainLoop:
 					ap.CurrentReplyDoneCh = nil
 				})
 
+				log.Printf("len(autoLoadContextFiles): %d\n", len(autoLoadContextFiles))
 				if len(autoLoadContextFiles) > 0 {
 					log.Println("Sending stream message to load context files")
 
@@ -412,6 +416,9 @@ mainLoop:
 						LoadContextFiles: autoLoadContextFiles,
 					})
 					active.FlushStreamBuffer()
+
+					// Force a small delay to ensure message is processed
+					time.Sleep(100 * time.Millisecond)
 
 					log.Println("Waiting for client to auto load context (30s timeout)")
 
@@ -429,6 +436,11 @@ mainLoop:
 				}
 
 				// if we're auto-loading context files, we always want to continue for at least another iteration with the loaded context
+				log.Printf("req.AutoContinue: %v\n", req.AutoContinue)
+				log.Printf("shouldContinue: %v\n", shouldContinue)
+				log.Printf("iteration: %d\n", iteration)
+				log.Printf("MaxAutoContinueIterations: %d\n", MaxAutoContinueIterations)
+
 				if len(autoLoadContextFiles) > 0 || (req.AutoContinue && shouldContinue && iteration < MaxAutoContinueIterations) {
 					log.Println("Auto continue plan")
 					// continue plan
@@ -504,17 +516,6 @@ mainLoop:
 					continue // skip processing this chunk
 				}
 			}
-
-			UpdateActivePlan(planId, branch, func(ap *types.ActivePlan) {
-				ap.CurrentReplyContent += content
-				ap.NumTokens++
-			})
-
-			// log.Printf("Sending stream msg: %s", content)
-			active.Stream(shared.StreamMessage{
-				Type:       shared.StreamMessageReply,
-				ReplyChunk: content,
-			})
 
 			replyParser.AddChunk(content, true)
 			parserRes := replyParser.Read()
@@ -611,6 +612,17 @@ mainLoop:
 				)
 				return
 			}
+
+			UpdateActivePlan(planId, branch, func(ap *types.ActivePlan) {
+				ap.CurrentReplyContent += content
+				ap.NumTokens++
+			})
+
+			// log.Printf("Sending stream msg: %s", content)
+			active.Stream(shared.StreamMessage{
+				Type:       shared.StreamMessageReply,
+				ReplyChunk: content,
+			})
 
 			// log.Println("Content:", content)
 			// log.Println("Current reply content:", active.CurrentReplyContent)

@@ -13,7 +13,7 @@ import (
 	"github.com/plandex/plandex/shared"
 )
 
-const MaxStreamRate = 100 * time.Millisecond
+const MaxStreamRate = 70 * time.Millisecond
 
 type ActiveBuild struct {
 	ReplyId                  string
@@ -158,61 +158,58 @@ func NewActivePlan(orgId, userId, planId, branch, prompt string, buildOnly, auto
 }
 
 func (ap *ActivePlan) FlushStreamBuffer() {
-	// log.Println("ActivePlan: flush stream buffer")
-
 	ap.streamMu.Lock()
 	if len(ap.streamMessageBuffer) == 0 {
-		// log.Println("ActivePlan: stream buffer empty")
 		ap.streamMu.Unlock()
 		return
 	}
 
-	// log.Printf("ActivePlan: flushing %d messages from stream buffer\n", len(ap.streamMessageBuffer))
-
-	var msg shared.StreamMessage
-	if len(ap.streamMessageBuffer) == 1 {
-		log.Println("ActivePlan: flushing 1 message from stream buffer")
-		msg = ap.streamMessageBuffer[0]
-	} else {
-		msg = shared.StreamMessage{
-			Type:           shared.StreamMessageMulti,
-			StreamMessages: ap.streamMessageBuffer,
-		}
-	}
-
+	bufferToFlush := ap.streamMessageBuffer
 	ap.streamMessageBuffer = []shared.StreamMessage{}
-
 	ap.streamMu.Unlock()
 
-	ap.Stream(msg)
+	if len(bufferToFlush) == 1 {
+		ap.Stream(bufferToFlush[0])
+	} else {
+		ap.Stream(shared.StreamMessage{
+			Type:           shared.StreamMessageMulti,
+			StreamMessages: bufferToFlush,
+		})
+	}
 }
 
 func (ap *ActivePlan) Stream(msg shared.StreamMessage) {
-	// log.Printf("ActivePlan: received Stream message: %v\n", msg)
-
 	ap.streamMu.Lock()
-	defer ap.streamMu.Unlock()
 
+	// Special messages bypass buffering
 	if msg.Type != shared.StreamMessageFinished &&
 		msg.Type != shared.StreamMessagePromptMissingFile {
+
 		if time.Since(ap.lastStreamMessageSent) < MaxStreamRate {
-			// log.Println("ActivePlan: stream rate limiting -- buffering message")
+			// Buffer the message
 			ap.streamMessageBuffer = append(ap.streamMessageBuffer, msg)
+			ap.streamMu.Unlock()
 			return
 		} else if len(ap.streamMessageBuffer) > 0 {
-			// log.Println("ActivePlan: stream buffer not empty -- flushing buffer before sending message")
+			// Need to flush buffer first
 			ap.streamMessageBuffer = append(ap.streamMessageBuffer, msg)
-
-			// unlock before recursive call
+			bufferToFlush := ap.streamMessageBuffer
+			ap.streamMessageBuffer = []shared.StreamMessage{}
 			ap.streamMu.Unlock()
-			ap.FlushStreamBuffer()
-			ap.streamMu.Lock() // re-lock after recursive call
+
+			// Send as multi-message
+			ap.Stream(shared.StreamMessage{
+				Type:           shared.StreamMessageMulti,
+				StreamMessages: bufferToFlush,
+			})
 			return
 		}
 	}
 
+	// Direct send path
 	msgJson, err := json.Marshal(msg)
 	if err != nil {
+		ap.streamMu.Unlock()
 		ap.StreamDoneCh <- &shared.ApiError{
 			Type:   shared.ApiErrorTypeOther,
 			Status: http.StatusInternalServerError,
@@ -221,36 +218,31 @@ func (ap *ActivePlan) Stream(msg shared.StreamMessage) {
 		return
 	}
 
-	// log.Printf("ActivePlan: sending stream message: %s\n", string(msgJson))
+	if msg.Type == shared.StreamMessageFinished && len(ap.streamMessageBuffer) > 0 {
+		// Handle any remaining buffered messages before finishing
+		bufferToFlush := ap.streamMessageBuffer
+		ap.streamMessageBuffer = []shared.StreamMessage{}
+		ap.streamMu.Unlock()
 
-	if msg.Type == shared.StreamMessageFinished {
-		// send full buffer if we got a finished message
-		if len(ap.streamMessageBuffer) > 0 {
-			// log.Println("ActivePlan: finished message -- sending stream buffer first")
+		ap.Stream(shared.StreamMessage{
+			Type:           shared.StreamMessageMulti,
+			StreamMessages: bufferToFlush,
+		})
 
-			// unlock before recursive call
-			ap.streamMu.Unlock()
-			ap.FlushStreamBuffer()
-			ap.streamMu.Lock() // re-lock after recursive call
-
-			// sleep a little before the final message
-			time.Sleep(50 * time.Millisecond)
-		}
+		time.Sleep(50 * time.Millisecond)
+		ap.Stream(msg) // Resend the finish message
+		return
 	}
 
-	// log.Println("ActivePlan: sending stream message:", msg.Type)
-
 	ap.streamCh <- string(msgJson)
-
-	// log.Println("ActivePlan: sent stream message:", msg.Type)
 
 	now := time.Now()
 	if now.After(ap.lastStreamMessageSent) {
 		ap.lastStreamMessageSent = now
 	}
+	ap.streamMu.Unlock()
 
 	if msg.Type == shared.StreamMessageFinished {
-		// Wait briefly to allow last stream message to be sent
 		time.Sleep(100 * time.Millisecond)
 		ap.StreamDoneCh <- nil
 	}
