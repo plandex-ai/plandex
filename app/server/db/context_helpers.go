@@ -305,7 +305,7 @@ func LoadContexts(ctx Ctx, params LoadContextsParams) (*shared.LoadContextRespon
 
 		if context.ContextType == shared.ContextMapType && len(context.MapInputs) > 0 {
 			// Process file maps
-			mappedFiles, err := processMapFiles(ctx, context.MapInputs)
+			mappedFiles, err := syntax.ProcessMapFiles(ctx, context.MapInputs)
 			if err != nil {
 				return nil, nil, fmt.Errorf("error processing map files: %v", err)
 			}
@@ -808,34 +808,4 @@ func invalidateConflictedResults(orgId, planId string, filesToUpdate map[string]
 	}
 
 	return nil
-}
-
-// processMapFiles handles concurrent processing of multiple files for mapping
-func processMapFiles(ctx Ctx, inputs map[string]string) (shared.FileMapBodies, error) {
-	bodies := make(shared.FileMapBodies, len(inputs))
-	var mu sync.Mutex
-	errCh := make(chan error, len(inputs))
-
-	for path, content := range inputs {
-		go func(path, content string) {
-			fileMap, err := syntax.MapFile(ctx, path, []byte(content))
-			if err != nil {
-				errCh <- fmt.Errorf("error mapping file %s: %v", path, err)
-				return
-			}
-			mu.Lock()
-			defer mu.Unlock()
-			bodies[path] = fileMap.String()
-			errCh <- nil
-		}(path, content)
-	}
-
-	for i := 0; i < len(inputs); i++ {
-		err := <-errCh
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return bodies, nil
 }
