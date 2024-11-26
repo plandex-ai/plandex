@@ -1,7 +1,9 @@
 package types
 
 import (
+	"log"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -47,7 +49,7 @@ func NewReplyParser() *ReplyParser {
 }
 
 func (r *ReplyParser) AddChunk(chunk string, addToTotal bool) {
-	// log.Println("Adding chunk:", strconv.Quote(chunk)) // Logging the chunk that's being processed
+	log.Println("Adding chunk:", strconv.Quote(chunk)) // Logging the chunk that's being processed
 
 	hasNewLine := false
 	nextChunk := ""
@@ -64,7 +66,7 @@ func (r *ReplyParser) AddChunk(chunk string, addToTotal bool) {
 	}
 
 	if chunk == "\n" {
-		// log.Println("Chunk is \\n, adding new line")
+		log.Println("Chunk is \\n, adding new line")
 		r.lines = append(r.lines, "")
 		hasNewLine = true
 		r.lineIndex++
@@ -122,7 +124,7 @@ func (r *ReplyParser) AddChunk(chunk string, addToTotal bool) {
 	}
 
 	prevFullLine := r.lines[r.lineIndex-1]
-	// log.Println("Previous full line:", strconv.Quote(prevFullLine)) // Logging the full line that's being checked
+	log.Println("Previous full line:", strconv.Quote(prevFullLine)) // Logging the full line that's being checked
 
 	prevFullLineTrimmed := strings.TrimSpace(prevFullLine)
 
@@ -158,7 +160,7 @@ func (r *ReplyParser) AddChunk(chunk string, addToTotal bool) {
 	}
 
 	if r.currentFilePath == "" {
-		// log.Println("Current file path is empty--checking for possible file path...")
+		log.Println("Current file path is empty--checking for possible file path...")
 
 		var gotPath string
 		if lineMaybeHasFilePath(prevFullLineTrimmed) {
@@ -176,7 +178,7 @@ func (r *ReplyParser) AddChunk(chunk string, addToTotal bool) {
 			}
 		}
 	} else {
-		// log.Println("Current file path is not empty--adding to current file...")
+		log.Println("Current file path is not empty--adding to current file...")
 		if strings.HasPrefix(prevFullLineTrimmed, "```") {
 			// log.Println("Found closing ticks--adding file to files and resetting current file...")
 			r.files = append(r.files, r.currentFilePath)

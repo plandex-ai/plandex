@@ -25,6 +25,8 @@ import (
 
 const defaultEditor = "vim"
 
+var autoConfirm bool
+
 // const defaultEditor = "nano"
 
 var tellPromptFile string

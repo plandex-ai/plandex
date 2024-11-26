@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 	"sync"
@@ -43,11 +42,17 @@ const (
 	DefaultLimit = 100
 )
 
+// single line const
+const singleLineConst string = "single line const"
+
 // Global variables
 var (
 	defaultTimeout = time.Second * 30
 	processor      DataProcessor
 )
+
+// single line var
+var singleLineVar string = "single line var"
 
 // Generic type
 type Result[T any] struct {

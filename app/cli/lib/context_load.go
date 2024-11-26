@@ -271,7 +271,7 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 			if params.DefsOnly {
 				for _, path := range flattenedPaths {
 					ext := filepath.Ext(path)
-					if shared.IsTreeSitterExtension(ext) {
+					if shared.HasFileMapSupport(ext) {
 						numPaths++
 					}
 				}
@@ -311,7 +311,7 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 					}
 
 					ext := filepath.Ext(path)
-					if !shared.IsTreeSitterExtension(ext) {
+					if !shared.HasFileMapSupport(ext) {
 						// not a tree-sitter supported extension
 						continue
 					}

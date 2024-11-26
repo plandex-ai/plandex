@@ -8,7 +8,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var autoConfirm, autoCommit, noCommit bool
+var autoCommit, noCommit bool
 
 func init() {
 	applyCmd.Flags().BoolVarP(&autoCommit, "commit", "c", false, "Commit changes to git")

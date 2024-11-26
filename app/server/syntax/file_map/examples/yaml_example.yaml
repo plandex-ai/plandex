@@ -112,7 +112,7 @@ certificate: !!binary |
   R0lGODlhDAAMAIQAAP//9/X17unp5WZmZgAAAOf...
 
 # Custom tags
-!!python/object:datetime.datetime
+datetime_obj: !!python/object:datetime.datetime
   year: 2024
   month: 2
   day: 20

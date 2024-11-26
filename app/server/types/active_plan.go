@@ -351,6 +351,9 @@ func (sub *subscription) enqueueMessage(msg string) {
 }
 
 func (ap *ActivePlan) ShouldVerifyDiff() bool {
+	// disabling tell-based verifications for now
+	return false
+
 	// log.Printf("ShouldVerifyDiff: buildOnly=%v, didVerifyDiff=%v, numBuiltFiles=%d, didEditFiles=%v, hasMultipleBuiltFiles=%v",
 	// 	!ap.BuildOnly,
 	// 	!ap.DidVerifyDiff,
@@ -358,11 +361,11 @@ func (ap *ActivePlan) ShouldVerifyDiff() bool {
 	// 	ap.DidEditFiles,
 	// 	len(ap.BuiltFiles) > 3)
 
-	return !ap.BuildOnly &&
-		!ap.IsVerifyingDiff &&
-		!ap.DidVerifyDiff &&
-		(len(ap.BuiltFiles) > 0 || len(ap.IsBuildingByPath) > 0) &&
-		(ap.DidEditFiles || len(ap.BuiltFiles) > 3) // verify diff if we edited any files or built more than 3 new files—unlikely to have errors otherwise
+	// return !ap.BuildOnly &&
+	// 	!ap.IsVerifyingDiff &&
+	// 	!ap.DidVerifyDiff &&
+	// 	(len(ap.BuiltFiles) > 0 || len(ap.IsBuildingByPath) > 0) &&
+	// 	(ap.DidEditFiles || len(ap.BuiltFiles) > 3) // verify diff if we edited any files or built more than 3 new files—unlikely to have errors otherwise
 }
 
 func (ap *ActivePlan) Finish() {

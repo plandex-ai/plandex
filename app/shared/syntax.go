@@ -1,5 +1,10 @@
 package shared
 
+import (
+	"path/filepath"
+	"strings"
+)
+
 type TreeSitterLanguage string
 
 const (
@@ -72,11 +77,31 @@ var TreeSitterLanguages = []TreeSitterLanguage{
 	TreeSitterLanguageYaml,
 }
 
+var lacksFileMapSupport = []TreeSitterLanguage{
+	// config languages aren't mapped, model decides whether to load them based on file name
+	TreeSitterLanguageHcl,
+	TreeSitterLanguageYaml,
+	TreeSitterLanguageToml,
+	TreeSitterLanguageCue,
+	TreeSitterLanguageJson,
+	TreeSitterLanguageProtobuf,
+
+	// these just need more work for mapping
+	TreeSitterLanguageGroovy,
+	TreeSitterLanguageOCaml,
+}
+
 var TreeSitterLanguageSet = map[TreeSitterLanguage]bool{}
+
+var TreeSitterFileMapSupportSet = map[TreeSitterLanguage]bool{}
 
 func init() {
 	for _, lang := range TreeSitterLanguages {
 		TreeSitterLanguageSet[lang] = true
+		TreeSitterFileMapSupportSet[lang] = true
+	}
+	for _, lang := range lacksFileMapSupport {
+		TreeSitterFileMapSupportSet[lang] = false
 	}
 }
 
@@ -84,48 +109,58 @@ func IsTreeSitterLanguage(lang TreeSitterLanguage) bool {
 	return TreeSitterLanguageSet[lang]
 }
 
-func IsTreeSitterExtension(ext string) bool {
-	return TreeSitterLanguageByExtension[ext] != ""
+func HasTreeSitterSupport(path string) bool {
+	base := filepath.Base(path)
+	ext := filepath.Ext(base)
+	isDockerfile := strings.Contains(strings.ToLower(base), "dockerfile")
+	return isDockerfile || TreeSitterLanguageByExtension[ext] != ""
+}
+
+func HasFileMapSupport(path string) bool {
+	base := filepath.Base(path)
+	ext := filepath.Ext(base)
+	isDockerfile := strings.Contains(strings.ToLower(base), "dockerfile")
+	lang := TreeSitterLanguageByExtension[ext]
+	return isDockerfile || (lang != "" && TreeSitterFileMapSupportSet[lang])
 }
 
 var TreeSitterLanguageByExtension = map[string]TreeSitterLanguage{
-	".sh":         TreeSitterLanguageBash,
-	".bash":       TreeSitterLanguageBash,
-	".c":          TreeSitterLanguageC,
-	".h":          TreeSitterLanguageC,
-	".cpp":        TreeSitterLanguageCpp,
-	".cc":         TreeSitterLanguageCpp,
-	".cs":         TreeSitterLanguageCsharp,
-	".css":        TreeSitterLanguageCss,
-	".cue":        TreeSitterLanguageCue,
-	".dockerfile": TreeSitterLanguageDockerfile,
-	".ex":         TreeSitterLanguageElixir,
-	".exs":        TreeSitterLanguageElixir,
-	".elm":        TreeSitterLanguageElm,
-	".go":         TreeSitterLanguageGo,
-	".groovy":     TreeSitterLanguageGroovy,
-	".hcl":        TreeSitterLanguageHcl,
-	".html":       TreeSitterLanguageHtml,
-	".java":       TreeSitterLanguageJava,
-	".js":         TreeSitterLanguageJavascript,
-	".json":       TreeSitterLanguageJson,
-	".jsx":        TreeSitterLanguageTsx,
-	".kt":         TreeSitterLanguageKotlin,
-	".lua":        TreeSitterLanguageLua,
-	".ml":         TreeSitterLanguageOCaml,
-	".php":        TreeSitterLanguagePhp,
-	".proto":      TreeSitterLanguageProtobuf,
-	".py":         TreeSitterLanguagePython,
-	".rb":         TreeSitterLanguageRuby,
-	".rs":         TreeSitterLanguageRust,
-	".scala":      TreeSitterLanguageScala,
-	".svelte":     TreeSitterLanguageSvelte,
-	".swift":      TreeSitterLanguageSwift,
-	".toml":       TreeSitterLanguageToml,
-	".ts":         TreeSitterLanguageTypescript,
-	".tsx":        TreeSitterLanguageTsx,
-	".yaml":       TreeSitterLanguageYaml,
-	".yml":        TreeSitterLanguageYaml,
+	".sh":     TreeSitterLanguageBash,
+	".bash":   TreeSitterLanguageBash,
+	".c":      TreeSitterLanguageC,
+	".h":      TreeSitterLanguageC,
+	".cpp":    TreeSitterLanguageCpp,
+	".cc":     TreeSitterLanguageCpp,
+	".cs":     TreeSitterLanguageCsharp,
+	".css":    TreeSitterLanguageCss,
+	".cue":    TreeSitterLanguageCue,
+	".ex":     TreeSitterLanguageElixir,
+	".exs":    TreeSitterLanguageElixir,
+	".elm":    TreeSitterLanguageElm,
+	".go":     TreeSitterLanguageGo,
+	".groovy": TreeSitterLanguageGroovy,
+	".hcl":    TreeSitterLanguageHcl,
+	".html":   TreeSitterLanguageHtml,
+	".java":   TreeSitterLanguageJava,
+	".js":     TreeSitterLanguageJavascript,
+	".json":   TreeSitterLanguageJson,
+	".jsx":    TreeSitterLanguageTsx,
+	".kt":     TreeSitterLanguageKotlin,
+	".lua":    TreeSitterLanguageLua,
+	".ml":     TreeSitterLanguageOCaml,
+	".php":    TreeSitterLanguagePhp,
+	".proto":  TreeSitterLanguageProtobuf,
+	".py":     TreeSitterLanguagePython,
+	".rb":     TreeSitterLanguageRuby,
+	".rs":     TreeSitterLanguageRust,
+	".scala":  TreeSitterLanguageScala,
+	".svelte": TreeSitterLanguageSvelte,
+	".swift":  TreeSitterLanguageSwift,
+	".toml":   TreeSitterLanguageToml,
+	".ts":     TreeSitterLanguageTypescript,
+	".tsx":    TreeSitterLanguageTsx,
+	".yaml":   TreeSitterLanguageYaml,
+	".yml":    TreeSitterLanguageYaml,
 }
 
 var TreeSitterLanguageFallbackByExtension = map[string]TreeSitterLanguage{

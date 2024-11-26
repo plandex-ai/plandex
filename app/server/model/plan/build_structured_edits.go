@@ -11,6 +11,7 @@ import (
 	"plandex-server/model/prompts"
 	"plandex-server/syntax"
 	"plandex-server/types"
+	"slices"
 	"strings"
 	"time"
 
@@ -44,12 +45,36 @@ func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 		return
 	}
 
-	proposedContentLines := strings.Split(activeBuild.FileContent, "\n")
+	proposedContent := activeBuild.FileContent
+	proposedContentLines := strings.Split(proposedContent, "\n")
 	originalContentLines := strings.Split(originalFile, "\n")
+
+	var references []syntax.Reference
+	var removals []syntax.Removal
+
+	for i, line := range proposedContentLines {
+		content := strings.TrimSpace(line)
+
+		found := false
+
+		if strings.Contains(strings.ToLower(content), "... existing code ...") {
+			references = append(references, syntax.Reference(i+1))
+			found = true
+		} else if strings.Contains(strings.ToLower(content), "plandex: removed code") {
+			removals = append(removals, syntax.Removal(i+1))
+			found = true
+		}
+
+		if found {
+			proposedContentLines[i] = strings.Replace(proposedContentLines[i], content, "", 1)
+		}
+	}
+
+	proposedContent = strings.Join(proposedContentLines, "\n")
 
 	log.Println("buildStructuredEdits - getting references prompt")
 
-	anchorsSysPrompt := prompts.GetSemanticAnchorsPrompt(filePath, originalFile, activeBuild.FileContent, activeBuild.FileDescription)
+	anchorsSysPrompt := prompts.GetSemanticAnchorsPrompt(filePath, originalFile, proposedContent, activeBuild.FileDescription)
 
 	anchorsFileMessages := []openai.ChatCompletionMessage{
 		{
@@ -197,27 +222,76 @@ func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 		}
 	}
 
-	fileContent := activeBuild.FileContent
-	fileContentLines := strings.Split(fileContent, "\n")
+	refsXmlString, err := GetXMLTag(content, "PlandexReferences")
+	if err != nil {
+		log.Printf("buildStructuredEdits - error parsing PlandexReferences xml: %v\n", err)
+	}
 
-	var references []syntax.Reference
-	var removals []syntax.Removal
+	var refsElement types.ReferencesTag
+	if refsXmlString != "" {
+		err = xml.Unmarshal([]byte(refsXmlString), &refsElement)
+		if err != nil {
+			log.Printf("buildStructuredEdits - error unmarshalling PlandexReferences xml: %v\n", err)
+			fileState.structuredEditRetryOrError(fmt.Errorf("error unmarshalling PlandexReferences xml: %v", err))
+			return
+		}
+
+		for _, ref := range refsElement.References {
+			proposedLine, err := shared.ExtractLineNumberWithPrefix(ref.ProposedLine, "pdx-new-")
+			if err != nil {
+				log.Printf("buildStructuredEdits - error parsing anchor proposed line num: %v\n", err)
+				fileState.structuredEditRetryOrError(fmt.Errorf("error parsing anchor proposed line num: %v", err))
+				return
+			}
+
+			references = append(references, syntax.Reference(proposedLine))
+		}
+	}
+
+	removalsXmlString, err := GetXMLTag(content, "PlandexRemovals")
+	if err != nil {
+		log.Printf("buildStructuredEdits - error parsing PlandexRemovals xml: %v\n", err)
+	}
+	var removalsElement types.RemovalsTag
+	if removalsXmlString != "" {
+		err = xml.Unmarshal([]byte(removalsXmlString), &removalsElement)
+		if err != nil {
+			log.Printf("buildStructuredEdits - error unmarshalling PlandexRemovals xml: %v\n", err)
+		}
+
+		for _, removal := range removalsElement.Removals {
+			proposedLine, err := shared.ExtractLineNumberWithPrefix(removal.ProposedLine, "pdx-new-")
+			if err != nil {
+				log.Printf("buildStructuredEdits - error parsing anchor proposed line num: %v\n", err)
+			}
+
+			removals = append(removals, syntax.Removal(proposedLine))
+		}
+	}
+
+	slices.Sort(references)
+	slices.Sort(removals)
+
+	hasRefByLine := make(map[int]bool)
+	for _, ref := range references {
+		hasRefByLine[int(ref)] = true
+	}
+	for _, rev := range removals {
+		hasRefByLine[int(rev)] = true
+	}
 
 	var beginsWithRef bool = false
 	var endsWithRef bool = false
 	var foundNonRefLine bool = false
 
-	for i, line := range fileContentLines {
-		line = strings.ToLower(strings.TrimSpace(line))
+	for i, line := range proposedContentLines {
+		hasRef := hasRefByLine[i+1]
 
-		if strings.Contains(line, "... existing code ...") {
-			references = append(references, syntax.Reference(i+1))
+		if hasRef {
 			if !foundNonRefLine {
 				beginsWithRef = true
 			}
 			endsWithRef = true
-		} else if strings.Contains(line, "plandex: removed code") {
-			removals = append(removals, syntax.Removal(i+1))
 		} else if line != "" {
 			foundNonRefLine = true
 			endsWithRef = false
@@ -229,7 +303,7 @@ func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 		!strings.Contains(activeBuild.FileDescription, "the start of the file") {
 
 		// structured edits handle normalization of comments, so just use // ... existing code ... here
-		fileContentLines = append([]string{"// ... existing code ..."}, fileContentLines...)
+		proposedContentLines = append([]string{"// ... existing code ..."}, proposedContentLines...)
 
 		// bump all existing references up by 1
 		for i, ref := range references {
@@ -241,18 +315,18 @@ func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 	if !endsWithRef &&
 		!strings.Contains(activeBuild.FileDescription, "overwrite the entire file") &&
 		!strings.Contains(activeBuild.FileDescription, "the end of the file") {
-		fileContentLines = append(fileContentLines, "// ... existing code ...")
-		references = append(references, syntax.Reference(len(fileContentLines)))
+		proposedContentLines = append(proposedContentLines, "// ... existing code ...")
+		references = append(references, syntax.Reference(len(proposedContentLines)))
 	}
 
-	fileContent = strings.Join(fileContentLines, "\n")
+	proposedContent = strings.Join(proposedContentLines, "\n")
 
 	updatedFile, err := syntax.ApplyChanges(
 		activePlan.Ctx,
 		fileState.language,
 		parser,
 		originalFile,
-		fileContent,
+		proposedContent,
 		references,
 		removals,
 		anchorLines,

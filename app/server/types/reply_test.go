@@ -54,6 +54,12 @@ var examples = []TestExample{
 			"server/model/proposal/create.go": 239,
 		},
 	},
+	{
+		N: 7,
+		TokensByFilePath: map[string]int{
+			"file_map/map.go": 239,
+		},
+	},
 }
 
 func TestReplyTokenCounter(t *testing.T) {
@@ -85,7 +91,7 @@ func TestReplyTokenCounter(t *testing.T) {
 			i = end
 		}
 
-		res := counter.FinishAndRead()
+		res := counter.Read()
 
 		totalCounted := res.TotalTokens
 		files := res.Files

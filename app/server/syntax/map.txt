@@ -1,0 +1,846 @@
+### ../examples/bash_example.sh
+function print_message()
+get_date()
+main()
+
+### ../examples/c_example.c
+#define MAX_SIZE
+#define SQUARE(x)
+typedef struct
+typedef enum {
+    MONDAY,
+    TUESDAY,
+    WEDNESDAY,
+    THURSDAY,
+    FRIDAY
+} Weekday;
+static const double PI
+int globalCounter
+void printPerson(const Person* p
+int factorial(int n
+union Data
+typedef int (*Operation)(int, int);
+int add(int a, int b)
+int subtract(int a, int b)
+void printPerson(const Person* p)
+int factorial(int n)
+int main()
+
+### ../examples/cpp_example.cpp
+int globalInteger
+const double PI
+static std::string globalString
+enum Color { RED, GREEN, BLUE }
+constexpr int MAX_SIZE
+template<typename T>
+  - class Container
+    - public
+    - static T defaultValue;
+    - const T maxCapacity = MAX_SIZE;
+    - void add(T item)
+    - const std::vector<T>& getItems() const
+    - private
+    - std::vector<T> items;
+template<typename T>
+  - T Container<T>::defaultValue
+class Animal
+  - public
+  - virtual ~Animal() = default;
+  - virtual void makeSound() const = 0;
+  - protected
+  - std::string name;
+class Dog : virtual public Animal
+  - public
+  - Dog(const std::string& dogName)
+  - void makeSound() const override
+namespace Utils {
+    // Namespace-level variables
+    inline int counter = 0;
+    const std::string VERSION = "1.0.0";
+    
+    // Function template
+    template<typename T>
+    T max(T a, T b)
+class Resource
+  - public
+  - Resource(const std::string& data) : data_(data)
+  - ~Resource()
+  - Resource(Resource&& other) noexcept : data_(std::move(other.data_))
+  - std::string getData() const
+  - private
+  - std::string data_;
+class Counter
+  - public
+  - static int getCount()
+  - Counter()
+  - ~Counter()
+  - private
+  - static int count;
+int Counter::count
+class Box
+  - friend std::ostream& operator<<(std::ostream& os, const Box& box);
+  - public
+  - Box(int w, int h) : width(w), height(h)
+  - private
+  - int width;
+  - int height;
+std::ostream& operator<<(std::ostream& os, const Box& box)
+int main()
+
+### ../examples/csharp_example.cs
+namespace ExampleApp
+{
+    // Interface definition
+    public interface IProcessor<T>
+    {
+        Task<T> ProcessAsync(T input);
+        bool Validate(T input);
+    }
+
+    // Enum definition
+    public enum Status
+    {
+        Pending,
+        Active,
+        Completed,
+        Failed
+    }
+
+    // Delegate declaration
+    public delegate void StatusChangedEventHandler(Status oldStatus, Status newStatus);
+
+    // Generic class implementing interface
+    public class DataProcessor<T> : IProcessor<T> where T : class
+    {
+        // Event declaration
+        public event StatusChangedEventHandler StatusChanged;
+
+        // Auto-implemented property
+        public Status CurrentStatus { get; private set; }
+
+        // Static field
+        private static readonly Dictionary<Type, int> _processedItems = new();
+
+        // Constructor
+        public DataProcessor()
+
+### ../examples/elm_example.elm
+type alias Model =
+    { users : List User
+    , inputText : String
+    , error : Maybe String
+    }
+type alias User =
+    { id : Int
+    , name : String
+    , email : String
+    }
+init _ =
+    ( { users = []
+      , inputText = ""
+      , error = Nothing
+      }
+    , fetchUsers
+    )
+type Msg
+    = GotUsers (Result Http.Error (List User))
+    | InputChanged String
+    | AddUser
+    | UserAdded (Result Http.Error User)
+update msg model =
+    case msg of
+        GotUsers result ->
+            case result of
+                Ok users ->
+                    ( { model | users = users, error = Nothing }
+                    , Cmd.none
+                    )
+                Err _ ->
+                    ( { model | error = Just "Failed to fetch users" }
+                    , Cmd.none
+                    )
+
+        InputChanged text ->
+            ( { model | inputText = text }
+            , Cmd.none
+            )
+
+        AddUser ->
+            ( model
+            , addUser model.inputText
+            )
+
+        UserAdded result ->
+            case result of
+                Ok user ->
+                    ( { model 
+                      | users = user :: model.users
+                      , inputText = ""
+                      , error = Nothing
+                      }
+                    , Cmd.none
+                    )
+                Err _ ->
+                    ( { model | error = Just "Failed to add user" }
+                    , Cmd.none
+                    )
+fetchUsers =
+    Http.get
+        { url = "/api/users"
+        , expect = Http.expectJson GotUsers usersDecoder
+        }
+addUser name =
+    Http.post
+        { url = "/api/users"
+        , body = Http.jsonBody (userEncoder name)
+        , expect = Http.expectJson UserAdded userDecoder
+        }
+userEncoder name =
+    Encode.object
+        [ ("name", Encode.string name)
+        ]
+userDecoder =
+    Decode.map3 User
+        (Decode.field "id" Decode.int)
+        (Decode.field "name" Decode.string)
+        (Decode.field "email" Decode.string)
+usersDecoder =
+    Decode.list userDecoder
+view model =
+    div []
+        [ h1 [] [ text "User Management" ]
+        , viewError model.error
+        , viewInput model.inputText
+        , viewUsers model.users
+        ]
+viewError maybeError =
+    case maybeError of
+        Just error ->
+            div [ class "error" ] [ text error ]
+        Nothing ->
+            text ""
+viewInput inputText =
+    div []
+        [ input
+            [ value inputText
+            , onInput InputChanged
+            , placeholder "Enter user name"
+            ] []
+        , button [ onClick AddUser ] [ text "Add User" ]
+        ]
+viewUsers users =
+    div []
+        [ h2 [] [ text "Users" ]
+        , ul [] (List.map viewUser users)
+        ]
+viewUser user =
+    li []
+        [ text (user.name ++ " (" ++ user.email ++ ")")
+        ]
+main =
+    Browser.element
+        { init = init
+        , update = update
+        , view = view
+        , subscriptions = \_ -> Sub.none
+        }
+
+### ../examples/go_example.go
+type DataProcessor interface {
+type ValidationError struct
+func (e *ValidationError) Error() string
+type User struct
+type UserID = int64
+const (
+  - MaxRetries
+  - DefaultLimit
+const
+  - singleLineConst string
+var (
+  - defaultTimeout
+  - processor      DataProcessor
+var
+  - singleLineVar string
+type Result[T any] struct
+type UserProcessor struct
+func NewUserProcessor() *UserProcessor
+func (p *UserProcessor) Process(ctx context.Context, data interface{}) error
+func (p *UserProcessor) Validate(data interface{}) bool
+func processUsers(ctx context.Context, users <-chan *User) <-chan *Result[*User]
+func createUser(name, email string) (user *User, err error)
+func main()
+
+### ../examples/groovy_example.groovy
+trait Loggable
+abstract class
+class Car extends Vehicle implements Loggable {
+    // Properties with type definitions
+    private BigDecimal price
+    protected Boolean running = false
+    
+    // Static fields
+    static final String MANUFACTURER = "Generic Motors"
+    static def carCount = 0
+    
+    // Constructor with default parameters
+Car(String make = 'Unknown', String model = 'Generic', Integer year = 2024) {
+    this.make = make
+    this.model = model
+    this.year = year
+    carCount++
+}
+    
+    // Getter with @Lazy annotation
+    @Lazy
+    String fullName = "$make $model ($year)"
+    
+    // Method implementation with closure parameter
+    void start() {
+        running = true
+        log "Starting ${fullName}"
+        withLock {
+            // Some synchronized code
+            println "Engine started"
+        }
+    }
+    
+    void stop() {
+        running = false
+        log "Stopping ${fullName}"
+    }
+    
+    // Operator overloading
+    def plus(Car other) {
+        new Car(
+make: "${this.make}-${other.make}",
+model: "${this.model}-${other.model}",
+year: Math.max(this.year, other.year)
+        )
+    }
+    
+    // Property with custom getter/setter
+    private BigDecimal _price
+    void setPrice(BigDecimal price) {
+        if (price < 0) throw new IllegalArgumentException("Price cannot be negative")
+        this._price = price
+    }
+    BigDecimal getPrice() { _price }
+}
+enum Status
+class StringExtensions {
+    static String truncate(String self, Integer length) {
+        self.size() <= length ? self : self[0..<length] + "..."
+    }
+}
+class EmailBuilder {
+    private def email = [:]
+    
+    EmailBuilder to(String recipient) {
+        email.to = recipient
+        this
+    }
+    
+    EmailBuilder from(String sender) {
+        email.from = sender
+        this
+    }
+    
+    EmailBuilder subject(String subject) {
+        email.subject = subject
+        this
+    }
+    
+    EmailBuilder body(@DelegatesTo(strategy=Closure.DELEGATE_FIRST) Closure body) {
+        def builder = new StringBuilder()
+        body.delegate = builder
+        body.resolveStrategy = Closure.DELEGATE_FIRST
+        body()
+        email.body = builder.toString()
+        this
+    }
+    
+    Map build() {
+        email.clone() as Map
+    }
+}
+def main() {
+    use(StringExtensions) {
+        def description = "This is a very long description that needs truncating"
+        println description.truncate(20)
+    }
+    
+    def car = new Car(make: "Tesla", model: "Model S")
+    car.start()
+def email = new EmailBuilder()
+    .to("recipient@example.com")
+    .from("sender@example.com")
+    .subject("Test Email")
+    .body {
+        append "Hello,\n"
+        append "This is a test email.\n"
+        append "Regards"
+    }
+    .build()
+    .build()
+    
+    println email
+}
+
+### ../examples/java_example.java
+interface DataProcessor<T extends Comparable<T>>
+  - CompletableFuture<T> processAsync(T input);
+  - boolean validate(T input);
+enum Status
+abstract class BaseEntity<ID>
+  - protected ID id
+  - protected LocalDateTime createdAt
+  - protected LocalDateTime updatedAt
+  - public abstract void validate();
+record UserDTO(
+    String name,
+    String email,
+    Set<String> roles
+)
+@interface Audited
+public class Example extends BaseEntity<UUID> implements DataProcessor<String>
+  - private static final int MAX_RETRIES
+  - private static final Map<String, Integer> CACHE
+  - private final Queue<String> queue
+  - protected Status status
+  - @Audited
+    public String name
+  - private Example(Builder builder)
+  - public static class Builder
+    - private String name
+    - public Builder name(String name)
+    - public Example build()
+  - @Override
+    public CompletableFuture<String> processAsync(String input)
+  - @Override
+    public boolean validate(String input)
+  - @Override
+    public void validate()
+  - public <T extends Comparable<? super T>> List<T> sort(Collection<T> items)
+  - public void processItems(
+        List<String> items,
+        Predicate<String> filter,
+        Consumer<String> processor
+    )
+  - public static class ProcessingException extends RuntimeException
+    - public ProcessingException(String message)
+  - public static void main(String[] args)
+
+### ../examples/javascript_example.js
+const MAX_RETRIES
+const DEFAULT_TIMEOUT
+const privateState
+class DataProcessor extends EventEmitter
+  - #cache
+  - static version
+  - constructor({ maxRetries = MAX_RETRIES, timeout = DEFAULT_TIMEOUT } = {})
+  - async processData(data)
+  - async #validateAndTransform(data)
+  - *iterateCache()
+function deprecated(target, context)
+const handler
+const proxy
+const delay
+async function* generateSequence(start, end)
+const memoize
+class ValidationError extends Error
+  - constructor(message, field)
+const config
+const processItems
+const fetchData
+
+### ../examples/kotlin_example.kt
+interface DataProcessor<T>
+  - suspend fun process(data: T): Result<T>
+  - fun validate(data: T): Boolean
+sealed class ProcessingState<out T>
+  - object Loading : ProcessingState<Nothing>()
+  - data class Success<T>(val data: T) : ProcessingState<T>()
+  - data class Error(val exception: Throwable) : ProcessingState<Nothing>()
+data class User(
+    val id: String,
+    val name: String,
+    val email: String,
+    val roles: Set<Role> = emptySet(),
+    val createdAt: LocalDateTime = LocalDateTime.now()
+)
+enum class Role(val permission: Int)
+object Configuration
+class UserProcessor : DataProcessor<User>
+  - private var processingCount: Int by Delegates.observable(0) { _, old, new ->
+        println("Processing count changed from $old to $new
+  - val isActive: Boolean
+  - override suspend fun process(data: User): Result<User>
+  - override fun validate(data: User): Boolean
+  - private fun String.isValidEmail(): Boolean
+  - inline fun <reified T> logType()
+  - private fun validateEmail(email: String)
+fun <T> withRetry(
+    times: Int = 3,
+    action: suspend () -> T
+): suspend () -> T
+fun CoroutineScope.processUsers(users: List<User>): Flow<ProcessingState<User>>
+val User.displayName: String
+suspend fun main()
+
+### ../examples/lua_example.lua
+local Example
+local MAX_RETRIES
+local DEFAULT_TIMEOUT
+local User
+local DataStore
+local EventEmitter
+Example.User
+Example.EventEmitter
+
+### ../examples/ocaml_example.ml
+type 'a = string
+type t = {
+    mutable processed_count: int;
+    created_at: float;
+  }
+let create () = {
+    processed_count = 0;
+    created_at = Unix.time ();
+  }
+let process t input =
+    t.processed_count <- t.processed_count + 1;
+    if String.length input > 0 then
+      Ok (String.uppercase_ascii input)
+    else
+      Error "Empty input"
+let validate input =
+    String.length input > 0
+end
+type user = {
+  id: int;
+  name: string;
+  email: string;
+  created_at: float;
+}
+type 'a result = 
+  | Success of 'a 
+  | Error of string
+type message =
+  | Text of string
+  | Number of int
+  | Tuple of string * int
+  | Record of user
+exception ValidationError of string
+let memoize f =
+  let cache = Hashtbl.create 16 in
+  fun x ->
+    try Hashtbl.find cache x
+    with Not_found ->
+      let result = f x in
+      Hashtbl.add cache x result;
+      result
+class virtual ['a] queue = object(self)
+  val mutable items = []
+  
+  method virtual push : 'a -> unit
+  method virtual pop : 'a option
+  
+  method size = List.length items
+  
+  method is_empty = items = []
+  
+  method protected get_items = items
+  method protected set_items new_items = items <- new_items
+end
+class ['a] fifo_queue = object(self)
+  inherit ['a] queue
+
+  method push item =
+    self#set_items (self#get_items @ [item])
+
+  method pop =
+    match self#get_items with
+    | [] -> None
+    | hd::tl ->
+        self#set_items tl;
+        Some hd
+end
+let () =
+  let processor = StringProcessor.create () in
+  let result = StringProcessor.process processor "hello world" in
+  match result with
+  | Ok processed -> Printf.printf "Processed: %s\n" processed
+  | Error msg -> Printf.eprintf "Error: %s\n" msg;
+
+  let queue = new fifo_queue in
+  queue#push 1;
+  queue#push 2;
+  queue#push 3;
+  
+  let rec print_queue () =
+    match queue#pop with
+    | Some item -> 
+        Printf.printf "Item: %d\n" item;
+        print_queue ()
+    | None -> ()
+  in
+  print_queue ()
+
+### ../examples/php_example.php
+namespace Example;
+interface DataProcessor
+trait Loggable
+abstract class Entity implements JsonSerializable
+  - protected DateTime $createdAt
+  - protected ?DateTime $updatedAt
+  - public function __construct()
+  - abstract public function validate(): bool;
+  - public function jsonSerialize(): mixed
+enum Status: string
+class User extends Entity implements DataProcessor
+  - private static int $instanceCount
+  - public function __construct(
+        private string $name,
+        private string $email,
+        private Status $status = Status::PENDING,
+        private array $metadata = []
+    )
+  - public static function getInstanceCount(): int
+  - public function getEmail(): string
+  - public function setEmail(string $email): void
+  - public function __get(string $name)
+  - public function __set(string $name, mixed $value): void
+  - public function process(mixed $data): mixed
+  - public function validate(mixed $data): bool
+  - public function validate(): bool
+  - public function getMetadataValues(): array
+  - public function jsonSerialize(): mixed
+class ProcessingException extends Exception
+  - public function __construct(
+        string $message = "",
+        private ?string $errorCode = null,
+        int $code = 0,
+        ?Throwable $previous = null
+    )
+  - public function getErrorCode(): ?string
+
+### ../examples/python_example.py
+class Processable(Protocol):
+  - def process(self) -> None:
+  - def validate(self) -> bool:
+class Status(enum.Enum):
+  - def __str__(self) -> str:
+@dataclasses.dataclass(frozen=True, slots=True)
+class UserCredentials:
+class BaseProcessor(ABC, Generic[T]):
+  - def __init__(self) -> None:
+  - @abstractmethod
+    async def process_item(self, item: T) -> None:
+  - @property
+    def processed_count(self) -> int:
+def log_execution(func: Callable) -> Callable:
+class DataProcessor(BaseProcessor[UserCredentials], Processable):
+    # Class variable
+  - def __init__(self, batch_size: Optional[int] = None) -> None:
+  - @property
+    def status(self) -> Status:
+  - @status.setter
+    def status(self, value: Status) -> None:
+  - async def __aenter__(self) -> DataProcessor:
+  - async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+  - async def process_batch(self) -> AsyncIterator[List[UserCredentials]]:
+  - @log_execution
+    async def process_item(self, item: UserCredentials) -> None:
+  - def process(self) -> None:
+  - def validate(self) -> bool:
+class ProcessingError(Exception):
+  - def __init__(self, message: str, item: Any) -> None:
+async def main() -> None:
+
+### ../examples/ruby_example.rb
+global_var
+module Loggable
+  - def log(message)
+module Utils
+  - class << self
+    - def generate_id
+class BaseProcessor
+  - @processors
+  - class << self
+    - def register(processor)
+  - def initialize
+  - def process
+class ProcessingError < StandardError
+  - def initialize(message, item)
+User
+module Status
+  - PENDING
+  - ACTIVE
+  - COMPLETED
+  - FAILED
+  - ALL
+class DataProcessor < BaseProcessor
+  # Constants
+  - MAX_RETRIES
+  - DEFAULT_TIMEOUT
+  - @@instance_count
+  - def initialize(options = {})
+  - def add_item(item:, priority: :normal)
+  - def validate_item(item)
+  - def with_retry
+  - def process_items
+  - def process_item(item)
+class Configuration
+  - def initialize
+  - def [](key)
+  - def []=(key, value)
+
+### ../examples/rust_example.rs
+const MAX_RETRIES: u32
+const DEFAULT_TIMEOUT: Duration
+
+### ../examples/scala_example.scala
+type Result[T] = Either[String, T]
+trait DataProcessor[T]
+case class ProcessingState[T](
+  data: T,
+  status: ProcessingState.Status,
+  timestamp: Long = System.currentTimeMillis()
+)
+object ProcessingState
+abstract class BaseProcessor[T] extends DataProcessor[T]
+  - protected val logger = new Logger(getClass.getName)
+  - protected def transform(data: T): T
+  - override def process(data: T): Result[T] =
+class NumberProcessor[T <: Number] extends BaseProcessor[T]
+  - override def validate(data: T): Boolean = data != null
+  - protected def transform(data: T): T = data
+case class User(
+  id: String,
+  name: String,
+  email: String,
+  roles: Set[String] = Set.empty,
+  metadata: Map[String, String] = Map.empty
+)
+object Utils
+object Implicits
+trait Logging
+class Logger(name: String) extends Logging
+  - def log(level: String, message: => String): Unit =
+trait Monad[F[_]]
+object Conversions
+trait Container
+class Box[T](initial: T) extends Container
+  - type Content = T
+  - def content: T = initial
+  - def transform(f: T => T): Box[T] = new Box(f(initial))
+object Main extends App
+
+### ../examples/swift_example.swift
+protocol DataProcessor
+enum ProcessingError: LocalizedError
+  - var errorDescription: String? {
+        switch self {
+        case .invalidInput(let reason): return "Invalid input: \(reason)"
+        case .processingFailed(let reason): return "Processing failed: \(reason)"
+        }
+    }
+@propertyWrapper
+struct Validated<T>
+  - private var value: T
+  - private let validator: (T) -> Bool
+  - var wrappedValue: T {
+        get { value }
+        set {
+            guard validator(newValue) else {
+                fatalError("Invalid value")
+            }
+            value = newValue
+        }
+    }
+  - init(wrappedValue: T, validator: @escaping (T) -> Bool)
+actor ProcessingState
+  - private(set) var processedCount: Int = 0
+  - private var status: Status = .pending
+  - enum Status
+  - func incrementCount()
+  - func updateStatus(_ newStatus: Status)
+struct Queue<Element> where Element: Sendable
+  - private var elements: [Element] = []
+  - private let lock = NSLock()
+  - mutating func enqueue(_ element: Element)
+  - mutating func dequeue() -> Element?
+class StringProcessor: DataProcessor
+  - typealias Input = String
+  - typealias Output = String
+  - private let state = ProcessingState()
+  - @Validated(validator: { !$0.isEmpty })
+    private var currentInput: String = "default"
+  - func process(_ input: String) async throws -> String
+  - func validate(_ input: String) -> Bool
+extension StringProcessor: AsyncSequence, AsyncIteratorProtocol
+  - typealias Element = String
+  - func makeAsyncIterator() -> StringProcessor
+  - func next() async throws -> String?
+@resultBuilder
+struct ArrayBuilder<T>
+  - static func buildBlock(_ components: T...) -> [T]
+func makeArray<T>(@ArrayBuilder<T> content: () -> [T]) -> [T]
+@main
+struct Example
+  - static func main() async throws
+
+### ../examples/tsx_example.tsx
+interface User
+type ValidationResult
+interface DataListProps<T>
+function useDebounce<T>(value: T, delay: number): T
+function withLoading<P extends object>(
+  WrappedComponent: React.ComponentType<P>
+): FC<P & { loading?: boolean }>
+const UserForm: FC<{ onSubmit: (user: Partial<User>) => void }>
+const DataList
+const App: FC
+
+### ../examples/typescript_example.ts
+interface DataProcessor<T>
+type Result<T>
+enum Status
+type ValidationResult
+type AdminUser
+type Readonly<T>
+type Partial<T>
+function validate(target: any, propertyKey: string, descriptor: PropertyDescriptor)
+@logger
+class User
+  - @required
+    private name: string
+  - @email
+    private email: string
+  - @format('YYYY-MM-DD')
+    private createdAt: Date
+  - constructor(name: string, email: string)
+  - public updateEmail(newEmail: string): void
+  - public get isAdmin(): this is AdminUser
+abstract class BaseProcessor<T> implements DataProcessor<T>
+class StringProcessor extends BaseProcessor<string>
+  - async process(data: string): Promise<string>
+  - private async transform(data: string): Promise<string>
+function process(data: string): Promise<string>;
+function process(data: number): Promise<number>;
+function process(data: string | number): Promise<string | number>
+async function validateData<T extends { id: string }>(
+    data: T
+): Promise<ValidationResult>
+function withRetry<T>(
+    fn: () => Promise<T>,
+    retries: number = 3
+): () => Promise<T>
+type Middleware
+const createUser
+async function* generateSequence(
+    start: number,
+    end: number
+): AsyncGenerator<number>
+async function main()
+

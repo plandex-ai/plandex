@@ -1,5 +1,7 @@
 #!/usr/bin/env ruby
 
+global_var = "Hello, World!"
+
 # Module for mixing in common functionality
 module Loggable
   def log(message)

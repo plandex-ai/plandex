@@ -42,18 +42,18 @@ func GetParserForExt(ext string) (*tree_sitter.Parser, shared.TreeSitterLanguage
 		return nil, "", nil, ""
 	}
 
-	parser := getParserForLanguage(lang)
+	parser := GetParserForLanguage(lang)
 
 	fallback := shared.TreeSitterLanguageFallbackByExtension[ext]
 	var fallbackParser *tree_sitter.Parser
 	if fallback != "" {
-		fallbackParser = getParserForLanguage(fallback)
+		fallbackParser = GetParserForLanguage(fallback)
 	}
 
 	return parser, lang, fallbackParser, fallback
 }
 
-func getParserForLanguage(lang shared.TreeSitterLanguage) *tree_sitter.Parser {
+func GetParserForLanguage(lang shared.TreeSitterLanguage) *tree_sitter.Parser {
 	parser := tree_sitter.NewParser()
 	switch lang {
 	case shared.TreeSitterLanguageBash:

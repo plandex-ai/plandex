@@ -8,7 +8,6 @@ import (
 	"plandex-server/hooks"
 	"plandex-server/model"
 	"plandex-server/model/prompts"
-	"plandex-server/syntax"
 	"plandex-server/types"
 
 	"github.com/davecgh/go-spew/spew"
@@ -240,25 +239,25 @@ func (fileState *activeBuildStreamFileState) buildFile() {
 		})
 
 		// validate syntax of new file
-		validationRes, err := syntax.Validate(activePlan.Ctx, filePath, activeBuild.FileContent)
+		// validationRes, err := syntax.Validate(activePlan.Ctx, filePath, activeBuild.FileContent)
 
-		if err != nil {
-			log.Printf("Error validating syntax for new file '%s': %v\n", filePath, err)
-			fileState.onBuildFileError(fmt.Errorf("error validating syntax for new file '%s': %v", filePath, err))
-			return
-		}
+		// if err != nil {
+		// 	log.Printf("Error validating syntax for new file '%s': %v\n", filePath, err)
+		// 	fileState.onBuildFileError(fmt.Errorf("error validating syntax for new file '%s': %v", filePath, err))
+		// 	return
+		// }
 
 		// new file
 		planRes := &db.PlanFileResult{
-			OrgId:           currentOrgId,
-			PlanId:          planId,
-			PlanBuildId:     build.Id,
-			ConvoMessageId:  build.ConvoMessageId,
-			Path:            filePath,
-			Content:         activeBuild.FileContent,
-			WillCheckSyntax: validationRes.HasParser && !validationRes.TimedOut,
-			SyntaxValid:     validationRes.Valid,
-			SyntaxErrors:    validationRes.Errors,
+			OrgId:          currentOrgId,
+			PlanId:         planId,
+			PlanBuildId:    build.Id,
+			ConvoMessageId: build.ConvoMessageId,
+			Path:           filePath,
+			Content:        activeBuild.FileContent,
+			// WillCheckSyntax: validationRes.HasParser && !validationRes.TimedOut,
+			// SyntaxValid:     validationRes.Valid,
+			// SyntaxErrors:    validationRes.Errors,
 		}
 
 		log.Println("build exec - Plan file result:")

@@ -4,8 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path/filepath"
-	"plandex-server/syntax"
+	"plandex-server/syntax/file_map"
 	"plandex/lib"
 	"plandex/types"
 	"sync"
@@ -18,14 +17,24 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 
-	if len(os.Args) < 2 {
+	args := os.Args[1:]
+
+	if len(args) < 1 {
 		fmt.Println("usage: mapper [files-or-dirs...]")
 		os.Exit(1)
 	}
 
-	inputPaths := os.Args[1:]
+	var parserTree bool = false
 
-	flattenedPaths, err := lib.ParseInputPaths(inputPaths, &types.LoadContextParams{
+	for i, arg := range args {
+		if arg == "--trees" {
+			parserTree = true
+			args = append(args[:i], args[i+1:]...)
+			break
+		}
+	}
+
+	flattenedPaths, err := lib.ParseInputPaths(args, &types.LoadContextParams{
 		DefsOnly: true,
 	})
 
@@ -36,7 +45,7 @@ func main() {
 
 	var filteredPaths []string
 	for _, path := range flattenedPaths {
-		if shared.IsTreeSitterExtension(filepath.Ext(path)) {
+		if shared.HasFileMapSupport(path) {
 			filteredPaths = append(filteredPaths, path)
 		}
 	}
@@ -67,11 +76,20 @@ func main() {
 		}
 	}
 
-	mapBodies, err := syntax.ProcessMapFiles(ctx, fileInputs)
-	if err != nil {
-		fmt.Printf("error processing map files: %v\n", err)
-		os.Exit(1)
-	}
+	if parserTree {
+		trees, err := file_map.ProcessMapTrees(ctx, fileInputs)
+		if err != nil {
+			fmt.Printf("error processing map files: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Println(trees.CombinedTrees())
+	} else {
+		mapBodies, err := file_map.ProcessMapFiles(ctx, fileInputs)
+		if err != nil {
+			fmt.Printf("error processing map files: %v\n", err)
+			os.Exit(1)
+		}
 
-	fmt.Println(mapBodies.CombinedMap())
+		fmt.Println(mapBodies.CombinedMap())
+	}
 }

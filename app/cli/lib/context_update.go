@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"path/filepath"
 	"plandex/api"
 	"plandex/fs"
 	"plandex/term"
@@ -416,8 +415,7 @@ func checkOutdatedAndMaybeUpdateContext(doUpdate bool, maybeContexts []*shared.C
 				flattenedPaths = filteredPaths
 
 				for _, path := range flattenedPaths {
-					ext := filepath.Ext(path)
-					if !shared.IsTreeSitterExtension(ext) {
+					if !shared.HasFileMapSupport(path) {
 						continue
 					}
 

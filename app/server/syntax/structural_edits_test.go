@@ -52,7 +52,7 @@ func TestStructuralReplacements(t *testing.T) {
         return nil
     }`,
 			language: shared.TreeSitterLanguageGo,
-			parser:   getParserForLanguage("go"),
+			parser:   GetParserForLanguage("go"),
 		},
 		{
 			name: "bad formatting",
@@ -85,7 +85,7 @@ func TestStructuralReplacements(t *testing.T) {
     return update(id)
     }`,
 			language: shared.TreeSitterLanguageGo,
-			parser:   getParserForLanguage("go"),
+			parser:   GetParserForLanguage("go"),
 		},
 		{
 			name: "multiple refs in class/nested structures",
@@ -175,7 +175,7 @@ func TestStructuralReplacements(t *testing.T) {
     }
     `,
 			language: shared.TreeSitterLanguageGo,
-			parser:   getParserForLanguage("go"),
+			parser:   GetParserForLanguage("go"),
 		},
 		{
 			name: "code removal comment",
@@ -210,7 +210,7 @@ func TestStructuralReplacements(t *testing.T) {
         return nil
     }`,
 			language: shared.TreeSitterLanguageGo,
-			parser:   getParserForLanguage("go"),
+			parser:   GetParserForLanguage("go"),
 		},
 		{
 			name: "multiple code removal comments",
@@ -247,7 +247,7 @@ func TestStructuralReplacements(t *testing.T) {
         return nil
     }`,
 			language: shared.TreeSitterLanguageGo,
-			parser:   getParserForLanguage("go"),
+			parser:   GetParserForLanguage("go"),
 		},
 		{
 			name: "json update with reference comments",
@@ -296,7 +296,7 @@ func TestStructuralReplacements(t *testing.T) {
         }
     }`,
 			language: shared.TreeSitterLanguageJson,
-			parser:   getParserForLanguage("json"),
+			parser:   GetParserForLanguage("json"),
 		},
 		{
 			name: "method replacement with context",
@@ -366,7 +366,7 @@ func TestStructuralReplacements(t *testing.T) {
         }
     }`,
 			language: shared.TreeSitterLanguageJavascript,
-			parser:   getParserForLanguage("javascript"),
+			parser:   GetParserForLanguage("javascript"),
 		},
 		{
 			name: "nested class methods update",
@@ -432,7 +432,7 @@ func TestStructuralReplacements(t *testing.T) {
         }
     }`,
 			language: shared.TreeSitterLanguageTypescript,
-			parser:   getParserForLanguage("typescript"),
+			parser:   GetParserForLanguage("typescript"),
 		},
 		{
 			name: "update with trailing commas",
@@ -474,7 +474,7 @@ func TestStructuralReplacements(t *testing.T) {
         },
     }`,
 			language: shared.TreeSitterLanguageJavascript,
-			parser:   getParserForLanguage("javascript"),
+			parser:   GetParserForLanguage("javascript"),
 		},
 		{
 			name: "multiple structural updates",
@@ -552,7 +552,7 @@ func TestStructuralReplacements(t *testing.T) {
         }
     }`,
 			language: shared.TreeSitterLanguageJavascript,
-			parser:   getParserForLanguage("javascript"),
+			parser:   GetParserForLanguage("javascript"),
 		},
 		{
 			name: "updated variable assignment",
@@ -580,7 +580,7 @@ func TestStructuralReplacements(t *testing.T) {
       const c = 3;
     `,
 			language: shared.TreeSitterLanguageJavascript,
-			parser:   getParserForLanguage("javascript"),
+			parser:   GetParserForLanguage("javascript"),
 		},
 
 		{
@@ -750,7 +750,7 @@ func TestStructuralReplacements(t *testing.T) {
 }
 `,
 			language: shared.TreeSitterLanguageJson,
-			parser:   getParserForLanguage("json"),
+			parser:   GetParserForLanguage("json"),
 			references: []Reference{
 				3, 24, 26,
 			},
@@ -972,7 +972,7 @@ func TestStructuralReplacements(t *testing.T) {
 }
 `,
 			language: shared.TreeSitterLanguageJson,
-			parser:   getParserForLanguage("json"),
+			parser:   GetParserForLanguage("json"),
 			references: []Reference{
 				3, 6, 19, 22,
 			},
@@ -1102,7 +1102,7 @@ class MetricsService(
 			references: []Reference{
 				4, 7, 13, 26,
 			},
-			parser: getParserForLanguage("scala"),
+			parser: GetParserForLanguage("scala"),
 		},
 
 		{
@@ -1175,7 +1175,7 @@ class MetricsService(
       return "something"
     }
     `,
-			parser: getParserForLanguage("javascript"),
+			parser: GetParserForLanguage("javascript"),
 		},
 
 		{
@@ -1258,7 +1258,7 @@ class MetricsService(
       return "something"
     }
     `,
-			parser: getParserForLanguage("javascript"),
+			parser: GetParserForLanguage("javascript"),
 		},
 	}
 

@@ -2,11 +2,11 @@ module mapper
 
 go 1.23.3
 
-replace plandex-server => ../../
+replace plandex-server => ../../../
 
-replace github.com/plandex/plandex/shared => ../../../shared
+replace github.com/plandex/plandex/shared => ../../../../shared
 
-replace plandex => ../../../cli
+replace plandex => ../../../../cli
 
 require (
 	github.com/plandex/plandex/shared v0.0.0-00010101000000-000000000000
@@ -33,7 +33,7 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dlclark/regexp2 v1.11.4 // indirect
 	github.com/eiannone/keyboard v0.0.0-20220611211555-0d226195f203 // indirect
-	github.com/fatih/color v1.17.0 // indirect
+	github.com/fatih/color v1.18.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/gorilla/css v1.0.1 // indirect
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51 // indirect
@@ -54,15 +54,15 @@ require (
 	github.com/plandex-ai/survey/v2 v2.3.7 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/sabhiram/go-gitignore v0.0.0-20210923224102-525f6e181f06 // indirect
-	github.com/sashabaranov/go-openai v1.35.6 // indirect
+	github.com/sashabaranov/go-openai v1.35.7 // indirect
 	github.com/shopspring/decimal v1.4.0 // indirect
-	github.com/smacker/go-tree-sitter v0.0.0-20240625050157-a31a98a7c0f6 // indirect
+	github.com/smacker/go-tree-sitter v0.0.0-20240827094217-dd81d9e9be82 // indirect
 	github.com/yuin/goldmark v1.6.0 // indirect
 	github.com/yuin/goldmark-emoji v1.0.2 // indirect
 	golang.org/x/image v0.22.0 // indirect
-	golang.org/x/net v0.18.0 // indirect
+	golang.org/x/net v0.31.0 // indirect
 	golang.org/x/sync v0.9.0 // indirect
-	golang.org/x/sys v0.24.0 // indirect
-	golang.org/x/term v0.19.0 // indirect
+	golang.org/x/sys v0.27.0 // indirect
+	golang.org/x/term v0.26.0 // indirect
 	golang.org/x/text v0.20.0 // indirect
 )

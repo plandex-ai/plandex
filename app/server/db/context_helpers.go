@@ -9,7 +9,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"plandex-server/syntax"
+	"plandex-server/syntax/file_map"
 	"sort"
 	"strings"
 	"sync"
@@ -305,7 +305,7 @@ func LoadContexts(ctx Ctx, params LoadContextsParams) (*shared.LoadContextRespon
 
 		if context.ContextType == shared.ContextMapType && len(context.MapInputs) > 0 {
 			// Process file maps
-			mappedFiles, err := syntax.ProcessMapFiles(ctx, context.MapInputs)
+			mappedFiles, err := file_map.ProcessMapFiles(ctx, context.MapInputs)
 			if err != nil {
 				return nil, nil, fmt.Errorf("error processing map files: %v", err)
 			}

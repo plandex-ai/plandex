@@ -4,15 +4,30 @@
 #include <string>
 #include <functional>
 
+// Global variables at file scope
+int globalInteger = 42;
+const double PI = 3.14159;
+static std::string globalString = "Global static string";
+
+// Global enum and constant
+enum Color { RED, GREEN, BLUE };
+constexpr int MAX_SIZE = 100;
+
 // Template class
 template<typename T>
 class Container {
 public:
+    static T defaultValue;  // Static class member
+    const T maxCapacity = MAX_SIZE;  // Class constant
     void add(T item) { items.push_back(item); }
     const std::vector<T>& getItems() const { return items; }
 private:
     std::vector<T> items;
 };
+
+// Static member definition
+template<typename T>
+T Container<T>::defaultValue = T();
 
 // Abstract base class
 class Animal {
@@ -34,6 +49,10 @@ public:
 
 // Namespace example
 namespace Utils {
+    // Namespace-level variables
+    inline int counter = 0;
+    const std::string VERSION = "1.0.0";
+    
     // Function template
     template<typename T>
     T max(T a, T b) {

@@ -51,6 +51,7 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 	replyFiles := []string{}
 	chunksReceived := 0
 	maybeRedundantBacktickContent := ""
+	fileOpen := false
 
 	// Create a timer that will trigger if no chunk is received within the specified duration
 	timer := time.NewTimer(model.OPENAI_STREAM_CHUNK_TIMEOUT)
@@ -185,6 +186,7 @@ mainLoop:
 
 			if choice.FinishReason != "" {
 				log.Println("Model stream finished")
+				// spew.Dump(choice)
 				active.FlushStreamBuffer()
 				time.Sleep(100 * time.Millisecond)
 
@@ -456,6 +458,8 @@ mainLoop:
 
 					time.Sleep(50 * time.Millisecond)
 
+					// note: tell-based verification is currently disabled, so 'verifyOrFinish' will pass through to 'finish' logic
+					// ShouldVerifyDiff will always be false unless we re-enable tell-based verification
 					if buildFinished {
 						log.Println("Reply is finished and build is finished, calling verifyOrFinish")
 						state.verifyOrFinish()
@@ -500,6 +504,8 @@ mainLoop:
 			delta := choice.Delta
 			content := delta.Content
 
+			// log.Printf("content: %s\n", content)
+
 			if missingFileResponse != "" {
 				if maybeRedundantBacktickContent != "" {
 					if strings.Contains(content, "\n") {
@@ -517,8 +523,24 @@ mainLoop:
 				}
 			}
 
+			// log.Printf("Adding chunk to parser: %s\n", content)
+
 			replyParser.AddChunk(content, true)
 			parserRes := replyParser.Read()
+
+			if !fileOpen && parserRes.CurrentFilePath != "" {
+				fileOpen = true
+			}
+
+			if fileOpen && strings.HasSuffix(content, "```") {
+				log.Println("FinishAndRead because of closing backticks")
+				parserRes = replyParser.FinishAndRead()
+			}
+
+			if fileOpen && parserRes.CurrentFilePath == "" {
+				fileOpen = false
+			}
+
 			files := parserRes.Files
 			fileContents := parserRes.FileContents
 			state.replyNumTokens = parserRes.TotalTokens

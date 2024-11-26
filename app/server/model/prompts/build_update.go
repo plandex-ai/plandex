@@ -42,7 +42,11 @@ func GetWholeFilePrompt(filePath, preBuildState, changesFile, changesDesc string
 }
 
 var SemanticAnchorsPrompt = `
-You are an AI that analyzes an *original file* and *proposed updates* to that file and then identifies *semantic anchors* present in the *proposed updates*.
+You are an AI that analyzes an *original file* and *proposed updates* to that file and then identifies all *semantic anchors* and *reference comments* present in the *proposed updates*.
+
+- 
+
+### Semantic Anchors
 
 A semantic anchor is a line in the *proposed updates* that is not exactly equal to a line in the *original file* but is nonetheless intended to match a line in the *original file*.
 
@@ -71,8 +75,6 @@ The line 'pdx-new-6: }' is *not* a semantic anchor since it is exactly equal to 
 
 Comments that are modified in the *proposed updates* (but are clearly still referring to the same comment in the *original file*) can also be semantic anchors.
 
-Comments that take the form of "// ... existing code ..." (or the equivalent in other languages) are *NOT* semantic anchors. You MUST NEVER WITHOUT EXCEPTION mark comments that take this form as semantic anchors.
-
 A line that is exactly equal (including whitespace) to a line in the *original file* MUST NEVER UNDER ANY CONCEIVABLE CIRCUMSTANCES be marked as a semantic anchor.
 
 For example, if the *original file* has:
@@ -100,15 +102,126 @@ If a line in the *proposed updates* is identical to a line in the *original file
 
 If a line in the *proposed updates* is a semantic anchor and there is a comment (or multiple comments) associated with the line that is being modified, carefully consider if the comment should also be marked as a semantic anchor. If the comment or comments clearly map to a corresponding comment in the *original file*, and the comment is modified in the *proposed updates*, then it MUST be marked as a semantic anchor. Correctly marking comments as sematic anchors is just as important as marking other lines of code as semantic anchors.
 
-First, output a single *brief* paragraph of general reasoning about the *proposed updates* and how they refer to the *original file*, focusing on the structure of each, which elements are changing, and how the changes map to the *original file*. Also make a brief note of any comments that are being modified or introduced in the *proposed updates* and whether/how they map to comments in the *original file*. Do NOT output a list of semantic anchors in this paragraph—save that for the next section.
+- 
 
-Next, output a <PlandexSummary> element that gives a very brief, one-sentence summary of the changes being made. Example:
+### Reference Comments
+
+A reference comment is a comment that references code in the *original file* for the purpose of making it clear where a change should be applied. Examples of reference comments include:
+
+	- // ... existing code...
+	- # Existing code...
+	- /* ... */
+	- // Rest of the function...
+	- <!-- rest of div tag -->
+	- // ... rest of function ...
+	- // rest of component...
+	- # other methods...
+	- // ... rest of init code...
+	- // rest of the class...
+	- // other properties
+	- // other methods
+	// ... existing properties ...
+	// ... existing values ...
+	// ... existing text ...
+
+Reference comments often won't exactly match one of the above examples, but they will always be referencing a block of code from the *original file* that is left out of the *proposed updates* for the sake of focusing on the specific change that is being made.
+
+For some file types that don't use comments like JSON or plain text, reference comments in the form of '// ... existing properties ...' or '// ... existing values ...' or '// ... existing text ...' can still be present. These MUST be treated as valid reference comments regardless of the validity of the comment syntax.
+
+-
+
+### Removal Comments
+
+A removal comment is a comment that indicates that a section of code should be removed from the *original file*. Examples of removal comments include:
+
+	- // removed code
+	- # removed start of function
+	- <!-- removed 'container' div -->
+	- // remove 'checkMigration' method
+
+Removal comments often won't exactly match one of the above examples, but they will always be indicating that a section of code should be removed from the *original file*.
+
+For some file types that don't use comments like JSON or plain text, removal comments like '// removed keys ...' can still be present. These MUST be treated as valid removal comments regardless of the validity of the comment syntax.
+
+- 
+
+### Output
+
+**First,** output a single *brief* paragraph of general reasoning about the *proposed updates* and how they refer to the *original file*, focusing on the structure of each, which elements are changing, and how the changes map to the *original file*. Also make a brief note of any comments that are being modified or introduced in the *proposed updates* and whether/how they map to comments in the *original file*. Do NOT output a list of semantic anchors in this paragraph—save that for the next section.
+
+**Next,** output a <PlandexSummary> element that gives a very brief, one-sentence summary of the changes being made. Example:
 
 <PlandexSummary>
 	Adds a 'log' parameter to the 'update' function and modifies the 'update' function to use it.
 </PlandexSummary>
 
-Last, output xml with this structure:
+**Next,** output a section that lists *EVERY* comment in the *proposed updates*, including the line number of each comment prefixed by 'pdx-new-'. Below each comment, evaluate whether it is a *reference comment*, a *removal comment*, or neither.
+
+*To determined whether a comment is a reference comment*, focus on whether the comment is clearly referencing a block of code in the *original file*, whether it is explaining a change being made, or whether it is a comment that was carried over from the *original file* but does *not* reference any code that was left out of the *proposed updates*.
+
+*To determine whether a comment is a removal comment*, focus on whether the comment is clearly indicating that a section of code should be removed from the *original file*.
+
+After this evaluation, state whether each comment is a *reference comment*, a *removal comment*, or neither. Only list valid *comments* for the given programming language in the comments section. Do not include non-comment lines of code in the comments section. The only exception to this rule is for file types that don't use comments like JSON or plain text—for these treat lines beginning with '//' as reference comments. A *removal comment* *MUST NOT* also be marked as a *reference comment* and a *reference comment* *MUST NOT* also be marked as a *removal comment*.
+
+Reference comments example:
+
+---
+Comments:
+
+pdx-new-2: // ... existing code to start transaction ...
+Evaluation: refers the code at the beginning of the 'update' function that starts the database transaction.
+Reference: true
+Removal: false
+
+pdx-new-6: // ... existing update code ...	
+Evaluation: refers the code inside the 'update' function that updates the user.
+Reference: true
+Removal: false
+
+pdx-new-9: // Removed 'checkMigration' method
+Evaluation: refers the 'checkMigration' method that is being removed.
+Reference: false
+Removal: true
+
+pdx-new-15: // verify user permission before performing update
+Evaluation: describes the change being made. Does not refer to any code in the *original file*.
+Reference: false
+Removal: false
+
+pdx-new-85: // Rest of the main function...
+Evaluation: refers to the rest of the main function that is left unchanged.
+Reference: true
+Removal: false
+
+pdx-new-25: # removed rest of init code
+Evaluation: indicates that the rest of the init code should be removed from the *original file*.
+Reference: false
+Removal: true
+---
+
+**Next,** for each reference (if there are any), output valid xml with this structure:
+
+<PlandexReferences>
+	<Reference
+		comment="// ... rest of function ..."
+		proposedLine="pdx-new-10"
+	/>
+</PlandexReferences>
+
+If there are no reference comments, output an empty <PlandexReferences> element.
+
+**Next,** for each removal (if there are any), output valid xml with this structure:
+
+<PlandexRemovals>
+	<Removal
+		comment="# removed rest of init code"
+		proposedLine="pdx-new-25"
+	/>
+</PlandexRemovals>
+
+If there are no removal comments, output an empty <PlandexRemovals> element.
+
+**Last,** output xml with this structure:
 
 <PlandexSemanticAnchors>
 	<Anchor
@@ -127,6 +240,8 @@ Explanation of 'Anchor' tag attributes:
 	**originalLine**: The line number, prefixed by 'pdx-', in the *original file* that the anchor is referring to. MUST be a line that exists in the *original file* and MUST ALWAYS be prefixed by 'pdx-' (never pdx-new-).
 
 If there are no semantic anchors, output an empty <PlandexSemanticAnchors> element. Do NOT invent semantic anchors if there are none. It's common for there to be no semantic anchors in the *proposed updates*. In that case, output an empty <PlandexSemanticAnchors> element.
+
+A *reference comment* or *removal comment* *MUST NOT* also be marked a semantic anchor. You MUST NEVER WITHOUT EXCEPTION mark *reference comments* or *removal comments* as semantic anchors.
 
 Every response must include a single <PlandexSummary> element and a single <PlandexSemanticAnchors> element.
 

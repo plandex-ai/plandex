@@ -8,7 +8,7 @@ require (
 	github.com/gorilla/mux v1.8.1
 	github.com/pkg/errors v0.9.1
 	github.com/plandex/plandex/shared v0.0.0-00010101000000-000000000000
-	github.com/sashabaranov/go-openai v1.35.6
+	github.com/sashabaranov/go-openai v1.35.7
 )
 
 require (
@@ -30,21 +30,22 @@ require (
 	github.com/tadvi/systray v0.0.0-20190226123456-11a2b8fa57af // indirect
 	go.uber.org/atomic v1.11.0 // indirect
 	golang.org/x/image v0.22.0 // indirect
-	golang.org/x/sys v0.24.0 // indirect
+	golang.org/x/sys v0.27.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
 require (
 	github.com/atotto/clipboard v0.1.4
 	github.com/aws/aws-sdk-go v1.55.5
-	github.com/fatih/color v1.17.0
+	github.com/fatih/color v1.18.0
 	github.com/gen2brain/beeep v0.0.0-20240516210008-9c006672e7f4
-	github.com/golang-migrate/migrate/v4 v4.17.1
+	github.com/golang-migrate/migrate/v4 v4.18.1
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/lib/pq v1.10.9
-	github.com/rs/cors v1.11.0
-	github.com/smacker/go-tree-sitter v0.0.0-20240625050157-a31a98a7c0f6
-	github.com/stretchr/testify v1.8.3
+	github.com/rs/cors v1.11.1
+	github.com/smacker/go-tree-sitter v0.0.0-20240827094217-dd81d9e9be82
+	github.com/stretchr/testify v1.10.0
+	golang.org/x/net v0.31.0
 )
 
 replace github.com/plandex/plandex/shared => ../shared
