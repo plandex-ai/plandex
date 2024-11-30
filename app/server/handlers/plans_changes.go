@@ -32,6 +32,9 @@ func CurrentPlanHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Just in case this was sent immediately after a stream finished, wait a little before locking to allow for cleanup
+	time.Sleep(100 * time.Millisecond)
+
 	var err error
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -103,6 +106,9 @@ func ApplyPlanHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Error parsing request body", http.StatusBadRequest)
 		return
 	}
+
+	// Just in case this was sent immediately after a stream finished, wait a little before locking to allow for cleanup
+	time.Sleep(100 * time.Millisecond)
 
 	ctx, cancel := context.WithCancel(r.Context())
 	unlockFn := LockRepo(w, r, auth, db.LockScopeWrite, ctx, cancel, true)

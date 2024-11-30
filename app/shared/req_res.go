@@ -121,8 +121,11 @@ type TellPlanRequest struct {
 	AutoContinue   bool              `json:"autoContinue"`
 	IsUserContinue bool              `json:"isUserContinue"`
 	IsUserDebug    bool              `json:"isUserDebug"`
+	IsApplyDebug   bool              `json:"isApplyDebug"`
 	IsChatOnly     bool              `json:"isChatOnly"`
 	AutoContext    bool              `json:"autoContext"`
+	ExecEnabled    bool              `json:"execEnabled"`
+	OsDetails      string            `json:"osDetails"`
 	ApiKey         string            `json:"apiKey"`   // deprecated
 	Endpoint       string            `json:"endpoint"` // deprecated
 	ApiKeys        map[string]string `json:"apiKeys"`
@@ -210,7 +213,6 @@ type GetContextBodyResponse struct {
 }
 
 type UpdateContextRequest map[string]*UpdateContextParams
-
 
 type UpdateContextResponse = LoadContextResponse
 

@@ -127,6 +127,18 @@ func doDebug(cmd *cobra.Command, args []string) {
 			},
 		}, prompt, plan_exec.TellFlags{IsUserDebug: true})
 
-		lib.MustApplyPlan(lib.CurrentPlanId, lib.CurrentBranch, true, autoCommit, !autoCommit)
+		flags := lib.ApplyFlags{
+			AutoConfirm: true,
+			AutoCommit:  autoCommit,
+			NoCommit:    !autoCommit,
+			NoExec:      true,
+		}
+
+		lib.MustApplyPlan(
+			lib.CurrentPlanId,
+			lib.CurrentBranch,
+			flags,
+			plan_exec.GetOnApplyExecFail(flags),
+		)
 	}
 }

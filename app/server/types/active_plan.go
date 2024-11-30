@@ -224,13 +224,21 @@ func (ap *ActivePlan) Stream(msg shared.StreamMessage) {
 		ap.streamMessageBuffer = []shared.StreamMessage{}
 		ap.streamMu.Unlock()
 
+		log.Println("Flushing buffered messages before finishing")
 		ap.Stream(shared.StreamMessage{
 			Type:           shared.StreamMessageMulti,
 			StreamMessages: bufferToFlush,
 		})
-
+		log.Println("Finished flushing buffered messages, waiting 50ms before sending finish message")
 		time.Sleep(50 * time.Millisecond)
-		ap.Stream(msg) // Resend the finish message
+		log.Println("Sending finish message")
+		ap.Stream(msg) // send the finish message
+
+		// wait for the finish message to be sent then send the done signal
+		log.Println("Waiting 50ms before sending done signal")
+		time.Sleep(50 * time.Millisecond)
+		log.Println("Sending done signal")
+		ap.StreamDoneCh <- nil
 		return
 	}
 
@@ -243,7 +251,9 @@ func (ap *ActivePlan) Stream(msg shared.StreamMessage) {
 	ap.streamMu.Unlock()
 
 	if msg.Type == shared.StreamMessageFinished {
-		time.Sleep(100 * time.Millisecond)
+		log.Println("Waiting 50ms before sending done signal")
+		time.Sleep(50 * time.Millisecond)
+		log.Println("Sending done signal")
 		ap.StreamDoneCh <- nil
 	}
 }

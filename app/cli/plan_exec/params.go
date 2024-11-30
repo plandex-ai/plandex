@@ -15,7 +15,9 @@ type TellFlags struct {
 	TellNoBuild          bool
 	IsUserContinue       bool
 	IsUserDebug          bool
+	IsApplyDebug         bool
 	IsChatOnly           bool
 	AutoContext          bool
 	ContinuedAfterAction bool
+	ExecEnabled          bool
 }

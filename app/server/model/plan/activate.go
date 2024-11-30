@@ -6,6 +6,7 @@ import (
 	"plandex-server/db"
 	"plandex-server/host"
 	"plandex-server/types"
+	"time"
 
 	"github.com/plandex/plandex/shared"
 	"github.com/sashabaranov/go-openai"
@@ -20,6 +21,13 @@ func activatePlan(
 	buildOnly,
 	autoContext bool,
 ) (*types.ActivePlan, error) {
+	log.Printf("Activate plan: plan ID %s on branch %s\n", plan.Id, branch)
+
+	// Just in case this request was made immediately after another stream finished, wait a little to allow for cleanup
+	log.Println("Waiting 100ms before checking for active plan")
+	time.Sleep(100 * time.Millisecond)
+	log.Println("Done waiting, checking for active plan")
+
 	active := GetActivePlan(plan.Id, branch)
 	if active != nil {
 		log.Printf("Tell: Active plan found for plan ID %s on branch %s\n", plan.Id, branch) // Log if an active plan is found

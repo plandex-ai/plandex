@@ -8,6 +8,7 @@ import (
 	"plandex-server/types"
 	"strings"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/plandex/plandex/shared"
 )
 
@@ -257,6 +258,7 @@ func (fileState *activeBuildStreamFileState) onFinishBuildFile(planRes *db.PlanF
 			}()
 
 			log.Println("Storing plan result")
+			spew.Dump(planRes)
 
 			err = db.StorePlanResult(planRes)
 			if err != nil {

@@ -524,6 +524,7 @@ mainLoop:
 			}
 
 			// log.Printf("Adding chunk to parser: %s\n", content)
+			// log.Printf("fileOpen: %v\n", fileOpen)
 
 			replyParser.AddChunk(content, true)
 			parserRes := replyParser.Read()
@@ -535,9 +536,11 @@ mainLoop:
 			if fileOpen && strings.HasSuffix(content, "```") {
 				log.Println("FinishAndRead because of closing backticks")
 				parserRes = replyParser.FinishAndRead()
+				fileOpen = false
 			}
 
 			if fileOpen && parserRes.CurrentFilePath == "" {
+				// log.Println("File open but current file path is empty, closing file")
 				fileOpen = false
 			}
 
@@ -663,6 +666,12 @@ mainLoop:
 					}
 
 					log.Printf("Detected file: %s\n", file)
+
+					if file == "_pending.sh" {
+						// TODO: extract and queue commands from _pending.sh
+						continue
+					}
+
 					if req.BuildMode == shared.BuildModeAuto {
 						log.Printf("Queuing build for %s\n", file)
 						buildState := &activeBuildStreamState{

@@ -394,21 +394,48 @@ func gitCommit(repoDir, commitMsg string) error {
 func gitRemoveIndexLockFileIfExists(repoDir string) error {
 	// Remove the lock file if it exists
 	lockFilePath := filepath.Join(repoDir, ".git", "index.lock")
+
 	_, err := os.Stat(lockFilePath)
+	exists := err == nil
+	log.Println("index.lock file exists:", exists)
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("error checking lock file: %v", err)
+	}
 
-	// log.Println("lockFilePath:", lockFilePath)
-	// log.Println("exists:", err == nil)
+	attempts := 0
+	for exists {
+		if attempts > 10 {
+			return fmt.Errorf("error removing index.lock file: %v after %d attempts", err, attempts)
+		}
 
-	if err == nil {
+		log.Println("removing index.lock file:", lockFilePath, "attempt:", attempts)
+
 		if err := os.Remove(lockFilePath); err != nil {
 			if os.IsNotExist(err) {
+				log.Println("index.lock file not found, skipping removal")
 				return nil
 			}
 
 			return fmt.Errorf("error removing lock file: %v", err)
 		}
-	} else if !os.IsNotExist(err) {
-		return fmt.Errorf("error checking lock file: %v", err)
+
+		_, err = os.Stat(lockFilePath)
+		exists = err == nil
+
+		if err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("error checking lock file: %v", err)
+		}
+
+		log.Println("after removal, index.lock file exists:", exists)
+		if exists {
+			log.Println("index.lock file still exists, retrying after delay")
+		} else {
+			log.Println("index.lock file removed successfully")
+			return nil
+		}
+
+		attempts++
+		time.Sleep(20 * time.Millisecond)
 	}
 
 	return nil
@@ -435,7 +462,8 @@ func gitWriteOperation(operation func() error) error {
 		log.Printf("Retry attempt %d failed. Error: %v", attempt+1, err)
 
 		isIndexLockError := strings.Contains(err.Error(), "new_index file") ||
-			strings.Contains(err.Error(), "index.lock")
+			strings.Contains(err.Error(), "index.lock") ||
+			strings.Contains(err.Error(), "index file")
 
 		if isIndexLockError {
 			log.Printf("Retry attempt %d failed due to 'unable to write git index file error'. Waiting %v before retrying. Error: %v", attempt+1, retryInterval, err)

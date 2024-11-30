@@ -96,10 +96,18 @@ func (m streamUIModel) doRenderBuild(outputStatic bool) string {
 func (m streamUIModel) getRows(static bool) []string {
 	filePaths := make([]string, 0, len(m.tokensByPath))
 	for filePath := range m.tokensByPath {
+		// _apply.sh script goes last
+		if filePath == "_apply.sh" {
+			continue
+		}
 		filePaths = append(filePaths, filePath)
 	}
 
 	sort.Strings(filePaths)
+
+	if _, ok := m.tokensByPath["_apply.sh"]; ok {
+		filePaths = append(filePaths, "_apply.sh")
+	}
 
 	lbl := "Building plan "
 	bgColor := color.BgGreen
@@ -127,7 +135,12 @@ func (m streamUIModel) getRows(static bool) []string {
 	for _, filePath := range filePaths {
 		tokens := m.tokensByPath[filePath]
 		finished := m.finished || m.finishedByPath[filePath] || built
-		block := fmt.Sprintf("📄 %s", filePath)
+		icon := "📄"
+		label := filePath
+		if filePath == "_apply.sh" {
+			icon = "🚀"
+		}
+		block := fmt.Sprintf("%s %s", icon, label)
 
 		if finished {
 			block += " ✅"

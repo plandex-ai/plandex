@@ -8,6 +8,7 @@ import (
 	"plandex-server/hooks"
 	"plandex-server/model/prompts"
 	"plandex-server/types"
+	"strings"
 	"time"
 
 	"github.com/plandex/plandex/shared"
@@ -121,10 +122,15 @@ func PlanSummary(client *openai.Client, config shared.ModelRoleConfig, params Pl
 	// log.Println("Plan summary content:")
 	// log.Println(content)
 
+	summary := content
+	if !strings.HasPrefix(summary, "## Summary of the plan so far:") {
+		summary = "## Summary of the plan so far:\n\n" + summary
+	}
+
 	return &db.ConvoSummary{
 		OrgId:                       params.Auth.OrgId,
 		PlanId:                      params.Plan.Id,
-		Summary:                     "## Summary of the plan so far:\n\n" + content,
+		Summary:                     summary,
 		Tokens:                      resp.Usage.CompletionTokens,
 		LatestConvoMessageId:        params.LatestConvoMessageId,
 		LatestConvoMessageCreatedAt: params.LatestConvoMessageCreatedAt,

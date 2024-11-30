@@ -376,7 +376,14 @@ func ApplyPlan(ctx context.Context, orgId, userId, branchName string, plan *Plan
 			errCh <- fmt.Errorf("error getting plan file results: %v", err)
 			return
 		}
-		results = res
+		filtered := []*PlanFileResult{}
+		for _, result := range res {
+			if result.Path != "_apply.sh" {
+				filtered = append(filtered, result)
+			}
+		}
+
+		results = filtered
 		errCh <- nil
 	}()
 
@@ -422,6 +429,8 @@ func ApplyPlan(ctx context.Context, orgId, userId, branchName string, plan *Plan
 			pendingDbResults = append(pendingDbResults, result)
 		}
 	}
+
+	log.Printf("Pending db results: %d", len(pendingDbResults))
 
 	pendingNewFilesSet := make(map[string]bool)
 	pendingUpdatedFilesSet := make(map[string]bool)
@@ -505,24 +514,27 @@ func ApplyPlan(ctx context.Context, orgId, userId, branchName string, plan *Plan
 				})
 			}
 
-			res, _, err := LoadContexts(
-				ctx,
-				LoadContextsParams{
-					OrgId:                    orgId,
-					UserId:                   userId,
-					Plan:                     plan,
-					BranchName:               branchName,
-					Req:                      &loadReq,
-					SkipConflictInvalidation: true, // no need to invalidate conflicts when applying plan--and fixes race condition since invalidation check loads description
-				},
-			)
+			if len(loadReq) > 0 {
+				res, _, err := LoadContexts(
+					ctx,
+					LoadContextsParams{
+						OrgId:                    orgId,
+						UserId:                   userId,
+						Plan:                     plan,
+						BranchName:               branchName,
+						Req:                      &loadReq,
+						SkipConflictInvalidation: true, // no need to invalidate conflicts when applying plan--and fixes race condition since invalidation check loads description
+					},
+				)
 
-			if err != nil {
-				errCh <- fmt.Errorf("error loading context: %v", err)
-				return
+				if err != nil {
+					errCh <- fmt.Errorf("error loading context: %v", err)
+					return
+				}
+
+				loadContextRes = res
 			}
 
-			loadContextRes = res
 			errCh <- nil
 		}()
 	}
@@ -537,22 +549,24 @@ func ApplyPlan(ctx context.Context, orgId, userId, branchName string, plan *Plan
 				}
 			}
 
-			res, err := UpdateContexts(
-				UpdateContextsParams{
-					OrgId:                    orgId,
-					Plan:                     plan,
-					BranchName:               branchName,
-					Req:                      &updateReq,
-					SkipConflictInvalidation: true, // no need to invalidate conflicts when applying plan--and fixes race condition since invalidation check loads description
-				},
-			)
+			if len(updateReq) > 0 {
+				res, err := UpdateContexts(
+					UpdateContextsParams{
+						OrgId:                    orgId,
+						Plan:                     plan,
+						BranchName:               branchName,
+						Req:                      &updateReq,
+						SkipConflictInvalidation: true, // no need to invalidate conflicts when applying plan--and fixes race condition since invalidation check loads description
+					},
+				)
 
-			if err != nil {
-				errCh <- fmt.Errorf("error updating context: %v", err)
-				return
+				if err != nil {
+					errCh <- fmt.Errorf("error updating context: %v", err)
+					return
+				}
+
+				updateContextRes = res
 			}
-
-			updateContextRes = res
 			errCh <- nil
 
 		}()

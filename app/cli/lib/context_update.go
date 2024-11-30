@@ -31,7 +31,9 @@ func CheckOutdatedContextWithOutput(quiet, autoConfirm bool, maybeContexts []*sh
 		return false, false, fmt.Errorf("failed to check outdated context: %s", err)
 	}
 
-	term.StopSpinner()
+	if !quiet {
+		term.StopSpinner()
+	}
 
 	if len(outdatedRes.UpdatedContexts) == 0 && len(outdatedRes.RemovedContexts) == 0 {
 		if !quiet {
@@ -92,6 +94,8 @@ func CheckOutdatedContextWithOutput(quiet, autoConfirm bool, maybeContexts []*sh
 			phrase = "has been"
 		}
 
+		term.StopSpinner()
+
 		color.New(term.ColorHiCyan, color.Bold).Printf("%s in context %s modified 👇\n\n", msg, phrase)
 
 		tableString := tableForContextOutdated(outdatedRes.UpdatedContexts, outdatedRes.TokenDiffsById)
@@ -134,6 +138,8 @@ func CheckOutdatedContextWithOutput(quiet, autoConfirm bool, maybeContexts []*sh
 		if len(outdatedRes.RemovedContexts) == 1 {
 			phrase = "has been"
 		}
+
+		term.StopSpinner()
 
 		color.New(term.ColorHiCyan, color.Bold).Printf("%s in context %s removed 👇\n\n", msg, phrase)
 

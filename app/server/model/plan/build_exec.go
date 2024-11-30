@@ -205,6 +205,9 @@ func (fileState *activeBuildStreamFileState) buildFile() {
 	var currentState string
 	currentPlanFile, fileInCurrentPlan := currentPlan.CurrentPlanFiles.Files[filePath]
 
+	log.Println("plan files:")
+	spew.Dump(currentPlan.CurrentPlanFiles.Files)
+
 	if fileInCurrentPlan {
 		log.Printf("File %s found in current plan.\n", filePath)
 		currentState = currentPlanFile

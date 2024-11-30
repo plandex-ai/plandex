@@ -11,6 +11,7 @@ import (
 	"plandex/lib"
 	"plandex/plan_exec"
 	"plandex/term"
+	"strconv"
 	"strings"
 	"time"
 
@@ -24,6 +25,7 @@ import (
 )
 
 const defaultEditor = "vim"
+const defaultAutoDebugTries = 5
 
 var autoConfirm bool
 
@@ -35,6 +37,8 @@ var tellStop bool
 var tellNoBuild bool
 var tellAutoApply bool
 var tellAutoContext bool
+var noExec bool
+var autoDebug int
 
 // tellCmd represents the prompt command
 var tellCmd = &cobra.Command{
@@ -56,9 +60,15 @@ func init() {
 
 	tellCmd.Flags().BoolVarP(&autoConfirm, "yes", "y", false, "Automatically confirm context updates")
 	tellCmd.Flags().BoolVar(&tellAutoApply, "apply", false, "Automatically apply changes (and confirm context updates)")
-	tellCmd.Flags().BoolVarP(&autoCommit, "commit", "c", false, "Commit changes to git when --apply/-a is passed")
+	tellCmd.Flags().BoolVarP(&autoCommit, "commit", "c", false, "Commit changes to git when --apply is passed")
 
 	tellCmd.Flags().BoolVar(&tellAutoContext, "auto-context", false, "Load and manage context automatically")
+
+	tellCmd.Flags().BoolVar(&noExec, "no-exec", false, "Disable command execution")
+	tellCmd.Flags().BoolVar(&autoExec, "auto-exec", false, "Automatically execute commands without confirmation when --apply is passed")
+
+	tellCmd.Flags().Var(newAutoDebugValue(&autoDebug), "debug", "Automatically execute and debug failing commands (optionally specify number of tries—default is 5)")
+	tellCmd.Flag("debug").NoOptDefVal = strconv.Itoa(defaultAutoDebugTries)
 }
 
 func doTell(cmd *cobra.Command, args []string) {
@@ -95,10 +105,25 @@ func doTell(cmd *cobra.Command, args []string) {
 		TellStop:    tellStop,
 		TellNoBuild: tellNoBuild,
 		AutoContext: tellAutoContext,
+		ExecEnabled: !noExec,
 	})
 
 	if tellAutoApply {
-		lib.MustApplyPlan(lib.CurrentPlanId, lib.CurrentBranch, true, autoCommit, !autoCommit)
+		flags := lib.ApplyFlags{
+			AutoConfirm: true,
+			AutoCommit:  autoCommit,
+			NoCommit:    !autoCommit,
+			NoExec:      noExec,
+			AutoExec:    autoExec || autoDebug > 0,
+			AutoDebug:   autoDebug,
+		}
+
+		lib.MustApplyPlan(
+			lib.CurrentPlanId,
+			lib.CurrentBranch,
+			flags,
+			plan_exec.GetOnApplyExecFail(flags),
+		)
 	}
 }
 
@@ -210,13 +235,22 @@ func getEditorPrompt() string {
 
 func validateTellFlags() {
 	if tellAutoApply && tellNoBuild {
-		term.OutputErrorAndExit("🚨 --apply/-a can't be used with --no-build/-n")
+		term.OutputErrorAndExit("🚨 --apply can't be used with --no-build/-n")
 	}
 	if tellAutoApply && tellBg {
-		term.OutputErrorAndExit("🚨 --apply/-a can't be used with --bg")
+		term.OutputErrorAndExit("🚨 --apply can't be used with --bg")
 	}
 	if autoCommit && !tellAutoApply {
-		term.OutputErrorAndExit("🚨 --commit/-c can only be used with --apply/-a")
+		term.OutputErrorAndExit("🚨 --commit/-c can only be used with --apply")
+	}
+	if autoExec && !tellAutoApply {
+		term.OutputErrorAndExit("🚨 --auto-exec can only be used with --apply")
+	}
+	if autoDebug > 0 && !tellAutoApply {
+		term.OutputErrorAndExit("🚨 --debug can only be used with --apply")
+	}
+	if autoDebug > 0 && noExec {
+		term.OutputErrorAndExit("🚨 --debug can't be used with --no-exec")
 	}
 
 	if tellAutoContext && tellBg {
@@ -273,4 +307,41 @@ func maybeShowDiffs() {
 		// Give the UI a moment to start
 		time.Sleep(100 * time.Millisecond)
 	}
+}
+
+// AutoDebugValue implements the flag.Value interface
+type autoDebugValue struct {
+	value *int
+}
+
+func newAutoDebugValue(p *int) *autoDebugValue {
+	*p = 0 // Default to 0 (disabled)
+	return &autoDebugValue{p}
+}
+
+func (f *autoDebugValue) Set(s string) error {
+	if s == "" {
+		*f.value = defaultAutoDebugTries
+		return nil
+	}
+	v, err := strconv.Atoi(s)
+	if err != nil {
+		return fmt.Errorf("invalid value for --debug: %v", err)
+	}
+	if v <= 0 {
+		return fmt.Errorf("--debug value must be greater than 0")
+	}
+	*f.value = v
+	return nil
+}
+
+func (f *autoDebugValue) String() string {
+	if f.value == nil {
+		return "0"
+	}
+	return strconv.Itoa(*f.value)
+}
+
+func (f *autoDebugValue) Type() string {
+	return "int"
 }

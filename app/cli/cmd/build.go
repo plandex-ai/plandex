@@ -27,6 +27,9 @@ func init() {
 	buildCmd.Flags().BoolVarP(&autoConfirm, "yes", "y", false, "Automatically confirm context updates")
 	buildCmd.Flags().BoolVarP(&tellAutoApply, "apply", "a", false, "Automatically apply changes (and confirm context updates)")
 	buildCmd.Flags().BoolVarP(&autoCommit, "commit", "c", false, "Commit changes to git when --apply/-a is passed")
+	buildCmd.Flags().BoolVar(&noExec, "no-exec", false, "Disable command execution")
+	buildCmd.Flags().BoolVar(&autoExec, "auto-exec", false, "Automatically execute commands without confirmation when --apply is passed")
+	buildCmd.Flags().Var(newAutoDebugValue(&autoDebug), "debug", "Automatically execute and debug failing commands (optionally specify number of tries—default is 5)")
 }
 
 func build(cmd *cobra.Command, args []string) {
@@ -68,7 +71,21 @@ func build(cmd *cobra.Command, args []string) {
 		fmt.Println()
 		term.PrintCmds("", "ps", "connect", "stop")
 	} else if tellAutoApply {
-		lib.MustApplyPlan(lib.CurrentPlanId, lib.CurrentBranch, true, autoCommit, !autoCommit)
+		flags := lib.ApplyFlags{
+			AutoConfirm: true,
+			AutoCommit:  autoCommit,
+			NoCommit:    !autoCommit,
+			NoExec:      noExec,
+			AutoExec:    autoExec,
+			AutoDebug:   autoDebug,
+		}
+
+		lib.MustApplyPlan(
+			lib.CurrentPlanId,
+			lib.CurrentBranch,
+			flags,
+			plan_exec.GetOnApplyExecFail(flags),
+		)
 	} else {
 		fmt.Println()
 		term.PrintCmds("", "diff", "diff --ui", "apply", "reject", "log")

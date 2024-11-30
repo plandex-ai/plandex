@@ -27,6 +27,7 @@ func TellPlan(
 	isDebugCmd := flags.IsUserDebug
 	isChatOnly := flags.IsChatOnly
 	autoContext := flags.AutoContext
+	execEnabled := flags.ExecEnabled
 
 	done := make(chan struct{})
 
@@ -109,6 +110,11 @@ func TellPlan(
 			openAIOrgId = params.ApiKeys["OPENAI_ORG_ID"]
 		}
 
+		var osDetails string
+		if execEnabled {
+			osDetails = term.GetOsDetails()
+		}
+
 		apiErr := api.Client.TellPlan(params.CurrentPlanId, params.CurrentBranch, shared.TellPlanRequest{
 			Prompt:         prompt,
 			ConnectStream:  !tellBg,
@@ -119,6 +125,8 @@ func TellPlan(
 			IsUserDebug:    isDebugCmd,
 			IsChatOnly:     isChatOnly,
 			AutoContext:    autoContext,
+			ExecEnabled:    execEnabled,
+			OsDetails:      osDetails,
 			ApiKey:         legacyApiKey, // deprecated
 			Endpoint:       openAIBase,   // deprecated
 			ApiKeys:        params.ApiKeys,

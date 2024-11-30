@@ -27,6 +27,9 @@ func init() {
 	continueCmd.Flags().BoolVarP(&autoConfirm, "yes", "y", false, "Automatically confirm context updates")
 	continueCmd.Flags().BoolVarP(&tellAutoApply, "apply", "a", false, "Automatically apply changes (and confirm context updates)")
 	continueCmd.Flags().BoolVarP(&autoCommit, "commit", "c", false, "Commit changes to git when --apply/-a is passed")
+	continueCmd.Flags().BoolVar(&noExec, "no-exec", false, "Disable command execution")
+	continueCmd.Flags().BoolVar(&autoExec, "auto-exec", false, "Automatically execute commands without confirmation when --apply is passed")
+	continueCmd.Flags().Var(newAutoDebugValue(&autoDebug), "debug", "Automatically execute and debug failing commands (optionally specify number of tries—default is 5)")
 }
 
 func doContinue(cmd *cobra.Command, args []string) {
@@ -56,9 +59,24 @@ func doContinue(cmd *cobra.Command, args []string) {
 		TellStop:       tellStop,
 		TellNoBuild:    tellNoBuild,
 		IsUserContinue: true,
+		ExecEnabled:    !noExec,
 	})
 
 	if tellAutoApply {
-		lib.MustApplyPlan(lib.CurrentPlanId, lib.CurrentBranch, true, autoCommit, !autoCommit)
+		flags := lib.ApplyFlags{
+			AutoConfirm: true,
+			AutoCommit:  autoCommit,
+			NoCommit:    !autoCommit,
+			AutoExec:    autoExec,
+			NoExec:      noExec,
+			AutoDebug:   autoDebug,
+		}
+
+		lib.MustApplyPlan(
+			lib.CurrentPlanId,
+			lib.CurrentBranch,
+			flags,
+			plan_exec.GetOnApplyExecFail(flags),
+		)
 	}
 }

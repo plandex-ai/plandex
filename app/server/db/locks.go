@@ -36,7 +36,7 @@ func LockRepo(params LockRepoParams) (string, error) {
 }
 
 func lockRepo(params LockRepoParams, numRetry int) (string, error) {
-	log.Printf("locking repo. orgId: %s | planId: %s | scope: %s, \n", params.OrgId, params.PlanId, params.Scope)
+	log.Printf("locking repo. orgId: %s | planId: %s | scope: %s | branch %s | numRetry %d \n", params.OrgId, params.PlanId, params.Scope, params.Branch, numRetry)
 	// spew.Dump(params)
 
 	orgId := params.OrgId
@@ -130,14 +130,15 @@ func lockRepo(params LockRepoParams, numRetry int) (string, error) {
 				return "", err
 			}
 
-			log.Printf("Serialization or deadlock error, retrying transaction: %v\n", err)
+			wait := initialRetryInterval * time.Duration(1<<numRetry) * time.Duration(rand.Intn(200)*int(time.Millisecond))
 
-			wait := initialRetryInterval * time.Duration(1<<numRetry) * time.Duration(rand.Intn(500)*int(time.Millisecond))
+			log.Printf("Serialization or deadlock error, retrying transaction after %v: %v\n", wait, err)
 
 			select {
 			case <-ctx.Done():
 				return "", fmt.Errorf("context finished during retry transaction")
 			case <-time.After(wait):
+				log.Printf("Retrying transaction after %v\n", wait)
 				return lockRepo(params, numRetry+1)
 			}
 		}

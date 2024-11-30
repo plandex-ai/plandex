@@ -197,6 +197,13 @@ func execTellPlan(
 	} else {
 		sysCreate = prompts.SysCreateBasic
 	}
+
+	if req.ExecEnabled {
+		sysCreate += prompts.ApplyScriptPrompt
+	} else {
+		sysCreate += prompts.NoApplyScriptPrompt
+	}
+
 	systemMessageText := sysCreate + modelContextText
 	systemMessage := openai.ChatCompletionMessage{
 		Role:    openai.ChatMessageRoleSystem,
@@ -248,6 +255,16 @@ func execTellPlan(
 		}
 	}
 
+	osDetailsTokens, err := shared.GetNumTokens(req.OsDetails)
+	if err != nil {
+		log.Printf("Error getting num tokens for os details: %v\n", err)
+		active.StreamDoneCh <- &shared.ApiError{
+			Type:   shared.ApiErrorTypeOther,
+			Status: http.StatusInternalServerError,
+			Msg:    "Error getting num tokens for os details",
+		}
+	}
+
 	var (
 		numPromptTokens int
 		promptTokens    int
@@ -264,14 +281,18 @@ func execTellPlan(
 			}
 			return
 		}
-		promptTokens = prompts.PromptWrapperTokens + numPromptTokens
+		promptTokens = prompts.PromptWrapperTokens + numPromptTokens + osDetailsTokens
 	} else if iteration > 0 && missingFileResponse == "" {
 		if verifyDiffs != "" {
 			numPromptTokens = prompts.VerifyDiffsPromptTokens
 		} else {
 			numPromptTokens = prompts.AutoContinuePromptTokens
 		}
-		promptTokens = prompts.PromptWrapperTokens + numPromptTokens
+		promptTokens = prompts.PromptWrapperTokens + numPromptTokens + osDetailsTokens
+	}
+
+	if req.ExecEnabled {
+		promptTokens += prompts.ApplyScriptSummaryNumTokens
 	}
 
 	var sysCreateTokens int
@@ -283,6 +304,12 @@ func execTellPlan(
 		}
 	} else {
 		sysCreateTokens = prompts.SysCreateBasicNumTokens
+	}
+
+	if req.ExecEnabled {
+		sysCreateTokens += prompts.ApplyScriptPromptNumTokens
+	} else {
+		sysCreateTokens += prompts.NoApplyScriptPromptNumTokens
 	}
 
 	state.tokensBeforeConvo = sysCreateTokens + modelContextTokens + state.latestSummaryTokens + promptTokens
@@ -308,6 +335,11 @@ func execTellPlan(
 
 	if !state.injectSummariesAsNeeded() {
 		return
+	}
+
+	var applyScriptSummary string
+	if req.ExecEnabled {
+		applyScriptSummary = prompts.ApplyScriptPromptSummary
 	}
 
 	state.replyId = uuid.New().String()
@@ -339,7 +371,7 @@ func execTellPlan(
 				state.messages = state.messages[:len(state.messages)-1]
 				promptMessage = &openai.ChatCompletionMessage{
 					Role:    openai.ChatMessageRoleUser,
-					Content: prompts.GetWrappedPrompt(lastMessage.Content),
+					Content: prompts.GetWrappedPrompt(lastMessage.Content, req.OsDetails, applyScriptSummary),
 				}
 
 				state.userPrompt = lastMessage.Content
@@ -351,7 +383,7 @@ func execTellPlan(
 				// otherwise we'll use the continue prompt
 				promptMessage = &openai.ChatCompletionMessage{
 					Role:    openai.ChatMessageRoleUser,
-					Content: prompts.GetWrappedPrompt(prompts.UserContinuePrompt),
+					Content: prompts.GetWrappedPrompt(prompts.UserContinuePrompt, req.OsDetails, applyScriptSummary),
 				}
 			}
 
@@ -365,6 +397,9 @@ func execTellPlan(
 				} else if req.IsUserDebug {
 					prompt = req.Prompt + prompts.DebugPrompt
 					state.totalRequestTokens += prompts.DebugPromptTokens
+				} else if req.IsApplyDebug {
+					prompt = req.Prompt + prompts.ApplyDebugPrompt
+					state.totalRequestTokens += prompts.ApplyDebugPromptTokens
 				} else {
 					prompt = req.Prompt
 				}
@@ -420,7 +455,7 @@ func execTellPlan(
 
 			promptMessage = &openai.ChatCompletionMessage{
 				Role:    openai.ChatMessageRoleUser,
-				Content: prompts.GetWrappedPrompt(prompt),
+				Content: prompts.GetWrappedPrompt(prompt, req.OsDetails, applyScriptSummary),
 			}
 		}
 
@@ -495,6 +530,9 @@ func execTellPlan(
 	// for _, message := range state.messages {
 	// 	log.Printf("%s: %s\n", message.Role, message.Content)
 	// }
+
+	// ts := time.Now().Format("2006-01-02-150405")
+	// os.WriteFile(fmt.Sprintf("generations/messages-%s.txt", ts), []byte(spew.Sdump(state.messages)), 0644)
 
 	_, apiErr := hooks.ExecHook(hooks.WillSendModelRequest, hooks.HookParams{
 		Auth: auth,

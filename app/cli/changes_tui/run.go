@@ -3,6 +3,7 @@ package changes_tui
 import (
 	"fmt"
 	"plandex/lib"
+	"plandex/plan_exec"
 	"plandex/term"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -38,7 +39,15 @@ func StartChangesUI(currentPlan *shared.CurrentPlanState) error {
 	}
 
 	if mod.shouldApplyAll {
-		lib.MustApplyPlan(lib.CurrentPlanId, lib.CurrentBranch, true, false, false)
+		flags := lib.ApplyFlags{
+			AutoConfirm: true,
+		}
+		lib.MustApplyPlan(
+			lib.CurrentPlanId,
+			lib.CurrentBranch,
+			flags,
+			plan_exec.GetOnApplyExecFail(flags),
+		)
 	}
 
 	if mod.rejectFileErr != nil {
