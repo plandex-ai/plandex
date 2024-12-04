@@ -231,6 +231,31 @@ func (r *ReplyParser) GetReplyBeforePath(path string) string {
 	return strings.Join(r.lines[:idx], "\n")
 }
 
+func (r *ReplyParser) GetReplyForMissingFile() string {
+	path := r.currentFilePath
+
+	var idx int
+	for i := len(r.lines) - 1; i >= 0; i-- {
+		line := r.lines[i]
+		if lineMaybeHasFilePath(line) && path == extractFilePath(line) {
+			idx = i
+			break
+		}
+	}
+
+	if idx == -1 {
+		return strings.Join(r.lines, "\n")
+	}
+
+	idx = idx + 2
+
+	if idx > len(r.lines)-1 {
+		return strings.Join(r.lines, "\n")
+	}
+
+	return strings.Join(r.lines[:idx], "\n") + "\n"
+}
+
 func lineMaybeHasFilePath(line string) bool {
 	couldBe := (strings.HasPrefix(line, "-")) || strings.HasPrefix(line, "-file:") || strings.HasPrefix(line, "- file:") || (strings.HasPrefix(line, "**") && strings.HasSuffix(line, "**")) || (strings.HasPrefix(line, "#") && strings.HasSuffix(line, ":"))
 

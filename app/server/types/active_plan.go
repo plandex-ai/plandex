@@ -169,8 +169,10 @@ func (ap *ActivePlan) FlushStreamBuffer() {
 	ap.streamMu.Unlock()
 
 	if len(bufferToFlush) == 1 {
+		log.Println("ActivePlan.FlushStreamBuffer: flushing single message")
 		ap.Stream(bufferToFlush[0])
 	} else {
+		log.Println("ActivePlan.FlushStreamBuffer: flushing multi-message")
 		ap.Stream(shared.StreamMessage{
 			Type:           shared.StreamMessageMulti,
 			StreamMessages: bufferToFlush,
@@ -179,23 +181,38 @@ func (ap *ActivePlan) FlushStreamBuffer() {
 }
 
 func (ap *ActivePlan) Stream(msg shared.StreamMessage) {
+	// log.Println("ActivePlan.Stream:")
+	// log.Println(msg)
+
 	ap.streamMu.Lock()
 
+	skipBuffer := false
+	if msg.Type == shared.StreamMessagePromptMissingFile || msg.Type == shared.StreamMessageFinished {
+		skipBuffer = true
+	}
+
 	// Special messages bypass buffering
-	if msg.Type != shared.StreamMessageFinished &&
-		msg.Type != shared.StreamMessagePromptMissingFile {
+	if !skipBuffer {
+		// log.Println("ActivePlan.Stream: time since last message sent:", time.Since(ap.lastStreamMessageSent))
 
 		if time.Since(ap.lastStreamMessageSent) < MaxStreamRate {
+			// log.Println("ActivePlan.Stream: buffering message")
+
 			// Buffer the message
 			ap.streamMessageBuffer = append(ap.streamMessageBuffer, msg)
 			ap.streamMu.Unlock()
 			return
 		} else if len(ap.streamMessageBuffer) > 0 {
+			// log.Println("ActivePlan.Stream: flushing buffer")
+
 			// Need to flush buffer first
 			ap.streamMessageBuffer = append(ap.streamMessageBuffer, msg)
 			bufferToFlush := ap.streamMessageBuffer
 			ap.streamMessageBuffer = []shared.StreamMessage{}
 			ap.streamMu.Unlock()
+
+			// log.Println("ActivePlan.Stream: sending multi-message:")
+			// log.Println(bufferToFlush)
 
 			// Send as multi-message
 			ap.Stream(shared.StreamMessage{
@@ -218,29 +235,45 @@ func (ap *ActivePlan) Stream(msg shared.StreamMessage) {
 		return
 	}
 
-	if msg.Type == shared.StreamMessageFinished && len(ap.streamMessageBuffer) > 0 {
-		// Handle any remaining buffered messages before finishing
+	if skipBuffer && len(ap.streamMessageBuffer) > 0 {
+		// Handle any remaining buffered messages before sending the message
+		// log.Println("ActivePlan.Stream: message is a skip buffer type and there are buffered messages")
+		// log.Println("ActivePlan.Stream: flushing remaining buffered messages before skip buffer message is sent")
 		bufferToFlush := ap.streamMessageBuffer
 		ap.streamMessageBuffer = []shared.StreamMessage{}
 		ap.streamMu.Unlock()
 
 		log.Println("Flushing buffered messages before finishing")
+		// log.Println("ActivePlan.Stream: sending multi-message:")
+		// log.Println(bufferToFlush)
 		ap.Stream(shared.StreamMessage{
 			Type:           shared.StreamMessageMulti,
 			StreamMessages: bufferToFlush,
 		})
-		log.Println("Finished flushing buffered messages, waiting 50ms before sending finish message")
+		log.Println("ActivePlan.Stream: finished flushing buffered messages. waiting 50ms before sending skip buffer type message")
 		time.Sleep(50 * time.Millisecond)
-		log.Println("Sending finish message")
-		ap.Stream(msg) // send the finish message
+		log.Println("ActivePlan.Stream: sending finish message")
+		ap.Stream(msg) // send the skip buffer type message
 
-		// wait for the finish message to be sent then send the done signal
-		log.Println("Waiting 50ms before sending done signal")
-		time.Sleep(50 * time.Millisecond)
-		log.Println("Sending done signal")
-		ap.StreamDoneCh <- nil
-		return
+		ap.streamMu.Lock()
+		now := time.Now()
+		if now.After(ap.lastStreamMessageSent) {
+			ap.lastStreamMessageSent = now
+		}
+		ap.streamMu.Unlock()
+
+		if msg.Type == shared.StreamMessageFinished {
+			// wait for the finish message to be sent then send the done signal
+			log.Println("ActivePlan.Stream: waiting 50ms before sending done signal")
+			time.Sleep(50 * time.Millisecond)
+			log.Println("ActivePlan.Stream: sending done signal")
+			ap.StreamDoneCh <- nil
+			return
+		}
 	}
+
+	// log.Println("ActivePlan.Stream: sending direct message")
+	// log.Println(string(msgJson))
 
 	ap.streamCh <- string(msgJson)
 
@@ -251,9 +284,9 @@ func (ap *ActivePlan) Stream(msg shared.StreamMessage) {
 	ap.streamMu.Unlock()
 
 	if msg.Type == shared.StreamMessageFinished {
-		log.Println("Waiting 50ms before sending done signal")
+		log.Println("ActivePlan.Stream: waiting 50ms before sending done signal")
 		time.Sleep(50 * time.Millisecond)
-		log.Println("Sending done signal")
+		log.Println("ActivePlan.Stream: sending done signal")
 		ap.StreamDoneCh <- nil
 	}
 }

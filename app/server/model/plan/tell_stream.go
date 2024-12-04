@@ -530,6 +530,7 @@ mainLoop:
 			parserRes := replyParser.Read()
 
 			if !fileOpen && parserRes.CurrentFilePath != "" {
+				log.Printf("File open: %s\n", parserRes.CurrentFilePath)
 				fileOpen = true
 			}
 
@@ -576,9 +577,33 @@ mainLoop:
 					continue mainLoop
 				}
 
+				var previousReplyContent string
+				var trimmedContent string
+
 				UpdateActivePlan(planId, branch, func(ap *types.ActivePlan) {
 					ap.MissingFilePath = currentFile
+					previousReplyContent = ap.CurrentReplyContent
+					trimmedContent = replyParser.GetReplyForMissingFile()
+					ap.CurrentReplyContent = trimmedContent
 				})
+
+				log.Println("Previous reply content:")
+				log.Println(previousReplyContent)
+
+				log.Println("Trimmed content:")
+				log.Println(trimmedContent)
+
+				chunkToStream := getCroppedChunk(previousReplyContent+content, trimmedContent, content)
+
+				log.Printf("chunkToStream: %s\n", chunkToStream)
+
+				if chunkToStream != "" {
+					log.Printf("Streaming remaining chunk before missing file prompt: %s\n", chunkToStream)
+					active.Stream(shared.StreamMessage{
+						Type:       shared.StreamMessageReply,
+						ReplyChunk: chunkToStream,
+					})
+				}
 
 				log.Printf("Prompting user for missing file: %s\n", currentFile)
 
@@ -589,8 +614,8 @@ mainLoop:
 				})
 
 				log.Printf("Stopping stream for missing file: %s\n", currentFile)
-
-				// log.Printf("Current reply content: %s\n", active.CurrentReplyContent)
+				log.Printf("Chunk content: %s\n", content)
+				log.Printf("Current reply content: %s\n", active.CurrentReplyContent)
 
 				// stop stream for now
 				active.CancelModelStreamFn()
@@ -617,6 +642,7 @@ mainLoop:
 
 				UpdateActivePlan(planId, branch, func(ap *types.ActivePlan) {
 					ap.MissingFilePath = ""
+					ap.CurrentReplyContent = replyParser.GetReplyForMissingFile()
 				})
 
 				log.Println("Continuing stream")
@@ -674,6 +700,9 @@ mainLoop:
 
 					if req.BuildMode == shared.BuildModeAuto {
 						log.Printf("Queuing build for %s\n", file)
+						log.Println("Content:")
+						log.Println(fileContents[i])
+
 						buildState := &activeBuildStreamState{
 							tellState:     state,
 							clients:       clients,
@@ -773,8 +802,12 @@ func (state *activeTellStreamState) checkAutoLoadContext() []string {
 		return nil
 	}
 
-	// only load context on the first iteration
-	if state.iteration > 0 {
+	if state.req.IsUserContinue {
+		return nil
+	}
+
+	// only load context on the first or second iteration of a non-continue prompt
+	if state.iteration > 1 {
 		return nil
 	}
 
@@ -909,4 +942,13 @@ func (state *activeTellStreamState) onError(streamErr error, storeDesc bool, con
 		Status: http.StatusInternalServerError,
 		Msg:    "Stream error: " + streamErr.Error(),
 	}
+}
+
+func getCroppedChunk(uncropped, cropped, chunk string) string {
+	uncroppedIdx := strings.Index(uncropped, chunk)
+	if uncroppedIdx == -1 {
+		return ""
+	}
+	croppedChunk := cropped[uncroppedIdx:]
+	return croppedChunk
 }

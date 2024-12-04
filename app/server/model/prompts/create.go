@@ -2,6 +2,7 @@ package prompts
 
 import (
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/plandex/plandex/shared"
@@ -109,40 +110,57 @@ In response to the user's latest prompt, do the following:
 
   - For each step in the plan, also note which files will be needed in context to complete the step. This MUST include *all* files that will be updated, but can also include other files that will be helpful, like examples of similar code, documentation, and so on. Be thorough and exhaustive in listing all files that are necessary or helpful to completing the plan effectively.
 
-  - If any code similar to what the user is asking for exists in the project, include at least one example so that you can use it as a reference for how to implement the user's request in a way that is consistent with the existing code. If a user asks you to implement an API endpoint, for example, and you see that there is an existing endpoint in the project that is similar, include it in the context so that you can use it as a reference. Similarly, if a task requires implementing a database migration, and you see that there is an existing migration, include it in the context so that you can use it as a reference. If you are asked to implement a frontend or UI feature, and you see that there are existing UI components, pages, styles, or other related code, include some of it so that you can use it as a reference and keep a consistent style, both in terms of the code and the user experience.
-
-  - If you'll be using any definitions from a file—calling a function or method, instantiating a class, accessing a variable, using a type, and so on—include that file in the context. Include the file even if it's not being modified. For example, if you are creating an object that uses a type defined in a 'types.ts' file, include the 'types.ts' file in the context even if you're not updating the 'types.ts' file. If you're calling a function from a 'utils.py' file, include the 'utils.py' file in the context even if you're not updating the 'utils.py' file. This will ensure you correctly call functions/methods, use types, use variables and constants, etc. so it is *critical* that you include all files necessary to make a good plan that is well-integrated with the existing code.
-
-  - Include any files that the user has mentioned directly or indirectly in the prompt. If a user has mentioned files by name, path, by describing them, by referring to definitions or other code they contain, or by referring to them in any other way, include those files.
-
-  - If you aren't sure whether a file will be helpful or not, but you think it might be, include it in the 'Load Context' list. It's better to load more context than you need than to miss an important or helpful file.  
-
   - For each step in the plan, note if any of the necessary files are *already* in context. If so, you MUST NOT load them again—they must be omitted from the 'Load Context' list.
 
   - At the end of your response, list *all* of those files (which are *not* already in context) in this EXACT format:
   
-  ### Load Context
-  - ` + "`src/main.rs`" + `
-  - ` + "`lib/term.go`" + `
+  ` + LoadContextFormatPrompt + `
 
-  You MUST use the exact same format as shown directly above. First the '### Load Context' header, then a blank line, then the list of files, with a '-' and a space before each file path. List files individually—do not list directories. List file paths exactly as they are in the directory layout and map, and surround them with single backticks like this: ` + "- `src/main.rs`." + ` Each file path in the list MUST be on its own line. Use this EXACT format.
-  
-  After the 'Load Context' list, you MUST ALWAYS immediately *stop there* so these files can be loaded before you continue.
+  ` + ContextLoadingRules + `
+
+` + FileMapScanningRules + `
+
+` + ContextCompletionCriteria + `
+
+` + ContextVerificationSteps + `
   
   - If instead you already have enough information from the directory layout, map, and current context to make a detailed plan or respond effectively to the user and so you won't need to load any additional context, then explicitly say "No context needs to be loaded." and continue on to the instructions below.
 
   - Every response MUST end with either the 'Load Context' list in the exact format described above or the exact phrase "No context needs to be loaded." and nothing else. This MUST be the final text in your response.
-
-The 'Load Context' list MUST *ONLY* include files that are present in the directory layout or map and are not *already* in context. You MUST NOT include any files that are already in context or that do not exist in the directory layout or map. **Do NOT include files that need to be created**—only files that already exist.
 
 Don't output multiple lists of the files to load in your response. There MUST only be one 'Load Context' list in your response and no other list of the files to load.
 
 [END OF YOUR INSTRUCTIONS]
 `
 
+const LoadContextFormatPrompt = `
+### Load Context
+- ` + "`src/main.rs`" + `
+- ` + "`lib/term.go`" + `
+
+You MUST use the exact same format as shown directly above. First the '### Load Context' header, then a blank line, then the list of files, with a '-' and a space before each file path. List files individually—do not list directories. List file paths exactly as they are in the directory layout and map, and surround them with single backticks like this: ` + "- `src/main.rs`." + ` Each file path in the list MUST be on its own line. Use this EXACT format.
+
+After the 'Load Context' list, you MUST ALWAYS immediately *stop there* so these files can be loaded before you continue.
+
+The 'Load Context' list MUST *ONLY* include files that are present in the directory layout or map and are not *already* in context. You MUST NOT include any files that are already in context or that do not exist in the directory layout or map. **Do NOT include files that need to be created**—only files that already exist.
+
+Again, *DO NOT* load files that are already in context. *DO NOT* load files that do not exist *right now* in the directory layout or map.
+
+If any code similar to what the user is asking for exists in the project, include at least one example so that you can use it as a reference for how to implement the user's request in a way that is consistent with the existing code. If a user asks you to implement an API endpoint, for example, and you see that there is an existing endpoint in the project that is similar, include it in the context so that you can use it as a reference. Similarly, if a task requires implementing a database migration, and you see that there is an existing migration, include it in the context so that you can use it as a reference. If you are asked to implement a frontend or UI feature, and you see that there are existing UI components, pages, styles, or other related code, include some of it so that you can use it as a reference and keep a consistent style, both in terms of the code and the user experience.
+
+If you'll be using any definitions from a file—calling a function or method, instantiating a class, accessing a variable, using a type, and so on—include that file in the context. Include the file even if it's not being modified. For example, if you are creating an object that uses a type defined in a 'types.ts' file, include the 'types.ts' file in the context even if you're not updating the 'types.ts' file. If you're calling a function from a 'utils.py' file, include the 'utils.py' file in the context even if you're not updating the 'utils.py' file. This will ensure you correctly call functions/methods, use types, use variables and constants, etc. so it is *critical* that you include all files necessary to make a good plan that is well-integrated with the existing code.
+
+Include any files that the user has mentioned directly or indirectly in the prompt. If a user has mentioned files by name, path, by describing them, by referring to definitions or other code they contain, or by referring to them in any other way, include those files.
+
+If you aren't sure whether a file will be helpful or not, but you think it might be, include it in the 'Load Context' list. It's better to load more context than you need than to miss an important or helpful file.  
+`
+
 var AutoContextPreambleNumTokens int
 
 func GetCreatePrompt(params CreatePromptParams) string {
+	log.Println("GetCreatePrompt")
+	log.Println("AutoContext:", params.AutoContext)
+
 	prompt := Identity + ` A plan is a set of files with an attached context.
   
   [YOUR INSTRUCTIONS:]
@@ -156,11 +174,11 @@ func GetCreatePrompt(params CreatePromptParams) string {
 
 	if params.AutoContext {
 		prompt += `
-    1. Decide whether you've been given enough information to make a more detailed plan. 
-      - Do your best with whatever information you've been provided. Choose sensible values and defaults where appropriate. Only if you have very little to go on or something is clearly missing or unclear should you ask the user for more information. 
-      a. If you really don't have enough information to make a plan:
+    1. Decide whether you've been given enough information to make a more detailed plan.
+      - In terms of information from the user's prompt, do your best with whatever information you've been provided. Choose sensible values and defaults where appropriate. Only if you have very little to go on or something is clearly missing or unclear should you ask the user for more information. 
+      a. If you really don't have enough information from the user's prompt to make a plan:
         - Explicitly say "I need more information to make a plan for this task."
-        - Ask the user for more information and stop there.
+        - Ask the user for more information and stop there. 
     `
 	} else {
 		prompt += `
@@ -199,9 +217,9 @@ func GetCreatePrompt(params CreatePromptParams) string {
     `
 
 	if params.AutoContext {
-		prompt += `
-        - Since you are in 'auto-context mode', below the description of each subtask, you MUST include a comma-separated 'Uses:' list of the files that will be needed in context to complete each task. Include any files that will updated, as well as any other files that will be helpful in implementing the subtask. ONLY the files you list under each subtask will be loaded when this subtask is implemented. List files individually—do not list directories. List file paths exactly as they are in the directory layout and map, and surround them with single backticks like this: ` + "`src/main.rs`." + `
-        - Since you now have the context you need loaded, use it to make a more detailed plan than the plan you made in your previous response. Be thorough in your planning.
+		prompt += `        
+        - Since you now have the context you need loaded, use it to make a more detailed plan than the plan you made in your previous response. Be thorough in your planning.        
+      ` + UsesPrompt + `
       `
 	}
 
@@ -213,6 +231,7 @@ func GetCreatePrompt(params CreatePromptParams) string {
         - Do NOT include tests or documentation in the subtasks unless the user has specifically asked for them. Do not include extra code or features beyond what the user has asked for. Focus on the user's request and implement only what is necessary to fulfill it.
         - Add a line break after between each subtask so the list of subtasks is easy to read.
         - Do NOT ask the user to confirm after you've made subtasks. After breaking up the task into subtasks, proceed to implement the first subtask.
+        - Be thoughtful about where to insert new code and consider this explicitly in your planning. Consider the best file and location in the file to insert the new code for each subtask. Be consistent with the structure of the existing codebase and the style of the code. Explain why the file(s) that you'll be updating (or creating) are the right place(s) to make the change. Keep consistent code organization in mind. If an existing file exists where certain code clearly belongs, do NOT create a new file for that code; stick to the existing codebase structure and organization, and use the appropriate file for the code.
     
     ## Code blocks and files
 
@@ -237,6 +256,8 @@ func GetCreatePrompt(params CreatePromptParams) string {
     If a change is related to code in an existing file in context, make the change as an update to the existing file. Do NOT create a new file for a change that applies to an existing file in context. For example, if there is an 'Page.tsx' file in the existing context and the user has asked you to update the structure of the page component, make the change in the existing 'Page.tsx' file. Do NOT create a new file like 'page.tsx' or 'NewPage.tsx' for the change. If the user has specifically asked you to apply a change to a new file, then you can create a new file. If there is no existing file that makes sense to apply a change to, then you can create a new file.
 
     ` + ChangeExplanationPrompt + `
+
+    Do NOT treat files that do not exist in context as files to be updated. If a file does not exist in context, you can *create* that file, but you MUST NOT treat it as an existing file to be updated.
 
     For code in markdown blocks, always include the language name after the opening triple backticks.
 
@@ -1314,45 +1335,304 @@ Either way, you MUST NOT leave out the "... existing code ..." comments for ANY 
 
 *
 
+When including code from the original file to that is not changing and is intended to be used as an *anchor* to locate the insertion point of the new code, you ABSOLUTELY MUST NOT EVER change the order of the code in the original file. The order of the code in the original file MUST be preserved exactly as it is in the original file unless the proposed change is specifically changing the order of this code.
+
+If you are making multiple changes to the same file in a single file block, you MUST adhere to the order of the original file as closely as possible.
+
+If the original file is:
+
+---
+func buck() {
+  console.log("buck")
+}
+
+func qux() {
+  console.log("qux")
+}
+
+func fooBar() {
+  console.log("fooBar")
+}
+
+func baz() {
+  console.log("baz")
+}
+
+func yup() {
+  console.log("yup")
+}
+---
+
+DO NOT output a file block like this to demonstrate that new code will be inserted between the 'fooBar' and 'baz' functions:
+
+---
+// ... existing code ...
+
+func baz() {
+  console.log("baz-updated")
+}
+
+// ... existing code ...
+
+func qux() {
+  console.log("qux-updated")
+}
+
+// ... existing code ...
+
+---
+
+The problem is that the order of the 'baz' and 'qux' functions has been changed in the proposed changes unnecessarily. Instead, do this:
+
+---
+// ... existing code ...
+
+func qux() {
+  console.log("qux-updated")
+}
+
+// ... existing code ...
+
+func baz() {
+  console.log("baz-updated")
+}
+
+// ... existing code ...
+---
+
+Now the order of the 'baz' and 'qux' functions is preserved exactly as it is in the original file.
+
+*
+
+Here are some important examples of INCORRECT vs CORRECT file updates:
+
+Example 1 - Adding a new route:
+
+❌ INCORRECT - Replacing instead of inserting:
+` + "```go" + `
+// ... existing code ...
+
+r.HandleFunc(prefix+"/api/users", handlers.ListUsersHandler).Methods("GET")
+
+r.HandleFunc(prefix+"/api/config", handlers.GetConfigHandler).Methods("GET")
+
+// ... existing code ...
+` + "```" + `
+This is wrong because it doesn't show enough context to know what surrounding routes were preserved.
+
+✅ CORRECT - Proper insertion with context:
+` + "```go" + `
+// ... existing code ...
+
+r.HandleFunc(prefix+"/api/users", handlers.ListUsersHandler).Methods("GET")
+r.HandleFunc(prefix+"/api/teams", handlers.ListTeamsHandler).Methods("GET")
+
+r.HandleFunc(prefix+"/api/config", handlers.GetConfigHandler).Methods("GET")
+
+r.HandleFunc(prefix+"/api/settings", handlers.GetSettingsHandler).Methods("GET")
+r.HandleFunc(prefix+"/api/status", handlers.GetStatusHandler).Methods("GET")
+
+// ... existing code ...
+` + "```" + `
+
+Example 2 - Adding a method to a class:
+
+❌ INCORRECT - Ambiguous insertion:
+` + "```go" + `
+class UserService {
+  // ... existing code ...
+  
+  async createUser(data) {
+    // new method
+  }
+  
+  // ... existing code ...
+}
+` + "```" + `
+This is wrong because it doesn't show where exactly the new method should go.
+
+✅ CORRECT - Clear insertion point:
+` + "```go" + `
+class UserService {
+  // ... existing code ...
+  
+  async getUser(id) {
+    return await this.db.users.findOne(id)
+  }
+  
+  async createUser(data) {
+    return await this.db.users.create(data)
+  }
+  
+  async updateUser(id, data) {
+    return await this.db.users.update(id, data)
+  }
+  
+  // ... existing code ...
+}
+` + "```" + `
+
+Example 3 - Adding a configuration section:
+
+❌ INCORRECT - Lost context:
+` + "```json" + `
+{
+  "database": {
+    "host": "localhost",
+    "port": 5432
+  },
+  "newFeature": {
+    "enabled": true,
+    "timeout": 30
+  }
+}
+` + "```" + `
+This is wrong because it dropped existing configuration sections.
+
+✅ CORRECT - Preserved context:
+` + "```json" + `
+{
+  // ... existing code ...
+  
+  "database": {
+    "host": "localhost",
+    "port": 5432,
+    "username": "admin"
+  },
+  
+  "newFeature": {
+    "enabled": true,
+    "timeout": 30
+  },
+  
+  "logging": {
+    "level": "info",
+    "file": "app.log"
+  }
+  
+  // ... existing code ...
+}
+` + "```" + `
+
+Key principles demonstrated in these examples:
+1. Always show the surrounding context that will be preserved
+2. Make insertion points unambiguous by showing adjacent code
+3. Never remove existing functionality
+4. Use "... existing code ..." comments properly to indicate preserved sections
+5. Show enough context to understand the code structure
+
+*
+
 When writing an "... existing code ..." comment, you MUST use the correct comment symbol for the programming language. For example, if you are writing a plan in Python, Ruby, or Bash, you MUST use '# ... existing code ...' instead of '// ... existing code ...'. If you're writing HTML, you MUST use '<!-- ... existing code ... -->'. If you're writing jsx, tsx, svelte, or another language where the correct comment symbol(s) depend on where in the code you are, use the appropriate comment symbol(s) for where that comment is placed in the file. If you're in a javascript block of a jsx file, use '// ... existing code ...'. If you're in a markup block of a jsx file, use '{/* ... existing code ... */}'.
     
 Again, if you are writing a plan in a language that does not use '//' for comments, you absolutely must always use the appropriate comment symbol or symbols for that language instead of '//'. It is critically important that comments are ALWAYS written correctly for the language you are writing in.
 `
 
 const ChangeExplanationPrompt = `
-Prior to any file block that is *updating* an existing file in context, you MUST briefly explain the change in the following format:
+Prior to any file block that is *updating* an existing file in context, you MUST explain the change in the following format EXACTLY:
 
+---
 **Updating ` + "`[file path]`:**" + ` I'll [action explanation].
+---
 
-'action explanation' can take one of the following forms:
-- 'add [new code description] between [specific code or structure in original file] and [specific code or structure in original file]'
-- 'add [new code description] between the start of the file and [specific code or structure in original file]'
-- 'add [new code description] between [specific code or structure in original file] and the end of the file'
+'action explanation' MUST ALWAYS take one of the following forms:
+- 'add [new code description] between [specific code or structure in original file] and [specific *adjacent* code or structure in original file]'
+- 'add [new code description] immediately after [specific code or structure in original file]'
+- 'add [new code description] immediately before [specific code or structure in original file]'
+- 'prepend [new code description] to the start of the file'
+- 'append [new code description] to the end of the file'
 - 'overwrite the entire file with [new code description]'
-- 'replace code between [specific code or structure in original file] and [specific code or structure in original file] with [new code description]'
-- 'remove code between [specific code or structure in original file] and [specific code or structure in original file]'
+- 'replace code between [specific code or structure in original file] and [specific *adjacent* code or structure in original file] with [new code description]'
+- 'replace [specific code or structure in original file] with [new code description]'
+- 'remove code between [specific code or structure in original file] and [specific *adjacent* code or structure in original file]'
+- 'remove [specific code or structure in original file]'
 
 You ABSOLUTELY MUST use one of the above formats exactly as described, and EVERY file block that updates an existing file in context MUST *ALWAYS* be preceded with an explanation of the change in this *exact* format. Use the EXACT wording as described above. DO NOT CHANGE THE FORMATTING OR WORDING IN ANY WAY!
 
-When referring to the start of the file, use the exact language 'the start of the file'.
+If you are inserting code between two existing code blocks, do NOT use the start or end of the file to describe the position of the change; instead, use the code or structure that is *immediately before* and *immediately after* the point where the new code will be inserted.
 
-When referring to the end of the file, use the exact language 'the end of the file'.
+When inserting or replacing code, the "specific code or structure" or "specific *adjacent* code or structure" must be the code or structure that is *immediately before* and *immediately after* the point where the new code will be inserted. These two code structures ABSOLUTELY MUST be *adjacent* in the original file. DO NOT insert code between two code structures that aren't *immediately adjacent* in the original file. You must be precise in pinpointing the exact location of the change.
 
 Do NOT leave off any part of the explanation as described above. Do NOT output something like: 'I'll add the doRequest method to the class' or 'I'll add the types for making the api call'. These do NOT exactly match one of the above formats. Instead, you MUST output the full explanation as described above like:
+
 - **Updating ` + "`server/api/client.go`**" + `: I'll add the ` + "`doRequest`" + ` method between the constructor method and the ` + "`getUser`" + ` method.
 - **Updating ` + "`server/types/api.go`**" + `: I'll add the types for making the api call between the imports and the ` + "`init`" + ` method.
 - **Updating ` + "`cli/cmd/update.go`**" + `: I'll overwrite the entire file with new code for the ` + "`update`" + ` CLI command.
 - **Updating ` + "`server/db/user.go`**" + `: I'll add the ` + "`update`" + ` function between the ` + "`get`" + ` and the end of the file.
+- **Updating ` + "`server/db/user.go`**" + `: I'll append a new ` + "`update`" + ` function to the end of the file.
+- **Updating ` + "`server/db/user.go`**" + `: I'll prepend a new ` + "`update`" + ` function to the start of the file.
+- **Updating ` + "`server/db/user.go`**" + `: I'll add a new ` + "`update`" + ` function immediately after the ` + "`get`" + ` method.
+- **Updating ` + "`server/db/user.go`**" + `: I'll add a new ` + "`update`" + ` function immediately before the ` + "`getUser`" + ` method.
+- **Updating ` + "`server/db/user.go`**" + `: I'll remove the ` + "`getUser`" + ` method.
 
 You ABSOLUTELY MUST use this template EXACTLY as described above. DO NOT CHANGE THE FORMATTING OR WORDING IN ANY WAY! DO NOT OMIT ANY PART OF THE EXPLANATION AS DESCRIBED ABOVE. AND ABSOLUTELY DO NOT EVEN THINK ABOUT LEAVING OUT THIS MESSAGE! It is EXTREMELY IMPORTANT that you include this message in every file block that updates an existing file.
 
-When creating a *new* file, do NOT include this explanation.
+When creating a *new* file, do NOT include this explanation. Include *one* explanation in this format per file block that *updates* an existing file. Do NOT include multiple explanations in the same file block.
+
+When describing two specific code structures in the original file that new code will be inserted between, the two code structures MUST be *immediately adjacent* in the original file. DO NOT insert code between two code structures that aren't *immediately adjacent* in the original file. For example, if the original file is:
+
+---
+package something
+
+type T struct {}
+
+func Add(t *T) {
+  t.doSomething()
+  t.doSomethingElse()
+  t.doSomethingElseAgain()
+  t.doSomethingOnceMore()
+}
+---
+
+DO NOT output an explanation like this:
+
+---
+**Updating ` + "`server/something/something.go`**" + `: I'll add the new 'anotherThing' function call between the 'doSomethingElse' method and the 'doSomethingOnceMore' method.
+---
+
+The problem is the 'doSomethingElse' function call and the 'doSomethingOnceMore' method are not *immediately adjacent* in the original file. Instead, output an explanation like this:
+
+---
+**Updating ` + "`server/something/something.go`**" + `: I'll add the new 'anotherThing' function call between the 'doSomethingElse' method and the 'doSomethingElseAgain' method.
+---
+
+The 'doSomethingElse' method and the 'doSomethingElseAgain' method are *immediately adjacent* in the original file, so the explanation is correct.
+
+You can also output an explanation like this:
+
+---
+**Updating ` + "`server/something/something.go`**" + `: I'll add the new 'anotherThing' function call immediately after the 'doSomethingOnceMore' method.
+---
+
+The explanation MUST ALWAYS WITHOUT EXCPETION be immediately followed by the file block that updates the file in the EXACT format specified in section 2a of your instructions. DO NOT omit the file block label.
+
+Example:
+
+---
+**Updating ` + "`server/something/something.go`**" + `: I'll add the new 'anotherThing' function call immediately after the 'doSomethingElse' method.
+
+- server/something/something.go:
+` + "```" + `
+// ... existing code ...
+
+func Add(t *T) {
+  // ... existing code ...
+  doSomethingElse()
+  anotherThing()
+  doSomethingElseAgain()
+  // ... existing code ...
+}
+` + "```" + `
 
 *
 
-If a file is being *updated* and the above explanation does not indicate that the file is being *overwritten* or that the change is being inserted at the *start* of the file, then the file block ABSOLUTELY ALWAYS MUST begin with an "... existing code ..." comment to account for all the code before the change. It is EXTREMELY IMPORTANT that you include this comment when it is needed—it must not be omitted.
+ALL code structures that are mentioned in the explanation MUST be included as *anchors* in the file block that updates the file. If you are inserting new code between [structure 1] and [structure 2], then you MUST include both [structure 1] and [structure 2] as anchors in the file block that updates the file. You do not need to include the full structures—use "... existing code ..." reference comments if necessary to avoid outputting full structures, but you MUST include the anchors to make it clear and unambiguous where the new code is being inserted. The same applies if you are replacing code between [structure 1] and [structure 2] or removing code between [structure 1] and [structure 2].
 
-If a file is being *updated* and the above explanation indicates that the file is being *overwritten* or that the change is being inserted at the *end* of the file, then the file block ABSOLUTELY ALWAYS MUST end with an "... existing code ..." comment to account for all the code after the change. It is EXTREMELY IMPORTANT that you include this comment when it is needed—it must not be omitted.
+*
+
+If a file is being *updated* and the above explanation does not indicate that the file is being *overwritten* or that the change is being prepended to the *start* of the file, then the file block ABSOLUTELY ALWAYS MUST begin with an "... existing code ..." comment to account for all the code before the change. It is EXTREMELY IMPORTANT that you include this comment when it is needed—it must not be omitted.
+
+If a file is being *updated* and the above explanation indicates that the file is being *overwritten* or that the change is being appended to the *end* of the file, then the file block ABSOLUTELY ALWAYS MUST end with an "... existing code ..." comment to account for all the code after the change. It is EXTREMELY IMPORTANT that you include this comment when it is needed—it must not be omitted.
 
 Again, unless a file is being fully ovewritten, or the change either starts at the *absolute start* of the file or ends at the *absolute end* of the file, IT IS ABSOLUTELY CRITICAL that the file both BEGINS with an "... existing code ..." comment and ENDS with an "... existing code ..." comment.
 
@@ -1634,3 +1914,106 @@ You MUST consider the plan complete if the only remaining tasks must be complete
 `
 
 var NoApplyScriptPromptNumTokens int
+
+// Not using currently, considering for use in smarter context loader in the future (load just what a subtask needs)
+const UsesPrompt = `
+- Since you are in 'auto-context mode', below the description of each subtask, you MUST include a comma-separated 'Uses:' list of the files that will be needed in context to complete each task. Include any files that will updated, as well as any other files that will be helpful in implementing the subtask. ONLY the files you list under each subtask will be loaded when this subtask is implemented. List files individually—do not list directories. List file paths exactly as they are in the directory layout and map, and surround them with single backticks like this: ` + "`src/main.rs`." + `
+`
+
+const ContextLoadingRules = `When loading context, you MUST follow these rules:
+
+1. Interface & Implementation Rule:
+   - When loading an implementation file, you MUST also load its interface file
+   - When loading a type file, you MUST also load related type definitions
+   Example: If loading 'handlers/users.go', you must also load 'types/user.go'
+
+2. Reference Implementation Rule:
+   - When implementing a feature similar to an existing one, you MUST load the existing feature's files as reference
+   - Look for files with similar patterns, names, or purposes
+   Example: If adding user settings, load existing settings-related files
+
+3. Command Chain Rule:
+   - When adding/modifying CLI commands, you MUST load:
+     * The root command file (root.go)
+     * Similar existing command files
+     * Any parent command files
+   Example: If adding 'config set', load root.go and similar 'set' commands
+
+4. API Client Chain Rule:
+   - When working with API clients, you MUST load:
+     * The API interface file
+     * The client implementation file
+     * The client setup file
+     * Related error handling files
+   Example: If updating API methods, load both types/api.go and api/methods.go
+
+5. Database Chain Rule:
+   - When working with database operations, you MUST load:
+     * Related model files
+     * Related helper files
+     * Similar existing DB operations
+   Example: If adding user settings table, load other settings-related DB files
+
+6. Utility Dependencies Rule:
+   - Examine the code you're writing for any utility function calls
+   - Load ALL files containing utilities you might need
+   Example: If using string formatting utilities, load the utils file
+
+Remember: It's better to load more context than you need than to miss an important file. If you're not sure whether a file will be helpful, include it.`
+
+const FileMapScanningRules = `When examining the codebase, you MUST:
+
+1. Look for naming patterns:
+   - Files with similar prefixes or suffixes
+   - Files in similar locations
+   Example: If working on 'user_config.go', look for other '*_config.go' files
+
+2. Look for feature groupings:
+   - Find all files related to similar features
+   - Look for files that work together
+   Example: If adding settings, find all existing settings-related files
+
+3. Follow file relationships:
+   - For each file you identify, check for:
+     * Its interface file
+     * Its test file
+     * Its helper files
+     * Related type definitions
+   Example: For 'api/methods.go', look for 'types/api.go', 'api/methods_test.go'
+
+4. Check common dependencies:
+   - Always check for related files in:
+     * /shared - for shared types
+     * /types - for interfaces
+     * /utils - for utilities
+     * /errors - for error types`
+
+const ContextCompletionCriteria = `Before finalizing your context loading, verify you have:
+
+1. ALL interface files for any implementations
+2. ALL type definitions needed
+3. ALL similar feature files for reference
+4. ALL utility files that might be needed
+5. ALL parent/child relationship files (like command hierarchies)
+
+You MUST explicitly state if you're missing any of these categories and load additional context if needed.`
+
+const ContextVerificationSteps = `After listing files to load, you MUST verify:
+
+1. Interface Coverage:
+   - For each implementation file, is its interface loaded?
+   - For each type use, is its definition loaded?
+
+2. Reference Coverage:
+   - For similar features, have all reference files been loaded?
+   - Are you missing any patterns to follow?
+
+3. Dependency Coverage:
+   - For each function/method call, is its definition loaded?
+   - For each type usage, is its definition loaded?
+
+4. Command Coverage:
+   - For CLI changes, is the command hierarchy loaded?
+   - Are similar command patterns loaded?
+
+If any of these are "no", you MUST load additional context.`

@@ -3,6 +3,7 @@ package syntax
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/davecgh/go-spew/spew"
@@ -20,7 +21,7 @@ type Anchor struct {
 
 type TreeSitterSection []*tree_sitter.Node
 
-const verboseLogging = false
+const verboseLogging = true
 
 func ApplyChanges(
 	ctx context.Context,
@@ -108,8 +109,19 @@ func ApplyChanges(
 	proposedNodesByLineIndex := pRes.nodesByLine
 	originalParentsByLineIndex := oRes.parentsByLine
 
-	findNextAnchor := func(s string, pLineNum int, pNode *tree_sitter.Node, fromLine int) *Anchor {
-		oLineNum, ok := anchorLines[pLineNum]
+	anchorMap := buildAnchorMap(
+		originalLines,
+		proposedLines,
+		originalNodesByLineIndex,
+		anchorLines,
+	)
+
+	if verboseLogging {
+		fmt.Printf("anchorMap:\n%v\n", spew.Sdump(anchorMap))
+	}
+
+	findAnchor := func(pLineNum int) *Anchor {
+		oLineNum, ok := anchorMap[pLineNum]
 		if ok {
 			if verboseLogging {
 				fmt.Printf("found anchor in anchorLines: oLineNum: %d, pLineNum: %d\n", oLineNum, pLineNum)
@@ -128,55 +140,10 @@ func ApplyChanges(
 			return anchor
 		} else {
 			if verboseLogging {
-				fmt.Printf("no anchor found in anchorLines: pLineNum: %d\n", pLineNum)
+				fmt.Printf("no anchor found in anchorMap: pLineNum: %d\n", pLineNum)
 			}
 		}
 
-		for idx, line := range originalLines {
-			if idx < fromLine {
-				continue
-			}
-
-			if strings.TrimSpace(line) == "" {
-				continue
-			}
-
-			// if verboseLogging {
-			// 	fmt.Printf("line: %s, idx: %d\n", line, idx)
-			// }
-
-			oNode := originalNodesByLineIndex[idx]
-
-			if verboseLogging {
-				// fmt.Println("node:")
-				// fmt.Println(oNode.Type())
-				// fmt.Println(oNode)
-				// fmt.Println(oNode.Content(originalBytes))
-			}
-
-			// just using string matching for now since there's too much ambiguity in node-based matching
-			stringMatch := line == s
-			// nodeMatch := oNode != nil && oNode.IsNamed() && nodesMatch(oNode, pNode, originalBytes, proposedBytes)
-
-			if stringMatch {
-				var endLineNum int
-				if oNode != nil {
-					if verboseLogging {
-						fmt.Printf("oNode.Type(): %s\n", oNode.Type())
-						fmt.Printf("oNode.EndPoint().Row: %d\n", oNode.EndPoint().Row)
-						// fmt.Printf("%v\n", oNode)
-						// fmt.Printf("oNode.Content(originalBytes):\n%q\n", oNode.Content(originalBytes))
-					}
-					endLineNum = int(oNode.EndPoint().Row) + 1
-				}
-				if verboseLogging {
-					fmt.Printf("found match: num: %d, endLineNum: %d\n", idx+1, endLineNum)
-					//   fmt.Println(oNode.Content(originalBytes))
-				}
-
-				return &Anchor{Open: idx + 1, Close: endLineNum}
-			}
-		}
 		return nil
 	}
 
@@ -213,6 +180,12 @@ func ApplyChanges(
 	foundAnyAnchor := false
 
 	setOLineNum := func(n int) {
+		if n < 1 {
+			n = 1
+		}
+		if n > len(originalLines) {
+			n = len(originalLines)
+		}
 		oLineNum = n
 		if verboseLogging {
 			fmt.Printf("setting oLineNum: %d\n", oLineNum)
@@ -270,6 +243,12 @@ func ApplyChanges(
 			var fullRef []string
 			if eof {
 				start := refStart - 1
+				if start < 0 {
+					start = 0
+				}
+				if start >= len(originalLines) {
+					start = len(originalLines) - 1
+				}
 				fullRef = originalLines[start:]
 				if verboseLogging {
 					fmt.Println("eof")
@@ -283,9 +262,15 @@ func ApplyChanges(
 				if start < 0 {
 					start = 0
 				}
+				if start >= len(originalLines) {
+					start = len(originalLines) - 1
+				}
 				end := oLineNum - 1
 				if end < 1 {
 					end = 0
+				}
+				if end >= len(originalLines) {
+					end = len(originalLines) - 1
 				}
 
 				// Add detailed diagnostic logging for invalid slice bounds
@@ -382,11 +367,16 @@ func ApplyChanges(
 
 		isRef := refsByLine[Reference(pLineNum)]
 		isRemoval := removalsByLine[Removal(pLineNum)]
+		nextPLineIsRef := refsByLine[Reference(pLineNum+1)]
 
 		if verboseLogging {
 			fmt.Printf("isRef: %v\n", isRef)
 			fmt.Printf("isRemoval: %v\n", isRemoval)
-			fmt.Printf("oLineNum: %d\n", oLineNum)
+			fmt.Printf("nextPLineIsRef: %v\n", nextPLineIsRef)
+			fmt.Printf("oLineNum before: %d\n", oLineNum)
+			if oLineNum > 0 && oLineNum < len(originalLines) {
+				fmt.Printf("oLine before: %q\n", originalLines[oLineNum-1])
+			}
 			fmt.Printf("currentPNode set: %v\n", currentPNode != nil)
 			fmt.Printf("currentPNodeEndsAtIdx: %d\n", currentPNodeEndsAtIdx)
 			fmt.Printf("currentPNodeMatches: %v\n", currentPNodeMatches)
@@ -454,16 +444,42 @@ func ApplyChanges(
 
 			addNewPostRefBuffer()
 
+			if oLineNum == len(originalLines) {
+				break
+			}
+
 			continue
 		}
 
 		if !refOpen && lastLineMatched && !currentPNodeMatches {
 			if strings.TrimSpace(pLine) == "" {
-				write(pLine, !finalLine)
+				if verboseLogging {
+					fmt.Printf("pLine is blank\n")
+					if oLineNum < len(originalLines) {
+						fmt.Printf("nextOLine: %q\n", originalLines[oLineNum])
+					}
+				}
+
+				nextOLineIsBlank := oLineNum > 0 && oLineNum < len(originalLines) && strings.TrimSpace(originalLines[oLineNum]) == ""
+
+				if verboseLogging {
+					fmt.Printf("nextPLineIsRef: %v\n", nextPLineIsRef)
+					fmt.Printf("nextOLineIsBlank: %v\n", nextOLineIsBlank)
+				}
+
+				if !nextPLineIsRef || nextOLineIsBlank {
+					write(pLine, !finalLine)
+				}
+
 				// Check if next line in original is also blank
-				if oLineNum+1 < len(originalLines) && strings.TrimSpace(originalLines[oLineNum+1]) == "" {
+				if nextOLineIsBlank {
 					setOLineNum(oLineNum + 1)
 				}
+
+				if oLineNum == len(originalLines) {
+					break
+				}
+
 				continue
 			}
 		}
@@ -490,7 +506,7 @@ func ApplyChanges(
 			noMatchUntilStructureClose = ""
 		} else if noMatchUntilStructureClose != pLine && !(currentPNode != nil && !currentPNodeMatches) {
 			// find next line in original that matches
-			anchor := findNextAnchor(pLine, pLineNum, pNode, oLineNum-1)
+			anchor := findAnchor(pLineNum)
 			if anchor != nil {
 				foundAnyAnchor = true
 				if verboseLogging {
@@ -602,6 +618,9 @@ func ApplyChanges(
 
 		}
 
+		if oLineNum == len(originalLines) {
+			break
+		}
 	}
 
 	if refOpen {
@@ -951,6 +970,211 @@ func (s TreeSitterSection) String(sourceLines []string, bytes []byte) string {
 			toLog = toLog[:100] + "\n...\n" + toLog[len(toLog)-100:]
 		}
 		fmt.Printf("section.String result: %s\n", toLog)
+	}
+
+	return result
+}
+
+type AnchorMap = map[int]int
+
+func buildAnchorMap(
+	originalLines []string,
+	proposedLines []string,
+	originalNodesByLineIndex map[int]*tree_sitter.Node,
+	anchorLines map[int]int,
+) AnchorMap {
+	result := AnchorMap{}
+
+	if verboseLogging {
+		fmt.Printf("\n=== Building Anchor Map ===\n")
+		fmt.Printf("Initial anchorLines: %v\n", anchorLines)
+	}
+
+	// First pass: add explicit anchors
+	for pLineNum, oLineNum := range anchorLines {
+		if oNode := originalNodesByLineIndex[oLineNum-1]; oNode != nil {
+			result[pLineNum] = oLineNum
+			if verboseLogging {
+				fmt.Printf("Adding explicit anchor: proposed line %d -> original line %d\n", pLineNum, oLineNum)
+			}
+		}
+	}
+
+	var matchSection func(pStart, pEnd, oStart, oEnd int)
+	matchSection = func(pStart, pEnd, oStart, oEnd int) {
+		if pEnd <= pStart || oEnd <= oStart {
+			return
+		}
+
+		if verboseLogging {
+			fmt.Printf("\n--- Processing Section ---\n")
+			fmt.Printf("Proposed lines %d-%d, Original lines %d-%d\n", pStart, pEnd, oStart, oEnd)
+		}
+
+		// First find unique matches in this section
+		sectionOriginal := make(map[string][]int)
+		sectionProposed := make(map[string][]int)
+
+		// Build frequency maps for this section
+		for i := oStart; i < oEnd; i++ {
+			if content := strings.TrimSpace(originalLines[i]); content != "" {
+				sectionOriginal[content] = append(sectionOriginal[content], i)
+			}
+		}
+
+		for i := pStart; i < pEnd; i++ {
+			if content := strings.TrimSpace(proposedLines[i]); content != "" {
+				sectionProposed[content] = append(sectionProposed[content], i)
+			}
+		}
+
+		// Handle unique matches first
+		if verboseLogging {
+			fmt.Printf("\nProcessing unique matches...\n")
+		}
+		for content, pIndices := range sectionProposed {
+			if oIndices, exists := sectionOriginal[content]; exists && len(oIndices) == 1 && len(pIndices) == 1 {
+				pIdx, oIdx := pIndices[0], oIndices[0]
+				if oNode := originalNodesByLineIndex[oIdx]; oNode != nil {
+					result[pIdx+1] = oIdx + 1
+					if verboseLogging {
+						fmt.Printf("Found unique match: %q\n", content)
+						fmt.Printf("Mapping proposed line %d (%q) -> original line %d (%q)\n",
+							pIdx+1, proposedLines[pIdx], oIdx+1, originalLines[oIdx])
+					}
+				}
+			}
+		}
+
+		// Get ordered anchors to establish subsections
+		var orderedAnchors []struct {
+			pLine int
+			oLine int
+		}
+		for pLine := pStart; pLine < pEnd; pLine++ {
+			if anchor, exists := result[pLine+1]; exists {
+				orderedAnchors = append(orderedAnchors, struct {
+					pLine int
+					oLine int
+				}{pLine, anchor - 1})
+			}
+		}
+
+		if verboseLogging {
+			fmt.Printf("\nOrdered anchors in section: %v\n", orderedAnchors)
+		}
+
+		// Sort anchors by proposed line number
+		sort.Slice(orderedAnchors, func(i, j int) bool {
+			return orderedAnchors[i].pLine < orderedAnchors[j].pLine
+		})
+
+		// Process each subsection between anchors
+		lastPLine := pStart
+		lastOLine := oStart
+
+		for i := 0; i <= len(orderedAnchors); i++ {
+			var nextPLine, nextOLine int
+			if i < len(orderedAnchors) {
+				nextPLine = orderedAnchors[i].pLine
+				nextOLine = orderedAnchors[i].oLine
+			} else {
+				nextPLine = pEnd
+				nextOLine = oEnd
+			}
+
+			if verboseLogging {
+				fmt.Printf("\nProcessing subsection %d\n", i)
+				fmt.Printf("Proposed lines %d-%d, Original lines %d-%d\n", lastPLine, nextPLine, lastOLine, nextOLine)
+			}
+
+			// Handle duplicates in this subsection using outside-in matching
+			subSectionOriginal := make(map[string][]int)
+			subSectionProposed := make(map[string][]int)
+
+			// Build frequency maps for this subsection
+			for i := lastOLine; i < nextOLine; i++ {
+				if content := strings.TrimSpace(originalLines[i]); content != "" {
+					subSectionOriginal[content] = append(subSectionOriginal[content], i)
+				}
+			}
+
+			for i := lastPLine; i < nextPLine; i++ {
+				if content := strings.TrimSpace(proposedLines[i]); content != "" {
+					subSectionProposed[content] = append(subSectionProposed[content], i)
+				}
+			}
+
+			// Match duplicates from outside-in
+			for content, pIndices := range subSectionProposed {
+				oIndices, exists := subSectionOriginal[content]
+				if !exists {
+					if verboseLogging {
+						fmt.Printf("New code found: %q at proposed lines %v\n", content, pIndices)
+					}
+					continue // This is new code to be inserted
+				}
+
+				if verboseLogging {
+					fmt.Printf("\nMatching duplicates for content: %q\n", content)
+					fmt.Printf("Found in proposed lines: %v\n", pIndices)
+					fmt.Printf("Found in original lines: %v\n", oIndices)
+				}
+
+				// Filter oIndices to only include matches within subsection boundaries
+				var validOIndices []int
+				for _, idx := range oIndices {
+					if idx >= lastOLine && idx < nextOLine {
+						validOIndices = append(validOIndices, idx)
+					}
+				}
+				oIndices = validOIndices
+
+				// Match from outside in until we run out of original occurrences
+				matched := 0
+				for matched < len(oIndices) && matched*2 < len(pIndices) {
+					// Match first unmatched occurrence
+					if oNode := originalNodesByLineIndex[oIndices[matched]]; oNode != nil {
+						result[pIndices[matched]+1] = oIndices[matched] + 1
+						if verboseLogging {
+							fmt.Printf("Matched first occurrence: proposed line %d (%q) -> original line %d (%q)\n",
+								pIndices[matched]+1, proposedLines[pIndices[matched]],
+								oIndices[matched]+1, originalLines[oIndices[matched]])
+						}
+					}
+
+					// Match last unmatched occurrence if we have more to match
+					if matched*2+1 < len(pIndices) {
+						lastOrigIdx := oIndices[len(oIndices)-1-matched]
+						lastPropIdx := pIndices[len(pIndices)-1-matched]
+						if oNode := originalNodesByLineIndex[lastOrigIdx]; oNode != nil {
+							result[lastPropIdx+1] = lastOrigIdx + 1
+							if verboseLogging {
+								fmt.Printf("Matched last occurrence: proposed line %d (%q) -> original line %d (%q)\n",
+									lastPropIdx+1, proposedLines[lastPropIdx],
+									lastOrigIdx+1, originalLines[lastOrigIdx])
+							}
+						}
+					}
+					matched++
+				}
+				// Any remaining occurrences in pIndices are new code to be inserted
+			}
+
+			// Recursively process the next subsection
+			if i < len(orderedAnchors) {
+				lastPLine = nextPLine
+				lastOLine = nextOLine
+			}
+		}
+	}
+
+	// Start recursive matching with full file
+	matchSection(0, len(proposedLines), 0, len(originalLines))
+
+	if verboseLogging {
+		fmt.Printf("\n=== Final Anchor Map ===\n")
+		fmt.Printf("Result: %v\n", result)
 	}
 
 	return result

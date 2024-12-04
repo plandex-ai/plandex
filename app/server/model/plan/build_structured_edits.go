@@ -110,6 +110,10 @@ func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 	}
 
 	log.Println("buildStructuredEdits - calling model for references")
+	// log.Println("anchorsFileMessages:")
+	// for _, msg := range anchorsFileMessages {
+	// 	log.Println(msg.Content)
+	// }
 
 	modelReq := openai.ChatCompletionRequest{
 		Model:       config.BaseModelConfig.ModelName,
@@ -300,7 +304,11 @@ func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 
 	if !beginsWithRef &&
 		!strings.Contains(activeBuild.FileDescription, "overwrite the entire file") &&
-		!strings.Contains(activeBuild.FileDescription, "the start of the file") {
+		!((strings.Contains(activeBuild.FileDescription, "replace code") ||
+			strings.Contains(activeBuild.FileDescription, "remove code")) &&
+			strings.Contains(activeBuild.FileDescription, "start of the file")) {
+
+		log.Println("buildStructuredEdits - adding ... existing code ... to start of file")
 
 		// structured edits handle normalization of comments, so just use // ... existing code ... here
 		proposedContentLines = append([]string{"// ... existing code ..."}, proposedContentLines...)
@@ -314,12 +322,20 @@ func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 
 	if !endsWithRef &&
 		!strings.Contains(activeBuild.FileDescription, "overwrite the entire file") &&
-		!strings.Contains(activeBuild.FileDescription, "the end of the file") {
+		!(strings.Contains(activeBuild.FileDescription, "replace code") ||
+			strings.Contains(activeBuild.FileDescription, "remove code")) &&
+		!strings.Contains(activeBuild.FileDescription, "end of the file") {
+
+		log.Println("buildStructuredEdits - adding ... existing code ... to end of file")
+
 		proposedContentLines = append(proposedContentLines, "// ... existing code ...")
 		references = append(references, syntax.Reference(len(proposedContentLines)))
 	}
 
 	proposedContent = strings.Join(proposedContentLines, "\n")
+
+	log.Println("buildStructuredEdits - proposed content:")
+	log.Println(proposedContent)
 
 	updatedFile, err := syntax.ApplyChanges(
 		activePlan.Ctx,

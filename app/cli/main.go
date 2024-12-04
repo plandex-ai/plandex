@@ -52,6 +52,7 @@ func init() {
 
 	// Set the output of the logger to the file
 	log.SetOutput(file)
+	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
 
 	// log.Println("Starting Plandex - logging initialized")
 }

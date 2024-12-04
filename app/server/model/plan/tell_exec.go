@@ -164,15 +164,15 @@ func execTellPlan(
 		}
 	}
 
-	// if auto context is enabled, we only include maps and trees on the first iteration, which is the context-gathering step
+	// if auto context is enabled, we only include maps and trees on the first iteration, which is the context-gathering step, and the second iteration, which is the planning step
 	var (
 		includeMaps  = true
 		includeTrees = true
 	)
-	if req.AutoContext && iteration > 0 {
-		includeMaps = false
-		includeTrees = false
-	}
+	// if req.AutoContext && iteration > 1 {
+	// 	includeMaps = false
+	// 	includeTrees = false
+	// }
 
 	modelContextText, modelContextTokens, err := lib.FormatModelContext(state.modelContext, includeMaps, includeTrees)
 	if err != nil {
@@ -203,6 +203,8 @@ func execTellPlan(
 	} else {
 		sysCreate += prompts.NoApplyScriptPrompt
 	}
+
+	// log.Println("sysCreate before context:\n", sysCreate)
 
 	systemMessageText := sysCreate + modelContextText
 	systemMessage := openai.ChatCompletionMessage{
@@ -297,7 +299,7 @@ func execTellPlan(
 
 	var sysCreateTokens int
 	if req.AutoContext {
-		if iteration == 0 {
+		if iteration == 0 && !req.IsUserContinue {
 			sysCreateTokens = prompts.AutoContextPreambleNumTokens
 		} else {
 			sysCreateTokens = prompts.SysCreateAutoContextNumTokens
@@ -463,6 +465,7 @@ func execTellPlan(
 		state.messages = append(state.messages, *promptMessage)
 	} else {
 		log.Println("Missing file response:", missingFileResponse, "setting replyParser")
+		log.Printf("Current reply content:\n%s\n", active.CurrentReplyContent)
 
 		state.replyParser.AddChunk(active.CurrentReplyContent, true)
 		res := state.replyParser.Read()
@@ -511,17 +514,48 @@ func execTellPlan(
 		})
 
 		if missingFileResponse == shared.RespondMissingFileChoiceSkip {
-			res := state.replyParser.Read()
+			res := state.replyParser.FinishAndRead()
+			skipPrompt := prompts.GetSkipMissingFilePrompt(res.CurrentFilePath)
+			prompt := prompts.GetWrappedPrompt(skipPrompt, req.OsDetails, applyScriptSummary) + "\n\n" + skipPrompt // repetition of skip prompt to improve instruction following
+
+			skipPromptTokens, err := shared.GetNumTokens(skipPrompt)
+			if err != nil {
+				log.Printf("Error getting num tokens for skip prompt: %v\n", err)
+				active.StreamDoneCh <- &shared.ApiError{
+					Type:   shared.ApiErrorTypeOther,
+					Status: http.StatusInternalServerError,
+					Msg:    "Error getting num tokens for skip prompt",
+				}
+				return
+			}
+
+			state.totalRequestTokens += skipPromptTokens
 
 			state.messages = append(state.messages, openai.ChatCompletionMessage{
 				Role:    openai.ChatMessageRoleUser,
-				Content: prompts.GetSkipMissingFilePrompt(res.CurrentFilePath),
+				Content: prompt,
 			})
 
 		} else {
+			missingPrompt := prompts.GetMissingFileContinueGeneratingPrompt(res.CurrentFilePath)
+			prompt := prompts.GetWrappedPrompt(missingPrompt, req.OsDetails, applyScriptSummary) + "\n\n" + missingPrompt // repetition of missing prompt to improve instruction following
+
+			promptTokens, err = shared.GetNumTokens(prompt)
+			if err != nil {
+				log.Printf("Error getting num tokens for missing file continue prompt: %v\n", err)
+				active.StreamDoneCh <- &shared.ApiError{
+					Type:   shared.ApiErrorTypeOther,
+					Status: http.StatusInternalServerError,
+					Msg:    "Error getting num tokens for missing file continue prompt",
+				}
+				return
+			}
+
+			state.totalRequestTokens += promptTokens
+
 			state.messages = append(state.messages, openai.ChatCompletionMessage{
 				Role:    openai.ChatMessageRoleUser,
-				Content: prompts.MissingFileContinueGeneratingPrompt,
+				Content: prompt,
 			})
 		}
 	}

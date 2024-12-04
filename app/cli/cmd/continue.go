@@ -27,6 +27,7 @@ func init() {
 	continueCmd.Flags().BoolVarP(&autoConfirm, "yes", "y", false, "Automatically confirm context updates")
 	continueCmd.Flags().BoolVarP(&tellAutoApply, "apply", "a", false, "Automatically apply changes (and confirm context updates)")
 	continueCmd.Flags().BoolVarP(&autoCommit, "commit", "c", false, "Commit changes to git when --apply/-a is passed")
+	continueCmd.Flags().BoolVar(&tellAutoContext, "auto-context", false, "Load and manage context automatically")
 	continueCmd.Flags().BoolVar(&noExec, "no-exec", false, "Disable command execution")
 	continueCmd.Flags().BoolVar(&autoExec, "auto-exec", false, "Automatically execute commands without confirmation when --apply is passed")
 	continueCmd.Flags().Var(newAutoDebugValue(&autoDebug), "debug", "Automatically execute and debug failing commands (optionally specify number of tries—default is 5)")
@@ -52,7 +53,7 @@ func doContinue(cmd *cobra.Command, args []string) {
 		CurrentBranch: lib.CurrentBranch,
 		ApiKeys:       apiKeys,
 		CheckOutdatedContext: func(maybeContexts []*shared.Context) (bool, bool, error) {
-			return lib.CheckOutdatedContextWithOutput(false, autoConfirm || tellAutoApply, maybeContexts)
+			return lib.CheckOutdatedContextWithOutput(false, autoConfirm || tellAutoApply || tellAutoContext, maybeContexts)
 		},
 	}, "", plan_exec.TellFlags{
 		TellBg:         tellBg,
@@ -60,6 +61,7 @@ func doContinue(cmd *cobra.Command, args []string) {
 		TellNoBuild:    tellNoBuild,
 		IsUserContinue: true,
 		ExecEnabled:    !noExec,
+		AutoContext:    tellAutoContext,
 	})
 
 	if tellAutoApply {
