@@ -25,18 +25,15 @@ func (m streamUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 
 	case spinner.TickMsg:
-		var cmds []tea.Cmd
 		if m.processing || m.starting {
-			spinnerModel, cmd := m.spinner.Update(msg)
+			spinnerModel, _ := m.spinner.Update(msg)
 			m.spinner = spinnerModel
-			cmds = append(cmds, cmd)
 		}
 		if m.building {
-			buildSpinnerModel, cmd := m.buildSpinner.Update(msg)
+			buildSpinnerModel, _ := m.buildSpinner.Update(msg)
 			m.buildSpinner = buildSpinnerModel
-			cmds = append(cmds, cmd)
 		}
-		return m, tea.Batch(cmds...)
+		return m, m.Tick()
 
 	case tea.WindowSizeMsg:
 		m.windowResized(msg.Width, msg.Height)
@@ -330,23 +327,13 @@ func (m *streamUIModel) streamUpdate(msg *shared.StreamMessage, deferUIUpdate bo
 			m.updateViewportDimensions()
 		}
 
-		cmds := []tea.Cmd{m.buildSpinner.Tick}
-		if m.processing && !m.finished {
-			cmds = append(cmds, m.spinner.Tick)
-		}
-		return m, tea.Batch(cmds...)
+		return m, m.Tick()
 
 	case shared.StreamMessageDescribing:
 		log.Println("Message describing, setting processing to true")
 		m.processing = true
 
-		cmds := []tea.Cmd{m.spinner.Tick}
-
-		if m.building {
-			cmds = append(cmds, m.buildSpinner.Tick)
-		}
-
-		return m, tea.Batch(cmds...)
+		return m, m.Tick()
 
 	case shared.StreamMessageLoadContext:
 		log.Println("Stream message auto-load context")
@@ -360,11 +347,7 @@ func (m *streamUIModel) streamUpdate(msg *shared.StreamMessage, deferUIUpdate bo
 		m.reply += "\n\n" + msg + "\n\n"
 		m.updateReplyDisplay()
 
-		cmds := []tea.Cmd{m.spinner.Tick}
-		if m.building {
-			cmds = append(cmds, m.buildSpinner.Tick)
-		}
-		return m, tea.Batch(cmds...)
+		return m, m.Tick()
 
 	case shared.StreamMessageError:
 		m.apiErr = msg.Error
@@ -384,7 +367,7 @@ func (m *streamUIModel) streamUpdate(msg *shared.StreamMessage, deferUIUpdate bo
 		m.processing = false
 
 		if m.building {
-			return m, m.buildSpinner.Tick
+			return m, m.Tick()
 		}
 	}
 
@@ -484,7 +467,10 @@ func (m *streamUIModel) selectedMissingFileOpt() (tea.Model, tea.Cmd) {
 	m.promptedMissingFile = true
 	m.processing = true
 
-	return m, m.spinner.Tick
+	return m, func() tea.Msg {
+		<-m.sharedTicker.C
+		return spinner.TickMsg{}
+	}
 }
 
 func (m *streamUIModel) checkMissingFile(msg *shared.StreamMessage) (tea.Model, tea.Cmd) {
@@ -494,7 +480,10 @@ func (m *streamUIModel) checkMissingFile(msg *shared.StreamMessage) (tea.Model, 
 			m.autoLoadedMissingFile = true
 
 			return m, tea.Batch(
-				m.spinner.Tick,
+				func() tea.Msg {
+					<-m.sharedTicker.C
+					return spinner.TickMsg{}
+				},
 				func() tea.Msg {
 					bytes, err := os.ReadFile(msg.MissingFilePath)
 					if err != nil {

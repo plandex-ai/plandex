@@ -1,6 +1,9 @@
 package streamtui
 
 import (
+	"log"
+	"time"
+
 	bubbleKey "github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/viewport"
@@ -40,6 +43,7 @@ type streamUIModel struct {
 	starting     bool
 	spinner      spinner.Model
 	buildSpinner spinner.Model
+	sharedTicker *time.Ticker
 
 	building       bool
 	tokensByPath   map[string]int
@@ -87,10 +91,12 @@ func (m streamUIModel) Init() tea.Cmd {
 	m.mainViewport.MouseWheelEnabled = true
 
 	// start spinner
-	return m.spinner.Tick
+	return m.Tick()
 }
 
 func initialModel(prestartReply, prompt string, buildOnly bool) *streamUIModel {
+	sharedTicker := time.NewTicker(100 * time.Millisecond)
+
 	s := spinner.New()
 	s.Spinner = spinner.Points
 	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
@@ -163,9 +169,22 @@ func initialModel(prestartReply, prompt string, buildOnly bool) *streamUIModel {
 		finishedByPath: make(map[string]bool),
 		spinner:        s,
 		buildSpinner:   buildSpinner,
+		sharedTicker:   sharedTicker,
 		atScrollBottom: true,
 		starting:       true,
 	}
 
 	return &initialState
+}
+
+func (m streamUIModel) Tick() tea.Cmd {
+	return func() tea.Msg {
+		<-m.sharedTicker.C
+		return spinner.TickMsg{}
+	}
+}
+
+func (m *streamUIModel) cleanup() {
+	log.Println("Cleaning up stream UI model")
+	m.sharedTicker.Stop()
 }
