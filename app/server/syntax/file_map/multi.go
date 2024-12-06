@@ -3,8 +3,10 @@ package file_map
 import (
 	"context"
 	"fmt"
+	"log"
 	"path/filepath"
 	"plandex-server/syntax"
+	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -15,12 +17,25 @@ import (
 
 // handles concurrent processing of multiple files for mapping
 func ProcessMapFiles(ctx context.Context, inputs map[string]string) (shared.FileMapBodies, error) {
+	log.Println("ProcessMapFiles")
 	bodies := make(shared.FileMapBodies, len(inputs))
 	var mu sync.Mutex
 	errCh := make(chan error, len(inputs))
 
+	// Use half of available CPUs
+	cpus := runtime.NumCPU()
+	log.Printf("ProcessMapFiles: Available CPUs: %d", cpus)
+	maxWorkers := cpus / 2
+	if maxWorkers < 1 {
+		maxWorkers = 1 // Ensure at least one worker
+	}
+	log.Printf("ProcessMapFiles: Max workers: %d", maxWorkers)
+
+	sem := make(chan struct{}, maxWorkers)
+
 	for path, content := range inputs {
 		go func(path, content string) {
+			defer func() { <-sem }()
 			fileMap, err := MapFile(ctx, path, []byte(content))
 			if err != nil {
 				errCh <- fmt.Errorf("error mapping file %s: %v", path, err)

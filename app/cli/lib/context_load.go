@@ -22,6 +22,7 @@ import (
 
 func MustLoadContext(resources []string, params *types.LoadContextParams) {
 	if params.DefsOnly {
+		fmt.Println("⏳ Building a map can take a while in larger projects.")
 		term.StartSpinner("🗺️  Building map...")
 	} else if params.NamesOnly {
 		term.StartSpinner("🌳 Loading directory tree...")
@@ -270,8 +271,7 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 			var numPaths int
 			if params.DefsOnly {
 				for _, path := range flattenedPaths {
-					ext := filepath.Ext(path)
-					if shared.HasFileMapSupport(ext) {
+					if shared.HasFileMapSupport(path) {
 						numPaths++
 					}
 				}
@@ -310,9 +310,8 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 						continue // not a child of any input path
 					}
 
-					ext := filepath.Ext(path)
-					if !shared.HasFileMapSupport(ext) {
-						// not a tree-sitter supported extension
+					if !shared.HasFileMapSupport(path) {
+						// not a tree-sitter supported file type
 						continue
 					}
 

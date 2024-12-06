@@ -4,7 +4,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"log"
 	"os"
 	"plandex/api"
 	"plandex/fs"
@@ -196,7 +195,7 @@ func CheckOutdatedContext(maybeContexts []*shared.Context) (*types.ContextOutdat
 func checkOutdatedAndMaybeUpdateContext(doUpdate bool, maybeContexts []*shared.Context) (*types.ContextOutdatedResult, error) {
 	var contexts []*shared.Context
 
-	log.Println("Checking outdated context")
+	// log.Println("Checking outdated context")
 
 	if maybeContexts == nil {
 		var apiErr *shared.ApiError
@@ -391,6 +390,7 @@ func checkOutdatedAndMaybeUpdateContext(doUpdate bool, maybeContexts []*shared.C
 					newSha := hex.EncodeToString(hash[:])
 
 					if newSha != currentSha {
+						// log.Println("path", path, "newSha", newSha, "currentSha", currentSha)
 						// fmt.Println("path", path, "newSha", newSha, "currentSha", currentSha)
 						content := string(bytes)
 						updatedInputs[path] = content
@@ -426,6 +426,8 @@ func checkOutdatedAndMaybeUpdateContext(doUpdate bool, maybeContexts []*shared.C
 					}
 
 					if _, ok := context.MapShas[path]; !ok {
+						// log.Println("path", path, "not in context.MapShas")
+
 						bytes, err := os.ReadFile(path)
 						if err != nil {
 							errs = append(errs, fmt.Errorf("failed to read map file %s: %v", path, err))
@@ -441,7 +443,15 @@ func checkOutdatedAndMaybeUpdateContext(doUpdate bool, maybeContexts []*shared.C
 				}
 				// If any files changed, get new map
 				if len(updatedInputs) > 0 || len(removedMapPaths) > 0 {
-					// fmt.Println("updatedInputs", len(updatedInputs), "removedMapPaths", len(removedMapPaths))
+					// log.Println("updatedInputs", len(updatedInputs), "removedMapPaths", len(removedMapPaths))
+					// log.Println("updatedInputs:")
+					// for k := range updatedInputs {
+					// 	log.Println(k)
+					// }
+					// log.Println("removedMapPaths:")
+					// for k := range removedMapPaths {
+					// 	log.Println(k)
+					// }
 
 					updatedParts := make(shared.FileMapBodies)
 					for k, v := range context.MapParts {
@@ -560,7 +570,7 @@ func checkOutdatedAndMaybeUpdateContext(doUpdate bool, maybeContexts []*shared.C
 	var hasConflicts bool
 
 	if len(req) == 0 && len(deleteIds) == 0 {
-		log.Println("return context is up to date res")
+		// log.Println("return context is up to date res")
 		return &types.ContextOutdatedResult{
 			Msg: "Context is up to date",
 		}, nil
