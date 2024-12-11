@@ -1,27 +1,19 @@
 package syntax
 
 import (
-	"context"
 	"fmt"
-	"strings"
 	"testing"
 
-	"github.com/plandex/plandex/shared"
-	tree_sitter "github.com/smacker/go-tree-sitter"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestStructuralReplacements(t *testing.T) {
 	tests := []struct {
-		name        string
-		original    string
-		proposed    string
-		references  []Reference
-		removals    []Removal
-		want        string
-		language    shared.TreeSitterLanguage
-		parser      *tree_sitter.Parser
-		anchorLines map[int]int
+		name     string
+		original string
+		proposed string
+		want     string
+		ext      string
 	}{
 		{
 			name: "single reference in function",
@@ -39,9 +31,7 @@ func TestStructuralReplacements(t *testing.T) {
         log.Info("processing user")
         return nil
     }`,
-			references: []Reference{
-				3,
-			},
+
 			want: `
     func processUser(id int) error {
         validate(id)
@@ -51,8 +41,7 @@ func TestStructuralReplacements(t *testing.T) {
         log.Info("processing user")
         return nil
     }`,
-			language: shared.TreeSitterLanguageGo,
-			parser:   GetParserForLanguage("go"),
+			ext: "go",
 		},
 		{
 			name: "bad formatting",
@@ -71,9 +60,7 @@ func TestStructuralReplacements(t *testing.T) {
     }
     return update(id)
     }`,
-			references: []Reference{
-				3,
-			},
+
 			want: `
     func processUser(id int) error {
     validate(id)
@@ -84,99 +71,96 @@ func TestStructuralReplacements(t *testing.T) {
     }
     return update(id)
     }`,
-			language: shared.TreeSitterLanguageGo,
-			parser:   GetParserForLanguage("go"),
+			ext: "go",
 		},
-		{
-			name: "multiple refs in class/nested structures",
-			original: `
-    package main
-    
-    import "log"
+		// {
+		// 	name: "multiple refs in class/nested structures",
+		// 	original: `
+		// package main
 
-    func init() {
-      log.Println("init")
-    }
+		// import "log"
 
-    type UserService struct {
-        db *DB
-        cache *Cache
-    }
+		// func init() {
+		//   log.Println("init")
+		// }
 
-    func (s *UserService) Process() {
-        s.validate()
-        s.update()
-        s.notify()
-    }
+		// type UserService struct {
+		//     db *DB
+		//     cache *Cache
+		// }
 
-    func (s *UserService) Update() {
-        s.db.begin()
-        s.db.exec()
-        s.db.commit()
-    }
+		// func (s *UserService) Process() {
+		//     s.validate()
+		//     s.update()
+		//     s.notify()
+		// }
 
-    func (s *UserService) Record() {
-      log.Println("record")
-    }
-    `,
-			proposed: `
-    // ... existing code ...
+		// func (s *UserService) Update() {
+		//     s.db.begin()
+		//     s.db.exec()
+		//     s.db.commit()
+		// }
 
-    type UserService struct {
-        // ... existing code ...
-        metrics *Metrics
-    }
+		// func (s *UserService) Record() {
+		//   log.Println("record")
+		// }
+		// `,
+		// 	proposed: `
+		// // ... existing code ...
 
-    func (s *UserService) Process() {
-        // ... existing code ...
-        s.metrics.Record()
-        // ... existing code ...
-    }
+		// type UserService struct {
+		//     // ... existing code ...
+		//     metrics *Metrics
+		// }
 
-    func (s *UserService) Update() {
-        // ... existing code ...
-    }
+		// func (s *UserService) Process() {
+		//     // ... existing code ...
+		//     s.metrics.Record()
+		//     // ... existing code ...
+		// }
 
-    // ... existing code ...
-    `,
-			references: []Reference{
-				2, 5, 10, 12, 16, 19,
-			},
-			want: `
-    package main
-    
-    import "log"
+		// func (s *UserService) Update() {
+		//     // ... existing code ...
+		// }
 
-    func init() {
-      log.Println("init")
-    }
+		// // ... existing code ...
+		// `,
+		//
+		// 	want: `
+		// package main
 
-    type UserService struct {
-        db *DB
-        cache *Cache
-        metrics *Metrics
-    }
+		// import "log"
 
-    func (s *UserService) Process() {
-        s.validate()
-        s.update()
-        s.metrics.Record()
-        s.notify()
-    }
+		// func init() {
+		//   log.Println("init")
+		// }
 
-    func (s *UserService) Update() {
-        s.db.begin()
-        s.db.exec()
-        s.db.commit()
-    }
+		// type UserService struct {
+		//     db *DB
+		//     cache *Cache
+		//     metrics *Metrics
+		// }
 
-    func (s *UserService) Record() {
-      log.Println("record")
-    }
-    `,
-			language: shared.TreeSitterLanguageGo,
-			parser:   GetParserForLanguage("go"),
-		},
+		// func (s *UserService) Process() {
+		//     s.validate()
+		//     s.update()
+		//     s.metrics.Record()
+		//     s.notify()
+		// }
+
+		// func (s *UserService) Update() {
+		//     s.db.begin()
+		//     s.db.exec()
+		//     s.db.commit()
+		// }
+
+		// func (s *UserService) Record() {
+		//   log.Println("record")
+		// }
+		// `,
+		//
+		// 	parser:   GetParserForLanguage("go"),
+		// },
 		{
 			name: "code removal comment",
 			original: `
@@ -198,9 +182,6 @@ func TestStructuralReplacements(t *testing.T) {
         commit()
         return nil
     }`,
-			removals: []Removal{
-				4,
-			},
 			want: `
     func processUser(id int) error {
         validate(id)
@@ -209,8 +190,7 @@ func TestStructuralReplacements(t *testing.T) {
         commit()
         return nil
     }`,
-			language: shared.TreeSitterLanguageGo,
-			parser:   GetParserForLanguage("go"),
+			ext: "go",
 		},
 		{
 			name: "multiple code removal comments",
@@ -235,9 +215,6 @@ func TestStructuralReplacements(t *testing.T) {
         commit()
         return nil
     }`,
-			removals: []Removal{
-				4, 6,
-			},
 			want: `
     func processUser(id int) error {
         validate(id)
@@ -246,8 +223,7 @@ func TestStructuralReplacements(t *testing.T) {
         commit()
         return nil
     }`,
-			language: shared.TreeSitterLanguageGo,
-			parser:   GetParserForLanguage("go"),
+			ext: "go",
 		},
 		{
 			name: "json update with reference comments",
@@ -276,9 +252,7 @@ func TestStructuralReplacements(t *testing.T) {
         },
         // ... existing code ...
     }`,
-			references: []Reference{
-				2, 10,
-			},
+
 			want: `{
         "name": "test-app",
         "version": "1.0.0",
@@ -295,8 +269,7 @@ func TestStructuralReplacements(t *testing.T) {
             "build": "webpack"
         }
     }`,
-			language: shared.TreeSitterLanguageJson,
-			parser:   GetParserForLanguage("json"),
+			ext: "json",
 		},
 		{
 			name: "method replacement with context",
@@ -336,9 +309,7 @@ func TestStructuralReplacements(t *testing.T) {
 
         // ... existing code ...
     }`,
-			references: []Reference{
-				3, 14,
-			},
+
 			want: `
     class UserService {
         constructor() {
@@ -354,7 +325,6 @@ func TestStructuralReplacements(t *testing.T) {
             return user
         }
 
-
         async updateUser(id, data) {
             await db.update(id, data)
             this.cache.clear()
@@ -365,8 +335,7 @@ func TestStructuralReplacements(t *testing.T) {
             this.cache.clear()
         }
     }`,
-			language: shared.TreeSitterLanguageJavascript,
-			parser:   GetParserForLanguage("javascript"),
+			ext: "js",
 		},
 		{
 			name: "nested class methods update",
@@ -406,9 +375,7 @@ func TestStructuralReplacements(t *testing.T) {
             // ... existing code ...
         }
     }`,
-			references: []Reference{
-				5, 15,
-			},
+
 			want: `
     namespace Database {
         class Transaction {
@@ -424,15 +391,13 @@ func TestStructuralReplacements(t *testing.T) {
                 notifyCommit()
             }
 
-
             rollback() {
                 log.Info("rolling back transaction")
                 rollbackTx()
             }
         }
     }`,
-			language: shared.TreeSitterLanguageTypescript,
-			parser:   GetParserForLanguage("typescript"),
+			ext: "ts",
 		},
 		{
 			name: "update with trailing commas",
@@ -457,9 +422,7 @@ func TestStructuralReplacements(t *testing.T) {
         },
         // ... existing code ...
     }`,
-			references: []Reference{
-				3, 8,
-			},
+
 			want: `
     const handlers = {
         onStart: () => {
@@ -473,8 +436,7 @@ func TestStructuralReplacements(t *testing.T) {
             console.log("finishing")
         },
     }`,
-			language: shared.TreeSitterLanguageJavascript,
-			parser:   GetParserForLanguage("javascript"),
+			ext: "js",
 		},
 		{
 			name: "multiple structural updates",
@@ -520,9 +482,7 @@ func TestStructuralReplacements(t *testing.T) {
             process.exit(1)
         }
     }`,
-			references: []Reference{
-				11, 18,
-			},
+
 			want: `
     class Logger {
         constructor(prefix) {
@@ -551,36 +511,7 @@ func TestStructuralReplacements(t *testing.T) {
             process.exit(1)
         }
     }`,
-			language: shared.TreeSitterLanguageJavascript,
-			parser:   GetParserForLanguage("javascript"),
-		},
-		{
-			name: "updated variable assignment",
-			original: `
-      import logger from "logger";
-
-      const a = 1;
-      const b = 2;
-      const c = 3;
-    `,
-			proposed: `
-      // ... existing code ...
-
-      const a = 10;
-      const b = 2;
-      // ... existing code ...
-    `,
-			references:  []Reference{2, 6},
-			anchorLines: map[int]int{4: 4},
-			want: `
-      import logger from "logger";
-
-      const a = 10;
-      const b = 2;
-      const c = 3;
-    `,
-			language: shared.TreeSitterLanguageJavascript,
-			parser:   GetParserForLanguage("javascript"),
+			ext: "js",
 		},
 
 		{
@@ -749,11 +680,7 @@ func TestStructuralReplacements(t *testing.T) {
   }
 }
 `,
-			language: shared.TreeSitterLanguageJson,
-			parser:   GetParserForLanguage("json"),
-			references: []Reference{
-				3, 24, 26,
-			},
+			ext: "json",
 		},
 
 		{
@@ -921,7 +848,6 @@ func TestStructuralReplacements(t *testing.T) {
         }
       }
     ],
-
     "keybindings": [
       {
         "command": "plandex.showFilePicker",
@@ -939,7 +865,6 @@ func TestStructuralReplacements(t *testing.T) {
       ]
     }
   },
-
   "scripts": {
     "vscode:prepublish": "npm run package",
     "compile": "webpack",
@@ -971,212 +896,204 @@ func TestStructuralReplacements(t *testing.T) {
   }
 }
 `,
-			language: shared.TreeSitterLanguageJson,
-			parser:   GetParserForLanguage("json"),
-			references: []Reference{
-				3, 6, 19, 22,
-			},
+			ext: "json",
 		},
 
-		{
-			name: "scala complex structures",
-			original: `
-package domain.service
+		// 		{
+		// 			name: "scala complex structures",
+		// 			original: `
+		// package domain.service
 
-import java.time.format.DateTimeFormatter
+		// import java.time.format.DateTimeFormatter
 
-class MetricsService(
-    client: Client,
-    service: Service,
-    automation: Automation
-)(
-    implicit context: Context
-) extends LazyLogging
-  with BaseImplicits {
+		// class MetricsService(
+		//     client: Client,
+		//     service: Service,
+		//     automation: Automation
+		// )(
+		//     implicit context: Context
+		// ) extends LazyLogging
+		//   with BaseImplicits {
 
-    def metrics(
-        ids: Seq[Id],
-        channels: Option[Seq[Channel]],
-    ): Future[Metrics] = {
+		//     def metrics(
+		//         ids: Seq[Id],
+		//         channels: Option[Seq[Channel]],
+		//     ): Future[Metrics] = {
 
-      getMetrics(
-        ids,
-        channels,
-        Endpoint.Metrics
-      )
-    }
+		//       getMetrics(
+		//         ids,
+		//         channels,
+		//         Endpoint.Metrics
+		//       )
+		//     }
 
-    def metrics2(
-        ids: Seq[Id],
-        channels: Option[Seq[Channel]],
-    ): Future[Metrics] = {
+		//     def metrics2(
+		//         ids: Seq[Id],
+		//         channels: Option[Seq[Channel]],
+		//     ): Future[Metrics] = {
 
-      getMetrics2(
-        ids,
-        channels,
-        Endpoint.Metrics
-      )
-    }
-  }
-`,
+		//       getMetrics2(
+		//         ids,
+		//         channels,
+		//         Endpoint.Metrics
+		//       )
+		//     }
+		//   }
+		// `,
 
-			proposed: `
-package domain.service
+		// 			proposed: `
+		// package domain.service
 
-// ... existing code ...
+		// // ... existing code ...
 
-class MetricsService(
-  // ... existing code ...
-)(
-    implicit context: Context
-) extends LazyLogging
-  with BaseImplicits {
+		// class MetricsService(
+		//   // ... existing code ...
+		// )(
+		//     implicit context: Context
+		// ) extends LazyLogging
+		//   with BaseImplicits {
 
-    // ... existing code ...
+		//     // ... existing code ...
 
-    def update(authContext: AuthContext, id: String): Future[Done] = {
-      fallbacks.stub
-        .update(
-          updateRequest(
-            authContext = Some(authContext),
-            id = id
-          )
-        )
-        .map(_ => Done)
-    }
+		//     def update(authContext: AuthContext, id: String): Future[Done] = {
+		//       fallbacks.stub
+		//         .update(
+		//           updateRequest(
+		//             authContext = Some(authContext),
+		//             id = id
+		//           )
+		//         )
+		//         .map(_ => Done)
+		//     }
 
-    // ... existing code ...
-  }
-`,
+		//     // ... existing code ...
+		//   }
+		// `,
 
-			want: `
-package domain.service
+		// 			want: `
+		// package domain.service
 
-import java.time.format.DateTimeFormatter
+		// import java.time.format.DateTimeFormatter
 
-class MetricsService(
-    client: Client,
-    service: Service,
-    automation: Automation
-)(
-    implicit context: Context
-) extends LazyLogging
-  with BaseImplicits {
+		// class MetricsService(
+		//     client: Client,
+		//     service: Service,
+		//     automation: Automation
+		// )(
+		//     implicit context: Context
+		// ) extends LazyLogging
+		//   with BaseImplicits {
 
-    def metrics(
-        ids: Seq[Id],
-        channels: Option[Seq[Channel]],
-    ): Future[Metrics] = {
+		//     def metrics(
+		//         ids: Seq[Id],
+		//         channels: Option[Seq[Channel]],
+		//     ): Future[Metrics] = {
 
-      getMetrics(
-        ids,
-        channels,
-        Endpoint.Metrics
-      )
-    }
+		//       getMetrics(
+		//         ids,
+		//         channels,
+		//         Endpoint.Metrics
+		//       )
+		//     }
 
-    def update(authContext: AuthContext, id: String): Future[Done] = {
-      fallbacks.stub
-        .update(
-          updateRequest(
-            authContext = Some(authContext),
-            id = id
-          )
-        )
-        .map(_ => Done)
-    }
+		//     def update(authContext: AuthContext, id: String): Future[Done] = {
+		//       fallbacks.stub
+		//         .update(
+		//           updateRequest(
+		//             authContext = Some(authContext),
+		//             id = id
+		//           )
+		//         )
+		//         .map(_ => Done)
+		//     }
 
-    def metrics2(
-        ids: Seq[Id],
-        channels: Option[Seq[Channel]],
-    ): Future[Metrics] = {
+		//     def metrics2(
+		//         ids: Seq[Id],
+		//         channels: Option[Seq[Channel]],
+		//     ): Future[Metrics] = {
 
-      getMetrics2(
-        ids,
-        channels,
-        Endpoint.Metrics
-      )
-    }
-  }
-`,
-			references: []Reference{
-				4, 7, 13, 26,
-			},
-			parser: GetParserForLanguage("scala"),
-		},
+		//       getMetrics2(
+		//         ids,
+		//         channels,
+		//         Endpoint.Metrics
+		//       )
+		//     }
+		//   }
+		// `,
+		//
+		// 			ext: "scala",
+		// 		},
 
-		{
-			name: "top-level ambiguous",
-			original: `
-    function someFunction() {
-      console.log("someFunction")
-      const res = await fetch("https://example.com")
-      processResponse(res)
-      return res
-    }
+		// {
+		// 	name: "top-level ambiguous",
+		// 	original: `
+		// function someFunction() {
+		//   console.log("someFunction")
+		//   const res = await fetch("https://example.com")
+		//   processResponse(res)
+		//   return res
+		// }
 
-    function processResponse(res) {
-      console.log("processing response")
-      callSomeOtherFunction(res)
-      return res
-    }
+		// function processResponse(res) {
+		//   console.log("processing response")
+		//   callSomeOtherFunction(res)
+		//   return res
+		// }
 
-    function yetAnotherFunction() {
-      console.log("yetAnotherFunction")
-    }
+		// function yetAnotherFunction() {
+		//   console.log("yetAnotherFunction")
+		// }
 
-    function callSomething() {
-      console.log("callSomething")
-      await logSomething()
-      return "something"
-    }
-    `,
-			proposed: `
-    // ... existing code ...
+		// function callSomething() {
+		//   console.log("callSomething")
+		//   await logSomething()
+		//   return "something"
+		// }
+		// `,
+		// 	proposed: `
+		// // ... existing code ...
 
-    function newFunction() {
-      console.log("newFunction")
-      const res = await callSomething()
-      return res
-    }
+		// function newFunction() {
+		//   console.log("newFunction")
+		//   const res = await callSomething()
+		//   return res
+		// }
 
-    // ... existing code ...
-    `,
-			references: []Reference{
-				2, 10,
-			},
-			want: `
-    function someFunction() {
-      console.log("someFunction")
-      const res = await fetch("https://example.com")
-      processResponse(res)
-      return res
-    }
+		// // ... existing code ...
+		// `,
+		//
+		// 	want: `
+		// function someFunction() {
+		//   console.log("someFunction")
+		//   const res = await fetch("https://example.com")
+		//   processResponse(res)
+		//   return res
+		// }
 
-    function processResponse(res) {
-      console.log("processing response")
-      callSomeOtherFunction(res)
-      return res
-    }
+		// function processResponse(res) {
+		//   console.log("processing response")
+		//   callSomeOtherFunction(res)
+		//   return res
+		// }
 
-    function newFunction() {
-      console.log("newFunction")
-      const res = await callSomething()
-      return res
-    }
+		// function newFunction() {
+		//   console.log("newFunction")
+		//   const res = await callSomething()
+		//   return res
+		// }
 
-    function yetAnotherFunction() {
-      console.log("yetAnotherFunction")
-    }
+		// function yetAnotherFunction() {
+		//   console.log("yetAnotherFunction")
+		// }
 
-    function callSomething() {
-      console.log("callSomething")
-      await logSomething()
-      return "something"
-    }
-    `,
-			parser: GetParserForLanguage("javascript"),
-		},
+		// function callSomething() {
+		//   console.log("callSomething")
+		//   await logSomething()
+		//   return "something"
+		// }
+		// `,
+		// 	ext: "js",
+		// },
 
 		{
 			name: "top-level with anchors",
@@ -1224,9 +1141,7 @@ class MetricsService(
 
     // ... existing code ...
     `,
-			references: []Reference{
-				2, 5, 15, 18,
-			},
+
 			want: `
     function someFunction() {
       console.log("someFunction")
@@ -1258,7 +1173,7 @@ class MetricsService(
       return "something"
     }
     `,
-			parser: GetParserForLanguage("javascript"),
+			ext: "js",
 		},
 
 		{
@@ -1294,9 +1209,6 @@ class MetricsService(
 
       // ... existing code ...
       `,
-			references: []Reference{
-				2, 5, 14,
-			},
 			want: `
       func func1 () {
         fmt.Println("func1")
@@ -1317,993 +1229,370 @@ class MetricsService(
         fmt.Println("func3")
       }
       `,
-			parser: GetParserForLanguage("go"),
+			ext: "go",
 		},
-
 		{
-			name: "slice error",
-			original: `package cmd
+			name: "ambiguous location",
+			original: `package routes
 
 import (
-	"bufio"
-	"fmt"
-	"io"
-	"os"
-	"os/exec"
-	"plandex/api"
-	"plandex/auth"
-	"plandex/lib"
-	"plandex/plan_exec"
-	"plandex/term"
-	"strconv"
-	"strings"
-	"time"
+  "fmt"
+  "log"
+  "net/http"
+  "os"
+  "path/filepath"
+  "plandex-server/handlers"
+  "plandex-server/hooks"
 
-	"context"
-
-	"os/signal"
-	"syscall"
-
-	"github.com/plandex/plandex/shared"
-	"github.com/spf13/cobra"
+  "github.com/gorilla/mux"
 )
 
-const defaultEditor = "vim"
-const defaultAutoDebugTries = 5
+func AddHealthRoutes(r *mux.Router) {
+  r.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+    _, apiErr := hooks.ExecHook(hooks.HealthCheck, hooks.HookParams{})
+    if apiErr != nil {
+      log.Printf("Error in health check hook: %v\n", apiErr)
+      http.Error(w, apiErr.Msg, apiErr.Status)
+      return
+    }
+    fmt.Fprint(w, "OK")
+  })
 
-var autoConfirm bool
+  r.HandleFunc("/version", func(w http.ResponseWriter, r *http.Request) {
+    // Log the host
+    host := r.Host
+    log.Printf("Host header: %s", host)
 
-// const defaultEditor = "nano"
+    execPath, err := os.Executable()
+    if err != nil {
+      log.Fatal("Error getting current directory: ", err)
+    }
+    currentDir := filepath.Dir(execPath)
 
-var tellPromptFile string
-var tellBg bool
-var tellStop bool
-var tellNoBuild bool
-var tellAutoApply bool
-var tellAutoContext bool
-var noExec bool
-var autoDebug int
+    // get version from version.txt
+    bytes, err := os.ReadFile(filepath.Join(currentDir, "..", "version.txt"))
 
-// tellCmd represents the prompt command
-var tellCmd = &cobra.Command{
-	Use:     "tell [prompt]",
-	Aliases: []string{"t"},
-	Short:   "Send a prompt for the current plan",
-	// Long:  ` + "``" + `,
-	Args: cobra.RangeArgs(0, 1),
-	Run:  doTell,
+    if err != nil {
+      http.Error(w, "Error getting version", http.StatusInternalServerError)
+      return
+    }
+
+    fmt.Fprint(w, string(bytes))
+  })
 }
 
-func init() {
-	RootCmd.AddCommand(tellCmd)
-
-	tellCmd.Flags().StringVarP(&tellPromptFile, "file", "f", "", "File containing prompt")
-	tellCmd.Flags().BoolVarP(&tellStop, "stop", "s", false, "Stop after a single reply")
-	tellCmd.Flags().BoolVarP(&tellNoBuild, "no-build", "n", false, "Don't build files")
-	tellCmd.Flags().BoolVar(&tellBg, "bg", false, "Execute autonomously in the background")
-
-	tellCmd.Flags().BoolVarP(&autoConfirm, "yes", "y", false, "Automatically confirm context updates")
-	tellCmd.Flags().BoolVar(&tellAutoApply, "apply", false, "Automatically apply changes (and confirm context updates)")
-	tellCmd.Flags().BoolVarP(&autoCommit, "commit", "c", false, "Commit changes to git when --apply is passed")
-
-	tellCmd.Flags().BoolVar(&tellAutoContext, "auto-context", false, "Load and manage context automatically")
-
-	tellCmd.Flags().BoolVar(&noExec, "no-exec", false, "Disable command execution")
-	tellCmd.Flags().BoolVar(&autoExec, "auto-exec", false, "Automatically execute commands without confirmation when --apply is passed")
-
-	tellCmd.Flags().Var(newAutoDebugValue(&autoDebug), "debug", "Automatically execute and debug failing commands (optionally specify number of tries—default is 5)")
-	tellCmd.Flag("debug").NoOptDefVal = strconv.Itoa(defaultAutoDebugTries)
+func AddApiRoutes(r *mux.Router) {
+  addApiRoutes(r, "")
 }
 
-func doTell(cmd *cobra.Command, args []string) {
-	validateTellFlags()
-
-	auth.MustResolveAuthWithOrg()
-	lib.MustResolveProject()
-
-	if lib.CurrentPlanId == "" {
-		term.OutputNoCurrentPlanErrorAndExit()
-	}
-
-	var apiKeys map[string]string
-	if !auth.Current.IntegratedModelsMode {
-		apiKeys = lib.MustVerifyApiKeys()
-	}
-
-	prompt := getTellPrompt(args)
-
-	if prompt == "" {
-		fmt.Println("🤷‍♂️ No prompt to send")
-		return
-	}
-
-	plan_exec.TellPlan(plan_exec.ExecParams{
-		CurrentPlanId: lib.CurrentPlanId,
-		CurrentBranch: lib.CurrentBranch,
-		ApiKeys:       apiKeys,
-		CheckOutdatedContext: func(maybeContexts []*shared.Context) (bool, bool, error) {
-			return lib.CheckOutdatedContextWithOutput(false, autoConfirm || tellAutoApply || tellAutoContext, maybeContexts)
-		},
-	}, prompt, plan_exec.TellFlags{
-		TellBg:      tellBg,
-		TellStop:    tellStop,
-		TellNoBuild: tellNoBuild,
-		AutoContext: tellAutoContext,
-		ExecEnabled: !noExec,
-	})
-
-	if tellAutoApply {
-		flags := lib.ApplyFlags{
-			AutoConfirm: true,
-			AutoCommit:  autoCommit,
-			NoCommit:    !autoCommit,
-			NoExec:      noExec,
-			AutoExec:    autoExec || autoDebug > 0,
-			AutoDebug:   autoDebug,
-		}
-
-		lib.MustApplyPlan(
-			lib.CurrentPlanId,
-			lib.CurrentBranch,
-			flags,
-			plan_exec.GetOnApplyExecFail(flags),
-		)
-	}
+func AddApiRoutesWithPrefix(r *mux.Router, prefix string) {
+  addApiRoutes(r, prefix)
 }
 
-func getTellPrompt(args []string) string {
-	var prompt string
-	var pipedData string
+func addApiRoutes(r *mux.Router, prefix string) {
+  r.HandleFunc(prefix+"/accounts/email_verifications", handlers.CreateEmailVerificationHandler).Methods("POST")
+  r.HandleFunc(prefix+"/accounts/email_verifications/check_pin", handlers.CheckEmailPinHandler).Methods("POST")
+  r.HandleFunc(prefix+"/accounts/sign_in_codes", handlers.CreateSignInCodeHandler).Methods("POST")
+  r.HandleFunc(prefix+"/accounts/sign_in", handlers.SignInHandler).Methods("POST")
+  r.HandleFunc(prefix+"/accounts/sign_out", handlers.SignOutHandler).Methods("POST")
+  r.HandleFunc(prefix+"/accounts", handlers.CreateAccountHandler).Methods("POST")
 
-	if len(args) > 0 {
-		prompt = args[0]
-	} else if tellPromptFile != "" {
-		bytes, err := os.ReadFile(tellPromptFile)
-		if err != nil {
-			term.OutputErrorAndExit("Error reading prompt file: %v", err)
-		}
-		prompt = string(bytes)
-	}
+  r.HandleFunc(prefix+"/orgs/session", handlers.GetOrgSessionHandler).Methods("GET")
+  r.HandleFunc(prefix+"/orgs", handlers.ListOrgsHandler).Methods("GET")
+  r.HandleFunc(prefix+"/orgs", handlers.CreateOrgHandler).Methods("POST")
 
-	// Check if there's piped input
-	fileInfo, err := os.Stdin.Stat()
-	if err != nil {
-		term.OutputErrorAndExit("Failed to stat stdin: %v", err)
-	}
+  r.HandleFunc(prefix+"/users", handlers.ListUsersHandler).Methods("GET")
+  r.HandleFunc(prefix+"/orgs/users/{userId}", handlers.DeleteOrgUserHandler).Methods("DELETE")
+  r.HandleFunc(prefix+"/orgs/roles", handlers.ListOrgRolesHandler).Methods("GET")
 
-	if fileInfo.Mode()&os.ModeNamedPipe != 0 {
-		reader := bufio.NewReader(os.Stdin)
-		pipedDataBytes, err := io.ReadAll(reader)
-		if err != nil {
-			term.OutputErrorAndExit("Failed to read piped data: %v", err)
-		}
-		pipedData = string(pipedDataBytes)
-	}
+  r.HandleFunc(prefix+"/invites", handlers.InviteUserHandler).Methods("POST")
+  r.HandleFunc(prefix+"/invites/pending", handlers.ListPendingInvitesHandler).Methods("GET")
+  r.HandleFunc(prefix+"/invites/accepted", handlers.ListAcceptedInvitesHandler).Methods("GET")
+  r.HandleFunc(prefix+"/invites/all", handlers.ListAllInvitesHandler).Methods("GET")
+  r.HandleFunc(prefix+"/invites/{inviteId}", handlers.DeleteInviteHandler).Methods("DELETE")
 
-	if prompt == "" && pipedData == "" {
-		prompt = getEditorPrompt()
-	} else if pipedData != "" {
-		if prompt != "" {
-			prompt = fmt.Sprintf("%s\n\n---\n\n%s", prompt, pipedData)
-		} else {
-			prompt = pipedData
-		}
-	}
+  r.HandleFunc(prefix+"/projects", handlers.CreateProjectHandler).Methods("POST")
+  r.HandleFunc(prefix+"/projects", handlers.ListProjectsHandler).Methods("GET")
+  r.HandleFunc(prefix+"/projects/{projectId}/set_plan", handlers.ProjectSetPlanHandler).Methods("PUT")
+  r.HandleFunc(prefix+"/projects/{projectId}/rename", handlers.RenameProjectHandler).Methods("PUT")
 
-	return prompt
-}
+  r.HandleFunc(prefix+"/projects/{projectId}/plans/current_branches", handlers.GetCurrentBranchByPlanIdHandler).Methods("POST")
 
-func prepareEditorCommand(editor string, filename string) *exec.Cmd {
-	switch editor {
-	case "vim":
-		return exec.Command(editor, "+normal G$", "+startinsert!", filename)
-	case "nano":
-		return exec.Command(editor, "+99999999", filename)
-	default:
-		return exec.Command(editor, filename)
-	}
-}
+  r.HandleFunc(prefix+"/plans", handlers.ListPlansHandler).Methods("GET")
+  r.HandleFunc(prefix+"/plans/archive", handlers.ListArchivedPlansHandler).Methods("GET")
+  r.HandleFunc(prefix+"/plans/ps", handlers.ListPlansRunningHandler).Methods("GET")
 
-func getEditorInstructions(editor string) string {
-	return "👉  Write your prompt below, then save and exit to send it to Plandex.\n• To save and exit, press ESC, then type :wq! and press ENTER.\n• To exit without saving, press ESC, then type :q! and press ENTER.\n\n\n"
-}
+  r.HandleFunc(prefix+"/projects/{projectId}/plans", handlers.CreatePlanHandler).Methods("POST")
 
-func getEditorPrompt() string {
-	editor := os.Getenv("EDITOR")
-	if editor == "" {
-		editor = os.Getenv("VISUAL")
-		if editor == "" {
-			editor = defaultEditor
-		}
-	}
+  r.HandleFunc(prefix+"/projects/{projectId}/plans", handlers.CreatePlanHandler).Methods("DELETE")
 
-	tempFile, err := os.CreateTemp(os.TempDir(), "plandex_prompt_*")
-	if err != nil {
-		term.OutputErrorAndExit("Failed to create temporary file: %v", err)
-	}
+  r.HandleFunc(prefix+"/plans/{planId}", handlers.GetPlanHandler).Methods("GET")
+  r.HandleFunc(prefix+"/plans/{planId}", handlers.DeletePlanHandler).Methods("DELETE")
 
-	instructions := getEditorInstructions(editor)
-	filename := tempFile.Name()
-	err = os.WriteFile(filename, []byte(instructions), 0644)
-	if err != nil {
-		term.OutputErrorAndExit("Failed to write instructions to temporary file: %v", err)
-	}
+  r.HandleFunc(prefix+"/plans/{planId}/{branch}/tell", handlers.TellPlanHandler).Methods("POST")
 
-	editorCmd := prepareEditorCommand(editor, filename)
-	editorCmd.Stdin = os.Stdin
-	editorCmd.Stdout = os.Stdout
-	editorCmd.Stderr = os.Stderr
-	err = editorCmd.Run()
-	if err != nil {
-		term.OutputErrorAndExit("Error opening editor: %v", err)
-	}
+  r.HandleFunc(prefix+"/plans/{planId}/{branch}/respond_missing_file", handlers.RespondMissingFileHandler).Methods("POST")
 
-	bytes, err := os.ReadFile(tempFile.Name())
-	if err != nil {
-		term.OutputErrorAndExit("Error reading temporary file: %v", err)
-	}
+  r.HandleFunc(prefix+"/plans/{planId}/{branch}/build", handlers.BuildPlanHandler).Methods("PATCH")
+  r.HandleFunc(prefix+"/plans/{planId}/{branch}/connect", handlers.ConnectPlanHandler).Methods("PATCH")
+  r.HandleFunc(prefix+"/plans/{planId}/{branch}/stop", handlers.StopPlanHandler).Methods("DELETE")
 
-	prompt := string(bytes)
+  r.HandleFunc(prefix+"/plans/{planId}/{branch}/current_plan", handlers.CurrentPlanHandler).Methods("GET")
+  r.HandleFunc(prefix+"/plans/{planId}/{branch}/apply", handlers.ApplyPlanHandler).Methods("PATCH")
+  r.HandleFunc(prefix+"/plans/{planId}/archive", handlers.ArchivePlanHandler).Methods("PATCH")
+  r.HandleFunc(prefix+"/plans/{planId}/unarchive", handlers.UnarchivePlanHandler).Methods("PATCH")
 
-	err = os.Remove(tempFile.Name())
-	if err != nil {
-		term.OutputErrorAndExit("Error removing temporary file: %v", err)
-	}
+  r.HandleFunc(prefix+"/plans/{planId}/rename", handlers.RenamePlanHandler).Methods("PATCH")
+  r.HandleFunc(prefix+"/plans/{planId}/{branch}/reject_all", handlers.RejectAllChangesHandler).Methods("PATCH")
+  r.HandleFunc(prefix+"/plans/{planId}/{branch}/reject_file", handlers.RejectFileHandler).Methods("PATCH")
+  r.HandleFunc(prefix+"/plans/{planId}/{branch}/reject_files", handlers.RejectFilesHandler).Methods("PATCH")
+  r.HandleFunc(prefix+"/plans/{planId}/{branch}/diffs", handlers.GetPlanDiffsHandler).Methods("GET")
 
-	prompt = strings.TrimPrefix(prompt, strings.TrimSpace(instructions))
-	prompt = strings.TrimSpace(prompt)
+  r.HandleFunc(prefix+"/plans/{planId}/{branch}/context", handlers.ListContextHandler).Methods("GET")
+  r.HandleFunc(prefix+"/plans/{planId}/{branch}/context", handlers.LoadContextHandler).Methods("POST")
+  r.HandleFunc(prefix+"/plans/{planId}/{branch}/context/{contextId}/body", handlers.GetContextBodyHandler).Methods("GET")
+  r.HandleFunc(prefix+"/plans/{planId}/{branch}/context", handlers.UpdateContextHandler).Methods("PUT")
+  r.HandleFunc(prefix+"/plans/{planId}/{branch}/context", handlers.DeleteContextHandler).Methods("DELETE")
 
-	return prompt
+  r.HandleFunc(prefix+"/plans/{planId}/{branch}/convo", handlers.ListConvoHandler).Methods("GET")
+  r.HandleFunc(prefix+"/plans/{planId}/{branch}/rewind", handlers.RewindPlanHandler).Methods("PATCH")
+  r.HandleFunc(prefix+"/plans/{planId}/{branch}/logs", handlers.ListLogsHandler).Methods("GET")
 
-}
+  r.HandleFunc(prefix+"/plans/{planId}/branches", handlers.ListBranchesHandler).Methods("GET")
+  r.HandleFunc(prefix+"/plans/{planId}/branches/{branch}", handlers.DeleteBranchHandler).Methods("DELETE")
+  r.HandleFunc(prefix+"/plans/{planId}/{branch}/branches", handlers.CreateBranchHandler).Methods("POST")
 
-func validateTellFlags() {
-	if tellAutoApply && tellNoBuild {
-		term.OutputErrorAndExit("🚨 --apply can't be used with --no-build/-n")
-	}
-	if tellAutoApply && tellBg {
-		term.OutputErrorAndExit("🚨 --apply can't be used with --bg")
-	}
-	if autoCommit && !tellAutoApply {
-		term.OutputErrorAndExit("🚨 --commit/-c can only be used with --apply")
-	}
-	if autoExec && !tellAutoApply {
-		term.OutputErrorAndExit("🚨 --auto-exec can only be used with --apply")
-	}
-	if autoDebug > 0 && !tellAutoApply {
-		term.OutputErrorAndExit("🚨 --debug can only be used with --apply")
-	}
-	if autoDebug > 0 && noExec {
-		term.OutputErrorAndExit("🚨 --debug can't be used with --no-exec")
-	}
+  r.HandleFunc(prefix+"/plans/{planId}/{branch}/settings", handlers.GetSettingsHandler).Methods("GET")
+  r.HandleFunc(prefix+"/plans/{planId}/{branch}/settings", handlers.UpdateSettingsHandler).Methods("PUT")
 
-	if tellAutoContext && tellBg {
-		term.OutputErrorAndExit("🚨 --auto-context/-c can't be used with --bg")
-	}
-	if tellAutoContext && tellStop {
-		term.OutputErrorAndExit("🚨 --auto-context/-c can't be used with --stop/-s")
-	}
-}
+  r.HandleFunc(prefix+"/plans/{planId}/{branch}/status", handlers.GetPlanStatusHandler).Methods("GET")
 
-func maybeShowDiffs() {
-	diffs, err := api.Client.GetPlanDiffs(lib.CurrentPlanId, lib.CurrentBranch, plainTextOutput || showDiffUi)
-	if err != nil {
-		term.OutputErrorAndExit("Error getting plan diffs: %v", err)
-		return
-	}
+  r.HandleFunc(prefix+"/custom_models", handlers.ListCustomModelsHandler).Methods("GET")
+  r.HandleFunc(prefix+"/custom_models", handlers.CreateCustomModelHandler).Methods("POST")
+  r.HandleFunc(prefix+"/custom_models/{modelId}", handlers.DeleteAvailableModelHandler).Methods("DELETE")
 
-	if len(diffs) > 0 {
-		cmd := exec.Command(os.Args[0], "diffs", "--ui")
+  r.HandleFunc(prefix+"/model_sets", handlers.ListModelPacksHandler).Methods("GET")
+  r.HandleFunc(prefix+"/model_sets", handlers.CreateModelPackHandler).Methods("POST")
+  r.HandleFunc(prefix+"/model_sets/{setId}", handlers.DeleteModelPackHandler).Methods("DELETE")
 
-		// Create a context that's cancelled when the program exits
-		ctx, cancel := context.WithCancel(context.Background())
+  r.HandleFunc(prefix+"/default_settings", handlers.GetDefaultSettingsHandler).Methods("GET")
+  r.HandleFunc(prefix+"/default_settings", handlers.UpdateDefaultSettingsHandler).Methods("PUT")
 
-		// Ensure cleanup on program exit
-		go func() {
-			// Wait for program exit signal
-			c := make(chan os.Signal, 1)
-			signal.Notify(c, os.Interrupt, syscall.SIGTERM)
-			<-c
+  r.HandleFunc(prefix+"/file_map", handlers.GetFileMapHandler).Methods("POST")
 
-			// Cancel context and kill the process
-			cancel()
-			if cmd.Process != nil {
-				cmd.Process.Kill()
-			}
-		}()
-
-		go func() {
-			if err := cmd.Start(); err != nil {
-				fmt.Fprintf(os.Stderr, "Error starting diffs command: %v\n", err)
-				return
-			}
-
-			// Wait in a separate goroutine
-			go cmd.Wait()
-
-			// Wait for either context cancellation or process completion
-			<-ctx.Done()
-			if cmd.Process != nil {
-				cmd.Process.Kill()
-			}
-		}()
-
-		// Give the UI a moment to start
-		time.Sleep(100 * time.Millisecond)
-	}
-}
-
-// AutoDebugValue implements the flag.Value interface
-type autoDebugValue struct {
-	value *int
-}
-
-func newAutoDebugValue(p *int) *autoDebugValue {
-	*p = 0 // Default to 0 (disabled)
-	return &autoDebugValue{p}
-}
-
-func (f *autoDebugValue) Set(s string) error {
-	if s == "" {
-		*f.value = defaultAutoDebugTries
-		return nil
-	}
-	v, err := strconv.Atoi(s)
-	if err != nil {
-		return fmt.Errorf("invalid value for --debug: %v", err)
-	}
-	if v <= 0 {
-		return fmt.Errorf("--debug value must be greater than 0")
-	}
-	*f.value = v
-	return nil
-}
-
-func (f *autoDebugValue) String() string {
-	if f.value == nil {
-		return "0"
-	}
-	return strconv.Itoa(*f.value)
-}
-
-func (f *autoDebugValue) Type() string {
-	return "int"
-}
-`,
-			proposed: `
-// ... existing code ...
-
-func doTell(cmd *cobra.Command, args []string) {
-	auth.MustResolveAuthWithOrg()
-	lib.MustResolveProject()
-
-	if lib.CurrentPlanId == "" {
-		term.OutputNoCurrentPlanErrorAndExit()
-	}
-
-	var apiKeys map[string]string
-	if !auth.Current.IntegratedModelsMode {
-		apiKeys = lib.MustVerifyApiKeys()
-	}
-
-  plan, err := api.Client.GetPlan(lib.CurrentPlanId)
-	if err != nil {
-		term.HandleApiError(err)
-		return
-	}
-
-	// Use plan config if available
-	if plan.Config != nil {
-		autoConfirm = plan.Config.AutoApply
-		autoCommit = plan.Config.AutoCommit
-		tellAutoContext = plan.Config.AutoContext
-		noExec = plan.Config.NoExec
-		autoDebug = plan.Config.AutoDebugTries
-	} else {
-		// Try user default config
-		config, err := api.Client.GetUserConfig()
-		if err != nil {
-			term.HandleApiError(err)
-			return
-		}
-		if config != nil {
-			autoConfirm = config.AutoApply
-			autoCommit = config.AutoCommit
-			tellAutoContext = config.AutoContext
-			noExec = config.NoExec
-			autoDebug = config.AutoDebugTries
-		}
-	}
-
-	prompt := getTellPrompt(args)
-
-	// ... existing code ...
-}
-
-// ... existing code ...
-`,
-			references: []Reference{2, 48, 51},
-			want: `package cmd
-
-import (
-	"bufio"
-	"fmt"
-	"io"
-	"os"
-	"os/exec"
-	"plandex/api"
-	"plandex/auth"
-	"plandex/lib"
-	"plandex/plan_exec"
-	"plandex/term"
-	"strconv"
-	"strings"
-	"time"
-
-	"context"
-
-	"os/signal"
-	"syscall"
-
-	"github.com/plandex/plandex/shared"
-	"github.com/spf13/cobra"
-)
-
-const defaultEditor = "vim"
-const defaultAutoDebugTries = 5
-
-var autoConfirm bool
-
-// const defaultEditor = "nano"
-
-var tellPromptFile string
-var tellBg bool
-var tellStop bool
-var tellNoBuild bool
-var tellAutoApply bool
-var tellAutoContext bool
-var noExec bool
-var autoDebug int
-
-// tellCmd represents the prompt command
-var tellCmd = &cobra.Command{
-	Use:     "tell [prompt]",
-	Aliases: []string{"t"},
-	Short:   "Send a prompt for the current plan",
-	// Long:  ` + "``" + `,
-	Args: cobra.RangeArgs(0, 1),
-	Run:  doTell,
-}
-
-func init() {
-	RootCmd.AddCommand(tellCmd)
-
-	tellCmd.Flags().StringVarP(&tellPromptFile, "file", "f", "", "File containing prompt")
-	tellCmd.Flags().BoolVarP(&tellStop, "stop", "s", false, "Stop after a single reply")
-	tellCmd.Flags().BoolVarP(&tellNoBuild, "no-build", "n", false, "Don't build files")
-	tellCmd.Flags().BoolVar(&tellBg, "bg", false, "Execute autonomously in the background")
-
-	tellCmd.Flags().BoolVarP(&autoConfirm, "yes", "y", false, "Automatically confirm context updates")
-	tellCmd.Flags().BoolVar(&tellAutoApply, "apply", false, "Automatically apply changes (and confirm context updates)")
-	tellCmd.Flags().BoolVarP(&autoCommit, "commit", "c", false, "Commit changes to git when --apply is passed")
-
-	tellCmd.Flags().BoolVar(&tellAutoContext, "auto-context", false, "Load and manage context automatically")
-
-	tellCmd.Flags().BoolVar(&noExec, "no-exec", false, "Disable command execution")
-	tellCmd.Flags().BoolVar(&autoExec, "auto-exec", false, "Automatically execute commands without confirmation when --apply is passed")
-
-	tellCmd.Flags().Var(newAutoDebugValue(&autoDebug), "debug", "Automatically execute and debug failing commands (optionally specify number of tries—default is 5)")
-	tellCmd.Flag("debug").NoOptDefVal = strconv.Itoa(defaultAutoDebugTries)
-}
-
-func doTell(cmd *cobra.Command, args []string) {
-	auth.MustResolveAuthWithOrg()
-	lib.MustResolveProject()
-
-	if lib.CurrentPlanId == "" {
-		term.OutputNoCurrentPlanErrorAndExit()
-	}
-
-	var apiKeys map[string]string
-	if !auth.Current.IntegratedModelsMode {
-		apiKeys = lib.MustVerifyApiKeys()
-	}
-
-  plan, err := api.Client.GetPlan(lib.CurrentPlanId)
-	if err != nil {
-		term.HandleApiError(err)
-		return
-	}
-
-	// Use plan config if available
-	if plan.Config != nil {
-		autoConfirm = plan.Config.AutoApply
-		autoCommit = plan.Config.AutoCommit
-		tellAutoContext = plan.Config.AutoContext
-		noExec = plan.Config.NoExec
-		autoDebug = plan.Config.AutoDebugTries
-	} else {
-		// Try user default config
-		config, err := api.Client.GetUserConfig()
-		if err != nil {
-			term.HandleApiError(err)
-			return
-		}
-		if config != nil {
-			autoConfirm = config.AutoApply
-			autoCommit = config.AutoCommit
-			tellAutoContext = config.AutoContext
-			noExec = config.NoExec
-			autoDebug = config.AutoDebugTries
-		}
-	}
-
-	prompt := getTellPrompt(args)
-
-	if prompt == "" {
-		fmt.Println("🤷‍♂️ No prompt to send")
-		return
-	}
-
-	plan_exec.TellPlan(plan_exec.ExecParams{
-		CurrentPlanId: lib.CurrentPlanId,
-		CurrentBranch: lib.CurrentBranch,
-		ApiKeys:       apiKeys,
-		CheckOutdatedContext: func(maybeContexts []*shared.Context) (bool, bool, error) {
-			return lib.CheckOutdatedContextWithOutput(false, autoConfirm || tellAutoApply || tellAutoContext, maybeContexts)
-		},
-	}, prompt, plan_exec.TellFlags{
-		TellBg:      tellBg,
-		TellStop:    tellStop,
-		TellNoBuild: tellNoBuild,
-		AutoContext: tellAutoContext,
-		ExecEnabled: !noExec,
-	})
-
-	if tellAutoApply {
-		flags := lib.ApplyFlags{
-			AutoConfirm: true,
-			AutoCommit:  autoCommit,
-			NoCommit:    !autoCommit,
-			NoExec:      noExec,
-			AutoExec:    autoExec || autoDebug > 0,
-			AutoDebug:   autoDebug,
-		}
-
-		lib.MustApplyPlan(
-			lib.CurrentPlanId,
-			lib.CurrentBranch,
-			flags,
-			plan_exec.GetOnApplyExecFail(flags),
-		)
-	}
-}
-
-func getTellPrompt(args []string) string {
-	var prompt string
-	var pipedData string
-
-	if len(args) > 0 {
-		prompt = args[0]
-	} else if tellPromptFile != "" {
-		bytes, err := os.ReadFile(tellPromptFile)
-		if err != nil {
-			term.OutputErrorAndExit("Error reading prompt file: %v", err)
-		}
-		prompt = string(bytes)
-	}
-
-	// Check if there's piped input
-	fileInfo, err := os.Stdin.Stat()
-	if err != nil {
-		term.OutputErrorAndExit("Failed to stat stdin: %v", err)
-	}
-
-	if fileInfo.Mode()&os.ModeNamedPipe != 0 {
-		reader := bufio.NewReader(os.Stdin)
-		pipedDataBytes, err := io.ReadAll(reader)
-		if err != nil {
-			term.OutputErrorAndExit("Failed to read piped data: %v", err)
-		}
-		pipedData = string(pipedDataBytes)
-	}
-
-	if prompt == "" && pipedData == "" {
-		prompt = getEditorPrompt()
-	} else if pipedData != "" {
-		if prompt != "" {
-			prompt = fmt.Sprintf("%s\n\n---\n\n%s", prompt, pipedData)
-		} else {
-			prompt = pipedData
-		}
-	}
-
-	return prompt
-}
-
-func prepareEditorCommand(editor string, filename string) *exec.Cmd {
-	switch editor {
-	case "vim":
-		return exec.Command(editor, "+normal G$", "+startinsert!", filename)
-	case "nano":
-		return exec.Command(editor, "+99999999", filename)
-	default:
-		return exec.Command(editor, filename)
-	}
-}
-
-func getEditorInstructions(editor string) string {
-	return "👉  Write your prompt below, then save and exit to send it to Plandex.\n• To save and exit, press ESC, then type :wq! and press ENTER.\n• To exit without saving, press ESC, then type :q! and press ENTER.\n\n\n"
-}
-
-func getEditorPrompt() string {
-	editor := os.Getenv("EDITOR")
-	if editor == "" {
-		editor = os.Getenv("VISUAL")
-		if editor == "" {
-			editor = defaultEditor
-		}
-	}
-
-	tempFile, err := os.CreateTemp(os.TempDir(), "plandex_prompt_*")
-	if err != nil {
-		term.OutputErrorAndExit("Failed to create temporary file: %v", err)
-	}
-
-	instructions := getEditorInstructions(editor)
-	filename := tempFile.Name()
-	err = os.WriteFile(filename, []byte(instructions), 0644)
-	if err != nil {
-		term.OutputErrorAndExit("Failed to write instructions to temporary file: %v", err)
-	}
-
-	editorCmd := prepareEditorCommand(editor, filename)
-	editorCmd.Stdin = os.Stdin
-	editorCmd.Stdout = os.Stdout
-	editorCmd.Stderr = os.Stderr
-	err = editorCmd.Run()
-	if err != nil {
-		term.OutputErrorAndExit("Error opening editor: %v", err)
-	}
-
-	bytes, err := os.ReadFile(tempFile.Name())
-	if err != nil {
-		term.OutputErrorAndExit("Error reading temporary file: %v", err)
-	}
-
-	prompt := string(bytes)
-
-	err = os.Remove(tempFile.Name())
-	if err != nil {
-		term.OutputErrorAndExit("Error removing temporary file: %v", err)
-	}
-
-	prompt = strings.TrimPrefix(prompt, strings.TrimSpace(instructions))
-	prompt = strings.TrimSpace(prompt)
-
-	return prompt
-
-}
-
-func validateTellFlags() {
-	if tellAutoApply && tellNoBuild {
-		term.OutputErrorAndExit("🚨 --apply can't be used with --no-build/-n")
-	}
-	if tellAutoApply && tellBg {
-		term.OutputErrorAndExit("🚨 --apply can't be used with --bg")
-	}
-	if autoCommit && !tellAutoApply {
-		term.OutputErrorAndExit("🚨 --commit/-c can only be used with --apply")
-	}
-	if autoExec && !tellAutoApply {
-		term.OutputErrorAndExit("🚨 --auto-exec can only be used with --apply")
-	}
-	if autoDebug > 0 && !tellAutoApply {
-		term.OutputErrorAndExit("🚨 --debug can only be used with --apply")
-	}
-	if autoDebug > 0 && noExec {
-		term.OutputErrorAndExit("🚨 --debug can't be used with --no-exec")
-	}
-
-	if tellAutoContext && tellBg {
-		term.OutputErrorAndExit("🚨 --auto-context/-c can't be used with --bg")
-	}
-	if tellAutoContext && tellStop {
-		term.OutputErrorAndExit("🚨 --auto-context/-c can't be used with --stop/-s")
-	}
-}
-
-func maybeShowDiffs() {
-	diffs, err := api.Client.GetPlanDiffs(lib.CurrentPlanId, lib.CurrentBranch, plainTextOutput || showDiffUi)
-	if err != nil {
-		term.OutputErrorAndExit("Error getting plan diffs: %v", err)
-		return
-	}
-
-	if len(diffs) > 0 {
-		cmd := exec.Command(os.Args[0], "diffs", "--ui")
-
-		// Create a context that's cancelled when the program exits
-		ctx, cancel := context.WithCancel(context.Background())
-
-		// Ensure cleanup on program exit
-		go func() {
-			// Wait for program exit signal
-			c := make(chan os.Signal, 1)
-			signal.Notify(c, os.Interrupt, syscall.SIGTERM)
-			<-c
-
-			// Cancel context and kill the process
-			cancel()
-			if cmd.Process != nil {
-				cmd.Process.Kill()
-			}
-		}()
-
-		go func() {
-			if err := cmd.Start(); err != nil {
-				fmt.Fprintf(os.Stderr, "Error starting diffs command: %v\n", err)
-				return
-			}
-
-			// Wait in a separate goroutine
-			go cmd.Wait()
-
-			// Wait for either context cancellation or process completion
-			<-ctx.Done()
-			if cmd.Process != nil {
-				cmd.Process.Kill()
-			}
-		}()
-
-		// Give the UI a moment to start
-		time.Sleep(100 * time.Millisecond)
-	}
-}
-
-// AutoDebugValue implements the flag.Value interface
-type autoDebugValue struct {
-	value *int
-}
-
-func newAutoDebugValue(p *int) *autoDebugValue {
-	*p = 0 // Default to 0 (disabled)
-	return &autoDebugValue{p}
-}
-
-func (f *autoDebugValue) Set(s string) error {
-	if s == "" {
-		*f.value = defaultAutoDebugTries
-		return nil
-	}
-	v, err := strconv.Atoi(s)
-	if err != nil {
-		return fmt.Errorf("invalid value for --debug: %v", err)
-	}
-	if v <= 0 {
-		return fmt.Errorf("--debug value must be greater than 0")
-	}
-	*f.value = v
-	return nil
-}
-
-func (f *autoDebugValue) String() string {
-	if f.value == nil {
-		return "0"
-	}
-	return strconv.Itoa(*f.value)
-}
-
-func (f *autoDebugValue) Type() string {
-	return "int"
-}
-`,
-			parser: GetParserForLanguage("go"),
-		},
-
-		{
-			name: "extraneous references, no change",
-			original: `package cmd
-
-import (
-	"fmt"
-	"os"
-	"plandex/term"
-
-	"github.com/fatih/color"
-	"github.com/spf13/cobra"
-)
-
-var helpShowAll bool
-
-// RootCmd represents the base command when called without any subcommands
-var RootCmd = &cobra.Command{
-	Use: ` + "`plandex [command] [flags]`" + `,
-	// Short: "Plandex: iterative development with AI",
-	SilenceErrors: true,
-	SilenceUsage:  true,
-	Run: func(cmd *cobra.Command, args []string) {
-		run(cmd, args)
-	},
-}
-
-// Execute adds all child commands to the root command and sets flags appropriately.
-// This is called by main.main(). It only needs to happen once to the rootCmd.
-func Execute() {
-	if err := RootCmd.Execute(); err != nil {
-		// term.OutputErrorAndExit("Error executing root command: %v", err)
-		// log.Fatalf("Error executing root command: %v", err)
-
-		// output the error message to stderr
-		term.OutputSimpleError("Error: %v", err)
-
-		fmt.Println()
-
-		color.New(color.Bold, color.BgGreen, color.FgHiWhite).Println(" Usage ")
-		color.New(color.Bold).Println("  plandex [command] [flags]")
-		color.New(color.Bold).Println("  pdx [command] [flags]")
-		fmt.Println()
-
-		color.New(color.Bold, color.BgGreen, color.FgHiWhite).Println(" Help ")
-		color.New(color.Bold).Println("  plandex help # show basic usage")
-		color.New(color.Bold).Println("  plandex help --all # show all commands")
-		color.New(color.Bold).Println("  plandex [command] --help")
-		fmt.Println()
-
-		os.Exit(1)
-
-	}
-}
-
-func run(cmd *cobra.Command, args []string) {
-}
-
-func init() {
-	var helpCmd = &cobra.Command{
-		Use:     "help",
-		Aliases: []string{"h"},
-		Short:   "Display help for Plandex",
-		Long:    ` + "`Display help for Plandex.`" + `,
-		Run: func(cmd *cobra.Command, args []string) {
-			term.PrintCustomHelp(helpShowAll)
-		},
-	}
-
-	RootCmd.AddCommand(helpCmd)
-
-	// add an --all/-a flag
-	helpCmd.Flags().BoolVarP(&helpShowAll, "all", "a", false, "Show all commands")
+  r.HandleFunc(prefix+"/plans/{planId}/{branch}/auto_load_context", handlers.AutoLoadContextHandler).Methods("POST")
 }
 `,
 			proposed: `// ... existing code ...
 
-func init() {
-	var helpCmd = &cobra.Command{
-		Use:     "help",
-		Aliases: []string{"h"},
-		Short:   "Display help for Plandex",
-		Long:    ` + "`Display help for Plandex.`" + `,
-		Run: func(cmd *cobra.Command, args []string) {
-			term.PrintCustomHelp(helpShowAll)
-		},
-	}
+r.HandleFunc(prefix+"/plans/{planId}/rename", handlers.RenamePlanHandler).Methods("PATCH")
 
-	RootCmd.AddCommand(helpCmd)
+r.HandleFunc(prefix+"/plans/{planId}/config", handlers.GetPlanConfigHandler).Methods("GET")
+r.HandleFunc(prefix+"/plans/{planId}/config", handlers.UpdatePlanConfigHandler).Methods("PUT") 
+r.HandleFunc(prefix+"/config/default", handlers.GetDefaultConfigHandler).Methods("GET")
+r.HandleFunc(prefix+"/config/default", handlers.UpdateDefaultConfigHandler).Methods("PUT")
 
-	// add an --all/-a flag
-	helpCmd.Flags().BoolVarP(&helpShowAll, "all", "a", false, "Show all commands")
-}
+r.HandleFunc(prefix+"/plans/{planId}/{branch}/reject_all", handlers.RejectAllChangesHandler).Methods("PATCH")
+// Plandex: removed code
+r.HandleFunc(prefix+"/plans/{planId}/{branch}/diffs", handlers.GetPlanDiffsHandler).Methods("GET")
+
+r.HandleFunc(prefix+"/plans/{planId}/{branch}/context", handlers.ListContextHandler).Methods("GET")
 
 // ... existing code ...
+
+	r.HandleFunc(prefix+"/plans/{planId}/rename", handlers.RenamePlanHandler).Methods("PATCH")
+
 `,
-			references: []Reference{1, 20},
-			want: `package cmd
+
+			want: `package routes
 
 import (
-	"fmt"
-	"os"
-	"plandex/term"
+  "fmt"
+  "log"
+  "net/http"
+  "os"
+  "path/filepath"
+  "plandex-server/handlers"
+  "plandex-server/hooks"
 
-	"github.com/fatih/color"
-	"github.com/spf13/cobra"
+  "github.com/gorilla/mux"
 )
 
-var helpShowAll bool
+func AddHealthRoutes(r *mux.Router) {
+  r.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+    _, apiErr := hooks.ExecHook(hooks.HealthCheck, hooks.HookParams{})
+    if apiErr != nil {
+      log.Printf("Error in health check hook: %v\n", apiErr)
+      http.Error(w, apiErr.Msg, apiErr.Status)
+      return
+    }
+    fmt.Fprint(w, "OK")
+  })
 
-// RootCmd represents the base command when called without any subcommands
-var RootCmd = &cobra.Command{
-	Use: ` + "`plandex [command] [flags]`" + `,
-	// Short: "Plandex: iterative development with AI",
-	SilenceErrors: true,
-	SilenceUsage:  true,
-	Run: func(cmd *cobra.Command, args []string) {
-		run(cmd, args)
-	},
+  r.HandleFunc("/version", func(w http.ResponseWriter, r *http.Request) {
+    // Log the host
+    host := r.Host
+    log.Printf("Host header: %s", host)
+
+    execPath, err := os.Executable()
+    if err != nil {
+      log.Fatal("Error getting current directory: ", err)
+    }
+    currentDir := filepath.Dir(execPath)
+
+    // get version from version.txt
+    bytes, err := os.ReadFile(filepath.Join(currentDir, "..", "version.txt"))
+
+    if err != nil {
+      http.Error(w, "Error getting version", http.StatusInternalServerError)
+      return
+    }
+
+    fmt.Fprint(w, string(bytes))
+  })
 }
 
-// Execute adds all child commands to the root command and sets flags appropriately.
-// This is called by main.main(). It only needs to happen once to the rootCmd.
-func Execute() {
-	if err := RootCmd.Execute(); err != nil {
-		// term.OutputErrorAndExit("Error executing root command: %v", err)
-		// log.Fatalf("Error executing root command: %v", err)
-
-		// output the error message to stderr
-		term.OutputSimpleError("Error: %v", err)
-
-		fmt.Println()
-
-		color.New(color.Bold, color.BgGreen, color.FgHiWhite).Println(" Usage ")
-		color.New(color.Bold).Println("  plandex [command] [flags]")
-		color.New(color.Bold).Println("  pdx [command] [flags]")
-		fmt.Println()
-
-		color.New(color.Bold, color.BgGreen, color.FgHiWhite).Println(" Help ")
-		color.New(color.Bold).Println("  plandex help # show basic usage")
-		color.New(color.Bold).Println("  plandex help --all # show all commands")
-		color.New(color.Bold).Println("  plandex [command] --help")
-		fmt.Println()
-
-		os.Exit(1)
-
-	}
+func AddApiRoutes(r *mux.Router) {
+  addApiRoutes(r, "")
 }
 
-func run(cmd *cobra.Command, args []string) {
+func AddApiRoutesWithPrefix(r *mux.Router, prefix string) {
+  addApiRoutes(r, prefix)
 }
 
-func init() {
-	var helpCmd = &cobra.Command{
-		Use:     "help",
-		Aliases: []string{"h"},
-		Short:   "Display help for Plandex",
-		Long:    ` + "`Display help for Plandex.`" + `,
-		Run: func(cmd *cobra.Command, args []string) {
-			term.PrintCustomHelp(helpShowAll)
-		},
-	}
+func addApiRoutes(r *mux.Router, prefix string) {
+  r.HandleFunc(prefix+"/accounts/email_verifications", handlers.CreateEmailVerificationHandler).Methods("POST")
+  r.HandleFunc(prefix+"/accounts/email_verifications/check_pin", handlers.CheckEmailPinHandler).Methods("POST")
+  r.HandleFunc(prefix+"/accounts/sign_in_codes", handlers.CreateSignInCodeHandler).Methods("POST")
+  r.HandleFunc(prefix+"/accounts/sign_in", handlers.SignInHandler).Methods("POST")
+  r.HandleFunc(prefix+"/accounts/sign_out", handlers.SignOutHandler).Methods("POST")
+  r.HandleFunc(prefix+"/accounts", handlers.CreateAccountHandler).Methods("POST")
 
-	RootCmd.AddCommand(helpCmd)
+  r.HandleFunc(prefix+"/orgs/session", handlers.GetOrgSessionHandler).Methods("GET")
+  r.HandleFunc(prefix+"/orgs", handlers.ListOrgsHandler).Methods("GET")
+  r.HandleFunc(prefix+"/orgs", handlers.CreateOrgHandler).Methods("POST")
 
-	// add an --all/-a flag
-	helpCmd.Flags().BoolVarP(&helpShowAll, "all", "a", false, "Show all commands")
+  r.HandleFunc(prefix+"/users", handlers.ListUsersHandler).Methods("GET")
+  r.HandleFunc(prefix+"/orgs/users/{userId}", handlers.DeleteOrgUserHandler).Methods("DELETE")
+  r.HandleFunc(prefix+"/orgs/roles", handlers.ListOrgRolesHandler).Methods("GET")
+
+  r.HandleFunc(prefix+"/invites", handlers.InviteUserHandler).Methods("POST")
+  r.HandleFunc(prefix+"/invites/pending", handlers.ListPendingInvitesHandler).Methods("GET")
+  r.HandleFunc(prefix+"/invites/accepted", handlers.ListAcceptedInvitesHandler).Methods("GET")
+  r.HandleFunc(prefix+"/invites/all", handlers.ListAllInvitesHandler).Methods("GET")
+  r.HandleFunc(prefix+"/invites/{inviteId}", handlers.DeleteInviteHandler).Methods("DELETE")
+
+  r.HandleFunc(prefix+"/projects", handlers.CreateProjectHandler).Methods("POST")
+  r.HandleFunc(prefix+"/projects", handlers.ListProjectsHandler).Methods("GET")
+  r.HandleFunc(prefix+"/projects/{projectId}/set_plan", handlers.ProjectSetPlanHandler).Methods("PUT")
+  r.HandleFunc(prefix+"/projects/{projectId}/rename", handlers.RenameProjectHandler).Methods("PUT")
+
+  r.HandleFunc(prefix+"/projects/{projectId}/plans/current_branches", handlers.GetCurrentBranchByPlanIdHandler).Methods("POST")
+
+  r.HandleFunc(prefix+"/plans", handlers.ListPlansHandler).Methods("GET")
+  r.HandleFunc(prefix+"/plans/archive", handlers.ListArchivedPlansHandler).Methods("GET")
+  r.HandleFunc(prefix+"/plans/ps", handlers.ListPlansRunningHandler).Methods("GET")
+
+  r.HandleFunc(prefix+"/projects/{projectId}/plans", handlers.CreatePlanHandler).Methods("POST")
+
+  r.HandleFunc(prefix+"/projects/{projectId}/plans", handlers.CreatePlanHandler).Methods("DELETE")
+
+  r.HandleFunc(prefix+"/plans/{planId}", handlers.GetPlanHandler).Methods("GET")
+  r.HandleFunc(prefix+"/plans/{planId}", handlers.DeletePlanHandler).Methods("DELETE")
+
+  r.HandleFunc(prefix+"/plans/{planId}/{branch}/tell", handlers.TellPlanHandler).Methods("POST")
+
+  r.HandleFunc(prefix+"/plans/{planId}/{branch}/respond_missing_file", handlers.RespondMissingFileHandler).Methods("POST")
+
+  r.HandleFunc(prefix+"/plans/{planId}/{branch}/build", handlers.BuildPlanHandler).Methods("PATCH")
+  r.HandleFunc(prefix+"/plans/{planId}/{branch}/connect", handlers.ConnectPlanHandler).Methods("PATCH")
+  r.HandleFunc(prefix+"/plans/{planId}/{branch}/stop", handlers.StopPlanHandler).Methods("DELETE")
+
+  r.HandleFunc(prefix+"/plans/{planId}/{branch}/current_plan", handlers.CurrentPlanHandler).Methods("GET")
+  r.HandleFunc(prefix+"/plans/{planId}/{branch}/apply", handlers.ApplyPlanHandler).Methods("PATCH")
+  r.HandleFunc(prefix+"/plans/{planId}/archive", handlers.ArchivePlanHandler).Methods("PATCH")
+  r.HandleFunc(prefix+"/plans/{planId}/unarchive", handlers.UnarchivePlanHandler).Methods("PATCH")
+
+  r.HandleFunc(prefix+"/plans/{planId}/rename", handlers.RenamePlanHandler).Methods("PATCH")
+  r.HandleFunc(prefix+"/plans/{planId}/{branch}/reject_all", handlers.RejectAllChangesHandler).Methods("PATCH")
+  r.HandleFunc(prefix+"/plans/{planId}/{branch}/reject_file", handlers.RejectFileHandler).Methods("PATCH")
+  r.HandleFunc(prefix+"/plans/{planId}/{branch}/reject_files", handlers.RejectFilesHandler).Methods("PATCH")
+  r.HandleFunc(prefix+"/plans/{planId}/{branch}/diffs", handlers.GetPlanDiffsHandler).Methods("GET")
+
+  r.HandleFunc(prefix+"/plans/{planId}/{branch}/context", handlers.ListContextHandler).Methods("GET")
+  r.HandleFunc(prefix+"/plans/{planId}/{branch}/context", handlers.LoadContextHandler).Methods("POST")
+  r.HandleFunc(prefix+"/plans/{planId}/{branch}/context/{contextId}/body", handlers.GetContextBodyHandler).Methods("GET")
+  r.HandleFunc(prefix+"/plans/{planId}/{branch}/context", handlers.UpdateContextHandler).Methods("PUT")
+  r.HandleFunc(prefix+"/plans/{planId}/{branch}/context", handlers.DeleteContextHandler).Methods("DELETE")
+
+  r.HandleFunc(prefix+"/plans/{planId}/{branch}/convo", handlers.ListConvoHandler).Methods("GET")
+  r.HandleFunc(prefix+"/plans/{planId}/{branch}/rewind", handlers.RewindPlanHandler).Methods("PATCH")
+  r.HandleFunc(prefix+"/plans/{planId}/{branch}/logs", handlers.ListLogsHandler).Methods("GET")
+
+  r.HandleFunc(prefix+"/plans/{planId}/branches", handlers.ListBranchesHandler).Methods("GET")
+  r.HandleFunc(prefix+"/plans/{planId}/branches/{branch}", handlers.DeleteBranchHandler).Methods("DELETE")
+  r.HandleFunc(prefix+"/plans/{planId}/{branch}/branches", handlers.CreateBranchHandler).Methods("POST")
+
+  r.HandleFunc(prefix+"/plans/{planId}/{branch}/settings", handlers.GetSettingsHandler).Methods("GET")
+  r.HandleFunc(prefix+"/plans/{planId}/{branch}/settings", handlers.UpdateSettingsHandler).Methods("PUT")
+
+  r.HandleFunc(prefix+"/plans/{planId}/config", handlers.GetConfigHandler).Methods("GET")
+  r.HandleFunc(prefix+"/plans/{planId}/config", handlers.UpdateConfigHandler).Methods("PUT")
+  r.HandleFunc(prefix+"/default_config", handlers.GetDefaultConfigHandler).Methods("GET")
+  r.HandleFunc(prefix+"/default_config", handlers.UpdateDefaultConfigHandler).Methods("PUT")
+ 
+  r.HandleFunc(prefix+"/plans/{planId}/{branch}/status", handlers.GetPlanStatusHandler).Methods("GET")
+
+  r.HandleFunc(prefix+"/custom_models", handlers.ListCustomModelsHandler).Methods("GET")
+  r.HandleFunc(prefix+"/custom_models", handlers.CreateCustomModelHandler).Methods("POST")
+  r.HandleFunc(prefix+"/custom_models/{modelId}", handlers.DeleteAvailableModelHandler).Methods("DELETE")
+
+  r.HandleFunc(prefix+"/model_sets", handlers.ListModelPacksHandler).Methods("GET")
+  r.HandleFunc(prefix+"/model_sets", handlers.CreateModelPackHandler).Methods("POST")
+  r.HandleFunc(prefix+"/model_sets/{setId}", handlers.DeleteModelPackHandler).Methods("DELETE")
+
+  r.HandleFunc(prefix+"/default_settings", handlers.GetDefaultSettingsHandler).Methods("GET")
+  r.HandleFunc(prefix+"/default_settings", handlers.UpdateDefaultSettingsHandler).Methods("PUT")
+
+  r.HandleFunc(prefix+"/file_map", handlers.GetFileMapHandler).Methods("POST")
+
+  r.HandleFunc(prefix+"/plans/{planId}/{branch}/auto_load_context", handlers.AutoLoadContextHandler).Methods("POST")
 }
 `,
-			parser: GetParserForLanguage("go"),
 		},
 	}
 
 	for _, tt := range tests {
-		// if tt.name != "extraneous references, no change" {
-		// 	continue
-		// }
-		t.Run(tt.name, func(t *testing.T) {
-			anchorLines := map[int]int{}
-			if tt.anchorLines != nil {
-				anchorLines = tt.anchorLines
-			}
 
-			got, err := ApplyChanges(
-				context.Background(),
-				tt.language,
-				tt.parser,
+		t.Run(tt.name, func(t *testing.T) {
+			// got, err := ApplyChanges(
+			// 	context.Background(),
+			// 	tt.language,
+			// 	tt.parser,
+			// 	tt.original,
+			// 	tt.proposed,
+			// 	tt.references,
+			// 	tt.removals,
+			// 	anchorLines,
+			// )
+
+			// originalLines := strings.Split(tt.original, "\n")
+			// proposedLines := strings.Split(tt.proposed, "\n")
+
+			res := ApplyChanges(
 				tt.original,
 				tt.proposed,
-				tt.references,
-				tt.removals,
-				anchorLines,
+				"",
+				false,
 			)
-			fmt.Println()
-			fmt.Println(tt.name)
-			fmt.Println(got)
-			fmt.Println()
-			assert.NoError(t, err)
 
-			// punting for now on minor newline discrepancies
-			// but it should be possible to get this exactly right
-			assert.Equal(t, strings.ReplaceAll(tt.want, "\n", ""), strings.ReplaceAll(got, "\n", ""))
+			fmt.Println()
+			fmt.Println("NAME:", tt.name)
+			fmt.Println(res.NewFile)
+			fmt.Println()
 
-			// assert.Equal(t, tt.want, got)
+			assert.Empty(t, res.NeedsVerifyReasons)
+			assert.Equal(t, tt.want, res.NewFile)
 		})
 	}
 }

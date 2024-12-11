@@ -257,7 +257,7 @@ func (fileState *activeBuildStreamFileState) onFinishBuildFile(planRes *db.PlanF
 				}
 			}()
 
-			log.Println("Storing plan result")
+			log.Println("Storing plan result", planRes.Path)
 			spew.Dump(planRes)
 
 			err = db.StorePlanResult(planRes)
@@ -271,7 +271,7 @@ func (fileState *activeBuildStreamFileState) onFinishBuildFile(planRes *db.PlanF
 				return err
 			}
 
-			log.Println("Plan result stored")
+			// log.Println("Plan result stored", planRes.Path)
 			return nil
 		}()
 

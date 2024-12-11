@@ -62,6 +62,7 @@ func (state *activeTellStreamState) loadTellPlan() error {
 	var summaries []*db.ConvoSummary
 	var settings *shared.PlanSettings
 	var latestSummaryTokens int
+	var currentPlan *shared.CurrentPlanState
 
 	// get name for plan and rename it's a draft
 	go func() {
@@ -148,6 +149,7 @@ func (state *activeTellStreamState) loadTellPlan() error {
 			}
 			modelContext = res
 		}
+
 		errCh <- nil
 	}()
 
@@ -288,6 +290,21 @@ func (state *activeTellStreamState) loadTellPlan() error {
 			}
 		}
 
+		res, err := db.GetCurrentPlanState(db.CurrentPlanStateParams{
+			OrgId:    currentOrgId,
+			PlanId:   planId,
+			Contexts: modelContext,
+		})
+		if err != nil {
+			active.StreamDoneCh <- &shared.ApiError{
+				Type:   shared.ApiErrorTypeOther,
+				Status: http.StatusInternalServerError,
+				Msg:    fmt.Sprintf("Error getting current plan state: %v", err),
+			}
+			return err
+		}
+		currentPlan = res
+
 		return nil
 	}()
 
@@ -300,6 +317,7 @@ func (state *activeTellStreamState) loadTellPlan() error {
 	state.summaries = summaries
 	state.latestSummaryTokens = latestSummaryTokens
 	state.settings = settings
+	state.currentPlanState = currentPlan
 
 	return nil
 }

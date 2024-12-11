@@ -256,9 +256,7 @@ func validateTellFlags() {
 	if tellAutoContext && tellBg {
 		term.OutputErrorAndExit("🚨 --auto-context/-c can't be used with --bg")
 	}
-	if tellAutoContext && tellStop {
-		term.OutputErrorAndExit("🚨 --auto-context/-c can't be used with --stop/-s")
-	}
+
 }
 
 func maybeShowDiffs() {

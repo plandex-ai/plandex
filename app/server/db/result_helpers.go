@@ -37,7 +37,7 @@ func StorePlanResult(result *PlanFileResult) error {
 		return fmt.Errorf("error creating results dir: %v", err)
 	}
 
-	log.Printf("Storing plan result: %s", result.Id)
+	log.Printf("Storing plan result: %s - %s", result.Path, result.Id)
 
 	err = os.WriteFile(filepath.Join(resultsDir, result.Id+".json"), bytes, 0644)
 

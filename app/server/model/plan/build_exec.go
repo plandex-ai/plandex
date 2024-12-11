@@ -263,7 +263,7 @@ func (fileState *activeBuildStreamFileState) buildFile() {
 			// SyntaxErrors:    validationRes.Errors,
 		}
 
-		log.Println("build exec - Plan file result:")
+		// log.Println("build exec - new file result")
 		// spew.Dump(planRes)
 
 		fileState.isNewFile = true

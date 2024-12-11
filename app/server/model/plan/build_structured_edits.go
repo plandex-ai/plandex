@@ -6,12 +6,12 @@ import (
 	"log"
 	"math/rand"
 	"plandex-server/db"
+	diff_pkg "plandex-server/diff"
 	"plandex-server/hooks"
 	"plandex-server/model"
 	"plandex-server/model/prompts"
 	"plandex-server/syntax"
 	"plandex-server/types"
-	"slices"
 	"strings"
 	"time"
 
@@ -19,6 +19,8 @@ import (
 	"github.com/plandex/plandex/shared"
 	"github.com/sashabaranov/go-openai"
 )
+
+const BuildStructuredEditsMaxTries = 4
 
 func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 	auth := fileState.auth
@@ -32,9 +34,7 @@ func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 	parser := fileState.parser
 
 	if parser == nil {
-		log.Println("buildStructuredEdits - tree-sitter parser is nil")
-		fileState.onBuildFileError(fmt.Errorf("tree-sitter parser is nil"))
-		return
+		log.Printf("buildStructuredEdits - tree-sitter parser is nil for file %s\n", filePath)
 	}
 
 	activePlan := GetActivePlan(planId, branch)
@@ -45,313 +45,202 @@ func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 		return
 	}
 
+	numTries := 1
+
 	proposedContent := activeBuild.FileContent
-	proposedContentLines := strings.Split(proposedContent, "\n")
-	originalContentLines := strings.Split(originalFile, "\n")
+	desc := activeBuild.FileDescription
 
-	var references []syntax.Reference
-	var removals []syntax.Removal
-
-	for i, line := range proposedContentLines {
-		content := strings.TrimSpace(line)
-
-		found := false
-
-		if strings.Contains(strings.ToLower(content), "... existing code ...") {
-			references = append(references, syntax.Reference(i+1))
-			found = true
-		} else if strings.Contains(strings.ToLower(content), "plandex: removed code") {
-			removals = append(removals, syntax.Removal(i+1))
-			found = true
-		}
-
-		if found {
-			proposedContentLines[i] = strings.Replace(proposedContentLines[i], content, "", 1)
-		}
-	}
-
-	proposedContent = strings.Join(proposedContentLines, "\n")
-
-	log.Println("buildStructuredEdits - getting references prompt")
-
-	anchorsSysPrompt := prompts.GetSemanticAnchorsPrompt(filePath, originalFile, proposedContent, activeBuild.FileDescription)
-
-	anchorsFileMessages := []openai.ChatCompletionMessage{
-		{
-			Role:    openai.ChatMessageRoleSystem,
-			Content: anchorsSysPrompt,
-		},
-	}
-
-	promptTokens, err := shared.GetNumTokens(anchorsSysPrompt)
-
-	if err != nil {
-		log.Printf("buildStructuredEdits - error getting num tokens for prompt: %v\n", err)
-		fileState.onBuildFileError(fmt.Errorf("error getting num tokens for prompt: %v", err))
-		return
-	}
-
-	inputTokens := prompts.ExtraTokensPerRequest + prompts.ExtraTokensPerMessage + promptTokens
-
-	fileState.inputTokens = inputTokens
-
-	_, apiErr := hooks.ExecHook(hooks.WillSendModelRequest, hooks.HookParams{
-		Auth: auth,
-		Plan: fileState.plan,
-		WillSendModelRequestParams: &hooks.WillSendModelRequestParams{
-			InputTokens:  inputTokens,
-			OutputTokens: shared.AvailableModelsByName[fileState.settings.ModelPack.Builder.BaseModelConfig.ModelName].DefaultReservedOutputTokens,
-			ModelName:    fileState.settings.ModelPack.Builder.BaseModelConfig.ModelName,
-		},
-	})
-	if apiErr != nil {
-		activePlan.StreamDoneCh <- apiErr
-		return
-	}
-
-	log.Println("buildStructuredEdits - calling model for references")
-	// log.Println("anchorsFileMessages:")
-	// for _, msg := range anchorsFileMessages {
-	// 	log.Println(msg.Content)
-	// }
-
-	modelReq := openai.ChatCompletionRequest{
-		Model:       config.BaseModelConfig.ModelName,
-		Messages:    anchorsFileMessages,
-		Temperature: config.Temperature,
-		TopP:        config.TopP,
-	}
-
-	envVar := config.BaseModelConfig.ApiKeyEnvVar
-	client := clients[envVar]
-
-	resp, err := model.CreateChatCompletionWithRetries(client, activePlan.Ctx, modelReq)
-
-	if err != nil {
-		log.Printf("buildStructuredEdits - error calling model: %v\n", err)
-		fileState.structuredEditRetryOrError(fmt.Errorf("error calling model: %v", err))
-		return
-	}
-
-	log.Println("buildStructuredEdits - usage:")
-	spew.Dump(resp.Usage)
-
-	_, apiErr = hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
-		Auth: auth,
-		Plan: fileState.plan,
-		DidSendModelRequestParams: &hooks.DidSendModelRequestParams{
-			InputTokens:   resp.Usage.PromptTokens,
-			OutputTokens:  resp.Usage.CompletionTokens,
-			ModelName:     fileState.settings.ModelPack.Builder.BaseModelConfig.ModelName,
-			ModelProvider: fileState.settings.ModelPack.Builder.BaseModelConfig.Provider,
-			ModelPackName: fileState.settings.ModelPack.Name,
-			ModelRole:     shared.ModelRoleBuilder,
-			Purpose:       "Generated file update (structured edits)",
-		},
-	})
-
-	if apiErr != nil {
-		activePlan.StreamDoneCh <- apiErr
-		return
-	}
-
-	if len(resp.Choices) == 0 {
-		log.Printf("buildStructuredEdits - no choices in response\n")
-		fileState.structuredEditRetryOrError(fmt.Errorf("no choices in response"))
-		return
-	}
-
-	refsChoice := resp.Choices[0]
-	content := refsChoice.Message.Content
-
-	log.Println("buildStructuredEdits - content:")
-	log.Println(content)
-
-	anchorsXmlString, err := GetXMLTag(content, "PlandexSemanticAnchors")
-	if err != nil {
-		log.Printf("buildStructuredEdits - error parsing PlandexSemanticAnchors xml: %v\n", err)
-		fileState.structuredEditRetryOrError(fmt.Errorf("error parsing PlandexSemanticAnchors xml xml: %v", err))
-		return
-	}
-
-	summaryXmlString, err := GetXMLTag(content, "PlandexSummary")
-	if err != nil {
-		log.Printf("buildStructuredEdits - error parsing PlandexSummary xml: %v\n", err)
-	}
-
-	var summaryElement types.SummaryTag
-	if summaryXmlString != "" {
-		err = xml.Unmarshal([]byte(summaryXmlString), &summaryElement)
-		if err != nil {
-			log.Printf("buildStructuredEdits - error unmarshalling Summary xml: %v\n", err)
-		}
-	}
-
-	var anchorsElement types.SemanticAnchorsTag
-
-	err = xml.Unmarshal([]byte(anchorsXmlString), &anchorsElement)
-	if err != nil {
-		log.Printf("buildStructuredEdits - error unmarshalling xml: %v\n", err)
-		fileState.structuredEditRetryOrError(fmt.Errorf("error unmarshalling xml: %v", err))
-		return
-	}
-
-	log.Printf("buildStructuredEdits - got %d anchors\n", len(anchorsElement.Anchors))
-
-	anchorLines := make(map[int]int)
-
-	for _, anchor := range anchorsElement.Anchors {
-		fmt.Printf("anchor: %v\n", anchor)
-
-		var originalLine, proposedLine int
-		originalLine, err = shared.ExtractLineNumberWithPrefix(anchor.OriginalLine, "pdx-")
-		if err != nil {
-			log.Printf("buildStructuredEdits - error parsing anchor original line num: %v\n", err)
-			fileState.structuredEditRetryOrError(fmt.Errorf("error parsing anchor original line num: %v", err))
-			return
-		}
-
-		proposedLine, err = shared.ExtractLineNumberWithPrefix(anchor.ProposedLine, "pdx-new-")
-		if err != nil {
-			log.Printf("buildStructuredEdits - error parsing anchor proposed line num: %v\n", err)
-			fileState.structuredEditRetryOrError(fmt.Errorf("error parsing anchor proposed line num: %v", err))
-			return
-		}
-
-		proposedContent := proposedContentLines[proposedLine-1]
-		originalContent := originalContentLines[originalLine-1]
-
-		if proposedContent != originalContent {
-			anchorLines[proposedLine] = originalLine
-		}
-	}
-
-	refsXmlString, err := GetXMLTag(content, "PlandexReferences")
-	if err != nil {
-		log.Printf("buildStructuredEdits - error parsing PlandexReferences xml: %v\n", err)
-	}
-
-	var refsElement types.ReferencesTag
-	if refsXmlString != "" {
-		err = xml.Unmarshal([]byte(refsXmlString), &refsElement)
-		if err != nil {
-			log.Printf("buildStructuredEdits - error unmarshalling PlandexReferences xml: %v\n", err)
-			fileState.structuredEditRetryOrError(fmt.Errorf("error unmarshalling PlandexReferences xml: %v", err))
-			return
-		}
-
-		for _, ref := range refsElement.References {
-			proposedLine, err := shared.ExtractLineNumberWithPrefix(ref.ProposedLine, "pdx-new-")
-			if err != nil {
-				log.Printf("buildStructuredEdits - error parsing anchor proposed line num: %v\n", err)
-				fileState.structuredEditRetryOrError(fmt.Errorf("error parsing anchor proposed line num: %v", err))
-				return
-			}
-
-			references = append(references, syntax.Reference(proposedLine))
-		}
-	}
-
-	removalsXmlString, err := GetXMLTag(content, "PlandexRemovals")
-	if err != nil {
-		log.Printf("buildStructuredEdits - error parsing PlandexRemovals xml: %v\n", err)
-	}
-	var removalsElement types.RemovalsTag
-	if removalsXmlString != "" {
-		err = xml.Unmarshal([]byte(removalsXmlString), &removalsElement)
-		if err != nil {
-			log.Printf("buildStructuredEdits - error unmarshalling PlandexRemovals xml: %v\n", err)
-		}
-
-		for _, removal := range removalsElement.Removals {
-			proposedLine, err := shared.ExtractLineNumberWithPrefix(removal.ProposedLine, "pdx-new-")
-			if err != nil {
-				log.Printf("buildStructuredEdits - error parsing anchor proposed line num: %v\n", err)
-			}
-
-			removals = append(removals, syntax.Removal(proposedLine))
-		}
-	}
-
-	slices.Sort(references)
-	slices.Sort(removals)
-
-	hasRefByLine := make(map[int]bool)
-	for _, ref := range references {
-		hasRefByLine[int(ref)] = true
-	}
-	for _, rev := range removals {
-		hasRefByLine[int(rev)] = true
-	}
-
-	var beginsWithRef bool = false
-	var endsWithRef bool = false
-	var foundNonRefLine bool = false
-
-	for i, line := range proposedContentLines {
-		hasRef := hasRefByLine[i+1]
-
-		if hasRef {
-			if !foundNonRefLine {
-				beginsWithRef = true
-			}
-			endsWithRef = true
-		} else if line != "" {
-			foundNonRefLine = true
-			endsWithRef = false
-		}
-	}
-
-	if !beginsWithRef &&
-		!strings.Contains(activeBuild.FileDescription, "overwrite the entire file") &&
-		!((strings.Contains(activeBuild.FileDescription, "replace code") ||
-			strings.Contains(activeBuild.FileDescription, "remove code")) &&
-			strings.Contains(activeBuild.FileDescription, "start of the file")) {
-
-		log.Println("buildStructuredEdits - adding ... existing code ... to start of file")
-
-		// structured edits handle normalization of comments, so just use // ... existing code ... here
-		proposedContentLines = append([]string{"// ... existing code ..."}, proposedContentLines...)
-
-		// bump all existing references up by 1
-		for i, ref := range references {
-			references[i] = syntax.Reference(int(ref) + 1)
-		}
-		references = append([]syntax.Reference{syntax.Reference(1)}, references...)
-	}
-
-	if !endsWithRef &&
-		!strings.Contains(activeBuild.FileDescription, "overwrite the entire file") &&
-		!(strings.Contains(activeBuild.FileDescription, "replace code") ||
-			strings.Contains(activeBuild.FileDescription, "remove code")) &&
-		!strings.Contains(activeBuild.FileDescription, "end of the file") {
-
-		log.Println("buildStructuredEdits - adding ... existing code ... to end of file")
-
-		proposedContentLines = append(proposedContentLines, "// ... existing code ...")
-		references = append(references, syntax.Reference(len(proposedContentLines)))
-	}
-
-	proposedContent = strings.Join(proposedContentLines, "\n")
-
-	log.Println("buildStructuredEdits - proposed content:")
-	log.Println(proposedContent)
-
-	updatedFile, err := syntax.ApplyChanges(
-		activePlan.Ctx,
-		fileState.language,
-		parser,
+	log.Printf("buildStructuredEdits - %s - applying changes\n", filePath)
+	applyRes := syntax.ApplyChanges(
 		originalFile,
 		proposedContent,
-		references,
-		removals,
-		anchorLines,
+		desc,
+		true,
 	)
-	if err != nil {
-		log.Printf("buildStructuredEdits - error applying references: %v\n", err)
-		fileState.structuredEditRetryOrError(fmt.Errorf("error applying references: %v", err))
-		return
+	// log.Println("buildStructuredEdits - applyRes.NewFile:")
+	// log.Println(applyRes.NewFile)
+
+	proposedContent = applyRes.Proposed
+
+	for len(applyRes.NeedsVerifyReasons) > 0 && numTries < BuildStructuredEditsMaxTries {
+		log.Printf("buildStructuredEdits verify call - numTries: %d\n", numTries)
+
+		numTries++
+
+		log.Println("buildStructuredEdits - needs verify reasons:")
+		spew.Dump(applyRes.NeedsVerifyReasons)
+
+		log.Println("buildStructuredEdits - getting verify edits prompt")
+
+		var diff string
+		if applyRes.NewFile != "" {
+			var err error
+			diff, err = diff_pkg.GetDiffs(originalFile, applyRes.NewFile)
+			if err != nil {
+				log.Printf("buildStructuredEdits - error getting diffs: %v\n", err)
+				fileState.structuredEditRetryOrError(fmt.Errorf("error getting diffs: %v", err))
+				return
+			}
+		}
+		// if diff != "" {
+		// 	log.Println("buildStructuredEdits - diff:")
+		// 	log.Println(diff)
+		// }
+
+		validateSysPrompt := prompts.GetValidateEditsPrompt(filePath, originalFile, desc, proposedContent, diff, applyRes.NeedsVerifyReasons)
+
+		validateFileMessages := []openai.ChatCompletionMessage{
+			{
+				Role:    openai.ChatMessageRoleSystem,
+				Content: validateSysPrompt,
+			},
+		}
+
+		promptTokens, err := shared.GetNumTokens(validateSysPrompt)
+
+		if err != nil {
+			log.Printf("buildStructuredEdits - error getting num tokens for prompt: %v\n", err)
+			fileState.onBuildFileError(fmt.Errorf("error getting num tokens for prompt: %v", err))
+			return
+		}
+
+		inputTokens := prompts.ExtraTokensPerRequest + prompts.ExtraTokensPerMessage + promptTokens
+
+		fileState.inputTokens = inputTokens
+
+		_, apiErr := hooks.ExecHook(hooks.WillSendModelRequest, hooks.HookParams{
+			Auth: auth,
+			Plan: fileState.plan,
+			WillSendModelRequestParams: &hooks.WillSendModelRequestParams{
+				InputTokens:  inputTokens,
+				OutputTokens: shared.AvailableModelsByName[fileState.settings.ModelPack.Builder.BaseModelConfig.ModelName].DefaultReservedOutputTokens,
+				ModelName:    fileState.settings.ModelPack.Builder.BaseModelConfig.ModelName,
+			},
+		})
+		if apiErr != nil {
+			activePlan.StreamDoneCh <- apiErr
+			return
+		}
+
+		log.Println("buildStructuredEdits - calling model for applied changes validation")
+
+		modelReq := openai.ChatCompletionRequest{
+			Model:       config.BaseModelConfig.ModelName,
+			Messages:    validateFileMessages,
+			Temperature: config.Temperature,
+			TopP:        config.TopP,
+		}
+
+		envVar := config.BaseModelConfig.ApiKeyEnvVar
+		client := clients[envVar]
+
+		resp, err := model.CreateChatCompletionWithRetries(client, activePlan.Ctx, modelReq)
+
+		if err != nil {
+			log.Printf("buildStructuredEdits - error calling model: %v\n", err)
+			fileState.structuredEditRetryOrError(fmt.Errorf("error calling model: %v", err))
+			return
+		}
+
+		log.Println("buildStructuredEdits - usage:")
+		spew.Dump(resp.Usage)
+
+		_, apiErr = hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
+			Auth: auth,
+			Plan: fileState.plan,
+			DidSendModelRequestParams: &hooks.DidSendModelRequestParams{
+				InputTokens:   resp.Usage.PromptTokens,
+				OutputTokens:  resp.Usage.CompletionTokens,
+				ModelName:     fileState.settings.ModelPack.Builder.BaseModelConfig.ModelName,
+				ModelProvider: fileState.settings.ModelPack.Builder.BaseModelConfig.Provider,
+				ModelPackName: fileState.settings.ModelPack.Name,
+				ModelRole:     shared.ModelRoleBuilder,
+				Purpose:       "File edit",
+			},
+		})
+
+		if apiErr != nil {
+			activePlan.StreamDoneCh <- apiErr
+			return
+		}
+
+		if len(resp.Choices) == 0 {
+			log.Printf("buildStructuredEdits - no choices in response\n")
+			fileState.structuredEditRetryOrError(fmt.Errorf("no choices in response"))
+			return
+		}
+
+		refsChoice := resp.Choices[0]
+		content := refsChoice.Message.Content
+
+		log.Printf("buildStructuredEdits - %s - content:\n%s\n", filePath, content)
+
+		fixedProposedUpdatesXmlString := GetXMLTag(content, "PlandexProposedUpdates", true)
+
+		// log.Println("buildStructuredEdits - fixed proposed updates xml string:")
+		// log.Println(fixedProposedUpdatesXmlString)
+
+		if fixedProposedUpdatesXmlString == "" {
+			// edits are valid
+			break
+		} else {
+			var fixedProposedUpdates syntax.FixedProposedUpdatesTag
+			err = xml.Unmarshal([]byte(fixedProposedUpdatesXmlString), &fixedProposedUpdates)
+			if err != nil {
+				log.Printf("buildStructuredEdits - error unmarshalling PlandexProposedUpdates xml: %v\n", err)
+			}
+
+			proposedContent = fixedProposedUpdates.Content
+
+			// remove code block formatting if it was mistakenly included in the proposed content
+			trimmedProposedContent := strings.TrimSpace(proposedContent)
+			splitProposedContent := strings.Split(trimmedProposedContent, "\n")
+			firstLine := strings.TrimSpace(splitProposedContent[0])
+			secondLine := strings.TrimSpace(splitProposedContent[1])
+			lastLine := strings.TrimSpace(splitProposedContent[len(splitProposedContent)-1])
+			if types.LineMaybeHasFilePath(firstLine) && strings.HasPrefix(secondLine, "```") {
+				if lastLine == "```" {
+					proposedContent = strings.Join(splitProposedContent[1:len(splitProposedContent)-1], "\n")
+				}
+			} else if strings.HasPrefix(firstLine, "```") && lastLine == "```" {
+				proposedContent = strings.Join(splitProposedContent[1:len(splitProposedContent)-1], "\n")
+			}
+
+			// log.Println("buildStructuredEdits - fixed proposed content:")
+			// log.Println(proposedContent)
+
+			fixedDescString := GetXMLTag(content, "PlandexProposedUpdatesExplanation", false)
+
+			// log.Println("buildStructuredEdits - fixed desc xml string:")
+			// log.Println(fixedDescString)
+
+			if fixedDescString != "" {
+				var descElement syntax.ProposedUpdatesExplanationTag
+				err = xml.Unmarshal([]byte(fixedDescString), &descElement)
+				if err != nil {
+					log.Printf("buildStructuredEdits - error unmarshalling PlandexProposedUpdatesExplanation xml: %v\n", err)
+				}
+				if descElement.Content != "" {
+					desc = descElement.Content
+				}
+			}
+
+			log.Printf("buildStructuredEdits - %s - applying changes again\n", filePath)
+
+			applyRes = syntax.ApplyChanges(
+				originalFile,
+				proposedContent,
+				desc,
+				true,
+			)
+
+			log.Printf("buildStructuredEdits - %s - applyRes.NeedsVerifyReasons: %v\n", filePath, applyRes.NeedsVerifyReasons)
+
+			proposedContent = applyRes.Proposed
+		}
 	}
+
+	updatedFile := applyRes.NewFile
 
 	buildInfo := &shared.BuildInfo{
 		Path:      filePath,
@@ -366,17 +255,15 @@ func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 
 	fileState.updated = updatedFile
 
-	replacements, err := db.GetDiffReplacements(originalFile, updatedFile)
+	replacements, err := diff_pkg.GetDiffReplacements(originalFile, updatedFile)
 	if err != nil {
 		log.Printf("buildStructuredEdits - error getting diff replacements: %v\n", err)
 		fileState.structuredEditRetryOrError(fmt.Errorf("error getting diff replacements: %v", err))
 		return
 	}
 
-	if summaryElement.Content != "" {
-		for _, replacement := range replacements {
-			replacement.Summary = strings.TrimSpace(summaryElement.Content)
-		}
+	for _, replacement := range replacements {
+		replacement.Summary = strings.TrimSpace(desc)
 	}
 
 	res := db.PlanFileResult{
@@ -389,22 +276,6 @@ func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 		Path:           filePath,
 		Replacements:   replacements,
 		CanVerify:      false, // no verification step with structural edits
-	}
-
-	if !fileState.preBuildStateSyntaxInvalid {
-		validationRes, err := syntax.Validate(activePlan.Ctx, filePath, updatedFile)
-		if err != nil {
-			log.Printf("buildStructuredEdits - error validating syntax: %v\n", err)
-			fileState.structuredEditRetryOrError(fmt.Errorf("error validating syntax: %v", err))
-			return
-		}
-
-		if validationRes.HasParser && !validationRes.TimedOut && !validationRes.Valid {
-			log.Printf("buildStructuredEdits - syntax is invalid\n")
-		}
-
-		res.SyntaxValid = validationRes.Valid
-		res.SyntaxErrors = validationRes.Errors
 	}
 
 	fileState.onFinishBuildFile(&res, updatedFile)

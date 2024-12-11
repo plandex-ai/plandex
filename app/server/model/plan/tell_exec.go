@@ -9,7 +9,6 @@ import (
 	"plandex-server/db"
 	"plandex-server/hooks"
 	"plandex-server/model"
-	"plandex-server/model/lib"
 	"plandex-server/model/prompts"
 	"plandex-server/types"
 
@@ -169,12 +168,12 @@ func execTellPlan(
 		includeMaps  = true
 		includeTrees = true
 	)
-	// if req.AutoContext && iteration > 1 {
-	// 	includeMaps = false
-	// 	includeTrees = false
-	// }
+	if req.AutoContext && iteration > 1 {
+		includeMaps = false
+		includeTrees = false
+	}
 
-	modelContextText, modelContextTokens, err := lib.FormatModelContext(state.modelContext, includeMaps, includeTrees)
+	modelContextText, modelContextTokens, err := state.formatModelContext(includeMaps, includeTrees)
 	if err != nil {
 		err = fmt.Errorf("error formatting model modelContext: %v", err)
 		log.Println(err)
@@ -188,9 +187,11 @@ func execTellPlan(
 	}
 
 	var sysCreate string
+	var contextStage bool
 	if req.AutoContext {
 		if iteration == 0 {
-			sysCreate = prompts.AutoContextPreamble
+			sysCreate = prompts.AutoContextPreamble + prompts.SysCreateAutoContext
+			contextStage = true
 		} else {
 			sysCreate = prompts.SysCreateAutoContext
 		}
@@ -198,10 +199,12 @@ func execTellPlan(
 		sysCreate = prompts.SysCreateBasic
 	}
 
-	if req.ExecEnabled {
-		sysCreate += prompts.ApplyScriptPrompt
-	} else {
-		sysCreate += prompts.NoApplyScriptPrompt
+	if !contextStage {
+		if req.ExecEnabled {
+			sysCreate += prompts.ApplyScriptPrompt
+		} else {
+			sysCreate += prompts.NoApplyScriptPrompt
+		}
 	}
 
 	// log.Println("sysCreate before context:\n", sysCreate)
@@ -465,7 +468,7 @@ func execTellPlan(
 		state.messages = append(state.messages, *promptMessage)
 	} else {
 		log.Println("Missing file response:", missingFileResponse, "setting replyParser")
-		log.Printf("Current reply content:\n%s\n", active.CurrentReplyContent)
+		// log.Printf("Current reply content:\n%s\n", active.CurrentReplyContent)
 
 		state.replyParser.AddChunk(active.CurrentReplyContent, true)
 		res := state.replyParser.Read()

@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"plandex-server/db"
+	diff_pkg "plandex-server/diff"
 	"plandex-server/hooks"
 	"plandex-server/model"
 	"plandex-server/model/prompts"
@@ -56,7 +56,7 @@ func (fileState *activeBuildStreamFileState) verifyFileBuild() {
 
 	var diff string
 	if verifyState.preBuildFileState != "" {
-		diff, err = db.GetDiffs(verifyState.preBuildFileState, updated)
+		diff, err = diff_pkg.GetDiffs(verifyState.preBuildFileState, updated)
 
 		if err != nil {
 			log.Printf("Error getting diffs for file '%s': %v\n", filePath, err)

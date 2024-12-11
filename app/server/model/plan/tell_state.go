@@ -20,6 +20,7 @@ type activeTellStreamState struct {
 	replyId                string
 	modelContext           []*db.Context
 	convo                  []*db.ConvoMessage
+	currentPlanState       *shared.CurrentPlanState
 	missingFileResponse    shared.RespondMissingFileChoice
 	summaries              []*db.ConvoSummary
 	summarizedToMessageId  string

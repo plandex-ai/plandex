@@ -6,6 +6,7 @@ import (
 	"log"
 	"math/rand"
 	"plandex-server/db"
+	"plandex-server/diff"
 	"plandex-server/hooks"
 	"plandex-server/model"
 	"plandex-server/model/prompts"
@@ -226,7 +227,7 @@ func (fileState *activeBuildStreamFileState) buildExpandReferences() {
 
 	fileState.updated = updatedFile
 
-	replacements, err := db.GetDiffReplacements(originalFile, updatedFile)
+	replacements, err := diff.GetDiffReplacements(originalFile, updatedFile)
 	if err != nil {
 		log.Printf("buildExpandReferences - error getting diff replacements: %v\n", err)
 		fileState.expandRefsRetryOrError(fmt.Errorf("error getting diff replacements: %v", err))

@@ -186,7 +186,13 @@ mainLoop:
 
 			if choice.FinishReason != "" {
 				log.Println("Model stream finished")
-				// spew.Dump(choice)
+				log.Println("Finish reason: ", choice.FinishReason)
+
+				if choice.FinishReason == "error" {
+					state.onError(fmt.Errorf("model stopped with error status | This usually means the model is not responding."), true, "", "")
+					continue mainLoop
+				}
+
 				active.FlushStreamBuffer()
 				time.Sleep(100 * time.Millisecond)
 
@@ -590,12 +596,12 @@ mainLoop:
 				log.Println("Previous reply content:")
 				log.Println(previousReplyContent)
 
-				log.Println("Trimmed content:")
-				log.Println(trimmedContent)
+				// log.Println("Trimmed content:")
+				// log.Println(trimmedContent)
 
 				chunkToStream := getCroppedChunk(previousReplyContent+content, trimmedContent, content)
 
-				log.Printf("chunkToStream: %s\n", chunkToStream)
+				// log.Printf("chunkToStream: %s\n", chunkToStream)
 
 				if chunkToStream != "" {
 					log.Printf("Streaming remaining chunk before missing file prompt: %s\n", chunkToStream)
@@ -614,8 +620,8 @@ mainLoop:
 				})
 
 				log.Printf("Stopping stream for missing file: %s\n", currentFile)
-				log.Printf("Chunk content: %s\n", content)
-				log.Printf("Current reply content: %s\n", active.CurrentReplyContent)
+				// log.Printf("Chunk content: %s\n", content)
+				// log.Printf("Current reply content: %s\n", active.CurrentReplyContent)
 
 				// stop stream for now
 				active.CancelModelStreamFn()
@@ -700,8 +706,8 @@ mainLoop:
 
 					if req.BuildMode == shared.BuildModeAuto {
 						log.Printf("Queuing build for %s\n", file)
-						log.Println("Content:")
-						log.Println(fileContents[i])
+						// log.Println("Content:")
+						// log.Println(fileContents[i])
 
 						buildState := &activeBuildStreamState{
 							tellState:     state,

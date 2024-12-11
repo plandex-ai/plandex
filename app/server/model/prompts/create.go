@@ -92,9 +92,8 @@ var SysCreateAutoContext = GetCreatePrompt(CreatePromptParams{
 })
 var SysCreateAutoContextNumTokens int
 
-const AutoContextPreamble = Identity + ` A plan is a set of files with an attached context.
-  
-[YOUR INSTRUCTIONS:]
+const AutoContextPreamble = `
+[CONTEXT INSTRUCTIONS:]
 
 You are operating in 'auto-context mode'. You have access to the directory layout of the project as well as a map of definitions (like function/method/class signatures, types, top-level variables, and so on).
     
@@ -104,7 +103,7 @@ In response to the user's latest prompt, do the following:
 
   - Reply with an overview of how you will approach implementing the task (if you've been given a task) or responding to the user (if you're responding in chat form). Since you are managing context automatically, there will be an additional step where you can make a more detailed plan with the context you load. Still, try to consider *everything* the task will require and all the areas of the project it will need to touch. Be thorough and exhaustive in your plan, and don't leave out any steps. For example, if you're being asked to implement an API handler, don't forget that you will need to add the necessary routes to the router as well. Think carefully through details like these and strive not to leave out anything.
   
-  - In your own words state something to the effect of: "Since I'm managing context automatically, I'll begin by examining the codebase and determining which files I need."
+  - State something to the effect of: "I'll examine the codebase to determine which files I need."
   
   - Using the directory layout and the map, explain how the project is organized, with particular focus on areas that may be relevant to the user's task, question, or message.
 
@@ -152,7 +151,15 @@ If you'll be using any definitions from a file—calling a function or method, i
 
 Include any files that the user has mentioned directly or indirectly in the prompt. If a user has mentioned files by name, path, by describing them, by referring to definitions or other code they contain, or by referring to them in any other way, include those files.
 
-If you aren't sure whether a file will be helpful or not, but you think it might be, include it in the 'Load Context' list. It's better to load more context than you need than to miss an important or helpful file.  
+If you aren't sure whether a file will be helpful or not, but you think it might be, include it in the 'Load Context' list. It's better to load more context than you need than to miss an important or helpful file.
+
+If context is included your prompt, you ABSOLUTELY MUST consider the context that is *ALREADY INCLUDED* and not load additional unnecessary context. It's EXTREMELY IMPORTANT that you do *NOT* load unnecessary context that is already included in the prompt. It's also EXTREMELY IMPORTANT you only list files that will be *UPDATED* during the plan. YOU ABSOLUTELY MUST NEVER include files that will be *CREATED* during the plan.
+
+If you have previously loaded context with a 'Load Context' list in an earlier response during this conversation, focus only on loading any *ADDITIONAL* context that are now helpful or relevant based on the user's latest prompt.
+
+If you have previously loaded context with a 'Load Context' list in an earlier response during this conversation, you DO NOT need to output an '### Additional Context' section. Load any additional context that is now helpful or relevant based on the user's latest prompt and then STOP there *immediately*.
+
+Once you've loaded all necessary context, move on to the instructions below.
 `
 
 var AutoContextPreambleNumTokens int
@@ -213,7 +220,23 @@ func GetCreatePrompt(params CreatePromptParams) string {
           ` + "```" + `
       b. If not: 
         - Explicitly say "Let's break up this task."
-        - Divide the task into smaller subtasks and list them in a numbered list. Subtasks MUST ALWAYS be numbered. Stop there.
+        - Divide the task into smaller subtasks and list them in a numbered list in a '### Subtasks' section. Subtasks MUST ALWAYS be numbered with INTEGERS (do NOT use letters or numbers with decimal points, just simple integers—1., 2., 3., etc.) Subtask numbers MUST be followed by a period and a space, and then the subtask description. Subtasks MUST ALWAYS be listed in the '### Subtasks' section. Follow each subtask with an empty line for readability. Example:
+
+        ### Subtasks
+
+        1. Create a new file called 'game_logic.h'
+
+        2. Add the necessary code to the 'game_logic.h' file to define the 'updateGameLogic' function
+        
+        3. Create a new file called 'game_logic.c'
+        
+        4. Add the necessary code to the 'game_logic.c' file to implement the 'updateGameLogic' function
+        
+        5. Update the 'main.c' file to call the 'updateGameLogic' function
+
+        - When you have broken a task up in to multiple subtasks, you MUST ALWAYS follow it with the '### Additional Tasks' section as described below, and then you *ABSOLUTELY MUST END YOUR RESPONSE*. You ABSOLUTELY MUST NOT continue on and begin implementing subtasks.
+
+        - If you have already broken up a task into subtasks in a previous response during this conversation, and you are adding, removing, or modifying subtasks based on a new user prompt, you MUST output the full list of subtasks again in a '### Subtasks' section with the same format as before. You ABSOLUTLEY MUST NEVER output only a partial list of subtasks. Whenever you update subtasks, output the *complete* updated list of subtasks with any new subtasks added, any subtasks you are removing removed, and any subtasks you are modifying modified.
     `
 
 	if params.AutoContext {
@@ -226,8 +249,8 @@ func GetCreatePrompt(params CreatePromptParams) string {
 	prompt += `
         - If you are already working on a subtask and the subtask is still too large to be implemented in a single response, it should be further broken down into smaller subtasks. In that case, explicitly say "Let's further break up this subtask", further divide the subtask into even smaller steps, and list them in a numbered list. Stop there. Do NOT do this repetitively for the same subtask. Only break down a given subtask into smaller steps once. 
         - Be thorough and exhaustive in your list of subtasks. Ensure you've accounted for *every subtask* that must be done to fully complete the user's task. Ensure that you list *every* file that needs to be created or updated. Be specific and detailed in your list of subtasks.
-        - Only include subtasks that you can complete by creating or updating files. If a subtask requires executing code or commands, mention it to the user, but do not include it as a subtask in the plan. Do not include subtasks like "Testing and integration" or "Deployment" that require executing code or commands. Only include subtasks that you can complete by creating or updating files.
-        - Only break the task up into subtasks that you can do yourself. If a subtask requires executing code or commands, or other tasks that go beyond coding like testing or verifying, deploying, user testing, and son, you can mention it to the user, but you MUST NOT include it as a subtask in the plan. Only include subtasks that can be completed directly with code by creating or updating files.
+        - Only include subtasks that you can complete by creating or updating files. If a subtask requires executing code or commands, you can include it only if *execution mode* is enabled. If execution mode is *not* enabled, you can mention it to the user, but do not include it as a subtask in the plan. Unless *execution mode* is enabled, do not include subtasks like "Testing and integration" or "Deployment" that require executing code or commands. Unless *execution mode is enabled*, only include subtasks that you can complete by creating or updating files. If *execution mode* IS enabled, you still must stay focused on tasks that can be accomplished by creating or updating files, or by running a script on the user's machine. Do not include tasks that go beyond this or that cannot be accomplished by running a script on the user's machine.
+        - Only break the task up into subtasks that you can do yourself. If a subtask requires other tasks that go beyond coding like testing or verifying, user testing, and so on, you can mention it to the user, but you MUST NOT include it as a subtask in the plan. Only include subtasks that can be completed directly with code by creating or updating files, or by running a script on the user's machine if *execution mode* is enabled.
         - Do NOT include tests or documentation in the subtasks unless the user has specifically asked for them. Do not include extra code or features beyond what the user has asked for. Focus on the user's request and implement only what is necessary to fulfill it.
         - Add a line break after between each subtask so the list of subtasks is easy to read.
         - Do NOT ask the user to confirm after you've made subtasks. After breaking up the task into subtasks, proceed to implement the first subtask.
@@ -312,6 +335,33 @@ func GetCreatePrompt(params CreatePromptParams) string {
     You should only implement each subtask once. If a subtask has already been implemented in code, you should consider it complete and move on to the next subtask.
 
     You MUST ALWAYS work on subtasks IN ORDER. You must not skip a subtask or work on subtasks out of order. You must work on subtasks in the order they were listed when breaking up the task into subtasks. You must never go backwards and work on an earlier subtask than the current one. After finishing a subtask, you must always either work on the next subtask or, if there are no remaining subtasks, stop there.".
+
+    ## Additional tasks section
+
+    If you have broken a task up into multiple subtasks, the list of subtasks ABSOLUTELY MUST ALWAYS be immediately followed by a '### Additional Tasks' section, then the *end* of the response. In the '### Additional Tasks' section, systematically think through whether any additional tasks are needed beyond the list of subtasks that has already been output.
+
+    Think about the nature of the user's task and what kind of subtasks related to it are less obvious or could easily be overlooked.
+
+    Only include tasks that require creating or updating files
+    Only include tasks that are strictly necessary to implement the user's request
+    Do NOT include tasks related to testing, documentation, or deployment unless specifically requested
+    Do NOT include tasks that require running commands or scripts
+    Do NOT include tasks that would add features beyond the user's request
+    Do NOT include tasks that are about code quality, optimization, or refactoring unless they are strictly necessary
+
+    For any additional tasks identified:
+
+    Add them to the list of subtasks with their own number in the same exact format as the '### Subtasks' section.
+    
+    DO NOT output any other numbered list in the '### Additional Tasks' section apart from any additional subtasks. If you want to output a list in your response, use bullet points instead of numbers.pdx
+
+    The '### Additional Tasks' section must be thorough in identifying necessary tasks while avoiding scope creep or unnecessary additions.
+
+    If no additional tasks are strictly necessary, say so and then immediately end the response. You do not need to add additional tasks if none are necessary. Reason carefully and use your best judgement.
+
+    If you have already output an '### Additional Tasks' section in a previous response when you initially broke the plan into subtasks, DO NOT output another '### Additional Tasks' section. Stop the response immediately after the '### Subtasks' section.
+
+    The response ABSOLUTELY MUST NOT include any other text after the '### Additional Tasks' section.
 
     ## Things you can and can't do
 
@@ -1536,15 +1586,15 @@ Prior to any file block that is *updating* an existing file in context, you MUST
 ---
 
 'action explanation' MUST ALWAYS take one of the following forms:
-- 'add [new code description] between [specific code or structure in original file] and [specific *adjacent* code or structure in original file]'
+- 'add [new code description] between [specific code or structure in original file] and the immediately adjacent [specific *adjacent* code or structure in original file]'
 - 'add [new code description] immediately after [specific code or structure in original file]'
 - 'add [new code description] immediately before [specific code or structure in original file]'
-- 'prepend [new code description] to the start of the file'
-- 'append [new code description] to the end of the file'
+- 'prepend [new code description] to the start of the file, immediately before [specific code or structure in original file]'
+- 'append [new code description] to the end of the file, immediately after [specific code or structure in original file]'
 - 'overwrite the entire file with [new code description]'
-- 'replace code between [specific code or structure in original file] and [specific *adjacent* code or structure in original file] with [new code description]'
+- 'replace code between [specific code or structure in original file] and the immediately adjacent [specific *adjacent* code or structure in original file] with [new code description]'
 - 'replace [specific code or structure in original file] with [new code description]'
-- 'remove code between [specific code or structure in original file] and [specific *adjacent* code or structure in original file]'
+- 'remove code between [specific code or structure in original file] and the immediately adjacent [specific *adjacent* code or structure in original file]'
 - 'remove [specific code or structure in original file]'
 
 You ABSOLUTELY MUST use one of the above formats exactly as described, and EVERY file block that updates an existing file in context MUST *ALWAYS* be preceded with an explanation of the change in this *exact* format. Use the EXACT wording as described above. DO NOT CHANGE THE FORMATTING OR WORDING IN ANY WAY!
@@ -1918,7 +1968,26 @@ var NoApplyScriptPromptNumTokens int
 // Not using currently, considering for use in smarter context loader in the future (load just what a subtask needs)
 const UsesPrompt = `
 - Since you are in 'auto-context mode', below the description of each subtask, you MUST include a comma-separated 'Uses:' list of the files that will be needed in context to complete each task. Include any files that will updated, as well as any other files that will be helpful in implementing the subtask. ONLY the files you list under each subtask will be loaded when this subtask is implemented. List files individually—do not list directories. List file paths exactly as they are in the directory layout and map, and surround them with single backticks like this: ` + "`src/main.rs`." + `
+
+Example:
+
+### Subtasks
+
+1. Add the necessary code to the 'game_logic.h' file to define the 'updateGameLogic' function
+Uses: ` + "`src/game_logic.h`" + `
+
+2. Add the necessary code to the 'game_logic.c' file to implement the 'updateGameLogic' function
+Uses: ` + "`src/game_logic.c`" + `
+
+3. Update the 'main.c' file to call the 'updateGameLogic' function
+Uses: ` + "`src/main.c`" + `
+
+Be exhaustive in the 'Uses:' list. Include both files that will be updated as well as files in context that could be relevant or helpful in any other way to implementing the subtask with a high quality level.
+
+If a file is being *created* in a subtask, it *does not* need to be included in the 'Uses:' list. Only include files that will be *updated* in the subtask.
 `
+
+var UsesPromptNumTokens int
 
 const ContextLoadingRules = `When loading context, you MUST follow these rules:
 
@@ -1979,14 +2048,7 @@ const FileMapScanningRules = `When examining the codebase, you MUST:
      * Its test file
      * Its helper files
      * Related type definitions
-   Example: For 'api/methods.go', look for 'types/api.go', 'api/methods_test.go'
-
-4. Check common dependencies:
-   - Always check for related files in:
-     * /shared - for shared types
-     * /types - for interfaces
-     * /utils - for utilities
-     * /errors - for error types`
+   Example: For 'api/methods.go', look for 'types/api.go', 'api/methods_test.go'`
 
 const ContextCompletionCriteria = `Before finalizing your context loading, verify you have:
 
@@ -1998,11 +2060,11 @@ const ContextCompletionCriteria = `Before finalizing your context loading, verif
 
 You MUST explicitly state if you're missing any of these categories and load additional context if needed.`
 
-const ContextVerificationSteps = `After listing files to load, you MUST verify:
+const ContextVerificationSteps = `After thinking through the initial set of files to load, you MUST verify:
 
 1. Interface Coverage:
-   - For each implementation file, is its interface loaded?
-   - For each type use, is its definition loaded?
+   - For each implementation in use, are relevant types or interfaces also loaded?
+   - For each type or interface in use, is its definition loaded?
 
 2. Reference Coverage:
    - For similar features, have all reference files been loaded?
@@ -2016,4 +2078,13 @@ const ContextVerificationSteps = `After listing files to load, you MUST verify:
    - For CLI changes, is the command hierarchy loaded?
    - Are similar command patterns loaded?
 
-If any of these are "no", you MUST load additional context.`
+If any of these are "no", you MUST note additional context to load.
+
+You ABSOLUTELY MUST reason through these points in a section titled "### Additional Context". EVERY response MUST include this section *before* the "Load Context" list.
+
+When reasoning through these points in "### Additional Context", *list specific file paths* that fit the criteria and have not yet been included in the response so far. DO NOT output a line like "Need API interface file" or "Need settings files". You MUST also include the specific file paths that fit the criteria. For example, "Need API interface file:` + "`types/api.go`" + ` or "Need settings files:` + "`settings/config.go`" + `,` + "`settings/user.go`" + `  ".
+
+You only need to include each of the above points in the '### Additional Context' section if they're relevant. Use your own words and your best judgement to think through which additional files may be helpful to completing this task or answering the user's question with a high level of thoroughness and quality.
+
+If necessary files for one of these points has already been listed in the response, do not list them again. This section is for adding any additional files that haven't been mentioned previously. If all necessary files have already been listed, and so no additional context is necessary, say so and move on. 
+`

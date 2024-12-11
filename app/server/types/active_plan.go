@@ -260,9 +260,9 @@ func (ap *ActivePlan) Stream(msg shared.StreamMessage) {
 		if now.After(ap.lastStreamMessageSent) {
 			ap.lastStreamMessageSent = now
 		}
-		ap.streamMu.Unlock()
 
 		if msg.Type == shared.StreamMessageFinished {
+			ap.streamMu.Unlock()
 			// wait for the finish message to be sent then send the done signal
 			log.Println("ActivePlan.Stream: waiting 50ms before sending done signal")
 			time.Sleep(50 * time.Millisecond)

@@ -1,7 +1,6 @@
 package plan
 
 import (
-	"fmt"
 	"regexp"
 	"strings"
 )
@@ -35,22 +34,47 @@ func UnescapeCdata(xmlString string) string {
 	return escaped
 }
 
-func GetXMLTag(xmlString, tagName string) (string, error) {
+func StripCdata(xmlString, tagName string) string {
+	openTag := "<" + tagName + ">"
+	closeTag := "</" + tagName + ">"
+	xmlString = regexp.MustCompile(openTag+`\s*<!\[CDATA\[`).ReplaceAllString(xmlString, openTag)
+	xmlString = regexp.MustCompile(`]]>\s*`+closeTag).ReplaceAllString(xmlString, closeTag)
+	return xmlString
+}
+
+func WrapCdata(xmlString, tagName string) string {
+	openTag := "<" + tagName + ">"
+	closeTag := "</" + tagName + ">"
+	xmlString = StripCdata(xmlString, tagName)
+
+	xmlString = strings.ReplaceAll(xmlString, openTag, openTag+"<![CDATA[")
+	xmlString = strings.ReplaceAll(xmlString, closeTag, "]]>"+closeTag)
+
+	return xmlString
+}
+
+func GetXMLTag(xmlString, tagName string, wrapCdata bool) string {
 	openTag := "<" + tagName + ">"
 	closeTag := "</" + tagName + ">"
 
+	// Get everything after the last opening tag
 	split := strings.Split(xmlString, openTag)
-	if len(split) != 2 {
-		return "", fmt.Errorf("error processing xml")
+	if len(split) < 2 {
+		return ""
 	}
-	afterOpenTag := split[1]
+	afterOpenTag := split[len(split)-1]
 
+	// Get everything before the first closing tag
 	split2 := strings.Split(afterOpenTag, closeTag)
-	if len(split2) != 2 {
-		return "", fmt.Errorf("error processing xml")
+	if len(split2) < 1 {
+		return ""
 	}
 
 	processedXml := openTag + EscapeInvalidXMLAttributeCharacters(split2[0]) + closeTag
 
-	return processedXml, nil
+	if wrapCdata {
+		processedXml = WrapCdata(processedXml, tagName)
+	}
+
+	return processedXml
 }
