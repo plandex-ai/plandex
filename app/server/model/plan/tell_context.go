@@ -7,14 +7,25 @@ import (
 	"github.com/plandex/plandex/shared"
 )
 
-func (state *activeTellStreamState) formatModelContext(includeMaps, includeTrees bool) (string, int, error) {
+func (state *activeTellStreamState) formatModelContext(includeMaps, includeTrees, isImplementationStage bool) (string, int, error) {
 	var contextMessages []string = []string{
 		"### LATEST PLAN CONTEXT ###",
 	}
 	var numTokens int
 	addedFilesSet := map[string]bool{}
 
+	uses := map[string]bool{}
+	if isImplementationStage {
+		for _, path := range state.currentSubtask.UsesFiles {
+			uses[path] = true
+		}
+	}
+
 	for _, part := range state.modelContext {
+		if isImplementationStage && part.ContextType == shared.ContextFileType && !uses[part.FilePath] {
+			continue
+		}
+
 		var message string
 		var fmtStr string
 		var args []any
@@ -76,6 +87,11 @@ func (state *activeTellStreamState) formatModelContext(includeMaps, includeTrees
 	// Add any current files in plan that weren't added to the context
 	for filePath, body := range state.currentPlanState.CurrentPlanFiles.Files {
 		if !addedFilesSet[filePath] {
+
+			if isImplementationStage && !uses[filePath] {
+				continue
+			}
+
 			contextMessages = append(contextMessages, fmt.Sprintf("\n\n- %s:\n\n```\n%s\n```", filePath, body))
 		}
 	}

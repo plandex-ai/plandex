@@ -60,11 +60,12 @@ func (state *activeTellStreamState) loadTellPlan() error {
 	var modelContext []*db.Context
 	var convo []*db.ConvoMessage
 	var summaries []*db.ConvoSummary
+	var subtasks []*db.Subtask
 	var settings *shared.PlanSettings
 	var latestSummaryTokens int
 	var currentPlan *shared.CurrentPlanState
 
-	// get name for plan and rename it's a draft
+	// get name for plan and rename if it's a draft
 	go func() {
 		res, err := db.GetPlanSettings(plan, true)
 		if err != nil {
@@ -255,6 +256,17 @@ func (state *activeTellStreamState) loadTellPlan() error {
 		errCh <- nil
 	}()
 
+	go func() {
+		res, err := db.GetPlanSubtasks(auth.OrgId, planId)
+		if err != nil {
+			log.Printf("Error getting plan subtasks: %v\n", err)
+			errCh <- fmt.Errorf("error getting plan subtasks: %v", err)
+			return
+		}
+		subtasks = res
+		errCh <- nil
+	}()
+
 	err = func() error {
 		var err error
 		defer func() {
@@ -278,7 +290,7 @@ func (state *activeTellStreamState) loadTellPlan() error {
 			}
 		}()
 
-		for i := 0; i < 3; i++ {
+		for i := 0; i < 4; i++ {
 			err = <-errCh
 			if err != nil {
 				active.StreamDoneCh <- &shared.ApiError{
@@ -318,6 +330,14 @@ func (state *activeTellStreamState) loadTellPlan() error {
 	state.latestSummaryTokens = latestSummaryTokens
 	state.settings = settings
 	state.currentPlanState = currentPlan
+	state.subtasks = subtasks
+
+	for _, subtask := range state.subtasks {
+		if !subtask.IsFinished {
+			state.currentSubtask = subtask
+			break
+		}
+	}
 
 	return nil
 }

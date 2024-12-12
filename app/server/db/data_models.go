@@ -537,3 +537,10 @@ func (res *PlanFileResult) ToApi() *shared.PlanFileResult {
 		UpdatedAt:           res.UpdatedAt,
 	}
 }
+
+type Subtask struct {
+	Title       string   `json:"title"`
+	Description string   `json:"description"`
+	UsesFiles   []string `json:"usesFiles"`
+	IsFinished  bool     `json:"isFinished"`
+}

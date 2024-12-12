@@ -34,5 +34,6 @@ type activeTellStreamState struct {
 	totalRequestTokens     int
 	settings               *shared.PlanSettings
 	currentReplyNumRetries int
-	verifyingDiffs         string
+	subtasks               []*db.Subtask
+	currentSubtask         *db.Subtask
 }

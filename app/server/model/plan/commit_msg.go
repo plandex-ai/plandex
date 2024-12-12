@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"plandex-server/db"
 	"plandex-server/hooks"
 	"plandex-server/model"
@@ -51,6 +52,8 @@ func (state *activeTellStreamState) genPlanDescription() (*db.ConvoMessageDescri
 		return nil, errors.New(apiErr.Msg)
 	}
 
+	log.Println("Sending plan description model request")
+
 	descResp, err := model.CreateChatCompletionWithRetries(
 		client,
 		activePlan.Ctx,
@@ -89,6 +92,8 @@ func (state *activeTellStreamState) genPlanDescription() (*db.ConvoMessageDescri
 		return nil, err
 	}
 
+	log.Println("Plan description model call complete")
+
 	var descStrRes string
 	var desc shared.ConvoMessageDescription
 
@@ -115,6 +120,8 @@ func (state *activeTellStreamState) genPlanDescription() (*db.ConvoMessageDescri
 		}
 	}
 
+	log.Println("Sending DidSendModelRequest hook")
+
 	_, apiErr = hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
 		Auth: auth,
 		Plan: plan,
@@ -132,6 +139,8 @@ func (state *activeTellStreamState) genPlanDescription() (*db.ConvoMessageDescri
 	if apiErr != nil {
 		return nil, errors.New(apiErr.Msg)
 	}
+
+	log.Println("DidSendModelRequest hook complete")
 
 	if descStrRes == "" {
 		fmt.Println("no describePlan function call found in response")

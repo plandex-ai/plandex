@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"plandex-server/db"
 	"plandex-server/hooks"
 	"plandex-server/model"
 	"plandex-server/model/prompts"
+	"plandex-server/types"
 	"strings"
 
 	"github.com/davecgh/go-spew/spew"
@@ -16,7 +16,7 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
-func (state *activeTellStreamState) execStatusShouldContinue(message string, latestSummaryCh chan *db.ConvoSummary, ctx context.Context) (bool, string, error) {
+func (state *activeTellStreamState) execStatusShouldContinue(message string, ctx context.Context) (bool, bool, error) {
 	auth := state.auth
 	plan := state.plan
 	settings := state.settings
@@ -26,59 +26,31 @@ func (state *activeTellStreamState) execStatusShouldContinue(message string, lat
 	envVar := config.BaseModelConfig.ApiKeyEnvVar
 	client := clients[envVar]
 
+	log.Println("Checking if plan should continue based on response text")
+
+	if state.currentSubtask != nil {
+		s := fmt.Sprintf("**%s** has been completed", state.currentSubtask.Title)
+
+		log.Println("Checking if message contains subtask completion")
+		log.Println(s)
+		log.Println("---")
+		log.Println(message)
+
+		if strings.Contains(message, s) {
+			log.Println("Subtask marked completed in message. Will continue")
+			return true, true, nil
+		}
+	}
+
 	log.Println("Checking if plan should continue based on exec status")
 
-	// First try to determine if the plan should continue based on the last paragraph without calling the model
-	paragraphs := strings.Split(message, "\n\n")
-	lastParagraph := paragraphs[len(paragraphs)-1]
-	lastParagraphLower := strings.ToLower(lastParagraph)
-
-	// log.Printf("Last paragraph: %s\n", lastParagraphLower)
-
-	if lastParagraphLower != "" {
-		nextIdx := strings.Index(lastParagraph, "Next, ")
-		if nextIdx >= 0 {
-			log.Println("Plan can be continued based on last paragraph")
-			return true, lastParagraph, nil
-		}
-	}
-
-	var prevAssistantMsg string
-	if len(state.convo) > 1 {
-		// iterate backwards from len(state.convo) - 2 to 0
-		for i := len(state.convo) - 2; i >= 0; i-- {
-			if state.convo[i].Role == "assistant" {
-				prevAssistantMsg = state.convo[i].Message
-				break
-			}
-		}
-	}
-
-	var latestSummary *db.ConvoSummary
-
-	if latestSummaryCh != nil {
-		log.Println("Waiting for latest summary")
-		select {
-		case <-ctx.Done():
-			log.Println("Context cancelled while waiting for latest summary")
-			return false, "", fmt.Errorf("context cancelled while waiting for latest summary")
-		case latestSummary = <-latestSummaryCh:
-			log.Println("Got latest summary")
-		}
-	}
-
-	var summary string
-	if latestSummary != nil {
-		summary = latestSummary.Summary
-	}
-
-	content := prompts.GetExecStatusShouldContinue(summary, prevAssistantMsg, state.userPrompt, message)
+	content := prompts.GetExecStatusShouldContinue(state.userPrompt, message)
 
 	contentTokens, err := shared.GetNumTokens(content)
 
 	if err != nil {
 		log.Printf("Error getting num tokens for content: %v\n", err)
-		return false, "", fmt.Errorf("error getting num tokens for content: %v", err)
+		return false, false, fmt.Errorf("error getting num tokens for content: %v", err)
 	}
 
 	numTokens := prompts.ExtraTokensPerRequest + prompts.ExtraTokensPerMessage + contentTokens
@@ -93,7 +65,7 @@ func (state *activeTellStreamState) execStatusShouldContinue(message string, lat
 		},
 	})
 	if apiErr != nil {
-		return false, "", err
+		return false, false, fmt.Errorf("error executing hook: %v", apiErr)
 	}
 
 	messages := []openai.ChatCompletionMessage{
@@ -104,8 +76,6 @@ func (state *activeTellStreamState) execStatusShouldContinue(message string, lat
 	}
 
 	log.Println("Calling model to check if plan should continue")
-	log.Println("Has latest summary:", summary != "")
-	log.Println("Has prev assistant msg:", prevAssistantMsg != "")
 
 	// log.Println("messages:")
 	// log.Println(spew.Sdump(messages))
@@ -144,19 +114,11 @@ func (state *activeTellStreamState) execStatusShouldContinue(message string, lat
 		// return false, fmt.Errorf("error during plan exec status check model call: %v", err)
 
 		// Instead of erroring out, just don't continue the plan
-		return false, "", nil
+		return false, false, nil
 	}
 
 	var strRes string
-	var res struct {
-		MessageFinishedSubtasks []string `json:"messageSubtasksFinished"`
-		Comments                []struct {
-			Txt               string `json:"txt"`
-			IsTodoPlaceholder bool   `json:"isTodoPlaceholder"`
-		} `json:"comments"`
-		Reasoning      string `json:"reasoning"`
-		ShouldContinue bool   `json:"shouldContinue"`
-	}
+	var res types.ExecStatusResponse
 
 	for _, choice := range resp.Choices {
 		if len(choice.Message.ToolCalls) == 1 &&
@@ -177,7 +139,7 @@ func (state *activeTellStreamState) execStatusShouldContinue(message string, lat
 		outputTokens, err = shared.GetNumTokens(strRes)
 
 		if err != nil {
-			return false, "", fmt.Errorf("error getting num tokens for res: %v", err)
+			return false, false, fmt.Errorf("error getting num tokens for res: %v", err)
 		}
 	}
 
@@ -196,7 +158,7 @@ func (state *activeTellStreamState) execStatusShouldContinue(message string, lat
 	})
 
 	if apiErr != nil {
-		return false, "", fmt.Errorf("error executing hook: %v", apiErr)
+		return false, false, fmt.Errorf("error executing hook: %v", apiErr)
 	}
 
 	if strRes == "" {
@@ -206,7 +168,7 @@ func (state *activeTellStreamState) execStatusShouldContinue(message string, lat
 		// return false, fmt.Errorf("no shouldAutoContinue function call found in response")
 
 		// Instead of erroring out, just don't continue the plan
-		return false, "", nil
+		return false, false, nil
 	}
 
 	err = json.Unmarshal([]byte(strRes), &res)
@@ -216,11 +178,11 @@ func (state *activeTellStreamState) execStatusShouldContinue(message string, lat
 		// return false, fmt.Errorf("error unmarshalling plan exec status response: %v", err)
 
 		// Instead of erroring out, just don't continue the plan
-		return false, "", nil
+		return false, false, nil
 	}
 
 	log.Println("Plan exec status response:")
 	log.Println(spew.Sdump(res))
 
-	return res.ShouldContinue, res.Reasoning, nil
+	return res.SubtaskFinished, res.ShouldContinue, nil
 }

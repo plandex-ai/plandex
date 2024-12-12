@@ -193,6 +193,7 @@ mainLoop:
 					continue mainLoop
 				}
 
+				time.Sleep(30 * time.Millisecond)
 				active.FlushStreamBuffer()
 				time.Sleep(100 * time.Millisecond)
 
@@ -207,13 +208,13 @@ mainLoop:
 					continue mainLoop
 				}
 
-				latestSummaryCh := active.LatestSummaryCh
-
 				var generatedDescription *db.ConvoMessageDescription
 				var shouldContinue bool
-				var nextTask string
+				var subtaskFinished bool
 
 				autoLoadContextFiles := state.checkAutoLoadContext()
+				hasNewSubtasks := state.checkNewSubtasks()
+				var allSubtasksFinished bool
 
 				var errCh = make(chan error, 2)
 
@@ -232,29 +233,31 @@ mainLoop:
 						generatedDescription.SummarizedToMessageId = summarizedToMessageId
 						generatedDescription.MadePlan = true
 						generatedDescription.Files = replyFiles
+
+						log.Println("Generated plan description.")
 					}
 					errCh <- nil
 				}()
 
-				if req.IsChatOnly || len(autoLoadContextFiles) > 0 || active.DidVerifyDiff {
+				if req.IsChatOnly || len(autoLoadContextFiles) > 0 || hasNewSubtasks || !req.AutoContinue {
 
 					// if we're auto-loading context files, we always want to continue for at least another iteration with the loaded context (even if it's chat only)
-					if len(autoLoadContextFiles) > 0 {
-						log.Printf("Auto loading context files, so continuing")
+					if len(autoLoadContextFiles) > 0 && !hasNewSubtasks {
+						log.Printf("Auto loading context files, so continuing to planning phase")
 						shouldContinue = true
 					} else if req.IsChatOnly {
 						log.Printf("Chat only, won't continue")
 						shouldContinue = false
-					} else if active.DidVerifyDiff {
-						log.Printf("Did verify diff, won't continue")
-						shouldContinue = false
+					} else if hasNewSubtasks {
+						log.Printf("Has new subtasks, can continue")
+						shouldContinue = req.AutoContinue
 					}
 
 					errCh <- nil
 				} else {
 					go func() {
 						log.Println("Getting exec status")
-						shouldContinue, nextTask, err = state.execStatusShouldContinue(active.CurrentReplyContent, latestSummaryCh, active.Ctx)
+						subtaskFinished, shouldContinue, err = state.execStatusShouldContinue(active.CurrentReplyContent, active.Ctx)
 						if err != nil {
 							errCh <- fmt.Errorf("failed to get exec status: %v", err)
 							return
@@ -356,6 +359,32 @@ mainLoop:
 						return err
 					}
 					log.Println("Description stored")
+
+					if hasNewSubtasks || subtaskFinished {
+						if subtaskFinished {
+							log.Println("Subtask finished")
+							state.currentSubtask.IsFinished = true
+						}
+
+						err = db.StorePlanSubtasks(currentOrgId, planId, state.subtasks)
+						if err != nil {
+							log.Printf("Error storing plan subtasks: %v\n", err)
+							state.onError(fmt.Errorf("failed to store plan subtasks: %v", err), false, assistantMsg.Id, convoCommitMsg)
+							return err
+						}
+
+						state.currentSubtask = nil
+						allSubtasksFinished = true
+						for _, subtask := range state.subtasks {
+							if !subtask.IsFinished {
+								state.currentSubtask = subtask
+								allSubtasksFinished = false
+								break
+							}
+						}
+
+					}
+
 					// spew.Dump(description)
 
 					log.Println("Comitting reply message and description")
@@ -448,11 +477,16 @@ mainLoop:
 				log.Printf("shouldContinue: %v\n", shouldContinue)
 				log.Printf("iteration: %d\n", iteration)
 				log.Printf("MaxAutoContinueIterations: %d\n", MaxAutoContinueIterations)
+				log.Printf("hasNewSubtasks: %v\n", hasNewSubtasks)
+				log.Printf("len(state.subtasks): %d\n", len(state.subtasks))
+				log.Printf("allSubtasksFinished: %v\n", allSubtasksFinished)
 
-				if len(autoLoadContextFiles) > 0 || (req.AutoContinue && shouldContinue && iteration < MaxAutoContinueIterations) {
+				if (len(autoLoadContextFiles) > 0 && !hasNewSubtasks) ||
+					(req.AutoContinue && shouldContinue && iteration < MaxAutoContinueIterations &&
+						!(len(state.subtasks) > 0 && allSubtasksFinished)) {
 					log.Println("Auto continue plan")
 					// continue plan
-					execTellPlan(clients, plan, branch, auth, req, iteration+1, "", false, nextTask, "", 0)
+					execTellPlan(clients, plan, branch, auth, req, iteration+1, "", false, 0)
 				} else {
 					var buildFinished bool
 					UpdateActivePlan(planId, branch, func(ap *types.ActivePlan) {
@@ -468,32 +502,33 @@ mainLoop:
 					// ShouldVerifyDiff will always be false unless we re-enable tell-based verification
 					if buildFinished {
 						log.Println("Reply is finished and build is finished, calling verifyOrFinish")
-						state.verifyOrFinish()
+						active := GetActivePlan(planId, branch)
+
+						if active == nil {
+							log.Printf("Active plan not found for planId: %s, branch: %s\n", planId, branch)
+							continue mainLoop
+						}
+
+						active.Finish()
 					} else {
 						log.Println("Plan is still building")
-
-						if active.ShouldVerifyDiff() {
-							// If we're going to verify the diffs when build finishes, then replies aren't finished yet so we'll just continue here
-							log.Println("Build isn't finished yet—waiting on verify diff step")
-							continue mainLoop
-						} else {
-							log.Println("Updating status to building")
-							err := db.SetPlanStatus(planId, branch, shared.PlanStatusBuilding, "")
-							if err != nil {
-								log.Printf("Error setting plan status to building: %v\n", err)
-								active.StreamDoneCh <- &shared.ApiError{
-									Type:   shared.ApiErrorTypeOther,
-									Status: http.StatusInternalServerError,
-									Msg:    "Error setting plan status to building",
-								}
-								continue mainLoop
+						log.Println("Updating status to building")
+						err := db.SetPlanStatus(planId, branch, shared.PlanStatusBuilding, "")
+						if err != nil {
+							log.Printf("Error setting plan status to building: %v\n", err)
+							active.StreamDoneCh <- &shared.ApiError{
+								Type:   shared.ApiErrorTypeOther,
+								Status: http.StatusInternalServerError,
+								Msg:    "Error setting plan status to building",
 							}
-
-							log.Println("Sending RepliesFinished stream message")
-							active.Stream(shared.StreamMessage{
-								Type: shared.StreamMessageRepliesFinished,
-							})
+							continue mainLoop
 						}
+
+						log.Println("Sending RepliesFinished stream message")
+						active.Stream(shared.StreamMessage{
+							Type: shared.StreamMessageRepliesFinished,
+						})
+
 					}
 				}
 
@@ -663,8 +698,6 @@ mainLoop:
 					iteration, // keep the same iteration
 					userChoice,
 					false,
-					"",
-					state.verifyingDiffs,
 					0,
 				)
 				return
@@ -812,8 +845,8 @@ func (state *activeTellStreamState) checkAutoLoadContext() []string {
 		return nil
 	}
 
-	// only load context on the first or second iteration of a non-continue prompt
-	if state.iteration > 1 {
+	// only load context on the first iteration of a non-continue prompt
+	if state.iteration > 0 {
 		return nil
 	}
 
@@ -846,6 +879,75 @@ func (state *activeTellStreamState) checkAutoLoadContext() []string {
 	}
 
 	return files
+}
+
+func (state *activeTellStreamState) checkNewSubtasks() bool {
+	activePlan := GetActivePlan(state.plan.Id, state.branch)
+
+	if activePlan == nil {
+		return false
+	}
+
+	content := activePlan.CurrentReplyContent
+
+	subtasks := model.ParseSubtasks(content)
+
+	if len(subtasks) == 0 {
+		return false
+	}
+
+	log.Println("Found new subtasks:")
+	spew.Dump(subtasks)
+
+	subtasksByName := map[string]*db.Subtask{}
+
+	for _, subtask := range state.subtasks {
+		subtasksByName[subtask.Title] = subtask
+	}
+
+	var newSubtasks []*db.Subtask
+
+	for _, subtask := range state.subtasks {
+		if subtask.IsFinished {
+			newSubtasks = append(newSubtasks, subtask)
+		}
+	}
+
+	for _, subtask := range subtasks {
+		if subtasksByName[subtask.Title] == nil {
+			newSubtasks = append(newSubtasks, subtask)
+		}
+	}
+
+	state.subtasks = newSubtasks
+
+	var currentSubtaskName string
+	if state.currentSubtask != nil {
+		currentSubtaskName = state.currentSubtask.Title
+	}
+
+	found := false
+	for _, subtask := range state.subtasks {
+		if subtask.Title == currentSubtaskName {
+			found = true
+			state.currentSubtask = subtask
+			break
+		}
+	}
+	if !found {
+		state.currentSubtask = nil
+	}
+
+	if state.currentSubtask == nil {
+		for _, subtask := range state.subtasks {
+			if !subtask.IsFinished {
+				state.currentSubtask = subtask
+				break
+			}
+		}
+	}
+
+	return true
 }
 
 func (state *activeTellStreamState) onError(streamErr error, storeDesc bool, convoMessageId, commitMsg string) {

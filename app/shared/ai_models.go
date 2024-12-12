@@ -55,7 +55,7 @@ var AvailableModels = []*AvailableModel{
 	{
 		Description:                 "Anthropic Claude 3.5 Sonnet via OpenRouter",
 		DefaultMaxConvoTokens:       15000,
-		DefaultReservedOutputTokens: 4096,
+		DefaultReservedOutputTokens: 8192,
 		BaseModelConfig: BaseModelConfig{
 			Provider:     ModelProviderOpenRouter,
 			ModelName:    "anthropic/claude-3.5-sonnet",
@@ -73,12 +73,12 @@ var AvailableModels = []*AvailableModel{
 		},
 	},
 	{
-		Description:                 "Anthropic Claude 3 Haiku via OpenRouter",
+		Description:                 "Anthropic Claude 3.5 Haiku via OpenRouter",
 		DefaultMaxConvoTokens:       15000,
-		DefaultReservedOutputTokens: 4096,
+		DefaultReservedOutputTokens: 8192,
 		BaseModelConfig: BaseModelConfig{
 			Provider:     ModelProviderOpenRouter,
-			ModelName:    "anthropic/claude-3-haiku",
+			ModelName:    "anthropic/claude-3.5-haiku",
 			MaxTokens:    200000,
 			ApiKeyEnvVar: ApiKeyByProvider[ModelProviderOpenRouter],
 			ModelCompatibility: ModelCompatibility{
@@ -266,7 +266,7 @@ func init() {
 		},
 		PlanSummary: ModelRoleConfig{
 			Role:            ModelRolePlanSummary,
-			BaseModelConfig: AvailableModelsByName[openai.GPT4o].BaseModelConfig,
+			BaseModelConfig: AvailableModelsByName["gpt-4o-mini"].BaseModelConfig,
 			Temperature:     DefaultConfigByRole[ModelRolePlanSummary].Temperature,
 			TopP:            DefaultConfigByRole[ModelRolePlanSummary].TopP,
 		},
@@ -322,7 +322,7 @@ func init() {
 		},
 		PlanSummary: ModelRoleConfig{
 			Role:            ModelRolePlanSummary,
-			BaseModelConfig: AvailableModelsByName["anthropic/claude-3.5-sonnet"].BaseModelConfig,
+			BaseModelConfig: AvailableModelsByName["gpt-4o-mini"].BaseModelConfig,
 			Temperature:     DefaultConfigByRole[ModelRolePlanSummary].Temperature,
 			TopP:            DefaultConfigByRole[ModelRolePlanSummary].TopP,
 		},
@@ -378,7 +378,7 @@ func init() {
 		},
 		PlanSummary: ModelRoleConfig{
 			Role:            ModelRolePlanSummary,
-			BaseModelConfig: AvailableModelsByName["anthropic/claude-3.5-sonnet"].BaseModelConfig,
+			BaseModelConfig: AvailableModelsByName["anthropic/claude-3.5-haiku"].BaseModelConfig,
 			Temperature:     DefaultConfigByRole[ModelRolePlanSummary].Temperature,
 			TopP:            DefaultConfigByRole[ModelRolePlanSummary].TopP,
 		},
@@ -390,13 +390,13 @@ func init() {
 		},
 		Namer: ModelRoleConfig{
 			Role:            ModelRoleName,
-			BaseModelConfig: AvailableModelsByName["anthropic/claude-3-haiku"].BaseModelConfig,
+			BaseModelConfig: AvailableModelsByName["anthropic/claude-3.5-haiku"].BaseModelConfig,
 			Temperature:     DefaultConfigByRole[ModelRoleName].Temperature,
 			TopP:            DefaultConfigByRole[ModelRoleName].TopP,
 		},
 		CommitMsg: ModelRoleConfig{
 			Role:            ModelRoleCommitMsg,
-			BaseModelConfig: AvailableModelsByName["anthropic/claude-3-haiku"].BaseModelConfig,
+			BaseModelConfig: AvailableModelsByName["anthropic/claude-3.5-haiku"].BaseModelConfig,
 			Temperature:     DefaultConfigByRole[ModelRoleName].Temperature,
 			TopP:            DefaultConfigByRole[ModelRoleName].TopP,
 		},

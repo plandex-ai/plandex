@@ -59,29 +59,27 @@ type ActivePlan struct {
 	CancelModelStreamFn     context.CancelFunc
 	SummaryCtx              context.Context
 	SummaryCancelFn         context.CancelFunc
-	LatestSummaryCh         chan *db.ConvoSummary
-	Contexts                []*db.Context
-	ContextsByPath          map[string]*db.Context
-	Files                   []string
-	BuiltFiles              map[string]bool
-	IsBuildingByPath        map[string]bool
-	CurrentReplyContent     string
-	NumTokens               int
-	MessageNum              int
-	BuildQueuesByPath       map[string][]*ActiveBuild
-	RepliesFinished         bool
-	StreamDoneCh            chan *shared.ApiError
-	ModelStreamId           string
-	MissingFilePath         string
-	MissingFileResponseCh   chan shared.RespondMissingFileChoice
-	AutoContext             bool
-	AutoLoadContextCh       chan struct{}
-	AllowOverwritePaths     map[string]bool
-	SkippedPaths            map[string]bool
-	StoredReplyIds          []string
-	DidEditFiles            bool
-	DidVerifyDiff           bool
-	IsVerifyingDiff         bool
+	// LatestSummaryCh         chan *db.ConvoSummary
+	Contexts              []*db.Context
+	ContextsByPath        map[string]*db.Context
+	Files                 []string
+	BuiltFiles            map[string]bool
+	IsBuildingByPath      map[string]bool
+	CurrentReplyContent   string
+	NumTokens             int
+	MessageNum            int
+	BuildQueuesByPath     map[string][]*ActiveBuild
+	RepliesFinished       bool
+	StreamDoneCh          chan *shared.ApiError
+	ModelStreamId         string
+	MissingFilePath       string
+	MissingFileResponseCh chan shared.RespondMissingFileChoice
+	AutoContext           bool
+	AutoLoadContextCh     chan struct{}
+	AllowOverwritePaths   map[string]bool
+	SkippedPaths          map[string]bool
+	StoredReplyIds        []string
+	DidEditFiles          bool
 
 	subscriptions  map[string]*subscription
 	subscriptionMu sync.Mutex
@@ -391,24 +389,6 @@ func (sub *subscription) enqueueMessage(msg string) {
 	sub.messageQueue = append(sub.messageQueue, msg)
 	sub.mu.Unlock()
 	sub.cond.Signal() // Signal the waiting goroutine that a new message is available
-}
-
-func (ap *ActivePlan) ShouldVerifyDiff() bool {
-	// disabling tell-based verifications for now
-	return false
-
-	// log.Printf("ShouldVerifyDiff: buildOnly=%v, didVerifyDiff=%v, numBuiltFiles=%d, didEditFiles=%v, hasMultipleBuiltFiles=%v",
-	// 	!ap.BuildOnly,
-	// 	!ap.DidVerifyDiff,
-	// 	len(ap.BuiltFiles),
-	// 	ap.DidEditFiles,
-	// 	len(ap.BuiltFiles) > 3)
-
-	// return !ap.BuildOnly &&
-	// 	!ap.IsVerifyingDiff &&
-	// 	!ap.DidVerifyDiff &&
-	// 	(len(ap.BuiltFiles) > 0 || len(ap.IsBuildingByPath) > 0) &&
-	// 	(ap.DidEditFiles || len(ap.BuiltFiles) > 3) // verify diff if we edited any files or built more than 3 new files—unlikely to have errors otherwise
 }
 
 func (ap *ActivePlan) Finish() {

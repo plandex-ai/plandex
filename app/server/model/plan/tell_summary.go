@@ -308,8 +308,8 @@ func summarizeConvo(client *openai.Client, config shared.ModelRoleConfig, params
 	// log.Println("Generating summary - summary messages:")
 	// spew.Dump(summaryMessages)
 
-	latestSummaryCh := make(chan *db.ConvoSummary, 1)
-	active.LatestSummaryCh = latestSummaryCh
+	// latestSummaryCh := make(chan *db.ConvoSummary, 1)
+	// active.LatestSummaryCh = latestSummaryCh
 
 	summary, err := model.PlanSummary(client, config, model.PlanSummaryParams{
 		Conversation:                summaryMessages,
@@ -339,7 +339,7 @@ func summarizeConvo(client *openai.Client, config shared.ModelRoleConfig, params
 		return err
 	}
 
-	latestSummaryCh <- summary
+	// latestSummaryCh <- summary
 
 	return nil
 }

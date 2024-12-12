@@ -195,15 +195,18 @@ func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 			// remove code block formatting if it was mistakenly included in the proposed content
 			trimmedProposedContent := strings.TrimSpace(proposedContent)
 			splitProposedContent := strings.Split(trimmedProposedContent, "\n")
-			firstLine := strings.TrimSpace(splitProposedContent[0])
-			secondLine := strings.TrimSpace(splitProposedContent[1])
-			lastLine := strings.TrimSpace(splitProposedContent[len(splitProposedContent)-1])
-			if types.LineMaybeHasFilePath(firstLine) && strings.HasPrefix(secondLine, "```") {
-				if lastLine == "```" {
+
+			if len(splitProposedContent) > 2 {
+				firstLine := strings.TrimSpace(splitProposedContent[0])
+				secondLine := strings.TrimSpace(splitProposedContent[1])
+				lastLine := strings.TrimSpace(splitProposedContent[len(splitProposedContent)-1])
+				if types.LineMaybeHasFilePath(firstLine) && strings.HasPrefix(secondLine, "```") {
+					if lastLine == "```" {
+						proposedContent = strings.Join(splitProposedContent[1:len(splitProposedContent)-1], "\n")
+					}
+				} else if strings.HasPrefix(firstLine, "```") && lastLine == "```" {
 					proposedContent = strings.Join(splitProposedContent[1:len(splitProposedContent)-1], "\n")
 				}
-			} else if strings.HasPrefix(firstLine, "```") && lastLine == "```" {
-				proposedContent = strings.Join(splitProposedContent[1:len(splitProposedContent)-1], "\n")
 			}
 
 			// log.Println("buildStructuredEdits - fixed proposed content:")
