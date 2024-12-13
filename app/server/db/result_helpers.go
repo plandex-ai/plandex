@@ -376,14 +376,7 @@ func ApplyPlan(ctx context.Context, orgId, userId, branchName string, plan *Plan
 			errCh <- fmt.Errorf("error getting plan file results: %v", err)
 			return
 		}
-		filtered := []*PlanFileResult{}
-		for _, result := range res {
-			if result.Path != "_apply.sh" {
-				filtered = append(filtered, result)
-			}
-		}
-
-		results = filtered
+		results = res
 		errCh <- nil
 	}()
 
@@ -435,6 +428,10 @@ func ApplyPlan(ctx context.Context, orgId, userId, branchName string, plan *Plan
 	pendingNewFilesSet := make(map[string]bool)
 	pendingUpdatedFilesSet := make(map[string]bool)
 	for _, result := range pendingDbResults {
+		if result.Path == "_apply.sh" {
+			continue
+		}
+
 		if len(result.Replacements) == 0 && result.Content != "" {
 			pendingNewFilesSet[result.Path] = true
 		} else if !pendingNewFilesSet[result.Path] {

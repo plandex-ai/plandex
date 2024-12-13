@@ -223,7 +223,7 @@ func checkOutdatedAndMaybeUpdateContext(doUpdate bool, maybeContexts []*shared.C
 	contextsById := map[string]*shared.Context{}
 	deleteIds := map[string]bool{}
 
-	var paths *fs.ProjectPaths
+	var paths *types.ProjectPaths
 	var hasDirectoryTreeWithIgnoredPaths bool
 
 	for _, context := range contexts {

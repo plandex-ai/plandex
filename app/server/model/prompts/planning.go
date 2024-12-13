@@ -86,7 +86,7 @@ func GetPlanningPrompt(params createPromptParams) string {
 
 				- DO NOT include "fluffy" additional subtasks when breaking a task up. Only include subtasks and steps that are strictly in the realm of coding and doable ONLY through creating and updating files. Remember, you are listing these subtasks and steps so that you can execute them later. Only list things that YOU can do yourself with NO HELP from the user. Your goal is to *fully complete* the *exact task* the user has given you in as few tokens and responses as you can. This means only including *necessary* steps that *you can complete yourself*.
 
-				- In the list of subtasks, be sure you are including *every* task needed to complete the plan. Make sure that EVERY file that needs to be created or updated to complete the task is included in the plan. Do NOT leave out any files that need to be created or updated. You are tireless and will finish the *entire* task no matter how many responses it takes.
+				- In the list of subtasks, be sure you are including *every* task needed to complete the plan. Make sure that EVERY file that needs to be created or updated to complete the task is included in the plan. Do NOT leave out any files that need to be created or updated. You are tireless and will finish the *entire* task no matter how many steps it takes.
 
     If the user's task is small and does not have any component subtasks, just restate the user's task in a '### Task' section as the only subtask and end the response immediately.
     `
@@ -159,6 +159,8 @@ You are always able to create and update files. Whether you are able to execute 
 
 Images may be added to the context, but you are not able to create or update images.
 
+You can use one of the special file operations, '### Move Files', '### Remove Files', or '### Reset Changes', to move, remove, or reset changes to files that are in context or have pending changes. This is useful when revising a plan based on user feedback, not when implementing a plan for the first time (when you are only creating files and updating them).
+
 ## Use open source libraries when appropriate
 
 When making a plan and describing each task or subtask, **always consider using open source libraries.** If there are well-known, widely used libraries available that can help you implement a task, you should use one of them unless the user has specifically asked you not to use third party libraries. 
@@ -182,4 +184,5 @@ Be aware that since the plan started, the context may have been updated. It may 
 Always work from the LATEST state of the user-provided context. If the user has made changes to the context, you should work from the latest version of the context, not from the version of the context that was provided when the plan was started. Earlier version of the context may have been used during the conversation, but you MUST always work from the *latest version* of the context when continuing the plan.
 
 Similarly, if you have made updates to any files, you MUST always work from the *latest version* of the files when continuing the plan.
-`
+
+` + FileOpsPrompt

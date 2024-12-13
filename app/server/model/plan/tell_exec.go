@@ -174,7 +174,7 @@ func execTellPlan(
 		includeTrees = false
 	}
 
-	modelContextText, modelContextTokens, err := state.formatModelContext(includeMaps, includeTrees, isImplementationStage)
+	modelContextText, modelContextTokens, err := state.formatModelContext(includeMaps, includeTrees, isImplementationStage, req.ExecEnabled)
 	if err != nil {
 		err = fmt.Errorf("error formatting model modelContext: %v", err)
 		log.Println(err)

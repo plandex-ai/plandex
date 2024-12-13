@@ -122,14 +122,7 @@ func IsGitRepo(dir string) bool {
 	return isGitRepo
 }
 
-type ProjectPaths struct {
-	ActivePaths    map[string]bool
-	AllPaths       map[string]bool
-	PlandexIgnored *ignore.GitIgnore
-	IgnoredPaths   map[string]string
-}
-
-func GetProjectPaths(baseDir string) (*ProjectPaths, error) {
+func GetProjectPaths(baseDir string) (*types.ProjectPaths, error) {
 	if ProjectRoot == "" {
 		return nil, fmt.Errorf("no project root found")
 	}
@@ -137,7 +130,7 @@ func GetProjectPaths(baseDir string) (*ProjectPaths, error) {
 	return GetPaths(baseDir, ProjectRoot)
 }
 
-func GetPaths(baseDir, currentDir string) (*ProjectPaths, error) {
+func GetPaths(baseDir, currentDir string) (*types.ProjectPaths, error) {
 	ignored, err := GetPlandexIgnore(currentDir)
 
 	if err != nil {
@@ -376,7 +369,7 @@ func GetPaths(baseDir, currentDir string) (*ProjectPaths, error) {
 		}
 	}
 
-	return &ProjectPaths{
+	return &types.ProjectPaths{
 		ActivePaths:    activePaths,
 		AllPaths:       allPaths,
 		PlandexIgnored: ignored,

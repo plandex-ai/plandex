@@ -31,9 +31,10 @@ func (state *activeTellStreamState) formatSubtasks() (string, int, error) {
 		} else {
 			subtasksText += "no"
 		}
+		subtasksText += "\n"
 
 		if state.currentSubtask != nil && subtask.Title == state.currentSubtask.Title {
-			subtasksText += "\n\n**CURRENT SUBTASK**\n\n"
+			subtasksText += "Current subtask: yes"
 		}
 
 		subtasksText += "\n"

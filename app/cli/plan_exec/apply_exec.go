@@ -6,19 +6,24 @@ import (
 	"plandex/auth"
 	"plandex/lib"
 	"plandex/term"
+	"plandex/types"
 
 	"github.com/fatih/color"
 	"github.com/plandex/plandex/shared"
 )
 
-func GetOnApplyExecFail(flags lib.ApplyFlags) func(status int, output string, attempt int) {
-	var onExecFail func(status int, output string, attempt int)
-	onExecFail = func(status int, output string, attempt int) {
+func GetOnApplyExecFail(flags lib.ApplyFlags) types.OnApplyExecFailFn {
+	var onExecFail types.OnApplyExecFailFn
+	onExecFail = func(status int, output string, attempt int, toRollback *types.ApplyRollbackPlan, onErr types.OnErrFn, onSuccess func()) {
 		var proceed bool
 
 		if flags.AutoDebug > 0 {
 			if attempt >= flags.AutoDebug {
-				color.New(term.ColorHiRed, color.Bold).Printf("Commands failed %d times.\n", attempt)
+				timesLbl := "times"
+				if attempt == 1 {
+					timesLbl = "time"
+				}
+				color.New(term.ColorHiRed, color.Bold).Printf("Commands failed %d %s.\n", attempt, timesLbl)
 			} else {
 				proceed = true
 			}
@@ -35,6 +40,10 @@ func GetOnApplyExecFail(flags lib.ApplyFlags) func(status int, output string, at
 		}
 
 		if proceed {
+			if toRollback != nil && toRollback.HasChanges() {
+				toRollback.Rollback(true)
+			}
+
 			var apiKeys map[string]string
 			if !auth.Current.IntegratedModelsMode {
 				apiKeys = lib.MustVerifyApiKeysSilent()
@@ -54,6 +63,18 @@ func GetOnApplyExecFail(flags lib.ApplyFlags) func(status int, output string, at
 			log.Printf("Applying plan after tell")
 
 			lib.MustApplyPlanAttempt(lib.CurrentPlanId, lib.CurrentBranch, flags, onExecFail, attempt+1)
+		} else {
+			res, err := term.SelectFromList("Still apply other changes or roll back all changes?", []string{string(types.ApplyRollbackOptionKeep), string(types.ApplyRollbackOptionRollback)})
+
+			if err != nil {
+				onErr("failed to get rollback confirmation user input: %s", err)
+			}
+
+			if res == string(types.ApplyRollbackOptionRollback) {
+				toRollback.Rollback(true)
+			} else {
+				onSuccess()
+			}
 		}
 	}
 

@@ -60,3 +60,5 @@ type ChangesUIScrollReplacement struct {
 type ChangesUIViewportsUpdate struct {
 	ScrollReplacement *ChangesUIScrollReplacement
 }
+
+type OnErrFn func(errMsg string, errArgs ...interface{})

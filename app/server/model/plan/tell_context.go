@@ -7,7 +7,7 @@ import (
 	"github.com/plandex/plandex/shared"
 )
 
-func (state *activeTellStreamState) formatModelContext(includeMaps, includeTrees, isImplementationStage bool) (string, int, error) {
+func (state *activeTellStreamState) formatModelContext(includeMaps, includeTrees, isImplementationStage, execEnabled bool) (string, int, error) {
 	var contextMessages []string = []string{
 		"### LATEST PLAN CONTEXT ###",
 	}
@@ -92,8 +92,24 @@ func (state *activeTellStreamState) formatModelContext(includeMaps, includeTrees
 				continue
 			}
 
+			if filePath == "_apply.sh" {
+				continue
+			}
+
 			contextMessages = append(contextMessages, fmt.Sprintf("\n\n- %s:\n\n```\n%s\n```", filePath, body))
 		}
+	}
+
+	if execEnabled {
+		contextMessages = append(contextMessages, state.currentPlanState.ExecHistory())
+
+		scriptContent, ok := state.currentPlanState.CurrentPlanFiles.Files["_apply.sh"]
+		if !ok || scriptContent == "" {
+			scriptContent = "[empty]"
+		}
+
+		contextMessages = append(contextMessages, "*Current* state of _apply.sh script:")
+		contextMessages = append(contextMessages, fmt.Sprintf("\n\n- _apply.sh:\n\n```\n%s\n```", scriptContent))
 	}
 
 	return strings.Join(contextMessages, "\n### END OF CONTEXT ###\n"), numTokens, nil

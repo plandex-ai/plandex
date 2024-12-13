@@ -361,11 +361,17 @@ mainLoop:
 					log.Println("Description stored")
 
 					if hasNewSubtasks || subtaskFinished {
-						if subtaskFinished {
+						if subtaskFinished && state.currentSubtask != nil {
 							log.Println("Subtask finished")
+							log.Println("Current subtask:")
+							log.Println(state.currentSubtask.Title)
 							state.currentSubtask.IsFinished = true
+
+							log.Println("Updated state. Current subtask:")
+							log.Println(state.currentSubtask)
 						}
 
+						log.Println("Storing plan subtasks")
 						err = db.StorePlanSubtasks(currentOrgId, planId, state.subtasks)
 						if err != nil {
 							log.Printf("Error storing plan subtasks: %v\n", err)
@@ -383,18 +389,24 @@ mainLoop:
 							}
 						}
 
+						log.Println("Set new current subtask. Current subtask:")
+						log.Println(state.currentSubtask)
+						log.Println("All subtasks finished:", allSubtasksFinished)
+
+						log.Println("Update state of subtasks")
+						spew.Dump(state.subtasks)
 					}
 
 					// spew.Dump(description)
 
-					log.Println("Comitting reply message and description")
+					log.Println("Comitting reply message, description, and subtasks")
 
 					err = db.GitAddAndCommit(currentOrgId, planId, branch, convoCommitMsg)
 					if err != nil {
 						state.onError(fmt.Errorf("failed to commit: %v", err), false, assistantMsg.Id, convoCommitMsg)
 						return err
 					}
-					log.Println("Assistant reply and description committed")
+					log.Println("Assistant reply, description, and subtasks committed")
 
 					return nil
 				}()

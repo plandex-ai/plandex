@@ -12,7 +12,9 @@ import (
 	"plandex/auth"
 	"plandex/fs"
 	"plandex/term"
+	"plandex/types"
 	"strings"
+	"sync"
 	"syscall"
 
 	"github.com/fatih/color"
@@ -28,13 +30,11 @@ type ApplyFlags struct {
 	AutoDebug   int
 }
 
-type onErrFn func(errMsg string, errArgs ...interface{})
-
 func MustApplyPlan(
 	planId,
 	branch string,
 	flags ApplyFlags,
-	onExecFail func(status int, output string, attempt int),
+	onExecFail types.OnApplyExecFailFn,
 ) {
 	MustApplyPlanAttempt(planId, branch, flags, onExecFail, 0)
 }
@@ -43,7 +43,7 @@ func MustApplyPlanAttempt(
 	planId,
 	branch string,
 	flags ApplyFlags,
-	onExecFail func(status int, output string, attempt int),
+	onExecFail types.OnApplyExecFailFn,
 	attempt int,
 ) {
 	log.Println("Applying plan")
@@ -122,7 +122,7 @@ func MustApplyPlanAttempt(
 
 	log.Printf("Files to apply: %d, Has exec script: %v", len(toApply), hasExec)
 
-	if len(toApply) == 0 {
+	if len(toApply) == 0 && !hasExec {
 		term.StopSpinner()
 		fmt.Println("🤷‍♂️ No changes to apply")
 		return
@@ -130,21 +130,20 @@ func MustApplyPlanAttempt(
 
 	hasFileChanges := !hasExec || len(toApply) > 1
 
+	var toRollback *types.ApplyRollbackPlan
+	var updatedFiles []string
+
 	onErr := func(errMsg string, errArgs ...interface{}) {
 		term.StopSpinner()
+		if toRollback != nil && toRollback.HasChanges() {
+			toRollback.Rollback(true)
+		}
 		term.OutputErrorAndExit(errMsg, errArgs...)
 	}
 
 	onGitErr := func(errMsg, unformattedErrMsg string) {
 		term.StopSpinner()
 		term.OutputSimpleError(errMsg, unformattedErrMsg)
-	}
-
-	log.Println("Getting API keys")
-
-	var apiKeys map[string]string
-	if !auth.Current.IntegratedModelsMode {
-		apiKeys = MustVerifyApiKeysSilent()
 	}
 
 	log.Println("Has file changes:", hasFileChanges)
@@ -171,150 +170,75 @@ func MustApplyPlanAttempt(
 			term.ResumeSpinner()
 		}
 
-		var commitSummary string
-
-		openAIBase := os.Getenv("OPENAI_API_BASE")
-		if openAIBase == "" {
-			openAIBase = os.Getenv("OPENAI_ENDPOINT")
-		}
-
-		log.Println("Applying plan with API call")
-
-		commitSummary, apiErr = api.Client.ApplyPlan(planId, branch, shared.ApplyPlanRequest{
-			ApiKeys:     apiKeys,
-			OpenAIBase:  openAIBase,
-			OpenAIOrgId: os.Getenv("OPENAI_ORG_ID"),
-		})
-
-		if apiErr != nil {
-			onErr("failed to set pending results applied: %s", apiErr.Msg)
-			return
-		}
-
 		log.Println("Applying plan files")
 
-		var updatedFiles []string
-		for path, content := range toApply {
-			if path == "_apply.sh" {
-				continue
-			}
-
-			// Compute destination path
-			dstPath := filepath.Join(fs.ProjectRoot, path)
-
-			content = strings.ReplaceAll(content, "\\`\\`\\`", "```")
-
-			// Check if the file exists
-			var exists bool
-			_, err := os.Stat(dstPath)
-			if err == nil {
-				exists = true
-			} else {
-				if os.IsNotExist(err) {
-					exists = false
-				} else {
-					onErr("failed to check if %s exists:", dstPath)
-					return
-				}
-			}
-
-			if exists {
-				// read file content
-				bytes, err := os.ReadFile(dstPath)
-
-				if err != nil {
-					onErr("failed to read %s:", dstPath)
-					return
-				}
-
-				// Check if the file has changed
-				if string(bytes) == content {
-					// log.Println("File is unchanged, skipping")
-					continue
-				} else {
-					updatedFiles = append(updatedFiles, path)
-				}
-			} else {
-				updatedFiles = append(updatedFiles, path)
-
-				// Create the directory if it doesn't exist
-				err := os.MkdirAll(filepath.Dir(dstPath), 0755)
-				if err != nil {
-					onErr("failed to create directory %s:", filepath.Dir(dstPath))
-					return
-				}
-			}
-
-			// Write the file
-			err = os.WriteFile(dstPath, []byte(content), 0644)
-			if err != nil {
-				onErr("failed to write %s:", dstPath)
-				return
-			}
+		if hasExec {
+			term.StopSpinner()
+			fmt.Println("🔄 Tentatively applying changes")
+			term.ResumeSpinner()
 		}
 
-		term.StopSpinner()
+		updatedFiles, toRollback, err = applyFiles(toApply)
+
+		if err != nil {
+			onErr("failed to apply files: %s", err)
+		}
 
 		log.Println("Applying plan files complete")
+	}
+
+	onExecSuccess := func() {
+		commitSummary, err := apiApplyPlan(planId, branch)
+
+		if err != nil {
+			onErr("apply plan server error: %s", err)
+		}
 
 		if len(updatedFiles) == 0 {
+			term.StopSpinner()
 			fmt.Println("✅ Applied changes, but no files were updated")
-			return
 		} else {
+			appliedMsgFn := func() {
+				suffix := ""
+				if len(updatedFiles) > 1 {
+					suffix = "s"
+				}
+				fmt.Printf("✅ Applied changes, %d file%s updated\n", len(updatedFiles), suffix)
+			}
+
 			if isRepo && !noCommit {
-				confirmed := autoCommit
-				if !autoCommit {
-					fmt.Println("✏️  Plandex can commit these updates with an automatically generated message.")
-					fmt.Println()
-					// fmt.Println("ℹ️  Only the files that Plandex is updating will be included the commit. Any other changes, staged or unstaged, will remain exactly as they are.")
-					// fmt.Println()
-
-					confirmed, err = term.ConfirmYesNo("Commit Plandex updates now?")
-
-					if err != nil {
-						onErr("failed to get confirmation user input: %s", err)
-					}
+				gitErr := commitApplied(autoCommit, commitSummary, updatedFiles, currentPlanState)
+				term.StopSpinner()
+				appliedMsgFn()
+				if gitErr != nil {
+					onGitErr("Failed to commit changes:", gitErr.Error())
 				}
-
-				if confirmed {
-					// Commit the changes
-					msg := currentPlanState.PendingChangesSummaryForApply(commitSummary)
-
-					// log.Println("Committing changes with message:")
-					// log.Println(msg)
-
-					// spew.Dump(currentPlanState)
-
-					err := GitAddAndCommitPaths(fs.ProjectRoot, msg, updatedFiles, true)
-					if err != nil {
-						onGitErr("Failed to commit changes:", err.Error())
-					}
-				}
+			} else {
+				term.StopSpinner()
+				appliedMsgFn()
 			}
-
-			suffix := ""
-			if len(updatedFiles) > 1 {
-				suffix = "s"
-			}
-			fmt.Printf("✅ Applied changes, %d file%s updated\n", len(updatedFiles), suffix)
 		}
 	}
 
-	term.StopSpinner()
-
 	if _, ok := toApply["_apply.sh"]; ok && !noExec {
-		handleApplyScript(flags, toApply, onErr, onExecFail, attempt)
+		handleApplyScript(flags, toApply, onErr, toRollback, onExecFail, attempt, onExecSuccess)
+	} else {
+		onExecSuccess()
 	}
 }
 
 func handleApplyScript(
 	flags ApplyFlags,
 	toApply map[string]string,
-	onErr onErrFn,
-	onExecFail func(status int, output string, attempt int),
+	onErr types.OnErrFn,
+	toRollback *types.ApplyRollbackPlan,
+	onExecFail types.OnApplyExecFailFn,
 	attempt int,
+	onSuccess func(),
 ) {
 	log.Println("Handling apply script")
+
+	term.StopSpinner()
 
 	color.New(term.ColorHiCyan, color.Bold).Println("🚀 Commands to execute 👇")
 
@@ -343,7 +267,21 @@ func handleApplyScript(
 
 	if confirmed {
 		log.Println("Executing apply script")
-		execApplyScript(toApply, onErr, onExecFail, attempt)
+		execApplyScript(flags, toApply, onErr, toRollback, onExecFail, attempt, onSuccess)
+	} else {
+		if toRollback != nil && toRollback.HasChanges() {
+			res, err := term.SelectFromList("Skipping execution. Still apply other changes or roll back all changes?", []string{string(types.ApplyRollbackOptionKeep), string(types.ApplyRollbackOptionRollback)})
+
+			if err != nil {
+				onErr("failed to get rollback confirmation user input: %s", err)
+			}
+
+			if res == string(types.ApplyRollbackOptionRollback) {
+				toRollback.Rollback(true)
+			} else {
+				onSuccess()
+			}
+		}
 	}
 }
 
@@ -364,10 +302,13 @@ trap 'echo "Error on line $LINENO: ${funcfiletrace[0]#*:}"' ERR
 }
 
 func execApplyScript(
+	flags ApplyFlags,
 	toApply map[string]string,
-	onErr onErrFn,
-	onExecFail func(status int, output string, attempt int),
+	onErr types.OnErrFn,
+	toRollback *types.ApplyRollbackPlan,
+	onExecFail types.OnApplyExecFailFn,
 	attempt int,
+	onSuccess func(),
 ) {
 	log.Println("Executing apply script")
 
@@ -444,6 +385,21 @@ func execApplyScript(
 	go func() {
 		sig := <-sigChan
 		os.Remove(dstPath)
+
+		if toRollback != nil && toRollback.HasChanges() {
+			color.New(term.ColorHiRed, color.Bold).Println("🚨 Execution interrupted")
+			res, err := term.SelectFromList("Still apply other changes or roll back all changes?", []string{string(types.ApplyRollbackOptionKeep), string(types.ApplyRollbackOptionRollback)})
+			if err != nil {
+				onErr("failed to get rollback confirmation user input: %s", err)
+			}
+
+			if res == string(types.ApplyRollbackOptionRollback) {
+				toRollback.Rollback(true)
+			} else {
+				onSuccess()
+			}
+		}
+
 		execCmd.Process.Signal(sig)
 	}()
 	defer signal.Stop(sigChan)
@@ -476,10 +432,167 @@ func execApplyScript(
 		if ok {
 			status = exitErr.ExitCode()
 		}
-		onExecFail(status, outputBuilder.String(), attempt)
+		onExecFail(status, outputBuilder.String(), attempt, toRollback, onErr, onSuccess)
 	} else {
 		fmt.Println()
 		fmt.Println("✅ Commands succeeded")
+		onSuccess()
 	}
 
+}
+
+func apiApplyPlan(planId, branch string) (string, error) {
+	log.Println("Getting API keys")
+
+	var apiKeys map[string]string
+	if !auth.Current.IntegratedModelsMode {
+		apiKeys = MustVerifyApiKeysSilent()
+	}
+
+	var commitSummary string
+
+	openAIBase := os.Getenv("OPENAI_API_BASE")
+	if openAIBase == "" {
+		openAIBase = os.Getenv("OPENAI_ENDPOINT")
+	}
+
+	log.Println("Applying plan with API call")
+
+	commitSummary, apiErr := api.Client.ApplyPlan(planId, branch, shared.ApplyPlanRequest{
+		ApiKeys:     apiKeys,
+		OpenAIBase:  openAIBase,
+		OpenAIOrgId: os.Getenv("OPENAI_ORG_ID"),
+	})
+
+	if apiErr != nil {
+		return "", fmt.Errorf("failed to set pending results applied: %s", apiErr.Msg)
+	}
+
+	return commitSummary, nil
+}
+
+func commitApplied(autoCommit bool, commitSummary string, updatedFiles []string, currentPlanState *shared.CurrentPlanState) (err error) {
+	confirmed := autoCommit
+	if !autoCommit {
+		fmt.Println("✏️  Plandex can commit these updates with an automatically generated message.")
+		fmt.Println()
+		// fmt.Println("ℹ️  Only the files that Plandex is updating will be included the commit. Any other changes, staged or unstaged, will remain exactly as they are.")
+		// fmt.Println()
+
+		confirmed, err = term.ConfirmYesNo("Commit Plandex updates now?")
+
+		if err != nil {
+			return fmt.Errorf("failed to get confirmation user input: %s", err)
+		}
+	}
+
+	if confirmed {
+		// Commit the changes
+		msg := currentPlanState.PendingChangesSummaryForApply(commitSummary)
+
+		// log.Println("Committing changes with message:")
+		// log.Println(msg)
+
+		// spew.Dump(currentPlanState)
+
+		err = GitAddAndCommitPaths(fs.ProjectRoot, msg, updatedFiles, true)
+		if err != nil {
+			return fmt.Errorf("failed to commit changes: %s", err.Error())
+		}
+	}
+
+	return nil
+}
+
+func applyFiles(toApply map[string]string) ([]string, *types.ApplyRollbackPlan, error) {
+	var updatedFiles []string
+	var toRevert map[string]types.ApplyReversion
+	var toRemove []string
+
+	var mu sync.Mutex
+	errCh := make(chan error, len(toApply))
+
+	for path, content := range toApply {
+		if path == "_apply.sh" {
+			errCh <- nil
+			continue
+		}
+
+		go func(path, content string) {
+			// Compute destination path
+			dstPath := filepath.Join(fs.ProjectRoot, path)
+			content = strings.ReplaceAll(content, "\\`\\`\\`", "```")
+
+			// Check if the file exists
+			var exists bool
+			var mode os.FileMode
+			info, err := os.Stat(dstPath)
+			if err == nil {
+				exists = true
+				mode = info.Mode()
+			} else {
+				if os.IsNotExist(err) {
+					exists = false
+				} else {
+					errCh <- fmt.Errorf("failed to check if %s exists: %s", dstPath, err.Error())
+					return
+				}
+			}
+
+			if exists {
+				// read file content
+				bytes, err := os.ReadFile(dstPath)
+
+				if err != nil {
+					errCh <- fmt.Errorf("failed to read %s: %s", dstPath, err.Error())
+					return
+				}
+
+				// Check if the file has changed
+				if string(bytes) == content {
+					// log.Println("File is unchanged, skipping")
+					errCh <- nil
+					return
+				} else {
+					mu.Lock()
+					updatedFiles = append(updatedFiles, path)
+					toRevert[dstPath] = types.ApplyReversion{Content: string(bytes), Mode: mode}
+					mu.Unlock()
+				}
+			} else {
+				mu.Lock()
+				updatedFiles = append(updatedFiles, path)
+				toRemove = append(toRemove, dstPath)
+				mu.Unlock()
+
+				// Create the directory if it doesn't exist
+				err := os.MkdirAll(filepath.Dir(dstPath), 0755)
+				if err != nil {
+					errCh <- fmt.Errorf("failed to create directory %s: %s", filepath.Dir(dstPath), err.Error())
+					return
+				}
+			}
+
+			// Write the file
+			err = os.WriteFile(dstPath, []byte(content), 0644)
+			if err != nil {
+				errCh <- fmt.Errorf("failed to write %s: %s", dstPath, err.Error())
+				return
+			}
+
+			errCh <- nil
+		}(path, content)
+	}
+
+	for range toApply {
+		err := <-errCh
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
+	return updatedFiles, &types.ApplyRollbackPlan{
+		ToRevert: toRevert,
+		ToRemove: toRemove,
+	}, nil
 }
