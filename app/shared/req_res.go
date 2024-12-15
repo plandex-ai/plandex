@@ -260,6 +260,30 @@ type UpdateSettingsResponse struct {
 	Msg string `json:"msg"`
 }
 
+type UpdatePlanConfigRequest struct {
+	Config *PlanConfig `json:"config"`
+}
+
+type UpdatePlanConfigResponse struct {
+	Msg string `json:"msg"`
+}
+
+type UpdateDefaultPlanConfigRequest struct {
+	Config *PlanConfig `json:"config"`
+}
+
+type UpdateDefaultPlanConfigResponse struct {
+	Msg string `json:"msg"`
+}
+
+type GetPlanConfigResponse struct {
+	Config *PlanConfig `json:"config"`
+}
+
+type GetDefaultPlanConfigResponse struct {
+	Config *PlanConfig `json:"config"`
+}
+
 type ListUsersResponse struct {
 	Users            []*User             `json:"users"`
 	OrgUsersByUserId map[string]*OrgUser `json:"orgUsersByUserId"`

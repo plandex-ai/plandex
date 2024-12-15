@@ -74,6 +74,51 @@ func init() {
 func doTell(cmd *cobra.Command, args []string) {
 	validateTellFlags()
 
+	var config *shared.PlanConfig
+	if lib.CurrentPlanId != "" {
+		term.StartSpinner("")
+		var err error
+		config, err = api.Client.GetPlanConfig(lib.CurrentPlanId)
+		term.StopSpinner()
+
+		if err != nil {
+			term.OutputErrorAndExit("Error getting plan config: %v", err)
+		}
+	} else {
+		term.StartSpinner("")
+		var err error
+		config, err = api.Client.GetDefaultPlanConfig()
+		term.StopSpinner()
+
+		if err != nil {
+			term.OutputErrorAndExit("Error getting default plan config: %v", err)
+		}
+	}
+
+	// Override config with flags
+	if cmd.Flags().Changed("yes") {
+		config.AutoContext = autoConfirm
+	}
+	if cmd.Flags().Changed("apply") {
+		config.AutoApply = tellAutoApply
+	}
+	if cmd.Flags().Changed("commit") {
+		config.AutoCommit = autoCommit
+	}
+	if cmd.Flags().Changed("auto-context") {
+		config.AutoContext = tellAutoContext
+	}
+	if cmd.Flags().Changed("no-exec") {
+		config.NoExec = noExec
+	}
+	if cmd.Flags().Changed("auto-exec") {
+		config.AutoDebug = autoExec
+	}
+	if cmd.Flags().Changed("debug") {
+		config.AutoDebug = true
+		config.AutoDebugTries = autoDebug
+	}
+
 	auth.MustResolveAuthWithOrg()
 	lib.MustResolveProject()
 

@@ -75,7 +75,30 @@ func new(cmd *cobra.Command, args []string) {
 
 	fmt.Printf("✅ Started new plan %s and set it to current plan\n", color.New(color.Bold, term.ColorHiGreen).Sprint(name))
 
+	term.StartSpinner("")
+	config, err := api.Client.GetDefaultPlanConfig()
+	term.StopSpinner()
+
+	if err != nil {
+		term.OutputErrorAndExit("Error getting default config: %v", err)
+	}
+
 	fmt.Println()
-	term.PrintCmds("", "load", "tell", "chat", "plans", "current")
+	color.New(color.Bold, term.ColorHiCyan).Println("⚙️  Default Settings")
+	table := tablewriter.NewWriter(os.Stdout)
+	table.SetAutoWrapText(false)
+	table.SetHeader([]string{"Name", "Value"})
+
+	table.Append([]string{"Auto Apply", fmt.Sprintf("%t", config.AutoApply)})
+	table.Append([]string{"Auto Commit", fmt.Sprintf("%t", config.AutoCommit)})
+	table.Append([]string{"Auto Context", fmt.Sprintf("%t", config.AutoContext)})
+	table.Append([]string{"No Exec", fmt.Sprintf("%t", config.NoExec)})
+	table.Append([]string{"Auto Debug", fmt.Sprintf("%t", config.AutoDebug)})
+	table.Append([]string{"Auto Debug Tries", fmt.Sprintf("%d", config.AutoDebugTries)})
+
+	table.Render()
+
+	fmt.Println()
+	term.PrintCmds("", "load", "tell", "chat", "plans", "current", "settings", "set")
 
 }

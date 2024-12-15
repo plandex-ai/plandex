@@ -136,9 +136,9 @@ func MustApplyPlanAttempt(
 
 	onErr := func(errMsg string, errArgs ...interface{}) {
 		term.StopSpinner()
-		if toRollback != nil && toRollback.HasChanges() {
-			Rollback(toRollback, true)
-		}
+		// if toRollback != nil && toRollback.HasChanges() {
+		// 	Rollback(toRollback, true)
+		// }
 		term.OutputErrorAndExit(errMsg, errArgs...)
 	}
 

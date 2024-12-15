@@ -400,6 +400,41 @@ type CloudBillingFields struct {
 	StripePaymentMethod  *string    `json:"stripePaymentMethod"`
 }
 
+type PlanConfig struct {
+	AutoApply      bool `json:"autoApply"`
+	AutoCommit     bool `json:"autoCommit"`
+	AutoContext    bool `json:"autoContext"`
+	NoExec         bool `json:"noExec"`
+	AutoDebug      bool `json:"autoDebug"`
+	AutoDebugTries int  `json:"autoDebugTries"`
+}
+
+func (p *PlanConfig) Scan(src interface{}) error {
+	if src == nil {
+		return nil
+	}
+	switch s := src.(type) {
+	case []byte:
+		return json.Unmarshal(s, p)
+	case string:
+		return json.Unmarshal([]byte(s), p)
+	default:
+		return fmt.Errorf("unsupported data type: %T", src)
+	}
+}
+
+func (p PlanConfig) Value() (driver.Value, error) {
+	return json.Marshal(p)
+}
+
+type DefaultPlanConfig struct {
+	Id        string     `json:"id"`
+	UserId    string     `json:"userId"`
+	Config    PlanConfig `json:"config"`
+	CreatedAt time.Time  `json:"createdAt"`
+	UpdatedAt time.Time  `json:"updatedAt"`
+}
+
 type CreditsTransactionType string
 
 const (

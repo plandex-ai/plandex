@@ -45,12 +45,20 @@ func Execute() {
 		color.New(color.Bold).Println("  plandex [command] --help")
 		fmt.Println()
 
-		os.Exit(1)
+		color.New(color.Bold, color.BgGreen, color.FgHiWhite).Println(" Common Commands ")
+		color.New(color.Bold).Println("  plandex new # create a new plan")
+		color.New(color.Bold).Println("  plandex tell # tell the plan what to do")
+		color.New(color.Bold).Println("  plandex continue # continue the current plan")
+		color.New(color.Bold).Println("  plandex settings # show plan settings")
+		color.New(color.Bold).Println("  plandex set # update plan settings")
+		fmt.Println()
 
+		os.Exit(1)
 	}
 }
 
 func run(cmd *cobra.Command, args []string) {
+
 }
 
 func init() {

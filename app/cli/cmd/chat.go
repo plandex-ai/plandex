@@ -29,6 +29,35 @@ func init() {
 }
 
 func doChat(cmd *cobra.Command, args []string) {
+	var config *shared.PlanConfig
+	if lib.CurrentPlanId != "" {
+		term.StartSpinner("")
+		var err error
+		config, err = api.Client.GetPlanConfig(lib.CurrentPlanId)
+		term.StopSpinner()
+
+		if err != nil {
+			term.OutputErrorAndExit("Error getting plan config: %v", err)
+		}
+	} else {
+		term.StartSpinner("")
+		var err error
+		config, err = api.Client.GetDefaultPlanConfig()
+		term.StopSpinner()
+
+		if err != nil {
+			term.OutputErrorAndExit("Error getting default plan config: %v", err)
+		}
+	}
+
+	// Override config with flags
+	if cmd.Flags().Changed("yes") {
+		config.AutoContext = autoConfirm
+	}
+	if cmd.Flags().Changed("auto-context") {
+		config.AutoContext = tellAutoContext
+	}
+
 	auth.MustResolveAuthWithOrg()
 	lib.MustResolveProject()
 
@@ -53,10 +82,11 @@ func doChat(cmd *cobra.Command, args []string) {
 		CurrentBranch: lib.CurrentBranch,
 		ApiKeys:       apiKeys,
 		CheckOutdatedContext: func(maybeContexts []*shared.Context) (bool, bool, error) {
-			return lib.CheckOutdatedContextWithOutput(false, autoConfirm, maybeContexts)
+			return lib.CheckOutdatedContextWithOutput(false, config.AutoContext, maybeContexts)
 		},
 	}, prompt, plan_exec.TellFlags{
 		IsChatOnly:  true,
-		AutoContext: tellAutoContext,
+		AutoContext: config.AutoContext,
 	})
 }
+

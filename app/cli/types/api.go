@@ -93,6 +93,11 @@ type ApiClient interface {
 	GetOrgDefaultSettings() (*shared.PlanSettings, *shared.ApiError)
 	UpdateOrgDefaultSettings(req shared.UpdateSettingsRequest) (*shared.UpdateSettingsResponse, *shared.ApiError)
 
+	GetPlanConfig(planId string) (*shared.PlanConfig, *shared.ApiError)
+	UpdatePlanConfig(planId string, req shared.UpdatePlanConfigRequest) (*shared.UpdatePlanConfigResponse, *shared.ApiError)
+	GetDefaultPlanConfig() (*shared.PlanConfig, *shared.ApiError)
+	UpdateDefaultPlanConfig(req shared.UpdateDefaultPlanConfigRequest) (*shared.UpdateDefaultPlanConfigResponse, *shared.ApiError)
+
 	CreateCustomModel(model *shared.AvailableModel) *shared.ApiError
 	ListCustomModels() ([]*shared.AvailableModel, *shared.ApiError)
 	DeleteAvailableModel(modelId string) *shared.ApiError
