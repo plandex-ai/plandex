@@ -72,6 +72,8 @@ type streamUIModel struct {
 
 	err    error
 	apiErr *shared.ApiError
+
+	updateDebouncer *UpdateDebouncer
 }
 
 type keymap = struct {
@@ -166,14 +168,15 @@ func initialModel(prestartReply, prompt string, buildOnly bool) *streamUIModel {
 			),
 		},
 
-		tokensByPath:   make(map[string]int),
-		finishedByPath: make(map[string]bool),
-		removedByPath:  make(map[string]bool),
-		spinner:        s,
-		buildSpinner:   buildSpinner,
-		sharedTicker:   sharedTicker,
-		atScrollBottom: true,
-		starting:       true,
+		tokensByPath:    make(map[string]int),
+		finishedByPath:  make(map[string]bool),
+		removedByPath:   make(map[string]bool),
+		spinner:         s,
+		buildSpinner:    buildSpinner,
+		sharedTicker:    sharedTicker,
+		atScrollBottom:  true,
+		starting:        true,
+		updateDebouncer: NewUpdateDebouncer(8 * time.Millisecond),
 	}
 
 	return &initialState

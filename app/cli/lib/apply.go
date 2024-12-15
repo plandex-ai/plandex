@@ -507,12 +507,13 @@ func commitApplied(autoCommit bool, commitSummary string, updatedFiles []string,
 
 func applyFiles(toApply map[string]string, toRemove map[string]bool) ([]string, *types.ApplyRollbackPlan, error) {
 	var updatedFiles []string
-	var toRevert map[string]types.ApplyReversion
+	toRevert := map[string]types.ApplyReversion{}
 	var toRemoveOnRollback []string
 	var projectPaths *types.ProjectPaths
 
 	var mu sync.Mutex
-	errCh := make(chan error, len(toApply)+len(toRemove))
+	totalOps := len(toApply) + len(toRemove) + 1
+	errCh := make(chan error, totalOps)
 
 	for path, content := range toApply {
 		if path == "_apply.sh" {
@@ -639,9 +640,10 @@ func applyFiles(toApply map[string]string, toRemove map[string]bool) ([]string, 
 		if err != nil {
 			errCh <- fmt.Errorf("failed to get project paths: %v", err)
 		}
+		errCh <- nil
 	}()
 
-	for i := 0; i < len(toApply)+len(toRemove)+1; i++ {
+	for i := 0; i < totalOps; i++ {
 		err := <-errCh
 		if err != nil {
 			return nil, nil, err

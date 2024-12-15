@@ -15,14 +15,15 @@ func (state *activeTellStreamState) formatModelContext(includeMaps, includeTrees
 	addedFilesSet := map[string]bool{}
 
 	uses := map[string]bool{}
-	if isImplementationStage {
+	if isImplementationStage && state.currentSubtask != nil {
 		for _, path := range state.currentSubtask.UsesFiles {
 			uses[path] = true
 		}
+
 	}
 
 	for _, part := range state.modelContext {
-		if isImplementationStage && part.ContextType == shared.ContextFileType && !uses[part.FilePath] {
+		if isImplementationStage && state.currentSubtask != nil && part.ContextType == shared.ContextFileType && !uses[part.FilePath] {
 			continue
 		}
 

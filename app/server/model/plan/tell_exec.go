@@ -274,6 +274,8 @@ func execTellPlan(
 		sysCreateTokens += subtaskTokens
 	}
 
+	log.Println("**sysCreate:**\n", sysCreate)
+
 	state.messages = []openai.ChatCompletionMessage{
 		{
 			Role:    openai.ChatMessageRoleSystem,

@@ -39,6 +39,9 @@ func (m streamUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.windowResized(msg.Width, msg.Height)
 
 	case shared.StreamMessage:
+		if !m.updateDebouncer.ShouldUpdate() {
+			return m, nil // Skip this update if it's too soon
+		}
 		return m.streamUpdate(&msg, false)
 
 	case delayFileRestartMsg:
