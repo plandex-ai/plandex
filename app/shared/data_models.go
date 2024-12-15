@@ -194,6 +194,8 @@ type PlanFileResult struct {
 	RejectedAt          *time.Time     `json:"rejectedAt,omitempty"`
 	Replacements        []*Replacement `json:"replacements"`
 
+	RemovedFile bool `json:"removedFile"`
+
 	CanVerify    bool       `json:"canVerify"`
 	RanVerifyAt  *time.Time `json:"ranVerifyAt,omitempty"`
 	VerifyPassed bool       `json:"verifyPassed"`
@@ -208,6 +210,7 @@ type PlanFileResult struct {
 
 type CurrentPlanFiles struct {
 	Files           map[string]string    `json:"files"`
+	Removed         map[string]bool      `json:"removedByPath"`
 	UpdatedAtByPath map[string]time.Time `json:"updatedAtByPath"`
 }
 

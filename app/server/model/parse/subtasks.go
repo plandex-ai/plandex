@@ -1,4 +1,4 @@
-package model
+package parse
 
 import (
 	"plandex-server/db"

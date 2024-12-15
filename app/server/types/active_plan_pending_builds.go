@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"plandex-server/db"
+	"plandex-server/model/parse"
 
 	"github.com/plandex/plandex/shared"
 )
@@ -55,6 +56,7 @@ func (ap *ActivePlan) PendingBuildsByPath(orgId, userId string, convoMessagesArg
 			replyParser.AddChunk(convoMessage.Message, false)
 			parserRes := replyParser.FinishAndRead()
 
+			numAdded := 0
 			for i, file := range desc.Files {
 
 				if desc.DidBuild && !desc.BuildPathsInvalidated[file] {
@@ -83,6 +85,47 @@ func (ap *ActivePlan) PendingBuildsByPath(orgId, userId string, convoMessagesArg
 					Path:              file,
 					FileDescription:   fileDesc,
 				})
+				numAdded++
+			}
+
+			moveFiles := parse.ParseMoveFiles(convoMessage.Message)
+			if len(moveFiles) > 0 {
+				for i, moveFile := range moveFiles {
+					src := moveFile.Source
+					dest := moveFile.Destination
+
+					activeBuildsByPath[dest] = append(activeBuildsByPath[dest], &ActiveBuild{
+						ReplyId:         desc.ConvoMessageId,
+						Idx:             numAdded + i,
+						Path:            src,
+						IsMoveOp:        true,
+						MoveDestination: dest,
+					})
+				}
+			}
+
+			removeFiles := parse.ParseRemoveFiles(convoMessage.Message)
+			if len(removeFiles) > 0 {
+				for i, removeFile := range removeFiles {
+					activeBuildsByPath[removeFile] = append(activeBuildsByPath[removeFile], &ActiveBuild{
+						ReplyId:    desc.ConvoMessageId,
+						Idx:        numAdded + i,
+						Path:       removeFile,
+						IsRemoveOp: true,
+					})
+				}
+			}
+
+			resetFiles := parse.ParseResetChanges(convoMessage.Message)
+			if len(resetFiles) > 0 {
+				for i, resetFile := range resetFiles {
+					activeBuildsByPath[resetFile] = append(activeBuildsByPath[resetFile], &ActiveBuild{
+						ReplyId:   desc.ConvoMessageId,
+						Idx:       numAdded + i,
+						Path:      resetFile,
+						IsResetOp: true,
+					})
+				}
 			}
 		}
 	}

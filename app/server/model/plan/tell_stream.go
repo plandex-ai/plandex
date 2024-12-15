@@ -214,7 +214,70 @@ mainLoop:
 
 				autoLoadContextFiles := state.checkAutoLoadContext()
 				hasNewSubtasks := state.checkNewSubtasks()
+				moveFiles := state.checkMoveFileOps()
+				removeFiles := state.checkRemoveFileOps()
+				resetFiles := state.checkResetFileOps()
 				var allSubtasksFinished bool
+
+				if req.BuildMode == shared.BuildModeAuto {
+					getBuildState := func() *activeBuildStreamState {
+						return &activeBuildStreamState{
+							tellState:     state,
+							clients:       clients,
+							auth:          auth,
+							currentOrgId:  currentOrgId,
+							currentUserId: currentUserId,
+							plan:          plan,
+							branch:        branch,
+							settings:      settings,
+							modelContext:  state.modelContext,
+						}
+					}
+
+					if len(moveFiles) > 0 {
+						log.Println("Detected move files, queuing builds")
+						for i, moveFile := range moveFiles {
+							getBuildState().queueBuilds([]*types.ActiveBuild{
+								{
+									ReplyId:         replyId,
+									Idx:             i,
+									Path:            moveFile.Source,
+									IsMoveOp:        true,
+									MoveDestination: moveFile.Destination,
+								},
+							})
+						}
+					}
+
+					if len(removeFiles) > 0 {
+						log.Println("Detected remove files, queuing builds")
+						for i, removeFile := range removeFiles {
+							getBuildState().queueBuilds([]*types.ActiveBuild{
+								{
+									ReplyId:    replyId,
+									Idx:        i,
+									Path:       removeFile,
+									IsRemoveOp: true,
+								},
+							})
+						}
+					}
+
+					if len(resetFiles) > 0 {
+						log.Println("Detected reset files, queuing builds")
+
+						for i, resetFile := range resetFiles {
+							getBuildState().queueBuilds([]*types.ActiveBuild{
+								{
+									ReplyId:   replyId,
+									Idx:       i,
+									Path:      resetFile,
+									IsResetOp: true,
+								},
+							})
+						}
+					}
+				}
 
 				var errCh = make(chan error, 2)
 
@@ -744,11 +807,6 @@ mainLoop:
 
 					log.Printf("Detected file: %s\n", file)
 
-					if file == "_pending.sh" {
-						// TODO: extract and queue commands from _pending.sh
-						continue
-					}
-
 					if req.BuildMode == shared.BuildModeAuto {
 						log.Printf("Queuing build for %s\n", file)
 						// log.Println("Content:")
@@ -840,126 +898,6 @@ func (state *activeTellStreamState) storeAssistantReply() (*db.ConvoMessage, str
 	state.convo = convo
 
 	return &assistantMsg, commitMsg, err
-}
-
-func (state *activeTellStreamState) checkAutoLoadContext() []string {
-	activePlan := GetActivePlan(state.plan.Id, state.branch)
-
-	if activePlan == nil {
-		return nil
-	}
-
-	if !activePlan.AutoContext {
-		return nil
-	}
-
-	if state.req.IsUserContinue {
-		return nil
-	}
-
-	// only load context on the first iteration of a non-continue prompt
-	if state.iteration > 0 {
-		return nil
-	}
-
-	split := strings.Split(activePlan.CurrentReplyContent, "### Load Context")
-
-	if len(split) < 2 {
-		return nil
-	}
-
-	req := state.req
-
-	list := strings.Split(split[1], "\n")
-	files := []string{}
-
-	for _, line := range list {
-		trimmed := strings.TrimSpace(line)
-		if trimmed == "" {
-			continue
-		}
-
-		if strings.HasPrefix(trimmed, "-") {
-			trimmed = strings.TrimPrefix(trimmed, "-")
-			trimmed = strings.ReplaceAll(trimmed, "`", "")
-			trimmed = strings.TrimSpace(trimmed)
-
-			if req.ProjectPaths[trimmed] {
-				files = append(files, trimmed)
-			}
-		}
-	}
-
-	return files
-}
-
-func (state *activeTellStreamState) checkNewSubtasks() bool {
-	activePlan := GetActivePlan(state.plan.Id, state.branch)
-
-	if activePlan == nil {
-		return false
-	}
-
-	content := activePlan.CurrentReplyContent
-
-	subtasks := model.ParseSubtasks(content)
-
-	if len(subtasks) == 0 {
-		return false
-	}
-
-	log.Println("Found new subtasks:")
-	spew.Dump(subtasks)
-
-	subtasksByName := map[string]*db.Subtask{}
-
-	for _, subtask := range state.subtasks {
-		subtasksByName[subtask.Title] = subtask
-	}
-
-	var newSubtasks []*db.Subtask
-
-	for _, subtask := range state.subtasks {
-		if subtask.IsFinished {
-			newSubtasks = append(newSubtasks, subtask)
-		}
-	}
-
-	for _, subtask := range subtasks {
-		if subtasksByName[subtask.Title] == nil {
-			newSubtasks = append(newSubtasks, subtask)
-		}
-	}
-
-	state.subtasks = newSubtasks
-
-	var currentSubtaskName string
-	if state.currentSubtask != nil {
-		currentSubtaskName = state.currentSubtask.Title
-	}
-
-	found := false
-	for _, subtask := range state.subtasks {
-		if subtask.Title == currentSubtaskName {
-			found = true
-			state.currentSubtask = subtask
-			break
-		}
-	}
-	if !found {
-		state.currentSubtask = nil
-	}
-
-	if state.currentSubtask == nil {
-		for _, subtask := range state.subtasks {
-			if !subtask.IsFinished {
-				state.currentSubtask = subtask
-				break
-			}
-		}
-	}
-
-	return true
 }
 
 func (state *activeTellStreamState) onError(streamErr error, storeDesc bool, convoMessageId, commitMsg string) {

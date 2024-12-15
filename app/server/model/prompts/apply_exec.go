@@ -29,7 +29,7 @@ const ApplyScriptPrompt = `
 
 **Execution mode is enabled.** 
 
-In addition to creating and updating files, you can also execute commands on the user's machine by writing to a another *special path*: ` + "_apply.sh" + `
+In addition to creating and updating files with code blocks, you can also execute commands on the user's machine by writing to a another *special path*: ` + "_apply.sh" + `
 
 This file allows you to execute commands in the context of the *user's machine*, not the Plandex server, when the user applies the changes from the plan to their project. This script will be executed on the user's machine in the root directory of the plan. 
 
@@ -37,9 +37,7 @@ Use this to run any necessary commands *after* all the pending files from the pl
 
 DO NOT use the _apply.sh script to move, remove, or reset changes to files that are in context or have pending changes—use one of the special file operation sections instead: '### Move Files', '### Remove Files', or '### Reset Changes' if you need to do that, and follow the instructions for those sections.
 
-DO NOT use the _apply.sh script to create directory paths for files that are in context or pending. Any required directories will be created automatically when the plan is applied.
-
-You can use the _apply.sh script for file operations on files that are *not* in context or pending, but be careful and conservative—only do so when it is strictly necessary to implement the plan. Do NOT use it for file operations on files that are in context or pending, and do NOT use it to create directories or files—any required directories will be created automatically when the plan is applied, and files must be created by code blocks within the plan, not in _apply.sh.
+You ABSOLUTELY MUST NOT use the _apply.sh script to create files or directories. Use code blocks within the plan to create files and directories. When you create a new file with a code block, the necessary directories will be created automatically, so DO NOT create directories in _apply.sh.
 
 Use the appropriate commands for the user's operating system and shell, which will be supplied to you in the prompt.
 
@@ -68,6 +66,8 @@ DO NOT give the user any additional commands to run—include them all in the _a
 If appropriate, also include a command to run the actual program in _apply.sh. For example, if there is a Makefile and you include the 'make' command in _apply.sh to compile the program, you should also include the command to run the program itself in _apply.sh. If you've generated an npm app with a 'npm start' or equivalent command in package.json, you should also include that command in _apply.sh to start the application. Use your judgment on the best way to run/execute the plan that you've implemented in _apply.sh—but do run it if you can.
 
 If it's appropriate, include a subtask for writing to the _apply.sh script when you break up a task into subtasks. Also mention in your initial plan, when breaking up a task into subtasks, if any other subtasks should write to the _apply.sh script (in addition to any other actions in that subtask).
+
+When breaking up a task into subtasks, remember that you MUST NOT use the _apply.sh script to create files or directories. This must be done by code blocks within the plan, not in _apply.sh. Do NOT create a subtask for writing to the _apply.sh script unless there are other commands that need to be run—NOT just to create files or directories.
 
 When running commands in _apply.sh, DO NOT hide or filter the output of the commands in any way. For example, do not do something like this:
 
@@ -165,7 +165,7 @@ Key instructions for _apply.sh:
 
 - The script runs on the user's machine after plan files are created/updated
 - DO NOT use _apply.sh for file operations (move/remove/reset) on files that are in context or have pending changes—use '### Move Files', '### Remove Files', or '### Reset Changes' instead
-- You can use _apply.sh for file operations on files that are not in context or pending, but be careful and conservative—only do so when it is strictly necessary to implement the plan
+- DO NOT use _apply.sh to create files or directories—use code blocks within the plan to create files and directories. When you create a new file with a code block, the necessary directories will be created automatically, so DO NOT create directories in _apply.sh.
 - Include ALL necessary commands unless they are risky/dangerous
 - Prefer local changes over global system changes
 - Check for required tools before using them

@@ -56,16 +56,7 @@ ALWAYS complete subtasks in order and never go backwards in the list of subtasks
 
 If you break up a task into subtasks, only include subtasks that can be implemented directly in code by creating or updating files. Do not include subtasks that require executing code or commands. Do not include subtasks that require user testing, deployment, or other tasks that go beyond coding.
 
-If you need to *move* or *rename* a file that is in context or pending, use the special ` + "`move`" + ` command in the _pending.sh script. Do NOT use a file block to move a file to another path.
-
-If you need to *copy* a file that is in context or pending, use the special ` + "`copy`" + ` command in the _pending.sh script. Do NOT use a file block to copy a file to another path.
-
-If you need to reject/revert all the changes you've made to a file that is in context or pending, use the special ` + "`reject`" + ` command in the _pending.sh script. Do NOT use a file block to reject/revert changes to a file.
-
-If you need to *remove* a file that is in context or pending, use the special ` + "`remove`" + ` command in the _pending.sh script. Do NOT use a file block to remove a file.
-
-DO NOT include comments or any other commands in the _pending.sh script. It MUST ONLY include special commands and their arguments. Do NOT create directories in the _pending.sh script—the special commands will create directories as needed.
-`
+` + FileOpsPromptSummary
 
 var ImplementationPromptWrapperTokens int
 

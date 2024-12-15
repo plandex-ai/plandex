@@ -48,6 +48,7 @@ type streamUIModel struct {
 	building       bool
 	tokensByPath   map[string]int
 	finishedByPath map[string]bool
+	removedByPath  map[string]bool
 
 	ready  bool
 	width  int
@@ -167,6 +168,7 @@ func initialModel(prestartReply, prompt string, buildOnly bool) *streamUIModel {
 
 		tokensByPath:   make(map[string]int),
 		finishedByPath: make(map[string]bool),
+		removedByPath:  make(map[string]bool),
 		spinner:        s,
 		buildSpinner:   buildSpinner,
 		sharedTicker:   sharedTicker,

@@ -118,6 +118,7 @@ func MustApplyPlanAttempt(
 	isRepo := fs.ProjectRootIsGitRepo()
 
 	toApply := currentPlanFiles.Files
+	toRemove := currentPlanFiles.Removed
 	hasExec := currentPlanFiles.Files["_apply.sh"] != ""
 
 	log.Printf("Files to apply: %d, Has exec script: %v", len(toApply), hasExec)
@@ -136,7 +137,7 @@ func MustApplyPlanAttempt(
 	onErr := func(errMsg string, errArgs ...interface{}) {
 		term.StopSpinner()
 		if toRollback != nil && toRollback.HasChanges() {
-			toRollback.Rollback(true)
+			Rollback(toRollback, true)
 		}
 		term.OutputErrorAndExit(errMsg, errArgs...)
 	}
@@ -178,7 +179,7 @@ func MustApplyPlanAttempt(
 			term.ResumeSpinner()
 		}
 
-		updatedFiles, toRollback, err = applyFiles(toApply)
+		updatedFiles, toRollback, err = applyFiles(toApply, toRemove)
 
 		if err != nil {
 			onErr("failed to apply files: %s", err)
@@ -277,7 +278,7 @@ func handleApplyScript(
 			}
 
 			if res == string(types.ApplyRollbackOptionRollback) {
-				toRollback.Rollback(true)
+				Rollback(toRollback, true)
 			} else {
 				onSuccess()
 			}
@@ -394,7 +395,7 @@ func execApplyScript(
 			}
 
 			if res == string(types.ApplyRollbackOptionRollback) {
-				toRollback.Rollback(true)
+				Rollback(toRollback, true)
 			} else {
 				onSuccess()
 			}
@@ -504,13 +505,14 @@ func commitApplied(autoCommit bool, commitSummary string, updatedFiles []string,
 	return nil
 }
 
-func applyFiles(toApply map[string]string) ([]string, *types.ApplyRollbackPlan, error) {
+func applyFiles(toApply map[string]string, toRemove map[string]bool) ([]string, *types.ApplyRollbackPlan, error) {
 	var updatedFiles []string
 	var toRevert map[string]types.ApplyReversion
-	var toRemove []string
+	var toRemoveOnRollback []string
+	var projectPaths *types.ProjectPaths
 
 	var mu sync.Mutex
-	errCh := make(chan error, len(toApply))
+	errCh := make(chan error, len(toApply)+len(toRemove))
 
 	for path, content := range toApply {
 		if path == "_apply.sh" {
@@ -562,7 +564,7 @@ func applyFiles(toApply map[string]string) ([]string, *types.ApplyRollbackPlan, 
 			} else {
 				mu.Lock()
 				updatedFiles = append(updatedFiles, path)
-				toRemove = append(toRemove, dstPath)
+				toRemoveOnRollback = append(toRemoveOnRollback, dstPath)
 				mu.Unlock()
 
 				// Create the directory if it doesn't exist
@@ -584,7 +586,62 @@ func applyFiles(toApply map[string]string) ([]string, *types.ApplyRollbackPlan, 
 		}(path, content)
 	}
 
-	for range toApply {
+	for path, remove := range toRemove {
+		go func(path string, remove bool) {
+			if !remove {
+				errCh <- nil
+				return
+			}
+			// Compute destination path
+			dstPath := filepath.Join(fs.ProjectRoot, path)
+
+			// Check if the file exists
+			var exists bool
+			var mode os.FileMode
+			info, err := os.Stat(dstPath)
+			if err == nil {
+				exists = true
+				mode = info.Mode()
+			} else {
+				if os.IsNotExist(err) {
+					exists = false
+				} else {
+					errCh <- fmt.Errorf("failed to check if %s exists: %s", dstPath, err.Error())
+					return
+				}
+			}
+
+			if exists {
+				content, err := os.ReadFile(dstPath)
+				if err != nil {
+					errCh <- fmt.Errorf("failed to read %s: %s", dstPath, err.Error())
+					return
+				}
+
+				err = os.Remove(dstPath)
+				if err != nil && !os.IsNotExist(err) {
+					errCh <- fmt.Errorf("failed to remove %s: %s", dstPath, err.Error())
+					return
+				}
+
+				mu.Lock()
+				toRevert[dstPath] = types.ApplyReversion{Content: string(content), Mode: mode}
+				mu.Unlock()
+			}
+
+			errCh <- nil
+		}(path, remove)
+	}
+
+	go func() {
+		var err error
+		projectPaths, err = fs.GetProjectPaths(fs.ProjectRoot)
+		if err != nil {
+			errCh <- fmt.Errorf("failed to get project paths: %v", err)
+		}
+	}()
+
+	for i := 0; i < len(toApply)+len(toRemove)+1; i++ {
 		err := <-errCh
 		if err != nil {
 			return nil, nil, err
@@ -592,7 +649,87 @@ func applyFiles(toApply map[string]string) ([]string, *types.ApplyRollbackPlan, 
 	}
 
 	return updatedFiles, &types.ApplyRollbackPlan{
-		ToRevert: toRevert,
-		ToRemove: toRemove,
+		PreviousProjectPaths: projectPaths,
+		ToRevert:             toRevert,
+		ToRemove:             toRemoveOnRollback,
 	}, nil
+}
+
+func Rollback(rollbackPlan *types.ApplyRollbackPlan, msg bool) error {
+	errCh := make(chan error, len(rollbackPlan.ToRevert)+len(rollbackPlan.ToRemove))
+
+	for path, revert := range rollbackPlan.ToRevert {
+		go func(path string, revert types.ApplyReversion) {
+			err := os.WriteFile(path, []byte(revert.Content), revert.Mode)
+			if err != nil {
+				errCh <- fmt.Errorf("failed to write %s: %s", path, err.Error())
+				return
+			}
+			errCh <- nil
+		}(path, revert)
+	}
+
+	for _, path := range rollbackPlan.ToRemove {
+		go func(path string) {
+			err := os.Remove(path)
+			if err != nil {
+				errCh <- fmt.Errorf("failed to remove %s: %s", path, err.Error())
+				return
+			}
+			errCh <- nil
+		}(path)
+	}
+
+	go func() {
+		var err error
+		projectPaths, err := fs.GetProjectPaths(fs.ProjectRoot)
+		if err != nil {
+			errCh <- fmt.Errorf("failed to get project paths: %v", err)
+		}
+
+		var toRemove []string
+		for path := range projectPaths.ActivePaths {
+			if _, ok := rollbackPlan.PreviousProjectPaths.ActivePaths[path]; !ok {
+				toRemove = append(toRemove, path)
+			}
+		}
+
+		pathsErrCh := make(chan error, len(toRemove))
+
+		for _, path := range toRemove {
+			go func(path string) {
+				err := os.Remove(path)
+				pathsErrCh <- err
+			}(path)
+		}
+
+		for range toRemove {
+			err := <-pathsErrCh
+			if err != nil {
+				errCh <- fmt.Errorf("failed to remove %s: %s", toRemove, err.Error())
+				return
+			}
+		}
+
+		errCh <- nil
+	}()
+
+	errs := []error{}
+
+	for i := 0; i < len(rollbackPlan.ToRevert)+len(rollbackPlan.ToRemove)+1; i++ {
+		err := <-errCh
+		if err != nil {
+			errs = append(errs, err)
+		}
+	}
+
+	if len(errs) > 0 {
+		return fmt.Errorf("failed to rollback: %s", errs)
+	}
+
+	if msg {
+		fmt.Println("🚫 Rolled back all changes")
+	}
+
+	return nil
 }

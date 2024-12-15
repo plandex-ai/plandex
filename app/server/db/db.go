@@ -44,11 +44,11 @@ func Connect() error {
 	log.Println("connected to database")
 
 	if os.Getenv("GOENV") == "production" {
-		Conn.SetMaxOpenConns(100) // Allow up to 100 concurrent connections per task
-		Conn.SetMaxIdleConns(100) // Keep up to 100 idle connections for reuse
+		Conn.SetMaxOpenConns(500)
+		Conn.SetMaxIdleConns(100)
 	} else {
-		Conn.SetMaxOpenConns(20) // Allow up to 20 concurrent connections per task
-		Conn.SetMaxIdleConns(20) // Keep up to 20 idle connections for reuse
+		Conn.SetMaxOpenConns(250)
+		Conn.SetMaxIdleConns(50)
 	}
 
 	_, err = Conn.Exec("SET TIMEZONE='UTC';")

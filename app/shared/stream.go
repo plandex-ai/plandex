@@ -6,6 +6,7 @@ type BuildInfo struct {
 	Path      string `json:"path"`
 	NumTokens int    `json:"numTokens"`
 	Finished  bool   `json:"finished"`
+	Removed   bool   `json:"removed,omitempty"`
 }
 
 type StreamMessageType string

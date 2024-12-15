@@ -100,6 +100,14 @@ func (state *activeTellStreamState) formatModelContext(includeMaps, includeTrees
 		}
 	}
 
+	if len(state.currentPlanState.CurrentPlanFiles.Removed) > 0 {
+		contextMessages = append(contextMessages, "*Removed files:*\n")
+		for path := range state.currentPlanState.CurrentPlanFiles.Removed {
+			contextMessages = append(contextMessages, fmt.Sprintf("- %s", path))
+		}
+		contextMessages = append(contextMessages, "These files have been *removed* and are no longer in the plan. If you want to re-add them to the plan, you must explicitly create them again.")
+	}
+
 	if execEnabled {
 		contextMessages = append(contextMessages, state.currentPlanState.ExecHistory())
 
@@ -113,4 +121,55 @@ func (state *activeTellStreamState) formatModelContext(includeMaps, includeTrees
 	}
 
 	return strings.Join(contextMessages, "\n### END OF CONTEXT ###\n"), numTokens, nil
+}
+
+func (state *activeTellStreamState) checkAutoLoadContext() []string {
+	activePlan := GetActivePlan(state.plan.Id, state.branch)
+
+	if activePlan == nil {
+		return nil
+	}
+
+	if !activePlan.AutoContext {
+		return nil
+	}
+
+	if state.req.IsUserContinue {
+		return nil
+	}
+
+	// only load context on the first iteration of a non-continue prompt
+	if state.iteration > 0 {
+		return nil
+	}
+
+	split := strings.Split(activePlan.CurrentReplyContent, "### Load Context")
+
+	if len(split) < 2 {
+		return nil
+	}
+
+	req := state.req
+
+	list := strings.Split(split[1], "\n")
+	files := []string{}
+
+	for _, line := range list {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			continue
+		}
+
+		if strings.HasPrefix(trimmed, "-") {
+			trimmed = strings.TrimPrefix(trimmed, "-")
+			trimmed = strings.ReplaceAll(trimmed, "`", "")
+			trimmed = strings.TrimSpace(trimmed)
+
+			if req.ProjectPaths[trimmed] {
+				files = append(files, trimmed)
+			}
+		}
+	}
+
+	return files
 }

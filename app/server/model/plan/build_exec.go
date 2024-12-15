@@ -225,6 +225,100 @@ func (fileState *activeBuildStreamFileState) buildFile() {
 		// log.Println("\n\nCurrent state:\n", currentState, "\n\n")
 	}
 
+	if activeBuild.IsMoveOp {
+		log.Printf("File %s is a move operation. Moving to %s\n", filePath, activeBuild.MoveDestination)
+		log.Println("Will remove this path and then queue another build for the new path with the current file's content")
+
+		fileState.queueBuilds([]*types.ActiveBuild{
+			{
+				ReplyId:    activeBuild.ReplyId,
+				Idx:        activeBuild.Idx,
+				Path:       activeBuild.Path,
+				IsRemoveOp: true,
+			},
+			{
+				ReplyId:           activeBuild.ReplyId,
+				Idx:               activeBuild.Idx,
+				Path:              activeBuild.MoveDestination,
+				FileContent:       currentState,
+				FileContentTokens: 0,
+			},
+		})
+
+		return
+	}
+
+	if activeBuild.IsRemoveOp {
+		log.Printf("File %s is a remove operation. Removing file.\n", filePath)
+
+		buildInfo := &shared.BuildInfo{
+			Path:      filePath,
+			NumTokens: 0,
+			Removed:   true,
+			Finished:  true,
+		}
+
+		activePlan.Stream(shared.StreamMessage{
+			Type:      shared.StreamMessageBuildInfo,
+			BuildInfo: buildInfo,
+		})
+
+		planRes := &db.PlanFileResult{
+			OrgId:          currentOrgId,
+			PlanId:         planId,
+			PlanBuildId:    build.Id,
+			ConvoMessageId: build.ConvoMessageId,
+			Path:           filePath,
+			Content:        "",
+			RemovedFile:    true,
+		}
+		fileState.onFinishBuildFile(planRes, "")
+		return
+	}
+
+	if activeBuild.IsResetOp {
+		log.Printf("File %s is a reset operation. Resetting file.\n", filePath)
+
+		if contextPart == nil {
+			log.Printf("File %s not found in model context. Removing pending file.\n", filePath)
+
+			fileState.queueBuilds([]*types.ActiveBuild{
+				{
+					ReplyId:    activeBuild.ReplyId,
+					Idx:        activeBuild.Idx,
+					Path:       activeBuild.Path,
+					IsRemoveOp: true,
+				},
+			})
+
+			return
+		} else {
+			log.Printf("File %s found in model context. Using context state.\n", filePath)
+
+			buildInfo := &shared.BuildInfo{
+				Path:      filePath,
+				NumTokens: 0,
+				Finished:  true,
+			}
+
+			activePlan.Stream(shared.StreamMessage{
+				Type:      shared.StreamMessageBuildInfo,
+				BuildInfo: buildInfo,
+			})
+
+			planRes := &db.PlanFileResult{
+				OrgId:          currentOrgId,
+				PlanId:         planId,
+				PlanBuildId:    build.Id,
+				ConvoMessageId: build.ConvoMessageId,
+				Path:           filePath,
+				Content:        contextPart.Body,
+			}
+			fileState.onFinishBuildFile(planRes, "")
+			return
+		}
+	}
+
 	fileState.preBuildState = currentState
 
 	if currentState == "" {
@@ -285,17 +379,9 @@ func (fileState *activeBuildStreamFileState) buildFile() {
 		activePlan.DidEditFiles = true
 	}
 
-	if fileState.parser != nil && !fileState.preBuildStateSyntaxInvalid {
-		log.Println("buildFile - building structured edits")
-
-		fileState.buildStructuredEdits()
-	} else {
-		log.Println("buildFile - building expand references")
-		log.Printf("fileState.parser == nil: %v\n", fileState.parser == nil)
-		log.Printf("fileState.preBuildStateSyntaxInvalid: %v\n", fileState.preBuildStateSyntaxInvalid)
-
-		fileState.buildExpandReferences()
-	}
+	// build structured edits strategy now works regardless of language/tree-sitter support
+	log.Println("buildFile - building structured edits")
+	fileState.buildStructuredEdits()
 }
 
 func (fileState *activeBuildStreamFileState) buildFileLineNums() {

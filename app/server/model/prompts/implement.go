@@ -68,6 +68,8 @@ For code in markdown blocks, always include the language name after the opening 
 
 If there are triple backticks within any file in context, they will be escaped with backslashes like this '` + "\\`\\`\\`" + `'. If you are outputting triple backticks in a code block, you MUST escape them in exactly the same way.
 
+DO NOT create directories independently of files, whether in _apply.sh or in code blocks by adding a '.gitkeep' file in any other way. Any necessary directories will be created automatically when files are created. You MUST NOT create directories independently of files.
+
 Don't include unnecessary comments in code. Lean towards no comments as much as you can. If you must include a comment to make the code understandable, be sure it is concise. Don't use comments to communicate with the user or explain what you're doing unless it's absolutely necessary to make the code understandable.
 
 When updating an existing file in context, use the *reference comment* "// ... existing code ..." (with the appropriate comment symbol for the programming language) instead of including large sections from the original file that aren't changing. Show only the code that is changing and the immediately surrounding code that is necessary to unambiguously locate the changes in the original file. This only applies when you are *updating* an *existing file* in context. It does *not* apply when you are creating a new file. You MUST NEVER use the comment "// ... existing code ..." (or any equivalent) when creating a new file.   

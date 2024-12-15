@@ -309,6 +309,12 @@ func (m *streamUIModel) streamUpdate(msg *shared.StreamMessage, deferUIUpdate bo
 		wasFinished := m.finishedByPath[msg.BuildInfo.Path]
 		nowFinished := msg.BuildInfo.Finished
 
+		if msg.BuildInfo.Removed {
+			m.removedByPath[msg.BuildInfo.Path] = true
+		} else {
+			m.removedByPath[msg.BuildInfo.Path] = false
+		}
+
 		if msg.BuildInfo.Finished {
 			m.tokensByPath[msg.BuildInfo.Path] = 0
 			m.finishedByPath[msg.BuildInfo.Path] = true

@@ -492,6 +492,8 @@ type PlanFileResult struct {
 
 	Replacements []*shared.Replacement `json:"replacements"`
 
+	RemovedFile bool `json:"removedFile"`
+
 	AnyFailed bool   `json:"anyFailed"`
 	Error     string `json:"error"`
 
@@ -527,6 +529,7 @@ func (res *PlanFileResult) ToApi() *shared.PlanFileResult {
 		AppliedAt:           res.AppliedAt,
 		RejectedAt:          res.RejectedAt,
 		Replacements:        res.Replacements,
+		RemovedFile:         res.RemovedFile,
 		CanVerify:           res.CanVerify,
 		RanVerifyAt:         res.RanVerifyAt,
 		VerifyPassed:        res.VerifyPassed,

@@ -41,7 +41,7 @@ func GetOnApplyExecFail(flags lib.ApplyFlags) types.OnApplyExecFailFn {
 
 		if proceed {
 			if toRollback != nil && toRollback.HasChanges() {
-				toRollback.Rollback(true)
+				lib.Rollback(toRollback, true)
 			}
 
 			var apiKeys map[string]string
@@ -71,7 +71,7 @@ func GetOnApplyExecFail(flags lib.ApplyFlags) types.OnApplyExecFailFn {
 			}
 
 			if res == string(types.ApplyRollbackOptionRollback) {
-				toRollback.Rollback(true)
+				lib.Rollback(toRollback, true)
 			} else {
 				onSuccess()
 			}

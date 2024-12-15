@@ -135,6 +135,7 @@ func (m streamUIModel) getRows(static bool) []string {
 	for _, filePath := range filePaths {
 		tokens := m.tokensByPath[filePath]
 		finished := m.finished || m.finishedByPath[filePath] || built
+		removed := m.removedByPath[filePath]
 		icon := "📄"
 		label := filePath
 		if filePath == "_apply.sh" {
@@ -142,7 +143,9 @@ func (m streamUIModel) getRows(static bool) []string {
 		}
 		block := fmt.Sprintf("%s %s", icon, label)
 
-		if finished {
+		if removed {
+			block += " ❌"
+		} else if finished {
 			block += " ✅"
 		} else if tokens > 0 {
 			block += fmt.Sprintf(" %d 🪙", tokens)

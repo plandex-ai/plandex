@@ -33,6 +33,10 @@ type ActiveBuild struct {
 	Error                    error
 	IsVerification           bool
 	ToVerifyUpdatedState     string
+	IsMoveOp                 bool
+	MoveDestination          string
+	IsRemoveOp               bool
+	IsResetOp                bool
 }
 
 type subscription struct {
