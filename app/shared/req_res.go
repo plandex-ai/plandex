@@ -170,8 +170,8 @@ type LoadContextParams struct {
 	Body            string                `json:"body"`
 	ForceSkipIgnore bool                  `json:"forceSkipIgnore"`
 	ImageDetail     openai.ImageURLDetail `json:"imageDetail"`
-	DefsOnly        bool                  `json:"defsOnly"`
-	MapInputs       FileMapInputs         `json:"mapInputs"`
+
+	MapInputs FileMapInputs `json:"mapInputs"`
 
 	// For naming piped data
 	ApiKeys     map[string]string `json:"apiKeys"`
@@ -202,6 +202,15 @@ type GetFileMapRequest struct {
 
 type GetFileMapResponse struct {
 	MapBodies FileMapBodies `json:"mapBodies"`
+}
+
+type LoadCachedFileMapRequest struct {
+	FilePaths []string `json:"filePaths"`
+}
+
+type LoadCachedFileMapResponse struct {
+	LoadRes      *LoadContextResponse `json:"loadRes"`
+	CachedByPath map[string]bool      `json:"cachedByPath"`
 }
 
 type GetContextBodyRequest struct {
@@ -264,16 +273,8 @@ type UpdatePlanConfigRequest struct {
 	Config *PlanConfig `json:"config"`
 }
 
-type UpdatePlanConfigResponse struct {
-	Msg string `json:"msg"`
-}
-
 type UpdateDefaultPlanConfigRequest struct {
 	Config *PlanConfig `json:"config"`
-}
-
-type UpdateDefaultPlanConfigResponse struct {
-	Msg string `json:"msg"`
 }
 
 type GetPlanConfigResponse struct {

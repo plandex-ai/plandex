@@ -11,7 +11,6 @@ import (
 	"plandex/lib"
 	"plandex/plan_exec"
 	"plandex/term"
-	"strconv"
 	"strings"
 	"time"
 
@@ -23,22 +22,6 @@ import (
 	"github.com/plandex/plandex/shared"
 	"github.com/spf13/cobra"
 )
-
-const defaultEditor = "vim"
-const defaultAutoDebugTries = 5
-
-var autoConfirm bool
-
-// const defaultEditor = "nano"
-
-var tellPromptFile string
-var tellBg bool
-var tellStop bool
-var tellNoBuild bool
-var tellAutoApply bool
-var tellAutoContext bool
-var noExec bool
-var autoDebug int
 
 // tellCmd represents the prompt command
 var tellCmd = &cobra.Command{
@@ -53,78 +36,13 @@ var tellCmd = &cobra.Command{
 func init() {
 	RootCmd.AddCommand(tellCmd)
 
-	tellCmd.Flags().StringVarP(&tellPromptFile, "file", "f", "", "File containing prompt")
-	tellCmd.Flags().BoolVarP(&tellStop, "stop", "s", false, "Stop after a single reply")
-	tellCmd.Flags().BoolVarP(&tellNoBuild, "no-build", "n", false, "Don't build files")
-	tellCmd.Flags().BoolVar(&tellBg, "bg", false, "Execute autonomously in the background")
-
-	tellCmd.Flags().BoolVarP(&autoConfirm, "yes", "y", false, "Automatically confirm context updates")
-	tellCmd.Flags().BoolVar(&tellAutoApply, "apply", false, "Automatically apply changes (and confirm context updates)")
-	tellCmd.Flags().BoolVarP(&autoCommit, "commit", "c", false, "Commit changes to git when --apply is passed")
-
-	tellCmd.Flags().BoolVar(&tellAutoContext, "auto-context", false, "Load and manage context automatically")
-
-	tellCmd.Flags().BoolVar(&noExec, "no-exec", false, "Disable command execution")
-	tellCmd.Flags().BoolVar(&autoExec, "auto-exec", false, "Automatically execute commands without confirmation when --apply is passed")
-
-	tellCmd.Flags().Var(newAutoDebugValue(&autoDebug), "debug", "Automatically execute and debug failing commands (optionally specify number of tries—default is 5)")
-	tellCmd.Flag("debug").NoOptDefVal = strconv.Itoa(defaultAutoDebugTries)
+	initExecFlags(tellCmd, initExecFlagsParams{})
 }
 
 func doTell(cmd *cobra.Command, args []string) {
-	validateTellFlags()
-
-	var config *shared.PlanConfig
-	if lib.CurrentPlanId != "" {
-		term.StartSpinner("")
-		var err error
-		config, err = api.Client.GetPlanConfig(lib.CurrentPlanId)
-		term.StopSpinner()
-
-		if err != nil {
-			term.OutputErrorAndExit("Error getting plan config: %v", err)
-		}
-	} else {
-		term.StartSpinner("")
-		var err error
-		config, err = api.Client.GetDefaultPlanConfig()
-		term.StopSpinner()
-
-		if err != nil {
-			term.OutputErrorAndExit("Error getting default plan config: %v", err)
-		}
-	}
-
-	// Override config with flags
-	if cmd.Flags().Changed("yes") {
-		config.AutoContext = autoConfirm
-	}
-	if cmd.Flags().Changed("apply") {
-		config.AutoApply = tellAutoApply
-	}
-	if cmd.Flags().Changed("commit") {
-		config.AutoCommit = autoCommit
-	}
-	if cmd.Flags().Changed("auto-context") {
-		config.AutoContext = tellAutoContext
-	}
-	if cmd.Flags().Changed("no-exec") {
-		config.NoExec = noExec
-	}
-	if cmd.Flags().Changed("auto-exec") {
-		config.AutoDebug = autoExec
-	}
-	if cmd.Flags().Changed("debug") {
-		config.AutoDebug = true
-		config.AutoDebugTries = autoDebug
-	}
-
 	auth.MustResolveAuthWithOrg()
 	lib.MustResolveProject()
-
-	if lib.CurrentPlanId == "" {
-		term.OutputNoCurrentPlanErrorAndExit()
-	}
+	mustSetPlanExecFlags(cmd)
 
 	var apiKeys map[string]string
 	if !auth.Current.IntegratedModelsMode {
@@ -225,25 +143,25 @@ func prepareEditorCommand(editor string, filename string) *exec.Cmd {
 	}
 }
 
-func getEditorInstructions(editor string) string {
-	return "👉  Write your prompt below, then save and exit to send it to Plandex.\n• To save and exit, press ESC, then type :wq! and press ENTER.\n• To exit without saving, press ESC, then type :q! and press ENTER.\n\n\n"
+func getEditorInstructions() string {
+	if editor == EditorTypeVim {
+		return "👉  Write your prompt below, then save and exit to send it to Plandex.\n• To save and exit, press ESC, then type :wq! and press ENTER.\n• To exit without saving, press ESC, then type :q! and press ENTER.\n\n\n"
+	}
+
+	if editor == EditorTypeNano {
+		return "👉  Write your prompt below, then save and exit to send it to Plandex.\n• To save and exit, press Ctrl+X, then Y, then ENTER.\n• To exit without saving, press Ctrl+X, then N.\n\n\n"
+	}
+
+	return "👉  Write your prompt below, then save and exit to send it to Plandex.\n\n\n"
 }
 
 func getEditorPrompt() string {
-	editor := os.Getenv("EDITOR")
-	if editor == "" {
-		editor = os.Getenv("VISUAL")
-		if editor == "" {
-			editor = defaultEditor
-		}
-	}
-
 	tempFile, err := os.CreateTemp(os.TempDir(), "plandex_prompt_*")
 	if err != nil {
 		term.OutputErrorAndExit("Failed to create temporary file: %v", err)
 	}
 
-	instructions := getEditorInstructions(editor)
+	instructions := getEditorInstructions()
 	filename := tempFile.Name()
 	err = os.WriteFile(filename, []byte(instructions), 0644)
 	if err != nil {
@@ -275,32 +193,6 @@ func getEditorPrompt() string {
 	prompt = strings.TrimSpace(prompt)
 
 	return prompt
-
-}
-
-func validateTellFlags() {
-	if tellAutoApply && tellNoBuild {
-		term.OutputErrorAndExit("🚨 --apply can't be used with --no-build/-n")
-	}
-	if tellAutoApply && tellBg {
-		term.OutputErrorAndExit("🚨 --apply can't be used with --bg")
-	}
-	if autoCommit && !tellAutoApply {
-		term.OutputErrorAndExit("🚨 --commit/-c can only be used with --apply")
-	}
-	if autoExec && !tellAutoApply {
-		term.OutputErrorAndExit("🚨 --auto-exec can only be used with --apply")
-	}
-	if autoDebug > 0 && !tellAutoApply {
-		term.OutputErrorAndExit("🚨 --debug can only be used with --apply")
-	}
-	if autoDebug > 0 && noExec {
-		term.OutputErrorAndExit("🚨 --debug can't be used with --no-exec")
-	}
-
-	if tellAutoContext && tellBg {
-		term.OutputErrorAndExit("🚨 --auto-context/-c can't be used with --bg")
-	}
 
 }
 
@@ -350,41 +242,4 @@ func maybeShowDiffs() {
 		// Give the UI a moment to start
 		time.Sleep(100 * time.Millisecond)
 	}
-}
-
-// AutoDebugValue implements the flag.Value interface
-type autoDebugValue struct {
-	value *int
-}
-
-func newAutoDebugValue(p *int) *autoDebugValue {
-	*p = 0 // Default to 0 (disabled)
-	return &autoDebugValue{p}
-}
-
-func (f *autoDebugValue) Set(s string) error {
-	if s == "" {
-		*f.value = defaultAutoDebugTries
-		return nil
-	}
-	v, err := strconv.Atoi(s)
-	if err != nil {
-		return fmt.Errorf("invalid value for --debug: %v", err)
-	}
-	if v <= 0 {
-		return fmt.Errorf("--debug value must be greater than 0")
-	}
-	*f.value = v
-	return nil
-}
-
-func (f *autoDebugValue) String() string {
-	if f.value == nil {
-		return "0"
-	}
-	return strconv.Itoa(*f.value)
-}
-
-func (f *autoDebugValue) Type() string {
-	return "int"
 }

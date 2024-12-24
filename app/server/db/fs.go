@@ -76,6 +76,14 @@ func getOrgDir(orgId string) string {
 	return filepath.Join(BaseDir, "orgs", orgId)
 }
 
+func getProjectDir(orgId, projectId string) string {
+	return filepath.Join(getOrgDir(orgId), "projects", projectId)
+}
+
+func getProjectMapCacheDir(orgId, projectId string) string {
+	return filepath.Join(getProjectDir(orgId, projectId), "map_cache")
+}
+
 func getPlanDir(orgId, planId string) string {
 	return filepath.Join(getOrgDir(orgId), "plans", planId)
 }

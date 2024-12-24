@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"crypto/md5"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -156,7 +157,7 @@ func ContextRemove(orgId, planId string, contexts []*Context) error {
 	return nil
 }
 
-func StoreContext(context *Context) error {
+func StoreContext(context *Context, skipMapCache bool) error {
 	// log.Println("Storing context", context.Id)
 	// log.Println("Num tokens", context.NumTokens)
 
@@ -224,7 +225,82 @@ func StoreContext(context *Context) error {
 	context.Body = originalBody
 	context.MapParts = originalMapParts
 
+	if mapPath != "" && !skipMapCache {
+		log.Println("StoreContext - context.MapParts length", len(context.MapParts))
+
+		mapCacheDir := getProjectMapCacheDir(context.OrgId, context.ProjectId)
+
+		// ensure map cache dir exists
+		err = os.MkdirAll(mapCacheDir, os.ModePerm)
+		if err != nil {
+			return fmt.Errorf("error creating map cache dir: %v", err)
+		}
+
+		filePathHash := md5.Sum([]byte(context.FilePath))
+		filePathHashStr := hex.EncodeToString(filePathHash[:])
+
+		mapCachePath := filepath.Join(mapCacheDir, filePathHashStr+".json")
+
+		log.Println("StoreContext - mapCachePath", mapCachePath)
+
+		cachedContext := Context{
+			ContextType: shared.ContextMapType,
+			FilePath:    context.FilePath,
+			Name:        context.Name,
+			Body:        context.Body,
+			NumTokens:   context.NumTokens,
+			MapParts:    context.MapParts,
+			MapShas:     context.MapShas,
+			MapTokens:   context.MapTokens,
+			UpdatedAt:   context.UpdatedAt,
+		}
+
+		cachedContextBytes, err := json.MarshalIndent(cachedContext, "", "  ")
+		if err != nil {
+			return fmt.Errorf("failed to marshal cached context: %v", err)
+		}
+
+		err = os.WriteFile(mapCachePath, cachedContextBytes, 0644)
+		if err != nil {
+			return fmt.Errorf("failed to write context map to file %s: %v", mapCachePath, err)
+		}
+	}
+
 	return nil
+}
+
+func GetCachedMap(orgId, projectId, filePath string) (*Context, error) {
+	mapCacheDir := getProjectMapCacheDir(orgId, projectId)
+
+	filePathHash := md5.Sum([]byte(filePath))
+	filePathHashStr := hex.EncodeToString(filePathHash[:])
+
+	mapCachePath := filepath.Join(mapCacheDir, filePathHashStr+".json")
+
+	log.Println("GetCachedMap - mapCachePath", mapCachePath)
+
+	mapCacheBytes, err := os.ReadFile(mapCachePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+
+		return nil, fmt.Errorf("error reading cached map: %v", err)
+	}
+
+	var context Context
+	err = json.Unmarshal(mapCacheBytes, &context)
+	if err != nil {
+		return nil, fmt.Errorf("error unmarshalling cached map: %v", err)
+	}
+
+	return &context, nil
+}
+
+type CachedMap struct {
+	MapParts  shared.FileMapBodies
+	MapShas   map[string]string
+	MapTokens map[string]int
 }
 
 type LoadContextsParams struct {
@@ -234,6 +310,7 @@ type LoadContextsParams struct {
 	BranchName               string
 	UserId                   string
 	SkipConflictInvalidation bool
+	CachedMapsByPath         map[string]*CachedMap
 }
 
 func LoadContexts(ctx Ctx, params LoadContextsParams) (*shared.LoadContextResponse, []*Context, error) {
@@ -297,28 +374,46 @@ func LoadContexts(ctx Ctx, params LoadContextsParams) (*shared.LoadContextRespon
 
 	*req = filteredReq
 
+	log.Println("LoadContexts - len(params.CachedMapsByPath)", len(params.CachedMapsByPath))
+
 	for _, context := range *req {
 		tempId := uuid.New().String()
 
 		var numTokens int
 		var err error
 
-		if context.ContextType == shared.ContextMapType && len(context.MapInputs) > 0 {
-			// Process file maps
-			mappedFiles, err := file_map.ProcessMapFiles(ctx, context.MapInputs)
-			if err != nil {
-				return nil, nil, fmt.Errorf("error processing map files: %v", err)
+		if context.ContextType == shared.ContextMapType && (len(context.MapInputs) > 0 || params.CachedMapsByPath != nil) {
+			var mappedFiles shared.FileMapBodies
+			if params.CachedMapsByPath != nil && params.CachedMapsByPath[context.FilePath] != nil {
+				log.Println("Using cached map for", context.FilePath)
+				mappedFiles = params.CachedMapsByPath[context.FilePath].MapParts
+			} else {
+				log.Println("Processing map files for", context.FilePath)
+				// Process file maps
+				mappedFiles, err = file_map.ProcessMapFiles(ctx, context.MapInputs)
+				if err != nil {
+					return nil, nil, fmt.Errorf("error processing map files: %v", err)
+				}
 			}
 
-			mapShas := make(map[string]string, len(context.MapInputs))
-			mapTokens := make(map[string]int, len(context.MapInputs))
-			for path, input := range context.MapInputs {
-				hash := sha256.Sum256([]byte(input))
-				mapShas[path] = hex.EncodeToString(hash[:])
-				mapBody := mappedFiles[path]
-				mapTokens[path], err = shared.GetNumTokens(mapBody)
-				if err != nil {
-					return nil, nil, fmt.Errorf("error getting num tokens for %s: %v", path, err)
+			var mapShas map[string]string
+			var mapTokens map[string]int
+
+			if params.CachedMapsByPath != nil && params.CachedMapsByPath[context.FilePath] != nil {
+				mapShas = params.CachedMapsByPath[context.FilePath].MapShas
+				mapTokens = params.CachedMapsByPath[context.FilePath].MapTokens
+			} else {
+				mapShas = make(map[string]string, len(context.MapInputs))
+				mapTokens = make(map[string]int, len(context.MapInputs))
+
+				for path, input := range context.MapInputs {
+					hash := sha256.Sum256([]byte(input))
+					mapShas[path] = hex.EncodeToString(hash[:])
+					mapBody := mappedFiles[path]
+					mapTokens[path], err = shared.GetNumTokens(mapBody)
+					if err != nil {
+						return nil, nil, fmt.Errorf("error getting num tokens for %s: %v", path, err)
+					}
 				}
 			}
 
@@ -334,6 +429,7 @@ func LoadContexts(ctx Ctx, params LoadContextsParams) (*shared.LoadContextRespon
 				OrgId:       orgId,
 				OwnerId:     userId,
 				PlanId:      planId,
+				ProjectId:   plan.ProjectId,
 				ContextType: shared.ContextMapType,
 				Name:        context.Name,
 				Url:         context.Url,
@@ -375,14 +471,14 @@ func LoadContexts(ctx Ctx, params LoadContextsParams) (*shared.LoadContextRespon
 
 	dbContextsCh := make(chan *Context)
 	errCh := make(chan error)
-	for tempId, params := range paramsByTempId {
+	for tempId, loadParams := range paramsByTempId {
 
-		go func(tempId string, params *shared.LoadContextParams) {
-			hash := sha256.Sum256([]byte(params.Body))
+		go func(tempId string, loadParams *shared.LoadContextParams) {
+			hash := sha256.Sum256([]byte(loadParams.Body))
 			sha := hex.EncodeToString(hash[:])
 
 			var context Context
-			if mapContext, ok := mapContextsByFilePath[params.FilePath]; ok {
+			if mapContext, ok := mapContextsByFilePath[loadParams.FilePath]; ok {
 				context = mapContext
 			} else {
 				// log.Println("tempId", tempId, "params.FilePath", params.FilePath, "sha", sha)
@@ -393,19 +489,20 @@ func LoadContexts(ctx Ctx, params LoadContextsParams) (*shared.LoadContextRespon
 					OrgId:           orgId,
 					OwnerId:         userId,
 					PlanId:          planId,
-					ContextType:     params.ContextType,
-					Name:            params.Name,
-					Url:             params.Url,
-					FilePath:        params.FilePath,
+					ProjectId:       plan.ProjectId,
+					ContextType:     loadParams.ContextType,
+					Name:            loadParams.Name,
+					Url:             loadParams.Url,
+					FilePath:        loadParams.FilePath,
 					NumTokens:       numTokensByTempId[tempId],
 					Sha:             sha,
-					Body:            params.Body,
-					ForceSkipIgnore: params.ForceSkipIgnore,
-					ImageDetail:     params.ImageDetail,
+					Body:            loadParams.Body,
+					ForceSkipIgnore: loadParams.ForceSkipIgnore,
+					ImageDetail:     loadParams.ImageDetail,
 				}
 			}
 
-			err := StoreContext(&context)
+			err := StoreContext(&context, params.CachedMapsByPath != nil)
 
 			if err != nil {
 				errCh <- err
@@ -414,7 +511,7 @@ func LoadContexts(ctx Ctx, params LoadContextsParams) (*shared.LoadContextRespon
 
 			dbContextsCh <- &context
 
-		}(tempId, params)
+		}(tempId, loadParams)
 	}
 
 	var dbContexts []*Context
@@ -698,7 +795,7 @@ func UpdateContexts(params UpdateContextsParams) (*shared.UpdateContextResponse,
 			// log.Println("storing context", id)
 			// log.Printf("context name: %s, sha: %s\n", context.Name, context.Sha)
 
-			err := StoreContext(context)
+			err := StoreContext(context, false)
 
 			if err != nil {
 				errCh <- fmt.Errorf("error storing context: %v", err)
@@ -707,6 +804,10 @@ func UpdateContexts(params UpdateContextsParams) (*shared.UpdateContextResponse,
 
 			// log.Println("stored context", id)
 			// log.Println()
+
+			if context.ContextType == shared.ContextMapType {
+
+			}
 
 			errCh <- nil
 		}(id, params)

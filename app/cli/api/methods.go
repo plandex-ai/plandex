@@ -1054,6 +1054,34 @@ func (a *Api) ListContext(planId, branch string) ([]*shared.Context, *shared.Api
 	return contexts, nil
 }
 
+func (a *Api) LoadCachedFileMap(planId, branch string, req shared.LoadCachedFileMapRequest) (*shared.LoadCachedFileMapResponse, *shared.ApiError) {
+	serverUrl := fmt.Sprintf("%s/plans/%s/%s/load_cached_file_map", GetApiHost(), planId, branch)
+	reqBytes, err := json.Marshal(req)
+	if err != nil {
+		return nil, &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error marshalling request: %v", err)}
+	}
+
+	resp, err := authenticatedFastClient.Post(serverUrl, "application/json", bytes.NewBuffer(reqBytes))
+	if err != nil {
+		return nil, &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error sending request: %v", err)}
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		errorBody, _ := io.ReadAll(resp.Body)
+		apiErr := HandleApiError(resp, errorBody)
+		return nil, apiErr
+	}
+
+	var loadResp shared.LoadCachedFileMapResponse
+	err = json.NewDecoder(resp.Body).Decode(&loadResp)
+	if err != nil {
+		return nil, &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error decoding response: %v", err)}
+	}
+
+	return &loadResp, nil
+}
+
 func (a *Api) ListConvo(planId, branch string) ([]*shared.ConvoMessage, *shared.ApiError) {
 	serverUrl := fmt.Sprintf("%s/plans/%s/%s/convo", GetApiHost(), planId, branch)
 
@@ -1916,23 +1944,23 @@ func (a *Api) GetPlanConfig(planId string) (*shared.PlanConfig, *shared.ApiError
 	return res.Config, nil
 }
 
-func (a *Api) UpdatePlanConfig(planId string, req shared.UpdatePlanConfigRequest) (*shared.UpdatePlanConfigResponse, *shared.ApiError) {
+func (a *Api) UpdatePlanConfig(planId string, req shared.UpdatePlanConfigRequest) *shared.ApiError {
 	serverUrl := fmt.Sprintf("%s/plans/%s/config", GetApiHost(), planId)
 
 	reqBytes, err := json.Marshal(req)
 	if err != nil {
-		return nil, &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error marshalling request: %v", err)}
+		return &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error marshalling request: %v", err)}
 	}
 
 	request, err := http.NewRequest(http.MethodPut, serverUrl, bytes.NewBuffer(reqBytes))
 	if err != nil {
-		return nil, &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error creating request: %v", err)}
+		return &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error creating request: %v", err)}
 	}
 	request.Header.Set("Content-Type", "application/json")
 
 	resp, err := authenticatedFastClient.Do(request)
 	if err != nil {
-		return nil, &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error sending request: %v", err)}
+		return &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error sending request: %v", err)}
 	}
 	defer resp.Body.Close()
 
@@ -1943,16 +1971,10 @@ func (a *Api) UpdatePlanConfig(planId string, req shared.UpdatePlanConfigRequest
 		if tokenRefreshed {
 			return a.UpdatePlanConfig(planId, req)
 		}
-		return nil, apiErr
+		return apiErr
 	}
 
-	var res shared.UpdatePlanConfigResponse
-	err = json.NewDecoder(resp.Body).Decode(&res)
-	if err != nil {
-		return nil, &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error decoding response: %v", err)}
-	}
-
-	return &res, nil
+	return nil
 }
 
 func (a *Api) GetDefaultPlanConfig() (*shared.PlanConfig, *shared.ApiError) {
@@ -1983,23 +2005,23 @@ func (a *Api) GetDefaultPlanConfig() (*shared.PlanConfig, *shared.ApiError) {
 	return res.Config, nil
 }
 
-func (a *Api) UpdateDefaultPlanConfig(req shared.UpdateDefaultPlanConfigRequest) (*shared.UpdateDefaultPlanConfigResponse, *shared.ApiError) {
+func (a *Api) UpdateDefaultPlanConfig(req shared.UpdateDefaultPlanConfigRequest) *shared.ApiError {
 	serverUrl := fmt.Sprintf("%s/default_plan_config", GetApiHost())
 
 	reqBytes, err := json.Marshal(req)
 	if err != nil {
-		return nil, &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error marshalling request: %v", err)}
+		return &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error marshalling request: %v", err)}
 	}
 
 	request, err := http.NewRequest(http.MethodPut, serverUrl, bytes.NewBuffer(reqBytes))
 	if err != nil {
-		return nil, &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error creating request: %v", err)}
+		return &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error creating request: %v", err)}
 	}
 	request.Header.Set("Content-Type", "application/json")
 
 	resp, err := authenticatedFastClient.Do(request)
 	if err != nil {
-		return nil, &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error sending request: %v", err)}
+		return &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error sending request: %v", err)}
 	}
 	defer resp.Body.Close()
 
@@ -2010,16 +2032,10 @@ func (a *Api) UpdateDefaultPlanConfig(req shared.UpdateDefaultPlanConfigRequest)
 		if tokenRefreshed {
 			return a.UpdateDefaultPlanConfig(req)
 		}
-		return nil, apiErr
+		return apiErr
 	}
 
-	var res shared.UpdateDefaultPlanConfigResponse
-	err = json.NewDecoder(resp.Body).Decode(&res)
-	if err != nil {
-		return nil, &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error decoding response: %v", err)}
-	}
-
-	return &res, nil
+	return nil
 }
 
 func (a *Api) CreateCustomModel(model *shared.AvailableModel) *shared.ApiError {

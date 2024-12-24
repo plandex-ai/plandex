@@ -21,6 +21,7 @@ func loadContexts(
 	loadReq *shared.LoadContextRequest,
 	plan *db.Plan,
 	branchName string,
+	cachedMapsByPath map[string]*db.CachedMap,
 ) (*shared.LoadContextResponse, []*db.Context) {
 	// check file count and size limits
 	totalFiles := 0
@@ -137,11 +138,12 @@ func loadContexts(
 	}
 
 	res, dbContexts, err := db.LoadContexts(ctx, db.LoadContextsParams{
-		OrgId:      auth.OrgId,
-		Plan:       plan,
-		BranchName: branchName,
-		Req:        loadReq,
-		UserId:     auth.User.Id,
+		OrgId:            auth.OrgId,
+		Plan:             plan,
+		BranchName:       branchName,
+		Req:              loadReq,
+		UserId:           auth.User.Id,
+		CachedMapsByPath: cachedMapsByPath,
 	})
 
 	if err != nil {

@@ -27,6 +27,8 @@ type User struct {
 	Email            string `json:"email"`
 	IsTrial          bool   `json:"isTrial"`
 	NumNonDraftPlans int    `json:"numNonDraftPlans"`
+
+	DefaultPlanConfig *PlanConfig `json:"defaultPlanConfig,omitempty"`
 }
 
 type OrgUser struct {
@@ -53,16 +55,17 @@ type Project struct {
 }
 
 type Plan struct {
-	Id              string     `json:"id"`
-	OwnerId         string     `json:"ownerId"`
-	ProjectId       string     `json:"projectId"`
-	Name            string     `json:"name"`
-	SharedWithOrgAt *time.Time `json:"sharedWithOrgAt,omitempty"`
-	TotalReplies    int        `json:"totalReplies"`
-	ActiveBranches  int        `json:"activeBranches"`
-	ArchivedAt      *time.Time `json:"archivedAt,omitempty"`
-	CreatedAt       time.Time  `json:"createdAt"`
-	UpdatedAt       time.Time  `json:"updatedAt"`
+	Id              string      `json:"id"`
+	OwnerId         string      `json:"ownerId"`
+	ProjectId       string      `json:"projectId"`
+	Name            string      `json:"name"`
+	SharedWithOrgAt *time.Time  `json:"sharedWithOrgAt,omitempty"`
+	TotalReplies    int         `json:"totalReplies"`
+	ActiveBranches  int         `json:"activeBranches"`
+	PlanConfig      *PlanConfig `json:"planConfig,omitempty"`
+	ArchivedAt      *time.Time  `json:"archivedAt,omitempty"`
+	CreatedAt       time.Time   `json:"createdAt"`
+	UpdatedAt       time.Time   `json:"updatedAt"`
 }
 
 type Branch struct {
@@ -398,41 +401,6 @@ type CloudBillingFields struct {
 	SubscriptionStatus   *string    `json:"subscriptionStatus"`
 	SubscriptionPausedAt *time.Time `json:"subscriptionPausedAt"`
 	StripePaymentMethod  *string    `json:"stripePaymentMethod"`
-}
-
-type PlanConfig struct {
-	AutoApply      bool `json:"autoApply"`
-	AutoCommit     bool `json:"autoCommit"`
-	AutoContext    bool `json:"autoContext"`
-	NoExec         bool `json:"noExec"`
-	AutoDebug      bool `json:"autoDebug"`
-	AutoDebugTries int  `json:"autoDebugTries"`
-}
-
-func (p *PlanConfig) Scan(src interface{}) error {
-	if src == nil {
-		return nil
-	}
-	switch s := src.(type) {
-	case []byte:
-		return json.Unmarshal(s, p)
-	case string:
-		return json.Unmarshal([]byte(s), p)
-	default:
-		return fmt.Errorf("unsupported data type: %T", src)
-	}
-}
-
-func (p PlanConfig) Value() (driver.Value, error) {
-	return json.Marshal(p)
-}
-
-type DefaultPlanConfig struct {
-	Id        string     `json:"id"`
-	UserId    string     `json:"userId"`
-	Config    PlanConfig `json:"config"`
-	CreatedAt time.Time  `json:"createdAt"`
-	UpdatedAt time.Time  `json:"updatedAt"`
 }
 
 type CreditsTransactionType string

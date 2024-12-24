@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"context"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -84,18 +83,6 @@ func UpdatePlanConfigHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res := shared.UpdatePlanConfigResponse{
-		Msg: "Successfully updated plan config",
-	}
-
-	bytes, err := json.Marshal(res)
-	if err != nil {
-		log.Println("Error marshalling response: ", err)
-		http.Error(w, "Error marshalling response", http.StatusInternalServerError)
-		return
-	}
-
-	w.Write(bytes)
 	log.Println("UpdatePlanConfigHandler processed successfully")
 }
 
@@ -107,7 +94,7 @@ func GetDefaultPlanConfigHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	config, err := db.GetDefaultPlanConfig(auth.UserId)
+	config, err := db.GetDefaultPlanConfig(auth.User.Id)
 	if err != nil {
 		log.Println("Error getting default plan config: ", err)
 		http.Error(w, "Error getting default plan config", http.StatusInternalServerError)
@@ -160,7 +147,7 @@ func UpdateDefaultPlanConfigHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
-	err = db.StoreDefaultPlanConfig(auth.UserId, req.Config, tx)
+	err = db.StoreDefaultPlanConfig(auth.User.Id, req.Config, tx)
 	if err != nil {
 		log.Println("Error storing default plan config: ", err)
 		http.Error(w, "Error storing default plan config", http.StatusInternalServerError)
@@ -174,17 +161,5 @@ func UpdateDefaultPlanConfigHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res := shared.UpdateDefaultPlanConfigResponse{
-		Msg: "Successfully updated default plan config",
-	}
-
-	bytes, err := json.Marshal(res)
-	if err != nil {
-		log.Println("Error marshalling response: ", err)
-		http.Error(w, "Error marshalling response", http.StatusInternalServerError)
-		return
-	}
-
-	w.Write(bytes)
 	log.Println("UpdateDefaultPlanConfigHandler processed successfully")
 }

@@ -42,22 +42,24 @@ func (org *Org) ToApi() *shared.Org {
 }
 
 type User struct {
-	Id               string    `db:"id"`
-	Name             string    `db:"name"`
-	Email            string    `db:"email"`
-	Domain           string    `db:"domain"`
-	NumNonDraftPlans int       `db:"num_non_draft_plans"`
-	CreatedAt        time.Time `db:"created_at"`
-	UpdatedAt        time.Time `db:"updated_at"`
+	Id                string             `db:"id"`
+	Name              string             `db:"name"`
+	Email             string             `db:"email"`
+	Domain            string             `db:"domain"`
+	NumNonDraftPlans  int                `db:"num_non_draft_plans"`
+	DefaultPlanConfig *shared.PlanConfig `db:"default_plan_config"`
+	CreatedAt         time.Time          `db:"created_at"`
+	UpdatedAt         time.Time          `db:"updated_at"`
 }
 
 func (user *User) ToApi() *shared.User {
 	return &shared.User{
-		Id:               user.Id,
-		Name:             user.Name,
-		Email:            user.Email,
-		NumNonDraftPlans: user.NumNonDraftPlans,
-		IsTrial:          false, // legacy field
+		Id:                user.Id,
+		Name:              user.Name,
+		Email:             user.Email,
+		NumNonDraftPlans:  user.NumNonDraftPlans,
+		IsTrial:           false, // legacy field
+		DefaultPlanConfig: user.DefaultPlanConfig,
 	}
 }
 
@@ -121,17 +123,18 @@ func (project *Project) ToApi() *shared.Project {
 }
 
 type Plan struct {
-	Id              string     `db:"id"`
-	OrgId           string     `db:"org_id"`
-	OwnerId         string     `db:"owner_id"`
-	ProjectId       string     `db:"project_id"`
-	Name            string     `db:"name"`
-	SharedWithOrgAt *time.Time `db:"shared_with_org_at,omitempty"`
-	TotalReplies    int        `db:"total_replies"`
-	ActiveBranches  int        `db:"active_branches"`
-	ArchivedAt      *time.Time `db:"archived_at,omitempty"`
-	CreatedAt       time.Time  `db:"created_at"`
-	UpdatedAt       time.Time  `db:"updated_at"`
+	Id              string             `db:"id"`
+	OrgId           string             `db:"org_id"`
+	OwnerId         string             `db:"owner_id"`
+	ProjectId       string             `db:"project_id"`
+	Name            string             `db:"name"`
+	SharedWithOrgAt *time.Time         `db:"shared_with_org_at,omitempty"`
+	TotalReplies    int                `db:"total_replies"`
+	ActiveBranches  int                `db:"active_branches"`
+	PlanConfig      *shared.PlanConfig `db:"plan_config"`
+	ArchivedAt      *time.Time         `db:"archived_at,omitempty"`
+	CreatedAt       time.Time          `db:"created_at"`
+	UpdatedAt       time.Time          `db:"updated_at"`
 }
 
 func (plan *Plan) ToApi() *shared.Plan {
@@ -143,6 +146,7 @@ func (plan *Plan) ToApi() *shared.Plan {
 		SharedWithOrgAt: plan.SharedWithOrgAt,
 		TotalReplies:    plan.TotalReplies,
 		ActiveBranches:  plan.ActiveBranches,
+		PlanConfig:      plan.PlanConfig,
 		ArchivedAt:      plan.ArchivedAt,
 		CreatedAt:       plan.CreatedAt,
 		UpdatedAt:       plan.UpdatedAt,
@@ -379,6 +383,7 @@ type Context struct {
 	Id              string                `json:"id"`
 	OrgId           string                `json:"orgId"`
 	OwnerId         string                `json:"ownerId"`
+	ProjectId       string                `json:"projectId"`
 	PlanId          string                `json:"planId"`
 	ContextType     shared.ContextType    `json:"contextType"`
 	Name            string                `json:"name"`
@@ -395,6 +400,30 @@ type Context struct {
 	MapTokens       map[string]int        `json:"mapTokens,omitempty"`
 	CreatedAt       time.Time             `json:"createdAt"`
 	UpdatedAt       time.Time             `json:"updatedAt"`
+}
+
+func (context *Context) ToMeta() *Context {
+	// everything except body and mapParts
+	return &Context{
+		Id:              context.Id,
+		OrgId:           context.OrgId,
+		OwnerId:         context.OwnerId,
+		ProjectId:       context.ProjectId,
+		PlanId:          context.PlanId,
+		ContextType:     context.ContextType,
+		Name:            context.Name,
+		Url:             context.Url,
+		FilePath:        context.FilePath,
+		Sha:             context.Sha,
+		NumTokens:       context.NumTokens,
+		BodySize:        context.BodySize,
+		ForceSkipIgnore: context.ForceSkipIgnore,
+		ImageDetail:     context.ImageDetail,
+		MapShas:         context.MapShas,
+		MapTokens:       context.MapTokens,
+		CreatedAt:       context.CreatedAt,
+		UpdatedAt:       context.UpdatedAt,
+	}
 }
 
 func (context *Context) ToApi() *shared.Context {

@@ -1,6 +1,7 @@
 package term
 
 import (
+	"sync/atomic"
 	"time"
 
 	"github.com/briandowns/spinner"
@@ -14,6 +15,7 @@ var startedAt time.Time
 
 var lastMessage string
 var active bool
+var currentWarningLoop int32
 
 func StartSpinner(msg string) {
 	if active {
@@ -50,4 +52,30 @@ func ResumeSpinner() {
 	if !active {
 		StartSpinner(lastMessage)
 	}
+}
+
+func LongSpinnerWithWarning(msg, warning string) {
+	atomic.AddInt32(&currentWarningLoop, 1)
+	currentLoop := currentWarningLoop
+
+	StartSpinner(msg)
+
+	var flashWarning func()
+	flashWarning = func() {
+		go func() {
+			time.Sleep(3 * time.Second)
+			if !active || atomic.LoadInt32(&currentWarningLoop) != currentLoop {
+				return
+			}
+			StartSpinner(warning)
+
+			time.Sleep(2 * time.Second)
+			if !active || atomic.LoadInt32(&currentWarningLoop) != currentLoop {
+				return
+			}
+			StartSpinner(msg)
+			flashWarning()
+		}()
+	}
+	flashWarning()
 }

@@ -16,8 +16,8 @@ var CmdDesc = map[string][2]string{
 	"cd":           {"", "set current plan by name or index"},
 	"load":         {"l", "load files/dirs/urls/notes/images or pipe data into context"},
 	"tell":         {"t", "describe a task to complete"},
-	"chat":         {"ct", "ask a question or chat"},
-	"changes":      {"ch", "review pending changes in a TUI"},
+	"chat":         {"ch", "ask a question or chat"},
+	"changes":      {"", "review pending changes in a TUI"},
 	"diff":         {"", "review pending changes in 'git diff' format"},
 	"diff --plain": {"", "review pending changes in 'git diff' format with no color formatting"},
 	"diff --ui":    {"", "review pending changes in a local browser UI"},
@@ -69,6 +69,10 @@ var CmdDesc = map[string][2]string{
 	"credits":                   {"", "show Plandex Cloud credits balance"},
 	"usage":                     {"", "show Plandex Cloud credits transaction log"},
 	"billing":                   {"", "show Plandex Cloud billing settings"},
+	"config":                    {"", "show current plan config"},
+	"set-config":                {"", "update current plan config"},
+	"config default":            {"", "show default config for new plans"},
+	"set-config default":        {"", "update default config for new plans"},
 }
 
 func PrintCmds(prefix string, cmds ...string) {
@@ -171,6 +175,10 @@ func PrintCustomHelp(all bool) {
 
 		color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Streams ")
 		printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "ps", "connect", "stop")
+		fmt.Fprintln(builder)
+
+		color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Config ")
+		printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "config", "set-config", "config default", "set-config default")
 		fmt.Fprintln(builder)
 
 		color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " AI Models ")

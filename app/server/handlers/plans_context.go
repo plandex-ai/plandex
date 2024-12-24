@@ -160,7 +160,7 @@ func LoadContextHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res, _ := loadContexts(w, r, auth, &requestBody, plan, branchName)
+	res, _ := loadContexts(w, r, auth, &requestBody, plan, branchName, nil)
 
 	if res == nil {
 		return

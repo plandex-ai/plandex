@@ -77,6 +77,7 @@ type ApiClient interface {
 	UpdateContext(planId, branch string, req shared.UpdateContextRequest) (*shared.UpdateContextResponse, *shared.ApiError)
 	DeleteContext(planId, branch string, req shared.DeleteContextRequest) (*shared.DeleteContextResponse, *shared.ApiError)
 	ListContext(planId, branch string) ([]*shared.Context, *shared.ApiError)
+	LoadCachedFileMap(planId, branch string, req shared.LoadCachedFileMapRequest) (*shared.LoadCachedFileMapResponse, *shared.ApiError)
 
 	ListConvo(planId, branch string) ([]*shared.ConvoMessage, *shared.ApiError)
 	GetPlanStatus(planId, branch string) (string, *shared.ApiError)
@@ -94,9 +95,9 @@ type ApiClient interface {
 	UpdateOrgDefaultSettings(req shared.UpdateSettingsRequest) (*shared.UpdateSettingsResponse, *shared.ApiError)
 
 	GetPlanConfig(planId string) (*shared.PlanConfig, *shared.ApiError)
-	UpdatePlanConfig(planId string, req shared.UpdatePlanConfigRequest) (*shared.UpdatePlanConfigResponse, *shared.ApiError)
+	UpdatePlanConfig(planId string, req shared.UpdatePlanConfigRequest) *shared.ApiError
 	GetDefaultPlanConfig() (*shared.PlanConfig, *shared.ApiError)
-	UpdateDefaultPlanConfig(req shared.UpdateDefaultPlanConfigRequest) (*shared.UpdateDefaultPlanConfigResponse, *shared.ApiError)
+	UpdateDefaultPlanConfig(req shared.UpdateDefaultPlanConfigRequest) *shared.ApiError
 
 	CreateCustomModel(model *shared.AvailableModel) *shared.ApiError
 	ListCustomModels() ([]*shared.AvailableModel, *shared.ApiError)
@@ -111,4 +112,3 @@ type ApiClient interface {
 	GetContextBody(planId, branch, contextId string) (*shared.GetContextBodyResponse, *shared.ApiError)
 	AutoLoadContext(planId, branch string, req shared.LoadContextRequest) (*shared.LoadContextResponse, *shared.ApiError)
 }
-

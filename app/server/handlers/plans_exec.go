@@ -333,7 +333,7 @@ func RespondMissingFileHandler(w http.ResponseWriter, r *http.Request) {
 				FilePath:    requestBody.FilePath,
 				Body:        requestBody.Body,
 			},
-		}, plan, branch)
+		}, plan, branch, nil)
 		if res == nil {
 			return
 		}
@@ -404,7 +404,7 @@ func AutoLoadContextHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Println("AutoLoadContextHandler - loading contexts")
-	res, dbContexts := loadContexts(w, r, auth, &requestBody, plan, branch)
+	res, dbContexts := loadContexts(w, r, auth, &requestBody, plan, branch, nil)
 
 	if res == nil {
 		return

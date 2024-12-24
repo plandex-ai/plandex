@@ -54,7 +54,7 @@ require (
 	github.com/plandex-ai/survey/v2 v2.3.7 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/sabhiram/go-gitignore v0.0.0-20210923224102-525f6e181f06 // indirect
-	github.com/sashabaranov/go-openai v1.35.7 // indirect
+	github.com/sashabaranov/go-openai v1.36.0 // indirect
 	github.com/shopspring/decimal v1.4.0 // indirect
 	github.com/smacker/go-tree-sitter v0.0.0-20240827094217-dd81d9e9be82 // indirect
 	github.com/yuin/goldmark v1.6.0 // indirect

@@ -22,10 +22,14 @@ import (
 
 func MustLoadContext(resources []string, params *types.LoadContextParams) {
 	if params.DefsOnly {
-		fmt.Println("⏳ Building a map can take a while in larger projects.")
-		term.StartSpinner("🗺️  Building map...")
+		// while caching is set up to work with multiple map paths, it can end up in a partially loaded state if token limits are exceeded, so better to just load one at a time
+		if len(resources) > 1 {
+			term.OutputErrorAndExit("Please load a single map directory at a time")
+		}
+
+		term.LongSpinnerWithWarning("🗺️  Building project map...", "🗺️  This can take a while in larger projects...")
 	} else if params.NamesOnly {
-		term.StartSpinner("🌳 Loading directory tree...")
+		term.LongSpinnerWithWarning("🌳 Loading directory tree...", "🌳 This can take a while in larger projects...")
 	} else {
 		term.StartSpinner("📥 Loading context...")
 	}
@@ -125,6 +129,9 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 		}
 	}
 
+	var cachedMapPaths map[string]bool
+	var cachedMapLoadRes *shared.LoadContextResponse
+
 	if len(inputFilePaths) > 0 {
 		mapInputsByPath := map[string]shared.FileMapInputs{}
 		toLoadMapPaths := []string{}
@@ -141,281 +148,316 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 				mapInputsByPath[inputFilePath] = shared.FileMapInputs{}
 				toLoadMapPaths = append(toLoadMapPaths, inputFilePath)
 			}
-		}
 
-		baseDir := fs.GetBaseDirForFilePaths(inputFilePaths)
+			var uncachedMapPaths []string
 
-		paths, err := fs.GetProjectPaths(baseDir)
-		if err != nil {
-			onErr(fmt.Errorf("failed to get project paths: %v", err))
-		}
+			res, err := api.Client.LoadCachedFileMap(CurrentPlanId, CurrentBranch, shared.LoadCachedFileMapRequest{
+				FilePaths: toLoadMapPaths,
+			})
 
-		// log.Println(spew.Sdump(paths))
-
-		// fmt.Println("active paths", len(paths.ActivePaths))
-		// fmt.Println("all paths", len(paths.AllPaths))
-		// fmt.Println("ignored paths", len(paths.IgnoredPaths))
-
-		// spew.Dump(paths.IgnoredPaths)
-		// spew.Dump(paths.ActivePaths)
-
-		if !params.ForceSkipIgnore {
-			var filteredPaths []string
-			for _, inputFilePath := range inputFilePaths {
-				// log.Println("inputFilePath", inputFilePath)
-
-				if _, ok := paths.ActivePaths[inputFilePath]; !ok {
-					// log.Println("not active", inputFilePath)
-
-					if _, ok := paths.IgnoredPaths[inputFilePath]; ok {
-						// log.Println("ignored", inputFilePath)
-
-						ignoredPaths[inputFilePath] = paths.IgnoredPaths[inputFilePath]
-					}
-				} else {
-					// log.Println("active", inputFilePath)
-
-					filteredPaths = append(filteredPaths, inputFilePath)
-				}
-			}
-			inputFilePaths = filteredPaths
-		}
-
-		if params.NamesOnly {
-			for _, inputFilePath := range inputFilePaths {
-				composite := strings.Join([]string{string(shared.ContextDirectoryTreeType), inputFilePath}, "|")
-				if existsByComposite[composite] != nil {
-					alreadyLoadedByComposite[composite] = existsByComposite[composite]
-					continue
-				}
-
-				numRoutines++
-				go func(inputFilePath string) {
-					flattenedPaths, err := ParseInputPaths([]string{inputFilePath}, params)
-					if err != nil {
-						errCh <- fmt.Errorf("failed to parse input paths: %v", err)
-						return
-					}
-
-					if !params.ForceSkipIgnore {
-						var filteredPaths []string
-						for _, path := range flattenedPaths {
-							if _, ok := paths.ActivePaths[path]; ok {
-								filteredPaths = append(filteredPaths, path)
-							} else {
-								if _, ok := paths.IgnoredPaths[path]; ok {
-									ignoredPaths[path] = paths.IgnoredPaths[path]
-								}
-							}
-						}
-						flattenedPaths = filteredPaths
-					}
-
-					body := strings.Join(flattenedPaths, "\n")
-
-					name := inputFilePath
-					if name == "." {
-						name = "cwd"
-					}
-					if name == ".." {
-						name = "parent"
-					}
-
-					contextMu.Lock()
-					defer contextMu.Unlock()
-					loadContextReq = append(loadContextReq, &shared.LoadContextParams{
-						ContextType:     shared.ContextDirectoryTreeType,
-						Name:            name,
-						Body:            body,
-						FilePath:        inputFilePath,
-						ForceSkipIgnore: params.ForceSkipIgnore,
-					})
-
-					errCh <- nil
-				}(inputFilePath)
-			}
-
-		} else {
-			flattenedPaths, err := ParseInputPaths(inputFilePaths, params)
 			if err != nil {
-				onErr(fmt.Errorf("failed to parse input paths: %v", err))
+				onErr(fmt.Errorf("error checking cached file map: %v", err))
 			}
 
-			// // Dump flattenedPaths to JSON file for debugging
-			// debugData, err := json.MarshalIndent(flattenedPaths, "", "  ")
-			// if err != nil {
-			// 	onErr(fmt.Errorf("failed to marshal flattened paths: %v", err))
-			// 	return
-			// }
+			if res.LoadRes != nil {
+				if res.LoadRes.MaxTokensExceeded {
+					term.StopSpinner()
+					overage := res.LoadRes.TotalTokens - res.LoadRes.MaxTokens
 
-			// if err := os.WriteFile("flattened_paths_debug.json", debugData, 0644); err != nil {
-			// 	onErr(fmt.Errorf("failed to write debug file: %v", err))
-			// 	return
-			// }
-
-			if !params.ForceSkipIgnore {
-				var filteredPaths []string
-				for _, path := range flattenedPaths {
-					if _, ok := paths.ActivePaths[path]; ok {
-						filteredPaths = append(filteredPaths, path)
-					} else {
-						if _, ok := paths.IgnoredPaths[path]; ok {
-							ignoredPaths[path] = paths.IgnoredPaths[path]
-						}
-					}
+					term.OutputErrorAndExit("Update would add %d 🪙 and exceed token limit (%d) by %d 🪙\n", res.LoadRes.TokensAdded, res.LoadRes.MaxTokens, overage)
 				}
-				flattenedPaths = filteredPaths
-			}
 
-			// Add this check for the number of files (after filtering out ignored/irrelevant paths)
-			var numPaths int
-			if params.DefsOnly {
-				for _, path := range flattenedPaths {
-					if shared.HasFileMapSupport(path) {
-						numPaths++
+				cachedMapLoadRes = res.LoadRes
+				cachedMapPaths = res.CachedByPath
+
+				for _, path := range toLoadMapPaths {
+					if cachedMapPaths[path] {
+						uncachedMapPaths = append(uncachedMapPaths, path)
 					}
 				}
 			} else {
-				numPaths = len(flattenedPaths)
+				uncachedMapPaths = toLoadMapPaths
 			}
 
-			if numPaths > shared.MaxContextCount {
-				onErr(fmt.Errorf("too many files to load (found %d, limit is %d)", numPaths, shared.MaxContextCount))
+			toLoadMapPaths = uncachedMapPaths
+			inputFilePaths = toLoadMapPaths
+		}
+
+		if len(inputFilePaths) > 0 {
+			baseDir := fs.GetBaseDirForFilePaths(inputFilePaths)
+
+			paths, err := fs.GetProjectPaths(baseDir)
+			if err != nil {
+				onErr(fmt.Errorf("failed to get project paths: %v", err))
 			}
 
-			inputFilePaths = flattenedPaths
+			// log.Println(spew.Sdump(paths))
 
-			for _, path := range flattenedPaths {
-				var mapInputPath string
-				if params.DefsOnly {
-					for _, inputPath := range toLoadMapPaths {
-						// Clean and make absolute paths for comparison
-						absPath, err := filepath.Abs(path)
-						if err != nil {
-							continue
+			// fmt.Println("active paths", len(paths.ActivePaths))
+			// fmt.Println("all paths", len(paths.AllPaths))
+			// fmt.Println("ignored paths", len(paths.IgnoredPaths))
+
+			// spew.Dump(paths.IgnoredPaths)
+			// spew.Dump(paths.ActivePaths)
+
+			if !params.ForceSkipIgnore {
+				var filteredPaths []string
+				for _, inputFilePath := range inputFilePaths {
+					// log.Println("inputFilePath", inputFilePath)
+
+					if _, ok := paths.ActivePaths[inputFilePath]; !ok {
+						// log.Println("not active", inputFilePath)
+
+						if _, ok := paths.IgnoredPaths[inputFilePath]; ok {
+							// log.Println("ignored", inputFilePath)
+
+							ignoredPaths[inputFilePath] = paths.IgnoredPaths[inputFilePath]
 						}
-						absInputPath, err := filepath.Abs(inputPath)
-						if err != nil {
-							continue
-						}
+					} else {
+						// log.Println("active", inputFilePath)
 
-						// Check if paths are equal or if path is under inputPath
-						if absPath == absInputPath || strings.HasPrefix(absPath+string(filepath.Separator), absInputPath+string(filepath.Separator)) {
-							mapInputPath = inputPath
-							break
-						}
+						filteredPaths = append(filteredPaths, inputFilePath)
 					}
-
-					if mapInputPath == "" {
-						continue // not a child of any input path
-					}
-
-					if !shared.HasFileMapSupport(path) {
-						// not a tree-sitter supported file type
-						continue
-					}
-
-					if _, ok := mapInputsByPath[mapInputPath]; !ok {
-						mapInputsByPath[mapInputPath] = shared.FileMapInputs{}
-					}
-
 				}
+				inputFilePaths = filteredPaths
+			}
 
-				var contextType shared.ContextType
-				isImage := shared.IsImageFile(path)
-				if isImage {
-					contextType = shared.ContextImageType
-				} else if params.DefsOnly {
-					contextType = shared.ContextMapType
-				} else {
-					contextType = shared.ContextFileType
-				}
-
-				if !params.DefsOnly {
-					composite := strings.Join([]string{string(contextType), path}, "|")
-
+			if params.NamesOnly {
+				for _, inputFilePath := range inputFilePaths {
+					composite := strings.Join([]string{string(shared.ContextDirectoryTreeType), inputFilePath}, "|")
 					if existsByComposite[composite] != nil {
 						alreadyLoadedByComposite[composite] = existsByComposite[composite]
 						continue
 					}
+
+					numRoutines++
+					go func(inputFilePath string) {
+						flattenedPaths, err := ParseInputPaths([]string{inputFilePath}, params)
+						if err != nil {
+							errCh <- fmt.Errorf("failed to parse input paths: %v", err)
+							return
+						}
+
+						if !params.ForceSkipIgnore {
+							var filteredPaths []string
+							for _, path := range flattenedPaths {
+								if _, ok := paths.ActivePaths[path]; ok {
+									filteredPaths = append(filteredPaths, path)
+								} else {
+									if _, ok := paths.IgnoredPaths[path]; ok {
+										ignoredPaths[path] = paths.IgnoredPaths[path]
+									}
+								}
+							}
+							flattenedPaths = filteredPaths
+						}
+
+						body := strings.Join(flattenedPaths, "\n")
+
+						name := inputFilePath
+						if name == "." {
+							name = "cwd"
+						}
+						if name == ".." {
+							name = "parent"
+						}
+
+						contextMu.Lock()
+						defer contextMu.Unlock()
+						loadContextReq = append(loadContextReq, &shared.LoadContextParams{
+							ContextType:     shared.ContextDirectoryTreeType,
+							Name:            name,
+							Body:            body,
+							FilePath:        inputFilePath,
+							ForceSkipIgnore: params.ForceSkipIgnore,
+						})
+
+						errCh <- nil
+					}(inputFilePath)
 				}
 
-				numRoutines++
-				go func(path string) {
-					// File size check
-					fileInfo, err := os.Stat(path)
-					if err != nil {
-						errCh <- fmt.Errorf("failed to get file info for %s: %v", path, err)
-						return
+			} else {
+				flattenedPaths, err := ParseInputPaths(inputFilePaths, params)
+				if err != nil {
+					onErr(fmt.Errorf("failed to parse input paths: %v", err))
+				}
+
+				// // Dump flattenedPaths to JSON file for debugging
+				// debugData, err := json.MarshalIndent(flattenedPaths, "", "  ")
+				// if err != nil {
+				// 	onErr(fmt.Errorf("failed to marshal flattened paths: %v", err))
+				// 	return
+				// }
+
+				// if err := os.WriteFile("flattened_paths_debug.json", debugData, 0644); err != nil {
+				// 	onErr(fmt.Errorf("failed to write debug file: %v", err))
+				// 	return
+				// }
+
+				if !params.ForceSkipIgnore {
+					var filteredPaths []string
+					for _, path := range flattenedPaths {
+						if _, ok := paths.ActivePaths[path]; ok {
+							filteredPaths = append(filteredPaths, path)
+						} else {
+							if _, ok := paths.IgnoredPaths[path]; ok {
+								ignoredPaths[path] = paths.IgnoredPaths[path]
+							}
+						}
 					}
+					flattenedPaths = filteredPaths
+				}
 
-					size := fileInfo.Size()
-
-					if size > shared.MaxContextBodySize {
-						errCh <- fmt.Errorf("file %s exceeds size limit (size %.2f MB, limit %d MB)", path, float64(fileInfo.Size())/1024/1024, int(shared.MaxContextBodySize)/1024/1024)
-						return
+				// Add this check for the number of files (after filtering out ignored/irrelevant paths)
+				var numPaths int
+				if params.DefsOnly {
+					for _, path := range flattenedPaths {
+						if shared.HasFileMapSupport(path) {
+							numPaths++
+						}
 					}
+				} else {
+					numPaths = len(flattenedPaths)
+				}
 
-					fileContent, err := os.ReadFile(path)
-					if err != nil {
-						errCh <- fmt.Errorf("failed to read the file %s: %v", path, err)
-						return
-					}
+				if numPaths > shared.MaxContextCount {
+					onErr(fmt.Errorf("too many files to load (found %d, limit is %d)", numPaths, shared.MaxContextCount))
+				}
 
-					contextMu.Lock()
-					defer contextMu.Unlock()
+				inputFilePaths = flattenedPaths
 
+				for _, path := range flattenedPaths {
+					var mapInputPath string
 					if params.DefsOnly {
-						if mapSize+size > shared.MaxContextMapInputSize {
-							errCh <- fmt.Errorf("map size limit exceeded (size %.2f MB, limit %d MB)", float64(mapSize+size)/1024/1024, int(shared.MaxContextBodySize)/1024/1024)
+						for _, inputPath := range toLoadMapPaths {
+							// Clean and make absolute paths for comparison
+							absPath, err := filepath.Abs(path)
+							if err != nil {
+								continue
+							}
+							absInputPath, err := filepath.Abs(inputPath)
+							if err != nil {
+								continue
+							}
+
+							// Check if paths are equal or if path is under inputPath
+							if absPath == absInputPath || strings.HasPrefix(absPath+string(filepath.Separator), absInputPath+string(filepath.Separator)) {
+								mapInputPath = inputPath
+								break
+							}
+						}
+
+						if mapInputPath == "" {
+							continue // not a child of any input path
+						}
+
+						if !shared.HasFileMapSupport(path) {
+							// not a tree-sitter supported file type
+							continue
+						}
+
+						if _, ok := mapInputsByPath[mapInputPath]; !ok {
+							mapInputsByPath[mapInputPath] = shared.FileMapInputs{}
+						}
+
+					}
+
+					var contextType shared.ContextType
+					isImage := shared.IsImageFile(path)
+					if isImage {
+						contextType = shared.ContextImageType
+					} else if params.DefsOnly {
+						contextType = shared.ContextMapType
+					} else {
+						contextType = shared.ContextFileType
+					}
+
+					if !params.DefsOnly {
+						composite := strings.Join([]string{string(contextType), path}, "|")
+
+						if existsByComposite[composite] != nil {
+							alreadyLoadedByComposite[composite] = existsByComposite[composite]
+							continue
+						}
+					}
+
+					numRoutines++
+					go func(path string) {
+						// File size check
+						fileInfo, err := os.Stat(path)
+						if err != nil {
+							errCh <- fmt.Errorf("failed to get file info for %s: %v", path, err)
 							return
 						}
 
-						if len(mapInputsByPath[mapInputPath])+1 > shared.MaxContextMapPaths {
-							errCh <- fmt.Errorf("map paths limit exceeded (found %d, limit %d)", len(mapInputsByPath[mapInputPath])+1, shared.MaxContextMapPaths)
+						size := fileInfo.Size()
+
+						if size > shared.MaxContextBodySize {
+							errCh <- fmt.Errorf("file %s exceeds size limit (size %.2f MB, limit %d MB)", path, float64(fileInfo.Size())/1024/1024, int(shared.MaxContextBodySize)/1024/1024)
 							return
 						}
 
-						mapInputsByPath[mapInputPath][path] = string(fileContent)
-						mapSize += size
-					} else if isImage {
+						fileContent, err := os.ReadFile(path)
+						if err != nil {
+							errCh <- fmt.Errorf("failed to read the file %s: %v", path, err)
+							return
+						}
+
+						contextMu.Lock()
+						defer contextMu.Unlock()
+
+						if params.DefsOnly {
+							if mapSize+size > shared.MaxContextMapInputSize {
+								errCh <- fmt.Errorf("map size limit exceeded (size %.2f MB, limit %d MB)", float64(mapSize+size)/1024/1024, int(shared.MaxContextBodySize)/1024/1024)
+								return
+							}
+
+							if len(mapInputsByPath[mapInputPath])+1 > shared.MaxContextMapPaths {
+								errCh <- fmt.Errorf("map paths limit exceeded (found %d, limit %d)", len(mapInputsByPath[mapInputPath])+1, shared.MaxContextMapPaths)
+								return
+							}
+
+							mapInputsByPath[mapInputPath][path] = string(fileContent)
+							mapSize += size
+						} else if isImage {
+							loadContextReq = append(loadContextReq, &shared.LoadContextParams{
+								ContextType: shared.ContextImageType,
+								Name:        path,
+								Body:        base64.StdEncoding.EncodeToString(fileContent),
+								FilePath:    path,
+								ImageDetail: params.ImageDetail,
+							})
+						} else {
+							loadContextReq = append(loadContextReq, &shared.LoadContextParams{
+								ContextType: shared.ContextFileType,
+								Name:        path,
+								Body:        string(fileContent),
+								FilePath:    path,
+							})
+						}
+
+						errCh <- nil
+					}(path)
+				}
+
+				if params.DefsOnly {
+					for _, inputPath := range toLoadMapPaths {
+						var name string
+						if inputPath == "." {
+							name = "cwd"
+						} else if inputPath == ".." {
+							name = "parent"
+						} else {
+							name = inputPath
+						}
+
 						loadContextReq = append(loadContextReq, &shared.LoadContextParams{
-							ContextType: shared.ContextImageType,
-							Name:        path,
-							Body:        base64.StdEncoding.EncodeToString(fileContent),
-							FilePath:    path,
-							ImageDetail: params.ImageDetail,
-						})
-					} else {
-						loadContextReq = append(loadContextReq, &shared.LoadContextParams{
-							ContextType: shared.ContextFileType,
-							Name:        path,
-							Body:        string(fileContent),
-							FilePath:    path,
+							ContextType: shared.ContextMapType,
+							Name:        name,
+							MapInputs:   mapInputsByPath[inputPath],
+							FilePath:    inputPath,
 						})
 					}
-
-					errCh <- nil
-				}(path)
-			}
-
-			if params.DefsOnly {
-				for _, inputPath := range toLoadMapPaths {
-					var name string
-					if inputPath == "." {
-						name = "cwd"
-					} else if inputPath == ".." {
-						name = "parent"
-					} else {
-						name = inputPath
-					}
-
-					loadContextReq = append(loadContextReq, &shared.LoadContextParams{
-						ContextType: shared.ContextMapType,
-						Name:        name,
-						MapInputs:   mapInputsByPath[inputPath],
-						FilePath:    inputPath,
-					})
 				}
 			}
 		}
@@ -478,7 +520,7 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 		onErr(fmt.Errorf("failed to check context conflicts: %v", err))
 	}
 
-	if len(loadContextReq) == 0 {
+	if len(loadContextReq)+len(cachedMapPaths) == 0 {
 		term.StopSpinner()
 		fmt.Println("🤷‍♂️ No context loaded")
 
@@ -487,7 +529,7 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 			printAlreadyLoadedMsg(alreadyLoadedByComposite)
 			didOutputReason = true
 		}
-		if len(ignoredPaths) > 0 {
+		if len(ignoredPaths) > 0 && !params.SkipIgnoreWarning {
 			printIgnoredMsg()
 			didOutputReason = true
 		}
@@ -521,10 +563,15 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 		os.Exit(0)
 	}
 
-	res, apiErr := api.Client.LoadContext(CurrentPlanId, CurrentBranch, loadContextReq)
+	var res *shared.LoadContextResponse
+	if cachedMapLoadRes != nil {
+		res = cachedMapLoadRes
+	} else {
+		res, apiErr = api.Client.LoadContext(CurrentPlanId, CurrentBranch, loadContextReq)
 
-	if apiErr != nil {
-		onErr(fmt.Errorf("failed to load context: %v", apiErr.Msg))
+		if apiErr != nil {
+			onErr(fmt.Errorf("failed to load context: %v", apiErr.Msg))
+		}
 	}
 
 	term.StopSpinner()
@@ -551,7 +598,7 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 		printAlreadyLoadedMsg(alreadyLoadedByComposite)
 	}
 
-	if len(ignoredPaths) > 0 {
+	if len(ignoredPaths) > 0 && !params.SkipIgnoreWarning {
 		printIgnoredMsg()
 	}
 }
@@ -602,6 +649,26 @@ func AutoLoadContextFiles(files []string) (string, error) {
 	}
 
 	return res.Msg, nil
+}
+
+func MustLoadAutoContextMap() {
+	fmt.Println("Select a base directory to load context from. Press enter to use current directory (.), otherwise use a relative path like 'src' or 'lib'.")
+	fmt.Println()
+
+	baseDir, err := term.GetUserStringInputWithDefault("Base directory for context:", ".")
+
+	if err != nil {
+		term.OutputErrorAndExit("Error: %v", err)
+	}
+
+	if baseDir == "" {
+		baseDir = "."
+	}
+
+	MustLoadContext([]string{baseDir}, &types.LoadContextParams{
+		DefsOnly:          true,
+		SkipIgnoreWarning: true,
+	})
 }
 
 func printAlreadyLoadedMsg(alreadyLoadedByComposite map[string]*shared.Context) {

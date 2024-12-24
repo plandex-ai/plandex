@@ -33,15 +33,22 @@ func CreatePlan(orgId, projectId, userId, name string) (*Plan, error) {
 		}
 	}()
 
-	query := `INSERT INTO plans (org_id, owner_id, project_id, name) 
-	VALUES ($1, $2, $3, $4)
+	planConfig, err := GetDefaultPlanConfig(userId)
+
+	if err != nil {
+		return nil, fmt.Errorf("error getting default plan config: %v", err)
+	}
+
+	query := `INSERT INTO plans (org_id, owner_id, project_id, name, plan_config) 
+	VALUES ($1, $2, $3, $4, $5)
 	RETURNING id, created_at, updated_at`
 
 	plan := &Plan{
-		OrgId:     orgId,
-		OwnerId:   userId,
-		ProjectId: projectId,
-		Name:      name,
+		OrgId:      orgId,
+		OwnerId:    userId,
+		ProjectId:  projectId,
+		Name:       name,
+		PlanConfig: planConfig,
 	}
 
 	err = tx.QueryRow(
@@ -50,6 +57,7 @@ func CreatePlan(orgId, projectId, userId, name string) (*Plan, error) {
 		userId,
 		projectId,
 		name,
+		planConfig,
 	).Scan(
 		&plan.Id,
 		&plan.CreatedAt,
@@ -412,4 +420,13 @@ func BumpPlanUpdatedAt(planId string, t time.Time) error {
 	}
 
 	return nil
+}
+
+func GetPlanIdsForProject(projectId string) ([]string, error) {
+	var ids []string
+	err := Conn.Select(&ids, "SELECT id FROM plans WHERE project_id = $1", projectId)
+	if err != nil {
+		return nil, fmt.Errorf("error getting plan ids for project: %v", err)
+	}
+	return ids, nil
 }
