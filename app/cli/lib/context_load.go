@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"path/filepath"
 	"plandex/api"
@@ -15,12 +16,19 @@ import (
 	"plandex/url"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/fatih/color"
 	"github.com/plandex/plandex/shared"
 )
 
 func MustLoadContext(resources []string, params *types.LoadContextParams) {
+	startTime := time.Now()
+	showElapsed := func(msg string) {
+		elapsed := time.Since(startTime)
+		log.Println(msg, "elapsed: %s\n", elapsed)
+	}
+
 	if params.DefsOnly {
 		// while caching is set up to work with multiple map paths, it can end up in a partially loaded state if token limits are exceeded, so better to just load one at a time
 		if len(resources) > 1 {
@@ -181,15 +189,21 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 
 			toLoadMapPaths = uncachedMapPaths
 			inputFilePaths = toLoadMapPaths
+
+			showElapsed("Checked cached maps")
 		}
 
 		if len(inputFilePaths) > 0 {
 			baseDir := fs.GetBaseDirForFilePaths(inputFilePaths)
 
+			showElapsed("Got base dir")
+
 			paths, err := fs.GetProjectPaths(baseDir)
 			if err != nil {
 				onErr(fmt.Errorf("failed to get project paths: %v", err))
 			}
+
+			showElapsed("Got project paths")
 
 			// log.Println(spew.Sdump(paths))
 
@@ -220,6 +234,8 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 					}
 				}
 				inputFilePaths = filteredPaths
+
+				showElapsed("Filtered paths")
 			}
 
 			if params.NamesOnly {
@@ -282,6 +298,8 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 					onErr(fmt.Errorf("failed to parse input paths: %v", err))
 				}
 
+				showElapsed("Parsed input paths")
+
 				// // Dump flattenedPaths to JSON file for debugging
 				// debugData, err := json.MarshalIndent(flattenedPaths, "", "  ")
 				// if err != nil {
@@ -306,6 +324,8 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 						}
 					}
 					flattenedPaths = filteredPaths
+
+					showElapsed("Filtered paths")
 				}
 
 				// Add this check for the number of files (after filtering out ignored/irrelevant paths)
@@ -316,6 +336,7 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 							numPaths++
 						}
 					}
+					showElapsed("Counted map paths")
 				} else {
 					numPaths = len(flattenedPaths)
 				}
@@ -359,7 +380,6 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 						if _, ok := mapInputsByPath[mapInputPath]; !ok {
 							mapInputsByPath[mapInputPath] = shared.FileMapInputs{}
 						}
-
 					}
 
 					var contextType shared.ContextType
@@ -440,6 +460,8 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 					}(path)
 				}
 
+				showElapsed("Got map input paths")
+
 				if params.DefsOnly {
 					for _, inputPath := range toLoadMapPaths {
 						var name string
@@ -507,6 +529,8 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 		}
 	}
 
+	showElapsed("Loaded reqs")
+
 	filesToLoad := map[string]string{}
 	for _, context := range loadContextReq {
 		if context.ContextType == shared.ContextFileType {
@@ -515,6 +539,8 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 	}
 
 	hasConflicts, err := checkContextConflicts(filesToLoad)
+
+	showElapsed("Checked conflicts")
 
 	if err != nil {
 		onErr(fmt.Errorf("failed to check context conflicts: %v", err))
@@ -573,6 +599,8 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 			onErr(fmt.Errorf("failed to load context: %v", apiErr.Msg))
 		}
 	}
+
+	showElapsed("Made reqs")
 
 	term.StopSpinner()
 

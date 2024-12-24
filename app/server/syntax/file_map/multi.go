@@ -30,10 +30,20 @@ func ProcessMapFiles(ctx context.Context, inputs map[string]string) (shared.File
 		maxWorkers = 1 // Ensure at least one worker
 	}
 	log.Printf("ProcessMapFiles: Max workers: %d", maxWorkers)
-
 	sem := make(chan struct{}, maxWorkers)
 
-	for path, content := range inputs {
+	sortedPaths := make([]string, 0, len(inputs))
+	for path := range inputs {
+		sortedPaths = append(sortedPaths, path)
+	}
+	// sort paths by content length, longest first for more efficient cpu utilization
+	sort.Slice(sortedPaths, func(i, j int) bool {
+		return len(inputs[sortedPaths[i]]) > len(inputs[sortedPaths[j]])
+	})
+
+	for _, path := range sortedPaths {
+		content := inputs[path]
+		sem <- struct{}{}
 		go func(path, content string) {
 			defer func() { <-sem }()
 			fileMap, err := MapFile(ctx, path, []byte(content))

@@ -314,6 +314,12 @@ type LoadContextsParams struct {
 }
 
 func LoadContexts(ctx Ctx, params LoadContextsParams) (*shared.LoadContextResponse, []*Context, error) {
+	// startTime := time.Now()
+	// showElapsed := func(msg string) {
+	// 	elapsed := time.Since(startTime)
+	// 	log.Println("LoadContexts", msg, "elapsed: %s\n", elapsed)
+	// }
+
 	req := params.Req
 	orgId := params.OrgId
 	plan := params.Plan
@@ -374,7 +380,7 @@ func LoadContexts(ctx Ctx, params LoadContextsParams) (*shared.LoadContextRespon
 
 	*req = filteredReq
 
-	log.Println("LoadContexts - len(params.CachedMapsByPath)", len(params.CachedMapsByPath))
+	// showElapsed("Filtered reqs")
 
 	for _, context := range *req {
 		tempId := uuid.New().String()
@@ -389,11 +395,13 @@ func LoadContexts(ctx Ctx, params LoadContextsParams) (*shared.LoadContextRespon
 				mappedFiles = params.CachedMapsByPath[context.FilePath].MapParts
 			} else {
 				log.Println("Processing map files for", context.FilePath)
+				// showElapsed(context.FilePath + " - processing map files")
 				// Process file maps
 				mappedFiles, err = file_map.ProcessMapFiles(ctx, context.MapInputs)
 				if err != nil {
 					return nil, nil, fmt.Errorf("error processing map files: %v", err)
 				}
+				// showElapsed(context.FilePath + " - processed map files")
 			}
 
 			var mapShas map[string]string
@@ -459,6 +467,8 @@ func LoadContexts(ctx Ctx, params LoadContextsParams) (*shared.LoadContextRespon
 		tokensAdded += numTokens
 		totalTokens += numTokens
 	}
+
+	// showElapsed("Loaded reqs")
 
 	if totalTokens > maxTokens {
 		return &shared.LoadContextResponse{
