@@ -199,14 +199,6 @@ type PlanFileResult struct {
 
 	RemovedFile bool `json:"removedFile"`
 
-	CanVerify    bool       `json:"canVerify"`
-	RanVerifyAt  *time.Time `json:"ranVerifyAt,omitempty"`
-	VerifyPassed bool       `json:"verifyPassed"`
-
-	IsFix       bool `json:"isFix"`
-	IsSyntaxFix bool `json:"isSyntaxFix"`
-	IsOtherFix  bool `json:"isOtherFix"`
-
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
 }
@@ -327,31 +319,20 @@ type ModelPack struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
 
-	Planner     PlannerRoleConfig `json:"planner"`
-	PlanSummary ModelRoleConfig   `json:"planSummary"`
-	Builder     ModelRoleConfig   `json:"builder"`
-	Namer       ModelRoleConfig   `json:"namer"`
-	CommitMsg   ModelRoleConfig   `json:"commitMsg"`
-	ExecStatus  ModelRoleConfig   `json:"execStatus"`
-
-	// optional for backwards compatibility
-	Verifier *ModelRoleConfig `json:"verifier"`
-	AutoFix  *ModelRoleConfig `json:"autoFix"`
-	Search   *ModelRoleConfig `json:"search"`
+	Planner          PlannerRoleConfig `json:"planner"`
+	PlanSummary      ModelRoleConfig   `json:"planSummary"`
+	Builder          ModelRoleConfig   `json:"builder"`
+	WholeFileBuilder *ModelRoleConfig  `json:"wholeFileBuilder"` // optional, defaults to builder model — access via GetWholeFileBuilder()
+	Namer            ModelRoleConfig   `json:"namer"`
+	CommitMsg        ModelRoleConfig   `json:"commitMsg"`
+	ExecStatus       ModelRoleConfig   `json:"execStatus"`
 }
 
-func (m *ModelPack) GetVerifier() ModelRoleConfig {
-	if m.Verifier == nil {
+func (m *ModelPack) GetWholeFileBuilder() ModelRoleConfig {
+	if m.WholeFileBuilder == nil {
 		return m.Builder
 	}
-	return *m.Verifier
-}
-
-func (m *ModelPack) GetAutoFix() ModelRoleConfig {
-	if m.AutoFix == nil {
-		return m.Builder
-	}
-	return *m.AutoFix
+	return *m.WholeFileBuilder
 }
 
 type ModelOverrides struct {

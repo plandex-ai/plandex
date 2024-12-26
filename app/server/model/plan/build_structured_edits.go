@@ -21,6 +21,7 @@ import (
 )
 
 const BuildStructuredEditsMaxTries = 4
+const BuildStructuredEditsTriesBeforeFullFile = 2
 
 func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 	auth := fileState.auth
@@ -278,7 +279,6 @@ func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 		Content:        "",
 		Path:           filePath,
 		Replacements:   replacements,
-		CanVerify:      false, // no verification step with structural edits
 	}
 
 	fileState.onFinishBuildFile(&res, updatedFile)

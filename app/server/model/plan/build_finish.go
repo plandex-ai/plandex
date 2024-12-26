@@ -275,34 +275,6 @@ func (fileState *activeBuildStreamFileState) onFinishBuildFile(planRes *db.PlanF
 		}
 	}
 
-	// if we have a syntax error, fix it if we aren't out of retries
-	if planRes != nil && planRes.WillCheckSyntax && !planRes.SyntaxValid {
-		if planRes.IsFix {
-			if planRes.FixEpoch >= FixSyntaxEpochs-1 {
-				// we're out of retries, just continue on to queue processing
-				log.Printf("Out of retries for syntax fix for file %s\n", filePath)
-			} else {
-				fileState.syntaxNumEpoch++
-				fileState.syntaxNumRetry = 0
-				fileState.isFixingSyntax = true
-				fileState.syntaxErrors = planRes.SyntaxErrors
-				fileState.preBuildState = fileState.updated
-				fileState.updated = updated
-				log.Printf("Retrying syntax fix for file %s\n", filePath)
-				go fileState.fixFileLineNums()
-				return
-			}
-		} else {
-			fileState.isFixingSyntax = true
-			fileState.syntaxErrors = planRes.SyntaxErrors
-			fileState.preBuildState = fileState.updated
-			fileState.updated = updated
-			log.Printf("Fixing syntax for file %s\n", filePath)
-			go fileState.fixFileLineNums()
-			return
-		}
-	}
-
 	activeBuild.Success = true
 
 	// if more builds are queued, start the next one regardless of whether this is a verification build or not, then return
@@ -332,7 +304,7 @@ func (fileState *activeBuildStreamFileState) onFinishBuildFile(planRes *db.PlanF
 	// otherwise:
 	// if this is a verification build or a new file build (new files aren't verified), check if the build is finished and call onFinishBuild if it is
 	// if this is not a verification build, trigger the verification build
-	if activeBuild.IsVerification || fileState.isNewFile || (planRes != nil && !planRes.CanVerify) {
+	if fileState.isNewFile {
 		buildFinished := false
 
 		UpdateActivePlan(planId, branch, func(ap *types.ActivePlan) {
@@ -353,13 +325,11 @@ func (fileState *activeBuildStreamFileState) onFinishBuildFile(planRes *db.PlanF
 		log.Println("Triggering verification build")
 
 		go fileState.execPlanBuild(&types.ActiveBuild{
-			ReplyId:              activeBuild.ReplyId,
-			FileDescription:      activeBuild.FileDescription,
-			FileContent:          activeBuild.FileContent,
-			Path:                 activeBuild.Path,
-			Idx:                  activeBuild.Idx,
-			IsVerification:       true,
-			ToVerifyUpdatedState: updated,
+			ReplyId:         activeBuild.ReplyId,
+			FileDescription: activeBuild.FileDescription,
+			FileContent:     activeBuild.FileContent,
+			Path:            activeBuild.Path,
+			Idx:             activeBuild.Idx,
 		})
 	}
 

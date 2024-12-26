@@ -94,13 +94,8 @@ func initClients(params initClientsParams) map[string]*openai.Client {
 			continue
 		}
 
-		if planSettings.ModelPack.GetVerifier().BaseModelConfig.ApiKeyEnvVar == envVar {
-			endpointsByApiKeyEnvVar[envVar] = planSettings.ModelPack.GetVerifier().BaseModelConfig.BaseUrl
-			continue
-		}
-
-		if planSettings.ModelPack.GetAutoFix().BaseModelConfig.ApiKeyEnvVar == envVar {
-			endpointsByApiKeyEnvVar[envVar] = planSettings.ModelPack.GetAutoFix().BaseModelConfig.BaseUrl
+		if planSettings.ModelPack.GetWholeFileBuilder().BaseModelConfig.ApiKeyEnvVar == envVar {
+			endpointsByApiKeyEnvVar[envVar] = planSettings.ModelPack.GetWholeFileBuilder().BaseModelConfig.BaseUrl
 			continue
 		}
 	}

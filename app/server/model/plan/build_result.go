@@ -4,13 +4,10 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"math/rand"
 	"plandex-server/db"
 	"plandex-server/syntax"
-	"plandex-server/types"
 	"sort"
 	"strings"
-	"time"
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/google/uuid"
@@ -317,11 +314,6 @@ func GetPlanResultUpdated(ctx context.Context, params PlanResultParamsUpdated) (
 		Path:                filePath,
 		Replacements:        replacements,
 		AnyFailed:           !allSucceeded,
-		CanVerify:           !params.IsOtherFix,
-		IsFix:               params.IsFix,
-		IsSyntaxFix:         params.IsSyntaxFix,
-		IsOtherFix:          params.IsOtherFix,
-		FixEpoch:            params.FixEpoch,
 	}
 
 	if params.CheckSyntax {
@@ -337,145 +329,6 @@ func GetPlanResultUpdated(ctx context.Context, params PlanResultParamsUpdated) (
 	}
 
 	return &res, updated, allSucceeded, nil
-}
-
-func (fileState *activeBuildStreamFileState) onLineNumsBuildResult(res types.ChangesWithLineNums) {
-	log.Printf("onLineNumsBuildResult - File: %s\n", fileState.filePath)
-
-	filePath := fileState.filePath
-	build := fileState.build
-	currentOrgId := fileState.currentOrgId
-	planId := fileState.plan.Id
-	branch := fileState.branch
-	preBuildState := fileState.preBuildState
-
-	activePlan := GetActivePlan(planId, branch)
-
-	if activePlan == nil {
-		log.Printf("onLineNumsBuildResult - File %s: Active plan not found for plan ID %s on branch %s\n", filePath, planId, branch)
-		return
-	}
-
-	sorted := []*shared.StreamedChangeWithLineNums{}
-
-	for _, change := range res.Changes {
-		if change.HasChange {
-			sorted = append(sorted, change)
-		}
-	}
-
-	// Sort the streamed changes by start line
-	sort.Slice(sorted, func(i, j int) bool {
-		var iStartLine int
-		var jStartLine int
-
-		iStartLine, _, err := sorted[i].Old.GetLines()
-
-		if err != nil {
-			log.Printf("onLineNumsBuildResult - File %s: Error getting start line for change %v: %v\n", filePath, sorted[i], err)
-			fileState.lineNumsRetryOrError(fmt.Errorf("onLineNumsBuildResult - error getting start line for change %v: %v", sorted[i], err))
-			return false
-		}
-
-		jStartLine, _, err = sorted[j].Old.GetLines()
-
-		if err != nil {
-			log.Printf("onLineNumsBuildResult - File %s: Error getting start line for change %v: %v\n", filePath, sorted[j], err)
-			fileState.lineNumsRetryOrError(fmt.Errorf("onLineNumsBuildResult - error getting start line for change %v: %v", sorted[j], err))
-			return false
-		}
-
-		return iStartLine < jStartLine
-	})
-
-	log.Printf("onLineNumsBuildResult - File %s: fileState.streamedChangesWithLineNums = sorted\n", filePath)
-	log.Printf("onLineNumsBuildResult - File %s: num changes: %d\n", filePath, len(sorted))
-
-	fileState.streamedChangesWithLineNums = sorted
-
-	var overlapStrategy OverlapStrategy = OverlapStrategyError
-	if fileState.lineNumsNumRetry > 1 {
-		overlapStrategy = OverlapStrategySkip
-	}
-
-	planFileResult, updatedFile, allSucceeded, err := GetPlanResult(
-		activePlan.Ctx,
-		PlanResultParams{
-			OrgId:               currentOrgId,
-			PlanId:              planId,
-			PlanBuildId:         build.Id,
-			ConvoMessageId:      build.ConvoMessageId,
-			FilePath:            filePath,
-			PreBuildState:       preBuildState,
-			ChangesWithLineNums: sorted,
-			OverlapStrategy:     overlapStrategy,
-			CheckSyntax:         false,
-		},
-	)
-
-	if err != nil {
-		log.Printf("onLineNumsBuildResult - File %s: Error getting plan result: %v\n", filePath, err)
-		fileState.lineNumsRetryOrError(fmt.Errorf("onLineNumsBuildResult - error getting plan result for file '%s': %v", filePath, err))
-		return
-	}
-
-	if !allSucceeded {
-		log.Printf("onLineNumsBuildResult - File %s: Failed replacements:\n", filePath)
-		for _, replacement := range planFileResult.Replacements {
-			if replacement.Failed {
-				spew.Dump(replacement)
-			}
-		}
-
-		fileState.onBuildFileError(fmt.Errorf("onLineNumsBuildResult - replacements failed for file '%s'", filePath))
-		return
-	}
-
-	buildInfo := &shared.BuildInfo{
-		Path:      filePath,
-		NumTokens: 0,
-		Finished:  true,
-	}
-	activePlan.Stream(shared.StreamMessage{
-		Type:      shared.StreamMessageBuildInfo,
-		BuildInfo: buildInfo,
-	})
-	time.Sleep(50 * time.Millisecond)
-
-	fileState.updated = updatedFile
-
-	log.Printf("onLineNumsBuildResult - File %s: Plan file result: %v\n", filePath, planFileResult != nil)
-	log.Printf("onLineNumsBuildResult - File %s: updatedFile exists: %v\n", filePath, updatedFile != "")
-
-	fileState.onFinishBuildFile(planFileResult, updatedFile)
-}
-
-func (fileState *activeBuildStreamFileState) lineNumsRetryOrError(err error) {
-	if fileState.lineNumsNumRetry < MaxBuildErrorRetries {
-		fileState.lineNumsNumRetry++
-		fileState.activeBuild.WithLineNumsBuffer = ""
-		fileState.activeBuild.WithLineNumsBufferTokens = 0
-		log.Printf("lineNumsRetryOrError - Retrying line nums build file '%s' due to error: %v\n", fileState.filePath, err)
-
-		activePlan := GetActivePlan(fileState.plan.Id, fileState.branch)
-
-		if activePlan == nil {
-			log.Printf("lineNumsRetryOrError - File %s: Active plan not found\n", fileState.filePath)
-			return
-		}
-
-		select {
-		case <-activePlan.Ctx.Done():
-			log.Printf("lineNumsRetryOrError - File %s: Context canceled. Exiting.\n", fileState.filePath)
-			return
-		case <-time.After(time.Duration((fileState.verifyFileNumRetry*fileState.verifyFileNumRetry)/2)*200*time.Millisecond + time.Duration(rand.Intn(500))*time.Millisecond):
-			break
-		}
-
-		fileState.buildFileLineNums()
-	} else {
-		fileState.onBuildFileError(err)
-	}
 }
 
 func GetPlanResult(ctx context.Context, params PlanResultParams) (*db.PlanFileResult, string, bool, error) {
@@ -596,11 +449,6 @@ func GetPlanResult(ctx context.Context, params PlanResultParams) (*db.PlanFileRe
 		Path:                filePath,
 		Replacements:        replacements,
 		AnyFailed:           !allSucceeded,
-		CanVerify:           !params.IsOtherFix,
-		IsFix:               params.IsFix,
-		IsSyntaxFix:         params.IsSyntaxFix,
-		IsOtherFix:          params.IsOtherFix,
-		FixEpoch:            params.FixEpoch,
 	}
 
 	if params.CheckSyntax {

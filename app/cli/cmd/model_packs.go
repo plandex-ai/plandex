@@ -207,10 +207,8 @@ func createModelPack(cmd *cobra.Command, args []string) {
 	mp.Namer = getModelRoleConfig(customModels, shared.ModelRoleName)
 	mp.CommitMsg = getModelRoleConfig(customModels, shared.ModelRoleCommitMsg)
 	mp.ExecStatus = getModelRoleConfig(customModels, shared.ModelRoleExecStatus)
-	verifier := getModelRoleConfig(customModels, shared.ModelRoleVerifier)
-	mp.Verifier = &verifier
-	autoFix := getModelRoleConfig(customModels, shared.ModelRoleAutoFix)
-	mp.AutoFix = &autoFix
+	wholeFileBuilder := getModelRoleConfig(customModels, shared.ModelRoleWholeFileBuilder)
+	mp.WholeFileBuilder = &wholeFileBuilder
 
 	term.StartSpinner("")
 	apiErr = api.Client.CreateModelPack(mp)

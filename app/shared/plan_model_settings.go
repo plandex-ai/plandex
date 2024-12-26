@@ -31,28 +31,25 @@ var ApiKeyByProvider = map[ModelProvider]string{
 type ModelRole string
 
 const (
-	ModelRolePlanner     ModelRole = "planner"
-	ModelRolePlanSummary ModelRole = "summarizer"
-	ModelRoleBuilder     ModelRole = "builder"
-	ModelRoleName        ModelRole = "names"
-	ModelRoleCommitMsg   ModelRole = "commit-messages"
-	ModelRoleExecStatus  ModelRole = "auto-continue"
-	ModelRoleSearch      ModelRole = "search"
-
-	ModelRoleVerifier ModelRole = "verifier"
-	ModelRoleAutoFix  ModelRole = "auto-fix"
+	ModelRolePlanner          ModelRole = "planner"
+	ModelRolePlanSummary      ModelRole = "summarizer"
+	ModelRoleBuilder          ModelRole = "builder"
+	ModelRoleWholeFileBuilder ModelRole = "whole-file-builder"
+	ModelRoleName             ModelRole = "names"
+	ModelRoleCommitMsg        ModelRole = "commit-messages"
+	ModelRoleExecStatus       ModelRole = "auto-continue"
+	ModelRoleSearch           ModelRole = "search"
 )
 
-var AllModelRoles = []ModelRole{ModelRolePlanner, ModelRolePlanSummary, ModelRoleBuilder, ModelRoleName, ModelRoleCommitMsg, ModelRoleExecStatus, ModelRoleVerifier, ModelRoleAutoFix}
+var AllModelRoles = []ModelRole{ModelRolePlanner, ModelRolePlanSummary, ModelRoleBuilder, ModelRoleWholeFileBuilder, ModelRoleName, ModelRoleCommitMsg, ModelRoleExecStatus}
 var ModelRoleDescriptions = map[ModelRole]string{
-	ModelRolePlanner:     "replies to prompts and makes plans",
-	ModelRolePlanSummary: "summarizes conversations exceeding max-convo-tokens",
-	ModelRoleBuilder:     "builds a plan into file diffs",
-	ModelRoleName:        "names plans",
-	ModelRoleCommitMsg:   "writes commit messages",
-	ModelRoleExecStatus:  "determines whether to auto-continue",
-	ModelRoleVerifier:    "verifies file correctness",
-	ModelRoleAutoFix:     "automatically fixes syntax errors",
+	ModelRolePlanner:          "replies to prompts and makes plans",
+	ModelRolePlanSummary:      "summarizes conversations exceeding max-convo-tokens",
+	ModelRoleBuilder:          "builds a plan into file diffs",
+	ModelRoleWholeFileBuilder: "builds a plan into file diffs by writing the entire file",
+	ModelRoleName:             "names plans",
+	ModelRoleCommitMsg:        "writes commit messages",
+	ModelRoleExecStatus:       "determines whether to auto-continue",
 }
 var SettingDescriptions = map[string]string{
 	"max-convo-tokens":       "max conversation 🪙 before summarization",
@@ -112,12 +109,11 @@ func (ps PlanSettings) GetRequiredEnvVars() map[string]bool {
 
 	envVars[ms.Planner.BaseModelConfig.ApiKeyEnvVar] = true
 	envVars[ms.Builder.BaseModelConfig.ApiKeyEnvVar] = true
+	envVars[ms.WholeFileBuilder.BaseModelConfig.ApiKeyEnvVar] = true
 	envVars[ms.PlanSummary.BaseModelConfig.ApiKeyEnvVar] = true
 	envVars[ms.Namer.BaseModelConfig.ApiKeyEnvVar] = true
 	envVars[ms.CommitMsg.BaseModelConfig.ApiKeyEnvVar] = true
 	envVars[ms.ExecStatus.BaseModelConfig.ApiKeyEnvVar] = true
-	envVars[ms.GetVerifier().BaseModelConfig.ApiKeyEnvVar] = true
-	envVars[ms.GetAutoFix().BaseModelConfig.ApiKeyEnvVar] = true
 
 	// for backward compatibility with <= 0.8.4 server versions
 	if len(envVars) == 0 {

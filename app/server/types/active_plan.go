@@ -16,27 +16,19 @@ import (
 const MaxStreamRate = 70 * time.Millisecond
 
 type ActiveBuild struct {
-	ReplyId                  string
-	FileDescription          string
-	FileContent              string
-	FileContentTokens        int
-	CurrentFileTokens        int
-	Path                     string
-	Idx                      int
-	WithLineNumsBuffer       string
-	WithLineNumsBufferTokens int
-	VerifyBuffer             string
-	VerifyBufferTokens       int
-	FixBuffer                string
-	FixBufferTokens          int
-	Success                  bool
-	Error                    error
-	IsVerification           bool
-	ToVerifyUpdatedState     string
-	IsMoveOp                 bool
-	MoveDestination          string
-	IsRemoveOp               bool
-	IsResetOp                bool
+	ReplyId           string
+	FileDescription   string
+	FileContent       string
+	FileContentTokens int
+	CurrentFileTokens int
+	Path              string
+	Idx               int
+	Success           bool
+	Error             error
+	IsMoveOp          bool
+	MoveDestination   string
+	IsRemoveOp        bool
+	IsResetOp         bool
 }
 
 type subscription struct {

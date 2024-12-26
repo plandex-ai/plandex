@@ -190,6 +190,10 @@ var DefaultConfigByRole = map[ModelRole]ModelRoleConfig{
 		Temperature: 0.1,
 		TopP:        0.1,
 	},
+	ModelRoleWholeFileBuilder: {
+		Temperature: 0.1,
+		TopP:        0.1,
+	},
 	ModelRoleName: {
 		Temperature: 0.8,
 		TopP:        0.5,
@@ -199,14 +203,6 @@ var DefaultConfigByRole = map[ModelRole]ModelRoleConfig{
 		TopP:        0.5,
 	},
 	ModelRoleExecStatus: {
-		Temperature: 0.1,
-		TopP:        0.1,
-	},
-	ModelRoleVerifier: {
-		Temperature: 0.2,
-		TopP:        0.2,
-	},
-	ModelRoleAutoFix: {
 		Temperature: 0.1,
 		TopP:        0.1,
 	},
@@ -233,16 +229,6 @@ var RequiredCompatibilityByRole = map[ModelRole]ModelCompatibility{
 	},
 	ModelRoleExecStatus: {
 		IsOpenAICompatible: true,
-		HasFunctionCalling: true,
-	},
-	ModelRoleVerifier: {
-		IsOpenAICompatible: true,
-		HasStreaming:       true,
-		HasFunctionCalling: true,
-	},
-	ModelRoleAutoFix: {
-		IsOpenAICompatible: true,
-		HasStreaming:       true,
 		HasFunctionCalling: true,
 	},
 }
@@ -294,23 +280,11 @@ func init() {
 			Temperature:     DefaultConfigByRole[ModelRoleExecStatus].Temperature,
 			TopP:            DefaultConfigByRole[ModelRoleExecStatus].TopP,
 		},
-		Verifier: &ModelRoleConfig{
-			Role:            ModelRoleVerifier,
-			BaseModelConfig: AvailableModelsByName[openai.GPT4o].BaseModelConfig,
-			Temperature:     DefaultConfigByRole[ModelRoleVerifier].Temperature,
-			TopP:            DefaultConfigByRole[ModelRoleVerifier].TopP,
-		},
-		AutoFix: &ModelRoleConfig{
-			Role:            ModelRoleAutoFix,
-			BaseModelConfig: AvailableModelsByName[openai.GPT4o].BaseModelConfig,
-			Temperature:     DefaultConfigByRole[ModelRoleAutoFix].Temperature,
-			TopP:            DefaultConfigByRole[ModelRoleAutoFix].TopP,
-		},
 	}
 
 	OpenRouterClaude3Dot5SonnetGPT4oModelPack = ModelPack{
-		Name:        "anthropic-claude-3.5-sonnet-gpt-4o",
-		Description: "Uses Anthropic's Claude 3.5 Sonnet model (via OpenRouter) for planning, summarization, and auto-continue, OpenAI gpt-4o for builds, and gpt-4o-mini for lighter tasks.",
+		Name:        "plandex-default-pack",
+		Description: "Uses Anthropic's Claude 3.5 Sonnet model (via OpenRouter) for planning, summarization, diff-based edits, and auto-continue, OpenAI gpt-4o for whole-file edits, and gpt-4o-mini for lighter tasks.",
 		Planner: PlannerRoleConfig{
 			ModelRoleConfig: ModelRoleConfig{
 				Role:            ModelRolePlanner,
@@ -332,6 +306,12 @@ func init() {
 			Temperature:     DefaultConfigByRole[ModelRoleBuilder].Temperature,
 			TopP:            DefaultConfigByRole[ModelRoleBuilder].TopP,
 		},
+		WholeFileBuilder: &ModelRoleConfig{
+			Role:            ModelRoleWholeFileBuilder,
+			BaseModelConfig: AvailableModelsByName[openai.GPT4o].BaseModelConfig,
+			Temperature:     DefaultConfigByRole[ModelRoleWholeFileBuilder].Temperature,
+			TopP:            DefaultConfigByRole[ModelRoleWholeFileBuilder].TopP,
+		},
 		Namer: ModelRoleConfig{
 			Role:            ModelRoleName,
 			BaseModelConfig: AvailableModelsByName["gpt-4o-mini"].BaseModelConfig,
@@ -349,18 +329,6 @@ func init() {
 			BaseModelConfig: AvailableModelsByName[openai.GPT4o].BaseModelConfig,
 			Temperature:     DefaultConfigByRole[ModelRoleExecStatus].Temperature,
 			TopP:            DefaultConfigByRole[ModelRoleExecStatus].TopP,
-		},
-		Verifier: &ModelRoleConfig{
-			Role:            ModelRoleVerifier,
-			BaseModelConfig: AvailableModelsByName[openai.GPT4o].BaseModelConfig,
-			Temperature:     DefaultConfigByRole[ModelRoleVerifier].Temperature,
-			TopP:            DefaultConfigByRole[ModelRoleVerifier].TopP,
-		},
-		AutoFix: &ModelRoleConfig{
-			Role:            ModelRoleAutoFix,
-			BaseModelConfig: AvailableModelsByName[openai.GPT4o].BaseModelConfig,
-			Temperature:     DefaultConfigByRole[ModelRoleAutoFix].Temperature,
-			TopP:            DefaultConfigByRole[ModelRoleAutoFix].TopP,
 		},
 	}
 
@@ -449,18 +417,6 @@ func init() {
 			BaseModelConfig: AvailableModelsByName["google/gemini-pro-1.5"].BaseModelConfig,
 			Temperature:     DefaultConfigByRole[ModelRoleExecStatus].Temperature,
 			TopP:            DefaultConfigByRole[ModelRoleExecStatus].TopP,
-		},
-		Verifier: &ModelRoleConfig{
-			Role:            ModelRoleVerifier,
-			BaseModelConfig: AvailableModelsByName["google/gemini-pro-1.5"].BaseModelConfig,
-			Temperature:     DefaultConfigByRole[ModelRoleVerifier].Temperature,
-			TopP:            DefaultConfigByRole[ModelRoleVerifier].TopP,
-		},
-		AutoFix: &ModelRoleConfig{
-			Role:            ModelRoleAutoFix,
-			BaseModelConfig: AvailableModelsByName["google/gemini-pro-1.5"].BaseModelConfig,
-			Temperature:     DefaultConfigByRole[ModelRoleAutoFix].Temperature,
-			TopP:            DefaultConfigByRole[ModelRoleAutoFix].TopP,
 		},
 	}
 }

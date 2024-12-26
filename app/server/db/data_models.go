@@ -526,18 +526,9 @@ type PlanFileResult struct {
 	AnyFailed bool   `json:"anyFailed"`
 	Error     string `json:"error"`
 
-	CanVerify    bool       `json:"canVerify"`
-	RanVerifyAt  *time.Time `json:"ranVerifyAt,omitempty"`
-	VerifyPassed bool       `json:"verifyPassed"`
-
 	WillCheckSyntax bool     `json:"willCheckSyntax"`
 	SyntaxValid     bool     `json:"syntaxValid"`
 	SyntaxErrors    []string `json:"syntaxErrors"`
-
-	IsFix       bool `json:"isFix"`
-	IsSyntaxFix bool `json:"isSyntaxFix"`
-	IsOtherFix  bool `json:"isOtherFix"`
-	FixEpoch    int  `json:"fixEpoch"`
 
 	AppliedAt  *time.Time `json:"appliedAt,omitempty"`
 	RejectedAt *time.Time `json:"rejectedAt,omitempty"`
@@ -559,12 +550,6 @@ func (res *PlanFileResult) ToApi() *shared.PlanFileResult {
 		RejectedAt:          res.RejectedAt,
 		Replacements:        res.Replacements,
 		RemovedFile:         res.RemovedFile,
-		CanVerify:           res.CanVerify,
-		RanVerifyAt:         res.RanVerifyAt,
-		VerifyPassed:        res.VerifyPassed,
-		IsFix:               res.IsFix,
-		IsSyntaxFix:         res.IsSyntaxFix,
-		IsOtherFix:          res.IsOtherFix,
 		CreatedAt:           res.CreatedAt,
 		UpdatedAt:           res.UpdatedAt,
 	}
