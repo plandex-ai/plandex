@@ -29,11 +29,13 @@ type ProposedUpdatesExplanationTag struct {
 	Content string   `xml:",chardata"`
 }
 
+// for smaller files, build whole file after the initial apply attempt and one retry
+// for larger files that are under the whole file output limit, build whole file after the initial apply attempt and two retries
+// for large files that are over the whole file output limit, build whole file after the initial apply attempt and four retries
+const SmallFileThreshold = 2000
 const BuildStructuredEditsMaxTries = 5
 const BuildTriesBeforeWholeFile = 3
-
-// if original file plus updates token count is below this threshold, build whole file immediately
-const BuildWholeFileImmediateThreshold = 600
+const SmallFileTriesBeforeWholeFile = 2
 
 func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 	auth := fileState.auth
@@ -63,6 +65,8 @@ func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 	proposedContent := activeBuild.FileContent
 	desc := activeBuild.FileDescription
 
+	maxPotentialTokens := activeBuild.FileContentTokens + activeBuild.CurrentFileTokens
+
 	log.Printf("buildStructuredEdits - %s - applying changes\n", filePath)
 	applyRes := syntax.ApplyChanges(
 		originalFile,
@@ -72,9 +76,24 @@ func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 	)
 	// log.Println("buildStructuredEdits - applyRes.NewFile:")
 	// log.Println(applyRes.NewFile)
-
 	proposedContent = applyRes.Proposed
-	totalPossibleTokens := activeBuild.FileContentTokens + activeBuild.CurrentFileTokens
+
+	var syntaxErrors []string
+	validateSyntax := func() {
+		if fileState.parser != nil && !fileState.preBuildStateSyntaxInvalid && !fileState.syntaxCheckTimedOut {
+			validationRes, err := syntax.ValidateWithParsers(activePlan.Ctx, fileState.language, fileState.parser, "", nil, proposedContent) // fallback parser was already set as fileState.parser if needed during initial preBuildState syntax check
+			if err != nil {
+				log.Printf("buildStructuredEdits - error validating proposed content: %v\n", err)
+			} else if validationRes.TimedOut {
+				log.Printf("buildStructuredEdits - syntax check timed out for proposed content\n")
+				fileState.syntaxCheckTimedOut = true
+				syntaxErrors = []string{}
+			} else {
+				syntaxErrors = validationRes.Errors
+			}
+		}
+	}
+	validateSyntax()
 
 	for len(applyRes.NeedsVerifyReasons) > 0 && numTries < BuildStructuredEditsMaxTries {
 		log.Printf("buildStructuredEdits verify call - numTries: %d\n", numTries)
@@ -83,10 +102,10 @@ func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 
 		wholeFileConfig := fileState.settings.ModelPack.GetWholeFileBuilder()
 		reservedOutputTokens := wholeFileConfig.ReservedOutputTokens
-		buildImmediate := totalPossibleTokens < BuildWholeFileImmediateThreshold
+		isSmallFile := maxPotentialTokens < SmallFileThreshold
 
-		if (buildImmediate || numTries == BuildTriesBeforeWholeFile) && totalPossibleTokens < int(float32(reservedOutputTokens)*0.9) {
-			log.Printf("buildStructuredEdits - %s - num tries %d - total possible tokens %d is less than reserved output tokens %d - building whole file\n", filePath, numTries, totalPossibleTokens, reservedOutputTokens)
+		if ((isSmallFile && numTries == SmallFileTriesBeforeWholeFile) || numTries == BuildTriesBeforeWholeFile) && maxPotentialTokens < int(float32(reservedOutputTokens)*0.9) {
+			log.Printf("buildStructuredEdits - %s - num tries %d - total possible tokens %d is less than reserved output tokens %d - building whole file\n", filePath, numTries, maxPotentialTokens, reservedOutputTokens)
 
 			fileState.buildWholeFileFallback(proposedContent, desc)
 			return
@@ -109,7 +128,7 @@ func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 		// 	log.Println(diff)
 		// }
 
-		validateSysPrompt := prompts.GetValidateEditsPrompt(filePath, originalFile, desc, proposedContent, diff, applyRes.NeedsVerifyReasons)
+		validateSysPrompt := prompts.GetValidateEditsPrompt(filePath, originalFile, desc, proposedContent, diff, applyRes.NeedsVerifyReasons, syntaxErrors)
 
 		validateFileMessages := []openai.ChatCompletionMessage{
 			{
@@ -246,7 +265,7 @@ func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 			log.Printf("buildStructuredEdits - %s - applyRes.NeedsVerifyReasons: %v\n", filePath, applyRes.NeedsVerifyReasons)
 
 			proposedContent = applyRes.Proposed
-
+			validateSyntax()
 			numTries++
 		}
 	}
@@ -284,9 +303,10 @@ func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 		Content:        "",
 		Path:           filePath,
 		Replacements:   replacements,
+		SyntaxErrors:   syntaxErrors,
 	}
 
-	fileState.onFinishBuildFile(&res, updatedFile)
+	fileState.onFinishBuildFile(&res)
 }
 
 func (fileState *activeBuildStreamFileState) structuredEditRetryOrError(err error) {

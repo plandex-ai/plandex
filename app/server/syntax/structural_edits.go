@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/davecgh/go-spew/spew"
-	tree_sitter "github.com/smacker/go-tree-sitter"
 )
 
 const duplicationThreshold = 20
@@ -17,8 +16,6 @@ type Reference int
 type Removal int
 
 type Anchor int
-
-type TreeSitterSection []*tree_sitter.Node
 
 type NeedsVerifyReason string
 
@@ -43,21 +40,6 @@ type ReferenceBlock struct {
 	start int // Start line number in original file (inclusive)
 	end   int // End line number in original file (inclusive)
 }
-
-// type ApplyChangesRetryParams struct {
-// 	Ctx         context.Context
-// 	Language    shared.TreeSitterLanguage
-// 	Parser      *tree_sitter.Parser
-// 	References  []Reference
-// 	Removals    []Removal
-// 	AnchorLines map[int]int
-// }
-
-// type treeSitterParams struct {
-// 	language shared.TreeSitterLanguage
-// 	parser   *tree_sitter.Parser
-// 	ctx      context.Context
-// }
 
 const verboseLogging = false
 

@@ -8,6 +8,8 @@ import (
 	tree_sitter "github.com/smacker/go-tree-sitter"
 )
 
+type TreeSitterSection []*tree_sitter.Node
+
 func getSections(parent *tree_sitter.Node, bytes []byte, numSections, fromLine, upToLine int, foundAnyAnchor bool) []TreeSitterSection {
 	sections := make([]TreeSitterSection, numSections)
 	structures := [][]*tree_sitter.Node{}

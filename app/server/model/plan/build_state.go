@@ -37,9 +37,9 @@ type activeBuildStreamFileState struct {
 	preBuildState              string
 	parser                     *sitter.Parser
 	language                   shared.TreeSitterLanguage
+	syntaxCheckTimedOut        bool
 	preBuildStateSyntaxInvalid bool
 	structuredEditNumRetry     int
 	wholeFileNumRetry          int
-	syntaxErrors               []string
 	isNewFile                  bool
 }

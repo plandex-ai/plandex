@@ -40,6 +40,9 @@ func MapFile(ctx context.Context, filename string, content []byte) (*FileMap, er
 	// Get appropriate parser
 	var parser *tree_sitter.Parser
 	var lang shared.TreeSitterLanguage
+	var fallbackParser *tree_sitter.Parser
+	var fallbackLang shared.TreeSitterLanguage
+
 	file := filepath.Base(filename)
 	if strings.Contains(strings.ToLower(file), "dockerfile") {
 		lang = shared.TreeSitterLanguageDockerfile
@@ -50,7 +53,7 @@ func MapFile(ctx context.Context, filename string, content []byte) (*FileMap, er
 		}
 	} else {
 		ext := filepath.Ext(filename)
-		parser, lang, _, _ = syntax.GetParserForExt(ext)
+		parser, lang, fallbackParser, fallbackLang = syntax.GetParserForExt(ext)
 
 		if parser == nil {
 			return nil, fmt.Errorf("unsupported file type: %s", ext)
@@ -64,11 +67,24 @@ func MapFile(ctx context.Context, filename string, content []byte) (*FileMap, er
 	}
 	defer tree.Close()
 
-	// Create map
-	m := &FileMap{
-		Definitions: mapNode(tree.RootNode(), content, lang),
+	if tree.RootNode().Type() == "error" {
+		fallbackTree, err := fallbackParser.ParseCtx(ctx, nil, content)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse file with fallback parser: %v", err)
+		}
+		defer fallbackTree.Close()
+
+		if fallbackTree.RootNode().Type() != "error" {
+			return &FileMap{
+				Definitions: mapNode(fallbackTree.RootNode(), content, fallbackLang),
+			}, nil
+		}
 	}
-	return m, nil
+
+	return &FileMap{
+		Definitions: mapNode(tree.RootNode(), content, lang),
+	}, nil
+
 }
 
 func mapNode(node *tree_sitter.Node, content []byte, lang shared.TreeSitterLanguage) []Definition {

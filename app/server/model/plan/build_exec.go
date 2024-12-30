@@ -262,7 +262,7 @@ func (fileState *activeBuildStreamFileState) buildFile() {
 			Content:        "",
 			RemovedFile:    true,
 		}
-		fileState.onFinishBuildFile(planRes, "")
+		fileState.onFinishBuildFile(planRes)
 		return
 	}
 
@@ -304,7 +304,7 @@ func (fileState *activeBuildStreamFileState) buildFile() {
 				Path:           filePath,
 				Content:        contextPart.Body,
 			}
-			fileState.onFinishBuildFile(planRes, "")
+			fileState.onFinishBuildFile(planRes)
 			return
 		}
 	}
@@ -325,15 +325,6 @@ func (fileState *activeBuildStreamFileState) buildFile() {
 			BuildInfo: buildInfo,
 		})
 
-		// validate syntax of new file
-		// validationRes, err := syntax.Validate(activePlan.Ctx, filePath, activeBuild.FileContent)
-
-		// if err != nil {
-		// 	log.Printf("Error validating syntax for new file '%s': %v\n", filePath, err)
-		// 	fileState.onBuildFileError(fmt.Errorf("error validating syntax for new file '%s': %v", filePath, err))
-		// 	return
-		// }
-
 		// new file
 		planRes := &db.PlanFileResult{
 			OrgId:          currentOrgId,
@@ -342,9 +333,6 @@ func (fileState *activeBuildStreamFileState) buildFile() {
 			ConvoMessageId: build.ConvoMessageId,
 			Path:           filePath,
 			Content:        activeBuild.FileContent,
-			// WillCheckSyntax: validationRes.HasParser && !validationRes.TimedOut,
-			// SyntaxValid:     validationRes.Valid,
-			// SyntaxErrors:    validationRes.Errors,
 		}
 
 		// log.Println("build exec - new file result")
@@ -352,7 +340,7 @@ func (fileState *activeBuildStreamFileState) buildFile() {
 
 		fileState.isNewFile = true
 
-		fileState.onFinishBuildFile(planRes, activeBuild.FileContent)
+		fileState.onFinishBuildFile(planRes)
 		return
 	} else {
 		currentNumTokens, err := shared.GetNumTokens(currentState)

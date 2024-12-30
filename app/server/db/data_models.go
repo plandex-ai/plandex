@@ -526,9 +526,7 @@ type PlanFileResult struct {
 	AnyFailed bool   `json:"anyFailed"`
 	Error     string `json:"error"`
 
-	WillCheckSyntax bool     `json:"willCheckSyntax"`
-	SyntaxValid     bool     `json:"syntaxValid"`
-	SyntaxErrors    []string `json:"syntaxErrors"`
+	SyntaxErrors []string `json:"syntaxErrors"`
 
 	AppliedAt  *time.Time `json:"appliedAt,omitempty"`
 	RejectedAt *time.Time `json:"rejectedAt,omitempty"`

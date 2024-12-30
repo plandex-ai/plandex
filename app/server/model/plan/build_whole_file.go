@@ -169,7 +169,7 @@ func (fileState *activeBuildStreamFileState) buildWholeFileFallback(proposedCont
 		Replacements:   replacements,
 	}
 
-	fileState.onFinishBuildFile(&res, updatedFile)
+	fileState.onFinishBuildFile(&res)
 }
 
 func (fileState *activeBuildStreamFileState) wholeFileRetryOrError(proposedContent string, desc string, err error) {

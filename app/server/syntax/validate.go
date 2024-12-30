@@ -15,22 +15,26 @@ import (
 const parserTimeout = 500 * time.Millisecond
 
 type ValidationRes = struct {
-	Ext       string
-	Lang      shared.TreeSitterLanguage
-	HasParser bool
-	TimedOut  bool
-	Valid     bool
-	Errors    []string
+	Lang     shared.TreeSitterLanguage
+	Parser   *tree_sitter.Parser
+	TimedOut bool
+	Valid    bool
+	Errors   []string
 }
 
-func Validate(ctx context.Context, path, file string) (*ValidationRes, error) {
+func ValidateFile(ctx context.Context, path string, file string) (*ValidationRes, error) {
 	ext := filepath.Ext(path)
 
 	parser, lang, fallbackParser, fallbackLang := GetParserForExt(ext)
 
 	if parser == nil {
-		return &ValidationRes{Ext: ext, Lang: lang, HasParser: false}, nil
+		return &ValidationRes{Lang: lang, Parser: nil}, nil
 	}
+
+	return ValidateWithParsers(ctx, lang, parser, fallbackLang, fallbackParser, file)
+}
+
+func ValidateWithParsers(ctx context.Context, lang shared.TreeSitterLanguage, parser *tree_sitter.Parser, fallbackLang shared.TreeSitterLanguage, fallbackParser *tree_sitter.Parser, file string) (*ValidationRes, error) {
 
 	// Set a timeout duration for the parsing operations
 	ctx, cancel := context.WithTimeout(ctx, parserTimeout)
@@ -53,7 +57,7 @@ func Validate(ctx context.Context, path, file string) (*ValidationRes, error) {
 			if err != nil || fallbackTree == nil {
 
 				if err != nil && strings.Contains(err.Error(), "timeout") {
-					return &ValidationRes{Ext: ext, Lang: lang, HasParser: true, TimedOut: true}, nil
+					return &ValidationRes{Lang: lang, Parser: parser, TimedOut: true}, nil
 				}
 
 				return nil, fmt.Errorf("failed to parse the content with fallback parser: %v", err)
@@ -63,23 +67,22 @@ func Validate(ctx context.Context, path, file string) (*ValidationRes, error) {
 			root = fallbackTree.RootNode()
 
 			if !root.HasError() {
-				return &ValidationRes{Ext: ext, Lang: fallbackLang, HasParser: true, Valid: true}, nil
+				return &ValidationRes{Lang: fallbackLang, Parser: fallbackParser, Valid: true}, nil
 			}
 		}
 
 		errorMarkers := insertErrorMarkers(file, root)
 
 		return &ValidationRes{
-			Ext:       ext,
-			Lang:      lang,
-			HasParser: true,
-			Valid:     false,
-			Errors:    errorMarkers,
+			Lang:   lang,
+			Parser: parser,
+			Valid:  false,
+			Errors: errorMarkers,
 		}, nil
 
 	}
 
-	return &ValidationRes{Ext: ext, Lang: lang, HasParser: true, Valid: true}, nil
+	return &ValidationRes{Lang: lang, Parser: parser, Valid: true}, nil
 }
 
 func insertErrorMarkers(source string, node *tree_sitter.Node) []string {

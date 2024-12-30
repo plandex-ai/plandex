@@ -137,23 +137,21 @@ func (state *activeBuildStreamFileState) loadBuildFile(activeBuild *types.Active
 	convoMessageId := activeBuild.ReplyId
 
 	ext := filepath.Ext(filePath)
-	parser, lang, backupParser, backupLang := syntax.GetParserForExt(ext)
+	parser, lang, fallbackParser, fallbackLang := syntax.GetParserForExt(ext)
 
 	if parser != nil {
-		state.parser = parser
-		state.language = lang
-	} else if backupParser != nil {
-		state.parser = backupParser
-		state.language = backupLang
-	}
-
-	if state.parser != nil {
-		validationRes, err := syntax.Validate(activePlan.Ctx, filePath, state.preBuildState)
+		validationRes, err := syntax.ValidateWithParsers(activePlan.Ctx, lang, parser, fallbackLang, fallbackParser, state.preBuildState)
 		if err != nil {
 			log.Printf(" error validating original file syntax: %v\n", err)
 			return fmt.Errorf("error validating original file syntax: %v", err)
 		}
-		if validationRes.HasParser && !validationRes.TimedOut && !validationRes.Valid {
+
+		state.language = validationRes.Lang
+		state.parser = validationRes.Parser
+
+		if validationRes.TimedOut {
+			state.syntaxCheckTimedOut = true
+		} else if !validationRes.Valid {
 			state.preBuildStateSyntaxInvalid = true
 		}
 	}

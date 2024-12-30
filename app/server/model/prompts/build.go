@@ -3,6 +3,7 @@ package prompts
 import (
 	"fmt"
 	"plandex-server/syntax"
+	"strings"
 
 	"github.com/plandex/plandex/shared"
 )
@@ -14,6 +15,7 @@ func GetValidateEditsPrompt(
 	proposed,
 	diff string,
 	reasons []syntax.NeedsVerifyReason,
+	syntaxErrors []string,
 ) string {
 	var s string
 
@@ -53,8 +55,21 @@ func GetValidateEditsPrompt(
 		}
 	}
 
+	if len(syntaxErrors) > 0 {
+		editsIncorrect = true
+		s += `The proposed changes, when applied, resulted in a file with syntax errors, meaning the proposed changes were either written incorrectly or were not correctly applied. The resulting file has the following syntax errors:\n\n` + strings.Join(syntaxErrors, "\n") + `\n\n`
+	}
+
 	if editsIncorrect {
 		s += EditsIncorrectPrompt
+
+		if len(syntaxErrors) > 0 {
+			s += `
+			Since the resulting file has syntax errors, include an assessment of the cause of the syntax errors in either the '## Evaluate Explanation' section, the '## Evaluate Proposed Changes' section, or both. Were the proposed changes written incorrectly with syntax errors included, or were the syntax errors produced by an incorrect application of the proposed changes?
+
+			You *must* ensure *all* syntax errors are fixed when correcting the proposed changes.
+			`
+		}
 	} else {
 		s += EditsValidatePrompt
 	}
