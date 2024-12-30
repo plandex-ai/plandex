@@ -172,10 +172,10 @@ func initConnectActive(auth *types.ServerAuth, planId, branch string, w http.Res
 					buildInfo.NumTokens = 0
 					buildInfo.Finished = true
 				} else {
-					tokens := build.WithLineNumsBufferTokens
-
+					// no longer showing token counts in build info - leaving commented out for now for reference
+					// tokens := build.WithLineNumsBufferTokens
 					buildInfo.Finished = false
-					buildInfo.NumTokens += tokens
+					// buildInfo.NumTokens += tokens
 				}
 			}
 

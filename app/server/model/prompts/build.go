@@ -7,120 +7,6 @@ import (
 	"github.com/plandex/plandex/shared"
 )
 
-func GetWholeFilePrompt(filePath, preBuildState, changesFile, changesDesc string) string {
-	preBuildStateWithLineNums := shared.AddLineNums(preBuildState)
-	changesWithLineNums := shared.AddLineNumsWithPrefix(changesFile, "pdx-new-")
-
-	s := WholeFileBeginning + ReferencesPrompt + WholeFileEnding + "\n\n" + getPreBuildStatePrompt(filePath, preBuildStateWithLineNums) + "\n\n"
-
-	s += fmt.Sprintf("Proposed updates:\n%s\n```\n%s\n```", changesDesc, changesWithLineNums)
-
-	return s
-}
-
-var ExampleReferences = `
-A reference comment is a comment that references code in the *original file* for the purpose of making it clear where a change should be applied. Examples of reference comments include:
-
-	- // ... existing code...
-	- # Existing code...
-	- /* ... */
-	- // Rest of the function...
-	- <!-- rest of div tag -->
-	- // ... rest of function ...
-	- // rest of component...
-	- # other methods...
-	- // ... rest of init code...
-	- // rest of the class...
-	- // other properties
-	- // other methods
-	// ... existing properties ...
-	// ... existing values ...
-	// ... existing text ...
-
-Reference comments often won't exactly match one of the above examples, but they will always be referencing a block of code from the *original file* that is left out of the *proposed updates* for the sake of focusing on the specific change that is being made.
-
-Reference comments do NOT need to be valid comments for the given file type. For file types like JSON or plain text that do not use comments, reference comments in the form of '// ... existing properties ...' or '// ... existing values ...' or '// ... existing text ...' can still be present. These MUST be treated as valid reference comments regardless of the file type or the validity of the syntax.
-`
-
-const RefsBeginning = `
-You are an AI that analyzes an *original file* and *proposed updates* to that file and then identifies *all* *reference comments* present in the *proposed updates*.
-
-`
-
-const WholeFileBeginning = `
-After identifying all references, you will output the *entire file* with the *proposed updates* correctly applied. ALL references will be replaced by the appropriate code from the *original file*. You will correctly merge the code from the *original file* with the *proposed updates* and output the entire file.
-
-`
-
-var ReferencesPrompt = ExampleReferences + `
-	
-	*NOT EVERY COMMENT IS A REFERENCE.* If a comment refers to code that is present in the *proposed updates* then it is *not* a reference. Similarly, if a comment explains something about the change being made in the *proposed updates*, it is also *not* a reference.
-
-	A reference comment MUST EXIST in the *proposed updates*. Do not include a reference comment unless it exists VERBATIM in the *proposed updates*.
-
-	Before outputting the references, first output a section that lists *EVERY* comment in the *proposed updates*, including the line number of each comment prefixed by 'pdx-new-'. Below each comment, evaluate whether it is a reference comment. Focus on whether the comment is clearly referencing a block of code in the *original file*, whether it is explaining a change being made, or whether it is a comment that was carried over from the *original file* but does *not* reference any code that was left out of the *proposed updates*. After this evaluation, state whether each comment is a reference comment or not. Only list valid *comments* for the given programming language in the comments section. Do not include non-comment lines of code in the comments section.
-	
-	Example:
-
-	---
-	Comments:
-
-	pdx-new-2: // ... existing code to start transaction ...
-	Evaluation: refers the code at the beginning of the 'update' function that starts the database transaction.
-	Reference: true
-
-	pdx-new-6: // ... existing update code ...	
-	Evaluation: refers the code inside the 'update' function that updates the user.
-	Reference: true
-
-	pdx-new-9: // ... existing code to commit db transaction...
-	Evaluation: refers the code inside the 'update' function that commits the database transaction.
-	Reference: true
-
-	pdx-new-4: // verify user permission before performing update
-	Evaluation: describes the change being made. Does not refer to any code in the *original file*.
-	Reference: false
-
-	pdx-new-85: // Rest of the main function...
-	Evaluation: refers to the rest of the main function that is left unchanged.
-	Reference: true
-
-	pdx-new-25: # Delete the object
-	Evaluation: describes the change being made. Does not refer to any code in the *original file*.
-	Reference: false
-`
-
-const RefsOnlyEnding = `
-	*
-
-	Do NOT include any additional text after the <references> element. The output must end after </references>. DO NOT use the string <references> anywhere else in the output. ONLY use it to start the <references> element.
-`
-
-const WholeFileEnding = `
-	*
-
-	Now output the entire file with the *proposed updates* correctly applied. ALL identified references MUST be replaced by the appropriate code from the *original file*. You MUST correctly merge the code from the *original file* with the *proposed updates* and output the entire file. The resulting file MUST NOT include any reference comments.
-
-	The resulting file MUST be syntactically and semantically correct. All code structures must be properly balanced.
-	
-	The full resulting file should be output within a <file> element, like this:
-
-	<file>
-		package main
-
-		import "logger"
-
-		function main() {
-			logger.info("Hello, world!");
-			exec()
-		}
-	</file>
-
-	Do NOT include line numbers in the <file> element. Do NOT include reference comments in the <file> element. Output the ENTIRE file, no matter how long it is, with NO EXCEPTIONS. Include the resulting file *only* with no other text. Do NOT wrap the file output in triple backticks or any other formatting, except for the <file> element tags.
-
-	Do NOT include any additional text after the <file> element. The output must end after </file>. DO NOT use the string <file> anywhere else in the output. ONLY use it to start the <file> element.
-`
-
 func GetValidateEditsPrompt(
 	path,
 	original,
@@ -155,12 +41,15 @@ func GetValidateEditsPrompt(
 		if reason == syntax.NeedsVerifyReasonAmbiguousLocation {
 			editsIncorrect = true
 			s += `The proposed changes were applied to an ambiguous location. This may mean that anchors were written incorrectly (with incorrect spacing or indentation, for example), or else that the ordering of anchors was incorrect. It may also mean that necessary surrounding context and anchors were not included.`
-		} else if reason == syntax.NeedsVerifyReasonNoChanges {
-			s += `The proposed changes did not cause any change to the resulting file when applied. Was this intentional?`
+
+			// not going to verify for no changes for now, too many false positives
+			// } else if reason == syntax.NeedsVerifyReasonNoChanges {
+			// s += `The proposed changes did not cause any change to the resulting file when applied. Was this intentional?`
+
 		} else if reason == syntax.NeedsVerifyReasonCodeRemoved {
-			s += `The proposed changes removed or replaced code. Was this intentional?`
+			s += `The proposed changes removed or replaced code. Was this intentional? If this was the clear intention of the plan, then removing or replacing code can be correct. But it could also be a sign that the proposed changes were not correctly applied.`
 		} else if reason == syntax.NeedsVerifyReasonCodeDuplicated {
-			s += `The proposed may have duplicated code. Was this intentional?`
+			s += `The proposed may have duplicated code. Was this intentional? If this was the clear intention of the plan, or the duplication exists in the original file for a valid reason, then duplicating code can be correct. But it could also be a sign that the proposed changes were not correctly applied.`
 		}
 	}
 
@@ -174,7 +63,7 @@ func GetValidateEditsPrompt(
 
 	s += `
 
-- You MUST NOT make *functional* changes when rewriting the explanation or proposed updates. Your job is not to change functionality or write additional code, but to ensure that the explanation and proposed updates follow all the rules correctly. Stick as close to the original proposed updates as possible when rewriting. Fix the problems, but keep everything else the same as much as possible, including comments, line breaks, spacing, etc.
+- You MUST NOT make *functional* changes when rewriting the explanation or proposed updates. Your job is *NOT* to change functionality or add additional code in *any way*. It is *only* to ensure that the explanation and proposed updates follow all the rules correctly. Stick as close to the original proposed updates as possible when rewriting. Fix the problems, but keep everything else *exactly the same*, including comments, line breaks, spacing, etc.
 
 - You MUST NOT add 'Plandex: removed' comments unless the intention of the plan and the explanation is to remove code. NEVER add 'Plandex: removed' comments to the *proposed updates* unless the *explanation* includes the word 'remove'. The *only* time you can add a 'Plandex: removed' comment is if 1 - you are correcting a mistaken comment that was intended as a removal comment, but used the wrong format—for example, if the 'Plandex: ' prefix was incorrectly omitted. In that case you must fix the comment in the fixed proposed updates. 2 - the explanation explicitly stats that code should be removed, but a necessary 'Plandex: removed' comment is missing from the proposed updates, causing the code that should have been removed to incorrectly remain in the file. In that case you must add the missing 'Plandex: removed' comment to the proposed updates in the correct location, with correct surrounding context and anchors.
 `
@@ -315,3 +204,111 @@ func getPreBuildStatePrompt(filePath, preBuildState string) string {
 
 	return fmt.Sprintf("**The current file is %s. Original state of the file:**\n```\n%s\n```", filePath, preBuildState) + "\n\n"
 }
+
+func GetWholeFilePrompt(filePath, preBuildState, changesFile, changesDesc string) string {
+	preBuildStateWithLineNums := shared.AddLineNums(preBuildState)
+	changesWithLineNums := shared.AddLineNumsWithPrefix(changesFile, "pdx-new-")
+
+	s := WholeFileBeginning + ReferencesPrompt + WholeFileEnding + "\n\n" + getPreBuildStatePrompt(filePath, preBuildStateWithLineNums) + "\n\n"
+
+	s += fmt.Sprintf("Proposed updates:\n%s\n```\n%s\n```", changesDesc, changesWithLineNums)
+
+	return s
+}
+
+var ExampleReferences = `
+A reference comment is a comment that references code in the *original file* for the purpose of making it clear where a change should be applied. Examples of reference comments include:
+
+	- // ... existing code...
+	- # Existing code...
+	- /* ... */
+	- // Rest of the function...
+	- <!-- rest of div tag -->
+	- // ... rest of function ...
+	- // rest of component...
+	- # other methods...
+	- // ... rest of init code...
+	- // rest of the class...
+	- // other properties
+	- // other methods
+	// ... existing properties ...
+	// ... existing values ...
+	// ... existing text ...
+
+Reference comments often won't exactly match one of the above examples, but they will always be referencing a block of code from the *original file* that is left out of the *proposed updates* for the sake of focusing on the specific change that is being made.
+
+Reference comments do NOT need to be valid comments for the given file type. For file types like JSON or plain text that do not use comments, reference comments in the form of '// ... existing properties ...' or '// ... existing values ...' or '// ... existing text ...' can still be present. These MUST be treated as valid reference comments regardless of the file type or the validity of the syntax.
+`
+
+const RefsBeginning = `
+You are an AI that analyzes an *original file* and *proposed updates* to that file and then identifies *all* *reference comments* present in the *proposed updates*.
+
+`
+
+const WholeFileBeginning = `
+After identifying all references, you will output the *entire file* with the *proposed updates* correctly applied. ALL references will be replaced by the appropriate code from the *original file*. You will correctly merge the code from the *original file* with the *proposed updates* and output the entire file.
+
+`
+
+var ReferencesPrompt = ExampleReferences + `
+	
+	*NOT EVERY COMMENT IS A REFERENCE.* If a comment refers to code that is present in the *proposed updates* then it is *not* a reference. Similarly, if a comment explains something about the change being made in the *proposed updates*, it is also *not* a reference.
+
+	A reference comment MUST EXIST in the *proposed updates*. Do not include a reference comment unless it exists VERBATIM in the *proposed updates*.
+
+	Before outputting the references, first output a section that lists *EVERY* comment in the *proposed updates*, including the line number of each comment prefixed by 'pdx-new-'. Below each comment, evaluate whether it is a reference comment. Focus on whether the comment is clearly referencing a block of code in the *original file*, whether it is explaining a change being made, or whether it is a comment that was carried over from the *original file* but does *not* reference any code that was left out of the *proposed updates*. After this evaluation, state whether each comment is a reference comment or not. Only list valid *comments* for the given programming language in the comments section. Do not include non-comment lines of code in the comments section.
+	
+	Example:
+
+	---
+	Comments:
+
+	pdx-new-2: // ... existing code to start transaction ...
+	Evaluation: refers the code at the beginning of the 'update' function that starts the database transaction.
+	Reference: true
+
+	pdx-new-6: // ... existing update code ...	
+	Evaluation: refers the code inside the 'update' function that updates the user.
+	Reference: true
+
+	pdx-new-9: // ... existing code to commit db transaction...
+	Evaluation: refers the code inside the 'update' function that commits the database transaction.
+	Reference: true
+
+	pdx-new-4: // verify user permission before performing update
+	Evaluation: describes the change being made. Does not refer to any code in the *original file*.
+	Reference: false
+
+	pdx-new-85: // Rest of the main function...
+	Evaluation: refers to the rest of the main function that is left unchanged.
+	Reference: true
+
+	pdx-new-25: # Delete the object
+	Evaluation: describes the change being made. Does not refer to any code in the *original file*.
+	Reference: false
+`
+
+const WholeFileEnding = `
+	*
+
+	Now output the entire file with the *proposed updates* correctly applied. ALL identified references MUST be replaced by the appropriate code from the *original file*. You MUST correctly merge the code from the *original file* with the *proposed updates* and output the *entire* resulting file. The resulting file MUST NOT include any reference comments.
+
+	The resulting file MUST be syntactically and semantically correct. All code structures must be properly balanced.
+	
+	The full resulting file should be output within a <PlandexWholeFile> element, like this:
+
+	<PlandexWholeFile>
+		package main
+
+		import "logger"
+
+		function main() {
+			logger.info("Hello, world!");
+			exec()
+		}
+	</PlandexWholeFile>
+
+	Do NOT include line numbers in the <PlandexWholeFile> element. Do NOT include reference comments in the <PlandexWholeFile> element. Output the ENTIRE file, no matter how long it is, with NO EXCEPTIONS. Include the resulting file *only* with no other text. Do NOT wrap the file output in triple backticks or any other formatting, except for the <PlandexWholeFile> element tags.
+
+	Do NOT include any additional text after the <PlandexWholeFile> element. The output must end after </PlandexWholeFile>. DO NOT use the string <PlandexWholeFile> anywhere else in the output. ONLY use it to start the <PlandexWholeFile> element.
+`

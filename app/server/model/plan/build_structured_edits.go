@@ -11,7 +11,6 @@ import (
 	"plandex-server/model"
 	"plandex-server/model/prompts"
 	"plandex-server/syntax"
-	"plandex-server/types"
 	"strings"
 	"time"
 
@@ -20,8 +19,21 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
-const BuildStructuredEditsMaxTries = 4
-const BuildStructuredEditsTriesBeforeFullFile = 2
+type FixedProposedUpdatesTag struct {
+	XMLName xml.Name `xml:"PlandexProposedUpdates"`
+	Content string   `xml:",chardata"`
+}
+
+type ProposedUpdatesExplanationTag struct {
+	XMLName xml.Name `xml:"PlandexProposedUpdatesExplanation"`
+	Content string   `xml:",chardata"`
+}
+
+const BuildStructuredEditsMaxTries = 5
+const BuildTriesBeforeWholeFile = 3
+
+// if original file plus updates token count is below this threshold, build whole file immediately
+const BuildWholeFileImmediateThreshold = 600
 
 func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 	auth := fileState.auth
@@ -62,14 +74,23 @@ func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 	// log.Println(applyRes.NewFile)
 
 	proposedContent = applyRes.Proposed
+	totalPossibleTokens := activeBuild.FileContentTokens + activeBuild.CurrentFileTokens
 
 	for len(applyRes.NeedsVerifyReasons) > 0 && numTries < BuildStructuredEditsMaxTries {
 		log.Printf("buildStructuredEdits verify call - numTries: %d\n", numTries)
-
-		numTries++
-
 		log.Println("buildStructuredEdits - needs verify reasons:")
 		spew.Dump(applyRes.NeedsVerifyReasons)
+
+		wholeFileConfig := fileState.settings.ModelPack.GetWholeFileBuilder()
+		reservedOutputTokens := wholeFileConfig.ReservedOutputTokens
+		buildImmediate := totalPossibleTokens < BuildWholeFileImmediateThreshold
+
+		if (buildImmediate || numTries == BuildTriesBeforeWholeFile) && totalPossibleTokens < int(float32(reservedOutputTokens)*0.9) {
+			log.Printf("buildStructuredEdits - %s - num tries %d - total possible tokens %d is less than reserved output tokens %d - building whole file\n", filePath, numTries, totalPossibleTokens, reservedOutputTokens)
+
+			fileState.buildWholeFileFallback(proposedContent, desc)
+			return
+		}
 
 		log.Println("buildStructuredEdits - getting verify edits prompt")
 
@@ -107,15 +128,13 @@ func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 
 		inputTokens := prompts.ExtraTokensPerRequest + prompts.ExtraTokensPerMessage + promptTokens
 
-		fileState.inputTokens = inputTokens
-
 		_, apiErr := hooks.ExecHook(hooks.WillSendModelRequest, hooks.HookParams{
 			Auth: auth,
 			Plan: fileState.plan,
 			WillSendModelRequestParams: &hooks.WillSendModelRequestParams{
 				InputTokens:  inputTokens,
-				OutputTokens: shared.AvailableModelsByName[fileState.settings.ModelPack.Builder.BaseModelConfig.ModelName].DefaultReservedOutputTokens,
-				ModelName:    fileState.settings.ModelPack.Builder.BaseModelConfig.ModelName,
+				OutputTokens: config.ReservedOutputTokens,
+				ModelName:    config.BaseModelConfig.ModelName,
 			},
 		})
 		if apiErr != nil {
@@ -152,11 +171,11 @@ func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 			DidSendModelRequestParams: &hooks.DidSendModelRequestParams{
 				InputTokens:   resp.Usage.PromptTokens,
 				OutputTokens:  resp.Usage.CompletionTokens,
-				ModelName:     fileState.settings.ModelPack.Builder.BaseModelConfig.ModelName,
-				ModelProvider: fileState.settings.ModelPack.Builder.BaseModelConfig.Provider,
+				ModelName:     config.BaseModelConfig.ModelName,
+				ModelProvider: config.BaseModelConfig.Provider,
 				ModelPackName: fileState.settings.ModelPack.Name,
 				ModelRole:     shared.ModelRoleBuilder,
-				Purpose:       "File edit",
+				Purpose:       "File edit (structured edits)",
 			},
 		})
 
@@ -185,7 +204,7 @@ func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 			// edits are valid
 			break
 		} else {
-			var fixedProposedUpdates syntax.FixedProposedUpdatesTag
+			var fixedProposedUpdates FixedProposedUpdatesTag
 			err = xml.Unmarshal([]byte(fixedProposedUpdatesXmlString), &fixedProposedUpdates)
 			if err != nil {
 				log.Printf("buildStructuredEdits - error unmarshalling PlandexProposedUpdates xml: %v\n", err)
@@ -194,21 +213,7 @@ func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 			proposedContent = fixedProposedUpdates.Content
 
 			// remove code block formatting if it was mistakenly included in the proposed content
-			trimmedProposedContent := strings.TrimSpace(proposedContent)
-			splitProposedContent := strings.Split(trimmedProposedContent, "\n")
-
-			if len(splitProposedContent) > 2 {
-				firstLine := strings.TrimSpace(splitProposedContent[0])
-				secondLine := strings.TrimSpace(splitProposedContent[1])
-				lastLine := strings.TrimSpace(splitProposedContent[len(splitProposedContent)-1])
-				if types.LineMaybeHasFilePath(firstLine) && strings.HasPrefix(secondLine, "```") {
-					if lastLine == "```" {
-						proposedContent = strings.Join(splitProposedContent[1:len(splitProposedContent)-1], "\n")
-					}
-				} else if strings.HasPrefix(firstLine, "```") && lastLine == "```" {
-					proposedContent = strings.Join(splitProposedContent[1:len(splitProposedContent)-1], "\n")
-				}
-			}
+			proposedContent = StripBackticksWrapper(proposedContent)
 
 			// log.Println("buildStructuredEdits - fixed proposed content:")
 			// log.Println(proposedContent)
@@ -219,7 +224,7 @@ func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 			// log.Println(fixedDescString)
 
 			if fixedDescString != "" {
-				var descElement syntax.ProposedUpdatesExplanationTag
+				var descElement ProposedUpdatesExplanationTag
 				err = xml.Unmarshal([]byte(fixedDescString), &descElement)
 				if err != nil {
 					log.Printf("buildStructuredEdits - error unmarshalling PlandexProposedUpdatesExplanation xml: %v\n", err)
@@ -241,6 +246,8 @@ func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 			log.Printf("buildStructuredEdits - %s - applyRes.NeedsVerifyReasons: %v\n", filePath, applyRes.NeedsVerifyReasons)
 
 			proposedContent = applyRes.Proposed
+
+			numTries++
 		}
 	}
 
@@ -256,8 +263,6 @@ func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 		BuildInfo: buildInfo,
 	})
 	time.Sleep(50 * time.Millisecond)
-
-	fileState.updated = updatedFile
 
 	replacements, err := diff_pkg.GetDiffReplacements(originalFile, updatedFile)
 	if err != nil {

@@ -134,6 +134,7 @@ func updateModelSettings(args []string, originalSettings *shared.PlanSettings) *
 	var selectedModel *shared.AvailableModel
 	var temperature *float64
 	var topP *float64
+	var reservedOutputTokens *int
 
 	if len(args) > 0 {
 		modelSetOrRoleOrSetting = args[0]
@@ -303,17 +304,6 @@ func updateModelSettings(args []string, originalSettings *shared.PlanSettings) *
 					}
 					settings.ModelOverrides.MaxTokens = &n
 				}
-			case "reservedoutputtokens":
-				if value == "" {
-					settings.ModelOverrides.ReservedOutputTokens = nil
-				} else {
-					n, err := strconv.Atoi(value)
-					if err != nil {
-						fmt.Println("Invalid value for reserved-output-tokens:", value)
-						return nil
-					}
-					settings.ModelOverrides.ReservedOutputTokens = &n
-				}
 			}
 		}
 
@@ -355,6 +345,7 @@ func updateModelSettings(args []string, originalSettings *shared.PlanSettings) *
 						"Select a model",
 						"Set temperature",
 						"Set top-p",
+						"Set reserved output tokens",
 					}
 
 					opts = append(opts, lib.GoBack)
@@ -393,6 +384,9 @@ func updateModelSettings(args []string, originalSettings *shared.PlanSettings) *
 					} else if selection == "Set top-p" {
 						propertyCompact = "topp"
 						break Outer
+					} else if selection == "Set reserved output tokens" {
+						propertyCompact = "reservedoutputtokens"
+						break Outer
 					}
 				}
 			}
@@ -405,6 +399,8 @@ func updateModelSettings(args []string, originalSettings *shared.PlanSettings) *
 							msg += "temperature (-2.0 to 2.0)"
 						} else if propertyCompact == "topp" {
 							msg += "top-p (0.0 to 1.0)"
+						} else if propertyCompact == "reservedoutputtokens" {
+							msg += "reserved output tokens"
 						}
 						var err error
 						value, err = term.GetRequiredUserStringInput(msg)
@@ -433,6 +429,13 @@ func updateModelSettings(args []string, originalSettings *shared.PlanSettings) *
 							return nil
 						}
 						topP = &f
+					case "reservedoutputtokens":
+						n, err := strconv.Atoi(value)
+						if err != nil {
+							fmt.Println("Invalid value for reserved-output-tokens:", value)
+							return nil
+						}
+						settings.ModelOverrides.ReservedOutputTokens = &n
 					}
 				}
 			}
@@ -446,13 +449,14 @@ func updateModelSettings(args []string, originalSettings *shared.PlanSettings) *
 				if selectedModel != nil {
 					settings.ModelPack.Planner.BaseModelConfig = selectedModel.BaseModelConfig
 					settings.ModelPack.Planner.PlannerModelConfig = shared.PlannerModelConfig{
-						MaxConvoTokens:       selectedModel.DefaultMaxConvoTokens,
-						ReservedOutputTokens: selectedModel.DefaultReservedOutputTokens,
+						MaxConvoTokens: selectedModel.DefaultMaxConvoTokens,
 					}
 				} else if temperature != nil {
 					settings.ModelPack.Planner.Temperature = float32(*temperature)
 				} else if topP != nil {
 					settings.ModelPack.Planner.TopP = float32(*topP)
+				} else if reservedOutputTokens != nil {
+					settings.ModelPack.Planner.ReservedOutputTokens = *reservedOutputTokens
 				}
 
 			case shared.ModelRolePlanSummary:

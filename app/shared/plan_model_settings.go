@@ -86,9 +86,9 @@ func (ps PlanSettings) GetPlannerMaxConvoTokens() int {
 func (ps PlanSettings) GetPlannerReservedOutputTokens() int {
 	if ps.ModelOverrides.ReservedOutputTokens == nil {
 		if ps.ModelPack == nil {
-			return DefaultModelPack.Planner.PlannerModelConfig.ReservedOutputTokens
+			return DefaultModelPack.Planner.ReservedOutputTokens
 		} else {
-			return ps.ModelPack.Planner.PlannerModelConfig.ReservedOutputTokens
+			return ps.ModelPack.Planner.ReservedOutputTokens
 		}
 	} else {
 		return *ps.ModelOverrides.ReservedOutputTokens

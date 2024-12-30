@@ -162,7 +162,7 @@ func createCustomModel(cmd *cobra.Command, args []string) {
 	}
 	model.DefaultMaxConvoTokens = maxConvoTokens
 
-	fmt.Println("'Default Reserved Output Tokens' is the default number of tokens reserved for model output in the 'planner' role. This ensures the model has enough tokens to generate a response. For models with 8k context, ~1000 is recommended. For 128k context, ~4000 is recommended.")
+	fmt.Println("'Default Reserved Output Tokens' is the default number of tokens reserved for model output in the 'planner', 'builder', and 'whole file builder' roles. This ensures the model has enough tokens to generate a response. For models with 8k context, ~1000 is recommended. For 128k context, ~4000 is recommended.")
 	reservedOutputTokensStr, err := term.GetRequiredUserStringInput("Default Reserved Output Tokens:")
 	if err != nil {
 		term.OutputErrorAndExit("Error reading reserved output tokens: %v", err)
@@ -437,7 +437,7 @@ func renderSettings(settings *shared.PlanSettings) {
 	color.New(color.Bold, term.ColorHiCyan).Println("🤖 Models")
 	table = tablewriter.NewWriter(os.Stdout)
 	table.SetAutoWrapText(false)
-	table.SetHeader([]string{"Role", "Provider", "Model", "Temperature", "Top P"})
+	table.SetHeader([]string{"Role", "Provider", "Model", "Temperature", "Top P", "Max Output"})
 
 	addModelRow := func(role string, config shared.ModelRoleConfig) {
 		table.Append([]string{
@@ -446,6 +446,7 @@ func renderSettings(settings *shared.PlanSettings) {
 			config.BaseModelConfig.ModelName,
 			fmt.Sprintf("%.1f", config.Temperature),
 			fmt.Sprintf("%.1f", config.TopP),
+			fmt.Sprintf("%d 🪙", config.ReservedOutputTokens),
 		})
 	}
 
@@ -463,11 +464,10 @@ func renderSettings(settings *shared.PlanSettings) {
 	color.New(color.Bold, term.ColorHiCyan).Println("🧠 Planner Defaults")
 	table = tablewriter.NewWriter(os.Stdout)
 	table.SetAutoWrapText(false)
-	table.SetHeader([]string{"Max Tokens", "Max Convo Tokens", "Reserved Output Tokens"})
+	table.SetHeader([]string{"Max Tokens", "Max Convo Tokens"})
 	table.Append([]string{
 		fmt.Sprintf("%d", modelPack.Planner.BaseModelConfig.MaxTokens),
 		fmt.Sprintf("%d", modelPack.Planner.MaxConvoTokens),
-		fmt.Sprintf("%d", modelPack.Planner.ReservedOutputTokens),
 	})
 	table.Render()
 	fmt.Println()
@@ -485,11 +485,6 @@ func renderSettings(settings *shared.PlanSettings) {
 		table.Append([]string{"Max Convo Tokens", "no override"})
 	} else {
 		table.Append([]string{"Max Convo Tokens", fmt.Sprintf("%d", *settings.ModelOverrides.MaxConvoTokens)})
-	}
-	if settings.ModelOverrides.ReservedOutputTokens == nil {
-		table.Append([]string{"Reserved Output Tokens", "no override"})
-	} else {
-		table.Append([]string{"Reserved Output Tokens", fmt.Sprintf("%d", *settings.ModelOverrides.ReservedOutputTokens)})
 	}
 	table.Render()
 	fmt.Println()

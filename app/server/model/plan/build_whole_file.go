@@ -1,0 +1,202 @@
+package plan
+
+import (
+	"encoding/xml"
+	"fmt"
+	"log"
+	"math/rand"
+	"plandex-server/db"
+	diff_pkg "plandex-server/diff"
+	"plandex-server/hooks"
+	"plandex-server/model"
+	"plandex-server/model/prompts"
+	"strings"
+	"time"
+
+	"github.com/davecgh/go-spew/spew"
+	"github.com/plandex/plandex/shared"
+	"github.com/sashabaranov/go-openai"
+)
+
+type WholeFileTag struct {
+	XMLName xml.Name `xml:"PlandexWholeFile"`
+	Content string   `xml:",chardata"`
+}
+
+func (fileState *activeBuildStreamFileState) buildWholeFileFallback(proposedContent string, desc string) {
+	auth := fileState.auth
+	filePath := fileState.filePath
+	clients := fileState.clients
+	planId := fileState.plan.Id
+	branch := fileState.branch
+	originalFile := fileState.preBuildState
+	config := fileState.settings.ModelPack.GetWholeFileBuilder()
+
+	activePlan := GetActivePlan(planId, branch)
+
+	if activePlan == nil {
+		log.Printf("Active plan not found for plan ID %s and branch %s\n", planId, branch)
+		fileState.onBuildFileError(fmt.Errorf("active plan not found for plan ID %s and branch %s", planId, branch))
+		return
+	}
+
+	sysPrompt := prompts.GetWholeFilePrompt(filePath, originalFile, desc, proposedContent)
+
+	messages := []openai.ChatCompletionMessage{
+		{
+			Role:    openai.ChatMessageRoleSystem,
+			Content: sysPrompt,
+		},
+	}
+
+	promptTokens, err := shared.GetNumTokens(sysPrompt)
+
+	if err != nil {
+		log.Printf("buildWholeFile - error getting num tokens for prompt: %v\n", err)
+		fileState.onBuildFileError(fmt.Errorf("error getting num tokens for prompt: %v", err))
+		return
+	}
+
+	inputTokens := prompts.ExtraTokensPerRequest + prompts.ExtraTokensPerMessage + promptTokens
+
+	_, apiErr := hooks.ExecHook(hooks.WillSendModelRequest, hooks.HookParams{
+		Auth: auth,
+		Plan: fileState.plan,
+		WillSendModelRequestParams: &hooks.WillSendModelRequestParams{
+			InputTokens:  inputTokens,
+			OutputTokens: config.ReservedOutputTokens,
+			ModelName:    config.BaseModelConfig.ModelName,
+		},
+	})
+	if apiErr != nil {
+		activePlan.StreamDoneCh <- apiErr
+		return
+	}
+
+	log.Println("buildWholeFile - calling model for applied changes validation")
+
+	modelReq := openai.ChatCompletionRequest{
+		Model:       config.BaseModelConfig.ModelName,
+		Messages:    messages,
+		Temperature: config.Temperature,
+		TopP:        config.TopP,
+	}
+
+	envVar := config.BaseModelConfig.ApiKeyEnvVar
+	client := clients[envVar]
+
+	resp, err := model.CreateChatCompletionWithRetries(client, activePlan.Ctx, modelReq)
+
+	if err != nil {
+		log.Printf("buildWholeFile - error calling model: %v\n", err)
+		fileState.wholeFileRetryOrError(proposedContent, desc, fmt.Errorf("error calling model: %v", err))
+		return
+	}
+
+	log.Println("buildWholeFile - usage:")
+	spew.Dump(resp.Usage)
+
+	_, apiErr = hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
+		Auth: auth,
+		Plan: fileState.plan,
+		DidSendModelRequestParams: &hooks.DidSendModelRequestParams{
+			InputTokens:   resp.Usage.PromptTokens,
+			OutputTokens:  resp.Usage.CompletionTokens,
+			ModelName:     config.BaseModelConfig.ModelName,
+			ModelProvider: config.BaseModelConfig.Provider,
+			ModelPackName: fileState.settings.ModelPack.Name,
+			ModelRole:     shared.ModelRoleBuilder,
+			Purpose:       "File edit (whole file)",
+		},
+	})
+
+	if apiErr != nil {
+		activePlan.StreamDoneCh <- apiErr
+		return
+	}
+
+	if len(resp.Choices) == 0 {
+		log.Printf("buildStructuredEdits - no choices in response\n")
+		fileState.structuredEditRetryOrError(fmt.Errorf("no choices in response"))
+		return
+	}
+
+	refsChoice := resp.Choices[0]
+	content := refsChoice.Message.Content
+
+	log.Printf("buildWholeFile - %s - content:\n%s\n", filePath, content)
+
+	wholeFileXmlString := GetXMLTag(content, "PlandexWholeFile", true)
+
+	var wholeFileTag WholeFileTag
+	err = xml.Unmarshal([]byte(wholeFileXmlString), &wholeFileTag)
+	if err != nil {
+		log.Printf("buildWholeFile - error unmarshalling PlandexWholeFile xml: %v\n", err)
+	}
+
+	updatedFile := wholeFileTag.Content
+
+	buildInfo := &shared.BuildInfo{
+		Path:      filePath,
+		NumTokens: 0,
+		Finished:  true,
+	}
+	activePlan.Stream(shared.StreamMessage{
+		Type:      shared.StreamMessageBuildInfo,
+		BuildInfo: buildInfo,
+	})
+	time.Sleep(50 * time.Millisecond)
+
+	replacements, err := diff_pkg.GetDiffReplacements(originalFile, updatedFile)
+	if err != nil {
+		log.Printf("buildWholeFile - error getting diff replacements: %v\n", err)
+		fileState.wholeFileRetryOrError(proposedContent, desc, fmt.Errorf("error getting diff replacements: %v", err))
+		return
+	}
+
+	for _, replacement := range replacements {
+		replacement.Summary = strings.TrimSpace(desc)
+	}
+
+	res := db.PlanFileResult{
+		TypeVersion:    1,
+		OrgId:          fileState.plan.OrgId,
+		PlanId:         fileState.plan.Id,
+		PlanBuildId:    fileState.build.Id,
+		ConvoMessageId: fileState.convoMessageId,
+		Content:        "",
+		Path:           filePath,
+		Replacements:   replacements,
+	}
+
+	fileState.onFinishBuildFile(&res, updatedFile)
+}
+
+func (fileState *activeBuildStreamFileState) wholeFileRetryOrError(proposedContent string, desc string, err error) {
+	if fileState.wholeFileNumRetry < MaxBuildErrorRetries {
+		fileState.wholeFileNumRetry++
+
+		log.Printf("buildWholeFile - retrying whole file file '%s' due to error: %v\n", fileState.filePath, err)
+
+		activePlan := GetActivePlan(fileState.plan.Id, fileState.branch)
+
+		if activePlan == nil {
+			log.Printf("buildWholeFile - active plan not found for plan ID %s and branch %s\n", fileState.plan.Id, fileState.branch)
+			fileState.onBuildFileError(fmt.Errorf("active plan not found for plan ID %s and branch %s", fileState.plan.Id, fileState.branch))
+			return
+		}
+
+		select {
+		case <-activePlan.Ctx.Done():
+			log.Printf("buildWholeFile - context canceled\n")
+			return
+		case <-time.After(time.Duration(fileState.wholeFileNumRetry*fileState.wholeFileNumRetry)*200*time.Millisecond + time.Duration(rand.Intn(500))*time.Millisecond):
+			break
+		}
+
+		fileState.buildWholeFileFallback(proposedContent, desc)
+	} else {
+		fileState.onBuildFileError(err)
+	}
+
+}

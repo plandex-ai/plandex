@@ -38,26 +38,8 @@ type activeBuildStreamFileState struct {
 	parser                     *sitter.Parser
 	language                   shared.TreeSitterLanguage
 	preBuildStateSyntaxInvalid bool
-
-	structuredEditNumRetry int
-	expandRefsNumRetry     int
-	lineNumsNumRetry       int
-	verifyFileNumRetry     int
-	fixFileNumRetry        int
-
-	syntaxNumRetry int
-	syntaxNumEpoch int
-
-	isFixingSyntax bool
-	isFixingOther  bool
-
-	streamedChangesWithLineNums []*shared.StreamedChangeWithLineNums
-	updated                     string
-
-	verificationErrors string
-	syntaxErrors       []string
-
-	isNewFile bool
-
-	inputTokens int
+	structuredEditNumRetry     int
+	wholeFileNumRetry          int
+	syntaxErrors               []string
+	isNewFile                  bool
 }

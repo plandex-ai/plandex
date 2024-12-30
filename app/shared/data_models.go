@@ -262,15 +262,15 @@ type AvailableModel struct {
 }
 
 type PlannerModelConfig struct {
-	MaxConvoTokens       int `json:"maxConvoTokens"`
-	ReservedOutputTokens int `json:"maxOutputTokens"`
+	MaxConvoTokens int `json:"maxConvoTokens"`
 }
 
 type ModelRoleConfig struct {
-	Role            ModelRole       `json:"role"`
-	BaseModelConfig BaseModelConfig `json:"baseModelConfig"`
-	Temperature     float32         `json:"temperature"`
-	TopP            float32         `json:"topP"`
+	Role                 ModelRole       `json:"role"`
+	BaseModelConfig      BaseModelConfig `json:"baseModelConfig"`
+	Temperature          float32         `json:"temperature"`
+	TopP                 float32         `json:"topP"`
+	ReservedOutputTokens int             `json:"reservedOutputTokens"`
 }
 
 func (m *ModelRoleConfig) Scan(src interface{}) error {

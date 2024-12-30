@@ -1,7 +1,6 @@
 package syntax
 
 import (
-	"encoding/xml"
 	"fmt"
 	"log"
 	"regexp"
@@ -27,23 +26,15 @@ const (
 	NeedsVerifyReasonCodeRemoved       NeedsVerifyReason = "code_removed"
 	NeedsVerifyReasonCodeDuplicated    NeedsVerifyReason = "code_duplicated"
 	NeedsVerifyReasonAmbiguousLocation NeedsVerifyReason = "ambiguous_location"
-	NeedsVerifyReasonNoChanges         NeedsVerifyReason = "no_changes"
+
+	// not going to verify for no changes for now, too many false positives
+	// NeedsVerifyReasonNoChanges         NeedsVerifyReason = "no_changes"
 )
 
 type ApplyChangesResult struct {
 	NewFile            string
 	Proposed           string
 	NeedsVerifyReasons []NeedsVerifyReason
-}
-
-type FixedProposedUpdatesTag struct {
-	XMLName xml.Name `xml:"PlandexProposedUpdates"`
-	Content string   `xml:",chardata"`
-}
-
-type ProposedUpdatesExplanationTag struct {
-	XMLName xml.Name `xml:"PlandexProposedUpdatesExplanation"`
-	Content string   `xml:",chardata"`
 }
 
 type AnchorMap = map[int]int
@@ -211,16 +202,17 @@ func ApplyChanges(
 		return res
 	}
 
-	if strings.TrimSpace(res.NewFile) == strings.TrimSpace(original) {
-		// log.Println("ApplyChanges - no changes")
-		// log.Println("res.NewFile:")
-		// log.Println(res.NewFile)
-		// log.Println()
-		// log.Println("original:")
-		// log.Println(original)
-		res.NeedsVerifyReasons = append(res.NeedsVerifyReasons, NeedsVerifyReasonNoChanges)
-		return res
-	}
+	// not going to verify for no changes for now, too many false positives
+	// if strings.TrimSpace(res.NewFile) == strings.TrimSpace(original) {
+	// 	// log.Println("ApplyChanges - no changes")
+	// 	// log.Println("res.NewFile:")
+	// 	// log.Println(res.NewFile)
+	// 	// log.Println()
+	// 	// log.Println("original:")
+	// 	// log.Println(original)
+	// 	res.NeedsVerifyReasons = append(res.NeedsVerifyReasons, NeedsVerifyReasonNoChanges)
+	// 	return res
+	// }
 
 	originalLineMap := make(map[string]bool)
 	for _, line := range originalLines {
@@ -246,19 +238,34 @@ func ApplyChanges(
 
 	// Check for lines in proposed updates that are duplicated in new file
 	newLineFreq := make(map[string]int)
+	originalLineFreq := make(map[string]int)
+
+	// First count frequencies in original file
+	for _, line := range originalLines {
+		trimmed := strings.TrimSpace(line)
+		if len(trimmed) > duplicationThreshold {
+			originalLineFreq[line]++
+		}
+	}
+
+	// Count frequencies in new file
 	for _, line := range newLines {
 		trimmed := strings.TrimSpace(line)
 		if len(trimmed) > duplicationThreshold {
 			newLineFreq[line]++
 		}
 	}
+
+	// Check proposed lines against new frequencies, accounting for original duplicates
 	for _, line := range proposedLines {
 		trimmed := strings.TrimSpace(line)
 		if len(trimmed) > duplicationThreshold {
-			if newLineFreq[line] > 1 {
+			originalCount := originalLineFreq[line]
+			if newLineFreq[line] > originalCount+1 {
 				log.Println("ApplyChanges - code duplicated")
 				log.Println("line:")
 				log.Println(line)
+				log.Printf("original occurrences: %d, new occurrences: %d", originalCount, newLineFreq[line])
 				res.NeedsVerifyReasons = append(res.NeedsVerifyReasons, NeedsVerifyReasonCodeDuplicated)
 				break
 			}

@@ -254,11 +254,24 @@ func getModelWithRoleConfig(customModels []*shared.AvailableModel, modelRole sha
 		term.OutputErrorAndExit("Invalid number for top P: %v", err)
 	}
 
+	var reservedOutputTokens int
+	if modelRole == shared.ModelRoleBuilder || modelRole == shared.ModelRolePlanner || modelRole == shared.ModelRoleWholeFileBuilder {
+		reservedOutputTokensStr, err := term.GetUserStringInputWithDefault("Reserved output tokens for "+role+":", fmt.Sprintf("%d", shared.DefaultConfigByRole[modelRole].ReservedOutputTokens))
+		if err != nil {
+			term.OutputErrorAndExit("Error reading reserved output tokens: %v", err)
+		}
+		reservedOutputTokens, err = strconv.Atoi(reservedOutputTokensStr)
+		if err != nil {
+			term.OutputErrorAndExit("Invalid number for reserved output tokens: %v", err)
+		}
+	}
+
 	return model, shared.ModelRoleConfig{
-		Role:            modelRole,
-		BaseModelConfig: model.BaseModelConfig,
-		Temperature:     float32(temperature),
-		TopP:            float32(topP),
+		Role:                 modelRole,
+		BaseModelConfig:      model.BaseModelConfig,
+		Temperature:          float32(temperature),
+		TopP:                 float32(topP),
+		ReservedOutputTokens: reservedOutputTokens,
 	}
 }
 
@@ -268,8 +281,7 @@ func getPlannerRoleConfig(customModels []*shared.AvailableModel) shared.PlannerR
 	return shared.PlannerRoleConfig{
 		ModelRoleConfig: modelConfig,
 		PlannerModelConfig: shared.PlannerModelConfig{
-			MaxConvoTokens:       model.DefaultMaxConvoTokens,
-			ReservedOutputTokens: model.DefaultReservedOutputTokens,
+			MaxConvoTokens: model.DefaultMaxConvoTokens,
 		},
 	}
 }

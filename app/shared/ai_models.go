@@ -172,8 +172,7 @@ var DefaultModelPack *ModelPack = &OpenRouterClaude3Dot5SonnetGPT4oModelPack
 
 func getPlannerModelConfig(name string) PlannerModelConfig {
 	return PlannerModelConfig{
-		MaxConvoTokens:       AvailableModelsByName[name].DefaultMaxConvoTokens,
-		ReservedOutputTokens: AvailableModelsByName[name].DefaultReservedOutputTokens,
+		MaxConvoTokens: AvailableModelsByName[name].DefaultMaxConvoTokens,
 	}
 }
 
@@ -243,10 +242,11 @@ func init() {
 		Description: "Uses OpenAI's latest gpt-4o model for heavy lifting, and latest version of gpt-4o-mini for lighter tasks.",
 		Planner: PlannerRoleConfig{
 			ModelRoleConfig: ModelRoleConfig{
-				Role:            ModelRolePlanner,
-				BaseModelConfig: AvailableModelsByName[openai.GPT4o].BaseModelConfig,
-				Temperature:     DefaultConfigByRole[ModelRolePlanner].Temperature,
-				TopP:            DefaultConfigByRole[ModelRolePlanner].TopP,
+				Role:                 ModelRolePlanner,
+				BaseModelConfig:      AvailableModelsByName[openai.GPT4o].BaseModelConfig,
+				Temperature:          DefaultConfigByRole[ModelRolePlanner].Temperature,
+				TopP:                 DefaultConfigByRole[ModelRolePlanner].TopP,
+				ReservedOutputTokens: AvailableModelsByName[openai.GPT4o].DefaultReservedOutputTokens,
 			},
 			PlannerModelConfig: getPlannerModelConfig(openai.GPT4o),
 		},
@@ -257,10 +257,11 @@ func init() {
 			TopP:            DefaultConfigByRole[ModelRolePlanSummary].TopP,
 		},
 		Builder: ModelRoleConfig{
-			Role:            ModelRoleBuilder,
-			BaseModelConfig: AvailableModelsByName[openai.GPT4o].BaseModelConfig,
-			Temperature:     DefaultConfigByRole[ModelRoleBuilder].Temperature,
-			TopP:            DefaultConfigByRole[ModelRoleBuilder].TopP,
+			Role:                 ModelRoleBuilder,
+			BaseModelConfig:      AvailableModelsByName[openai.GPT4o].BaseModelConfig,
+			Temperature:          DefaultConfigByRole[ModelRoleBuilder].Temperature,
+			TopP:                 DefaultConfigByRole[ModelRoleBuilder].TopP,
+			ReservedOutputTokens: AvailableModelsByName[openai.GPT4o].DefaultReservedOutputTokens,
 		},
 		Namer: ModelRoleConfig{
 			Role:            ModelRoleName,
@@ -287,10 +288,11 @@ func init() {
 		Description: "Uses Anthropic's Claude 3.5 Sonnet model (via OpenRouter) for planning, summarization, diff-based edits, and auto-continue, OpenAI gpt-4o for whole-file edits, and gpt-4o-mini for lighter tasks.",
 		Planner: PlannerRoleConfig{
 			ModelRoleConfig: ModelRoleConfig{
-				Role:            ModelRolePlanner,
-				BaseModelConfig: AvailableModelsByName["anthropic/claude-3.5-sonnet"].BaseModelConfig,
-				Temperature:     DefaultConfigByRole[ModelRolePlanner].Temperature,
-				TopP:            DefaultConfigByRole[ModelRolePlanner].TopP,
+				Role:                 ModelRolePlanner,
+				BaseModelConfig:      AvailableModelsByName["anthropic/claude-3.5-sonnet"].BaseModelConfig,
+				Temperature:          DefaultConfigByRole[ModelRolePlanner].Temperature,
+				TopP:                 DefaultConfigByRole[ModelRolePlanner].TopP,
+				ReservedOutputTokens: AvailableModelsByName[openai.GPT4o].DefaultReservedOutputTokens,
 			},
 			PlannerModelConfig: getPlannerModelConfig("anthropic/claude-3.5-sonnet"),
 		},
@@ -301,16 +303,18 @@ func init() {
 			TopP:            DefaultConfigByRole[ModelRolePlanSummary].TopP,
 		},
 		Builder: ModelRoleConfig{
-			Role:            ModelRoleBuilder,
-			BaseModelConfig: AvailableModelsByName["anthropic/claude-3.5-sonnet"].BaseModelConfig,
-			Temperature:     DefaultConfigByRole[ModelRoleBuilder].Temperature,
-			TopP:            DefaultConfigByRole[ModelRoleBuilder].TopP,
+			Role:                 ModelRoleBuilder,
+			BaseModelConfig:      AvailableModelsByName["anthropic/claude-3.5-sonnet"].BaseModelConfig,
+			Temperature:          DefaultConfigByRole[ModelRoleBuilder].Temperature,
+			TopP:                 DefaultConfigByRole[ModelRoleBuilder].TopP,
+			ReservedOutputTokens: AvailableModelsByName[openai.GPT4o].DefaultReservedOutputTokens,
 		},
 		WholeFileBuilder: &ModelRoleConfig{
-			Role:            ModelRoleWholeFileBuilder,
-			BaseModelConfig: AvailableModelsByName[openai.GPT4o].BaseModelConfig,
-			Temperature:     DefaultConfigByRole[ModelRoleWholeFileBuilder].Temperature,
-			TopP:            DefaultConfigByRole[ModelRoleWholeFileBuilder].TopP,
+			Role:                 ModelRoleWholeFileBuilder,
+			BaseModelConfig:      AvailableModelsByName[openai.GPT4o].BaseModelConfig,
+			Temperature:          DefaultConfigByRole[ModelRoleWholeFileBuilder].Temperature,
+			TopP:                 DefaultConfigByRole[ModelRoleWholeFileBuilder].TopP,
+			ReservedOutputTokens: AvailableModelsByName[openai.GPT4o].DefaultReservedOutputTokens,
 		},
 		Namer: ModelRoleConfig{
 			Role:            ModelRoleName,
@@ -337,10 +341,11 @@ func init() {
 		Description: "Uses Anthropic's Claude 3.5 Sonnet model (via OpenRouter) for planning, builds, and auto-continue, and summarization, and Claude 3 Haiku for lighter tasks.",
 		Planner: PlannerRoleConfig{
 			ModelRoleConfig: ModelRoleConfig{
-				Role:            ModelRolePlanner,
-				BaseModelConfig: AvailableModelsByName["anthropic/claude-3.5-sonnet"].BaseModelConfig,
-				Temperature:     DefaultConfigByRole[ModelRolePlanner].Temperature,
-				TopP:            DefaultConfigByRole[ModelRolePlanner].TopP,
+				Role:                 ModelRolePlanner,
+				BaseModelConfig:      AvailableModelsByName["anthropic/claude-3.5-sonnet"].BaseModelConfig,
+				Temperature:          DefaultConfigByRole[ModelRolePlanner].Temperature,
+				TopP:                 DefaultConfigByRole[ModelRolePlanner].TopP,
+				ReservedOutputTokens: AvailableModelsByName[openai.GPT4o].DefaultReservedOutputTokens,
 			},
 			PlannerModelConfig: getPlannerModelConfig("anthropic/claude-3.5-sonnet"),
 		},
@@ -351,10 +356,11 @@ func init() {
 			TopP:            DefaultConfigByRole[ModelRolePlanSummary].TopP,
 		},
 		Builder: ModelRoleConfig{
-			Role:            ModelRoleBuilder,
-			BaseModelConfig: AvailableModelsByName["anthropic/claude-3.5-sonnet"].BaseModelConfig,
-			Temperature:     DefaultConfigByRole[ModelRoleBuilder].Temperature,
-			TopP:            DefaultConfigByRole[ModelRoleBuilder].TopP,
+			Role:                 ModelRoleBuilder,
+			BaseModelConfig:      AvailableModelsByName["anthropic/claude-3.5-sonnet"].BaseModelConfig,
+			Temperature:          DefaultConfigByRole[ModelRoleBuilder].Temperature,
+			TopP:                 DefaultConfigByRole[ModelRoleBuilder].TopP,
+			ReservedOutputTokens: AvailableModelsByName[openai.GPT4o].DefaultReservedOutputTokens,
 		},
 		Namer: ModelRoleConfig{
 			Role:            ModelRoleName,
@@ -381,10 +387,11 @@ func init() {
 		Description: "Uses Google's Gemini Pro 1.5 model for heavy lifting and Gemini Flash 1.5 for lighter tasks.",
 		Planner: PlannerRoleConfig{
 			ModelRoleConfig: ModelRoleConfig{
-				Role:            ModelRolePlanner,
-				BaseModelConfig: AvailableModelsByName["google/gemini-pro-1.5"].BaseModelConfig,
-				Temperature:     DefaultConfigByRole[ModelRolePlanner].Temperature,
-				TopP:            DefaultConfigByRole[ModelRolePlanner].TopP,
+				Role:                 ModelRolePlanner,
+				BaseModelConfig:      AvailableModelsByName["google/gemini-pro-1.5"].BaseModelConfig,
+				Temperature:          DefaultConfigByRole[ModelRolePlanner].Temperature,
+				TopP:                 DefaultConfigByRole[ModelRolePlanner].TopP,
+				ReservedOutputTokens: AvailableModelsByName[openai.GPT4o].DefaultReservedOutputTokens,
 			},
 			PlannerModelConfig: getPlannerModelConfig("google/gemini-pro-1.5"),
 		},
@@ -395,10 +402,11 @@ func init() {
 			TopP:            DefaultConfigByRole[ModelRolePlanSummary].TopP,
 		},
 		Builder: ModelRoleConfig{
-			Role:            ModelRoleBuilder,
-			BaseModelConfig: AvailableModelsByName["google/gemini-pro-1.5"].BaseModelConfig,
-			Temperature:     DefaultConfigByRole[ModelRoleBuilder].Temperature,
-			TopP:            DefaultConfigByRole[ModelRoleBuilder].TopP,
+			Role:                 ModelRoleBuilder,
+			BaseModelConfig:      AvailableModelsByName["google/gemini-pro-1.5"].BaseModelConfig,
+			Temperature:          DefaultConfigByRole[ModelRoleBuilder].Temperature,
+			TopP:                 DefaultConfigByRole[ModelRoleBuilder].TopP,
+			ReservedOutputTokens: AvailableModelsByName[openai.GPT4o].DefaultReservedOutputTokens,
 		},
 		Namer: ModelRoleConfig{
 			Role:            ModelRoleName,
