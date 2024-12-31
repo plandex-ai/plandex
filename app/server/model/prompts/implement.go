@@ -17,24 +17,31 @@ Describe in detail the current task to be done and what your approach will be, t
 - lib/term.go:
 - main.py:
 
-***File paths MUST ALWAYS come *IMMEDIATELY before* the opening triple backticks of a code block. They should *not* be included in the code block itself. There MUST NEVER be *any other lines* between the file path and the opening triple backticks. Any explanations should come either *before the file path or *after* the code block is closed by closing triple backticks.*
+Immediately after the file path, you MUST output an opening <PlandexBlock> tag. The <PlandexBlock> tag MUST include a 'lang' attribute that specifies the programming language of the code block. 'lang' attributes must match the corresponding Pygments short name for the language. Here is a list of valid language identifiers:
+
+` + ValidLangIdentifiers + `
+
+If you are writing a code block in a language that is not in the list of valid language identifiers, you MUST use the 'plain' language identifier. If there are multiple potential language identifiers that could be used for a code block, choose the most standard identifier that would be used in a markdown code block with syntax highlighting for that language.
+
+***File paths MUST ALWAYS come *IMMEDIATELY before* the opening <PlandexBlock> tag of a code block. They MUST NOT be included *inside* the <PlandexBlock> tags. There MUST NEVER be *any other lines* between the file path and the opening <PlandexBlock> tag. Any explanations should come either *before the file path or *after* the code block is closed with a closing </PlandexBlock> tag.*
+
+The <PlandexBlock> tag MUST ONLY contain the code for the code block and NOTHING ELSE. Do NOT wrap the code block in triple backticks, CDATA tags, or any other text or formatting. Output ONLY the code and nothing else within the <PlandexBlock> tag.
 
 ***You *must not* include **any other text** in a code block label apart from the initial '- ' and the EXACT file path ONLY. DO NOT UNDER ANY CIRCUMSTANCES use a label like 'File path: src/main.rs' or 'src/main.rs: (Create this file)' or 'File to Create: src/main.rs' or 'File to Update: src/main.rs'. Instead use EXACTLY 'src/main.rs:'. DO NOT include any explanatory text in the code block label like 'src/main.rs: (Add a new function)'. Instead, include any necessary explanations either before the file path or after the code block. You MUST ALWAYS WITH NO EXCEPTIONS use the exact format described here for file paths in code blocks.
 
-***Do NOT include the file path again within the triple backticks, inside the code block itself. The file path must be included *only* in the file block label *preceding* the opening triple backticks.***
+***Do NOT include the file path again within the <PlandexBlock> tag, inside the code block itself. The file path must be included *only* in the file block label *preceding* the opening <PlandexBlock> tag.***
 
 Labelled code block example:
 
 - src/game.h:
-` + "```c" + `                                                             
-																																			
-	#ifndef GAME_LOGIC_H                                                      
-	#define GAME_LOGIC_H                                                      
-																																						
-	void updateGameLogic();                                                   
-																																						
-	#endif
-	` + "```" + `
+<PlandexBlock lang="c">
+#ifndef GAME_LOGIC_H                                                      
+#define GAME_LOGIC_H                                                      
+																																					
+void updateGameLogic();                                                   
+																																					
+#endif
+</PlandexBlock>
 
 - If you are working on a subtask and the subtask is too large to be implemented in a single response, it should be further broken down into smaller subtasks. In that case, divide the subtask into even smaller steps, and list them in a numbered list. Then continue on to implement the first step in the list. Do NOT do this repetitively for the same subtask. Only break down a given subtask into smaller steps once.
 
@@ -52,11 +59,11 @@ Files MUST NOT be labelled with a comment like "// File to create: src/main.rs" 
 
 File block labels MUST ONLY include a *single* file path. You must NEVER include multiple files in a single file block. If you need to include code for multiple files, you must use multiple file blocks.
 
-You MUST NOT include ANY PREFIX prior to the file path in a file block label. Include ONLY the EXACT file path like '- src/main.rs:' with no other text. You MUST NOT include the file path again in the code block itself. The file path must be included *only* in the file block label. There must be a SINGLE label for each file block, and the label must be placed immediately before the opening triple backticks of the code block. There must be NO other lines between the file path and the opening triple backticks.
+You MUST NOT include ANY PREFIX prior to the file path in a file block label. Include ONLY the EXACT file path like '- src/main.rs:' with no other text. You MUST NOT include the file path again inside of the <PlandexBlock> tag. The file path must be included *only* in the file block label. There must be a SINGLE label for each file block, and the label must be placed immediately before the opening <PlandexBlock> tag. There must be NO other lines between the file path and the opening <PlandexBlock> tag.
 
 You MUST NEVER use a file block that only contains comments describing an update or describing the file. If you are updating a file, you must include the code that updates the file in the file block. If you are creating a new file, you must include the code that creates the file in the file block. If it's helpful to explain how a file will be updated or created, you can include that explanation either before the file path or after the code block, but you must not include it in the file block itself.
 
-You MUST NOT use the labelled file block format followed by triple backticks for **any purpose** other than creating or updating a file in the plan. You must not use it for explanatory purposes, for listing files, or for any other purpose. If you need to label a section or a list of files, use a markdown section header instead like this: '## Files to update'. 		
+You MUST NOT use the labelled file block format followed by <PlandexBlock> tags for **any purpose** other than creating or updating a file in the plan. You must not use it for explanatory purposes, for listing files, or for any other purpose. ONLY use it for creating or updating files in the plan.
 
 If a change is related to code in an existing file in context, make the change as an update to the existing file. Do NOT create a new file for a change that applies to an existing file in context. For example, if there is an 'Page.tsx' file in the existing context and the user has asked you to update the structure of the page component, make the change in the existing 'Page.tsx' file. Do NOT create a new file like 'page.tsx' or 'NewPage.tsx' for the change. If the user has specifically asked you to apply a change to a new file, then you can create a new file. If there is no existing file that makes sense to apply a change to, then you can create a new file.
 
@@ -64,9 +71,7 @@ If a change is related to code in an existing file in context, make the change a
 
 Do NOT treat files that do not exist in context as files to be updated. If a file does not exist in context, you can *create* that file, but you MUST NOT treat it as an existing file to be updated.
 
-For code in markdown blocks, always include the language name after the opening triple backticks.
-
-If there are triple backticks within any file in context, they will be escaped with backslashes like this '` + "\\`\\`\\`" + `'. If you are outputting triple backticks in a code block, you MUST escape them in exactly the same way.
+For code blocks, always include the language identifier in the 'lang' attribute of the <PlandexBlock> tag.
 
 DO NOT create directories independently of files, whether in _apply.sh or in code blocks by adding a '.gitkeep' file in any other way. Any necessary directories will be created automatically when files are created. You MUST NOT create directories independently of files.
 

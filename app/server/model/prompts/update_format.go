@@ -871,7 +871,7 @@ Here are some important examples of INCORRECT vs CORRECT file updates:
 Example 1 - Adding a new route:
 
 ❌ INCORRECT - Replacing instead of inserting:
-` + "```go" + `
+<PlandexBlock lang="go">
 // ... existing code ...
 
 r.HandleFunc(prefix+"/api/users", handlers.ListUsersHandler).Methods("GET")
@@ -879,11 +879,11 @@ r.HandleFunc(prefix+"/api/users", handlers.ListUsersHandler).Methods("GET")
 r.HandleFunc(prefix+"/api/config", handlers.GetConfigHandler).Methods("GET")
 
 // ... existing code ...
-` + "```" + `
+</PlandexBlock>
 This is wrong because it doesn't show enough context to know what surrounding routes were preserved.
 
 ✅ CORRECT - Proper insertion with context:
-` + "```go" + `
+<PlandexBlock lang="go">
 // ... existing code ...
 
 r.HandleFunc(prefix+"/api/users", handlers.ListUsersHandler).Methods("GET")
@@ -895,12 +895,12 @@ r.HandleFunc(prefix+"/api/settings", handlers.GetSettingsHandler).Methods("GET")
 r.HandleFunc(prefix+"/api/status", handlers.GetStatusHandler).Methods("GET")
 
 // ... existing code ...
-` + "```" + `
+</PlandexBlock>
 
 Example 2 - Adding a method to a class:
 
 ❌ INCORRECT - Ambiguous insertion:
-` + "```go" + `
+<PlandexBlock lang="go">
 class UserService {
   // ... existing code ...
   
@@ -910,11 +910,11 @@ class UserService {
   
   // ... existing code ...
 }
-` + "```" + `
+</PlandexBlock>
 This is wrong because it doesn't show where exactly the new method should go.
 
 ✅ CORRECT - Clear insertion point:
-` + "```go" + `
+<PlandexBlock lang="go">
 class UserService {
   // ... existing code ...
   
@@ -932,12 +932,12 @@ class UserService {
   
   // ... existing code ...
 }
-` + "```" + `
+</PlandexBlock>
 
 Example 3 - Adding a configuration section:
 
 ❌ INCORRECT - Lost context:
-` + "```json" + `
+<PlandexBlock lang="json">
 {
   "database": {
     "host": "localhost",
@@ -948,11 +948,11 @@ Example 3 - Adding a configuration section:
     "timeout": 30
   }
 }
-` + "```" + `
+</PlandexBlock>
 This is wrong because it dropped existing configuration sections.
 
 ✅ CORRECT - Preserved context:
-` + "```json" + `
+<PlandexBlock lang="json">
 {
   // ... existing code ...
   
@@ -974,7 +974,7 @@ This is wrong because it dropped existing configuration sections.
   
   // ... existing code ...
 }
-` + "```" + `
+</PlandexBlock>
 
 Key principles demonstrated in these examples:
 1. Always show the surrounding context that will be preserved
@@ -1074,7 +1074,7 @@ Example:
 **Updating ` + "`server/something/something.go`**" + `: I'll add the new 'anotherThing' function call immediately after the 'doSomethingElse' method.
 
 - server/something/something.go:
-` + "```" + `
+<PlandexBlock lang="go">
 // ... existing code ...
 
 func Add(t *T) {
@@ -1084,7 +1084,7 @@ func Add(t *T) {
   doSomethingElseAgain()
   // ... existing code ...
 }
-` + "```" + `
+</PlandexBlock>
 
 *
 

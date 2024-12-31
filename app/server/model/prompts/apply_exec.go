@@ -71,19 +71,19 @@ When breaking up a task into subtasks, remember that you MUST NOT use the _apply
 
 When running commands in _apply.sh, DO NOT hide or filter the output of the commands in any way. For example, do not do something like this:
 
-` + "```bash" + `
+<PlandexBlock lang="bash">
 if ! make clean && make; then                                             
     echo "Error: Compilation failed"                                      
     exit 1                                                                
 fi
-` + "```" + `
+</PlandexBlock>
 
 because the output of the 'make clean' and 'make' commands won't be shown to the user. Instead, run each command separately and show the output:
 
-` + "```bash" + `
+<PlandexBlock lang="bash">
 make clean
 make
-` + "```" + `
+</PlandexBlock>
 
 ` + ApplyScriptResetOrUpdatePrompt + `
 
@@ -95,10 +95,10 @@ You MUST NOT include the shebang line ` + "(`#!/bin/bash` or `#!/bin/zsh`)" + ` 
 
 Similarly, you MUST NOT add the following lines (or similar lines) for error handling at the top of the _apply.sh script:
 
-` + "```bash" + `
+<PlandexBlock lang="bash">
 set -euo pipefail 
 trap 'echo "Error on line $LINENO: $BASH_COMMAND"' ERR
-` + "```" + `
+</PlandexBlock>
 
 The _apply.sh script will be executed with the above error handling already included.
 
@@ -111,7 +111,7 @@ You MUST NOT tell the user to do anything themselves that's included in the _app
 Example, creating initial _apply.sh:
 
 - _apply.sh:
-` + "```bash" + `
+<PlandexBlock lang="bash">
 # Check for node/npm
 if ! command -v node > /dev/null; then
     echo "Error: node is not installed"
@@ -135,12 +135,12 @@ if [ ! -f "tsconfig.json" ]; then
     echo "Generating TypeScript configuration..."
     npx tsc --init --jsx react
 fi
-` + "```" + `
+</PlandexBlock>
 
 Example, updating an existing _apply.sh:
 
 - _apply.sh:
-` + "```bash" + `
+<PlandexBlock lang="bash">
 # ... existing code ...
 
 # Install dependencies
@@ -153,7 +153,7 @@ npm install --save-dev \
     "jest@^29.0.0"
 
 # ... existing code ...
-` + "```" + `
+</PlandexBlock>
 `
 
 var ApplyScriptPromptNumTokens int
@@ -207,14 +207,14 @@ If it succeeds, the _apply.sh script will then be *reset* to an empty state.
 The current state of the _apply.sh script will be included your prompt, along with a history of previously executed scripts. For example:
 
 Previously executed _apply.sh:
-` + "```bash" + `
+` + "```" + `
 npm install typescript express
 npm run build
 npm start
 ` + "```" + `
 
 Previously executed _apply.sh:
-` + "```bash" + `
+` + "```" + `
 npm install jest
 npm test
 ` + "```" + `
@@ -235,16 +235,16 @@ The latest state of the _apply.sh script that is included in your prompt *takes 
 If you are updating an *existing* _apply.sh script, it must be maintained in a safe state that is *ready to be executed* when the plan is applied. Do NOT overwrite the existing _apply.sh script or remove existing commands from it unless it is necessary to implement the plan.
 
 For example, if you first add commands to install dependencies:
-` + "```bash" + `
+<PlandexBlock lang="bash">
 npm install express
 npm install typescript
-` + "```" + `
+</PlandexBlock>
 
 And then in a later step add build commands:
-` + "```bash" + `
+<PlandexBlock lang="bash">
 # ... existing code ...
 npm run build
-` + "```" + `
+</PlandexBlock>
 
 Both sets of commands will be preserved and run when the plan is applied. After successful application, the script resets and you start fresh with new commands for the next set of changes.
 
@@ -264,15 +264,15 @@ When writing a new script after reset:
 
 For example, if you see this history:
 Previously executed _apply.sh:
-` + "```bash" + `
+` + "```" + `
 npm install typescript
 npm run build
 ` + "```" + `
 
 And you're making changes to TypeScript source files, you should include the build command again:
-` + "```bash" + `
+<PlandexBlock lang="bash">
 npm run build
-` + "```" + `
+</PlandexBlock>
 
 Examples of commands that typically need to be repeated after reset:
 - Build commands after source changes: make, npm run build, cargo build

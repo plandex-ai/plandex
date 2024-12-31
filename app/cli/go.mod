@@ -3,6 +3,7 @@ module plandex
 go 1.23.3
 
 require (
+	github.com/alecthomas/chroma/v2 v2.14.0
 	github.com/atotto/clipboard v0.1.4
 	github.com/charmbracelet/lipgloss v0.10.0
 	github.com/davecgh/go-spew v1.1.1

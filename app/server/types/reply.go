@@ -128,8 +128,8 @@ func (r *ReplyParser) AddChunk(chunk string, addToTotal bool) {
 
 	if r.maybeFilePath != "" {
 		// log.Println("Maybe file path is:", r.maybeFilePath) // Logging the maybeFilePath
-		if strings.HasPrefix(prevFullLineTrimmed, "```") {
-			// log.Println("Found opening ticks--confirming file path...") // Logging the confirmed file path
+		if strings.HasPrefix(prevFullLineTrimmed, "<PlandexBlock") {
+			// log.Println("Found opening tag--confirming file path...") // Logging the confirmed file path
 
 			r.currentFilePath = r.maybeFilePath
 			r.currentFileIdx = len(r.files)
@@ -177,8 +177,8 @@ func (r *ReplyParser) AddChunk(chunk string, addToTotal bool) {
 		}
 	} else {
 		// log.Println("Current file path is not empty--adding to current file...")
-		if strings.HasPrefix(prevFullLineTrimmed, "```") {
-			// log.Println("Found closing ticks--adding file to files and resetting current file...")
+		if strings.HasPrefix(prevFullLineTrimmed, "</PlandexBlock") {
+			// log.Println("Found closing tag--adding file to files and resetting current file...")
 			r.files = append(r.files, r.currentFilePath)
 			r.currentFilePath = ""
 
