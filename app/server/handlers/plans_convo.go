@@ -8,6 +8,7 @@ import (
 	"plandex-server/db"
 
 	"github.com/gorilla/mux"
+	"github.com/plandex/plandex/shared"
 )
 
 func ListConvoHandler(w http.ResponseWriter, r *http.Request) {
@@ -45,7 +46,12 @@ func ListConvoHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	bytes, err := json.Marshal(convoMessages)
+	apiConvoMessages := make([]*shared.ConvoMessage, len(convoMessages))
+	for i, convoMessage := range convoMessages {
+		apiConvoMessages[i] = convoMessage.ToApi()
+	}
+
+	bytes, err := json.Marshal(apiConvoMessages)
 
 	if err != nil {
 		log.Println("Error marshalling plan convo: ", err)

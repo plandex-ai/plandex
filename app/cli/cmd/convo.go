@@ -6,6 +6,7 @@ import (
 	"plandex/auth"
 	"plandex/lib"
 	"plandex/term"
+	"regexp"
 	"strings"
 	"time"
 
@@ -113,10 +114,12 @@ func convo(cmd *cobra.Command, args []string) {
 		header := fmt.Sprintf("#### %d | %s | %s | %d 🪙 ", i+1,
 			author, formattedTs, msg.Tokens)
 
+		txt := convertCodeBlocks(msg.Message)
+
 		if plainTextOutput {
-			convo += header + "\n" + msg.Message + "\n\n"
+			convo += header + "\n" + txt + "\n\n"
 		} else {
-			md, err := term.GetMarkdown(header + "\n" + msg.Message + "\n\n")
+			md, err := term.GetMarkdown(header + "\n" + txt + "\n\n")
 			if err != nil {
 				term.OutputErrorAndExit("Error creating markdown representation: %v", err)
 			}
@@ -154,4 +157,21 @@ func convo(cmd *cobra.Command, args []string) {
 		fmt.Println()
 		term.PrintCmds("", "convo 1", "convo 2-5", "convo --plain", "log")
 	}
+}
+
+var codeBlockPattern = regexp.MustCompile(`<PlandexBlock\s+lang="(.+?)".*?>([\s\S]+?)</PlandexBlock>`)
+
+func convertCodeBlocks(msg string) string {
+	return codeBlockPattern.ReplaceAllStringFunc(msg, func(match string) string {
+		// Extract language and content from the match
+		submatches := codeBlockPattern.FindStringSubmatch(match)
+		lang := submatches[1]
+		content := submatches[2]
+
+		// Escape any backticks in the content
+		content = strings.ReplaceAll(content, "```", "\\`\\`\\`")
+
+		// Return markdown code block format
+		return fmt.Sprintf("```%s%s```", lang, content)
+	})
 }
