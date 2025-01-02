@@ -5,3 +5,5 @@ Create all the necessary functionality for the project so that it will be ready 
 Include a script that will install any necessary dependencies that are missing on Mac OSC. Prefer homebrew where possible for package management.
 
 Also include a Makefile that will compile the project.
+
+Include a README.md file that will describe the project and how to run it from the command line.

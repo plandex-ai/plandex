@@ -158,9 +158,10 @@ func execTellPlan(
 		}
 	}
 
-	isPlanningStage := req.IsChatOnly || (!req.IsUserContinue && (iteration == 0 || (req.AutoContext && iteration == 1)))
+	autoContextEnabled := req.AutoContext && state.hasContextMap
+	isPlanningStage := req.IsChatOnly || (!req.IsUserContinue && (iteration == 0 || (autoContextEnabled && iteration == 1)))
 	isImplementationStage := !isPlanningStage
-	isContextStage := isPlanningStage && req.AutoContext && iteration == 0
+	isContextStage := isPlanningStage && autoContextEnabled && iteration == 0
 
 	log.Printf("isPlanningStage: %t, isImplementationStage: %t, isContextStage: %t\n", isPlanningStage, isImplementationStage, isContextStage)
 
@@ -193,8 +194,8 @@ func execTellPlan(
 
 	if isPlanningStage {
 		log.Println("isPlanningStage")
-		if req.AutoContext {
-			if iteration == 0 {
+		if req.AutoContext && state.hasContextMap {
+			if isContextStage {
 				sysCreate = prompts.AutoContextPreamble
 				sysCreateTokens = prompts.AutoContextPreambleNumTokens
 			} else {
@@ -274,7 +275,7 @@ func execTellPlan(
 		sysCreateTokens += subtaskTokens
 	}
 
-	log.Println("**sysCreate:**\n", sysCreate)
+	// log.Println("**sysCreate:**\n", sysCreate)
 
 	state.messages = []openai.ChatCompletionMessage{
 		{

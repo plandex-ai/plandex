@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"path/filepath"
 	"plandex/api"
@@ -16,17 +15,16 @@ import (
 	"plandex/url"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/fatih/color"
 	"github.com/plandex/plandex/shared"
 )
 
 func MustLoadContext(resources []string, params *types.LoadContextParams) {
-	startTime := time.Now()
+	// startTime := time.Now()
 	showElapsed := func(msg string) {
-		elapsed := time.Since(startTime)
-		log.Println(msg, "elapsed: %s\n", elapsed)
+		// elapsed := time.Since(startTime)
+		// log.Println(msg, "elapsed: %s\n", elapsed)
 	}
 
 	if params.DefsOnly {
@@ -343,6 +341,14 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 
 				if numPaths > shared.MaxContextCount {
 					onErr(fmt.Errorf("too many files to load (found %d, limit is %d)", numPaths, shared.MaxContextCount))
+				} else if numPaths == 0 {
+					term.StopSpinner()
+					if params.DefsOnly && params.SkipDefsOnlyNoContextOutput {
+						fmt.Println()
+					} else {
+						fmt.Println("🤷‍♂️ No context loaded")
+					}
+					return
 				}
 
 				inputFilePaths = flattenedPaths

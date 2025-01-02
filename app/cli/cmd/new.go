@@ -98,8 +98,9 @@ func new(cmd *cobra.Command, args []string) {
 		}
 
 		lib.MustLoadContext([]string{baseDir}, &types.LoadContextParams{
-			DefsOnly:          true,
-			SkipIgnoreWarning: true,
+			DefsOnly:                    true,
+			SkipIgnoreWarning:           true,
+			SkipDefsOnlyNoContextOutput: true,
 		})
 	} else {
 		fmt.Println()

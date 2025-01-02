@@ -6,13 +6,14 @@ import (
 )
 
 type LoadContextParams struct {
-	Note              string
-	Recursive         bool
-	NamesOnly         bool
-	ForceSkipIgnore   bool
-	ImageDetail       openai.ImageURLDetail
-	DefsOnly          bool
-	SkipIgnoreWarning bool
+	Note                        string
+	Recursive                   bool
+	NamesOnly                   bool
+	ForceSkipIgnore             bool
+	ImageDetail                 openai.ImageURLDetail
+	DefsOnly                    bool
+	SkipIgnoreWarning           bool
+	SkipDefsOnlyNoContextOutput bool
 }
 
 type ContextOutdatedResult struct {

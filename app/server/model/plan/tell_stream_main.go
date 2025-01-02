@@ -29,7 +29,7 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 		chunksReceived:                  0,
 		maybeRedundantOpeningTagContent: "",
 		fileOpen:                        false,
-		contentBuffer:                   strings.Builder{},
+		contentBuffer:                   &strings.Builder{},
 		awaitingOpeningTag:              false,
 		awaitingClosingTag:              false,
 		awaitingBackticks:               false,

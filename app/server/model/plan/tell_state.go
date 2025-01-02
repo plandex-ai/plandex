@@ -20,6 +20,7 @@ type activeTellStreamState struct {
 	iteration              int
 	replyId                string
 	modelContext           []*db.Context
+	hasContextMap          bool
 	convo                  []*db.ConvoMessage
 	currentPlanState       *shared.CurrentPlanState
 	missingFileResponse    shared.RespondMissingFileChoice
@@ -46,7 +47,7 @@ type chunkProcessor struct {
 	chunksReceived                  int
 	maybeRedundantOpeningTagContent string
 	fileOpen                        bool
-	contentBuffer                   strings.Builder
+	contentBuffer                   *strings.Builder
 	awaitingOpeningTag              bool
 	awaitingClosingTag              bool
 	awaitingBackticks               bool

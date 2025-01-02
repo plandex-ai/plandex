@@ -64,7 +64,7 @@ func (state *activeTellStreamState) processChunk(choice openai.ChatCompletionStr
 	}
 
 	// log.Printf("Adding chunk to parser: %s\n", content)
-	// log.Printf("fileOpen: %v\n", fileOpen)
+	// log.Printf("fileOpen: %v\n", processor.fileOpen)
 
 	replyParser.AddChunk(content, true)
 	parserRes := replyParser.Read()
@@ -81,7 +81,7 @@ func (state *activeTellStreamState) processChunk(choice openai.ChatCompletionStr
 	}
 
 	if processor.fileOpen && parserRes.CurrentFilePath == "" {
-		// log.Println("File open but current file path is empty, closing file")
+		log.Println("File open but current file path is empty, closing file")
 		processor.fileOpen = false
 	}
 
@@ -107,7 +107,25 @@ func (state *activeTellStreamState) processChunk(choice openai.ChatCompletionStr
 		ap.NumTokens++
 	})
 
-	state.bufferOrStream(content, &parserRes, active)
+	// log.Println("processor before bufferOrStream")
+	// spew.Dump(processor)
+	// log.Println("maybeFilePath", parserRes.MaybeFilePath)
+	// log.Println("currentFilePath", parserRes.CurrentFilePath)
+
+	res := processor.bufferOrStream(content, parserRes.MaybeFilePath, parserRes.CurrentFilePath)
+
+	// log.Println("res")
+	// spew.Dump(res)
+
+	if res.shouldStream {
+		active.Stream(shared.StreamMessage{
+			Type:       shared.StreamMessageReply,
+			ReplyChunk: res.content,
+		})
+	}
+
+	// log.Println("processor after bufferOrStream")
+	// spew.Dump(processor)
 
 	if !req.IsChatOnly && len(files) > len(processor.replyFiles) {
 		state.handleNewFiles(&parserRes)
@@ -116,13 +134,18 @@ func (state *activeTellStreamState) processChunk(choice openai.ChatCompletionStr
 	return processChunkResult{}
 }
 
-func (state *activeTellStreamState) bufferOrStream(content string, parserRes *types.ReplyParserRes, active *types.ActivePlan) {
-	processor := state.chunkProcessor
+type bufferOrStreamResult struct {
+	shouldStream bool
+	content      string
+}
 
+func (processor *chunkProcessor) bufferOrStream(content, maybeFilePath, currentFilePath string) bufferOrStreamResult {
 	var shouldStream bool
 	if processor.awaitingOpeningTag || processor.awaitingClosingTag || processor.awaitingBackticks {
 		processor.contentBuffer.WriteString(content)
 		s := processor.contentBuffer.String()
+
+		// log.Printf("s: %q\n", s)
 
 		if processor.awaitingBackticks {
 			if strings.Contains(s, "```") {
@@ -151,38 +174,20 @@ func (state *activeTellStreamState) bufferOrStream(content string, parserRes *ty
 		}
 
 		if processor.awaitingOpeningTag {
-			if parserRes.MaybeFilePath == "" && parserRes.CurrentFilePath == "" {
+			if maybeFilePath == "" && currentFilePath == "" {
 				// wasn't really a file path / code block
 				processor.awaitingOpeningTag = false
 				content = s
 				processor.contentBuffer.Reset()
 				shouldStream = true
-			} else if parserRes.CurrentFilePath != "" {
-				// check for opening tag matching <PlandexBlock lang="...">
-				match := openingTagRegex.FindStringSubmatch(s)
+			} else if currentFilePath != "" {
+				matched, replaced := matchCodeBlockOpeningTag(s)
 
-				if match != nil {
-					// Found complete opening tag with lang attribute
-					lang := match[1] // Extract the language from the first capture group
-					log.Printf("Found language: %s\n", lang)
-
+				if matched {
 					shouldStream = true
 					processor.awaitingOpeningTag = false
 					processor.fileOpen = true
-
-					// replace entire opening tag with ```lang
-					s = strings.Replace(s, match[0], "```"+lang, 1)
-
-					content = s
-					processor.contentBuffer.Reset()
-				} else if strings.Contains(s, "<PlandexBlock>") {
-					// Missing lang attribute
-					shouldStream = true
-					processor.awaitingOpeningTag = false
-					processor.fileOpen = true
-					// replace entire opening tag with ``` without language
-					s = strings.Replace(s, "<PlandexBlock>", "```", 1)
-					content = s
+					content = replaced
 					processor.contentBuffer.Reset()
 				} else {
 					// tag is missing - something is wrong - we shouldn't be here but let's try to recover anyway
@@ -196,8 +201,8 @@ func (state *activeTellStreamState) bufferOrStream(content string, parserRes *ty
 				}
 			}
 		} else if processor.awaitingClosingTag {
-			if parserRes.CurrentFilePath == "" {
-				if strings.Contains(strings.ReplaceAll(s, " ", ""), "</PlandexBlock>") {
+			if currentFilePath == "" {
+				if strings.Contains(s, "</PlandexBlock>") {
 					shouldStream = true
 					processor.awaitingClosingTag = false
 					processor.fileOpen = false
@@ -216,48 +221,51 @@ func (state *activeTellStreamState) bufferOrStream(content string, parserRes *ty
 		}
 
 	} else {
-		if processor.contentBuffer.Len() > 0 {
-			processor.contentBuffer.WriteString(content)
-			content = processor.contentBuffer.String()
-		}
-
-		if parserRes.MaybeFilePath != "" && parserRes.CurrentFilePath == "" {
+		if maybeFilePath != "" && currentFilePath == "" {
 			processor.awaitingOpeningTag = true
 		}
 
-		if parserRes.CurrentFilePath != "" {
+		if currentFilePath != "" {
 			if strings.Contains(content, "</PlandexBlock>") {
 				processor.awaitingClosingTag = true
 			} else {
 				split := strings.Split(content, "<")
+				// log.Printf("split: %v\n", split)
 				if len(split) > 1 {
 					last := split[len(split)-1]
-					if strings.HasPrefix("</PlandexBlock>", last) {
+					// log.Printf("last: %s\n", last)
+					if strings.HasPrefix("/PlandexBlock>", last) {
 						processor.awaitingClosingTag = true
 					}
 				}
 			}
+		} else if strings.Contains(content, "</PlandexBlock>") {
+			content = strings.Replace(content, "</PlandexBlock>", "```", 1)
 		}
 
 		if processor.fileOpen && (strings.Contains(content, "```") || strings.HasSuffix(content, "`")) {
 			processor.awaitingBackticks = true
 		}
 
-		if !processor.awaitingOpeningTag && !processor.awaitingClosingTag && !processor.awaitingBackticks {
-			if processor.contentBuffer.Len() > 0 {
-				processor.contentBuffer.Reset()
+		var matchedOpeningTag bool
+		if processor.fileOpen {
+			var replaced string
+			matchedOpeningTag, replaced = matchCodeBlockOpeningTag(content)
+			if matchedOpeningTag {
+				content = replaced
 			}
+		}
 
-			shouldStream = true
+		shouldStream = !processor.awaitingOpeningTag && !processor.awaitingClosingTag && !processor.awaitingBackticks
+
+		if !shouldStream {
+			processor.contentBuffer.WriteString(content)
 		}
 	}
 
-	if shouldStream {
-		// log.Printf("Sending stream msg: %s", content)
-		active.Stream(shared.StreamMessage{
-			Type:       shared.StreamMessageReply,
-			ReplyChunk: content,
-		})
+	return bufferOrStreamResult{
+		shouldStream: shouldStream,
+		content:      content,
 	}
 }
 
@@ -458,4 +466,19 @@ func getCroppedChunk(uncropped, cropped, chunk string) string {
 	}
 	croppedChunk := cropped[uncroppedIdx:]
 	return croppedChunk
+}
+
+func matchCodeBlockOpeningTag(content string) (bool, string) {
+	// check for opening tag matching <PlandexBlock lang="...">
+	match := openingTagRegex.FindStringSubmatch(content)
+
+	if match != nil {
+		// Found complete opening tag with lang attribute
+		lang := match[1] // Extract the language from the first capture group
+		return true, strings.Replace(content, match[0], "```"+lang, 1)
+	} else if strings.Contains(content, "<PlandexBlock>") {
+		return true, strings.Replace(content, "<PlandexBlock>", "```", 1)
+	}
+
+	return false, ""
 }
