@@ -308,23 +308,21 @@ func (fileState *activeBuildStreamFileState) onFinishBuildFile(planRes *db.PlanF
 		return
 	}
 
-	if fileState.isNewFile {
-		buildFinished := false
+	buildFinished := false
 
-		UpdateActivePlan(planId, branch, func(ap *types.ActivePlan) {
-			ap.BuiltFiles[filePath] = true
-			ap.IsBuildingByPath[filePath] = false
-			if ap.BuildFinished() {
-				buildFinished = true
-			}
-		})
-
-		log.Printf("Finished building file %s\n", filePath)
-
-		if buildFinished {
-			log.Println("Finished building plan, calling onFinishBuild")
-			fileState.onFinishBuild()
+	UpdateActivePlan(planId, branch, func(ap *types.ActivePlan) {
+		ap.BuiltFiles[filePath] = true
+		ap.IsBuildingByPath[filePath] = false
+		if ap.BuildFinished() {
+			buildFinished = true
 		}
+	})
+
+	log.Printf("Finished building file %s\n", filePath)
+
+	if buildFinished {
+		log.Println("Finished building plan, calling onFinishBuild")
+		fileState.onFinishBuild()
 	}
 }
 

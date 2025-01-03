@@ -140,6 +140,8 @@ If a file is being *created* in a subtask, it *does not* need to be included in 
 You MUST USE 'Uses:' *exactly* for this purpose. DO NOT use 'Files:' or 'Files needed:' or anything else. ONLY use 'Uses:' for this purpose.
 
 ALWAYS place 'Uses:' at the *end* of each subtask description.
+
+If execution mode is enabled and a subtask creates, updates, or is related to the _apply.sh script, you MUST include ` + "`_apply.sh`" + `in the 'Uses:' list for that subtask.
 `
 
 var UsesPromptNumTokens int

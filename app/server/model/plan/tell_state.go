@@ -21,6 +21,7 @@ type activeTellStreamState struct {
 	replyId                string
 	modelContext           []*db.Context
 	hasContextMap          bool
+	contextMapEmpty        bool
 	convo                  []*db.ConvoMessage
 	currentPlanState       *shared.CurrentPlanState
 	missingFileResponse    shared.RespondMissingFileChoice

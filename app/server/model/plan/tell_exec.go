@@ -159,23 +159,22 @@ func execTellPlan(
 	}
 
 	autoContextEnabled := req.AutoContext && state.hasContextMap
+	smartContextEnabled := req.AutoContext
 	isPlanningStage := req.IsChatOnly || (!req.IsUserContinue && (iteration == 0 || (autoContextEnabled && iteration == 1)))
 	isImplementationStage := !isPlanningStage
-	isContextStage := isPlanningStage && autoContextEnabled && iteration == 0
+	isContextStage := isPlanningStage && state.hasContextMap && !state.contextMapEmpty && iteration == 0
 
 	log.Printf("isPlanningStage: %t, isImplementationStage: %t, isContextStage: %t\n", isPlanningStage, isImplementationStage, isContextStage)
 
 	// if auto context is enabled, we only include maps and trees on the first iteration, which is the context-gathering step, and the second iteration, which is the planning step
 	var (
-		includeMaps  = true
-		includeTrees = true
+		includeMaps = true
 	)
 	if req.AutoContext && iteration > 1 {
 		includeMaps = false
-		includeTrees = false
 	}
 
-	modelContextText, modelContextTokens, err := state.formatModelContext(includeMaps, includeTrees, isImplementationStage, req.ExecEnabled)
+	modelContextText, modelContextTokens, err := state.formatModelContext(includeMaps, true, isImplementationStage, smartContextEnabled, req.ExecEnabled)
 	if err != nil {
 		err = fmt.Errorf("error formatting model modelContext: %v", err)
 		log.Println(err)
@@ -194,14 +193,12 @@ func execTellPlan(
 
 	if isPlanningStage {
 		log.Println("isPlanningStage")
-		if req.AutoContext && state.hasContextMap {
-			if isContextStage {
-				sysCreate = prompts.AutoContextPreamble
-				sysCreateTokens = prompts.AutoContextPreambleNumTokens
-			} else {
-				sysCreate = prompts.SysPlanningAutoContext
-				sysCreateTokens = prompts.SysPlanningAutoContextTokens
-			}
+		if autoContextEnabled && isContextStage {
+			sysCreate = prompts.AutoContextPreamble
+			sysCreateTokens = prompts.AutoContextPreambleNumTokens
+		} else if autoContextEnabled || smartContextEnabled {
+			sysCreate = prompts.SysPlanningAutoContext
+			sysCreateTokens = prompts.SysPlanningAutoContextTokens
 		} else {
 			sysCreate = prompts.SysPlanningBasic
 			sysCreateTokens = prompts.SysPlanningBasicTokens
@@ -603,6 +600,7 @@ func execTellPlan(
 		},
 		Temperature: state.settings.ModelPack.Planner.Temperature,
 		TopP:        state.settings.ModelPack.Planner.TopP,
+		Stop:        []string{"<PlandexSubtaskDone/>"},
 	}
 
 	envVar := state.settings.ModelPack.Planner.BaseModelConfig.ApiKeyEnvVar

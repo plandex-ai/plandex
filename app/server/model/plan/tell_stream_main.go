@@ -116,6 +116,14 @@ mainLoop:
 					return
 				}
 
+				// usage can either be included in the final chunk (openrouter) or in a separate chunk (openai)
+				// if the usage chunk is included, handle it and then return out of listener
+				// otherwise keep listening for the usage chunk
+				if response.Usage != nil {
+					state.handleUsageChunk(response.Usage)
+					return
+				}
+
 				// Reset the timer for the usage chunk
 				if !timer.Stop() {
 					<-timer.C

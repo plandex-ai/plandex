@@ -340,9 +340,13 @@ func (state *activeTellStreamState) loadTellPlan() error {
 	}
 
 	state.hasContextMap = false
+	state.contextMapEmpty = true
 	for _, context := range state.modelContext {
 		if context.ContextType == shared.ContextMapType {
 			state.hasContextMap = true
+			if context.NumTokens > 0 {
+				state.contextMapEmpty = false
+			}
 			break
 		}
 	}

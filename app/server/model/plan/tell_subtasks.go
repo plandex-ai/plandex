@@ -16,6 +16,8 @@ func (state *activeTellStreamState) formatSubtasks() (string, int, error) {
 
 	var numTokens int
 
+	var current *db.Subtask
+
 	for idx, subtask := range state.subtasks {
 		subtasksText += fmt.Sprintf("%d. %s\n", idx+1, subtask.Title)
 		if subtask.Description != "" {
@@ -38,10 +40,26 @@ func (state *activeTellStreamState) formatSubtasks() (string, int, error) {
 		subtasksText += "\n"
 
 		if state.currentSubtask != nil && subtask.Title == state.currentSubtask.Title {
+			current = subtask
 			subtasksText += "Current subtask: yes"
 		}
 
 		subtasksText += "\n"
+	}
+
+	if current != nil {
+		subtasksText += fmt.Sprintf("\n### Current subtask\n%s\n", current.Title)
+		if current.Description != "" {
+			subtasksText += "\n" + current.Description + "\n"
+		}
+		if len(current.UsesFiles) > 0 {
+			subtasksText += "Uses: "
+			usesFiles := []string{}
+			for _, file := range current.UsesFiles {
+				usesFiles = append(usesFiles, fmt.Sprintf("`%s`", file))
+			}
+			subtasksText += strings.Join(usesFiles, ", ") + "\n"
+		}
 	}
 
 	numTokens, err := shared.GetNumTokens(subtasksText)

@@ -341,14 +341,6 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 
 				if numPaths > shared.MaxContextCount {
 					onErr(fmt.Errorf("too many files to load (found %d, limit is %d)", numPaths, shared.MaxContextCount))
-				} else if numPaths == 0 {
-					term.StopSpinner()
-					if params.DefsOnly && params.SkipDefsOnlyNoContextOutput {
-						fmt.Println()
-					} else {
-						fmt.Println("🤷‍♂️ No context loaded")
-					}
-					return
 				}
 
 				inputFilePaths = flattenedPaths

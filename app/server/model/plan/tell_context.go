@@ -7,7 +7,7 @@ import (
 	"github.com/plandex/plandex/shared"
 )
 
-func (state *activeTellStreamState) formatModelContext(includeMaps, includeTrees, isImplementationStage, execEnabled bool) (string, int, error) {
+func (state *activeTellStreamState) formatModelContext(includeMaps, includeTrees, isImplementationStage, smartContextEnabled, execEnabled bool) (string, int, error) {
 	var contextMessages []string = []string{
 		"### LATEST PLAN CONTEXT ###",
 	}
@@ -15,7 +15,7 @@ func (state *activeTellStreamState) formatModelContext(includeMaps, includeTrees
 	addedFilesSet := map[string]bool{}
 
 	uses := map[string]bool{}
-	if isImplementationStage && state.currentSubtask != nil {
+	if isImplementationStage && smartContextEnabled && state.currentSubtask != nil {
 		for _, path := range state.currentSubtask.UsesFiles {
 			uses[path] = true
 		}
@@ -23,7 +23,7 @@ func (state *activeTellStreamState) formatModelContext(includeMaps, includeTrees
 	}
 
 	for _, part := range state.modelContext {
-		if isImplementationStage && state.currentSubtask != nil && part.ContextType == shared.ContextFileType && !uses[part.FilePath] {
+		if isImplementationStage && smartContextEnabled && state.currentSubtask != nil && part.ContextType == shared.ContextFileType && !uses[part.FilePath] {
 			continue
 		}
 
@@ -89,7 +89,7 @@ func (state *activeTellStreamState) formatModelContext(includeMaps, includeTrees
 	for filePath, body := range state.currentPlanState.CurrentPlanFiles.Files {
 		if !addedFilesSet[filePath] {
 
-			if isImplementationStage && !uses[filePath] {
+			if isImplementationStage && smartContextEnabled && !uses[filePath] {
 				continue
 			}
 
@@ -109,7 +109,10 @@ func (state *activeTellStreamState) formatModelContext(includeMaps, includeTrees
 		contextMessages = append(contextMessages, "These files have been *removed* and are no longer in the plan. If you want to re-add them to the plan, you must explicitly create them again.")
 	}
 
-	if execEnabled {
+	if execEnabled &&
+		// don't show _apply.sh history and content if smart context is enabled and the current subtask doesn't use it
+		!(isImplementationStage && smartContextEnabled && state.currentSubtask != nil && !uses["_apply.sh"]) {
+
 		contextMessages = append(contextMessages, state.currentPlanState.ExecHistory())
 
 		scriptContent, ok := state.currentPlanState.CurrentPlanFiles.Files["_apply.sh"]

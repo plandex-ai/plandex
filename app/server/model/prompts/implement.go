@@ -43,8 +43,6 @@ void updateGameLogic();
 #endif
 </PlandexBlock>
 
-- If you are working on a subtask and the subtask is too large to be implemented in a single response, it should be further broken down into smaller subtasks. In that case, divide the subtask into even smaller steps, and list them in a numbered list. Then continue on to implement the first step in the list. Do NOT do this repetitively for the same subtask. Only break down a given subtask into smaller steps once.
-
 ## Code blocks and files
 
 Always precede code blocks in a plan with the file path as described above. Code that is meant to be applied to a specific file in the plan must *always* be labelled with the path. 
@@ -95,13 +93,15 @@ If you are outputting some code for illustrative or explanatory purpose and not 
 
 ## Working on subtasks
 
-You will implement the *current subtask ONLY* in this response. You MUST NOT implement any other subtasks in this response. When the current subtask is complete, you MUST NOT move on to the next subtask. Instead, you must mark the current subtask as done and then end your response.
+` + CurrentSubtaskPrompt + `
 
 You must not list, describe, or explain the subtask you are working on without an accompanying implementation in one or more code blocks. Describing what needs to be done to complete a subtask *DOES NOT* count as completing the subtask. It must be fully implemented with code blocks.
 
 If you have implemented a subtask with a code block, but you did not fully complete it and left placehoders that describe "to-dos" like "// implement database logic here" or "// game logic goes here" or "// Initialize state", then you have *not completed* the subtask. You MUST *IMMEDIATELY* continue working on the subtask and replace the placeholders with a *FULL IMPLEMENTATION* in code, even if doing so requires multiple code blocks and responses. You MUST NOT leave placeholders in the code blocks.
 
-After implementing a task or subtask with code, you MUST *explicitly mark it done*. You MUST do this by explicitly stating "**[subtask name]** has been completed". For example, "**Adding the update function** has been completed." It's extremely important to mark subtasks as done so that you can keep track of what has been completed and what is remaining. You MUST ALWAYS mark subtasks done with *exactly* this format. Use the *exact* name of the subtask (bolded) *exactly* as it is written in the subtask list and the CURRENT SUBTASK section and then "has been completed." in the response. Then immediately end the response.
+After implementing a task or subtask with code, you MUST *explicitly mark it done*. 
+
+` + MarkSubtaskDonePrompt + `
 
 Do NOT mark a subtask as done if it has not been fully implemented in code. If you need another response to fully implement a subtask, you MUST NOT mark it as done. Instead state that you will continue working on it in the next response before ending your response.
 
@@ -126,3 +126,22 @@ If the latest state of the context makes the current subtask you are working on 
 `
 	return prompt
 }
+
+const CurrentSubtaskPrompt = `
+You will implement the *current subtask ONLY* in this response. You MUST NOT implement any other subtasks in this response. When the current subtask is complete, you MUST NOT move on to the next subtask. Instead, you must mark the current subtask as done and then end your response.
+`
+
+const MarkSubtaskDonePrompt = `
+To mark a subtask done, you MUST:
+
+1. Explictly state: "**[subtask name]** has been completed". For example, "**Adding the update function** has been completed." 
+2. Output <PlandexSubtaskDone/>
+3. Immediately end the response.
+
+Example:
+
+**Adding the update function** has been completed.
+<PlandexSubtaskDone/>
+
+It's extremely important to mark subtasks as done so that you can keep track of what has been completed and what is remaining. You MUST ALWAYS mark subtasks done with *exactly* this format. Use the *exact* name of the subtask (bolded) *exactly* as it is written in the subtask list and the CURRENT SUBTASK section and then "has been completed." in the response. Then you MUST ABSOLUTELY ALWAYS output <PlandexSubtaskDone/> and immediately end the response.
+`

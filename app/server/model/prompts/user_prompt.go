@@ -52,11 +52,13 @@ Do not implement a task partially and then give up even if it's very large or co
 
 Do NOT repeat any part of your previous response. Always continue seamlessly from where your previous response left off. 
 
-Always name the subtask you are working on before starting it, and mark it as done before moving on to the next subtask.
-
 ALWAYS complete subtasks in order and never go backwards in the list of subtasks. Never skip a subtask or work on subtasks out of order. Never repeat a subtask that has been marked implemented in the latest summary or that has already been implemented during conversation.
 
-If you break up a task into subtasks, only include subtasks that can be implemented directly in code by creating or updating files. Do not include subtasks that require executing code or commands. Do not include subtasks that require user testing, deployment, or other tasks that go beyond coding.
+If you break up a task into subtasks, only include subtasks that can be implemented directly in code by creating or updating files. Only include subtasks that require executing code or commands if execution mode is enabled. Do not include subtasks that require user testing, deployment, or other tasks that go beyond coding.
+
+` + CurrentSubtaskPrompt + `
+
+` + MarkSubtaskDonePrompt + `
 
 ` + FileOpsPromptSummary
 
@@ -82,9 +84,13 @@ Continue seamlessly from where your previous response left off.
 
 Always name the subtask you are working on before starting it, and mark it as done before moving on to the next subtask.
 
+` + CurrentSubtaskPrompt + `
+
+` + MarkSubtaskDonePrompt + `
+
 ALWAYS complete subtasks in order and never go backwards in the list of subtasks. Never skip a subtask or work on subtasks out of order. Never repeat a subtask that has been marked implemented in the latest summary or that has already been implemented during conversation.
 
-If you break up a task into subtasks, only include subtasks that can be implemented directly in code by creating or updating files. Do not include subtasks that require executing code or commands. Do not include subtasks that require user testing, deployment, or other tasks that go beyond coding. 
+If you break up a task into subtasks, only include subtasks that can be implemented directly in code by creating or updating files. Only include subtasks that require executing code or commands if execution mode is enabled. Do not include subtasks that require user testing, deployment, or other tasks that go beyond coding. 
 
 Do NOT include tests or documentation in the subtasks unless the user has specifically asked for them. Do not include extra code or features beyond what the user has asked for. Focus on the user's request and implement only what is necessary to fulfill it.`
 
