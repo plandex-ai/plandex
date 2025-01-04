@@ -59,6 +59,7 @@ func (state *activeTellStreamState) loadTellPlan() error {
 	errCh := make(chan error)
 	var modelContext []*db.Context
 	var convo []*db.ConvoMessage
+	var promptMsg *db.ConvoMessage
 	var summaries []*db.ConvoSummary
 	var subtasks []*db.Subtask
 	var settings *shared.PlanSettings
@@ -174,7 +175,6 @@ func (state *activeTellStreamState) loadTellPlan() error {
 		}
 
 		innerErrCh := make(chan error)
-		var userMsg *db.ConvoMessage
 
 		go func() {
 			if iteration == 0 && missingFileResponse == "" && !req.IsUserContinue {
@@ -182,7 +182,7 @@ func (state *activeTellStreamState) loadTellPlan() error {
 
 				log.Printf("storing user message | len(convo): %d | num: %d\n", len(convo), num)
 
-				userMsg = &db.ConvoMessage{
+				promptMsg = &db.ConvoMessage{
 					OrgId:   currentOrgId,
 					PlanId:  planId,
 					UserId:  currentUserId,
@@ -192,7 +192,7 @@ func (state *activeTellStreamState) loadTellPlan() error {
 					Message: req.Prompt,
 				}
 
-				_, err = db.StoreConvoMessage(userMsg, auth.User.Id, branch, true)
+				_, err = db.StoreConvoMessage(promptMsg, auth.User.Id, branch, true)
 
 				if err != nil {
 					log.Printf("Error storing user message: %v\n", err)
@@ -249,8 +249,8 @@ func (state *activeTellStreamState) loadTellPlan() error {
 			}
 		}
 
-		if userMsg != nil {
-			convo = append(convo, userMsg)
+		if promptMsg != nil {
+			convo = append(convo, promptMsg)
 		}
 
 		errCh <- nil
@@ -326,6 +326,7 @@ func (state *activeTellStreamState) loadTellPlan() error {
 
 	state.modelContext = modelContext
 	state.convo = convo
+	state.promptConvoMessage = promptMsg
 	state.summaries = summaries
 	state.latestSummaryTokens = latestSummaryTokens
 	state.settings = settings
@@ -348,6 +349,41 @@ func (state *activeTellStreamState) loadTellPlan() error {
 				state.contextMapEmpty = false
 			}
 			break
+		}
+	}
+
+	if iteration == 0 && missingFileResponse == "" {
+		UpdateActivePlan(planId, branch, func(ap *types.ActivePlan) {
+			ap.Contexts = state.modelContext
+
+			for _, context := range state.modelContext {
+				if context.FilePath != "" {
+					ap.ContextsByPath[context.FilePath] = context
+				}
+			}
+		})
+	} else if missingFileResponse == "" {
+		// reset current reply content and num tokens
+		UpdateActivePlan(planId, branch, func(ap *types.ActivePlan) {
+			ap.CurrentReplyContent = ""
+			ap.NumTokens = 0
+		})
+	}
+
+	// if any skipped paths have since been added to context, remove them from skipped paths
+	if len(active.SkippedPaths) > 0 {
+		var toUnskipPaths []string
+		for contextPath := range active.ContextsByPath {
+			if active.SkippedPaths[contextPath] {
+				toUnskipPaths = append(toUnskipPaths, contextPath)
+			}
+		}
+		if len(toUnskipPaths) > 0 {
+			UpdateActivePlan(planId, branch, func(ap *types.ActivePlan) {
+				for _, path := range toUnskipPaths {
+					delete(ap.SkippedPaths, path)
+				}
+			})
 		}
 	}
 

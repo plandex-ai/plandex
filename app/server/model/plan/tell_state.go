@@ -23,6 +23,7 @@ type activeTellStreamState struct {
 	hasContextMap          bool
 	contextMapEmpty        bool
 	convo                  []*db.ConvoMessage
+	promptConvoMessage     *db.ConvoMessage
 	currentPlanState       *shared.CurrentPlanState
 	missingFileResponse    shared.RespondMissingFileChoice
 	summaries              []*db.ConvoSummary

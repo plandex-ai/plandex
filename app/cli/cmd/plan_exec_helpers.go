@@ -101,26 +101,23 @@ func initExecFlags(cmd *cobra.Command, params initExecFlagsParams) {
 
 func validatePlanExecFlags() {
 	if tellAutoApply && tellNoBuild {
-		term.OutputErrorAndExit("🚨 --apply can't be used with --no-build/-n")
+		term.OutputErrorAndExit("--apply can't be used with --no-build/-n")
 	}
 	if tellAutoApply && tellBg {
-		term.OutputErrorAndExit("🚨 --apply can't be used with --bg")
-	}
-	if autoCommit && !tellAutoApply {
-		term.OutputErrorAndExit("🚨 --commit/-c can only be used with --apply")
+		term.OutputErrorAndExit("--apply can't be used with --bg")
 	}
 	if autoExec && !tellAutoApply {
-		term.OutputErrorAndExit("🚨 --auto-exec can only be used with --apply")
+		term.OutputErrorAndExit("--auto-exec can only be used with --apply")
 	}
 	if autoDebug > 0 && !tellAutoApply {
-		term.OutputErrorAndExit("🚨 --debug can only be used with --apply")
+		term.OutputErrorAndExit("--debug can only be used with --apply")
 	}
 	if autoDebug > 0 && noExec {
-		term.OutputErrorAndExit("🚨 --debug can't be used with --no-exec")
+		term.OutputErrorAndExit("--debug can't be used with --no-exec")
 	}
 
 	if tellAutoContext && tellBg {
-		term.OutputErrorAndExit("🚨 --auto-context/-c can't be used with --bg")
+		term.OutputErrorAndExit("--auto-context/-c can't be used with --bg")
 	}
 }
 

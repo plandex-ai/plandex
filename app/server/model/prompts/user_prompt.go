@@ -25,9 +25,17 @@ const planningPromptWrapperFormatStr = sharedPromptWrapperFormatStr + `
 
 Do NOT include tests or documentation in the subtasks unless the user has specifically asked for them. Do not include extra code or features beyond what the user has asked for. Focus on the user's request and implement only what is necessary to fulfill it.
 
-STOP THE RESPONSE IMMEDIATELY IF YOU HAVE OUTPUTTED A '### Tasks' SECTION. Do NOT continue on and begin implementing subtasks. You will begin on subtasks in the next response, not this one.
+At the end of the '### Tasks' section, you ABSOLUTELY MUST ALWAYS include a <EndPlandexTasks/> tag, then end the response.
 
-Do NOT output any additional text after the '### Tasks' section.
+Example:
+
+### Tasks
+
+1. Create a new file called 'src/main.rs' with a 'main' function that returns 'Hello, world!'
+
+2. Write a basic test for the 'main' function
+
+<EndPlandexTasks/>
 `
 
 var PlanningPromptWrapperTokens int

@@ -8,7 +8,6 @@ import (
 	"plandex-server/types"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/plandex/plandex/shared"
 	"github.com/sashabaranov/go-openai"
 )
@@ -479,8 +478,8 @@ func (state *activeTellStreamState) storeOnFinished(replyFiles []string, generat
 			log.Println(state.currentSubtask)
 			log.Println("All subtasks finished:", allSubtasksFinished)
 
-			log.Println("Update state of subtasks")
-			spew.Dump(state.subtasks)
+			// log.Println("Update state of subtasks")
+			// spew.Dump(state.subtasks)
 		}
 
 		// spew.Dump(description)

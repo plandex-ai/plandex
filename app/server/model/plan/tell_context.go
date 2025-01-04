@@ -2,9 +2,12 @@ package plan
 
 import (
 	"fmt"
+	"log"
+	"net/http"
 	"strings"
 
 	"github.com/plandex/plandex/shared"
+	"github.com/sashabaranov/go-openai"
 )
 
 func (state *activeTellStreamState) formatModelContext(includeMaps, includeTrees, isImplementationStage, smartContextEnabled, execEnabled bool) (string, int, error) {
@@ -131,8 +134,11 @@ func (state *activeTellStreamState) checkAutoLoadContext() []string {
 	activePlan := GetActivePlan(state.plan.Id, state.branch)
 
 	if activePlan == nil {
+		log.Printf("execTellPlan: Active plan not found for plan ID %s on branch %s\n", state.plan.Id, state.branch)
 		return nil
 	}
+
+	contextsByPath := activePlan.ContextsByPath
 
 	if !activePlan.AutoContext {
 		return nil
@@ -169,11 +175,55 @@ func (state *activeTellStreamState) checkAutoLoadContext() []string {
 			trimmed = strings.ReplaceAll(trimmed, "`", "")
 			trimmed = strings.TrimSpace(trimmed)
 
-			if req.ProjectPaths[trimmed] {
+			if req.ProjectPaths[trimmed] && contextsByPath[trimmed] == nil {
 				files = append(files, trimmed)
 			}
 		}
 	}
 
 	return files
+}
+
+func (state *activeTellStreamState) addImageContext() bool {
+	active := GetActivePlan(state.plan.Id, state.branch)
+
+	if active == nil {
+		log.Printf("execTellPlan: Active plan not found for plan ID %s on branch %s\n", state.plan.Id, state.branch)
+		return false
+	}
+
+	for _, context := range state.modelContext {
+		if context.ContextType == shared.ContextImageType {
+			if !state.settings.ModelPack.Planner.BaseModelConfig.HasImageSupport {
+				err := fmt.Errorf("%s does not support images in context", state.settings.ModelPack.Planner.BaseModelConfig.ModelName)
+				log.Println(err)
+				active.StreamDoneCh <- &shared.ApiError{
+					Type:   shared.ApiErrorTypeOther,
+					Status: http.StatusBadRequest,
+					Msg:    "Model does not support images in context",
+				}
+				return false
+			}
+
+			imageMessage := openai.ChatCompletionMessage{
+				Role: openai.ChatMessageRoleUser,
+				MultiContent: []openai.ChatMessagePart{
+					{
+						Type: openai.ChatMessagePartTypeText,
+						Text: fmt.Sprintf("Image: %s", context.Name),
+					},
+					{
+						Type: openai.ChatMessagePartTypeImageURL,
+						ImageURL: &openai.ChatMessageImageURL{
+							URL:    shared.GetImageDataURI(context.Body, context.FilePath),
+							Detail: context.ImageDetail,
+						},
+					},
+				},
+			}
+			state.messages = append(state.messages, imageMessage)
+		}
+	}
+
+	return true
 }

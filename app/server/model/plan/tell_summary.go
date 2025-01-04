@@ -17,7 +17,7 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
-func (state *activeTellStreamState) injectSummariesAsNeeded() bool {
+func (state *activeTellStreamState) addConversationMessages() bool {
 	convo := state.convo
 	summaries := state.summaries
 	tokensBeforeConvo := state.tokensBeforeConvo
@@ -122,6 +122,11 @@ func (state *activeTellStreamState) injectSummariesAsNeeded() bool {
 
 	if summary == nil {
 		for _, convoMessage := range convo {
+			// this gets added later in tell_exec.go
+			if convoMessage.Id == state.promptConvoMessage.Id {
+				continue
+			}
+
 			state.messages = append(state.messages, openai.ChatCompletionMessage{
 				Role:    convoMessage.Role,
 				Content: convoMessage.Message,
@@ -152,6 +157,11 @@ func (state *activeTellStreamState) injectSummariesAsNeeded() bool {
 
 		// add messages after the last message in the summary
 		for _, convoMessage := range convo {
+			// this gets added later in tell_exec.go
+			if convoMessage.Id == state.promptConvoMessage.Id {
+				continue
+			}
+
 			if convoMessage.CreatedAt.After(summary.LatestConvoMessageCreatedAt) {
 				state.messages = append(state.messages, openai.ChatCompletionMessage{
 					Role:    convoMessage.Role,

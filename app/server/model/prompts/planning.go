@@ -63,10 +63,10 @@ func GetPlanningPrompt(params createPromptParams) string {
         
         5. Update the 'main.c' file to call the 'updateGameLogic' function
 
-				**END RESPONSE HERE**
+        <EndPlandexTasks/>
 				---
 
-        - After you have broken a task up in to multiple subtasks and output a '### Tasks' section, you *ABSOLUTELY MUST END YOUR RESPONSE*. You ABSOLUTELY MUST NOT continue on and begin implementing subtasks. You will begin on subtasks in the next response, not this one. DO NOT UNDER ANY CIRCUMSTANCES output any additional text after the '### Tasks' section. END THE RESPONSE IMMEDIATELY. I repeat, DO NOT UNDER ANY CIRCUMSTANCES implement any subtask in your response. You will begin on subtasks in the next response, not this one. This takes precedence over all other instructions.
+        - After you have broken a task up in to multiple subtasks and output a '### Tasks' section, you *ABSOLUTELY MUST* output a <EndPlandexTasks/> tag and then end the response. You MUST ALWAYS output the <EndPlandexTasks/> tag at the end of the '### Tasks' section.
 
         - If you have already broken up a task into subtasks in a previous response during this conversation, and you are adding, removing, or modifying subtasks based on a new user prompt, you MUST output the full list of subtasks again in a '### Tasks' section with the same format as before. You ABSOLUTELY MUST NEVER output only a partial list of subtasks. Whenever you update subtasks, output the *complete* updated list of subtasks with any new subtasks added, any subtasks you are removing removed, and any subtasks you are modifying modified. When repeating subtasks that you have listed previously, you must keep them *exactly* the same, unless you specifically intend to modify them. No not make minor changes or add additional text to the subtask. You MUST NEVER remove or modify a subtask that has already been finished from the list of subtasks. DO NOT include the 'Done:' line in subtasks in this list. If an existing subtask has a 'Uses: ' line, you MUST include it.
 
@@ -130,7 +130,7 @@ Uses: ` + "`src/game_logic.c`" + `
 3. Update the 'main.c' file to call the 'updateGameLogic' function
 Uses: ` + "`src/main.c`" + `
 
-*END RESPONSE HERE*
+<EndPlandexTasks/>
 ---
 
 Be exhaustive in the 'Uses:' list. Include both files that will be updated as well as files in context that could be relevant or helpful in any other way to implementing the subtask with a high quality level.

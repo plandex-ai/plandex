@@ -756,6 +756,16 @@ func UpdateContexts(params UpdateContextsParams) (*shared.UpdateContextResponse,
 				// log.Println("Updating map context", id, "oldNumTokens", oldNumTokens)
 
 				for path, part := range params.MapBodies {
+					if context.MapParts == nil {
+						context.MapParts = make(shared.FileMapBodies)
+					}
+					if context.MapShas == nil {
+						context.MapShas = make(map[string]string)
+					}
+					if context.MapTokens == nil {
+						context.MapTokens = make(map[string]int)
+					}
+
 					context.MapParts[path] = part
 					context.MapShas[path] = params.InputShas[path]
 
