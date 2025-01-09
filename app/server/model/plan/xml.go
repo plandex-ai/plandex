@@ -78,3 +78,23 @@ func GetXMLTag(xmlString, tagName string, wrapCdata bool) string {
 
 	return processedXml
 }
+
+func GetXMLContent(xmlString, tagName string) string {
+	openTag := "<" + tagName + ">"
+	closeTag := "</" + tagName + ">"
+
+	// Get everything after the last opening tag
+	split := strings.Split(xmlString, openTag)
+	if len(split) < 2 {
+		return ""
+	}
+	afterOpenTag := split[len(split)-1]
+
+	// Get everything before the first closing tag
+	split2 := strings.Split(afterOpenTag, closeTag)
+	if len(split2) < 1 {
+		return ""
+	}
+
+	return split2[0]
+}

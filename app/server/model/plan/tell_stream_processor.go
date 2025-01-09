@@ -85,7 +85,7 @@ func (state *activeTellStreamState) processChunk(choice openai.ChatCompletionStr
 		processor.fileOpen = false
 	}
 
-	files := parserRes.Files
+	operations := parserRes.Operations
 	state.replyNumTokens = parserRes.TotalTokens
 	currentFile := parserRes.CurrentFilePath
 
@@ -112,7 +112,7 @@ func (state *activeTellStreamState) processChunk(choice openai.ChatCompletionStr
 	// log.Println("maybeFilePath", parserRes.MaybeFilePath)
 	// log.Println("currentFilePath", parserRes.CurrentFilePath)
 
-	res := processor.bufferOrStream(content, parserRes.MaybeFilePath, parserRes.CurrentFilePath)
+	res := processor.bufferOrStream(content, &parserRes, state.isImplementationStage)
 
 	// log.Println("res")
 	// spew.Dump(res)
@@ -127,8 +127,8 @@ func (state *activeTellStreamState) processChunk(choice openai.ChatCompletionStr
 	// log.Println("processor after bufferOrStream")
 	// spew.Dump(processor)
 
-	if !req.IsChatOnly && len(files) > len(processor.replyFiles) {
-		state.handleNewFiles(&parserRes)
+	if !req.IsChatOnly && len(operations) > len(processor.replyOperations) {
+		state.handleNewOperations(&parserRes)
 	}
 
 	return processChunkResult{}
@@ -139,12 +139,24 @@ type bufferOrStreamResult struct {
 	content      string
 }
 
-func (processor *chunkProcessor) bufferOrStream(content, maybeFilePath, currentFilePath string) bufferOrStreamResult {
+func (processor *chunkProcessor) bufferOrStream(content string, parserRes *types.ReplyParserRes, isImplementationStage bool) bufferOrStreamResult {
+	// no buffering in planning stages
+	if !isImplementationStage {
+		return bufferOrStreamResult{
+			shouldStream: true,
+			content:      content,
+		}
+	}
+
 	var shouldStream bool
-	if processor.awaitingOpeningTag || processor.awaitingClosingTag || processor.awaitingBackticks {
+	if processor.awaitingBlockOpeningTag || processor.awaitingBlockClosingTag || processor.awaitingBackticks || processor.awaitingOpClosingTag {
 		processor.contentBuffer.WriteString(content)
 		s := processor.contentBuffer.String()
 
+		// log.Printf("awaitingBlockOpeningTag: %v\n", processor.awaitingBlockOpeningTag)
+		// log.Printf("awaitingBlockClosingTag: %v\n", processor.awaitingBlockClosingTag)
+		// log.Printf("awaitingBackticks: %v\n", processor.awaitingBackticks)
+		// log.Printf("awaitingOpClosingTag: %v\n", processor.awaitingOpClosingTag)
 		// log.Printf("s: %q\n", s)
 
 		if processor.awaitingBackticks {
@@ -152,7 +164,7 @@ func (processor *chunkProcessor) bufferOrStream(content, maybeFilePath, currentF
 				processor.awaitingBackticks = false
 				s = strings.ReplaceAll(s, "```", "\\`\\`\\`")
 
-				if processor.awaitingOpeningTag || processor.awaitingClosingTag {
+				if processor.awaitingBlockOpeningTag || processor.awaitingBlockClosingTag {
 					// update buffer with escaped backticks
 					processor.contentBuffer.Reset()
 					processor.contentBuffer.WriteString(s)
@@ -165,7 +177,7 @@ func (processor *chunkProcessor) bufferOrStream(content, maybeFilePath, currentF
 				// fewer than 3 backticks, no need to escape
 				processor.awaitingBackticks = false
 
-				if !(processor.awaitingOpeningTag || processor.awaitingClosingTag) {
+				if !(processor.awaitingBlockOpeningTag || processor.awaitingBlockClosingTag) {
 					content = s
 					processor.contentBuffer.Reset()
 					shouldStream = true
@@ -173,26 +185,26 @@ func (processor *chunkProcessor) bufferOrStream(content, maybeFilePath, currentF
 			}
 		}
 
-		if processor.awaitingOpeningTag {
-			if maybeFilePath == "" && currentFilePath == "" {
+		if processor.awaitingBlockOpeningTag {
+			if parserRes.MaybeFilePath == "" && parserRes.CurrentFilePath == "" {
 				// wasn't really a file path / code block
-				processor.awaitingOpeningTag = false
+				processor.awaitingBlockOpeningTag = false
 				content = s
 				processor.contentBuffer.Reset()
 				shouldStream = true
-			} else if currentFilePath != "" {
+			} else if parserRes.CurrentFilePath != "" {
 				matched, replaced := matchCodeBlockOpeningTag(s)
 
 				if matched {
 					shouldStream = true
-					processor.awaitingOpeningTag = false
+					processor.awaitingBlockOpeningTag = false
 					processor.fileOpen = true
 					content = replaced
 					processor.contentBuffer.Reset()
 				} else {
 					// tag is missing - something is wrong - we shouldn't be here but let's try to recover anyway
 					log.Printf("Opening <PlandexBlock> tag is missing even though parserRes.CurrentFile is set - something is wrong: %s\n", s)
-					processor.awaitingOpeningTag = false
+					processor.awaitingBlockOpeningTag = false
 					processor.fileOpen = false
 					s += "\n```" // add ``` to the end of the line to close the markdown code block
 					content = s
@@ -200,34 +212,45 @@ func (processor *chunkProcessor) bufferOrStream(content, maybeFilePath, currentF
 					shouldStream = true
 				}
 			}
-		} else if processor.awaitingClosingTag {
-			if currentFilePath == "" {
+		} else if processor.awaitingBlockClosingTag {
+			if parserRes.CurrentFilePath == "" {
 				if strings.Contains(s, "</PlandexBlock>") {
 					shouldStream = true
-					processor.awaitingClosingTag = false
+					processor.awaitingBlockClosingTag = false
 					processor.fileOpen = false
 					// replace </PlandexBlock> with ``` to close the markdown code block
 					s = strings.ReplaceAll(s, "</PlandexBlock>", "```")
 					content = s
 					processor.contentBuffer.Reset()
 				} else {
-					log.Printf("Closing </PlandexBlock> tag is missing even though parserRes.CurrentFile is empty - something is wrong: %s\n", s)
-					processor.awaitingClosingTag = false
+					log.Printf("Closing </PlandexBlock> tag is missing even though parserRes.CurrentOperation is nil - something is wrong: %s\n", s)
+					processor.awaitingBlockClosingTag = false
 					content = s
 					processor.contentBuffer.Reset()
 					shouldStream = true
 				}
 			}
+		} else if processor.awaitingOpClosingTag {
+			// log.Printf("awaitingOpClosingTag: %v\n", processor.awaitingOpClosingTag)
+			if strings.Contains(s, "<EndPlandexFileOps/>") {
+				log.Printf("Found <EndPlandexFileOps/>\n")
+				processor.awaitingOpClosingTag = false
+				s = strings.Replace(s, "\n<EndPlandexFileOps/>", "", 1)
+				s = strings.Replace(s, "<EndPlandexFileOps/>", "", 1)
+				content = s
+				processor.contentBuffer.Reset()
+				shouldStream = true
+			}
 		}
 
 	} else {
-		if maybeFilePath != "" && currentFilePath == "" {
-			processor.awaitingOpeningTag = true
+		if parserRes.MaybeFilePath != "" && parserRes.CurrentFilePath == "" {
+			processor.awaitingBlockOpeningTag = true
 		}
 
-		if currentFilePath != "" {
+		if parserRes.CurrentFilePath != "" {
 			if strings.Contains(content, "</PlandexBlock>") {
-				processor.awaitingClosingTag = true
+				processor.awaitingBlockClosingTag = true
 			} else {
 				split := strings.Split(content, "<")
 				// log.Printf("split: %v\n", split)
@@ -235,12 +258,27 @@ func (processor *chunkProcessor) bufferOrStream(content, maybeFilePath, currentF
 					last := split[len(split)-1]
 					// log.Printf("last: %s\n", last)
 					if strings.HasPrefix("/PlandexBlock>", last) {
-						processor.awaitingClosingTag = true
+						processor.awaitingBlockClosingTag = true
+					}
+				}
+			}
+		} else if parserRes.FileOperationBlockOpen() {
+			if strings.Contains(content, "<EndPlandexFileOps/>") {
+				processor.awaitingOpClosingTag = true
+			} else {
+				split := strings.Split(content, "<")
+				if len(split) > 1 {
+					last := split[len(split)-1]
+					if strings.HasPrefix("EndPlandexFileOps/>", last) {
+						processor.awaitingOpClosingTag = true
 					}
 				}
 			}
 		} else if strings.Contains(content, "</PlandexBlock>") {
 			content = strings.Replace(content, "</PlandexBlock>", "```", 1)
+		} else if strings.Contains(content, "<EndPlandexFileOps/>") {
+			content = strings.Replace(content, "\n<EndPlandexFileOps/>", "", 1)
+			content = strings.Replace(content, "<EndPlandexFileOps/>", "", 1)
 		}
 
 		if processor.fileOpen && (strings.Contains(content, "```") || strings.HasSuffix(content, "`")) {
@@ -256,7 +294,7 @@ func (processor *chunkProcessor) bufferOrStream(content, maybeFilePath, currentF
 			}
 		}
 
-		shouldStream = !processor.awaitingOpeningTag && !processor.awaitingClosingTag && !processor.awaitingBackticks
+		shouldStream = !processor.awaitingBlockOpeningTag && !processor.awaitingBlockClosingTag && !processor.awaitingOpClosingTag && !processor.awaitingBackticks
 
 		if !shouldStream {
 			processor.contentBuffer.WriteString(content)
@@ -269,7 +307,7 @@ func (processor *chunkProcessor) bufferOrStream(content, maybeFilePath, currentF
 	}
 }
 
-func (state *activeTellStreamState) handleNewFiles(parserRes *types.ReplyParserRes) {
+func (state *activeTellStreamState) handleNewOperations(parserRes *types.ReplyParserRes) {
 
 	processor := state.chunkProcessor
 	plan := state.plan
@@ -283,21 +321,19 @@ func (state *activeTellStreamState) handleNewFiles(parserRes *types.ReplyParserR
 	currentUserId := state.currentUserId
 	settings := state.settings
 
-	files := parserRes.Files
-	fileContents := parserRes.FileContents
-	fileDescriptions := parserRes.FileDescriptions
+	operations := parserRes.Operations
 
-	log.Printf("%d new files\n", len(files)-len(processor.replyFiles))
+	log.Printf("%d new operations\n", len(operations)-len(processor.replyOperations))
 
-	for i, file := range files {
-		if i < len(processor.replyFiles) {
+	for i, op := range operations {
+		if i < len(processor.replyOperations) {
 			continue
 		}
 
-		log.Printf("Detected file: %s\n", file)
+		log.Printf("Detected operation: %s\n", op.Name())
 
 		if req.BuildMode == shared.BuildModeAuto {
-			log.Printf("Queuing build for %s\n", file)
+			log.Printf("Queuing build for %s\n", op.Name())
 			// log.Println("Content:")
 			// log.Println(fileContents[i])
 
@@ -313,26 +349,34 @@ func (state *activeTellStreamState) handleNewFiles(parserRes *types.ReplyParserR
 				modelContext:  state.modelContext,
 			}
 
-			fileContentTokens, err := shared.GetNumTokens(fileContents[i])
-
-			if err != nil {
-				log.Printf("Error getting num tokens for file %s: %v\n", file, err)
-				state.onError(fmt.Errorf("error getting num tokens for file %s: %v", file, err), true, "", "")
-				return
+			var opContentTokens int
+			if op.Type == shared.OperationTypeFile {
+				var err error
+				opContentTokens, err = shared.GetNumTokens(op.Content)
+				if err != nil {
+					log.Printf("Error getting num tokens for operation %s: %v\n", op.Name(), err)
+					state.onError(fmt.Errorf("error getting num tokens for operation %s: %v", op.Name(), err), true, "", "")
+					return
+				}
+			} else {
+				opContentTokens = op.NumTokens
 			}
 
 			buildState.queueBuilds([]*types.ActiveBuild{{
 				ReplyId:           replyId,
-				Idx:               i,
-				FileDescription:   fileDescriptions[i],
-				FileContent:       fileContents[i],
-				FileContentTokens: fileContentTokens,
-				Path:              file,
+				FileDescription:   op.Description,
+				FileContent:       op.Content,
+				FileContentTokens: opContentTokens,
+				Path:              op.Path,
+				MoveDestination:   op.Destination,
+				IsMoveOp:          op.Type == shared.OperationTypeMove,
+				IsRemoveOp:        op.Type == shared.OperationTypeRemove,
+				IsResetOp:         op.Type == shared.OperationTypeReset,
 			}})
 		}
-		processor.replyFiles = append(processor.replyFiles, file)
+		processor.replyOperations = append(processor.replyOperations, op)
 		UpdateActivePlan(planId, branch, func(ap *types.ActivePlan) {
-			ap.Files = append(ap.Files, file)
+			ap.Operations = append(ap.Operations, op)
 		})
 	}
 

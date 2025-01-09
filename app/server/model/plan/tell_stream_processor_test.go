@@ -1,6 +1,7 @@
 package plan
 
 import (
+	"plandex-server/types"
 	"strings"
 	"testing"
 )
@@ -12,6 +13,9 @@ func TestBufferOrStream(t *testing.T) {
 		chunk           string
 		maybeFilePath   string
 		currentFilePath string
+		isInMoveBlock   bool
+		isInRemoveBlock bool
+		isInResetBlock  bool
 		want            bufferOrStreamResult
 		wantState       *chunkProcessor // To verify state transitions
 	}{
@@ -26,18 +30,18 @@ func TestBufferOrStream(t *testing.T) {
 				content:      "some regular text",
 			},
 			wantState: &chunkProcessor{
-				awaitingOpeningTag: false,
-				awaitingClosingTag: false,
-				awaitingBackticks:  false,
-				fileOpen:           false,
+				awaitingBlockOpeningTag: false,
+				awaitingBlockClosingTag: false,
+				awaitingBackticks:       false,
+				fileOpen:                false,
 			},
 		},
 		{
 			name: "buffers partial opening tag",
 			initialState: &chunkProcessor{
-				awaitingOpeningTag: true,
-				fileOpen:           false,
-				contentBuffer:      &strings.Builder{},
+				awaitingBlockOpeningTag: true,
+				fileOpen:                false,
+				contentBuffer:           &strings.Builder{},
 			},
 			chunk:           `<Pland`,
 			maybeFilePath:   "main.go",
@@ -46,10 +50,10 @@ func TestBufferOrStream(t *testing.T) {
 				shouldStream: false,
 			},
 			wantState: &chunkProcessor{
-				awaitingOpeningTag: true,
-				awaitingClosingTag: false,
-				awaitingBackticks:  false,
-				fileOpen:           false,
+				awaitingBlockOpeningTag: true,
+				awaitingBlockClosingTag: false,
+				awaitingBackticks:       false,
+				fileOpen:                false,
 				contentBuffer: func() *strings.Builder {
 					b := &strings.Builder{}
 					b.WriteString(`<Pland`)
@@ -66,7 +70,7 @@ func TestBufferOrStream(t *testing.T) {
 					b.WriteString(`<PlandexBlock lang="go">` + "\n")
 					return b
 				}(),
-				awaitingOpeningTag: true,
+				awaitingBlockOpeningTag: true,
 			},
 			chunk:           `package`,
 			maybeFilePath:   "",
@@ -76,19 +80,19 @@ func TestBufferOrStream(t *testing.T) {
 				content:      "```go\npackage",
 			},
 			wantState: &chunkProcessor{
-				awaitingOpeningTag: false,
-				awaitingClosingTag: false,
-				awaitingBackticks:  false,
-				fileOpen:           true,
+				awaitingBlockOpeningTag: false,
+				awaitingBlockClosingTag: false,
+				awaitingBackticks:       false,
+				fileOpen:                true,
 			},
 		},
 		{
 			// occurs when replayParser can't identify a 'maybeFilePath' prior a full opening tag being sent ('maybeFilePath' gets skipped and 'currentFilePath' is set immediately)
 			name: "converts opening tag without awaitingOpeningTag",
 			initialState: &chunkProcessor{
-				fileOpen:           true,
-				contentBuffer:      &strings.Builder{},
-				awaitingOpeningTag: false,
+				fileOpen:                true,
+				contentBuffer:           &strings.Builder{},
+				awaitingBlockOpeningTag: false,
 			},
 			chunk:           `<PlandexBlock lang="go">` + "\npackage",
 			maybeFilePath:   "",
@@ -98,10 +102,10 @@ func TestBufferOrStream(t *testing.T) {
 				content:      "```go\npackage",
 			},
 			wantState: &chunkProcessor{
-				awaitingOpeningTag: false,
-				awaitingClosingTag: false,
-				awaitingBackticks:  false,
-				fileOpen:           true,
+				awaitingBlockOpeningTag: false,
+				awaitingBlockClosingTag: false,
+				awaitingBackticks:       false,
+				fileOpen:                true,
 			},
 		},
 		{
@@ -142,18 +146,18 @@ func TestBufferOrStream(t *testing.T) {
 				content:      "here's some code:\n\\`\\`\\`\npackage",
 			},
 			wantState: &chunkProcessor{
-				awaitingOpeningTag: false,
-				awaitingClosingTag: false,
-				awaitingBackticks:  false,
-				fileOpen:           true,
+				awaitingBlockOpeningTag: false,
+				awaitingBlockClosingTag: false,
+				awaitingBackticks:       false,
+				fileOpen:                true,
 			},
 		},
 		{
 			name: "buffers partial closing tag",
 			initialState: &chunkProcessor{
-				fileOpen:           true,
-				awaitingClosingTag: false,
-				contentBuffer:      &strings.Builder{},
+				fileOpen:                true,
+				awaitingBlockClosingTag: false,
+				contentBuffer:           &strings.Builder{},
 			},
 			currentFilePath: "main.go",
 			chunk:           "\n}</Plan",
@@ -161,8 +165,8 @@ func TestBufferOrStream(t *testing.T) {
 				shouldStream: false,
 			},
 			wantState: &chunkProcessor{
-				awaitingClosingTag: true,
-				fileOpen:           true,
+				awaitingBlockClosingTag: true,
+				fileOpen:                true,
 				contentBuffer: func() *strings.Builder {
 					b := &strings.Builder{}
 					b.WriteString("\n}</Plan")
@@ -173,9 +177,9 @@ func TestBufferOrStream(t *testing.T) {
 		{
 			name: "buffers full closing tag with file open",
 			initialState: &chunkProcessor{
-				fileOpen:           true,
-				awaitingClosingTag: false,
-				contentBuffer:      &strings.Builder{},
+				fileOpen:                true,
+				awaitingBlockClosingTag: false,
+				contentBuffer:           &strings.Builder{},
 			},
 			currentFilePath: "main.go",
 			chunk:           "\n}</PlandexBlock>",
@@ -183,8 +187,8 @@ func TestBufferOrStream(t *testing.T) {
 				shouldStream: false,
 			},
 			wantState: &chunkProcessor{
-				awaitingClosingTag: true,
-				fileOpen:           true,
+				awaitingBlockClosingTag: true,
+				fileOpen:                true,
 				contentBuffer: func() *strings.Builder {
 					b := &strings.Builder{}
 					b.WriteString("\n}</PlandexBlock>")
@@ -195,9 +199,9 @@ func TestBufferOrStream(t *testing.T) {
 		{
 			name: "replaces full closing tag with file closed",
 			initialState: &chunkProcessor{
-				fileOpen:           false,
-				awaitingClosingTag: false,
-				contentBuffer:      &strings.Builder{},
+				fileOpen:                false,
+				awaitingBlockClosingTag: false,
+				contentBuffer:           &strings.Builder{},
 			},
 			currentFilePath: "",
 			chunk:           "\n}</PlandexBlock>",
@@ -206,8 +210,8 @@ func TestBufferOrStream(t *testing.T) {
 				content:      "\n}```",
 			},
 			wantState: &chunkProcessor{
-				awaitingClosingTag: false,
-				fileOpen:           false,
+				awaitingBlockClosingTag: false,
+				fileOpen:                false,
 			},
 		},
 		{
@@ -228,10 +232,10 @@ func TestBufferOrStream(t *testing.T) {
 				content:      "`file.go`\nsomething",
 			},
 			wantState: &chunkProcessor{
-				awaitingOpeningTag: false,
-				awaitingClosingTag: false,
-				awaitingBackticks:  false,
-				fileOpen:           true,
+				awaitingBlockOpeningTag: false,
+				awaitingBlockClosingTag: false,
+				awaitingBackticks:       false,
+				fileOpen:                true,
 			},
 		},
 		{
@@ -251,15 +255,88 @@ func TestBufferOrStream(t *testing.T) {
 				shouldStream: false,
 			},
 			wantState: &chunkProcessor{
-				awaitingOpeningTag: false,
-				awaitingClosingTag: false,
-				awaitingBackticks:  true,
-				fileOpen:           true,
+				awaitingBlockOpeningTag: false,
+				awaitingBlockClosingTag: false,
+				awaitingBackticks:       true,
+				fileOpen:                true,
 				contentBuffer: func() *strings.Builder {
 					b := &strings.Builder{}
 					b.WriteString("`file.go`\n`file2.go`")
 					return b
 				}(),
+			},
+		},
+		{
+			name:          "buffers for end of file operations",
+			initialState:  &chunkProcessor{},
+			isInMoveBlock: true,
+			chunk:         "\n<EndPlandexFileOps/>\nmore",
+			want: bufferOrStreamResult{
+				shouldStream: false,
+			},
+			wantState: &chunkProcessor{
+				awaitingOpClosingTag: true,
+				contentBuffer: func() *strings.Builder {
+					b := &strings.Builder{}
+					b.WriteString("\n<EndPlandexFileOps/>\nmore")
+					return b
+				}(),
+			},
+		},
+		{
+			name: "replaces full end of file operations tag",
+			initialState: &chunkProcessor{
+				awaitingOpClosingTag: true,
+				contentBuffer: func() *strings.Builder {
+					b := &strings.Builder{}
+					b.WriteString("\n<EndPlandexFileOps/>\nmore")
+					return b
+				}(),
+			},
+			chunk: " stuff",
+			want: bufferOrStreamResult{
+				shouldStream: true,
+				content:      "\nmore stuff",
+			},
+			wantState: &chunkProcessor{
+				awaitingOpClosingTag: false,
+			},
+		},
+		{
+			name: "buffers for end of file operations with partial tag",
+			initialState: &chunkProcessor{
+				awaitingOpClosingTag: true,
+			},
+			chunk: "\n<EndPlandex",
+			want: bufferOrStreamResult{
+				shouldStream: false,
+			},
+			wantState: &chunkProcessor{
+				awaitingOpClosingTag: true,
+				contentBuffer: func() *strings.Builder {
+					b := &strings.Builder{}
+					b.WriteString("\n<EndPlandex")
+					return b
+				}(),
+			},
+		},
+		{
+			name: "replaces end of file operation closing partial tag",
+			initialState: &chunkProcessor{
+				awaitingOpClosingTag: true,
+				contentBuffer: func() *strings.Builder {
+					b := &strings.Builder{}
+					b.WriteString("\n<EndPlandex")
+					return b
+				}(),
+			},
+			chunk: "FileOps/>\nmore",
+			want: bufferOrStreamResult{
+				shouldStream: true,
+				content:      "\nmore",
+			},
+			wantState: &chunkProcessor{
+				awaitingOpClosingTag: false,
 			},
 		},
 	}
@@ -273,7 +350,13 @@ func TestBufferOrStream(t *testing.T) {
 				processor.contentBuffer = &strings.Builder{}
 			}
 
-			got := processor.bufferOrStream(tt.chunk, tt.maybeFilePath, tt.currentFilePath)
+			got := processor.bufferOrStream(tt.chunk, &types.ReplyParserRes{
+				MaybeFilePath:   tt.maybeFilePath,
+				CurrentFilePath: tt.currentFilePath,
+				IsInMoveBlock:   tt.isInMoveBlock,
+				IsInRemoveBlock: tt.isInRemoveBlock,
+				IsInResetBlock:  tt.isInResetBlock,
+			}, true)
 
 			if got.shouldStream != tt.want.shouldStream {
 				t.Errorf("shouldStream = %v, want %v", got.shouldStream, tt.want.shouldStream)
@@ -286,11 +369,11 @@ func TestBufferOrStream(t *testing.T) {
 			if processor.fileOpen != tt.wantState.fileOpen {
 				t.Errorf("fileOpen = %v, want %v", processor.fileOpen, tt.wantState.fileOpen)
 			}
-			if processor.awaitingOpeningTag != tt.wantState.awaitingOpeningTag {
-				t.Errorf("awaitingOpeningTag = %v, want %v", processor.awaitingOpeningTag, tt.wantState.awaitingOpeningTag)
+			if processor.awaitingBlockOpeningTag != tt.wantState.awaitingBlockOpeningTag {
+				t.Errorf("awaitingOpeningTag = %v, want %v", processor.awaitingBlockOpeningTag, tt.wantState.awaitingBlockOpeningTag)
 			}
-			if processor.awaitingClosingTag != tt.wantState.awaitingClosingTag {
-				t.Errorf("awaitingClosingTag = %v, want %v", processor.awaitingClosingTag, tt.wantState.awaitingClosingTag)
+			if processor.awaitingBlockClosingTag != tt.wantState.awaitingBlockClosingTag {
+				t.Errorf("awaitingClosingTag = %v, want %v", processor.awaitingBlockClosingTag, tt.wantState.awaitingBlockClosingTag)
 			}
 			if processor.awaitingBackticks != tt.wantState.awaitingBackticks {
 				t.Errorf("awaitingBackticks = %v, want %v", processor.awaitingBackticks, tt.wantState.awaitingBackticks)

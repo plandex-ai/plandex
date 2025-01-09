@@ -123,7 +123,7 @@ func (state *activeTellStreamState) addConversationMessages() bool {
 	if summary == nil {
 		for _, convoMessage := range convo {
 			// this gets added later in tell_exec.go
-			if convoMessage.Id == state.promptConvoMessage.Id {
+			if state.promptConvoMessage != nil && convoMessage.Id == state.promptConvoMessage.Id {
 				continue
 			}
 
@@ -158,7 +158,7 @@ func (state *activeTellStreamState) addConversationMessages() bool {
 		// add messages after the last message in the summary
 		for _, convoMessage := range convo {
 			// this gets added later in tell_exec.go
-			if convoMessage.Id == state.promptConvoMessage.Id {
+			if state.promptConvoMessage != nil && convoMessage.Id == state.promptConvoMessage.Id {
 				continue
 			}
 

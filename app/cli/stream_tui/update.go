@@ -304,6 +304,9 @@ func (m *streamUIModel) streamUpdate(msg *shared.StreamMessage, deferUIUpdate bo
 		}
 
 	case shared.StreamMessageBuildInfo:
+		// log.Println("Stream message build info")
+		// log.Println(spew.Sdump(msg))
+
 		if m.starting {
 			m.starting = false
 		}

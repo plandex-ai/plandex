@@ -2,6 +2,7 @@ package syntax
 
 import (
 	"fmt"
+	"log"
 	"strings"
 
 	"github.com/davecgh/go-spew/spew"
@@ -121,7 +122,7 @@ func getSections(parent *tree_sitter.Node, bytes []byte, numSections, fromLine, 
 
 	if verboseLogging {
 		fmt.Printf("structures:\n")
-		spew.Dump(structures)
+		log.Println(spew.Sdump(structures))
 	}
 
 	numStructural := len(structures)
@@ -157,7 +158,7 @@ func getSections(parent *tree_sitter.Node, bytes []byte, numSections, fromLine, 
 
 	if verboseLogging {
 		fmt.Printf("sections:\n")
-		spew.Dump(sections)
+		log.Println(spew.Sdump(sections))
 
 		fmt.Println("Sections content:")
 		for i, section := range sections {

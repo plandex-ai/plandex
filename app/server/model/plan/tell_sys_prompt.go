@@ -51,8 +51,13 @@ func (state *activeTellStreamState) getTellSysPrompt(isPlanningStage, isContextS
 
 	if !isContextStage {
 		if req.ExecEnabled {
-			sysCreate += prompts.ApplyScriptPrompt
-			sysCreateTokens += prompts.ApplyScriptPromptNumTokens
+			if isPlanningStage {
+				sysCreate += prompts.ApplyScriptPlanningPrompt
+				sysCreateTokens += prompts.ApplyScriptPlanningPromptNumTokens
+			} else {
+				sysCreate += prompts.ApplyScriptImplementationPrompt
+				sysCreateTokens += prompts.ApplyScriptImplementationPromptNumTokens
+			}
 		} else {
 			sysCreate += prompts.NoApplyScriptPrompt
 			sysCreateTokens += prompts.NoApplyScriptPromptNumTokens

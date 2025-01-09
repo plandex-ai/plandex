@@ -42,4 +42,5 @@ type activeBuildStreamFileState struct {
 	structuredEditNumRetry     int
 	wholeFileNumRetry          int
 	isNewFile                  bool
+	contextPart                *db.Context
 }

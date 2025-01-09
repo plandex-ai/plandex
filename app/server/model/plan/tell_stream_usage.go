@@ -16,7 +16,7 @@ func (state *activeTellStreamState) handleUsageChunk(usage *openai.Usage) {
 	plan := state.plan
 
 	log.Println("Tell stream usage:")
-	spew.Dump(usage)
+	log.Println(spew.Sdump(usage))
 
 	_, apiErr := hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
 		Auth: auth,

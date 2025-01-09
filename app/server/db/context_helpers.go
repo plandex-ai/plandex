@@ -883,12 +883,12 @@ func invalidateConflictedResults(orgId, planId string, filesToUpdate map[string]
 				continue
 			}
 
-			for _, path := range desc.Files {
-				if _, found := conflictPaths[path]; found {
+			for _, op := range desc.Operations {
+				if _, found := conflictPaths[op.Path]; found {
 					if desc.BuildPathsInvalidated == nil {
 						desc.BuildPathsInvalidated = make(map[string]bool)
 					}
-					desc.BuildPathsInvalidated[path] = true
+					desc.BuildPathsInvalidated[op.Path] = true
 
 					// log.Printf("Invalidating build for path: %s, desc: %s\n", path, desc.Id)
 

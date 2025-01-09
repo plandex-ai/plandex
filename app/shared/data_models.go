@@ -138,13 +138,41 @@ type ConvoSummary struct {
 	CreatedAt                   time.Time `json:"createdAt"`
 }
 
+type OperationType string
+
+const (
+	OperationTypeFile   OperationType = "file"
+	OperationTypeMove   OperationType = "move"
+	OperationTypeRemove OperationType = "remove"
+	OperationTypeReset  OperationType = "reset"
+)
+
+type Operation struct {
+	Type        OperationType
+	Path        string
+	Destination string
+	Content     string
+	Description string
+	ReplyBefore string
+	NumTokens   int
+}
+
+func (o *Operation) Name() string {
+	res := string(o.Type) + " | " + o.Path
+	if o.Destination != "" {
+		res += " → " + o.Destination
+	}
+	return res
+}
+
 type ConvoMessageDescription struct {
-	Id                    string          `json:"id"`
-	ConvoMessageId        string          `json:"convoMessageId"`
-	SummarizedToMessageId string          `json:"summarizedToMessageId"`
-	MadePlan              bool            `json:"madePlan"`
-	CommitMsg             string          `json:"commitMsg"`
-	Files                 []string        `json:"files"`
+	Id                    string `json:"id"`
+	ConvoMessageId        string `json:"convoMessageId"`
+	SummarizedToMessageId string `json:"summarizedToMessageId"`
+	MadePlan              bool   `json:"madePlan"`
+	CommitMsg             string `json:"commitMsg"`
+	// Files                 []string        `json:"files"`
+	Operations            []*Operation    `json:"operations"`
 	DidBuild              bool            `json:"didBuild"`
 	BuildPathsInvalidated map[string]bool `json:"buildPathsInvalidated"`
 	Error                 string          `json:"error"`

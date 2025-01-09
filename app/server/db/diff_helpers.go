@@ -38,6 +38,7 @@ func GetPlanDiffs(orgId, planId string, plain bool) (string, error) {
 	}
 
 	files := planState.CurrentPlanFiles.Files
+	removed := planState.CurrentPlanFiles.Removed
 
 	// write the original files to the temp dir
 	errCh := make(chan error, len(planState.ContextsByPath))
@@ -46,7 +47,8 @@ func GetPlanDiffs(orgId, planId string, plain bool) (string, error) {
 	for path, context := range planState.ContextsByPath {
 		go func(path string, context *shared.Context) {
 			_, hasPath := files[path]
-			if hasPath {
+			_, hasRemoved := removed[path]
+			if hasPath || hasRemoved {
 				hasAnyOriginal = true
 				// ensure file directory exists
 				err = os.MkdirAll(filepath.Dir(filepath.Join(tempDirPath, path)), 0755)
@@ -106,10 +108,23 @@ func GetPlanDiffs(orgId, planId string, plain bool) (string, error) {
 		}(path, file)
 	}
 
-	for range files {
+	for path, shouldRemove := range removed {
+		go func(path string, shouldRemove bool) {
+			if shouldRemove {
+				err = os.RemoveAll(filepath.Join(tempDirPath, path))
+				if err != nil {
+					errCh <- fmt.Errorf("error removing file: %v", err)
+					return
+				}
+			}
+			errCh <- nil
+		}(path, shouldRemove)
+	}
+
+	for i := 0; i < len(files)+len(removed); i++ {
 		err = <-errCh
 		if err != nil {
-			return "", fmt.Errorf("error writing current files to temp dir: %v", err)
+			return "", fmt.Errorf("error applying changes to temp dir: %v", err)
 		}
 	}
 

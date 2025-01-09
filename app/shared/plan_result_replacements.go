@@ -164,6 +164,7 @@ func (planState *CurrentPlanState) GetFilesBeforeReplacement(
 		for _, planRes := range planResults {
 
 			// log.Println("planRes: ", planRes.Id)
+			// log.Println(spew.Sdump(planRes))
 
 			if !planRes.IsPending() {
 				// log.Println("Plan result is not pending -- continuing loop")
@@ -181,6 +182,11 @@ func (planState *CurrentPlanState) GetFilesBeforeReplacement(
 
 			if len(planRes.Replacements) == 0 {
 				if updated != "" {
+					log.Println("plan updates out of order: %s", path)
+					log.Println("updated:")
+					log.Println(updated)
+					log.Println("planRes.Content:")
+					log.Println(planRes.Content)
 					return nil, fmt.Errorf("plan updates out of order: %s", path)
 				}
 

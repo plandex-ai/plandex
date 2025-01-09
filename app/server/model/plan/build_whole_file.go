@@ -1,7 +1,6 @@
 package plan
 
 import (
-	"encoding/xml"
 	"fmt"
 	"log"
 	"math/rand"
@@ -17,11 +16,6 @@ import (
 	"github.com/plandex/plandex/shared"
 	"github.com/sashabaranov/go-openai"
 )
-
-type WholeFileTag struct {
-	XMLName xml.Name `xml:"PlandexWholeFile"`
-	Content string   `xml:",chardata"`
-}
 
 func (fileState *activeBuildStreamFileState) buildWholeFileFallback(proposedContent string, desc string) {
 	auth := fileState.auth
@@ -94,7 +88,7 @@ func (fileState *activeBuildStreamFileState) buildWholeFileFallback(proposedCont
 	}
 
 	log.Println("buildWholeFile - usage:")
-	spew.Dump(resp.Usage)
+	log.Println(spew.Sdump(resp.Usage))
 
 	_, apiErr = hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
 		Auth: auth,
@@ -126,25 +120,22 @@ func (fileState *activeBuildStreamFileState) buildWholeFileFallback(proposedCont
 
 	log.Printf("buildWholeFile - %s - content:\n%s\n", filePath, content)
 
-	wholeFileXmlString := GetXMLTag(content, "PlandexWholeFile", true)
-
-	var wholeFileTag WholeFileTag
-	err = xml.Unmarshal([]byte(wholeFileXmlString), &wholeFileTag)
-	if err != nil {
-		log.Printf("buildWholeFile - error unmarshalling PlandexWholeFile xml: %v\n", err)
-	}
-
-	updatedFile := wholeFileTag.Content
+	wholeFile := GetXMLContent(content, "PlandexWholeFile")
+	updatedFile := wholeFile
 
 	buildInfo := &shared.BuildInfo{
 		Path:      filePath,
 		NumTokens: 0,
 		Finished:  true,
 	}
+
+	log.Printf("streaming build info for whole file finished %s\n", filePath)
+
 	activePlan.Stream(shared.StreamMessage{
 		Type:      shared.StreamMessageBuildInfo,
 		BuildInfo: buildInfo,
 	})
+
 	time.Sleep(50 * time.Millisecond)
 
 	replacements, err := diff_pkg.GetDiffReplacements(originalFile, updatedFile)

@@ -1,7 +1,6 @@
 package plan
 
 import (
-	"encoding/xml"
 	"fmt"
 	"log"
 	"math/rand"
@@ -18,16 +17,6 @@ import (
 	"github.com/plandex/plandex/shared"
 	"github.com/sashabaranov/go-openai"
 )
-
-type FixedProposedUpdatesTag struct {
-	XMLName xml.Name `xml:"PlandexProposedUpdates"`
-	Content string   `xml:",chardata"`
-}
-
-type ProposedUpdatesExplanationTag struct {
-	XMLName xml.Name `xml:"PlandexProposedUpdatesExplanation"`
-	Content string   `xml:",chardata"`
-}
 
 // for smaller files, build whole file after the initial apply attempt and one retry
 // for larger files that are under the whole file output limit, build whole file after the initial apply attempt and two retries
@@ -95,16 +84,22 @@ func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 	}
 	validateSyntax()
 
-	for len(applyRes.NeedsVerifyReasons) > 0 && numTries < BuildStructuredEditsMaxTries {
+	for (len(applyRes.NeedsVerifyReasons) > 0 || len(syntaxErrors) > 0) && numTries < BuildStructuredEditsMaxTries {
 		log.Printf("buildStructuredEdits verify call - numTries: %d\n", numTries)
 		log.Println("buildStructuredEdits - needs verify reasons:")
-		spew.Dump(applyRes.NeedsVerifyReasons)
+		log.Println(spew.Sdump(applyRes.NeedsVerifyReasons))
 
 		wholeFileConfig := fileState.settings.ModelPack.GetWholeFileBuilder()
 		reservedOutputTokens := wholeFileConfig.ReservedOutputTokens
 		isSmallFile := maxPotentialTokens < SmallFileThreshold
+		isBelowWholeFileThreshold := maxPotentialTokens < int(float32(reservedOutputTokens)*0.9)
+		shouldBuildSmallFile := isSmallFile && numTries == SmallFileTriesBeforeWholeFile && isBelowWholeFileThreshold
+		shouldBuildAnyFile := numTries == BuildTriesBeforeWholeFile && isBelowWholeFileThreshold
+		shouldBuildWholeFile := shouldBuildSmallFile || shouldBuildAnyFile
 
-		if ((isSmallFile && numTries == SmallFileTriesBeforeWholeFile) || numTries == BuildTriesBeforeWholeFile) && maxPotentialTokens < int(float32(reservedOutputTokens)*0.9) {
+		log.Printf("buildStructuredEdits - %s - num tries %d - should build small file %t - should build any file %t - should build whole file %t\n", filePath, numTries, shouldBuildSmallFile, shouldBuildAnyFile, shouldBuildWholeFile)
+
+		if shouldBuildWholeFile {
 			log.Printf("buildStructuredEdits - %s - num tries %d - total possible tokens %d is less than reserved output tokens %d - building whole file\n", filePath, numTries, maxPotentialTokens, reservedOutputTokens)
 
 			fileState.buildWholeFileFallback(proposedContent, desc)
@@ -182,7 +177,7 @@ func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 		}
 
 		log.Println("buildStructuredEdits - usage:")
-		spew.Dump(resp.Usage)
+		log.Println(spew.Sdump(resp.Usage))
 
 		_, apiErr = hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
 			Auth: auth,
@@ -214,22 +209,16 @@ func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 
 		log.Printf("buildStructuredEdits - %s - content:\n%s\n", filePath, content)
 
-		fixedProposedUpdatesXmlString := GetXMLTag(content, "PlandexProposedUpdates", true)
+		fixedProposedUpdates := GetXMLContent(content, "PlandexProposedUpdates")
 
 		// log.Println("buildStructuredEdits - fixed proposed updates xml string:")
 		// log.Println(fixedProposedUpdatesXmlString)
 
-		if fixedProposedUpdatesXmlString == "" {
+		if fixedProposedUpdates == "" {
 			// edits are valid
 			break
 		} else {
-			var fixedProposedUpdates FixedProposedUpdatesTag
-			err = xml.Unmarshal([]byte(fixedProposedUpdatesXmlString), &fixedProposedUpdates)
-			if err != nil {
-				log.Printf("buildStructuredEdits - error unmarshalling PlandexProposedUpdates xml: %v\n", err)
-			}
-
-			proposedContent = fixedProposedUpdates.Content
+			proposedContent = fixedProposedUpdates
 
 			// remove code block formatting if it was mistakenly included in the proposed content
 			proposedContent = StripBackticksWrapper(proposedContent)
@@ -237,20 +226,13 @@ func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 			// log.Println("buildStructuredEdits - fixed proposed content:")
 			// log.Println(proposedContent)
 
-			fixedDescString := GetXMLTag(content, "PlandexProposedUpdatesExplanation", false)
+			fixedDesc := GetXMLContent(content, "PlandexProposedUpdatesExplanation")
 
 			// log.Println("buildStructuredEdits - fixed desc xml string:")
 			// log.Println(fixedDescString)
 
-			if fixedDescString != "" {
-				var descElement ProposedUpdatesExplanationTag
-				err = xml.Unmarshal([]byte(fixedDescString), &descElement)
-				if err != nil {
-					log.Printf("buildStructuredEdits - error unmarshalling PlandexProposedUpdatesExplanation xml: %v\n", err)
-				}
-				if descElement.Content != "" {
-					desc = descElement.Content
-				}
+			if fixedDesc != "" {
+				desc = fixedDesc
 			}
 
 			log.Printf("buildStructuredEdits - %s - applying changes again\n", filePath)
@@ -277,10 +259,14 @@ func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 		NumTokens: 0,
 		Finished:  true,
 	}
+
+	log.Printf("streaming build info for finished file %s\n", filePath)
+
 	activePlan.Stream(shared.StreamMessage{
 		Type:      shared.StreamMessageBuildInfo,
 		BuildInfo: buildInfo,
 	})
+
 	time.Sleep(50 * time.Millisecond)
 
 	replacements, err := diff_pkg.GetDiffReplacements(originalFile, updatedFile)

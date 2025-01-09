@@ -41,16 +41,21 @@ type activeTellStreamState struct {
 	subtasks               []*db.Subtask
 	currentSubtask         *db.Subtask
 
+	isContextStage        bool
+	isPlanningStage       bool
+	isImplementationStage bool
+
 	chunkProcessor *chunkProcessor
 }
 
 type chunkProcessor struct {
-	replyFiles                      []string
+	replyOperations                 []*shared.Operation
 	chunksReceived                  int
 	maybeRedundantOpeningTagContent string
 	fileOpen                        bool
 	contentBuffer                   *strings.Builder
-	awaitingOpeningTag              bool
-	awaitingClosingTag              bool
+	awaitingBlockOpeningTag         bool
+	awaitingBlockClosingTag         bool
+	awaitingOpClosingTag            bool
 	awaitingBackticks               bool
 }

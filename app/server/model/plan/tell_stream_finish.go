@@ -31,7 +31,7 @@ func (state *activeTellStreamState) handleStreamFinished() handleStreamFinishedR
 	summaries := state.summaries
 	convo := state.convo
 	iteration := state.iteration
-	replyFiles := state.chunkProcessor.replyFiles
+	replyOperations := state.chunkProcessor.replyOperations
 
 	active := GetActivePlan(planId, branch)
 
@@ -63,7 +63,6 @@ func (state *activeTellStreamState) handleStreamFinished() handleStreamFinishedR
 
 	autoLoadContextFiles := state.checkAutoLoadContext()
 	hasNewSubtasks := state.checkNewSubtasks()
-	state.handleFileOps()
 
 	handleDescAndExecStatusRes := state.handleDescAndExecStatus(autoLoadContextFiles, hasNewSubtasks)
 	if handleDescAndExecStatusRes.shouldContinueMainLoop || handleDescAndExecStatusRes.shouldReturn {
@@ -73,7 +72,7 @@ func (state *activeTellStreamState) handleStreamFinished() handleStreamFinishedR
 	shouldContinue := handleDescAndExecStatusRes.shouldContinue
 	subtaskFinished := handleDescAndExecStatusRes.subtaskFinished
 
-	storeOnFinishedResult := state.storeOnFinished(replyFiles, generatedDescription, subtaskFinished, hasNewSubtasks)
+	storeOnFinishedResult := state.storeOnFinished(replyOperations, generatedDescription, subtaskFinished, hasNewSubtasks)
 	if storeOnFinishedResult.shouldContinueMainLoop || storeOnFinishedResult.shouldReturn {
 		return storeOnFinishedResult.handleStreamFinishedResult
 	}
@@ -234,7 +233,7 @@ func (state *activeTellStreamState) handleDescAndExecStatus(autoLoadContextFiles
 	summarizedToMessageId := state.summarizedToMessageId
 	planId := state.plan.Id
 	branch := state.branch
-	replyFiles := state.chunkProcessor.replyFiles
+	replyOperations := state.chunkProcessor.replyOperations
 
 	active := GetActivePlan(planId, branch)
 	if active == nil {
@@ -254,7 +253,7 @@ func (state *activeTellStreamState) handleDescAndExecStatus(autoLoadContextFiles
 	var errCh = make(chan error, 2)
 
 	go func() {
-		if len(replyFiles) > 0 {
+		if len(replyOperations) > 0 {
 			log.Println("Generating plan description")
 
 			res, err := state.genPlanDescription()
@@ -267,7 +266,7 @@ func (state *activeTellStreamState) handleDescAndExecStatus(autoLoadContextFiles
 			generatedDescription.OrgId = currentOrgId
 			generatedDescription.SummarizedToMessageId = summarizedToMessageId
 			generatedDescription.MadePlan = true
-			generatedDescription.Files = replyFiles
+			generatedDescription.Operations = replyOperations
 
 			log.Println("Generated plan description.")
 		}
@@ -334,7 +333,7 @@ type storeOnFinishedResult struct {
 	allSubtasksFinished bool
 }
 
-func (state *activeTellStreamState) storeOnFinished(replyFiles []string, generatedDescription *db.ConvoMessageDescription, subtaskFinished, hasNewSubtasks bool) storeOnFinishedResult {
+func (state *activeTellStreamState) storeOnFinished(replyOperations []*shared.Operation, generatedDescription *db.ConvoMessageDescription, subtaskFinished, hasNewSubtasks bool) storeOnFinishedResult {
 	currentOrgId := state.currentOrgId
 	currentUserId := state.currentUserId
 	planId := state.plan.Id
@@ -422,7 +421,7 @@ func (state *activeTellStreamState) storeOnFinished(replyFiles []string, generat
 		log.Println("getting description for assistant message: ", assistantMsg.Id)
 
 		var description *db.ConvoMessageDescription
-		if len(replyFiles) == 0 {
+		if len(replyOperations) == 0 {
 			description = &db.ConvoMessageDescription{
 				OrgId:                 currentOrgId,
 				PlanId:                planId,

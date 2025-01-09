@@ -24,7 +24,7 @@ DO NOT update the _apply.sh script unless it is necessary to fix the problem. If
 
 var ApplyDebugPromptTokens int
 
-const ApplyScriptPrompt = `    
+const ApplyScriptPlanningPrompt = `
 ## _apply.sh file and command execution
 
 **Execution mode is enabled.** 
@@ -34,26 +34,6 @@ In addition to creating and updating files with code blocks, you can also execut
 This file allows you to execute commands in the context of the *user's machine*, not the Plandex server, when the user applies the changes from the plan to their project. This script will be executed on the user's machine in the root directory of the plan. 
 
 Use this to run any necessary commands *after* all the pending files from the plan have been created or updated on the user's machine.
-
-DO NOT use the _apply.sh script to move, remove, or reset changes to files that are in context or have pending changes—use one of the special file operation sections instead: '### Move Files', '### Remove Files', or '### Reset Changes' if you need to do that, and follow the instructions for those sections.
-
-You ABSOLUTELY MUST NOT use the _apply.sh script to create files or directories. Use code blocks within the plan to create files and directories. When you create a new file with a code block, the necessary directories will be created automatically, so DO NOT create directories in _apply.sh.
-
-Use the appropriate commands for the user's operating system and shell, which will be supplied to you in the prompt.
-
-When using third party tools, do not assume the user has them installed. The _apply.sh script should always first check if the tool is installed. If it's not installed, the script should either install the tool or exit with an error.
-
-When determining whether to install a tool or exit with an error if a necessary tool or dependency is missing, you can make some assumptions about what is likely installed based on the user's operating system, the files and paths in the context of the plan, and the conversation history.
-
-The _apply.sh script should be written *defensively* to *fail gracefully* in case of errors. It should always attempt to clean up after itself if it fails part way through. As much as possible, it should be *idempotent*.
-
-Unless the user has specifically directed you otherwise, the _apply.sh script should only modify files or directories that are in the root directory of the plan, or that will be created or updated by the plan when it is applied.
-
-In general, the _apply.sh script should favor changes that *local* to the root directory of the plan over changes that *affect the user's entire machine* or any outside directories. For example, if you are installing an npm package, the script should prefer running 'npm install --save-dev' over 'npm install --global'.
-
-You can include logging for key steps in the _apply.sh script but don't overdo it. Only log when something goes wrong or when you are about to do something that might take a while. Don't log that the script is starting at the beginning or complete at the end as the user will be notified of both outside the script.
-
-Include comments for key sections in the _apply.sh script to make it easier for the user to understand what the script is doing. But again, don't overdo it.
 
 BE CAREFUL AND CONSERVATIVE WHEN MAKING CHANGES TO THE USER'S MACHINE. Only make changes that are necessary in the context of the plan. Do not make any additional changes beyond those that are strictly necessary to apply the plan.
 
@@ -68,6 +48,44 @@ If appropriate, also include a command to run the actual program in _apply.sh. F
 If it's appropriate, include a subtask for writing to the _apply.sh script when you break up a task into subtasks. Also mention in your initial plan, when breaking up a task into subtasks, if any other subtasks should write to the _apply.sh script (in addition to any other actions in that subtask).
 
 When breaking up a task into subtasks, remember that you MUST NOT use the _apply.sh script to create files or directories. This must be done by code blocks within the plan, not in _apply.sh. Do NOT create a subtask for writing to the _apply.sh script unless there are other commands that need to be run—NOT just to create files or directories.
+
+DO NOT use the _apply.sh script to move, remove, or reset changes to files that are in context or have pending changes—use special file operations instead.
+
+You ABSOLUTELY MUST NOT use the _apply.sh script to create files or directories. Create files directly. All necessary directories will be created automatically when you create a new file during the implementation stage.
+
+Unless the user has specifically directed you otherwise, the _apply.sh script should only modify files or directories that are in the root directory of the plan, or that will be created or updated by the plan when it is applied.
+
+In general, the _apply.sh script should favor changes that *local* to the root directory of the plan over changes that *affect the user's entire machine* or any outside directories. For example, if you are installing an npm package, the script should prefer running 'npm install --save-dev' over 'npm install --global'.
+
+Running the _apply.sh script will require the user to have a bash or zsh shell available on their machine. You can assume that the user has bash or zsh installed. The user's operating system and shell will be supplied to you in the prompt.
+
+You DO NOT need to give the _apply.sh script execution privileges or any other permissions. This is handled outside the script.
+
+You ABSOLUTELY MUST NOT tell the user to run the _apply.sh script or that you are waiting for them to run it. It will be run automatically when the user applies the plan.
+
+You MUST NOT tell the user to do anything themselves that's included in the _apply.sh script. It will be run automatically when the user applies the plan.
+
+If the plan includes other script files, apart from _apply.sh, that the user needs to run, you MUST give them execution privileges and run them in the _apply.sh script. Only use separate script files if you have specifically been asked to do so by the user or you have a large number of commands to run that is too much for a single _apply.sh script. Otherwise, you MUST include *all* commands to be run in the _apply.sh script, and not use separate script files.
+` + ApplyScriptResetOrUpdatePrompt
+
+var ApplyScriptPlanningPromptNumTokens int
+
+const ApplyScriptImplementationPrompt = ApplyScriptPlanningPrompt + `    
+DO NOT use the _apply.sh script to move, remove, or reset changes to files that are in context or have pending changes—use one of the special file operation sections instead: '### Move Files', '### Remove Files', or '### Reset Changes' if you need to do that, and follow the instructions for those sections.
+
+You ABSOLUTELY MUST NOT use the _apply.sh script to create files or directories. Use code blocks within the plan to create files and directories. When you create a new file with a code block, the necessary directories will be created automatically, so DO NOT create directories in _apply.sh.
+
+Use the appropriate commands for the user's operating system and shell, which will be supplied to you in the prompt.
+
+When using third party tools, do not assume the user has them installed. The _apply.sh script should always first check if the tool is installed. If it's not installed, the script should either install the tool or exit with an error.
+
+When determining whether to install a tool or exit with an error if a necessary tool or dependency is missing, you can make some assumptions about what is likely installed based on the user's operating system, the files and paths in the context of the plan, and the conversation history.
+
+The _apply.sh script should be written *defensively* to *fail gracefully* in case of errors. It should always attempt to clean up after itself if it fails part way through. As much as possible, it should be *idempotent*.
+
+You can include logging for key steps in the _apply.sh script but don't overdo it. Only log when something goes wrong or when you are about to do something that might take a while. Don't log that the script is starting at the beginning or complete at the end as the user will be notified of both outside the script.
+
+Include comments for key sections in the _apply.sh script to make it easier for the user to understand what the script is doing. But again, don't overdo it.
 
 When running commands in _apply.sh, DO NOT hide or filter the output of the commands in any way. For example, do not do something like this:
 
@@ -87,10 +105,6 @@ make
 
 ` + ApplyScriptResetOrUpdatePrompt + `
 
-If the plan includes other script files, apart from _apply.sh, that the user needs to run, you MUST give them execution privileges and run them in the _apply.sh script. Only use separate script files if you have specifically been asked to do so by the user or you have a large number of commands to run that is too much for a single _apply.sh script. Otherwise, you MUST include *all* commands to be run in the _apply.sh script, and not use separate script files.
-
-Running the _apply.sh script will require the user to have a bash or zsh shell available on their machine. You can assume that the user has bash or zsh installed. The user's operating system and shell will be supplied to you in the prompt.
-
 You MUST NOT include the shebang line ` + "(`#!/bin/bash` or `#!/bin/zsh`)" + ` line at the top of the _apply.sh script. Every _apply.sh script will be executed with the appropriate shebang line already included. DO NOT include the shebang line in the _apply.sh script.
 
 Similarly, you MUST NOT add the following lines (or similar lines) for error handling at the top of the _apply.sh script:
@@ -101,12 +115,6 @@ trap 'echo "Error on line $LINENO: $BASH_COMMAND"' ERR
 </PlandexBlock>
 
 The _apply.sh script will be executed with the above error handling already included.
-
-You DO NOT need to give the _apply.sh script execution privileges or any other permissions. This is handled outside the script.
-
-You ABSOLUTELY MUST NOT tell the user to run the _apply.sh script or that you are waiting for them to run it. It will be run automatically when the user applies the plan.
-
-You MUST NOT tell the user to do anything themselves that's included in the _apply.sh script. It will be run automatically when the user applies the plan.
 
 Example, creating initial _apply.sh:
 
@@ -156,7 +164,7 @@ npm install --save-dev \
 </PlandexBlock>
 `
 
-var ApplyScriptPromptNumTokens int
+var ApplyScriptImplementationPromptNumTokens int
 
 const ApplyScriptPromptSummary = `
 Write any commands that need to be run after the plan is applied to the special _apply.sh file.

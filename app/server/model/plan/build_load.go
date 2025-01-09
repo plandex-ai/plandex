@@ -121,9 +121,7 @@ func (state *activeBuildStreamState) loadPendingBuilds() (map[string][]*types.Ac
 }
 
 func (state *activeBuildStreamFileState) loadBuildFile(activeBuild *types.ActiveBuild) error {
-
 	currentOrgId := state.currentOrgId
-	currentUserId := state.currentUserId
 	planId := state.plan.Id
 	branch := state.branch
 	filePath := state.filePath
@@ -182,18 +180,14 @@ func (state *activeBuildStreamFileState) loadBuildFile(activeBuild *types.Active
 
 	log.Println("Locking repo for load build file")
 
-	repoLockId, err := db.LockRepo(
-		db.LockRepoParams{
-			OrgId:       currentOrgId,
-			UserId:      currentUserId,
-			PlanId:      planId,
-			Branch:      branch,
-			PlanBuildId: build.Id,
-			Scope:       db.LockScopeRead,
-			Ctx:         activePlan.Ctx,
-			CancelFn:    activePlan.CancelFn,
-		},
-	)
+	// For file operations, use write lock so that the same lock can be shared for both the load and write phase - resolves lock contention issue with many near-instantaneous file operations
+	var lockScope db.LockScope
+	if activeBuild.IsFileOperation() {
+		lockScope = db.LockScopeWrite
+	} else {
+		lockScope = db.LockScopeRead
+	}
+	err = activePlan.LockForActiveBuild(lockScope, build.Id)
 	if err != nil {
 		log.Printf("Error locking repo for build file: %v\n", err)
 		UpdateActivePlan(activePlan.Id, activePlan.Branch, func(ap *types.ActivePlan) {
@@ -213,7 +207,7 @@ func (state *activeBuildStreamFileState) loadBuildFile(activeBuild *types.Active
 		defer func() {
 			log.Printf("Unlocking repo for load build file")
 
-			err := db.DeleteRepoLock(repoLockId)
+			err := activePlan.UnlockForActiveBuild()
 			if err != nil {
 				log.Printf("Error unlocking repo: %v\n", err)
 			}

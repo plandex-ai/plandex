@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/plandex/plandex/shared"
 	"github.com/sashabaranov/go-openai"
 )
 
@@ -25,13 +26,13 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 	}
 
 	state.chunkProcessor = &chunkProcessor{
-		replyFiles:                      []string{},
+		replyOperations:                 []*shared.Operation{},
 		chunksReceived:                  0,
 		maybeRedundantOpeningTagContent: "",
 		fileOpen:                        false,
 		contentBuffer:                   &strings.Builder{},
-		awaitingOpeningTag:              false,
-		awaitingClosingTag:              false,
+		awaitingBlockOpeningTag:         false,
+		awaitingBlockClosingTag:         false,
 		awaitingBackticks:               false,
 	}
 

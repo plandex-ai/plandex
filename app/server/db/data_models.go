@@ -475,20 +475,21 @@ func (msg *ConvoMessage) ToApi() *shared.ConvoMessage {
 }
 
 type ConvoMessageDescription struct {
-	Id                    string          `json:"id"`
-	OrgId                 string          `json:"orgId"`
-	PlanId                string          `json:"planId"`
-	ConvoMessageId        string          `json:"convoMessageId"`
-	SummarizedToMessageId string          `json:"summarizedToMessageId"`
-	MadePlan              bool            `json:"madePlan"`
-	CommitMsg             string          `json:"commitMsg"`
-	Files                 []string        `json:"files"`
-	Error                 string          `json:"error"`
-	DidBuild              bool            `json:"didBuild"`
-	BuildPathsInvalidated map[string]bool `json:"buildPathsInvalidated"`
-	AppliedAt             *time.Time      `json:"appliedAt,omitempty"`
-	CreatedAt             time.Time       `json:"createdAt"`
-	UpdatedAt             time.Time       `json:"updatedAt"`
+	Id                    string `json:"id"`
+	OrgId                 string `json:"orgId"`
+	PlanId                string `json:"planId"`
+	ConvoMessageId        string `json:"convoMessageId"`
+	SummarizedToMessageId string `json:"summarizedToMessageId"`
+	MadePlan              bool   `json:"madePlan"`
+	CommitMsg             string `json:"commitMsg"`
+	// Files                 []string        `json:"files"`
+	Operations            []*shared.Operation `json:"operations"`
+	Error                 string              `json:"error"`
+	DidBuild              bool                `json:"didBuild"`
+	BuildPathsInvalidated map[string]bool     `json:"buildPathsInvalidated"`
+	AppliedAt             *time.Time          `json:"appliedAt,omitempty"`
+	CreatedAt             time.Time           `json:"createdAt"`
+	UpdatedAt             time.Time           `json:"updatedAt"`
 }
 
 func (desc *ConvoMessageDescription) ToApi() *shared.ConvoMessageDescription {
@@ -498,7 +499,8 @@ func (desc *ConvoMessageDescription) ToApi() *shared.ConvoMessageDescription {
 		SummarizedToMessageId: desc.SummarizedToMessageId,
 		MadePlan:              desc.MadePlan,
 		CommitMsg:             desc.CommitMsg,
-		Files:                 desc.Files,
+		// Files:                 desc.Files,
+		Operations:            desc.Operations,
 		DidBuild:              desc.DidBuild,
 		BuildPathsInvalidated: desc.BuildPathsInvalidated,
 		AppliedAt:             desc.AppliedAt,

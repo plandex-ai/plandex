@@ -5,6 +5,7 @@ import (
 	"log"
 	"plandex-server/db"
 	"plandex-server/types"
+	"time"
 
 	"github.com/plandex/plandex/shared"
 	"github.com/sashabaranov/go-openai"
@@ -68,56 +69,59 @@ func Build(
 	return len(pendingBuildsByPath), nil
 }
 
-func (state *activeBuildStreamState) queueBuilds(activeBuilds []*types.ActiveBuild) {
+func (state *activeBuildStreamState) queueBuild(activeBuild *types.ActiveBuild) {
 	planId := state.plan.Id
 	branch := state.branch
 
-	queueBuild := func(activeBuild *types.ActiveBuild) {
-		filePath := activeBuild.Path
+	filePath := activeBuild.Path
 
-		// log.Printf("Queue:")
-		// spew.Dump(activePlan.BuildQueuesByPath[filePath])
+	// log.Printf("Queue:")
+	// spew.Dump(activePlan.BuildQueuesByPath[filePath])
 
-		var isBuilding bool
+	var isBuilding bool
+
+	UpdateActivePlan(planId, branch, func(active *types.ActivePlan) {
+		active.BuildQueuesByPath[filePath] = append(active.BuildQueuesByPath[filePath], activeBuild)
+		isBuilding = active.IsBuildingByPath[filePath]
+	})
+	log.Printf("Queued build for file %s\n", filePath)
+
+	if isBuilding {
+		log.Printf("Already building file %s\n", filePath)
+		return
+	} else {
+		log.Printf("Not building file %s\n", filePath)
+
+		active := GetActivePlan(planId, branch)
+		if active == nil {
+			log.Printf("Active plan not found for plan ID %s and branch %s\n", planId, branch)
+			return
+		}
 
 		UpdateActivePlan(planId, branch, func(active *types.ActivePlan) {
-			active.BuildQueuesByPath[filePath] = append(active.BuildQueuesByPath[filePath], activeBuilds...)
-			isBuilding = active.IsBuildingByPath[filePath]
+			active.IsBuildingByPath[filePath] = true
 		})
-		log.Printf("Queued %d build(s) for file %s\n", len(activeBuilds), filePath)
 
-		if isBuilding {
-			log.Printf("Already building file %s\n", filePath)
-			return
-		} else {
-			log.Printf("Not building file %s\n", filePath)
-
-			active := GetActivePlan(planId, branch)
-			if active == nil {
-				log.Printf("Active plan not found for plan ID %s and branch %s\n", planId, branch)
-				return
-			}
-
-			UpdateActivePlan(planId, branch, func(active *types.ActivePlan) {
-				active.IsBuildingByPath[filePath] = true
-			})
-
-			go state.execPlanBuild(activeBuild)
-		}
+		go state.execPlanBuild(activeBuild)
 	}
+}
+
+func (state *activeBuildStreamState) queueBuilds(activeBuilds []*types.ActiveBuild) {
+	log.Printf("Queueing %d builds\n", len(activeBuilds))
 
 	for _, activeBuild := range activeBuilds {
-		queueBuild(activeBuild)
+		state.queueBuild(activeBuild)
 	}
 }
 
 func (buildState *activeBuildStreamState) execPlanBuild(activeBuild *types.ActiveBuild) {
-	log.Println("execPlanBuild")
-
 	if activeBuild == nil {
 		log.Println("No active build")
 		return
 	}
+
+	log.Printf("execPlanBuild - %s\n", activeBuild.Path)
+	// log.Println(spew.Sdump(activeBuild))
 
 	planId := buildState.plan.Id
 	branch := buildState.branch
@@ -135,32 +139,42 @@ func (buildState *activeBuildStreamState) execPlanBuild(activeBuild *types.Activ
 		})
 	}
 
-	// stream initial status to client
-	log.Printf("streaming initial build info for file %s\n", filePath)
-	buildInfo := &shared.BuildInfo{
-		Path:      filePath,
-		NumTokens: 0,
-		Finished:  false,
-	}
-	activePlan.Stream(shared.StreamMessage{
-		Type:      shared.StreamMessageBuildInfo,
-		BuildInfo: buildInfo,
-	})
-
 	fileState := &activeBuildStreamFileState{
 		activeBuildStreamState: buildState,
 		filePath:               filePath,
 		activeBuild:            activeBuild,
 	}
 
-	log.Println("execPlanBuild - fileState.loadBuildFile()")
+	log.Printf("execPlanBuild - %s - calling fileState.loadBuildFile()\n", filePath)
 	err := fileState.loadBuildFile(activeBuild)
 	if err != nil {
 		log.Printf("Error loading build file: %v\n", err)
+		fileState.onBuildFileError(fmt.Errorf("error loading build file: %v", err))
 		return
 	}
 
-	log.Println("execPlanBuild - fileState.buildFile()")
+	fileState.resolvePreBuildState()
+
+	// unless it's a file operation, stream initial status to client
+	if !activeBuild.IsFileOperation() && !fileState.isNewFile {
+		log.Printf("execPlanBuild - %s - streaming initial build info\n", filePath)
+		// spew.Dump(activeBuild)
+		buildInfo := &shared.BuildInfo{
+			Path:      filePath,
+			NumTokens: 0,
+			Finished:  false,
+		}
+		activePlan.Stream(shared.StreamMessage{
+			Type:      shared.StreamMessageBuildInfo,
+			BuildInfo: buildInfo,
+		})
+	} else if activeBuild.IsFileOperation() {
+		log.Printf("execPlanBuild - %s - file operation - won't stream initial build info\n", filePath)
+	} else if fileState.isNewFile {
+		log.Printf("execPlanBuild - %s - new file - won't stream initial build info\n", filePath)
+	}
+
+	log.Printf("execPlanBuild - %s - calling fileState.buildFile()\n", filePath)
 	fileState.buildFile()
 }
 
@@ -169,7 +183,6 @@ func (fileState *activeBuildStreamFileState) buildFile() {
 	activeBuild := fileState.activeBuild
 	planId := fileState.plan.Id
 	branch := fileState.branch
-	currentPlan := fileState.currentPlanState
 	currentOrgId := fileState.currentOrgId
 	build := fileState.build
 
@@ -189,58 +202,48 @@ func (fileState *activeBuildStreamFileState) buildFile() {
 	// 	log.Println(k)
 	// }
 
-	// get relevant file context (if any)
-	contextPart := activePlan.ContextsByPath[filePath]
-
-	var currentState string
-	currentPlanFile, fileInCurrentPlan := currentPlan.CurrentPlanFiles.Files[filePath]
-
-	// log.Println("plan files:")
-	// spew.Dump(currentPlan.CurrentPlanFiles.Files)
-
-	if fileInCurrentPlan {
-		log.Printf("File %s found in current plan.\n", filePath)
-		currentState = currentPlanFile
-
-		// log.Println("\n\nCurrent state:\n", currentState, "\n\n")
-
-	} else if contextPart != nil {
-		log.Printf("File %s found in model context. Using context state.\n", filePath)
-		currentState = contextPart.Body
-
-		if currentState == "" {
-			log.Println("Context state is empty. That's bad.")
-		}
-
-		// log.Println("\n\nCurrent state:\n", currentState, "\n\n")
-	}
-
 	if activeBuild.IsMoveOp {
 		log.Printf("File %s is a move operation. Moving to %s\n", filePath, activeBuild.MoveDestination)
-		log.Println("Will remove this path and then queue another build for the new path with the current file's content")
 
-		fileState.queueBuilds([]*types.ActiveBuild{
+		// For move operations, we split it into two separate builds:
+		// 1. A removal build for the source file
+		// 2. A creation build for the destination file with the current content
+		// This is simpler than handling moves in a single build since our build system
+		// is designed around operating on one path at a time
+		fileState.activeBuildStreamState.queueBuilds([]*types.ActiveBuild{
 			{
 				ReplyId:    activeBuild.ReplyId,
-				Idx:        activeBuild.Idx,
 				Path:       activeBuild.Path,
 				IsRemoveOp: true,
 			},
 			{
 				ReplyId:           activeBuild.ReplyId,
-				Idx:               activeBuild.Idx,
 				Path:              activeBuild.MoveDestination,
-				FileContent:       currentState,
+				FileContent:       fileState.preBuildState,
 				FileContentTokens: 0,
 			},
 		})
 
+		// Mark this move operation as successful since we've queued the actual work
+		activeBuild.Success = true
+
+		UpdateActivePlan(planId, branch, func(active *types.ActivePlan) {
+			active.IsBuildingByPath[filePath] = false
+			active.BuiltFiles[filePath] = true
+		})
+
+		// Process the next build in queue (which will be our removal build)
+		// We need to explicitly advance the queue for the source path since this
+		// current build is holding the 'building' state open
+		// The create build for the destination will be handled automatically by the queue logic
+		fileState.buildNextInQueue()
 		return
 	}
 
 	if activeBuild.IsRemoveOp {
 		log.Printf("File %s is a remove operation. Removing file.\n", filePath)
 
+		log.Printf("streaming remove build info for file %s\n", filePath)
 		buildInfo := &shared.BuildInfo{
 			Path:      filePath,
 			NumTokens: 0,
@@ -269,49 +272,50 @@ func (fileState *activeBuildStreamFileState) buildFile() {
 	if activeBuild.IsResetOp {
 		log.Printf("File %s is a reset operation. Resetting file.\n", filePath)
 
-		if contextPart == nil {
-			log.Printf("File %s not found in model context. Removing pending file.\n", filePath)
-
-			fileState.queueBuilds([]*types.ActiveBuild{
-				{
-					ReplyId:    activeBuild.ReplyId,
-					Idx:        activeBuild.Idx,
-					Path:       activeBuild.Path,
-					IsRemoveOp: true,
-				},
-			})
-
-			return
-		} else {
-			log.Printf("File %s found in model context. Using context state.\n", filePath)
-
-			buildInfo := &shared.BuildInfo{
-				Path:      filePath,
-				NumTokens: 0,
-				Finished:  true,
-			}
-
-			activePlan.Stream(shared.StreamMessage{
-				Type:      shared.StreamMessageBuildInfo,
-				BuildInfo: buildInfo,
-			})
-
-			planRes := &db.PlanFileResult{
-				OrgId:          currentOrgId,
-				PlanId:         planId,
-				PlanBuildId:    build.Id,
-				ConvoMessageId: build.ConvoMessageId,
-				Path:           filePath,
-				Content:        contextPart.Body,
-			}
-			fileState.onFinishBuildFile(planRes)
+		err := activePlan.LockForActiveBuild(db.LockScopeWrite, build.Id)
+		if err != nil {
+			log.Printf("Error locking active plan for reset: %v\n", err)
+			fileState.onBuildFileError(fmt.Errorf("error locking active plan for reset: %v", err))
 			return
 		}
+
+		now := time.Now()
+		err = db.RejectPlanFile(currentOrgId, planId, filePath, now)
+		if err != nil {
+			log.Printf("Error rejecting plan file: %v\n", err)
+			unlockErr := activePlan.UnlockForActiveBuild()
+			if unlockErr != nil {
+				log.Printf("Error unlocking active plan for reset: %v\n", unlockErr)
+			}
+			fileState.onBuildFileError(fmt.Errorf("error rejecting plan file: %v", err))
+			return
+		}
+		err = activePlan.UnlockForActiveBuild()
+		if err != nil {
+			log.Printf("Error unlocking active plan for reset: %v\n", err)
+			fileState.onBuildFileError(fmt.Errorf("error unlocking active plan for reset: %v", err))
+			return
+		}
+
+		buildInfo := &shared.BuildInfo{
+			Path:      filePath,
+			NumTokens: 0,
+			Finished:  true,
+			Removed:   fileState.contextPart == nil,
+		}
+
+		activePlan.Stream(shared.StreamMessage{
+			Type:      shared.StreamMessageBuildInfo,
+			BuildInfo: buildInfo,
+		})
+
+		time.Sleep(200 * time.Millisecond)
+
+		fileState.onBuildProcessed(activeBuild)
+		return
 	}
 
-	fileState.preBuildState = currentState
-
-	if currentState == "" {
+	if fileState.preBuildState == "" {
 		log.Printf("File %s not found in model context or current plan. Creating new file.\n", filePath)
 
 		buildInfo := &shared.BuildInfo{
@@ -319,6 +323,8 @@ func (fileState *activeBuildStreamFileState) buildFile() {
 			NumTokens: 0,
 			Finished:  true,
 		}
+
+		log.Printf("streaming new file build info for file %s\n", filePath)
 
 		activePlan.Stream(shared.StreamMessage{
 			Type:      shared.StreamMessageBuildInfo,
@@ -337,13 +343,10 @@ func (fileState *activeBuildStreamFileState) buildFile() {
 
 		// log.Println("build exec - new file result")
 		// spew.Dump(planRes)
-
-		fileState.isNewFile = true
-
 		fileState.onFinishBuildFile(planRes)
 		return
 	} else {
-		currentNumTokens, err := shared.GetNumTokens(currentState)
+		currentNumTokens, err := shared.GetNumTokens(fileState.preBuildState)
 
 		if err != nil {
 			log.Printf("Error getting num tokens for current state: %v\n", err)
@@ -360,4 +363,43 @@ func (fileState *activeBuildStreamFileState) buildFile() {
 	// build structured edits strategy now works regardless of language/tree-sitter support
 	log.Println("buildFile - building structured edits")
 	fileState.buildStructuredEdits()
+}
+
+func (fileState *activeBuildStreamFileState) resolvePreBuildState() {
+	filePath := fileState.filePath
+	currentPlan := fileState.currentPlanState
+	planId := fileState.plan.Id
+	branch := fileState.branch
+
+	activePlan := GetActivePlan(planId, branch)
+
+	if activePlan == nil {
+		log.Printf("Active plan not found for plan ID %s and branch %s\n", planId, branch)
+		return
+	}
+	contextPart := activePlan.ContextsByPath[filePath]
+
+	var currentState string
+	currentPlanFile, fileInCurrentPlan := currentPlan.CurrentPlanFiles.Files[filePath]
+
+	// log.Println("plan files:")
+	// spew.Dump(currentPlan.CurrentPlanFiles.Files)
+
+	if fileInCurrentPlan {
+		log.Printf("File %s found in current plan.\n", filePath)
+		fileState.isNewFile = false
+		currentState = currentPlanFile
+		// log.Println("\n\nCurrent state:\n", currentState, "\n\n")
+
+	} else if contextPart != nil {
+		log.Printf("File %s found in model context. Using context state.\n", filePath)
+		fileState.isNewFile = false
+		currentState = contextPart.Body
+		// log.Println("\n\nCurrent state:\n", currentState, "\n\n")
+	} else {
+		fileState.isNewFile = true
+	}
+
+	fileState.preBuildState = currentState
+	fileState.contextPart = contextPart
 }

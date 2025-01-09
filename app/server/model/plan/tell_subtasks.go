@@ -86,7 +86,7 @@ func (state *activeTellStreamState) checkNewSubtasks() bool {
 	}
 
 	log.Println("Found new subtasks:")
-	spew.Dump(subtasks)
+	log.Println(spew.Sdump(subtasks))
 
 	subtasksByName := map[string]*db.Subtask{}
 

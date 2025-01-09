@@ -92,7 +92,7 @@ func (state *activeTellStreamState) setPromptMessage(isPlanningStage, isContextS
 			finalPrompt = prompts.GetWrappedPrompt(prompt, req.OsDetails, applyScriptSummary, isPlanningStage)
 		}
 
-		log.Println("Final prompt:", finalPrompt)
+		// log.Println("Final prompt:", finalPrompt)
 
 		promptMessage = &openai.ChatCompletionMessage{
 			Role:    openai.ChatMessageRoleUser,
@@ -100,7 +100,7 @@ func (state *activeTellStreamState) setPromptMessage(isPlanningStage, isContextS
 		}
 	}
 
-	log.Println("Prompt message:", promptMessage.Content)
+	// log.Println("Prompt message:", promptMessage.Content)
 
 	state.promptMessage = promptMessage
 	state.messages = append(state.messages, *promptMessage)

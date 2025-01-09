@@ -172,7 +172,7 @@ func ApplyChanges(
 
 	if len(res.NeedsVerifyReasons) > 0 {
 		log.Println("ApplyChanges - needs verify reasons:")
-		spew.Dump(res.NeedsVerifyReasons)
+		log.Println(spew.Sdump(res.NeedsVerifyReasons))
 
 		log.Println("ApplyChanges - proposed:")
 		log.Println(proposedInitial)
@@ -196,60 +196,62 @@ func ApplyChanges(
 	// 	return res
 	// }
 
-	originalLineMap := make(map[string]bool)
-	for _, line := range originalLines {
-		originalLineMap[strings.TrimSpace(line)] = true
-	}
-
-	newLines := strings.Split(res.NewFile, "\n")
-	newLineMap := make(map[string]bool)
-	for _, line := range newLines {
-		newLineMap[strings.TrimSpace(line)] = true
-	}
-
-	// Check for removed lines (lines in original that are not in new)
-	for line := range originalLineMap {
-		if !newLineMap[line] {
-			log.Println("ApplyChanges - code removed")
-			log.Println("line:")
-			log.Println(line)
-			res.NeedsVerifyReasons = append(res.NeedsVerifyReasons, NeedsVerifyReasonCodeRemoved)
-			break
+	if !strings.Contains(desc, "overwrite the entire file") {
+		originalLineMap := make(map[string]bool)
+		for _, line := range originalLines {
+			originalLineMap[strings.TrimSpace(line)] = true
 		}
-	}
 
-	// Check for lines in proposed updates that are duplicated in new file
-	newLineFreq := make(map[string]int)
-	originalLineFreq := make(map[string]int)
-
-	// First count frequencies in original file
-	for _, line := range originalLines {
-		trimmed := strings.TrimSpace(line)
-		if len(trimmed) > duplicationThreshold {
-			originalLineFreq[line]++
+		newLines := strings.Split(res.NewFile, "\n")
+		newLineMap := make(map[string]bool)
+		for _, line := range newLines {
+			newLineMap[strings.TrimSpace(line)] = true
 		}
-	}
 
-	// Count frequencies in new file
-	for _, line := range newLines {
-		trimmed := strings.TrimSpace(line)
-		if len(trimmed) > duplicationThreshold {
-			newLineFreq[line]++
-		}
-	}
-
-	// Check proposed lines against new frequencies, accounting for original duplicates
-	for _, line := range proposedLines {
-		trimmed := strings.TrimSpace(line)
-		if len(trimmed) > duplicationThreshold {
-			originalCount := originalLineFreq[line]
-			if newLineFreq[line] > originalCount+1 {
-				log.Println("ApplyChanges - code duplicated")
+		// Check for removed lines (lines in original that are not in new)
+		for line := range originalLineMap {
+			if !newLineMap[line] {
+				log.Println("ApplyChanges - code removed")
 				log.Println("line:")
 				log.Println(line)
-				log.Printf("original occurrences: %d, new occurrences: %d", originalCount, newLineFreq[line])
-				res.NeedsVerifyReasons = append(res.NeedsVerifyReasons, NeedsVerifyReasonCodeDuplicated)
+				res.NeedsVerifyReasons = append(res.NeedsVerifyReasons, NeedsVerifyReasonCodeRemoved)
 				break
+			}
+		}
+
+		// Check for lines in proposed updates that are duplicated in new file
+		newLineFreq := make(map[string]int)
+		originalLineFreq := make(map[string]int)
+
+		// First count frequencies in original file
+		for _, line := range originalLines {
+			trimmed := strings.TrimSpace(line)
+			if len(trimmed) > duplicationThreshold {
+				originalLineFreq[line]++
+			}
+		}
+
+		// Count frequencies in new file
+		for _, line := range newLines {
+			trimmed := strings.TrimSpace(line)
+			if len(trimmed) > duplicationThreshold {
+				newLineFreq[line]++
+			}
+		}
+
+		// Check proposed lines against new frequencies, accounting for original duplicates
+		for _, line := range proposedLines {
+			trimmed := strings.TrimSpace(line)
+			if len(trimmed) > duplicationThreshold {
+				originalCount := originalLineFreq[line]
+				if newLineFreq[line] > originalCount+1 {
+					log.Println("ApplyChanges - code duplicated")
+					log.Println("line:")
+					log.Println(line)
+					log.Printf("original occurrences: %d, new occurrences: %d", originalCount, newLineFreq[line])
+					res.NeedsVerifyReasons = append(res.NeedsVerifyReasons, NeedsVerifyReasonCodeDuplicated)
+					break
+				}
 			}
 		}
 	}

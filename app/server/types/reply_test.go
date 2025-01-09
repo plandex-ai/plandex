@@ -4,135 +4,182 @@ import (
 	"fmt"
 	"os"
 	"testing"
+
+	"github.com/plandex/plandex/shared"
 )
 
 type TestExample struct {
-	N                int
-	TokensByFilePath map[string]int
+	Only       bool
+	Operations []shared.Operation
 }
 
 // These aren't the real number of tokens
 // We're just splitting the file into chunks of 5 characters to simulate tokens
 var examples = []TestExample{
 	{
-		N: 1,
-		TokensByFilePath: map[string]int{
-			"cmd/checkout.go": 54,
-			"cmd/apply.go":    180,
+		Operations: []shared.Operation{
+			{
+				Type: shared.OperationTypeFile,
+				Path: "cmd/apply.go",
+			},
+			{
+				Type: shared.OperationTypeFile,
+				Path: "cmd/checkout.go",
+			},
 		},
 	},
 	{
-		N: 2,
-		TokensByFilePath: map[string]int{
-			"cmd/context_rm.go":     210,
-			"cmd/context_update.go": 188,
+		Operations: []shared.Operation{
+			{
+				Type: shared.OperationTypeFile,
+				Path: "cmd/context_rm.go",
+			},
+			{
+				Type: shared.OperationTypeFile,
+				Path: "cmd/context_update.go",
+			},
 		},
 	},
 	{
-		N: 3,
-		TokensByFilePath: map[string]int{
-			"cmd/context_rm.go":     210,
-			"cmd/context_update.go": 188,
+		Operations: []shared.Operation{
+			{
+				Type: shared.OperationTypeFile,
+				Path: "cmd/context_rm.go",
+			},
+			{
+				Type: shared.OperationTypeFile,
+				Path: "cmd/context_update.go",
+			},
 		},
 	},
 	{
-		N: 4,
-		TokensByFilePath: map[string]int{
-			"server/types/section.go": 32,
+		Operations: []shared.Operation{
+			{
+				Type: shared.OperationTypeFile,
+				Path: "server/types/section.go",
+			},
 		},
 	},
 	{
-		N: 5,
-		TokensByFilePath: map[string]int{
-			"shared/types.go":         20,
-			"cli/lib/conversation.go": 58,
+		Operations: []shared.Operation{
+			{
+				Type: shared.OperationTypeFile,
+				Path: "shared/types.go",
+			},
+			{
+				Type: shared.OperationTypeFile,
+				Path: "cli/lib/conversation.go",
+			},
 		},
 	},
 	{
-		N: 6,
-		TokensByFilePath: map[string]int{
-			"server/model/proposal/create.go": 239,
+		Operations: []shared.Operation{
+			{
+				Type: shared.OperationTypeFile,
+				Path: "server/model/proposal/create.go",
+			},
 		},
 	},
 	{
-		N: 7,
-		TokensByFilePath: map[string]int{
-			"file_map/map.go": 239,
+		Operations: []shared.Operation{
+			{
+				Type: shared.OperationTypeFile,
+				Path: "file_map/map.go",
+			},
 		},
 	},
 	{
-		N: 8,
-		TokensByFilePath: map[string]int{
-			"Makefile":  100,
-			"_apply.sh": 100,
+		Operations: []shared.Operation{
+			{
+				Type: shared.OperationTypeFile,
+				Path: "Makefile",
+			},
+			{
+				Type: shared.OperationTypeFile,
+				Path: "_apply.sh",
+			},
+		},
+	},
+	{
+		Operations: []shared.Operation{
+			{
+				Type:        shared.OperationTypeMove,
+				Path:        "src/game.c",
+				Destination: "src/game/game.c",
+			},
+			{
+				Type:        shared.OperationTypeMove,
+				Path:        "src/game.h",
+				Destination: "src/game/game.h",
+			},
+			{
+				Type: shared.OperationTypeRemove,
+				Path: "src/README.md",
+			},
+			{
+				Type: shared.OperationTypeReset,
+				Path: "Makefile",
+			},
+			{
+				Type: shared.OperationTypeFile,
+				Path: "Makefile",
+			},
 		},
 	},
 }
 
-func TestReplyTokenCounter(t *testing.T) {
+func TestReplyParser(t *testing.T) {
+	only := map[int]bool{}
+	for i, example := range examples {
+		if example.Only {
+			only[i] = true
+		}
+	}
 
-	for _, example := range examples {
-		filePath := fmt.Sprintf("reply_test_examples/%d.md", example.N)
-		fmt.Println(filePath)
-
-		bytes, err := os.ReadFile(filePath)
-		if err != nil {
-			t.Error(err)
+	for i, example := range examples {
+		if len(only) > 0 && !only[i] {
+			continue
 		}
 
-		content := string(bytes)
+		t.Run(fmt.Sprintf("Example_%d", i+1), func(t *testing.T) {
+			filePath := fmt.Sprintf("reply_test_examples/%d.md", i+1)
+			fmt.Println(filePath)
 
-		tokenSize := 5
-
-		counter := NewReplyParser()
-
-		totalTokens := 0
-		for i := 0; i < len(content); {
-			end := i + tokenSize
-			if end > len(content) {
-				end = len(content)
+			bytes, err := os.ReadFile(filePath)
+			if err != nil {
+				t.Error(err)
 			}
-			chunk := content[i:end]
-			counter.AddChunk(chunk, true)
-			totalTokens++
-			i = end
-		}
 
-		res := counter.Read()
+			content := string(bytes)
+			tokenSize := 5
 
-		totalCounted := res.TotalTokens
-		files := res.Files
-		fileContents := res.FileContents
-		tokensByFilePath := res.NumTokensByFile
+			parser := NewReplyParser()
 
-		fmt.Printf("Total tokens counted: %d\n", totalCounted)
-		fmt.Printf("%d files: %v\n", len(files), files)
-		fmt.Printf("%d file content: %v\n", len(fileContents), fileContents)
-		fmt.Println("Tokens by file path:")
-		for filePath, tokens := range tokensByFilePath {
-			fmt.Printf("%s: %d\n", filePath, tokens)
-		}
-
-		for filePath, _ := range example.TokensByFilePath {
-			_, ok := tokensByFilePath[filePath]
-			if !ok {
-				t.Errorf("Expected %s in tokensByFilePath", filePath)
+			for i := 0; i < len(content); {
+				end := i + tokenSize
+				if end > len(content) {
+					end = len(content)
+				}
+				chunk := content[i:end]
+				parser.AddChunk(chunk, true)
+				i = end
 			}
-		}
 
-		// fmt.Println("file contents:")
-		// spew.Dump(fileContents)
+			res := parser.FinishAndRead()
 
-		// t.Errorf("output")
+			operations := res.Operations
 
-		// if totalCounted != totalTokens {
-		// 	t.Errorf("Expected %d tokens, got %d", totalTokens, totalCounted)
-		// }
+			if len(operations) != len(example.Operations) {
+				t.Errorf("Example %d: Expected %d operations, got %d",
+					i+1, len(example.Operations), len(operations))
+			}
 
-		// for filePath, tokens := range example.TokensByFilePath {
-		// 	if tokensByFilePath[filePath] != tokens {
-		// 		t.Errorf("Expected %d tokens for %s, got %d", tokens, filePath, tokensByFilePath[filePath])
-		// 	}
-		// }
+			for j, operation := range operations {
+				if operation.Name() != example.Operations[j].Name() {
+					t.Errorf("Example %d: Expected operation %s, got %s",
+						i+1, example.Operations[j].Name(), operation.Name())
+				}
+			}
+		})
 	}
 }

@@ -8,7 +8,6 @@ import (
 	"plandex-server/types"
 	"strings"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/plandex/plandex/shared"
 )
 
@@ -131,7 +130,7 @@ func (state *activeBuildStreamFileState) onFinishBuild() {
 
 		descErrCh := make(chan error)
 		for _, desc := range unbuiltDescs {
-			if len(desc.Files) > 0 {
+			if len(desc.Operations) > 0 {
 				desc.DidBuild = true
 				desc.BuildPathsInvalidated = map[string]bool{}
 			}
@@ -194,7 +193,6 @@ func (fileState *activeBuildStreamFileState) onFinishBuildFile(planRes *db.PlanF
 	planId := fileState.plan.Id
 	branch := fileState.branch
 	currentOrgId := fileState.currentOrgId
-	currentUserId := fileState.currentUserId
 	build := fileState.build
 	activeBuild := fileState.activeBuild
 
@@ -219,18 +217,7 @@ func (fileState *activeBuildStreamFileState) onFinishBuildFile(planRes *db.PlanF
 		return
 	}
 
-	repoLockId, err := db.LockRepo(
-		db.LockRepoParams{
-			OrgId:       currentOrgId,
-			UserId:      currentUserId,
-			PlanId:      planId,
-			Branch:      branch,
-			PlanBuildId: build.Id,
-			Scope:       db.LockScopeWrite,
-			Ctx:         activePlan.Ctx,
-			CancelFn:    activePlan.CancelFn,
-		},
-	)
+	err := activePlan.LockForActiveBuild(db.LockScopeWrite, build.Id)
 	if err != nil {
 		log.Printf("Error locking repo for build file: %v\n", err)
 		activePlan.StreamDoneCh <- &shared.ApiError{
@@ -250,18 +237,25 @@ func (fileState *activeBuildStreamFileState) onFinishBuildFile(planRes *db.PlanF
 				if err != nil {
 					log.Printf("Error clearing uncommitted changes: %v\n", err)
 				}
+			} else {
+				log.Println("Plan result stored successfully.")
+			}
+			log.Println("Unlocking repo")
+
+			activePlan = GetActivePlan(planId, branch)
+			if activePlan == nil {
+				log.Println("onFinishBuildFile - Active plan not found")
+				return
 			}
 
-			log.Println("Plan result stored successfully. Unlocking repo.")
-
-			err := db.DeleteRepoLock(repoLockId)
+			err := activePlan.UnlockForActiveBuild()
 			if err != nil {
 				log.Printf("Error unlocking repo: %v\n", err)
 			}
 		}()
 
 		log.Println("Storing plan result", planRes.Path)
-		spew.Dump(planRes)
+		// spew.Dump(planRes)
 
 		err = db.StorePlanResult(planRes)
 		if err != nil {
@@ -282,31 +276,25 @@ func (fileState *activeBuildStreamFileState) onFinishBuildFile(planRes *db.PlanF
 		return
 	}
 
+	log.Printf("Finished building file %s - setting activeBuild.Success to true\n", filePath)
+	// log.Println(spew.Sdump(activeBuild))
+
+	fileState.onBuildProcessed(activeBuild)
+}
+
+func (fileState *activeBuildStreamFileState) onBuildProcessed(activeBuild *types.ActiveBuild) {
+	filePath := fileState.filePath
+	planId := fileState.plan.Id
+	branch := fileState.branch
+
 	activeBuild.Success = true
 
-	// if more builds are queued, start the next one
-	if !activePlan.PathQueueEmpty(filePath) {
-		log.Printf("Processing next build for file %s\n", filePath)
-		activePlan := GetActivePlan(planId, branch)
-		if activePlan == nil {
-			log.Printf("Active plan not found for plan ID %s and branch %s\n", planId, branch)
-			return
-		}
-		queue := activePlan.BuildQueuesByPath[filePath]
-		var nextBuild *types.ActiveBuild
-		for _, build := range queue {
-			if !build.BuildFinished() {
-				nextBuild = build
-				break
-			}
-		}
-
-		if nextBuild != nil {
-			log.Println("Calling execPlanBuild for next build in queue")
-			go fileState.execPlanBuild(nextBuild)
-		}
+	stillBuildingPath := fileState.buildNextInQueue()
+	if stillBuildingPath {
 		return
 	}
+
+	log.Printf("No more builds for path %s, checking if entire build is finished\n", filePath)
 
 	buildFinished := false
 
@@ -323,6 +311,8 @@ func (fileState *activeBuildStreamFileState) onFinishBuildFile(planRes *db.PlanF
 	if buildFinished {
 		log.Println("Finished building plan, calling onFinishBuild")
 		fileState.onFinishBuild()
+	} else {
+		log.Println("Finished building file, but plan is not finished")
 	}
 }
 
@@ -369,4 +359,34 @@ func (fileState *activeBuildStreamFileState) onBuildFileError(err error) {
 	if err != nil {
 		log.Printf("Error clearing uncommitted changes: %v\n", err)
 	}
+}
+
+func (fileState *activeBuildStreamFileState) buildNextInQueue() bool {
+	filePath := fileState.filePath
+	activePlan := GetActivePlan(fileState.plan.Id, fileState.branch)
+	if activePlan == nil {
+		log.Println("onFinishBuildFile - Active plan not found")
+		return false
+	}
+
+	// if more builds are queued, start the next one
+	if !activePlan.PathQueueEmpty(filePath) {
+		log.Printf("Processing next build for file %s\n", filePath)
+		queue := activePlan.BuildQueuesByPath[filePath]
+		var nextBuild *types.ActiveBuild
+		for _, build := range queue {
+			if !build.BuildFinished() {
+				nextBuild = build
+				break
+			}
+		}
+
+		if nextBuild != nil {
+			log.Println("Calling execPlanBuild for next build in queue")
+			go fileState.execPlanBuild(nextBuild)
+		}
+		return true
+	}
+
+	return false
 }

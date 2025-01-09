@@ -57,7 +57,13 @@ func init() {
 		panic(fmt.Sprintf("Error getting number of tokens for chat only prompt: %v", err))
 	}
 
-	ApplyScriptPromptNumTokens, err = shared.GetNumTokens(ApplyScriptPrompt)
+	ApplyScriptPlanningPromptNumTokens, err = shared.GetNumTokens(ApplyScriptPlanningPrompt)
+
+	if err != nil {
+		panic(fmt.Sprintf("Error getting number of tokens for apply script planning prompt: %v", err))
+	}
+
+	ApplyScriptImplementationPromptNumTokens, err = shared.GetNumTokens(ApplyScriptImplementationPrompt)
 
 	if err != nil {
 		panic(fmt.Sprintf("Error getting number of tokens for apply script prompt: %v", err))

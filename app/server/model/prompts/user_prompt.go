@@ -25,6 +25,8 @@ const planningPromptWrapperFormatStr = sharedPromptWrapperFormatStr + `
 
 Do NOT include tests or documentation in the subtasks unless the user has specifically asked for them. Do not include extra code or features beyond what the user has asked for. Focus on the user's request and implement only what is necessary to fulfill it.
 
+` + CombineSubtasksPrompt + `
+
 At the end of the '### Tasks' section, you ABSOLUTELY MUST ALWAYS include a <EndPlandexTasks/> tag, then end the response.
 
 Example:
@@ -68,7 +70,7 @@ If you break up a task into subtasks, only include subtasks that can be implemen
 
 ` + MarkSubtaskDonePrompt + `
 
-` + FileOpsPromptSummary
+` + FileOpsImplementationPromptSummary
 
 var ImplementationPromptWrapperTokens int
 
@@ -78,6 +80,11 @@ func GetWrappedPrompt(prompt, osDetails, applyScriptSummary string, isPlanningSt
 		promptWrapperFormatStr = planningPromptWrapperFormatStr
 	} else {
 		promptWrapperFormatStr = implementationPromptWrapperFormatStr
+	}
+
+	// If we're in the planning stage, we don't need to include the apply script summary
+	if isPlanningStage {
+		applyScriptSummary = ""
 	}
 
 	ts := time.Now().Format(time.RFC3339)
@@ -105,3 +112,9 @@ Do NOT include tests or documentation in the subtasks unless the user has specif
 var AutoContinuePromptTokens int
 
 const SkippedPathsPrompt = "\n\nSome files have been skipped by the user and *must not* be generated. The user will handle any updates to these files themselves. Skip any parts of the plan that require generating these files. You *must not* generate a file block for any of these files.\nSkipped files:\n"
+
+const CombineSubtasksPrompt = `
+- Combine multiple steps into a single larger subtask where all of the steps are small enough to be completed in a single response (especially do this if multiple steps are closely related). Try to both size each subtask so that it can be completed in a single response, while also aiming to minimize the total number of subtasks. For subtasks involving multiple steps and/or multiple files, use bullet points to break them up into smaller sub-subtasks.
+
+- Do NOT break up file operations of the same type (e.g. moving files, removing files, resetting pending changes) into multiple subtasks. Group them all into a *single* subtask.
+`

@@ -130,7 +130,10 @@ func lockRepo(params LockRepoParams, numRetry int) (string, error) {
 				return "", err
 			}
 
-			wait := initialRetryInterval * time.Duration(1<<numRetry) * time.Duration(rand.Intn(200)*int(time.Millisecond))
+			// Calculate exponential backoff with small jitter
+			backoff := initialRetryInterval * time.Duration(1<<numRetry)
+			jitter := time.Duration(rand.Float64() * float64(backoff) * 0.1) // 10% jitter
+			wait := backoff + jitter
 
 			log.Printf("Serialization or deadlock error, retrying transaction after %v: %v\n", wait, err)
 

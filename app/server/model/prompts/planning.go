@@ -72,6 +72,8 @@ func GetPlanningPrompt(params createPromptParams) string {
 
 				- Be thorough and exhaustive in your list of subtasks. Ensure you've accounted for *every subtask* that must be done to fully complete the user's task. Ensure that you list *every* file that needs to be created or updated. Be specific and detailed in your list of subtasks. Consider subtasks that are relevant but not obvious and could be easily overlooked. Before listing the subtasks in a '### Tasks' section, include some reasoning on what the important steps are, what could potentially be overlooked, and how you will ensure all necessary steps are included.
 
+				- ` + CombineSubtasksPrompt + `
+
         - Only include subtasks that you can complete by creating or updating files. If a subtask requires executing code or commands, you can include it only if *execution mode* is enabled. If execution mode is *not* enabled, you can mention it to the user, but do not include it as a subtask in the plan. Unless *execution mode* is enabled, do not include subtasks like "Testing and integration" or "Deployment" that require executing code or commands. Unless *execution mode is enabled*, only include subtasks that you can complete by creating or updating files. If *execution mode* IS enabled, you still must stay focused on tasks that can be accomplished by creating or updating files, or by running a script on the user's machine. Do not include tasks that go beyond this or that cannot be accomplished by running a script on the user's machine.
 
         - Only break the task up into subtasks that you can do yourself. If a subtask requires other tasks that go beyond coding like testing or verifying, user testing, and so on, you can mention it to the user, but you MUST NOT include it as a subtask in the plan. Only include subtasks that can be completed directly with code by creating or updating files, or by running a script on the user's machine if *execution mode* is enabled.
@@ -104,6 +106,9 @@ func GetPlanningPrompt(params createPromptParams) string {
 
 If a plan is in progress and the user asks you a question, don't respond by continuing with the plan unless that is the clear intention of the question. Instead, respond in chat form and answer the question, then stop there.
 `
+
+	prompt += FileOpsPlanningPrompt
+
 	prompt += SharedPlanningImplementationPrompt
 
 	prompt += `
@@ -121,13 +126,10 @@ Example:
 ---
 ### Tasks
 
-1. Add the necessary code to the 'game_logic.h' file to define the 'updateGameLogic' function
-Uses: ` + "`src/game_logic.h`" + `
+1. Add the necessary code to the 'game_logic.h' and 'game_logic.c' files to define the 'updateGameLogic' function
+Uses: ` + "`src/game_logic.h`" + `, ` + "`src/game_logic.c`" + `
 
-2. Add the necessary code to the 'game_logic.c' file to implement the 'updateGameLogic' function
-Uses: ` + "`src/game_logic.c`" + `
-
-3. Update the 'main.c' file to call the 'updateGameLogic' function
+2. Update the 'main.c' file to call the 'updateGameLogic' function
 Uses: ` + "`src/main.c`" + `
 
 <EndPlandexTasks/>
@@ -161,8 +163,6 @@ You are always able to create and update files. Whether you are able to execute 
 
 Images may be added to the context, but you are not able to create or update images.
 
-You can use one of the special file operations, '### Move Files', '### Remove Files', or '### Reset Changes', to move, remove, or reset changes to files that are in context or have pending changes. This is useful when revising a plan based on user feedback, not when implementing a plan for the first time (when you are only creating files and updating them).
-
 ## Use open source libraries when appropriate
 
 When making a plan and describing each task or subtask, **always consider using open source libraries.** If there are well-known, widely used libraries available that can help you implement a task, you should use one of them unless the user has specifically asked you not to use third party libraries. 
@@ -187,4 +187,4 @@ Always work from the LATEST state of the user-provided context. If the user has 
 
 Similarly, if you have made updates to any files, you MUST always work from the *latest version* of the files when continuing the plan.
 
-` + FileOpsPrompt
+`

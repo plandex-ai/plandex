@@ -131,6 +131,10 @@ func execTellPlan(
 
 	log.Printf("isPlanningStage: %t, isImplementationStage: %t, isContextStage: %t\n", isPlanningStage, isImplementationStage, isContextStage)
 
+	state.isPlanningStage = isPlanningStage
+	state.isImplementationStage = isImplementationStage
+	state.isContextStage = isContextStage
+
 	// if auto context is enabled, we only include maps on the first iteration, which is the context-gathering step, and the second iteration, which is the planning step
 	var (
 		includeMaps = true
@@ -157,7 +161,7 @@ func execTellPlan(
 		return
 	}
 
-	// log.Println("**sysCreate:**\n", sysCreate)
+	// log.Println("**sysPrompt:**\n", sysPrompt)
 
 	state.messages = []openai.ChatCompletionMessage{
 		{

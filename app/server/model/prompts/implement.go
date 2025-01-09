@@ -79,6 +79,8 @@ When updating an existing file in context, use the *reference comment* "// ... e
 
 ` + UpdateFormatPrompt + `
 
+` + FileOpsImplementationPrompt + `
+
 As much as possible, do not include placeholders in code blocks like "// implement functionality here". Unless you absolutely cannot implement the full code block, do not include a placeholder denoted with comments. Do your best to implement the functionality rather than inserting a placeholder. You **MUST NOT** include placeholders just to shorten the code block. If the task is too large to implement in a single code block, you should break the task down into smaller steps and **FULLY** implement each step.
 
 If you are outputting some code for illustrative or explanatory purpose and not because you are updating that code, you MUST NOT use a labelled file block. Instead output the label with NO PRECEDING DASH and NO COLON postfix. Use a conversational sentence like 'This code in src/main.rs.' to label the code. This is the only exception to the rule that all code blocks must be labelled with a file path. Labelled code blocks are ONLY for code that is being created or modified in the plan.

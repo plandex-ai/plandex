@@ -3,6 +3,7 @@ package types
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"plandex-server/db"
@@ -14,6 +15,7 @@ import (
 )
 
 const MaxStreamRate = 70 * time.Millisecond
+const ActiveBuildLockDebounce = 400 * time.Millisecond
 
 type ActiveBuild struct {
 	ReplyId           string
@@ -22,7 +24,6 @@ type ActiveBuild struct {
 	FileContentTokens int
 	CurrentFileTokens int
 	Path              string
-	Idx               int
 	Success           bool
 	Error             error
 	IsMoveOp          bool
@@ -58,7 +59,7 @@ type ActivePlan struct {
 	// LatestSummaryCh         chan *db.ConvoSummary
 	Contexts              []*db.Context
 	ContextsByPath        map[string]*db.Context
-	Files                 []string
+	Operations            []*shared.Operation
 	BuiltFiles            map[string]bool
 	IsBuildingByPath      map[string]bool
 	CurrentReplyContent   string
@@ -76,6 +77,12 @@ type ActivePlan struct {
 	SkippedPaths          map[string]bool
 	StoredReplyIds        []string
 	DidEditFiles          bool
+
+	ActiveBuildLockId         string
+	ActiveBuildLockParams     *db.LockRepoParams
+	NumActiveBuildLockHolders int
+
+	activeBuildLockMu sync.Mutex
 
 	subscriptions  map[string]*subscription
 	subscriptionMu sync.Mutex
@@ -110,7 +117,7 @@ func NewActivePlan(orgId, userId, planId, branch, prompt string, buildOnly, auto
 		BuildQueuesByPath:     map[string][]*ActiveBuild{},
 		Contexts:              []*db.Context{},
 		ContextsByPath:        map[string]*db.Context{},
-		Files:                 []string{},
+		Operations:            []*shared.Operation{},
 		BuiltFiles:            map[string]bool{},
 		IsBuildingByPath:      map[string]bool{},
 		StreamDoneCh:          make(chan *shared.ApiError),
@@ -292,6 +299,7 @@ func (ap *ActivePlan) ResetModelCtx() {
 func (ap *ActivePlan) BuildFinished() bool {
 	for path := range ap.BuildQueuesByPath {
 		if ap.IsBuildingByPath[path] || !ap.PathQueueEmpty(path) {
+			log.Printf("BuildFinished - %s - is building %t - path queue not empty %t\n", path, ap.IsBuildingByPath[path], !ap.PathQueueEmpty(path))
 			return false
 		}
 	}
@@ -299,8 +307,11 @@ func (ap *ActivePlan) BuildFinished() bool {
 }
 
 func (ap *ActivePlan) PathQueueEmpty(path string) bool {
+	// log.Printf("PathQueueEmpty - %s\n", path)
+	// log.Println(spew.Sdump(ap.BuildQueuesByPath[path]))
 	for _, build := range ap.BuildQueuesByPath[path] {
 		if !build.BuildFinished() {
+			// log.Printf("PathQueueEmpty - %s - build not finished\n", path)
 			return false
 		}
 	}
@@ -391,4 +402,95 @@ func (ap *ActivePlan) Finish() {
 	ap.Stream(shared.StreamMessage{
 		Type: shared.StreamMessageFinished,
 	})
+}
+
+func (ap *ActivePlan) LockForActiveBuild(scope db.LockScope, buildId string) error {
+	lockParams := db.LockRepoParams{
+		OrgId:       ap.OrgId,
+		UserId:      ap.UserId,
+		PlanId:      ap.Id,
+		Branch:      ap.Branch,
+		PlanBuildId: buildId,
+		Scope:       scope,
+		Ctx:         ap.Ctx,
+		CancelFn:    ap.CancelFn,
+	}
+
+	ctx := ap.Ctx
+
+	ap.activeBuildLockMu.Lock()
+	defer ap.activeBuildLockMu.Unlock()
+
+	if ctx.Err() != nil {
+		log.Println("LockForActiveBuild - context done, aborting lock attempt")
+		return nil
+	}
+
+	if ap.ActiveBuildLockId != "" && ap.ActiveBuildLockParams != nil && ap.ActiveBuildLockParams.Scope == lockParams.Scope {
+		log.Printf("Piggybacking on existing build lock %s\n", ap.ActiveBuildLockId)
+		ap.NumActiveBuildLockHolders++
+		return nil
+	}
+
+	log.Println("Locking repo for active build")
+
+	repoLockId, err := db.LockRepo(lockParams)
+
+	if err != nil {
+		return err
+	}
+
+	ap.ActiveBuildLockId = repoLockId
+	ap.NumActiveBuildLockHolders = 1
+	ap.ActiveBuildLockParams = &lockParams
+
+	return nil
+}
+
+func (ap *ActivePlan) UnlockForActiveBuild() error {
+	ap.activeBuildLockMu.Lock()
+
+	if ap.ActiveBuildLockId == "" {
+		ap.activeBuildLockMu.Unlock()
+		return fmt.Errorf("no active build lock to unlock")
+	}
+
+	lockId := ap.ActiveBuildLockId
+	ctx := ap.Ctx
+
+	ap.NumActiveBuildLockHolders--
+	if ap.NumActiveBuildLockHolders == 0 {
+		ap.activeBuildLockMu.Unlock()
+
+		go func() {
+			time.Sleep(ActiveBuildLockDebounce)
+
+			if ctx.Err() != nil {
+				log.Println("UnlockForActiveBuild - context done, aborting unlock")
+				return
+			}
+
+			ap.activeBuildLockMu.Lock()
+			if ap.NumActiveBuildLockHolders == 0 && ap.ActiveBuildLockId == lockId {
+				ap.ActiveBuildLockId = ""
+				ap.ActiveBuildLockParams = nil
+				ap.activeBuildLockMu.Unlock()
+				log.Printf("Unlocking repo for active build %s\n", lockId)
+				err := db.DeleteRepoLock(lockId)
+				if err != nil {
+					log.Printf("Error unlocking repo: %v\n", err)
+				}
+			} else {
+				ap.activeBuildLockMu.Unlock()
+			}
+		}()
+	} else {
+		ap.activeBuildLockMu.Unlock()
+	}
+
+	return nil
+}
+
+func (ab *ActiveBuild) IsFileOperation() bool {
+	return ab.IsMoveOp || ab.IsRemoveOp || ab.IsResetOp
 }

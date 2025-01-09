@@ -64,7 +64,6 @@ func GetCurrentPlanState(params CurrentPlanStateParams) (*shared.CurrentPlanStat
 	var dbPlanFileResults []*PlanFileResult
 	var convoMessageDescriptions []*shared.ConvoMessageDescription
 	contextsByPath := map[string]*Context{}
-
 	errCh := make(chan error)
 
 	go func() {
