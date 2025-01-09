@@ -80,23 +80,29 @@ func initExecFlags(cmd *cobra.Command, params initExecFlagsParams) {
 
 	if !params.omitApply {
 		cmd.Flags().BoolVar(&tellAutoApply, "apply", false, "Automatically apply changes")
-		cmd.Flags().BoolVarP(&autoCommit, "commit", "c", false, "Commit changes to git when --apply is passed")
+		initApplyFlags(cmd)
 	}
 
 	if !params.omitExec {
-		cmd.Flags().BoolVar(&noExec, "no-exec", false, "Disable command execution")
-
-		cmd.Flags().BoolVar(&autoExec, "auto-exec", false, "Automatically execute commands without confirmation")
-
-		cmd.Flags().Var(newAutoDebugValue(&autoDebug), "debug", "Automatically execute and debug failing commands (optionally specify number of tries—default is 5)")
-
-		cmd.Flag("debug").NoOptDefVal = strconv.Itoa(defaultAutoDebugTries)
+		initExecScriptFlags(cmd)
 	}
 
 	if !params.omitEditor {
 		cmd.Flags().Var(newEditorValue(&editor), "editor", "Write prompt in system editor")
 		cmd.Flag("editor").NoOptDefVal = defaultEditor
 	}
+}
+
+func initApplyFlags(cmd *cobra.Command) {
+	cmd.Flags().BoolVar(&autoCommit, "commit", false, "Commit changes to git when --apply is passed")
+	cmd.Flags().BoolVar(&skipCommit, "no-commit", false, "Skip committing changes to git when --apply is passed")
+}
+
+func initExecScriptFlags(cmd *cobra.Command) {
+	cmd.Flags().BoolVar(&noExec, "no-exec", false, "Disable command execution")
+	cmd.Flags().BoolVar(&autoExec, "auto-exec", false, "Automatically execute commands without confirmation")
+	cmd.Flags().Var(newAutoDebugValue(&autoDebug), "debug", "Automatically execute and debug failing commands (optionally specify number of tries—default is 5)")
+	cmd.Flag("debug").NoOptDefVal = strconv.Itoa(defaultAutoDebugTries)
 }
 
 func validatePlanExecFlags() {
@@ -145,6 +151,9 @@ func mustSetPlanExecFlags(cmd *cobra.Command) {
 	}
 	if !cmd.Flags().Changed("apply") {
 		tellAutoApply = config.AutoApply
+	}
+	if !cmd.Flags().Changed("skip-commit") {
+		skipCommit = config.SkipCommit
 	}
 	if !cmd.Flags().Changed("commit") {
 		autoCommit = config.AutoCommit

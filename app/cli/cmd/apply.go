@@ -5,20 +5,15 @@ import (
 	"plandex/lib"
 	"plandex/plan_exec"
 	"plandex/term"
-	"strconv"
 
 	"github.com/spf13/cobra"
 )
 
-var autoCommit, noCommit, autoExec bool
+var autoCommit, skipCommit, autoExec bool
 
 func init() {
-	applyCmd.Flags().BoolVarP(&autoCommit, "commit", "c", false, "Commit changes to git")
-	applyCmd.Flags().BoolVar(&noCommit, "no-commit", false, "Do not commit changes to git")
-	applyCmd.Flags().BoolVar(&noExec, "no-exec", false, "Disable _apply.sh execution")
-	applyCmd.Flags().BoolVar(&autoExec, "auto-exec", false, "Automatically execute commands without confirmation")
-	applyCmd.Flags().Var(newAutoDebugValue(&autoDebug), "debug", "Automatically execute and debug failing commands (optionally specify number of tries—default is 5)")
-	applyCmd.Flag("debug").NoOptDefVal = strconv.Itoa(defaultAutoDebugTries)
+	initApplyFlags(applyCmd)
+	initExecScriptFlags(applyCmd)
 	RootCmd.AddCommand(applyCmd)
 }
 
@@ -32,6 +27,7 @@ var applyCmd = &cobra.Command{
 func apply(cmd *cobra.Command, args []string) {
 	auth.MustResolveAuthWithOrg()
 	lib.MustResolveProject()
+	mustSetPlanExecFlags(cmd)
 
 	if lib.CurrentPlanId == "" {
 		term.OutputNoCurrentPlanErrorAndExit()
@@ -40,7 +36,7 @@ func apply(cmd *cobra.Command, args []string) {
 	flags := lib.ApplyFlags{
 		AutoConfirm: true,
 		AutoCommit:  autoCommit,
-		NoCommit:    noCommit,
+		NoCommit:    skipCommit,
 		AutoExec:    autoExec,
 		NoExec:      noExec,
 		AutoDebug:   autoDebug,

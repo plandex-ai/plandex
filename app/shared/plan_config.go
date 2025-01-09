@@ -85,6 +85,7 @@ type PlanConfig struct {
 
 	AutoApply  bool `json:"autoApply"`
 	AutoCommit bool `json:"autoCommit"`
+	SkipCommit bool `json:"skipCommit"`
 
 	CanExec        bool `json:"canExec"`
 	AutoExec       bool `json:"autoExec"`
@@ -331,7 +332,7 @@ var ConfigSettingsByKey = map[string]ConfigSetting{
 	},
 	"autocommit": {
 		Name: "auto-commit",
-		Desc: "Automatically commit changes after apply",
+		Desc: "Automatically commit changes to git after apply",
 		BoolSetter: func(p *PlanConfig, enabled bool) {
 			if enabled != p.AutoCommit {
 				p.AutoMode = AutoModeCustom
@@ -340,6 +341,16 @@ var ConfigSettingsByKey = map[string]ConfigSetting{
 		},
 		Getter: func(p *PlanConfig) string {
 			return fmt.Sprintf("%t", p.AutoCommit)
+		},
+	},
+	"skipcommit": {
+		Name: "skip-commit",
+		Desc: "Skip committing changes to git after apply",
+		BoolSetter: func(p *PlanConfig, enabled bool) {
+			p.SkipCommit = enabled
+		},
+		Getter: func(p *PlanConfig) string {
+			return fmt.Sprintf("%t", p.SkipCommit)
 		},
 	},
 	"autoapply": {

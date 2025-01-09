@@ -267,9 +267,6 @@ func execTellPlan(
 	// 	log.Printf("%s: %s\n", message.Role, message.Content)
 	// }
 
-	// ts := time.Now().Format("2006-01-02-150405")
-	// os.WriteFile(fmt.Sprintf("generations/messages-%s.txt", ts), []byte(spew.Sdump(state.messages)), 0644)
-
 	_, apiErr := hooks.ExecHook(hooks.WillSendModelRequest, hooks.HookParams{
 		Auth: auth,
 		Plan: plan,
@@ -305,6 +302,17 @@ func execTellPlan(
 		TopP:        state.settings.ModelPack.Planner.TopP,
 		Stop:        stop,
 	}
+
+	// output the modelReq to a json file
+	// if jsonData, err := json.MarshalIndent(modelReq, "", "  "); err == nil {
+	// 	timestamp := time.Now().Format("2006-01-02-150405")
+	// 	filename := fmt.Sprintf("generations/model-request-%s.json", timestamp)
+	// 	if err := os.WriteFile(filename, jsonData, 0644); err != nil {
+	// 		log.Printf("Error writing model request to file: %v\n", err)
+	// 	}
+	// } else {
+	// 	log.Printf("Error marshaling model request to JSON: %v\n", err)
+	// }
 
 	envVar := state.settings.ModelPack.Planner.BaseModelConfig.ApiKeyEnvVar
 	client := clients[envVar]

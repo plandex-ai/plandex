@@ -208,8 +208,8 @@ func MustApplyPlanAttempt(
 			}
 
 			if isRepo && !noCommit {
-				gitErr := commitApplied(autoCommit, commitSummary, updatedFiles, currentPlanState)
 				term.StopSpinner()
+				gitErr := commitApplied(autoCommit, commitSummary, updatedFiles, currentPlanState)
 				appliedMsgFn()
 				if gitErr != nil {
 					onGitErr("Failed to commit changes:", gitErr.Error())
