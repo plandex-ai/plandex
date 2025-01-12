@@ -301,6 +301,13 @@ type ModelRoleConfig struct {
 	ReservedOutputTokens int             `json:"reservedOutputTokens"`
 }
 
+func (m *ModelRoleConfig) GetReservedOutputTokens() int {
+	if m.ReservedOutputTokens > 0 {
+		return m.ReservedOutputTokens
+	}
+	return AvailableModelsByName[m.BaseModelConfig.ModelName].DefaultReservedOutputTokens
+}
+
 func (m *ModelRoleConfig) Scan(src interface{}) error {
 	if src == nil {
 		return nil

@@ -65,7 +65,7 @@ class FooBar {
 
 ALWAYS use the above format when updating a file. You MUST NEVER UNDER ANY CIRCUMSTANCES leave out an "... existing code ..." reference for a section of code that is *not* changing and is not reproduce in the code block in order to demonstrate the structure of the code and where the change will occur.
 
-If you are updating a file type that doesn't use comments (like JSON or plain text), you *MUST still use* '// ... existing code ...' to denote where the reference should be placed. It's ok if // is not a comment in the file type or if these references break the syntax of the file type, since they will be replaced by the correct code from the original file. You MUST still use "// ... existing code ..." references regardless of the file type. Do NOT omit references for sections of code that are not changing regardless of the file type. Remember, this *ONLY* applies to files that don't use comments. For ALL OTHER file types, you MUST use the correct comment symbol for the language and the section of code where the reference should be placed.
+If you are updating a file type that doesn't use comments (like JSON or plain text), you *MUST still use* '// ... existing code ...' to denote where the reference should be placed. Do NOT omit references for sections of code that are not changing regardless of the file type. Remember, this *ONLY* applies to files that don't use comments. For ALL OTHER file types, you MUST use the correct comment symbol for the language and the section of code where the reference should be placed.
 
 For example, in a JSON file:
 
@@ -97,71 +97,38 @@ If you have a JSON file like:
 
 ---
 {                                                                         
-  "name": "vscode-plandex",                                               
-  "displayName": "Plandex",                                               
-  "description": "VSCode extension for Plandex integration",              
-  "version": "0.1.0",                                                     
-  "engines": {                                                            
-    "vscode": "^1.80.0"                                                   
-  },                                                                      
-  "categories": [                                                         
-    "Other"                                                               
-  ],                                                                      
-  "activationEvents": [                                                   
-    "onLanguage:plandex"                                                  
-  ],                                                                      
-  "main": "./dist/extension.js",                                        
+  "name": "vscode-plandex",                                  
   "contributes": {                                                        
     "languages": [{                                                       
-      "id": "plandex",                                                    
-      "aliases": ["Plandex", "plandex"],                
-    }],                                                                   
-    "commands": [                                                         
-      {                                                                   
-        "command": "plandex.tellPlandex",                                 
-        "title": "Tell Plandex"                                           
-      }                                                                   
-    ],                                                                    
-    "keybindings": [{                                                     
-      "command": "plandex.showFilePicker",                                
-      "key": "@",                                                         
-      "when": "editorTextFocus && editorLangId == plandex"                
-    }]                                                                    
-  },                                                                      
-  "scripts": {                                                            
-    "vscode:prepublish": "npm run package",                               
-    "compile": "webpack",                           
-  },                                                                      
-  "devDependencies": {                                                    
-    "@types/vscode": "^1.80.0",                                           
-    "@types/glob": "^8.1.0",                                                  
-  }                                                                       
-}     
+      "id": "plandex",
+    }],
+    "commands": [
+      {
+        "command": "plandex.tellPlandex",
+      }
+    ],
+    "keybindings": [{
+      "command": "plandex.showFilePicker",
+    }]
+  },
+  "scripts": {
+    "compile": "webpack",
+  },
+}
 ---
 
-And you are adding a new key to the 'contributes' object, you MUST NOT output a file block like:
+And you are adding a new key to the 'contributes' object, you MUST NOT output a code block like:
 
 ---
 
 {
   "contributes": {
-    "languages": [
-      {
-        "id": "plandex",
-        "aliases": ["Plandex", "plandex"],
-        "extensions": [".pd"],
-        "configuration": "./language-configuration.json"
-      }
-    ],
+    "languages": [{
+      "id": "plandex",
+    }],
     "grammars": [
       {
         "language": "plandex",
-        "scopeName": "text.plandex",
-        "path": "./syntaxes/plandex.tmLanguage.json",
-        "embeddedLanguages": {
-            "meta.embedded.block.yaml": "yaml",
-            "text.html.markdown": "markdown"
-        }
       }
     ]
   }
@@ -169,9 +136,9 @@ And you are adding a new key to the 'contributes' object, you MUST NOT output a 
 
 ---
 
-The problem with the above is that it leaves out *multiple* reference comments that *MUST* be present. It is EXTREMELY IMPORTANT that you include these references. 
+The problem with the above is that it leaves out *multiple* reference comments that *MUST* be present. It is EXTREMELY IMPORTANT that you include these references.
 
-You also MUST NOT output a file block like:
+You also MUST NOT output a code block like:
 
 ---
 
@@ -179,23 +146,12 @@ You also MUST NOT output a file block like:
   // ... existing code ...
 
   "contributes":{
-    "languages": [
-      {
-        "id": "plandex",
-        "aliases": ["Plandex", "plandex"],
-        "extensions": [".pd"],
-        "configuration": "./language-configuration.json"
-      }
-    ],
+    "languages": [{
+      "id": "plandex",
+    }],
     "grammars": [
       {
         "language": "plandex",
-        "scopeName": "text.plandex",
-        "path": "./syntaxes/plandex.tmLanguage.json",
-        "embeddedLanguages": {
-            "meta.embedded.block.yaml": "yaml",
-            "text.html.markdown": "markdown"
-        }
       }
     ]
   }
@@ -205,7 +161,7 @@ You also MUST NOT output a file block like:
 
 This ONLY includes a single reference comment for the code that isn't changing *before* the change. It *forgets* the code that isn't changing *after* the change, as well the remaining properties of the 'contributes' object.
                  
-Here's the CORRECT way to output the file block for this change:
+Here's the CORRECT way to output the code block for this change:
 
 ---
 
@@ -213,25 +169,14 @@ Here's the CORRECT way to output the file block for this change:
   // ... existing code ...
 
   "contributes": {
-    "languages": [
-      {
-        "id": "plandex",
-        "aliases": ["Plandex", "plandex"],
-        "extensions": [".pd"],
-        "configuration": "./language-configuration.json"
-      }
-    ],
+    "languages": [{
+      "id": "plandex",
+    }],
     "grammars": [
       {
         "language": "plandex",
-        "scopeName": "text.plandex",
-        "path": "./syntaxes/plandex.tmLanguage.json",
-        "embeddedLanguages": {
-            "meta.embedded.block.yaml": "yaml",
-            "text.html.markdown": "markdown"
-        }
       }
-    ],
+    ]
 
     // ... existing code ...
   },
@@ -240,7 +185,7 @@ Here's the CORRECT way to output the file block for this change:
 }
 ---
 
-You MUST NOT omit references for code that is not changing—this applies to EVERY level of the structural hierarchy. No matter how deep the nesting, every level MUST be accounted for with references if it includes code that is not included in the file block and is not changing.
+You MUST NOT omit references for code that is not changing—this applies to EVERY level of the structural hierarchy. No matter how deep the nesting, every level MUST be accounted for with references if it includes code that is not included in the code block and is not changing.
 
 You MUST ONLY use the exact comment "// ... existing code ..." (with the appropriate comment symbol for the programming language) to denote where the reference should be placed.
 
@@ -405,13 +350,13 @@ func main() {
 }
 ---
 
-Note the lack of superfluous newlines before and after the reference comment. There is a newline included between the first '// ... existing code ...' and the 'func main()' line because this newline is present in the original file. There is no newline *before* the first '// ... existing code ...' reference comment because the original file does not have a newline before that comment. Similarly, there is no newline before *or* after the second '// ... existing code ...' reference comment because the original file does not have newlines before or after the code that is being referenced. Newlines are SIGNIFICANT—you must strive to maintain consistent formatting between the original file and the changes in the file block.
+Note the lack of superfluous newlines before and after the reference comment. There is a newline included between the first '// ... existing code ...' and the 'func main()' line because this newline is present in the original file. There is no newline *before* the first '// ... existing code ...' reference comment because the original file does not have a newline before that comment. Similarly, there is no newline before *or* after the second '// ... existing code ...' reference comment because the original file does not have newlines before or after the code that is being referenced. Newlines are SIGNIFICANT—you must strive to maintain consistent formatting between the original file and the changes in the code block.
 
 *
 
-If code is being removed from a file and not replaced with new code, the removal MUST ALWAYS WITHOUT EXCEPTION be shown in a labelled file block according to your instructions. Use the comment "// Plandex: removed code" (with the appropriate comment symbol for the programming language) to denote the removal. You MUST ALWAYS use this exact comment for any code that is removed and not replaced with new code. DO NOT USE ANY OTHER COMMENT FOR CODE REMOVAL.
+If code is being removed from a file and not replaced with new code, the removal MUST ALWAYS WITHOUT EXCEPTION be shown in a labelled code block according to your instructions. Use the comment "// Plandex: removed code" (with the appropriate comment symbol for the programming language) to denote the removal. You MUST ALWAYS use this exact comment for any code that is removed and not replaced with new code. DO NOT USE ANY OTHER COMMENT FOR CODE REMOVAL.
     
-Do NOT use any other formatting apart from a labelled file block with the comment "// Plandex: removed code" to denote code removal.
+Do NOT use any other formatting apart from a labelled code block with the comment "// Plandex: removed code" to denote code removal.
 
 Example of code being removed and not replaced with new code:
 
@@ -557,7 +502,7 @@ When using an "... existing code ..." comment, you must ensure that the lines ar
 }
 ---
 
-DO NOT output a file block like this:
+DO NOT output a code block like this:
 
 ---
 {
@@ -583,7 +528,7 @@ Note that the lines around the "... existing code ..." comment exactly match the
 
 *
 
-When outputting a file block for a change, unless the change begins at the *start* of the file, you ABSOLUTELY MUST include an "... existing code ..." comment prior to the change to account for all the code before the change. Similarly, unless the change goes to the *end* of the file, you ABSOLUTE MUST include an "... existing code ..." comment after the change to account for all the code after the change. It is EXTREMELY IMPORTANT that you include these references and do no leave them out under any circumstances.
+When outputting a code block for a change, unless the change begins at the *start* of the file, you ABSOLUTELY MUST include an "... existing code ..." comment prior to the change to account for all the code before the change. Similarly, unless the change goes to the *end* of the file, you ABSOLUTE MUST include an "... existing code ..." comment after the change to account for all the code after the change. It is EXTREMELY IMPORTANT that you include these references and do no leave them out under any circumstances.
 
 For example, if the original file looks like this:
 
@@ -601,7 +546,7 @@ func fooBar() {
 }
 ---
 
-DO NOT output a file block like this:
+DO NOT output a code block like this:
 
 ---
 func main() {
@@ -656,7 +601,7 @@ function callSomething() {
 }
 ---
 
-DO NOT output a file block like this:
+DO NOT output a code block like this:
 
 ---
 // ... existing code ...
@@ -690,7 +635,7 @@ function newFunction() {
 
 By including the 'processResponse' function signature from the original code as an *anchor*, the location of the new code can be *unambiguously* located in the original file. It is clear now that the new function is being added immediately after the 'processResponse' function.
 
-It's EXTREMELY IMPORTANT that every file block that is *updating* an existing file includes at least one anchor that maps the lines from the original file to the lines in the file block so that the changes can be unambiguously located in the original file, and applied correctly.
+It's EXTREMELY IMPORTANT that every code block that is *updating* an existing file includes at least one anchor that maps the lines from the original file to the lines in the code block so that the changes can be unambiguously located in the original file, and applied correctly.
 
 Even if it's unimportant where in the original file the new code should be added and it could be added anywhere, you still *must decide* *exactly* where in the original file the new code should be added and include one or more *anchors* to make the insertion point clear and unambiguous. Do NOT leave out anchors for a file update under any circumstances.
 
@@ -730,7 +675,7 @@ func last() {
 
 ---
 
-DO NOT output a file block like this to demonstrate that new code will be inserted somewhere between the 'fooBar' and 'last' functions:
+DO NOT output a code block like this to demonstrate that new code will be inserted somewhere between the 'fooBar' and 'last' functions:
 
 ---
 // ... existing code ...
@@ -799,7 +744,7 @@ Either way, you MUST NOT leave out the "... existing code ..." comments for ANY 
 
 When including code from the original file to that is not changing and is intended to be used as an *anchor* to locate the insertion point of the new code, you ABSOLUTELY MUST NOT EVER change the order of the code in the original file. The order of the code in the original file MUST be preserved exactly as it is in the original file unless the proposed change is specifically changing the order of this code.
 
-If you are making multiple changes to the same file in a single file block, you MUST adhere to the order of the original file as closely as possible.
+If you are making multiple changes to the same file in a single code block, you MUST adhere to the order of the original file as closely as possible.
 
 If the original file is:
 
@@ -825,7 +770,7 @@ func yup() {
 }
 ---
 
-DO NOT output a file block like this to demonstrate that new code will be inserted between the 'fooBar' and 'baz' functions:
+DO NOT output a code block like this to demonstrate that new code will be inserted between the 'fooBar' and 'baz' functions:
 
 ---
 // ... existing code ...
@@ -866,6 +811,10 @@ Now the order of the 'baz' and 'qux' functions is preserved exactly as it is in 
 
 *
 
+When writing an "... existing code ..." comment, you MUST use the correct comment symbol for the programming language. For example, if you are writing a plan in Python, Ruby, or Bash, you MUST use '# ... existing code ...' instead of '// ... existing code ...'. If you're writing HTML, you MUST use '<!-- ... existing code ... -->'. If you're writing jsx, tsx, svelte, or another language where the correct comment symbol(s) depend on where in the code you are, use the appropriate comment symbol(s) for where that comment is placed in the file. If you're in a javascript block of a jsx file, use '// ... existing code ...'. If you're in a markup block of a jsx file, use '{/* ... existing code ... */}'.
+`
+
+const UpdateFormatAdditionalExamples = `
 Here are some important examples of INCORRECT vs CORRECT file updates:
 
 Example 1 - Adding a new route:
@@ -979,25 +928,22 @@ This is wrong because it dropped existing configuration sections.
 Key principles demonstrated in these examples:
 1. Always show the surrounding context that will be preserved
 2. Make insertion points unambiguous by showing adjacent code
-3. Never remove existing functionality
+3. Never remove existing functionality unless explicitly instructed to do so
 4. Use "... existing code ..." comments properly to indicate preserved sections
 5. Show enough context to understand the code structure
-
-*
-
-When writing an "... existing code ..." comment, you MUST use the correct comment symbol for the programming language. For example, if you are writing a plan in Python, Ruby, or Bash, you MUST use '# ... existing code ...' instead of '// ... existing code ...'. If you're writing HTML, you MUST use '<!-- ... existing code ... -->'. If you're writing jsx, tsx, svelte, or another language where the correct comment symbol(s) depend on where in the code you are, use the appropriate comment symbol(s) for where that comment is placed in the file. If you're in a javascript block of a jsx file, use '// ... existing code ...'. If you're in a markup block of a jsx file, use '{/* ... existing code ... */}'.
-    
-Again, if you are writing a plan in a language that does not use '//' for comments, you absolutely must always use the appropriate comment symbol or symbols for that language instead of '//'. It is critically important that comments are ALWAYS written correctly for the language you are writing in.
 `
 
 const ChangeExplanationPrompt = `
-Prior to any file block that is *updating* an existing file in context, you MUST explain the change in the following format EXACTLY:
+### Action Explanation Format
+
+Prior to any code block that is *updating* an existing file in context, you MUST explain the change in the following format EXACTLY:
 
 ---
 **Updating ` + "`[file path]`:**" + ` I'll [action explanation].
 ---
 
 'action explanation' MUST ALWAYS take one of the following forms:
+
 - 'add [new code description] between [specific code or structure in original file] and the immediately adjacent [specific *adjacent* code or structure in original file]'
 - 'add [new code description] immediately after [specific code or structure in original file]'
 - 'add [new code description] immediately before [specific code or structure in original file]'
@@ -1009,7 +955,9 @@ Prior to any file block that is *updating* an existing file in context, you MUST
 - 'remove code between [specific code or structure in original file] and the immediately adjacent [specific *adjacent* code or structure in original file]'
 - 'remove [specific code or structure in original file]'
 
-You ABSOLUTELY MUST use one of the above formats exactly as described, and EVERY file block that updates an existing file in context MUST *ALWAYS* be preceded with an explanation of the change in this *exact* format. Use the EXACT wording as described above. DO NOT CHANGE THE FORMATTING OR WORDING IN ANY WAY!
+You ABSOLUTELY MUST use one of the above formats exactly as described, and EVERY code block that updates an existing file in context MUST *ALWAYS* be preceded with an explanation of the change in this *exact* format. Use the EXACT wording as described above. DO NOT CHANGE THE FORMATTING OR WORDING IN ANY WAY!
+
+Do *NOT* UNDER ANY CIRCUMSTANCES use an explanation that does not match one of the above formats like "I'll update the code to...". You ABSOLUTELY MUST ALWAYS *exactly* match one of the above formats.
 
 If you are inserting code between two existing code blocks, do NOT use the start or end of the file to describe the position of the change; instead, use the code or structure that is *immediately before* and *immediately after* the point where the new code will be inserted.
 
@@ -1027,9 +975,9 @@ Do NOT leave off any part of the explanation as described above. Do NOT output s
 - **Updating ` + "`server/db/user.go`**" + `: I'll add a new ` + "`update`" + ` function immediately before the ` + "`getUser`" + ` method.
 - **Updating ` + "`server/db/user.go`**" + `: I'll remove the ` + "`getUser`" + ` method.
 
-You ABSOLUTELY MUST use this template EXACTLY as described above. DO NOT CHANGE THE FORMATTING OR WORDING IN ANY WAY! DO NOT OMIT ANY PART OF THE EXPLANATION AS DESCRIBED ABOVE. AND ABSOLUTELY DO NOT EVEN THINK ABOUT LEAVING OUT THIS MESSAGE! It is EXTREMELY IMPORTANT that you include this message in every file block that updates an existing file.
+You ABSOLUTELY MUST use this template EXACTLY as described above. DO NOT CHANGE THE FORMATTING OR WORDING IN ANY WAY! DO NOT OMIT ANY PART OF THE EXPLANATION AS DESCRIBED ABOVE. AND ABSOLUTELY DO NOT EVEN THINK ABOUT LEAVING OUT THIS MESSAGE! It is EXTREMELY IMPORTANT that you include this message in every code block that updates an existing file.
 
-When creating a *new* file, do NOT include this explanation. Include *one* explanation in this format per file block that *updates* an existing file. Do NOT include multiple explanations in the same file block.
+When creating a *new* file, do NOT include this explanation. Include *one* explanation in this format per code block that *updates* an existing file. Do NOT include multiple explanations in the same code block.
 
 When describing two specific code structures in the original file that new code will be inserted between, the two code structures MUST be *immediately adjacent* in the original file. DO NOT insert code between two code structures that aren't *immediately adjacent* in the original file. For example, if the original file is:
 
@@ -1066,7 +1014,7 @@ You can also output an explanation like this:
 **Updating ` + "`server/something/something.go`**" + `: I'll add the new 'anotherThing' function call immediately after the 'doSomethingOnceMore' method.
 ---
 
-The explanation MUST ALWAYS WITHOUT EXCPETION be immediately followed by the file block that updates the file in the EXACT format specified in section 2a of your instructions. DO NOT omit the file block label.
+The explanation MUST ALWAYS WITHOUT EXCPETION be immediately followed by the code block that updates the file in the EXACT format specified in section 2a of your instructions. DO NOT omit the code block label.
 
 Example:
 
@@ -1088,13 +1036,13 @@ func Add(t *T) {
 
 *
 
-ALL code structures that are mentioned in the explanation MUST be included as *anchors* in the file block that updates the file. If you are inserting new code between [structure 1] and [structure 2], then you MUST include both [structure 1] and [structure 2] as anchors in the file block that updates the file. You do not need to include the full structures—use "... existing code ..." reference comments if necessary to avoid outputting full structures, but you MUST include the anchors to make it clear and unambiguous where the new code is being inserted. The same applies if you are replacing code between [structure 1] and [structure 2] or removing code between [structure 1] and [structure 2].
+ALL code structures that are mentioned in the explanation MUST be included as *anchors* in the code block that updates the file. If you are inserting new code between [structure 1] and [structure 2], then you MUST include both [structure 1] and [structure 2] as anchors in the code block that updates the file. You do not need to include the full structures—use "... existing code ..." reference comments if necessary to avoid outputting full structures, but you MUST include the anchors to make it clear and unambiguous where the new code is being inserted. The same applies if you are replacing code between [structure 1] and [structure 2] or removing code between [structure 1] and [structure 2].
 
 *
 
-If a file is being *updated* and the above explanation does not indicate that the file is being *overwritten* or that the change is being prepended to the *start* of the file, then the file block ABSOLUTELY ALWAYS MUST begin with an "... existing code ..." comment to account for all the code before the change. It is EXTREMELY IMPORTANT that you include this comment when it is needed—it must not be omitted.
+If a file is being *updated* and the above explanation does *not* indicate that the file is being *overwritten* or that the change is being prepended to the *start* of the file, then the code block ABSOLUTELY ALWAYS MUST begin with an "... existing code ..." comment to account for all the code before the change. It is EXTREMELY IMPORTANT that you include this comment when it is needed—it must not be omitted.
 
-If a file is being *updated* and the above explanation indicates that the file is being *overwritten* or that the change is being appended to the *end* of the file, then the file block ABSOLUTELY ALWAYS MUST end with an "... existing code ..." comment to account for all the code after the change. It is EXTREMELY IMPORTANT that you include this comment when it is needed—it must not be omitted.
+If a file is being *updated* and the above explanation does *not* indicate that the file is being *overwritten* or that the change is being appended to the *end* of the file, then the code block ABSOLUTELY ALWAYS MUST end with an "... existing code ..." comment to account for all the code after the change. It is EXTREMELY IMPORTANT that you include this comment when it is needed—it must not be omitted.
 
 Again, unless a file is being fully ovewritten, or the change either starts at the *absolute start* of the file or ends at the *absolute end* of the file, IT IS ABSOLUTELY CRITICAL that the file both BEGINS with an "... existing code ..." comment and ENDS with an "... existing code ..." comment.
 
@@ -1102,7 +1050,7 @@ If a file must begin with an "... existing code ..." comment according to the ab
 
 If a file must end with an "... existing code ..." comment according to the above rules, then there MUST NOT be any code after the final "... existing code ..." comment.
 
-Again, if the change *does not* end at the *absolute end* of the file, then the LAST LINE of the file block MUST be an "... existing code ..." comment. Ending the file block like this:
+Again, if the change *does not* end at the *absolute end* of the file, then the LAST LINE of the code block MUST be an "... existing code ..." comment. Ending the code block like this:
 
 ---
 // ... existing code ...

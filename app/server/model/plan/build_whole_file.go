@@ -58,7 +58,7 @@ func (fileState *activeBuildStreamFileState) buildWholeFileFallback(proposedCont
 		Plan: fileState.plan,
 		WillSendModelRequestParams: &hooks.WillSendModelRequestParams{
 			InputTokens:  inputTokens,
-			OutputTokens: config.ReservedOutputTokens,
+			OutputTokens: config.GetReservedOutputTokens(),
 			ModelName:    config.BaseModelConfig.ModelName,
 		},
 	})

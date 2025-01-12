@@ -116,7 +116,7 @@ func ApplyChanges(
 		}
 
 		if !beginsWithRef &&
-			!strings.Contains(desc, "overwrite the entire file") &&
+			!strings.Contains(desc, "entire file") &&
 			!((strings.Contains(desc, "replace code") ||
 				strings.Contains(desc, "remove code")) &&
 				strings.Contains(desc, "start of the file")) {
@@ -135,7 +135,7 @@ func ApplyChanges(
 		}
 
 		if !endsWithRef &&
-			!strings.Contains(desc, "overwrite the entire file") &&
+			!strings.Contains(desc, "entire file") &&
 			!(strings.Contains(desc, "replace code") ||
 				strings.Contains(desc, "remove code")) &&
 			!strings.Contains(desc, "end of the file") {
@@ -196,7 +196,7 @@ func ApplyChanges(
 	// 	return res
 	// }
 
-	if !strings.Contains(desc, "overwrite the entire file") {
+	if !strings.Contains(desc, "entire file") {
 		originalLineMap := make(map[string]bool)
 		for _, line := range originalLines {
 			originalLineMap[strings.TrimSpace(line)] = true

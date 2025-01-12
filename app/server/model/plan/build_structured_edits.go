@@ -90,12 +90,43 @@ func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 		log.Println(spew.Sdump(applyRes.NeedsVerifyReasons))
 
 		wholeFileConfig := fileState.settings.ModelPack.GetWholeFileBuilder()
-		reservedOutputTokens := wholeFileConfig.ReservedOutputTokens
+
+		spew.Dump(wholeFileConfig)
+
+		reservedOutputTokens := wholeFileConfig.GetReservedOutputTokens()
 		isSmallFile := maxPotentialTokens < SmallFileThreshold
-		isBelowWholeFileThreshold := maxPotentialTokens < int(float32(reservedOutputTokens)*0.9)
+		threshold := int(float32(reservedOutputTokens) * 0.9)
+		isBelowWholeFileThreshold := maxPotentialTokens < threshold
 		shouldBuildSmallFile := isSmallFile && numTries == SmallFileTriesBeforeWholeFile && isBelowWholeFileThreshold
 		shouldBuildAnyFile := numTries == BuildTriesBeforeWholeFile && isBelowWholeFileThreshold
 		shouldBuildWholeFile := shouldBuildSmallFile || shouldBuildAnyFile
+
+		// log all the above variables
+		log.Printf("buildStructuredEdits - variables for whole file decision:\n"+
+			"filePath: %s\n"+
+			"content tokens: %d\n"+
+			"current file tokens: %d\n"+
+			"maxPotentialTokens: %d\n"+
+			"reservedOutputTokens: %d\n"+
+			"threshold: %d\n"+
+			"isSmallFile: %t\n"+
+			"isBelowWholeFileThreshold: %t\n"+
+			"shouldBuildSmallFile: %t\n"+
+			"shouldBuildAnyFile: %t\n"+
+			"shouldBuildWholeFile: %t\n"+
+			"numTries: %d",
+			filePath,
+			activeBuild.FileContentTokens,
+			activeBuild.CurrentFileTokens,
+			maxPotentialTokens,
+			reservedOutputTokens,
+			threshold,
+			isSmallFile,
+			isBelowWholeFileThreshold,
+			shouldBuildSmallFile,
+			shouldBuildAnyFile,
+			shouldBuildWholeFile,
+			numTries)
 
 		log.Printf("buildStructuredEdits - %s - num tries %d - should build small file %t - should build any file %t - should build whole file %t\n", filePath, numTries, shouldBuildSmallFile, shouldBuildAnyFile, shouldBuildWholeFile)
 
@@ -123,6 +154,9 @@ func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 		// 	log.Println(diff)
 		// }
 
+		log.Printf("buildStructuredEdits - %s - desc:\n%s\n", filePath, desc)
+		log.Printf("buildStructuredEdits - %s - proposedContent:\n%s\n", filePath, proposedContent)
+
 		validateSysPrompt := prompts.GetValidateEditsPrompt(filePath, originalFile, desc, proposedContent, diff, applyRes.NeedsVerifyReasons, syntaxErrors)
 
 		validateFileMessages := []openai.ChatCompletionMessage{
@@ -147,7 +181,7 @@ func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 			Plan: fileState.plan,
 			WillSendModelRequestParams: &hooks.WillSendModelRequestParams{
 				InputTokens:  inputTokens,
-				OutputTokens: config.ReservedOutputTokens,
+				OutputTokens: config.GetReservedOutputTokens(),
 				ModelName:    config.BaseModelConfig.ModelName,
 			},
 		})

@@ -1,7 +1,6 @@
 package types
 
 import (
-	"log"
 	"os"
 	"strings"
 
@@ -166,18 +165,18 @@ func (r *ReplyParser) AddChunk(chunk string, addToTotal bool) {
 		if LineMaybeHasFilePath(prevFullLineTrimmed) {
 			gotPath = extractFilePath(prevFullLineTrimmed)
 		} else if prevFullLineTrimmed == "### Move Files" {
-			log.Println("Found move block")
+			// log.Println("Found move block")
 			r.isInMoveBlock = true
 		} else if prevFullLineTrimmed == "### Remove Files" {
-			log.Println("Found remove block")
+			// log.Println("Found remove block")
 			r.isInRemoveBlock = true
 		} else if prevFullLineTrimmed == "### Reset Changes" {
-			log.Println("Found reset block")
+			// log.Println("Found reset block")
 			r.isInResetBlock = true
 		}
 
 		if gotPath != "" {
-			log.Println("Detected possible file path:", gotPath) // Logging the possible file path
+			// log.Println("Detected possible file path:", gotPath) // Logging the possible file path
 			r.maybeFilePath = gotPath
 		}
 	} else if r.currentFilePath != "" {
@@ -196,7 +195,7 @@ func (r *ReplyParser) AddChunk(chunk string, addToTotal bool) {
 			// log.Printf("Added %d tokens to %s\n", tokens, r.currentFilePath) // Logging token addition
 		}
 	} else if r.isInMoveBlock || r.isInRemoveBlock || r.isInResetBlock {
-		log.Println("In move, remove, or reset block")
+		// log.Println("In move, remove, or reset block")
 		if prevFullLineTrimmed == "<EndPlandexFileOps/>" {
 			// log.Println("Found closing tag--adding operations to operations and resetting pending operations...")
 			r.isInMoveBlock = false

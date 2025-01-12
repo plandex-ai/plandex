@@ -4,32 +4,7 @@ import (
 	"fmt"
 
 	"github.com/plandex/plandex/shared"
-	"github.com/sashabaranov/go-openai"
-	"github.com/sashabaranov/go-openai/jsonschema"
 )
-
-const SysShortSummary = "You are an AI summarizer that summarizes text, including programs, documentation, websites, and more. Most text will be related to software development. You produce a brief summary of the text. A few sentences at most."
-
-var ShortSummaryFn = openai.FunctionDefinition{
-	Name: "summarize",
-	Parameters: &jsonschema.Definition{
-		Type: jsonschema.Object,
-		Properties: map[string]jsonschema.Definition{
-			"summary": {
-				Type: jsonschema.String,
-			},
-		},
-		Required: []string{"summary"},
-	},
-}
-
-func GetShortSummaryPrompt(text string) string {
-	return `Please summarize the text below using the 'summarize' function. Call 'summarize' with valid JSON that includes the 'summary' key. You must ALWAYS call the 'summarize' function in your reponse. Don't call any other function.
-	
-	Text:
-					
-	` + text
-}
 
 const PlanSummary = `
 You are an AI summarizer that summarizes the conversation so far. The conversation so far is a plan to complete one or more programming tasks for a user. This conversation may begin with an existing summary of the plan.

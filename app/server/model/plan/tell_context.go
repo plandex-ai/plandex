@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"regexp"
 	"strings"
 
 	"github.com/plandex/plandex/shared"
@@ -11,6 +12,8 @@ import (
 )
 
 func (state *activeTellStreamState) formatModelContext(includeMaps, includeTrees, isImplementationStage, smartContextEnabled, execEnabled bool) (string, int, error) {
+	log.Println("Tell plan - formatModelContext")
+
 	var contextMessages []string = []string{
 		"### LATEST PLAN CONTEXT ###",
 	}
@@ -19,11 +22,13 @@ func (state *activeTellStreamState) formatModelContext(includeMaps, includeTrees
 
 	uses := map[string]bool{}
 	if isImplementationStage && smartContextEnabled && state.currentSubtask != nil {
+		log.Println("Tell plan - formatModelContext - implementation stage - smart context enabled for current subtask")
 		for _, path := range state.currentSubtask.UsesFiles {
 			uses[path] = true
 		}
-
 	}
+
+	log.Printf("Tell plan - formatModelContext - implementation stage - smart context enabled for current subtask - uses: %v\n", uses)
 
 	for _, part := range state.modelContext {
 		if isImplementationStage && smartContextEnabled && state.currentSubtask != nil && part.ContextType == shared.ContextFileType && !uses[part.FilePath] {
@@ -86,6 +91,7 @@ func (state *activeTellStreamState) formatModelContext(includeMaps, includeTrees
 			contextMessages = append(contextMessages, message)
 		}
 
+		log.Printf("Tell plan - formatModelContext - added context - %s\n", part.Name)
 	}
 
 	// Add any current files in plan that weren't added to the context
@@ -101,6 +107,8 @@ func (state *activeTellStreamState) formatModelContext(includeMaps, includeTrees
 			}
 
 			contextMessages = append(contextMessages, fmt.Sprintf("\n\n- %s:\n\n```\n%s\n```", filePath, body))
+
+			log.Printf("Tell plan - formatModelContext - added current plan file - %s\n", filePath)
 		}
 	}
 
@@ -110,6 +118,9 @@ func (state *activeTellStreamState) formatModelContext(includeMaps, includeTrees
 			contextMessages = append(contextMessages, fmt.Sprintf("- %s", path))
 		}
 		contextMessages = append(contextMessages, "These files have been *removed* and are no longer in the plan. If you want to re-add them to the plan, you must explicitly create them again.")
+
+		log.Println("Tell plan - formatModelContext - added removed files")
+		log.Println(contextMessages)
 	}
 
 	if execEnabled &&
@@ -130,7 +141,11 @@ func (state *activeTellStreamState) formatModelContext(includeMaps, includeTrees
 	return strings.Join(contextMessages, "\n### END OF CONTEXT ###\n"), numTokens, nil
 }
 
+var pathRegex = regexp.MustCompile("`(.+?)`")
+
 func (state *activeTellStreamState) checkAutoLoadContext() []string {
+	req := state.req
+
 	activePlan := GetActivePlan(state.plan.Id, state.branch)
 
 	if activePlan == nil {
@@ -148,36 +163,23 @@ func (state *activeTellStreamState) checkAutoLoadContext() []string {
 		return nil
 	}
 
-	// only load context on the first iteration of a non-continue prompt
-	if state.iteration > 0 {
+	if !(state.isContextStage || state.isPlanningStage) {
 		return nil
 	}
 
-	split := strings.Split(activePlan.CurrentReplyContent, "### Load Context")
+	// pick out all potential file paths within backticks
+	matches := pathRegex.FindAllStringSubmatch(activePlan.CurrentReplyContent, -1)
 
-	if len(split) < 2 {
-		return nil
-	}
-
-	req := state.req
-
-	list := strings.Split(split[1], "\n")
 	files := []string{}
 
-	for _, line := range list {
-		trimmed := strings.TrimSpace(line)
+	for _, match := range matches {
+		trimmed := strings.TrimSpace(match[1])
 		if trimmed == "" {
 			continue
 		}
 
-		if strings.HasPrefix(trimmed, "-") {
-			trimmed = strings.TrimPrefix(trimmed, "-")
-			trimmed = strings.ReplaceAll(trimmed, "`", "")
-			trimmed = strings.TrimSpace(trimmed)
-
-			if req.ProjectPaths[trimmed] && contextsByPath[trimmed] == nil {
-				files = append(files, trimmed)
-			}
+		if req.ProjectPaths[trimmed] && contextsByPath[trimmed] == nil {
+			files = append(files, trimmed)
 		}
 	}
 

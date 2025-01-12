@@ -275,6 +275,9 @@ func (m *streamUIModel) streamUpdate(msg *shared.StreamMessage, deferUIUpdate bo
 		return m.checkMissingFile(msg)
 
 	case shared.StreamMessageReply:
+		// log.Println("Stream message reply:")
+		// log.Println(spew.Sdump(msg))
+
 		// ignore empty reply messages
 		if msg.ReplyChunk == "" {
 			return m, nil
@@ -298,6 +301,8 @@ func (m *streamUIModel) streamUpdate(msg *shared.StreamMessage, deferUIUpdate bo
 		}
 
 		m.reply += msg.ReplyChunk
+
+		// log.Println(m.reply)
 
 		if !deferUIUpdate {
 			m.updateReplyDisplay()

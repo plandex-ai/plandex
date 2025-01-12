@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"time"
@@ -93,6 +94,7 @@ func GetOrgDefaultSettings(orgId string, fillDefaultModelPack bool) (*shared.Pla
 
 	if err != nil {
 		if err == sql.ErrNoRows {
+			log.Println("GetOrgDefaultSettings - no rows - returning default settings")
 			// if it doesn't exist, return default settings object
 			settings := &shared.PlanSettings{
 				UpdatedAt: time.Time{},
@@ -103,6 +105,11 @@ func GetOrgDefaultSettings(orgId string, fillDefaultModelPack bool) (*shared.Pla
 			return settings, nil
 		}
 		return nil, fmt.Errorf("error getting default plan settings: %v", err)
+	}
+
+	// fill in default WholeFileBuilder if not set
+	if defaults.PlanSettings.ModelPack.WholeFileBuilder == nil {
+		defaults.PlanSettings.ModelPack.WholeFileBuilder = shared.DefaultModelPack.WholeFileBuilder
 	}
 
 	return &defaults.PlanSettings, nil

@@ -22,7 +22,7 @@ type processChunkResult struct {
 
 func (state *activeTellStreamState) processChunk(choice openai.ChatCompletionStreamChoice) processChunkResult {
 	req := state.req
-	missingFileResponse := state.missingFileResponse
+	// missingFileResponse := state.missingFileResponse
 	processor := state.chunkProcessor
 	replyParser := state.replyParser
 	plan := state.plan
@@ -35,33 +35,40 @@ func (state *activeTellStreamState) processChunk(choice openai.ChatCompletionStr
 		return processChunkResult{}
 	}
 
-	processor.chunksReceived++
 	delta := choice.Delta
 	content := delta.Content
 
+	if content == "" {
+		return processChunkResult{}
+	}
+
+	processor.chunksReceived++
+
 	// log.Printf("content: %s\n", content)
 
+	// Below needs reworking to correctly integrate with the rest of the processor
+	// Maybe isn't necessary anymore
 	// buffer if we're continuing after a missing file response to avoid sending redundant opening tags
-	if missingFileResponse != "" {
-		if processor.maybeRedundantOpeningTagContent != "" {
-			if strings.Contains(content, "\n") {
-				processor.maybeRedundantOpeningTagContent = ""
-			} else {
-				processor.maybeRedundantOpeningTagContent += content
-			}
+	// if missingFileResponse != "" {
+	// 	if processor.maybeRedundantOpeningTagContent != "" {
+	// 		if strings.Contains(content, "\n") {
+	// 			processor.maybeRedundantOpeningTagContent = ""
+	// 		} else {
+	// 			processor.maybeRedundantOpeningTagContent += content
+	// 		}
 
-			// skip processing this chunk
-			return processChunkResult{}
-		} else if processor.chunksReceived < 3 && strings.Contains(content, "<PlandexBlock") {
-			// received <PlandexBlock in first 3 chunks after missing file response
-			// means this is a redundant start of a new file block, so just ignore it
+	// 		// skip processing this chunk
+	// 		return processChunkResult{}
+	// 	} else if processor.chunksReceived < 3 && strings.Contains(content, "<PlandexBlock") {
+	// 		// received <PlandexBlock in first 3 chunks after missing file response
+	// 		// means this is a redundant start of a new file block, so just ignore it
 
-			processor.maybeRedundantOpeningTagContent += content
+	// 		processor.maybeRedundantOpeningTagContent += content
 
-			// skip processing this chunk
-			return processChunkResult{}
-		}
-	}
+	// 		// skip processing this chunk
+	// 		return processChunkResult{}
+	// 	}
+	// }
 
 	// log.Printf("Adding chunk to parser: %s\n", content)
 	// log.Printf("fileOpen: %v\n", processor.fileOpen)
@@ -95,11 +102,13 @@ func (state *activeTellStreamState) processChunk(choice openai.ChatCompletionStr
 
 	// Handle file that is present in project paths but not in context
 	// Prompt user for what to do on the client side, stop the stream, and wait for user response before proceeding
+	bufferOrStreamRes := processor.bufferOrStream(content, &parserRes, state.isImplementationStage)
+
 	if currentFile != "" &&
 		!req.IsChatOnly &&
 		active.ContextsByPath[currentFile] == nil &&
 		req.ProjectPaths[currentFile] && !active.AllowOverwritePaths[currentFile] {
-		return state.handleMissingFile(content, currentFile)
+		return state.handleMissingFile(bufferOrStreamRes.content, currentFile, bufferOrStreamRes.blockLang)
 	}
 
 	UpdateActivePlan(planId, branch, func(ap *types.ActivePlan) {
@@ -112,15 +121,13 @@ func (state *activeTellStreamState) processChunk(choice openai.ChatCompletionStr
 	// log.Println("maybeFilePath", parserRes.MaybeFilePath)
 	// log.Println("currentFilePath", parserRes.CurrentFilePath)
 
-	res := processor.bufferOrStream(content, &parserRes, state.isImplementationStage)
-
 	// log.Println("res")
 	// spew.Dump(res)
 
-	if res.shouldStream {
+	if bufferOrStreamRes.shouldStream {
 		active.Stream(shared.StreamMessage{
 			Type:       shared.StreamMessageReply,
-			ReplyChunk: res.content,
+			ReplyChunk: bufferOrStreamRes.content,
 		})
 	}
 
@@ -137,6 +144,7 @@ func (state *activeTellStreamState) processChunk(choice openai.ChatCompletionStr
 type bufferOrStreamResult struct {
 	shouldStream bool
 	content      string
+	blockLang    string
 }
 
 func (processor *chunkProcessor) bufferOrStream(content string, parserRes *types.ReplyParserRes, isImplementationStage bool) bufferOrStreamResult {
@@ -149,6 +157,8 @@ func (processor *chunkProcessor) bufferOrStream(content string, parserRes *types
 	}
 
 	var shouldStream bool
+	var blockLang string
+
 	if processor.awaitingBlockOpeningTag || processor.awaitingBlockClosingTag || processor.awaitingBackticks || processor.awaitingOpClosingTag {
 		processor.contentBuffer.WriteString(content)
 		s := processor.contentBuffer.String()
@@ -193,7 +203,10 @@ func (processor *chunkProcessor) bufferOrStream(content string, parserRes *types
 				processor.contentBuffer.Reset()
 				shouldStream = true
 			} else if parserRes.CurrentFilePath != "" {
-				matched, replaced := matchCodeBlockOpeningTag(s)
+				matched, replaced := replaceCodeBlockOpeningTag(s, func(lang string) string {
+					blockLang = lang
+					return "```" + lang
+				})
 
 				if matched {
 					shouldStream = true
@@ -288,7 +301,11 @@ func (processor *chunkProcessor) bufferOrStream(content string, parserRes *types
 		var matchedOpeningTag bool
 		if processor.fileOpen {
 			var replaced string
-			matchedOpeningTag, replaced = matchCodeBlockOpeningTag(content)
+
+			matchedOpeningTag, replaced = replaceCodeBlockOpeningTag(content, func(lang string) string {
+				blockLang = lang
+				return "```" + lang
+			})
 			if matchedOpeningTag {
 				content = replaced
 			}
@@ -304,6 +321,7 @@ func (processor *chunkProcessor) bufferOrStream(content string, parserRes *types
 	return bufferOrStreamResult{
 		shouldStream: shouldStream,
 		content:      content,
+		blockLang:    blockLang,
 	}
 }
 
@@ -362,6 +380,8 @@ func (state *activeTellStreamState) handleNewOperations(parserRes *types.ReplyPa
 				opContentTokens = op.NumTokens
 			}
 
+			log.Printf("buildState.queueBuilds - op.Description:\n%s\n", op.Description)
+
 			buildState.queueBuilds([]*types.ActiveBuild{{
 				ReplyId:           replyId,
 				FileDescription:   op.Description,
@@ -382,7 +402,7 @@ func (state *activeTellStreamState) handleNewOperations(parserRes *types.ReplyPa
 
 }
 
-func (state *activeTellStreamState) handleMissingFile(content, currentFile string) processChunkResult {
+func (state *activeTellStreamState) handleMissingFile(content, currentFile, blockLang string) processChunkResult {
 	branch := state.branch
 	plan := state.plan
 	planId := plan.Id
@@ -415,23 +435,28 @@ func (state *activeTellStreamState) handleMissingFile(content, currentFile strin
 		return processChunkResult{}
 	}
 
-	var previousReplyContent string
-	var trimmedContent string
+	var trimmedReply string
 
 	UpdateActivePlan(planId, branch, func(ap *types.ActivePlan) {
 		ap.MissingFilePath = currentFile
-		previousReplyContent = ap.CurrentReplyContent
-		trimmedContent = replyParser.GetReplyForMissingFile()
-		ap.CurrentReplyContent = trimmedContent
+		trimmedReply = replyParser.GetReplyForMissingFile()
+		ap.CurrentReplyContent = trimmedReply
 	})
 
-	log.Println("Previous reply content:")
-	log.Println(previousReplyContent)
+	// log.Println("Content:")
+	// log.Println(content)
+
+	// log.Println("Block lang:")
+	// log.Println(blockLang)
 
 	// log.Println("Trimmed content:")
-	// log.Println(trimmedContent)
+	// log.Println(trimmedReply)
 
-	chunkToStream := getCroppedChunk(previousReplyContent+content, trimmedContent, content)
+	// try to replace the code block opening tag in the chunk with an empty string
+	// this will remove the code block opening tag if it exists
+	splitBy := "```" + blockLang
+	split := strings.Split(content, splitBy)
+	chunkToStream := split[0] + splitBy + "\n"
 
 	// log.Printf("chunkToStream: %s\n", chunkToStream)
 
@@ -512,16 +537,16 @@ func getCroppedChunk(uncropped, cropped, chunk string) string {
 	return croppedChunk
 }
 
-func matchCodeBlockOpeningTag(content string) (bool, string) {
+func replaceCodeBlockOpeningTag(content string, replaceWithFn func(lang string) string) (bool, string) {
 	// check for opening tag matching <PlandexBlock lang="...">
 	match := openingTagRegex.FindStringSubmatch(content)
 
 	if match != nil {
 		// Found complete opening tag with lang attribute
 		lang := match[1] // Extract the language from the first capture group
-		return true, strings.Replace(content, match[0], "```"+lang, 1)
+		return true, strings.Replace(content, match[0], replaceWithFn(lang), 1)
 	} else if strings.Contains(content, "<PlandexBlock>") {
-		return true, strings.Replace(content, "<PlandexBlock>", "```", 1)
+		return true, strings.Replace(content, "<PlandexBlock>", replaceWithFn(""), 1)
 	}
 
 	return false, ""

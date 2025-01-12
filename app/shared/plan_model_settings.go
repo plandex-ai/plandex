@@ -83,20 +83,8 @@ func (ps PlanSettings) GetPlannerMaxConvoTokens() int {
 	}
 }
 
-func (ps PlanSettings) GetPlannerReservedOutputTokens() int {
-	if ps.ModelOverrides.ReservedOutputTokens == nil {
-		if ps.ModelPack == nil {
-			return DefaultModelPack.Planner.ReservedOutputTokens
-		} else {
-			return ps.ModelPack.Planner.ReservedOutputTokens
-		}
-	} else {
-		return *ps.ModelOverrides.ReservedOutputTokens
-	}
-}
-
 func (ps PlanSettings) GetPlannerEffectiveMaxTokens() int {
-	return ps.GetPlannerMaxTokens() - ps.GetPlannerReservedOutputTokens()
+	return ps.GetPlannerMaxTokens() - ps.ModelPack.Planner.GetReservedOutputTokens()
 }
 
 func (ps PlanSettings) GetRequiredEnvVars() map[string]bool {

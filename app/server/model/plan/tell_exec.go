@@ -198,6 +198,8 @@ func execTellPlan(
 		wrapperTokens = prompts.ImplementationPromptWrapperTokens
 	}
 
+	log.Printf("wrapperTokens: %d\n", wrapperTokens)
+
 	if iteration == 0 && missingFileResponse == "" {
 		numPromptTokens, err = shared.GetNumTokens(req.Prompt)
 		if err != nil {
@@ -214,10 +216,16 @@ func execTellPlan(
 		promptTokens = wrapperTokens + numPromptTokens + osDetailsTokens
 	} else if iteration > 0 && missingFileResponse == "" {
 		numPromptTokens = prompts.AutoContinuePromptTokens
+
+		log.Printf("numPromptTokens: %d\n", numPromptTokens)
+		log.Printf("osDetailsTokens: %d\n", osDetailsTokens)
+		log.Printf("wrapperTokens: %d\n", wrapperTokens)
+
 		promptTokens = wrapperTokens + numPromptTokens + osDetailsTokens
 	}
 
 	if req.ExecEnabled {
+		log.Printf("Apply script summary num tokens: %d\n", prompts.ApplyScriptSummaryNumTokens)
 		promptTokens += prompts.ApplyScriptSummaryNumTokens
 	}
 
@@ -272,7 +280,7 @@ func execTellPlan(
 		Plan: plan,
 		WillSendModelRequestParams: &hooks.WillSendModelRequestParams{
 			InputTokens:  state.totalRequestTokens,
-			OutputTokens: state.settings.ModelPack.Planner.ReservedOutputTokens,
+			OutputTokens: state.settings.ModelPack.Planner.GetReservedOutputTokens(),
 			ModelName:    state.settings.ModelPack.Planner.BaseModelConfig.ModelName,
 		},
 	})

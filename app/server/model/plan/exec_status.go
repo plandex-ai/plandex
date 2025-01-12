@@ -32,9 +32,9 @@ func (state *activeTellStreamState) execStatusShouldContinue(message string, ctx
 		s := fmt.Sprintf("**%s** has been completed", state.currentSubtask.Title)
 
 		log.Println("Checking if message contains subtask completion")
-		log.Println(s)
-		log.Println("---")
-		log.Println(message)
+		// log.Println(s)
+		// log.Println("---")
+		// log.Println(message)
 
 		if strings.Contains(message, s) {
 			log.Println("Subtask marked completed in message. Will continue")

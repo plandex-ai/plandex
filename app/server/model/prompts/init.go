@@ -39,6 +39,10 @@ func init() {
 		panic(fmt.Sprintf("Error getting number of tokens for prompt wrapper: %v", err))
 	}
 
+	// log.Printf("ImplementationPromptWrapperTokens: %d\n", ImplementationPromptWrapperTokens)
+
+	// log.Println("implementationPromptWrapperFormatStr:\n", implementationPromptWrapperFormatStr)
+
 	AutoContinuePromptTokens, err = shared.GetNumTokens(AutoContinuePrompt)
 
 	if err != nil {

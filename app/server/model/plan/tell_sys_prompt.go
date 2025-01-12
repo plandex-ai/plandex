@@ -47,6 +47,17 @@ func (state *activeTellStreamState) getTellSysPrompt(isPlanningStage, isContextS
 			return false, "", 0
 		}
 		sysCreate = prompts.GetImplementationPrompt(state.currentSubtask.Title)
+		var err error
+		sysCreateTokens, err = shared.GetNumTokens(sysCreate)
+		if err != nil {
+			log.Printf("Error getting num tokens for implementation prompt: %v\n", err)
+			active.StreamDoneCh <- &shared.ApiError{
+				Type:   shared.ApiErrorTypeOther,
+				Status: http.StatusInternalServerError,
+				Msg:    "Error getting num tokens for implementation prompt",
+			}
+			return false, "", 0
+		}
 	}
 
 	if !isContextStage {

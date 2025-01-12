@@ -446,7 +446,7 @@ func renderSettings(settings *shared.PlanSettings) {
 			config.BaseModelConfig.ModelName,
 			fmt.Sprintf("%.1f", config.Temperature),
 			fmt.Sprintf("%.1f", config.TopP),
-			fmt.Sprintf("%d 🪙", config.ReservedOutputTokens),
+			fmt.Sprintf("%d 🪙", config.GetReservedOutputTokens()),
 		})
 	}
 

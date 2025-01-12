@@ -77,7 +77,9 @@ Don't include unnecessary comments in code. Lean towards no comments as much as 
 
 When updating an existing file in context, use the *reference comment* "// ... existing code ..." (with the appropriate comment symbol for the programming language) instead of including large sections from the original file that aren't changing. Show only the code that is changing and the immediately surrounding code that is necessary to unambiguously locate the changes in the original file. This only applies when you are *updating* an *existing file* in context. It does *not* apply when you are creating a new file. You MUST NEVER use the comment "// ... existing code ..." (or any equivalent) when creating a new file.   
 
-` + UpdateFormatPrompt + `
+` + UpdateFormatPrompt + ` 
+
+` + UpdateFormatAdditionalExamples + `
 
 ` + FileOpsImplementationPrompt + `
 
@@ -130,7 +132,10 @@ If the latest state of the context makes the current subtask you are working on 
 }
 
 const CurrentSubtaskPrompt = `
-You will implement the *current subtask ONLY* in this response. You MUST NOT implement any other subtasks in this response. When the current subtask is complete, you MUST NOT move on to the next subtask. Instead, you must mark the current subtask as done and then end your response.
+You will implement the *current subtask ONLY* in this response. You MUST NOT implement any other subtasks in this response. When the current subtask is complete, you MUST NOT move on to the next subtask. Instead, you must mark the current subtask as done, output <PlandexSubtaskDone/>, and then end your response.
+
+Before marking the subtask as done, you MUST complete *every* step of the subtask. Do NOT skip any steps or mark the subtask as done before completing all the steps.
+
 `
 
 const MarkSubtaskDonePrompt = `
@@ -146,4 +151,12 @@ Example:
 <PlandexSubtaskDone/>
 
 It's extremely important to mark subtasks as done so that you can keep track of what has been completed and what is remaining. You MUST ALWAYS mark subtasks done with *exactly* this format. Use the *exact* name of the subtask (bolded) *exactly* as it is written in the subtask list and the CURRENT SUBTASK section and then "has been completed." in the response. Then you MUST ABSOLUTELY ALWAYS output <PlandexSubtaskDone/> and immediately end the response.
+
+Before marking the subtask as done, you MUST complete *every* step of the subtask. Do NOT skip any steps or mark the subtask as done before completing all the steps.
+
+You ABSOLUTELY MUST NOT mark the subtask as done by outputting text in the format "**[subtask name]** has been completed" and outputting <PlandexSubtaskDone/> until *every single step* of the subtask has been implemented with code blocks. DO NOT output this text or output <PlandexSubtaskDone/> after the first code block in the response *unless* that is the final step of the subtask. Otherwise, you must *continue* working on the remaining steps of the subtask with additional code blocks.
+
+If you are not able to finish *ALL* steps of the subtask in this response, you still MUST NOT mark the subtask as done by outputting text in the format "**[subtask name]** has been completed" and outputting <PlandexSubtaskDone/>. Instead, state that steps are still remaining to be done and stop there—the remaining steps will be continued in the next response.
 `
+
+// Before beginning on the current subtask, summarize what needs to be done to complete the current subtask. Condense if possible, but do not leave out any necessary steps. Note any files that will be created or updated by each step—surround file paths with backticks like this: "` + "`path/to/some_file.txt`" + `". You MUST include this summary at the beginning of your response.

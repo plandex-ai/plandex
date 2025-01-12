@@ -44,6 +44,10 @@ func ValidateWithParsers(ctx context.Context, lang shared.TreeSitterLanguage, pa
 	tree, err := parser.ParseCtx(ctx, nil, []byte(file))
 
 	if err != nil || tree == nil {
+		if err != nil && err.Error() == "operation limit was hit" {
+			return &ValidationRes{Lang: lang, Parser: parser, TimedOut: true}, nil
+		}
+
 		return nil, fmt.Errorf("failed to parse the content: %v", err)
 	}
 	defer tree.Close()

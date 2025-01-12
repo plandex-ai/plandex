@@ -45,7 +45,7 @@ func GetPlanningPrompt(params createPromptParams) string {
 	}
 
 	prompt += `
-    2. Divide the user's task into one or more component subtasks and list them in a numbered list in a '### Tasks' section. Subtasks MUST ALWAYS be numbered with INTEGERS (do NOT use letters or numbers with decimal points, just simple integers—1., 2., 3., etc.) Start from 1. Subtask numbers MUST be followed by a period and a space, then the subtask name, then any additional information about the subtask in bullet points. Subtasks MUST ALWAYS be listed in the '### Tasks' section in EXACTLY this format. Example:
+    2. Divide the user's task into one or more component subtasks and list them in a numbered list in a '### Tasks' section. Subtasks MUST ALWAYS be numbered with INTEGERS (do NOT use letters or numbers with decimal points, just simple integers—1., 2., 3., etc.) Start from 1. Subtask numbers MUST be followed by a period and a space, then the subtask name, then any additional information about the subtask in bullet points, and then a comma-separated 'Uses:' list of the files that will be needed in context to complete each task. Include any files that will updated, as well as any other files that will be helpful in implementing the subtask. List files individually—do not list directories. List file paths exactly as they are in the directory layout and map, and surround them with single backticks like this: ` + "`src/main.rs`." + ` Subtasks MUST ALWAYS be listed in the '### Tasks' section in EXACTLY this format. Example:
 
 				---
         ### Tasks
@@ -53,15 +53,20 @@ func GetPlanningPrompt(params createPromptParams) string {
         1. Create a new file called 'game_logic.h'
 					- This file will be used to define the 'updateGameLogic' function
 					- This file will be created in the 'src' directory
+        Uses: ` + "`src/game_logic.h`" + `
 
         2. Add the necessary code to the 'game_logic.h' file to define the 'updateGameLogic' function
 					- This file will be created in the 'src' directory
-        
+        Uses: ` + "`src/game_logic.h`" + `
+
         3. Create a new file called 'game_logic.c'
+        Uses: ` + "`src/game_logic.c`" + `
         
         4. Add the necessary code to the 'game_logic.c' file to implement the 'updateGameLogic' function
+        Uses: ` + "`src/game_logic.c`" + `
         
         5. Update the 'main.c' file to call the 'updateGameLogic' function
+        Uses: ` + "`src/main.c`" + `
 
         <EndPlandexTasks/>
 				---
@@ -96,10 +101,10 @@ func GetPlanningPrompt(params createPromptParams) string {
 	if params.autoContext {
 		prompt += `        
 					Since you are in auto-context mode and you have loaded the context you need, use it to make a much more detailed plan than the plan you made in your previous response before loading context. Be thorough in your planning.        
-
-				` + UsesPrompt + `
-				`
+    `
 	}
+
+	prompt += UsesPrompt
 
 	prompt += `
 ## Responding to user questions
@@ -119,7 +124,7 @@ If a plan is in progress and the user asks you a question, don't respond by cont
 }
 
 const UsesPrompt = `
-- Since you are in 'auto-context mode', below the description of each subtask, you MUST include a comma-separated 'Uses:' list of the files that will be needed in context to complete each task. Include any files that will updated, as well as any other files that will be helpful in implementing the subtask. ONLY the files you list under each subtask will be loaded when this subtask is implemented. List files individually—do not list directories. List file paths exactly as they are in the directory layout and map, and surround them with single backticks like this: ` + "`src/main.rs`." + `
+- You MUST include a comma-separated 'Uses:' list of the files that will be needed in context to complete each task. Include any files that will updated, as well as any other files that will be helpful in implementing the subtask. ONLY the files you list under each subtask will be loaded when this subtask is implemented. List files individually—do not list directories. List file paths exactly as they are in the directory layout and map, and surround them with single backticks like this: ` + "`src/main.rs`." + `
 
 Example:
 
@@ -144,6 +149,8 @@ You MUST USE 'Uses:' *exactly* for this purpose. DO NOT use 'Files:' or 'Files n
 ALWAYS place 'Uses:' at the *end* of each subtask description.
 
 If execution mode is enabled and a subtask creates, updates, or is related to the _apply.sh script, you MUST include ` + "`_apply.sh`" + `in the 'Uses:' list for that subtask.
+
+'Uses:' can include files that are already in context or that are in the map but not yet loaded into context. Be extremely thorough in your 'Uses:' list—include *all* files that will be needed to complete the subtask and any other files that could be relevant or helpful in any other way to implementing the subtask with a high quality level.
 `
 
 var UsesPromptNumTokens int

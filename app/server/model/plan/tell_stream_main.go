@@ -100,6 +100,11 @@ mainLoop:
 
 			choice := response.Choices[0]
 
+			processChunkRes := state.processChunk(choice)
+			if processChunkRes.shouldReturn {
+				return
+			}
+
 			if choice.FinishReason != "" {
 				log.Println("Model stream finished")
 				log.Println("Finish reason: ", choice.FinishReason)
@@ -132,11 +137,6 @@ mainLoop:
 				timer.Reset(model.OPENAI_USAGE_CHUNK_TIMEOUT)
 				streamFinished = true
 				continue
-			}
-
-			processChunkRes := state.processChunk(choice)
-			if processChunkRes.shouldReturn {
-				return
 			}
 			// let main loop continue
 		}
