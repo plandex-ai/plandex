@@ -3,6 +3,7 @@ package types
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"testing"
 
 	"github.com/plandex/plandex/shared"
@@ -126,6 +127,21 @@ var examples = []TestExample{
 			},
 		},
 	},
+	{
+		Operations: []shared.Operation{
+			{
+				Type: shared.OperationTypeFile,
+				Path: "server/model/prompts/describe.go",
+			},
+			{
+				Type: shared.OperationTypeFile,
+				Path: "server/model/plan/commit_msg.go",
+				Description: `Now let's update the commit message handling in commit_msg.go:
+
+**Updating ` + "`server/model/plan/commit_msg.go`" + `:** I'll update the genPlanDescription method to handle XML output instead of JSON.`,
+			},
+		},
+	},
 }
 
 func TestReplyParser(t *testing.T) {
@@ -137,6 +153,7 @@ func TestReplyParser(t *testing.T) {
 	}
 
 	for i, example := range examples {
+
 		if len(only) > 0 && !only[i] {
 			continue
 		}
@@ -179,7 +196,15 @@ func TestReplyParser(t *testing.T) {
 					t.Errorf("Example %d: Expected operation %s, got %s",
 						i+1, example.Operations[j].Name(), operation.Name())
 				}
+
+				if example.Operations[j].Description != "" {
+					if operation.Description != example.Operations[j].Description {
+						t.Errorf("Example %d: Expected description %s, got %s",
+							i+1, strconv.Quote(example.Operations[j].Description), strconv.Quote(operation.Description))
+					}
+				}
 			}
+
 		})
 	}
 }

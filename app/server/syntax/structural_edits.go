@@ -136,8 +136,8 @@ func ApplyChanges(
 
 		if !endsWithRef &&
 			!strings.Contains(desc, "entire file") &&
-			!(strings.Contains(desc, "replace code") ||
-				strings.Contains(desc, "remove code")) &&
+			!(strings.Contains(desc, " replace ") ||
+				strings.Contains(desc, " remove ")) &&
 			!strings.Contains(desc, "end of the file") {
 
 			if verboseLogging {
@@ -219,38 +219,51 @@ func ApplyChanges(
 			}
 		}
 
-		// Check for lines in proposed updates that are duplicated in new file
-		newLineFreq := make(map[string]int)
-		originalLineFreq := make(map[string]int)
+		if strings.Contains(desc, " replace ") {
+			// Check for lines in proposed updates that are duplicated in new file
+			newLineFreq := make(map[string]int)
+			originalLineFreq := make(map[string]int)
+			proposedLineFreq := make(map[string]int)
 
-		// First count frequencies in original file
-		for _, line := range originalLines {
-			trimmed := strings.TrimSpace(line)
-			if len(trimmed) > duplicationThreshold {
-				originalLineFreq[line]++
+			// First count frequencies in original file
+			for _, line := range originalLines {
+				trimmed := strings.TrimSpace(line)
+				if len(trimmed) > duplicationThreshold {
+					originalLineFreq[line]++
+				}
 			}
-		}
 
-		// Count frequencies in new file
-		for _, line := range newLines {
-			trimmed := strings.TrimSpace(line)
-			if len(trimmed) > duplicationThreshold {
-				newLineFreq[line]++
+			// Count frequencies in proposed file
+			for _, line := range proposedLines {
+				trimmed := strings.TrimSpace(line)
+				if len(trimmed) > duplicationThreshold {
+					proposedLineFreq[line]++
+				}
 			}
-		}
 
-		// Check proposed lines against new frequencies, accounting for original duplicates
-		for _, line := range proposedLines {
-			trimmed := strings.TrimSpace(line)
-			if len(trimmed) > duplicationThreshold {
-				originalCount := originalLineFreq[line]
-				if newLineFreq[line] > originalCount+1 {
-					log.Println("ApplyChanges - code duplicated")
-					log.Println("line:")
-					log.Println(line)
-					log.Printf("original occurrences: %d, new occurrences: %d", originalCount, newLineFreq[line])
-					res.NeedsVerifyReasons = append(res.NeedsVerifyReasons, NeedsVerifyReasonCodeDuplicated)
-					break
+			// Count frequencies in new file
+			for _, line := range newLines {
+				trimmed := strings.TrimSpace(line)
+				if len(trimmed) > duplicationThreshold {
+					newLineFreq[line]++
+				}
+			}
+
+			// Check proposed lines against new frequencies, accounting for original duplicates
+			for _, line := range proposedLines {
+				trimmed := strings.TrimSpace(line)
+				if len(trimmed) > duplicationThreshold {
+					originalCount := originalLineFreq[line]
+					proposedCount := proposedLineFreq[line]
+					newCount := newLineFreq[line]
+					if newCount > originalCount && newCount > proposedCount {
+						log.Println("ApplyChanges - code duplicated")
+						log.Println("line:")
+						log.Println(line)
+						log.Printf("original occurrences: %d, new occurrences: %d", originalCount, newLineFreq[line])
+						res.NeedsVerifyReasons = append(res.NeedsVerifyReasons, NeedsVerifyReasonCodeDuplicated)
+						break
+					}
 				}
 			}
 		}

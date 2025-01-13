@@ -1,11 +1,15 @@
 package types
 
 import (
+	"log"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/plandex/plandex/shared"
 )
+
+const verboseLogging = false
 
 type ReplyParserRes struct {
 	MaybeFilePath   string
@@ -47,7 +51,9 @@ func NewReplyParser() *ReplyParser {
 }
 
 func (r *ReplyParser) AddChunk(chunk string, addToTotal bool) {
-	// log.Println("Adding chunk:", strconv.Quote(chunk)) // Logging the chunk that's being processed
+	if verboseLogging {
+		log.Println("Adding chunk:", strconv.Quote(chunk)) // Logging the chunk that's being processed
+	}
 
 	hasNewLine := false
 	nextChunk := ""
@@ -63,12 +69,17 @@ func (r *ReplyParser) AddChunk(chunk string, addToTotal bool) {
 	}
 
 	if chunk == "\n" {
-		// log.Println("Chunk is \\n, adding new line")
+		if verboseLogging {
+			log.Println("Chunk is \\n, adding new line")
+		}
 		r.lines = append(r.lines, "")
 		hasNewLine = true
 		r.lineIndex++
 
-		if r.currentFilePath == "" {
+		if r.currentFileOperation == nil {
+			if verboseLogging {
+				log.Println("Current file operation is empty--adding new description line...")
+			}
 			r.currentDescriptionLines = append(r.currentDescriptionLines, "")
 			r.currentDescriptionLineIdx++
 		}
@@ -76,17 +87,23 @@ func (r *ReplyParser) AddChunk(chunk string, addToTotal bool) {
 	} else {
 		chunkLines := strings.Split(chunk, "\n")
 
-		// log.Println("Chunk lines:", len(chunkLines))
+		if verboseLogging {
+			log.Println("Chunk lines:", len(chunkLines))
+		}
 
 		currentLine := r.lines[r.lineIndex]
 		currentLine += chunkLines[0]
-		// log.Println("Current line:", strconv.Quote(currentLine))
+		if verboseLogging {
+			log.Println("Current line:", strconv.Quote(currentLine))
+		}
 		r.lines[r.lineIndex] = currentLine
 
 		if r.currentFileOperation == nil {
-			// log.Println("Current file path is empty--adding to current description...")
-			// log.Println("Current description lines:", r.currentDescriptionLines)
-			// log.Printf("Current description line index: %d\n", r.currentDescriptionLineIdx)
+			if verboseLogging {
+				log.Println("Current file operation is empty--adding to current description...")
+				log.Println("Current description lines:", r.currentDescriptionLines)
+				log.Printf("Current description line index: %d\n", r.currentDescriptionLineIdx)
+			}
 
 			currentDescLine := r.currentDescriptionLines[r.currentDescriptionLineIdx]
 			currentDescLine += chunkLines[0]
@@ -97,7 +114,13 @@ func (r *ReplyParser) AddChunk(chunk string, addToTotal bool) {
 			r.lines = append(r.lines, chunkLines[1])
 			r.lineIndex++
 
-			if r.currentFilePath == "" {
+			if r.currentFileOperation == nil {
+				if verboseLogging {
+					log.Println("Current file operation is empty--adding to current description...")
+					log.Println("Current description lines:", r.currentDescriptionLines)
+					log.Printf("Current description line index: %d\n", r.currentDescriptionLineIdx)
+				}
+
 				r.currentDescriptionLines = append(r.currentDescriptionLines, chunkLines[1])
 				r.currentDescriptionLineIdx++
 			}
@@ -108,7 +131,9 @@ func (r *ReplyParser) AddChunk(chunk string, addToTotal bool) {
 				tail := chunkLines[2:]
 				nextChunk = "\n" + strings.Join(tail, "\n")
 				defer func() {
-					// log.Println("Recursive add next queued chunk:", strconv.Quote(nextChunk))
+					if verboseLogging {
+						log.Println("Recursive add next queued chunk:", strconv.Quote(nextChunk))
+					}
 					r.AddChunk(nextChunk, false)
 				}()
 			}
@@ -116,19 +141,27 @@ func (r *ReplyParser) AddChunk(chunk string, addToTotal bool) {
 	}
 
 	if r.lineIndex == 0 || !hasNewLine {
-		// log.Println("No new line detected--returning")
+		if verboseLogging {
+			log.Println("No new line detected--returning")
+		}
 		return
 	}
 
 	prevFullLine := r.lines[r.lineIndex-1]
-	// log.Println("Previous full line:", strconv.Quote(prevFullLine)) // Logging the full line that's being checked
+	if verboseLogging {
+		log.Println("Previous full line:", strconv.Quote(prevFullLine)) // Logging the full line that's being checked
+	}
 
 	prevFullLineTrimmed := strings.TrimSpace(prevFullLine)
 
 	if r.maybeFilePath != "" && !r.isInMoveBlock && !r.isInRemoveBlock && !r.isInResetBlock {
-		// log.Println("Maybe file path is:", r.maybeFilePath) // Logging the maybeFilePath
+		if verboseLogging {
+			log.Println("Maybe file path is:", r.maybeFilePath) // Logging the maybeFilePath
+		}
 		if strings.HasPrefix(prevFullLineTrimmed, "<PlandexBlock") {
-			// log.Println("Found opening tag--confirming file path...") // Logging the confirmed file path
+			if verboseLogging {
+				log.Println("Found opening tag--confirming file path...") // Logging the confirmed file path
+			}
 
 			r.currentFilePath = r.maybeFilePath
 			r.currentFileOperation = &shared.Operation{
@@ -140,8 +173,13 @@ func (r *ReplyParser) AddChunk(chunk string, addToTotal bool) {
 
 			var fileDescription string
 			if len(r.currentDescriptionLines) > 4 {
-				fileDescription = strings.Join(r.currentDescriptionLines[0:len(r.currentDescriptionLines)-4], "\n")
-				r.currentFileOperation.Description = fileDescription
+				fileDescription = strings.TrimSpace(strings.Join(r.currentDescriptionLines[0:len(r.currentDescriptionLines)-4], "\n"))
+				if verboseLogging {
+					log.Println("File description:", fileDescription)
+				}
+				if fileDescription != "" {
+					r.currentFileOperation.Description = fileDescription
+				}
 			} else {
 				r.currentFileOperation.Description = ""
 			}
@@ -149,55 +187,82 @@ func (r *ReplyParser) AddChunk(chunk string, addToTotal bool) {
 			r.currentDescriptionLines = []string{""}
 			r.currentDescriptionLineIdx = 0
 
-			// log.Println("Confirmed file path:", r.currentFilePath) // Logging the confirmed file path
+			if verboseLogging {
+				log.Println("Confirmed file path:", r.currentFilePath) // Logging the confirmed file path
+			}
 
 			return
 		} else if prevFullLineTrimmed != "" {
 			// turns out previous maybeFilePath was not a file path since there's a non-empty line before finding opening ticks
+
+			if verboseLogging {
+				log.Println("Previous maybeFilePath was not a file path--resetting maybeFilePath")
+			}
+
 			r.maybeFilePath = ""
 		}
 	}
 
 	if r.currentFilePath == "" && !r.isInMoveBlock && !r.isInRemoveBlock && !r.isInResetBlock {
-		// log.Println("Current file path is empty--checking for possible file path...")
+		if verboseLogging {
+			log.Println("Current file path is empty--checking for possible file path...")
+		}
 
 		var gotPath string
 		if LineMaybeHasFilePath(prevFullLineTrimmed) {
 			gotPath = extractFilePath(prevFullLineTrimmed)
 		} else if prevFullLineTrimmed == "### Move Files" {
-			// log.Println("Found move block")
+			if verboseLogging {
+				log.Println("Found move block")
+			}
 			r.isInMoveBlock = true
 		} else if prevFullLineTrimmed == "### Remove Files" {
-			// log.Println("Found remove block")
+			if verboseLogging {
+				log.Println("Found remove block")
+			}
 			r.isInRemoveBlock = true
 		} else if prevFullLineTrimmed == "### Reset Changes" {
-			// log.Println("Found reset block")
+			if verboseLogging {
+				log.Println("Found reset block")
+			}
 			r.isInResetBlock = true
 		}
 
 		if gotPath != "" {
-			// log.Println("Detected possible file path:", gotPath) // Logging the possible file path
+			if verboseLogging {
+				log.Println("Detected possible file path:", gotPath) // Logging the possible file path
+			}
 			r.maybeFilePath = gotPath
 		}
 	} else if r.currentFilePath != "" {
-		// log.Println("Current file path is not empty--adding to current file...")
+		if verboseLogging {
+			log.Println("Current file path is not empty--adding to current file...")
+		}
 		if prevFullLineTrimmed == "</PlandexBlock>" {
-			// log.Println("Found closing tag--adding file to files and resetting current file...")
+			if verboseLogging {
+				log.Println("Found closing tag--adding file to files and resetting current file...")
+			}
 			r.operations = append(r.operations, r.currentFileOperation)
 			r.currentFilePath = ""
+			r.currentFileOperation = nil
 
-			// spew.Dump(r.files)
 		} else {
-			// log.Println("Adding tokens to current file...") // Logging token addition
+			if verboseLogging {
+				log.Println("Adding tokens to current file...") // Logging token addition
+			}
 
 			r.currentFileOperation.Content += prevFullLine + "\n"
 			r.currentFileLines = append(r.currentFileLines, prevFullLine)
-			// log.Printf("Added %d tokens to %s\n", tokens, r.currentFilePath) // Logging token addition
+
 		}
 	} else if r.isInMoveBlock || r.isInRemoveBlock || r.isInResetBlock {
-		// log.Println("In move, remove, or reset block")
+		if verboseLogging {
+			log.Println("In move, remove, or reset block")
+		}
 		if prevFullLineTrimmed == "<EndPlandexFileOps/>" {
-			// log.Println("Found closing tag--adding operations to operations and resetting pending operations...")
+			if verboseLogging {
+				log.Println("Found closing tag--adding operations to operations and resetting pending operations...")
+			}
 			r.isInMoveBlock = false
 			r.isInRemoveBlock = false
 			r.isInResetBlock = false
@@ -207,21 +272,27 @@ func (r *ReplyParser) AddChunk(chunk string, addToTotal bool) {
 		} else if r.isInMoveBlock {
 			op := extractMoveFile(prevFullLineTrimmed)
 			if op != nil && !r.pendingPaths[op.Path] {
-				// log.Println("Found move operation")
+				if verboseLogging {
+					log.Println("Found move operation")
+				}
 				r.pendingOperations = append(r.pendingOperations, op)
 				r.pendingPaths[op.Path] = true
 			}
 		} else if r.isInRemoveBlock {
 			op := extractRemoveOrResetFile(shared.OperationTypeRemove, prevFullLineTrimmed)
 			if op != nil && !r.pendingPaths[op.Path] {
-				// log.Println("Found remove operation")
+				if verboseLogging {
+					log.Println("Found remove operation")
+				}
 				r.pendingOperations = append(r.pendingOperations, op)
 				r.pendingPaths[op.Path] = true
 			}
 		} else if r.isInResetBlock {
 			op := extractRemoveOrResetFile(shared.OperationTypeReset, prevFullLineTrimmed)
 			if op != nil && !r.pendingPaths[op.Path] {
-				// log.Println("Found reset operation")
+				if verboseLogging {
+					log.Println("Found reset operation")
+				}
 				r.pendingOperations = append(r.pendingOperations, op)
 				r.pendingPaths[op.Path] = true
 			}

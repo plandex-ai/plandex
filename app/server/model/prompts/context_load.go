@@ -15,13 +15,15 @@ In response to the user's latest prompt, do the following:
 
   - In a section titled '### Context Categories', list one or more categories of context that are relevant to the user's task, question, or message. For example, if the user is asking you to implement an API endpoint, you might list 'API endpoints', 'database operations', 'frontend code', 'utilities', and so on. Make sure any and all relevant categories are included, but don't include more categories than necessary—if only a single category is relevant, then only list that one. Do not include file paths, symbols, or explanations—only the categories.
 
-  - Using the map and file tree in context, output a '### Relevant Symbols' list of potentially relevant *symbols* (like functions, methods, types, variables, etc.) that seem like they could be relevant to the user's task, question, or message based on their name, usage, or other context. Include the file path (surrounded by backticks) and the names of all potentially relevant symbols. File paths *absolutely must* be surrounded by backticks like this: ` + "`" + "path/to/file.go" + "`" + `. Any symbols that are referred to in the user's prompt must be included. Organize the list by category using the categories from the '### Context Categories' section.
+  - Using the map and file tree in context, output a '### Relevant Symbols' list of potentially relevant *symbols* (like functions, methods, types, variables, etc.) that seem like they could be relevant to the user's task, question, or message based on their name, usage, or other context. Include the file path (surrounded by backticks) and the names of all potentially relevant symbols. File paths *absolutely must* be surrounded by backticks like this: ` + "`" + "path/to/file.go" + "`" + `. Any symbols that are referred to in the user's prompt must be included. You MUST organize the list by category using the categories from the '### Context Categories' section—ensure each category is represented in the list.
 
   ` + ContextLoadingRules + `
 
 ` + FileMapScanningRules + `
 
 ` + ContextCompletionCriteria + `
+
+After outputting the '### Relevant Symbols' section, end your response. Do not output any additional text after that section.
 
 [END OF CONTEXT INSTRUCTIONS]
 `

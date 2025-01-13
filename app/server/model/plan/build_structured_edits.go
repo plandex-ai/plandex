@@ -57,6 +57,7 @@ func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 	maxPotentialTokens := activeBuild.FileContentTokens + activeBuild.CurrentFileTokens
 
 	log.Printf("buildStructuredEdits - %s - applying changes\n", filePath)
+
 	applyRes := syntax.ApplyChanges(
 		originalFile,
 		proposedContent,
@@ -65,7 +66,6 @@ func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 	)
 	// log.Println("buildStructuredEdits - applyRes.NewFile:")
 	// log.Println(applyRes.NewFile)
-	proposedContent = applyRes.Proposed
 
 	var syntaxErrors []string
 	validateSyntax := func() {
@@ -91,7 +91,7 @@ func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 
 		wholeFileConfig := fileState.settings.ModelPack.GetWholeFileBuilder()
 
-		spew.Dump(wholeFileConfig)
+		// spew.Dump(wholeFileConfig)
 
 		reservedOutputTokens := wholeFileConfig.GetReservedOutputTokens()
 		isSmallFile := maxPotentialTokens < SmallFileThreshold
@@ -280,7 +280,6 @@ func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 
 			log.Printf("buildStructuredEdits - %s - applyRes.NeedsVerifyReasons: %v\n", filePath, applyRes.NeedsVerifyReasons)
 
-			proposedContent = applyRes.Proposed
 			validateSyntax()
 			numTries++
 		}
