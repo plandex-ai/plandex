@@ -46,14 +46,14 @@ func (state *activeTellStreamState) execStatusShouldContinue(message string, ctx
 
 	content := prompts.GetExecStatusShouldContinue(state.userPrompt, message)
 
-	contentTokens, err := shared.GetNumTokens(content)
-
-	if err != nil {
-		log.Printf("Error getting num tokens for content: %v\n", err)
-		return false, false, fmt.Errorf("error getting num tokens for content: %v", err)
+	messages := []openai.ChatCompletionMessage{
+		{
+			Role:    openai.ChatMessageRoleSystem,
+			Content: content,
+		},
 	}
 
-	numTokens := prompts.ExtraTokensPerRequest + prompts.ExtraTokensPerMessage + contentTokens
+	numTokens := shared.GetMessagesTokenEstimate(messages...) + shared.TokensPerRequest
 
 	_, apiErr := hooks.ExecHook(hooks.WillSendModelRequest, hooks.HookParams{
 		Auth: auth,
@@ -66,13 +66,6 @@ func (state *activeTellStreamState) execStatusShouldContinue(message string, ctx
 	})
 	if apiErr != nil {
 		return false, false, fmt.Errorf("error executing hook: %v", apiErr)
-	}
-
-	messages := []openai.ChatCompletionMessage{
-		{
-			Role:    openai.ChatMessageRoleSystem,
-			Content: content,
-		},
 	}
 
 	log.Println("Calling model to check if plan should continue")
@@ -136,11 +129,7 @@ func (state *activeTellStreamState) execStatusShouldContinue(message string, ctx
 		outputTokens = resp.Usage.CompletionTokens
 	} else {
 		inputTokens = numTokens
-		outputTokens, err = shared.GetNumTokens(strRes)
-
-		if err != nil {
-			return false, false, fmt.Errorf("error getting num tokens for res: %v", err)
-		}
+		outputTokens = shared.GetNumTokensEstimate(strRes)
 	}
 
 	_, apiErr = hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{

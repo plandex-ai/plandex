@@ -3,13 +3,13 @@ package plan
 import (
 	"plandex-server/db"
 	"plandex-server/types"
-	"strings"
 
 	"github.com/plandex/plandex/shared"
 	"github.com/sashabaranov/go-openai"
 )
 
 type activeTellStreamState struct {
+	activePlan             *types.ActivePlan
 	clients                map[string]*openai.Client
 	req                    *shared.TellPlanRequest
 	auth                   *types.ServerAuth
@@ -40,10 +40,13 @@ type activeTellStreamState struct {
 	currentReplyNumRetries int
 	subtasks               []*db.Subtask
 	currentSubtask         *db.Subtask
+	hasAssistantReply      bool
 
 	isContextStage        bool
 	isPlanningStage       bool
 	isImplementationStage bool
+
+	isFollowUp bool
 
 	chunkProcessor *chunkProcessor
 }
@@ -53,7 +56,7 @@ type chunkProcessor struct {
 	chunksReceived                  int
 	maybeRedundantOpeningTagContent string
 	fileOpen                        bool
-	contentBuffer                   *strings.Builder
+	contentBuffer                   string
 	awaitingBlockOpeningTag         bool
 	awaitingBlockClosingTag         bool
 	awaitingOpClosingTag            bool

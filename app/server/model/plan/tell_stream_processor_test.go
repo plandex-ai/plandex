@@ -2,7 +2,6 @@ package plan
 
 import (
 	"plandex-server/types"
-	"strings"
 	"testing"
 )
 
@@ -22,7 +21,7 @@ func TestBufferOrStream(t *testing.T) {
 		{
 			name: "streams regular content",
 			initialState: &chunkProcessor{
-				contentBuffer: &strings.Builder{},
+				contentBuffer: "",
 			},
 			chunk: "some regular text",
 			want: bufferOrStreamResult{
@@ -41,7 +40,7 @@ func TestBufferOrStream(t *testing.T) {
 			initialState: &chunkProcessor{
 				awaitingBlockOpeningTag: true,
 				fileOpen:                false,
-				contentBuffer:           &strings.Builder{},
+				contentBuffer:           "",
 			},
 			chunk:           `<Pland`,
 			maybeFilePath:   "main.go",
@@ -54,22 +53,14 @@ func TestBufferOrStream(t *testing.T) {
 				awaitingBlockClosingTag: false,
 				awaitingBackticks:       false,
 				fileOpen:                false,
-				contentBuffer: func() *strings.Builder {
-					b := &strings.Builder{}
-					b.WriteString(`<Pland`)
-					return b
-				}(),
+				contentBuffer:           "<Pland",
 			},
 		},
 		{
 			name: "converts opening tag",
 			initialState: &chunkProcessor{
-				fileOpen: true,
-				contentBuffer: func() *strings.Builder {
-					b := &strings.Builder{}
-					b.WriteString(`<PlandexBlock lang="go">` + "\n")
-					return b
-				}(),
+				fileOpen:                true,
+				contentBuffer:           `<PlandexBlock lang="go">` + "\n",
 				awaitingBlockOpeningTag: true,
 			},
 			chunk:           `package`,
@@ -91,7 +82,7 @@ func TestBufferOrStream(t *testing.T) {
 			name: "converts opening tag without awaitingOpeningTag",
 			initialState: &chunkProcessor{
 				fileOpen:                true,
-				contentBuffer:           &strings.Builder{},
+				contentBuffer:           "",
 				awaitingBlockOpeningTag: false,
 			},
 			chunk:           `<PlandexBlock lang="go">` + "\npackage",
@@ -111,12 +102,8 @@ func TestBufferOrStream(t *testing.T) {
 		{
 			name: "buffers partial backticks",
 			initialState: &chunkProcessor{
-				fileOpen: true,
-				contentBuffer: func() *strings.Builder {
-					b := &strings.Builder{}
-					b.WriteString("here's some co")
-					return b
-				}(),
+				fileOpen:      true,
+				contentBuffer: "here's some co",
 			},
 			chunk:           "de:`",
 			currentFilePath: "main.go",
@@ -133,11 +120,7 @@ func TestBufferOrStream(t *testing.T) {
 			initialState: &chunkProcessor{
 				fileOpen:          true,
 				awaitingBackticks: true,
-				contentBuffer: func() *strings.Builder {
-					b := &strings.Builder{}
-					b.WriteString("here's some code:\n`")
-					return b
-				}(),
+				contentBuffer:     "here's some code:\n`",
 			},
 			chunk:           "``\npackage",
 			currentFilePath: "main.go",
@@ -157,7 +140,7 @@ func TestBufferOrStream(t *testing.T) {
 			initialState: &chunkProcessor{
 				fileOpen:                true,
 				awaitingBlockClosingTag: false,
-				contentBuffer:           &strings.Builder{},
+				contentBuffer:           "",
 			},
 			currentFilePath: "main.go",
 			chunk:           "\n}</Plan",
@@ -167,11 +150,7 @@ func TestBufferOrStream(t *testing.T) {
 			wantState: &chunkProcessor{
 				awaitingBlockClosingTag: true,
 				fileOpen:                true,
-				contentBuffer: func() *strings.Builder {
-					b := &strings.Builder{}
-					b.WriteString("\n}</Plan")
-					return b
-				}(),
+				contentBuffer:           "\n}</Plan",
 			},
 		},
 		{
@@ -179,7 +158,7 @@ func TestBufferOrStream(t *testing.T) {
 			initialState: &chunkProcessor{
 				fileOpen:                true,
 				awaitingBlockClosingTag: false,
-				contentBuffer:           &strings.Builder{},
+				contentBuffer:           "",
 			},
 			currentFilePath: "main.go",
 			chunk:           "\n}</PlandexBlock>",
@@ -189,11 +168,7 @@ func TestBufferOrStream(t *testing.T) {
 			wantState: &chunkProcessor{
 				awaitingBlockClosingTag: true,
 				fileOpen:                true,
-				contentBuffer: func() *strings.Builder {
-					b := &strings.Builder{}
-					b.WriteString("\n}</PlandexBlock>")
-					return b
-				}(),
+				contentBuffer:           "\n}</PlandexBlock>",
 			},
 		},
 		{
@@ -201,7 +176,7 @@ func TestBufferOrStream(t *testing.T) {
 			initialState: &chunkProcessor{
 				fileOpen:                false,
 				awaitingBlockClosingTag: false,
-				contentBuffer:           &strings.Builder{},
+				contentBuffer:           "",
 			},
 			currentFilePath: "",
 			chunk:           "\n}</PlandexBlock>",
@@ -215,15 +190,30 @@ func TestBufferOrStream(t *testing.T) {
 			},
 		},
 		{
+			name: "replaces full closing tag with file closed and awaiting backticks",
+			initialState: &chunkProcessor{
+				fileOpen:                false,
+				awaitingBlockClosingTag: false,
+				awaitingBackticks:       true,
+				contentBuffer:           "",
+			},
+			currentFilePath: "",
+			chunk:           " ONLY this one-line title and nothing else.`\n</PlandexBlock>\n\nNow let",
+			want: bufferOrStreamResult{
+				shouldStream: true,
+				content:      " ONLY this one-line title and nothing else.`\n```\n\nNow let",
+			},
+			wantState: &chunkProcessor{
+				awaitingBlockClosingTag: false,
+				fileOpen:                false,
+			},
+		},
+		{
 			name: "handles single backticks",
 			initialState: &chunkProcessor{
 				fileOpen:          true,
 				awaitingBackticks: true,
-				contentBuffer: func() *strings.Builder {
-					b := &strings.Builder{}
-					b.WriteString("`file.go`")
-					return b
-				}(),
+				contentBuffer:     "`file.go`",
 			},
 			chunk:           "\nsomething",
 			currentFilePath: "main.go",
@@ -243,11 +233,7 @@ func TestBufferOrStream(t *testing.T) {
 			initialState: &chunkProcessor{
 				fileOpen:          true,
 				awaitingBackticks: true,
-				contentBuffer: func() *strings.Builder {
-					b := &strings.Builder{}
-					b.WriteString("`file.go`")
-					return b
-				}(),
+				contentBuffer:     "`file.go`",
 			},
 			chunk:           "\n`file2.go`",
 			currentFilePath: "main.go",
@@ -259,11 +245,7 @@ func TestBufferOrStream(t *testing.T) {
 				awaitingBlockClosingTag: false,
 				awaitingBackticks:       true,
 				fileOpen:                true,
-				contentBuffer: func() *strings.Builder {
-					b := &strings.Builder{}
-					b.WriteString("`file.go`\n`file2.go`")
-					return b
-				}(),
+				contentBuffer:           "`file.go`\n`file2.go`",
 			},
 		},
 		{
@@ -276,22 +258,14 @@ func TestBufferOrStream(t *testing.T) {
 			},
 			wantState: &chunkProcessor{
 				awaitingOpClosingTag: true,
-				contentBuffer: func() *strings.Builder {
-					b := &strings.Builder{}
-					b.WriteString("\n<EndPlandexFileOps/>\nmore")
-					return b
-				}(),
+				contentBuffer:        "\n<EndPlandexFileOps/>\nmore",
 			},
 		},
 		{
 			name: "replaces full end of file operations tag",
 			initialState: &chunkProcessor{
 				awaitingOpClosingTag: true,
-				contentBuffer: func() *strings.Builder {
-					b := &strings.Builder{}
-					b.WriteString("\n<EndPlandexFileOps/>\nmore")
-					return b
-				}(),
+				contentBuffer:        "\n<EndPlandexFileOps/>\nmore",
 			},
 			chunk: " stuff",
 			want: bufferOrStreamResult{
@@ -313,22 +287,14 @@ func TestBufferOrStream(t *testing.T) {
 			},
 			wantState: &chunkProcessor{
 				awaitingOpClosingTag: true,
-				contentBuffer: func() *strings.Builder {
-					b := &strings.Builder{}
-					b.WriteString("\n<EndPlandex")
-					return b
-				}(),
+				contentBuffer:        "\n<EndPlandex",
 			},
 		},
 		{
 			name: "replaces end of file operation closing partial tag",
 			initialState: &chunkProcessor{
 				awaitingOpClosingTag: true,
-				contentBuffer: func() *strings.Builder {
-					b := &strings.Builder{}
-					b.WriteString("\n<EndPlandex")
-					return b
-				}(),
+				contentBuffer:        "\n<EndPlandex",
 			},
 			chunk: "FileOps/>\nmore",
 			want: bufferOrStreamResult{
@@ -344,11 +310,6 @@ func TestBufferOrStream(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			processor := tt.initialState
-
-			// Initialize content buffer if needed
-			if processor.contentBuffer == nil {
-				processor.contentBuffer = &strings.Builder{}
-			}
 
 			got := processor.bufferOrStream(tt.chunk, &types.ReplyParserRes{
 				MaybeFilePath:   tt.maybeFilePath,
@@ -379,14 +340,14 @@ func TestBufferOrStream(t *testing.T) {
 				t.Errorf("awaitingBackticks = %v, want %v", processor.awaitingBackticks, tt.wantState.awaitingBackticks)
 			}
 
-			if tt.wantState.contentBuffer != nil {
-				if processor.contentBuffer.String() != tt.wantState.contentBuffer.String() {
-					t.Errorf("content buffer = %q, want %q", processor.contentBuffer.String(), tt.wantState.contentBuffer.String())
+			if tt.wantState.contentBuffer != "" {
+				if processor.contentBuffer != tt.wantState.contentBuffer {
+					t.Errorf("content buffer = %q, want %q", processor.contentBuffer, tt.wantState.contentBuffer)
 				}
 			}
 
 			// Check buffer is reset when it should be
-			if tt.want.shouldStream && processor.contentBuffer.Len() > 0 {
+			if tt.want.shouldStream && processor.contentBuffer != "" {
 				t.Error("content buffer should be reset after streaming")
 			}
 		})

@@ -166,15 +166,7 @@ func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 			},
 		}
 
-		promptTokens, err := shared.GetNumTokens(validateSysPrompt)
-
-		if err != nil {
-			log.Printf("buildStructuredEdits - error getting num tokens for prompt: %v\n", err)
-			fileState.onBuildFileError(fmt.Errorf("error getting num tokens for prompt: %v", err))
-			return
-		}
-
-		inputTokens := prompts.ExtraTokensPerRequest + prompts.ExtraTokensPerMessage + promptTokens
+		inputTokens := shared.GetMessagesTokenEstimate(validateFileMessages...) + shared.TokensPerRequest
 
 		_, apiErr := hooks.ExecHook(hooks.WillSendModelRequest, hooks.HookParams{
 			Auth: auth,

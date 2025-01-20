@@ -37,7 +37,18 @@ func (state *activeTellStreamState) genPlanDescription() (*db.ConvoMessageDescri
 		responseFormat = &openai.ChatCompletionResponseFormat{Type: "json_object"}
 	}
 
-	numTokens := prompts.ExtraTokensPerRequest + (prompts.ExtraTokensPerMessage * 2) + prompts.SysDescribeNumTokens + activePlan.NumTokens
+	messages := []openai.ChatCompletionMessage{
+		{
+			Role:    openai.ChatMessageRoleSystem,
+			Content: prompts.SysDescribe,
+		},
+		{
+			Role:    openai.ChatMessageRoleAssistant,
+			Content: activePlan.CurrentReplyContent,
+		},
+	}
+
+	numTokens := shared.GetMessagesTokenEstimate(messages...) + shared.TokensPerRequest
 
 	_, apiErr := hooks.ExecHook(hooks.WillSendModelRequest, hooks.HookParams{
 		Auth: auth,
@@ -71,16 +82,7 @@ func (state *activeTellStreamState) genPlanDescription() (*db.ConvoMessageDescri
 					Name: prompts.DescribePlanFn.Name,
 				},
 			},
-			Messages: []openai.ChatCompletionMessage{
-				{
-					Role:    openai.ChatMessageRoleSystem,
-					Content: prompts.SysDescribe,
-				},
-				{
-					Role:    openai.ChatMessageRoleAssistant,
-					Content: activePlan.CurrentReplyContent,
-				},
-			},
+			Messages:       messages,
 			Temperature:    config.Temperature,
 			TopP:           config.TopP,
 			ResponseFormat: responseFormat,
@@ -113,11 +115,7 @@ func (state *activeTellStreamState) genPlanDescription() (*db.ConvoMessageDescri
 		outputTokens = descResp.Usage.CompletionTokens
 	} else {
 		inputTokens = numTokens
-		outputTokens, err = shared.GetNumTokens(descStrRes)
-
-		if err != nil {
-			return nil, fmt.Errorf("error getting num tokens for content: %v", err)
-		}
+		outputTokens = shared.GetNumTokensEstimate(descStrRes)
 	}
 
 	log.Println("Sending DidSendModelRequest hook")
@@ -180,13 +178,18 @@ func GenCommitMsgForPendingResults(auth *types.ServerAuth, plan *db.Plan, client
 
 	content := "Pending changes:\n\n" + s
 
-	contentTokens, err := shared.GetNumTokens(content)
-
-	if err != nil {
-		return "", fmt.Errorf("error getting num tokens for content: %v", err)
+	messages := []openai.ChatCompletionMessage{
+		{
+			Role:    openai.ChatMessageRoleSystem,
+			Content: prompts.SysPendingResults,
+		},
+		{
+			Role:    openai.ChatMessageRoleUser,
+			Content: content,
+		},
 	}
 
-	numTokens := prompts.ExtraTokensPerRequest + (prompts.ExtraTokensPerMessage * 2) + prompts.SysPendingResultsNumTokens + contentTokens
+	numTokens := shared.GetMessagesTokenEstimate(messages...) + shared.TokensPerRequest
 
 	_, apiErr := hooks.ExecHook(hooks.WillSendModelRequest, hooks.HookParams{
 		Auth: auth,
@@ -199,17 +202,6 @@ func GenCommitMsgForPendingResults(auth *types.ServerAuth, plan *db.Plan, client
 	})
 	if apiErr != nil {
 		return "", errors.New(apiErr.Msg)
-	}
-
-	messages := []openai.ChatCompletionMessage{
-		{
-			Role:    openai.ChatMessageRoleSystem,
-			Content: prompts.SysPendingResults,
-		},
-		{
-			Role:    openai.ChatMessageRoleUser,
-			Content: content,
-		},
 	}
 
 	resp, err := model.CreateChatCompletionWithRetries(
@@ -242,11 +234,7 @@ func GenCommitMsgForPendingResults(auth *types.ServerAuth, plan *db.Plan, client
 		outputTokens = resp.Usage.CompletionTokens
 	} else {
 		inputTokens = numTokens
-		outputTokens, err = shared.GetNumTokens(commitMsg)
-
-		if err != nil {
-			return "", fmt.Errorf("error getting num tokens for content: %v", err)
-		}
+		outputTokens = shared.GetNumTokensEstimate(commitMsg)
 	}
 
 	_, apiErr = hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{

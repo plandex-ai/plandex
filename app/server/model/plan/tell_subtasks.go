@@ -8,13 +8,10 @@ import (
 	"strings"
 
 	"github.com/davecgh/go-spew/spew"
-	"github.com/plandex/plandex/shared"
 )
 
-func (state *activeTellStreamState) formatSubtasks() (string, int, error) {
+func (state *activeTellStreamState) formatSubtasks() string {
 	subtasksText := "### LATEST PLAN TASKS ###\n\n"
-
-	var numTokens int
 
 	var current *db.Subtask
 
@@ -62,12 +59,7 @@ func (state *activeTellStreamState) formatSubtasks() (string, int, error) {
 		}
 	}
 
-	numTokens, err := shared.GetNumTokens(subtasksText)
-	if err != nil {
-		return "", 0, fmt.Errorf("error getting num tokens for subtasks: %v", err)
-	}
-
-	return subtasksText, numTokens, nil
+	return subtasksText
 }
 
 func (state *activeTellStreamState) checkNewSubtasks() bool {
@@ -90,18 +82,23 @@ func (state *activeTellStreamState) checkNewSubtasks() bool {
 
 	subtasksByName := map[string]*db.Subtask{}
 
+	// Only index unfinished subtasks by name
 	for _, subtask := range state.subtasks {
-		subtasksByName[subtask.Title] = subtask
+		if !subtask.IsFinished {
+			subtasksByName[subtask.Title] = subtask
+		}
 	}
 
 	var newSubtasks []*db.Subtask
 
+	// Keep finished subtasks
 	for _, subtask := range state.subtasks {
 		if subtask.IsFinished {
 			newSubtasks = append(newSubtasks, subtask)
 		}
 	}
 
+	// Add new subtasks if they don't exist or if existing one was finished
 	for _, subtask := range subtasks {
 		if subtasksByName[subtask.Title] == nil {
 			newSubtasks = append(newSubtasks, subtask)
@@ -135,6 +132,9 @@ func (state *activeTellStreamState) checkNewSubtasks() bool {
 			}
 		}
 	}
+
+	// log.Println("state.subtasks:\n", spew.Sdump(state.subtasks))
+	// log.Println("state.currentSubtask:\n", spew.Sdump(state.currentSubtask))
 
 	return true
 }

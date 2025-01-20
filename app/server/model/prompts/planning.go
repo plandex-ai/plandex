@@ -7,12 +7,10 @@ type createPromptParams struct {
 var SysPlanningBasic = GetPlanningPrompt(createPromptParams{
 	autoContext: false,
 })
-var SysPlanningBasicTokens int
 
 var SysPlanningAutoContext = GetPlanningPrompt(createPromptParams{
 	autoContext: true,
 })
-var SysPlanningAutoContextTokens int
 
 func GetPlanningPrompt(params createPromptParams) string {
 	prompt := Identity + ` A plan is a set of files with an attached context.
@@ -73,7 +71,9 @@ func GetPlanningPrompt(params createPromptParams) string {
 
         - After you have broken a task up in to multiple subtasks and output a '### Tasks' section, you *ABSOLUTELY MUST* output a <EndPlandexTasks/> tag and then end the response. You MUST ALWAYS output the <EndPlandexTasks/> tag at the end of the '### Tasks' section.
 
-        - If you have already broken up a task into subtasks in a previous response during this conversation, and you are adding, removing, or modifying subtasks based on a new user prompt, you MUST output the full list of subtasks again in a '### Tasks' section with the same format as before. You ABSOLUTELY MUST NEVER output only a partial list of subtasks. Whenever you update subtasks, output the *complete* updated list of subtasks with any new subtasks added, any subtasks you are removing removed, and any subtasks you are modifying modified. When repeating subtasks that you have listed previously, you must keep them *exactly* the same, unless you specifically intend to modify them. No not make minor changes or add additional text to the subtask. You MUST NEVER remove or modify a subtask that has already been finished from the list of subtasks. DO NOT include the 'Done:' line in subtasks in this list. If an existing subtask has a 'Uses: ' line, you MUST include it.
+        ` + ReviseSubtasksPrompt + `
+
+        - The name of a subtask must be a unique identifier for that subtask. Do not duplicate names across subtasks—even if subtasks are similar, related, or repetitive, they must each have a unique name.
 
 				- Be thorough and exhaustive in your list of subtasks. Ensure you've accounted for *every subtask* that must be done to fully complete the user's task. Ensure that you list *every* file that needs to be created or updated. Be specific and detailed in your list of subtasks. Consider subtasks that are relevant but not obvious and could be easily overlooked. Before listing the subtasks in a '### Tasks' section, include some reasoning on what the important steps are, what could potentially be overlooked, and how you will ensure all necessary steps are included.
 
@@ -117,6 +117,10 @@ If a plan is in progress and the user asks you a question, don't respond by cont
 	prompt += SharedPlanningImplementationPrompt
 
 	prompt += `
+IMPORTANT: During this planning phase, you must NOT implement any code or create any code blocks. Your only task is to break down the work into subtasks. Code implementation will happen in a separate phase after planning is complete. The planning phase is ONLY for breaking the work into subtasks.
+
+Do not attempt to write any code or show any implementation details at this stage.
+
 [END OF YOUR INSTRUCTIONS]
 `
 
@@ -194,4 +198,77 @@ Always work from the LATEST state of the user-provided context. If the user has 
 
 Similarly, if you have made updates to any files, you MUST always work from the *latest version* of the files when continuing the plan.
 
+`
+
+const FollowUpPlanClassifierPrompt = `
+Since this prompt is a follow up to a plan that has already been started, you must assess the following:
+
+- Whether the prompt is:
+  A. An update/revision to the tasks in the current plan, including a new or distinct task
+  B. A conversation prompt like a question or comment that does not indicate a an update to the plan or a new task
+
+- If the prompt is A, you must then assess whether the prompt is:
+  A1. A small/minor update to or revision of the current plan
+  A2. A significant update to or revision of the current plan
+  A3. A new task that is distinct from the current plan
+
+  A task is likely to be:
+
+  - A1 (small update) if it involves:
+    * Minor changes to existing functionality
+    * Changes contained within files already in context
+    * Simple additions or modifications
+    * Refinements to existing subtasks
+
+  - A2 (significant update) if it involves:
+    * Major changes to existing functionality
+    * Changes spanning multiple components
+    * New features that build on current work
+    * Substantial restructuring of existing subtasks
+
+  - A3 (new task) if it:
+    * Addresses a different concern/feature
+    * Has little overlap with current work
+    * Would make more sense as a separate plan
+    * Requires a fresh context evaluation
+
+- If the prompt is A2 or A3, either a significant update to or revision of the current plan, or a new task that is distinct from the current plan, you must explicitly state either:
+  - For A2: "This is a significant update to the plan. I'll clear all context without pending changes, then decide what context I need to move forward." - then output <PlandexDecideContext/> and end the response.
+  - For A3: "This is a new task that is distinct from the plan. I'll clear all context without pending changes, then decide what context I need to move forward." - then output <PlandexDecideContext/> and end the response.
+  - You MUST ouput one of the above statements *exactly* as shown, and you MUST output a <PlandexDecideContext/> tag immediately after the statement and end the response.
+
+- If the prompt is A1, a small/minor update to or revision of the plan, you must explicitly state:
+  - "This is a small update to the plan."
+  - Then you must move on to the [Context Assessment Instructions] below.
+
+- If the prompt is B, you must move on to the [Context Assessment Instructions] below.
+
+[Context Assessment Instructions]
+
+You must now assess whether you have sufficient context loaded to either continue with the plan and make the small/minor update to the plan that the user has requested (A1), or respond effectively in chat form to the user's prompt (B).
+
+For chat responses (B), you have "sufficient context" if you have enough information to provide accurate, informed answers about the specific code or concepts the user is asking about.
+
+For small updates (A1), you have "sufficient context" if you have:
+* All files that will be modified
+* Any dependent files needed to understand the changes
+* Any similar implementations that would be helpful as reference
+
+- If you have sufficient context loaded, you must explicitly state "I have the context I need to continue." and then move on to the [YOUR INSTRUCTIONS] section below.
+
+- If you do not have sufficient context loaded, you must explicitly state "I need more context to continue." - then output <PlandexDecideContext/> and end the response.
+
+[Handling Multi-part Prompts]
+
+If the user's prompt contains multiple parts (e.g. both questions and updates):
+1. First determine if there are any questions that should be answered in chat form
+2. Answer those questions first
+3. Then assess any updates/changes according to the classification above (A1/A2/A3)
+4. Only after answering questions should you output any of the classification statements or tags
+
+Before beginning on the assessment above and outputting one of the listed statements, you can output a few sentences responding to the user's prompt and/or reasoning about the assessment.
+` + FollowUpRequiredPrompt
+
+const ReviseSubtasksPrompt = `
+- If you have already broken up a task into subtasks in a previous response during this conversation, and you are adding, removing, or modifying subtasks based on a new user prompt, you MUST output the full list of subtasks again in a '### Tasks' section with the same format as before. You ABSOLUTELY MUST NEVER output only a partial list of subtasks. Whenever you update subtasks, output the *complete* updated list of *all* unfinished subtasks with any new subtasks added, any subtasks you are removing removed, and any subtasks you are modifying modified. You don't need to reproduce *finished* subtasks, but any unfinished subtasks that you have listed previously *must without exception* be included in the list. When repeating subtasks that you have listed previously, you must keep them *exactly* the same, unless you specifically intend to modify them. No not make minor changes or add additional text to the subtask. You MUST NEVER remove or modify a subtask that has already been finished from the list of subtasks. DO NOT include the 'Done:' line in subtasks in this list. If an existing subtask has a 'Uses: ' line, you MUST include it.
 `

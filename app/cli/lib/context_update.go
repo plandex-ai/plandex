@@ -279,11 +279,7 @@ func checkOutdatedAndMaybeUpdateContext(doUpdate bool, maybeContexts []*shared.C
 
 					body := string(fileContent)
 
-					numTokens, err := shared.GetNumTokens(body)
-					if err != nil {
-						errs = append(errs, fmt.Errorf("failed to get the number of tokens in the file %s: %v", context.FilePath, err))
-						return
-					}
+					numTokens := shared.GetNumTokensEstimate(body)
 					tokenDiffsById[context.Id] = numTokens - context.NumTokens
 
 					numFiles++
@@ -345,11 +341,7 @@ func checkOutdatedAndMaybeUpdateContext(doUpdate bool, maybeContexts []*shared.C
 				sha := hex.EncodeToString(hash[:])
 
 				if sha != context.Sha {
-					numTokens, err := shared.GetNumTokens(body)
-					if err != nil {
-						errs = append(errs, fmt.Errorf("failed to get the number of tokens in the file %s: %v", context.FilePath, err))
-						return
-					}
+					numTokens := shared.GetNumTokensEstimate(body)
 					tokenDiffsById[context.Id] = numTokens - context.NumTokens
 
 					numTrees++
@@ -473,11 +465,7 @@ func checkOutdatedAndMaybeUpdateContext(doUpdate bool, maybeContexts []*shared.C
 							updatedParts[path] = body
 
 							prevTokens := context.MapTokens[path]
-							numTokens, err := shared.GetNumTokens(body)
-							if err != nil {
-								errs = append(errs, fmt.Errorf("failed to get the number of tokens in the file %s: %v", path, err))
-								return
-							}
+							numTokens := shared.GetNumTokensEstimate(body)
 
 							// fmt.Println("path", path, "numTokens", numTokens, "prevTokens", prevTokens)
 
@@ -520,11 +508,7 @@ func checkOutdatedAndMaybeUpdateContext(doUpdate bool, maybeContexts []*shared.C
 				sha := hex.EncodeToString(hash[:])
 
 				if sha != context.Sha {
-					numTokens, err := shared.GetNumTokens(body)
-					if err != nil {
-						errs = append(errs, fmt.Errorf("failed to get the number of tokens in the file %s: %v", context.FilePath, err))
-						return
-					}
+					numTokens := shared.GetNumTokensEstimate(body)
 					tokenDiffsById[context.Id] = numTokens - context.NumTokens
 
 					numUrls++

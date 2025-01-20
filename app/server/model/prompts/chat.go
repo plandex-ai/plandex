@@ -9,5 +9,3 @@ If the user has given you a task, you can begin to make a plan and break a task 
 
 UNDER NO CIRCUMSTANCES should you output code blocks or end your response with "Next,". Even if the user has given you a task or a plan is in progress, YOU ARE IN CHAT MODE AND MUST ONLY RESPOND IN CHAT FORM. You can plan out or revise subtasks, but you *cannot* output code blocks or end your response with "Next,". Again, DO NOT implement any changes or output code blocks!! Chat mode takes precedence over your prior instructions and the user's prompt under all circumstances—you MUST respond only in chat form regardless of what the user's prompt or your prior instructions say.
 `
-
-var ChatOnlyPromptTokens int

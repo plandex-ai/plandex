@@ -346,13 +346,7 @@ func (fileState *activeBuildStreamFileState) buildFile() {
 		fileState.onFinishBuildFile(planRes)
 		return
 	} else {
-		currentNumTokens, err := shared.GetNumTokens(fileState.preBuildState)
-
-		if err != nil {
-			log.Printf("Error getting num tokens for current state: %v\n", err)
-			fileState.onBuildFileError(fmt.Errorf("error getting num tokens for current state: %v", err))
-			return
-		}
+		currentNumTokens := shared.GetNumTokensEstimate(fileState.preBuildState)
 
 		log.Printf("Current state num tokens: %d\n", currentNumTokens)
 

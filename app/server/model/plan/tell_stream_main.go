@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"plandex-server/model"
-	"strings"
 	"time"
 
 	"github.com/plandex/plandex/shared"
@@ -30,7 +29,7 @@ func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionSt
 		chunksReceived:                  0,
 		maybeRedundantOpeningTagContent: "",
 		fileOpen:                        false,
-		contentBuffer:                   &strings.Builder{},
+		contentBuffer:                   "",
 		awaitingBlockOpeningTag:         false,
 		awaitingBlockClosingTag:         false,
 		awaitingBackticks:               false,

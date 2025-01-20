@@ -66,12 +66,7 @@ func (ap *ActivePlan) PendingBuildsByPath(orgId, userId string, convoMessagesArg
 					activeBuildsByPath[op.Path] = []*ActiveBuild{}
 				}
 
-				numTokens, err := shared.GetNumTokens(op.Content)
-
-				if err != nil {
-					log.Printf("Error getting num tokens for file content: %v\n", err)
-					return nil, fmt.Errorf("error getting num tokens for file content: %v", err)
-				}
+				numTokens := shared.GetNumTokensEstimate(op.Content)
 
 				activeBuildsByPath[op.Path] = append(activeBuildsByPath[op.Path], &ActiveBuild{
 					ReplyId:           desc.ConvoMessageId,

@@ -10,9 +10,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/plandex/plandex/shared"
 	"github.com/sashabaranov/go-openai"
 )
+
+const verboseLogging = false
 
 var openingTagRegex = regexp.MustCompile(`<PlandexBlock\s+lang="(.+?)".*?>`)
 
@@ -44,51 +47,33 @@ func (state *activeTellStreamState) processChunk(choice openai.ChatCompletionStr
 
 	processor.chunksReceived++
 
-	// log.Printf("content: %s\n", content)
-
-	// Below needs reworking to correctly integrate with the rest of the processor
-	// Maybe isn't necessary anymore
-	// buffer if we're continuing after a missing file response to avoid sending redundant opening tags
-	// if missingFileResponse != "" {
-	// 	if processor.maybeRedundantOpeningTagContent != "" {
-	// 		if strings.Contains(content, "\n") {
-	// 			processor.maybeRedundantOpeningTagContent = ""
-	// 		} else {
-	// 			processor.maybeRedundantOpeningTagContent += content
-	// 		}
-
-	// 		// skip processing this chunk
-	// 		return processChunkResult{}
-	// 	} else if processor.chunksReceived < 3 && strings.Contains(content, "<PlandexBlock") {
-	// 		// received <PlandexBlock in first 3 chunks after missing file response
-	// 		// means this is a redundant start of a new file block, so just ignore it
-
-	// 		processor.maybeRedundantOpeningTagContent += content
-
-	// 		// skip processing this chunk
-	// 		return processChunkResult{}
-	// 	}
-	// }
-
-	// log.Printf("Adding chunk to parser: %s\n", content)
-	// log.Printf("fileOpen: %v\n", processor.fileOpen)
+	if verboseLogging {
+		log.Printf("Adding chunk to parser: %s\n", content)
+		log.Printf("fileOpen: %v\n", processor.fileOpen)
+	}
 
 	replyParser.AddChunk(content, true)
 	parserRes := replyParser.Read()
 
 	if !processor.fileOpen && parserRes.CurrentFilePath != "" {
-		log.Printf("File open: %s\n", parserRes.CurrentFilePath)
+		if verboseLogging {
+			log.Printf("File open: %s\n", parserRes.CurrentFilePath)
+		}
 		processor.fileOpen = true
 	}
 
 	if processor.fileOpen && strings.HasSuffix(active.CurrentReplyContent+content, "</PlandexBlock>") {
-		log.Println("FinishAndRead because of closing tag")
+		if verboseLogging {
+			log.Println("FinishAndRead because of closing tag")
+		}
 		parserRes = replyParser.FinishAndRead()
 		processor.fileOpen = false
 	}
 
 	if processor.fileOpen && parserRes.CurrentFilePath == "" {
-		log.Println("File open but current file path is empty, closing file")
+		if verboseLogging {
+			log.Println("File open but current file path is empty, closing file")
+		}
 		processor.fileOpen = false
 	}
 
@@ -116,13 +101,14 @@ func (state *activeTellStreamState) processChunk(choice openai.ChatCompletionStr
 		ap.NumTokens++
 	})
 
-	// log.Println("processor before bufferOrStream")
-	// spew.Dump(processor)
-	// log.Println("maybeFilePath", parserRes.MaybeFilePath)
-	// log.Println("currentFilePath", parserRes.CurrentFilePath)
-
-	// log.Println("res")
-	// spew.Dump(res)
+	if verboseLogging {
+		log.Println("processor before bufferOrStream")
+		spew.Dump(processor)
+		log.Println("maybeFilePath", parserRes.MaybeFilePath)
+		log.Println("currentFilePath", parserRes.CurrentFilePath)
+		log.Println("bufferOrStreamRes")
+		spew.Dump(bufferOrStreamRes)
+	}
 
 	if bufferOrStreamRes.shouldStream {
 		active.Stream(shared.StreamMessage{
@@ -131,8 +117,10 @@ func (state *activeTellStreamState) processChunk(choice openai.ChatCompletionStr
 		})
 	}
 
-	// log.Println("processor after bufferOrStream")
-	// spew.Dump(processor)
+	if verboseLogging {
+		log.Println("processor after bufferOrStream")
+		spew.Dump(processor)
+	}
 
 	if !req.IsChatOnly && len(operations) > len(processor.replyOperations) {
 		state.handleNewOperations(&parserRes)
@@ -159,51 +147,51 @@ func (processor *chunkProcessor) bufferOrStream(content string, parserRes *types
 	var shouldStream bool
 	var blockLang string
 
-	if processor.awaitingBlockOpeningTag || processor.awaitingBlockClosingTag || processor.awaitingBackticks || processor.awaitingOpClosingTag {
-		processor.contentBuffer.WriteString(content)
-		s := processor.contentBuffer.String()
+	awaitingTag := processor.awaitingBlockOpeningTag || processor.awaitingBlockClosingTag || processor.awaitingOpClosingTag
+	awaitingAny := awaitingTag || processor.awaitingBackticks
 
-		// log.Printf("awaitingBlockOpeningTag: %v\n", processor.awaitingBlockOpeningTag)
-		// log.Printf("awaitingBlockClosingTag: %v\n", processor.awaitingBlockClosingTag)
-		// log.Printf("awaitingBackticks: %v\n", processor.awaitingBackticks)
-		// log.Printf("awaitingOpClosingTag: %v\n", processor.awaitingOpClosingTag)
-		// log.Printf("s: %q\n", s)
+	if awaitingAny {
+		if verboseLogging {
+			log.Println("awaitingAny")
+		}
+		processor.contentBuffer += content
+		content = processor.contentBuffer
 
-		if processor.awaitingBackticks {
-			if strings.Contains(s, "```") {
-				processor.awaitingBackticks = false
-				s = strings.ReplaceAll(s, "```", "\\`\\`\\`")
+		if verboseLogging {
+			log.Printf("awaitingBlockOpeningTag: %v\n", processor.awaitingBlockOpeningTag)
+			log.Printf("awaitingBlockClosingTag: %v\n", processor.awaitingBlockClosingTag)
+			log.Printf("awaitingBackticks: %v\n", processor.awaitingBackticks)
+			log.Printf("awaitingOpClosingTag: %v\n", processor.awaitingOpClosingTag)
+			log.Printf("content: %q\n", content)
+		}
+	}
 
-				if processor.awaitingBlockOpeningTag || processor.awaitingBlockClosingTag {
-					// update buffer with escaped backticks
-					processor.contentBuffer.Reset()
-					processor.contentBuffer.WriteString(s)
-				} else {
-					content = s
-					processor.contentBuffer.Reset()
-					shouldStream = true
-				}
-			} else if !strings.HasSuffix(s, "`") {
-				// fewer than 3 backticks, no need to escape
-				processor.awaitingBackticks = false
+	if processor.awaitingBackticks {
+		if strings.Contains(content, "```") {
+			processor.awaitingBackticks = false
+			content = strings.ReplaceAll(content, "```", "\\`\\`\\`")
 
-				if !(processor.awaitingBlockOpeningTag || processor.awaitingBlockClosingTag) {
-					content = s
-					processor.contentBuffer.Reset()
-					shouldStream = true
-				}
+			if !(processor.awaitingBlockOpeningTag || processor.awaitingBlockClosingTag) {
+				shouldStream = true
+			}
+		} else if !strings.HasSuffix(content, "`") {
+			// fewer than 3 backticks, no need to escape
+			processor.awaitingBackticks = false
+
+			if !(processor.awaitingBlockOpeningTag || processor.awaitingBlockClosingTag) {
+				shouldStream = true
 			}
 		}
+	}
 
+	if awaitingTag {
 		if processor.awaitingBlockOpeningTag {
 			if parserRes.MaybeFilePath == "" && parserRes.CurrentFilePath == "" {
 				// wasn't really a file path / code block
 				processor.awaitingBlockOpeningTag = false
-				content = s
-				processor.contentBuffer.Reset()
 				shouldStream = true
 			} else if parserRes.CurrentFilePath != "" {
-				matched, replaced := replaceCodeBlockOpeningTag(s, func(lang string) string {
+				matched, replaced := replaceCodeBlockOpeningTag(content, func(lang string) string {
 					blockLang = lang
 					return "```" + lang
 				})
@@ -213,99 +201,148 @@ func (processor *chunkProcessor) bufferOrStream(content string, parserRes *types
 					processor.awaitingBlockOpeningTag = false
 					processor.fileOpen = true
 					content = replaced
-					processor.contentBuffer.Reset()
 				} else {
 					// tag is missing - something is wrong - we shouldn't be here but let's try to recover anyway
-					log.Printf("Opening <PlandexBlock> tag is missing even though parserRes.CurrentFile is set - something is wrong: %s\n", s)
+					if verboseLogging {
+						log.Printf("Opening <PlandexBlock> tag is missing even though parserRes.CurrentFile is set - something is wrong: %s\n", content)
+					}
 					processor.awaitingBlockOpeningTag = false
 					processor.fileOpen = false
-					s += "\n```" // add ``` to the end of the line to close the markdown code block
-					content = s
-					processor.contentBuffer.Reset()
+					content += "\n```" // add ``` to the end of the line to close the markdown code block
 					shouldStream = true
 				}
 			}
 		} else if processor.awaitingBlockClosingTag {
 			if parserRes.CurrentFilePath == "" {
-				if strings.Contains(s, "</PlandexBlock>") {
+				if strings.Contains(content, "</PlandexBlock>") {
 					shouldStream = true
 					processor.awaitingBlockClosingTag = false
 					processor.fileOpen = false
 					// replace </PlandexBlock> with ``` to close the markdown code block
-					s = strings.ReplaceAll(s, "</PlandexBlock>", "```")
-					content = s
-					processor.contentBuffer.Reset()
+					content = strings.ReplaceAll(content, "</PlandexBlock>", "```")
 				} else {
-					log.Printf("Closing </PlandexBlock> tag is missing even though parserRes.CurrentOperation is nil - something is wrong: %s\n", s)
+					log.Printf("Closing </PlandexBlock> tag is missing even though parserRes.CurrentOperation is nil - something is wrong: %s\n", content)
 					processor.awaitingBlockClosingTag = false
-					content = s
-					processor.contentBuffer.Reset()
 					shouldStream = true
 				}
 			}
 		} else if processor.awaitingOpClosingTag {
-			// log.Printf("awaitingOpClosingTag: %v\n", processor.awaitingOpClosingTag)
-			if strings.Contains(s, "<EndPlandexFileOps/>") {
-				log.Printf("Found <EndPlandexFileOps/>\n")
+			if verboseLogging {
+				log.Printf("awaitingOpClosingTag: %v\n", processor.awaitingOpClosingTag)
+			}
+			if strings.Contains(content, "<EndPlandexFileOps/>") {
+				if verboseLogging {
+					log.Printf("Found <EndPlandexFileOps/>\n")
+				}
 				processor.awaitingOpClosingTag = false
-				s = strings.Replace(s, "\n<EndPlandexFileOps/>", "", 1)
-				s = strings.Replace(s, "<EndPlandexFileOps/>", "", 1)
-				content = s
-				processor.contentBuffer.Reset()
+				content = strings.Replace(content, "\n<EndPlandexFileOps/>", "", 1)
+				content = strings.Replace(content, "<EndPlandexFileOps/>", "", 1)
 				shouldStream = true
 			}
 		}
 
 	} else {
+		if verboseLogging {
+			log.Println("not awaiting tag")
+		}
+
 		if parserRes.MaybeFilePath != "" && parserRes.CurrentFilePath == "" {
 			processor.awaitingBlockOpeningTag = true
 		}
 
 		if parserRes.CurrentFilePath != "" {
+			if verboseLogging {
+				log.Println("parserRes.CurrentFilePath != \"\"")
+			}
 			if strings.Contains(content, "</PlandexBlock>") {
+				if verboseLogging {
+					log.Println("strings.Contains(content, \"</PlandexBlock>\")")
+				}
 				processor.awaitingBlockClosingTag = true
 			} else {
+				if verboseLogging {
+					log.Println("not strings.Contains(content, \"</PlandexBlock>\")")
+				}
 				split := strings.Split(content, "<")
 				// log.Printf("split: %v\n", split)
 				if len(split) > 1 {
+					if verboseLogging {
+						log.Println("len(split) > 1")
+					}
 					last := split[len(split)-1]
 					// log.Printf("last: %s\n", last)
 					if strings.HasPrefix("/PlandexBlock>", last) {
+						if verboseLogging {
+							log.Println("strings.HasPrefix(\"/PlandexBlock>\", last)")
+						}
 						processor.awaitingBlockClosingTag = true
 					}
 				}
 			}
 		} else if parserRes.FileOperationBlockOpen() {
+			if verboseLogging {
+				log.Println("parserRes.FileOperationBlockOpen()")
+			}
 			if strings.Contains(content, "<EndPlandexFileOps/>") {
+				if verboseLogging {
+					log.Println("strings.Contains(content, \"<EndPlandexFileOps/>\")")
+				}
 				processor.awaitingOpClosingTag = true
 			} else {
+				if verboseLogging {
+					log.Println("not strings.Contains(content, \"<EndPlandexFileOps/>\")")
+				}
 				split := strings.Split(content, "<")
 				if len(split) > 1 {
+					if verboseLogging {
+						log.Println("len(split) > 1")
+					}
 					last := split[len(split)-1]
 					if strings.HasPrefix("EndPlandexFileOps/>", last) {
+						if verboseLogging {
+							log.Println("strings.HasPrefix(\"EndPlandexFileOps/>\", last)")
+						}
 						processor.awaitingOpClosingTag = true
 					}
 				}
 			}
 		} else if strings.Contains(content, "</PlandexBlock>") {
+			if verboseLogging {
+				log.Println("strings.Contains(content, \"</PlandexBlock>\")")
+			}
 			content = strings.Replace(content, "</PlandexBlock>", "```", 1)
 		} else if strings.Contains(content, "<EndPlandexFileOps/>") {
+			if verboseLogging {
+				log.Println("strings.Contains(content, \"<EndPlandexFileOps/>\")")
+			}
 			content = strings.Replace(content, "\n<EndPlandexFileOps/>", "", 1)
 			content = strings.Replace(content, "<EndPlandexFileOps/>", "", 1)
 		}
 
 		if processor.fileOpen && (strings.Contains(content, "```") || strings.HasSuffix(content, "`")) {
+			if verboseLogging {
+				log.Println("processor.fileOpen && (strings.Contains(content, \"```\") || strings.HasSuffix(content, \"`\"))")
+			}
 			processor.awaitingBackticks = true
 		}
 
 		var matchedOpeningTag bool
 		if processor.fileOpen {
+			if verboseLogging {
+				log.Println("processor.fileOpen")
+			}
 			var replaced string
 
 			matchedOpeningTag, replaced = replaceCodeBlockOpeningTag(content, func(lang string) string {
 				blockLang = lang
 				return "```" + lang
 			})
+
+			if verboseLogging {
+				log.Println("matchedOpeningTag", matchedOpeningTag)
+				log.Println("replaced", replaced)
+			}
+
 			if matchedOpeningTag {
 				content = replaced
 			}
@@ -313,9 +350,27 @@ func (processor *chunkProcessor) bufferOrStream(content string, parserRes *types
 
 		shouldStream = !processor.awaitingBlockOpeningTag && !processor.awaitingBlockClosingTag && !processor.awaitingOpClosingTag && !processor.awaitingBackticks
 
-		if !shouldStream {
-			processor.contentBuffer.WriteString(content)
+		if verboseLogging {
+			log.Println("processor.awaitingBlockOpeningTag", processor.awaitingBlockOpeningTag)
+			log.Println("processor.awaitingBlockClosingTag", processor.awaitingBlockClosingTag)
+			log.Println("processor.awaitingOpClosingTag", processor.awaitingOpClosingTag)
+			log.Println("processor.awaitingBackticks", processor.awaitingBackticks)
+
+			log.Println("shouldStream", shouldStream)
 		}
+	}
+
+	if verboseLogging {
+		log.Println("returning bufferOrStreamResult")
+		log.Println("shouldStream", shouldStream)
+		log.Println("content", content)
+		log.Println("blockLang", blockLang)
+	}
+
+	if shouldStream {
+		processor.contentBuffer = ""
+	} else {
+		processor.contentBuffer = content
 	}
 
 	return bufferOrStreamResult{
@@ -369,18 +424,12 @@ func (state *activeTellStreamState) handleNewOperations(parserRes *types.ReplyPa
 
 			var opContentTokens int
 			if op.Type == shared.OperationTypeFile {
-				var err error
-				opContentTokens, err = shared.GetNumTokens(op.Content)
-				if err != nil {
-					log.Printf("Error getting num tokens for operation %s: %v\n", op.Name(), err)
-					state.onError(fmt.Errorf("error getting num tokens for operation %s: %v", op.Name(), err), true, "", "")
-					return
-				}
+				opContentTokens = shared.GetNumTokensEstimate(op.Content)
 			} else {
 				opContentTokens = op.NumTokens
 			}
 
-			log.Printf("buildState.queueBuilds - op.Description:\n%s\n", op.Description)
+			// log.Printf("buildState.queueBuilds - op.Description:\n%s\n", op.Description)
 
 			buildState.queueBuilds([]*types.ActiveBuild{{
 				ReplyId:           replyId,
@@ -513,17 +562,15 @@ func (state *activeTellStreamState) handleMissingFile(content, currentFile, bloc
 	log.Println("Continuing stream")
 
 	// continue plan
-	execTellPlan(
-		clients,
-		plan,
-		branch,
-		auth,
-		req,
-		iteration, // keep the same iteration
-		userChoice,
-		false,
-		0,
-	)
+	execTellPlan(execTellPlanParams{
+		clients:             clients,
+		plan:                plan,
+		branch:              branch,
+		auth:                auth,
+		req:                 req,
+		iteration:           iteration, // keep the same iteration
+		missingFileResponse: userChoice,
+	})
 
 	return processChunkResult{shouldReturn: true}
 }

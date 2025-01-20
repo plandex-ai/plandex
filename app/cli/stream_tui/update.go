@@ -538,14 +538,7 @@ func (m *streamUIModel) checkMissingFile(msg *shared.StreamMessage) (tea.Model, 
 		}
 		m.missingFileContent = string(bytes)
 
-		numTokens, err := shared.GetNumTokens(m.missingFileContent)
-
-		if err != nil {
-			log.Println("failed to get num tokens:", err)
-			m.err = fmt.Errorf("failed to get num tokens: %w", err)
-			return m, nil
-		}
-
+		numTokens := shared.GetNumTokensEstimate(m.missingFileContent)
 		m.missingFileTokens = numTokens
 	}
 

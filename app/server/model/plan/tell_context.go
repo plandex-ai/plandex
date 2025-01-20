@@ -11,13 +11,12 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
-func (state *activeTellStreamState) formatModelContext(includeMaps, includeTrees, isImplementationStage, smartContextEnabled, execEnabled bool) (string, int, error) {
+func (state *activeTellStreamState) formatModelContext(includeMaps, includeTrees, isImplementationStage, smartContextEnabled, execEnabled bool) (string, error) {
 	log.Println("Tell plan - formatModelContext")
 
 	var contextMessages []string = []string{
 		"### LATEST PLAN CONTEXT ###",
 	}
-	var numTokens int
 	addedFilesSet := map[string]bool{}
 
 	uses := map[string]bool{}
@@ -77,16 +76,7 @@ func (state *activeTellStreamState) formatModelContext(includeMaps, includeTrees
 			args = append(args, part.Name, part.Body)
 		}
 
-		if part.ContextType == shared.ContextImageType {
-			numTokens += part.NumTokens
-		} else {
-			numContextTokens, err := shared.GetNumTokens(fmt.Sprintf(fmtStr, ""))
-			if err != nil {
-				err = fmt.Errorf("failed to get the number of tokens in the context: %v", err)
-				return "", 0, err
-			}
-
-			numTokens += part.NumTokens + numContextTokens
+		if part.ContextType != shared.ContextImageType {
 			message = fmt.Sprintf(fmtStr, args...)
 			contextMessages = append(contextMessages, message)
 		}
@@ -138,21 +128,14 @@ func (state *activeTellStreamState) formatModelContext(includeMaps, includeTrees
 		contextMessages = append(contextMessages, fmt.Sprintf("\n\n- _apply.sh:\n\n```\n%s\n```", scriptContent))
 	}
 
-	return strings.Join(contextMessages, "\n### END OF CONTEXT ###\n"), numTokens, nil
+	return strings.Join(contextMessages, "\n\n") + "\n\n### END OF CONTEXT ###\n\n", nil
 }
 
 var pathRegex = regexp.MustCompile("`(.+?)`")
 
 func (state *activeTellStreamState) checkAutoLoadContext() []string {
 	req := state.req
-
-	activePlan := GetActivePlan(state.plan.Id, state.branch)
-
-	if activePlan == nil {
-		log.Printf("execTellPlan: Active plan not found for plan ID %s on branch %s\n", state.plan.Id, state.branch)
-		return nil
-	}
-
+	activePlan := state.activePlan
 	contextsByPath := activePlan.ContextsByPath
 
 	if !activePlan.AutoContext {
@@ -186,13 +169,10 @@ func (state *activeTellStreamState) checkAutoLoadContext() []string {
 	return files
 }
 
-func (state *activeTellStreamState) addImageContext() bool {
-	active := GetActivePlan(state.plan.Id, state.branch)
+func (state *activeTellStreamState) addImageContext() (int, bool) {
+	active := state.activePlan
 
-	if active == nil {
-		log.Printf("execTellPlan: Active plan not found for plan ID %s on branch %s\n", state.plan.Id, state.branch)
-		return false
-	}
+	var imageContextTokens int
 
 	for _, context := range state.modelContext {
 		if context.ContextType == shared.ContextImageType {
@@ -204,8 +184,10 @@ func (state *activeTellStreamState) addImageContext() bool {
 					Status: http.StatusBadRequest,
 					Msg:    "Model does not support images in context",
 				}
-				return false
+				return 0, false
 			}
+
+			imageContextTokens += context.NumTokens
 
 			imageMessage := openai.ChatCompletionMessage{
 				Role: openai.ChatMessageRoleUser,
@@ -227,5 +209,5 @@ func (state *activeTellStreamState) addImageContext() bool {
 		}
 	}
 
-	return true
+	return imageContextTokens, true
 }

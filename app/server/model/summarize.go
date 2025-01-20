@@ -35,8 +35,6 @@ func PlanSummary(client *openai.Client, config shared.ModelRoleConfig, params Pl
 		},
 	}
 
-	numTokens := params.ConversationNumTokens + prompts.IdentityNumTokens
-
 	for _, message := range params.Conversation {
 		messages = append(messages, *message)
 	}
@@ -46,7 +44,7 @@ func PlanSummary(client *openai.Client, config shared.ModelRoleConfig, params Pl
 		Content: prompts.PlanSummary,
 	})
 
-	numTokens += prompts.PlanSummaryNumTokens
+	numTokens := shared.GetMessagesTokenEstimate(messages...) + shared.TokensPerRequest
 
 	_, apiErr := hooks.ExecHook(hooks.WillSendModelRequest, hooks.HookParams{
 		Auth: params.Auth,
@@ -94,11 +92,7 @@ func PlanSummary(client *openai.Client, config shared.ModelRoleConfig, params Pl
 		outputTokens = resp.Usage.CompletionTokens
 	} else {
 		inputTokens = numTokens
-		outputTokens, err = shared.GetNumTokens(content)
-
-		if err != nil {
-			return nil, err
-		}
+		outputTokens = shared.GetNumTokensEstimate(content)
 	}
 
 	_, apiErr = hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{

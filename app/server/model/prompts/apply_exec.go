@@ -9,8 +9,6 @@ The command will be run again *automatically* on the user's machine once the cha
 Command details:
 `
 
-var DebugPromptTokens int
-
 const ApplyDebugPrompt = `The _apply.sh script failed and you must debug. Focus only on fixing this issue so that the command runs successfully; don't make other changes.
 
 Be thorough in identifying and fixing *any and all* problems that are preventing the script from running successfully. If there are multiple problems, identify and fix all of them.
@@ -67,8 +65,6 @@ You MUST NOT tell the user to do anything themselves that's included in the _app
 
 If the plan includes other script files, apart from _apply.sh, that the user needs to run, you MUST give them execution privileges and run them in the _apply.sh script. Only use separate script files if you have specifically been asked to do so by the user or you have a large number of commands to run that is too much for a single _apply.sh script. Otherwise, you MUST include *all* commands to be run in the _apply.sh script, and not use separate script files.
 ` + ApplyScriptResetOrUpdatePrompt
-
-var ApplyScriptPlanningPromptNumTokens int
 
 const ApplyScriptImplementationPrompt = ApplyScriptPlanningPrompt + `    
 DO NOT use the _apply.sh script to move, remove, or reset changes to files that are in context or have pending changes—use one of the special file operation sections instead: '### Move Files', '### Remove Files', or '### Reset Changes' if you need to do that, and follow the instructions for those sections.
@@ -164,8 +160,6 @@ npm install --save-dev \
 </PlandexBlock>
 `
 
-var ApplyScriptImplementationPromptNumTokens int
-
 const ApplyScriptPromptSummary = `
 Write any commands that need to be run after the plan is applied to the special _apply.sh file.
 
@@ -191,8 +185,6 @@ Key instructions for _apply.sh:
 - ` + ApplyScriptResetOrUpdatePrompt + `
 `
 
-var ApplyScriptSummaryNumTokens int
-
 var NoApplyScriptPrompt = `
 
 ## No execution of commands
@@ -205,8 +197,6 @@ When breaking up a task into subtasks, only include subtasks that you can do you
 
 For tasks that you ARE able to complete because they only require creating or updating files, complete them thoroughly yourself and don't ask the user to do any part of them.
 `
-
-var NoApplyScriptPromptNumTokens int
 
 const ApplyScriptResetOrUpdatePrompt = `When the user applies the plan, the _apply.sh will be executed. 
 

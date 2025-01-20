@@ -29,10 +29,10 @@ func (state *activeTellStreamState) addConversationMessages() bool {
 		return false
 	}
 
-	conversationTokens := prompts.ExtraTokensPerRequest
+	conversationTokens := 0
 	tokensUpToTimestamp := make(map[int64]int)
 	for _, convoMessage := range convo {
-		conversationTokens += convoMessage.Tokens + prompts.ExtraTokensPerMessage
+		conversationTokens += convoMessage.Tokens + shared.TokensPerMessage + shared.TokensPerName
 		timestamp := convoMessage.CreatedAt.UnixNano() / int64(time.Millisecond)
 		tokensUpToTimestamp[timestamp] = conversationTokens
 		// log.Printf("Timestamp: %s | Tokens: %d | Total: %d | conversationTokens\n", convoMessage.Timestamp, convoMessage.Tokens, conversationTokens)
@@ -242,7 +242,7 @@ func summarizeConvo(client *openai.Client, config shared.ModelRoleConfig, params
 	// log.Println("Generating plan summary - convo:")
 	// spew.Dump(convo)
 
-	numTokens := prompts.ExtraTokensPerRequest
+	numTokens := 0
 
 	if latestSummary == nil {
 		for _, convoMessage := range convo {
@@ -253,7 +253,7 @@ func summarizeConvo(client *openai.Client, config shared.ModelRoleConfig, params
 			latestMessageId = convoMessage.Id
 			latestMessageSummarizedAt = convoMessage.CreatedAt
 			numMessagesSummarized++
-			numTokens += convoMessage.Tokens + prompts.ExtraTokensPerMessage
+			numTokens += convoMessage.Tokens + shared.TokensPerMessage + shared.TokensPerName
 		}
 	} else {
 		summaryMessages = append(summaryMessages, &openai.ChatCompletionMessage{
@@ -261,7 +261,7 @@ func summarizeConvo(client *openai.Client, config shared.ModelRoleConfig, params
 			Content: latestSummary.Summary,
 		})
 
-		numTokens += latestSummary.Tokens + prompts.ExtraTokensPerMessage
+		numTokens += latestSummary.Tokens + shared.TokensPerMessage + shared.TokensPerName
 
 		var found bool
 		for _, convoMessage := range convo {
@@ -275,7 +275,7 @@ func summarizeConvo(client *openai.Client, config shared.ModelRoleConfig, params
 					Content: convoMessage.Message,
 				})
 				numMessagesSummarized++
-				numTokens += convoMessage.Tokens + prompts.ExtraTokensPerMessage
+				numTokens += convoMessage.Tokens + shared.TokensPerMessage + shared.TokensPerName
 			}
 		}
 
@@ -294,13 +294,8 @@ func summarizeConvo(client *openai.Client, config shared.ModelRoleConfig, params
 				Content: userPrompt,
 			})
 
-			tokens, err := shared.GetNumTokens(userPrompt)
-			if err != nil {
-				log.Printf("Error getting num tokens for user prompt: %v\n", err)
-				return err
-			}
-
-			numTokens += tokens + prompts.ExtraTokensPerMessage
+			tokens := shared.GetNumTokensEstimate(userPrompt)
+			numTokens += tokens + shared.TokensPerMessage + shared.TokensPerName
 		}
 	}
 
@@ -310,7 +305,7 @@ func summarizeConvo(client *openai.Client, config shared.ModelRoleConfig, params
 			Content: currentReply,
 		})
 
-		numTokens += params.currentReplyNumTokens + prompts.ExtraTokensPerMessage
+		numTokens += params.currentReplyNumTokens + shared.TokensPerMessage + shared.TokensPerName
 	}
 
 	log.Printf("Calling model for plan summary. Summarizing %d messages\n", len(summaryMessages))

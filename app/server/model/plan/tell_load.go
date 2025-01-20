@@ -24,11 +24,11 @@ func (state *activeTellStreamState) loadTellPlan() error {
 	iteration := state.iteration
 	missingFileResponse := state.missingFileResponse
 
-	active := GetActivePlan(plan.Id, branch)
-
-	if active == nil {
-		return fmt.Errorf("no active plan with id %s", plan.Id)
+	err := state.setActivePlan()
+	if err != nil {
+		return err
 	}
+	active := state.activePlan
 
 	lockScope := db.LockScopeWrite
 	if iteration > 0 || missingFileResponse != "" {
@@ -167,13 +167,7 @@ func (state *activeTellStreamState) loadTellPlan() error {
 			ap.MessageNum = len(convo)
 		})
 
-		promptTokens, err := shared.GetNumTokens(req.Prompt)
-		if err != nil {
-			log.Printf("Error getting prompt num tokens: %v\n", err)
-			errCh <- fmt.Errorf("error getting prompt num tokens: %v", err)
-			return
-		}
-
+		promptTokens := shared.GetNumTokensEstimate(req.Prompt)
 		innerErrCh := make(chan error)
 
 		go func() {
@@ -229,13 +223,7 @@ func (state *activeTellStreamState) loadTellPlan() error {
 			log.Printf("got %d plan summaries", len(summaries))
 
 			if len(summaries) > 0 {
-				var err error
-				latestSummaryTokens, err = shared.GetNumTokens(summaries[len(summaries)-1].Summary)
-				if err != nil {
-					log.Printf("Error getting latest summary tokens: %v\n", err)
-					innerErrCh <- fmt.Errorf("error getting latest summary tokens: %v", err)
-					return
-				}
+				latestSummaryTokens = shared.GetNumTokensEstimate(summaries[len(summaries)-1].Summary)
 			}
 
 			innerErrCh <- nil
@@ -352,6 +340,14 @@ func (state *activeTellStreamState) loadTellPlan() error {
 		}
 	}
 
+	state.hasAssistantReply = false
+	for _, convoMessage := range state.convo {
+		if convoMessage.Role == openai.ChatMessageRoleAssistant {
+			state.hasAssistantReply = true
+			break
+		}
+	}
+
 	if iteration == 0 && missingFileResponse == "" {
 		UpdateActivePlan(planId, branch, func(ap *types.ActivePlan) {
 			ap.Contexts = state.modelContext
@@ -386,6 +382,21 @@ func (state *activeTellStreamState) loadTellPlan() error {
 			})
 		}
 	}
+
+	return nil
+}
+
+func (state *activeTellStreamState) setActivePlan() error {
+	plan := state.plan
+	branch := state.branch
+
+	active := GetActivePlan(plan.Id, branch)
+
+	if active == nil {
+		return fmt.Errorf("no active plan with id %s", plan.Id)
+	}
+
+	state.activePlan = active
 
 	return nil
 }

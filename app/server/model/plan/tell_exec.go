@@ -35,33 +35,49 @@ func Tell(clients map[string]*openai.Client, plan *db.Plan, branch string, auth 
 		return err
 	}
 
-	go execTellPlan(
-		clients,
-		plan,
-		branch,
-		auth,
-		req,
-		0,
-		"",
-		!req.IsChatOnly && req.BuildMode == shared.BuildModeAuto,
-		0,
-	)
+	go execTellPlan(execTellPlanParams{
+		clients:            clients,
+		plan:               plan,
+		branch:             branch,
+		auth:               auth,
+		req:                req,
+		iteration:          0,
+		shouldBuildPending: !req.IsChatOnly && req.BuildMode == shared.BuildModeAuto,
+	})
 
 	log.Printf("Tell: Tell operation completed successfully for plan ID %s on branch %s\n", plan.Id, branch)
 	return nil
 }
 
-func execTellPlan(
-	clients map[string]*openai.Client,
-	plan *db.Plan,
-	branch string,
-	auth *types.ServerAuth,
-	req *shared.TellPlanRequest,
-	iteration int,
-	missingFileResponse shared.RespondMissingFileChoice,
-	shouldBuildPending bool,
-	numErrorRetry int,
-) {
+type execTellPlanParams struct {
+	clients                   map[string]*openai.Client
+	plan                      *db.Plan
+	branch                    string
+	auth                      *types.ServerAuth
+	req                       *shared.TellPlanRequest
+	iteration                 int
+	missingFileResponse       shared.RespondMissingFileChoice
+	shouldBuildPending        bool
+	numErrorRetry             int
+	shouldLoadFollowUpContext bool
+	didLoadFollowUpContext    bool
+	didMakeFollowUpPlan       bool
+}
+
+func execTellPlan(params execTellPlanParams) {
+	clients := params.clients
+	plan := params.plan
+	branch := params.branch
+	auth := params.auth
+	req := params.req
+	iteration := params.iteration
+	missingFileResponse := params.missingFileResponse
+	shouldBuildPending := params.shouldBuildPending
+	numErrorRetry := params.numErrorRetry
+	shouldLoadFollowUpContext := params.shouldLoadFollowUpContext
+	didLoadFollowUpContext := params.didLoadFollowUpContext
+	didMakeFollowUpPlan := params.didMakeFollowUpPlan
+
 	log.Printf("execTellPlan: Called for plan ID %s on branch %s, iteration %d\n", plan.Id, branch, iteration)
 	currentUserId := auth.User.Id
 	currentOrgId := auth.OrgId
@@ -125,12 +141,26 @@ func execTellPlan(
 
 	autoContextEnabled := req.AutoContext && state.hasContextMap
 	smartContextEnabled := req.AutoContext
-	isPlanningStage := req.IsChatOnly || (!req.IsUserContinue && (iteration == 0 || (autoContextEnabled && iteration == 1)))
+
+	isFollowUp := shouldLoadFollowUpContext || (iteration == 0 && (len(state.subtasks) > 0 || (req.IsChatOnly && state.hasAssistantReply)))
+
+	isPlanningStage := req.IsChatOnly ||
+		shouldLoadFollowUpContext ||
+		didLoadFollowUpContext ||
+		(!req.IsUserContinue &&
+			!didMakeFollowUpPlan &&
+			(iteration == 0 ||
+				(autoContextEnabled && iteration == 1)))
+
 	isImplementationStage := !isPlanningStage
-	isContextStage := isPlanningStage && autoContextEnabled && !state.contextMapEmpty && iteration == 0
 
-	log.Printf("isPlanningStage: %t, isImplementationStage: %t, isContextStage: %t\n", isPlanningStage, isImplementationStage, isContextStage)
+	isContextStage := isPlanningStage &&
+		(shouldLoadFollowUpContext ||
+			(!isFollowUp && autoContextEnabled && !state.contextMapEmpty && iteration == 0))
 
+	log.Printf("isPlanningStage: %t, isImplementationStage: %t, isContextStage: %t, isFollowUp: %t\n", isPlanningStage, isImplementationStage, isContextStage, isFollowUp)
+
+	state.isFollowUp = isFollowUp
 	state.isPlanningStage = isPlanningStage
 	state.isImplementationStage = isImplementationStage
 	state.isContextStage = isContextStage
@@ -143,7 +173,7 @@ func execTellPlan(
 		includeMaps = false
 	}
 
-	modelContextText, modelContextTokens, err := state.formatModelContext(includeMaps, true, isImplementationStage, smartContextEnabled, req.ExecEnabled)
+	modelContextText, err := state.formatModelContext(includeMaps, true, isImplementationStage, smartContextEnabled, req.ExecEnabled)
 	if err != nil {
 		err = fmt.Errorf("error formatting model modelContext: %v", err)
 		log.Println(err)
@@ -156,8 +186,14 @@ func execTellPlan(
 		return
 	}
 
-	ok, sysPrompt, sysPromptTokens := state.getTellSysPrompt(isPlanningStage, isContextStage, autoContextEnabled, smartContextEnabled, modelContextText)
-	if !ok {
+	sysPrompt, err := state.getTellSysPrompt(autoContextEnabled, smartContextEnabled, modelContextText)
+	if err != nil {
+		log.Printf("Error getting tell sys prompt: %v\n", err)
+		active.StreamDoneCh <- &shared.ApiError{
+			Type:   shared.ApiErrorTypeOther,
+			Status: http.StatusInternalServerError,
+			Msg:    err.Error(),
+		}
 		return
 	}
 
@@ -171,70 +207,30 @@ func execTellPlan(
 	}
 
 	// Add a separate message for image contexts
-	if !state.addImageContext() {
+	imageContextTokens, ok := state.addImageContext()
+	if !ok {
 		return
 	}
 
-	osDetailsTokens, err := shared.GetNumTokens(req.OsDetails)
-	if err != nil {
-		log.Printf("Error getting num tokens for os details: %v\n", err)
-		active.StreamDoneCh <- &shared.ApiError{
-			Type:   shared.ApiErrorTypeOther,
-			Status: http.StatusInternalServerError,
-			Msg:    "Error getting num tokens for os details",
-		}
-		return
-	}
-
-	var (
-		numPromptTokens int
-		promptTokens    int
-	)
-
-	var wrapperTokens int
-	if isPlanningStage {
-		wrapperTokens = prompts.PlanningPromptWrapperTokens
-	} else {
-		wrapperTokens = prompts.ImplementationPromptWrapperTokens
-	}
-
-	log.Printf("wrapperTokens: %d\n", wrapperTokens)
-
-	if iteration == 0 && missingFileResponse == "" {
-		numPromptTokens, err = shared.GetNumTokens(req.Prompt)
-		if err != nil {
-			err = fmt.Errorf("error getting number of tokens in prompt: %v", err)
-			log.Println(err)
-			active.StreamDoneCh <- &shared.ApiError{
-				Type:   shared.ApiErrorTypeOther,
-				Status: http.StatusInternalServerError,
-				Msg:    "Error getting number of tokens in prompt",
-			}
-			return
-		}
-
-		promptTokens = wrapperTokens + numPromptTokens + osDetailsTokens
-	} else if iteration > 0 && missingFileResponse == "" {
-		numPromptTokens = prompts.AutoContinuePromptTokens
-
-		log.Printf("numPromptTokens: %d\n", numPromptTokens)
-		log.Printf("osDetailsTokens: %d\n", osDetailsTokens)
-		log.Printf("wrapperTokens: %d\n", wrapperTokens)
-
-		promptTokens = wrapperTokens + numPromptTokens + osDetailsTokens
-	}
-
+	var applyScriptSummary string
 	if req.ExecEnabled {
-		log.Printf("Apply script summary num tokens: %d\n", prompts.ApplyScriptSummaryNumTokens)
-		promptTokens += prompts.ApplyScriptSummaryNumTokens
+		applyScriptSummary = prompts.ApplyScriptPromptSummary
 	}
 
-	state.tokensBeforeConvo = sysPromptTokens + modelContextTokens + state.latestSummaryTokens + promptTokens
+	promptMessage, ok := state.resolvePromptMessage(isPlanningStage, isContextStage, applyScriptSummary)
+	if !ok {
+		return
+	}
+
+	state.tokensBeforeConvo =
+		shared.GetMessagesTokenEstimate(state.messages...) +
+			shared.GetMessagesTokenEstimate(*promptMessage) +
+			state.latestSummaryTokens +
+			imageContextTokens +
+			shared.TokensPerRequest
 
 	// print out breakdown of token usage
-	log.Printf("System message tokens: %d\n", sysPromptTokens)
-	log.Printf("Context tokens: %d\n", modelContextTokens)
-	log.Printf("Prompt tokens: %d\n", promptTokens)
+	log.Printf("Image context tokens: %d\n", imageContextTokens)
 	log.Printf("Latest summary tokens: %d\n", state.latestSummaryTokens)
 	log.Printf("Total tokens before convo: %d\n", state.tokensBeforeConvo)
 
@@ -254,19 +250,12 @@ func execTellPlan(
 		return
 	}
 
-	var applyScriptSummary string
-	if req.ExecEnabled {
-		applyScriptSummary = prompts.ApplyScriptPromptSummary
-	}
-
 	state.replyId = uuid.New().String()
 	state.replyParser = types.NewReplyParser()
 
 	if missingFileResponse == "" {
-		if !state.setPromptMessage(isPlanningStage, isContextStage, applyScriptSummary) {
-			return
-		}
-	} else if !state.handleMissingFileResponse(isPlanningStage, applyScriptSummary) {
+		state.messages = append(state.messages, *promptMessage)
+	} else if !state.handleMissingFileResponse(applyScriptSummary) {
 		return
 	}
 
@@ -292,11 +281,14 @@ func execTellPlan(
 	var stop []string
 	if isPlanningStage {
 		stop = []string{"<EndPlandexTasks/>"}
+		if isFollowUp {
+			stop = append(stop, "<PlandexDecideContext/>")
+		}
 	} else if isImplementationStage {
 		stop = []string{"<PlandexSubtaskDone/>"}
 	}
 
-	// log.Println("Stop:", stop)
+	log.Println("Stop:", stop)
 	// spew.Dump(state.messages)
 
 	modelReq := openai.ChatCompletionRequest{

@@ -1,11 +1,5 @@
 package prompts
 
-import (
-	"fmt"
-
-	"github.com/plandex/plandex/shared"
-)
-
 const PlanSummary = `
 You are an AI summarizer that summarizes the conversation so far. The conversation so far is a plan to complete one or more programming tasks for a user. This conversation may begin with an existing summary of the plan.
 
@@ -31,14 +25,3 @@ Do not include any heading or title for the summary. Just start with the summary
 
 Output only the summary of the current state of the plan and nothing else.
 `
-
-var PlanSummaryNumTokens int
-
-func init() {
-	var err error
-	PlanSummaryNumTokens, err = shared.GetNumTokens(PlanSummary)
-
-	if err != nil {
-		panic(fmt.Sprintf("Error getting num tokens for plan summary prompt: %v\n", err))
-	}
-}

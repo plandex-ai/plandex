@@ -43,15 +43,7 @@ func (fileState *activeBuildStreamFileState) buildWholeFileFallback(proposedCont
 		},
 	}
 
-	promptTokens, err := shared.GetNumTokens(sysPrompt)
-
-	if err != nil {
-		log.Printf("buildWholeFile - error getting num tokens for prompt: %v\n", err)
-		fileState.onBuildFileError(fmt.Errorf("error getting num tokens for prompt: %v", err))
-		return
-	}
-
-	inputTokens := prompts.ExtraTokensPerRequest + prompts.ExtraTokensPerMessage + promptTokens
+	inputTokens := shared.GetMessagesTokenEstimate(messages...) + shared.TokensPerRequest
 
 	_, apiErr := hooks.ExecHook(hooks.WillSendModelRequest, hooks.HookParams{
 		Auth: auth,

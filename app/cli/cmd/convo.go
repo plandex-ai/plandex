@@ -15,6 +15,7 @@ import (
 )
 
 var plainTextOutput bool
+var convoRaw bool
 
 // convoCmd represents the convo command
 var convoCmd = &cobra.Command{
@@ -28,6 +29,10 @@ func init() {
 	RootCmd.AddCommand(convoCmd)
 
 	convoCmd.Flags().BoolVarP(&plainTextOutput, "plain", "p", false, "Output conversation in plain text with no ANSI codes")
+
+	// for debugging output
+	convoCmd.Flags().BoolVar(&convoRaw, "raw", false, "Output conversation in raw format")
+	convoCmd.Flags().MarkHidden("raw")
 }
 
 const stoppedEarlyMsg = "You stopped the reply early"
@@ -114,7 +119,10 @@ func convo(cmd *cobra.Command, args []string) {
 		header := fmt.Sprintf("#### %d | %s | %s | %d 🪙 ", i+1,
 			author, formattedTs, msg.Tokens)
 
-		txt := convertCodeBlocks(msg.Message)
+		txt := msg.Message
+		if !convoRaw {
+			txt = convertCodeBlocks(msg.Message)
+		}
 
 		if plainTextOutput {
 			convo += header + "\n" + txt + "\n\n"

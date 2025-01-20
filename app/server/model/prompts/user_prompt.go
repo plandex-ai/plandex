@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-const sharedPromptWrapperFormatStr = "# The user's latest prompt:\n```\n%s\n```\n\n" + `Please respond according to the 'Your instructions' section above.
+const SharedPromptWrapperFormatStr = "# The user's latest prompt:\n```\n%s\n```\n\n" + `Please respond according to the 'Your instructions' section above.
 
 Do not ask the user to do anything that you can do yourself. Do not say a task is too large or complex for you to complete--do your best to break down the task and complete it even if it's very large or complex.
 
@@ -21,9 +21,11 @@ User's operating system details:
 ---
 `
 
-const planningPromptWrapperFormatStr = sharedPromptWrapperFormatStr + `
+const PlanningPromptWrapperFormatStr = SharedPromptWrapperFormatStr + `
 
 Do NOT include tests or documentation in the subtasks unless the user has specifically asked for them. Do not include extra code or features beyond what the user has asked for. Focus on the user's request and implement only what is necessary to fulfill it.
+
+` + ReviseSubtasksPrompt + `
 
 ` + CombineSubtasksPrompt + `
 
@@ -38,11 +40,13 @@ Example:
 2. Write a basic test for the 'main' function
 
 <EndPlandexTasks/>
+
+IMPORTANT: During this planning phase, you must NOT implement any code or create any code blocks. Your only task is to break down the work into subtasks. Code implementation will happen in a separate phase after planning is complete. The planning phase is ONLY for breaking the work into subtasks.
+
+Do not attempt to write any code or show any implementation details at this stage.
 `
 
-var PlanningPromptWrapperTokens int
-
-const implementationPromptWrapperFormatStr = sharedPromptWrapperFormatStr + `
+const ImplementationPromptWrapperFormatStr = SharedPromptWrapperFormatStr + `
 
 If you're making a plan, remember to label code blocks with the file path *exactly* as described in point 2, and do not use any other formatting for file paths. **Do not include explanations or any other text apart from the file path in code block labels.**
 
@@ -98,19 +102,42 @@ If you break up a task into subtasks, only include subtasks that can be implemen
 
 ` + FileOpsImplementationPromptSummary
 
-var ImplementationPromptWrapperTokens int
+const FollowUpRequiredPrompt = `
+[CLASSIFICATION REQUIRED]
 
-func GetWrappedPrompt(prompt, osDetails, applyScriptSummary string, isPlanningStage bool) string {
+YOU MUST COMPLETE THE CLASSIFICATION STEP BEFORE PROCEEDING TO ANY OTHER STEPS.
+
+DO NOT proceed to planning or implementation without first:
+1. Classifying the prompt according to the rules below
+2. Outputting the required classification statement
+3. Assessing context needs
+4. Outputting the required context statement
+
+You MUST output one of these exact statements before proceeding:
+- "This is a small update to the plan."
+- "This is a significant update to the plan. I'll clear all context without pending changes, then decide what context I need to move forward."
+- "This is a new task that is distinct from the plan. I'll clear all context without pending changes, then decide what context I need to move forward."
+
+AND then one of these for small updates (A1) or chat responses (B):
+- "I have the context I need to continue."
+- "I need more context to continue."
+`
+
+func GetWrappedPrompt(prompt, osDetails, applyScriptSummary string, isPlanningStage, isFollowUp bool) string {
 	var promptWrapperFormatStr string
 	if isPlanningStage {
-		promptWrapperFormatStr = planningPromptWrapperFormatStr
+		promptWrapperFormatStr = PlanningPromptWrapperFormatStr
 	} else {
-		promptWrapperFormatStr = implementationPromptWrapperFormatStr
+		promptWrapperFormatStr = ImplementationPromptWrapperFormatStr
 	}
 
 	// If we're in the planning stage, we don't need to include the apply script summary
 	if isPlanningStage {
 		applyScriptSummary = ""
+
+		if isFollowUp {
+			promptWrapperFormatStr += "\n\n" + FollowUpRequiredPrompt
+		}
 	}
 
 	ts := time.Now().Format(time.RFC3339)
@@ -134,8 +161,6 @@ ALWAYS complete subtasks in order and never go backwards in the list of subtasks
 If you break up a task into subtasks, only include subtasks that can be implemented directly in code by creating or updating files. Only include subtasks that require executing code or commands if execution mode is enabled. Do not include subtasks that require user testing, deployment, or other tasks that go beyond coding. 
 
 Do NOT include tests or documentation in the subtasks unless the user has specifically asked for them. Do not include extra code or features beyond what the user has asked for. Focus on the user's request and implement only what is necessary to fulfill it.`
-
-var AutoContinuePromptTokens int
 
 const SkippedPathsPrompt = "\n\nSome files have been skipped by the user and *must not* be generated. The user will handle any updates to these files themselves. Skip any parts of the plan that require generating these files. You *must not* generate a file block for any of these files.\nSkipped files:\n"
 

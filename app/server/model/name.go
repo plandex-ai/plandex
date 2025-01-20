@@ -25,20 +25,14 @@ func GenPlanName(
 	config := settings.ModelPack.Namer
 	content := prompts.GetPlanNamePrompt(planContent)
 
-	contentTokens, err := shared.GetNumTokens(content)
-
-	if err != nil {
-		return "", fmt.Errorf("error getting num tokens for content: %v", err)
-	}
-
-	numTokens := prompts.ExtraTokensPerRequest + prompts.ExtraTokensPerMessage + contentTokens
-
 	messages := []openai.ChatCompletionMessage{
 		{
 			Role:    openai.ChatMessageRoleSystem,
 			Content: content,
 		},
 	}
+
+	numTokens := shared.GetMessagesTokenEstimate(messages...) + shared.TokensPerRequest
 
 	var responseFormat *openai.ChatCompletionResponseFormat
 	if config.BaseModelConfig.HasJsonResponseMode {
@@ -55,7 +49,7 @@ func GenPlanName(
 		},
 	})
 	if apiErr != nil {
-		return "", err
+		return "", fmt.Errorf("error executing hook: %v", apiErr)
 	}
 
 	resp, err := CreateChatCompletionWithRetries(
@@ -106,11 +100,7 @@ func GenPlanName(
 		outputTokens = resp.Usage.CompletionTokens
 	} else {
 		inputTokens = numTokens
-		outputTokens, err = shared.GetNumTokens(res)
-
-		if err != nil {
-			return "", fmt.Errorf("error getting num tokens for content: %v", err)
-		}
+		outputTokens = shared.GetNumTokensEstimate(res)
 	}
 
 	_, apiErr = hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
@@ -155,12 +145,6 @@ func GenPipedDataName(
 
 	content := prompts.GetPipedDataNamePrompt(pipedContent)
 
-	contentTokens, err := shared.GetNumTokens(content)
-
-	if err != nil {
-		return "", fmt.Errorf("error getting num tokens for content: %v", err)
-	}
-
 	messages := []openai.ChatCompletionMessage{
 		{
 			Role:    openai.ChatMessageRoleSystem,
@@ -168,7 +152,7 @@ func GenPipedDataName(
 		},
 	}
 
-	numTokens := prompts.ExtraTokensPerRequest + prompts.ExtraTokensPerMessage + contentTokens
+	numTokens := shared.GetMessagesTokenEstimate(messages...) + shared.TokensPerRequest
 
 	var responseFormat *openai.ChatCompletionResponseFormat
 	if config.BaseModelConfig.HasJsonResponseMode {
@@ -185,7 +169,7 @@ func GenPipedDataName(
 		},
 	})
 	if apiErr != nil {
-		return "", err
+		return "", fmt.Errorf("error executing hook: %v", apiErr)
 	}
 
 	log.Println("calling piped data name model")
@@ -244,11 +228,7 @@ func GenPipedDataName(
 		outputTokens = resp.Usage.CompletionTokens
 	} else {
 		inputTokens = numTokens
-		outputTokens, err = shared.GetNumTokens(res)
-
-		if err != nil {
-			return "", fmt.Errorf("error getting num tokens for content: %v", err)
-		}
+		outputTokens = shared.GetNumTokensEstimate(res)
 	}
 
 	_, apiErr = hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
@@ -297,20 +277,14 @@ func GenNoteName(
 
 	content := prompts.GetNoteNamePrompt(note)
 
-	contentTokens, err := shared.GetNumTokens(content)
-
-	if err != nil {
-		return "", fmt.Errorf("error getting num tokens for content: %v", err)
-	}
-
-	numTokens := prompts.ExtraTokensPerRequest + prompts.ExtraTokensPerMessage + contentTokens
-
 	messages := []openai.ChatCompletionMessage{
 		{
 			Role:    openai.ChatMessageRoleSystem,
 			Content: content,
 		},
 	}
+
+	numTokens := shared.GetMessagesTokenEstimate(messages...) + shared.TokensPerRequest
 
 	var responseFormat *openai.ChatCompletionResponseFormat
 	if config.BaseModelConfig.HasJsonResponseMode {
@@ -327,7 +301,7 @@ func GenNoteName(
 		},
 	})
 	if apiErr != nil {
-		return "", err
+		return "", fmt.Errorf("error executing hook: %v", apiErr)
 	}
 
 	log.Println("calling piped data name model")
@@ -386,11 +360,7 @@ func GenNoteName(
 		outputTokens = resp.Usage.CompletionTokens
 	} else {
 		inputTokens = numTokens
-		outputTokens, err = shared.GetNumTokens(res)
-
-		if err != nil {
-			return "", fmt.Errorf("error getting num tokens for content: %v", err)
-		}
+		outputTokens = shared.GetNumTokensEstimate(res)
 	}
 
 	_, apiErr = hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{

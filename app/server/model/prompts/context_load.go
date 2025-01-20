@@ -25,10 +25,12 @@ In response to the user's latest prompt, do the following:
 
 After outputting the '### Relevant Symbols' section, end your response. Do not output any additional text after that section.
 
+IMPORTANT: During this context loading phase, you must NOT implement any code or create any code blocks. This phase is ONLY for identifying relevant context.
+
+Do not attempt to write any code or begin implementation at this stage. Implementation will happen in a separate phase after context is loaded.
+
 [END OF CONTEXT INSTRUCTIONS]
 `
-
-var AutoContextPreambleNumTokens int
 
 const ContextLoadingRules = `When assessing relevant context, you MUST follow these rules:
 

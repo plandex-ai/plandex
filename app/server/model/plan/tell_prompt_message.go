@@ -9,20 +9,14 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
-func (state *activeTellStreamState) setPromptMessage(isPlanningStage, isContextStage bool, applyScriptSummary string) bool {
-	planId := state.plan.Id
-	branch := state.branch
+func (state *activeTellStreamState) resolvePromptMessage(isPlanningStage, isContextStage bool, applyScriptSummary string) (*openai.ChatCompletionMessage, bool) {
 	req := state.req
 	iteration := state.iteration
-
-	active := GetActivePlan(planId, branch)
-
-	if active == nil {
-		log.Printf("execTellPlan: Active plan not found for plan ID %s on branch %s\n", planId, branch)
-		return false
-	}
+	active := state.activePlan
+	isFollowUp := state.isFollowUp
 
 	var promptMessage *openai.ChatCompletionMessage
+
 	if req.IsUserContinue {
 		if len(state.messages) == 0 {
 			active.StreamDoneCh <- &shared.ApiError{
@@ -30,7 +24,7 @@ func (state *activeTellStreamState) setPromptMessage(isPlanningStage, isContextS
 				Status: http.StatusBadRequest,
 				Msg:    "No messages yet. Can't continue plan.",
 			}
-			return false
+			return nil, false
 		}
 
 		// if the user is continuing the plan, we need to check whether the previous message was a user message or assistant message
@@ -47,7 +41,7 @@ func (state *activeTellStreamState) setPromptMessage(isPlanningStage, isContextS
 			state.messages = state.messages[:len(state.messages)-1]
 			promptMessage = &openai.ChatCompletionMessage{
 				Role:    openai.ChatMessageRoleUser,
-				Content: prompts.GetWrappedPrompt(lastMessage.Content, req.OsDetails, applyScriptSummary, isPlanningStage),
+				Content: prompts.GetWrappedPrompt(lastMessage.Content, req.OsDetails, applyScriptSummary, isPlanningStage, isFollowUp),
 			}
 
 			state.userPrompt = lastMessage.Content
@@ -59,7 +53,7 @@ func (state *activeTellStreamState) setPromptMessage(isPlanningStage, isContextS
 			// otherwise we'll use the continue prompt
 			promptMessage = &openai.ChatCompletionMessage{
 				Role:    openai.ChatMessageRoleUser,
-				Content: prompts.GetWrappedPrompt(prompts.UserContinuePrompt, req.OsDetails, applyScriptSummary, isPlanningStage),
+				Content: prompts.GetWrappedPrompt(prompts.UserContinuePrompt, req.OsDetails, applyScriptSummary, isPlanningStage, isFollowUp),
 			}
 		}
 
@@ -69,10 +63,8 @@ func (state *activeTellStreamState) setPromptMessage(isPlanningStage, isContextS
 		if iteration == 0 {
 			if req.IsChatOnly {
 				prompt = req.Prompt + prompts.ChatOnlyPrompt
-				state.totalRequestTokens += prompts.ChatOnlyPromptTokens
 			} else if req.IsUserDebug {
 				prompt = req.Prompt + prompts.DebugPrompt
-				state.totalRequestTokens += prompts.DebugPromptTokens
 			} else if req.IsApplyDebug {
 				prompt = req.Prompt + prompts.ApplyDebugPrompt
 				state.totalRequestTokens += prompts.ApplyDebugPromptTokens
@@ -89,7 +81,7 @@ func (state *activeTellStreamState) setPromptMessage(isPlanningStage, isContextS
 		if isContextStage {
 			finalPrompt = prompt
 		} else {
-			finalPrompt = prompts.GetWrappedPrompt(prompt, req.OsDetails, applyScriptSummary, isPlanningStage)
+			finalPrompt = prompts.GetWrappedPrompt(prompt, req.OsDetails, applyScriptSummary, isPlanningStage, isFollowUp)
 		}
 
 		// log.Println("Final prompt:", finalPrompt)
@@ -102,8 +94,5 @@ func (state *activeTellStreamState) setPromptMessage(isPlanningStage, isContextS
 
 	// log.Println("Prompt message:", promptMessage.Content)
 
-	state.promptMessage = promptMessage
-	state.messages = append(state.messages, *promptMessage)
-
-	return true
+	return promptMessage, true
 }

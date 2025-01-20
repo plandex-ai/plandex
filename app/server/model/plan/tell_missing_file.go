@@ -2,7 +2,6 @@ package plan
 
 import (
 	"log"
-	"net/http"
 	"plandex-server/model/prompts"
 	"plandex-server/types"
 
@@ -10,11 +9,13 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
-func (state *activeTellStreamState) handleMissingFileResponse(isPlanningStage bool, applyScriptSummary string) bool {
+func (state *activeTellStreamState) handleMissingFileResponse(applyScriptSummary string) bool {
 	missingFileResponse := state.missingFileResponse
 	planId := state.plan.Id
 	branch := state.branch
 	req := state.req
+	isFollowUp := state.isFollowUp
+	isPlanningStage := state.isPlanningStage
 
 	active := GetActivePlan(planId, branch)
 
@@ -35,20 +36,10 @@ func (state *activeTellStreamState) handleMissingFileResponse(isPlanningStage bo
 
 	replyContent := active.CurrentReplyContent
 	numTokens := active.NumTokens
-	var err error
 
 	if missingFileResponse == shared.RespondMissingFileChoiceSkip {
 		replyBeforeCurrentFile := state.replyParser.GetReplyBeforeCurrentPath()
-		numTokens, err = shared.GetNumTokens(replyBeforeCurrentFile)
-		if err != nil {
-			log.Printf("Error getting num tokens for reply before current file: %v\n", err)
-			active.StreamDoneCh <- &shared.ApiError{
-				Type:   shared.ApiErrorTypeOther,
-				Status: http.StatusInternalServerError,
-				Msg:    "Error getting num tokens for reply before current file",
-			}
-			return false
-		}
+		numTokens = shared.GetNumTokensEstimate(replyBeforeCurrentFile)
 
 		replyContent = replyBeforeCurrentFile
 		state.replyParser = types.NewReplyParser()
@@ -76,19 +67,9 @@ func (state *activeTellStreamState) handleMissingFileResponse(isPlanningStage bo
 	if missingFileResponse == shared.RespondMissingFileChoiceSkip {
 		res := state.replyParser.FinishAndRead()
 		skipPrompt := prompts.GetSkipMissingFilePrompt(res.CurrentFilePath)
-		prompt := prompts.GetWrappedPrompt(skipPrompt, req.OsDetails, applyScriptSummary, isPlanningStage) + "\n\n" + skipPrompt // repetition of skip prompt to improve instruction following
+		prompt := prompts.GetWrappedPrompt(skipPrompt, req.OsDetails, applyScriptSummary, isPlanningStage, isFollowUp) + "\n\n" + skipPrompt // repetition of skip prompt to improve instruction following
 
-		skipPromptTokens, err := shared.GetNumTokens(skipPrompt)
-		if err != nil {
-			log.Printf("Error getting num tokens for skip prompt: %v\n", err)
-			active.StreamDoneCh <- &shared.ApiError{
-				Type:   shared.ApiErrorTypeOther,
-				Status: http.StatusInternalServerError,
-				Msg:    "Error getting num tokens for skip prompt",
-			}
-			return false
-		}
-
+		skipPromptTokens := shared.GetNumTokensEstimate(skipPrompt)
 		state.totalRequestTokens += skipPromptTokens
 
 		state.messages = append(state.messages, openai.ChatCompletionMessage{
@@ -98,19 +79,9 @@ func (state *activeTellStreamState) handleMissingFileResponse(isPlanningStage bo
 
 	} else {
 		missingPrompt := prompts.GetMissingFileContinueGeneratingPrompt(res.CurrentFilePath)
-		prompt := prompts.GetWrappedPrompt(missingPrompt, req.OsDetails, applyScriptSummary, isPlanningStage) + "\n\n" + missingPrompt // repetition of missing prompt to improve instruction following
+		prompt := prompts.GetWrappedPrompt(missingPrompt, req.OsDetails, applyScriptSummary, isPlanningStage, isFollowUp) + "\n\n" + missingPrompt // repetition of missing prompt to improve instruction following
 
-		promptTokens, err := shared.GetNumTokens(prompt)
-		if err != nil {
-			log.Printf("Error getting num tokens for missing file continue prompt: %v\n", err)
-			active.StreamDoneCh <- &shared.ApiError{
-				Type:   shared.ApiErrorTypeOther,
-				Status: http.StatusInternalServerError,
-				Msg:    "Error getting num tokens for missing file continue prompt",
-			}
-			return false
-		}
-
+		promptTokens := shared.GetNumTokensEstimate(prompt)
 		state.totalRequestTokens += promptTokens
 
 		state.messages = append(state.messages, openai.ChatCompletionMessage{
