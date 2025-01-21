@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestStructuralReplacements(t *testing.T) {
+func TestStructuredReplacements(t *testing.T) {
 	tests := []struct {
 		name     string
 		original string
