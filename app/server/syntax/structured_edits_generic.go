@@ -2,284 +2,30 @@ package syntax
 
 import (
 	"fmt"
-	"log"
-	"regexp"
 	"sort"
 	"strings"
 
 	"github.com/davecgh/go-spew/spew"
 )
 
-const duplicationThreshold = 20
-
-type Reference int
-type Removal int
-
-type Anchor int
-
-type NeedsVerifyReason string
-
-const (
-	NeedsVerifyReasonCodeRemoved       NeedsVerifyReason = "code_removed"
-	NeedsVerifyReasonCodeDuplicated    NeedsVerifyReason = "code_duplicated"
-	NeedsVerifyReasonAmbiguousLocation NeedsVerifyReason = "ambiguous_location"
-
-	// not going to verify for no changes for now, too many false positives
-	// NeedsVerifyReasonNoChanges         NeedsVerifyReason = "no_changes"
-)
-
-type ApplyChangesResult struct {
-	NewFile            string
-	Proposed           string
-	NeedsVerifyReasons []NeedsVerifyReason
-}
-
-type AnchorMap = map[int]int
-
-type ReferenceBlock struct {
-	start int // Start line number in original file (inclusive)
-	end   int // End line number in original file (inclusive)
-}
-
-const verboseLogging = false
-
-func isRef(content string) bool {
-	trimmedLower := strings.ToLower(strings.TrimSpace(content))
-	if strings.Contains(trimmedLower, "... existing code ...") {
-		return true
-	}
-	regex := regexp.MustCompile(`(\.\.\.)?.*?existing.*?\.\.\.$`)
-	return regex.MatchString(trimmedLower)
-}
-
-func isRemoval(content string) bool {
-	return strings.Contains(strings.ToLower(content), "plandex: removed")
-}
-
-func ApplyChanges(
+type execApplyGenericParams struct {
 	original,
-	proposed,
-	desc string,
-	addMissingStartEndRefs bool,
-) *ApplyChangesResult {
-	proposedInitial := proposed
-
-	proposedLines := strings.Split(proposed, "\n")
-	originalLines := strings.Split(original, "\n")
-
-	var references []Reference
-	hasRefByLine := map[int]bool{}
-
-	var removals []Removal
-	hasRemovalByLine := map[int]bool{}
-
-	for i, line := range proposedLines {
-		lineNum := i + 1
-		content := strings.TrimSpace(line)
-		found := false
-		if isRef(content) {
-			if !hasRefByLine[lineNum] {
-				references = append(references, Reference(lineNum))
-				hasRefByLine[lineNum] = true
-			}
-			found = true
-		} else if isRemoval(content) {
-			if !hasRemovalByLine[lineNum] {
-				removals = append(removals, Removal(lineNum))
-				hasRemovalByLine[lineNum] = true
-			}
-			found = true
-		}
-
-		if found {
-			proposedLines[i] = strings.Replace(proposedLines[i], content, "", 1)
-		}
-	}
-
-	if addMissingStartEndRefs {
-		var beginsWithRef bool = false
-		var endsWithRef bool = false
-		var foundNonRefLine bool = false
-
-		for i, line := range proposedLines {
-			hasRef := hasRefByLine[i+1] || hasRemovalByLine[i+1]
-
-			if hasRef {
-				if !foundNonRefLine {
-					beginsWithRef = true
-				}
-				endsWithRef = true
-			} else if line != "" {
-				foundNonRefLine = true
-				endsWithRef = false
-			}
-		}
-
-		if !beginsWithRef &&
-			!strings.Contains(desc, "entire file") &&
-			!((strings.Contains(desc, "replace code") ||
-				strings.Contains(desc, "remove code")) &&
-				strings.Contains(desc, "start of the file")) {
-
-			if verboseLogging {
-				fmt.Println("adding ... existing code ... to start of file")
-			}
-
-			proposedLines = append([]string{""}, proposedLines...)
-
-			// bump all existing references up by 1
-			for i, ref := range references {
-				references[i] = Reference(int(ref) + 1)
-			}
-			references = append([]Reference{Reference(1)}, references...)
-		}
-
-		if !endsWithRef &&
-			!strings.Contains(desc, "entire file") &&
-			!(strings.Contains(desc, " replace ") ||
-				strings.Contains(desc, " remove ")) &&
-			!strings.Contains(desc, "end of the file") {
-
-			if verboseLogging {
-				fmt.Println("adding ... existing code ... to end of file")
-			}
-
-			proposedLines = append(proposedLines, "")
-			references = append(references, Reference(len(proposedLines)))
-		}
-	}
-
-	proposed = strings.Join(proposedLines, "\n")
-
-	// log.Println("ApplyChanges - proposed:")
-	// log.Println(proposed)
-
-	// log.Println("ApplyChanges - references:")
-	// spew.Dump(references)
-	// log.Println("ApplyChanges - removals:")
-	// spew.Dump(removals)
-
-	res := ExecApplyChanges(
-		original,
-		proposed,
-		originalLines,
-		proposedLines,
-		references,
-		removals,
-	)
-
-	res.Proposed = proposed
-
-	if len(res.NeedsVerifyReasons) > 0 {
-		log.Println("ApplyChanges - needs verify reasons:")
-		log.Println(spew.Sdump(res.NeedsVerifyReasons))
-
-		log.Println("ApplyChanges - proposed:")
-		log.Println(proposedInitial)
-		log.Println("--------------------------------")
-
-		// log.Println("ApplyChanges - original:")
-		// log.Println(original)
-		// log.Println("--------------------------------")
-		return res
-	}
-
-	// not going to verify for no changes for now, too many false positives
-	// if strings.TrimSpace(res.NewFile) == strings.TrimSpace(original) {
-	// 	// log.Println("ApplyChanges - no changes")
-	// 	// log.Println("res.NewFile:")
-	// 	// log.Println(res.NewFile)
-	// 	// log.Println()
-	// 	// log.Println("original:")
-	// 	// log.Println(original)
-	// 	res.NeedsVerifyReasons = append(res.NeedsVerifyReasons, NeedsVerifyReasonNoChanges)
-	// 	return res
-	// }
-
-	if !strings.Contains(desc, "entire file") {
-		originalLineMap := make(map[string]bool)
-		for _, line := range originalLines {
-			originalLineMap[strings.TrimSpace(line)] = true
-		}
-
-		newLines := strings.Split(res.NewFile, "\n")
-		newLineMap := make(map[string]bool)
-		for _, line := range newLines {
-			newLineMap[strings.TrimSpace(line)] = true
-		}
-
-		// Check for removed lines (lines in original that are not in new)
-		for line := range originalLineMap {
-			if !newLineMap[line] {
-				log.Println("ApplyChanges - code removed")
-				log.Println("line:")
-				log.Println(line)
-				res.NeedsVerifyReasons = append(res.NeedsVerifyReasons, NeedsVerifyReasonCodeRemoved)
-				break
-			}
-		}
-
-		if strings.Contains(desc, " replace ") {
-			// Check for lines in proposed updates that are duplicated in new file
-			newLineFreq := make(map[string]int)
-			originalLineFreq := make(map[string]int)
-			proposedLineFreq := make(map[string]int)
-
-			// First count frequencies in original file
-			for _, line := range originalLines {
-				trimmed := strings.TrimSpace(line)
-				if len(trimmed) > duplicationThreshold {
-					originalLineFreq[line]++
-				}
-			}
-
-			// Count frequencies in proposed file
-			for _, line := range proposedLines {
-				trimmed := strings.TrimSpace(line)
-				if len(trimmed) > duplicationThreshold {
-					proposedLineFreq[line]++
-				}
-			}
-
-			// Count frequencies in new file
-			for _, line := range newLines {
-				trimmed := strings.TrimSpace(line)
-				if len(trimmed) > duplicationThreshold {
-					newLineFreq[line]++
-				}
-			}
-
-			// Check proposed lines against new frequencies, accounting for original duplicates
-			for _, line := range proposedLines {
-				trimmed := strings.TrimSpace(line)
-				if len(trimmed) > duplicationThreshold {
-					originalCount := originalLineFreq[line]
-					proposedCount := proposedLineFreq[line]
-					newCount := newLineFreq[line]
-					if newCount > originalCount && newCount > proposedCount {
-						log.Println("ApplyChanges - code duplicated")
-						log.Println("line:")
-						log.Println(line)
-						log.Printf("original occurrences: %d, new occurrences: %d", originalCount, newLineFreq[line])
-						res.NeedsVerifyReasons = append(res.NeedsVerifyReasons, NeedsVerifyReasonCodeDuplicated)
-						break
-					}
-				}
-			}
-		}
-	}
-
-	return res
-}
-
-func ExecApplyChanges(
-	original,
-	proposed string,
+	proposed string
 	originalLines,
-	proposedLines []string,
-	references []Reference,
-	removals []Removal,
+	proposedLines []string
+	references []Reference
+	removals   []Removal
+	isInsert   bool
+}
+
+func ExecApplyGeneric(
+	params execApplyGenericParams,
 ) *ApplyChangesResult {
+	originalLines := params.originalLines
+	proposedLines := params.proposedLines
+	references := params.references
+	removals := params.removals
+	isInsert := params.isInsert
 	res := &ApplyChangesResult{}
 
 	var b strings.Builder
@@ -347,6 +93,15 @@ func ExecApplyChanges(
 		} else {
 			if verboseLogging {
 				fmt.Printf("no anchor found in anchorMap: pLineNum: %d\n", pLineNum)
+				fmt.Printf("anchorMap: %v\n", spew.Sdump(anchorMap))
+
+				// for i, line := range originalLines {
+				// 	fmt.Printf("originalLines[%d]: %q\n", i, line)
+				// }
+
+				// for i, line := range proposedLines {
+				// 	fmt.Printf("proposedLines[%d]: %q\n", i, line)
+				// }
 			}
 		}
 
@@ -400,78 +155,78 @@ func ExecApplyChanges(
 	}
 
 	writeRefs := func(eof bool) bool {
+		var fullRef []string
+		if eof {
+			start := refStart - 1
+			if start < 0 {
+				start = 0
+			}
+			if start >= len(originalLines) {
+				start = len(originalLines) - 1
+			}
+			fullRef = originalLines[start:]
+			if verboseLogging {
+				fmt.Println("eof")
+				fmt.Printf("fullRef refStart: %d\n", refStart)
+				fmt.Printf("originalLines[refStart]: %q\n", originalLines[refStart])
+				fmt.Printf("writing eof fullRef: %q\n", strings.Join(fullRef, "\n"))
+			}
+		} else {
+			start := refStart - 1
+			if start < 0 {
+				start = 0
+			}
+			if start >= len(originalLines) {
+				start = len(originalLines) - 1
+			}
+			end := oLineNum - 1
+			if end < 1 {
+				end = 0
+			}
+			if end >= len(originalLines) {
+				end = len(originalLines) - 1
+			}
+
+			// Add detailed diagnostic logging for invalid slice bounds
+			if start > end {
+				fmt.Printf("\n=== INVALID SLICE BOUNDS DIAGNOSTIC INFO ===\n")
+				fmt.Printf("start: %d, end: %d\n", start, end)
+				fmt.Printf("refStart: %d, oLineNum: %d\n", refStart, oLineNum)
+
+				// Log relevant lines for context
+				fmt.Printf("\nOriginal lines context:\n")
+				startContext := max(0, start-2)
+				endContext := min(len(originalLines), end+3)
+				for i := startContext; i < endContext; i++ {
+					fmt.Printf("line %d: %q\n", i+1, originalLines[i])
+				}
+
+				fmt.Printf("\nProposed lines context:\n")
+				fmt.Printf("=====================================\n\n")
+
+				res.NeedsVerifyReasons = append(res.NeedsVerifyReasons, NeedsVerifyReasonAmbiguousLocation)
+
+				return true
+			}
+
+			if verboseLogging {
+				fmt.Printf("writing fullRef\n")
+				fmt.Printf("refStart: %d, oLineNum: %d\n", refStart, oLineNum)
+				fmt.Printf("start: %d, end: %d\n", start, end)
+			}
+			fullRef = originalLines[start:end]
+			if verboseLogging {
+				fmt.Printf("fullRef refStart: %d, oLineNum-1: %d\n", refStart, oLineNum-1)
+				fmt.Printf("originalLines[start]: %q\n", originalLines[start])
+				fmt.Printf("originalLines[end]: %q\n", originalLines[end])
+			}
+		}
+
 		numRefs := len(postRefBuffers)
 		if numRefs == 1 {
 			if verboseLogging {
 				fmt.Println("writeRefs")
 				fmt.Printf("numRefs == 1, refStart: %d, oLineNum: %d\n", refStart, oLineNum)
-			}
-
-			var fullRef []string
-			if eof {
-				start := refStart - 1
-				if start < 0 {
-					start = 0
-				}
-				if start >= len(originalLines) {
-					start = len(originalLines) - 1
-				}
-				fullRef = originalLines[start:]
-				if verboseLogging {
-					fmt.Println("eof")
-					fmt.Printf("fullRef refStart: %d\n", refStart)
-					fmt.Printf("originalLines[refStart]: %q\n", originalLines[refStart])
-					fmt.Printf("writing eof fullRef: %q\n", strings.Join(fullRef, "\n"))
-				}
-			} else {
-				start := refStart - 1
-				if start < 0 {
-					start = 0
-				}
-				if start >= len(originalLines) {
-					start = len(originalLines) - 1
-				}
-				end := oLineNum - 1
-				if end < 1 {
-					end = 0
-				}
-				if end >= len(originalLines) {
-					end = len(originalLines) - 1
-				}
-
-				// Add detailed diagnostic logging for invalid slice bounds
-				if start > end {
-					fmt.Printf("\n=== INVALID SLICE BOUNDS DIAGNOSTIC INFO ===\n")
-					fmt.Printf("start: %d, end: %d\n", start, end)
-					fmt.Printf("refStart: %d, oLineNum: %d\n", refStart, oLineNum)
-
-					// Log relevant lines for context
-					fmt.Printf("\nOriginal lines context:\n")
-					startContext := max(0, start-2)
-					endContext := min(len(originalLines), end+3)
-					for i := startContext; i < endContext; i++ {
-						fmt.Printf("line %d: %q\n", i+1, originalLines[i])
-					}
-
-					fmt.Printf("\nProposed lines context:\n")
-					fmt.Printf("=====================================\n\n")
-
-					res.NeedsVerifyReasons = append(res.NeedsVerifyReasons, NeedsVerifyReasonAmbiguousLocation)
-
-					return true
-				}
-
-				if verboseLogging {
-					fmt.Printf("writing fullRef\n")
-					fmt.Printf("refStart: %d, oLineNum: %d\n", refStart, oLineNum)
-					fmt.Printf("start: %d, end: %d\n", start, end)
-				}
-				fullRef = originalLines[start:end]
-				if verboseLogging {
-					fmt.Printf("fullRef refStart: %d, oLineNum-1: %d\n", refStart, oLineNum-1)
-					fmt.Printf("originalLines[start]: %q\n", originalLines[start])
-					fmt.Printf("originalLines[end]: %q\n", originalLines[end])
-				}
 			}
 
 			write(strings.Join(fullRef, "\n"), !eof)
@@ -535,11 +290,12 @@ func ExecApplyChanges(
 
 				refOpen = true
 				setOLineNum(oLineNum + 1)
-				refStart = oLineNum
 
 				if verboseLogging {
 					fmt.Printf("setting refStart: %d\n", refStart)
 				}
+
+				refStart = oLineNum
 			}
 
 			addNewPostRefBuffer()
@@ -586,6 +342,7 @@ func ExecApplyChanges(
 
 		var matching bool
 
+		prevOLineNum := oLineNum
 		anchor := findAnchor(pLineNum)
 		if anchor != nil {
 			matching = true
@@ -609,6 +366,21 @@ func ExecApplyChanges(
 				wroteRefs = true
 				if willAbort {
 					return res
+				}
+			} else if isInsert && oLineNum != prevOLineNum+1 {
+				if verboseLogging {
+					fmt.Printf("\nExecApplyChanges - found non-adjacent anchor jump:\n")
+					fmt.Printf("prevOLineNum: %d ('%s')\n", prevOLineNum, originalLines[prevOLineNum])
+					fmt.Printf("oLineNum: %d ('%s')\n", oLineNum, originalLines[oLineNum-1])
+					fmt.Printf("Lines that would be removed:\n")
+					for i := prevOLineNum; i < oLineNum-1; i++ {
+						fmt.Printf("Line %d: '%s'\n", i, originalLines[i])
+					}
+				}
+
+				// Write any lines that would have been removed
+				for i := prevOLineNum; i < oLineNum-1; i++ {
+					write(originalLines[i], true)
 				}
 			}
 		} else {

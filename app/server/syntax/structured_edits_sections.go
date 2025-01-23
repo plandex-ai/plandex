@@ -11,6 +11,11 @@ import (
 
 type TreeSitterSection []*tree_sitter.Node
 
+type NodeIndex struct {
+	nodesByLine   map[int]*tree_sitter.Node
+	parentsByLine map[int]*tree_sitter.Node
+}
+
 func getSections(parent *tree_sitter.Node, bytes []byte, numSections, fromLine, upToLine int, foundAnyAnchor bool) []TreeSitterSection {
 	sections := make([]TreeSitterSection, numSections)
 	structures := [][]*tree_sitter.Node{}
@@ -204,12 +209,7 @@ func isStructuralNode(node *tree_sitter.Node) bool {
 	return false
 }
 
-type nodeIndex struct {
-	nodesByLine   map[int]*tree_sitter.Node
-	parentsByLine map[int]*tree_sitter.Node
-}
-
-func buildNodeIndex(tree *tree_sitter.Tree) *nodeIndex {
+func BuildNodeIndex(tree *tree_sitter.Tree) *NodeIndex {
 	nodesByLine := make(map[int]*tree_sitter.Node)
 	parentsByLine := make(map[int]*tree_sitter.Node)
 
@@ -277,7 +277,7 @@ func buildNodeIndex(tree *tree_sitter.Tree) *nodeIndex {
 	}
 
 	// spew.Dump(nodesByLine)
-	return &nodeIndex{
+	return &NodeIndex{
 		nodesByLine:   nodesByLine,
 		parentsByLine: parentsByLine,
 	}

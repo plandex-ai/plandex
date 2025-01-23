@@ -376,7 +376,7 @@ func processGitHistoryOutput(raw string) [][2]string {
 func gitAdd(repoDir, path string) error {
 	res, err := exec.Command("git", "-C", repoDir, "add", path).CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("error adding files to git repository for dir: %s, err: %v, output: %s", repoDir, err, string(res))
+		return fmt.Errorf("error adding files to git repository for dir: %s, path: %s, err: %v, output: %s", repoDir, path, err, string(res))
 	}
 
 	return nil
@@ -454,12 +454,18 @@ func gitWriteOperation(operation func() error) error {
 	retryInterval := initialGitRetryInterval
 
 	for attempt := 0; attempt < maxGitRetries; attempt++ {
+		if attempt > 0 {
+			log.Printf("gitWriteOperation - retry attempt %d of %d", attempt+1, maxGitRetries)
+		}
 		err = operation()
 		if err == nil {
+			if attempt > 0 {
+				log.Printf("gitWriteOperation - retry attempt %d of %d succeeded", attempt+1, maxGitRetries)
+			}
 			return nil
 		}
 
-		log.Printf("Retry attempt %d failed. Error: %v", attempt+1, err)
+		log.Printf("attempt %d failed. Error: %v", attempt+1, err)
 
 		isIndexLockError := strings.Contains(err.Error(), "new_index file") ||
 			strings.Contains(err.Error(), "index.lock") ||

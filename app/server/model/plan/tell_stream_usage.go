@@ -48,6 +48,9 @@ func (state *activeTellStreamState) handleUsageChunk(usage *openai.Usage) {
 }
 
 func (state *activeTellStreamState) execHookOnStop(sendStreamErr bool) {
+
+	log.Printf("execHookOnStop - sendStreamErr: %t\n", sendStreamErr)
+
 	planId := state.plan.Id
 	branch := state.branch
 	auth := state.auth

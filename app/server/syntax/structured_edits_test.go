@@ -1,7 +1,9 @@
 package syntax
 
 import (
+	"context"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -9,11 +11,14 @@ import (
 
 func TestStructuredReplacements(t *testing.T) {
 	tests := []struct {
-		name     string
-		original string
-		proposed string
-		want     string
-		ext      string
+		only        bool
+		name        string
+		original    string
+		proposed    string
+		want        string
+		ext         string
+		isInsert    bool
+		laxNewlines bool
 	}{
 		{
 			name: "single reference in function",
@@ -73,94 +78,94 @@ func TestStructuredReplacements(t *testing.T) {
     }`,
 			ext: "go",
 		},
-		// {
-		// 	name: "multiple refs in class/nested structures",
-		// 	original: `
-		// package main
+		{
+			name:        "multiple refs in class/nested structures",
+			laxNewlines: true,
+			original: `
+		package main
 
-		// import "log"
+		import "log"
 
-		// func init() {
-		//   log.Println("init")
-		// }
+		func init() {
+		  log.Println("init")
+		}
 
-		// type UserService struct {
-		//     db *DB
-		//     cache *Cache
-		// }
+		type UserService struct {
+		    db *DB
+		    cache *Cache
+		}
 
-		// func (s *UserService) Process() {
-		//     s.validate()
-		//     s.update()
-		//     s.notify()
-		// }
+		func (s *UserService) Process() {
+		    s.validate()
+		    s.update()
+		    s.notify()
+		}
 
-		// func (s *UserService) Update() {
-		//     s.db.begin()
-		//     s.db.exec()
-		//     s.db.commit()
-		// }
+		func (s *UserService) Update() {
+		    s.db.begin()
+		    s.db.exec()
+		    s.db.commit()
+		}
 
-		// func (s *UserService) Record() {
-		//   log.Println("record")
-		// }
-		// `,
-		// 	proposed: `
-		// // ... existing code ...
+		func (s *UserService) Record() {
+		  log.Println("record")
+		}
+		`,
+			proposed: `
+		// ... existing code ...
 
-		// type UserService struct {
-		//     // ... existing code ...
-		//     metrics *Metrics
-		// }
+		type UserService struct {
+		    // ... existing code ...
+		    metrics *Metrics
+		}
 
-		// func (s *UserService) Process() {
-		//     // ... existing code ...
-		//     s.metrics.Record()
-		//     // ... existing code ...
-		// }
+		func (s *UserService) Process() {
+		    // ... existing code ...
+		    s.metrics.Record()
+		    // ... existing code ...
+		}
 
-		// func (s *UserService) Update() {
-		//     // ... existing code ...
-		// }
+		func (s *UserService) Update() {
+		    // ... existing code ...
+		}
 
-		// // ... existing code ...
-		// `,
-		//
-		// 	want: `
-		// package main
+		// ... existing code ...
+		`,
 
-		// import "log"
+			want: `
+		package main
 
-		// func init() {
-		//   log.Println("init")
-		// }
+		import "log"
 
-		// type UserService struct {
-		//     db *DB
-		//     cache *Cache
-		//     metrics *Metrics
-		// }
+		func init() {
+		  log.Println("init")
+		}
 
-		// func (s *UserService) Process() {
-		//     s.validate()
-		//     s.update()
-		//     s.metrics.Record()
-		//     s.notify()
-		// }
+		type UserService struct {
+		    db *DB
+		    cache *Cache
+		    metrics *Metrics
+		}
 
-		// func (s *UserService) Update() {
-		//     s.db.begin()
-		//     s.db.exec()
-		//     s.db.commit()
-		// }
+		func (s *UserService) Process() {
+		    s.validate()
+		    s.update()
+		    s.metrics.Record()
+		    s.notify()
+		}
 
-		// func (s *UserService) Record() {
-		//   log.Println("record")
-		// }
-		// `,
-		//
-		// 	parser:   GetParserForLanguage("go"),
-		// },
+		func (s *UserService) Update() {
+		    s.db.begin()
+		    s.db.exec()
+		    s.db.commit()
+		}
+
+		func (s *UserService) Record() {
+		  log.Println("record")
+		}
+		`,
+			ext: "go",
+		},
 		{
 			name: "code removal comment",
 			original: `
@@ -899,201 +904,203 @@ func TestStructuredReplacements(t *testing.T) {
 			ext: "json",
 		},
 
-		// 		{
-		// 			name: "scala complex structures",
-		// 			original: `
-		// package domain.service
+		{
+			name:        "scala complex structures",
+			laxNewlines: true,
+			original: `
+		package domain.service
 
-		// import java.time.format.DateTimeFormatter
+		import java.time.format.DateTimeFormatter
 
-		// class MetricsService(
-		//     client: Client,
-		//     service: Service,
-		//     automation: Automation
-		// )(
-		//     implicit context: Context
-		// ) extends LazyLogging
-		//   with BaseImplicits {
+		class MetricsService(
+		    client: Client,
+		    service: Service,
+		    automation: Automation
+		)(
+		    implicit context: Context
+		) extends LazyLogging
+		  with BaseImplicits {
 
-		//     def metrics(
-		//         ids: Seq[Id],
-		//         channels: Option[Seq[Channel]],
-		//     ): Future[Metrics] = {
+		    def metrics(
+		        ids: Seq[Id],
+		        channels: Option[Seq[Channel]],
+		    ): Future[Metrics] = {
 
-		//       getMetrics(
-		//         ids,
-		//         channels,
-		//         Endpoint.Metrics
-		//       )
-		//     }
+		      getMetrics(
+		        ids,
+		        channels,
+		        Endpoint.Metrics
+		      )
+		    }
 
-		//     def metrics2(
-		//         ids: Seq[Id],
-		//         channels: Option[Seq[Channel]],
-		//     ): Future[Metrics] = {
+		    def metrics2(
+		        ids: Seq[Id],
+		        channels: Option[Seq[Channel]],
+		    ): Future[Metrics] = {
 
-		//       getMetrics2(
-		//         ids,
-		//         channels,
-		//         Endpoint.Metrics
-		//       )
-		//     }
-		//   }
-		// `,
+		      getMetrics2(
+		        ids,
+		        channels,
+		        Endpoint.Metrics
+		      )
+		    }
+		  }
+		`,
 
-		// 			proposed: `
-		// package domain.service
+			proposed: `
+		package domain.service
 
-		// // ... existing code ...
+		// ... existing code ...
 
-		// class MetricsService(
-		//   // ... existing code ...
-		// )(
-		//     implicit context: Context
-		// ) extends LazyLogging
-		//   with BaseImplicits {
+		class MetricsService(
+		  // ... existing code ...
+		)(
+		    implicit context: Context
+		) extends LazyLogging
+		  with BaseImplicits {
 
-		//     // ... existing code ...
+		    // ... existing code ...
 
-		//     def update(authContext: AuthContext, id: String): Future[Done] = {
-		//       fallbacks.stub
-		//         .update(
-		//           updateRequest(
-		//             authContext = Some(authContext),
-		//             id = id
-		//           )
-		//         )
-		//         .map(_ => Done)
-		//     }
+		    def update(authContext: AuthContext, id: String): Future[Done] = {
+		      fallbacks.stub
+		        .update(
+		          updateRequest(
+		            authContext = Some(authContext),
+		            id = id
+		          )
+		        )
+		        .map(_ => Done)
+		    }
 
-		//     // ... existing code ...
-		//   }
-		// `,
+		    // ... existing code ...
+		  }
+		`,
 
-		// 			want: `
-		// package domain.service
+			want: `
+		package domain.service
 
-		// import java.time.format.DateTimeFormatter
+		import java.time.format.DateTimeFormatter
 
-		// class MetricsService(
-		//     client: Client,
-		//     service: Service,
-		//     automation: Automation
-		// )(
-		//     implicit context: Context
-		// ) extends LazyLogging
-		//   with BaseImplicits {
+		class MetricsService(
+		    client: Client,
+		    service: Service,
+		    automation: Automation
+		)(
+		    implicit context: Context
+		) extends LazyLogging
+		  with BaseImplicits {
 
-		//     def metrics(
-		//         ids: Seq[Id],
-		//         channels: Option[Seq[Channel]],
-		//     ): Future[Metrics] = {
+		    def metrics(
+		        ids: Seq[Id],
+		        channels: Option[Seq[Channel]],
+		    ): Future[Metrics] = {
 
-		//       getMetrics(
-		//         ids,
-		//         channels,
-		//         Endpoint.Metrics
-		//       )
-		//     }
+		      getMetrics(
+		        ids,
+		        channels,
+		        Endpoint.Metrics
+		      )
+		    }
 
-		//     def update(authContext: AuthContext, id: String): Future[Done] = {
-		//       fallbacks.stub
-		//         .update(
-		//           updateRequest(
-		//             authContext = Some(authContext),
-		//             id = id
-		//           )
-		//         )
-		//         .map(_ => Done)
-		//     }
+		    def update(authContext: AuthContext, id: String): Future[Done] = {
+		      fallbacks.stub
+		        .update(
+		          updateRequest(
+		            authContext = Some(authContext),
+		            id = id
+		          )
+		        )
+		        .map(_ => Done)
+		    }
 
-		//     def metrics2(
-		//         ids: Seq[Id],
-		//         channels: Option[Seq[Channel]],
-		//     ): Future[Metrics] = {
+		    def metrics2(
+		        ids: Seq[Id],
+		        channels: Option[Seq[Channel]],
+		    ): Future[Metrics] = {
 
-		//       getMetrics2(
-		//         ids,
-		//         channels,
-		//         Endpoint.Metrics
-		//       )
-		//     }
-		//   }
-		// `,
-		//
-		// 			ext: "scala",
-		// 		},
+		      getMetrics2(
+		        ids,
+		        channels,
+		        Endpoint.Metrics
+		      )
+		    }
+		  }
+		`,
 
-		// {
-		// 	name: "top-level ambiguous",
-		// 	original: `
-		// function someFunction() {
-		//   console.log("someFunction")
-		//   const res = await fetch("https://example.com")
-		//   processResponse(res)
-		//   return res
-		// }
+			ext: "scala",
+		},
 
-		// function processResponse(res) {
-		//   console.log("processing response")
-		//   callSomeOtherFunction(res)
-		//   return res
-		// }
+		{
+			name:        "top-level ambiguous",
+			laxNewlines: true,
+			original: `
+		function someFunction() {
+		  console.log("someFunction")
+		  const res = await fetch("https://example.com")
+		  processResponse(res)
+		  return res
+		}
 
-		// function yetAnotherFunction() {
-		//   console.log("yetAnotherFunction")
-		// }
+		function processResponse(res) {
+		  console.log("processing response")
+		  callSomeOtherFunction(res)
+		  return res
+		}
 
-		// function callSomething() {
-		//   console.log("callSomething")
-		//   await logSomething()
-		//   return "something"
-		// }
-		// `,
-		// 	proposed: `
-		// // ... existing code ...
+		function yetAnotherFunction() {
+		  console.log("yetAnotherFunction")
+		}
 
-		// function newFunction() {
-		//   console.log("newFunction")
-		//   const res = await callSomething()
-		//   return res
-		// }
+		function callSomething() {
+		  console.log("callSomething")
+		  await logSomething()
+		  return "something"
+		}
+		`,
+			proposed: `
+		// ... existing code ...
 
-		// // ... existing code ...
-		// `,
-		//
-		// 	want: `
-		// function someFunction() {
-		//   console.log("someFunction")
-		//   const res = await fetch("https://example.com")
-		//   processResponse(res)
-		//   return res
-		// }
+		function newFunction() {
+		  console.log("newFunction")
+		  const res = await callSomething()
+		  return res
+		}
 
-		// function processResponse(res) {
-		//   console.log("processing response")
-		//   callSomeOtherFunction(res)
-		//   return res
-		// }
+		// ... existing code ...
+		`,
 
-		// function newFunction() {
-		//   console.log("newFunction")
-		//   const res = await callSomething()
-		//   return res
-		// }
+			want: `
+		function someFunction() {
+		  console.log("someFunction")
+		  const res = await fetch("https://example.com")
+		  processResponse(res)
+		  return res
+		}
 
-		// function yetAnotherFunction() {
-		//   console.log("yetAnotherFunction")
-		// }
+		function processResponse(res) {
+		  console.log("processing response")
+		  callSomeOtherFunction(res)
+		  return res
+		}
 
-		// function callSomething() {
-		//   console.log("callSomething")
-		//   await logSomething()
-		//   return "something"
-		// }
-		// `,
-		// 	ext: "js",
-		// },
+		function newFunction() {
+		  console.log("newFunction")
+		  const res = await callSomething()
+		  return res
+		}
+
+		function yetAnotherFunction() {
+		  console.log("yetAnotherFunction")
+		}
+
+		function callSomething() {
+		  console.log("callSomething")
+		  await logSomething()
+		  return "something"
+		}
+		`,
+			ext: "js",
+		},
 
 		{
 			name: "top-level with anchors",
@@ -1232,337 +1239,87 @@ func TestStructuredReplacements(t *testing.T) {
 			ext: "go",
 		},
 		{
-			name: "ambiguous location",
-			original: `package routes
-
-import (
-  "fmt"
-  "log"
-  "net/http"
-  "os"
-  "path/filepath"
-  "plandex-server/handlers"
-  "plandex-server/hooks"
-
-  "github.com/gorilla/mux"
-)
-
-func AddHealthRoutes(r *mux.Router) {
-  r.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-    _, apiErr := hooks.ExecHook(hooks.HealthCheck, hooks.HookParams{})
-    if apiErr != nil {
-      log.Printf("Error in health check hook: %v\n", apiErr)
-      http.Error(w, apiErr.Msg, apiErr.Status)
-      return
-    }
-    fmt.Fprint(w, "OK")
-  })
-
-  r.HandleFunc("/version", func(w http.ResponseWriter, r *http.Request) {
-    // Log the host
-    host := r.Host
-    log.Printf("Host header: %s", host)
-
-    execPath, err := os.Executable()
-    if err != nil {
-      log.Fatal("Error getting current directory: ", err)
-    }
-    currentDir := filepath.Dir(execPath)
-
-    // get version from version.txt
-    bytes, err := os.ReadFile(filepath.Join(currentDir, "..", "version.txt"))
-
-    if err != nil {
-      http.Error(w, "Error getting version", http.StatusInternalServerError)
-      return
-    }
-
-    fmt.Fprint(w, string(bytes))
-  })
-}
-
-func AddApiRoutes(r *mux.Router) {
-  addApiRoutes(r, "")
-}
-
-func AddApiRoutesWithPrefix(r *mux.Router, prefix string) {
-  addApiRoutes(r, prefix)
-}
-
-func addApiRoutes(r *mux.Router, prefix string) {
-  r.HandleFunc(prefix+"/accounts/email_verifications", handlers.CreateEmailVerificationHandler).Methods("POST")
-  r.HandleFunc(prefix+"/accounts/email_verifications/check_pin", handlers.CheckEmailPinHandler).Methods("POST")
-  r.HandleFunc(prefix+"/accounts/sign_in_codes", handlers.CreateSignInCodeHandler).Methods("POST")
-  r.HandleFunc(prefix+"/accounts/sign_in", handlers.SignInHandler).Methods("POST")
-  r.HandleFunc(prefix+"/accounts/sign_out", handlers.SignOutHandler).Methods("POST")
-  r.HandleFunc(prefix+"/accounts", handlers.CreateAccountHandler).Methods("POST")
-
-  r.HandleFunc(prefix+"/orgs/session", handlers.GetOrgSessionHandler).Methods("GET")
-  r.HandleFunc(prefix+"/orgs", handlers.ListOrgsHandler).Methods("GET")
-  r.HandleFunc(prefix+"/orgs", handlers.CreateOrgHandler).Methods("POST")
-
-  r.HandleFunc(prefix+"/users", handlers.ListUsersHandler).Methods("GET")
-  r.HandleFunc(prefix+"/orgs/users/{userId}", handlers.DeleteOrgUserHandler).Methods("DELETE")
-  r.HandleFunc(prefix+"/orgs/roles", handlers.ListOrgRolesHandler).Methods("GET")
-
-  r.HandleFunc(prefix+"/invites", handlers.InviteUserHandler).Methods("POST")
-  r.HandleFunc(prefix+"/invites/pending", handlers.ListPendingInvitesHandler).Methods("GET")
-  r.HandleFunc(prefix+"/invites/accepted", handlers.ListAcceptedInvitesHandler).Methods("GET")
-  r.HandleFunc(prefix+"/invites/all", handlers.ListAllInvitesHandler).Methods("GET")
-  r.HandleFunc(prefix+"/invites/{inviteId}", handlers.DeleteInviteHandler).Methods("DELETE")
-
-  r.HandleFunc(prefix+"/projects", handlers.CreateProjectHandler).Methods("POST")
-  r.HandleFunc(prefix+"/projects", handlers.ListProjectsHandler).Methods("GET")
-  r.HandleFunc(prefix+"/projects/{projectId}/set_plan", handlers.ProjectSetPlanHandler).Methods("PUT")
-  r.HandleFunc(prefix+"/projects/{projectId}/rename", handlers.RenameProjectHandler).Methods("PUT")
-
-  r.HandleFunc(prefix+"/projects/{projectId}/plans/current_branches", handlers.GetCurrentBranchByPlanIdHandler).Methods("POST")
-
-  r.HandleFunc(prefix+"/plans", handlers.ListPlansHandler).Methods("GET")
-  r.HandleFunc(prefix+"/plans/archive", handlers.ListArchivedPlansHandler).Methods("GET")
-  r.HandleFunc(prefix+"/plans/ps", handlers.ListPlansRunningHandler).Methods("GET")
-
-  r.HandleFunc(prefix+"/projects/{projectId}/plans", handlers.CreatePlanHandler).Methods("POST")
-
-  r.HandleFunc(prefix+"/projects/{projectId}/plans", handlers.CreatePlanHandler).Methods("DELETE")
-
-  r.HandleFunc(prefix+"/plans/{planId}", handlers.GetPlanHandler).Methods("GET")
-  r.HandleFunc(prefix+"/plans/{planId}", handlers.DeletePlanHandler).Methods("DELETE")
-
-  r.HandleFunc(prefix+"/plans/{planId}/{branch}/tell", handlers.TellPlanHandler).Methods("POST")
-
-  r.HandleFunc(prefix+"/plans/{planId}/{branch}/respond_missing_file", handlers.RespondMissingFileHandler).Methods("POST")
-
-  r.HandleFunc(prefix+"/plans/{planId}/{branch}/build", handlers.BuildPlanHandler).Methods("PATCH")
-  r.HandleFunc(prefix+"/plans/{planId}/{branch}/connect", handlers.ConnectPlanHandler).Methods("PATCH")
-  r.HandleFunc(prefix+"/plans/{planId}/{branch}/stop", handlers.StopPlanHandler).Methods("DELETE")
-
-  r.HandleFunc(prefix+"/plans/{planId}/{branch}/current_plan", handlers.CurrentPlanHandler).Methods("GET")
-  r.HandleFunc(prefix+"/plans/{planId}/{branch}/apply", handlers.ApplyPlanHandler).Methods("PATCH")
-  r.HandleFunc(prefix+"/plans/{planId}/archive", handlers.ArchivePlanHandler).Methods("PATCH")
-  r.HandleFunc(prefix+"/plans/{planId}/unarchive", handlers.UnarchivePlanHandler).Methods("PATCH")
-
-  r.HandleFunc(prefix+"/plans/{planId}/rename", handlers.RenamePlanHandler).Methods("PATCH")
-  r.HandleFunc(prefix+"/plans/{planId}/{branch}/reject_all", handlers.RejectAllChangesHandler).Methods("PATCH")
-  r.HandleFunc(prefix+"/plans/{planId}/{branch}/reject_file", handlers.RejectFileHandler).Methods("PATCH")
-  r.HandleFunc(prefix+"/plans/{planId}/{branch}/reject_files", handlers.RejectFilesHandler).Methods("PATCH")
-  r.HandleFunc(prefix+"/plans/{planId}/{branch}/diffs", handlers.GetPlanDiffsHandler).Methods("GET")
-
-  r.HandleFunc(prefix+"/plans/{planId}/{branch}/context", handlers.ListContextHandler).Methods("GET")
-  r.HandleFunc(prefix+"/plans/{planId}/{branch}/context", handlers.LoadContextHandler).Methods("POST")
-  r.HandleFunc(prefix+"/plans/{planId}/{branch}/context/{contextId}/body", handlers.GetContextBodyHandler).Methods("GET")
-  r.HandleFunc(prefix+"/plans/{planId}/{branch}/context", handlers.UpdateContextHandler).Methods("PUT")
-  r.HandleFunc(prefix+"/plans/{planId}/{branch}/context", handlers.DeleteContextHandler).Methods("DELETE")
-
-  r.HandleFunc(prefix+"/plans/{planId}/{branch}/convo", handlers.ListConvoHandler).Methods("GET")
-  r.HandleFunc(prefix+"/plans/{planId}/{branch}/rewind", handlers.RewindPlanHandler).Methods("PATCH")
-  r.HandleFunc(prefix+"/plans/{planId}/{branch}/logs", handlers.ListLogsHandler).Methods("GET")
-
-  r.HandleFunc(prefix+"/plans/{planId}/branches", handlers.ListBranchesHandler).Methods("GET")
-  r.HandleFunc(prefix+"/plans/{planId}/branches/{branch}", handlers.DeleteBranchHandler).Methods("DELETE")
-  r.HandleFunc(prefix+"/plans/{planId}/{branch}/branches", handlers.CreateBranchHandler).Methods("POST")
-
-  r.HandleFunc(prefix+"/plans/{planId}/{branch}/settings", handlers.GetSettingsHandler).Methods("GET")
-  r.HandleFunc(prefix+"/plans/{planId}/{branch}/settings", handlers.UpdateSettingsHandler).Methods("PUT")
-
-  r.HandleFunc(prefix+"/plans/{planId}/{branch}/status", handlers.GetPlanStatusHandler).Methods("GET")
-
-  r.HandleFunc(prefix+"/custom_models", handlers.ListCustomModelsHandler).Methods("GET")
-  r.HandleFunc(prefix+"/custom_models", handlers.CreateCustomModelHandler).Methods("POST")
-  r.HandleFunc(prefix+"/custom_models/{modelId}", handlers.DeleteAvailableModelHandler).Methods("DELETE")
-
-  r.HandleFunc(prefix+"/model_sets", handlers.ListModelPacksHandler).Methods("GET")
-  r.HandleFunc(prefix+"/model_sets", handlers.CreateModelPackHandler).Methods("POST")
-  r.HandleFunc(prefix+"/model_sets/{setId}", handlers.DeleteModelPackHandler).Methods("DELETE")
-
-  r.HandleFunc(prefix+"/default_settings", handlers.GetDefaultSettingsHandler).Methods("GET")
-  r.HandleFunc(prefix+"/default_settings", handlers.UpdateDefaultSettingsHandler).Methods("PUT")
-
-  r.HandleFunc(prefix+"/file_map", handlers.GetFileMapHandler).Methods("POST")
-
-  r.HandleFunc(prefix+"/plans/{planId}/{branch}/auto_load_context", handlers.AutoLoadContextHandler).Methods("POST")
-}
-`,
-			proposed: `// ... existing code ...
-
-r.HandleFunc(prefix+"/plans/{planId}/rename", handlers.RenamePlanHandler).Methods("PATCH")
-
-r.HandleFunc(prefix+"/plans/{planId}/config", handlers.GetPlanConfigHandler).Methods("GET")
-r.HandleFunc(prefix+"/plans/{planId}/config", handlers.UpdatePlanConfigHandler).Methods("PUT") 
-r.HandleFunc(prefix+"/config/default", handlers.GetDefaultConfigHandler).Methods("GET")
-r.HandleFunc(prefix+"/config/default", handlers.UpdateDefaultConfigHandler).Methods("PUT")
-
-r.HandleFunc(prefix+"/plans/{planId}/{branch}/reject_all", handlers.RejectAllChangesHandler).Methods("PATCH")
-// Plandex: removed code
-r.HandleFunc(prefix+"/plans/{planId}/{branch}/diffs", handlers.GetPlanDiffsHandler).Methods("GET")
-
-r.HandleFunc(prefix+"/plans/{planId}/{branch}/context", handlers.ListContextHandler).Methods("GET")
-
-// ... existing code ...
-
-	r.HandleFunc(prefix+"/plans/{planId}/rename", handlers.RenamePlanHandler).Methods("PATCH")
-
-`,
-
-			want: `package routes
-
-import (
-  "fmt"
-  "log"
-  "net/http"
-  "os"
-  "path/filepath"
-  "plandex-server/handlers"
-  "plandex-server/hooks"
-
-  "github.com/gorilla/mux"
-)
-
-func AddHealthRoutes(r *mux.Router) {
-  r.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-    _, apiErr := hooks.ExecHook(hooks.HealthCheck, hooks.HookParams{})
-    if apiErr != nil {
-      log.Printf("Error in health check hook: %v\n", apiErr)
-      http.Error(w, apiErr.Msg, apiErr.Status)
-      return
-    }
-    fmt.Fprint(w, "OK")
-  })
-
-  r.HandleFunc("/version", func(w http.ResponseWriter, r *http.Request) {
-    // Log the host
-    host := r.Host
-    log.Printf("Host header: %s", host)
-
-    execPath, err := os.Executable()
-    if err != nil {
-      log.Fatal("Error getting current directory: ", err)
-    }
-    currentDir := filepath.Dir(execPath)
-
-    // get version from version.txt
-    bytes, err := os.ReadFile(filepath.Join(currentDir, "..", "version.txt"))
-
-    if err != nil {
-      http.Error(w, "Error getting version", http.StatusInternalServerError)
-      return
-    }
-
-    fmt.Fprint(w, string(bytes))
-  })
-}
-
-func AddApiRoutes(r *mux.Router) {
-  addApiRoutes(r, "")
-}
-
-func AddApiRoutesWithPrefix(r *mux.Router, prefix string) {
-  addApiRoutes(r, prefix)
-}
-
-func addApiRoutes(r *mux.Router, prefix string) {
-  r.HandleFunc(prefix+"/accounts/email_verifications", handlers.CreateEmailVerificationHandler).Methods("POST")
-  r.HandleFunc(prefix+"/accounts/email_verifications/check_pin", handlers.CheckEmailPinHandler).Methods("POST")
-  r.HandleFunc(prefix+"/accounts/sign_in_codes", handlers.CreateSignInCodeHandler).Methods("POST")
-  r.HandleFunc(prefix+"/accounts/sign_in", handlers.SignInHandler).Methods("POST")
-  r.HandleFunc(prefix+"/accounts/sign_out", handlers.SignOutHandler).Methods("POST")
-  r.HandleFunc(prefix+"/accounts", handlers.CreateAccountHandler).Methods("POST")
-
-  r.HandleFunc(prefix+"/orgs/session", handlers.GetOrgSessionHandler).Methods("GET")
-  r.HandleFunc(prefix+"/orgs", handlers.ListOrgsHandler).Methods("GET")
-  r.HandleFunc(prefix+"/orgs", handlers.CreateOrgHandler).Methods("POST")
-
-  r.HandleFunc(prefix+"/users", handlers.ListUsersHandler).Methods("GET")
-  r.HandleFunc(prefix+"/orgs/users/{userId}", handlers.DeleteOrgUserHandler).Methods("DELETE")
-  r.HandleFunc(prefix+"/orgs/roles", handlers.ListOrgRolesHandler).Methods("GET")
-
-  r.HandleFunc(prefix+"/invites", handlers.InviteUserHandler).Methods("POST")
-  r.HandleFunc(prefix+"/invites/pending", handlers.ListPendingInvitesHandler).Methods("GET")
-  r.HandleFunc(prefix+"/invites/accepted", handlers.ListAcceptedInvitesHandler).Methods("GET")
-  r.HandleFunc(prefix+"/invites/all", handlers.ListAllInvitesHandler).Methods("GET")
-  r.HandleFunc(prefix+"/invites/{inviteId}", handlers.DeleteInviteHandler).Methods("DELETE")
-
-  r.HandleFunc(prefix+"/projects", handlers.CreateProjectHandler).Methods("POST")
-  r.HandleFunc(prefix+"/projects", handlers.ListProjectsHandler).Methods("GET")
-  r.HandleFunc(prefix+"/projects/{projectId}/set_plan", handlers.ProjectSetPlanHandler).Methods("PUT")
-  r.HandleFunc(prefix+"/projects/{projectId}/rename", handlers.RenameProjectHandler).Methods("PUT")
-
-  r.HandleFunc(prefix+"/projects/{projectId}/plans/current_branches", handlers.GetCurrentBranchByPlanIdHandler).Methods("POST")
-
-  r.HandleFunc(prefix+"/plans", handlers.ListPlansHandler).Methods("GET")
-  r.HandleFunc(prefix+"/plans/archive", handlers.ListArchivedPlansHandler).Methods("GET")
-  r.HandleFunc(prefix+"/plans/ps", handlers.ListPlansRunningHandler).Methods("GET")
-
-  r.HandleFunc(prefix+"/projects/{projectId}/plans", handlers.CreatePlanHandler).Methods("POST")
-
-  r.HandleFunc(prefix+"/projects/{projectId}/plans", handlers.CreatePlanHandler).Methods("DELETE")
-
-  r.HandleFunc(prefix+"/plans/{planId}", handlers.GetPlanHandler).Methods("GET")
-  r.HandleFunc(prefix+"/plans/{planId}", handlers.DeletePlanHandler).Methods("DELETE")
-
-  r.HandleFunc(prefix+"/plans/{planId}/{branch}/tell", handlers.TellPlanHandler).Methods("POST")
-
-  r.HandleFunc(prefix+"/plans/{planId}/{branch}/respond_missing_file", handlers.RespondMissingFileHandler).Methods("POST")
-
-  r.HandleFunc(prefix+"/plans/{planId}/{branch}/build", handlers.BuildPlanHandler).Methods("PATCH")
-  r.HandleFunc(prefix+"/plans/{planId}/{branch}/connect", handlers.ConnectPlanHandler).Methods("PATCH")
-  r.HandleFunc(prefix+"/plans/{planId}/{branch}/stop", handlers.StopPlanHandler).Methods("DELETE")
-
-  r.HandleFunc(prefix+"/plans/{planId}/{branch}/current_plan", handlers.CurrentPlanHandler).Methods("GET")
-  r.HandleFunc(prefix+"/plans/{planId}/{branch}/apply", handlers.ApplyPlanHandler).Methods("PATCH")
-  r.HandleFunc(prefix+"/plans/{planId}/archive", handlers.ArchivePlanHandler).Methods("PATCH")
-  r.HandleFunc(prefix+"/plans/{planId}/unarchive", handlers.UnarchivePlanHandler).Methods("PATCH")
-
-  r.HandleFunc(prefix+"/plans/{planId}/rename", handlers.RenamePlanHandler).Methods("PATCH")
-  r.HandleFunc(prefix+"/plans/{planId}/{branch}/reject_all", handlers.RejectAllChangesHandler).Methods("PATCH")
-  r.HandleFunc(prefix+"/plans/{planId}/{branch}/reject_file", handlers.RejectFileHandler).Methods("PATCH")
-  r.HandleFunc(prefix+"/plans/{planId}/{branch}/reject_files", handlers.RejectFilesHandler).Methods("PATCH")
-  r.HandleFunc(prefix+"/plans/{planId}/{branch}/diffs", handlers.GetPlanDiffsHandler).Methods("GET")
-
-  r.HandleFunc(prefix+"/plans/{planId}/{branch}/context", handlers.ListContextHandler).Methods("GET")
-  r.HandleFunc(prefix+"/plans/{planId}/{branch}/context", handlers.LoadContextHandler).Methods("POST")
-  r.HandleFunc(prefix+"/plans/{planId}/{branch}/context/{contextId}/body", handlers.GetContextBodyHandler).Methods("GET")
-  r.HandleFunc(prefix+"/plans/{planId}/{branch}/context", handlers.UpdateContextHandler).Methods("PUT")
-  r.HandleFunc(prefix+"/plans/{planId}/{branch}/context", handlers.DeleteContextHandler).Methods("DELETE")
-
-  r.HandleFunc(prefix+"/plans/{planId}/{branch}/convo", handlers.ListConvoHandler).Methods("GET")
-  r.HandleFunc(prefix+"/plans/{planId}/{branch}/rewind", handlers.RewindPlanHandler).Methods("PATCH")
-  r.HandleFunc(prefix+"/plans/{planId}/{branch}/logs", handlers.ListLogsHandler).Methods("GET")
-
-  r.HandleFunc(prefix+"/plans/{planId}/branches", handlers.ListBranchesHandler).Methods("GET")
-  r.HandleFunc(prefix+"/plans/{planId}/branches/{branch}", handlers.DeleteBranchHandler).Methods("DELETE")
-  r.HandleFunc(prefix+"/plans/{planId}/{branch}/branches", handlers.CreateBranchHandler).Methods("POST")
-
-  r.HandleFunc(prefix+"/plans/{planId}/{branch}/settings", handlers.GetSettingsHandler).Methods("GET")
-  r.HandleFunc(prefix+"/plans/{planId}/{branch}/settings", handlers.UpdateSettingsHandler).Methods("PUT")
-
-  r.HandleFunc(prefix+"/plans/{planId}/config", handlers.GetConfigHandler).Methods("GET")
-  r.HandleFunc(prefix+"/plans/{planId}/config", handlers.UpdateConfigHandler).Methods("PUT")
-  r.HandleFunc(prefix+"/default_config", handlers.GetDefaultConfigHandler).Methods("GET")
-  r.HandleFunc(prefix+"/default_config", handlers.UpdateDefaultConfigHandler).Methods("PUT")
- 
-  r.HandleFunc(prefix+"/plans/{planId}/{branch}/status", handlers.GetPlanStatusHandler).Methods("GET")
-
-  r.HandleFunc(prefix+"/custom_models", handlers.ListCustomModelsHandler).Methods("GET")
-  r.HandleFunc(prefix+"/custom_models", handlers.CreateCustomModelHandler).Methods("POST")
-  r.HandleFunc(prefix+"/custom_models/{modelId}", handlers.DeleteAvailableModelHandler).Methods("DELETE")
-
-  r.HandleFunc(prefix+"/model_sets", handlers.ListModelPacksHandler).Methods("GET")
-  r.HandleFunc(prefix+"/model_sets", handlers.CreateModelPackHandler).Methods("POST")
-  r.HandleFunc(prefix+"/model_sets/{setId}", handlers.DeleteModelPackHandler).Methods("DELETE")
-
-  r.HandleFunc(prefix+"/default_settings", handlers.GetDefaultSettingsHandler).Methods("GET")
-  r.HandleFunc(prefix+"/default_settings", handlers.UpdateDefaultSettingsHandler).Methods("PUT")
-
-  r.HandleFunc(prefix+"/file_map", handlers.GetFileMapHandler).Methods("POST")
-
-  r.HandleFunc(prefix+"/plans/{planId}/{branch}/auto_load_context", handlers.AutoLoadContextHandler).Methods("POST")
-}
-`,
+			name: "insert between non-adjacent anchors",
+			original: `func main() {
+  fmt.Println("start")
+  doSomething()
+  fmt.Println("middle")
+  someOtherThing()
+  fmt.Println("end")
+}`,
+			proposed: `func main() {
+  fmt.Println("start")
+  doSomething()
+  log.Info("new log")
+  fmt.Println("end")
+}`,
+			want: `func main() {
+  fmt.Println("start")
+  doSomething()
+  log.Info("new log")
+  fmt.Println("middle")
+  someOtherThing()
+  fmt.Println("end")
+}`,
+			isInsert: true,
+		},
+		{
+			name: "insert with reference and non-adjacent anchors",
+			original: `func processRequest(req *Request) error {
+  validateRequest(req)
+  startTransaction()
+
+  err := updateData(req)
+  if err != nil {
+      return err
+  }
+
+  notifyUpdate()
+  commitTransaction()
+  return nil
+}`,
+			proposed: `func processRequest(req *Request) error {
+  // ... existing code ...
+  startTransaction()
+
+  log.Info("processing request", req.ID)
+
+  commitTransaction()
+  return nil
+}`,
+			want: `func processRequest(req *Request) error {
+  validateRequest(req)
+  startTransaction()
+
+  log.Info("processing request", req.ID)
+
+  err := updateData(req)
+  if err != nil {
+      return err
+  }
+
+  notifyUpdate()
+  commitTransaction()
+  return nil
+}`,
+			isInsert: true,
 		},
 	}
 
-	for _, tt := range tests {
+	onlyTests := map[int]bool{}
+
+	for i, tt := range tests {
+		if tt.only {
+			onlyTests[i] = true
+		}
+	}
+
+	for i, tt := range tests {
+		if len(onlyTests) > 0 {
+			if _, ok := onlyTests[i]; !ok {
+				continue
+			}
+		}
 
 		t.Run(tt.name, func(t *testing.T) {
 			// got, err := ApplyChanges(
@@ -1579,11 +1336,22 @@ func addApiRoutes(r *mux.Router, prefix string) {
 			// originalLines := strings.Split(tt.original, "\n")
 			// proposedLines := strings.Split(tt.proposed, "\n")
 
+			desc := ""
+
+			if tt.isInsert {
+				desc = "I'll add"
+			}
+
+			parser, lang, _, _ := GetParserForExt("." + tt.ext)
+
 			res := ApplyChanges(
 				tt.original,
 				tt.proposed,
-				"",
+				desc,
 				false,
+				parser,
+				lang,
+				context.Background(),
 			)
 
 			fmt.Println()
@@ -1591,8 +1359,13 @@ func addApiRoutes(r *mux.Router, prefix string) {
 			fmt.Println(res.NewFile)
 			fmt.Println()
 
-			assert.Empty(t, res.NeedsVerifyReasons)
-			assert.Equal(t, tt.want, res.NewFile)
+			// assert.Empty(t, res.NeedsVerifyReasons)
+
+			if tt.laxNewlines {
+				assert.Equal(t, strings.ReplaceAll(tt.want, "\n", ""), strings.ReplaceAll(res.NewFile, "\n", ""))
+			} else {
+				assert.Equal(t, tt.want, res.NewFile)
+			}
 		})
 	}
 }

@@ -18,13 +18,13 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
-// for smaller files, build whole file after the initial apply attempt and one retry
-// for larger files that are under the whole file output limit, build whole file after the initial apply attempt and two retries
-// for large files that are over the whole file output limit, build whole file after the initial apply attempt and four retries
-const SmallFileThreshold = 2000
-const BuildStructuredEditsMaxTries = 5
-const BuildTriesBeforeWholeFile = 3
-const SmallFileTriesBeforeWholeFile = 2
+type BuildStage int
+
+const (
+	BuildStageInitial BuildStage = iota
+	BuildStageValidateAndCorrect
+	BuildStageValidateOnly
+)
 
 func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 	auth := fileState.auth
@@ -49,8 +49,6 @@ func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 		return
 	}
 
-	numTries := 1
-
 	proposedContent := activeBuild.FileContent
 	desc := activeBuild.FileDescription
 
@@ -63,18 +61,23 @@ func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 		proposedContent,
 		desc,
 		true,
+		fileState.parser,
+		fileState.language,
+		activePlan.Ctx,
 	)
 	// log.Println("buildStructuredEdits - applyRes.NewFile:")
 	// log.Println(applyRes.NewFile)
 
+	updatedFile := applyRes.NewFile
+
 	var syntaxErrors []string
 	validateSyntax := func() {
 		if fileState.parser != nil && !fileState.preBuildStateSyntaxInvalid && !fileState.syntaxCheckTimedOut {
-			validationRes, err := syntax.ValidateWithParsers(activePlan.Ctx, fileState.language, fileState.parser, "", nil, proposedContent) // fallback parser was already set as fileState.parser if needed during initial preBuildState syntax check
+			validationRes, err := syntax.ValidateWithParsers(activePlan.Ctx, fileState.language, fileState.parser, "", nil, updatedFile) // fallback parser was already set as fileState.parser if needed during initial preBuildState syntax check
 			if err != nil {
-				log.Printf("buildStructuredEdits - error validating proposed content: %v\n", err)
+				log.Printf("buildStructuredEdits - error validating updated file: %v\n", err)
 			} else if validationRes.TimedOut {
-				log.Printf("buildStructuredEdits - syntax check timed out for proposed content\n")
+				log.Printf("buildStructuredEdits - syntax check timed out for updated file\n")
 				fileState.syntaxCheckTimedOut = true
 				syntaxErrors = []string{}
 			} else {
@@ -84,60 +87,14 @@ func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 	}
 	validateSyntax()
 
-	for (len(applyRes.NeedsVerifyReasons) > 0 || len(syntaxErrors) > 0) && numTries < BuildStructuredEditsMaxTries {
-		log.Printf("buildStructuredEdits verify call - numTries: %d\n", numTries)
-		log.Println("buildStructuredEdits - needs verify reasons:")
-		log.Println(spew.Sdump(applyRes.NeedsVerifyReasons))
+	isValid := len(applyRes.NeedsVerifyReasons) == 0 && len(syntaxErrors) == 0
 
-		wholeFileConfig := fileState.settings.ModelPack.GetWholeFileBuilder()
+	var buildStage BuildStage = BuildStageInitial
 
-		// spew.Dump(wholeFileConfig)
+	for !isValid && int(buildStage) <= int(BuildStageValidateAndCorrect) {
+		buildStage = BuildStage(int(buildStage) + 1)
 
-		reservedOutputTokens := wholeFileConfig.GetReservedOutputTokens()
-		isSmallFile := maxPotentialTokens < SmallFileThreshold
-		threshold := int(float32(reservedOutputTokens) * 0.9)
-		isBelowWholeFileThreshold := maxPotentialTokens < threshold
-		shouldBuildSmallFile := isSmallFile && numTries == SmallFileTriesBeforeWholeFile && isBelowWholeFileThreshold
-		shouldBuildAnyFile := numTries == BuildTriesBeforeWholeFile && isBelowWholeFileThreshold
-		shouldBuildWholeFile := shouldBuildSmallFile || shouldBuildAnyFile
-
-		// log all the above variables
-		log.Printf("buildStructuredEdits - variables for whole file decision:\n"+
-			"filePath: %s\n"+
-			"content tokens: %d\n"+
-			"current file tokens: %d\n"+
-			"maxPotentialTokens: %d\n"+
-			"reservedOutputTokens: %d\n"+
-			"threshold: %d\n"+
-			"isSmallFile: %t\n"+
-			"isBelowWholeFileThreshold: %t\n"+
-			"shouldBuildSmallFile: %t\n"+
-			"shouldBuildAnyFile: %t\n"+
-			"shouldBuildWholeFile: %t\n"+
-			"numTries: %d",
-			filePath,
-			activeBuild.FileContentTokens,
-			activeBuild.CurrentFileTokens,
-			maxPotentialTokens,
-			reservedOutputTokens,
-			threshold,
-			isSmallFile,
-			isBelowWholeFileThreshold,
-			shouldBuildSmallFile,
-			shouldBuildAnyFile,
-			shouldBuildWholeFile,
-			numTries)
-
-		log.Printf("buildStructuredEdits - %s - num tries %d - should build small file %t - should build any file %t - should build whole file %t\n", filePath, numTries, shouldBuildSmallFile, shouldBuildAnyFile, shouldBuildWholeFile)
-
-		if shouldBuildWholeFile {
-			log.Printf("buildStructuredEdits - %s - num tries %d - total possible tokens %d is less than reserved output tokens %d - building whole file\n", filePath, numTries, maxPotentialTokens, reservedOutputTokens)
-
-			fileState.buildWholeFileFallback(proposedContent, desc)
-			return
-		}
-
-		log.Println("buildStructuredEdits - getting verify edits prompt")
+		log.Printf("buildStructuredEdits - %s - buildStage: %d\n", filePath, buildStage)
 
 		var diff string
 		if applyRes.NewFile != "" {
@@ -157,7 +114,23 @@ func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 		log.Printf("buildStructuredEdits - %s - desc:\n%s\n", filePath, desc)
 		log.Printf("buildStructuredEdits - %s - proposedContent:\n%s\n", filePath, proposedContent)
 
-		validateSysPrompt := prompts.GetValidateEditsPrompt(filePath, originalFile, desc, proposedContent, diff, applyRes.NeedsVerifyReasons, syntaxErrors)
+		var reasons []syntax.NeedsVerifyReason
+		if buildStage == BuildStageValidateAndCorrect {
+			reasons = applyRes.NeedsVerifyReasons
+		}
+
+		validateSysPrompt := prompts.GetValidateEditsPrompt(prompts.ValidateEditsPromptParams{
+			Path:           filePath,
+			Original:       originalFile,
+			Desc:           desc,
+			Proposed:       proposedContent,
+			Diff:           diff,
+			Reasons:        reasons,
+			SyntaxErrors:   syntaxErrors,
+			FullCorrection: buildStage == BuildStageValidateAndCorrect,
+		})
+
+		// log.Printf("buildStructuredEdits - %s - validateSysPrompt:\n%s\n", filePath, validateSysPrompt)
 
 		validateFileMessages := []openai.ChatCompletionMessage{
 			{
@@ -189,6 +162,7 @@ func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 			Messages:    validateFileMessages,
 			Temperature: config.Temperature,
 			TopP:        config.TopP,
+			Stop:        []string{"<PlandexFinish/>"},
 		}
 
 		envVar := config.BaseModelConfig.ApiKeyEnvVar
@@ -235,22 +209,13 @@ func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 
 		log.Printf("buildStructuredEdits - %s - content:\n%s\n", filePath, content)
 
-		fixedProposedUpdates := GetXMLContent(content, "PlandexProposedUpdates")
-
-		// log.Println("buildStructuredEdits - fixed proposed updates xml string:")
-		// log.Println(fixedProposedUpdatesXmlString)
-
-		if fixedProposedUpdates == "" {
-			// edits are valid
-			break
-		} else {
-			proposedContent = fixedProposedUpdates
-
-			// remove code block formatting if it was mistakenly included in the proposed content
-			proposedContent = StripBackticksWrapper(proposedContent)
-
-			// log.Println("buildStructuredEdits - fixed proposed content:")
-			// log.Println(proposedContent)
+		if buildStage == BuildStageValidateAndCorrect {
+			diffsValid := strings.Contains(content, "<PlandexCorrect/>")
+			log.Printf("buildStructuredEdits - %s - diffsValid: %t\n", filePath, diffsValid)
+			if diffsValid {
+				isValid = true
+				break
+			}
 
 			fixedDesc := GetXMLContent(content, "PlandexProposedUpdatesExplanation")
 
@@ -261,63 +226,117 @@ func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 				desc = fixedDesc
 			}
 
-			log.Printf("buildStructuredEdits - %s - applying changes again\n", filePath)
+			replacement := GetXMLContent(content, "PlandexReplacement")
 
-			applyRes = syntax.ApplyChanges(
-				originalFile,
-				proposedContent,
-				desc,
-				true,
-			)
+			if replacement == "" {
+				log.Printf("buildStructuredEdits - no PlandexReplacement tag found in content\n")
 
-			log.Printf("buildStructuredEdits - %s - applyRes.NeedsVerifyReasons: %v\n", filePath, applyRes.NeedsVerifyReasons)
+				if fixedDesc != "" {
+					fileState.structuredEditRetryOrError(fmt.Errorf("no PlandexReplacement tag found in content"))
+					return
+				}
 
+				isValid = true
+				break
+			} else {
+				log.Printf("buildStructuredEdits - replacement: %s\n", replacement)
+			}
+
+			replaceOld := GetXMLContent(replacement, "PlandexOld")
+
+			if replaceOld == "" {
+				log.Printf("buildStructuredEdits - no PlandexOld tag found in replacement\n")
+				isValid = false
+				break
+			} else {
+				replaceOld = strings.TrimSpace(replaceOld)
+			}
+
+			replaceOld = syntax.FindUniqueReplacement(originalFile, replaceOld)
+
+			if replaceOld == "" {
+				log.Printf("buildStructuredEdits - PlandexOld tag content not found or not unique in original file\n")
+				isValid = false
+				break
+			}
+
+			replaceNew := GetXMLContent(replacement, "PlandexNew")
+
+			// handle replacement
+			updatedFile = strings.Replace(updatedFile, replaceOld, replaceNew, 1)
+
+			// validate updated file syntax
 			validateSyntax()
-			numTries++
+
+		} else if buildStage == BuildStageValidateOnly {
+			isValid = strings.Contains(content, "<PlandexCorrect/>")
 		}
 	}
 
-	updatedFile := applyRes.NewFile
+	if isValid {
+		buildInfo := &shared.BuildInfo{
+			Path:      filePath,
+			NumTokens: 0,
+			Finished:  true,
+		}
 
-	buildInfo := &shared.BuildInfo{
-		Path:      filePath,
-		NumTokens: 0,
-		Finished:  true,
+		log.Printf("streaming build info for finished file %s\n", filePath)
+
+		activePlan.Stream(shared.StreamMessage{
+			Type:      shared.StreamMessageBuildInfo,
+			BuildInfo: buildInfo,
+		})
+
+		time.Sleep(50 * time.Millisecond)
+
+		replacements, err := diff_pkg.GetDiffReplacements(originalFile, updatedFile)
+		if err != nil {
+			log.Printf("buildStructuredEdits - error getting diff replacements: %v\n", err)
+			fileState.structuredEditRetryOrError(fmt.Errorf("error getting diff replacements: %v", err))
+			return
+		}
+
+		for _, replacement := range replacements {
+			replacement.Summary = strings.TrimSpace(desc)
+		}
+
+		res := db.PlanFileResult{
+			TypeVersion:    1,
+			OrgId:          fileState.plan.OrgId,
+			PlanId:         fileState.plan.Id,
+			PlanBuildId:    fileState.build.Id,
+			ConvoMessageId: fileState.convoMessageId,
+			Content:        "",
+			Path:           filePath,
+			Replacements:   replacements,
+			SyntaxErrors:   syntaxErrors,
+		}
+
+		fileState.onFinishBuildFile(&res)
+
+	} else {
+		log.Println("buildStructuredEdits - isValid is false after structured edits and correction steps")
+
+		wholeFileConfig := fileState.settings.ModelPack.GetWholeFileBuilder()
+
+		// spew.Dump(wholeFileConfig)
+
+		reservedOutputTokens := wholeFileConfig.GetReservedOutputTokens()
+		threshold := int(float32(reservedOutputTokens) * 0.9)
+		isBelowWholeFileThreshold := maxPotentialTokens < threshold
+
+		if isBelowWholeFileThreshold {
+			log.Printf("buildStructuredEdits - %s - total possible tokens %d is less than reserved output tokens %d - building whole file\n", filePath, maxPotentialTokens, reservedOutputTokens)
+
+			fileState.buildWholeFileFallback(proposedContent, desc)
+			return
+		} else {
+			// can't build whole file due to token output limit
+			log.Printf("buildStructuredEdits - %s - can't build whole file due to token output limit\n", filePath)
+
+			fileState.onBuildFileError(fmt.Errorf("file %s structured edits build failed", filePath))
+		}
 	}
-
-	log.Printf("streaming build info for finished file %s\n", filePath)
-
-	activePlan.Stream(shared.StreamMessage{
-		Type:      shared.StreamMessageBuildInfo,
-		BuildInfo: buildInfo,
-	})
-
-	time.Sleep(50 * time.Millisecond)
-
-	replacements, err := diff_pkg.GetDiffReplacements(originalFile, updatedFile)
-	if err != nil {
-		log.Printf("buildStructuredEdits - error getting diff replacements: %v\n", err)
-		fileState.structuredEditRetryOrError(fmt.Errorf("error getting diff replacements: %v", err))
-		return
-	}
-
-	for _, replacement := range replacements {
-		replacement.Summary = strings.TrimSpace(desc)
-	}
-
-	res := db.PlanFileResult{
-		TypeVersion:    1,
-		OrgId:          fileState.plan.OrgId,
-		PlanId:         fileState.plan.Id,
-		PlanBuildId:    fileState.build.Id,
-		ConvoMessageId: fileState.convoMessageId,
-		Content:        "",
-		Path:           filePath,
-		Replacements:   replacements,
-		SyntaxErrors:   syntaxErrors,
-	}
-
-	fileState.onFinishBuildFile(&res)
 }
 
 func (fileState *activeBuildStreamFileState) structuredEditRetryOrError(err error) {

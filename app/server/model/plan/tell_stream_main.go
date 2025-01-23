@@ -82,12 +82,12 @@ mainLoop:
 				return
 			}
 
-			if len(response.Choices) == 0 {
-				if response.Usage != nil {
-					state.handleUsageChunk(response.Usage)
-					return
-				}
+			if response.Usage != nil {
+				state.handleUsageChunk(response.Usage)
+				return
+			}
 
+			if len(response.Choices) == 0 {
 				state.onError(fmt.Errorf("stream finished with no choices | This usually means the model failed to generate a valid response."), true, "", "")
 				continue mainLoop
 			}

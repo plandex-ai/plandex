@@ -102,8 +102,8 @@ func (fileState *activeBuildStreamFileState) buildWholeFileFallback(proposedCont
 	}
 
 	if len(resp.Choices) == 0 {
-		log.Printf("buildStructuredEdits - no choices in response\n")
-		fileState.structuredEditRetryOrError(fmt.Errorf("no choices in response"))
+		log.Printf("buildWholeFile - no choices in response\n")
+		fileState.wholeFileRetryOrError(proposedContent, desc, fmt.Errorf("no choices in response"))
 		return
 	}
 
@@ -113,6 +113,13 @@ func (fileState *activeBuildStreamFileState) buildWholeFileFallback(proposedCont
 	log.Printf("buildWholeFile - %s - content:\n%s\n", filePath, content)
 
 	wholeFile := GetXMLContent(content, "PlandexWholeFile")
+
+	if wholeFile == "" {
+		log.Printf("buildWholeFile - no whole file found in response\n")
+		fileState.wholeFileRetryOrError(proposedContent, desc, fmt.Errorf("no whole file found in response"))
+		return
+	}
+
 	updatedFile := wholeFile
 
 	buildInfo := &shared.BuildInfo{
@@ -133,7 +140,7 @@ func (fileState *activeBuildStreamFileState) buildWholeFileFallback(proposedCont
 	replacements, err := diff_pkg.GetDiffReplacements(originalFile, updatedFile)
 	if err != nil {
 		log.Printf("buildWholeFile - error getting diff replacements: %v\n", err)
-		fileState.wholeFileRetryOrError(proposedContent, desc, fmt.Errorf("error getting diff replacements: %v", err))
+		fileState.onBuildFileError(fmt.Errorf("error getting diff replacements: %v", err))
 		return
 	}
 

@@ -8,30 +8,39 @@ import (
 	"github.com/plandex/plandex/shared"
 )
 
-func GetValidateEditsPrompt(
-	path,
-	original,
-	desc,
-	proposed,
-	diff string,
-	reasons []syntax.NeedsVerifyReason,
-	syntaxErrors []string,
-) string {
+type ValidateEditsPromptParams struct {
+	Path         string
+	Original     string
+	Desc         string
+	Proposed     string
+	Diff         string
+	Reasons      []syntax.NeedsVerifyReason
+	SyntaxErrors []string
+
+	FullCorrection bool
+}
+
+func GetValidateEditsPrompt(params ValidateEditsPromptParams) string {
+	path := params.Path
+	original := params.Original
+	desc := params.Desc
+	proposed := params.Proposed
+	diff := params.Diff
+	reasons := params.Reasons
+	fullCorrection := params.FullCorrection
+	syntaxErrors := params.SyntaxErrors
+
 	var s string
 
-	s += fmt.Sprintf(`
+	if fullCorrection {
+		s += fmt.Sprintf(`
 [Explanation Rules]
 
 %s
 
 [End Explanation Rules]
-
-[Proposed Updates Rules]
-
-%s
-
-[End Proposed Updates Rules]
-`, ChangeExplanationPrompt, UpdateFormatPrompt)
+`, ChangeExplanationPrompt)
+	}
 
 	s += fmt.Sprintf("Path: %s\n\nOriginal file:\n%s\n\nProposed changes explanation:\n%s\n\nProposed changes:\n%s", path, original, desc, proposed)
 	s += fmt.Sprintf("\n\nApplied changes:\n%s", diff)
@@ -43,11 +52,6 @@ func GetValidateEditsPrompt(
 		if reason == syntax.NeedsVerifyReasonAmbiguousLocation {
 			editsIncorrect = true
 			s += `The proposed changes were applied to an ambiguous location. This may mean that anchors were written incorrectly (with incorrect spacing or indentation, for example), or else that the ordering of anchors was incorrect. It may also mean that necessary surrounding context and anchors were not included.`
-
-			// not going to verify for no changes for now, too many false positives
-			// } else if reason == syntax.NeedsVerifyReasonNoChanges {
-			// s += `The proposed changes did not cause any change to the resulting file when applied. Was this intentional?`
-
 		} else if reason == syntax.NeedsVerifyReasonCodeRemoved {
 			s += `The proposed changes removed or replaced code. Was this intentional? If this was the clear intention of the plan, then removing or replacing code can be correct. But it could also be a sign that the proposed changes were not correctly applied.`
 		} else if reason == syntax.NeedsVerifyReasonCodeDuplicated {
@@ -60,73 +64,200 @@ func GetValidateEditsPrompt(
 		s += `The proposed changes, when applied, resulted in a file with syntax errors, meaning the proposed changes were either written incorrectly or were not correctly applied. The resulting file has the following syntax errors:\n\n` + strings.Join(syntaxErrors, "\n") + `\n\n`
 	}
 
-	if editsIncorrect {
-		s += EditsIncorrectPrompt
-
-		if len(syntaxErrors) > 0 {
-			s += `
-			Since the resulting file has syntax errors, include an assessment of the cause of the syntax errors in either the '## Evaluate Explanation' section, the '## Evaluate Proposed Changes' section, or both. Were the proposed changes written incorrectly with syntax errors included, or were the syntax errors produced by an incorrect application of the proposed changes?
-
-			You *must* ensure *all* syntax errors are fixed when correcting the proposed changes.
-			`
+	if fullCorrection {
+		if !editsIncorrect {
+			s += EditsValidateFullPrompt
 		}
-	} else {
-		s += EditsValidatePrompt
+
+		s += EditsExplanationPrompt
+		s += ReferencesPrompt
+		s += EditsFindReplacePrompt
 	}
 
-	s += getEditsExamples(!editsIncorrect)
-
-	s += `
-
-- You MUST NOT make *functional* changes when rewriting the explanation or proposed updates. Your job is *NOT* to change functionality or add additional code in *any way*. It is *only* to ensure that the explanation and proposed updates follow all the rules correctly. Stick as close to the original proposed updates as possible when rewriting. Fix the problems, but keep everything else *exactly the same*, including comments, line breaks, spacing, etc.
-
-- You MUST NOT add 'Plandex: removed' comments unless the intention of the plan and the explanation is to remove code. NEVER add 'Plandex: removed' comments to the *proposed updates* unless the *explanation* includes the word 'remove'. The *only* time you can add a 'Plandex: removed' comment is if 1 - you are correcting a mistaken comment that was intended as a removal comment, but used the wrong format—for example, if the 'Plandex: ' prefix was incorrectly omitted. In that case you must fix the comment in the fixed proposed updates. 2 - the explanation explicitly stats that code should be removed, but a necessary 'Plandex: removed' comment is missing from the proposed updates, causing the code that should have been removed to incorrectly remain in the file. In that case you must add the missing 'Plandex: removed' comment to the proposed updates in the correct location, with correct surrounding context and anchors.
-`
+	if fullCorrection {
+		s += getFullCorrectionExamples(!editsIncorrect)
+	} else {
+		s += EditsValidateOnlyPrompt
+		s += ValidateOnlyExample
+	}
 
 	return s
 }
 
-const EditsValidatePrompt = `
-- In a '## Evaluate Diff' section, examine the applied changes diff and determine whether the changes were applied correctly. Carefully asses whether:
-  a. Any code was removed that should have been kept.
-  b. Any code was duplicated that should not have been.
-	c. Any code was incorrectly inserted or replaced.
-	d. Any code was inserted at the wrong location.
+const EditsValidateBasePrompt = `
+Your task is to examine the applied changes diff and output EXACTLY ONE of these patterns:
 
-- If the changes were applied correctly, output "**Changes Applied Correctly**" after the evaluation and stop your response here. You MUST NOT output any further explanation or *any other text* after the "**Changes Applied Correctly**" string. End your response *immediately* after the "**Changes Applied Correctly**" string.
+Your evaluation should assess:
+a. Whether any code was removed that should have been kept
+b. Whether any code was duplicated that should not have been
+c. Whether any code was incorrectly inserted or replaced
+d. Whether any code was inserted at the wrong location
 
-- If the changes were *not* applied correctly, continue with the following steps:
-` + EditsIncorrectPrompt
-
-const EditsIncorrectPrompt = `
-- In a '## Evaluate Explanation' section, examine the proposed changes explanation and determine whether it is correct. Did it follow all the rules in the [Proposed Updates Rules] section?
-  a. If the changes are inserting, removing, or replacing code between two specific code structures, are these the correct code structures to use for the update? Are these structures *immediately* adjacent to each other or is there other code between them?
-	b. If the changes are inserting, removing, or replacing code between a specific code structure and the start or end of the file, are these the correct code structures or locations to use for the update? If the change is between the start of the file and a specific code structure, is there any other code between the start of the file and that code structure? (There must not be). If the change is between a specific code structure and the end of the file, is there any other code between that code structure and the end of the file? (There must not be).	
-
-- If the proposed changes explanation is *not* correct, you must rewrite the proposed changes explanation to correctly follow *all* the rules in the [Proposed Updates Rules] section in a <PlandexProposedUpdatesExplanation> element. Include *only* the rewritten proposed changes explanation inside the <PlandexProposedUpdatesExplanation> element, and no other text. If the proposed changes explanation is already correct, skip this step.
-  - When rewriting the proposed changes explanation, DO NOT change the alter the *type* of the change. You must ONLY update the portion of the explanation that explains the *location* of the change, not the *type* of the change. For example, if the proposed changes explanation is "I'll add 'someFunction' at the end of the file, immediately after 'existingFunction1'", you must rewrite it to correctly explain the *location* of the change, like "I'll add 'someFunction' at the end of the file, immediately after 'existingFunction2'". You MUST NOT change the type of the change, such as from 'add' to 'remove'.
-	- If the explanation does not match the changes that were made in the proposed updates (for example, the explanation says to add code, but the proposed updates removed code), this means that the proposed updates are *incorrect*—you MUST NOT alter the explanation to match the incorrect proposed updates (for example, you MUST NOT change the explanation to remove code instead of adding it just because the proposed updates incorrectly removed code). Instead, focus on ensuring that the explanation correctly shows the *location* of the change so that the proposed updates can be corrected.
-	- If you are outputting a rewritten proposed changes explanation, YOU ABSOLUTELY MUST DO SO within the <PlandexProposedUpdatesExplanation> element. DO NOT output it outside of the <PlandexProposedUpdatesExplanation> element or anywhere else in your response—ONLY output the rewritten proposed changes explanation inside the <PlandexProposedUpdatesExplanation> element.
-
-- In a '## Evaluate Proposed Changes' section, examine the proposed changes and determine whether they are correct. 
-	a. Did they follow all the rules in the [Proposed Updates Rules] section? 
-	b. Are they consistent with the proposed changes explanation (or the rewritten proposed changes explanation, if you had to rewrite it)?
-	c. Is more surrounding context needed or are more *anchors* needed to resolve ambiguity in the proposed changes and *precisely* locate the change *unambiguously* in the original file?
-	d. Are any *reference comments* or *removal comments* written incorrectly? All reference comments must be *exactly* '... existing code ...' and all removal comments must be *exactly* 'plandex: removed code'. Each must use the correct comment syntax for the language. If any comments are variations of those rather than the exact strings, they are incorrect.
-	e. Are any *reference comments* or *removal comments* missing?
-		- If the proposed changes incorrectly removed code, this does *NOT MEAN* that a removal comment is missing; you MUST NOT say that a removal comment is missing in this case. *ONLY* state that a removal comment is missing if the explanation *explicitly* states that code should be removed and it was not correctly removed due to a missing removal comment.
-
-- In a <PlandexProposedUpdates> element, output the corrected proposed changes. Include *only* the corrected proposed changes inside the <PlandexProposedUpdates> element, and no other text. The corrected proposed changes MUST follow *all* the rules in the [Proposed Updates Rules] section.
-	- If you are outputting a corrected proposed changes, YOU ABSOLUTELY MUST DO SO within the <PlandexProposedUpdates> element. DO NOT output it outside of the <PlandexProposedUpdates> element or anywhere else in your response—ONLY output the corrected proposed changes inside the <PlandexProposedUpdates> element. You ABSOLUTELY MUST NOT use triple backticks or any other formatting around the rewritten proposed changes. Output ONLY the corrected proposed changes inside the <PlandexProposedUpdates> element with no other text or formatting.
-	- DO NOT include the proposed changes within a formatted code block. Include *ONLY* the code directly inside the <PlandexProposedUpdates> element.
-	- If more surrounding context or *anchors* are needed to resolve ambiguity in the proposed changes and *precisely* locate the change *unambiguously* in the original file, you MUST output the corrected proposed changes with the additional context or *anchors* included correctly.
-	- If any *reference comments* or *removal comments* are written incorrectly, you MUST output the corrected proposed changes with the *reference comments* or *removal comments* corrected. A reference comment must be *exactly* '... existing code ...' and a removal comment must be *exactly* 'plandex: removed code'. Use the correct comment syntax for the language.
-	- If any *reference comments* or *removal comments* are missing, you MUST output the corrected proposed changes with the *reference comments* or *removal comments* added.
-	- If the proposed changes incorrectly removed code, this does *NOT MEAN* that a removal comment is missing; you MUST NOT output a removal comment in this case. Instead, fix the proposed changes to prevent the removal of code that should have been kept.
-	- When outputting *anchors* in the proposed changes, lines from the proposed changes that match lines in the original file, spacing and indentation must be preserved *exactly* as they are in the original file—the two lines must be *exactly identical*.
+Be succinct—do not add additional text or summarize the changes beyond what is necessary.
 `
 
-func getEditsExamples(evaluateDiff bool) string {
+const EditsValidateCorrectPattern = `
+Pattern 1 - If changes were applied correctly:
+## Evaluate Diff
+[Your evaluation]
+<PlandexCorrect/>
+<PlandexFinish/>
+`
+
+const EditsValidateFullIncorrectPattern = `
+Pattern 2 - If changes were NOT applied correctly:
+## Evaluate Diff
+[Your evaluation]
+<PlandexIncorrect/>
+[Continue to next section for full correction]
+`
+
+const EditsValidateOnlyIncorrectPattern = `
+Pattern 2 - If changes were NOT applied correctly:
+## Evaluate Diff
+[Your evaluation]
+<PlandexIncorrect/>
+<PlandexFinish/>
+`
+
+const EditsValidateFullPrompt = EditsValidateBasePrompt + EditsValidateCorrectPattern + EditsValidateFullIncorrectPattern
+
+const EditsValidateOnlyPrompt = EditsValidateBasePrompt + EditsValidateCorrectPattern + EditsValidateOnlyIncorrectPattern
+
+const EditsExplanationPrompt = `
+- Next, in an '## Evaluate Explanation' section, examine the proposed changes explanation and determine whether it is correct. Did it follow all the rules in the [Explanation Rules] section?
+  
+	a. If the changes are inserting, removing, or replacing code between two specific code structures, are these the correct code structures to use for the update? Are these structures *immediately* adjacent to each other or is there other code between them?
+	
+	b. If the changes are inserting, removing, or replacing code between a specific code structure and the start or end of the file, are these the correct code structures or locations to use for the update? If the change is between the start of the file and a specific code structure, is there any other code between the start of the file and that code structure? (There must not be). If the change is between a specific code structure and the end of the file, is there any other code between that code structure and the end of the file? (There must not be).	
+
+- If the proposed changes explanation is *not* correct, you must rewrite the proposed changes explanation to correctly follow *all* the rules in the [Explanation Rules] section in a <PlandexProposedUpdatesExplanation> element. Include *only* the rewritten proposed changes explanation inside the <PlandexProposedUpdatesExplanation> element, and no other text. If the proposed changes explanation is already correct, skip this step.
+
+  - When rewriting the proposed changes explanation, DO NOT change the *type* of the change. You must ONLY update the portion of the explanation that explains the *location* of the change, not the *type* of the change. For example, if the proposed changes explanation is "I'll add 'someFunction' at the end of the file, immediately after 'existingFunction1'", you must rewrite it to correctly explain the *location* of the change, like "I'll add 'someFunction' at the end of the file, immediately after 'existingFunction2'". You MUST NOT change the type of the change, such as from 'add' to 'remove'.
+
+	- If the explanation does not match the changes that were made in the proposed updates (for example, the explanation says to add code, but the proposed updates removed code), this means that the proposed updates are *incorrect*—you MUST NOT alter the explanation to match the incorrect proposed updates (for example, you MUST NOT change the explanation to remove code instead of adding it just because the proposed updates incorrectly removed code). Instead, focus on ensuring that the explanation correctly shows the *location* of the change so that a *correct* find/replace operation can be generated.
+
+	- You MUST NOT make *functional* changes when rewriting the explanation. Your job is *NOT* to change functionality or add additional code in *any way*. It is *only* to ensure that the explanation follows all the rules correctly. Stick as close to the original explanation as possible when rewriting. Fix the problems, but keep everything else *exactly the same*.
+`
+
+const EditsFindReplacePrompt = `
+- Next, convert the proposed updates into a find/replace operation. You MUST output EXACTLY ONE <PlandexReplacement> element. Multiple replacements are NOT allowed under any circumstances.
+
+- The SINGLE <PlandexReplacement> element MUST contain two child elements:
+	- A <PlandexOld> element that contains the *EXACT* text from the *original file* that will be replaced.
+	- A <PlandexNew> element that contains the *EXACT* text that will replace it.
+
+CRITICAL RULES FOR REPLACEMENTS:
+1. You MUST output EXACTLY ONE <PlandexReplacement> element
+2. If multiple changes are needed, you MUST combine them into a single replacement operation
+3. The <PlandexOld> element MUST match a UNIQUE block of text in the original file
+4. You MUST NEVER output multiple <PlandexReplacement> elements
+
+For multiple changes, include ALL changes in the SAME <PlandexReplacement> element:
+
+Example of CORRECT way to handle multiple changes:
+
+<PlandexReplacement>
+	<PlandexOld>
+		function existingFunction1() {
+			someFunction();
+			someOtherFunction();
+		}
+
+		function existingFunction2() {
+			anotherFunction();
+		}
+	</PlandexOld>
+	<PlandexNew>
+		function existingFunction1() {
+			someFunction(nil);
+			someOtherFunction(nil);
+			yetAnotherFunction(10);
+		}
+
+		function existingFunction2() {
+			anotherFunction(true);
+			newFunction();
+		}
+	</PlandexNew>
+</PlandexReplacement>
+
+Example of INCORRECT way (DO NOT DO THIS):
+
+❌ WRONG - Multiple replacement tags are NOT allowed:
+
+<PlandexReplacement>
+	<PlandexOld>function1...</PlandexOld>
+	<PlandexNew>function1...</PlandexNew>
+</PlandexReplacement>
+
+<PlandexReplacement>
+	<PlandexOld>function2...</PlandexOld>
+	<PlandexNew>function2...</PlandexNew>
+</PlandexReplacement>
+
+Additional Requirements:
+- The <PlandexOld> text MUST be *EXACTLY* the same as the text in the *original file* and MUST be *UNIQUE*
+- Make sure sufficient context is included to match uniquely and unambiguously
+- Newlines and special characters MUST also be *EXACTLY* matched
+- You MUST NOT include any placeholders or reference comments
+- Both <PlandexOld> and <PlandexNew> must consist of *entire* lines of code *only*
+- Do NOT find and replace partial lines of code
+- The smallest unit of code that can be replaced is an entire line
+`
+
+const ValidateOnlyExample = `
+Here are examples showing ALL possible valid response patterns:
+
+Example 1 - Changes Applied Correctly:
+
+## Evaluate Diff
+The new function 'someFunction' was correctly added to the end of the file, with proper indentation and spacing.
+
+<PlandexCorrect/>
+<PlandexFinish/>
+
+Example 2 - Simple Error Case:
+
+## Evaluate Diff
+The new function 'someFunction' was incorrectly added to the end of the file - it was inserted with wrong indentation.
+
+<PlandexIncorrect/>
+<PlandexFinish/>
+
+Example 3 - Duplicated Code Case:
+
+## Evaluate Diff
+The changes introduced duplicate code - the 'initializeConfig' function now appears twice in the file, when it should have been replaced.
+
+<PlandexIncorrect/>
+<PlandexFinish/>
+
+Example 4 - Wrong Location Case:
+
+## Evaluate Diff
+The new validation checks were added to the wrong function. They were inserted into 'validateInput' when they should have been added to 'validateOutput'.
+
+<PlandexIncorrect/>
+<PlandexFinish/>
+
+Example 5 - Missing Code Case:
+
+## Evaluate Diff
+The changes accidentally removed the error handling code that should have been preserved.
+
+<PlandexIncorrect/>
+<PlandexFinish/>
+
+IMPORTANT RULES:
+1. If your evaluation finds ANY issues, use Example 2-5 format and STOP.
+2. If your evaluation finds NO issues, you MUST use Example 1's format EXACTLY and STOP.
+3. You MUST never mix these formats or add additional sections when changes are correct.
+4. The response MUST start with '## Evaluate Diff' in all cases.
+5. Every response MUST end with either <PlandexCorrect/> followed by <PlandexFinish/>, or with <PlandexIncorrect/> followed by <PlandexFinish/>.
+`
+
+func getFullCorrectionExamples(evaluateDiff bool) string {
 	s := ""
 
 	if evaluateDiff {
@@ -139,7 +270,40 @@ func getEditsExamples(evaluateDiff bool) string {
 
 The new function 'someFunction' was correctly added to the end of the file.
 
-**Changes Applied Correctly**
+<PlandexCorrect/>
+<PlandexFinish/>
+
+--
+
+- Additional Examples of Correct Changes:
+
+Example 1 - Simple Addition:
+
+## Evaluate Diff
+The new error handling function was correctly added with proper error types and return values.
+
+<PlandexCorrect/>
+<PlandexFinish/>
+
+Example 2 - Multiple Changes:
+
+## Evaluate Diff
+All changes were applied correctly:
+1. New validation function was added with correct parameter types
+2. Error messages were updated with the requested format
+3. Return types were modified as specified
+
+<PlandexCorrect/>
+<PlandexFinish/>
+
+Example 3 - File Overwrite:
+
+## Evaluate Diff
+The file was correctly replaced with the new implementation, maintaining all required interfaces and types.
+
+<PlandexCorrect/>
+<PlandexFinish/>
+
 --
 
 - Example Response if changes were *not* applied correctly, but explanation and proposed changes were correct:
@@ -148,19 +312,57 @@ The new function 'someFunction' was correctly added to the end of the file.
 
 ## Evaluate Diff
 
-The new function 'someFunction' was incorrectly added to the end of the file.
+The new function 'someFunction' was incorrectly added to the end of the file. It should have been added at the start of the 'existingFunction1' function.
+
+<PlandexIncorrect/>
 
 ## Evaluate Explanation
 
 The explanation correctly describes how the new function should be added to the file.
 
-## Evaluate Proposed Changes
+## Comments
 
-The proposed changes correctly use a reference comment to indicate that the new function should be added after 'existingFunction' at the end of the file.
+pdx-new-2: // ... existing code ...
+Evaluation: refers to the initialization code at the start of the 'existingFunction1' function
+Reference: true
 
---
+pdx-new-3: // loop 15 times
+Evaluation: explains the for loop below the comment
+Reference: false
 
-Note that if the changes were applied correctly, YOU ABSOLUTLY MUST NEVER output a <PlandexProposedUpdates> element. Just stop the response after the ## Evaluate Proposed Changes section.
+pdx-new-5: // ... existing function calls ...
+Evaluation: refers to the function calls at the start of the for loop
+Reference: true
+
+<PlandexReplacement>
+	<PlandexOld>
+		function existingFunction1() {
+			prepare();
+			init();
+			fullInit();
+			// loop 10 times
+			for (let i = 0; i < 10; i++) {
+				originalFunction();
+				someOtherFunction();
+			}
+		}
+	</PlandexOld>
+	<PlandexNew>
+		function existingFunction1() {
+			prepare();
+			init();
+			fullInit();
+			// loop 15 times
+			for (let i = 0; i < 15; i++) {
+				originalFunction();
+				someOtherFunction();
+				someFunction();
+				andAnotherFunction();
+				andOneMoreFunction();
+			}
+		}
+	</PlandexNew>
+</PlandexReplacement>
 `
 	}
 
@@ -175,6 +377,8 @@ Note that if the changes were applied correctly, YOU ABSOLUTLY MUST NEVER output
 ## Evaluate Diff
 
 The proposed changes incorrectly removed the 'existingFunction2' function.
+
+<PlandexIncorrect/>
 `
 	}
 
@@ -189,25 +393,28 @@ The explanation incorrectly used 'existingFunction1' as an anchor when there is 
  **Updating some/path/to/file.js:** I'll add 'someFunction' at the end of the file, immediately after 'existingFunction2'. 
 </PlandexProposedUpdatesExplanation>
 
-## Evaluate Proposed Changes
-
-The proposed changes incorrectly used 'existingFunction1' as an anchor when there is code between 'existingFunction1' and the end of the file. It should have used 'existingFunction2' instead.
-
-<PlandexProposedUpdates>
-// ... existing code ...
-
-function existingFunction2() {
-  // ... existing code ...
-}
-
-function someFunction() {
-  console.log("New behavior");
-	const res = await execUpdate();
-}
-</PlandexProposedUpdates>
-
---
+<PlandexReplacement>
+	<PlandexOld>
+		function existingFunction1() {
+			someOtherFunction();
+		}
+	</PlandexOld>
+	<PlandexNew>
+		function existingFunction1() {
+			someFunction();
+			someOtherFunction();
+		}
+	</PlandexNew>
+</PlandexReplacement>
 `
+
+	if evaluateDiff {
+		s += `
+FINAL REMINDER: The response pattern is strictly binary:
+1. If changes are correct: ONLY output '## Evaluate Diff' with "<PlandexCorrect/>" + <PlandexFinish/>
+2. If changes have ANY issues: Output '## Evaluate Diff' with "<PlandexIncorrect/>" and then continue to the next section ('## Evaluate Explanation').
+There are NO other valid response patterns.`
+	}
 
 	return s
 }
@@ -271,7 +478,7 @@ var ReferencesPrompt = ExampleReferences + `
 
 	A reference comment MUST EXIST in the *proposed updates*. Do not include a reference comment unless it exists VERBATIM in the *proposed updates*.
 
-	Before outputting the references, first output a section that lists *EVERY* comment in the *proposed updates*, including the line number of each comment prefixed by 'pdx-new-'. Below each comment, evaluate whether it is a reference comment. Focus on whether the comment is clearly referencing a block of code in the *original file*, whether it is explaining a change being made, or whether it is a comment that was carried over from the *original file* but does *not* reference any code that was left out of the *proposed updates*. After this evaluation, state whether each comment is a reference comment or not. Only list valid *comments* for the given programming language in the comments section. Do not include non-comment lines of code in the comments section.
+	Output a section that lists *EVERY* comment in the *proposed updates*, including the line number of each comment prefixed by 'pdx-new-'. Below each comment, evaluate whether it is a reference comment. Focus on whether the comment is clearly referencing a block of code in the *original file*, whether it is explaining a change being made, or whether it is a comment that was carried over from the *original file* but does *not* reference any code that was left out of the *proposed updates*. After this evaluation, state whether each comment is a reference comment or not. Only list valid *comments* for the given programming language in the comments section. Do not include non-comment lines of code in the comments section.
 	
 	Example:
 
@@ -282,25 +489,17 @@ var ReferencesPrompt = ExampleReferences + `
 	Evaluation: refers the code at the beginning of the 'update' function that starts the database transaction.
 	Reference: true
 
-	pdx-new-6: // ... existing update code ...	
-	Evaluation: refers the code inside the 'update' function that updates the user.
-	Reference: true
-
-	pdx-new-9: // ... existing code to commit db transaction...
-	Evaluation: refers the code inside the 'update' function that commits the database transaction.
-	Reference: true
-
 	pdx-new-4: // verify user permission before performing update
 	Evaluation: describes the change being made. Does not refer to any code in the *original file*.
 	Reference: false
 
-	pdx-new-85: // Rest of the main function...
-	Evaluation: refers to the rest of the main function that is left unchanged.
+	pdx-new-6: // ... existing update code ...	
+	Evaluation: refers the code inside the 'update' function that updates the user.
 	Reference: true
 
-	pdx-new-25: # Delete the object
-	Evaluation: describes the change being made. Does not refer to any code in the *original file*.
-	Reference: false
+	--
+
+	If there are no comments in the *proposed updates*, output just the string 'No comments' and continue.
 `
 
 const WholeFileEnding = `
