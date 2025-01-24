@@ -77,6 +77,11 @@ func new(cmd *cobra.Command, args []string) {
 		term.OutputErrorAndExit("Error setting current plan: %v", err)
 	}
 
+	err = lib.WriteCurrentBranch("main")
+	if err != nil {
+		term.OutputErrorAndExit("Error setting current branch: %v", err)
+	}
+
 	if name == "" {
 		name = "draft"
 	}
