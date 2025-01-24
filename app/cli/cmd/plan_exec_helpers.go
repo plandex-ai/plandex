@@ -33,14 +33,16 @@ var noExec bool
 var autoDebug int
 
 var editor string
+var editorSetByFlag bool
 
 func init() {
-	defaultEditor = os.Getenv("EDITOR")
-	if defaultEditor == "" {
-		defaultEditor = os.Getenv("VISUAL")
-		if defaultEditor == "" {
-			defaultEditor = string(defaultEditor)
-		}
+	envEditor := os.Getenv("EDITOR")
+	if envEditor == "" {
+		envEditor = os.Getenv("VISUAL")
+	}
+
+	if envEditor != "" {
+		defaultEditor = envEditor
 	}
 }
 
@@ -175,6 +177,10 @@ func mustSetPlanExecFlags(cmd *cobra.Command) {
 		}
 	}
 
+	if !editorSetByFlag {
+		editor = config.Editor
+	}
+
 	validatePlanExecFlags()
 }
 
@@ -221,7 +227,7 @@ type editorValue struct {
 }
 
 func newEditorValue(p *string) *editorValue {
-	*p = "" // Default to empty string
+	*p = defaultEditor
 	return &editorValue{p}
 }
 
@@ -231,6 +237,7 @@ func (f *editorValue) Set(s string) error {
 		return nil
 	}
 	*f.value = s
+	editorSetByFlag = true
 	return nil
 }
 
