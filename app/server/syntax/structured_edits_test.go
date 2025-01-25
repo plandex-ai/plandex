@@ -1339,7 +1339,7 @@ func TestStructuredReplacements(t *testing.T) {
 			desc := ""
 
 			if tt.isInsert {
-				desc = "I'll add"
+				desc = "Type: add"
 			}
 
 			parser, lang, _, _ := GetParserForExt("." + tt.ext)

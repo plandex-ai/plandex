@@ -32,15 +32,15 @@ func GetValidateEditsPrompt(params ValidateEditsPromptParams) string {
 
 	var s string
 
-	if fullCorrection {
-		s += fmt.Sprintf(`
-[Explanation Rules]
+	// 	if fullCorrection {
+	// 		s += fmt.Sprintf(`
+	// [Explanation Rules]
 
-%s
+	// %s
 
-[End Explanation Rules]
-`, ChangeExplanationPrompt)
-	}
+	// [End Explanation Rules]
+	// `, ChangeExplanationPrompt)
+	// 	}
 
 	s += fmt.Sprintf("Path: %s\n\nOriginal file:\n%s\n\nProposed changes explanation:\n%s\n\nProposed changes:\n%s", path, original, desc, proposed)
 	s += fmt.Sprintf("\n\nApplied changes:\n%s", diff)
@@ -69,7 +69,7 @@ func GetValidateEditsPrompt(params ValidateEditsPromptParams) string {
 			s += EditsValidateFullPrompt
 		}
 
-		s += EditsExplanationPrompt
+		// s += EditsExplanationPrompt
 		s += ReferencesPrompt
 		s += EditsFindReplacePrompt
 	}
@@ -124,21 +124,21 @@ const EditsValidateFullPrompt = EditsValidateBasePrompt + EditsValidateCorrectPa
 
 const EditsValidateOnlyPrompt = EditsValidateBasePrompt + EditsValidateCorrectPattern + EditsValidateOnlyIncorrectPattern
 
-const EditsExplanationPrompt = `
-- Next, in an '## Evaluate Explanation' section, examine the proposed changes explanation and determine whether it is correct. Did it follow all the rules in the [Explanation Rules] section?
-  
-	a. If the changes are inserting, removing, or replacing code between two specific code structures, are these the correct code structures to use for the update? Are these structures *immediately* adjacent to each other or is there other code between them?
-	
-	b. If the changes are inserting, removing, or replacing code between a specific code structure and the start or end of the file, are these the correct code structures or locations to use for the update? If the change is between the start of the file and a specific code structure, is there any other code between the start of the file and that code structure? (There must not be). If the change is between a specific code structure and the end of the file, is there any other code between that code structure and the end of the file? (There must not be).	
+// const EditsExplanationPrompt = `
+// - Next, in an '## Evaluate Explanation' section, examine the proposed changes explanation and determine whether it is correct. Did it follow all the rules in the [Explanation Rules] section?
 
-- If the proposed changes explanation is *not* correct, you must rewrite the proposed changes explanation to correctly follow *all* the rules in the [Explanation Rules] section in a <PlandexProposedUpdatesExplanation> element. Include *only* the rewritten proposed changes explanation inside the <PlandexProposedUpdatesExplanation> element, and no other text. If the proposed changes explanation is already correct, skip this step.
+// 	a. If the changes are inserting, removing, or replacing code between two specific code structures, are these the correct code structures to use for the update? Are these structures *immediately* adjacent to each other or is there other code between them?
 
-  - When rewriting the proposed changes explanation, DO NOT change the *type* of the change. You must ONLY update the portion of the explanation that explains the *location* of the change, not the *type* of the change. For example, if the proposed changes explanation is "I'll add 'someFunction' at the end of the file, immediately after 'existingFunction1'", you must rewrite it to correctly explain the *location* of the change, like "I'll add 'someFunction' at the end of the file, immediately after 'existingFunction2'". You MUST NOT change the type of the change, such as from 'add' to 'remove'.
+// 	b. If the changes are inserting, removing, or replacing code between a specific code structure and the start or end of the file, are these the correct code structures or locations to use for the update? If the change is between the start of the file and a specific code structure, is there any other code between the start of the file and that code structure? (There must not be). If the change is between a specific code structure and the end of the file, is there any other code between that code structure and the end of the file? (There must not be).
 
-	- If the explanation does not match the changes that were made in the proposed updates (for example, the explanation says to add code, but the proposed updates removed code), this means that the proposed updates are *incorrect*—you MUST NOT alter the explanation to match the incorrect proposed updates (for example, you MUST NOT change the explanation to remove code instead of adding it just because the proposed updates incorrectly removed code). Instead, focus on ensuring that the explanation correctly shows the *location* of the change so that a *correct* find/replace operation can be generated.
+// - If the proposed changes explanation is *not* correct, you must rewrite the proposed changes explanation to correctly follow *all* the rules in the [Explanation Rules] section in a <PlandexProposedUpdatesExplanation> element. Include *only* the rewritten proposed changes explanation inside the <PlandexProposedUpdatesExplanation> element, and no other text. If the proposed changes explanation is already correct, skip this step.
 
-	- You MUST NOT make *functional* changes when rewriting the explanation. Your job is *NOT* to change functionality or add additional code in *any way*. It is *only* to ensure that the explanation follows all the rules correctly. Stick as close to the original explanation as possible when rewriting. Fix the problems, but keep everything else *exactly the same*.
-`
+//   - When rewriting the proposed changes explanation, DO NOT change the *type* of the change. You must ONLY update the portion of the explanation that explains the *location* of the change, not the *type* of the change. For example, if the proposed changes explanation is "I'll add 'someFunction' at the end of the file, immediately after 'existingFunction1'", you must rewrite it to correctly explain the *location* of the change, like "I'll add 'someFunction' at the end of the file, immediately after 'existingFunction2'". You MUST NOT change the type of the change, such as from 'add' to 'remove'.
+
+// 	- If the explanation does not match the changes that were made in the proposed updates (for example, the explanation says to add code, but the proposed updates removed code), this means that the proposed updates are *incorrect*—you MUST NOT alter the explanation to match the incorrect proposed updates (for example, you MUST NOT change the explanation to remove code instead of adding it just because the proposed updates incorrectly removed code). Instead, focus on ensuring that the explanation correctly shows the *location* of the change so that a *correct* find/replace operation can be generated.
+
+// 	- You MUST NOT make *functional* changes when rewriting the explanation. Your job is *NOT* to change functionality or add additional code in *any way*. It is *only* to ensure that the explanation follows all the rules correctly. Stick as close to the original explanation as possible when rewriting. Fix the problems, but keep everything else *exactly the same*.
+// `
 
 const EditsFindReplacePrompt = `
 - Next, convert the proposed updates into a find/replace operation. You MUST output EXACTLY ONE <PlandexReplacement> element. Multiple replacements are NOT allowed under any circumstances.
@@ -316,21 +316,17 @@ The new function 'someFunction' was incorrectly added to the end of the file. It
 
 <PlandexIncorrect/>
 
-## Evaluate Explanation
-
-The explanation correctly describes how the new function should be added to the file.
-
 ## Comments
 
-pdx-new-2: // ... existing code ...
+// ... existing code ...
 Evaluation: refers to the initialization code at the start of the 'existingFunction1' function
 Reference: true
 
-pdx-new-3: // loop 15 times
+// loop 15 times
 Evaluation: explains the for loop below the comment
 Reference: false
 
-pdx-new-5: // ... existing function calls ...
+// ... existing function calls ...
 Evaluation: refers to the function calls at the start of the for loop
 Reference: true
 
@@ -382,17 +378,17 @@ The proposed changes incorrectly removed the 'existingFunction2' function.
 `
 	}
 
+	// 	s += `
+	// ## Evaluate Explanation
+
+	// The explanation incorrectly used 'existingFunction1' as an anchor when there is code between 'existingFunction1' and the end of the file. It should have used 'existingFunction2' instead.
+
+	// <PlandexProposedUpdatesExplanation>
+	//  **Updating some/path/to/file.js:** I'll add 'someFunction' at the end of the file, immediately after 'existingFunction2'.
+	// </PlandexProposedUpdatesExplanation>
+	// `
+
 	s += `
-## Evaluate Explanation
-
-The explanation incorrectly used 'existingFunction1' as an anchor when there is code between 'existingFunction1' and the end of the file. It should have used 'existingFunction2' instead.
-`
-
-	s += `
-<PlandexProposedUpdatesExplanation>
- **Updating some/path/to/file.js:** I'll add 'someFunction' at the end of the file, immediately after 'existingFunction2'. 
-</PlandexProposedUpdatesExplanation>
-
 <PlandexReplacement>
 	<PlandexOld>
 		function existingFunction1() {
@@ -485,15 +481,15 @@ var ReferencesPrompt = ExampleReferences + `
 	---
 	Comments:
 
-	pdx-new-2: // ... existing code to start transaction ...
+	// ... existing code to start transaction ...
 	Evaluation: refers the code at the beginning of the 'update' function that starts the database transaction.
 	Reference: true
 
-	pdx-new-4: // verify user permission before performing update
+	// verify user permission before performing update
 	Evaluation: describes the change being made. Does not refer to any code in the *original file*.
 	Reference: false
 
-	pdx-new-6: // ... existing update code ...	
+	// ... existing update code ...	
 	Evaluation: refers the code inside the 'update' function that updates the user.
 	Reference: true
 

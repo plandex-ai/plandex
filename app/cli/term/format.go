@@ -18,6 +18,7 @@ func GetMarkdown(input string) (string, error) {
 		// detect background color and pick either the default dark or light theme
 		glamour.WithAutoStyle(),
 		glamour.WithWordWrap(min(width, 80)),
+		glamour.WithPreservedNewLines(),
 	)
 
 	out, err := r.RenderBytes(inputBytes)

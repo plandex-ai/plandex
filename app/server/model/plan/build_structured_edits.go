@@ -89,6 +89,8 @@ func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 
 	isValid := len(applyRes.NeedsVerifyReasons) == 0 && len(syntaxErrors) == 0
 
+	log.Printf("buildStructuredEdits - %s - initial isValid: %t\n", filePath, isValid)
+
 	var buildStage BuildStage = BuildStageInitial
 
 	for !isValid && int(buildStage) <= int(BuildStageValidateAndCorrect) {

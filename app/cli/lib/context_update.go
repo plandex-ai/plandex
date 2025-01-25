@@ -93,12 +93,14 @@ func CheckOutdatedContextWithOutput(quiet, autoConfirm bool, maybeContexts []*sh
 			phrase = "has been"
 		}
 
-		term.StopSpinner()
+		if !quiet {
+			term.StopSpinner()
 
-		color.New(term.ColorHiCyan, color.Bold).Printf("%s in context %s modified 👇\n\n", msg, phrase)
+			color.New(term.ColorHiCyan, color.Bold).Printf("%s in context %s modified 👇\n\n", msg, phrase)
 
-		tableString := tableForContextOutdated(outdatedRes.UpdatedContexts, outdatedRes.TokenDiffsById)
-		fmt.Println(tableString)
+			tableString := tableForContextOutdated(outdatedRes.UpdatedContexts, outdatedRes.TokenDiffsById)
+			fmt.Println(tableString)
+		}
 	}
 
 	if len(outdatedRes.RemovedContexts) > 0 {
@@ -138,12 +140,14 @@ func CheckOutdatedContextWithOutput(quiet, autoConfirm bool, maybeContexts []*sh
 			phrase = "has been"
 		}
 
-		term.StopSpinner()
+		if !quiet {
+			term.StopSpinner()
 
-		color.New(term.ColorHiCyan, color.Bold).Printf("%s in context %s removed 👇\n\n", msg, phrase)
+			color.New(term.ColorHiCyan, color.Bold).Printf("%s in context %s removed 👇\n\n", msg, phrase)
 
-		tableString := tableForContextOutdated(outdatedRes.RemovedContexts, outdatedRes.TokenDiffsById)
-		fmt.Println(tableString)
+			tableString := tableForContextOutdated(outdatedRes.RemovedContexts, outdatedRes.TokenDiffsById)
+			fmt.Println(tableString)
+		}
 	}
 
 	confirmed := autoConfirm
@@ -465,19 +469,18 @@ func checkOutdatedAndMaybeUpdateContext(doUpdate bool, maybeContexts []*shared.C
 							updatedParts[path] = body
 
 							prevTokens := context.MapTokens[path]
-							numTokens := shared.GetNumTokensEstimate(body)
+							numTokens := mapRes.MapBodies.TokenEstimateForPath(path)
 
-							// fmt.Println("path", path, "numTokens", numTokens, "prevTokens", prevTokens)
-
-							tokenDiffsById[context.Id] += numTokens - prevTokens
+							if numTokens != prevTokens {
+								tokenDiffsById[context.Id] += numTokens - prevTokens
+							}
 						}
-
-						// test this
 					}
 
 					if len(removedMapPaths) > 0 {
 						for _, path := range removedMapPaths {
 							delete(updatedParts, path)
+							tokenDiffsById[context.Id] -= context.MapTokens[path]
 						}
 					}
 
@@ -644,7 +647,6 @@ func tableForContextOutdated(updatedContexts []*shared.Context, tokenDiffsById m
 	for _, context := range updatedContexts {
 		t, icon := context.TypeAndIcon()
 		diff := tokenDiffsById[context.Id]
-
 		diffStr := "+" + strconv.Itoa(diff)
 		tableColor := tablewriter.FgHiGreenColor
 

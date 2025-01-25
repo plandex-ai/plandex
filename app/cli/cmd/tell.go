@@ -61,7 +61,8 @@ func doTell(cmd *cobra.Command, args []string) {
 		CurrentBranch: lib.CurrentBranch,
 		ApiKeys:       apiKeys,
 		CheckOutdatedContext: func(maybeContexts []*shared.Context) (bool, bool, error) {
-			return lib.CheckOutdatedContextWithOutput(autoConfirm, autoConfirm || tellAutoApply || tellAutoContext, maybeContexts)
+			auto := autoConfirm || tellAutoApply || tellAutoContext
+			return lib.CheckOutdatedContextWithOutput(auto, auto, maybeContexts)
 		},
 	}, prompt, plan_exec.TellFlags{
 		TellBg:      tellBg,

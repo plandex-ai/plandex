@@ -123,7 +123,7 @@ func doDebug(cmd *cobra.Command, args []string) {
 			CurrentBranch: lib.CurrentBranch,
 			ApiKeys:       apiKeys,
 			CheckOutdatedContext: func(maybeContexts []*shared.Context) (bool, bool, error) {
-				return lib.CheckOutdatedContextWithOutput(false, true, maybeContexts)
+				return lib.CheckOutdatedContextWithOutput(true, true, maybeContexts)
 			},
 		}, prompt, plan_exec.TellFlags{IsUserDebug: true})
 

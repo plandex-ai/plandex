@@ -686,7 +686,7 @@ func UpdateContexts(params UpdateContextsParams) (*shared.UpdateContextResponse,
 	maxTokens := settings.GetPlannerEffectiveMaxTokens()
 	totalTokens := branch.ContextTokens
 
-	tokensDiff := 0
+	aggregateTokensDiff := 0
 	tokenDiffsById := make(map[string]int)
 
 	var contextsById map[string]*Context
@@ -731,8 +731,6 @@ func UpdateContexts(params UpdateContextsParams) (*shared.UpdateContextResponse,
 	var mu sync.Mutex
 	errCh := make(chan error)
 
-	log.Printf("updating %d outdated contexts\n", len(*req))
-
 	for id, params := range *req {
 		go func(id string, params *shared.UpdateContextParams) {
 
@@ -776,7 +774,7 @@ func UpdateContexts(params UpdateContextsParams) (*shared.UpdateContextResponse,
 
 				tokenDiff := updateNumTokens - context.NumTokens
 				tokenDiffsById[id] = tokenDiff
-				tokensDiff += tokenDiff
+				aggregateTokensDiff += tokenDiff
 				totalTokens += tokenDiff
 				context.NumTokens = updateNumTokens
 			}
@@ -803,21 +801,9 @@ func UpdateContexts(params UpdateContextsParams) (*shared.UpdateContextResponse,
 		}
 	}
 
-	updateRes := &shared.ContextUpdateResult{
-		UpdatedContexts: updatedContexts,
-		TokenDiffsById:  tokenDiffsById,
-		TokensDiff:      tokensDiff,
-		TotalTokens:     totalTokens,
-		NumFiles:        numFiles,
-		NumUrls:         numUrls,
-		NumTrees:        numTrees,
-		NumMaps:         numMaps,
-		MaxTokens:       maxTokens,
-	}
-
 	if totalTokens > maxTokens {
 		return &shared.UpdateContextResponse{
-			TokensAdded:       tokensDiff,
+			TokensAdded:       aggregateTokensDiff,
 			TotalTokens:       totalTokens,
 			MaxTokens:         maxTokens,
 			MaxTokensExceeded: true,
@@ -850,9 +836,6 @@ func UpdateContexts(params UpdateContextsParams) (*shared.UpdateContextResponse,
 
 			if context.ContextType == shared.ContextMapType {
 				oldNumTokens := context.NumTokens
-
-				// log.Println("Updating map context", id, "oldNumTokens", oldNumTokens)
-
 				for path, part := range params.MapBodies {
 					if context.MapParts == nil {
 						context.MapParts = make(shared.FileMapBodies)
@@ -864,10 +847,12 @@ func UpdateContexts(params UpdateContextsParams) (*shared.UpdateContextResponse,
 						context.MapTokens = make(map[string]int)
 					}
 
+					// prevNumTokens := context.MapTokens[path]
+
 					context.MapParts[path] = part
 					context.MapShas[path] = params.InputShas[path]
 
-					numTokens := shared.GetNumTokensEstimate(part)
+					numTokens := params.MapBodies.TokenEstimateForPath(path)
 					context.MapTokens[path] = numTokens
 				}
 
@@ -879,21 +864,13 @@ func UpdateContexts(params UpdateContextsParams) (*shared.UpdateContextResponse,
 
 				context.Body = context.MapParts.CombinedMap()
 				newNumTokens := shared.GetNumTokensEstimate(context.Body)
-
-				// log.Println("Updated map context", id, "newNumTokens", newNumTokens)
-
 				tokenDiff := newNumTokens - oldNumTokens
 
-				// log.Println("Updated map context", id, "tokenDiff", tokenDiff)
-
+				mu.Lock()
 				tokenDiffsById[id] = tokenDiff
-				tokensDiff += tokenDiff
-
-				// log.Println("Updated map context", id, "tokensDiff", tokensDiff)
-
+				aggregateTokensDiff += tokenDiff
 				totalTokens += tokenDiff
-
-				// log.Println("Updated map context", id, "totalTokens", totalTokens)
+				mu.Unlock()
 
 				context.NumTokens = newNumTokens
 			} else {
@@ -915,10 +892,6 @@ func UpdateContexts(params UpdateContextsParams) (*shared.UpdateContextResponse,
 			// log.Println("stored context", id)
 			// log.Println()
 
-			if context.ContextType == shared.ContextMapType {
-
-			}
-
 			errCh <- nil
 		}(id, params)
 	}
@@ -930,7 +903,19 @@ func UpdateContexts(params UpdateContextsParams) (*shared.UpdateContextResponse,
 		}
 	}
 
-	err = AddPlanContextTokens(planId, branchName, tokensDiff)
+	updateRes := &shared.ContextUpdateResult{
+		UpdatedContexts: updatedContexts,
+		TokenDiffsById:  tokenDiffsById,
+		TokensDiff:      aggregateTokensDiff,
+		TotalTokens:     totalTokens,
+		NumFiles:        numFiles,
+		NumUrls:         numUrls,
+		NumTrees:        numTrees,
+		NumMaps:         numMaps,
+		MaxTokens:       maxTokens,
+	}
+
+	err = AddPlanContextTokens(planId, branchName, aggregateTokensDiff)
 	if err != nil {
 		return nil, fmt.Errorf("error adding plan context tokens: %v", err)
 	}
@@ -938,7 +923,7 @@ func UpdateContexts(params UpdateContextsParams) (*shared.UpdateContextResponse,
 	commitMsg := shared.SummaryForUpdateContext(updateRes) + "\n\n" + shared.TableForContextUpdate(updateRes)
 
 	return &shared.LoadContextResponse{
-		TokensAdded: tokensDiff,
+		TokensAdded: aggregateTokensDiff,
 		TotalTokens: totalTokens,
 		Msg:         commitMsg,
 	}, nil

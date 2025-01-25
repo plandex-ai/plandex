@@ -18,7 +18,8 @@ import (
 
 // var plainTextOutput bool
 var showDiffUi bool
-var diffUiSideBySide bool
+var diffUiSideBySide = true
+var diffUiLineByLine bool
 
 var diffsCmd = &cobra.Command{
 	Use:     "diff",
@@ -32,7 +33,8 @@ func init() {
 
 	diffsCmd.Flags().BoolVarP(&plainTextOutput, "plain", "p", false, "Output diffs in plain text with no ANSI codes")
 	diffsCmd.Flags().BoolVar(&showDiffUi, "ui", false, "Show diffs in a browser UI")
-	diffsCmd.Flags().BoolVarP(&diffUiSideBySide, "side-by-side", "s", false, "Show diffs UI in side-by-side view")
+	diffsCmd.Flags().BoolVarP(&diffUiSideBySide, "side", "s", true, "Show diffs UI in side-by-side view")
+	diffsCmd.Flags().BoolVarP(&diffUiLineByLine, "line", "l", false, "Show diffs UI in line-by-line view")
 }
 
 func diffs(cmd *cobra.Command, args []string) {
@@ -53,6 +55,8 @@ func diffs(cmd *cobra.Command, args []string) {
 		outputFormat := "line-by-line"
 		if diffUiSideBySide {
 			outputFormat = "side-by-side"
+		} else if diffUiLineByLine {
+			outputFormat = "line-by-line"
 		}
 
 		// Properly escape the diff content for JavaScript

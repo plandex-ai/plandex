@@ -47,7 +47,8 @@ func build(cmd *cobra.Command, args []string) {
 		CurrentBranch: lib.CurrentBranch,
 		ApiKeys:       apiKeys,
 		CheckOutdatedContext: func(maybeContexts []*shared.Context) (bool, bool, error) {
-			return lib.CheckOutdatedContextWithOutput(false, tellAutoContext, maybeContexts)
+			auto := autoConfirm || tellAutoApply || tellAutoContext
+			return lib.CheckOutdatedContextWithOutput(auto, auto, maybeContexts)
 		},
 	}, tellBg)
 
