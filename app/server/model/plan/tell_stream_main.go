@@ -82,6 +82,10 @@ mainLoop:
 				return
 			}
 
+			if response.ID != "" && state.generationId == "" {
+				state.generationId = response.ID
+			}
+
 			if response.Usage != nil {
 				state.handleUsageChunk(response.Usage)
 				return

@@ -12,6 +12,7 @@ import (
 	"plandex-server/model/prompts"
 	"plandex-server/types"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/google/uuid"
 	"github.com/plandex/plandex/shared"
 	"github.com/sashabaranov/go-openai"
@@ -279,27 +280,36 @@ func execTellPlan(params execTellPlanParams) {
 	}
 
 	var stop []string
+	var modelConfig shared.ModelRoleConfig
 	if isPlanningStage {
 		stop = []string{"<EndPlandexTasks/>"}
+		modelConfig = state.settings.ModelPack.Planner.ModelRoleConfig
 		if isFollowUp {
+			log.Println("Tell plan - isFollowUp - setting stop to <PlandexDecideContext/>")
 			stop = append(stop, "<PlandexDecideContext/>")
+		} else if isContextStage {
+			log.Println("Tell plan - isContextStage - setting modelConfig to context loader")
+			modelConfig = state.settings.ModelPack.GetContextLoader()
 		}
 	} else if isImplementationStage {
 		stop = []string{"<PlandexSubtaskDone/>"}
+		modelConfig = state.settings.ModelPack.GetCoder()
 	}
 
-	log.Println("Stop:", stop)
+	// log.Println("Stop:", stop)
 	// spew.Dump(state.messages)
 
+	log.Println("modelConfig:", spew.Sdump(modelConfig))
+
 	modelReq := openai.ChatCompletionRequest{
-		Model:    state.settings.ModelPack.Planner.BaseModelConfig.ModelName,
+		Model:    modelConfig.BaseModelConfig.ModelName,
 		Messages: state.messages,
 		Stream:   true,
 		StreamOptions: &openai.StreamOptions{
 			IncludeUsage: true,
 		},
-		Temperature: state.settings.ModelPack.Planner.Temperature,
-		TopP:        state.settings.ModelPack.Planner.TopP,
+		Temperature: modelConfig.Temperature,
+		TopP:        modelConfig.TopP,
 		Stop:        stop,
 	}
 
@@ -314,10 +324,7 @@ func execTellPlan(params execTellPlanParams) {
 	// 	log.Printf("Error marshaling model request to JSON: %v\n", err)
 	// }
 
-	envVar := state.settings.ModelPack.Planner.BaseModelConfig.ApiKeyEnvVar
-	client := clients[envVar]
-
-	stream, err := model.CreateChatCompletionStreamWithRetries(client, active.ModelStreamCtx, modelReq)
+	stream, err := model.CreateChatCompletionStreamWithRetries(clients, &modelConfig, active.ModelStreamCtx, modelReq)
 	if err != nil {
 		log.Printf("Error starting reply stream: %v\n", err)
 

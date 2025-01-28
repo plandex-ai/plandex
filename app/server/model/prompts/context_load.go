@@ -15,7 +15,7 @@ In response to the user's latest prompt, do the following:
 
   - In a section titled '### Context Categories', list one or more categories of context that are relevant to the user's task, question, or message. For example, if the user is asking you to implement an API endpoint, you might list 'API endpoints', 'database operations', 'frontend code', 'utilities', and so on. Make sure any and all relevant categories are included, but don't include more categories than necessary—if only a single category is relevant, then only list that one. Do not include file paths, symbols, or explanations—only the categories.
 
-  - Using the map and file tree in context, output a '### Relevant Symbols' list of potentially relevant *symbols* (like functions, methods, types, variables, etc.) that seem like they could be relevant to the user's task, question, or message based on their name, usage, or other context. Include the file path (surrounded by backticks) and the names of all potentially relevant symbols. File paths *absolutely must* be surrounded by backticks like this: ` + "`" + "path/to/file.go" + "`" + `. Any symbols that are referred to in the user's prompt must be included. You MUST organize the list by category using the categories from the '### Context Categories' section—ensure each category is represented in the list. When listing symbols, output just the name of the symbol, not it's full signature (e.g. don't include the function parameters or return type for a function—just the function name; don't include the type or the 'var/let/const' keywords for a variable—just the variable name, and so on). Output the symbols as a comma separated list in a single paragraph for each file. You MUST include relevant symbols (and associated file paths) for each category from the '### Context Categories' section.
+  - Using the map and file tree in context, output a '### Files' list of potentially relevant *symbols* (like functions, methods, types, variables, etc.) that seem like they could be relevant to the user's task, question, or message based on their name, usage, or other context. Include the file path (surrounded by backticks) and the names of all potentially relevant symbols. File paths *absolutely must* be surrounded by backticks like this: ` + "`" + "path/to/file.go" + "`" + `. Any symbols that are referred to in the user's prompt must be included. You MUST organize the list by category using the categories from the '### Context Categories' section—ensure each category is represented in the list. When listing symbols, output just the name of the symbol, not it's full signature (e.g. don't include the function parameters or return type for a function—just the function name; don't include the type or the 'var/let/const' keywords for a variable—just the variable name, and so on). Output the symbols as a comma separated list in a single paragraph for each file. You MUST include relevant symbols (and associated file paths) for each category from the '### Context Categories' section. Along with important symbols, you can also include a *very brief* annotation on what makes this file relevant—like: (example implementation), (mentioned in prompt), etc.
 
   ` + ContextLoadingRules + `
 
@@ -23,7 +23,7 @@ In response to the user's latest prompt, do the following:
 
 ` + ContextCompletionCriteria + `
 
-After outputting the '### Relevant Symbols' section, end your response. Do not output any additional text after that section.
+After outputting the '### Files' section, end your response. Do not output any additional text after that section.
 
 IMPORTANT: During this context loading phase, you must NOT implement any code or create any code blocks. This phase is ONLY for identifying relevant context.
 
@@ -63,7 +63,7 @@ const ContextLoadingRules = `When assessing relevant context, you MUST follow th
 
 Remember: It's better to load more context than you need than to miss an important file. If you're not sure whether a file will be helpful, include it.`
 
-const FileMapScanningRules = `When considering relevant categories in the '### Context Categories' and relevant symbols in the '### Relevant Symbols' sections:
+const FileMapScanningRules = `When considering relevant categories in the '### Context Categories' and relevant symbols in the '### Files' sections:
 
 1. Look for naming patterns:
    - Files with similar prefixes or suffixes
@@ -83,7 +83,7 @@ const FileMapScanningRules = `When considering relevant categories in the '### C
      * Related type definitions
    Example: For 'api/methods.go', look for 'types/api.go', 'api/methods_test.go'`
 
-const ContextCompletionCriteria = `When considering relevant categories in the '### Context Categories' and relevant symbols in the '### Relevant Symbols' sections, make sure to include:
+const ContextCompletionCriteria = `When considering relevant categories in the '### Context Categories' and relevant symbols in the '### Files' sections, make sure to include:
 
 1. ALL interface files for any implementations
 2. ALL type definitions related to the task or prompt

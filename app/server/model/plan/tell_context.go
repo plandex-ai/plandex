@@ -25,9 +25,8 @@ func (state *activeTellStreamState) formatModelContext(includeMaps, includeTrees
 		for _, path := range state.currentSubtask.UsesFiles {
 			uses[path] = true
 		}
+		log.Printf("Tell plan - formatModelContext - uses: %v\n", uses)
 	}
-
-	log.Printf("Tell plan - formatModelContext - implementation stage - smart context enabled for current subtask - uses: %v\n", uses)
 
 	for _, part := range state.modelContext {
 		if isImplementationStage && smartContextEnabled && state.currentSubtask != nil && part.ContextType == shared.ContextFileType && !uses[part.FilePath] {

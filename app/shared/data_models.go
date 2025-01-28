@@ -261,21 +261,28 @@ type OrgRole struct {
 }
 
 type ModelCompatibility struct {
-	IsOpenAICompatible        bool `json:"isOpenAICompatible"`
-	HasJsonResponseMode       bool `json:"hasJsonMode"`
-	HasStreaming              bool `json:"hasStreaming"`
-	HasFunctionCalling        bool `json:"hasFunctionCalling"`
-	HasStreamingFunctionCalls bool `json:"hasStreamingFunctionCalls"`
-	HasImageSupport           bool `json:"hasImageSupport"`
+	HasImageSupport bool `json:"hasImageSupport"`
 }
 
+type ModelOutputFormat string
+
+const (
+	ModelOutputFormatToolCallJson ModelOutputFormat = "tool-call-json"
+	ModelOutputFormatXml          ModelOutputFormat = "xml"
+)
+
 type BaseModelConfig struct {
-	Provider       ModelProvider `json:"provider"`
-	CustomProvider *string       `json:"customProvider,omitempty"`
-	BaseUrl        string        `json:"baseUrl"`
-	ModelName      string        `json:"modelName"`
-	MaxTokens      int           `json:"maxTokens"`
-	ApiKeyEnvVar   string        `json:"apiKeyEnvVar"`
+	Provider                   ModelProvider     `json:"provider"`
+	CustomProvider             *string           `json:"customProvider,omitempty"`
+	BaseUrl                    string            `json:"baseUrl"`
+	ModelName                  string            `json:"modelName"`
+	MaxTokens                  int               `json:"maxTokens"`
+	ApiKeyEnvVar               string            `json:"apiKeyEnvVar"`
+	PreferredModelOutputFormat ModelOutputFormat `json:"preferredModelOutputFormat"`
+
+	SystemPromptDisabled bool `json:"systemPromptDisabled"`
+	RoleParamsDisabled   bool `json:"roleParamsDisabled"`
+
 	ModelCompatibility
 }
 
@@ -350,17 +357,25 @@ func (p PlannerRoleConfig) Value() (driver.Value, error) {
 }
 
 type ModelPack struct {
-	Id          string `json:"id"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-
+	Id               string            `json:"id"`
+	Name             string            `json:"name"`
+	Description      string            `json:"description"`
 	Planner          PlannerRoleConfig `json:"planner"`
+	Coder            *ModelRoleConfig  `json:"coder"`
 	PlanSummary      ModelRoleConfig   `json:"planSummary"`
 	Builder          ModelRoleConfig   `json:"builder"`
 	WholeFileBuilder *ModelRoleConfig  `json:"wholeFileBuilder"` // optional, defaults to builder model — access via GetWholeFileBuilder()
 	Namer            ModelRoleConfig   `json:"namer"`
 	CommitMsg        ModelRoleConfig   `json:"commitMsg"`
 	ExecStatus       ModelRoleConfig   `json:"execStatus"`
+	ContextLoader    *ModelRoleConfig  `json:"contextLoader"`
+}
+
+func (m *ModelPack) GetCoder() ModelRoleConfig {
+	if m.Coder == nil {
+		return m.Planner.ModelRoleConfig
+	}
+	return *m.Coder
 }
 
 func (m *ModelPack) GetWholeFileBuilder() ModelRoleConfig {
@@ -368,6 +383,13 @@ func (m *ModelPack) GetWholeFileBuilder() ModelRoleConfig {
 		return m.Builder
 	}
 	return *m.WholeFileBuilder
+}
+
+func (m *ModelPack) GetContextLoader() ModelRoleConfig {
+	if m.ContextLoader == nil {
+		return m.Planner.ModelRoleConfig
+	}
+	return *m.ContextLoader
 }
 
 type ModelOverrides struct {

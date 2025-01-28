@@ -42,11 +42,13 @@ func loadContexts(
 	}
 
 	var err error
+
 	var settings *shared.PlanSettings
-	var client *openai.Client
+	var clients map[string]*openai.Client
 
 	for _, context := range *loadReq {
 		if context.ContextType == shared.ContextPipedDataType || context.ContextType == shared.ContextNoteType || context.ContextType == shared.ContextImageType {
+
 			settings, err = db.GetPlanSettings(plan, true)
 
 			if err != nil {
@@ -55,7 +57,7 @@ func loadContexts(
 				return nil, nil
 			}
 
-			clients := initClients(
+			clients = initClients(
 				initClientsParams{
 					w:           w,
 					auth:        auth,
@@ -65,9 +67,6 @@ func loadContexts(
 					plan:        plan,
 				},
 			)
-
-			envVar := settings.ModelPack.Namer.BaseModelConfig.ApiKeyEnvVar
-			client = clients[envVar]
 
 			break
 		}
@@ -92,7 +91,7 @@ func loadContexts(
 			num++
 
 			go func(context *shared.LoadContextParams) {
-				name, err := model.GenPipedDataName(auth, plan, settings, client, context.Body)
+				name, err := model.GenPipedDataName(auth, plan, settings, clients, context.Body)
 
 				if err != nil {
 					errCh <- fmt.Errorf("error generating name for piped data: %v", err)
@@ -105,7 +104,7 @@ func loadContexts(
 			num++
 
 			go func(context *shared.LoadContextParams) {
-				name, err := model.GenNoteName(auth, plan, settings, client, context.Body)
+				name, err := model.GenNoteName(auth, plan, settings, clients, context.Body)
 
 				if err != nil {
 					errCh <- fmt.Errorf("error generating name for note: %v", err)

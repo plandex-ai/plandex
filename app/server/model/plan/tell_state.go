@@ -49,6 +49,8 @@ type activeTellStreamState struct {
 	isFollowUp bool
 
 	chunkProcessor *chunkProcessor
+
+	generationId string
 }
 
 type chunkProcessor struct {

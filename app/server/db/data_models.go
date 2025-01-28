@@ -295,52 +295,53 @@ type repoLock struct {
 }
 
 type ModelPack struct {
-	Id          string                   `db:"id"`
-	OrgId       string                   `db:"org_id"`
-	Name        string                   `db:"name"`
-	Description string                   `db:"description"`
-	Planner     shared.PlannerRoleConfig `db:"planner"`
-	PlanSummary shared.ModelRoleConfig   `db:"plan_summary"`
-	Builder     shared.ModelRoleConfig   `db:"builder"`
-	Namer       shared.ModelRoleConfig   `db:"namer"`
-	CommitMsg   shared.ModelRoleConfig   `db:"commit_msg"`
-	ExecStatus  shared.ModelRoleConfig   `db:"exec_status"`
-	CreatedAt   time.Time                `db:"created_at"`
+	Id            string                   `db:"id"`
+	OrgId         string                   `db:"org_id"`
+	Name          string                   `db:"name"`
+	Description   string                   `db:"description"`
+	Planner       shared.PlannerRoleConfig `db:"planner"`
+	Coder         *shared.ModelRoleConfig  `db:"coder"`
+	PlanSummary   shared.ModelRoleConfig   `db:"plan_summary"`
+	Builder       shared.ModelRoleConfig   `db:"builder"`
+	Namer         shared.ModelRoleConfig   `db:"namer"`
+	CommitMsg     shared.ModelRoleConfig   `db:"commit_msg"`
+	ExecStatus    shared.ModelRoleConfig   `db:"exec_status"`
+	ContextLoader *shared.ModelRoleConfig  `db:"context_loader"`
+	CreatedAt     time.Time                `db:"created_at"`
 }
 
 func (modelPack *ModelPack) ToApi() *shared.ModelPack {
 	return &shared.ModelPack{
-		Id:          modelPack.Id,
-		Name:        modelPack.Name,
-		Description: modelPack.Description,
-		Planner:     modelPack.Planner,
-		PlanSummary: modelPack.PlanSummary,
-		Builder:     modelPack.Builder,
-		Namer:       modelPack.Namer,
-		CommitMsg:   modelPack.CommitMsg,
-		ExecStatus:  modelPack.ExecStatus,
+		Id:            modelPack.Id,
+		Name:          modelPack.Name,
+		Description:   modelPack.Description,
+		Planner:       modelPack.Planner,
+		ContextLoader: modelPack.ContextLoader,
+		Coder:         modelPack.Coder,
+		PlanSummary:   modelPack.PlanSummary,
+		Builder:       modelPack.Builder,
+		Namer:         modelPack.Namer,
+		CommitMsg:     modelPack.CommitMsg,
+		ExecStatus:    modelPack.ExecStatus,
 	}
 }
 
 type AvailableModel struct {
-	Id                          string               `db:"id"`
-	OrgId                       string               `db:"org_id"`
-	Provider                    shared.ModelProvider `db:"provider"`
-	CustomProvider              *string              `db:"custom_provider"`
-	BaseUrl                     string               `db:"base_url"`
-	ModelName                   string               `db:"model_name"`
-	Description                 string               `db:"description"`
-	MaxTokens                   int                  `db:"max_tokens"`
-	ApiKeyEnvVar                string               `db:"api_key_env_var"`
-	IsOpenAICompatible          bool                 `db:"is_openai_compatible"`
-	HasJsonResponseMode         bool                 `db:"has_json_mode"`
-	HasStreaming                bool                 `db:"has_streaming"`
-	HasFunctionCalling          bool                 `db:"has_function_calling"`
-	HasStreamingFunctionCalls   bool                 `db:"has_streaming_function_calls"`
-	DefaultMaxConvoTokens       int                  `db:"default_max_convo_tokens"`
-	DefaultReservedOutputTokens int                  `db:"default_reserved_output_tokens"`
-	CreatedAt                   time.Time            `db:"created_at"`
-	UpdatedAt                   time.Time            `db:"updated_at"`
+	Id                          string                   `db:"id"`
+	OrgId                       string                   `db:"org_id"`
+	Provider                    shared.ModelProvider     `db:"provider"`
+	CustomProvider              *string                  `db:"custom_provider"`
+	BaseUrl                     string                   `db:"base_url"`
+	ModelName                   string                   `db:"model_name"`
+	Description                 string                   `db:"description"`
+	MaxTokens                   int                      `db:"max_tokens"`
+	ApiKeyEnvVar                string                   `db:"api_key_env_var"`
+	DefaultMaxConvoTokens       int                      `db:"default_max_convo_tokens"`
+	DefaultReservedOutputTokens int                      `db:"default_reserved_output_tokens"`
+	HasImageSupport             bool                     `db:"has_image_support"`
+	PreferredOutputFormat       shared.ModelOutputFormat `db:"preferred_output_format"`
+	CreatedAt                   time.Time                `db:"created_at"`
+	UpdatedAt                   time.Time                `db:"updated_at"`
 }
 
 func (model *AvailableModel) ToApi() *shared.AvailableModel {
@@ -354,12 +355,9 @@ func (model *AvailableModel) ToApi() *shared.AvailableModel {
 			MaxTokens:      model.MaxTokens,
 			ApiKeyEnvVar:   model.ApiKeyEnvVar,
 			ModelCompatibility: shared.ModelCompatibility{
-				IsOpenAICompatible:        model.IsOpenAICompatible,
-				HasJsonResponseMode:       model.HasJsonResponseMode,
-				HasStreaming:              model.HasStreaming,
-				HasFunctionCalling:        model.HasFunctionCalling,
-				HasStreamingFunctionCalls: model.HasStreamingFunctionCalls,
-			}},
+				HasImageSupport: model.HasImageSupport,
+			},
+		},
 		Description:                 model.Description,
 		DefaultMaxConvoTokens:       model.DefaultMaxConvoTokens,
 		DefaultReservedOutputTokens: model.DefaultReservedOutputTokens,

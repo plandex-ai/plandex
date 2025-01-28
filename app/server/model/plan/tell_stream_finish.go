@@ -89,12 +89,9 @@ func (state *activeTellStreamState) handleStreamFinished() handleStreamFinishedR
 
 	// summarize convo needs to come *after* the reply is stored in order to correctly summarize the latest message
 	log.Println("summarize convo")
-	envVar := settings.ModelPack.PlanSummary.BaseModelConfig.ApiKeyEnvVar
-	client := clients[envVar]
-
 	// summarize in the background
 	go func() {
-		err := summarizeConvo(client, settings.ModelPack.PlanSummary, summarizeConvoParams{
+		err := summarizeConvo(clients, settings.ModelPack.PlanSummary, summarizeConvoParams{
 			auth:                  auth,
 			plan:                  plan,
 			branch:                branch,

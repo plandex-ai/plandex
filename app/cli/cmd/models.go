@@ -67,9 +67,7 @@ func createCustomModel(cmd *cobra.Command, args []string) {
 
 	model := &shared.AvailableModel{
 		BaseModelConfig: shared.BaseModelConfig{
-			ModelCompatibility: shared.ModelCompatibility{
-				IsOpenAICompatible: true,
-			},
+			ModelCompatibility: shared.ModelCompatibility{},
 		},
 	}
 
@@ -91,7 +89,7 @@ func createCustomModel(cmd *cobra.Command, args []string) {
 		model.CustomProvider = &customProvider
 	}
 
-	fmt.Println("For model name, be sure to enter the exact, case-sensitive name of the model as it appears in the provider's API docs. Ex: 'gpt-4-turbo', 'meta-llama/Llama-3-70b-chat-hf'")
+	fmt.Println("For model name, be sure to enter the exact, case-sensitive name of the model as it appears in the provider's API docs. Ex: 'gpt-4o', 'deepseek/deepseek-chat'")
 	modelName, err := term.GetRequiredUserStringInput("Model name:")
 	if err != nil {
 		term.OutputErrorAndExit("Error reading model name: %v", err)
@@ -149,7 +147,7 @@ func createCustomModel(cmd *cobra.Command, args []string) {
 	}
 	model.MaxTokens = maxTokens
 
-	fmt.Println("'Default Max Convo Tokens' is the default maximum size a conversation can reach in the 'planner' role before it is shortened by summarization. For models with 8k context, ~2500 is recommended. For 128k context, ~10000 is recommended.")
+	fmt.Println("'Default Max Convo Tokens' is the default maximum size a conversation can reach in the 'planner' role before it is shortened by summarization. For 128k context, ~10000 is recommended. For 200k context, ~15000 is recommended.")
 	maxConvoTokensStr, err := term.GetRequiredUserStringInput("Default Max Convo Tokens:")
 	if err != nil {
 		term.OutputErrorAndExit("Error reading max convo tokens: %v", err)
@@ -162,8 +160,8 @@ func createCustomModel(cmd *cobra.Command, args []string) {
 	}
 	model.DefaultMaxConvoTokens = maxConvoTokens
 
-	fmt.Println("'Default Reserved Output Tokens' is the default number of tokens reserved for model output in the 'planner', 'builder', and 'whole file builder' roles. This ensures the model has enough tokens to generate a response. For models with 8k context, ~1000 is recommended. For 128k context, ~4000 is recommended.")
-	reservedOutputTokensStr, err := term.GetRequiredUserStringInput("Default Reserved Output Tokens:")
+	fmt.Println("'Default Reserved Output Tokens' is the default number of tokens reserved for model output in the 'planner', 'builder', and 'whole-file-builder' roles. This ensures the model has enough tokens to generate a response. Check with the model provider for the recommended value. 8k is a reasonable default for the latest models if it's not documented.")
+	reservedOutputTokensStr, err := term.GetRequiredUserStringInputWithDefault("Default Reserved Output Tokens:", "8192")
 	if err != nil {
 		term.OutputErrorAndExit("Error reading reserved output tokens: %v", err)
 		return
@@ -175,28 +173,29 @@ func createCustomModel(cmd *cobra.Command, args []string) {
 	}
 	model.DefaultReservedOutputTokens = reservedOutputTokens
 
-	model.ModelCompatibility.HasStreaming, err = term.ConfirmYesNo("Is streaming supported?")
-	if err != nil {
-		term.OutputErrorAndExit("Error confirming streaming support: %v", err)
-		return
-	}
-	model.ModelCompatibility.HasJsonResponseMode, err = term.ConfirmYesNo("Is JSON mode supported?")
-	if err != nil {
-		term.OutputErrorAndExit("Error confirming JSON mode support: %v", err)
-		return
-	}
-	model.ModelCompatibility.HasFunctionCalling, err = term.ConfirmYesNo("Is function calling supported?")
-	if err != nil {
-		term.OutputErrorAndExit("Error confirming function calling support: %v", err)
-		return
-	}
-	model.ModelCompatibility.HasStreamingFunctionCalls, err = term.ConfirmYesNo("Are streaming function calls supported?")
-	if err != nil {
-		term.OutputErrorAndExit("Error confirming streaming function calls support: %v", err)
-		return
+	fmt.Println("'Preferred Output Format' is the format for roles needing structured output. Currently, OpenAI models do best with 'Tool Call JSON' and other models generally do better with 'XML'. Choose 'XML' if you're unsure as it offers the widest compatibility. 'Tool Call JSON' requires tool call support and reliable JSON generation.")
+
+	outputFormatLabels := map[string]string{
+		string(shared.ModelOutputFormatXml):          "XML",
+		string(shared.ModelOutputFormatToolCallJson): "Tool Call JSON",
 	}
 
-	model.ModelCompatibility.HasImageSupport, err = term.ConfirmYesNo("Is multi-modal image support enabled?")
+	res, err := term.SelectFromList("Preferred Output Format:", []string{
+		outputFormatLabels[string(shared.ModelOutputFormatXml)],
+		outputFormatLabels[string(shared.ModelOutputFormatToolCallJson)],
+	})
+	if err != nil {
+		term.OutputErrorAndExit("Error selecting output format: %v", err)
+		return
+	}
+	for key, label := range outputFormatLabels {
+		if label == res {
+			model.PreferredModelOutputFormat = shared.ModelOutputFormat(key)
+			break
+		}
+	}
+
+	model.HasImageSupport, err = term.ConfirmYesNo("Is multi-modal image support enabled?")
 	if err != nil {
 		term.OutputErrorAndExit("Error confirming image support: %v", err)
 		return
@@ -451,8 +450,11 @@ func renderSettings(settings *shared.PlanSettings) {
 	}
 
 	addModelRow(string(shared.ModelRolePlanner), modelPack.Planner.ModelRoleConfig)
+	addModelRow(string(shared.ModelRoleCoder), modelPack.GetCoder())
+	addModelRow(string(shared.ModelRoleContextLoader), modelPack.GetContextLoader())
 	addModelRow(string(shared.ModelRolePlanSummary), modelPack.PlanSummary)
 	addModelRow(string(shared.ModelRoleBuilder), modelPack.Builder)
+	addModelRow(string(shared.ModelRoleWholeFileBuilder), modelPack.GetWholeFileBuilder())
 	addModelRow(string(shared.ModelRoleName), modelPack.Namer)
 	addModelRow(string(shared.ModelRoleCommitMsg), modelPack.CommitMsg)
 	addModelRow(string(shared.ModelRoleExecStatus), modelPack.ExecStatus)

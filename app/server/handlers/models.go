@@ -33,11 +33,7 @@ func CreateCustomModelHandler(w http.ResponseWriter, r *http.Request) {
 		ModelName:                   model.ModelName,
 		MaxTokens:                   model.MaxTokens,
 		ApiKeyEnvVar:                model.ApiKeyEnvVar,
-		IsOpenAICompatible:          model.IsOpenAICompatible,
-		HasJsonResponseMode:         model.HasJsonResponseMode,
-		HasStreaming:                model.HasStreaming,
-		HasFunctionCalling:          model.HasFunctionCalling,
-		HasStreamingFunctionCalls:   model.HasStreamingFunctionCalls,
+		HasImageSupport:             model.HasImageSupport,
 		DefaultMaxConvoTokens:       model.DefaultMaxConvoTokens,
 		DefaultReservedOutputTokens: model.DefaultReservedOutputTokens,
 	}
@@ -108,15 +104,16 @@ func CreateModelPackHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	dbMs := &db.ModelPack{
-		OrgId:       auth.OrgId,
-		Name:        ms.Name,
-		Description: ms.Description,
-		Planner:     ms.Planner,
-		PlanSummary: ms.PlanSummary,
-		Builder:     ms.Builder,
-		Namer:       ms.Namer,
-		CommitMsg:   ms.CommitMsg,
-		ExecStatus:  ms.ExecStatus,
+		OrgId:         auth.OrgId,
+		Name:          ms.Name,
+		Description:   ms.Description,
+		PlanSummary:   ms.PlanSummary,
+		Builder:       ms.Builder,
+		Namer:         ms.Namer,
+		CommitMsg:     ms.CommitMsg,
+		ExecStatus:    ms.ExecStatus,
+		ContextLoader: ms.ContextLoader,
+		Coder:         ms.Coder,
 	}
 
 	if err := db.CreateModelPack(dbMs); err != nil {

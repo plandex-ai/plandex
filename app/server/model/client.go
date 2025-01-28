@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/plandex/plandex/shared"
 	"github.com/sashabaranov/go-openai"
 )
 
@@ -43,10 +44,23 @@ func newClient(apiKey, endpoint, orgId string) *openai.Client {
 }
 
 func CreateChatCompletionStreamWithRetries(
-	client *openai.Client,
+	clients map[string]*openai.Client,
+	modelConfig *shared.ModelRoleConfig,
 	ctx context.Context,
 	req openai.ChatCompletionRequest,
 ) (*openai.ChatCompletionStream, error) {
+	client := clients[modelConfig.BaseModelConfig.ApiKeyEnvVar]
+
+	if client == nil {
+		return nil, fmt.Errorf("client not found for api key env var: %s", modelConfig.BaseModelConfig.ApiKeyEnvVar)
+	}
+
+	resolveReq(&req, modelConfig)
+
+	for _, msg := range req.Messages {
+		log.Println("Message role:", msg.Role)
+	}
+
 	return createChatCompletionStream(client, ctx, req, 0)
 }
 
@@ -59,6 +73,8 @@ func createChatCompletionStream(
 	if ctx.Err() != nil {
 		return nil, ctx.Err()
 	}
+
+	log.Println("Creating chat completion stream")
 
 	stream, err := client.CreateChatCompletionStream(ctx, req)
 
@@ -98,10 +114,19 @@ func createChatCompletionStream(
 }
 
 func CreateChatCompletionWithRetries(
-	client *openai.Client,
+	clients map[string]*openai.Client,
+	modelConfig *shared.ModelRoleConfig,
 	ctx context.Context,
 	req openai.ChatCompletionRequest,
 ) (openai.ChatCompletionResponse, error) {
+	client := clients[modelConfig.BaseModelConfig.ApiKeyEnvVar]
+
+	if client == nil {
+		return openai.ChatCompletionResponse{}, fmt.Errorf("client not found for api key env var: %s", modelConfig.BaseModelConfig.ApiKeyEnvVar)
+	}
+
+	resolveReq(&req, modelConfig)
+
 	return createChatCompletion(client, ctx, req, 0)
 }
 
@@ -205,4 +230,31 @@ func parseRetryAfter(errorMessage string) *time.Duration {
 		return &duration
 	}
 	return nil
+}
+
+func resolveReq(req *openai.ChatCompletionRequest, modelConfig *shared.ModelRoleConfig) {
+	log.Println("Resolving request")
+	// if system prompt is disabled, change the role of the system message to user
+	if modelConfig.BaseModelConfig.SystemPromptDisabled {
+		log.Println("System prompt disabled - changing role of system message to user")
+		for i, msg := range req.Messages {
+			log.Println("Message role:", msg.Role)
+			if msg.Role == openai.ChatMessageRoleSystem {
+				log.Println("Changing role of system message to user")
+				req.Messages[i].Role = openai.ChatMessageRoleUser
+			}
+		}
+
+		for _, msg := range req.Messages {
+			log.Println("Final message role:", msg.Role)
+		}
+	}
+
+	if modelConfig.BaseModelConfig.RoleParamsDisabled {
+		log.Println("Role params disabled - setting temperature and top p to 1")
+		req.Temperature = 1
+		req.TopP = 1
+	}
+
+	log.Println("Resolved request")
 }

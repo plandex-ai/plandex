@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"plandex-server/db"
 	"plandex-server/hooks"
 	"plandex-server/model/prompts"
@@ -27,7 +28,7 @@ type PlanSummaryParams struct {
 	NumMessages                 int
 }
 
-func PlanSummary(client *openai.Client, config shared.ModelRoleConfig, params PlanSummaryParams, ctx context.Context) (*db.ConvoSummary, error) {
+func PlanSummary(clients map[string]*openai.Client, config shared.ModelRoleConfig, params PlanSummaryParams, ctx context.Context) (*db.ConvoSummary, error) {
 	messages := []openai.ChatCompletionMessage{
 		{
 			Role:    openai.ChatMessageRoleSystem,
@@ -63,7 +64,8 @@ func PlanSummary(client *openai.Client, config shared.ModelRoleConfig, params Pl
 	// spew.Dump(messages)
 
 	resp, err := CreateChatCompletionWithRetries(
-		client,
+		clients,
+		&config,
 		ctx,
 		openai.ChatCompletionRequest{
 			Model:       config.BaseModelConfig.ModelName,
@@ -95,19 +97,26 @@ func PlanSummary(client *openai.Client, config shared.ModelRoleConfig, params Pl
 		outputTokens = shared.GetNumTokensEstimate(content)
 	}
 
-	_, apiErr = hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
-		Auth: params.Auth,
-		Plan: params.Plan,
-		DidSendModelRequestParams: &hooks.DidSendModelRequestParams{
-			InputTokens:   inputTokens,
-			OutputTokens:  outputTokens,
-			ModelName:     config.BaseModelConfig.ModelName,
-			ModelProvider: config.BaseModelConfig.Provider,
-			ModelPackName: params.ModelPackName,
-			ModelRole:     shared.ModelRolePlanSummary,
-			Purpose:       "Generated plan summary",
-		},
-	})
+	go func() {
+		_, apiErr := hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
+			Auth: params.Auth,
+			Plan: params.Plan,
+			DidSendModelRequestParams: &hooks.DidSendModelRequestParams{
+				InputTokens:   inputTokens,
+				OutputTokens:  outputTokens,
+				ModelName:     config.BaseModelConfig.ModelName,
+				ModelProvider: config.BaseModelConfig.Provider,
+				ModelPackName: params.ModelPackName,
+				ModelRole:     shared.ModelRolePlanSummary,
+				Purpose:       "Generated plan summary",
+				GenerationId:  resp.ID,
+			},
+		})
+
+		if apiErr != nil {
+			log.Printf("PlanSummary - error executing DidSendModelRequest hook: %v", apiErr)
+		}
+	}()
 
 	if apiErr != nil {
 		return nil, errors.New(apiErr.Msg)

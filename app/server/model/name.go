@@ -18,7 +18,7 @@ func GenPlanName(
 	auth *types.ServerAuth,
 	plan *db.Plan,
 	settings *shared.PlanSettings,
-	client *openai.Client,
+	clients map[string]*openai.Client,
 	planContent string,
 	ctx context.Context,
 ) (string, error) {
@@ -34,11 +34,6 @@ func GenPlanName(
 
 	numTokens := shared.GetMessagesTokenEstimate(messages...) + shared.TokensPerRequest
 
-	var responseFormat *openai.ChatCompletionResponseFormat
-	if config.BaseModelConfig.HasJsonResponseMode {
-		responseFormat = &openai.ChatCompletionResponseFormat{Type: "json_object"}
-	}
-
 	_, apiErr := hooks.ExecHook(hooks.WillSendModelRequest, hooks.HookParams{
 		Auth: auth,
 		Plan: plan,
@@ -53,7 +48,8 @@ func GenPlanName(
 	}
 
 	resp, err := CreateChatCompletionWithRetries(
-		client,
+		clients,
+		&config,
 		ctx,
 		openai.ChatCompletionRequest{
 			Model: config.BaseModelConfig.ModelName,
@@ -69,10 +65,9 @@ func GenPlanName(
 					Name: prompts.PlanNameFn.Name,
 				},
 			},
-			Temperature:    config.Temperature,
-			TopP:           config.TopP,
-			Messages:       messages,
-			ResponseFormat: responseFormat,
+			Temperature: config.Temperature,
+			TopP:        config.TopP,
+			Messages:    messages,
 		},
 	)
 
@@ -103,19 +98,26 @@ func GenPlanName(
 		outputTokens = shared.GetNumTokensEstimate(res)
 	}
 
-	_, apiErr = hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
-		Auth: auth,
-		Plan: plan,
-		DidSendModelRequestParams: &hooks.DidSendModelRequestParams{
-			InputTokens:   inputTokens,
-			OutputTokens:  outputTokens,
-			ModelName:     config.BaseModelConfig.ModelName,
-			ModelProvider: config.BaseModelConfig.Provider,
-			ModelPackName: settings.ModelPack.Name,
-			ModelRole:     shared.ModelRolePlanSummary,
-			Purpose:       "Generated plan name",
-		},
-	})
+	go func() {
+		_, apiErr := hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
+			Auth: auth,
+			Plan: plan,
+			DidSendModelRequestParams: &hooks.DidSendModelRequestParams{
+				InputTokens:   inputTokens,
+				OutputTokens:  outputTokens,
+				ModelName:     config.BaseModelConfig.ModelName,
+				ModelProvider: config.BaseModelConfig.Provider,
+				ModelPackName: settings.ModelPack.Name,
+				ModelRole:     shared.ModelRolePlanSummary,
+				Purpose:       "Generated plan name",
+				GenerationId:  resp.ID,
+			},
+		})
+
+		if apiErr != nil {
+			log.Printf("GenPlanName - error executing DidSendModelRequest hook: %v", apiErr)
+		}
+	}()
 
 	if res == "" {
 		fmt.Println("no namePlan function call found in response")
@@ -138,7 +140,7 @@ func GenPipedDataName(
 	auth *types.ServerAuth,
 	plan *db.Plan,
 	settings *shared.PlanSettings,
-	client *openai.Client,
+	clients map[string]*openai.Client,
 	pipedContent string,
 ) (string, error) {
 	config := settings.ModelPack.Namer
@@ -153,11 +155,6 @@ func GenPipedDataName(
 	}
 
 	numTokens := shared.GetMessagesTokenEstimate(messages...) + shared.TokensPerRequest
-
-	var responseFormat *openai.ChatCompletionResponseFormat
-	if config.BaseModelConfig.HasJsonResponseMode {
-		responseFormat = &openai.ChatCompletionResponseFormat{Type: "json_object"}
-	}
 
 	_, apiErr := hooks.ExecHook(hooks.WillSendModelRequest, hooks.HookParams{
 		Auth: auth,
@@ -181,7 +178,8 @@ func GenPipedDataName(
 	// log.Println(spew.Sdump(messages))
 
 	resp, err := CreateChatCompletionWithRetries(
-		client,
+		clients,
+		&config,
 		context.Background(),
 		openai.ChatCompletionRequest{
 			Model: config.BaseModelConfig.ModelName,
@@ -197,10 +195,9 @@ func GenPipedDataName(
 					Name: prompts.PipedDataNameFn.Name,
 				},
 			},
-			Temperature:    config.Temperature,
-			TopP:           config.TopP,
-			Messages:       messages,
-			ResponseFormat: responseFormat,
+			Temperature: config.Temperature,
+			TopP:        config.TopP,
+			Messages:    messages,
 		},
 	)
 
@@ -231,23 +228,26 @@ func GenPipedDataName(
 		outputTokens = shared.GetNumTokensEstimate(res)
 	}
 
-	_, apiErr = hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
-		Auth: auth,
-		Plan: plan,
-		DidSendModelRequestParams: &hooks.DidSendModelRequestParams{
-			InputTokens:   inputTokens,
-			OutputTokens:  outputTokens,
-			ModelName:     config.BaseModelConfig.ModelName,
-			ModelProvider: config.BaseModelConfig.Provider,
-			ModelPackName: settings.ModelPack.Name,
-			ModelRole:     shared.ModelRolePlanSummary,
-			Purpose:       "Generated name for data piped into context",
-		},
-	})
+	go func() {
+		_, apiErr := hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
+			Auth: auth,
+			Plan: plan,
+			DidSendModelRequestParams: &hooks.DidSendModelRequestParams{
+				InputTokens:   inputTokens,
+				OutputTokens:  outputTokens,
+				ModelName:     config.BaseModelConfig.ModelName,
+				ModelProvider: config.BaseModelConfig.Provider,
+				ModelPackName: settings.ModelPack.Name,
+				ModelRole:     shared.ModelRolePlanSummary,
+				Purpose:       "Generated name for data piped into context",
+				GenerationId:  resp.ID,
+			},
+		})
 
-	if apiErr != nil {
-		return "", fmt.Errorf("error executing hook: %v", apiErr)
-	}
+		if apiErr != nil {
+			log.Printf("GenPipedDataName - error executing DidSendModelRequest hook: %v", apiErr)
+		}
+	}()
 
 	if res == "" {
 		fmt.Println("no namePipedData function call found in response")
@@ -270,7 +270,7 @@ func GenNoteName(
 	auth *types.ServerAuth,
 	plan *db.Plan,
 	settings *shared.PlanSettings,
-	client *openai.Client,
+	clients map[string]*openai.Client,
 	note string,
 ) (string, error) {
 	config := settings.ModelPack.Namer
@@ -285,11 +285,6 @@ func GenNoteName(
 	}
 
 	numTokens := shared.GetMessagesTokenEstimate(messages...) + shared.TokensPerRequest
-
-	var responseFormat *openai.ChatCompletionResponseFormat
-	if config.BaseModelConfig.HasJsonResponseMode {
-		responseFormat = &openai.ChatCompletionResponseFormat{Type: "json_object"}
-	}
 
 	_, apiErr := hooks.ExecHook(hooks.WillSendModelRequest, hooks.HookParams{
 		Auth: auth,
@@ -313,7 +308,8 @@ func GenNoteName(
 	// log.Println(spew.Sdump(messages))
 
 	resp, err := CreateChatCompletionWithRetries(
-		client,
+		clients,
+		&config,
 		context.Background(),
 		openai.ChatCompletionRequest{
 			Model: config.BaseModelConfig.ModelName,
@@ -329,10 +325,9 @@ func GenNoteName(
 					Name: prompts.NoteNameFn.Name,
 				},
 			},
-			Temperature:    config.Temperature,
-			TopP:           config.TopP,
-			Messages:       messages,
-			ResponseFormat: responseFormat,
+			Temperature: config.Temperature,
+			TopP:        config.TopP,
+			Messages:    messages,
 		},
 	)
 
@@ -363,23 +358,26 @@ func GenNoteName(
 		outputTokens = shared.GetNumTokensEstimate(res)
 	}
 
-	_, apiErr = hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
-		Auth: auth,
-		Plan: plan,
-		DidSendModelRequestParams: &hooks.DidSendModelRequestParams{
-			InputTokens:   inputTokens,
-			OutputTokens:  outputTokens,
-			ModelName:     config.BaseModelConfig.ModelName,
-			ModelProvider: config.BaseModelConfig.Provider,
-			ModelPackName: settings.ModelPack.Name,
-			ModelRole:     shared.ModelRolePlanSummary,
-			Purpose:       "Generated name for note added to context",
-		},
-	})
+	go func() {
+		_, apiErr := hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
+			Auth: auth,
+			Plan: plan,
+			DidSendModelRequestParams: &hooks.DidSendModelRequestParams{
+				InputTokens:   inputTokens,
+				OutputTokens:  outputTokens,
+				ModelName:     config.BaseModelConfig.ModelName,
+				ModelProvider: config.BaseModelConfig.Provider,
+				ModelPackName: settings.ModelPack.Name,
+				ModelRole:     shared.ModelRolePlanSummary,
+				Purpose:       "Generated name for note added to context",
+				GenerationId:  resp.ID,
+			},
+		})
 
-	if apiErr != nil {
-		return "", fmt.Errorf("error executing hook: %v", apiErr)
-	}
+		if apiErr != nil {
+			log.Printf("GenNoteName - error executing DidSendModelRequest hook: %v", apiErr)
+		}
+	}()
 
 	if res == "" {
 		fmt.Println("no nameNote function call found in response")

@@ -1,33 +1,43 @@
 {
   "folders": [
     {
+      "name": "plandex",
       "path": "."
     },
     {
-      "path": "./static"
+      "name": "static",
+      "path": "static"
     },
     {
-      "path": "./infra"
+      "name": "infra",
+      "path": "infra"
     },
     {
-      "path": "./docs"
+      "name": "docs",
+      "path": "docs"
     },
     {
-      "path": "./app/cli"
+      "name": "cli",
+      "path": "app/cli"
     },
     {
-      "path": "./app/server"
+      "name": "server",
+      "path": "app/server"
     },
     {
-      "path": "./app/shared"
+      "name": "shared",
+      "path": "app/shared"
     },
     {
-      "path": "./app/server/cloud"
+      "name": "cloud",
+      "path": "app/server/cloud"
     },
     {
-      "path": "./app/server/cloud/ui/node"
+      "name": "node",
+      "path": "app/server/cloud/ui/node"
     },
     {
+      "name": "vscode",
       "path": "vscode"
     }
   ],

@@ -167,10 +167,7 @@ func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 			Stop:        []string{"<PlandexFinish/>"},
 		}
 
-		envVar := config.BaseModelConfig.ApiKeyEnvVar
-		client := clients[envVar]
-
-		resp, err := model.CreateChatCompletionWithRetries(client, activePlan.Ctx, modelReq)
+		resp, err := model.CreateChatCompletionWithRetries(clients, &config, activePlan.Ctx, modelReq)
 
 		if err != nil {
 			log.Printf("buildStructuredEdits - error calling model: %v\n", err)
@@ -181,24 +178,26 @@ func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 		log.Println("buildStructuredEdits - usage:")
 		log.Println(spew.Sdump(resp.Usage))
 
-		_, apiErr = hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
-			Auth: auth,
-			Plan: fileState.plan,
-			DidSendModelRequestParams: &hooks.DidSendModelRequestParams{
-				InputTokens:   resp.Usage.PromptTokens,
-				OutputTokens:  resp.Usage.CompletionTokens,
-				ModelName:     config.BaseModelConfig.ModelName,
-				ModelProvider: config.BaseModelConfig.Provider,
-				ModelPackName: fileState.settings.ModelPack.Name,
-				ModelRole:     shared.ModelRoleBuilder,
-				Purpose:       "File edit (structured edits)",
-			},
-		})
+		go func() {
+			_, apiErr := hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
+				Auth: auth,
+				Plan: fileState.plan,
+				DidSendModelRequestParams: &hooks.DidSendModelRequestParams{
+					InputTokens:   resp.Usage.PromptTokens,
+					OutputTokens:  resp.Usage.CompletionTokens,
+					ModelName:     config.BaseModelConfig.ModelName,
+					ModelProvider: config.BaseModelConfig.Provider,
+					ModelPackName: fileState.settings.ModelPack.Name,
+					ModelRole:     shared.ModelRoleBuilder,
+					Purpose:       "File edit (structured edits)",
+					GenerationId:  resp.ID,
+				},
+			})
 
-		if apiErr != nil {
-			activePlan.StreamDoneCh <- apiErr
-			return
-		}
+			if apiErr != nil {
+				log.Printf("buildStructuredEdits - error executing DidSendModelRequest hook: %v", apiErr)
+			}
+		}()
 
 		if len(resp.Choices) == 0 {
 			log.Printf("buildStructuredEdits - no choices in response\n")
@@ -219,24 +218,27 @@ func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 				break
 			}
 
-			fixedDesc := GetXMLContent(content, "PlandexProposedUpdatesExplanation")
+			log.Printf("buildStructuredEdits - %s incorrect diffs\n", filePath)
+			log.Println(diff)
+
+			// fixedDesc := GetXMLContent(content, "PlandexProposedUpdatesExplanation")
 
 			// log.Println("buildStructuredEdits - fixed desc xml string:")
 			// log.Println(fixedDescString)
 
-			if fixedDesc != "" {
-				desc = fixedDesc
-			}
+			// if fixedDesc != "" {
+			// 	desc = fixedDesc
+			// }
 
 			replacement := GetXMLContent(content, "PlandexReplacement")
 
 			if replacement == "" {
 				log.Printf("buildStructuredEdits - no PlandexReplacement tag found in content\n")
 
-				if fixedDesc != "" {
-					fileState.structuredEditRetryOrError(fmt.Errorf("no PlandexReplacement tag found in content"))
-					return
-				}
+				// if fixedDesc != "" {
+				// 	fileState.structuredEditRetryOrError(fmt.Errorf("no PlandexReplacement tag found in content"))
+				// 	return
+				// }
 
 				isValid = true
 				break
@@ -266,6 +268,8 @@ func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 
 			// handle replacement
 			updatedFile = strings.Replace(updatedFile, replaceOld, replaceNew, 1)
+
+			log.Printf("buildStructuredEdits - %s - executed replacement - updatedFile:\n%s\n", filePath, updatedFile)
 
 			// validate updated file syntax
 			validateSyntax()

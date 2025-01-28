@@ -23,9 +23,6 @@ func (state *activeTellStreamState) execStatusShouldContinue(message string, ctx
 	clients := state.clients
 	config := settings.ModelPack.ExecStatus
 
-	envVar := config.BaseModelConfig.ApiKeyEnvVar
-	client := clients[envVar]
-
 	log.Println("Checking if plan should continue based on response text")
 
 	if state.currentSubtask != nil {
@@ -73,13 +70,9 @@ func (state *activeTellStreamState) execStatusShouldContinue(message string, ctx
 	// log.Println("messages:")
 	// log.Println(spew.Sdump(messages))
 
-	var responseFormat *openai.ChatCompletionResponseFormat
-	if config.BaseModelConfig.HasJsonResponseMode {
-		responseFormat = &openai.ChatCompletionResponseFormat{Type: "json_object"}
-	}
-
 	resp, err := model.CreateChatCompletionWithRetries(
-		client,
+		clients,
+		&config,
 		ctx,
 		openai.ChatCompletionRequest{
 			Model: config.BaseModelConfig.ModelName,
@@ -95,10 +88,9 @@ func (state *activeTellStreamState) execStatusShouldContinue(message string, ctx
 					Name: prompts.ShouldAutoContinueFn.Name,
 				},
 			},
-			Messages:       messages,
-			ResponseFormat: responseFormat,
-			Temperature:    config.Temperature,
-			TopP:           config.TopP,
+			Messages:    messages,
+			Temperature: config.Temperature,
+			TopP:        config.TopP,
 		},
 	)
 
@@ -132,23 +124,26 @@ func (state *activeTellStreamState) execStatusShouldContinue(message string, ctx
 		outputTokens = shared.GetNumTokensEstimate(strRes)
 	}
 
-	_, apiErr = hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
-		Auth: auth,
-		Plan: plan,
-		DidSendModelRequestParams: &hooks.DidSendModelRequestParams{
-			InputTokens:   inputTokens,
-			OutputTokens:  outputTokens,
-			ModelName:     config.BaseModelConfig.ModelName,
-			ModelProvider: config.BaseModelConfig.Provider,
-			ModelPackName: settings.ModelPack.Name,
-			ModelRole:     shared.ModelRolePlanSummary,
-			Purpose:       "Evaluate if plan should auto-continue",
-		},
-	})
+	go func() {
+		_, apiErr = hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
+			Auth: auth,
+			Plan: plan,
+			DidSendModelRequestParams: &hooks.DidSendModelRequestParams{
+				InputTokens:   inputTokens,
+				OutputTokens:  outputTokens,
+				ModelName:     config.BaseModelConfig.ModelName,
+				ModelProvider: config.BaseModelConfig.Provider,
+				ModelPackName: settings.ModelPack.Name,
+				ModelRole:     shared.ModelRolePlanSummary,
+				Purpose:       "Evaluate if plan should auto-continue",
+				GenerationId:  resp.ID,
+			},
+		})
 
-	if apiErr != nil {
-		return false, false, fmt.Errorf("error executing hook: %v", apiErr)
-	}
+		if apiErr != nil {
+			log.Printf("execStatusShouldContinue - error executing DidSendModelRequest hook: %v", apiErr)
+		}
+	}()
 
 	if strRes == "" {
 		log.Println("No shouldAutoContinue function call found in response")

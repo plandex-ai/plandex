@@ -68,10 +68,7 @@ func (fileState *activeBuildStreamFileState) buildWholeFileFallback(proposedCont
 		TopP:        config.TopP,
 	}
 
-	envVar := config.BaseModelConfig.ApiKeyEnvVar
-	client := clients[envVar]
-
-	resp, err := model.CreateChatCompletionWithRetries(client, activePlan.Ctx, modelReq)
+	resp, err := model.CreateChatCompletionWithRetries(clients, &config, activePlan.Ctx, modelReq)
 
 	if err != nil {
 		log.Printf("buildWholeFile - error calling model: %v\n", err)
@@ -82,24 +79,26 @@ func (fileState *activeBuildStreamFileState) buildWholeFileFallback(proposedCont
 	log.Println("buildWholeFile - usage:")
 	log.Println(spew.Sdump(resp.Usage))
 
-	_, apiErr = hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
-		Auth: auth,
-		Plan: fileState.plan,
-		DidSendModelRequestParams: &hooks.DidSendModelRequestParams{
-			InputTokens:   resp.Usage.PromptTokens,
-			OutputTokens:  resp.Usage.CompletionTokens,
-			ModelName:     config.BaseModelConfig.ModelName,
-			ModelProvider: config.BaseModelConfig.Provider,
-			ModelPackName: fileState.settings.ModelPack.Name,
-			ModelRole:     shared.ModelRoleBuilder,
-			Purpose:       "File edit (whole file)",
-		},
-	})
+	go func() {
+		_, apiErr := hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
+			Auth: auth,
+			Plan: fileState.plan,
+			DidSendModelRequestParams: &hooks.DidSendModelRequestParams{
+				InputTokens:   resp.Usage.PromptTokens,
+				OutputTokens:  resp.Usage.CompletionTokens,
+				ModelName:     config.BaseModelConfig.ModelName,
+				ModelProvider: config.BaseModelConfig.Provider,
+				ModelPackName: fileState.settings.ModelPack.Name,
+				ModelRole:     shared.ModelRoleBuilder,
+				Purpose:       "File edit (whole file)",
+				GenerationId:  resp.ID,
+			},
+		})
 
-	if apiErr != nil {
-		activePlan.StreamDoneCh <- apiErr
-		return
-	}
+		if apiErr != nil {
+			log.Printf("buildWholeFile - error executing DidSendModelRequest hook: %v", apiErr)
+		}
+	}()
 
 	if len(resp.Choices) == 0 {
 		log.Printf("buildWholeFile - no choices in response\n")

@@ -202,13 +202,23 @@ func createModelPack(cmd *cobra.Command, args []string) {
 
 	// Selecting models for each role
 	mp.Planner = getPlannerRoleConfig(customModels)
-	mp.PlanSummary = getModelRoleConfig(customModels, shared.ModelRolePlanSummary)
+
+	contextLoader := getModelRoleConfig(customModels, shared.ModelRoleContextLoader)
+	mp.ContextLoader = &contextLoader
+
+	coder := getModelRoleConfig(customModels, shared.ModelRoleCoder)
+	mp.Coder = &coder
+
 	mp.Builder = getModelRoleConfig(customModels, shared.ModelRoleBuilder)
-	mp.Namer = getModelRoleConfig(customModels, shared.ModelRoleName)
-	mp.CommitMsg = getModelRoleConfig(customModels, shared.ModelRoleCommitMsg)
-	mp.ExecStatus = getModelRoleConfig(customModels, shared.ModelRoleExecStatus)
+
 	wholeFileBuilder := getModelRoleConfig(customModels, shared.ModelRoleWholeFileBuilder)
 	mp.WholeFileBuilder = &wholeFileBuilder
+
+	mp.Namer = getModelRoleConfig(customModels, shared.ModelRoleName)
+	mp.CommitMsg = getModelRoleConfig(customModels, shared.ModelRoleCommitMsg)
+
+	mp.PlanSummary = getModelRoleConfig(customModels, shared.ModelRolePlanSummary)
+	mp.ExecStatus = getModelRoleConfig(customModels, shared.ModelRoleExecStatus)
 
 	term.StartSpinner("")
 	apiErr = api.Client.CreateModelPack(mp)

@@ -38,6 +38,7 @@ type DidSendModelRequestParams struct {
 	ModelRole     shared.ModelRole
 	ModelPackName string
 	Purpose       string
+	GenerationId  string
 }
 
 type CreateOrgHookRequestParams struct {

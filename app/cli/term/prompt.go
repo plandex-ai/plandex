@@ -38,6 +38,20 @@ func GetUserStringInputWithDefault(msg, def string) (string, error) {
 	return res, err
 }
 
+func GetRequiredUserStringInputWithDefault(msg, def string) (string, error) {
+	res, err := GetUserStringInputWithDefault(msg, def)
+	if err != nil {
+		return "", fmt.Errorf("failed to get user input: %s", err)
+	}
+
+	if res == "" {
+		color.New(color.Bold, ColorHiRed).Println("🚨 This input is required")
+		return GetRequiredUserStringInputWithDefault(msg, def)
+	}
+
+	return res, nil
+}
+
 func GetUserPasswordInput(msg string) (string, error) {
 	res, err := prompt.New().Ask(msg).Input("", input.WithEchoMode(input.EchoPassword))
 

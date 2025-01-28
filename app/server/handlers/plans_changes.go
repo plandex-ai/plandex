@@ -146,10 +146,7 @@ func ApplyPlanHandler(w http.ResponseWriter, r *http.Request) {
 		},
 	)
 
-	envVar := settings.ModelPack.CommitMsg.BaseModelConfig.ApiKeyEnvVar
-	client := clients[envVar]
-
-	s, err := modelPlan.GenCommitMsgForPendingResults(auth, plan, client, settings, currentPlan, r.Context())
+	s, err := modelPlan.GenCommitMsgForPendingResults(auth, plan, clients, settings, currentPlan, r.Context())
 
 	if err != nil {
 		log.Printf("Error generating commit message: %v\n", err)

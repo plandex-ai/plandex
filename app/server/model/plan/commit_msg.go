@@ -12,6 +12,7 @@ import (
 	"plandex-server/model/prompts"
 	"plandex-server/types"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/plandex/plandex/shared"
 	"github.com/sashabaranov/go-openai"
 )
@@ -24,17 +25,10 @@ func (state *activeTellStreamState) genPlanDescription() (*db.ConvoMessageDescri
 	settings := state.settings
 	clients := state.clients
 	config := settings.ModelPack.CommitMsg
-	envVar := config.BaseModelConfig.ApiKeyEnvVar
-	client := clients[envVar]
 
 	activePlan := GetActivePlan(planId, branch)
 	if activePlan == nil {
 		return nil, fmt.Errorf("active plan not found")
-	}
-
-	var responseFormat *openai.ChatCompletionResponseFormat
-	if config.BaseModelConfig.HasJsonResponseMode {
-		responseFormat = &openai.ChatCompletionResponseFormat{Type: "json_object"}
 	}
 
 	messages := []openai.ChatCompletionMessage{
@@ -66,7 +60,8 @@ func (state *activeTellStreamState) genPlanDescription() (*db.ConvoMessageDescri
 	log.Println("Sending plan description model request")
 
 	descResp, err := model.CreateChatCompletionWithRetries(
-		client,
+		clients,
+		&config,
 		activePlan.Ctx,
 		openai.ChatCompletionRequest{
 			Model: config.BaseModelConfig.ModelName,
@@ -82,10 +77,9 @@ func (state *activeTellStreamState) genPlanDescription() (*db.ConvoMessageDescri
 					Name: prompts.DescribePlanFn.Name,
 				},
 			},
-			Messages:       messages,
-			Temperature:    config.Temperature,
-			TopP:           config.TopP,
-			ResponseFormat: responseFormat,
+			Messages:    messages,
+			Temperature: config.Temperature,
+			TopP:        config.TopP,
 		},
 	)
 
@@ -120,28 +114,32 @@ func (state *activeTellStreamState) genPlanDescription() (*db.ConvoMessageDescri
 
 	log.Println("Sending DidSendModelRequest hook")
 
-	_, apiErr = hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
-		Auth: auth,
-		Plan: plan,
-		DidSendModelRequestParams: &hooks.DidSendModelRequestParams{
-			InputTokens:   inputTokens,
-			OutputTokens:  outputTokens,
-			ModelName:     config.BaseModelConfig.ModelName,
-			ModelProvider: config.BaseModelConfig.Provider,
-			ModelPackName: settings.ModelPack.Name,
-			ModelRole:     shared.ModelRoleCommitMsg,
-			Purpose:       "Generated commit message for suggested changes",
-		},
-	})
+	go func() {
+		_, apiErr := hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
+			Auth: auth,
+			Plan: plan,
+			DidSendModelRequestParams: &hooks.DidSendModelRequestParams{
+				InputTokens:   inputTokens,
+				OutputTokens:  outputTokens,
+				ModelName:     config.BaseModelConfig.ModelName,
+				ModelProvider: config.BaseModelConfig.Provider,
+				ModelPackName: settings.ModelPack.Name,
+				ModelRole:     shared.ModelRoleCommitMsg,
+				Purpose:       "Generated commit message for suggested changes",
+				GenerationId:  descResp.ID,
+			},
+		})
 
-	if apiErr != nil {
-		return nil, errors.New(apiErr.Msg)
-	}
-
-	log.Println("DidSendModelRequest hook complete")
+		if apiErr != nil {
+			log.Printf("genPlanDescription - error executing DidSendModelRequest hook: %v", apiErr)
+		}
+	}()
 
 	if descStrRes == "" {
 		fmt.Println("no describePlan function call found in response")
+
+		spew.Dump(descResp)
+
 		return nil, fmt.Errorf("No describePlan function call found in response. This usually means the model failed to generate a valid response.")
 	}
 
@@ -159,7 +157,7 @@ func (state *activeTellStreamState) genPlanDescription() (*db.ConvoMessageDescri
 	}, nil
 }
 
-func GenCommitMsgForPendingResults(auth *types.ServerAuth, plan *db.Plan, client *openai.Client, settings *shared.PlanSettings, current *shared.CurrentPlanState, ctx context.Context) (string, error) {
+func GenCommitMsgForPendingResults(auth *types.ServerAuth, plan *db.Plan, clients map[string]*openai.Client, settings *shared.PlanSettings, current *shared.CurrentPlanState, ctx context.Context) (string, error) {
 	config := settings.ModelPack.CommitMsg
 
 	s := ""
@@ -205,7 +203,8 @@ func GenCommitMsgForPendingResults(auth *types.ServerAuth, plan *db.Plan, client
 	}
 
 	resp, err := model.CreateChatCompletionWithRetries(
-		client,
+		clients,
+		&config,
 		ctx,
 		openai.ChatCompletionRequest{
 			Model:       config.BaseModelConfig.ModelName,
@@ -248,6 +247,7 @@ func GenCommitMsgForPendingResults(auth *types.ServerAuth, plan *db.Plan, client
 			ModelPackName: settings.ModelPack.Name,
 			ModelRole:     shared.ModelRoleCommitMsg,
 			Purpose:       "Generated commit message for pending changes",
+			GenerationId:  resp.ID,
 		},
 	})
 

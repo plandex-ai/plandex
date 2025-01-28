@@ -8,21 +8,7 @@ const OpenAIEnvVar = "OPENAI_API_KEY"
 const OpenAIV1BaseUrl = "https://api.openai.com/v1"
 
 var fullCompatibility = ModelCompatibility{
-	IsOpenAICompatible:        true,
-	HasJsonResponseMode:       true,
-	HasStreaming:              true,
-	HasFunctionCalling:        true,
-	HasStreamingFunctionCalls: true,
-	HasImageSupport:           true,
-}
-
-var fullCompatibilityExceptImage = ModelCompatibility{
-	IsOpenAICompatible:        true,
-	HasJsonResponseMode:       true,
-	HasStreaming:              true,
-	HasFunctionCalling:        true,
-	HasStreamingFunctionCalls: true,
-	HasImageSupport:           false,
+	HasImageSupport: true,
 }
 
 var AvailableModels = []*AvailableModel{
@@ -31,12 +17,13 @@ var AvailableModels = []*AvailableModel{
 		DefaultMaxConvoTokens:       10000,
 		DefaultReservedOutputTokens: 16384,
 		BaseModelConfig: BaseModelConfig{
-			Provider:           ModelProviderOpenAI,
-			ModelName:          openai.GPT4o,
-			MaxTokens:          128000,
-			ApiKeyEnvVar:       OpenAIEnvVar,
-			ModelCompatibility: fullCompatibility,
-			BaseUrl:            OpenAIV1BaseUrl,
+			Provider:                   ModelProviderOpenAI,
+			ModelName:                  openai.GPT4o,
+			MaxTokens:                  128000,
+			ApiKeyEnvVar:               OpenAIEnvVar,
+			ModelCompatibility:         fullCompatibility,
+			BaseUrl:                    OpenAIV1BaseUrl,
+			PreferredModelOutputFormat: ModelOutputFormatToolCallJson,
 		},
 	},
 	{
@@ -44,12 +31,45 @@ var AvailableModels = []*AvailableModel{
 		DefaultMaxConvoTokens:       10000,
 		DefaultReservedOutputTokens: 16384,
 		BaseModelConfig: BaseModelConfig{
-			Provider:           ModelProviderOpenAI,
-			ModelName:          "gpt-4o-mini",
-			MaxTokens:          128000,
-			ApiKeyEnvVar:       OpenAIEnvVar,
-			ModelCompatibility: fullCompatibility,
-			BaseUrl:            OpenAIV1BaseUrl,
+			Provider:                   ModelProviderOpenAI,
+			ModelName:                  "gpt-4o-mini",
+			MaxTokens:                  128000,
+			ApiKeyEnvVar:               OpenAIEnvVar,
+			ModelCompatibility:         fullCompatibility,
+			BaseUrl:                    OpenAIV1BaseUrl,
+			PreferredModelOutputFormat: ModelOutputFormatToolCallJson,
+		},
+	},
+	{
+		Description:                 "OpenAI's latest o1-mini model",
+		DefaultMaxConvoTokens:       10000,
+		DefaultReservedOutputTokens: 65536,
+		BaseModelConfig: BaseModelConfig{
+			Provider:                   ModelProviderOpenAI,
+			ModelName:                  "o1-mini",
+			MaxTokens:                  128000,
+			ApiKeyEnvVar:               OpenAIEnvVar,
+			ModelCompatibility:         fullCompatibility,
+			BaseUrl:                    OpenAIV1BaseUrl,
+			PreferredModelOutputFormat: ModelOutputFormatXml,
+			SystemPromptDisabled:       true,
+			RoleParamsDisabled:         true,
+		},
+	},
+	{
+		Description:                 "OpenAI's latest o1 model",
+		DefaultMaxConvoTokens:       15000,
+		DefaultReservedOutputTokens: 100000,
+		BaseModelConfig: BaseModelConfig{
+			Provider:                   ModelProviderOpenAI,
+			ModelName:                  "o1",
+			MaxTokens:                  200000,
+			ApiKeyEnvVar:               OpenAIEnvVar,
+			ModelCompatibility:         fullCompatibility,
+			BaseUrl:                    OpenAIV1BaseUrl,
+			PreferredModelOutputFormat: ModelOutputFormatXml,
+			SystemPromptDisabled:       true,
+			RoleParamsDisabled:         true,
 		},
 	},
 	{
@@ -57,19 +77,13 @@ var AvailableModels = []*AvailableModel{
 		DefaultMaxConvoTokens:       15000,
 		DefaultReservedOutputTokens: 8192,
 		BaseModelConfig: BaseModelConfig{
-			Provider:     ModelProviderOpenRouter,
-			ModelName:    "anthropic/claude-3.5-sonnet",
-			MaxTokens:    200000,
-			ApiKeyEnvVar: ApiKeyByProvider[ModelProviderOpenRouter],
-			ModelCompatibility: ModelCompatibility{
-				IsOpenAICompatible:        true,
-				HasJsonResponseMode:       true,
-				HasStreaming:              true,
-				HasFunctionCalling:        true,
-				HasStreamingFunctionCalls: false,
-				HasImageSupport:           true,
-			},
-			BaseUrl: BaseUrlByProvider[ModelProviderOpenRouter],
+			Provider:                   ModelProviderOpenRouter,
+			ModelName:                  "anthropic/claude-3.5-sonnet",
+			MaxTokens:                  200000,
+			ApiKeyEnvVar:               ApiKeyByProvider[ModelProviderOpenRouter],
+			ModelCompatibility:         fullCompatibility,
+			BaseUrl:                    BaseUrlByProvider[ModelProviderOpenRouter],
+			PreferredModelOutputFormat: ModelOutputFormatXml,
 		},
 	},
 	{
@@ -77,79 +91,89 @@ var AvailableModels = []*AvailableModel{
 		DefaultMaxConvoTokens:       15000,
 		DefaultReservedOutputTokens: 8192,
 		BaseModelConfig: BaseModelConfig{
-			Provider:     ModelProviderOpenRouter,
-			ModelName:    "anthropic/claude-3.5-haiku",
-			MaxTokens:    200000,
-			ApiKeyEnvVar: ApiKeyByProvider[ModelProviderOpenRouter],
-			ModelCompatibility: ModelCompatibility{
-				IsOpenAICompatible:        true,
-				HasJsonResponseMode:       true,
-				HasStreaming:              true,
-				HasFunctionCalling:        true,
-				HasStreamingFunctionCalls: false,
-				HasImageSupport:           true,
-			},
-			BaseUrl: BaseUrlByProvider[ModelProviderOpenRouter],
+			Provider:                   ModelProviderOpenRouter,
+			ModelName:                  "anthropic/claude-3.5-haiku",
+			MaxTokens:                  200000,
+			ApiKeyEnvVar:               ApiKeyByProvider[ModelProviderOpenRouter],
+			ModelCompatibility:         fullCompatibility,
+			BaseUrl:                    BaseUrlByProvider[ModelProviderOpenRouter],
+			PreferredModelOutputFormat: ModelOutputFormatXml,
 		},
 	},
 	{
 		Description:                 "Google Gemini Pro 1.5 via OpenRouter",
 		DefaultMaxConvoTokens:       100000,
-		DefaultReservedOutputTokens: 32768,
+		DefaultReservedOutputTokens: 8192,
 		BaseModelConfig: BaseModelConfig{
-			Provider:     ModelProviderOpenRouter,
-			ModelName:    "google/gemini-pro-1.5",
-			MaxTokens:    4000000,
-			ApiKeyEnvVar: ApiKeyByProvider[ModelProviderOpenRouter],
-			ModelCompatibility: ModelCompatibility{
-				IsOpenAICompatible:        true,
-				HasJsonResponseMode:       true,
-				HasStreaming:              true,
-				HasFunctionCalling:        true,
-				HasStreamingFunctionCalls: false,
-				HasImageSupport:           true,
-			},
-			BaseUrl: BaseUrlByProvider[ModelProviderOpenRouter],
+			Provider:                   ModelProviderOpenRouter,
+			ModelName:                  "google/gemini-pro-1.5",
+			MaxTokens:                  2000000,
+			ApiKeyEnvVar:               ApiKeyByProvider[ModelProviderOpenRouter],
+			ModelCompatibility:         fullCompatibility,
+			BaseUrl:                    BaseUrlByProvider[ModelProviderOpenRouter],
+			PreferredModelOutputFormat: ModelOutputFormatXml,
 		},
 	},
 	{
 		Description:                 "Google Gemini Flash 1.5 via OpenRouter",
-		DefaultMaxConvoTokens:       100000,
-		DefaultReservedOutputTokens: 32768,
+		DefaultMaxConvoTokens:       75000,
+		DefaultReservedOutputTokens: 8192,
 		BaseModelConfig: BaseModelConfig{
-			Provider:     ModelProviderOpenRouter,
-			ModelName:    "google/gemini-flash-1.5",
-			MaxTokens:    4000000,
-			ApiKeyEnvVar: ApiKeyByProvider[ModelProviderOpenRouter],
-			ModelCompatibility: ModelCompatibility{
-				IsOpenAICompatible:        true,
-				HasJsonResponseMode:       true,
-				HasStreaming:              true,
-				HasFunctionCalling:        true,
-				HasStreamingFunctionCalls: false,
-				HasImageSupport:           true,
-			},
-			BaseUrl: BaseUrlByProvider[ModelProviderOpenRouter],
+			Provider:                   ModelProviderOpenRouter,
+			ModelName:                  "google/gemini-flash-1.5",
+			MaxTokens:                  1000000,
+			ApiKeyEnvVar:               ApiKeyByProvider[ModelProviderOpenRouter],
+			ModelCompatibility:         fullCompatibility,
+			BaseUrl:                    BaseUrlByProvider[ModelProviderOpenRouter],
+			PreferredModelOutputFormat: ModelOutputFormatXml,
 		},
 	},
 	{
-		Description:                 "DeepSeek V2.5 via OpenRouter",
-		DefaultMaxConvoTokens:       15000,
-		DefaultReservedOutputTokens: 4096,
+		Description:                 "Google Gemini Flash 2.0 Experimental via OpenRouter",
+		DefaultMaxConvoTokens:       75000,
+		DefaultReservedOutputTokens: 8192,
+		BaseModelConfig: BaseModelConfig{
+			Provider:                   ModelProviderOpenRouter,
+			ModelName:                  "google/gemini-2.0-flash-exp:free",
+			MaxTokens:                  1000000,
+			ApiKeyEnvVar:               ApiKeyByProvider[ModelProviderOpenRouter],
+			ModelCompatibility:         fullCompatibility,
+			BaseUrl:                    BaseUrlByProvider[ModelProviderOpenRouter],
+			PreferredModelOutputFormat: ModelOutputFormatXml,
+		},
+	},
+
+	{
+		Description:                 "DeepSeek V3 via OpenRouter",
+		DefaultMaxConvoTokens:       7500,
+		DefaultReservedOutputTokens: 8192,
 		BaseModelConfig: BaseModelConfig{
 			Provider:     ModelProviderOpenRouter,
 			ModelName:    "deepseek/deepseek-chat",
-			MaxTokens:    128000,
+			MaxTokens:    64000,
 			ApiKeyEnvVar: ApiKeyByProvider[ModelProviderOpenRouter],
 			ModelCompatibility: ModelCompatibility{
-				IsOpenAICompatible:        true,
-				HasJsonResponseMode:       true,
-				HasStreaming:              true,
-				HasFunctionCalling:        true,
-				HasStreamingFunctionCalls: false,
-				HasImageSupport:           false,
+				HasImageSupport: false,
 			},
-			BaseUrl: BaseUrlByProvider[ModelProviderOpenRouter],
+			BaseUrl:                    BaseUrlByProvider[ModelProviderOpenRouter],
+			PreferredModelOutputFormat: ModelOutputFormatXml,
+		},
+	},
+
+	{
+		Description:                 "DeepSeek R1 via OpenRouter",
+		DefaultMaxConvoTokens:       7500,
+		DefaultReservedOutputTokens: 8192,
+		BaseModelConfig: BaseModelConfig{
+			Provider:     ModelProviderOpenRouter,
+			ModelName:    "deepseek/deepseek-r1",
+			MaxTokens:    64000,
+			ApiKeyEnvVar: ApiKeyByProvider[ModelProviderOpenRouter],
+			ModelCompatibility: ModelCompatibility{
+				HasImageSupport: false,
+			},
+			BaseUrl:                    BaseUrlByProvider[ModelProviderOpenRouter],
+			PreferredModelOutputFormat: ModelOutputFormatXml,
 		},
 	},
 }
@@ -181,6 +205,14 @@ var DefaultConfigByRole = map[ModelRole]ModelRoleConfig{
 		Temperature: 0.3,
 		TopP:        0.3,
 	},
+	ModelRoleCoder: {
+		Temperature: 0.3,
+		TopP:        0.3,
+	},
+	ModelRoleContextLoader: {
+		Temperature: 0.3,
+		TopP:        0.3,
+	},
 	ModelRolePlanSummary: {
 		Temperature: 0.2,
 		TopP:        0.2,
@@ -208,28 +240,12 @@ var DefaultConfigByRole = map[ModelRole]ModelRoleConfig{
 }
 
 var RequiredCompatibilityByRole = map[ModelRole]ModelCompatibility{
-	ModelRolePlanner: {
-		IsOpenAICompatible: true,
-		HasStreaming:       true,
-	},
-	ModelRolePlanSummary: {
-		IsOpenAICompatible: true,
-		HasStreaming:       true,
-	},
-	ModelRoleBuilder: {
-		IsOpenAICompatible: true,
-	},
-	ModelRoleName: {
-		IsOpenAICompatible: true,
-	},
-	ModelRoleCommitMsg: {
-		IsOpenAICompatible: true,
-		HasFunctionCalling: true,
-	},
-	ModelRoleExecStatus: {
-		IsOpenAICompatible: true,
-		HasFunctionCalling: true,
-	},
+	ModelRolePlanner:     {},
+	ModelRolePlanSummary: {},
+	ModelRoleBuilder:     {},
+	ModelRoleName:        {},
+	ModelRoleCommitMsg:   {},
+	ModelRoleExecStatus:  {},
 }
 
 func init() {
@@ -283,7 +299,7 @@ func init() {
 
 	OpenRouterClaude3Dot5SonnetGPT4oModelPack = ModelPack{
 		Name:        "plandex-default-pack",
-		Description: "Uses Anthropic's Claude 3.5 Sonnet model (via OpenRouter) for planning, summarization, diff-based edits, and auto-continue, OpenAI gpt-4o for whole-file edits, and gpt-4o-mini for lighter tasks.",
+		Description: "Uses Anthropic's Claude 3.5 Sonnet model (via OpenRouter) for planning, coding, and diff-based edits, OpenAI gpt-4o for whole-file edits, and gpt-4o-mini for lighter tasks.",
 		Planner: PlannerRoleConfig{
 			ModelRoleConfig: ModelRoleConfig{
 				Role:            ModelRolePlanner,
@@ -292,6 +308,27 @@ func init() {
 				TopP:            DefaultConfigByRole[ModelRolePlanner].TopP,
 			},
 			PlannerModelConfig: getPlannerModelConfig("anthropic/claude-3.5-sonnet"),
+		},
+		// Planner: PlannerRoleConfig{
+		// 	ModelRoleConfig: ModelRoleConfig{
+		// 		Role:            ModelRolePlanner,
+		// 		BaseModelConfig: AvailableModelsByName["google/gemini-pro-1.5"].BaseModelConfig,
+		// 		Temperature:     DefaultConfigByRole[ModelRolePlanner].Temperature,
+		// 		TopP:            DefaultConfigByRole[ModelRolePlanner].TopP,
+		// 	},
+		// 	PlannerModelConfig: getPlannerModelConfig("google/gemini-pro-1.5"),
+		// },
+		Coder: &ModelRoleConfig{
+			Role:            ModelRoleCoder,
+			BaseModelConfig: AvailableModelsByName["anthropic/claude-3.5-sonnet"].BaseModelConfig,
+			Temperature:     DefaultConfigByRole[ModelRoleCoder].Temperature,
+			TopP:            DefaultConfigByRole[ModelRoleCoder].TopP,
+		},
+		ContextLoader: &ModelRoleConfig{
+			Role:            ModelRoleContextLoader,
+			BaseModelConfig: AvailableModelsByName["anthropic/claude-3.5-sonnet"].BaseModelConfig,
+			Temperature:     DefaultConfigByRole[ModelRoleContextLoader].Temperature,
+			TopP:            DefaultConfigByRole[ModelRoleContextLoader].TopP,
 		},
 		PlanSummary: ModelRoleConfig{
 			Role:            ModelRolePlanSummary,
@@ -375,71 +412,14 @@ func init() {
 		},
 	}
 
-	GoogleGeminiModelPack = ModelPack{
-		Name:        "google-gemini",
-		Description: "Uses Google's Gemini Pro 1.5 model for heavy lifting and Gemini Flash 1.5 for lighter tasks.",
-		Planner: PlannerRoleConfig{
-			ModelRoleConfig: ModelRoleConfig{
-				Role:            ModelRolePlanner,
-				BaseModelConfig: AvailableModelsByName["google/gemini-pro-1.5"].BaseModelConfig,
-				Temperature:     DefaultConfigByRole[ModelRolePlanner].Temperature,
-				TopP:            DefaultConfigByRole[ModelRolePlanner].TopP,
-			},
-			PlannerModelConfig: getPlannerModelConfig("google/gemini-pro-1.5"),
-		},
-		PlanSummary: ModelRoleConfig{
-			Role:            ModelRolePlanSummary,
-			BaseModelConfig: AvailableModelsByName["google/gemini-pro-1.5"].BaseModelConfig,
-			Temperature:     DefaultConfigByRole[ModelRolePlanSummary].Temperature,
-			TopP:            DefaultConfigByRole[ModelRolePlanSummary].TopP,
-		},
-		Builder: ModelRoleConfig{
-			Role:            ModelRoleBuilder,
-			BaseModelConfig: AvailableModelsByName["google/gemini-pro-1.5"].BaseModelConfig,
-			Temperature:     DefaultConfigByRole[ModelRoleBuilder].Temperature,
-			TopP:            DefaultConfigByRole[ModelRoleBuilder].TopP,
-		},
-		Namer: ModelRoleConfig{
-			Role:            ModelRoleName,
-			BaseModelConfig: AvailableModelsByName["google/gemini-flash-1.5"].BaseModelConfig,
-			Temperature:     DefaultConfigByRole[ModelRoleName].Temperature,
-			TopP:            DefaultConfigByRole[ModelRoleName].TopP,
-		},
-		CommitMsg: ModelRoleConfig{
-			Role:            ModelRoleCommitMsg,
-			BaseModelConfig: AvailableModelsByName["google/gemini-flash-1.5"].BaseModelConfig,
-			Temperature:     DefaultConfigByRole[ModelRoleCommitMsg].Temperature,
-			TopP:            DefaultConfigByRole[ModelRoleCommitMsg].TopP,
-		},
-		ExecStatus: ModelRoleConfig{
-			Role:            ModelRoleExecStatus,
-			BaseModelConfig: AvailableModelsByName["google/gemini-pro-1.5"].BaseModelConfig,
-			Temperature:     DefaultConfigByRole[ModelRoleExecStatus].Temperature,
-			TopP:            DefaultConfigByRole[ModelRoleExecStatus].TopP,
-		},
-	}
 }
 
 func FilterCompatibleModels(models []*AvailableModel, role ModelRole) []*AvailableModel {
-	required := RequiredCompatibilityByRole[role]
+	// required := RequiredCompatibilityByRole[role]
 	var compatibleModels []*AvailableModel
 
 	for _, model := range models {
-		if required.IsOpenAICompatible && !model.ModelCompatibility.IsOpenAICompatible {
-			continue
-		}
-		if required.HasJsonResponseMode && !model.ModelCompatibility.HasJsonResponseMode {
-			continue
-		}
-		if required.HasStreaming && !model.ModelCompatibility.HasStreaming {
-			continue
-		}
-		if required.HasFunctionCalling && !model.ModelCompatibility.HasFunctionCalling {
-			continue
-		}
-		if required.HasStreamingFunctionCalls && !model.ModelCompatibility.HasStreamingFunctionCalls {
-			continue
-		}
+		// no compatibility checks are needed in v2, but keeping this here in case compatibility checks are needed in the future
 
 		compatibleModels = append(compatibleModels, model)
 	}

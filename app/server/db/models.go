@@ -5,10 +5,10 @@ import (
 )
 
 func CreateCustomModel(model *AvailableModel) error {
-	query := `INSERT INTO custom_models (org_id, provider, custom_provider, base_url, model_name, description, max_tokens, api_key_env_var, is_openai_compatible, has_json_mode, has_streaming, has_function_calling, has_streaming_function_calls, default_max_convo_tokens, default_reserved_output_tokens) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+	query := `INSERT INTO custom_models (org_id, provider, custom_provider, base_url, model_name, description, max_tokens, api_key_env_var, default_max_convo_tokens, default_reserved_output_tokens, preferred_output_format, has_image_support) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 	RETURNING id, created_at, updated_at`
 
-	err := Conn.QueryRow(query, model.OrgId, model.Provider, model.CustomProvider, model.BaseUrl, model.ModelName, model.Description, model.MaxTokens, model.ApiKeyEnvVar, model.IsOpenAICompatible, model.HasJsonResponseMode, model.HasStreaming, model.HasFunctionCalling, model.HasStreamingFunctionCalls, model.DefaultMaxConvoTokens, model.DefaultReservedOutputTokens).Scan(&model.Id, &model.CreatedAt, &model.UpdatedAt)
+	err := Conn.QueryRow(query, model.OrgId, model.Provider, model.CustomProvider, model.BaseUrl, model.ModelName, model.Description, model.MaxTokens, model.ApiKeyEnvVar, model.DefaultMaxConvoTokens, model.DefaultReservedOutputTokens, model.PreferredOutputFormat, model.HasImageSupport).Scan(&model.Id, &model.CreatedAt, &model.UpdatedAt)
 
 	if err != nil {
 		return fmt.Errorf("error inserting new custom model: %v", err)
@@ -43,10 +43,10 @@ func DeleteAvailableModel(modelId string) error {
 }
 
 func CreateModelPack(ms *ModelPack) error {
-	query := `INSERT INTO model_sets (org_id, name, description, planner, plan_summary, builder, namer, commit_msg, exec_status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+	query := `INSERT INTO model_sets (org_id, name, description, planner, plan_summary, builder, namer, commit_msg, exec_status, context_loader, coder) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 	RETURNING id, created_at`
 
-	err := Conn.QueryRow(query, ms.OrgId, ms.Name, ms.Description, ms.Planner, ms.PlanSummary, ms.Builder, ms.Namer, ms.CommitMsg, ms.ExecStatus).Scan(&ms.Id, &ms.CreatedAt)
+	err := Conn.QueryRow(query, ms.OrgId, ms.Name, ms.Description, ms.Planner, ms.PlanSummary, ms.Builder, ms.Namer, ms.CommitMsg, ms.ExecStatus, ms.ContextLoader, ms.Coder).Scan(&ms.Id, &ms.CreatedAt)
 
 	if err != nil {
 		return fmt.Errorf("error inserting new model pack: %v", err)
