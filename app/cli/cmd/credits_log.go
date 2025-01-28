@@ -64,26 +64,21 @@ func creditsLog(cmd *cobra.Command, args []string) {
 			sign = "-"
 			c = term.ColorHiRed
 
-			var t string
-			if *transaction.DebitType == shared.DebitTypeModelInput {
-				t = "input"
-			} else if *transaction.DebitType == shared.DebitTypeModelOutput {
-				t = "output"
-			}
-
 			if transaction.DebitPlanName != nil {
 				desc += fmt.Sprintf("Plan → %s\n", *transaction.DebitPlanName)
 			}
 
 			surchargePct := transaction.DebitSurcharge.Div(*transaction.DebitBaseAmount)
 
-			price := transaction.DebitModelPricePerToken.Mul(decimal.NewFromInt(1000000)).Mul(surchargePct.Add(decimal.NewFromInt(1))).StringFixed(4)
+			inputPrice := transaction.DebitModelInputPricePerToken.Mul(decimal.NewFromInt(1000000)).Mul(surchargePct.Add(decimal.NewFromInt(1))).StringFixed(4)
+			outputPrice := transaction.DebitModelOutputPricePerToken.Mul(decimal.NewFromInt(1000000)).Mul(surchargePct.Add(decimal.NewFromInt(1))).StringFixed(4)
 
 			for i := 0; i < 2; i++ {
-				price = strings.TrimSuffix(price, "0")
+				inputPrice = strings.TrimSuffix(inputPrice, "0")
+				outputPrice = strings.TrimSuffix(outputPrice, "0")
 			}
 
-			desc += fmt.Sprintf("⚡️ %s\n🧠 %s/%s → %s\n💳 Price → $%s per 1M 🪙\n💸 Used → %d 🪙\n", *transaction.DebitPurpose, string(*transaction.DebitModelProvider), *transaction.DebitModelName, t, price, *transaction.DebitTokens)
+			desc += fmt.Sprintf("⚡️ %s\n🧠 %s/%s\n💳 Price → $%s input / $%s output per 1M\n🪙 Used → %d input / %d output\n", *transaction.DebitPurpose, string(*transaction.DebitModelProvider), *transaction.DebitModelName, inputPrice, outputPrice, *transaction.DebitInputTokens, *transaction.DebitOutputTokens)
 
 		} else {
 			sign = "+"

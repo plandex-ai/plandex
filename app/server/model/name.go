@@ -111,6 +111,7 @@ func GenPlanName(
 				ModelRole:     shared.ModelRolePlanSummary,
 				Purpose:       "Generated plan name",
 				GenerationId:  resp.ID,
+				PlanId:        plan.Id,
 			},
 		})
 
@@ -241,6 +242,7 @@ func GenPipedDataName(
 				ModelRole:     shared.ModelRolePlanSummary,
 				Purpose:       "Generated name for data piped into context",
 				GenerationId:  resp.ID,
+				PlanId:        plan.Id,
 			},
 		})
 
@@ -371,6 +373,7 @@ func GenNoteName(
 				ModelRole:     shared.ModelRolePlanSummary,
 				Purpose:       "Generated name for note added to context",
 				GenerationId:  resp.ID,
+				PlanId:        plan.Id,
 			},
 		})
 

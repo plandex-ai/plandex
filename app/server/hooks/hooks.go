@@ -31,14 +31,22 @@ type WillSendModelRequestParams struct {
 }
 
 type DidSendModelRequestParams struct {
-	InputTokens   int
-	OutputTokens  int
-	ModelName     string
-	ModelProvider shared.ModelProvider
-	ModelRole     shared.ModelRole
-	ModelPackName string
-	Purpose       string
-	GenerationId  string
+	InputTokens     int
+	OutputTokens    int
+	ModelName       string
+	ModelProvider   shared.ModelProvider
+	ModelRole       shared.ModelRole
+	ModelPackName   string
+	Purpose         string
+	GenerationId    string
+	PlanId          string
+	ModelStreamId   string
+	ConvoMessageId  string
+	BuildId         string
+	StoppedEarly    bool
+	UserCancelled   bool
+	HadError        bool
+	NoReportedUsage bool
 }
 
 type CreateOrgHookRequestParams struct {

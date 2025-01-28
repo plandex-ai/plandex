@@ -458,48 +458,40 @@ const (
 	CreditTypeSwitch     CreditType = "switch"
 )
 
-type DebitType string
-
-const (
-	DebitTypeModelInput  DebitType = "model_input"
-	DebitTypeModelOutput DebitType = "model_output"
-)
-
 type CreditsTransaction struct {
-	Id                          string                 `json:"id"`
-	OrgId                       string                 `json:"orgId"`
-	OrgName                     string                 `json:"orgName"`
-	UserId                      *string                `json:"userId"`
-	UserEmail                   *string                `json:"userEmail"`
-	UserName                    *string                `json:"userName"`
-	TransactionType             CreditsTransactionType `json:"transactionType"`
-	Amount                      decimal.Decimal        `json:"amount"`
-	StartBalance                decimal.Decimal        `json:"startBalance"`
-	EndBalance                  decimal.Decimal        `json:"endBalance"`
-	CreditType                  *CreditType            `json:"creditType,omitempty"`
-	CreditIsAutoRebuy           bool                   `json:"creditIsAutoRebuy"`
-	CreditAutoRebuyMinThreshold *decimal.Decimal       `json:"creditAutoRebuyMinThreshold,omitempty"`
-	CreditAutoRebuyToBalance    *decimal.Decimal       `json:"creditAutoRebuyToBalance,omitempty"`
-	CreditSubscriptionId        *string                `json:"creditSubscriptionId,omitempty"`
-	CreditSubscriptionPlanId    *string                `json:"creditSubscriptionPlanId,omitempty"`
-	CreditStripeCustomerId      *string                `json:"creditStripeCustomerId,omitempty"`
-	CreditStripeSubscriptionId  *string                `json:"creditStripeSubscriptionId,omitempty"`
-	CreditStripePriceId         *string                `json:"creditStripePriceId,omitempty"`
-	CreditStripeInvoiceId       *string                `json:"creditStripeInvoiceId,omitempty"`
-	CreditStripePaymentMethod   *string                `json:"creditStripePaymentMethod,omitempty"`
-	DebitType                   *DebitType             `json:"debitType,omitempty"`
-	DebitTokens                 *int                   `json:"debitTokens,omitempty"`
-	DebitBaseAmount             *decimal.Decimal       `json:"debitBaseAmount,omitempty"`
-	DebitSurcharge              *decimal.Decimal       `json:"debitSurcharge,omitempty"`
-	DebitModelProvider          *ModelProvider         `json:"debitModelProvider,omitempty"`
-	DebitModelName              *string                `json:"debitModelName,omitempty"`
-	DebitModelPackName          *string                `json:"debitModelPackName,omitempty"`
-	DebitModelRole              *ModelRole             `json:"debitModelRole,omitempty"`
-	DebitModelPricePerToken     *decimal.Decimal       `json:"debitModelPricePerToken,omitempty"`
-	DebitApiKeyHash             *string                `json:"debitApiKeyHash,omitempty"`
-	DebitPurpose                *string                `json:"debitPurpose,omitempty"`
-	DebitPlanId                 *string                `json:"debitPlanId,omitempty"`
-	DebitPlanName               *string                `json:"debitPlanName,omitempty"`
-	DebitId                     *string                `json:"debitId,omitempty"`
-	CreatedAt                   time.Time              `json:"createdAt"`
+	Id              string                 `json:"id"`
+	OrgId           string                 `json:"orgId"`
+	OrgName         string                 `json:"orgName"`
+	UserId          *string                `json:"userId"`
+	UserEmail       *string                `json:"userEmail"`
+	UserName        *string                `json:"userName"`
+	TransactionType CreditsTransactionType `json:"transactionType"`
+	Amount          decimal.Decimal        `json:"amount"`
+	StartBalance    decimal.Decimal        `json:"startBalance"`
+	EndBalance      decimal.Decimal        `json:"endBalance"`
+
+	CreditType                  *CreditType      `json:"creditType,omitempty"`
+	CreditIsAutoRebuy           bool             `json:"creditIsAutoRebuy"`
+	CreditAutoRebuyMinThreshold *decimal.Decimal `json:"creditAutoRebuyMinThreshold,omitempty"`
+	CreditAutoRebuyToBalance    *decimal.Decimal `json:"creditAutoRebuyToBalance,omitempty"`
+
+	DebitInputTokens              *int             `json:"debitInputTokens,omitempty"`
+	DebitOutputTokens             *int             `json:"debitOutputTokens,omitempty"`
+	DebitModelInputPricePerToken  *decimal.Decimal `json:"debitModelInputPricePerToken,omitempty"`
+	DebitModelOutputPricePerToken *decimal.Decimal `json:"debitModelOutputPricePerToken,omitempty"`
+
+	DebitBaseAmount *decimal.Decimal `json:"debitBaseAmount,omitempty"`
+	DebitSurcharge  *decimal.Decimal `json:"debitSurcharge,omitempty"`
+
+	DebitModelProvider *ModelProvider `json:"debitModelProvider,omitempty"`
+	DebitModelName     *string        `json:"debitModelName,omitempty"`
+	DebitModelPackName *string        `json:"debitModelPackName,omitempty"`
+	DebitModelRole     *ModelRole     `json:"debitModelRole,omitempty"`
+
+	DebitPurpose  *string `json:"debitPurpose,omitempty"`
+	DebitPlanId   *string `json:"debitPlanId,omitempty"`
+	DebitPlanName *string `json:"debitPlanName,omitempty"`
+	DebitId       *string `json:"debitId,omitempty"`
+
+	CreatedAt time.Time `json:"createdAt"`
 }

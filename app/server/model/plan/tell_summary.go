@@ -325,6 +325,7 @@ func summarizeConvo(clients map[string]*openai.Client, config shared.ModelRoleCo
 		Auth:                        params.auth,
 		Plan:                        plan,
 		ModelPackName:               params.modelPackName,
+		ActivePlan:                  active,
 	}, ctx)
 
 	if err != nil {
