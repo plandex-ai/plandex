@@ -29,7 +29,7 @@ var usageCmd = &cobra.Command{
 }
 
 func init() {
-	usageCmd.Flags().IntVarP(&logCreditsPageSize, "page-size", "s", 20, "Number of transactions to display per page")
+	usageCmd.Flags().IntVarP(&logCreditsPageSize, "page-size", "s", 100, "Number of transactions to display per page")
 	usageCmd.Flags().IntVarP(&logCreditsPage, "page", "p", 1, "Page number to display")
 
 	RootCmd.AddCommand(usageCmd)
