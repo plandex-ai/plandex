@@ -63,7 +63,7 @@ func (state *activeTellStreamState) onError(streamErr error, storeDesc bool, con
 		storedDesc := false
 
 		if convoMessageId == "" {
-			assistantMsg, msg, err := state.storeAssistantReply()
+			assistantMsg, msg, err := state.storeAssistantReply("")
 			if err == nil {
 				convoMessageId = assistantMsg.Id
 				commitMsg = msg

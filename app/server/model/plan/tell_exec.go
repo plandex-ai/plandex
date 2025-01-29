@@ -18,7 +18,7 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
-func Tell(clients map[string]*openai.Client, plan *db.Plan, branch string, auth *types.ServerAuth, req *shared.TellPlanRequest) error {
+func Tell(clients map[string]model.ClientInfo, plan *db.Plan, branch string, auth *types.ServerAuth, req *shared.TellPlanRequest) error {
 	log.Printf("Tell: Called with plan ID %s on branch %s\n", plan.Id, branch)
 
 	_, err := activatePlan(
@@ -51,7 +51,7 @@ func Tell(clients map[string]*openai.Client, plan *db.Plan, branch string, auth 
 }
 
 type execTellPlanParams struct {
-	clients                   map[string]*openai.Client
+	clients                   map[string]model.ClientInfo
 	plan                      *db.Plan
 	branch                    string
 	auth                      *types.ServerAuth

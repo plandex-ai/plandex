@@ -1,9 +1,14 @@
 package model
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"log"
+	"net/http"
+	"reflect"
 	"regexp"
 	"strings"
 	"time"
@@ -12,11 +17,26 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
-const OPENAI_STREAM_CHUNK_TIMEOUT = time.Duration(30) * time.Second
-const OPENAI_USAGE_CHUNK_TIMEOUT = time.Duration(5) * time.Second
+const (
+	OPENAI_STREAM_CHUNK_TIMEOUT = time.Duration(30) * time.Second
+	OPENAI_USAGE_CHUNK_TIMEOUT  = time.Duration(5) * time.Second
+	OPENAI_MAX_RETRIES          = 3
+	OPENAI_MAX_WAIT_DURATION    = 60 * time.Second
+	OPENAI_ABORT_WAIT_DURATION  = 120 * time.Second
+	OPENAI_BACKOFF_MULTIPLIER   = 3.0
+)
 
-func InitClients(apiKeys map[string]string, endpointsByApiKeyEnvVar map[string]string, openAIEndpoint, orgId string) map[string]*openai.Client {
-	clients := make(map[string]*openai.Client)
+var httpClient = &http.Client{}
+
+type ClientInfo struct {
+	Client   *openai.Client
+	ApiKey   string
+	OrgId    string
+	Endpoint string
+}
+
+func InitClients(apiKeys map[string]string, endpointsByApiKeyEnvVar map[string]string, openAIEndpoint, orgId string) map[string]ClientInfo {
+	clients := make(map[string]ClientInfo)
 	for key, apiKey := range apiKeys {
 		var clientEndpoint string
 		var clientOrgId string
@@ -31,7 +51,7 @@ func InitClients(apiKeys map[string]string, endpointsByApiKeyEnvVar map[string]s
 	return clients
 }
 
-func newClient(apiKey, endpoint, orgId string) *openai.Client {
+func newClient(apiKey, endpoint, orgId string) ClientInfo {
 	config := openai.DefaultConfig(apiKey)
 	if endpoint != "" {
 		config.BaseURL = endpoint
@@ -40,18 +60,33 @@ func newClient(apiKey, endpoint, orgId string) *openai.Client {
 		config.OrgID = orgId
 	}
 
-	return openai.NewClientWithConfig(config)
+	return ClientInfo{
+		Client:   openai.NewClientWithConfig(config),
+		ApiKey:   apiKey,
+		OrgId:    orgId,
+		Endpoint: endpoint,
+	}
+}
+
+type OpenAIPrediction struct {
+	Type    string `json:"type"`
+	Content string `json:"content"`
+}
+
+type ExtendedChatCompletionRequest struct {
+	*openai.ChatCompletionRequest
+	Prediction OpenAIPrediction `json:"prediction,omitempty"`
 }
 
 func CreateChatCompletionStreamWithRetries(
-	clients map[string]*openai.Client,
+	clients map[string]ClientInfo,
 	modelConfig *shared.ModelRoleConfig,
 	ctx context.Context,
 	req openai.ChatCompletionRequest,
 ) (*openai.ChatCompletionStream, error) {
-	client := clients[modelConfig.BaseModelConfig.ApiKeyEnvVar]
+	client, ok := clients[modelConfig.BaseModelConfig.ApiKeyEnvVar]
 
-	if client == nil {
+	if !ok {
 		return nil, fmt.Errorf("client not found for api key env var: %s", modelConfig.BaseModelConfig.ApiKeyEnvVar)
 	}
 
@@ -61,124 +96,98 @@ func CreateChatCompletionStreamWithRetries(
 		log.Println("Message role:", msg.Role)
 	}
 
-	return createChatCompletionStream(client, ctx, req, 0)
+	return withRetries(ctx, func() (*openai.ChatCompletionStream, error) {
+		return client.Client.CreateChatCompletionStream(ctx, req)
+	})
 }
 
-func createChatCompletionStream(
-	client *openai.Client,
-	ctx context.Context,
-	req openai.ChatCompletionRequest,
-	numRetry int,
-) (*openai.ChatCompletionStream, error) {
-	if ctx.Err() != nil {
-		return nil, ctx.Err()
-	}
-
-	log.Println("Creating chat completion stream")
-
-	stream, err := client.CreateChatCompletionStream(ctx, req)
-
-	if err != nil {
-		log.Printf("Error creating chat completion stream: %v, retry: %d\n", err, numRetry)
-
-		if isNonRetriableErr(err) {
-			return nil, err
-		}
-
-		// for retriable errors, retry with exponential backoff
-		if numRetry < 5 {
-			// check if the error message contains a retry duration
-			if duration := parseRetryAfter(err.Error()); duration != nil {
-				// wait for the duration times 3 to give some buffer
-				waitDuration := time.Duration(float64(*duration) * 3)
-
-				// ensure wait duration is 60 seconds or less - for really long retries just error out
-				if waitDuration > 120*time.Second {
-					return nil, err
-				} else if waitDuration > 60*time.Second {
-					waitDuration = 60 * time.Second
-				}
-				time.Sleep(waitDuration)
-				return createChatCompletionStream(client, ctx, req, numRetry+1)
-			}
-
-			waitBackoff(numRetry)
-			return createChatCompletionStream(client, ctx, req, numRetry+1)
-		}
-
-		log.Println("Max retries reached - no retry")
-		return nil, err
-	}
-
-	return stream, nil
-}
-
-func CreateChatCompletionWithRetries(
-	clients map[string]*openai.Client,
+func CreateChatCompletionWithRetries[T openai.ChatCompletionRequest | ExtendedChatCompletionRequest](
+	clients map[string]ClientInfo,
 	modelConfig *shared.ModelRoleConfig,
 	ctx context.Context,
-	req openai.ChatCompletionRequest,
+	req T,
 ) (openai.ChatCompletionResponse, error) {
-	client := clients[modelConfig.BaseModelConfig.ApiKeyEnvVar]
+	client, ok := clients[modelConfig.BaseModelConfig.ApiKeyEnvVar]
 
-	if client == nil {
+	if !ok {
+		return openai.ChatCompletionResponse{}, fmt.Errorf("client not found for api key env var: %s", modelConfig.BaseModelConfig.ApiKeyEnvVar)
+	}
+	var baseReq *openai.ChatCompletionRequest
+	var fn func() (openai.ChatCompletionResponse, error)
+
+	if normalReq, ok := any(req).(openai.ChatCompletionRequest); ok {
+		baseReq = &normalReq
+		fn = func() (openai.ChatCompletionResponse, error) {
+			return client.Client.CreateChatCompletion(ctx, normalReq)
+		}
+	} else if extendedReq, ok := any(req).(ExtendedChatCompletionRequest); ok {
+		baseReq = extendedReq.ChatCompletionRequest
+		fn = func() (openai.ChatCompletionResponse, error) {
+			return createChatCompletionExtended(clients, modelConfig, ctx, extendedReq)
+		}
+	} else {
+		log.Println("Invalid request type")
+		log.Println("Request type:", reflect.TypeOf(req))
+		return openai.ChatCompletionResponse{}, fmt.Errorf("invalid request type")
+	}
+
+	resolveReq(baseReq, modelConfig)
+
+	return withRetries(ctx, fn)
+}
+
+func createChatCompletionExtended(
+	clients map[string]ClientInfo,
+	modelConfig *shared.ModelRoleConfig,
+	ctx context.Context,
+	extendedReq ExtendedChatCompletionRequest,
+) (openai.ChatCompletionResponse, error) {
+	client, ok := clients[modelConfig.BaseModelConfig.ApiKeyEnvVar]
+
+	if !ok {
 		return openai.ChatCompletionResponse{}, fmt.Errorf("client not found for api key env var: %s", modelConfig.BaseModelConfig.ApiKeyEnvVar)
 	}
 
-	resolveReq(&req, modelConfig)
-
-	return createChatCompletion(client, ctx, req, 0)
-}
-
-func createChatCompletion(
-	client *openai.Client,
-	ctx context.Context,
-	req openai.ChatCompletionRequest,
-	numRetry int,
-) (openai.ChatCompletionResponse, error) {
-
-	if ctx.Err() != nil {
-		return openai.ChatCompletionResponse{}, ctx.Err()
-	}
-
-	resp, err := client.CreateChatCompletion(ctx, req)
-
+	req, err := http.NewRequestWithContext(ctx, "POST", modelConfig.BaseModelConfig.BaseUrl+"/chat/completions", nil)
 	if err != nil {
-		log.Printf("Error creating chat completion: %v, retry: %d\n", err, numRetry)
-
-		if isNonRetriableErr(err) {
-			return openai.ChatCompletionResponse{}, err
-		}
-
-		// for retriable errors, retry with exponential backoff
-		if numRetry < 5 {
-			// check if the error message contains a retry duration
-			if duration := parseRetryAfter(err.Error()); duration != nil {
-				log.Printf("Retry duration found: %v\n", *duration)
-
-				// wait for the duration times 3 to give some buffer
-				waitDuration := time.Duration(float64(*duration) * 3)
-
-				// ensure wait duration is 60 seconds or less - for really long retries just error out
-				if waitDuration > 120*time.Second {
-					return openai.ChatCompletionResponse{}, err
-				} else if waitDuration > 60*time.Second {
-					waitDuration = 60 * time.Second
-				}
-
-				time.Sleep(waitDuration)
-				return createChatCompletion(client, ctx, req, numRetry+1)
-			}
-
-			waitBackoff(numRetry)
-			return createChatCompletion(client, ctx, req, numRetry+1)
-		}
-
-		log.Println("Max retries reached - no retry")
 		return openai.ChatCompletionResponse{}, err
 	}
 
-	return resp, nil
+	// Add headers
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+client.ApiKey)
+	if client.OrgId != "" {
+		req.Header.Set("OpenAI-Organization", client.OrgId)
+	}
+
+	// Add body
+	jsonBody, err := json.Marshal(extendedReq)
+	if err != nil {
+		return openai.ChatCompletionResponse{}, err
+	}
+	req.Body = io.NopCloser(bytes.NewReader(jsonBody))
+
+	// Make request
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return openai.ChatCompletionResponse{}, err
+	}
+	defer resp.Body.Close()
+
+	// log the response
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return openai.ChatCompletionResponse{}, err
+	}
+	log.Println("Response body:", string(body))
+
+	var response openai.ChatCompletionResponse
+	err = json.Unmarshal(body, &response)
+	if err != nil {
+		return openai.ChatCompletionResponse{}, err
+	}
+
+	return response, nil
 }
 
 func isNonRetriableErr(err error) bool {
@@ -257,4 +266,52 @@ func resolveReq(req *openai.ChatCompletionRequest, modelConfig *shared.ModelRole
 	}
 
 	log.Println("Resolved request")
+}
+
+func withRetries[T any](
+	ctx context.Context,
+	operation func() (T, error),
+) (T, error) {
+	var result T
+	var numRetry int
+
+	for {
+		if ctx.Err() != nil {
+			return result, ctx.Err()
+		}
+
+		resp, err := operation()
+		if err == nil {
+			return resp, nil
+		}
+
+		log.Printf("Error in operation: %v, retry: %d\n", err, numRetry)
+
+		if isNonRetriableErr(err) {
+			return result, err
+		}
+
+		if numRetry >= OPENAI_MAX_RETRIES {
+			log.Println("Max retries reached - no retry")
+			return result, err
+		}
+
+		// Handle retry timing
+		if duration := parseRetryAfter(err.Error()); duration != nil {
+			log.Printf("Retry duration found: %v\n", *duration)
+			waitDuration := time.Duration(float64(*duration) * OPENAI_BACKOFF_MULTIPLIER)
+
+			if waitDuration > OPENAI_ABORT_WAIT_DURATION {
+				return result, err
+			} else if waitDuration > OPENAI_MAX_WAIT_DURATION {
+				waitDuration = OPENAI_MAX_WAIT_DURATION
+			}
+
+			time.Sleep(waitDuration)
+		} else {
+			waitBackoff(numRetry)
+		}
+
+		numRetry++
+	}
 }

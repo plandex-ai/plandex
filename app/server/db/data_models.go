@@ -447,16 +447,17 @@ func (context *Context) ToApi() *shared.Context {
 }
 
 type ConvoMessage struct {
-	Id        string    `json:"id"`
-	OrgId     string    `json:"orgId"`
-	PlanId    string    `json:"planId"`
-	UserId    string    `json:"userId"`
-	Role      string    `json:"role"`
-	Tokens    int       `json:"tokens"`
-	Num       int       `json:"num"`
-	Message   string    `json:"message"`
-	Stopped   bool      `json:"stopped"`
-	CreatedAt time.Time `json:"createdAt"`
+	Id        string           `json:"id"`
+	OrgId     string           `json:"orgId"`
+	PlanId    string           `json:"planId"`
+	UserId    string           `json:"userId"`
+	Role      string           `json:"role"`
+	Tokens    int              `json:"tokens"`
+	Num       int              `json:"num"`
+	Message   string           `json:"message"`
+	Stopped   bool             `json:"stopped"`
+	ReplyType shared.ReplyType `json:"replyType"`
+	CreatedAt time.Time        `json:"createdAt"`
 }
 
 func (msg *ConvoMessage) ToApi() *shared.ConvoMessage {
@@ -468,6 +469,7 @@ func (msg *ConvoMessage) ToApi() *shared.ConvoMessage {
 		Num:       msg.Num,
 		Message:   msg.Message,
 		Stopped:   msg.Stopped,
+		ReplyType: msg.ReplyType,
 		CreatedAt: msg.CreatedAt,
 	}
 }

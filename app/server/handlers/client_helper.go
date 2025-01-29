@@ -7,8 +7,6 @@ import (
 	"plandex-server/hooks"
 	"plandex-server/model"
 	"plandex-server/types"
-
-	"github.com/sashabaranov/go-openai"
 )
 
 type initClientsParams struct {
@@ -22,7 +20,7 @@ type initClientsParams struct {
 	plan        *db.Plan
 }
 
-func initClients(params initClientsParams) map[string]*openai.Client {
+func initClients(params initClientsParams) map[string]model.ClientInfo {
 	w := params.w
 	apiKey := params.apiKey
 	apiKeys := params.apiKeys

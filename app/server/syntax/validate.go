@@ -35,6 +35,9 @@ func ValidateFile(ctx context.Context, path string, file string) (*ValidationRes
 }
 
 func ValidateWithParsers(ctx context.Context, lang shared.TreeSitterLanguage, parser *tree_sitter.Parser, fallbackLang shared.TreeSitterLanguage, fallbackParser *tree_sitter.Parser, file string) (*ValidationRes, error) {
+	if file == "" {
+		return &ValidationRes{Lang: lang, Parser: parser, Valid: true}, nil
+	}
 
 	// Set a timeout duration for the parsing operations
 	ctx, cancel := context.WithTimeout(ctx, parserTimeout)
@@ -90,6 +93,10 @@ func ValidateWithParsers(ctx context.Context, lang shared.TreeSitterLanguage, pa
 }
 
 func insertErrorMarkers(source string, node *tree_sitter.Node) []string {
+	if source == "" {
+		return []string{}
+	}
+
 	var markers []string
 	var uniqueMarkers = map[string]bool{}
 

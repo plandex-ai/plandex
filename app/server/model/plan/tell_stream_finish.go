@@ -435,7 +435,20 @@ func (state *activeTellStreamState) storeOnFinished(params storeOnFinishedParams
 			}
 		}()
 
-		assistantMsg, convoCommitMsg, err := state.storeAssistantReply() // updates state.convo
+		var replyType shared.ReplyType
+		if len(replyOperations) > 0 {
+			replyType = shared.ReplyTypeImplementation
+		} else if hasNewSubtasks {
+			replyType = shared.ReplyTypeMadePlan
+		} else if state.isContextStage {
+			replyType = shared.ReplyTypeLoadedContext
+		} else if followUpNeedsContextStage {
+			replyType = shared.ReplyTypeContextAssessment
+		} else {
+			replyType = shared.ReplyTypeChat
+		}
+
+		assistantMsg, convoCommitMsg, err := state.storeAssistantReply(replyType) // updates state.convo
 
 		if err != nil {
 			state.onError(fmt.Errorf("failed to store assistant message: %v", err), true, "", "")
@@ -547,7 +560,7 @@ func (state *activeTellStreamState) storeOnFinished(params storeOnFinishedParams
 	}
 }
 
-func (state *activeTellStreamState) storeAssistantReply() (*db.ConvoMessage, string, error) {
+func (state *activeTellStreamState) storeAssistantReply(replyType shared.ReplyType) (*db.ConvoMessage, string, error) {
 	currentOrgId := state.currentOrgId
 	currentUserId := state.currentUserId
 	planId := state.plan.Id
@@ -564,14 +577,15 @@ func (state *activeTellStreamState) storeAssistantReply() (*db.ConvoMessage, str
 	activePlan := state.activePlan
 
 	assistantMsg := db.ConvoMessage{
-		Id:      replyId,
-		OrgId:   currentOrgId,
-		PlanId:  planId,
-		UserId:  currentUserId,
-		Role:    openai.ChatMessageRoleAssistant,
-		Tokens:  replyNumTokens,
-		Num:     num,
-		Message: activePlan.CurrentReplyContent,
+		Id:        replyId,
+		OrgId:     currentOrgId,
+		PlanId:    planId,
+		UserId:    currentUserId,
+		Role:      openai.ChatMessageRoleAssistant,
+		Tokens:    replyNumTokens,
+		Num:       num,
+		Message:   activePlan.CurrentReplyContent,
+		ReplyType: replyType,
 	}
 
 	commitMsg, err := db.StoreConvoMessage(&assistantMsg, auth.User.Id, branch, false)

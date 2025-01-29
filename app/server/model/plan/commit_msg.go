@@ -160,7 +160,7 @@ func (state *activeTellStreamState) genPlanDescription() (*db.ConvoMessageDescri
 	}, nil
 }
 
-func GenCommitMsgForPendingResults(auth *types.ServerAuth, plan *db.Plan, clients map[string]*openai.Client, settings *shared.PlanSettings, current *shared.CurrentPlanState, ctx context.Context) (string, error) {
+func GenCommitMsgForPendingResults(auth *types.ServerAuth, plan *db.Plan, clients map[string]model.ClientInfo, settings *shared.PlanSettings, current *shared.CurrentPlanState, ctx context.Context) (string, error) {
 	config := settings.ModelPack.CommitMsg
 
 	s := ""

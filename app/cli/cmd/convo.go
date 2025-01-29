@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/fatih/color"
+	"github.com/plandex/plandex/shared"
 	"github.com/spf13/cobra"
 )
 
@@ -103,6 +104,15 @@ func convo(cmd *cobra.Command, args []string) {
 			author = msg.Role
 		}
 
+		var replyType string
+		if msg.ReplyType == shared.ReplyTypeLoadedContext {
+			replyType = "📥 Loaded Context"
+		} else if msg.ReplyType == shared.ReplyTypeMadePlan {
+			replyType = "📋 Made Plan"
+		} else if msg.ReplyType == shared.ReplyTypeImplementation {
+			replyType = "👨‍💻 Wrote Code"
+		}
+
 		// format as above but start with day of week
 		formattedTs := msg.CreatedAt.Local().Format("Mon Jan 2, 2006 | 3:04pm MST")
 
@@ -116,8 +126,14 @@ func convo(cmd *cobra.Command, args []string) {
 			formattedTs = msg.CreatedAt.Local().Format("Yesterday | 3:04pm MST")
 		}
 
-		header := fmt.Sprintf("#### %d | %s | %s | %d 🪙 ", i+1,
-			author, formattedTs, msg.Tokens)
+		var header string
+		if replyType != "" {
+			header = fmt.Sprintf("#### %d | %s | %s | %s | %d 🪙 ", i+1,
+				author, replyType, formattedTs, msg.Tokens)
+		} else {
+			header = fmt.Sprintf("#### %d | %s | %s | %d 🪙 ", i+1,
+				author, formattedTs, msg.Tokens)
+		}
 
 		txt := msg.Message
 		if !convoRaw {

@@ -11,7 +11,6 @@ import (
 	"plandex-server/types"
 
 	"github.com/plandex/plandex/shared"
-	"github.com/sashabaranov/go-openai"
 )
 
 func loadContexts(
@@ -44,7 +43,7 @@ func loadContexts(
 	var err error
 
 	var settings *shared.PlanSettings
-	var clients map[string]*openai.Client
+	var clients map[string]model.ClientInfo
 
 	for _, context := range *loadReq {
 		if context.ContextType == shared.ContextPipedDataType || context.ContextType == shared.ContextNoteType || context.ContextType == shared.ContextImageType {

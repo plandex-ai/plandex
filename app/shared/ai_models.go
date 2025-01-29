@@ -24,6 +24,7 @@ var AvailableModels = []*AvailableModel{
 			ModelCompatibility:         fullCompatibility,
 			BaseUrl:                    OpenAIV1BaseUrl,
 			PreferredModelOutputFormat: ModelOutputFormatToolCallJson,
+			PredictedOutputEnabled:     true,
 		},
 	},
 	{
@@ -38,6 +39,7 @@ var AvailableModels = []*AvailableModel{
 			ModelCompatibility:         fullCompatibility,
 			BaseUrl:                    OpenAIV1BaseUrl,
 			PreferredModelOutputFormat: ModelOutputFormatToolCallJson,
+			PredictedOutputEnabled:     true,
 		},
 	},
 	{

@@ -197,7 +197,7 @@ type summarizeConvoParams struct {
 	modelPackName         string
 }
 
-func summarizeConvo(clients map[string]*openai.Client, config shared.ModelRoleConfig, params summarizeConvoParams, ctx context.Context) error {
+func summarizeConvo(clients map[string]model.ClientInfo, config shared.ModelRoleConfig, params summarizeConvoParams, ctx context.Context) error {
 	plan := params.plan
 	planId := plan.Id
 	log.Printf("summarizeConvo: Called for plan ID %s on branch %s\n", planId, params.branch)

@@ -117,6 +117,16 @@ type Context struct {
 	UpdatedAt       time.Time             `json:"updatedAt"`
 }
 
+type ReplyType string
+
+const (
+	ReplyTypeContextAssessment ReplyType = "context-assessment"
+	ReplyTypeMadePlan          ReplyType = "made-plan"
+	ReplyTypeLoadedContext     ReplyType = "loaded-context"
+	ReplyTypeChat              ReplyType = "chat"
+	ReplyTypeImplementation    ReplyType = "implementation"
+)
+
 type ConvoMessage struct {
 	Id        string    `json:"id"`
 	UserId    string    `json:"userId"`
@@ -125,6 +135,7 @@ type ConvoMessage struct {
 	Num       int       `json:"num"`
 	Message   string    `json:"message"`
 	Stopped   bool      `json:"stopped"`
+	ReplyType ReplyType `json:"replyType"`
 	CreatedAt time.Time `json:"createdAt"`
 }
 
@@ -280,8 +291,9 @@ type BaseModelConfig struct {
 	ApiKeyEnvVar               string            `json:"apiKeyEnvVar"`
 	PreferredModelOutputFormat ModelOutputFormat `json:"preferredModelOutputFormat"`
 
-	SystemPromptDisabled bool `json:"systemPromptDisabled"`
-	RoleParamsDisabled   bool `json:"roleParamsDisabled"`
+	SystemPromptDisabled   bool `json:"systemPromptDisabled"`
+	RoleParamsDisabled     bool `json:"roleParamsDisabled"`
+	PredictedOutputEnabled bool `json:"predictedOutputEnabled"`
 
 	ModelCompatibility
 }

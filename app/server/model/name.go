@@ -18,7 +18,7 @@ func GenPlanName(
 	auth *types.ServerAuth,
 	plan *db.Plan,
 	settings *shared.PlanSettings,
-	clients map[string]*openai.Client,
+	clients map[string]ClientInfo,
 	planContent string,
 	ctx context.Context,
 ) (string, error) {
@@ -141,7 +141,7 @@ func GenPipedDataName(
 	auth *types.ServerAuth,
 	plan *db.Plan,
 	settings *shared.PlanSettings,
-	clients map[string]*openai.Client,
+	clients map[string]ClientInfo,
 	pipedContent string,
 ) (string, error) {
 	config := settings.ModelPack.Namer
@@ -272,7 +272,7 @@ func GenNoteName(
 	auth *types.ServerAuth,
 	plan *db.Plan,
 	settings *shared.PlanSettings,
-	clients map[string]*openai.Client,
+	clients map[string]ClientInfo,
 	note string,
 ) (string, error) {
 	config := settings.ModelPack.Namer

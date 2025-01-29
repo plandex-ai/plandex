@@ -74,6 +74,18 @@ func (ps PlanSettings) GetPlannerMaxTokens() int {
 	}
 }
 
+func (ps PlanSettings) GetContextLoaderMaxTokens() int {
+	if ps.ModelOverrides.MaxTokens == nil {
+		if ps.ModelPack == nil {
+			return DefaultModelPack.GetContextLoader().BaseModelConfig.MaxTokens
+		} else {
+			return ps.ModelPack.GetContextLoader().BaseModelConfig.MaxTokens
+		}
+	} else {
+		return *ps.ModelOverrides.MaxTokens
+	}
+}
+
 func (ps PlanSettings) GetPlannerMaxConvoTokens() int {
 	if ps.ModelOverrides.MaxConvoTokens == nil {
 		if ps.ModelPack == nil {
@@ -88,6 +100,11 @@ func (ps PlanSettings) GetPlannerMaxConvoTokens() int {
 
 func (ps PlanSettings) GetPlannerEffectiveMaxTokens() int {
 	return ps.GetPlannerMaxTokens() - ps.ModelPack.Planner.GetReservedOutputTokens()
+}
+
+func (ps PlanSettings) GetContextLoaderEffectiveMaxTokens() int {
+	config := ps.ModelPack.GetContextLoader()
+	return ps.GetContextLoaderMaxTokens() - config.GetReservedOutputTokens()
 }
 
 func (ps PlanSettings) GetRequiredEnvVars() map[string]bool {

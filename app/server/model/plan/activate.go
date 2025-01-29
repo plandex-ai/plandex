@@ -5,15 +5,15 @@ import (
 	"log"
 	"plandex-server/db"
 	"plandex-server/host"
+	"plandex-server/model"
 	"plandex-server/types"
 	"time"
 
 	"github.com/plandex/plandex/shared"
-	"github.com/sashabaranov/go-openai"
 )
 
 func activatePlan(
-	clients map[string]*openai.Client,
+	clients map[string]model.ClientInfo,
 	plan *db.Plan,
 	branch string,
 	auth *types.ServerAuth,

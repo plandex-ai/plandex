@@ -2,10 +2,10 @@ package plan
 
 import (
 	"plandex-server/db"
+	"plandex-server/model"
 	"plandex-server/types"
 
 	"github.com/plandex/plandex/shared"
-	"github.com/sashabaranov/go-openai"
 	sitter "github.com/smacker/go-tree-sitter"
 )
 
@@ -13,7 +13,7 @@ const MaxBuildErrorRetries = 3 // uses semi-exponential backoff so be careful wi
 
 type activeBuildStreamState struct {
 	tellState     *activeTellStreamState
-	clients       map[string]*openai.Client
+	clients       map[string]model.ClientInfo
 	auth          *types.ServerAuth
 	currentOrgId  string
 	currentUserId string

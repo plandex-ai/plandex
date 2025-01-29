@@ -65,8 +65,10 @@ func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 		fileState.language,
 		activePlan.Ctx,
 	)
-	// log.Println("buildStructuredEdits - applyRes.NewFile:")
-	// log.Println(applyRes.NewFile)
+	log.Println("buildStructuredEdits - applyRes.NewFile:")
+	log.Println(applyRes.NewFile)
+	log.Println("buildStructuredEdits - applyRes.NeedsVerifyReasons:")
+	log.Println(applyRes.NeedsVerifyReasons)
 
 	updatedFile := applyRes.NewFile
 
@@ -91,7 +93,7 @@ func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 
 	log.Printf("buildStructuredEdits - %s - initial isValid: %t\n", filePath, isValid)
 
-	var buildStage BuildStage = BuildStageInitial
+	var buildStage BuildStage = BuildStageValidateAndCorrect
 
 	for !isValid && int(buildStage) <= int(BuildStageValidateAndCorrect) {
 		buildStage = BuildStage(int(buildStage) + 1)

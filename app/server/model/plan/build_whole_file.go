@@ -61,14 +61,38 @@ func (fileState *activeBuildStreamFileState) buildWholeFileFallback(proposedCont
 
 	log.Println("buildWholeFile - calling model for applied changes validation")
 
-	modelReq := openai.ChatCompletionRequest{
+	var resp openai.ChatCompletionResponse
+	var err error
+
+	modelReq := &openai.ChatCompletionRequest{
 		Model:       config.BaseModelConfig.ModelName,
 		Messages:    messages,
 		Temperature: config.Temperature,
 		TopP:        config.TopP,
 	}
 
-	resp, err := model.CreateChatCompletionWithRetries(clients, &config, activePlan.Ctx, modelReq)
+	log.Println("buildWholeFile - config.BaseModelConfig.PredictedOutputEnabled:", config.BaseModelConfig.PredictedOutputEnabled)
+
+	if config.BaseModelConfig.PredictedOutputEnabled {
+		extendedReq := &model.ExtendedChatCompletionRequest{
+			ChatCompletionRequest: modelReq,
+			Prediction: model.OpenAIPrediction{
+				Type: "content",
+				Content: `
+## Comments
+
+No comments
+
+<PlandexWholeFile>
+` + originalFile + `
+</PlandexWholeFile>
+`,
+			},
+		}
+		resp, err = model.CreateChatCompletionWithRetries(clients, &config, activePlan.Ctx, *extendedReq)
+	} else {
+		resp, err = model.CreateChatCompletionWithRetries(clients, &config, activePlan.Ctx, *modelReq)
+	}
 
 	if err != nil {
 		log.Printf("buildWholeFile - error calling model: %v\n", err)

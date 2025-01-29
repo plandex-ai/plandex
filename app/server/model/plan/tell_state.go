@@ -2,6 +2,7 @@ package plan
 
 import (
 	"plandex-server/db"
+	"plandex-server/model"
 	"plandex-server/types"
 
 	"github.com/plandex/plandex/shared"
@@ -10,7 +11,7 @@ import (
 
 type activeTellStreamState struct {
 	activePlan             *types.ActivePlan
-	clients                map[string]*openai.Client
+	clients                map[string]model.ClientInfo
 	req                    *shared.TellPlanRequest
 	auth                   *types.ServerAuth
 	currentOrgId           string

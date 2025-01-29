@@ -10,6 +10,7 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/google/uuid"
+	"github.com/plandex/plandex/shared"
 	"github.com/sashabaranov/go-openai"
 )
 
@@ -132,7 +133,29 @@ func StoreConvoMessage(message *ConvoMessage, currentUserId, branch string, comm
 		}
 	}
 
-	msg := fmt.Sprintf("Message #%d | %s | %d 🪙", message.Num, desc, message.Tokens)
+	var replyType string
+	if message.ReplyType == shared.ReplyTypeLoadedContext {
+		replyType = "📥 Loaded Context"
+	} else if message.ReplyType == shared.ReplyTypeMadePlan {
+		replyType = "📋 Made Plan"
+	} else if message.ReplyType == shared.ReplyTypeImplementation {
+		replyType = "👨‍💻 Wrote Code"
+	}
+
+	var msg string
+	if replyType != "" {
+		msg = fmt.Sprintf("Message #%d | %s | %s | %d 🪙", message.Num, desc, replyType, message.Tokens)
+	} else {
+		msg = fmt.Sprintf("Message #%d | %s | %d 🪙", message.Num, desc, message.Tokens)
+	}
+
+	// Cleaner without the cut off message - maybe need a separate command to show both the log and full messages?
+	// cutoff := 140
+	// if len(message.Message) > cutoff {
+	// 	msg += "\n\n" + message.Message[:cutoff] + "..."
+	// } else {
+	// 	msg += "\n\n" + message.Message
+	// }
 
 	if commit {
 		err = GitAddAndCommit(message.OrgId, message.PlanId, branch, msg)

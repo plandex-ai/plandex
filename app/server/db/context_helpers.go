@@ -455,13 +455,22 @@ func LoadContexts(ctx Ctx, params LoadContextsParams) (*shared.LoadContextRespon
 		return nil, nil, fmt.Errorf("error getting branch: %v", err)
 	}
 	totalTokens := branch.ContextTokens
+	totalPlannerTokens := totalTokens
+	totalMapTokens := 0
 
 	settings, err := GetPlanSettings(plan, true)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error getting settings: %v", err)
 	}
 
-	maxTokens := settings.GetPlannerEffectiveMaxTokens()
+	planConfig, err := GetPlanConfig(planId)
+	if err != nil {
+		return nil, nil, fmt.Errorf("error getting plan config: %v", err)
+	}
+
+	plannerMaxTokens := settings.GetPlannerEffectiveMaxTokens()
+	contextLoaderMaxTokens := settings.GetContextLoaderEffectiveMaxTokens()
+
 	mapContextsByFilePath := make(map[string]Context)
 
 	existingContexts, err := GetPlanContexts(orgId, planId, false, false)
@@ -472,6 +481,11 @@ func LoadContexts(ctx Ctx, params LoadContextsParams) (*shared.LoadContextRespon
 	for _, context := range existingContexts {
 		composite := strings.Join([]string{context.Name, string(context.ContextType)}, "|")
 		existingContextsByName[composite] = true
+
+		if planConfig.AutoLoadContext && context.ContextType == shared.ContextMapType {
+			totalMapTokens += context.NumTokens
+			totalPlannerTokens -= context.NumTokens
+		}
 	}
 
 	var filteredReq []*shared.LoadContextParams
@@ -492,7 +506,10 @@ func LoadContexts(ctx Ctx, params LoadContextsParams) (*shared.LoadContextRespon
 		var numTokens int
 		var err error
 
+		var isMap bool
+
 		if context.ContextType == shared.ContextMapType && (len(context.MapInputs) > 0 || params.CachedMapsByPath != nil) {
+			isMap = true
 			var mappedFiles shared.FileMapBodies
 			if params.CachedMapsByPath != nil && params.CachedMapsByPath[context.FilePath] != nil {
 				log.Println("Using cached map for", context.FilePath)
@@ -559,18 +576,35 @@ func LoadContexts(ctx Ctx, params LoadContextsParams) (*shared.LoadContextRespon
 
 		paramsByTempId[tempId] = context
 		numTokensByTempId[tempId] = numTokens
-
-		tokensAdded += numTokens
 		totalTokens += numTokens
+
+		// maps don't count toward the token limit if auto-loading
+		if planConfig.AutoLoadContext && isMap {
+			tokensAdded += numTokens
+			totalMapTokens += numTokens
+		} else {
+			tokensAdded += numTokens
+			totalPlannerTokens += numTokens
+		}
 	}
 
 	// showElapsed("Loaded reqs")
+	if planConfig.AutoLoadContext {
+		if totalMapTokens > contextLoaderMaxTokens {
+			return &shared.LoadContextResponse{
+				TokensAdded:       tokensAdded,
+				TotalTokens:       totalMapTokens,
+				MaxTokens:         contextLoaderMaxTokens,
+				MaxTokensExceeded: true,
+			}, nil, nil
+		}
+	}
 
-	if totalTokens > maxTokens {
+	if totalPlannerTokens > plannerMaxTokens {
 		return &shared.LoadContextResponse{
 			TokensAdded:       tokensAdded,
-			TotalTokens:       totalTokens,
-			MaxTokens:         maxTokens,
+			TotalTokens:       totalPlannerTokens,
+			MaxTokens:         plannerMaxTokens,
 			MaxTokensExceeded: true,
 		}, nil, nil
 	}
@@ -678,13 +712,36 @@ func UpdateContexts(params UpdateContextsParams) (*shared.UpdateContextResponse,
 		return nil, fmt.Errorf("branch not found")
 	}
 
+	totalTokens := branch.ContextTokens
+	totalPlannerTokens := totalTokens
+	totalMapTokens := 0
+
 	settings, err := GetPlanSettings(plan, true)
 	if err != nil {
 		return nil, fmt.Errorf("error getting settings: %v", err)
 	}
 
-	maxTokens := settings.GetPlannerEffectiveMaxTokens()
-	totalTokens := branch.ContextTokens
+	planConfig, err := GetPlanConfig(planId)
+	if err != nil {
+		return nil, fmt.Errorf("error getting plan config: %v", err)
+	}
+
+	plannerMaxTokens := settings.GetPlannerEffectiveMaxTokens()
+	contextLoaderMaxTokens := settings.GetContextLoaderEffectiveMaxTokens()
+
+	if planConfig.AutoLoadContext {
+		existingContexts, err := GetPlanContexts(orgId, planId, false, false)
+		if err != nil {
+			return nil, fmt.Errorf("error getting existing contexts: %v", err)
+		}
+
+		for _, context := range existingContexts {
+			if context.ContextType == shared.ContextMapType {
+				totalMapTokens += context.NumTokens
+				totalPlannerTokens -= context.NumTokens
+			}
+		}
+	}
 
 	aggregateTokensDiff := 0
 	tokenDiffsById := make(map[string]int)
@@ -776,6 +833,7 @@ func UpdateContexts(params UpdateContextsParams) (*shared.UpdateContextResponse,
 				tokenDiffsById[id] = tokenDiff
 				aggregateTokensDiff += tokenDiff
 				totalTokens += tokenDiff
+				totalPlannerTokens += tokenDiff
 				context.NumTokens = updateNumTokens
 			}
 
@@ -801,11 +859,11 @@ func UpdateContexts(params UpdateContextsParams) (*shared.UpdateContextResponse,
 		}
 	}
 
-	if totalTokens > maxTokens {
+	if totalPlannerTokens > plannerMaxTokens {
 		return &shared.UpdateContextResponse{
 			TokensAdded:       aggregateTokensDiff,
 			TotalTokens:       totalTokens,
-			MaxTokens:         maxTokens,
+			MaxTokens:         plannerMaxTokens,
 			MaxTokensExceeded: true,
 		}, nil
 	}
@@ -870,6 +928,11 @@ func UpdateContexts(params UpdateContextsParams) (*shared.UpdateContextResponse,
 				tokenDiffsById[id] = tokenDiff
 				aggregateTokensDiff += tokenDiff
 				totalTokens += tokenDiff
+				if planConfig.AutoLoadContext {
+					totalMapTokens += tokenDiff
+				} else {
+					totalPlannerTokens += tokenDiff
+				}
 				mu.Unlock()
 
 				context.NumTokens = newNumTokens
@@ -903,6 +966,17 @@ func UpdateContexts(params UpdateContextsParams) (*shared.UpdateContextResponse,
 		}
 	}
 
+	if planConfig.AutoLoadContext {
+		if totalMapTokens > contextLoaderMaxTokens {
+			return &shared.UpdateContextResponse{
+				TokensAdded:       aggregateTokensDiff,
+				TotalTokens:       totalTokens,
+				MaxTokens:         contextLoaderMaxTokens,
+				MaxTokensExceeded: true,
+			}, nil
+		}
+	}
+
 	updateRes := &shared.ContextUpdateResult{
 		UpdatedContexts: updatedContexts,
 		TokenDiffsById:  tokenDiffsById,
@@ -912,7 +986,7 @@ func UpdateContexts(params UpdateContextsParams) (*shared.UpdateContextResponse,
 		NumUrls:         numUrls,
 		NumTrees:        numTrees,
 		NumMaps:         numMaps,
-		MaxTokens:       maxTokens,
+		MaxTokens:       plannerMaxTokens,
 	}
 
 	err = AddPlanContextTokens(planId, branchName, aggregateTokensDiff)
