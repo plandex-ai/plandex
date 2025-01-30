@@ -39,6 +39,9 @@
     {
       "name": "vscode",
       "path": "vscode"
+    },
+    {
+      "path": "../go-prompt"
     }
   ],
   "settings": {

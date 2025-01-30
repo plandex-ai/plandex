@@ -175,14 +175,27 @@ func TellPlan(
 					term.OutputErrorAndExit("Error starting stream UI: %v", err)
 				}
 
+				diffs, apiErr := api.Client.GetPlanDiffs(params.CurrentPlanId, params.CurrentBranch, true)
+				if apiErr != nil {
+					term.OutputErrorAndExit("Error getting plan diffs: %v", apiErr.Msg)
+					return
+				}
+				hasDiffs := len(diffs) > 0
+
 				fmt.Println()
 
-				if tellStop && !isChatOnly {
-					term.PrintCmds("", "continue", "diff", "diff --ui", "apply", "log")
-				} else if !isDebugCmd && !isChatOnly {
-					term.PrintCmds("", "diff", "diff --ui", "apply", "log")
+				if tellStop && !isChatOnly && hasDiffs {
+					if hasDiffs {
+						term.PrintCmds("", "continue", "diff", "diff --ui", "apply", "reject", "log")
+					} else {
+						term.PrintCmds("", "continue", "log")
+					}
+				} else if !isDebugCmd && !isChatOnly && hasDiffs {
+					term.PrintCmds("", "diff", "diff --ui", "apply", "reject", "log")
 				} else if isChatOnly {
-					term.PrintCmds("", "tell", "convo", "summary")
+					if !term.IsRepl {
+						term.PrintCmds("", "tell", "convo", "summary", "log")
+					}
 				}
 				close(done)
 

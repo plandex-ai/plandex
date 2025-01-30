@@ -83,7 +83,7 @@ func TableForLoadContext(contexts []*Context) string {
 
 	table.Render()
 
-	return tableString.String()
+	return strings.TrimSpace(tableString.String())
 }
 
 func MarkdownTableForLoadContext(contexts []*Context) string {

@@ -6,18 +6,11 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"plandex/api"
 	"plandex/auth"
 	"plandex/lib"
 	"plandex/plan_exec"
 	"plandex/term"
 	"strings"
-	"time"
-
-	"context"
-
-	"os/signal"
-	"syscall"
 
 	"github.com/plandex/plandex/shared"
 	"github.com/spf13/cobra"
@@ -197,50 +190,50 @@ func getEditorPrompt() string {
 
 }
 
-func maybeShowDiffs() {
-	diffs, err := api.Client.GetPlanDiffs(lib.CurrentPlanId, lib.CurrentBranch, plainTextOutput || showDiffUi)
-	if err != nil {
-		term.OutputErrorAndExit("Error getting plan diffs: %v", err)
-		return
-	}
+// func maybeShowDiffs() {
+// 	diffs, err := api.Client.GetPlanDiffs(lib.CurrentPlanId, lib.CurrentBranch, plainTextOutput || showDiffUi)
+// 	if err != nil {
+// 		term.OutputErrorAndExit("Error getting plan diffs: %v", err)
+// 		return
+// 	}
 
-	if len(diffs) > 0 {
-		cmd := exec.Command(os.Args[0], "diffs", "--ui")
+// 	if len(diffs) > 0 {
+// 		cmd := exec.Command(os.Args[0], "diffs", "--ui")
 
-		// Create a context that's cancelled when the program exits
-		ctx, cancel := context.WithCancel(context.Background())
+// 		// Create a context that's cancelled when the program exits
+// 		ctx, cancel := context.WithCancel(context.Background())
 
-		// Ensure cleanup on program exit
-		go func() {
-			// Wait for program exit signal
-			c := make(chan os.Signal, 1)
-			signal.Notify(c, os.Interrupt, syscall.SIGTERM)
-			<-c
+// 		// Ensure cleanup on program exit
+// 		go func() {
+// 			// Wait for program exit signal
+// 			c := make(chan os.Signal, 1)
+// 			signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+// 			<-c
 
-			// Cancel context and kill the process
-			cancel()
-			if cmd.Process != nil {
-				cmd.Process.Kill()
-			}
-		}()
+// 			// Cancel context and kill the process
+// 			cancel()
+// 			if cmd.Process != nil {
+// 				cmd.Process.Kill()
+// 			}
+// 		}()
 
-		go func() {
-			if err := cmd.Start(); err != nil {
-				fmt.Fprintf(os.Stderr, "Error starting diffs command: %v\n", err)
-				return
-			}
+// 		go func() {
+// 			if err := cmd.Start(); err != nil {
+// 				fmt.Fprintf(os.Stderr, "Error starting diffs command: %v\n", err)
+// 				return
+// 			}
 
-			// Wait in a separate goroutine
-			go cmd.Wait()
+// 			// Wait in a separate goroutine
+// 			go cmd.Wait()
 
-			// Wait for either context cancellation or process completion
-			<-ctx.Done()
-			if cmd.Process != nil {
-				cmd.Process.Kill()
-			}
-		}()
+// 			// Wait for either context cancellation or process completion
+// 			<-ctx.Done()
+// 			if cmd.Process != nil {
+// 				cmd.Process.Kill()
+// 			}
+// 		}()
 
-		// Give the UI a moment to start
-		time.Sleep(100 * time.Millisecond)
-	}
-}
+// 		// Give the UI a moment to start
+// 		time.Sleep(100 * time.Millisecond)
+// 	}
+// }

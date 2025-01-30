@@ -215,19 +215,11 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 			if !params.ForceSkipIgnore {
 				var filteredPaths []string
 				for _, inputFilePath := range inputFilePaths {
-					// log.Println("inputFilePath", inputFilePath)
-
 					if _, ok := paths.ActivePaths[inputFilePath]; !ok {
-						// log.Println("not active", inputFilePath)
-
 						if _, ok := paths.IgnoredPaths[inputFilePath]; ok {
-							// log.Println("ignored", inputFilePath)
-
 							ignoredPaths[inputFilePath] = paths.IgnoredPaths[inputFilePath]
 						}
 					} else {
-						// log.Println("active", inputFilePath)
-
 						filteredPaths = append(filteredPaths, inputFilePath)
 					}
 				}

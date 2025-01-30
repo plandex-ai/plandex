@@ -8,11 +8,15 @@ import (
 	"path/filepath"
 	"plandex/api"
 	"plandex/auth"
+	"plandex/format"
 	"plandex/fs"
 	"plandex/term"
 	"plandex/types"
+	"strconv"
+	"strings"
 
 	"github.com/fatih/color"
+	"github.com/olekukonko/tablewriter"
 	"github.com/plandex/plandex/shared"
 )
 
@@ -201,6 +205,53 @@ func loadCurrentBranch() error {
 	CurrentBranch = settings.Branch
 
 	return nil
+}
+
+func GetCurrentPlanTable(plan *shared.Plan, currentBranchesByPlanId map[string]*shared.Branch, onlyCols []string) string {
+	b := &strings.Builder{}
+	table := tablewriter.NewWriter(b)
+	table.SetAutoWrapText(false)
+
+	var cols []string
+
+	if onlyCols == nil {
+		cols = []string{"Current Plan", "Updated", "Created" /*"Branches",*/, "Branch", "Context", "Convo"}
+	} else {
+		cols = onlyCols
+	}
+
+	table.SetHeader(cols)
+
+	name := color.New(color.Bold, term.ColorHiGreen).Sprint(plan.Name)
+	branch := currentBranchesByPlanId[CurrentPlanId]
+
+	var row []string
+
+	for _, col := range cols {
+		switch col {
+		case "Current Plan":
+			row = append(row, name)
+		case "Updated":
+			row = append(row, format.Time(plan.UpdatedAt))
+		case "Created":
+			row = append(row, format.Time(plan.CreatedAt))
+		case "Branch":
+			row = append(row, CurrentBranch)
+		case "Context":
+			row = append(row, strconv.Itoa(branch.ContextTokens)+" 🪙")
+		case "Convo":
+			row = append(row, strconv.Itoa(branch.ConvoTokens)+" 🪙")
+		}
+	}
+
+	style := []tablewriter.Colors{
+		{tablewriter.FgGreenColor, tablewriter.Bold},
+	}
+
+	table.Rich(row, style)
+	table.Render()
+
+	return b.String()
 }
 
 func mustInitProject(existingSettings *types.CurrentProjectSettingsByAccount) {

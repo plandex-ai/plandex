@@ -9,70 +9,97 @@ import (
 	"github.com/fatih/color"
 )
 
-var CmdDesc = map[string][2]string{
-	"new":          {"", "start a new plan"},
-	"rename":       {"", "rename the current plan"},
-	"current":      {"cu", "show current plan"},
-	"cd":           {"", "set current plan by name or index"},
-	"load":         {"l", "load files/dirs/urls/notes/images or pipe data into context"},
-	"tell":         {"t", "describe a task to complete"},
-	"chat":         {"ch", "ask a question or chat"},
-	"changes":      {"", "review pending changes in a TUI"},
-	"diff":         {"", "review pending changes in 'git diff' format"},
-	"diff --plain": {"", "review pending changes in 'git diff' format with no color formatting"},
-	"diff --ui":    {"", "review pending changes in a local browser UI"},
-	"summary":      {"", "show the latest summary of the current plan"},
-	// "preview":     {"pv", "preview the plan in a branch"},
-	"apply":     {"ap", "apply pending changes to project files"},
-	"reject":    {"rj", "reject pending changes to one or more project files"},
-	"archive":   {"arc", "archive a plan"},
-	"unarchive": {"unarc", "unarchive a plan"},
-	"continue":  {"c", "continue the plan"},
-	"debug":     {"db", "repeatedly run a command and auto-apply fixes until it succeeds"},
-	// "status":      {"s", "show status of the plan"},
-	"rewind":                    {"rw", "rewind to a previous state"},
-	"ls":                        {"", "list everything in context"},
-	"rm":                        {"", "remove context by index, range, name, or glob"},
-	"clear":                     {"", "remove all context"},
-	"delete-plan":               {"dp", "delete plan by name or index"},
-	"delete-branch":             {"db", "delete a branch by name or index"},
-	"plans":                     {"pl", "list plans"},
-	"plans --archived":          {"", "list archived plans"},
-	"update":                    {"u", "update outdated context"},
-	"log":                       {"", "show log of plan updates"},
-	"convo":                     {"", "show plan conversation"},
-	"convo 1":                   {"", "show a specific message in the conversation"},
-	"convo 2-5":                 {"", "show a range of messages in the conversation"},
-	"convo --plain":             {"", "show conversation in plain text"},
-	"branches":                  {"br", "list plan branches"},
-	"checkout":                  {"co", "checkout or create a branch"},
-	"build":                     {"b", "build any pending changes"},
-	"models":                    {"", "show current plan model settings"},
-	"models default":            {"", "show org-wide default model settings for new plans"},
-	"models available":          {"", "show all available models"},
-	"models available --custom": {"", "show available custom models only"},
-	"models delete":             {"", "delete a custom model"},
-	"models add":                {"", "add a custom model"},
-	"model-packs":               {"", "show all available model packs"},
-	"model-packs create":        {"", "create a new custom model pack"},
-	"model-packs delete":        {"", "delete a custom model pack"},
-	"model-packs --custom":      {"", "show custom model packs only"},
-	"set-model":                 {"", "update current plan model settings"},
-	"set-model default":         {"", "update org-wide default model settings for new plans"},
-	"ps":                        {"", "list active and recently finished plan streams"},
-	"stop":                      {"", "stop an active plan stream"},
-	"connect":                   {"conn", "connect to an active plan stream"},
-	"sign-in":                   {"", "sign in, accept an invite, or create an account"},
-	"invite":                    {"", "invite a user to join your org"},
-	"revoke":                    {"", "revoke an invite or remove a user from your org"},
-	"users":                     {"", "list users and pending invites in your org"},
-	"credits":                   {"", "show Plandex Cloud credits balance"},
-	"usage":                     {"", "show Plandex Cloud credits transaction log"},
-	"billing":                   {"", "show Plandex Cloud billing settings"},
-	"config":                    {"", "show current plan config"},
-	"set-config":                {"", "update current plan config"},
-	"config default":            {"", "show default config for new plans"},
-	"set-config default":        {"", "update default config for new plans"},
+type CmdConfig struct {
+	Cmd   string
+	Alias string
+	Desc  string
+	Repl  bool
+}
+
+var CliCommands = []CmdConfig{
+	{"new", "", "start a new plan", true},
+	{"plans", "pl", "list plans", true},
+	{"cd", "", "set current plan by name or index", true},
+	{"current", "cu", "show current plan", true},
+	{"rename", "", "rename the current plan", true},
+	{"delete-plan", "dp", "delete plan by name or index", true},
+
+	{"config", "", "show current plan config", true},
+	{"set-config", "", "update current plan config", true},
+	{"config default", "", "show default config for new plans", true},
+	{"set-config default", "", "update default config for new plans", true},
+
+	{"tell", "t", "describe a task to complete", false},
+	{"chat", "ch", "ask a question or chat", false},
+
+	{"load", "l", "load files/dirs/urls/notes/images or pipe data into context", true},
+	{"ls", "", "list everything in context", true},
+	{"rm", "", "remove context by index, range, name, or glob", true},
+	{"clear", "", "remove all context", true},
+	{"update", "u", "update outdated context", true},
+
+	{"changes", "", "review pending changes in a TUI", false},
+	{"diff", "", "review pending changes in 'git diff' format", true},
+	{"diff --plain", "", "review pending changes in 'git diff' format with no color formatting", false},
+	{"diff --ui", "", "review pending changes in a local browser UI", true},
+	{"summary", "", "show the latest summary of the current plan", true},
+
+	{"apply", "ap", "apply pending changes to project files", true},
+	{"reject", "rj", "reject pending changes to one or more project files", true},
+
+	{"log", "", "show log of plan updates", true},
+	{"rewind", "rw", "rewind to a previous state", true},
+
+	{"continue", "c", "continue the plan", true},
+	{"debug", "db", "repeatedly run a command and auto-apply fixes until it succeeds", true},
+	{"build", "b", "build any pending changes", true},
+
+	{"convo", "", "show plan conversation", true},
+	{"convo 1", "", "show a specific message in the conversation", false},
+	{"convo 2-5", "", "show a range of messages in the conversation", false},
+	{"convo --plain", "", "show conversation in plain text", false},
+
+	{"branches", "br", "list plan branches", true},
+	{"checkout", "co", "checkout or create a branch", true},
+	{"delete-branch", "db", "delete a branch by name or index", true},
+
+	{"plans --archived", "", "list archived plans", true},
+	{"archive", "arc", "archive a plan", true},
+	{"unarchive", "unarc", "unarchive a plan", true},
+
+	{"models", "", "show current plan model settings", true},
+	{"models default", "", "show org-wide default model settings for new plans", true},
+	{"models available", "", "show all available models", true},
+	{"models available --custom", "", "show available custom models only", true},
+	{"models delete", "", "delete a custom model", true},
+	{"models add", "", "add a custom model", true},
+	{"model-packs", "", "show all available model packs", true},
+	{"model-packs create", "", "create a new custom model pack", true},
+	{"model-packs delete", "", "delete a custom model pack", true},
+	{"model-packs --custom", "", "show custom model packs only", true},
+	{"set-model", "", "update current plan model settings", true},
+	{"set-model default", "", "update org-wide default model settings for new plans", true},
+
+	{"ps", "", "list active and recently finished plan streams", true},
+	{"stop", "", "stop an active plan stream", true},
+	{"connect", "conn", "connect to an active plan stream", true},
+
+	{"sign-in", "", "sign in, accept an invite, or create an account", true},
+	{"invite", "", "invite a user to join your org", true},
+	{"revoke", "", "revoke an invite or remove a user from your org", true},
+	{"users", "", "list users and pending invites in your org", true},
+
+	{"credits", "", "show Plandex Cloud credits balance", true},
+	{"usage", "", "show Plandex Cloud credits transaction log", true},
+	{"billing", "", "show Plandex Cloud billing settings", true},
+}
+
+var CmdDesc = map[string]CmdConfig{}
+
+func init() {
+	for _, cmd := range CliCommands {
+		CmdDesc[cmd.Cmd] = cmd
+	}
 }
 
 func PrintCmds(prefix string, cmds ...string) {
@@ -87,15 +114,21 @@ func printCmds(w io.Writer, prefix string, colors []color.Attribute, cmds ...str
 	if os.Getenv("PLANDEX_DISABLE_SUGGESTIONS") != "" {
 		return
 	}
+
 	for _, cmd := range cmds {
 		config, ok := CmdDesc[cmd]
 		if !ok {
 			continue
 		}
 
-		alias := config[0]
-		desc := config[1]
-		if alias != "" {
+		if IsRepl && !config.Repl {
+			continue
+		}
+
+		alias := config.Alias
+		desc := config.Desc
+
+		if alias != "" && !IsRepl {
 			containsFull := strings.Contains(cmd, alias)
 
 			if containsFull {
@@ -106,7 +139,13 @@ func printCmds(w io.Writer, prefix string, colors []color.Attribute, cmds ...str
 
 			// desc += color.New(color.FgWhite).Sprintf(" • alias → %s", color.New(color.Bold).Sprint(alias))
 		}
-		styled := color.New(colors...).Sprintf(" plandex %s ", cmd)
+
+		var styled string
+		if IsRepl {
+			styled = color.New(color.Bold, color.FgHiWhite, color.BgCyan, color.FgHiWhite).Sprintf(" \\%s ", cmd)
+		} else {
+			styled = color.New(colors...).Sprintf(" plandex %s ", cmd)
+		}
 
 		fmt.Fprintf(w, "%s%s 👉 %s\n", prefix, styled, desc)
 	}

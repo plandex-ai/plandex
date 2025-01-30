@@ -60,6 +60,8 @@ var AutoModeOptions = [][2]string{
 	// " → mix and match config settings individually."},
 }
 
+var AutoModeLabels = map[AutoModeType]string{}
+
 // populated in init()
 var AutoModeChoices []string
 
@@ -466,5 +468,7 @@ func init() {
 
 	for _, choice := range AutoModeOptions {
 		AutoModeChoices = append(AutoModeChoices, choice[1])
+		AutoModeLabels[AutoModeType(choice[0])] = choice[1]
 	}
+
 }

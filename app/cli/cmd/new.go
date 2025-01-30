@@ -110,12 +110,17 @@ func new(cmd *cobra.Command, args []string) {
 		fmt.Println()
 	}
 
-	cmds := []string{"tell", "chat", "plans", "current", "config"}
+	var cmds []string
+	if term.IsRepl {
+		return
+	} else {
+		cmds = []string{"tell", "chat", "config"}
+	}
 
 	if !config.AutoLoadContext {
 		cmds = append([]string{"load"}, cmds...)
 	}
 
+	fmt.Println()
 	term.PrintCmds("", cmds...)
-
 }
