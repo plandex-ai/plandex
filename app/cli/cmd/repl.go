@@ -63,6 +63,7 @@ func init() {
 }
 
 func runRepl(cmd *cobra.Command, args []string) {
+	term.StartSpinner("")
 
 	term.SetIsRepl(true)
 
@@ -76,11 +77,10 @@ func runRepl(cmd *cobra.Command, args []string) {
 	var err error
 	projectPaths, err = fs.GetProjectPaths(fs.Cwd)
 	if err != nil {
-		color.New(color.FgRed).Printf("Error getting project paths: %v\n", err)
+		color.New(term.ColorHiRed).Printf("Error getting project paths: %v\n", err)
 	}
 
 	// print REPL welcome message and basic info
-	term.StartSpinner("")
 	errCh := make(chan error, 2)
 	var plan *shared.Plan
 	var config *shared.PlanConfig
@@ -113,8 +113,9 @@ func runRepl(cmd *cobra.Command, args []string) {
 	term.StopSpinner()
 
 	fmt.Println()
-	color.New(color.FgHiWhite, color.BgBlue, color.Bold).Println(" 👋 Welcome to the Plandex REPL ")
-	fmt.Println("v" + version.Version)
+	color.New(color.FgHiWhite, color.BgBlue, color.Bold).Print(" 👋 Welcome to the Plandex REPL ")
+	color.New(color.FgHiWhite, color.BgHiBlack).Printf(" v%s ", version.Version)
+	fmt.Println()
 	fmt.Println()
 
 	table := tablewriter.NewWriter(os.Stdout)
@@ -124,7 +125,7 @@ func runRepl(cmd *cobra.Command, args []string) {
 
 	var replModeIcon string
 	if replState.mode == replModeTell {
-		replModeIcon = "🦾"
+		replModeIcon = "💻"
 	} else if replState.mode == replModeChat {
 		replModeIcon = "💬"
 	}
@@ -137,7 +138,7 @@ func runRepl(cmd *cobra.Command, args []string) {
 	}
 
 	table.Append([]string{
-		plan.Name,
+		color.New(term.ColorHiGreen, color.Bold).Sprint(plan.Name),
 		lib.CurrentBranch,
 		strings.Title(string(replState.mode)) + " " + replModeIcon,
 		shared.AutoModeLabels[config.AutoMode],
@@ -148,33 +149,36 @@ func runRepl(cmd *cobra.Command, args []string) {
 
 	fmt.Println()
 
-	color.New(color.FgHiWhite).Printf("%s for commands\n", color.New(color.FgCyan, color.Bold).Sprint("\\"))
-	color.New(color.FgHiWhite).Printf("%s for loading files into context\n", color.New(color.FgCyan, color.Bold).Sprint("@"))
-
-	if replState.isMulti {
-		color.New(color.FgHiWhite).Printf("%s to exit multi-line mode\n", color.New(color.FgCyan, color.Bold).Sprint("\\multi"))
-	} else {
-		color.New(color.FgHiWhite).Printf("%s for multi-line editing mode\n", color.New(color.FgCyan, color.Bold).Sprint("\\multi"))
-	}
+	color.New(color.FgHiWhite).Printf("%s for commands\n", color.New(term.ColorHiCyan, color.Bold).Sprint("\\"))
+	color.New(color.FgHiWhite).Printf("%s for loading files into context\n", color.New(term.ColorHiCyan, color.Bold).Sprint("@"))
 
 	if replState.mode == replModeTell {
-		color.New(color.FgHiWhite).Printf("%s for chat mode → chat without writing code\n", color.New(color.FgCyan, color.Bold).Sprint("\\chat"))
+		color.New(color.FgHiWhite).Printf("%s for chat mode → chat without writing code\n", color.New(term.ColorHiCyan, color.Bold).Sprint("\\chat"))
 	} else {
-		color.New(color.FgHiWhite).Printf("%s for tell mode → implement tasks\n", color.New(color.FgCyan, color.Bold).Sprint("\\tell"))
+		color.New(color.FgHiWhite).Printf("%s for tell mode → implement tasks\n", color.New(term.ColorHiCyan, color.Bold).Sprint("\\tell"))
+	}
+	if replState.isMulti {
+		color.New(color.FgHiWhite).Printf("%s to exit multi-line mode\n", color.New(term.ColorHiCyan, color.Bold).Sprint("\\multi"))
+		fmt.Printf("%s to send prompt\n", color.New(term.ColorHiCyan, color.Bold).Sprint("\\send"))
+		fmt.Printf("%s for line breaks\n", color.New(term.ColorHiCyan, color.Bold).Sprint("enter"))
+	} else {
+		color.New(color.FgHiWhite).Printf("%s for multi-line editing mode\n", color.New(term.ColorHiCyan, color.Bold).Sprint("\\multi"))
+		fmt.Printf("%s to send prompt\n", color.New(term.ColorHiCyan, color.Bold).Sprint("enter"))
 	}
 
 	fmt.Println()
 
 	if replState.mode == replModeTell {
-		color.New(color.FgHiWhite, color.BgBlue, color.Bold).Println(" 🦾 Describe a coding task ")
+		color.New(color.FgHiWhite, color.BgBlue, color.Bold).Println(" 💻 Describe a coding task ")
 	} else {
 		color.New(color.FgHiWhite, color.BgBlue, color.Bold).Println(" 💬 Ask a question or chat ")
 	}
 
 	fmt.Println()
 
-	p := prompt.New(
-		executor,
+	var p *prompt.Prompt
+	p = prompt.New(
+		func(in string) { executor(in, p) },
 		prompt.WithPrefix("👉 "),
 		prompt.WithTitle("Plandex "+version.Version),
 		prompt.WithSelectedSuggestionBGColor(prompt.LightGray),
@@ -196,24 +200,26 @@ func getSuggestions() []prompt.Suggest {
 			{Text: "\\quit", Description: "Exit the REPL"},
 		}...)
 
-	} else {
-		if replState.mode == replModeTell {
-			suggestions = append(suggestions, []prompt.Suggest{
-				{Text: "\\chat", Description: "Switch to 'chat' mode to have a conversation without making changes"},
-			}...)
-		} else if replState.mode == replModeChat {
-			suggestions = append(suggestions, []prompt.Suggest{
-				{Text: "\\tell", Description: "Switch to 'tell' mode for implementation"},
-			}...)
-		}
+	}
 
+	if replState.mode == replModeTell {
+		suggestions = append(suggestions, []prompt.Suggest{
+			{Text: "\\chat", Description: "Switch to 'chat' mode to have a conversation without making changes"},
+		}...)
+	} else if replState.mode == replModeChat {
+		suggestions = append(suggestions, []prompt.Suggest{
+			{Text: "\\tell", Description: "Switch to 'tell' mode for implementation"},
+		}...)
+	}
+
+	if !replState.isMulti {
 		suggestions = append(suggestions, []prompt.Suggest{
 			{Text: "\\multi", Description: "Turn multi-line mode on"},
 			{Text: "\\quit", Description: "Exit the REPL"},
 		}...)
-
-		suggestions = append(suggestions, cliSuggestions...)
 	}
+
+	suggestions = append(suggestions, cliSuggestions...)
 
 	for path := range projectPaths.ActivePaths {
 		if path == "." {
@@ -232,11 +238,14 @@ func executeOnEnter(p *prompt.Prompt, indentSize int) (int, bool) {
 		lines := strings.Split(input, "\n")
 		lastLine := lines[len(lines)-1]
 		lastLine = strings.TrimSpace(lastLine)
+		lastLineWords := strings.Fields(lastLine)
+		lastLineLastWord := ""
+		if len(lastLineWords) > 0 {
+			lastLineLastWord = lastLineWords[len(lastLineWords)-1]
+		}
 
-		if strings.HasPrefix(lastLine, "\\s") || // \send
-			strings.HasPrefix(lastLine, "\\q") || // \quit
-			strings.HasPrefix(lastLine, "\\m") || // \multi
-			strings.HasPrefix(lastLine, "@") { // @file
+		if strings.HasPrefix(lastLineLastWord, "\\") ||
+			strings.HasPrefix(lastLineLastWord, "@") { // @file
 			return 0, true
 		}
 
@@ -246,7 +255,7 @@ func executeOnEnter(p *prompt.Prompt, indentSize int) (int, bool) {
 	return 0, true
 }
 
-func executor(in string) {
+func executor(in string, p *prompt.Prompt) {
 	// fmt.Println(in)
 
 	// this ensures it works with multi-line input
@@ -255,52 +264,90 @@ func executor(in string) {
 	lastLine := lines[len(lines)-1]
 	lastLine = strings.TrimSpace(lastLine)
 
-	isFile := strings.HasPrefix(lastLine, "@")
+	if lastLine == "" {
+		return
+	}
+
+	lastLineWords := strings.Fields(lastLine)
+	lastLineLastWord := ""
+	if len(lastLineWords) > 0 {
+		lastLineLastWord = lastLineWords[len(lastLineWords)-1]
+	}
+
+	var preservedBuffer string
+	if len(lines) > 1 {
+		// Exclude the command line from preserved buffer
+		preservedBuffer = strings.Join(lines[:len(lines)-1], "\n") + "\n"
+	}
+
+	isFile := strings.HasPrefix(lastLineLastWord, "@")
 	if isFile {
 		paths := strings.Split(lastLine, "@")
+		numPaths := len(paths)
 		filteredPaths := []string{}
-		for _, path := range paths {
+		for i, path := range paths {
 			p := strings.TrimSpace(path)
 			if p == "" {
 				continue
+			} else if i == 0 {
+				preservedBuffer += p + " "
 			}
 
-			if !projectPaths.ActivePaths[p] && len(latestFilteredSuggestions) > 0 {
+			if !projectPaths.ActivePaths[p] && len(latestFilteredSuggestions) > 0 && i == numPaths-1 {
 				p = strings.Replace(latestFilteredSuggestions[0].Text, "@", "", 1)
+				filteredPaths = append(filteredPaths, p)
+			} else if projectPaths.ActivePaths[p] {
+				filteredPaths = append(filteredPaths, p)
 			}
-
-			filteredPaths = append(filteredPaths, p)
 		}
 
 		args := []string{"load"}
 		args = append(args, filteredPaths...)
 		args = append(args, "-r")
 		execPlandexCommand(args)
+		fmt.Println()
+		if preservedBuffer != "" {
+			p.InsertTextMoveCursor(preservedBuffer, true)
+		}
 		return
 	}
 
 	isSend := false
 	isCommand := false
 
-	// Remove the leading backslash
-	cmd := strings.TrimPrefix(lastLine, "\\")
+	cmd := strings.TrimPrefix(lastLineLastWord, "\\")
+	wordSplit := strings.Split(lastLine, lastLineLastWord)
+	var beforeCmd string
+	if len(wordSplit) > 0 {
+		beforeCmd = wordSplit[0]
+	}
 
 	if cmd == "quit" || strings.HasPrefix("quit", cmd) {
 		os.Exit(0)
 	}
 
 	if cmd == "multi" || strings.HasPrefix("multi", cmd) {
+		if beforeCmd != "" {
+			preservedBuffer += beforeCmd
+		}
+
 		fmt.Println()
 		if replState.isMulti {
 			replState.isMulti = false
-			color.New(color.FgGreen, color.Bold).Println("🚫 Multi-line mode is disabled")
+			color.New(color.BgMagenta, color.FgHiWhite, color.Bold).Println(" 🙅‍♂️ Multi-line mode is disabled ")
+			fmt.Printf("%s for multi-line editing mode\n", color.New(term.ColorHiCyan, color.Bold).Sprint("\\multi"))
+			fmt.Printf("%s to send prompt\n", color.New(term.ColorHiCyan, color.Bold).Sprint("enter"))
 		} else {
 			replState.isMulti = true
-			color.New(color.FgGreen, color.Bold).Println("✅ Multi-line mode is enabled")
-			fmt.Printf("%s for line breaks\n%s to send prompt\n", color.New(color.FgCyan, color.Bold).Sprint("enter"), color.New(color.FgCyan, color.Bold).Sprint("\\send"))
-			fmt.Printf("%s to exit multi-line mode\n", color.New(color.FgCyan, color.Bold).Sprint("\\multi"))
+			color.New(color.BgMagenta, color.FgHiWhite, color.Bold).Println(" 📖 Multi-line mode is enabled ")
+			fmt.Printf("%s to exit multi-line mode\n", color.New(term.ColorHiCyan, color.Bold).Sprint("\\multi"))
+			fmt.Printf("%s to send prompt\n", color.New(term.ColorHiCyan, color.Bold).Sprint("\\send"))
+			fmt.Printf("%s for line breaks\n", color.New(term.ColorHiCyan, color.Bold).Sprint("enter"))
 		}
 		fmt.Println()
+		if preservedBuffer != "" {
+			p.InsertTextMoveCursor(preservedBuffer, true)
+		}
 		return
 	}
 
@@ -309,29 +356,35 @@ func executor(in string) {
 	}
 
 	if cmd == "tell" || strings.HasPrefix("tell", cmd) {
-		if replState.isMulti {
-			return
+		if beforeCmd != "" {
+			preservedBuffer += beforeCmd
 		}
 		replState.mode = replModeTell
 		fmt.Println()
-		color.New(color.FgGreen, color.Bold).Println("🦾 Tell mode is enabled")
+		color.New(color.BgMagenta, color.FgHiWhite, color.Bold).Println(" 💻 Tell mode is enabled ")
 		fmt.Println()
+		if preservedBuffer != "" {
+			p.InsertTextMoveCursor(preservedBuffer, true)
+		}
 		return
 	}
 
 	if cmd == "chat" || strings.HasPrefix("chat", cmd) {
-		if replState.isMulti {
-			return
+		if beforeCmd != "" {
+			preservedBuffer += beforeCmd
 		}
 		replState.mode = replModeChat
 		fmt.Println()
-		color.New(color.FgGreen, color.Bold).Println("💬 Chat mode is enabled")
+		color.New(color.BgMagenta, color.FgHiWhite, color.Bold).Println(" 💬 Chat mode is enabled ")
 		fmt.Println()
+		if preservedBuffer != "" {
+			p.InsertTextMoveCursor(preservedBuffer, true)
+		}
 		return
 	}
 
 	if !isSend {
-		if strings.HasPrefix(lastLine, "\\") && lastLine != "\\" {
+		if strings.HasPrefix(lastLineLastWord, "\\") && lastLineLastWord != "\\" {
 			isCommand = true
 		}
 	}
@@ -342,12 +395,17 @@ func executor(in string) {
 		if len(args) > 0 {
 			cmd := args[0]
 			rest := args[1:]
+
 			// Find the command in CliCommands
 			for _, config := range term.CliCommands {
 				if cmd == config.Cmd || (config.Alias != "" && cmd == config.Alias) || strings.HasPrefix(config.Cmd, cmd) {
 					if !config.Repl {
 						continue
 					}
+					if beforeCmd != "" {
+						preservedBuffer += beforeCmd
+					}
+
 					fmt.Println()
 
 					cmd = config.Cmd
@@ -357,46 +415,60 @@ func executor(in string) {
 					execArgs = append(execArgs, rest...)
 					err := execPlandexCommand(execArgs)
 					if err != nil {
-						color.New(color.FgRed).Printf("Error executing command: %v\n", err)
+						color.New(term.ColorHiRed).Printf("Error executing command: %v\n", err)
 					}
 
 					fmt.Println()
+					if preservedBuffer != "" {
+						p.InsertTextMoveCursor(preservedBuffer, true)
+					}
 					return
 				}
 			}
-			color.New(color.FgRed).Printf("🤷‍♂️ Unknown command: %s\n", args[0])
+			color.New(term.ColorHiRed).Printf("🤷‍♂️ Unknown command: %s\n", args[0])
+			fmt.Println()
+			if preservedBuffer != "" {
+				p.InsertTextMoveCursor(preservedBuffer, true)
+			}
 			return
 		}
+	}
+
+	var input string
+	if len(lines) > 0 {
+		input := strings.Join(lines, "\n")
+		if isSend {
+			input = strings.TrimSuffix(input, "\\send")
+			input = strings.TrimSpace(input)
+		}
+	}
+	if input == "" {
+		if isSend {
+			fmt.Println()
+			fmt.Println("🤷‍♂️ No prompt to send")
+			fmt.Println()
+			return
+		}
+
+		// write a newline to the buffer
+		p.InsertTextMoveCursor("\n", true)
+		return
 	}
 
 	// Handle non-command input based on mode
 	if replState.mode == replModeTell {
 		// Process the tell command
-		args := []string{"tell"}
-		if len(lines) > 0 {
-			input := lines
-			if isSend {
-				input = lines[:len(lines)-1] // Exclude last line with \send
-			}
-			args = append(args, strings.Join(input, "\n"))
-		}
+		args := []string{"tell", input}
 		err := execPlandexCommand(args)
 		if err != nil {
-			color.New(color.FgRed).Printf("Error executing tell: %v\n", err)
+			color.New(term.ColorHiRed).Printf("Error executing tell: %v\n", err)
 		}
 	} else if replState.mode == replModeChat {
 		// Process the chat command
-		args := []string{"chat"}
-		if len(lines) > 0 {
-			input := lines
-			if isSend {
-				input = lines[:len(lines)-1] // Exclude last line with \send
-			}
-			args = append(args, strings.Join(input, "\n"))
-		}
+		args := []string{"chat", input}
 		err := execPlandexCommand(args)
 		if err != nil {
-			color.New(color.FgRed).Printf("Error executing chat: %v\n", err)
+			color.New(term.ColorHiRed).Printf("Error executing chat: %v\n", err)
 		}
 	}
 
@@ -410,29 +482,52 @@ func completer(in prompt.Document) ([]prompt.Suggest, pstrings.RuneNumber, pstri
 	w := in.GetWordBeforeCursor()
 
 	lines := strings.Split(in.Text, "\n")
+	currentLineNum := strings.Count(in.TextBeforeCursor(), "\n")
+
+	// Don't show suggestions if we're not on the last line
+	if currentLineNum < len(lines)-1 {
+		latestFilteredSuggestions = []prompt.Suggest{}
+		return []prompt.Suggest{}, 0, 0
+	}
 	lastLine := lines[len(lines)-1]
 
 	if strings.TrimSpace(lastLine) == "" && len(lines) > 1 {
 		lastLine = lines[len(lines)-2]
 	}
 
-	// Add special handling for multi-line mode
-	if replState.isMulti {
-
-		// If w is empty but lastLine has content and starts with a prefix we care about
-		if strings.TrimSpace(w) == "" &&
-			(strings.HasPrefix(strings.TrimSpace(lastLine), "\\") ||
-				strings.HasPrefix(strings.TrimSpace(lastLine), "@")) {
-			w = strings.TrimSpace(lastLine)
+	// For both \ and @ symbols, only show suggestions if they're at the start or end of the line
+	if strings.HasPrefix(w, "\\") || strings.HasPrefix(w, "@") {
+		trimmedLastLine := strings.TrimSpace(lastLine)
+		// Don't show suggestions if the symbol is in the middle
+		// (not at start and not at end)
+		if !strings.HasPrefix(trimmedLastLine, w) && !strings.HasSuffix(trimmedLastLine, w) {
+			latestFilteredSuggestions = []prompt.Suggest{}
+			return []prompt.Suggest{}, 0, 0
 		}
 	}
 
-	if w == "" || !(strings.HasPrefix(w, "\\") || strings.HasPrefix(w, "@")) {
+	if !strings.HasSuffix(strings.TrimSpace(in.Text), strings.TrimSpace(w)) {
 		latestFilteredSuggestions = []prompt.Suggest{}
 		return []prompt.Suggest{}, 0, 0
 	}
 
-	if !strings.HasSuffix(strings.TrimSpace(in.Text), strings.TrimSpace(w)) || (lastLine != w && strings.HasPrefix(w, "\\")) {
+	lastLineWords := strings.Fields(lastLine)
+	var lastLineLastWord string
+	if len(lastLineWords) > 0 {
+		lastLineLastWord = lastLineWords[len(lastLineWords)-1]
+	}
+
+	// Add special handling for multi-line mode
+	if replState.isMulti {
+		// If w is empty but lastLine/lastWord has content and starts with a prefix we care about
+		if strings.TrimSpace(w) == "" &&
+			(strings.HasPrefix(strings.TrimSpace(lastLineLastWord), "\\") ||
+				strings.HasPrefix(strings.TrimSpace(lastLineLastWord), "@")) {
+			w = strings.TrimSpace(lastLineLastWord)
+		}
+	}
+
+	if w == "" || !(strings.HasPrefix(w, "\\") || strings.HasPrefix(w, "@")) {
 		latestFilteredSuggestions = []prompt.Suggest{}
 		return []prompt.Suggest{}, 0, 0
 	}
