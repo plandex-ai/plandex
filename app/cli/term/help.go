@@ -142,7 +142,7 @@ func printCmds(w io.Writer, prefix string, colors []color.Attribute, cmds ...str
 
 		var styled string
 		if IsRepl {
-			styled = color.New(color.Bold, color.FgHiWhite, color.BgCyan, color.FgHiWhite).Sprintf(" \\%s ", cmd)
+			styled = color.New(colors...).Sprintf(" \\%s ", cmd)
 		} else {
 			styled = color.New(colors...).Sprintf(" plandex %s ", cmd)
 		}
@@ -184,52 +184,6 @@ func PrintCustomHelp(all bool) {
 	fmt.Fprintln(builder)
 
 	if all {
-		color.New(color.Bold, color.BgMagenta, color.FgHiWhite).Fprintln(builder, " Key Commands ")
-		printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiMagenta}, "new", "load", "tell", "diff", "diff --ui", "apply", "reject", "debug", "chat")
-		fmt.Fprintln(builder)
-
-		color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Plans ")
-		printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "new", "plans", "cd", "current", "delete-plan", "rename", "archive", "plans --archived", "unarchive")
-		fmt.Fprintln(builder)
-
-		color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Changes ")
-		printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "diff", "diff --ui", "diff --plain", "changes", "apply", "reject")
-		fmt.Fprintln(builder)
-
-		color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Context ")
-		printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "load", "ls", "rm", "update", "clear")
-		fmt.Fprintln(builder)
-
-		color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Branches ")
-		printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "branches", "checkout", "delete-branch")
-		fmt.Fprintln(builder)
-
-		color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " History ")
-		printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "log", "rewind", "convo", "convo 1", "convo 2-5", "convo --plain", "summary")
-		fmt.Fprintln(builder)
-
-		color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Control ")
-		printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "tell", "continue", "build", "debug", "chat")
-		fmt.Fprintln(builder)
-
-		color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Streams ")
-		printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "ps", "connect", "stop")
-		fmt.Fprintln(builder)
-
-		color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Config ")
-		printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "config", "set-config", "config default", "set-config default")
-		fmt.Fprintln(builder)
-
-		color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " AI Models ")
-		printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "models", "models default", "models available", "set-model", "set-model default", "models available --custom", "models add", "models delete", "model-packs", "model-packs --custom", "model-packs create", "model-packs delete")
-		fmt.Fprintln(builder)
-
-		color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Accounts ")
-		printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "sign-in", "invite", "revoke", "users")
-		fmt.Fprintln(builder)
-
-		color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Cloud ")
-		printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "credits", "usage", "billing")
 
 	} else {
 
@@ -238,6 +192,59 @@ func PrintCustomHelp(all bool) {
 		color.New(color.Bold, color.BgHiBlue, color.FgHiWhite).Fprintln(builder, " Use 'plandex help --all' or 'plandex help -a' for a list of all commands ")
 
 	}
+
+	fmt.Print(builder.String())
+}
+
+func PrintHelpAllCommands() {
+	builder := &strings.Builder{}
+
+	color.New(color.Bold, color.BgMagenta, color.FgHiWhite).Fprintln(builder, " Key Commands ")
+	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiMagenta}, "new", "load", "tell", "diff", "diff --ui", "apply", "reject", "debug", "chat")
+	fmt.Fprintln(builder)
+
+	color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Plans ")
+	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "new", "plans", "cd", "current", "delete-plan", "rename", "archive", "plans --archived", "unarchive")
+	fmt.Fprintln(builder)
+
+	color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Changes ")
+	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "diff", "diff --ui", "diff --plain", "changes", "apply", "reject")
+	fmt.Fprintln(builder)
+
+	color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Context ")
+	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "load", "ls", "rm", "update", "clear")
+	fmt.Fprintln(builder)
+
+	color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Branches ")
+	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "branches", "checkout", "delete-branch")
+	fmt.Fprintln(builder)
+
+	color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " History ")
+	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "log", "rewind", "convo", "convo 1", "convo 2-5", "convo --plain", "summary")
+	fmt.Fprintln(builder)
+
+	color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Control ")
+	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "tell", "continue", "build", "debug", "chat")
+	fmt.Fprintln(builder)
+
+	color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Streams ")
+	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "ps", "connect", "stop")
+	fmt.Fprintln(builder)
+
+	color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Config ")
+	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "config", "set-config", "config default", "set-config default")
+	fmt.Fprintln(builder)
+
+	color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " AI Models ")
+	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "models", "models default", "models available", "set-model", "set-model default", "models available --custom", "models add", "models delete", "model-packs", "model-packs --custom", "model-packs create", "model-packs delete")
+	fmt.Fprintln(builder)
+
+	color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Accounts ")
+	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "sign-in", "invite", "revoke", "users")
+	fmt.Fprintln(builder)
+
+	color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Cloud ")
+	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "credits", "usage", "billing")
 
 	fmt.Print(builder.String())
 }
