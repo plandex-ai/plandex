@@ -1,0 +1,31 @@
+version: 2
+updates:
+  - package-ecosystem: gomod # Go modules
+    directory: /app/cli # Location of go.mod file
+    schedule:
+      interval: monthly
+
+  - package-ecosystem: gomod # Go modules
+    directory: /app/server # Location of go.mod file
+    schedule:
+      interval: monthly
+
+  - package-ecosystem: docker # Docker
+    directory: / # Location of Dockerfile
+    schedule:
+      interval: monthly
+
+  - package-ecosystem: github-actions # Github actions
+    directory: / # Location of Github actions
+    schedule:
+      interval: monthly
+
+  - package-ecosystem: npm # JavaScript
+    directory: /docs # Location of package.json file
+    schedule:
+      interval: monthly
+
+  - package-ecosystem: npm # JavaScript
+    directory: /test/project/react-redux-foobar # Location of package.json file
+    schedule:
+      interval: monthly
