@@ -7,6 +7,7 @@ import (
 
 func TestBufferOrStream(t *testing.T) {
 	tests := []struct {
+		only            bool
 		name            string
 		initialState    *chunkProcessor
 		chunk           string
@@ -60,7 +61,7 @@ func TestBufferOrStream(t *testing.T) {
 			name: "converts opening tag",
 			initialState: &chunkProcessor{
 				fileOpen:                true,
-				contentBuffer:           `<PlandexBlock lang="go">` + "\n",
+				contentBuffer:           `<PlandexBlock lang="go" path="main.go">` + "\n",
 				awaitingBlockOpeningTag: true,
 			},
 			chunk:           `package`,
@@ -85,7 +86,7 @@ func TestBufferOrStream(t *testing.T) {
 				contentBuffer:           "",
 				awaitingBlockOpeningTag: false,
 			},
-			chunk:           `<PlandexBlock lang="go">` + "\npackage",
+			chunk:           `<PlandexBlock lang="go" path="main.go">` + "\npackage",
 			maybeFilePath:   "",
 			currentFilePath: "main.go",
 			want: bufferOrStreamResult{
@@ -305,9 +306,80 @@ func TestBufferOrStream(t *testing.T) {
 				awaitingOpClosingTag: false,
 			},
 		},
+		{
+			name:         "buffers for partial opening tag with no file path label",
+			initialState: &chunkProcessor{},
+			chunk:        "something<Pland",
+			want: bufferOrStreamResult{
+				shouldStream: false,
+			},
+			wantState: &chunkProcessor{
+				awaitingBlockOpeningTag: true,
+			},
+		},
+		{
+			name: "continues buffering partial opening tag with no file path label",
+			initialState: &chunkProcessor{
+				awaitingBlockOpeningTag: true,
+				contentBuffer:           "something<Pland",
+			},
+			chunk: "exBlock lang=\"go\" path=\"main",
+			want: bufferOrStreamResult{
+				shouldStream: false,
+			},
+			wantState: &chunkProcessor{
+				awaitingBlockOpeningTag: true,
+				contentBuffer:           "something<PlandexBlock lang=\"go\" path=\"main",
+			},
+		},
+		{
+			name: "replaces opening tag with no file path label when it completes",
+			initialState: &chunkProcessor{
+				awaitingBlockOpeningTag: true,
+				contentBuffer:           "something\n<Pland",
+				fileOpen:                true,
+			},
+			currentFilePath: "main.go",
+			chunk:           "exBlock lang=\"go\" path=\"main.go\">\npackage",
+			want: bufferOrStreamResult{
+				shouldStream: true,
+				content:      "something\n```go\npackage",
+			},
+			wantState: &chunkProcessor{
+				awaitingBlockOpeningTag: false,
+				fileOpen:                true,
+			},
+		},
+		{
+			name: "replaces full opening tag without file path label",
+			initialState: &chunkProcessor{
+				fileOpen: true,
+			},
+			currentFilePath: "main.go",
+			chunk:           "something\n<PlandexBlock lang=\"go\" path=\"main.go\">\npackage",
+			want: bufferOrStreamResult{
+				shouldStream: true,
+				content:      "something\n```go\npackage",
+			},
+			wantState: &chunkProcessor{
+				awaitingBlockOpeningTag: false,
+				fileOpen:                true,
+			},
+		},
 	}
 
-	for _, tt := range tests {
+	only := map[int]bool{}
+	for i, tt := range tests {
+		if tt.only {
+			only[i] = true
+		}
+	}
+
+	for i, tt := range tests {
+		if len(only) > 0 && !only[i] {
+			continue
+		}
+
 		t.Run(tt.name, func(t *testing.T) {
 			processor := tt.initialState
 

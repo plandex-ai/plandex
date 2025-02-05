@@ -74,6 +74,7 @@ func (state *activeTellStreamState) checkNewSubtasks() bool {
 	subtasks := parse.ParseSubtasks(content)
 
 	if len(subtasks) == 0 {
+		log.Println("No new subtasks found")
 		return false
 	}
 

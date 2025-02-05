@@ -9,13 +9,15 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
-func (state *activeTellStreamState) resolvePromptMessage(isPlanningStage, isContextStage bool, applyScriptSummary string) (*openai.ChatCompletionMessage, bool) {
+func (state *activeTellStreamState) resolvePromptMessage(isPlanningStage, isContextStage, didLoadChatOnlyContext bool, applyScriptSummary string) (*openai.ChatCompletionMessage, bool) {
 	req := state.req
 	iteration := state.iteration
 	active := state.activePlan
 	isFollowUp := state.isFollowUp
 
 	var promptMessage *openai.ChatCompletionMessage
+
+	var lastMessage *openai.ChatCompletionMessage
 
 	if req.IsUserContinue {
 		if len(state.messages) == 0 {
@@ -28,15 +30,49 @@ func (state *activeTellStreamState) resolvePromptMessage(isPlanningStage, isCont
 		}
 
 		// if the user is continuing the plan, we need to check whether the previous message was a user message or assistant message
-		lastMessage := state.messages[len(state.messages)-1]
+		lastMessage = &state.messages[len(state.messages)-1]
 
 		log.Println("User is continuing plan. Last message role:", lastMessage.Role)
-		// log.Println("User is continuing plan. Last message:\n\n", lastMessage.Content)
+	}
 
+	if req.IsChatOnly {
+		var prompt string
+		if req.IsUserContinue {
+			if lastMessage.Role == openai.ChatMessageRoleUser {
+				log.Println("User is continuing plan in chat only mode. Last message was user message. Using last user message as prompt")
+				prompt = lastMessage.Content
+				state.userPrompt = prompt
+				state.messages = state.messages[:len(state.messages)-1]
+			} else {
+				log.Println("User is continuing plan in chat only mode. Last message was assistant message. Using user continue prompt")
+				prompt = prompts.UserContinuePrompt
+			}
+		} else {
+			prompt = req.Prompt
+		}
+
+		wrapped := prompts.GetWrappedChatOnlyPrompt(prompts.ChatUserPromptParams{
+			CreatePromptParams: prompts.CreatePromptParams{
+				AutoContext:               req.AutoContext,
+				ExecMode:                  req.ExecEnabled,
+				LastResponseLoadedContext: didLoadChatOnlyContext,
+			},
+			Prompt:    prompt,
+			OsDetails: req.OsDetails,
+		})
+
+		promptMessage = &openai.ChatCompletionMessage{
+			Role:    openai.ChatMessageRoleUser,
+			Content: wrapped,
+		}
+
+		state.messages = append(state.messages, *promptMessage)
+	} else if req.IsUserContinue {
+		// log.Println("User is continuing plan. Last message:\n\n", lastMessage.Content)
 		if lastMessage.Role == openai.ChatMessageRoleUser {
 			// if last message was a user message, we want to remove it from the messages array and then use that last message as the prompt so we can continue from where the user left off
 
-			log.Println("User is continuing plan. Last message was user message. Using last user message as prompt")
+			log.Println("User is continuing plan in tell mode. Last message was user message. Using last user message as prompt")
 
 			state.messages = state.messages[:len(state.messages)-1]
 			promptMessage = &openai.ChatCompletionMessage{
@@ -48,7 +84,7 @@ func (state *activeTellStreamState) resolvePromptMessage(isPlanningStage, isCont
 		} else {
 
 			// if the last message was an assistant message, we'll use the user continue prompt
-			log.Println("User is continuing plan. Last message was assistant message. Using user continue prompt")
+			log.Println("User is continuing plan in tell mode. Last message was assistant message. Using user continue prompt")
 
 			// otherwise we'll use the continue prompt
 			promptMessage = &openai.ChatCompletionMessage{
@@ -61,13 +97,10 @@ func (state *activeTellStreamState) resolvePromptMessage(isPlanningStage, isCont
 	} else {
 		var prompt string
 		if iteration == 0 {
-			if req.IsChatOnly {
-				prompt = req.Prompt + prompts.ChatOnlyPrompt
-			} else if req.IsUserDebug {
+			if req.IsUserDebug {
 				prompt = req.Prompt + prompts.DebugPrompt
 			} else if req.IsApplyDebug {
 				prompt = req.Prompt + prompts.ApplyDebugPrompt
-				state.totalRequestTokens += prompts.ApplyDebugPromptTokens
 			} else {
 				prompt = req.Prompt
 			}

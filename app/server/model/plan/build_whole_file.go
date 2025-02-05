@@ -76,7 +76,7 @@ func (fileState *activeBuildStreamFileState) buildWholeFileFallback(proposedCont
 	if config.BaseModelConfig.PredictedOutputEnabled {
 		extendedReq := &model.ExtendedChatCompletionRequest{
 			ChatCompletionRequest: modelReq,
-			Prediction: model.OpenAIPrediction{
+			Prediction: &model.OpenAIPrediction{
 				Type: "content",
 				Content: `
 ## Comments

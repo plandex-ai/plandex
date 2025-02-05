@@ -108,9 +108,10 @@ func diffs(cmd *cobra.Command, args []string) {
 		ui.OpenURL("Showing diffs in your default browser...", fmt.Sprintf("http://localhost:%d", port))
 
 		fmt.Println()
-		color.New(color.Bold).Println("ctrl+c to exit")
+		color.New(color.Bold).Println("Press enter to continue")
 
-		select {} // wait forever
+		// Wait for enter key
+		fmt.Scanln()
 	} else {
 		if plainTextOutput {
 			fmt.Println(diffs)

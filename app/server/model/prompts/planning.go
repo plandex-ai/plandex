@@ -1,18 +1,20 @@
 package prompts
 
-type createPromptParams struct {
-	autoContext bool
+type CreatePromptParams struct {
+	AutoContext               bool
+	ExecMode                  bool
+	LastResponseLoadedContext bool
 }
 
-var SysPlanningBasic = GetPlanningPrompt(createPromptParams{
-	autoContext: false,
+var SysPlanningBasic = GetPlanningPrompt(CreatePromptParams{
+	AutoContext: false,
 })
 
-var SysPlanningAutoContext = GetPlanningPrompt(createPromptParams{
-	autoContext: true,
+var SysPlanningAutoContext = GetPlanningPrompt(CreatePromptParams{
+	AutoContext: true,
 })
 
-func GetPlanningPrompt(params createPromptParams) string {
+func GetPlanningPrompt(params CreatePromptParams) string {
 	prompt := Identity + ` A plan is a set of files with an attached context.
   
   [YOUR INSTRUCTIONS:]
@@ -24,7 +26,7 @@ func GetPlanningPrompt(params createPromptParams) string {
   *If the user does have a task or if you're continuing a plan that is already in progress*, and if 'chat mode' is *not* enabled, create a plan for the task based on user-provided context using the following steps: 
   `
 
-	if params.autoContext {
+	if params.AutoContext {
 		prompt += `
     1. Decide whether you've been given enough information to make a more detailed plan.
       - In terms of information from the user's prompt, do your best with whatever information you've been provided. Choose sensible values and defaults where appropriate. Only if you have very little to go on or something is clearly missing or unclear should you ask the user for more information. 
@@ -66,10 +68,10 @@ func GetPlanningPrompt(params createPromptParams) string {
         5. Update the 'main.c' file to call the 'updateGameLogic' function
         Uses: ` + "`src/main.c`" + `
 
-        <EndPlandexTasks/>
+        <PlandexFinish/>
 				---
 
-        - After you have broken a task up in to multiple subtasks and output a '### Tasks' section, you *ABSOLUTELY MUST* output a <EndPlandexTasks/> tag and then end the response. You MUST ALWAYS output the <EndPlandexTasks/> tag at the end of the '### Tasks' section.
+        - After you have broken a task up in to multiple subtasks and output a '### Tasks' section, you *ABSOLUTELY MUST* output a <PlandexFinish/> tag and then end the response. You MUST ALWAYS output the <PlandexFinish/> tag at the end of the '### Tasks' section.
 
         ` + ReviseSubtasksPrompt + `
 
@@ -98,7 +100,7 @@ func GetPlanningPrompt(params createPromptParams) string {
     If the user's task is small and does not have any component subtasks, just restate the user's task in a '### Task' section as the only subtask and end the response immediately.
     `
 
-	if params.autoContext {
+	if params.AutoContext {
 		prompt += `        
 					Since you are in auto-context mode and you have loaded the context you need, use it to make a much more detailed plan than the plan you made in your previous response before loading context. Be thorough in your planning.        
     `
@@ -141,7 +143,7 @@ Uses: ` + "`src/game_logic.h`" + `, ` + "`src/game_logic.c`" + `
 2. Update the 'main.c' file to call the 'updateGameLogic' function
 Uses: ` + "`src/main.c`" + `
 
-<EndPlandexTasks/>
+<PlandexFinish/>
 ---
 
 Be exhaustive in the 'Uses:' list. Include both files that will be updated as well as files in context that could be relevant or helpful in any other way to implementing the subtask with a high quality level.
@@ -155,6 +157,8 @@ ALWAYS place 'Uses:' at the *end* of each subtask description.
 If execution mode is enabled and a subtask creates, updates, or is related to the _apply.sh script, you MUST include ` + "`_apply.sh`" + `in the 'Uses:' list for that subtask.
 
 'Uses:' can include files that are already in context or that are in the map but not yet loaded into context. Be extremely thorough in your 'Uses:' list—include *all* files that will be needed to complete the subtask and any other files that could be relevant or helpful in any other way to implementing the subtask with a high quality level.
+
+- Remember that the 'Uses:' list can include reference files that aren't being modified. Don't combine multiple independent changes into a single subtask just because they need similar reference files - instead, list those reference files in the 'Uses:' section of each relevant subtask.
 `
 
 var UsesPromptNumTokens int
@@ -162,7 +166,22 @@ var UsesPromptNumTokens int
 const SharedPlanningImplementationPrompt = `
 As much as possible, the code you suggest must be robust, complete, and ready for production. Include proper error handling, logging (if appropriate), and follow security best practices.
 
-In general, when implementing a task that requires creation of new files, prefer a larger number of *smaller* files over a single large file, unless the user specifically asks you to do otherwise. Smaller files are easier and faster to work with. Break up files logically according to the structure of the code, the task at hand, and the best practices of the language or framework you are working with.
+## Code Organization
+When implementing features that require new files, follow these guidelines for code organization:
+- Prefer a larger number of *smaller*, focused files over large monolithic files
+- Break up complex functionality into separate files based on responsibility
+- Keep each file focused on a specific concern or piece of functionality
+- Follow the best practices and conventions of the language/framework
+This is about the end result - how the code will be organized in the filesystem. The goal is maintainable, well-structured code.
+
+## Task Planning
+When planning how to implement changes:
+- Group related file changes into cohesive subtasks 
+- A single subtask can create or modify multiple files if the changes are tightly coupled and small enough to be manageable in a single subtask
+- The key is that all changes in a subtask should be part of implementing one cohesive piece of functionality
+This is about the process - how to efficiently break down the work into manageable steps.
+
+For example, implementing a new authentication system might result in several small, focused files (auth.ts, types.ts, constants.ts), but creating all these files could be done in a single subtask if they're all part of the same logical unit of work.
 
 ## Focus on what the user has asked for and don't add extra code or features
 
@@ -201,51 +220,42 @@ Similarly, if you have made updates to any files, you MUST always work from the 
 `
 
 const FollowUpPlanClassifierPrompt = `
-Since this prompt is a follow up to a plan that has already been started, you must assess the following:
+When responding to follow-up prompts during a plan, first respond naturally to what the user has said or asked. Then, incorporate the following assessment seamlessly into your response:
 
-- Whether the prompt is:
+- Determine if the prompt is:
   A. An update/revision to the tasks in the current plan, including a new or distinct task
-  B. A conversation prompt like a question or comment that does not indicate a an update to the plan or a new task
+  B. A conversation prompt like a question or comment that does not indicate an update to the plan or a new task
 
-- If the prompt is A, you must then assess whether the prompt is:
+- If the prompt is A, determine if it is:
   A1. A small/minor update to or revision of the current plan
   A2. A significant update to or revision of the current plan
   A3. A new task that is distinct from the current plan
 
-  A task is likely to be:
+A task is likely to be:
+- A1 (small update) if it involves:
+  * Minor changes to existing functionality
+  * Changes contained within files already in context
+  * Simple additions or modifications
+  * Refinements to existing subtasks
 
-  - A1 (small update) if it involves:
-    * Minor changes to existing functionality
-    * Changes contained within files already in context
-    * Simple additions or modifications
-    * Refinements to existing subtasks
+- A2 (significant update) if it involves:
+  * Major changes to existing functionality
+  * Changes spanning multiple components
+  * New features that build on current work
+  * Substantial restructuring of existing subtasks
 
-  - A2 (significant update) if it involves:
-    * Major changes to existing functionality
-    * Changes spanning multiple components
-    * New features that build on current work
-    * Substantial restructuring of existing subtasks
+- A3 (new task) if it:
+  * Addresses a different concern/feature
+  * Has little overlap with current work
+  * Would make more sense as a separate plan
+  * Requires a fresh context evaluation
 
-  - A3 (new task) if it:
-    * Addresses a different concern/feature
-    * Has little overlap with current work
-    * Would make more sense as a separate plan
-    * Requires a fresh context evaluation
+- If the prompt is A2 or A3, smoothly transition to one of these exact statements, followed immediately by the required tag:
+  - For A2: "This is a significant update to the plan. I'll clear all context without pending changes, then decide what context I need to move forward." <PlandexFinish/>
+  - For A3: "This is a new task that is distinct from the plan. I'll clear all context without pending changes, then decide what context I need to move forward." <PlandexFinish/>
+  - Do not add quotes around the statements.
 
-- If the prompt is A2 or A3, either a significant update to or revision of the current plan, or a new task that is distinct from the current plan, you must explicitly state either:
-  - For A2: "This is a significant update to the plan. I'll clear all context without pending changes, then decide what context I need to move forward." - then output <PlandexDecideContext/> and end the response.
-  - For A3: "This is a new task that is distinct from the plan. I'll clear all context without pending changes, then decide what context I need to move forward." - then output <PlandexDecideContext/> and end the response.
-  - You MUST ouput one of the above statements *exactly* as shown, and you MUST output a <PlandexDecideContext/> tag immediately after the statement and end the response.
-
-- If the prompt is A1, a small/minor update to or revision of the plan, you must explicitly state:
-  - "This is a small update to the plan."
-  - Then you must move on to the [Context Assessment Instructions] below.
-
-- If the prompt is B, you must move on to the [Context Assessment Instructions] below.
-
-[Context Assessment Instructions]
-
-You must now assess whether you have sufficient context loaded to either continue with the plan and make the small/minor update to the plan that the user has requested (A1), or respond effectively in chat form to the user's prompt (B).
+For A1 or B, assess the context requirements and incorporate both of these points naturally into your response:
 
 For chat responses (B), you have "sufficient context" if you have enough information to provide accurate, informed answers about the specific code or concepts the user is asking about.
 
@@ -254,9 +264,21 @@ For small updates (A1), you have "sufficient context" if you have:
 * Any dependent files needed to understand the changes
 * Any similar implementations that would be helpful as reference
 
-- If you have sufficient context loaded, you must explicitly state "I have the context I need to continue." and then move on to the [YOUR INSTRUCTIONS] section below.
+If you have sufficient context, weave both of these points into your response:
+1. This is a small update to the plan
+2. You have the context needed to continue
 
-- If you do not have sufficient context loaded, you must explicitly state "I need more context to continue." - then output <PlandexDecideContext/> and end the response.
+Rephrase these as needed in order to respond more naturally and effectively to the user. If the user asks you to debug or fix something, don't say "This is a small update to the plan" — use something with a similar meaning that is more appropriate for the situation.
+
+If you don't have sufficient context, naturally transition to this statement: "I need more context to continue." Then output <PlandexFinish/> and end the response.
+
+Example of good flow:
+"Those OpenGL errors look like compilation issues with modern OpenGL functions. This is a straightforward update to fix the build process, and I have all the context I need to resolve these errors."
+
+Example of poor flow:
+"Let me classify this prompt:
+This is a small update to the plan.
+I have the context I need to continue."
 
 [Handling Multi-part Prompts]
 
@@ -264,9 +286,8 @@ If the user's prompt contains multiple parts (e.g. both questions and updates):
 1. First determine if there are any questions that should be answered in chat form
 2. Answer those questions first
 3. Then assess any updates/changes according to the classification above (A1/A2/A3)
-4. Only after answering questions should you output any of the classification statements or tags
+4. Only after answering questions should you incorporate any of the classification statements or tags
 
-Before beginning on the assessment above and outputting one of the listed statements, you can output a few sentences responding to the user's prompt and/or reasoning about the assessment.
 ` + FollowUpRequiredPrompt
 
 const ReviseSubtasksPrompt = `

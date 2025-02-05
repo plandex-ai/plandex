@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"runtime/debug"
+	"strings"
 	"time"
 
 	"github.com/lib/pq"
@@ -38,6 +40,13 @@ func LockRepo(params LockRepoParams) (string, error) {
 func lockRepo(params LockRepoParams, numRetry int) (string, error) {
 	log.Printf("locking repo. orgId: %s | planId: %s | scope: %s | branch %s | numRetry %d \n", params.OrgId, params.PlanId, params.Scope, params.Branch, numRetry)
 	// spew.Dump(params)
+
+	stack := debug.Stack()
+	// Format truncated stack excluding runtime frames
+	stackTrace := formatStackTrace(stack)
+
+	log.Println()
+	log.Printf("LOCK_ATTEMPT | params: %+v | retry: %d | stack:\n%s", params, numRetry, stackTrace)
 
 	orgId := params.OrgId
 	userId := params.UserId
@@ -74,7 +83,7 @@ func lockRepo(params LockRepoParams, numRetry int) (string, error) {
 		}
 	}()
 
-	query := "SELECT id, org_id, user_id, plan_id, plan_build_id, scope, branch, created_at FROM repo_locks WHERE plan_id = $1 FOR UPDATE"
+	query := "SELECT id, org_id, user_id, plan_id, plan_build_id, scope, branch, last_heartbeat_at, created_at FROM repo_locks WHERE plan_id = $1 FOR UPDATE"
 	queryArgs := []interface{}{planId}
 
 	var locks []*repoLock
@@ -99,7 +108,7 @@ func lockRepo(params LockRepoParams, numRetry int) (string, error) {
 		now := time.Now()
 		for rows.Next() {
 			var lock repoLock
-			if err := rows.Scan(&lock.Id, &lock.OrgId, &lock.UserId, &lock.PlanId, &lock.PlanBuildId, &lock.Scope, &lock.Branch, &lock.CreatedAt); err != nil {
+			if err := rows.Scan(&lock.Id, &lock.OrgId, &lock.UserId, &lock.PlanId, &lock.PlanBuildId, &lock.Scope, &lock.Branch, &lock.LastHeartbeatAt, &lock.CreatedAt); err != nil {
 				return fmt.Errorf("error scanning repo lock: %v", err)
 			}
 
@@ -112,6 +121,8 @@ func lockRepo(params LockRepoParams, numRetry int) (string, error) {
 		}
 
 		if len(expiredLockIds) > 0 {
+			log.Printf("deleting expired locks: %v", expiredLockIds)
+
 			query := "DELETE FROM repo_locks WHERE id = ANY($1)"
 			_, err := tx.Exec(query, pq.Array(expiredLockIds))
 			if err != nil {
@@ -261,6 +272,10 @@ func lockRepo(params LockRepoParams, numRetry int) (string, error) {
 		return "", fmt.Errorf("error committing transaction: %v", err)
 	}
 
+	log.Println()
+	log.Printf("LOCK_ACQUIRED | id: %s | params: %+v | stack:\n%s", newLock.Id, params, stackTrace)
+	log.Println()
+
 	// Start a goroutine to keep the lock alive
 	go func() {
 		numErrors := 0
@@ -313,7 +328,11 @@ func lockRepo(params LockRepoParams, numRetry int) (string, error) {
 }
 
 func DeleteRepoLock(id string) error {
-	log.Println("deleting repo lock:", id)
+	stack := debug.Stack()
+	stackTrace := formatStackTrace(stack)
+
+	log.Println()
+	log.Printf("LOCK_DELETE_ATTEMPT | id: %s | stack:\n%s", id, stackTrace)
 
 	query := "DELETE FROM repo_locks WHERE id = $1"
 	_, err := Conn.Exec(query, id)
@@ -321,7 +340,16 @@ func DeleteRepoLock(id string) error {
 		return fmt.Errorf("error removing lock: %v", err)
 	}
 
-	log.Println("repo lock deleted successfully:", id)
+	log.Printf("LOCK_DELETED | id: %s", id)
+	log.Println()
 
 	return nil
+}
+
+func formatStackTrace(stack []byte) string {
+	lines := strings.Split(string(stack), "\n")
+	// Take first 5 meaningful lines of stack trace
+	// Skip runtime frames (first 7 lines) and limit to next 5 lines
+	relevantLines := lines[7:min(len(lines), 12)]
+	return strings.Join(relevantLines, "\n")
 }

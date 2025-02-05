@@ -179,8 +179,6 @@ func (state *activeTellStreamState) addConversationMessages() bool {
 		}
 	}
 
-	state.totalRequestTokens = tokensBeforeConvo + conversationTokens
-
 	return true
 }
 

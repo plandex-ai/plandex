@@ -2,6 +2,7 @@ package lib
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -271,7 +272,7 @@ func handleApplyScript(
 		execApplyScript(flags, toApply, onErr, toRollback, onExecFail, attempt, onSuccess)
 	} else {
 		if toRollback != nil && toRollback.HasChanges() {
-			res, err := term.SelectFromList("Skipping execution. Still apply other changes or roll back all changes?", []string{string(types.ApplyRollbackOptionKeep), string(types.ApplyRollbackOptionRollback)})
+			res, err := term.SelectFromList("Skipping execution. Apply file changes or roll back?", []string{string(types.ApplyRollbackOptionKeep), string(types.ApplyRollbackOptionRollback)})
 
 			if err != nil {
 				onErr("failed to get rollback confirmation user input: %s", err)
@@ -379,31 +380,44 @@ func execApplyScript(
 		onErr("failed to start command: %s", err)
 	}
 
-	// Handle SIGINT and SIGTERM -- delete _apply.sh and kill process
+	// Create a context that we can cancel
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Handle SIGINT and SIGTERM
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 
 	go func() {
-		sig := <-sigChan
-		os.Remove(dstPath)
+		select {
+		case sig := <-sigChan:
+			os.Remove(dstPath)
 
-		if toRollback != nil && toRollback.HasChanges() {
-			color.New(term.ColorHiRed, color.Bold).Println("🚨 Execution interrupted")
-			res, err := term.SelectFromList("Still apply other changes or roll back all changes?", []string{string(types.ApplyRollbackOptionKeep), string(types.ApplyRollbackOptionRollback)})
-			if err != nil {
-				onErr("failed to get rollback confirmation user input: %s", err)
+			if toRollback != nil && toRollback.HasChanges() {
+				color.New(term.ColorHiYellow, color.Bold).Println("⚠️ Execution interrupted")
+				res, err := term.SelectFromList("Apply file changes or roll back?", []string{string(types.ApplyRollbackOptionKeep), string(types.ApplyRollbackOptionRollback)})
+				if err != nil {
+					onErr("failed to get rollback confirmation user input: %s", err)
+				}
+
+				if res == string(types.ApplyRollbackOptionRollback) {
+					Rollback(toRollback, true)
+				} else {
+					onSuccess()
+				}
 			}
 
-			if res == string(types.ApplyRollbackOptionRollback) {
-				Rollback(toRollback, true)
-			} else {
-				onSuccess()
-			}
+			execCmd.Process.Signal(sig)
+		case <-ctx.Done():
+			// Exit the goroutine when context is cancelled
+			return
 		}
-
-		execCmd.Process.Signal(sig)
 	}()
-	defer signal.Stop(sigChan)
+	defer func() {
+		cancel()             // Cancel context to clean up goroutine
+		signal.Stop(sigChan) // Stop catching signals
+		close(sigChan)       // Close the channel
+	}()
 
 	// Read and display output in real-time
 	scanner := bufio.NewScanner(pipe)

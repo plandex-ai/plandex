@@ -39,7 +39,7 @@ func GenPlanName(
 		Plan: plan,
 		WillSendModelRequestParams: &hooks.WillSendModelRequestParams{
 			InputTokens:  numTokens,
-			OutputTokens: shared.AvailableModelsByName[config.BaseModelConfig.ModelName].DefaultReservedOutputTokens,
+			OutputTokens: config.GetReservedOutputTokens(),
 			ModelName:    config.BaseModelConfig.ModelName,
 		},
 	})
@@ -162,7 +162,7 @@ func GenPipedDataName(
 		Plan: plan,
 		WillSendModelRequestParams: &hooks.WillSendModelRequestParams{
 			InputTokens:  numTokens,
-			OutputTokens: shared.AvailableModelsByName[config.BaseModelConfig.ModelName].DefaultReservedOutputTokens,
+			OutputTokens: config.GetReservedOutputTokens(),
 			ModelName:    config.BaseModelConfig.ModelName,
 		},
 	})
@@ -293,7 +293,7 @@ func GenNoteName(
 		Plan: plan,
 		WillSendModelRequestParams: &hooks.WillSendModelRequestParams{
 			InputTokens:  numTokens,
-			OutputTokens: shared.AvailableModelsByName[config.BaseModelConfig.ModelName].DefaultReservedOutputTokens,
+			OutputTokens: config.GetReservedOutputTokens(),
 			ModelName:    config.BaseModelConfig.ModelName,
 		},
 	})

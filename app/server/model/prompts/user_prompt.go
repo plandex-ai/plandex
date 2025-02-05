@@ -29,7 +29,7 @@ Do NOT include tests or documentation in the subtasks unless the user has specif
 
 ` + CombineSubtasksPrompt + `
 
-At the end of the '### Tasks' section, you ABSOLUTELY MUST ALWAYS include a <EndPlandexTasks/> tag, then end the response.
+At the end of the '### Tasks' section, you ABSOLUTELY MUST ALWAYS include a <PlandexFinish/> tag, then end the response.
 
 Example:
 
@@ -39,7 +39,7 @@ Example:
 
 2. Write a basic test for the 'main' function
 
-<EndPlandexTasks/>
+<PlandexFinish/>
 
 IMPORTANT: During this planning phase, you must NOT implement any code or create any code blocks. Your only task is to break down the work into subtasks. Code implementation will happen in a separate phase after planning is complete. The planning phase is ONLY for breaking the work into subtasks.
 
@@ -54,7 +54,9 @@ You MUST NOT include any other text in a code block label apart from the initial
 
 Always use an opening <PlandexBlock> tag to start a code block and a closing </PlandexBlock> tag to end a code block.
 
-The <PlandexBlock> tag MUST ONLY contain the code for the code block and NOTHING ELSE. Do NOT wrap the code block in triple backticks, CDATA tags, or any other text or formatting. Output ONLY the code and nothing else within the <PlandexBlock> tag.
+The <PlandexBlock> tag content MUST ONLY contain the code for the code block and NOTHING ELSE. Do NOT wrap the code block in triple backticks, CDATA tags, or any other text or formatting. Output ONLY the code and nothing else within the <PlandexBlock> tag.
+
+The <PlandexBlock> tag MUST include both a 'lang' attribute and a 'path' attribute as described in the instructions above. It must not include any other attributes.
 
 You MUST follow the instructions you've been given on how to update code in code blocks:
 
@@ -170,4 +172,195 @@ const CombineSubtasksPrompt = `
 - When using bullet points to break up a subtask into multiple steps, make a note of any files that will be created or updated by each step—surround file paths with backticks like this: "` + "`path/to/some_file.txt`" + `". All paths mentioned in the bullet points of the subtask must be included in the 'Uses: ' list for the subtask.
 
 - Do NOT break up file operations of the same type (e.g. moving files, removing files, resetting pending changes) into multiple subtasks. Group them all into a *single* subtask.
+
+- Keep subtasks focused and manageable. While it's fine to group closely related changes (like small updates to a few tightly coupled files) into a single subtask, prefer breaking work into smaller, more focused subtasks when the changes are more substantial or independent. If a subtask involves many files or multiple distinct changes, consider whether it would be clearer and more maintainable to break it into multiple subtasks.
+
+Here are examples of good and poor task division:
+
+Example 1 - Poor (tasks too small and fragmented):
+1. Create the product.js file
+Uses: ` + "`src/models/product.js`" + `
+
+2. Add the product schema
+Uses: ` + "`src/models/product.js`" + `
+
+3. Add the validate() method
+Uses: ` + "`src/models/product.js`" + `
+
+4. Add the save() method
+Uses: ` + "`src/models/product.js`" + `
+
+Better:
+1. Create product model with core functionality
+- Create product.js with schema definition
+- Add validate() and save() methods
+Uses: ` + "`src/models/product.js`" + `
+
+Example 2 - Poor (task too large with unrelated changes):
+1. Implement user profile features
+- Add user avatar upload
+- Add profile settings page
+- Implement friend requests
+- Add user search
+- Create notification system
+Uses: ` + "`src/components/Profile.tsx`" + `, ` + "`src/components/Avatar.tsx`" + `, ` + "`src/components/Settings.tsx`" + `, ` + "`src/services/friends.ts`" + `, ` + "`src/services/search.ts`" + `, ` + "`src/services/notifications.ts`" + `
+
+Better:
+1. Implement user avatar upload functionality
+- Add avatar component with upload UI
+- Add avatar upload service
+Uses: ` + "`src/components/Avatar.tsx`" + `, ` + "`src/services/avatar.ts`" + `
+
+2. Create profile settings page
+- Add settings form components
+- Implement save/load settings
+Uses: ` + "`src/components/Settings.tsx`" + `, ` + "`src/services/settings.ts`" + `
+
+3. Add friend request system
+Uses: ` + "`src/services/friends.ts`" + `, ` + "`src/components/Profile.tsx`" + `
+
+Example 3 - Good (related changes properly grouped):
+1. Update error handling in authentication flow
+- Add error handling to login function
+- Add corresponding error states in auth context
+- Update error display in login form
+Uses: ` + "`src/auth/login.ts`" + `, ` + "`src/context/auth.tsx`" + `, ` + "`src/components/LoginForm.tsx`" + `
+
+Example 4 - Good (tightly coupled file updates):
+1. Rename UserType enum to AccountType
+- Update enum definition
+- Update all imports and usages
+Uses: ` + "`src/types/user.ts`" + `, ` + "`src/auth/account.ts`" + `, ` + "`src/components/UserProfile.tsx`" + `
+
+Notice in these examples:
+- Tasks that are too granular waste responses on tiny changes
+- Tasks that are too large mix unrelated changes and become hard to implement
+- Good tasks group related changes that make sense to implement together
+- Multiple files can be included when the changes are tightly coupled
+- Bullet points describe steps in a cohesive change, not separate features
 `
+
+type ChatUserPromptParams struct {
+	CreatePromptParams
+	Prompt    string
+	OsDetails string
+}
+
+func GetWrappedChatOnlyPrompt(params ChatUserPromptParams) string {
+	// Base wrapper that's always included
+	baseWrapper := "# The user's latest prompt:\n```\n%s\n```\n\n" + `Please respond according to the 'Your instructions' section above.
+
+The current UTC timestamp is: %s
+
+User's operating system details:
+%s`
+
+	// Build additional instructions based on parameter combinations
+	var additionalInstructions string
+
+	// Context handling - different for each autoContext + lastResponseLoadedContext combination
+	if params.AutoContext {
+		if params.LastResponseLoadedContext {
+			additionalInstructions += `
+
+Since you just loaded context in your previous response:
+- Focus on using that context in your explanation
+- Keep the conversation flowing naturally
+- You ABSOLUTELY MUST NOT load additional context unless the user asks about something completely different
+- Maintain conversational flow over seeking more context`
+		} else {
+			additionalInstructions += `
+
+When handling context:
+- Load context only when needed for accuracy
+- Make the context loading feel natural and conversational
+- If you need to check files, briefly mention what you're looking at
+- Once you've loaded context, use it thoroughly in your response`
+		}
+	} else {
+		additionalInstructions += `
+
+When discussing code:
+- Work with the context explicitly provided
+- If you need additional context, ask the user specifically what files would help
+- Make full use of any context you already have
+- Be clear when you need more information to provide a complete answer`
+	}
+
+	// Execution mode handling
+	if params.ExecMode {
+		additionalInstructions += `
+
+Regarding execution capabilities:
+- You can discuss both file changes and command execution
+- Be specific about what commands would need to be run
+- Consider build processes, testing, and deployment
+- Distinguish between file changes and execution steps`
+	} else {
+		additionalInstructions += `
+
+Remember about execution mode:
+- Focus on changes that can be made through file updates
+- Mention when something would require execution mode
+- You can discuss build/test/deploy conceptually
+- Be clear when certain steps would need execution mode enabled`
+	}
+
+	// Always include these key reminders
+	// Always include these key reminders
+	additionalInstructions += `
+Keep in mind:
+- Stay conversational while being technically precise
+- Reference and explain code when helpful, but don't output formal implementation blocks
+- Focus on what's specifically asked - don't suggest extra features
+- Consider existing codebase structure in your explanations
+- When discussing libraries, focus on well-maintained, widely-used options
+- If the user wants to implement changes, remind them about 'tell mode'
+- Use error handling, logging, and security best practices in your suggestions
+- Be thoughtful about code organization and structure
+- Consider implications of suggested changes on the existing codebase
+
+Remember you're in chat mode:
+- Engage in natural technical discussion about code and context
+- Help users understand their codebase and plan potential changes
+- Provide explanations and answer questions thoroughly
+- Include code snippets only when they help explain concepts
+- Help debug issues by examining and explaining code
+- Suggest approaches and discuss trade-offs
+- Help evaluate different implementation strategies
+- Consider and explain implications of different approaches
+- Stay focused on understanding and planning rather than implementation
+
+You cannot:
+- Create or modify any files
+- Output formal implementation code blocks
+- Make plans using "### Tasks" sections
+- Structure responses as if implementing changes
+- Load context multiple times in consecutive responses
+- Switch to implementation mode without user request
+
+Even if a plan is in progress:
+- Stay in discussion mode, don't attempt to implement anything
+- You can discuss the current tasks and progress
+- You can provide explanations and suggestions
+- You can help debug issues or clarify approach
+- But you must not output any implementation code
+- Return to implementation only when user switches back to tell mode
+
+Remember that users often:
+- Switch between chat and tell mode during implementation
+- Use chat mode to understand before implementing
+- Need detailed technical discussion to plan effectively
+- Want to explore options before committing to changes
+- May need to debug or understand issues mid-implementation
+- You may receive a list of tasks that are in progress, including a 'current subtask'. You MUST NOT implement any tasks—only discuss them.
+`
+
+	promptWrapperFormatStr := baseWrapper + additionalInstructions
+
+	ts := time.Now().Format(time.RFC3339)
+	return fmt.Sprintf(promptWrapperFormatStr,
+		params.Prompt,
+		ts,
+		params.OsDetails)
+}

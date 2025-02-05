@@ -492,7 +492,10 @@ func (m *streamUIModel) selectedMissingFileOpt() (tea.Model, tea.Cmd) {
 
 func (m *streamUIModel) checkMissingFile(msg *shared.StreamMessage) (tea.Model, tea.Cmd) {
 	if msg.MissingFilePath != "" {
+		log.Println("checkMissingFile - received missing file message | path:", msg.MissingFilePath)
+
 		if msg.MissingFileAutoContext {
+			log.Println("checkMissingFile - received missing file message | auto context")
 			m.processing = true
 			m.autoLoadedMissingFile = true
 
@@ -510,6 +513,7 @@ func (m *streamUIModel) checkMissingFile(msg *shared.StreamMessage) (tea.Model, 
 					}
 					content := string(bytes)
 
+					log.Println("checkMissingFile - calling RespondMissingFile")
 					apiErr := api.Client.RespondMissingFile(lib.CurrentPlanId, lib.CurrentBranch, shared.RespondMissingFileRequest{
 						Choice:   shared.RespondMissingFileChoiceLoad,
 						FilePath: msg.MissingFilePath,
@@ -522,6 +526,8 @@ func (m *streamUIModel) checkMissingFile(msg *shared.StreamMessage) (tea.Model, 
 						return tea.Quit
 					}
 
+					log.Println("checkMissingFile - RespondMissingFile success")
+
 					return nil
 				},
 			)
@@ -530,6 +536,7 @@ func (m *streamUIModel) checkMissingFile(msg *shared.StreamMessage) (tea.Model, 
 		m.promptingMissingFile = true
 		m.missingFilePath = msg.MissingFilePath
 
+		log.Println("checkMissingFile - reading file")
 		bytes, err := os.ReadFile(m.missingFilePath)
 		if err != nil {
 			log.Println("failed to read file:", err)
@@ -538,6 +545,7 @@ func (m *streamUIModel) checkMissingFile(msg *shared.StreamMessage) (tea.Model, 
 		}
 		m.missingFileContent = string(bytes)
 
+		log.Println("checkMissingFile - estimating tokens")
 		numTokens := shared.GetNumTokensEstimate(m.missingFileContent)
 		m.missingFileTokens = numTokens
 	}

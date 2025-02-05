@@ -112,7 +112,7 @@ func new(cmd *cobra.Command, args []string) {
 
 	var cmds []string
 	if term.IsRepl {
-		return
+		cmds = []string{"config", "plans", "cd", "models"}
 	} else {
 		cmds = []string{"tell", "chat", "config"}
 	}

@@ -69,9 +69,6 @@ func (state *activeTellStreamState) handleMissingFileResponse(applyScriptSummary
 		skipPrompt := prompts.GetSkipMissingFilePrompt(res.CurrentFilePath)
 		prompt := prompts.GetWrappedPrompt(skipPrompt, req.OsDetails, applyScriptSummary, isPlanningStage, isFollowUp) + "\n\n" + skipPrompt // repetition of skip prompt to improve instruction following
 
-		skipPromptTokens := shared.GetNumTokensEstimate(skipPrompt)
-		state.totalRequestTokens += skipPromptTokens
-
 		state.messages = append(state.messages, openai.ChatCompletionMessage{
 			Role:    openai.ChatMessageRoleUser,
 			Content: prompt,
@@ -80,9 +77,6 @@ func (state *activeTellStreamState) handleMissingFileResponse(applyScriptSummary
 	} else {
 		missingPrompt := prompts.GetMissingFileContinueGeneratingPrompt(res.CurrentFilePath)
 		prompt := prompts.GetWrappedPrompt(missingPrompt, req.OsDetails, applyScriptSummary, isPlanningStage, isFollowUp) + "\n\n" + missingPrompt // repetition of missing prompt to improve instruction following
-
-		promptTokens := shared.GetNumTokensEstimate(prompt)
-		state.totalRequestTokens += promptTokens
 
 		state.messages = append(state.messages, openai.ChatCompletionMessage{
 			Role:    openai.ChatMessageRoleUser,

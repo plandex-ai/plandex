@@ -4,6 +4,7 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
+	"strings"
 )
 
 const defaultAutoDebugTries = 5
@@ -14,14 +15,6 @@ const (
 )
 
 const defaultEditor = EditorTypeVim
-
-type ReplType string
-
-const (
-	ReplTypeTell ReplType = "tell"
-	ReplTypeChat ReplType = "chat"
-	ReplTypeAuto ReplType = "auto"
-)
 
 type AutoModeType string
 
@@ -34,30 +27,13 @@ const (
 	AutoModeCustom    AutoModeType = "custom"
 )
 
-var AutoModeOptions = [][2]string{
-	{string(AutoModeFull), "Full Auto"},
-
-	// "→ automatically selects context, updates changes context, includes only necessary context for each step, continues iterating until plan is complete, builds plan into file edits, applies changes, executes commands, and debugs failed commands up to " + strconv.Itoa(defaultAutoDebugTries) + " attempts."},
-
-	{string(AutoModeSemi), "Semi Auto"},
-
-	// "→  automatically selects context, updates changed context, includes only necessary context for each step, continues iterating until plan is complete, and builds plan into pending file edits. User applies changes manually. Automatically commits after apply in git repos. Plans can include commands to execute, but user must approve execution and debugging of failed commands."},
-
-	{string(AutoModeBasic), "Basic Plus"},
-
-	// " → manual selection of context. Context with changes is updates automatically. Includes only necessary context for each step. Continues iterating until plan is complete, and builds plan into pending file edits. User applies changes manually. Automatically commits after apply in git repos. Plans can include commands to execute, but user must approve execution and debugging of failed commands."},
-
-	{string(AutoModeBasic), "Basic"},
-
-	// " → manual selection of context. Updating changed context must be approved. Each step includes all context (no smart context). Continues iterating until plan is complete, and builds plan into pending file edits. User applies changes manually. No automatic commit after apply in git repos. No execution of commands."},
-
-	{string(AutoModeNone), "None"},
-
-	// "→  manual selection of context. Updating changes context must be approved. Each step includes all context (no smart context). Plans only proceed one iteration at a time with no automatic continuation. Changes are not automatically built into pending file edits. User builds and applies changes manually. No automatic commit after apply in git repos. No execution of commands."},
-
-	{string(AutoModeCustom), "Custom"},
-
-	// " → mix and match config settings individually."},
+var AutoModeOptions = [][3]string{
+	{string(AutoModeFull), "Full Auto", "Fully automated: context, apply, execution and debugging"},
+	{string(AutoModeSemi), "Semi Auto", "Auto context, manual apply and execution"},
+	{string(AutoModeBasicPlus), "Basic Plus", "Manual context with auto updates and smart loading, manual apply and execution"},
+	{string(AutoModeBasic), "Basic", "Manual context, manual apply and execution"},
+	{string(AutoModeNone), "None", "Fully manual and step-by-step, one response at a time, manual builds"},
+	{string(AutoModeCustom), "Custom", "Choose your own combination of automation settings"},
 }
 
 var AutoModeLabels = map[AutoModeType]string{}
@@ -230,7 +206,7 @@ var ConfigSettingsByKey = map[string]ConfigSetting{
 		Choices: &AutoModeChoices,
 		ChoiceToKey: func(choice string) string {
 			for _, option := range AutoModeOptions {
-				if option[1] == choice {
+				if strings.HasPrefix(choice, option[1]) {
 					return option[0]
 				}
 			}
@@ -467,8 +443,7 @@ func init() {
 	DefaultPlanConfig.SetAutoMode(AutoModeSemi)
 
 	for _, choice := range AutoModeOptions {
-		AutoModeChoices = append(AutoModeChoices, choice[1])
+		AutoModeChoices = append(AutoModeChoices, fmt.Sprintf("%s → %s", choice[1], choice[2]))
 		AutoModeLabels[AutoModeType(choice[0])] = choice[1]
 	}
-
 }

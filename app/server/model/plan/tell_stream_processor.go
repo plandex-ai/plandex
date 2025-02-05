@@ -17,7 +17,19 @@ import (
 
 const verboseLogging = false
 
-var openingTagRegex = regexp.MustCompile(`<PlandexBlock\s+lang="(.+?)".*?>`)
+var openingTagRegex = regexp.MustCompile(`<PlandexBlock\s+lang="(.+?)"\s+path="(.+?)".*?>`)
+
+// matches any prefix of the opening tag
+var partialOpeningTagRegex = regexp.MustCompile(
+	`^` +
+		// 1) Nested optional groups for "PlandexBlock":
+		`P(?:l(?:a(?:n(?:d(?:e(?:x(?:B(?:l(?:o(?:c(?:k)?)?)?)?)?)?)?)?)?)?)?` +
+		// 2) Optional lang="..." (with optional final quote):
+		`(?:\s+lang="[^"]*(?:")?)?` +
+		// 3) Optional path="..." (with optional final quote):
+		`(?:\s+path="[^"]*(?:")?)?` +
+		`$`,
+)
 
 type processChunkResult struct {
 	shouldReturn bool
@@ -92,7 +104,8 @@ func (state *activeTellStreamState) processChunk(choice openai.ChatCompletionStr
 	if currentFile != "" &&
 		!req.IsChatOnly &&
 		active.ContextsByPath[currentFile] == nil &&
-		req.ProjectPaths[currentFile] && !active.AllowOverwritePaths[currentFile] {
+		req.ProjectPaths[currentFile] &&
+		!active.AllowOverwritePaths[currentFile] {
 		return state.handleMissingFile(bufferOrStreamRes.content, currentFile, bufferOrStreamRes.blockLang)
 	}
 
@@ -185,8 +198,34 @@ func (processor *chunkProcessor) bufferOrStream(content string, parserRes *types
 	}
 
 	if awaitingTag {
+		if verboseLogging {
+			log.Println("awaitingTag")
+		}
 		if processor.awaitingBlockOpeningTag {
-			if parserRes.MaybeFilePath == "" && parserRes.CurrentFilePath == "" {
+			if verboseLogging {
+				log.Println("processor.awaitingBlockOpeningTag")
+			}
+			split := strings.Split(content, "<")
+			var matchedPrefix bool
+			if len(split) > 1 {
+				last := split[len(split)-1]
+				if verboseLogging {
+					log.Printf("last: %s\n", last)
+				}
+				if partialOpeningTagRegex.MatchString(last) {
+					if verboseLogging {
+						log.Println("partialOpeningTagRegex.MatchString(last)")
+					}
+					shouldStream = false
+					matchedPrefix = true
+				} else {
+					if verboseLogging {
+						log.Println("partialOpeningTagRegex.MatchString(last) is false")
+					}
+				}
+			}
+
+			if !matchedPrefix && parserRes.MaybeFilePath == "" && parserRes.CurrentFilePath == "" {
 				// wasn't really a file path / code block
 				processor.awaitingBlockOpeningTag = false
 				shouldStream = true
@@ -248,6 +287,14 @@ func (processor *chunkProcessor) bufferOrStream(content string, parserRes *types
 
 		if parserRes.MaybeFilePath != "" && parserRes.CurrentFilePath == "" {
 			processor.awaitingBlockOpeningTag = true
+		} else {
+			split := strings.Split(content, "<")
+			if len(split) > 1 {
+				last := split[len(split)-1]
+				if partialOpeningTagRegex.MatchString(last) {
+					processor.awaitingBlockOpeningTag = true
+				}
+			}
 		}
 
 		if parserRes.CurrentFilePath != "" {
@@ -381,7 +428,6 @@ func (processor *chunkProcessor) bufferOrStream(content string, parserRes *types
 }
 
 func (state *activeTellStreamState) handleNewOperations(parserRes *types.ReplyParserRes) {
-
 	processor := state.chunkProcessor
 	plan := state.plan
 	planId := plan.Id
@@ -515,6 +561,8 @@ func (state *activeTellStreamState) handleMissingFile(content, currentFile, bloc
 			Type:       shared.StreamMessageReply,
 			ReplyChunk: chunkToStream,
 		})
+		active.FlushStreamBuffer()
+		time.Sleep(20 * time.Millisecond)
 	}
 
 	log.Printf("Prompting user for missing file: %s\n", currentFile)
@@ -585,14 +633,15 @@ func getCroppedChunk(uncropped, cropped, chunk string) string {
 }
 
 func replaceCodeBlockOpeningTag(content string, replaceWithFn func(lang string) string) (bool, string) {
-	// check for opening tag matching <PlandexBlock lang="...">
+	// check for opening tag matching <PlandexBlock lang="..." path="...">
 	match := openingTagRegex.FindStringSubmatch(content)
 
 	if match != nil {
-		// Found complete opening tag with lang attribute
+		// Found complete opening tag with lang and path attributes
 		lang := match[1] // Extract the language from the first capture group
 		return true, strings.Replace(content, match[0], replaceWithFn(lang), 1)
 	} else if strings.Contains(content, "<PlandexBlock>") {
+		// This is a fallback case that should probably be removed since we now require both attributes
 		return true, strings.Replace(content, "<PlandexBlock>", replaceWithFn(""), 1)
 	}
 

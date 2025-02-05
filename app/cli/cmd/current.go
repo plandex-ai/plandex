@@ -52,7 +52,6 @@ func current(cmd *cobra.Command, args []string) {
 	table := lib.GetCurrentPlanTable(plan, currentBranchesByPlanId, nil)
 	fmt.Println(table)
 
-	fmt.Println()
 	term.PrintCmds("", "tell", "ls", "plans")
 
 }

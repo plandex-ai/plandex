@@ -49,7 +49,7 @@ func (state *activeTellStreamState) genPlanDescription() (*db.ConvoMessageDescri
 		Plan: plan,
 		WillSendModelRequestParams: &hooks.WillSendModelRequestParams{
 			InputTokens:  numTokens,
-			OutputTokens: shared.AvailableModelsByName[config.BaseModelConfig.ModelName].DefaultReservedOutputTokens,
+			OutputTokens: config.GetReservedOutputTokens(),
 			ModelName:    config.BaseModelConfig.ModelName,
 		},
 	})
@@ -197,7 +197,7 @@ func GenCommitMsgForPendingResults(auth *types.ServerAuth, plan *db.Plan, client
 		Plan: plan,
 		WillSendModelRequestParams: &hooks.WillSendModelRequestParams{
 			InputTokens:  numTokens,
-			OutputTokens: shared.AvailableModelsByName[config.BaseModelConfig.ModelName].DefaultReservedOutputTokens,
+			OutputTokens: config.GetReservedOutputTokens(),
 			ModelName:    config.BaseModelConfig.ModelName,
 		},
 	})

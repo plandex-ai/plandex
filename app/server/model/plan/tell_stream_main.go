@@ -7,10 +7,9 @@ import (
 	"time"
 
 	"github.com/plandex/plandex/shared"
-	"github.com/sashabaranov/go-openai"
 )
 
-func (state *activeTellStreamState) listenStream(stream *openai.ChatCompletionStream) {
+func (state *activeTellStreamState) listenStream(stream *model.ExtendedChatCompletionStream) {
 	defer stream.Close()
 
 	plan := state.plan

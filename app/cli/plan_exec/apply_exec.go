@@ -64,7 +64,7 @@ func GetOnApplyExecFail(flags lib.ApplyFlags) types.OnApplyExecFailFn {
 
 			lib.MustApplyPlanAttempt(lib.CurrentPlanId, lib.CurrentBranch, flags, onExecFail, attempt+1)
 		} else {
-			res, err := term.SelectFromList("Still apply other changes or roll back all changes?", []string{string(types.ApplyRollbackOptionKeep), string(types.ApplyRollbackOptionRollback)})
+			res, err := term.SelectFromList("Still apply file changes or roll back?", []string{string(types.ApplyRollbackOptionKeep), string(types.ApplyRollbackOptionRollback)})
 
 			if err != nil {
 				onErr("failed to get rollback confirmation user input: %s", err)

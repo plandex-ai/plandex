@@ -447,18 +447,48 @@ func renderSettings(settings *shared.PlanSettings) {
 			fmt.Sprintf("%.1f", config.TopP),
 			fmt.Sprintf("%d 🪙", config.GetReservedOutputTokens()),
 		})
+
+		// Add large context fallback if present
+		if config.LargeContextFallback != nil {
+			table.Append([]string{
+				"└─ large-" + role,
+				string(config.LargeContextFallback.BaseModelConfig.Provider),
+				config.LargeContextFallback.BaseModelConfig.ModelName,
+				fmt.Sprintf("%.1f", config.LargeContextFallback.Temperature),
+				fmt.Sprintf("%.1f", config.LargeContextFallback.TopP),
+				fmt.Sprintf("%d 🪙", config.LargeContextFallback.GetReservedOutputTokens()),
+			})
+		}
 	}
 
-	addModelRow(string(shared.ModelRolePlanner), modelPack.Planner.ModelRoleConfig)
-	addModelRow(string(shared.ModelRoleCoder), modelPack.GetCoder())
+	// Handle planner separately since it has a different fallback structure
+	table.Append([]string{
+		string(shared.ModelRolePlanner),
+		string(modelPack.Planner.BaseModelConfig.Provider),
+		modelPack.Planner.BaseModelConfig.ModelName,
+		fmt.Sprintf("%.1f", modelPack.Planner.Temperature),
+		fmt.Sprintf("%.1f", modelPack.Planner.TopP),
+		fmt.Sprintf("%d 🪙", modelPack.Planner.GetReservedOutputTokens()),
+	})
+	if modelPack.Planner.PlannerLargeContextFallback != nil {
+		table.Append([]string{
+			"└─ large-planner",
+			string(modelPack.Planner.PlannerLargeContextFallback.BaseModelConfig.Provider),
+			modelPack.Planner.PlannerLargeContextFallback.BaseModelConfig.ModelName,
+			fmt.Sprintf("%.1f", modelPack.Planner.PlannerLargeContextFallback.Temperature),
+			fmt.Sprintf("%.1f", modelPack.Planner.PlannerLargeContextFallback.TopP),
+			fmt.Sprintf("%d 🪙", modelPack.Planner.PlannerLargeContextFallback.GetReservedOutputTokens()),
+		})
+	}
+
 	addModelRow(string(shared.ModelRoleContextLoader), modelPack.GetContextLoader())
+	addModelRow(string(shared.ModelRoleCoder), modelPack.GetCoder())
 	addModelRow(string(shared.ModelRolePlanSummary), modelPack.PlanSummary)
 	addModelRow(string(shared.ModelRoleBuilder), modelPack.Builder)
 	addModelRow(string(shared.ModelRoleWholeFileBuilder), modelPack.GetWholeFileBuilder())
 	addModelRow(string(shared.ModelRoleName), modelPack.Namer)
 	addModelRow(string(shared.ModelRoleCommitMsg), modelPack.CommitMsg)
 	addModelRow(string(shared.ModelRoleExecStatus), modelPack.ExecStatus)
-	addModelRow(string(shared.ModelRoleWholeFileBuilder), modelPack.GetWholeFileBuilder())
 	table.Render()
 
 	fmt.Println()
@@ -468,8 +498,8 @@ func renderSettings(settings *shared.PlanSettings) {
 	table.SetAutoWrapText(false)
 	table.SetHeader([]string{"Max Tokens", "Max Convo Tokens"})
 	table.Append([]string{
-		fmt.Sprintf("%d", modelPack.Planner.BaseModelConfig.MaxTokens),
-		fmt.Sprintf("%d", modelPack.Planner.MaxConvoTokens),
+		fmt.Sprintf("%d", modelPack.Planner.GetFinalLargeContextFallback().BaseModelConfig.MaxTokens),
+		fmt.Sprintf("%d", modelPack.Planner.GetFinalLargeContextFallback().MaxConvoTokens),
 	})
 	table.Render()
 	fmt.Println()

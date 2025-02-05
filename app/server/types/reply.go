@@ -3,6 +3,7 @@ package types
 import (
 	"log"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -154,6 +155,41 @@ func (r *ReplyParser) AddChunk(chunk string, addToTotal bool) {
 
 	prevFullLineTrimmed := strings.TrimSpace(prevFullLine)
 
+	setCurrentFile := func(path string, noLabel bool) {
+		r.currentFilePath = path
+		r.currentFileOperation = &shared.Operation{
+			Type: shared.OperationTypeFile,
+			Path: path,
+		}
+		r.maybeFilePath = ""
+		r.currentFileLines = []string{}
+
+		var fileDescription string
+		skipNumLines := 4
+		if noLabel {
+			skipNumLines = 2
+		}
+		if len(r.currentDescriptionLines) > skipNumLines {
+			fileDescription = strings.TrimSpace(strings.Join(r.currentDescriptionLines[0:len(r.currentDescriptionLines)-skipNumLines], "\n"))
+			if verboseLogging {
+				log.Println("File description:", fileDescription)
+			}
+			if fileDescription != "" {
+				r.currentFileOperation.Description = fileDescription
+			}
+		} else {
+			r.currentFileOperation.Description = ""
+		}
+
+		r.currentDescriptionLines = []string{""}
+		r.currentDescriptionLineIdx = 0
+
+		if verboseLogging {
+			log.Println("Confirmed file path:", r.currentFilePath) // Logging the confirmed file path
+		}
+
+	}
+
 	if r.maybeFilePath != "" && !r.isInMoveBlock && !r.isInRemoveBlock && !r.isInResetBlock {
 		if verboseLogging {
 			log.Println("Maybe file path is:", r.maybeFilePath) // Logging the maybeFilePath
@@ -163,34 +199,7 @@ func (r *ReplyParser) AddChunk(chunk string, addToTotal bool) {
 				log.Println("Found opening tag--confirming file path...") // Logging the confirmed file path
 			}
 
-			r.currentFilePath = r.maybeFilePath
-			r.currentFileOperation = &shared.Operation{
-				Type: shared.OperationTypeFile,
-				Path: r.maybeFilePath,
-			}
-			r.maybeFilePath = ""
-			r.currentFileLines = []string{}
-
-			var fileDescription string
-			if len(r.currentDescriptionLines) > 4 {
-				fileDescription = strings.TrimSpace(strings.Join(r.currentDescriptionLines[0:len(r.currentDescriptionLines)-4], "\n"))
-				if verboseLogging {
-					log.Println("File description:", fileDescription)
-				}
-				if fileDescription != "" {
-					r.currentFileOperation.Description = fileDescription
-				}
-			} else {
-				r.currentFileOperation.Description = ""
-			}
-
-			r.currentDescriptionLines = []string{""}
-			r.currentDescriptionLineIdx = 0
-
-			if verboseLogging {
-				log.Println("Confirmed file path:", r.currentFilePath) // Logging the confirmed file path
-			}
-
+			setCurrentFile(r.maybeFilePath, false)
 			return
 		} else if prevFullLineTrimmed != "" {
 			// turns out previous maybeFilePath was not a file path since there's a non-empty line before finding opening ticks
@@ -206,6 +215,16 @@ func (r *ReplyParser) AddChunk(chunk string, addToTotal bool) {
 	if r.currentFilePath == "" && !r.isInMoveBlock && !r.isInRemoveBlock && !r.isInResetBlock {
 		if verboseLogging {
 			log.Println("Current file path is empty--checking for possible file path...")
+		}
+
+		if LineHasXmlPath(prevFullLineTrimmed) {
+			if verboseLogging {
+				log.Println("Line has XML-style PlandexBlock tag")
+			}
+			path := extractFilePath(prevFullLineTrimmed)
+			if path != "" {
+				setCurrentFile(path, true)
+			}
 		}
 
 		var gotPath string
@@ -367,6 +386,10 @@ func (r *ReplyParserRes) FileOperationBlockOpen() bool {
 	return r.IsInMoveBlock || r.IsInRemoveBlock || r.IsInResetBlock
 }
 
+func LineHasXmlPath(line string) bool {
+	return strings.HasPrefix(line, "<PlandexBlock") && strings.Contains(line, `path="`)
+}
+
 func LineMaybeHasFilePath(line string) bool {
 	couldBe := (strings.HasPrefix(line, "-")) || strings.HasPrefix(line, "-file:") || strings.HasPrefix(line, "- file:") || (strings.HasPrefix(line, "**") && strings.HasSuffix(line, "**")) || (strings.HasPrefix(line, "#") && strings.HasSuffix(line, ":"))
 
@@ -384,7 +407,18 @@ func LineMaybeHasFilePath(line string) bool {
 	return couldBe
 }
 
+var re = regexp.MustCompile(`path="([^"]+)"`)
+
 func extractFilePath(line string) string {
+	// Handle XML-style PlandexBlock tag
+	if strings.HasPrefix(line, "<PlandexBlock") {
+		match := re.FindStringSubmatch(line)
+		if len(match) > 1 {
+			return match[1]
+		}
+		return ""
+	}
+
 	p := strings.ReplaceAll(line, "**", "")
 	p = strings.ReplaceAll(p, "`", "")
 	p = strings.ReplaceAll(p, "'", "")

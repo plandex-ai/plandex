@@ -85,6 +85,22 @@ Uses: ` + "`main.go`",
 				},
 			},
 		},
+		{
+			name: "single task from pong",
+			input: "### Tasks" + `
+
+9. Update Makefile to include Homebrew-specific include and library search paths
+- Modify CFLAGS in Makefile to add -I/opt/homebrew/include
+- Modify LDFLAGS in Makefile to add -L/opt/homebrew/lib
+Uses: ` + "`Makefile`" + `, ` + "`_apply.sh`",
+			expected: []*db.Subtask{
+				{
+					Title:       "Update Makefile to include Homebrew-specific include and library search paths",
+					Description: "Modify CFLAGS in Makefile to add -I/opt/homebrew/include\nModify LDFLAGS in Makefile to add -L/opt/homebrew/lib",
+					UsesFiles:   []string{"Makefile", "_apply.sh"},
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {

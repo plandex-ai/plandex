@@ -609,8 +609,11 @@ func LoadContexts(ctx Ctx, params LoadContextsParams) (*shared.LoadContextRespon
 		}, nil, nil
 	}
 
-	dbContextsCh := make(chan *Context)
-	errCh := make(chan error)
+	var dbContexts []*Context
+	var apiContexts []*shared.Context
+	var mu sync.Mutex
+
+	errCh := make(chan error, len(paramsByTempId))
 	for tempId, loadParams := range paramsByTempId {
 
 		go func(tempId string, loadParams *shared.LoadContextParams) {
@@ -645,27 +648,25 @@ func LoadContexts(ctx Ctx, params LoadContextsParams) (*shared.LoadContextRespon
 			err := StoreContext(&context, params.CachedMapsByPath != nil)
 
 			if err != nil {
-				errCh <- err
+				errCh <- fmt.Errorf("error storing context: %v", err)
 				return
 			}
 
-			dbContextsCh <- &context
+			mu.Lock()
+			dbContexts = append(dbContexts, &context)
+			apiContext := context.ToApi()
+			apiContext.Body = ""
+			apiContexts = append(apiContexts, apiContext)
+			mu.Unlock()
 
+			errCh <- nil
 		}(tempId, loadParams)
 	}
 
-	var dbContexts []*Context
-	var apiContexts []*shared.Context
-
-	for i := 0; i < len(*req); i++ {
-		select {
-		case err := <-errCh:
+	for i := 0; i < len(paramsByTempId); i++ {
+		err := <-errCh
+		if err != nil {
 			return nil, nil, fmt.Errorf("error storing context: %v", err)
-		case dbContext := <-dbContextsCh:
-			dbContexts = append(dbContexts, dbContext)
-			apiContext := dbContext.ToApi()
-			apiContext.Body = ""
-			apiContexts = append(apiContexts, apiContext)
 		}
 	}
 
@@ -786,11 +787,10 @@ func UpdateContexts(params UpdateContextsParams) (*shared.UpdateContextResponse,
 	numMaps := 0
 
 	var mu sync.Mutex
-	errCh := make(chan error)
+	errCh := make(chan error, len(*req))
 
 	for id, params := range *req {
 		go func(id string, params *shared.UpdateContextParams) {
-
 			var context *Context
 			if _, ok := contextsById[id]; ok {
 				context = contextsById[id]
@@ -802,7 +802,6 @@ func UpdateContexts(params UpdateContextsParams) (*shared.UpdateContextResponse,
 					errCh <- fmt.Errorf("error getting context: %v", err)
 					return
 				}
-
 				// log.Println("Got context", context.Id, "numTokens", context.NumTokens)
 			}
 
@@ -886,7 +885,7 @@ func UpdateContexts(params UpdateContextsParams) (*shared.UpdateContextResponse,
 		}
 	}
 
-	errCh = make(chan error)
+	errCh = make(chan error, len(*req))
 
 	for id, params := range *req {
 		go func(id string, params *shared.UpdateContextParams) {
@@ -1049,8 +1048,7 @@ func invalidateConflictedResults(params invalidateConflictedResultsParams) error
 	// log.Println("invalidateConflictedResults - Conflicted paths:", conflictPaths)
 
 	if len(conflictPaths) > 0 {
-		errCh := make(chan error)
-		numRoutines := 0
+		toUpdateDescs := []*ConvoMessageDescription{}
 
 		for _, desc := range descriptions {
 			if !desc.DidBuild || desc.AppliedAt != nil {
@@ -1063,23 +1061,25 @@ func invalidateConflictedResults(params invalidateConflictedResultsParams) error
 						desc.BuildPathsInvalidated = make(map[string]bool)
 					}
 					desc.BuildPathsInvalidated[op.Path] = true
-
-					// log.Printf("Invalidating build for path: %s, desc: %s\n", path, desc.Id)
-
-					go func(desc *ConvoMessageDescription) {
-						err := StoreDescription(desc)
-
-						if err != nil {
-							errCh <- fmt.Errorf("error storing description: %v", err)
-							return
-						}
-
-						errCh <- nil
-					}(desc)
-
-					numRoutines++
+					toUpdateDescs = append(toUpdateDescs, desc)
 				}
 			}
+		}
+
+		numRoutines := len(toUpdateDescs) + 1
+		errCh := make(chan error, numRoutines)
+
+		for _, desc := range toUpdateDescs {
+			go func(desc *ConvoMessageDescription) {
+				err := StoreDescription(desc)
+
+				if err != nil {
+					errCh <- fmt.Errorf("error storing description: %v", err)
+					return
+				}
+
+				errCh <- nil
+			}(desc)
 		}
 
 		go func() {
@@ -1092,7 +1092,6 @@ func invalidateConflictedResults(params invalidateConflictedResultsParams) error
 
 			errCh <- nil
 		}()
-		numRoutines++
 
 		for i := 0; i < numRoutines; i++ {
 			err := <-errCh

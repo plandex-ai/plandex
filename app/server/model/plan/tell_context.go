@@ -145,7 +145,11 @@ func (state *activeTellStreamState) checkAutoLoadContext() []string {
 		return nil
 	}
 
-	if !(state.isContextStage || state.isPlanningStage) {
+	if state.req.IsChatOnly && state.iteration > 0 {
+		return nil
+	}
+
+	if !(state.isContextStage || state.isPlanningStage || state.req.IsChatOnly) {
 		return nil
 	}
 
@@ -164,6 +168,8 @@ func (state *activeTellStreamState) checkAutoLoadContext() []string {
 			files = append(files, trimmed)
 		}
 	}
+
+	log.Printf("Tell plan - checkAutoLoadContext - files: %v\n", files)
 
 	return files
 }

@@ -94,6 +94,7 @@ func loadContexts(
 
 				if err != nil {
 					errCh <- fmt.Errorf("error generating name for piped data: %v", err)
+					return
 				}
 
 				context.Name = name
@@ -107,6 +108,7 @@ func loadContexts(
 
 				if err != nil {
 					errCh <- fmt.Errorf("error generating name for note: %v", err)
+					return
 				}
 
 				context.Name = name

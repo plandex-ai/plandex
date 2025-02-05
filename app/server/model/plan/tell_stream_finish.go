@@ -81,6 +81,7 @@ func (state *activeTellStreamState) handleStreamFinished() handleStreamFinishedR
 		subtaskFinished:           subtaskFinished,
 		hasNewSubtasks:            hasNewSubtasks,
 		followUpNeedsContextStage: followUpNeedsContextStage,
+		autoLoadContextFiles:      autoLoadContextFiles,
 	})
 	if storeOnFinishedResult.shouldContinueMainLoop || storeOnFinishedResult.shouldReturn {
 		return storeOnFinishedResult.handleStreamFinishedResult
@@ -176,6 +177,7 @@ func (state *activeTellStreamState) handleStreamFinished() handleStreamFinishedR
 
 	if followUpNeedsContextStage ||
 		(len(autoLoadContextFiles) > 0 && !hasNewSubtasks) ||
+		(len(autoLoadContextFiles) > 0 && req.IsChatOnly) ||
 		(req.AutoContinue && shouldContinue && iteration < MaxAutoContinueIterations &&
 			!(len(state.subtasks) > 0 && allSubtasksFinished)) {
 		log.Println("Auto continue plan")
@@ -189,6 +191,7 @@ func (state *activeTellStreamState) handleStreamFinished() handleStreamFinishedR
 			iteration:                 iteration + 1,
 			shouldLoadFollowUpContext: followUpNeedsContextStage,
 			didMakeFollowUpPlan:       state.isFollowUp && !followUpNeedsContextStage && hasNewSubtasks,
+			didLoadChatOnlyContext:    len(autoLoadContextFiles) > 0 && req.IsChatOnly,
 		})
 	} else {
 		var buildFinished bool
@@ -356,6 +359,7 @@ type storeOnFinishedParams struct {
 	subtaskFinished           bool
 	hasNewSubtasks            bool
 	followUpNeedsContextStage bool
+	autoLoadContextFiles      []string
 }
 
 type storeOnFinishedResult struct {
@@ -369,7 +373,7 @@ func (state *activeTellStreamState) storeOnFinished(params storeOnFinishedParams
 	subtaskFinished := params.subtaskFinished
 	hasNewSubtasks := params.hasNewSubtasks
 	followUpNeedsContextStage := params.followUpNeedsContextStage
-
+	autoLoadContextFiles := params.autoLoadContextFiles
 	currentOrgId := state.currentOrgId
 	currentUserId := state.currentUserId
 	planId := state.plan.Id
@@ -440,7 +444,7 @@ func (state *activeTellStreamState) storeOnFinished(params storeOnFinishedParams
 			replyType = shared.ReplyTypeImplementation
 		} else if hasNewSubtasks {
 			replyType = shared.ReplyTypeMadePlan
-		} else if state.isContextStage {
+		} else if len(autoLoadContextFiles) > 0 {
 			replyType = shared.ReplyTypeLoadedContext
 		} else if followUpNeedsContextStage {
 			replyType = shared.ReplyTypeContextAssessment

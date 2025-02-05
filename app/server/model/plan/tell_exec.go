@@ -63,6 +63,7 @@ type execTellPlanParams struct {
 	shouldLoadFollowUpContext bool
 	didLoadFollowUpContext    bool
 	didMakeFollowUpPlan       bool
+	didLoadChatOnlyContext    bool
 }
 
 func execTellPlan(params execTellPlanParams) {
@@ -187,7 +188,7 @@ func execTellPlan(params execTellPlanParams) {
 		return
 	}
 
-	sysPrompt, err := state.getTellSysPrompt(autoContextEnabled, smartContextEnabled, modelContextText)
+	sysPrompt, err := state.getTellSysPrompt(autoContextEnabled, smartContextEnabled, req.IsChatOnly && params.didLoadChatOnlyContext, modelContextText)
 	if err != nil {
 		log.Printf("Error getting tell sys prompt: %v\n", err)
 		active.StreamDoneCh <- &shared.ApiError{
@@ -215,10 +216,14 @@ func execTellPlan(params execTellPlanParams) {
 
 	var applyScriptSummary string
 	if req.ExecEnabled {
-		applyScriptSummary = prompts.ApplyScriptPromptSummary
+		if isPlanningStage {
+			applyScriptSummary = prompts.ApplyScriptPlanningPromptSummary
+		} else {
+			applyScriptSummary = prompts.ApplyScriptImplementationPromptSummary
+		}
 	}
 
-	promptMessage, ok := state.resolvePromptMessage(isPlanningStage, isContextStage, applyScriptSummary)
+	promptMessage, ok := state.resolvePromptMessage(isPlanningStage, isContextStage, req.IsChatOnly && params.didLoadChatOnlyContext, applyScriptSummary)
 	if !ok {
 		return
 	}
@@ -265,35 +270,36 @@ func execTellPlan(params execTellPlanParams) {
 	// 	log.Printf("%s: %s\n", message.Role, message.Content)
 	// }
 
+	requestTokens := shared.GetMessagesTokenEstimate(state.messages...) + imageContextTokens + shared.TokensPerRequest
+	state.totalRequestTokens = requestTokens
+
+	stop := []string{"<PlandexFinish/>"}
+	var modelConfig shared.ModelRoleConfig
+	if isPlanningStage {
+		plannerConfig := state.settings.ModelPack.Planner.GetRoleForTokens(requestTokens)
+		modelConfig = plannerConfig.ModelRoleConfig
+		if isContextStage {
+			log.Println("Tell plan - isContextStage - setting modelConfig to context loader")
+			modelConfig = state.settings.ModelPack.GetContextLoader().GetRoleForTokens(requestTokens)
+		}
+	} else if isImplementationStage {
+		modelConfig = state.settings.ModelPack.GetCoder().GetRoleForTokens(requestTokens)
+	}
+
+	log.Println("totalRequestTokens:", requestTokens)
+
 	_, apiErr := hooks.ExecHook(hooks.WillSendModelRequest, hooks.HookParams{
 		Auth: auth,
 		Plan: plan,
 		WillSendModelRequestParams: &hooks.WillSendModelRequestParams{
-			InputTokens:  state.totalRequestTokens,
-			OutputTokens: state.settings.ModelPack.Planner.GetReservedOutputTokens(),
-			ModelName:    state.settings.ModelPack.Planner.BaseModelConfig.ModelName,
+			InputTokens:  requestTokens,
+			OutputTokens: modelConfig.GetReservedOutputTokens(),
+			ModelName:    modelConfig.BaseModelConfig.ModelName,
 		},
 	})
 	if apiErr != nil {
 		active.StreamDoneCh <- apiErr
 		return
-	}
-
-	var stop []string
-	var modelConfig shared.ModelRoleConfig
-	if isPlanningStage {
-		stop = []string{"<EndPlandexTasks/>"}
-		modelConfig = state.settings.ModelPack.Planner.ModelRoleConfig
-		if isFollowUp {
-			log.Println("Tell plan - isFollowUp - setting stop to <PlandexDecideContext/>")
-			stop = append(stop, "<PlandexDecideContext/>")
-		} else if isContextStage {
-			log.Println("Tell plan - isContextStage - setting modelConfig to context loader")
-			modelConfig = state.settings.ModelPack.GetContextLoader()
-		}
-	} else if isImplementationStage {
-		stop = []string{"<PlandexSubtaskDone/>"}
-		modelConfig = state.settings.ModelPack.GetCoder()
 	}
 
 	// log.Println("Stop:", stop)

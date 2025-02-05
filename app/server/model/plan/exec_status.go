@@ -57,7 +57,7 @@ func (state *activeTellStreamState) execStatusShouldContinue(message string, ctx
 		Plan: plan,
 		WillSendModelRequestParams: &hooks.WillSendModelRequestParams{
 			InputTokens:  numTokens,
-			OutputTokens: shared.AvailableModelsByName[config.BaseModelConfig.ModelName].DefaultReservedOutputTokens,
+			OutputTokens: config.GetReservedOutputTokens(),
 			ModelName:    config.BaseModelConfig.ModelName,
 		},
 	})

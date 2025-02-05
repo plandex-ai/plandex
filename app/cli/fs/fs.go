@@ -372,6 +372,8 @@ func GetPaths(baseDir, currentDir string) (*types.ProjectPaths, error) {
 	return &types.ProjectPaths{
 		ActivePaths:    activePaths,
 		AllPaths:       allPaths,
+		ActiveDirs:     activeDirs,
+		AllDirs:        allDirs,
 		PlandexIgnored: ignored,
 		IgnoredPaths:   ignoredPaths,
 	}, nil

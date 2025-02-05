@@ -52,7 +52,7 @@ func PlanSummary(clients map[string]ClientInfo, config shared.ModelRoleConfig, p
 		Plan: params.Plan,
 		WillSendModelRequestParams: &hooks.WillSendModelRequestParams{
 			InputTokens:  numTokens,
-			OutputTokens: shared.AvailableModelsByName[config.BaseModelConfig.ModelName].DefaultReservedOutputTokens,
+			OutputTokens: config.GetReservedOutputTokens(),
 			ModelName:    config.BaseModelConfig.ModelName,
 		},
 	})

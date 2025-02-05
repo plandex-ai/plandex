@@ -7,8 +7,8 @@ DO NOT UNDER ANY CIRCUMSTANCES use language other than "... existing code ..." i
 
 When updating a file, you MUST NOT include large sections of the file that are not changing. Output ONLY code that is changing and code that is necessary to understand the changes, the code structure, and where the changes should be applied. Example:
 
----
-
+- example.js:
+<PlandexBlock lang="javascript" path="example.js">
 // ... existing code ...
 
 function fooBar() {
@@ -18,12 +18,12 @@ function fooBar() {
 }
 
 // ... existing code ...
-
----
+</PlandexBlock>
 
 ALWAYS show the full structure of where a change should be applied. For example, if you are adding a function to an existing class, do it like this:
 
----
+- example.js:
+<PlandexBlock lang="javascript" path="example.js">
 // ... existing code ...
 
 class FooBar {
@@ -33,13 +33,14 @@ class FooBar {
     doSomething();
   }
 }
----
+</PlandexBlock>
 
 DO NOT leave out the class definition. This applies to other code structures like functions, loops, and conditionals as well. You MUST make it unambiguously clear where the change is being applied by including all relevant code structure.
 
 Below, if the 'update' function is being added to an existing class, you MUST NOT leave out the code structure like this:
 
----
+- example.js:
+<PlandexBlock lang="javascript" path="example.js">
 // ... existing code ...
 
   update() {
@@ -47,11 +48,12 @@ Below, if the 'update' function is being added to an existing class, you MUST NO
   }
 
 // ... existing code ...
----
+</PlandexBlock>
 
 You ABSOLUTELY MUST include the full code structure like this:
 
----
+- example.js:
+<PlandexBlock lang="javascript" path="example.js">
 // ... existing code ...
 
 class FooBar {
@@ -61,7 +63,7 @@ class FooBar {
     doSomething();
   }
 }
----
+</PlandexBlock>
 
 ALWAYS use the above format when updating a file. You MUST NEVER UNDER ANY CIRCUMSTANCES leave out an "... existing code ..." reference for a section of code that is *not* changing and is not reproduce in the code block in order to demonstrate the structure of the code and where the change will occur.
 
@@ -69,8 +71,8 @@ If you are updating a file type that doesn't use comments (like JSON or plain te
 
 For example, in a JSON file:
 
----
-
+- config.json:
+<PlandexBlock lang="json" path="config.json">
 {
   // ... existing code ...
 
@@ -87,7 +89,7 @@ For example, in a JSON file:
 
   // ... existing code ...
 }
----
+</PlandexBlock>
 
 You MUST NOT omit references in JSON files or similar file types. You MUST NOT leave out "// ... existing code ..." references for sections of code that are not changing, and you MUST use these references to make the structure of the code unambiguously clear.
 
@@ -95,7 +97,8 @@ Even if you are only updating a single property or value, you MUST use the appro
 
 If you have a JSON file like:
 
----
+- package.json:
+<PlandexBlock lang="json" path="package.json">
 {                                                                         
   "name": "vscode-plandex",                                  
   "contributes": {                                                        
@@ -115,12 +118,12 @@ If you have a JSON file like:
     "compile": "webpack",
   },
 }
----
+</PlandexBlock>
 
 And you are adding a new key to the 'contributes' object, you MUST NOT output a code block like:
 
----
-
+- package.json:
+<PlandexBlock lang="json" path="package.json">
 {
   "contributes": {
     "languages": [{
@@ -133,15 +136,14 @@ And you are adding a new key to the 'contributes' object, you MUST NOT output a 
     ]
   }
 }
-
----
+</PlandexBlock>
 
 The problem with the above is that it leaves out *multiple* reference comments that *MUST* be present. It is EXTREMELY IMPORTANT that you include these references.
 
 You also MUST NOT output a code block like:
 
----
-
+- package.json:
+<PlandexBlock lang="json" path="package.json">
 {
   // ... existing code ...
 
@@ -156,15 +158,14 @@ You also MUST NOT output a code block like:
     ]
   }
 }
-
----
+</PlandexBlock>
 
 This ONLY includes a single reference comment for the code that isn't changing *before* the change. It *forgets* the code that isn't changing *after* the change, as well the remaining properties of the 'contributes' object.
                  
 Here's the CORRECT way to output the code block for this change:
 
----
-
+- package.json:
+<PlandexBlock lang="json" path="package.json">
 {
   // ... existing code ...
 
@@ -183,7 +184,7 @@ Here's the CORRECT way to output the code block for this change:
 
   // ... existing code ...
 }
----
+</PlandexBlock>
 
 You MUST NOT omit references for code that is not changing—this applies to EVERY level of the structural hierarchy. No matter how deep the nesting, every level MUST be accounted for with references if it includes code that is not included in the code block and is not changing.
 
@@ -195,7 +196,8 @@ When reproducing lines of code from the *original file*, you ABSOLUTELY MUST *ex
 
 You MUST NOT output multiple references with no changes in between them. DO NOT UNDER ANY CIRCUMSTANCES DO THIS:
 
----
+- main.go:
+<PlandexBlock lang="go" path="main.go">
 function fooBar() error {
   log.Println("fooBar")
 
@@ -205,11 +207,12 @@ function fooBar() error {
 
   return nil
 }
----
+</PlandexBlock>
 
 It must instead be:
 
----
+- main.go:
+<PlandexBlock lang="go" path="main.go">
 function fooBar() error {
   log.Println("fooBar")
 
@@ -217,13 +220,14 @@ function fooBar() error {
 
   return nil
 }
----
+</PlandexBlock>
 
 You MUST ensure that references are clear and can be unambiguously located in the file in terms of both position and structure/depth of nesting. You MUST NOT use references in a way that makes their exact location in the file ambiguous. It must be possible from the surrounding code to unambiguously and deterministically locate the exact position and depth of nesting of the code that is being referenced. Include as much surrounding code as necessary to achieve this (and no more).
 
 For example, if the original file looks like this:
 
----
+- array.js:
+<PlandexBlock lang="javascript" path="array.js">
 const a = [
   8,
   9,
@@ -234,11 +238,12 @@ const a = [
   14,
   15,
 ]
----
+</PlandexBlock>
 
 you MUST NOT do this:
 
----
+- array.js:
+<PlandexBlock lang="javascript" path="array.js">
 const a = [
   // ... existing code ...
   1,
@@ -246,13 +251,14 @@ const a = [
   7,
   // ... existing code ...
 ]
----
+</PlandexBlock>
 
 Because it is not unambiguously clear where in the array the new code should be inserted. It could be inserted between any pair of existing elements. The reference comment does not make it clear which, so it is ambiguous. 
 
 The correct way to do it is:
 
----
+- array.js:
+<PlandexBlock lang="javascript" path="array.js">
 const a = [
   // ... existing code ...
   10,
@@ -262,7 +268,7 @@ const a = [
   11,
   // ... existing code ...
 ]
----
+</PlandexBlock>
 
 In the above example, the lines with '10' and '11' and included on either side of the new code to make it unambiguously clear exactly where the new code should be inserted.
 
@@ -270,43 +276,48 @@ When using reference comments, you MUST include trailing commas (or similar synt
 
 You MUST NOT do this:
 
----
+- array.js:
+<PlandexBlock lang="javascript" path="array.js">
 const a = [
   1,
   5
   // ... existing code ...
 ]
----
+</PlandexBlock>
 
 Because it leaves out a necessary trailing comman after the '5'. Instead do this:
 
----
+- array.js:
+<PlandexBlock lang="javascript" path="array.js">
 const a = [
   1,
   5,
   // ... existing code ...
 ]
----
+</PlandexBlock>
 
 Reference comments MUST ALWAYS be on their *OWN LINES*. You MUST NEVER include a reference comment on the same line as code.
 
 You MUST NOT do this:
 
----
+- array.js:
+<PlandexBlock lang="javascript" path="array.js">
 const a = [1, 2, /* ... existing code ... */, 4, 5]
----
+</PlandexBlock>
 
 Instead, rewrite the entire line to include the new code without using a reference comment:
 
----
+- array.js:
+<PlandexBlock lang="javascript" path="array.js">
 const a = [1, 2, 11, 15, 14, 4, 5]
----
+</PlandexBlock>
 
 You MUST NOT extra newlines around a reference comment unless they are also present in the original file. You ABSOLUTELY MUST be precise about matching newlines with corresponding code in the original file.
 
 If the original file looks like this:
 
----
+- main.go:
+<PlandexBlock lang="go" path="main.go">
 package main
 
 import (
@@ -320,12 +331,12 @@ func main() {
   measure()
   os.Exit(0)
 }
----
+</PlandexBlock>
 
 DO NOT output superfluous newlines before or after reference comments like this:
 
----
-
+- main.go:
+<PlandexBlock lang="go" path="main.go">
 // ... existing code ...
 
 func main() {
@@ -335,12 +346,12 @@ func main() {
   // ... existing code ...
 
 }
-
----
+</PlandexBlock>
 
 Instead, do this:
 
----
+- main.go:
+<PlandexBlock lang="go" path="main.go">
 // ... existing code ...
 
 func main() {
@@ -348,7 +359,7 @@ func main() {
   prepareData()
   // ... existing code ...
 }
----
+</PlandexBlock>
 
 Note the lack of superfluous newlines before and after the reference comment. There is a newline included between the first '// ... existing code ...' and the 'func main()' line because this newline is present in the original file. There is no newline *before* the first '// ... existing code ...' reference comment because the original file does not have a newline before that comment. Similarly, there is no newline before *or* after the second '// ... existing code ...' reference comment because the original file does not have newlines before or after the code that is being referenced. Newlines are SIGNIFICANT—you must strive to maintain consistent formatting between the original file and the changes in the code block.
 
@@ -360,12 +371,13 @@ Do NOT use any other formatting apart from a labelled code block with the commen
 
 Example of code being removed and not replaced with new code:
 
----
+- main.go:
+<PlandexBlock lang="go" path="main.go">
 function fooBar() {
   log.Println("called fooBar")
   // Plandex: removed code
 }
----
+</PlandexBlock>
 
 As with reference comments, code removal comments MUST ALWAYS:
   - Be on their own line. They must not be on the same line as any other code.
@@ -376,43 +388,47 @@ Also like reference comments, you MUST NOT use multiple code removal comments in
 
 You MUST NOT do this:
 
----
+- main.go:
+<PlandexBlock lang="go" path="main.go">
 function fooBar() {
   // Plandex: removed code
   // Plandex: removed code
   exec()
 }
----
+</PlandexBlock>
 
 Instead, do this:
 
----
+- main.go:
+<PlandexBlock lang="go" path="main.go">
 function fooBar() {	
   // Plandex: removed code
   exec()
 }
----
+</PlandexBlock>
 
 You MUST NOT use reference comments and removal comments together in an ambiguous way. Do NOT do this:
 
----
+- main.go:
+<PlandexBlock lang="go" path="main.go">
 function fooBar() {
   log.Println("called fooBar")
   // Plandex: removed code
   // ... existing code ...
 }
----
+</PlandexBlock>
 
 Above, there is no way to know deterministically which code should be removed. Instead, include context that makes it clear and unambiguous which code should be removed:
 
----
+- main.go:
+<PlandexBlock lang="go" path="main.go">
 function fooBar() {
   log.Println("called fooBar")
   // Plandex: removed code
   exec()
   // ... existing code ...
 }
----
+</PlandexBlock>
 
 By including the 'exec()' line from the original file, it becomes clear and unambiguous that all code between the 'log.Println("called fooBar")' line and the 'exec()' line is being removed.
 
@@ -422,7 +438,8 @@ When *replacing* code from the original file with *new code*, you MUST make it u
 
 If the original file looks like this:
 
----
+- main.go:
+<PlandexBlock lang="go" path="main.go">
 class FooBar {	
   func baz() {
     log.Println("baz")
@@ -448,11 +465,12 @@ class FooBar {
     log.Println("tango")
   }
 }
----
+</PlandexBlock>
 
 and you are replacing the 'qux()' method with a different method, you MUST include enough context so that it is clear and unambiguous which method is being replaced. Do NOT do this:
 
----
+- main.go:
+<PlandexBlock lang="go" path="main.go">
 class FooBar {
   // ... existing code ...
 
@@ -462,11 +480,12 @@ class FooBar {
 
   // ... existing code ...
 }
----
+</PlandexBlock>
 
 The code above is ambiguous because it could also be *inserting* the 'updatedQux()' method in addition to the 'qux()' method rather than replacing the 'qux()' method. Instead, include enough context so that it is clear and unambiguous which method is being replaced, like this:
 
----
+- main.go:
+<PlandexBlock lang="go" path="main.go">
 class FooBar {
   // ... existing code ...
 
@@ -484,7 +503,7 @@ class FooBar {
   
   // ... existing code ...
 }
----
+</PlandexBlock>
 
 By including the context before and after the 'updatedQux()'—the 'bar' and 'axon' method signatures—it becomes clear and unambiguous that the 'qux()' method is being *replaced* with the 'updatedQux()' method.
 
@@ -492,7 +511,8 @@ By including the context before and after the 'updatedQux()'—the 'bar' and 'ax
 
 When using an "... existing code ..." comment, you must ensure that the lines around the comment which locate the comment in the code exactly the match the lines in the original file and do not change it in subtle ways. For example, if the original file looks like this:
 
----
+- config.json:
+<PlandexBlock lang="json" path="config.json">
 {
   "key1": [{
     "subkey1": "value1",
@@ -500,29 +520,31 @@ When using an "... existing code ..." comment, you must ensure that the lines ar
   }],
   "key2": "value2"
 }
----
+</PlandexBlock>
 
 DO NOT output a code block like this:
 
----
+- config.json:
+<PlandexBlock lang="json" path="config.json">
 {
   "key1": [
     // ... existing code ...
   ],
   "key2": "updatedValue2"
 }
----
+</PlandexBlock>
 
 The problem is that the line '"key1": [{' has been changed to '"key1": [' and the line '}],' has been changed to '],' which makes it difficult to locate these lines in the original file. Instead, do this:
 
----
+- config.json:
+<PlandexBlock lang="json" path="config.json">
 {
   "key1": [{
     // ... existing code ...
   }],
   "key2": "updatedValue2"
 }
----
+</PlandexBlock>
 
 Note that the lines around the "... existing code ..." comment exactly match the lines in the original file.
 
@@ -532,7 +554,8 @@ When outputting a code block for a change, unless the change begins at the *star
 
 For example, if the original file looks like this:
 
----
+- main.go:
+<PlandexBlock lang="go" path="main.go">
 package main
 
 import "fmt"
@@ -544,20 +567,22 @@ func main() {
 func fooBar() {
   fmt.Println("fooBar")
 }
----
+</PlandexBlock>
 
 DO NOT output a code block like this:
 
----
+- main.go:
+<PlandexBlock lang="go" path="main.go">
 func main() {
   fmt.Println("Hello, World!")
   fooBar()
 }
----
+</PlandexBlock>
 
 The problem is that the change doesn't begin at the start of the file, and doesn't go to the end of the file, but "... existing code ..." comments are missing from both before and after the change. Instead, do this:
 
----
+- main.go:
+<PlandexBlock lang="go" path="main.go">
 // ... existing code ...
 
 func main() {
@@ -566,7 +591,7 @@ func main() {
 }
 
 // ... existing code ...
----
+</PlandexBlock>
 
 Now the code before and after the change is accounted for.
 
@@ -576,7 +601,8 @@ Unless you are fully overwriting the entire file, you ABSOLUTELY MUST ALWAYS inc
 
 When outputting a change to a file, like adding a new function, you MUST NOT include only the new function without including *anchors* from the original file to locate the position of the new code unambiguously. For example, if the original file looks like this:
 
----
+- main.js:
+<PlandexBlock lang="javascript" path="main.js">
 function someFunction() {
   console.log("someFunction")
   const res = await fetch("https://example.com")
@@ -599,11 +625,12 @@ function callSomething() {
   await logSomething()
   return "something"
 }
----
+</PlandexBlock>
 
 DO NOT output a code block like this:
 
----
+- main.js:
+<PlandexBlock lang="javascript" path="main.js">
 // ... existing code ...
 
 function newFunction() {
@@ -613,11 +640,12 @@ function newFunction() {
 }
 
 // ... existing code ...
----
+</PlandexBlock>
 
 The problem is that surrounding context from the original file was not included to clearly indicate *exactly* where the new function is being added in the file. Instead, do this:
 
----
+- main.js:
+<PlandexBlock lang="javascript" path="main.js">
 // ... existing code ...
 
 function processResponse(res) {
@@ -631,7 +659,7 @@ function newFunction() {
 }
 
 // ... existing code ...
----
+</PlandexBlock>
 
 By including the 'processResponse' function signature from the original code as an *anchor*, the location of the new code can be *unambiguously* located in the original file. It is clear now that the new function is being added immediately after the 'processResponse' function.
 
@@ -643,8 +671,8 @@ Even if it's unimportant where in the original file the new code should be added
 
 When inserting new code between two existing blocks of code in the original file, you MUST include "... existing code ..." comments correctly in order to avoid overwriting sections of existing code. For example, if the original file looks like this:
 
----
-
+- main.js:
+<PlandexBlock lang="javascript" path="main.js">
 func main() {
   console.log("main")
 }
@@ -672,12 +700,12 @@ func qwoo() {
 func last() {
   console.log("last")
 }
-
----
+</PlandexBlock>
 
 DO NOT output a code block like this to demonstrate that new code will be inserted somewhere between the 'fooBar' and 'last' functions:
 
----
+- main.js:
+<PlandexBlock lang="javascript" path="main.js">
 // ... existing code ...
 
 func fooBar() {
@@ -691,12 +719,12 @@ func newCode() {
 func last() {
   console.log("last")
 }
----
+</PlandexBlock>
 
 If you want to demonstrate that a new function will be inserted somewhere between the 'fooBar' and 'last' functions, you MUST include "... existing code ..." comments correctly in order to avoid overwriting sections of existing code. Instead, do this to show exactly where the new function will be inserted:
 
----
-
+- main.js:
+<PlandexBlock lang="javascript" path="main.js">
 // ... existing code ...
 
 func baz() {
@@ -712,12 +740,12 @@ func qux() {
 }
 
 // ... existing code ...
-
+</PlandexBlock>
 
 Or this to show that the new function will be inserted *somehwere* between the 'fooBar' and 'last' functions:
 
----
-
+- main.js:
+<PlandexBlock lang="javascript" path="main.js">
 // ... existing code ...
 
 func fooBar() {
@@ -735,8 +763,7 @@ func newCode() {
 func last() {
   console.log("last")
 }
-
----
+</PlandexBlock>
 
 Either way, you MUST NOT leave out the "... existing code ..." comments for ANY existing code that will remain in the file after the change is applied.
 
@@ -748,7 +775,8 @@ If you are making multiple changes to the same file in a single code block, you 
 
 If the original file is:
 
----
+- main.js:
+<PlandexBlock lang="javascript" path="main.js">
 func buck() {
   console.log("buck")
 }
@@ -768,11 +796,12 @@ func baz() {
 func yup() {
   console.log("yup")
 }
----
+</PlandexBlock>
 
 DO NOT output a code block like this to demonstrate that new code will be inserted between the 'fooBar' and 'baz' functions:
 
----
+- main.js:
+<PlandexBlock lang="javascript" path="main.js">
 // ... existing code ...
 
 func baz() {
@@ -786,12 +815,12 @@ func qux() {
 }
 
 // ... existing code ...
-
----
+</PlandexBlock>
 
 The problem is that the order of the 'baz' and 'qux' functions has been changed in the proposed changes unnecessarily. Instead, do this:
 
----
+- main.js:
+<PlandexBlock lang="javascript" path="main.js">
 // ... existing code ...
 
 func qux() {
@@ -805,7 +834,13 @@ func baz() {
 }
 
 // ... existing code ...
----
+</PlandexBlock>
+
+Now the order of the 'baz' and 'qux' functions is preserved exactly as it is in the original file.
+
+*
+
+When writing an "... existing code ..." comment, you MUST use the correct comment symbol for the programming language. For example, if you are writing a plan in Python, Ruby, or Bash, you MUST use '# ... existing code ...' instead of '// ... existing code ...'. If you're writing HTML, you MUST use '<!-- ... existing code ... -->'. If you're writing jsx, tsx, svelte, or another language where the correct comment symbol(s) depend on where in the code you are, use the appropriate comment symbol(s) for where that comment is placed in the file. If you're in a javascript block of a jsx file, use '// ... existing code ...'. If you're in a markup block of a jsx file, use '{/* ... existing code ... */}'.
 
 Now the order of the 'baz' and 'qux' functions is preserved exactly as it is in the original file.
 
@@ -820,7 +855,8 @@ Here are some important examples of INCORRECT vs CORRECT file updates:
 Example 1 - Adding a new route:
 
 ❌ INCORRECT - Replacing instead of inserting:
-<PlandexBlock lang="go">
+- src/main.go:
+<PlandexBlock lang="go" path="src/main.go">
 // ... existing code ...
 
 r.HandleFunc(prefix+"/api/users", handlers.ListUsersHandler).Methods("GET")
@@ -832,7 +868,8 @@ r.HandleFunc(prefix+"/api/config", handlers.GetConfigHandler).Methods("GET")
 This is wrong because it doesn't show enough context to know what surrounding routes were preserved.
 
 ✅ CORRECT - Proper insertion with context:
-<PlandexBlock lang="go">
+- src/main.go:
+<PlandexBlock lang="go" path="src/main.go">
 // ... existing code ...
 
 r.HandleFunc(prefix+"/api/users", handlers.ListUsersHandler).Methods("GET")
@@ -849,7 +886,8 @@ r.HandleFunc(prefix+"/api/status", handlers.GetStatusHandler).Methods("GET")
 Example 2 - Adding a method to a class:
 
 ❌ INCORRECT - Ambiguous insertion:
-<PlandexBlock lang="go">
+- src/main.go:
+<PlandexBlock lang="go" path="src/main.go">
 class UserService {
   // ... existing code ...
   
@@ -863,7 +901,8 @@ class UserService {
 This is wrong because it doesn't show where exactly the new method should go.
 
 ✅ CORRECT - Clear insertion point:
-<PlandexBlock lang="go">
+- src/main.go:
+<PlandexBlock lang="go" path="src/main.go">
 class UserService {
   // ... existing code ...
   
@@ -886,7 +925,8 @@ class UserService {
 Example 3 - Adding a configuration section:
 
 ❌ INCORRECT - Lost context:
-<PlandexBlock lang="json">
+- src/config.json:
+<PlandexBlock lang="json" path="src/config.json">
 {
   "database": {
     "host": "localhost",
@@ -901,7 +941,8 @@ Example 3 - Adding a configuration section:
 This is wrong because it dropped existing configuration sections.
 
 ✅ CORRECT - Preserved context:
-<PlandexBlock lang="json">
+- src/config.json:
+<PlandexBlock lang="json" path="src/config.json">
 {
   // ... existing code ...
   

@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -266,6 +267,17 @@ func StoreDescription(description *ConvoMessageDescription) error {
 
 	if err != nil {
 		return fmt.Errorf("error creating convo message descriptions dir: %v", err)
+	}
+
+	for _, op := range description.Operations {
+		if op.Content != "" {
+			quoted := strconv.Quote(op.Content)
+			op.Content = quoted[1 : len(quoted)-1]
+		}
+		if op.Description != "" {
+			quoted := strconv.Quote(op.Description)
+			op.Description = quoted[1 : len(quoted)-1]
+		}
 	}
 
 	now := time.Now()

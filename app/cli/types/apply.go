@@ -7,8 +7,8 @@ import (
 type ApplyRollbackOption string
 
 const (
-	ApplyRollbackOptionKeep     ApplyRollbackOption = "Still apply other changes"
-	ApplyRollbackOptionRollback ApplyRollbackOption = "Roll back all changes"
+	ApplyRollbackOptionKeep     ApplyRollbackOption = "Apply file changes"
+	ApplyRollbackOptionRollback ApplyRollbackOption = "Roll back file changes"
 )
 
 type OnApplyExecFailFn func(status int, output string, attempt int, toRollback *ApplyRollbackPlan, onErr OnErrFn, onSuccess func())

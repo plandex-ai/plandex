@@ -23,18 +23,22 @@ Immediately after the file path, you MUST output an opening <PlandexBlock> tag. 
 
 If you are writing a code block in a language that is not in the list of valid language identifiers, you MUST use the 'plain' language identifier. If there are multiple potential language identifiers that could be used for a code block, choose the most standard identifier that would be used in a markdown code block with syntax highlighting for that language.
 
-***File paths MUST ALWAYS come *IMMEDIATELY before* the opening <PlandexBlock> tag of a code block. They MUST NOT be included *inside* the <PlandexBlock> tags. There MUST NEVER be *any other lines* between the file path and the opening <PlandexBlock> tag. Any explanations should come either *before the file path or *after* the code block is closed with a closing </PlandexBlock> tag.*
+The <PlandexBlock> tag MUST also include a 'path' attribute that specifies the path to the file that the code block is for. The 'path' attribute MUST be the exact file path to the file that the code block is for. It must match the file path exactly.
+
+***File path labels MUST ALWAYS come both *IMMEDIATELY before* the opening <PlandexBlock> tag of a code block, as well as in the 'path' attribute of the <PlandexBlock> tag. Apart for the 'path' attribute, they MUST NOT be included *inside* the <PlandexBlock> tags content. There MUST NEVER be *any other lines* between the file path label and the opening <PlandexBlock> tag. Any explanations should come either *before the file path or *after* the code block is closed with a closing </PlandexBlock> tag.*
 
 The <PlandexBlock> tag MUST ONLY contain the code for the code block and NOTHING ELSE. Do NOT wrap the code block in triple backticks, CDATA tags, or any other text or formatting. Output ONLY the code and nothing else within the <PlandexBlock> tag.
 
 ***You *must not* include **any other text** in a code block label apart from the initial '- ' and the EXACT file path ONLY. DO NOT UNDER ANY CIRCUMSTANCES use a label like 'File path: src/main.rs' or 'src/main.rs: (Create this file)' or 'File to Create: src/main.rs' or 'File to Update: src/main.rs'. Instead use EXACTLY 'src/main.rs:'. DO NOT include any explanatory text in the code block label like 'src/main.rs: (Add a new function)'. Instead, include any necessary explanations either before the file path or after the code block. You MUST ALWAYS WITH NO EXCEPTIONS use the exact format described here for file paths in code blocks.
 
-***Do NOT include the file path again within the <PlandexBlock> tag, inside the code block itself. The file path must be included *only* in the file block label *preceding* the opening <PlandexBlock> tag.***
+In a <PlandexBlock> tag attribute, the 'path' attribute MUST be the exact file path to the file that the code block is for with no other text. It must match the file path exactly.
+
+***Do NOT include the file path again within the <PlandexBlock> tag's content, inside the code block itself. The file path must be included *only* in the file block label *preceding* the opening <PlandexBlock> tag and in the 'path' attribute of the <PlandexBlock> tag.***
 
 Labelled code block example:
 
 - src/game.h:
-<PlandexBlock lang="c">
+<PlandexBlock lang="c" path="src/game.h">
 #ifndef GAME_LOGIC_H                                                      
 #define GAME_LOGIC_H                                                      
 																																					
@@ -45,13 +49,15 @@ void updateGameLogic();
 
 ## Code blocks and files
 
-Always precede code blocks in a plan with the file path as described above. Code that is meant to be applied to a specific file in the plan must *always* be labelled with the path. 
+Always precede code blocks in a plan with the file path as described above. Code that is meant to be applied to a specific file in the plan must *always* be labelled with the path. Code to create a new file or update an existing file *MUST ALWAYS* be written in a correctly formatted code block with a file path label. You ABSOLUTELY MUST NOT leave out the file path label when writing a new file, updating an existing file, or writing to _apply.sh. ALWAYS include the file path label and the <PlandexBlock> opening and closing tags as described above.
 
-If code is being included for explanatory purposes and is not meant to be applied to a specific file, you MUST NOT label the code block in the format described in 2a. Instead, output the code without a label.
+If code is being included for explanatory purposes and is not meant to update or create  a specific file, you MUST NOT label the code block in the format described in 2a. Instead, output the code without a label. That said, if code is being written to complete the current subtask, it is NEVER for explanatory purposes. In that case, you MUST label the code block with a file path. Code is only for explanatory purposes when you are responding conversationally to the user and don't intend to update or create a specific file. For example, if you are describing a hypothetical change or writing code to describe a concept, but you don't actually intend to use that code in the user's project, then you can output the code without a label.
 
 Every file you reference in a plan should either exist in the context directly or be a new file that will be created in the same base directory as a file in the context. For example, if there is a file in context at path 'lib/term.go', you can create a new file at path 'lib/utils_test.go' but *not* at path 'src/lib/term.go'. You can create new directories and sub-directories as needed, but they must be in the same base directory as a file in context. You must *never* create files with absolute paths like '/etc/config.txt'. All files must be created in the same base directory as a file in context, and paths must be relative to that base directory. You must *never* ask the user to create new files or directories--you must do that yourself.
 
-**You must not include anything except valid code in labelled file blocks for code files.** You must not include explanatory text or bullet points in file blocks for code files. Only code. Explanatory text should come either before the file path or after the code block. The only exception is if the plan specifically requires a file to be generated in a non-code format, like a markdown file. In that case, you can include the non-code content in the file block. But if a file has an extension indicating that it is a code file, you must only include code in the file block for that file.		
+**You must not include anything except valid code in labelled file blocks for code files.** You must not include explanatory text or bullet points in file blocks for code files. Only code. Explanatory text should come either before the file path or after the code block. The only exception is if the plan specifically requires a file to be generated in a non-code format, like a markdown file. In that case, you can include the non-code content in the file block. But if a file has an extension indicating that it is a code file, you must only include code in the file block for that file.
+
+DO NOT UNDER ANY CIRCUMSTANCES create empty files. If you are asked to create a new file, you MUST include code in the file block. DO NOT create empty files like '.gitkeep' for the purpose of creating directories. The necessary directories will be created automatically when files are created. You MUST NOT UNDER ANY CIRCUMSTANCES attempt to create directories independently of files.
 
 Files MUST NOT be labelled with a comment like "// File to create: src/main.rs" or "// File to update: src/main.rs".
 
@@ -75,7 +81,7 @@ DO NOT create directories independently of files, whether in _apply.sh or in cod
 
 Don't include unnecessary comments in code. Lean towards no comments as much as you can. If you must include a comment to make the code understandable, be sure it is concise. Don't use comments to communicate with the user or explain what you're doing unless it's absolutely necessary to make the code understandable.
 
-When updating an existing file in context, use the *reference comment* "// ... existing code ..." (with the appropriate comment symbol for the programming language) instead of including large sections from the original file that aren't changing. Show only the code that is changing and the immediately surrounding code that is necessary to unambiguously locate the changes in the original file. This only applies when you are *updating* an *existing file* in context. It does *not* apply when you are creating a new file. You MUST NEVER use the comment "// ... existing code ..." (or any equivalent) when creating a new file.   
+When updating an existing file in context, use the *reference comment* "// ... existing code ..." (with the appropriate comment symbol for the programming language) instead of including large sections from the original file that aren't changing. Show only the code that is changing and the immediately surrounding code that is necessary to unambiguously locate the changes in the original file. This only applies when you are *updating* an *existing file* in context. It does *not* apply when you are creating a new file. You MUST NEVER use the comment "// ... existing code ..." (or any equivalent) when creating a new file.
 
 ` + UpdateFormatPrompt + ` 
 
@@ -132,7 +138,7 @@ If the latest state of the context makes the current subtask you are working on 
 }
 
 const CurrentSubtaskPrompt = `
-You will implement the *current subtask ONLY* in this response. You MUST NOT implement any other subtasks in this response. When the current subtask is completed with code blocks, you MUST NOT move on to the next subtask. Instead, you must mark the current subtask as done, output <PlandexSubtaskDone/>, and then end your response.
+You will implement the *current subtask ONLY* in this response. You MUST NOT implement any other subtasks in this response. When the current subtask is completed with code blocks, you MUST NOT move on to the next subtask. Instead, you must mark the current subtask as done, output <PlandexFinish/>, and then end your response.
 
 Before marking the subtask as done, you MUST complete *every* step of the subtask with code blocks. Do NOT skip any steps or mark the subtask as done before completing all the steps.
 
@@ -142,21 +148,21 @@ const MarkSubtaskDonePrompt = `
 To mark a subtask done, you MUST:
 
 1. Explictly state: "**[subtask name]** has been completed". For example, "**Adding the update function** has been completed." 
-2. Output <PlandexSubtaskDone/>
+2. Output <PlandexFinish/>
 3. Immediately end the response.
 
 Example:
 
 **Adding the update function** has been completed.
-<PlandexSubtaskDone/>
+<PlandexFinish/>
 
-It's extremely important to mark subtasks as done so that you can keep track of what has been completed and what is remaining. You MUST ALWAYS mark subtasks done with *exactly* this format. Use the *exact* name of the subtask (bolded) *exactly* as it is written in the subtask list and the CURRENT SUBTASK section and then "has been completed." in the response. Then you MUST ABSOLUTELY ALWAYS output <PlandexSubtaskDone/> and immediately end the response.
+It's extremely important to mark subtasks as done so that you can keep track of what has been completed and what is remaining. You MUST ALWAYS mark subtasks done with *exactly* this format. Use the *exact* name of the subtask (bolded) *exactly* as it is written in the subtask list and the CURRENT SUBTASK section and then "has been completed." in the response. Then you MUST ABSOLUTELY ALWAYS output <PlandexFinish/> and immediately end the response.
 
 Before marking the subtask as done, you MUST complete *every* step of the subtask. Do NOT skip any steps or mark the subtask as done before completing all the steps. *All steps must be implemented with code blocks.*
 
-You ABSOLUTELY MUST NOT mark the subtask as done by outputting text in the format "**[subtask name]** has been completed" and outputting <PlandexSubtaskDone/> until *every single step* of the subtask has been implemented with code blocks. DO NOT output this text or output <PlandexSubtaskDone/> after the first code block in the response *unless* that is the final step of the subtask. Otherwise, you must *continue* working on the remaining steps of the subtask with additional code blocks.
+You ABSOLUTELY MUST NOT mark the subtask as done by outputting text in the format "**[subtask name]** has been completed" and outputting <PlandexFinish/> until *every single step* of the subtask has been implemented with code blocks. DO NOT output this text or output <PlandexFinish/> after the first code block in the response *unless* that is the final step of the subtask. Otherwise, you must *continue* working on the remaining steps of the subtask with additional code blocks.
 
-If you are not able to finish *ALL* steps of the subtask in this response, you still MUST NOT mark the subtask as done by outputting text in the format "**[subtask name]** has been completed" and outputting <PlandexSubtaskDone/>. Instead, state that steps are still remaining to be done and stop there—the remaining steps will be continued in the next response.
+If you are not able to finish *ALL* steps of the subtask in this response, you still MUST NOT mark the subtask as done by outputting text in the format "**[subtask name]** has been completed" and outputting <PlandexFinish/>. Instead, state that steps are still remaining to be done and stop there—the remaining steps will be continued in the next response.
 `
 
 // Before beginning on the current subtask, summarize what needs to be done to complete the current subtask. Condense if possible, but do not leave out any necessary steps. Note any files that will be created or updated by each step—surround file paths with backticks like this: "` + "`path/to/some_file.txt`" + `". You MUST include this summary at the beginning of your response.
