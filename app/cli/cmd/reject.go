@@ -1,13 +1,11 @@
-
 package cmd
 
 import (
 	"fmt"
-	"os"
-	"plandex/api"
-	"plandex/auth"
-	"plandex/lib"
-	"plandex/term"
+	"plandex-cli/api"
+	"plandex-cli/auth"
+	"plandex-cli/lib"
+	"plandex-cli/term"
 	"sort"
 
 	"github.com/plandex-ai/survey/v2"
@@ -136,4 +134,3 @@ func reject(cmd *cobra.Command, args []string) {
 	}
 	fmt.Printf("✅ Rejected changes to %d file%s\n", len(selectedFiles), suffix)
 }
-

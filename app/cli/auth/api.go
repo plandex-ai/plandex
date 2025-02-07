@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"plandex/types"
+	"plandex-cli/types"
 
-	"github.com/plandex/plandex/shared"
+	shared "plandex-shared"
 )
 
 var apiClient types.ApiClient

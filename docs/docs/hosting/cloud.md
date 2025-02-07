@@ -25,7 +25,7 @@ Plandex Cloud has two billing modes:
 
 - Use your own OpenAI, OpenRouter.ai, or other OpenAI-compatible provider accounts.
 - Supply your own API keys.
-- Start with a free trial up to 10 plans and 15 model responses per plan.
+- Start with a free trial up to 10 plans and 20 model responses per plan.
 - After the trial, you can upgrade to a paid plan for $20 per month.
 
 ## Billing Settings

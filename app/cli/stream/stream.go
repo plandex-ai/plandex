@@ -2,10 +2,10 @@ package stream
 
 import (
 	"log"
-	streamtui "plandex/stream_tui"
-	"plandex/types"
+	streamtui "plandex-cli/stream_tui"
+	"plandex-cli/types"
 
-	"github.com/plandex/plandex/shared"
+	shared "plandex-shared"
 )
 
 var OnStreamPlan types.OnStreamPlan = func(params types.OnStreamPlanParams) {

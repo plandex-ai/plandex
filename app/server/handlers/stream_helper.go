@@ -10,7 +10,7 @@ import (
 	"plandex-server/types"
 	"time"
 
-	"github.com/plandex/plandex/shared"
+	shared "plandex-shared"
 )
 
 func startResponseStream(w http.ResponseWriter, auth *types.ServerAuth, planId, branch string, isConnect bool) {

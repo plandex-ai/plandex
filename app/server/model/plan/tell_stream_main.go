@@ -6,7 +6,7 @@ import (
 	"plandex-server/model"
 	"time"
 
-	"github.com/plandex/plandex/shared"
+	shared "plandex-shared"
 )
 
 func (state *activeTellStreamState) listenStream(stream *model.ExtendedChatCompletionStream) {

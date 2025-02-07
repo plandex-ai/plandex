@@ -7,8 +7,9 @@ import (
 	"log"
 	"time"
 
+	shared "plandex-shared"
+
 	"github.com/lib/pq"
-	"github.com/plandex/plandex/shared"
 )
 
 const modelStreamHeartbeatInterval = 1 * time.Second

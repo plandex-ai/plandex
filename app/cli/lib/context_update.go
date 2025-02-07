@@ -5,18 +5,19 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
-	"plandex/api"
-	"plandex/fs"
-	"plandex/term"
-	"plandex/types"
-	"plandex/url"
+	"plandex-cli/api"
+	"plandex-cli/fs"
+	"plandex-cli/term"
+	"plandex-cli/types"
+	"plandex-cli/url"
 	"strconv"
 	"strings"
 	"sync"
 
+	shared "plandex-shared"
+
 	"github.com/fatih/color"
 	"github.com/olekukonko/tablewriter"
-	"github.com/plandex/plandex/shared"
 )
 
 func CheckOutdatedContextWithOutput(quiet, autoConfirm bool, maybeContexts []*shared.Context) (contextOutdated, updated bool, err error) {

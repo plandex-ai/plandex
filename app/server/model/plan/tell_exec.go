@@ -12,9 +12,10 @@ import (
 	"plandex-server/model/prompts"
 	"plandex-server/types"
 
+	shared "plandex-shared"
+
 	"github.com/davecgh/go-spew/spew"
 	"github.com/google/uuid"
-	"github.com/plandex/plandex/shared"
 	"github.com/sashabaranov/go-openai"
 )
 

@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"plandex/auth"
-	"plandex/fs"
-	"plandex/types"
+	"plandex-cli/auth"
+	"plandex-cli/fs"
+	"plandex-cli/types"
 	"sync"
 )
 

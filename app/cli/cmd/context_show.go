@@ -3,9 +3,9 @@ package cmd
 import (
 	"fmt"
 	"log"
-	"plandex/api"
-	"plandex/auth"
-	"plandex/lib"
+	"plandex-cli/api"
+	"plandex-cli/auth"
+	"plandex-cli/lib"
 	"strconv"
 
 	"github.com/spf13/cobra"

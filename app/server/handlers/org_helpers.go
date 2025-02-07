@@ -5,7 +5,7 @@ import (
 	"plandex-server/db"
 	"plandex-server/hooks"
 
-	"github.com/plandex/plandex/shared"
+	shared "plandex-shared"
 )
 
 func toApiOrgs(orgs []*db.Org) ([]*shared.Org, *shared.ApiError) {

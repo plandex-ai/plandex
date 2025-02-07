@@ -7,10 +7,10 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"plandex/types"
+	"plandex-cli/types"
 	"strings"
 
-	"github.com/plandex/plandex/shared"
+	shared "plandex-shared"
 )
 
 func (a *Api) CreateCliTrialSession() (string, *shared.ApiError) {

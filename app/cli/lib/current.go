@@ -6,18 +6,19 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"plandex/api"
-	"plandex/auth"
-	"plandex/format"
-	"plandex/fs"
-	"plandex/term"
-	"plandex/types"
+	"plandex-cli/api"
+	"plandex-cli/auth"
+	"plandex-cli/format"
+	"plandex-cli/fs"
+	"plandex-cli/term"
+	"plandex-cli/types"
 	"strconv"
 	"strings"
 
+	shared "plandex-shared"
+
 	"github.com/fatih/color"
 	"github.com/olekukonko/tablewriter"
-	"github.com/plandex/plandex/shared"
 )
 
 var CurrentProjectId string

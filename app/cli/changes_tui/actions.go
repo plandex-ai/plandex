@@ -3,12 +3,13 @@ package changes_tui
 import (
 	"fmt"
 	"log"
-	"plandex/api"
-	"plandex/lib"
+	"plandex-cli/api"
+	"plandex-cli/lib"
+
+	shared "plandex-shared"
 
 	"github.com/atotto/clipboard"
 	"github.com/muesli/reflow/wrap"
-	"github.com/plandex/plandex/shared"
 )
 
 func (m *changesUIModel) rejectFile() (*shared.CurrentPlanState, *shared.ApiError) {

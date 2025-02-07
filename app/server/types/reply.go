@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/plandex/plandex/shared"
+	shared "plandex-shared"
 )
 
 const verboseLogging = false

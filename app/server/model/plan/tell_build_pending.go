@@ -4,7 +4,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/plandex/plandex/shared"
+	shared "plandex-shared"
 )
 
 func (state *activeTellStreamState) queuePendingBuilds() {

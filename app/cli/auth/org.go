@@ -2,10 +2,10 @@ package auth
 
 import (
 	"fmt"
-	"plandex/term"
+	"plandex-cli/term"
 	"strings"
 
-	"github.com/plandex/plandex/shared"
+	shared "plandex-shared"
 )
 
 func resolveOrgAuth(orgs []*shared.Org) (*shared.Org, error) {

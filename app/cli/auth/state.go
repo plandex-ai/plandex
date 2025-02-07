@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"plandex/fs"
+	"plandex-cli/fs"
 
-	"github.com/plandex/plandex/shared"
+	shared "plandex-shared"
 )
 
 var Current *shared.ClientAuth

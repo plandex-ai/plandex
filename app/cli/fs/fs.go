@@ -7,12 +7,13 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"plandex/term"
-	"plandex/types"
+	"plandex-cli/term"
+	"plandex-cli/types"
 	"strings"
 	"sync"
 
-	"github.com/plandex/plandex/shared"
+	shared "plandex-shared"
+
 	ignore "github.com/sabhiram/go-gitignore"
 )
 
@@ -40,9 +41,9 @@ func init() {
 	HomeDir = home
 
 	if os.Getenv("PLANDEX_ENV") == "development" {
-		HomePlandexDir = filepath.Join(home, ".plandex-home-dev")
+		HomePlandexDir = filepath.Join(home, ".plandex-home-dev-v2")
 	} else {
-		HomePlandexDir = filepath.Join(home, ".plandex-home")
+		HomePlandexDir = filepath.Join(home, ".plandex-home-v2")
 	}
 
 	// Create the home plandex directory if it doesn't exist
@@ -80,9 +81,9 @@ func FindOrCreatePlandex() (string, bool, error) {
 	// Determine the directory path
 	var dir string
 	if os.Getenv("PLANDEX_ENV") == "development" {
-		dir = filepath.Join(Cwd, ".plandex-dev")
+		dir = filepath.Join(Cwd, ".plandex-dev-v2")
 	} else {
-		dir = filepath.Join(Cwd, ".plandex")
+		dir = filepath.Join(Cwd, ".plandex-v2")
 	}
 
 	err := os.Mkdir(dir, os.ModePerm)
@@ -288,7 +289,7 @@ func GetPaths(baseDir, currentDir string) (*types.ProjectPaths, error) {
 				if info.Name() == ".git" {
 					return filepath.SkipDir
 				}
-				if info.Name() == ".plandex" || info.Name() == ".plandex-dev" {
+				if strings.HasPrefix(info.Name(), ".plandex") {
 					return filepath.SkipDir
 				}
 
@@ -548,9 +549,9 @@ func FindPlandexDir() {
 func findPlandex(baseDir string) string {
 	var dir string
 	if os.Getenv("PLANDEX_ENV") == "development" {
-		dir = filepath.Join(baseDir, ".plandex-dev")
+		dir = filepath.Join(baseDir, ".plandex-dev-v2")
 	} else {
-		dir = filepath.Join(baseDir, ".plandex")
+		dir = filepath.Join(baseDir, ".plandex-v2")
 	}
 	if _, err := os.Stat(dir); !os.IsNotExist(err) {
 		return dir

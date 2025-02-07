@@ -2,10 +2,11 @@ package auth
 
 import (
 	"fmt"
-	"plandex/term"
+	"plandex-cli/term"
+
+	shared "plandex-shared"
 
 	"github.com/fatih/color"
-	"github.com/plandex/plandex/shared"
 )
 
 const (

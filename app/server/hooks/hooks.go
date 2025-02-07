@@ -4,8 +4,9 @@ import (
 	"plandex-server/db"
 	"plandex-server/types"
 
+	shared "plandex-shared"
+
 	"github.com/jmoiron/sqlx"
-	"github.com/plandex/plandex/shared"
 )
 
 const (

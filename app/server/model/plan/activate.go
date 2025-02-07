@@ -9,7 +9,7 @@ import (
 	"plandex-server/types"
 	"time"
 
-	"github.com/plandex/plandex/shared"
+	shared "plandex-shared"
 )
 
 func activatePlan(

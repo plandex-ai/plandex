@@ -4,7 +4,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/plandex/plandex/shared"
+	shared "plandex-shared"
+
 	tree_sitter "github.com/smacker/go-tree-sitter"
 
 	"context"

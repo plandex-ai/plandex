@@ -4,11 +4,11 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"plandex/auth"
-	"plandex/term"
+	"plandex-cli/auth"
+	"plandex-cli/term"
 	"strings"
 
-	"github.com/plandex/plandex/shared"
+	shared "plandex-shared"
 )
 
 func HandleApiError(r *http.Response, errBody []byte) *shared.ApiError {

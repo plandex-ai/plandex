@@ -4,15 +4,16 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"plandex/auth"
-	"plandex/lib"
-	"plandex/plan_exec"
-	"plandex/term"
+	"plandex-cli/auth"
+	"plandex-cli/lib"
+	"plandex-cli/plan_exec"
+	"plandex-cli/term"
 	"strconv"
 	"strings"
 
+	shared "plandex-shared"
+
 	"github.com/fatih/color"
-	"github.com/plandex/plandex/shared"
 	"github.com/spf13/cobra"
 )
 

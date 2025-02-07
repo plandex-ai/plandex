@@ -10,7 +10,7 @@ import (
 	"plandex-server/model"
 	"plandex-server/types"
 
-	"github.com/plandex/plandex/shared"
+	shared "plandex-shared"
 )
 
 func loadContexts(

@@ -3,11 +3,12 @@ package lib
 import (
 	"fmt"
 	"os"
-	"plandex/api"
-	"plandex/term"
+	"plandex-cli/api"
+	"plandex-cli/term"
+
+	shared "plandex-shared"
 
 	"github.com/fatih/color"
-	"github.com/plandex/plandex/shared"
 )
 
 const GoBack = "← Go back"

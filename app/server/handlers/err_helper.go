@@ -5,7 +5,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/plandex/plandex/shared"
+	shared "plandex-shared"
 )
 
 func writeApiError(w http.ResponseWriter, apiErr shared.ApiError) {

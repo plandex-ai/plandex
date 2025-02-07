@@ -8,7 +8,7 @@ import (
 	"plandex-server/syntax"
 	"plandex-server/types"
 
-	"github.com/plandex/plandex/shared"
+	shared "plandex-shared"
 )
 
 func (state *activeBuildStreamState) loadPendingBuilds() (map[string][]*types.ActiveBuild, error) {

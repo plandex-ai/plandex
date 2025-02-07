@@ -5,8 +5,9 @@ import (
 	"os"
 	"strings"
 
+	shared "plandex-shared"
+
 	"github.com/fatih/color"
-	"github.com/plandex/plandex/shared"
 )
 
 var openUnauthenticatedCloudURL func(msg, path string)

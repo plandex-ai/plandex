@@ -11,7 +11,7 @@ import (
 	"plandex-server/types"
 	"strings"
 
-	"github.com/plandex/plandex/shared"
+	shared "plandex-shared"
 )
 
 func CreateAccountHandler(w http.ResponseWriter, r *http.Request) {

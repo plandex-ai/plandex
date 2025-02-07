@@ -1,7 +1,8 @@
 package types
 
 import (
-	"github.com/plandex/plandex/shared"
+	shared "plandex-shared"
+
 	"github.com/sashabaranov/go-openai"
 )
 

@@ -7,8 +7,9 @@ import (
 	"plandex-server/db"
 	"strings"
 
+	shared "plandex-shared"
+
 	"github.com/gorilla/mux"
-	"github.com/plandex/plandex/shared"
 )
 
 func ListUsersHandler(w http.ResponseWriter, r *http.Request) {

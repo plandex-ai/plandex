@@ -10,8 +10,9 @@ import (
 	"strconv"
 	"strings"
 
+	shared "plandex-shared"
+
 	"github.com/google/uuid"
-	"github.com/plandex/plandex/shared"
 )
 
 func GetDiffs(original, updated string) (string, error) {

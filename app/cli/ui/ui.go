@@ -5,14 +5,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"plandex/api"
-	"plandex/term"
+	"plandex-cli/api"
+	"plandex-cli/term"
 	"strings"
 
 	"github.com/fatih/color"
 	"github.com/pkg/browser"
 
-	"github.com/plandex/plandex/shared"
+	shared "plandex-shared"
 )
 
 func OpenAuthenticatedURL(msg, path string) {

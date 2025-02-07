@@ -10,8 +10,9 @@ import (
 	"runtime"
 	"sync"
 
+	shared "plandex-shared"
+
 	"github.com/gorilla/mux"
-	"github.com/plandex/plandex/shared"
 )
 
 func GetFileMapHandler(w http.ResponseWriter, r *http.Request) {

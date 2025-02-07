@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"log"
 
+	shared "plandex-shared"
+
 	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
-	"github.com/plandex/plandex/shared"
 )
 
 func CreateBranch(plan *Plan, parentBranch *Branch, name string, tx *sqlx.Tx) (*Branch, error) {

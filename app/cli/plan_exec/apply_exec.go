@@ -3,13 +3,14 @@ package plan_exec
 import (
 	"fmt"
 	"log"
-	"plandex/auth"
-	"plandex/lib"
-	"plandex/term"
-	"plandex/types"
+	"plandex-cli/auth"
+	"plandex-cli/lib"
+	"plandex-cli/term"
+	"plandex-cli/types"
+
+	shared "plandex-shared"
 
 	"github.com/fatih/color"
-	"github.com/plandex/plandex/shared"
 )
 
 func GetOnApplyExecFail(flags lib.ApplyFlags) types.OnApplyExecFailFn {

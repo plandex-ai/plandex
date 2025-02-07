@@ -2,12 +2,13 @@ package changes_tui
 
 import (
 	"fmt"
-	"plandex/lib"
-	"plandex/plan_exec"
-	"plandex/term"
+	"plandex-cli/lib"
+	"plandex-cli/plan_exec"
+	"plandex-cli/term"
+
+	shared "plandex-shared"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/plandex/plandex/shared"
 )
 
 var program *tea.Program

@@ -66,7 +66,7 @@ fi
 
 welcome_plandex () {
   echo "Plandex $VERSION Quick Install"
-  echo "Copyright (c) 2024 Plandex Inc."
+  echo "Copyright (c) 2025 PlandexAI Inc."
   echo ""
 }
 
@@ -138,10 +138,40 @@ download_plandex () {
   fi
 }
 
+check_existing_installation () {
+  if command -v plandex >/dev/null 2>&1; then
+    existing_version=$(plandex version 2>/dev/null || echo "unknown")
+    # Check if version starts with 1.x.x
+    if [[ "$existing_version" =~ ^1\. ]]; then
+      echo "Found existing Plandex v1.x installation ($existing_version). Renaming to 'plandex1' before installing v2..."
+      
+      # Get the location of existing binary
+      existing_binary=$(which plandex)
+      binary_dir=$(dirname "$existing_binary")
+      
+      # Rename plandex to plandex1
+      if ! mv "$existing_binary" "${binary_dir}/plandex1" 2>/dev/null; then
+        sudo mv "$existing_binary" "${binary_dir}/plandex1"
+      fi
+      
+      # Rename pdx to pdx1 if it exists
+      if [ -L "${binary_dir}/pdx" ]; then
+        if ! mv "${binary_dir}/pdx" "${binary_dir}/pdx1" 2>/dev/null; then
+          sudo mv "${binary_dir}/pdx" "${binary_dir}/pdx1"
+        fi
+        echo "Renamed 'pdx' alias to 'pdx1'"
+      fi
+      
+      echo "Your v1.x installation is now accessible as 'plandex1' and 'pdx1'"
+    fi
+  fi
+}
+
 welcome_plandex
+check_existing_installation
 download_plandex
 
-echo "Installation complete. Info:"
+echo "Installation complete! Starting Plandex REPL..."
 echo ""
-plandex help
+plandex 
 

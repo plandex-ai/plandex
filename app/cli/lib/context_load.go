@@ -7,17 +7,18 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"plandex/api"
-	"plandex/auth"
-	"plandex/fs"
-	"plandex/term"
-	"plandex/types"
-	"plandex/url"
+	"plandex-cli/api"
+	"plandex-cli/auth"
+	"plandex-cli/fs"
+	"plandex-cli/term"
+	"plandex-cli/types"
+	"plandex-cli/url"
 	"strings"
 	"sync"
 
+	shared "plandex-shared"
+
 	"github.com/fatih/color"
-	"github.com/plandex/plandex/shared"
 )
 
 func MustLoadContext(resources []string, params *types.LoadContextParams) {

@@ -2,7 +2,7 @@ package auth
 
 import (
 	"fmt"
-	"plandex/term"
+	"plandex-cli/term"
 	"time"
 )
 

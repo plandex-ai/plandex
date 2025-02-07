@@ -4,12 +4,12 @@ go 1.23.3
 
 replace plandex-server => ../../../
 
-replace github.com/plandex/plandex/shared => ../../../../shared
+replace plandex-shared => ../../../../shared
 
 replace plandex => ../../../../cli
 
 require (
-	github.com/plandex/plandex/shared v0.0.0-00010101000000-000000000000
+	plandex-shared v0.0.0-00010101000000-000000000000
 	plandex v0.0.0-00010101000000-000000000000
 	plandex-server v0.0.0-00010101000000-000000000000
 )

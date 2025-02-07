@@ -1,7 +1,6 @@
-
 package lib
 
-import "github.com/plandex/plandex/shared"
+import shared "plandex-shared"
 
 func GetContextLabelAndIcon(contextType shared.ContextType) (string, string) {
 	var icon string

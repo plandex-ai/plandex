@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/plandex/plandex/shared"
+	shared "plandex-shared"
 )
 
 func Authenticate(w http.ResponseWriter, r *http.Request, requireOrg bool) *types.ServerAuth {

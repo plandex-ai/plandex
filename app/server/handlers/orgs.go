@@ -9,7 +9,7 @@ import (
 	"plandex-server/db"
 	"plandex-server/hooks"
 
-	"github.com/plandex/plandex/shared"
+	shared "plandex-shared"
 )
 
 func ListOrgsHandler(w http.ResponseWriter, r *http.Request) {

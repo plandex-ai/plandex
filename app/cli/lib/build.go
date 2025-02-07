@@ -1,6 +1,6 @@
 package lib
 
-import "github.com/plandex/plandex/shared"
+import shared "plandex-shared"
 
 var buildPlanInlineFn func(autoConfirm bool, maybeContexts []*shared.Context) (bool, error)
 

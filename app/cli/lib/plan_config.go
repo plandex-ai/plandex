@@ -4,8 +4,9 @@ import (
 	"os"
 	"sort"
 
+	shared "plandex-shared"
+
 	"github.com/olekukonko/tablewriter"
-	"github.com/plandex/plandex/shared"
 )
 
 func ShowPlanConfig(config *shared.PlanConfig, key string) {

@@ -8,7 +8,8 @@ import (
 	"plandex-server/syntax"
 	"strings"
 
-	"github.com/plandex/plandex/shared"
+	shared "plandex-shared"
+
 	"golang.org/x/net/html"
 )
 

@@ -1,13 +1,14 @@
 package changes_tui
 
 import (
+	shared "plandex-shared"
+
 	"github.com/charmbracelet/bubbles/help"
 	bubbleKey "github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/plandex/plandex/shared"
 )
 
 type changesUIModel struct {

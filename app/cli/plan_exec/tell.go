@@ -4,20 +4,21 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"plandex/api"
-	"plandex/auth"
-	"plandex/fs"
-	"plandex/lib"
-	"plandex/stream"
-	streamtui "plandex/stream_tui"
-	"plandex/term"
+	"plandex-cli/api"
+	"plandex-cli/auth"
+	"plandex-cli/fs"
+	"plandex-cli/lib"
+	"plandex-cli/stream"
+	streamtui "plandex-cli/stream_tui"
+	"plandex-cli/term"
 
 	"strings"
+
+	shared "plandex-shared"
 
 	"github.com/eiannone/keyboard"
 	"github.com/fatih/color"
 	"github.com/olekukonko/tablewriter"
-	"github.com/plandex/plandex/shared"
 )
 
 type hotkeyOption struct {

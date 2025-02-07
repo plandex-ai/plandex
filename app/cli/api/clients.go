@@ -4,8 +4,8 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"plandex/auth"
-	"plandex/types"
+	"plandex-cli/auth"
+	"plandex-cli/types"
 	"time"
 )
 

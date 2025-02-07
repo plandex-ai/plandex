@@ -3,8 +3,9 @@ package db
 import (
 	"fmt"
 
+	shared "plandex-shared"
+
 	"github.com/jmoiron/sqlx"
-	"github.com/plandex/plandex/shared"
 )
 
 func GetPlanConfig(planId string) (*shared.PlanConfig, error) {

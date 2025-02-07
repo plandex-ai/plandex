@@ -1,6 +1,6 @@
 package file_map
 
-import "github.com/plandex/plandex/shared"
+import shared "plandex-shared"
 
 type nodeType string
 

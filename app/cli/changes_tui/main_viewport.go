@@ -2,7 +2,7 @@ package changes_tui
 
 import (
 	"fmt"
-	"plandex/term"
+	"plandex-cli/term"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/fatih/color"

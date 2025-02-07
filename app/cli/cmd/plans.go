@@ -11,16 +11,17 @@ import (
 	"strings"
 	"time"
 
-	"plandex/api"
-	"plandex/auth"
-	"plandex/format"
-	"plandex/fs"
-	"plandex/lib"
-	"plandex/term"
+	"plandex-cli/api"
+	"plandex-cli/auth"
+	"plandex-cli/format"
+	"plandex-cli/fs"
+	"plandex-cli/lib"
+	"plandex-cli/term"
+
+	shared "plandex-shared"
 
 	"github.com/fatih/color"
 	"github.com/olekukonko/tablewriter"
-	"github.com/plandex/plandex/shared"
 	"github.com/spf13/cobra"
 	"github.com/xlab/treeprint"
 )

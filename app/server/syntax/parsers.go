@@ -36,7 +36,7 @@ import (
 	"github.com/smacker/go-tree-sitter/typescript/typescript"
 	"github.com/smacker/go-tree-sitter/yaml"
 
-	"github.com/plandex/plandex/shared"
+	shared "plandex-shared"
 )
 
 func GetLanguageForPath(path string) shared.Language {

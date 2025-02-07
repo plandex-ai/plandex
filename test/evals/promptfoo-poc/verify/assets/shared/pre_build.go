@@ -8,7 +8,7 @@ pdx-7: 	"plandex/auth"
 pdx-8: 	"plandex/lib"
 pdx-9: 	"plandex/term"
 pdx-10: 
-pdx-11: 	"github.com/plandex/plandex/shared"
+pdx-11: 	"plandex-shared"
 pdx-12: 	"github.com/spf13/cobra"
 pdx-13: )
 pdx-14: 

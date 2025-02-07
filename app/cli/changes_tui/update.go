@@ -1,13 +1,14 @@
 package changes_tui
 
 import (
-	"plandex/types"
+	"plandex-cli/types"
 	"time"
+
+	shared "plandex-shared"
 
 	bubbleKey "github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/plandex/plandex/shared"
 )
 
 type toggleDidCopyOffMsg struct{}

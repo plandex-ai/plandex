@@ -7,8 +7,9 @@ import (
 	"net/http"
 	"plandex-server/db"
 
+	shared "plandex-shared"
+
 	"github.com/gorilla/mux"
-	"github.com/plandex/plandex/shared"
 )
 
 func ListConvoHandler(w http.ResponseWriter, r *http.Request) {

@@ -3,9 +3,9 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"plandex/api"
-	"plandex/auth"
-	"plandex/term"
+	"plandex-cli/api"
+	"plandex-cli/auth"
+	"plandex-cli/term"
 	"strings"
 
 	"github.com/olekukonko/tablewriter"

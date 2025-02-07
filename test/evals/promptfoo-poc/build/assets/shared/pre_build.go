@@ -8,7 +8,7 @@ import (
 	"plandex/lib"
 	"plandex/term"
 
-	"github.com/plandex/plandex/shared"
+	"plandex-shared"
 	"github.com/spf13/cobra"
 )
 

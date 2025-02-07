@@ -7,8 +7,9 @@ import (
 	"regexp"
 	"strings"
 
+	shared "plandex-shared"
+
 	"github.com/davecgh/go-spew/spew"
-	"github.com/plandex/plandex/shared"
 	sitter "github.com/smacker/go-tree-sitter"
 )
 

@@ -1,12 +1,13 @@
 package changes_tui
 
 import (
-	"plandex/term"
+	"plandex-cli/term"
 	"strings"
+
+	shared "plandex-shared"
 
 	"github.com/fatih/color"
 	"github.com/muesli/reflow/wrap"
-	"github.com/plandex/plandex/shared"
 )
 
 const replacementPrependLines = 20

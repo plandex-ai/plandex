@@ -3,9 +3,9 @@ package changes_tui
 import (
 	"fmt"
 	"log"
-	"plandex/term"
+	"plandex-cli/term"
 
-	"github.com/plandex/plandex/shared"
+	shared "plandex-shared"
 )
 
 type selectionInfo struct {

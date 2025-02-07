@@ -5,7 +5,7 @@ import (
 	"log"
 	"plandex-server/db"
 
-	"github.com/plandex/plandex/shared"
+	shared "plandex-shared"
 )
 
 func (ap *ActivePlan) PendingBuildsByPath(orgId, userId string, convoMessagesArg []*db.ConvoMessage) (map[string][]*ActiveBuild, error) {

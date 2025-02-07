@@ -3,12 +3,13 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"plandex/api"
-	"plandex/auth"
-	"plandex/term"
+	"plandex-cli/api"
+	"plandex-cli/auth"
+	"plandex-cli/term"
+
+	shared "plandex-shared"
 
 	"github.com/olekukonko/tablewriter"
-	"github.com/plandex/plandex/shared"
 	"github.com/spf13/cobra"
 )
 

@@ -8,8 +8,9 @@ import (
 	"plandex-server/email"
 	"strings"
 
+	shared "plandex-shared"
+
 	"github.com/gorilla/mux"
-	"github.com/plandex/plandex/shared"
 )
 
 func InviteUserHandler(w http.ResponseWriter, r *http.Request) {

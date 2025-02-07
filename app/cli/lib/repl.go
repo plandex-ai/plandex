@@ -5,8 +5,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"plandex/fs"
-	"plandex/term"
+	"plandex-cli/fs"
+	"plandex-cli/term"
 	"strconv"
 )
 

@@ -13,8 +13,9 @@ import (
 	"plandex-server/types"
 	"time"
 
+	shared "plandex-shared"
+
 	"github.com/gorilla/mux"
-	"github.com/plandex/plandex/shared"
 )
 
 const TrialMaxReplies = 10

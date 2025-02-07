@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"plandex/types"
+	"plandex-cli/types"
 	"strings"
 	"sync"
 )

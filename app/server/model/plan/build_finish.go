@@ -8,7 +8,7 @@ import (
 	"plandex-server/types"
 	"strings"
 
-	"github.com/plandex/plandex/shared"
+	shared "plandex-shared"
 )
 
 func (state *activeBuildStreamFileState) onFinishBuild() {

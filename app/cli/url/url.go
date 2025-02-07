@@ -5,7 +5,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"plandex/term"
+	"plandex-cli/term"
 	"regexp"
 	"strings"
 	"time"

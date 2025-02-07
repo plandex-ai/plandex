@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/plandex/plandex/shared"
+	shared "plandex-shared"
 )
 
 func main() {

@@ -3,12 +3,13 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"plandex/api"
-	"plandex/lib"
-	"plandex/term"
+	"plandex-cli/api"
+	"plandex-cli/lib"
+	"plandex-cli/term"
 	"strconv"
 
-	"github.com/plandex/plandex/shared"
+	shared "plandex-shared"
+
 	"github.com/spf13/cobra"
 )
 

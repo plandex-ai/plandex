@@ -2,9 +2,9 @@ package cmd
 
 import (
 	"fmt"
-	"plandex/auth"
-	"plandex/lib"
-	"plandex/term"
+	"plandex-cli/auth"
+	"plandex-cli/lib"
+	"plandex-cli/term"
 
 	"github.com/spf13/cobra"
 )

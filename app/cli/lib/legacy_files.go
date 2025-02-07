@@ -5,9 +5,9 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"plandex/fs"
-	"plandex/term"
-	"plandex/types"
+	"plandex-cli/fs"
+	"plandex-cli/term"
+	"plandex-cli/types"
 )
 
 func MigrateLegacyProjectFile(currentUserId string) {

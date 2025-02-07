@@ -1,12 +1,13 @@
 package changes_tui
 
 import (
-	"plandex/term"
+	"plandex-cli/term"
 	"strings"
+
+	shared "plandex-shared"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/fatih/color"
-	"github.com/plandex/plandex/shared"
 )
 
 func (m changesUIModel) renderSidebar() string {

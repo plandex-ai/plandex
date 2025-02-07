@@ -9,10 +9,11 @@ import (
 	"strconv"
 	"time"
 
+	shared "plandex-shared"
+
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
-	"github.com/plandex/plandex/shared"
 	"github.com/sashabaranov/go-openai"
 )
 

@@ -3,11 +3,11 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"plandex/api"
-	"plandex/auth"
-	"plandex/format"
-	"plandex/lib"
-	"plandex/term"
+	"plandex-cli/api"
+	"plandex-cli/auth"
+	"plandex-cli/format"
+	"plandex-cli/lib"
+	"plandex-cli/term"
 	"strconv"
 
 	"github.com/fatih/color"

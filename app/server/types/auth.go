@@ -3,7 +3,7 @@ package types
 import (
 	"plandex-server/db"
 
-	"github.com/plandex/plandex/shared"
+	shared "plandex-shared"
 )
 
 type ServerAuth struct {

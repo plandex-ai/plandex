@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/plandex/plandex/shared"
+	shared "plandex-shared"
 )
 
 func isDefinitionNode(node Node, parentNode *Node) bool {

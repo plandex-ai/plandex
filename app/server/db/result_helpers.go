@@ -11,8 +11,9 @@ import (
 	"strings"
 	"time"
 
+	shared "plandex-shared"
+
 	"github.com/google/uuid"
-	"github.com/plandex/plandex/shared"
 )
 
 func StorePlanResult(result *PlanFileResult) error {

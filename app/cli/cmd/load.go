@@ -2,10 +2,10 @@ package cmd
 
 import (
 	"fmt"
-	"plandex/auth"
-	"plandex/lib"
-	"plandex/term"
-	"plandex/types"
+	"plandex-cli/auth"
+	"plandex-cli/lib"
+	"plandex-cli/term"
+	"plandex-cli/types"
 
 	"github.com/sashabaranov/go-openai"
 	"github.com/spf13/cobra"

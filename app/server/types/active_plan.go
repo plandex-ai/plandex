@@ -10,8 +10,9 @@ import (
 	"sync"
 	"time"
 
+	shared "plandex-shared"
+
 	"github.com/google/uuid"
-	"github.com/plandex/plandex/shared"
 )
 
 const MaxStreamRate = 70 * time.Millisecond

@@ -3,7 +3,7 @@ package cmd
 import (
 	"fmt"
 
-	"plandex/version"
+	"plandex-cli/version"
 
 	"github.com/spf13/cobra"
 )

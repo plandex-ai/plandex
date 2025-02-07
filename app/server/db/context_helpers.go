@@ -16,8 +16,9 @@ import (
 	"sync"
 	"time"
 
+	shared "plandex-shared"
+
 	"github.com/google/uuid"
-	"github.com/plandex/plandex/shared"
 )
 
 type Ctx context.Context

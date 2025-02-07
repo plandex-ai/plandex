@@ -9,8 +9,9 @@ import (
 	"path/filepath"
 	"time"
 
+	shared "plandex-shared"
+
 	"github.com/jmoiron/sqlx"
-	"github.com/plandex/plandex/shared"
 )
 
 func GetPlanSettings(plan *Plan, fillDefaultModelPack bool) (*shared.PlanSettings, error) {

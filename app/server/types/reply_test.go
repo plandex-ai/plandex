@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/plandex/plandex/shared"
+	shared "plandex-shared"
 )
 
 type TestExample struct {

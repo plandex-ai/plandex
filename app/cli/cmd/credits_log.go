@@ -2,17 +2,18 @@ package cmd
 
 import (
 	"fmt"
-	"plandex/api"
-	"plandex/auth"
-	"plandex/term"
+	"plandex-cli/api"
+	"plandex-cli/auth"
+	"plandex-cli/term"
 	"strconv"
 	"strings"
 	"unicode"
 
+	shared "plandex-shared"
+
 	"github.com/eiannone/keyboard"
 	"github.com/fatih/color"
 	"github.com/olekukonko/tablewriter"
-	"github.com/plandex/plandex/shared"
 	"github.com/shopspring/decimal"
 	"github.com/spf13/cobra"
 )

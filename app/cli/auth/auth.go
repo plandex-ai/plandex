@@ -4,10 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"plandex/fs"
-	"plandex/term"
+	"plandex-cli/fs"
+	"plandex-cli/term"
 
-	"github.com/plandex/plandex/shared"
+	shared "plandex-shared"
 )
 
 var openUnauthenticatedCloudURL func(msg, path string)

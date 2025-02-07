@@ -3,16 +3,17 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"plandex/api"
-	"plandex/auth"
-	"plandex/lib"
-	"plandex/term"
+	"plandex-cli/api"
+	"plandex-cli/auth"
+	"plandex-cli/lib"
+	"plandex-cli/term"
 	"strconv"
 	"strings"
 
+	shared "plandex-shared"
+
 	"github.com/fatih/color"
 	"github.com/olekukonko/tablewriter"
-	"github.com/plandex/plandex/shared"
 	"github.com/spf13/cobra"
 )
 

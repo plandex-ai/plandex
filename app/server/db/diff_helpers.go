@@ -6,7 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	"github.com/plandex/plandex/shared"
+	shared "plandex-shared"
 )
 
 func GetPlanDiffs(orgId, planId string, plain bool) (string, error) {

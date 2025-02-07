@@ -2,11 +2,12 @@ package cmd
 
 import (
 	"fmt"
-	"plandex/api"
-	"plandex/auth"
-	"plandex/term"
+	"plandex-cli/api"
+	"plandex-cli/auth"
+	"plandex-cli/term"
 
-	"github.com/plandex/plandex/shared"
+	shared "plandex-shared"
+
 	"github.com/spf13/cobra"
 )
 

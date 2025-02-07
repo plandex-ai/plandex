@@ -5,7 +5,8 @@ import (
 	"net/http"
 	"plandex-server/model/prompts"
 
-	"github.com/plandex/plandex/shared"
+	shared "plandex-shared"
+
 	"github.com/sashabaranov/go-openai"
 )
 

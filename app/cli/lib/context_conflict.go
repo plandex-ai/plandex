@@ -3,8 +3,8 @@ package lib
 import (
 	"fmt"
 	"os"
-	"plandex/api"
-	"plandex/term"
+	"plandex-cli/api"
+	"plandex-cli/term"
 
 	"github.com/fatih/color"
 )

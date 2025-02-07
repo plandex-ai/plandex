@@ -3,12 +3,12 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"plandex/api"
-	"plandex/auth"
-	"plandex/lib"
-	"plandex/stream"
-	streamtui "plandex/stream_tui"
-	"plandex/term"
+	"plandex-cli/api"
+	"plandex-cli/auth"
+	"plandex-cli/lib"
+	"plandex-cli/stream"
+	streamtui "plandex-cli/stream_tui"
+	"plandex-cli/term"
 
 	"github.com/spf13/cobra"
 )

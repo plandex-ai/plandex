@@ -12,8 +12,8 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
-	"plandex/term"
-	"plandex/version"
+	"plandex-cli/term"
+	"plandex-cli/version"
 	"runtime"
 	"strings"
 
@@ -33,7 +33,7 @@ func checkForUpgrade() {
 
 	term.StartSpinner("")
 	defer term.StopSpinner()
-	latestVersionURL := "https://plandex.ai/cli-version.txt"
+	latestVersionURL := "https://plandex.ai/v2/cli-version.txt"
 	resp, err := http.Get(latestVersionURL)
 	if err != nil {
 		log.Println("Error checking latest version:", err)

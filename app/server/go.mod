@@ -7,7 +7,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/mux v1.8.1
 	github.com/pkg/errors v0.9.1
-	github.com/plandex/plandex/shared v0.0.0-00010101000000-000000000000
+	plandex-shared v0.0.0-00010101000000-000000000000
 	github.com/sashabaranov/go-openai v1.36.1
 )
 
@@ -48,4 +48,4 @@ require (
 	golang.org/x/net v0.34.0
 )
 
-replace github.com/plandex/plandex/shared => ../shared
+replace plandex-shared => ../shared

@@ -5,12 +5,13 @@ import (
 	"sync"
 	"time"
 
+	shared "plandex-shared"
+
 	bubbleKey "github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/plandex/plandex/shared"
 )
 
 const (

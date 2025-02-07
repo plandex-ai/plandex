@@ -5,7 +5,7 @@ sidebar_label: Plans
 
 # Plans
 
-A **plan** in Plandex is similar to a conversation in ChatGPT. It might only include a single prompt and model response that executes one small task, or it could represent a long back and forth with the model that generates dozens of files and builds a whole feature or an entire app.
+A **plan** in Plandex is similar to a conversation in ChatGPT. It might only include a single prompt and model response that executes one small task, or it could represent a long back and forth with the model that generates dozens of files and builds a whole feature or an entire project.
 
 A plan includes: 
 

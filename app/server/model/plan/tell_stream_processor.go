@@ -10,8 +10,9 @@ import (
 	"strings"
 	"time"
 
+	shared "plandex-shared"
+
 	"github.com/davecgh/go-spew/spew"
-	"github.com/plandex/plandex/shared"
 	"github.com/sashabaranov/go-openai"
 )
 

@@ -11,7 +11,7 @@ import (
 	"plandex-server/email"
 	"strings"
 
-	"github.com/plandex/plandex/shared"
+	shared "plandex-shared"
 )
 
 func CreateEmailVerificationHandler(w http.ResponseWriter, r *http.Request) {

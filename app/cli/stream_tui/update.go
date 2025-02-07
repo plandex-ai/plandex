@@ -4,11 +4,13 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"plandex/api"
-	"plandex/lib"
-	"plandex/term"
+	"plandex-cli/api"
+	"plandex-cli/lib"
+	"plandex-cli/term"
 	"strings"
 	"time"
+
+	shared "plandex-shared"
 
 	bubbleKey "github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/spinner"
@@ -16,7 +18,6 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/fatih/color"
-	"github.com/plandex/plandex/shared"
 )
 
 func (m streamUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {

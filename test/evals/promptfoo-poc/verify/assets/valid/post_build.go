@@ -10,7 +10,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/plandex/plandex/shared"
 	"github.com/spf13/cobra"
 )
 

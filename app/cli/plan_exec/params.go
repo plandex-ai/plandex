@@ -1,6 +1,6 @@
 package plan_exec
 
-import "github.com/plandex/plandex/shared"
+import shared "plandex-shared"
 
 type ExecParams struct {
 	CurrentPlanId        string

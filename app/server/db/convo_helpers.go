@@ -8,9 +8,10 @@ import (
 	"sort"
 	"time"
 
+	shared "plandex-shared"
+
 	"github.com/fatih/color"
 	"github.com/google/uuid"
-	"github.com/plandex/plandex/shared"
 	"github.com/sashabaranov/go-openai"
 )
 

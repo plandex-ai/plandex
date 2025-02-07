@@ -4,12 +4,13 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"plandex/term"
+	"plandex-cli/term"
 	"sync"
+
+	shared "plandex-shared"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/fatih/color"
-	"github.com/plandex/plandex/shared"
 )
 
 var ui *tea.Program

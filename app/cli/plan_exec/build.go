@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"plandex/api"
-	"plandex/fs"
-	"plandex/stream"
-	streamtui "plandex/stream_tui"
-	"plandex/term"
+	"plandex-cli/api"
+	"plandex-cli/fs"
+	"plandex-cli/stream"
+	streamtui "plandex-cli/stream_tui"
+	"plandex-cli/term"
 
-	"github.com/plandex/plandex/shared"
+	shared "plandex-shared"
 )
 
 func Build(params ExecParams, buildBg bool) (bool, error) {

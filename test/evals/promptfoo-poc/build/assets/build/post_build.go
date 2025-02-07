@@ -10,7 +10,7 @@ pdx-9: 	"plandex/term"
 pdx-10: 	"strconv"
 pdx-11: 	"strings"
 pdx-12: 
-pdx-13: 	"github.com/plandex/plandex/shared"
+pdx-13: 	"plandex-shared"
 pdx-14: 	"github.com/spf13/cobra"
 pdx-15: )
 pdx-16: 

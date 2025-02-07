@@ -10,7 +10,7 @@ import (
 	"plandex-server/host"
 	"time"
 
-	"github.com/plandex/plandex/shared"
+	shared "plandex-shared"
 )
 
 func proxyActivePlanMethod(w http.ResponseWriter, r *http.Request, planId, branch, method string) {

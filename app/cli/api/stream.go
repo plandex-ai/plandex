@@ -6,9 +6,9 @@ import (
 	"encoding/json"
 	"io"
 	"log"
-	"plandex/types"
+	"plandex-cli/types"
 
-	"github.com/plandex/plandex/shared"
+	shared "plandex-shared"
 )
 
 func connectPlanRespStream(body io.ReadCloser, onStream types.OnStreamPlan) {

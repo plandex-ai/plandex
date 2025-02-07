@@ -9,8 +9,9 @@ import (
 	"plandex-server/db"
 	"reflect"
 
+	shared "plandex-shared"
+
 	"github.com/gorilla/mux"
-	"github.com/plandex/plandex/shared"
 )
 
 func GetSettingsHandler(w http.ResponseWriter, r *http.Request) {

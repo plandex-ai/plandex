@@ -1,4 +1,4 @@
-module plandex
+module plandex-cli
 
 go 1.23.3
 
@@ -15,6 +15,7 @@ require (
 	github.com/shopspring/decimal v1.4.0
 	github.com/spf13/cobra v1.8.0
 	golang.org/x/term v0.19.0
+	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 )
 
 require (
@@ -66,12 +67,12 @@ require (
 	github.com/mattn/go-runewidth v0.0.16 // indirect
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c
 	github.com/pkoukk/tiktoken-go v0.1.7 // indirect
-	github.com/plandex/plandex/shared v0.0.0-00010101000000-000000000000
 	github.com/sabhiram/go-gitignore v0.0.0-20210923224102-525f6e181f06
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/xlab/treeprint v1.2.0
 	golang.org/x/image v0.22.0 // indirect
 	golang.org/x/text v0.22.0 // indirect
+	plandex-shared v0.0.0-00010101000000-000000000000
 )
 
-replace github.com/plandex/plandex/shared => ../shared
+replace plandex-shared => ../shared

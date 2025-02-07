@@ -11,8 +11,9 @@ import (
 	modelPlan "plandex-server/model/plan"
 	"time"
 
+	shared "plandex-shared"
+
 	"github.com/gorilla/mux"
-	"github.com/plandex/plandex/shared"
 )
 
 func CurrentPlanHandler(w http.ResponseWriter, r *http.Request) {

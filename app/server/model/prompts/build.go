@@ -5,7 +5,7 @@ import (
 	"plandex-server/syntax"
 	"strings"
 
-	"github.com/plandex/plandex/shared"
+	shared "plandex-shared"
 )
 
 type ValidateEditsPromptParams struct {

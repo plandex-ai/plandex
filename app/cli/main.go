@@ -4,16 +4,18 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"plandex/api"
-	"plandex/auth"
-	"plandex/cmd"
-	"plandex/fs"
-	"plandex/lib"
-	"plandex/plan_exec"
-	"plandex/term"
-	"plandex/ui"
+	"plandex-cli/api"
+	"plandex-cli/auth"
+	"plandex-cli/cmd"
+	"plandex-cli/fs"
+	"plandex-cli/lib"
+	"plandex-cli/plan_exec"
+	"plandex-cli/term"
+	"plandex-cli/ui"
 
-	"github.com/plandex/plandex/shared"
+	shared "plandex-shared"
+
+	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 func init() {
@@ -42,16 +44,17 @@ func init() {
 		}, false)
 	})
 
-	// set up a file logger
-	// TODO: log rotation
-
-	file, err := os.OpenFile(filepath.Join(fs.HomePlandexDir, "plandex.log"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
-	if err != nil {
-		term.OutputErrorAndExit("Error opening log file: %v", err)
+	// set up a rotating file logger
+	logger := &lumberjack.Logger{
+		Filename:   filepath.Join(fs.HomePlandexDir, "plandex-v2.log"),
+		MaxSize:    10,   // megabytes before rotation
+		MaxBackups: 3,    // number of backups to keep
+		MaxAge:     28,   // days to keep old logs
+		Compress:   true, // compress rotated files
 	}
 
-	// Set the output of the logger to the file
-	log.SetOutput(file)
+	// Set the output of the logger
+	log.SetOutput(logger)
 	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
 
 	// log.Println("Starting Plandex - logging initialized")
