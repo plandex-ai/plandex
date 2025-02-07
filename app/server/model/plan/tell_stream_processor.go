@@ -19,18 +19,6 @@ const verboseLogging = false
 
 var openingTagRegex = regexp.MustCompile(`<PlandexBlock\s+lang="(.+?)"\s+path="(.+?)".*?>`)
 
-// matches any prefix of the opening tag
-var partialOpeningTagRegex = regexp.MustCompile(
-	`^` +
-		// 1) Nested optional groups for "PlandexBlock":
-		`P(?:l(?:a(?:n(?:d(?:e(?:x(?:B(?:l(?:o(?:c(?:k)?)?)?)?)?)?)?)?)?)?)?` +
-		// 2) Optional lang="..." (with optional final quote):
-		`(?:\s+lang="[^"]*(?:")?)?` +
-		// 3) Optional path="..." (with optional final quote):
-		`(?:\s+path="[^"]*(?:")?)?` +
-		`$`,
-)
-
 type processChunkResult struct {
 	shouldReturn bool
 }
@@ -205,31 +193,9 @@ func (processor *chunkProcessor) bufferOrStream(content string, parserRes *types
 			if verboseLogging {
 				log.Println("processor.awaitingBlockOpeningTag")
 			}
-			split := strings.Split(content, "<")
 			var matchedPrefix bool
-			if len(split) > 1 {
-				last := split[len(split)-1]
-				if verboseLogging {
-					log.Printf("last: %s\n", last)
-				}
-				if partialOpeningTagRegex.MatchString(last) {
-					if verboseLogging {
-						log.Println("partialOpeningTagRegex.MatchString(last)")
-					}
-					shouldStream = false
-					matchedPrefix = true
-				} else {
-					if verboseLogging {
-						log.Println("partialOpeningTagRegex.MatchString(last) is false")
-					}
-				}
-			}
 
-			if !matchedPrefix && parserRes.MaybeFilePath == "" && parserRes.CurrentFilePath == "" {
-				// wasn't really a file path / code block
-				processor.awaitingBlockOpeningTag = false
-				shouldStream = true
-			} else if parserRes.CurrentFilePath != "" {
+			if parserRes.CurrentFilePath != "" {
 				matched, replaced := replaceCodeBlockOpeningTag(content, func(lang string) string {
 					blockLang = lang
 					return "```" + lang
@@ -250,6 +216,38 @@ func (processor *chunkProcessor) bufferOrStream(content string, parserRes *types
 					content += "\n```" // add ``` to the end of the line to close the markdown code block
 					shouldStream = true
 				}
+			} else {
+				split := strings.Split(content, "<")
+
+				if len(split) > 1 {
+					last := split[len(split)-1]
+					if verboseLogging {
+						log.Printf("last: %s\n", last)
+					}
+					if strings.HasPrefix(`PlandexBlock lang="`, last) {
+						if verboseLogging {
+							log.Println("strings.HasPrefix(`PlandexBlock lang=", last)
+						}
+						shouldStream = false
+						matchedPrefix = true
+					} else if strings.HasPrefix(last, `PlandexBlock lang="`) {
+						if verboseLogging {
+							log.Println("partialOpeningTagRegex.MatchString(last)")
+						}
+						shouldStream = false
+						matchedPrefix = true
+					} else {
+						if verboseLogging {
+							log.Println("partialOpeningTagRegex.MatchString(last) is false")
+						}
+					}
+				}
+			}
+
+			if !matchedPrefix && parserRes.MaybeFilePath == "" && parserRes.CurrentFilePath == "" {
+				// wasn't really a file path / code block
+				processor.awaitingBlockOpeningTag = false
+				shouldStream = true
 			}
 		} else if processor.awaitingBlockClosingTag {
 			if parserRes.CurrentFilePath == "" {
@@ -288,10 +286,15 @@ func (processor *chunkProcessor) bufferOrStream(content string, parserRes *types
 		if parserRes.MaybeFilePath != "" && parserRes.CurrentFilePath == "" {
 			processor.awaitingBlockOpeningTag = true
 		} else {
+			// this will set processor.awaitingBlockOpeningTag to true if the content starts with any prefix of<PlandexBlock lang=" *or* any prefix of a full opening tag
+			// if the full tag is in the content, it will later get set to false again when the full tag is handled
 			split := strings.Split(content, "<")
 			if len(split) > 1 {
 				last := split[len(split)-1]
-				if partialOpeningTagRegex.MatchString(last) {
+
+				if strings.HasPrefix(`PlandexBlock lang="`, last) {
+					processor.awaitingBlockOpeningTag = true
+				} else if strings.HasPrefix(last, `PlandexBlock lang="`) {
 					processor.awaitingBlockOpeningTag = true
 				}
 			}
@@ -391,6 +394,7 @@ func (processor *chunkProcessor) bufferOrStream(content string, parserRes *types
 			}
 
 			if matchedOpeningTag {
+				processor.awaitingBlockOpeningTag = false
 				content = replaced
 			}
 		}
@@ -592,7 +596,10 @@ func (state *activeTellStreamState) handleMissingFile(content, currentFile, bloc
 
 	case <-time.After(30 * time.Minute): // long timeout here since we're waiting for user input
 		log.Println("Timeout waiting for missing file choice")
-		state.onError(fmt.Errorf("timeout waiting for missing file choice"), true, "", "")
+		state.onError(onErrorParams{
+			streamErr: fmt.Errorf("timeout waiting for missing file choice"),
+			storeDesc: true,
+		})
 		return processChunkResult{}
 
 	case userChoice = <-active.MissingFileResponseCh:

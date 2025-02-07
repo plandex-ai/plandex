@@ -75,7 +75,6 @@ func execTellPlan(params execTellPlanParams) {
 	iteration := params.iteration
 	missingFileResponse := params.missingFileResponse
 	shouldBuildPending := params.shouldBuildPending
-	numErrorRetry := params.numErrorRetry
 	shouldLoadFollowUpContext := params.shouldLoadFollowUpContext
 	didLoadFollowUpContext := params.didLoadFollowUpContext
 	didMakeFollowUpPlan := params.didMakeFollowUpPlan
@@ -122,16 +121,16 @@ func execTellPlan(params execTellPlanParams) {
 	log.Println("execTellPlan - Plan status set to replying")
 
 	state := &activeTellStreamState{
-		clients:                clients,
-		req:                    req,
-		auth:                   auth,
-		currentOrgId:           currentOrgId,
-		currentUserId:          currentUserId,
-		plan:                   plan,
-		branch:                 branch,
-		iteration:              iteration,
-		missingFileResponse:    missingFileResponse,
-		currentReplyNumRetries: numErrorRetry,
+		execTellPlanParams:  params,
+		clients:             clients,
+		req:                 req,
+		auth:                auth,
+		currentOrgId:        currentOrgId,
+		currentUserId:       currentUserId,
+		plan:                plan,
+		branch:              branch,
+		iteration:           iteration,
+		missingFileResponse: missingFileResponse,
 	}
 
 	log.Println("execTellPlan - Loading tell plan")
@@ -280,10 +279,10 @@ func execTellPlan(params execTellPlanParams) {
 		modelConfig = plannerConfig.ModelRoleConfig
 		if isContextStage {
 			log.Println("Tell plan - isContextStage - setting modelConfig to context loader")
-			modelConfig = state.settings.ModelPack.GetContextLoader().GetRoleForTokens(requestTokens)
+			modelConfig = state.settings.ModelPack.GetContextLoader().GetRoleForInputTokens(requestTokens)
 		}
 	} else if isImplementationStage {
-		modelConfig = state.settings.ModelPack.GetCoder().GetRoleForTokens(requestTokens)
+		modelConfig = state.settings.ModelPack.GetCoder().GetRoleForInputTokens(requestTokens)
 	}
 
 	log.Println("totalRequestTokens:", requestTokens)

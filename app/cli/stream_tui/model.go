@@ -2,6 +2,7 @@ package streamtui
 
 import (
 	"log"
+	"sync"
 	"time"
 
 	bubbleKey "github.com/charmbracelet/bubbles/key"
@@ -29,6 +30,8 @@ var missingFileSelectOpts = []string{
 	MissingFileSkipLabel,
 	MissingFileOverwriteLabel,
 }
+
+var stateMu sync.RWMutex
 
 type streamUIModel struct {
 	buildOnly bool
@@ -91,10 +94,11 @@ type keymap = struct {
 }
 
 func (m streamUIModel) Init() tea.Cmd {
+	log.Println("Model Init start")
 	m.mainViewport.MouseWheelEnabled = true
-
-	// start spinner
-	return m.Tick()
+	cmd := m.Tick()
+	log.Println("Model Init complete")
+	return cmd
 }
 
 func initialModel(prestartReply, prompt string, buildOnly bool) *streamUIModel {
@@ -191,5 +195,19 @@ func (m streamUIModel) Tick() tea.Cmd {
 
 func (m *streamUIModel) cleanup() {
 	log.Println("Cleaning up stream UI model")
-	m.sharedTicker.Stop()
+	m.updateState(func() {
+		m.sharedTicker.Stop()
+	})
+}
+
+func (m *streamUIModel) readState() streamUIModel {
+	stateMu.RLock()
+	defer stateMu.RUnlock()
+	return *m
+}
+
+func (m *streamUIModel) updateState(updateFn func()) {
+	stateMu.Lock()
+	defer stateMu.Unlock()
+	updateFn()
 }

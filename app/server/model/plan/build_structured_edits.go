@@ -93,7 +93,10 @@ func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 
 	log.Printf("buildStructuredEdits - %s - initial isValid: %t\n", filePath, isValid)
 
-	var buildStage BuildStage = BuildStageInitial
+	// var buildStage BuildStage = BuildStageInitial
+
+	// Starting on BuildStageValidateAndCorrect is a hacky way to skip the validation/replacements step and instead do a single validation pass, followed by whole file build. For now, this is offering better results—it seems that on changes where the deterministic structural edits algorithm fails, replacements fail at a pretty high rate as well... so better to go straight to whole file build and save the extra requests.
+	var buildStage BuildStage = BuildStageValidateAndCorrect
 
 	for !isValid && int(buildStage) <= int(BuildStageValidateAndCorrect) {
 		buildStage = BuildStage(int(buildStage) + 1)

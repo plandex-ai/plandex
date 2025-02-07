@@ -24,35 +24,38 @@ func init() {
 			ModelRoleConfig:    *claude35sonnet(ModelRolePlanner, nil),
 			PlannerModelConfig: getPlannerModelConfig(ModelProviderOpenRouter, "anthropic/claude-3.5-sonnet"),
 			PlannerLargeContextFallback: &PlannerRoleConfig{
-				ModelRoleConfig:    *gemini15pro(ModelRolePlanner, nil),
-				PlannerModelConfig: getPlannerModelConfig(ModelProviderOpenRouter, "google/gemini-pro-1.5"),
+				ModelRoleConfig: *gemini15pro(ModelRolePlanner, nil),
+				PlannerModelConfig: PlannerModelConfig{
+					// Use the same max convo tokens as the default model so we don't mess with summarization too much
+					MaxConvoTokens: GetAvailableModel(ModelProviderOpenRouter, "anthropic/claude-3.5-sonnet").DefaultMaxConvoTokens,
+				},
 			},
 		},
 		Coder: claude35sonnet(ModelRoleCoder, nil),
 		ContextLoader: claude35sonnet(ModelRoleContextLoader, &modelConfigFallbacks{
 			largeContextFallback: gemini15pro(ModelRoleContextLoader, nil),
 		}),
-		PlanSummary:      *openaio3mini(ModelRolePlanSummary, nil),
-		Builder:          *openaio3mini(ModelRoleBuilder, nil),
-		WholeFileBuilder: openaio3mini(ModelRoleWholeFileBuilder, nil),
+		PlanSummary:      *openaio3mini(ModelRolePlanSummary, ReasoningEffortLow, nil),
+		Builder:          *openaio3mini(ModelRoleBuilder, ReasoningEffortMedium, nil),
+		WholeFileBuilder: openaio3mini(ModelRoleWholeFileBuilder, ReasoningEffortLow, nil),
 		Namer:            *openai4omini(ModelRoleName, nil),
 		CommitMsg:        *openai4omini(ModelRoleCommitMsg, nil),
-		ExecStatus:       *openaio3mini(ModelRoleExecStatus, nil),
+		ExecStatus:       *openaio3mini(ModelRoleExecStatus, ReasoningEffortMedium, nil),
 	}
 
 	O3MiniModelPack = ModelPack{
 		Name:        "o3-mini-pack",
 		Description: "OpenAI blend. Supports up to 200k context. Uses OpenAI's o3-mini model for heavy lifting, GPT-4o Mini for lighter tasks.",
 		Planner: PlannerRoleConfig{
-			ModelRoleConfig:    *openaio3mini(ModelRolePlanner, nil),
+			ModelRoleConfig:    *openaio3mini(ModelRolePlanner, ReasoningEffortHigh, nil),
 			PlannerModelConfig: getPlannerModelConfig(ModelProviderOpenAI, "o3-mini"),
 		},
-		PlanSummary:      *openaio3mini(ModelRolePlanSummary, nil),
-		Builder:          *openaio3mini(ModelRoleBuilder, nil),
-		WholeFileBuilder: openaio3mini(ModelRoleWholeFileBuilder, nil),
+		PlanSummary:      *openaio3mini(ModelRolePlanSummary, ReasoningEffortLow, nil),
+		Builder:          *openaio3mini(ModelRoleBuilder, ReasoningEffortMedium, nil),
+		WholeFileBuilder: openaio3mini(ModelRoleWholeFileBuilder, ReasoningEffortMedium, nil),
 		Namer:            *openai4omini(ModelRoleName, nil),
 		CommitMsg:        *openai4omini(ModelRoleCommitMsg, nil),
-		ExecStatus:       *openai4o(ModelRoleExecStatus, nil),
+		ExecStatus:       *openaio3mini(ModelRoleExecStatus, ReasoningEffortMedium, nil),
 	}
 
 	ClaudeModelPack = ModelPack{
@@ -72,7 +75,8 @@ func init() {
 
 type modelConfigFallbacks struct {
 	largeContextFallback *ModelRoleConfig
-	errorFallback        *ModelRoleConfig
+	largeOutputFallback  *ModelRoleConfig
+	// errorFallback        *ModelRoleConfig
 }
 
 func getModelConfig(role ModelRole, provider ModelProvider, modelName string, fallbacks *modelConfigFallbacks) *ModelRoleConfig {
@@ -87,21 +91,31 @@ func getModelConfig(role ModelRole, provider ModelProvider, modelName string, fa
 		TopP:            DefaultConfigByRole[role].TopP,
 
 		LargeContextFallback: fallbacks.largeContextFallback,
+		LargeOutputFallback:  fallbacks.largeOutputFallback,
 		// ErrorFallback:        fallbacks.errorFallback,
 	}
 }
 
 // allow OpenAI calls to first try OpenAI directly, then fallback to OpenRouter (which can route to Azure if OpenAI is down)
-func getOpenAIModelConfig(role ModelRole, modelName string, fallbacks *modelConfigFallbacks) *ModelRoleConfig {
+func getOpenAIModelConfig(role ModelRole, modelName string, reasoningEffort ReasoningEffort, fallbacks *modelConfigFallbacks) *ModelRoleConfig {
 	var largeContextFallback *ModelRoleConfig
+	var largeOutputFallback *ModelRoleConfig
 	if fallbacks != nil {
 		largeContextFallback = fallbacks.largeContextFallback
+		largeOutputFallback = fallbacks.largeOutputFallback
 	}
 
-	return getModelConfig(role, ModelProviderOpenAI, modelName, &modelConfigFallbacks{
+	config := getModelConfig(role, ModelProviderOpenAI, modelName, &modelConfigFallbacks{
 		largeContextFallback: largeContextFallback,
-		errorFallback:        getModelConfig(role, ModelProviderOpenRouter, "openai/gpt-4o", nil),
+		largeOutputFallback:  largeOutputFallback,
+		// errorFallback:        getModelConfig(role, ModelProviderOpenRouter, "openai/gpt-4o", nil),
 	})
+
+	if reasoningEffort != "" {
+		config.ReasoningEffort = reasoningEffort
+	}
+
+	return config
 }
 
 func claude35sonnet(role ModelRole, fallbacks *modelConfigFallbacks) *ModelRoleConfig {
@@ -117,17 +131,17 @@ func gemini15pro(role ModelRole, fallbacks *modelConfigFallbacks) *ModelRoleConf
 }
 
 func openai4o(role ModelRole, fallbacks *modelConfigFallbacks) *ModelRoleConfig {
-	return getOpenAIModelConfig(role, "gpt-4o", fallbacks)
+	return getOpenAIModelConfig(role, "gpt-4o", "", fallbacks)
 }
 
 func openai4omini(role ModelRole, fallbacks *modelConfigFallbacks) *ModelRoleConfig {
-	return getOpenAIModelConfig(role, "gpt-4o-mini", fallbacks)
+	return getOpenAIModelConfig(role, "gpt-4o-mini", "", fallbacks)
 }
 
 func openaio1mini(role ModelRole, fallbacks *modelConfigFallbacks) *ModelRoleConfig {
-	return getOpenAIModelConfig(role, "o1-mini", fallbacks)
+	return getOpenAIModelConfig(role, "o1-mini", "", fallbacks)
 }
 
-func openaio3mini(role ModelRole, fallbacks *modelConfigFallbacks) *ModelRoleConfig {
-	return getOpenAIModelConfig(role, "o3-mini", fallbacks)
+func openaio3mini(role ModelRole, reasoningEffort ReasoningEffort, fallbacks *modelConfigFallbacks) *ModelRoleConfig {
+	return getOpenAIModelConfig(role, "o3-mini", reasoningEffort, fallbacks)
 }

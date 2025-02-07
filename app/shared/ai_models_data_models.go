@@ -31,6 +31,7 @@ type BaseModelConfig struct {
 	SystemPromptDisabled         bool                 `json:"systemPromptDisabled"`
 	RoleParamsDisabled           bool                 `json:"roleParamsDisabled"`
 	PredictedOutputEnabled       bool                 `json:"predictedOutputEnabled"`
+	ReasoningEffortEnabled       bool                 `json:"reasoningEffortEnabled"`
 
 	ModelCompatibility
 }
@@ -49,14 +50,24 @@ type PlannerModelConfig struct {
 	MaxConvoTokens int `json:"maxConvoTokens"`
 }
 
+type ReasoningEffort string
+
+const (
+	ReasoningEffortLow    ReasoningEffort = "low"
+	ReasoningEffortMedium ReasoningEffort = "medium"
+	ReasoningEffortHigh   ReasoningEffort = "high"
+)
+
 type ModelRoleConfig struct {
 	Role                 ModelRole       `json:"role"`
 	BaseModelConfig      BaseModelConfig `json:"baseModelConfig"`
 	Temperature          float32         `json:"temperature"`
 	TopP                 float32         `json:"topP"`
 	ReservedOutputTokens int             `json:"reservedOutputTokens"`
+	ReasoningEffort      ReasoningEffort `json:"reasoningEffort"`
 
 	LargeContextFallback *ModelRoleConfig `json:"largeContextFallback"`
+	LargeOutputFallback  *ModelRoleConfig `json:"largeOutputFallback"`
 	// ErrorFallback        *ModelRoleConfig `json:"errorFallback"`
 }
 
@@ -106,12 +117,35 @@ func (m ModelRoleConfig) GetFinalLargeContextFallback() ModelRoleConfig {
 	return currentConfig
 }
 
+func (m ModelRoleConfig) GetFinalLargeOutputFallback() ModelRoleConfig {
+	var currentConfig ModelRoleConfig = m
+	var n int = 0
+
+	if currentConfig.LargeOutputFallback == nil {
+		return currentConfig.GetFinalLargeContextFallback()
+	}
+
+	for {
+		if currentConfig.LargeOutputFallback == nil {
+			return currentConfig
+		} else {
+			currentConfig = *currentConfig.LargeOutputFallback
+		}
+		n++
+		if n > maxFallbackDepth {
+			break
+		}
+	}
+
+	return currentConfig
+}
+
 // note that if the token number exeeds all the fallback models, it will return the last fallback model
-func (m ModelRoleConfig) GetRoleForTokens(tokens int) ModelRoleConfig {
+func (m ModelRoleConfig) GetRoleForInputTokens(inputTokens int) ModelRoleConfig {
 	var currentConfig ModelRoleConfig = m
 	var n int = 0
 	for {
-		if currentConfig.BaseModelConfig.MaxTokens >= tokens {
+		if currentConfig.BaseModelConfig.MaxTokens >= inputTokens {
 			return currentConfig
 		}
 
@@ -119,6 +153,31 @@ func (m ModelRoleConfig) GetRoleForTokens(tokens int) ModelRoleConfig {
 			return currentConfig
 		} else {
 			currentConfig = *currentConfig.LargeContextFallback
+		}
+		n++
+		if n > maxFallbackDepth {
+			break
+		}
+	}
+	return currentConfig
+}
+
+func (m ModelRoleConfig) GetRoleForOutputTokens(outputTokens int) ModelRoleConfig {
+	var currentConfig ModelRoleConfig = m
+	var n int = 0
+	for {
+		if currentConfig.GetReservedOutputTokens() >= outputTokens {
+			return currentConfig
+		}
+
+		if currentConfig.LargeOutputFallback == nil {
+			if currentConfig.LargeContextFallback == nil {
+				return currentConfig
+			} else {
+				currentConfig = *currentConfig.LargeContextFallback
+			}
+		} else {
+			currentConfig = *currentConfig.LargeOutputFallback
 		}
 		n++
 		if n > maxFallbackDepth {

@@ -42,6 +42,12 @@
     },
     {
       "path": "../go-prompt"
+    },
+    {
+      "path": "../survey"
+    },
+    {
+      "path": "../bubbletea"
     }
   ],
   "settings": {

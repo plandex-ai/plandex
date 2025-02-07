@@ -82,10 +82,10 @@ func (ps PlanSettings) GetWholeFileBuilderMaxReservedOutputTokens() int {
 	if ps.ModelOverrides.MaxTokens == nil {
 		if ps.ModelPack == nil {
 			defaultBuilder := DefaultModelPack.WholeFileBuilder
-			return defaultBuilder.GetFinalLargeContextFallback().GetReservedOutputTokens()
+			return defaultBuilder.GetFinalLargeOutputFallback().GetReservedOutputTokens()
 		} else {
 			builder := ps.ModelPack.WholeFileBuilder
-			return builder.GetFinalLargeContextFallback().GetReservedOutputTokens()
+			return builder.GetFinalLargeOutputFallback().GetReservedOutputTokens()
 		}
 	} else {
 		return *ps.ModelOverrides.MaxTokens

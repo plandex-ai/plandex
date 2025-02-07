@@ -118,7 +118,10 @@ func diffs(cmd *cobra.Command, args []string) {
 		} else {
 			term.PageOutput(diffs)
 		}
+		fmt.Println()
 	}
+
+	term.PrintCmds("", "apply", "reject")
 }
 
 var htmlTemplate = `<!doctype html>

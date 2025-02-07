@@ -15,6 +15,11 @@ func (state *activeTellStreamState) resolvePromptMessage(isPlanningStage, isCont
 	active := state.activePlan
 	isFollowUp := state.isFollowUp
 
+	if isFollowUp && (req.IsApplyDebug || req.IsUserDebug) {
+		log.Println("resolvePromptMessage: IsApplyDebug or IsUserDebug - setting isFollowUp to false")
+		isFollowUp = false
+	}
+
 	var promptMessage *openai.ChatCompletionMessage
 
 	var lastMessage *openai.ChatCompletionMessage

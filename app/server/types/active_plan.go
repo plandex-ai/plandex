@@ -181,9 +181,13 @@ func (ap *ActivePlan) FlushStreamBuffer() {
 	}
 }
 
+const verboseStreamLogging = false
+
 func (ap *ActivePlan) Stream(msg shared.StreamMessage) {
-	// log.Println("ActivePlan.Stream:")
-	// log.Println(msg)
+	if verboseStreamLogging {
+		log.Println("ActivePlan.Stream:")
+		log.Println(msg)
+	}
 
 	ap.streamMu.Lock()
 
@@ -194,17 +198,23 @@ func (ap *ActivePlan) Stream(msg shared.StreamMessage) {
 
 	// Special messages bypass buffering
 	if !skipBuffer {
-		// log.Println("ActivePlan.Stream: time since last message sent:", time.Since(ap.lastStreamMessageSent))
+		if verboseStreamLogging {
+			log.Println("ActivePlan.Stream: time since last message sent:", time.Since(ap.lastStreamMessageSent))
+		}
 
 		if time.Since(ap.lastStreamMessageSent) < MaxStreamRate {
-			// log.Println("ActivePlan.Stream: buffering message")
+			if verboseStreamLogging {
+				log.Println("ActivePlan.Stream: buffering message")
+			}
 
 			// Buffer the message
 			ap.streamMessageBuffer = append(ap.streamMessageBuffer, msg)
 			ap.streamMu.Unlock()
 			return
 		} else if len(ap.streamMessageBuffer) > 0 {
-			// log.Println("ActivePlan.Stream: flushing buffer")
+			if verboseStreamLogging {
+				log.Println("ActivePlan.Stream: flushing buffer")
+			}
 
 			// Need to flush buffer first
 			ap.streamMessageBuffer = append(ap.streamMessageBuffer, msg)
@@ -212,9 +222,10 @@ func (ap *ActivePlan) Stream(msg shared.StreamMessage) {
 			ap.streamMessageBuffer = []shared.StreamMessage{}
 			ap.streamMu.Unlock()
 
-			// log.Println("ActivePlan.Stream: sending multi-message:")
-			// log.Println(bufferToFlush)
-
+			if verboseStreamLogging {
+				log.Println("ActivePlan.Stream: sending multi-message:")
+				log.Println(bufferToFlush)
+			}
 			// Send as multi-message
 			ap.Stream(shared.StreamMessage{
 				Type:           shared.StreamMessageMulti,
@@ -273,8 +284,10 @@ func (ap *ActivePlan) Stream(msg shared.StreamMessage) {
 		}
 	}
 
-	// log.Println("ActivePlan.Stream: sending direct message")
-	// log.Println(string(msgJson))
+	if verboseStreamLogging {
+		log.Println("ActivePlan.Stream: sending direct message")
+		log.Println(string(msgJson))
+	}
 
 	ap.streamCh <- string(msgJson)
 

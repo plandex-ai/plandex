@@ -56,10 +56,14 @@ func (state *activeTellStreamState) handleStreamFinished() handleStreamFinishedR
 
 	err = db.SetPlanStatus(planId, branch, shared.PlanStatusDescribing, "")
 	if err != nil {
-		state.onError(fmt.Errorf("failed to set plan status to describing: %v", err), true, "", "")
+		res := state.onError(onErrorParams{
+			streamErr: fmt.Errorf("failed to set plan status to describing: %v", err),
+			storeDesc: true,
+		})
+
 		return handleStreamFinishedResult{
-			shouldContinueMainLoop: true,
-			shouldReturn:           false,
+			shouldContinueMainLoop: res.shouldContinueMainLoop,
+			shouldReturn:           res.shouldReturn,
 		}
 	}
 
@@ -151,10 +155,13 @@ func (state *activeTellStreamState) handleStreamFinished() handleStreamFinishedR
 			}
 		case <-time.After(30 * time.Second):
 			log.Println("Timeout waiting for auto load context")
-			state.onError(fmt.Errorf("timeout waiting for auto load context response"), true, "", "")
+			res := state.onError(onErrorParams{
+				streamErr: fmt.Errorf("timeout waiting for auto load context response"),
+				storeDesc: true,
+			})
 			return handleStreamFinishedResult{
-				shouldContinueMainLoop: true,
-				shouldReturn:           false,
+				shouldContinueMainLoop: res.shouldContinueMainLoop,
+				shouldReturn:           res.shouldReturn,
 			}
 		case <-active.AutoLoadContextCh:
 		}
@@ -332,11 +339,14 @@ func (state *activeTellStreamState) handleDescAndExecStatus(autoLoadContextFiles
 	for i := 0; i < 2; i++ {
 		err := <-errCh
 		if err != nil {
-			state.onError(err, true, "", "")
+			res := state.onError(onErrorParams{
+				streamErr: err,
+				storeDesc: true,
+			})
 			return handleDescAndExecStatusResult{
 				handleStreamFinishedResult: handleStreamFinishedResult{
-					shouldContinueMainLoop: true,
-					shouldReturn:           false,
+					shouldContinueMainLoop: res.shouldContinueMainLoop,
+					shouldReturn:           res.shouldReturn,
 				},
 				subtaskFinished:      subtaskFinished,
 				shouldContinue:       shouldContinue,
@@ -455,7 +465,10 @@ func (state *activeTellStreamState) storeOnFinished(params storeOnFinishedParams
 		assistantMsg, convoCommitMsg, err := state.storeAssistantReply(replyType) // updates state.convo
 
 		if err != nil {
-			state.onError(fmt.Errorf("failed to store assistant message: %v", err), true, "", "")
+			state.onError(onErrorParams{
+				streamErr: fmt.Errorf("failed to store assistant message: %v", err),
+				storeDesc: true,
+			})
 			return err
 		}
 
@@ -480,7 +493,12 @@ func (state *activeTellStreamState) storeOnFinished(params storeOnFinishedParams
 		err = db.StoreDescription(description)
 
 		if err != nil {
-			state.onError(fmt.Errorf("failed to store description: %v", err), false, assistantMsg.Id, convoCommitMsg)
+			state.onError(onErrorParams{
+				streamErr:      fmt.Errorf("failed to store description: %v", err),
+				storeDesc:      false,
+				convoMessageId: assistantMsg.Id,
+				commitMsg:      convoCommitMsg,
+			})
 			return err
 		}
 		log.Println("Description stored")
@@ -500,7 +518,12 @@ func (state *activeTellStreamState) storeOnFinished(params storeOnFinishedParams
 			err = db.StorePlanSubtasks(currentOrgId, planId, state.subtasks)
 			if err != nil {
 				log.Printf("Error storing plan subtasks: %v\n", err)
-				state.onError(fmt.Errorf("failed to store plan subtasks: %v", err), false, assistantMsg.Id, convoCommitMsg)
+				state.onError(onErrorParams{
+					streamErr:      fmt.Errorf("failed to store plan subtasks: %v", err),
+					storeDesc:      false,
+					convoMessageId: assistantMsg.Id,
+					commitMsg:      convoCommitMsg,
+				})
 				return err
 			}
 
@@ -540,7 +563,12 @@ func (state *activeTellStreamState) storeOnFinished(params storeOnFinishedParams
 
 		err = db.GitAddAndCommit(currentOrgId, planId, branch, convoCommitMsg)
 		if err != nil {
-			state.onError(fmt.Errorf("failed to commit: %v", err), false, assistantMsg.Id, convoCommitMsg)
+			state.onError(onErrorParams{
+				streamErr:      fmt.Errorf("failed to commit: %v", err),
+				storeDesc:      false,
+				convoMessageId: assistantMsg.Id,
+				commitMsg:      convoCommitMsg,
+			})
 			return err
 		}
 		log.Println("Assistant reply, description, and subtasks committed")

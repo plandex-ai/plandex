@@ -172,6 +172,16 @@ func getSuggestions() []prompt.Suggest {
 		}
 		suggestions = append(suggestions, prompt.Suggest{Text: "\\load " + loadArgs})
 
+		if isDir {
+			loadArgs = path
+			loadArgs += " --map"
+			suggestions = append(suggestions, prompt.Suggest{Text: "\\load " + loadArgs})
+
+			loadArgs = path
+			loadArgs += " --tree"
+			suggestions = append(suggestions, prompt.Suggest{Text: "\\load " + loadArgs})
+		}
+
 		if filepath.Ext(path) == ".md" || filepath.Ext(path) == ".txt" {
 			suggestions = append(suggestions, prompt.Suggest{Text: "\\run " + path})
 		}
@@ -581,6 +591,52 @@ func completer(in prompt.Document) ([]prompt.Suggest, pstrings.RuneNumber, pstri
 
 	fuzzySuggestions := prompt.FilterFuzzy(getSuggestions(), w, true)
 	prefixMatches := prompt.FilterHasPrefix(getSuggestions(), w, true)
+
+	runFilteredFuzzy := []prompt.Suggest{}
+	runFilteredPrefixMatches := []prompt.Suggest{}
+	for _, s := range fuzzySuggestions {
+		if strings.HasPrefix(s.Text, "\\run ") {
+			if wCmd == "run" {
+				runFilteredFuzzy = append(runFilteredFuzzy, s)
+			}
+		} else {
+			runFilteredFuzzy = append(runFilteredFuzzy, s)
+		}
+	}
+	for _, s := range prefixMatches {
+		if strings.HasPrefix(s.Text, "\\run ") {
+			if wCmd == "run" {
+				runFilteredPrefixMatches = append(runFilteredPrefixMatches, s)
+			}
+		} else {
+			runFilteredPrefixMatches = append(runFilteredPrefixMatches, s)
+		}
+	}
+	fuzzySuggestions = runFilteredFuzzy
+	prefixMatches = runFilteredPrefixMatches
+
+	loadFilteredFuzzy := []prompt.Suggest{}
+	loadFilteredPrefixMatches := []prompt.Suggest{}
+	for _, s := range fuzzySuggestions {
+		if strings.HasPrefix(s.Text, "\\load ") {
+			if wCmd == "load" {
+				loadFilteredFuzzy = append(loadFilteredFuzzy, s)
+			}
+		} else {
+			loadFilteredFuzzy = append(loadFilteredFuzzy, s)
+		}
+	}
+	for _, s := range prefixMatches {
+		if strings.HasPrefix(s.Text, "\\load ") {
+			if wCmd == "load" {
+				loadFilteredPrefixMatches = append(loadFilteredPrefixMatches, s)
+			}
+		} else {
+			loadFilteredPrefixMatches = append(loadFilteredPrefixMatches, s)
+		}
+	}
+	fuzzySuggestions = loadFilteredFuzzy
+	prefixMatches = loadFilteredPrefixMatches
 
 	if strings.TrimSpace(w) != "\\" {
 		sort.Slice(prefixMatches, func(i, j int) bool {

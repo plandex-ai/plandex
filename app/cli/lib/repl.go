@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"plandex/fs"
 	"plandex/term"
+	"strconv"
 )
 
 var ReplSettingsDir string
@@ -147,10 +148,24 @@ func ExecPlandexCommand(args []string) (string, error) {
 	tmpFile.Close()
 	defer os.Remove(tmpPath)
 
+	columns := term.GetTerminalWidth()
+	hasDarkBackground := term.HasDarkBackground()
+	streamForegroundColor := term.GetStreamForegroundColor()
+
+	var glamourStyle string
+	if hasDarkBackground {
+		glamourStyle = "dark"
+	} else {
+		glamourStyle = "light"
+	}
+
 	// Set env vars
 	env := append(os.Environ(),
 		"PLANDEX_REPL=1",
 		"PLANDEX_REPL_OUTPUT_FILE="+tmpPath,
+		"PLANDEX_COLUMNS="+strconv.Itoa(columns),
+		"PLANDEX_STREAM_FOREGROUND_COLOR="+streamForegroundColor.Sequence(false),
+		"GLAMOUR_STYLE="+glamourStyle,
 	)
 
 	// Run command
@@ -159,7 +174,6 @@ func ExecPlandexCommand(args []string) (string, error) {
 
 	// Connect stdin directly
 	cmd.Stdin = os.Stdin
-	// Use MultiWriter to send output to both buffer and os.Stdout
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 

@@ -65,6 +65,7 @@ var AvailableModels = []*AvailableModel{
 			BaseUrl:                    OpenAIV1BaseUrl,
 			PreferredModelOutputFormat: ModelOutputFormatToolCallJson,
 			RoleParamsDisabled:         true,
+			ReasoningEffortEnabled:     true,
 		},
 	},
 	{

@@ -82,8 +82,9 @@ type OpenRouterProviderConfig struct {
 
 type ExtendedChatCompletionRequest struct {
 	*openai.ChatCompletionRequest
-	Prediction *OpenAIPrediction         `json:"prediction,omitempty"`
-	Provider   *OpenRouterProviderConfig `json:"provider,omitempty"`
+	Prediction      *OpenAIPrediction         `json:"prediction,omitempty"`
+	Provider        *OpenRouterProviderConfig `json:"provider,omitempty"`
+	ReasoningEffort *shared.ReasoningEffort   `json:"reasoning_effort,omitempty"`
 }
 
 // ExtendedChatCompletionStream can wrap either a native OpenAI stream or our custom implementation
@@ -111,43 +112,20 @@ type ErrorAccumulator struct {
 // JSONUnmarshaler handles JSON unmarshaling for stream responses
 type JSONUnmarshaler struct{}
 
-func CreateChatCompletionStreamWithRetries(
+func CreateChatCompletionStreamWithRetries[T openai.ChatCompletionRequest | ExtendedChatCompletionRequest](
 	clients map[string]ClientInfo,
 	modelConfig *shared.ModelRoleConfig,
 	ctx context.Context,
-	req interface{},
+	req T,
 ) (*ExtendedChatCompletionStream, error) {
 	client, ok := clients[modelConfig.BaseModelConfig.ApiKeyEnvVar]
 	if !ok {
 		return nil, fmt.Errorf("client not found for api key env var: %s", modelConfig.BaseModelConfig.ApiKeyEnvVar)
 	}
 
-	var baseReq *openai.ChatCompletionRequest
-	var finalReq *ExtendedChatCompletionRequest
-
-	switch typedReq := req.(type) {
-	case openai.ChatCompletionRequest:
-		baseReq = &typedReq
-		finalReq = &ExtendedChatCompletionRequest{
-			ChatCompletionRequest: baseReq,
-		}
-
-	case ExtendedChatCompletionRequest:
-		baseReq = typedReq.ChatCompletionRequest
-		finalReq = &typedReq
-
-	default:
-		return nil, fmt.Errorf("invalid request type: %T", req)
-	}
-
-	resolveReq(baseReq, modelConfig)
-
-	providerOrder := getOpenRouterProviderOrder(modelConfig)
-	if len(providerOrder) > 0 {
-		finalReq.Provider = &OpenRouterProviderConfig{
-			Order:          providerOrder,
-			AllowFallbacks: modelConfig.BaseModelConfig.OpenRouterAllowFallbacks,
-		}
+	finalReq, err := getFinalReq(req, modelConfig)
+	if err != nil {
+		return nil, fmt.Errorf("error setting up request: %w", err)
 	}
 
 	return withRetries(ctx, func() (*ExtendedChatCompletionStream, error) {
@@ -166,6 +144,17 @@ func CreateChatCompletionWithRetries[T openai.ChatCompletionRequest | ExtendedCh
 		return openai.ChatCompletionResponse{}, fmt.Errorf("client not found for api key env var: %s", modelConfig.BaseModelConfig.ApiKeyEnvVar)
 	}
 
+	finalReq, err := getFinalReq(req, modelConfig)
+	if err != nil {
+		return openai.ChatCompletionResponse{}, fmt.Errorf("error setting up request: %w", err)
+	}
+
+	return withRetries(ctx, func() (openai.ChatCompletionResponse, error) {
+		return createChatCompletionExtended(client, modelConfig.BaseModelConfig.BaseUrl, ctx, *finalReq)
+	})
+}
+
+func getFinalReq[T openai.ChatCompletionRequest | ExtendedChatCompletionRequest](req T, modelConfig *shared.ModelRoleConfig) (*ExtendedChatCompletionRequest, error) {
 	var baseReq *openai.ChatCompletionRequest
 	var finalReq *ExtendedChatCompletionRequest
 
@@ -190,14 +179,12 @@ func CreateChatCompletionWithRetries[T openai.ChatCompletionRequest | ExtendedCh
 	} else {
 		log.Println("Invalid request type")
 		log.Println("Request type:", reflect.TypeOf(req))
-		return openai.ChatCompletionResponse{}, fmt.Errorf("invalid request type")
+		return nil, fmt.Errorf("invalid request type")
 	}
 
 	resolveReq(baseReq, modelConfig)
 
-	return withRetries(ctx, func() (openai.ChatCompletionResponse, error) {
-		return createChatCompletionExtended(client, modelConfig.BaseModelConfig.BaseUrl, ctx, *finalReq)
-	})
+	return finalReq, nil
 }
 
 func createChatCompletionExtended(

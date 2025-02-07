@@ -31,15 +31,21 @@ func StartStreamUI(prompt string, buildOnly bool) error {
 		os.Exit(0)
 	}
 
+	log.Println("Starting stream UI")
+
 	initial := initialModel(prestartReply, prompt, buildOnly)
 
 	mu.Lock()
 	ui = tea.NewProgram(initial, tea.WithAltScreen())
 	mu.Unlock()
 
+	log.Println("Running bubbletea program")
 	wg.Add(1)
 	m, err := ui.Run()
+	log.Println("Bubbletea program finished")
 	wg.Done()
+
+	log.Println("Stream UI finished")
 
 	if err != nil {
 		return fmt.Errorf("error running stream UI: %v", err)
@@ -132,7 +138,6 @@ func Send(msg shared.StreamMessage) {
 	}
 	mu.Lock()
 	defer mu.Unlock()
-	// log.Printf("sending stream message to UI: %s\n", msg.Type)
 	ui.Send(msg)
 }
 

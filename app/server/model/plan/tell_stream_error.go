@@ -6,12 +6,31 @@ import (
 	"log"
 	"net/http"
 	"plandex-server/db"
+	"strconv"
+	"time"
 
 	"github.com/plandex/plandex/shared"
 )
 
-func (state *activeTellStreamState) onError(streamErr error, storeDesc bool, convoMessageId, commitMsg string) {
-	log.Printf("\nStream error: %v\n", streamErr)
+type onErrorParams struct {
+	streamErr      error
+	storeDesc      bool
+	convoMessageId string
+	commitMsg      string
+	canRetry       bool
+}
+
+type onErrorResult struct {
+	shouldContinueMainLoop bool
+	shouldReturn           bool
+}
+
+func (state *activeTellStreamState) onError(params onErrorParams) onErrorResult {
+	log.Printf("\nStream error: %v\n", params.streamErr)
+	streamErr := params.streamErr
+	storeDesc := params.storeDesc
+	convoMessageId := params.convoMessageId
+	commitMsg := params.commitMsg
 
 	planId := state.plan.Id
 	branch := state.branch
@@ -19,10 +38,43 @@ func (state *activeTellStreamState) onError(streamErr error, storeDesc bool, con
 	summarizedToMessageId := state.summarizedToMessageId
 
 	active := GetActivePlan(planId, branch)
+	numRetries := state.execTellPlanParams.numErrorRetry
 
 	if active == nil {
 		log.Printf("tellStream onError - Active plan not found for plan ID %s on branch %s\n", planId, branch)
-		return
+		return onErrorResult{
+			shouldReturn: true,
+		}
+	}
+
+	canRetry := params.canRetry
+
+	if canRetry {
+		if numRetries >= NumTellStreamRetries {
+			log.Printf("tellStream onError - Max retries reached for plan ID %s on branch %s\n", planId, branch)
+
+			canRetry = false
+		}
+	}
+
+	if canRetry {
+		// stop stream via context (ensures we stop child streams too)
+		active.CancelModelStreamFn()
+
+		active.ResetModelCtx()
+
+		retryDelaySeconds := 1 * numRetries * (numRetries / 2)
+
+		log.Printf("tellStream onError - Retry %d/%d - Retrying stream in %d seconds", numRetries+1, NumTellStreamRetries, retryDelaySeconds)
+		time.Sleep(time.Duration(retryDelaySeconds) * time.Second)
+
+		params := state.execTellPlanParams
+		params.numErrorRetry = numRetries + 1
+
+		execTellPlan(params)
+		return onErrorResult{
+			shouldReturn: true,
+		}
 	}
 
 	storeDescAndReply := func() error {
@@ -105,10 +157,19 @@ func (state *activeTellStreamState) onError(streamErr error, storeDesc bool, con
 
 	storeDescAndReply()
 
+	msg := "Stream error: " + streamErr.Error()
+	if params.canRetry && numRetries >= NumTellStreamRetries {
+		msg += " | Failed after " + strconv.Itoa(numRetries) + " retries."
+	}
+
 	active.StreamDoneCh <- &shared.ApiError{
 		Type:   shared.ApiErrorTypeOther,
 		Status: http.StatusInternalServerError,
-		Msg:    "Stream error: " + streamErr.Error(),
+		Msg:    msg,
+	}
+
+	return onErrorResult{
+		shouldContinueMainLoop: true,
 	}
 }
 
@@ -116,5 +177,8 @@ func (state *activeTellStreamState) onActivePlanMissingError() {
 	planId := state.plan.Id
 	branch := state.branch
 	log.Printf("Active plan not found for plan ID %s on branch %s\n", planId, branch)
-	state.onError(fmt.Errorf("active plan not found for plan ID %s on branch %s", planId, branch), true, "", "")
+	state.onError(onErrorParams{
+		streamErr: fmt.Errorf("active plan not found for plan ID %s on branch %s", planId, branch),
+		storeDesc: true,
+	})
 }

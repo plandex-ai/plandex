@@ -25,15 +25,21 @@ func (state *activeTellStreamState) getTellSysPrompt(autoContextEnabled, smartCo
 
 		if isPlanningStage {
 			log.Println("isPlanningStage")
+			log.Println("autoContextEnabled", autoContextEnabled)
+			log.Println("isContextStage", isContextStage)
 			if autoContextEnabled && isContextStage {
+				log.Println("autoContextEnabled && isContextStage -- adding auto context preamble")
 				sysCreate = prompts.AutoContextTellPreamble
 			} else if autoContextEnabled || smartContextEnabled {
+				log.Println("autoContextEnabled || smartContextEnabled -- adding auto context preamble")
 				sysCreate = prompts.SysPlanningAutoContext
 
-				if isFollowUp {
+				if isFollowUp && !req.IsApplyDebug && !req.IsUserDebug {
+					log.Println("isFollowUp && !req.IsApplyDebug && !req.IsUserDebug -- adding follow up classifier prompt")
 					sysCreate = prompts.FollowUpPlanClassifierPrompt + "\n\n" + sysCreate
 				}
 			} else {
+				log.Println("sysPlanningBasic")
 				sysCreate = prompts.SysPlanningBasic
 			}
 		} else {

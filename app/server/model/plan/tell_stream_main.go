@@ -56,8 +56,17 @@ mainLoop:
 				state.execHookOnStop(true)
 				return
 			} else {
-				state.onError(fmt.Errorf("stream timeout due to inactivity | This usually means the model is not responding."), true, "", "")
-				continue mainLoop
+				res := state.onError(onErrorParams{
+					streamErr: fmt.Errorf("stream timeout due to inactivity | This usually means the model is not responding."),
+					storeDesc: true,
+					canRetry:  true,
+				})
+				if res.shouldReturn {
+					return
+				}
+				if res.shouldContinueMainLoop {
+					continue mainLoop
+				}
 			}
 
 		default:
@@ -85,19 +94,39 @@ mainLoop:
 				state.generationId = response.ID
 			}
 
-			if response.Usage != nil {
-				state.handleUsageChunk(response.Usage)
-				return
-			}
-
 			if len(response.Choices) == 0 {
-				state.onError(fmt.Errorf("stream finished with no choices | This usually means the model failed to generate a valid response."), true, "", "")
-				continue mainLoop
+				if response.Usage != nil {
+					state.handleUsageChunk(response.Usage)
+					return
+				}
+
+				res := state.onError(onErrorParams{
+					streamErr: fmt.Errorf("stream finished with no choices | This usually means the model failed to generate a valid response."),
+					storeDesc: true,
+					canRetry:  true,
+				})
+				if res.shouldReturn {
+					return
+				}
+				if res.shouldContinueMainLoop {
+					// continue instead of returning so that context cancellation is handled
+					continue mainLoop
+				}
 			}
 
 			if len(response.Choices) > 1 {
-				state.onError(fmt.Errorf("stream finished with more than one choice | This usually means the model failed to generate a valid response."), true, "", "")
-				continue mainLoop
+				res := state.onError(onErrorParams{
+					streamErr: fmt.Errorf("stream finished with more than one choice | This usually means the model failed to generate a valid response."),
+					storeDesc: true,
+					canRetry:  true,
+				})
+				if res.shouldReturn {
+					return
+				}
+				if res.shouldContinueMainLoop {
+					// continue instead of returning so that context cancellation is handled
+					continue mainLoop
+				}
 			}
 
 			choice := response.Choices[0]
@@ -112,8 +141,17 @@ mainLoop:
 				log.Println("Finish reason: ", choice.FinishReason)
 
 				if choice.FinishReason == "error" {
-					state.onError(fmt.Errorf("model stopped with error status | This usually means the model is not responding."), true, "", "")
-					continue mainLoop
+					res := state.onError(onErrorParams{
+						streamErr: fmt.Errorf("model stopped with error status | This usually means the model is not responding."),
+						storeDesc: true,
+						canRetry:  true,
+					})
+					if res.shouldReturn {
+						return
+					}
+					if res.shouldContinueMainLoop {
+						continue mainLoop
+					}
 				}
 
 				streamFinishResult := state.handleStreamFinished()
@@ -139,6 +177,9 @@ mainLoop:
 				timer.Reset(model.OPENAI_USAGE_CHUNK_TIMEOUT)
 				streamFinished = true
 				continue
+			} else if response.Usage != nil {
+				state.handleUsageChunk(response.Usage)
+				return
 			}
 			// let main loop continue
 		}

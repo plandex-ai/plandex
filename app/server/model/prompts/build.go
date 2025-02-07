@@ -61,7 +61,10 @@ func GetValidateEditsPrompt(params ValidateEditsPromptParams) string {
 
 	if len(syntaxErrors) > 0 {
 		editsIncorrect = true
-		s += `The proposed changes, when applied, resulted in a file with syntax errors, meaning the proposed changes were either written incorrectly or were not correctly applied. The resulting file has the following syntax errors:\n\n` + strings.Join(syntaxErrors, "\n") + `\n\n`
+		s += `The proposed changes, when applied, resulted in a file with syntax errors, meaning the proposed changes were either written incorrectly or were not correctly applied. The resulting file has the following syntax errors:\n\n` + strings.Join(syntaxErrors, "\n") + `
+
+		In your evaluation step, include an assessment of what caused the syntax errors.
+		`
 	}
 
 	if fullCorrection {
@@ -81,19 +84,26 @@ func GetValidateEditsPrompt(params ValidateEditsPromptParams) string {
 		s += ValidateOnlyExample
 	}
 
+	s += `You will examine ONLY whether the changes were correctly applied according to the proposed changes explanation. Do NOT evaluate code quality, best practices, or potential issues - focus solely on whether the applied changes match what was proposed.`
+
 	return s
 }
 
 const EditsValidateBasePrompt = `
-Your task is to examine the applied changes diff and output EXACTLY ONE of these patterns:
+Your task is to ONLY examine whether the changes were applied as described in the proposed changes explanation. Do NOT evaluate:
+- Code quality
+- Missing imports
+- Unused variables
+- Best practices
+- Potential bugs
+- Syntax (unless syntax errors have been previously specified)
 
-Your evaluation should assess:
-a. Whether any code was removed that should have been kept
-b. Whether any code was duplicated that should not have been
-c. Whether any code was incorrectly inserted or replaced
-d. Whether any code was inserted at the wrong location
-
-Be succinct—do not add additional text or summarize the changes beyond what is necessary.
+Your evaluation should ONLY assess:
+a. Whether the changes were applied at the correct location as specified
+b. Whether the changes included all the specified additions/modifications
+c. Whether any unintended changes were made to surrounding code
+d. Whether any specified code was accidentally removed or duplicated
+e. Any syntax errors that have been previously specified
 `
 
 const EditsValidateCorrectPattern = `

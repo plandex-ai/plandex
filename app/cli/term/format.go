@@ -1,6 +1,8 @@
 package term
 
 import (
+	"fmt"
+	"os"
 	"strings"
 
 	"github.com/charmbracelet/glamour"
@@ -9,17 +11,57 @@ import (
 	"github.com/muesli/termenv"
 )
 
-func GetMarkdown(input string) (string, error) {
-	width := getTerminalWidth()
+func init() {
+	// pre-cache the glamour renderer
+	getGlamourRenderer()
+}
 
-	inputBytes := utils.RemoveFrontmatter([]byte(input))
+var (
+	cachedGlamourRenderer      *glamour.TermRenderer
+	cachedGlamourRendererWidth int
+)
 
-	r, _ := glamour.NewTermRenderer(
-		// detect background color and pick either the default dark or light theme
-		glamour.WithAutoStyle(),
+func getGlamourRenderer() (*glamour.TermRenderer, error) {
+	width := GetTerminalWidth()
+
+	if cachedGlamourRenderer != nil && cachedGlamourRendererWidth == width {
+		return cachedGlamourRenderer, nil
+	}
+
+	// Build the renderer options.
+	var opts []glamour.TermRendererOption
+
+	// Check for a GLAMOUR_STYLE env variable.
+	if style, ok := os.LookupEnv("GLAMOUR_STYLE"); ok && style != "" {
+		opts = append(opts, glamour.WithStandardStyle(style))
+	} else {
+		// Fallback to auto style detection.
+		opts = append(opts, glamour.WithAutoStyle())
+	}
+
+	// Always set word wrap and preserved newlines.
+	opts = append(opts,
 		glamour.WithWordWrap(min(width, 80)),
 		glamour.WithPreservedNewLines(),
 	)
+
+	r, err := glamour.NewTermRenderer(opts...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create glamour renderer: %w", err)
+	}
+
+	cachedGlamourRenderer = r
+	cachedGlamourRendererWidth = width
+	return r, nil
+}
+
+func GetMarkdown(input string) (string, error) {
+	inputBytes := utils.RemoveFrontmatter([]byte(input))
+
+	r, err := getGlamourRenderer()
+	if err != nil {
+		return "", err
+	}
 
 	out, err := r.RenderBytes(inputBytes)
 	if err != nil {
@@ -30,10 +72,9 @@ func GetMarkdown(input string) (string, error) {
 }
 
 func GetPlain(input string) string {
-	width := getTerminalWidth()
+	width := GetTerminalWidth()
 
 	s := wordwrap.String(input, min(width-2, 80))
-
 	// add padding
 	lines := strings.Split(s, "\n")
 	for i := range lines {
@@ -41,10 +82,7 @@ func GetPlain(input string) string {
 	}
 	s = strings.Join(lines, "\n")
 
-	c := "234"
-	if termenv.HasDarkBackground() {
-		c = "251"
-	}
+	s = termenv.String(s).Foreground(GetStreamForegroundColor()).String()
 
-	return termenv.String(s).Foreground(termenv.ANSI256.Color(c)).String()
+	return s
 }

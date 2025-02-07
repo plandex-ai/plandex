@@ -43,6 +43,9 @@ func (fileState *activeBuildStreamFileState) buildWholeFileFallback(proposedCont
 		},
 	}
 
+	maxExpectedOutputTokens := shared.GetNumTokensEstimate(originalFile + proposedContent)
+	modelConfig := config.GetRoleForOutputTokens(maxExpectedOutputTokens)
+
 	inputTokens := shared.GetMessagesTokenEstimate(messages...) + shared.TokensPerRequest
 
 	_, apiErr := hooks.ExecHook(hooks.WillSendModelRequest, hooks.HookParams{
@@ -50,8 +53,8 @@ func (fileState *activeBuildStreamFileState) buildWholeFileFallback(proposedCont
 		Plan: fileState.plan,
 		WillSendModelRequestParams: &hooks.WillSendModelRequestParams{
 			InputTokens:  inputTokens,
-			OutputTokens: config.GetReservedOutputTokens(),
-			ModelName:    config.BaseModelConfig.ModelName,
+			OutputTokens: modelConfig.GetReservedOutputTokens(),
+			ModelName:    modelConfig.BaseModelConfig.ModelName,
 		},
 	})
 	if apiErr != nil {
@@ -59,21 +62,21 @@ func (fileState *activeBuildStreamFileState) buildWholeFileFallback(proposedCont
 		return
 	}
 
-	log.Println("buildWholeFile - calling model for applied changes validation")
+	log.Println("buildWholeFile - calling model for whole file write")
 
 	var resp openai.ChatCompletionResponse
 	var err error
 
 	modelReq := &openai.ChatCompletionRequest{
-		Model:       config.BaseModelConfig.ModelName,
+		Model:       modelConfig.BaseModelConfig.ModelName,
 		Messages:    messages,
-		Temperature: config.Temperature,
-		TopP:        config.TopP,
+		Temperature: modelConfig.Temperature,
+		TopP:        modelConfig.TopP,
 	}
 
-	log.Println("buildWholeFile - config.BaseModelConfig.PredictedOutputEnabled:", config.BaseModelConfig.PredictedOutputEnabled)
+	log.Println("buildWholeFile - modelConfig.BaseModelConfig.PredictedOutputEnabled:", modelConfig.BaseModelConfig.PredictedOutputEnabled)
 
-	if config.BaseModelConfig.PredictedOutputEnabled {
+	if modelConfig.BaseModelConfig.PredictedOutputEnabled {
 		extendedReq := &model.ExtendedChatCompletionRequest{
 			ChatCompletionRequest: modelReq,
 			Prediction: &model.OpenAIPrediction{
@@ -110,8 +113,8 @@ No comments
 			DidSendModelRequestParams: &hooks.DidSendModelRequestParams{
 				InputTokens:    resp.Usage.PromptTokens,
 				OutputTokens:   resp.Usage.CompletionTokens,
-				ModelName:      config.BaseModelConfig.ModelName,
-				ModelProvider:  config.BaseModelConfig.Provider,
+				ModelName:      modelConfig.BaseModelConfig.ModelName,
+				ModelProvider:  modelConfig.BaseModelConfig.Provider,
 				ModelPackName:  fileState.settings.ModelPack.Name,
 				ModelRole:      shared.ModelRoleBuilder,
 				Purpose:        "File edit (whole file)",

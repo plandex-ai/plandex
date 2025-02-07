@@ -7,8 +7,17 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/muesli/termenv"
 	"golang.org/x/term"
 )
+
+func init() {
+	// pre-cache terminal settings
+	IsTerminal()
+	GetTerminalWidth()
+	GetStreamForegroundColor()
+	HasDarkBackground()
+}
 
 func AlternateScreen() {
 	// Switch to alternate screen and hide the cursor
@@ -64,40 +73,88 @@ func PageOutputReverse(output string) {
 
 func GetDivisionLine() string {
 	// Get the terminal width
-	terminalWidth := getTerminalWidth()
+	terminalWidth := GetTerminalWidth()
 	return strings.Repeat("─", terminalWidth)
 }
 
-func getTerminalWidth() int {
-	// Try to get terminal size
-	if w, _, err := term.GetSize(int(os.Stdout.Fd())); err == nil {
-		return w
+var envReplCols int
+var envDefaultCols int
+
+func GetTerminalWidth() int {
+	if envReplCols != 0 {
+		return envReplCols
 	}
 
-	// Use tput to get terminal width
-	if w, err := getWidthFromTput(); err == nil {
-		return w
+	if os.Getenv("PLANDEX_COLUMNS") != "" {
+		w, err := strconv.Atoi(os.Getenv("PLANDEX_COLUMNS"))
+		if err == nil {
+			envReplCols = w
+			return w
+		}
 	}
 
+	if IsTerminal() {
+		// Try to get terminal size
+		if w, _, err := term.GetSize(int(os.Stdout.Fd())); err == nil {
+			return w
+		}
+	}
+
+	if envDefaultCols != 0 {
+		return envDefaultCols
+	}
+
+	// Not running in a TTY or GetSize failed; use a default.
 	// Try to get width from environment variable
 	if w, err := strconv.Atoi(os.Getenv("COLUMNS")); err == nil {
+		envDefaultCols = w
 		return w
 	}
 
 	// Fallback to default width
-	return 50
+	return 80
 }
 
-func getWidthFromTput() (int, error) {
-	cmd := exec.Command("tput", "cols")
-	cmd.Stdin = os.Stdin
-	out, err := cmd.Output()
-	if err != nil {
-		return 0, err
+var envStreamForegroundColor termenv.Color
+
+func GetStreamForegroundColor() termenv.Color {
+	if envStreamForegroundColor != nil {
+		return envStreamForegroundColor
 	}
-	width, err := strconv.Atoi(strings.TrimSpace(string(out)))
-	if err != nil {
-		return 0, err
+
+	if os.Getenv("PLANDEX_STREAM_FOREGROUND_COLOR") != "" {
+		envStreamForegroundColor = termenv.ANSI256.Color(os.Getenv("PLANDEX_STREAM_FOREGROUND_COLOR"))
+		return envStreamForegroundColor
 	}
-	return width, nil
+
+	c := "234"
+	if HasDarkBackground() {
+		c = "251"
+	}
+	envStreamForegroundColor = termenv.ANSI256.Color(c)
+	return envStreamForegroundColor
+}
+
+var envHasDarkBackground bool
+var cachedHasDarkBackground bool
+
+func HasDarkBackground() bool {
+	if cachedHasDarkBackground {
+		return envHasDarkBackground
+	}
+	envHasDarkBackground = termenv.HasDarkBackground()
+	cachedHasDarkBackground = true
+	return envHasDarkBackground
+}
+
+var envIsTerminal bool
+var cachedIsTerminal bool
+
+func IsTerminal() bool {
+	if cachedIsTerminal {
+		return envIsTerminal
+	}
+	envIsTerminal = term.IsTerminal(int(os.Stdout.Fd()))
+	cachedIsTerminal = true
+	return envIsTerminal
 }
