@@ -1,3 +1,4 @@
+
 package cmd
 
 import (
@@ -9,6 +10,7 @@ import (
 	"plandex/term"
 	"sort"
 
+	"github.com/plandex-ai/survey/v2"
 	"github.com/spf13/cobra"
 )
 
@@ -51,42 +53,11 @@ func reject(cmd *cobra.Command, args []string) {
 		term.OutputErrorAndExit("No pending changes to reject")
 	}
 
-	if rejectAll || len(args) == 0 {
+	if rejectAll {
 		numToReject := len(currentFiles)
 		suffix := ""
 		if numToReject > 1 {
 			suffix = "s"
-		}
-
-		if !rejectAll {
-			term.StopSpinner()
-
-			// output list of pending files
-			fmt.Println("Files with pending changes:")
-
-			pathsToSort := make([]string, 0, len(currentFiles))
-
-			for path := range currentFiles {
-				pathsToSort = append(pathsToSort, path)
-			}
-
-			sort.Strings(pathsToSort)
-
-			for _, path := range pathsToSort {
-				fmt.Println(" • ", path)
-			}
-			fmt.Println()
-
-			shouldContinue, err := term.ConfirmYesNo("Reject changes to %d file%s?", numToReject, suffix)
-
-			if err != nil {
-				term.OutputErrorAndExit("failed to get confirmation user input: %s", err)
-			}
-
-			if !shouldContinue {
-				os.Exit(0)
-			}
-			term.ResumeSpinner()
 		}
 
 		apiErr := api.Client.RejectAllChanges(lib.CurrentPlanId, lib.CurrentBranch)
@@ -98,7 +69,6 @@ func reject(cmd *cobra.Command, args []string) {
 
 		term.StopSpinner()
 		fmt.Printf("✅ Rejected changes to %d file%s\n", numToReject, suffix)
-
 		return
 	}
 
@@ -109,20 +79,61 @@ func reject(cmd *cobra.Command, args []string) {
 				term.OutputErrorAndExit("File %s not found in plan or has no changes to reject", path)
 			}
 		}
+
+		numToReject := len(args)
+		suffix := ""
+		if numToReject > 1 {
+			suffix = "s"
+		}
+
+		apiErr = api.Client.RejectFiles(lib.CurrentPlanId, lib.CurrentBranch, args)
+		term.StopSpinner()
+
+		if apiErr != nil {
+			term.OutputErrorAndExit("Error rejecting changes: %v", apiErr)
+		}
+
+		fmt.Printf("✅ Rejected changes to %d file%s\n", numToReject, suffix)
+		return
 	}
 
-	numToReject := len(args)
-	suffix := ""
-	if numToReject > 1 {
-		suffix = "s"
+	// No args provided - use survey multiselect
+	term.StopSpinner()
+
+	pathsToSort := make([]string, 0, len(currentFiles))
+	for path := range currentFiles {
+		pathsToSort = append(pathsToSort, path)
+	}
+	sort.Strings(pathsToSort)
+
+	var selectedFiles []string
+	prompt := &survey.MultiSelect{
+		Message: "Select files to reject:",
+		Options: pathsToSort,
 	}
 
-	apiErr = api.Client.RejectFiles(lib.CurrentPlanId, lib.CurrentBranch, args)
+	err := survey.AskOne(prompt, &selectedFiles)
+	if err != nil {
+		term.OutputErrorAndExit("Error getting file selection: %v", err)
+	}
+
+	if len(selectedFiles) == 0 {
+		fmt.Println("No files selected")
+		return
+	}
+
+	term.StartSpinner("")
+	apiErr = api.Client.RejectFiles(lib.CurrentPlanId, lib.CurrentBranch, selectedFiles)
 	term.StopSpinner()
 
 	if apiErr != nil {
 		term.OutputErrorAndExit("Error rejecting changes: %v", apiErr)
 	}
 
-	fmt.Printf("✅ Rejected changes to %d file%s\n", numToReject, suffix)
+	suffix := ""
+	if len(selectedFiles) > 1 {
+		suffix = "s"
+	}
+	fmt.Printf("✅ Rejected changes to %d file%s\n", len(selectedFiles), suffix)
 }
+
