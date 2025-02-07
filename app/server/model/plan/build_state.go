@@ -33,7 +33,7 @@ type activeBuildStreamFileState struct {
 	activeBuild                *types.ActiveBuild
 	preBuildState              string
 	parser                     *sitter.Parser
-	language                   shared.TreeSitterLanguage
+	language                   shared.Language
 	syntaxCheckTimedOut        bool
 	preBuildStateSyntaxInvalid bool
 	structuredEditNumRetry     int

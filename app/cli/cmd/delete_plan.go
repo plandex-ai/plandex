@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"path"
 	"strconv"
 	"strings"
 
@@ -31,35 +32,10 @@ var rmCmd = &cobra.Command{
 	Run:     del,
 }
 
-
-func parseIndices(indexRange string, maxIndex int) map[int]bool {
-	indices := make(map[int]bool)
-	parts := strings.Split(indexRange, "-")
-
-	if len(parts) == 1 {
-		// Single index
-		idx, err := strconv.Atoi(parts[0])
-		if err == nil && idx > 0 && idx <= maxIndex {
-			indices[idx-1] = true
-		}
-	} else if len(parts) == 2 {
-		// Range of indices
-		start, err1 := strconv.Atoi(parts[0])
-		end, err2 := strconv.Atoi(parts[1])
-		if err1 == nil && err2 == nil && start > 0 && end <= maxIndex && start <= end {
-			for i := start - 1; i < end; i++ {
-				indices[i] = true
-			}
-		}
-	}
-
-	return indices
-}
-
 func matchPlansByPattern(pattern string, plans []*shared.Plan) []*shared.Plan {
 	var matched []*shared.Plan
 	for _, plan := range plans {
-		if matched, _ := path.Match(pattern, plan.Name); matched {
+		if isMatched, err := path.Match(pattern, plan.Name); err == nil && isMatched {
 			matched = append(matched, plan)
 		}
 	}
@@ -115,9 +91,13 @@ func del(cmd *cobra.Command, args []string) {
 
 		// Check if it's a range of indices
 		if strings.Contains(nameOrPattern, "-") {
-			indices := parseIndices(nameOrPattern, len(plans))
+			// Create single-element slice with the range pattern
+			rangeArgs := []string{nameOrPattern}
+			indices := parseIndices(rangeArgs)
 			for idx := range indices {
-				plansToDelete = append(plansToDelete, plans[idx])
+				if idx >= 0 && idx < len(plans) {
+					plansToDelete = append(plansToDelete, plans[idx])
+				}
 			}
 		} else if strings.Contains(nameOrPattern, "*") {
 			// Wildcard pattern matching

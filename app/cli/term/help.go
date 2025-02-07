@@ -37,6 +37,7 @@ var CliCommands = []CmdConfig{
 	{"rm", "", "remove context by index, range, name, or glob", true},
 	{"clear", "", "remove all context", true},
 	{"update", "u", "update outdated context", true},
+	{"show", "", "show current context by name or index", true},
 
 	{"changes", "", "review pending changes in a TUI", false},
 	{"diff", "", "review pending changes in 'git diff' format", true},

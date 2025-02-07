@@ -20,7 +20,7 @@ type execApplyTreeSitterParams struct {
 	references  []Reference
 	removals    []Removal
 	anchorLines map[int]int
-	language    shared.TreeSitterLanguage
+	language    shared.Language
 	parser      *tree_sitter.Parser
 	ctx         context.Context
 }

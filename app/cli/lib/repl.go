@@ -139,6 +139,15 @@ func GetHistory() []string {
 // ExecPlandexCommand spawns the same binary, wiring std streams directly so you
 // don't have to capture output. Any os.Exit calls in the child won't kill your REPL.
 func ExecPlandexCommand(args []string) (string, error) {
+	return ExecPlandexCommandWithParams(args, ExecPlandexCommandParams{})
+}
+
+type ExecPlandexCommandParams struct {
+	Args               []string
+	DisableSuggestions bool
+}
+
+func ExecPlandexCommandWithParams(args []string, params ExecPlandexCommandParams) (string, error) {
 	// Create temp file
 	tmpFile, err := os.CreateTemp("", "plandex-output-*")
 	if err != nil {
@@ -148,25 +157,32 @@ func ExecPlandexCommand(args []string) (string, error) {
 	tmpFile.Close()
 	defer os.Remove(tmpPath)
 
-	columns := term.GetTerminalWidth()
-	hasDarkBackground := term.HasDarkBackground()
-	streamForegroundColor := term.GetStreamForegroundColor()
+	var env []string = os.Environ()
+	if os.Getenv("PLANDEX_REPL") == "" {
+		columns := term.GetTerminalWidth()
+		hasDarkBackground := term.HasDarkBackground()
+		streamForegroundColor := term.GetStreamForegroundColor()
 
-	var glamourStyle string
-	if hasDarkBackground {
-		glamourStyle = "dark"
-	} else {
-		glamourStyle = "light"
+		var glamourStyle string
+		if hasDarkBackground {
+			glamourStyle = "dark"
+		} else {
+			glamourStyle = "light"
+		}
+
+		// Set env vars
+		env = append(env,
+			"PLANDEX_REPL=1",
+			"PLANDEX_REPL_OUTPUT_FILE="+tmpPath,
+			"PLANDEX_COLUMNS="+strconv.Itoa(columns),
+			"PLANDEX_STREAM_FOREGROUND_COLOR="+streamForegroundColor.Sequence(false),
+			"GLAMOUR_STYLE="+glamourStyle,
+		)
 	}
 
-	// Set env vars
-	env := append(os.Environ(),
-		"PLANDEX_REPL=1",
-		"PLANDEX_REPL_OUTPUT_FILE="+tmpPath,
-		"PLANDEX_COLUMNS="+strconv.Itoa(columns),
-		"PLANDEX_STREAM_FOREGROUND_COLOR="+streamForegroundColor.Sequence(false),
-		"GLAMOUR_STYLE="+glamourStyle,
-	)
+	if params.DisableSuggestions {
+		env = append(env, "PLANDEX_DISABLE_SUGGESTIONS=1")
+	}
 
 	// Run command
 	cmd := exec.Command(os.Args[0], args...)

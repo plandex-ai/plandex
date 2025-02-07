@@ -36,13 +36,13 @@ func (ps PlanSettings) GetPlannerMaxReservedOutputTokens() int {
 	}
 }
 
-func (ps PlanSettings) GetContextLoaderMaxTokens() int {
+func (ps PlanSettings) GetArchitectMaxTokens() int {
 	if ps.ModelOverrides.MaxTokens == nil {
 		if ps.ModelPack == nil {
-			defaultLoader := DefaultModelPack.GetContextLoader()
+			defaultLoader := DefaultModelPack.GetArchitect()
 			return defaultLoader.GetFinalLargeContextFallback().BaseModelConfig.MaxTokens
 		} else {
-			loader := ps.ModelPack.GetContextLoader()
+			loader := ps.ModelPack.GetArchitect()
 			return loader.GetFinalLargeContextFallback().BaseModelConfig.MaxTokens
 		}
 	} else {
@@ -50,13 +50,13 @@ func (ps PlanSettings) GetContextLoaderMaxTokens() int {
 	}
 }
 
-func (ps PlanSettings) GetContextLoaderMaxReservedOutputTokens() int {
+func (ps PlanSettings) GetArchitectMaxReservedOutputTokens() int {
 	if ps.ModelOverrides.MaxTokens == nil {
 		if ps.ModelPack == nil {
-			defaultLoader := DefaultModelPack.GetContextLoader()
+			defaultLoader := DefaultModelPack.GetArchitect()
 			return defaultLoader.GetFinalLargeContextFallback().GetReservedOutputTokens()
 		} else {
-			loader := ps.ModelPack.GetContextLoader()
+			loader := ps.ModelPack.GetArchitect()
 			return loader.GetFinalLargeContextFallback().GetReservedOutputTokens()
 		}
 	} else {
@@ -113,11 +113,11 @@ func (ps PlanSettings) GetPlannerEffectiveMaxTokens() int {
 	return maxPlannerTokens - maxReservedOutputTokens
 }
 
-func (ps PlanSettings) GetContextLoaderEffectiveMaxTokens() int {
-	maxContextLoaderTokens := ps.GetContextLoaderMaxTokens()
-	maxReservedOutputTokens := ps.GetContextLoaderMaxReservedOutputTokens()
+func (ps PlanSettings) GetArchitectEffectiveMaxTokens() int {
+	maxArchitectTokens := ps.GetArchitectMaxTokens()
+	maxReservedOutputTokens := ps.GetArchitectMaxReservedOutputTokens()
 
-	return maxContextLoaderTokens - maxReservedOutputTokens
+	return maxArchitectTokens - maxReservedOutputTokens
 }
 
 func (ps PlanSettings) GetWholeFileBuilderEffectiveMaxTokens() int {
@@ -142,7 +142,7 @@ func (ps PlanSettings) GetRequiredEnvVars() map[string]bool {
 	envVars[ms.Namer.BaseModelConfig.ApiKeyEnvVar] = true
 	envVars[ms.CommitMsg.BaseModelConfig.ApiKeyEnvVar] = true
 	envVars[ms.ExecStatus.BaseModelConfig.ApiKeyEnvVar] = true
-	envVars[ms.ContextLoader.BaseModelConfig.ApiKeyEnvVar] = true
+	envVars[ms.Architect.BaseModelConfig.ApiKeyEnvVar] = true
 	envVars[ms.Coder.BaseModelConfig.ApiKeyEnvVar] = true
 
 	// for backward compatibility with <= 0.8.4 server versions

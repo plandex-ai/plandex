@@ -1,7 +1,6 @@
 package syntax
 
 import (
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -15,7 +14,7 @@ import (
 const parserTimeout = 500 * time.Millisecond
 
 type ValidationRes = struct {
-	Lang     shared.TreeSitterLanguage
+	Lang     shared.Language
 	Parser   *tree_sitter.Parser
 	TimedOut bool
 	Valid    bool
@@ -23,9 +22,7 @@ type ValidationRes = struct {
 }
 
 func ValidateFile(ctx context.Context, path string, file string) (*ValidationRes, error) {
-	ext := filepath.Ext(path)
-
-	parser, lang, fallbackParser, fallbackLang := GetParserForExt(ext)
+	parser, lang, fallbackParser, fallbackLang := GetParserForPath(path)
 
 	if parser == nil {
 		return &ValidationRes{Lang: lang, Parser: nil}, nil
@@ -34,7 +31,7 @@ func ValidateFile(ctx context.Context, path string, file string) (*ValidationRes
 	return ValidateWithParsers(ctx, lang, parser, fallbackLang, fallbackParser, file)
 }
 
-func ValidateWithParsers(ctx context.Context, lang shared.TreeSitterLanguage, parser *tree_sitter.Parser, fallbackLang shared.TreeSitterLanguage, fallbackParser *tree_sitter.Parser, file string) (*ValidationRes, error) {
+func ValidateWithParsers(ctx context.Context, lang shared.Language, parser *tree_sitter.Parser, fallbackLang shared.Language, fallbackParser *tree_sitter.Parser, file string) (*ValidationRes, error) {
 	if file == "" {
 		return &ValidationRes{Lang: lang, Parser: parser, Valid: true}, nil
 	}

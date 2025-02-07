@@ -469,7 +469,7 @@ func LoadContexts(ctx Ctx, params LoadContextsParams) (*shared.LoadContextRespon
 	}
 
 	plannerMaxTokens := settings.GetPlannerEffectiveMaxTokens()
-	contextLoaderMaxTokens := settings.GetContextLoaderEffectiveMaxTokens()
+	contextLoaderMaxTokens := settings.GetArchitectEffectiveMaxTokens()
 
 	mapContextsByFilePath := make(map[string]Context)
 
@@ -728,7 +728,7 @@ func UpdateContexts(params UpdateContextsParams) (*shared.UpdateContextResponse,
 	}
 
 	plannerMaxTokens := settings.GetPlannerEffectiveMaxTokens()
-	contextLoaderMaxTokens := settings.GetContextLoaderEffectiveMaxTokens()
+	contextLoaderMaxTokens := settings.GetArchitectEffectiveMaxTokens()
 
 	if planConfig.AutoLoadContext {
 		existingContexts, err := GetPlanContexts(orgId, planId, false, false)

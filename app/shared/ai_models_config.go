@@ -15,7 +15,7 @@ var DefaultConfigByRole = map[ModelRole]ModelRoleConfig{
 		Temperature: 0.3,
 		TopP:        0.3,
 	},
-	ModelRoleContextLoader: {
+	ModelRoleArchitect: {
 		Temperature: 0.3,
 		TopP:        0.3,
 	},

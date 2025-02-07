@@ -203,8 +203,8 @@ func createModelPack(cmd *cobra.Command, args []string) {
 	// Selecting models for each role
 	mp.Planner = getPlannerRoleConfig(customModels)
 
-	contextLoader := getModelRoleConfig(customModels, shared.ModelRoleContextLoader)
-	mp.ContextLoader = &contextLoader
+	contextLoader := getModelRoleConfig(customModels, shared.ModelRoleArchitect)
+	mp.Architect = &contextLoader
 
 	coder := getModelRoleConfig(customModels, shared.ModelRoleCoder)
 	mp.Coder = &coder

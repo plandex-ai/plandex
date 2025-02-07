@@ -99,7 +99,7 @@ func isIncludeAndContinueNode(node Node) bool {
 	return !config.ignore
 }
 
-func (m nodeMap) getConfig(t string, lang shared.TreeSitterLanguage) *nodeConfig {
+func (m nodeMap) getConfig(t string, lang shared.Language) *nodeConfig {
 	// first look for exact match
 	config, ok := m[nodeType(t)]
 	if ok {
@@ -258,7 +258,7 @@ func findAssignmentBoundary(node Node) *Node {
 }
 
 func setNodeType(node *Node) {
-	if node.Lang == shared.TreeSitterLanguageElixir && node.Type == "call" {
+	if node.Lang == shared.LanguageElixir && node.Type == "call" {
 		content := node.TsNode.Content(node.Bytes)
 
 		switch {

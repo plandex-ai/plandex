@@ -5,7 +5,7 @@ type ModelRole string
 const (
 	ModelRolePlanner          ModelRole = "planner"
 	ModelRoleCoder            ModelRole = "coder"
-	ModelRoleContextLoader    ModelRole = "context-loader"
+	ModelRoleArchitect        ModelRole = "architect"
 	ModelRolePlanSummary      ModelRole = "summarizer"
 	ModelRoleBuilder          ModelRole = "builder"
 	ModelRoleWholeFileBuilder ModelRole = "whole-file-builder"
@@ -14,7 +14,7 @@ const (
 	ModelRoleExecStatus       ModelRole = "auto-continue"
 )
 
-var AllModelRoles = []ModelRole{ModelRolePlanner, ModelRoleCoder, ModelRoleContextLoader, ModelRolePlanSummary, ModelRoleBuilder, ModelRoleWholeFileBuilder, ModelRoleName, ModelRoleCommitMsg, ModelRoleExecStatus}
+var AllModelRoles = []ModelRole{ModelRolePlanner, ModelRoleCoder, ModelRoleArchitect, ModelRolePlanSummary, ModelRoleBuilder, ModelRoleWholeFileBuilder, ModelRoleName, ModelRoleCommitMsg, ModelRoleExecStatus}
 
 var ModelRoleDescriptions = map[ModelRole]string{
 	ModelRolePlanner:          "replies to prompts and makes plans",
@@ -25,5 +25,5 @@ var ModelRoleDescriptions = map[ModelRole]string{
 	ModelRoleName:             "names plans",
 	ModelRoleCommitMsg:        "writes commit messages",
 	ModelRoleExecStatus:       "determines whether to auto-continue",
-	ModelRoleContextLoader:    "decides what context to load using codebase map",
+	ModelRoleArchitect:        "makes high level plan and decides what context to load using codebase map",
 }

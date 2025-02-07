@@ -1342,7 +1342,7 @@ func TestStructuredReplacements(t *testing.T) {
 				desc = "Type: add"
 			}
 
-			parser, lang, _, _ := GetParserForExt("." + tt.ext)
+			parser, lang, _, _ := GetParserForPath("file." + tt.ext)
 
 			res := ApplyChanges(
 				tt.original,

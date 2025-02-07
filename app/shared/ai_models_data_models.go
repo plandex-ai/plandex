@@ -263,7 +263,7 @@ type ModelPack struct {
 	Namer            ModelRoleConfig   `json:"namer"`
 	CommitMsg        ModelRoleConfig   `json:"commitMsg"`
 	ExecStatus       ModelRoleConfig   `json:"execStatus"`
-	ContextLoader    *ModelRoleConfig  `json:"contextLoader"`
+	Architect        *ModelRoleConfig  `json:"contextLoader"`
 }
 
 func (m *ModelPack) GetCoder() ModelRoleConfig {
@@ -280,11 +280,11 @@ func (m *ModelPack) GetWholeFileBuilder() ModelRoleConfig {
 	return *m.WholeFileBuilder
 }
 
-func (m *ModelPack) GetContextLoader() ModelRoleConfig {
-	if m.ContextLoader == nil {
+func (m *ModelPack) GetArchitect() ModelRoleConfig {
+	if m.Architect == nil {
 		return m.Planner.ModelRoleConfig
 	}
-	return *m.ContextLoader
+	return *m.Architect
 }
 
 type ModelOverrides struct {

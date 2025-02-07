@@ -61,7 +61,7 @@ func ApplyChanges(
 	desc string,
 	addMissingStartEndRefs bool,
 	parser *sitter.Parser,
-	language shared.TreeSitterLanguage,
+	language shared.Language,
 	ctx context.Context,
 ) *ApplyChangesResult {
 	proposedInitial := proposed

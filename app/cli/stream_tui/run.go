@@ -105,6 +105,7 @@ func StartStreamUI(prompt string, buildOnly bool) error {
 			log.Println("stream UI - error writing output to repl temp file: ", err)
 		}
 	}
+
 	return nil
 }
 
@@ -120,7 +121,6 @@ func Quit() {
 	mu.Unlock()
 
 	wg.Wait() // Wait for the UI to fully terminate
-
 }
 
 func Send(msg shared.StreamMessage) {

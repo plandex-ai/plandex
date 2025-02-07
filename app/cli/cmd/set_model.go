@@ -459,13 +459,13 @@ func updateModelSettings(args []string, originalSettings *shared.PlanSettings) *
 					settings.ModelPack.Planner.ReservedOutputTokens = *reservedOutputTokens
 				}
 
-			case shared.ModelRoleContextLoader:
+			case shared.ModelRoleArchitect:
 				if selectedModel != nil {
-					settings.ModelPack.ContextLoader.BaseModelConfig = selectedModel.BaseModelConfig
+					settings.ModelPack.Architect.BaseModelConfig = selectedModel.BaseModelConfig
 				} else if temperature != nil {
-					settings.ModelPack.ContextLoader.Temperature = float32(*temperature)
+					settings.ModelPack.Architect.Temperature = float32(*temperature)
 				} else if topP != nil {
-					settings.ModelPack.ContextLoader.TopP = float32(*topP)
+					settings.ModelPack.Architect.TopP = float32(*topP)
 				}
 
 			case shared.ModelRoleCoder:

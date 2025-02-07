@@ -46,7 +46,7 @@ func CreateModelPack(ms *ModelPack) error {
 	query := `INSERT INTO model_sets (org_id, name, description, planner, plan_summary, builder, namer, commit_msg, exec_status, context_loader, coder) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 	RETURNING id, created_at`
 
-	err := Conn.QueryRow(query, ms.OrgId, ms.Name, ms.Description, ms.Planner, ms.PlanSummary, ms.Builder, ms.Namer, ms.CommitMsg, ms.ExecStatus, ms.ContextLoader, ms.Coder).Scan(&ms.Id, &ms.CreatedAt)
+	err := Conn.QueryRow(query, ms.OrgId, ms.Name, ms.Description, ms.Planner, ms.PlanSummary, ms.Builder, ms.Namer, ms.CommitMsg, ms.ExecStatus, ms.Architect, ms.Coder).Scan(&ms.Id, &ms.CreatedAt)
 
 	if err != nil {
 		return fmt.Errorf("error inserting new model pack: %v", err)

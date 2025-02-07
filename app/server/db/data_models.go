@@ -295,34 +295,34 @@ type repoLock struct {
 }
 
 type ModelPack struct {
-	Id            string                   `db:"id"`
-	OrgId         string                   `db:"org_id"`
-	Name          string                   `db:"name"`
-	Description   string                   `db:"description"`
-	Planner       shared.PlannerRoleConfig `db:"planner"`
-	Coder         *shared.ModelRoleConfig  `db:"coder"`
-	PlanSummary   shared.ModelRoleConfig   `db:"plan_summary"`
-	Builder       shared.ModelRoleConfig   `db:"builder"`
-	Namer         shared.ModelRoleConfig   `db:"namer"`
-	CommitMsg     shared.ModelRoleConfig   `db:"commit_msg"`
-	ExecStatus    shared.ModelRoleConfig   `db:"exec_status"`
-	ContextLoader *shared.ModelRoleConfig  `db:"context_loader"`
-	CreatedAt     time.Time                `db:"created_at"`
+	Id          string                   `db:"id"`
+	OrgId       string                   `db:"org_id"`
+	Name        string                   `db:"name"`
+	Description string                   `db:"description"`
+	Planner     shared.PlannerRoleConfig `db:"planner"`
+	Coder       *shared.ModelRoleConfig  `db:"coder"`
+	PlanSummary shared.ModelRoleConfig   `db:"plan_summary"`
+	Builder     shared.ModelRoleConfig   `db:"builder"`
+	Namer       shared.ModelRoleConfig   `db:"namer"`
+	CommitMsg   shared.ModelRoleConfig   `db:"commit_msg"`
+	ExecStatus  shared.ModelRoleConfig   `db:"exec_status"`
+	Architect   *shared.ModelRoleConfig  `db:"context_loader"`
+	CreatedAt   time.Time                `db:"created_at"`
 }
 
 func (modelPack *ModelPack) ToApi() *shared.ModelPack {
 	return &shared.ModelPack{
-		Id:            modelPack.Id,
-		Name:          modelPack.Name,
-		Description:   modelPack.Description,
-		Planner:       modelPack.Planner,
-		ContextLoader: modelPack.ContextLoader,
-		Coder:         modelPack.Coder,
-		PlanSummary:   modelPack.PlanSummary,
-		Builder:       modelPack.Builder,
-		Namer:         modelPack.Namer,
-		CommitMsg:     modelPack.CommitMsg,
-		ExecStatus:    modelPack.ExecStatus,
+		Id:          modelPack.Id,
+		Name:        modelPack.Name,
+		Description: modelPack.Description,
+		Planner:     modelPack.Planner,
+		Architect:   modelPack.Architect,
+		Coder:       modelPack.Coder,
+		PlanSummary: modelPack.PlanSummary,
+		Builder:     modelPack.Builder,
+		Namer:       modelPack.Namer,
+		CommitMsg:   modelPack.CommitMsg,
+		ExecStatus:  modelPack.ExecStatus,
 	}
 }
 

@@ -12,7 +12,7 @@ const (
 	matchTypeSuffix matchType = "suffix"
 )
 
-type langSet map[shared.TreeSitterLanguage]bool
+type langSet map[shared.Language]bool
 
 type nodeConfig struct {
 	nodeMatch    matchType
@@ -47,206 +47,206 @@ var assignmentNodeMap = nodeMap{
 	"const_spec": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguageGo: true,
+			shared.LanguageGo: true,
 		},
 	},
 	"var_spec": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguageGo: true,
+			shared.LanguageGo: true,
 		},
 	},
 
 	"lexical_declaration": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguageJavascript: true,
-			shared.TreeSitterLanguageTypescript: true,
-			shared.TreeSitterLanguageJsx:        true,
-			shared.TreeSitterLanguageTsx:        true,
+			shared.LanguageJavascript: true,
+			shared.LanguageTypescript: true,
+			shared.LanguageJsx:        true,
+			shared.LanguageTsx:        true,
 		},
 	},
 
 	"field_definition": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguageJavascript: true,
-			shared.TreeSitterLanguageTypescript: true,
-			shared.TreeSitterLanguageJsx:        true,
-			shared.TreeSitterLanguageTsx:        true,
+			shared.LanguageJavascript: true,
+			shared.LanguageTypescript: true,
+			shared.LanguageJsx:        true,
+			shared.LanguageTsx:        true,
 		},
 	},
 
 	"interface_declaration": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguageTypescript: true,
-			shared.TreeSitterLanguageTsx:        true,
-			shared.TreeSitterLanguagePhp:        true,
+			shared.LanguageTypescript: true,
+			shared.LanguageTsx:        true,
+			shared.LanguagePhp:        true,
 		},
 	},
 
 	"trait_declaration": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguagePhp: true,
+			shared.LanguagePhp: true,
 		},
 	},
 
 	"enum_declaration": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguagePhp:    true,
-			shared.TreeSitterLanguageCsharp: true,
+			shared.LanguagePhp:    true,
+			shared.LanguageCsharp: true,
 		},
 	},
 
 	"global_declaration": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguagePhp: true,
+			shared.LanguagePhp: true,
 		},
 	},
 	"static_variable_declaration": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguagePhp: true,
+			shared.LanguagePhp: true,
 		},
 	},
 
 	"type_alias_declaration": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguageTypescript: true,
-			shared.TreeSitterLanguageTsx:        true,
-			shared.TreeSitterLanguageElm:        true,
+			shared.LanguageTypescript: true,
+			shared.LanguageTsx:        true,
+			shared.LanguageElm:        true,
 		},
 	},
 
 	"assignment_statement": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguagePython: true,
+			shared.LanguagePython: true,
 		},
 	},
 
 	"class_variable_assignment": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguageRuby: true,
+			shared.LanguageRuby: true,
 		},
 	},
 	"assignment": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguageRuby: true,
+			shared.LanguageRuby: true,
 		},
 	},
 
 	"let_declaration": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguageRust: true,
+			shared.LanguageRust: true,
 		},
 	},
 	"const_item": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguageRust: true,
+			shared.LanguageRust: true,
 		},
 	},
 
 	"static_declaration": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguageJava:   true,
-			shared.TreeSitterLanguageCsharp: true,
+			shared.LanguageJava:   true,
+			shared.LanguageCsharp: true,
 		},
 	},
 	"member_declaration": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguageJava:   true,
-			shared.TreeSitterLanguageCsharp: true,
+			shared.LanguageJava:   true,
+			shared.LanguageCsharp: true,
 		},
 	},
 	"field_declaration": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguageJava:   true,
-			shared.TreeSitterLanguageCsharp: true,
+			shared.LanguageJava:   true,
+			shared.LanguageCsharp: true,
 		},
 	},
 
 	"property_declaration": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguageKotlin: true,
-			shared.TreeSitterLanguageScala:  true,
-			shared.TreeSitterLanguagePhp:    true,
-			shared.TreeSitterLanguageSwift:  true,
+			shared.LanguageKotlin: true,
+			shared.LanguageScala:  true,
+			shared.LanguagePhp:    true,
+			shared.LanguageSwift:  true,
 		},
 	},
 
 	"let_binding": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguageOCaml: true,
+			shared.LanguageOCaml: true,
 		},
 	},
 	"value_binding": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguageOCaml: true,
+			shared.LanguageOCaml: true,
 		},
 	},
 
 	"unary_operator": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguageElixir: true,
+			shared.LanguageElixir: true,
 		},
 	},
 
 	"value_declaration": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguageElm: true,
+			shared.LanguageElm: true,
 		},
 	},
 
 	"declaration_command": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguageBash: true,
+			shared.LanguageBash: true,
 		},
 	},
 
 	"type_item": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguageRust: true,
+			shared.LanguageRust: true,
 		},
 	},
 
 	"val_definition": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguageScala: true,
+			shared.LanguageScala: true,
 		},
 	},
 
 	"type_definition": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguageScala: true,
+			shared.LanguageScala: true,
 		},
 	},
 
 	"typealias_declaration": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguageSwift: true,
+			shared.LanguageSwift: true,
 		},
 	},
 }
@@ -294,98 +294,98 @@ var definitionNodeMap = nodeMap{
 	"def": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguageRuby: true,
+			shared.LanguageRuby: true,
 		},
 	},
 	"method": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguageRuby: true,
+			shared.LanguageRuby: true,
 		},
 	},
 	"defmodule": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguageElixir: true,
+			shared.LanguageElixir: true,
 		},
 	},
 	"defmacro": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguageElixir: true,
+			shared.LanguageElixir: true,
 		},
 	},
 	"port": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguageElm: true,
+			shared.LanguageElm: true,
 		},
 	},
 	"functor": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguageOCaml: true,
+			shared.LanguageOCaml: true,
 		},
 	},
 	"_def": {
 		nodeMatch: matchTypeSuffix,
 		languages: langSet{
-			shared.TreeSitterLanguageC:   true,
-			shared.TreeSitterLanguageCpp: true,
+			shared.LanguageC:   true,
+			shared.LanguageCpp: true,
 		},
 	},
 	"type_annotation": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguageElm: true,
+			shared.LanguageElm: true,
 		},
 	},
 	"function_statement": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguageLua: true,
+			shared.LanguageLua: true,
 		},
 	},
 	"rule_set": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguageCss: true,
+			shared.LanguageCss: true,
 		},
 	},
 	"from_instruction": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguageDockerfile: true,
+			shared.LanguageDockerfile: true,
 		},
 	},
 	"entrypoint_instruction": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguageDockerfile: true,
+			shared.LanguageDockerfile: true,
 		},
 	},
 	"cmd_instruction": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguageDockerfile: true,
+			shared.LanguageDockerfile: true,
 		},
 	},
 	"expose_instruction": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguageDockerfile: true,
+			shared.LanguageDockerfile: true,
 		},
 	},
 	"copy_instruction": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguageDockerfile: true,
+			shared.LanguageDockerfile: true,
 		},
 	},
 	"env_instruction": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguageDockerfile: true,
+			shared.LanguageDockerfile: true,
 		},
 	},
 
@@ -429,14 +429,14 @@ var definitionNodeMap = nodeMap{
 		nodeMatch: matchTypeSuffix,
 		ignore:    true,
 		languages: langSet{
-			shared.TreeSitterLanguageC:   true,
-			shared.TreeSitterLanguageCpp: true,
+			shared.LanguageC:   true,
+			shared.LanguageCpp: true,
 		},
 	},
 	"_item": {
 		nodeMatch: matchTypeSuffix,
 		languages: langSet{
-			shared.TreeSitterLanguageRust: true,
+			shared.LanguageRust: true,
 		},
 	},
 }
@@ -460,122 +460,122 @@ var parentNodeMap = nodeMap{
 	"object": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguageScala: true,
+			shared.LanguageScala: true,
 		},
 	},
 	"object_declaration": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguageKotlin: true,
+			shared.LanguageKotlin: true,
 		},
 	},
 	"protocol": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguageSwift: true,
+			shared.LanguageSwift: true,
 		},
 	},
 	"protocol_": {
 		nodeMatch: matchTypePrefix,
 		languages: langSet{
-			shared.TreeSitterLanguageElixir: true,
+			shared.LanguageElixir: true,
 		},
 	},
 	"extension": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguageSwift: true,
+			shared.LanguageSwift: true,
 		},
 	},
 
 	"const_declaration": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguageGo: true,
+			shared.LanguageGo: true,
 		},
 	},
 
 	"var_declaration": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguageGo: true,
+			shared.LanguageGo: true,
 		},
 	},
 
 	"template_declaration": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguageCpp: true,
+			shared.LanguageCpp: true,
 		},
 	},
 
 	"module": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguageRuby: true,
+			shared.LanguageRuby: true,
 		},
 	},
 
 	"class": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguageRuby: true,
+			shared.LanguageRuby: true,
 		},
 	},
 
 	"singleton_class": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguageRuby: true,
+			shared.LanguageRuby: true,
 		},
 	},
 
 	"enum_entry": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguageKotlin: true,
+			shared.LanguageKotlin: true,
 		},
 	},
 
 	"closure": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguageGroovy: true,
+			shared.LanguageGroovy: true,
 		},
 	},
 
 	"impl_item": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguageRust: true,
+			shared.LanguageRust: true,
 		},
 	},
 
 	"trait_item": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguageRust: true,
+			shared.LanguageRust: true,
 		},
 	},
 
 	"trait_definition": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguageScala: true,
+			shared.LanguageScala: true,
 		},
 	},
 
 	"object_definition": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguageScala: true,
+			shared.LanguageScala: true,
 		},
 	},
 
 	"function_statement": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguageLua: true,
+			shared.LanguageLua: true,
 		},
 		onlyChildren: map[nodeType]bool{
 			"function_statement": true,
@@ -589,8 +589,8 @@ var implBoundaryNodeMap = nodeMap{
 		nodeMatch: matchTypeEqual,
 		all:       true,
 		except: langSet{
-			shared.TreeSitterLanguageRuby:   true,
-			shared.TreeSitterLanguageElixir: true,
+			shared.LanguageRuby:   true,
+			shared.LanguageElixir: true,
 		},
 	},
 	"body": {
@@ -610,95 +610,95 @@ var implBoundaryNodeMap = nodeMap{
 	"do_block": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguageRuby:   true,
-			shared.TreeSitterLanguageElixir: true,
+			shared.LanguageRuby:   true,
+			shared.LanguageElixir: true,
 		},
 	},
 	"body_statement": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguageRuby: true,
+			shared.LanguageRuby: true,
 		},
 	},
 	"field_declaration_list": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguageGo:  true,
-			shared.TreeSitterLanguageC:   true,
-			shared.TreeSitterLanguageCpp: true,
+			shared.LanguageGo:  true,
+			shared.LanguageC:   true,
+			shared.LanguageCpp: true,
 		},
 	},
 	"property_accessors": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguageCsharp: true,
-			shared.TreeSitterLanguageSwift:  true,
+			shared.LanguageCsharp: true,
+			shared.LanguageSwift:  true,
 		},
 	},
 	"const_declaration": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguageGo: true,
+			shared.LanguageGo: true,
 		},
 	},
 	"var_declaration": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguageGo: true,
+			shared.LanguageGo: true,
 		},
 	},
 	"method_elem": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguageGo: true,
+			shared.LanguageGo: true,
 		},
 	},
 
 	"preproc_arg": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguageC:   true,
-			shared.TreeSitterLanguageCpp: true,
+			shared.LanguageC:   true,
+			shared.LanguageCpp: true,
 		},
 	},
 
 	"statement_block": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguageJavascript: true,
-			shared.TreeSitterLanguageTypescript: true,
-			shared.TreeSitterLanguageJsx:        true,
-			shared.TreeSitterLanguageTsx:        true,
+			shared.LanguageJavascript: true,
+			shared.LanguageTypescript: true,
+			shared.LanguageJsx:        true,
+			shared.LanguageTsx:        true,
 		},
 	},
 
 	"declaration_list": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguagePhp:    true,
-			shared.TreeSitterLanguageCsharp: true,
-			shared.TreeSitterLanguageRust:   true,
+			shared.LanguagePhp:    true,
+			shared.LanguageCsharp: true,
+			shared.LanguageRust:   true,
 		},
 	},
 
 	"_declaration_list": {
 		nodeMatch: matchTypeSuffix,
 		languages: langSet{
-			shared.TreeSitterLanguageRust: true,
+			shared.LanguageRust: true,
 		},
 	},
 
 	"enum_variant_list": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguageRust: true,
+			shared.LanguageRust: true,
 		},
 	},
 
 	"=": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguageScala: true,
+			shared.LanguageScala: true,
 		},
 	},
 }
@@ -723,46 +723,46 @@ var assignmentBoundaryNodeMap = nodeMap{
 	"interface_body": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguageTypescript: true,
-			shared.TreeSitterLanguageTsx:        true,
+			shared.LanguageTypescript: true,
+			shared.LanguageTsx:        true,
 		},
 	},
 	"declaration_list": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguagePhp:    true,
-			shared.TreeSitterLanguageCsharp: true,
+			shared.LanguagePhp:    true,
+			shared.LanguageCsharp: true,
 		},
 	},
 	"_declaration_list": {
 		nodeMatch: matchTypeSuffix,
 		languages: langSet{
-			shared.TreeSitterLanguagePhp:    true,
-			shared.TreeSitterLanguageCsharp: true,
+			shared.LanguagePhp:    true,
+			shared.LanguageCsharp: true,
 		},
 	},
 	"lambda_literal": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguageKotlin: true,
+			shared.LanguageKotlin: true,
 		},
 	},
 	"arguments": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguageElixir: true,
+			shared.LanguageElixir: true,
 		},
 	},
 	"eq": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguageElm: true,
+			shared.LanguageElm: true,
 		},
 	},
 	"statements": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguageSwift: true,
+			shared.LanguageSwift: true,
 		},
 	},
 }
@@ -782,20 +782,20 @@ var identifierNodeMap = nodeMap{
 	"constant": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguageRuby: true,
+			shared.LanguageRuby: true,
 		},
 	},
 	"name": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguagePhp: true,
+			shared.LanguagePhp: true,
 		},
 	},
 	"bare_key": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguageToml: true,
-			shared.TreeSitterLanguageYaml: true,
+			shared.LanguageToml: true,
+			shared.LanguageYaml: true,
 		},
 	},
 }
@@ -804,7 +804,7 @@ var passThroughParentNodeMap = nodeMap{
 	"template_declaration": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguageCpp: true,
+			shared.LanguageCpp: true,
 		},
 	},
 }
@@ -813,7 +813,7 @@ var includeAndContinueNodeMap = nodeMap{
 	"template_parameter_list": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.TreeSitterLanguageCpp: true,
+			shared.LanguageCpp: true,
 		},
 	},
 }

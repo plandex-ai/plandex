@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"path/filepath"
 	"plandex-server/db"
 	"plandex-server/syntax"
 	"plandex-server/types"
@@ -134,8 +133,7 @@ func (state *activeBuildStreamFileState) loadBuildFile(activeBuild *types.Active
 
 	convoMessageId := activeBuild.ReplyId
 
-	ext := filepath.Ext(filePath)
-	parser, lang, fallbackParser, fallbackLang := syntax.GetParserForExt(ext)
+	parser, lang, fallbackParser, fallbackLang := syntax.GetParserForPath(filePath)
 
 	if parser != nil {
 		validationRes, err := syntax.ValidateWithParsers(activePlan.Ctx, lang, parser, fallbackLang, fallbackParser, state.preBuildState)

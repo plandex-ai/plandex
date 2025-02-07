@@ -279,7 +279,7 @@ func execTellPlan(params execTellPlanParams) {
 		modelConfig = plannerConfig.ModelRoleConfig
 		if isContextStage {
 			log.Println("Tell plan - isContextStage - setting modelConfig to context loader")
-			modelConfig = state.settings.ModelPack.GetContextLoader().GetRoleForInputTokens(requestTokens)
+			modelConfig = state.settings.ModelPack.GetArchitect().GetRoleForInputTokens(requestTokens)
 		}
 	} else if isImplementationStage {
 		modelConfig = state.settings.ModelPack.GetCoder().GetRoleForInputTokens(requestTokens)

@@ -102,8 +102,8 @@ func initClients(params initClientsParams) map[string]model.ClientInfo {
 			continue
 		}
 
-		if planSettings.ModelPack.GetContextLoader().BaseModelConfig.ApiKeyEnvVar == envVar {
-			endpointsByApiKeyEnvVar[envVar] = planSettings.ModelPack.GetContextLoader().BaseModelConfig.BaseUrl
+		if planSettings.ModelPack.GetArchitect().BaseModelConfig.ApiKeyEnvVar == envVar {
+			endpointsByApiKeyEnvVar[envVar] = planSettings.ModelPack.GetArchitect().BaseModelConfig.BaseUrl
 			continue
 		}
 

@@ -481,7 +481,7 @@ func renderSettings(settings *shared.PlanSettings) {
 		})
 	}
 
-	addModelRow(string(shared.ModelRoleContextLoader), modelPack.GetContextLoader())
+	addModelRow(string(shared.ModelRoleArchitect), modelPack.GetArchitect())
 	addModelRow(string(shared.ModelRoleCoder), modelPack.GetCoder())
 	addModelRow(string(shared.ModelRolePlanSummary), modelPack.PlanSummary)
 	addModelRow(string(shared.ModelRoleBuilder), modelPack.Builder)

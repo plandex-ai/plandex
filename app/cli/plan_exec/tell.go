@@ -7,19 +7,46 @@ import (
 	"plandex/api"
 	"plandex/auth"
 	"plandex/fs"
+	"plandex/lib"
 	"plandex/stream"
 	streamtui "plandex/stream_tui"
 	"plandex/term"
 
+	"strings"
+
+	"github.com/eiannone/keyboard"
 	"github.com/fatih/color"
+	"github.com/olekukonko/tablewriter"
 	"github.com/plandex/plandex/shared"
 )
+
+type hotkeyOption struct {
+	key          string
+	command      string
+	description  string
+	replOnly     bool
+	terminalOnly bool
+}
+
+var allHotkeyOptions = []hotkeyOption{
+	{"d", "diff ui", "Review diffs in browser UI", false, false},
+	{"g", "git diff format", "Review diffs in git diff format", false, false},
+	{"a", "apply", "Apply all pending changes", false, false},
+	{"r", "reject", "Reject some or all pending changes", false, false},
+	{"f", "follow up", "Iterate with a follow up prompt", true, false},
+	{"q", "quit", "Back to terminal", false, true},
+	{"q", "quit", "Back to REPL", true, false},
+}
 
 func TellPlan(
 	params ExecParams,
 	prompt string,
 	flags TellFlags,
 ) {
+	// showHotkeyMenu([]string{"a", "r"})
+	// handleHotkey([]string{"a", "r"}, params)
+	// return
+
 	tellBg := flags.TellBg
 	tellStop := flags.TellStop
 	tellNoBuild := flags.TellNoBuild
@@ -175,23 +202,28 @@ func TellPlan(
 					term.OutputErrorAndExit("Error starting stream UI: %v", err)
 				}
 
-				diffs, apiErr := api.Client.GetPlanDiffs(params.CurrentPlanId, params.CurrentBranch, true)
+				diffs, apiErr := getDiffs(params)
+				numDiffs := len(diffs)
 				if apiErr != nil {
 					term.OutputErrorAndExit("Error getting plan diffs: %v", apiErr.Msg)
 					return
 				}
-				hasDiffs := len(diffs) > 0
+				hasDiffs := numDiffs > 0
 
 				fmt.Println()
 
 				if tellStop && !isChatOnly && hasDiffs {
 					if hasDiffs {
-						term.PrintCmds("", "continue", "diff", "diff --ui", "apply", "reject", "log")
+						// term.PrintCmds("", "continue", "diff", "diff --ui", "apply", "reject", "log")
+						showHotkeyMenu(diffs)
+						handleHotkey(diffs, params)
 					} else {
 						term.PrintCmds("", "continue", "log")
 					}
 				} else if !isDebugCmd && !isChatOnly && hasDiffs {
-					term.PrintCmds("", "diff", "diff --ui", "apply", "reject", "log")
+					// term.PrintCmds("", "diff", "diff --ui", "apply", "reject", "log")
+					showHotkeyMenu(diffs)
+					handleHotkey(diffs, params)
 				} else if isChatOnly {
 					if !term.IsRepl {
 						term.PrintCmds("", "tell", "convo", "summary", "log")
@@ -218,4 +250,163 @@ func TellPlan(
 	} else {
 		<-done
 	}
+}
+
+func showHotkeyMenu(diffs []string) {
+	numDiffs := len(diffs)
+	color.New(color.Bold, term.ColorHiGreen).Printf("🧐 %d files have pending changes\n", numDiffs)
+
+	// for _, diff := range diffs {
+	// 	fmt.Printf("• %s\n", diff)
+	// }
+
+	fmt.Println()
+
+	var b strings.Builder
+	table := tablewriter.NewWriter(&b)
+	table.SetAutoWrapText(false)
+	table.SetHeaderLine(false)
+	table.SetAlignment(tablewriter.ALIGN_LEFT)
+
+	for _, opt := range allHotkeyOptions {
+		if (opt.terminalOnly && term.IsRepl) || (opt.replOnly && !term.IsRepl) {
+			continue
+		}
+
+		table.Append([]string{
+			color.New(term.ColorHiGreen, color.Bold).Sprintf("(%s)", opt.key),
+			opt.command,
+			opt.description,
+		})
+	}
+
+	table.Render()
+	fmt.Print(b.String())
+	color.New(term.ColorHiMagenta, color.Bold).Printf("Press a hotkey or press %s %s 👉 ", color.New(color.FgHiWhite, color.Bold).Sprintf("↓"), color.New(term.ColorHiMagenta, color.Bold).Sprintf("to select"))
+}
+
+func handleHotkey(diffs []string, params ExecParams) {
+	char, key, err := term.GetUserKeyInput()
+	if err != nil {
+		fmt.Printf("\nError getting key: %v\n", err)
+		showHotkeyMenu(diffs)
+		handleHotkey(diffs, params)
+	}
+
+	if key == keyboard.KeyArrowDown {
+		options := []string{}
+		for _, opt := range allHotkeyOptions {
+			if (opt.terminalOnly && term.IsRepl) || (opt.replOnly && !term.IsRepl) {
+				continue
+			}
+
+			options = append(options, opt.description)
+		}
+
+		selected, err := term.SelectFromList(
+			"Select an action",
+			options,
+		)
+		if err != nil {
+			fmt.Printf("\nError selecting action: %v\n", err)
+			showHotkeyMenu(diffs)
+			handleHotkey(diffs, params)
+		}
+
+		if selected != "" {
+			var option hotkeyOption
+			for _, opt := range allHotkeyOptions {
+				if opt.description == selected {
+					if (opt.terminalOnly && term.IsRepl) || (opt.replOnly && !term.IsRepl) {
+						continue
+					}
+
+					option = opt
+					break
+				}
+			}
+
+			handleHotkeyOption(option, diffs, params)
+		}
+	}
+
+	handleHotkeyOption(hotkeyOption{key: string(char)}, diffs, params)
+}
+
+func handleHotkeyOption(option hotkeyOption, diffs []string, params ExecParams) {
+	exitUnlessDiffs := func() {
+		diffs, apiErr := getDiffs(params)
+		if apiErr != nil {
+			fmt.Printf("\nError getting plan diffs: %v\n", apiErr.Msg)
+			os.Exit(0)
+		}
+
+		if len(diffs) == 0 {
+			os.Exit(0)
+		}
+
+		showHotkeyMenu(diffs)
+		handleHotkey(diffs, params)
+	}
+
+	fmt.Println()
+
+	switch option.key {
+	case "d":
+		_, err := lib.ExecPlandexCommandWithParams([]string{"diffs", "--ui"}, lib.ExecPlandexCommandParams{
+			DisableSuggestions: true,
+		})
+		if err != nil {
+			fmt.Printf("\nError showing diffs: %v\n", err)
+		}
+
+	case "g":
+		_, err := lib.ExecPlandexCommandWithParams([]string{"diffs"}, lib.ExecPlandexCommandParams{
+			DisableSuggestions: true,
+		})
+		if err != nil {
+			fmt.Printf("\nError showing diffs: %v\n", err)
+		}
+
+	case "a":
+		_, err := lib.ExecPlandexCommand([]string{"apply"})
+		if err != nil {
+			fmt.Printf("\nError applying changes: %v\n", err)
+		}
+		exitUnlessDiffs()
+
+	case "r":
+		_, err := lib.ExecPlandexCommand([]string{"reject"})
+		if err != nil {
+			fmt.Printf("\nError rejecting changes: %v\n", err)
+		}
+		exitUnlessDiffs()
+
+	case "q":
+		os.Exit(0)
+
+	case "f":
+		if term.IsRepl {
+			color.New(color.Bold).Println("Write a prompt 👇")
+			os.Exit(0)
+		} else {
+			term.PrintCmds("", "tell", "chat")
+			os.Exit(0)
+		}
+
+	default:
+		fmt.Println("\nInvalid command")
+	}
+
+	showHotkeyMenu(diffs)
+	handleHotkey(diffs, params)
+}
+
+func getDiffs(params ExecParams) ([]string, *shared.ApiError) {
+	currentPlan, apiErr := api.Client.GetCurrentPlanState(params.CurrentPlanId, params.CurrentBranch)
+	if apiErr != nil {
+		return nil, apiErr
+	}
+
+	return currentPlan.PlanResult.SortedPaths, nil
 }

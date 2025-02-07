@@ -31,33 +31,43 @@ type Definition struct {
 
 type Node struct {
 	Type   string
-	Lang   shared.TreeSitterLanguage
+	Lang   shared.Language
 	TsNode *tree_sitter.Node
 	Bytes  []byte
 }
 
 func MapFile(ctx context.Context, filename string, content []byte) (*FileMap, error) {
-	// Get appropriate parser
-	var parser *tree_sitter.Parser
-	var lang shared.TreeSitterLanguage
-	var fallbackParser *tree_sitter.Parser
-	var fallbackLang shared.TreeSitterLanguage
+	if !shared.HasFileMapSupport(filename) {
+		return nil, fmt.Errorf("unsupported file type: %s", filename)
+	}
 
-	file := filepath.Base(filename)
-	if strings.Contains(strings.ToLower(file), "dockerfile") {
-		lang = shared.TreeSitterLanguageDockerfile
-		parser = syntax.GetParserForLanguage(lang)
+	lang := syntax.GetLanguageForPath(filename)
+	ext := filepath.Ext(filename)
 
-		if parser == nil {
-			return nil, fmt.Errorf("no parser found for dockerfile")
-		}
-	} else {
-		ext := filepath.Ext(filename)
-		parser, lang, fallbackParser, fallbackLang = syntax.GetParserForExt(ext)
+	if lang == "" {
+		return nil, fmt.Errorf("unsupported file type: %s", ext)
+	}
 
-		if parser == nil {
+	if !shared.IsTreeSitterLanguage(lang) {
+		switch lang {
+		case shared.LanguageMarkdown:
+			return &FileMap{
+				Definitions: mapMarkdownSimple(content),
+			}, nil
+		default:
 			return nil, fmt.Errorf("unsupported file type: %s", ext)
 		}
+	}
+
+	// Get appropriate parser
+	var parser *tree_sitter.Parser
+	var fallbackParser *tree_sitter.Parser
+	var fallbackLang shared.Language
+
+	parser, lang, fallbackParser, fallbackLang = syntax.GetParserForPath(filename)
+
+	if parser == nil {
+		return nil, fmt.Errorf("unsupported file type: %s", ext)
 	}
 
 	// Parse file
@@ -87,11 +97,11 @@ func MapFile(ctx context.Context, filename string, content []byte) (*FileMap, er
 
 }
 
-func mapNode(node *tree_sitter.Node, content []byte, lang shared.TreeSitterLanguage) []Definition {
+func mapNode(node *tree_sitter.Node, content []byte, lang shared.Language) []Definition {
 	switch lang {
-	case shared.TreeSitterLanguageHtml:
+	case shared.LanguageHtml:
 		return mapMarkup(content)
-	case shared.TreeSitterLanguageSvelte:
+	case shared.LanguageSvelte:
 		return mapSvelte(content)
 	default:
 		return mapTraditional(Node{
@@ -395,4 +405,59 @@ func (m *FileMap) String() string {
 	}
 
 	return b.String()
+}
+
+func mapMarkdownSimple(content []byte) []Definition {
+	var defs []Definition
+	lines := strings.Split(string(content), "\n")
+
+	for i, line := range lines {
+		// Check for ATX headings (# style)
+		if strings.HasPrefix(strings.TrimSpace(line), "#") {
+			heading := strings.TrimSpace(line)
+			level := 0
+			// Count heading level
+			for strings.HasPrefix(heading, "#") {
+				level++
+				heading = strings.TrimPrefix(heading, "#")
+			}
+			heading = strings.TrimSpace(heading)
+
+			defs = append(defs, Definition{
+				Type:      fmt.Sprintf("h%d", level),
+				Signature: heading,
+				Line:      i + 1,
+			})
+			continue
+		}
+
+		// Check for Setext headings (=== or --- style)
+		if i > 0 && len(strings.TrimSpace(line)) > 0 {
+			trimmed := strings.TrimSpace(line)
+			// Check if line consists entirely of = or -
+			isAllEquals := strings.TrimSpace(strings.ReplaceAll(trimmed, "=", "")) == ""
+			isAllDashes := strings.TrimSpace(strings.ReplaceAll(trimmed, "-", "")) == ""
+
+			// Must have at least 2 characters and previous line must not be empty
+			if len(trimmed) >= 2 && strings.TrimSpace(lines[i-1]) != "" {
+				if isAllEquals {
+					// Level 1 heading
+					defs = append(defs, Definition{
+						Type:      "h1",
+						Signature: strings.TrimSpace(lines[i-1]),
+						Line:      i,
+					})
+				} else if isAllDashes {
+					// Level 2 heading
+					defs = append(defs, Definition{
+						Type:      "h2",
+						Signature: strings.TrimSpace(lines[i-1]),
+						Line:      i,
+					})
+				}
+			}
+		}
+	}
+
+	return defs
 }

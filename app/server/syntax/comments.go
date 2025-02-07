@@ -3,7 +3,6 @@ package syntax
 import (
 	"context"
 	"fmt"
-	"path/filepath"
 	"sort"
 
 	"github.com/plandex/plandex/shared"
@@ -12,8 +11,7 @@ import (
 
 // StripComments removes all comments from the given source code using the appropriate parser
 func StripComments(ctx context.Context, path, source string) (string, error) {
-	ext := filepath.Ext(path)
-	parser, _, _, _ := GetParserForExt(ext)
+	parser, _, _, _ := GetParserForPath(path)
 
 	// If no parser is available, return the source as is
 	if parser == nil {
@@ -60,21 +58,21 @@ func findCommentNodes(node *tree_sitter.Node) []*tree_sitter.Node {
 	return commentNodes
 }
 
-func GetCommentSymbols(lang shared.TreeSitterLanguage) (string, string) {
+func GetCommentSymbols(lang shared.Language) (string, string) {
 	switch lang {
-	case shared.TreeSitterLanguageC, shared.TreeSitterLanguageCpp, shared.TreeSitterLanguageCsharp, shared.TreeSitterLanguageJava, shared.TreeSitterLanguageJavascript, shared.TreeSitterLanguageGo, shared.TreeSitterLanguageRust, shared.TreeSitterLanguageSwift, shared.TreeSitterLanguageKotlin, shared.TreeSitterLanguageGroovy, shared.TreeSitterLanguageScala, shared.TreeSitterLanguageTypescript, shared.TreeSitterLanguagePhp:
+	case shared.LanguageC, shared.LanguageCpp, shared.LanguageCsharp, shared.LanguageJava, shared.LanguageJavascript, shared.LanguageGo, shared.LanguageRust, shared.LanguageSwift, shared.LanguageKotlin, shared.LanguageGroovy, shared.LanguageScala, shared.LanguageTypescript, shared.LanguagePhp:
 		return "//", ""
-	case shared.TreeSitterLanguageBash, shared.TreeSitterLanguageDockerfile, shared.TreeSitterLanguageElixir, shared.TreeSitterLanguageHcl, shared.TreeSitterLanguagePython, shared.TreeSitterLanguageRuby, shared.TreeSitterLanguageToml, shared.TreeSitterLanguageYaml:
+	case shared.LanguageBash, shared.LanguageDockerfile, shared.LanguageElixir, shared.LanguageHcl, shared.LanguagePython, shared.LanguageRuby, shared.LanguageToml, shared.LanguageYaml:
 		return "#", ""
-	case shared.TreeSitterLanguageLua, shared.TreeSitterLanguageElm:
+	case shared.LanguageLua, shared.LanguageElm:
 		return "--", ""
-	case shared.TreeSitterLanguageCss:
+	case shared.LanguageCss:
 		return "/*", "*/"
-	case shared.TreeSitterLanguageHtml:
+	case shared.LanguageHtml:
 		return "<!--", "-->"
-	case shared.TreeSitterLanguageOCaml:
+	case shared.LanguageOCaml:
 		return "(*", "*)"
-	case shared.TreeSitterLanguageSvelte, shared.TreeSitterLanguageJsx, shared.TreeSitterLanguageTsx, shared.TreeSitterLanguageJson:
+	case shared.LanguageSvelte, shared.LanguageJsx, shared.LanguageTsx, shared.LanguageJson:
 		return "", "" // comments are either not allowed or correct symbols depend on the context
 	}
 

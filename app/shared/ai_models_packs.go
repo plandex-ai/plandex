@@ -32,8 +32,8 @@ func init() {
 			},
 		},
 		Coder: claude35sonnet(ModelRoleCoder, nil),
-		ContextLoader: claude35sonnet(ModelRoleContextLoader, &modelConfigFallbacks{
-			largeContextFallback: gemini15pro(ModelRoleContextLoader, nil),
+		Architect: claude35sonnet(ModelRoleArchitect, &modelConfigFallbacks{
+			largeContextFallback: gemini15pro(ModelRoleArchitect, nil),
 		}),
 		PlanSummary:      *openaio3mini(ModelRolePlanSummary, ReasoningEffortLow, nil),
 		Builder:          *openaio3mini(ModelRoleBuilder, ReasoningEffortMedium, nil),

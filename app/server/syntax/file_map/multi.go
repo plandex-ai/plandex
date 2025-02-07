@@ -81,13 +81,12 @@ func ProcessMapTrees(ctx context.Context, inputs map[string]string) (MapTrees, e
 			var parser *tree_sitter.Parser
 			file := filepath.Base(path)
 			if strings.Contains(strings.ToLower(file), "dockerfile") {
-				parser = syntax.GetParserForLanguage(shared.TreeSitterLanguageDockerfile)
+				parser = syntax.GetParserForLanguage(shared.LanguageDockerfile)
 			} else {
-				ext := filepath.Ext(path)
-				parser, _, _, _ = syntax.GetParserForExt(ext)
+				parser, _, _, _ = syntax.GetParserForPath(path)
 
 				if parser == nil {
-					errCh <- fmt.Errorf("unsupported file type: %s", ext)
+					errCh <- fmt.Errorf("unsupported file type: %s", path)
 					return
 				}
 			}

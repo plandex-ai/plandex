@@ -6,6 +6,7 @@ import (
 	"html/template"
 	"net"
 	"net/http"
+	"os"
 	"plandex/api"
 	"plandex/auth"
 	"plandex/lib"
@@ -52,66 +53,122 @@ func diffs(cmd *cobra.Command, args []string) {
 	}
 
 	if showDiffUi {
-		outputFormat := "line-by-line"
-		if diffUiSideBySide {
-			outputFormat = "side-by-side"
-		} else if diffUiLineByLine {
-			outputFormat = "line-by-line"
+		getNewListener := func() net.Listener {
+			outputFormat := "line-by-line"
+			if diffUiSideBySide {
+				outputFormat = "side-by-side"
+			} else if diffUiLineByLine {
+				outputFormat = "line-by-line"
+			}
+
+			// Properly escape the diff content for JavaScript
+			diffJSON, err := json.Marshal(diffs)
+			if err != nil {
+				term.OutputErrorAndExit("Error encoding diff content: %v", err)
+			}
+
+			// Create template data
+			data := struct {
+				DiffContent  template.JS
+				OutputFormat string
+			}{
+				DiffContent:  template.JS(diffJSON),
+				OutputFormat: outputFormat,
+			}
+
+			// Parse and execute the template
+			tmpl, err := template.New("diff").Parse(htmlTemplate)
+			if err != nil {
+				term.OutputErrorAndExit("Error parsing template: %v", err)
+			}
+
+			// Use :0 to let the OS pick an available port
+			listener, err := net.Listen("tcp", ":0")
+			if err != nil {
+				term.OutputErrorAndExit("Error starting server: %v", err)
+			}
+
+			// Get the actual port chosen
+			port := listener.Addr().(*net.TCPAddr).Port
+
+			// Start web server
+			go func() {
+				http.HandleFunc("/"+outputFormat, func(w http.ResponseWriter, r *http.Request) {
+					w.Header().Set("Content-Type", "text/html; charset=utf-8")
+					err := tmpl.Execute(w, data)
+					if err != nil {
+						http.Error(w, err.Error(), http.StatusInternalServerError)
+					}
+				})
+				http.Serve(listener, nil)
+			}()
+
+			ui.OpenURL("Showing diffs in your default browser...", fmt.Sprintf("http://localhost:%d/%s", port, outputFormat))
+
+			fmt.Println()
+
+			return listener
 		}
 
-		// Properly escape the diff content for JavaScript
-		diffJSON, err := json.Marshal(diffs)
-		if err != nil {
-			term.OutputErrorAndExit("Error encoding diff content: %v", err)
-			return
-		}
-
-		// Create template data
-		data := struct {
-			DiffContent  template.JS
-			OutputFormat string
-		}{
-			DiffContent:  template.JS(diffJSON),
-			OutputFormat: outputFormat,
-		}
-
-		// Parse and execute the template
-		tmpl, err := template.New("diff").Parse(htmlTemplate)
-		if err != nil {
-			term.OutputErrorAndExit("Error parsing template: %v", err)
-			return
-		}
-
-		// Use :0 to let the OS pick an available port
-		listener, err := net.Listen("tcp", ":0")
-		if err != nil {
-			term.OutputErrorAndExit("Error starting server: %v", err)
-			return
-		}
+		listener := getNewListener()
 		defer listener.Close()
 
-		// Get the actual port chosen
-		port := listener.Addr().(*net.TCPAddr).Port
+		var relaunch bool
 
-		// Start web server
-		go func() {
-			http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-				w.Header().Set("Content-Type", "text/html; charset=utf-8")
-				err := tmpl.Execute(w, data)
+		for {
+			if relaunch {
+				listener.Close()
+				listener = getNewListener()
+				defer listener.Close()
+				relaunch = false
+			}
+
+			if diffUiLineByLine {
+				fmt.Printf("%s for side-by-side view\n", color.New(color.Bold, term.ColorHiGreen).Sprintf("(s)"))
+			} else {
+				fmt.Printf("%s for line-by-line view\n", color.New(color.Bold, term.ColorHiGreen).Sprintf("(l)"))
+			}
+
+			fmt.Printf("%s for git diff format\n", color.New(color.Bold, term.ColorHiGreen).Sprintf("(g)"))
+			fmt.Printf("%s to continue\n", color.New(color.Bold, term.ColorHiGreen).Sprintf("Enter"))
+
+			color.New(term.ColorHiMagenta, color.Bold).Print("Press a hotkey or enter to continue 👉 ")
+
+			char, key, err := term.GetUserKeyInput()
+			if err != nil {
+				term.OutputErrorAndExit("Error getting key: %v", err)
+				return
+			}
+			fmt.Println()
+
+			if string(char) == "g" {
+				_, err := lib.ExecPlandexCommandWithParams([]string{"diff"}, lib.ExecPlandexCommandParams{
+					DisableSuggestions: true,
+				})
 				if err != nil {
-					http.Error(w, err.Error(), http.StatusInternalServerError)
+					term.OutputErrorAndExit("Error showing git diff: %v", err)
 				}
-			})
-			http.Serve(listener, nil)
-		}()
-
-		ui.OpenURL("Showing diffs in your default browser...", fmt.Sprintf("http://localhost:%d", port))
-
-		fmt.Println()
-		color.New(color.Bold).Println("Press enter to continue")
-
-		// Wait for enter key
-		fmt.Scanln()
+			} else if string(char) == "s" {
+				diffUiSideBySide = true
+				diffUiLineByLine = false
+				relaunch = true
+			} else if string(char) == "l" {
+				diffUiSideBySide = false
+				diffUiLineByLine = true
+				relaunch = true
+			} else if key == 13 || key == 10 || string(char) == "q" { // Check raw key codes for Enter/Return
+				if term.IsRepl {
+					fmt.Println()
+					os.Exit(0)
+				} else {
+					break
+				}
+			} else if string(char) == "\x03" { // Ctrl+C
+				os.Exit(0)
+			} else {
+				term.OutputErrorAndExit("Invalid command: %d | %s", key, string(char))
+			}
+		}
 	} else {
 		if plainTextOutput {
 			fmt.Println(diffs)

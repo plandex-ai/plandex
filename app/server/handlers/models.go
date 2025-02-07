@@ -104,16 +104,16 @@ func CreateModelPackHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	dbMs := &db.ModelPack{
-		OrgId:         auth.OrgId,
-		Name:          ms.Name,
-		Description:   ms.Description,
-		PlanSummary:   ms.PlanSummary,
-		Builder:       ms.Builder,
-		Namer:         ms.Namer,
-		CommitMsg:     ms.CommitMsg,
-		ExecStatus:    ms.ExecStatus,
-		ContextLoader: ms.ContextLoader,
-		Coder:         ms.Coder,
+		OrgId:       auth.OrgId,
+		Name:        ms.Name,
+		Description: ms.Description,
+		PlanSummary: ms.PlanSummary,
+		Builder:     ms.Builder,
+		Namer:       ms.Namer,
+		CommitMsg:   ms.CommitMsg,
+		ExecStatus:  ms.ExecStatus,
+		Architect:   ms.Architect,
+		Coder:       ms.Coder,
 	}
 
 	if err := db.CreateModelPack(dbMs); err != nil {
