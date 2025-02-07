@@ -65,8 +65,12 @@ fi
 
 
 welcome_plandex () {
-  echo "Plandex $VERSION Quick Install"
-  echo "Copyright (c) 2025 PlandexAI Inc."
+  echo ""
+  echo "$(printf '%*s' "$(tput cols)" '' | tr ' ' -)"
+  echo ""
+  echo "🚀 Plandex v$VERSION • Quick Install"
+  echo ""
+  echo "$(printf '%*s' "$(tput cols)" '' | tr ' ' -)"
   echo ""
 }
 
@@ -78,7 +82,10 @@ download_plandex () {
   mkdir -p plandex_install_tmp
   cd plandex_install_tmp
 
-  echo "Downloading Plandex tarball from $url"
+  echo "📥 Downloading Plandex tarball"
+  echo ""
+  echo "👉 $url"
+  echo ""
   curl -s -L -o plandex.tar.gz "${url}"
 
   tar zxf plandex.tar.gz 1> /dev/null
@@ -91,7 +98,8 @@ download_plandex () {
           echo "Attempting to use sudo to complete installation."
           sudo mv plandex /usr/local/bin/
           if [[ $? -eq 0 ]]; then
-            echo "Plandex is installed in /usr/local/bin."
+            echo "✅ Plandex is installed in /usr/local/bin"
+            echo ""
           else
             echo "Failed to install Plandex using sudo. Please manually move Plandex to a directory in your PATH."
             exit 1
@@ -101,7 +109,7 @@ download_plandex () {
           exit 1
         fi
       else
-        echo "Plandex is installed in /usr/local/bin."
+        echo "✅ Plandex is installed in /usr/local/bin"
       fi
     else
       echo >&2 'Error: /usr/local/bin does not exist. Create this directory with appropriate permissions, then re-install.'
@@ -111,7 +119,7 @@ download_plandex () {
     # ensure $HOME/bin exists (it's in PATH but not present in default git-bash install)
     mkdir "$HOME/bin" 2> /dev/null
     mv plandex.exe "$HOME/bin/"
-    echo "Plandex is installed in '$HOME/bin'"
+    echo "✅ Plandex is installed in '$HOME/bin'"
   else
     if [ $UID -eq 0 ]
     then
@@ -126,7 +134,7 @@ download_plandex () {
       exit 1
     fi
 
-    echo "Plandex is installed in /usr/local/bin"
+    echo "✅ Plandex is installed in /usr/local/bin"
   fi
 
   # create 'pdx' alias, but don't ovewrite existing pdx command
@@ -134,7 +142,7 @@ download_plandex () {
     echo "creating pdx alias"
     LOC=$(which plandex)
     BIN_DIR=$(dirname $LOC)
-    error_msg=$(ln -s "$LOC" "$BIN_DIR/pdx" 2>&1) || { echo "Failed to create 'pdx' alias for Plandex. Error: $error_msg. Please create it manually if needed."; }
+    error_msg=$(ln -s "$LOC" "$BIN_DIR/pdx" 2>&1) || { echo "⚠️ Failed to create 'pdx' alias for Plandex. Error: $error_msg. Please create it manually if needed."; }
   fi
 }
 
@@ -171,7 +179,19 @@ welcome_plandex
 check_existing_installation
 download_plandex
 
-echo "Installation complete! Starting Plandex REPL..."
 echo ""
-plandex 
+echo "🎉 Installation complete"
+echo ""
+echo "$(printf '%*s' "$(tput cols)" '' | tr ' ' -)"
+echo ""
+echo "⚡️ Run 'plandex' or 'pdx' in any project directory and start building!"
+echo ""
+echo "$(printf '%*s' "$(tput cols)" '' | tr ' ' -)"
+echo ""
+echo "📚 Need help? 👉 https://docs.plandex.ai"
+echo ""
+echo "👋 Join a community of AI builders 👉 https://discord.gg/plandex-ai"
+echo ""
+echo "$(printf '%*s' "$(tput cols)" '' | tr ' ' -)"
+echo ""
 

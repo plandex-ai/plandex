@@ -18,15 +18,15 @@ Plandex Cloud has two billing modes:
 - Use Plandex credits to pay for AI models. 
 - No separate accounts or API keys are required. 
 - Credits are deducted at the model's price from OpenAI or OpenRouter.ai plus a small markup to cover credit card processing costs.
-- Start with a $5 trial (includes $5 in credits).
-- After the trial, you can upgrade to a paid plan for $25 per month—includes $10 in credits every month that never expire.
+- Start with a $10 trial (includes $10 in credits).
+- After the trial, you can upgrade to a paid plan for $50 per month—includes $20 in credits every month that never expire.
 
 ### BYO API Key
 
 - Use your own OpenAI, OpenRouter.ai, or other OpenAI-compatible provider accounts.
 - Supply your own API keys.
 - Start with a free trial up to 10 plans and 20 model responses per plan.
-- After the trial, you can upgrade to a paid plan for $20 per month.
+- After the trial, you can upgrade to a paid plan for $40 per month.
 
 ## Billing Settings
 
@@ -54,7 +54,7 @@ Data sent to Plandex Cloud may be shared with the following third parties:
 - [OpenRouter.ai](https://openrouter.ai/) for Anthropic, Google, and other non-OpenAI models when using Integrated Models Mode.
 - [AWS](https://aws.amazon.com/) for hosting and database services. Data is encrypted in transit and at rest.
 - Your name and email is shared with [Loops](https://loops.so/), an email marketing service, in order to send you updates on Plandex. You can opt out of these emails at any time with one click.
-- Your name and email are shared with our payment processor [Stripe](https://stripe.com/) if you subscribe to a paid plan or purchase the $5 trial.
+- Your name and email are shared with our payment processor [Stripe](https://stripe.com/) if you subscribe to a paid plan or purchase the $10 trial.
 - Usage data is sent to [Google Analytics](https://analytics.google.com/) to help us track usage and make improvements.
 
 Apart from the above list, no other data will be shared with any other third party. The list will be updated if any new third party services are introduced.

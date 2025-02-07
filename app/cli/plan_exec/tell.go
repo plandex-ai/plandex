@@ -35,8 +35,8 @@ var allHotkeyOptions = []hotkeyOption{
 	{"a", "apply", "Apply all pending changes", false, false},
 	{"r", "reject", "Reject some or all pending changes", false, false},
 	{"f", "follow up", "Iterate with a follow up prompt", true, false},
-	{"q", "quit", "Back to terminal", false, true},
-	{"q", "quit", "Back to REPL", true, false},
+	// {"q", "quit", "Back to terminal", false, true},
+	// {"q", "quit", "Back to REPL", true, false},
 }
 
 func TellPlan(
@@ -255,7 +255,11 @@ func TellPlan(
 
 func showHotkeyMenu(diffs []string) {
 	numDiffs := len(diffs)
-	color.New(color.Bold, term.ColorHiGreen).Printf("🧐 %d files have pending changes\n", numDiffs)
+	s := "files have"
+	if numDiffs == 1 {
+		s = "file has"
+	}
+	color.New(color.Bold, term.ColorHiGreen).Printf("🧐 %d %s pending changes\n", numDiffs, s)
 
 	// for _, diff := range diffs {
 	// 	fmt.Printf("• %s\n", diff)
@@ -283,7 +287,7 @@ func showHotkeyMenu(diffs []string) {
 
 	table.Render()
 	fmt.Print(b.String())
-	color.New(term.ColorHiMagenta, color.Bold).Printf("Press a hotkey or press %s %s 👉 ", color.New(color.FgHiWhite, color.Bold).Sprintf("↓"), color.New(term.ColorHiMagenta, color.Bold).Sprintf("to select"))
+	color.New(term.ColorHiMagenta, color.Bold).Printf("Press a hotkey, %s %s, or %s %s 👉 ", color.New(color.FgHiWhite, color.Bold).Sprintf("↓"), color.New(term.ColorHiMagenta, color.Bold).Sprintf("to select"), color.New(color.FgHiWhite, color.Bold).Sprintf("q"), color.New(term.ColorHiMagenta, color.Bold).Sprintf("to quit"))
 }
 
 func handleHotkey(diffs []string, params ExecParams) {

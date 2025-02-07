@@ -39,10 +39,10 @@ var CliCommands = []CmdConfig{
 	{"update", "u", "update outdated context", true},
 	{"show", "", "show current context by name or index", true},
 
-	{"changes", "", "review pending changes in a TUI", false},
-	{"diff", "", "review pending changes in 'git diff' format", true},
+	// {"changes", "", "review pending changes in a TUI", false},
+	{"diff", "", "review pending changes", true},
+	{"diff --git", "", "review pending changes in 'git diff' format", true},
 	{"diff --plain", "", "review pending changes in 'git diff' format with no color formatting", false},
-	{"diff --ui", "", "review pending changes in a local browser UI", true},
 	{"summary", "", "show the latest summary of the current plan", true},
 
 	{"apply", "ap", "apply pending changes to project files", true},

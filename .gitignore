@@ -1,5 +1,7 @@
 .plandex/
 .plandex-dev/
+.plandex-v2/
+.plandex-dev-v2/
 .envkey
 plandex
 plandex-dev

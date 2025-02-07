@@ -18,14 +18,15 @@ import (
 )
 
 // var plainTextOutput bool
-var showDiffUi bool
+var showDiffUi bool = true
 var diffUiSideBySide = true
 var diffUiLineByLine bool
+var diffUiGit bool
 
 var diffsCmd = &cobra.Command{
 	Use:     "diff",
 	Aliases: []string{"diffs"},
-	Short:   "Show diffs for the pending changes in git diff format",
+	Short:   "Review pending changes",
 	Run:     diffs,
 }
 
@@ -34,6 +35,7 @@ func init() {
 
 	diffsCmd.Flags().BoolVarP(&plainTextOutput, "plain", "p", false, "Output diffs in plain text with no ANSI codes")
 	diffsCmd.Flags().BoolVar(&showDiffUi, "ui", false, "Show diffs in a browser UI")
+	diffsCmd.Flags().BoolVar(&diffUiGit, "git", false, "Show diffs in git diff format")
 	diffsCmd.Flags().BoolVarP(&diffUiSideBySide, "side", "s", true, "Show diffs UI in side-by-side view")
 	diffsCmd.Flags().BoolVarP(&diffUiLineByLine, "line", "l", false, "Show diffs UI in line-by-line view")
 }
@@ -50,6 +52,10 @@ func diffs(cmd *cobra.Command, args []string) {
 	if err != nil {
 		term.OutputErrorAndExit("Error getting plan diffs: %v", err)
 		return
+	}
+
+	if diffUiGit {
+		showDiffUi = false
 	}
 
 	if showDiffUi {
@@ -103,7 +109,7 @@ func diffs(cmd *cobra.Command, args []string) {
 				http.Serve(listener, nil)
 			}()
 
-			ui.OpenURL("Showing diffs in your default browser...", fmt.Sprintf("http://localhost:%d/%s", port, outputFormat))
+			ui.OpenURL("Showing "+outputFormat+" diffs in your default browser...", fmt.Sprintf("http://localhost:%d/%s", port, outputFormat))
 
 			fmt.Println()
 
@@ -130,9 +136,9 @@ func diffs(cmd *cobra.Command, args []string) {
 			}
 
 			fmt.Printf("%s for git diff format\n", color.New(color.Bold, term.ColorHiGreen).Sprintf("(g)"))
-			fmt.Printf("%s to continue\n", color.New(color.Bold, term.ColorHiGreen).Sprintf("Enter"))
+			fmt.Printf("%s to quit\n", color.New(color.Bold, term.ColorHiGreen).Sprintf("(q)"))
 
-			color.New(term.ColorHiMagenta, color.Bold).Print("Press a hotkey or enter to continue 👉 ")
+			color.New(term.ColorHiMagenta, color.Bold).Print("Hotkey 👉 ")
 
 			char, key, err := term.GetUserKeyInput()
 			if err != nil {
