@@ -621,9 +621,9 @@ Sign in, accept an invite, or create an account.
 plandex sign-in
 ```
 
-`--code/-c`: Sign in with a code from the Plandex Cloud web UI.
+`--pin`: Sign in with a pin from the Plandex Cloud web UI.
 
-Unless you pass `--code/-c` (from the Plandex Cloud web UI), Plandex will prompt you for all required information to sign in, accept an invite, or create an account.
+Unless you pass `--pin` (from the Plandex Cloud web UI), Plandex will prompt you for all required information to sign in, accept an invite, or create an account.
 
 ### invite
 

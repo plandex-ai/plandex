@@ -19,14 +19,14 @@ Plandex Cloud has two billing modes:
 - No separate accounts or API keys are required. 
 - Credits are deducted at the model's price from OpenAI or OpenRouter.ai plus a small markup to cover credit card processing costs.
 - Start with a $10 trial (includes $10 in credits).
-- After the trial, you can upgrade to a paid plan for $50 per month—includes $20 in credits every month that never expire.
+- After the trial, you can upgrade to a paid plan for $40 per month—includes $15 in credits every month that never expire.
 
 ### BYO API Key
 
 - Use your own OpenAI, OpenRouter.ai, or other OpenAI-compatible provider accounts.
 - Supply your own API keys.
 - Start with a free trial up to 10 plans and 20 model responses per plan.
-- After the trial, you can upgrade to a paid plan for $40 per month.
+- After the trial, you can upgrade to a paid plan for $30 per month.
 
 ## Billing Settings
 

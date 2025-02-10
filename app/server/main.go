@@ -10,7 +10,7 @@ import (
 
 func main() {
 	// Configure the default logger to include milliseconds in timestamps
-	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
+	log.SetFlags(log.LstdFlags | log.Lmicroseconds | log.Llongfile)
 
 	r := mux.NewRouter()
 	routes.AddHealthRoutes(r)

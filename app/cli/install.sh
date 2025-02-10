@@ -57,7 +57,7 @@ fi
 
 # Set Version
 if [[ -z "${PLANDEX_VERSION}" ]]; then
-  VERSION=$(curl -sL https://plandex.ai/cli-version.txt)
+  VERSION=$(curl -sL https://v2.plandex.ai/v2/cli-version.txt)
 else
   VERSION=$PLANDEX_VERSION
   echo "Using custom version $VERSION"
