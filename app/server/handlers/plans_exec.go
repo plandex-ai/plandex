@@ -18,8 +18,6 @@ import (
 	"github.com/gorilla/mux"
 )
 
-const TrialMaxReplies = 10
-
 func TellPlanHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for TellPlanHandler", "ip:", host.Ip)
 

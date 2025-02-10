@@ -50,12 +50,9 @@ func loggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 
-		log.Println()
-		log.Printf("Request: %s %s", r.Method, r.URL.Path)
+		log.Printf("\n\nRequest: %s %s\n\n", r.Method, r.URL.Path)
 		next.ServeHTTP(w, r)
-		log.Printf("Completed: %s %s in %v", r.Method, r.URL.Path, time.Since(start))
-		log.Println()
-		log.Println()
+		log.Printf("\n\nCompleted: %s %s in %v\n\n", r.Method, r.URL.Path, time.Since(start))
 	})
 }
 

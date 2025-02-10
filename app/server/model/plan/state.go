@@ -64,6 +64,7 @@ func CreateActivePlan(orgId, userId, planId, branch, prompt string, buildOnly, a
 						Type:  shared.StreamMessageError,
 						Error: apiErr,
 					})
+					activePlan.FlushStreamBuffer()
 
 					log.Println("Stopping any active summary stream")
 					activePlan.SummaryCancelFn()

@@ -17,3 +17,4 @@ node_modules/
 dist/
 
 .aider.*
+*.code-workspace

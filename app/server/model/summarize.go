@@ -2,9 +2,9 @@ package model
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log"
+	"net/http"
 	"plandex-server/db"
 	"plandex-server/hooks"
 	"plandex-server/model/prompts"
@@ -29,7 +29,7 @@ type PlanSummaryParams struct {
 	NumMessages                 int
 }
 
-func PlanSummary(clients map[string]ClientInfo, config shared.ModelRoleConfig, params PlanSummaryParams, ctx context.Context) (*db.ConvoSummary, error) {
+func PlanSummary(clients map[string]ClientInfo, config shared.ModelRoleConfig, params PlanSummaryParams, ctx context.Context) (*db.ConvoSummary, *shared.ApiError) {
 	messages := []openai.ChatCompletionMessage{
 		{
 			Role:    openai.ChatMessageRoleSystem,
@@ -58,7 +58,7 @@ func PlanSummary(clients map[string]ClientInfo, config shared.ModelRoleConfig, p
 		},
 	})
 	if apiErr != nil {
-		return nil, errors.New(apiErr.Msg)
+		return nil, apiErr
 	}
 
 	fmt.Println("summarizing messages:")
@@ -79,11 +79,19 @@ func PlanSummary(clients map[string]ClientInfo, config shared.ModelRoleConfig, p
 	if err != nil {
 		fmt.Println("PlanSummary err:", err)
 
-		return nil, err
+		return nil, &shared.ApiError{
+			Type:   shared.ApiErrorTypeOther,
+			Status: http.StatusInternalServerError,
+			Msg:    fmt.Sprintf("error generating plan summary: %v", err),
+		}
 	}
 
 	if len(resp.Choices) == 0 {
-		return nil, fmt.Errorf("plan summary - no choices in response. This usually means the model failed to generate a valid response.")
+		return nil, &shared.ApiError{
+			Type:   shared.ApiErrorTypeOther,
+			Status: http.StatusInternalServerError,
+			Msg:    "plan summary - no choices in response. This usually means the model failed to generate a valid response.",
+		}
 	}
 
 	content := resp.Choices[0].Message.Content
@@ -124,7 +132,7 @@ func PlanSummary(clients map[string]ClientInfo, config shared.ModelRoleConfig, p
 	}()
 
 	if apiErr != nil {
-		return nil, errors.New(apiErr.Msg)
+		return nil, apiErr
 	}
 
 	// log.Println("Plan summary content:")

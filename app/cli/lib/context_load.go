@@ -2,6 +2,7 @@ package lib
 
 import (
 	"bufio"
+	"context"
 	"encoding/base64"
 	"fmt"
 	"io"
@@ -622,7 +623,7 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 	}
 }
 
-func AutoLoadContextFiles(files []string) (string, error) {
+func AutoLoadContextFiles(ctx context.Context, files []string) (string, error) {
 	loadContextReqs := shared.LoadContextRequest{}
 	errCh := make(chan error, len(files))
 	var mu sync.Mutex
@@ -656,7 +657,7 @@ func AutoLoadContextFiles(files []string) (string, error) {
 		}
 	}
 
-	res, apiErr := api.Client.AutoLoadContext(CurrentPlanId, CurrentBranch, loadContextReqs)
+	res, apiErr := api.Client.AutoLoadContext(ctx, CurrentPlanId, CurrentBranch, loadContextReqs)
 
 	if apiErr != nil {
 		return "", fmt.Errorf("failed to load context: %v", apiErr.Msg)

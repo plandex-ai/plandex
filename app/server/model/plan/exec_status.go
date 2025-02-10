@@ -17,7 +17,7 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
-func (state *activeTellStreamState) execStatusShouldContinue(message string, ctx context.Context) (bool, bool, error) {
+func (state *activeTellStreamState) execStatusShouldContinue(message string, ctx context.Context) (bool, bool, *shared.ApiError) {
 	auth := state.auth
 	plan := state.plan
 	settings := state.settings
@@ -63,7 +63,7 @@ func (state *activeTellStreamState) execStatusShouldContinue(message string, ctx
 		},
 	})
 	if apiErr != nil {
-		return false, false, fmt.Errorf("error executing hook: %v", apiErr)
+		return false, false, apiErr
 	}
 
 	log.Println("Calling model to check if plan should continue")

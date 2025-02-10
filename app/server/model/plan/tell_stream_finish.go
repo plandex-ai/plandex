@@ -112,11 +112,7 @@ func (state *activeTellStreamState) handleStreamFinished() handleStreamFinishedR
 
 		if err != nil {
 			log.Printf("Error summarizing convo: %v\n", err)
-			active.StreamDoneCh <- &shared.ApiError{
-				Type:   shared.ApiErrorTypeOther,
-				Status: http.StatusInternalServerError,
-				Msg:    fmt.Sprintf("Error summarizing convo: %v", err),
-			}
+			active.StreamDoneCh <- err
 		}
 	}()
 
@@ -283,7 +279,7 @@ func (state *activeTellStreamState) handleDescAndExecStatus(autoLoadContextFiles
 	var shouldContinue bool
 	var subtaskFinished bool
 
-	var errCh = make(chan error, 2)
+	var errCh = make(chan *shared.ApiError, 2)
 
 	go func() {
 		if len(replyOperations) > 0 {
@@ -291,7 +287,7 @@ func (state *activeTellStreamState) handleDescAndExecStatus(autoLoadContextFiles
 
 			res, err := state.genPlanDescription()
 			if err != nil {
-				errCh <- fmt.Errorf("failed to generate plan description: %v", err)
+				errCh <- err
 				return
 			}
 
@@ -324,10 +320,10 @@ func (state *activeTellStreamState) handleDescAndExecStatus(autoLoadContextFiles
 	} else {
 		go func() {
 			log.Println("Getting exec status")
-			var err error
+			var err *shared.ApiError
 			subtaskFinished, shouldContinue, err = state.execStatusShouldContinue(active.CurrentReplyContent, active.Ctx)
 			if err != nil {
-				errCh <- fmt.Errorf("failed to get exec status: %v", err)
+				errCh <- err
 				return
 			}
 
@@ -341,8 +337,8 @@ func (state *activeTellStreamState) handleDescAndExecStatus(autoLoadContextFiles
 		err := <-errCh
 		if err != nil {
 			res := state.onError(onErrorParams{
-				streamErr: err,
-				storeDesc: true,
+				streamApiErr: err,
+				storeDesc:    true,
 			})
 			return handleDescAndExecStatusResult{
 				handleStreamFinishedResult: handleStreamFinishedResult{

@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -2295,15 +2296,24 @@ func (a *Api) GetContextBody(planId, branch, contextId string) (*shared.GetConte
 	return &respBody, nil
 }
 
-func (a *Api) AutoLoadContext(planId, branch string, req shared.LoadContextRequest) (*shared.LoadContextResponse, *shared.ApiError) {
+func (a *Api) AutoLoadContext(ctx context.Context, planId, branch string, req shared.LoadContextRequest) (*shared.LoadContextResponse, *shared.ApiError) {
 	serverUrl := fmt.Sprintf("%s/plans/%s/%s/auto_load_context", GetApiHost(), planId, branch)
 	reqBytes, err := json.Marshal(req)
 	if err != nil {
 		return nil, &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error marshalling request: %v", err)}
 	}
 
-	// use the slow client since we may be uploading relatively large files
-	resp, err := authenticatedSlowClient.Post(serverUrl, "application/json", bytes.NewBuffer(reqBytes))
+	// Create a new request with context
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", serverUrl, bytes.NewBuffer(reqBytes))
+	if err != nil {
+		return nil, &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error creating request: %v", err)}
+	}
+
+	// Set the content type header
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	// Use the slow client since we may be uploading relatively large files
+	resp, err := authenticatedSlowClient.Do(httpReq)
 	if err != nil {
 		return nil, &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error sending request: %v", err)}
 	}

@@ -46,7 +46,7 @@ func init() {
 
 	// set up a rotating file logger
 	logger := &lumberjack.Logger{
-		Filename:   filepath.Join(fs.HomePlandexDir, "plandex-v2.log"),
+		Filename:   filepath.Join(fs.HomePlandexDir, "plandex.log"),
 		MaxSize:    10,   // megabytes before rotation
 		MaxBackups: 3,    // number of backups to keep
 		MaxAge:     28,   // days to keep old logs
@@ -55,7 +55,7 @@ func init() {
 
 	// Set the output of the logger
 	log.SetOutput(logger)
-	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
+	log.SetFlags(log.LstdFlags | log.Lmicroseconds | log.Lshortfile)
 
 	// log.Println("Starting Plandex - logging initialized")
 }

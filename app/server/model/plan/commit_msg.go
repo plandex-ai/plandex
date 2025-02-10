@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/http"
 	"plandex-server/db"
 	"plandex-server/hooks"
 	"plandex-server/model"
@@ -18,7 +19,7 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
-func (state *activeTellStreamState) genPlanDescription() (*db.ConvoMessageDescription, error) {
+func (state *activeTellStreamState) genPlanDescription() (*db.ConvoMessageDescription, *shared.ApiError) {
 	auth := state.auth
 	plan := state.plan
 	planId := plan.Id
@@ -29,7 +30,11 @@ func (state *activeTellStreamState) genPlanDescription() (*db.ConvoMessageDescri
 
 	activePlan := GetActivePlan(planId, branch)
 	if activePlan == nil {
-		return nil, fmt.Errorf("active plan not found")
+		return nil, &shared.ApiError{
+			Type:   shared.ApiErrorTypeOther,
+			Status: http.StatusInternalServerError,
+			Msg:    fmt.Sprintf("active plan not found for plan %s and branch %s", planId, branch),
+		}
 	}
 
 	messages := []openai.ChatCompletionMessage{
@@ -55,7 +60,7 @@ func (state *activeTellStreamState) genPlanDescription() (*db.ConvoMessageDescri
 		},
 	})
 	if apiErr != nil {
-		return nil, errors.New(apiErr.Msg)
+		return nil, apiErr
 	}
 
 	log.Println("Sending plan description model request")
@@ -86,7 +91,11 @@ func (state *activeTellStreamState) genPlanDescription() (*db.ConvoMessageDescri
 
 	if err != nil {
 		fmt.Printf("Error during plan description model call: %v\n", err)
-		return nil, err
+		return nil, &shared.ApiError{
+			Type:   shared.ApiErrorTypeOther,
+			Status: http.StatusInternalServerError,
+			Msg:    fmt.Sprintf("error during plan description model call: %v", err),
+		}
 	}
 
 	log.Println("Plan description model call complete")
@@ -144,7 +153,11 @@ func (state *activeTellStreamState) genPlanDescription() (*db.ConvoMessageDescri
 
 		spew.Dump(descResp)
 
-		return nil, fmt.Errorf("No describePlan function call found in response. This usually means the model failed to generate a valid response.")
+		return nil, &shared.ApiError{
+			Type:   shared.ApiErrorTypeOther,
+			Status: http.StatusInternalServerError,
+			Msg:    "No describePlan function call found in response. This usually means the model failed to generate a valid response.",
+		}
 	}
 
 	descByteRes := []byte(descStrRes)
@@ -152,7 +165,11 @@ func (state *activeTellStreamState) genPlanDescription() (*db.ConvoMessageDescri
 	err = json.Unmarshal(descByteRes, &desc)
 	if err != nil {
 		fmt.Printf("Error unmarshalling plan description response: %v\n", err)
-		return nil, err
+		return nil, &shared.ApiError{
+			Type:   shared.ApiErrorTypeOther,
+			Status: http.StatusInternalServerError,
+			Msg:    fmt.Sprintf("error unmarshalling plan description response: %v", err),
+		}
 	}
 
 	return &db.ConvoMessageDescription{

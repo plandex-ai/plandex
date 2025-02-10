@@ -165,7 +165,7 @@ func HandleApiError(apiError *shared.ApiError) {
 	if apiError.Type == shared.ApiErrorTypeCloudInsufficientCredits {
 		if apiError.BillingError.HasBillingPermission {
 			StopSpinner()
-			OutputSimpleError("Insufficient credits.")
+			OutputSimpleError("Insufficient credits")
 			res, err := ConfirmYesNo("Go to billing settings?")
 			if err != nil {
 				OutputErrorAndExit("error getting confirmation")
@@ -177,7 +177,7 @@ func HandleApiError(apiError *shared.ApiError) {
 				os.Exit(0)
 			}
 		} else {
-			OutputErrorAndExit("Insufficient credits.")
+			OutputErrorAndExit("Insufficient credits")
 		}
 	}
 

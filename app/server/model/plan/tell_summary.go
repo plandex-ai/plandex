@@ -196,7 +196,7 @@ type summarizeConvoParams struct {
 	modelPackName         string
 }
 
-func summarizeConvo(clients map[string]model.ClientInfo, config shared.ModelRoleConfig, params summarizeConvoParams, ctx context.Context) error {
+func summarizeConvo(clients map[string]model.ClientInfo, config shared.ModelRoleConfig, params summarizeConvoParams, ctx context.Context) *shared.ApiError {
 	plan := params.plan
 	planId := plan.Id
 	log.Printf("summarizeConvo: Called for plan ID %s on branch %s\n", planId, params.branch)
@@ -211,7 +211,11 @@ func summarizeConvo(clients map[string]model.ClientInfo, config shared.ModelRole
 
 	if active == nil {
 		log.Printf("Active plan not found for plan ID %s and branch %s\n", planId, branch)
-		return fmt.Errorf("active plan not found for plan ID %s and branch %s", planId, branch)
+		return &shared.ApiError{
+			Type:   shared.ApiErrorTypeOther,
+			Status: http.StatusInternalServerError,
+			Msg:    fmt.Sprintf("active plan not found for plan ID %s and branch %s", planId, branch),
+		}
 	}
 
 	log.Println("Generating plan summary for planId:", planId)
@@ -315,7 +319,7 @@ func summarizeConvo(clients map[string]model.ClientInfo, config shared.ModelRole
 	// latestSummaryCh := make(chan *db.ConvoSummary, 1)
 	// active.LatestSummaryCh = latestSummaryCh
 
-	summary, err := model.PlanSummary(clients, config, model.PlanSummaryParams{
+	summary, apiErr := model.PlanSummary(clients, config, model.PlanSummaryParams{
 		Conversation:                summaryMessages,
 		ConversationNumTokens:       numTokens,
 		LatestConvoMessageId:        latestMessageId,
@@ -327,9 +331,9 @@ func summarizeConvo(clients map[string]model.ClientInfo, config shared.ModelRole
 		ActivePlan:                  active,
 	}, ctx)
 
-	if err != nil {
-		log.Printf("summarizeConvo: Error generating plan summary for plan %s: %v\n", planId, err)
-		return err
+	if apiErr != nil {
+		log.Printf("summarizeConvo: Error generating plan summary for plan %s: %v\n", planId, apiErr)
+		return apiErr
 	}
 
 	log.Printf("summarizeConvo: Summary generated and stored for plan %s\n", planId)
@@ -337,11 +341,15 @@ func summarizeConvo(clients map[string]model.ClientInfo, config shared.ModelRole
 	// log.Println("Generated summary:")
 	// spew.Dump(summary)
 
-	err = db.StoreSummary(summary)
+	err := db.StoreSummary(summary)
 
 	if err != nil {
 		log.Printf("Error storing plan summary for plan %s: %v\n", planId, err)
-		return err
+		return &shared.ApiError{
+			Type:   shared.ApiErrorTypeOther,
+			Status: http.StatusInternalServerError,
+			Msg:    fmt.Sprintf("error storing plan summary for plan %s: %v", planId, err),
+		}
 	}
 
 	// latestSummaryCh <- summary

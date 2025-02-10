@@ -1,6 +1,7 @@
 package streamtui
 
 import (
+	"context"
 	"log"
 	"sync"
 	"time"
@@ -78,6 +79,8 @@ type streamUIModel struct {
 	apiErr *shared.ApiError
 
 	updateDebouncer *UpdateDebouncer
+
+	autoLoadContextCancelFn context.CancelFunc
 }
 
 type keymap = struct {

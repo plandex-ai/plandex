@@ -14,6 +14,7 @@ import (
 
 type onErrorParams struct {
 	streamErr      error
+	streamApiErr   *shared.ApiError
 	storeDesc      bool
 	convoMessageId string
 	commitMsg      string
@@ -157,15 +158,19 @@ func (state *activeTellStreamState) onError(params onErrorParams) onErrorResult 
 
 	storeDescAndReply()
 
-	msg := "Stream error: " + streamErr.Error()
-	if params.canRetry && numRetries >= NumTellStreamRetries {
-		msg += " | Failed after " + strconv.Itoa(numRetries) + " retries."
-	}
+	if params.streamApiErr != nil {
+		active.StreamDoneCh <- params.streamApiErr
+	} else {
+		msg := "Stream error: " + streamErr.Error()
+		if params.canRetry && numRetries >= NumTellStreamRetries {
+			msg += " | Failed after " + strconv.Itoa(numRetries) + " retries."
+		}
 
-	active.StreamDoneCh <- &shared.ApiError{
-		Type:   shared.ApiErrorTypeOther,
-		Status: http.StatusInternalServerError,
-		Msg:    msg,
+		active.StreamDoneCh <- &shared.ApiError{
+			Type:   shared.ApiErrorTypeOther,
+			Status: http.StatusInternalServerError,
+			Msg:    msg,
+		}
 	}
 
 	return onErrorResult{

@@ -193,7 +193,7 @@ func (ap *ActivePlan) Stream(msg shared.StreamMessage) {
 	ap.streamMu.Lock()
 
 	skipBuffer := false
-	if msg.Type == shared.StreamMessagePromptMissingFile || msg.Type == shared.StreamMessageFinished {
+	if msg.Type == shared.StreamMessagePromptMissingFile || msg.Type == shared.StreamMessageFinished || msg.Type == shared.StreamMessageError {
 		skipBuffer = true
 	}
 

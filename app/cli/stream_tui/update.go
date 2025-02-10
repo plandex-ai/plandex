@@ -1,6 +1,7 @@
 package streamtui
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -17,6 +18,7 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/fatih/color"
 )
 
@@ -436,7 +438,14 @@ func (m *streamUIModel) streamUpdate(msg *shared.StreamMessage, deferUIUpdate bo
 
 	case shared.StreamMessageLoadContext:
 		log.Println("Stream message auto-load context")
-		msg, err := lib.AutoLoadContextFiles(msg.LoadContextFiles)
+
+		ctx, cancel := context.WithCancel(context.Background())
+		m.autoLoadContextCancelFn = cancel
+
+		msg, err := lib.AutoLoadContextFiles(ctx, msg.LoadContextFiles)
+
+		m.autoLoadContextCancelFn = nil
+
 		if err != nil {
 			log.Println("failed to auto load context files:", err)
 			m.err = err
@@ -452,6 +461,15 @@ func (m *streamUIModel) streamUpdate(msg *shared.StreamMessage, deferUIUpdate bo
 		return m, m.Tick()
 
 	case shared.StreamMessageError:
+		log.Println("Stream message error")
+		log.Println(spew.Sdump(msg))
+
+		state := m.readState()
+
+		if state.autoLoadContextCancelFn != nil {
+			state.autoLoadContextCancelFn()
+		}
+
 		m.updateState(func() {
 			m.apiErr = msg.Error
 		})
