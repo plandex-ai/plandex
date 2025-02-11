@@ -71,10 +71,10 @@ func StartServer(handler http.Handler) {
 		log.Println("Database connection closed")
 	}()
 
-	// Get externalPort from the environment variable or default to 8080
+	// Get externalPort from the environment variable or default to 8099
 	externalPort := os.Getenv("PORT")
 	if externalPort == "" {
-		externalPort = "8080"
+		externalPort = "8099"
 	}
 
 	// Add logging middleware before the maxBytes middleware

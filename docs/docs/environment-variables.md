@@ -13,7 +13,7 @@ This is an overview of all the environment variables that can be used with Pland
 
 ```bash
 PLANDEX_ENV=development # Set this to 'development' to default to the local development server instead of Plandex Cloud when working on Plandex itself.
-PLANDEX_API_HOST= # Defaults to 'http://localhost:8080' if PLANDEX_ENV is development, otherwise it's 'https://api.plandex.ai'—override this to use a different host.
+PLANDEX_API_HOST= # Defaults to 'http://localhost:8099' if PLANDEX_ENV is development, otherwise it's 'https://api.plandex.ai'—override this to use a different host.
 ```
 
 ### LLM Providers
@@ -56,7 +56,7 @@ Check out the [Self-Hosting Guide](./hosting/self-hosting.md) for more details.
 GOENV=development # Whether to run in development or production mode. Must be 'development' or 'production'
 PLANDEX_BASE_DIR= # The base directory to read and write files. Defaults to '$HOME/plandex-server' in development mode, '/plandex-server' in production.
 API_HOST= # The host the API server listens on. Defaults to 'http://localhost:$PORT'. In production mode, should be a host like 'https://api.your-domain.ai'.
-PORT=8080 # The port the server listens on. Defaults to 8080.
+PORT=8099 # The port the server listens on. Defaults to 8099.
 ```
 
 ### docker-compose
@@ -65,7 +65,6 @@ For self-hosting with docker-compose, default environment variables are set in `
 
 ```bash
 PLANDEX_DATA_DIR=/var/lib/plandex/data # When using docker-compose, this is the directory *on your machine* that the Plandex server will use to store data—it will be mounted to the Docker container as a volume.
-PGDATA_DIR=/var/lib/postgresql/data # Where PostgreSQL should store its data.
 
 # Database Credentials
 POSTGRES_DATABASE=plandex # Your postgres database.

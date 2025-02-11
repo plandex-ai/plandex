@@ -23,6 +23,8 @@ func CreateAccountHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	isLocalMode := (os.Getenv("GOENV") == "development" && os.Getenv("LOCAL_MODE") == "1")
+
 	// read the request body
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -40,12 +42,17 @@ func CreateAccountHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	req.Email = strings.ToLower(req.Email)
 
-	emailVerificationId, err := db.ValidateEmailVerification(req.Email, req.Pin)
+	var emailVerificationId string
 
-	if err != nil {
-		log.Printf("Error validating email verification: %v\n", err)
-		http.Error(w, "Error validating email verification: "+err.Error(), http.StatusInternalServerError)
-		return
+	// skipping email verification in dev/local mode
+	if !isLocalMode {
+		emailVerificationId, err = db.ValidateEmailVerification(req.Email, req.Pin)
+
+		if err != nil {
+			log.Printf("Error validating email verification: %v\n", err)
+			http.Error(w, "Error validating email verification: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
 	}
 
 	// start a transaction
@@ -119,11 +126,12 @@ func CreateAccountHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp := shared.SessionResponse{
-		UserId:   userId,
-		Token:    token,
-		Email:    req.Email,
-		UserName: req.UserName,
-		Orgs:     apiOrgs,
+		UserId:      userId,
+		Token:       token,
+		Email:       req.Email,
+		UserName:    req.UserName,
+		Orgs:        apiOrgs,
+		IsLocalMode: os.Getenv("GOENV") == "development" && os.Getenv("LOCAL_MODE") == "1",
 	}
 
 	bytes, err := json.Marshal(resp)

@@ -2,34 +2,29 @@ services:
   plandex-postgres:
     image: postgres:latest
     restart: always
-    env_file:
-      - ./.env
+    environment:
+      POSTGRES_PASSWORD: plandex
+      POSTGRES_USER: plandex
+      POSTGRES_DB: plandex
     ports:
       - "5432:5432"
     volumes:
-      - ./scripts/init-db:/docker-entrypoint-initdb.d
-      - ${PGDATA_DIR}:/var/lib/postgresql/data
-      - /etc/timezone:/etc/timezone:ro
-      - /etc/localtime:/etc/localtime:ro
+      - plandex-db:/var/lib/postgresql/data
     networks:
       - plandex-network
   plandex-server:
     build:
-      context: ./server
-      dockerfile: ./server/Dockerfile
+      context: .
+      dockerfile: server/Dockerfile
     volumes:
-      - "${PLANDEX_DATA_DIR}:${PLANDEX_BASE_DIR}"
-      - /etc/timezone:/etc/timezone:ro
-      - /etc/localtime:/etc/localtime:ro
+      - plandex-files:/plandex-server
     ports:
-      - "8080:8080"
-    env_file:
-      - ./.env
+      - "8099:8099"
     environment:
-      DATABASE_URL: "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@plandex-postgres:5432/${POSTGRES_DATABASE}?sslmode=disable"
-      GOENV: $GOENV
-      PLANDEX_BASE_DIR: $PLANDEX_BASE_DIR
-
+      DATABASE_URL: "postgres://plandex:plandex@plandex-postgres:5432/plandex?sslmode=disable"
+      GOENV: development
+      LOCAL_MODE: 1
+      PLANDEX_BASE_DIR: /plandex-server
     networks:
       - plandex-network
     depends_on:
@@ -39,3 +34,7 @@ services:
 networks:
   plandex-network:
     driver: bridge
+
+volumes:
+  plandex-db:
+  plandex-files:

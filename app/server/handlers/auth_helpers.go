@@ -294,6 +294,8 @@ func ValidateAndSignIn(w http.ResponseWriter, r *http.Request, req shared.SignIn
 	var signInCodeOrgId string
 	var err error
 
+	isLocalMode := (os.Getenv("GOENV") == "development" && os.Getenv("LOCAL_MODE") == "1")
+
 	if req.IsSignInCode {
 		res, err := db.ValidateSignInCode(req.Pin)
 
@@ -330,14 +332,17 @@ func ValidateAndSignIn(w http.ResponseWriter, r *http.Request, req shared.SignIn
 			return nil, fmt.Errorf("not found")
 		}
 
-		emailVerificationId, err = db.ValidateEmailVerification(req.Email, req.Pin)
+		// only validate email in non-local mode
+		if !isLocalMode {
+			emailVerificationId, err = db.ValidateEmailVerification(req.Email, req.Pin)
 
-		if err != nil {
-			log.Printf("Error validating email verification: %v\n", err)
-			return nil, fmt.Errorf("error validating email verification: %v", err)
+			if err != nil {
+				log.Printf("Error validating email verification: %v\n", err)
+				return nil, fmt.Errorf("error validating email verification: %v", err)
+			}
+
+			log.Println("Email verification successful")
 		}
-
-		log.Println("Email verification successful")
 	}
 
 	// start a transaction
@@ -374,7 +379,7 @@ func ValidateAndSignIn(w http.ResponseWriter, r *http.Request, req shared.SignIn
 			log.Printf("Error updating sign in code: %v\n", err)
 			return nil, fmt.Errorf("error updating sign in code: %v", err)
 		}
-	} else {
+	} else if !isLocalMode { // only update email verification in non-local mode
 		// update email verification with user and auth token ids
 		_, err = tx.Exec("UPDATE email_verifications SET user_id = $1, auth_token_id = $2 WHERE id = $3", user.Id, authTokenId, emailVerificationId)
 
@@ -433,11 +438,12 @@ func ValidateAndSignIn(w http.ResponseWriter, r *http.Request, req shared.SignIn
 	}
 
 	resp := shared.SessionResponse{
-		UserId:   user.Id,
-		Token:    token,
-		Email:    user.Email,
-		UserName: user.Name,
-		Orgs:     apiOrgs,
+		UserId:      user.Id,
+		Token:       token,
+		Email:       user.Email,
+		UserName:    user.Name,
+		Orgs:        apiOrgs,
+		IsLocalMode: os.Getenv("GOENV") == "development" && os.Getenv("LOCAL_MODE") == "1",
 	}
 
 	return &resp, nil

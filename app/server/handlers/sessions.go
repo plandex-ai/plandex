@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"plandex-server/db"
 	"plandex-server/email"
 	"strings"
@@ -79,37 +80,46 @@ func CreateEmailVerificationHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// create pin - 6 alphanumeric characters
-	pinBytes, err := shared.GetRandomAlphanumeric(6)
-	if err != nil {
-		log.Printf("Error generating random pin: %v\n", err)
-		http.Error(w, "Error generating random pin: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
+	var res shared.CreateEmailVerificationResponse
 
-	// get sha256 hash of pin
-	hashBytes := sha256.Sum256(pinBytes)
-	pinHash := hex.EncodeToString(hashBytes[:])
+	if !(os.Getenv("GOENV") == "development" && os.Getenv("LOCAL_MODE") == "1") {
+		// create pin - 6 alphanumeric characters
+		pinBytes, err := shared.GetRandomAlphanumeric(6)
+		if err != nil {
+			log.Printf("Error generating random pin: %v\n", err)
+			http.Error(w, "Error generating random pin: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
 
-	// create verification
-	err = db.CreateEmailVerification(req.Email, req.UserId, pinHash)
+		// get sha256 hash of pin
+		hashBytes := sha256.Sum256(pinBytes)
+		pinHash := hex.EncodeToString(hashBytes[:])
 
-	if err != nil {
-		log.Printf("Error creating email verification: %v\n", err)
-		http.Error(w, "Error creating email verification: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
+		// create verification
+		err = db.CreateEmailVerification(req.Email, req.UserId, pinHash)
 
-	err = email.SendVerificationEmail(req.Email, string(pinBytes))
+		if err != nil {
+			log.Printf("Error creating email verification: %v\n", err)
+			http.Error(w, "Error creating email verification: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
 
-	if err != nil {
-		log.Printf("Error sending verification email: %v\n", err)
-		http.Error(w, "Error sending verification email: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
+		err = email.SendVerificationEmail(req.Email, string(pinBytes))
 
-	res := shared.CreateEmailVerificationResponse{
-		HasAccount: hasAccount,
+		if err != nil {
+			log.Printf("Error sending verification email: %v\n", err)
+			http.Error(w, "Error sending verification email: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		res = shared.CreateEmailVerificationResponse{
+			HasAccount: hasAccount,
+		}
+	} else {
+		res = shared.CreateEmailVerificationResponse{
+			HasAccount:  hasAccount,
+			IsLocalMode: true,
+		}
 	}
 
 	bytes, err := json.Marshal(res)

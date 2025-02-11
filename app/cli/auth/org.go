@@ -8,12 +8,16 @@ import (
 	shared "plandex-shared"
 )
 
-func resolveOrgAuth(orgs []*shared.Org) (*shared.Org, error) {
+func resolveOrgAuth(orgs []*shared.Org, isLocalMode bool) (*shared.Org, error) {
 	var org *shared.Org
 	var err error
 
 	if len(orgs) == 0 {
-		org, err = promptNoOrgs()
+		if isLocalMode {
+			org, err = createOrg(isLocalMode)
+		} else {
+			org, err = promptNoOrgs()
+		}
 
 		if err != nil {
 			return nil, fmt.Errorf("error prompting no orgs: %v", err)
@@ -22,7 +26,7 @@ func resolveOrgAuth(orgs []*shared.Org) (*shared.Org, error) {
 	} else if len(orgs) == 1 {
 		org = orgs[0]
 	} else {
-		org, err = selectOrg(orgs)
+		org, err = selectOrg(orgs, isLocalMode)
 
 		if err != nil {
 			return nil, fmt.Errorf("error selecting org: %v", err)
@@ -42,22 +46,31 @@ func promptNoOrgs() (*shared.Org, error) {
 	}
 
 	if shouldCreate {
-		return createOrg()
+		return createOrg(false)
 	}
 
 	return nil, nil
 }
 
-func createOrg() (*shared.Org, error) {
-	name, err := term.GetRequiredUserStringInput("Org name:")
+func createOrg(isLocalMode bool) (*shared.Org, error) {
+	var err error
+	var name string
+	var autoAddDomainUsers bool
+
+	if isLocalMode {
+		name = "Local Org"
+	} else {
+		name, err = term.GetRequiredUserStringInput("Org name:")
+	}
 	if err != nil {
 		return nil, fmt.Errorf("error prompting org name: %v", err)
 	}
 
-	autoAddDomainUsers, err := promptAutoAddUsersIfValid(Current.Email)
-
-	if err != nil {
-		return nil, fmt.Errorf("error prompting auto add domain users: %v", err)
+	if !isLocalMode {
+		autoAddDomainUsers, err = promptAutoAddUsersIfValid(Current.Email)
+		if err != nil {
+			return nil, fmt.Errorf("error prompting auto add domain users: %v", err)
+		}
 	}
 
 	term.StartSpinner("")
@@ -91,7 +104,7 @@ func promptAutoAddUsersIfValid(email string) (bool, error) {
 
 const CreateOrgOption = "Create a new org"
 
-func selectOrg(orgs []*shared.Org) (*shared.Org, error) {
+func selectOrg(orgs []*shared.Org, isLocalMode bool) (*shared.Org, error) {
 	var options []string
 	for _, org := range orgs {
 		options = append(options, org.Name)
@@ -105,7 +118,7 @@ func selectOrg(orgs []*shared.Org) (*shared.Org, error) {
 	}
 
 	if selected == CreateOrgOption {
-		return createOrg()
+		return createOrg(isLocalMode)
 	}
 
 	var selectedOrg *shared.Org

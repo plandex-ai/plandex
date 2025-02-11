@@ -46,7 +46,7 @@ You might also need sudo on MacOS if you don't have write permissions to `/usr/l
 
 This creates watchers with `reflex` to rebuild both the server and the CLI when relevant files change.
 
-The server runs on port 8080 by default.
+The server runs on port 8099 by default.
 
 After each build, the CLI is copied to `/usr/local/bin/plandex-dev`so you can use it with just `plandex-dev` in any directory. A `pdxd` alias is also created. Note the difference from the `plandex` binary and `pdx` aliases which are installed for production usage—aliases are used for development to avoid overwriting the production install.
 

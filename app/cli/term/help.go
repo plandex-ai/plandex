@@ -17,6 +17,7 @@ type CmdConfig struct {
 }
 
 var CliCommands = []CmdConfig{
+	{"", "", "start the Plandex REPL", false},
 	{"new", "", "start a new plan", true},
 	{"plans", "pl", "list plans", true},
 	{"cd", "", "set current plan by name or index", true},
@@ -144,6 +145,8 @@ func printCmds(w io.Writer, prefix string, colors []color.Attribute, cmds ...str
 		var styled string
 		if IsRepl {
 			styled = color.New(colors...).Sprintf(" \\%s ", cmd)
+		} else if cmd == "" { // special case for the repl
+			styled = color.New(colors...).Sprintf(" plandex ")
 		} else {
 			styled = color.New(colors...).Sprintf(" plandex %s ", cmd)
 		}

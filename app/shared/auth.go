@@ -52,12 +52,13 @@ type ApiError struct {
 }
 
 type ClientAccount struct {
-	IsCloud  bool   `json:"isCloud"`
-	Host     string `json:"host"`
-	Email    string `json:"email"`
-	UserName string `json:"userName"`
-	UserId   string `json:"userId"`
-	Token    string `json:"token"`
+	IsCloud     bool   `json:"isCloud"`
+	Host        string `json:"host"`
+	Email       string `json:"email"`
+	UserName    string `json:"userName"`
+	UserId      string `json:"userId"`
+	Token       string `json:"token"`
+	IsLocalMode bool   `json:"isLocalMode"`
 
 	IsTrial bool `json:"isTrial"` // legacy field
 }

@@ -29,8 +29,8 @@ ENV GOARCH=amd64
 RUN rm -f plandex-server && go build -o plandex-server .
 
 # Set the port and expose it
-ENV PORT=8080
-EXPOSE 8080
+ENV PORT=8099
+EXPOSE 8099
 
 # Command to run the executable
 CMD ["./plandex-server"]

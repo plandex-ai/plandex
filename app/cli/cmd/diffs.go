@@ -138,7 +138,7 @@ func diffs(cmd *cobra.Command, args []string) {
 			fmt.Printf("%s for git diff format\n", color.New(color.Bold, term.ColorHiGreen).Sprintf("(g)"))
 			fmt.Printf("%s to quit\n", color.New(color.Bold, term.ColorHiGreen).Sprintf("(q)"))
 
-			color.New(term.ColorHiMagenta, color.Bold).Print("Hotkey 👉 ")
+			color.New(term.ColorHiMagenta, color.Bold).Print("Press a hotkey> ")
 
 			char, key, err := term.GetUserKeyInput()
 			if err != nil {
@@ -167,6 +167,7 @@ func diffs(cmd *cobra.Command, args []string) {
 					fmt.Println()
 					os.Exit(0)
 				} else {
+					fmt.Println()
 					break
 				}
 			} else if string(char) == "\x03" { // Ctrl+C

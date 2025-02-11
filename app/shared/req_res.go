@@ -14,7 +14,8 @@ type CreateEmailVerificationRequest struct {
 }
 
 type CreateEmailVerificationResponse struct {
-	HasAccount bool `json:"hasAccount"`
+	HasAccount  bool `json:"hasAccount"`
+	IsLocalMode bool `json:"isLocalMode"`
 }
 
 type VerifyEmailPinRequest struct {
@@ -40,11 +41,12 @@ type CreateAccountRequest struct {
 }
 
 type SessionResponse struct {
-	UserId   string `json:"userId"`
-	Token    string `json:"token"`
-	Email    string `json:"email"`
-	UserName string `json:"userName"`
-	Orgs     []*Org `json:"orgs"`
+	UserId      string `json:"userId"`
+	Token       string `json:"token"`
+	Email       string `json:"email"`
+	UserName    string `json:"userName"`
+	Orgs        []*Org `json:"orgs"`
+	IsLocalMode bool   `json:"isLocalMode"`
 }
 
 type CreateOrgRequest struct {

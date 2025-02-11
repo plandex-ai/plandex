@@ -64,7 +64,7 @@ func MustResolveAuth(requireOrg bool) {
 			term.OutputErrorAndExit("Error listing orgs: %v", apiErr.Msg)
 		}
 
-		org, err := resolveOrgAuth(orgs)
+		org, err := resolveOrgAuth(orgs, Current.IsLocalMode)
 
 		if err != nil {
 			term.OutputErrorAndExit("Error resolving org: %v", err)
@@ -92,14 +92,14 @@ func RefreshInvalidToken() error {
 		return fmt.Errorf("error refreshing token: auth not loaded")
 	}
 
-	hasAccount, pin, err := verifyEmail(Current.Email, Current.Host)
+	res, err := verifyEmail(Current.Email, Current.Host)
 
 	if err != nil {
 		return fmt.Errorf("error verifying email: %v", err)
 	}
 
-	if hasAccount {
-		return signIn(Current.Email, pin, Current.Host)
+	if res.hasAccount {
+		return signIn(Current.Email, res.pin, Current.Host)
 	} else {
 		host := Current.Host
 		if host == "" {

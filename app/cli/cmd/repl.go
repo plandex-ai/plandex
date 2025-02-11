@@ -58,6 +58,10 @@ func runRepl(cmd *cobra.Command, args []string) {
 	auth.MustResolveAuthWithOrg()
 	lib.MustResolveOrCreateProject()
 
+	if !auth.Current.IntegratedModelsMode {
+		lib.MustVerifyApiKeys()
+	}
+
 	term.StartSpinner("")
 	lib.LoadState()
 

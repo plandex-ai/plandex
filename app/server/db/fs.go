@@ -18,6 +18,9 @@ func init() {
 	log.Println("Plandex server home dir:", home)
 	log.Println("os.Getenv(PLANDEX_BASE_DIR):", os.Getenv("PLANDEX_BASE_DIR"))
 	log.Println("GOENV:", os.Getenv("GOENV"))
+	if os.Getenv("GOENV") == "development" && os.Getenv("LOCAL_MODE") == "1" {
+		log.Println("Local mode enabled")
+	}
 
 	BaseDir = os.Getenv("PLANDEX_BASE_DIR")
 

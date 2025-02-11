@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"os"
 	"plandex-server/db"
 	"plandex-server/email"
 	"strings"
@@ -15,6 +16,16 @@ import (
 
 func InviteUserHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received a request for InviteUserHandler")
+
+	if os.Getenv("GOENV") == "development" && os.Getenv("LOCAL_MODE") == "1" {
+		writeApiError(w, shared.ApiError{
+			Type:   shared.ApiErrorTypeOther,
+			Status: http.StatusForbidden,
+			Msg:    "Local mode is not supported for invites",
+		})
+		return
+	}
+
 	auth := Authenticate(w, r, true)
 	if auth == nil {
 		return
@@ -166,6 +177,16 @@ func InviteUserHandler(w http.ResponseWriter, r *http.Request) {
 
 func ListPendingInvitesHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received a request for ListInvitesHandler")
+
+	if os.Getenv("GOENV") == "development" && os.Getenv("LOCAL_MODE") == "1" {
+		writeApiError(w, shared.ApiError{
+			Type:   shared.ApiErrorTypeOther,
+			Status: http.StatusForbidden,
+			Msg:    "Local mode is not supported for invites",
+		})
+		return
+	}
+
 	auth := Authenticate(w, r, true)
 	if auth == nil {
 		return
@@ -214,6 +235,16 @@ func ListPendingInvitesHandler(w http.ResponseWriter, r *http.Request) {
 
 func ListAcceptedInvitesHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received a request for ListAcceptedInvitesHandler")
+
+	if os.Getenv("GOENV") == "development" && os.Getenv("LOCAL_MODE") == "1" {
+		writeApiError(w, shared.ApiError{
+			Type:   shared.ApiErrorTypeOther,
+			Status: http.StatusForbidden,
+			Msg:    "Local mode is not supported for invites",
+		})
+		return
+	}
+
 	auth := Authenticate(w, r, true)
 	if auth == nil {
 		return
@@ -262,6 +293,16 @@ func ListAcceptedInvitesHandler(w http.ResponseWriter, r *http.Request) {
 
 func ListAllInvitesHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received a request for ListAllInvitesHandler")
+
+	if os.Getenv("GOENV") == "development" && os.Getenv("LOCAL_MODE") == "1" {
+		writeApiError(w, shared.ApiError{
+			Type:   shared.ApiErrorTypeOther,
+			Status: http.StatusForbidden,
+			Msg:    "Local mode is not supported for invites",
+		})
+		return
+	}
+
 	auth := Authenticate(w, r, true)
 	if auth == nil {
 		return
@@ -310,6 +351,16 @@ func ListAllInvitesHandler(w http.ResponseWriter, r *http.Request) {
 
 func DeleteInviteHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received a request for DeleteInviteHandler")
+
+	if os.Getenv("GOENV") == "development" && os.Getenv("LOCAL_MODE") == "1" {
+		writeApiError(w, shared.ApiError{
+			Type:   shared.ApiErrorTypeOther,
+			Status: http.StatusForbidden,
+			Msg:    "Local mode is not supported for invites",
+		})
+		return
+	}
+
 	auth := Authenticate(w, r, true)
 	if auth == nil {
 		return

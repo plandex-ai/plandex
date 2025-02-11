@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"os"
 	"plandex-server/db"
 	"strings"
 
@@ -14,6 +15,16 @@ import (
 
 func ListUsersHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received a request for ListUsersHandler")
+
+	if os.Getenv("GOENV") == "development" && os.Getenv("LOCAL_MODE") == "1" {
+		writeApiError(w, shared.ApiError{
+			Type:   shared.ApiErrorTypeOther,
+			Status: http.StatusForbidden,
+			Msg:    "Local mode is not supported for user management",
+		})
+		return
+	}
+
 	auth := Authenticate(w, r, true)
 	if auth == nil {
 		return
@@ -79,6 +90,16 @@ func ListUsersHandler(w http.ResponseWriter, r *http.Request) {
 
 func DeleteOrgUserHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received a request for DeleteOrgUserHandler")
+
+	if os.Getenv("GOENV") == "development" && os.Getenv("LOCAL_MODE") == "1" {
+		writeApiError(w, shared.ApiError{
+			Type:   shared.ApiErrorTypeOther,
+			Status: http.StatusForbidden,
+			Msg:    "Local mode is not supported for user management",
+		})
+		return
+	}
+
 	auth := Authenticate(w, r, true)
 	if auth == nil {
 		return

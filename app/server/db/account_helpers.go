@@ -2,6 +2,7 @@ package db
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/jmoiron/sqlx"
 )
@@ -13,6 +14,7 @@ type CreateAccountResult struct {
 }
 
 func CreateAccount(name, email, emailVerificationId string, tx *sqlx.Tx) (*CreateAccountResult, error) {
+	isLocalMode := (os.Getenv("GOENV") == "development" && os.Getenv("LOCAL_MODE") == "1")
 	// create user
 	user, err := CreateUser(name, email, tx)
 
@@ -30,11 +32,14 @@ func CreateAccount(name, email, emailVerificationId string, tx *sqlx.Tx) (*Creat
 		return nil, fmt.Errorf("error creating auth token: %v", err)
 	}
 
-	// update email verification with user and auth token ids
-	_, err = tx.Exec("UPDATE email_verifications SET user_id = $1, auth_token_id = $2 WHERE id = $3", userId, authTokenId, emailVerificationId)
+	// skipping email verification in local mode
+	if !isLocalMode {
+		// update email verification with user and auth token ids
+		_, err = tx.Exec("UPDATE email_verifications SET user_id = $1, auth_token_id = $2 WHERE id = $3", userId, authTokenId, emailVerificationId)
 
-	if err != nil {
-		return nil, fmt.Errorf("error updating email verification: %v", err)
+		if err != nil {
+			return nil, fmt.Errorf("error updating email verification: %v", err)
+		}
 	}
 
 	// add to org matching domain if one exists and auto add domain users is true for that org

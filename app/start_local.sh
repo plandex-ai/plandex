@@ -1,5 +1,11 @@
 #!/bin/bash
 
+# Get the absolute path to the script's directory, regardless of where it's run from
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+
+# Change to the app directory if we're not already there
+cd "$SCRIPT_DIR"
+
 echo "Checking dependencies..."
 
 if ! [ -x "$(command -v git)" ]; then
@@ -23,23 +29,7 @@ if ! [ -x "$(command -v docker-compose)" ]; then
     fi
 fi
 
-# make sure that we are in the same directory as the script
-cd "$(dirname "$0")"
-
-# copy the _env file to .env unless it already exists
-if [ -f .env ]; then
-    echo ".env file already exists, won't overwrite it with _env"
-    echo "Add any custom values to .env"
-else
-    echo "Copying _env file to .env"
-    cp _env .env
-    echo ".env has been populated with default values"
-    echo "Add any custom values to .env"
-fi
-
-echo "Setup complete!"
-
-echo "Starting the application..."
+echo "Starting the local Plandex server and database..."
 
 docker compose build
 docker compose up
