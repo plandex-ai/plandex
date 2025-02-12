@@ -391,10 +391,7 @@ func gitCommit(repoDir, commitMsg string) error {
 	return nil
 }
 
-func gitRemoveIndexLockFileIfExists(repoDir string) error {
-	// Remove the lock file if it exists
-	lockFilePath := filepath.Join(repoDir, ".git", "index.lock")
-
+func removeLockFile(repoDir, lockFilePath string) error {
 	_, err := os.Stat(lockFilePath)
 	exists := err == nil
 	log.Println("index.lock file exists:", exists)
@@ -441,6 +438,36 @@ func gitRemoveIndexLockFileIfExists(repoDir string) error {
 	return nil
 }
 
+func gitRemoveIndexLockFileIfExists(repoDir string) error {
+	paths := []string{
+		filepath.Join(repoDir, ".git", "index.lock"),
+		filepath.Join(repoDir, ".git", "refs", "heads", "HEAD.lock"),
+	}
+
+	errCh := make(chan error, len(paths))
+
+	for _, path := range paths {
+		go func(path string) {
+			if err := removeLockFile(repoDir, path); err != nil {
+				errCh <- err
+			}
+		}(path)
+	}
+
+	errs := []error{}
+	for err := range errCh {
+		if err != nil {
+			errs = append(errs, err)
+		}
+	}
+
+	if len(errs) > 0 {
+		return fmt.Errorf("error removing lock files: %v", errs)
+	}
+
+	return nil
+}
+
 func setGitConfig(repoDir, key, value string) error {
 	res, err := exec.Command("git", "-C", repoDir, "config", key, value).CombinedOutput()
 	if err != nil {
@@ -469,7 +496,8 @@ func gitWriteOperation(operation func() error) error {
 
 		isIndexLockError := strings.Contains(err.Error(), "new_index file") ||
 			strings.Contains(err.Error(), "index.lock") ||
-			strings.Contains(err.Error(), "index file")
+			strings.Contains(err.Error(), "index file") ||
+			strings.Contains(err.Error(), "cannot lock ref 'HEAD'")
 
 		if isIndexLockError {
 			log.Printf("Retry attempt %d failed due to 'unable to write git index file error'. Waiting %v before retrying. Error: %v", attempt+1, retryInterval, err)
