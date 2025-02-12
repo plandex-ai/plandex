@@ -192,8 +192,14 @@ func DeleteOrgUserHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var committed bool
+
 	// Ensure that rollback is attempted in case of failure
 	defer func() {
+		if committed {
+			return
+		}
+
 		if rbErr := tx.Rollback(); rbErr != nil {
 			if rbErr == sql.ErrTxDone {
 				log.Println("attempted to roll back transaction, but it was already committed")

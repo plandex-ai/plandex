@@ -66,8 +66,14 @@ func CreateAccountHandler(w http.ResponseWriter, r *http.Request) {
 
 	var apiErr *shared.ApiError
 
+	var committed bool
+
 	// Ensure that rollback is attempted in case of failure
 	defer func() {
+		if committed {
+			return
+		}
+
 		if rbErr := tx.Rollback(); rbErr != nil {
 			if rbErr == sql.ErrTxDone {
 				log.Println("attempted to roll back transaction, but it was already committed")
@@ -110,6 +116,8 @@ func CreateAccountHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Error committing transaction: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	committed = true
 
 	// get orgs
 	orgs, err := db.GetAccessibleOrgsForUser(user)

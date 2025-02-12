@@ -137,8 +137,14 @@ func lockRepo(params LockRepoParams, numRetry int) (string, error) {
 		return "", fmt.Errorf("error starting transaction: %v", err)
 	}
 
+	var committed bool
+
 	// Ensure that rollback is attempted in case of failure
 	defer func() {
+		if committed {
+			return
+		}
+
 		if rbErr := tx.Rollback(); rbErr != nil {
 			if rbErr == sql.ErrTxDone {
 				log.Println("attempted to roll back transaction, but it was already committed")
@@ -166,11 +172,10 @@ func lockRepo(params LockRepoParams, numRetry int) (string, error) {
 		lockablePlanIdQuery += " FOR SHARE"
 	}
 
-	planIdRows, err := tx.Query(lockablePlanIdQuery, planId)
+	_, err = tx.Exec(lockablePlanIdQuery, planId)
 	if err != nil {
 		return handleDeadlockError(err)
 	}
-	defer planIdRows.Close()
 
 	query := "SELECT id, org_id, user_id, plan_id, plan_build_id, scope, branch, last_heartbeat_at, created_at FROM repo_locks WHERE plan_id = $1"
 	if forUpdate {
@@ -354,6 +359,8 @@ func lockRepo(params LockRepoParams, numRetry int) (string, error) {
 		return "", fmt.Errorf("error committing transaction: %v", err)
 	}
 
+	committed = true
+
 	log.Println()
 	log.Printf("LOCK_ACQUIRED | id: %s | params: %+v | stack:\n%s", newLock.Id, params, stackTrace)
 	log.Println()
@@ -449,19 +456,25 @@ func deleteRepoLock(id, planId string, numRetry int) error {
 		return deleteRepoLock(id, planId, numRetry+1)
 	}
 
+	var committed bool
+
 	// Start a new transaction for the delete
 	tx, err := Conn.BeginTx(context.Background(), &sql.TxOptions{Isolation: sql.LevelRepeatableRead})
 	if err != nil {
 		log.Printf("[Delete][%d] Error starting delete transaction: %v", goroutineID, err)
 		return fmt.Errorf("error starting delete transaction: %v", err)
 	}
-	defer tx.Rollback()
+	defer func() {
+		if !committed {
+			tx.Rollback()
+		}
+	}()
 
 	deleteStart := time.Now()
 	log.Printf("[Delete][%d] Starting DELETE at %v", goroutineID, deleteStart)
 
 	lockablePlanIdQuery := "SELECT * FROM lockable_plan_ids WHERE plan_id = $1 FOR UPDATE"
-	lockablePlanIdRows, err := tx.Query(lockablePlanIdQuery, planId)
+	_, err = tx.Exec(lockablePlanIdQuery, planId)
 	if err != nil {
 		if isDeadlockError(err) {
 			log.Printf("[Delete][%d] Deadlock error, retrying delete after %v: %v",
@@ -471,7 +484,6 @@ func deleteRepoLock(id, planId string, numRetry int) error {
 
 		return fmt.Errorf("error getting lockable plan id: %v", err)
 	}
-	defer lockablePlanIdRows.Close()
 
 	query := "DELETE FROM repo_locks WHERE id = $1"
 	result, err := tx.Exec(query, id)
@@ -499,6 +511,8 @@ func deleteRepoLock(id, planId string, numRetry int) error {
 		log.Printf("[Delete][%d] Error committing delete: %v", goroutineID, err)
 		return fmt.Errorf("error committing delete: %v", err)
 	}
+
+	committed = true
 
 	log.Printf("[Delete][%d] DELETE completed in %v",
 		goroutineID, time.Since(deleteStart))
