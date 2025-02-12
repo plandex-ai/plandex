@@ -46,16 +46,6 @@ func RegisterShutdownHook(hook func()) {
 	shutdownHooks = append(shutdownHooks, hook)
 }
 
-type responseWriter struct {
-	http.ResponseWriter
-	statusCode int
-}
-
-func (rw *responseWriter) WriteHeader(code int) {
-	rw.statusCode = code
-	rw.ResponseWriter.WriteHeader(code)
-}
-
 func loggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Skip logging for monitoring endpoints
@@ -63,19 +53,11 @@ func loggingMiddleware(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
-
 		start := time.Now()
 
-		// Create a response wrapper to capture the status code
-		wrappedWriter := &responseWriter{
-			ResponseWriter: w,
-			statusCode:     http.StatusOK, // Default to 200 if WriteHeader is never called
-		}
-
 		log.Printf("\n\nRequest: %s %s\n\n", r.Method, r.URL.Path)
-		next.ServeHTTP(wrappedWriter, r)
-		log.Printf("\n\nCompleted: %s %s [%d] in %v\n\n",
-			r.Method, r.URL.Path, wrappedWriter.statusCode, time.Since(start))
+		next.ServeHTTP(w, r)
+		log.Printf("\n\nCompleted: %s %s in %v\n\n", r.Method, r.URL.Path, time.Since(start))
 	})
 }
 
