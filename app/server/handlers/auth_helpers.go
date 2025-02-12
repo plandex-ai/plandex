@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"database/sql"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -354,12 +355,14 @@ func ValidateAndSignIn(w http.ResponseWriter, r *http.Request, req shared.SignIn
 
 	// Ensure that rollback is attempted in case of failure
 	defer func() {
-		if err != nil {
-			if rbErr := tx.Rollback(); rbErr != nil {
-				log.Printf("transaction rollback error: %v\n", rbErr)
+		if rbErr := tx.Rollback(); rbErr != nil {
+			if rbErr == sql.ErrTxDone {
+				log.Println("attempted to roll back transaction, but it was already committed")
 			} else {
-				log.Println("transaction rolled back")
+				log.Printf("transaction rollback error: %v\n", rbErr)
 			}
+		} else {
+			log.Println("transaction rolled back")
 		}
 	}()
 

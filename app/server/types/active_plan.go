@@ -182,7 +182,7 @@ func (ap *ActivePlan) FlushStreamBuffer() {
 	}
 }
 
-const verboseStreamLogging = false
+const verboseStreamLogging = true
 
 func (ap *ActivePlan) Stream(msg shared.StreamMessage) {
 	if verboseStreamLogging {

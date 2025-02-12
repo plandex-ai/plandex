@@ -96,6 +96,8 @@ func proxyRequest(w http.ResponseWriter, originalRequest *http.Request, url stri
 	}
 	w.WriteHeader(resp.StatusCode)
 
+	log.Printf("Proxy forwarded successfully with status code: %d\n", resp.StatusCode)
+
 	// Copy the response body
 	if _, err := io.Copy(w, resp.Body); err != nil {
 		log.Printf("Error copying response body: %v\n", err)
