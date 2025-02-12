@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/url"
 	"os"
+	"strings"
 
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
@@ -36,6 +37,12 @@ func Connect() error {
 		}
 	}
 
+	if strings.Contains(dbUrl, "?") {
+		dbUrl += "&statement_timeout=10000&lock_timeout=10000&timezone=UTC&idle_in_transaction_session_timeout=30000"
+	} else {
+		dbUrl += "?statement_timeout=10000&lock_timeout=10000&timezone=UTC&idle_in_transaction_session_timeout=30000"
+	}
+
 	Conn, err = sqlx.Connect("postgres", dbUrl)
 	if err != nil {
 		return err
@@ -51,20 +58,33 @@ func Connect() error {
 		Conn.SetMaxIdleConns(50)
 	}
 
-	_, err = Conn.Exec("SET TIMEZONE='UTC';")
-	if err != nil {
-		return fmt.Errorf("error setting timezone: %v", err)
+	// Verify settings
+	type setting struct {
+		Name    string  `db:"name"`
+		Setting string  `db:"setting"`
+		Unit    *string `db:"unit"`
+		Context string  `db:"context"`
 	}
 
-	_, err = Conn.Exec("SET lock_timeout = '10s';")
+	var settings []setting
+	err = Conn.Select(&settings, `
+		SELECT name, setting, unit, context 
+		FROM pg_settings 
+		WHERE name IN ('statement_timeout', 'lock_timeout', 'TimeZone', 'idle_in_transaction_session_timeout')
+`)
 	if err != nil {
-		return fmt.Errorf("error setting lock timeout: %v", err)
+		return fmt.Errorf("error checking settings: %v", err)
 	}
 
-	_, err = Conn.Exec("SET statement_timeout = '10s';")
-	if err != nil {
-		return fmt.Errorf("error setting statement timeout: %v", err)
+	s := ""
+	for _, setting := range settings {
+		unitStr := ""
+		if setting.Unit != nil {
+			unitStr = " " + *setting.Unit // Add a leading space only if there's a unit
+		}
+		s += fmt.Sprintf("- %s = %s%s (context: %s)\n", setting.Name, setting.Setting, unitStr, setting.Context)
 	}
+	log.Printf("\n\nDatabase settings:\n%s\n", s)
 
 	return nil
 }
@@ -103,7 +123,7 @@ func migrationsUp(dir string) error {
 
 	// Uncomment below (and update migration version) to reset migration state to a specific version after a failure
 	// if os.Getenv("GOENV") == "development" {
-	// 	migrateVersion := 2025012600
+	// 	migrateVersion := 2025012701
 	// 	if err := m.Force(migrateVersion); err != nil {
 	// 		return fmt.Errorf("error forcing migration version: %v", err)
 	// 	}
