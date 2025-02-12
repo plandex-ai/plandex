@@ -130,13 +130,17 @@ func printCmds(w io.Writer, prefix string, colors []color.Attribute, cmds ...str
 		alias := config.Alias
 		desc := config.Desc
 
-		if alias != "" && !IsRepl {
-			containsFull := strings.Contains(cmd, alias)
-
-			if containsFull {
-				cmd = strings.Replace(cmd, alias, fmt.Sprintf("(%s)", alias), 1)
+		if alias != "" {
+			if IsRepl {
+				cmd = fmt.Sprintf("%s (\\%s)", cmd, alias)
 			} else {
-				cmd = fmt.Sprintf("%s (%s)", cmd, alias)
+				containsFull := strings.Contains(cmd, alias)
+
+				if containsFull {
+					cmd = strings.Replace(cmd, alias, fmt.Sprintf("(%s)", alias), 1)
+				} else {
+					cmd = fmt.Sprintf("%s (%s)", cmd, alias)
+				}
 			}
 
 			// desc += color.New(color.FgWhite).Sprintf(" • alias → %s", color.New(color.Bold).Sprint(alias))
