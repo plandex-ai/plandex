@@ -17,6 +17,10 @@ import (
 
 var Conn *sqlx.DB
 
+const LockTimeout = 30000
+const IdleInTransactionSessionTimeout = 90000
+const StatementTimeout = 30000
+
 func Connect() error {
 	var err error
 
@@ -38,9 +42,9 @@ func Connect() error {
 	}
 
 	if strings.Contains(dbUrl, "?") {
-		dbUrl += "&statement_timeout=10000&lock_timeout=10000&timezone=UTC&idle_in_transaction_session_timeout=30000"
+		dbUrl += fmt.Sprintf("&statement_timeout=%d&lock_timeout=%d&timezone=UTC&idle_in_transaction_session_timeout=%d", StatementTimeout, LockTimeout, IdleInTransactionSessionTimeout)
 	} else {
-		dbUrl += "?statement_timeout=10000&lock_timeout=10000&timezone=UTC&idle_in_transaction_session_timeout=30000"
+		dbUrl += fmt.Sprintf("?statement_timeout=%d&lock_timeout=%d&timezone=UTC&idle_in_transaction_session_timeout=%d", StatementTimeout, LockTimeout, IdleInTransactionSessionTimeout)
 	}
 
 	Conn, err = sqlx.Connect("postgres", dbUrl)

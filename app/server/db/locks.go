@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"math"
 	"math/rand"
 	"runtime"
 	"runtime/debug"
@@ -14,12 +15,15 @@ import (
 	"time"
 
 	"github.com/lib/pq"
+	"github.com/pkg/errors"
 )
 
-const lockHeartbeatInterval = 700 * time.Millisecond
-const lockHeartbeatTimeout = 10 * time.Second
+const lockHeartbeatInterval = 3 * time.Second
+const lockHeartbeatTimeout = 60 * time.Second
 const maxRetries = 10
-const initialRetryInterval = 100 * time.Millisecond
+const initialRetryDelay = 100 * time.Millisecond
+const backoffFactor = 2.0  // Exponential base
+const jitterFraction = 0.3 // e.g. ±30% of the backoff
 
 // distributed locking to ensure only one user can write to a plan repo at a time
 // multiple readers are allowed, but read locks block writes
@@ -90,50 +94,10 @@ func lockRepo(params LockRepoParams, numRetry int) (string, error) {
 		return "", fmt.Errorf("invalid lock scope: %s", scope)
 	}
 
-	spinRetryWithJitter := func() (string, error) {
-		// 20 attempts (~6-10 seconds)
-		if numRetry > 20 {
-			err := fmt.Errorf("plan is currently being updated by another user or process")
-			return "", err
-		}
-
-		backoffBase := 300 * time.Millisecond
-		jitter := time.Duration(rand.Int63n(int64(200 * time.Millisecond)))
-		time.Sleep(backoffBase + jitter)
-		return lockRepo(params, numRetry+1)
-	}
-
-	handleDeadlockError := func(err error) (string, error) {
-		if !isDeadlockError(err) {
-			return "", err
-		}
-
-		if numRetry > maxRetries {
-			err = fmt.Errorf("plan is currently being updated by another user")
-			log.Println("max retries reached on serialization error, returning error")
-			return "", err
-		}
-
-		// Calculate exponential backoff with small jitter
-		backoff := initialRetryInterval * time.Duration(1<<numRetry)
-		jitter := time.Duration(rand.Float64() * float64(backoff) * 0.1) // 10% jitter
-		wait := backoff + jitter
-
-		log.Printf("Serialization or deadlock error, retrying transaction after %v: %v\n", wait, err)
-
-		select {
-		case <-ctx.Done():
-			return "", fmt.Errorf("context finished during retry transaction")
-		case <-time.After(wait):
-			log.Printf("Retrying transaction after %v\n", wait)
-			return lockRepo(params, numRetry+1)
-		}
-	}
-
 	tx, err := Conn.BeginTxx(ctx, &sql.TxOptions{Isolation: sql.LevelRepeatableRead})
 	if err != nil {
-		log.Printf("[Lock][%d] Error starting transaction after %v: %v",
-			goroutineID, time.Since(start), err)
+		log.Printf("[Lock][%d] Error starting transaction %v",
+			goroutineID, err)
 		return "", fmt.Errorf("error starting transaction: %v", err)
 	}
 
@@ -174,7 +138,9 @@ func lockRepo(params LockRepoParams, numRetry int) (string, error) {
 
 	_, err = tx.Exec(lockablePlanIdQuery, planId)
 	if err != nil {
-		return handleDeadlockError(err)
+		return retryWithExponentialBackoff(params.Ctx, err, numRetry, func(nextAttempt int) (string, error) {
+			return lockRepo(params, nextAttempt)
+		})
 	}
 
 	query := "SELECT id, org_id, user_id, plan_id, plan_build_id, scope, branch, last_heartbeat_at, created_at FROM repo_locks WHERE plan_id = $1"
@@ -189,7 +155,9 @@ func lockRepo(params LockRepoParams, numRetry int) (string, error) {
 	log.Println("obtaining repo lock with query")
 	repoLockRows, err := tx.Query(query, queryArgs...)
 	if err != nil {
-		return handleDeadlockError(err)
+		return retryWithExponentialBackoff(params.Ctx, err, numRetry, func(nextAttempt int) (string, error) {
+			return lockRepo(params, nextAttempt)
+		})
 	}
 	log.Println("repo lock query executed")
 
@@ -218,6 +186,10 @@ func lockRepo(params LockRepoParams, numRetry int) (string, error) {
 		} else {
 			expiredLockIds = append(expiredLockIds, lock.Id)
 		}
+	}
+
+	if err := repoLockRows.Err(); err != nil {
+		return "", fmt.Errorf("error iterating over repo locks: %v", err)
 	}
 
 	if len(expiredLockIds) > 0 {
@@ -267,7 +239,9 @@ func lockRepo(params LockRepoParams, numRetry int) (string, error) {
 
 	if !canAcquire {
 		log.Println("can't acquire lock.", "numRetry:", numRetry)
-		return spinRetryWithJitter()
+		return retryWithExponentialBackoff(params.Ctx, err, numRetry, func(nextAttempt int) (string, error) {
+			return lockRepo(params, nextAttempt)
+		})
 	}
 
 	log.Println("can acquire lock - inserting new lock")
@@ -318,8 +292,15 @@ func lockRepo(params LockRepoParams, numRetry int) (string, error) {
 	).Scan(&insertedId)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			log.Printf("no rows returned from insert query")
-			return "", fmt.Errorf("no rows returned from insert query")
+			// Means ON CONFLICT DO NOTHING prevented insertion
+			// => concurrency conflict => backoff & retry
+			return retryWithExponentialBackoff(params.Ctx,
+				errors.New("lock conflict: row not inserted"),
+				numRetry,
+				func(nextAttempt int) (string, error) {
+					return lockRepo(params, nextAttempt)
+				},
+			)
 		}
 
 		return "", fmt.Errorf("error inserting new lock: %v", err)
@@ -329,7 +310,9 @@ func lockRepo(params LockRepoParams, numRetry int) (string, error) {
 		newLock.Id = insertedId.String
 	} else {
 		log.Printf("no rows returned from insert query, means there was a conflict")
-		return spinRetryWithJitter()
+		return retryWithExponentialBackoff(params.Ctx, err, numRetry, func(nextAttempt int) (string, error) {
+			return lockRepo(params, nextAttempt)
+		})
 	}
 
 	log.Printf("[Lock][%d] INSERT took %v",
@@ -447,18 +430,6 @@ func deleteRepoLock(id, planId string, numRetry int) error {
 		log.Printf("[Delete][%d] END delete lock took %v", goroutineID, elapsed)
 	}()
 
-	retryWithJitter := func() error {
-		// 10 attempts (~3-6 seconds)
-		if numRetry > 10 {
-			return fmt.Errorf("plan is currently being updated by another user or process")
-		}
-
-		backoffBase := 300 * time.Millisecond
-		jitter := time.Duration(rand.Int63n(int64(200 * time.Millisecond)))
-		time.Sleep(backoffBase + jitter)
-		return deleteRepoLock(id, planId, numRetry+1)
-	}
-
 	var committed bool
 
 	// Start a new transaction for the delete
@@ -480,9 +451,17 @@ func deleteRepoLock(id, planId string, numRetry int) error {
 	_, err = tx.Exec(lockablePlanIdQuery, planId)
 	if err != nil {
 		if isDeadlockError(err) {
-			log.Printf("[Delete][%d] Deadlock error, retrying delete after %v: %v",
-				goroutineID, time.Since(deleteStart), err)
-			return retryWithJitter()
+			log.Printf("[Delete][%d] Deadlock error, retrying delete %v",
+				goroutineID, err)
+			_, err := retryWithExponentialBackoff(context.Background(), err, numRetry, func(nextAttempt int) (string, error) {
+				return "", deleteRepoLock(id, planId, nextAttempt)
+			})
+
+			if err != nil {
+				log.Printf("[Delete][%d] Error retrying delete: %v",
+					goroutineID, err)
+				return fmt.Errorf("error retrying delete: %v", err)
+			}
 		}
 
 		return fmt.Errorf("error getting lockable plan id: %v", err)
@@ -492,13 +471,21 @@ func deleteRepoLock(id, planId string, numRetry int) error {
 	result, err := tx.Exec(query, id)
 	if err != nil {
 		if isDeadlockError(err) {
-			log.Printf("[Delete][%d] Deadlock error, retrying delete after %v: %v",
-				goroutineID, time.Since(deleteStart), err)
-			return retryWithJitter()
+			log.Printf("[Delete][%d] Deadlock error, retrying delete %v",
+				goroutineID, err)
+			_, err := retryWithExponentialBackoff(context.Background(), err, numRetry, func(nextAttempt int) (string, error) {
+				return "", deleteRepoLock(id, planId, nextAttempt)
+			})
+
+			if err != nil {
+				log.Printf("[Delete][%d] Error retrying delete: %v",
+					goroutineID, err)
+				return fmt.Errorf("error retrying delete: %v", err)
+			}
 		}
 
-		log.Printf("[Delete][%d] Error executing delete after %v: %v",
-			goroutineID, time.Since(deleteStart), err)
+		log.Printf("[Delete][%d] Error executing delete %v",
+			goroutineID, err)
 		return fmt.Errorf("error removing lock: %v", err)
 	}
 
@@ -550,4 +537,38 @@ func isDeadlockError(err error) bool {
 	}
 
 	return false
+}
+
+func retryWithExponentialBackoff(
+	ctx context.Context,
+	cause error,
+	attempt int,
+	nextCall func(int) (string, error),
+) (string, error) {
+	// If we have retried enough times, bail out.
+	if attempt >= maxRetries {
+		return "", fmt.Errorf("failed to acquire lock after %d attempts: %w", attempt, cause)
+	}
+
+	// Exponential delay: initialRetryDelay * 2^(attempt)
+	backoff := time.Duration(float64(initialRetryDelay) * math.Pow(backoffFactor, float64(attempt)))
+	// Add jitter: ± jitterFraction
+	jitterRange := time.Duration(float64(backoff) * jitterFraction)
+	jitter := time.Duration(rand.Int63n(int64(jitterRange)*2)) - jitterRange
+
+	wait := backoff + jitter
+	if wait < 0 {
+		wait = 0
+	}
+
+	log.Printf("Lock/transaction conflict (attempt #%d). Retrying in %s... (cause: %v)", attempt, wait, cause)
+
+	select {
+	case <-ctx.Done():
+		return "", fmt.Errorf("context canceled while waiting to retry: %w", ctx.Err())
+	case <-time.After(wait):
+		// Proceed with the next attempt.
+	}
+
+	return nextCall(attempt + 1)
 }

@@ -205,31 +205,33 @@ func TellPlan(
 					term.OutputErrorAndExit("Error starting stream UI: %v", err)
 				}
 
-				diffs, apiErr := getDiffs(params)
-				numDiffs := len(diffs)
-				if apiErr != nil {
-					term.OutputErrorAndExit("Error getting plan diffs: %v", apiErr.Msg)
-					return
-				}
-				hasDiffs := numDiffs > 0
-
-				fmt.Println()
-
-				if tellStop && !isChatOnly && hasDiffs {
-					if hasDiffs {
-						// term.PrintCmds("", "continue", "diff", "diff --ui", "apply", "reject", "log")
-						showHotkeyMenu(diffs)
-						handleHotkey(diffs, params)
-					} else {
-						term.PrintCmds("", "continue", "log")
-					}
-				} else if !isDebugCmd && !isChatOnly && hasDiffs {
-					// term.PrintCmds("", "diff", "diff --ui", "apply", "reject", "log")
-					showHotkeyMenu(diffs)
-					handleHotkey(diffs, params)
-				} else if isChatOnly {
+				if isChatOnly {
 					if !term.IsRepl {
 						term.PrintCmds("", "tell", "convo", "summary", "log")
+					}
+				} else {
+					diffs, apiErr := getDiffs(params)
+					numDiffs := len(diffs)
+					if apiErr != nil {
+						term.OutputErrorAndExit("Error getting plan diffs: %v", apiErr.Msg)
+						return
+					}
+					hasDiffs := numDiffs > 0
+
+					fmt.Println()
+
+					if tellStop && hasDiffs {
+						if hasDiffs {
+							// term.PrintCmds("", "continue", "diff", "diff --ui", "apply", "reject", "log")
+							showHotkeyMenu(diffs)
+							handleHotkey(diffs, params)
+						} else {
+							term.PrintCmds("", "continue", "log")
+						}
+					} else if !isDebugCmd && hasDiffs {
+						// term.PrintCmds("", "diff", "diff --ui", "apply", "reject", "log")
+						showHotkeyMenu(diffs)
+						handleHotkey(diffs, params)
 					}
 				}
 				close(done)
