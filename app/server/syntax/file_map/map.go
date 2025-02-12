@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path/filepath"
 	"plandex-server/syntax"
 	"strings"
 
@@ -39,14 +38,24 @@ type Node struct {
 
 func MapFile(ctx context.Context, filename string, content []byte) (*FileMap, error) {
 	if !shared.HasFileMapSupport(filename) {
-		return nil, fmt.Errorf("unsupported file type: %s", filename)
+		// return nil, fmt.Errorf("unsupported file type: %s", filename)
+		return &FileMap{
+			Definitions: []Definition{
+				{
+					Type:      "no_map",
+					Signature: "[NO MAP]",
+				},
+			},
+		}, nil
 	}
 
 	lang := syntax.GetLanguageForPath(filename)
-	ext := filepath.Ext(filename)
 
 	if lang == "" {
-		return nil, fmt.Errorf("unsupported file type: %s", ext)
+		// return nil, fmt.Errorf("unsupported file type: %s", ext)
+		return &FileMap{
+			Definitions: []Definition{},
+		}, nil
 	}
 
 	if !shared.IsTreeSitterLanguage(lang) {
@@ -56,7 +65,10 @@ func MapFile(ctx context.Context, filename string, content []byte) (*FileMap, er
 				Definitions: mapMarkdownSimple(content),
 			}, nil
 		default:
-			return nil, fmt.Errorf("unsupported file type: %s", ext)
+			// return nil, fmt.Errorf("unsupported file type: %s", ext)
+			return &FileMap{
+				Definitions: []Definition{},
+			}, nil
 		}
 	}
 
@@ -68,20 +80,29 @@ func MapFile(ctx context.Context, filename string, content []byte) (*FileMap, er
 	parser, lang, fallbackParser, fallbackLang = syntax.GetParserForPath(filename)
 
 	if parser == nil {
-		return nil, fmt.Errorf("unsupported file type: %s", ext)
+		// return nil, fmt.Errorf("unsupported file type: %s", ext)
+		return &FileMap{
+			Definitions: []Definition{},
+		}, nil
 	}
 
 	// Parse file
 	tree, err := parser.ParseCtx(ctx, nil, content)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse file: %v", err)
+		// return nil, fmt.Errorf("failed to parse file: %v", err)
+		return &FileMap{
+			Definitions: []Definition{},
+		}, nil
 	}
 	defer tree.Close()
 
 	if tree.RootNode().Type() == "error" {
 		fallbackTree, err := fallbackParser.ParseCtx(ctx, nil, content)
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse file with fallback parser: %v", err)
+			// return nil, fmt.Errorf("failed to parse file with fallback parser: %v", err)
+			return &FileMap{
+				Definitions: []Definition{},
+			}, nil
 		}
 		defer fallbackTree.Close()
 
@@ -413,9 +434,16 @@ func mapMarkdownSimple(content []byte) []Definition {
 	lines := strings.Split(string(content), "\n")
 
 	for i, line := range lines {
+		trimmedLine := strings.TrimSpace(line)
+
+		// Skip empty lines
+		if trimmedLine == "" {
+			continue
+		}
+
 		// Check for ATX headings (# style)
-		if strings.HasPrefix(strings.TrimSpace(line), "#") {
-			heading := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmedLine, "#") {
+			heading := trimmedLine
 			level := 0
 			// Count heading level
 			for strings.HasPrefix(heading, "#") {
@@ -424,36 +452,39 @@ func mapMarkdownSimple(content []byte) []Definition {
 			}
 			heading = strings.TrimSpace(heading)
 
-			defs = append(defs, Definition{
-				Type:      fmt.Sprintf("h%d", level),
-				Signature: heading,
-				Line:      i + 1,
-			})
+			// Only add if there's actual heading content
+			if heading != "" {
+				defs = append(defs, Definition{
+					Type:      fmt.Sprintf("h%d", level),
+					Signature: heading,
+					Line:      i + 1,
+				})
+			}
 			continue
 		}
 
 		// Check for Setext headings (=== or --- style)
-		if i > 0 && len(strings.TrimSpace(line)) > 0 {
-			trimmed := strings.TrimSpace(line)
+		if i > 0 && len(trimmedLine) > 0 {
 			// Check if line consists entirely of = or -
-			isAllEquals := strings.TrimSpace(strings.ReplaceAll(trimmed, "=", "")) == ""
-			isAllDashes := strings.TrimSpace(strings.ReplaceAll(trimmed, "-", "")) == ""
+			isAllEquals := strings.TrimSpace(strings.ReplaceAll(trimmedLine, "=", "")) == ""
+			isAllDashes := strings.TrimSpace(strings.ReplaceAll(trimmedLine, "-", "")) == ""
 
 			// Must have at least 2 characters and previous line must not be empty
-			if len(trimmed) >= 2 && strings.TrimSpace(lines[i-1]) != "" {
+			prevLine := strings.TrimSpace(lines[i-1])
+			if len(trimmedLine) >= 2 && prevLine != "" {
 				if isAllEquals {
 					// Level 1 heading
 					defs = append(defs, Definition{
 						Type:      "h1",
-						Signature: strings.TrimSpace(lines[i-1]),
-						Line:      i,
+						Signature: prevLine,
+						Line:      i, // Use previous line's number
 					})
 				} else if isAllDashes {
 					// Level 2 heading
 					defs = append(defs, Definition{
 						Type:      "h2",
-						Signature: strings.TrimSpace(lines[i-1]),
-						Line:      i,
+						Signature: prevLine,
+						Line:      i, // Use previous line's number
 					})
 				}
 			}

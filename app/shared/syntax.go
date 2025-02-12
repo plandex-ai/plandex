@@ -62,6 +62,7 @@ var Languages = []Language{
 	LanguageJson,
 	LanguageKotlin,
 	LanguageLua,
+	LanguageMarkdown,
 	LanguageOCaml,
 	LanguagePhp,
 	LanguageProtobuf,

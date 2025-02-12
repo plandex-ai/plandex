@@ -18,7 +18,9 @@ func (m FileMapBodies) CombinedMap() string {
 		body = strings.TrimSpace(body)
 		fileHeading := MapFileHeading(path)
 		combinedMap.WriteString(fileHeading)
-		if body != "" {
+		if body == "" {
+			combinedMap.WriteString("[NO MAP]")
+		} else {
 			combinedMap.WriteString(body)
 		}
 		combinedMap.WriteString("\n")

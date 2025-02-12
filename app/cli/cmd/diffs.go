@@ -18,7 +18,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// var plainTextOutput bool
 var showDiffUi bool = true
 var diffUiSideBySide = true
 var diffUiLineByLine bool
@@ -139,10 +138,10 @@ func diffs(cmd *cobra.Command, args []string) {
 			fmt.Printf("%s for git diff format\n", color.New(color.Bold, term.ColorHiGreen).Sprintf("(g)"))
 			// fmt.Printf("%s to quit\n", color.New(color.Bold, term.ColorHiGreen).Sprintf("(q)"))
 
-			fmt.Printf("%s, %s %s %s %s",
-				color.New(term.ColorHiMagenta, color.Bold).Sprint("Press a hotkey"),
+			fmt.Printf("%s %s %s %s %s",
+				color.New(term.ColorHiMagenta, color.Bold).Sprint("Press a hotkey,"),
 				color.New(color.FgHiWhite, color.Bold).Sprintf("↓"),
-				color.New(term.ColorHiMagenta, color.Bold).Sprintf("to select"),
+				color.New(term.ColorHiMagenta, color.Bold).Sprintf("to select,"),
 				color.New(color.FgHiWhite, color.Bold).Sprintf("enter"),
 				color.New(term.ColorHiMagenta, color.Bold).Sprintf("to continue>"),
 			)

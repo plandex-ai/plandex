@@ -438,9 +438,10 @@ func executor(in string, p *prompt.Prompt) {
 			color.New(term.ColorHiRed).Printf("Error executing chat: %v\n", err)
 		}
 
-		rx := regexp.MustCompile(`(?i)switch(ing)? to (tell|implementation) mode`)
+		rx := regexp.MustCompile(`(?i)(switch|start|continue|begin|change|chang|move|proceed|go|transition)(ing)?( to | with | into )?(tell|implementation|coding|development)( mode)?`)
 
 		if rx.MatchString(output) {
+			fmt.Println()
 			res, err := term.ConfirmYesNo("Switch to tell mode for implementation?")
 			if err != nil {
 				color.New(term.ColorHiRed).Printf("Error confirming yes/no: %v\n", err)

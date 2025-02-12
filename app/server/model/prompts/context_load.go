@@ -58,6 +58,10 @@ const AutoContextShared = `
 
 - Immediately after the end of the '### Files' section list, you ABSOLUTELY MUST ALWAYS output a <PlandexFinish/> tag. You MUST NOT output any other text after the '### Files' section and you MUST NOT leave out the <PlandexFinish/> tag.
 
+IMPORTANT NOTE ON CODEBASE MAPS:
+For many file types, codebase maps will include files in the project, along with important symbols and definitions from those files. For other file types, the file path will be listed with '[NO MAP]' below it. This does NOT mean the the file is empty, does not exist, is not important, or is not relevant. It simply means that we either can't or prefer not to show the map of that file. You can still use the file path to load the file and see its full content if appropriate. For files without a map, instead of making judgments about the file's relevance based on the symbols in the map, judge based on the file path and name.
+--
+
 When assessing relevant context, you MUST follow these rules:
 
 1. Interface & Implementation Rule:

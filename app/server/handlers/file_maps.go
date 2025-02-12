@@ -44,6 +44,13 @@ func GetFileMapHandler(w http.ResponseWriter, r *http.Request) {
 	var mu sync.Mutex
 
 	for path, input := range req.MapInputs {
+		if !shared.HasFileMapSupport(path) {
+			mu.Lock()
+			maps[path] = "[NO MAP]"
+			mu.Unlock()
+			continue
+		}
+
 		wg.Add(1)
 		sem <- struct{}{}
 		go func(path string, input string) {

@@ -129,12 +129,13 @@ func (m MapTrees) CombinedTrees() string {
 	for _, path := range paths {
 		body := m[path]
 		body = strings.TrimSpace(body)
-		if body == "" {
-			continue
-		}
 		fileHeading := fmt.Sprintf("\n### %s\n", path)
 		combinedMap.WriteString(fileHeading)
-		combinedMap.WriteString(body)
+		if body == "" {
+			combinedMap.WriteString("[NO MAP]\n")
+		} else {
+			combinedMap.WriteString(body)
+		}
 		combinedMap.WriteString("\n")
 	}
 	return combinedMap.String()

@@ -102,7 +102,10 @@ func GetPlanningPrompt(params CreatePromptParams) string {
 
 	if params.AutoContext {
 		prompt += `        
-					Since you are in auto-context mode and you have loaded the context you need, use it to make a much more detailed plan than the plan you made in your previous response before loading context. Be thorough in your planning.        
+					Since you are in auto-context mode and you have loaded the context you need, use it to make a much more detailed plan than the plan you made in your previous response before loading context. Be thorough in your planning.
+          
+          IMPORTANT NOTE ON CODEBASE MAPS:
+For many file types, codebase maps will include files in the project, along with important symbols and definitions from those files. For other file types, the file path will be listed with '[NO MAP]' below it. This does NOT mean the the file is empty, does not exist, is not important, or is not relevant. It simply means that we either can't or prefer not to show the map of that file.
     `
 	}
 

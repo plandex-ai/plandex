@@ -364,10 +364,11 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 							continue // not a child of any input path
 						}
 
-						if !shared.HasFileMapSupport(path) {
-							// not a tree-sitter supported file type
-							continue
-						}
+						// add empty entry for non-supported file types to show file tree
+						// if !shared.HasFileMapSupport(path) {
+						// 	// not a tree-sitter supported file type
+						// 	continue
+						// }
 
 						if _, ok := mapInputsByPath[mapInputPath]; !ok {
 							mapInputsByPath[mapInputPath] = shared.FileMapInputs{}
@@ -395,24 +396,28 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 
 					numRoutines++
 					go func(path string) {
-						// File size check
-						fileInfo, err := os.Stat(path)
-						if err != nil {
-							errCh <- fmt.Errorf("failed to get file info for %s: %v", path, err)
-							return
-						}
+						var fileContent []byte
+						var size int64
+						if shared.HasFileMapSupport(path) {
+							// File size check
+							fileInfo, err := os.Stat(path)
+							if err != nil {
+								errCh <- fmt.Errorf("failed to get file info for %s: %v", path, err)
+								return
+							}
 
-						size := fileInfo.Size()
+							size = fileInfo.Size()
 
-						if size > shared.MaxContextBodySize {
-							errCh <- fmt.Errorf("file %s exceeds size limit (size %.2f MB, limit %d MB)", path, float64(fileInfo.Size())/1024/1024, int(shared.MaxContextBodySize)/1024/1024)
-							return
-						}
+							if size > shared.MaxContextBodySize {
+								errCh <- fmt.Errorf("file %s exceeds size limit (size %.2f MB, limit %d MB)", path, float64(fileInfo.Size())/1024/1024, int(shared.MaxContextBodySize)/1024/1024)
+								return
+							}
 
-						fileContent, err := os.ReadFile(path)
-						if err != nil {
-							errCh <- fmt.Errorf("failed to read the file %s: %v", path, err)
-							return
+							fileContent, err = os.ReadFile(path)
+							if err != nil {
+								errCh <- fmt.Errorf("failed to read the file %s: %v", path, err)
+								return
+							}
 						}
 
 						contextMu.Lock()

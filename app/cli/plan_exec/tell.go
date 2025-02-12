@@ -22,21 +22,58 @@ import (
 )
 
 type hotkeyOption struct {
-	key          string
+	char         string
+	key          keyboard.Key
 	command      string
 	description  string
 	replOnly     bool
 	terminalOnly bool
+	dropdownOnly bool
 }
 
 var allHotkeyOptions = []hotkeyOption{
-	{"d", "diff ui", "Review diffs in browser UI", false, false},
-	{"g", "git diff format", "Review diffs in git diff format", false, false},
-	{"a", "apply", "Apply all pending changes", false, false},
-	{"r", "reject", "Reject some or all pending changes", false, false},
-	{"f", "follow up", "Iterate with a follow up prompt", true, false},
-	// {"q", "quit", "Back to terminal", false, true},
-	// {"q", "quit", "Back to REPL", true, false},
+	{
+		char:         "d",
+		command:      "diff ui",
+		description:  "Review diffs in browser UI",
+		replOnly:     false,
+		terminalOnly: false,
+	},
+	{
+		char:         "g",
+		command:      "git diff format",
+		description:  "Review diffs in git diff format",
+		replOnly:     false,
+		terminalOnly: false,
+	},
+	{
+		char:         "a",
+		command:      "apply",
+		description:  "Apply all pending changes",
+		replOnly:     false,
+		terminalOnly: false,
+	},
+	{
+		char:         "r",
+		command:      "reject",
+		description:  "Reject some or all pending changes",
+		replOnly:     false,
+		terminalOnly: false,
+	},
+	// {
+	// 	char:         "f",
+	// 	command:      "follow up",
+	// 	description:  "Iterate with a follow up prompt",
+	// 	replOnly:     true,
+	// 	terminalOnly: false,
+	// },
+	{
+		char:         "q",
+		key:          keyboard.KeyEnter,
+		command:      "continue",
+		description:  "Continue",
+		dropdownOnly: true,
+	},
 }
 
 func TellPlan(
@@ -278,12 +315,12 @@ func showHotkeyMenu(diffs []string) {
 	table.SetAlignment(tablewriter.ALIGN_LEFT)
 
 	for _, opt := range allHotkeyOptions {
-		if (opt.terminalOnly && term.IsRepl) || (opt.replOnly && !term.IsRepl) {
+		if (opt.terminalOnly && term.IsRepl) || (opt.replOnly && !term.IsRepl) || opt.dropdownOnly {
 			continue
 		}
 
 		table.Append([]string{
-			color.New(term.ColorHiGreen, color.Bold).Sprintf("(%s)", opt.key),
+			color.New(term.ColorHiGreen, color.Bold).Sprintf("(%s)", opt.char),
 			opt.command,
 			opt.description,
 		})
@@ -292,12 +329,12 @@ func showHotkeyMenu(diffs []string) {
 	table.Render()
 	fmt.Print(b.String())
 
-	fmt.Printf("%s, %s %s %s %s",
-		color.New(term.ColorHiMagenta, color.Bold).Sprint("Press a hotkey"),
+	fmt.Printf("%s %s %s %s %s",
+		color.New(term.ColorHiMagenta, color.Bold).Sprint("Press a hotkey,"),
 		color.New(color.FgHiWhite, color.Bold).Sprintf("↓"),
-		color.New(term.ColorHiMagenta, color.Bold).Sprintf("to select"),
-		color.New(color.FgHiWhite, color.Bold).Sprintf("q"),
-		color.New(term.ColorHiMagenta, color.Bold).Sprintf("to quit>"),
+		color.New(term.ColorHiMagenta, color.Bold).Sprintf("to select,"),
+		color.New(color.FgHiWhite, color.Bold).Sprintf("enter"),
+		color.New(term.ColorHiMagenta, color.Bold).Sprintf("to continue>"),
 	)
 }
 
@@ -346,7 +383,7 @@ func handleHotkey(diffs []string, params ExecParams) {
 		}
 	}
 
-	handleHotkeyOption(hotkeyOption{key: string(char)}, diffs, params)
+	handleHotkeyOption(hotkeyOption{char: string(char)}, diffs, params)
 }
 
 func handleHotkeyOption(option hotkeyOption, diffs []string, params ExecParams) {
@@ -367,50 +404,51 @@ func handleHotkeyOption(option hotkeyOption, diffs []string, params ExecParams) 
 
 	fmt.Println()
 
-	switch option.key {
-	case "d":
+	if option.char == "d" {
+		fmt.Println()
 		_, err := lib.ExecPlandexCommandWithParams([]string{"diffs", "--ui"}, lib.ExecPlandexCommandParams{
 			DisableSuggestions: true,
 		})
 		if err != nil {
 			fmt.Printf("\nError showing diffs: %v\n", err)
 		}
-
-	case "g":
+		fmt.Println()
+	} else if option.char == "g" {
+		fmt.Println()
 		_, err := lib.ExecPlandexCommandWithParams([]string{"diffs"}, lib.ExecPlandexCommandParams{
 			DisableSuggestions: true,
 		})
 		if err != nil {
 			fmt.Printf("\nError showing diffs: %v\n", err)
 		}
-
-	case "a":
+		fmt.Println()
+	} else if option.char == "a" {
+		fmt.Println()
 		_, err := lib.ExecPlandexCommand([]string{"apply"})
 		if err != nil {
 			fmt.Printf("\nError applying changes: %v\n", err)
 		}
+		fmt.Println()
 		exitUnlessDiffs()
-
-	case "r":
+	} else if option.char == "r" {
+		fmt.Println()
 		_, err := lib.ExecPlandexCommand([]string{"reject"})
 		if err != nil {
 			fmt.Printf("\nError rejecting changes: %v\n", err)
 		}
+		fmt.Println()
 		exitUnlessDiffs()
-
-	case "q":
+	} else if option.char == "q" || option.key == keyboard.KeyEnter {
 		os.Exit(0)
-
-	case "f":
-		if term.IsRepl {
-			color.New(color.Bold).Println("Write a prompt 👇")
-			os.Exit(0)
-		} else {
-			term.PrintCmds("", "tell", "chat")
-			os.Exit(0)
-		}
-
-	default:
+		// } else if option.char == "f" {
+		// 	if term.IsRepl {
+		// 		color.New(color.Bold).Println("Write a prompt 👇")
+		// 		os.Exit(0)
+		// 	} else {
+		// 		term.PrintCmds("", "tell", "chat")
+		// 		os.Exit(0)
+		// 	}
+	} else {
 		fmt.Println("\nInvalid command")
 	}
 
