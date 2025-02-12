@@ -93,7 +93,7 @@ func (state *activeBuildStreamFileState) onFinishBuild() {
 				log.Println("Cleared uncommitted changes")
 			}
 
-			err := db.DeleteRepoLock(repoLockId)
+			err := db.DeleteRepoLock(repoLockId, planId)
 			if err != nil {
 				log.Printf("Error unlocking repo: %v\n", err)
 			}

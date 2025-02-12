@@ -490,7 +490,7 @@ func (ap *ActivePlan) UnlockForActiveBuild() error {
 				ap.ActiveBuildLockParams = nil
 				ap.activeBuildLockMu.Unlock()
 				log.Printf("Unlocking repo for active build %s\n", lockId)
-				err := db.DeleteRepoLock(lockId)
+				err := db.DeleteRepoLock(lockId, ap.Id)
 				if err != nil {
 					log.Printf("Error unlocking repo: %v\n", err)
 				}

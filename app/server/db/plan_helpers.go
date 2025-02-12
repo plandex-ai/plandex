@@ -73,6 +73,12 @@ func CreatePlan(orgId, projectId, userId, name string) (*Plan, error) {
 		return nil, fmt.Errorf("error creating plan: %v", err)
 	}
 
+	_, err = tx.Exec("INSERT INTO lockable_plan_ids (plan_id) VALUES ($1)", plan.Id)
+
+	if err != nil {
+		return nil, fmt.Errorf("error inserting lockable plan id: %v", err)
+	}
+
 	_, err = CreateBranch(plan, nil, "main", tx)
 
 	if err != nil {

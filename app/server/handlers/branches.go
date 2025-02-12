@@ -201,7 +201,7 @@ func DeleteBranchHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	defer func() {
-		err := db.DeleteRepoLock(repoLockId)
+		err := db.DeleteRepoLock(repoLockId, planId)
 		if err != nil {
 			log.Printf("Error unlocking repo: %v\n", err)
 		}

@@ -79,7 +79,7 @@ func lockRepo(w http.ResponseWriter, r *http.Request, auth *types.ServerAuth, sc
 			log.Printf("Error rolling back repo: %v\n", err)
 		}
 
-		err = db.DeleteRepoLock(repoLockId)
+		err = db.DeleteRepoLock(repoLockId, planId)
 		if err != nil {
 			log.Printf("Error unlocking repo: %v\n", err)
 		}

@@ -120,11 +120,13 @@ func TellPlan(
 			buildMode = shared.BuildModeAuto
 		}
 
-		if isUserContinue {
-			term.StartSpinner("⚡️ Continuing plan...")
-		} else {
-			term.StartSpinner("💬 Sending prompt...")
-		}
+		// if isUserContinue {
+		// 	term.StartSpinner("⚡️ Continuing plan...")
+		// } else {
+		// 	term.StartSpinner("💬 Sending prompt...")
+		// }
+
+		term.StartSpinner("")
 
 		var legacyApiKey, openAIBase, openAIOrgId string
 

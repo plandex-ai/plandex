@@ -435,7 +435,7 @@ func (state *activeTellStreamState) storeOnFinished(params storeOnFinishedParams
 
 			log.Println("Unlocking repo for assistant reply and description")
 
-			err = db.DeleteRepoLock(repoLockId)
+			err = db.DeleteRepoLock(repoLockId, planId)
 			if err != nil {
 				log.Printf("Error unlocking repo: %v\n", err)
 				active.StreamDoneCh <- &shared.ApiError{

@@ -99,7 +99,7 @@ func (state *activeTellStreamState) onError(params onErrorParams) onErrorResult 
 		} else {
 
 			defer func() {
-				err := db.DeleteRepoLock(repoLockId)
+				err := db.DeleteRepoLock(repoLockId, planId)
 				if err != nil {
 					log.Printf("Error unlocking repo for plan %s: %v\n", planId, err)
 				}

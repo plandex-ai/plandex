@@ -44,7 +44,7 @@ func (state *activeBuildStreamState) loadPendingBuilds() (map[string][]*types.Ac
 
 	err = func() error {
 		defer func() {
-			err := db.DeleteRepoLock(repoLockId)
+			err := db.DeleteRepoLock(repoLockId, plan.Id)
 			if err != nil {
 				log.Printf("Error unlocking repo: %v\n", err)
 			}
