@@ -139,6 +139,7 @@ func GenPlanName(
 }
 
 func GenPipedDataName(
+	ctx context.Context,
 	auth *types.ServerAuth,
 	plan *db.Plan,
 	settings *shared.PlanSettings,
@@ -182,7 +183,7 @@ func GenPipedDataName(
 	resp, err := CreateChatCompletionWithRetries(
 		clients,
 		&config,
-		context.Background(),
+		ctx,
 		openai.ChatCompletionRequest{
 			Model: config.BaseModelConfig.ModelName,
 			Tools: []openai.Tool{
@@ -270,6 +271,7 @@ func GenPipedDataName(
 }
 
 func GenNoteName(
+	ctx context.Context,
 	auth *types.ServerAuth,
 	plan *db.Plan,
 	settings *shared.PlanSettings,
@@ -313,7 +315,7 @@ func GenNoteName(
 	resp, err := CreateChatCompletionWithRetries(
 		clients,
 		&config,
-		context.Background(),
+		ctx,
 		openai.ChatCompletionRequest{
 			Model: config.BaseModelConfig.ModelName,
 			Tools: []openai.Tool{

@@ -85,7 +85,7 @@ func TellPlanHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if requestBody.ConnectStream {
-		startResponseStream(w, auth, planId, branch, false)
+		startResponseStream(r.Context(), w, auth, planId, branch, false)
 	}
 
 	log.Println("Successfully processed request for TellPlanHandler")
@@ -153,7 +153,7 @@ func BuildPlanHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if requestBody.ConnectStream {
-		startResponseStream(w, auth, planId, branch, false)
+		startResponseStream(r.Context(), w, auth, planId, branch, false)
 	}
 
 	log.Println("Successfully processed request for BuildPlanHandler")
@@ -195,7 +195,7 @@ func ConnectPlanHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	startResponseStream(w, auth, planId, branch, true)
+	startResponseStream(r.Context(), w, auth, planId, branch, true)
 
 	log.Println("Successfully processed request for ConnectPlanHandler")
 }
@@ -241,7 +241,7 @@ func StopPlanHandler(w http.ResponseWriter, r *http.Request) {
 	time.Sleep(100 * time.Millisecond)
 
 	var err error
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(r.Context())
 	unlockFn := LockRepo(w, r, auth, db.LockScopeWrite, ctx, cancel, true)
 	if unlockFn == nil {
 		return
@@ -342,6 +342,11 @@ func RespondMissingFileHandler(w http.ResponseWriter, r *http.Request) {
 		log.Println("loaded missing file:", dbContext.FilePath)
 
 		modelPlan.UpdateActivePlan(planId, branch, func(activePlan *types.ActivePlan) {
+			if activePlan == nil {
+				log.Println("Active plan is nil")
+				http.Error(w, "Active plan is nil", http.StatusInternalServerError)
+				return
+			}
 			activePlan.Contexts = append(activePlan.Contexts, dbContext)
 			activePlan.ContextsByPath[dbContext.FilePath] = dbContext
 		})
@@ -412,6 +417,11 @@ func AutoLoadContextHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("AutoLoadContextHandler - updating active plan")
 
 	modelPlan.UpdateActivePlan(planId, branch, func(activePlan *types.ActivePlan) {
+		if activePlan == nil {
+			log.Println("Active plan is nil")
+			http.Error(w, "Active plan is nil", http.StatusInternalServerError)
+			return
+		}
 		activePlan.Contexts = append(activePlan.Contexts, dbContexts...)
 		for _, dbContext := range dbContexts {
 			activePlan.ContextsByPath[dbContext.FilePath] = dbContext

@@ -205,7 +205,7 @@ func (fileState *activeBuildStreamFileState) onFinishBuildFile(planRes *db.PlanF
 
 	filePath := fileState.filePath
 
-	log.Println("onFinishBuildFile: " + filePath)
+	log.Printf("onFinishBuildFile: %s\n", filePath)
 
 	if planRes == nil {
 		log.Println("onFinishBuildFile - planRes is nil")
@@ -217,7 +217,16 @@ func (fileState *activeBuildStreamFileState) onFinishBuildFile(planRes *db.PlanF
 		return
 	}
 
-	err := activePlan.LockForActiveBuild(db.LockScopeWrite, build.Id)
+	repoLockId, err := db.LockRepo(db.LockRepoParams{
+		OrgId:       currentOrgId,
+		UserId:      fileState.currentUserId,
+		PlanId:      planId,
+		Branch:      branch,
+		PlanBuildId: build.Id,
+		Scope:       db.LockScopeWrite,
+		Ctx:         activePlan.Ctx,
+		CancelFn:    activePlan.CancelFn,
+	})
 	if err != nil {
 		log.Printf("Error locking repo for build file: %v\n", err)
 		activePlan.StreamDoneCh <- &shared.ApiError{
@@ -248,7 +257,7 @@ func (fileState *activeBuildStreamFileState) onFinishBuildFile(planRes *db.PlanF
 				return
 			}
 
-			err := activePlan.UnlockForActiveBuild()
+			err := db.DeleteRepoLock(repoLockId, planId)
 			if err != nil {
 				log.Printf("Error unlocking repo: %v\n", err)
 			}

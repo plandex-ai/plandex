@@ -391,7 +391,7 @@ func (state *activeTellStreamState) storeOnFinished(params storeOnFinishedParams
 
 	var allSubtasksFinished bool
 
-	log.Println("Locking repo to store assistant reply and description")
+	log.Println("[Subtasks] Locking repo to store assistant reply and description")
 
 	repoLockId, err := db.LockRepo(
 		db.LockRepoParams{
@@ -421,7 +421,7 @@ func (state *activeTellStreamState) storeOnFinished(params storeOnFinishedParams
 		}
 	}
 
-	log.Println("Locked repo for assistant reply and description")
+	log.Println("[Subtasks] Locked repo for assistant reply and description")
 
 	err = func() error {
 		defer func() {
@@ -433,7 +433,7 @@ func (state *activeTellStreamState) storeOnFinished(params storeOnFinishedParams
 				}
 			}
 
-			log.Println("Unlocking repo for assistant reply and description")
+			log.Println("[Subtasks] Unlocking repo for assistant reply and description")
 
 			err = db.DeleteRepoLock(repoLockId, planId)
 			if err != nil {
@@ -486,7 +486,7 @@ func (state *activeTellStreamState) storeOnFinished(params storeOnFinishedParams
 			description.ConvoMessageId = assistantMsg.Id
 		}
 
-		log.Println("Storing description")
+		log.Println("[Subtasks] Storing description")
 		err = db.StoreDescription(description)
 
 		if err != nil {
@@ -498,20 +498,22 @@ func (state *activeTellStreamState) storeOnFinished(params storeOnFinishedParams
 			})
 			return err
 		}
-		log.Println("Description stored")
+		log.Println("[Subtasks] Description stored")
 
 		if hasNewSubtasks || subtaskFinished {
 			if subtaskFinished && state.currentSubtask != nil {
-				log.Println("Subtask finished")
-				log.Println("Current subtask:")
-				log.Println(state.currentSubtask.Title)
+				log.Printf("[Subtasks] Marking subtask as finished: %q", state.currentSubtask.Title)
 				state.currentSubtask.IsFinished = true
 
-				log.Println("Updated state. Current subtask:")
-				log.Println(state.currentSubtask)
+				log.Printf("[Subtasks] Current subtask state after marking as finished: %+v", state.currentSubtask)
 			}
 
-			log.Println("Storing plan subtasks")
+			log.Printf("[Subtasks] Storing plan subtasks (hasNewSubtasks=%v, subtaskFinished=%v)", hasNewSubtasks, subtaskFinished)
+			log.Printf("[Subtasks] Current subtasks state before storing:")
+			for i, task := range state.subtasks {
+				log.Printf("[Subtasks] Task %d: %q (finished=%v)", i+1, task.Title, task.IsFinished)
+			}
+
 			err = db.StorePlanSubtasks(currentOrgId, planId, state.subtasks)
 			if err != nil {
 				log.Printf("Error storing plan subtasks: %v\n", err)
@@ -534,13 +536,12 @@ func (state *activeTellStreamState) storeOnFinished(params storeOnFinishedParams
 				}
 			}
 
-			log.Println("Set new current subtask. Current subtask:")
-			log.Println(state.currentSubtask)
-			log.Println("All subtasks finished:", allSubtasksFinished)
-
-			// log.Println("Update state of subtasks")
-			// spew.Dump(state.subtasks)
-
+			if state.currentSubtask != nil {
+				log.Printf("[Subtasks] Set new current subtask: %q", state.currentSubtask.Title)
+			} else {
+				log.Println("[Subtasks] No new current subtask set")
+			}
+			log.Printf("[Subtasks] All subtasks finished: %v", allSubtasksFinished)
 		}
 
 		if followUpNeedsContextStage {

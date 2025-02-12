@@ -33,7 +33,7 @@ func ListBranchesHandler(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(r.Context())
 	unlockFn := LockRepo(w, r, auth, db.LockScopeRead, ctx, cancel, false)
 	if unlockFn == nil {
 		return
@@ -109,7 +109,7 @@ func CreateBranchHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(r.Context())
 	unlockFn := LockRepo(w, r, auth, db.LockScopeWrite, ctx, cancel, true)
 	if unlockFn == nil {
 		return
@@ -187,7 +187,7 @@ func DeleteBranchHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(r.Context())
 	repoLockId, err := db.LockRepo(
 		db.LockRepoParams{
 			OrgId:    auth.OrgId,

@@ -35,7 +35,7 @@ func GetSettingsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var err error
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(r.Context())
 	unlockFn := LockRepo(w, r, auth, db.LockScopeRead, ctx, cancel, true)
 	if unlockFn == nil {
 		return
@@ -95,7 +95,7 @@ func UpdateSettingsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(r.Context())
 	unlockFn := LockRepo(w, r, auth, db.LockScopeWrite, ctx, cancel, true)
 	if unlockFn == nil {
 		return

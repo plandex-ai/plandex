@@ -185,7 +185,17 @@ func (state *activeBuildStreamFileState) loadBuildFile(activeBuild *types.Active
 	} else {
 		lockScope = db.LockScopeRead
 	}
-	err = activePlan.LockForActiveBuild(lockScope, build.Id)
+
+	repoLockId, err := db.LockRepo(db.LockRepoParams{
+		OrgId:       currentOrgId,
+		UserId:      state.activeBuildStreamState.currentUserId,
+		PlanId:      planId,
+		Branch:      branch,
+		PlanBuildId: build.Id,
+		Scope:       lockScope,
+		Ctx:         activePlan.Ctx,
+		CancelFn:    activePlan.CancelFn,
+	})
 	if err != nil {
 		log.Printf("Error locking repo for build file: %v\n", err)
 		UpdateActivePlan(activePlan.Id, activePlan.Branch, func(ap *types.ActivePlan) {
@@ -205,7 +215,7 @@ func (state *activeBuildStreamFileState) loadBuildFile(activeBuild *types.Active
 		defer func() {
 			log.Printf("Unlocking repo for load build file")
 
-			err := activePlan.UnlockForActiveBuild()
+			err := db.DeleteRepoLock(repoLockId, planId)
 			if err != nil {
 				log.Printf("Error unlocking repo: %v\n", err)
 			}

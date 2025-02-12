@@ -17,7 +17,7 @@ import (
 
 var Conn *sqlx.DB
 
-const LockTimeout = 30000
+const LockTimeout = 2000
 const IdleInTransactionSessionTimeout = 90000
 const StatementTimeout = 30000
 

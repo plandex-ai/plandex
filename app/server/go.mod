@@ -7,8 +7,8 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/mux v1.8.1
 	github.com/pkg/errors v0.9.1
-	plandex-shared v0.0.0-00010101000000-000000000000
 	github.com/sashabaranov/go-openai v1.36.1
+	plandex-shared v0.0.0-00010101000000-000000000000
 )
 
 require (
@@ -42,7 +42,6 @@ require (
 	github.com/golang-migrate/migrate/v4 v4.18.2
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/lib/pq v1.10.9
-	github.com/rs/cors v1.11.1
 	github.com/smacker/go-tree-sitter v0.0.0-20240827094217-dd81d9e9be82
 	github.com/stretchr/testify v1.10.0
 	golang.org/x/net v0.34.0

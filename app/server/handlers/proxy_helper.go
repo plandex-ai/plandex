@@ -60,7 +60,7 @@ func proxyRequest(w http.ResponseWriter, originalRequest *http.Request, url stri
 	}
 
 	// Create a new request based on the original request
-	req, err := http.NewRequest(originalRequest.Method, url, originalRequest.Body)
+	req, err := http.NewRequestWithContext(originalRequest.Context(), originalRequest.Method, url, originalRequest.Body)
 	if err != nil {
 		log.Printf("Error creating request for proxy: %v\n", err)
 		http.Error(w, "Error creating request for proxy", http.StatusInternalServerError)

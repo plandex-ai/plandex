@@ -85,7 +85,17 @@ func CreateActivePlan(orgId, userId, planId, branch, prompt string, buildOnly, a
 func DeleteActivePlan(orgId, userId, planId, branch string) {
 	log.Printf("Deleting active plan %s - %s - %s\n", planId, branch, orgId)
 
-	ctx, cancelFn := context.WithCancel(context.Background())
+	var ctx context.Context
+	var cancelFn context.CancelFunc
+
+	activePlan := GetActivePlan(planId, branch)
+	if activePlan == nil {
+		log.Printf("DeleteActivePlan - No active plan found for plan ID %s on branch %s\n", planId, branch)
+		return
+	}
+
+	// If the plan is still around, use the plan’s context
+	ctx, cancelFn = context.WithCancel(activePlan.Ctx)
 
 	repoLockId, err := db.LockRepo(
 		db.LockRepoParams{
@@ -122,17 +132,22 @@ func DeleteActivePlan(orgId, userId, planId, branch string) {
 }
 
 func UpdateActivePlan(planId, branch string, fn func(*types.ActivePlan)) {
-	log.Printf("Updating active plan %s - %s\n", planId, branch)
 	activePlans.Update(strings.Join([]string{planId, branch}, "|"), fn)
-	log.Printf("Updated active plan %s - %s\n", planId, branch)
 }
 
-func SubscribePlan(planId, branch string) (string, chan string) {
+func SubscribePlan(ctx context.Context, planId, branch string) (string, chan string) {
 	log.Printf("Subscribing to plan %s\n", planId)
 	var id string
 	var ch chan string
+
+	activePlan := GetActivePlan(planId, branch)
+	if activePlan == nil {
+		log.Printf("SubscribePlan - No active plan found for plan ID %s on branch %s\n", planId, branch)
+		return "", nil
+	}
+
 	UpdateActivePlan(planId, branch, func(activePlan *types.ActivePlan) {
-		id, ch = activePlan.Subscribe()
+		id, ch = activePlan.Subscribe(ctx)
 	})
 	return id, ch
 }

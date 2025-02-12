@@ -80,7 +80,7 @@ func execTellPlan(params execTellPlanParams) {
 	didLoadFollowUpContext := params.didLoadFollowUpContext
 	didMakeFollowUpPlan := params.didMakeFollowUpPlan
 
-	log.Printf("execTellPlan: Called for plan ID %s on branch %s, iteration %d\n", plan.Id, branch, iteration)
+	log.Printf("[TellExec] Starting iteration %d for plan %s on branch %s", iteration, plan.Id, branch)
 	currentUserId := auth.User.Id
 	currentOrgId := auth.OrgId
 
@@ -89,6 +89,25 @@ func execTellPlan(params execTellPlanParams) {
 	if active == nil {
 		log.Printf("execTellPlan: Active plan not found for plan ID %s on branch %s\n", plan.Id, branch)
 		return
+	}
+
+	// Load existing subtasks to log their state
+	subtasks, err := db.GetPlanSubtasks(currentOrgId, plan.Id)
+	if err != nil {
+		log.Printf("[TellExec] Error loading subtasks: %v", err)
+	} else {
+		var unfinished []string
+		var finished []string
+		for _, task := range subtasks {
+			if task.IsFinished {
+				finished = append(finished, task.Title)
+			} else {
+				unfinished = append(unfinished, task.Title)
+			}
+		}
+		log.Printf("[TellExec] Current subtask state - Total: %d, Finished: %d, Unfinished: %d", len(subtasks), len(finished), len(unfinished))
+		log.Printf("[TellExec] Finished tasks: %v", finished)
+		log.Printf("[TellExec] Unfinished tasks: %v", unfinished)
 	}
 
 	if missingFileResponse == "" {
@@ -107,7 +126,7 @@ func execTellPlan(params execTellPlanParams) {
 
 	planId := plan.Id
 	log.Println("execTellPlan - Setting plan status to replying")
-	err := db.SetPlanStatus(planId, branch, shared.PlanStatusReplying, "")
+	err = db.SetPlanStatus(planId, branch, shared.PlanStatusReplying, "")
 	if err != nil {
 		log.Printf("Error setting plan %s status to replying: %v\n", planId, err)
 		active.StreamDoneCh <- &shared.ApiError{

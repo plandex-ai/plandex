@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime/debug"
 	"strconv"
 	"strings"
 	"time"
@@ -15,8 +14,10 @@ import (
 	"github.com/fatih/color"
 )
 
-const maxGitRetries = 6
-const initialGitRetryInterval = 100 * time.Millisecond
+const (
+	maxGitRetries     = 5
+	baseGitRetryDelay = 100 * time.Millisecond
+)
 
 func init() {
 	// ensure git is available
@@ -281,35 +282,91 @@ func GitCheckoutBranch(orgId, planId, branch string) error {
 	return nil
 }
 
-func gitCheckoutBranch(repoDir, branch string) error {
-	// get current branch and only checkout if it's not the same
-	// trying to check out the same branch will result in an error
-	var out bytes.Buffer
-	cmd := exec.Command("git", "-C", repoDir, "branch", "--show-current")
-	cmd.Stdout = &out
-	err := cmd.Run()
-	if err != nil {
-		// log output
-		log.Printf("error getting current git branch for dir: %s, err: %v, output: %s", repoDir, err, out.String())
+func withRetry(operation func() error) error {
+	var err error
+	for attempt := 0; attempt < maxGitRetries; attempt++ {
+		// Remove any existing lock file before each attempt
+		if attempt > 0 {
+			delay := time.Duration(1<<uint(attempt-1)) * baseGitRetryDelay // Exponential backoff
+			time.Sleep(delay)
+			log.Printf("Retry attempt %d for git operation (delay: %v)\n", attempt+1, delay)
+		}
 
-		return fmt.Errorf("error getting current git branch for dir: %s, err: %v", repoDir, err)
+		err = operation()
+		if err == nil {
+			return nil
+		}
+
+		// Check if error is retryable
+		if strings.Contains(err.Error(), "index.lock") {
+			log.Printf("Git lock file error detected, will retry: %v\n", err)
+			continue
+		}
+
+		// Non-retryable error
+		return err
 	}
+	return fmt.Errorf("operation failed after %d attempts: %v", maxGitRetries, err)
+}
 
-	currentBranch := strings.TrimSpace(out.String())
+func gitAdd(repoDir, path string) error {
+	return withRetry(func() error {
+		if err := gitRemoveIndexLockFileIfExists(repoDir); err != nil {
+			return fmt.Errorf("error removing lock file before add: %v", err)
+		}
 
-	log.Println("currentBranch:", currentBranch)
-
-	if currentBranch == branch {
+		res, err := exec.Command("git", "-C", repoDir, "add", path).CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("error adding files to git repository for dir: %s, err: %v, output: %s", repoDir, err, string(res))
+		}
 		return nil
-	}
+	})
+}
 
-	log.Println("checking out branch:", branch)
-	res, err := exec.Command("git", "-C", repoDir, "checkout", branch).CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("error checking out git branch for dir: %s, err: %v, output: %s", repoDir, err, string(res))
-	}
+func gitCommit(repoDir, commitMsg string) error {
+	return withRetry(func() error {
+		if err := gitRemoveIndexLockFileIfExists(repoDir); err != nil {
+			return fmt.Errorf("error removing lock file before commit: %v", err)
+		}
 
-	return nil
+		res, err := exec.Command("git", "-C", repoDir, "commit", "-m", commitMsg).CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("error committing files to git repository for dir: %s, err: %v, output: %s", repoDir, err, string(res))
+		}
+		return nil
+	})
+}
+
+func gitCheckoutBranch(repoDir, branch string) error {
+	return withRetry(func() error {
+		if err := gitRemoveIndexLockFileIfExists(repoDir); err != nil {
+			return fmt.Errorf("error removing lock file before checkout: %v", err)
+		}
+
+		// get current branch and only checkout if it's not the same
+		// trying to check out the same branch will result in an error
+		var out bytes.Buffer
+		cmd := exec.Command("git", "-C", repoDir, "branch", "--show-current")
+		cmd.Stdout = &out
+		err := cmd.Run()
+		if err != nil {
+			return fmt.Errorf("error getting current git branch for dir: %s, err: %v", repoDir, err)
+		}
+
+		currentBranch := strings.TrimSpace(out.String())
+		log.Println("currentBranch:", currentBranch)
+
+		if currentBranch == branch {
+			return nil
+		}
+
+		log.Println("checking out branch:", branch)
+		res, err := exec.Command("git", "-C", repoDir, "checkout", branch).CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("error checking out git branch for dir: %s, err: %v, output: %s", repoDir, err, string(res))
+		}
+		return nil
+	})
 }
 
 func gitRewindToSha(repoDir, sha string) error {
@@ -409,24 +466,6 @@ func processGitHistoryOutput(raw string) [][2]string {
 	return history
 }
 
-func gitAdd(repoDir, path string) error {
-	res, err := exec.Command("git", "-C", repoDir, "add", path).CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("error adding files to git repository for dir: %s, path: %s, err: %v, output: %s", repoDir, path, err, string(res))
-	}
-
-	return nil
-}
-
-func gitCommit(repoDir, commitMsg string) error {
-	res, err := exec.Command("git", "-C", repoDir, "commit", "-m", commitMsg).CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("error committing files to git repository for dir: %s, err: %v, output: %s", repoDir, err, string(res))
-	}
-
-	return nil
-}
-
 func removeLockFile(lockFilePath string) error {
 	_, err := os.Stat(lockFilePath)
 	exists := err == nil
@@ -516,41 +555,26 @@ func setGitConfig(repoDir, key, value string) error {
 
 func gitWriteOperation(operation func() error, label string) error {
 	var err error
-	retryInterval := initialGitRetryInterval
-
-	shortStack := formatStackTrace(debug.Stack())
-	log.Printf("[gitWriteOperation] Called for label=%s, stack:\n%s", label, shortStack)
-
 	for attempt := 0; attempt < maxGitRetries; attempt++ {
 		if attempt > 0 {
-			log.Printf("gitWriteOperation - retry attempt %d of %d", attempt+1, maxGitRetries)
+			delay := time.Duration(1<<uint(attempt-1)) * baseGitRetryDelay // Exponential backoff
+			time.Sleep(delay)
+			log.Printf("Retry attempt %d for git operation %s (delay: %v)\n", attempt+1, label, delay)
 		}
+
 		err = operation()
 		if err == nil {
-			if attempt > 0 {
-				log.Printf("gitWriteOperation - retry attempt %d of %d succeeded", attempt+1, maxGitRetries)
-			}
 			return nil
 		}
 
-		log.Printf("attempt %d failed. Error: %v", attempt+1, err)
-
-		isIndexLockError := strings.Contains(err.Error(), "new_index file") ||
-			strings.Contains(err.Error(), "index.lock") ||
-			strings.Contains(err.Error(), "index file") ||
-			strings.Contains(err.Error(), "cannot lock ref 'HEAD'")
-
-		if isIndexLockError {
-			log.Printf("Retry attempt %d failed due to 'unable to write git index file error'. Waiting %v before retrying. Error: %v", attempt+1, retryInterval, err)
-			time.Sleep(retryInterval)
-			retryInterval *= 2
+		// Check if error is retryable
+		if strings.Contains(err.Error(), "index.lock") {
+			log.Printf("Git lock file error detected for %s, will retry: %v\n", label, err)
 			continue
-		} else {
-			log.Printf("Non-index file error: %v", err)
 		}
 
+		// Non-retryable error
 		return err
 	}
-
-	return fmt.Errorf("operation failed after %d attempts: %v", maxGitRetries, err)
+	return fmt.Errorf("operation %s failed after %d attempts: %v", label, maxGitRetries, err)
 }

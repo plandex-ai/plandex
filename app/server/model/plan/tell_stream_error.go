@@ -79,7 +79,7 @@ func (state *activeTellStreamState) onError(params onErrorParams) onErrorResult 
 	}
 
 	storeDescAndReply := func() error {
-		ctx, cancelFn := context.WithCancel(context.Background())
+		ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
 
 		repoLockId, err := db.LockRepo(
 			db.LockRepoParams{

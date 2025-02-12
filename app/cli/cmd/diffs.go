@@ -13,6 +13,7 @@ import (
 	"plandex-cli/term"
 	"plandex-cli/ui"
 
+	"github.com/eiannone/keyboard"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 )
@@ -136,9 +137,15 @@ func diffs(cmd *cobra.Command, args []string) {
 			}
 
 			fmt.Printf("%s for git diff format\n", color.New(color.Bold, term.ColorHiGreen).Sprintf("(g)"))
-			fmt.Printf("%s to quit\n", color.New(color.Bold, term.ColorHiGreen).Sprintf("(q)"))
+			// fmt.Printf("%s to quit\n", color.New(color.Bold, term.ColorHiGreen).Sprintf("(q)"))
 
-			color.New(term.ColorHiMagenta, color.Bold).Print("Press a hotkey> ")
+			fmt.Printf("%s, %s %s %s %s",
+				color.New(term.ColorHiMagenta, color.Bold).Sprint("Press a hotkey"),
+				color.New(color.FgHiWhite, color.Bold).Sprintf("↓"),
+				color.New(term.ColorHiMagenta, color.Bold).Sprintf("to select"),
+				color.New(color.FgHiWhite, color.Bold).Sprintf("enter"),
+				color.New(term.ColorHiMagenta, color.Bold).Sprintf("to continue>"),
+			)
 
 			char, key, err := term.GetUserKeyInput()
 			if err != nil {
@@ -147,13 +154,41 @@ func diffs(cmd *cobra.Command, args []string) {
 			}
 			fmt.Println()
 
-			if string(char) == "g" {
-				_, err := lib.ExecPlandexCommandWithParams([]string{"diff"}, lib.ExecPlandexCommandParams{
-					DisableSuggestions: true,
-				})
-				if err != nil {
-					term.OutputErrorAndExit("Error showing git diff: %v", err)
+			if key == keyboard.KeyArrowDown {
+				options := []string{}
+				if diffUiLineByLine {
+					options = append(options, "side-by-side")
+				} else {
+					options = append(options, "line-by-line")
 				}
+
+				options = append(options, "git diff")
+				options = append(options, "continue")
+
+				selected, err := term.SelectFromList(
+					"Select an action",
+					options,
+				)
+				if err != nil {
+					term.OutputErrorAndExit("Error selecting action: %v", err)
+					return
+				}
+
+				if selected == "side-by-side" {
+					diffUiSideBySide = true
+					diffUiLineByLine = false
+					relaunch = true
+				} else if selected == "line-by-line" {
+					diffUiSideBySide = false
+					diffUiLineByLine = true
+					relaunch = true
+				} else if selected == "git diff" {
+					showGitDiff()
+				} else if selected == "continue" {
+					break
+				}
+			} else if string(char) == "g" {
+				showGitDiff()
 			} else if string(char) == "s" {
 				diffUiSideBySide = true
 				diffUiLineByLine = false
@@ -186,6 +221,15 @@ func diffs(cmd *cobra.Command, args []string) {
 	}
 
 	term.PrintCmds("", "apply", "reject")
+}
+
+func showGitDiff() {
+	_, err := lib.ExecPlandexCommandWithParams([]string{"diff"}, lib.ExecPlandexCommandParams{
+		DisableSuggestions: true,
+	})
+	if err != nil {
+		term.OutputErrorAndExit("Error showing git diff: %v", err)
+	}
 }
 
 var htmlTemplate = `<!doctype html>

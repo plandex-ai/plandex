@@ -74,7 +74,9 @@ func (m streamUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// 	return &m, tea.Quit
 
 		case bubbleKey.Matches(msg, m.keymap.stop) || bubbleKey.Matches(msg, m.keymap.quit):
-			apiErr := api.Client.StopPlan(lib.CurrentPlanId, lib.CurrentBranch)
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer cancel()
+			apiErr := api.Client.StopPlan(ctx, lib.CurrentPlanId, lib.CurrentBranch)
 			if apiErr != nil {
 				log.Println("stop plan api error:", apiErr)
 				m.updateState(func() {

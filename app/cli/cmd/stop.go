@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"plandex-cli/api"
 	"plandex-cli/auth"
@@ -37,7 +38,7 @@ func stop(cmd *cobra.Command, args []string) {
 	}
 
 	term.StartSpinner("")
-	apiErr := api.Client.StopPlan(planId, branch)
+	apiErr := api.Client.StopPlan(context.Background(), planId, branch)
 	term.StopSpinner()
 
 	if apiErr != nil {

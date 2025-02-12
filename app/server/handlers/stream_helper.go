@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -13,7 +14,7 @@ import (
 	shared "plandex-shared"
 )
 
-func startResponseStream(w http.ResponseWriter, auth *types.ServerAuth, planId, branch string, isConnect bool) {
+func startResponseStream(reqCtx context.Context, w http.ResponseWriter, auth *types.ServerAuth, planId, branch string, isConnect bool) {
 	log.Println("Response stream manager: starting plan stream")
 
 	active := modelPlan.GetActivePlan(planId, branch)
@@ -56,7 +57,7 @@ func startResponseStream(w http.ResponseWriter, auth *types.ServerAuth, planId, 
 		}
 	}
 
-	subscriptionId, ch := modelPlan.SubscribePlan(planId, branch)
+	subscriptionId, ch := modelPlan.SubscribePlan(reqCtx, planId, branch)
 	defer func() {
 		log.Println("Response stream manager: client stream closed")
 		modelPlan.UnsubscribePlan(planId, branch, subscriptionId)

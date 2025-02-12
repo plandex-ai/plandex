@@ -61,7 +61,7 @@ type ApiClient interface {
 	DeletePlan(planId string) *shared.ApiError
 	DeleteAllPlans(projectId string) *shared.ApiError
 	ConnectPlan(planId, branch string, onStreamPlan OnStreamPlan) *shared.ApiError
-	StopPlan(planId, branch string) *shared.ApiError
+	StopPlan(ctx context.Context, planId, branch string) *shared.ApiError
 
 	ArchivePlan(planId string) *shared.ApiError
 	UnarchivePlan(planId string) *shared.ApiError

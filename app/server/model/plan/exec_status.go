@@ -13,7 +13,6 @@ import (
 
 	shared "plandex-shared"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/sashabaranov/go-openai"
 )
 
@@ -24,19 +23,22 @@ func (state *activeTellStreamState) execStatusShouldContinue(message string, ctx
 	clients := state.clients
 	config := settings.ModelPack.ExecStatus
 
-	log.Println("Checking if plan should continue based on response text")
-
+	// Check subtask completion
 	if state.currentSubtask != nil {
-		s := fmt.Sprintf("**%s** has been completed", state.currentSubtask.Title)
+		completionMarker := fmt.Sprintf("**%s** has been completed", state.currentSubtask.Title)
+		log.Printf("[ExecStatus] Checking for subtask completion marker: %q", completionMarker)
+		log.Printf("[ExecStatus] Current subtask: %q (finished=%v)", state.currentSubtask.Title, state.currentSubtask.IsFinished)
 
-		log.Println("Checking if message contains subtask completion")
-		// log.Println(s)
-		// log.Println("---")
-		// log.Println(message)
-
-		if strings.Contains(message, s) {
-			log.Println("Subtask marked completed in message. Will continue")
+		if strings.Contains(message, completionMarker) {
+			log.Printf("[ExecStatus] ✓ Subtask completion marker found - will mark as completed")
 			return true, true, nil
+		}
+		log.Printf("[ExecStatus] ✗ No subtask completion marker found in message")
+
+		// Log all subtasks current state for context
+		log.Println("[ExecStatus] Current subtasks state:")
+		for i, task := range state.subtasks {
+			log.Printf("[ExecStatus] Task %d: %q (finished=%v)", i+1, task.Title, task.IsFinished)
 		}
 	}
 
@@ -68,9 +70,6 @@ func (state *activeTellStreamState) execStatusShouldContinue(message string, ctx
 
 	log.Println("Calling model to check if plan should continue")
 
-	// log.Println("messages:")
-	// log.Println(spew.Sdump(messages))
-
 	resp, err := model.CreateChatCompletionWithRetries(
 		clients,
 		&config,
@@ -96,21 +95,16 @@ func (state *activeTellStreamState) execStatusShouldContinue(message string, ctx
 	)
 
 	if err != nil {
-		log.Printf("Error during plan exec status check model call: %v\n", err)
-		// return false, fmt.Errorf("error during plan exec status check model call: %v", err)
-
-		// Instead of erroring out, just don't continue the plan
+		log.Printf("[ExecStatus] Error in model call: %v", err)
 		return false, false, nil
 	}
 
 	var strRes string
-	var res types.ExecStatusResponse
-
 	for _, choice := range resp.Choices {
 		if len(choice.Message.ToolCalls) == 1 &&
 			choice.Message.ToolCalls[0].Function.Name == prompts.ShouldAutoContinueFn.Name {
-			fnCall := choice.Message.ToolCalls[0].Function
-			strRes = fnCall.Arguments
+			strRes = choice.Message.ToolCalls[0].Function.Arguments
+			log.Printf("[ExecStatus] Got function response: %s", strRes)
 			break
 		}
 	}
@@ -150,27 +144,18 @@ func (state *activeTellStreamState) execStatusShouldContinue(message string, ctx
 	}()
 
 	if strRes == "" {
-		log.Println("No shouldAutoContinue function call found in response")
-		log.Println(spew.Sdump(resp))
-
-		// return false, fmt.Errorf("no shouldAutoContinue function call found in response")
-
-		// Instead of erroring out, just don't continue the plan
+		log.Printf("[ExecStatus] No function response found in model output")
 		return false, false, nil
 	}
 
-	err = json.Unmarshal([]byte(strRes), &res)
-	if err != nil {
-		log.Printf("Error unmarshalling plan exec status response: %v\n", err)
-
-		// return false, fmt.Errorf("error unmarshalling plan exec status response: %v", err)
-
-		// Instead of erroring out, just don't continue the plan
+	var res types.ExecStatusResponse
+	if err := json.Unmarshal([]byte(strRes), &res); err != nil {
+		log.Printf("[ExecStatus] Failed to parse response: %v", err)
 		return false, false, nil
 	}
 
-	log.Println("Plan exec status response:")
-	log.Println(spew.Sdump(res))
+	log.Printf("[ExecStatus] Decision: subtaskFinished=%v, shouldContinue=%v",
+		res.SubtaskFinished, res.ShouldContinue)
 
 	return res.SubtaskFinished, res.ShouldContinue, nil
 }

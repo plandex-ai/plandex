@@ -272,10 +272,19 @@ func (fileState *activeBuildStreamFileState) buildFile() {
 	if activeBuild.IsResetOp {
 		log.Printf("File %s is a reset operation. Resetting file.\n", filePath)
 
-		err := activePlan.LockForActiveBuild(db.LockScopeWrite, build.Id)
+		repoLockId, err := db.LockRepo(db.LockRepoParams{
+			OrgId:       currentOrgId,
+			UserId:      fileState.currentUserId,
+			PlanId:      planId,
+			Branch:      branch,
+			PlanBuildId: build.Id,
+			Scope:       db.LockScopeWrite,
+			Ctx:         activePlan.Ctx,
+			CancelFn:    activePlan.CancelFn,
+		})
 		if err != nil {
-			log.Printf("Error locking active plan for reset: %v\n", err)
-			fileState.onBuildFileError(fmt.Errorf("error locking active plan for reset: %v", err))
+			log.Printf("Error locking repo for reset: %v\n", err)
+			fileState.onBuildFileError(fmt.Errorf("error locking repo for reset: %v", err))
 			return
 		}
 
@@ -283,17 +292,17 @@ func (fileState *activeBuildStreamFileState) buildFile() {
 		err = db.RejectPlanFile(currentOrgId, planId, filePath, now)
 		if err != nil {
 			log.Printf("Error rejecting plan file: %v\n", err)
-			unlockErr := activePlan.UnlockForActiveBuild()
+			unlockErr := db.DeleteRepoLock(repoLockId, planId)
 			if unlockErr != nil {
-				log.Printf("Error unlocking active plan for reset: %v\n", unlockErr)
+				log.Printf("Error unlocking repo for reset: %v\n", unlockErr)
 			}
 			fileState.onBuildFileError(fmt.Errorf("error rejecting plan file: %v", err))
 			return
 		}
-		err = activePlan.UnlockForActiveBuild()
+		err = db.DeleteRepoLock(repoLockId, planId)
 		if err != nil {
-			log.Printf("Error unlocking active plan for reset: %v\n", err)
-			fileState.onBuildFileError(fmt.Errorf("error unlocking active plan for reset: %v", err))
+			log.Printf("Error unlocking repo for reset: %v\n", err)
+			fileState.onBuildFileError(fmt.Errorf("error unlocking repo for reset: %v", err))
 			return
 		}
 

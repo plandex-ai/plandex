@@ -3,10 +3,10 @@ package types
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"plandex-server/db"
+	"plandex-server/shutdown"
 	"sync"
 	"time"
 
@@ -16,7 +16,7 @@ import (
 )
 
 const MaxStreamRate = 70 * time.Millisecond
-const ActiveBuildLockDebounce = 400 * time.Millisecond
+const ActivePlanTimeout = 2 * time.Hour
 
 type ActiveBuild struct {
 	ReplyId           string
@@ -79,12 +79,6 @@ type ActivePlan struct {
 	StoredReplyIds        []string
 	DidEditFiles          bool
 
-	ActiveBuildLockId         string
-	ActiveBuildLockParams     *db.LockRepoParams
-	NumActiveBuildLockHolders int
-
-	activeBuildLockMu sync.Mutex
-
 	subscriptions  map[string]*subscription
 	subscriptionMu sync.Mutex
 
@@ -95,12 +89,12 @@ type ActivePlan struct {
 }
 
 func NewActivePlan(orgId, userId, planId, branch, prompt string, buildOnly, autoContext bool) *ActivePlan {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(shutdown.ShutdownCtx, ActivePlanTimeout)
 	// child context for model stream so we can cancel it separately if needed
 	modelStreamCtx, cancelModelStream := context.WithCancel(ctx)
 
 	// we don't want to cancel summaries unless the whole plan is stopped or there's an error -- if the active plan finishes, we want summaries to continue -- so they get their own context
-	summaryCtx, cancelSummary := context.WithCancel(context.Background())
+	summaryCtx, cancelSummary := context.WithCancel(shutdown.ShutdownCtx)
 
 	active := ActivePlan{
 		Id:                    planId,
@@ -332,11 +326,30 @@ func (ap *ActivePlan) PathQueueEmpty(path string) bool {
 	return true
 }
 
-func (ap *ActivePlan) Subscribe() (string, chan string) {
+func (ap *ActivePlan) Subscribe(reqCtx context.Context) (string, chan string) {
 	ap.subscriptionMu.Lock()
 	defer ap.subscriptionMu.Unlock()
 	id := uuid.New().String()
-	sub := newSubscription()
+
+	planCtx := ap.Ctx // from the plan
+
+	// Make a subscription context that will end if EITHER the request ends
+	// OR the plan’s context ends:
+	subCtx, subCancel := context.WithCancel(context.Background())
+
+	// Use a small goroutine to combine the two cancels:
+	go func() {
+		select {
+		case <-reqCtx.Done():
+			// client disconnected
+		case <-planCtx.Done():
+			// plan ended
+		}
+		subCancel()
+	}()
+
+	sub := newSubscription(subCtx)
+
 	ap.subscriptions[id] = sub
 	return id, sub.ch
 }
@@ -364,8 +377,8 @@ func (b *ActiveBuild) BuildFinished() bool {
 	return b.Success || b.Error != nil
 }
 
-func newSubscription() *subscription {
-	ctx, cancel := context.WithCancel(context.Background())
+func newSubscription(ctx context.Context) *subscription {
+	ctx, cancel := context.WithCancel(ctx)
 	sub := &subscription{
 		ch:           make(chan string),
 		ctx:          ctx,
@@ -416,93 +429,6 @@ func (ap *ActivePlan) Finish() {
 	ap.Stream(shared.StreamMessage{
 		Type: shared.StreamMessageFinished,
 	})
-}
-
-func (ap *ActivePlan) LockForActiveBuild(scope db.LockScope, buildId string) error {
-	lockParams := db.LockRepoParams{
-		OrgId:       ap.OrgId,
-		UserId:      ap.UserId,
-		PlanId:      ap.Id,
-		Branch:      ap.Branch,
-		PlanBuildId: buildId,
-		Scope:       scope,
-		Ctx:         ap.Ctx,
-		CancelFn:    ap.CancelFn,
-	}
-
-	ctx := ap.Ctx
-
-	ap.activeBuildLockMu.Lock()
-	defer ap.activeBuildLockMu.Unlock()
-
-	if ctx.Err() != nil {
-		log.Println("LockForActiveBuild - context done, aborting lock attempt")
-		return nil
-	}
-
-	if ap.ActiveBuildLockId != "" && ap.ActiveBuildLockParams != nil && ap.ActiveBuildLockParams.Scope == lockParams.Scope {
-		log.Printf("Piggybacking on existing build lock %s\n", ap.ActiveBuildLockId)
-		ap.NumActiveBuildLockHolders++
-		return nil
-	}
-
-	log.Println("Locking repo for active build")
-
-	repoLockId, err := db.LockRepo(lockParams)
-
-	if err != nil {
-		return err
-	}
-
-	ap.ActiveBuildLockId = repoLockId
-	ap.NumActiveBuildLockHolders = 1
-	ap.ActiveBuildLockParams = &lockParams
-
-	return nil
-}
-
-func (ap *ActivePlan) UnlockForActiveBuild() error {
-	ap.activeBuildLockMu.Lock()
-
-	if ap.ActiveBuildLockId == "" {
-		ap.activeBuildLockMu.Unlock()
-		return fmt.Errorf("no active build lock to unlock")
-	}
-
-	lockId := ap.ActiveBuildLockId
-	ctx := ap.Ctx
-
-	ap.NumActiveBuildLockHolders--
-	if ap.NumActiveBuildLockHolders == 0 {
-		ap.activeBuildLockMu.Unlock()
-
-		go func() {
-			time.Sleep(ActiveBuildLockDebounce)
-
-			if ctx.Err() != nil {
-				log.Println("UnlockForActiveBuild - context done, aborting unlock")
-				return
-			}
-
-			ap.activeBuildLockMu.Lock()
-			if ap.NumActiveBuildLockHolders == 0 && ap.ActiveBuildLockId == lockId {
-				ap.ActiveBuildLockId = ""
-				ap.ActiveBuildLockParams = nil
-				ap.activeBuildLockMu.Unlock()
-				log.Printf("Unlocking repo for active build %s\n", lockId)
-				err := db.DeleteRepoLock(lockId, ap.Id)
-				if err != nil {
-					log.Printf("Error unlocking repo: %v\n", err)
-				}
-			} else {
-				ap.activeBuildLockMu.Unlock()
-			}
-		}()
-	} else {
-		ap.activeBuildLockMu.Unlock()
-	}
-
-	return nil
 }
 
 func (ab *ActiveBuild) IsFileOperation() bool {

@@ -628,10 +628,10 @@ func (a *Api) ConnectPlan(planId, branch string, onStream types.OnStreamPlan) *s
 	return nil
 }
 
-func (a *Api) StopPlan(planId, branch string) *shared.ApiError {
+func (a *Api) StopPlan(ctx context.Context, planId, branch string) *shared.ApiError {
 	serverUrl := fmt.Sprintf("%s/plans/%s/%s/stop", GetApiHost(), planId, branch)
 
-	req, err := http.NewRequest(http.MethodDelete, serverUrl, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, serverUrl, nil)
 	if err != nil {
 		return &shared.ApiError{Msg: fmt.Sprintf("error creating request: %v", err)}
 	}
@@ -647,7 +647,7 @@ func (a *Api) StopPlan(planId, branch string) *shared.ApiError {
 		apiErr := HandleApiError(resp, errorBody)
 		didRefresh, apiErr := refreshTokenIfNeeded(apiErr)
 		if didRefresh {
-			return a.StopPlan(planId, branch)
+			return a.StopPlan(ctx, planId, branch)
 		}
 		return apiErr
 	}

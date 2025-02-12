@@ -291,7 +291,14 @@ func showHotkeyMenu(diffs []string) {
 
 	table.Render()
 	fmt.Print(b.String())
-	color.New(term.ColorHiMagenta, color.Bold).Printf("Press a hotkey, %s %s, or %s %s> ", color.New(color.FgHiWhite, color.Bold).Sprintf("↓"), color.New(term.ColorHiMagenta, color.Bold).Sprintf("to select"), color.New(color.FgHiWhite, color.Bold).Sprintf("q"), color.New(term.ColorHiMagenta, color.Bold).Sprintf("to quit"))
+
+	fmt.Printf("%s, %s %s %s %s",
+		color.New(term.ColorHiMagenta, color.Bold).Sprint("Press a hotkey"),
+		color.New(color.FgHiWhite, color.Bold).Sprintf("↓"),
+		color.New(term.ColorHiMagenta, color.Bold).Sprintf("to select"),
+		color.New(color.FgHiWhite, color.Bold).Sprintf("q"),
+		color.New(term.ColorHiMagenta, color.Bold).Sprintf("to quit>"),
+	)
 }
 
 func handleHotkey(diffs []string, params ExecParams) {

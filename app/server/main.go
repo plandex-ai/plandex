@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"os"
 	"plandex-server/routes"
 	"plandex-server/setup"
 
@@ -19,4 +20,5 @@ func main() {
 	setup.MustLoadIp()
 	setup.MustInitDb()
 	setup.StartServer(r, nil)
+	os.Exit(0)
 }
