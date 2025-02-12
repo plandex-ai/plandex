@@ -87,6 +87,13 @@ mainLoop:
 
 				log.Printf("Tell: error receiving stream chunk: %v\n", err)
 				state.execHookOnStop(true)
+
+				state.onError(onErrorParams{
+					streamErr: fmt.Errorf("error receiving stream chunk: %v", err),
+					storeDesc: true,
+					canRetry:  true,
+				})
+				// here we want to return no matter what -- state.onError will decide whether to retry or not
 				return
 			}
 

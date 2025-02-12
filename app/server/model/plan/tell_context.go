@@ -154,6 +154,8 @@ func (state *activeTellStreamState) checkAutoLoadContext() []string {
 		return nil
 	}
 
+	log.Printf("%d existing contexts by path\n", len(contextsByPath))
+
 	// pick out all potential file paths within backticks
 	matches := pathRegex.FindAllStringSubmatch(activePlan.CurrentReplyContent, -1)
 
