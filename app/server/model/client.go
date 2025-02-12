@@ -206,6 +206,8 @@ func createChatCompletionExtended(
 		req.Header.Set("OpenAI-Organization", client.OrgId)
 	}
 
+	addOpenRouterHeaders(req)
+
 	// Add body
 	jsonBody, err := json.Marshal(extendedReq)
 	if err != nil {
@@ -263,6 +265,8 @@ func createChatCompletionStreamExtended(
 	if client.OrgId != "" {
 		req.Header.Set("OpenAI-Organization", client.OrgId)
 	}
+
+	addOpenRouterHeaders(req)
 
 	// Send the request
 	resp, err := httpClient.Do(req) //nolint:bodyclose // body is closed in stream.Close()
@@ -526,4 +530,9 @@ func withRetries[T any](
 
 		numRetry++
 	}
+}
+
+func addOpenRouterHeaders(req *http.Request) {
+	req.Header.Set("HTTP-Referer", "https://plandex.ai")
+	req.Header.Set("X-Title", "Plandex")
 }
