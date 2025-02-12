@@ -48,6 +48,11 @@ func RegisterShutdownHook(hook func()) {
 
 func loggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Skip logging for monitoring endpoints
+		if r.URL.Path == "/health" || r.URL.Path == "/version" {
+			next.ServeHTTP(w, r)
+			return
+		}
 		start := time.Now()
 
 		log.Printf("\n\nRequest: %s %s\n\n", r.Method, r.URL.Path)
