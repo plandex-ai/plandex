@@ -427,7 +427,7 @@ func gitCommit(repoDir, commitMsg string) error {
 	return nil
 }
 
-func removeLockFile(repoDir, lockFilePath string) error {
+func removeLockFile(lockFilePath string) error {
 	_, err := os.Stat(lockFilePath)
 	exists := err == nil
 	log.Println("index.lock file exists:", exists)
@@ -484,9 +484,10 @@ func gitRemoveIndexLockFileIfExists(repoDir string) error {
 
 	for _, path := range paths {
 		go func(path string) {
-			if err := removeLockFile(repoDir, path); err != nil {
+			if err := removeLockFile(path); err != nil {
 				errCh <- err
 			}
+			errCh <- nil
 		}(path)
 	}
 
