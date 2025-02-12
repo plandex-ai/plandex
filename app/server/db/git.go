@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"time"
@@ -53,14 +54,14 @@ func GitAddAndCommit(orgId, planId, branch, message string) error {
 
 	err := gitWriteOperation(func() error {
 		return gitAdd(dir, ".")
-	})
+	}, fmt.Sprintf("GitAddAndCommit > gitAdd: plan=%s branch=%s", planId, branch))
 	if err != nil {
 		return fmt.Errorf("error adding files to git repository for dir: %s, err: %v", dir, err)
 	}
 
 	err = gitWriteOperation(func() error {
 		return gitCommit(dir, message)
-	})
+	}, fmt.Sprintf("GitAddAndCommit > gitCommit: plan=%s branch=%s", planId, branch))
 	if err != nil {
 		return fmt.Errorf("error committing files to git repository for dir: %s, err: %v", dir, err)
 	}
@@ -73,7 +74,7 @@ func GitRewindToSha(orgId, planId, branch, sha string) error {
 
 	err := gitWriteOperation(func() error {
 		return gitRewindToSha(dir, sha)
-	})
+	}, fmt.Sprintf("GitRewindToSha > gitRewindToSha: plan=%s branch=%s", planId, branch))
 	if err != nil {
 		return fmt.Errorf("error rewinding git repository for dir: %s, err: %v", dir, err)
 	}
@@ -97,8 +98,16 @@ func GetCurrentCommitSha(orgId, planId string) (sha string, err error) {
 func GitResetToSha(orgId, planId, sha string) error {
 	dir := getPlanDir(orgId, planId)
 
-	cmd := exec.Command("git", "-C", dir, "reset", "--hard", sha)
-	_, err := cmd.Output()
+	err := gitWriteOperation(func() error {
+		cmd := exec.Command("git", "-C", dir, "reset", "--hard", sha)
+		_, err := cmd.Output()
+		if err != nil {
+			return fmt.Errorf("error resetting git repository to SHA for dir: %s, sha: %s, err: %v", dir, sha, err)
+		}
+
+		return nil
+	}, fmt.Sprintf("GitResetToSha > gitReset: plan=%s sha=%s", planId, sha))
+
 	if err != nil {
 		return fmt.Errorf("error resetting git repository to SHA for dir: %s, sha: %s, err: %v", dir, sha, err)
 	}
@@ -189,20 +198,38 @@ func GitListBranches(orgId, planId string) ([]string, error) {
 func GitCreateBranch(orgId, planId, newBranch string) error {
 	dir := getPlanDir(orgId, planId)
 
-	res, err := exec.Command("git", "-C", dir, "checkout", "-b", newBranch).CombinedOutput()
+	err := gitWriteOperation(func() error {
+		res, err := exec.Command("git", "-C", dir, "checkout", "-b", newBranch).CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("error creating git branch for dir: %s, err: %v, output: %s", dir, err, string(res))
+		}
+
+		return nil
+	}, fmt.Sprintf("GitCreateBranch > gitCheckout: plan=%s branch=%s", planId, newBranch))
+
 	if err != nil {
-		return fmt.Errorf("error creating git branch for dir: %s, err: %v, output: %s", dir, err, string(res))
+		return err
 	}
+
 	return nil
 }
 
 func GitDeleteBranch(orgId, planId, branchName string) error {
 	dir := getPlanDir(orgId, planId)
 
-	res, err := exec.Command("git", "-C", dir, "branch", "-D", branchName).CombinedOutput()
+	err := gitWriteOperation(func() error {
+		res, err := exec.Command("git", "-C", dir, "branch", "-D", branchName).CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("error deleting git branch for dir: %s, err: %v, output: %s", dir, err, string(res))
+		}
+
+		return nil
+	}, fmt.Sprintf("GitDeleteBranch > gitBranch: plan=%s branch=%s", planId, branchName))
+
 	if err != nil {
-		return fmt.Errorf("error deleting git branch for dir: %s, err: %v, output: %s", dir, err, string(res))
+		return err
 	}
+
 	return nil
 }
 
@@ -216,7 +243,7 @@ func GitClearUncommittedChanges(orgId, planId string) error {
 			return fmt.Errorf("error resetting staged changes | err: %v, output: %s", err, string(res))
 		}
 		return nil
-	})
+	}, fmt.Sprintf("GitClearUncommittedChanges > gitReset: plan=%s", planId))
 
 	if err != nil {
 		return err
@@ -230,7 +257,7 @@ func GitClearUncommittedChanges(orgId, planId string) error {
 		}
 
 		return nil
-	})
+	}, fmt.Sprintf("GitClearUncommittedChanges > gitClean: plan=%s", planId))
 
 	return err
 }
@@ -242,7 +269,16 @@ func GitClearUncommittedChanges(orgId, planId string) error {
 //	}
 func GitCheckoutBranch(orgId, planId, branch string) error {
 	dir := getPlanDir(orgId, planId)
-	return gitCheckoutBranch(dir, branch)
+
+	err := gitWriteOperation(func() error {
+		return gitCheckoutBranch(dir, branch)
+	}, fmt.Sprintf("GitCheckoutBranch > gitCheckout: plan=%s branch=%s", planId, branch))
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func gitCheckoutBranch(repoDir, branch string) error {
@@ -455,7 +491,8 @@ func gitRemoveIndexLockFileIfExists(repoDir string) error {
 	}
 
 	errs := []error{}
-	for err := range errCh {
+	for i := 0; i < len(paths); i++ {
+		err := <-errCh
 		if err != nil {
 			errs = append(errs, err)
 		}
@@ -476,9 +513,12 @@ func setGitConfig(repoDir, key, value string) error {
 	return nil
 }
 
-func gitWriteOperation(operation func() error) error {
+func gitWriteOperation(operation func() error, label string) error {
 	var err error
 	retryInterval := initialGitRetryInterval
+
+	shortStack := formatStackTrace(debug.Stack())
+	log.Printf("[gitWriteOperation] Called for label=%s, stack:\n%s", label, shortStack)
 
 	for attempt := 0; attempt < maxGitRetries; attempt++ {
 		if attempt > 0 {

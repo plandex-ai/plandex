@@ -12,6 +12,7 @@ import (
 	"runtime/debug"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/lib/pq"
@@ -571,4 +572,68 @@ func retryWithExponentialBackoff(
 	}
 
 	return nextCall(attempt + 1)
+}
+
+var memLocksMirror map[string]*repoLock
+var memLocksMirrorMutex sync.RWMutex
+
+func acquireMemLock(planId, branch string, lock *repoLock) {
+	if lock.Scope == LockScopeWrite {
+		memLocksMirrorMutex.Lock()
+		defer memLocksMirrorMutex.Unlock()
+
+		memLocksMirror[planId] = lock
+	} else {
+		memLocksMirrorMutex.RLock()
+		defer memLocksMirrorMutex.RUnlock()
+
+		var key string
+		if branch != "" {
+			key = fmt.Sprintf("%s:%s", planId, branch)
+		} else {
+			key = planId
+		}
+
+		memLocksMirror[key] = lock
+	}
+}
+
+func releaseMemLock(planId, branch string, scope LockScope) {
+	var key string
+	if scope == LockScopeWrite {
+		key = planId
+	} else {
+		if branch != "" {
+			key = fmt.Sprintf("%s:%s", planId, branch)
+		} else {
+			key = planId
+		}
+	}
+
+	memLocksMirrorMutex.Lock()
+	defer memLocksMirrorMutex.Unlock()
+	delete(memLocksMirror, key)
+}
+
+func isMemLockAcquired(planId, branch string, scope LockScope) bool {
+	var key string
+	if scope == LockScopeWrite {
+		key = planId
+	} else {
+		if branch != "" {
+			key = fmt.Sprintf("%s:%s", planId, branch)
+		} else {
+			key = planId
+		}
+	}
+
+	memLocksMirrorMutex.RLock()
+	defer memLocksMirrorMutex.RUnlock()
+
+	_, ok := memLocksMirror[key]
+	if scope == LockScopeWrite {
+		return ok
+	} else {
+		return ok && memLocksMirror[key].Scope == LockScopeRead
+	}
 }
