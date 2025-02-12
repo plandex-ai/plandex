@@ -108,7 +108,9 @@ func SelectOrSignInOrCreate() error {
 	fmt.Printf("✅ Signed in as %s | Org: %s\n", color.New(color.Bold, term.ColorHiGreen).Sprintf("<%s> %s", Current.UserName, Current.Email), color.New(term.ColorHiCyan).Sprint(Current.OrgName))
 	fmt.Println()
 
-	term.PrintCmds("", "", "new", "plans")
+	if !term.IsRepl {
+		term.PrintCmds("", "")
+	}
 
 	return nil
 }
@@ -212,7 +214,9 @@ func promptSignInNewAccount() error {
 		}
 	}
 
-	term.PrintCmds("", "", "new", "plans")
+	if !term.IsRepl {
+		term.PrintCmds("", "")
+	}
 
 	return nil
 }
