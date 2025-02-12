@@ -54,6 +54,14 @@ func AddApiRoutesWithPrefix(r *mux.Router, prefix string) {
 	addApiRoutes(r, prefix)
 }
 
+func AddProxyableApiRoutes(r *mux.Router) {
+	addProxyableApiRoutes(r, "")
+}
+
+func AddProxyableApiRoutesWithPrefix(r *mux.Router, prefix string) {
+	addProxyableApiRoutes(r, prefix)
+}
+
 func addApiRoutes(r *mux.Router, prefix string) {
 	r.HandleFunc(prefix+"/accounts/email_verifications", handlers.CreateEmailVerificationHandler).Methods("POST")
 	r.HandleFunc(prefix+"/accounts/email_verifications/check_pin", handlers.CheckEmailPinHandler).Methods("POST")
@@ -94,14 +102,6 @@ func addApiRoutes(r *mux.Router, prefix string) {
 	r.HandleFunc(prefix+"/plans/{planId}", handlers.GetPlanHandler).Methods("GET")
 	r.HandleFunc(prefix+"/plans/{planId}", handlers.DeletePlanHandler).Methods("DELETE")
 
-	r.HandleFunc(prefix+"/plans/{planId}/{branch}/tell", handlers.TellPlanHandler).Methods("POST")
-
-	r.HandleFunc(prefix+"/plans/{planId}/{branch}/respond_missing_file", handlers.RespondMissingFileHandler).Methods("POST")
-
-	r.HandleFunc(prefix+"/plans/{planId}/{branch}/build", handlers.BuildPlanHandler).Methods("PATCH")
-	r.HandleFunc(prefix+"/plans/{planId}/{branch}/connect", handlers.ConnectPlanHandler).Methods("PATCH")
-	r.HandleFunc(prefix+"/plans/{planId}/{branch}/stop", handlers.StopPlanHandler).Methods("DELETE")
-
 	r.HandleFunc(prefix+"/plans/{planId}/{branch}/current_plan", handlers.CurrentPlanHandler).Methods("GET")
 	r.HandleFunc(prefix+"/plans/{planId}/{branch}/apply", handlers.ApplyPlanHandler).Methods("PATCH")
 	r.HandleFunc(prefix+"/plans/{planId}/archive", handlers.ArchivePlanHandler).Methods("PATCH")
@@ -132,6 +132,9 @@ func addApiRoutes(r *mux.Router, prefix string) {
 
 	r.HandleFunc(prefix+"/plans/{planId}/{branch}/status", handlers.GetPlanStatusHandler).Methods("GET")
 
+	r.HandleFunc(prefix+"/plans/{planId}/{branch}/tell", handlers.TellPlanHandler).Methods("POST")
+	r.HandleFunc(prefix+"/plans/{planId}/{branch}/build", handlers.BuildPlanHandler).Methods("PATCH")
+
 	r.HandleFunc(prefix+"/custom_models", handlers.ListCustomModelsHandler).Methods("GET")
 	r.HandleFunc(prefix+"/custom_models", handlers.CreateCustomModelHandler).Methods("POST")
 	r.HandleFunc(prefix+"/custom_models/{modelId}", handlers.DeleteAvailableModelHandler).Methods("DELETE")
@@ -146,11 +149,18 @@ func addApiRoutes(r *mux.Router, prefix string) {
 	r.HandleFunc(prefix+"/file_map", handlers.GetFileMapHandler).Methods("POST")
 	r.HandleFunc(prefix+"/plans/{planId}/{branch}/load_cached_file_map", handlers.LoadCachedFileMapHandler).Methods("POST")
 
-	r.HandleFunc(prefix+"/plans/{planId}/{branch}/auto_load_context", handlers.AutoLoadContextHandler).Methods("POST")
-
 	r.HandleFunc(prefix+"/plans/{planId}/config", handlers.GetPlanConfigHandler).Methods("GET")
 	r.HandleFunc(prefix+"/plans/{planId}/config", handlers.UpdatePlanConfigHandler).Methods("PUT")
 
 	r.HandleFunc(prefix+"/default_plan_config", handlers.GetDefaultPlanConfigHandler).Methods("GET")
 	r.HandleFunc(prefix+"/default_plan_config", handlers.UpdateDefaultPlanConfigHandler).Methods("PUT")
+}
+
+func addProxyableApiRoutes(r *mux.Router, prefix string) {
+	r.HandleFunc(prefix+"/plans/{planId}/{branch}/connect", handlers.ConnectPlanHandler).Methods("PATCH")
+	r.HandleFunc(prefix+"/plans/{planId}/{branch}/stop", handlers.StopPlanHandler).Methods("DELETE")
+
+	r.HandleFunc(prefix+"/plans/{planId}/{branch}/respond_missing_file", handlers.RespondMissingFileHandler).Methods("POST")
+
+	r.HandleFunc(prefix+"/plans/{planId}/{branch}/auto_load_context", handlers.AutoLoadContextHandler).Methods("POST")
 }

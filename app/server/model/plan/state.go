@@ -83,6 +83,8 @@ func CreateActivePlan(orgId, userId, planId, branch, prompt string, buildOnly, a
 }
 
 func DeleteActivePlan(orgId, userId, planId, branch string) {
+	log.Printf("Deleting active plan %s - %s - %s\n", planId, branch, orgId)
+
 	ctx, cancelFn := context.WithCancel(context.Background())
 
 	repoLockId, err := db.LockRepo(
@@ -115,10 +117,14 @@ func DeleteActivePlan(orgId, userId, planId, branch string) {
 	}
 
 	activePlans.Delete(strings.Join([]string{planId, branch}, "|"))
+
+	log.Printf("Deleted active plan %s - %s - %s\n", planId, branch, orgId)
 }
 
 func UpdateActivePlan(planId, branch string, fn func(*types.ActivePlan)) {
+	log.Printf("Updating active plan %s - %s\n", planId, branch)
 	activePlans.Update(strings.Join([]string{planId, branch}, "|"), fn)
+	log.Printf("Updated active plan %s - %s\n", planId, branch)
 }
 
 func SubscribePlan(planId, branch string) (string, chan string) {

@@ -15,8 +15,8 @@ func main() {
 	r := mux.NewRouter()
 	routes.AddHealthRoutes(r)
 	routes.AddApiRoutes(r)
-
+	routes.AddProxyableApiRoutes(r)
 	setup.MustLoadIp()
 	setup.MustInitDb()
-	setup.StartServer(r)
+	setup.StartServer(r, nil)
 }

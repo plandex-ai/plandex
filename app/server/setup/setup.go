@@ -2,7 +2,6 @@ package setup
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -12,8 +11,6 @@ import (
 	"plandex-server/model/plan"
 	"syscall"
 	"time"
-
-	"github.com/rs/cors"
 )
 
 func MustLoadIp() {
@@ -61,7 +58,7 @@ func loggingMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-func StartServer(handler http.Handler) {
+func StartServer(handler http.Handler, configureFn func(handler http.Handler) http.Handler) {
 	if os.Getenv("GOENV") == "development" {
 		log.Println("In development mode.")
 	}
@@ -88,21 +85,8 @@ func StartServer(handler http.Handler) {
 	// Apply the maxBytesMiddleware to limit request size to 100 MB
 	handler = maxBytesMiddleware(handler, 100<<20) // 100 MB limit
 
-	// Enable CORS based on environment
-	if os.Getenv("GOENV") == "development" {
-		handler = cors.New(cors.Options{
-			AllowedOrigins:   []string{"*"},
-			AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-			AllowedHeaders:   []string{"Content-Type", "Authorization"},
-			AllowCredentials: true,
-		}).Handler(handler)
-	} else {
-		handler = cors.New(cors.Options{
-			AllowedOrigins:   []string{fmt.Sprintf("https://%s.plandex.ai", os.Getenv("APP_SUBDOMAIN"))},
-			AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-			AllowedHeaders:   []string{"Content-Type", "Authorization"},
-			AllowCredentials: true,
-		}).Handler(handler)
+	if configureFn != nil {
+		handler = configureFn(handler)
 	}
 
 	server := &http.Server{
