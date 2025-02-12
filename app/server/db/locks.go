@@ -303,7 +303,7 @@ func lockRepo(params LockRepoParams, numRetry int) (string, error) {
 
 	var insertedId sql.NullString
 
-	insertQuery := "INSERT INTO repo_locks (org_id, user_id, plan_id, plan_build_id, scope, branch) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id ON CONFLICT repo_locks_plan_branch_write DO NOTHING"
+	insertQuery := "INSERT INTO repo_locks (org_id, user_id, plan_id, plan_build_id, scope, branch) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id ON CONFLICT ON CONSTRAINT repo_locks_plan_branch_write DO NOTHING"
 	err = tx.QueryRow(
 		insertQuery,
 		newLock.OrgId,
