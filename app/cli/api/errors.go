@@ -31,6 +31,11 @@ func HandleApiError(r *http.Response, errBody []byte) *shared.ApiError {
 		}
 	}
 
+	// return error for authentication/retry
+	if apiError.Type == shared.ApiErrorTypeInvalidToken {
+		return &apiError
+	}
+
 	term.HandleApiError(&apiError)
 
 	return &apiError

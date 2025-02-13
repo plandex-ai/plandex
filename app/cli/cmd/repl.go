@@ -99,6 +99,7 @@ func runRepl(cmd *cobra.Command, args []string) {
 	if err != nil {
 		color.New(term.ColorHiRed).Printf("Error getting project paths: %v\n", err)
 	}
+
 	replWelcome(afterNew, false)
 
 	var p *prompt.Prompt
@@ -716,33 +717,15 @@ func completer(in prompt.Document) ([]prompt.Suggest, pstrings.RuneNumber, pstri
 
 func replWelcome(afterNew, isHelp bool) {
 	// print REPL welcome message and basic info
-	errCh := make(chan error, 2)
-	var plan *shared.Plan
-	var config *shared.PlanConfig
+	// have to make these requests serially in case re-authentication is needed
 
-	go func() {
-		var apiErr *shared.ApiError
-		plan, apiErr = api.Client.GetPlan(lib.CurrentPlanId)
-		if apiErr != nil {
-			errCh <- fmt.Errorf("Error getting plan: %v", apiErr.Msg)
-		}
-		errCh <- nil
-	}()
-
-	go func() {
-		var apiErr *shared.ApiError
-		config, apiErr = api.Client.GetPlanConfig(lib.CurrentPlanId)
-		if apiErr != nil {
-			errCh <- fmt.Errorf("Error getting plan config: %v", apiErr.Msg)
-		}
-		errCh <- nil
-	}()
-
-	for i := 0; i < 2; i++ {
-		err := <-errCh
-		if err != nil {
-			term.OutputErrorAndExit("%v", err)
-		}
+	plan, apiErr := api.Client.GetPlan(lib.CurrentPlanId)
+	if apiErr != nil {
+		term.OutputErrorAndExit("Error getting plan: %v", apiErr.Msg)
+	}
+	config, apiErr := api.Client.GetPlanConfig(lib.CurrentPlanId)
+	if apiErr != nil {
+		term.OutputErrorAndExit("Error getting plan config: %v", apiErr.Msg)
 	}
 
 	term.StopSpinner()
