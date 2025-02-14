@@ -6,9 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"time"
-
-	shared "plandex-shared"
 
 	"github.com/fatih/color"
 	"github.com/google/uuid"
@@ -134,20 +133,33 @@ func StoreConvoMessage(message *ConvoMessage, currentUserId, branch string, comm
 		}
 	}
 
-	var replyType string
-	if message.ReplyType == shared.ReplyTypeLoadedContext {
-		replyType = "📥 Loaded Context"
-	} else if message.ReplyType == shared.ReplyTypeMadePlan {
-		replyType = "📋 Made Plan"
-	} else if message.ReplyType == shared.ReplyTypeImplementation {
-		replyType = "👨‍💻 Wrote Code"
-	}
+	replyTags := message.Flags.GetReplyTags()
 
 	var msg string
-	if replyType != "" {
-		msg = fmt.Sprintf("Message #%d | %s | %s | %d 🪙", message.Num, desc, replyType, message.Tokens)
+	if len(replyTags) > 0 {
+		msg = fmt.Sprintf("Message #%d | %s | %s | %d 🪙", message.Num, desc, strings.Join(replyTags, " | "), message.Tokens)
 	} else {
 		msg = fmt.Sprintf("Message #%d | %s | %d 🪙", message.Num, desc, message.Tokens)
+	}
+
+	if len(message.AddedSubtasks) > 0 {
+		msg += "\n\n"
+		for _, subtask := range message.AddedSubtasks {
+			msg += "\n• " + subtask.Title
+		}
+	}
+
+	if message.Flags.IsImplementationStage && message.Subtask != nil {
+		msg += "\n\n" + "📋 " + message.Subtask.Title
+		if len(message.Subtask.UsesFiles) > 0 {
+			for _, file := range message.Subtask.UsesFiles {
+				msg += "\n • 📄 " + file
+			}
+		}
+	}
+
+	if message.Flags.DidCompletePlan {
+		msg += "\n\n" + "🏁 Completed Plan"
 	}
 
 	// Cleaner without the cut off message - maybe need a separate command to show both the log and full messages?

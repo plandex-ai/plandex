@@ -448,30 +448,38 @@ func (context *Context) ToApi() *shared.Context {
 }
 
 type ConvoMessage struct {
-	Id        string           `json:"id"`
-	OrgId     string           `json:"orgId"`
-	PlanId    string           `json:"planId"`
-	UserId    string           `json:"userId"`
-	Role      string           `json:"role"`
-	Tokens    int              `json:"tokens"`
-	Num       int              `json:"num"`
-	Message   string           `json:"message"`
-	Stopped   bool             `json:"stopped"`
-	ReplyType shared.ReplyType `json:"replyType"`
-	CreatedAt time.Time        `json:"createdAt"`
+	Id            string                   `json:"id"`
+	OrgId         string                   `json:"orgId"`
+	PlanId        string                   `json:"planId"`
+	UserId        string                   `json:"userId"`
+	Role          string                   `json:"role"`
+	Tokens        int                      `json:"tokens"`
+	Num           int                      `json:"num"`
+	Message       string                   `json:"message"`
+	Stopped       bool                     `json:"stopped"`
+	Subtask       *Subtask                 `json:"subtask,omitempty"`
+	AddedSubtasks []*Subtask               `json:"addedSubtasks,omitempty"`
+	Flags         shared.ConvoMessageFlags `json:"flags"`
+	CreatedAt     time.Time                `json:"createdAt"`
 }
 
 func (msg *ConvoMessage) ToApi() *shared.ConvoMessage {
+	addedSubtasks := make([]*shared.Subtask, len(msg.AddedSubtasks))
+	for i, subtask := range msg.AddedSubtasks {
+		addedSubtasks[i] = subtask.ToApi()
+	}
 	return &shared.ConvoMessage{
-		Id:        msg.Id,
-		UserId:    msg.UserId,
-		Role:      msg.Role,
-		Tokens:    msg.Tokens,
-		Num:       msg.Num,
-		Message:   msg.Message,
-		Stopped:   msg.Stopped,
-		ReplyType: msg.ReplyType,
-		CreatedAt: msg.CreatedAt,
+		Id:            msg.Id,
+		UserId:        msg.UserId,
+		Role:          msg.Role,
+		Tokens:        msg.Tokens,
+		Num:           msg.Num,
+		Message:       msg.Message,
+		Stopped:       msg.Stopped,
+		Flags:         msg.Flags,
+		Subtask:       msg.Subtask.ToApi(),
+		AddedSubtasks: addedSubtasks,
+		CreatedAt:     msg.CreatedAt,
 	}
 }
 
@@ -561,4 +569,16 @@ type Subtask struct {
 	Description string   `json:"description"`
 	UsesFiles   []string `json:"usesFiles"`
 	IsFinished  bool     `json:"isFinished"`
+}
+
+func (subtask *Subtask) ToApi() *shared.Subtask {
+	if subtask == nil {
+		return nil
+	}
+	return &shared.Subtask{
+		Title:       subtask.Title,
+		Description: subtask.Description,
+		UsesFiles:   subtask.UsesFiles,
+		IsFinished:  subtask.IsFinished,
+	}
 }

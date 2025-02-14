@@ -114,26 +114,40 @@ type Context struct {
 	UpdatedAt       time.Time             `json:"updatedAt"`
 }
 
-type ReplyType string
+type ConvoMessageFlags struct {
+	DidMakePlan           bool `json:"didMakePlan"`
+	DidMakeDebuggingPlan  bool `json:"didMakeDebuggingPlan"`
+	DidLoadContext        bool `json:"didLoadContext"`
+	IsPlanningStage       bool `json:"isPlanningStage"`
+	IsContextStage        bool `json:"isContextStage"`
+	IsImplementationStage bool `json:"isImplementationStage"`
+	IsFollowUpReply       bool `json:"isFollowUpReply"`
+	IsChat                bool `json:"isChat"`
+	NeedsFollowUpContext  bool `json:"needsFollowUpContext"`
+	DidWriteCode          bool `json:"didWriteCode"`
+	DidCompleteTask       bool `json:"didCompleteTask"`
+	DidCompletePlan       bool `json:"didCompletePlan"`
+}
 
-const (
-	ReplyTypeContextAssessment ReplyType = "context-assessment"
-	ReplyTypeMadePlan          ReplyType = "made-plan"
-	ReplyTypeLoadedContext     ReplyType = "loaded-context"
-	ReplyTypeChat              ReplyType = "chat"
-	ReplyTypeImplementation    ReplyType = "implementation"
-)
+type Subtask struct {
+	Title       string   `json:"title"`
+	Description string   `json:"description"`
+	UsesFiles   []string `json:"usesFiles"`
+	IsFinished  bool     `json:"isFinished"`
+}
 
 type ConvoMessage struct {
-	Id        string    `json:"id"`
-	UserId    string    `json:"userId"`
-	Role      string    `json:"role"`
-	Tokens    int       `json:"tokens"`
-	Num       int       `json:"num"`
-	Message   string    `json:"message"`
-	Stopped   bool      `json:"stopped"`
-	ReplyType ReplyType `json:"replyType"`
-	CreatedAt time.Time `json:"createdAt"`
+	Id            string            `json:"id"`
+	UserId        string            `json:"userId"`
+	Role          string            `json:"role"`
+	Tokens        int               `json:"tokens"`
+	Num           int               `json:"num"`
+	Message       string            `json:"message"`
+	Stopped       bool              `json:"stopped"`
+	Flags         ConvoMessageFlags `json:"flags"`
+	Subtask       *Subtask          `json:"subtask,omitempty"`
+	AddedSubtasks []*Subtask        `json:"addedSubtasks,omitempty"`
+	CreatedAt     time.Time         `json:"createdAt"`
 }
 
 type ConvoSummary struct {

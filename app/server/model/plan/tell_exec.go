@@ -160,28 +160,72 @@ func execTellPlan(params execTellPlanParams) {
 	}
 	log.Println("execTellPlan - Tell plan loaded")
 
+	log.Printf(`
+	iteration: %d
+	req.AutoContext: %t,
+	req.IsChatOnly: %t,
+	req.ExecEnabled: %t,
+	req.BuildMode: %s,
+	req.IsUserContinue: %t,
+	req.IsUserDebug: %t,
+	req.IsApplyDebug: %t,
+	shouldLoadFollowUpContext: %t,
+	didLoadFollowUpContext: %t,
+	didMakeFollowUpPlan: %t,
+	didLoadChatOnlyContext: %t,
+	state.hasContextMap: %t,
+	state.hasAssistantReply: %t,
+	len(state.subtasks): %d,
+	`,
+		iteration,
+		req.AutoContext,
+		req.IsChatOnly,
+		req.ExecEnabled,
+		req.BuildMode,
+		req.IsUserContinue,
+		req.IsUserDebug,
+		req.IsApplyDebug,
+		shouldLoadFollowUpContext,
+		didLoadFollowUpContext,
+		didMakeFollowUpPlan,
+		params.didLoadChatOnlyContext,
+		state.hasContextMap,
+		state.hasAssistantReply,
+		len(state.subtasks),
+	)
+
+	var lastConvoMsg *db.ConvoMessage
+	if len(state.convo) > 0 {
+		lastConvoMsg = state.convo[len(state.convo)-1]
+	}
+
+	wasContextStage := lastConvoMsg != nil && lastConvoMsg.Flags.IsContextStage
+	didMakePlan := lastConvoMsg != nil && lastConvoMsg.Flags.DidMakePlan
+	wasImplementationStage := lastConvoMsg != nil && lastConvoMsg.Flags.IsImplementationStage
+
+	isTrueUserContinue := iteration == 0 && req.IsUserContinue && lastConvoMsg != nil && lastConvoMsg.Role == openai.ChatMessageRoleAssistant
+	isUserPrompt := iteration == 0 && !isTrueUserContinue
+
+	hasSubtasks := len(state.subtasks) > 0
+
 	autoContextEnabled := req.AutoContext && state.hasContextMap
 	smartContextEnabled := req.AutoContext
 
-	isFollowUp := shouldLoadFollowUpContext || (iteration == 0 && (len(state.subtasks) > 0 || (req.IsChatOnly && state.hasAssistantReply)))
+	isFollowUp := iteration == 0 && !isTrueUserContinue && (hasSubtasks || (req.IsChatOnly && state.hasAssistantReply))
 
 	isPlanningStage := req.IsChatOnly ||
-		shouldLoadFollowUpContext ||
-		didLoadFollowUpContext ||
-		(!req.IsUserContinue &&
-			!didMakeFollowUpPlan &&
-			(iteration == 0 ||
-				(autoContextEnabled && iteration == 1)))
+		lastConvoMsg == nil ||
+		isUserPrompt ||
+		(!didMakePlan && !wasImplementationStage)
 
-	isImplementationStage := !isPlanningStage
+	isImplementationStage := !req.IsChatOnly && !isPlanningStage
 
-	isContextStage := isPlanningStage &&
-		(shouldLoadFollowUpContext ||
-			(!isFollowUp && autoContextEnabled && !state.contextMapEmpty && iteration == 0))
+	isContextStage := autoContextEnabled && isPlanningStage && !isFollowUp && !state.contextMapEmpty && (isUserPrompt || !wasContextStage)
 
 	log.Printf("isPlanningStage: %t, isImplementationStage: %t, isContextStage: %t, isFollowUp: %t\n", isPlanningStage, isImplementationStage, isContextStage, isFollowUp)
 
 	state.isFollowUp = isFollowUp
+	state.willLoadFollowUpContext = shouldLoadFollowUpContext
 	state.isPlanningStage = isPlanningStage
 	state.isImplementationStage = isImplementationStage
 	state.isContextStage = isContextStage

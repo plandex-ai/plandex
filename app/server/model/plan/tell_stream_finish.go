@@ -69,7 +69,8 @@ func (state *activeTellStreamState) handleStreamFinished() handleStreamFinishedR
 	}
 
 	autoLoadContextFiles := state.checkAutoLoadContext()
-	hasNewSubtasks := state.checkNewSubtasks()
+	addedSubtasks := state.checkNewSubtasks()
+	hasNewSubtasks := len(addedSubtasks) > 0
 	followUpNeedsContextStage := state.followUpNeedsContextStage()
 
 	handleDescAndExecStatusRes := state.handleDescAndExecStatus(autoLoadContextFiles, hasNewSubtasks)
@@ -87,11 +88,14 @@ func (state *activeTellStreamState) handleStreamFinished() handleStreamFinishedR
 		hasNewSubtasks:            hasNewSubtasks,
 		followUpNeedsContextStage: followUpNeedsContextStage,
 		autoLoadContextFiles:      autoLoadContextFiles,
+		addedSubtasks:             addedSubtasks,
 	})
 	if storeOnFinishedResult.shouldContinueMainLoop || storeOnFinishedResult.shouldReturn {
 		return storeOnFinishedResult.handleStreamFinishedResult
 	}
 	allSubtasksFinished := storeOnFinishedResult.allSubtasksFinished
+
+	didLoadFollowUpContext := state.willLoadFollowUpContext && len(autoLoadContextFiles) > 0
 
 	// summarize convo needs to come *after* the reply is stored in order to correctly summarize the latest message
 	log.Println("summarize convo")
@@ -166,7 +170,6 @@ func (state *activeTellStreamState) handleStreamFinished() handleStreamFinishedR
 
 	if followUpNeedsContextStage {
 		log.Println("Clearing context before follow up context stage")
-
 	}
 
 	// if we're auto-loading context files, we always want to continue for at least another iteration with the loaded context
@@ -196,6 +199,7 @@ func (state *activeTellStreamState) handleStreamFinished() handleStreamFinishedR
 			shouldLoadFollowUpContext: followUpNeedsContextStage,
 			didMakeFollowUpPlan:       state.isFollowUp && !followUpNeedsContextStage && hasNewSubtasks,
 			didLoadChatOnlyContext:    len(autoLoadContextFiles) > 0 && req.IsChatOnly,
+			didLoadFollowUpContext:    didLoadFollowUpContext,
 		})
 	} else {
 		var buildFinished bool
@@ -367,6 +371,7 @@ type storeOnFinishedParams struct {
 	hasNewSubtasks            bool
 	followUpNeedsContextStage bool
 	autoLoadContextFiles      []string
+	addedSubtasks             []*db.Subtask
 }
 
 type storeOnFinishedResult struct {
@@ -388,6 +393,7 @@ func (state *activeTellStreamState) storeOnFinished(params storeOnFinishedParams
 	auth := state.auth
 	summarizedToMessageId := state.summarizedToMessageId
 	active := state.activePlan
+	addedSubtasks := params.addedSubtasks
 
 	var allSubtasksFinished bool
 
@@ -446,20 +452,42 @@ func (state *activeTellStreamState) storeOnFinished(params storeOnFinishedParams
 			}
 		}()
 
-		var replyType shared.ReplyType
+		var flags shared.ConvoMessageFlags
+		if state.isFollowUp {
+			flags.IsFollowUpReply = true
+		}
+		if state.isPlanningStage {
+			flags.IsPlanningStage = true
+		}
+		if state.isContextStage {
+			flags.IsContextStage = true
+		}
+		if state.isImplementationStage {
+			flags.IsImplementationStage = true
+		}
 		if len(replyOperations) > 0 {
-			replyType = shared.ReplyTypeImplementation
-		} else if hasNewSubtasks {
-			replyType = shared.ReplyTypeMadePlan
-		} else if len(autoLoadContextFiles) > 0 {
-			replyType = shared.ReplyTypeLoadedContext
-		} else if followUpNeedsContextStage {
-			replyType = shared.ReplyTypeContextAssessment
-		} else {
-			replyType = shared.ReplyTypeChat
+			flags.DidWriteCode = true
+		}
+		if hasNewSubtasks {
+			flags.DidMakePlan = true
+		}
+		if len(autoLoadContextFiles) > 0 {
+			flags.DidLoadContext = true
+		}
+		if state.isFollowUp {
+			flags.IsFollowUpReply = true
+		}
+		if subtaskFinished && state.currentSubtask != nil {
+			flags.DidCompleteTask = true
+		}
+		if allSubtasksFinished {
+			flags.DidCompletePlan = true
+		}
+		if hasNewSubtasks && state.req.IsApplyDebug || state.req.IsUserDebug {
+			flags.DidMakeDebuggingPlan = true
 		}
 
-		assistantMsg, convoCommitMsg, err := state.storeAssistantReply(replyType) // updates state.convo
+		assistantMsg, convoCommitMsg, err := state.storeAssistantReply(flags, state.currentSubtask, addedSubtasks) // updates state.convo
 
 		if err != nil {
 			state.onError(onErrorParams{
@@ -590,7 +618,7 @@ func (state *activeTellStreamState) storeOnFinished(params storeOnFinishedParams
 	}
 }
 
-func (state *activeTellStreamState) storeAssistantReply(replyType shared.ReplyType) (*db.ConvoMessage, string, error) {
+func (state *activeTellStreamState) storeAssistantReply(flags shared.ConvoMessageFlags, subtask *db.Subtask, addedSubtasks []*db.Subtask) (*db.ConvoMessage, string, error) {
 	currentOrgId := state.currentOrgId
 	currentUserId := state.currentUserId
 	planId := state.plan.Id
@@ -606,16 +634,20 @@ func (state *activeTellStreamState) storeAssistantReply(replyType shared.ReplyTy
 
 	activePlan := state.activePlan
 
+	// fmt.Println("raw message: ", activePlan.CurrentReplyContent)
+
 	assistantMsg := db.ConvoMessage{
-		Id:        replyId,
-		OrgId:     currentOrgId,
-		PlanId:    planId,
-		UserId:    currentUserId,
-		Role:      openai.ChatMessageRoleAssistant,
-		Tokens:    replyNumTokens,
-		Num:       num,
-		Message:   activePlan.CurrentReplyContent,
-		ReplyType: replyType,
+		Id:            replyId,
+		OrgId:         currentOrgId,
+		PlanId:        planId,
+		UserId:        currentUserId,
+		Role:          openai.ChatMessageRoleAssistant,
+		Tokens:        replyNumTokens,
+		Num:           num,
+		Message:       activePlan.CurrentReplyContent,
+		Flags:         flags,
+		Subtask:       subtask,
+		AddedSubtasks: addedSubtasks,
 	}
 
 	commitMsg, err := db.StoreConvoMessage(&assistantMsg, auth.User.Id, branch, false)
@@ -644,5 +676,6 @@ func (state *activeTellStreamState) followUpNeedsContextStage() bool {
 	active := state.activePlan
 
 	return strings.Contains(active.CurrentReplyContent, "clear all context") ||
-		strings.Contains(active.CurrentReplyContent, "decide what context I need")
+		strings.Contains(active.CurrentReplyContent, "decide what context") ||
+		strings.Contains(active.CurrentReplyContent, "need more context")
 }

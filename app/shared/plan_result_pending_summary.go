@@ -122,6 +122,16 @@ func (state *CurrentPlanState) pendingChangesSummary(forApply bool, commitSummar
 		}
 
 		msgs = append(msgs, "🏗️  Build pending changes")
+		currentFiles := state.CurrentPlanFiles.Files
+		var sortedFiles []string
+		for path := range currentFiles {
+			sortedFiles = append(sortedFiles, path)
+		}
+		sort.Strings(sortedFiles)
+		for _, path := range sortedFiles {
+			msgs = append(msgs, fmt.Sprintf(" • 📄 %s", path))
+		}
+		return strings.Join(msgs, "\n")
 	}
 
 	for _, ch := range sortedChangesets {

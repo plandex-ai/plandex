@@ -572,6 +572,7 @@ func ApplyPlan(ctx context.Context, orgId, userId, branchName string, plan *Plan
 
 	numRoutines := len(pendingDbResults) +
 		len(convoMessageDescriptions)
+
 	if len(pendingNewFilesSet) > 0 {
 		numRoutines++
 	}
@@ -587,6 +588,16 @@ func ApplyPlan(ctx context.Context, orgId, userId, branchName string, plan *Plan
 	}
 
 	msg := "✅ Marked pending results as applied"
+
+	currentFiles := currentPlanState.CurrentPlanFiles.Files
+	var sortedFiles []string
+	for path := range currentFiles {
+		sortedFiles = append(sortedFiles, path)
+	}
+	sort.Strings(sortedFiles)
+	for _, path := range sortedFiles {
+		msg += fmt.Sprintf("\n • 📄 %s", path)
+	}
 
 	if loadContextRes != nil && !loadContextRes.MaxTokensExceeded {
 		msg += "\n\n" + loadContextRes.Msg

@@ -116,7 +116,12 @@ func (state *activeTellStreamState) onError(params onErrorParams) onErrorResult 
 		storedDesc := false
 
 		if convoMessageId == "" {
-			assistantMsg, msg, err := state.storeAssistantReply("")
+			assistantMsg, msg, err := state.storeAssistantReply(shared.ConvoMessageFlags{
+				IsFollowUpReply:       state.isFollowUp,
+				IsPlanningStage:       state.isPlanningStage,
+				IsContextStage:        state.isContextStage,
+				IsImplementationStage: state.isImplementationStage,
+			}, nil, nil)
 			if err == nil {
 				convoMessageId = assistantMsg.Id
 				commitMsg = msg
