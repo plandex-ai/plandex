@@ -4,6 +4,15 @@ import (
 	"os"
 )
 
+type ApplyFlags struct {
+	AutoConfirm bool
+	AutoCommit  bool
+	NoCommit    bool
+	AutoExec    bool
+	NoExec      bool
+	AutoDebug   int
+}
+
 type ApplyRollbackOption string
 
 const (
