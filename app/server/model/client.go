@@ -444,7 +444,6 @@ func parseRetryAfter(errorMessage string) *time.Duration {
 }
 
 func resolveReq(req *openai.ChatCompletionRequest, modelConfig *shared.ModelRoleConfig) {
-	log.Println("Resolving request")
 	// if system prompt is disabled, change the role of the system message to user
 	if modelConfig.BaseModelConfig.SystemPromptDisabled {
 		log.Println("System prompt disabled - changing role of system message to user")
@@ -466,8 +465,6 @@ func resolveReq(req *openai.ChatCompletionRequest, modelConfig *shared.ModelRole
 		req.Temperature = 1
 		req.TopP = 1
 	}
-
-	log.Println("Resolved request")
 }
 
 // route directly to first-party providers on openrouter for the main models

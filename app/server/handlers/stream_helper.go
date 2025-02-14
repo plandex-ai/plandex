@@ -71,8 +71,8 @@ func startResponseStream(reqCtx context.Context, w http.ResponseWriter, auth *ty
 
 	for {
 		select {
-		case <-active.Ctx.Done():
-			log.Println("Response stream manager: context done")
+		case <-reqCtx.Done():
+			log.Println("Response stream manager: request context done")
 			return
 		case msg := <-ch:
 			// log.Println("Response stream manager: sending message:", msg)

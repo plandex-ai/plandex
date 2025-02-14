@@ -12,6 +12,7 @@ import (
 
 	shared "plandex-shared"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/google/uuid"
 )
 
@@ -189,6 +190,9 @@ func (ap *ActivePlan) Stream(msg shared.StreamMessage) {
 	skipBuffer := false
 	if msg.Type == shared.StreamMessagePromptMissingFile || msg.Type == shared.StreamMessageFinished || msg.Type == shared.StreamMessageError {
 		skipBuffer = true
+
+		log.Println("ActivePlan.Stream: skipping buffer for special message")
+		log.Println(spew.Sdump(msg))
 	}
 
 	// Special messages bypass buffering

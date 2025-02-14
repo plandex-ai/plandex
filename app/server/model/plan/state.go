@@ -69,7 +69,9 @@ func CreateActivePlan(orgId, userId, planId, branch, prompt string, buildOnly, a
 					log.Println("Stopping any active summary stream")
 					activePlan.SummaryCancelFn()
 
-					time.Sleep(50 * time.Millisecond)
+					log.Println("Waiting 100ms after streaming error before canceling active plan")
+					time.Sleep(100 * time.Millisecond)
+					log.Println("Cancelling active plan")
 				}
 
 				activePlan.CancelFn()
