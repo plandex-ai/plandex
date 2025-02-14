@@ -62,11 +62,11 @@ func (state *activeTellStreamState) formatSubtasks() string {
 	return subtasksText
 }
 
-func (state *activeTellStreamState) checkNewSubtasks() bool {
+func (state *activeTellStreamState) checkNewSubtasks() []*db.Subtask {
 	activePlan := GetActivePlan(state.plan.Id, state.branch)
 
 	if activePlan == nil {
-		return false
+		return nil
 	}
 
 	content := activePlan.CurrentReplyContent
@@ -75,7 +75,7 @@ func (state *activeTellStreamState) checkNewSubtasks() bool {
 
 	if len(subtasks) == 0 {
 		log.Println("No new subtasks found")
-		return false
+		return nil
 	}
 
 	log.Println("Found new subtasks:")
@@ -91,22 +91,24 @@ func (state *activeTellStreamState) checkNewSubtasks() bool {
 	}
 
 	var newSubtasks []*db.Subtask
+	var updatedSubtasks []*db.Subtask
 
 	// Keep finished subtasks
 	for _, subtask := range state.subtasks {
 		if subtask.IsFinished {
-			newSubtasks = append(newSubtasks, subtask)
+			updatedSubtasks = append(updatedSubtasks, subtask)
 		}
 	}
 
-	// Add new subtasks if they don't exist or if existing one was finished
+	// Add new subtasks if they don't exist
 	for _, subtask := range subtasks {
 		if subtasksByName[subtask.Title] == nil {
 			newSubtasks = append(newSubtasks, subtask)
+			updatedSubtasks = append(updatedSubtasks, subtask)
 		}
 	}
 
-	state.subtasks = newSubtasks
+	state.subtasks = updatedSubtasks
 
 	var currentSubtaskName string
 	if state.currentSubtask != nil {
@@ -137,5 +139,5 @@ func (state *activeTellStreamState) checkNewSubtasks() bool {
 	// log.Println("state.subtasks:\n", spew.Sdump(state.subtasks))
 	// log.Println("state.currentSubtask:\n", spew.Sdump(state.currentSubtask))
 
-	return true
+	return newSubtasks
 }

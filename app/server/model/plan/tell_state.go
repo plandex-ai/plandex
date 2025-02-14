@@ -50,7 +50,8 @@ type activeTellStreamState struct {
 	isPlanningStage       bool
 	isImplementationStage bool
 
-	isFollowUp bool
+	isFollowUp              bool
+	willLoadFollowUpContext bool
 
 	chunkProcessor *chunkProcessor
 
