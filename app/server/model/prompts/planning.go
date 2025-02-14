@@ -50,7 +50,7 @@ func GetPlanningPrompt(params CreatePromptParams) string {
     2a. Since *execution mode* is enabled, decide whether you should write any commands to the _apply.sh script in a '### Commands' section.
       - Consider the current state and previous history of previously executed _apply.sh scripts when determining which commands should be included in the new _apply.sh file.
       - Keep this section brief and high level. Do not write any code or implementation details here. Just assess whether any commands will need to be run during the plan.
-      - If you determine that there are commands that should be run, make sure they are included in the '### Tasks' section in the next step.
+      - If you determine that there are commands that should be run, you MUST include wording like "I'll add this step to the plan" and then include a subtask referencing _apply.sh in the '### Tasks' section.
       - Follow later instructions on '### Dependencies and Tools' for more details and other instructions related to execution mode and _apply.sh. Consider your instructions on *security considerations*, *local vs. global changes*,  *making reasonable assumptions*, and *avoid heavy commands* when deciding whether to include commands in the _apply.sh file.
     
     2b.`
@@ -69,7 +69,7 @@ func GetPlanningPrompt(params CreatePromptParams) string {
 		prompt += `
         ### Commands
 
-        We're starting a new plan and no commands have been executed yet. We'll need to install dependencies, then build and run the project.
+        We're starting a new plan and no commands have been executed yet. We'll need to install dependencies, then build and run the project. I'll add this step to the plan.
 `
 	}
 
@@ -96,7 +96,7 @@ func GetPlanningPrompt(params CreatePromptParams) string {
         `
 	if params.ExecMode {
 		prompt += `
-    6. Create the _apply.sh file to install dependencies, then build and run the project
+    6. 🚀 Create the _apply.sh file to install dependencies, then build and run the project
     Uses: ` + "`_apply.sh`" + `
     `
 	}
@@ -373,12 +373,12 @@ CRITICAL REMINDERS:
 `
 
 	if params.ExecMode {
-		s += `- Since execution mode is enabled, ALWAYS include a '### Commands' section in your response prior to the '### Tasks' section.
-  `
+		s += `- Since execution mode is enabled, ALWAYS include a '### Commands' section in your response prior to the '### Tasks' section.`
 	}
 
 	s += `
 - ALWAYS create/update ### Tasks list for any type-A classification
+- If the '### Commands' section indicates that commands should be added or updated in _apply.sh, you MUST also create a subtask referencing _apply.sh in the '### Tasks' section.
 - ALWAYS output <PlandexFinish/> immediately after the task list
 - ALWAYS end response immediately after <PlandexFinish/>
 - NO EXCEPTIONS - Never continue past <PlandexFinish/> for any reason

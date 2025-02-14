@@ -343,7 +343,7 @@ When planning tasks (and subtasks) that involve command execution, you must cons
 - Plan command ordering carefully
 
 ### 2. After Reset (Post-Success)
-- **Script Empties**: Once ` + "`_apply.sh`" + ` has been successfully executed, it’s cleared.
+- **Script Empties**: Once ` + "`_apply.sh`" + ` has been successfully executed, it's cleared.
 - **No Unnecessary Repeats**: For future tasks, avoid re-adding commands (e.g., reinstalling dependencies) that already ran successfully, unless they are truly needed again.
 - **Include Necessary Commands**: If the user continues to iterate on the plan after a successful apply and reset of the _apply.sh script, make sure you *do* add any commands that need to run again for the next iteration. For example, if there is a command that runs the program, and the _apply.sh script has been reset to empty, you must include a step to run the program again.
 
@@ -374,13 +374,13 @@ When planning tasks (and subtasks) that involve command execution, you must cons
 
 ### Good Practices
 
-- **Check Script State**: If ` + "`_apply.sh`" + ` is not empty, modify existing commands in place. If it’s empty (post-success), add only new or relevant commands.
+- **Check Script State**: If ` + "`_apply.sh`" + ` is not empty, modify existing commands in place. If it's empty (post-success), add only new or relevant commands.
 - **Focus on Necessity**: Don't re-run installation for dependencies that were already installed.
 - **Be Systematic**: Keep installation commands grouped, then build commands, then run/test commands.
 
 ### Final Reminder
 
-Plan your subtasks so that installation, build, and run commands appear **only where they’re actually required**—and be sure to keep them minimal after the script resets.
+Plan your subtasks so that installation, build, and run commands appear **only where they're actually required**—and be sure to keep them minimal after the script resets.
 
 ### Always consider _apply.sh
 
@@ -408,20 +408,20 @@ If the _apply.sh script previously had a build/run command, and then it was rese
 INCORRECT FOLLOW UP:
 ### Tasks
 1. Fix bug in source.c
-Uses: source.c
+Uses: ` + "`source.c`" + `
 <PlandexFinish/>
 
 CORRECT FOLLOW UP:
 ### Commands
 
-The _apply.sh script is empty after the previous execution. Dependencies have already been installed, so we don't need to install them again. We'll need to build and run the code, so we'll need to add build and run commands to the _apply.sh file.
+The _apply.sh script is empty after the previous execution. Dependencies have already been installed, so we don't need to install them again. We'll need to build and run the code, so we'll need to add build and run commands to the _apply.sh file. I'll add this step to the plan.
 
 ### Tasks
 1. Fix bug in source.c
-Uses: source.c
+Uses: ` + "`source.c`" + `
 
-2. Build and run updated code
-Uses: _apply.sh
+2. 🚀 Build and run updated code
+Uses: ` + "`_apply.sh`" + `
 <PlandexFinish/>
 
 BEFORE COMPLETING ANY PLAN:
@@ -445,21 +445,23 @@ Each version of _apply.sh that has been executed successfully is included in the
 
 In the '### Commands' section, you MUST assess whether any commands should be written to _apply.sh during the plan based on the reasoning above. Do NOT omit this section.
 
+If you determine that commands should be added or updated in _apply.sh, you MUST include wording like "I'll add this step to the plan" and then include a subtask referencing _apply.sh in the '### Tasks' section.
+
 Example:
 
 I will update the JSON display to use streaming and fix the out-of-memory issue.
 
 ### Commands
 
-_apply.sh is empty. I'll add commands to build and run the updated code.
+_apply.sh is empty. I'll add commands to build and run the updated code. I'll add this step to the plan.
 
 ### Tasks
 
 1. Update JSON display to use streaming
-Uses: source.c
+Uses: ` + "`source.c`" + `
 
-2. Build and run updated code
-Uses: _apply.sh
+2. 🚀 Build and run updated code
+Uses: ` + "`_apply.sh`" + `
 <PlandexFinish/>
 
 Another example (with no commands):
@@ -471,7 +473,7 @@ It's not totally clear to me from the context how to build or run the project, s
 ### Tasks
 
 1. Update JSON display to use streaming
-Uses: source.c
+Uses: ` + "`source.c`" + `
 
 <PlandexFinish/>
 
@@ -504,9 +506,41 @@ When deciding whether to add commands to _apply.sh (and which ones), follow this
 **If you decide to add commands**
 * Summarize why in the "### Commands" section (e.g., "We changed ` + "`main.c`" + ` so we need to rebuild and run to verify behavior.").
 * Then add a subtask referencing ` + "`_apply.sh`" + ` so the script is updated with exactly those commands.
+* Again, you ABSOLUTELY MUST create a subtask referencing _apply.sh in the tasks list, so the plan actually updates _apply.sh with those commands. This is CRITICAL and cannot be omitted. If the '### Commands' section states that commands should be run, you MUST include wording like "I'll add this step to the plan" and then include a subtask referencing _apply.sh in the tasks list that includes those commands.
 
 **If you decide to skip commands**
 * Still provide a "### Commands" section, but briefly note that no commands are needed (or that build/run process is unclear).
+
+---
+INCORRECT:
+
+### Commands
+
+The _apply.sh script is empty. I'll add commands to build and run the updated code.
+
+### Tasks
+
+1. Update JSON display to use streaming
+Uses: ` + "`source.c`" + `
+<PlandexFinish/>
+---
+
+above, the '### Commands' section states that commands should run, but the '### Tasks' section does not include a subtask referencing _apply.sh that includes those commands. This is incorrect.
+
+CORRECT:
+
+### Commands
+
+The _apply.sh script is empty. I'll add commands to build and run the updated code. I'll add this step to the plan.
+
+### Tasks
+
+1. Update JSON display to use streaming
+Uses: ` + "`source.c`" + `
+
+2. 🚀 Build and run updated code
+Uses: ` + "`_apply.sh`" + `
+<PlandexFinish/>
 `
 
 const ApplyScriptResetUpdateImplementationPrompt = ApplyScriptResetUpdateSharedPrompt + `
@@ -619,6 +653,23 @@ Remember:
 **IMMEDIATELY BEFORE any '### Tasks' section, you MUST output a '### Commands' section**
 
 In the '### Commands' section, you MUST assess whether any commands should be written to _apply.sh during the plan based on the reasoning above. Do NOT omit this section.
+
+CRITICAL: If the "### Commands" section indicates that commands need to be added or updated in _apply.sh, you MUST also create a subtask referencing _apply.sh in the "### Tasks" section. 
+
+For example:
+
+### Commands
+
+The _apply.sh script is empty. I'll add commands to build the project and ensure we've fixed the syntax error. I'll add this step to the plan.
+
+### Tasks
+
+1. Fix the syntax error in ui.ts
+Uses: ` + "`ui.ts`" + `
+
+2. 🚀 Build the project with 'npm run build' from package.json
+Uses: ` + "`_apply.sh`" + `, ` + "`package.json`" + `
+<PlandexFinish/>
 
 ` + ApplyScriptResetUpdatePlanningSummary + ApplyScriptExecutionSummary
 

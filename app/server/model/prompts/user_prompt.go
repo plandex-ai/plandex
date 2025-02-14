@@ -56,8 +56,8 @@ Uses: ` + "`src/main.rs`"
 
 	if params.ExecMode {
 		s += `
-3. Run the new test with cargo
-Uses: ` + "`src/main.rs`" + `
+3. 🚀 Run the new test with cargo
+Uses: ` + "`_apply.sh`" + `
 	`
 	}
 
@@ -456,11 +456,20 @@ CRITICAL PLANNING RULES:
 `
 
 	if params.ExecMode {
-		s += `You MUST output a ### Commands section before the ### Tasks list`
+		s += `You MUST output a ### Commands section before the ### Tasks list. If you determine that commands should be added or updated in _apply.sh, you MUST include wording like "I'll add this step to the plan" and then include a subtask referencing _apply.sh in the ### Tasks list.`
 	}
 
 	s += `
    - You MUST output a new/updated ### Tasks list
+	`
+
+	if params.ExecMode {
+		s += `
+   - If the ### Commands section indicates that commands should be added or updated in _apply.sh, you MUST also create a subtask referencing _apply.sh in the ### Tasks list
+	`
+	}
+
+	s += `
    - You MUST NOT start implementing code
    - You MUST follow planning phase format exactly
 
