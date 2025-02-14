@@ -30,10 +30,41 @@ func (state *activeTellStreamState) execStatusShouldContinue(message string, ctx
 		log.Printf("[ExecStatus] Current subtask: %q (finished=%v)", state.currentSubtask.Title, state.currentSubtask.IsFinished)
 
 		if strings.Contains(message, completionMarker) {
-			log.Printf("[ExecStatus] ✓ Subtask completion marker found - will mark as completed")
-			return true, true, nil
+			log.Printf("[ExecStatus] ✓ Subtask completion marker found")
+
+			var potentialProblem bool
+
+			if len(state.chunkProcessor.replyOperations) == 0 {
+				// subtask was marked as completed, but there are no operations to execute
+				// we'll let this fall through to the LLM call to verify, since something might have gone wrong
+				log.Printf("[ExecStatus] ✗ Subtask completion marker found, but there are no operations to execute")
+				potentialProblem = true
+			} else {
+				wroteToPaths := map[string]bool{}
+				for _, op := range state.chunkProcessor.replyOperations {
+					if op.Type == shared.OperationTypeFile {
+						wroteToPaths[op.Path] = true
+					}
+				}
+
+				for _, path := range state.currentSubtask.UsesFiles {
+					if !wroteToPaths[path] {
+						log.Printf("[ExecStatus] ✗ Subtask completion marker found, but the operations did not write to the file %q from the 'Uses' list", path)
+						potentialProblem = true
+						break
+					}
+				}
+			}
+
+			if !potentialProblem {
+				log.Printf("[ExecStatus] ✓ Subtask completion marker found and no potential problem - will mark as completed")
+				return true, true, nil
+			} else {
+				log.Printf("[ExecStatus] ✗ Subtask completion marker found, but the operations are questionable -- will verify with LLM call")
+			}
+		} else {
+			log.Printf("[ExecStatus] ✗ No subtask completion marker found in message")
 		}
-		log.Printf("[ExecStatus] ✗ No subtask completion marker found in message")
 
 		// Log all subtasks current state for context
 		log.Println("[ExecStatus] Current subtasks state:")
