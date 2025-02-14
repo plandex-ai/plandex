@@ -21,7 +21,7 @@ import (
 var showDiffUi bool = true
 var diffUiSideBySide = true
 var diffUiLineByLine bool
-var diffUiGit bool
+var diffGit bool
 
 var diffsCmd = &cobra.Command{
 	Use:     "diff",
@@ -34,8 +34,8 @@ func init() {
 	RootCmd.AddCommand(diffsCmd)
 
 	diffsCmd.Flags().BoolVarP(&plainTextOutput, "plain", "p", false, "Output diffs in plain text with no ANSI codes")
-	diffsCmd.Flags().BoolVar(&showDiffUi, "ui", false, "Show diffs in a browser UI")
-	diffsCmd.Flags().BoolVar(&diffUiGit, "git", false, "Show diffs in git diff format")
+	diffsCmd.Flags().BoolVar(&showDiffUi, "ui", true, "Show diffs in a browser UI")
+	diffsCmd.Flags().BoolVar(&diffGit, "git", false, "Show diffs in git diff format")
 	diffsCmd.Flags().BoolVarP(&diffUiSideBySide, "side", "s", true, "Show diffs UI in side-by-side view")
 	diffsCmd.Flags().BoolVarP(&diffUiLineByLine, "line", "l", false, "Show diffs UI in line-by-line view")
 }
@@ -48,14 +48,14 @@ func diffs(cmd *cobra.Command, args []string) {
 		term.OutputNoCurrentPlanErrorAndExit()
 	}
 
+	if diffGit {
+		showDiffUi = false
+	}
+
 	diffs, err := api.Client.GetPlanDiffs(lib.CurrentPlanId, lib.CurrentBranch, plainTextOutput || showDiffUi)
 	if err != nil {
 		term.OutputErrorAndExit("Error getting plan diffs: %v", err)
 		return
-	}
-
-	if diffUiGit {
-		showDiffUi = false
 	}
 
 	if showDiffUi {
@@ -141,9 +141,9 @@ func diffs(cmd *cobra.Command, args []string) {
 			fmt.Printf("%s %s %s %s %s",
 				color.New(term.ColorHiMagenta, color.Bold).Sprint("Press a hotkey,"),
 				color.New(color.FgHiWhite, color.Bold).Sprintf("↓"),
-				color.New(term.ColorHiMagenta, color.Bold).Sprintf("to select,"),
+				color.New(term.ColorHiMagenta, color.Bold).Sprintf("to select, or"),
 				color.New(color.FgHiWhite, color.Bold).Sprintf("enter"),
-				color.New(term.ColorHiMagenta, color.Bold).Sprintf("to continue>"),
+				color.New(term.ColorHiMagenta, color.Bold).Sprintf("to exit menu>"),
 			)
 
 			char, key, err := term.GetUserKeyInput()
@@ -162,7 +162,7 @@ func diffs(cmd *cobra.Command, args []string) {
 				}
 
 				options = append(options, "git diff")
-				options = append(options, "continue")
+				options = append(options, "exit menu")
 
 				selected, err := term.SelectFromList(
 					"Select an action",
@@ -183,7 +183,8 @@ func diffs(cmd *cobra.Command, args []string) {
 					relaunch = true
 				} else if selected == "git diff" {
 					showGitDiff()
-				} else if selected == "continue" {
+				} else if selected == "exit menu" {
+					fmt.Println()
 					break
 				}
 			} else if string(char) == "g" {
@@ -199,7 +200,7 @@ func diffs(cmd *cobra.Command, args []string) {
 			} else if key == 13 || key == 10 || string(char) == "q" { // Check raw key codes for Enter/Return
 				if term.IsRepl {
 					fmt.Println()
-					os.Exit(0)
+					break
 				} else {
 					fmt.Println()
 					break
@@ -223,7 +224,7 @@ func diffs(cmd *cobra.Command, args []string) {
 }
 
 func showGitDiff() {
-	_, err := lib.ExecPlandexCommandWithParams([]string{"diff"}, lib.ExecPlandexCommandParams{
+	_, err := lib.ExecPlandexCommandWithParams([]string{"diff", "--git"}, lib.ExecPlandexCommandParams{
 		DisableSuggestions: true,
 	})
 	if err != nil {
