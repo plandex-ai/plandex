@@ -206,6 +206,9 @@ func MustApplyPlanAttempt(
 					suffix = "s"
 				}
 				fmt.Printf("✅ Applied changes, %d file%s updated\n", len(updatedFiles), suffix)
+				for _, file := range updatedFiles {
+					fmt.Println(" • 📄 " + file)
+				}
 			}
 
 			if isRepo && !noCommit {
