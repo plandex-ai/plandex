@@ -13,13 +13,21 @@ import (
 	"github.com/fatih/color"
 )
 
-func GetOnApplyExecFail(flags lib.ApplyFlags) types.OnApplyExecFailFn {
+func GetOnApplyExecFail(applyFlags types.ApplyFlags, tellFlags types.TellFlags) types.OnApplyExecFailFn {
+	return getOnApplyExecFail(applyFlags, tellFlags, "")
+}
+
+func GetOnApplyExecFailWithCommand(applyFlags types.ApplyFlags, tellFlags types.TellFlags, execCommand string) types.OnApplyExecFailFn {
+	return getOnApplyExecFail(applyFlags, tellFlags, execCommand)
+}
+
+func getOnApplyExecFail(applyFlags types.ApplyFlags, tellFlags types.TellFlags, execCommand string) types.OnApplyExecFailFn {
 	var onExecFail types.OnApplyExecFailFn
 	onExecFail = func(status int, output string, attempt int, toRollback *types.ApplyRollbackPlan, onErr types.OnErrFn, onSuccess func()) {
 		var proceed bool
 
-		if flags.AutoDebug > 0 {
-			if attempt >= flags.AutoDebug {
+		if applyFlags.AutoDebug > 0 {
+			if attempt >= applyFlags.AutoDebug {
 				timesLbl := "times"
 				if attempt == 1 {
 					timesLbl = "time"
@@ -49,8 +57,22 @@ func GetOnApplyExecFail(flags lib.ApplyFlags) types.OnApplyExecFailFn {
 			if !auth.Current.IntegratedModelsMode {
 				apiKeys = lib.MustVerifyApiKeysSilent()
 			}
-			prompt := fmt.Sprintf("Execution of '_apply.sh' failed with exit status %d. Output:\n\n%s\n\n--\n\n",
+			prompt := fmt.Sprintf("Execution failed with exit status %d. Output:\n\n%s\n\n--\n\n",
 				status, output)
+
+			tellFlags.IsUserContinue = false
+
+			if execCommand != "" {
+				tellFlags.IsApplyDebug = false
+				tellFlags.ExecEnabled = false
+				tellFlags.IsUserDebug = true
+			} else {
+				tellFlags.IsApplyDebug = true
+				tellFlags.ExecEnabled = true
+				tellFlags.IsUserDebug = false
+			}
+
+			log.Printf("Calling TellPlan for next debug attempt")
 
 			TellPlan(ExecParams{
 				CurrentPlanId: lib.CurrentPlanId,
@@ -59,11 +81,18 @@ func GetOnApplyExecFail(flags lib.ApplyFlags) types.OnApplyExecFailFn {
 				CheckOutdatedContext: func(maybeContexts []*shared.Context) (bool, bool, error) {
 					return lib.CheckOutdatedContextWithOutput(true, true, maybeContexts)
 				},
-			}, prompt, TellFlags{IsApplyDebug: true, ExecEnabled: true})
+			}, prompt, tellFlags)
 
 			log.Printf("Applying plan after tell")
 
-			lib.MustApplyPlanAttempt(lib.CurrentPlanId, lib.CurrentBranch, flags, onExecFail, attempt+1)
+			lib.MustApplyPlanAttempt(lib.ApplyPlanParams{
+				PlanId:      lib.CurrentPlanId,
+				Branch:      lib.CurrentBranch,
+				ApplyFlags:  applyFlags,
+				TellFlags:   tellFlags,
+				OnExecFail:  onExecFail,
+				ExecCommand: execCommand,
+			}, attempt+1)
 		} else {
 			res, err := term.SelectFromList("Still apply file changes or roll back?", []string{string(types.ApplyRollbackOptionKeep), string(types.ApplyRollbackOptionRollback)})
 

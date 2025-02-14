@@ -8,6 +8,7 @@ import (
 	"plandex-cli/lib"
 	"plandex-cli/plan_exec"
 	"plandex-cli/term"
+	"plandex-cli/types"
 	"strconv"
 	"strings"
 
@@ -29,12 +30,13 @@ var debugCmd = &cobra.Command{
 
 func init() {
 	RootCmd.AddCommand(debugCmd)
-	debugCmd.Flags().BoolVarP(&autoCommit, "commit", "c", false, "Commit changes to git on each try")
+	debugCmd.Flags().BoolVarP(&autoCommit, "commit", "c", false, "Commit changes after successful execution")
 }
 
 func doDebug(cmd *cobra.Command, args []string) {
 	auth.MustResolveAuthWithOrg()
 	lib.MustResolveProject()
+	mustSetPlanExecFlags(cmd)
 
 	if lib.CurrentPlanId == "" {
 		term.OutputNoCurrentPlanErrorAndExit()
@@ -119,6 +121,12 @@ func doDebug(cmd *cobra.Command, args []string) {
 		prompt := fmt.Sprintf("'%s' failed with exit status %d. Output:\n\n%s\n\n--\n\n",
 			strings.Join(cmdArgs, " "), status, string(output))
 
+		tellFlags := types.TellFlags{
+			AutoContext: tellAutoContext,
+			ExecEnabled: false,
+			IsUserDebug: true,
+		}
+
 		plan_exec.TellPlan(plan_exec.ExecParams{
 			CurrentPlanId: lib.CurrentPlanId,
 			CurrentBranch: lib.CurrentBranch,
@@ -126,20 +134,23 @@ func doDebug(cmd *cobra.Command, args []string) {
 			CheckOutdatedContext: func(maybeContexts []*shared.Context) (bool, bool, error) {
 				return lib.CheckOutdatedContextWithOutput(true, true, maybeContexts)
 			},
-		}, prompt, plan_exec.TellFlags{IsUserDebug: true})
+		}, prompt, tellFlags)
 
-		flags := lib.ApplyFlags{
+		applyFlags := types.ApplyFlags{
 			AutoConfirm: true,
 			AutoCommit:  autoCommit,
 			NoCommit:    !autoCommit,
-			NoExec:      true,
+			NoExec:      false,
+			AutoExec:    true,
 		}
 
-		lib.MustApplyPlan(
-			lib.CurrentPlanId,
-			lib.CurrentBranch,
-			flags,
-			plan_exec.GetOnApplyExecFail(flags),
-		)
+		lib.MustApplyPlan(lib.ApplyPlanParams{
+			PlanId:      lib.CurrentPlanId,
+			Branch:      lib.CurrentBranch,
+			ApplyFlags:  applyFlags,
+			TellFlags:   tellFlags,
+			OnExecFail:  plan_exec.GetOnApplyExecFailWithCommand(applyFlags, tellFlags, cmdStr),
+			ExecCommand: cmdStr,
+		})
 	}
 }

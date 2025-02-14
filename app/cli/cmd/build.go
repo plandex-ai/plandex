@@ -6,6 +6,7 @@ import (
 	"plandex-cli/lib"
 	"plandex-cli/plan_exec"
 	"plandex-cli/term"
+	"plandex-cli/types"
 
 	shared "plandex-shared"
 
@@ -51,7 +52,10 @@ func build(cmd *cobra.Command, args []string) {
 			auto := autoConfirm || tellAutoApply || tellAutoContext
 			return lib.CheckOutdatedContextWithOutput(auto, auto, maybeContexts)
 		},
-	}, tellBg)
+	}, types.BuildFlags{
+		BuildBg:   tellBg,
+		AutoApply: tellAutoApply,
+	})
 
 	if err != nil {
 		term.OutputErrorAndExit("Error building plan: %v", err)
@@ -68,7 +72,7 @@ func build(cmd *cobra.Command, args []string) {
 		fmt.Println()
 		term.PrintCmds("", "ps", "connect", "stop")
 	} else if tellAutoApply {
-		flags := lib.ApplyFlags{
+		applyFlags := types.ApplyFlags{
 			AutoConfirm: true,
 			AutoCommit:  autoCommit,
 			NoCommit:    !autoCommit,
@@ -77,12 +81,19 @@ func build(cmd *cobra.Command, args []string) {
 			AutoDebug:   autoDebug,
 		}
 
-		lib.MustApplyPlan(
-			lib.CurrentPlanId,
-			lib.CurrentBranch,
-			flags,
-			plan_exec.GetOnApplyExecFail(flags),
-		)
+		tellFlags := types.TellFlags{
+			AutoContext: tellAutoContext,
+			ExecEnabled: !noExec,
+			AutoApply:   tellAutoApply,
+		}
+
+		lib.MustApplyPlan(lib.ApplyPlanParams{
+			PlanId:     lib.CurrentPlanId,
+			Branch:     lib.CurrentBranch,
+			ApplyFlags: applyFlags,
+			TellFlags:  tellFlags,
+			OnExecFail: plan_exec.GetOnApplyExecFail(applyFlags, tellFlags),
+		})
 	} else {
 		fmt.Println()
 		term.PrintCmds("", "diff", "diff --ui", "apply", "reject", "log")

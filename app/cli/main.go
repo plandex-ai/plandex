@@ -11,6 +11,7 @@ import (
 	"plandex-cli/lib"
 	"plandex-cli/plan_exec"
 	"plandex-cli/term"
+	"plandex-cli/types"
 	"plandex-cli/ui"
 
 	shared "plandex-shared"
@@ -41,7 +42,7 @@ func init() {
 			CheckOutdatedContext: func(maybeContexts []*shared.Context) (bool, bool, error) {
 				return lib.CheckOutdatedContextWithOutput(true, autoConfirm, maybeContexts)
 			},
-		}, false)
+		}, types.BuildFlags{})
 	})
 
 	// set up a rotating file logger

@@ -10,6 +10,7 @@ import (
 	"plandex-cli/lib"
 	"plandex-cli/plan_exec"
 	"plandex-cli/term"
+	"plandex-cli/types"
 	"strings"
 
 	shared "plandex-shared"
@@ -50,6 +51,15 @@ func doTell(cmd *cobra.Command, args []string) {
 		return
 	}
 
+	tellFlags := types.TellFlags{
+		TellBg:      tellBg,
+		TellStop:    tellStop,
+		TellNoBuild: tellNoBuild,
+		AutoContext: tellAutoContext,
+		ExecEnabled: !noExec,
+		AutoApply:   tellAutoApply,
+	}
+
 	plan_exec.TellPlan(plan_exec.ExecParams{
 		CurrentPlanId: lib.CurrentPlanId,
 		CurrentBranch: lib.CurrentBranch,
@@ -58,16 +68,10 @@ func doTell(cmd *cobra.Command, args []string) {
 			auto := autoConfirm || tellAutoApply || tellAutoContext
 			return lib.CheckOutdatedContextWithOutput(auto, auto, maybeContexts)
 		},
-	}, prompt, plan_exec.TellFlags{
-		TellBg:      tellBg,
-		TellStop:    tellStop,
-		TellNoBuild: tellNoBuild,
-		AutoContext: tellAutoContext,
-		ExecEnabled: !noExec,
-	})
+	}, prompt, tellFlags)
 
 	if tellAutoApply {
-		flags := lib.ApplyFlags{
+		applyFlags := types.ApplyFlags{
 			AutoConfirm: true,
 			AutoCommit:  autoCommit,
 			NoCommit:    !autoCommit,
@@ -76,12 +80,13 @@ func doTell(cmd *cobra.Command, args []string) {
 			AutoDebug:   autoDebug,
 		}
 
-		lib.MustApplyPlan(
-			lib.CurrentPlanId,
-			lib.CurrentBranch,
-			flags,
-			plan_exec.GetOnApplyExecFail(flags),
-		)
+		lib.MustApplyPlan(lib.ApplyPlanParams{
+			PlanId:     lib.CurrentPlanId,
+			Branch:     lib.CurrentBranch,
+			ApplyFlags: applyFlags,
+			TellFlags:  tellFlags,
+			OnExecFail: plan_exec.GetOnApplyExecFail(applyFlags, tellFlags),
+		})
 	}
 }
 

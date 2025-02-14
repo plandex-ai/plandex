@@ -5,6 +5,7 @@ import (
 	"plandex-cli/auth"
 	"plandex-cli/lib"
 	"plandex-cli/plan_exec"
+	"plandex-cli/types"
 
 	shared "plandex-shared"
 
@@ -58,7 +59,7 @@ func doChat(cmd *cobra.Command, args []string) {
 			auto := autoConfirm || tellAutoApply || tellAutoContext
 			return lib.CheckOutdatedContextWithOutput(auto, auto, maybeContexts)
 		},
-	}, prompt, plan_exec.TellFlags{
+	}, prompt, types.TellFlags{
 		IsChatOnly:  true,
 		AutoContext: tellAutoContext,
 	})

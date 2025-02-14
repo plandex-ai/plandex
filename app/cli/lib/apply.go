@@ -23,37 +23,36 @@ import (
 	"github.com/fatih/color"
 )
 
-type ApplyFlags struct {
-	AutoConfirm bool
-	AutoCommit  bool
-	NoCommit    bool
-	AutoExec    bool
-	NoExec      bool
-	AutoDebug   int
+type ApplyPlanParams struct {
+	PlanId      string
+	Branch      string
+	ApplyFlags  types.ApplyFlags
+	TellFlags   types.TellFlags
+	OnExecFail  types.OnApplyExecFailFn
+	ExecCommand string
 }
 
 func MustApplyPlan(
-	planId,
-	branch string,
-	flags ApplyFlags,
-	onExecFail types.OnApplyExecFailFn,
+	params ApplyPlanParams,
 ) {
-	MustApplyPlanAttempt(planId, branch, flags, onExecFail, 0)
+	MustApplyPlanAttempt(params, 0)
 }
 
 func MustApplyPlanAttempt(
-	planId,
-	branch string,
-	flags ApplyFlags,
-	onExecFail types.OnApplyExecFailFn,
+	params ApplyPlanParams,
 	attempt int,
 ) {
 	log.Println("Applying plan")
 
-	autoConfirm := flags.AutoConfirm
-	autoCommit := flags.AutoCommit
-	noCommit := flags.NoCommit
-	noExec := flags.NoExec
+	applyFlags := params.ApplyFlags
+	planId := params.PlanId
+	branch := params.Branch
+	onExecFail := params.OnExecFail
+
+	autoConfirm := applyFlags.AutoConfirm
+	autoCommit := applyFlags.AutoCommit
+	noCommit := applyFlags.NoCommit
+	noExec := applyFlags.NoExec
 
 	term.StartSpinner("")
 
@@ -224,14 +223,14 @@ func MustApplyPlanAttempt(
 	}
 
 	if _, ok := toApply["_apply.sh"]; ok && !noExec {
-		handleApplyScript(flags, toApply, onErr, toRollback, onExecFail, attempt, onExecSuccess)
+		handleApplyScript(params, toApply, onErr, toRollback, onExecFail, attempt, onExecSuccess)
 	} else {
 		onExecSuccess()
 	}
 }
 
 func handleApplyScript(
-	flags ApplyFlags,
+	params ApplyPlanParams,
 	toApply map[string]string,
 	onErr types.OnErrFn,
 	toRollback *types.ApplyRollbackPlan,
@@ -245,7 +244,12 @@ func handleApplyScript(
 
 	color.New(term.ColorHiCyan, color.Bold).Println("🚀 Commands to execute 👇")
 
-	content := toApply["_apply.sh"]
+	var content string
+	if params.ExecCommand != "" {
+		content = params.ExecCommand
+	} else {
+		content = toApply["_apply.sh"]
+	}
 
 	md, err := term.GetMarkdown("```bash\n" + content + "\n```")
 
@@ -258,7 +262,7 @@ func handleApplyScript(
 	log.Println("Asking user to confirm executing apply script")
 
 	var confirmed bool
-	if flags.AutoExec {
+	if params.ApplyFlags.AutoExec {
 		confirmed = true
 	} else {
 		confirmed, err = term.ConfirmYesNo("Execute now?")
@@ -270,7 +274,7 @@ func handleApplyScript(
 
 	if confirmed {
 		log.Println("Executing apply script")
-		execApplyScript(flags, toApply, onErr, toRollback, onExecFail, attempt, onSuccess)
+		execApplyScript(params, toApply, onErr, toRollback, onExecFail, attempt, onSuccess)
 	} else {
 		if toRollback != nil && toRollback.HasChanges() {
 			res, err := term.SelectFromList("Skipping execution. Apply file changes or roll back?", []string{string(types.ApplyRollbackOptionKeep), string(types.ApplyRollbackOptionRollback)})
@@ -305,7 +309,7 @@ trap 'echo "Error on line $LINENO: ${funcfiletrace[0]#*:}"' ERR
 }
 
 func execApplyScript(
-	flags ApplyFlags,
+	params ApplyPlanParams,
 	toApply map[string]string,
 	onErr types.OnErrFn,
 	toRollback *types.ApplyRollbackPlan,
@@ -318,9 +322,15 @@ func execApplyScript(
 	color.New(term.ColorHiCyan, color.Bold).Println("🚀 Executing... Output below:")
 	fmt.Println()
 
-	dstPath := filepath.Join(fs.ProjectRoot, "_apply.sh")
+	var content string
 
-	content := toApply["_apply.sh"]
+	if params.ExecCommand != "" {
+		content = params.ExecCommand
+	} else {
+		content = toApply["_apply.sh"]
+	}
+
+	dstPath := filepath.Join(fs.ProjectRoot, "_apply.sh")
 	lines := strings.Split(content, "\n")
 	filteredLines := []string{}
 
@@ -385,35 +395,25 @@ func execApplyScript(
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	var interrupted bool
+
 	// Handle SIGINT and SIGTERM
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 
 	go func() {
 		select {
-		case sig := <-sigChan:
-			os.Remove(dstPath)
-
-			if toRollback != nil && toRollback.HasChanges() {
-				color.New(term.ColorHiYellow, color.Bold).Println("⚠️ Execution interrupted")
-				res, err := term.SelectFromList("Apply file changes or roll back?", []string{string(types.ApplyRollbackOptionKeep), string(types.ApplyRollbackOptionRollback)})
-				if err != nil {
-					onErr("failed to get rollback confirmation user input: %s", err)
-				}
-
-				if res == string(types.ApplyRollbackOptionRollback) {
-					Rollback(toRollback, true)
-				} else {
-					onSuccess()
-				}
-			}
-
-			execCmd.Process.Signal(sig)
+		case <-sigChan:
+			// child will receive this and exit since it's in the same process group
+			// but main process won't since we're listening for it with signal.Notify
+			// all we need to do is mark that we were interrupted, since we'll now proceed past '.Wait()' below
+			interrupted = true
 		case <-ctx.Done():
 			// Exit the goroutine when context is cancelled
 			return
 		}
 	}()
+
 	defer func() {
 		cancel()             // Cancel context to clean up goroutine
 		signal.Stop(sigChan) // Stop catching signals
@@ -431,6 +431,29 @@ func execApplyScript(
 
 	err = execCmd.Wait()
 
+	success := err == nil
+
+	if interrupted {
+		os.Remove(dstPath)
+
+		fmt.Println()
+		color.New(term.ColorHiYellow, color.Bold).Println("⚠️  Execution interrupted")
+
+		didSucceed, canceled, err := term.ConfirmYesNoCancel("Did the commands succeed?")
+
+		if err != nil {
+			onErr("failed to get confirmation user input: %s", err)
+		}
+
+		success = didSucceed
+
+		if canceled {
+			// rollback and exit
+			Rollback(toRollback, true)
+			os.Exit(0)
+		}
+	}
+
 	// remove _apply.sh without overwriting err val
 	{
 		err := os.Remove(dstPath)
@@ -439,7 +462,7 @@ func execApplyScript(
 		}
 	}
 
-	if err != nil {
+	if !success {
 		fmt.Println()
 		color.New(term.ColorHiRed, color.Bold).Println("🚨 Commands failed")
 

@@ -5,6 +5,7 @@ import (
 	"plandex-cli/lib"
 	"plandex-cli/plan_exec"
 	"plandex-cli/term"
+	"plandex-cli/types"
 
 	shared "plandex-shared"
 
@@ -40,15 +41,16 @@ func StartChangesUI(currentPlan *shared.CurrentPlanState) error {
 	}
 
 	if mod.shouldApplyAll {
-		flags := lib.ApplyFlags{
+		applyFlags := types.ApplyFlags{
 			AutoConfirm: true,
 		}
-		lib.MustApplyPlan(
-			lib.CurrentPlanId,
-			lib.CurrentBranch,
-			flags,
-			plan_exec.GetOnApplyExecFail(flags),
-		)
+		lib.MustApplyPlan(lib.ApplyPlanParams{
+			PlanId:     lib.CurrentPlanId,
+			Branch:     lib.CurrentBranch,
+			ApplyFlags: applyFlags,
+			TellFlags:  types.TellFlags{},
+			OnExecFail: plan_exec.GetOnApplyExecFail(applyFlags, types.TellFlags{}),
+		})
 	}
 
 	if mod.rejectFileErr != nil {

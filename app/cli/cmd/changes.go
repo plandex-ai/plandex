@@ -8,6 +8,7 @@ import (
 	"plandex-cli/lib"
 	"plandex-cli/plan_exec"
 	"plandex-cli/term"
+	"plandex-cli/types"
 
 	shared "plandex-shared"
 
@@ -87,7 +88,7 @@ func changes(cmd *cobra.Command, args []string) {
 				CheckOutdatedContext: func(maybeContexts []*shared.Context) (bool, bool, error) {
 					return lib.CheckOutdatedContextWithOutput(true, false, maybeContexts)
 				},
-			}, false)
+			}, types.BuildFlags{})
 
 			if err != nil {
 				term.OutputErrorAndExit("Error building plan: %v\n", err)

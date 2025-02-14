@@ -9,11 +9,14 @@ import (
 	"plandex-cli/stream"
 	streamtui "plandex-cli/stream_tui"
 	"plandex-cli/term"
+	"plandex-cli/types"
 
 	shared "plandex-shared"
 )
 
-func Build(params ExecParams, buildBg bool) (bool, error) {
+func Build(params ExecParams, flags types.BuildFlags) (bool, error) {
+	buildBg := flags.BuildBg
+
 	term.StartSpinner("")
 
 	contexts, apiErr := api.Client.ListContext(params.CurrentPlanId, params.CurrentBranch)
