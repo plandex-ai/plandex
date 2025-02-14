@@ -117,15 +117,27 @@ func (state *activeTellStreamState) formatModelContext(includeMaps, includeTrees
 		// don't show _apply.sh history and content if smart context is enabled and the current subtask doesn't use it
 		!(isImplementationStage && smartContextEnabled && state.currentSubtask != nil && !uses["_apply.sh"]) {
 
-		contextMessages = append(contextMessages, state.currentPlanState.ExecHistory())
+		execHistory := state.currentPlanState.ExecHistory()
+
+		contextMessages = append(contextMessages, execHistory)
 
 		scriptContent, ok := state.currentPlanState.CurrentPlanFiles.Files["_apply.sh"]
+		var isEmpty bool
 		if !ok || scriptContent == "" {
 			scriptContent = "[empty]"
+			isEmpty = true
 		}
 
 		contextMessages = append(contextMessages, "*Current* state of _apply.sh script:")
 		contextMessages = append(contextMessages, fmt.Sprintf("\n\n- _apply.sh:\n\n```\n%s\n```", scriptContent))
+
+		if isEmpty && state.isPlanningStage && !state.isContextStage {
+			contextMessages = append(contextMessages, "The _apply.sh script is *empty*. You ABSOLUTELY MUST include a '### Commands' section in your response prior to the '### Tasks' section that evaluates whether any commands should be written to _apply.sh during the plan. This is MANDATORY. Do NOT UNDER ANY CIRCUMSTANCES omit this section.")
+
+			if execHistory != "" {
+				contextMessages = append(contextMessages, "Consider the history of previously executed _apply.sh scripts when determining which commands to include in the new _apply.sh file. Are there any commands that should be run again after code changes? If so, mention them in the '### Commands' section and then include a task to include them in the _apply.sh file in the '### Tasks' section.")
+			}
+		}
 	}
 
 	return strings.Join(contextMessages, "\n\n") + "\n\n### END OF CONTEXT ###\n\n", nil
@@ -139,10 +151,6 @@ func (state *activeTellStreamState) checkAutoLoadContext() []string {
 	contextsByPath := activePlan.ContextsByPath
 
 	if !activePlan.AutoContext {
-		return nil
-	}
-
-	if state.req.IsUserContinue {
 		return nil
 	}
 

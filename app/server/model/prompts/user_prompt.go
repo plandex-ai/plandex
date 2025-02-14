@@ -21,7 +21,10 @@ User's operating system details:
 ---
 `
 
-const PlanningPromptWrapperFormatStr = SharedPromptWrapperFormatStr + `
+func GetPlanningPromptWrapperFormatStr(params CreatePromptParams) string {
+	s := SharedPromptWrapperFormatStr + `
+
+` + GetPlanningFlowControl(params) + `
 
 Do NOT include tests or documentation in the subtasks unless the user has specifically asked for them. Do not include extra code or features beyond what the user has asked for. Focus on the user's request and implement only what is necessary to fulfill it.
 
@@ -32,21 +35,49 @@ Do NOT include tests or documentation in the subtasks unless the user has specif
 At the end of the '### Tasks' section, you ABSOLUTELY MUST ALWAYS include a <PlandexFinish/> tag, then end the response.
 
 Example:
+`
 
+	if params.ExecMode {
+		s += `
+### Commands
+
+The _apply.sh script is empty. I'll create it with commands to compile the project and run the new test with cargo.
+`
+	}
+
+	s += `
 ### Tasks
 
 1. Create a new file called 'src/main.rs' with a 'main' function that returns 'Hello, world!'
+Uses: ` + "`src/main.rs`" + `
 
 2. Write a basic test for the 'main' function
+Uses: ` + "`src/main.rs`"
 
+	if params.ExecMode {
+		s += `
+3. Run the new test with cargo
+Uses: ` + "`src/main.rs`" + `
+	`
+	}
+
+	s += `
 <PlandexFinish/>
+
+After you have broken a task up in to multiple subtasks and output a '### Tasks' section, you *ABSOLUTELY MUST ALWAYS* output a <PlandexFinish/> tag and then end the response. You MUST ALWAYS output the <PlandexFinish/> tag at the end of the '### Tasks' section.
+
+Output a <PlandexFinish/> tag after the '### Tasks' section. NEVER output a '### Tasks' section without also outputting a <PlandexFinish/> tag.
 
 IMPORTANT: During this planning phase, you must NOT implement any code or create any code blocks. Your only task is to break down the work into subtasks. Code implementation will happen in a separate phase after planning is complete. The planning phase is ONLY for breaking the work into subtasks.
 
 Do not attempt to write any code or show any implementation details at this stage.
 `
 
-const ImplementationPromptWrapperFormatStr = SharedPromptWrapperFormatStr + `
+	return s
+}
+
+func GetImplementationPromptWrapperFormatStr(params CreatePromptParams) string {
+	s := SharedPromptWrapperFormatStr + `
 
 If you're making a plan, remember to label code blocks with the file path *exactly* as described in point 2, and do not use any other formatting for file paths. **Do not include explanations or any other text apart from the file path in code block labels.**
 
@@ -56,37 +87,49 @@ Always use an opening <PlandexBlock> tag to start a code block and a closing </P
 
 The <PlandexBlock> tag content MUST ONLY contain the code for the code block and NOTHING ELSE. Do NOT wrap the code block in triple backticks, CDATA tags, or any other text or formatting. Output ONLY the code and nothing else within the <PlandexBlock> tag.
 
-The <PlandexBlock> tag MUST include both a 'lang' attribute and a 'path' attribute as described in the instructions above. It must not include any other attributes.
+The <PlandexBlock> tag MUST ALWAYS include both a 'lang' attribute and a 'path' attribute as described in the instructions above. It must not include any other attributes.
 
-You MUST follow the instructions you've been given on how to update code in code blocks:
+When *updating an existing file*, you MUST follow the instructions you've been given on how to update code in code blocks:
 
-- Do NOT include large sections of the file that are not changing. Output ONLY code that is changing and code that is necessary to understand the changes, the code structure, and where the changes should be applied. Use references comments for sections of the file that are not changing.
+	- Do NOT include large sections of the file that are not changing. Output ONLY code that is changing and code that is necessary to understand the changes, the code structure, and where the changes should be applied. Use references comments for sections of the file that are not changing.
 
-- Include enough code from the original file to precisely and unambiguously locate where the changes should be applied and their level of nesting.
+	- Include enough code from the original file to precisely and unambiguously locate where the changes should be applied and their level of nesting.
 
-- Match the indentation of the original file exactly.
+	- Match the indentation of the original file exactly.
 
-- Do NOT output multiple references with no changes in between them.
+	- Do NOT output multiple references with no changes in between them.
 
-- Do NOT add superfluous newlines around reference comments.
+	- Do NOT add superfluous newlines around reference comments.
 
-- Use a removal comment to denote code that is being removed from a file. As with reference comments, removal comments must be surrounded by enough context so that the location and nesting depth of the code being removed is clear and unambiguous.
+	- Use a removal comment to denote code that is being removed from a file. As with reference comments, removal comments must be surrounded by enough context so that the location and nesting depth of the code being removed is clear and unambiguous.
 
-- When replacing code from the original file with *new code*, you MUST make it unambiguously clear exactly which code is being replaced by including surrounding context.
+	- When replacing code from the original file with *new code*, you MUST make it unambiguously clear exactly which code is being replaced by including surrounding context.
 
-- Unless you are fully overwriting the entire file, you ABSOLUTELY MUST ALWAYS include at least one "... existing code ..." comment before or after the change to account for all the code before or after the change.
+	- Unless you are fully overwriting the entire file, you ABSOLUTELY MUST ALWAYS include at least one "... existing code ..." comment before or after the change to account for all the code before or after the change.
 
-- Even if the location of new code is not important and could be placed anywhere in the file, you still MUST determine *exactly* where the new code should be placed and include sufficient surrounding context so that the location and nesting depth of the code being added is clear and unambiguous.
+	- Even if the location of new code is not important and could be placed anywhere in the file, you still MUST determine *exactly* where the new code should be placed and include sufficient surrounding context so that the location and nesting depth of the code being added is clear and unambiguous.
 
-- Never remove existing functionality unless explicitly instructed to do so.
+	- Never remove existing functionality unless explicitly instructed to do so.
 
-- Show enough surrounding context to understand the code structure.
+	- Show enough surrounding context to understand the code structure.
 
-Every code block that is *updating* an existing file in context MUST ALWAYS be preceded by an explanation of the change that *exactly matches* one of the formats listed in the "### Action Explanation Format" section. Do *NOT* UNDER ANY CIRCUMSTANCES use an explanation like "I'll update the code to..." that does not match one of these formats.
+	- When outputting the explanation, do *NOT* insert code between two code structures that aren't *immediately adjacent* in the original file.
 
-- When outputting the explanation, do *NOT* insert code between two code structures that aren't *immediately adjacent* in the original file.
+  -	Every code block that *updates* an existing file MUST ALWAYS be preceded by an explanation of the change that *exactly matches* one of the formats listed in the "### Action Explanation Format" section. Do *NOT* UNDER ANY CIRCUMSTANCES use an explanation like "I'll update the code to..." that does not match one of these formats.
 
-- When creating a *new* file, do NOT include this explanation. Include *one* explanation in this format per code block that *updates* an existing file. Do NOT include multiple explanations in the same code block.
+When *creating a new file*, follow the instructions in the "### Action Explanation Format" section for creating a new file.
+ 
+  - The Type field MUST be exactly 'new file'.
+  - The Summary field MUST briefly describe the new file and its purpose.
+	- The file path MUST be included in the code block label.
+	- The code itself MUST be written within a <PlandexBlock> tag.
+	- The <PlandexBlock> tag MUST include both a 'lang' attribute and a 'path' attribute as described in the instructions above. It must not include any other attributes.
+	- The <PlandexBlock> tag MUST NOT include any other text or formatting. It must only contain the code for the code block and NOTHING ELSE. Do NOT wrap the code block in triple backticks, CDATA tags, or any other text or formatting. Output ONLY the code and nothing else within the <PlandexBlock> tag.
+	- The code block MUST include the *entire file* to be created. Do not omit any code from the file.
+	- Do NOT use placeholder code or comments like '// implement authentication here' to indicate that the file is incomplete. Implement *all* functionality.
+	- Do NOT use reference comments like '// ... existing code ...'. Those are only used for updating existing files and *never* when creating new files.
+	- Include the *entire file* in the code block.
+
 
 Only list out subtasks once for the plan--after that, do not list or describe a subtask that can be implemented in code without including a code block that implements the subtask.
 
@@ -104,33 +147,74 @@ If you break up a task into subtasks, only include subtasks that can be implemen
 
 ` + FileOpsImplementationPromptSummary
 
-const FollowUpRequiredPrompt = `
-[CLASSIFICATION REQUIRED]
+	return s
+}
 
-YOU MUST COMPLETE THE CLASSIFICATION STEP BEFORE PROCEEDING TO ANY OTHER STEPS.
+func GetFollowUpRequiredPrompt(params CreatePromptParams) string {
+	s := `
+[MANDATORY FOLLOW-UP FLOW]
 
-DO NOT proceed to planning or implementation without first:
-1. Classifying the prompt according to the rules below
-2. Outputting the required classification statement
-3. Assessing context needs
-4. Outputting the required context statement
+CRITICAL FLOW CONTROL:
+1. You MUST FIRST respond naturally to what the user has said/asked
+2. Then classify the prompt as either:
+   A. Update/revision to tasks (A1/A2/A3)
+   B. Conversation prompt (question/comment)
 
-You MUST output one of these exact statements before proceeding:
-- "This is a small update to the plan."
-- "This is a significant update to the plan. I'll clear all context without pending changes, then decide what context I need to move forward."
-- "This is a new task that is distinct from the plan. I'll clear all context without pending changes, then decide what context I need to move forward."
+3. IF classified as A (update/revision):
+   - You MUST create/update the task list with ### Tasks
+   - You MUST output <PlandexFinish/> immediately after the task list
+   - You MUST end your response immediately after <PlandexFinish/>
+   - You ABSOLUTELY MUST NOT proceed to implementation
+   - You MUST follow planning format exactly
+   Even if:
+   - The change is small
+   - You know the exact code to write
+   - You're continuing an existing plan
 
-AND then one of these for small updates (A1) or chat responses (B):
-- "I have the context I need to continue."
-- "I need more context to continue."
+4. IF classified as B (conversation):
+   - Continue conversation naturally
+   - Do not create tasks or implement code
+
+5. After responding and classifying, output EXACTLY ONE of these statements (naturally incorporated):
+   A. "I have the context I need to continue."
+   B. "I have the context I need to respond."
+   C. "I need more context to continue. <PlandexFinish/>"
+   D. "I need more context to respond. <PlandexFinish/>"
+   E. "This is a significant update to the plan. I'll clear all context without pending changes, then decide what context I need to move forward. <PlandexFinish/>"
+   F. "This is a new task that is distinct from the plan. I'll clear all context without pending changes, then decide what context I need to move forward. <PlandexFinish/>"
+
+For statements A/B: You may rephrase naturally while keeping the meaning.
+For statements C/D: MUST include exact phrase "need more context" and <PlandexFinish/>.
+For statements E/F: MUST include exact phrase "clear all context" and <PlandexFinish/>.
+
+CRITICAL: Always respond naturally to the user first, then seamlessly incorporate the required statement. Do NOT state that you are performing a classification or context assessment.
 `
 
-func GetWrappedPrompt(prompt, osDetails, applyScriptSummary string, isPlanningStage, isFollowUp bool) string {
+	return s
+}
+
+type UserPromptParams struct {
+	CreatePromptParams
+	Prompt             string
+	OsDetails          string
+	IsPlanningStage    bool
+	IsFollowUp         bool
+	ApplyScriptSummary string
+}
+
+func GetWrappedPrompt(params UserPromptParams) string {
+
+	prompt := params.Prompt
+	osDetails := params.OsDetails
+	isPlanningStage := params.IsPlanningStage
+	isFollowUp := params.IsFollowUp
+	applyScriptSummary := params.ApplyScriptSummary
+
 	var promptWrapperFormatStr string
 	if isPlanningStage {
-		promptWrapperFormatStr = PlanningPromptWrapperFormatStr
+		promptWrapperFormatStr = GetPlanningPromptWrapperFormatStr(params.CreatePromptParams)
 	} else {
-		promptWrapperFormatStr = ImplementationPromptWrapperFormatStr
+		promptWrapperFormatStr = GetImplementationPromptWrapperFormatStr(params.CreatePromptParams)
 	}
 
 	// If we're in the planning stage, we don't need to include the apply script summary
@@ -138,7 +222,7 @@ func GetWrappedPrompt(prompt, osDetails, applyScriptSummary string, isPlanningSt
 		applyScriptSummary = ""
 
 		if isFollowUp {
-			promptWrapperFormatStr += "\n\n" + FollowUpRequiredPrompt
+			promptWrapperFormatStr += "\n\n" + GetFollowUpRequiredPrompt(params.CreatePromptParams)
 		}
 	}
 
@@ -363,4 +447,35 @@ Remember that users often:
 		params.Prompt,
 		ts,
 		params.OsDetails)
+}
+
+func GetPlanningFlowControl(params CreatePromptParams) string {
+	s := `
+CRITICAL PLANNING RULES:
+1. For ANY update/revision to tasks:
+`
+
+	if params.ExecMode {
+		s += `You MUST output a ### Commands section before the ### Tasks list`
+	}
+
+	s += `
+   - You MUST output a new/updated ### Tasks list
+   - You MUST NOT start implementing code
+   - You MUST follow planning phase format exactly
+
+2. Even for small changes:
+   - Create/update task list first
+   - No implementation until planning is complete
+   - All changes must be in task list
+
+3. Task Planning Required:
+   - When adding new functionality
+   - When modifying existing code
+   - When fixing bugs or issues
+   - When continuing an existing plan
+   NO EXCEPTIONS - always plan first
+`
+
+	return s
 }

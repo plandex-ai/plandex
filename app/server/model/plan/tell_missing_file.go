@@ -68,7 +68,20 @@ func (state *activeTellStreamState) handleMissingFileResponse(applyScriptSummary
 	if missingFileResponse == shared.RespondMissingFileChoiceSkip {
 		res := state.replyParser.FinishAndRead()
 		skipPrompt := prompts.GetSkipMissingFilePrompt(res.CurrentFilePath)
-		prompt := prompts.GetWrappedPrompt(skipPrompt, req.OsDetails, applyScriptSummary, isPlanningStage, isFollowUp) + "\n\n" + skipPrompt // repetition of skip prompt to improve instruction following
+
+		params := prompts.UserPromptParams{
+			CreatePromptParams: prompts.CreatePromptParams{
+				ExecMode:    req.ExecEnabled,
+				AutoContext: req.AutoContext,
+			},
+			Prompt:             skipPrompt,
+			OsDetails:          req.OsDetails,
+			IsPlanningStage:    isPlanningStage,
+			IsFollowUp:         isFollowUp,
+			ApplyScriptSummary: applyScriptSummary,
+		}
+
+		prompt := prompts.GetWrappedPrompt(params) + "\n\n" + skipPrompt // repetition of skip prompt to improve instruction following
 
 		state.messages = append(state.messages, openai.ChatCompletionMessage{
 			Role:    openai.ChatMessageRoleUser,
@@ -77,7 +90,20 @@ func (state *activeTellStreamState) handleMissingFileResponse(applyScriptSummary
 
 	} else {
 		missingPrompt := prompts.GetMissingFileContinueGeneratingPrompt(res.CurrentFilePath)
-		prompt := prompts.GetWrappedPrompt(missingPrompt, req.OsDetails, applyScriptSummary, isPlanningStage, isFollowUp) + "\n\n" + missingPrompt // repetition of missing prompt to improve instruction following
+
+		params := prompts.UserPromptParams{
+			CreatePromptParams: prompts.CreatePromptParams{
+				ExecMode:    req.ExecEnabled,
+				AutoContext: req.AutoContext,
+			},
+			Prompt:             missingPrompt,
+			OsDetails:          req.OsDetails,
+			IsPlanningStage:    isPlanningStage,
+			IsFollowUp:         isFollowUp,
+			ApplyScriptSummary: applyScriptSummary,
+		}
+
+		prompt := prompts.GetWrappedPrompt(params) + "\n\n" + missingPrompt // repetition of missing prompt to improve instruction following
 
 		state.messages = append(state.messages, openai.ChatCompletionMessage{
 			Role:    openai.ChatMessageRoleUser,

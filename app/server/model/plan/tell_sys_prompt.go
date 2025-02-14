@@ -15,12 +15,14 @@ func (state *activeTellStreamState) getTellSysPrompt(autoContextEnabled, smartCo
 
 	var sysCreate string
 
+	params := prompts.CreatePromptParams{
+		ExecMode:                  req.ExecEnabled,
+		AutoContext:               autoContextEnabled,
+		LastResponseLoadedContext: didLoadChatOnlyContext,
+	}
+
 	if req.IsChatOnly {
-		sysCreate = prompts.GetChatSysPrompt(prompts.CreatePromptParams{
-			ExecMode:                  req.ExecEnabled,
-			AutoContext:               autoContextEnabled,
-			LastResponseLoadedContext: didLoadChatOnlyContext,
-		})
+		sysCreate = prompts.GetChatSysPrompt(params)
 	} else {
 
 		if isPlanningStage {
@@ -29,14 +31,14 @@ func (state *activeTellStreamState) getTellSysPrompt(autoContextEnabled, smartCo
 			log.Println("isContextStage", isContextStage)
 			if autoContextEnabled && isContextStage {
 				log.Println("autoContextEnabled && isContextStage -- adding auto context preamble")
-				sysCreate = prompts.AutoContextTellPreamble
+				sysCreate = prompts.GetAutoContextTellPreamble(params)
 			} else if autoContextEnabled || smartContextEnabled {
 				log.Println("autoContextEnabled || smartContextEnabled -- adding auto context preamble")
 				sysCreate = prompts.SysPlanningAutoContext
 
-				if isFollowUp && !req.IsApplyDebug && !req.IsUserDebug {
+				if isFollowUp && !req.IsApplyDebug {
 					log.Println("isFollowUp && !req.IsApplyDebug && !req.IsUserDebug -- adding follow up classifier prompt")
-					sysCreate = prompts.FollowUpPlanClassifierPrompt + "\n\n" + sysCreate
+					sysCreate = prompts.GetFollowUpPlanClassifierPrompt(params) + "\n\n" + sysCreate
 				}
 			} else {
 				log.Println("sysPlanningBasic")

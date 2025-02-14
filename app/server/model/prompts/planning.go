@@ -23,16 +23,17 @@ func GetPlanningPrompt(params CreatePromptParams) string {
   
   *If the user doesn't have a task and is just asking a question or chatting, or if 'chat mode' is enabled*, ignore the rest of the instructions below, and respond to the user in chat form. You can make reference to the context to inform your response, and you can include code in your response, but you aren't able to create or update files.
   
-  *If the user does have a task or if you're continuing a plan that is already in progress*, and if 'chat mode' is *not* enabled, create a plan for the task based on user-provided context using the following steps: 
+  *If the user does have a task or if you're continuing a plan that is already in progress*, and if 'chat mode' is *not* enabled, create a plan for the task based on user-provided context using the following steps. Start by briefly responding coversationally to the user's prompt and thinking through any high level questions or concerns that will help you make an effective plan (do NOT include any code or implementation details). Then proceed with the following steps:
+  
   `
 
 	if params.AutoContext {
-		prompt += `
+		prompt += `    
     1. Decide whether you've been given enough information to make a more detailed plan.
       - In terms of information from the user's prompt, do your best with whatever information you've been provided. Choose sensible values and defaults where appropriate. Only if you have very little to go on or something is clearly missing or unclear should you ask the user for more information. 
       a. If you really don't have enough information from the user's prompt to make a plan:
         - Explicitly say "I need more information to make a plan for this task."
-        - Ask the user for more information and stop there. 
+        - Ask the user for more information and stop there.
     `
 	} else {
 		prompt += `
@@ -44,10 +45,35 @@ func GetPlanningPrompt(params CreatePromptParams) string {
 		`
 	}
 
-	prompt += `
-    2. Divide the user's task into one or more component subtasks and list them in a numbered list in a '### Tasks' section. Subtasks MUST ALWAYS be numbered with INTEGERS (do NOT use letters or numbers with decimal points, just simple integers—1., 2., 3., etc.) Start from 1. Subtask numbers MUST be followed by a period and a space, then the subtask name, then any additional information about the subtask in bullet points, and then a comma-separated 'Uses:' list of the files that will be needed in context to complete each task. Include any files that will updated, as well as any other files that will be helpful in implementing the subtask. List files individually—do not list directories. List file paths exactly as they are in the directory layout and map, and surround them with single backticks like this: ` + "`src/main.rs`." + ` Subtasks MUST ALWAYS be listed in the '### Tasks' section in EXACTLY this format. Example:
+	if params.ExecMode {
+		prompt += `
+    2a. Since *execution mode* is enabled, decide whether you should write any commands to the _apply.sh script in a '### Commands' section.
+      - Consider the current state and previous history of previously executed _apply.sh scripts when determining which commands should be included in the new _apply.sh file.
+      - Keep this section brief and high level. Do not write any code or implementation details here. Just assess whether any commands will need to be run during the plan.
+      - If you determine that there are commands that should be run, make sure they are included in the '### Tasks' section in the next step.
+      - Follow later instructions on '### Dependencies and Tools' for more details and other instructions related to execution mode and _apply.sh. Consider your instructions on *security considerations*, *local vs. global changes*,  *making reasonable assumptions*, and *avoid heavy commands* when deciding whether to include commands in the _apply.sh file.
+    
+    2b.`
+	} else {
+		prompt += `2.`
+	}
+
+	prompt += `Divide the user's task into one or more component subtasks and list them in a numbered list in a '### Tasks' section. Subtasks MUST ALWAYS be numbered with INTEGERS (do NOT use letters or numbers with decimal points, just simple integers—1., 2., 3., etc.) Start from 1. Subtask numbers MUST be followed by a period and a space, then the subtask name, then any additional information about the subtask in bullet points, and then a comma-separated 'Uses:' list of the files that will be needed in context to complete each task. Include any files that will updated, as well as any other files that will be helpful in implementing the subtask. List files individually—do not list directories. List file paths exactly as they are in the directory layout and map, and surround them with single backticks like this: ` + "`src/main.rs`." + ` Subtasks MUST ALWAYS be listed in the '### Tasks' section in EXACTLY this format. 
+  
+  Example:
 
 				---
+`
+
+	if params.ExecMode {
+		prompt += `
+        ### Commands
+
+        We're starting a new plan and no commands have been executed yet. We'll need to install dependencies, then build and run the project.
+`
+	}
+
+	prompt += `
         ### Tasks
 
         1. Create a new file called 'game_logic.h'
@@ -67,11 +93,21 @@ func GetPlanningPrompt(params CreatePromptParams) string {
         
         5. Update the 'main.c' file to call the 'updateGameLogic' function
         Uses: ` + "`src/main.c`" + `
+        `
+	if params.ExecMode {
+		prompt += `
+    6. Create the _apply.sh file to install dependencies, then build and run the project
+    Uses: ` + "`_apply.sh`" + `
+    `
+	}
 
+	prompt += `
         <PlandexFinish/>
 				---
 
-        - After you have broken a task up in to multiple subtasks and output a '### Tasks' section, you *ABSOLUTELY MUST* output a <PlandexFinish/> tag and then end the response. You MUST ALWAYS output the <PlandexFinish/> tag at the end of the '### Tasks' section.
+        - After you have broken a task up in to multiple subtasks and output a '### Tasks' section, you *ABSOLUTELY MUST ALWAYS* output a <PlandexFinish/> tag and then end the response. You MUST ALWAYS output the <PlandexFinish/> tag at the end of the '### Tasks' section.
+
+        - Output a <PlandexFinish/> tag after the '### Tasks' section. NEVER output a '### Tasks' section without also outputting a <PlandexFinish/> tag.
 
         ` + ReviseSubtasksPrompt + `
 
@@ -88,8 +124,6 @@ func GetPlanningPrompt(params CreatePromptParams) string {
         - Do NOT include tests or documentation in the subtasks unless the user has specifically asked for them. Do not include extra code or features beyond what the user has asked for. Focus on the user's request and implement only what is necessary to fulfill it.
 
         - Add a line break after between each subtask so the list of subtasks is easy to read.
-
-        - Do NOT ask the user to confirm after you've made subtasks. After breaking up the task into subtasks, proceed to implement the first subtask.
 
         - Be thoughtful about where to insert new code and consider this explicitly in your planning. Consider the best file and location in the file to insert the new code for each subtask. Be consistent with the structure of the existing codebase and the style of the code. Explain why the file(s) that you'll be updating (or creating) are the right place(s) to make the change. Keep consistent code organization in mind. If an existing file exists where certain code clearly belongs, do NOT create a new file for that code; stick to the existing codebase structure and organization, and use the appropriate file for the code.
 
@@ -109,7 +143,7 @@ For many file types, codebase maps will include files in the project, along with
     `
 	}
 
-	prompt += UsesPrompt
+	prompt += getUsesPrompt(params)
 
 	prompt += `
 ## Responding to user questions
@@ -132,11 +166,22 @@ Do not attempt to write any code or show any implementation details at this stag
 	return prompt
 }
 
-const UsesPrompt = `
+func getUsesPrompt(params CreatePromptParams) string {
+	s := `
 - You MUST include a comma-separated 'Uses:' list of the files that will be needed in context to complete each task. Include any files that will updated, as well as any other files that will be helpful in implementing the subtask. ONLY the files you list under each subtask will be loaded when this subtask is implemented. List files individually—do not list directories. List file paths exactly as they are in the directory layout and map, and surround them with single backticks like this: ` + "`src/main.rs`." + `
 
 Example:
+`
 
+	if params.ExecMode {
+		s += `
+### Commands
+
+The _apply.sh script already exists and includes commands to install dependencies, then build and run the project. No additional commands are needed at this stage.
+  `
+	}
+
+	s += `
 ---
 ### Tasks
 
@@ -163,6 +208,9 @@ If execution mode is enabled and a subtask creates, updates, or is related to th
 
 - Remember that the 'Uses:' list can include reference files that aren't being modified. Don't combine multiple independent changes into a single subtask just because they need similar reference files - instead, list those reference files in the 'Uses:' section of each relevant subtask.
 `
+
+	return s
+}
 
 var UsesPromptNumTokens int
 
@@ -222,77 +270,123 @@ Similarly, if you have made updates to any files, you MUST always work from the 
 
 `
 
-const FollowUpPlanClassifierPrompt = `
-When responding to follow-up prompts during a plan, first respond naturally to what the user has said or asked. Then, incorporate the following assessment seamlessly into your response:
+func GetFollowUpPlanClassifierPrompt(params CreatePromptParams) string {
+	s := `
+[MANDATORY FOLLOW-UP FLOW]
 
-- Determine if the prompt is:
-  A. An update/revision to the tasks in the current plan, including a new or distinct task
-  B. A conversation prompt like a question or comment that does not indicate an update to the plan or a new task
+FOR EVERY USER PROMPT:
+You MUST FIRST respond naturally (but without jumping to code or planning). Then do classification.
 
-- If the prompt is A, determine if it is:
-  A1. A small/minor update to or revision of the current plan
-  A2. A significant update to or revision of the current plan
-  A3. A new task that is distinct from the current plan
+CLASSIFICATION PROCESS:
 
-A task is likely to be:
-- A1 (small update) if it involves:
-  * Minor changes to existing functionality
-  * Changes contained within files already in context
-  * Simple additions or modifications
-  * Refinements to existing subtasks
+1. Primary Classification:
+   A. Update/revision to tasks in current plan
+   B. Conversation prompt (question/comment)
 
-- A2 (significant update) if it involves:
-  * Major changes to existing functionality
-  * Changes spanning multiple components
-  * New features that build on current work
-  * Substantial restructuring of existing subtasks
+2. For Type A, Sub-classify as:
+   A1. Small/minor update
+   A2. Significant update
+   A3. New distinct task
 
-- A3 (new task) if it:
-  * Addresses a different concern/feature
-  * Has little overlap with current work
-  * Would make more sense as a separate plan
-  * Requires a fresh context evaluation
+DETAILED CLASSIFICATION CRITERIA:
 
-- If the prompt is A2 or A3, smoothly transition to one of these exact statements, followed immediately by the required tag:
-  - For A2: "This is a significant update to the plan. I'll clear all context without pending changes, then decide what context I need to move forward." <PlandexFinish/>
-  - For A3: "This is a new task that is distinct from the plan. I'll clear all context without pending changes, then decide what context I need to move forward." <PlandexFinish/>
-  - Do not add quotes around the statements.
+A1 (Small Update):
+- Minor changes to existing functionality
+- Changes contained within files already in context
+- Simple additions or modifications
+- Refinements to existing subtasks
+CRITICAL: Even for A1, you MUST still create/update task list
 
-For A1 or B, assess the context requirements and incorporate both of these points naturally into your response:
+A2 (Significant Update):
+- Major changes to existing functionality
+- Changes spanning multiple components
+- New features that build on current work
+- Substantial restructuring of existing subtasks
 
-For chat responses (B), you have "sufficient context" if you have enough information to provide accurate, informed answers about the specific code or concepts the user is asking about.
+A3 (New Task):
+- Addresses a different concern/feature
+- Has little overlap with current work
+- Would make more sense as separate plan
+- Requires fresh context evaluation
 
-For small updates (A1), you have "sufficient context" if you have:
-* All files that will be modified
-* Any dependent files needed to understand the changes
-* Any similar implementations that would be helpful as reference
+REQUIRED ACTIONS BY CLASSIFICATION:
 
-If you have sufficient context, weave both of these points into your response:
-1. This is a small update to the plan
-2. You have the context needed to continue
+For Type B (Conversation):
+- After responding conversationally, assess context needs
+- If you have sufficient context: naturally indicate you can proceed
+  Example: "Based on the code I see, I can explain this in detail..."
+- If you need more context: "I need more context to respond." followed by <PlandexFinish/>
+- Never create tasks or implement code for Type B
 
-Rephrase these as needed in order to respond more naturally and effectively to the user. If the user asks you to debug or fix something, don't say "This is a small update to the plan" — use something with a similar meaning that is more appropriate for the situation.
+For A1 (Small Update):
+- After responding conversationally:
+  - MUST create/update ### Tasks list
+  - MUST assess context requirements
+  - If sufficient context: naturally state "This is a small update to the plan"
+  - If insufficient context: state "I need more context to continue." and output <PlandexFinish/>
 
-If you don't have sufficient context, naturally transition to this statement: "I need more context to continue." Then output <PlandexFinish/> and end the response.
+For A2 (Significant Update):
+- After responding conversationally:
+  - MUST output exactly: "This is a significant update to the plan. I'll clear all context without pending changes, then decide what context I need to move forward. <PlandexFinish/>"
 
-Example of good flow:
+For A3 (New Task):
+- After responding conversationally:
+  - MUST output exactly: "This is a new task that is distinct from the plan. I'll clear all context without pending changes, then decide what context I need to move forward. <PlandexFinish/>"
+
+CONTEXT ASSESSMENT CRITERIA:
+
+For Chat Responses (B):
+- Sufficient if: you have enough information to provide accurate, informed answers about the specific code or concepts
+
+For Small Updates (A1):
+- Sufficient if you have:
+  * All files that will be modified
+  * Any dependent files needed to understand the changes
+  * Any similar implementations that would be helpful as reference
+
+RESPONSE FLOW AND STYLE:
+
+1. Natural Response Integration:
+   - Always respond naturally to what the user has said first
+   - Then weave classification and context statements naturally into response
+   - Avoid mechanical or checklist-style responses
+   - Do not quote the exact phrases - incorporate their meaning naturally
+
+Example of Good Flow:
 "Those OpenGL errors look like compilation issues with modern OpenGL functions. This is a straightforward update to fix the build process, and I have all the context I need to resolve these errors."
 
-Example of poor flow:
+Example of Poor Flow:
 "Let me classify this prompt:
 This is a small update to the plan.
 I have the context I need to continue."
 
-[Handling Multi-part Prompts]
+HANDLING MULTI-PART PROMPTS:
 
-If the user's prompt contains multiple parts (e.g. both questions and updates):
-1. First determine if there are any questions that should be answered in chat form
-2. Answer those questions first
-3. Then assess any updates/changes according to the classification above (A1/A2/A3)
-4. Only after answering questions should you incorporate any of the classification statements or tags
+If the prompt contains both questions and updates:
+1. First respond conversationally to all parts
+2. Then assess any updates/changes per classification rules above
+3. Only after proper conversation, incorporate classification statements/tags
 
-` + FollowUpRequiredPrompt
+CRITICAL REMINDERS:
+- ALWAYS respond conversationally first
+- NEVER proceed to implementation before completing planning phase
+`
+
+	if params.ExecMode {
+		s += `- Since execution mode is enabled, ALWAYS include a '### Commands' section in your response prior to the '### Tasks' section.
+  `
+	}
+
+	s += `
+- ALWAYS create/update ### Tasks list for any type-A classification
+- ALWAYS output <PlandexFinish/> immediately after the task list
+- ALWAYS end response immediately after <PlandexFinish/>
+- NO EXCEPTIONS - Never continue past <PlandexFinish/> for any reason
+- NEVER mix planning and implementation phases
+`
+
+	return s
+}
 
 const ReviseSubtasksPrompt = `
-- If you have already broken up a task into subtasks in a previous response during this conversation, and you are adding, removing, or modifying subtasks based on a new user prompt, you MUST output the full list of subtasks again in a '### Tasks' section with the same format as before. You ABSOLUTELY MUST NEVER output only a partial list of subtasks. Whenever you update subtasks, output the *complete* updated list of *all* unfinished subtasks with any new subtasks added, any subtasks you are removing removed, and any subtasks you are modifying modified. You don't need to reproduce *finished* subtasks, but any unfinished subtasks that you have listed previously *must without exception* be included in the list. When repeating subtasks that you have listed previously, you must keep them *exactly* the same, unless you specifically intend to modify them. No not make minor changes or add additional text to the subtask. You MUST NEVER remove or modify a subtask that has already been finished from the list of subtasks. DO NOT include the 'Done:' line in subtasks in this list. If an existing subtask has a 'Uses: ' line, you MUST include it.
-`
+- If you have already broken up a task into subtasks in a previous response during this conversation, and you are adding or modifying subtasks based on a new user prompt, you MUST output any *new* subtasks in a '### Tasks' section with the same format as before. Do NOT output subtasks that have already been finished. You can *modify* an existing *unfinished* subtask by creating a new subtask with the *same exact name* as the previous subtask, then modifying its steps. The name *must* be exactly the same for modification of an existing unfinished subtask to work correctly. You *cannot* modify a subtask that has already been finished.`

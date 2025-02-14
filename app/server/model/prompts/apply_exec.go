@@ -73,6 +73,12 @@ For example, in an existing Node.js project:
 ✅ DO: Install only new packages needed for new features
 ✅ DO: Check for specific tools needed for new functionality
 
+#### Avoid Heavy Commands Unless Directed
+
+You must be conservative about running 'heavy' commands like tests that could be slow or resource intensive to run.
+
+This also applies to other potentially heavy commands like building Docker images. Use your best judgement.
+
 #### Additional Requirements
 
 Script execution:
@@ -175,6 +181,12 @@ CRITICAL rules:
 - NEVER leave out the file path label when writing to _apply.sh
 - There must be NO lines between the file path and opening <PlandexBlock> tag
 - Use lang="bash" in the <PlandexBlock> tag
+
+When writing to _apply.sh include an ### Action Explanation Format section, a file path label, and a <PlandexBlock> tag that includes both a 'lang' attribute and a 'path' attribute as described in the instructions above.
+
+If the current state of the _apply.sh script is *empty*, follow ALL instructions for *creating a new file* when writing to _apply.sh. Include the *entire* _apply.sh script in the code block.
+
+If the current state of the _apply.sh script is *not empty*, follow ALL instructions for *updating an existing file* when writing to _apply.sh.
 
 ### Command Output and Error Handling
 
@@ -296,7 +308,7 @@ When the user applies the plan, the _apply.sh will be executed.
 
 CRITICAL: The _apply.sh script accumulates ALL commands needed for the plan. Commands persist until successful application, when the script resets to an empty state. This reset ONLY happens after successful application.
 
-The current state of the _apply.sh script and history of previously executed scripts will be included in your prompt:
+The current state of the _apply.sh script and history of previously executed scripts will be included in your prompt in this format:
 
 Previously executed _apply.sh:
 ` + "```" + `
@@ -322,45 +334,179 @@ The previously executed scripts show commands that ran successfully in past appl
 const ApplyScriptResetUpdatePlanningPrompt = ApplyScriptResetUpdateSharedPrompt + `
 ## Planning with Script State
 
-When planning tasks and subtasks, consider how script state affects command organization:
+When planning tasks (and subtasks) that involve command execution, you must consider how the ` + "`_apply.sh`" + ` script evolves during the plan. ` + "`_apply.sh`" + ` accumulates commands until all changes are applied successfully; then, it resets to empty. This cycle repeats every time the user applies the plan and then continues to iterate on the plan.
 
-1. Command Accumulation
-   - ALL commands persist until successful application
-   - Group related commands in logical subtasks
-   - Consider dependencies between commands
-   - Plan command ordering carefully
+### 1. Command Accumulation
+- ALL commands in _apply.sh persist until successful application, at which point it is cleared
+- Group related commands in logical subtasks
+- Consider dependencies between commands
+- Plan command ordering carefully
 
-2. After Reset Planning
-   - Consider what commands will need repeating
-   - Think about dependencies between commands
-   - Plan for proper command sequencing
-   - Account for the full lifecycle of changes
+### 2. After Reset (Post-Success)
+- **Script Empties**: Once ` + "`_apply.sh`" + ` has been successfully executed, it’s cleared.
+- **No Unnecessary Repeats**: For future tasks, avoid re-adding commands (e.g., reinstalling dependencies) that already ran successfully, unless they are truly needed again.
+- **Include Necessary Commands**: If the user continues to iterate on the plan after a successful apply and reset of the _apply.sh script, make sure you *do* add any commands that need to run again for the next iteration. For example, if there is a command that runs the program, and the _apply.sh script has been reset to empty, you must include a step to run the program again.
 
-Common Command Patterns:
-- Build commands after source changes
-- Test commands after code changes
-- Start/run commands after backend changes
-- Database migrations after schema changes
-- Package installs after dependency changes
+### Common Command Patterns
 
-Example of Good Task Organization:
+- **Build Commands**: Run after source changes (e.g., ` + "`make`" + `, ` + "`npm run build`" + `, ` + "`cargo build`" + `).
+- **Test Commands**: Run after code changes that require verification (e.g., ` + "`npm test`" + `, ` + "`go test`" + `, etc.).
+- **Startup/Execution**: Start or run the program once built (e.g., ` + "`./app`" + `, ` + "`npm start`" + `).
+- **Database Migrations**: If schema changes are involved, add relevant migration commands.
+- **Package/Dependency Installs**: Add or update only if new libraries or tools are introduced.
 
-1. Add authentication feature
-   - Update auth files
-   - Add auth package installation commands
-   - Include any necessary build steps
+### Example of Task Organization
 
-2. Add user management
-   - Update user management files
-   - Add user management package commands
-   - Update existing build commands if needed
+1. **Add Authentication Feature**
+   - Update or create relevant files (e.g. ` + "`auth_controller.js`" + `, ` + "`auth_routes.py`" + `).
+   - In ` + "`_apply.sh`" + `, install new auth-related dependencies (e.g. ` + "`npm install auth-lib`" + `).
+   - Include build or test commands if needed.
 
-3. Final build and run
-   - Include all necessary build steps
-   - Add test commands if tests were updated
-   - Include program execution commands
+2. **Add User Management**
+   - Update existing or create new user-management files.
+   - If new libraries are introduced, add them in ` + "`_apply.sh`" + ` (avoid re-installing old ones).
+   - Update existing build/test steps if relevant.
 
-Remember: Commands should be organized to handle both the immediate changes and any necessary rebuilds or updates after future resets.
+3. **Final Build and Run**
+   - In ` + "`_apply.sh`" + `, include all final build commands (e.g. ` + "`make`" + `, ` + "`npm run build`" + `).
+   - Run the application if desired (e.g. ` + "`npm start`" + ` or ` + "`./myapp`" + `).
+   - If tests have changed, also include them here (e.g. ` + "`npm test`" + `).
+
+### Good Practices
+
+- **Check Script State**: If ` + "`_apply.sh`" + ` is not empty, modify existing commands in place. If it’s empty (post-success), add only new or relevant commands.
+- **Focus on Necessity**: Don't re-run installation for dependencies that were already installed.
+- **Be Systematic**: Keep installation commands grouped, then build commands, then run/test commands.
+
+### Final Reminder
+
+Plan your subtasks so that installation, build, and run commands appear **only where they’re actually required**—and be sure to keep them minimal after the script resets.
+
+### Always consider _apply.sh
+
+When planning and breaking down tasks, *always* consider whether a task for writing to the _apply.sh file is needed. Consider the current state of the _apply.sh file when making this decision.
+
+Imagine this scenario:
+
+1. You have previously made a plan for the user which included an _apply.sh file.
+2. The user then applied the plan, successfully applied the changes, and successfully executed the _apply.sh script, causing it to be reset to empty.
+3. The user sends a new prompt, wanting to fix or iterate on some aspect of the plan.
+
+Even if you are only making a small change to a single file based on the user's latest prompt, you *must* still consider the state of the (empty) _apply.sh file and whether it needs to be created again.
+
+If your updates to the _apply.sh file in step 1 were limited to "one time" actions, like installing dependencies, those likely shouldn't be run again (unless the prompt specifically requests that), so in that case you likely would not need a task for writing to the _apply.sh file.
+
+However, if your updates to the _apply.sh file in step 1 were to add commands that should be run after any change to the project, like building, running, or testing the program, then you *must* include a task for writing to the _apply.sh file.
+
+You may find that you are including a task for writing the same commands to the _apply.sh for each new iteration of the plan after a succesful apply and reset—this can be correct and expected.
+
+🔄 CRITICAL: _apply.sh RESET BEHAVIOR
+Remember, after successful execution, _apply.sh ALWAYS resets to empty.
+You MUST ALWAYS consider adding build/run commands again after ANY source changes.
+If the _apply.sh script previously had a build/run command, and then it was reset to empty after being successfully executed, and then you make ANY subsequent code changes, you MUST add a new build/run command to the _apply.sh file.
+
+INCORRECT FOLLOW UP:
+### Tasks
+1. Fix bug in source.c
+Uses: source.c
+<PlandexFinish/>
+
+CORRECT FOLLOW UP:
+### Commands
+
+The _apply.sh script is empty after the previous execution. Dependencies have already been installed, so we don't need to install them again. We'll need to build and run the code, so we'll need to add build and run commands to the _apply.sh file.
+
+### Tasks
+1. Fix bug in source.c
+Uses: source.c
+
+2. Build and run updated code
+Uses: _apply.sh
+<PlandexFinish/>
+
+BEFORE COMPLETING ANY PLAN:
+Consider:
+1. Are you modifying source files? If YES:
+   - Would it make sense to build/run the code after these changes?
+   - If so, is there a task for writing build/run commands to _apply.sh?
+   - If you're unsure what commands to run, better to omit them than guess
+2. Review the command history to avoid re-running unnecessary steps
+
+Examples:
+GOOD: Adding build/run after code changes
+BAD: Adding build/run when only updating comments or docs
+BAD: Guessing at commands when project structure or build/run commands are unclear
+
+### Always consider _apply.sh execution history
+
+Each version of _apply.sh that has been executed successfully is included in the context. Consider the history when determining which commands to include in the _apply.sh file. For example, if you see that a dependency was installed successfully in a previous _apply.sh, do NOT install that same dependency again unless the user has specifically requested it.
+
+**IMMEDIATELY BEFORE any '### Tasks' section, you MUST output a '### Commands' section**
+
+In the '### Commands' section, you MUST assess whether any commands should be written to _apply.sh during the plan based on the reasoning above. Do NOT omit this section.
+
+Example:
+
+I will update the JSON display to use streaming and fix the out-of-memory issue.
+
+### Commands
+
+_apply.sh is empty. I'll add commands to build and run the updated code.
+
+### Tasks
+
+1. Update JSON display to use streaming
+Uses: source.c
+
+2. Build and run updated code
+Uses: _apply.sh
+<PlandexFinish/>
+
+Another example (with no commands):
+
+### Commands
+
+It's not totally clear to me from the context how to build or run the project, so I'll leave this step to you.
+
+### Tasks
+
+1. Update JSON display to use streaming
+Uses: source.c
+
+<PlandexFinish/>
+
+---
+
+### Command Inclusion Decision Tree
+
+When deciding whether to add commands to _apply.sh (and which ones), follow this guidance:
+
+1. **Are you modifying source/config files?**
+   * **No** → You typically don't need commands (e.g., if you're just updating docs or comments).
+   * **Yes** → Continue to step 2.
+
+2. **Would these changes benefit from a rebuild/run?**
+   * **No** (e.g., trivial style changes or commented-out code that won't affect runtime) → Skip commands.
+   * **Yes** (e.g., main logic changes that should be tested or run) → Continue to step 3.
+
+3. **Do you have enough context to identify the correct build/run commands?**
+   * **No** → Better to omit commands than guess. Possibly mention to the user that the build process is unclear.
+   * **Yes** → Continue to step 4.
+
+4. **Consider resource impact and user's preference.**
+   * **Is the command relatively lightweight** (e.g., a quick ` + "`make`" + ` or a single test file) **and clearly relevant**? → Go ahead and add it.
+   * **Is it heavy** (e.g., full integration tests, large Docker builds) **or uncertain**? → Mention it might be too large or unclear; consider skipping unless user specifically wants it.
+
+5. **Cross-check with previous _apply.sh commands**
+   * **Were dependencies or tools already installed in a previous iteration?** → Don't reinstall them.
+   * **Were certain build/test commands already used** and you're about to do the same thing? → Only include them again if you truly need to re-run.
+
+**If you decide to add commands**
+* Summarize why in the "### Commands" section (e.g., "We changed ` + "`main.c`" + ` so we need to rebuild and run to verify behavior.").
+* Then add a subtask referencing ` + "`_apply.sh`" + ` so the script is updated with exactly those commands.
+
+**If you decide to skip commands**
+* Still provide a "### Commands" section, but briefly note that no commands are needed (or that build/run process is unclear).
 `
 
 const ApplyScriptResetUpdateImplementationPrompt = ApplyScriptResetUpdateSharedPrompt + `
@@ -375,14 +521,17 @@ If the current state is empty:
 - Review previously executed scripts
 - Include commands needed for current changes
 - Consider which previous commands need repeating
+- Follow ALL instructions for *creating a new file* with an ### Action Explanation Format section, a file path label, and a <PlandexBlock> tag that includes both a 'lang' attribute and a 'path' attribute as described in the instructions above.
+- Include the *entire* _apply.sh script in the code block.
 
 ### 2. Existing Script State
 
 If the script is not empty, you must:
-1. Check the current script contents
-2. Preserve ALL existing commands exactly
-3. Add new commands while maintaining existing ones
-4. Verify no commands were accidentally removed/modified
+- Check the current script contents
+- Preserve ALL existing commands exactly
+- Add new commands while maintaining existing ones
+- Verify no commands were accidentally removed/modified
+- Follow ALL instructions for *updating an existing file* with an ### Action Explanation Format section, a file path label, and a <PlandexBlock> tag that includes both a 'lang' attribute and a 'path' attribute as described in the instructions above.
 
 Example of proper script preservation:
 
@@ -463,6 +612,14 @@ Remember:
 - Only install tools/packages that aren't already present
 - Plan for proper error handling
 - Focus on local over global changes
+- Always consider whether a task is needed for writing to the _apply.sh file, especially if the user is iterating on the plan after a successful apply and reset of the _apply.sh file
+- If the user is iterating on the plan and has previously applied the _apply.sh script, leaving it empty, make sure you only include appropriate commands for the next iteration of the plan—do not repeat commands that were already run successfully unless it makes sense to do so (like building, running, or testing the program)
+- Consider the history of previously executed _apply.sh scripts when determining which commands to include in the _apply.sh file. For example, if you see that a dependency was installed successfully in a previous _apply.sh, do NOT install that same dependency again unless the user has specifically requested it
+
+**IMMEDIATELY BEFORE any '### Tasks' section, you MUST output a '### Commands' section**
+
+In the '### Commands' section, you MUST assess whether any commands should be written to _apply.sh during the plan based on the reasoning above. Do NOT omit this section.
+
 ` + ApplyScriptResetUpdatePlanningSummary + ApplyScriptExecutionSummary
 
 const ApplyScriptImplementationPromptSummary = `
@@ -471,6 +628,7 @@ Key implementation guidelines for _apply.sh:
 Technical Requirements:
 - ALWAYS use correct file path label: "- _apply.sh:"
 - ALWAYS use <PlandexBlock lang="bash"> tags
+- ALWAYS follow your instructions for creating or updating files when writing to the _apply.sh file—treat it like any other file in the project
 - NO lines between path and opening tag
 - Show ALL command output (don't filter/hide)
 - NO shebang or error handling (handled externally)
@@ -581,10 +739,8 @@ CRITICAL: The script must handle both program execution and security carefully:
 
 1. Program Execution
    - ALWAYS include commands to run the actual program after building/installing
-   - Users should never need to run programs manually
+   - If there's a clear way to run the project, users should never need to run programs manually—always include commands to run the project in _apply.sh
    - Include ALL necessary startup steps (build → install → run)
-   - Launch any required services (databases, web servers, etc.)
-   - Handle proper startup sequencing
 
 2. Security Considerations
    - BE EXTREMELY CAREFUL with system-modifying commands
@@ -600,6 +756,19 @@ CRITICAL: The script must handle both program execution and security carefully:
    - Avoid system-wide installations unless specifically requested or there's no other way to accomplish the task
    - Keep changes contained within project scope unless specifically requested or there's no other way to accomplish the task
    - Use virtual environments where appropriate
+
+4. Be Practical And Make Reasonable Assumptions
+   - Be practical and make reasonable assumptions about the user's machine and project
+   - Don't assume that the user wants to install every single dependency under the sun—only install what is *absolutely* necessary to complete the task
+   - Make reasonable assumptions about what the user likely already has installed on their machine. If you're unsure, it's better to omit commands than to include incorrect ones or include overly heavy commands.
+
+5. Heavy Commands
+   - You must be conservative about running 'heavy' commands like tests that could be slow or resource intensive to run.
+   - This also applies to other potentially heavy commands like building Docker images. Use your best judgement.
+
+6. Less Is More
+   - If the plan involves adding a single test or a small number of tests, include commands to run *just those tests* by default in _apply.sh rather than running the entire test suite. Unless the user specifically asks for the entire test suite to be run, in which case you should always defer to the user's request.
+   - Apply the same principle to other commands. Be minimal and selective when choosing which commands to run.
 `
 
 var NoApplyScriptPrompt = `
@@ -634,5 +803,3 @@ DO NOT update the _apply.sh script unless it is necessary to fix the problem. If
 
 **Follow all other instructions you've been given for the _apply.sh script.**
 `
-
-var ApplyDebugPromptTokens int

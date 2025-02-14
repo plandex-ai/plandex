@@ -3,6 +3,8 @@ package prompts
 const ChangeExplanationPrompt = `
 ### Action Explanation Format
 
+#### 1. Updating an existing file in context
+
 Prior to any code block that is *updating* an existing file in context, you MUST explain the change in the following format EXACTLY:
 
 ---
@@ -70,7 +72,7 @@ For each Type, follow these validation rules:
 - For 'overwrite':
    - Summary MUST briefly describe the change and list the specific symbols/sections being changed or replaced
    - Context field must be omitted
-   - Preserve MUST *exhaustively* list all symbols/sections in the original file that should be included in the final result
+   - Preserve MUST *exhaustively* list all symbols/sections in the original file that should be included in the final result. Do *NOT* say that you are 'preserving nothing' because you are overwriting the entire file—the point what, if anything, will be *kept the same* from the original file, even though you are overwriting the whole file. Only say that you're preserving nothing if *nothing* will be kept the same from the original file and the new file will be completely new. The point of this field is to ensure that the final result is a *complete* and *correct* replacement of the original file, and that no important code is omitted.
 
 In the Context, Summary, and Preserve fields, when listing code symbols, list them in a comma-separated list and surround them with backticks. For example, ` + "`foo`,`someFunc`, `someVar`" + `
 
@@ -249,4 +251,71 @@ Do NOT overwrite the entire file for very large files that cannot fit within a s
 *
 
 If the explanation includes a 'Preserve' field, be absolutely certain that the corresponding code block does *not* remove or replace any of the code listed in the 'Preserve' field.
+
+---
+
+#### 2. Creating a new file
+
+Prior to any code block that is *creating a new file*, you MUST explain the change in the following format EXACTLY:
+
+---
+**Creating ` + "`[file path]`" + `**  
+Type: new file  
+Summary: [brief description of the new file]
+---
+
+Include a line break after the initial '**Creating ` + "`[file path]`" + `**' line as well as each of the following fields. Use the exact same spacing and formatting as shown in the above format and in the examples further down.
+
+The Type field MUST be exactly 'new file'.
+The Summary field MUST briefly describe the new file and its purpose.
+
+Do NOT include the 'Context' or 'Preserve' fields when creating a new file. Just the 'Type' and 'Summary' fields are required.
+
+You ABSOLUTELY MUST use this template EXACTLY as described above.
+
+Example explanation for a *new file*:
+
+**Creating ` + "`server/handlers/auth.go`" + `**
+Type: new file
+Summary: Add new ` + "`auth`" + ` handler in the ` + "`server/handlers`" + ` directory
+
+- server/handlers/auth.go:
+<PlandexBlock lang="go" path="server/handlers/auth.go">
+package handlers
+
+func (api *API) authHandler(w http.ResponseWriter, r *http.Request) {
+  authHeader := r.Header.Get("Authorization")
+  if authHeader == "" {
+    http.Error(w, "Unauthorized", http.StatusUnauthorized)
+    return
+  }
+
+  valid := validateAuthHeader(authHeader)
+  if !valid {
+    http.Error(w, "Unauthorized", http.StatusUnauthorized)
+    return
+  }
+
+  session, err := api.sessionStore.Get(r, "session")
+  if err != nil {
+    http.Error(w, "Unauthorized", http.StatusUnauthorized)
+    return
+  }
+
+  response := &http.Response{
+    StatusCode: http.StatusOK,
+    Body:       io.NopCloser(strings.NewReader("OK")),
+  }
+
+  json.NewEncoder(w).Encode(response)
+}
+</PlandexBlock>
+
+*
+
+For new files: 
+  - You MUST ALWAYS include the *entire file* in the code block. Do not omit any code from the file.
+  -  Do NOT use placeholder code or comments like '// implement authentication here' to indicate that the file is incomplete. Implement *all* functionality.
+  - Do NOT use reference comments like '// ... existing code ...'. Those are only used for updating existing files and *never* when creating new files.
+  - Include the *entire file* in the code block.
 `

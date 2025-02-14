@@ -11,13 +11,19 @@ func GetImplementationPrompt(subtask string) string {
 	prompt += `
 [YOUR INSTRUCTIONS]
 
-Describe in detail the current task to be done and what your approach will be, then write out the code to complete the task. Include only lines that will change and lines that are necessary to know where the changes should be applied. Precede the code block with the file path like this '- file_path:'--for example:
+Describe in detail the current task to be done and what your approach will be, then write out the code to complete the task in a *code block*.
+
+If you are updating an existing file, include only lines that will change and lines that are necessary to know where the changes should be applied.
+
+If you are creating a new file that does not already exist in the project, include the entire file in the code block.
+
+Whether you are creating a new file or updating an existing file, you MUST ALWAYS precede the code block with the file path like this '- file_path:'--for example:
 
 - src/main.rs:				
 - lib/term.go:
 - main.py:
 
-Immediately after the file path, you MUST output an opening <PlandexBlock> tag. The <PlandexBlock> tag MUST include a 'lang' attribute that specifies the programming language of the code block. 'lang' attributes must match the corresponding Pygments short name for the language. Here is a list of valid language identifiers:
+Immediately after the file path, you MUST ALWAYS output an opening <PlandexBlock> tag. The <PlandexBlock> tag MUST include a 'lang' attribute that specifies the programming language of the code block. 'lang' attributes must match the corresponding Pygments short name for the language. Here is a list of valid language identifiers:
 
 ` + ValidLangIdentifiers + `
 
@@ -35,6 +41,13 @@ In a <PlandexBlock> tag attribute, the 'path' attribute MUST be the exact file p
 
 ***Do NOT include the file path again within the <PlandexBlock> tag's content, inside the code block itself. The file path must be included *only* in the file block label *preceding* the opening <PlandexBlock> tag and in the 'path' attribute of the <PlandexBlock> tag.***
 
+*ALL CODE* that you write MUST ALWAYS strictly follow this format, whether you are creating a new file or updating an existing file. First the file path label, then the opening <PlandexBlock> tag, then the code, then the closing </PlandexBlock> tag. You MUST NOT UNDER ANY CIRCUMSTANCES use any other format when writing code.
+
+- Do NOT write code within triple backticks. Always use the <PlandexBlock> tag.
+- Do NOT include anything except the code itself within the <PlandexBlock> tags. No other labels, text, or formatting. Just the code.
+- Do NOT omit the 'lang' or 'path' attributes from the <PlandexBlock> tag. EVERY <PlandexBlock> tag MUST ALWAYS have both 'lang' and 'path' attributes.
+- Do NOT omit the *file path label* before the <PlandexBlock> tag. Every code block MUST ALWAYS be preceded by a file path label.
+
 Labelled code block example:
 
 - src/game.h:
@@ -50,8 +63,6 @@ void updateGameLogic();
 ## Code blocks and files
 
 Always precede code blocks in a plan with the file path as described above. Code that is meant to be applied to a specific file in the plan must *always* be labelled with the path. Code to create a new file or update an existing file *MUST ALWAYS* be written in a correctly formatted code block with a file path label. You ABSOLUTELY MUST NOT leave out the file path label when writing a new file, updating an existing file, or writing to _apply.sh. ALWAYS include the file path label and the <PlandexBlock> opening and closing tags as described above.
-
-If code is being included for explanatory purposes and is not meant to update or create  a specific file, you MUST NOT label the code block in the format described in 2a. Instead, output the code without a label. That said, if code is being written to complete the current subtask, it is NEVER for explanatory purposes. In that case, you MUST label the code block with a file path. Code is only for explanatory purposes when you are responding conversationally to the user and don't intend to update or create a specific file. For example, if you are describing a hypothetical change or writing code to describe a concept, but you don't actually intend to use that code in the user's project, then you can output the code without a label.
 
 Every file you reference in a plan should either exist in the context directly or be a new file that will be created in the same base directory as a file in the context. For example, if there is a file in context at path 'lib/term.go', you can create a new file at path 'lib/utils_test.go' but *not* at path 'src/lib/term.go'. You can create new directories and sub-directories as needed, but they must be in the same base directory as a file in context. You must *never* create files with absolute paths like '/etc/config.txt'. All files must be created in the same base directory as a file in context, and paths must be relative to that base directory. You must *never* ask the user to create new files or directories--you must do that yourself.
 

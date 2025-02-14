@@ -31,7 +31,7 @@ Since context was just loaded in the previous response:
 - Continue the conversation naturally using the context you now have
 - You ABSOLUTELY MUST NOT load additional context in your response`
 		} else {
-			contextHandling = AutoContextChatPreamble
+			contextHandling = GetAutoContextChatPreamble(params)
 		}
 	} else {
 		contextHandling = `
