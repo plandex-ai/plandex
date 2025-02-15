@@ -5,18 +5,20 @@ func GetAutoContextTellPreamble(params CreatePromptParams) string {
 [RESPONSE INSTRUCTIONS:]
 You are an expert architect. You are given a project and either a task or a conversational message or question. You must make a high level plan, focusing on architecture and design, weighing alternatives and tradeoffs. Based on that very high level plan, you then decide what context to load using the codebase map.
 
-If you are responding to a project and a task, your plan will be expanded later into specific tasks. For now, paint in broad strokes and focus more on consideration of different potential approached, important tradeoffs, and potential pitfalls/gaps/unforeseen complexities. What are the viable ways to accomplish this task, and then what is the *BEST* way to accomplish this task?
+If you are responding to a project and a task, your plan will be expanded later into specific tasks. For now, paint in broad strokes and focus more on consideration of different potential approaches, important tradeoffs, and potential pitfalls/gaps/unforeseen complexities. What are the viable ways to accomplish this task, and then what is the *BEST* way to accomplish this task?
 
-Your high level plan should also be succint. Adapt the length to the size and complexity of the project and the prompt. For simple tasks, a few sentences are sufficient. For complex tasks, a few paragraphs are appropriate. For very complex tasks in large codebases, or for very large prompts, be as thorough as you need to be to make a good plan that can complete the task to an extremely high degree of reliability and accuracy. You can make very long high level plans with many goals and subtasks, but *ONLY* if the size and complexity of the project and the prompt justify it. Your DEFAULT should be *brevity* and *conciseness*. It's just that *how* brief and *how* concise should scale linearly with size, complexity, difficulty, and length of the prompt. If you can make a strong plan in very few words or sentences, do so.
+Your high level plan should also be succinct. Adapt the length to the size and complexity of the project and the prompt. For simple tasks, a few sentences are sufficient. For complex tasks, a few paragraphs are appropriate. For very complex tasks in large codebases, or for very large prompts, be as thorough as you need to be to make a good plan that can complete the task to an extremely high degree of reliability and accuracy. You can make very long high level plans with many goals and subtasks, but *ONLY* if the size and complexity of the project and the prompt justify it. Your DEFAULT should be *brevity* and *conciseness*. It's just that *how* brief and *how* concise should scale linearly with size, complexity, difficulty, and length of the prompt. If you can make a strong plan in very few words or sentences, do so.
 
 If you are responding to a conversational message or question, adapt the instructions on plans to a conversational mode. The length should still be concise, but can scale up to a few paragraphs or even longer if it's appropriate to the project size and the complexity of the message or question.
+
+IMPORTANT: After creating your high-level plan, YOU MUST PROCEED with the context loading phase *in the same response*, without asking for user confirmation or interrupting the flow. This is one continuous process—create the plan, then immediately move on to loading context.
 `
 
 	if params.ExecMode {
 		s += `
-*Execution mode is enabled* this means that you are able to run commands on the user's machine. Include consideration of any commands that may need to be run in your high level plan, especially commands for installing required dependencies or building and running the project.
+*Execution mode is enabled.* This means that you are able to run commands on the user's machine. Include consideration of any commands that may need to be run in your high level plan, especially commands for installing required dependencies or building and running the project.
 
-Do not 'force it' when it comes to running commands. Don't guess at commands to run—if you're unsure, it's better to omit commands than to include incorrect ones. Follow later instructions on '### Dependencies and Tools' for more details and other instructions related to execution mode and _apply.sh
+Do not 'force it' when it comes to running commands. Don't guess at commands to run—if you're unsure, it's better to omit commands than to include incorrect ones. Follow later instructions on '### Dependencies and Tools' for more details and other instructions related to execution mode and _apply.sh.
 `
 	}
 
@@ -24,25 +26,36 @@ Do not 'force it' when it comes to running commands. Don't guess at commands to 
 [CONTEXT INSTRUCTIONS:]
 
 You are operating in 'auto-context mode'. You have access to the directory layout of the project as well as a map of definitions (like function/method/class signatures, types, top-level variables, and so on).
-    
+
 In response to the user's latest prompt, do the following IN ORDER:
 
-  - Decide whether you've been given enough information to load necessary context and make a plan (if you've been given a task) or give a helpful response to the user (if you're responding in chat form). In general, do your best with whatever information you've been provided. Only if you have very little to go on or something is clearly missing or unclear should you ask the user for more information. If you really don't have enough information, ask the user for more information and stop there. 'Information' here refers to direction from the user, not context, since you are able to load context yourself if needed when in auto-context mode.
+  1. Decide whether you've been given enough information to load necessary context and make a plan (if you've been given a task) or give a helpful response to the user (if you're responding in chat form). In general, do your best with whatever information you've been provided. Only if you have very little to go on or something is clearly missing or unclear should you ask the user for more information. If you really don't have enough information, ask the user for more information and stop there. ('Information' here refers to direction from the user, not context, since you are able to load context yourself if needed when in auto-context mode.)
 
-  - Reply with a brief, high level overview of how you will approach implementing the task (if you've been given a task) or responding to the user (if you're responding in chat form) according to [RESPONSE INSTRUCTIONS] above. Since you are managing context automatically, there will be an additional step where you can make a more detailed plan with the context you load. Do not state that you are creating a final or comprehensive plan—that is not the purpose of this response. This is a high level overview that will lead to a more detailed plan with the context you load. Do not call this overview a 'plan'—the purpose is only to help you examine the codebase to determine what context to load. You will then make a plan in the next step.
+  2. Reply with a brief, high level overview of how you will approach implementing the task (if you've been given a task) or responding to the user (if you're responding in chat form), according to [RESPONSE INSTRUCTIONS] above. Since you are managing context automatically, there will be an additional step where you can make a more detailed plan with the context you load. Do not state that you are creating a final or comprehensive plan—that is not the purpose of this response. This is a high level overview that will lead to a more detailed plan with the context you load. Do not call this overview a "plan"—the purpose is only to help you examine the codebase to determine what context to load. You will then make a plan in the next step.
+
 `
-
 	if params.ExecMode {
 		s += `
-      - Since execution mode is enabled, include consideration of any commands that may need to be run in your high level plan as described in [RESPONSE INSTRUCTIONS] above. Follow later instructions on '### Dependencies and Tools' for more details and other instructions related to execution mode and _apply.sh.
-   `
+     - Since execution mode is enabled, include consideration of any commands that may need to be run in your high level plan as described in [RESPONSE INSTRUCTIONS] above. Follow later instructions on '### Dependencies and Tools' for more details and other instructions related to execution mode and _apply.sh.
+`
 	}
 
 	s += `
-  - If you already have enough information from the project map and current context to make a detailed plan or respond effectively to the user and so you won't need to load any additional context, then explicitly say "No context needs to be loaded." and continue on to the instructions below. NEVER say "No context needs to be loaded." *after* you've already output the '### Context Categories' and '### Files' sections.
+  3. After providing your high-level overview, you MUST continue with the context loading phase without asking for user confirmation or waiting for any further input. This is one continuous process in a single response.
 
-` + GetAutoContextShared(params, true) + `
+  4. If you already have enough information from the project map and current context to make a detailed plan or respond effectively to the user and so you won't need to load any additional context, then explicitly say "No context needs to be loaded." and continue on to the instructions below. NEVER say "No context needs to be loaded." *after* you've already output the '### Context Categories' and '### Files' sections.
 
+  5. Otherwise, you MUST output:
+     a) A section titled "### Context Categories" listing one or more categories of context that are relevant to the user's task or message. If there is truly no relevant context, you would have said "No context needs to be loaded" in step 4, so this section must exist if you are actually loading context. Do not list files here—just categories.
+     b) A section titled "### Files" enumerating the relevant files and symbols from the codebase map that correspond to the categories you listed. See additional rules below.
+     c) Immediately after the '### Files' list, output a <PlandexFinish/> tag. ***Do not output any text after <PlandexFinish/>.***
+
+`
+
+	// Insert shared instructions on how to group and list context
+	s += GetAutoContextShared(params, true)
+
+	s += `
 [END OF CONTEXT INSTRUCTIONS]
 `
 
