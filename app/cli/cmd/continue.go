@@ -11,6 +11,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var (
+	chatOnly bool
+)
+
 var continueCmd = &cobra.Command{
 	Use:     "continue",
 	Aliases: []string{"c"},
@@ -20,6 +24,8 @@ var continueCmd = &cobra.Command{
 
 func init() {
 	RootCmd.AddCommand(continueCmd)
+
+	continueCmd.Flags().BoolVar(&chatOnly, "chat", false, "Continue in chat mode (no file changes)")
 
 	initExecFlags(continueCmd, initExecFlagsParams{
 		omitFile:   true,
@@ -45,6 +51,7 @@ func doContinue(cmd *cobra.Command, args []string) {
 		ExecEnabled:    !noExec,
 		AutoContext:    tellAutoContext,
 		AutoApply:      tellAutoApply,
+		IsChatOnly:     chatOnly,
 	}
 
 	plan_exec.TellPlan(plan_exec.ExecParams{

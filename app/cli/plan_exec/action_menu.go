@@ -77,9 +77,9 @@ func showHotkeyMenu(diffs []string) {
 	}
 	color.New(color.Bold, term.ColorHiGreen).Printf("🧐 %d %s pending changes\n", numDiffs, s)
 
-	// for _, diff := range diffs {
-	// 	fmt.Printf("• %s\n", diff)
-	// }
+	for _, diff := range diffs {
+		fmt.Printf("• 📄 %s\n", diff)
+	}
 
 	fmt.Println()
 
@@ -109,7 +109,7 @@ func showHotkeyMenu(diffs []string) {
 		color.New(color.FgHiWhite, color.Bold).Sprintf("↓"),
 		color.New(term.ColorHiMagenta, color.Bold).Sprintf("to select, or"),
 		color.New(color.FgHiWhite, color.Bold).Sprintf("enter"),
-		color.New(term.ColorHiMagenta, color.Bold).Sprintf("to exit menu>"),
+		color.New(term.ColorHiMagenta, color.Bold).Sprintf("to exit menu/keep iterating>"),
 	)
 }
 
@@ -190,7 +190,7 @@ func handleHotkeyOption(option hotkeyOption, diffs []string, params ExecParams) 
 		fmt.Println()
 	} else if option.char == "g" {
 		fmt.Println()
-		_, err := lib.ExecPlandexCommandWithParams([]string{"diffs"}, lib.ExecPlandexCommandParams{
+		_, err := lib.ExecPlandexCommandWithParams([]string{"diffs", "--git"}, lib.ExecPlandexCommandParams{
 			DisableSuggestions: true,
 		})
 		if err != nil {

@@ -331,7 +331,7 @@ func executor(in string, p *prompt.Prompt) {
 			return
 
 		case cmd == "send" || cmd == lib.ReplCmdAliases["send"]:
-			split := strings.Split(input, "\\send")
+			split := strings.Split(input, "\\s")
 			input = strings.TrimSpace(split[0])
 			input = strings.TrimSpace(input)
 			if input == "" {
@@ -406,6 +406,9 @@ func executor(in string, p *prompt.Prompt) {
 				}
 				fmt.Println()
 				execArgs := []string{matchedCmd}
+				if matchedCmd == "continue" && chatOnly {
+					execArgs = append(execArgs, "--chat")
+				}
 				execArgs = append(execArgs, args...)
 				_, err := lib.ExecPlandexCommand(execArgs)
 				if err != nil {
