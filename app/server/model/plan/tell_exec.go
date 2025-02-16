@@ -220,7 +220,7 @@ func execTellPlan(params execTellPlanParams) {
 
 	isImplementationStage := !req.IsChatOnly && !isPlanningStage
 
-	isContextStage := autoContextEnabled && isPlanningStage && !isFollowUp && !state.contextMapEmpty && !wasContextStage && (isUserPrompt || shouldLoadFollowUpContext)
+	isContextStage := autoContextEnabled && isPlanningStage && (req.IsChatOnly || !isFollowUp) && !state.contextMapEmpty && !wasContextStage && (isUserPrompt || shouldLoadFollowUpContext)
 
 	log.Printf("isPlanningStage: %t, isImplementationStage: %t, isContextStage: %t, isFollowUp: %t\n", isPlanningStage, isImplementationStage, isContextStage, isFollowUp)
 
