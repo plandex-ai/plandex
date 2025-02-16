@@ -100,6 +100,7 @@ var AvailableModels = []*AvailableModel{
 			PreferredModelOutputFormat:   ModelOutputFormatXml,
 			PreferredOpenRouterProviders: DefaultOpenRouterProvidersByFamily[OpenRouterFamilyAnthropic],
 			OpenRouterAllowFallbacks:     DefaultOpenRouterAllowFallbacksByFamily[OpenRouterFamilyAnthropic],
+			OpenRouterSelfModerated:      true,
 		},
 	},
 	{

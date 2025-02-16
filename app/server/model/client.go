@@ -9,6 +9,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"reflect"
 	"regexp"
 	"strings"
@@ -174,6 +175,10 @@ func getFinalReq[T openai.ChatCompletionRequest | ExtendedChatCompletionRequest]
 			}
 		}
 
+		if modelConfig.BaseModelConfig.OpenRouterSelfModerated {
+			finalReq.Model = finalReq.Model + ":beta"
+		}
+
 	} else if extendedReq, ok := any(req).(ExtendedChatCompletionRequest); ok {
 		baseReq = extendedReq.ChatCompletionRequest
 		finalReq = &extendedReq
@@ -245,10 +250,12 @@ func createChatCompletionStreamExtended(
 	extendedReq ExtendedChatCompletionRequest,
 ) (*ExtendedChatCompletionStream, error) {
 	// Marshal the request body to JSON
-	jsonBody, err := json.Marshal(extendedReq)
+	jsonBody, err := json.MarshalIndent(extendedReq, "", "  ")
 	if err != nil {
 		return nil, fmt.Errorf("error marshaling request: %w", err)
 	}
+
+	// log.Println("request jsonBody", string(jsonBody))
 
 	// Create new request
 	req, err := http.NewRequestWithContext(ctx, "POST", baseUrl+"/chat/completions", bytes.NewReader(jsonBody))
@@ -281,6 +288,12 @@ func createChatCompletionStreamExtended(
 			return nil, fmt.Errorf("error reading error response: %w", err)
 		}
 		return nil, fmt.Errorf("streaming request failed: status code: %d, body: %s", resp.StatusCode, string(body))
+	}
+
+	// Log response headers
+	log.Println("Response headers:")
+	for key, values := range resp.Header {
+		log.Printf("%s: %v\n", key, values)
 	}
 
 	reader := &StreamReader[openai.ChatCompletionStreamResponse]{
@@ -532,4 +545,8 @@ func withRetries[T any](
 func addOpenRouterHeaders(req *http.Request) {
 	req.Header.Set("HTTP-Referer", "https://plandex.ai")
 	req.Header.Set("X-Title", "Plandex")
+	req.Header.Set("X-OR-Prefer", "ttft,throughput")
+	if os.Getenv("GOENV") == "production" {
+		req.Header.Set("X-OR-Region", "us-east-1")
+	}
 }

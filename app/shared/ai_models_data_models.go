@@ -32,6 +32,7 @@ type BaseModelConfig struct {
 	RoleParamsDisabled           bool                 `json:"roleParamsDisabled"`
 	PredictedOutputEnabled       bool                 `json:"predictedOutputEnabled"`
 	ReasoningEffortEnabled       bool                 `json:"reasoningEffortEnabled"`
+	OpenRouterSelfModerated      bool                 `json:"openRouterSelfModerated"`
 
 	ModelCompatibility
 }

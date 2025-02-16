@@ -32,7 +32,7 @@ var DefaultOpenRouterProvidersByFamily = map[OpenRouterFamily][]OpenRouterProvid
 
 // open source models don't have fallbacks enabled for now because pricing and context limits aren't predictable across providers
 var DefaultOpenRouterAllowFallbacksByFamily = map[OpenRouterFamily]bool{
-	OpenRouterFamilyAnthropic: true,
-	OpenRouterFamilyGoogle:    true,
-	OpenRouterFamilyOpenAI:    true,
+	OpenRouterFamilyAnthropic: false,
+	OpenRouterFamilyGoogle:    false,
+	OpenRouterFamilyOpenAI:    false,
 }
