@@ -182,7 +182,8 @@ func (state *activeTellStreamState) handleStreamFinished() handleStreamFinishedR
 	log.Printf("allSubtasksFinished: %v\n", allSubtasksFinished)
 	log.Printf("followUpNeedsContextStage: %v\n", followUpNeedsContextStage)
 
-	if followUpNeedsContextStage ||
+	if state.isContextStage ||
+		followUpNeedsContextStage ||
 		(len(autoLoadContextFiles) > 0 && !hasNewSubtasks) ||
 		(len(autoLoadContextFiles) > 0 && req.IsChatOnly) ||
 		(req.AutoContinue && shouldContinue && iteration < MaxAutoContinueIterations &&

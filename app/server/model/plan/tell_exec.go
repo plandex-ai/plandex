@@ -204,7 +204,7 @@ func execTellPlan(params execTellPlanParams) {
 	wasImplementationStage := lastConvoMsg != nil && lastConvoMsg.Flags.IsImplementationStage
 
 	isTrueUserContinue := iteration == 0 && req.IsUserContinue && lastConvoMsg != nil && lastConvoMsg.Role == openai.ChatMessageRoleAssistant
-	isUserPrompt := iteration == 0 && !isTrueUserContinue
+	isUserPrompt := iteration == 0 && (!req.IsChatOnly || !isTrueUserContinue)
 
 	hasSubtasks := len(state.subtasks) > 0
 
@@ -220,7 +220,7 @@ func execTellPlan(params execTellPlanParams) {
 
 	isImplementationStage := !req.IsChatOnly && !isPlanningStage
 
-	isContextStage := autoContextEnabled && isPlanningStage && !isFollowUp && !state.contextMapEmpty && (isUserPrompt || !wasContextStage)
+	isContextStage := autoContextEnabled && isPlanningStage && !isFollowUp && !state.contextMapEmpty && !wasContextStage && (isUserPrompt || shouldLoadFollowUpContext)
 
 	log.Printf("isPlanningStage: %t, isImplementationStage: %t, isContextStage: %t, isFollowUp: %t\n", isPlanningStage, isImplementationStage, isContextStage, isFollowUp)
 
