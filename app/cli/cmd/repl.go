@@ -106,12 +106,18 @@ func runRepl(cmd *cobra.Command, args []string) {
 	p = prompt.New(
 		func(in string) { executor(in, p) },
 		prompt.WithPrefixCallback(func() string {
+			// Get last part of current working directory
+			cwd := fs.Cwd
+			dirName := filepath.Base(cwd)
+
+			// Build prefix with directory and mode indicator
+			var modeIcon string
 			if lib.CurrentReplState.Mode == lib.ReplModeTell {
-				return "⚡️ "
+				modeIcon = "⚡️"
 			} else if lib.CurrentReplState.Mode == lib.ReplModeChat {
-				return "💬 "
+				modeIcon = "💬"
 			}
-			return "👉 "
+			return fmt.Sprintf("%s %s ", dirName, modeIcon)
 		}),
 		prompt.WithTitle("Plandex "+version.Version),
 		prompt.WithSelectedSuggestionBGColor(prompt.LightGray),
@@ -132,6 +138,7 @@ func getSuggestions() []prompt.Suggest {
 		suggestions = append(suggestions, []prompt.Suggest{
 			{Text: "\\send", Description: "(\\s) Send the current prompt"},
 			{Text: "\\multi", Description: "(\\m) Turn multi-line mode off"},
+			{Text: "\\run", Description: "(\\r) Run a file through tell/chat based on current mode"},
 			{Text: "\\quit", Description: "(\\q) Exit the REPL"},
 		}...)
 
@@ -652,10 +659,10 @@ func completer(in prompt.Document) ([]prompt.Suggest, pstrings.RuneNumber, pstri
 		sort.Slice(prefixMatches, func(i, j int) bool {
 			iTxt := prefixMatches[i].Text
 			jTxt := prefixMatches[j].Text
-			if iTxt == "\\chat" || iTxt == "\\tell" || iTxt == "\\multi" || iTxt == "\\quit" || iTxt == "\\send" {
+			if iTxt == "\\chat" || iTxt == "\\tell" || iTxt == "\\multi" || iTxt == "\\quit" || iTxt == "\\send" || iTxt == "\\run" {
 				return true
 			}
-			if jTxt == "\\chat" || jTxt == "\\tell" || jTxt == "\\multi" || jTxt == "\\quit" || jTxt == "\\send" {
+			if jTxt == "\\chat" || jTxt == "\\tell" || jTxt == "\\multi" || jTxt == "\\quit" || jTxt == "\\send" || jTxt == "\\run" {
 				return false
 			}
 			return prefixMatches[i].Text < prefixMatches[j].Text
