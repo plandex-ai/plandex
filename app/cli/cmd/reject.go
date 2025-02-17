@@ -67,6 +67,17 @@ func reject(cmd *cobra.Command, args []string) {
 
 		term.StopSpinner()
 		fmt.Printf("✅ Rejected changes to %d file%s\n", numToReject, suffix)
+
+		sortedFiles := make([]string, 0, len(currentFiles))
+		for file := range currentFiles {
+			sortedFiles = append(sortedFiles, file)
+		}
+		sort.Strings(sortedFiles)
+
+		for _, file := range sortedFiles {
+			fmt.Printf("• 📄 %s\n", file)
+		}
+
 		return
 	}
 
@@ -92,6 +103,14 @@ func reject(cmd *cobra.Command, args []string) {
 		}
 
 		fmt.Printf("✅ Rejected changes to %d file%s\n", numToReject, suffix)
+
+		sortedFiles := append([]string{}, args...)
+		sort.Strings(sortedFiles)
+
+		for _, file := range sortedFiles {
+			fmt.Printf("• 📄 %s\n", file)
+		}
+
 		return
 	}
 
@@ -133,4 +152,11 @@ func reject(cmd *cobra.Command, args []string) {
 		suffix = "s"
 	}
 	fmt.Printf("✅ Rejected changes to %d file%s\n", len(selectedFiles), suffix)
+
+	sortedFiles := append([]string{}, selectedFiles...)
+	sort.Strings(sortedFiles)
+
+	for _, file := range sortedFiles {
+		fmt.Printf("• 📄 %s\n", file)
+	}
 }
