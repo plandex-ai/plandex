@@ -19,6 +19,8 @@ import (
 	"github.com/pkg/errors"
 )
 
+const locksVerboseLogging = false
+
 const lockHeartbeatInterval = 3 * time.Second
 const lockHeartbeatTimeout = 60 * time.Second
 const maxRetries = 10
@@ -247,16 +249,17 @@ func lockRepoDB(params LockRepoParams, numRetry int) (string, error) {
 	start := time.Now()
 	goroutineID := getGoroutineID() // You'll need to implement this
 
-	log.Printf("[Lock][%d] START lock attempt for plan %s scope %s (retry %d) at %v",
-		goroutineID, params.PlanId, params.Scope, numRetry, start)
+	if locksVerboseLogging {
+		log.Printf("[Lock][%d] START lock attempt for plan %s scope %s (retry %d) at %v",
+			goroutineID, params.PlanId, params.Scope, numRetry, start)
+	}
 
 	defer func() {
-		elapsed := time.Since(start)
-		log.Printf("[Lock][%d] END lock attempt took %v", goroutineID, elapsed)
+		if locksVerboseLogging {
+			elapsed := time.Since(start)
+			log.Printf("[Lock][%d] END lock attempt took %v", goroutineID, elapsed)
+		}
 	}()
-
-	log.Printf("locking repo. orgId: %s | planId: %s | scope: %s | branch %s | numRetry %d \n", params.OrgId, params.PlanId, params.Scope, params.Branch, numRetry)
-	// spew.Dump(params)
 
 	stack := debug.Stack()
 	// Format truncated stack excluding runtime frames
@@ -295,8 +298,10 @@ func lockRepoDB(params LockRepoParams, numRetry int) (string, error) {
 
 	tx, err := Conn.BeginTxx(ctx, &sql.TxOptions{Isolation: sql.LevelRepeatableRead})
 	if err != nil {
-		log.Printf("[Lock][%d] Error starting transaction %v",
-			goroutineID, err)
+		if locksVerboseLogging {
+			log.Printf("[Lock][%d] Error starting transaction %v",
+				goroutineID, err)
+		}
 		return "", fmt.Errorf("error starting transaction: %v", err)
 	}
 
@@ -310,22 +315,28 @@ func lockRepoDB(params LockRepoParams, numRetry int) (string, error) {
 
 		if rbErr := tx.Rollback(); rbErr != nil {
 			if rbErr == sql.ErrTxDone {
-				log.Println("attempted to roll back transaction, but it was already committed")
+				if locksVerboseLogging {
+					log.Println("attempted to roll back transaction, but it was already committed")
+				}
 			} else {
 				log.Printf("transaction rollback error: %v\n", rbErr)
 			}
 		} else {
-			log.Println("transaction rolled back")
+			if locksVerboseLogging {
+				log.Println("transaction rolled back")
+			}
 		}
 	}()
 
 	forUpdate := params.Scope == LockScopeWrite
 
 	selectStart := time.Now()
-	if forUpdate {
-		log.Printf("[Lock][%d] Starting SELECT FOR UPDATE at %v", goroutineID, selectStart)
-	} else {
-		log.Printf("[Lock][%d] Starting SELECT FOR SHARE at %v", goroutineID, selectStart)
+	if locksVerboseLogging {
+		if forUpdate {
+			log.Printf("[Lock][%d] Starting SELECT FOR UPDATE at %v", goroutineID, selectStart)
+		} else {
+			log.Printf("[Lock][%d] Starting SELECT FOR SHARE at %v", goroutineID, selectStart)
+		}
 	}
 
 	lockablePlanIdQuery := "SELECT * FROM lockable_plan_ids WHERE plan_id = $1"
@@ -351,21 +362,27 @@ func lockRepoDB(params LockRepoParams, numRetry int) (string, error) {
 	queryArgs := []interface{}{planId}
 
 	var locks []*repoLock
-	log.Println("obtaining repo lock with query")
+	if locksVerboseLogging {
+		log.Println("obtaining repo lock with query")
+	}
 	repoLockRows, err := tx.Query(query, queryArgs...)
 	if err != nil {
 		return retryWithExponentialBackoff(params.Ctx, err, numRetry, func(nextAttempt int) (string, error) {
 			return lockRepoDB(params, nextAttempt)
 		})
 	}
-	log.Println("repo lock query executed")
+	if locksVerboseLogging {
+		log.Println("repo lock query executed")
+	}
 
-	if forUpdate {
-		log.Printf("[Lock][%d] SELECT FOR UPDATE took %v",
-			goroutineID, time.Since(selectStart))
-	} else {
-		log.Printf("[Lock][%d] SELECT FOR SHARE took %v",
-			goroutineID, time.Since(selectStart))
+	if locksVerboseLogging {
+		if forUpdate {
+			log.Printf("[Lock][%d] SELECT FOR UPDATE took %v",
+				goroutineID, time.Since(selectStart))
+		} else {
+			log.Printf("[Lock][%d] SELECT FOR SHARE took %v",
+				goroutineID, time.Since(selectStart))
+		}
 	}
 
 	defer repoLockRows.Close()
@@ -392,13 +409,17 @@ func lockRepoDB(params LockRepoParams, numRetry int) (string, error) {
 	}
 
 	if len(expiredLockIds) > 0 {
-		log.Printf("deleting expired locks: %v", expiredLockIds)
+		if locksVerboseLogging {
+			log.Printf("deleting expired locks: %v", expiredLockIds)
+		}
 
 		query := "DELETE FROM repo_locks WHERE id = ANY($1)"
 		_, err := tx.Exec(query, pq.Array(expiredLockIds))
 		if err != nil {
 			if isDeadlockError(err) {
-				log.Println("deadlock clearing expired locks, won't do anything")
+				if locksVerboseLogging {
+					log.Println("deadlock clearing expired locks, won't do anything")
+				}
 			} else {
 				return "", fmt.Errorf("error removing expired locks: %v", err)
 			}
@@ -437,17 +458,23 @@ func lockRepoDB(params LockRepoParams, numRetry int) (string, error) {
 	}
 
 	if !canAcquire {
-		log.Println("can't acquire lock.", "numRetry:", numRetry)
+		if locksVerboseLogging {
+			log.Println("can't acquire lock.", "numRetry:", numRetry)
+		}
 		conflictErr := errors.New("lock conflict: cannot acquire read/write lock")
 		return retryWithExponentialBackoff(params.Ctx, conflictErr, numRetry, func(nextAttempt int) (string, error) {
 			return lockRepoDB(params, nextAttempt)
 		})
 	}
 
-	log.Println("can acquire lock - inserting new lock")
+	if locksVerboseLogging {
+		log.Println("can acquire lock - inserting new lock")
+	}
 
 	insertStart := time.Now()
-	log.Printf("[Lock][%d] Starting INSERT at %v", goroutineID, insertStart)
+	if locksVerboseLogging {
+		log.Printf("[Lock][%d] Starting INSERT at %v", goroutineID, insertStart)
+	}
 
 	// Insert the new lock
 	var lockPlanBuildId *string
@@ -472,14 +499,13 @@ func lockRepoDB(params LockRepoParams, numRetry int) (string, error) {
 		newLock.UserId = &userId
 	}
 
-	// log.Println("newLock:")
-	// spew.Dump(newLock)
-
 	var insertedId sql.NullString
 
 	insertQuery := "INSERT INTO repo_locks (org_id, user_id, plan_id, plan_build_id, scope, branch) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (plan_id) WHERE scope = 'w' DO NOTHING RETURNING id"
 
-	log.Printf("Insert query: %s", insertQuery)
+	if locksVerboseLogging {
+		log.Printf("Insert query: %s", insertQuery)
+	}
 
 	err = tx.QueryRow(
 		insertQuery,
@@ -509,14 +535,18 @@ func lockRepoDB(params LockRepoParams, numRetry int) (string, error) {
 	if insertedId.Valid {
 		newLock.Id = insertedId.String
 	} else {
-		log.Printf("no rows returned from insert query, means there was a conflict")
+		if locksVerboseLogging {
+			log.Printf("no rows returned from insert query, means there was a conflict")
+		}
 		return retryWithExponentialBackoff(params.Ctx, err, numRetry, func(nextAttempt int) (string, error) {
 			return lockRepoDB(params, nextAttempt)
 		})
 	}
 
-	log.Printf("[Lock][%d] INSERT took %v",
-		goroutineID, time.Since(insertStart))
+	if locksVerboseLogging {
+		log.Printf("[Lock][%d] INSERT took %v",
+			goroutineID, time.Since(insertStart))
+	}
 
 	// check if git lock file exists
 	// remove it if so
@@ -524,13 +554,6 @@ func lockRepoDB(params LockRepoParams, numRetry int) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("error removing lock file: %v", err)
 	}
-
-	// branches, err := GitListBranches(orgId, planId)
-	// if err != nil {
-	// 	return "", fmt.Errorf("error getting branches: %v", err)
-	// }
-
-	// log.Println("branches:", branches)
 
 	if branch != "" {
 		// checkout the branch
@@ -547,9 +570,11 @@ func lockRepoDB(params LockRepoParams, numRetry int) (string, error) {
 
 	committed = true
 
-	log.Println()
-	log.Printf("LOCK_ACQUIRED | id: %s | params: %+v | stack:\n%s", newLock.Id, params, stackTrace)
-	log.Println()
+	if locksVerboseLogging {
+		log.Println()
+		log.Printf("LOCK_ACQUIRED | id: %s | params: %+v | stack:\n%s", newLock.Id, params, stackTrace)
+		log.Println()
+	}
 
 	// Start a goroutine to keep the lock alive
 	go func() {
@@ -557,7 +582,6 @@ func lockRepoDB(params LockRepoParams, numRetry int) (string, error) {
 		for {
 			select {
 			case <-ctx.Done():
-				// log.Printf("case <-stream.Ctx.Done(): %s\n", newLock.Id)
 				err := DeleteRepoLock(newLock.Id, planId)
 				if err != nil {
 					log.Printf("Error unlocking repo: %v\n", err)
@@ -571,10 +595,14 @@ func lockRepoDB(params LockRepoParams, numRetry int) (string, error) {
 				res, err := Conn.Exec("UPDATE repo_locks SET last_heartbeat_at = NOW() WHERE id = $1", newLock.Id)
 
 				if err != nil {
-					log.Printf("Error updating repo lock last heartbeat: %v\n", err)
+					if locksVerboseLogging {
+						log.Printf("Error updating repo lock last heartbeat: %v\n", err)
+					}
 
 					if isDeadlockError(err) {
-						log.Println("Deadlock error, keep retrying")
+						if locksVerboseLogging {
+							log.Println("Heartbeat deadlock error, keep retrying")
+						}
 					} else {
 						numErrors++
 					}
@@ -594,7 +622,9 @@ func lockRepoDB(params LockRepoParams, numRetry int) (string, error) {
 					}
 
 					if rowsAffected == 0 {
-						log.Printf("Lock not found: %s | stopping heartbeat loop\n", newLock.Id)
+						if locksVerboseLogging {
+							log.Printf("Lock not found: %s | stopping heartbeat loop\n", newLock.Id)
+						}
 						return
 					}
 				}
@@ -603,7 +633,9 @@ func lockRepoDB(params LockRepoParams, numRetry int) (string, error) {
 		}
 	}()
 
-	log.Println("repo locked. id:", newLock.Id)
+	if locksVerboseLogging {
+		log.Println("repo locked. id:", newLock.Id)
+	}
 
 	return newLock.Id, nil
 }
@@ -612,18 +644,22 @@ func deleteRepoLockDB(id, planId string, numRetry int) error {
 	start := time.Now()
 	goroutineID := getGoroutineID()
 
-	log.Printf("[Delete][%d] START delete lock %s at %v", goroutineID, id, start)
-	stack := debug.Stack()
-	// Format truncated stack excluding runtime frames
-	stackTrace := formatStackTrace(stack)
-	log.Printf("DELETE_ATTEMPT | id: %s | stack:\n%s", id, stackTrace)
+	if locksVerboseLogging {
+		log.Printf("[Delete][%d] START delete lock %s at %v", goroutineID, id, start)
+		stack := debug.Stack()
+		// Format truncated stack excluding runtime frames
+		stackTrace := formatStackTrace(stack)
+		log.Printf("DELETE_ATTEMPT | id: %s | stack:\n%s", id, stackTrace)
+	}
 
 	initialJitter := time.Duration(rand.Int63n(int64(5000 * time.Microsecond)))
 	time.Sleep(initialJitter)
 
 	defer func() {
-		elapsed := time.Since(start)
-		log.Printf("[Delete][%d] END delete lock took %v", goroutineID, elapsed)
+		if locksVerboseLogging {
+			elapsed := time.Since(start)
+			log.Printf("[Delete][%d] END delete lock took %v", goroutineID, elapsed)
+		}
 	}()
 
 	var committed bool
@@ -631,7 +667,9 @@ func deleteRepoLockDB(id, planId string, numRetry int) error {
 	// Start a new transaction for the delete
 	tx, err := Conn.BeginTx(context.Background(), &sql.TxOptions{Isolation: sql.LevelRepeatableRead})
 	if err != nil {
-		log.Printf("[Delete][%d] Error starting delete transaction: %v", goroutineID, err)
+		if locksVerboseLogging {
+			log.Printf("[Delete][%d] Error starting delete transaction: %v", goroutineID, err)
+		}
 		return fmt.Errorf("error starting delete transaction: %v", err)
 	}
 	defer func() {
@@ -641,21 +679,27 @@ func deleteRepoLockDB(id, planId string, numRetry int) error {
 	}()
 
 	deleteStart := time.Now()
-	log.Printf("[Delete][%d] Starting DELETE at %v", goroutineID, deleteStart)
+	if locksVerboseLogging {
+		log.Printf("[Delete][%d] Starting DELETE at %v", goroutineID, deleteStart)
+	}
 
 	lockablePlanIdQuery := "SELECT * FROM lockable_plan_ids WHERE plan_id = $1 FOR UPDATE"
 	_, err = tx.Exec(lockablePlanIdQuery, planId)
 	if err != nil {
 		if isDeadlockError(err) {
-			log.Printf("[Delete][%d] Deadlock error, retrying delete %v",
-				goroutineID, err)
+			if locksVerboseLogging {
+				log.Printf("[Delete][%d] Deadlock error, retrying delete %v",
+					goroutineID, err)
+			}
 			_, err := retryWithExponentialBackoff(context.Background(), err, numRetry, func(nextAttempt int) (string, error) {
 				return "", deleteRepoLockDB(id, planId, nextAttempt)
 			})
 
 			if err != nil {
-				log.Printf("[Delete][%d] Error retrying delete: %v",
-					goroutineID, err)
+				if locksVerboseLogging {
+					log.Printf("[Delete][%d] Error retrying delete: %v",
+						goroutineID, err)
+				}
 				return fmt.Errorf("error retrying delete: %v", err)
 			}
 		}
@@ -672,61 +716,80 @@ func deleteRepoLockDB(id, planId string, numRetry int) error {
 		return fmt.Errorf("error getting lock scope: %v", err)
 	}
 
-	// var b string
-	// if branch != nil {
-	// 	b = *branch
-	// }
-
 	query = "DELETE FROM repo_locks WHERE id = $1"
 	result, err := tx.Exec(query, id)
 	if err != nil {
 		if isDeadlockError(err) {
-			log.Printf("[Delete][%d] Deadlock error, retrying delete %v",
-				goroutineID, err)
+			if locksVerboseLogging {
+				log.Printf("[Delete][%d] Deadlock error, retrying delete %v",
+					goroutineID, err)
+			}
 			_, err := retryWithExponentialBackoff(context.Background(), err, numRetry, func(nextAttempt int) (string, error) {
 				return "", deleteRepoLockDB(id, planId, nextAttempt)
 			})
 
 			if err != nil {
-				log.Printf("[Delete][%d] Error retrying delete: %v",
-					goroutineID, err)
+				if locksVerboseLogging {
+					log.Printf("[Delete][%d] Error retrying delete: %v",
+						goroutineID, err)
+				}
 				return fmt.Errorf("error retrying delete: %v", err)
 			}
 		}
 
-		log.Printf("[Delete][%d] Error executing delete %v",
-			goroutineID, err)
+		if locksVerboseLogging {
+			log.Printf("[Delete][%d] Error executing delete %v",
+				goroutineID, err)
+		}
 		return fmt.Errorf("error removing lock: %v", err)
 	}
-
-	// defer releaseMemLock(planId, b, lockScope)
 
 	// Check if we actually deleted anything
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		log.Printf("[Delete][%d] Error checking rows affected: %v", goroutineID, err)
+		if locksVerboseLogging {
+			log.Printf("[Delete][%d] Error checking rows affected: %v", goroutineID, err)
+		}
 	} else {
-		log.Printf("[Delete][%d] Deleted %d rows", goroutineID, rowsAffected)
+		if locksVerboseLogging {
+			log.Printf("[Delete][%d] Deleted %d rows", goroutineID, rowsAffected)
+		}
 	}
 
 	if err = tx.Commit(); err != nil {
-		log.Printf("[Delete][%d] Error committing delete: %v", goroutineID, err)
+		if locksVerboseLogging {
+			log.Printf("[Delete][%d] Error committing delete: %v", goroutineID, err)
+		}
 		return fmt.Errorf("error committing delete: %v", err)
 	}
 
 	committed = true
 
-	log.Printf("[Delete][%d] DELETE completed in %v",
-		goroutineID, time.Since(deleteStart))
+	if locksVerboseLogging {
+		log.Printf("[Delete][%d] DELETE completed in %v",
+			goroutineID, time.Since(deleteStart))
+	}
 
 	return nil
 }
 
 func formatStackTrace(stack []byte) string {
+	numLines := 10
+	if !locksVerboseLogging {
+		numLines = 5
+	}
+	return formatStackTraceWithNumLines(stack, numLines)
+}
+
+func formatStackTraceLong(stack []byte) string {
+	return formatStackTraceWithNumLines(stack, 20)
+}
+
+func formatStackTraceWithNumLines(stack []byte, numLines int) string {
 	lines := strings.Split(string(stack), "\n")
 	// Take first 10 meaningful lines of stack trace
 	// Skip runtime frames (first 7 lines) and limit to next 10 lines
-	relevantLines := lines[7:min(len(lines), 17)]
+	relevantLines := lines[7:min(len(lines), 7+numLines)]
 	return strings.Join(relevantLines, "\n")
 }
 
@@ -773,7 +836,9 @@ func retryWithExponentialBackoff(
 		wait = 0
 	}
 
-	log.Printf("Lock/transaction conflict (attempt #%d). Retrying in %s... (cause: %v)", attempt, wait, cause)
+	if locksVerboseLogging {
+		log.Printf("Lock/transaction conflict (attempt #%d). Retrying in %s... (cause: %v)", attempt, wait, cause)
+	}
 
 	select {
 	case <-ctx.Done():
@@ -786,7 +851,9 @@ func retryWithExponentialBackoff(
 }
 
 func CleanupAllLocks(ctx context.Context) error {
-	log.Println("Cleaning up all repo locks...")
+	if locksVerboseLogging {
+		log.Println("Cleaning up all repo locks...")
+	}
 
 	// Start a transaction with repeatable read isolation level
 	tx, err := Conn.BeginTxx(ctx, &sql.TxOptions{Isolation: sql.LevelRepeatableRead})
@@ -800,7 +867,9 @@ func CleanupAllLocks(ctx context.Context) error {
 			if rbErr := tx.Rollback(); rbErr != nil {
 				log.Printf("transaction rollback error: %v\n", rbErr)
 			} else {
-				log.Println("transaction rolled back")
+				if locksVerboseLogging {
+					log.Println("transaction rolled back")
+				}
 			}
 		}
 	}()
@@ -817,6 +886,8 @@ func CleanupAllLocks(ctx context.Context) error {
 		return fmt.Errorf("error committing transaction: %v", err)
 	}
 
-	log.Println("Successfully cleaned up all repo locks")
+	if locksVerboseLogging {
+		log.Println("Successfully cleaned up all repo locks")
+	}
 	return nil
 }
