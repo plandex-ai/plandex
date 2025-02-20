@@ -10,13 +10,23 @@ import (
 	"plandex-server/model/prompts"
 	"plandex-server/types"
 	"strings"
+	"time"
 
 	shared "plandex-shared"
 
 	"github.com/sashabaranov/go-openai"
 )
 
-func (state *activeTellStreamState) execStatusShouldContinue(message string, ctx context.Context) (bool, bool, *shared.ApiError) {
+// controls the number steps to spent trying to finish a single subtask
+// if a subtask is not finished in this number of steps, we'll give up and mark it done
+// necessary to prevent infinite loops
+const MaxPreviousMessages = 4
+
+type execStatusShouldContinueResult struct {
+	subtaskFinished bool
+}
+
+func (state *activeTellStreamState) execStatusShouldContinue(currentMessage string, ctx context.Context) (execStatusShouldContinueResult, *shared.ApiError) {
 	auth := state.auth
 	plan := state.plan
 	settings := state.settings
@@ -29,7 +39,7 @@ func (state *activeTellStreamState) execStatusShouldContinue(message string, ctx
 		log.Printf("[ExecStatus] Checking for subtask completion marker: %q", completionMarker)
 		log.Printf("[ExecStatus] Current subtask: %q (finished=%v)", state.currentSubtask.Title, state.currentSubtask.IsFinished)
 
-		if strings.Contains(message, completionMarker) {
+		if strings.Contains(currentMessage, completionMarker) {
 			log.Printf("[ExecStatus] ✓ Subtask completion marker found")
 
 			var potentialProblem bool
@@ -58,7 +68,9 @@ func (state *activeTellStreamState) execStatusShouldContinue(message string, ctx
 
 			if !potentialProblem {
 				log.Printf("[ExecStatus] ✓ Subtask completion marker found and no potential problem - will mark as completed")
-				return true, true, nil
+				return execStatusShouldContinueResult{
+					subtaskFinished: true,
+				}, nil
 			} else {
 				log.Printf("[ExecStatus] ✗ Subtask completion marker found, but the operations are questionable -- will verify with LLM call")
 			}
@@ -75,16 +87,38 @@ func (state *activeTellStreamState) execStatusShouldContinue(message string, ctx
 
 	log.Println("Checking if plan should continue based on exec status")
 
-	content := prompts.GetExecStatusShouldContinue(state.userPrompt, message)
+	fullSubtask := state.currentSubtask.Title
+	fullSubtask += "\n\n" + state.currentSubtask.Description
 
-	messages := []openai.ChatCompletionMessage{
+	previousMessages := []string{}
+	for _, msg := range state.convo {
+		if msg.Subtask != nil && msg.Subtask.Title == state.currentSubtask.Title {
+			previousMessages = append(previousMessages, msg.Message)
+		}
+	}
+
+	if len(previousMessages) >= MaxPreviousMessages {
+		log.Printf("[ExecStatus] ✗ Max previous messages reached - will mark as completed and move on to next subtask")
+		return execStatusShouldContinueResult{
+			subtaskFinished: true,
+		}, nil
+	}
+
+	content := prompts.GetExecStatusFinishedSubtask(state.userPrompt, fullSubtask, currentMessage, previousMessages)
+
+	messages := []types.ExtendedChatMessage{
 		{
-			Role:    openai.ChatMessageRoleSystem,
-			Content: content,
+			Role: openai.ChatMessageRoleSystem,
+			Content: []types.ExtendedChatMessagePart{
+				{
+					Type: openai.ChatMessagePartTypeText,
+					Text: content,
+				},
+			},
 		},
 	}
 
-	numTokens := shared.GetMessagesTokenEstimate(messages...) + shared.TokensPerRequest
+	numTokens := model.GetMessagesTokenEstimate(messages...) + model.TokensPerRequest
 
 	_, apiErr := hooks.ExecHook(hooks.WillSendModelRequest, hooks.HookParams{
 		Auth: auth,
@@ -96,44 +130,47 @@ func (state *activeTellStreamState) execStatusShouldContinue(message string, ctx
 		},
 	})
 	if apiErr != nil {
-		return false, false, apiErr
+		return execStatusShouldContinueResult{}, apiErr
 	}
 
 	log.Println("Calling model to check if plan should continue")
+
+	reqStarted := time.Now()
+	req := types.ExtendedChatCompletionRequest{
+		Model: config.BaseModelConfig.ModelName,
+		Tools: []openai.Tool{
+			{
+				Type:     "function",
+				Function: &prompts.DidFinishSubtaskFn,
+			},
+		},
+		ToolChoice: openai.ToolChoice{
+			Type: "function",
+			Function: openai.ToolFunction{
+				Name: prompts.DidFinishSubtaskFn.Name,
+			},
+		},
+		Messages:    messages,
+		Temperature: config.Temperature,
+		TopP:        config.TopP,
+	}
 
 	resp, err := model.CreateChatCompletionWithRetries(
 		clients,
 		&config,
 		ctx,
-		openai.ChatCompletionRequest{
-			Model: config.BaseModelConfig.ModelName,
-			Tools: []openai.Tool{
-				{
-					Type:     "function",
-					Function: &prompts.ShouldAutoContinueFn,
-				},
-			},
-			ToolChoice: openai.ToolChoice{
-				Type: "function",
-				Function: openai.ToolFunction{
-					Name: prompts.ShouldAutoContinueFn.Name,
-				},
-			},
-			Messages:    messages,
-			Temperature: config.Temperature,
-			TopP:        config.TopP,
-		},
+		req,
 	)
 
 	if err != nil {
 		log.Printf("[ExecStatus] Error in model call: %v", err)
-		return false, false, nil
+		return execStatusShouldContinueResult{}, nil
 	}
 
 	var strRes string
 	for _, choice := range resp.Choices {
 		if len(choice.Message.ToolCalls) == 1 &&
-			choice.Message.ToolCalls[0].Function.Name == prompts.ShouldAutoContinueFn.Name {
+			choice.Message.ToolCalls[0].Function.Name == prompts.DidFinishSubtaskFn.Name {
 			strRes = choice.Message.ToolCalls[0].Function.Arguments
 			log.Printf("[ExecStatus] Got function response: %s", strRes)
 			break
@@ -160,12 +197,18 @@ func (state *activeTellStreamState) execStatusShouldContinue(message string, ctx
 				ModelName:      config.BaseModelConfig.ModelName,
 				ModelProvider:  config.BaseModelConfig.Provider,
 				ModelPackName:  settings.ModelPack.Name,
-				ModelRole:      shared.ModelRolePlanSummary,
-				Purpose:        "Evaluate if plan should auto-continue",
+				ModelRole:      shared.ModelRoleExecStatus,
+				Purpose:        "Evaluate if task was finished",
 				GenerationId:   resp.ID,
 				PlanId:         plan.Id,
 				ModelStreamId:  state.activePlan.ModelStreamId,
 				ConvoMessageId: state.replyId,
+
+				RequestStartedAt: reqStarted,
+				Streaming:        false,
+				Req:              &req,
+				Res:              &resp,
+				ModelConfig:      &config,
 			},
 		})
 
@@ -176,17 +219,19 @@ func (state *activeTellStreamState) execStatusShouldContinue(message string, ctx
 
 	if strRes == "" {
 		log.Printf("[ExecStatus] No function response found in model output")
-		return false, false, nil
+		return execStatusShouldContinueResult{}, nil
 	}
 
 	var res types.ExecStatusResponse
 	if err := json.Unmarshal([]byte(strRes), &res); err != nil {
 		log.Printf("[ExecStatus] Failed to parse response: %v", err)
-		return false, false, nil
+		return execStatusShouldContinueResult{}, nil
 	}
 
-	log.Printf("[ExecStatus] Decision: subtaskFinished=%v, shouldContinue=%v",
-		res.SubtaskFinished, res.ShouldContinue)
+	log.Printf("[ExecStatus] Decision: subtaskFinished=%v, reasoning=%v",
+		res.SubtaskFinished, res.Reasoning)
 
-	return res.SubtaskFinished, res.ShouldContinue, nil
+	return execStatusShouldContinueResult{
+		subtaskFinished: res.SubtaskFinished,
+	}, nil
 }

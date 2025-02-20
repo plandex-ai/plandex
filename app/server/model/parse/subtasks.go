@@ -87,3 +87,35 @@ func ParseSubtasks(replyContent string) []*db.Subtask {
 	log.Printf("[Subtasks] Parsed %d total subtasks", len(subtasks))
 	return subtasks
 }
+
+func ParseRemoveSubtasks(replyContent string) []string {
+	split := strings.Split(replyContent, "### Remove Tasks")
+	if len(split) < 2 {
+		return nil
+	}
+
+	section := split[1]
+	lines := strings.Split(section, "\n")
+	var tasksToRemove []string
+
+	sawEmptyLine := false
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			sawEmptyLine = true
+			continue
+		}
+		if sawEmptyLine && !strings.HasPrefix(line, "-") {
+			break
+		}
+		if strings.HasPrefix(line, "- ") {
+			title := strings.TrimPrefix(line, "- ")
+			title = strings.TrimSpace(title)
+			if title != "" {
+				tasksToRemove = append(tasksToRemove, title)
+			}
+		}
+	}
+
+	return tasksToRemove
+}
