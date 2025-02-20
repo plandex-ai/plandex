@@ -3,7 +3,9 @@ package plan
 import (
 	"fmt"
 	"log"
+	"path/filepath"
 	"plandex-server/db"
+	"plandex-server/hooks"
 	"plandex-server/model"
 	"plandex-server/types"
 	"time"
@@ -143,6 +145,12 @@ func (buildState *activeBuildStreamState) execPlanBuild(activeBuild *types.Activ
 		activeBuildStreamState: buildState,
 		filePath:               filePath,
 		activeBuild:            activeBuild,
+		builderRun: hooks.DidFinishBuilderRunParams{
+			StartedAt: time.Now(),
+			PlanId:    activePlan.Id,
+			FilePath:  filePath,
+			FileExt:   filepath.Ext(filePath),
+		},
 	}
 
 	log.Printf("execPlanBuild - %s - calling fileState.loadBuildFile()\n", filePath)
@@ -194,9 +202,7 @@ func (fileState *activeBuildStreamFileState) buildFile() {
 	}
 
 	log.Printf("Building file %s\n", filePath)
-
 	log.Printf("%d files in context\n", len(activePlan.ContextsByPath))
-
 	// log.Println("activePlan.ContextsByPath files:")
 	// for k := range activePlan.ContextsByPath {
 	// 	log.Println(k)

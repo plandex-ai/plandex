@@ -6,15 +6,12 @@ import (
 	"net/http"
 	"plandex-server/db"
 	"plandex-server/types"
-	"strings"
 	"time"
 
 	shared "plandex-shared"
-
-	"github.com/sashabaranov/go-openai"
 )
 
-const MaxAutoContinueIterations = 100
+const MaxAutoContinueIterations = 200
 
 type handleStreamFinishedResult struct {
 	shouldContinueMainLoop bool
@@ -68,37 +65,34 @@ func (state *activeTellStreamState) handleStreamFinished() handleStreamFinishedR
 		}
 	}
 
-	autoLoadContextFiles := state.checkAutoLoadContext()
+	autoLoadContextResult := state.checkAutoLoadContext()
 	addedSubtasks := state.checkNewSubtasks()
+	removedSubtasks := state.checkRemoveSubtasks()
 	hasNewSubtasks := len(addedSubtasks) > 0
-	followUpNeedsContextStage := state.followUpNeedsContextStage()
 
-	handleDescAndExecStatusRes := state.handleDescAndExecStatus(autoLoadContextFiles, hasNewSubtasks)
+	handleDescAndExecStatusRes := state.handleDescAndExecStatus()
 	if handleDescAndExecStatusRes.shouldContinueMainLoop || handleDescAndExecStatusRes.shouldReturn {
 		return handleDescAndExecStatusRes.handleStreamFinishedResult
 	}
 	generatedDescription := handleDescAndExecStatusRes.generatedDescription
-	shouldContinue := handleDescAndExecStatusRes.shouldContinue
 	subtaskFinished := handleDescAndExecStatusRes.subtaskFinished
 
 	storeOnFinishedResult := state.storeOnFinished(storeOnFinishedParams{
-		replyOperations:           replyOperations,
-		generatedDescription:      generatedDescription,
-		subtaskFinished:           subtaskFinished,
-		hasNewSubtasks:            hasNewSubtasks,
-		followUpNeedsContextStage: followUpNeedsContextStage,
-		autoLoadContextFiles:      autoLoadContextFiles,
-		addedSubtasks:             addedSubtasks,
+		replyOperations:       replyOperations,
+		generatedDescription:  generatedDescription,
+		subtaskFinished:       subtaskFinished,
+		hasNewSubtasks:        hasNewSubtasks,
+		autoLoadContextResult: autoLoadContextResult,
+		addedSubtasks:         addedSubtasks,
+		removedSubtasks:       removedSubtasks,
 	})
 	if storeOnFinishedResult.shouldContinueMainLoop || storeOnFinishedResult.shouldReturn {
 		return storeOnFinishedResult.handleStreamFinishedResult
 	}
 	allSubtasksFinished := storeOnFinishedResult.allSubtasksFinished
 
-	didLoadFollowUpContext := state.willLoadFollowUpContext && len(autoLoadContextFiles) > 0
-
 	// summarize convo needs to come *after* the reply is stored in order to correctly summarize the latest message
-	log.Println("summarize convo")
+	log.Println("summarizing convo in background")
 	// summarize in the background
 	go func() {
 		err := summarizeConvo(clients, settings.ModelPack.PlanSummary, summarizeConvoParams{
@@ -131,13 +125,14 @@ func (state *activeTellStreamState) handleStreamFinished() handleStreamFinishedR
 		ap.CurrentReplyDoneCh = nil
 	})
 
-	log.Printf("len(autoLoadContextFiles): %d\n", len(autoLoadContextFiles))
-	if len(autoLoadContextFiles) > 0 {
+	autoLoadPaths := autoLoadContextResult.autoLoadPaths
+	log.Printf("len(autoLoadPaths): %d\n", len(autoLoadPaths))
+	if len(autoLoadPaths) > 0 {
 		log.Println("Sending stream message to load context files")
 
 		active.Stream(shared.StreamMessage{
 			Type:             shared.StreamMessageLoadContext,
-			LoadContextFiles: autoLoadContextFiles,
+			LoadContextFiles: autoLoadPaths,
 		})
 		active.FlushStreamBuffer()
 
@@ -168,39 +163,22 @@ func (state *activeTellStreamState) handleStreamFinished() handleStreamFinishedR
 		}
 	}
 
-	if followUpNeedsContextStage {
-		log.Println("Clearing context before follow up context stage")
-	}
+	willContinue := state.willContinuePlan(willContinuePlanParams{
+		hasNewSubtasks:      hasNewSubtasks,
+		allSubtasksFinished: allSubtasksFinished,
+		activatePaths:       autoLoadContextResult.activatePaths,
+	})
 
-	// if we're auto-loading context files, we always want to continue for at least another iteration with the loaded context
-	log.Printf("req.AutoContinue: %v\n", req.AutoContinue)
-	log.Printf("shouldContinue: %v\n", shouldContinue)
-	log.Printf("iteration: %d\n", iteration)
-	log.Printf("MaxAutoContinueIterations: %d\n", MaxAutoContinueIterations)
-	log.Printf("hasNewSubtasks: %v\n", hasNewSubtasks)
-	log.Printf("len(state.subtasks): %d\n", len(state.subtasks))
-	log.Printf("allSubtasksFinished: %v\n", allSubtasksFinished)
-	log.Printf("followUpNeedsContextStage: %v\n", followUpNeedsContextStage)
-
-	if state.isContextStage ||
-		followUpNeedsContextStage ||
-		(len(autoLoadContextFiles) > 0 && !hasNewSubtasks) ||
-		(len(autoLoadContextFiles) > 0 && req.IsChatOnly) ||
-		(req.AutoContinue && shouldContinue && iteration < MaxAutoContinueIterations &&
-			!(len(state.subtasks) > 0 && allSubtasksFinished)) {
+	if willContinue {
 		log.Println("Auto continue plan")
 		// continue plan
 		execTellPlan(execTellPlanParams{
-			clients:                   clients,
-			plan:                      plan,
-			branch:                    branch,
-			auth:                      auth,
-			req:                       req,
-			iteration:                 iteration + 1,
-			shouldLoadFollowUpContext: followUpNeedsContextStage,
-			didMakeFollowUpPlan:       state.isFollowUp && !followUpNeedsContextStage && hasNewSubtasks,
-			didLoadChatOnlyContext:    len(autoLoadContextFiles) > 0 && req.IsChatOnly,
-			didLoadFollowUpContext:    didLoadFollowUpContext,
+			clients:   clients,
+			plan:      plan,
+			branch:    branch,
+			auth:      auth,
+			req:       req,
+			iteration: iteration + 1,
 		})
 	} else {
 		var buildFinished bool
@@ -252,431 +230,4 @@ func (state *activeTellStreamState) handleStreamFinished() handleStreamFinishedR
 	}
 
 	return handleStreamFinishedResult{}
-}
-
-type handleDescAndExecStatusResult struct {
-	handleStreamFinishedResult
-	subtaskFinished      bool
-	generatedDescription *db.ConvoMessageDescription
-	shouldContinue       bool
-}
-
-func (state *activeTellStreamState) handleDescAndExecStatus(autoLoadContextFiles []string, hasNewSubtasks bool) handleDescAndExecStatusResult {
-	req := state.req
-	currentOrgId := state.currentOrgId
-	summarizedToMessageId := state.summarizedToMessageId
-	planId := state.plan.Id
-	branch := state.branch
-	replyOperations := state.chunkProcessor.replyOperations
-
-	active := GetActivePlan(planId, branch)
-	if active == nil {
-		state.onActivePlanMissingError()
-		return handleDescAndExecStatusResult{
-			handleStreamFinishedResult: handleStreamFinishedResult{
-				shouldContinueMainLoop: true,
-				shouldReturn:           false,
-			},
-		}
-	}
-
-	var generatedDescription *db.ConvoMessageDescription
-	var shouldContinue bool
-	var subtaskFinished bool
-
-	var errCh = make(chan *shared.ApiError, 2)
-
-	go func() {
-		if len(replyOperations) > 0 {
-			log.Println("Generating plan description")
-
-			res, err := state.genPlanDescription()
-			if err != nil {
-				errCh <- err
-				return
-			}
-
-			generatedDescription = res
-			generatedDescription.OrgId = currentOrgId
-			generatedDescription.SummarizedToMessageId = summarizedToMessageId
-			generatedDescription.MadePlan = true
-			generatedDescription.Operations = replyOperations
-
-			log.Println("Generated plan description.")
-		}
-		errCh <- nil
-	}()
-
-	if req.IsChatOnly || len(autoLoadContextFiles) > 0 || hasNewSubtasks || !req.AutoContinue {
-
-		// if we're auto-loading context files, we always want to continue for at least another iteration with the loaded context (even if it's chat only)
-		if len(autoLoadContextFiles) > 0 && !hasNewSubtasks {
-			log.Printf("Auto loading context files, so continuing to planning phase")
-			shouldContinue = true
-		} else if req.IsChatOnly {
-			log.Printf("Chat only, won't continue")
-			shouldContinue = false
-		} else if hasNewSubtasks {
-			log.Printf("Has new subtasks, can continue")
-			shouldContinue = req.AutoContinue
-		}
-
-		errCh <- nil
-	} else {
-		go func() {
-			log.Println("Getting exec status")
-			var err *shared.ApiError
-			subtaskFinished, shouldContinue, err = state.execStatusShouldContinue(active.CurrentReplyContent, active.Ctx)
-			if err != nil {
-				errCh <- err
-				return
-			}
-
-			log.Printf("Should continue: %v\n", shouldContinue)
-
-			errCh <- nil
-		}()
-	}
-
-	for i := 0; i < 2; i++ {
-		err := <-errCh
-		if err != nil {
-			res := state.onError(onErrorParams{
-				streamApiErr: err,
-				storeDesc:    true,
-			})
-			return handleDescAndExecStatusResult{
-				handleStreamFinishedResult: handleStreamFinishedResult{
-					shouldContinueMainLoop: res.shouldContinueMainLoop,
-					shouldReturn:           res.shouldReturn,
-				},
-				subtaskFinished:      subtaskFinished,
-				shouldContinue:       shouldContinue,
-				generatedDescription: generatedDescription,
-			}
-		}
-	}
-
-	return handleDescAndExecStatusResult{
-		handleStreamFinishedResult: handleStreamFinishedResult{},
-		subtaskFinished:            subtaskFinished,
-		shouldContinue:             shouldContinue,
-		generatedDescription:       generatedDescription,
-	}
-}
-
-type storeOnFinishedParams struct {
-	replyOperations           []*shared.Operation
-	generatedDescription      *db.ConvoMessageDescription
-	subtaskFinished           bool
-	hasNewSubtasks            bool
-	followUpNeedsContextStage bool
-	autoLoadContextFiles      []string
-	addedSubtasks             []*db.Subtask
-}
-
-type storeOnFinishedResult struct {
-	handleStreamFinishedResult
-	allSubtasksFinished bool
-}
-
-func (state *activeTellStreamState) storeOnFinished(params storeOnFinishedParams) storeOnFinishedResult {
-	replyOperations := params.replyOperations
-	generatedDescription := params.generatedDescription
-	subtaskFinished := params.subtaskFinished
-	hasNewSubtasks := params.hasNewSubtasks
-	followUpNeedsContextStage := params.followUpNeedsContextStage
-	autoLoadContextFiles := params.autoLoadContextFiles
-	currentOrgId := state.currentOrgId
-	currentUserId := state.currentUserId
-	planId := state.plan.Id
-	branch := state.branch
-	auth := state.auth
-	summarizedToMessageId := state.summarizedToMessageId
-	active := state.activePlan
-	addedSubtasks := params.addedSubtasks
-
-	var allSubtasksFinished bool
-
-	log.Println("[Subtasks] Locking repo to store assistant reply and description")
-
-	repoLockId, err := db.LockRepo(
-		db.LockRepoParams{
-			OrgId:    currentOrgId,
-			UserId:   currentUserId,
-			PlanId:   planId,
-			Branch:   branch,
-			Scope:    db.LockScopeWrite,
-			Ctx:      active.Ctx,
-			CancelFn: active.CancelFn,
-		},
-	)
-
-	if err != nil {
-		log.Printf("Error locking repo: %v\n", err)
-		active.StreamDoneCh <- &shared.ApiError{
-			Type:   shared.ApiErrorTypeOther,
-			Status: http.StatusInternalServerError,
-			Msg:    "Error locking repo",
-		}
-		return storeOnFinishedResult{
-			handleStreamFinishedResult: handleStreamFinishedResult{
-				shouldContinueMainLoop: true,
-				shouldReturn:           false,
-			},
-			allSubtasksFinished: false,
-		}
-	}
-
-	log.Println("[Subtasks] Locked repo for assistant reply and description")
-
-	err = func() error {
-		defer func() {
-			if err != nil {
-				log.Printf("Error storing reply and description: %v\n", err)
-				err = db.GitClearUncommittedChanges(auth.OrgId, planId)
-				if err != nil {
-					log.Printf("Error clearing uncommitted changes: %v\n", err)
-				}
-			}
-
-			log.Println("[Subtasks] Unlocking repo for assistant reply and description")
-
-			err = db.DeleteRepoLock(repoLockId, planId)
-			if err != nil {
-				log.Printf("Error unlocking repo: %v\n", err)
-				active.StreamDoneCh <- &shared.ApiError{
-					Type:   shared.ApiErrorTypeOther,
-					Status: http.StatusInternalServerError,
-					Msg:    "Error unlocking repo",
-				}
-			}
-		}()
-
-		var flags shared.ConvoMessageFlags
-		if state.isFollowUp {
-			flags.IsFollowUpReply = true
-		}
-		if state.isPlanningStage {
-			flags.IsPlanningStage = true
-		}
-		if state.isContextStage {
-			flags.IsContextStage = true
-		}
-		if state.isImplementationStage {
-			flags.IsImplementationStage = true
-		}
-		if len(replyOperations) > 0 {
-			flags.DidWriteCode = true
-		}
-		if hasNewSubtasks {
-			flags.DidMakePlan = true
-		}
-		if len(autoLoadContextFiles) > 0 {
-			flags.DidLoadContext = true
-		}
-		if state.isFollowUp {
-			flags.IsFollowUpReply = true
-		}
-		if subtaskFinished && state.currentSubtask != nil {
-			flags.DidCompleteTask = true
-		}
-		if allSubtasksFinished {
-			flags.DidCompletePlan = true
-		}
-		if hasNewSubtasks && state.req.IsApplyDebug || state.req.IsUserDebug {
-			flags.DidMakeDebuggingPlan = true
-		}
-
-		assistantMsg, convoCommitMsg, err := state.storeAssistantReply(flags, state.currentSubtask, addedSubtasks) // updates state.convo
-
-		if err != nil {
-			state.onError(onErrorParams{
-				streamErr: fmt.Errorf("failed to store assistant message: %v", err),
-				storeDesc: true,
-			})
-			return err
-		}
-
-		log.Println("getting description for assistant message: ", assistantMsg.Id)
-
-		var description *db.ConvoMessageDescription
-		if len(replyOperations) == 0 {
-			description = &db.ConvoMessageDescription{
-				OrgId:                 currentOrgId,
-				PlanId:                planId,
-				ConvoMessageId:        assistantMsg.Id,
-				SummarizedToMessageId: summarizedToMessageId,
-				BuildPathsInvalidated: map[string]bool{},
-				MadePlan:              false,
-			}
-		} else {
-			description = generatedDescription
-			description.ConvoMessageId = assistantMsg.Id
-		}
-
-		log.Println("[Subtasks] Storing description")
-		err = db.StoreDescription(description)
-
-		if err != nil {
-			state.onError(onErrorParams{
-				streamErr:      fmt.Errorf("failed to store description: %v", err),
-				storeDesc:      false,
-				convoMessageId: assistantMsg.Id,
-				commitMsg:      convoCommitMsg,
-			})
-			return err
-		}
-		log.Println("[Subtasks] Description stored")
-
-		if hasNewSubtasks || subtaskFinished {
-			if subtaskFinished && state.currentSubtask != nil {
-				log.Printf("[Subtasks] Marking subtask as finished: %q", state.currentSubtask.Title)
-				state.currentSubtask.IsFinished = true
-
-				log.Printf("[Subtasks] Current subtask state after marking as finished: %+v", state.currentSubtask)
-			}
-
-			log.Printf("[Subtasks] Storing plan subtasks (hasNewSubtasks=%v, subtaskFinished=%v)", hasNewSubtasks, subtaskFinished)
-			log.Printf("[Subtasks] Current subtasks state before storing:")
-			for i, task := range state.subtasks {
-				log.Printf("[Subtasks] Task %d: %q (finished=%v)", i+1, task.Title, task.IsFinished)
-			}
-
-			err = db.StorePlanSubtasks(currentOrgId, planId, state.subtasks)
-			if err != nil {
-				log.Printf("Error storing plan subtasks: %v\n", err)
-				state.onError(onErrorParams{
-					streamErr:      fmt.Errorf("failed to store plan subtasks: %v", err),
-					storeDesc:      false,
-					convoMessageId: assistantMsg.Id,
-					commitMsg:      convoCommitMsg,
-				})
-				return err
-			}
-
-			state.currentSubtask = nil
-			allSubtasksFinished = true
-			for _, subtask := range state.subtasks {
-				if !subtask.IsFinished {
-					state.currentSubtask = subtask
-					allSubtasksFinished = false
-					break
-				}
-			}
-
-			if state.currentSubtask != nil {
-				log.Printf("[Subtasks] Set new current subtask: %q", state.currentSubtask.Title)
-			} else {
-				log.Println("[Subtasks] No new current subtask set")
-			}
-			log.Printf("[Subtasks] All subtasks finished: %v", allSubtasksFinished)
-		}
-
-		if followUpNeedsContextStage {
-			log.Println("Clearing non-map/non-pending context before follow up context stage")
-			err := db.ClearContext(db.ClearContextParams{
-				OrgId:       currentOrgId,
-				PlanId:      planId,
-				SkipMaps:    true,
-				SkipPending: true,
-			})
-			if err != nil {
-				log.Printf("Error clearing context: %v\n", err)
-			}
-		}
-
-		log.Println("Comitting after store on finished")
-
-		err = db.GitAddAndCommit(currentOrgId, planId, branch, convoCommitMsg)
-		if err != nil {
-			state.onError(onErrorParams{
-				streamErr:      fmt.Errorf("failed to commit: %v", err),
-				storeDesc:      false,
-				convoMessageId: assistantMsg.Id,
-				commitMsg:      convoCommitMsg,
-			})
-			return err
-		}
-		log.Println("Assistant reply, description, and subtasks committed")
-
-		return nil
-	}()
-
-	if err != nil {
-		return storeOnFinishedResult{
-			handleStreamFinishedResult: handleStreamFinishedResult{
-				shouldContinueMainLoop: true,
-				shouldReturn:           false,
-			},
-			allSubtasksFinished: allSubtasksFinished,
-		}
-	}
-
-	return storeOnFinishedResult{
-		handleStreamFinishedResult: handleStreamFinishedResult{},
-		allSubtasksFinished:        allSubtasksFinished,
-	}
-}
-
-func (state *activeTellStreamState) storeAssistantReply(flags shared.ConvoMessageFlags, subtask *db.Subtask, addedSubtasks []*db.Subtask) (*db.ConvoMessage, string, error) {
-	currentOrgId := state.currentOrgId
-	currentUserId := state.currentUserId
-	planId := state.plan.Id
-	branch := state.branch
-	auth := state.auth
-	replyNumTokens := state.replyNumTokens
-	replyId := state.replyId
-	convo := state.convo
-
-	num := len(convo) + 1
-
-	log.Printf("storing assistant reply | len(convo) %d | num %d\n", len(convo), num)
-
-	activePlan := state.activePlan
-
-	// fmt.Println("raw message: ", activePlan.CurrentReplyContent)
-
-	assistantMsg := db.ConvoMessage{
-		Id:            replyId,
-		OrgId:         currentOrgId,
-		PlanId:        planId,
-		UserId:        currentUserId,
-		Role:          openai.ChatMessageRoleAssistant,
-		Tokens:        replyNumTokens,
-		Num:           num,
-		Message:       activePlan.CurrentReplyContent,
-		Flags:         flags,
-		Subtask:       subtask,
-		AddedSubtasks: addedSubtasks,
-	}
-
-	commitMsg, err := db.StoreConvoMessage(&assistantMsg, auth.User.Id, branch, false)
-
-	if err != nil {
-		log.Printf("Error storing assistant message: %v\n", err)
-		return nil, "", err
-	}
-
-	UpdateActivePlan(planId, branch, func(ap *types.ActivePlan) {
-		ap.MessageNum = num
-		ap.StoredReplyIds = append(ap.StoredReplyIds, replyId)
-	})
-
-	convo = append(convo, &assistantMsg)
-	state.convo = convo
-
-	return &assistantMsg, commitMsg, err
-}
-
-func (state *activeTellStreamState) followUpNeedsContextStage() bool {
-	if !(state.isPlanningStage && state.isFollowUp && state.iteration == 0) {
-		return false
-	}
-
-	active := state.activePlan
-
-	return strings.Contains(active.CurrentReplyContent, "clear all context") ||
-		strings.Contains(active.CurrentReplyContent, "decide what context") ||
-		strings.Contains(active.CurrentReplyContent, "need more context")
 }

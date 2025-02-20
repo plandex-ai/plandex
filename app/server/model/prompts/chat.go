@@ -25,14 +25,11 @@ Note that execution mode is not enabled, so while discussing potential solutions
 
 	contextHandling := ``
 	if params.AutoContext {
-		if params.LastResponseLoadedContext {
-			contextHandling = `
-Since context was just loaded in the previous response:
-- Continue the conversation naturally using the context you now have
-- You ABSOLUTELY MUST NOT load additional context in your response`
-		} else {
-			contextHandling = GetAutoContextChatPreamble(params)
-		}
+
+		contextHandling = `
+Since context was just loaded (if needed) in the previous response:
+- Continue the conversation naturally using the context you now have access to`
+
 	} else {
 		contextHandling = `
 Context handling:

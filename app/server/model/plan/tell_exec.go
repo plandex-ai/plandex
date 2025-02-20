@@ -9,7 +9,6 @@ import (
 	"plandex-server/db"
 	"plandex-server/hooks"
 	"plandex-server/model"
-	"plandex-server/model/prompts"
 	"plandex-server/types"
 
 	shared "plandex-shared"
@@ -52,19 +51,16 @@ func Tell(clients map[string]model.ClientInfo, plan *db.Plan, branch string, aut
 }
 
 type execTellPlanParams struct {
-	clients                   map[string]model.ClientInfo
-	plan                      *db.Plan
-	branch                    string
-	auth                      *types.ServerAuth
-	req                       *shared.TellPlanRequest
-	iteration                 int
-	missingFileResponse       shared.RespondMissingFileChoice
-	shouldBuildPending        bool
-	numErrorRetry             int
-	shouldLoadFollowUpContext bool
-	didLoadFollowUpContext    bool
-	didMakeFollowUpPlan       bool
-	didLoadChatOnlyContext    bool
+	clients                    map[string]model.ClientInfo
+	plan                       *db.Plan
+	branch                     string
+	auth                       *types.ServerAuth
+	req                        *shared.TellPlanRequest
+	iteration                  int
+	missingFileResponse        shared.RespondMissingFileChoice
+	shouldBuildPending         bool
+	numErrorRetry              int
+	unfinishedSubtaskReasoning string
 }
 
 func execTellPlan(params execTellPlanParams) {
@@ -76,9 +72,7 @@ func execTellPlan(params execTellPlanParams) {
 	iteration := params.iteration
 	missingFileResponse := params.missingFileResponse
 	shouldBuildPending := params.shouldBuildPending
-	shouldLoadFollowUpContext := params.shouldLoadFollowUpContext
-	didLoadFollowUpContext := params.didLoadFollowUpContext
-	didMakeFollowUpPlan := params.didMakeFollowUpPlan
+	unfinishedSubtaskReasoning := params.unfinishedSubtaskReasoning
 
 	log.Printf("[TellExec] Starting iteration %d for plan %s on branch %s", iteration, plan.Id, branch)
 	currentUserId := auth.User.Id
@@ -92,23 +86,24 @@ func execTellPlan(params execTellPlanParams) {
 	}
 
 	// Load existing subtasks to log their state
-	subtasks, err := db.GetPlanSubtasks(currentOrgId, plan.Id)
-	if err != nil {
-		log.Printf("[TellExec] Error loading subtasks: %v", err)
-	} else {
-		var unfinished []string
-		var finished []string
-		for _, task := range subtasks {
-			if task.IsFinished {
-				finished = append(finished, task.Title)
-			} else {
-				unfinished = append(unfinished, task.Title)
-			}
-		}
-		log.Printf("[TellExec] Current subtask state - Total: %d, Finished: %d, Unfinished: %d", len(subtasks), len(finished), len(unfinished))
-		log.Printf("[TellExec] Finished tasks: %v", finished)
-		log.Printf("[TellExec] Unfinished tasks: %v", unfinished)
-	}
+	// subtasks, err := db.GetPlanSubtasks(currentOrgId, plan.Id)
+	// if err != nil {
+	// 	log.Printf("[TellExec] Error loading subtasks: %v", err)
+	// } else {
+	// 	var unfinished []string
+	// 	var finished []string
+	// 	for _, task := range subtasks {
+	// 		if task.IsFinished {
+	// 			finished = append(finished, task.Title)
+	// 		} else {
+	// 			unfinished = append(unfinished, task.Title)
+	// 		}
+	// 	}
+	// 	log.Printf("[TellExec] Current subtask state - Total: %d, Finished: %d, Unfinished: %d", len(subtasks), len(finished), len(unfinished))
+	// 	log.Printf("[TellExec] Finished tasks: %v", finished)
+	// 	log.Printf("[TellExec] Unfinished tasks: %v", unfinished)
+	// 	log.Printf("[TellExec] Unfinished subtask reasoning: %s", unfinishedSubtaskReasoning)
+	// }
 
 	if missingFileResponse == "" {
 		log.Println("Executing WillExecPlanHook")
@@ -126,7 +121,7 @@ func execTellPlan(params execTellPlanParams) {
 
 	planId := plan.Id
 	log.Println("execTellPlan - Setting plan status to replying")
-	err = db.SetPlanStatus(planId, branch, shared.PlanStatusReplying, "")
+	err := db.SetPlanStatus(planId, branch, shared.PlanStatusReplying, "")
 	if err != nil {
 		log.Printf("Error setting plan %s status to replying: %v\n", planId, err)
 		active.StreamDoneCh <- &shared.ApiError{
@@ -160,98 +155,56 @@ func execTellPlan(params execTellPlanParams) {
 	}
 	log.Println("execTellPlan - Tell plan loaded")
 
-	log.Printf(`
-	iteration: %d
-	req.AutoContext: %t,
-	req.IsChatOnly: %t,
-	req.ExecEnabled: %t,
-	req.BuildMode: %s,
-	req.IsUserContinue: %t,
-	req.IsUserDebug: %t,
-	req.IsApplyDebug: %t,
-	shouldLoadFollowUpContext: %t,
-	didLoadFollowUpContext: %t,
-	didMakeFollowUpPlan: %t,
-	didLoadChatOnlyContext: %t,
-	state.hasContextMap: %t,
-	state.hasAssistantReply: %t,
-	len(state.subtasks): %d,
-	`,
-		iteration,
-		req.AutoContext,
-		req.IsChatOnly,
-		req.ExecEnabled,
-		req.BuildMode,
-		req.IsUserContinue,
-		req.IsUserDebug,
-		req.IsApplyDebug,
-		shouldLoadFollowUpContext,
-		didLoadFollowUpContext,
-		didMakeFollowUpPlan,
-		params.didLoadChatOnlyContext,
-		state.hasContextMap,
-		state.hasAssistantReply,
-		len(state.subtasks),
-	)
+	activatedPaths := state.resolveCurrentStage()
 
-	var lastConvoMsg *db.ConvoMessage
-	if len(state.convo) > 0 {
-		lastConvoMsg = state.convo[len(state.convo)-1]
-	}
+	var basicContextMsg *types.ExtendedChatMessagePart
+	var autoContextMsg *types.ExtendedChatMessagePart
+	var smartContextMsg *types.ExtendedChatMessagePart
 
-	wasContextStage := lastConvoMsg != nil && lastConvoMsg.Flags.IsContextStage
-	didMakePlan := lastConvoMsg != nil && lastConvoMsg.Flags.DidMakePlan
-	wasImplementationStage := lastConvoMsg != nil && lastConvoMsg.Flags.IsImplementationStage
+	if state.currentStage.TellStage == shared.TellStageImplementation {
+		smartContextMsg = state.formatModelContext(formatModelContextParams{
+			includeMaps:         false,
+			smartContextEnabled: req.SmartContext,
+			execEnabled:         req.ExecEnabled,
+		})
+	} else if state.currentStage.TellStage == shared.TellStagePlanning {
+		basicContextMsg = state.formatModelContext(formatModelContextParams{
+			includeMaps:         true,
+			smartContextEnabled: req.SmartContext,
+			execEnabled:         req.ExecEnabled,
+			basicOnly:           true,
+			cache:               true,
+		})
 
-	isTrueUserContinue := iteration == 0 && req.IsUserContinue && lastConvoMsg != nil && lastConvoMsg.Role == openai.ChatMessageRoleAssistant
-	isUserPrompt := iteration == 0 && (!req.IsChatOnly || !isTrueUserContinue)
-
-	hasSubtasks := len(state.subtasks) > 0
-
-	autoContextEnabled := req.AutoContext && state.hasContextMap
-	smartContextEnabled := req.AutoContext
-
-	isFollowUp := iteration == 0 && !isTrueUserContinue && (hasSubtasks || (req.IsChatOnly && state.hasAssistantReply))
-
-	isPlanningStage := req.IsChatOnly ||
-		lastConvoMsg == nil ||
-		isUserPrompt ||
-		(!didMakePlan && !wasImplementationStage)
-
-	isImplementationStage := !req.IsChatOnly && !isPlanningStage
-
-	isContextStage := autoContextEnabled && isPlanningStage && (req.IsChatOnly || !isFollowUp) && !state.contextMapEmpty && !wasContextStage && (isUserPrompt || shouldLoadFollowUpContext)
-
-	log.Printf("isPlanningStage: %t, isImplementationStage: %t, isContextStage: %t, isFollowUp: %t\n", isPlanningStage, isImplementationStage, isContextStage, isFollowUp)
-
-	state.isFollowUp = isFollowUp
-	state.willLoadFollowUpContext = shouldLoadFollowUpContext
-	state.isPlanningStage = isPlanningStage
-	state.isImplementationStage = isImplementationStage
-	state.isContextStage = isContextStage
-
-	// if auto context is enabled, we only include maps on the first iteration, which is the context-gathering step, and the second iteration, which is the planning step
-	var (
-		includeMaps = true
-	)
-	if req.AutoContext && iteration > 1 {
-		includeMaps = false
-	}
-
-	modelContextText, err := state.formatModelContext(includeMaps, true, isImplementationStage, smartContextEnabled, req.ExecEnabled)
-	if err != nil {
-		err = fmt.Errorf("error formatting model modelContext: %v", err)
-		log.Println(err)
-
-		active.StreamDoneCh <- &shared.ApiError{
-			Type:   shared.ApiErrorTypeOther,
-			Status: http.StatusInternalServerError,
-			Msg:    "Error formatting model modelContext",
+		if state.currentStage.PlanningPhase == shared.PlanningPhasePlanning {
+			if req.AutoContext {
+				autoContextMsg = state.formatModelContext(formatModelContextParams{
+					includeMaps:         false,
+					smartContextEnabled: req.SmartContext,
+					execEnabled:         req.ExecEnabled,
+					activeOnly:          true,
+					activatedPaths:      activatedPaths,
+				})
+			} else {
+				// if auto context is disabled, just dump in everything, both basic and auto, that may have accumulated
+				autoContextMsg = state.formatModelContext(formatModelContextParams{
+					includeMaps:         false,
+					smartContextEnabled: req.SmartContext,
+					execEnabled:         req.ExecEnabled,
+					autoOnly:            true,
+				})
+			}
 		}
-		return
 	}
 
-	sysPrompt, err := state.getTellSysPrompt(autoContextEnabled, smartContextEnabled, req.IsChatOnly && params.didLoadChatOnlyContext, modelContextText)
+	getTellSysPromptParams := getTellSysPromptParams{
+		autoContextEnabled:  state.currentStage.TellStage == shared.TellStagePlanning && state.currentStage.PlanningPhase == shared.PlanningPhaseContext,
+		smartContextEnabled: req.SmartContext,
+		basicContextMsg:     basicContextMsg,
+		autoContextMsg:      autoContextMsg,
+		smartContextMsg:     smartContextMsg,
+	}
+	sysParts, err := state.getTellSysPrompt(getTellSysPromptParams)
 	if err != nil {
 		log.Printf("Error getting tell sys prompt: %v\n", err)
 		active.StreamDoneCh <- &shared.ApiError{
@@ -262,12 +215,12 @@ func execTellPlan(params execTellPlanParams) {
 		return
 	}
 
-	// log.Println("**sysPrompt:**\n", sysPrompt)
+	// log.Println("**sysPrompt:**\n", spew.Sdump(sysParts))
 
-	state.messages = []openai.ChatCompletionMessage{
+	state.messages = []types.ExtendedChatMessage{
 		{
 			Role:    openai.ChatMessageRoleSystem,
-			Content: sysPrompt,
+			Content: sysParts,
 		},
 	}
 
@@ -277,26 +230,19 @@ func execTellPlan(params execTellPlanParams) {
 		return
 	}
 
-	var applyScriptSummary string
-	if req.ExecEnabled {
-		if isPlanningStage {
-			applyScriptSummary = prompts.ApplyScriptPlanningPromptSummary
-		} else {
-			applyScriptSummary = prompts.ApplyScriptImplementationPromptSummary
-		}
-	}
-
-	promptMessage, ok := state.resolvePromptMessage(isPlanningStage, isContextStage, req.IsChatOnly && params.didLoadChatOnlyContext, applyScriptSummary)
+	promptMessage, ok := state.resolvePromptMessage(unfinishedSubtaskReasoning)
 	if !ok {
 		return
 	}
 
+	// log.Println("promptMessage:", spew.Sdump(promptMessage))
+
 	state.tokensBeforeConvo =
-		shared.GetMessagesTokenEstimate(state.messages...) +
-			shared.GetMessagesTokenEstimate(*promptMessage) +
+		model.GetMessagesTokenEstimate(state.messages...) +
+			model.GetMessagesTokenEstimate(*promptMessage) +
 			state.latestSummaryTokens +
 			imageContextTokens +
-			shared.TokensPerRequest
+			model.TokensPerRequest
 
 	// print out breakdown of token usage
 	log.Printf("Image context tokens: %d\n", imageContextTokens)
@@ -324,7 +270,7 @@ func execTellPlan(params execTellPlanParams) {
 
 	if missingFileResponse == "" {
 		state.messages = append(state.messages, *promptMessage)
-	} else if !state.handleMissingFileResponse(applyScriptSummary) {
+	} else if !state.handleMissingFileResponse(unfinishedSubtaskReasoning) {
 		return
 	}
 
@@ -333,19 +279,19 @@ func execTellPlan(params execTellPlanParams) {
 	// 	log.Printf("%s: %s\n", message.Role, message.Content)
 	// }
 
-	requestTokens := shared.GetMessagesTokenEstimate(state.messages...) + imageContextTokens + shared.TokensPerRequest
+	requestTokens := model.GetMessagesTokenEstimate(state.messages...) + imageContextTokens + model.TokensPerRequest
 	state.totalRequestTokens = requestTokens
 
 	stop := []string{"<PlandexFinish/>"}
 	var modelConfig shared.ModelRoleConfig
-	if isPlanningStage {
+	if state.currentStage.TellStage == shared.TellStagePlanning {
 		plannerConfig := state.settings.ModelPack.Planner.GetRoleForTokens(requestTokens)
 		modelConfig = plannerConfig.ModelRoleConfig
-		if isContextStage {
+		if state.currentStage.PlanningPhase == shared.PlanningPhaseContext {
 			log.Println("Tell plan - isContextStage - setting modelConfig to context loader")
 			modelConfig = state.settings.ModelPack.GetArchitect().GetRoleForInputTokens(requestTokens)
 		}
-	} else if isImplementationStage {
+	} else if state.currentStage.TellStage == shared.TellStageImplementation {
 		modelConfig = state.settings.ModelPack.GetCoder().GetRoleForInputTokens(requestTokens)
 	}
 
@@ -370,7 +316,7 @@ func execTellPlan(params execTellPlanParams) {
 
 	log.Println("modelConfig:", spew.Sdump(modelConfig))
 
-	modelReq := openai.ChatCompletionRequest{
+	modelReq := types.ExtendedChatCompletionRequest{
 		Model:    modelConfig.BaseModelConfig.ModelName,
 		Messages: state.messages,
 		Stream:   true,
@@ -381,6 +327,10 @@ func execTellPlan(params execTellPlanParams) {
 		TopP:        modelConfig.TopP,
 		Stop:        stop,
 	}
+
+	state.requestStartedAt = time.Now()
+	state.originalReq = &modelReq
+	state.modelConfig = &modelConfig
 
 	// output the modelReq to a json file
 	// if jsonData, err := json.MarshalIndent(modelReq, "", "  "); err == nil {

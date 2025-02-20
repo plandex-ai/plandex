@@ -5,8 +5,10 @@ import (
 	"log"
 	"net/http"
 	"plandex-server/db"
+	"plandex-server/hooks"
 	"plandex-server/types"
 	"strings"
+	"time"
 
 	shared "plandex-shared"
 )
@@ -86,7 +88,7 @@ func (state *activeBuildStreamFileState) onFinishBuild() {
 		defer func() {
 			if err != nil {
 				log.Printf("Finish build error: %v\n", err)
-				err = db.GitClearUncommittedChanges(currentOrgId, planId)
+				err = db.GitClearUncommittedChanges(currentOrgId, planId, branch)
 				if err != nil {
 					log.Printf("Error clearing uncommitted changes: %v\n", err)
 				}
@@ -242,7 +244,7 @@ func (fileState *activeBuildStreamFileState) onFinishBuildFile(planRes *db.PlanF
 		defer func() {
 			if err != nil {
 				log.Printf("Error storing plan result: %v\n", err)
-				err = db.GitClearUncommittedChanges(currentOrgId, planId)
+				err = db.GitClearUncommittedChanges(currentOrgId, planId, branch)
 				if err != nil {
 					log.Printf("Error clearing uncommitted changes: %v\n", err)
 				}
@@ -284,6 +286,13 @@ func (fileState *activeBuildStreamFileState) onFinishBuildFile(planRes *db.PlanF
 	if err != nil {
 		return
 	}
+
+	fileState.builderRun.FinishedAt = time.Now()
+	hooks.ExecHook(hooks.DidFinishBuilderRun, hooks.HookParams{
+		Auth:                      fileState.auth,
+		Plan:                      fileState.plan,
+		DidFinishBuilderRunParams: &fileState.builderRun,
+	})
 
 	log.Printf("Finished building file %s - setting activeBuild.Success to true\n", filePath)
 	// log.Println(spew.Sdump(activeBuild))
@@ -363,7 +372,7 @@ func (fileState *activeBuildStreamFileState) onBuildFileError(err error) {
 	}
 
 	// rollback repo in case there are uncommitted builds
-	err = db.GitClearUncommittedChanges(currentOrgId, planId)
+	err = db.GitClearUncommittedChanges(currentOrgId, planId, branch)
 
 	if err != nil {
 		log.Printf("Error clearing uncommitted changes: %v\n", err)

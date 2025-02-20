@@ -2,6 +2,7 @@ package plan
 
 import (
 	"plandex-server/db"
+	"plandex-server/hooks"
 	"plandex-server/model"
 	"plandex-server/types"
 
@@ -41,4 +42,6 @@ type activeBuildStreamFileState struct {
 	wholeFileNumRetry          int
 	isNewFile                  bool
 	contextPart                *db.Context
+
+	builderRun hooks.DidFinishBuilderRunParams
 }

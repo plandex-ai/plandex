@@ -2,6 +2,7 @@ package plan
 
 import (
 	"plandex-server/types"
+	shared "plandex-shared"
 	"testing"
 )
 
@@ -389,7 +390,9 @@ func TestBufferOrStream(t *testing.T) {
 				IsInMoveBlock:   tt.isInMoveBlock,
 				IsInRemoveBlock: tt.isInRemoveBlock,
 				IsInResetBlock:  tt.isInResetBlock,
-			}, true)
+			}, shared.CurrentStage{
+				TellStage: shared.TellStageImplementation,
+			})
 
 			if got.shouldStream != tt.want.shouldStream {
 				t.Errorf("shouldStream = %v, want %v", got.shouldStream, tt.want.shouldStream)

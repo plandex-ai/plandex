@@ -258,7 +258,7 @@ func (state *activeTellStreamState) loadTellPlan() error {
 		defer func() {
 			if err != nil {
 				log.Printf("Error: %v\n", err)
-				err = db.GitClearUncommittedChanges(auth.OrgId, planId)
+				err = db.GitClearUncommittedChanges(auth.OrgId, planId, branch)
 				if err != nil {
 					log.Printf("Error clearing uncommitted changes: %v\n", err)
 				}
@@ -325,6 +325,9 @@ func (state *activeTellStreamState) loadTellPlan() error {
 			break
 		}
 	}
+
+	log.Printf("[TellLoad] Subtasks: %+v", state.subtasks)
+	log.Printf("[TellLoad] Current subtask: %+v", state.currentSubtask)
 
 	state.hasContextMap = false
 	state.contextMapEmpty = true

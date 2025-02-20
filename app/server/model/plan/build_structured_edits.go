@@ -10,6 +10,7 @@ import (
 	"plandex-server/model"
 	"plandex-server/model/prompts"
 	"plandex-server/syntax"
+	"plandex-server/types"
 	"strings"
 	"time"
 
@@ -66,8 +67,8 @@ func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 		fileState.language,
 		activePlan.Ctx,
 	)
-	log.Println("buildStructuredEdits - applyRes.NewFile:")
-	log.Println(applyRes.NewFile)
+	// log.Println("buildStructuredEdits - applyRes.NewFile:")
+	// log.Println(applyRes.NewFile)
 	log.Println("buildStructuredEdits - applyRes.NeedsVerifyReasons:")
 	log.Println(applyRes.NeedsVerifyReasons)
 
@@ -91,6 +92,16 @@ func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 	validateSyntax()
 
 	isValid := len(applyRes.NeedsVerifyReasons) == 0 && len(syntaxErrors) == 0
+
+	if isValid {
+		fileState.builderRun.AutoApplySuccess = true
+	} else {
+		fileState.builderRun.AutoApplyValidationReasons = make([]string, len(applyRes.NeedsVerifyReasons))
+		for i, reason := range applyRes.NeedsVerifyReasons {
+			fileState.builderRun.AutoApplyValidationReasons[i] = string(reason)
+		}
+		fileState.builderRun.AutoApplyValidationSyntaxErrors = syntaxErrors
+	}
 
 	log.Printf("buildStructuredEdits - %s - initial isValid: %t\n", filePath, isValid)
 
@@ -140,14 +151,19 @@ func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 
 		// log.Printf("buildStructuredEdits - %s - validateSysPrompt:\n%s\n", filePath, validateSysPrompt)
 
-		validateFileMessages := []openai.ChatCompletionMessage{
+		validateFileMessages := []types.ExtendedChatMessage{
 			{
-				Role:    openai.ChatMessageRoleSystem,
-				Content: validateSysPrompt,
+				Role: openai.ChatMessageRoleSystem,
+				Content: []types.ExtendedChatMessagePart{
+					{
+						Type: openai.ChatMessagePartTypeText,
+						Text: validateSysPrompt,
+					},
+				},
 			},
 		}
 
-		inputTokens := shared.GetMessagesTokenEstimate(validateFileMessages...) + shared.TokensPerRequest
+		inputTokens := model.GetMessagesTokenEstimate(validateFileMessages...) + model.TokensPerRequest
 
 		_, apiErr := hooks.ExecHook(hooks.WillSendModelRequest, hooks.HookParams{
 			Auth: auth,
@@ -165,13 +181,17 @@ func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 
 		log.Println("buildStructuredEdits - calling model for applied changes validation")
 
-		modelReq := openai.ChatCompletionRequest{
+		modelReq := types.ExtendedChatCompletionRequest{
 			Model:       config.BaseModelConfig.ModelName,
 			Messages:    validateFileMessages,
 			Temperature: config.Temperature,
 			TopP:        config.TopP,
 			Stop:        []string{"<PlandexFinish/>"},
 		}
+		reqStarted := time.Now()
+
+		fileState.builderRun.ValidateModelConfig = &config
+		fileState.builderRun.AutoApplyValidationStartedAt = time.Now()
 
 		resp, err := model.CreateChatCompletionWithRetries(clients, &config, activePlan.Ctx, modelReq)
 
@@ -180,6 +200,8 @@ func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 			fileState.structuredEditRetryOrError(fmt.Errorf("error calling model: %v", err))
 			return
 		}
+
+		fileState.builderRun.GenerationIds = append(fileState.builderRun.GenerationIds, resp.ID)
 
 		log.Println("buildStructuredEdits - usage:")
 		log.Println(spew.Sdump(resp.Usage))
@@ -201,6 +223,12 @@ func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 					ModelStreamId:  fileState.tellState.activePlan.ModelStreamId,
 					ConvoMessageId: fileState.convoMessageId,
 					BuildId:        fileState.build.Id,
+
+					RequestStartedAt: reqStarted,
+					Streaming:        false,
+					Req:              &modelReq,
+					Res:              &resp,
+					ModelConfig:      &config,
 				},
 			})
 
@@ -286,6 +314,13 @@ func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 
 		} else if buildStage == BuildStageValidateOnly {
 			isValid = strings.Contains(content, "<PlandexCorrect/>")
+
+			fileState.builderRun.AutoApplyValidationFinishedAt = time.Now()
+			if isValid {
+				fileState.builderRun.AutoApplyValidationPassed = true
+			} else {
+				fileState.builderRun.AutoApplyValidationFailureResponse = content
+			}
 		}
 	}
 

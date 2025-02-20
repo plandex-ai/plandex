@@ -33,7 +33,7 @@ func (state *activeTellStreamState) addConversationMessages() bool {
 	conversationTokens := 0
 	tokensUpToTimestamp := make(map[int64]int)
 	for _, convoMessage := range convo {
-		conversationTokens += convoMessage.Tokens + shared.TokensPerMessage + shared.TokensPerName
+		conversationTokens += convoMessage.Tokens + model.TokensPerMessage + model.TokensPerName
 		timestamp := convoMessage.CreatedAt.UnixNano() / int64(time.Millisecond)
 		tokensUpToTimestamp[timestamp] = conversationTokens
 		// log.Printf("Timestamp: %s | Tokens: %d | Total: %d | conversationTokens\n", convoMessage.Timestamp, convoMessage.Tokens, conversationTokens)
@@ -128,16 +128,26 @@ func (state *activeTellStreamState) addConversationMessages() bool {
 				continue
 			}
 
-			state.messages = append(state.messages, openai.ChatCompletionMessage{
-				Role:    convoMessage.Role,
-				Content: convoMessage.Message,
+			state.messages = append(state.messages, types.ExtendedChatMessage{
+				Role: openai.ChatMessageRoleUser,
+				Content: []types.ExtendedChatMessagePart{
+					{
+						Type: openai.ChatMessagePartTypeText,
+						Text: convoMessage.Message,
+					},
+				},
 			})
 
 			// add the latest summary as a conversation message if this is the last message summarized, in order to reinforce the current state of the plan to the model
 			if latestSummary != nil && convoMessage.Id == latestSummary.LatestConvoMessageId {
-				state.messages = append(state.messages, openai.ChatCompletionMessage{
-					Role:    openai.ChatMessageRoleAssistant,
-					Content: latestSummary.Summary,
+				state.messages = append(state.messages, types.ExtendedChatMessage{
+					Role: openai.ChatMessageRoleAssistant,
+					Content: []types.ExtendedChatMessagePart{
+						{
+							Type: openai.ChatMessagePartTypeText,
+							Text: latestSummary.Summary,
+						},
+					},
 				})
 			}
 		}
@@ -151,9 +161,14 @@ func (state *activeTellStreamState) addConversationMessages() bool {
 			return false
 		}
 		state.summarizedToMessageId = summary.LatestConvoMessageId
-		state.messages = append(state.messages, openai.ChatCompletionMessage{
-			Role:    openai.ChatMessageRoleAssistant,
-			Content: summary.Summary,
+		state.messages = append(state.messages, types.ExtendedChatMessage{
+			Role: openai.ChatMessageRoleAssistant,
+			Content: []types.ExtendedChatMessagePart{
+				{
+					Type: openai.ChatMessagePartTypeText,
+					Text: summary.Summary,
+				},
+			},
 		})
 
 		// add messages after the last message in the summary
@@ -164,16 +179,26 @@ func (state *activeTellStreamState) addConversationMessages() bool {
 			}
 
 			if convoMessage.CreatedAt.After(summary.LatestConvoMessageCreatedAt) {
-				state.messages = append(state.messages, openai.ChatCompletionMessage{
-					Role:    convoMessage.Role,
-					Content: convoMessage.Message,
+				state.messages = append(state.messages, types.ExtendedChatMessage{
+					Role: openai.ChatMessageRoleUser,
+					Content: []types.ExtendedChatMessagePart{
+						{
+							Type: openai.ChatMessagePartTypeText,
+							Text: convoMessage.Message,
+						},
+					},
 				})
 
 				// add the latest summary as a conversation message if this is the last message summarized, in order to reinforce the current state of the plan to the model
 				if latestSummary != nil && convoMessage.Id == latestSummary.LatestConvoMessageId {
-					state.messages = append(state.messages, openai.ChatCompletionMessage{
-						Role:    openai.ChatMessageRoleAssistant,
-						Content: latestSummary.Summary,
+					state.messages = append(state.messages, types.ExtendedChatMessage{
+						Role: openai.ChatMessageRoleAssistant,
+						Content: []types.ExtendedChatMessagePart{
+							{
+								Type: openai.ChatMessagePartTypeText,
+								Text: latestSummary.Summary,
+							},
+						},
 					})
 				}
 			}
@@ -229,7 +254,7 @@ func summarizeConvo(clients map[string]model.ClientInfo, config shared.ModelRole
 	// spew.Dump(promptMessage)
 	// log.Printf("currentOrgId: %s\n", currentOrgId)
 
-	var summaryMessages []*openai.ChatCompletionMessage
+	var summaryMessages []*types.ExtendedChatMessage
 	var latestSummary *db.ConvoSummary
 	var numMessagesSummarized int = 0
 	var latestMessageSummarizedAt time.Time
@@ -249,22 +274,32 @@ func summarizeConvo(clients map[string]model.ClientInfo, config shared.ModelRole
 
 	if latestSummary == nil {
 		for _, convoMessage := range convo {
-			summaryMessages = append(summaryMessages, &openai.ChatCompletionMessage{
-				Role:    convoMessage.Role,
-				Content: convoMessage.Message,
+			summaryMessages = append(summaryMessages, &types.ExtendedChatMessage{
+				Role: openai.ChatMessageRoleUser,
+				Content: []types.ExtendedChatMessagePart{
+					{
+						Type: openai.ChatMessagePartTypeText,
+						Text: convoMessage.Message,
+					},
+				},
 			})
 			latestMessageId = convoMessage.Id
 			latestMessageSummarizedAt = convoMessage.CreatedAt
 			numMessagesSummarized++
-			numTokens += convoMessage.Tokens + shared.TokensPerMessage + shared.TokensPerName
+			numTokens += convoMessage.Tokens + model.TokensPerMessage + model.TokensPerName
 		}
 	} else {
-		summaryMessages = append(summaryMessages, &openai.ChatCompletionMessage{
-			Role:    openai.ChatMessageRoleAssistant,
-			Content: latestSummary.Summary,
+		summaryMessages = append(summaryMessages, &types.ExtendedChatMessage{
+			Role: openai.ChatMessageRoleAssistant,
+			Content: []types.ExtendedChatMessagePart{
+				{
+					Type: openai.ChatMessagePartTypeText,
+					Text: latestSummary.Summary,
+				},
+			},
 		})
 
-		numTokens += latestSummary.Tokens + shared.TokensPerMessage + shared.TokensPerName
+		numTokens += latestSummary.Tokens + model.TokensPerMessage + model.TokensPerName
 
 		var found bool
 		for _, convoMessage := range convo {
@@ -273,12 +308,17 @@ func summarizeConvo(clients map[string]model.ClientInfo, config shared.ModelRole
 				continue
 			}
 			if found {
-				summaryMessages = append(summaryMessages, &openai.ChatCompletionMessage{
-					Role:    convoMessage.Role,
-					Content: convoMessage.Message,
+				summaryMessages = append(summaryMessages, &types.ExtendedChatMessage{
+					Role: openai.ChatMessageRoleUser,
+					Content: []types.ExtendedChatMessagePart{
+						{
+							Type: openai.ChatMessagePartTypeText,
+							Text: convoMessage.Message,
+						},
+					},
 				})
 				numMessagesSummarized++
-				numTokens += convoMessage.Tokens + shared.TokensPerMessage + shared.TokensPerName
+				numTokens += convoMessage.Tokens + model.TokensPerMessage + model.TokensPerName
 			}
 		}
 
@@ -292,23 +332,33 @@ func summarizeConvo(clients map[string]model.ClientInfo, config shared.ModelRole
 
 	if userPrompt != "" {
 		if userPrompt != prompts.UserContinuePrompt && userPrompt != prompts.AutoContinuePrompt {
-			summaryMessages = append(summaryMessages, &openai.ChatCompletionMessage{
-				Role:    openai.ChatMessageRoleUser,
-				Content: userPrompt,
+			summaryMessages = append(summaryMessages, &types.ExtendedChatMessage{
+				Role: openai.ChatMessageRoleUser,
+				Content: []types.ExtendedChatMessagePart{
+					{
+						Type: openai.ChatMessagePartTypeText,
+						Text: userPrompt,
+					},
+				},
 			})
 
 			tokens := shared.GetNumTokensEstimate(userPrompt)
-			numTokens += tokens + shared.TokensPerMessage + shared.TokensPerName
+			numTokens += tokens + model.TokensPerMessage + model.TokensPerName
 		}
 	}
 
 	if currentReply != "" {
-		summaryMessages = append(summaryMessages, &openai.ChatCompletionMessage{
-			Role:    openai.ChatMessageRoleAssistant,
-			Content: currentReply,
+		summaryMessages = append(summaryMessages, &types.ExtendedChatMessage{
+			Role: openai.ChatMessageRoleAssistant,
+			Content: []types.ExtendedChatMessagePart{
+				{
+					Type: openai.ChatMessagePartTypeText,
+					Text: currentReply,
+				},
+			},
 		})
 
-		numTokens += params.currentReplyNumTokens + shared.TokensPerMessage + shared.TokensPerName
+		numTokens += params.currentReplyNumTokens + model.TokensPerMessage + model.TokensPerName
 	}
 
 	log.Printf("Calling model for plan summary. Summarizing %d messages\n", len(summaryMessages))

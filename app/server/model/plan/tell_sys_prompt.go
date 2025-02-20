@@ -4,86 +4,179 @@ import (
 	"fmt"
 	"log"
 	"plandex-server/model/prompts"
+	"plandex-server/types"
+	shared "plandex-shared"
+
+	"github.com/sashabaranov/go-openai"
 )
 
-func (state *activeTellStreamState) getTellSysPrompt(autoContextEnabled, smartContextEnabled, didLoadChatOnlyContext bool, modelContextText string) (string, error) {
+type getTellSysPromptParams struct {
+	autoContextEnabled  bool
+	smartContextEnabled bool
+	basicContextMsg     *types.ExtendedChatMessagePart
+	autoContextMsg      *types.ExtendedChatMessagePart
+	smartContextMsg     *types.ExtendedChatMessagePart
+}
+
+func (state *activeTellStreamState) getTellSysPrompt(params getTellSysPromptParams) ([]types.ExtendedChatMessagePart, error) {
+	autoContextEnabled := params.autoContextEnabled
+	smartContextEnabled := params.smartContextEnabled
+	basicContextMsg := params.basicContextMsg
+	autoContextMsg := params.autoContextMsg
+	smartContextMsg := params.smartContextMsg
 	req := state.req
-	isPlanningStage := state.isPlanningStage
-	isContextStage := state.isContextStage
-	isFollowUp := state.isFollowUp
 	active := state.activePlan
+	currentStage := state.currentStage
 
-	var sysCreate string
+	// var sysCreate string
 
-	params := prompts.CreatePromptParams{
-		ExecMode:                  req.ExecEnabled,
-		AutoContext:               autoContextEnabled,
-		LastResponseLoadedContext: didLoadChatOnlyContext,
+	sysParts := []types.ExtendedChatMessagePart{}
+
+	createPromptParams := prompts.CreatePromptParams{
+		ExecMode:     req.ExecEnabled,
+		AutoContext:  autoContextEnabled,
+		IsUserDebug:  req.IsUserDebug,
+		IsApplyDebug: req.IsApplyDebug,
 	}
 
-	if req.IsChatOnly {
-		sysCreate = prompts.GetChatSysPrompt(params)
-	} else {
+	// log.Println("getTellSysPrompt - prompt params:", spew.Sdump(params))
 
-		if isPlanningStage {
-			log.Println("isPlanningStage")
-			log.Println("autoContextEnabled", autoContextEnabled)
-			log.Println("isContextStage", isContextStage)
-			if autoContextEnabled && isContextStage {
-				log.Println("autoContextEnabled && isContextStage -- adding auto context preamble")
-				sysCreate = prompts.GetAutoContextTellPreamble(params)
-			} else if autoContextEnabled || smartContextEnabled {
-				log.Println("autoContextEnabled || smartContextEnabled -- adding auto context preamble")
-				sysCreate = prompts.SysPlanningAutoContext
-
-				if isFollowUp && !req.IsApplyDebug {
-					log.Println("isFollowUp && !req.IsApplyDebug && !req.IsUserDebug -- adding follow up classifier prompt")
-					sysCreate = prompts.GetFollowUpPlanClassifierPrompt(params) + "\n\n" + sysCreate
-				}
-			} else {
-				log.Println("sysPlanningBasic")
-				sysCreate = prompts.SysPlanningBasic
+	if currentStage.TellStage == shared.TellStagePlanning {
+		if basicContextMsg != nil {
+			basicContextMsg.CacheControl = &types.CacheControlSpec{
+				Type: types.CacheControlTypeEphemeral,
 			}
+			sysParts = append(sysParts, *basicContextMsg)
+		}
+
+		if currentStage.PlanningPhase == shared.PlanningPhaseContext {
+			log.Println("Planning phase is context -- adding auto context prompt")
+
+			var txt string
+			if req.IsChatOnly {
+				txt = prompts.GetAutoContextChatPrompt(createPromptParams)
+			} else {
+				txt = prompts.GetAutoContextTellPrompt(createPromptParams)
+			}
+
+			sysParts = append(sysParts, types.ExtendedChatMessagePart{
+				Type: openai.ChatMessagePartTypeText,
+				Text: txt,
+				CacheControl: &types.CacheControlSpec{
+					Type: types.CacheControlTypeEphemeral,
+				},
+			})
+		} else if currentStage.PlanningPhase == shared.PlanningPhasePlanning {
+
+			var txt string
+			if req.IsChatOnly {
+				txt = prompts.GetChatSysPrompt(createPromptParams)
+			} else {
+				txt = prompts.GetPlanningPrompt(createPromptParams)
+			}
+
+			if len(state.subtasks) > 0 {
+				sysParts = append(sysParts, types.ExtendedChatMessagePart{
+					Type: openai.ChatMessagePartTypeText,
+					Text: txt,
+				})
+				sysParts = append(sysParts, types.ExtendedChatMessagePart{
+					Type: openai.ChatMessagePartTypeText,
+					Text: state.formatSubtasks(),
+					CacheControl: &types.CacheControlSpec{
+						Type: types.CacheControlTypeEphemeral,
+					},
+				})
+			} else {
+				sysParts = append(sysParts, types.ExtendedChatMessagePart{
+					Type: openai.ChatMessagePartTypeText,
+					Text: txt,
+					CacheControl: &types.CacheControlSpec{
+						Type: types.CacheControlTypeEphemeral,
+					},
+				})
+			}
+
+			if !req.IsChatOnly {
+				if len(active.SkippedPaths) > 0 {
+					skippedPrompt := prompts.SkippedPathsPrompt
+					for skippedPath := range active.SkippedPaths {
+						skippedPrompt += fmt.Sprintf("- %s\n", skippedPath)
+					}
+					sysParts = append(sysParts, types.ExtendedChatMessagePart{
+						Type: openai.ChatMessagePartTypeText,
+						Text: skippedPrompt,
+					})
+				}
+			}
+		}
+
+		if autoContextMsg != nil {
+			sysParts = append(sysParts, *autoContextMsg)
+		}
+
+		if smartContextMsg != nil {
+			log.Println("smartContextMsg not supported during planning stage - only basic or auto context is supported")
+			return nil, fmt.Errorf("smartContextMsg not supported during planning stage - only basic or auto context is supported")
+		}
+
+	} else if currentStage.TellStage == shared.TellStageImplementation {
+		if state.currentSubtask == nil {
+			return nil, fmt.Errorf("no current subtask during implementation stage")
+		}
+
+		if !smartContextEnabled && basicContextMsg != nil {
+			basicContextMsg.CacheControl = &types.CacheControlSpec{
+				Type: types.CacheControlTypeEphemeral,
+			}
+			sysParts = append(sysParts, *basicContextMsg)
+		}
+
+		if len(state.subtasks) > 0 {
+			sysParts = append(sysParts, types.ExtendedChatMessagePart{
+				Type: openai.ChatMessagePartTypeText,
+				Text: prompts.GetImplementationPrompt(state.currentSubtask.Title),
+			})
+			sysParts = append(sysParts,
+				types.ExtendedChatMessagePart{
+					Type: openai.ChatMessagePartTypeText,
+					Text: state.formatSubtasks(),
+					CacheControl: &types.CacheControlSpec{
+						Type: types.CacheControlTypeEphemeral,
+					},
+				})
 		} else {
-			log.Println("isImplementationStage")
-			if state.currentSubtask == nil {
-				return "", fmt.Errorf("no current subtask during implementation stage")
-			}
-			sysCreate = prompts.GetImplementationPrompt(state.currentSubtask.Title)
+			sysParts = append(sysParts, types.ExtendedChatMessagePart{
+				Type: openai.ChatMessagePartTypeText,
+				Text: prompts.GetImplementationPrompt(state.currentSubtask.Title),
+				CacheControl: &types.CacheControlSpec{
+					Type: types.CacheControlTypeEphemeral,
+				},
+			})
 		}
 
-		if !isContextStage {
-			if req.ExecEnabled {
-				if isPlanningStage {
-					sysCreate += prompts.ApplyScriptPlanningPrompt
-				} else {
-					sysCreate += prompts.ApplyScriptImplementationPrompt
+		if !req.IsChatOnly {
+			if len(active.SkippedPaths) > 0 {
+				skippedPrompt := prompts.SkippedPathsPrompt
+				for skippedPath := range active.SkippedPaths {
+					skippedPrompt += fmt.Sprintf("- %s\n", skippedPath)
 				}
-			} else {
-				sysCreate += prompts.NoApplyScriptPrompt
+				sysParts = append(sysParts, types.ExtendedChatMessagePart{
+					Type: openai.ChatMessagePartTypeText,
+					Text: skippedPrompt,
+				})
 			}
+		}
+
+		if smartContextMsg != nil {
+			sysParts = append(sysParts, *smartContextMsg)
+		}
+
+		if autoContextMsg != nil {
+			log.Println("autoContextMsg not supported during implementation stage - only basic or smart context is supported")
+			return nil, fmt.Errorf("autoContextMsg not supported during implementation stage - only basic or smart context is supported")
 		}
 	}
 
-	// log.Println("sysCreate before context:\n", sysCreate)
-
-	sysCreate += modelContextText
-
-	if !req.IsChatOnly {
-		if len(active.SkippedPaths) > 0 {
-			skippedPrompt := prompts.SkippedPathsPrompt
-			for skippedPath := range active.SkippedPaths {
-				skippedPrompt += fmt.Sprintf("- %s\n", skippedPath)
-			}
-			sysCreate += skippedPrompt
-		}
-	}
-
-	if len(state.subtasks) > 0 {
-		subtasksPrompt := state.formatSubtasks()
-		// log.Println("subtasksPrompt:\n", subtasksPrompt)
-		sysCreate += subtasksPrompt
-	}
-
-	return sysCreate, nil
+	return sysParts, nil
 }

@@ -2,6 +2,7 @@ package prompts
 
 import (
 	"fmt"
+	shared "plandex-shared"
 	"time"
 )
 
@@ -20,6 +21,13 @@ User's operating system details:
 %s
 ---
 `
+
+func GetContextLoadingPromptWrapperFormatStr(params CreatePromptParams) string {
+	s := SharedPromptWrapperFormatStr + `
+	` + ArchitectSummary
+
+	return s
+}
 
 func GetPlanningPromptWrapperFormatStr(params CreatePromptParams) string {
 	s := SharedPromptWrapperFormatStr + `
@@ -68,10 +76,18 @@ After you have broken a task up in to multiple subtasks and output a '### Tasks'
 
 Output a <PlandexFinish/> tag after the '### Tasks' section. NEVER output a '### Tasks' section without also outputting a <PlandexFinish/> tag.
 
-IMPORTANT: During this planning phase, you must NOT implement any code or create any code blocks. Your only task is to break down the work into subtasks. Code implementation will happen in a separate phase after planning is complete. The planning phase is ONLY for breaking the work into subtasks.
+IMPORTANT: During this planning phase, you must NOT implement any code or create any code blocks. Your ONLY JOB is to break down the work into subtasks. Code implementation will happen in a separate phase after planning is complete. The planning phase is ONLY for breaking the work into subtasks.
 
 Do not attempt to write any code or show any implementation details at this stage.
 `
+
+	if params.IsUserDebug {
+		s += UserPlanningDebugPrompt
+	} else if params.IsApplyDebug {
+		s += ApplyPlanningDebugPrompt
+	} else if !params.ExecMode {
+		s += NoApplyScriptPlanningPrompt
+	}
 
 	return s
 }
@@ -110,6 +126,10 @@ When *updating an existing file*, you MUST follow the instructions you've been g
 	- Even if the location of new code is not important and could be placed anywhere in the file, you still MUST determine *exactly* where the new code should be placed and include sufficient surrounding context so that the location and nesting depth of the code being added is clear and unambiguous.
 
 	- Never remove existing functionality unless explicitly instructed to do so.
+
+	- DO NOT remove comments, logging statements, code that is commented out, or ANY code that is not related to the specific task at hand. 
+	
+	- Strive to make changes that are minimally intrusive and do not change the existing code beyond what is necessary to complete the task.
 
 	- Show enough surrounding context to understand the code structure.
 
@@ -150,84 +170,55 @@ If you break up a task into subtasks, only include subtasks that can be implemen
 	return s
 }
 
-func GetFollowUpRequiredPrompt(params CreatePromptParams) string {
-	s := `
-[MANDATORY FOLLOW-UP FLOW]
-
-CRITICAL FLOW CONTROL:
-1. You MUST FIRST respond naturally to what the user has said/asked
-2. Then classify the prompt as either:
-   A. Update/revision to tasks (A1/A2/A3)
-   B. Conversation prompt (question/comment)
-
-3. IF classified as A (update/revision):
-   - You MUST create/update the task list with ### Tasks
-   - You MUST output <PlandexFinish/> immediately after the task list
-   - You MUST end your response immediately after <PlandexFinish/>
-   - You ABSOLUTELY MUST NOT proceed to implementation
-   - You MUST follow planning format exactly
-   Even if:
-   - The change is small
-   - You know the exact code to write
-   - You're continuing an existing plan
-
-4. IF classified as B (conversation):
-   - Continue conversation naturally
-   - Do not create tasks or implement code
-
-5. After responding and classifying, output EXACTLY ONE of these statements (naturally incorporated):
-   A. "I have the context I need to continue."
-   B. "I have the context I need to respond."
-   C. "I need more context to continue. <PlandexFinish/>"
-   D. "I need more context to respond. <PlandexFinish/>"
-   E. "This is a significant update to the plan. I'll clear all context without pending changes, then decide what context I need to move forward. <PlandexFinish/>"
-   F. "This is a new task that is distinct from the plan. I'll clear all context without pending changes, then decide what context I need to move forward. <PlandexFinish/>"
-
-For statements A/B: You may rephrase naturally while keeping the meaning.
-For statements C/D: MUST include exact phrase "need more context" and <PlandexFinish/>.
-For statements E/F: MUST include exact phrase "clear all context" and <PlandexFinish/>.
-
-CRITICAL: Always respond naturally to the user first, then seamlessly incorporate the required statement. Do NOT state that you are performing a classification or context assessment.
-`
-
-	return s
-}
-
 type UserPromptParams struct {
 	CreatePromptParams
-	Prompt             string
-	OsDetails          string
-	IsPlanningStage    bool
-	IsFollowUp         bool
-	ApplyScriptSummary string
+	Prompt                     string
+	OsDetails                  string
+	CurrentStage               shared.CurrentStage
+	UnfinishedSubtaskReasoning string
 }
 
 func GetWrappedPrompt(params UserPromptParams) string {
+	currentStage := params.CurrentStage
 
 	prompt := params.Prompt
 	osDetails := params.OsDetails
-	isPlanningStage := params.IsPlanningStage
-	isFollowUp := params.IsFollowUp
-	applyScriptSummary := params.ApplyScriptSummary
 
 	var promptWrapperFormatStr string
-	if isPlanningStage {
-		promptWrapperFormatStr = GetPlanningPromptWrapperFormatStr(params.CreatePromptParams)
+	if currentStage.TellStage == shared.TellStagePlanning {
+		if currentStage.PlanningPhase == shared.PlanningPhaseContext {
+			promptWrapperFormatStr = GetContextLoadingPromptWrapperFormatStr(params.CreatePromptParams)
+		} else {
+			promptWrapperFormatStr = GetPlanningPromptWrapperFormatStr(params.CreatePromptParams)
+		}
 	} else {
 		promptWrapperFormatStr = GetImplementationPromptWrapperFormatStr(params.CreatePromptParams)
 	}
 
-	// If we're in the planning stage, we don't need to include the apply script summary
-	if isPlanningStage {
-		applyScriptSummary = ""
-
-		if isFollowUp {
-			promptWrapperFormatStr += "\n\n" + GetFollowUpRequiredPrompt(params.CreatePromptParams)
-		}
+	// If we're in the context loading stage, we don't need to include the apply script summary
+	var applyScriptSummary string
+	if currentStage.TellStage == shared.TellStagePlanning && currentStage.PlanningPhase == shared.PlanningPhasePlanning {
+		applyScriptSummary = ApplyScriptPlanningPromptSummary
+	} else if currentStage.TellStage == shared.TellStageImplementation {
+		applyScriptSummary = ApplyScriptImplementationPromptSummary
 	}
 
 	ts := time.Now().Format(time.RFC3339)
-	return fmt.Sprintf(promptWrapperFormatStr, prompt, ts, osDetails, applyScriptSummary)
+
+	s := fmt.Sprintf(promptWrapperFormatStr, prompt, ts, osDetails, applyScriptSummary)
+
+	if currentStage.TellStage == shared.TellStageImplementation && params.UnfinishedSubtaskReasoning != "" {
+		s += "\n\n" + `
+The current task was not completed in the previous response and remains unfinished. Here is the reasoning for why it was not completed:
+
+` + params.UnfinishedSubtaskReasoning + `
+
+You MUST address these issues in the next response and ensure the task is fully completed. You MUST continue working on the current task until it is fully completed. Do NOT work on any other tasks. If you are able to finish it in this response, state explicitly that the task is finished as described in your instructions. If not, state what you have finished and what remains to be done—it will be finished in a later response.
+		`
+
+	}
+
+	return s
 }
 
 const UserContinuePrompt = "Continue the plan."
@@ -342,56 +333,23 @@ User's operating system details:
 	// Build additional instructions based on parameter combinations
 	var additionalInstructions string
 
-	// Context handling - different for each autoContext + lastResponseLoadedContext combination
-	if params.AutoContext {
-		if params.LastResponseLoadedContext {
-			additionalInstructions += `
-
-Since you just loaded context in your previous response:
-- Focus on using that context in your explanation
-- Keep the conversation flowing naturally
-- You ABSOLUTELY MUST NOT load additional context unless the user asks about something completely different
-- Maintain conversational flow over seeking more context`
-		} else {
-			additionalInstructions += `
-
-When handling context:
-- Load context only when needed for accuracy
-- Make the context loading feel natural and conversational
-- If you need to check files, briefly mention what you're looking at
-- Once you've loaded context, use it thoroughly in your response`
-		}
-	} else {
-		additionalInstructions += `
-
-When discussing code:
-- Work with the context explicitly provided
-- If you need additional context, ask the user specifically what files would help
-- Make full use of any context you already have
-- Be clear when you need more information to provide a complete answer`
-	}
-
 	// Execution mode handling
 	if params.ExecMode {
 		additionalInstructions += `
-
-Regarding execution capabilities:
-- You can discuss both file changes and command execution
+*Execution mode is enabled.*
+- If you switch to tell mode, you can execute commands locally as needed
+- While you remain in chat mode, you can discuss both file changes and command execution, but you cannot update files or execute commands (unless the user first switches to tell mode)
 - Be specific about what commands would need to be run
 - Consider build processes, testing, and deployment
 - Distinguish between file changes and execution steps`
 	} else {
 		additionalInstructions += `
-
-Remember about execution mode:
-- Focus on changes that can be made through file updates
-- Mention when something would require execution mode
-- You can discuss build/test/deploy conceptually
+*Execution mode is disabled.*
+- If you switch to tell mode, you cannot execute commands—keep this in mind when discussing the plan. If the plan requires commands to be run after switching to tell mode, the user would need to run them manually.
+- You can discuss build/test/deploy conceptually, but you cannot execute commands either in chat mode or in tell mode
 - Be clear when certain steps would need execution mode enabled`
 	}
 
-	// Always include these key reminders
-	// Always include these key reminders
 	additionalInstructions += `
 Keep in mind:
 - Stay conversational while being technically precise
@@ -488,3 +446,46 @@ CRITICAL PLANNING RULES:
 
 	return s
 }
+
+// func GetFollowUpRequiredPrompt(params CreatePromptParams) string {
+// 	s := `
+// [MANDATORY FOLLOW-UP FLOW]
+
+// CRITICAL FLOW CONTROL:
+// 1. You MUST FIRST respond naturally to what the user has said/asked
+// 2. Then classify the prompt as either:
+//    A. Update/revision to tasks (A1/A2/A3)
+//    B. Conversation prompt (question/comment)
+
+// 3. IF classified as A (update/revision):
+//    - You MUST create/update the task list with ### Tasks
+//    - You MUST output <PlandexFinish/> immediately after the task list
+//    - You MUST end your response immediately after <PlandexFinish/>
+//    - You ABSOLUTELY MUST NOT proceed to implementation
+//    - You MUST follow planning format exactly
+//    Even if:
+//    - The change is small
+//    - You know the exact code to write
+//    - You're continuing an existing plan
+
+// 4. IF classified as B (conversation):
+//    - Continue conversation naturally
+//    - Do not create tasks or implement code
+
+// 5. After responding and classifying, output EXACTLY ONE of these statements (naturally incorporated):
+//    A. "I have the context I need to continue."
+//    B. "I have the context I need to respond."
+//    C. "I need more context to continue. <PlandexFinish/>"
+//    D. "I need more context to respond. <PlandexFinish/>"
+//    E. "This is a significant update to the plan. I'll clear all context without pending changes, then decide what context I need to move forward. <PlandexFinish/>"
+//    F. "This is a new task that is distinct from the plan. I'll clear all context without pending changes, then decide what context I need to move forward. <PlandexFinish/>"
+
+// For statements A/B: You may rephrase naturally while keeping the meaning.
+// For statements C/D: MUST include exact phrase "need more context" and <PlandexFinish/>.
+// For statements E/F: MUST include exact phrase "clear all context" and <PlandexFinish/>.
+
+// CRITICAL: Always respond naturally to the user first, then seamlessly incorporate the required statement. Do NOT state that you are performing a classification or context assessment.
+// `
+
+// 	return s
+// }

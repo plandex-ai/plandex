@@ -1,9 +1,10 @@
 package prompts
 
 type CreatePromptParams struct {
-	AutoContext               bool
-	ExecMode                  bool
-	LastResponseLoadedContext bool
+	AutoContext  bool
+	ExecMode     bool
+	IsUserDebug  bool
+	IsApplyDebug bool
 }
 
 var SysPlanningBasic = GetPlanningPrompt(CreatePromptParams{
@@ -194,19 +195,19 @@ Uses: ` + "`src/main.c`" + `
 <PlandexFinish/>
 ---
 
-Be exhaustive in the 'Uses:' list. Include both files that will be updated as well as files in context that could be relevant or helpful in any other way to implementing the subtask with a high quality level.
+Be exhaustive in the 'Uses:' list. Include both files that will be updated as well as files in context that could be relevant or helpful in any other way to implementing the task with a high quality level.
 
-If a file is being *created* in a subtask, it *does not* need to be included in the 'Uses:' list. Only include files that will be *updated* in the subtask.
+If a file is being *created* in a task, it *does not* need to be included in the 'Uses:' list. Only include files that will be *updated* in the task.
 
 You MUST USE 'Uses:' *exactly* for this purpose. DO NOT use 'Files:' or 'Files needed:' or anything else. ONLY use 'Uses:' for this purpose.
 
-ALWAYS place 'Uses:' at the *end* of each subtask description.
+ALWAYS place 'Uses:' at the *end* of each task description.
 
-If execution mode is enabled and a subtask creates, updates, or is related to the _apply.sh script, you MUST include ` + "`_apply.sh`" + `in the 'Uses:' list for that subtask.
+If execution mode is enabled and a task creates, updates, or is related to the _apply.sh script, you MUST include ` + "`_apply.sh`" + `in the 'Uses:' list for that task.
 
-'Uses:' can include files that are already in context or that are in the map but not yet loaded into context. Be extremely thorough in your 'Uses:' list—include *all* files that will be needed to complete the subtask and any other files that could be relevant or helpful in any other way to implementing the subtask with a high quality level.
+'Uses:' can include files that are already in context or that are in the map but not yet loaded into context. Be extremely thorough in your 'Uses:' list—include *all* files that will be needed to complete the task and any other files that could be relevant or helpful in any other way to implementing the task with a high quality level.
 
-- Remember that the 'Uses:' list can include reference files that aren't being modified. Don't combine multiple independent changes into a single subtask just because they need similar reference files - instead, list those reference files in the 'Uses:' section of each relevant subtask.
+- Remember that the 'Uses:' list can include reference files that aren't being modified. Don't combine multiple independent changes into a single task just because they need similar reference files - instead, list those reference files in the 'Uses:' section of each relevant task.
 `
 
 	return s
@@ -267,6 +268,32 @@ Be aware that since the plan started, the context may have been updated. It may 
 Always work from the LATEST state of the user-provided context. If the user has made changes to the context, you should work from the latest version of the context, not from the version of the context that was provided when the plan was started. Earlier version of the context may have been used during the conversation, but you MUST always work from the *latest version* of the context when continuing the plan.
 
 Similarly, if you have made updates to any files, you MUST always work from the *latest version* of the files when continuing the plan.
+
+`
+const ReviseSubtasksPrompt = `
+- If you have already broken up a task into subtasks in a previous response during this conversation, and you are adding or modifying subtasks based on a new user prompt, you MUST output any *new* subtasks in a '### Tasks' section with the same format as before. Do NOT output subtasks that have already been finished. You can *modify* an existing *unfinished* subtask by creating a new subtask with the *same exact name* as the previous subtask, then modifying its steps. The name *must* be exactly the same for modification of an existing unfinished subtask to work correctly. You *cannot* modify a subtask that has already been finished.
+
+- You can also *remove* subtasks that are no longer needed, or that the user has changed their mind about, using a '### Remove Tasks' section. List all subtasks that you are removing in a '### Remove Tasks' section. You MUST use the *exact* name of the subtask from the previous '### Tasks' section to remove it.
+
+If you are removing tasks and adding new tasks in the same response, you MUST *first* output the '### Remove Tasks' section, then output the '### Tasks' section.
+
+You MUST NOT UNDER ANY CIRCUMSTANCES remove a task using a '### Remove Tasks' section if it has already been finished.
+
+The '### Remove Tasks' section must list a single task per line in exactly this format:
+
+### Remove Tasks
+- Task name
+- Task name
+- Task name
+
+Example:
+
+### Remove Tasks
+- Update the user interface
+- Add a new feature
+- Remove a deprecated function
+
+Do NOT use any other format for the '### Remove Tasks' section. Do NOT use a numbered list. Identify tasks *only* by exact name matching.
 
 `
 
@@ -387,6 +414,3 @@ CRITICAL REMINDERS:
 
 	return s
 }
-
-const ReviseSubtasksPrompt = `
-- If you have already broken up a task into subtasks in a previous response during this conversation, and you are adding or modifying subtasks based on a new user prompt, you MUST output any *new* subtasks in a '### Tasks' section with the same format as before. Do NOT output subtasks that have already been finished. You can *modify* an existing *unfinished* subtask by creating a new subtask with the *same exact name* as the previous subtask, then modifying its steps. The name *must* be exactly the same for modification of an existing unfinished subtask to work correctly. You *cannot* modify a subtask that has already been finished.`

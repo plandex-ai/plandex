@@ -105,7 +105,7 @@ func (state *activeTellStreamState) onError(params onErrorParams) onErrorResult 
 				}
 			}()
 
-			err := db.GitClearUncommittedChanges(state.currentOrgId, planId)
+			err := db.GitClearUncommittedChanges(state.currentOrgId, planId, branch)
 			if err != nil {
 				log.Printf("Error clearing uncommitted changes for plan %s: %v\n", planId, err)
 				return err
@@ -116,12 +116,22 @@ func (state *activeTellStreamState) onError(params onErrorParams) onErrorResult 
 		storedDesc := false
 
 		if convoMessageId == "" {
-			assistantMsg, msg, err := state.storeAssistantReply(shared.ConvoMessageFlags{
-				IsFollowUpReply:       state.isFollowUp,
-				IsPlanningStage:       state.isPlanningStage,
-				IsContextStage:        state.isContextStage,
-				IsImplementationStage: state.isImplementationStage,
-			}, nil, nil)
+			hasUnfinishedSubtasks := false
+			for _, subtask := range state.subtasks {
+				if !subtask.IsFinished {
+					hasUnfinishedSubtasks = true
+					break
+				}
+			}
+
+			assistantMsg, msg, err := state.storeAssistantReply(storeAssistantReplyParams{
+				flags: shared.ConvoMessageFlags{
+					CurrentStage:          state.currentStage,
+					HasUnfinishedSubtasks: hasUnfinishedSubtasks,
+				},
+				subtask:       nil,
+				addedSubtasks: nil,
+			})
 			if err == nil {
 				convoMessageId = assistantMsg.Id
 				commitMsg = msg

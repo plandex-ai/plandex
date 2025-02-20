@@ -366,6 +366,8 @@ Note the lack of superfluous newlines before and after the reference comment. Th
 *
 
 If code is being removed from a file and not replaced with new code, the removal MUST ALWAYS WITHOUT EXCEPTION be shown in a labelled code block according to your instructions. Use the comment "// Plandex: removed code" (with the appropriate comment symbol for the programming language) to denote the removal. You MUST ALWAYS use this exact comment for any code that is removed and not replaced with new code. DO NOT USE ANY OTHER COMMENT FOR CODE REMOVAL.
+
+'// Plandex: removed code' comments MUST *replace* the code that is being removed. The code that is being removed MUST NOT be included in the code block.
     
 Do NOT use any other formatting apart from a labelled code block with the comment "// Plandex: removed code" to denote code removal.
 

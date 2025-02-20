@@ -141,3 +141,66 @@ func (state *activeTellStreamState) checkNewSubtasks() []*db.Subtask {
 
 	return newSubtasks
 }
+
+func (state *activeTellStreamState) checkRemoveSubtasks() []string {
+	activePlan := GetActivePlan(state.plan.Id, state.branch)
+
+	if activePlan == nil {
+		return nil
+	}
+
+	content := activePlan.CurrentReplyContent
+
+	// Parse tasks to remove
+	tasksToRemove := parse.ParseRemoveSubtasks(content)
+
+	if len(tasksToRemove) == 0 {
+		log.Println("No tasks to remove found")
+		return nil
+	}
+
+	log.Println("Found tasks to remove:")
+	log.Println(spew.Sdump(tasksToRemove))
+
+	// Create a map of task titles to remove for efficient lookup
+	removeMap := make(map[string]bool)
+	for _, task := range tasksToRemove {
+		removeMap[task] = true
+	}
+
+	var removedSubtasks []*db.Subtask
+	var remainingSubtasks []*db.Subtask
+
+	// Keep tasks that aren't in the remove list
+	for _, subtask := range state.subtasks {
+		if removeMap[subtask.Title] {
+			// Only track unfinished tasks that are being removed
+			if !subtask.IsFinished {
+				removedSubtasks = append(removedSubtasks, subtask)
+			}
+		} else {
+			remainingSubtasks = append(remainingSubtasks, subtask)
+		}
+	}
+
+	state.subtasks = remainingSubtasks
+
+	// Update current subtask if it was removed
+	if state.currentSubtask != nil && removeMap[state.currentSubtask.Title] {
+		state.currentSubtask = nil
+		// Find the first unfinished subtask to set as current
+		for _, subtask := range state.subtasks {
+			if !subtask.IsFinished {
+				state.currentSubtask = subtask
+				break
+			}
+		}
+	}
+
+	removedSubtaskTitles := []string{}
+	for _, subtask := range removedSubtasks {
+		removedSubtaskTitles = append(removedSubtaskTitles, subtask.Title)
+	}
+
+	return removedSubtaskTitles
+}

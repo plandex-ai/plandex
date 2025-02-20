@@ -4,26 +4,22 @@ import (
 	"log"
 	"net/http"
 	"plandex-server/model/prompts"
-
+	"plandex-server/types"
 	shared "plandex-shared"
 
 	"github.com/sashabaranov/go-openai"
 )
 
-func (state *activeTellStreamState) resolvePromptMessage(isPlanningStage, isContextStage, didLoadChatOnlyContext bool, applyScriptSummary string) (*openai.ChatCompletionMessage, bool) {
+func (state *activeTellStreamState) resolvePromptMessage(
+	unfinishedSubtaskReasoning string,
+) (*types.ExtendedChatMessage, bool) {
 	req := state.req
-	iteration := state.iteration
 	active := state.activePlan
-	isFollowUp := state.isFollowUp
+	iteration := state.iteration
 
-	if isFollowUp && (req.IsApplyDebug) {
-		log.Println("resolvePromptMessage: IsApplyDebug or IsUserDebug - setting isFollowUp to false")
-		isFollowUp = false
-	}
+	var promptMessage *types.ExtendedChatMessage
 
-	var promptMessage *openai.ChatCompletionMessage
-
-	var lastMessage *openai.ChatCompletionMessage
+	var lastMessage *types.ExtendedChatMessage
 
 	if req.IsUserContinue {
 		if len(state.messages) == 0 {
@@ -46,8 +42,9 @@ func (state *activeTellStreamState) resolvePromptMessage(isPlanningStage, isCont
 		if req.IsUserContinue {
 			if lastMessage.Role == openai.ChatMessageRoleUser {
 				log.Println("User is continuing plan in chat only mode. Last message was user message. Using last user message as prompt")
-				prompt = lastMessage.Content
-				state.userPrompt = prompt
+				content := lastMessage.ToOpenAI().Content
+				prompt = content
+				state.userPrompt = content
 				state.messages = state.messages[:len(state.messages)-1]
 			} else {
 				log.Println("User is continuing plan in chat only mode. Last message was assistant message. Using user continue prompt")
@@ -59,17 +56,23 @@ func (state *activeTellStreamState) resolvePromptMessage(isPlanningStage, isCont
 
 		wrapped := prompts.GetWrappedChatOnlyPrompt(prompts.ChatUserPromptParams{
 			CreatePromptParams: prompts.CreatePromptParams{
-				AutoContext:               req.AutoContext,
-				ExecMode:                  req.ExecEnabled,
-				LastResponseLoadedContext: didLoadChatOnlyContext,
+				AutoContext: req.AutoContext,
+				ExecMode:    req.ExecEnabled,
+				// no need to pass in IsUserDebug or IsApplyDebug here because it's a chat message
 			},
 			Prompt:    prompt,
 			OsDetails: req.OsDetails,
+			// no current task for chat only mode
 		})
 
-		promptMessage = &openai.ChatCompletionMessage{
-			Role:    openai.ChatMessageRoleUser,
-			Content: wrapped,
+		promptMessage = &types.ExtendedChatMessage{
+			Role: openai.ChatMessageRoleUser,
+			Content: []types.ExtendedChatMessagePart{
+				{
+					Type: openai.ChatMessagePartTypeText,
+					Text: wrapped,
+				},
+			},
 		}
 
 		state.messages = append(state.messages, *promptMessage)
@@ -82,23 +85,31 @@ func (state *activeTellStreamState) resolvePromptMessage(isPlanningStage, isCont
 
 			state.messages = state.messages[:len(state.messages)-1]
 
+			content := lastMessage.ToOpenAI().Content
+
 			params := prompts.UserPromptParams{
 				CreatePromptParams: prompts.CreatePromptParams{
 					ExecMode:    req.ExecEnabled,
 					AutoContext: req.AutoContext,
+					// no need to pass in IsUserDebug or IsApplyDebug here because we're continuing
 				},
-				Prompt:          lastMessage.Content,
-				OsDetails:       req.OsDetails,
-				IsPlanningStage: isPlanningStage,
-				IsFollowUp:      isFollowUp,
+				Prompt:                     content,
+				OsDetails:                  req.OsDetails,
+				CurrentStage:               state.currentStage,
+				UnfinishedSubtaskReasoning: unfinishedSubtaskReasoning,
 			}
 
-			promptMessage = &openai.ChatCompletionMessage{
-				Role:    openai.ChatMessageRoleUser,
-				Content: prompts.GetWrappedPrompt(params),
+			promptMessage = &types.ExtendedChatMessage{
+				Role: openai.ChatMessageRoleUser,
+				Content: []types.ExtendedChatMessagePart{
+					{
+						Type: openai.ChatMessagePartTypeText,
+						Text: prompts.GetWrappedPrompt(params),
+					},
+				},
 			}
 
-			state.userPrompt = lastMessage.Content
+			state.userPrompt = content
 		} else {
 
 			// if the last message was an assistant message, we'll use the user continue prompt
@@ -108,17 +119,22 @@ func (state *activeTellStreamState) resolvePromptMessage(isPlanningStage, isCont
 				CreatePromptParams: prompts.CreatePromptParams{
 					ExecMode:    req.ExecEnabled,
 					AutoContext: req.AutoContext,
+					// no need to pass in IsUserDebug or IsApplyDebug here because we're continuing
 				},
-				Prompt:             prompts.UserContinuePrompt,
-				OsDetails:          req.OsDetails,
-				IsPlanningStage:    isPlanningStage,
-				IsFollowUp:         isFollowUp,
-				ApplyScriptSummary: applyScriptSummary,
+				Prompt:                     prompts.UserContinuePrompt,
+				OsDetails:                  req.OsDetails,
+				CurrentStage:               state.currentStage,
+				UnfinishedSubtaskReasoning: unfinishedSubtaskReasoning,
 			}
 
-			promptMessage = &openai.ChatCompletionMessage{
-				Role:    openai.ChatMessageRoleUser,
-				Content: prompts.GetWrappedPrompt(params),
+			promptMessage = &types.ExtendedChatMessage{
+				Role: openai.ChatMessageRoleUser,
+				Content: []types.ExtendedChatMessagePart{
+					{
+						Type: openai.ChatMessagePartTypeText,
+						Text: prompts.GetWrappedPrompt(params),
+					},
+				},
 			}
 		}
 
@@ -126,43 +142,42 @@ func (state *activeTellStreamState) resolvePromptMessage(isPlanningStage, isCont
 	} else {
 		var prompt string
 		if iteration == 0 {
-			if req.IsUserDebug {
-				prompt = req.Prompt + prompts.DebugPrompt
-			} else if req.IsApplyDebug {
-				prompt = req.Prompt + prompts.ApplyDebugPrompt
-			} else {
-				prompt = req.Prompt
-			}
+			prompt = req.Prompt
 		} else {
+			prompt = prompts.AutoContinuePrompt
+		}
+
+		if state.currentStage.TellStage == shared.TellStageImplementation {
 			prompt = prompts.AutoContinuePrompt
 		}
 
 		state.userPrompt = prompt
 
-		var finalPrompt string
-		if isContextStage {
-			finalPrompt = prompt
-		} else {
-			params := prompts.UserPromptParams{
-				CreatePromptParams: prompts.CreatePromptParams{
-					ExecMode:    req.ExecEnabled,
-					AutoContext: req.AutoContext,
-				},
-				Prompt:             prompt,
-				OsDetails:          req.OsDetails,
-				IsPlanningStage:    isPlanningStage,
-				IsFollowUp:         isFollowUp,
-				ApplyScriptSummary: applyScriptSummary,
-			}
-
-			finalPrompt = prompts.GetWrappedPrompt(params)
+		params := prompts.UserPromptParams{
+			CreatePromptParams: prompts.CreatePromptParams{
+				ExecMode:     req.ExecEnabled,
+				AutoContext:  req.AutoContext,
+				IsUserDebug:  req.IsUserDebug,
+				IsApplyDebug: req.IsApplyDebug,
+			},
+			Prompt:                     prompt,
+			OsDetails:                  req.OsDetails,
+			CurrentStage:               state.currentStage,
+			UnfinishedSubtaskReasoning: unfinishedSubtaskReasoning,
 		}
+
+		finalPrompt := prompts.GetWrappedPrompt(params)
 
 		// log.Println("Final prompt:", finalPrompt)
 
-		promptMessage = &openai.ChatCompletionMessage{
-			Role:    openai.ChatMessageRoleUser,
-			Content: finalPrompt,
+		promptMessage = &types.ExtendedChatMessage{
+			Role: openai.ChatMessageRoleUser,
+			Content: []types.ExtendedChatMessagePart{
+				{
+					Type: openai.ChatMessagePartTypeText,
+					Text: finalPrompt,
+				},
+			},
 		}
 	}
 

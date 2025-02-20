@@ -88,7 +88,7 @@ func (state *activeTellStreamState) processChunk(choice openai.ChatCompletionStr
 
 	// Handle file that is present in project paths but not in context
 	// Prompt user for what to do on the client side, stop the stream, and wait for user response before proceeding
-	bufferOrStreamRes := processor.bufferOrStream(content, &parserRes, state.isImplementationStage)
+	bufferOrStreamRes := processor.bufferOrStream(content, &parserRes, state.currentStage)
 
 	if currentFile != "" &&
 		!req.IsChatOnly &&
@@ -137,9 +137,9 @@ type bufferOrStreamResult struct {
 	blockLang    string
 }
 
-func (processor *chunkProcessor) bufferOrStream(content string, parserRes *types.ReplyParserRes, isImplementationStage bool) bufferOrStreamResult {
+func (processor *chunkProcessor) bufferOrStream(content string, parserRes *types.ReplyParserRes, currentStage shared.CurrentStage) bufferOrStreamResult {
 	// no buffering in planning stages
-	if !isImplementationStage {
+	if currentStage.TellStage == shared.TellStagePlanning {
 		return bufferOrStreamResult{
 			shouldStream: true,
 			content:      content,

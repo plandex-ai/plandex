@@ -145,6 +145,8 @@ func (state *activeBuildStreamFileState) loadBuildFile(activeBuild *types.Active
 		state.language = validationRes.Lang
 		state.parser = validationRes.Parser
 
+		state.builderRun.Lang = string(validationRes.Lang)
+
 		if validationRes.TimedOut {
 			state.syntaxCheckTimedOut = true
 		} else if !validationRes.Valid {

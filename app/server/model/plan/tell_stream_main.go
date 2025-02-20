@@ -101,6 +101,10 @@ mainLoop:
 				state.generationId = response.ID
 			}
 
+			if state.firstTokenAt.IsZero() {
+				state.firstTokenAt = time.Now()
+			}
+
 			if len(response.Choices) == 0 {
 				if response.Usage != nil {
 					state.handleUsageChunk(response.Usage)

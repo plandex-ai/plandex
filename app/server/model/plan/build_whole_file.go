@@ -9,6 +9,7 @@ import (
 	"plandex-server/hooks"
 	"plandex-server/model"
 	"plandex-server/model/prompts"
+	"plandex-server/types"
 	"strings"
 	"time"
 
@@ -37,17 +38,22 @@ func (fileState *activeBuildStreamFileState) buildWholeFileFallback(proposedCont
 
 	sysPrompt := prompts.GetWholeFilePrompt(filePath, originalFile, desc, proposedContent)
 
-	messages := []openai.ChatCompletionMessage{
+	messages := []types.ExtendedChatMessage{
 		{
-			Role:    openai.ChatMessageRoleSystem,
-			Content: sysPrompt,
+			Role: openai.ChatMessageRoleSystem,
+			Content: []types.ExtendedChatMessagePart{
+				{
+					Type: openai.ChatMessagePartTypeText,
+					Text: sysPrompt,
+				},
+			},
 		},
 	}
 
 	maxExpectedOutputTokens := shared.GetNumTokensEstimate(originalFile + proposedContent)
 	modelConfig := config.GetRoleForOutputTokens(maxExpectedOutputTokens)
 
-	inputTokens := shared.GetMessagesTokenEstimate(messages...) + shared.TokensPerRequest
+	inputTokens := model.GetMessagesTokenEstimate(messages...) + model.TokensPerRequest
 
 	_, apiErr := hooks.ExecHook(hooks.WillSendModelRequest, hooks.HookParams{
 		Auth: auth,
@@ -68,21 +74,14 @@ func (fileState *activeBuildStreamFileState) buildWholeFileFallback(proposedCont
 	var resp openai.ChatCompletionResponse
 	var err error
 
-	modelReq := &openai.ChatCompletionRequest{
-		Model:       modelConfig.BaseModelConfig.ModelName,
-		Messages:    messages,
-		Temperature: modelConfig.Temperature,
-		TopP:        modelConfig.TopP,
-	}
-
 	log.Println("buildWholeFile - modelConfig.BaseModelConfig.PredictedOutputEnabled:", modelConfig.BaseModelConfig.PredictedOutputEnabled)
 
+	var prediction *types.OpenAIPrediction
+
 	if modelConfig.BaseModelConfig.PredictedOutputEnabled {
-		extendedReq := &model.ExtendedChatCompletionRequest{
-			ChatCompletionRequest: modelReq,
-			Prediction: &model.OpenAIPrediction{
-				Type: "content",
-				Content: `
+		prediction = &types.OpenAIPrediction{
+			Type: "content",
+			Content: `
 ## Comments
 
 No comments
@@ -91,18 +90,31 @@ No comments
 ` + originalFile + `
 </PlandexWholeFile>
 `,
-			},
 		}
-		resp, err = model.CreateChatCompletionWithRetries(clients, &config, activePlan.Ctx, *extendedReq)
-	} else {
-		resp, err = model.CreateChatCompletionWithRetries(clients, &config, activePlan.Ctx, *modelReq)
 	}
+
+	extendedReq := &types.ExtendedChatCompletionRequest{
+		Model:       modelConfig.BaseModelConfig.ModelName,
+		Messages:    messages,
+		Temperature: modelConfig.Temperature,
+		TopP:        modelConfig.TopP,
+		Prediction:  prediction,
+	}
+
+	reqStarted := time.Now()
+	fileState.builderRun.BuiltWholeFile = true
+	fileState.builderRun.BuildWholeFileStartedAt = reqStarted
+
+	resp, err = model.CreateChatCompletionWithRetries(clients, &config, activePlan.Ctx, *extendedReq)
 
 	if err != nil {
 		log.Printf("buildWholeFile - error calling model: %v\n", err)
 		fileState.wholeFileRetryOrError(proposedContent, desc, fmt.Errorf("error calling model: %v", err))
 		return
 	}
+
+	fileState.builderRun.GenerationIds = append(fileState.builderRun.GenerationIds, resp.ID)
+	fileState.builderRun.BuildWholeFileFinishedAt = time.Now()
 
 	log.Println("buildWholeFile - usage:")
 	log.Println(spew.Sdump(resp.Usage))
@@ -124,6 +136,12 @@ No comments
 				ModelStreamId:  fileState.tellState.activePlan.ModelStreamId,
 				ConvoMessageId: fileState.convoMessageId,
 				BuildId:        fileState.build.Id,
+
+				RequestStartedAt: reqStarted,
+				Streaming:        false,
+				Req:              extendedReq,
+				Res:              &resp,
+				ModelConfig:      &config,
 			},
 		})
 

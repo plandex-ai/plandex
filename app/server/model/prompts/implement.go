@@ -1,11 +1,11 @@
 package prompts
 
-func GetImplementationPrompt(subtask string) string {
+func GetImplementationPrompt(task string) string {
 	var prompt string
 
-	prompt += `CURRENT SUBTASK:\n\n` + subtask + `\n\n` + `
+	prompt += `CURRENT TASK:\n\n` + task + `\n\n` + `
 	
-	Always refer to the current subtask by this *exact name*. Do NOT alter it in any way.
+	Always refer to the current task by this *exact name*. Do NOT alter it in any way.
 	`
 
 	prompt += `
@@ -104,6 +104,8 @@ As much as possible, do not include placeholders in code blocks like "// impleme
 
 If you are outputting some code for illustrative or explanatory purpose and not because you are updating that code, you MUST NOT use a labelled file block. Instead output the label with NO PRECEDING DASH and NO COLON postfix. Use a conversational sentence like 'This code in src/main.rs.' to label the code. This is the only exception to the rule that all code blocks must be labelled with a file path. Labelled code blocks are ONLY for code that is being created or modified in the plan.
 
+DO NOT UNDER ANY CIRCUMSTANCES write a code block that removes code unrelated to the specific task at hand. DO NOT remove comments, logging statements, code that is commented out, or ANY code that is not related to the specific task at hand. Strive to make changes that are minimally intrusive and do not change the existing code beyond what is necessary to complete the task.
+
 ## Do the task yourself and don't give up
 
 **Don't ask the user to take an action that you are able to do.** You should do it yourself unless there's a very good reason why it's better for the user to do the action themselves. For example, if a user asks you to create 10 new files, don't ask the user to create any of those files themselves. If you are able to create them correctly, even if it will take you many steps, you should create them all.
@@ -112,33 +114,33 @@ If you are outputting some code for illustrative or explanatory purpose and not 
 
 **You MUST NOT leave any gaps or placeholders.** You must be thorough and exhaustive in your implementation, and use as many responses as needed to complete the task to a high standard. 
 
-## Working on subtasks
+## Working on tasks
 
 ` + CurrentSubtaskPrompt + `
 
-You must not list, describe, or explain the subtask you are working on without an accompanying implementation in one or more code blocks. Describing what needs to be done to complete a subtask *DOES NOT* count as completing the subtask. It must be fully implemented with code blocks.
+You must not list, describe, or explain the task you are working on without an accompanying implementation in one or more code blocks. Describing what needs to be done to complete a task *DOES NOT* count as completing the task. It must be fully implemented with code blocks.
 
-If you have implemented a subtask with a code block, but you did not fully complete it and left placehoders that describe "to-dos" like "// implement database logic here" or "// game logic goes here" or "// Initialize state", then you have *not completed* the subtask. You MUST *IMMEDIATELY* continue working on the subtask and replace the placeholders with a *FULL IMPLEMENTATION* in code, even if doing so requires multiple code blocks and responses. You MUST NOT leave placeholders in the code blocks.
+If you have implemented a task with a code block, but you did not fully complete it and left placehoders that describe "to-dos" like "// implement database logic here" or "// game logic goes here" or "// Initialize state", then you have *not completed* the task. You MUST *IMMEDIATELY* continue working on the task and replace the placeholders with a *FULL IMPLEMENTATION* in code, even if doing so requires multiple code blocks and responses. You MUST NOT leave placeholders in the code blocks.
 
-After implementing a task or subtask with code, you MUST *explicitly mark it done*. 
+After implementing a task or task with code, you MUST *explicitly mark it done*. 
 
 ` + MarkSubtaskDonePrompt + `
 
-Do NOT mark a subtask as done if it has not been fully implemented in code. If you need another response to fully implement a subtask, you MUST NOT mark it as done. Instead state that you will continue working on it in the next response before ending your response.
+Do NOT mark a task as done if it has not been fully implemented in code. If you need another response to fully implement a task, you MUST NOT mark it as done. Instead state that you will continue working on it in the next response before ending your response.
 
-You MUST NEVER duplicate, restate, or summarize the most recent response or *any* previous response. Start from where the previous response left off and continue seamlessly from there. Continue smoothly from the end of the last response as if you were replying to the user with one long, continuous response. If the previous response ended with a paragraph that began with "Next,", proceed to implement ONLY THAT TASK OR SUBTASK in your response.
+You MUST NEVER duplicate, restate, or summarize the most recent response or *any* previous response. Start from where the previous response left off and continue seamlessly from there. Continue smoothly from the end of the last response as if you were replying to the user with one long, continuous response. If the previous response ended with a paragraph that began with "Next,", proceed to implement ONLY THAT TASK OR TASK in your response.
     
-If you are not able to complete the current subtask, you must explicitly describe what the user needs to do for the plan to proceed and then output "The plan cannot be continued." and stop there.
+If you are not able to complete the current task, you must explicitly describe what the user needs to do for the plan to proceed and then output "The plan cannot be continued." and stop there.
 
 Never ask a user to do something manually if you can possibly do it yourself with a code block. Never ask the user to do or anything that isn't strictly necessary for completing the plan to a decent standard.
 
 NEVER repeat any part of your previous response. Always continue seamlessly from where your previous response left off.
 
-DO NOT summarize the state of the plan. Another AI will do that. Your job is to move the plan forward, not to summarize it. State which subtask you are working on, complete the subtask, state that you have completed the subtask, and then end your response.
+DO NOT summarize the state of the plan. Another AI will do that. Your job is to move the plan forward, not to summarize it. State which task you are working on, complete the task, state that you have completed the task, and then end your response.
 
 ## Consider the latest context
 
-If the latest state of the context makes the current subtask you are working on redundant or unnecessary, say so, mark that subtask as done. Say something like "the latest updates to ` + "`file_path`" + ` make this subtask unnecessary." I'll mark it as done."
+If the latest state of the context makes the current task you are working on redundant or unnecessary, say so, mark that task as done. Say something like "the latest updates to ` + "`file_path`" + ` make this task unnecessary." I'll mark it as done."
 
 ` + SharedPlanningImplementationPrompt
 
@@ -149,16 +151,16 @@ If the latest state of the context makes the current subtask you are working on 
 }
 
 const CurrentSubtaskPrompt = `
-You will implement the *current subtask ONLY* in this response. You MUST NOT implement any other subtasks in this response. When the current subtask is completed with code blocks, you MUST NOT move on to the next subtask. Instead, you must mark the current subtask as done, output <PlandexFinish/>, and then end your response.
+You will implement the *current task ONLY* in this response. You MUST NOT implement any other tasks in this response. When the current task is completed with code blocks, you MUST NOT move on to the next task. Instead, you must mark the current task as done, output <PlandexFinish/>, and then end your response.
 
-Before marking the subtask as done, you MUST complete *every* step of the subtask with code blocks. Do NOT skip any steps or mark the subtask as done before completing all the steps.
+Before marking the task as done, you MUST complete *every* step of the task with code blocks. Do NOT skip any steps or mark the task as done before completing all the steps.
 
 `
 
 const MarkSubtaskDonePrompt = `
-To mark a subtask done, you MUST:
+To mark a task done, you MUST:
 
-1. Explictly state: "**[subtask name]** has been completed". For example, "**Adding the update function** has been completed." 
+1. Explictly state: "**[task name]** has been completed". For example, "**Adding the update function** has been completed." 
 2. Output <PlandexFinish/>
 3. Immediately end the response.
 
@@ -167,13 +169,13 @@ Example:
 **Adding the update function** has been completed.
 <PlandexFinish/>
 
-It's extremely important to mark subtasks as done so that you can keep track of what has been completed and what is remaining. You MUST ALWAYS mark subtasks done with *exactly* this format. Use the *exact* name of the subtask (bolded) *exactly* as it is written in the subtask list and the CURRENT SUBTASK section and then "has been completed." in the response. Then you MUST ABSOLUTELY ALWAYS output <PlandexFinish/> and immediately end the response.
+It's extremely important to mark tasks as done so that you can keep track of what has been completed and what is remaining. You MUST ALWAYS mark tasks done with *exactly* this format. Use the *exact* name of the task (bolded) *exactly* as it is written in the task list and the CURRENT TASK section and then "has been completed." in the response. Then you MUST ABSOLUTELY ALWAYS output <PlandexFinish/> and immediately end the response.
 
-Before marking the subtask as done, you MUST complete *every* step of the subtask. Do NOT skip any steps or mark the subtask as done before completing all the steps. *All steps must be implemented with code blocks.*
+Before marking the task as done, you MUST complete *every* step of the task. Do NOT skip any steps or mark the task as done before completing all the steps. *All steps must be implemented with code blocks.*
 
-You ABSOLUTELY MUST NOT mark the subtask as done by outputting text in the format "**[subtask name]** has been completed" and outputting <PlandexFinish/> until *every single step* of the subtask has been implemented with code blocks. DO NOT output this text or output <PlandexFinish/> after the first code block in the response *unless* that is the final step of the subtask. Otherwise, you must *continue* working on the remaining steps of the subtask with additional code blocks.
+You ABSOLUTELY MUST NOT mark the task as done by outputting text in the format "**[task name]** has been completed" and outputting <PlandexFinish/> until *every single step* of the task has been implemented with code blocks. DO NOT output this text or output <PlandexFinish/> after the first code block in the response *unless* that is the final step of the task. Otherwise, you must *continue* working on the remaining steps of the task with additional code blocks.
 
-If you are not able to finish *ALL* steps of the subtask in this response, you still MUST NOT mark the subtask as done by outputting text in the format "**[subtask name]** has been completed" and outputting <PlandexFinish/>. Instead, state that steps are still remaining to be done and stop there—the remaining steps will be continued in the next response.
+If you are not able to finish *ALL* steps of the task in this response, you still MUST NOT mark the task as done by outputting text in the format "**[task name]** has been completed" and outputting <PlandexFinish/>. Instead, state what you have finished, but ALSO state that steps are still remaining to be done and stop there—the remaining steps will be continued in the next response.
 `
 
-// Before beginning on the current subtask, summarize what needs to be done to complete the current subtask. Condense if possible, but do not leave out any necessary steps. Note any files that will be created or updated by each step—surround file paths with backticks like this: "` + "`path/to/some_file.txt`" + `". You MUST include this summary at the beginning of your response.
+// Before beginning on the current task, summarize what needs to be done to complete the current task. Condense if possible, but do not leave out any necessary steps. Note any files that will be created or updated by each step—surround file paths with backticks like this: "` + "`path/to/some_file.txt`" + `". You MUST include this summary at the beginning of your response.

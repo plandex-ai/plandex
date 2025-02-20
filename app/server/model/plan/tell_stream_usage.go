@@ -34,6 +34,13 @@ func (state *activeTellStreamState) handleUsageChunk(usage *openai.Usage) {
 				PlanId:         plan.Id,
 				ModelStreamId:  state.activePlan.ModelStreamId,
 				ConvoMessageId: state.replyId,
+
+				RequestStartedAt: state.requestStartedAt,
+				Streaming:        true,
+				FirstTokenAt:     state.firstTokenAt,
+				Req:              state.originalReq,
+				StreamResult:     state.activePlan.CurrentReplyContent,
+				ModelConfig:      state.modelConfig,
 			},
 		})
 
@@ -79,6 +86,13 @@ func (state *activeTellStreamState) execHookOnStop(sendStreamErr bool) {
 				UserCancelled:   !sendStreamErr,
 				HadError:        sendStreamErr,
 				NoReportedUsage: true,
+
+				RequestStartedAt: state.requestStartedAt,
+				Streaming:        true,
+				FirstTokenAt:     state.firstTokenAt,
+				Req:              state.originalReq,
+				StreamResult:     state.activePlan.CurrentReplyContent,
+				ModelConfig:      state.modelConfig,
 			},
 		})
 

@@ -822,7 +822,7 @@ CRITICAL: The script must handle both program execution and security carefully:
    - Apply the same principle to other commands. Be minimal and selective when choosing which commands to run.
 `
 
-var NoApplyScriptPrompt = `
+var NoApplyScriptPlanningPrompt = `
 
 ## No execution of commands
 
@@ -835,7 +835,7 @@ When breaking up a task into subtasks, only include subtasks that you can do you
 For tasks that you ARE able to complete because they only require creating or updating files, complete them thoroughly yourself and don't ask the user to do any part of them.
 `
 
-const DebugPrompt = `You are debugging a failing shell command. Focus only on fixing this issue so that the command runs successfully; don't make other changes.
+const UserPlanningDebugPrompt = `You are debugging a failing shell command. Focus only on fixing this issue so that the command runs successfully; don't make other changes.
 
 Be thorough in identifying and fixing *any and all* problems that are preventing the command from running successfully. If there are multiple problems, identify and fix all of them.
 
@@ -844,7 +844,7 @@ The command will be run again *automatically* on the user's machine once the cha
 Command details:
 `
 
-const ApplyDebugPrompt = `The _apply.sh script failed and you must debug. Focus only on fixing this issue so that the command runs successfully; don't make other changes.
+const ApplyPlanningDebugPrompt = `The _apply.sh script failed and you must debug. Focus only on fixing this issue so that the command runs successfully; don't make other changes.
 
 Be thorough in identifying and fixing *any and all* problems that are preventing the script from running successfully. If there are multiple problems, identify and fix all of them.
 

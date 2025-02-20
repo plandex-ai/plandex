@@ -10,13 +10,11 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
-func (state *activeTellStreamState) handleMissingFileResponse(applyScriptSummary string) bool {
+func (state *activeTellStreamState) handleMissingFileResponse(unfinishedSubtaskReasoning string) bool {
 	missingFileResponse := state.missingFileResponse
 	planId := state.plan.Id
 	branch := state.branch
 	req := state.req
-	isFollowUp := state.isFollowUp
-	isPlanningStage := state.isPlanningStage
 
 	active := GetActivePlan(planId, branch)
 
@@ -60,9 +58,14 @@ func (state *activeTellStreamState) handleMissingFileResponse(applyScriptSummary
 		}
 	}
 
-	state.messages = append(state.messages, openai.ChatCompletionMessage{
-		Role:    openai.ChatMessageRoleAssistant,
-		Content: active.CurrentReplyContent,
+	state.messages = append(state.messages, types.ExtendedChatMessage{
+		Role: openai.ChatMessageRoleAssistant,
+		Content: []types.ExtendedChatMessagePart{
+			{
+				Type: openai.ChatMessagePartTypeText,
+				Text: active.CurrentReplyContent,
+			},
+		},
 	})
 
 	if missingFileResponse == shared.RespondMissingFileChoiceSkip {
@@ -71,21 +74,27 @@ func (state *activeTellStreamState) handleMissingFileResponse(applyScriptSummary
 
 		params := prompts.UserPromptParams{
 			CreatePromptParams: prompts.CreatePromptParams{
-				ExecMode:    req.ExecEnabled,
-				AutoContext: req.AutoContext,
+				ExecMode:     req.ExecEnabled,
+				AutoContext:  req.AutoContext,
+				IsUserDebug:  req.IsUserDebug,
+				IsApplyDebug: req.IsApplyDebug,
 			},
-			Prompt:             skipPrompt,
-			OsDetails:          req.OsDetails,
-			IsPlanningStage:    isPlanningStage,
-			IsFollowUp:         isFollowUp,
-			ApplyScriptSummary: applyScriptSummary,
+			Prompt:                     skipPrompt,
+			OsDetails:                  req.OsDetails,
+			CurrentStage:               state.currentStage,
+			UnfinishedSubtaskReasoning: unfinishedSubtaskReasoning,
 		}
 
 		prompt := prompts.GetWrappedPrompt(params) + "\n\n" + skipPrompt // repetition of skip prompt to improve instruction following
 
-		state.messages = append(state.messages, openai.ChatCompletionMessage{
-			Role:    openai.ChatMessageRoleUser,
-			Content: prompt,
+		state.messages = append(state.messages, types.ExtendedChatMessage{
+			Role: openai.ChatMessageRoleUser,
+			Content: []types.ExtendedChatMessagePart{
+				{
+					Type: openai.ChatMessagePartTypeText,
+					Text: prompt,
+				},
+			},
 		})
 
 	} else {
@@ -93,21 +102,27 @@ func (state *activeTellStreamState) handleMissingFileResponse(applyScriptSummary
 
 		params := prompts.UserPromptParams{
 			CreatePromptParams: prompts.CreatePromptParams{
-				ExecMode:    req.ExecEnabled,
-				AutoContext: req.AutoContext,
+				ExecMode:     req.ExecEnabled,
+				AutoContext:  req.AutoContext,
+				IsUserDebug:  req.IsUserDebug,
+				IsApplyDebug: req.IsApplyDebug,
 			},
-			Prompt:             missingPrompt,
-			OsDetails:          req.OsDetails,
-			IsPlanningStage:    isPlanningStage,
-			IsFollowUp:         isFollowUp,
-			ApplyScriptSummary: applyScriptSummary,
+			Prompt:                     missingPrompt,
+			OsDetails:                  req.OsDetails,
+			CurrentStage:               state.currentStage,
+			UnfinishedSubtaskReasoning: unfinishedSubtaskReasoning,
 		}
 
 		prompt := prompts.GetWrappedPrompt(params) + "\n\n" + missingPrompt // repetition of missing prompt to improve instruction following
 
-		state.messages = append(state.messages, openai.ChatCompletionMessage{
-			Role:    openai.ChatMessageRoleUser,
-			Content: prompt,
+		state.messages = append(state.messages, types.ExtendedChatMessage{
+			Role: openai.ChatMessageRoleUser,
+			Content: []types.ExtendedChatMessagePart{
+				{
+					Type: openai.ChatMessagePartTypeText,
+					Text: prompt,
+				},
+			},
 		})
 	}
 

@@ -4,6 +4,7 @@ import (
 	"plandex-server/db"
 	"plandex-server/model"
 	"plandex-server/types"
+	"time"
 
 	shared "plandex-shared"
 
@@ -38,24 +39,21 @@ type activeTellStreamState struct {
 	promptMessage         *openai.ChatCompletionMessage
 	replyParser           *types.ReplyParser
 	replyNumTokens        int
-	messages              []openai.ChatCompletionMessage
+	messages              []types.ExtendedChatMessage
 	tokensBeforeConvo     int
 	totalRequestTokens    int
 	settings              *shared.PlanSettings
 	subtasks              []*db.Subtask
 	currentSubtask        *db.Subtask
 	hasAssistantReply     bool
+	currentStage          shared.CurrentStage
+	chunkProcessor        *chunkProcessor
+	generationId          string
 
-	isContextStage        bool
-	isPlanningStage       bool
-	isImplementationStage bool
-
-	isFollowUp              bool
-	willLoadFollowUpContext bool
-
-	chunkProcessor *chunkProcessor
-
-	generationId string
+	requestStartedAt time.Time
+	firstTokenAt     time.Time
+	originalReq      *types.ExtendedChatCompletionRequest
+	modelConfig      *shared.ModelRoleConfig
 }
 
 type chunkProcessor struct {
