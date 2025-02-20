@@ -9,6 +9,7 @@ import (
 	"plandex-server/hooks"
 	"plandex-server/model/prompts"
 	"plandex-server/types"
+	"time"
 
 	shared "plandex-shared"
 
@@ -26,14 +27,19 @@ func GenPlanName(
 	config := settings.ModelPack.Namer
 	content := prompts.GetPlanNamePrompt(planContent)
 
-	messages := []openai.ChatCompletionMessage{
+	messages := []types.ExtendedChatMessage{
 		{
-			Role:    openai.ChatMessageRoleSystem,
-			Content: content,
+			Role: openai.ChatMessageRoleSystem,
+			Content: []types.ExtendedChatMessagePart{
+				{
+					Type: openai.ChatMessagePartTypeText,
+					Text: content,
+				},
+			},
 		},
 	}
 
-	numTokens := shared.GetMessagesTokenEstimate(messages...) + shared.TokensPerRequest
+	numTokens := GetMessagesTokenEstimate(messages...) + TokensPerRequest
 
 	_, apiErr := hooks.ExecHook(hooks.WillSendModelRequest, hooks.HookParams{
 		Auth: auth,
@@ -48,28 +54,31 @@ func GenPlanName(
 		return "", fmt.Errorf("error executing hook: %v", apiErr)
 	}
 
+	req := types.ExtendedChatCompletionRequest{
+		Model: config.BaseModelConfig.ModelName,
+		Tools: []openai.Tool{
+			{
+				Type:     "function",
+				Function: &prompts.PlanNameFn,
+			},
+		},
+		ToolChoice: openai.ToolChoice{
+			Type: "function",
+			Function: openai.ToolFunction{
+				Name: prompts.PlanNameFn.Name,
+			},
+		},
+		Temperature: config.Temperature,
+		TopP:        config.TopP,
+		Messages:    messages,
+	}
+	reqStarted := time.Now()
+
 	resp, err := CreateChatCompletionWithRetries(
 		clients,
 		&config,
 		ctx,
-		openai.ChatCompletionRequest{
-			Model: config.BaseModelConfig.ModelName,
-			Tools: []openai.Tool{
-				{
-					Type:     "function",
-					Function: &prompts.PlanNameFn,
-				},
-			},
-			ToolChoice: openai.ToolChoice{
-				Type: "function",
-				Function: openai.ToolFunction{
-					Name: prompts.PlanNameFn.Name,
-				},
-			},
-			Temperature: config.Temperature,
-			TopP:        config.TopP,
-			Messages:    messages,
-		},
+		req,
 	)
 
 	var res string
@@ -113,6 +122,12 @@ func GenPlanName(
 				Purpose:       "Generated plan name",
 				GenerationId:  resp.ID,
 				PlanId:        plan.Id,
+
+				RequestStartedAt: reqStarted,
+				Streaming:        false,
+				Req:              &req,
+				Res:              &resp,
+				ModelConfig:      &config,
 			},
 		})
 
@@ -150,14 +165,19 @@ func GenPipedDataName(
 
 	content := prompts.GetPipedDataNamePrompt(pipedContent)
 
-	messages := []openai.ChatCompletionMessage{
+	messages := []types.ExtendedChatMessage{
 		{
-			Role:    openai.ChatMessageRoleSystem,
-			Content: content,
+			Role: openai.ChatMessageRoleSystem,
+			Content: []types.ExtendedChatMessagePart{
+				{
+					Type: openai.ChatMessagePartTypeText,
+					Text: content,
+				},
+			},
 		},
 	}
 
-	numTokens := shared.GetMessagesTokenEstimate(messages...) + shared.TokensPerRequest
+	numTokens := GetMessagesTokenEstimate(messages...) + TokensPerRequest
 
 	_, apiErr := hooks.ExecHook(hooks.WillSendModelRequest, hooks.HookParams{
 		Auth: auth,
@@ -180,28 +200,31 @@ func GenPipedDataName(
 	// log.Printf("messages: %v\n", messages)
 	// log.Println(spew.Sdump(messages))
 
+	reqStarted := time.Now()
+	req := types.ExtendedChatCompletionRequest{
+		Model: config.BaseModelConfig.ModelName,
+		Tools: []openai.Tool{
+			{
+				Type:     "function",
+				Function: &prompts.PipedDataNameFn,
+			},
+		},
+		ToolChoice: openai.ToolChoice{
+			Type: "function",
+			Function: openai.ToolFunction{
+				Name: prompts.PipedDataNameFn.Name,
+			},
+		},
+		Temperature: config.Temperature,
+		TopP:        config.TopP,
+		Messages:    messages,
+	}
+
 	resp, err := CreateChatCompletionWithRetries(
 		clients,
 		&config,
 		ctx,
-		openai.ChatCompletionRequest{
-			Model: config.BaseModelConfig.ModelName,
-			Tools: []openai.Tool{
-				{
-					Type:     "function",
-					Function: &prompts.PipedDataNameFn,
-				},
-			},
-			ToolChoice: openai.ToolChoice{
-				Type: "function",
-				Function: openai.ToolFunction{
-					Name: prompts.PipedDataNameFn.Name,
-				},
-			},
-			Temperature: config.Temperature,
-			TopP:        config.TopP,
-			Messages:    messages,
-		},
+		req,
 	)
 
 	var res string
@@ -245,6 +268,12 @@ func GenPipedDataName(
 				Purpose:       "Generated name for data piped into context",
 				GenerationId:  resp.ID,
 				PlanId:        plan.Id,
+
+				RequestStartedAt: reqStarted,
+				Streaming:        false,
+				Req:              &req,
+				Res:              &resp,
+				ModelConfig:      &config,
 			},
 		})
 
@@ -282,14 +311,19 @@ func GenNoteName(
 
 	content := prompts.GetNoteNamePrompt(note)
 
-	messages := []openai.ChatCompletionMessage{
+	messages := []types.ExtendedChatMessage{
 		{
-			Role:    openai.ChatMessageRoleSystem,
-			Content: content,
+			Role: openai.ChatMessageRoleSystem,
+			Content: []types.ExtendedChatMessagePart{
+				{
+					Type: openai.ChatMessagePartTypeText,
+					Text: content,
+				},
+			},
 		},
 	}
 
-	numTokens := shared.GetMessagesTokenEstimate(messages...) + shared.TokensPerRequest
+	numTokens := GetMessagesTokenEstimate(messages...) + TokensPerRequest
 
 	_, apiErr := hooks.ExecHook(hooks.WillSendModelRequest, hooks.HookParams{
 		Auth: auth,
@@ -312,28 +346,31 @@ func GenNoteName(
 	// log.Printf("messages: %v\n", messages)
 	// log.Println(spew.Sdump(messages))
 
+	reqStarted := time.Now()
+	req := types.ExtendedChatCompletionRequest{
+		Model: config.BaseModelConfig.ModelName,
+		Tools: []openai.Tool{
+			{
+				Type:     "function",
+				Function: &prompts.NoteNameFn,
+			},
+		},
+		ToolChoice: openai.ToolChoice{
+			Type: "function",
+			Function: openai.ToolFunction{
+				Name: prompts.NoteNameFn.Name,
+			},
+		},
+		Temperature: config.Temperature,
+		TopP:        config.TopP,
+		Messages:    messages,
+	}
+
 	resp, err := CreateChatCompletionWithRetries(
 		clients,
 		&config,
 		ctx,
-		openai.ChatCompletionRequest{
-			Model: config.BaseModelConfig.ModelName,
-			Tools: []openai.Tool{
-				{
-					Type:     "function",
-					Function: &prompts.NoteNameFn,
-				},
-			},
-			ToolChoice: openai.ToolChoice{
-				Type: "function",
-				Function: openai.ToolFunction{
-					Name: prompts.NoteNameFn.Name,
-				},
-			},
-			Temperature: config.Temperature,
-			TopP:        config.TopP,
-			Messages:    messages,
-		},
+		req,
 	)
 
 	var res string
@@ -377,6 +414,12 @@ func GenNoteName(
 				Purpose:       "Generated name for note added to context",
 				GenerationId:  resp.ID,
 				PlanId:        plan.Id,
+
+				RequestStartedAt: reqStarted,
+				Streaming:        false,
+				Req:              &req,
+				Res:              &resp,
+				ModelConfig:      &config,
 			},
 		})
 

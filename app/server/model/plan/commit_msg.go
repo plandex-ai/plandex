@@ -12,6 +12,7 @@ import (
 	"plandex-server/model"
 	"plandex-server/model/prompts"
 	"plandex-server/types"
+	"time"
 
 	shared "plandex-shared"
 
@@ -37,18 +38,28 @@ func (state *activeTellStreamState) genPlanDescription() (*db.ConvoMessageDescri
 		}
 	}
 
-	messages := []openai.ChatCompletionMessage{
+	messages := []types.ExtendedChatMessage{
 		{
-			Role:    openai.ChatMessageRoleSystem,
-			Content: prompts.SysDescribe,
+			Role: openai.ChatMessageRoleSystem,
+			Content: []types.ExtendedChatMessagePart{
+				{
+					Type: openai.ChatMessagePartTypeText,
+					Text: prompts.SysDescribe,
+				},
+			},
 		},
 		{
-			Role:    openai.ChatMessageRoleAssistant,
-			Content: activePlan.CurrentReplyContent,
+			Role: openai.ChatMessageRoleAssistant,
+			Content: []types.ExtendedChatMessagePart{
+				{
+					Type: openai.ChatMessagePartTypeText,
+					Text: activePlan.CurrentReplyContent,
+				},
+			},
 		},
 	}
 
-	numTokens := shared.GetMessagesTokenEstimate(messages...) + shared.TokensPerRequest
+	numTokens := model.GetMessagesTokenEstimate(messages...) + model.TokensPerRequest
 
 	_, apiErr := hooks.ExecHook(hooks.WillSendModelRequest, hooks.HookParams{
 		Auth: auth,
@@ -65,28 +76,31 @@ func (state *activeTellStreamState) genPlanDescription() (*db.ConvoMessageDescri
 
 	log.Println("Sending plan description model request")
 
+	reqStarted := time.Now()
+	req := types.ExtendedChatCompletionRequest{
+		Model: config.BaseModelConfig.ModelName,
+		Tools: []openai.Tool{
+			{
+				Type:     "function",
+				Function: &prompts.DescribePlanFn,
+			},
+		},
+		ToolChoice: openai.ToolChoice{
+			Type: "function",
+			Function: openai.ToolFunction{
+				Name: prompts.DescribePlanFn.Name,
+			},
+		},
+		Messages:    messages,
+		Temperature: config.Temperature,
+		TopP:        config.TopP,
+	}
+
 	descResp, err := model.CreateChatCompletionWithRetries(
 		clients,
 		&config,
 		activePlan.Ctx,
-		openai.ChatCompletionRequest{
-			Model: config.BaseModelConfig.ModelName,
-			Tools: []openai.Tool{
-				{
-					Type:     "function",
-					Function: &prompts.DescribePlanFn,
-				},
-			},
-			ToolChoice: openai.ToolChoice{
-				Type: "function",
-				Function: openai.ToolFunction{
-					Name: prompts.DescribePlanFn.Name,
-				},
-			},
-			Messages:    messages,
-			Temperature: config.Temperature,
-			TopP:        config.TopP,
-		},
+		req,
 	)
 
 	if err != nil {
@@ -140,6 +154,12 @@ func (state *activeTellStreamState) genPlanDescription() (*db.ConvoMessageDescri
 				PlanId:         planId,
 				ModelStreamId:  activePlan.ModelStreamId,
 				ConvoMessageId: state.replyId,
+
+				RequestStartedAt: reqStarted,
+				Streaming:        false,
+				Req:              &req,
+				Res:              &descResp,
+				ModelConfig:      &config,
 			},
 		})
 
@@ -197,18 +217,28 @@ func GenCommitMsgForPendingResults(auth *types.ServerAuth, plan *db.Plan, client
 
 	content := "Pending changes:\n\n" + s
 
-	messages := []openai.ChatCompletionMessage{
+	messages := []types.ExtendedChatMessage{
 		{
-			Role:    openai.ChatMessageRoleSystem,
-			Content: prompts.SysPendingResults,
+			Role: openai.ChatMessageRoleSystem,
+			Content: []types.ExtendedChatMessagePart{
+				{
+					Type: openai.ChatMessagePartTypeText,
+					Text: prompts.SysPendingResults,
+				},
+			},
 		},
 		{
-			Role:    openai.ChatMessageRoleUser,
-			Content: content,
+			Role: openai.ChatMessageRoleUser,
+			Content: []types.ExtendedChatMessagePart{
+				{
+					Type: openai.ChatMessagePartTypeText,
+					Text: content,
+				},
+			},
 		},
 	}
 
-	numTokens := shared.GetMessagesTokenEstimate(messages...) + shared.TokensPerRequest
+	numTokens := model.GetMessagesTokenEstimate(messages...) + model.TokensPerRequest
 
 	_, apiErr := hooks.ExecHook(hooks.WillSendModelRequest, hooks.HookParams{
 		Auth: auth,
@@ -223,16 +253,19 @@ func GenCommitMsgForPendingResults(auth *types.ServerAuth, plan *db.Plan, client
 		return "", errors.New(apiErr.Msg)
 	}
 
+	reqStarted := time.Now()
+	req := types.ExtendedChatCompletionRequest{
+		Model:       config.BaseModelConfig.ModelName,
+		Messages:    messages,
+		Temperature: config.Temperature,
+		TopP:        config.TopP,
+	}
+
 	resp, err := model.CreateChatCompletionWithRetries(
 		clients,
 		&config,
 		ctx,
-		openai.ChatCompletionRequest{
-			Model:       config.BaseModelConfig.ModelName,
-			Messages:    messages,
-			Temperature: config.Temperature,
-			TopP:        config.TopP,
-		},
+		req,
 	)
 
 	if err != nil {
@@ -269,6 +302,12 @@ func GenCommitMsgForPendingResults(auth *types.ServerAuth, plan *db.Plan, client
 			ModelRole:     shared.ModelRoleCommitMsg,
 			Purpose:       "Generated commit message for pending changes",
 			GenerationId:  resp.ID,
+
+			RequestStartedAt: reqStarted,
+			Streaming:        false,
+			Req:              &req,
+			Res:              &resp,
+			ModelConfig:      &config,
 		},
 	})
 

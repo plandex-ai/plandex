@@ -22,7 +22,7 @@ type PlanSummaryParams struct {
 	Plan                        *db.Plan
 	ActivePlan                  *types.ActivePlan
 	ModelPackName               string
-	Conversation                []*openai.ChatCompletionMessage
+	Conversation                []*types.ExtendedChatMessage
 	ConversationNumTokens       int
 	LatestConvoMessageId        string
 	LatestConvoMessageCreatedAt time.Time
@@ -30,10 +30,15 @@ type PlanSummaryParams struct {
 }
 
 func PlanSummary(clients map[string]ClientInfo, config shared.ModelRoleConfig, params PlanSummaryParams, ctx context.Context) (*db.ConvoSummary, *shared.ApiError) {
-	messages := []openai.ChatCompletionMessage{
+	messages := []types.ExtendedChatMessage{
 		{
-			Role:    openai.ChatMessageRoleSystem,
-			Content: prompts.Identity,
+			Role: openai.ChatMessageRoleSystem,
+			Content: []types.ExtendedChatMessagePart{
+				{
+					Type: openai.ChatMessagePartTypeText,
+					Text: prompts.Identity,
+				},
+			},
 		},
 	}
 
@@ -41,12 +46,17 @@ func PlanSummary(clients map[string]ClientInfo, config shared.ModelRoleConfig, p
 		messages = append(messages, *message)
 	}
 
-	messages = append(messages, openai.ChatCompletionMessage{
-		Role:    openai.ChatMessageRoleUser,
-		Content: prompts.PlanSummary,
+	messages = append(messages, types.ExtendedChatMessage{
+		Role: openai.ChatMessageRoleUser,
+		Content: []types.ExtendedChatMessagePart{
+			{
+				Type: openai.ChatMessagePartTypeText,
+				Text: prompts.PlanSummary,
+			},
+		},
 	})
 
-	numTokens := shared.GetMessagesTokenEstimate(messages...) + shared.TokensPerRequest
+	numTokens := GetMessagesTokenEstimate(messages...) + TokensPerRequest
 
 	_, apiErr := hooks.ExecHook(hooks.WillSendModelRequest, hooks.HookParams{
 		Auth: params.Auth,
@@ -64,16 +74,19 @@ func PlanSummary(clients map[string]ClientInfo, config shared.ModelRoleConfig, p
 	fmt.Println("summarizing messages:")
 	// spew.Dump(messages)
 
+	reqStarted := time.Now()
+	req := types.ExtendedChatCompletionRequest{
+		Model:       config.BaseModelConfig.ModelName,
+		Messages:    messages,
+		Temperature: config.Temperature,
+		TopP:        config.TopP,
+	}
+
 	resp, err := CreateChatCompletionWithRetries(
 		clients,
 		&config,
 		ctx,
-		openai.ChatCompletionRequest{
-			Model:       config.BaseModelConfig.ModelName,
-			Messages:    messages,
-			Temperature: config.Temperature,
-			TopP:        config.TopP,
-		},
+		req,
 	)
 
 	if err != nil {
@@ -123,6 +136,12 @@ func PlanSummary(clients map[string]ClientInfo, config shared.ModelRoleConfig, p
 				ModelStreamId:  params.ActivePlan.ModelStreamId,
 				ConvoMessageId: params.LatestConvoMessageId,
 				BuildId:        params.Plan.Id,
+
+				RequestStartedAt: reqStarted,
+				Streaming:        false,
+				Req:              &req,
+				Res:              &resp,
+				ModelConfig:      &config,
 			},
 		})
 

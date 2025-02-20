@@ -3,10 +3,12 @@ package hooks
 import (
 	"plandex-server/db"
 	"plandex-server/types"
+	"time"
 
 	shared "plandex-shared"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/sashabaranov/go-openai"
 )
 
 const (
@@ -18,11 +20,11 @@ const (
 	WillExecPlan         = "will_exec_plan"
 	WillSendModelRequest = "will_send_model_request"
 	DidSendModelRequest  = "did_send_model_request"
-
-	CreateOrg           = "create_org"
-	Authenticate        = "authenticate"
-	GetIntegratedModels = "get_integrated_models"
-	GetApiOrgs          = "get_api_orgs"
+	DidFinishBuilderRun  = "did_finish_builder_run"
+	CreateOrg            = "create_org"
+	Authenticate         = "authenticate"
+	GetIntegratedModels  = "get_integrated_models"
+	GetApiOrgs           = "get_api_orgs"
 )
 
 type WillSendModelRequestParams struct {
@@ -48,6 +50,62 @@ type DidSendModelRequestParams struct {
 	UserCancelled   bool
 	HadError        bool
 	NoReportedUsage bool
+
+	RequestStartedAt time.Time
+	Streaming        bool
+	StreamResult     string
+	FirstTokenAt     time.Time
+	Req              *types.ExtendedChatCompletionRequest
+	Res              *openai.ChatCompletionResponse
+	ModelConfig      *shared.ModelRoleConfig
+}
+
+type DidFinishBuilderRunParams struct {
+	PlanId        string
+	FilePath      string
+	FileExt       string
+	Lang          string
+	GenerationIds []string
+
+	ValidateModelConfig  *shared.ModelRoleConfig
+	FastApplyModelConfig *shared.ModelRoleConfig
+	WholeFileModelConfig *shared.ModelRoleConfig
+
+	AutoApplySuccess                   bool
+	AutoApplyValidationReasons         []string
+	AutoApplyValidationSyntaxErrors    []string
+	AutoApplyValidationPassed          bool
+	AutoApplyValidationFailureResponse string
+	AutoApplyValidationStartedAt       time.Time
+	AutoApplyValidationFinishedAt      time.Time
+
+	DidReplacement             bool
+	ReplacementSuccess         bool
+	ReplacementSyntaxErrors    []string
+	ReplacementFailureResponse string
+	ReplacementStartedAt       time.Time
+	ReplacementFinishedAt      time.Time
+
+	DidRewriteProposed             bool
+	RewriteProposedSuccess         bool
+	RewriteProposedSyntaxErrors    []string
+	RewriteProposedFailureResponse string
+	RewriteProposedStartedAt       time.Time
+	RewriteProposedFinishedAt      time.Time
+
+	DidFastApply             bool
+	FastApplySuccess         bool
+	FastApplySyntaxErrors    []string
+	FastApplyFailureResponse string
+	FastApplyStartedAt       time.Time
+	FastApplyFinishedAt      time.Time
+
+	BuiltWholeFile           bool
+	BuildWholeFileStartedAt  time.Time
+	BuildWholeFileFinishedAt time.Time
+
+	StartedAt  time.Time
+	FinishedAt time.Time
 }
 
 type CreateOrgHookRequestParams struct {
@@ -68,6 +126,7 @@ type HookParams struct {
 	CreateOrgHookRequestParams    *CreateOrgHookRequestParams
 	GetApiOrgIds                  []string
 	AuthenticateHookRequestParams *AuthenticateHookRequestParams
+	DidFinishBuilderRunParams     *DidFinishBuilderRunParams
 }
 
 type GetIntegratedModelsResult struct {
