@@ -1,4 +1,4 @@
-I want to update a number of LLM calls to potentially use XML instead of JSON-based tool calls based on their configuration in `AvailableModels` in `shared/ai_models.go`.
+dI want to update a number of LLM calls to potentially use XML instead of JSON-based tool calls based on their configuration in `AvailableModels` in `shared/ai_models.go`.
 
 Here are the calls I want to update:
 
