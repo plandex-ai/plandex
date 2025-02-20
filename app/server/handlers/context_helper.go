@@ -13,15 +13,29 @@ import (
 	shared "plandex-shared"
 )
 
+type loadContextsParams struct {
+	w                http.ResponseWriter
+	r                *http.Request
+	auth             *types.ServerAuth
+	loadReq          *shared.LoadContextRequest
+	plan             *db.Plan
+	branchName       string
+	cachedMapsByPath map[string]*db.CachedMap
+	autoLoaded       bool
+}
+
 func loadContexts(
-	w http.ResponseWriter,
-	r *http.Request,
-	auth *types.ServerAuth,
-	loadReq *shared.LoadContextRequest,
-	plan *db.Plan,
-	branchName string,
-	cachedMapsByPath map[string]*db.CachedMap,
+	params loadContextsParams,
 ) (*shared.LoadContextResponse, []*db.Context) {
+	w := params.w
+	r := params.r
+	auth := params.auth
+	loadReq := params.loadReq
+	plan := params.plan
+	branchName := params.branchName
+	cachedMapsByPath := params.cachedMapsByPath
+	autoLoaded := params.autoLoaded
+
 	// check file count and size limits
 	totalFiles := 0
 	for _, context := range *loadReq {
@@ -144,6 +158,7 @@ func loadContexts(
 		Req:              loadReq,
 		UserId:           auth.User.Id,
 		CachedMapsByPath: cachedMapsByPath,
+		AutoLoaded:       autoLoaded,
 	})
 
 	if err != nil {

@@ -325,14 +325,22 @@ func RespondMissingFileHandler(w http.ResponseWriter, r *http.Request) {
 
 	if requestBody.Choice == shared.RespondMissingFileChoiceLoad {
 		log.Println("loading missing file")
-		res, dbContexts := loadContexts(w, r, auth, &shared.LoadContextRequest{
-			&shared.LoadContextParams{
-				ContextType: shared.ContextFileType,
-				Name:        requestBody.FilePath,
-				FilePath:    requestBody.FilePath,
-				Body:        requestBody.Body,
+		res, dbContexts := loadContexts(loadContextsParams{
+			w:    w,
+			r:    r,
+			auth: auth,
+			loadReq: &shared.LoadContextRequest{
+				&shared.LoadContextParams{
+					ContextType: shared.ContextFileType,
+					Name:        requestBody.FilePath,
+					FilePath:    requestBody.FilePath,
+					Body:        requestBody.Body,
+				},
 			},
-		}, plan, branch, nil)
+			plan:       plan,
+			branchName: branch,
+			autoLoaded: true,
+		})
 		if res == nil {
 			return
 		}
@@ -408,7 +416,15 @@ func AutoLoadContextHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Println("AutoLoadContextHandler - loading contexts")
-	res, dbContexts := loadContexts(w, r, auth, &requestBody, plan, branch, nil)
+	res, dbContexts := loadContexts(loadContextsParams{
+		w:          w,
+		r:          r,
+		auth:       auth,
+		loadReq:    &requestBody,
+		plan:       plan,
+		branchName: branch,
+		autoLoaded: true,
+	})
 
 	if res == nil {
 		return

@@ -110,23 +110,41 @@ type Context struct {
 	MapParts        FileMapBodies         `json:"mapParts,omitempty"`
 	MapShas         map[string]string     `json:"mapShas,omitempty"`
 	MapTokens       map[string]int        `json:"mapTokens,omitempty"`
+	AutoLoaded      bool                  `json:"autoLoaded"`
 	CreatedAt       time.Time             `json:"createdAt"`
 	UpdatedAt       time.Time             `json:"updatedAt"`
 }
 
+type TellStage string
+
+const (
+	TellStagePlanning       TellStage = "planning"
+	TellStageImplementation TellStage = "implementation"
+)
+
+type PlanningPhase string
+
+const (
+	PlanningPhaseContext  PlanningPhase = "context"
+	PlanningPhasePlanning PlanningPhase = "planning"
+)
+
+type CurrentStage struct {
+	TellStage     TellStage
+	PlanningPhase PlanningPhase
+}
+
 type ConvoMessageFlags struct {
 	DidMakePlan           bool `json:"didMakePlan"`
+	DidRemoveTasks        bool `json:"didRemoveTasks"`
 	DidMakeDebuggingPlan  bool `json:"didMakeDebuggingPlan"`
 	DidLoadContext        bool `json:"didLoadContext"`
-	IsPlanningStage       bool `json:"isPlanningStage"`
-	IsContextStage        bool `json:"isContextStage"`
-	IsImplementationStage bool `json:"isImplementationStage"`
-	IsFollowUpReply       bool `json:"isFollowUpReply"`
+	CurrentStage          CurrentStage
 	IsChat                bool `json:"isChat"`
-	NeedsFollowUpContext  bool `json:"needsFollowUpContext"`
 	DidWriteCode          bool `json:"didWriteCode"`
 	DidCompleteTask       bool `json:"didCompleteTask"`
 	DidCompletePlan       bool `json:"didCompletePlan"`
+	HasUnfinishedSubtasks bool `json:"hasUnfinishedSubtasks"`
 }
 
 type Subtask struct {
@@ -137,17 +155,19 @@ type Subtask struct {
 }
 
 type ConvoMessage struct {
-	Id            string            `json:"id"`
-	UserId        string            `json:"userId"`
-	Role          string            `json:"role"`
-	Tokens        int               `json:"tokens"`
-	Num           int               `json:"num"`
-	Message       string            `json:"message"`
-	Stopped       bool              `json:"stopped"`
-	Flags         ConvoMessageFlags `json:"flags"`
-	Subtask       *Subtask          `json:"subtask,omitempty"`
-	AddedSubtasks []*Subtask        `json:"addedSubtasks,omitempty"`
-	CreatedAt     time.Time         `json:"createdAt"`
+	Id               string            `json:"id"`
+	UserId           string            `json:"userId"`
+	Role             string            `json:"role"`
+	Tokens           int               `json:"tokens"`
+	Num              int               `json:"num"`
+	Message          string            `json:"message"`
+	Stopped          bool              `json:"stopped"`
+	Flags            ConvoMessageFlags `json:"flags"`
+	Subtask          *Subtask          `json:"subtask,omitempty"`
+	AddedSubtasks    []*Subtask        `json:"addedSubtasks,omitempty"`
+	RemovedSubtasks  []string          `json:"removedSubtasks,omitempty"`
+	ActiveContextIds []string          `json:"activeContextIds"`
+	CreatedAt        time.Time         `json:"createdAt"`
 }
 
 type ConvoSummary struct {
@@ -260,7 +280,6 @@ type CurrentPlanFiles struct {
 }
 
 type PlanFileResultsByPath map[string][]*PlanFileResult
-
 type PlanResult struct {
 	SortedPaths        []string                  `json:"sortedPaths"`
 	FileResultsByPath  PlanFileResultsByPath     `json:"fileResultsByPath"`
@@ -268,10 +287,21 @@ type PlanResult struct {
 	ReplacementsByPath map[string][]*Replacement `json:"replacementsByPath"`
 }
 
+type PlanApply struct {
+	Id                         string    `json:"id"`
+	UserId                     string    `json:"userId"`
+	ConvoMessageIds            []string  `json:"convoMessageIds"`
+	ConvoMessageDescriptionIds []string  `json:"convoMessageDescriptionIds"`
+	PlanFileResultIds          []string  `json:"planFileResultIds"`
+	CommitMsg                  string    `json:"commitMsg"`
+	CreatedAt                  time.Time `json:"createdAt"`
+}
+
 type CurrentPlanState struct {
 	PlanResult               *PlanResult                `json:"planResult"`
 	CurrentPlanFiles         *CurrentPlanFiles          `json:"currentPlanFiles"`
 	ConvoMessageDescriptions []*ConvoMessageDescription `json:"convoMessageDescriptions"`
+	PlanApplies              []*PlanApply               `json:"planApplies"`
 	ContextsByPath           map[string]*Context        `json:"contextsByPath"`
 }
 

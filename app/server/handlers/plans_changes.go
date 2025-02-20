@@ -26,8 +26,10 @@ func CurrentPlanHandler(w http.ResponseWriter, r *http.Request) {
 
 	vars := mux.Vars(r)
 	planId := vars["planId"]
+	branch := vars["branch"]
+	sha := vars["sha"]
 
-	log.Println("planId: ", planId)
+	log.Println("planId: ", planId, "branch: ", branch, "sha: ", sha)
 
 	if authorizePlan(w, planId, auth) == nil {
 		return
@@ -39,12 +41,35 @@ func CurrentPlanHandler(w http.ResponseWriter, r *http.Request) {
 	var err error
 
 	ctx, cancel := context.WithCancel(r.Context())
-	unlockFn := LockRepo(w, r, auth, db.LockScopeRead, ctx, cancel, true)
+	scope := db.LockScopeRead
+	requireBranch := true
+	if sha != "" {
+		scope = db.LockScopeWrite
+		requireBranch = false
+	}
+	log.Printf("locking with scope: %s", scope)
+	unlockFn := LockRepo(w, r, auth, scope, ctx, cancel, requireBranch)
 	if unlockFn == nil {
 		return
 	} else {
 		defer func() {
 			(*unlockFn)(err)
+		}()
+	}
+
+	if sha != "" {
+		err = db.GitCheckoutSha(auth.OrgId, planId, sha)
+		if err != nil {
+			log.Printf("Error checking out sha: %v\n", err)
+			http.Error(w, "Error checking out sha: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		defer func() {
+			checkoutErr := db.GitCheckoutBranch(auth.OrgId, planId, branch)
+			if checkoutErr != nil {
+				log.Printf("Error checking out branch: %v\n", checkoutErr)
+			}
 		}()
 	}
 
@@ -83,7 +108,7 @@ func ApplyPlanHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	planId := vars["planId"]
 	branch := vars["branch"]
-	log.Println("planId: ", planId)
+	log.Println("planId: ", planId, "branch: ", branch)
 
 	plan := authorizePlan(w, planId, auth)
 	if plan == nil {
@@ -128,13 +153,22 @@ func ApplyPlanHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	currentPlan, err := db.ApplyPlan(ctx, auth.OrgId, auth.User.Id, branch, plan)
-
+	currentPlanParams, err := db.GetFullCurrentPlanStateParams(auth.OrgId, planId)
 	if err != nil {
-		log.Printf("Error applying plan: %v\n", err)
-		http.Error(w, "Error applying plan: "+err.Error(), http.StatusInternalServerError)
+		log.Printf("Error getting current plan state params: %v\n", err)
+		http.Error(w, "Error getting current plan state params: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	currentPlan, err := db.GetCurrentPlanState(currentPlanParams)
+
+	if err != nil {
+		log.Printf("Error getting current plan state: %v\n", err)
+		http.Error(w, "Error getting current plan state: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	log.Println("ApplyPlanHandler: Got current plan state:", currentPlan != nil)
 
 	clients := initClients(
 		initClientsParams{
@@ -147,7 +181,7 @@ func ApplyPlanHandler(w http.ResponseWriter, r *http.Request) {
 		},
 	)
 
-	s, err := modelPlan.GenCommitMsgForPendingResults(auth, plan, clients, settings, currentPlan, r.Context())
+	commitMsg, err := modelPlan.GenCommitMsgForPendingResults(auth, plan, clients, settings, currentPlan, r.Context())
 
 	if err != nil {
 		log.Printf("Error generating commit message: %v\n", err)
@@ -155,7 +189,23 @@ func ApplyPlanHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Write([]byte(s))
+	err = db.ApplyPlan(ctx, db.ApplyPlanParams{
+		OrgId:                  auth.OrgId,
+		UserId:                 auth.User.Id,
+		BranchName:             branch,
+		Plan:                   plan,
+		CurrentPlanState:       currentPlan,
+		CurrentPlanStateParams: &currentPlanParams,
+		CommitMsg:              commitMsg,
+	})
+
+	if err != nil {
+		log.Printf("Error applying plan: %v\n", err)
+		http.Error(w, "Error applying plan: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Write([]byte(commitMsg))
 
 	log.Println("Successfully applied plan", planId)
 }

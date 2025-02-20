@@ -166,7 +166,15 @@ func LoadCachedFileMapHandler(w http.ResponseWriter, r *http.Request) {
 			})
 		}
 
-		loadRes, _ = loadContexts(w, r, auth, &loadReq, plan, branchName, cachedMapsByPath)
+		loadRes, _ = loadContexts(loadContextsParams{
+			w:                w,
+			r:                r,
+			auth:             auth,
+			loadReq:          &loadReq,
+			plan:             plan,
+			branchName:       branchName,
+			cachedMapsByPath: cachedMapsByPath,
+		})
 
 		if loadRes == nil {
 			log.Println("LoadCachedFileMapHandler - loadRes is nil")

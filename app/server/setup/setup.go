@@ -110,10 +110,11 @@ func StartServer(handler http.Handler, configureFn func(handler http.Handler) ht
 
 	// Capture SIGTERM and SIGINT signals
 	sigTermChan := make(chan os.Signal, 1)
+
 	signal.Notify(sigTermChan, syscall.SIGTERM, syscall.SIGINT)
 
-	<-sigTermChan
-	log.Println("Plandex server shutting down gracefully...")
+	sig := <-sigTermChan
+	log.Printf("Received signal %v, shutting down gracefully...\n", sig)
 
 	// Create a channel to track completion of active plans
 	plansDone := make(chan struct{})

@@ -12,13 +12,21 @@ import (
 	"github.com/gorilla/mux"
 )
 
+const locksVerboseLogging = true
+
 func LockRepo(w http.ResponseWriter, r *http.Request, auth *types.ServerAuth, scope db.LockScope, ctx context.Context, cancelFn context.CancelFunc, requireBranch bool) *func(err error) {
 	vars := mux.Vars(r)
 	planId := vars["planId"]
 	branch := vars["branch"]
 
+	if locksVerboseLogging {
+		log.Printf("LockRepo: %s, planId: %s, branch: %s", scope, planId, branch)
+	}
+
 	if requireBranch && branch == "" {
-		log.Println("Branch not specified")
+		if locksVerboseLogging {
+			log.Println("Branch not specified")
+		}
 		http.Error(w, "Branch not specified", http.StatusBadRequest)
 		return nil
 	}
@@ -29,6 +37,10 @@ func LockRepo(w http.ResponseWriter, r *http.Request, auth *types.ServerAuth, sc
 func LockRepoForBranch(w http.ResponseWriter, r *http.Request, auth *types.ServerAuth, scope db.LockScope, ctx context.Context, cancelFn context.CancelFunc, branch string) *func(err error) {
 	vars := mux.Vars(r)
 	planId := vars["planId"]
+
+	if locksVerboseLogging {
+		log.Printf("LockRepoForBranch: %s, planId: %s, branch: %s", scope, planId, branch)
+	}
 
 	return lockRepo(w, r, auth, scope, ctx, cancelFn, planId, branch)
 }
@@ -53,6 +65,10 @@ func lockRepo(w http.ResponseWriter, r *http.Request, auth *types.ServerAuth, sc
 		}
 	}
 
+	if locksVerboseLogging {
+		log.Printf("lockRepo: %s, planId: %s, branch: %s", params.Scope, params.PlanId, params.Branch)
+	}
+
 	repoLockId, err := db.LockRepo(params)
 
 	if err != nil {
@@ -74,7 +90,7 @@ func lockRepo(w http.ResponseWriter, r *http.Request, auth *types.ServerAuth, sc
 		}
 
 		// log.Println("Rolling back repo if error")
-		err = RollbackRepoIfErr(auth.OrgId, planId, err)
+		err = RollbackRepoIfErr(auth.OrgId, planId, branch, err)
 		if err != nil {
 			log.Printf("Error rolling back repo: %v\n", err)
 		}
@@ -88,7 +104,7 @@ func lockRepo(w http.ResponseWriter, r *http.Request, auth *types.ServerAuth, sc
 	return &fn
 }
 
-func RollbackRepoIfErr(orgId, planId string, err error) error {
+func RollbackRepoIfErr(orgId, planId, branch string, err error) error {
 	// if no error, return nil
 	if err == nil {
 		log.Println("No error, not rolling back repo")
@@ -98,7 +114,7 @@ func RollbackRepoIfErr(orgId, planId string, err error) error {
 	log.Println("Rolling back repo due to error")
 
 	// if any errors, rollback repo
-	err = db.GitClearUncommittedChanges(orgId, planId)
+	err = db.GitClearUncommittedChanges(orgId, planId, branch)
 
 	if err != nil {
 		return fmt.Errorf("error clearing uncommitted changes: %v", err)

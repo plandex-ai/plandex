@@ -117,23 +117,25 @@ const (
 )
 
 type TellPlanRequest struct {
-	Prompt         string            `json:"prompt"`
-	BuildMode      BuildMode         `json:"buildMode"`
-	ConnectStream  bool              `json:"connectStream"`
-	AutoContinue   bool              `json:"autoContinue"`
-	IsUserContinue bool              `json:"isUserContinue"`
-	IsUserDebug    bool              `json:"isUserDebug"`
-	IsApplyDebug   bool              `json:"isApplyDebug"`
-	IsChatOnly     bool              `json:"isChatOnly"`
-	AutoContext    bool              `json:"autoContext"`
-	ExecEnabled    bool              `json:"execEnabled"`
-	OsDetails      string            `json:"osDetails"`
-	ApiKey         string            `json:"apiKey"`   // deprecated
-	Endpoint       string            `json:"endpoint"` // deprecated
-	ApiKeys        map[string]string `json:"apiKeys"`
-	OpenAIBase     string            `json:"openAIBase"`
-	OpenAIOrgId    string            `json:"openAIOrgId"`
-	ProjectPaths   map[string]bool   `json:"projectPaths"`
+	Prompt                 string            `json:"prompt"`
+	BuildMode              BuildMode         `json:"buildMode"`
+	ConnectStream          bool              `json:"connectStream"`
+	AutoContinue           bool              `json:"autoContinue"`
+	IsUserContinue         bool              `json:"isUserContinue"`
+	IsUserDebug            bool              `json:"isUserDebug"`
+	IsApplyDebug           bool              `json:"isApplyDebug"`
+	IsChatOnly             bool              `json:"isChatOnly"`
+	AutoContext            bool              `json:"autoContext"`
+	SmartContext           bool              `json:"smartContext"`
+	ExecEnabled            bool              `json:"execEnabled"`
+	OsDetails              string            `json:"osDetails"`
+	ApiKey                 string            `json:"apiKey"`   // deprecated
+	Endpoint               string            `json:"endpoint"` // deprecated
+	ApiKeys                map[string]string `json:"apiKeys"`
+	OpenAIBase             string            `json:"openAIBase"`
+	OpenAIOrgId            string            `json:"openAIOrgId"`
+	ProjectPaths           map[string]bool   `json:"projectPaths"`
+	IsImplementationOfChat bool              `json:"isImplementationOfChat"`
 }
 
 type BuildPlanRequest struct {

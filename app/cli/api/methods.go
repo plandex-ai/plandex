@@ -656,7 +656,20 @@ func (a *Api) StopPlan(ctx context.Context, planId, branch string) *shared.ApiEr
 }
 
 func (a *Api) GetCurrentPlanState(planId, branch string) (*shared.CurrentPlanState, *shared.ApiError) {
-	serverUrl := fmt.Sprintf("%s/plans/%s/%s/current_plan", GetApiHost(), planId, branch)
+	return a.getCurrentPlanState(planId, branch, "")
+}
+
+func (a *Api) GetCurrentPlanStateAtSha(planId, sha string) (*shared.CurrentPlanState, *shared.ApiError) {
+	return a.getCurrentPlanState(planId, "", sha)
+}
+
+func (a *Api) getCurrentPlanState(planId, branch, sha string) (*shared.CurrentPlanState, *shared.ApiError) {
+	var serverUrl string
+	if sha != "" {
+		serverUrl = fmt.Sprintf("%s/plans/%s/current_plan/%s", GetApiHost(), planId, sha)
+	} else {
+		serverUrl = fmt.Sprintf("%s/plans/%s/%s/current_plan", GetApiHost(), planId, branch)
+	}
 
 	resp, err := authenticatedFastClient.Get(serverUrl)
 	if err != nil {
@@ -669,7 +682,7 @@ func (a *Api) GetCurrentPlanState(planId, branch string) (*shared.CurrentPlanSta
 		apiErr := HandleApiError(resp, errorBody)
 		tokenRefreshed, apiErr := refreshTokenIfNeeded(apiErr)
 		if tokenRefreshed {
-			return a.GetCurrentPlanState(planId, branch)
+			return a.getCurrentPlanState(planId, branch, sha)
 		}
 		return nil, apiErr
 	}
