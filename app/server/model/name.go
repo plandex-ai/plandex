@@ -1,3 +1,4 @@
+
 package model
 
 import (
@@ -25,6 +26,29 @@ func GenPlanName(
 	ctx context.Context,
 ) (string, error) {
 	config := settings.ModelPack.Namer
+	var sysPrompt string
+	var tools []openai.Tool
+	var toolChoice *openai.ToolChoice
+
+	if config.BaseModelConfig.PreferredModelOutputFormat == shared.ModelOutputFormatXml {
+		sysPrompt = prompts.SysPlanNameXml
+	} else {
+		sysPrompt = prompts.SysPlanName
+		tools = []openai.Tool{
+			{
+				Type:     "function",
+				Function: &prompts.PlanNameFn,
+			},
+		}
+		choice := openai.ToolChoice{
+			Type: "function",
+			Function: openai.ToolFunction{
+				Name: prompts.PlanNameFn.Name,
+			},
+		}
+		toolChoice = &choice
+	}
+
 	content := prompts.GetPlanNamePrompt(planContent)
 
 	messages := []types.ExtendedChatMessage{
@@ -54,25 +78,20 @@ func GenPlanName(
 		return "", fmt.Errorf("error executing hook: %v", apiErr)
 	}
 
+	reqStarted := time.Now()
 	req := types.ExtendedChatCompletionRequest{
-		Model: config.BaseModelConfig.ModelName,
-		Tools: []openai.Tool{
-			{
-				Type:     "function",
-				Function: &prompts.PlanNameFn,
-			},
-		},
-		ToolChoice: openai.ToolChoice{
-			Type: "function",
-			Function: openai.ToolFunction{
-				Name: prompts.PlanNameFn.Name,
-			},
-		},
+		Model:       config.BaseModelConfig.ModelName,
+		Messages:    messages,
 		Temperature: config.Temperature,
 		TopP:        config.TopP,
-		Messages:    messages,
 	}
-	reqStarted := time.Now()
+
+	if tools != nil {
+		req.Tools = tools
+	}
+	if toolChoice != nil {
+		req.ToolChoice = *toolChoice
+	}
 
 	resp, err := CreateChatCompletionWithRetries(
 		clients,
@@ -81,21 +100,43 @@ func GenPlanName(
 		req,
 	)
 
-	var res string
-	var nameRes prompts.PlanNameRes
+	var planName string
 
 	if err != nil {
 		fmt.Printf("Error during plan name model call: %v\n", err)
 		return "", err
 	}
 
-	for _, choice := range resp.Choices {
-		if len(choice.Message.ToolCalls) == 1 &&
-			choice.Message.ToolCalls[0].Function.Name == prompts.PlanNameFn.Name {
-			fnCall := choice.Message.ToolCalls[0].Function
-			res = fnCall.Arguments
-			break
+	if config.BaseModelConfig.PreferredModelOutputFormat == shared.ModelOutputFormatXml {
+		content := resp.Choices[0].Message.Content
+		planName = GetXMLContent(content, "planName")
+		if planName == "" {
+			return "", fmt.Errorf("No planName tag found in XML response")
 		}
+	} else {
+		var res string
+		for _, choice := range resp.Choices {
+			if len(choice.Message.ToolCalls) == 1 &&
+				choice.Message.ToolCalls[0].Function.Name == prompts.PlanNameFn.Name {
+				fnCall := choice.Message.ToolCalls[0].Function
+				res = fnCall.Arguments
+				break
+			}
+		}
+
+		if res == "" {
+			fmt.Println("no namePlan function call found in response")
+			return "", fmt.Errorf("No namePlan function call found in response. This usually means the model failed to generate a valid response.")
+		}
+
+		var nameRes prompts.PlanNameRes
+		bytes := []byte(res)
+		err = json.Unmarshal(bytes, &nameRes)
+		if err != nil {
+			fmt.Printf("Error unmarshalling plan description response: %v\n", err)
+			return "", err
+		}
+		planName = nameRes.PlanName
 	}
 
 	var inputTokens int
@@ -105,7 +146,7 @@ func GenPlanName(
 		outputTokens = resp.Usage.CompletionTokens
 	} else {
 		inputTokens = numTokens
-		outputTokens = shared.GetNumTokensEstimate(res)
+		outputTokens = shared.GetNumTokensEstimate(planName)
 	}
 
 	go func() {
@@ -113,16 +154,15 @@ func GenPlanName(
 			Auth: auth,
 			Plan: plan,
 			DidSendModelRequestParams: &hooks.DidSendModelRequestParams{
-				InputTokens:   inputTokens,
-				OutputTokens:  outputTokens,
-				ModelName:     config.BaseModelConfig.ModelName,
-				ModelProvider: config.BaseModelConfig.Provider,
-				ModelPackName: settings.ModelPack.Name,
-				ModelRole:     shared.ModelRolePlanSummary,
-				Purpose:       "Generated plan name",
-				GenerationId:  resp.ID,
-				PlanId:        plan.Id,
-
+				InputTokens:      inputTokens,
+				OutputTokens:     outputTokens,
+				ModelName:        config.BaseModelConfig.ModelName,
+				ModelProvider:    config.BaseModelConfig.Provider,
+				ModelPackName:    settings.ModelPack.Name,
+				ModelRole:        shared.ModelRolePlanSummary,
+				Purpose:          "Generated plan name",
+				GenerationId:     resp.ID,
+				PlanId:           plan.Id,
 				RequestStartedAt: reqStarted,
 				Streaming:        false,
 				Req:              &req,
@@ -136,21 +176,7 @@ func GenPlanName(
 		}
 	}()
 
-	if res == "" {
-		fmt.Println("no namePlan function call found in response")
-		return "", fmt.Errorf("No namePlan function call found in response. This usually means the model failed to generate a valid response.")
-	}
-
-	bytes := []byte(res)
-
-	err = json.Unmarshal(bytes, &nameRes)
-	if err != nil {
-		fmt.Printf("Error unmarshalling plan description response: %v\n", err)
-		return "", err
-	}
-
-	return nameRes.PlanName, nil
-
+	return planName, nil
 }
 
 func GenPipedDataName(
@@ -162,6 +188,29 @@ func GenPipedDataName(
 	pipedContent string,
 ) (string, error) {
 	config := settings.ModelPack.Namer
+
+	var sysPrompt string
+	var tools []openai.Tool
+	var toolChoice *openai.ToolChoice
+
+	if config.BaseModelConfig.PreferredModelOutputFormat == shared.ModelOutputFormatXml {
+		sysPrompt = prompts.SysPipedDataNameXml
+	} else {
+		sysPrompt = prompts.SysPipedDataName
+		tools = []openai.Tool{
+			{
+				Type:     "function",
+				Function: &prompts.PipedDataNameFn,
+			},
+		}
+		choice := openai.ToolChoice{
+			Type: "function",
+			Function: openai.ToolFunction{
+				Name: prompts.PipedDataNameFn.Name,
+			},
+		}
+		toolChoice = &choice
+	}
 
 	content := prompts.GetPipedDataNamePrompt(pipedContent)
 
@@ -193,31 +242,20 @@ func GenPipedDataName(
 	}
 
 	log.Println("calling piped data name model")
-	// log.Printf("model: %s\n", config.BaseModelConfig.ModelName)
-	// log.Printf("temperature: %f\n", config.Temperature)
-	// log.Printf("topP: %f\n", config.TopP)
-
-	// log.Printf("messages: %v\n", messages)
-	// log.Println(spew.Sdump(messages))
 
 	reqStarted := time.Now()
 	req := types.ExtendedChatCompletionRequest{
-		Model: config.BaseModelConfig.ModelName,
-		Tools: []openai.Tool{
-			{
-				Type:     "function",
-				Function: &prompts.PipedDataNameFn,
-			},
-		},
-		ToolChoice: openai.ToolChoice{
-			Type: "function",
-			Function: openai.ToolFunction{
-				Name: prompts.PipedDataNameFn.Name,
-			},
-		},
+		Model:       config.BaseModelConfig.ModelName,
+		Messages:    messages,
 		Temperature: config.Temperature,
 		TopP:        config.TopP,
-		Messages:    messages,
+	}
+
+	if tools != nil {
+		req.Tools = tools
+	}
+	if toolChoice != nil {
+		req.ToolChoice = *toolChoice
 	}
 
 	resp, err := CreateChatCompletionWithRetries(
@@ -227,21 +265,43 @@ func GenPipedDataName(
 		req,
 	)
 
-	var res string
-	var nameRes prompts.PipedDataNameRes
+	var name string
 
 	if err != nil {
 		fmt.Printf("Error during piped data name model call: %v\n", err)
 		return "", err
 	}
 
-	for _, choice := range resp.Choices {
-		if len(choice.Message.ToolCalls) == 1 &&
-			choice.Message.ToolCalls[0].Function.Name == prompts.PipedDataNameFn.Name {
-			fnCall := choice.Message.ToolCalls[0].Function
-			res = fnCall.Arguments
-			break
+	if config.BaseModelConfig.PreferredModelOutputFormat == shared.ModelOutputFormatXml {
+		content := resp.Choices[0].Message.Content
+		name = GetXMLContent(content, "name")
+		if name == "" {
+			return "", fmt.Errorf("No name tag found in XML response")
 		}
+	} else {
+		var res string
+		for _, choice := range resp.Choices {
+			if len(choice.Message.ToolCalls) == 1 &&
+				choice.Message.ToolCalls[0].Function.Name == prompts.PipedDataNameFn.Name {
+				fnCall := choice.Message.ToolCalls[0].Function
+				res = fnCall.Arguments
+				break
+			}
+		}
+
+		if res == "" {
+			fmt.Println("no namePipedData function call found in response")
+			return "", fmt.Errorf("No namePipedData function call found in response. This usually means the model failed to generate a valid response.")
+		}
+
+		var nameRes prompts.PipedDataNameRes
+		bytes := []byte(res)
+		err = json.Unmarshal(bytes, &nameRes)
+		if err != nil {
+			fmt.Printf("Error unmarshalling piped data name response: %v\n", err)
+			return "", err
+		}
+		name = nameRes.Name
 	}
 
 	var inputTokens int
@@ -251,7 +311,7 @@ func GenPipedDataName(
 		outputTokens = resp.Usage.CompletionTokens
 	} else {
 		inputTokens = numTokens
-		outputTokens = shared.GetNumTokensEstimate(res)
+		outputTokens = shared.GetNumTokensEstimate(name)
 	}
 
 	go func() {
@@ -259,16 +319,15 @@ func GenPipedDataName(
 			Auth: auth,
 			Plan: plan,
 			DidSendModelRequestParams: &hooks.DidSendModelRequestParams{
-				InputTokens:   inputTokens,
-				OutputTokens:  outputTokens,
-				ModelName:     config.BaseModelConfig.ModelName,
-				ModelProvider: config.BaseModelConfig.Provider,
-				ModelPackName: settings.ModelPack.Name,
-				ModelRole:     shared.ModelRolePlanSummary,
-				Purpose:       "Generated name for data piped into context",
-				GenerationId:  resp.ID,
-				PlanId:        plan.Id,
-
+				InputTokens:      inputTokens,
+				OutputTokens:     outputTokens,
+				ModelName:        config.BaseModelConfig.ModelName,
+				ModelProvider:    config.BaseModelConfig.Provider,
+				ModelPackName:    settings.ModelPack.Name,
+				ModelRole:        shared.ModelRolePlanSummary,
+				Purpose:          "Generated name for data piped into context",
+				GenerationId:     resp.ID,
+				PlanId:           plan.Id,
 				RequestStartedAt: reqStarted,
 				Streaming:        false,
 				Req:              &req,
@@ -282,21 +341,7 @@ func GenPipedDataName(
 		}
 	}()
 
-	if res == "" {
-		fmt.Println("no namePipedData function call found in response")
-		return "", fmt.Errorf("No namePipedData function call found in response. This usually means the model failed to generate a valid response.")
-	}
-
-	bytes := []byte(res)
-
-	err = json.Unmarshal(bytes, &nameRes)
-	if err != nil {
-		fmt.Printf("Error unmarshalling piped data name response: %v\n", err)
-		return "", err
-	}
-
-	return nameRes.Name, nil
-
+	return name, nil
 }
 
 func GenNoteName(
@@ -308,6 +353,29 @@ func GenNoteName(
 	note string,
 ) (string, error) {
 	config := settings.ModelPack.Namer
+
+	var sysPrompt string
+	var tools []openai.Tool
+	var toolChoice *openai.ToolChoice
+
+	if config.BaseModelConfig.PreferredModelOutputFormat == shared.ModelOutputFormatXml {
+		sysPrompt = prompts.SysNoteNameXml
+	} else {
+		sysPrompt = prompts.SysNoteName
+		tools = []openai.Tool{
+			{
+				Type:     "function",
+				Function: &prompts.NoteNameFn,
+			},
+		}
+		choice := openai.ToolChoice{
+			Type: "function",
+			Function: openai.ToolFunction{
+				Name: prompts.NoteNameFn.Name,
+			},
+		}
+		toolChoice = &choice
+	}
 
 	content := prompts.GetNoteNamePrompt(note)
 
@@ -338,32 +406,21 @@ func GenNoteName(
 		return "", fmt.Errorf("error executing hook: %v", apiErr)
 	}
 
-	log.Println("calling piped data name model")
-	// log.Printf("model: %s\n", config.BaseModelConfig.ModelName)
-	// log.Printf("temperature: %f\n", config.Temperature)
-	// log.Printf("topP: %f\n", config.TopP)
-
-	// log.Printf("messages: %v\n", messages)
-	// log.Println(spew.Sdump(messages))
+	log.Println("calling note name model")
 
 	reqStarted := time.Now()
 	req := types.ExtendedChatCompletionRequest{
-		Model: config.BaseModelConfig.ModelName,
-		Tools: []openai.Tool{
-			{
-				Type:     "function",
-				Function: &prompts.NoteNameFn,
-			},
-		},
-		ToolChoice: openai.ToolChoice{
-			Type: "function",
-			Function: openai.ToolFunction{
-				Name: prompts.NoteNameFn.Name,
-			},
-		},
+		Model:       config.BaseModelConfig.ModelName,
+		Messages:    messages,
 		Temperature: config.Temperature,
 		TopP:        config.TopP,
-		Messages:    messages,
+	}
+
+	if tools != nil {
+		req.Tools = tools
+	}
+	if toolChoice != nil {
+		req.ToolChoice = *toolChoice
 	}
 
 	resp, err := CreateChatCompletionWithRetries(
@@ -373,21 +430,43 @@ func GenNoteName(
 		req,
 	)
 
-	var res string
-	var nameRes prompts.NoteNameRes
+	var name string
 
 	if err != nil {
-		fmt.Printf("Error during piped data name model call: %v\n", err)
+		fmt.Printf("Error during note name model call: %v\n", err)
 		return "", err
 	}
 
-	for _, choice := range resp.Choices {
-		if len(choice.Message.ToolCalls) == 1 &&
-			choice.Message.ToolCalls[0].Function.Name == prompts.NoteNameFn.Name {
-			fnCall := choice.Message.ToolCalls[0].Function
-			res = fnCall.Arguments
-			break
+	if config.BaseModelConfig.PreferredModelOutputFormat == shared.ModelOutputFormatXml {
+		content := resp.Choices[0].Message.Content
+		name = GetXMLContent(content, "name")
+		if name == "" {
+			return "", fmt.Errorf("No name tag found in XML response")
 		}
+	} else {
+		var res string
+		for _, choice := range resp.Choices {
+			if len(choice.Message.ToolCalls) == 1 &&
+				choice.Message.ToolCalls[0].Function.Name == prompts.NoteNameFn.Name {
+				fnCall := choice.Message.ToolCalls[0].Function
+				res = fnCall.Arguments
+				break
+			}
+		}
+
+		if res == "" {
+			fmt.Println("no nameNote function call found in response")
+			return "", fmt.Errorf("No nameNote function call found in response. This usually means the model failed to generate a valid response.")
+		}
+
+		var nameRes prompts.NoteNameRes
+		bytes := []byte(res)
+		err = json.Unmarshal(bytes, &nameRes)
+		if err != nil {
+			fmt.Printf("Error unmarshalling note name response: %v\n", err)
+			return "", err
+		}
+		name = nameRes.Name
 	}
 
 	var inputTokens int
@@ -397,7 +476,7 @@ func GenNoteName(
 		outputTokens = resp.Usage.CompletionTokens
 	} else {
 		inputTokens = numTokens
-		outputTokens = shared.GetNumTokensEstimate(res)
+		outputTokens = shared.GetNumTokensEstimate(name)
 	}
 
 	go func() {
@@ -405,16 +484,15 @@ func GenNoteName(
 			Auth: auth,
 			Plan: plan,
 			DidSendModelRequestParams: &hooks.DidSendModelRequestParams{
-				InputTokens:   inputTokens,
-				OutputTokens:  outputTokens,
-				ModelName:     config.BaseModelConfig.ModelName,
-				ModelProvider: config.BaseModelConfig.Provider,
-				ModelPackName: settings.ModelPack.Name,
-				ModelRole:     shared.ModelRolePlanSummary,
-				Purpose:       "Generated name for note added to context",
-				GenerationId:  resp.ID,
-				PlanId:        plan.Id,
-
+				InputTokens:      inputTokens,
+				OutputTokens:     outputTokens,
+				ModelName:        config.BaseModelConfig.ModelName,
+				ModelProvider:    config.BaseModelConfig.Provider,
+				ModelPackName:    settings.ModelPack.Name,
+				ModelRole:        shared.ModelRolePlanSummary,
+				Purpose:          "Generated name for note added to context",
+				GenerationId:     resp.ID,
+				PlanId:           plan.Id,
 				RequestStartedAt: reqStarted,
 				Streaming:        false,
 				Req:              &req,
@@ -428,19 +506,5 @@ func GenNoteName(
 		}
 	}()
 
-	if res == "" {
-		fmt.Println("no nameNote function call found in response")
-		return "", fmt.Errorf("No nameNote function call found in response. This usually means the model failed to generate a valid response.")
-	}
-
-	bytes := []byte(res)
-
-	err = json.Unmarshal(bytes, &nameRes)
-	if err != nil {
-		fmt.Printf("Error unmarshalling piped data name response: %v\n", err)
-		return "", err
-	}
-
-	return nameRes.Name, nil
-
+	return name, nil
 }

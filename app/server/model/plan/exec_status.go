@@ -45,8 +45,6 @@ func (state *activeTellStreamState) execStatusShouldContinue(currentMessage stri
 			var potentialProblem bool
 
 			if len(state.chunkProcessor.replyOperations) == 0 {
-				// subtask was marked as completed, but there are no operations to execute
-				// we'll let this fall through to the LLM call to verify, since something might have gone wrong
 				log.Printf("[ExecStatus] ✗ Subtask completion marker found, but there are no operations to execute")
 				potentialProblem = true
 			} else {
@@ -78,7 +76,6 @@ func (state *activeTellStreamState) execStatusShouldContinue(currentMessage stri
 			log.Printf("[ExecStatus] ✗ No subtask completion marker found in message")
 		}
 
-		// Log all subtasks current state for context
 		log.Println("[ExecStatus] Current subtasks state:")
 		for i, task := range state.subtasks {
 			log.Printf("[ExecStatus] Task %d: %q (finished=%v)", i+1, task.Title, task.IsFinished)
@@ -137,22 +134,25 @@ func (state *activeTellStreamState) execStatusShouldContinue(currentMessage stri
 
 	reqStarted := time.Now()
 	req := types.ExtendedChatCompletionRequest{
-		Model: config.BaseModelConfig.ModelName,
-		Tools: []openai.Tool{
+		Model:       config.BaseModelConfig.ModelName,
+		Messages:    messages,
+		Temperature: config.Temperature,
+		TopP:        config.TopP,
+	}
+
+	if config.BaseModelConfig.PreferredModelOutputFormat != shared.ModelOutputFormatXml {
+		req.Tools = []openai.Tool{
 			{
 				Type:     "function",
 				Function: &prompts.DidFinishSubtaskFn,
 			},
-		},
-		ToolChoice: openai.ToolChoice{
+		}
+		req.ToolChoice = openai.ToolChoice{
 			Type: "function",
 			Function: openai.ToolFunction{
 				Name: prompts.DidFinishSubtaskFn.Name,
 			},
-		},
-		Messages:    messages,
-		Temperature: config.Temperature,
-		TopP:        config.TopP,
+		}
 	}
 
 	resp, err := model.CreateChatCompletionWithRetries(
@@ -167,15 +167,50 @@ func (state *activeTellStreamState) execStatusShouldContinue(currentMessage stri
 		return execStatusShouldContinueResult{}, nil
 	}
 
-	var strRes string
-	for _, choice := range resp.Choices {
-		if len(choice.Message.ToolCalls) == 1 &&
-			choice.Message.ToolCalls[0].Function.Name == prompts.DidFinishSubtaskFn.Name {
-			strRes = choice.Message.ToolCalls[0].Function.Arguments
-			log.Printf("[ExecStatus] Got function response: %s", strRes)
-			break
+	var reasoning string
+	var subtaskFinished bool
+
+	if config.BaseModelConfig.PreferredModelOutputFormat == shared.ModelOutputFormatXml {
+		content := resp.Choices[0].Message.Content
+		reasoning = GetXMLContent(content, "reasoning")
+		subtaskFinishedStr := GetXMLContent(content, "subtaskFinished")
+		subtaskFinished = subtaskFinishedStr == "true"
+
+		if reasoning == "" || subtaskFinishedStr == "" {
+			return execStatusShouldContinueResult{}, &shared.ApiError{
+				Type:   shared.ApiErrorTypeOther,
+				Status: http.StatusInternalServerError,
+				Msg:    "Missing required XML tags in response",
+			}
 		}
+	} else {
+		var strRes string
+		for _, choice := range resp.Choices {
+			if len(choice.Message.ToolCalls) == 1 &&
+				choice.Message.ToolCalls[0].Function.Name == prompts.DidFinishSubtaskFn.Name {
+				strRes = choice.Message.ToolCalls[0].Function.Arguments
+				log.Printf("[ExecStatus] Got function response: %s", strRes)
+				break
+			}
+		}
+
+		if strRes == "" {
+			log.Printf("[ExecStatus] No function response found in model output")
+			return execStatusShouldContinueResult{}, nil
+		}
+
+		var res types.ExecStatusResponse
+		if err := json.Unmarshal([]byte(strRes), &res); err != nil {
+			log.Printf("[ExecStatus] Failed to parse response: %v", err)
+			return execStatusShouldContinueResult{}, nil
+		}
+
+		reasoning = res.Reasoning
+		subtaskFinished = res.SubtaskFinished
 	}
+
+	log.Printf("[ExecStatus] Decision: subtaskFinished=%v, reasoning=%v",
+		subtaskFinished, reasoning)
 
 	var inputTokens int
 	var outputTokens int
@@ -184,7 +219,7 @@ func (state *activeTellStreamState) execStatusShouldContinue(currentMessage stri
 		outputTokens = resp.Usage.CompletionTokens
 	} else {
 		inputTokens = numTokens
-		outputTokens = shared.GetNumTokensEstimate(strRes)
+		outputTokens = shared.GetNumTokensEstimate(reasoning)
 	}
 
 	go func() {
@@ -217,21 +252,8 @@ func (state *activeTellStreamState) execStatusShouldContinue(currentMessage stri
 		}
 	}()
 
-	if strRes == "" {
-		log.Printf("[ExecStatus] No function response found in model output")
-		return execStatusShouldContinueResult{}, nil
-	}
-
-	var res types.ExecStatusResponse
-	if err := json.Unmarshal([]byte(strRes), &res); err != nil {
-		log.Printf("[ExecStatus] Failed to parse response: %v", err)
-		return execStatusShouldContinueResult{}, nil
-	}
-
-	log.Printf("[ExecStatus] Decision: subtaskFinished=%v, reasoning=%v",
-		res.SubtaskFinished, res.Reasoning)
-
 	return execStatusShouldContinueResult{
-		subtaskFinished: res.SubtaskFinished,
+		subtaskFinished: subtaskFinished,
 	}, nil
 }
+

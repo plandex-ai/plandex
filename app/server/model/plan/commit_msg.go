@@ -38,13 +38,36 @@ func (state *activeTellStreamState) genPlanDescription() (*db.ConvoMessageDescri
 		}
 	}
 
+	var sysPrompt string
+	var tools []openai.Tool
+	var toolChoice *openai.ToolChoice
+
+	if config.BaseModelConfig.PreferredModelOutputFormat == shared.ModelOutputFormatXml {
+		sysPrompt = prompts.SysDescribeXml
+	} else {
+		sysPrompt = prompts.SysDescribe
+		tools = []openai.Tool{
+			{
+				Type:     "function",
+				Function: &prompts.DescribePlanFn,
+			},
+		}
+		choice := openai.ToolChoice{
+			Type: "function",
+			Function: openai.ToolFunction{
+				Name: prompts.DescribePlanFn.Name,
+			},
+		}
+		toolChoice = &choice
+	}
+
 	messages := []types.ExtendedChatMessage{
 		{
 			Role: openai.ChatMessageRoleSystem,
 			Content: []types.ExtendedChatMessagePart{
 				{
 					Type: openai.ChatMessagePartTypeText,
-					Text: prompts.SysDescribe,
+					Text: sysPrompt,
 				},
 			},
 		},
@@ -78,22 +101,17 @@ func (state *activeTellStreamState) genPlanDescription() (*db.ConvoMessageDescri
 
 	reqStarted := time.Now()
 	req := types.ExtendedChatCompletionRequest{
-		Model: config.BaseModelConfig.ModelName,
-		Tools: []openai.Tool{
-			{
-				Type:     "function",
-				Function: &prompts.DescribePlanFn,
-			},
-		},
-		ToolChoice: openai.ToolChoice{
-			Type: "function",
-			Function: openai.ToolFunction{
-				Name: prompts.DescribePlanFn.Name,
-			},
-		},
+		Model:       config.BaseModelConfig.ModelName,
 		Messages:    messages,
 		Temperature: config.Temperature,
 		TopP:        config.TopP,
+	}
+
+	if tools != nil {
+		req.Tools = tools
+	}
+	if toolChoice != nil {
+		req.ToolChoice = *toolChoice
 	}
 
 	descResp, err := model.CreateChatCompletionWithRetries(
@@ -114,16 +132,50 @@ func (state *activeTellStreamState) genPlanDescription() (*db.ConvoMessageDescri
 
 	log.Println("Plan description model call complete")
 
-	var descStrRes string
-	var desc shared.ConvoMessageDescription
+	var commitMsg string
 
-	for _, choice := range descResp.Choices {
-		if len(choice.Message.ToolCalls) == 1 &&
-			choice.Message.ToolCalls[0].Function.Name == prompts.DescribePlanFn.Name {
-			fnCall := choice.Message.ToolCalls[0].Function
-			descStrRes = fnCall.Arguments
-			break
+	if config.BaseModelConfig.PreferredModelOutputFormat == shared.ModelOutputFormatXml {
+		content := descResp.Choices[0].Message.Content
+		commitMsg = GetXMLContent(content, "commitMsg")
+		if commitMsg == "" {
+			return nil, &shared.ApiError{
+				Type:   shared.ApiErrorTypeOther,
+				Status: http.StatusInternalServerError,
+				Msg:    "No commitMsg tag found in XML response",
+			}
 		}
+	} else {
+		var descStrRes string
+		for _, choice := range descResp.Choices {
+			if len(choice.Message.ToolCalls) == 1 &&
+				choice.Message.ToolCalls[0].Function.Name == prompts.DescribePlanFn.Name {
+				fnCall := choice.Message.ToolCalls[0].Function
+				descStrRes = fnCall.Arguments
+				break
+			}
+		}
+
+		if descStrRes == "" {
+			fmt.Println("no describePlan function call found in response")
+			spew.Dump(descResp)
+			return nil, &shared.ApiError{
+				Type:   shared.ApiErrorTypeOther,
+				Status: http.StatusInternalServerError,
+				Msg:    "No describePlan function call found in response. This usually means the model failed to generate a valid response.",
+			}
+		}
+
+		var desc shared.ConvoMessageDescription
+		err = json.Unmarshal([]byte(descStrRes), &desc)
+		if err != nil {
+			fmt.Printf("Error unmarshalling plan description response: %v\n", err)
+			return nil, &shared.ApiError{
+				Type:   shared.ApiErrorTypeOther,
+				Status: http.StatusInternalServerError,
+				Msg:    fmt.Sprintf("error unmarshalling plan description response: %v", err),
+			}
+		}
+		commitMsg = desc.CommitMsg
 	}
 
 	var inputTokens int
@@ -133,7 +185,7 @@ func (state *activeTellStreamState) genPlanDescription() (*db.ConvoMessageDescri
 		outputTokens = descResp.Usage.CompletionTokens
 	} else {
 		inputTokens = numTokens
-		outputTokens = shared.GetNumTokensEstimate(descStrRes)
+		outputTokens = shared.GetNumTokensEstimate(commitMsg)
 	}
 
 	log.Println("Sending DidSendModelRequest hook")
@@ -168,33 +220,9 @@ func (state *activeTellStreamState) genPlanDescription() (*db.ConvoMessageDescri
 		}
 	}()
 
-	if descStrRes == "" {
-		fmt.Println("no describePlan function call found in response")
-
-		spew.Dump(descResp)
-
-		return nil, &shared.ApiError{
-			Type:   shared.ApiErrorTypeOther,
-			Status: http.StatusInternalServerError,
-			Msg:    "No describePlan function call found in response. This usually means the model failed to generate a valid response.",
-		}
-	}
-
-	descByteRes := []byte(descStrRes)
-
-	err = json.Unmarshal(descByteRes, &desc)
-	if err != nil {
-		fmt.Printf("Error unmarshalling plan description response: %v\n", err)
-		return nil, &shared.ApiError{
-			Type:   shared.ApiErrorTypeOther,
-			Status: http.StatusInternalServerError,
-			Msg:    fmt.Sprintf("error unmarshalling plan description response: %v", err),
-		}
-	}
-
 	return &db.ConvoMessageDescription{
 		PlanId:    planId,
-		CommitMsg: desc.CommitMsg,
+		CommitMsg: commitMsg,
 	}, nil
 }
 
