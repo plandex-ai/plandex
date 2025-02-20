@@ -339,7 +339,7 @@ pdx ap # alias
 
 `--commit/-c`: Commit changes to git.
 
-`--no-commit/-n`: Don't commit changes to git.
+`--skip-commit`: Don't commit changes to git.
 
 ### reject
 

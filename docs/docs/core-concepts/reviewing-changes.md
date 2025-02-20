@@ -57,7 +57,7 @@ You can skip the `plandex apply` confirmation with the `-y` flag.
 
 You can pass the `--commit/-c` flag to commit the changes to git after applying them without confirmation.
 
-You can pass the `--no-commit/-n` flag to prevent the changes from being committed to git after applying them without confirmation.
+You can pass the `--skip-commit` flag to prevent the changes from being committed to git after applying them without confirmation.
 
 ## Auto-Applying Changes
 
