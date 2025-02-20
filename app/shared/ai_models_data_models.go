@@ -19,21 +19,21 @@ const (
 )
 
 type BaseModelConfig struct {
-	Provider                     ModelProvider        `json:"provider"`
-	CustomProvider               *string              `json:"customProvider,omitempty"`
-	BaseUrl                      string               `json:"baseUrl"`
-	ModelName                    string               `json:"modelName"`
-	MaxTokens                    int                  `json:"maxTokens"`
-	ApiKeyEnvVar                 string               `json:"apiKeyEnvVar"`
-	PreferredModelOutputFormat   ModelOutputFormat    `json:"preferredModelOutputFormat"`
-	PreferredOpenRouterProviders []OpenRouterProvider `json:"preferredOpenRouterProviders"`
-	OpenRouterAllowFallbacks     bool                 `json:"openRouterAllowFallbacks"`
-	SystemPromptDisabled         bool                 `json:"systemPromptDisabled"`
-	RoleParamsDisabled           bool                 `json:"roleParamsDisabled"`
-	PredictedOutputEnabled       bool                 `json:"predictedOutputEnabled"`
-	ReasoningEffortEnabled       bool                 `json:"reasoningEffortEnabled"`
-	OpenRouterSelfModerated      bool                 `json:"openRouterSelfModerated"`
-
+	Provider                   ModelProvider     `json:"provider"`
+	CustomProvider             *string           `json:"customProvider,omitempty"`
+	BaseUrl                    string            `json:"baseUrl"`
+	ModelName                  string            `json:"modelName"`
+	MaxTokens                  int               `json:"maxTokens"`
+	ApiKeyEnvVar               string            `json:"apiKeyEnvVar"`
+	PreferredModelOutputFormat ModelOutputFormat `json:"preferredModelOutputFormat"`
+	// PreferredOpenRouterProviders []OpenRouterProvider `json:"preferredOpenRouterProviders"`
+	// OpenRouterAllowFallbacks     bool                 `json:"openRouterAllowFallbacks"`
+	SystemPromptDisabled   bool `json:"systemPromptDisabled"`
+	RoleParamsDisabled     bool `json:"roleParamsDisabled"`
+	PredictedOutputEnabled bool `json:"predictedOutputEnabled"`
+	ReasoningEffortEnabled bool `json:"reasoningEffortEnabled"`
+	// OpenRouterSelfModerated      bool                 `json:"openRouterSelfModerated"`
+	// OpenRouterNitro              bool                 `json:"openRouterNitro"`
 	ModelCompatibility
 }
 

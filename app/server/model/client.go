@@ -10,7 +10,7 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"reflect"
+	"plandex-server/types"
 	"regexp"
 	"strings"
 	"sync"
@@ -72,23 +72,6 @@ func newClient(apiKey, endpoint, orgId string) ClientInfo {
 	}
 }
 
-type OpenAIPrediction struct {
-	Type    string `json:"type"`
-	Content string `json:"content"`
-}
-
-type OpenRouterProviderConfig struct {
-	Order          []string `json:"order"`
-	AllowFallbacks bool     `json:"allow_fallbacks"`
-}
-
-type ExtendedChatCompletionRequest struct {
-	*openai.ChatCompletionRequest
-	Prediction      *OpenAIPrediction         `json:"prediction,omitempty"`
-	Provider        *OpenRouterProviderConfig `json:"provider,omitempty"`
-	ReasoningEffort *shared.ReasoningEffort   `json:"reasoning_effort,omitempty"`
-}
-
 // ExtendedChatCompletionStream can wrap either a native OpenAI stream or our custom implementation
 type ExtendedChatCompletionStream struct {
 	openaiStream *openai.ChatCompletionStream
@@ -114,91 +97,69 @@ type ErrorAccumulator struct {
 // JSONUnmarshaler handles JSON unmarshaling for stream responses
 type JSONUnmarshaler struct{}
 
-func CreateChatCompletionStreamWithRetries[T openai.ChatCompletionRequest | ExtendedChatCompletionRequest](
+func CreateChatCompletionStreamWithRetries(
 	clients map[string]ClientInfo,
 	modelConfig *shared.ModelRoleConfig,
 	ctx context.Context,
-	req T,
+	req types.ExtendedChatCompletionRequest,
 ) (*ExtendedChatCompletionStream, error) {
 	client, ok := clients[modelConfig.BaseModelConfig.ApiKeyEnvVar]
 	if !ok {
 		return nil, fmt.Errorf("client not found for api key env var: %s", modelConfig.BaseModelConfig.ApiKeyEnvVar)
 	}
 
-	finalReq, err := getFinalReq(req, modelConfig)
-	if err != nil {
-		return nil, fmt.Errorf("error setting up request: %w", err)
+	resolveReq(&req, modelConfig)
+
+	// choose the fastest provider by latency/throughput on openrouter
+	if modelConfig.BaseModelConfig.Provider == shared.ModelProviderOpenRouter {
+		req.Model += ":nitro"
 	}
 
 	return withRetries(ctx, func() (*ExtendedChatCompletionStream, error) {
-		return createChatCompletionStreamExtended(client, modelConfig.BaseModelConfig.BaseUrl, ctx, *finalReq)
+		return createChatCompletionStreamExtended(modelConfig, client, modelConfig.BaseModelConfig.BaseUrl, ctx, req)
 	})
 }
 
-func CreateChatCompletionWithRetries[T openai.ChatCompletionRequest | ExtendedChatCompletionRequest](
+func CreateChatCompletionWithRetries(
 	clients map[string]ClientInfo,
 	modelConfig *shared.ModelRoleConfig,
 	ctx context.Context,
-	req T,
+	req types.ExtendedChatCompletionRequest,
 ) (openai.ChatCompletionResponse, error) {
 	client, ok := clients[modelConfig.BaseModelConfig.ApiKeyEnvVar]
 	if !ok {
 		return openai.ChatCompletionResponse{}, fmt.Errorf("client not found for api key env var: %s", modelConfig.BaseModelConfig.ApiKeyEnvVar)
 	}
 
-	finalReq, err := getFinalReq(req, modelConfig)
-	if err != nil {
-		return openai.ChatCompletionResponse{}, fmt.Errorf("error setting up request: %w", err)
+	resolveReq(&req, modelConfig)
+
+	// choose the fastest provider by latency/throughput on openrouter
+	if modelConfig.BaseModelConfig.Provider == shared.ModelProviderOpenRouter {
+		req.Model += ":nitro"
 	}
 
 	return withRetries(ctx, func() (openai.ChatCompletionResponse, error) {
-		return createChatCompletionExtended(client, modelConfig.BaseModelConfig.BaseUrl, ctx, *finalReq)
+		return createChatCompletionExtended(modelConfig, client, modelConfig.BaseModelConfig.BaseUrl, ctx, req)
 	})
 }
 
-func getFinalReq[T openai.ChatCompletionRequest | ExtendedChatCompletionRequest](req T, modelConfig *shared.ModelRoleConfig) (*ExtendedChatCompletionRequest, error) {
-	var baseReq *openai.ChatCompletionRequest
-	var finalReq *ExtendedChatCompletionRequest
-
-	if normalReq, ok := any(req).(openai.ChatCompletionRequest); ok {
-		baseReq = &normalReq
-
-		finalReq = &ExtendedChatCompletionRequest{
-			ChatCompletionRequest: baseReq,
-		}
-
-		providerOrder := getOpenRouterProviderOrder(modelConfig)
-		if len(providerOrder) > 0 {
-			finalReq.Provider = &OpenRouterProviderConfig{
-				Order:          providerOrder,
-				AllowFallbacks: modelConfig.BaseModelConfig.OpenRouterAllowFallbacks,
-			}
-		}
-
-		if modelConfig.BaseModelConfig.OpenRouterSelfModerated {
-			finalReq.Model = finalReq.Model + ":beta"
-		}
-
-	} else if extendedReq, ok := any(req).(ExtendedChatCompletionRequest); ok {
-		baseReq = extendedReq.ChatCompletionRequest
-		finalReq = &extendedReq
-	} else {
-		log.Println("Invalid request type")
-		log.Println("Request type:", reflect.TypeOf(req))
-		return nil, fmt.Errorf("invalid request type")
-	}
-
-	resolveReq(baseReq, modelConfig)
-
-	return finalReq, nil
-}
-
 func createChatCompletionExtended(
+	modelConfig *shared.ModelRoleConfig,
 	client ClientInfo,
 	baseUrl string,
 	ctx context.Context,
-	extendedReq ExtendedChatCompletionRequest,
+	extendedReq types.ExtendedChatCompletionRequest,
 ) (openai.ChatCompletionResponse, error) {
+	if modelConfig.BaseModelConfig.Provider == shared.ModelProviderOpenAI {
+		log.Println("Creating chat completion with direct OpenAI provider request")
+		openaiReq := extendedReq.ToOpenAI()
+		resp, err := client.Client.CreateChatCompletion(ctx, *openaiReq)
+		if err != nil {
+			return openai.ChatCompletionResponse{}, fmt.Errorf("error creating direct OpenAI chat completion: %w", err)
+		}
+		return resp, nil
+	}
+
 	req, err := http.NewRequestWithContext(ctx, "POST", baseUrl+"/chat/completions", nil)
 	if err != nil {
 		return openai.ChatCompletionResponse{}, err
@@ -244,11 +205,25 @@ func createChatCompletionExtended(
 }
 
 func createChatCompletionStreamExtended(
+	modelConfig *shared.ModelRoleConfig,
 	client ClientInfo,
 	baseUrl string,
 	ctx context.Context,
-	extendedReq ExtendedChatCompletionRequest,
+	extendedReq types.ExtendedChatCompletionRequest,
 ) (*ExtendedChatCompletionStream, error) {
+	if modelConfig.BaseModelConfig.Provider == shared.ModelProviderOpenAI {
+		openaiReq := extendedReq.ToOpenAI()
+		log.Println("Creating chat completion stream with direct OpenAI provider request")
+		stream, err := client.Client.CreateChatCompletionStream(ctx, *openaiReq)
+		if err != nil {
+			return nil, fmt.Errorf("error creating direct OpenAI chat completion stream: %w", err)
+		}
+		return &ExtendedChatCompletionStream{
+			openaiStream: stream,
+			ctx:          ctx,
+		}, nil
+	}
+
 	// Marshal the request body to JSON
 	jsonBody, err := json.MarshalIndent(extendedReq, "", "  ")
 	if err != nil {
@@ -456,7 +431,7 @@ func parseRetryAfter(errorMessage string) *time.Duration {
 	return nil
 }
 
-func resolveReq(req *openai.ChatCompletionRequest, modelConfig *shared.ModelRoleConfig) {
+func resolveReq(req *types.ExtendedChatCompletionRequest, modelConfig *shared.ModelRoleConfig) {
 	// if system prompt is disabled, change the role of the system message to user
 	if modelConfig.BaseModelConfig.SystemPromptDisabled {
 		log.Println("System prompt disabled - changing role of system message to user")
@@ -482,17 +457,17 @@ func resolveReq(req *openai.ChatCompletionRequest, modelConfig *shared.ModelRole
 
 // route directly to first-party providers on openrouter for the main models
 // seems to be much faster this way currently
-func getOpenRouterProviderOrder(modelConfig *shared.ModelRoleConfig) []string {
-	var providerOrder []string
-	if modelConfig.BaseModelConfig.Provider == shared.ModelProviderOpenRouter {
-		if len(modelConfig.BaseModelConfig.PreferredOpenRouterProviders) > 0 {
-			for _, provider := range modelConfig.BaseModelConfig.PreferredOpenRouterProviders {
-				providerOrder = append(providerOrder, string(provider))
-			}
-		}
-	}
-	return providerOrder
-}
+// func getOpenRouterProviderOrder(modelConfig *shared.ModelRoleConfig) []string {
+// 	var providerOrder []string
+// 	if modelConfig.BaseModelConfig.Provider == shared.ModelProviderOpenRouter {
+// 		if len(modelConfig.BaseModelConfig.PreferredOpenRouterProviders) > 0 {
+// 			for _, provider := range modelConfig.BaseModelConfig.PreferredOpenRouterProviders {
+// 				providerOrder = append(providerOrder, string(provider))
+// 			}
+// 		}
+// 	}
+// 	return providerOrder
+// }
 
 func withRetries[T any](
 	ctx context.Context,
