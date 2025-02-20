@@ -14,6 +14,7 @@ type StreamMessageType string
 const (
 	StreamMessageStart             StreamMessageType = "start"
 	StreamMessageConnectActive     StreamMessageType = "connectActive"
+	StreamMessageHeartbeat         StreamMessageType = "heartbeat"
 	StreamMessageReply             StreamMessageType = "reply"
 	StreamMessageDescribing        StreamMessageType = "describing"
 	StreamMessageRepliesFinished   StreamMessageType = "repliesFinished"

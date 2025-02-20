@@ -14,6 +14,8 @@ import (
 	shared "plandex-shared"
 )
 
+const HeartbeatInterval = 5 * time.Second
+
 func startResponseStream(reqCtx context.Context, w http.ResponseWriter, auth *types.ServerAuth, planId, branch string, isConnect bool) {
 	log.Println("Response stream manager: starting plan stream")
 
@@ -69,11 +71,33 @@ func startResponseStream(reqCtx context.Context, w http.ResponseWriter, auth *ty
 		time.Sleep(100 * time.Millisecond)
 	}
 
+	chHeartbeat := make(chan string)
+
+	// send heartbeats while the stream is active
+	go func() {
+		ticker := time.NewTicker(HeartbeatInterval)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ticker.C:
+				chHeartbeat <- string(shared.StreamMessageHeartbeat)
+			case <-reqCtx.Done():
+				return
+			}
+		}
+	}()
+
 	for {
 		select {
 		case <-reqCtx.Done():
 			log.Println("Response stream manager: request context done")
 			return
+		case msg := <-chHeartbeat:
+			err = sendStreamMessage(w, msg)
+			if err != nil {
+				return
+			}
 		case msg := <-ch:
 			// log.Println("Response stream manager: sending message:", msg)
 			err = sendStreamMessage(w, msg)
