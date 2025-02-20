@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	shared "plandex-shared"
+
 	"github.com/fatih/color"
 	"github.com/google/uuid"
 	"github.com/sashabaranov/go-openai"
@@ -149,7 +151,15 @@ func StoreConvoMessage(message *ConvoMessage, currentUserId, branch string, comm
 		}
 	}
 
-	if message.Flags.IsImplementationStage && message.Subtask != nil {
+	if len(message.RemovedSubtasks) > 0 {
+		msg += "\n\n"
+		msg += "Removed Tasks"
+		for _, subtask := range message.RemovedSubtasks {
+			msg += "\n• " + subtask
+		}
+	}
+
+	if message.Flags.CurrentStage.TellStage == shared.TellStageImplementation && message.Subtask != nil {
 		msg += "\n\n" + "📋 " + message.Subtask.Title
 		if len(message.Subtask.UsesFiles) > 0 {
 			for _, file := range message.Subtask.UsesFiles {

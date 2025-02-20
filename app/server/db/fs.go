@@ -103,6 +103,10 @@ func getPlanResultsDir(orgId, planId string) string {
 	return filepath.Join(getPlanDir(orgId, planId), "results")
 }
 
+func getPlanAppliesDir(orgId, planId string) string {
+	return filepath.Join(getPlanDir(orgId, planId), "applies")
+}
+
 func getPlanDescriptionsDir(orgId, planId string) string {
 	return filepath.Join(getPlanDir(orgId, planId), "descriptions")
 }

@@ -397,6 +397,7 @@ type Context struct {
 	MapParts        shared.FileMapBodies  `json:"mapParts,omitempty"`
 	MapShas         map[string]string     `json:"mapShas,omitempty"`
 	MapTokens       map[string]int        `json:"mapTokens,omitempty"`
+	AutoLoaded      bool                  `json:"autoLoaded"`
 	CreatedAt       time.Time             `json:"createdAt"`
 	UpdatedAt       time.Time             `json:"updatedAt"`
 }
@@ -417,6 +418,7 @@ func (context *Context) ToMeta() *Context {
 		NumTokens:       context.NumTokens,
 		BodySize:        context.BodySize,
 		ForceSkipIgnore: context.ForceSkipIgnore,
+		AutoLoaded:      context.AutoLoaded,
 		ImageDetail:     context.ImageDetail,
 		MapShas:         context.MapShas,
 		MapTokens:       context.MapTokens,
@@ -438,6 +440,7 @@ func (context *Context) ToApi() *shared.Context {
 		Body:            context.Body,
 		BodySize:        context.BodySize,
 		ForceSkipIgnore: context.ForceSkipIgnore,
+		AutoLoaded:      context.AutoLoaded,
 		ImageDetail:     context.ImageDetail,
 		MapParts:        context.MapParts,
 		MapShas:         context.MapShas,
@@ -448,19 +451,21 @@ func (context *Context) ToApi() *shared.Context {
 }
 
 type ConvoMessage struct {
-	Id            string                   `json:"id"`
-	OrgId         string                   `json:"orgId"`
-	PlanId        string                   `json:"planId"`
-	UserId        string                   `json:"userId"`
-	Role          string                   `json:"role"`
-	Tokens        int                      `json:"tokens"`
-	Num           int                      `json:"num"`
-	Message       string                   `json:"message"`
-	Stopped       bool                     `json:"stopped"`
-	Subtask       *Subtask                 `json:"subtask,omitempty"`
-	AddedSubtasks []*Subtask               `json:"addedSubtasks,omitempty"`
-	Flags         shared.ConvoMessageFlags `json:"flags"`
-	CreatedAt     time.Time                `json:"createdAt"`
+	Id              string                   `json:"id"`
+	OrgId           string                   `json:"orgId"`
+	PlanId          string                   `json:"planId"`
+	UserId          string                   `json:"userId"`
+	Role            string                   `json:"role"`
+	Tokens          int                      `json:"tokens"`
+	Num             int                      `json:"num"`
+	Message         string                   `json:"message"`
+	Stopped         bool                     `json:"stopped"`
+	Subtask         *Subtask                 `json:"subtask,omitempty"`
+	AddedSubtasks   []*Subtask               `json:"addedSubtasks,omitempty"`
+	RemovedSubtasks []string                 `json:"removedSubtasks,omitempty"`
+	Flags           shared.ConvoMessageFlags `json:"flags"`
+	ActivatedPaths  map[string]bool          `json:"activatedPaths,omitempty"`
+	CreatedAt       time.Time                `json:"createdAt"`
 }
 
 func (msg *ConvoMessage) ToApi() *shared.ConvoMessage {
@@ -469,17 +474,18 @@ func (msg *ConvoMessage) ToApi() *shared.ConvoMessage {
 		addedSubtasks[i] = subtask.ToApi()
 	}
 	return &shared.ConvoMessage{
-		Id:            msg.Id,
-		UserId:        msg.UserId,
-		Role:          msg.Role,
-		Tokens:        msg.Tokens,
-		Num:           msg.Num,
-		Message:       msg.Message,
-		Stopped:       msg.Stopped,
-		Flags:         msg.Flags,
-		Subtask:       msg.Subtask.ToApi(),
-		AddedSubtasks: addedSubtasks,
-		CreatedAt:     msg.CreatedAt,
+		Id:              msg.Id,
+		UserId:          msg.UserId,
+		Role:            msg.Role,
+		Tokens:          msg.Tokens,
+		Num:             msg.Num,
+		Message:         msg.Message,
+		Stopped:         msg.Stopped,
+		Flags:           msg.Flags,
+		Subtask:         msg.Subtask.ToApi(),
+		AddedSubtasks:   addedSubtasks,
+		RemovedSubtasks: msg.RemovedSubtasks,
+		CreatedAt:       msg.CreatedAt,
 	}
 }
 
@@ -561,6 +567,30 @@ func (res *PlanFileResult) ToApi() *shared.PlanFileResult {
 		RemovedFile:         res.RemovedFile,
 		CreatedAt:           res.CreatedAt,
 		UpdatedAt:           res.UpdatedAt,
+	}
+}
+
+type PlanApply struct {
+	Id                         string    `json:"id"`
+	OrgId                      string    `json:"orgId"`
+	PlanId                     string    `json:"planId"`
+	UserId                     string    `json:"userId"`
+	ConvoMessageIds            []string  `json:"convoMessageIds"`
+	ConvoMessageDescriptionIds []string  `json:"convoMessageDescriptionIds"`
+	PlanFileResultIds          []string  `json:"planFileResultIds"`
+	CommitMsg                  string    `json:"commitMsg"`
+	CreatedAt                  time.Time `json:"createdAt"`
+}
+
+func (apply *PlanApply) ToApi() *shared.PlanApply {
+	return &shared.PlanApply{
+		Id:                         apply.Id,
+		UserId:                     apply.UserId,
+		ConvoMessageIds:            apply.ConvoMessageIds,
+		ConvoMessageDescriptionIds: apply.ConvoMessageDescriptionIds,
+		PlanFileResultIds:          apply.PlanFileResultIds,
+		CommitMsg:                  apply.CommitMsg,
+		CreatedAt:                  apply.CreatedAt,
 	}
 }
 

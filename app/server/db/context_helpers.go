@@ -412,6 +412,7 @@ type LoadContextsParams struct {
 	UserId                   string
 	SkipConflictInvalidation bool
 	CachedMapsByPath         map[string]*CachedMap
+	AutoLoaded               bool
 }
 
 func LoadContexts(ctx Ctx, params LoadContextsParams) (*shared.LoadContextResponse, []*Context, error) {
@@ -427,6 +428,7 @@ func LoadContexts(ctx Ctx, params LoadContextsParams) (*shared.LoadContextRespon
 	planId := plan.Id
 	branchName := params.BranchName
 	userId := params.UserId
+	autoLoaded := params.AutoLoaded
 
 	filesToLoad := map[string]string{}
 	for _, context := range *req {
@@ -447,6 +449,7 @@ func LoadContexts(ctx Ctx, params LoadContextsParams) (*shared.LoadContextRespon
 	}
 
 	tokensAdded := 0
+	basicTokensAdded := 0
 
 	paramsByTempId := make(map[string]*shared.LoadContextParams)
 	numTokensByTempId := make(map[string]int)
@@ -457,6 +460,7 @@ func LoadContexts(ctx Ctx, params LoadContextsParams) (*shared.LoadContextRespon
 	}
 	totalTokens := branch.ContextTokens
 	totalPlannerTokens := totalTokens
+	totalBasicPlannerTokens := 0
 	totalMapTokens := 0
 
 	settings, err := GetPlanSettings(plan, true)
@@ -486,6 +490,10 @@ func LoadContexts(ctx Ctx, params LoadContextsParams) (*shared.LoadContextRespon
 		if planConfig.AutoLoadContext && context.ContextType == shared.ContextMapType {
 			totalMapTokens += context.NumTokens
 			totalPlannerTokens -= context.NumTokens
+		}
+
+		if !context.AutoLoaded && context.ContextType != shared.ContextMapType {
+			totalBasicPlannerTokens += context.NumTokens
 		}
 	}
 
@@ -562,6 +570,7 @@ func LoadContexts(ctx Ctx, params LoadContextsParams) (*shared.LoadContextRespon
 				MapParts:    mappedFiles,
 				MapShas:     mapShas,
 				MapTokens:   mapTokens,
+				AutoLoaded:  autoLoaded,
 			}
 
 			mapContextsByFilePath[context.FilePath] = newContext
@@ -583,9 +592,14 @@ func LoadContexts(ctx Ctx, params LoadContextsParams) (*shared.LoadContextRespon
 		if planConfig.AutoLoadContext && isMap {
 			tokensAdded += numTokens
 			totalMapTokens += numTokens
+		} else if autoLoaded {
+			tokensAdded += numTokens
+			totalPlannerTokens += numTokens
 		} else {
 			tokensAdded += numTokens
 			totalPlannerTokens += numTokens
+			totalBasicPlannerTokens += numTokens
+			basicTokensAdded += numTokens
 		}
 	}
 
@@ -599,15 +613,24 @@ func LoadContexts(ctx Ctx, params LoadContextsParams) (*shared.LoadContextRespon
 				MaxTokensExceeded: true,
 			}, nil, nil
 		}
-	}
 
-	if totalPlannerTokens > plannerMaxTokens {
-		return &shared.LoadContextResponse{
-			TokensAdded:       tokensAdded,
-			TotalTokens:       totalPlannerTokens,
-			MaxTokens:         plannerMaxTokens,
-			MaxTokensExceeded: true,
-		}, nil, nil
+		if totalBasicPlannerTokens > plannerMaxTokens {
+			return &shared.LoadContextResponse{
+				TokensAdded:       basicTokensAdded,
+				TotalTokens:       totalBasicPlannerTokens,
+				MaxTokens:         plannerMaxTokens,
+				MaxTokensExceeded: true,
+			}, nil, nil
+		}
+	} else {
+		if totalTokens > plannerMaxTokens {
+			return &shared.LoadContextResponse{
+				TokensAdded:       tokensAdded,
+				TotalTokens:       totalTokens,
+				MaxTokens:         plannerMaxTokens,
+				MaxTokensExceeded: true,
+			}, nil, nil
+		}
 	}
 
 	var dbContexts []*Context
@@ -643,6 +666,7 @@ func LoadContexts(ctx Ctx, params LoadContextsParams) (*shared.LoadContextRespon
 					Body:            loadParams.Body,
 					ForceSkipIgnore: loadParams.ForceSkipIgnore,
 					ImageDetail:     loadParams.ImageDetail,
+					AutoLoaded:      autoLoaded,
 				}
 			}
 
@@ -716,7 +740,15 @@ func UpdateContexts(params UpdateContextsParams) (*shared.UpdateContextResponse,
 
 	totalTokens := branch.ContextTokens
 	totalPlannerTokens := totalTokens
+
 	totalMapTokens := 0
+
+	totalBasicPlannerTokens := 0
+	for _, context := range params.ContextsById {
+		if context.ContextType != shared.ContextMapType && !context.AutoLoaded {
+			totalBasicPlannerTokens += context.NumTokens
+		}
+	}
 
 	settings, err := GetPlanSettings(plan, true)
 	if err != nil {
@@ -746,6 +778,7 @@ func UpdateContexts(params UpdateContextsParams) (*shared.UpdateContextResponse,
 	}
 
 	aggregateTokensDiff := 0
+	aggregateBasicTokensDiff := 0
 	tokenDiffsById := make(map[string]int)
 
 	var contextsById map[string]*Context
@@ -834,6 +867,10 @@ func UpdateContexts(params UpdateContextsParams) (*shared.UpdateContextResponse,
 				aggregateTokensDiff += tokenDiff
 				totalTokens += tokenDiff
 				totalPlannerTokens += tokenDiff
+				if !context.AutoLoaded {
+					totalBasicPlannerTokens += tokenDiff
+					aggregateBasicTokensDiff += tokenDiff
+				}
 				context.NumTokens = updateNumTokens
 			}
 
@@ -859,15 +896,16 @@ func UpdateContexts(params UpdateContextsParams) (*shared.UpdateContextResponse,
 		}
 	}
 
-	if totalPlannerTokens > plannerMaxTokens {
-		return &shared.UpdateContextResponse{
-			TokensAdded:       aggregateTokensDiff,
-			TotalTokens:       totalTokens,
-			MaxTokens:         plannerMaxTokens,
-			MaxTokensExceeded: true,
-		}, nil
+	if planConfig.AutoLoadContext {
+		if totalBasicPlannerTokens > plannerMaxTokens {
+			return &shared.UpdateContextResponse{
+				TokensAdded:       aggregateTokensDiff,
+				TotalTokens:       totalBasicPlannerTokens,
+				MaxTokens:         plannerMaxTokens,
+				MaxTokensExceeded: true,
+			}, nil
+		}
 	}
-
 	filesToLoad := map[string]string{}
 	for _, context := range updatedContexts {
 		if context.ContextType == shared.ContextFileType {
