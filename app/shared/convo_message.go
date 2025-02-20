@@ -8,6 +8,8 @@ func (f *ConvoMessageFlags) GetReplyTags() []string {
 	if f.DidMakePlan {
 		if f.DidMakeDebuggingPlan {
 			replyTags = append(replyTags, "🐞 Made Debug Plan")
+		} else if f.DidRemoveTasks {
+			replyTags = append(replyTags, "🔄 Revised Plan")
 		} else {
 			replyTags = append(replyTags, "📋 Made Plan")
 		}

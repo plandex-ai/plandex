@@ -227,7 +227,7 @@ func ApplyChanges(
 				// log.Println("--------------------------------")
 			}
 
-			if len(res.NeedsVerifyReasons) == 1 && res.NeedsVerifyReasons[0] == NeedsVerifyReasonAmbiguousLocation {
+			if len(res.NeedsVerifyReasons) == 1 && res.NeedsVerifyReasons[0] == NeedsVerifyReasonAmbiguousLocation && parser != nil {
 				var err error
 				prevRes := res
 				res, err = ExecApplyTreeSitter(

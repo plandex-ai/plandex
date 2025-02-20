@@ -91,7 +91,6 @@ func RefreshInvalidToken() error {
 	if Current == nil {
 		return fmt.Errorf("error refreshing token: auth not loaded")
 	}
-
 	res, err := verifyEmail(Current.Email, Current.Host)
 
 	if err != nil {

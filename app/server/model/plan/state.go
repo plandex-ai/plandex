@@ -122,7 +122,7 @@ func DeleteActivePlan(orgId, userId, planId, branch string) {
 			}
 		}()
 
-		err := db.GitClearUncommittedChanges(orgId, planId)
+		err := db.GitClearUncommittedChanges(orgId, planId, branch)
 		if err != nil {
 			log.Printf("Error clearing uncommitted changes for plan %s: %v\n", planId, err)
 		}

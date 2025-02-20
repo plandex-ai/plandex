@@ -70,6 +70,8 @@ type PlanConfig struct {
 	AutoDebug      bool `json:"autoDebug"`
 	AutoDebugTries int  `json:"autoDebugTries"`
 
+	AutoRevertOnRewind bool `json:"autoRevertOnRewind"`
+
 	// ReplMode    bool     `json:"replMode"`
 	// DefaultRepl ReplType `json:"defaultRepl"`
 
@@ -78,7 +80,6 @@ type PlanConfig struct {
 	// PlainTextStream   bool `json:"plainTextStream"`
 }
 
-// autonomy settings are configured below in init()
 var DefaultPlanConfig = PlanConfig{
 	Editor: defaultEditor,
 }
@@ -126,6 +127,7 @@ func (p *PlanConfig) SetAutoMode(mode AutoModeType) {
 		p.AutoExec = true
 		p.AutoDebug = true
 		p.AutoDebugTries = defaultAutoDebugTries
+		p.AutoRevertOnRewind = true
 
 	case AutoModeSemi:
 		p.AutoContinue = true
@@ -138,6 +140,7 @@ func (p *PlanConfig) SetAutoMode(mode AutoModeType) {
 		p.CanExec = true
 		p.AutoExec = false
 		p.AutoDebug = false
+		p.AutoRevertOnRewind = true
 
 	case AutoModeBasicPlus:
 		p.AutoContinue = true
@@ -150,6 +153,7 @@ func (p *PlanConfig) SetAutoMode(mode AutoModeType) {
 		p.CanExec = true
 		p.AutoExec = false
 		p.AutoDebug = false
+		p.AutoRevertOnRewind = false
 
 	case AutoModeBasic:
 		p.AutoContinue = true
@@ -162,6 +166,7 @@ func (p *PlanConfig) SetAutoMode(mode AutoModeType) {
 		p.CanExec = false
 		p.AutoExec = false
 		p.AutoDebug = false
+		p.AutoRevertOnRewind = false
 
 	case AutoModeNone:
 		p.AutoContinue = false
@@ -174,6 +179,7 @@ func (p *PlanConfig) SetAutoMode(mode AutoModeType) {
 		p.CanExec = false
 		p.AutoExec = false
 		p.AutoDebug = false
+		p.AutoRevertOnRewind = false
 	}
 }
 
@@ -435,6 +441,19 @@ var ConfigSettingsByKey = map[string]ConfigSetting{
 		},
 		Getter: func(p *PlanConfig) string {
 			return fmt.Sprintf("%d", p.AutoDebugTries)
+		},
+	},
+	"autorevert": {
+		Name: "auto-revert",
+		Desc: "Automatically update project files when rewinding plan",
+		BoolSetter: func(p *PlanConfig, enabled bool) {
+			if enabled != p.AutoRevertOnRewind {
+				p.AutoMode = AutoModeCustom
+			}
+			p.AutoRevertOnRewind = enabled
+		},
+		Getter: func(p *PlanConfig) string {
+			return fmt.Sprintf("%t", p.AutoRevertOnRewind)
 		},
 	},
 }

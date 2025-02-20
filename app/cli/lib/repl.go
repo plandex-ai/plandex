@@ -177,6 +177,7 @@ func ExecPlandexCommandWithParams(args []string, params ExecPlandexCommandParams
 			"PLANDEX_COLUMNS="+strconv.Itoa(columns),
 			"PLANDEX_STREAM_FOREGROUND_COLOR="+streamForegroundColor.Sequence(false),
 			"GLAMOUR_STYLE="+glamourStyle,
+			"PLANDEX_SKIP_UPGRADE=1",
 		)
 	}
 
