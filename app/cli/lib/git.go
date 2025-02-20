@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"log"
 	"os/exec"
+	"regexp"
 	"strings"
 	"sync"
+	"time"
 )
 
 var gitMutex sync.Mutex
@@ -210,6 +212,19 @@ func GitCheckoutFile(path string) error {
 	}
 
 	return nil
+}
+
+const GitLogTimestampFormat = "Mon Jan 2, 2006 | 3:04:05pm"
+
+var GitLogTimestampRegex = regexp.MustCompile(`\w{3} \w{3} \d{1,2}, \d{4} \| \d{1,2}:\d{2}:\d{2}(am|pm) UTC`)
+
+func GetGitLogTimestamp(log string) (time.Time, error) {
+	matches := GitLogTimestampRegex.FindStringSubmatch(log)
+	if len(matches) < 2 {
+		return time.Time{}, fmt.Errorf("no timestamp found in log")
+	}
+
+	return time.Parse(GitLogTimestampFormat, strings.TrimSuffix(matches[0], " UTC"))
 }
 
 func parseConflictFiles(gitOutput string) []string {

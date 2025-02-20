@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"time"
@@ -51,9 +52,14 @@ func initGitRepo(dir string) error {
 }
 
 func GitAddAndCommit(orgId, planId, branch, message string) error {
+	err := assertWriteOrRootLockSet(planId, branch)
+	if err != nil {
+		return err
+	}
+
 	dir := getPlanDir(orgId, planId)
 
-	err := gitWriteOperation(func() error {
+	err = gitWriteOperation(func() error {
 		return gitAdd(dir, ".")
 	}, fmt.Sprintf("GitAddAndCommit > gitAdd: plan=%s branch=%s", planId, branch))
 	if err != nil {
@@ -71,9 +77,14 @@ func GitAddAndCommit(orgId, planId, branch, message string) error {
 }
 
 func GitRewindToSha(orgId, planId, branch, sha string) error {
+	err := assertWriteOrRootLockSet(planId, branch)
+	if err != nil {
+		return err
+	}
+
 	dir := getPlanDir(orgId, planId)
 
-	err := gitWriteOperation(func() error {
+	err = gitWriteOperation(func() error {
 		return gitRewindToSha(dir, sha)
 	}, fmt.Sprintf("GitRewindToSha > gitRewindToSha: plan=%s branch=%s", planId, branch))
 	if err != nil {
@@ -84,6 +95,11 @@ func GitRewindToSha(orgId, planId, branch, sha string) error {
 }
 
 func GetCurrentCommitSha(orgId, planId string) (sha string, err error) {
+	err = assertAnyPlanLockSet(planId, "")
+	if err != nil {
+		return "", err
+	}
+
 	dir := getPlanDir(orgId, planId)
 
 	cmd := exec.Command("git", "-C", dir, "rev-parse", "HEAD")
@@ -96,10 +112,41 @@ func GetCurrentCommitSha(orgId, planId string) (sha string, err error) {
 	return sha, nil
 }
 
-func GitResetToSha(orgId, planId, sha string) error {
+func GetCommitTime(orgId, planId, branch, ref string) (time.Time, error) {
+	err := assertAnyPlanLockSet(planId, branch)
+	if err != nil {
+		return time.Time{}, err
+	}
+
 	dir := getPlanDir(orgId, planId)
 
-	err := gitWriteOperation(func() error {
+	// Use git show to get the commit timestamp
+	cmd := exec.Command("git", "-C", dir, "show", "-s", "--format=%ct", ref)
+	output, err := cmd.Output()
+	if err != nil {
+		return time.Time{}, fmt.Errorf("error getting commit time for ref %s: %v", ref, err)
+	}
+
+	// Parse the Unix timestamp
+	timestamp, err := strconv.ParseInt(strings.TrimSpace(string(output)), 10, 64)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("error parsing commit timestamp for ref %s: %v", ref, err)
+	}
+
+	// Convert Unix timestamp to time.Time
+	commitTime := time.Unix(timestamp, 0)
+	return commitTime, nil
+}
+
+func GitResetToSha(orgId, planId, sha string) error {
+	err := assertWriteOrRootLockSet(planId, "")
+	if err != nil {
+		return err
+	}
+
+	dir := getPlanDir(orgId, planId)
+
+	err = gitWriteOperation(func() error {
 		cmd := exec.Command("git", "-C", dir, "reset", "--hard", sha)
 		_, err := cmd.Output()
 		if err != nil {
@@ -116,7 +163,37 @@ func GitResetToSha(orgId, planId, sha string) error {
 	return nil
 }
 
+func GitCheckoutSha(orgId, planId, sha string) error {
+	err := assertWriteOrRootLockSet(planId, "")
+	if err != nil {
+		return err
+	}
+
+	dir := getPlanDir(orgId, planId)
+
+	err = gitWriteOperation(func() error {
+		cmd := exec.Command("git", "-C", dir, "checkout", sha)
+		_, err := cmd.Output()
+		if err != nil {
+			return fmt.Errorf("error checking out git repository at SHA for dir: %s, sha: %s, err: %v", dir, sha, err)
+		}
+
+		return nil
+	}, fmt.Sprintf("GitCheckoutSha > gitCheckout: plan=%s sha=%s", planId, sha))
+
+	if err != nil {
+		return fmt.Errorf("error checking out git repository at SHA for dir: %s, sha: %s, err: %v", dir, sha, err)
+	}
+
+	return nil
+}
+
 func GetGitCommitHistory(orgId, planId, branch string) (body string, shas []string, err error) {
+	err = assertAnyPlanLockSet(planId, branch)
+	if err != nil {
+		return "", nil, err
+	}
+
 	dir := getPlanDir(orgId, planId)
 
 	body, shas, err = getGitCommitHistory(dir)
@@ -128,6 +205,11 @@ func GetGitCommitHistory(orgId, planId, branch string) (body string, shas []stri
 }
 
 func GetLatestCommit(orgId, planId, branch string) (sha, body string, err error) {
+	err = assertAnyPlanLockSet(planId, branch)
+	if err != nil {
+		return "", "", err
+	}
+
 	dir := getPlanDir(orgId, planId)
 
 	sha, body, err = getLatestCommit(dir)
@@ -139,6 +221,11 @@ func GetLatestCommit(orgId, planId, branch string) (sha, body string, err error)
 }
 
 func GetLatestCommitShaBeforeTime(orgId, planId, branch string, before time.Time) (sha string, err error) {
+	err = assertAnyPlanLockSet(planId, branch)
+	if err != nil {
+		return "", err
+	}
+
 	dir := getPlanDir(orgId, planId)
 
 	log.Printf("ADMIN - GetLatestCommitShaBeforeTime - dir: %s, before: %s", dir, before.Format("2006-01-02T15:04:05Z"))
@@ -176,13 +263,18 @@ func GetLatestCommitShaBeforeTime(orgId, planId, branch string, before time.Time
 }
 
 func GitListBranches(orgId, planId string) ([]string, error) {
+	err := assertAnyPlanLockSet(planId, "")
+	if err != nil {
+		return nil, err
+	}
+
 	dir := getPlanDir(orgId, planId)
 
 	var out bytes.Buffer
 	cmd := exec.Command("git", "branch", "--format=%(refname:short)")
 	cmd.Dir = dir
 	cmd.Stdout = &out
-	err := cmd.Run()
+	err = cmd.Run()
 	if err != nil {
 		return nil, fmt.Errorf("error getting git branches for dir: %s, err: %v", dir, err)
 	}
@@ -197,9 +289,14 @@ func GitListBranches(orgId, planId string) ([]string, error) {
 }
 
 func GitCreateBranch(orgId, planId, newBranch string) error {
+	err := assertWriteOrRootLockSet(planId, "")
+	if err != nil {
+		return err
+	}
+
 	dir := getPlanDir(orgId, planId)
 
-	err := gitWriteOperation(func() error {
+	err = gitWriteOperation(func() error {
 		res, err := exec.Command("git", "-C", dir, "checkout", "-b", newBranch).CombinedOutput()
 		if err != nil {
 			return fmt.Errorf("error creating git branch for dir: %s, err: %v, output: %s", dir, err, string(res))
@@ -216,9 +313,14 @@ func GitCreateBranch(orgId, planId, newBranch string) error {
 }
 
 func GitDeleteBranch(orgId, planId, branchName string) error {
+	err := assertWriteOrRootLockSet(planId, "")
+	if err != nil {
+		return err
+	}
+
 	dir := getPlanDir(orgId, planId)
 
-	err := gitWriteOperation(func() error {
+	err = gitWriteOperation(func() error {
 		res, err := exec.Command("git", "-C", dir, "branch", "-D", branchName).CombinedOutput()
 		if err != nil {
 			return fmt.Errorf("error deleting git branch for dir: %s, err: %v, output: %s", dir, err, string(res))
@@ -234,10 +336,15 @@ func GitDeleteBranch(orgId, planId, branchName string) error {
 	return nil
 }
 
-func GitClearUncommittedChanges(orgId, planId string) error {
+func GitClearUncommittedChanges(orgId, planId, branch string) error {
+	err := assertWriteOrRootLockSet(planId, branch)
+	if err != nil {
+		return err
+	}
+
 	dir := getPlanDir(orgId, planId)
 
-	err := gitWriteOperation(func() error {
+	err = gitWriteOperation(func() error {
 		// Reset staged changes
 		res, err := exec.Command("git", "-C", dir, "reset", "--hard").CombinedOutput()
 		if err != nil {
@@ -263,15 +370,16 @@ func GitClearUncommittedChanges(orgId, planId string) error {
 	return err
 }
 
-// Not used currently but may be good to handle these errors specifically later if locking can't fully prevent them
-//
-//	func isLockFileError(output string) bool {
-//		return strings.Contains(output, "fatal: Unable to create") && strings.Contains output, ".git/index.lock': File exists")
-//	}
 func GitCheckoutBranch(orgId, planId, branch string) error {
+	// even though we use 'gitWriteOperation' below, we also check out a branch for reads, so we just need to assert that any lock is set
+	err := assertAnyPlanLockSet(planId, branch)
+	if err != nil {
+		return err
+	}
+
 	dir := getPlanDir(orgId, planId)
 
-	err := gitWriteOperation(func() error {
+	err = gitWriteOperation(func() error {
 		return gitCheckoutBranch(dir, branch)
 	}, fmt.Sprintf("GitCheckoutBranch > gitCheckout: plan=%s branch=%s", planId, branch))
 
@@ -577,4 +685,55 @@ func gitWriteOperation(operation func() error, label string) error {
 		return err
 	}
 	return fmt.Errorf("operation %s failed after %d attempts: %v", label, maxGitRetries, err)
+}
+
+func assertWriteOrRootLockSet(planId, branch string) error {
+	planLocksMu.Lock()
+	defer planLocksMu.Unlock()
+
+	lock, ok := planLocks[planId]
+	if !ok || lock.currentBranch != branch || (!lock.hasWriter && lock.currentBranch != "") {
+		stack := debug.Stack()
+
+		if !ok {
+			log.Printf("Plan %s branch %s NO LOCK SET for git repo write operation\n%s", planId, branch, formatStackTraceLong(stack))
+
+			return fmt.Errorf("plan %s branch %s NO LOCK SET for git repo write operation", planId, branch)
+		} else if lock.currentBranch != branch {
+			log.Printf("lock.currentBranch: %s, branch: %s", lock.currentBranch, branch)
+			log.Printf("Plan %s branch %s WRONG LOCK SET for git repo write operation\n%s", planId, branch, formatStackTraceLong(stack))
+
+			return fmt.Errorf("plan %s branch %s WRONG LOCK SET for git repo write operation", planId, branch)
+		} else if !lock.hasWriter {
+			log.Printf("lock.hasWriter: %t", lock.hasWriter)
+			log.Printf("Plan %s branch %s NO WRITER LOCK SET for git repo write operation\n%s", planId, branch, formatStackTraceLong(stack))
+
+			return fmt.Errorf("plan %s branch %s NO WRITER LOCK SET for git repo write operation", planId, branch)
+		}
+
+	}
+
+	return nil
+}
+
+func assertAnyPlanLockSet(planId, branch string) error {
+	planLocksMu.Lock()
+	defer planLocksMu.Unlock()
+
+	lock, ok := planLocks[planId]
+	if !ok {
+		stack := debug.Stack()
+		log.Printf("Plan %s branch %s NO LOCK SET for git repo operation\n%s", planId, branch, formatStackTraceLong(stack))
+		return fmt.Errorf("plan %s NO LOCK SET", planId)
+	}
+
+	// if the lock is set on a branch rather than a plan lock, require the branch to match
+	if lock.currentBranch != "" && lock.currentBranch != branch {
+		stack := debug.Stack()
+		log.Printf("Plan %s branch %s WRONG LOCK SET for git repo operation\n%s", planId, branch, formatStackTraceLong(stack))
+		return fmt.Errorf("plan %s WRONG LOCK SET", planId)
+	}
+
+	// otherwise it's a root plan lock, so we allow any branch
+	return nil
 }
