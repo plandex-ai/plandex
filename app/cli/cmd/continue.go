@@ -50,6 +50,7 @@ func doContinue(cmd *cobra.Command, args []string) {
 		IsUserContinue: true,
 		ExecEnabled:    !noExec,
 		AutoContext:    tellAutoContext,
+		SmartContext:   tellSmartContext,
 		AutoApply:      tellAutoApply,
 		IsChatOnly:     chatOnly,
 	}

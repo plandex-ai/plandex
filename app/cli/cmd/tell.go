@@ -18,6 +18,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var isImplementationOfChat bool
+
 // tellCmd represents the prompt command
 var tellCmd = &cobra.Command{
 	Use:     "tell [prompt]",
@@ -32,6 +34,8 @@ func init() {
 	RootCmd.AddCommand(tellCmd)
 
 	initExecFlags(tellCmd, initExecFlagsParams{})
+
+	tellCmd.Flags().BoolVar(&isImplementationOfChat, "from-chat", false, "Begin implementation based on conversation so far")
 }
 
 func doTell(cmd *cobra.Command, args []string) {
@@ -44,20 +48,29 @@ func doTell(cmd *cobra.Command, args []string) {
 		apiKeys = lib.MustVerifyApiKeys()
 	}
 
-	prompt := getTellPrompt(args)
+	if isImplementationOfChat && len(args) > 0 {
+		term.OutputErrorAndExit("Error: --from-chat cannot be used with a prompt")
+	}
 
-	if prompt == "" {
-		fmt.Println("🤷‍♂️ No prompt to send")
-		return
+	var prompt string
+	if !isImplementationOfChat {
+		prompt = getTellPrompt(args)
+
+		if prompt == "" {
+			fmt.Println("🤷‍♂️ No prompt to send")
+			return
+		}
 	}
 
 	tellFlags := types.TellFlags{
-		TellBg:      tellBg,
-		TellStop:    tellStop,
-		TellNoBuild: tellNoBuild,
-		AutoContext: tellAutoContext,
-		ExecEnabled: !noExec,
-		AutoApply:   tellAutoApply,
+		TellBg:                 tellBg,
+		TellStop:               tellStop,
+		TellNoBuild:            tellNoBuild,
+		AutoContext:            tellAutoContext,
+		SmartContext:           tellSmartContext,
+		ExecEnabled:            !noExec,
+		AutoApply:              tellAutoApply,
+		IsImplementationOfChat: isImplementationOfChat,
 	}
 
 	plan_exec.TellPlan(plan_exec.ExecParams{

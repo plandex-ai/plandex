@@ -13,7 +13,7 @@ import (
 var autoCommit, skipCommit, autoExec bool
 
 func init() {
-	initApplyFlags(applyCmd)
+	initApplyFlags(applyCmd, false)
 	initExecScriptFlags(applyCmd)
 	RootCmd.AddCommand(applyCmd)
 }

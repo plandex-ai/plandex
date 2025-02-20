@@ -23,6 +23,8 @@ var diffUiSideBySide = true
 var diffUiLineByLine bool
 var diffGit bool
 
+var fromTellMenu bool
+
 var diffsCmd = &cobra.Command{
 	Use:     "diff",
 	Aliases: []string{"diffs"},
@@ -38,6 +40,10 @@ func init() {
 	diffsCmd.Flags().BoolVar(&diffGit, "git", false, "Show diffs in git diff format")
 	diffsCmd.Flags().BoolVarP(&diffUiSideBySide, "side", "s", true, "Show diffs UI in side-by-side view")
 	diffsCmd.Flags().BoolVarP(&diffUiLineByLine, "line", "l", false, "Show diffs UI in line-by-line view")
+
+	diffsCmd.Flags().BoolVar(&fromTellMenu, "from-tell-menu", false, "Show diffs from the tell menu") //nolint:unused
+	diffsCmd.Flags().MarkHidden("from-tell-menu")
+
 }
 
 func diffs(cmd *cobra.Command, args []string) {
@@ -48,13 +54,21 @@ func diffs(cmd *cobra.Command, args []string) {
 		term.OutputNoCurrentPlanErrorAndExit()
 	}
 
+	term.StartSpinner("")
+
 	if diffGit {
 		showDiffUi = false
 	}
 
 	diffs, err := api.Client.GetPlanDiffs(lib.CurrentPlanId, lib.CurrentBranch, plainTextOutput || showDiffUi)
+	term.StopSpinner()
 	if err != nil {
 		term.OutputErrorAndExit("Error getting plan diffs: %v", err)
+		return
+	}
+
+	if len(diffs) == 0 {
+		term.OutputErrorAndExit("🤷‍♂️ No pending changes")
 		return
 	}
 
@@ -138,12 +152,17 @@ func diffs(cmd *cobra.Command, args []string) {
 			fmt.Printf("%s for git diff format\n", color.New(color.Bold, term.ColorHiGreen).Sprintf("(g)"))
 			// fmt.Printf("%s to quit\n", color.New(color.Bold, term.ColorHiGreen).Sprintf("(q)"))
 
+			s := "to exit menu/continue"
+			if fromTellMenu {
+				s = "to go back"
+			}
+
 			fmt.Printf("%s %s %s %s %s",
 				color.New(term.ColorHiMagenta, color.Bold).Sprint("Press a hotkey,"),
 				color.New(color.FgHiWhite, color.Bold).Sprintf("↓"),
 				color.New(term.ColorHiMagenta, color.Bold).Sprintf("to select, or"),
 				color.New(color.FgHiWhite, color.Bold).Sprintf("enter"),
-				color.New(term.ColorHiMagenta, color.Bold).Sprintf("to exit menu>"),
+				color.New(term.ColorHiMagenta, color.Bold).Sprintf("%s", s),
 			)
 
 			char, key, err := term.GetUserKeyInput()

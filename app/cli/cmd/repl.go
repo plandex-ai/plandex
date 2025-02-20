@@ -107,8 +107,8 @@ func runRepl(cmd *cobra.Command, args []string) {
 		func(in string) { executor(in, p) },
 		prompt.WithPrefixCallback(func() string {
 			// Get last part of current working directory
-			cwd := fs.Cwd
-			dirName := filepath.Base(cwd)
+			// cwd := fs.Cwd
+			// dirName := filepath.Base(cwd)
 
 			// Build prefix with directory and mode indicator
 			var modeIcon string
@@ -117,7 +117,7 @@ func runRepl(cmd *cobra.Command, args []string) {
 			} else if lib.CurrentReplState.Mode == lib.ReplModeChat {
 				modeIcon = "💬"
 			}
-			return fmt.Sprintf("%s %s ", dirName, modeIcon)
+			return fmt.Sprintf("%s ", modeIcon)
 		}),
 		prompt.WithTitle("Plandex "+version.Version),
 		prompt.WithSelectedSuggestionBGColor(prompt.LightGray),
@@ -473,7 +473,7 @@ func executor(in string, p *prompt.Prompt) {
 				}
 				if sel == beginImplOpt {
 					fmt.Println()
-					args := []string{"tell", "Go ahead with the implementation based on what we've discussed so far."}
+					args := []string{"tell", "--from-chat"}
 					_, err := lib.ExecPlandexCommand(args)
 					if err != nil {
 						color.New(term.ColorHiRed).Printf("Error executing tell: %v\n", err)

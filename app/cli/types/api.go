@@ -68,6 +68,7 @@ type ApiClient interface {
 	RenamePlan(planId string, name string) *shared.ApiError
 
 	GetCurrentPlanState(planId, branch string) (*shared.CurrentPlanState, *shared.ApiError)
+	GetCurrentPlanStateAtSha(planId, sha string) (*shared.CurrentPlanState, *shared.ApiError)
 	ApplyPlan(planId, branch string, req shared.ApplyPlanRequest) (string, *shared.ApiError)
 	RejectAllChanges(planId, branch string) *shared.ApiError
 	RejectFile(planId, branch, filePath string) *shared.ApiError

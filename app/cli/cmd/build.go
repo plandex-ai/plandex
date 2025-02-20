@@ -26,11 +26,12 @@ func init() {
 	RootCmd.AddCommand(buildCmd)
 
 	initExecFlags(buildCmd, initExecFlagsParams{
-		omitFile:        true,
-		omitNoBuild:     true,
-		omitEditor:      true,
-		omitStop:        true,
-		omitAutoContext: true,
+		omitFile:         true,
+		omitNoBuild:      true,
+		omitEditor:       true,
+		omitStop:         true,
+		omitAutoContext:  true,
+		omitSmartContext: true,
 	})
 }
 

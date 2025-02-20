@@ -14,7 +14,6 @@ import (
 
 	shared "plandex-shared"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/fatih/color"
 )
 
@@ -23,8 +22,6 @@ func TellPlan(
 	prompt string,
 	flags types.TellFlags,
 ) {
-	log.Println("plan_exec.TellPlan")
-	log.Println("flags", spew.Sdump(flags))
 
 	tellBg := flags.TellBg
 	tellStop := flags.TellStop
@@ -33,11 +30,16 @@ func TellPlan(
 	isDebugCmd := flags.IsUserDebug
 	isChatOnly := flags.IsChatOnly
 	autoContext := flags.AutoContext
+	smartContext := flags.SmartContext
 	execEnabled := flags.ExecEnabled
 	autoApply := flags.AutoApply
 	isApplyDebug := flags.IsApplyDebug
-
+	isImplementationOfChat := flags.IsImplementationOfChat
 	done := make(chan struct{})
+
+	if prompt == "" && isImplementationOfChat {
+		prompt = "Go ahead with the plan based on what we've discussed so far."
+	}
 
 	outputPromptIfTell := func() {
 		if isUserContinue || prompt == "" {
@@ -126,22 +128,24 @@ func TellPlan(
 		}
 
 		apiErr := api.Client.TellPlan(params.CurrentPlanId, params.CurrentBranch, shared.TellPlanRequest{
-			Prompt:         prompt,
-			ConnectStream:  !tellBg,
-			AutoContinue:   !tellStop,
-			ProjectPaths:   paths.ActivePaths,
-			BuildMode:      buildMode,
-			IsUserContinue: isUserContinue,
-			IsUserDebug:    isDebugCmd,
-			IsChatOnly:     isChatOnly,
-			AutoContext:    autoContext,
-			ExecEnabled:    execEnabled,
-			OsDetails:      osDetails,
-			ApiKey:         legacyApiKey, // deprecated
-			Endpoint:       openAIBase,   // deprecated
-			ApiKeys:        params.ApiKeys,
-			OpenAIBase:     openAIBase,
-			OpenAIOrgId:    openAIOrgId,
+			Prompt:                 prompt,
+			ConnectStream:          !tellBg,
+			AutoContinue:           !tellStop,
+			ProjectPaths:           paths.ActivePaths,
+			BuildMode:              buildMode,
+			IsUserContinue:         isUserContinue,
+			IsUserDebug:            isDebugCmd,
+			IsChatOnly:             isChatOnly,
+			AutoContext:            autoContext,
+			SmartContext:           smartContext,
+			ExecEnabled:            execEnabled,
+			OsDetails:              osDetails,
+			ApiKey:                 legacyApiKey, // deprecated
+			Endpoint:               openAIBase,   // deprecated
+			ApiKeys:                params.ApiKeys,
+			OpenAIBase:             openAIBase,
+			OpenAIOrgId:            openAIOrgId,
+			IsImplementationOfChat: isImplementationOfChat,
 		}, stream.OnStreamPlan)
 
 		term.StopSpinner()

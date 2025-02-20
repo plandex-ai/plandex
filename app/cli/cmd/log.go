@@ -6,7 +6,6 @@ import (
 	"plandex-cli/auth"
 	"plandex-cli/lib"
 	"plandex-cli/term"
-	"regexp"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -59,13 +58,11 @@ func runLog(cmd *cobra.Command, args []string) {
 func convertTimestampsToLocal(input string) (string, error) {
 	t := time.Now()
 	zone, _ := t.Zone()
-
-	parseFmt := "Mon Jan 2, 2006 | 3:04:05pm MST"
-	re := regexp.MustCompile(`\w{3} \w{3} \d{1,2}, \d{4} \| \d{1,2}:\d{2}:\d{2}(am|pm) UTC`)
+	re := lib.GitLogTimestampRegex
 
 	// Function to convert matched timestamps assuming they are in UTC to local time.
 	replaceFunc := func(match string) string {
-		t, err := time.Parse(parseFmt, match)
+		t, err := time.Parse(lib.GitLogTimestampFormat, match)
 		if err != nil {
 			// In case of an error, return the original match.
 			return match

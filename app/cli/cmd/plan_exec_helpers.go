@@ -30,6 +30,7 @@ var tellStop bool
 var tellNoBuild bool
 var tellAutoApply bool
 var tellAutoContext bool
+var tellSmartContext bool
 var noExec bool
 var autoDebug int
 
@@ -48,14 +49,15 @@ func init() {
 }
 
 type initExecFlagsParams struct {
-	omitFile        bool
-	omitNoBuild     bool
-	omitEditor      bool
-	omitStop        bool
-	omitBg          bool
-	omitApply       bool
-	omitExec        bool
-	omitAutoContext bool
+	omitFile         bool
+	omitNoBuild      bool
+	omitEditor       bool
+	omitStop         bool
+	omitBg           bool
+	omitApply        bool
+	omitExec         bool
+	omitAutoContext  bool
+	omitSmartContext bool
 }
 
 func initExecFlags(cmd *cobra.Command, params initExecFlagsParams) {
@@ -81,9 +83,13 @@ func initExecFlags(cmd *cobra.Command, params initExecFlagsParams) {
 		cmd.Flags().BoolVar(&tellAutoContext, "auto-load-context", false, shared.ConfigSettingsByKey["auto-load-context"].Desc)
 	}
 
+	if !params.omitSmartContext {
+		cmd.Flags().BoolVar(&tellSmartContext, "smart-context", false, shared.ConfigSettingsByKey["smart-context"].Desc)
+	}
+
 	if !params.omitApply {
 		cmd.Flags().BoolVar(&tellAutoApply, "apply", false, "Automatically apply changes")
-		initApplyFlags(cmd)
+		initApplyFlags(cmd, true)
 	}
 
 	if !params.omitExec {
@@ -96,9 +102,18 @@ func initExecFlags(cmd *cobra.Command, params initExecFlagsParams) {
 	}
 }
 
-func initApplyFlags(cmd *cobra.Command) {
-	cmd.Flags().BoolVar(&autoCommit, "commit", false, "Commit changes to git when --apply is passed")
-	cmd.Flags().BoolVar(&skipCommit, "no-commit", false, "Skip committing changes to git when --apply is passed")
+func initApplyFlags(cmd *cobra.Command, applyFlag bool) {
+	commitDesc := "Commit changes to git"
+	if applyFlag {
+		commitDesc += " when --apply is passed"
+	}
+
+	skipCommitDesc := "Skip committing changes to git"
+	if applyFlag {
+		skipCommitDesc += " when --apply is passed"
+	}
+	cmd.Flags().BoolVarP(&autoCommit, "commit", "c", false, commitDesc)
+	cmd.Flags().BoolVar(&skipCommit, "skip-commit", false, skipCommitDesc)
 }
 
 func initExecScriptFlags(cmd *cobra.Command) {
@@ -163,6 +178,9 @@ func mustSetPlanExecFlags(cmd *cobra.Command) {
 	}
 	if !cmd.Flags().Changed("auto-load-context") {
 		tellAutoContext = config.AutoLoadContext
+	}
+	if !cmd.Flags().Changed("smart-context") {
+		tellSmartContext = config.SmartContext
 	}
 	if !cmd.Flags().Changed("no-exec") {
 		noExec = !config.CanExec

@@ -25,11 +25,12 @@ func init() {
 	RootCmd.AddCommand(chatCmd)
 
 	initExecFlags(chatCmd, initExecFlagsParams{
-		omitNoBuild: true,
-		omitStop:    true,
-		omitBg:      true,
-		omitApply:   true,
-		omitExec:    true,
+		omitNoBuild:      true,
+		omitStop:         true,
+		omitBg:           true,
+		omitApply:        true,
+		omitExec:         true,
+		omitSmartContext: true,
 	})
 
 }

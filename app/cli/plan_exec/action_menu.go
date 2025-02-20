@@ -181,7 +181,7 @@ func handleHotkeyOption(option hotkeyOption, diffs []string, params ExecParams) 
 
 	if option.char == "d" {
 		fmt.Println()
-		_, err := lib.ExecPlandexCommandWithParams([]string{"diffs", "--ui"}, lib.ExecPlandexCommandParams{
+		_, err := lib.ExecPlandexCommandWithParams([]string{"diffs", "--ui", "--from-tell-menu"}, lib.ExecPlandexCommandParams{
 			DisableSuggestions: true,
 		})
 		if err != nil {
