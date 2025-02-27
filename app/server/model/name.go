@@ -1,4 +1,3 @@
-
 package model
 
 import (
@@ -10,6 +9,7 @@ import (
 	"plandex-server/hooks"
 	"plandex-server/model/prompts"
 	"plandex-server/types"
+	"plandex-server/utils"
 	"time"
 
 	shared "plandex-shared"
@@ -26,10 +26,11 @@ func GenPlanName(
 	ctx context.Context,
 ) (string, error) {
 	config := settings.ModelPack.Namer
-	var sysPrompt string
+
 	var tools []openai.Tool
 	var toolChoice *openai.ToolChoice
 
+	var sysPrompt string
 	if config.BaseModelConfig.PreferredModelOutputFormat == shared.ModelOutputFormatXml {
 		sysPrompt = prompts.SysPlanNameXml
 	} else {
@@ -49,7 +50,7 @@ func GenPlanName(
 		toolChoice = &choice
 	}
 
-	content := prompts.GetPlanNamePrompt(planContent)
+	content := prompts.GetPlanNamePrompt(sysPrompt, planContent)
 
 	messages := []types.ExtendedChatMessage{
 		{
@@ -70,7 +71,7 @@ func GenPlanName(
 		Plan: plan,
 		WillSendModelRequestParams: &hooks.WillSendModelRequestParams{
 			InputTokens:  numTokens,
-			OutputTokens: config.GetReservedOutputTokens(),
+			OutputTokens: config.BaseModelConfig.MaxOutputTokens - numTokens,
 			ModelName:    config.BaseModelConfig.ModelName,
 		},
 	})
@@ -93,7 +94,7 @@ func GenPlanName(
 		req.ToolChoice = *toolChoice
 	}
 
-	resp, err := CreateChatCompletionWithRetries(
+	resp, err := CreateChatCompletion(
 		clients,
 		&config,
 		ctx,
@@ -109,7 +110,7 @@ func GenPlanName(
 
 	if config.BaseModelConfig.PreferredModelOutputFormat == shared.ModelOutputFormatXml {
 		content := resp.Choices[0].Message.Content
-		planName = GetXMLContent(content, "planName")
+		planName = utils.GetXMLContent(content, "planName")
 		if planName == "" {
 			return "", fmt.Errorf("No planName tag found in XML response")
 		}
@@ -149,6 +150,11 @@ func GenPlanName(
 		outputTokens = shared.GetNumTokensEstimate(planName)
 	}
 
+	var cachedTokens int
+	if resp.Usage.PromptTokensDetails != nil {
+		cachedTokens = resp.Usage.PromptTokensDetails.CachedTokens
+	}
+
 	go func() {
 		_, apiErr := hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
 			Auth: auth,
@@ -156,6 +162,7 @@ func GenPlanName(
 			DidSendModelRequestParams: &hooks.DidSendModelRequestParams{
 				InputTokens:      inputTokens,
 				OutputTokens:     outputTokens,
+				CachedTokens:     cachedTokens,
 				ModelName:        config.BaseModelConfig.ModelName,
 				ModelProvider:    config.BaseModelConfig.Provider,
 				ModelPackName:    settings.ModelPack.Name,
@@ -212,7 +219,7 @@ func GenPipedDataName(
 		toolChoice = &choice
 	}
 
-	content := prompts.GetPipedDataNamePrompt(pipedContent)
+	content := prompts.GetPipedDataNamePrompt(sysPrompt, pipedContent)
 
 	messages := []types.ExtendedChatMessage{
 		{
@@ -233,7 +240,7 @@ func GenPipedDataName(
 		Plan: plan,
 		WillSendModelRequestParams: &hooks.WillSendModelRequestParams{
 			InputTokens:  numTokens,
-			OutputTokens: config.GetReservedOutputTokens(),
+			OutputTokens: config.BaseModelConfig.MaxOutputTokens - numTokens,
 			ModelName:    config.BaseModelConfig.ModelName,
 		},
 	})
@@ -258,7 +265,7 @@ func GenPipedDataName(
 		req.ToolChoice = *toolChoice
 	}
 
-	resp, err := CreateChatCompletionWithRetries(
+	resp, err := CreateChatCompletion(
 		clients,
 		&config,
 		ctx,
@@ -274,7 +281,7 @@ func GenPipedDataName(
 
 	if config.BaseModelConfig.PreferredModelOutputFormat == shared.ModelOutputFormatXml {
 		content := resp.Choices[0].Message.Content
-		name = GetXMLContent(content, "name")
+		name = utils.GetXMLContent(content, "name")
 		if name == "" {
 			return "", fmt.Errorf("No name tag found in XML response")
 		}
@@ -314,6 +321,11 @@ func GenPipedDataName(
 		outputTokens = shared.GetNumTokensEstimate(name)
 	}
 
+	var cachedTokens int
+	if resp.Usage.PromptTokensDetails != nil {
+		cachedTokens = resp.Usage.PromptTokensDetails.CachedTokens
+	}
+
 	go func() {
 		_, apiErr := hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
 			Auth: auth,
@@ -321,6 +333,7 @@ func GenPipedDataName(
 			DidSendModelRequestParams: &hooks.DidSendModelRequestParams{
 				InputTokens:      inputTokens,
 				OutputTokens:     outputTokens,
+				CachedTokens:     cachedTokens,
 				ModelName:        config.BaseModelConfig.ModelName,
 				ModelProvider:    config.BaseModelConfig.Provider,
 				ModelPackName:    settings.ModelPack.Name,
@@ -377,7 +390,7 @@ func GenNoteName(
 		toolChoice = &choice
 	}
 
-	content := prompts.GetNoteNamePrompt(note)
+	content := prompts.GetNoteNamePrompt(sysPrompt, note)
 
 	messages := []types.ExtendedChatMessage{
 		{
@@ -398,7 +411,7 @@ func GenNoteName(
 		Plan: plan,
 		WillSendModelRequestParams: &hooks.WillSendModelRequestParams{
 			InputTokens:  numTokens,
-			OutputTokens: config.GetReservedOutputTokens(),
+			OutputTokens: config.BaseModelConfig.MaxOutputTokens - numTokens,
 			ModelName:    config.BaseModelConfig.ModelName,
 		},
 	})
@@ -423,7 +436,7 @@ func GenNoteName(
 		req.ToolChoice = *toolChoice
 	}
 
-	resp, err := CreateChatCompletionWithRetries(
+	resp, err := CreateChatCompletion(
 		clients,
 		&config,
 		ctx,
@@ -439,7 +452,7 @@ func GenNoteName(
 
 	if config.BaseModelConfig.PreferredModelOutputFormat == shared.ModelOutputFormatXml {
 		content := resp.Choices[0].Message.Content
-		name = GetXMLContent(content, "name")
+		name = utils.GetXMLContent(content, "name")
 		if name == "" {
 			return "", fmt.Errorf("No name tag found in XML response")
 		}
@@ -479,6 +492,11 @@ func GenNoteName(
 		outputTokens = shared.GetNumTokensEstimate(name)
 	}
 
+	var cachedTokens int
+	if resp.Usage.PromptTokensDetails != nil {
+		cachedTokens = resp.Usage.PromptTokensDetails.CachedTokens
+	}
+
 	go func() {
 		_, apiErr := hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
 			Auth: auth,
@@ -486,6 +504,7 @@ func GenNoteName(
 			DidSendModelRequestParams: &hooks.DidSendModelRequestParams{
 				InputTokens:      inputTokens,
 				OutputTokens:     outputTokens,
+				CachedTokens:     cachedTokens,
 				ModelName:        config.BaseModelConfig.ModelName,
 				ModelProvider:    config.BaseModelConfig.Provider,
 				ModelPackName:    settings.ModelPack.Name,
