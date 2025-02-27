@@ -193,6 +193,7 @@ func MustApplyPlanAttempt(
 	}
 
 	onExecSuccess := func() {
+		term.StartSpinner("")
 		commitSummary, err := apiApplyPlan(planId, branch)
 
 		if err != nil {
