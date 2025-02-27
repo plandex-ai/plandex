@@ -20,6 +20,7 @@ func GetFileMapHandler(w http.ResponseWriter, r *http.Request) {
 
 	auth := Authenticate(w, r, true)
 	if auth == nil {
+		log.Println("GetFileMapHandler: auth failed")
 		return
 	}
 
@@ -28,6 +29,8 @@ func GetFileMapHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Error decoding request: %v", err), http.StatusBadRequest)
 		return
 	}
+
+	log.Println("GetFileMapHandler checking server resources")
 
 	maps := make(shared.FileMapBodies)
 
@@ -42,6 +45,8 @@ func GetFileMapHandler(w http.ResponseWriter, r *http.Request) {
 	sem := make(chan struct{}, maxWorkers)
 	wg := sync.WaitGroup{}
 	var mu sync.Mutex
+
+	log.Printf("GetFileMapHandler: len(req.MapInputs): %d", len(req.MapInputs))
 
 	for path, input := range req.MapInputs {
 		if !shared.HasFileMapSupport(path) {
@@ -69,6 +74,8 @@ func GetFileMapHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	wg.Wait()
 
+	log.Printf("GetFileMapHandler: len(maps): %d", len(maps))
+
 	resp := shared.GetFileMapResponse{
 		MapBodies: maps,
 	}
@@ -78,6 +85,8 @@ func GetFileMapHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Error marshalling response: %v", err), http.StatusInternalServerError)
 		return
 	}
+
+	log.Printf("GetFileMapHandler success - writing response bytes: %d", len(respBytes))
 
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(respBytes)
