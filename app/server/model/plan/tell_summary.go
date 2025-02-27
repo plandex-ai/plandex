@@ -104,13 +104,13 @@ func (state *activeTellStreamState) addConversationMessages() bool {
 			}
 		}
 
-		if summary == nil {
+		if summary == nil && tokensBeforeConvo+conversationTokens > state.settings.GetPlannerEffectiveMaxTokens() {
 			err := errors.New("couldn't get under token limit with conversation summary")
 			log.Printf("Error: %v\n", err)
 			active.StreamDoneCh <- &shared.ApiError{
 				Type:   shared.ApiErrorTypeOther,
 				Status: http.StatusInternalServerError,
-				Msg:    "Couldn't get under token limit with conversation summary",
+				Msg:    "Exceeded token limit",
 			}
 			return false
 		}
@@ -378,7 +378,7 @@ func summarizeConvo(clients map[string]model.ClientInfo, config shared.ModelRole
 		Auth:                        params.auth,
 		Plan:                        plan,
 		ModelPackName:               params.modelPackName,
-		ActivePlan:                  active,
+		ModelStreamId:               active.ModelStreamId,
 	}, ctx)
 
 	if apiErr != nil {
