@@ -5,11 +5,10 @@ import (
 )
 
 func CreateCustomModel(model *AvailableModel) error {
-	query := `INSERT INTO custom_models (org_id, provider, custom_provider, base_url, model_name, description, max_tokens, api_key_env_var, default_max_convo_tokens, default_reserved_output_tokens, preferred_output_format, has_image_support) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+	query := `INSERT INTO custom_models (org_id, provider, custom_provider, base_url, model_name, description, max_tokens, api_key_env_var, default_max_convo_tokens, max_output_tokens, reserved_output_tokens, preferred_output_format, has_image_support) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
 	RETURNING id, created_at, updated_at`
 
-	err := Conn.QueryRow(query, model.OrgId, model.Provider, model.CustomProvider, model.BaseUrl, model.ModelName, model.Description, model.MaxTokens, model.ApiKeyEnvVar, model.DefaultMaxConvoTokens, model.DefaultReservedOutputTokens, model.PreferredOutputFormat, model.HasImageSupport).Scan(&model.Id, &model.CreatedAt, &model.UpdatedAt)
-
+	err := Conn.QueryRow(query, model.OrgId, model.Provider, model.CustomProvider, model.BaseUrl, model.ModelName, model.Description, model.MaxTokens, model.ApiKeyEnvVar, model.DefaultMaxConvoTokens, model.MaxOutputTokens, model.ReservedOutputTokens, model.PreferredOutputFormat, model.HasImageSupport).Scan(&model.Id, &model.CreatedAt, &model.UpdatedAt)
 	if err != nil {
 		return fmt.Errorf("error inserting new custom model: %v", err)
 	}

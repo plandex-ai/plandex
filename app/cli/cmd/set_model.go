@@ -16,8 +16,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var provider string
-
 func init() {
 	RootCmd.AddCommand(modelsSetCmd)
 
@@ -140,8 +138,12 @@ func updateModelSettings(args []string, originalSettings *shared.PlanSettings) *
 	if len(args) > 0 {
 		modelSetOrRoleOrSetting = args[0]
 
+		compare := modelSetOrRoleOrSetting
+		if compare == "daily" {
+			compare = "daily-driver"
+		}
 		for _, ms := range shared.BuiltInModelPacks {
-			if strings.EqualFold(ms.Name, modelSetOrRoleOrSetting) {
+			if strings.EqualFold(ms.Name, compare) {
 				modelPack = ms
 				break
 			}
@@ -332,7 +334,7 @@ func updateModelSettings(args []string, originalSettings *shared.PlanSettings) *
 					}
 					p = strings.ToLower(p)
 
-					if propertyCompact == fmt.Sprintf("%s/%s", p, shared.Compact(m.ModelName)) {
+					if propertyCompact == fmt.Sprintf("%s/%s", p, shared.Compact(string(m.ModelId))) {
 						selectedModel = m
 						break
 					}
