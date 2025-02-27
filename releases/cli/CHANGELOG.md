@@ -1,3 +1,6 @@
+## CLI Version 2.0.0-rc.1
+Placeholder for v2 release testing
+
 ## Version 1.1.1
 ## Fix for terminal flickering when streaming plans 📺
 
