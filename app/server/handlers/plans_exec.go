@@ -444,6 +444,8 @@ func AutoLoadContextHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	})
 
+	log.Println("AutoLoadContextHandler - updated active plan")
+
 	var apiContexts []*shared.Context
 	for _, dbContext := range dbContexts {
 		apiContexts = append(apiContexts, dbContext.ToApi())

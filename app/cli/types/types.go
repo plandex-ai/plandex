@@ -14,6 +14,7 @@ type LoadContextParams struct {
 	ImageDetail       openai.ImageURLDetail
 	DefsOnly          bool
 	SkipIgnoreWarning bool
+	AutoLoaded        bool
 }
 
 type ContextOutdatedResult struct {
