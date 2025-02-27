@@ -18,6 +18,11 @@ func (state *activeTellStreamState) handleUsageChunk(usage *openai.Usage) {
 	log.Println("Tell stream usage:")
 	log.Println(spew.Sdump(usage))
 
+	var cachedTokens int
+	if usage.PromptTokensDetails != nil {
+		cachedTokens = usage.PromptTokensDetails.CachedTokens
+	}
+
 	go func() {
 		_, apiErr := hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
 			Auth: auth,
@@ -25,6 +30,7 @@ func (state *activeTellStreamState) handleUsageChunk(usage *openai.Usage) {
 			DidSendModelRequestParams: &hooks.DidSendModelRequestParams{
 				InputTokens:    usage.PromptTokens,
 				OutputTokens:   usage.CompletionTokens,
+				CachedTokens:   cachedTokens,
 				ModelName:      state.settings.ModelPack.Planner.BaseModelConfig.ModelName,
 				ModelProvider:  state.settings.ModelPack.Planner.BaseModelConfig.Provider,
 				ModelPackName:  state.settings.ModelPack.Name,
@@ -32,7 +38,7 @@ func (state *activeTellStreamState) handleUsageChunk(usage *openai.Usage) {
 				Purpose:        "Generated plan reply",
 				GenerationId:   generationId,
 				PlanId:         plan.Id,
-				ModelStreamId:  state.activePlan.ModelStreamId,
+				ModelStreamId:  state.modelStreamId,
 				ConvoMessageId: state.replyId,
 
 				RequestStartedAt: state.requestStartedAt,
@@ -80,7 +86,7 @@ func (state *activeTellStreamState) execHookOnStop(sendStreamErr bool) {
 				Purpose:         "Generated plan reply (stopped)",
 				GenerationId:    generationId,
 				PlanId:          plan.Id,
-				ModelStreamId:   state.activePlan.ModelStreamId,
+				ModelStreamId:   state.modelStreamId,
 				ConvoMessageId:  state.replyId,
 				StoppedEarly:    true,
 				UserCancelled:   !sendStreamErr,

@@ -129,6 +129,9 @@ func (state *activeTellStreamState) storeOnFinished(params storeOnFinishedParams
 				log.Println("[storeOnFinished] No new current subtask set")
 			}
 			log.Printf("[storeOnFinished] All subtasks finished: %v", allSubtasksFinished)
+		} else if state.currentSubtask != nil && !subtaskFinished {
+			log.Printf("[storeOnFinished] Current subtask is not finished: %q", state.currentSubtask.Title)
+			state.currentSubtask.NumTries++
 		}
 
 		var flags shared.ConvoMessageFlags
@@ -144,7 +147,7 @@ func (state *activeTellStreamState) storeOnFinished(params storeOnFinishedParams
 		if len(removedSubtasks) > 0 {
 			flags.DidRemoveTasks = true
 		}
-		if len(autoLoadContextResult.activatePaths) > 0 {
+		if len(autoLoadContextResult.autoLoadPaths) > 0 {
 			flags.DidLoadContext = true
 		}
 		if subtaskFinished && state.currentSubtask != nil {
@@ -204,19 +207,17 @@ func (state *activeTellStreamState) storeOnFinished(params storeOnFinishedParams
 		}
 		log.Println("[storeOnFinished] Description stored")
 
-		// store subtasks if we've finished a subtask or added new ones
-		if hasNewSubtasks || subtaskFinished {
-			err = db.StorePlanSubtasks(currentOrgId, planId, state.subtasks)
-			if err != nil {
-				log.Printf("Error storing plan subtasks: %v\n", err)
-				state.onError(onErrorParams{
-					streamErr:      fmt.Errorf("failed to store plan subtasks: %v", err),
-					storeDesc:      false,
-					convoMessageId: assistantMsg.Id,
-					commitMsg:      convoCommitMsg,
-				})
-				return err
-			}
+		// store subtasks
+		err = db.StorePlanSubtasks(currentOrgId, planId, state.subtasks)
+		if err != nil {
+			log.Printf("Error storing plan subtasks: %v\n", err)
+			state.onError(onErrorParams{
+				streamErr:      fmt.Errorf("failed to store plan subtasks: %v", err),
+				storeDesc:      false,
+				convoMessageId: assistantMsg.Id,
+				commitMsg:      convoCommitMsg,
+			})
+			return err
 		}
 
 		log.Println("Comitting after store on finished")

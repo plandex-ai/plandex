@@ -15,6 +15,7 @@ const NumTellStreamRetries = 4
 
 type activeTellStreamState struct {
 	activePlan            *types.ActivePlan
+	modelStreamId         string
 	execTellPlanParams    execTellPlanParams
 	clients               map[string]model.ClientInfo
 	req                   *shared.TellPlanRequest

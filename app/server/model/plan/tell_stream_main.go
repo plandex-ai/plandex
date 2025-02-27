@@ -37,7 +37,6 @@ func (state *activeTellStreamState) listenStream(stream *model.ExtendedChatCompl
 	// Create a timer that will trigger if no chunk is received within the specified duration
 	timer := time.NewTimer(model.OPENAI_STREAM_CHUNK_TIMEOUT)
 	defer timer.Stop()
-
 	streamFinished := false
 
 mainLoop:
@@ -96,6 +95,8 @@ mainLoop:
 				// here we want to return no matter what -- state.onError will decide whether to retry or not
 				return
 			}
+
+			// log.Println("tell stream main: received stream response", spew.Sdump(response))
 
 			if response.ID != "" && state.generationId == "" {
 				state.generationId = response.ID

@@ -43,7 +43,7 @@ func (state *activeTellStreamState) queuePendingBuilds() {
 	// spew.Dump(pendingBuildsByPath)
 
 	buildState := &activeBuildStreamState{
-		tellState:     state,
+		modelStreamId: active.ModelStreamId,
 		clients:       clients,
 		auth:          auth,
 		currentOrgId:  currentOrgId,

@@ -130,14 +130,13 @@ func (state *activeTellStreamState) handleStreamFinished() handleStreamFinishedR
 	if len(autoLoadPaths) > 0 {
 		log.Println("Sending stream message to load context files")
 
-		active.Stream(shared.StreamMessage{
-			Type:             shared.StreamMessageLoadContext,
-			LoadContextFiles: autoLoadPaths,
-		})
-		active.FlushStreamBuffer()
-
-		// Force a small delay to ensure message is processed
-		time.Sleep(100 * time.Millisecond)
+		go func() {
+			active.Stream(shared.StreamMessage{
+				Type:             shared.StreamMessageLoadContext,
+				LoadContextFiles: autoLoadPaths,
+			})
+			active.FlushStreamBuffer()
+		}()
 
 		log.Println("Waiting for client to auto load context (30s timeout)")
 

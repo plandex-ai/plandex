@@ -13,7 +13,6 @@ import (
 	shared "plandex-shared"
 
 	"github.com/davecgh/go-spew/spew"
-	"github.com/sashabaranov/go-openai"
 )
 
 const verboseLogging = false
@@ -24,7 +23,7 @@ type processChunkResult struct {
 	shouldReturn bool
 }
 
-func (state *activeTellStreamState) processChunk(choice openai.ChatCompletionStreamChoice) processChunkResult {
+func (state *activeTellStreamState) processChunk(choice types.ExtendedChatCompletionStreamChoice) processChunkResult {
 	req := state.req
 	// missingFileResponse := state.missingFileResponse
 	processor := state.chunkProcessor
@@ -41,6 +40,10 @@ func (state *activeTellStreamState) processChunk(choice openai.ChatCompletionStr
 
 	delta := choice.Delta
 	content := delta.Content
+
+	if delta.Reasoning != "" {
+		content = delta.Reasoning
+	}
 
 	if content == "" {
 		return processChunkResult{}
@@ -462,7 +465,7 @@ func (state *activeTellStreamState) handleNewOperations(parserRes *types.ReplyPa
 			// log.Println(fileContents[i])
 
 			buildState := &activeBuildStreamState{
-				tellState:     state,
+				modelStreamId: state.modelStreamId,
 				clients:       clients,
 				auth:          auth,
 				currentOrgId:  currentOrgId,

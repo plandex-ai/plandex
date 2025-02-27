@@ -113,6 +113,8 @@ func (state *activeTellStreamState) willContinuePlan(params willContinuePlanPara
 	allSubtasksFinished := params.allSubtasksFinished
 	activatePaths := params.activatePaths
 
+	log.Printf("[willContinuePlan] currentStage: %v", state.currentStage)
+
 	log.Printf("[willContinuePlan] Initial state - hasNewSubtasks: %v, allSubtasksFinished: %v, tellStage: %v, planningPhase: %v, iteration: %d, autoContinue: %v",
 		hasNewSubtasks, allSubtasksFinished, state.currentStage.TellStage, state.currentStage.PlanningPhase, state.iteration, state.req.AutoContinue)
 
@@ -153,6 +155,7 @@ func (state *activeTellStreamState) willContinuePlan(params willContinuePlanPara
 		// otherwise, continue to implementation phase
 		log.Printf("[willContinuePlan] Checking subtasks finished - allSubtasksFinished: %v, will continue: %v",
 			allSubtasksFinished, !allSubtasksFinished)
+
 		return !allSubtasksFinished
 
 	} else if state.currentStage.TellStage == shared.TellStageImplementation {
