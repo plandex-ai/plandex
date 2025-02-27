@@ -1,25 +1,22 @@
 package plan
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"math/rand"
-	"plandex-server/db"
-	diff_pkg "plandex-server/diff"
-	"plandex-server/hooks"
 	"plandex-server/model"
 	"plandex-server/model/prompts"
 	"plandex-server/types"
-	"strings"
+	"plandex-server/utils"
 	"time"
 
 	shared "plandex-shared"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/sashabaranov/go-openai"
 )
 
-func (fileState *activeBuildStreamFileState) buildWholeFileFallback(proposedContent string, desc string) {
+func (fileState *activeBuildStreamFileState) buildWholeFileFallback(buildCtx context.Context, proposedContent string, desc string, comments string) (string, error) {
 	auth := fileState.auth
 	filePath := fileState.filePath
 	clients := fileState.clients
@@ -33,10 +30,10 @@ func (fileState *activeBuildStreamFileState) buildWholeFileFallback(proposedCont
 	if activePlan == nil {
 		log.Printf("Active plan not found for plan ID %s and branch %s\n", planId, branch)
 		fileState.onBuildFileError(fmt.Errorf("active plan not found for plan ID %s and branch %s", planId, branch))
-		return
+		return "", fmt.Errorf("active plan not found for plan ID %s and branch %s", planId, branch)
 	}
 
-	sysPrompt := prompts.GetWholeFilePrompt(filePath, originalFile, desc, proposedContent)
+	sysPrompt := prompts.GetWholeFilePrompt(filePath, originalFile, desc, proposedContent, comments)
 
 	messages := []types.ExtendedChatMessage{
 		{
@@ -50,38 +47,20 @@ func (fileState *activeBuildStreamFileState) buildWholeFileFallback(proposedCont
 		},
 	}
 
-	maxExpectedOutputTokens := shared.GetNumTokensEstimate(originalFile + proposedContent)
-	modelConfig := config.GetRoleForOutputTokens(maxExpectedOutputTokens)
-
 	inputTokens := model.GetMessagesTokenEstimate(messages...) + model.TokensPerRequest
+	maxExpectedOutputTokens := shared.GetNumTokensEstimate(originalFile + proposedContent)
 
-	_, apiErr := hooks.ExecHook(hooks.WillSendModelRequest, hooks.HookParams{
-		Auth: auth,
-		Plan: fileState.plan,
-		WillSendModelRequestParams: &hooks.WillSendModelRequestParams{
-			InputTokens:  inputTokens,
-			OutputTokens: modelConfig.GetReservedOutputTokens(),
-			ModelName:    modelConfig.BaseModelConfig.ModelName,
-		},
-	})
-	if apiErr != nil {
-		activePlan.StreamDoneCh <- apiErr
-		return
-	}
+	modelConfig := config.GetRoleForInputTokens(inputTokens)
+	modelConfig = modelConfig.GetRoleForOutputTokens(maxExpectedOutputTokens)
 
 	log.Println("buildWholeFile - calling model for whole file write")
 
-	var resp openai.ChatCompletionResponse
-	var err error
-
 	log.Println("buildWholeFile - modelConfig.BaseModelConfig.PredictedOutputEnabled:", modelConfig.BaseModelConfig.PredictedOutputEnabled)
 
-	var prediction *types.OpenAIPrediction
+	var prediction string
 
 	if modelConfig.BaseModelConfig.PredictedOutputEnabled {
-		prediction = &types.OpenAIPrediction{
-			Type: "content",
-			Content: `
+		prediction = `
 ## Comments
 
 No comments
@@ -89,129 +68,56 @@ No comments
 <PlandexWholeFile>
 ` + originalFile + `
 </PlandexWholeFile>
-`,
-		}
+`
+
 	}
 
-	extendedReq := &types.ExtendedChatCompletionRequest{
-		Model:       modelConfig.BaseModelConfig.ModelName,
-		Messages:    messages,
-		Temperature: modelConfig.Temperature,
-		TopP:        modelConfig.TopP,
-		Prediction:  prediction,
-	}
+	modelRes, err := model.ModelRequest(buildCtx, model.ModelRequestParams{
+		Clients:     clients,
+		Auth:        auth,
+		Plan:        fileState.plan,
+		ModelConfig: &config,
+		Purpose:     "File edit",
 
-	reqStarted := time.Now()
-	fileState.builderRun.BuiltWholeFile = true
-	fileState.builderRun.BuildWholeFileStartedAt = reqStarted
+		Messages:   messages,
+		Prediction: prediction,
 
-	resp, err = model.CreateChatCompletionWithRetries(clients, &config, activePlan.Ctx, *extendedReq)
+		ModelStreamId:  fileState.modelStreamId,
+		ConvoMessageId: fileState.convoMessageId,
+		BuildId:        fileState.build.Id,
+
+		BeforeReq: func() {
+			fileState.builderRun.BuiltWholeFile = true
+			fileState.builderRun.BuildWholeFileStartedAt = time.Now()
+		},
+
+		AfterReq: func() {
+			fileState.builderRun.BuildWholeFileFinishedAt = time.Now()
+		},
+	})
 
 	if err != nil {
-		log.Printf("buildWholeFile - error calling model: %v\n", err)
-		fileState.wholeFileRetryOrError(proposedContent, desc, fmt.Errorf("error calling model: %v", err))
-		return
+		return "", fmt.Errorf("error calling model: %v", err)
 	}
 
-	fileState.builderRun.GenerationIds = append(fileState.builderRun.GenerationIds, resp.ID)
+	fileState.builderRun.GenerationIds = append(fileState.builderRun.GenerationIds, modelRes.GenerationId)
 	fileState.builderRun.BuildWholeFileFinishedAt = time.Now()
 
-	log.Println("buildWholeFile - usage:")
-	log.Println(spew.Sdump(resp.Usage))
+	content := modelRes.Content
 
-	go func() {
-		_, apiErr := hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
-			Auth: auth,
-			Plan: fileState.plan,
-			DidSendModelRequestParams: &hooks.DidSendModelRequestParams{
-				InputTokens:    resp.Usage.PromptTokens,
-				OutputTokens:   resp.Usage.CompletionTokens,
-				ModelName:      modelConfig.BaseModelConfig.ModelName,
-				ModelProvider:  modelConfig.BaseModelConfig.Provider,
-				ModelPackName:  fileState.settings.ModelPack.Name,
-				ModelRole:      shared.ModelRoleBuilder,
-				Purpose:        "File edit (whole file)",
-				GenerationId:   resp.ID,
-				PlanId:         fileState.plan.Id,
-				ModelStreamId:  fileState.tellState.activePlan.ModelStreamId,
-				ConvoMessageId: fileState.convoMessageId,
-				BuildId:        fileState.build.Id,
+	// log.Printf("buildWholeFile - %s - content:\n%s\n", filePath, content)
 
-				RequestStartedAt: reqStarted,
-				Streaming:        false,
-				Req:              extendedReq,
-				Res:              &resp,
-				ModelConfig:      &config,
-			},
-		})
-
-		if apiErr != nil {
-			log.Printf("buildWholeFile - error executing DidSendModelRequest hook: %v", apiErr)
-		}
-	}()
-
-	if len(resp.Choices) == 0 {
-		log.Printf("buildWholeFile - no choices in response\n")
-		fileState.wholeFileRetryOrError(proposedContent, desc, fmt.Errorf("no choices in response"))
-		return
-	}
-
-	refsChoice := resp.Choices[0]
-	content := refsChoice.Message.Content
-
-	log.Printf("buildWholeFile - %s - content:\n%s\n", filePath, content)
-
-	wholeFile := GetXMLContent(content, "PlandexWholeFile")
+	wholeFile := utils.GetXMLContent(content, "PlandexWholeFile")
 
 	if wholeFile == "" {
 		log.Printf("buildWholeFile - no whole file found in response\n")
-		fileState.wholeFileRetryOrError(proposedContent, desc, fmt.Errorf("no whole file found in response"))
-		return
+		return fileState.wholeFileRetryOrError(buildCtx, proposedContent, desc, comments, fmt.Errorf("no whole file found in response"))
 	}
 
-	updatedFile := wholeFile
-
-	buildInfo := &shared.BuildInfo{
-		Path:      filePath,
-		NumTokens: 0,
-		Finished:  true,
-	}
-
-	log.Printf("streaming build info for whole file finished %s\n", filePath)
-
-	activePlan.Stream(shared.StreamMessage{
-		Type:      shared.StreamMessageBuildInfo,
-		BuildInfo: buildInfo,
-	})
-
-	time.Sleep(50 * time.Millisecond)
-
-	replacements, err := diff_pkg.GetDiffReplacements(originalFile, updatedFile)
-	if err != nil {
-		log.Printf("buildWholeFile - error getting diff replacements: %v\n", err)
-		fileState.onBuildFileError(fmt.Errorf("error getting diff replacements: %v", err))
-		return
-	}
-
-	for _, replacement := range replacements {
-		replacement.Summary = strings.TrimSpace(desc)
-	}
-
-	res := db.PlanFileResult{
-		TypeVersion:    1,
-		OrgId:          fileState.plan.OrgId,
-		PlanId:         fileState.plan.Id,
-		PlanBuildId:    fileState.build.Id,
-		ConvoMessageId: fileState.convoMessageId,
-		Content:        "",
-		Path:           filePath,
-		Replacements:   replacements,
-	}
-
-	fileState.onFinishBuildFile(&res)
+	return wholeFile, nil
 }
 
-func (fileState *activeBuildStreamFileState) wholeFileRetryOrError(proposedContent string, desc string, err error) {
+func (fileState *activeBuildStreamFileState) wholeFileRetryOrError(buildCtx context.Context, proposedContent string, desc string, comments string, err error) (string, error) {
 	if fileState.wholeFileNumRetry < MaxBuildErrorRetries {
 		fileState.wholeFileNumRetry++
 
@@ -221,21 +127,22 @@ func (fileState *activeBuildStreamFileState) wholeFileRetryOrError(proposedConte
 
 		if activePlan == nil {
 			log.Printf("buildWholeFile - active plan not found for plan ID %s and branch %s\n", fileState.plan.Id, fileState.branch)
-			fileState.onBuildFileError(fmt.Errorf("active plan not found for plan ID %s and branch %s", fileState.plan.Id, fileState.branch))
-			return
+			// fileState.onBuildFileError(fmt.Errorf("active plan not found for plan ID %s and branch %s", fileState.plan.Id, fileState.branch))
+			return "", fmt.Errorf("active plan not found for plan ID %s and branch %s", fileState.plan.Id, fileState.branch)
 		}
 
 		select {
-		case <-activePlan.Ctx.Done():
+		case <-buildCtx.Done():
 			log.Printf("buildWholeFile - context canceled\n")
-			return
+			return "", context.Canceled
 		case <-time.After(time.Duration(fileState.wholeFileNumRetry*fileState.wholeFileNumRetry)*200*time.Millisecond + time.Duration(rand.Intn(500))*time.Millisecond):
 			break
 		}
 
-		fileState.buildWholeFileFallback(proposedContent, desc)
+		return fileState.buildWholeFileFallback(buildCtx, proposedContent, desc, comments)
 	} else {
-		fileState.onBuildFileError(err)
+		// fileState.onBuildFileError(err)
+		return "", err
 	}
 
 }

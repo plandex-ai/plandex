@@ -19,6 +19,7 @@ func TestStructuredReplacements(t *testing.T) {
 		ext         string
 		isInsert    bool
 		laxNewlines bool
+		desc        string
 	}{
 		{
 			name: "single reference in function",
@@ -36,7 +37,6 @@ func TestStructuredReplacements(t *testing.T) {
         log.Info("processing user")
         return nil
     }`,
-
 			want: `
     func processUser(id int) error {
         validate(id)
@@ -65,7 +65,6 @@ func TestStructuredReplacements(t *testing.T) {
     }
     return update(id)
     }`,
-
 			want: `
     func processUser(id int) error {
     validate(id)
@@ -131,7 +130,6 @@ func TestStructuredReplacements(t *testing.T) {
 
 		// ... existing code ...
 		`,
-
 			want: `
 		package main
 
@@ -257,7 +255,6 @@ func TestStructuredReplacements(t *testing.T) {
         },
         // ... existing code ...
     }`,
-
 			want: `{
         "name": "test-app",
         "version": "1.0.0",
@@ -314,7 +311,6 @@ func TestStructuredReplacements(t *testing.T) {
 
         // ... existing code ...
     }`,
-
 			want: `
     class UserService {
         constructor() {
@@ -380,7 +376,6 @@ func TestStructuredReplacements(t *testing.T) {
             // ... existing code ...
         }
     }`,
-
 			want: `
     namespace Database {
         class Transaction {
@@ -427,7 +422,6 @@ func TestStructuredReplacements(t *testing.T) {
         },
         // ... existing code ...
     }`,
-
 			want: `
     const handlers = {
         onStart: () => {
@@ -487,7 +481,6 @@ func TestStructuredReplacements(t *testing.T) {
             process.exit(1)
         }
     }`,
-
 			want: `
     class Logger {
         constructor(prefix) {
@@ -518,7 +511,6 @@ func TestStructuredReplacements(t *testing.T) {
     }`,
 			ext: "js",
 		},
-
 		{
 			name: "json multi-level update",
 			original: `
@@ -574,8 +566,8 @@ func TestStructuredReplacements(t *testing.T) {
     "eslint": "^8.41.0",
     "glob": "^8.1.0",
     "mocha": "^10.2.0",
-    "typescript": "^5.1.3",
     "ts-loader": "^9.4.3",
+    "typescript": "^5.1.3",
     "webpack": "^5.85.0",
     "webpack-cli": "^5.1.1",
     "@vscode/test-electron": "^2.3.2"
@@ -677,8 +669,8 @@ func TestStructuredReplacements(t *testing.T) {
     "eslint": "^8.41.0",
     "glob": "^8.1.0",
     "mocha": "^10.2.0",
-    "typescript": "^5.1.3",
     "ts-loader": "^9.4.3",
+    "typescript": "^5.1.3",
     "webpack": "^5.85.0",
     "webpack-cli": "^5.1.1",
     "@vscode/test-electron": "^2.3.2"
@@ -687,7 +679,6 @@ func TestStructuredReplacements(t *testing.T) {
 `,
 			ext: "json",
 		},
-
 		{
 			name: "json multi-level update 2",
 			original: `
@@ -903,7 +894,6 @@ func TestStructuredReplacements(t *testing.T) {
 `,
 			ext: "json",
 		},
-
 		{
 			name:        "scala complex structures",
 			laxNewlines: true,
@@ -923,7 +913,7 @@ func TestStructuredReplacements(t *testing.T) {
 
 		    def metrics(
 		        ids: Seq[Id],
-		        channels: Option[Seq[Channel]],
+		        channels: Option[Seq[Channel]>,
 		    ): Future[Metrics] = {
 
 		      getMetrics(
@@ -935,7 +925,7 @@ func TestStructuredReplacements(t *testing.T) {
 
 		    def metrics2(
 		        ids: Seq[Id],
-		        channels: Option[Seq[Channel]],
+		        channels: Option[Seq[Channel]>,
 		    ): Future[Metrics] = {
 
 		      getMetrics2(
@@ -946,7 +936,6 @@ func TestStructuredReplacements(t *testing.T) {
 		    }
 		  }
 		`,
-
 			proposed: `
 		package domain.service
 
@@ -975,7 +964,6 @@ func TestStructuredReplacements(t *testing.T) {
 		    // ... existing code ...
 		  }
 		`,
-
 			want: `
 		package domain.service
 
@@ -992,7 +980,7 @@ func TestStructuredReplacements(t *testing.T) {
 
 		    def metrics(
 		        ids: Seq[Id],
-		        channels: Option[Seq[Channel]],
+		        channels: Option[Seq[Channel]>,
 		    ): Future[Metrics] = {
 
 		      getMetrics(
@@ -1015,7 +1003,7 @@ func TestStructuredReplacements(t *testing.T) {
 
 		    def metrics2(
 		        ids: Seq[Id],
-		        channels: Option[Seq[Channel]],
+		        channels: Option[Seq[Channel]>,
 		    ): Future[Metrics] = {
 
 		      getMetrics2(
@@ -1026,10 +1014,8 @@ func TestStructuredReplacements(t *testing.T) {
 		    }
 		  }
 		`,
-
 			ext: "scala",
 		},
-
 		{
 			name:        "top-level ambiguous",
 			laxNewlines: true,
@@ -1068,7 +1054,6 @@ func TestStructuredReplacements(t *testing.T) {
 
 		// ... existing code ...
 		`,
-
 			want: `
 		function someFunction() {
 		  console.log("someFunction")
@@ -1101,7 +1086,6 @@ func TestStructuredReplacements(t *testing.T) {
 		`,
 			ext: "js",
 		},
-
 		{
 			name: "top-level with anchors",
 			original: `
@@ -1148,7 +1132,6 @@ func TestStructuredReplacements(t *testing.T) {
 
     // ... existing code ...
     `,
-
 			want: `
     function someFunction() {
       console.log("someFunction")
@@ -1182,7 +1165,6 @@ func TestStructuredReplacements(t *testing.T) {
     `,
 			ext: "js",
 		},
-
 		{
 			name: "clean up extraneous newlines",
 			original: `
@@ -1304,6 +1286,55 @@ func TestStructuredReplacements(t *testing.T) {
 }`,
 			isInsert: true,
 		},
+
+		{
+			name: "replacement with removal outside of line range",
+			desc: `
+      Type: replace
+      Summary: Remove the notifyUpdate call (original file line 11)
+      `,
+			original: `func processRequest(req *Request) error {
+  validateRequest(req)
+  someOtherThing()
+  startTransaction()
+
+  err := updateData(req)
+  if err != nil {
+      return err
+  }
+
+  notifyUpdate()
+  commitTransaction()
+  return nil
+}`,
+			proposed: `func processRequest(req *Request) error {
+  startTransaction()
+
+  err := updateData(req)
+  if err != nil {
+      return err
+  }
+
+  commitTransaction()
+  log.Info("processed request", req.ID)
+  return nil
+}`,
+			want: `func processRequest(req *Request) error {
+  validateRequest(req)
+  someOtherThing()
+  startTransaction()
+
+  err := updateData(req)
+  if err != nil {
+      return err
+  }
+
+  commitTransaction()
+  log.Info("processed request", req.ID)
+  return nil
+}`,
+			isInsert: true,
+		},
 	}
 
 	onlyTests := map[int]bool{}
@@ -1337,21 +1368,26 @@ func TestStructuredReplacements(t *testing.T) {
 			// proposedLines := strings.Split(tt.proposed, "\n")
 
 			desc := ""
-
-			if tt.isInsert {
+			if tt.desc != "" {
+				desc = tt.desc
+			} else if tt.isInsert {
 				desc = "Type: add"
+			} else {
+				desc = "Type: replace"
 			}
 
 			parser, lang, _, _ := GetParserForPath("file." + tt.ext)
 
 			res := ApplyChanges(
-				tt.original,
-				tt.proposed,
-				desc,
-				false,
-				parser,
-				lang,
 				context.Background(),
+				ApplyChangesParams{
+					Original:               tt.original,
+					Proposed:               tt.proposed,
+					Desc:                   desc,
+					AddMissingStartEndRefs: false,
+					Parser:                 parser,
+					Language:               lang,
+				},
 			)
 
 			fmt.Println()
@@ -1366,6 +1402,7 @@ func TestStructuredReplacements(t *testing.T) {
 			} else {
 				assert.Equal(t, tt.want, res.NewFile)
 			}
+
 		})
 	}
 }

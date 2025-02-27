@@ -371,11 +371,36 @@ func (fileState *activeBuildStreamFileState) onBuildFileError(err error) {
 		log.Printf("Error setting build error: %v\n", err)
 	}
 
+	repoLockId, err := db.LockRepo(db.LockRepoParams{
+		OrgId:       currentOrgId,
+		UserId:      fileState.currentUserId,
+		PlanId:      planId,
+		Branch:      branch,
+		PlanBuildId: build.Id,
+		Scope:       db.LockScopeWrite,
+		Ctx:         activePlan.Ctx,
+		CancelFn:    activePlan.CancelFn,
+	})
+	if err != nil {
+		log.Printf("Error locking repo for build error: %v\n", err)
+		activePlan.StreamDoneCh <- &shared.ApiError{
+			Type:   shared.ApiErrorTypeOther,
+			Status: http.StatusInternalServerError,
+			Msg:    "Error locking repo for build error: " + err.Error(),
+		}
+		return
+	}
+
 	// rollback repo in case there are uncommitted builds
 	err = db.GitClearUncommittedChanges(currentOrgId, planId, branch)
 
 	if err != nil {
 		log.Printf("Error clearing uncommitted changes: %v\n", err)
+	}
+
+	err = db.DeleteRepoLock(repoLockId, planId)
+	if err != nil {
+		log.Printf("Error unlocking repo: %v\n", err)
 	}
 }
 

@@ -13,9 +13,10 @@ type execApplyGenericParams struct {
 	proposed string
 	originalLines,
 	proposedLines []string
-	references []Reference
-	removals   []Removal
-	isInsert   bool
+	references    []Reference
+	removals      []Removal
+	isInsert      bool
+	removalRanges []RemovalRange
 }
 
 func ExecApplyGeneric(
@@ -26,6 +27,8 @@ func ExecApplyGeneric(
 	references := params.references
 	removals := params.removals
 	isInsert := params.isInsert
+	removalRanges := params.removalRanges
+
 	res := &ApplyChangesResult{}
 
 	var b strings.Builder
@@ -367,7 +370,7 @@ func ExecApplyGeneric(
 				if willAbort {
 					return res
 				}
-			} else if isInsert && oLineNum != prevOLineNum+1 {
+			} else if oLineNum != prevOLineNum+1 {
 				if verboseLogging {
 					fmt.Printf("\nExecApplyChanges - found non-adjacent anchor jump:\n")
 					fmt.Printf("prevOLineNum: %d ('%s')\n", prevOLineNum, originalLines[prevOLineNum])
@@ -378,11 +381,35 @@ func ExecApplyGeneric(
 					}
 				}
 
-				// Write any lines that would have been removed
-				for i := prevOLineNum; i < oLineNum-1; i++ {
-					write(originalLines[i], true)
+				removalRange := RemovalRange{
+					Start: prevOLineNum,
+					End:   oLineNum - 1,
+				}
+
+				if isInsert {
+					// Write any lines that would have been removed
+					for i := prevOLineNum; i < oLineNum-1; i++ {
+						write(originalLines[i], true)
+					}
+				} else if len(removalRanges) > 0 {
+					overlapsAny := false
+					for _, r := range removalRanges {
+						if removalRange.Overlaps(r) {
+							overlapsAny = true
+							break
+						}
+					}
+
+					// if the removal doesn't overlap with any of the listed removal ranges, we can deterministically catch a mistake and write the lines that would have been removed
+					if !overlapsAny {
+						// Write any lines that would have been removed
+						for i := prevOLineNum; i < oLineNum-1; i++ {
+							write(originalLines[i], true)
+						}
+					}
 				}
 			}
+
 		} else {
 			if verboseLogging {
 				fmt.Printf("no matching line\n")

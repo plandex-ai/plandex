@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"regexp"
+	"strconv"
 	"strings"
 
 	shared "plandex-shared"
@@ -13,7 +14,7 @@ import (
 	sitter "github.com/smacker/go-tree-sitter"
 )
 
-const duplicationThreshold = 20
+// const duplicationThreshold = 20
 
 type Reference int
 type Removal int
@@ -32,6 +33,12 @@ type ApplyChangesResult struct {
 	NewFile            string
 	Proposed           string
 	NeedsVerifyReasons []NeedsVerifyReason
+	BlocksRemoved      []struct {
+		Start   int
+		End     int
+		Content string
+	}
+	// Comments           []Comment
 }
 
 type AnchorMap = map[int]int
@@ -41,6 +48,22 @@ type ReferenceBlock struct {
 	end   int // End line number in original file (inclusive)
 }
 
+type Comment struct {
+	Txt   string
+	IsRef bool
+}
+
+type RemovalRange struct {
+	Start int
+	End   int
+}
+
+func (r RemovalRange) Overlaps(other RemovalRange) bool {
+	return (other.Start <= r.End && other.Start >= r.Start) ||
+		(other.End <= r.End && other.End >= r.Start) ||
+		(other.Start <= r.Start && other.End >= r.End)
+}
+
 const verboseLogging = false
 
 func isRef(content string) bool {
@@ -48,7 +71,7 @@ func isRef(content string) bool {
 	if strings.Contains(trimmedLower, "... existing code ...") {
 		return true
 	}
-	regex := regexp.MustCompile(`(\.\.\.)?.*?existing.*?\.\.\.$`)
+	regex := regexp.MustCompile(`(\.\.\.)?.*?(existing|rest of|start of|end of).*?\.\.\.$`)
 	return regex.MatchString(trimmedLower)
 }
 
@@ -56,15 +79,26 @@ func isRemoval(content string) bool {
 	return strings.Contains(strings.ToLower(content), "plandex: removed")
 }
 
+type ApplyChangesParams struct {
+	Original               string
+	Proposed               string
+	Desc                   string
+	AddMissingStartEndRefs bool
+	Parser                 *sitter.Parser
+	Language               shared.Language
+}
+
 func ApplyChanges(
-	original,
-	proposed,
-	desc string,
-	addMissingStartEndRefs bool,
-	parser *sitter.Parser,
-	language shared.Language,
 	ctx context.Context,
+	params ApplyChangesParams,
 ) *ApplyChangesResult {
+	original := params.Original
+	proposed := params.Proposed
+	desc := params.Desc
+	addMissingStartEndRefs := params.AddMissingStartEndRefs
+	parser := params.Parser
+	language := params.Language
+
 	proposedInitial := proposed
 
 	proposedLines := strings.Split(proposed, "\n")
@@ -112,6 +146,43 @@ func ApplyChanges(
 	isAdd := strings.Contains(desc, "type: add")
 	isPrepend := strings.Contains(desc, "type: prepend")
 	isAppend := strings.Contains(desc, "type: append")
+
+	var removalRanges []RemovalRange
+
+	// Parse line ranges from summary field
+	// Matches formats like:
+	// (original file line 10)
+	// (original file lines 10-20)
+	singleLineRegex := regexp.MustCompile(`\(Remove: line (\d+)\)`)
+	lineRangeRegex := regexp.MustCompile(`\(Remove: lines (\d+)-(\d+)\)`)
+
+	// Find all single line matches
+	singleLineMatches := singleLineRegex.FindAllStringSubmatch(strings.ToLower(desc), -1)
+	for _, match := range singleLineMatches {
+		if len(match) > 1 {
+			if lineNum, err := strconv.Atoi(match[1]); err == nil {
+				removalRanges = append(removalRanges, RemovalRange{
+					Start: lineNum,
+					End:   lineNum,
+				})
+			}
+		}
+	}
+
+	// Find all line range matches
+	lineRangeMatches := lineRangeRegex.FindAllStringSubmatch(strings.ToLower(desc), -1)
+	for _, match := range lineRangeMatches {
+		if len(match) > 2 {
+			start, startErr := strconv.Atoi(match[1])
+			end, endErr := strconv.Atoi(match[2])
+			if startErr == nil && endErr == nil {
+				removalRanges = append(removalRanges, RemovalRange{
+					Start: start,
+					End:   end,
+				})
+			}
+		}
+	}
 
 	var res *ApplyChangesResult
 
@@ -182,11 +253,11 @@ func ApplyChanges(
 
 		proposed = strings.Join(proposedLines, "\n")
 
-		isInsert := !isEntireFileUpdate && (isAdd || isPrepend || isAppend)
+		isPureInsert := !isEntireFileUpdate && !isReplace && !isRemove && (isAdd || isPrepend || isAppend)
 
-		if isInsert {
+		if isPureInsert {
 			if verboseLogging {
-				fmt.Println("isInsert")
+				fmt.Println("isPureInsert")
 			}
 		}
 
@@ -207,7 +278,8 @@ func ApplyChanges(
 				proposedLines: proposedLines,
 				references:    references,
 				removals:      removals,
-				isInsert:      isInsert,
+				isInsert:      isPureInsert,
+				removalRanges: removalRanges,
 			},
 		)
 
@@ -253,85 +325,113 @@ func ApplyChanges(
 		}
 	}
 
-	if verboseLogging {
-		log.Println("ApplyChanges - checking for removed lines")
-	}
+	// we want to verify if any code was removed/replaced based on length comparison or description
+	// check if code was removed based on length comparison
+	if len(res.NewFile) < len(original) {
+		log.Println("ApplyChanges - code removed based on length comparison - needs verification")
+		res.NeedsVerifyReasons = append(res.NeedsVerifyReasons, NeedsVerifyReasonCodeRemoved)
+	} else if isRemove || isReplace || isEntireFileUpdate {
+		log.Println("ApplyChanges - code removed based on description - needs verification")
+		res.NeedsVerifyReasons = append(res.NeedsVerifyReasons, NeedsVerifyReasonCodeRemoved)
+	} else {
+		if verboseLogging {
+			log.Println("ApplyChanges - checking for removed lines")
+		}
 
-	originalLineMap := make(map[string]bool)
-	for _, line := range originalLines {
-		originalLineMap[strings.TrimSpace(line)] = true
-	}
+		originalLineMap := make(map[string]bool)
+		for _, line := range originalLines {
+			originalLineMap[strings.TrimSpace(line)] = true
+		}
 
-	newLines := strings.Split(res.NewFile, "\n")
-	newLineMap := make(map[string]bool)
-	for _, line := range newLines {
-		newLineMap[strings.TrimSpace(line)] = true
-	}
+		newLines := strings.Split(res.NewFile, "\n")
+		newLineMap := make(map[string]bool)
+		for _, line := range newLines {
+			newLineMap[strings.TrimSpace(line)] = true
+		}
 
-	// Check for removed lines (lines in original that are not in new)
-	for line := range originalLineMap {
-		if !newLineMap[line] {
-			if verboseLogging {
-				log.Println("ApplyChanges - code removed")
+		// Check for removed lines (lines in original that are not in new)
+		for line := range originalLineMap {
+			if !newLineMap[line] {
+				log.Println("ApplyChanges - code removed based on line comparison - needs verification")
 				log.Println("line:")
 				log.Println(line)
+
+				res.NeedsVerifyReasons = append(res.NeedsVerifyReasons, NeedsVerifyReasonCodeRemoved)
+				break
 			}
-			res.NeedsVerifyReasons = append(res.NeedsVerifyReasons, NeedsVerifyReasonCodeRemoved)
-			break
 		}
 	}
 
-	if strings.Contains(desc, " replace ") {
-		if verboseLogging {
-			log.Println("ApplyChanges - checking for duplicated lines")
-		}
+	// Duplication check is now redundant since we verify all replacements
+	// if strings.Contains(desc, " replace ") {
+	// 	if verboseLogging {
+	// 		log.Println("ApplyChanges - checking for duplicated lines")
+	// 	}
+	//
+	// 	// Check for lines in proposed updates that are duplicated in new file
+	// 	newLineFreq := make(map[string]int)
+	// 	originalLineFreq := make(map[string]int)
+	// 	proposedLineFreq := make(map[string]int)
+	//
+	// 	// First count frequencies in original file
+	// 	for _, line := range originalLines {
+	// 		trimmed := strings.TrimSpace(line)
+	// 		if len(trimmed) > duplicationThreshold {
+	// 			originalLineFreq[line]++
+	// 		}
+	// 	}
+	//
+	// 	// Count frequencies in proposed file
+	// 	for _, line := range proposedLines {
+	// 		trimmed := strings.TrimSpace(line)
+	// 		if len(trimmed) > duplicationThreshold {
+	// 			proposedLineFreq[line]++
+	// 		}
+	// 	}
+	//
+	// 	// Count frequencies in new file
+	// 	for _, line := range newLines {
+	// 		trimmed := strings.TrimSpace(line)
+	// 		if len(trimmed) > duplicationThreshold {
+	// 			newLineFreq[line]++
+	// 		}
+	// 	}
+	//
+	// 	// Check proposed lines against new frequencies, accounting for original duplicates
+	// 	for _, line := range proposedLines {
+	// 		trimmed := strings.TrimSpace(line)
+	// 		if len(trimmed) > duplicationThreshold {
+	// 			originalCount := originalLineFreq[line]
+	// 			proposedCount := proposedLineFreq[line]
+	// 			newCount := newLineFreq[line]
+	// 			if newCount > originalCount && newCount > proposedCount {
+	// 				if verboseLogging {
+	// 					log.Println("ApplyChanges - code duplicated")
+	// 					log.Println("line:")
+	// 					log.Println(line)
+	// 					log.Printf("original occurrences: %d, new occurrences: %d", originalCount, newLineFreq[line])
+	// 				}
+	// 				res.NeedsVerifyReasons = append(res.NeedsVerifyReasons, NeedsVerifyReasonCodeDuplicated)
+	// 				break
+	// 			}
+	// 		}
+	// 	}
+	// }
 
-		// Check for lines in proposed updates that are duplicated in new file
-		newLineFreq := make(map[string]int)
-		originalLineFreq := make(map[string]int)
-		proposedLineFreq := make(map[string]int)
+	// if parser != nil {
+	// 	comments, err := FindComments(ctx, parser, proposed)
+	// 	if err != nil {
+	// 		log.Printf("ApplyChanges - error finding comments: %v", err)
+	// 	}
+	// 	res.Comments = comments
+	// }
 
-		// First count frequencies in original file
-		for _, line := range originalLines {
-			trimmed := strings.TrimSpace(line)
-			if len(trimmed) > duplicationThreshold {
-				originalLineFreq[line]++
-			}
-		}
-
-		// Count frequencies in proposed file
-		for _, line := range proposedLines {
-			trimmed := strings.TrimSpace(line)
-			if len(trimmed) > duplicationThreshold {
-				proposedLineFreq[line]++
-			}
-		}
-
-		// Count frequencies in new file
-		for _, line := range newLines {
-			trimmed := strings.TrimSpace(line)
-			if len(trimmed) > duplicationThreshold {
-				newLineFreq[line]++
-			}
-		}
-
-		// Check proposed lines against new frequencies, accounting for original duplicates
-		for _, line := range proposedLines {
-			trimmed := strings.TrimSpace(line)
-			if len(trimmed) > duplicationThreshold {
-				originalCount := originalLineFreq[line]
-				proposedCount := proposedLineFreq[line]
-				newCount := newLineFreq[line]
-				if newCount > originalCount && newCount > proposedCount {
-					if verboseLogging {
-						log.Println("ApplyChanges - code duplicated")
-						log.Println("line:")
-						log.Println(line)
-						log.Printf("original occurrences: %d, new occurrences: %d", originalCount, newLineFreq[line])
-					}
-					res.NeedsVerifyReasons = append(res.NeedsVerifyReasons, NeedsVerifyReasonCodeDuplicated)
-					break
-				}
+	if verboseLogging && len(res.BlocksRemoved) > 0 {
+		log.Printf("ApplyChanges - detected %d removed code blocks", len(res.BlocksRemoved))
+		for i, block := range res.BlocksRemoved {
+			log.Printf("Block %d: lines %d-%d", i+1, block.Start, block.End)
+			if verboseLogging {
+				log.Printf("Content: %s", block.Content)
 			}
 		}
 	}

@@ -23,6 +23,9 @@ func (state *activeBuildStreamState) loadPendingBuilds() (map[string][]*types.Ac
 		log.Printf("Error activating plan: %v\n", err)
 	}
 
+	modelStreamId := active.ModelStreamId
+	state.modelStreamId = modelStreamId
+
 	repoLockId, err := db.LockRepo(
 		db.LockRepoParams{
 			OrgId:    auth.OrgId,

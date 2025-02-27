@@ -14,7 +14,7 @@ import (
 const MaxBuildErrorRetries = 3 // uses semi-exponential backoff so be careful with this
 
 type activeBuildStreamState struct {
-	tellState     *activeTellStreamState
+	modelStreamId string
 	clients       map[string]model.ClientInfo
 	auth          *types.ServerAuth
 	currentOrgId  string
@@ -38,7 +38,7 @@ type activeBuildStreamFileState struct {
 	language                   shared.Language
 	syntaxCheckTimedOut        bool
 	preBuildStateSyntaxInvalid bool
-	structuredEditNumRetry     int
+	validationNumRetry         int
 	wholeFileNumRetry          int
 	isNewFile                  bool
 	contextPart                *db.Context

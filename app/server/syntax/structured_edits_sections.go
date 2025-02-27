@@ -316,6 +316,10 @@ func (s TreeSitterSection) String(sourceLines []string, bytes []byte) string {
 		}
 	}
 
+	if firstNode == nil || lastNode == nil {
+		return ""
+	}
+
 	startIdx := int(firstNode.StartPoint().Row)
 	endIdx := int(lastNode.EndPoint().Row)
 
