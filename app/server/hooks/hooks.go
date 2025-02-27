@@ -30,13 +30,14 @@ const (
 type WillSendModelRequestParams struct {
 	InputTokens  int
 	OutputTokens int
-	ModelName    string
+	ModelName    shared.ModelName
 }
 
 type DidSendModelRequestParams struct {
 	InputTokens     int
 	OutputTokens    int
-	ModelName       string
+	CachedTokens    int
+	ModelName       shared.ModelName
 	ModelProvider   shared.ModelProvider
 	ModelRole       shared.ModelRole
 	ModelPackName   string

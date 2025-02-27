@@ -188,7 +188,7 @@ func (ap *ActivePlan) Stream(msg shared.StreamMessage) {
 	ap.streamMu.Lock()
 
 	skipBuffer := false
-	if msg.Type == shared.StreamMessagePromptMissingFile || msg.Type == shared.StreamMessageFinished || msg.Type == shared.StreamMessageError {
+	if msg.Type == shared.StreamMessagePromptMissingFile || msg.Type == shared.StreamMessageLoadContext || msg.Type == shared.StreamMessageFinished || msg.Type == shared.StreamMessageError {
 		skipBuffer = true
 
 		log.Println("ActivePlan.Stream: skipping buffer for special message")
