@@ -328,42 +328,44 @@ func (modelPack *ModelPack) ToApi() *shared.ModelPack {
 }
 
 type AvailableModel struct {
-	Id                          string                   `db:"id"`
-	OrgId                       string                   `db:"org_id"`
-	Provider                    shared.ModelProvider     `db:"provider"`
-	CustomProvider              *string                  `db:"custom_provider"`
-	BaseUrl                     string                   `db:"base_url"`
-	ModelName                   string                   `db:"model_name"`
-	Description                 string                   `db:"description"`
-	MaxTokens                   int                      `db:"max_tokens"`
-	ApiKeyEnvVar                string                   `db:"api_key_env_var"`
-	DefaultMaxConvoTokens       int                      `db:"default_max_convo_tokens"`
-	DefaultReservedOutputTokens int                      `db:"default_reserved_output_tokens"`
-	HasImageSupport             bool                     `db:"has_image_support"`
-	PreferredOutputFormat       shared.ModelOutputFormat `db:"preferred_output_format"`
-	CreatedAt                   time.Time                `db:"created_at"`
-	UpdatedAt                   time.Time                `db:"updated_at"`
+	Id                    string                   `db:"id"`
+	OrgId                 string                   `db:"org_id"`
+	Provider              shared.ModelProvider     `db:"provider"`
+	CustomProvider        *string                  `db:"custom_provider"`
+	BaseUrl               string                   `db:"base_url"`
+	ModelName             shared.ModelName         `db:"model_name"`
+	Description           string                   `db:"description"`
+	MaxTokens             int                      `db:"max_tokens"`
+	ApiKeyEnvVar          string                   `db:"api_key_env_var"`
+	DefaultMaxConvoTokens int                      `db:"default_max_convo_tokens"`
+	MaxOutputTokens       int                      `db:"max_output_tokens"`
+	ReservedOutputTokens  int                      `db:"reserved_output_tokens"`
+	HasImageSupport       bool                     `db:"has_image_support"`
+	PreferredOutputFormat shared.ModelOutputFormat `db:"preferred_output_format"`
+	CreatedAt             time.Time                `db:"created_at"`
+	UpdatedAt             time.Time                `db:"updated_at"`
 }
 
 func (model *AvailableModel) ToApi() *shared.AvailableModel {
 	return &shared.AvailableModel{
 		Id: model.Id,
 		BaseModelConfig: shared.BaseModelConfig{
-			Provider:       model.Provider,
-			CustomProvider: model.CustomProvider,
-			BaseUrl:        model.BaseUrl,
-			ModelName:      model.ModelName,
-			MaxTokens:      model.MaxTokens,
-			ApiKeyEnvVar:   model.ApiKeyEnvVar,
+			Provider:             model.Provider,
+			CustomProvider:       model.CustomProvider,
+			BaseUrl:              model.BaseUrl,
+			ModelName:            model.ModelName,
+			MaxTokens:            model.MaxTokens,
+			ApiKeyEnvVar:         model.ApiKeyEnvVar,
+			MaxOutputTokens:      model.MaxOutputTokens,
+			ReservedOutputTokens: model.ReservedOutputTokens,
 			ModelCompatibility: shared.ModelCompatibility{
 				HasImageSupport: model.HasImageSupport,
 			},
 		},
-		Description:                 model.Description,
-		DefaultMaxConvoTokens:       model.DefaultMaxConvoTokens,
-		DefaultReservedOutputTokens: model.DefaultReservedOutputTokens,
-		CreatedAt:                   model.CreatedAt,
-		UpdatedAt:                   model.UpdatedAt,
+		Description:           model.Description,
+		DefaultMaxConvoTokens: model.DefaultMaxConvoTokens,
+		CreatedAt:             model.CreatedAt,
+		UpdatedAt:             model.UpdatedAt,
 	}
 }
 
@@ -599,6 +601,7 @@ type Subtask struct {
 	Description string   `json:"description"`
 	UsesFiles   []string `json:"usesFiles"`
 	IsFinished  bool     `json:"isFinished"`
+	NumTries    int      `json:"numTries"`
 }
 
 func (subtask *Subtask) ToApi() *shared.Subtask {
