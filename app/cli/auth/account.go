@@ -244,7 +244,7 @@ func verifyEmail(email, host string) (*verifyEmailRes, error) {
 		}, nil
 	}
 
-	fmt.Println("✉️  You'll now receive a 6 character pin by email. It will be valid for 10 minutes.")
+	fmt.Println("✉️  You'll now receive a 6 character pin by email. It will be valid for 5 minutes.")
 
 	pin, err := term.GetUserPasswordInput("Please enter your pin:")
 

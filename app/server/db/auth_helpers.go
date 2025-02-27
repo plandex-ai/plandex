@@ -72,8 +72,8 @@ func CreateEmailVerification(email string, userId, pinHash string) error {
 	return nil
 }
 
-// email verifications expire in 10 minutes
-const emailVerificationExpirationMinutes = 10
+// email verifications expire in 5 minutes
+const emailVerificationExpirationMinutes = 5
 
 const InvalidOrExpiredPinError = "invalid or expired pin"
 
