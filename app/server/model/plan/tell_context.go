@@ -215,6 +215,11 @@ func (state *activeTellStreamState) checkAutoLoadContext() checkAutoLoadContextR
 		return checkAutoLoadContextResult{}
 	}
 
+	// for chat responses, only auto load context if we're in the context phase
+	if req.IsChatOnly && currentStage.PlanningPhase != shared.PlanningPhaseContext {
+		return checkAutoLoadContextResult{}
+	}
+
 	log.Printf("%d existing contexts by path\n", len(contextsByPath))
 
 	// pick out all potential file paths within backticks
