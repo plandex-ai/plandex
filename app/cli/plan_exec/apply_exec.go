@@ -3,6 +3,7 @@ package plan_exec
 import (
 	"fmt"
 	"log"
+	"plandex-cli/api"
 	"plandex-cli/auth"
 	"plandex-cli/lib"
 	"plandex-cli/term"
@@ -25,6 +26,7 @@ func getOnApplyExecFail(applyFlags types.ApplyFlags, tellFlags types.TellFlags, 
 	var onExecFail types.OnApplyExecFailFn
 	onExecFail = func(status int, output string, attempt int, toRollback *types.ApplyRollbackPlan, onErr types.OnErrFn, onSuccess func()) {
 		var proceed bool
+		resetAttempts := false
 
 		if applyFlags.AutoDebug > 0 {
 			if attempt >= applyFlags.AutoDebug {
@@ -39,13 +41,71 @@ func getOnApplyExecFail(applyFlags types.ApplyFlags, tellFlags types.TellFlags, 
 		}
 
 		if !proceed {
-			confirm, err := term.ConfirmYesNo("Auto-debug?")
+			const (
+				DebugAndRetry          = "Debug and retry once"
+				DebugInFullAutoMode    = "Debug in full auto mode"
+				RollbackChangesAndExit = "Rollback changes and exit"
+				ApplyChangesAndExit    = "Apply changes and exit"
+			)
+			opts := []string{
+				DebugAndRetry,
+				DebugInFullAutoMode,
+				RollbackChangesAndExit,
+				ApplyChangesAndExit,
+			}
 
+			selection, err := term.SelectFromList("What do you want to do?", opts)
 			if err != nil {
 				term.OutputErrorAndExit("failed to get confirmation user input: %s", err)
 			}
 
-			proceed = confirm
+			switch selection {
+			case DebugAndRetry:
+				proceed = true
+			case DebugInFullAutoMode:
+				proceed = true
+				resetAttempts = true
+
+				term.StartSpinner("")
+				config, apiErr := api.Client.GetPlanConfig(lib.CurrentPlanId)
+
+				if apiErr != nil {
+					term.OutputErrorAndExit("failed to get plan config: %s", apiErr)
+				}
+
+				config.SetAutoMode(shared.AutoModeFull)
+				apiErr = api.Client.UpdatePlanConfig(lib.CurrentPlanId, shared.UpdatePlanConfigRequest{
+					Config: config,
+				})
+
+				if apiErr != nil {
+					term.OutputErrorAndExit("failed to update plan config: %s", apiErr)
+				}
+
+				applyFlags.AutoCommit = true
+				applyFlags.AutoConfirm = true
+				applyFlags.AutoExec = true
+				applyFlags.AutoDebug = config.AutoDebugTries
+
+				tellFlags.AutoApply = true
+				tellFlags.AutoContext = true
+				tellFlags.ExecEnabled = true
+				tellFlags.SmartContext = true
+
+				term.StopSpinner()
+				fmt.Println()
+				fmt.Println("✅ Full auto mode enabled")
+				fmt.Println()
+
+			case RollbackChangesAndExit:
+				if toRollback != nil {
+					lib.Rollback(toRollback, true)
+				}
+				term.OutputErrorAndExit("Rolling back changes and exiting")
+			case ApplyChangesAndExit:
+				onSuccess()
+				return
+			}
 		}
 
 		if proceed {
@@ -85,6 +145,10 @@ func getOnApplyExecFail(applyFlags types.ApplyFlags, tellFlags types.TellFlags, 
 
 			log.Printf("Applying plan after tell")
 
+			if resetAttempts {
+				attempt = 0
+			}
+
 			lib.MustApplyPlanAttempt(lib.ApplyPlanParams{
 				PlanId:      lib.CurrentPlanId,
 				Branch:      lib.CurrentBranch,
@@ -93,18 +157,6 @@ func getOnApplyExecFail(applyFlags types.ApplyFlags, tellFlags types.TellFlags, 
 				OnExecFail:  onExecFail,
 				ExecCommand: execCommand,
 			}, attempt+1)
-		} else {
-			res, err := term.SelectFromList("Still apply file changes or roll back?", []string{string(types.ApplyRollbackOptionKeep), string(types.ApplyRollbackOptionRollback)})
-
-			if err != nil {
-				onErr("failed to get rollback confirmation user input: %s", err)
-			}
-
-			if res == string(types.ApplyRollbackOptionRollback) {
-				lib.Rollback(toRollback, true)
-			} else {
-				onSuccess()
-			}
 		}
 	}
 

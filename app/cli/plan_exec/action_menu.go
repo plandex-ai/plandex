@@ -15,13 +15,14 @@ import (
 )
 
 type hotkeyOption struct {
-	char         string
-	key          keyboard.Key
-	command      string
-	description  string
-	replOnly     bool
-	terminalOnly bool
-	dropdownOnly bool
+	char            string
+	key             keyboard.Key
+	command         string
+	description     string
+	replOnly        bool
+	terminalOnly    bool
+	dropdownOnly    bool
+	applyScriptOnly bool
 }
 
 var allHotkeyOptions = []hotkeyOption{
@@ -40,26 +41,30 @@ var allHotkeyOptions = []hotkeyOption{
 		terminalOnly: false,
 	},
 	{
-		char:         "a",
-		command:      "apply",
-		description:  "Apply all pending changes",
-		replOnly:     false,
-		terminalOnly: false,
-	},
-	{
 		char:         "r",
 		command:      "reject",
 		description:  "Reject some or all pending changes",
 		replOnly:     false,
 		terminalOnly: false,
 	},
-	// {
-	// 	char:         "f",
-	// 	command:      "follow up",
-	// 	description:  "Iterate with a follow up prompt",
-	// 	replOnly:     true,
-	// 	terminalOnly: false,
-	// },
+
+	{
+		char:         "a",
+		command:      "apply",
+		description:  "Apply all pending changes",
+		replOnly:     false,
+		terminalOnly: false,
+	},
+
+	{
+		char:            "f",
+		command:         "full auto",
+		description:     "Apply and debug in full auto mode",
+		replOnly:        true,
+		terminalOnly:    false,
+		applyScriptOnly: true,
+	},
+
 	{
 		char:         "q",
 		key:          keyboard.KeyEnter,
@@ -70,6 +75,14 @@ var allHotkeyOptions = []hotkeyOption{
 }
 
 func showHotkeyMenu(diffs []string) {
+	hasApplyScript := false
+	for _, diff := range diffs {
+		if diff == "_apply.sh" {
+			hasApplyScript = true
+			break
+		}
+	}
+
 	numDiffs := len(diffs)
 	s := "files have"
 	if numDiffs == 1 {
@@ -78,10 +91,18 @@ func showHotkeyMenu(diffs []string) {
 	color.New(color.Bold, term.ColorHiGreen).Printf("🧐 %d %s pending changes\n", numDiffs, s)
 
 	for _, diff := range diffs {
+		if diff == "_apply.sh" {
+			continue
+		}
+
 		fmt.Printf("• 📄 %s\n", diff)
 	}
-
 	fmt.Println()
+
+	if hasApplyScript {
+		color.New(color.Bold, term.ColorHiYellow).Println("🚀 Commands pending")
+		fmt.Println()
+	}
 
 	var b strings.Builder
 	table := tablewriter.NewWriter(&b)
@@ -90,12 +111,21 @@ func showHotkeyMenu(diffs []string) {
 	table.SetAlignment(tablewriter.ALIGN_LEFT)
 
 	for _, opt := range allHotkeyOptions {
-		if (opt.terminalOnly && term.IsRepl) || (opt.replOnly && !term.IsRepl) || opt.dropdownOnly {
+		if (opt.terminalOnly && term.IsRepl) || (opt.replOnly && !term.IsRepl) || opt.dropdownOnly || (opt.applyScriptOnly && !hasApplyScript) {
 			continue
 		}
 
+		c := color.New(term.ColorHiCyan, color.Bold)
+		if opt.command == "apply" {
+			c = color.New(term.ColorHiGreen, color.Bold)
+		} else if opt.command == "reject" {
+			c = color.New(term.ColorHiRed, color.Bold)
+		} else if opt.command == "full auto" {
+			c = color.New(term.ColorHiYellow, color.Bold)
+		}
+
 		table.Append([]string{
-			color.New(term.ColorHiGreen, color.Bold).Sprintf("(%s)", opt.char),
+			c.Sprintf("(%s)", opt.char),
 			opt.command,
 			opt.description,
 		})
@@ -210,6 +240,14 @@ func handleHotkeyOption(option hotkeyOption, diffs []string, params ExecParams) 
 		_, err := lib.ExecPlandexCommand([]string{"reject"})
 		if err != nil {
 			fmt.Printf("\nError rejecting changes: %v\n", err)
+		}
+		fmt.Println()
+		exitUnlessDiffs()
+	} else if option.char == "f" {
+		fmt.Println()
+		_, err := lib.ExecPlandexCommand([]string{"apply", "--auto"})
+		if err != nil {
+			fmt.Printf("\nError applying changes: %v\n", err)
 		}
 		fmt.Println()
 		exitUnlessDiffs()
