@@ -20,7 +20,7 @@ import (
 type PlanSummaryParams struct {
 	Auth                        *types.ServerAuth
 	Plan                        *db.Plan
-	ActivePlan                  *types.ActivePlan
+	ModelStreamId               string
 	ModelPackName               string
 	Conversation                []*types.ExtendedChatMessage
 	ConversationNumTokens       int
@@ -63,7 +63,7 @@ func PlanSummary(clients map[string]ClientInfo, config shared.ModelRoleConfig, p
 		Plan: params.Plan,
 		WillSendModelRequestParams: &hooks.WillSendModelRequestParams{
 			InputTokens:  numTokens,
-			OutputTokens: config.GetReservedOutputTokens(),
+			OutputTokens: config.BaseModelConfig.MaxOutputTokens - numTokens,
 			ModelName:    config.BaseModelConfig.ModelName,
 		},
 	})
@@ -82,7 +82,7 @@ func PlanSummary(clients map[string]ClientInfo, config shared.ModelRoleConfig, p
 		TopP:        config.TopP,
 	}
 
-	resp, err := CreateChatCompletionWithRetries(
+	resp, err := CreateChatCompletion(
 		clients,
 		&config,
 		ctx,
@@ -119,6 +119,11 @@ func PlanSummary(clients map[string]ClientInfo, config shared.ModelRoleConfig, p
 		outputTokens = shared.GetNumTokensEstimate(content)
 	}
 
+	var cachedTokens int
+	if resp.Usage.PromptTokensDetails != nil {
+		cachedTokens = resp.Usage.PromptTokensDetails.CachedTokens
+	}
+
 	go func() {
 		_, apiErr := hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
 			Auth: params.Auth,
@@ -126,6 +131,7 @@ func PlanSummary(clients map[string]ClientInfo, config shared.ModelRoleConfig, p
 			DidSendModelRequestParams: &hooks.DidSendModelRequestParams{
 				InputTokens:    inputTokens,
 				OutputTokens:   outputTokens,
+				CachedTokens:   cachedTokens,
 				ModelName:      config.BaseModelConfig.ModelName,
 				ModelProvider:  config.BaseModelConfig.Provider,
 				ModelPackName:  params.ModelPackName,
@@ -133,7 +139,7 @@ func PlanSummary(clients map[string]ClientInfo, config shared.ModelRoleConfig, p
 				Purpose:        "Generated plan summary",
 				GenerationId:   resp.ID,
 				PlanId:         params.Plan.Id,
-				ModelStreamId:  params.ActivePlan.ModelStreamId,
+				ModelStreamId:  params.ModelStreamId,
 				ConvoMessageId: params.LatestConvoMessageId,
 				BuildId:        params.Plan.Id,
 
@@ -149,10 +155,6 @@ func PlanSummary(clients map[string]ClientInfo, config shared.ModelRoleConfig, p
 			log.Printf("PlanSummary - error executing DidSendModelRequest hook: %v", apiErr)
 		}
 	}()
-
-	if apiErr != nil {
-		return nil, apiErr
-	}
 
 	// log.Println("Plan summary content:")
 	// log.Println(content)

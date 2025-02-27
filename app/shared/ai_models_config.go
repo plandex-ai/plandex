@@ -1,8 +1,8 @@
 package shared
 
-func getPlannerModelConfig(provider ModelProvider, modelName string) PlannerModelConfig {
+func getPlannerModelConfig(provider ModelProvider, modelId ModelId) PlannerModelConfig {
 	return PlannerModelConfig{
-		MaxConvoTokens: GetAvailableModel(provider, modelName).DefaultMaxConvoTokens,
+		MaxConvoTokens: GetAvailableModel(provider, modelId).DefaultMaxConvoTokens,
 	}
 }
 

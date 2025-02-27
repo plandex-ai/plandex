@@ -1,5 +1,7 @@
 package shared
 
+import "fmt"
+
 type AuthHeader struct {
 	Token string `json:"token"`
 	OrgId string `json:"orgId"`
@@ -49,6 +51,10 @@ type ApiError struct {
 
 	// only used for billing errors
 	BillingError *BillingError `json:"billingError,omitempty"`
+}
+
+func (e *ApiError) Error() string {
+	return fmt.Sprintf("%d Error: %s", e.Status, e.Msg)
 }
 
 type ClientAccount struct {

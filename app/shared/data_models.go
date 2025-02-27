@@ -233,25 +233,14 @@ type PlanBuild struct {
 }
 
 type Replacement struct {
-	Id                    string                             `json:"id"`
-	Old                   string                             `json:"old"`
-	Summary               string                             `json:"summary"`
-	EntireFile            bool                               `json:"entireFile"`
-	New                   string                             `json:"new"`
-	Failed                bool                               `json:"failed"`
-	RejectedAt            *time.Time                         `json:"rejectedAt,omitempty"`
-	StreamedChange        *StreamedChangeWithLineNums        `json:"streamedChange"`
-	StreamedChangeUpdated *StreamedChangeWithLineNumsUpdated `json:"streamedChangeUpdated"`
-}
-
-func (r *Replacement) GetSummary() string {
-	if r.Summary != "" {
-		return r.Summary
-	}
-	if r.StreamedChange != nil {
-		return r.StreamedChange.Summary
-	}
-	return ""
+	Id             string                      `json:"id"`
+	Old            string                      `json:"old"`
+	Summary        string                      `json:"summary"`
+	EntireFile     bool                        `json:"entireFile"`
+	New            string                      `json:"new"`
+	Failed         bool                        `json:"failed"`
+	RejectedAt     *time.Time                  `json:"rejectedAt,omitempty"`
+	StreamedChange *StreamedChangeWithLineNums `json:"streamedChange"`
 }
 
 type PlanFileResult struct {
@@ -382,6 +371,8 @@ type CreditsTransaction struct {
 	DebitPlanId   *string `json:"debitPlanId,omitempty"`
 	DebitPlanName *string `json:"debitPlanName,omitempty"`
 	DebitId       *string `json:"debitId,omitempty"`
+
+	DebitCacheDiscount *decimal.Decimal `json:"debitCacheDiscount,omitempty"`
 
 	CreatedAt time.Time `json:"createdAt"`
 }

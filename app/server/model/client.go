@@ -75,7 +75,7 @@ func newClient(apiKey, endpoint, orgId string) ClientInfo {
 // ExtendedChatCompletionStream can wrap either a native OpenAI stream or our custom implementation
 type ExtendedChatCompletionStream struct {
 	openaiStream *openai.ChatCompletionStream
-	customReader *StreamReader[openai.ChatCompletionStreamResponse]
+	customReader *StreamReader[types.ExtendedChatCompletionStreamResponse]
 	ctx          context.Context
 }
 
@@ -97,7 +97,7 @@ type ErrorAccumulator struct {
 // JSONUnmarshaler handles JSON unmarshaling for stream responses
 type JSONUnmarshaler struct{}
 
-func CreateChatCompletionStreamWithRetries(
+func CreateChatCompletionStream(
 	clients map[string]ClientInfo,
 	modelConfig *shared.ModelRoleConfig,
 	ctx context.Context,
@@ -115,12 +115,16 @@ func CreateChatCompletionStreamWithRetries(
 		req.Model += ":nitro"
 	}
 
+	if modelConfig.BaseModelConfig.IncludeReasoning {
+		req.IncludeReasoning = true
+	}
+
 	return withRetries(ctx, func() (*ExtendedChatCompletionStream, error) {
 		return createChatCompletionStreamExtended(modelConfig, client, modelConfig.BaseModelConfig.BaseUrl, ctx, req)
 	})
 }
 
-func CreateChatCompletionWithRetries(
+func CreateChatCompletion(
 	clients map[string]ClientInfo,
 	modelConfig *shared.ModelRoleConfig,
 	ctx context.Context,
@@ -150,14 +154,10 @@ func createChatCompletionExtended(
 	ctx context.Context,
 	extendedReq types.ExtendedChatCompletionRequest,
 ) (openai.ChatCompletionResponse, error) {
+	var openaiReq *types.ExtendedOpenAIChatCompletionRequest
 	if modelConfig.BaseModelConfig.Provider == shared.ModelProviderOpenAI {
 		log.Println("Creating chat completion with direct OpenAI provider request")
-		openaiReq := extendedReq.ToOpenAI()
-		resp, err := client.Client.CreateChatCompletion(ctx, *openaiReq)
-		if err != nil {
-			return openai.ChatCompletionResponse{}, fmt.Errorf("error creating direct OpenAI chat completion: %w", err)
-		}
-		return resp, nil
+		openaiReq = extendedReq.ToOpenAI()
 	}
 
 	req, err := http.NewRequestWithContext(ctx, "POST", baseUrl+"/chat/completions", nil)
@@ -175,7 +175,12 @@ func createChatCompletionExtended(
 	addOpenRouterHeaders(req)
 
 	// Add body
-	jsonBody, err := json.Marshal(extendedReq)
+	var jsonBody []byte
+	if openaiReq != nil {
+		jsonBody, err = json.Marshal(openaiReq)
+	} else {
+		jsonBody, err = json.Marshal(extendedReq)
+	}
 	if err != nil {
 		return openai.ChatCompletionResponse{}, err
 	}
@@ -193,7 +198,6 @@ func createChatCompletionExtended(
 	if err != nil {
 		return openai.ChatCompletionResponse{}, err
 	}
-	// log.Println("Response body:", string(body))
 
 	var response openai.ChatCompletionResponse
 	err = json.Unmarshal(body, &response)
@@ -211,21 +215,20 @@ func createChatCompletionStreamExtended(
 	ctx context.Context,
 	extendedReq types.ExtendedChatCompletionRequest,
 ) (*ExtendedChatCompletionStream, error) {
+	var openaiReq *types.ExtendedOpenAIChatCompletionRequest
 	if modelConfig.BaseModelConfig.Provider == shared.ModelProviderOpenAI {
-		openaiReq := extendedReq.ToOpenAI()
+		openaiReq = extendedReq.ToOpenAI()
 		log.Println("Creating chat completion stream with direct OpenAI provider request")
-		stream, err := client.Client.CreateChatCompletionStream(ctx, *openaiReq)
-		if err != nil {
-			return nil, fmt.Errorf("error creating direct OpenAI chat completion stream: %w", err)
-		}
-		return &ExtendedChatCompletionStream{
-			openaiStream: stream,
-			ctx:          ctx,
-		}, nil
 	}
 
 	// Marshal the request body to JSON
-	jsonBody, err := json.MarshalIndent(extendedReq, "", "  ")
+	var jsonBody []byte
+	var err error
+	if openaiReq != nil {
+		jsonBody, err = json.Marshal(openaiReq)
+	} else {
+		jsonBody, err = json.Marshal(extendedReq)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("error marshaling request: %w", err)
 	}
@@ -266,12 +269,12 @@ func createChatCompletionStreamExtended(
 	}
 
 	// Log response headers
-	log.Println("Response headers:")
-	for key, values := range resp.Header {
-		log.Printf("%s: %v\n", key, values)
-	}
+	// log.Println("Response headers:")
+	// for key, values := range resp.Header {
+	// 	log.Printf("%s: %v\n", key, values)
+	// }
 
-	reader := &StreamReader[openai.ChatCompletionStreamResponse]{
+	reader := &StreamReader[types.ExtendedChatCompletionStreamResponse]{
 		reader:             bufio.NewReader(resp.Body),
 		response:           resp,
 		emptyMessagesLimit: 30,
@@ -356,13 +359,19 @@ func (stream *StreamReader[T]) Close() error {
 }
 
 // Recv returns the next message in the stream
-func (stream *ExtendedChatCompletionStream) Recv() (*openai.ChatCompletionStreamResponse, error) {
+func (stream *ExtendedChatCompletionStream) Recv() (*types.ExtendedChatCompletionStreamResponse, error) {
 	select {
 	case <-stream.ctx.Done():
 		return nil, stream.ctx.Err()
 	default:
 		if stream.openaiStream != nil {
-			response, err := stream.openaiStream.Recv()
+			bytes, err := stream.openaiStream.RecvRaw()
+			if err != nil {
+				return nil, err
+			}
+
+			var response types.ExtendedChatCompletionStreamResponse
+			err = json.Unmarshal(bytes, &response)
 			if err != nil {
 				return nil, err
 			}

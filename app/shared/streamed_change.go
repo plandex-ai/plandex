@@ -12,68 +12,13 @@ type StreamedChangeSection struct {
 	EndLine         int    `json:"endLine"`
 	StartLineString string `json:"startLineString"`
 	EndLineString   string `json:"endLineString"`
-	EntireFile      bool   `json:"entireFile"`
 }
 
 type StreamedChangeWithLineNums struct {
-	Summary                    string                `json:"summary"`
-	HasChange                  bool                  `json:"hasChange"`
-	Old                        StreamedChangeSection `json:"old"`
-	StartLineIncludedReasoning string                `json:"startLineIncludedReasoning"`
-	StartLineIncluded          bool                  `json:"startLineIncluded"`
-	EndLineIncludedReasoning   string                `json:"endLineIncludedReasoning"`
-	EndLineIncluded            bool                  `json:"endLineIncluded"`
-	New                        string                `json:"new"`
-}
-
-type StreamedChangeWithLineNumsUpdated struct {
-	Summary                    string                `json:"summary"`
-	Reasoning                  string                `json:"reasoning"`
-	Section                    string                `json:"section"`
-	NewReasoning               string                `json:"newReasoning"`
-	OrderReasoning             string                `json:"orderReasoning"`
-	StructureReasoning         StructureReasoning    `json:"structureReasoning"`
-	InsertBefore               *InsertBefore         `json:"insertBefore"`
-	InsertAfter                *InsertAfter          `json:"insertAfter"`
-	HasChange                  bool                  `json:"hasChange"`
-	Old                        StreamedChangeSection `json:"old"`
-	StartLineIncludedReasoning string                `json:"startLineIncludedReasoning"`
-	StartLineIncluded          bool                  `json:"startLineIncluded"`
-	EndLineIncludedReasoning   string                `json:"endLineIncludedReasoning"`
-	EndLineIncluded            bool                  `json:"endLineIncluded"`
-	New                        StreamedChangeSection `json:"new"`
-}
-
-type StructureReasoning struct {
-	Old Structure `json:"old"`
-	New Structure `json:"new"`
-}
-
-type Structure struct {
-	Structure       string `json:"structure"`
-	StructureOpens  string `json:"structureOpens"`
-	StructureCloses string `json:"structureCloses"`
-}
-
-type InsertBefore struct {
-	ShouldInsertBefore bool   `json:"shouldInsertBefore"`
-	Line               string `json:"line"`
-}
-
-type InsertAfter struct {
-	ShouldInsertAfter bool   `json:"shouldInsertAfter"`
-	Line              string `json:"line"`
-}
-
-// type StreamedChangeFull struct {
-// 	Summary string `json:"summary"`
-// 	Old     string `json:"old"`
-// 	New     string `json:"new"`
-// }
-
-type StreamedVerifyFunction struct {
-	Reasoning string `json:"reasoning"`
-	IsCorrect bool   `json:"isCorrect"`
+	Old               StreamedChangeSection `json:"old"`
+	StartLineIncluded bool                  `json:"startLineIncluded"`
+	EndLineIncluded   bool                  `json:"endLineIncluded"`
+	New               string                `json:"new"`
 }
 
 func (streamedChangeSection StreamedChangeSection) GetLines() (int, int, error) {
@@ -83,10 +28,6 @@ func (streamedChangeSection StreamedChangeSection) GetLines() (int, int, error) 
 func (streamedChangeSection StreamedChangeSection) GetLinesWithPrefix(prefix string) (int, int, error) {
 	var startLine, endLine int
 	var err error
-
-	if streamedChangeSection.EntireFile {
-		return 1, -1, nil
-	}
 
 	if streamedChangeSection.StartLineString == "" {
 		log.Printf("StartLineString is empty\n")

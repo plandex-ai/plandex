@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"os"
 	"plandex-server/db"
 
 	shared "plandex-shared"
@@ -25,18 +26,26 @@ func CreateCustomModelHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
+
+	if os.Getenv("IS_CLOUD") != "" && model.Provider == shared.ModelProviderCustom {
+		http.Error(w, "Custom model providers are not supported on Plandex Cloud", http.StatusBadRequest)
+		return
+	}
+
 	dbModel := &db.AvailableModel{
-		Id:                          model.Id,
-		OrgId:                       auth.OrgId,
-		Provider:                    model.Provider,
-		CustomProvider:              model.CustomProvider,
-		BaseUrl:                     model.BaseUrl,
-		ModelName:                   model.ModelName,
-		MaxTokens:                   model.MaxTokens,
-		ApiKeyEnvVar:                model.ApiKeyEnvVar,
-		HasImageSupport:             model.HasImageSupport,
-		DefaultMaxConvoTokens:       model.DefaultMaxConvoTokens,
-		DefaultReservedOutputTokens: model.DefaultReservedOutputTokens,
+		Id:                    model.Id,
+		OrgId:                 auth.OrgId,
+		Provider:              model.Provider,
+		CustomProvider:        model.CustomProvider,
+		BaseUrl:               model.BaseUrl,
+		ModelName:             model.ModelName,
+		Description:           model.Description,
+		MaxTokens:             model.MaxTokens,
+		ApiKeyEnvVar:          model.ApiKeyEnvVar,
+		HasImageSupport:       model.HasImageSupport,
+		DefaultMaxConvoTokens: model.DefaultMaxConvoTokens,
+		MaxOutputTokens:       model.MaxOutputTokens,
+		ReservedOutputTokens:  model.ReservedOutputTokens,
 	}
 
 	if err := db.CreateCustomModel(dbModel); err != nil {

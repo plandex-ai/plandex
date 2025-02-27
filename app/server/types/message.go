@@ -2,6 +2,9 @@ package types
 
 import (
 	shared "plandex-shared"
+	"time"
+
+	"strings"
 
 	"github.com/sashabaranov/go-openai"
 )
@@ -65,7 +68,7 @@ type OpenRouterProviderConfig struct {
 
 type ExtendedChatCompletionRequest struct {
 	// copied from openai.ChatCompletionRequest
-	Model    string                `json:"model"`
+	Model    shared.ModelName      `json:"model"`
 	Messages []ExtendedChatMessage `json:"messages"`
 	// MaxTokens The maximum number of tokens that can be generated in the chat completion.
 	// This value can be used to control costs for text generated via API.
@@ -114,42 +117,152 @@ type ExtendedChatCompletionRequest struct {
 	// Metadata to store with the completion.
 	Metadata map[string]string `json:"metadata,omitempty"`
 
-	Prediction      *OpenAIPrediction         `json:"prediction,omitempty"`
-	Provider        *OpenRouterProviderConfig `json:"provider,omitempty"`
-	ReasoningEffort *shared.ReasoningEffort   `json:"reasoning_effort,omitempty"`
+	Prediction       *OpenAIPrediction         `json:"prediction,omitempty"`
+	Provider         *OpenRouterProviderConfig `json:"provider,omitempty"`
+	ReasoningEffort  *shared.ReasoningEffort   `json:"reasoning_effort,omitempty"`
+	IncludeReasoning bool                      `json:"include_reasoning,omitempty"`
 }
 
-func (req *ExtendedChatCompletionRequest) ToOpenAI() *openai.ChatCompletionRequest {
+// for properties that OpenAI direct api calls support but aren't included in https://github.com/sashabaranov/go-openai
+type ExtendedOpenAIChatCompletionRequest struct {
+	openai.ChatCompletionRequest
+	Prediction      *OpenAIPrediction       `json:"prediction,omitempty"`
+	ReasoningEffort *shared.ReasoningEffort `json:"reasoning_effort,omitempty"`
+}
+
+// strips out properties that direct OpenAI api calls don't support
+func (req *ExtendedChatCompletionRequest) ToOpenAI() *ExtendedOpenAIChatCompletionRequest {
 	openaiMessages := make([]openai.ChatCompletionMessage, len(req.Messages))
 	for i, msg := range req.Messages {
 		openaiMessages[i] = *msg.ToOpenAI()
 	}
 
-	return &openai.ChatCompletionRequest{
-		Model:               req.Model,
-		Messages:            openaiMessages,
-		MaxTokens:           req.MaxTokens,
-		MaxCompletionTokens: req.MaxCompletionTokens,
-		Temperature:         req.Temperature,
-		TopP:                req.TopP,
-		N:                   req.N,
-		Stream:              req.Stream,
-		Stop:                req.Stop,
-		PresencePenalty:     req.PresencePenalty,
-		ResponseFormat:      req.ResponseFormat,
-		Seed:                req.Seed,
-		FrequencyPenalty:    req.FrequencyPenalty,
-		LogitBias:           req.LogitBias,
-		LogProbs:            req.LogProbs,
-		TopLogProbs:         req.TopLogProbs,
-		User:                req.User,
-		Functions:           req.Functions,
-		FunctionCall:        req.FunctionCall,
-		Tools:               req.Tools,
-		ToolChoice:          req.ToolChoice,
-		StreamOptions:       req.StreamOptions,
-		ParallelToolCalls:   req.ParallelToolCalls,
-		Store:               req.Store,
-		Metadata:            req.Metadata,
+	return &ExtendedOpenAIChatCompletionRequest{
+		ChatCompletionRequest: openai.ChatCompletionRequest{
+			Model:               string(req.Model),
+			Messages:            openaiMessages,
+			MaxTokens:           req.MaxTokens,
+			MaxCompletionTokens: req.MaxCompletionTokens,
+			Temperature:         req.Temperature,
+			TopP:                req.TopP,
+			N:                   req.N,
+			Stream:              req.Stream,
+			Stop:                req.Stop,
+			PresencePenalty:     req.PresencePenalty,
+			ResponseFormat:      req.ResponseFormat,
+			Seed:                req.Seed,
+			FrequencyPenalty:    req.FrequencyPenalty,
+			LogitBias:           req.LogitBias,
+			LogProbs:            req.LogProbs,
+			TopLogProbs:         req.TopLogProbs,
+			User:                req.User,
+			Functions:           req.Functions,
+			FunctionCall:        req.FunctionCall,
+			Tools:               req.Tools,
+			ToolChoice:          req.ToolChoice,
+			StreamOptions:       req.StreamOptions,
+			ParallelToolCalls:   req.ParallelToolCalls,
+			Store:               req.Store,
+			Metadata:            req.Metadata,
+		},
+		Prediction:      req.Prediction,
+		ReasoningEffort: req.ReasoningEffort,
+	}
+}
+
+type ExtendedChatCompletionStreamChoiceDelta struct {
+	Content      string               `json:"content,omitempty"`
+	Reasoning    string               `json:"reasoning,omitempty"`
+	Role         string               `json:"role,omitempty"`
+	FunctionCall *openai.FunctionCall `json:"function_call,omitempty"`
+	ToolCalls    []openai.ToolCall    `json:"tool_calls,omitempty"`
+	Refusal      string               `json:"refusal,omitempty"`
+}
+
+type ExtendedChatCompletionStreamChoice struct {
+	Index                int                                        `json:"index"`
+	Delta                ExtendedChatCompletionStreamChoiceDelta    `json:"delta"`
+	Logprobs             *openai.ChatCompletionStreamChoiceLogprobs `json:"logprobs,omitempty"`
+	FinishReason         openai.FinishReason                        `json:"finish_reason"`
+	ContentFilterResults openai.ContentFilterResults                `json:"content_filter_results,omitempty"`
+}
+
+type ExtendedChatCompletionStreamResponse struct {
+	ID                  string                               `json:"id"`
+	Object              string                               `json:"object"`
+	Created             int64                                `json:"created"`
+	Model               string                               `json:"model"`
+	Choices             []ExtendedChatCompletionStreamChoice `json:"choices"`
+	SystemFingerprint   string                               `json:"system_fingerprint"`
+	PromptAnnotations   []openai.PromptAnnotation            `json:"prompt_annotations,omitempty"`
+	PromptFilterResults []openai.PromptFilterResult          `json:"prompt_filter_results,omitempty"`
+	// An optional field that will only be present when you set stream_options: {"include_usage": true} in your request.
+	// When present, it contains a null value except for the last chunk which contains the token usage statistics
+	// for the entire request.
+	Usage *openai.Usage `json:"usage,omitempty"`
+}
+
+// ModelResponse holds both the accumulated content and final usage information from a streaming completion request
+type ModelResponse struct {
+	Content      string        `json:"content"`
+	Usage        *openai.Usage `json:"usage,omitempty"`
+	Stopped      bool          `json:"stopped,omitempty"`
+	Error        string        `json:"error,omitempty"`
+	GenerationId string        `json:"generation_id,omitempty"`
+	FirstTokenAt time.Time     `json:"first_token_at,omitempty"`
+}
+
+// StreamCompletionAccumulator accumulates content and tracks usage from streaming chunks
+type StreamCompletionAccumulator struct {
+	content      strings.Builder
+	usage        *openai.Usage
+	generationId string
+	firstTokenAt time.Time
+}
+
+// NewStreamCompletionAccumulator creates a new StreamCompletionAccumulator
+func NewStreamCompletionAccumulator() *StreamCompletionAccumulator {
+	return &StreamCompletionAccumulator{
+		content: strings.Builder{},
+		usage:   nil,
+	}
+}
+
+// AddContent appends new content from a streaming chunk
+func (a *StreamCompletionAccumulator) AddContent(content string) {
+	a.content.WriteString(content)
+}
+
+// SetUsage sets the usage information, typically from the final chunk
+func (a *StreamCompletionAccumulator) SetUsage(usage *openai.Usage) {
+	a.usage = usage
+}
+
+func (a *StreamCompletionAccumulator) SetGenerationId(generationId string) {
+	a.generationId = generationId
+}
+
+func (a *StreamCompletionAccumulator) SetFirstTokenAt(firstTokenAt time.Time) {
+	a.firstTokenAt = firstTokenAt
+}
+
+func (a *StreamCompletionAccumulator) Content() string {
+	return a.content.String()
+}
+
+// Result creates a StreamCompletionResult from the accumulated content and usage
+func (a *StreamCompletionAccumulator) Result(stopped bool, err error) *ModelResponse {
+	errStr := ""
+	if err != nil {
+		errStr = err.Error()
+	}
+
+	return &ModelResponse{
+		Content:      a.content.String(),
+		Usage:        a.usage,
+		Stopped:      stopped,
+		Error:        errStr,
+		GenerationId: a.generationId,
+		FirstTokenAt: a.firstTokenAt,
 	}
 }

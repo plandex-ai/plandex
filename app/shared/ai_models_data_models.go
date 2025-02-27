@@ -18,33 +18,38 @@ const (
 	ModelOutputFormatXml          ModelOutputFormat = "xml"
 )
 
+// to help avoid confusion between the model name and the model id
+type ModelName string
+type ModelId string
+
 type BaseModelConfig struct {
 	Provider                   ModelProvider     `json:"provider"`
 	CustomProvider             *string           `json:"customProvider,omitempty"`
 	BaseUrl                    string            `json:"baseUrl"`
-	ModelName                  string            `json:"modelName"`
+	ModelName                  ModelName         `json:"modelName"`
+	ModelId                    ModelId           `json:"modelId"`
 	MaxTokens                  int               `json:"maxTokens"`
+	MaxOutputTokens            int               `json:"maxOutputTokens"`
+	ReservedOutputTokens       int               `json:"reservedOutputTokens"`
 	ApiKeyEnvVar               string            `json:"apiKeyEnvVar"`
 	PreferredModelOutputFormat ModelOutputFormat `json:"preferredModelOutputFormat"`
-	// PreferredOpenRouterProviders []OpenRouterProvider `json:"preferredOpenRouterProviders"`
-	// OpenRouterAllowFallbacks     bool                 `json:"openRouterAllowFallbacks"`
-	SystemPromptDisabled   bool `json:"systemPromptDisabled"`
-	RoleParamsDisabled     bool `json:"roleParamsDisabled"`
-	PredictedOutputEnabled bool `json:"predictedOutputEnabled"`
-	ReasoningEffortEnabled bool `json:"reasoningEffortEnabled"`
-	// OpenRouterSelfModerated      bool                 `json:"openRouterSelfModerated"`
-	// OpenRouterNitro              bool                 `json:"openRouterNitro"`
+	SystemPromptDisabled       bool              `json:"systemPromptDisabled"`
+	RoleParamsDisabled         bool              `json:"roleParamsDisabled"`
+	PredictedOutputEnabled     bool              `json:"predictedOutputEnabled"`
+	ReasoningEffortEnabled     bool              `json:"reasoningEffortEnabled"`
+	ReasoningEffort            ReasoningEffort   `json:"reasoningEffort"`
+	IncludeReasoning           bool              `json:"includeReasoning"`
+	SupportsCacheControl       bool              `json:"supportsCacheControl"`
 	ModelCompatibility
 }
 
 type AvailableModel struct {
 	Id string `json:"id"`
 	BaseModelConfig
-	Description                 string    `json:"description"`
-	DefaultMaxConvoTokens       int       `json:"defaultMaxConvoTokens"`
-	DefaultReservedOutputTokens int       `json:"defaultReservedOutputTokens"`
-	CreatedAt                   time.Time `json:"createdAt"`
-	UpdatedAt                   time.Time `json:"updatedAt"`
+	Description           string    `json:"description"`
+	DefaultMaxConvoTokens int       `json:"defaultMaxConvoTokens"`
+	CreatedAt             time.Time `json:"createdAt"`
+	UpdatedAt             time.Time `json:"updatedAt"`
 }
 
 type PlannerModelConfig struct {
@@ -70,13 +75,15 @@ type ModelRoleConfig struct {
 	LargeContextFallback *ModelRoleConfig `json:"largeContextFallback"`
 	LargeOutputFallback  *ModelRoleConfig `json:"largeOutputFallback"`
 	// ErrorFallback        *ModelRoleConfig `json:"errorFallback"`
+
+	StrongModel *ModelRoleConfig `json:"strongModel"`
 }
 
 func (m ModelRoleConfig) GetReservedOutputTokens() int {
 	if m.ReservedOutputTokens > 0 {
 		return m.ReservedOutputTokens
 	}
-	return GetAvailableModel(m.BaseModelConfig.Provider, m.BaseModelConfig.ModelName).DefaultReservedOutputTokens
+	return m.BaseModelConfig.ReservedOutputTokens
 }
 
 func (m *ModelRoleConfig) Scan(src interface{}) error {

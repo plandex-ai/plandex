@@ -5,12 +5,15 @@ var fullCompatibility = ModelCompatibility{
 }
 
 var RequiredCompatibilityByRole = map[ModelRole]ModelCompatibility{
-	ModelRolePlanner:     {},
-	ModelRolePlanSummary: {},
-	ModelRoleBuilder:     {},
-	ModelRoleName:        {},
-	ModelRoleCommitMsg:   {},
-	ModelRoleExecStatus:  {},
+	ModelRolePlanner:          {},
+	ModelRolePlanSummary:      {},
+	ModelRoleBuilder:          {},
+	ModelRoleName:             {},
+	ModelRoleCommitMsg:        {},
+	ModelRoleExecStatus:       {},
+	ModelRoleArchitect:        {},
+	ModelRoleCoder:            {},
+	ModelRoleWholeFileBuilder: {},
 }
 
 func FilterCompatibleModels(models []*AvailableModel, role ModelRole) []*AvailableModel {

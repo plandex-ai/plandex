@@ -174,8 +174,8 @@ type LoadContextParams struct {
 	Body            string                `json:"body"`
 	ForceSkipIgnore bool                  `json:"forceSkipIgnore"`
 	ImageDetail     openai.ImageURLDetail `json:"imageDetail"`
-
-	MapInputs FileMapInputs `json:"mapInputs"`
+	AutoLoaded      bool                  `json:"autoLoaded"`
+	MapInputs       FileMapInputs         `json:"mapInputs"`
 
 	// For naming piped data
 	ApiKeys     map[string]string `json:"apiKeys"`

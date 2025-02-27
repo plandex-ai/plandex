@@ -1,4 +1,4 @@
-package plan
+package utils
 
 import (
 	"regexp"
@@ -97,4 +97,27 @@ func GetXMLContent(xmlString, tagName string) string {
 	}
 
 	return split2[0]
+}
+
+// GetAllXMLContent returns all occurrences of content between the specified XML tags
+// as an array of strings. Returns an empty array if no matches are found.
+func GetAllXMLContent(xmlString, tagName string) []string {
+	var results []string
+	openTag := "<" + tagName + ">"
+	closeTag := "</" + tagName + ">"
+
+	// Split by opening tag
+	parts := strings.Split(xmlString, openTag)
+
+	// Skip the first part (it's before any opening tag)
+	for i := 1; i < len(parts); i++ {
+		// Split by closing tag
+		subParts := strings.Split(parts[i], closeTag)
+		if len(subParts) > 0 {
+			// The content is before the first closing tag
+			results = append(results, subParts[0])
+		}
+	}
+
+	return results
 }
