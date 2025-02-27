@@ -40,23 +40,23 @@ func Time(then time.Time) string {
 // DivBy should be time.Minute so whatever the duration is will be
 // expressed in minutes.
 type relTimeMagnitude struct {
-	D      time.Duration
-	Format string
-	DivBy  time.Duration
+	D     time.Duration
+	Fn    func(diff time.Duration, lbl string) string
+	DivBy time.Duration
 }
 
 var defaultMagnitudes = []relTimeMagnitude{
-	{time.Second, "just now", time.Second},
-	{2 * time.Second, "1s %s", 1},
-	{time.Minute, "%ds %s", time.Second},
-	{2 * time.Minute, "1m %s", 1},
-	{time.Hour, "%dm %s", time.Minute},
-	{2 * time.Hour, "1h %s", 1},
-	{Day, "%dh %s", time.Hour},
-	{2 * Day, "1d %s", 1},
-	{Week, "%dd %s", Day},
-	{2 * Week, "1w %s", 1},
-	{Month, "%dw %s", Week},
+	{time.Second, func(diff time.Duration, lbl string) string { return "just now" }, time.Second},
+	{2 * time.Second, func(diff time.Duration, lbl string) string { return fmt.Sprintf("1s %s", lbl) }, 1},
+	{time.Minute, func(diff time.Duration, lbl string) string { return fmt.Sprintf("%ds %s", diff, lbl) }, time.Second},
+	{2 * time.Minute, func(diff time.Duration, lbl string) string { return fmt.Sprintf("1m %s", lbl) }, 1},
+	{time.Hour, func(diff time.Duration, lbl string) string { return fmt.Sprintf("%dm %s", diff, lbl) }, time.Minute},
+	{2 * time.Hour, func(diff time.Duration, lbl string) string { return fmt.Sprintf("1h %s", lbl) }, 1},
+	{Day, func(diff time.Duration, lbl string) string { return fmt.Sprintf("%dh %s", diff, lbl) }, time.Hour},
+	{2 * Day, func(diff time.Duration, lbl string) string { return fmt.Sprintf("1d %s", lbl) }, 1},
+	{Week, func(diff time.Duration, lbl string) string { return fmt.Sprintf("%dd %s", diff, lbl) }, Day},
+	{2 * Week, func(diff time.Duration, lbl string) string { return fmt.Sprintf("1w %s", lbl) }, 1},
+	{Month, func(diff time.Duration, lbl string) string { return fmt.Sprintf("%dw %s", diff, lbl) }, Week},
 }
 
 // RelTime(timeInPast, timeInFuture, "earlier", "later") -> "3 weeks earlier"
@@ -92,8 +92,8 @@ func customRelTime(a, b time.Time, albl, blbl string, magnitudes []relTimeMagnit
 	mag := magnitudes[n]
 
 	if mag.DivBy == 1 {
-		return fmt.Sprintf(mag.Format, lbl)
+		return mag.Fn(diff, lbl)
 	}
 
-	return fmt.Sprintf(mag.Format, diff/mag.DivBy, lbl)
+	return mag.Fn(diff/mag.DivBy, lbl)
 }

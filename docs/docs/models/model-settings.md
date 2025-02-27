@@ -15,7 +15,7 @@ You can see the current plan's models and model settings with the `models` comma
 plandex models # show the current AI models and model settings
 plandex models available # show all available models
 plandex set-model # select from a list of models and settings
-plandex set-model planner openrouter/anthropic/claude-3.5-sonnet # set the main planner model to Claude Sonnet 3.5 from OpenRouter.ai
+plandex set-model planner openrouter/anthropic/claude-3.7-sonnet # set the main planner model to Claude Sonnet 3.5 from OpenRouter.ai
 plandex set-model builder temperature 0.1 # set the builder model's temperature to 0.1
 plandex set-model max-tokens 4000 # set the planner model overall token limit to 4000
 plandex set-model max-convo-tokens 20000  # set how large the conversation can grow before Plandex starts using summaries
