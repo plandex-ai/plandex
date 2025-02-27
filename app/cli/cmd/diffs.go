@@ -36,12 +36,12 @@ func init() {
 	RootCmd.AddCommand(diffsCmd)
 
 	diffsCmd.Flags().BoolVarP(&plainTextOutput, "plain", "p", false, "Output diffs in plain text with no ANSI codes")
-	diffsCmd.Flags().BoolVar(&showDiffUi, "ui", true, "Show diffs in a browser UI")
-	diffsCmd.Flags().BoolVar(&diffGit, "git", false, "Show diffs in git diff format")
+	diffsCmd.Flags().BoolVar(&showDiffUi, "ui", false, "Show diffs in a browser UI")
+	diffsCmd.Flags().BoolVar(&diffGit, "git", true, "Show diffs in git diff format")
 	diffsCmd.Flags().BoolVarP(&diffUiSideBySide, "side", "s", true, "Show diffs UI in side-by-side view")
 	diffsCmd.Flags().BoolVarP(&diffUiLineByLine, "line", "l", false, "Show diffs UI in line-by-line view")
 
-	diffsCmd.Flags().BoolVar(&fromTellMenu, "from-tell-menu", false, "Show diffs from the tell menu") //nolint:unused
+	diffsCmd.Flags().BoolVar(&fromTellMenu, "from-tell-menu", false, "Show diffs from the tell menu")
 	diffsCmd.Flags().MarkHidden("from-tell-menu")
 
 }
@@ -56,8 +56,10 @@ func diffs(cmd *cobra.Command, args []string) {
 
 	term.StartSpinner("")
 
-	if diffGit {
+	if diffGit || plainTextOutput {
 		showDiffUi = false
+	} else {
+		diffGit = true
 	}
 
 	diffs, err := api.Client.GetPlanDiffs(lib.CurrentPlanId, lib.CurrentBranch, plainTextOutput || showDiffUi)
@@ -162,7 +164,7 @@ func diffs(cmd *cobra.Command, args []string) {
 				color.New(color.FgHiWhite, color.Bold).Sprintf("↓"),
 				color.New(term.ColorHiMagenta, color.Bold).Sprintf("to select, or"),
 				color.New(color.FgHiWhite, color.Bold).Sprintf("enter"),
-				color.New(term.ColorHiMagenta, color.Bold).Sprintf("%s", s),
+				color.New(term.ColorHiMagenta, color.Bold).Sprintf("%s>", s),
 			)
 
 			char, key, err := term.GetUserKeyInput()
@@ -227,7 +229,9 @@ func diffs(cmd *cobra.Command, args []string) {
 			} else if string(char) == "\x03" { // Ctrl+C
 				os.Exit(0)
 			} else {
-				term.OutputErrorAndExit("Invalid command: %d | %s", key, string(char))
+				fmt.Println()
+				term.OutputSimpleError("Invalid hotkey")
+				fmt.Println()
 			}
 		}
 	} else {
@@ -238,8 +242,6 @@ func diffs(cmd *cobra.Command, args []string) {
 		}
 		fmt.Println()
 	}
-
-	term.PrintCmds("", "apply", "reject")
 }
 
 func showGitDiff() {
