@@ -12,6 +12,7 @@ import (
 	"plandex-server/model"
 	"plandex-server/model/prompts"
 	"plandex-server/types"
+	"plandex-server/utils"
 	"time"
 
 	shared "plandex-shared"
@@ -89,7 +90,7 @@ func (state *activeTellStreamState) genPlanDescription() (*db.ConvoMessageDescri
 		Plan: plan,
 		WillSendModelRequestParams: &hooks.WillSendModelRequestParams{
 			InputTokens:  numTokens,
-			OutputTokens: config.GetReservedOutputTokens(),
+			OutputTokens: config.BaseModelConfig.MaxOutputTokens - numTokens,
 			ModelName:    config.BaseModelConfig.ModelName,
 		},
 	})
@@ -114,7 +115,7 @@ func (state *activeTellStreamState) genPlanDescription() (*db.ConvoMessageDescri
 		req.ToolChoice = *toolChoice
 	}
 
-	descResp, err := model.CreateChatCompletionWithRetries(
+	descResp, err := model.CreateChatCompletion(
 		clients,
 		&config,
 		activePlan.Ctx,
@@ -136,7 +137,7 @@ func (state *activeTellStreamState) genPlanDescription() (*db.ConvoMessageDescri
 
 	if config.BaseModelConfig.PreferredModelOutputFormat == shared.ModelOutputFormatXml {
 		content := descResp.Choices[0].Message.Content
-		commitMsg = GetXMLContent(content, "commitMsg")
+		commitMsg = utils.GetXMLContent(content, "commitMsg")
 		if commitMsg == "" {
 			return nil, &shared.ApiError{
 				Type:   shared.ApiErrorTypeOther,
@@ -188,6 +189,11 @@ func (state *activeTellStreamState) genPlanDescription() (*db.ConvoMessageDescri
 		outputTokens = shared.GetNumTokensEstimate(commitMsg)
 	}
 
+	var cachedTokens int
+	if descResp.Usage.PromptTokensDetails != nil {
+		cachedTokens = descResp.Usage.PromptTokensDetails.CachedTokens
+	}
+
 	log.Println("Sending DidSendModelRequest hook")
 
 	go func() {
@@ -197,6 +203,7 @@ func (state *activeTellStreamState) genPlanDescription() (*db.ConvoMessageDescri
 			DidSendModelRequestParams: &hooks.DidSendModelRequestParams{
 				InputTokens:    inputTokens,
 				OutputTokens:   outputTokens,
+				CachedTokens:   cachedTokens,
 				ModelName:      config.BaseModelConfig.ModelName,
 				ModelProvider:  config.BaseModelConfig.Provider,
 				ModelPackName:  settings.ModelPack.Name,
@@ -204,7 +211,7 @@ func (state *activeTellStreamState) genPlanDescription() (*db.ConvoMessageDescri
 				Purpose:        "Generated commit message for suggested changes",
 				GenerationId:   descResp.ID,
 				PlanId:         planId,
-				ModelStreamId:  activePlan.ModelStreamId,
+				ModelStreamId:  state.modelStreamId,
 				ConvoMessageId: state.replyId,
 
 				RequestStartedAt: reqStarted,
@@ -273,7 +280,7 @@ func GenCommitMsgForPendingResults(auth *types.ServerAuth, plan *db.Plan, client
 		Plan: plan,
 		WillSendModelRequestParams: &hooks.WillSendModelRequestParams{
 			InputTokens:  numTokens,
-			OutputTokens: config.GetReservedOutputTokens(),
+			OutputTokens: config.BaseModelConfig.MaxOutputTokens - numTokens,
 			ModelName:    config.BaseModelConfig.ModelName,
 		},
 	})
@@ -289,7 +296,7 @@ func GenCommitMsgForPendingResults(auth *types.ServerAuth, plan *db.Plan, client
 		TopP:        config.TopP,
 	}
 
-	resp, err := model.CreateChatCompletionWithRetries(
+	resp, err := model.CreateChatCompletion(
 		clients,
 		&config,
 		ctx,
@@ -318,12 +325,18 @@ func GenCommitMsgForPendingResults(auth *types.ServerAuth, plan *db.Plan, client
 		outputTokens = shared.GetNumTokensEstimate(commitMsg)
 	}
 
+	var cachedTokens int
+	if resp.Usage.PromptTokensDetails != nil {
+		cachedTokens = resp.Usage.PromptTokensDetails.CachedTokens
+	}
+
 	_, apiErr = hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
 		Auth: auth,
 		Plan: plan,
 		DidSendModelRequestParams: &hooks.DidSendModelRequestParams{
 			InputTokens:   inputTokens,
 			OutputTokens:  outputTokens,
+			CachedTokens:  cachedTokens,
 			ModelName:     config.BaseModelConfig.ModelName,
 			ModelProvider: config.BaseModelConfig.Provider,
 			ModelPackName: settings.ModelPack.Name,

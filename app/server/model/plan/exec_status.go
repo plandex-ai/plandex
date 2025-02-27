@@ -5,10 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net/http"
 	"plandex-server/hooks"
 	"plandex-server/model"
 	"plandex-server/model/prompts"
 	"plandex-server/types"
+	"plandex-server/utils"
 	"strings"
 	"time"
 
@@ -37,7 +39,7 @@ func (state *activeTellStreamState) execStatusShouldContinue(currentMessage stri
 	if state.currentSubtask != nil {
 		completionMarker := fmt.Sprintf("**%s** has been completed", state.currentSubtask.Title)
 		log.Printf("[ExecStatus] Checking for subtask completion marker: %q", completionMarker)
-		log.Printf("[ExecStatus] Current subtask: %q (finished=%v)", state.currentSubtask.Title, state.currentSubtask.IsFinished)
+		log.Printf("[ExecStatus] Current subtask: %q", state.currentSubtask.Title)
 
 		if strings.Contains(currentMessage, completionMarker) {
 			log.Printf("[ExecStatus] ✓ Subtask completion marker found")
@@ -66,6 +68,13 @@ func (state *activeTellStreamState) execStatusShouldContinue(currentMessage stri
 
 			if !potentialProblem {
 				log.Printf("[ExecStatus] ✓ Subtask completion marker found and no potential problem - will mark as completed")
+
+				return execStatusShouldContinueResult{
+					subtaskFinished: true,
+				}, nil
+			} else if state.currentSubtask.NumTries >= 1 {
+				log.Printf("[ExecStatus] ✓ Subtask completion marker found, but the operations are questionable -- marking it done anyway since it's the second try and we can't risk an infinite loop")
+
 				return execStatusShouldContinueResult{
 					subtaskFinished: true,
 				}, nil
@@ -101,7 +110,13 @@ func (state *activeTellStreamState) execStatusShouldContinue(currentMessage stri
 		}, nil
 	}
 
-	content := prompts.GetExecStatusFinishedSubtask(state.userPrompt, fullSubtask, currentMessage, previousMessages)
+	content := prompts.GetExecStatusFinishedSubtask(prompts.GetExecStatusFinishedSubtaskParams{
+		UserPrompt:                 state.userPrompt,
+		CurrentSubtask:             fullSubtask,
+		CurrentMessage:             currentMessage,
+		PreviousMessages:           previousMessages,
+		PreferredModelOutputFormat: config.BaseModelConfig.PreferredModelOutputFormat,
+	})
 
 	messages := []types.ExtendedChatMessage{
 		{
@@ -122,7 +137,7 @@ func (state *activeTellStreamState) execStatusShouldContinue(currentMessage stri
 		Plan: plan,
 		WillSendModelRequestParams: &hooks.WillSendModelRequestParams{
 			InputTokens:  numTokens,
-			OutputTokens: config.GetReservedOutputTokens(),
+			OutputTokens: config.BaseModelConfig.MaxOutputTokens - numTokens,
 			ModelName:    config.BaseModelConfig.ModelName,
 		},
 	})
@@ -155,7 +170,7 @@ func (state *activeTellStreamState) execStatusShouldContinue(currentMessage stri
 		}
 	}
 
-	resp, err := model.CreateChatCompletionWithRetries(
+	resp, err := model.CreateChatCompletion(
 		clients,
 		&config,
 		ctx,
@@ -172,8 +187,8 @@ func (state *activeTellStreamState) execStatusShouldContinue(currentMessage stri
 
 	if config.BaseModelConfig.PreferredModelOutputFormat == shared.ModelOutputFormatXml {
 		content := resp.Choices[0].Message.Content
-		reasoning = GetXMLContent(content, "reasoning")
-		subtaskFinishedStr := GetXMLContent(content, "subtaskFinished")
+		reasoning = utils.GetXMLContent(content, "reasoning")
+		subtaskFinishedStr := utils.GetXMLContent(content, "subtaskFinished")
 		subtaskFinished = subtaskFinishedStr == "true"
 
 		if reasoning == "" || subtaskFinishedStr == "" {
@@ -222,6 +237,11 @@ func (state *activeTellStreamState) execStatusShouldContinue(currentMessage stri
 		outputTokens = shared.GetNumTokensEstimate(reasoning)
 	}
 
+	var cachedTokens int
+	if resp.Usage.PromptTokensDetails != nil {
+		cachedTokens = resp.Usage.PromptTokensDetails.CachedTokens
+	}
+
 	go func() {
 		_, apiErr = hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
 			Auth: auth,
@@ -229,6 +249,7 @@ func (state *activeTellStreamState) execStatusShouldContinue(currentMessage stri
 			DidSendModelRequestParams: &hooks.DidSendModelRequestParams{
 				InputTokens:    inputTokens,
 				OutputTokens:   outputTokens,
+				CachedTokens:   cachedTokens,
 				ModelName:      config.BaseModelConfig.ModelName,
 				ModelProvider:  config.BaseModelConfig.Provider,
 				ModelPackName:  settings.ModelPack.Name,
@@ -236,7 +257,7 @@ func (state *activeTellStreamState) execStatusShouldContinue(currentMessage stri
 				Purpose:        "Evaluate if task was finished",
 				GenerationId:   resp.ID,
 				PlanId:         plan.Id,
-				ModelStreamId:  state.activePlan.ModelStreamId,
+				ModelStreamId:  state.modelStreamId,
 				ConvoMessageId: state.replyId,
 
 				RequestStartedAt: reqStarted,
@@ -256,4 +277,3 @@ func (state *activeTellStreamState) execStatusShouldContinue(currentMessage stri
 		subtaskFinished: subtaskFinished,
 	}, nil
 }
-

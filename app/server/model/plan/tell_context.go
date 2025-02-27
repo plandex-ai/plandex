@@ -18,7 +18,7 @@ type formatModelContextParams struct {
 	smartContextEnabled bool
 	execEnabled         bool
 	basicOnly           bool
-	cache               bool
+	cacheControl        bool
 	activeOnly          bool
 	autoOnly            bool
 	activatedPaths      map[string]bool
@@ -186,7 +186,7 @@ func (state *activeTellStreamState) formatModelContext(params formatModelContext
 		Text: s,
 	}
 
-	if params.cache {
+	if params.cacheControl {
 		res.CacheControl = &types.CacheControlSpec{
 			Type: types.CacheControlTypeEphemeral,
 		}

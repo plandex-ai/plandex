@@ -136,6 +136,7 @@ func execTellPlan(params execTellPlanParams) {
 	log.Println("execTellPlan - Plan status set to replying")
 
 	state := &activeTellStreamState{
+		modelStreamId:       active.ModelStreamId,
 		execTellPlanParams:  params,
 		clients:             clients,
 		req:                 req,
@@ -173,7 +174,7 @@ func execTellPlan(params execTellPlanParams) {
 			smartContextEnabled: req.SmartContext,
 			execEnabled:         req.ExecEnabled,
 			basicOnly:           true,
-			cache:               true,
+			cacheControl:        true,
 		})
 
 		if state.currentStage.PlanningPhase == shared.PlanningPhasePlanning {
@@ -295,6 +296,17 @@ func execTellPlan(params execTellPlanParams) {
 		modelConfig = state.settings.ModelPack.GetCoder().GetRoleForInputTokens(requestTokens)
 	}
 
+	// if the model doesn't support cache control, remove the cache control spec from the messages
+	if !modelConfig.BaseModelConfig.SupportsCacheControl {
+		for i := range state.messages {
+			for j := range state.messages[i].Content {
+				if state.messages[i].Content[j].CacheControl != nil {
+					state.messages[i].Content[j].CacheControl = nil
+				}
+			}
+		}
+	}
+
 	log.Println("totalRequestTokens:", requestTokens)
 
 	_, apiErr := hooks.ExecHook(hooks.WillSendModelRequest, hooks.HookParams{
@@ -302,7 +314,7 @@ func execTellPlan(params execTellPlanParams) {
 		Plan: plan,
 		WillSendModelRequestParams: &hooks.WillSendModelRequestParams{
 			InputTokens:  requestTokens,
-			OutputTokens: modelConfig.GetReservedOutputTokens(),
+			OutputTokens: modelConfig.BaseModelConfig.MaxOutputTokens - requestTokens,
 			ModelName:    modelConfig.BaseModelConfig.ModelName,
 		},
 	})
@@ -343,7 +355,7 @@ func execTellPlan(params execTellPlanParams) {
 	// 	log.Printf("Error marshaling model request to JSON: %v\n", err)
 	// }
 
-	stream, err := model.CreateChatCompletionStreamWithRetries(clients, &modelConfig, active.ModelStreamCtx, modelReq)
+	stream, err := model.CreateChatCompletionStream(clients, &modelConfig, active.ModelStreamCtx, modelReq)
 	if err != nil {
 		log.Printf("Error starting reply stream: %v\n", err)
 

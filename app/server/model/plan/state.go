@@ -87,17 +87,11 @@ func CreateActivePlan(orgId, userId, planId, branch, prompt string, buildOnly, a
 func DeleteActivePlan(orgId, userId, planId, branch string) {
 	log.Printf("Deleting active plan %s - %s - %s\n", planId, branch, orgId)
 
-	var ctx context.Context
-	var cancelFn context.CancelFunc
-
 	activePlan := GetActivePlan(planId, branch)
 	if activePlan == nil {
 		log.Printf("DeleteActivePlan - No active plan found for plan ID %s on branch %s\n", planId, branch)
 		return
 	}
-
-	// If the plan is still around, use the plan’s context
-	ctx, cancelFn = context.WithCancel(activePlan.Ctx)
 
 	repoLockId, err := db.LockRepo(
 		db.LockRepoParams{
@@ -106,8 +100,8 @@ func DeleteActivePlan(orgId, userId, planId, branch string) {
 			PlanId:   planId,
 			Branch:   branch,
 			Scope:    db.LockScopeWrite,
-			Ctx:      ctx,
-			CancelFn: cancelFn,
+			Ctx:      context.Background(),
+			CancelFn: func() {},
 		},
 	)
 
