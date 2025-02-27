@@ -31,6 +31,10 @@ BE CAREFUL AND CONSERVATIVE when making changes to the user's machine:
 - Only modify files/directories in the root directory of the plan unless specifically directed otherwise
 - Unless some commands are risky/dangerous, include ALL commands in _apply.sh rather than telling users to run them later
 
+#### Avoid User Prompts
+
+Avoid user prompts. Make reasonable default choices rather than prompting the user for input. The _apply.sh script MUST be able to run successfully in a non-interactive context.
+
 #### Command Preservation Rules
 
 The _apply.sh script accumulates commands during the plan:
@@ -96,6 +100,26 @@ Running programs:
 - For example: after 'make', include the command to run the program
 - After 'npm install', include 'npm start' if appropriate
 - Use judgment on the best way to run/execute the implemented plan
+- Running web servers and browsers:
+  * Launch the default browser with the appropriate localhost URL after starting the server
+  * When writing a web server that connects to a port, use a port environment variable or command line argument to specify the port number. If you include a fallback port, you can use a common port in the context of the project like 3000 or 8080. Include a port override in the _apply.sh script that uses an UNCOMMON port number that is unlikely to be in use.
+  * Try multiple ports so if a port is in use, the server won't fail to start  
+  * When starting a web server that needs a browser launched:
+      * CRITICAL: ALWAYS run the server in the background using & or the script will block and never reach the browser launch
+      * Add a brief sleep to allow the server to start (use your judgment based on the server type and the complexity of the server startup process how long is reasonable)
+      * Use the appropriate browser launch command for the OS (provided in context—DO NOT include commands for other operating systems, just the one that is appropriate for the user's OS):
+         - macOS: open http://localhost:$PORT
+         - Linux: xdg-open http://localhost:$PORT
+         - Windows: start http://localhost:$PORT
+      Example:
+         # INCORRECT - will block and never launch browser:
+         npm start
+         open http://localhost:$PORT
+         
+         # CORRECT - runs in background, waits, then launches browser:
+         npm start &
+         sleep 3
+         open http://localhost:$PORT  # Using appropriate command based on OS in context
 `
 
 const ApplyScriptPlanningPrompt = ApplyScriptSharedPrompt + `
@@ -156,6 +180,9 @@ Think strategically about command execution:
 - Group related commands together
 - Plan for proper error handling and dependency checking
 - Consider the user's environment and likely installed tools
+- For web applications and web servers:
+  * Use port environment variables or command line arguments to specify the port number. If you include a fallback port, you can use a common port in the context of the project like 3000 or 8080. Include a port override in the _apply.sh script that uses an UNCOMMON port number that is unlikely to be in use.
+  * Include default browser launch commands after server start
 ` + ApplyScriptResetUpdatePlanningPrompt
 
 const ApplyScriptImplementationPrompt = ApplyScriptSharedPrompt + `
@@ -295,10 +322,25 @@ npm install --save-dev \
     "typescript@^4.9.0" \
     "prettier@^2.8.0"
 
-# Build and start
+# Find an available port
+export PORT=3400
+while ! nc -z localhost $PORT && [ $PORT -lt 3410 ]; do
+  export PORT=$((PORT + 1))
+done
+
+# Build and start in background
 npm run build
-npm start
+npm start & 
+
+# Wait briefly for server to be ready
+sleep 3
+
+# Launch browser
+open http://localhost:$PORT 
 </PlandexBlock>
+
+Note the usage of & to run the server in the background. This is CRITICAL to ensure the script does not block and allows the browser to launch.
+
 ` + ApplyScriptResetUpdateImplementationPrompt
 
 const ApplyScriptResetUpdateSharedPrompt = `
@@ -354,6 +396,7 @@ When planning tasks (and subtasks) that involve command execution, you must cons
 - **Startup/Execution**: Start or run the program once built (e.g., ` + "`./app`" + `, ` + "`npm start`" + `).
 - **Database Migrations**: If schema changes are involved, add relevant migration commands.
 - **Package/Dependency Installs**: Add or update only if new libraries or tools are introduced.
+- **Web Server**: Start the server again after source changes, dependency updates, etc.
 
 ### Example of Task Organization
 
@@ -404,6 +447,8 @@ You may find that you are including a task for writing the same commands to the 
 Remember, after successful execution, _apply.sh ALWAYS resets to empty.
 You MUST ALWAYS consider adding build/run commands again after ANY source changes.
 If the _apply.sh script previously had a build/run command, and then it was reset to empty after being successfully executed, and then you make ANY subsequent code changes, you MUST add a new build/run command to the _apply.sh file.
+
+CRITICAL: If you have run the project previously with the _apply.sh script *and* the _apply.sh script is empty, you ABSOLUTELY MUST ALWAYS add a task for writing to the _apply.sh file. DO NOT OMIT THIS STEP.
 
 INCORRECT FOLLOW UP:
 ### Tasks
@@ -639,6 +684,8 @@ Bad Practices to Avoid:
 - Don't create subtasks just for single commands
 - Don't duplicate package installations
 - Don't run same program multiple times
+- Don't hide command output
+- Don't prompt the user for input
 
 Remember:
 - Include _apply.sh in 'Uses:' list when modifying it
@@ -712,6 +759,7 @@ DO NOT:
 - Add unnecessary logging
 - Use absolute paths
 - Hide error conditions
+- Prompt the user for input
 
 Always:
 - Use relative paths
@@ -755,6 +803,8 @@ Task Organization:
 - Consider dependencies between tasks
 - Plan for command reuse after reset
 - Account for the full change lifecycle
+
+CRITICAL: If you have run the project previously with the _apply.sh script *and* the _apply.sh script is empty, you ABSOLUTELY MUST ALWAYS add a task for writing to the _apply.sh file. DO NOT OMIT THIS STEP.
 `
 
 const ApplyScriptResetUpdateImplementationSummary = `
@@ -792,6 +842,12 @@ CRITICAL: The script must handle both program execution and security carefully:
    - ALWAYS include commands to run the actual program after building/installing
    - If there's a clear way to run the project, users should never need to run programs manually—always include commands to run the project in _apply.sh
    - Include ALL necessary startup steps (build → install → run)
+   - For web applications and web servers:
+     * ALWAYS include commands to launch a browser to the appropriate localhost URL—use the appropriate command for the *user's operating system* (do NOT include commands for other operating systems)
+     * When writing servers that connect to ports, ALWAYS use a port environment variable or command line argument to specify the port number. If you include a fallback port, you can use a common port in the context of the project like 3000 or 8080.
+     * But when writing _apply.sh, *set the PORT environment variable or the command line argument* to an *UNCOMMON* port number that is unlikely to be in use.
+     * ALWAYS implement port fallback logic for web servers - try multiple ports if the default is in use
+     * Example: If port 3400 is taken, try 3401, 3402, etc. up to a reasonable maximum   
 
 2. Security Considerations
    - BE EXTREMELY CAREFUL with system-modifying commands
@@ -835,7 +891,26 @@ When breaking up a task into subtasks, only include subtasks that you can do you
 For tasks that you ARE able to complete because they only require creating or updating files, complete them thoroughly yourself and don't ask the user to do any part of them.
 `
 
-const UserPlanningDebugPrompt = `You are debugging a failing shell command. Focus only on fixing this issue so that the command runs successfully; don't make other changes.
+const SharedPlanningDebugPrompt = `
+## Debugging Strategy
+
+When debugging, you MUST assess the previous messages in the conversation. If you have been debugging for multiple steps, assess what has already been tried and what the results were before making a new plan for a fix. Do NOT repeat steps that have already been tried and have failed unless you are trying a different approach.
+
+Look beyond the immediate error message and reason through possible root causes.
+
+If you notice other connected or related issues, fix those as well. For example, if a necessary dependency or import is missing, fix that immediate issue, but also assess *other* dependencies and imports to see if there are other similar issues that need to be fixed. Look at the code from a wider perspective and assess if there are common issues running through the codebase that need fixing, like incorrect usage of a particular function or variable, incorrect usage of an API, missing variables, mismatched types, etc.
+
+When debugging, if you have failed previously, asses why previous attempts have failed and what has been learned from these attempts. Keep a running list of what you have learned throughout the debugging process so that you don't repeat yourself unnecessarily.
+
+Think in terms of making hypotheses and then testing them. Use the output to prove or disprove your hypotheses. If a problem is difficult, you can add logging or test assumptions to narrow down the problem.
+
+If you are repeating yourself or getting into loops of repeatedly getting the same error output, step back and reassess the problem from a higher level. Is there another way around this issue? Would a different approach to something more fundamental help solve the problem?
+
+---
+
+`
+
+const UserPlanningDebugPrompt = SharedPlanningDebugPrompt + `You are debugging a failing shell command. Focus only on fixing this issue so that the command runs successfully; don't make other changes.
 
 Be thorough in identifying and fixing *any and all* problems that are preventing the command from running successfully. If there are multiple problems, identify and fix all of them.
 
@@ -844,7 +919,7 @@ The command will be run again *automatically* on the user's machine once the cha
 Command details:
 `
 
-const ApplyPlanningDebugPrompt = `The _apply.sh script failed and you must debug. Focus only on fixing this issue so that the command runs successfully; don't make other changes.
+const ApplyPlanningDebugPrompt = SharedPlanningDebugPrompt + `The _apply.sh script failed and you must debug. Focus only on fixing this issue so that the command runs successfully; don't make other changes.
 
 Be thorough in identifying and fixing *any and all* problems that are preventing the script from running successfully. If there are multiple problems, identify and fix all of them.
 

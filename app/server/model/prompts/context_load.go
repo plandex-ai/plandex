@@ -21,7 +21,7 @@ Phase 2 - Response (Next Phase):
 IMPORTANT CONCEPTS:
 - Relevant files are listed in a '### Files' section at the end of the response.
 - Only these files will be included in the next phase.
-- Be liberal about marking context as relevant. Use the codebase map and the context loading rules to follow paths between relevant symbols, structures, concepts, categories, and files. It's *much* *much* *much* worse to leave out a relevant file than to include a non-relevant file. Go GET that relevant context, and get it ALL.
+- Use the codebase map and the context loading rules to follow paths between relevant symbols, structures, concepts, categories, and files.
 
 YOUR TASK:
 1. Assess Information
@@ -36,6 +36,7 @@ YOUR TASK:
    - Talk about the user's project at a high level, how it's organized, and what areas are likely to be relevant to the user's task or message.
    - Explain what parts of the codebase you'll need to examine. Start broadly and then narrow in on specific files and symbols.
    - Adapt the length to the size and complexity of the project and the prompt. For simple tasks, a few sentences are sufficient. For complex tasks, a few paragraphs are appropriate. For very complex tasks in large codebases, or for very large prompts, be as thorough as you need to be to make a good plan that can complete the task to an extremely high degree of reliability and accuracy.
+   - You MUST only discuss files that are *in the project*. Do NOT mention files that are not part of the project. Do NOT FOR ANY REASON reference a file path unless it exists in the codebase map. Do NOT mention hypothetical files based on common project layouts. ONLY mention files that are *explicitly* listed in the codebase map.
 
 3. Output Context Sections
    If NO context needed:
@@ -51,6 +52,7 @@ YOUR TASK:
       - Group by category from above
       - Files must be in backticks
       - List relevant symbols for each file
+      - ALL file paths in the '### Files' section ABSOLUTELY MUST be in the codebase map. Do NOT UNDER ANY CIRCUMSTANCES include files that are not in the codebase map. File paths in the codebase map are always preceeded by '###'. You must ONLY include these files. Do NOT include hypothetical files based on common project layouts. ONLY mention files that are *explicitly* listed in the codebase map.
    
    c) Output <PlandexFinish/> immediately after
 
@@ -94,7 +96,7 @@ In response to the user's latest prompt, do the following IN ORDER:
 	s += `
   3. After providing your high-level overview, you MUST continue with the context loading phase without asking for user confirmation or waiting for any further input. This is one continuous process in a single response.
 
-  4. If you already have enough information from the project map and current context to make a detailed plan or respond effectively to the user and so you won't need to load any additional context, then explicitly say "No context needs to be loaded." and continue on to the instructions below. NEVER say "No context needs to be loaded." *after* you've already output the '### Context Categories' and '### Files' sections.
+  4. If you already have enough information from the project map to make a detailed plan or respond effectively to the user and so you won't need to load any additional context, then skip step 5 and output a <PlandexFinish/> immediately after steps 1 and 2 above.
 
   5. Otherwise, you MUST output:
      a) A section titled "### Context Categories" listing one or more categories of context that are relevant to the user's task or message. If there is truly no relevant context, you would have said "No context needs to be loaded" in step 4, so this section must exist if you are actually loading context. Do not list files here—just categories.
@@ -124,7 +126,7 @@ You have access to the directory layout of the project as well as a map of defin
 Your job is to assess which context in the project might be relevant or helpful to the user's question or message.
 
 Assess the following:
-- Are there specific files referenced that you need to examine?
+- Are there specific files listed in the codebase map that you need to examine?
 - Would related files help you give a more accurate or complete answer?
 - Do you need to understand implementations or dependencies?
 
@@ -156,7 +158,12 @@ func GetAutoContextShared(params CreatePromptParams, tellMode bool) string {
 	}
 
 	s += `
-- Using the project map in context, output a '### Files' list of potentially relevant *symbols* (like functions, methods, types, variables, etc.) that seem like they could be relevant to the user's task, question, or message based on their name, usage, or other context. Include the file path (surrounded by backticks) and the names of all potentially relevant symbols. File paths *absolutely must* be surrounded by backticks like this: ` + "`path/to/file.go`" + `. Any symbols that are referred to in the user's prompt must be included. You MUST organize the list by category using the categories from the '### Context Categories' section—ensure each category is represented in the list. When listing symbols, output just the name of the symbol, not it's full signature (e.g. don't include the function parameters or return type for a function—just the function name; don't include the type or the 'var/let/const' keywords for a variable—just the variable name, and so on). Output the symbols as a comma separated list in a single paragraph for each file. You MUST include relevant symbols (and associated file paths) for each category from the '### Context Categories' section. Along with important symbols, you can also include a *very brief* annotation on what makes this file relevant—like: (example implementation), (mentioned in prompt), etc. You also MUST make a brief note in the file is already loaded into context—a file is loaded into context if the *full file* is loaded (*not* only the map of the file's symbols and definitions). At the end of the list, output a <PlandexFinish/> tag.
+- Using the project map in context, output a '### Files' list of potentially relevant *symbols* (like functions, methods, types, variables, etc.) that seem like they could be relevant to the user's task, question, or message based on their name, usage, or other context. Include the file path (surrounded by backticks) and the names of all potentially relevant symbols. File paths *absolutely must* be surrounded by backticks like this: ` + "`path/to/file.go`" + `. Any symbols that are referred to in the user's prompt must be included. You MUST organize the list by category using the categories from the '### Context Categories' section—ensure each category is represented in the list. When listing symbols, output just the name of the symbol, not it's full signature (e.g. don't include the function parameters or return type for a function—just the function name; don't include the type or the 'var/let/const' keywords for a variable—just the variable name, and so on). Output the symbols as a comma separated list in a single paragraph for each file. You MUST include relevant symbols (and associated file paths) for each category from the '### Context Categories' section. Along with important symbols, you can also include a *very brief* annotation on what makes this file relevant—like: (example implementation), (mentioned in prompt), etc. At the end of the list, output a <PlandexFinish/> tag.
+
+- ALL file paths in the '### Files' section ABSOLUTELY MUST be in the codebase map. Do NOT UNDER ANY CIRCUMSTANCES include files that are not in the codebase map. File paths in the codebase map are always preceeded by '###'. You must ONLY include these files. Do NOT include hypothetical files based on common project layouts. ONLY mention files that are *explicitly* listed in the codebase map.
+
+[IMPORTANT]
+ If it's extremely clear from the user's prompt, considered alongside past messages in the conversation, that only specific files are needed, then explicitly state that only those files are needed, explain why it's clear, and output only those files in the '### Files' section. For example, if a user asks you to make a change to a specific file, and it's clear that no context beyond that file will be needed for the change, then state that only that file is needed based on the user's prompt, and then output *only* that file in the '### Files' section, then a <PlandexFinish/> tag. It's fine to load only a single file if it's clear from the prompt that only that file is needed.
 
 - Immediately after the end of the '### Files' section list, you ABSOLUTELY MUST ALWAYS output a <PlandexFinish/> tag. You MUST NOT output any other text after the '### Files' section and you MUST NOT leave out the <PlandexFinish/> tag.
 
@@ -192,8 +199,6 @@ When assessing relevant context, you MUST follow these rules:
    - Examine the code you're writing for any utility function calls
    - Load ALL files containing utilities you might need
    Example: If using string formatting utilities, load the utils file with those functions
-
-Remember: It's better to load more context than you need than to miss an important file. If you're not sure whether a file will be helpful, include it.
 
 When considering relevant categories in the '### Context Categories' and relevant symbols in the '### Files' sections:
 

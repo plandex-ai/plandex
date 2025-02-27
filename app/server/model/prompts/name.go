@@ -1,4 +1,3 @@
-
 package prompts
 
 import (
@@ -26,8 +25,12 @@ var PlanNameFn = openai.FunctionDefinition{
 	},
 }
 
-func GetPlanNamePrompt(text string) string {
-	return SysPlanName + "\n\nContent:\n" + text
+type PlanNameRes struct {
+	PlanName string `json:"planName"`
+}
+
+func GetPlanNamePrompt(sysPrompt, text string) string {
+	return sysPrompt + "\n\nContent:\n" + text
 }
 
 type PipedDataNameRes struct {
@@ -54,14 +57,13 @@ var PipedDataNameFn = openai.FunctionDefinition{
 	},
 }
 
-func GetPipedDataNamePrompt(text string) string {
+func GetPipedDataNamePrompt(sysPrompt, text string) string {
 	return SysPipedDataName + "\n\nContent:\n" + text
 }
 
 type NoteNameRes struct {
 	Name string `json:"name"`
 }
-
 
 const SysNoteNameXml = `You are an AI namer that creates a name for an arbitrary text note. You MUST output a valid XML response that includes a <name> tag. The <name> tag should contain a *short* lowercase name for the data. Use dashes as word separators. No spaces, numbers, or special characters. Shorten and abbreviate where possible. Do not use XML attributes - put all data as tag content.
 
@@ -83,7 +85,6 @@ var NoteNameFn = openai.FunctionDefinition{
 	},
 }
 
-func GetNoteNamePrompt(text string) string {
-	return SysNoteName + "\n\nNote:\n" + text
+func GetNoteNamePrompt(sysPrompt, text string) string {
+	return sysPrompt + "\n\nNote:\n" + text
 }
-

@@ -107,11 +107,13 @@ The <PlandexBlock> tag MUST ALWAYS include both a 'lang' attribute and a 'path' 
 
 When *updating an existing file*, you MUST follow the instructions you've been given on how to update code in code blocks:
 
-	- Do NOT include large sections of the file that are not changing. Output ONLY code that is changing and code that is necessary to understand the changes, the code structure, and where the changes should be applied. Use references comments for sections of the file that are not changing.
+	- Do NOT include large sections of the file that are not changing. Output ONLY code that is changing and code that is necessary to understand the changes, the code structure, and where the changes should be applied. Use references comments for sections of the file that are not changing. ONLY use exactly '... existing code ...' (with appropriate comment symbol(s) for the language) for reference comments—no other variations are allowed.
 
 	- Include enough code from the original file to precisely and unambiguously locate where the changes should be applied and their level of nesting.
 
 	- Match the indentation of the original file exactly.
+
+	- Do NOT include line numbers in the <PlandexBlock> tag. While line numbers are included in the original file in context (prefixed with 'pdx-', like 'pdx-10: ') in context to assist you with describing the location of changes in the 'Action Explanation', they ABSOLUTELY MUST NOT be included in the <PlandexBlock> tag.
 
 	- Do NOT output multiple references with no changes in between them.
 
@@ -137,6 +139,8 @@ When *updating an existing file*, you MUST follow the instructions you've been g
 
   -	Every code block that *updates* an existing file MUST ALWAYS be preceded by an explanation of the change that *exactly matches* one of the formats listed in the "### Action Explanation Format" section. Do *NOT* UNDER ANY CIRCUMSTANCES use an explanation like "I'll update the code to..." that does not match one of these formats.
 
+	- If you are replacing or removing code, you MUST include an exhaustive list of all symbols/sections that are being removed—ALL removed code must be accounted for. That MUST be followed by a line number range of lines in the original file that are being replaced. Use the exact format: '(original file lines [startLineNumber]-[endLineNumber])' — e.g. '(original file lines 10-20)' or for a single line, '(original file line [lineNumber])' — e.g. '(original file line 10)'
+
 When *creating a new file*, follow the instructions in the "### Action Explanation Format" section for creating a new file.
  
   - The Type field MUST be exactly 'new file'.
@@ -147,8 +151,28 @@ When *creating a new file*, follow the instructions in the "### Action Explanati
 	- The <PlandexBlock> tag MUST NOT include any other text or formatting. It must only contain the code for the code block and NOTHING ELSE. Do NOT wrap the code block in triple backticks, CDATA tags, or any other text or formatting. Output ONLY the code and nothing else within the <PlandexBlock> tag.
 	- The code block MUST include the *entire file* to be created. Do not omit any code from the file.
 	- Do NOT use placeholder code or comments like '// implement authentication here' to indicate that the file is incomplete. Implement *all* functionality.
-	- Do NOT use reference comments like '// ... existing code ...'. Those are only used for updating existing files and *never* when creating new files.
+	- Do NOT use reference comments ('// ... existing code ...'). Those are only used for updating existing files and *never* when creating new files.
 	- Include the *entire file* in the code block.
+
+If multiple changes are being made to the same file in a single subtask, you MUST ALWAYS combine them into a SINGLE code block. Do NOT use multiple code blocks for multiple changes to the same file. Instead:
+
+	- Include all changes in a single code block that follows the file's structure
+	- Use "... existing code ..." comments between changes
+	- Show enough context around each change for unambiguous location
+	- Maintain the original file's order of elements
+	- Only reproduce parts of the file necessary to show structure and locate changes
+	- Make all changes in a single pass from top to bottom of the file
+
+	When writing the explanation for multiple changes that will be included in a single code block, list each change independently like this:
+
+	**Updating  + "server/handlers/auth.go" + **
+	Change 1. 
+		Type: remove
+		Summary: Remove unused  + "validateLegacyTokens" +  function and its helper  +    "checkTokenFormat" + . Removes  + "validateLegacyTokens and checkTokenFormat" +  functions (original file lines 25-85).
+		Context: Located between  + "parseAuthHeader" +  and  + "validateJWT" +  functions
+	Change 2.
+		Type: append
+		Summary: Append just-removed + "checkTokenFormat" + function to the end of the file"	
 
 
 Only list out subtasks once for the plan--after that, do not list or describe a subtask that can be implemented in code without including a code block that implements the subtask.
@@ -428,20 +452,15 @@ CRITICAL PLANNING RULES:
 	}
 
 	s += `
-   - You MUST NOT start implementing code
+   - You MUST NOT UNDER ANY CIRCUMSTANCES start implementing code, even if you have already made a plan in a previous response and are ready to implement it—you still ABSOLUTELY MUST NOT implement code at this stage. You MUST make a plan first in the format described above.
    - You MUST follow planning phase format exactly
 
 2. Even for small changes:
    - Create/update task list first
-   - No implementation until planning is complete
+   - No implementation and NO CODE until planning is complete, and you have output a '### Tasks' section and a <PlandexFinish/>
    - All changes must be in task list
 
-3. Task Planning Required:
-   - When adding new functionality
-   - When modifying existing code
-   - When fixing bugs or issues
-   - When continuing an existing plan
-   NO EXCEPTIONS - always plan first
+3. The planning stage is *ALWAYS* required. You MUST NEVER skip ahead and start writing code in this response. You MUST complete the planning stage first and output a '### Tasks' section and a <PlandexFinish/> before you can start implementing code.
 `
 
 	return s

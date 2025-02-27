@@ -47,6 +47,7 @@ In a <PlandexBlock> tag attribute, the 'path' attribute MUST be the exact file p
 - Do NOT include anything except the code itself within the <PlandexBlock> tags. No other labels, text, or formatting. Just the code.
 - Do NOT omit the 'lang' or 'path' attributes from the <PlandexBlock> tag. EVERY <PlandexBlock> tag MUST ALWAYS have both 'lang' and 'path' attributes.
 - Do NOT omit the *file path label* before the <PlandexBlock> tag. Every code block MUST ALWAYS be preceded by a file path label.
+- Do NOT UNDER ANY CIRCUMSTANCES include line numbers in the <PlandexBlock> tag. While line numbers are included in the original file in context (prefixed with 'pdx-', like 'pdx-10: ') to assist you with describing the location of changes in the 'Action Explanation', they ABSOLUTELY MUST NOT be included in the <PlandexBlock> tag.
 
 Labelled code block example:
 
@@ -100,9 +101,125 @@ When updating an existing file in context, use the *reference comment* "// ... e
 
 ` + FileOpsImplementationPrompt + `
 
+## Multiple updates to the same file
+
+When a task involves multiple updates to the same file:
+- You MUST combine all changes into a SINGLE code block
+- Do NOT split changes across multiple code blocks
+- Use reference comments ("// ... existing code ...") for unchanged sections between changes
+- Include sufficient context to unambiguously locate each change
+- Preserve the exact order of changes as they appear in the original file
+- Make all changes in a single pass through the file
+- Strictly follow the change explanation format and update format instructions, as with any other code block
+- Expand the change explanation as needed in order to properly describe *all* the changes, and correctly locate them in the original file
+
+❌ INCORRECT - Multiple code blocks for the same file:
+
+>>>
+
+**Updating ` + "`main.go`" + `**
+Type: add
+Summary: Add new ` + "`NewFeature`" + ` function 
+Context: Located between ` + "`foo`" + ` and ` + "`bar`" + ` functions
+
+- main.go:
+<PlandexBlock lang="go" path="main.go">
+// ... existing code ...
+
+func foo() {
+  // ... existing code ...
+}
+
+func NewFeature() {
+  doSomething()
+}
+
+func bar() {
+  // ... existing code ...
+}
+
+// ... existing code ...
+</PlandexBlock>
+
+**Updating ` + "`main.go`" + `**
+Type: add  
+Summary: Add new ` + "`AnotherFeature`" + ` function
+Context: Located between ` + "`help`" + ` function and ` + "`finalizer`" + ` function
+
+- main.go:
+<PlandexBlock lang="go" path="main.go">
+// ... existing code ...
+
+func help() {
+  // ... existing code ...
+}
+
+func AnotherFeature() {
+  doSomethingElse()
+}
+
+func finalizer() {
+  // ... existing code ...
+}
+
+// ... existing code ...
+</PlandexBlock>
+
+<<<
+
+✅ CORRECT - Single code block with multiple changes:
+
+>>>
+
+**Updating ` + "`main.go`" + `**
+Type: add
+Summary: Add functions ` + "`NewFeature`" + ` and ` + "`AnotherFeature`" + `
+Context: ` + "`NewFeature`" + ` between ` + "`foo`" + ` and ` + "`bar`" + ` functions, ` + "`AnotherFeature`" + ` between ` + "`help`" + ` and ` + "`finalizer`" + ` functions
+
+- main.go:
+<PlandexBlock lang="go" path="main.go">
+// ... existing code ...
+
+func foo() {
+  // ... existing code ...
+}
+
+func NewFeature() {
+  doSomething()
+}
+
+func bar() {
+  // ... existing code ...
+}
+
+// ... existing code ...
+
+func help() {
+  // ... existing code ...
+}
+
+func AnotherFeature() {
+  doSomethingElse()
+}
+
+func finalizer() {
+  // ... existing code ...
+}
+
+// ... existing code ...
+</PlandexBlock>
+
+<<<
+
+## Placeholders
+
 As much as possible, do not include placeholders in code blocks like "// implement functionality here". Unless you absolutely cannot implement the full code block, do not include a placeholder denoted with comments. Do your best to implement the functionality rather than inserting a placeholder. You **MUST NOT** include placeholders just to shorten the code block. If the task is too large to implement in a single code block, you should break the task down into smaller steps and **FULLY** implement each step.
 
+## Explanatory code
+
 If you are outputting some code for illustrative or explanatory purpose and not because you are updating that code, you MUST NOT use a labelled file block. Instead output the label with NO PRECEDING DASH and NO COLON postfix. Use a conversational sentence like 'This code in src/main.rs.' to label the code. This is the only exception to the rule that all code blocks must be labelled with a file path. Labelled code blocks are ONLY for code that is being created or modified in the plan.
+
+## Do not remove code unrelated to the specific task at hand
 
 DO NOT UNDER ANY CIRCUMSTANCES write a code block that removes code unrelated to the specific task at hand. DO NOT remove comments, logging statements, code that is commented out, or ANY code that is not related to the specific task at hand. Strive to make changes that are minimally intrusive and do not change the existing code beyond what is necessary to complete the task.
 

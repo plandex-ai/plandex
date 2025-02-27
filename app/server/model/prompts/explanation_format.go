@@ -11,8 +11,28 @@ Prior to any code block that is *updating* an existing file in context, you MUST
 **Updating ` + "`[file path]`" + `**  
 Type: [type]  
 Summary: [brief description, symbols/sections being changed]
+Remove: [lines to remove]
 Context: [describe surrounding code that helps locate the change unambiguously]
 Preserve: [symbols/structures/sections to preserve when overwriting entire file]
+---
+
+OR if multiple changes are being made to the same file in a single subtask and a single code block, list each change independently like this:
+
+---
+**Updating ` + "`[file path]`" + `**  
+Change 1.
+Type: [type]
+Summary: [brief description, symbols/sections being changed]
+Remove: [lines to remove]
+Context: [describe surrounding code that helps locate the change unambiguously]
+
+Change 2.
+Type: [type]
+Summary: [brief description, symbols/sections being changed]
+Remove: [lines to remove]
+Context: [describe surrounding code that helps locate the change unambiguously]
+
+... and so on for each change
 ---
 
 Include a line break after the initial '**Updating ` + "`[file path]`" + `**' line as well as each of the following fields. Use the exact same spacing and formatting as shown in the above format and in the examples further down.
@@ -38,9 +58,11 @@ The Type field MUST be exactly one of these values: 'add', 'prepend', 'append', 
 - remove 
   - For removing existing code within the file *only*
   - Only use if existing code is being removed. If new code is being added but none is being removed, use 'add', 'append', or 'prepend' instead
+  - If code is being removed and replaced with new code, use 'replace' instead
 - overwrite 
   - For replacing the entire file *only*
   - Only use if the *entire file* is being replaced. If new code is being added but none is being replaced or removed, use 'add', 'append', or 'prepend' instead.
+
 
 For each Type, follow these validation rules:
 
@@ -48,33 +70,39 @@ For each Type, follow these validation rules:
    - Summary MUST briefly describe the new code being added and where it will be inserted
    - Context MUST describe the surrounding code structures that help locate where the new code will be inserted
    - Preserve field must be omitted
+   - Remove field must be omitted
 
 - For 'prepend':
    - Summary MUST briefly describe the new code being added and where it will be inserted
    - Context MUST describe the first code structure in the original file
    - Preserve field must be omitted
+   - Remove field must be omitted
 
 - For 'append':
    - Summary MUST briefly describe the new code being appended to the end of the file
    - Context MUST describe the last code structure in the original file
    - Preserve field must be omitted
+   - Remove field must be omitted
 
 - For 'replace':
-   - Summary MUST briefly describe the change and list the specific symbols/sections being changed or replaced
-   - Context MUST describe the surrounding code structures that help locate what is being replaced
+   - Summary MUST briefly describe the change
+   - Remove field MUST list lines in the original file that are being replaced. Use the exact format: 'lines [startLineNumber]-[endLineNumber]' — e.g. 'lines 10-20' or for a single line, 'line [lineNumber]' — e.g. 'line 10' — DO NOT use any other format, or describe the lines in any other way.
+   - Context MUST describe the surrounding code structures that help locate what is being replaced. Context MUST be *OUTSIDE* of the lines that are being replaced, as specified in C.
    - Preserve field must be omitted
 
 - For 'remove':
-   - Summary MUST briefly describe the change and list the specific symbols/sections being changed or removed
-   - Context MUST describe the surrounding code structures that help locate what is being removed
+   - Summary MUST briefly describe the change
+   - Remove field MUST list lines in the original file that are being removed. Use the exact format: 'lines [startLineNumber]-[endLineNumber]' — e.g. 'lines 10-20' or for a single line, 'line [lineNumber]' — e.g. 'line 10' — DO NOT use any other format, or describe the lines in any other way.
+   - Context MUST describe the surrounding code structures that help locate what is being removed. Context MUST be *OUTSIDE* of the lines that are being removed, as specified in C.
    - Preserve field must be omitted
 
 - For 'overwrite':
    - Summary MUST briefly describe the change and list the specific symbols/sections being changed or replaced
    - Context field must be omitted
    - Preserve MUST *exhaustively* list all symbols/sections in the original file that should be included in the final result. Do *NOT* say that you are 'preserving nothing' because you are overwriting the entire file—the point what, if anything, will be *kept the same* from the original file, even though you are overwriting the whole file. Only say that you're preserving nothing if *nothing* will be kept the same from the original file and the new file will be completely new. The point of this field is to ensure that the final result is a *complete* and *correct* replacement of the original file, and that no important code is omitted.
+   - Changes with 'overwrite' MUST NOT be combined with other changes in the same code block. An 'overwrite' change MUST be the ONLY change for the code block.
 
-In the Context, Summary, and Preserve fields, when listing code symbols, list them in a comma-separated list and surround them with backticks. For example, ` + "`foo`,`someFunc`, `someVar`" + `
+In the Context, Summary, Remove, and Preserve fields, when listing code symbols, list them in a comma-separated list and surround them with backticks. For example, ` + "`foo`,`someFunc`, `someVar`" + `
 
 IMPORTANT: when listing code symbols or structures in the Context, Summary, and Preserve fields, you MUST include the name of the symbol or structure only, *not* the full signature (e.g. don't include the function parameters or return type for a function—just the function name; don't include the type or the 'var/let/const' keywords for a variable—just the variable name, and so on). DO NOT UNDER ANY CIRCUMSTANCES include full function signatures when listing functions. Include *only* the function name.
 
@@ -84,10 +112,12 @@ CRITICAL: The Context field MUST include symbols/structures that are NOT being m
 
 	INCORRECT - symbols in Context are part of the change:
 	Summary: Replace implementations of ` + "`foo`, `bar`, and `baz`" + `
+  Remove: lines 105-200
 	Context: Located between ` + "`foo`" + ` and ` + "`baz`" + `  # Wrong - these are being changed!
 
 	CORRECT - symbols in Context are outside the change:
 	Summary: Replace implementations of ` + "`foo`, `bar`, and `baz`" + `
+  Remove: lines 105-200
 	Context: Located between ` + "`setup`" + ` and ` + "`cleanup`" + ` functions  # Correct - these aren't being changed
 
 Keep the explanation as succinct as possible while still following all of the above rules.
@@ -104,6 +134,7 @@ Context: Located between ` + "`NewClient`" + ` constructor and ` + "`getUser`" +
 **Updating ` + "`server/types/api.go`" + `**
 Type: replace
 Summary: Replace implementation of ` + "`extractName`" + ` function with new version using ` + "`xml.Decoder`" + `
+Remove: lines 8-15
 Context: Located between ` + "`validateName`" + ` and ` + "`formatName`" + ` functions
 
 **Updating ` + "`cli/cmd/update.go`" + `**
@@ -124,7 +155,29 @@ Context: Will be placed after the ` + "`validateUser`" + ` function
 **Updating ` + "`server/handlers/auth.go`" + `**
 Type: remove
 Summary: Remove unused ` + "`validateLegacyTokens`" + ` function and its helper ` + "`checkTokenFormat`" + `
+Remove: lines 25-85
 Context: Located between ` + "`parseAuthHeader`" + ` and ` + "`validateJWT`" + ` functions
+
+*
+
+If multiple changes are being made to the same file in a single subtask, you MUST ALWAYS combine them into a SINGLE code block. Do NOT use multiple code blocks for multiple changes to the same file.
+
+When writing the explanation for multiple changes that will be included in a single code block, list each change independently like this:
+
+**Updating  + "server/handlers/auth.go" + **
+Change 1. 
+  Type: remove
+  Summary: Remove unused ` + "`validateLegacyTokens`" + ` function and its helper ` + "`checkTokenFormat`" + `
+  Remove: lines 25-85
+  Context: Located between ` + "`parseAuthHeader`" + ` and ` + "`validateJWT`" + ` functions
+
+Change 2.
+  Type: append
+  Summary: Append just-removed ` + "`checkTokenFormat`" + ` function to the end of the file
+  Remove: lines 8-15
+  Context: The last code structure is ` + "`finalizeAuth`" + ` function
+  
+When outputting a compound explanation in the above format, it is CRITICAL that you still only output a SINGLE code block. Do NOT output multiple code blocks.
 
 *
 
@@ -141,6 +194,7 @@ If your change description is:
 **Updating ` + "`server/api/users.go`" + `**  
 Type: replace  
 Summary: Replace implementation of ` + "`validateUser`" + ` function to add role and permission validation
+Remove: lines 10-20
 Context: Located between ` + "`parseUser`" + ` and ` + "`updateUser`" + ` functions
 
 Then your code block should look like:
@@ -152,7 +206,6 @@ func (api *API) parseUser(input []byte) (*User, error) {
     // ... existing code ...
 }
 
-// Replacing existing validateUser implementation
 func (api *API) validateUser(user *User) error {
     // Validate basic fields
     if user.ID == "" {
@@ -254,6 +307,48 @@ If the explanation includes a 'Preserve' field, be absolutely certain that the c
 
 ---
 
+Example of an explanation that includes multiple changes to the same file, with a *single* code block:
+
+**Updating  + "server/handlers/auth.go" + **
+Change 1. 
+  Type: remove
+  Summary: Remove  + "validateLegacyTokens" +  and  + "checkTokenFormat" +  (original file lines 25-35).
+  Context: Located between  + "parseAuthHeader" +  and  + "validateJWT" +  functions
+Change 2.
+  Type: append
+  Summary: Append a new  + "checkTokenFormatV2" +  function at the end of the file
+  Context: The last code structure is  + "finalizeAuth" +  function
+
+- server/handlers/auth.go:
+<PlandexBlock lang="go" path="server/handlers/auth.go">
+// ... existing code ...
+
+func parseAuthHeader() { 
+    // ... existing code ... 
+}
+
+// Plandex: removed code
+
+func validateJWT() { 
+    // ... existing code ... 
+}
+
+func finalizeAuth() { 
+    // ... existing code ... 
+}
+
+func checkTokenFormatV2(header string) bool {
+    // new code for updated token checking
+    return header != ""
+}
+
+// ... existing code ...
+</PlandexBlock>
+
+*
+
+Remember, when outputting a compound explanation in the above format, it is CRITICAL that you still only output a SINGLE code block.
+
 #### 2. Creating a new file
 
 Prior to any code block that is *creating a new file*, you MUST explain the change in the following format EXACTLY:
@@ -318,4 +413,7 @@ For new files:
   -  Do NOT use placeholder code or comments like '// implement authentication here' to indicate that the file is incomplete. Implement *all* functionality.
   - Do NOT use reference comments like '// ... existing code ...'. Those are only used for updating existing files and *never* when creating new files.
   - Include the *entire file* in the code block.
+
+
+
 `
