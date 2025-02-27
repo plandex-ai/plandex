@@ -183,7 +183,7 @@ First, `cd` into a **project directory** where you want to get something done or
 cd your-project-dir
 ```
 
-You might want to initialize a git repository if you haven't already. Plandex integrates nicely with git, though it's not required.
+For a new project, you might also want to initialize a git repo. Plandex doesn't require that your project is in a git repo, but it does integrate well with git if you use it.
 
 ```bash
 git init
@@ -203,7 +203,7 @@ pdx
 
 ☁️ *If you're using Plandex Cloud, you'll be prompted at this point to start a trial.*
 
-Now just give a quick the REPL help text a quick read, and you're ready go. 
+Then just give a quick the REPL help text a quick read, and you're ready go. The REPL starts in *chat mode* by default, which is good for fleshing out ideas before moving to implementation. Once the task is clear, Plandex will prompt you to switch to *tell mode* to make a detailed plan and start writing code.
 
 <br/>
 

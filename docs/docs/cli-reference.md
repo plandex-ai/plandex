@@ -31,6 +31,45 @@ For help on a specific command, use:
 plandex [command] --help
 ```
 
+## REPL
+
+The easiest way to use Plandex is through the REPL. Start it in your project directory with:
+
+```bash
+plandex
+```
+
+or for short:
+
+```bash
+pdx
+```
+
+### Flags
+
+The REPL has a few convenient flags you can use to start it with different modes, autonomy settings, and model packs. You can pass any of these to `plandex` or `pdx` when starting the REPL.
+
+```
+  Mode 
+    --chat, -c     Start in chat mode (for conversation without making changes)
+    --tell, -t     Start in tell mode (for implementation)
+
+  Autonomy 
+    --no-auto      None → step-by-step, no automation
+    --basic        Basic → auto-continue plans, no other automation
+    --plus         Plus → auto-update context, smart context, auto-commit changes
+    --semi         Semi-Auto → auto-load context
+    --full         Full-Auto → auto-apply, auto-exec, auto-debug
+
+  Models 
+    --daily        Daily driver pack (default models, balanced capability, cost, and speed)
+    --strong       Strong pack (more capable models, higher cost and slower)
+    --cheap        Cheap pack (less capable models, lower cost and faster)
+    --oss          Open source pack (open source models)
+```
+
+All commands listed below can be run in the REPL by prefixing them with a backslash (`\`), e.g. `\new`.
+
 ## Plans
 
 ### new
@@ -43,6 +82,8 @@ plandex new -n new-plan # with name
 ```
 
 `--name/-n`: Name of the new plan. The name is generated automatically after first prompt if no name is specified on creation.
+
+`--context-dir/-d`: Base directory to load context from when auto-loading context is enabled.
 
 ### plans
 

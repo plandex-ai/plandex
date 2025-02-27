@@ -1,9 +1,9 @@
 ---
 sidebar_position: 9
-sidebar_label: Auto-Debug Terminal Commands
+sidebar_label: Debug Terminal Commands
 ---
 
-# Auto-Debug Terminal Commands
+# Debug Terminal Commands
 
 As of version 2.0.0, Plandex includes a powerful new `plandex debug` command that can repeatedly run any terminal command, continually making fixes based on the command's output until it succeeds.
 
@@ -28,14 +28,6 @@ By default, `plandex debug` will run the command up to 5 times before giving up.
 
 ```bash
 plandex debug 10 'npm test'
-```
-
-## Auto-Commit
-
-By default, `plandex debug` will not commit the changes it makes to git. If you want to automatically commit the changes after each try with an auto-generated commit message, you can use the `--commit\-c` flag:
-
-```bash
-plandex debug -c 'npm test' # will commit changes after each try
 ```
 
 ## Commands That Succeed
