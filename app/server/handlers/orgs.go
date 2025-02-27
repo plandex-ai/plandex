@@ -103,7 +103,7 @@ func CreateOrgHandler(w http.ResponseWriter, r *http.Request) {
 
 		if rbErr := tx.Rollback(); rbErr != nil {
 			if rbErr == sql.ErrTxDone {
-				log.Println("attempted to roll back transaction, but it was already committed")
+				// log.Println("attempted to roll back transaction, but it was already committed")
 			} else {
 				log.Printf("transaction rollback error: %v\n", rbErr)
 			}

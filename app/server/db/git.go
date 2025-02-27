@@ -577,7 +577,7 @@ func processGitHistoryOutput(raw string) [][2]string {
 func removeLockFile(lockFilePath string) error {
 	_, err := os.Stat(lockFilePath)
 	exists := err == nil
-	log.Println("index.lock file exists:", exists)
+	// log.Println("index.lock file exists:", exists)
 	if err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("error checking lock file: %v", err)
 	}
