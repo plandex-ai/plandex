@@ -32,6 +32,8 @@ func init() {
 	RootCmd.AddCommand(newCmd)
 	newCmd.Flags().StringVarP(&name, "name", "n", "", "Name of the new plan")
 	newCmd.Flags().StringVar(&contextBaseDir, "context-dir", ".", "Base directory to auto-load context from")
+
+	AddNewPlanFlags(newCmd)
 }
 
 func new(cmd *cobra.Command, args []string) {
@@ -90,7 +92,11 @@ func new(cmd *cobra.Command, args []string) {
 	term.StopSpinner()
 
 	fmt.Printf("✅ Started new plan %s and set it to current plan\n", color.New(color.Bold, term.ColorHiGreen).Sprint(name))
-	fmt.Println("⚙️  Using default config")
+	fmt.Printf("⚙️  Using default config\n")
+
+	resolveAutoMode(config)
+
+	resolveModelPack()
 
 	// autoModeLabel := shared.ConfigSettingsByKey["automode"].KeyToLabel(string(config.AutoMode))
 	// fmt.Println("⚡️ Auto-mode:", autoModeLabel)
@@ -106,6 +112,7 @@ func new(cmd *cobra.Command, args []string) {
 		lib.MustLoadContext([]string{baseDir}, &types.LoadContextParams{
 			DefsOnly:          true,
 			SkipIgnoreWarning: true,
+			AutoLoaded:        true,
 		})
 	} else {
 		fmt.Println()

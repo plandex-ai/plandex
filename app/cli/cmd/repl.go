@@ -11,12 +11,11 @@ import (
 	"plandex-cli/term"
 	"plandex-cli/types"
 	"plandex-cli/version"
+	shared "plandex-shared"
 	"regexp"
 	"sort"
 	"strings"
 	"unicode"
-
-	shared "plandex-shared"
 
 	"github.com/fatih/color"
 	"github.com/olekukonko/tablewriter"
@@ -41,6 +40,8 @@ func init() {
 
 	replCmd.Flags().BoolP("chat", "c", false, "Start in chat mode")
 	replCmd.Flags().BoolP("tell", "t", false, "Start in tell mode")
+
+	AddNewPlanFlags(replCmd)
 
 	for _, config := range term.CliCommands {
 		if config.Repl {
@@ -90,7 +91,31 @@ func runRepl(cmd *cobra.Command, args []string) {
 	afterNew := false
 	if lib.CurrentPlanId == "" {
 		os.Setenv("PLANDEX_DISABLE_SUGGESTIONS", "1")
-		newCmd.Run(newCmd, []string{})
+		args := []string{}
+
+		if noAuto {
+			args = append(args, "--no-auto")
+		} else if basicAuto {
+			args = append(args, "--basic")
+		} else if plusAuto {
+			args = append(args, "--plus")
+		} else if semiAuto {
+			args = append(args, "--semi")
+		} else if fullAuto {
+			args = append(args, "--full")
+		}
+
+		if ossModels {
+			args = append(args, "--oss")
+		} else if strongModels {
+			args = append(args, "--strong")
+		} else if cheapModels {
+			args = append(args, "--cheap")
+		} else if dailyModels {
+			args = append(args, "--daily")
+		}
+
+		newCmd.Run(newCmd, args)
 		os.Setenv("PLANDEX_DISABLE_SUGGESTIONS", "")
 		afterNew = true
 	}
@@ -100,7 +125,47 @@ func runRepl(cmd *cobra.Command, args []string) {
 		color.New(term.ColorHiRed).Printf("Error getting project paths: %v\n", err)
 	}
 
-	replWelcome(afterNew, false)
+	config, apiErr := api.Client.GetPlanConfig(lib.CurrentPlanId)
+	if apiErr != nil {
+		term.OutputErrorAndExit("Error getting plan config: %v", apiErr.Msg)
+	}
+
+	settings, apiErr := api.Client.GetSettings(lib.CurrentPlanId, lib.CurrentBranch)
+	if apiErr != nil {
+		term.OutputErrorAndExit("Error getting settings: %v", apiErr.Msg)
+	}
+
+	var printAutoFn func()
+	var printModelFn func()
+	if !afterNew {
+		var didUpdateConfig bool
+		var updatedConfig *shared.PlanConfig
+		var updatedSettings *shared.PlanSettings
+		didUpdateConfig, updatedConfig, printAutoFn = resolveAutoModeSilent(config)
+		updatedSettings, printModelFn = resolveModelPackSilent(settings)
+
+		if didUpdateConfig {
+			loadMapIfNeeded(config, updatedConfig)
+			removeMapIfNeeded(config, updatedConfig)
+
+			if updatedConfig != nil {
+				config = updatedConfig
+			}
+		}
+
+		if updatedSettings != nil {
+			settings = updatedSettings
+		}
+	}
+
+	replWelcome(replWelcomeParams{
+		afterNew:     afterNew,
+		isHelp:       false,
+		printAutoFn:  printAutoFn,
+		printModelFn: printModelFn,
+		config:       config,
+		packName:     settings.ModelPack.Name,
+	})
 
 	var p *prompt.Prompt
 	p = prompt.New(
@@ -725,17 +790,46 @@ func completer(in prompt.Document) ([]prompt.Suggest, pstrings.RuneNumber, pstri
 	return fuzzySuggestions, startIndex, endIndex
 }
 
-func replWelcome(afterNew, isHelp bool) {
+type replWelcomeParams struct {
+	afterNew     bool
+	isHelp       bool
+	printAutoFn  func()
+	printModelFn func()
+	packName     string
+	config       *shared.PlanConfig
+}
+
+func replWelcome(params replWelcomeParams) {
 	// print REPL welcome message and basic info
 	// have to make these requests serially in case re-authentication is needed
+
+	afterNew := params.afterNew
+	isHelp := params.isHelp
+	printAutoFn := params.printAutoFn
+	printModelFn := params.printModelFn
+	packName := params.packName
 
 	plan, apiErr := api.Client.GetPlan(lib.CurrentPlanId)
 	if apiErr != nil {
 		term.OutputErrorAndExit("Error getting plan: %v", apiErr.Msg)
 	}
-	config, apiErr := api.Client.GetPlanConfig(lib.CurrentPlanId)
-	if apiErr != nil {
-		term.OutputErrorAndExit("Error getting plan config: %v", apiErr.Msg)
+
+	config := params.config
+	if config == nil {
+		config, apiErr = api.Client.GetPlanConfig(lib.CurrentPlanId)
+		if apiErr != nil {
+			term.OutputErrorAndExit("Error getting plan config: %v", apiErr.Msg)
+		}
+	}
+
+	currentBranchesByPlanId, err := api.Client.GetCurrentBranchByPlanId(lib.CurrentProjectId, shared.GetCurrentBranchByPlanIdRequest{
+		CurrentBranchByPlanId: map[string]string{
+			lib.CurrentPlanId: lib.CurrentBranch,
+		},
+	})
+
+	if err != nil {
+		term.OutputErrorAndExit("Error getting current branches: %v", err)
 	}
 
 	term.StopSpinner()
@@ -754,41 +848,79 @@ func replWelcome(afterNew, isHelp bool) {
 	fmt.Println()
 	fmt.Println()
 
+	fmt.Println(lib.GetCurrentPlanTable(plan, currentBranchesByPlanId, nil))
+
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetAutoWrapText(false)
 
-	table.SetHeader([]string{"Current Plan", "Branch", "REPL Mode", "Auto Mode", "Context"})
-
-	var replModeIcon string
-	if lib.CurrentReplState.Mode == lib.ReplModeTell {
-		replModeIcon = "⚡️"
-	} else if lib.CurrentReplState.Mode == lib.ReplModeChat {
-		replModeIcon = "💬"
-	}
-
 	var contextMode string
 	if config.AutoLoadContext {
-		contextMode = "Auto"
+		contextMode = "auto"
 	} else {
-		contextMode = "Manual"
+		contextMode = "manual"
 	}
 
-	table.Append([]string{
-		color.New(term.ColorHiGreen, color.Bold).Sprint(plan.Name),
-		lib.CurrentBranch,
-		strings.Title(string(lib.CurrentReplState.Mode)) + " " + replModeIcon,
-		shared.AutoModeLabels[config.AutoMode],
-		contextMode,
-	})
+	var applyMode string
+	if config.AutoApply {
+		applyMode = "auto"
+	} else {
+		applyMode = "approve"
+	}
 
-	table.Render()
+	var executionMode string
+	if config.AutoExec {
+		executionMode = "auto"
+	} else if config.CanExec {
+		executionMode = "approve"
+	} else {
+		executionMode = "disabled"
+	}
+
+	var commitMode string
+	if config.AutoCommit {
+		commitMode = "auto"
+	} else if config.SkipCommit {
+		commitMode = "skip"
+	} else {
+		commitMode = "manual"
+	}
+
+	filesStr := "%s for loading files into context"
+	if contextMode == "auto" {
+		filesStr += " manually (optional)"
+	}
+	filesStr += "\n"
+
+	color.New(color.FgHiWhite).Printf("%s for commands\n", color.New(term.ColorHiCyan, color.Bold).Sprint("\\"))
+	color.New(color.FgHiWhite).Printf(filesStr, color.New(term.ColorHiCyan, color.Bold).Sprint("@"))
+	color.New(color.FgHiWhite).Printf("%s (\\h) for help\n", color.New(term.ColorHiCyan, color.Bold).Sprint("\\help"))
+	color.New(color.FgHiWhite).Printf("%s (\\q) to exit\n", color.New(term.ColorHiCyan, color.Bold).Sprint("\\quit"))
 
 	fmt.Println()
 
-	color.New(color.FgHiWhite).Printf("%s for commands\n", color.New(term.ColorHiCyan, color.Bold).Sprint("\\"))
-	color.New(color.FgHiWhite).Printf("%s for loading files into context\n", color.New(term.ColorHiCyan, color.Bold).Sprint("@"))
-	color.New(color.FgHiWhite).Printf("%s (\\h) for help\n", color.New(term.ColorHiCyan, color.Bold).Sprint("\\help"))
-	color.New(color.FgHiWhite).Printf("%s (\\q) to exit\n", color.New(term.ColorHiCyan, color.Bold).Sprint("\\quit"))
+	if printAutoFn != nil {
+		printAutoFn()
+	} else {
+		fmt.Printf("🚀 Using auto mode %s\n", color.New(color.Bold, term.ColorHiMagenta).Sprint(config.AutoMode))
+	}
+	fmt.Printf("⚙️  %s → %s · %s → %s · %s → %s · %s → %s\n",
+		color.New(color.FgHiWhite, color.Bold).Sprint("context"), contextMode,
+		color.New(color.FgHiWhite, color.Bold).Sprint("apply changes"), applyMode,
+		color.New(color.FgHiWhite, color.Bold).Sprint("execution"), executionMode,
+		color.New(color.FgHiWhite, color.Bold).Sprint("commits"), commitMode,
+	)
+	color.New(color.FgHiWhite).Printf("%s to change auto mode\n", color.New(term.ColorHiCyan, color.Bold).Sprint("\\set-auto"))
+	color.New(color.FgHiWhite).Printf("%s to see config\n", color.New(term.ColorHiCyan, color.Bold).Sprint("\\config"))
+	color.New(color.FgHiWhite).Printf("%s to customize config\n", color.New(term.ColorHiCyan, color.Bold).Sprint("\\set-config"))
+	fmt.Println()
+
+	if printModelFn != nil {
+		printModelFn()
+	} else {
+		fmt.Printf("🧠 Using model pack %s\n", color.New(color.Bold, term.ColorHiMagenta).Sprint(packName))
+	}
+	color.New(color.FgHiWhite).Printf("%s to see model details\n", color.New(term.ColorHiCyan, color.Bold).Sprint("\\models"))
+	color.New(color.FgHiWhite).Printf("%s to change models\n", color.New(term.ColorHiCyan, color.Bold).Sprint("\\set-model"))
 
 	showReplMode()
 	showMultiLineMode()
@@ -806,7 +938,10 @@ func replWelcome(afterNew, isHelp bool) {
 }
 
 func replHelp() {
-	replWelcome(false, true)
+	replWelcome(replWelcomeParams{
+		afterNew: false,
+		isHelp:   true,
+	})
 	term.PrintHelpAllCommands()
 }
 

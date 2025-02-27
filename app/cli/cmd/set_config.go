@@ -12,12 +12,15 @@ import (
 
 	shared "plandex-shared"
 
+	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 )
 
 func init() {
 	RootCmd.AddCommand(setCmd)
 	setCmd.AddCommand(defaultSetCmd)
+	RootCmd.AddCommand(setAutoCmd)
+	setAutoCmd.AddCommand(setAutoDefaultCmd)
 }
 
 var setCmd = &cobra.Command{
@@ -32,6 +35,28 @@ var defaultSetCmd = &cobra.Command{
 	Short: "Update default plan config",
 	Run:   defaultSet,
 	Args:  cobra.MaximumNArgs(2),
+}
+
+var setAutoCmd = &cobra.Command{
+	Use:   "set-auto [value]",
+	Short: "Update config auto-mode",
+	Run:   setAuto,
+	Args:  cobra.MaximumNArgs(1),
+}
+
+var setAutoDefaultCmd = &cobra.Command{
+	Use:   "default [value]",
+	Short: "Update default config auto-mode",
+	Run:   setAutoDefault,
+	Args:  cobra.MaximumNArgs(1),
+}
+
+func setAuto(cmd *cobra.Command, args []string) {
+	set(cmd, append([]string{"auto-mode"}, args...))
+}
+
+func setAutoDefault(cmd *cobra.Command, args []string) {
+	defaultSet(cmd, append([]string{"auto-mode"}, args...))
 }
 
 func set(cmd *cobra.Command, args []string) {
@@ -75,24 +100,22 @@ func set(cmd *cobra.Command, args []string) {
 	lib.ShowPlanConfig(updatedConfig, key)
 	fmt.Println()
 
-	if updatedConfig.AutoLoadContext && !config.AutoLoadContext {
-		hasMap := false
+	loadMapIfNeeded(config, updatedConfig)
+	removeMapIfNeeded(config, updatedConfig)
 
-		context, err := api.Client.ListContext(lib.CurrentPlanId, lib.CurrentBranch)
+	if !(config.AutoApply && config.AutoExec) && updatedConfig.AutoApply && updatedConfig.AutoExec {
+		color.New(term.ColorHiYellow, color.Bold).Println("⚠️  You enabled automatic apply and execution.")
 
-		if err == nil {
-			for _, c := range context {
-				if c.ContextType == shared.ContextMapType {
-					hasMap = true
-					break
-				}
-			}
-
-			if !hasMap {
-				lib.MustLoadAutoContextMap()
-			}
-		}
+		fmt.Println()
+	} else if !config.AutoApply && updatedConfig.AutoApply {
+		color.New(term.ColorHiYellow, color.Bold).Println("⚠️  You enabled automatic apply.")
+		fmt.Println()
+	} else if !config.AutoExec && updatedConfig.AutoExec {
+		color.New(term.ColorHiYellow, color.Bold).Println("⚠️  You enabled automatic execution.")
+		fmt.Println()
 	}
+
+	term.StopSpinner()
 
 	term.PrintCmds("", "config", "config default", "set-config default")
 }
@@ -293,4 +316,52 @@ func parseBooleanArg(value string) (bool, error) {
 		return false, fmt.Errorf("invalid value: %s", value)
 	}
 
+}
+
+func loadMapIfNeeded(originalConfig, updatedConfig *shared.PlanConfig) {
+	if updatedConfig.AutoLoadContext && !originalConfig.AutoLoadContext {
+		hasMap := false
+
+		term.StartSpinner("")
+		context, err := api.Client.ListContext(lib.CurrentPlanId, lib.CurrentBranch)
+
+		if err == nil {
+			for _, c := range context {
+				if c.ContextType == shared.ContextMapType {
+					hasMap = true
+					break
+				}
+			}
+
+			if !hasMap {
+				lib.MustLoadAutoContextMap()
+				fmt.Println()
+			}
+		}
+	}
+}
+
+func removeMapIfNeeded(originalConfig, updatedConfig *shared.PlanConfig) {
+	if originalConfig.AutoLoadContext && !updatedConfig.AutoLoadContext {
+		term.StartSpinner("")
+		context, err := api.Client.ListContext(lib.CurrentPlanId, lib.CurrentBranch)
+
+		if err == nil {
+			for _, c := range context {
+				if c.ContextType == shared.ContextMapType && (c.AutoLoaded || c.FilePath == ".") {
+					res, err := api.Client.DeleteContext(lib.CurrentPlanId, lib.CurrentBranch, shared.DeleteContextRequest{
+						Ids: map[string]bool{c.Id: true},
+					})
+					term.StopSpinner()
+					if err != nil {
+						term.OutputErrorAndExit("Error deleting context: %v", err)
+						return
+					}
+					fmt.Println("✅ " + res.Msg)
+					break
+				}
+			}
+		}
+
+	}
 }

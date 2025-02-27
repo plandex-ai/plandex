@@ -74,6 +74,7 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 			ApiKeys:     apiKeys,
 			OpenAIBase:  openAIBase,
 			OpenAIOrgId: os.Getenv("OPENAI_ORG_ID"),
+			AutoLoaded:  params.AutoLoaded,
 		})
 	}
 
@@ -91,6 +92,7 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 				ApiKeys:     apiKeys,
 				OpenAIBase:  openAIBase,
 				OpenAIOrgId: os.Getenv("OPENAI_ORG_ID"),
+				AutoLoaded:  params.AutoLoaded,
 			})
 		}
 	}
@@ -278,6 +280,7 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 							Body:            body,
 							FilePath:        inputFilePath,
 							ForceSkipIgnore: params.ForceSkipIgnore,
+							AutoLoaded:      params.AutoLoaded,
 						})
 
 						errCh <- nil
@@ -443,6 +446,7 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 								Body:        base64.StdEncoding.EncodeToString(fileContent),
 								FilePath:    path,
 								ImageDetail: params.ImageDetail,
+								AutoLoaded:  params.AutoLoaded,
 							})
 						} else {
 							loadContextReq = append(loadContextReq, &shared.LoadContextParams{
@@ -450,6 +454,7 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 								Name:        path,
 								Body:        string(fileContent),
 								FilePath:    path,
+								AutoLoaded:  params.AutoLoaded,
 							})
 						}
 
@@ -475,6 +480,7 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 							Name:        name,
 							MapInputs:   mapInputsByPath[inputPath],
 							FilePath:    inputPath,
+							AutoLoaded:  params.AutoLoaded,
 						})
 					}
 				}
@@ -512,6 +518,7 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 					Name:        name,
 					Body:        body,
 					Url:         u,
+					AutoLoaded:  params.AutoLoaded,
 				})
 
 				errCh <- nil
@@ -649,6 +656,7 @@ func AutoLoadContextFiles(ctx context.Context, files []string) (string, error) {
 				FilePath:    path,
 				Name:        path,
 				Body:        string(body),
+				AutoLoaded:  true,
 			})
 
 			errCh <- nil
@@ -677,22 +685,19 @@ func AutoLoadContextFiles(ctx context.Context, files []string) (string, error) {
 }
 
 func MustLoadAutoContextMap() {
-	fmt.Println("Select a base directory to load context from. Press enter to use current directory (.), otherwise use a relative path like 'src' or 'lib'.")
-	fmt.Println()
+	// fmt.Println("Select a base directory to load context from. Press enter to use current directory (.), otherwise use a relative path like 'src' or 'lib'.")
+	// fmt.Println()
 
-	baseDir, err := term.GetUserStringInputWithDefault("Base directory for context:", ".")
+	// baseDir, err := term.GetUserStringInputWithDefault("Base directory for context:", ".")
 
-	if err != nil {
-		term.OutputErrorAndExit("Error: %v", err)
-	}
+	// if err != nil {
+	// 	term.OutputErrorAndExit("Error: %v", err)
+	// }
 
-	if baseDir == "" {
-		baseDir = "."
-	}
-
-	MustLoadContext([]string{baseDir}, &types.LoadContextParams{
+	MustLoadContext([]string{"."}, &types.LoadContextParams{
 		DefsOnly:          true,
 		SkipIgnoreWarning: true,
+		AutoLoaded:        true,
 	})
 }
 

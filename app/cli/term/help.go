@@ -18,7 +18,31 @@ type CmdConfig struct {
 
 var CliCommands = []CmdConfig{
 	{"", "", "start the Plandex REPL", false},
+
+	{"--full", "", fmt.Sprintf("start the Plandex REPL with auto-mode %s", color.New(color.Bold).Sprint("full")), false},
+	{"--semi", "", fmt.Sprintf("start the Plandex REPL with auto-mode %s", color.New(color.Bold).Sprint("semi")), false},
+	{"--plus", "", fmt.Sprintf("start the Plandex REPL with auto-mode %s", color.New(color.Bold).Sprint("plus")), false},
+	{"--basic", "", fmt.Sprintf("start the Plandex REPL with auto-mode %s", color.New(color.Bold).Sprint("basic")), false},
+	{"--none", "", fmt.Sprintf("start the Plandex REPL with auto-mode %s", color.New(color.Bold).Sprint("none")), false},
+
+	{"--daily", "", fmt.Sprintf("start the Plandex REPL with %s model pack", color.New(color.Bold).Sprint("daily-driver")), false},
+	{"--strong", "", fmt.Sprintf("start the Plandex REPL with %s model pack", color.New(color.Bold).Sprint("strong")), false},
+	{"--cheap", "", fmt.Sprintf("start the Plandex REPL with %s model pack", color.New(color.Bold).Sprint("cheap")), false},
+	{"--oss", "", fmt.Sprintf("start the Plandex REPL with %s model pack", color.New(color.Bold).Sprint("oss")), false},
+
 	{"new", "", "start a new plan", true},
+
+	{"new --full", "", fmt.Sprintf("start a new plan with auto-mode %s", color.New(color.Bold).Sprint("full")), true},
+	{"new --semi", "", fmt.Sprintf("start a new plan with auto-mode %s", color.New(color.Bold).Sprint("semi")), true},
+	{"new --plus", "", fmt.Sprintf("start a new plan with auto-mode %s", color.New(color.Bold).Sprint("plus")), true},
+	{"new --basic", "", fmt.Sprintf("start a new plan with auto-mode %s", color.New(color.Bold).Sprint("basic")), true},
+	{"new --none", "", fmt.Sprintf("start a new plan with auto-mode %s", color.New(color.Bold).Sprint("none")), true},
+
+	{"new --daily", "", fmt.Sprintf("start a new plan with %s model pack", color.New(color.Bold).Sprint("daily-driver")), true},
+	{"new --strong", "", fmt.Sprintf("start a new plan with %s model pack", color.New(color.Bold).Sprint("strong")), true},
+	{"new --cheap", "", fmt.Sprintf("start a new plan with %s model pack", color.New(color.Bold).Sprint("cheap")), true},
+	{"new --oss", "", fmt.Sprintf("start a new plan with %s model pack", color.New(color.Bold).Sprint("oss")), true},
+
 	{"plans", "pl", "list plans", true},
 	{"cd", "", "set current plan by name or index", true},
 	{"current", "cu", "show current plan", true},
@@ -27,8 +51,17 @@ var CliCommands = []CmdConfig{
 
 	{"config", "", "show current plan config", true},
 	{"set-config", "", "update current plan config", true},
-	{"config default", "", "show default config for new plans", true},
-	{"set-config default", "", "update default config for new plans", true},
+	{"config default", "", "show the default config for new plans", true},
+	{"set-config default", "", "update the default config for new plans", true},
+
+	{"set-auto", "", "update auto-mode (autonomy level) for current plan", true},
+	{"set-auto none", "", fmt.Sprintf("set auto-mode to %s", color.New(color.Bold).Sprint("none")), true},
+	{"set-auto basic", "", fmt.Sprintf("set auto-mode to %s", color.New(color.Bold).Sprint("basic")), true},
+	{"set-auto plus", "", fmt.Sprintf("set auto-mode to %s", color.New(color.Bold).Sprint("plus")), true},
+	{"set-auto semi", "", fmt.Sprintf("set auto-mode to %s", color.New(color.Bold).Sprint("semi")), true},
+	{"set-auto full", "", fmt.Sprintf("set auto-mode to %s", color.New(color.Bold).Sprint("full")), true},
+
+	{"set-auto default", "", "set the default auto-mode for new plans", true},
 
 	{"tell", "t", "describe a task to complete", false},
 	{"chat", "ch", "ask a question or chat", false},
@@ -40,9 +73,8 @@ var CliCommands = []CmdConfig{
 	{"update", "u", "update outdated context", true},
 	{"show", "", "show current context by name or index", true},
 
-	// {"changes", "", "review pending changes in a TUI", false},
-	{"diff", "", "review pending changes", true},
-	{"diff --git", "", "review pending changes in 'git diff' format", true},
+	{"diff --ui", "", "review pending changes in a browser UI", true},
+	{"diff", "", "review pending changes in 'git diff' format", true},
 	{"diff --plain", "", "review pending changes in 'git diff' format with no color formatting", false},
 	{"summary", "", "show the latest summary of the current plan", true},
 
@@ -70,7 +102,7 @@ var CliCommands = []CmdConfig{
 	{"unarchive", "unarc", "unarchive a plan", true},
 
 	{"models", "", "show current plan model settings", true},
-	{"models default", "", "show org-wide default model settings for new plans", true},
+	{"models default", "", "show the default model settings for new plans", true},
 	{"models available", "", "show all available models", true},
 	{"models available --custom", "", "show available custom models only", true},
 	{"models delete", "", "delete a custom model", true},
@@ -80,7 +112,12 @@ var CliCommands = []CmdConfig{
 	{"model-packs delete", "", "delete a custom model pack", true},
 	{"model-packs --custom", "", "show custom model packs only", true},
 	{"set-model", "", "update current plan model settings", true},
-	{"set-model default", "", "update org-wide default model settings for new plans", true},
+	{"set-model default", "", "update the default model settings for new plans", true},
+
+	{"set-model daily", "", fmt.Sprintf("Use %s model pack", color.New(color.Bold).Sprint("daily-driver")), true},
+	{"set-model strong", "", fmt.Sprintf("Use %s model pack", color.New(color.Bold).Sprint("strong")), true},
+	{"set-model cheap", "", fmt.Sprintf("Use %s model pack", color.New(color.Bold).Sprint("cheap")), true},
+	{"set-model oss", "", fmt.Sprintf("Use %s model pack", color.New(color.Bold).Sprint("oss")), true},
 
 	{"ps", "", "list active and recently finished plan streams", true},
 	{"stop", "", "stop an active plan stream", true},
@@ -184,31 +221,54 @@ func PrintCustomHelp(all bool) {
 
 	color.New(color.Bold, color.BgMagenta, color.FgHiWhite).Fprintln(builder, " Getting Started ")
 	fmt.Fprintln(builder)
-	fmt.Fprintf(builder, "  1 - Create a new plan in your project's root directory with %s\n", color.New(color.Bold, color.BgCyan, color.FgHiWhite).Sprint(" plandex new "))
+	fmt.Fprintf(builder, " 🚀 Start the Plandex REPL in a project directory with %s or %s\n", color.New(color.Bold, color.BgCyan, color.FgHiWhite).Sprint(" plandex "), color.New(color.Bold, color.BgCyan, color.FgHiWhite).Sprint(" pdx "))
 	fmt.Fprintln(builder)
-	fmt.Fprintf(builder, "  2 - Load any relevant context with %s\n", color.New(color.Bold, color.BgCyan, color.FgHiWhite).Sprint(" plandex load [file-path-or-url] "))
+	fmt.Fprintf(builder, " 💻 You can also use any command outside the REPL with %s or %s\n", color.New(color.Bold, color.BgCyan, color.FgHiWhite).Sprint(" plandex [command] "), color.New(color.Bold, color.BgCyan, color.FgHiWhite).Sprint(" pdx [command] "))
 	fmt.Fprintln(builder)
-	fmt.Fprintf(builder, "  3 - Describe a task to complete with %s\n", color.New(color.Bold, color.BgCyan, color.FgHiWhite).Sprint(" plandex tell "))
+
+	color.New(color.Bold, color.BgMagenta, color.FgHiWhite).Fprintln(builder, " REPL Options ")
+	fmt.Fprintln(builder)
+	// Add REPL startup flags
+	fmt.Fprintln(builder, color.New(color.Bold, color.FgHiBlue).Sprint("  Mode "))
+	fmt.Fprintln(builder, "    --chat, -c     Start in chat mode (for conversation without making changes)")
+	fmt.Fprintln(builder, "    --tell, -t     Start in tell mode (for implementation)")
+	fmt.Fprintln(builder)
+
+	fmt.Fprintln(builder, color.New(color.Bold, color.FgHiBlue).Sprint("  Autonomy "))
+	fmt.Fprintln(builder, "    --no-auto      None → step-by-step, no automation")
+	fmt.Fprintln(builder, "    --basic        Basic → auto-continue plans")
+	fmt.Fprintln(builder, "    --plus         Plus → auto-update context, smart context, auto-commit changes")
+	fmt.Fprintln(builder, "    --semi         Semi-Auto → auto-load context")
+	fmt.Fprintln(builder, "    --full         Full-Auto → auto-apply, auto-exec, auto-debug")
+	fmt.Fprintln(builder)
+
+	fmt.Fprintln(builder, color.New(color.Bold, color.FgHiBlue).Sprint("  Models "))
+	fmt.Fprintln(builder, "    --daily        Daily driver pack")
+	fmt.Fprintln(builder, "    --strong       Strong pack")
+	fmt.Fprintln(builder, "    --cheap        Cheap pack")
+	fmt.Fprintln(builder, "    --oss          Open source pack")
 	fmt.Fprintln(builder)
 
 	if all {
-
+		fmt.Print(builder.String())
+		PrintHelpAllCommands()
 	} else {
-
+		fmt.Print(builder.String())
 		// in the same style as 'getting started' section, output See All Commands
 
 		color.New(color.Bold, color.BgHiBlue, color.FgHiWhite).Fprintln(builder, " Use 'plandex help --all' or 'plandex help -a' for a list of all commands ")
+		fmt.Fprintln(builder)
 
+		fmt.Print(builder.String())
 	}
 
-	fmt.Print(builder.String())
 }
 
 func PrintHelpAllCommands() {
 	builder := &strings.Builder{}
 
 	color.New(color.Bold, color.BgMagenta, color.FgHiWhite).Fprintln(builder, " Key Commands ")
-	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiMagenta}, "new", "load", "tell", "diff", "diff --ui", "apply", "reject", "debug", "chat")
+	printCmds(builder, " ", []color.Attribute{color.Bold, color.FgHiMagenta}, "new", "load", "tell", "diff", "diff --ui", "apply", "reject", "debug", "chat")
 	fmt.Fprintln(builder)
 
 	color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Plans ")
@@ -243,8 +303,16 @@ func PrintHelpAllCommands() {
 	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "config", "set-config", "config default", "set-config default")
 	fmt.Fprintln(builder)
 
+	color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Autonomy ")
+	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "set-auto", "set-auto default", "set-auto full", "set-auto semi", "set-auto plus", "set-auto basic", "set-auto none")
+	fmt.Fprintln(builder)
+
 	color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " AI Models ")
-	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "models", "models default", "models available", "set-model", "set-model default", "models available --custom", "models add", "models delete", "model-packs", "model-packs --custom", "model-packs create", "model-packs delete")
+	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "models", "models default", "model-packs", "set-model", "set-model daily", "set-model strong", "set-model cheap", "set-model oss", "set-model default")
+	fmt.Fprintln(builder)
+
+	color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Custom Models ")
+	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "models available", "models available --custom", "models add", "models delete", "model-packs --custom", "model-packs create", "model-packs delete")
 	fmt.Fprintln(builder)
 
 	color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Accounts ")
@@ -253,6 +321,11 @@ func PrintHelpAllCommands() {
 
 	color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Cloud ")
 	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "credits", "usage", "billing")
+	fmt.Fprintln(builder)
+
+	color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " New Plan Shortcuts ")
+	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "new --full", "new --semi", "new --plus", "new --basic", "new --none", "new --daily", "new --strong", "new --cheap", "new --oss")
+	fmt.Fprintln(builder)
 
 	fmt.Print(builder.String())
 }

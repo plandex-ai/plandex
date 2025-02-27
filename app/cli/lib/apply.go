@@ -115,6 +115,8 @@ func MustApplyPlanAttempt(
 		os.Exit(0)
 	}
 
+	term.ResumeSpinner()
+
 	currentPlanFiles := currentPlanState.CurrentPlanFiles
 	isRepo := fs.ProjectRootIsGitRepo()
 
@@ -145,6 +147,7 @@ func MustApplyPlanAttempt(
 
 	onGitErr := func(errMsg, unformattedErrMsg string) {
 		term.StopSpinner()
+		fmt.Println()
 		term.OutputSimpleError(errMsg, unformattedErrMsg)
 	}
 
@@ -302,12 +305,8 @@ var shellShebangs = map[string]string{
 }
 
 var applyScriptErrorHandling = map[string]string{
-	"/bin/bash": `set -euo pipefail
-trap 'echo "Error on line $LINENO: $BASH_COMMAND"' ERR
-`,
-	"/bin/zsh": `set -euo pipefail
-trap 'echo "Error on line $LINENO: ${funcfiletrace[0]#*:}"' ERR
-`,
+	"/bin/bash": `set -euo pipefail`,
+	"/bin/zsh":  `set -euo pipefail`,
 }
 
 func execApplyScript(

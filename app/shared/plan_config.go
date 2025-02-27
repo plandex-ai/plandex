@@ -19,21 +19,30 @@ const defaultEditor = EditorTypeVim
 type AutoModeType string
 
 const (
-	AutoModeFull      AutoModeType = "full"
-	AutoModeSemi      AutoModeType = "semi"
-	AutoModeBasicPlus AutoModeType = "basic-plus"
-	AutoModeBasic     AutoModeType = "basic"
-	AutoModeNone      AutoModeType = "none"
-	AutoModeCustom    AutoModeType = "custom"
+	AutoModeFull   AutoModeType = "full"
+	AutoModeSemi   AutoModeType = "semi"
+	AutoModePlus   AutoModeType = "plus"
+	AutoModeBasic  AutoModeType = "basic"
+	AutoModeNone   AutoModeType = "none"
+	AutoModeCustom AutoModeType = "custom"
 )
 
+var AutoModeDescriptions = map[AutoModeType]string{
+	AutoModeFull:   "Fully automated: context, apply, execution and debugging",
+	AutoModeSemi:   "Auto context, manual apply and execution",
+	AutoModePlus:   "Manual context with auto updates and smart loading, manual apply and execution",
+	AutoModeBasic:  "Manual context, manual apply and execution",
+	AutoModeNone:   "Fully manual and step-by-step, one response at a time, manual builds",
+	AutoModeCustom: "Choose settings individually with set-config command",
+}
+
 var AutoModeOptions = [][3]string{
-	{string(AutoModeFull), "Full Auto", "Fully automated: context, apply, execution and debugging"},
-	{string(AutoModeSemi), "Semi Auto", "Auto context, manual apply and execution"},
-	{string(AutoModeBasicPlus), "Basic Plus", "Manual context with auto updates and smart loading, manual apply and execution"},
-	{string(AutoModeBasic), "Basic", "Manual context, manual apply and execution"},
-	{string(AutoModeNone), "None", "Fully manual and step-by-step, one response at a time, manual builds"},
-	{string(AutoModeCustom), "Custom", "Choose your own combination of automation settings"},
+	{string(AutoModeFull), "Full Auto", AutoModeDescriptions[AutoModeFull]},
+	{string(AutoModeSemi), "Semi Auto", AutoModeDescriptions[AutoModeSemi]},
+	{string(AutoModePlus), "Basic Plus", AutoModeDescriptions[AutoModePlus]},
+	{string(AutoModeBasic), "Basic", AutoModeDescriptions[AutoModeBasic]},
+	{string(AutoModeNone), "None", AutoModeDescriptions[AutoModeNone]},
+	{string(AutoModeCustom), "Custom", AutoModeDescriptions[AutoModeCustom]},
 }
 
 var AutoModeLabels = map[AutoModeType]string{}
@@ -142,7 +151,7 @@ func (p *PlanConfig) SetAutoMode(mode AutoModeType) {
 		p.AutoDebug = false
 		p.AutoRevertOnRewind = true
 
-	case AutoModeBasicPlus:
+	case AutoModePlus:
 		p.AutoContinue = true
 		p.AutoBuild = true
 		p.AutoUpdateContext = true
@@ -153,7 +162,7 @@ func (p *PlanConfig) SetAutoMode(mode AutoModeType) {
 		p.CanExec = true
 		p.AutoExec = false
 		p.AutoDebug = false
-		p.AutoRevertOnRewind = false
+		p.AutoRevertOnRewind = true
 
 	case AutoModeBasic:
 		p.AutoContinue = true
@@ -166,7 +175,7 @@ func (p *PlanConfig) SetAutoMode(mode AutoModeType) {
 		p.CanExec = false
 		p.AutoExec = false
 		p.AutoDebug = false
-		p.AutoRevertOnRewind = false
+		p.AutoRevertOnRewind = true
 
 	case AutoModeNone:
 		p.AutoContinue = false
@@ -179,7 +188,7 @@ func (p *PlanConfig) SetAutoMode(mode AutoModeType) {
 		p.CanExec = false
 		p.AutoExec = false
 		p.AutoDebug = false
-		p.AutoRevertOnRewind = false
+		p.AutoRevertOnRewind = true
 	}
 }
 
