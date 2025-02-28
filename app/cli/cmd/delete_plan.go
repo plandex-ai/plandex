@@ -28,7 +28,7 @@ func init() {
 var rmCmd = &cobra.Command{
 	Use:     "delete-plan [name-or-index]",
 	Aliases: []string{"dp"},
-	Short:   "Delete a plan by name or index, or delete all plans with --all flag",
+	Short:   "Delete a plan by name, index, range, or pattern, or select from a list. Delete all plans with --all flag.",
 	Args:    cobra.RangeArgs(0, 1),
 	Run:     del,
 }

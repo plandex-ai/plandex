@@ -19,16 +19,16 @@ type CmdConfig struct {
 var CliCommands = []CmdConfig{
 	{"", "", "start the Plandex REPL", false},
 
-	{"--full", "", fmt.Sprintf("start the Plandex REPL with auto-mode %s", color.New(color.Bold).Sprint("full")), false},
-	{"--semi", "", fmt.Sprintf("start the Plandex REPL with auto-mode %s", color.New(color.Bold).Sprint("semi")), false},
-	{"--plus", "", fmt.Sprintf("start the Plandex REPL with auto-mode %s", color.New(color.Bold).Sprint("plus")), false},
-	{"--basic", "", fmt.Sprintf("start the Plandex REPL with auto-mode %s", color.New(color.Bold).Sprint("basic")), false},
-	{"--none", "", fmt.Sprintf("start the Plandex REPL with auto-mode %s", color.New(color.Bold).Sprint("none")), false},
+	// {"--full", "", fmt.Sprintf("start the Plandex REPL with auto-mode %s", color.New(color.Bold).Sprint("full")), false},
+	// {"--semi", "", fmt.Sprintf("start the Plandex REPL with auto-mode %s", color.New(color.Bold).Sprint("semi")), false},
+	// {"--plus", "", fmt.Sprintf("start the Plandex REPL with auto-mode %s", color.New(color.Bold).Sprint("plus")), false},
+	// {"--basic", "", fmt.Sprintf("start the Plandex REPL with auto-mode %s", color.New(color.Bold).Sprint("basic")), false},
+	// {"--none", "", fmt.Sprintf("start the Plandex REPL with auto-mode %s", color.New(color.Bold).Sprint("none")), false},
 
-	{"--daily", "", fmt.Sprintf("start the Plandex REPL with %s model pack", color.New(color.Bold).Sprint("daily-driver")), false},
-	{"--strong", "", fmt.Sprintf("start the Plandex REPL with %s model pack", color.New(color.Bold).Sprint("strong")), false},
-	{"--cheap", "", fmt.Sprintf("start the Plandex REPL with %s model pack", color.New(color.Bold).Sprint("cheap")), false},
-	{"--oss", "", fmt.Sprintf("start the Plandex REPL with %s model pack", color.New(color.Bold).Sprint("oss")), false},
+	// {"--daily", "", fmt.Sprintf("start the Plandex REPL with %s model pack", color.New(color.Bold).Sprint("daily-driver")), false},
+	// {"--strong", "", fmt.Sprintf("start the Plandex REPL with %s model pack", color.New(color.Bold).Sprint("strong")), false},
+	// {"--cheap", "", fmt.Sprintf("start the Plandex REPL with %s model pack", color.New(color.Bold).Sprint("cheap")), false},
+	// {"--oss", "", fmt.Sprintf("start the Plandex REPL with %s model pack", color.New(color.Bold).Sprint("oss")), false},
 
 	{"new", "", "start a new plan", true},
 
@@ -95,7 +95,7 @@ var CliCommands = []CmdConfig{
 
 	{"branches", "br", "list plan branches", true},
 	{"checkout", "co", "checkout or create a branch", true},
-	{"delete-branch", "db", "delete a branch by name or index", true},
+	{"delete-branch", "dlb", "delete a branch by name or index", true},
 
 	{"plans --archived", "", "list archived plans", true},
 	{"archive", "arc", "archive a plan", true},
@@ -276,7 +276,7 @@ func PrintHelpAllCommands() {
 	fmt.Fprintln(builder)
 
 	color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Changes ")
-	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "diff", "diff --ui", "diff --plain", "changes", "apply", "reject")
+	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "diff", "diff --ui", "diff --plain", "apply", "reject")
 	fmt.Fprintln(builder)
 
 	color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Context ")

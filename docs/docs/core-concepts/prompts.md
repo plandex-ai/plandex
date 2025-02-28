@@ -1,5 +1,5 @@
 ---
-sidebar_position: 3
+sidebar_position: 4
 sidebar_label: Prompts
 ---
 
@@ -7,30 +7,48 @@ sidebar_label: Prompts
 
 ## Sending Prompts
 
-To send a prompt, use the `plandex tell` command.
+### In the REPL
+
+To send a prompt in the [REPL](../repl.md), just type your prompt and press enter.
+
+You can also use `\multi` to enable multi-line mode. This will cause enter to produce line breaks. In multi-line mode, you can send your prompt with `\send`.
+
+If you want to pass in a file as a prompt in the REPL, you can use the `\run` command with a relative file path:
+
+```
+\run src/components/foobars-form.tsx
+```
+
+### With the CLI
+
+To send a prompt with the CLI, use the `plandex tell` command for a task, or the `plandex chat` command to brainstorm or ask questions.
 
 You can pass it in as a file with the `--file/-f` flag:
 
 ```bash
 plandex tell -f prompt.txt
+plandex chat -f prompt.txt
 ```
 
 Write it in vim:
 
 ```bash
 plandex tell # tell with no arguments opens vim so you can write your prompt there
+plandex chat # chat with no arguments does the same
 ```
 
 Pass it inline (use enter for line breaks):
 
 ```bash
 plandex tell "add a new line chart showing the number of foobars over time to components/charts.tsx"
+plandex chat "where's the database connection logic in this project?"
 ```
 
 You can also pipe in the results of another command:
 
 ```bash
 git diff | plandex tell
+git diff | plandex chat
 ```
 
 When you pipe in results like this, you can also supply an inline string to give a label or additional context to the results:
@@ -41,7 +59,7 @@ git diff | plandex tell "'git diff' output"
 
 ## Plan Stream TUI
 
-After you send a prompt with `plandex tell`, you'll see the plan stream TUI. The model's responses are streamed here. You'll see several hotkeys listed along the bottom row that allow you to stop the plan (s), send the plan to the background (b), scroll/page the streamed text, or jump to the beginning or end of the stream. If you're a vim user, you'll notice Plandex's scrolling hotkeys are the same as vim's.
+After you send a prompt with the REPL, `plandex tell`, or `plandex chat`, you'll see the plan stream TUI. The model's responses are streamed here. You'll see several hotkeys listed along the bottom row that allow you to stop the plan (s), send the plan to the background (b), scroll/page the streamed text, or jump to the beginning or end of the stream. If you're a vim user, you'll notice Plandex's scrolling hotkeys are the same as vim's.
 
 Note that scrolling the terminal window itself won't work while you're in the stream TUI. Use the scroll hotkeys instead.
 
@@ -49,7 +67,7 @@ Note that scrolling the terminal window itself won't work while you're in the st
 
 When you give Plandex a task, it will first break down the task into steps, then it will proceed to implement each step in code. Plandex will automatically continue sending model requests until the task is determined to be complete.
 
-## Conversational Prompts
+## Chat Prompts
 
 If you want to ask Plandex questions or chat without generating files or making changes, use the `plandex chat` command instead of `plandex tell`.
 
@@ -60,6 +78,10 @@ plandex chat "explain every function in lib/math.ts"
 Plandex will reply with just a single response, won't create or update any files, and won't automatically continue.
 
 `plandex chat` has the same options for passing in a prompt as `plandex tell`. You can pass a string inline, give it a file with `--file/-f`, type the prompt in vim by running `plandex chat` with no arguments, or pipe in the results of another command.
+
+### In the REPL
+
+In the REPL, you can control whether prompts are sent to `plandex tell` or `plandex chat` under the hood by toggling `chat mode` with `\chat (\ch)` or `\tell (\t)`.
 
 ## Stopping and Continuing
 
@@ -77,6 +99,20 @@ plandex continue -s
 
 Apart from `--stop/-s` Plandex's plan stream TUI also has an `s` hotkey that allows you to immediately stop a plan.
 
+You can also stop a plan from automatically continuing by setting the `auto-continue` config option to `false` in a plan's [configuration](./configuration.md):
+
+```bash
+plandex set-config auto-continue false
+plandex set-config default auto-continue false # set the default config's auto-continue to false for all new plans
+```
+
+or by setting the `auto-mode` ([autonomy level](./autonomy.md)) to `none`:
+
+```bash
+plandex set-auto none
+plandex set-default-auto none # set the default auto-mode to none for all new plans
+```
+
 ## Background Tasks
 
 By default, `plandex tell` opens the plan stream TUI and streams Plandex's response(s) there, but you can also pass the `--bg` flag to run a task in the background instead.
@@ -85,22 +121,36 @@ You can learn more about using and interacting with background tasks [here](./ba
 
 ## Keeping Context Updated
 
-When you send a prompt, whether through `plandex tell` or `plandex chat`, Plandex will check whether the content of any files, directory layouts, or URLs you've loaded into context have changed. If so, you'll be prompted to update the context before continuing.
+When you send a prompt, whether through `plandex tell` or `plandex chat`, Plandex will check whether the content of any files, directory layouts, or URLs you've loaded into [context](./context-management.md) have changed. If so, you'll need to update the context before continuing.
 
-If you want to automatically update context without being prompted, you can pass the `--yes/-y` flag to `plandex tell` or `plandex continue`:
+By default, Plandex will update any outdated context automatically, but if you'd rather approve these updates, you can set the `auto-update-context` config option to `false`:
 
 ```bash
-plandex tell -y "add a cancel button to the foobars form in src/components/foobars-form.tsx"
+plandex set-config auto-update-context false
+plandex set-config default auto-update-context false # set the default config's auto-update-context to false for all new plans
+```
+
+or you can set the `auto-mode` to `basic` or `none`:
+
+```bash
+plandex set-auto basic
+plandex set-auto none
 ```
 
 ## Building Files
 
 As Plandex implements your task, files it creates or updates will appear in the `Building Plan` section of the plan stream TUI. Plandex will **build** all changes proposed by the plan into a set of pending changesets for each affected file.
 
-Keep in mind that initially, these changes **will not** be directly applied to your project files. Instead, they will be **pending** in Plandex's version-controlled sandbox. This allows you to review the proposed changes or continue iterating and accumulating more changes. You can view the pending changes with `plandex diff` (for git diff format in the terminal) or `plandex diff --ui` (to view them in a local browser UI). Once you're happy with the changes, you can apply them to your project files with `plandex apply`.
+By default, these changes initially **will not** be directly applied to your project files. Instead, they will be **pending** in Plandex's version-controlled sandbox.
+
+This allows you to review the proposed changes or continue iterating and accumulating more changes. You can view the pending changes with `plandex diff` (for git diff format in the terminal) or `plandex diff --ui` (to view them in a local browser UI). Once you're happy with the changes, you can apply them to your project files with `plandex apply`.
 
 - [Learn more about reviewing changes.](./reviewing-changes.md)
 - [Learn more about version control.](./version-control.md)
+
+### Full auto mode
+
+An important caveat to the above: if you set the `auto-mode` to `full`, Plandex _will_ automatically apply the changes to your project files,
 
 ### Skipping builds / `plandex build`
 
@@ -139,7 +189,7 @@ plandex tell "now implement the UI portion of the forgot password flow"
 
 ## Automatically Applying Changes
 
-If you want Plandex to *automatically* apply changes when a plan is complete, you can pass the `--apply/-a` flag to `plandex tell`, `plandex continue`, or `plandex build`:
+If you want Plandex to _automatically_ apply changes when a plan is complete, you can pass the `--apply/-a` flag to `plandex tell`, `plandex continue`, or `plandex build`:
 
 ```bash
 plandex tell "add a new route for updating notification settings to src/routes.ts" --apply

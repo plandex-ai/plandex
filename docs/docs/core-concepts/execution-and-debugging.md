@@ -1,11 +1,13 @@
 ---
-sidebar_position: 9
-sidebar_label: Debug Terminal Commands
+sidebar_position: 6
+sidebar_label: Execution and Debugging
 ---
 
-# Debug Terminal Commands
+# Execution and Debugging
 
-As of version 2.0.0, Plandex includes a powerful new `plandex debug` command that can repeatedly run any terminal command, continually making fixes based on the command's output until it succeeds.
+As of version 2.0.0, Plandex includes powerful new execution and automated debugging capabilities.
+
+`plandex debug` command that can repeatedly run any terminal command, continually making fixes based on the command's output until it succeeds.
 
 ## Using `plandex debug`
 
@@ -44,7 +46,7 @@ plandex debug "echo 'ok'" # succeeds and immediately exits
 
 You should also be careful when using `plandex debug` with commands that may have side effects. Always test commands manually first to make sure they work as expected.
 
-If possible, try to make the commands you give to `plandex debug` *idempotent*, meaning that they're safe to run multiple times. For example, if you have a deploy script, you'd want to be sure that it cleans up after itself if it fails halfway through so that you don't end up with a partially deployed system.
+If possible, try to make the commands you give to `plandex debug` _idempotent_, meaning that they're safe to run multiple times. For example, if you have a deploy script, you'd want to be sure that it cleans up after itself if it fails halfway through so that you don't end up with a partially deployed system.
 
 ## Alternative: Piping Into `plandex tell`
 

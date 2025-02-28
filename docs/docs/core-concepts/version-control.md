@@ -1,5 +1,5 @@
 ---
-sidebar_position: 5
+sidebar_position: 7
 sidebar_label: Version Control
 ---
 
@@ -7,7 +7,7 @@ sidebar_label: Version Control
 
 Just about every aspect of a Plandex plan is version-controlled, and anything that can happen during a plan creates a new version in the plan's history. This includes:
 
-- Adding, removing, or updating context.
+- Adding, removing, or updating context (when you do it manually or when Plandex does it automatically).
 - When you send a prompt.
 - When Plandex responds.
 - When Plandex builds the plan's proposed updates to a file into a pending change.
@@ -28,7 +28,7 @@ plandex log
 To rewind the plan to an earlier state, use the `plandex rewind` command:
 
 ```bash
-plandex rewind # Rewind 1 step
+plandex rewind # Select a previous state to rewind to
 plandex rewind 3  # Rewind 3 steps
 plandex rewind a7c8d66  # Rewind to a specific step
 ```
@@ -40,7 +40,7 @@ Note that currently, there's no way to undo a `rewind` and recover any history t
 ```bash
 plandex checkout undo-changes # create a new branch called 'undo-changes'
 plandex rewind ef883a # history is rewound in 'undo-changes' branch
-plandex checkout main # main branch still retains original history 
+plandex checkout main # main branch still retains original history
 ```
 
 ## Viewing Conversation
@@ -53,6 +53,13 @@ plandex convo
 
 ## Rewinding After `plandex apply`
 
-Like any other action that modifies a plan, running `plandex apply` to apply pending changes to your project file creates a new version in the plan's history.
+Like any other action that modifies a plan, running `plandex apply` to apply pending changes to your project file creates a new version in the plan's history. The `plandex apply` action can also be undone with `plandex rewind`.
 
-The `plandex apply` action can be undone with `plandex rewind`, but it's important to note that this will only make the changes pending again in the Plandex sandbox. It **will not** undo the changes to your project files. You'll have to do that separately if desired. 
+While previous versions Plandex would not also revert the changes to your project files, this is now the default behavior as of v2.0.0. If there are potential conflicts (i.e. you've made changes on top since applying), Plandex will prompt you to decide how to handle the conflict.
+
+This behavior can be disabled if desired by setting the `auto-revert-on-rewind` config setting to `false`:
+
+```bash
+plandex set-config auto-revert-on-rewind false
+plandex set-config default auto-revert-on-rewind false # set the default value for all new plans
+```

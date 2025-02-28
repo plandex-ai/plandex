@@ -1,5 +1,5 @@
 ---
-sidebar_position: 7
+sidebar_position: 9
 sidebar_label: Conversations
 ---
 
@@ -46,4 +46,3 @@ As with the `convo` command, you can output the summary in plain text with no AN
 ```bash
 plandex summary --plain
 ```
-

@@ -50,18 +50,18 @@ pdx
 The REPL has a few convenient flags you can use to start it with different modes, autonomy settings, and model packs. You can pass any of these to `plandex` or `pdx` when starting the REPL.
 
 ```
-  Mode 
+  Mode
     --chat, -c     Start in chat mode (for conversation without making changes)
     --tell, -t     Start in tell mode (for implementation)
 
-  Autonomy 
+  Autonomy
     --no-auto      None → step-by-step, no automation
     --basic        Basic → auto-continue plans, no other automation
     --plus         Plus → auto-update context, smart context, auto-commit changes
     --semi         Semi-Auto → auto-load context
     --full         Full-Auto → auto-apply, auto-exec, auto-debug
 
-  Models 
+  Models
     --daily        Daily driver pack (default models, balanced capability, cost, and speed)
     --strong       Strong pack (more capable models, higher cost and slower)
     --cheap        Cheap pack (less capable models, lower cost and faster)
@@ -83,7 +83,25 @@ plandex new -n new-plan # with name
 
 `--name/-n`: Name of the new plan. The name is generated automatically after first prompt if no name is specified on creation.
 
-`--context-dir/-d`: Base directory to load context from when auto-loading context is enabled.
+`--context-dir/-d`: Base directory to load context from when auto-loading context is enabled. Defaults to `.` (current directory). Set a different directoy if you don't want all files to be included in the project map.
+
+`--no-auto`: Start the plan with auto-mode 'None' (step-by-step, no automation).
+
+`--basic`: Start the plan with auto-mode 'Basic' (auto-continue plans, no other automation).
+
+`--plus`: Start the plan with auto-mode 'Plus' (auto-update context, smart context, auto-commit changes).
+
+`--semi`: Start the plan with auto-mode 'Semi-Auto' (auto-load context).
+
+`--full`: Start the plan with auto-mode 'Full-Auto' (auto-apply, auto-exec, auto-debug).
+
+`--daily`: Start the plan with the daily driver model pack.
+
+`--strong`: Start the plan with the strong model pack.
+
+`--cheap`: Start the plan with the cheap model pack.
+
+`--oss`: Start the plan with the open source model pack.
 
 ### plans
 
@@ -125,19 +143,19 @@ With one argument, Plandex selects a plan by name or by index in the `plandex pl
 
 ### delete-plan
 
-Delete a plan by name or index.
+Delete a plan by name, index, range, pattern, or select from a list.
 
 ```bash
 plandex delete-plan # select from a list of plans
 plandex delete-plan some-plan # by name
 plandex delete-plan 4 # by index in `plandex plans`
-
+plandex delete-plan 2-4 # by range of indices
+plandex delete-plan 'docs-*' # by pattern
+plandex delete-plan --all # delete all plans
 pdx dp # alias
 ```
 
-With no arguments, Plandex prompts you with a list of plans to select from.
-
-With one argument, Plandex deletes a plan by name or by index in the `plandex plans` list.
+`--all/-a`: Delete all plans.
 
 ### rename
 
@@ -147,10 +165,6 @@ Rename the current plan.
 plandex rename # prompt for new name
 plandex rename new-name # set new name
 ```
-
-With no arguments, Plandex prompts you for a new name.
-
-With one argument, Plandex sets the new name.
 
 ### archive
 
@@ -163,10 +177,6 @@ plandex archive 4 # by index in `plandex plans`
 
 pdx arc # alias
 ```
-
-With no arguments, Plandex prompts you with a list of plans to select from.
-
-With one argument, Plandex archives a plan by name or by index in the `plandex plans` list.
 
 ### unarchive
 
@@ -203,6 +213,8 @@ pdx l component.ts # alias
 
 `--tree`: Load directory tree layout with file names only.
 
+`--map`: Load file map of the given directory (function/method/class signatures, variable names, types, etc.)
+
 `--note/-n`: Load a note into context.
 
 `--force/-f`: Load files even when ignored by .gitignore or .plandexignore.
@@ -227,10 +239,19 @@ Remove context by index, range, name, or glob.
 plandex rm some-file.ts # by name
 plandex rm app/**/*.ts # by glob pattern
 plandex rm 4 # by index in `plandex ls`
-plandx rm 2-4 # by range of indices
+plandex rm 2-4 # by range of indices
 
 plandex remove # longer alias
 plandex unload # longer alias
+```
+
+### show
+
+Output context by name or index.
+
+```bash
+plandex show some-file.ts # by name
+plandex show 4 # by index in `plandex ls`
 ```
 
 ### update
@@ -266,17 +287,29 @@ pdx t # alias
 
 `--file/-f`: File path containing prompt.
 
-`--stop/-s`: Stop after a single model response (don't auto-continue).
+`--stop/-s`: Stop after a single model response (don't auto-continue). Defaults to opposite of config value `auto-continue`.
 
-`--no-build/-n`: Don't build proposed changes into pending file updates.
+`--no-build/-n`: Don't build proposed changes into pending file updates. Defaults to opposite of config value `auto-build`.
 
 `--bg`: Run task in the background.
 
-`--yes/-y`: Automatically confirm context updates.
+`--auto-update-context`: Automatically confirm context updates. Defaults to config value `auto-update-context`.
 
-`--apply/-a`: Automatically apply changes (and confirm context updates).
+`--auto-load-context`: Automatically load context using project map. Defaults to config value `auto-load-context`.
 
-`--commit/-c`: Commit changes to git when `--apply/-a` is passed.
+`--smart-context`: Use smart context to only load the necessary file(s) for each step during implementation. Defaults to config value `smart-context`.
+
+`--no-exec`: Don't execute commands after successful apply. Defaults to opposite of config value `can-exec`.
+
+`--auto-exec`: Automatically execute commands after successful apply without confirmation. Defaults to config value `auto-exec`.
+
+`--debug`: Automatically execute and debug failing commands (optionally specify number of tries—default is 5). Defaults to config values of `auto-debug` and `auto-debug-tries`.
+
+`--apply/-a`: Automatically apply changes (and confirm context updates). Defaults to config value `auto-apply`.
+
+`--commit/-c`: Commit changes to git when `--apply/-a` is passed. Defaults to config value `auto-commit`.
+
+`--skip-commit`: Don't commit changes to git. Defaults to opposite of config value `auto-commit`.
 
 ### continue
 
@@ -288,17 +321,29 @@ plandex continue
 pdx c # alias
 ```
 
-`--stop/-s`: Stop after a single model response (don't auto-continue).
+`--stop/-s`: Stop after a single model response (don't auto-continue). Defaults to opposite of config value `auto-continue`.
 
-`--no-build/-n`: Don't build proposed changes into pending file updates.
+`--no-build/-n`: Don't build proposed changes into pending file updates. Defaults to opposite of config value `auto-build`.
 
 `--bg`: Run task in the background.
 
-`--yes/-y`: Automatically confirm context updates.
+`--auto-update-context`: Automatically confirm context updates. Defaults to config value `auto-update-context`.
 
-`--apply/-a`: Automatically apply changes (and confirm context updates).
+`--auto-load-context`: Automatically load context using project map. Defaults to config value `auto-load-context`.
 
-`--commit/-c`: Commit changes to git when `--apply/-a` is passed.
+`--smart-context`: Use smart context to only load the necessary file(s) for each step during implementation. Defaults to config value `smart-context`.
+
+`--no-exec`: Don't execute commands after successful apply. Defaults to opposite of config value `can-exec`.
+
+`--auto-exec`: Automatically execute commands after successful apply without confirmation. Defaults to config value `auto-exec`.
+
+`--debug`: Automatically execute and debug failing commands (optionally specify number of tries—default is 5). Defaults to config values of `auto-debug` and `auto-debug-tries`.
+
+`--apply/-a`: Automatically apply changes (and confirm context updates). Defaults to config value `auto-apply`.
+
+`--commit/-c`: Commit changes to git when `--apply/-a` is passed. Defaults to config value `auto-commit`.
+
+`--skip-commit`: Don't commit changes to git. Defaults to opposite of config value `auto-commit`.
 
 ### build
 
@@ -311,11 +356,25 @@ pdx b # alias
 
 `--bg`: Build in the background.
 
-`--yes/-y`: Automatically confirm context updates.
+`--stop/-s`: Stop after a single model response (don't auto-continue). Defaults to opposite of config value `auto-continue`.
 
-`--apply/-a`: Automatically apply changes (and confirm context updates).
+`--no-build/-n`: Don't build proposed changes into pending file updates. Defaults to opposite of config value `auto-build`.
 
-`--commit/-c`: Commit changes to git when `--apply/-a` is passed.
+`--bg`: Run task in the background.
+
+`--auto-update-context`: Automatically confirm context updates. Defaults to config value `auto-update-context`.
+
+`--no-exec`: Don't execute commands after successful apply. Defaults to opposite of config value `can-exec`.
+
+`--auto-exec`: Automatically execute commands after successful apply without confirmation. Defaults to config value `auto-exec`.
+
+`--debug`: Automatically execute and debug failing commands (optionally specify number of tries—default is 5). Defaults to config values of `auto-debug` and `auto-debug-tries`.
+
+`--apply/-a`: Automatically apply changes (and confirm context updates). Defaults to config value `auto-apply`.
+
+`--commit/-c`: Commit changes to git when `--apply/-a` is passed. Defaults to config value `auto-commit`.
+
+`--skip-commit`: Don't commit changes to git. Defaults to opposite of config value `auto-commit`.
 
 ### chat
 
@@ -323,16 +382,20 @@ Ask a question or chat without making any changes.
 
 ```bash
 plandex chat "is it clear from the context how to add a new line chart?"
-pdx ct # alias
+pdx ch # alias
 ```
 
 `--file/-f`: File path containing prompt.
 
-`--yes/-y`: Automatically confirm context updates.
+`--bg`: Run task in the background.
+
+`--auto-update-context`: Automatically confirm context updates. Defaults to config value `auto-update-context`.
+
+`--auto-load-context`: Automatically load context using project map. Defaults to config value `auto-load-context`.
 
 ### debug
 
-Repeatedly run a command and auto-apply fixes until it succeeds. Defaults to 5 tries before giving up.
+Repeatedly run a command and automatically attempt fixes until it succeeds, rolling back changes on failure. Defaults to 5 tries before giving up.
 
 ```bash
 plandex debug 'npm test' # try 5 times or until it succeeds
@@ -340,7 +403,9 @@ plandex debug 10 'npm test' # try 10 times or until it succeeds
 pdx db 'npm test' # alias
 ```
 
-`--commit/-c`: Commit changes to git on each try.
+`--commit/-c`: Commit changes to git when `--apply/-a` is passed. Defaults to config value `auto-commit`.
+
+`--skip-commit`: Don't commit changes to git. Defaults to opposite of config value `auto-commit`.
 
 ## Changes
 
@@ -357,15 +422,9 @@ plandex diff --ui
 
 `--ui/-u`: Review pending changes in a local browser UI.
 
-`--side-by-side/-s`: Show diffs UI in side-by-side view rather than line-by-line.
+`--side-by-side/-s`: Show diffs UI in side-by-side view
 
-### changes
-
-Review pending changes in a TUI.
-
-```bash
-plandex changes
-```
+`--line-by-line/-l`: Show diffs UI in line-by-line view
 
 ### apply
 
@@ -376,17 +435,26 @@ plandex apply
 pdx ap # alias
 ```
 
-`--yes/-y`: Skip confirmation.
+`--bg`: Run task in the background.
 
-`--commit/-c`: Commit changes to git.
+`--auto-update-context`: Automatically confirm context updates. Defaults to config value `auto-update-context`.
 
-`--skip-commit`: Don't commit changes to git.
+`--no-exec`: Don't execute commands after successful apply. Defaults to opposite of config value `can-exec`.
+
+`--auto-exec`: Automatically execute commands after successful apply without confirmation. Defaults to config value `auto-exec`.
+
+`--debug`: Automatically execute and debug failing commands (optionally specify number of tries—default is 5). Defaults to config values of `auto-debug` and `auto-debug-tries`.
+
+`--commit/-c`: Commit changes to git when `--apply/-a` is passed. Defaults to config value `auto-commit`.
+
+`--skip-commit`: Don't commit changes to git. Defaults to opposite of config value `auto-commit`.
 
 ### reject
 
 Reject pending changes to one or more project files.
 
 ```bash
+plandex reject # select from a list of pending files to reject
 plandex reject file.ts # one file
 plandex reject file.ts another-file.ts # multiple files
 plandex reject --all # all pending files
@@ -414,14 +482,10 @@ plandex logs # alias
 Rewind to a previous state.
 
 ```bash
-plandex rewind # rewind 1 step
+plandex rewind # select from a list of previous states to rewind to
 plandex rewind 3 # rewind 3 steps
 plandex rewind a7c8d66 # rewind to a specific step from `plandex log`
 ```
-
-With no arguments, Plandex rewinds one step.
-
-With one argument, Plandex rewinds the specified number of steps (if an integer is passed) or rewinds to the specified step (if a hash from `plandex log` is passed).
 
 ### convo
 
@@ -477,12 +541,8 @@ plandex delete-branch # select from a list of branches
 plandex delete-branch some-branch # by name
 plandex delete-branch 4 # by index in `plandex branches`
 
-pdx db # alias
+pdx dlb # alias
 ```
-
-With no arguments, Plandex prompts you with a list of branches to select from.
-
-With one argument, Plandex deletes a branch by name or by index in the `plandex branches` list.
 
 ## Background Tasks / Streams
 
@@ -502,13 +562,8 @@ Connect to an active plan stream.
 plandex connect # select from a list of active streams
 plandex connect a4de # by stream ID in `plandex ps`
 plandex connect some-plan main # by plan name and branch name
+pdx conn # alias
 ```
-
-With no arguments, Plandex prompts you with a list of active streams to select from.
-
-With one argument, Plandex connects to a stream by stream ID in the `plandex ps` list.
-
-With two arguments, Plandex connects to a stream by plan name and branch name.
 
 ### stop
 
@@ -520,11 +575,75 @@ plandex stop a4de # by stream ID in `plandex ps`
 plandex stop some-plan main # by plan name and branch name
 ```
 
-With no arguments, Plandex prompts you with a list of active streams to select from.
+## Configuration
 
-With one argument, Plandex connects to a stream by stream ID in the `plandex ps` list.
+### config
 
-With two arguments, Plandex connects to a stream by plan name and branch name.
+Show current plan config. Output includes configuration settings for the plan, such as autonomy level, model settings, and other plan-specific options.
+
+```bash
+plandex config
+```
+
+### config default
+
+Show the default config used for new plans. Output includes the default configuration settings that will be applied to newly created plans.
+
+```bash
+plandex config default
+```
+
+### set-config
+
+Update configuration settings for the current plan.
+
+```bash
+plandex set-config # select from a list of config options
+plandex set-config auto-context true # set a specific config option
+```
+
+With no arguments, Plandex prompts you to select from a list of config options.
+
+With arguments, allows you to directly set specific configuration options for the current plan.
+
+### set-config default
+
+Update the default configuration settings for new plans.
+
+```bash
+plandex set-config default # select from a list of config options
+plandex set-config default auto-mode basic # set a specific default config option
+```
+
+Works exactly the same as set-config above, but sets the default configuration for all new plans instead of only the current plan.
+
+### set-auto
+
+Update the auto-mode (autonomy level) for the current plan.
+
+```bash
+plandex set-auto # select from a list of auto-modes
+plandex set-auto full # set to full automation
+plandex set-auto semi # set to semi-auto mode
+plandex set-auto plus # set to plus mode
+plandex set-auto basic # set to basic mode
+plandex set-auto none # set to none (step-by-step, no automation)
+```
+
+With no arguments, Plandex prompts you to select from a list of automation levels.
+
+With one argument, Plandex sets the automation level directly to the specified value.
+
+### set-auto default
+
+Set the default auto-mode for new plans.
+
+```bash
+plandex set-auto default # select from a list of auto-modes
+plandex set-auto default basic # set default to basic mode
+```
+
+Works exactly the same as set-auto above, but sets the default automation level for all new plans instead of only the current plan.
 
 ## Models
 
@@ -632,6 +751,8 @@ Show all available model packs.
 plandex model-packs
 ```
 
+`--custom`: Show available custom (user-created) model packs only.
+
 ### model-packs create
 
 Create a new custom model pack.
@@ -672,7 +793,7 @@ Invite a user to join your org.
 
 ```bash
 plandex invite # prompt for email, name, and role
-plandex invite name@domain.com 'Full Name' member # invite with email, name, and role 
+plandex invite name@domain.com 'Full Name' member # invite with email, name, and role
 ```
 
 Users can be invited as `member`, `admin`, or `owner`.

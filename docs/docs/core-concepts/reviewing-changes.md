@@ -1,11 +1,15 @@
 ---
-sidebar_position: 4
+sidebar_position: 5
 sidebar_label: Pending Changes
 ---
 
 # Pending Changes
 
 When you give Plandex a task, by default the changes aren't applied directly to your project files. Instead, they are accumulated in Plandex's version-controlled **sandbox** so that you can review them first.
+
+## Review Menu
+
+Once Plandex has finished with a task, you'll see a review menu with several hotkey options. These hotkeys act as shortcuts for the commands described below.
 
 ## `plandex diffs` / `plandex diffs --ui`
 
@@ -23,25 +27,24 @@ You can also view them in a local browser UI with the `plandex diffs --ui` comma
 plandex diffs --ui
 ```
 
-If you pass the `--side-by-side/-s` flag alongside `--ui`, the diffs will be shown in a side-by-side view rather than line-by-line.
-
 ## Rejecting Files
 
-While we're working hard to make file updates as reliable as possible, bad updates can still happen. If the plan's changes were applied incorrectly to a file, you can either [apply the changes](#apply-the-changes) and then fix the problems manually, *or* you can reject the updates to that file and then make the proposed changes yourself manually. 
+If the plan's changes were applied incorrectly to a file, or you don't want to apply them for another reason, you can either [apply the changes](#apply-the-changes) and then fix the problems manually, _or_ you can reject the updates to that file and then make the proposed changes yourself manually.
 
-To reject changes to a file (or multiple files), you can run `plandex reject` with one or more file paths:
-
-```bash
-plandex reject some-file.py
-```
-
-You can reject *all* currently pending files by passing no arguments to the reject command (you'll then be prompted to confirm the rejection):
+To reject changes to a file (or multiple files), you can run `plandex reject`. You'll be prompted to select which files to reject.
 
 ```bash
-plandex reject
+plandex reject # select files to reject
 ```
 
-Once the bad update is rejected, copy the changes from the plan's output or run `plandex convo` to output the full conversation and copy them from there. Then apply the updates to that file yourself.
+You can reject _all_ currently pending files by passing the `--all` flag to the reject command, or you can pass a list of specific files to reject:
+
+```bash
+plandex reject --all
+plandex reject file1.ts file2.ts
+```
+
+If you rejected a file due to the changes being applied incorrectly, but you still want to use the code, either scroll up and copy the changes from the plan's output or run `plandex convo` to output the full conversation and copy from there. Then apply the updates to that file yourself.
 
 ## Apply The Changes
 

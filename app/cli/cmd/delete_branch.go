@@ -15,7 +15,7 @@ import (
 
 var deleteBranchCmd = &cobra.Command{
 	Use:     "delete-branch",
-	Aliases: []string{"db"},
+	Aliases: []string{"dlb"},
 	Short:   "Delete a plan branch by name or index",
 	Run:     deleteBranch,
 	Args:    cobra.MaximumNArgs(1),

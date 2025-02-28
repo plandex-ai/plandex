@@ -1,5 +1,5 @@
 ---
-sidebar_position: 2
+sidebar_position: 1
 sidebar_label: Install
 ---
 
@@ -8,7 +8,7 @@ sidebar_label: Install
 ## Quick Install
 
 ```bash
-curl -sL https://plandex.ai/install.sh | bash
+curl -sL https://v2.plandex.ai/install.sh | bash
 ```
 
 ## Manual install
@@ -19,7 +19,7 @@ Grab the appropriate binary for your platform from the latest [release](https://
 
 ```bash
 git clone https://github.com/plandex-ai/plandex.git
-git clone https://github.com/plandex-ai/survey.git
+git checkout v2
 cd plandex/app/cli
 go build -ldflags "-X plandex/version.Version=$(cat version.txt)"
 mv plandex /usr/local/bin # adapt as needed for your system

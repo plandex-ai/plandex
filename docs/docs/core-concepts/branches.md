@@ -1,5 +1,5 @@
 ---
-sidebar_position: 6
+sidebar_position: 8
 sidebar_label: Branches
 ---
 
@@ -18,6 +18,7 @@ To create a new branch, use the `plandex checkout` command:
 
 ```bash
 plandex checkout new-branch
+pdxd new-branch # alias
 ```
 
 ## Switching Branches

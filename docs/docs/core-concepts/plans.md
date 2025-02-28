@@ -5,13 +5,13 @@ sidebar_label: Plans
 
 # Plans
 
-A **plan** in Plandex is similar to a conversation in ChatGPT. It might only include a single prompt and model response that executes one small task, or it could represent a long back and forth with the model that generates dozens of files and builds a whole feature or an entire project.
+A **plan** in Plandex is similar to a conversation in ChatGPT or Claude. It might only include a single prompt and model response that executes one small task, or it could represent a long back and forth with the model that generates dozens of files and builds a whole feature or an entire project.
 
-A plan includes: 
+A plan includes:
 
-- Any context that you've loaded. 
-- Your conversation with the model. 
-- Any proposed changes that have been accumulated during the course of the conversation.
+- Any [context](./context-management.md) that you or the model have loaded.
+- Your [conversation](./conversation.md) with the model.
+- Any [pending changes](./reviewing-changes.md) that have been accumulated during the course of the conversation.
 
 Plans support [version control](./version-control.md) and [branches](./branches.md).
 
@@ -23,7 +23,21 @@ First `cd` into your **project's directory.** Make a new directory first with `m
 cd your-project-dir
 ```
 
-Then **start your first plan** with `plandex new`.
+### REPL
+
+To start a new plan with the REPL, just run:
+
+```bash
+plandex
+```
+
+If you haven't created a new plan in this directory previously, a plan will automatically be created for you when the REPL starts.
+
+If already have a plan loaded in the REPL (you can check with `\current`), you can start a new plan with `\new`.
+
+### CLI
+
+You can create a new plan through the CLI with `plandex new`.
 
 ```bash
 plandex new
@@ -91,7 +105,7 @@ plandex unarchive 2 # unarchive a plan by number in the `plandex plans --archive
 
 ## .plandex Directory
 
-When you run `plandex new` for the first time in any directory, Plandex will create a `.plandex` directory there for light project-level config.  
+When you run `plandex` (for a REPL) or `plandex new` for the first time in any directory, Plandex will create a `.plandex` directory there for light project-level config.
 
 If multiple people are using Plandex with the same project, you should either:
 
@@ -100,6 +114,12 @@ If multiple people are using Plandex with the same project, you should either:
 
 ## Project Directories
 
-So far, we've assumed you're running `plandex new` to create plans in your project's root directory. While that is the most common use case, it can be useful to create plans in subdirectories of your project too. That's because context file paths in Plandex are specified relative to the directory where the plan was created. So if you're working on a plan for just one part of your project, you might want to create the plan in a subdirectory in order to shorten paths when loading context or referencing files in your prompts. This can also help with plan organization if you have a lot of plans.
+So far, we've assumed you're running `plandex` or `plandex new` to create plans in your project's root directory. While that is the most common use case, it can be useful to create plans in subdirectories of your project too.
+
+That's because context file paths in Plandex are specified relative to the directory where the plan was created. So if you're working on a plan for just one part of your project, you might want to create the plan in a subdirectory in order to shorten paths when loading context or referencing files in your prompts.
+
+Starting a plan (or REPL) in a subdirectory is also helpful when using [automatic context loading](./context-management.md#automatic-vs-manual) to limit the size of the project map and what files are available for the LLM to load.
+
+It can also help with plan organization if you have a lot of plans.
 
 When you run `plandex plans`, in addition to showing you plans in the current directory, Plandex will also show you plans in nearby parent directories or subdirectories. This helps you keep track of what plans you're working on and where they are in your project hierarchy. If you want to switch to a plan in a different directory, first `cd` into that directory, then run `plandex cd` to select the plan.

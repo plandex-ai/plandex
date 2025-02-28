@@ -7,19 +7,19 @@ sidebar_label: Cloud
 
 ## Overview
 
-Plandex Cloud is the easiest and most reliable way to use Plandex. You'll be prompted to start a trial when you create your first plan with `plandex new`. 
+Plandex Cloud is the easiest and most reliable way to use Plandex. You'll be prompted to start a trial when you create your first plan with `plandex new`.
 
 ## Billing Modes
 
 Plandex Cloud has two billing modes:
 
-### Integrated Models 
+### Integrated Models
 
-- Use Plandex credits to pay for AI models. 
-- No separate accounts or API keys are required. 
+- Use Plandex credits to pay for AI models.
+- No separate accounts or API keys are required.
 - Credits are deducted at the model's price from OpenAI or OpenRouter.ai plus a small markup to cover credit card processing costs.
 - Start with a $10 trial (includes $10 in credits).
-- After the trial, you can upgrade to a paid plan for $40 per month—includes $15 in credits every month that never expire.
+- After the trial, you can upgrade to a paid plan for $45 per month—includes $20 in credits every month that never expire.
 
 ### BYO API Key
 
@@ -55,7 +55,7 @@ Data sent to Plandex Cloud may be shared with the following third parties:
 - [AWS](https://aws.amazon.com/) for hosting and database services. Data is encrypted in transit and at rest.
 - Your name and email is shared with [Loops](https://loops.so/), an email marketing service, in order to send you updates on Plandex. You can opt out of these emails at any time with one click.
 - Your name and email are shared with our payment processor [Stripe](https://stripe.com/) if you subscribe to a paid plan or purchase the $10 trial.
-- Usage data is sent to [Google Analytics](https://analytics.google.com/) to help us track usage and make improvements.
+- Basic usage data is sent to [Google Analytics](https://analytics.google.com/) to help track usage and make improvements.
 
 Apart from the above list, no other data will be shared with any other third party. The list will be updated if any new third party services are introduced.
 
