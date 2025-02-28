@@ -58,4 +58,4 @@ pdx
 
 ☁️ _If you're using Plandex Cloud, you'll be prompted at this point to start a trial._
 
-Then just give a quick the REPL help text a quick read, and you're ready go.
+Then just give the REPL help text a quick read, and you're ready go.
