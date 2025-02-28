@@ -1,0 +1,1 @@
+ALTER TABLE custom_models DROP COLUMN default_reserved_output_tokens;
