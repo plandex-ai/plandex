@@ -56,7 +56,9 @@ func diffs(cmd *cobra.Command, args []string) {
 
 	term.StartSpinner("")
 
-	if diffGit || plainTextOutput {
+	if showDiffUi {
+		diffGit = false
+	} else if diffGit || plainTextOutput {
 		showDiffUi = false
 	} else {
 		diffGit = true
