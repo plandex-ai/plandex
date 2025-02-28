@@ -1,91 +1,25 @@
 ---
 sidebar_position: 2
-sidebar_label: Autonomy
+sidebar_label: Autonomy Levels
 ---
 
 # Autonomy
 
 Plandex v2 offers multiple levels of autonomy with pre-set config. Each autonomy level controls:
 
-- Automatic context loading and management
-- Automatic plan continuation
-- Automatic building of changes into pending updates
-- Automatic application of changes to project files
-- Automatic command execution and debugging
-- Automatic git commits after changes are applied successfully
-
-## Autonomy Levels
-
-### None
-
-Complete manual control with no automation:
-
-- Manual context loading
-- Manual plan continuation
-- Manual building of changes
-- Manual application of changes
-- Command execution disabled
-
-### Basic
-
-_Equivalent to Plandex v1 autonomy level_
-
-Minimal automation:
-
-- Manual context loading
-- Auto-continue plans until completion
-- Manual building of changes
-- Manual application of changes
-- Command execution disabled
-
-### Plus
-
-Smart context management and manual command execution:
-
-- Manual initial context loading
-- Auto-continue plans until completion
-- Smart context management (only loads necessary files during implementation steps)
-- Auto-update context when files change
-- Auto-build changes into pending updates
-- Manual application of changes
-- Manual command execution
-- Auto-commit changes to git when applied
-
-### Semi
-
-_Default autonomy level for a fresh Plandex install_
-
-Automatic context loading:
-
-- Auto-load context using project map
-- Auto-continue plans until completion
-- Smart context management
-- Auto-update context when files change
-- Auto-build changes into pending updates
-- Manual application of changes
-- Manual command execution
-- Auto-commit changes to git when applied
-
-### Full
-
-Complete automation:
-
-- Auto-load context using project map
-- Auto-continue plans until completion
-- Smart context management
-- Auto-update context when files change
-- Auto-build changes into pending updates
-- Auto-apply changes to project files
-- Auto-execute commands after successful apply
-- Auto-debug failing commands
-- Auto-commit changes to git when applied
+- Context loading and management
+- Plan continuation through multiple steps
+- Building of changes into pending updates
+- Application of changes to project files
+- Command execution and debugging
+- Git commits after changes are applied successfully
 
 ## Autonomy Matrix
 
 | Feature               | None | Basic | Plus | Semi | Full |
 | --------------------- | ---- | ----- | ---- | ---- | ---- |
 | `auto-continue`       | ❌   | ✅    | ✅   | ✅   | ✅   |
-| `auto-build`          | ❌   | ❌    | ✅   | ✅   | ✅   |
+| `auto-build`          | ❌   | ✅    | ✅   | ✅   | ✅   |
 | `auto-load-context`   | ❌   | ❌    | ❌   | ✅   | ✅   |
 | `smart-context`       | ❌   | ❌    | ✅   | ✅   | ✅   |
 | `auto-update-context` | ❌   | ❌    | ✅   | ✅   | ✅   |
@@ -141,9 +75,75 @@ plandex new --full       # Create with 'Full'
 \set-auto full    # Set to Full-Auto
 ```
 
-### Custom Autonomy Config
+## Autonomy Levels
 
-For more details on configuration options, see the [Configuration](./configuration.md) page.
+### None
+
+Complete manual control with no automation:
+
+- Manual context loading
+- Context updates require approval
+- Manual plan continuation
+- Manual building of changes
+- Manually apply changes
+- Command execution disabled
+
+### Basic
+
+_Equivalent to Plandex v1 autonomy level_
+
+Minimal automation:
+
+- Manual context loading
+- Context updates require approval
+- Auto-continue plans until completion
+- Auto-build changes into pending updates
+- Manually apply changes
+- Command execution disabled
+
+### Plus
+
+Smart context management and manual command execution:
+
+- Manual context loading
+- Auto-update context when files change
+- Auto-continue plans until completion
+- Smart context management (only loads necessary files during implementation steps)
+- Auto-build changes into pending updates
+- Manually apply changes
+- Manual command execution
+- Auto-commit changes to git when applied
+
+### Semi
+
+_Default autonomy level for a fresh Plandex v2 install_
+
+Automatic context loading:
+
+- Auto-load context using project map
+- Auto-update context when files change
+- Auto-continue plans until completion
+- Smart context management
+- Auto-build changes into pending updates
+- Manually apply changes
+- Manual command execution
+- Auto-commit changes to git when applied
+
+### Full
+
+Complete automation:
+
+- Auto-load context using project map
+- Auto-continue plans until completion
+- Smart context management
+- Auto-update context when files change
+- Auto-build changes into pending updates
+- Auto-apply changes to project files
+- Auto-execute commands after successful apply
+- Auto-debug failing commands
+- Auto-commit changes to git when applied
+
+### Custom
 
 You can give a plan custom autonomy settings by setting config values directly:
 
@@ -153,7 +153,7 @@ plandex set-config auto-build true
 plandex set-config auto-load-context true
 ```
 
-For more details on configuration options, see the [Configuration](./configuration.md) page.
+[More details on configuration](./configuration.md)
 
 ## Safety
 
