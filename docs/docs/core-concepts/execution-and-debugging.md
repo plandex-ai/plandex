@@ -5,10 +5,18 @@ sidebar_label: Execution and Debugging
 
 # Execution and Debugging
 
-Plandex v2 includes powerful execution control and automated debugging capabilities.
+Plandex v2 includes command execution and automated debugging capabilities that aim to balance power, control, and safety.
 
 ## Command Execution
 
+During a plan, apart from making changes to files, Plandex can write to a special path, `_apply.sh`, with any commands required to complete the plan. This commonly includes installing dependencies, running tests, building and running code, starting servers, and so on.
+
+Commands accumulate in the sandbox just like [pending changes to files](./reviewing-changes.md#pending-changes). If execution fails, you can roll back changes and optionally send the output to the model for automated debugging and retries.
+
+While Plandex will attempt to automatically infer relevant commands to run, it also tries not to overdo it. It generally won't, for example, run a test suite unless you've specifically asked it to, since it may not be desirable after every change. It tries to only run what's strictly necessary, to make local project-level changes instead of global system-wide changes, to check existing dependencies before installing, to write idempotent commands, to avoid hiding output or asking for user input, and to recover gracefully from failures.
+
+If you want specific commands to run and Plandex isn't including automatically them because of it's somewhat conservative approach, you can either mention them in the prompt, or you can use the `plandex debug` command to automatically debug based on the output of any command you choose.
+   
 ### Execution Config
 
 Control whether Plandex can execute commands:
@@ -18,25 +26,16 @@ plandex set-config can-exec true  # Allow command execution (default)
 plandex set-config can-exec false # Disable command execution
 ```
 
-### Automatic Execution
+If you toggle `can-exec` to `false`, Plandex will completely skip writing any commands to `_apply.sh`.
 
-Control whether commands are executed automatically after applying changes:
+Control whether commands are executed automatically after applying changes (be careful with this):
 
 ```bash
 plandex set-config auto-exec true  # Auto-execute commands
 plandex set-config auto-exec false # Prompt before executing (default)
-
-# Override for specific commands
-plandex apply --auto-exec  # Auto-execute after applying
-plandex apply --no-exec    # Don't execute after applying
-
-# With tell/continue/build
-plandex tell "add a route" --apply --auto-exec
 ```
 
-## Debugging Commands
-
-### Using `plandex debug`
+## Automated Debugging
 
 The `plandex debug` command repeatedly runs a terminal command, making fixes until it succeeds:
 
@@ -53,28 +52,10 @@ This will:
 4. If command is succesful after fixes, commit changes (if auto-commit is enabled). Otherwise, roll back changes and return to step 2.
 5. Repeat until success or max tries reached
 
-### Number of Tries
-
-Configure the default number of tries:
+You can configure the default number of tries:
 
 ```bash
 plandex set-config auto-debug-tries 10  # Set default to 10 tries
-```
-
-### Automatic Debugging
-
-Control whether failing commands are automatically debugged:
-
-```bash
-plandex set-config auto-debug true  # Auto-debug failing commands
-plandex set-config auto-debug false # Don't auto-debug (default)
-
-# Override for specific commands
-plandex apply --debug     # Auto-debug failing commands
-plandex apply --debug 10  # Auto-debug with 10 tries
-
-# With tell/continue/build
-plandex tell "add a route" --apply --debug
 ```
 
 ## Common Debugging Workflows
@@ -109,42 +90,34 @@ plandex debug 'npm run typecheck'
 plandex debug 'tsc --noEmit'
 ```
 
-## Alternative Approaches
+## A Manual Alternative
 
-### Piping Into `plandex tell`
-
-For a less automated approach:
+For a less automated approach, you can pipe the output of a command into `plandex chat` or `plandex tell`.
 
 ```bash
 npm test | plandex tell 'npm test output'
+go build | plandex chat 'what could be causing these type errors?'
 ```
 
-This works similarly to `plandex debug` but without automatic retries. You can review changes before applying them.
+This works similarly to `plandex debug` but without automatically applying changes and retrying.
 
-## Interaction with Autonomy Levels
+Note that piping output into a prompt requires using the CLI directly in the terminal. You can't do it from inside the [REPL](../repl.md).
+
+## Autonomy Matrix
 
 Execution and debugging behavior is affected by your [autonomy level](./autonomy.md):
 
 | Setting      | None | Basic | Plus | Semi | Full |
 | ------------ | ---- | ----- | ---- | ---- | ---- |
+| `can-exec`   | ❌   | ❌    | ✅   | ✅   | ✅   |
 | `auto-exec`  | ❌   | ❌    | ❌   | ❌   | ✅   |
 | `auto-debug` | ❌   | ❌    | ❌   | ❌   | ✅   |
 
-With `full` autonomy, commands are automatically executed and debugged after changes are applied. For other levels, you'll be prompted to approve execution and debugging.
 
-## Configuration Settings
-
-Key settings that control execution and debugging:
-
-```bash
-plandex set-config can-exec true         # Allow command execution
-plandex set-config auto-exec true        # Auto-execute commands
-plandex set-config auto-debug true       # Auto-debug failing commands
-plandex set-config auto-debug-tries 10   # Set debug tries
-```
+With `full` autonomy, commands are automatically executed and debugged after changes are applied. For other levels, you'll be prompted to approve execution and debugging steps.
 
 ## Safety
 
-Needless to say, you should be extremely careful when using `auto-exec`, `auto-debug`, and the `debug` command. They can make many changes quickly without any prompting or review, and can run commands that could potentially be destructive to your system. While the best LLMs are quite trustworthy when it comes to running commands and are unlikely to cause harm, it still pays to be cautious.
+Needless to say, you should be extremely careful when using full auto mode, `auto-exec`, `auto-debug`, and the `debug` command. They can make many changes quickly without any prompting or review, and can run commands that could potentially be destructive to your system. While the best LLMs are quite trustworthy when it comes to running commands and are unlikely to cause harm, it still pays to be cautious.
 
-It's a good idea to make sure your git state is clean, and to check out an isolated branch before running these commands.
+It's a good idea to make sure your git state is clean, and to check out an isolated branch before using these features.

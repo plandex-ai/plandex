@@ -3,9 +3,9 @@ sidebar_position: 2
 sidebar_label: Autonomy
 ---
 
-# Autonomy Levels
+# Autonomy
 
-Plandex v2 offers five different levels of autonomy. Each autonomy level controls:
+Plandex v2 offers multiple levels of autonomy with pre-set config. Each autonomy level controls:
 
 - Automatic context loading and management
 - Automatic plan continuation
@@ -14,7 +14,7 @@ Plandex v2 offers five different levels of autonomy. Each autonomy level control
 - Automatic command execution and debugging
 - Automatic git commits after changes are applied successfully
 
-## The Five Autonomy Levels
+## Autonomy Levels
 
 ### None
 
@@ -24,9 +24,11 @@ Complete manual control with no automation:
 - Manual plan continuation
 - Manual building of changes
 - Manual application of changes
-- Manual command execution
+- Command execution disabled
 
-### Basic (equivalent to Plandex v1 autonomy level)
+### Basic
+
+_Equivalent to Plandex v1 autonomy level_
 
 Minimal automation:
 
@@ -34,11 +36,11 @@ Minimal automation:
 - Auto-continue plans until completion
 - Manual building of changes
 - Manual application of changes
-- Manual command execution
+- Command execution disabled
 
 ### Plus
 
-Smart context management:
+Smart context management and manual command execution:
 
 - Manual initial context loading
 - Auto-continue plans until completion
@@ -49,7 +51,9 @@ Smart context management:
 - Manual command execution
 - Auto-commit changes to git when applied
 
-### Semi (default level)
+### Semi
+
+_Default autonomy level for a fresh Plandex install_
 
 Automatic context loading:
 
@@ -86,6 +90,7 @@ Complete automation:
 | `smart-context`       | ❌   | ❌    | ✅   | ✅   | ✅   |
 | `auto-update-context` | ❌   | ❌    | ✅   | ✅   | ✅   |
 | `auto-apply`          | ❌   | ❌    | ❌   | ❌   | ✅   |
+| `can-exec`            | ❌   | ❌    | ✅   | ✅   | ✅   |
 | `auto-exec`           | ❌   | ❌    | ❌   | ❌   | ✅   |
 | `auto-debug`          | ❌   | ❌    | ❌   | ❌   | ✅   |
 | `auto-commit`         | ❌   | ❌    | ✅   | ✅   | ✅   |

@@ -11,7 +11,7 @@ Changes to context are [version controlled](./version-control.md) and can be [br
 
 ## Automatic vs. Manual
 
-As of 2.0.0, Plandex loads context automatically by default. When a new plan is created, a [project map](#loading-project-maps) is generated and loaded into context. The LLM then uses this map to select relevant context before planning a task or responding to a message.
+As of v2, Plandex loads context automatically by default. When a new plan is created, a [project map](#loading-project-maps) is generated and loaded into context. The LLM then uses this map to select relevant context before planning a task or responding to a message.
 
 ### Tradeoffs
 
@@ -20,13 +20,6 @@ Automatic context loading makes Plandex more powerful and easier to work with, b
 ### Setting Manual Mode
 
 You can use manual context loading by:
-
-- Setting the `auto-load-context` config option to `false`:
-
-```bash
-plandex set-config auto-load-context false
-plandex set-config default auto-load-context false # set the default value for all new plans
-```
 
 - Using `set-auto` to choose a lower [autonomy level](./autonomy.md) that has auto-load-context disabled (like `plus` or `basic`).
 
@@ -43,9 +36,16 @@ plandex --plus
 plandex new --basic
 ```
 
+- Setting the `auto-load-context` [config option](./configuration.md) to `false`:
+
+```bash
+plandex set-config auto-load-context false
+plandex set-config default auto-load-context false # set the default value for all new plans
+```
+
 ### Smart Context Window Management
 
-Another new context management feature in 2.0.0 is smart context window management. When making a plan with multiple steps, Plandex will determine which files are relevant to each step. Only those files will be loaded into context during implementation.
+Another new context management feature in v2 is smart context window management. When making a plan with multiple steps, Plandex will determine which files are relevant to each step. Only those files will be loaded into context during implementation.
 
 When combined with automatic context loading, this effectively creates a sliding context window that grows and shrinks as needed throughout the plan.
 
@@ -71,13 +71,13 @@ plandex set-config auto-update-context false
 plandex set-config default auto-update-context false # set the default value for all new plans
 ```
 
-### Context-Autonomy Matrix
+### Autonomy Matrix
 
 Here are the different autonomy levels as they relate to context management config options:
 
 |                       | `none` | `basic` | `plus` | `semi` | `full` |
 | --------------------- | ------ | ------- | ------ | ------ | ------ |
-| `auto-load-context`   | ❌     | ❌      | ✅     | ✅     | ✅     |
+| `auto-load-context`   | ❌     | ❌      | ❌     | ✅     | ✅     |
 | `smart-context`       | ❌     | ❌      | ✅     | ✅     | ✅     |
 | `auto-update-context` | ❌     | ❌      | ✅     | ✅     | ✅     |
 
