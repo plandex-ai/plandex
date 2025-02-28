@@ -1,4 +1,3 @@
-
 ---
 sidebar_position: 5
 sidebar_label: Pending Changes
@@ -66,7 +65,6 @@ plandex apply
 
 Plandex v2 introduces several new flags for the `apply` command that give you more control over what happens after changes are applied:
 
-- `--bg`: Run the apply operation in the background
 - `--auto-update-context`: Automatically update context if files have changed (defaults to config value `auto-update-context`)
 - `--no-exec`: Don't execute commands after successful apply (defaults to opposite of config value `can-exec`)
 - `--auto-exec`: Automatically execute commands after successful apply without confirmation (defaults to config value `auto-exec`)
@@ -83,6 +81,13 @@ You can control git integration with these flags:
 ```bash
 plandex apply --commit      # Commit changes to git after applying
 plandex apply --skip-commit # Don't commit changes to git
+```
+
+Or you can set the `auto-commit` config value to `true` or `false` to control this behavior globally:
+
+```bash
+plandex set-config auto-commit true
+plandex set-config default skip-commit true # Set the default value for new plans
 ```
 
 ### Command Execution
@@ -153,12 +158,12 @@ plandex set-config can-exec true
 
 The behavior of the `apply` command is also affected by the [autonomy level](./autonomy.md) you've set for your plan:
 
-| Setting | None | Basic | Plus | Semi | Full |
-| ------- | ---- | ----- | ---- | ---- | ---- |
-| `auto-apply` | ❌ | ❌ | ❌ | ❌ | ✅ |
-| `auto-exec` | ❌ | ❌ | ❌ | ❌ | ✅ |
-| `auto-debug` | ❌ | ❌ | ❌ | ❌ | ✅ |
-| `auto-commit` | ❌ | ❌ | ✅ | ✅ | ✅ |
+| Setting       | None | Basic | Plus | Semi | Full |
+| ------------- | ---- | ----- | ---- | ---- | ---- |
+| `auto-apply`  | ❌   | ❌    | ❌   | ❌   | ✅   |
+| `auto-exec`   | ❌   | ❌    | ❌   | ❌   | ✅   |
+| `auto-debug`  | ❌   | ❌    | ❌   | ❌   | ✅   |
+| `auto-commit` | ❌   | ❌    | ✅   | ✅   | ✅   |
 
 If you're using the `full` autonomy level, changes will be automatically applied to your project files, commands will be automatically executed, and failing commands will be automatically debugged.
 
@@ -186,6 +191,6 @@ For users who want more control, we recommend:
 3. Review the proposed changes with `plandex diff` or `plandex diff --ui`
 4. Apply the changes with `plandex apply`
 5. Manually execute any commands that need to be run
-If you want to skip the review step and automatically apply the changes from a plan immediately after it's complete, you can pass the `--apply/-a` flag to `plandex tell`, `plandex continue`, or `plandex build`.
+   If you want to skip the review step and automatically apply the changes from a plan immediately after it's complete, you can pass the `--apply/-a` flag to `plandex tell`, `plandex continue`, or `plandex build`.
 
 If you do this, you can also pass the `--commit/-c` flag to commit the automatically applied changes to git.

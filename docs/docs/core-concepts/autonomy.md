@@ -1,4 +1,3 @@
-
 ---
 sidebar_position: 2
 sidebar_label: Autonomy
@@ -6,32 +5,31 @@ sidebar_label: Autonomy
 
 # Autonomy Levels
 
-Plandex v2 offers five autonomy levels that control how much automation is applied during your workflow.
+Plandex v2 offers five different levels of autonomy. Each autonomy level controls:
 
-## Overview
-
-Each autonomy level controls:
-- Context loading and management
-- Plan continuation
-- Building changes into pending updates
-- Applying changes to project files
-- Command execution and debugging
-- Git integration
+- Automatic context loading and management
+- Automatic plan continuation
+- Automatic building of changes into pending updates
+- Automatic application of changes to project files
+- Automatic command execution and debugging
+- Automatic git commits after changes are applied successfully
 
 ## The Five Autonomy Levels
 
 ### None
 
 Complete manual control with no automation:
+
 - Manual context loading
 - Manual plan continuation
 - Manual building of changes
 - Manual application of changes
 - Manual command execution
 
-### Basic
+### Basic (equivalent to Plandex v1 autonomy level)
 
 Minimal automation:
+
 - Manual context loading
 - Auto-continue plans until completion
 - Manual building of changes
@@ -41,18 +39,20 @@ Minimal automation:
 ### Plus
 
 Smart context management:
+
 - Manual initial context loading
 - Auto-continue plans until completion
-- Smart context management (only loads necessary files)
+- Smart context management (only loads necessary files during implementation steps)
 - Auto-update context when files change
 - Auto-build changes into pending updates
 - Manual application of changes
 - Manual command execution
 - Auto-commit changes to git when applied
 
-### Semi
+### Semi (default level)
 
 Automatic context loading:
+
 - Auto-load context using project map
 - Auto-continue plans until completion
 - Smart context management
@@ -65,6 +65,7 @@ Automatic context loading:
 ### Full
 
 Complete automation:
+
 - Auto-load context using project map
 - Auto-continue plans until completion
 - Smart context management
@@ -75,7 +76,7 @@ Complete automation:
 - Auto-debug failing commands
 - Auto-commit changes to git when applied
 
-## Feature Comparison
+## Autonomy Matrix
 
 | Feature               | None | Basic | Plus | Semi | Full |
 | --------------------- | ---- | ----- | ---- | ---- | ---- |
@@ -135,23 +136,22 @@ plandex new --full       # Create with 'Full'
 \set-auto full    # Set to Full-Auto
 ```
 
-### Using Configuration
+### Custom Autonomy Config
 
-You can also set individual configuration options:
+For more details on configuration options, see the [Configuration](./configuration.md) page.
+
+You can give a plan custom autonomy settings by setting config values directly:
 
 ```bash
 plandex set-config auto-continue true
 plandex set-config auto-build true
 plandex set-config auto-load-context true
-# etc.
 ```
 
 For more details on configuration options, see the [Configuration](./configuration.md) page.
 
-## Recommended Workflow
+## Safety
 
-- New users: Start with basic or plus to learn how Plandex works
-- Experienced users: Use semi or full for maximum efficiency
-- Critical production tasks: Use lower autonomy levels for careful review
-- Exploratory tasks: Use full for quick iteration and experimentation
-    
+Be extremely careful with full auto mode! It can make many changes quickly without any prompting or review, and can run commands that could potentially be destructive to your system.
+
+It's a good idea to make sure your git state is clean, and to check out an isolated branch before running these commands.

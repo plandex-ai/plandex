@@ -26,33 +26,26 @@ plandex set-config default auto-mode basic   # Set default for new plans
 
 ### Autonomy Settings
 
-| Setting | Description | Default |
-| ------- | ----------- | ------- |
-| `auto-mode` | Overall autonomy level (`none`, `basic`, `plus`, `semi`, `full`) | `basic` |
-| `auto-continue` | Continue plans until completion | `true` |
-| `auto-build` | Build changes into pending updates | `true` |
-| `auto-load-context` | Load context using project map | `false` |
-| `smart-context` | Load only necessary files for each step | `false` |
-| `auto-update-context` | Update context when files change | `false` |
-| `auto-apply` | Apply changes to project files | `false` |
-| `auto-exec` | Execute commands after applying changes | `false` |
-| `auto-debug` | Debug failing commands | `false` |
-| `auto-commit` | Commit changes to git when applied | `false` |
+| Setting               | Description                                                      | Default |
+| --------------------- | ---------------------------------------------------------------- | ------- |
+| `auto-mode`           | Overall autonomy level (`none`, `basic`, `plus`, `semi`, `full`) | `basic` |
+| `auto-continue`       | Continue plans until completion                                  | `true`  |
+| `auto-build`          | Build changes into pending updates                               | `true`  |
+| `auto-load-context`   | Load context using project map                                   | `false` |
+| `smart-context`       | Load only necessary files for each step                          | `false` |
+| `auto-update-context` | Update context when files change                                 | `false` |
+| `auto-apply`          | Apply changes to project files                                   | `false` |
+| `auto-exec`           | Execute commands after applying changes                          | `false` |
+| `auto-debug`          | Debug failing commands                                           | `false` |
+| `auto-commit`         | Commit changes to git when applied                               | `false` |
 
 ### Execution Settings
 
-| Setting | Description | Default |
-| ------- | ----------- | ------- |
-| `can-exec` | Allow command execution (safety setting) | `true` |
-| `auto-debug-tries` | Number of tries for automatic debugging | `5` |
-| `auto-revert-on-rewind` | Revert project files when rewinding | `true` |
-
-### Context Settings
-
-| Setting | Description | Default |
-| ------- | ----------- | ------- |
-| `context-dir` | Base directory for auto-loading context | `.` |
-| `max-convo-tokens` | Max tokens in conversation before summarizing | `20000` |
+| Setting                 | Description                              | Default |
+| ----------------------- | ---------------------------------------- | ------- |
+| `can-exec`              | Allow command execution (safety setting) | `true`  |
+| `auto-debug-tries`      | Number of tries for automatic debugging  | `5`     |
+| `auto-revert-on-rewind` | Revert project files when rewinding      | `true`  |
 
 ## Setting Autonomy Levels
 
@@ -74,17 +67,17 @@ plandex set-auto default semi   # Set default to semi-auto
 
 ## Autonomy Level Comparison
 
-| Setting | None | Basic | Plus | Semi | Full |
-| ------- | ---- | ----- | ---- | ---- | ---- |
-| `auto-continue` | ❌ | ✅ | ✅ | ✅ | ✅ |
-| `auto-build` | ❌ | ❌ | ✅ | ✅ | ✅ |
-| `auto-load-context` | ❌ | ❌ | ❌ | ✅ | ✅ |
-| `smart-context` | ❌ | ❌ | ✅ | ✅ | ✅ |
-| `auto-update-context` | ❌ | ❌ | ✅ | ✅ | ✅ |
-| `auto-apply` | ❌ | ❌ | ❌ | ❌ | ✅ |
-| `auto-exec` | ❌ | ❌ | ❌ | ❌ | ✅ |
-| `auto-debug` | ❌ | ❌ | ❌ | ❌ | ✅ |
-| `auto-commit` | ❌ | ❌ | ✅ | ✅ | ✅ |
+| Setting               | None | Basic | Plus | Semi | Full |
+| --------------------- | ---- | ----- | ---- | ---- | ---- |
+| `auto-continue`       | ❌   | ✅    | ✅   | ✅   | ✅   |
+| `auto-build`          | ❌   | ❌    | ✅   | ✅   | ✅   |
+| `auto-load-context`   | ❌   | ❌    | ❌   | ✅   | ✅   |
+| `smart-context`       | ❌   | ❌    | ✅   | ✅   | ✅   |
+| `auto-update-context` | ❌   | ❌    | ✅   | ✅   | ✅   |
+| `auto-apply`          | ❌   | ❌    | ❌   | ❌   | ✅   |
+| `auto-exec`           | ❌   | ❌    | ❌   | ❌   | ✅   |
+| `auto-debug`          | ❌   | ❌    | ❌   | ❌   | ✅   |
+| `auto-commit`         | ❌   | ❌    | ✅   | ✅   | ✅   |
 
 ## Command Line Overrides
 
@@ -104,10 +97,3 @@ These overrides apply only to the current command execution and don't change the
 \set-config            # Modify current plan config
 \set-auto              # Set autonomy level
 ```
-
-## Configuration Storage
-
-- **Per-Plan Configuration**: Stored in the plan's metadata in the `.plandex` directory
-- **Global Default Configuration**: Stored in `~/.plandex/config.json`
-
-For more details on autonomy levels, see the [Autonomy](./autonomy.md) page.
