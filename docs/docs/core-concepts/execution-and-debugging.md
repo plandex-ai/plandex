@@ -6,74 +6,55 @@ sidebar_label: Execution and Debugging
 
 # Execution and Debugging
 
-Plandex v2 includes powerful execution and automated debugging capabilities that help you run commands and automatically fix issues when they arise.
+Plandex v2 includes powerful execution and automated debugging capabilities to help you run commands and fix issues automatically.
 
 ## Command Execution
 
-After applying changes to your project files, you often need to run commands to verify that the changes work as expected. Plandex can execute these commands for you and capture their output.
-
 ### Execution Permissions
 
-By default, Plandex can execute commands after changes are applied. This behavior is controlled by the `can-exec` configuration setting:
+Control whether Plandex can execute commands:
 
 ```bash
 plandex set-config can-exec true  # Allow command execution (default)
 plandex set-config can-exec false # Disable command execution
 ```
 
-If you're concerned about security, you can disable command execution entirely. When disabled, Plandex will not execute any commands, even if they're part of a plan or explicitly requested.
-
 ### Automatic Execution
 
-Plandex can automatically execute commands after changes are applied. This behavior is controlled by the `auto-exec` configuration setting:
+Control whether commands are executed automatically after applying changes:
 
 ```bash
-plandex set-config auto-exec true  # Automatically execute commands
-plandex set-config auto-exec false # Prompt before executing commands (default)
-```
+plandex set-config auto-exec true  # Auto-execute commands
+plandex set-config auto-exec false # Prompt before executing (default)
 
-You can also override this setting for a specific command:
+# Override for specific commands
+plandex apply --auto-exec  # Auto-execute after applying
+plandex apply --no-exec    # Don't execute after applying
 
-```bash
-plandex apply --auto-exec  # Automatically execute commands after applying changes
-plandex apply --no-exec    # Don't execute commands after applying changes
-```
-
-When using `plandex tell`, `plandex continue`, or `plandex build` with the `--apply` flag, you can also control command execution:
-
-```bash
-plandex tell "add a new route" --apply --auto-exec
-plandex tell "add a new route" --apply --no-exec
+# With tell/continue/build
+plandex tell "add a route" --apply --auto-exec
 ```
 
 ## Debugging Commands
 
-Plandex v2 includes a powerful `plandex debug` command that can repeatedly run any terminal command, continually making fixes based on the command's output until it succeeds.
-
 ### Using `plandex debug`
 
-To use `plandex debug`, simply run it with the command you want to debug:
+The `plandex debug` command repeatedly runs a terminal command, making fixes until it succeeds:
 
 ```bash
-plandex debug 'npm test'
-```
-
-This will:
-
-1. Run the specified command and check whether it succeeds or fails
-2. If it fails, send the exit code and command output to the LLM
-3. Apply the suggested fixes to your project files
-4. Repeat until the command succeeds or the maximum number of tries is reached
-
-### Number of Tries
-
-By default, `plandex debug` will run the command up to 5 times before giving up. You can change this by providing a different number of tries as the first argument:
-
-```bash
+plandex debug 'npm test'  # Try up to 5 times (default)
 plandex debug 10 'npm test'  # Try up to 10 times
 ```
 
-You can also configure the default number of tries with the `auto-debug-tries` configuration setting:
+This will:
+1. Run the command and check for success/failure
+2. If it fails, send the output to the LLM
+3. Apply suggested fixes to your project files
+4. Repeat until success or max tries reached
+
+### Number of Tries
+
+Configure the default number of tries:
 
 ```bash
 plandex set-config auto-debug-tries 10  # Set default to 10 tries
@@ -81,56 +62,35 @@ plandex set-config auto-debug-tries 10  # Set default to 10 tries
 
 ### Git Integration
 
-Like the `apply` command, `plandex debug` can automatically commit changes to git after each successful fix:
+Control whether changes are committed during debugging:
 
 ```bash
-plandex debug --commit 'npm test'      # Commit changes after each successful fix
+plandex debug --commit 'npm test'      # Commit changes after fixes
 plandex debug --skip-commit 'npm test' # Don't commit changes (default)
-```
 
-This behavior is also controlled by the `auto-commit` configuration setting:
-
-```bash
-plandex set-config auto-commit true  # Automatically commit changes
-plandex set-config auto-commit false # Don't automatically commit changes (default)
-```
-
-### Commands That Succeed
-
-If a command succeeds on the first try, `plandex debug` will exit immediately without making any model calls. This means you can use it for commands that may or may not succeed on the first try without worrying about unnecessary model usage.
-
-```bash
-plandex debug "echo 'ok'"  # Succeeds and immediately exits
+# Global setting
+plandex set-config auto-commit true  # Auto-commit changes
 ```
 
 ### Automatic Debugging
 
-Plandex can automatically debug failing commands after changes are applied. This behavior is controlled by the `auto-debug` configuration setting:
+Control whether failing commands are automatically debugged:
 
 ```bash
-plandex set-config auto-debug true  # Automatically debug failing commands
-plandex set-config auto-debug false # Don't automatically debug failing commands (default)
-```
+plandex set-config auto-debug true  # Auto-debug failing commands
+plandex set-config auto-debug false # Don't auto-debug (default)
 
-You can also override this setting for a specific command:
+# Override for specific commands
+plandex apply --debug     # Auto-debug failing commands
+plandex apply --debug 10  # Auto-debug with 10 tries
 
-```bash
-plandex apply --debug     # Automatically debug failing commands after applying changes
-plandex apply --debug 10  # Automatically debug failing commands with 10 tries
-```
-
-When using `plandex tell`, `plandex continue`, or `plandex build` with the `--apply` flag, you can also control automatic debugging:
-
-```bash
-plandex tell "add a new route" --apply --debug
-plandex tell "add a new route" --apply --debug 10
+# With tell/continue/build
+plandex tell "add a route" --apply --debug
 ```
 
 ## Common Debugging Workflows
 
 ### Fixing Failing Tests
-
-One of the most common use cases for `plandex debug` is fixing failing tests:
 
 ```bash
 plandex debug 'npm test'
@@ -140,8 +100,6 @@ plandex debug 'pytest'
 
 ### Fixing Build Errors
 
-Another common use case is fixing build errors:
-
 ```bash
 plandex debug 'npm run build'
 plandex debug 'go build'
@@ -150,17 +108,12 @@ plandex debug 'cargo build'
 
 ### Fixing Linting Errors
 
-You can also use `plandex debug` to fix linting errors:
-
 ```bash
 plandex debug 'npm run lint'
 plandex debug 'golangci-lint run'
-plandex debug 'cargo clippy'
 ```
 
 ### Fixing Type Errors
-
-For TypeScript or other statically typed languages, you can use `plandex debug` to fix type errors:
 
 ```bash
 plandex debug 'npm run typecheck'
@@ -171,10 +124,64 @@ plandex debug 'tsc --noEmit'
 
 ### Piping Into `plandex tell`
 
-For a less automated approach that can accomplish the same thing, you can run your command and then pipe its output into `plandex tell`:
+For a less automated approach:
 
 ```bash
 npm test | plandex tell 'npm test output'
+```
+
+This works similarly to `plandex debug` but without automatic retries. You can review changes before applying them.
+
+## Interaction with Autonomy Levels
+
+Execution and debugging behavior is affected by your [autonomy level](./autonomy.md):
+
+| Setting | None | Basic | Plus | Semi | Full |
+| ------- | ---- | ----- | ---- | ---- | ---- |
+| `auto-exec` | ❌ | ❌ | ❌ | ❌ | ✅ |
+| `auto-debug` | ❌ | ❌ | ❌ | ❌ | ✅ |
+
+With `full` autonomy, commands are automatically executed and debugged. For other levels, you need to manually execute and debug commands (or override with flags).
+
+## Configuration Settings
+
+Key settings that control execution and debugging:
+
+```bash
+plandex set-config can-exec true         # Allow command execution
+plandex set-config auto-exec true        # Auto-execute commands
+plandex set-config auto-debug true       # Auto-debug failing commands
+plandex set-config auto-debug-tries 10   # Set debug tries
+```
+
+## Security Considerations
+
+- Plandex only executes commands that are part of a plan or explicitly requested
+- Plandex won't execute commands with elevated privileges unless explicitly requested
+- You can disable command execution with `plandex set-config can-exec false`
+- Always review commands before allowing them to run
+- Be careful with `auto-exec` and `auto-debug` as they execute without prompting
+
+## Recommended Workflow
+
+### Standard Workflow
+1. Use `plandex tell` to give Plandex a task
+2. Review changes with `plandex diff`
+3. Apply changes with `plandex apply`
+4. If a command fails, use `plandex debug` to fix it
+
+### Automated Workflow
+1. Set autonomy to `full` with `plandex set-auto full`
+2. Use `plandex tell` to give Plandex a task
+3. Let Plandex automatically apply, execute, and debug
+
+### Controlled Workflow
+1. Set autonomy to `plus` or `semi`
+2. Use `plandex tell` to give Plandex a task
+3. Review changes with `plandex diff`
+4. Apply changes with `plandex apply`
+5. Manually execute commands
+6. If a command fails, use `plandex debug` to fix it
 ```
 
 This will work similarly to `plandex debug`, but without the automatic retries and changes. You can review the changes and then run `plandex apply` if you're happy with them.
