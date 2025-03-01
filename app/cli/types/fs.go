@@ -9,4 +9,5 @@ type ProjectPaths struct {
 	AllDirs        map[string]bool
 	PlandexIgnored *ignore.GitIgnore
 	IgnoredPaths   map[string]string
+	GitIgnoredDirs map[string]bool
 }

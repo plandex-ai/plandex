@@ -220,8 +220,12 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 				var filteredPaths []string
 				for _, inputFilePath := range inputFilePaths {
 					if _, ok := paths.ActivePaths[inputFilePath]; !ok {
-						if _, ok := paths.IgnoredPaths[inputFilePath]; ok {
-							ignoredPaths[inputFilePath] = paths.IgnoredPaths[inputFilePath]
+						ignored, reason, err := fs.IsIgnored(paths, inputFilePath, baseDir)
+						if err != nil {
+							onErr(fmt.Errorf("failed to check if %s is ignored: %v", inputFilePath, err))
+						}
+						if ignored {
+							ignoredPaths[inputFilePath] = reason
 						}
 					} else {
 						filteredPaths = append(filteredPaths, inputFilePath)
@@ -242,7 +246,12 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 
 					numRoutines++
 					go func(inputFilePath string) {
-						flattenedPaths, err := ParseInputPaths([]string{inputFilePath}, params)
+						flattenedPaths, err := ParseInputPaths(ParseInputPathsParams{
+							FileOrDirPaths: []string{inputFilePath},
+							BaseDir:        baseDir,
+							ProjectPaths:   paths,
+							LoadParams:     params,
+						})
 						if err != nil {
 							errCh <- fmt.Errorf("failed to parse input paths: %v", err)
 							return
@@ -254,7 +263,13 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 								if _, ok := paths.ActivePaths[path]; ok {
 									filteredPaths = append(filteredPaths, path)
 								} else {
-									if _, ok := paths.IgnoredPaths[path]; ok {
+									ignored, reason, err := fs.IsIgnored(paths, path, baseDir)
+									if err != nil {
+										errCh <- fmt.Errorf("failed to check if %s is ignored: %v", path, err)
+										return
+									}
+									if ignored {
+										ignoredPaths[path] = reason
 										ignoredPaths[path] = paths.IgnoredPaths[path]
 									}
 								}
@@ -288,7 +303,12 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 				}
 
 			} else {
-				flattenedPaths, err := ParseInputPaths(inputFilePaths, params)
+				flattenedPaths, err := ParseInputPaths(ParseInputPathsParams{
+					FileOrDirPaths: inputFilePaths,
+					BaseDir:        baseDir,
+					ProjectPaths:   paths,
+					LoadParams:     params,
+				})
 				if err != nil {
 					onErr(fmt.Errorf("failed to parse input paths: %v", err))
 				}
@@ -313,8 +333,12 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 						if _, ok := paths.ActivePaths[path]; ok {
 							filteredPaths = append(filteredPaths, path)
 						} else {
-							if _, ok := paths.IgnoredPaths[path]; ok {
-								ignoredPaths[path] = paths.IgnoredPaths[path]
+							ignored, reason, err := fs.IsIgnored(paths, path, baseDir)
+							if err != nil {
+								onErr(fmt.Errorf("failed to check if %s is ignored: %v", path, err))
+							}
+							if ignored {
+								ignoredPaths[path] = reason
 							}
 						}
 					}

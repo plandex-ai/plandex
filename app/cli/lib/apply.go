@@ -103,7 +103,13 @@ func MustApplyPlanAttempt(
 		}
 	}
 
-	anyOutdated, didUpdate, err := CheckOutdatedContextWithOutput(true, autoConfirm, nil)
+	paths, err := fs.GetProjectPaths(fs.ProjectRoot)
+
+	if err != nil {
+		term.OutputErrorAndExit("error getting project paths: %v", err)
+	}
+
+	anyOutdated, didUpdate, err := CheckOutdatedContextWithOutput(true, autoConfirm, nil, paths)
 
 	if err != nil {
 		term.OutputErrorAndExit("error checking outdated context: %v", err)
@@ -183,7 +189,7 @@ func MustApplyPlanAttempt(
 			term.ResumeSpinner()
 		}
 
-		updatedFiles, toRollback, err = ApplyFiles(toApply, toRemove)
+		updatedFiles, toRollback, err = ApplyFiles(toApply, toRemove, paths)
 
 		if err != nil {
 			onErr("failed to apply files: %s", err)
@@ -539,14 +545,13 @@ func commitApplied(autoCommit bool, commitSummary string, updatedFiles []string,
 	return nil
 }
 
-func ApplyFiles(toApply map[string]string, toRemove map[string]bool) ([]string, *types.ApplyRollbackPlan, error) {
+func ApplyFiles(toApply map[string]string, toRemove map[string]bool, projectPaths *types.ProjectPaths) ([]string, *types.ApplyRollbackPlan, error) {
 	var updatedFiles []string
 	toRevert := map[string]types.ApplyReversion{}
 	var toRemoveOnRollback []string
-	var projectPaths *types.ProjectPaths
 
 	var mu sync.Mutex
-	totalOps := len(toApply) + len(toRemove) + 1
+	totalOps := len(toApply) + len(toRemove)
 	errCh := make(chan error, totalOps)
 
 	for path, content := range toApply {
@@ -656,15 +661,6 @@ func ApplyFiles(toApply map[string]string, toRemove map[string]bool) ([]string, 
 		}(path, remove)
 	}
 
-	go func() {
-		var err error
-		projectPaths, err = fs.GetProjectPaths(fs.ProjectRoot)
-		if err != nil {
-			errCh <- fmt.Errorf("failed to get project paths: %v", err)
-		}
-		errCh <- nil
-	}()
-
 	for i := 0; i < totalOps; i++ {
 		err := <-errCh
 		if err != nil {
@@ -703,12 +699,12 @@ func Rollback(rollbackPlan *types.ApplyRollbackPlan, msg bool) error {
 	}
 	go func() {
 		var err error
-		projectPaths, err := fs.GetProjectPaths(fs.ProjectRoot)
+		updatedProjectPaths, err := fs.GetProjectPaths(fs.ProjectRoot)
 		if err != nil {
 			errCh <- fmt.Errorf("failed to get project paths: %v", err)
 		}
 		var toRemove []string
-		for path := range projectPaths.ActivePaths {
+		for path := range updatedProjectPaths.ActivePaths {
 			if _, ok := rollbackPlan.PreviousProjectPaths.ActivePaths[path]; !ok {
 				toRemove = append(toRemove, path)
 			}

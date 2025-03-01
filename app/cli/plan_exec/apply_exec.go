@@ -138,8 +138,8 @@ func getOnApplyExecFail(applyFlags types.ApplyFlags, tellFlags types.TellFlags, 
 				CurrentPlanId: lib.CurrentPlanId,
 				CurrentBranch: lib.CurrentBranch,
 				ApiKeys:       apiKeys,
-				CheckOutdatedContext: func(maybeContexts []*shared.Context) (bool, bool, error) {
-					return lib.CheckOutdatedContextWithOutput(true, true, maybeContexts)
+				CheckOutdatedContext: func(maybeContexts []*shared.Context, projectPaths *types.ProjectPaths) (bool, bool, error) {
+					return lib.CheckOutdatedContextWithOutput(true, true, maybeContexts, projectPaths)
 				},
 			}, prompt, tellFlags)
 

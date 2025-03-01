@@ -2,78 +2,63 @@ package lib
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
+	"plandex-cli/fs"
 	"plandex-cli/types"
-	"strings"
-	"sync"
 )
 
-func ParseInputPaths(fileOrDirPaths []string, params *types.LoadContextParams) ([]string, error) {
-	var wg sync.WaitGroup
-	var mu sync.Mutex
-	var firstErr error
+type ParseInputPathsParams struct {
+	FileOrDirPaths []string
+	BaseDir        string
+	ProjectPaths   *types.ProjectPaths
+	LoadParams     *types.LoadContextParams
+}
+
+func ParseInputPaths(params ParseInputPathsParams) ([]string, error) {
+	fileOrDirPaths := params.FileOrDirPaths
+	baseDir := params.BaseDir
+	projectPaths := params.ProjectPaths
+	loadParams := params.LoadParams
+
 	resPaths := []string{}
 
-	for _, path := range fileOrDirPaths {
-		wg.Add(1)
-		go func(p string) {
-			defer wg.Done()
-
-			err := filepath.Walk(p, func(path string, info os.FileInfo, err error) error {
-				if err != nil {
-					return err
-				}
-
-				mu.Lock()
-				defer mu.Unlock()
-				if firstErr != nil {
-					return firstErr // If an error was encountered, stop walking
-				}
-
-				if info.IsDir() {
-					if info.Name() == ".git" || strings.Index(info.Name(), ".plandex") == 0 {
-						return filepath.SkipDir
-					}
-
-					if !(params.Recursive || params.NamesOnly || params.DefsOnly) {
-						// log.Println("path", path, "info.Name()", info.Name())
-
-						return fmt.Errorf("cannot process directory %s: requires --recursive/-r, --tree, or --map flag", path)
-					}
-
-					// calculate directory depth from base
-					// depth := strings.Count(path[len(p):], string(filepath.Separator))
-					// if params.MaxDepth != -1 && depth > params.MaxDepth {
-					// 	return filepath.SkipDir
-					// }
-
-					if params.NamesOnly {
-						// add directory name to results
-						resPaths = append(resPaths, path)
-					}
-				} else {
-					// add file path to results
-					resPaths = append(resPaths, path)
-				}
-
-				return nil
-			})
-
+	for path := range projectPaths.AllPaths {
+		// see if it's a child of any of the fileOrDirPaths
+		found := false
+		for _, p := range fileOrDirPaths {
+			found, err := fs.IsSubpathOf(p, path, baseDir)
 			if err != nil {
-				mu.Lock()
-				if firstErr == nil {
-					firstErr = err
-				}
-				mu.Unlock()
+				return nil, fmt.Errorf("error checking if %s is a subpath of %s: %s", path, p, err)
 			}
-		}(path)
-	}
+			if found {
+				break
+			}
+		}
 
-	wg.Wait()
+		if !found {
+			continue
+		}
 
-	if firstErr != nil {
-		return nil, firstErr
+		if projectPaths.AllDirs[path] {
+			if !(loadParams.Recursive || loadParams.NamesOnly || loadParams.DefsOnly) {
+				// log.Println("path", path, "info.Name()", info.Name())
+
+				return nil, fmt.Errorf("cannot process directory %s: requires --recursive/-r, --tree, or --map flag", path)
+			}
+
+			// calculate directory depth from base
+			// depth := strings.Count(path[len(p):], string(filepath.Separator))
+			// if params.MaxDepth != -1 && depth > params.MaxDepth {
+			// 	return filepath.SkipDir
+			// }
+
+			if loadParams.NamesOnly {
+				// add directory name to results
+				resPaths = append(resPaths, path)
+			}
+		} else {
+			// add file path to results
+			resPaths = append(resPaths, path)
+		}
 	}
 
 	return resPaths, nil

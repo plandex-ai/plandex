@@ -55,6 +55,7 @@ func TellPlan(
 	}
 
 	term.StartSpinner("")
+	log.Println("Getting context (ListContext)")
 	contexts, apiErr := api.Client.ListContext(params.CurrentPlanId, params.CurrentBranch)
 
 	if apiErr != nil {
@@ -62,12 +63,28 @@ func TellPlan(
 		term.OutputErrorAndExit("Error getting context: %v", apiErr)
 	}
 
-	anyOutdated, didUpdate, err := params.CheckOutdatedContext(contexts)
+	log.Println("Got context (ListContext)")
+
+	log.Println("Getting project paths")
+
+	paths, err := fs.GetProjectPaths(fs.GetBaseDirForContexts(contexts))
+
+	if err != nil {
+		outputPromptIfTell()
+		term.OutputErrorAndExit("Error getting project paths: %v", err)
+	}
+
+	log.Println("Got project paths")
+
+	log.Println("Checking outdated context (CheckOutdatedContext)")
+	anyOutdated, didUpdate, err := params.CheckOutdatedContext(contexts, paths)
 
 	if err != nil {
 		outputPromptIfTell()
 		term.OutputErrorAndExit("Error checking outdated context: %v", err)
 	}
+
+	log.Println("Checked outdated context (CheckOutdatedContext)")
 
 	if anyOutdated && !didUpdate {
 		term.StopSpinner()
@@ -81,15 +98,6 @@ func TellPlan(
 		color.New(term.ColorHiRed, color.Bold).Println("🛑 Plan won't continue due to outdated context")
 
 		os.Exit(0)
-	}
-
-	term.StartSpinner("")
-	paths, err := fs.GetProjectPaths(fs.GetBaseDirForContexts(contexts))
-	term.StopSpinner()
-
-	if err != nil {
-		outputPromptIfTell()
-		term.OutputErrorAndExit("Error getting project paths: %v", err)
 	}
 
 	var fn func() bool
