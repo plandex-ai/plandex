@@ -1,3 +1,4 @@
+
 package lib
 
 import (
@@ -16,7 +17,9 @@ import (
 	"plandex-cli/types"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
+	"time"
 
 	shared "plandex-shared"
 
@@ -385,6 +388,11 @@ func execApplyScript(
 	execCmd.Dir = fs.ProjectRoot
 	execCmd.Env = os.Environ()
 	execCmd.Stdin = os.Stdin
+	
+	// Set up process group isolation
+	execCmd.SysProcAttr = &syscall.SysProcAttr{
+		Setpgid: true,
+	}
 
 	// Create a pipe for both stdout and stderr
 	pipe, err := execCmd.StdoutPipe()
@@ -403,7 +411,8 @@ func execApplyScript(
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	var interrupted bool
+	// Use atomic variable to prevent data races
+	var interrupted atomic.Bool
 
 	// Handle SIGINT and SIGTERM
 	sigChan := make(chan os.Signal, 1)
@@ -412,10 +421,25 @@ func execApplyScript(
 	go func() {
 		select {
 		case <-sigChan:
-			// child will receive this and exit since it's in the same process group
-			// but main process won't since we're listening for it with signal.Notify
-			// all we need to do is mark that we were interrupted, since we'll now proceed past '.Wait()' below
-			interrupted = true
+			fmt.Println("\n⚠️ Interrupt received, terminating subprocess...")
+			interrupted.Store(true)
+			
+			// Send SIGINT to the process group to attempt graceful shutdown
+			if err := syscall.Kill(-execCmd.Process.Pid, syscall.SIGINT); err != nil {
+				log.Printf("Failed to send SIGINT to process group: %v", err)
+			}
+			
+			// Wait for a grace period, then force kill if still running
+			select {
+			case <-time.After(2 * time.Second):
+				fmt.Println("❌ Subprocess unresponsive; force-killing now.")
+				if err := syscall.Kill(-execCmd.Process.Pid, syscall.SIGKILL); err != nil {
+					log.Printf("Failed to send SIGKILL to process group: %v", err)
+				}
+			case <-ctx.Done():
+				// Context was cancelled, no need to force kill
+				return
+			}
 		case <-ctx.Done():
 			// Exit the goroutine when context is cancelled
 			return
@@ -436,12 +460,17 @@ func execApplyScript(
 		fmt.Println(line)
 		outputBuilder.WriteString(line + "\n")
 	}
+	
+	// Check for scanner errors
+	if scanErr := scanner.Err(); scanErr != nil {
+		log.Printf("⚠️ Scanner error reading subprocess output: %v", scanErr)
+	}
 
 	err = execCmd.Wait()
 
 	success := err == nil
 
-	if interrupted {
+	if interrupted.Load() {
 		os.Remove(dstPath)
 
 		fmt.Println()
