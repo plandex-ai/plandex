@@ -135,6 +135,8 @@ func TellPlan(
 			osDetails = term.GetOsDetails()
 		}
 
+		isGitRepo := fs.ProjectRootIsGitRepo()
+
 		apiErr := api.Client.TellPlan(params.CurrentPlanId, params.CurrentBranch, shared.TellPlanRequest{
 			Prompt:                 prompt,
 			ConnectStream:          !tellBg,
@@ -154,6 +156,7 @@ func TellPlan(
 			OpenAIBase:             openAIBase,
 			OpenAIOrgId:            openAIOrgId,
 			IsImplementationOfChat: isImplementationOfChat,
+			IsGitRepo:              isGitRepo,
 		}, stream.OnStreamPlan)
 
 		term.StopSpinner()
