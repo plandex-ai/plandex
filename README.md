@@ -71,7 +71,7 @@
 
 💻  Plandex is a terminal-based AI development tool that can **plan and execute** large coding tasks that span many steps and touch dozens of files. It can handle up to 2M tokens of context directly (~100k per file), and can index directories with 20M tokens or more using tree-sitter project maps.
 
-🔬  **A cumulative diff review sandbox** keeps AI-generated changes separate from your project files until they are ready to go. Command execution is controlled so you can easily roll back and debug. Experience the power of AI without breaking things or leaving behind a mess.
+🔬  **A cumulative diff review sandbox** keeps AI-generated changes separate from your project files until they are ready to go. Command execution is controlled so you can easily roll back and debug. Plandex helps you get the most out of AI without leaving behind a mess in your project.
 
 🧠  **Combine the best models** from Anthropic, OpenAI, Google, and open source providers to build entire features and apps with a robust terminal-based workflow.
 
@@ -84,6 +84,7 @@
 - 🐘 **2M token effective context window** with default model pack. Plandex loads only what's needed for each step.
 - 🗄️ **Reliable in large projects and files.** Easily generate, review, revise, and apply changes spanning dozens of files.
 - 🗺️ **Fast project map generation** and syntax validation with tree-sitter. Supports 30+ languages.
+- 💰 **Context caching** is used across the board for OpenAI and Anthropic models, reducing costs and latency.
 
 ## Tight control or full autonomy—it's up to you
 
@@ -94,6 +95,7 @@
 
 - 💬 **A project-aware chat mode** that helps you flesh out ideas before moving to implementation. Also great for asking questions and learning about a codebase.
 - 🧠 **Easily try + combine models** from multiple providers. Curated model packs offer different tradeoffs of capability, cost, and speed, as well as open source and provider-specific packs.
+- 🛡️ **Reliable file edits** that prioritize correctness. While most edits are quick and cheap, Plandex validates both syntax and logic as needed, with multiple fallback layers when there are problems.
 - 🔀 **Full-fledged version control** for every update to the plan, including branches for exploring multiple paths or comparing different models.
 - 📂 **Git integration** with commit message generation and optional automatic commits.
 
