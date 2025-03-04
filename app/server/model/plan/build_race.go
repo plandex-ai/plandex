@@ -2,6 +2,7 @@ package plan
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"plandex-server/syntax"
@@ -20,11 +21,9 @@ type buildRaceParams struct {
 	desc            string
 	reasons         []syntax.NeedsVerifyReason
 	syntaxErrors    []string
-	blocksRemoved   []struct {
-		Start   int
-		End     int
-		Content string
-	}
+
+	didCallFastApply bool
+	fastApplyCh      chan string
 }
 
 func (fileState *activeBuildStreamFileState) buildRace(
@@ -42,39 +41,148 @@ func (fileState *activeBuildStreamFileState) buildRace(
 	desc := params.desc
 	reasons := params.reasons
 	syntaxErrors := params.syntaxErrors
+	fastApplyCh := params.fastApplyCh
 
 	log.Printf("buildRace - original file length: %d, updated length: %d", len(originalFile), len(updated))
 	log.Printf("buildRace - has %d syntax errors and %d verify reasons", len(syntaxErrors), len(reasons))
 
-	resCh := make(chan raceResult, 1)
-	errCh := make(chan error, 2)
+	maxErrs := 3
 
-	startedWholeFileBuild := false
+	resCh := make(chan raceResult, 1)
+	errCh := make(chan error, maxErrs)
+
+	sendRes := func(res raceResult) {
+		select {
+		case resCh <- res:
+		case <-buildCtx.Done():
+			log.Printf("buildRace - context canceled, skipping sendRes")
+		}
+	}
+
+	sendErr := func(err error) {
+		select {
+		case errCh <- err:
+		case <-buildCtx.Done():
+			log.Printf("buildRace - context canceled, skipping sendErr")
+		}
+	}
+
+	startedFallbacks := false
 
 	startWholeFileBuild := func(comments string) {
 		log.Printf("buildRace - starting whole file fallback build")
-		startedWholeFileBuild = true
 		go func() {
 			content, err := fileState.buildWholeFileFallback(buildCtx, proposedContent, desc, comments)
 
 			if err != nil {
+				if errors.Is(err, context.Canceled) {
+					log.Printf("Context canceled during whole file build")
+					return
+				}
+
 				log.Printf("buildRace - whole file build failed: %v", err)
-				errCh <- fmt.Errorf("error building whole file: %w", err)
+				sendErr(fmt.Errorf("error building whole file: %w", err))
 			} else {
 				log.Printf("buildRace - whole file build succeeded")
-				resCh <- raceResult{content: content, valid: true}
+				sendRes(raceResult{content: content, valid: true})
 			}
 		}()
 	}
 
+	maybeStartFastApply := func(onFail func()) {
+		log.Printf("buildRace - starting fast apply")
+		if !params.didCallFastApply {
+			log.Printf("buildRace - fast apply isn't defined, skipping")
+			sendErr(nil) // no error, just no fast apply
+			onFail()
+			return
+		}
+
+		go func() {
+			var fastApplyRes string
+
+			select {
+			case fastApplyRes = <-fastApplyCh:
+			case <-buildCtx.Done():
+				log.Printf("buildRace - context canceled, skipping fast apply")
+				sendErr(nil) // no error, just no fast apply
+				onFail()
+				return
+			}
+
+			if fastApplyRes == "" {
+				log.Printf("buildRace - fast apply isn't defined or failed to run")
+				sendErr(nil) // no error, just no fast apply
+				onFail()
+				return
+			}
+
+			fastApplySyntaxErrors := fileState.validateSyntax(buildCtx, fastApplyRes)
+			fileState.builderRun.FastApplySyntaxErrors = fastApplySyntaxErrors
+
+			if len(fastApplySyntaxErrors) > 0 {
+				log.Printf("buildRace - fast apply succeeded, but has %d syntax errors", len(fastApplySyntaxErrors))
+				sendErr(fmt.Errorf("fast apply succeeded, but has %d syntax errors", len(fastApplySyntaxErrors)))
+				onFail()
+				return
+			}
+
+			log.Printf("buildRace - fast apply succeeded, validating...	")
+			validateResult, err := fileState.buildValidateLoop(buildCtx, buildValidateLoopParams{
+				originalFile:    originalFile,
+				updated:         fastApplyRes,
+				proposedContent: proposedContent,
+				desc:            desc,
+				reasons:         reasons,
+
+				// just validate since we're already building replacements in parallel
+				maxAttempts:                1,
+				validateOnlyOnFinalAttempt: true,
+			})
+
+			if err != nil {
+				if errors.Is(err, context.Canceled) {
+					log.Printf("Context canceled during fast apply validation")
+					return
+				}
+
+				log.Printf("buildRace - fast apply validation failed with error: %v", err)
+				sendErr(fmt.Errorf("fast apply validation failed: %w", err))
+				onFail()
+				return
+			}
+
+			if validateResult.valid {
+				log.Printf("buildRace - fast apply validation succeeded")
+				fileState.builderRun.FastApplySuccess = true
+				sendRes(raceResult{content: validateResult.updated, valid: validateResult.valid})
+			} else {
+				log.Printf("buildRace - fast apply validation failed with problem: %s", validateResult.problem)
+				fileState.builderRun.FastApplyFailureResponse = validateResult.problem
+				sendErr(fmt.Errorf("fast apply validation failed: %s", validateResult.problem))
+				onFail()
+				return
+			}
+		}()
+	}
+
+	startFallbacks := func(comments string) {
+		startedFallbacks = true
+		// try fast apply + validation first if it's defined
+		// if it's undefined or fails, start the whole file build fallback
+		maybeStartFastApply(func() {
+			startWholeFileBuild(comments)
+		})
+	}
+
 	// If we get an incorrect marker, start the whole file build in the background while the validation/replacement loop continues
 	onInitialStream := func(chunk string, buffer string) bool {
-		if !startedWholeFileBuild && strings.Contains(buffer, "<PlandexIncorrect/>") && strings.Contains(buffer, "<PlandexComments>") {
+		if !startedFallbacks && strings.Contains(buffer, "<PlandexIncorrect/>") && strings.Contains(buffer, "<PlandexComments>") {
 			log.Printf("buildRace - detected incorrect marker, triggering whole file build")
 
 			comments := utils.GetXMLContent(buffer, "PlandexComments")
 
-			startWholeFileBuild(comments)
+			startFallbacks(comments)
 		}
 		// keep streaming
 		return false
@@ -93,30 +201,49 @@ func (fileState *activeBuildStreamFileState) buildRace(
 		})
 
 		if err != nil {
+			if errors.Is(err, context.Canceled) {
+				log.Printf("Context canceled during buildValidate")
+				return
+			}
+
 			log.Printf("buildRace - validation loop failed: %v", err)
-			errCh <- fmt.Errorf("error building validate loop: %w", err)
+			sendErr(fmt.Errorf("error building validate loop: %w", err))
 		} else {
-			log.Printf("buildRace - validation loop succeeded, valid: %v", validateResult.valid)
-			resCh <- raceResult{content: validateResult.updated, valid: validateResult.valid}
+			log.Printf("buildRace - validation loop finished, valid: %v", validateResult.valid)
+			if validateResult.valid {
+				log.Printf("buildRace - validation loop succeeded, valid: %v", validateResult.valid)
+				sendRes(raceResult{content: validateResult.updated, valid: validateResult.valid})
+			} else {
+				log.Printf("buildRace - validation loop failed, valid: %v", validateResult.valid)
+				sendErr(fmt.Errorf("validation loop failed: %s", validateResult.problem))
+			}
 		}
 	}()
 
 	errs := []error{}
+	errChNumReceived := 0
 
 	for {
 		select {
+		case <-buildCtx.Done():
+			log.Printf("buildRace - context canceled")
+			return raceResult{}, buildCtx.Err()
 		case err := <-errCh:
-			log.Printf("buildRace - error %d: %v\n", len(errs), err)
-			errs = append(errs, err)
+			errChNumReceived++
+			log.Printf("buildRace - error channel received %d: %v\n", errChNumReceived, err)
 
-			if len(errs) > 1 {
+			if err != nil {
+				errs = append(errs, err)
+			}
+
+			if errChNumReceived >= maxErrs {
 				log.Printf("buildRace - all attempts failed with %d errors", len(errs))
 				return raceResult{}, fmt.Errorf("all build attempts failed: %v", errs)
 			}
 
-			if !startedWholeFileBuild {
-				log.Printf("buildRace - starting whole file build")
-				startWholeFileBuild("") // since replacements failed, pass an empty string for comments -- this causes whole file build to classify comments first
+			if !startedFallbacks {
+				log.Printf("buildRace - starting build fallbacks")
+				startFallbacks("") // since replacements failed, pass an empty string for comments -- this causes whole file build to classify comments first
 			}
 		case res := <-resCh:
 			log.Printf("buildRace - got successful result")

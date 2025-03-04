@@ -2,6 +2,7 @@ package plan
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"math/rand"
@@ -59,12 +60,8 @@ func (fileState *activeBuildStreamFileState) buildWholeFileFallback(buildCtx con
 
 	var prediction string
 
-	if modelConfig.BaseModelConfig.PredictedOutputEnabled {
+	if modelConfig.BaseModelConfig.PredictedOutputEnabled && comments != "" {
 		prediction = `
-## Comments
-
-No comments
-
 <PlandexWholeFile>
 ` + originalFile + `
 </PlandexWholeFile>
@@ -97,6 +94,11 @@ No comments
 	})
 
 	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			log.Printf("Context canceled during buildWholeFile")
+			return "", err
+		}
+
 		return "", fmt.Errorf("error calling model: %v", err)
 	}
 

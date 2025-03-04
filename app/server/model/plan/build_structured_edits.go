@@ -6,6 +6,7 @@ import (
 	"log"
 	"plandex-server/db"
 	diff_pkg "plandex-server/diff"
+	"plandex-server/hooks"
 	"plandex-server/syntax"
 	"strings"
 	"time"
@@ -37,11 +38,62 @@ func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 	proposedContent := activeBuild.FileContent
 	desc := activeBuild.FileDescription
 
-	log.Printf("buildStructuredEdits - %s - applying changes\n", filePath)
+	descLower := strings.ToLower(desc)
+	isReplaceOrRemove := strings.Contains(descLower, "type: replace") || strings.Contains(descLower, "type: remove") || strings.Contains(descLower, "type: overwrite")
 
+	var autoApplyRes *syntax.ApplyChangesResult
+	var autoApplySyntaxErrors []string
+
+	calledFastApply := false
+	var fastApplyRes string
+	fastApplyCh := make(chan string, 1)
+
+	callFastApply := func() {
+		log.Printf("buildStructuredEdits - %s - calling fast apply hook\n", filePath)
+		fileState.builderRun.DidFastApply = true
+		fileState.builderRun.FastApplyStartedAt = time.Now()
+		calledFastApply = true
+
+		go func() {
+			res, err := hooks.ExecHook(hooks.CallFastApply, hooks.HookParams{
+				FastApplyParams: &hooks.FastApplyParams{
+					InitialCode: originalFile,
+					EditSnippet: proposedContent,
+					Language:    fileState.language,
+					Ctx:         buildCtx,
+				},
+			})
+
+			if err != nil {
+				log.Printf("buildStructuredEdits - error executing fast apply hook: %v\n", err)
+				// empty string acts as a no-op
+				fastApplyCh <- ""
+				return
+			} else if res.FastApplyResult == nil {
+				log.Printf("buildStructuredEdits - fast apply hook returned nil result\n")
+				// empty string acts as a no-op
+				fastApplyCh <- ""
+				return
+			}
+
+			fastApplyRes = res.FastApplyResult.MergedCode
+			log.Printf("buildStructuredEdits - %s - got fast apply hook result\n", filePath)
+			// fmt.Printf("buildStructuredEdits - fastApplyRes:\n%s", fastApplyRes)
+
+			fileState.builderRun.FastApplyFinishedAt = time.Now()
+
+			fastApplyCh <- fastApplyRes
+		}()
+	}
+
+	if isReplaceOrRemove {
+		callFastApply()
+	}
+
+	log.Printf("buildStructuredEdits - %s - applying changes\n", filePath)
 	// Apply plan logic
 	log.Printf("buildStructuredEdits - %s - calling ApplyChanges\n", filePath)
-	applyRes := syntax.ApplyChanges(
+	autoApplyRes = syntax.ApplyChanges(
 		buildCtx,
 		syntax.ApplyChangesParams{
 			Original:               originalFile,
@@ -54,71 +106,46 @@ func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 	)
 	log.Printf("buildStructuredEdits - %s - got ApplyChanges result\n", filePath)
 	// log.Println("buildStructuredEdits - applyRes.NewFile:", applyRes.NewFile)
-	log.Println("buildStructuredEdits - applyRes.NeedsVerifyReasons:", applyRes.NeedsVerifyReasons)
+	log.Println("buildStructuredEdits - applyRes.NeedsVerifyReasons:", autoApplyRes.NeedsVerifyReasons)
 
-	// Log information about removed blocks
-	if len(applyRes.BlocksRemoved) > 0 {
-		log.Printf("buildStructuredEdits - %s - detected %d removed code blocks\n", filePath, len(applyRes.BlocksRemoved))
+	autoApplySyntaxErrors = fileState.validateSyntax(buildCtx, autoApplyRes.NewFile)
 
-		// Log details about each removed block if not too verbose
-		if len(applyRes.BlocksRemoved) <= 5 {
-			for i, block := range applyRes.BlocksRemoved {
-				log.Printf("buildStructuredEdits - removed block %d: lines %d-%d, %d characters\n", i+1, block.Start, block.End, len(block.Content))
-			}
-		}
+	hasNeedsVerifyReasons := len(autoApplyRes.NeedsVerifyReasons) > 0
 
-		// If we have removed blocks but no CodeRemoved reason, add it
-		hasCodeRemovedReason := false
-		for _, reason := range applyRes.NeedsVerifyReasons {
-			if reason == syntax.NeedsVerifyReasonCodeRemoved {
-				hasCodeRemovedReason = true
-				break
-			}
-		}
+	autoApplyHasSyntaxErrors := len(autoApplySyntaxErrors) > 0
+	autoApplyIsValid := !autoApplyHasSyntaxErrors && !hasNeedsVerifyReasons
 
-		if !hasCodeRemovedReason {
-			log.Printf("buildStructuredEdits - %s - adding CodeRemoved verification reason due to detected removed blocks\n", filePath)
-			applyRes.NeedsVerifyReasons = append(applyRes.NeedsVerifyReasons, syntax.NeedsVerifyReasonCodeRemoved)
-		}
+	if !autoApplyIsValid && !calledFastApply {
+		callFastApply()
 	}
 
-	// Syntax check
-	log.Printf("buildStructuredEdits - %s - validating syntax\n", filePath)
-	syntaxErrors := fileState.validateSyntax(buildCtx, applyRes.NewFile)
-	log.Printf("buildStructuredEdits - %s - got syntax validation result\n", filePath)
-	if len(syntaxErrors) > 0 {
-		log.Println("buildStructuredEdits - syntax errors:", syntaxErrors)
-	}
+	log.Printf("buildStructuredEdits - %s - autoApplyHasSyntaxErrors: %t, hasNeedsVerifyReasons: %t, autoApplyIsValid: %t\n",
+		filePath, autoApplyHasSyntaxErrors, hasNeedsVerifyReasons, autoApplyIsValid)
 
-	hasSyntaxErrors := len(syntaxErrors) > 0
-	hasNeedsVerifyReasons := len(applyRes.NeedsVerifyReasons) > 0
-	isValid := !hasSyntaxErrors && !hasNeedsVerifyReasons
-
-	log.Printf("buildStructuredEdits - %s - hasSyntaxErrors: %t, hasNeedsVerifyReasons: %t, isValid: %t\n",
-		filePath, hasSyntaxErrors, hasNeedsVerifyReasons, isValid)
-
-	updated := applyRes.NewFile
+	updated := autoApplyRes.NewFile
 
 	// If no problems, we trust the direct ApplyChanges result
-	if isValid {
+	if autoApplyIsValid {
 		log.Printf("buildStructuredEdits - %s - changes are valid, using ApplyChanges result\n", filePath)
 		fileState.builderRun.AutoApplySuccess = true
 	} else {
-
-		log.Printf("buildStructuredEdits - %s - changes need validation/fixing\n", filePath)
-		fileState.builderRun.AutoApplyValidationReasons = make([]string, len(applyRes.NeedsVerifyReasons))
-		for i, reason := range applyRes.NeedsVerifyReasons {
+		log.Printf("buildStructuredEdits - %s - auto apply has syntax errors or NeedsVerifyReasons", filePath)
+		fileState.builderRun.AutoApplyValidationReasons = make([]string, len(autoApplyRes.NeedsVerifyReasons))
+		for i, reason := range autoApplyRes.NeedsVerifyReasons {
 			fileState.builderRun.AutoApplyValidationReasons[i] = string(reason)
 		}
-		fileState.builderRun.AutoApplyValidationSyntaxErrors = syntaxErrors
+
+		fileState.builderRun.AutoApplyValidationSyntaxErrors = autoApplySyntaxErrors
 
 		buildRaceParams := buildRaceParams{
 			updated:         updated,
 			proposedContent: proposedContent,
 			desc:            desc,
-			reasons:         applyRes.NeedsVerifyReasons,
-			syntaxErrors:    syntaxErrors,
-			blocksRemoved:   applyRes.BlocksRemoved, // Pass removed blocks to buildRace
+			reasons:         autoApplyRes.NeedsVerifyReasons,
+			syntaxErrors:    autoApplySyntaxErrors,
+
+			didCallFastApply: calledFastApply,
+			fastApplyCh:      fastApplyCh,
 		}
 
 		buildRaceResult, err := fileState.buildRace(buildCtx, cancelBuild, buildRaceParams)
@@ -171,7 +198,6 @@ func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 		Content:        "",
 		Path:           filePath,
 		Replacements:   replacements,
-		SyntaxErrors:   syntaxErrors,
 	}
 
 	log.Printf("buildStructuredEdits - %s - finishing build file\n", filePath)

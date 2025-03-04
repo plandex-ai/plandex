@@ -2,6 +2,7 @@ package plan
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"math/rand"
@@ -18,21 +19,24 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
-const MaxValidationFixAttempts = 4
+const MaxValidationFixAttempts = 3
 
 type buildValidateLoopParams struct {
-	originalFile         string
-	updated              string
-	proposedContent      string
-	desc                 string
-	syntaxErrors         []string
-	reasons              []syntax.NeedsVerifyReason
-	initialPhaseOnStream func(chunk string, buffer string) bool
+	originalFile               string
+	updated                    string
+	proposedContent            string
+	desc                       string
+	syntaxErrors               []string
+	reasons                    []syntax.NeedsVerifyReason
+	initialPhaseOnStream       func(chunk string, buffer string) bool
+	validateOnlyOnFinalAttempt bool
+	maxAttempts                int
 }
 
 type buildValidateLoopResult struct {
 	valid   bool
 	updated string
+	problem string
 }
 
 func (fileState *activeBuildStreamFileState) buildValidateLoop(
@@ -49,7 +53,14 @@ func (fileState *activeBuildStreamFileState) buildValidateLoop(
 	syntaxErrors := params.syntaxErrors
 	numAttempts := 0
 
-	for numAttempts < MaxValidationFixAttempts {
+	problems := []string{}
+
+	maxAttempts := MaxValidationFixAttempts
+	if params.maxAttempts > 0 {
+		maxAttempts = params.maxAttempts
+	}
+
+	for numAttempts < maxAttempts {
 		currentAttempt := numAttempts + 1
 		log.Printf("Starting validation attempt %d/%d", currentAttempt, MaxValidationFixAttempts)
 
@@ -88,6 +99,8 @@ func (fileState *activeBuildStreamFileState) buildValidateLoop(
 			modelConfig = *modelConfig.StrongModel
 		}
 
+		isLastAttempt := numAttempts == maxAttempts-1
+
 		// build validate params
 		validateParams := buildValidateParams{
 			originalFile:    originalFile,
@@ -98,27 +111,36 @@ func (fileState *activeBuildStreamFileState) buildValidateLoop(
 			syntaxErrors:    syntaxErrors,
 			reasons:         reasons,
 			modelConfig:     &modelConfig,
+			validateOnly:    isLastAttempt && params.validateOnlyOnFinalAttempt,
 		}
 
 		log.Printf("Calling buildValidate for attempt %d", currentAttempt)
-		valid, res, err := fileState.buildValidate(ctx, validateParams)
+		res, err := fileState.buildValidate(ctx, validateParams)
 		if err != nil {
+			if errors.Is(err, context.Canceled) {
+				log.Printf("Context canceled during buildValidate")
+				return buildValidateLoopResult{}, err
+			}
+
 			log.Printf("Error in buildValidate during attempt %d: %v", currentAttempt, err)
 			return buildValidateLoopResult{}, fmt.Errorf("error building validate: %v", err)
 		}
-		updated = res
+		updated = res.updated
 
-		if valid {
+		syntaxErrors = fileState.validateSyntax(ctx, updated)
+		log.Printf("Found %d syntax errors after attempt %d", len(syntaxErrors), currentAttempt)
+
+		if res.valid && len(syntaxErrors) == 0 {
 			log.Printf("Validation succeeded in attempt %d", currentAttempt)
 			return buildValidateLoopResult{
-				valid:   valid,
-				updated: updated,
+				valid:   res.valid,
+				updated: res.updated,
 			}, nil
 		}
 
+		problems = append(problems, res.problem)
+
 		log.Printf("Validation failed in attempt %d, preparing for next attempt", currentAttempt)
-		syntaxErrors = fileState.validateSyntax(ctx, updated)
-		log.Printf("Found %d syntax errors after attempt %d", len(syntaxErrors), currentAttempt)
 
 		numAttempts++
 	}
@@ -127,6 +149,7 @@ func (fileState *activeBuildStreamFileState) buildValidateLoop(
 	return buildValidateLoopResult{
 		valid:   false,
 		updated: updated,
+		problem: strings.Join(problems, "\n\n"),
 	}, nil
 }
 
@@ -140,12 +163,19 @@ type buildValidateParams struct {
 	onStream        func(chunk string, buffer string) bool
 	phase           int
 	modelConfig     *shared.ModelRoleConfig
+	validateOnly    bool
+}
+
+type buildValidateResult struct {
+	valid   bool
+	updated string
+	problem string
 }
 
 func (fileState *activeBuildStreamFileState) buildValidate(
 	ctx context.Context,
 	params buildValidateParams,
-) (bool, string, error) {
+) (buildValidateResult, error) {
 	log.Printf("Starting buildValidate for phase %d", params.phase)
 
 	auth := fileState.auth
@@ -166,7 +196,7 @@ func (fileState *activeBuildStreamFileState) buildValidate(
 	diff, err := diff_pkg.GetDiffs(originalFile, updated)
 	if err != nil {
 		log.Printf("Error getting diffs: %v", err)
-		return false, "", fmt.Errorf("error getting diffs: %v", err)
+		return buildValidateResult{}, fmt.Errorf("error getting diffs: %v", err)
 	}
 
 	// Choose prompt and tools based on preferred format
@@ -199,8 +229,17 @@ func (fileState *activeBuildStreamFileState) buildValidate(
 	reqStarted := time.Now()
 	fileState.builderRun.ReplacementStartedAt = reqStarted
 
-	log.Printf("Making validation-replacements model request")
+	if params.validateOnly {
+		log.Printf("Making validation-only model request")
+	} else {
+		log.Printf("Making validation-replacements model request")
+	}
 	// log.Printf("Messages: %v", messages)
+
+	stop := []string{"<PlandexFinish/>"}
+	if params.validateOnly {
+		stop = []string{"<PlandexComments>", "<PlandexReplacements>"}
+	}
 
 	// Use ModelRequest for both formats
 	res, err := model.ModelRequest(ctx, model.ModelRequestParams{
@@ -214,7 +253,7 @@ func (fileState *activeBuildStreamFileState) buildValidate(
 		ConvoMessageId: fileState.convoMessageId,
 		BuildId:        fileState.build.Id,
 		ModelPackName:  fileState.settings.ModelPack.Name,
-		Stop:           []string{"<PlandexFinish/>"},
+		Stop:           stop,
 		BeforeReq: func() {
 			log.Printf("Starting model request")
 			fileState.builderRun.ReplacementStartedAt = time.Now()
@@ -227,6 +266,11 @@ func (fileState *activeBuildStreamFileState) buildValidate(
 	})
 
 	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			log.Printf("Context canceled during model request")
+			return buildValidateResult{}, err
+		}
+
 		log.Printf("Error calling model: %v", err)
 		return fileState.validationRetryOrError(ctx, params, err)
 	}
@@ -235,19 +279,16 @@ func (fileState *activeBuildStreamFileState) buildValidate(
 	log.Printf("Added generation ID: %s", res.GenerationId)
 
 	// Handle response based on format
-	valid, updated, err := handleXMLResponse(fileState, res.Content, originalFile, updated)
+	parseRes, err := handleXMLResponse(fileState, res.Content, originalFile, updated, params.validateOnly)
 
 	if err != nil {
 		log.Printf("Error handling response: %v", err)
 		return fileState.validationRetryOrError(ctx, params, err)
 	}
 
-	if valid {
-		log.Printf("Validation result: valid=%v", valid)
-		return valid, updated, nil
-	}
+	log.Printf("Validation result: valid=%v", parseRes.valid)
 
-	return false, updated, nil
+	return parseRes, nil
 }
 
 func handleXMLResponse(
@@ -255,16 +296,28 @@ func handleXMLResponse(
 	content string,
 	originalFile string,
 	updated string,
-) (bool, string, error) {
+	validateOnly bool,
+) (buildValidateResult, error) {
 	log.Printf("Handling XML response for file: %s", fileState.filePath)
 
 	if strings.Contains(content, "<PlandexCorrect/>") {
 		log.Printf("XML response indicates changes are correct")
 		fileState.builderRun.ReplacementSuccess = true
-		return true, updated, nil
+		return buildValidateResult{
+			valid:   true,
+			updated: updated,
+		}, nil
 	}
-	originalFileLines := strings.Split(originalFile, "\n")
 
+	if validateOnly {
+		log.Printf("Validation-only mode, skipping replacements")
+		return buildValidateResult{
+			valid:   false,
+			updated: updated,
+		}, nil
+	}
+
+	originalFileLines := strings.Split(originalFile, "\n")
 	updated = originalFile
 
 	log.Printf("Processing XML replacement blocks")
@@ -273,7 +326,11 @@ func handleXMLResponse(
 
 	if replacementsOuter == "" {
 		log.Printf("No replacements found in XML response")
-		return false, updated, fmt.Errorf("no replacements found in XML response")
+		return buildValidateResult{
+			valid:   false,
+			updated: updated,
+			problem: "No replacements found in XML response",
+		}, nil
 	}
 
 	replacements := utils.GetAllXMLContent(replacementsOuter, "Replacement")
@@ -286,16 +343,16 @@ func handleXMLResponse(
 
 		if old == "" {
 			log.Printf("No old content found for replacement")
-			return false, updated, fmt.Errorf("no old content found for replacement")
+			return buildValidateResult{valid: false, updated: updated}, fmt.Errorf("no old content found for replacement")
 		}
 
 		old = strings.TrimSpace(old)
 
-		log.Printf("Old content trimmed:\n\n%s", old)
+		// log.Printf("Old content trimmed:\n\n%s", old)
 
 		if !strings.HasPrefix(old, "pdx-") {
 			log.Printf("Old content does not have a line number prefix for first line")
-			return false, updated, fmt.Errorf("old content does not have a line number prefix for first line")
+			return buildValidateResult{valid: false, updated: updated}, fmt.Errorf("old content does not have a line number prefix for first line")
 		}
 
 		oldLines := strings.Split(old, "\n")
@@ -310,14 +367,14 @@ func handleXMLResponse(
 		firstLineNum, err := shared.ExtractLineNumberWithPrefix(firstLine, "pdx-")
 		if err != nil {
 			log.Printf("Error extracting line number from first line: %v", err)
-			return false, updated, fmt.Errorf("error extracting line number from first line: %v", err)
+			return buildValidateResult{valid: false, updated: updated}, fmt.Errorf("error extracting line number from first line: %v", err)
 		}
 
 		if lastLine != "" {
 			lastLineNum, err = shared.ExtractLineNumberWithPrefix(lastLine, "pdx-")
 			if err != nil {
 				log.Printf("Error extracting line number from last line: %v", err)
-				return false, updated, fmt.Errorf("error extracting line number from last line: %v", err)
+				return buildValidateResult{valid: false, updated: updated}, fmt.Errorf("error extracting line number from last line: %v", err)
 			}
 		}
 
@@ -334,10 +391,20 @@ func handleXMLResponse(
 		log.Printf("Updated content:\n\n%s", updated)
 	}
 
-	return false, updated, nil
+	var problem string
+
+	if strings.Contains(content, "<PlandexIncorrect/>") {
+		split := strings.Split(content, "<PlandexIncorrect/>")
+		problem = split[0]
+	} else if strings.Contains(content, "<PlandexReplacements>") {
+		split := strings.Split(content, "<PlandexReplacements>")
+		problem = split[0]
+	}
+
+	return buildValidateResult{valid: false, updated: updated, problem: problem}, nil
 }
 
-func (fileState *activeBuildStreamFileState) validationRetryOrError(buildCtx context.Context, validateParams buildValidateParams, err error) (bool, string, error) {
+func (fileState *activeBuildStreamFileState) validationRetryOrError(buildCtx context.Context, validateParams buildValidateParams, err error) (buildValidateResult, error) {
 	log.Printf("Handling validation error for file: %s", fileState.filePath)
 	if fileState.validationNumRetry < MaxBuildErrorRetries {
 		fileState.validationNumRetry++
@@ -350,14 +417,14 @@ func (fileState *activeBuildStreamFileState) validationRetryOrError(buildCtx con
 		if activePlan == nil {
 			log.Printf("Active plan not found for plan ID %s and branch %s",
 				fileState.plan.Id, fileState.branch)
-			return false, "", fmt.Errorf("active plan not found for plan ID %s and branch %s",
+			return buildValidateResult{}, fmt.Errorf("active plan not found for plan ID %s and branch %s",
 				fileState.plan.Id, fileState.branch)
 		}
 
 		select {
 		case <-buildCtx.Done():
 			log.Printf("Context canceled during retry wait")
-			return false, "", context.Canceled
+			return buildValidateResult{}, context.Canceled
 		case <-time.After(time.Duration(fileState.validationNumRetry*fileState.validationNumRetry)*200*time.Millisecond + time.Duration(rand.Intn(500))*time.Millisecond):
 			log.Printf("Retry wait completed, attempting validation again")
 			break
@@ -366,6 +433,6 @@ func (fileState *activeBuildStreamFileState) validationRetryOrError(buildCtx con
 		return fileState.buildValidate(buildCtx, validateParams)
 	} else {
 		log.Printf("Max retries (%d) exceeded, returning error", MaxBuildErrorRetries)
-		return false, "", err
+		return buildValidateResult{}, err
 	}
 }
