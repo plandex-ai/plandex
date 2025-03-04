@@ -76,10 +76,10 @@ Your first task is to examine whether the changes were applied as described in t
 - Syntax (unless syntax errors have been previously specified and you are determining the cause of the syntax errors)
 
 Your evaluation should ONLY assess:
-a. Whether the changes were applied at the correct location as specified
-b. Whether the changes included all the specified additions/modifications
-c. Whether any unintended changes were made to surrounding code
-d. Whether any specified code was accidentally removed or duplicated
+a. Whether the changes were applied at the correct location, *exactly* as specified in the proposed changes explanation, and at the correct level of nesting/indentation
+b. Whether the changes included *all* the specified additions/modifications
+c. Whether *any* unintended changes were made to surrounding code
+d. Whether *any* specified code was accidentally removed or duplicated
 e. Any syntax errors that have been previously specified
 
 --
@@ -89,6 +89,7 @@ Line numbers prefixed with 'pdx-' are included in the original file. Line number
 --
 
 First, briefly reason through and assess whether the changes were applied *correctly*.
+You MUST include reasoning–do not skip this step.
 
 If the changes were applied *correctly*, you MUST output a <PlandexCorrect/> tag, followed by a <PlandexFinish/> tag, then end your response, like this:
 
@@ -97,7 +98,9 @@ If the changes were applied *correctly*, you MUST output a <PlandexCorrect/> tag
 
 --
 
-If the changes were applied *incorrectly*, first assess what went wrong, and briefly strategize on how these issues can be avoided when you generate replacements. Next, you MUST output a <PlandexIncorrect/> tag, and then proceed to output the <PlandexComments/> tag and the <PlandexReplacements/> tag with at least one <Replacement> element (see below for details). Example:
+If the changes were applied *incorrectly*, first assess what went wrong in your reasoning, and briefly strategize on how these issues can be avoided when you generate replacements. You MUST include reasoning–do not skip this step.
+
+Next, you MUST output a <PlandexIncorrect/> tag, and then proceed to output the <PlandexComments/> tag and the <PlandexReplacements/> tag with at least one <Replacement> element (see below for details). Example:
 
 <PlandexIncorrect/>
 <PlandexComments>
@@ -201,6 +204,7 @@ IMPORTANT RULES:
 2. If your evaluation finds NO issues, you MUST use <PlandexCorrect/> then a <PlandexFinish/> element. Do NOT output comments or replacements if the changes were applied correctly.
 3. In replacements, every line in the <Old> element MUST exactly match a line in the original file and MUST begin with the line number with a 'pdx-' prefix (NOT with a 'pdx-new-' prefix).
 4. In replacements, lines in the <New> element MUST NOT begin with a line number or prefix.
+5. Always include reasoning in a '## Evaluate Diff' section prior to outputting the <PlandexCorrect/> or <PlandexIncorrect/> tags.
 `
 
 	return s

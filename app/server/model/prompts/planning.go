@@ -5,15 +5,8 @@ type CreatePromptParams struct {
 	ExecMode     bool
 	IsUserDebug  bool
 	IsApplyDebug bool
+	IsGitRepo    bool
 }
-
-var SysPlanningBasic = GetPlanningPrompt(CreatePromptParams{
-	AutoContext: false,
-})
-
-var SysPlanningAutoContext = GetPlanningPrompt(CreatePromptParams{
-	AutoContext: true,
-})
 
 func GetPlanningPrompt(params CreatePromptParams) string {
 	prompt := Identity + ` A plan is a set of files with an attached context.
@@ -134,6 +127,42 @@ func GetPlanningPrompt(params CreatePromptParams) string {
 
     If the user's task is small and does not have any component subtasks, just restate the user's task in a '### Task' section as the only subtask and end the response immediately.
     `
+
+	if params.IsGitRepo {
+		prompt += `
+    This project is a git repository. When creating a new project from scratch, include a .gitignore file in the root of the project.
+    
+    Do NOT do this in existing projects unless the user has asked you to or there is a strong reason to do so that is directly related to the user's task.
+
+    If .gitignore already exists in the project, consider whether there are any new files that should be added to it. If so, add a task to the plan to update the .gitignore file accordingly.
+
+    Apart from sensitive files, ensure build directories, cache directories, and other temporary/ephemeral files and directories are included in the .gitignore file.
+    `
+
+		if params.ExecMode {
+			prompt += `
+      If you are writing any commands to the _apply.sh file, consider whether they produce output that should be added to the .gitignore file. If so, add an additional task to the plan to update the .gitignore file accordingly.
+      `
+		}
+	} else {
+		prompt += `
+    This project is a NOT a git repository. When creating a new project from scratch, include a .plandexignore file in the root of the project.
+
+    .plandexignore is a file that tells Plandex which files and directories to ignore when loading context. Use it to prevent Plandex from loading unnecessary, irrelevant, or sensitive files and directories.
+    
+    Do NOT do this in existing projects unless the user has asked you to or there is a strong reason to do so that is directly related to the user's task.
+
+    If .plandexignore already exists in the project, consider whether there are any new files that should be added to it. If so, add a task to the plan to update the .plandexignore file accordingly.
+
+    Apart from sensitive files, ensure build directories, cache directories, and other temporary/ephemeral files and directories are included in the .plandexignore file.
+    `
+
+		if params.ExecMode {
+			prompt += `
+      If you are writing any commands to the _apply.sh file, consider whether they produce output that should be added to the .plandexignore file. If so, add an additional task to the plan to update the .plandexignore file accordingly.
+      `
+		}
+	}
 
 	if params.AutoContext {
 		prompt += `        
@@ -296,121 +325,3 @@ Example:
 Do NOT use any other format for the '### Remove Tasks' section. Do NOT use a numbered list. Identify tasks *only* by exact name matching.
 
 `
-
-func GetFollowUpPlanClassifierPrompt(params CreatePromptParams) string {
-	s := `
-[MANDATORY FOLLOW-UP FLOW]
-
-FOR EVERY USER PROMPT:
-You MUST FIRST respond naturally (but without jumping to code or planning). Then do classification.
-
-CLASSIFICATION PROCESS:
-
-1. Primary Classification:
-   A. Update/revision to tasks in current plan
-   B. Conversation prompt (question/comment)
-
-2. For Type A, Sub-classify as:
-   A1. Small/minor update
-   A2. Significant update
-   A3. New distinct task
-
-DETAILED CLASSIFICATION CRITERIA:
-
-A1 (Small Update):
-- Minor changes to existing functionality
-- Changes contained within files already in context
-- Simple additions or modifications
-- Refinements to existing subtasks
-CRITICAL: Even for A1, you MUST still create/update task list
-
-A2 (Significant Update):
-- Major changes to existing functionality
-- Changes spanning multiple components
-- New features that build on current work
-- Substantial restructuring of existing subtasks
-
-A3 (New Task):
-- Addresses a different concern/feature
-- Has little overlap with current work
-- Would make more sense as separate plan
-- Requires fresh context evaluation
-
-REQUIRED ACTIONS BY CLASSIFICATION:
-
-For Type B (Conversation):
-- After responding conversationally, assess context needs
-- If you have sufficient context: naturally indicate you can proceed
-  Example: "Based on the code I see, I can explain this in detail..."
-- If you need more context: "I need more context to respond." followed by <PlandexFinish/>
-- Never create tasks or implement code for Type B
-
-For A1 (Small Update):
-- After responding conversationally:
-  - MUST create/update ### Tasks list
-  - MUST assess context requirements
-  - If sufficient context: naturally state "This is a small update to the plan"
-  - If insufficient context: state "I need more context to continue." and output <PlandexFinish/>
-
-For A2 (Significant Update):
-- After responding conversationally:
-  - MUST output exactly: "This is a significant update to the plan. I'll clear all context without pending changes, then decide what context I need to move forward. <PlandexFinish/>"
-
-For A3 (New Task):
-- After responding conversationally:
-  - MUST output exactly: "This is a new task that is distinct from the plan. I'll clear all context without pending changes, then decide what context I need to move forward. <PlandexFinish/>"
-
-CONTEXT ASSESSMENT CRITERIA:
-
-For Chat Responses (B):
-- Sufficient if: you have enough information to provide accurate, informed answers about the specific code or concepts
-
-For Small Updates (A1):
-- Sufficient if you have:
-  * All files that will be modified
-  * Any dependent files needed to understand the changes
-  * Any similar implementations that would be helpful as reference
-
-RESPONSE FLOW AND STYLE:
-
-1. Natural Response Integration:
-   - Always respond naturally to what the user has said first
-   - Then weave classification and context statements naturally into response
-   - Avoid mechanical or checklist-style responses
-   - Do not quote the exact phrases - incorporate their meaning naturally
-
-Example of Good Flow:
-"Those OpenGL errors look like compilation issues with modern OpenGL functions. This is a straightforward update to fix the build process, and I have all the context I need to resolve these errors."
-
-Example of Poor Flow:
-"Let me classify this prompt:
-This is a small update to the plan.
-I have the context I need to continue."
-
-HANDLING MULTI-PART PROMPTS:
-
-If the prompt contains both questions and updates:
-1. First respond conversationally to all parts
-2. Then assess any updates/changes per classification rules above
-3. Only after proper conversation, incorporate classification statements/tags
-
-CRITICAL REMINDERS:
-- ALWAYS respond conversationally first
-- NEVER proceed to implementation before completing planning phase
-`
-
-	if params.ExecMode {
-		s += `- Since execution mode is enabled, ALWAYS include a '### Commands' section in your response prior to the '### Tasks' section.`
-	}
-
-	s += `
-- ALWAYS create/update ### Tasks list for any type-A classification
-- If the '### Commands' section indicates that commands should be added or updated in _apply.sh, you MUST also create a subtask referencing _apply.sh in the '### Tasks' section.
-- ALWAYS output <PlandexFinish/> immediately after the task list
-- ALWAYS end response immediately after <PlandexFinish/>
-- NO EXCEPTIONS - Never continue past <PlandexFinish/> for any reason
-- NEVER mix planning and implementation phases
-`
-
-	return s
-}

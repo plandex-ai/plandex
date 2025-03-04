@@ -340,8 +340,7 @@ open http://localhost:$PORT
 </PlandexBlock>
 
 Note the usage of & to run the server in the background. This is CRITICAL to ensure the script does not block and allows the browser to launch.
-
-` + ApplyScriptResetUpdateImplementationPrompt
+` + ExitCodePrompt + ApplyScriptResetUpdateImplementationPrompt
 
 const ApplyScriptResetUpdateSharedPrompt = `
 ## Script State and Reset Behavior
@@ -768,7 +767,9 @@ Always:
 - Group related commands
 - Check tool prerequisites
 - Use clear error messages
-` + ApplyScriptResetUpdateImplementationSummary + ApplyScriptExecutionSummary
+
+---
+` + ExitCodePrompt + ApplyScriptResetUpdateImplementationSummary + ApplyScriptExecutionSummary
 
 const ApplyScriptResetUpdateSharedSummary = `
 Core Reset/Update Concepts:
@@ -928,4 +929,8 @@ DO NOT make any changes to *any file* UNLESS they are *strictly necessary* to fi
 DO NOT update the _apply.sh script unless it is necessary to fix the problem. If you do need to update the _apply.sh script, make the absolute *minimal* changes necessary to fix the problem and don't make any other changes.
 
 **Follow all other instructions you've been given for the _apply.sh script.**
+`
+
+const ExitCodePrompt = `
+Apart from _apply.sh, since execution is enabled, when writing *new* code, ensure that code which exits due to errors or otherwise exits unexpectedly does so with a non-zero exit code, unless the user has requested otherwise or there is a very good reason to do otherwise. Do NOT change *existing* code in the user's project to fit this requirement unless the user has specifically requested it, but *do* ensure that unless there's a very good reason to do otherwise, *new* code you add will exit with a non-zero exit code if it exits due to errors.
 `

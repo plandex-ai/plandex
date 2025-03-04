@@ -11,7 +11,7 @@ Prior to any code block that is *updating* an existing file in context, you MUST
 **Updating ` + "`[file path]`" + `**  
 Type: [type]  
 Summary: [brief description, symbols/sections being changed]
-Remove: [lines to remove]
+Replace: [lines to replace/remove]
 Context: [describe surrounding code that helps locate the change unambiguously]
 Preserve: [symbols/structures/sections to preserve when overwriting entire file]
 ---
@@ -23,13 +23,13 @@ OR if multiple changes are being made to the same file in a single subtask and a
 Change 1.
 Type: [type]
 Summary: [brief description, symbols/sections being changed]
-Remove: [lines to remove]
+Replace: [lines to replace/remove]
 Context: [describe surrounding code that helps locate the change unambiguously]
 
 Change 2.
 Type: [type]
 Summary: [brief description, symbols/sections being changed]
-Remove: [lines to remove]
+Replace: [lines to replace/remove]
 Context: [describe surrounding code that helps locate the change unambiguously]
 
 ... and so on for each change
@@ -112,13 +112,21 @@ CRITICAL: The Context field MUST include symbols/structures that are NOT being m
 
 	INCORRECT - symbols in Context are part of the change:
 	Summary: Replace implementations of ` + "`foo`, `bar`, and `baz`" + `
-  Remove: lines 105-200
+  Replace: lines 105-200
 	Context: Located between ` + "`foo`" + ` and ` + "`baz`" + `  # Wrong - these are being changed!
 
 	CORRECT - symbols in Context are outside the change:
 	Summary: Replace implementations of ` + "`foo`, `bar`, and `baz`" + `
-  Remove: lines 105-200
+  Replace: lines 105-200
 	Context: Located between ` + "`setup`" + ` and ` + "`cleanup`" + ` functions  # Correct - these aren't being changed
+
+Again, the point of the Context field is to identify *anchors* that exist completely *outside* of the bounds of the change in the original file. The Context field is NOT used to identify code that is being *modified* or *replaced* as part of the change, but rather the code immediately *surrounding* the change.
+
+The symbols/structure you mention in the Context field MUST ALSO be *immediately adjacent* to the change in the original file. Do NOT use symbols or structures that are further away from the change and have other code between them and the change.
+
+ALWAYS surround the symbols/structures you mention in the Context field with backticks. Do NOT leave them out.
+
+Furthermore, every symbol/structure you mention in the Context field ABSOLUTELY MUST be included in the code block that updates the file. Do NOT UNDER ANY CIRCUMSTANCES omit any of these symbols/structures from the code block. Use reference comments to avoid repeating code that is not changing.
 
 Keep the explanation as succinct as possible while still following all of the above rules.
 
@@ -134,7 +142,7 @@ Context: Located between ` + "`NewClient`" + ` constructor and ` + "`getUser`" +
 **Updating ` + "`server/types/api.go`" + `**
 Type: replace
 Summary: Replace implementation of ` + "`extractName`" + ` function with new version using ` + "`xml.Decoder`" + `
-Remove: lines 8-15
+Replace: lines 8-15
 Context: Located between ` + "`validateName`" + ` and ` + "`formatName`" + ` functions
 
 **Updating ` + "`cli/cmd/update.go`" + `**
@@ -155,7 +163,7 @@ Context: Will be placed after the ` + "`validateUser`" + ` function
 **Updating ` + "`server/handlers/auth.go`" + `**
 Type: remove
 Summary: Remove unused ` + "`validateLegacyTokens`" + ` function and its helper ` + "`checkTokenFormat`" + `
-Remove: lines 25-85
+Replace: lines 25-85
 Context: Located between ` + "`parseAuthHeader`" + ` and ` + "`validateJWT`" + ` functions
 
 *
@@ -168,20 +176,20 @@ When writing the explanation for multiple changes that will be included in a sin
 Change 1. 
   Type: remove
   Summary: Remove unused ` + "`validateLegacyTokens`" + ` function and its helper ` + "`checkTokenFormat`" + `
-  Remove: lines 25-85
+  Replace: lines 25-85
   Context: Located between ` + "`parseAuthHeader`" + ` and ` + "`validateJWT`" + ` functions
 
 Change 2.
   Type: append
   Summary: Append just-removed ` + "`checkTokenFormat`" + ` function to the end of the file
-  Remove: lines 8-15
+  Replace: lines 8-15
   Context: The last code structure is ` + "`finalizeAuth`" + ` function
   
 When outputting a compound explanation in the above format, it is CRITICAL that you still only output a SINGLE code block. Do NOT output multiple code blocks.
 
 *
 
-ALL code structures that are mentioned in the Context field MUST be included as *anchors* in the code block that updates the file. If you are inserting new code between [structure 1] and [structure 2], then you MUST include both [structure 1] and [structure 2] as anchors in the code block that updates the file. Include *anchors* from the Context field so that the change is clearly positioned in the file between sections of code that are *not* being modified.
+Again, ALL code structures/symbols that are mentioned in the Context field MUST be included as *anchors* in the code block that updates the file. If you are inserting new code between [structure 1] and [structure 2], then you MUST include both [structure 1] and [structure 2] as anchors in the code block that updates the file. Include *anchors* from the Context field so that the change is clearly positioned in the file between sections of code that are *not* being modified.
 
 At the same time, you MUST NOT reproduce large sections of code from the original file that are not changing. You MUST use reference comments "// ... existing code ..." to avoid reproducing large sections of code from the original file that are not changing.
 
@@ -194,10 +202,10 @@ If your change description is:
 **Updating ` + "`server/api/users.go`" + `**  
 Type: replace  
 Summary: Replace implementation of ` + "`validateUser`" + ` function to add role and permission validation
-Remove: lines 10-20
+Replace: lines 10-20
 Context: Located between ` + "`parseUser`" + ` and ` + "`updateUser`" + ` functions
 
-Then your code block should look like:
+Then your code block MUST look like:
 
 ---
 // ... existing code ...
@@ -248,6 +256,53 @@ Notice how:
 - The new 'validateUser' implementation is included in full since it's the actual change
 - The file starts and ends with '// ... existing code ...' comments since this change is in the middle of the file
 - There's a comment indicating we're replacing the existing implementation
+
+*
+
+❌ INCORRECT - Context symbols missing from code block:
+**Updating ` + "`sound.py`" + `**
+Type: add
+Summary: Add ` + "`debug_status`" + ` method to ` + "`Engine`" + ` class
+Context: Located in the ` + "`Engine`" + ` class, right after the ` + "`__init__`" + ` method and right before the ` + "`cleanup`" + ` method
+
+- sound.py:
+<PlandexBlock lang="python" path="sound.py">
+# ... existing code ...
+
+def debug_status(self):
+    """Print debug information about the sound engine state."""
+    print("Sound engine debug info")
+    
+# ... existing code ...
+</PlandexBlock>
+
+✅ CORRECT - Context symbols included in code block:
+**Updating ` + "`sound.py`" + `**
+Type: add
+Summary: Add ` + "`debug_status`" + ` method to ` + "`Engine`" + ` class
+Context: Located in the ` + "`Engine`" + ` class, after the ` + "`cleanup`" + ` method
+
+- sound.py:
+<PlandexBlock lang="python" path="sound.py">
+# ... existing code ...
+
+class Engine:
+  def __init__(self):
+    # ... existing code ...
+
+  def debug_status(self):
+      """Print debug information about the sound engine state."""
+      print("Sound engine debug info")
+
+  def cleanup(self):
+    # ... existing code ...
+    
+# ... existing code ...
+</PlandexBlock>
+
+*
+
+As you can see, in the correct example, every symbol/structure mentioned in the Context field is included in the code block, unambiguously locating the change.
 
 *
 

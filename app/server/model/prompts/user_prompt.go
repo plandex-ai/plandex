@@ -79,6 +79,8 @@ Output a <PlandexFinish/> tag after the '### Tasks' section. NEVER output a '###
 IMPORTANT: During this planning phase, you must NOT implement any code or create any code blocks. Your ONLY JOB is to break down the work into subtasks. Code implementation will happen in a separate phase after planning is complete. The planning phase is ONLY for breaking the work into subtasks.
 
 Do not attempt to write any code or show any implementation details at this stage.
+
+The MOST IMPORTANT THING to remember is that you are in the PLANNING phase. Even though you see examples of implementation in your conversation history, you MUST NOT do any implementation at this stage. Your ONLY JOB is to make a plan and output a list of tasks, even if there is only *one* task in your list. That is your ONLY JOB at this stage. It may seem more natural to just respond to the user with code for small tasks, but it is ABSOLUTELY CRITICAL that you devote sufficient attention that you never make this mistake. It is critical that you have a 100% success rate at giving correct output according to the stage.
 `
 
 	if params.IsUserDebug {
@@ -141,6 +143,18 @@ When *updating an existing file*, you MUST follow the instructions you've been g
 
 	- If you are replacing or removing code, you MUST include an exhaustive list of all symbols/sections that are being removed—ALL removed code must be accounted for. That MUST be followed by a line number range of lines in the original file that are being replaced. Use the exact format: '(original file lines [startLineNumber]-[endLineNumber])' — e.g. '(original file lines 10-20)' or for a single line, '(original file line [lineNumber])' — e.g. '(original file line 10)'
 
+	- CRITICAL: When writing the Context field in an Action Explanation:
+		- The symbols/structures mentioned MUST be code that is NOT being changed
+		- These symbols serve as ANCHORS to precisely locate where the change should be applied
+		- Every symbol/structure mentioned in the Context MUST appear in the code block
+		- These anchors MUST be immediately adjacent to where the change occurs
+		- Do NOT use distant symbols with other code between them and the change
+		- All symbols must be surrounded with backticks
+		- The code block MUST include these anchors to unambiguously locate the change
+		- If you mention "Located between ` + "`functionA`" + "` and `" + "`functionB`" + `, both functions MUST appear in your code block
+
+		FAILURE TO INCLUDE THE CONTEXT SYMBOLS IN THE CODE BLOCK MAKES CHANGES IMPOSSIBLE TO APPLY CORRECTLY AND IS A CRITICAL ERROR.
+
 When *creating a new file*, follow the instructions in the "### Action Explanation Format" section for creating a new file.
  
   - The Type field MUST be exactly 'new file'.
@@ -153,6 +167,7 @@ When *creating a new file*, follow the instructions in the "### Action Explanati
 	- Do NOT use placeholder code or comments like '// implement authentication here' to indicate that the file is incomplete. Implement *all* functionality.
 	- Do NOT use reference comments ('// ... existing code ...'). Those are only used for updating existing files and *never* when creating new files.
 	- Include the *entire file* in the code block.
+
 
 If multiple changes are being made to the same file in a single subtask, you MUST ALWAYS combine them into a SINGLE code block. Do NOT use multiple code blocks for multiple changes to the same file. Instead:
 
@@ -190,6 +205,28 @@ If you break up a task into subtasks, only include subtasks that can be implemen
 ` + MarkSubtaskDonePrompt + `
 
 ` + FileOpsImplementationPromptSummary
+
+	file := ".gitignore"
+	if !params.IsGitRepo {
+		file = ".plandexignore"
+	}
+
+	s += fmt.Sprintf(`
+- Create or update the %s file if necessary.
+- If you write commands to _apply.sh, consider if output should be added to %s.
+`, file, file)
+
+	s += `
+Remember, the MOST critical factor in creating code blocks correctly is to locate them unambiguously in the file using the definitions that are immediately before and immediately after the the section of code that is being changed or extended. Pay special attention to the 'Context' field in the Action Explanation. ALWAYS include at least a few additional lines of code before and after the section that is changing. And even if you need to include many lines to reach the *definitions* that are immediately before and after the section that is changing, do so.
+
+Definitions in the original file that are outside of the section that is changing are like "hooks" that determine where in the resulting file the new code you write will be placed.
+
+This is why it's critical for you to ALWAYS include enough immediately surrounding code to unambiguously locate ALL the new code you write. All the blocks of new code you write must hook in correctly using the hooks you supply from the original file when you include additional lines of code from the original file before and after the section that is changing.
+
+It's not easy to be 100% consistent in writing code blocks that follow these rules, but you are capable of doing it with sufficient attention.
+
+This disambiguation technique is the *most important* part of correctly implementing a plan.
+`
 
 	return s
 }
