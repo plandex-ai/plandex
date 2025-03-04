@@ -14,6 +14,7 @@ require (
 	github.com/sashabaranov/go-openai v1.35.6
 	github.com/shopspring/decimal v1.4.0
 	github.com/spf13/cobra v1.8.0
+	golang.org/x/sys v0.30.0
 	golang.org/x/term v0.19.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 )
@@ -49,7 +50,6 @@ require (
 	golang.org/x/exp v0.0.0-20230626212559-97b1e661b5df // indirect
 	golang.org/x/net v0.18.0 // indirect
 	golang.org/x/sync v0.11.0 // indirect
-	golang.org/x/sys v0.30.0 // indirect
 )
 
 require (
