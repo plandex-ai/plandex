@@ -240,7 +240,7 @@ func GenCommitMsgForPendingResults(auth *types.ServerAuth, plan *db.Plan, client
 
 	num := 0
 	for _, desc := range current.ConvoMessageDescriptions {
-		if desc.MadePlan && desc.DidBuild && len(desc.BuildPathsInvalidated) == 0 && desc.AppliedAt == nil {
+		if desc.WroteFiles && desc.DidBuild && len(desc.BuildPathsInvalidated) == 0 && desc.AppliedAt == nil {
 			s += desc.CommitMsg + "\n"
 			num++
 		}

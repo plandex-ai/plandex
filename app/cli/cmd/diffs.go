@@ -72,7 +72,7 @@ func diffs(cmd *cobra.Command, args []string) {
 	}
 
 	if len(diffs) == 0 {
-		term.OutputErrorAndExit("🤷‍♂️ No pending changes")
+		fmt.Println("🤷‍♂️ No pending changes")
 		return
 	}
 

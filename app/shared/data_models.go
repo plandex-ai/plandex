@@ -211,7 +211,7 @@ type ConvoMessageDescription struct {
 	Id                    string `json:"id"`
 	ConvoMessageId        string `json:"convoMessageId"`
 	SummarizedToMessageId string `json:"summarizedToMessageId"`
-	MadePlan              bool   `json:"madePlan"`
+	WroteFiles            bool   `json:"wroteFiles"`
 	CommitMsg             string `json:"commitMsg"`
 	// Files                 []string        `json:"files"`
 	Operations            []*Operation    `json:"operations"`

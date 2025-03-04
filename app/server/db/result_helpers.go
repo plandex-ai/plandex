@@ -303,7 +303,7 @@ func GetConvoMessageDescriptions(orgId, planId string) ([]*ConvoMessageDescripti
 		case err := <-errCh:
 			return nil, fmt.Errorf("error reading description files: %v", err)
 		case description := <-descCh:
-			if description.MadePlan && description.AppliedAt == nil {
+			if description.WroteFiles && description.AppliedAt == nil {
 				descriptions = append(descriptions, description)
 			}
 		}

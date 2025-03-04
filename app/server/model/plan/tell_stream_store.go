@@ -145,6 +145,7 @@ func (state *activeTellStreamState) storeOnFinished(params storeOnFinishedParams
 			flags.DidMakePlan = true
 		}
 		if len(removedSubtasks) > 0 {
+			flags.DidMakePlan = true
 			flags.DidRemoveTasks = true
 		}
 		if len(autoLoadContextResult.autoLoadPaths) > 0 {
@@ -186,7 +187,7 @@ func (state *activeTellStreamState) storeOnFinished(params storeOnFinishedParams
 				ConvoMessageId:        assistantMsg.Id,
 				SummarizedToMessageId: summarizedToMessageId,
 				BuildPathsInvalidated: map[string]bool{},
-				MadePlan:              false,
+				WroteFiles:            false,
 			}
 		} else {
 			description = generatedDescription

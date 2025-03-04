@@ -449,6 +449,8 @@ pdx ap # alias
 
 `--skip-commit`: Don't commit changes to git. Defaults to opposite of config value `auto-commit`.
 
+`--full-auto`: Apply the plan and debug in full auto mode.
+
 ### reject
 
 Reject pending changes to one or more project files.

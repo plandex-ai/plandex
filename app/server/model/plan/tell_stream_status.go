@@ -48,7 +48,7 @@ func (state *activeTellStreamState) handleDescAndExecStatus() handleDescAndExecS
 			generatedDescription = res
 			generatedDescription.OrgId = currentOrgId
 			generatedDescription.SummarizedToMessageId = summarizedToMessageId
-			generatedDescription.MadePlan = true
+			generatedDescription.WroteFiles = true
 			generatedDescription.Operations = replyOperations
 
 			log.Println("Generated plan description.")

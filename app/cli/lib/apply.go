@@ -1,4 +1,3 @@
-
 package lib
 
 import (
@@ -388,7 +387,7 @@ func execApplyScript(
 	execCmd.Dir = fs.ProjectRoot
 	execCmd.Env = os.Environ()
 	execCmd.Stdin = os.Stdin
-	
+
 	// Set up process group isolation
 	execCmd.SysProcAttr = &syscall.SysProcAttr{
 		Setpgid: true,
@@ -418,38 +417,45 @@ func execApplyScript(
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 
+	var interruptHandled atomic.Bool
+	var interruptWG sync.WaitGroup
+
+	// Start the interrupt handler goroutine
+	interruptWG.Add(1)
 	go func() {
-		select {
-		case <-sigChan:
-			fmt.Println("\n⚠️ Interrupt received, terminating subprocess...")
-			interrupted.Store(true)
-			
-			// Send SIGINT to the process group to attempt graceful shutdown
-			if err := syscall.Kill(-execCmd.Process.Pid, syscall.SIGINT); err != nil {
-				log.Printf("Failed to send SIGINT to process group: %v", err)
-			}
-			
-			// Wait for a grace period, then force kill if still running
+		defer interruptWG.Done()
+
+		for {
 			select {
-			case <-time.After(2 * time.Second):
-				fmt.Println("❌ Subprocess unresponsive; force-killing now.")
-				if err := syscall.Kill(-execCmd.Process.Pid, syscall.SIGKILL); err != nil {
-					log.Printf("Failed to send SIGKILL to process group: %v", err)
+			case <-sigChan:
+				if interruptHandled.CompareAndSwap(false, true) {
+					fmt.Println()
+					color.New(term.ColorHiYellow, color.Bold).Println("\n👉 Caught interrupt. Exiting gracefully...")
+					fmt.Println()
+					interrupted.Store(true)
+
+					if err := syscall.Kill(-execCmd.Process.Pid, syscall.SIGINT); err != nil {
+						log.Printf("Failed to send SIGINT to process group: %v", err)
+					}
+
+					select {
+					case <-time.After(2 * time.Second):
+						fmt.Println()
+						color.New(term.ColorHiYellow, color.Bold).Println("👉 Commands didn't exit after 2 seconds. Sending SIGKILL.")
+						fmt.Println()
+						if err := syscall.Kill(-execCmd.Process.Pid, syscall.SIGKILL); err != nil {
+							log.Printf("Failed to send SIGKILL to process group: %v", err)
+						}
+					case <-ctx.Done():
+						return
+					}
 				}
+
 			case <-ctx.Done():
-				// Context was cancelled, no need to force kill
+				// If no interrupts occurred, this will be the normal exit path
 				return
 			}
-		case <-ctx.Done():
-			// Exit the goroutine when context is cancelled
-			return
 		}
-	}()
-
-	defer func() {
-		cancel()             // Cancel context to clean up goroutine
-		signal.Stop(sigChan) // Stop catching signals
-		close(sigChan)       // Close the channel
 	}()
 
 	// Read and display output in real-time
@@ -460,13 +466,19 @@ func execApplyScript(
 		fmt.Println(line)
 		outputBuilder.WriteString(line + "\n")
 	}
-	
+
 	// Check for scanner errors
 	if scanErr := scanner.Err(); scanErr != nil {
 		log.Printf("⚠️ Scanner error reading subprocess output: %v", scanErr)
 	}
 
 	err = execCmd.Wait()
+
+	// Ensure interrupt handler fully completes before proceeding
+	cancel()           // cancel the context, if not already
+	interruptWG.Wait() // wait until the interrupt handler goroutine finishes
+	signal.Stop(sigChan)
+	close(sigChan)
 
 	success := err == nil
 

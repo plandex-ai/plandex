@@ -422,22 +422,27 @@ func rewind(cmd *cobra.Command, args []string) {
 		shouldCommit := false
 		needsPrompt := true
 
-		if cmd.Flags().Changed("commit") || cmd.Flags().Changed("skip-commit") {
-			if skipCommit {
-				shouldCommit = false
-			} else {
-				shouldCommit = autoCommit
-			}
+		if !fs.ProjectRootIsGitRepo() {
+			shouldCommit = false
 			needsPrompt = false
 		} else {
-			if config == nil {
-				config, apiErr = api.Client.GetPlanConfig(lib.CurrentPlanId)
-				if apiErr != nil {
-					term.OutputErrorAndExit("Error getting plan config: %v", apiErr)
+			if cmd.Flags().Changed("commit") || cmd.Flags().Changed("skip-commit") {
+				if skipCommit {
+					shouldCommit = false
+				} else {
+					shouldCommit = autoCommit
 				}
+				needsPrompt = false
+			} else {
+				if config == nil {
+					config, apiErr = api.Client.GetPlanConfig(lib.CurrentPlanId)
+					if apiErr != nil {
+						term.OutputErrorAndExit("Error getting plan config: %v", apiErr)
+					}
+				}
+				shouldCommit = config.AutoCommit
+				needsPrompt = false
 			}
-			shouldCommit = config.AutoCommit
-			needsPrompt = false
 		}
 
 		if needsPrompt {
@@ -465,6 +470,7 @@ func rewind(cmd *cobra.Command, args []string) {
 				term.OutputErrorAndExit("Error committing changes: %v", err)
 			}
 		}
+
 	} else {
 		printNoChanges()
 	}

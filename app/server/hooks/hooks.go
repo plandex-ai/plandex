@@ -1,6 +1,7 @@
 package hooks
 
 import (
+	"context"
 	"plandex-server/db"
 	"plandex-server/types"
 	"time"
@@ -25,6 +26,7 @@ const (
 	Authenticate         = "authenticate"
 	GetIntegratedModels  = "get_integrated_models"
 	GetApiOrgs           = "get_api_orgs"
+	CallFastApply        = "call_fast_apply"
 )
 
 type WillSendModelRequestParams struct {
@@ -117,6 +119,18 @@ type AuthenticateHookRequestParams struct {
 	Path string
 }
 
+type FastApplyParams struct {
+	InitialCode string `json:"initialCode"`
+	EditSnippet string `json:"editSnippet"`
+
+	InitialCodeTokens int
+	EditSnippetTokens int
+
+	Language shared.Language
+
+	Ctx context.Context
+}
+
 type HookParams struct {
 	Auth *types.ServerAuth
 	Plan *db.Plan
@@ -128,6 +142,7 @@ type HookParams struct {
 	GetApiOrgIds                  []string
 	AuthenticateHookRequestParams *AuthenticateHookRequestParams
 	DidFinishBuilderRunParams     *DidFinishBuilderRunParams
+	FastApplyParams               *FastApplyParams
 }
 
 type GetIntegratedModelsResult struct {
@@ -135,9 +150,14 @@ type GetIntegratedModelsResult struct {
 	ApiKeys              map[string]string
 }
 
+type FastApplyResult struct {
+	MergedCode string
+}
+
 type HookResult struct {
 	GetIntegratedModelsResult *GetIntegratedModelsResult
 	ApiOrgsById               map[string]*shared.Org
+	FastApplyResult           *FastApplyResult
 }
 
 type Hook func(params HookParams) (HookResult, *shared.ApiError)

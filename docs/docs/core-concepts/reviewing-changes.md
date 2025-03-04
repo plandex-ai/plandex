@@ -73,7 +73,15 @@ If commands fail, the changes are rolled back. Depending on the autonomy level a
 
 ## Auto-Applying Changes
 
-When `auto-apply` is enabled, Plandex will automatically apply changes after a plan is complete without prompting or review. This is enabled at the `full` autonomy level, and also during auto-debugging.
+When `auto-apply` is enabled, Plandex will automatically apply changes after a plan is complete without prompting or review. This is enabled at the `full` [autonomy level](./autonomy.md), and also during auto-debugging.
+
+## Apply + Full Auto
+
+You can also apply changes and debug in full auto mode with the `--full-auto` flag:
+
+```bash
+plandex apply --full-auto
+```
 
 ## Autonomy Matrix
 

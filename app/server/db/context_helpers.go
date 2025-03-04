@@ -1036,8 +1036,14 @@ func UpdateContexts(params UpdateContextsParams) (*shared.UpdateContextResponse,
 		return nil, fmt.Errorf("error adding plan context tokens: %v", err)
 	}
 
-	commitMsg := shared.SummaryForUpdateContext(updateRes) + "\n\n" + shared.TableForContextUpdate(updateRes)
-
+	commitMsg := shared.SummaryForUpdateContext(shared.SummaryForUpdateContextParams{
+		NumFiles:    numFiles,
+		NumTrees:    numTrees,
+		NumUrls:     numUrls,
+		NumMaps:     numMaps,
+		TokensDiff:  aggregateTokensDiff,
+		TotalTokens: totalTokens,
+	}) + "\n\n" + shared.TableForContextUpdate(updateRes)
 	return &shared.LoadContextResponse{
 		TokensAdded: aggregateTokensDiff,
 		TotalTokens: totalTokens,

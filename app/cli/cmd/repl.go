@@ -179,6 +179,9 @@ func runRepl(cmd *cobra.Command, args []string) {
 			var modeIcon string
 			if lib.CurrentReplState.Mode == lib.ReplModeTell {
 				modeIcon = "⚡️"
+				if config.AutoApply && config.AutoExec {
+					modeIcon += "❗️" // warning reminder for auto apply and auto exec
+				}
 			} else if lib.CurrentReplState.Mode == lib.ReplModeChat {
 				modeIcon = "💬"
 			}

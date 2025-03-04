@@ -497,7 +497,7 @@ type ConvoMessageDescription struct {
 	PlanId                string `json:"planId"`
 	ConvoMessageId        string `json:"convoMessageId"`
 	SummarizedToMessageId string `json:"summarizedToMessageId"`
-	MadePlan              bool   `json:"madePlan"`
+	WroteFiles            bool   `json:"wroteFiles"`
 	CommitMsg             string `json:"commitMsg"`
 	// Files                 []string        `json:"files"`
 	Operations            []*shared.Operation `json:"operations"`
@@ -514,7 +514,7 @@ func (desc *ConvoMessageDescription) ToApi() *shared.ConvoMessageDescription {
 		Id:                    desc.Id,
 		ConvoMessageId:        desc.ConvoMessageId,
 		SummarizedToMessageId: desc.SummarizedToMessageId,
-		MadePlan:              desc.MadePlan,
+		WroteFiles:            desc.WroteFiles,
 		CommitMsg:             desc.CommitMsg,
 		// Files:                 desc.Files,
 		Operations:            desc.Operations,

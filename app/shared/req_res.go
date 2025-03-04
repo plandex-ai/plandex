@@ -136,6 +136,7 @@ type TellPlanRequest struct {
 	OpenAIOrgId            string            `json:"openAIOrgId"`
 	ProjectPaths           map[string]bool   `json:"projectPaths"`
 	IsImplementationOfChat bool              `json:"isImplementationOfChat"`
+	IsGitRepo              bool              `json:"isGitRepo"`
 }
 
 type BuildPlanRequest struct {

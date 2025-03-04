@@ -147,7 +147,7 @@ func (state *activeTellStreamState) onError(params onErrorParams) onErrorResult 
 				OrgId:                 currentOrgId,
 				PlanId:                planId,
 				SummarizedToMessageId: summarizedToMessageId,
-				MadePlan:              false,
+				WroteFiles:            false,
 				ConvoMessageId:        convoMessageId,
 				BuildPathsInvalidated: map[string]bool{},
 				Error:                 streamErr.Error(),
