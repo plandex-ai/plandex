@@ -228,13 +228,14 @@ func handleHotkeyOption(option hotkeyOption, diffs []string, params ExecParams) 
 		}
 		fmt.Println()
 	} else if option.char == "a" {
+		fmt.Print("(a)")
 		fmt.Println()
 		_, err := lib.ExecPlandexCommand([]string{"apply"})
 		if err != nil {
 			fmt.Printf("\nError applying changes: %v\n", err)
 		}
 		fmt.Println()
-		exitUnlessDiffs()
+		os.Exit(0)
 	} else if option.char == "r" {
 		fmt.Println()
 		_, err := lib.ExecPlandexCommand([]string{"reject"})
@@ -244,23 +245,20 @@ func handleHotkeyOption(option hotkeyOption, diffs []string, params ExecParams) 
 		fmt.Println()
 		exitUnlessDiffs()
 	} else if option.char == "f" {
+		fmt.Print("(f)")
 		fmt.Println()
-		_, err := lib.ExecPlandexCommand([]string{"apply", "--auto"})
+
+		color.New(term.ColorHiYellow, color.Bold).Println("⚠️  Full auto mode allows automatic apply, execution, and multiple rounds of debugging without review.")
+		fmt.Println()
+
+		_, err := lib.ExecPlandexCommand([]string{"apply", "--full"})
 		if err != nil {
 			fmt.Printf("\nError applying changes: %v\n", err)
 		}
 		fmt.Println()
-		exitUnlessDiffs()
+		os.Exit(0)
 	} else if option.char == "q" || option.key == keyboard.KeyEnter {
 		os.Exit(0)
-		// } else if option.char == "f" {
-		// 	if term.IsRepl {
-		// 		color.New(color.Bold).Println("Write a prompt 👇")
-		// 		os.Exit(0)
-		// 	} else {
-		// 		term.PrintCmds("", "tell", "chat")
-		// 		os.Exit(0)
-		// 	}
 	} else {
 		fmt.Println("\nInvalid hotkey")
 	}

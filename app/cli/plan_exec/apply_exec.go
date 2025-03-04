@@ -73,29 +73,33 @@ func getOnApplyExecFail(applyFlags types.ApplyFlags, tellFlags types.TellFlags, 
 					term.OutputErrorAndExit("failed to get plan config: %s", apiErr)
 				}
 
-				config.SetAutoMode(shared.AutoModeFull)
-				apiErr = api.Client.UpdatePlanConfig(lib.CurrentPlanId, shared.UpdatePlanConfigRequest{
-					Config: config,
-				})
+				if config.AutoMode != shared.AutoModeFull {
+					config.SetAutoMode(shared.AutoModeFull)
+					apiErr = api.Client.UpdatePlanConfig(lib.CurrentPlanId, shared.UpdatePlanConfigRequest{
+						Config: config,
+					})
 
-				if apiErr != nil {
-					term.OutputErrorAndExit("failed to update plan config: %s", apiErr)
+					if apiErr != nil {
+						term.OutputErrorAndExit("failed to update plan config: %s", apiErr)
+					}
+
+					applyFlags.AutoCommit = true
+					applyFlags.AutoConfirm = true
+					applyFlags.AutoExec = true
+					applyFlags.AutoDebug = config.AutoDebugTries
+
+					tellFlags.AutoApply = true
+					tellFlags.AutoContext = true
+					tellFlags.ExecEnabled = true
+					tellFlags.SmartContext = true
+
+					term.StopSpinner()
+					fmt.Println()
+					fmt.Println("✅ Full auto mode enabled")
+					fmt.Println()
+				} else {
+					term.StopSpinner()
 				}
-
-				applyFlags.AutoCommit = true
-				applyFlags.AutoConfirm = true
-				applyFlags.AutoExec = true
-				applyFlags.AutoDebug = config.AutoDebugTries
-
-				tellFlags.AutoApply = true
-				tellFlags.AutoContext = true
-				tellFlags.ExecEnabled = true
-				tellFlags.SmartContext = true
-
-				term.StopSpinner()
-				fmt.Println()
-				fmt.Println("✅ Full auto mode enabled")
-				fmt.Println()
 
 			case RollbackChangesAndExit:
 				if toRollback != nil {

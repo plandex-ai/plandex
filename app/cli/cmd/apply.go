@@ -1,11 +1,13 @@
 package cmd
 
 import (
+	"plandex-cli/api"
 	"plandex-cli/auth"
 	"plandex-cli/lib"
 	"plandex-cli/plan_exec"
 	"plandex-cli/term"
 	"plandex-cli/types"
+	shared "plandex-shared"
 
 	"github.com/spf13/cobra"
 )
@@ -16,6 +18,8 @@ func init() {
 	initApplyFlags(applyCmd, false)
 	initExecScriptFlags(applyCmd)
 	RootCmd.AddCommand(applyCmd)
+
+	applyCmd.Flags().BoolVar(&fullAuto, "full", false, "Apply the plan and debug in full auto mode")
 }
 
 var applyCmd = &cobra.Command{
@@ -28,7 +32,22 @@ var applyCmd = &cobra.Command{
 func apply(cmd *cobra.Command, args []string) {
 	auth.MustResolveAuthWithOrg()
 	lib.MustResolveProject()
-	mustSetPlanExecFlags(cmd)
+
+	var config *shared.PlanConfig
+	if fullAuto {
+		term.StartSpinner("")
+		var apiErr *shared.ApiError
+		config, apiErr = api.Client.GetPlanConfig(lib.CurrentPlanId)
+		if apiErr != nil {
+			term.OutputErrorAndExit("Error getting plan config: %v", apiErr)
+		}
+		_, updatedConfig, printFn := resolveAutoModeSilent(config)
+		config = updatedConfig
+		term.StopSpinner()
+		printFn()
+	}
+
+	mustSetPlanExecFlagsWithConfig(cmd, config)
 
 	if lib.CurrentPlanId == "" {
 		term.OutputNoCurrentPlanErrorAndExit()

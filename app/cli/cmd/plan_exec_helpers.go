@@ -146,13 +146,20 @@ func validatePlanExecFlags() {
 }
 
 func mustSetPlanExecFlags(cmd *cobra.Command) {
+	mustSetPlanExecFlagsWithConfig(cmd, nil)
+}
+
+func mustSetPlanExecFlagsWithConfig(cmd *cobra.Command, config *shared.PlanConfig) {
 	if lib.CurrentPlanId == "" {
 		term.OutputNoCurrentPlanErrorAndExit()
 	}
 
-	config, apiErr := api.Client.GetPlanConfig(lib.CurrentPlanId)
-	if apiErr != nil {
-		term.OutputErrorAndExit("Error getting plan config: %v", apiErr)
+	if config == nil {
+		var apiErr *shared.ApiError
+		config, apiErr = api.Client.GetPlanConfig(lib.CurrentPlanId)
+		if apiErr != nil {
+			term.OutputErrorAndExit("Error getting plan config: %v", apiErr)
+		}
 	}
 
 	// Set flag vars from config when flags aren't explicitly set
