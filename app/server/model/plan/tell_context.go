@@ -225,7 +225,7 @@ func (state *activeTellStreamState) checkAutoLoadContext() checkAutoLoadContextR
 	// pick out all potential file paths within backticks
 	matches := pathRegex.FindAllStringSubmatch(activePlan.CurrentReplyContent, -1)
 
-	toAutoLoad := []string{}
+	toAutoLoad := map[string]bool{}
 	toActivate := map[string]bool{}
 
 	for _, match := range matches {
@@ -237,16 +237,21 @@ func (state *activeTellStreamState) checkAutoLoadContext() checkAutoLoadContextR
 		if req.ProjectPaths[trimmed] {
 			toActivate[trimmed] = true
 			if contextsByPath[trimmed] == nil {
-				toAutoLoad = append(toAutoLoad, trimmed)
+				toAutoLoad[trimmed] = true
 			}
 		}
 	}
 
-	log.Printf("Tell plan - checkAutoLoadContext - toAutoLoad: %v\n", toAutoLoad)
+	toAutoLoadPaths := []string{}
+	for path := range toAutoLoad {
+		toAutoLoadPaths = append(toAutoLoadPaths, path)
+	}
+
+	log.Printf("Tell plan - checkAutoLoadContext - toAutoLoad: %v\n", toAutoLoadPaths)
 	log.Printf("Tell plan - checkAutoLoadContext - toActivate: %v\n", toActivate)
 
 	return checkAutoLoadContextResult{
-		autoLoadPaths: toAutoLoad,
+		autoLoadPaths: toAutoLoadPaths,
 		activatePaths: toActivate,
 	}
 }

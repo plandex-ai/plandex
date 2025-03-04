@@ -37,6 +37,7 @@ func (state *activeTellStreamState) getTellSysPrompt(params getTellSysPromptPara
 		AutoContext:  autoContextEnabled,
 		IsUserDebug:  req.IsUserDebug,
 		IsApplyDebug: req.IsApplyDebug,
+		IsGitRepo:    req.IsGitRepo,
 	}
 
 	// log.Println("getTellSysPrompt - prompt params:", spew.Sdump(params))

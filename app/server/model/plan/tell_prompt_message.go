@@ -58,6 +58,7 @@ func (state *activeTellStreamState) resolvePromptMessage(
 			CreatePromptParams: prompts.CreatePromptParams{
 				AutoContext: req.AutoContext,
 				ExecMode:    req.ExecEnabled,
+				IsGitRepo:   req.IsGitRepo,
 				// no need to pass in IsUserDebug or IsApplyDebug here because it's a chat message
 			},
 			Prompt:    prompt,
@@ -91,6 +92,7 @@ func (state *activeTellStreamState) resolvePromptMessage(
 				CreatePromptParams: prompts.CreatePromptParams{
 					ExecMode:    req.ExecEnabled,
 					AutoContext: req.AutoContext,
+					IsGitRepo:   req.IsGitRepo,
 					// no need to pass in IsUserDebug or IsApplyDebug here because we're continuing
 				},
 				Prompt:                     content,
@@ -119,6 +121,7 @@ func (state *activeTellStreamState) resolvePromptMessage(
 				CreatePromptParams: prompts.CreatePromptParams{
 					ExecMode:    req.ExecEnabled,
 					AutoContext: req.AutoContext,
+					IsGitRepo:   req.IsGitRepo,
 					// no need to pass in IsUserDebug or IsApplyDebug here because we're continuing
 				},
 				Prompt:                     prompts.UserContinuePrompt,
@@ -159,6 +162,7 @@ func (state *activeTellStreamState) resolvePromptMessage(
 				AutoContext:  req.AutoContext,
 				IsUserDebug:  req.IsUserDebug,
 				IsApplyDebug: req.IsApplyDebug,
+				IsGitRepo:    req.IsGitRepo,
 			},
 			Prompt:                     prompt,
 			OsDetails:                  req.OsDetails,

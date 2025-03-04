@@ -36,10 +36,18 @@ func loadContexts(
 	cachedMapsByPath := params.cachedMapsByPath
 	autoLoaded := params.autoLoaded
 
+	log.Printf("Starting loadContexts with %d contexts, cachedMapsByPath: %v, autoLoaded: %v", len(*loadReq), cachedMapsByPath != nil, autoLoaded)
+
 	// check file count and size limits
 	totalFiles := 0
+	mapFilesCount := 0
 	for _, context := range *loadReq {
 		totalFiles++
+		if context.ContextType == shared.ContextMapType {
+			mapFilesCount++
+			log.Printf("Found map file: %s with %d map inputs", context.FilePath, len(context.MapInputs))
+		}
+
 		if totalFiles > shared.MaxContextCount {
 			log.Printf("Error: Too many contexts to load (found %d, limit is %d)\n", totalFiles, shared.MaxContextCount)
 			http.Error(w, fmt.Sprintf("Too many contexts to load (found %d, limit is %d)", totalFiles, shared.MaxContextCount), http.StatusBadRequest)
@@ -52,6 +60,10 @@ func loadContexts(
 			http.Error(w, fmt.Sprintf("Context %s exceeds size limit (size %.2f MB, limit %d MB)", context.Name, float64(fileSize)/1024/1024, int(shared.MaxContextBodySize)/1024/1024), http.StatusBadRequest)
 			return nil, nil
 		}
+	}
+
+	if mapFilesCount > 0 {
+		log.Printf("Processing %d map files out of %d total contexts", mapFilesCount, totalFiles)
 	}
 
 	var err error
@@ -151,6 +163,11 @@ func loadContexts(
 		}()
 	}
 
+	log.Printf("Calling db.LoadContexts with %d contexts, %d cached maps", len(*loadReq), len(cachedMapsByPath))
+	for path := range cachedMapsByPath {
+		log.Printf("Using cached map for path: %s", path)
+	}
+
 	res, dbContexts, err := db.LoadContexts(ctx, db.LoadContextsParams{
 		OrgId:            auth.OrgId,
 		Plan:             plan,
@@ -165,6 +182,20 @@ func loadContexts(
 		log.Printf("Error loading contexts: %v\n", err)
 		http.Error(w, "Error loading contexts: "+err.Error(), http.StatusInternalServerError)
 		return nil, nil
+	}
+
+	log.Printf("db.LoadContexts completed successfully, loaded %d contexts", len(dbContexts))
+
+	// Log information about loaded map contexts
+	mapContextsCount := 0
+	for _, context := range dbContexts {
+		if context.ContextType == shared.ContextMapType {
+			mapContextsCount++
+			log.Printf("Loaded map context: %s, path: %s, tokens: %d", context.Name, context.FilePath, context.NumTokens)
+		}
+	}
+	if mapContextsCount > 0 {
+		log.Printf("Successfully loaded %d map contexts out of %d total contexts", mapContextsCount, len(dbContexts))
 	}
 
 	if res.MaxTokensExceeded {

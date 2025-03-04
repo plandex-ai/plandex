@@ -30,7 +30,22 @@ func GetFileMapHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Println("GetFileMapHandler checking server resources")
+	log.Println("GetFileMapHandler: checking limits")
+
+	if len(req.MapInputs) > shared.MaxContextMapPaths {
+		http.Error(w, fmt.Sprintf("Too many files to map: %d (max %d)", len(req.MapInputs), shared.MaxContextMapPaths), http.StatusBadRequest)
+		return
+	}
+
+	totalSize := 0
+	for _, input := range req.MapInputs {
+		totalSize += len(input)
+	}
+
+	if totalSize > shared.MaxContextMapInputSize {
+		http.Error(w, fmt.Sprintf("Too many files to map: %d (max %d)", totalSize, shared.MaxContextMapInputSize), http.StatusBadRequest)
+		return
+	}
 
 	maps := make(shared.FileMapBodies)
 

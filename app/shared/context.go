@@ -226,13 +226,22 @@ func SummaryForRemoveContext(contexts []*Context, previousTotalTokens int) strin
 	return fmt.Sprintf("Removed %d piece%s of context | removed → %d 🪙 | total → %d 🪙", len(contexts), suffix, removedTokens, totalTokens)
 }
 
-func SummaryForUpdateContext(updateRes *ContextUpdateResult) string {
-	numFiles := updateRes.NumFiles
-	numTrees := updateRes.NumTrees
-	numUrls := updateRes.NumUrls
-	numMaps := updateRes.NumMaps
-	tokensDiff := updateRes.TokensDiff
-	totalTokens := updateRes.TotalTokens
+type SummaryForUpdateContextParams struct {
+	NumFiles    int
+	NumTrees    int
+	NumUrls     int
+	NumMaps     int
+	TokensDiff  int
+	TotalTokens int
+}
+
+func SummaryForUpdateContext(params SummaryForUpdateContextParams) string {
+	numFiles := params.NumFiles
+	numTrees := params.NumTrees
+	numUrls := params.NumUrls
+	numMaps := params.NumMaps
+	tokensDiff := params.TokensDiff
+	totalTokens := params.TotalTokens
 
 	msg := "Updated"
 	var toAdd []string
