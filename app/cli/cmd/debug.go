@@ -86,7 +86,7 @@ func doDebug(cmd *cobra.Command, args []string) {
 		execCmd := exec.Command("sh", "-c", shellCmdStr)
 		execCmd.Dir = cwd
 		execCmd.Env = os.Environ()
-		execCmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+		lib.SetPlatformSpecificAttrs(execCmd)
 
 		pipe, err := execCmd.StdoutPipe()
 		if err != nil {
@@ -121,7 +121,7 @@ func doDebug(cmd *cobra.Command, args []string) {
 
 						interrupted.Store(true)
 
-						if err := syscall.Kill(-execCmd.Process.Pid, syscall.SIGINT); err != nil {
+						if err := lib.KillProcessGroup(execCmd, syscall.SIGINT); err != nil {
 							log.Printf("Failed to send SIGINT to process group: %v", err)
 						}
 
@@ -130,7 +130,7 @@ func doDebug(cmd *cobra.Command, args []string) {
 							fmt.Println()
 							color.New(term.ColorHiYellow, color.Bold).Println("👉 Commands didn't exit after 2 seconds. Sending SIGKILL.")
 							fmt.Println()
-							if err := syscall.Kill(-execCmd.Process.Pid, syscall.SIGKILL); err != nil {
+							if err := lib.KillProcessGroup(execCmd, syscall.SIGKILL); err != nil {
 								log.Printf("Failed to send SIGKILL to process group: %v", err)
 							}
 						case <-ctx.Done():

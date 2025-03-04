@@ -388,11 +388,6 @@ func execApplyScript(
 	execCmd.Env = os.Environ()
 	execCmd.Stdin = os.Stdin
 
-	// Set up process group isolation
-	execCmd.SysProcAttr = &syscall.SysProcAttr{
-		Setpgid: true,
-	}
-
 	// Create a pipe for both stdout and stderr
 	pipe, err := execCmd.StdoutPipe()
 	if err != nil {
@@ -400,6 +395,9 @@ func execApplyScript(
 		onErr("failed to create stdout pipe: %s", err)
 	}
 	execCmd.Stderr = execCmd.Stdout
+
+	// Set platform-specific process attributes
+	SetPlatformSpecificAttrs(execCmd)
 
 	if err := execCmd.Start(); err != nil {
 		os.Remove(dstPath)
@@ -434,8 +432,8 @@ func execApplyScript(
 					fmt.Println()
 					interrupted.Store(true)
 
-					if err := syscall.Kill(-execCmd.Process.Pid, syscall.SIGINT); err != nil {
-						log.Printf("Failed to send SIGINT to process group: %v", err)
+					if err := KillProcessGroup(execCmd, syscall.SIGINT); err != nil {
+						log.Printf("Failed to send interrupt signal to process group: %v", err)
 					}
 
 					select {
@@ -443,8 +441,8 @@ func execApplyScript(
 						fmt.Println()
 						color.New(term.ColorHiYellow, color.Bold).Println("👉 Commands didn't exit after 2 seconds. Sending SIGKILL.")
 						fmt.Println()
-						if err := syscall.Kill(-execCmd.Process.Pid, syscall.SIGKILL); err != nil {
-							log.Printf("Failed to send SIGKILL to process group: %v", err)
+						if err := KillProcessGroup(execCmd, syscall.SIGKILL); err != nil {
+							log.Printf("Failed to terminate process group: %v", err)
 						}
 					case <-ctx.Done():
 						return
