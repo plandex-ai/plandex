@@ -77,10 +77,10 @@ When `auto-apply` is enabled, Plandex will automatically apply changes after a p
 
 ## Apply + Full Auto
 
-You can also apply changes and debug in full auto mode with the `--full-auto` flag:
+You can also apply changes and debug in full auto mode with the `--full` flag:
 
 ```bash
-plandex apply --full-auto
+plandex apply --full
 ```
 
 ## Autonomy Matrix
