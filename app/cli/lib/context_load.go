@@ -181,7 +181,7 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 				cachedMapPaths = res.CachedByPath
 
 				for _, path := range toLoadMapPaths {
-					if cachedMapPaths[path] {
+					if !cachedMapPaths[path] {
 						uncachedMapPaths = append(uncachedMapPaths, path)
 					}
 				}

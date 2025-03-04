@@ -25,7 +25,8 @@ func ParseInputPaths(params ParseInputPathsParams) ([]string, error) {
 		// see if it's a child of any of the fileOrDirPaths
 		found := false
 		for _, p := range fileOrDirPaths {
-			found, err := fs.IsSubpathOf(p, path, baseDir)
+			var err error
+			found, err = fs.IsSubpathOf(p, path, baseDir)
 			if err != nil {
 				return nil, fmt.Errorf("error checking if %s is a subpath of %s: %s", path, p, err)
 			}
@@ -41,7 +42,6 @@ func ParseInputPaths(params ParseInputPathsParams) ([]string, error) {
 		if projectPaths.AllDirs[path] {
 			if !(loadParams.Recursive || loadParams.NamesOnly || loadParams.DefsOnly) {
 				// log.Println("path", path, "info.Name()", info.Name())
-
 				return nil, fmt.Errorf("cannot process directory %s: requires --recursive/-r, --tree, or --map flag", path)
 			}
 

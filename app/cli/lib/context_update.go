@@ -165,7 +165,7 @@ func CheckOutdatedContextWithOutput(quiet, autoConfirm bool, maybeContexts []*sh
 		_, err := UpdateContextWithOutput(UpdateContextParams{
 			Contexts:    maybeContexts,
 			OutdatedRes: *outdatedRes,
-			Req:         map[string]*shared.UpdateContextParams{},
+			Req:         outdatedRes.Req,
 		})
 		if err != nil {
 			return false, false, fmt.Errorf("error updating context: %v", err)
@@ -249,6 +249,7 @@ func UpdateContext(params UpdateContextParams) (UpdateContextResult, error) {
 		// log.Println("updated context")
 		// log.Println("res.Msg", res.Msg)
 		msg = res.Msg
+	} else {
 	}
 
 	if len(deleteIds) > 0 {
@@ -282,6 +283,11 @@ func checkOutdatedAndMaybeUpdateContext(doUpdate bool, maybeContexts []*shared.C
 		}
 	} else {
 		contexts = maybeContexts
+	}
+
+	totalTokens := 0
+	for _, context := range contexts {
+		totalTokens += context.NumTokens
 	}
 
 	var errs []error
@@ -498,20 +504,27 @@ func checkOutdatedAndMaybeUpdateContext(doUpdate bool, maybeContexts []*shared.C
 						hash := sha256.Sum256(bytes)
 						sha := hex.EncodeToString(hash[:])
 						updatedInputShas[path] = sha
+					} else {
 					}
 				}
 				// If any files changed, get new map
 
 				if len(updatedInputs) > 0 || len(removedMapPaths) > 0 {
-					// log.Println("updatedInputs", len(updatedInputs), "removedMapPaths", len(removedMapPaths))
-					// log.Println("updatedInputs:")
-					// for k := range updatedInputs {
-					// 	log.Println(k)
-					// }
-					// log.Println("removedMapPaths:")
-					// for k := range removedMapPaths {
-					// 	log.Println(k)
-					// }
+					// Check total map input size and paths before making API call
+					if len(updatedInputs) > shared.MaxContextMapPaths {
+						errs = append(errs, fmt.Errorf("total map paths limit exceeded (found %d, limit %d)", len(updatedInputs), shared.MaxContextMapPaths))
+						return
+					}
+
+					var totalMapSize int64
+					for _, input := range updatedInputs {
+						totalMapSize += int64(len(input))
+					}
+
+					if totalMapSize > shared.MaxContextMapInputSize {
+						errs = append(errs, fmt.Errorf("total map size limit exceeded (size %.2f MB, limit %d MB)", float64(totalMapSize)/1024/1024, int(shared.MaxContextMapInputSize)/1024/1024))
+						return
+					}
 
 					updatedParts := make(shared.FileMapBodies)
 					for k, v := range context.MapParts {
@@ -555,6 +568,8 @@ func checkOutdatedAndMaybeUpdateContext(doUpdate bool, maybeContexts []*shared.C
 						InputShas:       updatedInputShas,
 						RemovedMapPaths: removedMapPaths,
 					}
+
+				} else {
 				}
 			}(context)
 		} else if context.ContextType == shared.ContextURLType {
@@ -631,7 +646,8 @@ func checkOutdatedAndMaybeUpdateContext(doUpdate bool, maybeContexts []*shared.C
 		return &types.ContextOutdatedResult{
 			Msg: "Context is up to date",
 		}, nil
-	} else if doUpdate {
+	} else {
+
 		outdatedRes = types.ContextOutdatedResult{
 			UpdatedContexts: updatedContexts,
 			RemovedContexts: removedContexts,
@@ -644,17 +660,35 @@ func checkOutdatedAndMaybeUpdateContext(doUpdate bool, maybeContexts []*shared.C
 			NumTreesRemoved: numTreesRemoved,
 			Req:             req,
 		}
-		res, err := UpdateContext(UpdateContextParams{
-			Contexts:    contexts,
-			OutdatedRes: outdatedRes,
-			Req:         req,
-		})
-		if err != nil {
-			return nil, fmt.Errorf("failed to update context: %v", err)
+
+		if doUpdate {
+
+			res, err := UpdateContext(UpdateContextParams{
+				Contexts:    contexts,
+				OutdatedRes: outdatedRes,
+				Req:         req,
+			})
+			if err != nil {
+				return nil, fmt.Errorf("failed to update context: %v", err)
+			}
+			hasConflicts = res.HasConflicts
+			msg = res.Msg
+			outdatedRes.Msg = msg
+		} else {
+			tokensDiff := 0
+			for _, diff := range tokenDiffsById {
+				tokensDiff += diff
+			}
+			total := totalTokens + tokensDiff
+			outdatedRes.Msg = shared.SummaryForUpdateContext(shared.SummaryForUpdateContextParams{
+				NumFiles:    numFiles,
+				NumTrees:    numTrees,
+				NumUrls:     numUrls,
+				NumMaps:     numMaps,
+				TokensDiff:  tokensDiff,
+				TotalTokens: total,
+			})
 		}
-		hasConflicts = res.HasConflicts
-		msg = res.Msg
-		outdatedRes.Msg = msg
 	}
 
 	if hasConflicts {

@@ -220,10 +220,7 @@ func GetPaths(baseDir, currentDir string) (*types.ProjectPaths, error) {
 				}
 
 				if info.IsDir() {
-					if info.Name() == ".git" {
-						return filepath.SkipDir
-					}
-					if strings.HasPrefix(info.Name(), ".plandex") {
+					if ShouldSkipDir(info.Name()) {
 						return filepath.SkipDir
 					}
 
@@ -281,6 +278,10 @@ func GetPaths(baseDir, currentDir string) (*types.ProjectPaths, error) {
 		}
 	}
 
+	for dir := range activeDirs {
+		allDirs[dir] = true
+	}
+
 	for dir := range allDirs {
 		allPaths[dir] = true
 	}
@@ -292,6 +293,10 @@ func GetPaths(baseDir, currentDir string) (*types.ProjectPaths, error) {
 	// remove deleted files from active paths
 	for path := range deletedFiles {
 		delete(activePaths, path)
+	}
+
+	for path := range activePaths {
+		allPaths[path] = true
 	}
 
 	ignoredPaths := map[string]string{}
@@ -439,4 +444,49 @@ func IsIgnored(paths *types.ProjectPaths, path, baseDir string) (bool, string, e
 	}
 
 	return true, "git", nil
+}
+
+var skipExactDir = map[string]bool{
+	".git":              true,
+	"node_modules":      true,
+	"venv":              true,
+	".cache":            true,
+	"__pycache__":       true,
+	"cue.mod":           true,
+	"_build":            true,
+	".build":            true,
+	"DerivedData":       true,
+	".gradle":           true,
+	".terraform":        true,
+	".terragrunt-cache": true,
+	".next":             true,
+	".nuxt":             true,
+	".bundle":           true,
+	".rvm":              true,
+	".rbenv":            true,
+	".pyenv":            true,
+	".nodenv":           true,
+	".plenv":            true,
+	".nvm":              true,
+	"vendor":            true,
+}
+
+var skipPrefixDir = map[string]bool{
+	".plandex": true,
+}
+
+func ShouldSkipDir(dirName string) bool {
+	for k := range skipExactDir {
+		if k == dirName {
+			return true
+		}
+	}
+
+	for k := range skipPrefixDir {
+		if strings.HasPrefix(dirName, k) {
+			return true
+		}
+	}
+
+	return false
 }
