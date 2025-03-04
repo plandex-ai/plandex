@@ -1,3 +1,6 @@
+## CLI Version 2.0.0-rc.3
+Placeholder for v2 release testing
+
 ## CLI Version 2.0.0-rc.2
 Placeholder for v2 release testing
 
