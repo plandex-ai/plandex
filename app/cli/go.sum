@@ -607,8 +607,8 @@ github.com/pkg/term v1.2.0-beta.2 h1:L3y/h2jkuBVFdWiJvNfYfKmzcCnILw7mJWm2JQuMppw
 github.com/pkg/term v1.2.0-beta.2/go.mod h1:E25nymQcrSllhX42Ok8MRm1+hyBdHY0dCeiKZ9jpNGw=
 github.com/pkoukk/tiktoken-go v0.1.7 h1:qOBHXX4PHtvIvmOtyg1EeKlwFRiMKAcoMp4Q+bLQDmw=
 github.com/pkoukk/tiktoken-go v0.1.7/go.mod h1:9NiV+i9mJKGj1rYOT+njbv+ZwA/zJxYdewGl6qVatpg=
-github.com/plandex-ai/go-prompt v0.0.0-20250207121803-6be77f7193aa h1:kBelDvK3qBN8OQ6dtXCWKxtn7DR5H5QSFZbRon/OHRA=
-github.com/plandex-ai/go-prompt v0.0.0-20250207121803-6be77f7193aa/go.mod h1:SqEsJfsIr0GYUyLatvezDOBe6XsCw64E7v33QzeH5PM=
+github.com/plandex-ai/go-prompt v0.0.0-20250304173555-1f364907fc6c h1:bki/wkg5iFBOv3jCPUDNuH5yLngUPUdEJCSuvc2tiQ0=
+github.com/plandex-ai/go-prompt v0.0.0-20250304173555-1f364907fc6c/go.mod h1:SqEsJfsIr0GYUyLatvezDOBe6XsCw64E7v33QzeH5PM=
 github.com/plandex-ai/survey/v2 v2.3.7 h1:u1o6bflbaBpW8i8krm+91Z2cOcvZcMVS+AjV+rgR8Rk=
 github.com/plandex-ai/survey/v2 v2.3.7/go.mod h1:RiBOKRDB5fOQrOzsiAPAN57hYqFKPkCxgSK7twcDOys=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=

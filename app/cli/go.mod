@@ -9,7 +9,7 @@ require (
 	github.com/muesli/reflow v0.3.0
 	github.com/muesli/termenv v0.15.3-0.20240618155329-98d742f6907a
 	github.com/olekukonko/tablewriter v0.0.5
-	github.com/plandex-ai/go-prompt v0.0.0-20250207121803-6be77f7193aa
+	github.com/plandex-ai/go-prompt v0.0.0-20250304173555-1f364907fc6c
 	github.com/plandex-ai/survey/v2 v2.3.7
 	github.com/sashabaranov/go-openai v1.35.6
 	github.com/shopspring/decimal v1.4.0

@@ -132,7 +132,7 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 	existsByComposite := make(map[string]*shared.Context)
 	for _, context := range existingContexts {
 		switch context.ContextType {
-		case shared.ContextFileType, shared.ContextDirectoryTreeType, shared.ContextMapType:
+		case shared.ContextFileType, shared.ContextDirectoryTreeType, shared.ContextMapType, shared.ContextImageType:
 			existsByComposite[strings.Join([]string{string(context.ContextType), context.FilePath}, "|")] = context
 		case shared.ContextURLType:
 			existsByComposite[strings.Join([]string{string(context.ContextType), context.Url}, "|")] = context
@@ -425,26 +425,24 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 					go func(path string) {
 						var fileContent []byte
 						var size int64
-						if shared.HasFileMapSupport(path) {
-							// File size check
-							fileInfo, err := os.Stat(path)
-							if err != nil {
-								errCh <- fmt.Errorf("failed to get file info for %s: %v", path, err)
-								return
-							}
+						// File size check
+						fileInfo, err := os.Stat(path)
+						if err != nil {
+							errCh <- fmt.Errorf("failed to get file info for %s: %v", path, err)
+							return
+						}
 
-							size = fileInfo.Size()
+						size = fileInfo.Size()
 
-							if size > shared.MaxContextBodySize {
-								errCh <- fmt.Errorf("file %s exceeds size limit (size %.2f MB, limit %d MB)", path, float64(fileInfo.Size())/1024/1024, int(shared.MaxContextBodySize)/1024/1024)
-								return
-							}
+						if size > shared.MaxContextBodySize {
+							errCh <- fmt.Errorf("file %s exceeds size limit (size %.2f MB, limit %d MB)", path, float64(fileInfo.Size())/1024/1024, int(shared.MaxContextBodySize)/1024/1024)
+							return
+						}
 
-							fileContent, err = os.ReadFile(path)
-							if err != nil {
-								errCh <- fmt.Errorf("failed to read the file %s: %v", path, err)
-								return
-							}
+						fileContent, err = os.ReadFile(path)
+						if err != nil {
+							errCh <- fmt.Errorf("failed to read the file %s: %v", path, err)
+							return
 						}
 
 						contextMu.Lock()

@@ -19,29 +19,29 @@ type CmdConfig struct {
 var CliCommands = []CmdConfig{
 	{"", "", "start the Plandex REPL", false},
 
-	// {"--full", "", fmt.Sprintf("start the Plandex REPL with auto-mode %s", color.New(color.Bold).Sprint("full")), false},
-	// {"--semi", "", fmt.Sprintf("start the Plandex REPL with auto-mode %s", color.New(color.Bold).Sprint("semi")), false},
-	// {"--plus", "", fmt.Sprintf("start the Plandex REPL with auto-mode %s", color.New(color.Bold).Sprint("plus")), false},
-	// {"--basic", "", fmt.Sprintf("start the Plandex REPL with auto-mode %s", color.New(color.Bold).Sprint("basic")), false},
-	// {"--none", "", fmt.Sprintf("start the Plandex REPL with auto-mode %s", color.New(color.Bold).Sprint("none")), false},
+	// {"--full", "", fmt.Sprintf("start the Plandex REPL with auto-mode %s", "'full'"), false},
+	// {"--semi", "", fmt.Sprintf("start the Plandex REPL with auto-mode %s", "'semi'"), false},
+	// {"--plus", "", fmt.Sprintf("start the Plandex REPL with auto-mode %s", "'plus'"), false},
+	// {"--basic", "", fmt.Sprintf("start the Plandex REPL with auto-mode %s", "'basic'"), false},
+	// {"--none", "", fmt.Sprintf("start the Plandex REPL with auto-mode %s", "'none'"), false},
 
-	// {"--daily", "", fmt.Sprintf("start the Plandex REPL with %s model pack", color.New(color.Bold).Sprint("daily-driver")), false},
-	// {"--strong", "", fmt.Sprintf("start the Plandex REPL with %s model pack", color.New(color.Bold).Sprint("strong")), false},
-	// {"--cheap", "", fmt.Sprintf("start the Plandex REPL with %s model pack", color.New(color.Bold).Sprint("cheap")), false},
-	// {"--oss", "", fmt.Sprintf("start the Plandex REPL with %s model pack", color.New(color.Bold).Sprint("oss")), false},
+	// {"--daily", "", fmt.Sprintf("start the Plandex REPL with %s model pack", "'daily-driver'"), false},
+	// {"--strong", "", fmt.Sprintf("start the Plandex REPL with %s model pack", "'strong'"), false},
+	// {"--cheap", "", fmt.Sprintf("start the Plandex REPL with %s model pack", "'cheap'"), false},
+	// {"--oss", "", fmt.Sprintf("start the Plandex REPL with %s model pack", "'oss'"), false},
 
 	{"new", "", "start a new plan", true},
 
-	{"new --full", "", fmt.Sprintf("start a new plan with auto-mode %s", color.New(color.Bold).Sprint("full")), true},
-	{"new --semi", "", fmt.Sprintf("start a new plan with auto-mode %s", color.New(color.Bold).Sprint("semi")), true},
-	{"new --plus", "", fmt.Sprintf("start a new plan with auto-mode %s", color.New(color.Bold).Sprint("plus")), true},
-	{"new --basic", "", fmt.Sprintf("start a new plan with auto-mode %s", color.New(color.Bold).Sprint("basic")), true},
-	{"new --none", "", fmt.Sprintf("start a new plan with auto-mode %s", color.New(color.Bold).Sprint("none")), true},
+	{"new --full", "", fmt.Sprintf("start a new plan with auto-mode %s", "'full'"), true},
+	{"new --semi", "", fmt.Sprintf("start a new plan with auto-mode %s", "'semi'"), true},
+	{"new --plus", "", fmt.Sprintf("start a new plan with auto-mode %s", "'plus'"), true},
+	{"new --basic", "", fmt.Sprintf("start a new plan with auto-mode %s", "'basic'"), true},
+	{"new --none", "", fmt.Sprintf("start a new plan with auto-mode %s", "'none'"), true},
 
-	{"new --daily", "", fmt.Sprintf("start a new plan with %s model pack", color.New(color.Bold).Sprint("daily-driver")), true},
-	{"new --strong", "", fmt.Sprintf("start a new plan with %s model pack", color.New(color.Bold).Sprint("strong")), true},
-	{"new --cheap", "", fmt.Sprintf("start a new plan with %s model pack", color.New(color.Bold).Sprint("cheap")), true},
-	{"new --oss", "", fmt.Sprintf("start a new plan with %s model pack", color.New(color.Bold).Sprint("oss")), true},
+	{"new --daily", "", fmt.Sprintf("start a new plan with %s model pack", "'daily-driver'"), true},
+	{"new --strong", "", fmt.Sprintf("start a new plan with %s model pack", "'strong'"), true},
+	{"new --cheap", "", fmt.Sprintf("start a new plan with %s model pack", "'cheap'"), true},
+	{"new --oss", "", fmt.Sprintf("start a new plan with %s model pack", "'oss'"), true},
 
 	{"plans", "pl", "list plans", true},
 	{"cd", "", "set current plan by name or index", true},
@@ -55,11 +55,11 @@ var CliCommands = []CmdConfig{
 	{"set-config default", "", "update the default config for new plans", true},
 
 	{"set-auto", "", "update auto-mode (autonomy level) for current plan", true},
-	{"set-auto none", "", fmt.Sprintf("set auto-mode to %s", color.New(color.Bold).Sprint("none")), true},
-	{"set-auto basic", "", fmt.Sprintf("set auto-mode to %s", color.New(color.Bold).Sprint("basic")), true},
-	{"set-auto plus", "", fmt.Sprintf("set auto-mode to %s", color.New(color.Bold).Sprint("plus")), true},
-	{"set-auto semi", "", fmt.Sprintf("set auto-mode to %s", color.New(color.Bold).Sprint("semi")), true},
-	{"set-auto full", "", fmt.Sprintf("set auto-mode to %s", color.New(color.Bold).Sprint("full")), true},
+	{"set-auto none", "", fmt.Sprintf("set auto-mode to %s", "'none'"), true},
+	{"set-auto basic", "", fmt.Sprintf("set auto-mode to %s", "'basic'"), true},
+	{"set-auto plus", "", fmt.Sprintf("set auto-mode to %s", "'plus'"), true},
+	{"set-auto semi", "", fmt.Sprintf("set auto-mode to %s", "'semi'"), true},
+	{"set-auto full", "", fmt.Sprintf("set auto-mode to %s", "'full'"), true},
 
 	{"set-auto default", "", "set the default auto-mode for new plans", true},
 
@@ -114,10 +114,10 @@ var CliCommands = []CmdConfig{
 	{"set-model", "", "update current plan model settings", true},
 	{"set-model default", "", "update the default model settings for new plans", true},
 
-	{"set-model daily", "", fmt.Sprintf("Use %s model pack", color.New(color.Bold).Sprint("daily-driver")), true},
-	{"set-model strong", "", fmt.Sprintf("Use %s model pack", color.New(color.Bold).Sprint("strong")), true},
-	{"set-model cheap", "", fmt.Sprintf("Use %s model pack", color.New(color.Bold).Sprint("cheap")), true},
-	{"set-model oss", "", fmt.Sprintf("Use %s model pack", color.New(color.Bold).Sprint("oss")), true},
+	{"set-model daily", "", fmt.Sprintf("Use %s model pack", "'daily-driver'"), true},
+	{"set-model strong", "", fmt.Sprintf("Use %s model pack", "'strong'"), true},
+	{"set-model cheap", "", fmt.Sprintf("Use %s model pack", "'cheap'"), true},
+	{"set-model oss", "", fmt.Sprintf("Use %s model pack", "'oss'"), true},
 
 	{"ps", "", "list active and recently finished plan streams", true},
 	{"stop", "", "stop an active plan stream", true},
@@ -180,7 +180,7 @@ func printCmds(w io.Writer, prefix string, colors []color.Attribute, cmds ...str
 				}
 			}
 
-			// desc += color.New(color.FgWhite).Sprintf(" • alias → %s", color.New(color.Bold).Sprint(alias))
+			// desc += color.New(color.FgWhite).Sprintf(" • alias → %s", fmt.Sprint(a'lias'))
 		}
 
 		var styled string
@@ -199,7 +199,7 @@ func printCmds(w io.Writer, prefix string, colors []color.Attribute, cmds ...str
 
 func PrintCustomCmd(prefix, cmd, alias, desc string) {
 	cmd = strings.Replace(cmd, alias, fmt.Sprintf("(%s)", alias), 1)
-	// desc += color.New(color.FgWhite).Sprintf(" • alias → %s", color.New(color.Bold).Sprint(alias))
+	// desc += color.New(color.FgWhite).Sprintf(" • alias → %s", fmt.Sprint(a'lias'))
 	styled := color.New(color.Bold, color.FgHiWhite, color.BgCyan, color.FgHiWhite).Sprintf(" plandex %s ", cmd)
 	fmt.Printf("%s%s 👉 %s\n", prefix, styled, desc)
 }
