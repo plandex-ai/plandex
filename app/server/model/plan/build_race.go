@@ -8,6 +8,7 @@ import (
 	"plandex-server/syntax"
 	"plandex-server/utils"
 	"strings"
+	"time"
 )
 
 type raceResult struct {
@@ -188,6 +189,8 @@ func (fileState *activeBuildStreamFileState) buildRace(
 		return false
 	}
 
+	fileState.builderRun.AutoApplyValidationStartedAt = time.Now()
+
 	go func() {
 		log.Printf("buildRace - starting validation loop")
 		validateResult, err := fileState.buildValidateLoop(buildCtx, buildValidateLoopParams{
@@ -199,6 +202,8 @@ func (fileState *activeBuildStreamFileState) buildRace(
 			syntaxErrors:         syntaxErrors,
 			initialPhaseOnStream: onInitialStream,
 		})
+
+		fileState.builderRun.AutoApplyValidationFinishedAt = time.Now()
 
 		if err != nil {
 			if errors.Is(err, context.Canceled) {
