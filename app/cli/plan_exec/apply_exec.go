@@ -3,6 +3,7 @@ package plan_exec
 import (
 	"fmt"
 	"log"
+	"os"
 	"plandex-cli/api"
 	"plandex-cli/auth"
 	"plandex-cli/lib"
@@ -105,7 +106,7 @@ func getOnApplyExecFail(applyFlags types.ApplyFlags, tellFlags types.TellFlags, 
 				if toRollback != nil {
 					lib.Rollback(toRollback, true)
 				}
-				term.OutputErrorAndExit("Rolling back changes and exiting")
+				os.Exit(1)
 			case ApplyChangesAndExit:
 				onSuccess()
 				return

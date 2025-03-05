@@ -299,6 +299,7 @@ func handleApplyScript(
 
 			if res == string(types.ApplyRollbackOptionRollback) {
 				Rollback(toRollback, true)
+				os.Exit(0)
 			} else {
 				onSuccess()
 			}

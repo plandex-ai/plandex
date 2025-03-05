@@ -35,6 +35,8 @@ var cliSuggestions []prompt.Suggest
 var projectPaths *types.ProjectPaths
 var currentPrompt *prompt.Prompt
 
+var replConfig *shared.PlanConfig
+
 func init() {
 	RootCmd.AddCommand(replCmd)
 
@@ -52,6 +54,14 @@ func init() {
 			cliSuggestions = append(cliSuggestions, prompt.Suggest{Text: "\\" + config.Cmd, Description: desc})
 		}
 	}
+}
+
+func setReplConfig() {
+	res, apiErr := api.Client.GetPlanConfig(lib.CurrentPlanId)
+	if apiErr != nil {
+		term.OutputErrorAndExit("Error getting plan config: %v", apiErr.Msg)
+	}
+	replConfig = res
 }
 
 func runRepl(cmd *cobra.Command, args []string) {
@@ -125,10 +135,7 @@ func runRepl(cmd *cobra.Command, args []string) {
 		color.New(term.ColorHiRed).Printf("Error getting project paths: %v\n", err)
 	}
 
-	config, apiErr := api.Client.GetPlanConfig(lib.CurrentPlanId)
-	if apiErr != nil {
-		term.OutputErrorAndExit("Error getting plan config: %v", apiErr.Msg)
-	}
+	setReplConfig()
 
 	settings, apiErr := api.Client.GetSettings(lib.CurrentPlanId, lib.CurrentBranch)
 	if apiErr != nil {
@@ -141,15 +148,15 @@ func runRepl(cmd *cobra.Command, args []string) {
 		var didUpdateConfig bool
 		var updatedConfig *shared.PlanConfig
 		var updatedSettings *shared.PlanSettings
-		didUpdateConfig, updatedConfig, printAutoFn = resolveAutoModeSilent(config)
+		didUpdateConfig, updatedConfig, printAutoFn = resolveAutoModeSilent(replConfig)
 		updatedSettings, printModelFn = resolveModelPackSilent(settings)
 
 		if didUpdateConfig {
-			loadMapIfNeeded(config, updatedConfig)
-			removeMapIfNeeded(config, updatedConfig)
+			loadMapIfNeeded(replConfig, updatedConfig)
+			removeMapIfNeeded(replConfig, updatedConfig)
 
 			if updatedConfig != nil {
-				config = updatedConfig
+				replConfig = updatedConfig
 			}
 		}
 
@@ -163,7 +170,7 @@ func runRepl(cmd *cobra.Command, args []string) {
 		isHelp:       false,
 		printAutoFn:  printAutoFn,
 		printModelFn: printModelFn,
-		config:       config,
+		config:       replConfig,
 		packName:     settings.ModelPack.Name,
 	})
 
@@ -179,7 +186,7 @@ func runRepl(cmd *cobra.Command, args []string) {
 			var modeIcon string
 			if lib.CurrentReplState.Mode == lib.ReplModeTell {
 				modeIcon = "⚡️"
-				if config.AutoApply && config.AutoExec {
+				if replConfig.AutoApply && replConfig.AutoExec {
 					modeIcon += "❗️" // warning reminder for auto apply and auto exec
 				}
 			} else if lib.CurrentReplState.Mode == lib.ReplModeChat {
@@ -492,6 +499,12 @@ func executor(in string, p *prompt.Prompt) {
 				fmt.Println()
 				if preservedBuffer != "" {
 					p.InsertTextMoveCursor(preservedBuffer, true)
+				}
+
+				if strings.HasPrefix(matchedCmd, "set-auto") || strings.HasPrefix(matchedCmd, "set-config") {
+					term.StartSpinner("")
+					setReplConfig()
+					term.StopSpinner()
 				}
 				return
 			}

@@ -25,7 +25,20 @@ func CheckOutdatedContextWithOutput(quiet, autoConfirm bool, maybeContexts []*sh
 		term.StartSpinner("🔬 Checking context...")
 	}
 
-	outdatedRes, err := CheckOutdatedContext(maybeContexts, projectPaths)
+	var contexts []*shared.Context
+
+	if maybeContexts != nil {
+		contexts = maybeContexts
+	} else {
+		res, err := api.Client.ListContext(CurrentPlanId, CurrentBranch)
+		if err != nil {
+			term.StopSpinner()
+			return false, false, fmt.Errorf("failed to list context: %s", err)
+		}
+		contexts = res
+	}
+
+	outdatedRes, err := CheckOutdatedContext(contexts, projectPaths)
 	if err != nil {
 		term.StopSpinner()
 		return false, false, fmt.Errorf("failed to check outdated context: %s", err)
@@ -163,7 +176,7 @@ func CheckOutdatedContextWithOutput(quiet, autoConfirm bool, maybeContexts []*sh
 
 	if confirmed {
 		_, err := UpdateContextWithOutput(UpdateContextParams{
-			Contexts:    maybeContexts,
+			Contexts:    contexts,
 			OutdatedRes: *outdatedRes,
 			Req:         outdatedRes.Req,
 		})
@@ -214,7 +227,6 @@ func UpdateContext(params UpdateContextParams) (UpdateContextResult, error) {
 	for _, context := range params.Contexts {
 		contextsById[context.Id] = context
 	}
-
 	deleteIds := map[string]bool{}
 	for _, context := range params.OutdatedRes.RemovedContexts {
 		deleteIds[context.Id] = true
