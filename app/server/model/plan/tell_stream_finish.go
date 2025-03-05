@@ -166,6 +166,7 @@ func (state *activeTellStreamState) handleStreamFinished() handleStreamFinishedR
 		hasNewSubtasks:      hasNewSubtasks,
 		allSubtasksFinished: allSubtasksFinished,
 		activatePaths:       autoLoadContextResult.activatePaths,
+		removedSubtasks:     len(removedSubtasks) > 0,
 	})
 
 	if willContinue {

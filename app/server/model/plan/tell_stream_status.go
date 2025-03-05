@@ -104,12 +104,14 @@ func (state *activeTellStreamState) handleDescAndExecStatus() handleDescAndExecS
 
 type willContinuePlanParams struct {
 	hasNewSubtasks      bool
+	removedSubtasks     bool
 	allSubtasksFinished bool
 	activatePaths       map[string]bool
 }
 
 func (state *activeTellStreamState) willContinuePlan(params willContinuePlanParams) bool {
 	hasNewSubtasks := params.hasNewSubtasks
+	removedSubtasks := params.removedSubtasks
 	allSubtasksFinished := params.allSubtasksFinished
 	activatePaths := params.activatePaths
 
@@ -151,12 +153,18 @@ func (state *activeTellStreamState) willContinuePlan(params willContinuePlanPara
 			return true
 		}
 
+		if removedSubtasks && !allSubtasksFinished {
+			log.Println("[willContinuePlan] Removed subtasks - continuing")
+			return true
+		}
+
 		// if all subtasks are finished, don't continue
-		// otherwise, continue to implementation phase
 		log.Printf("[willContinuePlan] Checking subtasks finished - allSubtasksFinished: %v, will continue: %v",
 			allSubtasksFinished, !allSubtasksFinished)
 
-		return !allSubtasksFinished
+		log.Printf("[willContinuePlan] currentSubtask: %v", state.currentSubtask)
+
+		return !allSubtasksFinished && state.currentSubtask != nil
 
 	} else if state.currentStage.TellStage == shared.TellStageImplementation {
 		log.Println("[willContinuePlan] In implementation stage")

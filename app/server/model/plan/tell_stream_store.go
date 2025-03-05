@@ -99,7 +99,7 @@ func (state *activeTellStreamState) storeOnFinished(params storeOnFinishedParams
 		}()
 
 		// first resolve subtask state
-		if hasNewSubtasks || subtaskFinished {
+		if hasNewSubtasks || len(removedSubtasks) > 0 || subtaskFinished {
 			if subtaskFinished && state.currentSubtask != nil {
 				log.Printf("[storeOnFinished] Marking subtask as finished: %q", state.currentSubtask.Title)
 				state.currentSubtask.IsFinished = true
