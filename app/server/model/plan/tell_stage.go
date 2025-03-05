@@ -36,10 +36,12 @@ func (state *activeTellStreamState) resolveCurrentStage() (activatedPaths map[st
 	}
 
 	isUserPrompt := false
+	// isApplyDebug := false
 
 	if !isContinueFromAssistantMsg {
 		isUserPrompt = lastConvoMsg == nil || lastConvoMsg.Role == openai.ChatMessageRoleUser
 		log.Printf("[resolveCurrentStage] isUserPrompt: %v", isUserPrompt)
+		// isApplyDebug = isUserPrompt && ((lastConvoMsg != nil && lastConvoMsg.Flags.IsApplyDebug) || (req.IsApplyDebug))
 	}
 
 	var tellStage shared.TellStage
@@ -74,10 +76,10 @@ func (state *activeTellStreamState) resolveCurrentStage() (activatedPaths map[st
 	}
 
 	if tellStage == shared.TellStagePlanning {
-		if req.AutoContext && hasContextMap && !contextMapEmpty && !wasContextStage && !req.IsApplyDebug {
+		if req.AutoContext && hasContextMap && !contextMapEmpty && !wasContextStage {
 			planningPhase = shared.PlanningPhaseContext
-			log.Printf("[resolveCurrentStage] Set planningPhase to Context - AutoContext: %v, hasContextMap: %v, contextMapEmpty: %v, wasContextStage: %v, IsApplyDebug: %v",
-				req.AutoContext, hasContextMap, contextMapEmpty, wasContextStage, req.IsApplyDebug)
+			log.Printf("[resolveCurrentStage] Set planningPhase to Context - AutoContext: %v, hasContextMap: %v, contextMapEmpty: %v, wasContextStage: %v",
+				req.AutoContext, hasContextMap, contextMapEmpty, wasContextStage)
 		} else {
 			planningPhase = shared.PlanningPhasePlanning
 			log.Printf("[resolveCurrentStage] Set planningPhase to Planning - AutoContext: %v, hasContextMap: %v, contextMapEmpty: %v, wasContextStage: %v",

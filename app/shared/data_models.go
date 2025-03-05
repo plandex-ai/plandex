@@ -145,6 +145,8 @@ type ConvoMessageFlags struct {
 	DidCompleteTask       bool `json:"didCompleteTask"`
 	DidCompletePlan       bool `json:"didCompletePlan"`
 	HasUnfinishedSubtasks bool `json:"hasUnfinishedSubtasks"`
+	IsApplyDebug          bool `json:"isApplyDebug"`
+	IsUserDebug           bool `json:"isUserDebug"`
 }
 
 type Subtask struct {

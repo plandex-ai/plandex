@@ -182,6 +182,11 @@ func (state *activeTellStreamState) loadTellPlan() error {
 					Tokens:  promptTokens,
 					Num:     num,
 					Message: req.Prompt,
+					Flags: shared.ConvoMessageFlags{
+						IsApplyDebug: req.IsApplyDebug,
+						IsUserDebug:  req.IsUserDebug,
+						IsChat:       req.IsChatOnly,
+					},
 				}
 
 				_, err = db.StoreConvoMessage(promptMsg, auth.User.Id, branch, true)
