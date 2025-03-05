@@ -317,9 +317,6 @@ func DeleteRepoLock(id, planId string) error {
 		return fmt.Errorf("error getting lock info: %v", err)
 	}
 
-	// Do the DB remove first
-	dbErr := deleteRepoLockDB(id, planId, 0)
-
 	branch := ""
 	if maybeBranch != nil {
 		branch = *maybeBranch
@@ -327,6 +324,9 @@ func DeleteRepoLock(id, planId string) error {
 
 	// Then free local concurrency
 	releaseLocalLock(planId, branch, scope)
+
+	// Do the DB remove first
+	dbErr := deleteRepoLockDB(id, planId, 0)
 
 	return dbErr
 }
