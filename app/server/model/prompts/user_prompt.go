@@ -223,6 +223,8 @@ Definitions in the original file that are outside of the section that is changin
 
 This is why it's critical for you to ALWAYS include enough immediately surrounding code to unambiguously locate ALL the new code you write. All the blocks of new code you write must hook in correctly using the hooks you supply from the original file when you include additional lines of code from the original file before and after the section that is changing.
 
+Even though you should include the definitions before and after the section, don't reproduce large sections of the original file. Use '... existing code ...' reference comments to 'collapse' large sections of the original file that are not changing.
+
 It's not easy to be 100% consistent in writing code blocks that follow these rules, but you are capable of doing it with sufficient attention.
 
 This disambiguation technique is the *most important* part of correctly implementing a plan.

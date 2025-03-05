@@ -485,7 +485,7 @@ func execApplyScript(
 		os.Remove(dstPath)
 
 		fmt.Println()
-		color.New(term.ColorHiYellow, color.Bold).Println("⚠️  Execution interrupted")
+		color.New(term.ColorHiYellow, color.Bold).Println("👉  Execution interrupted")
 
 		didSucceed, canceled, err := term.ConfirmYesNoCancel("Did the commands succeed?")
 

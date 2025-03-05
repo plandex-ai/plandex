@@ -179,7 +179,7 @@ func doDebug(cmd *cobra.Command, args []string) {
 
 		if interrupted.Load() {
 			fmt.Println()
-			color.New(term.ColorHiYellow, color.Bold).Println("⚠️  Execution interrupted")
+			color.New(term.ColorHiYellow, color.Bold).Println("👉  Execution interrupted")
 
 			res, canceled, err := term.ConfirmYesNoCancel("Did the command succeed?")
 
