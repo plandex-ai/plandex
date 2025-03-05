@@ -74,10 +74,10 @@ func (state *activeTellStreamState) resolveCurrentStage() (activatedPaths map[st
 	}
 
 	if tellStage == shared.TellStagePlanning {
-		if req.AutoContext && hasContextMap && !contextMapEmpty && !wasContextStage {
+		if req.AutoContext && hasContextMap && !contextMapEmpty && !wasContextStage && !req.IsApplyDebug {
 			planningPhase = shared.PlanningPhaseContext
-			log.Printf("[resolveCurrentStage] Set planningPhase to Context - AutoContext: %v, hasContextMap: %v, contextMapEmpty: %v, wasContextStage: %v",
-				req.AutoContext, hasContextMap, contextMapEmpty, wasContextStage)
+			log.Printf("[resolveCurrentStage] Set planningPhase to Context - AutoContext: %v, hasContextMap: %v, contextMapEmpty: %v, wasContextStage: %v, IsApplyDebug: %v",
+				req.AutoContext, hasContextMap, contextMapEmpty, wasContextStage, req.IsApplyDebug)
 		} else {
 			planningPhase = shared.PlanningPhasePlanning
 			log.Printf("[resolveCurrentStage] Set planningPhase to Planning - AutoContext: %v, hasContextMap: %v, contextMapEmpty: %v, wasContextStage: %v",
