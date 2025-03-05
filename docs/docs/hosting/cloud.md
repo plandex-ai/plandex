@@ -61,6 +61,7 @@ Data sent to Plandex Cloud may be shared with the following third parties:
 - Your name and email is shared with [Loops](https://loops.so/), an email marketing service, in order to send you updates on Plandex. You can opt out of these emails at any time with one click.
 - Your name and email are shared with our payment processor [Stripe](https://stripe.com/) if you subscribe to a paid plan or purchase the $10 trial.
 - Basic usage data is sent to [Google Analytics](https://analytics.google.com/) to help track usage and make improvements.
+- [Relace](https://relace.ai/) for an instant apply AI model that speeds up and reduces the cost of file edits. Used as a fallback if Plandex is unable to apply edits deterministically. Inputs are the original file and the edit snippet from a Plandex response.
 
 Apart from the above list, no other data will be shared with any other third party. The list will be updated if any new third party services are introduced.
 
