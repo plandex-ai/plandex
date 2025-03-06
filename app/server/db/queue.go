@@ -214,8 +214,11 @@ func ExecRepoOperation(
 		branch:         params.Branch,
 		scope:          params.Scope,
 		reason:         params.Reason,
+		planBuildId:    params.PlanBuildId,
 		op:             op,
 		done:           done,
+		ctx:            params.Ctx,
+		cancelFn:       params.CancelFn,
 		clearRepoOnErr: params.ClearRepoOnErr,
 	})
 
