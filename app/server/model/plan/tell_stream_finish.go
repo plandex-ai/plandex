@@ -9,6 +9,8 @@ import (
 	"time"
 
 	shared "plandex-shared"
+
+	"github.com/davecgh/go-spew/spew"
 )
 
 const MaxAutoContinueIterations = 200
@@ -70,12 +72,18 @@ func (state *activeTellStreamState) handleStreamFinished() handleStreamFinishedR
 	removedSubtasks := state.checkRemoveSubtasks()
 	hasNewSubtasks := len(addedSubtasks) > 0
 
+	log.Println("removedSubtasks:\n", spew.Sdump(removedSubtasks))
+	log.Println("addedSubtasks:\n", spew.Sdump(addedSubtasks))
+	log.Println("hasNewSubtasks:\n", hasNewSubtasks)
+
 	handleDescAndExecStatusRes := state.handleDescAndExecStatus()
 	if handleDescAndExecStatusRes.shouldContinueMainLoop || handleDescAndExecStatusRes.shouldReturn {
 		return handleDescAndExecStatusRes.handleStreamFinishedResult
 	}
 	generatedDescription := handleDescAndExecStatusRes.generatedDescription
 	subtaskFinished := handleDescAndExecStatusRes.subtaskFinished
+
+	log.Printf("subtaskFinished: %v\n", subtaskFinished)
 
 	storeOnFinishedResult := state.storeOnFinished(storeOnFinishedParams{
 		replyOperations:       replyOperations,
@@ -90,6 +98,8 @@ func (state *activeTellStreamState) handleStreamFinished() handleStreamFinishedR
 		return storeOnFinishedResult.handleStreamFinishedResult
 	}
 	allSubtasksFinished := storeOnFinishedResult.allSubtasksFinished
+
+	log.Println("allSubtasksFinished:\n", spew.Sdump(allSubtasksFinished))
 
 	// summarize convo needs to come *after* the reply is stored in order to correctly summarize the latest message
 	log.Println("summarizing convo in background")

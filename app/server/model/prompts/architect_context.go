@@ -60,10 +60,15 @@ CRITICAL RULES:
 - Do NOT write any code or implementation details
 - Do NOT create tasks or plans
 - Stop immediately after <PlandexFinish/>
+- ONLY include files that are in the codebase map
 
 --
 
 Even if context has been loaded previously in the conversation, you MUST load ALL relevant files again. Any context you do NOT include in the '### Files' section will be missing from the next phase. Be absolutely certain that you have included all relevant files.
+
+--
+
+It is CRITICAL to remember that you can only load files which ARE IN THE CODEBASE MAP in the '### Files' section. Do NOT include ANY OTHER FILES except for those which are explicitly listed in the codebase map. Do NOT make up or include files that are not in the codebase map. I know you are capable of following this rule if you give it your full attention.
 `
 
 func GetAutoContextTellPrompt(params CreatePromptParams) string {

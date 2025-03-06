@@ -18,7 +18,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-const locksVerboseLogging = true
+const locksVerboseLogging = false
 
 const lockHeartbeatInterval = 3 * time.Second
 const lockHeartbeatTimeout = 60 * time.Second
@@ -59,12 +59,16 @@ func lockRepoDB(params LockRepoParams, numRetry int) (string, error) {
 	// Format truncated stack excluding runtime frames
 	stackTrace := formatStackTrace(stack)
 
-	log.Println()
-	log.Printf("LOCK_ATTEMPT | params: %+v | retry: %d | stack:\n%s", params, numRetry, stackTrace)
+	if locksVerboseLogging {
+		log.Println()
+		log.Printf("LOCK_ATTEMPT | params: %+v | retry: %d | stack:\n%s", params, numRetry, stackTrace)
+	}
 
 	// ensure context did not cancel
 	if params.Ctx.Err() != nil {
-		log.Printf("[Lock][%d] Context canceled, returning error: %v", goroutineID, params.Ctx.Err())
+		if locksVerboseLogging {
+			log.Printf("[Lock][%d] Context canceled, returning error: %v", goroutineID, params.Ctx.Err())
+		}
 		return "", params.Ctx.Err()
 	}
 
@@ -374,6 +378,8 @@ func lockRepoDB(params LockRepoParams, numRetry int) (string, error) {
 
 	committed = true
 
+	log.Printf("Lock acquired: %s for plan %s with scope %s", newLock.Id, planId, scope)
+
 	if locksVerboseLogging {
 		log.Println()
 		log.Printf("LOCK_ACQUIRED | id: %s | params: %+v | stack:\n%s", newLock.Id, params, stackTrace)
@@ -560,8 +566,12 @@ func deleteRepoLockDB(id, planId string, numRetry int) error {
 			log.Printf("[Delete][%d] Error checking rows affected: %v", goroutineID, err)
 		}
 	} else {
-		if locksVerboseLogging {
-			log.Printf("[Delete][%d] Deleted %d rows", goroutineID, rowsAffected)
+		if rowsAffected > 0 {
+			log.Printf("Lock released: %s for plan %s", id, planId)
+
+			if locksVerboseLogging {
+				log.Printf("[Delete][%d] Deleted %d rows", goroutineID, rowsAffected)
+			}
 		}
 	}
 
@@ -660,9 +670,7 @@ func retryWithExponentialBackoff(
 }
 
 func CleanupAllLocks(ctx context.Context) error {
-	if locksVerboseLogging {
-		log.Println("Cleaning up all repo locks...")
-	}
+	log.Println("Cleaning up all repo locks...")
 
 	// Start a transaction with repeatable read isolation level
 	tx, err := Conn.BeginTxx(ctx, &sql.TxOptions{Isolation: sql.LevelRepeatableRead})
@@ -702,8 +710,6 @@ func CleanupAllLocks(ctx context.Context) error {
 		return fmt.Errorf("error committing transaction: %v", err)
 	}
 
-	if locksVerboseLogging {
-		log.Println("Successfully cleaned up all repo locks")
-	}
+	log.Println("Successfully cleaned up all repo locks")
 	return nil
 }

@@ -54,6 +54,10 @@ func (state *activeTellStreamState) storeOnFinished(params storeOnFinishedParams
 		CancelFn: active.CancelFn,
 		Reason:   "store on finished",
 	}, func(repo *db.GitRepo) error {
+		log.Println("storeOnFinished: hasNewSubtasks", hasNewSubtasks)
+		log.Println("storeOnFinished: subtaskFinished", subtaskFinished)
+		log.Println("storeOnFinished: removedSubtasks", removedSubtasks)
+
 		// first resolve subtask state
 		if hasNewSubtasks || len(removedSubtasks) > 0 || subtaskFinished {
 			if subtaskFinished && state.currentSubtask != nil {
@@ -90,6 +94,10 @@ func (state *activeTellStreamState) storeOnFinished(params storeOnFinishedParams
 			state.currentSubtask.NumTries++
 		}
 
+		log.Println("storeOnFinished: state.currentSubtask", state.currentSubtask)
+		log.Println("storeOnFinished: state.subtasks", state.subtasks)
+		log.Println("storeOnFinished: state.currentStage", state.currentStage)
+
 		var flags shared.ConvoMessageFlags
 
 		flags.CurrentStage = state.currentStage
@@ -98,9 +106,11 @@ func (state *activeTellStreamState) storeOnFinished(params storeOnFinishedParams
 			flags.DidWriteCode = true
 		}
 		if hasNewSubtasks {
+			log.Println("storeOnFinished: hasNewSubtasks")
 			flags.DidMakePlan = true
 		}
 		if len(removedSubtasks) > 0 {
+			log.Println("storeOnFinished: len(removedSubtasks) > 0")
 			flags.DidMakePlan = true
 			flags.DidRemoveTasks = true
 		}
@@ -111,11 +121,15 @@ func (state *activeTellStreamState) storeOnFinished(params storeOnFinishedParams
 			flags.DidCompleteTask = true
 		}
 		if allSubtasksFinished {
+			log.Println("storeOnFinished: allSubtasksFinished")
 			flags.DidCompletePlan = true
 		}
 		if hasNewSubtasks && (state.req.IsApplyDebug || state.req.IsUserDebug) {
+			log.Println("storeOnFinished: hasNewSubtasks && (state.req.IsApplyDebug || state.req.IsUserDebug)")
 			flags.DidMakeDebuggingPlan = true
 		}
+
+		log.Println("storeOnFinished: flags", flags)
 
 		assistantMsg, convoCommitMsg, err := state.storeAssistantReply(repo, storeAssistantReplyParams{
 			flags:           flags,
