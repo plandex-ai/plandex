@@ -17,7 +17,7 @@ import (
 
 var Conn *sqlx.DB
 
-const LockTimeout = 2000
+const LockTimeout = 4000
 const IdleInTransactionSessionTimeout = 90000
 const StatementTimeout = 30000
 
@@ -55,11 +55,11 @@ func Connect() error {
 	log.Println("connected to database")
 
 	if os.Getenv("GOENV") == "production" {
-		Conn.SetMaxOpenConns(500)
-		Conn.SetMaxIdleConns(100)
+		Conn.SetMaxOpenConns(50)
+		Conn.SetMaxIdleConns(20)
 	} else {
-		Conn.SetMaxOpenConns(250)
-		Conn.SetMaxIdleConns(50)
+		Conn.SetMaxOpenConns(10)
+		Conn.SetMaxIdleConns(5)
 	}
 
 	// Verify settings
