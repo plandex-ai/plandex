@@ -42,8 +42,15 @@ func (m repoQueueMap) getQueue(planId string) *repoQueue {
 	queuesMu.Lock()
 	defer queuesMu.Unlock()
 
+	if locksVerboseLogging {
+		log.Printf("[Queue] Getting queue for plan %s", planId)
+	}
+
 	q, ok := m[planId]
 	if !ok {
+		if locksVerboseLogging {
+			log.Printf("[Queue] Creating new queue for plan %s", planId)
+		}
 		q = &repoQueue{}
 		m[planId] = q
 	}
@@ -51,6 +58,9 @@ func (m repoQueueMap) getQueue(planId string) *repoQueue {
 }
 
 func (m repoQueueMap) add(op *repoOperation) int {
+	if locksVerboseLogging {
+		log.Printf("[Queue] Adding operation %s (%s) to queue for plan %s", op.id, op.reason, op.planId)
+	}
 	q := m.getQueue(op.planId)
 	return q.add(op)
 }
@@ -62,10 +72,19 @@ func (q *repoQueue) add(op *repoOperation) int {
 	q.ops = append(q.ops, op)
 	numOps = len(q.ops)
 
-	// If nobody else is processing, we’ll start
+	if locksVerboseLogging {
+		log.Printf("[Queue] Operation %s (%s) enqueued, queue length now %d", op.id, op.reason, numOps)
+	}
+
+	// If nobody else is processing, we'll start
 	if !q.isProcessing {
+		if locksVerboseLogging {
+			log.Printf("[Queue] Starting queue processing for operation %s (%s)", op.id, op.reason)
+		}
 		q.isProcessing = true
 		go q.runQueue() // run in the background
+	} else if locksVerboseLogging {
+		log.Printf("[Queue] Queue already processing, operation %s (%s) will wait", op.id, op.reason)
 	}
 	q.mu.Unlock()
 
@@ -77,16 +96,27 @@ func (q *repoQueue) nextBatch() []*repoOperation {
 	defer q.mu.Unlock()
 
 	if len(q.ops) == 0 {
+		if locksVerboseLogging {
+			log.Printf("[Queue] No operations in queue")
+		}
 		return nil
 	}
 
 	firstOp := q.ops[0]
 	res := []*repoOperation{firstOp}
 
+	if locksVerboseLogging {
+		log.Printf("[Queue] Processing first operation %s (%s) with scope %s, branch %s",
+			firstOp.id, firstOp.reason, firstOp.scope, firstOp.branch)
+	}
+
 	q.ops = q.ops[1:]
 
 	// writes always go one at a time, blocking everything else, as do read locks on the root plan (no branch)
 	if firstOp.scope == LockScopeWrite || firstOp.branch == "" {
+		if locksVerboseLogging {
+			log.Printf("[Queue] Operation %s is write or root branch read, processing alone", firstOp.id)
+		}
 		return res
 	}
 
@@ -94,29 +124,82 @@ func (q *repoQueue) nextBatch() []*repoOperation {
 	for len(q.ops) > 0 {
 		op := q.ops[0]
 		if op.scope == LockScopeRead && op.branch == firstOp.branch {
+			if locksVerboseLogging {
+				log.Printf("[Queue] Batching compatible read operation %s (%s) with same branch %s",
+					op.id, op.reason, op.branch)
+			}
 			res = append(res, op)
 			q.ops = q.ops[1:]
 		} else {
+			if locksVerboseLogging {
+				log.Printf("[Queue] Operation %s (%s) with scope %s, branch %s not compatible with batch, stopping",
+					op.id, op.reason, op.scope, op.branch)
+			}
 			break
 		}
+	}
+
+	if locksVerboseLogging {
+		log.Printf("[Queue] Created batch of %d operations", len(res))
 	}
 
 	return res
 }
 
 func (q *repoQueue) runQueue() {
+	if locksVerboseLogging {
+		log.Printf("[Queue] Starting queue processing")
+	}
+
 	for {
 		// get the next batch
 		ops := q.nextBatch()
 		if len(ops) == 0 {
 			// Nothing left in the queue, so mark not processing and return
+			if locksVerboseLogging {
+				log.Printf("[Queue] Queue empty, stopping processing")
+			}
 			q.mu.Lock()
 			q.isProcessing = false
 			q.mu.Unlock()
 			return
 		}
 
-		log.Printf("processing batch of %d operations", len(ops))
+		firstOp := ops[0]
+
+		if locksVerboseLogging {
+			log.Printf("[Queue] Attempting to acquire DB lock for plan %s, branch %s, scope %s",
+				firstOp.planId, firstOp.branch, firstOp.scope)
+		}
+
+		lockId, err := lockRepoDB(LockRepoParams{
+			OrgId:       firstOp.orgId,
+			UserId:      firstOp.userId,
+			PlanId:      firstOp.planId,
+			Branch:      firstOp.branch,
+			Scope:       firstOp.scope,
+			PlanBuildId: firstOp.planBuildId,
+			Ctx:         firstOp.ctx,
+			CancelFn:    firstOp.cancelFn,
+		}, 0)
+
+		if err != nil {
+			log.Printf("[Queue] Failed to get DB lock: %v", err)
+			for _, op := range ops {
+				if locksVerboseLogging {
+					log.Printf("[Queue] Notifying operation %s (%s) of lock failure", op.id, op.reason)
+				}
+				op.done <- fmt.Errorf("failed to get DB lock: %w", err)
+			}
+			return
+		}
+
+		if locksVerboseLogging {
+			log.Printf("[Queue] Acquired DB lock %s, processing batch of %d operations", lockId, len(ops))
+		}
+
+		repo := getGitRepo(firstOp.orgId, firstOp.planId)
+		var needsRollback bool
 
 		// Process the batch
 		// If it's a writer => single op
@@ -128,63 +211,79 @@ func (q *repoQueue) runQueue() {
 				defer wg.Done()
 				select {
 				case <-op.ctx.Done():
+					if locksVerboseLogging {
+						log.Printf("[Queue] Operation %s (%s) context canceled", op.id, op.reason)
+					}
 					op.done <- op.ctx.Err()
 				default:
-					log.Printf("processing operation %s - (%s)", op.id, op.reason)
-
-					lockId, err := lockRepoDB(LockRepoParams{
-						OrgId:       op.orgId,
-						UserId:      op.userId,
-						PlanId:      op.planId,
-						Branch:      op.branch,
-						Scope:       op.scope,
-						PlanBuildId: op.planBuildId,
-						Ctx:         op.ctx,
-						CancelFn:    op.cancelFn,
-					}, 0)
-
-					if err != nil {
-						log.Printf("failed to get DB lock: %v", err)
-						op.done <- fmt.Errorf("failed to get DB lock: %w", err)
-						return
+					if locksVerboseLogging {
+						log.Printf("[Queue] Starting operation %s (%s)", op.id, op.reason)
 					}
-
 					// actually do the operation
-					repo := getGitRepo(op.orgId, op.planId)
+
 					var opErr error
 
 					func() {
 						defer func() {
 							panicErr := recover()
 							if panicErr != nil {
-								log.Printf("panic in operation: %v", panicErr)
+								log.Printf("[Queue] Panic in operation %s (%s): %v", op.id, op.reason, panicErr)
 								opErr = fmt.Errorf("panic in operation: %v", panicErr)
 							}
 
 							if opErr != nil && op.scope == LockScopeWrite && op.clearRepoOnErr {
-								err := repo.GitClearUncommittedChanges(op.branch)
-								if err != nil {
-									log.Printf("failed to clear repo after error: %v", err)
+								if locksVerboseLogging {
+									log.Printf("[Queue] Operation %s (%s) failed with error, marking for rollback: %v",
+										op.id, op.reason, opErr)
 								}
+								needsRollback = true
 							}
 						}()
 
+						if locksVerboseLogging {
+							log.Printf("[Queue] Executing operation %s (%s)", op.id, op.reason)
+						}
 						opErr = op.op(repo)
+						if locksVerboseLogging {
+							if opErr != nil {
+								log.Printf("[Queue] Operation %s (%s) failed with error: %v", op.id, op.reason, opErr)
+							} else {
+								log.Printf("[Queue] Operation %s (%s) completed successfully", op.id, op.reason)
+							}
+						}
 					}()
 
-					releaseErr := deleteRepoLockDB(lockId, op.planId, 0)
-					if releaseErr != nil {
-						log.Printf("failed to release DB lock: %v", releaseErr)
-						op.done <- fmt.Errorf("failed to release DB lock: %w", releaseErr)
-						return
-					}
-
 					// signal to the caller via op.done
+					if locksVerboseLogging {
+						log.Printf("[Queue] Notifying caller of operation %s (%s) completion", op.id, op.reason)
+					}
 					op.done <- opErr
 				}
 			}(op)
 		}
 		wg.Wait()
+
+		if needsRollback {
+			if locksVerboseLogging {
+				log.Printf("[Queue] Performing rollback for plan %s branch %s", firstOp.planId, firstOp.branch)
+			}
+			rollbackErr := repo.GitClearUncommittedChanges(firstOp.branch)
+			if rollbackErr != nil {
+				log.Printf("[Queue] Failed to rollback: %v", rollbackErr)
+			} else if locksVerboseLogging {
+				log.Printf("[Queue] Rollback completed successfully")
+			}
+		}
+
+		if locksVerboseLogging {
+			log.Printf("[Queue] Releasing DB lock %s for plan %s", lockId, firstOp.planId)
+		}
+		releaseErr := deleteRepoLockDB(lockId, firstOp.planId, 0)
+		if releaseErr != nil {
+			log.Printf("[Queue] Failed to release DB lock: %v", releaseErr)
+		} else if locksVerboseLogging {
+			log.Printf("[Queue] DB lock %s released successfully", lockId)
+		}
 	}
 }
 
@@ -206,6 +305,12 @@ func ExecRepoOperation(
 	op repoOpFn,
 ) error {
 	id := uuid.New().String()
+
+	if locksVerboseLogging {
+		log.Printf("[Queue] ExecRepoOperation called for plan %s, branch %s, scope %s, reason %s",
+			params.PlanId, params.Branch, params.Scope, params.Reason)
+	}
+
 	done := make(chan error)
 	numOps := repoQueues.add(&repoOperation{
 		id:             id,
@@ -223,13 +328,29 @@ func ExecRepoOperation(
 	})
 
 	if numOps > 1 {
-		log.Printf("operation %s - (%s) queued behind %d operations", id, params.Reason, numOps-1)
+		if locksVerboseLogging {
+			log.Printf("[Queue] Operation %s (%s) queued behind %d operations", id, params.Reason, numOps-1)
+		}
+	}
+
+	if locksVerboseLogging {
+		log.Printf("[Queue] Waiting for operation %s (%s) to complete", id, params.Reason)
 	}
 
 	select {
 	case err := <-done:
+		if locksVerboseLogging {
+			if err != nil {
+				log.Printf("[Queue] Operation %s (%s) completed with error: %v", id, params.Reason, err)
+			} else {
+				log.Printf("[Queue] Operation %s (%s) completed successfully", id, params.Reason)
+			}
+		}
 		return err
 	case <-params.Ctx.Done():
+		if locksVerboseLogging {
+			log.Printf("[Queue] Operation %s (%s) context canceled while waiting", id, params.Reason)
+		}
 		return params.Ctx.Err()
 	}
 }

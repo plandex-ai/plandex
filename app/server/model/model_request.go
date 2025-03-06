@@ -119,7 +119,7 @@ func ModelRequest(
 		params.AfterReq()
 	}
 
-	log.Printf("\n\n**\n\nModel response: %s\n\n**\n\n", res.Content)
+	// log.Printf("\n\n**\n\nModel response: %s\n\n**\n\n", res.Content)
 
 	var inputTokens int
 	var outputTokens int

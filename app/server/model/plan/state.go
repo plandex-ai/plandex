@@ -96,6 +96,8 @@ func DeleteActivePlan(orgId, userId, planId, branch string) {
 	ctx, cancelFn := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancelFn()
 
+	log.Printf("Clearing uncommitted changes for plan %s - %s - %s\n", planId, branch, orgId)
+
 	err := db.ExecRepoOperation(db.ExecRepoOperationParams{
 		OrgId:    orgId,
 		UserId:   userId,
@@ -106,7 +108,11 @@ func DeleteActivePlan(orgId, userId, planId, branch string) {
 		CancelFn: cancelFn,
 		Reason:   "delete active plan",
 	}, func(repo *db.GitRepo) error {
-		return repo.GitClearUncommittedChanges(branch)
+		log.Printf("Starting clear uncommitted changes for plan %s - %s - %s\n", planId, branch, orgId)
+		err := repo.GitClearUncommittedChanges(branch)
+		log.Printf("Finished clear uncommitted changes for plan %s - %s - %s\n", planId, branch, orgId)
+		log.Printf("Error: %v\n", err)
+		return err
 	})
 
 	if err != nil {

@@ -18,7 +18,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-const locksVerboseLogging = false
+const locksVerboseLogging = true
 
 const lockHeartbeatInterval = 3 * time.Second
 const lockHeartbeatTimeout = 60 * time.Second
@@ -26,7 +26,6 @@ const maxRetries = 10
 const initialRetryDelay = 100 * time.Millisecond
 const backoffFactor = 2.0  // Exponential base
 const jitterFraction = 0.3 // e.g. ±30% of the backoff
-const localLockTimeout = 30 * time.Second
 
 // LockRepoParams holds the data needed for your lock calls
 type LockRepoParams struct {
