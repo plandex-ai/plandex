@@ -5,6 +5,7 @@ import (
 	"log"
 	"plandex-server/db"
 	"plandex-server/model/parse"
+	shared "plandex-shared"
 	"strings"
 
 	"github.com/davecgh/go-spew/spew"
@@ -36,7 +37,7 @@ func (state *activeTellStreamState) formatSubtasks() string {
 		}
 		subtasksText += "\n"
 
-		if state.currentSubtask != nil && subtask.Title == state.currentSubtask.Title {
+		if state.currentSubtask != nil && subtask.Title == state.currentSubtask.Title && state.currentStage.TellStage == shared.TellStageImplementation {
 			current = subtask
 			subtasksText += "Current subtask: yes"
 		}
@@ -44,7 +45,7 @@ func (state *activeTellStreamState) formatSubtasks() string {
 		subtasksText += "\n"
 	}
 
-	if current != nil {
+	if current != nil && state.currentStage.TellStage == shared.TellStageImplementation {
 		subtasksText += fmt.Sprintf("\n### Current subtask\n%s\n", current.Title)
 		if current.Description != "" {
 			subtasksText += "\n" + current.Description + "\n"
@@ -56,6 +57,20 @@ func (state *activeTellStreamState) formatSubtasks() string {
 				usesFiles = append(usesFiles, fmt.Sprintf("`%s`", file))
 			}
 			subtasksText += strings.Join(usesFiles, ", ") + "\n"
+		}
+	} else if state.currentStage.TellStage == shared.TellStagePlanning {
+		if state.currentStage.PlanningPhase == shared.PlanningPhasePlanning {
+			subtasksText += `
+			
+			Remember, you are in the *PLANNING* phase and ABSOLUTELY MUST NOT implement any of the subtasks. You MUST NOT write any code or create any files. You can ONLY add or remove subtasks with a '### Tasks' section or a '### Remove Tasks' section. You CANNOT implement any of the subtasks in this response. Follow the PLANNING instructions. The existing subtasks are included for your reference so that you can see what has been planned so far, what has been done, and what is left to do, so that you can add or remove subtasks as needed. DO NOT implement any of the subtasks in this response-follow the instructions for the PLANNING phase.
+
+		`
+		} else if state.currentStage.PlanningPhase == shared.PlanningPhaseContext {
+			subtasksText += `
+			
+			Remember, you are in the *CONTEXT* phase. You MUST NOT implement any of the subtasks. You MUST NOT write any code or create any files. You MUST NOT make a plan with a '### Tasks' section or a '### Remove Tasks' section. Follow the instructions for the CONTEXT phase-they are summarized for you in the [SUMMARY OF INSTRUCTIONS] section. The existing subtasks are included for your reference so that you can see what has been planned so far, what has been done, and what is left to do. DO NOT implement any of the subtasks in this response Do NOT add or remove subtasks. Follow the instructions for the CONTEXT phase.
+
+		`
 		}
 	}
 
