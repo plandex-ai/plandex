@@ -79,7 +79,7 @@ func processChatCompletionStream(
 				return accumulator.Result(false, nil), nil
 			} else {
 				log.Println("Stream timed out due to inactivity")
-				return accumulator.Result(true, fmt.Errorf("stream timed out due to inactivity. This usually means the model is not responding.")), nil
+				return accumulator.Result(true, fmt.Errorf("stream timed out due to inactivity. The model is not responding.")), nil
 			}
 		default:
 			response, err := stream.Recv()
@@ -123,7 +123,7 @@ func processChatCompletionStream(
 			}
 
 			if len(response.Choices) > 1 {
-				err = fmt.Errorf("stream finished with more than one choice | This usually means the model failed to generate a valid response.")
+				err = fmt.Errorf("stream finished with more than one choice | The model failed to generate a valid response.")
 				return accumulator.Result(true, err), err
 			}
 
@@ -131,7 +131,7 @@ func processChatCompletionStream(
 
 			if choice.FinishReason != "" {
 				if choice.FinishReason == "error" {
-					err = fmt.Errorf("model stopped with error status | This usually means the model is not responding.")
+					err = fmt.Errorf("model stopped with error status | The model is not responding.")
 					return accumulator.Result(true, err), err
 				} else {
 					// Reset the timer for the usage chunk

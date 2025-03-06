@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -13,6 +12,7 @@ import (
 	shared "plandex-shared"
 
 	"github.com/gorilla/mux"
+	"github.com/jmoiron/sqlx"
 )
 
 func GetSettingsHandler(w http.ResponseWriter, r *http.Request) {
@@ -34,18 +34,28 @@ func GetSettingsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var err error
+	var settings *shared.PlanSettings
 	ctx, cancel := context.WithCancel(r.Context())
-	unlockFn := LockRepo(w, r, auth, db.LockScopeRead, ctx, cancel, true)
-	if unlockFn == nil {
-		return
-	} else {
-		defer func() {
-			(*unlockFn)(err)
-		}()
-	}
 
-	settings, err := db.GetPlanSettings(plan, true)
+	err := db.ExecRepoOperation(db.ExecRepoOperationParams{
+		OrgId:    auth.OrgId,
+		UserId:   auth.User.Id,
+		PlanId:   planId,
+		Branch:   branch,
+		Reason:   "get settings",
+		Scope:    db.LockScopeRead,
+		Ctx:      ctx,
+		CancelFn: cancel,
+	}, func(repo *db.GitRepo) error {
+		res, err := db.GetPlanSettings(plan, true)
+		if err != nil {
+			return err
+		}
+
+		settings = res
+
+		return nil
+	})
 
 	if err != nil {
 		log.Println("Error getting settings: ", err)
@@ -96,44 +106,51 @@ func UpdateSettingsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ctx, cancel := context.WithCancel(r.Context())
-	unlockFn := LockRepo(w, r, auth, db.LockScopeWrite, ctx, cancel, true)
-	if unlockFn == nil {
-		return
-	} else {
-		defer func() {
-			(*unlockFn)(err)
-		}()
-	}
 
-	originalSettings, err := db.GetPlanSettings(plan, true)
+	var commitMsg string
+
+	err = db.ExecRepoOperation(db.ExecRepoOperationParams{
+		OrgId:    auth.OrgId,
+		UserId:   auth.User.Id,
+		PlanId:   planId,
+		Branch:   branch,
+		Reason:   "update settings",
+		Scope:    db.LockScopeWrite,
+		Ctx:      ctx,
+		CancelFn: cancel,
+	}, func(repo *db.GitRepo) error {
+		originalSettings, err := db.GetPlanSettings(plan, true)
+
+		if err != nil {
+			return fmt.Errorf("error getting settings: %v", err)
+		}
+
+		// log.Println("Original settings:")
+		// spew.Dump(originalSettings)
+
+		// log.Println("req.Settings:")
+		// spew.Dump(req.Settings)
+
+		err = db.StorePlanSettings(plan, req.Settings)
+
+		if err != nil {
+			return fmt.Errorf("error storing settings: %v", err)
+		}
+
+		commitMsg = getUpdateCommitMsg(req.Settings, originalSettings, false)
+
+		err = repo.GitAddAndCommit(branch, commitMsg)
+
+		if err != nil {
+			return fmt.Errorf("error committing settings: %v", err)
+		}
+
+		return nil
+	})
 
 	if err != nil {
-		log.Println("Error getting settings: ", err)
-		http.Error(w, "Error getting settings", http.StatusInternalServerError)
-		return
-	}
-
-	// log.Println("Original settings:")
-	// spew.Dump(originalSettings)
-
-	// log.Println("req.Settings:")
-	// spew.Dump(req.Settings)
-
-	err = db.StorePlanSettings(plan, req.Settings)
-
-	if err != nil {
-		log.Println("Error storing settings: ", err)
-		http.Error(w, "Error storing settings", http.StatusInternalServerError)
-		return
-	}
-
-	commitMsg := getUpdateCommitMsg(req.Settings, originalSettings, false)
-
-	err = db.GitAddAndCommit(auth.OrgId, planId, branch, commitMsg)
-
-	if err != nil {
-		log.Println("Error committing settings: ", err)
-		http.Error(w, "Error committing settings", http.StatusInternalServerError)
+		log.Println("Error updating settings: ", err)
+		http.Error(w, "Error updating settings", http.StatusInternalServerError)
 		return
 	}
 
@@ -201,66 +218,43 @@ func UpdateDefaultSettingsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tx, err := db.Conn.Beginx()
+	var originalSettings *shared.PlanSettings
 
-	if err != nil {
-		log.Println("Error starting transaction: ", err)
-		http.Error(w, "Error starting transaction", http.StatusInternalServerError)
-		return
-	}
-	var committed bool
+	err = db.WithTx(r.Context(), "update default settings", func(tx *sqlx.Tx) error {
+		var err error
 
-	// Ensure that rollback is attempted in case of failure
-	defer func() {
-		if committed {
-			return
+		originalSettings, err = db.GetOrgDefaultSettingsForUpdate(auth.OrgId, tx, true)
+
+		if err != nil {
+			log.Println("Error getting default settings: ", err)
+			return fmt.Errorf("error getting default settings: %v", err)
 		}
 
-		if rbErr := tx.Rollback(); rbErr != nil {
-			if rbErr == sql.ErrTxDone {
-				// log.Println("attempted to roll back transaction, but it was already committed")
-			} else {
-				log.Printf("transaction rollback error: %v\n", rbErr)
-			}
-		} else {
-			log.Println("transaction rolled back")
-		}
-	}()
+		// log.Println("Original settings:")
+		// spew.Dump(originalSettings)
 
-	originalSettings, err := db.GetOrgDefaultSettingsForUpdate(auth.OrgId, tx, true)
+		// log.Println("req.Settings:")
+		// spew.Dump(req.Settings)
+
+		if !req.Settings.UpdatedAt.Equal(originalSettings.UpdatedAt) {
+			err = fmt.Errorf("default settings have been updated since you last fetched them")
+			log.Println("Error updating default settings: ", err)
+			return fmt.Errorf("error updating default settings: %v", err)
+		}
+
+		err = db.StoreOrgDefaultSettings(auth.OrgId, req.Settings, tx)
+
+		if err != nil {
+			log.Println("Error storing default settings: ", err)
+			return fmt.Errorf("error storing default settings: %v", err)
+		}
+
+		return nil
+	})
 
 	if err != nil {
-		log.Println("Error getting default settings: ", err)
-		http.Error(w, "Error getting default settings", http.StatusInternalServerError)
-		return
-	}
-
-	// log.Println("Original settings:")
-	// spew.Dump(originalSettings)
-
-	// log.Println("req.Settings:")
-	// spew.Dump(req.Settings)
-
-	if !req.Settings.UpdatedAt.Equal(originalSettings.UpdatedAt) {
-		err = fmt.Errorf("default settings have been updated since you last fetched them")
 		log.Println("Error updating default settings: ", err)
-		http.Error(w, "Error updating default settings: "+err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	err = db.StoreOrgDefaultSettings(auth.OrgId, req.Settings, tx)
-
-	if err != nil {
-		log.Println("Error storing default settings: ", err)
-		http.Error(w, "Error storing default settings: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	err = tx.Commit()
-
-	if err != nil {
-		log.Println("Error committing transaction: ", err)
-		http.Error(w, "Error committing transaction: "+err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Error updating default settings", http.StatusInternalServerError)
 		return
 	}
 

@@ -1,6 +1,8 @@
 package db
 
-import "github.com/lib/pq"
+import (
+	"github.com/lib/pq"
+)
 
 func IsNonUniqueErr(err error) bool {
 	if err, ok := err.(*pq.Error); ok {

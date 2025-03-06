@@ -1,8 +1,8 @@
 package handlers
 
 import (
-	"database/sql"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -12,6 +12,7 @@ import (
 	shared "plandex-shared"
 
 	"github.com/gorilla/mux"
+	"github.com/jmoiron/sqlx"
 )
 
 func ListUsersHandler(w http.ResponseWriter, r *http.Request) {
@@ -184,64 +185,37 @@ func DeleteOrgUserHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// start a transaction
-	tx, err := db.Conn.Beginx()
-	if err != nil {
-		log.Printf("Error starting transaction: %v\n", err)
-		http.Error(w, "Error starting transaction: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
+	err = db.WithTx(r.Context(), "delete org user", func(tx *sqlx.Tx) error {
 
-	var committed bool
+		err = db.DeleteOrgUser(auth.OrgId, userId, tx)
 
-	// Ensure that rollback is attempted in case of failure
-	defer func() {
-		if committed {
-			return
+		if err != nil {
+			log.Println("Error deleting org user: ", err)
+			return fmt.Errorf("error deleting org user: %v", err)
 		}
 
-		if rbErr := tx.Rollback(); rbErr != nil {
-			if rbErr == sql.ErrTxDone {
-				// log.Println("attempted to roll back transaction, but it was already committed")
-			} else {
-				log.Printf("transaction rollback error: %v\n", rbErr)
+		invite, err := db.GetActiveInviteByEmail(auth.OrgId, auth.User.Email)
+
+		if err != nil {
+			log.Println("Error getting invite for org user: ", err)
+			return fmt.Errorf("error getting invite for org user: %v", err)
+		}
+
+		if invite != nil {
+			err = db.DeleteInvite(invite.Id, tx)
+
+			if err != nil {
+				log.Println("Error deleting invite: ", err)
+				return fmt.Errorf("error deleting invite: %v", err)
 			}
-		} else {
-			log.Println("transaction rolled back")
 		}
-	}()
 
-	err = db.DeleteOrgUser(auth.OrgId, userId, tx)
+		return nil
+	})
 
 	if err != nil {
 		log.Println("Error deleting org user: ", err)
 		http.Error(w, "Error deleting org user: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	invite, err := db.GetActiveInviteByEmail(auth.OrgId, auth.User.Email)
-
-	if err != nil {
-		log.Println("Error getting invite for org user: ", err)
-		http.Error(w, "Error getting invite for org user: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	if invite != nil {
-		err = db.DeleteInvite(invite.Id, tx)
-
-		if err != nil {
-			log.Println("Error deleting invite: ", err)
-			http.Error(w, "Error deleting invite: "+err.Error(), http.StatusInternalServerError)
-			return
-		}
-	}
-
-	err = tx.Commit()
-
-	if err != nil {
-		log.Println("Error committing transaction: ", err)
-		http.Error(w, "Error committing transaction: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 

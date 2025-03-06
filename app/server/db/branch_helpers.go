@@ -1,9 +1,9 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
-	"log"
 
 	shared "plandex-shared"
 
@@ -11,7 +11,7 @@ import (
 	"github.com/lib/pq"
 )
 
-func CreateBranch(plan *Plan, parentBranch *Branch, name string, tx *sqlx.Tx) (*Branch, error) {
+func CreateBranch(repo *GitRepo, plan *Plan, parentBranch *Branch, name string, tx *sqlx.Tx) (*Branch, error) {
 
 	query := `INSERT INTO branches (org_id, owner_id, plan_id, parent_branch_id, name, status, context_tokens, convo_tokens) 
 	VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
@@ -86,7 +86,7 @@ func CreateBranch(plan *Plan, parentBranch *Branch, name string, tx *sqlx.Tx) (*
 		// 	parentBranchName = parentBranch.Name
 		// }
 
-		err = GitCreateBranch(plan.OrgId, plan.Id, name)
+		err = repo.GitCreateBranch(name)
 
 		if err != nil {
 			return nil, fmt.Errorf("error creating git branch: %v", err)
@@ -117,7 +117,7 @@ func GetDbBranch(planId, name string) (*Branch, error) {
 	return &branch, nil
 }
 
-func ListPlanBranches(orgId, planId string) ([]*Branch, error) {
+func ListPlanBranches(repo *GitRepo, planId string) ([]*Branch, error) {
 	var branches []*Branch
 	err := Conn.Select(&branches, "SELECT * FROM branches WHERE plan_id = $1 ORDER BY created_at", planId)
 
@@ -127,7 +127,7 @@ func ListPlanBranches(orgId, planId string) ([]*Branch, error) {
 
 	// log.Println("branches: ", spew.Sdump(branches))
 
-	gitBranches, err := GitListBranches(orgId, planId)
+	gitBranches, err := repo.GitListBranches()
 
 	if err != nil {
 		return nil, fmt.Errorf("error listing git branches: %v", err)
@@ -161,55 +161,27 @@ func ListBranchesForPlans(orgId string, planIds []string) ([]*Branch, error) {
 	return branches, nil
 }
 
-func DeleteBranch(orgId, planId, branch string) error {
-	tx, err := Conn.Beginx()
+func DeleteBranch(ctx context.Context, repo *GitRepo, planId, branch string) error {
+	return WithTx(ctx, "delete branch", func(tx *sqlx.Tx) error {
 
-	if err != nil {
-		return fmt.Errorf("error starting transaction: %v", err)
-	}
+		_, err := tx.Exec("DELETE FROM branches WHERE plan_id = $1 AND name = $2", planId, branch)
 
-	var committed bool
-
-	// Ensure that rollback is attempted in case of failure
-	defer func() {
-		if committed {
-			return
+		if err != nil {
+			return fmt.Errorf("error deleting branch: %v", err)
 		}
 
-		if rbErr := tx.Rollback(); rbErr != nil {
-			if rbErr == sql.ErrTxDone {
-				// log.Println("attempted to roll back transaction, but it was already committed")
-			} else {
-				log.Printf("transaction rollback error: %v\n", rbErr)
-			}
-		} else {
-			log.Println("transaction rolled back")
+		err = IncActiveBranches(planId, -1, tx)
+
+		if err != nil {
+			return fmt.Errorf("error decrementing active branches: %v", err)
 		}
-	}()
 
-	_, err = tx.Exec("DELETE FROM branches WHERE plan_id = $1 AND name = $2", planId, branch)
+		err = repo.GitDeleteBranch(branch)
 
-	if err != nil {
-		return fmt.Errorf("error deleting branch: %v", err)
-	}
+		if err != nil {
+			return fmt.Errorf("error deleting branch dir: %v", err)
+		}
 
-	err = IncActiveBranches(planId, -1, tx)
-
-	if err != nil {
-		return fmt.Errorf("error decrementing active branches: %v", err)
-	}
-
-	err = GitDeleteBranch(orgId, planId, branch)
-
-	if err != nil {
-		return fmt.Errorf("error deleting branch dir: %v", err)
-	}
-
-	err = tx.Commit()
-
-	if err != nil {
-		return fmt.Errorf("error committing transaction: %v", err)
-	}
-
-	return nil
+		return err
+	})
 }

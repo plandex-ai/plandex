@@ -20,7 +20,7 @@ func Stop(planId, branch, currentUserId, currentOrgId string) error {
 	return nil
 }
 
-func StorePartialReply(planId, branch, currentUserId, currentOrgId string) error {
+func StorePartialReply(repo *db.GitRepo, planId, branch, currentUserId, currentOrgId string) error {
 	active := GetActivePlan(planId, branch)
 
 	if active == nil {
@@ -41,7 +41,7 @@ func StorePartialReply(planId, branch, currentUserId, currentOrgId string) error
 			Message: active.CurrentReplyContent,
 		}
 
-		_, err := db.StoreConvoMessage(&userMsg, currentUserId, branch, true)
+		_, err := db.StoreConvoMessage(repo, &userMsg, currentUserId, branch, true)
 
 		if err != nil {
 			return fmt.Errorf("error storing convo message: %v", err)

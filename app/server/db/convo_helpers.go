@@ -89,7 +89,7 @@ func GetConvoMessage(orgId, planId, messageId string) (*ConvoMessage, error) {
 	return &convoMessage, nil
 }
 
-func StoreConvoMessage(message *ConvoMessage, currentUserId, branch string, commit bool) (string, error) {
+func StoreConvoMessage(repo *GitRepo, message *ConvoMessage, currentUserId, branch string, commit bool) (string, error) {
 	convoDir := getPlanConversationDir(message.OrgId, message.PlanId)
 
 	ts := time.Now().UTC()
@@ -181,7 +181,7 @@ func StoreConvoMessage(message *ConvoMessage, currentUserId, branch string, comm
 	// }
 
 	if commit {
-		err = GitAddAndCommit(message.OrgId, message.PlanId, branch, msg)
+		err = repo.GitAddAndCommit(branch, msg)
 		if err != nil {
 			return "", fmt.Errorf("error committing convo message: %v", err)
 		}

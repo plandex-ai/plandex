@@ -21,25 +21,38 @@ func ListConvoHandler(w http.ResponseWriter, r *http.Request) {
 
 	vars := mux.Vars(r)
 	planId := vars["planId"]
-
-	log.Println("planId: ", planId)
+	branch := vars["branch"]
+	log.Println("planId: ", planId, "branch: ", branch)
 
 	if authorizePlan(w, planId, auth) == nil {
 		return
 	}
 
 	var err error
-	ctx, cancel := context.WithCancel(r.Context())
-	unlockFn := LockRepo(w, r, auth, db.LockScopeRead, ctx, cancel, true)
-	if unlockFn == nil {
-		return
-	} else {
-		defer func() {
-			(*unlockFn)(err)
-		}()
-	}
+	var convoMessages []*db.ConvoMessage
 
-	convoMessages, err := db.GetPlanConvo(auth.OrgId, planId)
+	ctx, cancel := context.WithCancel(r.Context())
+
+	err = db.ExecRepoOperation(db.ExecRepoOperationParams{
+		OrgId:    auth.OrgId,
+		UserId:   auth.User.Id,
+		PlanId:   planId,
+		Branch:   branch,
+		Reason:   "list convo",
+		Scope:    db.LockScopeRead,
+		Ctx:      ctx,
+		CancelFn: cancel,
+	}, func(repo *db.GitRepo) error {
+		res, err := db.GetPlanConvo(auth.OrgId, planId)
+
+		if err != nil {
+			return err
+		}
+
+		convoMessages = res
+
+		return nil
+	})
 
 	if err != nil {
 		log.Println("Error getting plan convo: ", err)
@@ -84,18 +97,29 @@ func GetPlanStatusHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var err error
 	ctx, cancel := context.WithCancel(r.Context())
-	unlockFn := LockRepo(w, r, auth, db.LockScopeRead, ctx, cancel, true)
-	if unlockFn == nil {
-		return
-	} else {
-		defer func() {
-			(*unlockFn)(err)
-		}()
-	}
 
-	convoMessages, err := db.GetPlanConvo(auth.OrgId, planId)
+	var convoMessages []*db.ConvoMessage
+	err := db.ExecRepoOperation(db.ExecRepoOperationParams{
+		OrgId:    auth.OrgId,
+		UserId:   auth.User.Id,
+		PlanId:   planId,
+		Branch:   branch,
+		Reason:   "get plan status",
+		Scope:    db.LockScopeRead,
+		Ctx:      ctx,
+		CancelFn: cancel,
+	}, func(repo *db.GitRepo) error {
+		res, err := db.GetPlanConvo(auth.OrgId, planId)
+
+		if err != nil {
+			return err
+		}
+
+		convoMessages = res
+
+		return nil
+	})
 
 	if err != nil {
 		log.Println("Error getting plan convo: ", err)

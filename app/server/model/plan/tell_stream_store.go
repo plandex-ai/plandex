@@ -36,7 +36,6 @@ func (state *activeTellStreamState) storeOnFinished(params storeOnFinishedParams
 	currentUserId := state.currentUserId
 	planId := state.plan.Id
 	branch := state.branch
-	auth := state.auth
 	summarizedToMessageId := state.summarizedToMessageId
 	active := state.activePlan
 	addedSubtasks := params.addedSubtasks
@@ -45,59 +44,16 @@ func (state *activeTellStreamState) storeOnFinished(params storeOnFinishedParams
 
 	log.Println("[storeOnFinished] Locking repo to store assistant reply and description")
 
-	repoLockId, err := db.LockRepo(
-		db.LockRepoParams{
-			OrgId:    currentOrgId,
-			UserId:   currentUserId,
-			PlanId:   planId,
-			Branch:   branch,
-			Scope:    db.LockScopeWrite,
-			Ctx:      active.Ctx,
-			CancelFn: active.CancelFn,
-		},
-	)
-
-	if err != nil {
-		log.Printf("Error locking repo: %v\n", err)
-		active.StreamDoneCh <- &shared.ApiError{
-			Type:   shared.ApiErrorTypeOther,
-			Status: http.StatusInternalServerError,
-			Msg:    "Error locking repo",
-		}
-		return storeOnFinishedResult{
-			handleStreamFinishedResult: handleStreamFinishedResult{
-				shouldContinueMainLoop: true,
-				shouldReturn:           false,
-			},
-			allSubtasksFinished: false,
-		}
-	}
-
-	log.Println("[storeOnFinished] Locked repo for assistant reply and description")
-
-	err = func() error {
-		defer func() {
-			if err != nil {
-				log.Printf("Error storing reply and description: %v\n", err)
-				err = db.GitClearUncommittedChanges(auth.OrgId, planId, branch)
-				if err != nil {
-					log.Printf("Error clearing uncommitted changes: %v\n", err)
-				}
-			}
-
-			log.Println("[storeOnFinished] Unlocking repo for assistant reply and description")
-
-			err = db.DeleteRepoLock(repoLockId, planId)
-			if err != nil {
-				log.Printf("Error unlocking repo: %v\n", err)
-				active.StreamDoneCh <- &shared.ApiError{
-					Type:   shared.ApiErrorTypeOther,
-					Status: http.StatusInternalServerError,
-					Msg:    "Error unlocking repo",
-				}
-			}
-		}()
-
+	err := db.ExecRepoOperation(db.ExecRepoOperationParams{
+		OrgId:    currentOrgId,
+		UserId:   currentUserId,
+		PlanId:   planId,
+		Branch:   branch,
+		Scope:    db.LockScopeWrite,
+		Ctx:      active.Ctx,
+		CancelFn: active.CancelFn,
+		Reason:   "store on finished",
+	}, func(repo *db.GitRepo) error {
 		// first resolve subtask state
 		if hasNewSubtasks || len(removedSubtasks) > 0 || subtaskFinished {
 			if subtaskFinished && state.currentSubtask != nil {
@@ -161,7 +117,7 @@ func (state *activeTellStreamState) storeOnFinished(params storeOnFinishedParams
 			flags.DidMakeDebuggingPlan = true
 		}
 
-		assistantMsg, convoCommitMsg, err := state.storeAssistantReply(storeAssistantReplyParams{
+		assistantMsg, convoCommitMsg, err := state.storeAssistantReply(repo, storeAssistantReplyParams{
 			flags:           flags,
 			subtask:         state.currentSubtask,
 			addedSubtasks:   addedSubtasks,
@@ -223,7 +179,7 @@ func (state *activeTellStreamState) storeOnFinished(params storeOnFinishedParams
 
 		log.Println("Comitting after store on finished")
 
-		err = db.GitAddAndCommit(currentOrgId, planId, branch, convoCommitMsg)
+		err = repo.GitAddAndCommit(branch, convoCommitMsg)
 		if err != nil {
 			state.onError(onErrorParams{
 				streamErr:      fmt.Errorf("failed to commit: %v", err),
@@ -236,7 +192,25 @@ func (state *activeTellStreamState) storeOnFinished(params storeOnFinishedParams
 		log.Println("Assistant reply, description, and subtasks committed")
 
 		return nil
-	}()
+	})
+
+	if err != nil {
+		log.Printf("Error storing on finished: %v\n", err)
+		active.StreamDoneCh <- &shared.ApiError{
+			Type:   shared.ApiErrorTypeOther,
+			Status: http.StatusInternalServerError,
+			Msg:    "Error storing on finished",
+		}
+		return storeOnFinishedResult{
+			handleStreamFinishedResult: handleStreamFinishedResult{
+				shouldContinueMainLoop: true,
+				shouldReturn:           false,
+			},
+			allSubtasksFinished: false,
+		}
+	}
+
+	log.Println("[storeOnFinished] Locked repo for assistant reply and description")
 
 	if err != nil {
 		return storeOnFinishedResult{
@@ -262,7 +236,7 @@ type storeAssistantReplyParams struct {
 	removedSubtasks []string
 }
 
-func (state *activeTellStreamState) storeAssistantReply(params storeAssistantReplyParams) (*db.ConvoMessage, string, error) {
+func (state *activeTellStreamState) storeAssistantReply(repo *db.GitRepo, params storeAssistantReplyParams) (*db.ConvoMessage, string, error) {
 	flags := params.flags
 	subtask := params.subtask
 	addedSubtasks := params.addedSubtasks
@@ -301,7 +275,7 @@ func (state *activeTellStreamState) storeAssistantReply(params storeAssistantRep
 		RemovedSubtasks: removedSubtasks,
 	}
 
-	commitMsg, err := db.StoreConvoMessage(&assistantMsg, auth.User.Id, branch, false)
+	commitMsg, err := db.StoreConvoMessage(repo, &assistantMsg, auth.User.Id, branch, false)
 
 	if err != nil {
 		log.Printf("Error storing assistant message: %v\n", err)

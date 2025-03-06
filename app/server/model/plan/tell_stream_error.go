@@ -81,97 +81,84 @@ func (state *activeTellStreamState) onError(params onErrorParams) onErrorResult 
 	storeDescAndReply := func() error {
 		ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
 
-		repoLockId, err := db.LockRepo(
-			db.LockRepoParams{
-				UserId:   state.currentUserId,
-				OrgId:    state.currentOrgId,
-				PlanId:   planId,
-				Branch:   branch,
-				Scope:    db.LockScopeWrite,
-				Ctx:      ctx,
-				CancelFn: cancelFn,
-			},
-		)
+		err := db.ExecRepoOperation(db.ExecRepoOperationParams{
+			OrgId:    currentOrgId,
+			UserId:   state.currentUserId,
+			PlanId:   planId,
+			Branch:   branch,
+			Scope:    db.LockScopeWrite,
+			Ctx:      ctx,
+			CancelFn: cancelFn,
+			Reason:   "store desc and reply",
+		}, func(repo *db.GitRepo) error {
+			storedMessage := false
+			storedDesc := false
+
+			if convoMessageId == "" {
+				hasUnfinishedSubtasks := false
+				for _, subtask := range state.subtasks {
+					if !subtask.IsFinished {
+						hasUnfinishedSubtasks = true
+						break
+					}
+				}
+
+				assistantMsg, msg, err := state.storeAssistantReply(repo, storeAssistantReplyParams{
+					flags: shared.ConvoMessageFlags{
+						CurrentStage:          state.currentStage,
+						HasUnfinishedSubtasks: hasUnfinishedSubtasks,
+					},
+					subtask:       nil,
+					addedSubtasks: nil,
+				})
+				if err == nil {
+					convoMessageId = assistantMsg.Id
+					commitMsg = msg
+					storedMessage = true
+				} else {
+					log.Printf("Error storing assistant message after stream error: %v\n", err)
+					return err
+				}
+			}
+
+			if storeDesc && convoMessageId != "" {
+				err := db.StoreDescription(&db.ConvoMessageDescription{
+					OrgId:                 currentOrgId,
+					PlanId:                planId,
+					SummarizedToMessageId: summarizedToMessageId,
+					WroteFiles:            false,
+					ConvoMessageId:        convoMessageId,
+					BuildPathsInvalidated: map[string]bool{},
+					Error:                 streamErr.Error(),
+				})
+				if err == nil {
+					storedDesc = true
+				} else {
+					log.Printf("Error storing description after stream error: %v\n", err)
+					return err
+				}
+			}
+
+			if storedMessage || storedDesc {
+				err := repo.GitAddAndCommit(branch, commitMsg)
+				if err != nil {
+					log.Printf("Error committing after stream error: %v\n", err)
+					return err
+				}
+			}
+
+			return nil
+		})
 
 		if err != nil {
-			log.Printf("Error locking repo for plan %s: %v\n", planId, err)
+			log.Printf("Error storing description and reply after stream error: %v\n", err)
 			return err
-		} else {
-
-			defer func() {
-				err := db.DeleteRepoLock(repoLockId, planId)
-				if err != nil {
-					log.Printf("Error unlocking repo for plan %s: %v\n", planId, err)
-				}
-			}()
-
-			err := db.GitClearUncommittedChanges(state.currentOrgId, planId, branch)
-			if err != nil {
-				log.Printf("Error clearing uncommitted changes for plan %s: %v\n", planId, err)
-				return err
-			}
-		}
-
-		storedMessage := false
-		storedDesc := false
-
-		if convoMessageId == "" {
-			hasUnfinishedSubtasks := false
-			for _, subtask := range state.subtasks {
-				if !subtask.IsFinished {
-					hasUnfinishedSubtasks = true
-					break
-				}
-			}
-
-			assistantMsg, msg, err := state.storeAssistantReply(storeAssistantReplyParams{
-				flags: shared.ConvoMessageFlags{
-					CurrentStage:          state.currentStage,
-					HasUnfinishedSubtasks: hasUnfinishedSubtasks,
-				},
-				subtask:       nil,
-				addedSubtasks: nil,
-			})
-			if err == nil {
-				convoMessageId = assistantMsg.Id
-				commitMsg = msg
-				storedMessage = true
-			} else {
-				log.Printf("Error storing assistant message after stream error: %v\n", err)
-				return err
-			}
-		}
-
-		if storeDesc && convoMessageId != "" {
-			err := db.StoreDescription(&db.ConvoMessageDescription{
-				OrgId:                 currentOrgId,
-				PlanId:                planId,
-				SummarizedToMessageId: summarizedToMessageId,
-				WroteFiles:            false,
-				ConvoMessageId:        convoMessageId,
-				BuildPathsInvalidated: map[string]bool{},
-				Error:                 streamErr.Error(),
-			})
-			if err == nil {
-				storedDesc = true
-			} else {
-				log.Printf("Error storing description after stream error: %v\n", err)
-				return err
-			}
-		}
-
-		if storedMessage || storedDesc {
-			err := db.GitAddAndCommit(currentOrgId, planId, branch, commitMsg)
-			if err != nil {
-				log.Printf("Error committing after stream error: %v\n", err)
-				return err
-			}
 		}
 
 		return nil
 	}
 
-	storeDescAndReply()
+	storeDescAndReply() // best effort to store description and reply, ignore errors
 
 	if params.streamApiErr != nil {
 		active.StreamDoneCh <- params.streamApiErr

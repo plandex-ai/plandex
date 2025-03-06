@@ -242,29 +242,32 @@ func StopPlanHandler(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 	ctx, cancel := context.WithCancel(r.Context())
-	unlockFn := LockRepo(w, r, auth, db.LockScopeWrite, ctx, cancel, true)
-	if unlockFn == nil {
-		return
-	} else {
-		defer func() {
-			(*unlockFn)(err)
 
-			if err == nil {
-				err = modelPlan.Stop(planId, branch, auth.User.Id, auth.OrgId)
+	// this is here to ensure that the plan is stopped even if the db operation fails
+	defer func() {
+		err = modelPlan.Stop(planId, branch, auth.User.Id, auth.OrgId)
 
-				if err != nil {
-					log.Printf("Error stopping plan: %v\n", err)
-					http.Error(w, "Error stopping plan", http.StatusInternalServerError)
-					return
-				}
+		if err != nil {
+			log.Printf("Error stopping plan: %v\n", err)
+		}
 
-				log.Println("Successfully processed request for StopPlanHandler")
-			}
-		}()
-	}
+		log.Println("Successfully processed request for StopPlanHandler")
+	}()
 
-	log.Println("Stopping plan")
-	err = modelPlan.StorePartialReply(planId, branch, auth.User.Id, auth.OrgId)
+	err = db.ExecRepoOperation(db.ExecRepoOperationParams{
+		OrgId:    auth.OrgId,
+		UserId:   auth.User.Id,
+		PlanId:   planId,
+		Branch:   branch,
+		Reason:   "stop plan",
+		Scope:    db.LockScopeWrite,
+		Ctx:      ctx,
+		CancelFn: cancel,
+	}, func(repo *db.GitRepo) error {
+		log.Println("Stopping plan")
+		err = modelPlan.StorePartialReply(repo, planId, branch, auth.User.Id, auth.OrgId)
+		return err
+	})
 
 	if err != nil {
 		log.Printf("Error storing partial reply: %v\n", err)

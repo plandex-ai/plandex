@@ -1,8 +1,8 @@
 package handlers
 
 import (
-	"database/sql"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -11,6 +11,8 @@ import (
 	"plandex-server/hooks"
 
 	shared "plandex-shared"
+
+	"github.com/jmoiron/sqlx"
 )
 
 func ListOrgsHandler(w http.ResponseWriter, r *http.Request) {
@@ -84,82 +86,56 @@ func CreateOrgHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var apiErr *shared.ApiError
-
-	// start a transaction
-	tx, err := db.Conn.Beginx()
-	if err != nil {
-		log.Printf("Error starting transaction: %v\n", err)
-		http.Error(w, "Error starting transaction: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	var committed bool
-
-	// Ensure that rollback is attempted in case of failure
-	defer func() {
-		if committed {
-			return
-		}
-
-		if rbErr := tx.Rollback(); rbErr != nil {
-			if rbErr == sql.ErrTxDone {
-				// log.Println("attempted to roll back transaction, but it was already committed")
-			} else {
-				log.Printf("transaction rollback error: %v\n", rbErr)
+	var org *db.Org
+	err = db.WithTx(r.Context(), "create org", func(tx *sqlx.Tx) error {
+		var err error
+		var domain *string
+		if req.AutoAddDomainUsers {
+			if shared.IsEmailServiceDomain(auth.User.Domain) {
+				log.Printf("Invalid domain: %v\n", auth.User.Domain)
+				return fmt.Errorf("invalid domain: %v", auth.User.Domain)
 			}
-		} else {
-			log.Println("transaction rolled back")
-		}
-	}()
 
-	var domain *string
-	if req.AutoAddDomainUsers {
-		if shared.IsEmailServiceDomain(auth.User.Domain) {
-			log.Printf("Invalid domain: %v\n", auth.User.Domain)
-			http.Error(w, "Invalid domain: "+auth.User.Domain, http.StatusBadRequest)
-			return
+			domain = &auth.User.Domain
 		}
 
-		domain = &auth.User.Domain
-	}
-
-	// create a new org
-	org, err := db.CreateOrg(&req, auth.AuthToken.UserId, domain, tx)
-
-	if err != nil {
-		log.Printf("Error creating org: %v\n", err)
-		http.Error(w, "Error creating org: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	if org.AutoAddDomainUsers && org.Domain != nil {
-		err = db.AddOrgDomainUsers(org.Id, *org.Domain, tx)
+		// create a new org
+		org, err = db.CreateOrg(&req, auth.AuthToken.UserId, domain, tx)
 
 		if err != nil {
-			log.Printf("Error adding org domain users: %v\n", err)
-			http.Error(w, "Error adding org domain users: "+err.Error(), http.StatusInternalServerError)
-			return
+			log.Printf("Error creating org: %v\n", err)
+			return fmt.Errorf("error creating org: %v", err)
 		}
-	}
 
-	_, apiErr = hooks.ExecHook(hooks.CreateOrg, hooks.HookParams{
-		Auth: auth,
-		Tx:   tx,
+		if org.AutoAddDomainUsers && org.Domain != nil {
+			err = db.AddOrgDomainUsers(org.Id, *org.Domain, tx)
 
-		CreateOrgHookRequestParams: &hooks.CreateOrgHookRequestParams{
-			Org: org,
-		},
+			if err != nil {
+				log.Printf("Error adding org domain users: %v\n", err)
+				return fmt.Errorf("error adding org domain users: %v", err)
+			}
+		}
+
+		_, apiErr = hooks.ExecHook(hooks.CreateOrg, hooks.HookParams{
+			Auth: auth,
+			Tx:   tx,
+
+			CreateOrgHookRequestParams: &hooks.CreateOrgHookRequestParams{
+				Org: org,
+			},
+		})
+
+		return nil
 	})
+
 	if apiErr != nil {
 		writeApiError(w, *apiErr)
 		return
 	}
 
-	err = tx.Commit()
-
 	if err != nil {
-		log.Printf("Error committing transaction: %v\n", err)
-		http.Error(w, "Error committing transaction: "+err.Error(), http.StatusInternalServerError)
+		log.Printf("Error creating org: %v\n", err)
+		http.Error(w, "Error creating org: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 

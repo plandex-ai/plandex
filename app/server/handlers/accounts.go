@@ -1,8 +1,8 @@
 package handlers
 
 import (
-	"database/sql"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -13,6 +13,8 @@ import (
 	"strings"
 
 	shared "plandex-shared"
+
+	"github.com/jmoiron/sqlx"
 )
 
 func CreateAccountHandler(w http.ResponseWriter, r *http.Request) {
@@ -56,68 +58,44 @@ func CreateAccountHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// start a transaction
-	tx, err := db.Conn.Beginx()
-	if err != nil {
-		log.Printf("Error starting transaction: %v\n", err)
-		http.Error(w, "Error starting transaction: "+err.Error(), http.StatusInternalServerError)
+	var apiErr *shared.ApiError
+	var user *db.User
+	var userId string
+	var token string
+	var orgId string
+
+	err = db.WithTx(r.Context(), "create account", func(tx *sqlx.Tx) error {
+		res, err := db.CreateAccount(req.UserName, req.Email, emailVerificationId, tx)
+
+		if err != nil {
+			return fmt.Errorf("error creating account: %v", err)
+		}
+
+		user = res.User
+		userId = user.Id
+		token = res.Token
+		orgId = res.OrgId
+
+		_, apiErr = hooks.ExecHook(hooks.CreateAccount, hooks.HookParams{
+			Auth: &types.ServerAuth{
+				User:  user,
+				OrgId: orgId,
+			},
+		})
+
+		return nil
+	})
+
+	if apiErr != nil {
+		writeApiError(w, *apiErr)
 		return
 	}
-
-	var apiErr *shared.ApiError
-
-	var committed bool
-
-	// Ensure that rollback is attempted in case of failure
-	defer func() {
-		if committed {
-			return
-		}
-
-		if rbErr := tx.Rollback(); rbErr != nil {
-			if rbErr == sql.ErrTxDone {
-				// log.Println("attempted to roll back transaction, but it was already committed")
-			} else {
-				log.Printf("transaction rollback error: %v\n", rbErr)
-			}
-		} else {
-			log.Println("transaction rolled back")
-		}
-	}()
-
-	res, err := db.CreateAccount(req.UserName, req.Email, emailVerificationId, tx)
 
 	if err != nil {
 		log.Printf("Error creating account: %v\n", err)
 		http.Error(w, "Error creating account: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-
-	user := res.User
-	userId := user.Id
-	token := res.Token
-	orgId := res.OrgId
-
-	_, apiErr = hooks.ExecHook(hooks.CreateAccount, hooks.HookParams{
-		Auth: &types.ServerAuth{
-			User:  user,
-			OrgId: orgId,
-		},
-	})
-	if apiErr != nil {
-		writeApiError(w, *apiErr)
-		return
-	}
-
-	// commit transaction
-	err = tx.Commit()
-	if err != nil {
-		log.Printf("Error committing transaction: %v\n", err)
-		http.Error(w, "Error committing transaction: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	committed = true
 
 	// get orgs
 	orgs, err := db.GetAccessibleOrgsForUser(user)

@@ -154,28 +154,68 @@ func loadContexts(
 	}
 
 	ctx, cancel := context.WithCancel(r.Context())
-	unlockFn := LockRepo(w, r, auth, db.LockScopeWrite, ctx, cancel, true)
-	if unlockFn == nil {
-		return nil, nil
-	} else {
-		defer func() {
-			(*unlockFn)(err)
-		}()
-	}
 
-	log.Printf("Calling db.LoadContexts with %d contexts, %d cached maps", len(*loadReq), len(cachedMapsByPath))
-	for path := range cachedMapsByPath {
-		log.Printf("Using cached map for path: %s", path)
-	}
+	var loadRes *shared.LoadContextResponse
+	var dbContexts []*db.Context
 
-	res, dbContexts, err := db.LoadContexts(ctx, db.LoadContextsParams{
-		OrgId:            auth.OrgId,
-		Plan:             plan,
-		BranchName:       branchName,
-		Req:              loadReq,
-		UserId:           auth.User.Id,
-		CachedMapsByPath: cachedMapsByPath,
-		AutoLoaded:       autoLoaded,
+	err = db.ExecRepoOperation(db.ExecRepoOperationParams{
+		OrgId:          auth.OrgId,
+		UserId:         auth.User.Id,
+		PlanId:         plan.Id,
+		Branch:         branchName,
+		Reason:         "load contexts",
+		Scope:          db.LockScopeWrite,
+		Ctx:            ctx,
+		CancelFn:       cancel,
+		ClearRepoOnErr: true,
+	}, func(repo *db.GitRepo) error {
+		log.Printf("Calling db.LoadContexts with %d contexts, %d cached maps", len(*loadReq), len(cachedMapsByPath))
+		for path := range cachedMapsByPath {
+			log.Printf("Using cached map for path: %s", path)
+		}
+
+		res, dbContextsRes, err := db.LoadContexts(ctx, db.LoadContextsParams{
+			OrgId:            auth.OrgId,
+			Plan:             plan,
+			BranchName:       branchName,
+			Req:              loadReq,
+			UserId:           auth.User.Id,
+			CachedMapsByPath: cachedMapsByPath,
+			AutoLoaded:       autoLoaded,
+		})
+
+		if err != nil {
+			return err
+		}
+
+		loadRes = res
+		dbContexts = dbContextsRes
+
+		log.Printf("db.LoadContexts completed successfully, loaded %d contexts", len(dbContexts))
+
+		// Log information about loaded map contexts
+		mapContextsCount := 0
+		for _, context := range dbContexts {
+			if context.ContextType == shared.ContextMapType {
+				mapContextsCount++
+				log.Printf("Loaded map context: %s, path: %s, tokens: %d", context.Name, context.FilePath, context.NumTokens)
+			}
+		}
+		if mapContextsCount > 0 {
+			log.Printf("Successfully loaded %d map contexts out of %d total contexts", mapContextsCount, len(dbContexts))
+		}
+
+		if loadRes.MaxTokensExceeded {
+			return nil
+		}
+
+		err = repo.GitAddAndCommit(branchName, res.Msg)
+
+		if err != nil {
+			return fmt.Errorf("error committing changes: %v", err)
+		}
+
+		return nil
 	})
 
 	if err != nil {
@@ -184,23 +224,9 @@ func loadContexts(
 		return nil, nil
 	}
 
-	log.Printf("db.LoadContexts completed successfully, loaded %d contexts", len(dbContexts))
-
-	// Log information about loaded map contexts
-	mapContextsCount := 0
-	for _, context := range dbContexts {
-		if context.ContextType == shared.ContextMapType {
-			mapContextsCount++
-			log.Printf("Loaded map context: %s, path: %s, tokens: %d", context.Name, context.FilePath, context.NumTokens)
-		}
-	}
-	if mapContextsCount > 0 {
-		log.Printf("Successfully loaded %d map contexts out of %d total contexts", mapContextsCount, len(dbContexts))
-	}
-
-	if res.MaxTokensExceeded {
-		log.Printf("The total number of tokens (%d) exceeds the maximum allowed (%d)", res.TotalTokens, res.MaxTokens)
-		bytes, err := json.Marshal(res)
+	if loadRes.MaxTokensExceeded {
+		log.Printf("The total number of tokens (%d) exceeds the maximum allowed (%d)", loadRes.TotalTokens, loadRes.MaxTokens)
+		bytes, err := json.Marshal(loadRes)
 
 		if err != nil {
 			log.Printf("Error marshalling response: %v\n", err)
@@ -212,13 +238,5 @@ func loadContexts(
 		return nil, nil
 	}
 
-	err = db.GitAddAndCommit(auth.OrgId, plan.Id, branchName, res.Msg)
-
-	if err != nil {
-		log.Printf("Error committing changes: %v\n", err)
-		http.Error(w, "Error committing changes: "+err.Error(), http.StatusInternalServerError)
-		return nil, nil
-	}
-
-	return res, dbContexts
+	return loadRes, dbContexts
 }

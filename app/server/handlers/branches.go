@@ -2,8 +2,8 @@ package handlers
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -12,6 +12,7 @@ import (
 	shared "plandex-shared"
 
 	"github.com/gorilla/mux"
+	"github.com/jmoiron/sqlx"
 )
 
 func ListBranchesHandler(w http.ResponseWriter, r *http.Request) {
@@ -34,16 +35,28 @@ func ListBranchesHandler(w http.ResponseWriter, r *http.Request) {
 	var err error
 
 	ctx, cancel := context.WithCancel(r.Context())
-	unlockFn := LockRepo(w, r, auth, db.LockScopeRead, ctx, cancel, false)
-	if unlockFn == nil {
-		return
-	} else {
-		defer func() {
-			(*unlockFn)(err)
-		}()
-	}
+	var branches []*db.Branch
 
-	branches, err := db.ListPlanBranches(auth.OrgId, planId)
+	err = db.ExecRepoOperation(db.ExecRepoOperationParams{
+		OrgId:    auth.OrgId,
+		UserId:   auth.User.Id,
+		PlanId:   planId,
+		Branch:   "main",
+		Reason:   "list branches",
+		Scope:    db.LockScopeRead,
+		Ctx:      ctx,
+		CancelFn: cancel,
+	}, func(repo *db.GitRepo) error {
+		res, err := db.ListPlanBranches(repo, planId)
+
+		if err != nil {
+			return err
+		}
+
+		branches = res
+
+		return nil
+	})
 
 	if err != nil {
 		log.Printf("Error getting branches: %v\n", err)
@@ -110,53 +123,34 @@ func CreateBranchHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ctx, cancel := context.WithCancel(r.Context())
-	unlockFn := LockRepo(w, r, auth, db.LockScopeWrite, ctx, cancel, true)
-	if unlockFn == nil {
-		return
-	} else {
-		defer func() {
-			(*unlockFn)(err)
-		}()
-	}
 
-	tx, err := db.Conn.Beginx()
-	if err != nil {
-		log.Printf("Error starting transaction: %v\n", err)
-		http.Error(w, "Error starting transaction: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
+	err = db.ExecRepoOperation(db.ExecRepoOperationParams{
+		OrgId:    auth.OrgId,
+		UserId:   auth.User.Id,
+		PlanId:   planId,
+		Branch:   "main",
+		Reason:   "create branch",
+		Scope:    db.LockScopeWrite,
+		Ctx:      ctx,
+		CancelFn: cancel,
+	}, func(repo *db.GitRepo) error {
 
-	var committed bool
+		err := db.WithTx(ctx, "create branch", func(tx *sqlx.Tx) error {
+			_, err = db.CreateBranch(repo, plan, parentBranch, req.Name, tx)
 
-	// Ensure that rollback is attempted in case of failure
-	defer func() {
-		if committed {
-			return
-		}
-
-		if rbErr := tx.Rollback(); rbErr != nil {
-			if rbErr == sql.ErrTxDone {
-				// log.Println("attempted to roll back transaction, but it was already committed")
-			} else {
-				log.Printf("transaction rollback error: %v\n", rbErr)
+			if err != nil {
+				return fmt.Errorf("error creating branch: %v", err)
 			}
-		} else {
-			log.Println("transaction rolled back")
-		}
-	}()
 
-	_, err = db.CreateBranch(plan, parentBranch, req.Name, tx)
+			return nil
+		})
+
+		return err
+	})
 
 	if err != nil {
 		log.Printf("Error creating branch: %v\n", err)
 		http.Error(w, "Error creating branch: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	// commit the transaction
-	if err := tx.Commit(); err != nil {
-		log.Printf("Error committing transaction: %v\n", err)
-		http.Error(w, "Error committing transaction: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -188,32 +182,20 @@ func DeleteBranchHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ctx, cancel := context.WithCancel(r.Context())
-	repoLockId, err := db.LockRepo(
-		db.LockRepoParams{
-			OrgId:    auth.OrgId,
-			UserId:   auth.User.Id,
-			PlanId:   planId,
-			Branch:   "main",
-			Scope:    db.LockScopeRead,
-			Ctx:      ctx,
-			CancelFn: cancel,
-		},
-	)
 
-	if err != nil {
-		log.Printf("Error locking repo: %v\n", err)
-		http.Error(w, "Error locking repo: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	defer func() {
-		err := db.DeleteRepoLock(repoLockId, planId)
-		if err != nil {
-			log.Printf("Error unlocking repo: %v\n", err)
-		}
-	}()
-
-	err = db.DeleteBranch(auth.OrgId, planId, branch)
+	err := db.ExecRepoOperation(db.ExecRepoOperationParams{
+		OrgId:    auth.OrgId,
+		UserId:   auth.User.Id,
+		PlanId:   planId,
+		Branch:   "main",
+		Reason:   "delete branch",
+		Scope:    db.LockScopeWrite,
+		Ctx:      ctx,
+		CancelFn: cancel,
+	}, func(repo *db.GitRepo) error {
+		err := repo.GitDeleteBranch(branch)
+		return err
+	})
 
 	if err != nil {
 		log.Printf("Error deleting branch: %v\n", err)

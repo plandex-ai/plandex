@@ -26,33 +26,20 @@ func (state *activeBuildStreamState) loadPendingBuilds() (map[string][]*types.Ac
 	modelStreamId := active.ModelStreamId
 	state.modelStreamId = modelStreamId
 
-	repoLockId, err := db.LockRepo(
-		db.LockRepoParams{
-			OrgId:    auth.OrgId,
-			UserId:   auth.User.Id,
-			PlanId:   plan.Id,
-			Branch:   branch,
-			Scope:    db.LockScopeRead,
-			Ctx:      active.Ctx,
-			CancelFn: active.CancelFn,
-		},
-	)
-	if err != nil {
-		return nil, fmt.Errorf("error locking repo for build: %v", err)
-	}
-
 	var modelContext []*db.Context
 	var pendingBuildsByPath map[string][]*types.ActiveBuild
 	var settings *shared.PlanSettings
 
-	err = func() error {
-		defer func() {
-			err := db.DeleteRepoLock(repoLockId, plan.Id)
-			if err != nil {
-				log.Printf("Error unlocking repo: %v\n", err)
-			}
-		}()
-
+	err = db.ExecRepoOperation(db.ExecRepoOperationParams{
+		OrgId:    auth.OrgId,
+		UserId:   auth.User.Id,
+		PlanId:   plan.Id,
+		Branch:   branch,
+		Scope:    db.LockScopeRead,
+		Ctx:      active.Ctx,
+		CancelFn: active.CancelFn,
+		Reason:   "load pending builds",
+	}, func(repo *db.GitRepo) error {
 		errCh := make(chan error)
 
 		go func() {
@@ -101,10 +88,10 @@ func (state *activeBuildStreamState) loadPendingBuilds() (map[string][]*types.Ac
 			}
 		}
 		return nil
-	}()
+	})
 
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error getting plan data: %v", err)
 	}
 
 	UpdateActivePlan(plan.Id, branch, func(ap *types.ActivePlan) {
@@ -183,49 +170,17 @@ func (state *activeBuildStreamFileState) loadBuildFile(activeBuild *types.Active
 
 	log.Println("Locking repo for load build file")
 
-	// For file operations, use write lock so that the same lock can be shared for both the load and write phase - resolves lock contention issue with many near-instantaneous file operations
-	var lockScope db.LockScope
-	if activeBuild.IsFileOperation() {
-		lockScope = db.LockScopeWrite
-	} else {
-		lockScope = db.LockScopeRead
-	}
-
-	repoLockId, err := db.LockRepo(db.LockRepoParams{
+	err = db.ExecRepoOperation(db.ExecRepoOperationParams{
 		OrgId:       currentOrgId,
 		UserId:      state.activeBuildStreamState.currentUserId,
 		PlanId:      planId,
 		Branch:      branch,
 		PlanBuildId: build.Id,
-		Scope:       lockScope,
+		Scope:       db.LockScopeRead,
 		Ctx:         activePlan.Ctx,
 		CancelFn:    activePlan.CancelFn,
-	})
-	if err != nil {
-		log.Printf("Error locking repo for build file: %v\n", err)
-		UpdateActivePlan(activePlan.Id, activePlan.Branch, func(ap *types.ActivePlan) {
-			ap.IsBuildingByPath[filePath] = false
-		})
-		activePlan.StreamDoneCh <- &shared.ApiError{
-			Type:   shared.ApiErrorTypeOther,
-			Status: http.StatusInternalServerError,
-			Msg:    "Error locking repo for build file: " + err.Error(),
-		}
-		return err
-	}
-
-	log.Println("Locked repo for load build file")
-
-	err = func() error {
-		defer func() {
-			log.Printf("Unlocking repo for load build file")
-
-			err := db.DeleteRepoLock(repoLockId, planId)
-			if err != nil {
-				log.Printf("Error unlocking repo: %v\n", err)
-			}
-		}()
-
+		Reason:      "load build file",
+	}, func(repo *db.GitRepo) error {
 		errCh := make(chan error)
 
 		go func() {
@@ -274,10 +229,18 @@ func (state *activeBuildStreamFileState) loadBuildFile(activeBuild *types.Active
 		}
 
 		return nil
-
-	}()
+	})
 
 	if err != nil {
+		log.Printf("Error loading build file: %v\n", err)
+		UpdateActivePlan(activePlan.Id, activePlan.Branch, func(ap *types.ActivePlan) {
+			ap.IsBuildingByPath[filePath] = false
+		})
+		activePlan.StreamDoneCh <- &shared.ApiError{
+			Type:   shared.ApiErrorTypeOther,
+			Status: http.StatusInternalServerError,
+			Msg:    "Error loading build file: " + err.Error(),
+		}
 		return err
 	}
 

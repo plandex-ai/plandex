@@ -98,7 +98,7 @@ func CreatePlanHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	plan, err := db.CreatePlan(auth.OrgId, projectId, auth.User.Id, name)
+	plan, err := db.CreatePlan(r.Context(), auth.OrgId, projectId, auth.User.Id, name)
 
 	if err != nil {
 		log.Printf("Error creating plan: %v\n", err)

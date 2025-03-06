@@ -6,13 +6,11 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"plandex-server/hooks"
 	"plandex-server/model"
 	"plandex-server/model/prompts"
 	"plandex-server/types"
 	"plandex-server/utils"
 	"strings"
-	"time"
 
 	shared "plandex-shared"
 
@@ -110,7 +108,7 @@ func (state *activeTellStreamState) execStatusShouldContinue(currentMessage stri
 		}, nil
 	}
 
-	content := prompts.GetExecStatusFinishedSubtask(prompts.GetExecStatusFinishedSubtaskParams{
+	prompt := prompts.GetExecStatusFinishedSubtask(prompts.GetExecStatusFinishedSubtaskParams{
 		UserPrompt:                 state.userPrompt,
 		CurrentSubtask:             fullSubtask,
 		CurrentMessage:             currentMessage,
@@ -124,69 +122,34 @@ func (state *activeTellStreamState) execStatusShouldContinue(currentMessage stri
 			Content: []types.ExtendedChatMessagePart{
 				{
 					Type: openai.ChatMessagePartTypeText,
-					Text: content,
+					Text: prompt,
 				},
 			},
 		},
 	}
 
-	numTokens := model.GetMessagesTokenEstimate(messages...) + model.TokensPerRequest
-
-	_, apiErr := hooks.ExecHook(hooks.WillSendModelRequest, hooks.HookParams{
-		Auth: auth,
-		Plan: plan,
-		WillSendModelRequestParams: &hooks.WillSendModelRequestParams{
-			InputTokens:  numTokens,
-			OutputTokens: config.BaseModelConfig.MaxOutputTokens - numTokens,
-			ModelName:    config.BaseModelConfig.ModelName,
-		},
+	modelRes, err := model.ModelRequest(ctx, model.ModelRequestParams{
+		Clients:        clients,
+		Auth:           auth,
+		Plan:           plan,
+		ModelConfig:    &config,
+		Purpose:        "Check if task finished",
+		Messages:       messages,
+		ModelStreamId:  state.modelStreamId,
+		ConvoMessageId: state.replyId,
 	})
-	if apiErr != nil {
-		return execStatusShouldContinueResult{}, apiErr
-	}
-
-	log.Println("Calling model to check if plan should continue")
-
-	reqStarted := time.Now()
-	req := types.ExtendedChatCompletionRequest{
-		Model:       config.BaseModelConfig.ModelName,
-		Messages:    messages,
-		Temperature: config.Temperature,
-		TopP:        config.TopP,
-	}
-
-	if config.BaseModelConfig.PreferredModelOutputFormat != shared.ModelOutputFormatXml {
-		req.Tools = []openai.Tool{
-			{
-				Type:     "function",
-				Function: &prompts.DidFinishSubtaskFn,
-			},
-		}
-		req.ToolChoice = openai.ToolChoice{
-			Type: "function",
-			Function: openai.ToolFunction{
-				Name: prompts.DidFinishSubtaskFn.Name,
-			},
-		}
-	}
-
-	resp, err := model.CreateChatCompletion(
-		clients,
-		&config,
-		ctx,
-		req,
-	)
 
 	if err != nil {
 		log.Printf("[ExecStatus] Error in model call: %v", err)
 		return execStatusShouldContinueResult{}, nil
 	}
 
+	content := modelRes.Content
+
 	var reasoning string
 	var subtaskFinished bool
 
 	if config.BaseModelConfig.PreferredModelOutputFormat == shared.ModelOutputFormatXml {
-		content := resp.Choices[0].Message.Content
 		reasoning = utils.GetXMLContent(content, "reasoning")
 		subtaskFinishedStr := utils.GetXMLContent(content, "subtaskFinished")
 		subtaskFinished = subtaskFinishedStr == "true"
@@ -199,23 +162,14 @@ func (state *activeTellStreamState) execStatusShouldContinue(currentMessage stri
 			}
 		}
 	} else {
-		var strRes string
-		for _, choice := range resp.Choices {
-			if len(choice.Message.ToolCalls) == 1 &&
-				choice.Message.ToolCalls[0].Function.Name == prompts.DidFinishSubtaskFn.Name {
-				strRes = choice.Message.ToolCalls[0].Function.Arguments
-				log.Printf("[ExecStatus] Got function response: %s", strRes)
-				break
-			}
-		}
 
-		if strRes == "" {
+		if content == "" {
 			log.Printf("[ExecStatus] No function response found in model output")
 			return execStatusShouldContinueResult{}, nil
 		}
 
 		var res types.ExecStatusResponse
-		if err := json.Unmarshal([]byte(strRes), &res); err != nil {
+		if err := json.Unmarshal([]byte(content), &res); err != nil {
 			log.Printf("[ExecStatus] Failed to parse response: %v", err)
 			return execStatusShouldContinueResult{}, nil
 		}
@@ -226,52 +180,6 @@ func (state *activeTellStreamState) execStatusShouldContinue(currentMessage stri
 
 	log.Printf("[ExecStatus] Decision: subtaskFinished=%v, reasoning=%v",
 		subtaskFinished, reasoning)
-
-	var inputTokens int
-	var outputTokens int
-	if resp.Usage.CompletionTokens > 0 {
-		inputTokens = resp.Usage.PromptTokens
-		outputTokens = resp.Usage.CompletionTokens
-	} else {
-		inputTokens = numTokens
-		outputTokens = shared.GetNumTokensEstimate(reasoning)
-	}
-
-	var cachedTokens int
-	if resp.Usage.PromptTokensDetails != nil {
-		cachedTokens = resp.Usage.PromptTokensDetails.CachedTokens
-	}
-
-	go func() {
-		_, apiErr = hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
-			Auth: auth,
-			Plan: plan,
-			DidSendModelRequestParams: &hooks.DidSendModelRequestParams{
-				InputTokens:    inputTokens,
-				OutputTokens:   outputTokens,
-				CachedTokens:   cachedTokens,
-				ModelName:      config.BaseModelConfig.ModelName,
-				ModelProvider:  config.BaseModelConfig.Provider,
-				ModelPackName:  settings.ModelPack.Name,
-				ModelRole:      shared.ModelRoleExecStatus,
-				Purpose:        "Evaluate if task was finished",
-				GenerationId:   resp.ID,
-				PlanId:         plan.Id,
-				ModelStreamId:  state.modelStreamId,
-				ConvoMessageId: state.replyId,
-
-				RequestStartedAt: reqStarted,
-				Streaming:        false,
-				Req:              &req,
-				Res:              &resp,
-				ModelConfig:      &config,
-			},
-		})
-
-		if apiErr != nil {
-			log.Printf("execStatusShouldContinue - error executing DidSendModelRequest hook: %v", apiErr)
-		}
-	}()
 
 	return execStatusShouldContinueResult{
 		subtaskFinished: subtaskFinished,

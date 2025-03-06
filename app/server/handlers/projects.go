@@ -1,8 +1,8 @@
 package handlers
 
 import (
-	"database/sql"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -11,6 +11,7 @@ import (
 	shared "plandex-shared"
 
 	"github.com/gorilla/mux"
+	"github.com/jmoiron/sqlx"
 )
 
 func CreateProjectHandler(w http.ResponseWriter, r *http.Request) {
@@ -43,45 +44,23 @@ func CreateProjectHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// start a transaction
-	tx, err := db.Conn.Beginx()
-	if err != nil {
-		log.Printf("Error starting transaction: %v\n", err)
-		http.Error(w, "Error starting transaction: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
+	var projectId string
+	err = db.WithTx(r.Context(), "create project", func(tx *sqlx.Tx) error {
+		var err error
 
-	var committed bool
+		projectId, err = db.CreateProject(auth.OrgId, requestBody.Name, tx)
 
-	// Ensure that rollback is attempted in case of failure
-	defer func() {
-		if committed {
-			return
+		if err != nil {
+			log.Printf("Error creating project: %v\n", err)
+			return fmt.Errorf("error creating project: %v", err)
 		}
 
-		if rbErr := tx.Rollback(); rbErr != nil {
-			if rbErr == sql.ErrTxDone {
-				// log.Println("attempted to roll back transaction, but it was already committed")
-			} else {
-				log.Printf("transaction rollback error: %v\n", rbErr)
-			}
-		} else {
-			log.Println("transaction rolled back")
-		}
-	}()
-
-	projectId, err := db.CreateProject(auth.OrgId, requestBody.Name, tx)
+		return nil
+	})
 
 	if err != nil {
 		log.Printf("Error creating project: %v\n", err)
 		http.Error(w, "Error creating project: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	err = tx.Commit()
-	if err != nil {
-		log.Printf("Error committing transaction: %v\n", err)
-		http.Error(w, "Error committing transaction: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 

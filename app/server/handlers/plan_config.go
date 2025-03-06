@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"plandex-server/db"
@@ -9,6 +10,7 @@ import (
 	shared "plandex-shared"
 
 	"github.com/gorilla/mux"
+	"github.com/jmoiron/sqlx"
 )
 
 func GetPlanConfigHandler(w http.ResponseWriter, r *http.Request) {
@@ -133,32 +135,20 @@ func UpdateDefaultPlanConfigHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tx, err := db.Conn.Beginx()
-	if err != nil {
-		log.Println("Error starting transaction: ", err)
-		http.Error(w, "Error starting transaction", http.StatusInternalServerError)
-		return
-	}
+	err = db.WithTx(r.Context(), "update default plan config", func(tx *sqlx.Tx) error {
 
-	defer func() {
+		err := db.StoreDefaultPlanConfig(auth.User.Id, req.Config, tx)
 		if err != nil {
-			if rbErr := tx.Rollback(); rbErr != nil {
-				log.Printf("Error rolling back transaction: %v\n", rbErr)
-			}
+			log.Println("Error storing default plan config: ", err)
+			return fmt.Errorf("error storing default plan config: %v", err)
 		}
-	}()
 
-	err = db.StoreDefaultPlanConfig(auth.User.Id, req.Config, tx)
-	if err != nil {
-		log.Println("Error storing default plan config: ", err)
-		http.Error(w, "Error storing default plan config", http.StatusInternalServerError)
-		return
-	}
+		return nil
+	})
 
-	err = tx.Commit()
 	if err != nil {
-		log.Println("Error committing transaction: ", err)
-		http.Error(w, "Error committing transaction", http.StatusInternalServerError)
+		log.Println("Error updating default plan config: ", err)
+		http.Error(w, "Error updating default plan config", http.StatusInternalServerError)
 		return
 	}
 

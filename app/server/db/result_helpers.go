@@ -440,7 +440,7 @@ type ApplyPlanParams struct {
 	CommitMsg              string
 }
 
-func ApplyPlan(ctx context.Context, params ApplyPlanParams) error {
+func ApplyPlan(repo *GitRepo, ctx context.Context, params ApplyPlanParams) error {
 	orgId := params.OrgId
 	userId := params.UserId
 	branchName := params.BranchName
@@ -684,7 +684,7 @@ func ApplyPlan(ctx context.Context, params ApplyPlanParams) error {
 		msg += "\n\n" + updateContextRes.Msg
 	}
 
-	err = GitAddAndCommit(orgId, plan.Id, branchName, msg)
+	err = repo.GitAddAndCommit(branchName, msg)
 
 	if err != nil {
 		return fmt.Errorf("error committing plan: %v", err)

@@ -93,33 +93,24 @@ func DeleteActivePlan(orgId, userId, planId, branch string) {
 		return
 	}
 
-	repoLockId, err := db.LockRepo(
-		db.LockRepoParams{
-			UserId:   userId,
-			OrgId:    orgId,
-			PlanId:   planId,
-			Branch:   branch,
-			Scope:    db.LockScopeWrite,
-			Ctx:      context.Background(),
-			CancelFn: func() {},
-		},
-	)
+	ctx, cancelFn := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancelFn()
+
+	err := db.ExecRepoOperation(db.ExecRepoOperationParams{
+		OrgId:    orgId,
+		UserId:   userId,
+		PlanId:   planId,
+		Branch:   branch,
+		Scope:    db.LockScopeWrite,
+		Ctx:      ctx,
+		CancelFn: cancelFn,
+		Reason:   "delete active plan",
+	}, func(repo *db.GitRepo) error {
+		return repo.GitClearUncommittedChanges(branch)
+	})
 
 	if err != nil {
-		log.Printf("Error locking repo for plan %s: %v\n", planId, err)
-	} else {
-
-		defer func() {
-			err := db.DeleteRepoLock(repoLockId, planId)
-			if err != nil {
-				log.Printf("Error unlocking repo for plan %s: %v\n", planId, err)
-			}
-		}()
-
-		err := db.GitClearUncommittedChanges(orgId, planId, branch)
-		if err != nil {
-			log.Printf("Error clearing uncommitted changes for plan %s: %v\n", planId, err)
-		}
+		log.Printf("Error clearing uncommitted changes for plan %s: %v\n", planId, err)
 	}
 
 	activePlans.Delete(strings.Join([]string{planId, branch}, "|"))

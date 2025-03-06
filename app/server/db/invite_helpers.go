@@ -1,9 +1,9 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
-	"log"
 	"strings"
 
 	"github.com/jmoiron/sqlx"
@@ -114,48 +114,26 @@ func DeleteInvite(id string, tx *sqlx.Tx) error {
 	return nil
 }
 
-func AcceptInvite(invite *Invite, inviteeId string) error {
-	// start a transaction
-	tx, err := Conn.Beginx()
-	if err != nil {
-		return fmt.Errorf("error starting transaction: %v", err)
-	}
+func AcceptInvite(ctx context.Context, invite *Invite, inviteeId string) error {
+	err := WithTx(ctx, "accept invite", func(tx *sqlx.Tx) error {
 
-	var committed bool
-
-	// Ensure that rollback is attempted in case of failure
-	defer func() {
-		if committed {
-			return
+		_, err := tx.Exec(`UPDATE invites SET accepted_at = NOW(), invitee_id = $1 WHERE id = $2`, inviteeId, invite.Id)
+		if err != nil {
+			return fmt.Errorf("error accepting invite: %v", err)
 		}
 
-		if rbErr := tx.Rollback(); rbErr != nil {
-			if rbErr == sql.ErrTxDone {
-				// log.Println("attempted to roll back transaction, but it was already committed")
-			} else {
-				log.Printf("transaction rollback error: %v\n", rbErr)
-			}
-		} else {
-			log.Println("transaction rolled back")
-		}
-	}()
+		// create org user
+		err = CreateOrgUser(invite.OrgId, inviteeId, invite.OrgRoleId, tx)
 
-	_, err = tx.Exec(`UPDATE invites SET accepted_at = NOW(), invitee_id = $1 WHERE id = $2`, inviteeId, invite.Id)
+		if err != nil {
+			return fmt.Errorf("error creating org user: %v", err)
+		}
+
+		return nil
+	})
+
 	if err != nil {
 		return fmt.Errorf("error accepting invite: %v", err)
-	}
-
-	// create org user
-	err = CreateOrgUser(invite.OrgId, inviteeId, invite.OrgRoleId, tx)
-
-	if err != nil {
-		return fmt.Errorf("error creating org user: %v", err)
-	}
-
-	// commit transaction
-	err = tx.Commit()
-	if err != nil {
-		return fmt.Errorf("error committing transaction: %v", err)
 	}
 
 	invite.InviteeId = &inviteeId

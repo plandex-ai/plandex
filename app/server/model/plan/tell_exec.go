@@ -13,7 +13,6 @@ import (
 
 	shared "plandex-shared"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/google/uuid"
 	"github.com/sashabaranov/go-openai"
 )
@@ -326,7 +325,7 @@ func execTellPlan(params execTellPlanParams) {
 	// log.Println("Stop:", stop)
 	// spew.Dump(state.messages)
 
-	log.Println("modelConfig:", spew.Sdump(modelConfig))
+	// log.Println("modelConfig:", spew.Sdump(modelConfig))
 
 	modelReq := types.ExtendedChatCompletionRequest{
 		Model:    modelConfig.BaseModelConfig.ModelName,

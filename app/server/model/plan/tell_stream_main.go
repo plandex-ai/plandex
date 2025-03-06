@@ -56,7 +56,7 @@ mainLoop:
 				return
 			} else {
 				res := state.onError(onErrorParams{
-					streamErr: fmt.Errorf("stream timeout due to inactivity | This usually means the model is not responding."),
+					streamErr: fmt.Errorf("stream timeout due to inactivity | The model is not responding."),
 					storeDesc: true,
 					canRetry:  true,
 				})
@@ -113,7 +113,7 @@ mainLoop:
 				}
 
 				res := state.onError(onErrorParams{
-					streamErr: fmt.Errorf("stream finished with no choices | This usually means the model failed to generate a valid response."),
+					streamErr: fmt.Errorf("stream finished with no choices | The model failed to generate a valid response."),
 					storeDesc: true,
 					canRetry:  true,
 				})
@@ -128,7 +128,7 @@ mainLoop:
 
 			if len(response.Choices) > 1 {
 				res := state.onError(onErrorParams{
-					streamErr: fmt.Errorf("stream finished with more than one choice | This usually means the model failed to generate a valid response."),
+					streamErr: fmt.Errorf("stream finished with more than one choice | The model failed to generate a valid response."),
 					storeDesc: true,
 					canRetry:  true,
 				})
@@ -154,7 +154,7 @@ mainLoop:
 
 				if choice.FinishReason == "error" {
 					res := state.onError(onErrorParams{
-						streamErr: fmt.Errorf("model stopped with error status | This usually means the model is not responding."),
+						streamErr: fmt.Errorf("model stopped with error status | The model is not responding."),
 						storeDesc: true,
 						canRetry:  true,
 					})

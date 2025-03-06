@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"database/sql"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -15,6 +14,8 @@ import (
 	"time"
 
 	shared "plandex-shared"
+
+	"github.com/jmoiron/sqlx"
 )
 
 func Authenticate(w http.ResponseWriter, r *http.Request, requireOrg bool) *types.ServerAuth {
@@ -346,65 +347,44 @@ func ValidateAndSignIn(w http.ResponseWriter, r *http.Request, req shared.SignIn
 		}
 	}
 
-	// start a transaction
-	tx, err := db.Conn.Beginx()
-	if err != nil {
-		log.Printf("Error starting transaction: %v\n", err)
-		return nil, fmt.Errorf("error starting transaction: %v", err)
-	}
+	var token string
+	var authTokenId string
 
-	var committed bool
+	err = db.WithTx(r.Context(), "validate and sign in", func(tx *sqlx.Tx) error {
+		var err error
+		// create auth token
+		token, authTokenId, err = db.CreateAuthToken(user.Id, tx)
 
-	// Ensure that rollback is attempted in case of failure
-	defer func() {
-		if committed {
-			return
+		if err != nil {
+			log.Printf("Error creating auth token: %v\n", err)
+			return fmt.Errorf("error creating auth token: %v", err)
 		}
 
-		if rbErr := tx.Rollback(); rbErr != nil {
-			if rbErr == sql.ErrTxDone {
-				// log.Println("attempted to roll back transaction, but it was already committed")
-			} else {
-				log.Printf("transaction rollback error: %v\n", rbErr)
+		if req.IsSignInCode {
+			// update sign in code with auth token id
+			_, err = tx.Exec("UPDATE sign_in_codes SET auth_token_id = $1 WHERE id = $2", authTokenId, signInCodeId)
+
+			if err != nil {
+				log.Printf("Error updating sign in code: %v\n", err)
+				return fmt.Errorf("error updating sign in code: %v", err)
 			}
-		} else {
-			log.Println("transaction rolled back")
-		}
-	}()
+		} else if !isLocalMode { // only update email verification in non-local mode
+			// update email verification with user and auth token ids
+			_, err = tx.Exec("UPDATE email_verifications SET user_id = $1, auth_token_id = $2 WHERE id = $3", user.Id, authTokenId, emailVerificationId)
 
-	// create auth token
-	token, authTokenId, err := db.CreateAuthToken(user.Id, tx)
+			if err != nil {
+				log.Printf("Error updating email verification: %v\n", err)
+				return fmt.Errorf("error updating email verification: %v", err)
+			}
+
+			log.Println("Email verification updated")
+		}
+
+		return nil
+	})
 
 	if err != nil {
-		log.Printf("Error creating auth token: %v\n", err)
-		return nil, fmt.Errorf("error creating auth token: %v", err)
-	}
-
-	if req.IsSignInCode {
-		// update sign in code with auth token id
-		_, err = tx.Exec("UPDATE sign_in_codes SET auth_token_id = $1 WHERE id = $2", authTokenId, signInCodeId)
-
-		if err != nil {
-			log.Printf("Error updating sign in code: %v\n", err)
-			return nil, fmt.Errorf("error updating sign in code: %v", err)
-		}
-	} else if !isLocalMode { // only update email verification in non-local mode
-		// update email verification with user and auth token ids
-		_, err = tx.Exec("UPDATE email_verifications SET user_id = $1, auth_token_id = $2 WHERE id = $3", user.Id, authTokenId, emailVerificationId)
-
-		if err != nil {
-			log.Printf("Error updating email verification: %v\n", err)
-			return nil, fmt.Errorf("error updating email verification: %v", err)
-		}
-
-		log.Println("Email verification updated")
-	}
-
-	// commit transaction
-	err = tx.Commit()
-	if err != nil {
-		log.Printf("Error committing transaction: %v\n", err)
-		return nil, fmt.Errorf("error committing transaction: %v", err)
+		return nil, fmt.Errorf("error validating and signing in: %v", err)
 	}
 
 	// get orgs
@@ -544,7 +524,7 @@ func execAuthenticate(w http.ResponseWriter, r *http.Request, requireOrg bool, r
 		if invite != nil {
 			log.Println("accepting invite")
 
-			err := db.AcceptInvite(invite, authToken.UserId)
+			err := db.AcceptInvite(r.Context(), invite, authToken.UserId)
 
 			if err != nil {
 				log.Printf("error accepting invite: %v\n", err)

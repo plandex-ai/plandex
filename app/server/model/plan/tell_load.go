@@ -10,6 +10,7 @@ import (
 
 	shared "plandex-shared"
 
+	"github.com/jmoiron/sqlx"
 	"github.com/sashabaranov/go-openai"
 )
 
@@ -35,29 +36,7 @@ func (state *activeTellStreamState) loadTellPlan() error {
 	if iteration > 0 || missingFileResponse != "" {
 		lockScope = db.LockScopeRead
 	}
-	repoLockId, err := db.LockRepo(
-		db.LockRepoParams{
-			OrgId:    auth.OrgId,
-			UserId:   auth.User.Id,
-			PlanId:   planId,
-			Branch:   branch,
-			Scope:    lockScope,
-			Ctx:      active.Ctx,
-			CancelFn: active.CancelFn,
-		},
-	)
 
-	if err != nil {
-		log.Printf("execTellPlan: Error locking repo for plan ID %s on branch %s: %v\n", plan.Id, branch, err)
-		active.StreamDoneCh <- &shared.ApiError{
-			Type:   shared.ApiErrorTypeOther,
-			Status: http.StatusInternalServerError,
-			Msg:    "Error locking repo",
-		}
-		return err
-	}
-
-	errCh := make(chan error)
 	var modelContext []*db.Context
 	var convo []*db.ConvoMessage
 	var promptMsg *db.ConvoMessage
@@ -67,218 +46,191 @@ func (state *activeTellStreamState) loadTellPlan() error {
 	var latestSummaryTokens int
 	var currentPlan *shared.CurrentPlanState
 
-	// get name for plan and rename if it's a draft
-	go func() {
-		res, err := db.GetPlanSettings(plan, true)
-		if err != nil {
-			log.Printf("Error getting plan settings: %v\n", err)
-			errCh <- fmt.Errorf("error getting plan settings: %v", err)
-			return
-		}
-		settings = res
+	db.ExecRepoOperation(db.ExecRepoOperationParams{
+		OrgId:    auth.OrgId,
+		UserId:   auth.User.Id,
+		PlanId:   planId,
+		Branch:   branch,
+		Scope:    lockScope,
+		Ctx:      active.Ctx,
+		CancelFn: active.CancelFn,
+		Reason:   "load tell plan",
+	}, func(repo *db.GitRepo) error {
+		errCh := make(chan error)
 
-		if plan.Name == "draft" {
-			name, err := model.GenPlanName(
-				auth,
-				plan,
-				settings,
-				clients,
-				req.Prompt,
-				active.Ctx,
-			)
-
-			if err != nil {
-				log.Printf("Error generating plan name: %v\n", err)
-				errCh <- fmt.Errorf("error generating plan name: %v", err)
-				return
-			}
-
-			tx, err := db.Conn.Beginx()
-			if err != nil {
-				log.Printf("Error starting transaction: %v\n", err)
-				errCh <- fmt.Errorf("error starting transaction: %v", err)
-			}
-
-			// Ensure that rollback is attempted in case of failure
-			defer func() {
-				if err != nil {
-					if rbErr := tx.Rollback(); rbErr != nil {
-						log.Printf("transaction rollback error: %v\n", rbErr)
-					} else {
-						log.Println("transaction rolled back")
-					}
-				}
-			}()
-
-			err = db.RenamePlan(planId, name, tx)
-
-			if err != nil {
-				log.Printf("Error renaming plan: %v\n", err)
-				errCh <- fmt.Errorf("error renaming plan: %v", err)
-				return
-			}
-
-			err = db.IncNumNonDraftPlans(currentUserId, tx)
-
-			if err != nil {
-				log.Printf("Error incrementing num non draft plans: %v\n", err)
-				errCh <- fmt.Errorf("error incrementing num non draft plans: %v", err)
-				return
-			}
-
-			err = tx.Commit()
-			if err != nil {
-				log.Printf("Error committing transaction: %v\n", err)
-				errCh <- fmt.Errorf("error committing transaction: %v", err)
-				return
-			}
-		}
-
-		errCh <- nil
-	}()
-
-	go func() {
-		if iteration > 0 || missingFileResponse != "" {
-			modelContext = active.Contexts
-		} else {
-			res, err := db.GetPlanContexts(currentOrgId, planId, true, false)
-			if err != nil {
-				log.Printf("Error getting plan modelContext: %v\n", err)
-				errCh <- fmt.Errorf("error getting plan modelContext: %v", err)
-				return
-			}
-			modelContext = res
-		}
-
-		errCh <- nil
-	}()
-
-	go func() {
-		res, err := db.GetPlanConvo(currentOrgId, planId)
-		if err != nil {
-			log.Printf("Error getting plan convo: %v\n", err)
-			errCh <- fmt.Errorf("error getting plan convo: %v", err)
-			return
-		}
-		convo = res
-		UpdateActivePlan(planId, branch, func(ap *types.ActivePlan) {
-			ap.MessageNum = len(convo)
-		})
-
-		promptTokens := shared.GetNumTokensEstimate(req.Prompt)
-		innerErrCh := make(chan error)
-
+		// get name for plan and rename if it's a draft
 		go func() {
-			if iteration == 0 && missingFileResponse == "" && !req.IsUserContinue {
-				num := len(convo) + 1
+			res, err := db.GetPlanSettings(plan, true)
+			if err != nil {
+				log.Printf("Error getting plan settings: %v\n", err)
+				errCh <- fmt.Errorf("error getting plan settings: %v", err)
+				return
+			}
+			settings = res
 
-				log.Printf("storing user message | len(convo): %d | num: %d\n", len(convo), num)
-
-				promptMsg = &db.ConvoMessage{
-					OrgId:   currentOrgId,
-					PlanId:  planId,
-					UserId:  currentUserId,
-					Role:    openai.ChatMessageRoleUser,
-					Tokens:  promptTokens,
-					Num:     num,
-					Message: req.Prompt,
-					Flags: shared.ConvoMessageFlags{
-						IsApplyDebug: req.IsApplyDebug,
-						IsUserDebug:  req.IsUserDebug,
-						IsChat:       req.IsChatOnly,
-					},
-				}
-
-				_, err = db.StoreConvoMessage(promptMsg, auth.User.Id, branch, true)
+			if plan.Name == "draft" {
+				name, err := model.GenPlanName(
+					auth,
+					plan,
+					settings,
+					clients,
+					req.Prompt,
+					active.Ctx,
+				)
 
 				if err != nil {
-					log.Printf("Error storing user message: %v\n", err)
-					innerErrCh <- fmt.Errorf("error storing user message: %v", err)
+					log.Printf("Error generating plan name: %v\n", err)
+					errCh <- fmt.Errorf("error generating plan name: %v", err)
 					return
 				}
 
-				UpdateActivePlan(planId, branch, func(ap *types.ActivePlan) {
-					ap.MessageNum = num
+				err = db.WithTx(active.Ctx, "rename plan", func(tx *sqlx.Tx) error {
+					err := db.RenamePlan(planId, name, tx)
+
+					if err != nil {
+						log.Printf("Error renaming plan: %v\n", err)
+						return fmt.Errorf("error renaming plan: %v", err)
+					}
+
+					err = db.IncNumNonDraftPlans(currentUserId, tx)
+
+					if err != nil {
+						log.Printf("Error incrementing num non draft plans: %v\n", err)
+						return fmt.Errorf("error incrementing num non draft plans: %v", err)
+					}
+
+					return nil
 				})
+
+				if err != nil {
+					log.Printf("Error renaming plan: %v\n", err)
+					errCh <- fmt.Errorf("error renaming plan: %v", err)
+					return
+				}
 			}
 
-			innerErrCh <- nil
+			errCh <- nil
 		}()
 
 		go func() {
-			var convoMessageIds []string
-
-			for _, convoMessage := range convo {
-				convoMessageIds = append(convoMessageIds, convoMessage.Id)
+			if iteration > 0 || missingFileResponse != "" {
+				modelContext = active.Contexts
+			} else {
+				res, err := db.GetPlanContexts(currentOrgId, planId, true, false)
+				if err != nil {
+					log.Printf("Error getting plan modelContext: %v\n", err)
+					errCh <- fmt.Errorf("error getting plan modelContext: %v", err)
+					return
+				}
+				modelContext = res
 			}
 
-			log.Println("getting plan summaries")
-			log.Println("convoMessageIds:", convoMessageIds)
-
-			res, err := db.GetPlanSummaries(planId, convoMessageIds)
-			if err != nil {
-				log.Printf("Error getting plan summaries: %v\n", err)
-				innerErrCh <- fmt.Errorf("error getting plan summaries: %v", err)
-				return
-			}
-			summaries = res
-
-			log.Printf("got %d plan summaries", len(summaries))
-
-			if len(summaries) > 0 {
-				latestSummaryTokens = shared.GetNumTokensEstimate(summaries[len(summaries)-1].Summary)
-			}
-
-			innerErrCh <- nil
+			errCh <- nil
 		}()
 
-		for i := 0; i < 2; i++ {
-			err := <-innerErrCh
+		go func() {
+			res, err := db.GetPlanConvo(currentOrgId, planId)
 			if err != nil {
-				errCh <- err
+				log.Printf("Error getting plan convo: %v\n", err)
+				errCh <- fmt.Errorf("error getting plan convo: %v", err)
 				return
 			}
-		}
+			convo = res
+			UpdateActivePlan(planId, branch, func(ap *types.ActivePlan) {
+				ap.MessageNum = len(convo)
+			})
 
-		if promptMsg != nil {
-			convo = append(convo, promptMsg)
-		}
+			promptTokens := shared.GetNumTokensEstimate(req.Prompt)
+			innerErrCh := make(chan error)
 
-		errCh <- nil
-	}()
+			go func() {
+				if iteration == 0 && missingFileResponse == "" && !req.IsUserContinue {
+					num := len(convo) + 1
 
-	go func() {
-		res, err := db.GetPlanSubtasks(auth.OrgId, planId)
-		if err != nil {
-			log.Printf("Error getting plan subtasks: %v\n", err)
-			errCh <- fmt.Errorf("error getting plan subtasks: %v", err)
-			return
-		}
-		subtasks = res
-		errCh <- nil
-	}()
+					log.Printf("storing user message | len(convo): %d | num: %d\n", len(convo), num)
 
-	err = func() error {
-		var err error
-		defer func() {
-			if err != nil {
-				log.Printf("Error: %v\n", err)
-				err = db.GitClearUncommittedChanges(auth.OrgId, planId, branch)
+					promptMsg = &db.ConvoMessage{
+						OrgId:   currentOrgId,
+						PlanId:  planId,
+						UserId:  currentUserId,
+						Role:    openai.ChatMessageRoleUser,
+						Tokens:  promptTokens,
+						Num:     num,
+						Message: req.Prompt,
+						Flags: shared.ConvoMessageFlags{
+							IsApplyDebug: req.IsApplyDebug,
+							IsUserDebug:  req.IsUserDebug,
+							IsChat:       req.IsChatOnly,
+						},
+					}
+
+					_, err = db.StoreConvoMessage(repo, promptMsg, auth.User.Id, branch, true)
+
+					if err != nil {
+						log.Printf("Error storing user message: %v\n", err)
+						innerErrCh <- fmt.Errorf("error storing user message: %v", err)
+						return
+					}
+
+					UpdateActivePlan(planId, branch, func(ap *types.ActivePlan) {
+						ap.MessageNum = num
+					})
+				}
+
+				innerErrCh <- nil
+			}()
+
+			go func() {
+				var convoMessageIds []string
+
+				for _, convoMessage := range convo {
+					convoMessageIds = append(convoMessageIds, convoMessage.Id)
+				}
+
+				log.Println("getting plan summaries")
+				log.Println("convoMessageIds:", convoMessageIds)
+
+				res, err := db.GetPlanSummaries(planId, convoMessageIds)
 				if err != nil {
-					log.Printf("Error clearing uncommitted changes: %v\n", err)
+					log.Printf("Error getting plan summaries: %v\n", err)
+					innerErrCh <- fmt.Errorf("error getting plan summaries: %v", err)
+					return
+				}
+				summaries = res
+
+				log.Printf("got %d plan summaries", len(summaries))
+
+				if len(summaries) > 0 {
+					latestSummaryTokens = shared.GetNumTokensEstimate(summaries[len(summaries)-1].Summary)
+				}
+
+				innerErrCh <- nil
+			}()
+
+			for i := 0; i < 2; i++ {
+				err := <-innerErrCh
+				if err != nil {
+					errCh <- err
+					return
 				}
 			}
 
-			err = db.DeleteRepoLock(repoLockId, planId)
+			if promptMsg != nil {
+				convo = append(convo, promptMsg)
+			}
+
+			errCh <- nil
+		}()
+
+		go func() {
+			res, err := db.GetPlanSubtasks(auth.OrgId, planId)
 			if err != nil {
-				log.Printf("Error unlocking repo: %v\n", err)
-				active.StreamDoneCh <- &shared.ApiError{
-					Type:   shared.ApiErrorTypeOther,
-					Status: http.StatusInternalServerError,
-					Msg:    "Error unlocking repo",
-				}
+				log.Printf("Error getting plan subtasks: %v\n", err)
+				errCh <- fmt.Errorf("error getting plan subtasks: %v", err)
 				return
 			}
+			subtasks = res
+			errCh <- nil
 		}()
 
 		for i := 0; i < 4; i++ {
@@ -298,20 +250,23 @@ func (state *activeTellStreamState) loadTellPlan() error {
 			PlanId:   planId,
 			Contexts: modelContext,
 		})
+
 		if err != nil {
-			active.StreamDoneCh <- &shared.ApiError{
-				Type:   shared.ApiErrorTypeOther,
-				Status: http.StatusInternalServerError,
-				Msg:    fmt.Sprintf("Error getting current plan state: %v", err),
-			}
-			return err
+			return fmt.Errorf("error getting current plan state: %v", err)
 		}
+
 		currentPlan = res
 
 		return nil
-	}()
+	})
 
 	if err != nil {
+		log.Printf("execTellPlan: error loading tell plan: %v\n", err)
+		active.StreamDoneCh <- &shared.ApiError{
+			Type:   shared.ApiErrorTypeOther,
+			Status: http.StatusInternalServerError,
+			Msg:    "Error loading tell plan",
+		}
 		return err
 	}
 
