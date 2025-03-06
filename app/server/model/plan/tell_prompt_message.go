@@ -146,12 +146,10 @@ func (state *activeTellStreamState) resolvePromptMessage(
 		var prompt string
 		if iteration == 0 {
 			prompt = req.Prompt
+		} else if state.currentStage.TellStage == shared.TellStageImplementation {
+			prompt = prompts.AutoContinueImplementationPrompt
 		} else {
-			prompt = prompts.AutoContinuePrompt
-		}
-
-		if state.currentStage.TellStage == shared.TellStageImplementation {
-			prompt = prompts.AutoContinuePrompt
+			prompt = prompts.AutoContinuePlanningPrompt
 		}
 
 		state.userPrompt = prompt

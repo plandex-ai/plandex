@@ -331,7 +331,7 @@ func summarizeConvo(clients map[string]model.ClientInfo, config shared.ModelRole
 	log.Println("generating summary - latestMessageSummarizedAt:", latestMessageSummarizedAt)
 
 	if userPrompt != "" {
-		if userPrompt != prompts.UserContinuePrompt && userPrompt != prompts.AutoContinuePrompt {
+		if userPrompt != prompts.UserContinuePrompt && userPrompt != prompts.AutoContinuePlanningPrompt && userPrompt != prompts.AutoContinueImplementationPrompt {
 			summaryMessages = append(summaryMessages, &types.ExtendedChatMessage{
 				Role: openai.ChatMessageRoleUser,
 				Content: []types.ExtendedChatMessagePart{

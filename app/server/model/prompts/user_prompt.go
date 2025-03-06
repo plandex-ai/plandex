@@ -80,7 +80,7 @@ IMPORTANT: During this planning phase, you must NOT implement any code or create
 
 Do not attempt to write any code or show any implementation details at this stage.
 
-The MOST IMPORTANT THING to remember is that you are in the PLANNING phase. Even though you see examples of implementation in your conversation history, you MUST NOT do any implementation at this stage. Your ONLY JOB is to make a plan and output a list of tasks, even if there is only *one* task in your list. That is your ONLY JOB at this stage. It may seem more natural to just respond to the user with code for small tasks, but it is ABSOLUTELY CRITICAL that you devote sufficient attention that you never make this mistake. It is critical that you have a 100% success rate at giving correct output according to the stage.
+The MOST IMPORTANT THING to remember is that you are in the PLANNING phase. Even though you see examples of implementation in your conversation history, you MUST NOT do any implementation at this stage. Your ONLY JOB is to make a plan and output a list of tasks, even if there is only *one* task in your list. That is your ONLY JOB at this stage. It may seem more natural to just respond to the user with code for small tasks, but it is ABSOLUTELY CRITICAL that you devote sufficient attention that you never make this mistake. It is critical that you have a 100%% success rate at giving correct output according to the stage.
 `
 
 	if params.IsUserDebug {
@@ -268,7 +268,18 @@ func GetWrappedPrompt(params UserPromptParams) string {
 
 	ts := time.Now().Format(time.RFC3339)
 
-	s := fmt.Sprintf(promptWrapperFormatStr, prompt, ts, osDetails, applyScriptSummary)
+	s := "The current stage is: "
+	if currentStage.TellStage == shared.TellStagePlanning {
+		if currentStage.PlanningPhase == shared.PlanningPhaseContext {
+			s += "CONTEXT"
+		} else {
+			s += "PLANNING"
+		}
+	} else if currentStage.TellStage == shared.TellStageImplementation {
+		s += "IMPLEMENTATION"
+	}
+	s += "\n\n"
+	s += fmt.Sprintf(promptWrapperFormatStr, prompt, ts, osDetails, applyScriptSummary)
 
 	if currentStage.TellStage == shared.TellStageImplementation && params.UnfinishedSubtaskReasoning != "" {
 		s += "\n\n" + `
@@ -284,9 +295,11 @@ You MUST address these issues in the next response and ensure the task is fully 
 	return s
 }
 
-const UserContinuePrompt = "Continue the plan."
+const UserContinuePrompt = "Continue the plan according to your instructions for the current stage. Don't repeat any part of your previous response."
 
-const AutoContinuePrompt = `Continue the plan from where you left off in the previous response. Don't repeat any part of your previous response. Don't begin your response with 'Next,'. 
+const AutoContinuePlanningPrompt = UserContinuePrompt
+
+const AutoContinueImplementationPrompt = `Continue the plan from where you left off in the previous response. Don't repeat any part of your previous response. 
 
 Continue seamlessly from where your previous response left off. 
 
