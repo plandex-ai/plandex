@@ -106,6 +106,7 @@ func getOnApplyExecFail(applyFlags types.ApplyFlags, tellFlags types.TellFlags, 
 				if toRollback != nil {
 					lib.Rollback(toRollback, true)
 				}
+				fmt.Println()
 				os.Exit(1)
 			case ApplyChangesAndExit:
 				onSuccess()
