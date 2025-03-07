@@ -290,6 +290,15 @@ func GetPaths(baseDir, currentDir string) (*types.ProjectPaths, error) {
 		activePaths[dir] = true
 	}
 
+	for dir := range allDirs {
+		if ShouldSkipDir(dir) {
+			delete(allDirs, dir)
+			delete(activeDirs, dir)
+			delete(allPaths, dir)
+			delete(activePaths, dir)
+		}
+	}
+
 	// remove deleted files from active paths
 	for path := range deletedFiles {
 		delete(activePaths, path)
@@ -446,7 +455,7 @@ func IsIgnored(paths *types.ProjectPaths, path, baseDir string) (bool, string, e
 	return true, "git", nil
 }
 
-var skipExactDir = map[string]bool{
+var skipDirs = map[string]bool{
 	".git":              true,
 	"node_modules":      true,
 	"venv":              true,
@@ -469,22 +478,23 @@ var skipExactDir = map[string]bool{
 	".plenv":            true,
 	".nvm":              true,
 	"vendor":            true,
+	".plandex":          true,
+	".plandex-dev":      true,
+	".plandex-v2":       true,
+	".plandex-dev-v2":   true,
 }
 
-var skipPrefixDir = map[string]bool{
-	".plandex": true,
-}
-
-func ShouldSkipDir(dirName string) bool {
-	for k := range skipExactDir {
-		if k == dirName {
+func ShouldSkipDir(path string) bool {
+	for k := range skipDirs {
+		if k == path {
 			return true
 		}
-	}
 
-	for k := range skipPrefixDir {
-		if strings.HasPrefix(dirName, k) {
-			return true
+		splitPath := strings.Split(path, string(os.PathSeparator))
+		for _, p := range splitPath {
+			if p == k {
+				return true
+			}
 		}
 	}
 
