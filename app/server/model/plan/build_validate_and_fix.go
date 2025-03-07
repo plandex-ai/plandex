@@ -379,8 +379,16 @@ func handleXMLResponse(
 		}
 
 		if lastLineNum == 0 {
+			if !(firstLineNum > 0 && firstLineNum <= len(originalFileLines)) {
+				log.Printf("Invalid line number for first line: %d", firstLineNum)
+				return buildValidateResult{valid: false, updated: updated}, fmt.Errorf("invalid line number for first line: %d", firstLineNum)
+			}
 			old = originalFileLines[firstLineNum-1]
 		} else {
+			if !(firstLineNum > 0 && firstLineNum <= len(originalFileLines) && lastLineNum > firstLineNum && lastLineNum <= len(originalFileLines)) {
+				log.Printf("Invalid line numbers for first and last lines: %d-%d", firstLineNum, lastLineNum)
+				return buildValidateResult{valid: false, updated: updated}, fmt.Errorf("invalid line numbers: %d-%d", firstLineNum, lastLineNum)
+			}
 			old = strings.Join(originalFileLines[firstLineNum-1:lastLineNum], "\n")
 		}
 
