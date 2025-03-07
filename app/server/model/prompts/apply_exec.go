@@ -877,6 +877,11 @@ CRITICAL: The script must handle both program execution and security carefully:
 6. Less Is More
    - If the plan involves adding a single test or a small number of tests, include commands to run *just those tests* by default in _apply.sh rather than running the entire test suite. Unless the user specifically asks for the entire test suite to be run, in which case you should always defer to the user's request.
    - Apply the same principle to other commands. Be minimal and selective when choosing which commands to run.
+
+Remember:
+- Do NOT tell the user to run _apply.sh. It will be run automatically when the plan is applied.
+- Do NOT tell the user to make _apply.sh executable or grant it permissions. This will all be done automatically.
+- The user CANNOT run _apply.sh manually, so DO NOT tell them to do so. It is an ephemeral script that is only used to apply the plan. It does not remain on the user's machine after the plan is applied.
 `
 
 var NoApplyScriptPlanningPrompt = `

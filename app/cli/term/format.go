@@ -77,9 +77,9 @@ func GetPlain(input string) string {
 	s := wordwrap.String(input, min(width-2, 80))
 	// add padding
 	lines := strings.Split(s, "\n")
-	for i := range lines {
-		lines[i] = "  " + lines[i]
-	}
+	// for i := range lines {
+	// 	lines[i] = "  " + lines[i]
+	// }
 	s = strings.Join(lines, "\n")
 
 	s = termenv.String(s).Foreground(GetStreamForegroundColor()).String()

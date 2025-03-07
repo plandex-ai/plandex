@@ -305,6 +305,8 @@ func executor(in string, p *prompt.Prompt) {
 	if input == "" {
 		return
 	}
+	// condense whitespace
+	input = strings.Join(strings.Fields(input), " ")
 
 	// Handle plandex/pdx command prefix
 	if strings.HasPrefix(lastLine, "plandex ") || strings.HasPrefix(lastLine, "pdx ") {

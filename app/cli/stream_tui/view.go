@@ -81,7 +81,7 @@ func (m streamUIModel) doRenderBuild(outputStatic bool) string {
 		style = lipgloss.NewStyle().Width(m.width).BorderStyle(lipgloss.NormalBorder()).BorderTop(true).BorderForeground(lipgloss.Color(borderColor))
 	}
 
-	if m.buildViewCollapsed {
+	if !outputStatic && m.buildViewCollapsed {
 		// Render collapsed view
 		inProgress := 0
 		total := len(m.tokensByPath)
@@ -105,10 +105,10 @@ func (m streamUIModel) doRenderBuild(outputStatic bool) string {
 
 		var summary string
 		if total > 0 {
-			summary = fmt.Sprintf(" %d %s", total, lbl)
+			summary = fmt.Sprintf(" 📄 %d %s", total, lbl)
 		}
 		if inProgress > 0 {
-			summary += fmt.Sprintf(" • editing %d %s", inProgress, m.buildSpinner.View())
+			summary += fmt.Sprintf(" • 📝 editing %d %s", inProgress, m.buildSpinner.View())
 		}
 		if hasApplyScript {
 			if total > 0 {
@@ -152,9 +152,9 @@ func (m streamUIModel) getBuildHeader(static bool) string {
 	// Add collapse/expand hint
 	var hint string
 	if !static {
-		hint = "↓ collapse"
+		hint = "(↓) collapse"
 		if m.buildViewCollapsed {
-			hint = "↑ expand"
+			hint = "(↑) expand"
 		}
 	}
 	padding := m.width - lipgloss.Width(head) - lipgloss.Width(hint) - 1 // 1 for space

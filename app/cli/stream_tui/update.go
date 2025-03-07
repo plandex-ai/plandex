@@ -113,7 +113,6 @@ func (m streamUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case buildStatusPollMsg:
 		state := m.readState()
-		log.Println("buildStatusPollMsg")
 
 		numPaths := len(m.tokensByPath)
 		numFinished := 0
@@ -234,7 +233,11 @@ func (m *streamUIModel) getViewportDimensions() (int, int) {
 
 	var buildHeight int
 	if m.building {
-		buildHeight = len(m.getRows(false))
+		if m.buildViewCollapsed {
+			buildHeight = 3
+		} else {
+			buildHeight = len(m.getRows(false))
+		}
 	}
 
 	var processingHeight int
