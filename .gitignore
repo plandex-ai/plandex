@@ -1,33 +1,20 @@
-# Node.js
+.plandex/
+.plandex-dev/
+.plandex-v2/
+.plandex-dev-v2/
+.envkey
+plandex
+plandex-dev
+plandex-server
+*.exe
 node_modules/
-npm-debug.log
-yarn-debug.log
-yarn-error.log
-.npm/
-
-# Build output
-dist/
-build/
-*.bundle.js
-
-# IDE and editor files
-.idea/
-.vscode/
-*.swp
-*.swo
+/tools/
+/static/
+/infra/
+/payments-dashboard/
 .DS_Store
+.goreleaser.yml
+dist/
 
-# Environment variables
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-
-# Testing
-coverage/
-.nyc_output/
-
-# Logs
-logs/
-*.log
+.aider.*
+*.code-workspace
