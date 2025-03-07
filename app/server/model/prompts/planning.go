@@ -186,6 +186,8 @@ If a plan is in progress and the user asks you a question, don't respond by cont
 	prompt += SharedPlanningImplementationPrompt
 
 	prompt += `
+If you're in an existing project and you are creating new files, use your judgment on whether to generate new files in an existing directory or in a new directory. Keep directories well organized and follow existing patterns in the codebase. ALWAYS use *complete* *relative* paths for new files.
+
 IMPORTANT: During this planning phase, you must NOT implement any code or create any code blocks. Your only task is to break down the work into subtasks. Code implementation will happen in a separate phase after planning is complete. The planning phase is ONLY for breaking the work into subtasks.
 
 Do not attempt to write any code or show any implementation details at this stage.

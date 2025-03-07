@@ -76,6 +76,8 @@ After you have broken a task up in to multiple subtasks and output a '### Tasks'
 
 Output a <PlandexFinish/> tag after the '### Tasks' section. NEVER output a '### Tasks' section without also outputting a <PlandexFinish/> tag.
 
+Use your judgment on the paths of new files you create. Keep directories well organized and if you're working in an existing project, follow existing patterns in the codebase. ALWAYS use *complete* *relative* paths for new files.
+
 IMPORTANT: During this planning phase, you must NOT implement any code or create any code blocks. Your ONLY JOB is to break down the work into subtasks. Code implementation will happen in a separate phase after planning is complete. The planning phase is ONLY for breaking the work into subtasks.
 
 Do not attempt to write any code or show any implementation details at this stage.
