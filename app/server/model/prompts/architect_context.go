@@ -43,7 +43,7 @@ YOUR TASK:
    - State "No context needs to be loaded." along with a brief conversational response and output <PlandexFinish/>
    
    If context needed:
-   a) "### Context Categories"
+   a) "### Categories"
       - List categories of context to activate
       - One line per category
       - No file paths or symbols here
@@ -104,7 +104,7 @@ In response to the user's latest prompt, do the following IN ORDER:
   4. If you already have enough information from the project map to make a detailed plan or respond effectively to the user and so you won't need to load any additional context, then skip step 5 and output a <PlandexFinish/> immediately after steps 1 and 2 above.
 
   5. Otherwise, you MUST output:
-     a) A section titled "### Context Categories" listing one or more categories of context that are relevant to the user's task or message. If there is truly no relevant context, you would have said "No context needs to be loaded" in step 4, so this section must exist if you are actually loading context. Do not list files here—just categories.
+     a) A section titled "### Categories" listing one or more categories of context that are relevant to the user's task or message. If there is truly no relevant context, you would have said "No context needs to be loaded" in step 4, so this section must exist if you are actually loading context. Do not list files here—just categories.
      b) A section titled "### Files" enumerating the relevant files and symbols from the codebase map that correspond to the categories you listed. See additional rules below.
      c) Immediately after the '### Files' list, output a <PlandexFinish/> tag. ***Do not output any text after <PlandexFinish/>.***
 
@@ -156,14 +156,14 @@ If you need context:
 
 func GetAutoContextShared(params CreatePromptParams, tellMode bool) string {
 	s := `
-- In a section titled '### Context Categories', list one or more categories of context that are relevant to the user's task, question, or message. For example, if the user is asking you to implement an API endpoint, you might list 'API endpoints', 'database operations', 'frontend code', 'utilities', and so on. Make sure any and all relevant categories are included, but don't include more categories than necessary—if only a single category is relevant, then only list that one. Do not include file paths, symbols, or explanations—only the categories.`
+- In a section titled '### Categories', list one or more categories of context that are relevant to the user's task, question, or message. For example, if the user is asking you to implement an API endpoint, you might list 'API endpoints', 'database operations', 'frontend code', 'utilities', and so on. Make sure any and all relevant categories are included, but don't include more categories than necessary—if only a single category is relevant, then only list that one. Do not include file paths, symbols, or explanations—only the categories.`
 
 	if tellMode && params.ExecMode {
 		s += `Since execution mode is enabled, consider including a category for context relating to installing required dependencies or building, and/or running the project. Adapt this to the user's project, task, and prompt. Don't force it—only include this category if it makes senses.`
 	}
 
 	s += `
-- Using the project map in context, output a '### Files' list of potentially relevant *symbols* (like functions, methods, types, variables, etc.) that seem like they could be relevant to the user's task, question, or message based on their name, usage, or other context. Include the file path (surrounded by backticks) and the names of all potentially relevant symbols. File paths *absolutely must* be surrounded by backticks like this: ` + "`path/to/file.go`" + `. Any symbols that are referred to in the user's prompt must be included. You MUST organize the list by category using the categories from the '### Context Categories' section—ensure each category is represented in the list. When listing symbols, output just the name of the symbol, not it's full signature (e.g. don't include the function parameters or return type for a function—just the function name; don't include the type or the 'var/let/const' keywords for a variable—just the variable name, and so on). Output the symbols as a comma separated list in a single paragraph for each file. You MUST include relevant symbols (and associated file paths) for each category from the '### Context Categories' section. Along with important symbols, you can also include a *very brief* annotation on what makes this file relevant—like: (example implementation), (mentioned in prompt), etc. At the end of the list, output a <PlandexFinish/> tag.
+- Using the project map in context, output a '### Files' list of potentially relevant *symbols* (like functions, methods, types, variables, etc.) that seem like they could be relevant to the user's task, question, or message based on their name, usage, or other context. Include the file path (surrounded by backticks) and the names of all potentially relevant symbols. File paths *absolutely must* be surrounded by backticks like this: ` + "`path/to/file.go`" + `. Any symbols that are referred to in the user's prompt must be included. You MUST organize the list by category using the categories from the '### Categories' section—ensure each category is represented in the list. When listing symbols, output just the name of the symbol, not it's full signature (e.g. don't include the function parameters or return type for a function—just the function name; don't include the type or the 'var/let/const' keywords for a variable—just the variable name, and so on). Output the symbols as a comma separated list in a single paragraph for each file. You MUST include relevant symbols (and associated file paths) for each category from the '### Categories' section. Along with important symbols, you can also include a *very brief* annotation on what makes this file relevant—like: (example implementation), (mentioned in prompt), etc. At the end of the list, output a <PlandexFinish/> tag.
 
 - ALL file paths in the '### Files' section ABSOLUTELY MUST be in the codebase map. Do NOT UNDER ANY CIRCUMSTANCES include files that are not in the codebase map. File paths in the codebase map are always preceeded by '###'. You must ONLY include these files. Do NOT include hypothetical files based on common project layouts. ONLY mention files that are *explicitly* listed in the codebase map.
 
@@ -205,7 +205,7 @@ When assessing relevant context, you MUST follow these rules:
    - Load ALL files containing utilities you might need
    Example: If using string formatting utilities, load the utils file with those functions
 
-When considering relevant categories in the '### Context Categories' and relevant symbols in the '### Files' sections:
+When considering relevant categories in the '### Categories' and relevant symbols in the '### Files' sections:
 
 1. Look for naming patterns:
    - Files with similar prefixes or suffixes

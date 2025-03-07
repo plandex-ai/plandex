@@ -477,6 +477,55 @@ func AutoLoadContextHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Successfully processed request for AutoLoadContextHandler")
 }
 
+func GetBuildStatusHandler(w http.ResponseWriter, r *http.Request) {
+	// logs are too chatty on this function, uncomment if you need to debug
+	// log.Println("Received request for GetBuildStatusHandler", "ip:", host.Ip)
+
+	vars := mux.Vars(r)
+	planId := vars["planId"]
+	branch := vars["branch"]
+
+	isProxy := r.URL.Query().Get("proxy") == "true"
+
+	active := modelPlan.GetActivePlan(planId, branch)
+	if active == nil {
+		if isProxy {
+			log.Println("No active plan on proxied request")
+			http.Error(w, "No active plan", http.StatusNotFound)
+			return
+		}
+
+		proxyActivePlanMethod(w, r, planId, branch, "auto_load_context")
+		return
+	}
+
+	auth := Authenticate(w, r, true)
+	if auth == nil {
+		return
+	}
+
+	plan := authorizePlan(w, planId, auth)
+	if plan == nil {
+		return
+	}
+
+	response := shared.GetBuildStatusResponse{
+		BuiltFiles:       active.BuiltFiles,
+		IsBuildingByPath: active.IsBuildingByPath,
+	}
+
+	bytes, err := json.Marshal(response)
+	if err != nil {
+		log.Printf("Error marshalling response: %v\n", err)
+		http.Error(w, "Error marshalling response", http.StatusInternalServerError)
+		return
+	}
+
+	w.Write(bytes)
+
+	// log.Println("Successfully processed request for GetBuildStatusHandler")
+}
+
 func authorizePlanExecUpdate(w http.ResponseWriter, planId string, auth *types.ServerAuth) *db.Plan {
 	plan := authorizePlan(w, planId, auth)
 	if plan == nil {

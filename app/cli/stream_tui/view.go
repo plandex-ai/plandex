@@ -81,19 +81,95 @@ func (m streamUIModel) doRenderBuild(outputStatic bool) string {
 		style = lipgloss.NewStyle().Width(m.width).BorderStyle(lipgloss.NormalBorder()).BorderTop(true).BorderForeground(lipgloss.Color(borderColor))
 	}
 
-	// log.Println("filePaths:", filePaths)
-	// log.Println("len(resRows):", len(resRows))
+	if m.buildViewCollapsed {
+		// Render collapsed view
+		inProgress := 0
+		total := len(m.tokensByPath)
+		for path := range m.tokensByPath {
+			if path == "_apply.sh" {
+				total--
+				continue
+			}
+			if !m.finishedByPath[path] {
+				inProgress++
+			}
+		}
+
+		_, hasApplyScript := m.tokensByPath["_apply.sh"]
+		applyScriptFinished := m.finishedByPath["_apply.sh"]
+
+		lbl := "file"
+		if total > 1 {
+			lbl = "files"
+		}
+
+		var summary string
+		if total > 0 {
+			summary = fmt.Sprintf(" %d %s", total, lbl)
+		}
+		if inProgress > 0 {
+			summary += fmt.Sprintf(" • editing %d %s", inProgress, m.buildSpinner.View())
+		}
+		if hasApplyScript {
+			if total > 0 {
+				summary += " •"
+			}
+			if applyScriptFinished {
+				summary += " 🚀 wrote commands"
+			} else {
+				summary += fmt.Sprintf(" 🚀 editing commands %s", m.buildSpinner.View())
+			}
+		}
+		head := m.getBuildHeader(outputStatic)
+		return style.Render(lipgloss.JoinVertical(lipgloss.Left, head, summary))
+	}
 
 	resRows := m.getRows(outputStatic)
 
 	res := style.Render(strings.Join(resRows, "\n"))
 
-	// log.Println("\n\n", res, "\n\n")
-
 	return res
 }
 
+func (m streamUIModel) didBuild() bool {
+	return !(m.stopped || m.err != nil || m.apiErr != nil)
+}
+
+func (m streamUIModel) getBuildHeader(static bool) string {
+	lbl := "Building plan "
+	bgColor := color.BgGreen
+	if static {
+		if !m.didBuild() {
+			lbl = "Build incomplete "
+			bgColor = color.BgRed
+		} else {
+			lbl = "Built plan "
+		}
+	}
+
+	head := color.New(bgColor, color.FgHiWhite, color.Bold).Sprint(" 🏗  ") + color.New(bgColor, color.FgHiWhite).Sprint(lbl)
+
+	// Add collapse/expand hint
+	var hint string
+	if !static {
+		hint = "↓ collapse"
+		if m.buildViewCollapsed {
+			hint = "↑ expand"
+		}
+	}
+	padding := m.width - lipgloss.Width(head) - lipgloss.Width(hint) - 1 // 1 for space
+	if padding > 0 {
+		head += strings.Repeat(" ", padding) + hint
+	}
+
+	return head
+}
+
 func (m streamUIModel) getRows(static bool) []string {
+	built := m.didBuild() && static
+
+	head := m.getBuildHeader(static)
+
 	filePaths := make([]string, 0, len(m.tokensByPath))
 	for filePath := range m.tokensByPath {
 		// _apply.sh script goes last
@@ -109,23 +185,6 @@ func (m streamUIModel) getRows(static bool) []string {
 		filePaths = append(filePaths, "_apply.sh")
 	}
 
-	lbl := "Building plan "
-	bgColor := color.BgGreen
-	built := false
-	if static {
-		// log.Printf("m.finished: %v, m.stopped: %v, len(m.finishedByPath): %d, len(m.tokensByPath): %d", m.finished, len(m.finishedByPath), len(m.tokensByPath))
-
-		if m.stopped || m.err != nil || m.apiErr != nil {
-			lbl = "Build incomplete "
-			bgColor = color.BgRed
-		} else {
-			lbl = "Built plan "
-			built = true
-		}
-	}
-
-	head := color.New(bgColor, color.FgHiWhite, color.Bold).Sprint(" 🏗  ") + color.New(bgColor, color.FgHiWhite).Sprint(lbl)
-
 	var rows [][]string
 	rows = append(rows, []string{})
 	lineWidth := 0
@@ -140,6 +199,7 @@ func (m streamUIModel) getRows(static bool) []string {
 		label := filePath
 		if filePath == "_apply.sh" {
 			icon = "🚀"
+			label = "commands"
 		}
 		block := fmt.Sprintf("%s %s", icon, label)
 

@@ -164,4 +164,6 @@ func addProxyableApiRoutes(r *mux.Router, prefix string) {
 	r.HandleFunc(prefix+"/plans/{planId}/{branch}/respond_missing_file", handlers.RespondMissingFileHandler).Methods("POST")
 
 	r.HandleFunc(prefix+"/plans/{planId}/{branch}/auto_load_context", handlers.AutoLoadContextHandler).Methods("POST")
+
+	r.HandleFunc(prefix+"/plans/{planId}/{branch}/build_status", handlers.GetBuildStatusHandler).Methods("GET")
 }

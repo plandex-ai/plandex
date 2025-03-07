@@ -96,9 +96,9 @@ func (m streamUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.pageDown()
 		case bubbleKey.Matches(msg, m.keymap.pageUp) && !m.promptingMissingFile:
 			m.pageUp()
-		case bubbleKey.Matches(msg, m.keymap.up):
+		case bubbleKey.Matches(msg, m.keymap.up) && m.building:
 			m.up()
-		case bubbleKey.Matches(msg, m.keymap.down):
+		case bubbleKey.Matches(msg, m.keymap.down) && m.building:
 			m.down()
 		case bubbleKey.Matches(msg, m.keymap.start) && !m.promptingMissingFile:
 			m.scrollStart()
@@ -110,6 +110,43 @@ func (m streamUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		default:
 			m.resolveEscapeSequence(msg.String())
 		}
+
+	case buildStatusPollMsg:
+		state := m.readState()
+		log.Println("buildStatusPollMsg")
+
+		numPaths := len(m.tokensByPath)
+		numFinished := 0
+
+		for _, isBuilt := range m.finishedByPath {
+			if isBuilt {
+				numFinished++
+			}
+		}
+
+		// log.Printf("state.finished: %v, state.stopped: %v, state.background: %v, numPaths: %d, numFinished: %d", state.finished, state.stopped, state.background, numPaths, numFinished)
+
+		if !state.finished && !state.stopped && !state.background && numPaths > 0 && numPaths != numFinished {
+			// log.Println("build status poll - making api call")
+			status, apiErr := api.Client.GetBuildStatus(lib.CurrentPlanId, lib.CurrentBranch)
+			if apiErr != nil {
+				// log.Println("build status poll error:", apiErr)
+				return m, m.pollBuildStatus()
+			}
+
+			// log.Println("build status poll success")
+			// log.Printf("status: %v", status)
+
+			m.updateState(func() {
+				for path, isBuilt := range status.BuiltFiles {
+					isBuilding := status.IsBuildingByPath[path]
+					if isBuilt && !isBuilding {
+						m.finishedByPath[path] = true
+					}
+				}
+			})
+		}
+		return m, m.pollBuildStatus()
 	}
 
 	return m, nil
@@ -422,6 +459,15 @@ func (m *streamUIModel) streamUpdate(msg *shared.StreamMessage, deferUIUpdate bo
 			})
 		}
 
+		// Auto-collapse if build info takes up too much space
+		state = m.readState()
+		if !state.userExpandedBuild && state.building {
+			rows := len(m.getRows(false))
+			m.updateState(func() {
+				m.buildViewCollapsed = rows > 3
+			})
+		}
+
 		if !deferUIUpdate {
 			m.updateViewportDimensions()
 		}
@@ -559,6 +605,11 @@ func (m *streamUIModel) up() {
 		m.updateState(func() {
 			m.missingFileSelectedIdx = max(m.missingFileSelectedIdx-1, 0)
 		})
+	} else {
+		m.updateState(func() {
+			m.buildViewCollapsed = false
+			m.userExpandedBuild = true
+		})
 	}
 }
 
@@ -568,6 +619,10 @@ func (m *streamUIModel) down() {
 	if state.promptingMissingFile {
 		m.updateState(func() {
 			m.missingFileSelectedIdx = min(m.missingFileSelectedIdx+1, len(missingFileSelectOpts)-1)
+		})
+	} else {
+		m.updateState(func() {
+			m.buildViewCollapsed = true
 		})
 	}
 

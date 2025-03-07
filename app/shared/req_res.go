@@ -305,6 +305,11 @@ type RenamePlanRequest struct {
 	Name string `json:"name"`
 }
 
+type GetBuildStatusResponse struct {
+	BuiltFiles       map[string]bool `json:"builtFiles"`
+	IsBuildingByPath map[string]bool `json:"isBuildingByPath"`
+}
+
 // Cloud requests and responses
 type CreditsLogRequest struct {
 	PageSize int `json:"pageSize"`

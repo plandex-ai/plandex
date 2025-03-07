@@ -81,6 +81,9 @@ type streamUIModel struct {
 	updateDebouncer *UpdateDebouncer
 
 	autoLoadContextCancelFn context.CancelFunc
+
+	buildViewCollapsed bool
+	userExpandedBuild  bool
 }
 
 type keymap = struct {
@@ -100,9 +103,18 @@ type keymap = struct {
 func (m streamUIModel) Init() tea.Cmd {
 	log.Println("Model Init start")
 	m.mainViewport.MouseWheelEnabled = true
-	cmd := m.Tick()
-	log.Println("Model Init complete")
-	return cmd
+	return tea.Batch(
+		m.Tick(),
+		m.pollBuildStatus(),
+	)
+}
+
+type buildStatusPollMsg time.Time
+
+func (m streamUIModel) pollBuildStatus() tea.Cmd {
+	return tea.Every(5*time.Second, func(t time.Time) tea.Msg {
+		return buildStatusPollMsg(t)
+	})
 }
 
 func initialModel(prestartReply, prompt string, buildOnly bool) *streamUIModel {
@@ -116,9 +128,10 @@ func initialModel(prestartReply, prompt string, buildOnly bool) *streamUIModel {
 	buildSpinner.Spinner = spinner.MiniDot
 
 	initialState := streamUIModel{
-		buildOnly: buildOnly,
-		prompt:    prompt,
-		reply:     prestartReply,
+		buildOnly:          buildOnly,
+		buildViewCollapsed: false,
+		prompt:             prompt,
+		reply:              prestartReply,
 		keymap: keymap{
 			quit: bubbleKey.NewBinding(
 				bubbleKey.WithKeys("b", "ctrl+c"),

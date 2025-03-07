@@ -2350,3 +2350,31 @@ func (a *Api) AutoLoadContext(ctx context.Context, planId, branch string, req sh
 
 	return &loadContextResponse, nil
 }
+
+func (a *Api) GetBuildStatus(planId, branch string) (*shared.GetBuildStatusResponse, *shared.ApiError) {
+	serverUrl := fmt.Sprintf("%s/plans/%s/%s/build_status", GetApiHost(), planId, branch)
+
+	resp, err := authenticatedFastClient.Get(serverUrl)
+	if err != nil {
+		return nil, &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error sending request: %v", err)}
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		errorBody, _ := io.ReadAll(resp.Body)
+		apiErr := HandleApiError(resp, errorBody)
+		tokenRefreshed, apiErr := refreshTokenIfNeeded(apiErr)
+		if tokenRefreshed {
+			return a.GetBuildStatus(planId, branch)
+		}
+		return nil, apiErr
+	}
+
+	var respBody shared.GetBuildStatusResponse
+	err = json.NewDecoder(resp.Body).Decode(&respBody)
+	if err != nil {
+		return nil, &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error decoding response: %v", err)}
+	}
+
+	return &respBody, nil
+}
