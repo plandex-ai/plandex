@@ -356,21 +356,6 @@ func lockRepoDB(params LockRepoParams, numRetry int) (string, error) {
 			goroutineID, time.Since(insertStart))
 	}
 
-	// check if git lock file exists
-	// remove it if so
-	err = gitRemoveIndexLockFileIfExists(getPlanDir(orgId, planId))
-	if err != nil {
-		return "", fmt.Errorf("error removing lock file: %v", err)
-	}
-
-	if branch != "" {
-		// checkout the branch
-		err = gitCheckoutBranch(getPlanDir(orgId, planId), branch)
-		if err != nil {
-			return "", fmt.Errorf("error checking out branch: %v", err)
-		}
-	}
-
 	// Commit the transaction
 	if err = tx.Commit(); err != nil {
 		return "", fmt.Errorf("error committing transaction: %v", err)
@@ -447,6 +432,21 @@ func lockRepoDB(params LockRepoParams, numRetry int) (string, error) {
 
 		}
 	}()
+
+	// check if git lock file exists
+	// remove it if so
+	err = gitRemoveIndexLockFileIfExists(getPlanDir(orgId, planId))
+	if err != nil {
+		return "", fmt.Errorf("error removing lock file: %v", err)
+	}
+
+	if branch != "" {
+		// checkout the branch
+		err = gitCheckoutBranch(getPlanDir(orgId, planId), branch)
+		if err != nil {
+			return "", fmt.Errorf("error checking out branch: %v", err)
+		}
+	}
 
 	if locksVerboseLogging {
 		log.Println("repo locked. id:", newLock.Id)
