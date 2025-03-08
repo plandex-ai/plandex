@@ -10,7 +10,7 @@ A **plan** in Plandex is similar to a conversation in ChatGPT or Claude. It migh
 A plan includes:
 
 - Any [context](./context-management.md) that you or the model have loaded.
-- Your [conversation](./conversation.md) with the model.
+- Your [conversation](./conversations.md) with the model.
 - Any [pending changes](./reviewing-changes.md) that have been accumulated during the course of the conversation.
 
 Plans support [version control](./version-control.md) and [branches](./branches.md).

@@ -144,7 +144,7 @@ plandex load * -r # loads all files in the current directory and all its subdire
 
 ### Loading Files and Directories in the REPL
 
-In the [Plandex REPL](./repl.md), you can use the shortcut `@` plus a relative file path to load a file or directory into context.
+In the [Plandex REPL](../repl.md), you can use the shortcut `@` plus a relative file path to load a file or directory into context.
 
 ```bash
 @component.ts # loads component.ts

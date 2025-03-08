@@ -122,7 +122,7 @@ You can check if the server is running by sending a GET request to `/health`. If
 
 ## Create a New Account
 
-Once the server is running and you've [installed the Plandex CLI](../install.md) on your local development machine, you can create a new account by running `plandex sign-in`: 
+Once the server is running and you've [installed the Plandex CLI](../../install.md) on your local development machine, you can create a new account by running `plandex sign-in`: 
 
 ```bash
 plandex sign-in # follow the prompts to create a new account on your self-hosted server

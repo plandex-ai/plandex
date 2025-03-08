@@ -46,7 +46,7 @@ GOPATH= # This should be already set to your Go folder if you've installed Golan
 
 ## Server
 
-Check out the [Self-Hosting Guide](./hosting/self-hosting.md) for more details.
+Check out the [Self-Hosting Guide](./hosting/self-hosting/local-mode-quickstart.md) for more details.
 
 ### General
 
