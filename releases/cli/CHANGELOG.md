@@ -1,3 +1,6 @@
+## CLI Version 2.0.0-rc.6
+Likely final release candidate for v2
+
 ## CLI Version 2.0.0-rc.5
 Placeholder for v2 release testing
 
