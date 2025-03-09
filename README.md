@@ -62,12 +62,12 @@
 <br>
 
 <h1 align="center" >
-  An open source AI coding agent.<br/><br/>
+  An AI coding agent for large tasks and real world projects.<br/><br/>
 </h1>
 
-<h2 align="center">
+<!-- <h2 align="center">
   Designed for large tasks and real world projects.<br/><br/>
-  </h2><br/>
+  </h2><br/> -->
 
 <div align="center">
   <a href="https://www.youtube.com/watch?v=SFSu2vNmlLk">
