@@ -1,9 +1,9 @@
 <h1 align="center">
  <a href="https://plandex.ai">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="images/plandex-logo-dark.png"/>
-    <source media="(prefers-color-scheme: light)" srcset="images/plandex-logo-light.png"/>
-    <img width="400" src="images/plandex-logo-dark-bg.png"/>
+    <source media="(prefers-color-scheme: dark)" srcset="images/plandex-logo-dark-v2.png"/>
+    <source media="(prefers-color-scheme: light)" srcset="images/plandex-logo-light-v2.png"/>
+    <img width="400" src="images/plandex-logo-dark-bg-v2.png"/>
  </a>
  <br />
 </h1>
@@ -71,7 +71,7 @@
 
 <div align="center">
   <a href="https://www.youtube.com/watch?v=SFSu2vNmlLk">
-    <img src="https://img.youtube.com/vi/SFSu2vNmlLk/maxresdefault.jpg" alt="Plandex v2 Demo Video" width="800">
+    <img src="images/plandex-v2-yt.png" alt="Plandex v2 Demo Video" width="800">
   </a>
 </div>
 
