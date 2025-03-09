@@ -25,10 +25,10 @@
     <b>Docs</b>
   </a>
    · 
-  <a href="#more-examples-">
+  <!-- <a href="#more-examples-">
     <b>Examples</b>
   </a>
-   · 
+   ·  -->
   <a href="https://docs-v2.plandex.ai/hosting/self-hosting/local-mode-quickstart">
     <b>Local Self-Hosted Mode</b>
   </a>
