@@ -67,7 +67,8 @@
 
 <!-- <h2 align="center">
   Designed for large tasks and real world projects.<br/><br/>
-  </h2><br/> -->
+  </h2> -->
+  <br/>
 
 <div align="center">
   <a href="https://www.youtube.com/watch?v=SFSu2vNmlLk">
