@@ -21,7 +21,7 @@
     <b>Website</b>
   </a>
    · 
-  <a href="https://docs.plandex.ai/">
+  <a href="https://docs-v2.plandex.ai/">
     <b>Docs</b>
   </a>
    · 
@@ -29,7 +29,7 @@
     <b>Examples</b>
   </a>
    · 
-  <a href="https://docs.plandex.ai/hosting/self-hosting">
+  <a href="https://docs-v2.plandex.ai/hosting/self-hosting/local-mode-quickstart">
     <b>Local Self-Hosted Mode</b>
   </a>
 </p>
@@ -68,6 +68,14 @@
 <h2 align="center">
   Designed for large tasks and real world projects.<br/><br/>
   </h2><br/>
+
+<div align="center">
+  <a href="https://www.youtube.com/watch?v=SFSu2vNmlLk">
+    <img src="https://img.youtube.com/vi/SFSu2vNmlLk/maxresdefault.jpg" alt="Plandex v2 Demo Video" width="800">
+  </a>
+</div>
+
+<br/>
 
 💻  Plandex is a terminal-based AI development tool that can **plan and execute** large coding tasks that span many steps and touch dozens of files. It can handle up to 2M tokens of context directly (~100k per file), and can index directories with 20M tokens or more using tree-sitter project maps.
 
@@ -161,7 +169,7 @@ curl -sL https://plandex.ai/install.sh | bash
 
 **Note:** Windows is supported via [WSL](https://learn.microsoft.com/en-us/windows/wsl/install). Plandex only works correctly on Windows in the WSL shell. It doesn't work in the Windows CMD prompt or PowerShell.
 
-[More installation options.](https://docs.plandex.ai/install)
+[More installation options.](https://docs-v2.plandex.ai/install)
 
 ## Hosting  ⚖️
 
@@ -216,7 +224,7 @@ Then just give the REPL help text a quick read, and you're ready go. The REPL st
 
 ## Docs  🛠️
 
-### [👉  Full documentation.](https://docs.plandex.ai/)
+### [👉  Full documentation.](https://docs-v2.plandex.ai/)
 
 <br/>
 
@@ -240,4 +248,4 @@ Please feel free to give your feedback, ask questions, report a bug, or just han
 
 ⭐️  Please star, fork, explore, and contribute to Plandex. There's a lot of work to do and so much that can be improved.
 
-[Here's an overview on setting up a development environment.](https://docs.plandex.ai/development)
+[Here's an overview on setting up a development environment.](https://docs-v2.plandex.ai/development)
