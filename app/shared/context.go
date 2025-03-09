@@ -12,7 +12,7 @@ import (
 const (
 	MaxContextBodySize     = 10 * 1024 * 1024 // 10MB
 	MaxContextCount        = 500
-	MaxContextMapPaths     = 10000
+	MaxContextMapPaths     = 2000
 	MaxContextMapInputSize = 100 * 1024 * 1024      // 100MB
 	MaxTotalContextSize    = 2 * 1024 * 1024 * 1024 // 2GB
 )

@@ -68,7 +68,30 @@ Even if context has been loaded previously in the conversation, you MUST load AL
 
 --
 
-It is CRITICAL to remember that you can only load files which ARE IN THE CODEBASE MAP in the '### Files' section. Do NOT include ANY OTHER FILES except for those which are explicitly listed in the codebase map. Do NOT make up or include files that are not in the codebase map. I know you are capable of following this rule if you give it your full attention.
+It is CRITICAL to remember that you can only load files which ARE IN THE CODEBASE MAP *or* have been created during the current plan. Do NOT include ANY OTHER FILES. NEVER guess file paths or assume hypothetical files. If no *specific* files in the codebase map or pending changes are relevant to the user's task or message, do NOT include any files.
+
+Examples:
+
+GOOD:
+- Codebase Map includes:
+  - ### main.go
+  - ### server/server.go
+- User Prompt: "Update server to handle new routes."
+- ### Files:
+  - ` + "`server/server.go`" + ` (relevant symbols here)
+- <PlandexFinish/>
+
+BAD:
+- Codebase Map includes:
+  - ### main.go
+  - ### server/server.go
+- User Prompt: "Update server to handle new routes."
+- ### Files:
+  - ` + "`server/server.go`" + ` (ok)
+  - ` + "`server/config.yaml`" + ` (BAD - not in map)
+  - ` + "`server/router.go`" + ` (BAD - not in map)
+
+Do NOT guess file paths. Do NOT include files not explicitly listed in the codebase map or created during the current plan.
 `
 
 func GetAutoContextTellPrompt(params CreatePromptParams) string {

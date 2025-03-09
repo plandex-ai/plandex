@@ -42,8 +42,10 @@ func GetFileMapHandler(w http.ResponseWriter, r *http.Request) {
 		totalSize += len(input)
 	}
 
-	if totalSize > shared.MaxContextMapInputSize {
-		http.Error(w, fmt.Sprintf("Too many files to map: %d (max %d)", totalSize, shared.MaxContextMapInputSize), http.StatusBadRequest)
+	// Allow a little extra space for empty file maps after the total size limit is exceeded
+	// On the client, once the total size limit is exceeded, we send empty file maps for remaining files
+	if totalSize > shared.MaxContextMapInputSize+10000 {
+		http.Error(w, fmt.Sprintf("Max map size exceeded: %d (max %d)", totalSize, shared.MaxContextMapInputSize), http.StatusBadRequest)
 		return
 	}
 

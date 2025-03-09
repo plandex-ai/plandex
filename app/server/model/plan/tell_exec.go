@@ -157,7 +157,7 @@ func execTellPlan(params execTellPlanParams) {
 
 	activatedPaths := state.resolveCurrentStage()
 
-	var basicContextMsg *types.ExtendedChatMessagePart
+	var baseContextMsg *types.ExtendedChatMessagePart
 	var autoContextMsg *types.ExtendedChatMessagePart
 	var smartContextMsg *types.ExtendedChatMessagePart
 
@@ -168,11 +168,11 @@ func execTellPlan(params execTellPlanParams) {
 			execEnabled:         req.ExecEnabled,
 		})
 	} else if state.currentStage.TellStage == shared.TellStagePlanning {
-		basicContextMsg = state.formatModelContext(formatModelContextParams{
+		baseContextMsg = state.formatModelContext(formatModelContextParams{
 			includeMaps:         true,
 			smartContextEnabled: req.SmartContext,
 			execEnabled:         req.ExecEnabled,
-			basicOnly:           true,
+			baseOnly:            true,
 			cacheControl:        true,
 		})
 
@@ -200,10 +200,13 @@ func execTellPlan(params execTellPlanParams) {
 	getTellSysPromptParams := getTellSysPromptParams{
 		autoContextEnabled:  state.currentStage.TellStage == shared.TellStagePlanning && state.currentStage.PlanningPhase == shared.PlanningPhaseContext,
 		smartContextEnabled: req.SmartContext,
-		basicContextMsg:     basicContextMsg,
+		basicContextMsg:     baseContextMsg,
 		autoContextMsg:      autoContextMsg,
 		smartContextMsg:     smartContextMsg,
 	}
+
+	// log.Println("getTellSysPromptParams:\n", spew.Sdump(getTellSysPromptParams))
+
 	sysParts, err := state.getTellSysPrompt(getTellSysPromptParams)
 	if err != nil {
 		log.Printf("Error getting tell sys prompt: %v\n", err)

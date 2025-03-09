@@ -275,7 +275,11 @@ Before marking the task as done, you MUST complete *every* step of the task with
 `
 
 const MarkSubtaskDonePrompt = `
-To mark a task done, you MUST:
+## Marking Tasks as Done Or In Progress
+
+At the end of your response, you ABSOLUTELY MUST either mark the task as 'done' or mark it as 'in progress', and then output <PlandexFinish/> and immediately end the response.
+
+### To mark a task done:
 
 1. Explictly state: "**[task name]** has been completed". For example, "**Adding the update function** has been completed." 
 2. Output <PlandexFinish/>
@@ -286,13 +290,19 @@ Example:
 **Adding the update function** has been completed.
 <PlandexFinish/>
 
-It's extremely important to mark tasks as done so that you can keep track of what has been completed and what is remaining. You MUST ALWAYS mark tasks done with *exactly* this format. Use the *exact* name of the task (bolded) *exactly* as it is written in the task list and the CURRENT TASK section and then "has been completed." in the response. Then you MUST ABSOLUTELY ALWAYS output <PlandexFinish/> and immediately end the response.
+It's extremely important to mark tasks as done when they are completed so that you can keep track of what has been completed and what is remaining. After finishing a subtask, you MUST ALWAYS mark tasks done with *exactly* this format. Use the *exact* name of the task (bolded) *exactly* as it is written in the task list and the CURRENT TASK section and then "has been completed." in the response. Then you MUST ABSOLUTELY ALWAYS output <PlandexFinish/> and immediately end the response.
 
-Before marking the task as done, you MUST complete *every* step of the task. Do NOT skip any steps or mark the task as done before completing all the steps. *All steps must be implemented with code blocks.*
+### To mark a task as in progress:
 
-You ABSOLUTELY MUST NOT mark the task as done by outputting text in the format "**[task name]** has been completed" and outputting <PlandexFinish/> until *every single step* of the task has been implemented with code blocks. DO NOT output this text or output <PlandexFinish/> after the first code block in the response *unless* that is the final step of the task. Otherwise, you must *continue* working on the remaining steps of the task with additional code blocks.
+1. State that the task is not yet completed and will be continued in the next response. For example, "The update function is not yet complete. I will continue working on it in the next response."
+2. Output <PlandexFinish/>
+3. Immediately end the response.
 
-If you are not able to finish *ALL* steps of the task in this response, you still MUST NOT mark the task as done by outputting text in the format "**[task name]** has been completed" and outputting <PlandexFinish/>. Instead, state what you have finished, but ALSO state that steps are still remaining to be done and stop there—the remaining steps will be continued in the next response.
+### Important
+
+Do NOT skip any steps or mark the task as done before completing all the steps. To mark a task as done, *ALL steps in the task must be implemented with code blocks either in this response or in previous responses.* Otherwise, mark the task as in progress. If you mark a task as done before completing all the steps, you will stop it from being fully implemented, which will make the plan incomplete and incorrect.
+
+## .gitignore files
 
 If you are updating an existing .gitignore file: DO NOT UNDER ANY CIRCUMSTANCES remove ANY entries. You can only add to it. Be extremely careful in how you edit .gitignore files to be 100% sure you are not remove any files. Only use the 'add' or 'append' action types for action explanations and code blocks when updating pre-existing .gitignore files. This way you can be 100% sure you are not removing any files. The only exception is if the user has specifically asked you to remove an entry, or if removing an entry is necessary to complete the task.
 

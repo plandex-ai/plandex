@@ -119,6 +119,11 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 
 	errCh := make(chan error)
 	ignoredPaths := make(map[string]string)
+	mapFilesSkippedTooLarge := []struct {
+		Path string
+		Size int64
+	}{}
+	mapFilesSkippedAfterSizeLimit := []string{}
 
 	numRoutines := 0
 
@@ -145,6 +150,7 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 	if len(inputFilePaths) > 0 {
 		mapInputsByPath := map[string]shared.FileMapInputs{}
 		toLoadMapPaths := []string{}
+
 		var mapSize int64
 
 		if params.DefsOnly {
@@ -360,7 +366,9 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 					numPaths = len(flattenedPaths)
 				}
 
-				if numPaths > shared.MaxContextCount {
+				if (params.DefsOnly || params.NamesOnly) && numPaths > shared.MaxContextMapPaths {
+					onErr(fmt.Errorf("too many files to load (found %d, limit is %d)", numPaths, shared.MaxContextMapPaths))
+				} else if !params.DefsOnly && !params.NamesOnly && numPaths > shared.MaxContextCount {
 					onErr(fmt.Errorf("too many files to load (found %d, limit is %d)", numPaths, shared.MaxContextCount))
 				}
 
@@ -434,7 +442,7 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 
 						size = fileInfo.Size()
 
-						if size > shared.MaxContextBodySize {
+						if !params.DefsOnly && size > shared.MaxContextBodySize {
 							errCh <- fmt.Errorf("file %s exceeds size limit (size %.2f MB, limit %d MB)", path, float64(fileInfo.Size())/1024/1024, int(shared.MaxContextBodySize)/1024/1024)
 							return
 						}
@@ -449,17 +457,27 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 						defer contextMu.Unlock()
 
 						if params.DefsOnly {
+							if size > shared.MaxContextBodySize {
+								mapFilesSkippedTooLarge = append(mapFilesSkippedTooLarge, struct {
+									Path string
+									Size int64
+								}{Path: path, Size: size})
+								errCh <- nil
+								return
+							}
+
+							var mapSizeExceeded bool
 							if mapSize+size > shared.MaxContextMapInputSize {
-								errCh <- fmt.Errorf("map size limit exceeded (size %.2f MB, limit %d MB)", float64(mapSize+size)/1024/1024, int(shared.MaxContextBodySize)/1024/1024)
-								return
+								mapSizeExceeded = true
+								mapFilesSkippedAfterSizeLimit = append(mapFilesSkippedAfterSizeLimit, path)
 							}
 
-							if len(mapInputsByPath[mapInputPath])+1 > shared.MaxContextMapPaths {
-								errCh <- fmt.Errorf("map paths limit exceeded (found %d, limit %d)", len(mapInputsByPath[mapInputPath])+1, shared.MaxContextMapPaths)
-								return
+							content := string(fileContent)
+							if mapSizeExceeded {
+								content = ""
 							}
 
-							mapInputsByPath[mapInputPath][path] = string(fileContent)
+							mapInputsByPath[mapInputPath][path] = content
 							mapSize += size
 						} else if isImage {
 							loadContextReq = append(loadContextReq, &shared.LoadContextParams{
@@ -655,6 +673,10 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 	if len(ignoredPaths) > 0 && !params.SkipIgnoreWarning {
 		printIgnoredMsg()
 	}
+
+	if len(mapFilesSkippedTooLarge) > 0 || len(mapFilesSkippedAfterSizeLimit) > 0 {
+		printSkippedMapFilesMsg(mapFilesSkippedTooLarge, mapFilesSkippedAfterSizeLimit)
+	}
 }
 
 func AutoLoadContextFiles(ctx context.Context, files []string) (string, error) {
@@ -740,4 +762,25 @@ func printAlreadyLoadedMsg(alreadyLoadedByComposite map[string]*shared.Context) 
 func printIgnoredMsg() {
 	fmt.Println()
 	fmt.Println("ℹ️  " + color.New(color.FgWhite).Sprint("Due to .gitignore or .plandexignore, some paths weren't loaded.\nUse --force / -f to load ignored paths."))
+}
+
+func printSkippedMapFilesMsg(mapFilesSkippedTooLarge []struct {
+	Path string
+	Size int64
+}, mapFilesSkippedAfterSizeLimit []string) {
+	fmt.Println()
+	if len(mapFilesSkippedTooLarge) > 0 {
+		fmt.Println("ℹ️  These files were skipped because they're too large to map:")
+		for _, file := range mapFilesSkippedTooLarge {
+			fmt.Printf("  • %s - %d MB\n", file.Path, file.Size/1024/1024)
+		}
+	}
+	if len(mapFilesSkippedAfterSizeLimit) > 0 {
+		fmt.Println("ℹ️  These files were skipped because the total map size limit was exceeded:")
+		for _, file := range mapFilesSkippedAfterSizeLimit {
+			fmt.Printf("  • %s\n", file)
+		}
+		fmt.Println()
+		fmt.Println("They will still be included in the map as paths in the project, but no maps will be generated for them.")
+	}
 }

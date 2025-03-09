@@ -200,8 +200,6 @@ Do NOT repeat any part of your previous response. Always continue seamlessly fro
 
 ALWAYS complete subtasks in order and never go backwards in the list of subtasks. Never skip a subtask or work on subtasks out of order. Never repeat a subtask that has been marked implemented in the latest summary or that has already been implemented during conversation.
 
-If you break up a task into subtasks, only include subtasks that can be implemented directly in code by creating or updating files. Only include subtasks that require executing code or commands if execution mode is enabled. Do not include subtasks that require user testing, deployment, or other tasks that go beyond coding.
-
 ` + CurrentSubtaskPrompt + `
 
 ` + MarkSubtaskDonePrompt + `
@@ -219,6 +217,19 @@ If you break up a task into subtasks, only include subtasks that can be implemen
 `, file, file)
 
 	s += `
+## Is the task done or in progress?
+
+Remember, you must follow these instructions on marking tasks as done or in progress:
+
+- When a subtask is *completed*, you *must* either: 
+
+1. Mark it as 'done' in the format described in the 'Marking Tasks as Done Or In Progress' section.
+2. Mark it as 'in progress' by explaining that the task is not yet complete and will be continued in the next response.
+
+Remember, you must WAIT until the subtask is *fully implemented* before marking it as done. If a subtask is large, this may require multiple responses. If you have only implemented part of a subtask, do NOT mark it as done. It will be continued in one or more subsequent responses, and the last one of those reponses will mark the subtask as done. If you mark the subtask done prematurely, you will stop it from being fully implemented, which will prevent the plan from being implemented correctly.
+
+## The Most Critical Factor
+
 Remember, the MOST critical factor in creating code blocks correctly is to locate them unambiguously in the file using the definitions that are immediately before and immediately after the the section of code that is being changed or extended. Pay special attention to the 'Context' field in the Action Explanation. ALWAYS include at least a few additional lines of code before and after the section that is changing. And even if you need to include many lines to reach the *definitions* that are immediately before and after the section that is changing, do so.
 
 Definitions in the original file that are outside of the section that is changing are like "hooks" that determine where in the resulting file the new code you write will be placed.

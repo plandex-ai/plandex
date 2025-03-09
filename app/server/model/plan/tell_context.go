@@ -17,7 +17,7 @@ type formatModelContextParams struct {
 	includeMaps         bool
 	smartContextEnabled bool
 	execEnabled         bool
-	basicOnly           bool
+	baseOnly            bool
 	cacheControl        bool
 	activeOnly          bool
 	autoOnly            bool
@@ -32,7 +32,7 @@ func (state *activeTellStreamState) formatModelContext(params formatModelContext
 	execEnabled := params.execEnabled
 	currentStage := state.currentStage
 
-	basicOnly := params.basicOnly
+	basicOnly := params.baseOnly
 	activeOnly := params.activeOnly
 	autoOnly := params.autoOnly
 	activatedPaths := params.activatedPaths
@@ -55,13 +55,17 @@ func (state *activeTellStreamState) formatModelContext(params formatModelContext
 		log.Printf("Tell plan - formatModelContext - uses: %v\n", uses)
 	}
 
-	for _, part := range state.modelContext {
-		if basicOnly && part.AutoLoaded {
-			continue
-		}
+	// log.Println("Tell plan - formatModelContext - state.modelContext:\n", spew.Sdump(state.modelContext))
 
-		if autoOnly && !part.AutoLoaded {
-			continue
+	for _, part := range state.modelContext {
+		if !(part.ContextType == shared.ContextMapType && includeMaps) {
+			if basicOnly && part.AutoLoaded {
+				continue
+			}
+
+			if autoOnly && !part.AutoLoaded {
+				continue
+			}
 		}
 
 		if currentStage.TellStage == shared.TellStageImplementation && smartContextEnabled && state.currentSubtask != nil && part.ContextType == shared.ContextFileType && !uses[part.FilePath] {
