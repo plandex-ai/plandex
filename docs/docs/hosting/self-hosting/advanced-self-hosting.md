@@ -11,6 +11,8 @@ The easiest way to self-host Plandex is to use the [Local Mode Quickstart](./loc
 
 The Plandex server requires a PostgreSQL database (ideally v14), a persistent file system, and git.
 
+Due to a dependency on tree-sitter, gcc, g++, and make are also required to build the server.
+
 ## Development vs. Production
 
 The Plandex server can be run in development or production mode. The main differences are how authentication pins and emails are handled, and the default path for the persistent file system.

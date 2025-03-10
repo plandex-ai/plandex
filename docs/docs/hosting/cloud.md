@@ -66,3 +66,5 @@ Data sent to Plandex Cloud may be shared with the following third parties:
 Apart from the above list, no other data will be shared with any other third party. The list will be updated if any new third party services are introduced.
 
 Data sent to a model provider like OpenAI or OpenRouter.ai is subject to the model provider's privacy and data retention policies.
+
+See our full [Privacy Policy](https://plandex.ai/privacy) for more details.
