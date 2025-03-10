@@ -270,6 +270,11 @@ func ApplyChanges(
 		// spew.Dump(removals)
 		// }
 
+		if !isPureInsert {
+			log.Println("ApplyChanges - removal ranges:")
+			log.Println(spew.Sdump(removalRanges))
+		}
+
 		res = ExecApplyGeneric(
 			execApplyGenericParams{
 				original:      original,

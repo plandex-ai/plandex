@@ -68,33 +68,43 @@ For each Type, follow these validation rules:
 
 - For 'add':
    - Summary MUST briefly describe the new code being added and where it will be inserted
-   - Context MUST describe the surrounding code structures that help locate where the new code will be inserted
+   - Context MUST describe the surrounding code structures that help locate where the new code will be inserted. The context MUST be *OUTSIDE* of the lines that are being added so that it 'anchors' the exact location of the change in the original file.
    - Preserve field must be omitted
    - Remove field must be omitted
+  - In the code block, include the anchors identified in the 'Context' field, collapsed with a reference comment if they span more than a few lines, that are immediately before and after the new code being added. Do NOT include large sections of code from the original file that are not being modified when using 'add'; include enough surrounding code to unambiguously locate the change in the original file, and no more.
+  - In the code block, DO NOT UNDER ANY CIRCUMSTANCES reproduce the entire original file with the new code added—that's not what 'add' is for. If you're reproducing the entire original file, use 'overwrite' instead.
 
 - For 'prepend':
-   - Summary MUST briefly describe the new code being added and where it will be inserted
-   - Context MUST describe the first code structure in the original file
+   - Summary MUST briefly describe the new code being prepended to the start of the file
+   - Context MUST identify the first *existing* code structure in the original file (which will NOT be modified) that the new code will be added before
    - Preserve field must be omitted
    - Remove field must be omitted
+   - Code block MUST include JUST the first existing code structure in the original file (which will NOT be modified), collapsed with a reference comment if it spans more than a few lines, immediately followed by the new code being prepended. Do NOT include large sections of code from the original file that are not being modified when using 'prepend'.
+   - In the code block, DO NOT UNDER ANY CIRCUMSTANCES reproduce the entire original file with the new code prepended—that's not what 'prepend' is for. If you're reproducing the entire original file, use 'overwrite' instead.
 
 - For 'append':
    - Summary MUST briefly describe the new code being appended to the end of the file
-   - Context MUST describe the last code structure in the original file
+   - Context MUST identify the last *existing* code structure in the original file (which will NOT be modified) that the new code will be added after
    - Preserve field must be omitted
    - Remove field must be omitted
+   - Code block MUST include JUST the last existing code structure in the original file (which will NOT be modified), collapsed with a reference comment if it spans more than a few lines, immediately followed by the new code being appended. Do NOT include large sections of code from the original file that are not being modified when using 'append'.
+   - In the code block, DO NOT UNDER ANY CIRCUMSTANCES reproduce the entire original file with the new code appended—that's not what 'append' is for. If you're reproducing the entire original file, use 'overwrite' instead.
 
 - For 'replace':
    - Summary MUST briefly describe the change
    - Remove field MUST list lines in the original file that are being replaced. Use the exact format: 'lines [startLineNumber]-[endLineNumber]' — e.g. 'lines 10-20' or for a single line, 'line [lineNumber]' — e.g. 'line 10' — DO NOT use any other format, or describe the lines in any other way.
-   - Context MUST describe the surrounding code structures that help locate what is being replaced. Context MUST be *OUTSIDE* of the lines that are being replaced, as specified in C.
+   - Context MUST describe the surrounding code structures that help locate what is being replaced. Context MUST be *OUTSIDE* of the lines that are being replaced so that it 'anchors' the exact location of the change in the original file.
    - Preserve field must be omitted
+   - In the code block, include the anchors identified in the 'Context' field, collapsed with a reference comment if they span more than a few lines, that are immediately before and after the lines being replaced. Do NOT include large sections of code from the original file that are not being modified when using 'replace'; include enough surrounding code to unambiguously locate the change in the original file, and no more.
+   - Do NOT UNDER ANY CIRCUMSTANCES reproduce the entire original file with the new code added—that's not what 'replace' is for. If you're reproducing the entire original file, use 'overwrite' instead.
 
 - For 'remove':
    - Summary MUST briefly describe the change
    - Remove field MUST list lines in the original file that are being removed. Use the exact format: 'lines [startLineNumber]-[endLineNumber]' — e.g. 'lines 10-20' or for a single line, 'line [lineNumber]' — e.g. 'line 10' — DO NOT use any other format, or describe the lines in any other way.
-   - Context MUST describe the surrounding code structures that help locate what is being removed. Context MUST be *OUTSIDE* of the lines that are being removed, as specified in C.
+   - Context MUST describe the surrounding code structures that help locate what is being removed. Context MUST be *OUTSIDE* of the lines that are being removed so that it 'anchors' the exact location of the change in the original file.
    - Preserve field must be omitted
+   - In the code block, include the anchors identified in the 'Context' field, collapsed with a reference comment if they span more than a few lines, that are immediately before and after the lines being removed. Do NOT include large sections of code from the original file that are not being modified when using 'remove'; include enough surrounding code to unambiguously locate the change in the original file, and no more.
+   - Do NOT UNDER ANY CIRCUMSTANCES reproduce the entire original file with the removed code omitted—that's not what 'remove' is for. If you're reproducing the entire original file, use 'overwrite' instead.
 
 - For 'overwrite':
    - Summary MUST briefly describe the change and list the specific symbols/sections being changed or replaced
@@ -200,7 +210,7 @@ If you are using functions that are not being modified as anchors, then include 
 If your change description is:
 
 **Updating ` + "`server/api/users.go`" + `**  
-Type: replace  
+Type: replace
 Summary: Replace implementation of ` + "`validateUser`" + ` function to add role and permission validation
 Replace: lines 10-20
 Context: Located between ` + "`parseUser`" + ` and ` + "`updateUser`" + ` functions
@@ -379,22 +389,22 @@ Change 2.
 // ... existing code ...
 
 func parseAuthHeader() { 
-    // ... existing code ... 
+  // ... existing code ... 
 }
 
 // Plandex: removed code
 
 func validateJWT() { 
-    // ... existing code ... 
+  // ... existing code ... 
 }
 
 func finalizeAuth() { 
-    // ... existing code ... 
+  // ... existing code ... 
 }
 
 func checkTokenFormatV2(header string) bool {
-    // new code for updated token checking
-    return header != ""
+  // new code for updated token checking
+  return header != ""
 }
 
 // ... existing code ...
@@ -403,6 +413,456 @@ func checkTokenFormatV2(header string) bool {
 *
 
 Remember, when outputting a compound explanation in the above format, it is CRITICAL that you still only output a SINGLE code block.
+
+❌ INCORRECT - Including too much of the file with append
+
+**Updating ` + "`server/models/user.go`" + `**
+Type: append
+Summary: Add new ` + "`validateUserEmail`" + ` function at the end of file
+Context: Will be placed after the ` + "`isAdmin`" + ` function
+
+- server/models/user.go:
+<PlandexBlock lang="go" path="server/models/user.go">
+package models
+
+import (
+  "errors"
+  "strings"
+)
+
+type User struct {
+  ID    string
+  Name  string
+  Email string
+  Role  string
+}
+
+func NewUser(name, email string) *User {
+  return &User{
+      Name:  name,
+      Email: email,
+  }
+}
+
+func (u *User) isAdmin() bool {
+  return u.Role == "admin"
+}
+
+func (u *User) validateUserEmail() error {
+  if u.Email == "" {
+      return errors.New("email cannot be empty")
+  }
+  if !strings.Contains(u.Email, "@") {
+      return errors.New("invalid email format")
+  }
+  return nil
+}
+</PlandexBlock>
+
+✅ CORRECT - Proper append example
+
+**Updating ` + "`server/models/user.go`" + `**
+Type: append
+Summary: Add new ` + "`validateUserEmail`" + ` function at the end of file
+Context: Will be placed after the ` + "`isAdmin`" + ` function
+
+- server/models/user.go:
+<PlandexBlock lang="go" path="server/models/user.go">
+// ... existing code ...
+
+func (u *User) isAdmin() bool {
+  // ... existing code ...
+}
+
+func (u *User) validateUserEmail() error {
+  if u.Email == "" {
+      return errors.New("email cannot be empty")
+  }
+  if !strings.Contains(u.Email, "@") {
+      return errors.New("invalid email format")
+  }
+  return nil
+}
+</PlandexBlock>
+
+❌ INCORRECT - Reproducing too much of the file with prepend
+
+**Updating ` + "`server/handlers/users.go`" + `**
+Type: prepend
+Summary: Add imports and package declaration at the beginning of the file
+Context: Will be placed before the ` + "`UserHandler`" + ` struct definition
+
+- server/handlers/users.go:
+<PlandexBlock lang="go" path="server/handlers/users.go">
+package handlers
+
+import (
+  "encoding/json"
+  "net/http"
+  "github.com/example/app/models"
+  "github.com/example/app/utils"
+)
+
+type UserHandler struct {
+  UserService *models.UserService
+}
+
+func NewUserHandler(service *models.UserService) *UserHandler {
+  return &UserHandler{
+      UserService: service,
+  }
+}
+
+func (h *UserHandler) GetUser(w http.ResponseWriter, r *http.Request) {
+  // ... existing code ...
+}
+</PlandexBlock>
+
+✅ CORRECT - Proper prepend example
+
+**Updating ` + "`server/handlers/users.go`" + `**
+Type: prepend
+Summary: Add imports and package declaration at the beginning of the file
+Context: Will be placed before the ` + "`UserHandler`" + ` struct definition
+
+- server/handlers/users.go:
+<PlandexBlock lang="go" path="server/handlers/users.go">
+package handlers
+
+import (
+  "encoding/json"
+  "net/http"
+  "github.com/example/app/models"
+  "github.com/example/app/utils"
+)
+
+type UserHandler struct {
+  // ... existing code ...
+}
+</PlandexBlock>
+
+❌ INCORRECT - Using overwrite when replace would be better
+
+**Updating ` + "`server/config/defaults.go`" + `**
+Type: overwrite
+Summary: Update the ` + "`NewDefaultConfig`" + ` function to change default timeout
+Preserve: ` + "`ConfigVersion`" + ` constant, ` + "`DefaultConfig`" + ` struct
+
+- server/config/defaults.go:
+<PlandexBlock lang="go" path="server/config/defaults.go">
+package config
+
+const ConfigVersion = "1.0.0"
+
+type DefaultConfig struct {
+    Port        int
+    Host        string
+    LogLevel    string
+    MaxConn     int
+    Timeout     int
+    EnableCache bool
+}
+
+func NewDefaultConfig() *DefaultConfig {
+    return &DefaultConfig{
+        Port:        8080,
+        Host:        "localhost",
+        LogLevel:    "info",
+        MaxConn:     100,
+        Timeout:     60, // Changed from 30 to 60
+        EnableCache: true,
+    }
+}
+</PlandexBlock>
+
+✅ CORRECT - Using replace instead of overwrite for a small change
+
+**Updating ` + "`server/config/defaults.go`" + `**
+Type: replace
+Summary: Update the ` + "`NewDefaultConfig`" + ` function to change default timeout
+Replace: lines 15-24
+Context: Located between ` + "`DefaultConfig`" + ` struct definition and end of file
+
+- server/config/defaults.go:
+<PlandexBlock lang="go" path="server/config/defaults.go">
+// ... existing code ...
+
+type DefaultConfig struct {
+    Port        int
+    Host        string
+    LogLevel    string
+    MaxConn     int
+    Timeout     int
+    EnableCache bool
+}
+
+func NewDefaultConfig() *DefaultConfig {
+    return &DefaultConfig{
+        Port:        8080,
+        Host:        "localhost",
+        LogLevel:    "info",
+        MaxConn:     100,
+        Timeout:     60, // Changed from 30 to 60
+        EnableCache: true,
+    }
+}
+
+// ... existing code ...
+</PlandexBlock>
+
+✅ CORRECT - Proper use of overwrite
+
+**Updating ` + "`server/config/defaults.go`" + `**
+Type: overwrite
+Summary: Replace entire file with new implementation of ` + "`DefaultConfig`" + ` and add new ` + "`ValidateConfig`" + ` function
+Preserve: ` + "`ConfigVersion`" + ` constant
+
+- server/config/defaults.go:
+<PlandexBlock lang="go" path="server/config/defaults.go">
+package config
+
+const ConfigVersion = "1.0.0"
+
+type DefaultConfig struct {
+  Port        int
+  Host        string
+  LogLevel    string
+  MaxConn     int
+  Timeout     int
+  EnableCache bool
+}
+
+func NewDefaultConfig() *DefaultConfig {
+  return &DefaultConfig{
+      Port:        8080,
+      Host:        "localhost",
+      LogLevel:    "info",
+      MaxConn:     100,
+      Timeout:     30,
+      EnableCache: true,
+  }
+}
+
+func ValidateConfig(cfg *DefaultConfig) error {
+  if cfg.Port <= 0 {
+      return errors.New("port must be positive")
+  }
+  if cfg.Host == "" {
+      return errors.New("host cannot be empty")
+  }
+  return nil
+}
+</PlandexBlock>
+
+❌ INCORRECT - Vague Context that doesn't specify exact location
+
+**Updating ` + "`server/api/auth.go`" + `**
+Type: add
+Summary: Add new ` + "`validateToken`" + ` helper function
+Context: Located in the auth package
+
+- server/api/auth.go:
+<PlandexBlock lang="go" path="server/api/auth.go">
+package auth
+
+import (
+  "errors"
+  "strings"
+  "time"
+)
+
+func validateToken(token string) (bool, error) {
+  if token == "" {
+      return false, errors.New("token cannot be empty")
+  }
+  parts := strings.Split(token, ".")
+  if len(parts) != 3 {
+      return false, errors.New("invalid token format")
+  }
+  return true, nil
+}
+</PlandexBlock>
+
+✅ CORRECT - Proper use of Context field with anchors
+
+**Updating ` + "`server/api/auth.go`" + `**
+Type: add
+Summary: Add new ` + "`validateToken`" + ` helper function after the imports
+Context: Located between the import statements and the ` + "`AuthHandler`" + ` struct definition
+
+- server/api/auth.go:
+<PlandexBlock lang="go" path="server/api/auth.go">
+// ... existing code ...
+
+import (
+  "errors"
+  "strings"
+  "time"
+)
+
+func validateToken(token string) (bool, error) {
+  if token == "" {
+      return false, errors.New("token cannot be empty")
+  }
+  parts := strings.Split(token, ".")
+  if len(parts) != 3 {
+      return false, errors.New("invalid token format")
+  }
+  return true, nil
+}
+
+type AuthHandler struct {
+  // ... existing code ...
+}
+
+// ... existing code ...
+</PlandexBlock>
+
+❌ INCORRECT - Multiple code blocks for changes to the same file
+
+**Updating ` + "`server/handlers/users.go`" + `**
+Type: add
+Summary: Add new ` + "`validateUserInput`" + ` helper function
+Context: Located between the import statements and the ` + "`UserHandler`" + ` struct definition
+
+- server/handlers/users.go:
+<PlandexBlock lang="go" path="server/handlers/users.go">
+// ... existing code ...
+
+import (
+  "encoding/json"
+  "errors"
+  "net/http"
+  "github.com/example/app/models"
+)
+
+func validateUserInput(user *models.User) error {
+  if user.Name == "" {
+      return errors.New("name cannot be empty")
+  }
+  if user.Email == "" {
+      return errors.New("email cannot be empty")
+  }
+  return nil
+}
+
+type UserHandler struct {
+  // ... existing code ...
+}
+
+// ... existing code ...
+</PlandexBlock>
+
+**Updating ` + "`server/handlers/users.go`" + `**
+Type: replace
+Summary: Update ` + "`CreateUser`" + ` method to use the new validation function
+Replace: lines 25-35
+Context: Located between the ` + "`UserHandler`" + ` struct definition and the ` + "`GetUser`" + ` method
+
+- server/handlers/users.go:
+<PlandexBlock lang="go" path="server/handlers/users.go">
+// ... existing code ...
+
+type UserHandler struct {
+  // ... existing code ...
+}
+  
+func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
+  var user models.User
+  if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
+      http.Error(w, err.Error(), http.StatusBadRequest)
+      return
+  }
+  
+  if err := validateUserInput(&user); err != nil {
+      http.Error(w, err.Error(), http.StatusBadRequest)
+      return
+  }
+  
+  if err := h.UserService.Create(&user); err != nil {
+      http.Error(w, err.Error(), http.StatusInternalServerError)
+      return
+  }
+  
+  w.WriteHeader(http.StatusCreated)
+  json.NewEncoder(w).Encode(user)
+}
+
+func (h *UserHandler) GetUser(w http.ResponseWriter, r *http.Request) {
+  // ... existing code ...
+}
+
+// ... existing code ...
+</PlandexBlock>
+
+✅ CORRECT - Multiple changes to the same file with a single code block
+
+**Updating ` + "`server/handlers/users.go`" + `**
+Change 1.
+  Type: add
+  Summary: Add new ` + "`validateUserInput`" + ` helper function
+  Context: Located between the import statements and the ` + "`UserHandler`" + ` struct definition
+
+Change 2.
+  Type: replace
+  Summary: Update ` + "`CreateUser`" + ` method to use the new validation function
+  Replace: lines 25-35
+  Context: Located between the ` + "`UserHandler`" + ` struct definition and the ` + "`GetUser`" + ` method
+
+- server/handlers/users.go:
+<PlandexBlock lang="go" path="server/handlers/users.go">
+// ... existing code ...
+
+import (
+  "encoding/json"
+  "errors"
+  "net/http"
+  "github.com/example/app/models"
+)
+
+func validateUserInput(user *models.User) error {
+  if user.Name == "" {
+      return errors.New("name cannot be empty")
+  }
+  if user.Email == "" {
+      return errors.New("email cannot be empty")
+  }
+  return nil
+}
+
+type UserHandler struct {
+  UserService *models.UserService
+}
+
+func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
+  var user models.User
+  if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
+      http.Error(w, err.Error(), http.StatusBadRequest)
+      return
+  }
+  
+  if err := validateUserInput(&user); err != nil {
+      http.Error(w, err.Error(), http.StatusBadRequest)
+      return
+  }
+  
+  if err := h.UserService.Create(&user); err != nil {
+      http.Error(w, err.Error(), http.StatusInternalServerError)
+      return
+  }
+  
+  w.WriteHeader(http.StatusCreated)
+  json.NewEncoder(w).Encode(user)
+}
+
+func (h *UserHandler) GetUser(w http.ResponseWriter, r *http.Request) {
+  // ... existing code ...
+}
+
+// ... existing code ...
+</PlandexBlock>
+
+---
 
 #### 2. Creating a new file
 
@@ -468,7 +928,5 @@ For new files:
   -  Do NOT use placeholder code or comments like '// implement authentication here' to indicate that the file is incomplete. Implement *all* functionality.
   - Do NOT use reference comments like '// ... existing code ...'. Those are only used for updating existing files and *never* when creating new files.
   - Include the *entire file* in the code block.
-
-
 
 `
