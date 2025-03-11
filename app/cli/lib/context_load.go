@@ -457,6 +457,10 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 						defer contextMu.Unlock()
 
 						if params.DefsOnly {
+							if !shared.HasFileMapSupport(path) {
+								size = 0
+							}
+
 							if size > shared.MaxContextBodySize {
 								mapFilesSkippedTooLarge = append(mapFilesSkippedTooLarge, struct {
 									Path string
@@ -473,8 +477,9 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 							}
 
 							content := string(fileContent)
-							if mapSizeExceeded {
+							if mapSizeExceeded || !shared.HasFileMapSupport(path) {
 								content = ""
+								size = 0
 							}
 
 							mapInputsByPath[mapInputPath][path] = content

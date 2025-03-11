@@ -86,8 +86,8 @@ func StartServer(handler http.Handler, configureFn func(handler http.Handler) ht
 	// Add logging middleware before the maxBytes middleware
 	handler = loggingMiddleware(handler)
 
-	// Apply the maxBytesMiddleware to limit request size to 100 MB
-	handler = maxBytesMiddleware(handler, 100<<20) // 100 MB limit
+	// Apply the maxBytesMiddleware to limit request size to 1 GB
+	handler = maxBytesMiddleware(handler, 1000<<20) // 1 GB limit
 
 	if configureFn != nil {
 		handler = configureFn(handler)
@@ -191,6 +191,9 @@ func waitForActivePlans() chan struct{} {
 
 func maxBytesMiddleware(next http.Handler, maxBytes int64) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// log the size of the request body
+		log.Printf("Request body size: %d", r.ContentLength)
+
 		r.Body = http.MaxBytesReader(w, r.Body, maxBytes)
 		next.ServeHTTP(w, r)
 	})
