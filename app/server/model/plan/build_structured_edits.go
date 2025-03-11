@@ -105,8 +105,8 @@ func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 		},
 	)
 	log.Printf("buildStructuredEdits - %s - got ApplyChanges result\n", filePath)
-	// log.Println("buildStructuredEdits - applyRes.NewFile:", applyRes.NewFile)
-	log.Println("buildStructuredEdits - applyRes.NeedsVerifyReasons:", autoApplyRes.NeedsVerifyReasons)
+	// log.Printf("buildStructuredEdits - autoApplyRes.NewFile:\n\n%s", autoApplyRes.NewFile)
+	log.Println("buildStructuredEdits - autoApplyRes.NeedsVerifyReasons:", autoApplyRes.NeedsVerifyReasons)
 
 	autoApplySyntaxErrors = fileState.validateSyntax(buildCtx, autoApplyRes.NewFile)
 

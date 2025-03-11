@@ -255,6 +255,8 @@ func ExecApplyGeneric(
 		return false
 	}
 
+	reachedEndOfOriginal := false
+
 	for idx, pLine := range proposedLines {
 		finalLine := idx == len(proposedLines)-1
 		pLineNum := idx + 1
@@ -263,9 +265,13 @@ func ExecApplyGeneric(
 			fmt.Printf("\n\ni: %d, num: %d, pLine: %q, refOpen: %v\n", idx, pLineNum, pLine, refOpen)
 		}
 
-		isRef := refsByLine[Reference(pLineNum)]
-		isRemoval := removalsByLine[Removal(pLineNum)]
-		nextPLineIsRef := refsByLine[Reference(pLineNum+1)]
+		var isRef, isRemoval, nextPLineIsRef bool
+
+		if !reachedEndOfOriginal {
+			isRef = refsByLine[Reference(pLineNum)]
+			isRemoval = removalsByLine[Removal(pLineNum)]
+			nextPLineIsRef = refsByLine[Reference(pLineNum+1)]
+		}
 
 		if verboseLogging {
 			fmt.Printf("isRef: %v\n", isRef)
@@ -304,13 +310,13 @@ func ExecApplyGeneric(
 			addNewPostRefBuffer()
 
 			if oLineNum == len(originalLines) {
-				break
+				reachedEndOfOriginal = true
 			}
 
 			continue
 		}
 
-		if !refOpen && lastLineMatched {
+		if !reachedEndOfOriginal && !refOpen && lastLineMatched {
 			if strings.TrimSpace(pLine) == "" {
 				if verboseLogging {
 					fmt.Printf("pLine is blank\n")
@@ -336,7 +342,7 @@ func ExecApplyGeneric(
 				}
 
 				if oLineNum == len(originalLines) {
-					break
+					reachedEndOfOriginal = true
 				}
 
 				continue
@@ -346,10 +352,13 @@ func ExecApplyGeneric(
 		var matching bool
 
 		prevOLineNum := oLineNum
-		anchor := findAnchor(pLineNum)
-		if anchor != nil {
-			matching = true
-			setOLineNum(int(*anchor))
+
+		if !reachedEndOfOriginal {
+			anchor := findAnchor(pLineNum)
+			if anchor != nil {
+				matching = true
+				setOLineNum(int(*anchor))
+			}
 		}
 
 		wroteRefs := false
@@ -432,7 +441,7 @@ func ExecApplyGeneric(
 		}
 
 		if oLineNum == len(originalLines) {
-			break
+			reachedEndOfOriginal = true
 		}
 	}
 

@@ -151,37 +151,62 @@ func ApplyChanges(
 
 	// Parse line ranges from summary field
 	// Matches formats like:
-	// (original file line 10)
-	// (original file lines 10-20)
-	singleLineRegex := regexp.MustCompile(`\(Remove: line (\d+)\)`)
-	lineRangeRegex := regexp.MustCompile(`\(Remove: lines (\d+)-(\d+)\)`)
+	// Replace: line 10
+	// Remove: line 10
+	// Replace: lines 10-20
+	// Remove: lines 10-20
+	singleLineRegex := regexp.MustCompile(`(?i)(Replace|Replaces|Remove|Removes).*?(\d+)`)
+	lineRangeRegex := regexp.MustCompile(`(?i)(Replace|Replaces|Remove|Removes).*?(\d+)-(\d+)`)
 
-	// Find all single line matches
-	singleLineMatches := singleLineRegex.FindAllStringSubmatch(strings.ToLower(desc), -1)
-	for _, match := range singleLineMatches {
-		if len(match) > 1 {
-			if lineNum, err := strconv.Atoi(match[1]); err == nil {
-				removalRanges = append(removalRanges, RemovalRange{
-					Start: lineNum,
-					End:   lineNum,
-				})
+	descLines := strings.Split(desc, "\n")
+
+	for _, line := range descLines {
+		line = strings.TrimSpace(line)
+
+		matchesRemaining := true
+		for matchesRemaining {
+			// first see if there's a multi-line match
+			if lineRangeMatch := lineRangeRegex.FindStringSubmatch(strings.ToLower(line)); len(lineRangeMatch) > 3 {
+				// we have a multi-line match
+				start, startErr := strconv.Atoi(lineRangeMatch[2])
+				end, endErr := strconv.Atoi(lineRangeMatch[3])
+				if startErr == nil && endErr == nil {
+					removalRanges = append(removalRanges, RemovalRange{
+						Start: start,
+						End:   end,
+					})
+					line = strings.Replace(line, fmt.Sprintf("%d-%d", start, end), "", 1)
+				} else {
+					log.Println("ApplyChanges - multi-line match error")
+					log.Println(spew.Sdump(startErr))
+					log.Println(spew.Sdump(endErr))
+					matchesRemaining = false
+				}
+			} else {
+
+				// try single-line match
+				if singleLineMatch := singleLineRegex.FindStringSubmatch(strings.ToLower(line)); len(singleLineMatch) > 2 {
+					if lineNum, err := strconv.Atoi(singleLineMatch[2]); err == nil {
+						removalRanges = append(removalRanges, RemovalRange{
+							Start: lineNum,
+							End:   lineNum,
+						})
+						line = strings.Replace(line, singleLineMatch[2], "", 1)
+					} else {
+						log.Println("ApplyChanges - single-line match error")
+						log.Println(spew.Sdump(err))
+						matchesRemaining = false
+					}
+				} else {
+					matchesRemaining = false
+				}
 			}
 		}
 	}
 
-	// Find all line range matches
-	lineRangeMatches := lineRangeRegex.FindAllStringSubmatch(strings.ToLower(desc), -1)
-	for _, match := range lineRangeMatches {
-		if len(match) > 2 {
-			start, startErr := strconv.Atoi(match[1])
-			end, endErr := strconv.Atoi(match[2])
-			if startErr == nil && endErr == nil {
-				removalRanges = append(removalRanges, RemovalRange{
-					Start: start,
-					End:   end,
-				})
-			}
-		}
+	if verboseLogging {
+		log.Println("ApplyChanges - removal ranges:")
+		log.Println(spew.Sdump(removalRanges))
 	}
 
 	var res *ApplyChangesResult
@@ -261,14 +286,14 @@ func ApplyChanges(
 			}
 		}
 
-		// if verboseLogging {
-		// fmt.Println("proposed:")
-		// fmt.Println(proposed)
-		// log.Println("ApplyChanges - references:")
-		// spew.Dump(references)
-		// log.Println("ApplyChanges - removals:")
-		// spew.Dump(removals)
-		// }
+		if verboseLogging {
+			fmt.Println("proposed:")
+			fmt.Println(proposed)
+			log.Println("ApplyChanges - references:")
+			spew.Dump(references)
+			log.Println("ApplyChanges - removals:")
+			spew.Dump(removals)
+		}
 
 		if !isPureInsert {
 			log.Println("ApplyChanges - removal ranges:")
@@ -348,11 +373,19 @@ func ApplyChanges(
 			originalLineMap[strings.TrimSpace(line)] = true
 		}
 
+		log.Println("NewFile:")
+		log.Println(strconv.Quote(res.NewFile))
+
 		newLines := strings.Split(res.NewFile, "\n")
 		newLineMap := make(map[string]bool)
 		for _, line := range newLines {
 			newLineMap[strings.TrimSpace(line)] = true
 		}
+
+		log.Println("ApplyChanges - originalLineMap:")
+		spew.Dump(originalLineMap)
+		log.Println("ApplyChanges - newLineMap:")
+		spew.Dump(newLineMap)
 
 		// Check for removed lines (lines in original that are not in new)
 		for line := range originalLineMap {

@@ -231,7 +231,7 @@ func (planState *CurrentPlanState) GetFilesBeforeReplacement(
 
 				maybeWithLineNums := updated
 				if planRes.ReplaceWithLineNums {
-					maybeWithLineNums = AddLineNums(updated)
+					maybeWithLineNums = string(AddLineNums(maybeWithLineNums))
 				}
 
 				// log.Println("Before replacements. updated:")
@@ -239,7 +239,7 @@ func (planState *CurrentPlanState) GetFilesBeforeReplacement(
 
 				updated, allSucceeded = ApplyReplacements(maybeWithLineNums, replacements, false)
 
-				updated = RemoveLineNums(updated)
+				updated = string(RemoveLineNums(LineNumberedTextType(updated)))
 
 				if !allSucceeded {
 					log.Println("Failed to apply replacements")

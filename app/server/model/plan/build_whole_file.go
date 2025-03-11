@@ -34,7 +34,10 @@ func (fileState *activeBuildStreamFileState) buildWholeFileFallback(buildCtx con
 		return "", fmt.Errorf("active plan not found for plan ID %s and branch %s", planId, branch)
 	}
 
-	sysPrompt := prompts.GetWholeFilePrompt(filePath, originalFile, desc, proposedContent, comments)
+	originalFileWithLineNums := shared.AddLineNums(originalFile)
+	proposedContentWithLineNums := shared.AddLineNums(proposedContent)
+
+	sysPrompt, headNumTokens := prompts.GetWholeFilePrompt(filePath, originalFileWithLineNums, proposedContentWithLineNums, desc, comments)
 
 	messages := []types.ExtendedChatMessage{
 		{
@@ -69,6 +72,12 @@ func (fileState *activeBuildStreamFileState) buildWholeFileFallback(buildCtx con
 
 	}
 
+	// This allows proper accounting for cached input tokens even when the stream is cancelled -- OpenAI only for now
+	var willCacheNumTokens int
+	if modelConfig.BaseModelConfig.Provider == shared.ModelProviderOpenAI {
+		willCacheNumTokens = headNumTokens
+	}
+
 	modelRes, err := model.ModelRequest(buildCtx, model.ModelRequestParams{
 		Clients:     clients,
 		Auth:        auth,
@@ -91,6 +100,8 @@ func (fileState *activeBuildStreamFileState) buildWholeFileFallback(buildCtx con
 		AfterReq: func() {
 			fileState.builderRun.BuildWholeFileFinishedAt = time.Now()
 		},
+
+		WillCacheNumTokens: willCacheNumTokens,
 	})
 
 	if err != nil {

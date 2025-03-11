@@ -133,7 +133,9 @@ When *updating an existing file*, you MUST follow the instructions you've been g
 
 	- Never remove existing functionality unless explicitly instructed to do so.
 
-	- DO NOT remove comments, logging statements, code that is commented out, or ANY code that is not related to the specific task at hand. 
+	- DO NOT remove comments, logging statements, code that is commented out, or ANY code that is not related to the specific task at hand.
+
+	- Do NOT escape newlines within the <PlandexBlock> tag unless there is a specific reason to do so, like you are outputting newlines in a quoted JSON string. For normal code, do NOT escape newlines.
 	
 	- Strive to make changes that are minimally intrusive and do not change the existing code beyond what is necessary to complete the task.
 

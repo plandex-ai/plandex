@@ -70,7 +70,7 @@ For each Type, follow these validation rules:
    - Summary MUST briefly describe the new code being added and where it will be inserted
    - Context MUST describe the surrounding code structures that help locate where the new code will be inserted. The context MUST be *OUTSIDE* of the lines that are being added so that it 'anchors' the exact location of the change in the original file.
    - Preserve field must be omitted
-   - Remove field must be omitted
+   - Replace field must be omitted
   - In the code block, include the anchors identified in the 'Context' field, collapsed with a reference comment if they span more than a few lines, that are immediately before and after the new code being added. Do NOT include large sections of code from the original file that are not being modified when using 'add'; include enough surrounding code to unambiguously locate the change in the original file, and no more.
   - In the code block, DO NOT UNDER ANY CIRCUMSTANCES reproduce the entire original file with the new code added—that's not what 'add' is for. If you're reproducing the entire original file, use 'overwrite' instead.
 
@@ -78,7 +78,7 @@ For each Type, follow these validation rules:
    - Summary MUST briefly describe the new code being prepended to the start of the file
    - Context MUST identify the first *existing* code structure in the original file (which will NOT be modified) that the new code will be added before
    - Preserve field must be omitted
-   - Remove field must be omitted
+   - Replace field must be omitted
    - Code block MUST include JUST the first existing code structure in the original file (which will NOT be modified), collapsed with a reference comment if it spans more than a few lines, immediately followed by the new code being prepended. Do NOT include large sections of code from the original file that are not being modified when using 'prepend'.
    - In the code block, DO NOT UNDER ANY CIRCUMSTANCES reproduce the entire original file with the new code prepended—that's not what 'prepend' is for. If you're reproducing the entire original file, use 'overwrite' instead.
 
@@ -86,13 +86,13 @@ For each Type, follow these validation rules:
    - Summary MUST briefly describe the new code being appended to the end of the file
    - Context MUST identify the last *existing* code structure in the original file (which will NOT be modified) that the new code will be added after
    - Preserve field must be omitted
-   - Remove field must be omitted
+   - Replace field must be omitted
    - Code block MUST include JUST the last existing code structure in the original file (which will NOT be modified), collapsed with a reference comment if it spans more than a few lines, immediately followed by the new code being appended. Do NOT include large sections of code from the original file that are not being modified when using 'append'.
    - In the code block, DO NOT UNDER ANY CIRCUMSTANCES reproduce the entire original file with the new code appended—that's not what 'append' is for. If you're reproducing the entire original file, use 'overwrite' instead.
 
 - For 'replace':
    - Summary MUST briefly describe the change
-   - Remove field MUST list lines in the original file that are being replaced. Use the exact format: 'lines [startLineNumber]-[endLineNumber]' — e.g. 'lines 10-20' or for a single line, 'line [lineNumber]' — e.g. 'line 10' — DO NOT use any other format, or describe the lines in any other way.
+   - Replace field MUST list lines in the original file that are being replaced. Use the exact format: 'lines [startLineNumber]-[endLineNumber]' — e.g. 'lines 10-20' or for a single line, 'line [lineNumber]' — e.g. 'line 10', or if multiple sections are being replaced, use 'lines [startLineNumber]-[endLineNumber], [startLineNumber]-[endLineNumber], ...' — e.g. 'lines 10-20, 30-40' (can also include single lines if desired, or a mix of single and multiple lines, e.g. 'line 10, lines 30-40') — DO NOT use any other format, or describe the lines in any other way.
    - Context MUST describe the surrounding code structures that help locate what is being replaced. Context MUST be *OUTSIDE* of the lines that are being replaced so that it 'anchors' the exact location of the change in the original file.
    - Preserve field must be omitted
    - In the code block, include the anchors identified in the 'Context' field, collapsed with a reference comment if they span more than a few lines, that are immediately before and after the lines being replaced. Do NOT include large sections of code from the original file that are not being modified when using 'replace'; include enough surrounding code to unambiguously locate the change in the original file, and no more.
@@ -100,7 +100,7 @@ For each Type, follow these validation rules:
 
 - For 'remove':
    - Summary MUST briefly describe the change
-   - Remove field MUST list lines in the original file that are being removed. Use the exact format: 'lines [startLineNumber]-[endLineNumber]' — e.g. 'lines 10-20' or for a single line, 'line [lineNumber]' — e.g. 'line 10' — DO NOT use any other format, or describe the lines in any other way.
+   - Replace field MUST list lines in the original file that are being removed. Use the exact format: 'lines [startLineNumber]-[endLineNumber]' — e.g. 'lines 10-20' or for a single line, 'line [lineNumber]' — e.g. 'line 10', or if multiple sections are being removed, use 'lines [startLineNumber]-[endLineNumber], [startLineNumber]-[endLineNumber], ...' — e.g. 'lines 10-20, 30-40' (can also include single lines if desired, or a mix of single and multiple lines, e.g. 'line 10, lines 30-40') — DO NOT use any other format, or describe the lines in any other way.
    - Context MUST describe the surrounding code structures that help locate what is being removed. Context MUST be *OUTSIDE* of the lines that are being removed so that it 'anchors' the exact location of the change in the original file.
    - Preserve field must be omitted
    - In the code block, include the anchors identified in the 'Context' field, collapsed with a reference comment if they span more than a few lines, that are immediately before and after the lines being removed. Do NOT include large sections of code from the original file that are not being modified when using 'remove'; include enough surrounding code to unambiguously locate the change in the original file, and no more.

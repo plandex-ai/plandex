@@ -118,6 +118,8 @@ func (fileState *activeBuildStreamFileState) buildRace(
 				return
 			}
 
+			// log.Printf("buildRace - fast apply result:\n\n%s", fastApplyRes)
+
 			fastApplySyntaxErrors := fileState.validateSyntax(buildCtx, fastApplyRes)
 			fileState.builderRun.FastApplySyntaxErrors = fastApplySyntaxErrors
 
@@ -139,6 +141,7 @@ func (fileState *activeBuildStreamFileState) buildRace(
 				// just validate since we're already building replacements in parallel
 				maxAttempts:                1,
 				validateOnlyOnFinalAttempt: true,
+				isInitial:                  false,
 			})
 
 			if err != nil {
@@ -201,6 +204,7 @@ func (fileState *activeBuildStreamFileState) buildRace(
 			reasons:              reasons,
 			syntaxErrors:         syntaxErrors,
 			initialPhaseOnStream: onInitialStream,
+			isInitial:            true,
 		})
 
 		fileState.builderRun.AutoApplyValidationFinishedAt = time.Now()

@@ -31,6 +31,7 @@ type buildValidateLoopParams struct {
 	initialPhaseOnStream       func(chunk string, buffer string) bool
 	validateOnlyOnFinalAttempt bool
 	maxAttempts                int
+	isInitial                  bool
 }
 
 type buildValidateLoopResult struct {
@@ -112,6 +113,8 @@ func (fileState *activeBuildStreamFileState) buildValidateLoop(
 			reasons:         reasons,
 			modelConfig:     &modelConfig,
 			validateOnly:    isLastAttempt && params.validateOnlyOnFinalAttempt,
+			phase:           currentAttempt,
+			isInitial:       params.isInitial,
 		}
 
 		log.Printf("Calling buildValidate for attempt %d", currentAttempt)
@@ -164,6 +167,7 @@ type buildValidateParams struct {
 	phase           int
 	modelConfig     *shared.ModelRoleConfig
 	validateOnly    bool
+	isInitial       bool
 }
 
 type buildValidateResult struct {
@@ -190,7 +194,6 @@ func (fileState *activeBuildStreamFileState) buildValidate(
 	onStream := params.onStream
 	syntaxErrors := params.syntaxErrors
 	reasons := params.reasons
-
 	// Get diff for validation
 	log.Printf("Getting diffs between original and updated content")
 	diff, err := diff_pkg.GetDiffs(originalFile, updated)
@@ -199,17 +202,20 @@ func (fileState *activeBuildStreamFileState) buildValidate(
 		return buildValidateResult{}, fmt.Errorf("error getting diffs: %v", err)
 	}
 
+	originalWithLineNums := shared.AddLineNums(originalFile)
+	proposedWithLineNums := shared.AddLineNums(proposedContent)
+
 	// Choose prompt and tools based on preferred format
 
 	log.Printf("Building XML validation replacements prompt")
-	promptText := prompts.GetValidationReplacementsXmlPrompt(prompts.ValidationPromptParams{
-		Path:         filePath,
-		Original:     originalFile,
-		Desc:         desc,
-		Proposed:     proposedContent,
-		Diff:         diff,
-		SyntaxErrors: syntaxErrors,
-		Reasons:      reasons,
+	promptText, headNumTokens := prompts.GetValidationReplacementsXmlPrompt(prompts.ValidationPromptParams{
+		Path:                 filePath,
+		OriginalWithLineNums: originalWithLineNums,
+		Desc:                 desc,
+		ProposedWithLineNums: proposedWithLineNums,
+		Diff:                 diff,
+		SyntaxErrors:         syntaxErrors,
+		Reasons:              reasons,
 	})
 
 	// log.Printf("Prompt to LLM: %s", promptText)
@@ -241,6 +247,12 @@ func (fileState *activeBuildStreamFileState) buildValidate(
 		stop = []string{"<PlandexComments>", "<PlandexReplacements>"}
 	}
 
+	var willCacheNumTokens int
+	isFirstPass := params.isInitial && params.phase == 1
+	if !isFirstPass && modelConfig.BaseModelConfig.Provider == shared.ModelProviderOpenAI {
+		willCacheNumTokens = headNumTokens
+	}
+
 	// Use ModelRequest for both formats
 	res, err := model.ModelRequest(ctx, model.ModelRequestParams{
 		Clients:        clients,
@@ -263,6 +275,8 @@ func (fileState *activeBuildStreamFileState) buildValidate(
 			fileState.builderRun.ReplacementFinishedAt = time.Now()
 		},
 		OnStream: onStream,
+
+		WillCacheNumTokens: willCacheNumTokens,
 	})
 
 	if err != nil {
@@ -275,11 +289,13 @@ func (fileState *activeBuildStreamFileState) buildValidate(
 		return fileState.validationRetryOrError(ctx, params, err)
 	}
 
+	// log.Printf("Model response:\n\n%s", res.Content)
+
 	fileState.builderRun.GenerationIds = append(fileState.builderRun.GenerationIds, res.GenerationId)
 	log.Printf("Added generation ID: %s", res.GenerationId)
 
 	// Handle response based on format
-	parseRes, err := handleXMLResponse(fileState, res.Content, originalFile, updated, params.validateOnly)
+	parseRes, err := handleXMLResponse(fileState, res.Content, originalWithLineNums, updated, params.validateOnly)
 
 	if err != nil {
 		log.Printf("Error handling response: %v", err)
@@ -294,7 +310,7 @@ func (fileState *activeBuildStreamFileState) buildValidate(
 func handleXMLResponse(
 	fileState *activeBuildStreamFileState,
 	content string,
-	originalFile string,
+	originalWithLineNums shared.LineNumberedTextType,
 	updated string,
 	validateOnly bool,
 ) (buildValidateResult, error) {
@@ -317,8 +333,9 @@ func handleXMLResponse(
 		}, nil
 	}
 
-	originalFileLines := strings.Split(originalFile, "\n")
-	updated = originalFile
+	originalFileLines := strings.Split(string(originalWithLineNums), "\n")
+
+	incremental := originalWithLineNums
 
 	log.Printf("Processing XML replacement blocks")
 
@@ -328,7 +345,7 @@ func handleXMLResponse(
 		log.Printf("No replacements found in XML response")
 		return buildValidateResult{
 			valid:   false,
-			updated: updated,
+			updated: shared.RemoveLineNums(incremental),
 			problem: "No replacements found in XML response",
 		}, nil
 	}
@@ -348,7 +365,9 @@ func handleXMLResponse(
 
 		old = strings.TrimSpace(old)
 
-		// log.Printf("Old content trimmed:\n\n%s", old)
+		// log.Printf("Old content trimmed:\n\n%s", strconv.Quote(old))
+
+		// log.Printf("New content:\n\n%s", strconv.Quote(new))
 
 		if !strings.HasPrefix(old, "pdx-") {
 			log.Printf("Old content does not have a line number prefix for first line")
@@ -392,11 +411,11 @@ func handleXMLResponse(
 			old = strings.Join(originalFileLines[firstLineNum-1:lastLineNum], "\n")
 		}
 
-		log.Printf("Applying replacement.\n\nOld:\n\n%s\n\nNew:\n\n%s", old, new)
+		// log.Printf("Applying replacement.\n\nOld:\n\n%s\n\nNew:\n\n%s", old, new)
 
-		updated = strings.Replace(updated, old, new, 1)
+		incremental = shared.LineNumberedTextType(strings.Replace(string(incremental), old, new, 1))
 
-		log.Printf("Updated content:\n\n%s", updated)
+		// log.Printf("Updated content:\n\n%s", string(incremental))
 	}
 
 	var problem string
@@ -409,7 +428,11 @@ func handleXMLResponse(
 		problem = split[0]
 	}
 
-	return buildValidateResult{valid: false, updated: updated, problem: problem}, nil
+	final := shared.RemoveLineNums(incremental)
+
+	// log.Printf("Final content:\n\n%s", final)
+
+	return buildValidateResult{valid: false, updated: final, problem: problem}, nil
 }
 
 func (fileState *activeBuildStreamFileState) validationRetryOrError(buildCtx context.Context, validateParams buildValidateParams, err error) (buildValidateResult, error) {

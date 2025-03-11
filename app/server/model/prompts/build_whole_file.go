@@ -1,7 +1,11 @@
 package prompts
 
-func GetWholeFilePrompt(filePath, preBuildState, changesFile, changesDesc, comments string) string {
-	s := getBuildPromptHead(filePath, preBuildState, changesDesc, changesFile)
+import shared "plandex-shared"
+
+func GetWholeFilePrompt(filePath string, preBuildStateWithLineNums shared.LineNumberedTextType, changesWithLineNumsType shared.LineNumberedTextType, changesDesc string, comments string) (string, int) {
+	s := getBuildPromptHead(filePath, preBuildStateWithLineNums, changesDesc, changesWithLineNumsType)
+
+	headNumTokens := shared.GetNumTokensEstimate(s)
 
 	s += "## Comments\n\n"
 
@@ -12,7 +16,8 @@ func GetWholeFilePrompt(filePath, preBuildState, changesFile, changesDesc, comme
 	}
 
 	s += WholeFilePrompt
-	return s
+
+	return s, headNumTokens
 }
 
 const WholeFilePrompt = `

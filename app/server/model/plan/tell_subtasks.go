@@ -93,8 +93,8 @@ func (state *activeTellStreamState) checkNewSubtasks() []*db.Subtask {
 		return nil
 	}
 
-	log.Println("Found new subtasks:")
-	log.Println(spew.Sdump(subtasks))
+	log.Println("Found new subtasks:", len(subtasks))
+	// log.Println(spew.Sdump(subtasks))
 
 	subtasksByName := map[string]*db.Subtask{}
 
@@ -151,7 +151,7 @@ func (state *activeTellStreamState) checkNewSubtasks() []*db.Subtask {
 		}
 	}
 
-	log.Println("state.subtasks:\n", spew.Sdump(state.subtasks))
+	// log.Println("state.subtasks:\n", spew.Sdump(state.subtasks))
 	log.Println("state.currentSubtask:\n", spew.Sdump(state.currentSubtask))
 
 	return newSubtasks
@@ -174,8 +174,8 @@ func (state *activeTellStreamState) checkRemoveSubtasks() []string {
 		return nil
 	}
 
-	log.Println("Found tasks to remove:")
-	log.Println(spew.Sdump(tasksToRemove))
+	log.Println("Found tasks to remove:", len(tasksToRemove))
+	// log.Println(spew.Sdump(tasksToRemove))
 
 	// Create a map of task titles to remove for efficient lookup
 	removeMap := make(map[string]bool)

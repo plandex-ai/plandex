@@ -462,7 +462,7 @@ func (state *activeTellStreamState) handleNewOperations(parserRes *types.ReplyPa
 		if req.BuildMode == shared.BuildModeAuto {
 			log.Printf("Queuing build for %s\n", op.Name())
 			// log.Println("Content:")
-			// log.Println(fileContents[i])
+			// log.Println(strconv.Quote(op.Content))
 
 			buildState := &activeBuildStreamState{
 				modelStreamId: state.modelStreamId,

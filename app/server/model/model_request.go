@@ -37,6 +37,8 @@ type ModelRequestParams struct {
 	AfterReq  func()
 
 	OnStream func(string, string) bool
+
+	WillCacheNumTokens int
 }
 
 func ModelRequest(
@@ -134,6 +136,10 @@ func ModelRequest(
 	} else {
 		inputTokens = inputTokensEstimate
 		outputTokens = shared.GetNumTokensEstimate(res.Content)
+
+		if params.WillCacheNumTokens > 0 {
+			cachedTokens = params.WillCacheNumTokens
+		}
 	}
 
 	go func() {

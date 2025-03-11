@@ -138,7 +138,6 @@ func TestStructuredReplacements(t *testing.T) {
 		func init() {
 		  log.Println("init")
 		}
-
 		type UserService struct {
 		    db *DB
 		    cache *Cache
@@ -1288,52 +1287,161 @@ func TestStructuredReplacements(t *testing.T) {
 		},
 
 		{
-			name: "replacement with removal outside of line range",
+			name: "replacement with removal outside of single line range",
 			desc: `
-      Type: replace
-      Summary: Remove the notifyUpdate call (original file line 11)
-      `,
+		      Type: replace
+		      Replace: line 11
+		      `,
 			original: `func processRequest(req *Request) error {
-  validateRequest(req)
-  someOtherThing()
-  startTransaction()
+		  validateRequest(req)
+		  someOtherThing()
+		  startTransaction()
 
-  err := updateData(req)
-  if err != nil {
-      return err
-  }
+		  err := updateData(req)
+		  if err != nil {
+		      return err
+		  }
 
-  notifyUpdate()
-  commitTransaction()
-  return nil
-}`,
+		  notifyUpdate()
+		  commitTransaction()
+		  return nil
+		}`,
 			proposed: `func processRequest(req *Request) error {
-  startTransaction()
+		  startTransaction()
 
-  err := updateData(req)
-  if err != nil {
-      return err
-  }
+		  err := updateData(req)
+		  if err != nil {
+		      return err
+		  }
 
-  commitTransaction()
-  log.Info("processed request", req.ID)
-  return nil
-}`,
+		  commitTransaction()
+		  log.Info("processed request", req.ID)
+		  return nil
+		}`,
 			want: `func processRequest(req *Request) error {
-  validateRequest(req)
-  someOtherThing()
-  startTransaction()
+		  validateRequest(req)
+		  someOtherThing()
+		  startTransaction()
 
-  err := updateData(req)
-  if err != nil {
-      return err
-  }
+		  err := updateData(req)
+		  if err != nil {
+		      return err
+		  }
 
-  commitTransaction()
-  log.Info("processed request", req.ID)
-  return nil
-}`,
+		  commitTransaction()
+		  log.Info("processed request", req.ID)
+		  return nil
+		}`,
+		},
+
+		{
+			name: "replacement with removal inside of multi line range",
+			desc: `
+		      Type: replace
+		      Replace: lines 2-3, line 11
+		      `,
+			original: `func processRequest(req *Request) error {
+		  validateRequest(req)
+		  someOtherThing()
+		  startTransaction()
+
+		  err := updateData(req)
+		  if err != nil {
+		      return err
+		  }
+
+		  notifyUpdate()
+		  commitTransaction()
+		  return nil
+		}`,
+			proposed: `func processRequest(req *Request) error {
+		  startTransaction()
+
+		  err := updateData(req)
+		  if err != nil {
+		      return err
+		  }
+
+		  commitTransaction()
+		  log.Info("processed request", req.ID)
+		  return nil
+		}`,
+			want: `func processRequest(req *Request) error {
+		  startTransaction()
+
+		  err := updateData(req)
+		  if err != nil {
+		      return err
+		  }
+
+		  commitTransaction()
+		  log.Info("processed request", req.ID)
+		  return nil
+		}`,
+		},
+
+		{
+			name: "add to end with full file included",
+			desc: `
+      Type: add
+      Summary: Add Tailwind CSS typography plugin
+      `,
 			isInsert: true,
+			original: `# Install dependencies for markdown processing                            
+echo "Installing dependencies for markdown processing..."                 
+npm install next-mdx-remote gray-matter --save                            
+echo "Dependencies installed successfully!"`,
+			proposed: `# Install dependencies for markdown processing                            
+echo "Installing dependencies for markdown processing..."                 
+npm install next-mdx-remote gray-matter --save                            
+echo "Dependencies installed successfully!"
+
+# Install Tailwind CSS typography plugin                                  
+echo "Installing Tailwind CSS typography plugin..."                       
+npm install @tailwindcss/typography --save-dev                            
+echo "Tailwind CSS typography plugin installed successfully!"`,
+
+			want: `# Install dependencies for markdown processing                            
+echo "Installing dependencies for markdown processing..."                 
+npm install next-mdx-remote gray-matter --save                            
+echo "Dependencies installed successfully!"
+
+# Install Tailwind CSS typography plugin                                  
+echo "Installing Tailwind CSS typography plugin..."                       
+npm install @tailwindcss/typography --save-dev                            
+echo "Tailwind CSS typography plugin installed successfully!"`,
+		},
+
+		{
+			name: "add to beginning with full file included",
+			desc: `
+      Type: add
+      Summary: Add Tailwind CSS typography plugin
+      `,
+			isInsert: true,
+			original: `# Install dependencies for markdown processing                            
+echo "Installing dependencies for markdown processing..."                 
+npm install next-mdx-remote gray-matter --save                            
+echo "Dependencies installed successfully!"`,
+			proposed: `# Install Tailwind CSS typography plugin                                  
+echo "Installing Tailwind CSS typography plugin..."                       
+npm install @tailwindcss/typography --save-dev                            
+echo "Tailwind CSS typography plugin installed successfully!"
+      
+# Install dependencies for markdown processing                            
+echo "Installing dependencies for markdown processing..."                 
+npm install next-mdx-remote gray-matter --save                            
+echo "Dependencies installed successfully!"`,
+
+			want: `# Install Tailwind CSS typography plugin                                  
+echo "Installing Tailwind CSS typography plugin..."                       
+npm install @tailwindcss/typography --save-dev                            
+echo "Tailwind CSS typography plugin installed successfully!"
+      
+# Install dependencies for markdown processing                            
+echo "Installing dependencies for markdown processing..."                 
+npm install next-mdx-remote gray-matter --save                            
+echo "Dependencies installed successfully!"`,
 		},
 	}
 

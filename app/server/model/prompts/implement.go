@@ -48,6 +48,7 @@ In a <PlandexBlock> tag attribute, the 'path' attribute MUST be the exact file p
 - Do NOT omit the 'lang' or 'path' attributes from the <PlandexBlock> tag. EVERY <PlandexBlock> tag MUST ALWAYS have both 'lang' and 'path' attributes.
 - Do NOT omit the *file path label* before the <PlandexBlock> tag. Every code block MUST ALWAYS be preceded by a file path label.
 - Do NOT UNDER ANY CIRCUMSTANCES include line numbers in the <PlandexBlock> tag. While line numbers are included in the original file in context (prefixed with 'pdx-', like 'pdx-10: ') to assist you with describing the location of changes in the 'Action Explanation', they ABSOLUTELY MUST NOT be included in the <PlandexBlock> tag.
+- Do NOT escape newlines within the <PlandexBlock> tag unless there is a specific reason to do so, like you are outputting newlines in a quoted JSON string. For normal code, do NOT escape newlines.
 
 Labelled code block example:
 

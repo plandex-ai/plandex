@@ -58,6 +58,8 @@ func (state *activeTellStreamState) storeOnFinished(params storeOnFinishedParams
 		log.Println("storeOnFinished: subtaskFinished", subtaskFinished)
 		log.Println("storeOnFinished: removedSubtasks", removedSubtasks)
 
+		messageSubtask := state.currentSubtask
+
 		// first resolve subtask state
 		if hasNewSubtasks || len(removedSubtasks) > 0 || subtaskFinished {
 			if subtaskFinished && state.currentSubtask != nil {
@@ -117,7 +119,7 @@ func (state *activeTellStreamState) storeOnFinished(params storeOnFinishedParams
 		if len(autoLoadContextResult.autoLoadPaths) > 0 {
 			flags.DidLoadContext = true
 		}
-		if subtaskFinished && state.currentSubtask != nil {
+		if subtaskFinished && messageSubtask != nil {
 			flags.DidCompleteTask = true
 		}
 		if allSubtasksFinished {
@@ -133,7 +135,7 @@ func (state *activeTellStreamState) storeOnFinished(params storeOnFinishedParams
 
 		assistantMsg, convoCommitMsg, err := state.storeAssistantReply(repo, storeAssistantReplyParams{
 			flags:           flags,
-			subtask:         state.currentSubtask,
+			subtask:         messageSubtask,
 			addedSubtasks:   addedSubtasks,
 			activatedPaths:  autoLoadContextResult.activatePaths,
 			removedSubtasks: removedSubtasks,

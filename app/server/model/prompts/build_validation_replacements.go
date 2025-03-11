@@ -9,26 +9,28 @@ import (
 )
 
 type ValidationPromptParams struct {
-	Path         string
-	Original     string
-	Desc         string
-	Proposed     string
-	Diff         string
-	Reasons      []syntax.NeedsVerifyReason
-	SyntaxErrors []string
+	Path                 string
+	OriginalWithLineNums shared.LineNumberedTextType
+	Desc                 string
+	ProposedWithLineNums shared.LineNumberedTextType
+	Diff                 string
+	Reasons              []syntax.NeedsVerifyReason
+	SyntaxErrors         []string
 }
 
 // GetValidationReplacementsXmlPrompt constructs the complete prompt string for XML responses.
-func GetValidationReplacementsXmlPrompt(params ValidationPromptParams) string {
+func GetValidationReplacementsXmlPrompt(params ValidationPromptParams) (string, int) {
 	reasons := params.Reasons
 	syntaxErrs := params.SyntaxErrors
 	path := params.Path
-	original := params.Original
+	originalWithLineNums := params.OriginalWithLineNums
 	desc := params.Desc
-	proposed := params.Proposed
+	proposedWithLineNums := params.ProposedWithLineNums
 	diff := params.Diff
 
-	s := getBuildPromptHead(path, original, desc, proposed)
+	s := getBuildPromptHead(path, originalWithLineNums, desc, proposedWithLineNums)
+
+	headNumTokens := shared.GetNumTokensEstimate(s)
 
 	s += fmt.Sprintf(
 		`
@@ -207,14 +209,11 @@ IMPORTANT RULES:
 5. Always include reasoning in a '## Evaluate Diff' section prior to outputting the <PlandexCorrect/> or <PlandexIncorrect/> tags.
 `
 
-	return s
+	return s, headNumTokens
 }
 
 // getBuildPromptHead describes the original file and proposed changes
-func getBuildPromptHead(filePath, preBuildState, desc, proposed string) string {
-	preBuildStateWithLineNums := shared.AddLineNums(preBuildState)
-	proposedWithLineNums := shared.AddLineNumsWithPrefix(proposed, "pdx-new-")
-
+func getBuildPromptHead(filePath string, preBuildStateWithLineNums shared.LineNumberedTextType, desc string, proposedWithLineNums shared.LineNumberedTextType) string {
 	return fmt.Sprintf(
 		`Path: %s
 

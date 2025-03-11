@@ -65,24 +65,26 @@ func Capitalize(s string) string {
 	return strings.ToUpper(s[:1]) + s[1:]
 }
 
-func AddLineNums(s string) string {
-	return AddLineNumsWithPrefix(s, "pdx-")
+type LineNumberedTextType string
+
+func AddLineNums(s string) LineNumberedTextType {
+	return LineNumberedTextType(AddLineNumsWithPrefix(s, "pdx-"))
 }
 
-func AddLineNumsWithPrefix(s, prefix string) string {
+func AddLineNumsWithPrefix(s, prefix string) LineNumberedTextType {
 	var res string
 	for i, line := range strings.Split(s, "\n") {
 		res += fmt.Sprintf("%s%d: %s\n", prefix, i+1, line)
 	}
-	return res
+	return LineNumberedTextType(res)
 }
 
-func RemoveLineNums(s string) string {
+func RemoveLineNums(s LineNumberedTextType) string {
 	return RemoveLineNumsWithPrefix(s, "pdx-")
 }
 
-func RemoveLineNumsWithPrefix(s, prefix string) string {
-	return regexp.MustCompile(fmt.Sprintf(`(?m)^%s\d+: `, prefix)).ReplaceAllString(s, "")
+func RemoveLineNumsWithPrefix(s LineNumberedTextType, prefix string) string {
+	return regexp.MustCompile(fmt.Sprintf(`(?m)^%s\d+: `, prefix)).ReplaceAllString(string(s), "")
 }
 
 // indexRunes searches for the slice of runes `needle` in the slice of runes `haystack`

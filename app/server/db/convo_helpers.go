@@ -3,6 +3,7 @@ package db
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"sort"
@@ -158,6 +159,9 @@ func StoreConvoMessage(repo *GitRepo, message *ConvoMessage, currentUserId, bran
 			msg += "\n• " + subtask
 		}
 	}
+
+	log.Println("StoreConvoMessage - message.Flags.CurrentStage.TellStage:", message.Flags.CurrentStage.TellStage)
+	log.Println("StoreConvoMessage - message.Subtask:", message.Subtask)
 
 	if message.Flags.CurrentStage.TellStage == shared.TellStageImplementation && message.Subtask != nil {
 		msg += "\n\n" + "📋 " + message.Subtask.Title
