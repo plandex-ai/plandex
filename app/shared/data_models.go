@@ -125,8 +125,8 @@ const (
 type PlanningPhase string
 
 const (
-	PlanningPhaseContext  PlanningPhase = "context"
-	PlanningPhasePlanning PlanningPhase = "planning"
+	PlanningPhaseContext PlanningPhase = "context"
+	PlanningPhaseTasks   PlanningPhase = "tasks"
 )
 
 type CurrentStage struct {
@@ -147,6 +147,7 @@ type ConvoMessageFlags struct {
 	HasUnfinishedSubtasks bool `json:"hasUnfinishedSubtasks"`
 	IsApplyDebug          bool `json:"isApplyDebug"`
 	IsUserDebug           bool `json:"isUserDebug"`
+	HasError              bool `json:"hasError"`
 }
 
 type Subtask struct {
@@ -376,5 +377,19 @@ type CreditsTransaction struct {
 
 	DebitCacheDiscount *decimal.Decimal `json:"debitCacheDiscount,omitempty"`
 
+	DebitSessionId *string `json:"debitSessionId,omitempty"`
+
 	CreatedAt time.Time `json:"createdAt"`
+}
+
+func (t *CreditsTransaction) ModelString() string {
+	s := ""
+	if t.DebitModelProvider != nil && *t.DebitModelProvider != ModelProviderOpenAI {
+		s += string(*t.DebitModelProvider) + "/"
+	}
+	if t.DebitModelName != nil {
+		s += *t.DebitModelName
+	}
+
+	return s
 }

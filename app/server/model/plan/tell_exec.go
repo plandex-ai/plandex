@@ -13,6 +13,7 @@ import (
 
 	shared "plandex-shared"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/google/uuid"
 	"github.com/sashabaranov/go-openai"
 )
@@ -28,6 +29,7 @@ func Tell(clients map[string]model.ClientInfo, plan *db.Plan, branch string, aut
 		req.Prompt,
 		false,
 		req.AutoContext,
+		req.SessionId,
 	)
 
 	if err != nil {
@@ -84,26 +86,6 @@ func execTellPlan(params execTellPlanParams) {
 		return
 	}
 
-	// Load existing subtasks to log their state
-	// subtasks, err := db.GetPlanSubtasks(currentOrgId, plan.Id)
-	// if err != nil {
-	// 	log.Printf("[TellExec] Error loading subtasks: %v", err)
-	// } else {
-	// 	var unfinished []string
-	// 	var finished []string
-	// 	for _, task := range subtasks {
-	// 		if task.IsFinished {
-	// 			finished = append(finished, task.Title)
-	// 		} else {
-	// 			unfinished = append(unfinished, task.Title)
-	// 		}
-	// 	}
-	// 	log.Printf("[TellExec] Current subtask state - Total: %d, Finished: %d, Unfinished: %d", len(subtasks), len(finished), len(unfinished))
-	// 	log.Printf("[TellExec] Finished tasks: %v", finished)
-	// 	log.Printf("[TellExec] Unfinished tasks: %v", unfinished)
-	// 	log.Printf("[TellExec] Unfinished subtask reasoning: %s", unfinishedSubtaskReasoning)
-	// }
-
 	if missingFileResponse == "" {
 		log.Println("Executing WillExecPlanHook")
 		_, apiErr := hooks.ExecHook(hooks.WillExecPlan, hooks.HookParams{
@@ -155,42 +137,98 @@ func execTellPlan(params execTellPlanParams) {
 	}
 	log.Println("execTellPlan - Tell plan loaded")
 
-	activatedPaths := state.resolveCurrentStage()
+	activatePaths, activatePathsOrdered := state.resolveCurrentStage()
 
-	var baseContextMsg *types.ExtendedChatMessagePart
-	var autoContextMsg *types.ExtendedChatMessagePart
-	var smartContextMsg *types.ExtendedChatMessagePart
+	var tentativeModelConfig shared.ModelRoleConfig
+	var tentativeMaxTokens int
+	if state.currentStage.TellStage == shared.TellStagePlanning {
+		if state.currentStage.PlanningPhase == shared.PlanningPhaseContext {
+			log.Println("Tell plan - isContextStage - setting modelConfig to context loader")
+			tentativeModelConfig = state.settings.ModelPack.GetArchitect()
+			tentativeMaxTokens = state.settings.GetArchitectEffectiveMaxTokens()
+		} else {
+			plannerConfig := state.settings.ModelPack.Planner
+			tentativeModelConfig = plannerConfig.ModelRoleConfig
+			tentativeMaxTokens = state.settings.GetPlannerEffectiveMaxTokens()
+		}
+	} else if state.currentStage.TellStage == shared.TellStageImplementation {
+		tentativeModelConfig = state.settings.ModelPack.GetCoder()
+		tentativeMaxTokens = tentativeModelConfig.GetFinalLargeContextFallback().BaseModelConfig.MaxTokens
+	} else {
+		log.Printf("Tell plan - execTellPlan - unknown tell stage: %s\n", state.currentStage.TellStage)
+		active.StreamDoneCh <- &shared.ApiError{
+			Type:   shared.ApiErrorTypeOther,
+			Status: http.StatusInternalServerError,
+			Msg:    "Unknown tell stage",
+		}
+		return
+	}
+	state.tenativeModelConfig = &tentativeModelConfig
+
+	ok, tokensWithoutContext := state.dryRunCalculateTokensWithoutContext(tentativeMaxTokens, unfinishedSubtaskReasoning)
+	if !ok {
+		return
+	}
+
+	var planStageSharedMsgs []*types.ExtendedChatMessagePart
+	var planningPhaseOnlyMsgs []*types.ExtendedChatMessagePart
+	var implementationMsgs []*types.ExtendedChatMessagePart
 
 	if state.currentStage.TellStage == shared.TellStageImplementation {
-		smartContextMsg = state.formatModelContext(formatModelContextParams{
+		implementationMsgs = state.formatModelContext(formatModelContextParams{
 			includeMaps:         false,
 			smartContextEnabled: req.SmartContext,
-			execEnabled:         req.ExecEnabled,
+			includeApplyScript:  req.ExecEnabled,
 		})
 	} else if state.currentStage.TellStage == shared.TellStagePlanning {
-		baseContextMsg = state.formatModelContext(formatModelContextParams{
+		// add the shared context between planning and context phases first so it can be cached
+		// this is just for the map and any manually loaded contexts - auto contexts will be added later
+		planStageSharedMsgs = state.formatModelContext(formatModelContextParams{
 			includeMaps:         true,
 			smartContextEnabled: req.SmartContext,
-			execEnabled:         req.ExecEnabled,
+			includeApplyScript:  req.ExecEnabled,
 			baseOnly:            true,
 			cacheControl:        true,
 		})
 
-		if state.currentStage.PlanningPhase == shared.PlanningPhasePlanning {
+		if state.currentStage.PlanningPhase == shared.PlanningPhaseTasks {
 			if req.AutoContext {
-				autoContextMsg = state.formatModelContext(formatModelContextParams{
-					includeMaps:         false,
-					smartContextEnabled: req.SmartContext,
-					execEnabled:         req.ExecEnabled,
-					activeOnly:          true,
-					activatedPaths:      activatedPaths,
+				msg := types.ExtendedChatMessage{
+					Role:    openai.ChatMessageRoleSystem,
+					Content: []types.ExtendedChatMessagePart{},
+				}
+				for _, part := range planStageSharedMsgs {
+					msg.Content = append(msg.Content, *part)
+				}
+				sharedMsgsTokens := model.GetMessagesTokenEstimate(msg)
+
+				tokensRemaining := tentativeMaxTokens - (sharedMsgsTokens + tokensWithoutContext)
+
+				if tokensRemaining < 0 {
+					log.Println("tokensRemaining is negative")
+					active.StreamDoneCh <- &shared.ApiError{
+						Type:   shared.ApiErrorTypeOther,
+						Status: http.StatusInternalServerError,
+						Msg:    "Max tokens exceeded before adding context",
+					}
+					return
+				}
+
+				planningPhaseOnlyMsgs = state.formatModelContext(formatModelContextParams{
+					includeMaps:          false,
+					smartContextEnabled:  req.SmartContext,
+					includeApplyScript:   false, // already included in planStageSharedMsgs
+					activeOnly:           true,
+					activatePaths:        activatePaths,
+					activatePathsOrdered: activatePathsOrdered,
+					maxTokens:            int(float64(tokensRemaining) * 0.95), // leave a little extra room
 				})
 			} else {
-				// if auto context is disabled, just dump in everything, both basic and auto, that may have accumulated
-				autoContextMsg = state.formatModelContext(formatModelContextParams{
+				// if auto context is disabled, just dump in any remaining auto contexts, since all basic contexts have already been added in planStageSharedMsgs
+				planningPhaseOnlyMsgs = state.formatModelContext(formatModelContextParams{
 					includeMaps:         false,
 					smartContextEnabled: req.SmartContext,
-					execEnabled:         req.ExecEnabled,
+					includeApplyScript:  false, // already included in planStageSharedMsgs
 					autoOnly:            true,
 				})
 			}
@@ -198,11 +236,10 @@ func execTellPlan(params execTellPlanParams) {
 	}
 
 	getTellSysPromptParams := getTellSysPromptParams{
-		autoContextEnabled:  state.currentStage.TellStage == shared.TellStagePlanning && state.currentStage.PlanningPhase == shared.PlanningPhaseContext,
-		smartContextEnabled: req.SmartContext,
-		basicContextMsg:     baseContextMsg,
-		autoContextMsg:      autoContextMsg,
-		smartContextMsg:     smartContextMsg,
+		planStageSharedMsgs:   planStageSharedMsgs,
+		planningPhaseOnlyMsgs: planningPhaseOnlyMsgs,
+		implementationMsgs:    implementationMsgs,
+		contextTokenLimit:     tentativeMaxTokens,
 	}
 
 	// log.Println("getTellSysPromptParams:\n", spew.Sdump(getTellSysPromptParams))
@@ -227,16 +264,12 @@ func execTellPlan(params execTellPlanParams) {
 		},
 	}
 
-	// Add a separate message for image contexts
-	imageContextTokens, ok := state.addImageContext()
-	if !ok {
-		return
-	}
-
 	promptMessage, ok := state.resolvePromptMessage(unfinishedSubtaskReasoning)
 	if !ok {
 		return
 	}
+
+	// log.Println("messages:\n\n", spew.Sdump(state.messages))
 
 	// log.Println("promptMessage:", spew.Sdump(promptMessage))
 
@@ -244,11 +277,9 @@ func execTellPlan(params execTellPlanParams) {
 		model.GetMessagesTokenEstimate(state.messages...) +
 			model.GetMessagesTokenEstimate(*promptMessage) +
 			state.latestSummaryTokens +
-			imageContextTokens +
 			model.TokensPerRequest
 
 	// print out breakdown of token usage
-	log.Printf("Image context tokens: %d\n", imageContextTokens)
 	log.Printf("Latest summary tokens: %d\n", state.latestSummaryTokens)
 	log.Printf("Total tokens before convo: %d\n", state.tokensBeforeConvo)
 
@@ -268,6 +299,19 @@ func execTellPlan(params execTellPlanParams) {
 		return
 	}
 
+	// add the prompt message to the end of the messages slice
+	if promptMessage != nil {
+		state.messages = append(state.messages, *promptMessage)
+	} else {
+		log.Println("promptMessage is nil")
+		active.StreamDoneCh <- &shared.ApiError{
+			Type:   shared.ApiErrorTypeOther,
+			Status: http.StatusInternalServerError,
+			Msg:    "Prompt message isn't set",
+		}
+		return
+	}
+
 	state.replyId = uuid.New().String()
 	state.replyParser = types.NewReplyParser()
 
@@ -282,17 +326,17 @@ func execTellPlan(params execTellPlanParams) {
 	// 	log.Printf("%s: %s\n", message.Role, message.Content)
 	// }
 
-	requestTokens := model.GetMessagesTokenEstimate(state.messages...) + imageContextTokens + model.TokensPerRequest
+	requestTokens := model.GetMessagesTokenEstimate(state.messages...) + model.TokensPerRequest
 	state.totalRequestTokens = requestTokens
 
 	stop := []string{"<PlandexFinish/>"}
-	var modelConfig shared.ModelRoleConfig
+	modelConfig := tentativeModelConfig
 	if state.currentStage.TellStage == shared.TellStagePlanning {
-		plannerConfig := state.settings.ModelPack.Planner.GetRoleForTokens(requestTokens)
-		modelConfig = plannerConfig.ModelRoleConfig
 		if state.currentStage.PlanningPhase == shared.PlanningPhaseContext {
 			log.Println("Tell plan - isContextStage - setting modelConfig to context loader")
 			modelConfig = state.settings.ModelPack.GetArchitect().GetRoleForInputTokens(requestTokens)
+		} else if state.currentStage.PlanningPhase == shared.PlanningPhaseTasks {
+			modelConfig = state.settings.ModelPack.Planner.GetRoleForInputTokens(requestTokens)
 		}
 	} else if state.currentStage.TellStage == shared.TellStageImplementation {
 		modelConfig = state.settings.ModelPack.GetCoder().GetRoleForInputTokens(requestTokens)
@@ -309,7 +353,26 @@ func execTellPlan(params execTellPlanParams) {
 		}
 	}
 
-	log.Println("totalRequestTokens:", requestTokens)
+	// if the model doesn't support images, remove any image parts from the messages
+	if !modelConfig.BaseModelConfig.HasImageSupport {
+		log.Println("Tell exec - model doesn't support images. Removing image parts from messages. File name will still be included.")
+
+		for i := range state.messages {
+			filteredContent := []types.ExtendedChatMessagePart{}
+			for _, part := range state.messages[i].Content {
+				if part.Type != openai.ChatMessagePartTypeImageURL {
+					filteredContent = append(filteredContent, part)
+				}
+			}
+			state.messages[i].Content = filteredContent
+		}
+	}
+
+	log.Println("tell exec - will send model request with:", spew.Sdump(map[string]interface{}{
+		"provider": modelConfig.BaseModelConfig.Provider,
+		"model":    modelConfig.BaseModelConfig.ModelName,
+		"tokens":   requestTokens,
+	}))
 
 	_, apiErr := hooks.ExecHook(hooks.WillSendModelRequest, hooks.HookParams{
 		Auth: auth,
@@ -379,4 +442,86 @@ func execTellPlan(params execTellPlanParams) {
 	})
 
 	go state.listenStream(stream)
+}
+
+func (state *activeTellStreamState) dryRunCalculateTokensWithoutContext(tentativeMaxTokens int, unfinishedSubtaskReasoning string) (bool, int) {
+	clone := &activeTellStreamState{
+		modelStreamId:       state.modelStreamId,
+		execTellPlanParams:  state.execTellPlanParams,
+		clients:             state.clients,
+		req:                 state.req,
+		auth:                state.auth,
+		currentOrgId:        state.currentOrgId,
+		currentUserId:       state.currentUserId,
+		plan:                state.plan,
+		branch:              state.branch,
+		iteration:           state.iteration,
+		missingFileResponse: state.missingFileResponse,
+		settings:            state.settings,
+		currentStage:        state.currentStage,
+		subtasks:            state.subtasks,
+		currentSubtask:      state.currentSubtask,
+		convo:               state.convo,
+		summaries:           state.summaries,
+		latestSummaryTokens: state.latestSummaryTokens,
+		userPrompt:          state.userPrompt,
+		promptMessage:       state.promptMessage,
+		hasContextMap:       state.hasContextMap,
+		contextMapEmpty:     state.contextMapEmpty,
+		hasAssistantReply:   state.hasAssistantReply,
+		modelContext:        state.modelContext,
+		activePlan:          state.activePlan,
+		tenativeModelConfig: state.tenativeModelConfig,
+	}
+
+	sysParts, err := clone.getTellSysPrompt(getTellSysPromptParams{
+		contextTokenLimit:    tentativeMaxTokens,
+		dryRunWithoutContext: true,
+	})
+
+	if err != nil {
+		log.Printf("error getting tell sys prompt for dry run token calculation: %v", err)
+		state.activePlan.StreamDoneCh <- &shared.ApiError{
+			Type:   shared.ApiErrorTypeOther,
+			Status: http.StatusInternalServerError,
+			Msg:    "Error getting tell sys prompt for dry run token calculation",
+		}
+		return false, 0
+	}
+
+	clone.messages = []types.ExtendedChatMessage{
+		{
+			Role:    openai.ChatMessageRoleSystem,
+			Content: sysParts,
+		},
+	}
+
+	promptMessage, ok := clone.resolvePromptMessage(unfinishedSubtaskReasoning)
+	if !ok {
+		return false, 0
+	}
+
+	clone.tokensBeforeConvo =
+		model.GetMessagesTokenEstimate(clone.messages...) +
+			model.GetMessagesTokenEstimate(*promptMessage) +
+			clone.latestSummaryTokens +
+			model.TokensPerRequest
+
+	if clone.tokensBeforeConvo > clone.settings.GetPlannerEffectiveMaxTokens() {
+		log.Println("tokensBeforeConvo exceeds max tokens during dry run")
+		state.activePlan.StreamDoneCh <- &shared.ApiError{
+			Type:   shared.ApiErrorTypeOther,
+			Status: http.StatusInternalServerError,
+			Msg:    "Max tokens exceeded before adding conversation",
+		}
+		return false, 0
+	}
+
+	if !clone.addConversationMessages() {
+		return false, 0
+	}
+
+	clone.messages = append(clone.messages, *promptMessage)
+
+	return true, model.GetMessagesTokenEstimate(clone.messages...) + model.TokensPerRequest
 }

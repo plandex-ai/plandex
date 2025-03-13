@@ -8,7 +8,18 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
-func (state *activeTellStreamState) resolveCurrentStage() (activatedPaths map[string]bool) {
+func (state *activeTellStreamState) lastSuccessfulConvoMessage() *db.ConvoMessage {
+	for i := len(state.convo) - 1; i >= 0; i-- {
+		msg := state.convo[i]
+		if msg.Stopped || msg.Flags.HasError {
+			continue
+		}
+		return msg
+	}
+	return nil
+}
+
+func (state *activeTellStreamState) resolveCurrentStage() (activatePaths map[string]bool, activatePathsOrdered []string) {
 	req := state.req
 	iteration := state.iteration
 	hasContextMap := state.hasContextMap
@@ -17,15 +28,10 @@ func (state *activeTellStreamState) resolveCurrentStage() (activatedPaths map[st
 
 	log.Printf("[resolveCurrentStage] Initial state: hasContextMap: %v, convo len: %d", hasContextMap, len(convo))
 
-	var lastConvoMsg *db.ConvoMessage
-	if len(convo) > 0 {
-		lastConvoMsg = convo[len(convo)-1]
-		log.Printf("[resolveCurrentStage] Last convo message - Role: %s, Flags: %+v", lastConvoMsg.Role, lastConvoMsg.Flags)
-	} else {
-		log.Println("[resolveCurrentStage] No previous conversation messages")
-	}
+	lastConvoMsg := state.lastSuccessfulConvoMessage()
 
-	activatedPaths = map[string]bool{}
+	activatePaths = map[string]bool{}
+	activatePathsOrdered = []string{}
 
 	isContinueFromAssistantMsg := false
 
@@ -33,15 +39,15 @@ func (state *activeTellStreamState) resolveCurrentStage() (activatedPaths map[st
 		isContinueFromAssistantMsg = iteration == 0 && req.IsUserContinue && lastConvoMsg.Role == openai.ChatMessageRoleAssistant
 		log.Printf("[resolveCurrentStage] isContinueFromAssistantMsg: %v (IsUserContinue: %v, LastMsgRole: %s)",
 			isContinueFromAssistantMsg, req.IsUserContinue, lastConvoMsg.Role)
+	} else {
+		log.Println("[resolveCurrentStage] No previous successful conversation message found")
 	}
 
 	isUserPrompt := false
-	// isApplyDebug := false
 
 	if !isContinueFromAssistantMsg {
 		isUserPrompt = lastConvoMsg == nil || lastConvoMsg.Role == openai.ChatMessageRoleUser
 		log.Printf("[resolveCurrentStage] isUserPrompt: %v", isUserPrompt)
-		// isApplyDebug = isUserPrompt && ((lastConvoMsg != nil && lastConvoMsg.Flags.IsApplyDebug) || (req.IsApplyDebug))
 	}
 
 	var tellStage shared.TellStage
@@ -70,8 +76,9 @@ func (state *activeTellStreamState) resolveCurrentStage() (activatedPaths map[st
 		log.Printf("[resolveCurrentStage] Last convo message flags: %+v", flags)
 		if flags.CurrentStage.TellStage == shared.TellStagePlanning && flags.CurrentStage.PlanningPhase == shared.PlanningPhaseContext {
 			wasContextStage = true
-			activatedPaths = lastConvoMsg.ActivatedPaths
-			log.Printf("[resolveCurrentStage] Was context stage, copied activatedPaths: %v", activatedPaths)
+			activatePaths = lastConvoMsg.ActivatedPaths
+			activatePathsOrdered = lastConvoMsg.ActivatedPathsOrdered
+			log.Printf("[resolveCurrentStage] Was context stage, copied activatePaths: %v", activatePaths)
 		}
 	}
 
@@ -81,8 +88,8 @@ func (state *activeTellStreamState) resolveCurrentStage() (activatedPaths map[st
 			log.Printf("[resolveCurrentStage] Set planningPhase to Context - AutoContext: %v, hasContextMap: %v, contextMapEmpty: %v, wasContextStage: %v",
 				req.AutoContext, hasContextMap, contextMapEmpty, wasContextStage)
 		} else {
-			planningPhase = shared.PlanningPhasePlanning
-			log.Printf("[resolveCurrentStage] Set planningPhase to Planning - AutoContext: %v, hasContextMap: %v, contextMapEmpty: %v, wasContextStage: %v",
+			planningPhase = shared.PlanningPhaseTasks
+			log.Printf("[resolveCurrentStage] Set planningPhase to Tasks - AutoContext: %v, hasContextMap: %v, contextMapEmpty: %v, wasContextStage: %v",
 				req.AutoContext, hasContextMap, contextMapEmpty, wasContextStage)
 		}
 	}
@@ -93,5 +100,5 @@ func (state *activeTellStreamState) resolveCurrentStage() (activatedPaths map[st
 	}
 	log.Printf("[resolveCurrentStage] Final state - TellStage: %s, PlanningPhase: %s", tellStage, planningPhase)
 
-	return activatedPaths
+	return activatePaths, activatePathsOrdered
 }
