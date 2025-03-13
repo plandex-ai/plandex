@@ -207,6 +207,10 @@ IMPORTANT RULES:
 3. In replacements, every line in the <Old> element MUST exactly match a line in the original file and MUST begin with the line number with a 'pdx-' prefix (NOT with a 'pdx-new-' prefix).
 4. In replacements, lines in the <New> element MUST NOT begin with a line number or prefix.
 5. Always include reasoning in a '## Evaluate Diff' section prior to outputting the <PlandexCorrect/> or <PlandexIncorrect/> tags.
+
+--
+
+DO NOT FORGET TO INCLUDE THE ***'pdx-' PREFIXED*** LINE NUMBERS IN THE <Old> ELEMENT.
 `
 
 	return s, headNumTokens
@@ -217,17 +221,17 @@ func getBuildPromptHead(filePath string, preBuildStateWithLineNums shared.LineNu
 	return fmt.Sprintf(
 		`Path: %s
 
-Original file (with line nums):
+Original file (with line nums prefixed with 'pdx-'):
 >>>
 %s
 <<<
 
-Proposed changes explanation (with line nums):
+Proposed changes explanation:
 >>>
 %s
 <<<
 
-Proposed changes:
+Proposed changes (with line nums prefixed with 'pdx-new-'):
 >>>
 %s
 <<<

@@ -47,4 +47,6 @@ Do NOT include line numbers in the <PlandexWholeFile> element. Do NOT include re
 Do NOT include any additional text after the <PlandexWholeFile> element. The output must end after </PlandexWholeFile>. DO NOT use the string <PlandexWholeFile> anywhere else in the output. ONLY use it to start the <PlandexWholeFile> element.
 
 Do NOT UNDER ANY CIRCUMSTANCES *remove or change* any code that is not part of the changes in the *proposed updates*. ALL OTHER code from the *original file* must be reproduced *exactly* as it is in the *original file*. Do NOT remove comments, logging statements, commented out code, or anything else that is not part of the changes in the *proposed updates*. Your job is *only* to *apply* the changes in the *proposed updates* to the *original file*, not to make additional changes of *any kind*.
+
+The ABSOLUTE MOST IMPORTANT THING is to leave all existing code that is not DIRECTLY part of the changes in the *proposed updates* *exactly* as it is in the *original file*. Do NOT remove any code that is not part of the changes in the *proposed updates*. Do NOT include any reference comments in the output; replace them with the appropriate code from the *original file*. Be ABSOLUTELY CERTAIN you have not left anything out which belongs in the final result.
 `
