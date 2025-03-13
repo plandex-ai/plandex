@@ -24,7 +24,7 @@ User's operating system details:
 
 func GetContextLoadingPromptWrapperFormatStr(params CreatePromptParams) string {
 	s := SharedPromptWrapperFormatStr + `
-	` + ArchitectSummary
+	` + GetArchitectContextSummary(params.ContextTokenLimit)
 
 	return s
 }
@@ -275,7 +275,7 @@ func GetWrappedPrompt(params UserPromptParams) string {
 
 	// If we're in the context loading stage, we don't need to include the apply script summary
 	var applyScriptSummary string
-	if currentStage.TellStage == shared.TellStagePlanning && currentStage.PlanningPhase == shared.PlanningPhasePlanning {
+	if currentStage.TellStage == shared.TellStagePlanning && currentStage.PlanningPhase == shared.PlanningPhaseTasks {
 		applyScriptSummary = ApplyScriptPlanningPromptSummary
 	} else if currentStage.TellStage == shared.TellStageImplementation {
 		applyScriptSummary = ApplyScriptImplementationPromptSummary
