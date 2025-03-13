@@ -19,11 +19,17 @@ import (
 )
 
 func (state *activeTellStreamState) addConversationMessages() bool {
-	convo := state.convo
 	summaries := state.summaries
 	tokensBeforeConvo := state.tokensBeforeConvo
-
 	active := GetActivePlan(state.plan.Id, state.branch)
+
+	convo := []*db.ConvoMessage{}
+	for _, msg := range state.convo {
+		if state.skipConvoMessages != nil && state.skipConvoMessages[msg.Id] {
+			continue
+		}
+		convo = append(convo, msg)
+	}
 
 	if active == nil {
 		log.Println("summarizeMessagesIfNeeded - Active plan not found")
@@ -379,6 +385,7 @@ func summarizeConvo(clients map[string]model.ClientInfo, config shared.ModelRole
 		Plan:                        plan,
 		ModelPackName:               params.modelPackName,
 		ModelStreamId:               active.ModelStreamId,
+		SessionId:                   active.SessionId,
 	}, ctx)
 
 	if apiErr != nil {
