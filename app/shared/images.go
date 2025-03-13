@@ -4,13 +4,13 @@ import (
 	"bytes"
 	"encoding/base64"
 	"fmt"
+	"image"
+	"log"
 	"math"
 	"path/filepath"
 	"strings"
 
 	"github.com/sashabaranov/go-openai"
-
-	"image"
 
 	_ "image/gif"
 	_ "image/jpeg"
@@ -19,47 +19,77 @@ import (
 	_ "golang.org/x/image/webp"
 )
 
-func GetImageDataURI(base64Image, path string) string {
-	mimeType := ImageMimeType(path)
-
-	dataURI := fmt.Sprintf("data:%s;base64,%s", mimeType, base64Image)
-
-	return dataURI
-}
-
 func GetImageTokens(base64Image string, detail openai.ImageURLDetail) (int, error) {
 	imageData, err := base64.StdEncoding.DecodeString(base64Image)
 	if err != nil {
+		log.Println("failed to decode base64 image data:", err)
 		return 0, fmt.Errorf("failed to decode base64 image data: %w", err)
 	}
 
 	img, _, err := image.DecodeConfig(bytes.NewReader(imageData))
 	if err != nil {
-		return 0, fmt.Errorf("failed to decode image: %s", err)
+		log.Println("failed to decode image config:", err)
+		return 0, fmt.Errorf("failed to decode image config: %w", err)
 	}
 
-	return GetImageTokensForDims(img.Width, img.Height, detail), nil
+	width, height := img.Width, img.Height
+
+	anthropicTokens := getAnthropicImageTokens(width, height)
+	googleTokens := getGoogleImageTokens(width, height)
+	openaiTokens := getOpenAIImageTokens(width, height, detail)
+
+	log.Printf("GetImageTokens - width: %d, height: %d\n", width, height)
+	log.Printf("GetImageTokens - anthropicTokens: %d\n", anthropicTokens)
+	log.Printf("GetImageTokens - googleTokens: %d\n", googleTokens)
+	log.Printf("GetImageTokens - openaiTokens: %d\n", openaiTokens)
+
+	// get max of the three
+	return int(math.Max(
+		float64(anthropicTokens),
+		math.Max(
+			float64(googleTokens),
+			float64(openaiTokens),
+		),
+	)), nil
 }
 
-func GetImageTokensForDims(width, height int, detail openai.ImageURLDetail) int {
+func getAnthropicImageTokens(width, height int) int {
+	// Anthropic uses a simple area-based calculation (1 token per ~750 px²)
+	area := width * height
+	return int(math.Ceil(float64(area) / 750.0))
+}
+
+func getGoogleImageTokens(width, height int) int {
+	// Google Gemini uses 768px tiles at 258 tokens per tile
+	const tileSize = 768
+	const tokensPerTile = 258
+
+	horizontalTiles := int(math.Ceil(float64(width) / float64(tileSize)))
+	verticalTiles := int(math.Ceil(float64(height) / float64(tileSize)))
+
+	numTiles := horizontalTiles * verticalTiles
+	return numTiles * tokensPerTile
+}
+
+func getOpenAIImageTokens(width, height int, detail openai.ImageURLDetail) int {
 	const (
 		lowDetailTokens  = 85
 		highDetailBase   = 85
 		highDetailFactor = 170
 	)
 
-	if detail == "low" {
+	if detail == openai.ImageURLDetailLow {
 		return lowDetailTokens
 	}
 
-	// Scale the image to fit within a 2048 x 2048 square
+	// Scale to fit within 2048px square
 	if width > 2048 || height > 2048 {
 		scaleFactor := math.Min(2048.0/float64(width), 2048.0/float64(height))
 		width = int(float64(width) * scaleFactor)
 		height = int(float64(height) * scaleFactor)
 	}
 
-	// Scale the shortest side to 768px
+	// Scale shortest side to 768px
 	if width < height {
 		scaleFactor := 768.0 / float64(width)
 		width = 768
@@ -70,10 +100,17 @@ func GetImageTokensForDims(width, height int, detail openai.ImageURLDetail) int 
 		width = int(float64(width) * scaleFactor)
 	}
 
-	// Calculate the number of 512px tiles
-	numTiles := int(math.Ceil(float64(width)/512.0) * math.Ceil(float64(height)/512.0))
+	// Calculate 512px tiles
+	horizontalTiles := int(math.Ceil(float64(width) / 512.0))
+	verticalTiles := int(math.Ceil(float64(height) / 512.0))
 
+	numTiles := horizontalTiles * verticalTiles
 	return highDetailBase + numTiles*highDetailFactor
+}
+
+func GetImageDataURI(base64Image, path string) string {
+	mimeType := ImageMimeType(path)
+	return fmt.Sprintf("data:%s;base64,%s", mimeType, base64Image)
 }
 
 func IsImageFile(filePath string) bool {
@@ -93,5 +130,5 @@ func ImageMimeType(filePath string) string {
 	case ".gif":
 		return "image/gif"
 	}
-	return ""
+	return "application/octet-stream"
 }
