@@ -75,6 +75,7 @@ func (state *activeTellStreamState) loadTellPlan() error {
 					settings,
 					clients,
 					req.Prompt,
+					active.SessionId,
 					active.Ctx,
 				)
 
@@ -122,6 +123,12 @@ func (state *activeTellStreamState) loadTellPlan() error {
 					errCh <- fmt.Errorf("error getting plan modelContext: %v", err)
 					return
 				}
+
+				log.Printf("Tell plan - loadTellPlan - modelContext: %v\n", len(modelContext))
+				for _, part := range modelContext {
+					log.Printf("Tell plan - loadTellPlan - part: %s - %s - %s - %d tokens\n", part.ContextType, part.Name, part.FilePath, part.NumTokens)
+				}
+
 				modelContext = res
 			}
 
