@@ -2220,10 +2220,15 @@ func (a *Api) DeleteModelPack(setId string) *shared.ApiError {
 	return nil
 }
 
-func (a *Api) GetCreditsTransactions(pageSize, pageNum int) (*shared.CreditsLogResponse, *shared.ApiError) {
+func (a *Api) GetCreditsTransactions(pageSize, pageNum int, req shared.CreditsLogRequest) (*shared.CreditsLogResponse, *shared.ApiError) {
 	serverUrl := fmt.Sprintf("%s/billing/credits_transactions?size=%d&page=%d", GetApiHost(), pageSize, pageNum)
 
-	resp, err := authenticatedFastClient.Get(serverUrl)
+	reqBytes, err := json.Marshal(req)
+	if err != nil {
+		return nil, &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error marshalling request: %v", err)}
+	}
+
+	resp, err := authenticatedFastClient.Post(serverUrl, "application/json", bytes.NewBuffer(reqBytes))
 	if err != nil {
 		return nil, &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error sending request: %v", err)}
 	}
@@ -2235,12 +2240,45 @@ func (a *Api) GetCreditsTransactions(pageSize, pageNum int) (*shared.CreditsLogR
 		apiErr := HandleApiError(resp, errorBody)
 		tokenRefreshed, apiErr := refreshTokenIfNeeded(apiErr)
 		if tokenRefreshed {
-			return a.GetCreditsTransactions(pageSize, pageNum)
+			return a.GetCreditsTransactions(pageSize, pageNum, req)
 		}
 		return nil, apiErr
 	}
 
 	var res *shared.CreditsLogResponse
+	err = json.NewDecoder(resp.Body).Decode(&res)
+	if err != nil {
+		return nil, &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error decoding response: %v", err)}
+	}
+
+	return res, nil
+}
+
+func (a *Api) GetCreditsSummary(req shared.CreditsLogRequest) (*shared.CreditsSummaryResponse, *shared.ApiError) {
+	serverUrl := fmt.Sprintf("%s/billing/credits_summary", GetApiHost())
+
+	reqBytes, err := json.Marshal(req)
+	if err != nil {
+		return nil, &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error marshalling request: %v", err)}
+	}
+
+	resp, err := authenticatedFastClient.Post(serverUrl, "application/json", bytes.NewBuffer(reqBytes))
+	if err != nil {
+		return nil, &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error sending request: %v", err)}
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		errorBody, _ := io.ReadAll(resp.Body)
+		apiErr := HandleApiError(resp, errorBody)
+		tokenRefreshed, apiErr := refreshTokenIfNeeded(apiErr)
+		if tokenRefreshed {
+			return a.GetCreditsSummary(req)
+		}
+		return nil, apiErr
+	}
+
+	var res *shared.CreditsSummaryResponse
 	err = json.NewDecoder(resp.Body).Decode(&res)
 	if err != nil {
 		return nil, &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error decoding response: %v", err)}
