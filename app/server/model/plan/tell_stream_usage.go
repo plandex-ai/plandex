@@ -4,8 +4,6 @@ import (
 	"log"
 	"plandex-server/hooks"
 
-	shared "plandex-shared"
-
 	"github.com/davecgh/go-spew/spew"
 	"github.com/sashabaranov/go-openai"
 )
@@ -23,6 +21,10 @@ func (state *activeTellStreamState) handleUsageChunk(usage *openai.Usage) {
 		cachedTokens = usage.PromptTokensDetails.CachedTokens
 	}
 
+	sessionId := state.activePlan.SessionId
+
+	modelConfig := state.modelConfig
+
 	go func() {
 		_, apiErr := hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
 			Auth: auth,
@@ -31,11 +33,12 @@ func (state *activeTellStreamState) handleUsageChunk(usage *openai.Usage) {
 				InputTokens:    usage.PromptTokens,
 				OutputTokens:   usage.CompletionTokens,
 				CachedTokens:   cachedTokens,
-				ModelName:      state.settings.ModelPack.Planner.BaseModelConfig.ModelName,
-				ModelProvider:  state.settings.ModelPack.Planner.BaseModelConfig.Provider,
+				ModelId:        modelConfig.BaseModelConfig.ModelId,
+				ModelName:      modelConfig.BaseModelConfig.ModelName,
+				ModelProvider:  modelConfig.BaseModelConfig.Provider,
 				ModelPackName:  state.settings.ModelPack.Name,
-				ModelRole:      shared.ModelRolePlanner,
-				Purpose:        "Generated plan reply",
+				ModelRole:      modelConfig.Role,
+				Purpose:        "Response",
 				GenerationId:   generationId,
 				PlanId:         plan.Id,
 				ModelStreamId:  state.modelStreamId,
@@ -47,6 +50,8 @@ func (state *activeTellStreamState) handleUsageChunk(usage *openai.Usage) {
 				Req:              state.originalReq,
 				StreamResult:     state.activePlan.CurrentReplyContent,
 				ModelConfig:      state.modelConfig,
+
+				SessionId: sessionId,
 			},
 		})
 
@@ -72,6 +77,8 @@ func (state *activeTellStreamState) execHookOnStop(sendStreamErr bool) {
 		return
 	}
 
+	modelConfig := state.modelConfig
+
 	go func() {
 		_, apiErr := hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
 			Auth: auth,
@@ -79,11 +86,12 @@ func (state *activeTellStreamState) execHookOnStop(sendStreamErr bool) {
 			DidSendModelRequestParams: &hooks.DidSendModelRequestParams{
 				InputTokens:     state.totalRequestTokens,
 				OutputTokens:    active.NumTokens,
-				ModelName:       state.settings.ModelPack.Planner.BaseModelConfig.ModelName,
-				ModelProvider:   state.settings.ModelPack.Planner.BaseModelConfig.Provider,
+				ModelId:         modelConfig.BaseModelConfig.ModelId,
+				ModelName:       modelConfig.BaseModelConfig.ModelName,
+				ModelProvider:   modelConfig.BaseModelConfig.Provider,
 				ModelPackName:   state.settings.ModelPack.Name,
-				ModelRole:       shared.ModelRolePlanner,
-				Purpose:         "Generated plan reply (stopped)",
+				ModelRole:       modelConfig.Role,
+				Purpose:         "Response",
 				GenerationId:    generationId,
 				PlanId:          plan.Id,
 				ModelStreamId:   state.modelStreamId,
@@ -99,6 +107,8 @@ func (state *activeTellStreamState) execHookOnStop(sendStreamErr bool) {
 				Req:              state.originalReq,
 				StreamResult:     state.activePlan.CurrentReplyContent,
 				ModelConfig:      state.modelConfig,
+
+				SessionId: active.SessionId,
 			},
 		})
 
