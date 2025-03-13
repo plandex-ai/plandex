@@ -74,10 +74,11 @@ func (state *activeTellStreamState) handleMissingFileResponse(unfinishedSubtaskR
 
 		params := prompts.UserPromptParams{
 			CreatePromptParams: prompts.CreatePromptParams{
-				ExecMode:     req.ExecEnabled,
-				AutoContext:  req.AutoContext,
-				IsUserDebug:  req.IsUserDebug,
-				IsApplyDebug: req.IsApplyDebug,
+				ExecMode:          req.ExecEnabled,
+				AutoContext:       req.AutoContext,
+				IsUserDebug:       req.IsUserDebug,
+				IsApplyDebug:      req.IsApplyDebug,
+				ContextTokenLimit: state.settings.GetPlannerEffectiveMaxTokens(),
 			},
 			Prompt:                     skipPrompt,
 			OsDetails:                  req.OsDetails,
@@ -102,10 +103,11 @@ func (state *activeTellStreamState) handleMissingFileResponse(unfinishedSubtaskR
 
 		params := prompts.UserPromptParams{
 			CreatePromptParams: prompts.CreatePromptParams{
-				ExecMode:     req.ExecEnabled,
-				AutoContext:  req.AutoContext,
-				IsUserDebug:  req.IsUserDebug,
-				IsApplyDebug: req.IsApplyDebug,
+				ExecMode:          req.ExecEnabled,
+				AutoContext:       req.AutoContext,
+				IsUserDebug:       req.IsUserDebug,
+				IsApplyDebug:      req.IsApplyDebug,
+				ContextTokenLimit: state.settings.GetPlannerEffectiveMaxTokens(),
 			},
 			Prompt:                     missingPrompt,
 			OsDetails:                  req.OsDetails,
