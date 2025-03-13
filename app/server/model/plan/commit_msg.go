@@ -84,10 +84,11 @@ func (state *activeTellStreamState) genPlanDescription() (*db.ConvoMessageDescri
 		Auth:           auth,
 		Plan:           plan,
 		ModelConfig:    &config,
-		Purpose:        "Plan description",
+		Purpose:        "Response summary",
 		Messages:       messages,
 		ModelStreamId:  state.modelStreamId,
 		ConvoMessageId: state.replyId,
+		SessionId:      activePlan.SessionId,
 	}
 
 	if tools != nil {
@@ -153,7 +154,7 @@ func (state *activeTellStreamState) genPlanDescription() (*db.ConvoMessageDescri
 	}, nil
 }
 
-func GenCommitMsgForPendingResults(auth *types.ServerAuth, plan *db.Plan, clients map[string]model.ClientInfo, settings *shared.PlanSettings, current *shared.CurrentPlanState, ctx context.Context) (string, error) {
+func GenCommitMsgForPendingResults(auth *types.ServerAuth, plan *db.Plan, clients map[string]model.ClientInfo, settings *shared.PlanSettings, current *shared.CurrentPlanState, sessionId string, ctx context.Context) (string, error) {
 	config := settings.ModelPack.CommitMsg
 
 	s := ""
@@ -198,8 +199,9 @@ func GenCommitMsgForPendingResults(auth *types.ServerAuth, plan *db.Plan, client
 		Auth:        auth,
 		Plan:        plan,
 		ModelConfig: &config,
-		Purpose:     "Commit message for pending changes",
+		Purpose:     "Commit message",
 		Messages:    messages,
+		SessionId:   sessionId,
 	})
 
 	if err != nil {

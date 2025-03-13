@@ -26,7 +26,7 @@ type execStatusShouldContinueResult struct {
 	subtaskFinished bool
 }
 
-func (state *activeTellStreamState) execStatusShouldContinue(currentMessage string, ctx context.Context) (execStatusShouldContinueResult, *shared.ApiError) {
+func (state *activeTellStreamState) execStatusShouldContinue(currentMessage string, sessionId string, ctx context.Context) (execStatusShouldContinueResult, *shared.ApiError) {
 	auth := state.auth
 	plan := state.plan
 	settings := state.settings
@@ -139,10 +139,11 @@ func (state *activeTellStreamState) execStatusShouldContinue(currentMessage stri
 		Auth:           auth,
 		Plan:           plan,
 		ModelConfig:    &config,
-		Purpose:        "Check if task finished",
+		Purpose:        "Task completion check",
 		Messages:       messages,
 		ModelStreamId:  state.modelStreamId,
 		ConvoMessageId: state.replyId,
+		SessionId:      sessionId,
 	})
 
 	if err != nil {
