@@ -79,6 +79,7 @@ type ActivePlan struct {
 	SkippedPaths          map[string]bool
 	StoredReplyIds        []string
 	DidEditFiles          bool
+	SessionId             string
 
 	subscriptions  map[string]*subscription
 	subscriptionMu sync.Mutex
@@ -89,7 +90,7 @@ type ActivePlan struct {
 	streamMessageBuffer   []shared.StreamMessage
 }
 
-func NewActivePlan(orgId, userId, planId, branch, prompt string, buildOnly, autoContext bool) *ActivePlan {
+func NewActivePlan(orgId, userId, planId, branch, prompt string, buildOnly, autoContext bool, sessionId string) *ActivePlan {
 	ctx, cancel := context.WithTimeout(shutdown.ShutdownCtx, ActivePlanTimeout)
 	// child context for model stream so we can cancel it separately if needed
 	modelStreamCtx, cancelModelStream := context.WithCancel(ctx)
@@ -122,6 +123,7 @@ func NewActivePlan(orgId, userId, planId, branch, prompt string, buildOnly, auto
 		AutoLoadContextCh:     make(chan struct{}),
 		AllowOverwritePaths:   map[string]bool{},
 		SkippedPaths:          map[string]bool{},
+		SessionId:             sessionId,
 		streamCh:              make(chan string),
 		subscriptions:         map[string]*subscription{},
 		subscriptionMu:        sync.Mutex{},

@@ -15,6 +15,7 @@ type LoadContextParams struct {
 	DefsOnly          bool
 	SkipIgnoreWarning bool
 	AutoLoaded        bool
+	SessionId         string
 }
 
 type ContextOutdatedResult struct {

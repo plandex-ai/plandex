@@ -109,7 +109,9 @@ type ApiClient interface {
 	ListModelPacks() ([]*shared.ModelPack, *shared.ApiError)
 	DeleteModelPack(setId string) *shared.ApiError
 
-	GetCreditsTransactions(pageSize, pageNum int) (*shared.CreditsLogResponse, *shared.ApiError)
+	GetCreditsTransactions(pageSize, pageNum int, req shared.CreditsLogRequest) (*shared.CreditsLogResponse, *shared.ApiError)
+	GetCreditsSummary(req shared.CreditsLogRequest) (*shared.CreditsSummaryResponse, *shared.ApiError)
+
 	GetFileMap(req shared.GetFileMapRequest) (*shared.GetFileMapResponse, *shared.ApiError)
 	GetContextBody(planId, branch, contextId string) (*shared.GetContextBodyResponse, *shared.ApiError)
 	AutoLoadContext(ctx context.Context, planId, branch string, req shared.LoadContextRequest) (*shared.LoadContextResponse, *shared.ApiError)
