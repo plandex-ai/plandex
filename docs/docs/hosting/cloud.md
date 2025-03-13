@@ -43,9 +43,36 @@ Here you can switch billing modes, view your current plan, manage your billing d
 
 If you're using **Integrated Models Mode**, you can use the billing settings page to view your credits balance, purchase credits, and configure auto-recharge settings to automatically add credits to your account when your balance gets too low. You can also set a monthly budget and an email notification threshold.
 
-You can also see your credits balance in the terminal with `plandex credits`.
+### `usage` command
 
-You can see a full history of your usage that includes every model call and response with `plandex usage`.
+You can see your current balance and a report on recent usage with `plandex usage` (`\usage` in the REPL):
+
+```bash
+plandex usage
+```
+
+You can see a log of individual transactions that includes every model call with `plandex usage --log`:
+
+```bash
+plandex usage --log
+```
+
+In the Plandex REPL, `usage` defaults to showing usage for the current REPL session. Otherwise, it defaults to showing usage for the day so far.
+
+You can use the `--today` flag to show usage for the day so far. You can use the `--month` flag to show usage for the current billing month. You can use the `--plan` flag to show usage for the current plan.
+
+```bash
+plandex usage --today # show usage for the day so far
+plandex usage --month # show usage for the current billing month
+plandex usage --plan # show usage for the current plan
+```
+
+You can use the `--debits` flag to show only debits in the log. You can use the `--purchases` flag to show only purchases in the log.
+
+```bash
+plandex usage --log --debits --month # show only debits for the current billing month
+plandex usage --log --purchases --today # show only purchases for the day so far
+```
 
 ## Privacy / Data Retention
 

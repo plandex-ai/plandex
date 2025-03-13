@@ -827,18 +827,38 @@ Show the billing settings page.
 plandex billing
 ```
 
-### credits
-
-Show your current credits balance.
-
-```bash
-plandex credits
-```
-
 ### usage
 
-Show the credits usage log, including all model calls and responses.
+Show Plandex Cloud current balance and usage report. Includes recent spend, amount saved by input caching, a breakdown of spend by plan, category, and model, and a log of individual transactions with the `--log` flag.
+
+Defaults to showing usage for the current session if you're using the REPL. Otherwise, defaults to showing usage for the day so far.
+
+Requires **Integrated Models** mode.
 
 ```bash
 plandex usage
 ```
+
+`--today`: Show usage for the day so far.
+
+`--month`: Show usage for the current billing month.
+
+`--plan`: Show usage for the current plan.
+
+`--log`: Show a log of individual transactions. Defaults to showing the log for the current session if you're using the REPL. Otherwise, defaults to showing the log for the day so far. Works with `--today`, `--month`, and `--plan` flags.
+
+Flags for `usage --log`:
+
+`--debits`: Show only debits in the log.
+
+`--purchases`: Show only purchases in the log.
+
+`--page-size/-s`: Number of transactions to display per page.
+
+`--page/-p`: Page number to display.
+
+
+
+
+
+
