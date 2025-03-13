@@ -42,20 +42,19 @@ func init() {
 		},
 		Coder: claude37Sonnet(ModelRoleCoder, nil),
 		Architect: claude37Sonnet(ModelRoleArchitect, &modelConfig{
-			// Architect: openaio3miniMedium(ModelRoleArchitect, &modelConfig{
 			largeContextFallback: gemini15pro(ModelRoleArchitect, nil),
 		}),
 		PlanSummary: *openaio3miniLow(ModelRolePlanSummary, nil),
-		Builder: *openaio3miniLow(ModelRoleBuilder, &modelConfig{
+		Builder: *openaio3miniMedium(ModelRoleBuilder, &modelConfig{
 			strongModel: openaio3miniHigh(ModelRoleBuilder, nil),
 		}),
 
-		// This is interesting with predicted outputs/speculative decoding for small files, but isn't working well with current prompting strategy... o3-mini-low is much faster when there's early divergence in predicted output, and is also much cheaper, so sticking with that for now for all file sizes
+		// This is interesting with predicted outputs/speculative decoding for small files, but isn't working well with current prompting strategy... o3-mini is much faster when there's early divergence in predicted output, and is also much cheaper, and takes advantage of caching more effectively, so sticking with that for now for all file sizes
 		// WholeFileBuilder: openai4o(ModelRoleWholeFileBuilder, &modelConfigFallbacks{
-		// 	largeOutputFallback: openaio3miniLow(ModelRoleWholeFileBuilder, nil),
+		// 	largeOutputFallback: openaio3miniMedium(ModelRoleWholeFileBuilder, nil),
 		// }),
 
-		WholeFileBuilder: openaio3miniLow(ModelRoleWholeFileBuilder, nil),
+		WholeFileBuilder: openaio3miniMedium(ModelRoleWholeFileBuilder, nil),
 		Namer:            *openai4omini(ModelRoleName, nil),
 		CommitMsg:        *openai4omini(ModelRoleCommitMsg, nil),
 		ExecStatus:       *openaio3miniLow(ModelRoleExecStatus, nil),
