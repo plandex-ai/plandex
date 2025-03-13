@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/sashabaranov/go-openai"
+	"github.com/shopspring/decimal"
 )
 
 type CreateEmailVerificationRequest struct {
@@ -137,6 +138,7 @@ type TellPlanRequest struct {
 	ProjectPaths           map[string]bool   `json:"projectPaths"`
 	IsImplementationOfChat bool              `json:"isImplementationOfChat"`
 	IsGitRepo              bool              `json:"isGitRepo"`
+	SessionId              string            `json:"sessionId"`
 }
 
 type BuildPlanRequest struct {
@@ -147,6 +149,7 @@ type BuildPlanRequest struct {
 	OpenAIBase    string            `json:"openAIBase"`
 	OpenAIOrgId   string            `json:"openAIOrgId"`
 	ProjectPaths  map[string]bool   `json:"projectPaths"`
+	SessionId     string            `json:"sessionId"`
 }
 
 const NoBuildsErr string = "No builds"
@@ -182,6 +185,7 @@ type LoadContextParams struct {
 	ApiKeys     map[string]string `json:"apiKeys"`
 	OpenAIBase  string            `json:"openAIBase"`
 	OpenAIOrgId string            `json:"openAIOrgId"`
+	SessionId   string            `json:"sessionId"`
 }
 
 type LoadContextRequest []*LoadContextParams
@@ -299,6 +303,7 @@ type ApplyPlanRequest struct {
 	ApiKeys     map[string]string `json:"apiKeys"`
 	OpenAIBase  string            `json:"openAIBase"`
 	OpenAIOrgId string            `json:"openAIOrgId"`
+	SessionId   string            `json:"sessionId"`
 }
 
 type RenamePlanRequest struct {
@@ -312,12 +317,33 @@ type GetBuildStatusResponse struct {
 
 // Cloud requests and responses
 type CreditsLogRequest struct {
-	PageSize int `json:"pageSize"`
-	Page     int `json:"page"`
+	TransactionType CreditsTransactionType `json:"transactionType"`
+	PlanId          string                 `json:"planId"`
+	SessionId       string                 `json:"sessionId"`
+	DayStart        *time.Time             `json:"dayStart"`
+	Month           bool                   `json:"month"`
 }
 
 type CreditsLogResponse struct {
-	Transactions []*CreditsTransaction `json:"transactions"`
-	NumPages     int                   `json:"numPages"`
-	NumPagesMax  bool                  `json:"numPagesMax"`
+	Transactions  []*CreditsTransaction `json:"transactions"`
+	NumPages      int                   `json:"numPages"`
+	NumPagesMax   bool                  `json:"numPagesMax"`
+	MonthStart    time.Time             `json:"monthStart"`
+	PlanNamesById map[string]string     `json:"planNamesById"`
+}
+
+type CreditsSummaryResponse struct {
+	Balance decimal.Decimal `json:"balance"`
+
+	TotalSpend decimal.Decimal `json:"totalSpend"`
+
+	MonthStart time.Time `json:"monthStart"`
+
+	ByPlanId      map[string]decimal.Decimal `json:"byPlanId"`
+	PlanNamesById map[string]string          `json:"planNamesById"`
+
+	ByModelName map[string]decimal.Decimal `json:"byModelName"`
+	ByPurpose   map[string]decimal.Decimal `json:"byPurpose"`
+
+	CacheSavings decimal.Decimal `json:"cacheSavings"`
 }

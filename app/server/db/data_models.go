@@ -296,19 +296,20 @@ type repoLock struct {
 }
 
 type ModelPack struct {
-	Id          string                   `db:"id"`
-	OrgId       string                   `db:"org_id"`
-	Name        string                   `db:"name"`
-	Description string                   `db:"description"`
-	Planner     shared.PlannerRoleConfig `db:"planner"`
-	Coder       *shared.ModelRoleConfig  `db:"coder"`
-	PlanSummary shared.ModelRoleConfig   `db:"plan_summary"`
-	Builder     shared.ModelRoleConfig   `db:"builder"`
-	Namer       shared.ModelRoleConfig   `db:"namer"`
-	CommitMsg   shared.ModelRoleConfig   `db:"commit_msg"`
-	ExecStatus  shared.ModelRoleConfig   `db:"exec_status"`
-	Architect   *shared.ModelRoleConfig  `db:"context_loader"`
-	CreatedAt   time.Time                `db:"created_at"`
+	Id               string                   `db:"id"`
+	OrgId            string                   `db:"org_id"`
+	Name             string                   `db:"name"`
+	Description      string                   `db:"description"`
+	Planner          shared.PlannerRoleConfig `db:"planner"`
+	Coder            *shared.ModelRoleConfig  `db:"coder"`
+	PlanSummary      shared.ModelRoleConfig   `db:"plan_summary"`
+	Builder          shared.ModelRoleConfig   `db:"builder"`
+	WholeFileBuilder *shared.ModelRoleConfig  `db:"whole_file_builder"`
+	Namer            shared.ModelRoleConfig   `db:"namer"`
+	CommitMsg        shared.ModelRoleConfig   `db:"commit_msg"`
+	ExecStatus       shared.ModelRoleConfig   `db:"exec_status"`
+	Architect        *shared.ModelRoleConfig  `db:"context_loader"`
+	CreatedAt        time.Time                `db:"created_at"`
 }
 
 func (modelPack *ModelPack) ToApi() *shared.ModelPack {
@@ -453,21 +454,22 @@ func (context *Context) ToApi() *shared.Context {
 }
 
 type ConvoMessage struct {
-	Id              string                   `json:"id"`
-	OrgId           string                   `json:"orgId"`
-	PlanId          string                   `json:"planId"`
-	UserId          string                   `json:"userId"`
-	Role            string                   `json:"role"`
-	Tokens          int                      `json:"tokens"`
-	Num             int                      `json:"num"`
-	Message         string                   `json:"message"`
-	Stopped         bool                     `json:"stopped"`
-	Subtask         *Subtask                 `json:"subtask,omitempty"`
-	AddedSubtasks   []*Subtask               `json:"addedSubtasks,omitempty"`
-	RemovedSubtasks []string                 `json:"removedSubtasks,omitempty"`
-	Flags           shared.ConvoMessageFlags `json:"flags"`
-	ActivatedPaths  map[string]bool          `json:"activatedPaths,omitempty"`
-	CreatedAt       time.Time                `json:"createdAt"`
+	Id                    string                   `json:"id"`
+	OrgId                 string                   `json:"orgId"`
+	PlanId                string                   `json:"planId"`
+	UserId                string                   `json:"userId"`
+	Role                  string                   `json:"role"`
+	Tokens                int                      `json:"tokens"`
+	Num                   int                      `json:"num"`
+	Message               string                   `json:"message"`
+	Stopped               bool                     `json:"stopped"`
+	Subtask               *Subtask                 `json:"subtask,omitempty"`
+	AddedSubtasks         []*Subtask               `json:"addedSubtasks,omitempty"`
+	RemovedSubtasks       []string                 `json:"removedSubtasks,omitempty"`
+	Flags                 shared.ConvoMessageFlags `json:"flags"`
+	ActivatedPaths        map[string]bool          `json:"activatePaths,omitempty"`
+	ActivatedPathsOrdered []string                 `json:"activatePathsOrdered,omitempty"`
+	CreatedAt             time.Time                `json:"createdAt"`
 }
 
 func (msg *ConvoMessage) ToApi() *shared.ConvoMessage {

@@ -143,8 +143,8 @@ func ExecPlandexCommand(args []string) (string, error) {
 }
 
 type ExecPlandexCommandParams struct {
-	Args               []string
 	DisableSuggestions bool
+	SessionId          string
 }
 
 func ExecPlandexCommandWithParams(args []string, params ExecPlandexCommandParams) (string, error) {
@@ -179,6 +179,10 @@ func ExecPlandexCommandWithParams(args []string, params ExecPlandexCommandParams
 			"GLAMOUR_STYLE="+glamourStyle,
 			"PLANDEX_SKIP_UPGRADE=1",
 		)
+
+		if params.SessionId != "" {
+			env = append(env, "PLANDEX_REPL_SESSION_ID="+params.SessionId)
+		}
 	}
 
 	if params.DisableSuggestions {

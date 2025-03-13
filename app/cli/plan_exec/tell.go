@@ -157,6 +157,7 @@ func TellPlan(
 			OpenAIOrgId:            openAIOrgId,
 			IsImplementationOfChat: isImplementationOfChat,
 			IsGitRepo:              isGitRepo,
+			SessionId:              os.Getenv("PLANDEX_REPL_SESSION_ID"),
 		}, stream.OnStreamPlan)
 
 		term.StopSpinner()
