@@ -25,6 +25,7 @@ type PlanSummaryParams struct {
 	LatestConvoMessageId        string
 	LatestConvoMessageCreatedAt time.Time
 	NumMessages                 int
+	SessionId                   string
 }
 
 func PlanSummary(clients map[string]ClientInfo, config shared.ModelRoleConfig, params PlanSummaryParams, ctx context.Context) (*db.ConvoSummary, *shared.ApiError) {
@@ -59,10 +60,11 @@ func PlanSummary(clients map[string]ClientInfo, config shared.ModelRoleConfig, p
 		Auth:           params.Auth,
 		Plan:           params.Plan,
 		ModelConfig:    &config,
-		Purpose:        "Plan summary",
+		Purpose:        "Conversation summary",
 		ConvoMessageId: params.LatestConvoMessageId,
 		ModelStreamId:  params.ModelStreamId,
 		Messages:       messages,
+		SessionId:      params.SessionId,
 	})
 
 	if err != nil {
