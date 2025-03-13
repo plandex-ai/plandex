@@ -221,6 +221,7 @@ func MustApplyPlanAttempt(
 				for _, file := range updatedFiles {
 					fmt.Println(" • 📄 " + file)
 				}
+				fmt.Println()
 			}
 
 			if isRepo && !noCommit {

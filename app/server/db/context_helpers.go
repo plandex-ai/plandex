@@ -259,8 +259,8 @@ func ClearContext(params ClearContextParams) error {
 }
 
 func StoreContext(context *Context, skipMapCache bool) error {
-	// log.Println("Storing context", context.Id)
-	// log.Println("Num tokens", context.NumTokens)
+	// log.Println("StoreContext - Storing context", context.Id, context.Name, context.ContextType)
+	// log.Println("StoreContext - Num tokens", context.NumTokens)
 
 	contextDir := getPlanContextDir(context.OrgId, context.PlanId)
 
@@ -422,6 +422,8 @@ func LoadContexts(ctx Ctx, params LoadContextsParams) (*shared.LoadContextRespon
 	// 	log.Println("LoadContexts", msg, "elapsed: %s\n", elapsed)
 	// }
 
+	// log.Println("LoadContexts - params", spew.Sdump(params))
+
 	req := params.Req
 	orgId := params.OrgId
 	plan := params.Plan
@@ -509,7 +511,7 @@ func LoadContexts(ctx Ctx, params LoadContextsParams) (*shared.LoadContextRespon
 
 	// showElapsed("Filtered reqs")
 
-	for _, context := range *req {
+	for _, contextParams := range *req {
 		tempId := uuid.New().String()
 
 		var numTokens int
@@ -517,17 +519,17 @@ func LoadContexts(ctx Ctx, params LoadContextsParams) (*shared.LoadContextRespon
 
 		var isMap bool
 
-		if context.ContextType == shared.ContextMapType && (len(context.MapInputs) > 0 || params.CachedMapsByPath != nil) {
+		if contextParams.ContextType == shared.ContextMapType && (len(contextParams.MapInputs) > 0 || params.CachedMapsByPath != nil) {
 			isMap = true
 			var mappedFiles shared.FileMapBodies
-			if params.CachedMapsByPath != nil && params.CachedMapsByPath[context.FilePath] != nil {
-				log.Println("Using cached map for", context.FilePath)
-				mappedFiles = params.CachedMapsByPath[context.FilePath].MapParts
+			if params.CachedMapsByPath != nil && params.CachedMapsByPath[contextParams.FilePath] != nil {
+				log.Println("Using cached map for", contextParams.FilePath)
+				mappedFiles = params.CachedMapsByPath[contextParams.FilePath].MapParts
 			} else {
-				log.Println("Processing map files for", context.FilePath)
+				log.Println("Processing map files for", contextParams.FilePath)
 				// showElapsed(context.FilePath + " - processing map files")
 				// Process file maps
-				mappedFiles, err = file_map.ProcessMapFiles(ctx, context.MapInputs)
+				mappedFiles, err = file_map.ProcessMapFiles(ctx, contextParams.MapInputs)
 				if err != nil {
 					return nil, nil, fmt.Errorf("error processing map files: %v", err)
 				}
@@ -537,14 +539,14 @@ func LoadContexts(ctx Ctx, params LoadContextsParams) (*shared.LoadContextRespon
 			var mapShas map[string]string
 			var mapTokens map[string]int
 
-			if params.CachedMapsByPath != nil && params.CachedMapsByPath[context.FilePath] != nil {
-				mapShas = params.CachedMapsByPath[context.FilePath].MapShas
-				mapTokens = params.CachedMapsByPath[context.FilePath].MapTokens
+			if params.CachedMapsByPath != nil && params.CachedMapsByPath[contextParams.FilePath] != nil {
+				mapShas = params.CachedMapsByPath[contextParams.FilePath].MapShas
+				mapTokens = params.CachedMapsByPath[contextParams.FilePath].MapTokens
 			} else {
-				mapShas = make(map[string]string, len(context.MapInputs))
-				mapTokens = make(map[string]int, len(context.MapInputs))
+				mapShas = make(map[string]string, len(contextParams.MapInputs))
+				mapTokens = make(map[string]int, len(contextParams.MapInputs))
 
-				for path, input := range context.MapInputs {
+				for path, input := range contextParams.MapInputs {
 					hash := sha256.Sum256([]byte(input))
 					mapShas[path] = hex.EncodeToString(hash[:])
 					mapBody := mappedFiles[path]
@@ -552,10 +554,10 @@ func LoadContexts(ctx Ctx, params LoadContextsParams) (*shared.LoadContextRespon
 				}
 			}
 
-			combinedBody := mappedFiles.CombinedMap()
+			combinedBody := mappedFiles.CombinedMap(mapTokens)
 			numTokens = shared.GetNumTokensEstimate(combinedBody)
 
-			autoLoaded = autoLoaded || context.AutoLoaded
+			autoLoaded = autoLoaded || contextParams.AutoLoaded
 
 			log.Println("LoadContexts - map - autoLoaded", autoLoaded)
 
@@ -566,29 +568,29 @@ func LoadContexts(ctx Ctx, params LoadContextsParams) (*shared.LoadContextRespon
 				PlanId:      planId,
 				ProjectId:   plan.ProjectId,
 				ContextType: shared.ContextMapType,
-				Name:        context.Name,
-				Url:         context.Url,
-				FilePath:    context.FilePath,
+				Name:        contextParams.Name,
+				Url:         contextParams.Url,
+				FilePath:    contextParams.FilePath,
 				NumTokens:   numTokens,
 				Body:        combinedBody,
 				MapParts:    mappedFiles,
 				MapShas:     mapShas,
 				MapTokens:   mapTokens,
-				AutoLoaded:  autoLoaded || context.AutoLoaded,
+				AutoLoaded:  autoLoaded || contextParams.AutoLoaded,
 			}
 
-			mapContextsByFilePath[context.FilePath] = newContext
+			mapContextsByFilePath[contextParams.FilePath] = newContext
 
-		} else if context.ContextType == shared.ContextImageType {
-			numTokens, err = shared.GetImageTokens(context.Body, context.ImageDetail)
+		} else if contextParams.ContextType == shared.ContextImageType {
+			numTokens, err = shared.GetImageTokens(contextParams.Body, contextParams.ImageDetail)
 			if err != nil {
 				return nil, nil, fmt.Errorf("error getting image num tokens: %v", err)
 			}
 		} else {
-			numTokens = shared.GetNumTokensEstimate(context.Body)
+			numTokens = shared.GetNumTokensEstimate(contextParams.Body)
 		}
 
-		paramsByTempId[tempId] = context
+		paramsByTempId[tempId] = contextParams
 		numTokensByTempId[tempId] = numTokens
 		totalTokens += numTokens
 
@@ -707,7 +709,7 @@ func LoadContexts(ctx Ctx, params LoadContextsParams) (*shared.LoadContextRespon
 	commitMsg := shared.SummaryForLoadContext(apiContexts, tokensAdded, totalTokens)
 
 	if len(apiContexts) > 0 {
-		commitMsg += "\n\n" + shared.TableForLoadContext(apiContexts)
+		commitMsg += "\n\n" + shared.TableForLoadContext(apiContexts, false)
 	}
 
 	return &shared.LoadContextResponse{
@@ -962,7 +964,7 @@ func UpdateContexts(params UpdateContextsParams) (*shared.UpdateContextResponse,
 					delete(context.MapTokens, path)
 				}
 
-				context.Body = context.MapParts.CombinedMap()
+				context.Body = context.MapParts.CombinedMap(context.MapTokens)
 				newNumTokens := shared.GetNumTokensEstimate(context.Body)
 				tokenDiff := newNumTokens - oldNumTokens
 
