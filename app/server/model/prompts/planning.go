@@ -1,11 +1,12 @@
 package prompts
 
 type CreatePromptParams struct {
-	AutoContext  bool
-	ExecMode     bool
-	IsUserDebug  bool
-	IsApplyDebug bool
-	IsGitRepo    bool
+	AutoContext       bool
+	ExecMode          bool
+	IsUserDebug       bool
+	IsApplyDebug      bool
+	IsGitRepo         bool
+	ContextTokenLimit int
 }
 
 func GetPlanningPrompt(params CreatePromptParams) string {
