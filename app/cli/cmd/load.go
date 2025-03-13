@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 	"plandex-cli/auth"
 	"plandex-cli/lib"
 	"plandex-cli/term"
@@ -54,6 +55,7 @@ func contextLoad(cmd *cobra.Command, args []string) {
 		ForceSkipIgnore: forceSkipIgnore,
 		ImageDetail:     openai.ImageURLDetail(imageDetail),
 		DefsOnly:        defsOnly,
+		SessionId:       os.Getenv("PLANDEX_REPL_SESSION_ID"),
 	})
 
 	fmt.Println()

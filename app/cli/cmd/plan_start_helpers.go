@@ -1,13 +1,14 @@
 package cmd
 
 import (
-	"fmt"
+	"os"
 	"plandex-cli/api"
 	"plandex-cli/lib"
 	"plandex-cli/term"
 	shared "plandex-shared"
 
 	"github.com/fatih/color"
+	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
 )
 
@@ -82,7 +83,7 @@ func resolveAutoModeWithArgs(config *shared.PlanConfig, silent bool) (bool, *sha
 		}
 
 		fn := func() {
-			fmt.Printf("🚀 Set %s to %s\n", color.New(color.Bold).Sprint("auto-mode"), color.New(color.Bold, term.ColorHiMagenta).Sprint(toSetAutoMode))
+			printAutoModeTable(config)
 		}
 
 		if !silent {
@@ -152,7 +153,7 @@ func resolveModelPackWithArgs(settings *shared.PlanSettings, silent bool) (*shar
 		}
 
 		fn := func() {
-			fmt.Printf("🧠 Set model pack to %s\n", color.New(color.Bold, term.ColorHiMagenta).Sprint(packName))
+			printModelPackTable(packName)
 		}
 
 		if !silent {
@@ -166,7 +167,7 @@ func resolveModelPackWithArgs(settings *shared.PlanSettings, silent bool) (*shar
 			term.StopSpinner()
 		}
 		fn := func() {
-			fmt.Printf("🧠 Using model pack %s\n", color.New(color.Bold, term.ColorHiMagenta).Sprint(packName))
+			printModelPackTable(packName)
 		}
 
 		if !silent {
@@ -176,4 +177,64 @@ func resolveModelPackWithArgs(settings *shared.PlanSettings, silent bool) (*shar
 
 		return originalSettings, fn
 	}
+}
+
+func printModelPackTable(packName string) {
+	table := tablewriter.NewWriter(os.Stdout)
+	table.SetHeader([]string{"🧠 Model Pack"})
+	table.Append([]string{color.New(color.Bold, term.ColorHiMagenta).Sprint(packName)})
+	table.Render()
+}
+
+func printAutoModeTable(config *shared.PlanConfig) {
+	var contextMode string
+	if config.AutoLoadContext {
+		contextMode = "auto"
+	} else {
+		contextMode = "manual"
+	}
+
+	var applyMode string
+	if config.AutoApply {
+		applyMode = "auto"
+	} else {
+		applyMode = "approve"
+	}
+
+	var executionMode string
+	if config.AutoExec {
+		executionMode = "auto"
+	} else if config.CanExec {
+		executionMode = "approve"
+	} else {
+		executionMode = "disabled"
+	}
+
+	var commitMode string
+	if config.AutoCommit {
+		commitMode = "auto"
+	} else if config.SkipCommit {
+		commitMode = "skip"
+	} else {
+		commitMode = "manual"
+	}
+
+	table := tablewriter.NewWriter(os.Stdout)
+	table.SetAutoWrapText(false)
+	table.SetHeader([]string{
+		"🚀 Auto Mode",
+		"Context",
+		"Apply",
+		"Execution",
+		"Commits",
+	})
+	table.Append([]string{
+		color.New(color.Bold, term.ColorHiMagenta).Sprint(config.AutoMode),
+		contextMode,
+		applyMode,
+		executionMode,
+		commitMode,
+	})
+	table.Render()
+
 }

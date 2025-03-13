@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"plandex-cli/api"
@@ -18,6 +19,7 @@ import (
 	"unicode"
 
 	"github.com/fatih/color"
+	"github.com/google/uuid"
 	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
 
@@ -36,6 +38,8 @@ var projectPaths *types.ProjectPaths
 var currentPrompt *prompt.Prompt
 
 var replConfig *shared.PlanConfig
+
+var sessionId string
 
 func init() {
 	RootCmd.AddCommand(replCmd)
@@ -65,6 +69,9 @@ func setReplConfig() {
 }
 
 func runRepl(cmd *cobra.Command, args []string) {
+	sessionId = uuid.New().String()
+	log.Println("sessionId", sessionId)
+
 	term.SetIsRepl(true)
 	auth.MustResolveAuthWithOrg()
 	lib.MustResolveOrCreateProject()
@@ -314,7 +321,9 @@ func executor(in string, p *prompt.Prompt) {
 		parts := strings.Fields(lastLine)
 		if len(parts) > 1 {
 			args := parts[1:] // Skip the "plandex" or "pdx" command
-			_, err := lib.ExecPlandexCommand(args)
+			_, err := lib.ExecPlandexCommandWithParams(args, lib.ExecPlandexCommandParams{
+				SessionId: sessionId,
+			})
 			if err != nil {
 				color.New(term.ColorHiRed).Printf("Error executing command: %v\n", err)
 			}
@@ -362,7 +371,12 @@ func executor(in string, p *prompt.Prompt) {
 			args = append(args, filteredPaths...)
 			args = append(args, "-r")
 			fmt.Println()
-			lib.ExecPlandexCommand(args)
+			_, err := lib.ExecPlandexCommandWithParams(args, lib.ExecPlandexCommandParams{
+				SessionId: sessionId,
+			})
+			if err != nil {
+				color.New(term.ColorHiRed).Printf("Error executing command: %v\n", err)
+			}
 			fmt.Println()
 			if preservedBuffer != "" {
 				p.InsertTextMoveCursor(preservedBuffer, true)
@@ -494,7 +508,9 @@ func executor(in string, p *prompt.Prompt) {
 					execArgs = append(execArgs, "--chat")
 				}
 				execArgs = append(execArgs, args...)
-				_, err := lib.ExecPlandexCommand(execArgs)
+				_, err := lib.ExecPlandexCommandWithParams(execArgs, lib.ExecPlandexCommandParams{
+					SessionId: sessionId,
+				})
 				if err != nil {
 					color.New(term.ColorHiRed).Printf("Error executing command: %v\n", err)
 				}
@@ -514,20 +530,22 @@ func executor(in string, p *prompt.Prompt) {
 	}
 
 	// Handle non-command input based on mode
-	var output string
 	if lib.CurrentReplState.Mode == lib.ReplModeTell {
 		fmt.Println()
 		args := []string{"tell", input}
 		var err error
-		output, err = lib.ExecPlandexCommand(args)
+		_, err = lib.ExecPlandexCommandWithParams(args, lib.ExecPlandexCommandParams{
+			SessionId: sessionId,
+		})
 		if err != nil {
 			color.New(term.ColorHiRed).Printf("Error executing tell: %v\n", err)
 		}
 	} else if lib.CurrentReplState.Mode == lib.ReplModeChat {
 		fmt.Println()
 		args := []string{"chat", input}
-		var err error
-		output, err = lib.ExecPlandexCommand(args)
+		output, err := lib.ExecPlandexCommandWithParams(args, lib.ExecPlandexCommandParams{
+			SessionId: sessionId,
+		})
 		if err != nil {
 			color.New(term.ColorHiRed).Printf("Error executing chat: %v\n", err)
 		}
@@ -557,7 +575,9 @@ func executor(in string, p *prompt.Prompt) {
 				if sel == beginImplOpt {
 					fmt.Println()
 					args := []string{"tell", "--from-chat"}
-					_, err := lib.ExecPlandexCommand(args)
+					_, err := lib.ExecPlandexCommandWithParams(args, lib.ExecPlandexCommandParams{
+						SessionId: sessionId,
+					})
 					if err != nil {
 						color.New(term.ColorHiRed).Printf("Error executing tell: %v\n", err)
 					}
@@ -878,31 +898,6 @@ func replWelcome(params replWelcomeParams) {
 		contextMode = "manual"
 	}
 
-	var applyMode string
-	if config.AutoApply {
-		applyMode = "auto"
-	} else {
-		applyMode = "approve"
-	}
-
-	var executionMode string
-	if config.AutoExec {
-		executionMode = "auto"
-	} else if config.CanExec {
-		executionMode = "approve"
-	} else {
-		executionMode = "disabled"
-	}
-
-	var commitMode string
-	if config.AutoCommit {
-		commitMode = "auto"
-	} else if config.SkipCommit {
-		commitMode = "skip"
-	} else {
-		commitMode = "manual"
-	}
-
 	filesStr := "%s for loading files into context"
 	if contextMode == "auto" {
 		filesStr += " manually (optional)"
@@ -919,14 +914,9 @@ func replWelcome(params replWelcomeParams) {
 	if printAutoFn != nil {
 		printAutoFn()
 	} else {
-		fmt.Printf("🚀 Using auto mode %s\n", color.New(color.Bold, term.ColorHiMagenta).Sprint(config.AutoMode))
+		printAutoModeTable(config)
 	}
-	fmt.Printf("⚙️  %s → %s · %s → %s · %s → %s · %s → %s\n",
-		color.New(color.FgHiWhite, color.Bold).Sprint("context"), contextMode,
-		color.New(color.FgHiWhite, color.Bold).Sprint("apply changes"), applyMode,
-		color.New(color.FgHiWhite, color.Bold).Sprint("execution"), executionMode,
-		color.New(color.FgHiWhite, color.Bold).Sprint("commits"), commitMode,
-	)
+
 	color.New(color.FgHiWhite).Printf("%s to change auto mode\n", color.New(term.ColorHiCyan, color.Bold).Sprint("\\set-auto"))
 	color.New(color.FgHiWhite).Printf("%s to see config\n", color.New(term.ColorHiCyan, color.Bold).Sprint("\\config"))
 	color.New(color.FgHiWhite).Printf("%s to customize config\n", color.New(term.ColorHiCyan, color.Bold).Sprint("\\set-config"))
@@ -935,7 +925,7 @@ func replWelcome(params replWelcomeParams) {
 	if printModelFn != nil {
 		printModelFn()
 	} else {
-		fmt.Printf("🧠 Using model pack %s\n", color.New(color.Bold, term.ColorHiMagenta).Sprint(packName))
+		printModelPackTable(packName)
 	}
 	color.New(color.FgHiWhite).Printf("%s to see model details\n", color.New(term.ColorHiCyan, color.Bold).Sprint("\\models"))
 	color.New(color.FgHiWhite).Printf("%s to change models\n", color.New(term.ColorHiCyan, color.Bold).Sprint("\\set-model"))

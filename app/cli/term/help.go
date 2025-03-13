@@ -128,8 +128,13 @@ var CliCommands = []CmdConfig{
 	{"revoke", "", "revoke an invite or remove a user from your org", true},
 	{"users", "", "list users and pending invites in your org", true},
 
-	{"credits", "", "show Plandex Cloud credits balance", true},
-	{"usage", "", "show Plandex Cloud credits transaction log", true},
+	{"usage", "", "show Plandex Cloud current balance and usage report", true},
+	{"usage --today", "", "show Plandex Cloud usage for the day so far", true},
+	{"usage --month", "", "show Plandex Cloud usage for the current billing month", true},
+	{"usage --plan", "", "show Plandex Cloud usage for the current plan", true},
+
+	{"usage --log", "", "show Plandex Cloud transaction log", true},
+
 	{"billing", "", "show Plandex Cloud billing settings", true},
 }
 
@@ -320,7 +325,7 @@ func PrintHelpAllCommands() {
 	fmt.Fprintln(builder)
 
 	color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Cloud ")
-	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "credits", "usage", "billing")
+	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "usage", "usage --today", "usage --month", "usage --plan", "usage --log", "billing")
 	fmt.Fprintln(builder)
 
 	color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " New Plan Shortcuts ")
