@@ -39,6 +39,7 @@ type DidSendModelRequestParams struct {
 	InputTokens     int
 	OutputTokens    int
 	CachedTokens    int
+	ModelId         shared.ModelId
 	ModelName       shared.ModelName
 	ModelProvider   shared.ModelProvider
 	ModelRole       shared.ModelRole
@@ -53,6 +54,7 @@ type DidSendModelRequestParams struct {
 	UserCancelled   bool
 	HadError        bool
 	NoReportedUsage bool
+	SessionId       string
 
 	RequestStartedAt time.Time
 	Streaming        bool
