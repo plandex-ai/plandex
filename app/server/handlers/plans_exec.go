@@ -138,7 +138,7 @@ func BuildPlanHandler(w http.ResponseWriter, r *http.Request) {
 			plan:        plan,
 		},
 	)
-	numBuilds, err := modelPlan.Build(clients, plan, branch, auth)
+	numBuilds, err := modelPlan.Build(clients, plan, branch, auth, requestBody.SessionId)
 
 	if err != nil {
 		log.Printf("Error building plan: %v\n", err)
@@ -455,6 +455,8 @@ func AutoLoadContextHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	msg := shared.SummaryForLoadContext(apiContexts, res.TokensAdded, res.TotalTokens)
+	msg += "\n\n" + shared.TableForLoadContext(apiContexts, true)
+
 	markdownRes := shared.LoadContextResponse{
 		TokensAdded:       res.TokensAdded,
 		TotalTokens:       res.TotalTokens,
