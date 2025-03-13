@@ -114,6 +114,21 @@ func ListOwnedPlans(projectIds []string, userId string, archived bool) ([]*Plan,
 	return plans, nil
 }
 
+func GetPlanNamesById(planIds []string) (map[string]string, error) {
+	var plans []*Plan
+	err := Conn.Select(&plans, "SELECT id, name FROM plans WHERE id = ANY($1)", pq.Array(planIds))
+	if err != nil {
+		return nil, fmt.Errorf("error getting plan names: %v", err)
+	}
+
+	namesMap := make(map[string]string)
+	for _, plan := range plans {
+		namesMap[plan.Id] = plan.Name
+	}
+
+	return namesMap, nil
+}
+
 func AddPlanContextTokens(planId, branch string, addTokens int) error {
 	_, err := Conn.Exec("UPDATE branches SET context_tokens = context_tokens + $1 WHERE plan_id = $2 AND name = $3", addTokens, planId, branch)
 	if err != nil {
