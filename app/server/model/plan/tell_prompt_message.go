@@ -19,10 +19,12 @@ func (state *activeTellStreamState) resolvePromptMessage(
 
 	var promptMessage *types.ExtendedChatMessage
 
-	var lastMessage *types.ExtendedChatMessage
+	state.skipConvoMessages = map[string]bool{}
+
+	lastMessage := state.lastSuccessfulConvoMessage()
 
 	if req.IsUserContinue {
-		if len(state.messages) == 0 {
+		if lastMessage == nil {
 			active.StreamDoneCh <- &shared.ApiError{
 				Type:   shared.ApiErrorTypeContinueNoMessages,
 				Status: http.StatusBadRequest,
@@ -30,10 +32,6 @@ func (state *activeTellStreamState) resolvePromptMessage(
 			}
 			return nil, false
 		}
-
-		// if the user is continuing the plan, we need to check whether the previous message was a user message or assistant message
-		lastMessage = &state.messages[len(state.messages)-1]
-
 		log.Println("User is continuing plan. Last message role:", lastMessage.Role)
 	}
 
@@ -42,10 +40,10 @@ func (state *activeTellStreamState) resolvePromptMessage(
 		if req.IsUserContinue {
 			if lastMessage.Role == openai.ChatMessageRoleUser {
 				log.Println("User is continuing plan in chat only mode. Last message was user message. Using last user message as prompt")
-				content := lastMessage.ToOpenAI().Content
+				content := lastMessage.Message
 				prompt = content
 				state.userPrompt = content
-				state.messages = state.messages[:len(state.messages)-1]
+				state.skipConvoMessages[lastMessage.Id] = true
 			} else {
 				log.Println("User is continuing plan in chat only mode. Last message was assistant message. Using user continue prompt")
 				prompt = prompts.UserContinuePrompt
@@ -75,24 +73,20 @@ func (state *activeTellStreamState) resolvePromptMessage(
 				},
 			},
 		}
-
-		state.messages = append(state.messages, *promptMessage)
 	} else if req.IsUserContinue {
 		// log.Println("User is continuing plan. Last message:\n\n", lastMessage.Content)
 		if lastMessage.Role == openai.ChatMessageRoleUser {
 			// if last message was a user message, we want to remove it from the messages array and then use that last message as the prompt so we can continue from where the user left off
 
 			log.Println("User is continuing plan in tell mode. Last message was user message. Using last user message as prompt")
-
-			state.messages = state.messages[:len(state.messages)-1]
-
-			content := lastMessage.ToOpenAI().Content
+			content := lastMessage.Message
 
 			params := prompts.UserPromptParams{
 				CreatePromptParams: prompts.CreatePromptParams{
-					ExecMode:    req.ExecEnabled,
-					AutoContext: req.AutoContext,
-					IsGitRepo:   req.IsGitRepo,
+					ExecMode:          req.ExecEnabled,
+					AutoContext:       req.AutoContext,
+					IsGitRepo:         req.IsGitRepo,
+					ContextTokenLimit: state.settings.GetPlannerEffectiveMaxTokens(),
 					// no need to pass in IsUserDebug or IsApplyDebug here because we're continuing
 				},
 				Prompt:                     content,
@@ -119,9 +113,10 @@ func (state *activeTellStreamState) resolvePromptMessage(
 
 			params := prompts.UserPromptParams{
 				CreatePromptParams: prompts.CreatePromptParams{
-					ExecMode:    req.ExecEnabled,
-					AutoContext: req.AutoContext,
-					IsGitRepo:   req.IsGitRepo,
+					ExecMode:          req.ExecEnabled,
+					AutoContext:       req.AutoContext,
+					IsGitRepo:         req.IsGitRepo,
+					ContextTokenLimit: state.settings.GetPlannerEffectiveMaxTokens(),
 					// no need to pass in IsUserDebug or IsApplyDebug here because we're continuing
 				},
 				Prompt:                     prompts.UserContinuePrompt,
@@ -140,8 +135,6 @@ func (state *activeTellStreamState) resolvePromptMessage(
 				},
 			}
 		}
-
-		state.messages = append(state.messages, *promptMessage)
 	} else {
 		var prompt string
 		if iteration == 0 {
@@ -156,11 +149,12 @@ func (state *activeTellStreamState) resolvePromptMessage(
 
 		params := prompts.UserPromptParams{
 			CreatePromptParams: prompts.CreatePromptParams{
-				ExecMode:     req.ExecEnabled,
-				AutoContext:  req.AutoContext,
-				IsUserDebug:  req.IsUserDebug,
-				IsApplyDebug: req.IsApplyDebug,
-				IsGitRepo:    req.IsGitRepo,
+				ExecMode:          req.ExecEnabled,
+				AutoContext:       req.AutoContext,
+				IsUserDebug:       req.IsUserDebug,
+				IsApplyDebug:      req.IsApplyDebug,
+				IsGitRepo:         req.IsGitRepo,
+				ContextTokenLimit: state.settings.GetPlannerEffectiveMaxTokens(),
 			},
 			Prompt:                     prompt,
 			OsDetails:                  req.OsDetails,
