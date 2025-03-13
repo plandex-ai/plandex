@@ -20,6 +20,7 @@ func GenPlanName(
 	settings *shared.PlanSettings,
 	clients map[string]ClientInfo,
 	planContent string,
+	sessionId string,
 	ctx context.Context,
 ) (string, error) {
 	config := settings.ModelPack.Namer
@@ -66,10 +67,11 @@ func GenPlanName(
 		Auth:        auth,
 		Plan:        plan,
 		ModelConfig: &config,
-		Purpose:     "Generate plan name",
+		Purpose:     "Plan name",
 		Messages:    messages,
 		Tools:       tools,
 		ToolChoice:  toolChoice,
+		SessionId:   sessionId,
 	})
 
 	if err != nil {
@@ -110,6 +112,7 @@ func GenPipedDataName(
 	settings *shared.PlanSettings,
 	clients map[string]ClientInfo,
 	pipedContent string,
+	sessionId string,
 ) (string, error) {
 	config := settings.ModelPack.Namer
 
@@ -155,10 +158,11 @@ func GenPipedDataName(
 		Auth:        auth,
 		Plan:        plan,
 		ModelConfig: &config,
-		Purpose:     "Generate piped data name",
+		Purpose:     "Piped data name",
 		Messages:    messages,
 		Tools:       tools,
 		ToolChoice:  toolChoice,
+		SessionId:   sessionId,
 	})
 
 	if err != nil {
@@ -199,6 +203,7 @@ func GenNoteName(
 	settings *shared.PlanSettings,
 	clients map[string]ClientInfo,
 	note string,
+	sessionId string,
 ) (string, error) {
 	config := settings.ModelPack.Namer
 
@@ -244,10 +249,11 @@ func GenNoteName(
 		Auth:        auth,
 		Plan:        plan,
 		ModelConfig: &config,
-		Purpose:     "Generate note name",
+		Purpose:     "Note name",
 		Messages:    messages,
 		Tools:       tools,
 		ToolChoice:  toolChoice,
+		SessionId:   sessionId,
 	})
 
 	if err != nil {
