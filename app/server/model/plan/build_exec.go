@@ -18,6 +18,7 @@ func Build(
 	plan *db.Plan,
 	branch string,
 	auth *types.ServerAuth,
+	sessionId string,
 ) (int, error) {
 	log.Printf("Build: Called with plan ID %s on branch %s\n", plan.Id, branch)
 	log.Println("Build: Starting Build operation")
@@ -44,7 +45,7 @@ func Build(
 		return 0, err
 	}
 
-	pendingBuildsByPath, err := state.loadPendingBuilds()
+	pendingBuildsByPath, err := state.loadPendingBuilds(sessionId)
 	if err != nil {
 		return onErr(err)
 	}

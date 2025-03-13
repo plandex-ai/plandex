@@ -11,13 +11,13 @@ import (
 	shared "plandex-shared"
 )
 
-func (state *activeBuildStreamState) loadPendingBuilds() (map[string][]*types.ActiveBuild, error) {
+func (state *activeBuildStreamState) loadPendingBuilds(sessionId string) (map[string][]*types.ActiveBuild, error) {
 	clients := state.clients
 	plan := state.plan
 	branch := state.branch
 	auth := state.auth
 
-	active, err := activatePlan(clients, plan, branch, auth, "", true, false)
+	active, err := activatePlan(clients, plan, branch, auth, "", true, false, sessionId)
 
 	if err != nil {
 		log.Printf("Error activating plan: %v\n", err)
