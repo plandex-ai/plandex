@@ -32,6 +32,7 @@ type ModelRequestParams struct {
 	ConvoMessageId string
 	BuildId        string
 	ModelPackName  string
+	SessionId      string
 
 	BeforeReq func()
 	AfterReq  func()
@@ -59,6 +60,7 @@ func ModelRequest(
 	buildId := params.BuildId
 	modelPackName := params.ModelPackName
 	purpose := params.Purpose
+	sessionId := params.SessionId
 
 	if purpose == "" {
 		return nil, fmt.Errorf("purpose is required")
@@ -73,6 +75,8 @@ func ModelRequest(
 		config = modelConfig.GetRoleForOutputTokens(params.EstimatedOutputTokens)
 		modelConfig = &config
 	}
+
+	log.Printf("Model config - role: %s, model: %s, max output tokens: %d\n", modelConfig.Role, modelConfig.BaseModelConfig.ModelName, modelConfig.BaseModelConfig.MaxOutputTokens)
 
 	_, apiErr := hooks.ExecHook(hooks.WillSendModelRequest, hooks.HookParams{
 		Auth: auth,
@@ -150,10 +154,11 @@ func ModelRequest(
 				InputTokens:    inputTokens,
 				OutputTokens:   outputTokens,
 				CachedTokens:   cachedTokens,
+				ModelId:        modelConfig.BaseModelConfig.ModelId,
 				ModelName:      modelConfig.BaseModelConfig.ModelName,
 				ModelProvider:  modelConfig.BaseModelConfig.Provider,
 				ModelPackName:  modelPackName,
-				ModelRole:      shared.ModelRoleBuilder,
+				ModelRole:      modelConfig.Role,
 				Purpose:        purpose,
 				GenerationId:   res.GenerationId,
 				PlanId:         plan.Id,
@@ -167,6 +172,7 @@ func ModelRequest(
 				StreamResult:     res.Content,
 				ModelConfig:      modelConfig,
 				FirstTokenAt:     res.FirstTokenAt,
+				SessionId:        sessionId,
 			},
 		})
 
