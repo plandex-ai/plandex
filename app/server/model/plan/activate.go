@@ -20,6 +20,7 @@ func activatePlan(
 	prompt string,
 	buildOnly,
 	autoContext bool,
+	sessionId string,
 ) (*types.ActivePlan, error) {
 	log.Printf("Activate plan: plan ID %s on branch %s\n", plan.Id, branch)
 
@@ -53,6 +54,7 @@ func activatePlan(
 		prompt,
 		buildOnly,
 		autoContext,
+		sessionId,
 	)
 
 	modelStream = &db.ModelStream{

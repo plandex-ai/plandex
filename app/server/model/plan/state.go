@@ -19,8 +19,8 @@ func GetActivePlan(planId, branch string) *types.ActivePlan {
 	return activePlans.Get(strings.Join([]string{planId, branch}, "|"))
 }
 
-func CreateActivePlan(orgId, userId, planId, branch, prompt string, buildOnly, autoContext bool) *types.ActivePlan {
-	activePlan := types.NewActivePlan(orgId, userId, planId, branch, prompt, buildOnly, autoContext)
+func CreateActivePlan(orgId, userId, planId, branch, prompt string, buildOnly, autoContext bool, sessionId string) *types.ActivePlan {
+	activePlan := types.NewActivePlan(orgId, userId, planId, branch, prompt, buildOnly, autoContext, sessionId)
 	key := strings.Join([]string{planId, branch}, "|")
 
 	activePlans.Set(key, activePlan)
