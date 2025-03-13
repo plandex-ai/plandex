@@ -50,6 +50,24 @@ func (m streamUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case shared.StreamMessage:
 		return m.streamUpdate(&msg, false)
 
+	case contextLoadDoneMsg:
+		if msg.err != nil {
+			log.Println("failed to auto load context files:", msg.err)
+			m.updateState(func() {
+				m.err = msg.err
+				m.processing = false
+			})
+			return m, tea.Quit
+		}
+
+		// We have the loaded content in msg.text
+		m.updateState(func() {
+			m.reply += "\n\n" + msg.text + "\n\n"
+			// and keep processing
+		})
+		m.updateReplyDisplay()
+		return m, m.Tick()
+
 	case delayFileRestartMsg:
 		m.updateState(func() {
 			m.finishedByPath[msg.path] = false
@@ -67,12 +85,6 @@ func (m streamUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyMsg:
 		switch {
-
-		// more intuitive for ctrl+c to stop than send to background
-		// case bubbleKey.Matches(msg, m.keymap.quit):
-		// 	m.background = true
-		// 	return &m, tea.Quit
-
 		case bubbleKey.Matches(msg, m.keymap.stop) || bubbleKey.Matches(msg, m.keymap.quit):
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 			defer cancel()
@@ -123,18 +135,11 @@ func (m streamUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 
-		// log.Printf("state.finished: %v, state.stopped: %v, state.background: %v, numPaths: %d, numFinished: %d", state.finished, state.stopped, state.background, numPaths, numFinished)
-
 		if !state.finished && !state.stopped && !state.background && numPaths > 0 && numPaths != numFinished {
-			// log.Println("build status poll - making api call")
 			status, apiErr := api.Client.GetBuildStatus(lib.CurrentPlanId, lib.CurrentBranch)
 			if apiErr != nil {
-				// log.Println("build status poll error:", apiErr)
 				return m, m.pollBuildStatus()
 			}
-
-			// log.Println("build status poll success")
-			// log.Printf("status: %v", status)
 
 			m.updateState(func() {
 				for path, isBuilt := range status.BuiltFiles {
@@ -340,9 +345,7 @@ func (m *streamUIModel) streamUpdate(msg *shared.StreamMessage, deferUIUpdate bo
 		cmds := []tea.Cmd{}
 		for _, subMsg := range msg.StreamMessages {
 			teaModel, cmd := m.streamUpdate(&subMsg, true)
-
 			m = teaModel.(*streamUIModel)
-
 			if cmd != nil {
 				cmds = append(cmds, cmd)
 			}
@@ -376,9 +379,6 @@ func (m *streamUIModel) streamUpdate(msg *shared.StreamMessage, deferUIUpdate bo
 		return m.checkMissingFile(msg)
 
 	case shared.StreamMessageReply:
-		// log.Println("Stream message reply:")
-		// log.Println(spew.Sdump(msg))
-
 		// ignore empty reply messages
 		if msg.ReplyChunk == "" {
 			return m, nil
@@ -416,9 +416,6 @@ func (m *streamUIModel) streamUpdate(msg *shared.StreamMessage, deferUIUpdate bo
 		}
 
 	case shared.StreamMessageBuildInfo:
-		// log.Println("Stream message build info")
-		// log.Println(spew.Sdump(msg))
-
 		state := m.readState()
 
 		if state.starting {
@@ -479,43 +476,27 @@ func (m *streamUIModel) streamUpdate(msg *shared.StreamMessage, deferUIUpdate bo
 
 	case shared.StreamMessageDescribing:
 		log.Println("Message describing, setting processing to true")
-
 		m.updateState(func() {
 			m.processing = true
 		})
-
 		return m, m.Tick()
 
+		// Instead of blocking here, we'll spawn a command
 	case shared.StreamMessageLoadContext:
-		log.Println("Stream message auto-load context")
-
-		ctx, cancel := context.WithCancel(context.Background())
-		m.autoLoadContextCancelFn = cancel
-
-		msg, err := lib.AutoLoadContextFiles(ctx, msg.LoadContextFiles)
-
-		m.autoLoadContextCancelFn = nil
-
-		if err != nil {
-			log.Println("failed to auto load context files:", err)
-			m.err = err
-			return m, tea.Quit
-		}
-
 		m.updateState(func() {
-			m.reply += "\n\n" + msg + "\n\n"
+			m.processing = true
 		})
-
-		m.updateReplyDisplay()
-
-		return m, m.Tick()
+		return m, tea.Batch(
+			loadContextCmd(msg.LoadContextFiles),
+			tea.Tick(time.Second/10, func(t time.Time) tea.Msg {
+				return spinner.TickMsg{}
+			}),
+		)
 
 	case shared.StreamMessageError:
-		log.Println("Stream message error")
-		log.Println(spew.Sdump(msg))
+		log.Println("Stream message error:", spew.Sdump(msg))
 
 		state := m.readState()
-
 		if state.autoLoadContextCancelFn != nil {
 			state.autoLoadContextCancelFn()
 		}
@@ -526,7 +507,6 @@ func (m *streamUIModel) streamUpdate(msg *shared.StreamMessage, deferUIUpdate bo
 		return m, tea.Quit
 
 	case shared.StreamMessageFinished:
-		// log.Println("stream finished")
 		m.updateState(func() {
 			m.finished = true
 		})
@@ -585,15 +565,11 @@ func (m *streamUIModel) resolveEscapeSequence(val string) {
 			escSeq += val
 
 			if escSeq == "esc[A" || escSeq == "alt+[A" {
-				// log.Println("up")
 				m.up()
-
 				escReceivedAt = time.Time{}
 				escSeq = ""
 			} else if escSeq == "esc[B" || escSeq == "alt+[B" {
-				// log.Println("down")
 				m.down()
-
 				escReceivedAt = time.Time{}
 				escSeq = ""
 			}
@@ -603,7 +579,6 @@ func (m *streamUIModel) resolveEscapeSequence(val string) {
 
 func (m *streamUIModel) up() {
 	state := m.readState()
-
 	if state.promptingMissingFile {
 		m.updateState(func() {
 			m.missingFileSelectedIdx = max(m.missingFileSelectedIdx-1, 0)
@@ -618,7 +593,6 @@ func (m *streamUIModel) up() {
 
 func (m *streamUIModel) down() {
 	state := m.readState()
-
 	if state.promptingMissingFile {
 		m.updateState(func() {
 			m.missingFileSelectedIdx = min(m.missingFileSelectedIdx+1, len(missingFileSelectOpts)-1)
@@ -628,12 +602,10 @@ func (m *streamUIModel) down() {
 			m.buildViewCollapsed = true
 		})
 	}
-
 }
 
 func (m *streamUIModel) selectedMissingFileOpt() (tea.Model, tea.Cmd) {
 	state := m.readState()
-
 	choice := promptChoices[state.missingFileSelectedIdx]
 
 	if choice == "" {
@@ -659,7 +631,6 @@ func (m *streamUIModel) selectedMissingFileOpt() (tea.Model, tea.Cmd) {
 		m.updateState(func() {
 			m.reply = strings.Join(replyLines[:len(replyLines)-3], "\n")
 		})
-
 		m.updateReplyDisplay()
 	}
 
@@ -731,7 +702,6 @@ func (m *streamUIModel) checkMissingFile(msg *shared.StreamMessage) (tea.Model, 
 			m.missingFilePath = msg.MissingFilePath
 		})
 
-		log.Println("checkMissingFile - reading file")
 		bytes, err := os.ReadFile(m.missingFilePath)
 		if err != nil {
 			log.Println("failed to read file:", err)
@@ -742,12 +712,10 @@ func (m *streamUIModel) checkMissingFile(msg *shared.StreamMessage) (tea.Model, 
 		}
 
 		missingFileContent := string(bytes)
-
 		m.updateState(func() {
 			m.missingFileContent = missingFileContent
 		})
 
-		log.Println("checkMissingFile - estimating tokens")
 		numTokens := shared.GetNumTokensEstimate(missingFileContent)
 		m.updateState(func() {
 			m.missingFileTokens = numTokens
@@ -755,4 +723,26 @@ func (m *streamUIModel) checkMissingFile(msg *shared.StreamMessage) (tea.Model, 
 	}
 
 	return m, nil
+}
+
+// contextLoadDoneMsg is sent when the long-running AutoLoadContextFiles completes
+type contextLoadDoneMsg struct {
+	text string
+	err  error
+}
+
+func loadContextCmd(loadContextFiles []string) tea.Cmd {
+	return func() tea.Msg {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		// Run the long operation directly
+		text, err := lib.AutoLoadContextFiles(ctx, loadContextFiles)
+
+		// Return the result as a message
+		return contextLoadDoneMsg{
+			text: text,
+			err:  err,
+		}
+	}
 }
