@@ -17,7 +17,7 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
-func (fileState *activeBuildStreamFileState) buildWholeFileFallback(buildCtx context.Context, proposedContent string, desc string, comments string) (string, error) {
+func (fileState *activeBuildStreamFileState) buildWholeFileFallback(buildCtx context.Context, proposedContent string, desc string, comments string, sessionId string) (string, error) {
 	auth := fileState.auth
 	filePath := fileState.filePath
 	clients := fileState.clients
@@ -78,6 +78,9 @@ func (fileState *activeBuildStreamFileState) buildWholeFileFallback(buildCtx con
 		willCacheNumTokens = headNumTokens
 	}
 
+	log.Println("buildWholeFile - calling model.ModelRequest")
+	// spew.Dump(messages)
+
 	modelRes, err := model.ModelRequest(buildCtx, model.ModelRequestParams{
 		Clients:     clients,
 		Auth:        auth,
@@ -102,11 +105,13 @@ func (fileState *activeBuildStreamFileState) buildWholeFileFallback(buildCtx con
 		},
 
 		WillCacheNumTokens: willCacheNumTokens,
+
+		SessionId: sessionId,
 	})
 
 	if err != nil {
 		if errors.Is(err, context.Canceled) {
-			log.Printf("Context canceled during buildWholeFile")
+			log.Printf("buildWholeFileFallback - context canceled during model request for file %s", filePath)
 			return "", err
 		}
 
@@ -124,13 +129,13 @@ func (fileState *activeBuildStreamFileState) buildWholeFileFallback(buildCtx con
 
 	if wholeFile == "" {
 		log.Printf("buildWholeFile - no whole file found in response\n")
-		return fileState.wholeFileRetryOrError(buildCtx, proposedContent, desc, comments, fmt.Errorf("no whole file found in response"))
+		return fileState.wholeFileRetryOrError(buildCtx, proposedContent, desc, comments, sessionId, fmt.Errorf("no whole file found in response"))
 	}
 
 	return wholeFile, nil
 }
 
-func (fileState *activeBuildStreamFileState) wholeFileRetryOrError(buildCtx context.Context, proposedContent string, desc string, comments string, err error) (string, error) {
+func (fileState *activeBuildStreamFileState) wholeFileRetryOrError(buildCtx context.Context, proposedContent string, desc string, comments string, sessionId string, err error) (string, error) {
 	if fileState.wholeFileNumRetry < MaxBuildErrorRetries {
 		fileState.wholeFileNumRetry++
 
@@ -152,7 +157,7 @@ func (fileState *activeBuildStreamFileState) wholeFileRetryOrError(buildCtx cont
 			break
 		}
 
-		return fileState.buildWholeFileFallback(buildCtx, proposedContent, desc, comments)
+		return fileState.buildWholeFileFallback(buildCtx, proposedContent, desc, comments, sessionId)
 	} else {
 		// fileState.onBuildFileError(err)
 		return "", err

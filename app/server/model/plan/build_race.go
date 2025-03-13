@@ -25,6 +25,8 @@ type buildRaceParams struct {
 
 	didCallFastApply bool
 	fastApplyCh      chan string
+
+	sessionId string
 }
 
 func (fileState *activeBuildStreamFileState) buildRace(
@@ -33,7 +35,10 @@ func (fileState *activeBuildStreamFileState) buildRace(
 	params buildRaceParams,
 ) (raceResult, error) {
 	log.Printf("buildRace - starting race for file")
-	defer cancelBuild()
+	defer func() {
+		log.Printf("buildRace - canceling build context")
+		cancelBuild()
+	}()
 
 	originalFile := fileState.preBuildState
 
@@ -43,7 +48,7 @@ func (fileState *activeBuildStreamFileState) buildRace(
 	reasons := params.reasons
 	syntaxErrors := params.syntaxErrors
 	fastApplyCh := params.fastApplyCh
-
+	sessionId := params.sessionId
 	log.Printf("buildRace - original file length: %d, updated length: %d", len(originalFile), len(updated))
 	log.Printf("buildRace - has %d syntax errors and %d verify reasons", len(syntaxErrors), len(reasons))
 
@@ -73,7 +78,14 @@ func (fileState *activeBuildStreamFileState) buildRace(
 	startWholeFileBuild := func(comments string) {
 		log.Printf("buildRace - starting whole file fallback build")
 		go func() {
-			content, err := fileState.buildWholeFileFallback(buildCtx, proposedContent, desc, comments)
+			select {
+			case <-buildCtx.Done():
+				log.Printf("buildRace - context already canceled, skipping whole file build")
+				return
+			default:
+			}
+
+			content, err := fileState.buildWholeFileFallback(buildCtx, proposedContent, desc, comments, sessionId)
 
 			if err != nil {
 				if errors.Is(err, context.Canceled) {
@@ -130,7 +142,7 @@ func (fileState *activeBuildStreamFileState) buildRace(
 				return
 			}
 
-			log.Printf("buildRace - fast apply succeeded, validating...	")
+			log.Printf("buildRace - fast apply returned, validating...	")
 			validateResult, err := fileState.buildValidateLoop(buildCtx, buildValidateLoopParams{
 				originalFile:    originalFile,
 				updated:         fastApplyRes,
@@ -142,6 +154,7 @@ func (fileState *activeBuildStreamFileState) buildRace(
 				maxAttempts:                1,
 				validateOnlyOnFinalAttempt: true,
 				isInitial:                  false,
+				sessionId:                  sessionId,
 			})
 
 			if err != nil {
@@ -205,6 +218,7 @@ func (fileState *activeBuildStreamFileState) buildRace(
 			syntaxErrors:         syntaxErrors,
 			initialPhaseOnStream: onInitialStream,
 			isInitial:            true,
+			sessionId:            sessionId,
 		})
 
 		fileState.builderRun.AutoApplyValidationFinishedAt = time.Now()

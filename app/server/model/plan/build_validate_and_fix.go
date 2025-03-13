@@ -32,6 +32,7 @@ type buildValidateLoopParams struct {
 	validateOnlyOnFinalAttempt bool
 	maxAttempts                int
 	isInitial                  bool
+	sessionId                  string
 }
 
 type buildValidateLoopResult struct {
@@ -115,6 +116,7 @@ func (fileState *activeBuildStreamFileState) buildValidateLoop(
 			validateOnly:    isLastAttempt && params.validateOnlyOnFinalAttempt,
 			phase:           currentAttempt,
 			isInitial:       params.isInitial,
+			sessionId:       params.sessionId,
 		}
 
 		log.Printf("Calling buildValidate for attempt %d", currentAttempt)
@@ -168,6 +170,7 @@ type buildValidateParams struct {
 	modelConfig     *shared.ModelRoleConfig
 	validateOnly    bool
 	isInitial       bool
+	sessionId       string
 }
 
 type buildValidateResult struct {
@@ -253,6 +256,9 @@ func (fileState *activeBuildStreamFileState) buildValidate(
 		willCacheNumTokens = headNumTokens
 	}
 
+	log.Printf("buildValidate - calling model.ModelRequest")
+	// spew.Dump(messages)
+
 	// Use ModelRequest for both formats
 	res, err := model.ModelRequest(ctx, model.ModelRequestParams{
 		Clients:        clients,
@@ -277,6 +283,7 @@ func (fileState *activeBuildStreamFileState) buildValidate(
 		OnStream: onStream,
 
 		WillCacheNumTokens: willCacheNumTokens,
+		SessionId:          params.sessionId,
 	})
 
 	if err != nil {

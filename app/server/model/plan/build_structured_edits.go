@@ -146,6 +146,8 @@ func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 
 			didCallFastApply: calledFastApply,
 			fastApplyCh:      fastApplyCh,
+
+			sessionId: activePlan.SessionId,
 		}
 
 		buildRaceResult, err := fileState.buildRace(buildCtx, cancelBuild, buildRaceParams)
