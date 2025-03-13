@@ -62,7 +62,7 @@
 <br>
 
 <h1 align="center" >
-  An AI coding agent for large tasks and real world projects.<br/><br/>
+  An AI coding agent designed for large tasks and real world projects.<br/><br/>
 </h1>
 
 <!-- <h2 align="center">
@@ -91,27 +91,37 @@
 ## Smart context management that works in big projects
 
 - 🐘 **2M token effective context window** with default model pack. Plandex loads only what's needed for each step.
+
 - 🗄️ **Reliable in large projects and files.** Easily generate, review, revise, and apply changes spanning dozens of files.
+
 - 🗺️ **Fast project map generation** and syntax validation with tree-sitter. Supports 30+ languages.
+
 - 💰 **Context caching** is used across the board for OpenAI and Anthropic models, reducing costs and latency.
 
 ## Tight control or full autonomy—it's up to you
 
 - 🚦 **Configurable autonomy:** go from full auto mode to fine-grained control depending on the task.
+
 - 🐞 **Automated debugging** of terminal commands (like builds, linters, tests, deployments, and scripts).
 
 ## Tools that help you get production-ready results
 
 - 💬 **A project-aware chat mode** that helps you flesh out ideas before moving to implementation. Also great for asking questions and learning about a codebase.
+
 - 🧠 **Easily try + combine models** from multiple providers. Curated model packs offer different tradeoffs of capability, cost, and speed, as well as open source and provider-specific packs.
+
 - 🛡️ **Reliable file edits** that prioritize correctness. While most edits are quick and cheap, Plandex validates both syntax and logic as needed, with multiple fallback layers when there are problems.
+
 - 🔀 **Full-fledged version control** for every update to the plan, including branches for exploring multiple paths or comparing different models.
+
 - 📂 **Git integration** with commit message generation and optional automatic commits.
 
 ## Dev-friendly, easy to install
 
 - 🧑‍💻 **REPL mode** with fuzzy auto-complete for commands and file loading. Just run `plandex` in any project to get started.
+
 - 🛠️ **CLI interface** for scripting or piping data into context.
+
 - 📦 **One-line, zero dependency CLI install**. Dockerized local mode for easily self-hosting the server. Cloud-hosting options for extra reliability and convenience.
 
 <!-- <br/>
@@ -176,7 +186,7 @@ curl -sL https://plandex.ai/install.sh | bash
 
 | Option                                | Description                                                                                                                                                                                                                                                 |
 | ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Plandex Cloud (Integrated Models)** | • No separate accounts or API keys.<br/>• Easy multi-device usage.<br/>• Centralized billing and budgeting.<br/>• Quickest way to [get started.](https://app.plandex.ai/start?modelsMode=integrated)                                                        |
+| **Plandex Cloud (Integrated Models)** | • No separate accounts or API keys.<br/>• Easy multi-device usage.<br/>• Centralized billing, budgeting, usage tracking, and cost reporting.<br/>• Quickest way to [get started.](https://app.plandex.ai/start?modelsMode=integrated)                                                        |
 | **Plandex Cloud (BYO API Key)**       | • Use Plandex Cloud with your own [OpenRouter.ai](https://openrouter.ai) and [OpenAI](https://platform.openai.com) keys.<br/>• [Get started](https://app.plandex.ai/start?modelsMode=byo)                                                                   |
 | **Self-hosted/Local Mode**            | • Run Plandex locally with Docker or host on your own server.<br/>• Use your own [OpenRouter.ai](https://openrouter.ai) and [OpenAI](https://platform.openai.com) keys.<br/>• Follow the [local-mode quickstart](./hosting/self-hosting.md) to get started. |
 
