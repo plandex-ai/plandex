@@ -11,43 +11,43 @@ import (
 )
 
 type getTellSysPromptParams struct {
-	autoContextEnabled  bool
-	smartContextEnabled bool
-	basicContextMsg     *types.ExtendedChatMessagePart
-	autoContextMsg      *types.ExtendedChatMessagePart
-	smartContextMsg     *types.ExtendedChatMessagePart
+	planStageSharedMsgs   []*types.ExtendedChatMessagePart
+	planningPhaseOnlyMsgs []*types.ExtendedChatMessagePart
+	implementationMsgs    []*types.ExtendedChatMessagePart
+	contextTokenLimit     int
+	dryRunWithoutContext  bool
 }
 
 func (state *activeTellStreamState) getTellSysPrompt(params getTellSysPromptParams) ([]types.ExtendedChatMessagePart, error) {
-	autoContextEnabled := params.autoContextEnabled
-	smartContextEnabled := params.smartContextEnabled
-	basicContextMsg := params.basicContextMsg
-	autoContextMsg := params.autoContextMsg
-	smartContextMsg := params.smartContextMsg
+	planningSharedMsgs := params.planStageSharedMsgs
+	plannerOnlyMsgs := params.planningPhaseOnlyMsgs
+	implementationMsgs := params.implementationMsgs
+	contextTokenLimit := params.contextTokenLimit
 	req := state.req
 	active := state.activePlan
 	currentStage := state.currentStage
 
-	// var sysCreate string
-
 	sysParts := []types.ExtendedChatMessagePart{}
 
 	createPromptParams := prompts.CreatePromptParams{
-		ExecMode:     req.ExecEnabled,
-		AutoContext:  autoContextEnabled,
-		IsUserDebug:  req.IsUserDebug,
-		IsApplyDebug: req.IsApplyDebug,
-		IsGitRepo:    req.IsGitRepo,
+		ExecMode:          req.ExecEnabled,
+		AutoContext:       req.AutoContext,
+		IsUserDebug:       req.IsUserDebug,
+		IsApplyDebug:      req.IsApplyDebug,
+		IsGitRepo:         req.IsGitRepo,
+		ContextTokenLimit: contextTokenLimit,
 	}
 
 	// log.Println("getTellSysPrompt - prompt params:", spew.Sdump(params))
 
 	if currentStage.TellStage == shared.TellStagePlanning {
-		if basicContextMsg != nil {
-			basicContextMsg.CacheControl = &types.CacheControlSpec{
-				Type: types.CacheControlTypeEphemeral,
-			}
-			sysParts = append(sysParts, *basicContextMsg)
+		if len(planningSharedMsgs) == 0 && !params.dryRunWithoutContext {
+			log.Println("planningSharedMsgs is empty - required for planning stage")
+			return nil, fmt.Errorf("planningSharedMsgs is empty - required for planning stage")
+		}
+
+		for _, msg := range planningSharedMsgs {
+			sysParts = append(sysParts, *msg)
 		}
 
 		if currentStage.PlanningPhase == shared.PlanningPhaseContext {
@@ -67,7 +67,7 @@ func (state *activeTellStreamState) getTellSysPrompt(params getTellSysPromptPara
 					Type: types.CacheControlTypeEphemeral,
 				},
 			})
-		} else if currentStage.PlanningPhase == shared.PlanningPhasePlanning {
+		} else if currentStage.PlanningPhase == shared.PlanningPhaseTasks {
 
 			var txt string
 			if req.IsChatOnly {
@@ -112,25 +112,17 @@ func (state *activeTellStreamState) getTellSysPrompt(params getTellSysPromptPara
 			}
 		}
 
-		if autoContextMsg != nil {
-			sysParts = append(sysParts, *autoContextMsg)
+		for _, msg := range plannerOnlyMsgs {
+			sysParts = append(sysParts, *msg)
 		}
 
-		if smartContextMsg != nil {
-			log.Println("smartContextMsg not supported during planning stage - only basic or auto context is supported")
-			return nil, fmt.Errorf("smartContextMsg not supported during planning stage - only basic or auto context is supported")
+		if len(implementationMsgs) > 0 {
+			return nil, fmt.Errorf("implementationMsgs not supported during planning phase")
 		}
 
 	} else if currentStage.TellStage == shared.TellStageImplementation {
 		if state.currentSubtask == nil {
-			return nil, fmt.Errorf("no current subtask during implementation stage")
-		}
-
-		if !smartContextEnabled && basicContextMsg != nil {
-			basicContextMsg.CacheControl = &types.CacheControlSpec{
-				Type: types.CacheControlTypeEphemeral,
-			}
-			sysParts = append(sysParts, *basicContextMsg)
+			return nil, fmt.Errorf("All tasks have been completed. There is no current task to implement.")
 		}
 
 		if len(state.subtasks) > 0 {
@@ -169,13 +161,18 @@ func (state *activeTellStreamState) getTellSysPrompt(params getTellSysPromptPara
 			}
 		}
 
-		if smartContextMsg != nil {
-			sysParts = append(sysParts, *smartContextMsg)
+		if implementationMsgs != nil {
+			for _, msg := range implementationMsgs {
+				sysParts = append(sysParts, *msg)
+			}
+		} else if !params.dryRunWithoutContext {
+			log.Println("implementationMsgs is nil - required for implementation stage")
+			return nil, fmt.Errorf("implementationMsgs is nil - required for implementation stage")
 		}
 
-		if autoContextMsg != nil {
-			log.Println("autoContextMsg not supported during implementation stage - only basic or smart context is supported")
-			return nil, fmt.Errorf("autoContextMsg not supported during implementation stage - only basic or smart context is supported")
+		if planningSharedMsgs != nil {
+			log.Println("planningSharedMsgs not supported during implementation stage - only basic or smart context is supported")
+			return nil, fmt.Errorf("planningSharedMsgs not supported during implementation stage - only basic or smart context is supported")
 		}
 	}
 
