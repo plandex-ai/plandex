@@ -52,6 +52,15 @@ type AvailableModel struct {
 	UpdatedAt             time.Time `json:"updatedAt"`
 }
 
+func (m *AvailableModel) ModelString() string {
+	s := ""
+	if m.Provider != ModelProviderOpenAI {
+		s += string(m.Provider) + "/"
+	}
+	s += string(m.ModelId)
+	return s
+}
+
 type PlannerModelConfig struct {
 	MaxConvoTokens int `json:"maxConvoTokens"`
 }
@@ -224,7 +233,11 @@ func (p PlannerRoleConfig) GetRoleForTokens(tokens int) PlannerRoleConfig {
 	var currentConfig PlannerRoleConfig = p
 	var n int = 0
 	for {
-		if currentConfig.BaseModelConfig.MaxTokens >= tokens {
+		effectiveMax := currentConfig.BaseModelConfig.MaxTokens
+		effectiveMax -= currentConfig.BaseModelConfig.ReservedOutputTokens
+		effectiveMax = int(float64(effectiveMax) * 0.9) // leave a little extra room
+
+		if effectiveMax >= tokens {
 			return currentConfig
 		}
 

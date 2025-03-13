@@ -81,7 +81,7 @@ func SelectModelForRole(customModels []*shared.AvailableModel, role shared.Model
 			}
 
 			if p == provider {
-				label := fmt.Sprintf("%s → %s | max %d 🪙", m.Provider, m.ModelName, m.MaxTokens)
+				label := fmt.Sprintf("%s | max %d 🪙", m.ModelString(), m.MaxTokens)
 				opts = append(opts, label)
 				selectableModels = append(selectableModels, m)
 			}
