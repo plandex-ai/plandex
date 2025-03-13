@@ -59,7 +59,7 @@ func (state *activeTellStreamState) formatSubtasks() string {
 			subtasksText += strings.Join(usesFiles, ", ") + "\n"
 		}
 	} else if state.currentStage.TellStage == shared.TellStagePlanning {
-		if state.currentStage.PlanningPhase == shared.PlanningPhasePlanning {
+		if state.currentStage.PlanningPhase == shared.PlanningPhaseTasks {
 			subtasksText += `
 			
 			Remember, you are in the *PLANNING* phase and ABSOLUTELY MUST NOT implement any of the subtasks. You MUST NOT write any code or create any files. You can ONLY add or remove subtasks with a '### Tasks' section or a '### Remove Tasks' section. You CANNOT implement any of the subtasks in this response. Follow the PLANNING instructions. The existing subtasks are included for your reference so that you can see what has been planned so far, what has been done, and what is left to do, so that you can add or remove subtasks as needed. DO NOT implement any of the subtasks in this response-follow the instructions for the PLANNING phase.
