@@ -10,11 +10,11 @@ import (
 )
 
 const (
-	MaxContextBodySize     = 10 * 1024 * 1024 // 10MB
-	MaxContextCount        = 500
-	MaxContextMapPaths     = 2000
-	MaxContextMapInputSize = 100 * 1024 * 1024      // 100MB
-	MaxTotalContextSize    = 2 * 1024 * 1024 * 1024 // 2GB
+	MaxContextBodySize     = 25 * 1024 * 1024 // 25MB
+	MaxContextCount        = 1000
+	MaxContextMapPaths     = 3000
+	MaxContextMapInputSize = 250 * 1024 * 1024      // 250MB
+	MaxTotalContextSize    = 1 * 1024 * 1024 * 1024 // 1GB
 )
 
 type ContextUpdateResult struct {
@@ -60,7 +60,7 @@ func (c *Context) TypeAndIcon() (string, string) {
 	return t, icon
 }
 
-func TableForLoadContext(contexts []*Context) string {
+func TableForLoadContext(contexts []*Context, plaintext bool) string {
 	tableString := &strings.Builder{}
 	table := tablewriter.NewWriter(tableString)
 	table.SetHeader([]string{"Name", "Type", "🪙"})
@@ -74,11 +74,15 @@ func TableForLoadContext(contexts []*Context) string {
 			"+" + strconv.Itoa(context.NumTokens),
 		}
 
-		table.Rich(row, []tablewriter.Colors{
-			{tablewriter.FgHiGreenColor, tablewriter.Bold},
-			{tablewriter.FgHiGreenColor},
-			{tablewriter.FgHiGreenColor},
-		})
+		if !plaintext {
+			table.Rich(row, []tablewriter.Colors{
+				{tablewriter.FgHiGreenColor, tablewriter.Bold},
+				{tablewriter.FgHiGreenColor},
+				{tablewriter.FgHiGreenColor},
+			})
+		} else {
+			table.Append(row)
+		}
 	}
 
 	table.Render()

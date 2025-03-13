@@ -24,5 +24,9 @@ func (f *ConvoMessageFlags) GetReplyTags() []string {
 		replyTags = append(replyTags, "🏁")
 	}
 
+	if f.HasError {
+		replyTags = append(replyTags, "🚨 Finished With Errors")
+	}
+
 	return replyTags
 }
