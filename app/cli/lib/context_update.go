@@ -2,6 +2,7 @@ package lib
 
 import (
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"fmt"
 	"os"
@@ -205,7 +206,6 @@ func UpdateContextWithOutput(params UpdateContextParams) (UpdateContextResult, e
 	term.StartSpinner("🔄 Updating context...")
 
 	updateRes, err := UpdateContext(params)
-
 	if err != nil {
 		return UpdateContextResult{}, err
 	}
@@ -253,15 +253,11 @@ func UpdateContext(params UpdateContextParams) (UpdateContextResult, error) {
 	}
 
 	if len(req) > 0 {
-		// log.Println("updating context")
 		res, apiErr := api.Client.UpdateContext(CurrentPlanId, CurrentBranch, req)
 		if apiErr != nil {
 			return UpdateContextResult{}, fmt.Errorf("failed to update context: %v", apiErr)
 		}
-		// log.Println("updated context")
-		// log.Println("res.Msg", res.Msg)
 		msg = res.Msg
-	} else {
 	}
 
 	if len(deleteIds) > 0 {
@@ -276,7 +272,7 @@ func UpdateContext(params UpdateContextParams) (UpdateContextResult, error) {
 
 	return UpdateContextResult{
 		HasConflicts: hasConflicts,
-		Msg:          msg,
+		Msg:          strings.TrimSpace(msg),
 	}, nil
 }
 
@@ -298,8 +294,8 @@ func checkOutdatedAndMaybeUpdateContext(doUpdate bool, maybeContexts []*shared.C
 	}
 
 	totalTokens := 0
-	for _, context := range contexts {
-		totalTokens += context.NumTokens
+	for _, c := range contexts {
+		totalTokens += c.NumTokens
 	}
 
 	var errs []error
@@ -315,233 +311,350 @@ func checkOutdatedAndMaybeUpdateContext(doUpdate bool, maybeContexts []*shared.C
 	var numTreesRemoved int
 	var mu sync.Mutex
 	var wg sync.WaitGroup
-	contextsById := map[string]*shared.Context{}
-	deleteIds := map[string]bool{}
+	contextsById := make(map[string]*shared.Context)
+	deleteIds := make(map[string]bool)
 
 	paths := projectPaths
 
+	// We track skipped items for final warnings
+	var filesSkippedTooLarge []struct {
+		Path string
+		Size int64
+	}
+	var filesSkippedAfterSizeLimit []string
+	var mapFilesSkippedTooLarge []struct {
+		Path string
+		Size int64
+	}
+	var mapFilesSkippedAfterSizeLimit []string
+
+	// Partial skipping needs to track cumulative sizes
+	var totalSize int64
+	var totalMapSize int64
+	var totalBodySize int64
+	var totalContextCount int
+
+	for _, c := range contexts {
+		contextsById[c.Id] = c
+	}
+
 	for _, context := range contexts {
-		contextsById[context.Id] = context
-
-		if context.ContextType == shared.ContextFileType {
+		switch context.ContextType {
+		case shared.ContextFileType:
 			wg.Add(1)
-			go func(context *shared.Context) {
+			go func(ctx *shared.Context) {
 				defer wg.Done()
-
 				mu.Lock()
 				defer mu.Unlock()
 
-				if _, err := os.Stat(context.FilePath); os.IsNotExist(err) {
-					deleteIds[context.Id] = true
+				if _, e := os.Stat(ctx.FilePath); os.IsNotExist(e) {
+					deleteIds[ctx.Id] = true
 					numFilesRemoved++
-					tokenDiffsById[context.Id] = -context.NumTokens
+					tokenDiffsById[ctx.Id] = -ctx.NumTokens
 					return
 				}
 
-				fileContent, err := os.ReadFile(context.FilePath)
+				fileContent, e := os.ReadFile(ctx.FilePath)
+				if e != nil {
+					errs = append(errs, fmt.Errorf("failed to read the file %s: %v", ctx.FilePath, e))
+					return
+				}
+				fileInfo, e := os.Stat(ctx.FilePath)
+				if e != nil {
+					errs = append(errs, fmt.Errorf("failed to get file info for %s: %v", ctx.FilePath, e))
+					return
+				}
+				size := fileInfo.Size()
 
-				if err != nil {
-					errs = append(errs, fmt.Errorf("failed to read the file %s: %v", context.FilePath, err))
+				// Individual skip checks
+				if size > shared.MaxContextBodySize {
+					filesSkippedTooLarge = append(filesSkippedTooLarge, struct {
+						Path string
+						Size int64
+					}{Path: ctx.FilePath, Size: size})
+					return
+				}
+				if totalSize+size > shared.MaxContextBodySize {
+					filesSkippedAfterSizeLimit = append(filesSkippedAfterSizeLimit, ctx.FilePath)
 					return
 				}
 
+				// Compare new sha
 				hash := sha256.Sum256(fileContent)
 				sha := hex.EncodeToString(hash[:])
+				if sha != ctx.Sha {
+					// Check context count & overall body size
+					if totalContextCount >= shared.MaxContextCount {
+						filesSkippedAfterSizeLimit = append(filesSkippedAfterSizeLimit, ctx.FilePath)
+						return
+					}
 
-				if sha != context.Sha {
-					// log.Println()
-					// log.Println("context.FilePath", context.FilePath)
-					// log.Println("context.Sha", context.Sha, "sha", sha)
-					// log.Println("fileContent", string(fileContent))
-					// log.Println()
+					oldBodySize := int64(len(ctx.Body))
+					newBodySize := int64(len(fileContent))
+					if totalBodySize+(newBodySize-oldBodySize) > shared.MaxContextBodySize {
+						filesSkippedAfterSizeLimit = append(filesSkippedAfterSizeLimit, ctx.FilePath)
+						return
+					}
 
-					body := string(fileContent)
+					// Accept
+					totalSize += size
+					totalContextCount++
+					totalBodySize += (newBodySize - oldBodySize)
 
-					numTokens := shared.GetNumTokensEstimate(body)
-					tokenDiffsById[context.Id] = numTokens - context.NumTokens
+					var numTokens int
+					if shared.IsImageFile(ctx.FilePath) {
+						tokens, err := shared.GetImageTokens(base64.StdEncoding.EncodeToString(fileContent), ctx.ImageDetail)
+						if err != nil {
+							errs = append(errs, fmt.Errorf("failed to get image tokens for %s: %v", ctx.FilePath, err))
+							return
+						}
+						numTokens = tokens
+					} else {
+						numTokens = shared.GetNumTokensEstimate(string(fileContent))
+					}
 
+					tokenDiffsById[ctx.Id] = numTokens - ctx.NumTokens
 					numFiles++
-					updatedContexts = append(updatedContexts, context)
-
-					req[context.Id] = &shared.UpdateContextParams{
-						Body: body,
+					updatedContexts = append(updatedContexts, ctx)
+					req[ctx.Id] = &shared.UpdateContextParams{
+						Body: string(fileContent),
 					}
 				}
 			}(context)
 
-		} else if context.ContextType == shared.ContextDirectoryTreeType {
+		case shared.ContextDirectoryTreeType:
 			wg.Add(1)
-			go func(context *shared.Context) {
+			go func(ctx *shared.Context) {
 				defer wg.Done()
 
-				// check if the directory tree exists
-				if _, err := os.Stat(context.FilePath); os.IsNotExist(err) {
+				if _, e := os.Stat(ctx.FilePath); os.IsNotExist(e) {
 					mu.Lock()
-					defer mu.Unlock()
-					deleteIds[context.Id] = true
+					deleteIds[ctx.Id] = true
 					numTreesRemoved++
-					tokenDiffsById[context.Id] = -context.NumTokens
+					tokenDiffsById[ctx.Id] = -ctx.NumTokens
+					mu.Unlock()
 					return
 				}
 
-				baseDir := fs.GetBaseDirForFilePaths([]string{context.FilePath})
-
-				flattenedPaths, err := ParseInputPaths(ParseInputPathsParams{
-					FileOrDirPaths: []string{context.FilePath},
+				baseDir := fs.GetBaseDirForFilePaths([]string{ctx.FilePath})
+				flattenedPaths, e := ParseInputPaths(ParseInputPathsParams{
+					FileOrDirPaths: []string{ctx.FilePath},
 					BaseDir:        baseDir,
 					ProjectPaths:   paths,
 					LoadParams: &types.LoadContextParams{
 						NamesOnly:       true,
-						ForceSkipIgnore: context.ForceSkipIgnore,
+						ForceSkipIgnore: ctx.ForceSkipIgnore,
 					},
 				})
-
 				mu.Lock()
 				defer mu.Unlock()
 
-				if err != nil {
-					errs = append(errs, fmt.Errorf("failed to get the directory tree %s: %v", context.FilePath, err))
+				if e != nil {
+					errs = append(errs, fmt.Errorf("failed to get directory tree %s: %v", ctx.FilePath, e))
 					return
 				}
 
-				if !context.ForceSkipIgnore {
-					if paths == nil {
-						errs = append(errs, fmt.Errorf("project paths are nil"))
+				if !ctx.ForceSkipIgnore && paths != nil {
+					var filtered []string
+					for _, p := range flattenedPaths {
+						if _, ok := paths.ActivePaths[p]; ok {
+							filtered = append(filtered, p)
+						}
+					}
+					flattenedPaths = filtered
+				}
+
+				// Partial skipping for sub-paths
+				var kept []string
+				for _, p := range flattenedPaths {
+					lineSize := int64(len(p))
+					// If line is individually too large, skip
+					if lineSize > shared.MaxContextBodySize {
+						filesSkippedTooLarge = append(filesSkippedTooLarge, struct {
+							Path string
+							Size int64
+						}{Path: p, Size: lineSize})
+						continue
+					}
+					if totalSize+lineSize > shared.MaxContextBodySize {
+						filesSkippedAfterSizeLimit = append(filesSkippedAfterSizeLimit, p)
+						continue
+					}
+					// Accept
+					totalSize += lineSize
+					kept = append(kept, p)
+				}
+				body := strings.Join(kept, "\n")
+				newHash := sha256.Sum256([]byte(body))
+				newSha := hex.EncodeToString(newHash[:])
+
+				if newSha != ctx.Sha {
+					if totalContextCount >= shared.MaxContextCount {
+						filesSkippedAfterSizeLimit = append(filesSkippedAfterSizeLimit, ctx.FilePath)
 						return
 					}
 
-					var filteredPaths []string
-					for _, path := range flattenedPaths {
-						if _, ok := paths.ActivePaths[path]; ok {
-							filteredPaths = append(filteredPaths, path)
-						}
+					oldBodySize := int64(len(ctx.Body))
+					newBodySize := int64(len(body))
+					if totalBodySize+(newBodySize-oldBodySize) > shared.MaxContextBodySize {
+						filesSkippedAfterSizeLimit = append(filesSkippedAfterSizeLimit, ctx.FilePath)
+						return
 					}
-					flattenedPaths = filteredPaths
-				}
 
-				body := strings.Join(flattenedPaths, "\n")
-				bytes := []byte(body)
+					totalContextCount++
+					totalBodySize += (newBodySize - oldBodySize)
 
-				hash := sha256.Sum256(bytes)
-				sha := hex.EncodeToString(hash[:])
-
-				if sha != context.Sha {
 					numTokens := shared.GetNumTokensEstimate(body)
-					tokenDiffsById[context.Id] = numTokens - context.NumTokens
-
+					tokenDiffsById[ctx.Id] = numTokens - ctx.NumTokens
 					numTrees++
-					updatedContexts = append(updatedContexts, context)
-					req[context.Id] = &shared.UpdateContextParams{
+					updatedContexts = append(updatedContexts, ctx)
+					req[ctx.Id] = &shared.UpdateContextParams{
 						Body: body,
 					}
 				}
 			}(context)
 
-		} else if context.ContextType == shared.ContextMapType {
+		case shared.ContextMapType:
 			wg.Add(1)
-			go func(context *shared.Context) {
+			go func(ctx *shared.Context) {
 				defer wg.Done()
-
 				mu.Lock()
 				defer mu.Unlock()
 
 				var removedMapPaths []string
-
-				// Check if any input files have changed
 				var updatedInputs = make(shared.FileMapInputs)
 				var updatedInputShas = map[string]string{}
 
-				for path, currentSha := range context.MapShas {
-					bytes, err := os.ReadFile(path)
-					if err != nil {
-						if os.IsNotExist(err) {
+				// Check existing files
+				for path, currentSha := range ctx.MapShas {
+					bytes, e := os.ReadFile(path)
+					if e != nil {
+						if os.IsNotExist(e) {
 							removedMapPaths = append(removedMapPaths, path)
 							continue
 						}
-
-						errs = append(errs, fmt.Errorf("failed to read map file %s: %v", path, err))
+						errs = append(errs, fmt.Errorf("failed to read map file %s: %v", path, e))
 						return
 					}
 
-					hash := sha256.Sum256(bytes)
-					newSha := hex.EncodeToString(hash[:])
+					fileInfo, e := os.Stat(path)
+					if e != nil {
+						errs = append(errs, fmt.Errorf("failed to stat map file %s: %v", path, e))
+						return
+					}
+					size := fileInfo.Size()
 
+					var effectiveContent string
+					if !shared.HasFileMapSupport(path) {
+						effectiveContent = ""
+					} else if size > shared.MaxContextBodySize {
+						effectiveContent = ""
+						mapFilesSkippedTooLarge = append(mapFilesSkippedTooLarge, struct {
+							Path string
+							Size int64
+						}{Path: path, Size: size})
+					} else if totalMapSize+size > shared.MaxContextMapInputSize {
+						effectiveContent = ""
+						mapFilesSkippedAfterSizeLimit = append(mapFilesSkippedAfterSizeLimit, path)
+					} else {
+						effectiveContent = string(bytes)
+						totalMapSize += size
+					}
+					hash := sha256.Sum256([]byte(effectiveContent))
+					newSha := hex.EncodeToString(hash[:])
 					if newSha != currentSha {
-						// log.Println("path", path, "newSha", newSha, "currentSha", currentSha)
-						// fmt.Println("path", path, "newSha", newSha, "currentSha", currentSha)
-						content := string(bytes)
-						updatedInputs[path] = content
+						updatedInputs[path] = effectiveContent
 						updatedInputShas[path] = newSha
 					}
 				}
 
-				// Check if new files were added
-				baseDir := fs.GetBaseDirForFilePaths([]string{context.FilePath})
-
-				flattenedPaths, err := ParseInputPaths(ParseInputPathsParams{
-					FileOrDirPaths: []string{context.FilePath},
+				// Check newly added files
+				baseDir := fs.GetBaseDirForFilePaths([]string{ctx.FilePath})
+				flattenedPaths, e := ParseInputPaths(ParseInputPathsParams{
+					FileOrDirPaths: []string{ctx.FilePath},
 					BaseDir:        baseDir,
 					ProjectPaths:   paths,
 					LoadParams:     &types.LoadContextParams{Recursive: true},
 				})
-				if err != nil {
-					errs = append(errs, fmt.Errorf("failed to get the directory tree %s: %v", context.FilePath, err))
+				if e != nil {
+					errs = append(errs, fmt.Errorf("failed to get the directory tree %s: %v", ctx.FilePath, e))
 					return
 				}
 
-				var filteredPaths []string
-				for _, inputFilePath := range flattenedPaths {
-					if _, ok := paths.ActivePaths[inputFilePath]; ok {
-						filteredPaths = append(filteredPaths, inputFilePath)
+				var filtered []string
+				if paths != nil {
+					for _, p := range flattenedPaths {
+						if _, ok := paths.ActivePaths[p]; ok {
+							filtered = append(filtered, p)
+						}
 					}
+					flattenedPaths = filtered
 				}
-				flattenedPaths = filteredPaths
 
-				for _, path := range flattenedPaths {
-					if !shared.HasFileMapSupport(path) {
+				for _, p := range flattenedPaths {
+					if !shared.HasFileMapSupport(p) {
 						continue
 					}
-
-					if _, ok := context.MapShas[path]; !ok {
-						// log.Println("path", path, "not in context.MapShas")
-
-						bytes, err := os.ReadFile(path)
-						if err != nil {
-							errs = append(errs, fmt.Errorf("failed to read map file %s: %v", path, err))
+					// If p not in ctx.MapShas => new file
+					if _, ok := ctx.MapShas[p]; !ok {
+						bytes, e := os.ReadFile(p)
+						if e != nil {
+							errs = append(errs, fmt.Errorf("failed to read map file %s: %v", p, e))
 							return
 						}
-
-						content := string(bytes)
-						updatedInputs[path] = content
+						fileInfo, e := os.Stat(p)
+						if e != nil {
+							errs = append(errs, fmt.Errorf("failed to stat map file %s: %v", p, e))
+							return
+						}
+						size := fileInfo.Size()
+						if size > shared.MaxContextBodySize {
+							mapFilesSkippedTooLarge = append(mapFilesSkippedTooLarge, struct {
+								Path string
+								Size int64
+							}{Path: p, Size: size})
+							continue
+						}
+						if totalMapSize+size > shared.MaxContextMapInputSize {
+							mapFilesSkippedAfterSizeLimit = append(mapFilesSkippedAfterSizeLimit, p)
+							continue
+						}
+						totalMapSize += size
 						hash := sha256.Sum256(bytes)
 						sha := hex.EncodeToString(hash[:])
-						updatedInputShas[path] = sha
-					} else {
+						updatedInputs[p] = string(bytes)
+						updatedInputShas[p] = sha
 					}
 				}
-				// If any files changed, get new map
 
 				if len(updatedInputs) > 0 || len(removedMapPaths) > 0 {
-					// Check total map input size and paths before making API call
-					if len(updatedInputs) > shared.MaxContextMapPaths {
-						errs = append(errs, fmt.Errorf("total map paths limit exceeded (found %d, limit %d)", len(updatedInputs), shared.MaxContextMapPaths))
+					// Check if we can update or must skip
+					if totalContextCount >= shared.MaxContextCount {
+						for p := range updatedInputs {
+							mapFilesSkippedAfterSizeLimit = append(mapFilesSkippedAfterSizeLimit, p)
+						}
+						return
+					}
+					// Estimate new size
+					var newSize int64
+					for _, v := range updatedInputs {
+						newSize += int64(len(v))
+					}
+					oldBodySize := int64(len(ctx.Body))
+					if totalBodySize+(newSize-oldBodySize) > shared.MaxContextBodySize {
+						for p := range updatedInputs {
+							mapFilesSkippedAfterSizeLimit = append(mapFilesSkippedAfterSizeLimit, p)
+						}
 						return
 					}
 
-					var totalMapSize int64
-					for _, input := range updatedInputs {
-						totalMapSize += int64(len(input))
-					}
+					totalContextCount++
+					totalBodySize += (newSize - oldBodySize)
 
-					if totalMapSize > shared.MaxContextMapInputSize {
-						errs = append(errs, fmt.Errorf("total map size limit exceeded (size %.2f MB, limit %d MB)", float64(totalMapSize)/1024/1024, int(shared.MaxContextMapInputSize)/1024/1024))
-						return
-					}
+					numMaps++
+					updatedContexts = append(updatedContexts, ctx)
 
-					updatedParts := make(shared.FileMapBodies)
-					for k, v := range context.MapParts {
-						updatedParts[k] = v
-					}
+					// Use GetFileMap to get final map bodies
 					var updatedMapBodies shared.FileMapBodies
 					if len(updatedInputs) > 0 {
 						mapRes, apiErr := api.Client.GetFileMap(shared.GetFileMapRequest{
@@ -553,65 +666,77 @@ func checkOutdatedAndMaybeUpdateContext(doUpdate bool, maybeContexts []*shared.C
 						}
 						updatedMapBodies = mapRes.MapBodies
 
-						// Update map parts with new content
+						// Update tokens
 						for path, body := range mapRes.MapBodies {
-							updatedParts[path] = body
-
-							prevTokens := context.MapTokens[path]
+							prev := ctx.MapTokens[path]
 							numTokens := mapRes.MapBodies.TokenEstimateForPath(path)
-
-							if numTokens != prevTokens {
-								tokenDiffsById[context.Id] += numTokens - prevTokens
-							}
+							tokenDiffsById[ctx.Id] += numTokens - prev
+							_ = body
 						}
 					}
 
-					if len(removedMapPaths) > 0 {
-						for _, path := range removedMapPaths {
-							delete(updatedParts, path)
-							tokenDiffsById[context.Id] -= context.MapTokens[path]
-						}
-					}
-
-					numMaps++
-					updatedContexts = append(updatedContexts, context)
-					req[context.Id] = &shared.UpdateContextParams{
+					req[ctx.Id] = &shared.UpdateContextParams{
 						MapBodies:       updatedMapBodies,
 						InputShas:       updatedInputShas,
 						RemovedMapPaths: removedMapPaths,
 					}
-
-				} else {
 				}
 			}(context)
-		} else if context.ContextType == shared.ContextURLType {
+
+		case shared.ContextURLType:
 			wg.Add(1)
-			go func(context *shared.Context) {
+			go func(ctx *shared.Context) {
 				defer wg.Done()
-				body, err := url.FetchURLContent(context.Url)
+				body, e := url.FetchURLContent(ctx.Url)
 
 				mu.Lock()
 				defer mu.Unlock()
 
-				if err != nil {
-					errs = append(errs, fmt.Errorf("failed to fetch the URL %s: %v", context.Url, err))
+				if e != nil {
+					errs = append(errs, fmt.Errorf("failed to fetch the URL %s: %v", ctx.Url, e))
+					return
+				}
+
+				size := int64(len(body))
+				if size > shared.MaxContextBodySize {
+					filesSkippedTooLarge = append(filesSkippedTooLarge, struct {
+						Path string
+						Size int64
+					}{Path: ctx.Url, Size: size})
+					return
+				}
+				if totalSize+size > shared.MaxContextBodySize {
+					filesSkippedAfterSizeLimit = append(filesSkippedAfterSizeLimit, ctx.Url)
 					return
 				}
 
 				hash := sha256.Sum256([]byte(body))
-				sha := hex.EncodeToString(hash[:])
+				newSha := hex.EncodeToString(hash[:])
+				if newSha != ctx.Sha {
+					if totalContextCount >= shared.MaxContextCount {
+						filesSkippedAfterSizeLimit = append(filesSkippedAfterSizeLimit, ctx.Url)
+						return
+					}
+					oldBodySize := int64(len(ctx.Body))
+					newBodySize := size
+					if totalBodySize+(newBodySize-oldBodySize) > shared.MaxContextBodySize {
+						filesSkippedAfterSizeLimit = append(filesSkippedAfterSizeLimit, ctx.Url)
+						return
+					}
 
-				if sha != context.Sha {
+					totalSize += size
+					totalContextCount++
+					totalBodySize += (newBodySize - oldBodySize)
+
 					numTokens := shared.GetNumTokensEstimate(body)
-					tokenDiffsById[context.Id] = numTokens - context.NumTokens
+					tokenDiffsById[ctx.Id] = numTokens - ctx.NumTokens
 
 					numUrls++
-					updatedContexts = append(updatedContexts, context)
-					req[context.Id] = &shared.UpdateContextParams{
+					updatedContexts = append(updatedContexts, ctx)
+					req[ctx.Id] = &shared.UpdateContextParams{
 						Body: body,
 					}
 				}
-
 			}(context)
 		}
 	}
@@ -622,96 +747,78 @@ func checkOutdatedAndMaybeUpdateContext(doUpdate bool, maybeContexts []*shared.C
 		return nil, fmt.Errorf("failed to check context outdated: %v", errs)
 	}
 
-	var totalContextCount int
-	var totalBodySize int64
-
-	for _, context := range contexts {
-		totalContextCount++
-		totalBodySize += int64(len(context.Body))
-	}
-
-	for _, context := range updatedContexts {
-		if req[context.Id] != nil {
-			totalBodySize += int64(len(req[context.Id].Body)) - int64(len(context.Body))
-		}
-	}
-
-	if totalContextCount > shared.MaxContextCount {
-		return nil, fmt.Errorf("too many contexts to update (found %d, limit is %d)", totalContextCount, shared.MaxContextCount)
-	}
-
-	if totalBodySize > shared.MaxContextBodySize {
-		return nil, fmt.Errorf("total context body size exceeds limit (size %.2f MB, limit %d MB)", float64(totalBodySize)/1024/1024, int(shared.MaxContextBodySize)/1024/1024)
-	}
-
+	// Identify contexts to remove
 	var removedContexts []*shared.Context
 	for id := range deleteIds {
 		removedContexts = append(removedContexts, contextsById[id])
 	}
 
-	var outdatedRes types.ContextOutdatedResult
-	var msg string
-	var hasConflicts bool
-
-	if len(req) == 0 && len(deleteIds) == 0 {
-		// log.Println("return context is up to date res")
+	// If nothing changed
+	if len(req) == 0 && len(removedContexts) == 0 {
 		return &types.ContextOutdatedResult{
 			Msg: "Context is up to date",
 		}, nil
+	}
+
+	// Build final result
+	outdatedRes := types.ContextOutdatedResult{
+		UpdatedContexts: updatedContexts,
+		RemovedContexts: removedContexts,
+		TokenDiffsById:  tokenDiffsById,
+		NumFiles:        numFiles,
+		NumUrls:         numUrls,
+		NumTrees:        numTrees,
+		NumMaps:         numMaps,
+		NumFilesRemoved: numFilesRemoved,
+		NumTreesRemoved: numTreesRemoved,
+		Req:             req,
+	}
+
+	var hasConflicts bool
+	var msg string
+	if doUpdate {
+		res, e := UpdateContext(UpdateContextParams{
+			Contexts:    contexts,
+			OutdatedRes: outdatedRes,
+			Req:         req,
+		})
+		if e != nil {
+			return nil, fmt.Errorf("failed to update context: %v", e)
+		}
+		hasConflicts = res.HasConflicts
+		msg = res.Msg
+		outdatedRes.Msg = msg
 	} else {
-
-		outdatedRes = types.ContextOutdatedResult{
-			UpdatedContexts: updatedContexts,
-			RemovedContexts: removedContexts,
-			TokenDiffsById:  tokenDiffsById,
-			NumFiles:        numFiles,
-			NumUrls:         numUrls,
-			NumTrees:        numTrees,
-			NumMaps:         numMaps,
-			NumFilesRemoved: numFilesRemoved,
-			NumTreesRemoved: numTreesRemoved,
-			Req:             req,
+		var tokensDiff int
+		for _, diff := range tokenDiffsById {
+			tokensDiff += diff
 		}
-
-		if doUpdate {
-
-			res, err := UpdateContext(UpdateContextParams{
-				Contexts:    contexts,
-				OutdatedRes: outdatedRes,
-				Req:         req,
-			})
-			if err != nil {
-				return nil, fmt.Errorf("failed to update context: %v", err)
-			}
-			hasConflicts = res.HasConflicts
-			msg = res.Msg
-			outdatedRes.Msg = msg
-		} else {
-			tokensDiff := 0
-			for _, diff := range tokenDiffsById {
-				tokensDiff += diff
-			}
-			total := totalTokens + tokensDiff
-			outdatedRes.Msg = shared.SummaryForUpdateContext(shared.SummaryForUpdateContextParams{
-				NumFiles:    numFiles,
-				NumTrees:    numTrees,
-				NumUrls:     numUrls,
-				NumMaps:     numMaps,
-				TokensDiff:  tokensDiff,
-				TotalTokens: total,
-			})
-		}
+		newTotal := totalTokens + tokensDiff
+		outdatedRes.Msg = shared.SummaryForUpdateContext(shared.SummaryForUpdateContextParams{
+			NumFiles:    numFiles,
+			NumTrees:    numTrees,
+			NumUrls:     numUrls,
+			NumMaps:     numMaps,
+			TokensDiff:  tokensDiff,
+			TotalTokens: newTotal,
+		})
 	}
 
 	if hasConflicts {
 		term.StartSpinner("🏗️  Starting build...")
-		_, err := buildPlanInlineFn(false, nil) // don't pass in outdated contexts -- nil value causes them to be refetched, which is what we want since they were just updated
-
-		if err != nil {
-			return nil, fmt.Errorf("failed to build plan: %v", err)
-		}
-
+		_, e := buildPlanInlineFn(false, nil)
+		term.StopSpinner()
 		fmt.Println()
+		if e != nil {
+			return nil, fmt.Errorf("failed to build plan: %v", e)
+		}
+	}
+
+	// Warn about any items skipped
+	if len(filesSkippedTooLarge) > 0 || len(filesSkippedAfterSizeLimit) > 0 ||
+		len(mapFilesSkippedTooLarge) > 0 || len(mapFilesSkippedAfterSizeLimit) > 0 {
+		printSkippedFilesMsg(filesSkippedTooLarge, filesSkippedAfterSizeLimit,
+			mapFilesSkippedTooLarge, mapFilesSkippedAfterSizeLimit)
 	}
 
 	return &outdatedRes, nil
@@ -727,9 +834,9 @@ func tableForContextOutdated(updatedContexts []*shared.Context, tokenDiffsById m
 	table.SetHeader([]string{"Name", "Type", "🪙"})
 	table.SetAutoWrapText(false)
 
-	for _, context := range updatedContexts {
-		t, icon := context.TypeAndIcon()
-		diff := tokenDiffsById[context.Id]
+	for _, ctx := range updatedContexts {
+		t, icon := ctx.TypeAndIcon()
+		diff := tokenDiffsById[ctx.Id]
 		diffStr := "+" + strconv.Itoa(diff)
 		tableColor := tablewriter.FgHiGreenColor
 
@@ -739,7 +846,7 @@ func tableForContextOutdated(updatedContexts []*shared.Context, tokenDiffsById m
 		}
 
 		row := []string{
-			" " + icon + " " + context.Name,
+			" " + icon + " " + ctx.Name,
 			t,
 			diffStr,
 		}
@@ -752,6 +859,5 @@ func tableForContextOutdated(updatedContexts []*shared.Context, tokenDiffsById m
 	}
 
 	table.Render()
-
 	return tableString.String()
 }
