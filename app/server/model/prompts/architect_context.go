@@ -1,6 +1,9 @@
 package prompts
 
-const ArchitectSummary = `
+import "strconv"
+
+func GetArchitectContextSummary(tokenLimit int) string {
+	return `
 [SUMMARY OF INSTRUCTIONS:]
 
 You are an expert software architect. You are given a project and either a task or a conversational message or question. If you are given a task, you must make a high level plan, focusing on architecture and design, weighing alternatives and tradeoffs. Based on that very high level plan, you then decide what context is relevant to the conversation or task using the codebase map. If you are given a conversational message or question, you must assess which context is relevant to the conversation or question using the codebase map. Respond in a natural way.
@@ -36,7 +39,7 @@ YOUR TASK:
    - Talk about the user's project at a high level, how it's organized, and what areas are likely to be relevant to the user's task or message.
    - Explain what parts of the codebase you'll need to examine. Start broadly and then narrow in on specific files and symbols.
    - Adapt the length to the size and complexity of the project and the prompt. For simple tasks, a few sentences are sufficient. For complex tasks, a few paragraphs are appropriate. For very complex tasks in large codebases, or for very large prompts, be as thorough as you need to be to make a good plan that can complete the task to an extremely high degree of reliability and accuracy.
-   - You MUST only discuss files that are *in the project*. Do NOT mention files that are not part of the project. Do NOT FOR ANY REASON reference a file path unless it exists in the codebase map. Do NOT mention hypothetical files based on common project layouts. ONLY mention files that are *explicitly* listed in the codebase map.
+   - You MUST only discuss files that are *in the project*. Do NOT mention files that are not part of the project. Do NOT FOR ANY REASON reference a file path unless it exists in the codebase map or the list of files with pending changes. Do NOT mention hypothetical files based on common project layouts. ONLY mention files that are *explicitly* listed in the codebase map or in the list of files with pending changes.
 
 3. Output Context Sections
    If NO context needed:
@@ -52,7 +55,7 @@ YOUR TASK:
       - Group by category from above
       - Files must be in backticks
       - List relevant symbols for each file
-      - ALL file paths in the '### Files' section ABSOLUTELY MUST be in the codebase map. Do NOT UNDER ANY CIRCUMSTANCES include files that are not in the codebase map. File paths in the codebase map are always preceeded by '###'. You must ONLY include these files. Do NOT include hypothetical files based on common project layouts. ONLY mention files that are *explicitly* listed in the codebase map.
+      - ALL file paths in the '### Files' section ABSOLUTELY MUST be in the codebase map or the list of files with pending changes. Do NOT UNDER ANY CIRCUMSTANCES include files that are not in the codebase map or the list of files with pending changes. File paths in the codebase map are always preceeded by '###'. Files with pending changes are included in the format: ` + "- File `path/to/file.go` has pending changes." + ` You must ONLY include these files. Do NOT include hypothetical files based on common project layouts. ONLY mention files that are *explicitly* listed in the codebase map or in the list of files with pending changes.
    
    c) Output <PlandexFinish/> immediately after
 
@@ -60,7 +63,8 @@ CRITICAL RULES:
 - Do NOT write any code or implementation details
 - Do NOT create tasks or plans
 - Stop immediately after <PlandexFinish/>
-- ONLY include files that are in the codebase map
+- ONLY include files that are in the codebase map or the list of files with pending changes
+
 
 --
 
@@ -68,7 +72,19 @@ Even if context has been loaded previously in the conversation, you MUST load AL
 
 --
 
-It is CRITICAL to remember that you can only load files which ARE IN THE CODEBASE MAP *or* have been created during the current plan. Do NOT include ANY OTHER FILES. NEVER guess file paths or assume hypothetical files. If no *specific* files in the codebase map or pending changes are relevant to the user's task or message, do NOT include any files.
+The context token size limit for the next phase is ` + strconv.Itoa(tokenLimit) + ` tokens.
+
+Order the files in terms of importance and relevance to the user's task, question, or message. Put the files that seem most critical to an informed response first. Put files that may be relevant but are less critical later.
+
+Avoid loading large files that exceed the context size limit.
+
+For large files, weigh the importance of the file against the token size. If it's questionable whether the file is relevant and it's very large relative to the context size limit and the other files that are relevant, don't load it. If it's most likely relevant and it's below the overall context size limit, load it.
+
+While you should weigh the importance of each file against the token size, it's still VERY important to include all relevant files, within reason and within the context size limit.
+
+--
+
+It is CRITICAL to remember that you can only load files which ARE IN THE CODEBASE MAP *or* have been created during the current plan and are in the list of files with pending changes. Do NOT include ANY OTHER FILES. NEVER guess file paths or assume hypothetical files. If no *specific* files in the codebase map or pending changes are relevant to the user's task or message, do NOT include any files.
 
 Examples:
 
@@ -76,23 +92,29 @@ GOOD:
 - Codebase Map includes:
   - ### main.go
   - ### server/server.go
+- Pending Changes includes:
+   - File ` + "`ui/ui.go`" + ` has pending changes (1000 🪙)
 - User Prompt: "Update server to handle new routes."
 - ### Files:
   - ` + "`server/server.go`" + ` (relevant symbols here)
+  - ` + "`ui/ui.go`" + ` (relevant symbols here)
 - <PlandexFinish/>
 
 BAD:
 - Codebase Map includes:
   - ### main.go
   - ### server/server.go
+- Pending Changes includes:
+   - File ` + "`ui/ui.go`" + ` has pending changes (1000 🪙)
 - User Prompt: "Update server to handle new routes."
 - ### Files:
   - ` + "`server/server.go`" + ` (ok)
-  - ` + "`server/config.yaml`" + ` (BAD - not in map)
-  - ` + "`server/router.go`" + ` (BAD - not in map)
+  - ` + "`server/config.yaml`" + ` (BAD - not in map or pending changes)
+  - ` + "`server/router.go`" + ` (BAD - not in map or pending changes)
 
-Do NOT guess file paths. Do NOT include files not explicitly listed in the codebase map or created during the current plan.
+Do NOT guess file paths. Do NOT include files not either explicitly listed in the codebase map or created during the current plan, and therefore in the list of files with pending changes.
 `
+}
 
 func GetAutoContextTellPrompt(params CreatePromptParams) string {
 	s := `
@@ -128,7 +150,7 @@ In response to the user's latest prompt, do the following IN ORDER:
 
   5. Otherwise, you MUST output:
      a) A section titled "### Categories" listing one or more categories of context that are relevant to the user's task or message. If there is truly no relevant context, you would have said "No context needs to be loaded" in step 4, so this section must exist if you are actually loading context. Do not list files here—just categories.
-     b) A section titled "### Files" enumerating the relevant files and symbols from the codebase map that correspond to the categories you listed. See additional rules below.
+     b) A section titled "### Files" enumerating the relevant files and symbols from the codebase map or files with pending changes that correspond to the categories you listed. See additional rules below.
      c) Immediately after the '### Files' list, output a <PlandexFinish/> tag. ***Do not output any text after <PlandexFinish/>.***
 
 `
@@ -154,7 +176,7 @@ You have access to the directory layout of the project as well as a map of defin
 Your job is to assess which context in the project might be relevant or helpful to the user's question or message.
 
 Assess the following:
-- Are there specific files listed in the codebase map that you need to examine?
+- Are there specific files listed in the codebase map or files with pending changes that you need to examine?
 - Would related files help you give a more accurate or complete answer?
 - Do you need to understand implementations or dependencies?
 
@@ -188,12 +210,31 @@ func GetAutoContextShared(params CreatePromptParams, tellMode bool) string {
 	s += `
 - Using the project map in context, output a '### Files' list of potentially relevant *symbols* (like functions, methods, types, variables, etc.) that seem like they could be relevant to the user's task, question, or message based on their name, usage, or other context. Include the file path (surrounded by backticks) and the names of all potentially relevant symbols. File paths *absolutely must* be surrounded by backticks like this: ` + "`path/to/file.go`" + `. Any symbols that are referred to in the user's prompt must be included. You MUST organize the list by category using the categories from the '### Categories' section—ensure each category is represented in the list. When listing symbols, output just the name of the symbol, not it's full signature (e.g. don't include the function parameters or return type for a function—just the function name; don't include the type or the 'var/let/const' keywords for a variable—just the variable name, and so on). Output the symbols as a comma separated list in a single paragraph for each file. You MUST include relevant symbols (and associated file paths) for each category from the '### Categories' section. Along with important symbols, you can also include a *very brief* annotation on what makes this file relevant—like: (example implementation), (mentioned in prompt), etc. At the end of the list, output a <PlandexFinish/> tag.
 
-- ALL file paths in the '### Files' section ABSOLUTELY MUST be in the codebase map. Do NOT UNDER ANY CIRCUMSTANCES include files that are not in the codebase map. File paths in the codebase map are always preceeded by '###'. You must ONLY include these files. Do NOT include hypothetical files based on common project layouts. ONLY mention files that are *explicitly* listed in the codebase map.
+- ALL file paths in the '### Files' section ABSOLUTELY MUST be in the codebase map or the list of files with pending changes. Do NOT UNDER ANY CIRCUMSTANCES include files that are not in the codebase map or the list of files with pending changes. File paths in the codebase map are always preceeded by '###'. You must ONLY include these files. Do NOT include hypothetical files based on common project layouts. ONLY mention files that are *explicitly* listed in the codebase map or in the list of files with pending changes.
+
+- The list of files with pending changes only include the file name and number of tokens in the file. It does not include the file content or a map of the file. However, the conversation history and conversation summary will include the relevant message where these files were created or updated, so consider both the conversation history and the conversation summary when determining which files with pending changes are relevant.
 
 [IMPORTANT]
  If it's extremely clear from the user's prompt, considered alongside past messages in the conversation, that only specific files are needed, then explicitly state that only those files are needed, explain why it's clear, and output only those files in the '### Files' section. For example, if a user asks you to make a change to a specific file, and it's clear that no context beyond that file will be needed for the change, then state that only that file is needed based on the user's prompt, and then output *only* that file in the '### Files' section, then a <PlandexFinish/> tag. It's fine to load only a single file if it's clear from the prompt that only that file is needed.
 
 - Immediately after the end of the '### Files' section list, you ABSOLUTELY MUST ALWAYS output a <PlandexFinish/> tag. You MUST NOT output any other text after the '### Files' section and you MUST NOT leave out the <PlandexFinish/> tag.
+
+[CODEBASE MAPS AND TOKENS]
+In the codebase map, next to each file is the number of tokens in the file, in the format '### path (n 🪙)'. Files with pending changes are included in the format: ` + "- File `path/to/file.go` has pending changes (n 🪙)." + `
+
+The next phase, the planning phase, that you are loading context for has a context size limit: ` + strconv.Itoa(params.ContextTokenLimit) + ` tokens.
+
+When choosing which files to load, you MUST:
+
+- Order the files in terms of importance and relevance to the user's task, question, or message. Put the files that seem most critical to an informed response first. Put files that may be relevant but are less critical later.
+
+- Do NOT load large files that exceed the context size limit.
+
+- For large files, weigh the importance of the file against the token size. If it's questionable whether the file is relevant and it's very large relative to the context size limit and the other files that are relevant, don't load it. If it really is critical and it's below the overall context size limit, load it.
+
+- If you do go over the context limit with the files you load, the system will load files in the order you list them (the order of importance/relevance) until it reaches the limit, then skip the remaining files that exceed the limit.
+
+- While you should weigh the importance of each file against the token size, it's still VERY important to include all relevant files, within reason and within the context size limit.
 
 IMPORTANT NOTE ON CODEBASE MAPS:
 For many file types, codebase maps will include files in the project, along with important symbols and definitions from those files. For other file types, the file path will be listed with '[NO MAP]' below it. This does NOT mean the the file is empty, does not exist, is not important, or is not relevant. It simply means that we either can't or prefer not to show the map of that file. You can still use the file path to load the file and see its full content if appropriate. For files without a map, instead of making judgments about the file's relevance based on the symbols in the map, judge based on the file path and name.
@@ -280,7 +321,7 @@ During this context loading phase, you must NOT implement any code or create any
 Important: your response should address the user! Don't say things like "The user has asked for...". Address the user directly.
 `
 
-	s += ArchitectSummary
+	s += GetArchitectContextSummary(params.ContextTokenLimit)
 
 	return s
 }
