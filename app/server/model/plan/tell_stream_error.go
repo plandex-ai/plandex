@@ -107,6 +107,7 @@ func (state *activeTellStreamState) onError(params onErrorParams) onErrorResult 
 					flags: shared.ConvoMessageFlags{
 						CurrentStage:          state.currentStage,
 						HasUnfinishedSubtasks: hasUnfinishedSubtasks,
+						HasError:              true,
 					},
 					subtask:       nil,
 					addedSubtasks: nil,

@@ -134,11 +134,12 @@ func (state *activeTellStreamState) storeOnFinished(params storeOnFinishedParams
 		log.Println("storeOnFinished: flags", flags)
 
 		assistantMsg, convoCommitMsg, err := state.storeAssistantReply(repo, storeAssistantReplyParams{
-			flags:           flags,
-			subtask:         messageSubtask,
-			addedSubtasks:   addedSubtasks,
-			activatedPaths:  autoLoadContextResult.activatePaths,
-			removedSubtasks: removedSubtasks,
+			flags:                flags,
+			subtask:              messageSubtask,
+			addedSubtasks:        addedSubtasks,
+			activatePaths:        autoLoadContextResult.activatePaths,
+			activatePathsOrdered: autoLoadContextResult.activatePathsOrdered,
+			removedSubtasks:      removedSubtasks,
 		}) // updates state.convo
 
 		if err != nil {
@@ -245,18 +246,20 @@ func (state *activeTellStreamState) storeOnFinished(params storeOnFinishedParams
 }
 
 type storeAssistantReplyParams struct {
-	flags           shared.ConvoMessageFlags
-	subtask         *db.Subtask
-	addedSubtasks   []*db.Subtask
-	activatedPaths  map[string]bool
-	removedSubtasks []string
+	flags                shared.ConvoMessageFlags
+	subtask              *db.Subtask
+	addedSubtasks        []*db.Subtask
+	activatePaths        map[string]bool
+	activatePathsOrdered []string
+	removedSubtasks      []string
 }
 
 func (state *activeTellStreamState) storeAssistantReply(repo *db.GitRepo, params storeAssistantReplyParams) (*db.ConvoMessage, string, error) {
 	flags := params.flags
 	subtask := params.subtask
 	addedSubtasks := params.addedSubtasks
-	activatedPaths := params.activatedPaths
+	activatePaths := params.activatePaths
+	activatePathsOrdered := params.activatePathsOrdered
 	removedSubtasks := params.removedSubtasks
 
 	currentOrgId := state.currentOrgId
@@ -276,19 +279,20 @@ func (state *activeTellStreamState) storeAssistantReply(repo *db.GitRepo, params
 	// fmt.Println("raw message: ", activePlan.CurrentReplyContent)
 
 	assistantMsg := db.ConvoMessage{
-		Id:              replyId,
-		OrgId:           currentOrgId,
-		PlanId:          planId,
-		UserId:          currentUserId,
-		Role:            openai.ChatMessageRoleAssistant,
-		Tokens:          replyNumTokens,
-		Num:             num,
-		Message:         activePlan.CurrentReplyContent,
-		Flags:           flags,
-		Subtask:         subtask,
-		AddedSubtasks:   addedSubtasks,
-		ActivatedPaths:  activatedPaths,
-		RemovedSubtasks: removedSubtasks,
+		Id:                    replyId,
+		OrgId:                 currentOrgId,
+		PlanId:                planId,
+		UserId:                currentUserId,
+		Role:                  openai.ChatMessageRoleAssistant,
+		Tokens:                replyNumTokens,
+		Num:                   num,
+		Message:               activePlan.CurrentReplyContent,
+		Flags:                 flags,
+		Subtask:               subtask,
+		AddedSubtasks:         addedSubtasks,
+		ActivatedPaths:        activatePaths,
+		ActivatedPathsOrdered: activatePathsOrdered,
+		RemovedSubtasks:       removedSubtasks,
 	}
 
 	commitMsg, err := db.StoreConvoMessage(repo, &assistantMsg, auth.User.Id, branch, false)

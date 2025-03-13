@@ -51,10 +51,13 @@ type activeTellStreamState struct {
 	chunkProcessor        *chunkProcessor
 	generationId          string
 
-	requestStartedAt time.Time
-	firstTokenAt     time.Time
-	originalReq      *types.ExtendedChatCompletionRequest
-	modelConfig      *shared.ModelRoleConfig
+	requestStartedAt    time.Time
+	firstTokenAt        time.Time
+	originalReq         *types.ExtendedChatCompletionRequest
+	tenativeModelConfig *shared.ModelRoleConfig
+	modelConfig         *shared.ModelRoleConfig
+
+	skipConvoMessages map[string]bool
 }
 
 type chunkProcessor struct {

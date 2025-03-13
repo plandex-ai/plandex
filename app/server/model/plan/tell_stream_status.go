@@ -60,7 +60,7 @@ func (state *activeTellStreamState) handleDescAndExecStatus() handleDescAndExecS
 		go func() {
 			log.Println("Getting exec status")
 			var err *shared.ApiError
-			res, err := state.execStatusShouldContinue(active.CurrentReplyContent, active.Ctx)
+			res, err := state.execStatusShouldContinue(active.CurrentReplyContent, active.SessionId, active.Ctx)
 			if err != nil {
 				errCh <- err
 				return
@@ -107,6 +107,7 @@ type willContinuePlanParams struct {
 	removedSubtasks     bool
 	allSubtasksFinished bool
 	activatePaths       map[string]bool
+	hasExplicitPaths    bool
 }
 
 func (state *activeTellStreamState) willContinuePlan(params willContinuePlanParams) bool {
@@ -128,6 +129,12 @@ func (state *activeTellStreamState) willContinuePlan(params willContinuePlanPara
 
 			// if it's the context stage but it's chat mode and no files were loaded, don't continue
 			if state.req.IsChatOnly && len(activatePaths) == 0 {
+				log.Println("[willContinuePlan] Chat only - no files loaded - stopping")
+				return false
+			}
+
+			// if no files were listed explicitly in a ### Files section, don't continue if it's chat mode
+			if state.req.IsChatOnly && !params.hasExplicitPaths {
 				log.Println("[willContinuePlan] Chat only - no files loaded - stopping")
 				return false
 			}
