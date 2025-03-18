@@ -139,7 +139,7 @@ func StartServer(handler http.Handler, configureFn func(handler http.Handler) ht
 
 		// Then clean up any remaining locks
 		log.Println("Cleaning up any remaining locks...")
-		if err := db.CleanupAllLocks(shutdown.ShutdownCtx); err != nil {
+		if err := db.CleanupActiveLocks(shutdown.ShutdownCtx); err != nil {
 			log.Printf("Error cleaning up locks: %v", err)
 		}
 	}()
@@ -192,7 +192,7 @@ func waitForActivePlans() chan struct{} {
 func maxBytesMiddleware(next http.Handler, maxBytes int64) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// log the size of the request body
-		log.Printf("Request body size: %d", r.ContentLength)
+		// log.Printf("Request body size: %d", r.ContentLength)
 
 		r.Body = http.MaxBytesReader(w, r.Body, maxBytes)
 		next.ServeHTTP(w, r)
