@@ -36,8 +36,9 @@ var missingFileSelectOpts = []string{
 var stateMu sync.RWMutex
 
 type streamUIModel struct {
-	buildOnly bool
-	keymap    keymap
+	buildOnly   bool
+	canSendToBg bool
+	keymap      keymap
 
 	reply       string
 	mainDisplay string
@@ -97,6 +98,7 @@ type keymap = struct {
 	up,
 	down,
 	quit,
+	background,
 	enter bubbleKey.Binding
 }
 
@@ -117,7 +119,7 @@ func (m streamUIModel) pollBuildStatus() tea.Cmd {
 	})
 }
 
-func initialModel(prestartReply, prompt string, buildOnly bool) *streamUIModel {
+func initialModel(prestartReply, prompt string, buildOnly bool, canSendToBg bool) *streamUIModel {
 	sharedTicker := time.NewTicker(100 * time.Millisecond)
 
 	s := spinner.New()
@@ -129,13 +131,19 @@ func initialModel(prestartReply, prompt string, buildOnly bool) *streamUIModel {
 
 	initialState := streamUIModel{
 		buildOnly:          buildOnly,
+		canSendToBg:        canSendToBg,
 		buildViewCollapsed: false,
 		prompt:             prompt,
 		reply:              prestartReply,
 		keymap: keymap{
 			quit: bubbleKey.NewBinding(
-				bubbleKey.WithKeys("b", "ctrl+c"),
+				bubbleKey.WithKeys("ctrl+c"),
 				bubbleKey.WithHelp("ctrl+c", "quit"),
+			),
+
+			background: bubbleKey.NewBinding(
+				bubbleKey.WithKeys("b"),
+				bubbleKey.WithHelp("b", "background"),
 			),
 
 			stop: bubbleKey.NewBinding(

@@ -21,7 +21,7 @@ var prestartReply string
 var prestartErr *shared.ApiError
 var prestartAbort bool
 
-func StartStreamUI(prompt string, buildOnly bool) error {
+func StartStreamUI(prompt string, buildOnly, canSendToBg bool) error {
 	if prestartErr != nil {
 		log.Println("stream UI - prestart error: ", prestartErr)
 		term.HandleApiError(prestartErr)
@@ -34,7 +34,7 @@ func StartStreamUI(prompt string, buildOnly bool) error {
 
 	log.Println("Starting stream UI")
 
-	initial := initialModel(prestartReply, prompt, buildOnly)
+	initial := initialModel(prestartReply, prompt, buildOnly, canSendToBg)
 
 	mu.Lock()
 	ui = tea.NewProgram(initial, tea.WithAltScreen())

@@ -100,6 +100,15 @@ func (m streamUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			})
 			return m, tea.Quit
 
+		case bubbleKey.Matches(msg, m.keymap.background):
+			state := m.readState()
+			if state.canSendToBg {
+				m.updateState(func() {
+					m.background = true
+				})
+				return m, tea.Quit
+			}
+
 		case bubbleKey.Matches(msg, m.keymap.scrollDown) && !m.promptingMissingFile:
 			m.scrollDown()
 		case bubbleKey.Matches(msg, m.keymap.scrollUp) && !m.promptingMissingFile:
