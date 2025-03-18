@@ -264,7 +264,7 @@ func StopPlanHandler(w http.ResponseWriter, r *http.Request) {
 		Ctx:      ctx,
 		CancelFn: cancel,
 	}, func(repo *db.GitRepo) error {
-		log.Println("Stopping plan")
+		log.Println("Stopping plan - storing partial reply")
 		err = modelPlan.StorePartialReply(repo, planId, branch, auth.User.Id, auth.OrgId)
 		return err
 	})

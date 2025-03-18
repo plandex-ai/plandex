@@ -55,6 +55,7 @@ func CurrentPlanHandler(w http.ResponseWriter, r *http.Request) {
 		Scope:    scope,
 		Ctx:      ctx,
 		CancelFn: cancel,
+		Reason:   "get current plan state",
 	}, func(repo *db.GitRepo) error {
 		var err error
 		if sha != "" {

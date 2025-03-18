@@ -36,16 +36,32 @@ func loadContexts(
 	cachedMapsByPath := params.cachedMapsByPath
 	autoLoaded := params.autoLoaded
 
-	log.Printf("Starting loadContexts with %d contexts, cachedMapsByPath: %v, autoLoaded: %v", len(*loadReq), cachedMapsByPath != nil, autoLoaded)
+	log.Printf("[ContextHelper] Starting loadContexts with %d contexts, cachedMapsByPath: %v, autoLoaded: %v", len(*loadReq), cachedMapsByPath != nil, autoLoaded)
 
 	// check file count and size limits
+	// this is all a sanity check - we should have already checked these limits in the client
 	totalFiles := 0
 	mapFilesCount := 0
 	for _, context := range *loadReq {
 		totalFiles++
 		if context.ContextType == shared.ContextMapType {
 			mapFilesCount++
-			log.Printf("Found map file: %s with %d map inputs", context.FilePath, len(context.MapInputs))
+			log.Printf("[ContextHelper] Found map file: %s with %d map bodies", context.FilePath, len(context.MapBodies))
+
+			if len(context.MapBodies) > shared.MaxContextMapPaths {
+				log.Printf("Error: Too many map files to load (found %d, limit is %d)\n", len(context.MapBodies), shared.MaxContextMapPaths)
+				http.Error(w, fmt.Sprintf("Too many map files to load (found %d, limit is %d)", len(context.MapBodies), shared.MaxContextMapPaths), http.StatusBadRequest)
+				return nil, nil
+			}
+
+			// these are already mapped, so they shouldn't be anywhere close to the input limit, but we'll use it for the sanity check
+			for _, body := range context.MapBodies {
+				if len(body) > shared.MaxContextMapSingleInputSize {
+					log.Printf("Error: Map file %s exceeds size limit (size %d, limit %d)\n", context.FilePath, len(body), shared.MaxContextMapSingleInputSize)
+					http.Error(w, fmt.Sprintf("Map file %s exceeds size limit (size %d, limit %d)", context.FilePath, len(body), shared.MaxContextMapSingleInputSize), http.StatusBadRequest)
+					return nil, nil
+				}
+			}
 		}
 
 		if totalFiles > shared.MaxContextCount {
@@ -60,10 +76,11 @@ func loadContexts(
 			http.Error(w, fmt.Sprintf("Context %s exceeds size limit (size %.2f MB, limit %d MB)", context.Name, float64(fileSize)/1024/1024, int(shared.MaxContextBodySize)/1024/1024), http.StatusBadRequest)
 			return nil, nil
 		}
+
 	}
 
 	if mapFilesCount > 0 {
-		log.Printf("Processing %d map files out of %d total contexts", mapFilesCount, totalFiles)
+		log.Printf("[ContextHelper] Processing %d map files out of %d total contexts", mapFilesCount, totalFiles)
 	}
 
 	var err error
@@ -169,9 +186,9 @@ func loadContexts(
 		CancelFn:       cancel,
 		ClearRepoOnErr: true,
 	}, func(repo *db.GitRepo) error {
-		log.Printf("Calling db.LoadContexts with %d contexts, %d cached maps", len(*loadReq), len(cachedMapsByPath))
+		log.Printf("[ContextHelper] Calling db.LoadContexts with %d contexts, %d cached maps", len(*loadReq), len(cachedMapsByPath))
 		for path := range cachedMapsByPath {
-			log.Printf("Using cached map for path: %s", path)
+			log.Printf("[ContextHelper] Using cached map for path: %s", path)
 		}
 
 		res, dbContextsRes, err := db.LoadContexts(ctx, db.LoadContextsParams{
@@ -191,29 +208,32 @@ func loadContexts(
 		loadRes = res
 		dbContexts = dbContextsRes
 
-		log.Printf("db.LoadContexts completed successfully, loaded %d contexts", len(dbContexts))
+		log.Printf("[ContextHelper] db.LoadContexts completed successfully, loaded %d contexts", len(dbContexts))
 
 		// Log information about loaded map contexts
 		mapContextsCount := 0
 		for _, context := range dbContexts {
 			if context.ContextType == shared.ContextMapType {
 				mapContextsCount++
-				log.Printf("Loaded map context: %s, path: %s, tokens: %d", context.Name, context.FilePath, context.NumTokens)
+				log.Printf("[ContextHelper] Loaded map context: %s, path: %s, tokens: %d", context.Name, context.FilePath, context.NumTokens)
 			}
 		}
 		if mapContextsCount > 0 {
-			log.Printf("Successfully loaded %d map contexts out of %d total contexts", mapContextsCount, len(dbContexts))
+			log.Printf("[ContextHelper] Successfully loaded %d map contexts out of %d total contexts", mapContextsCount, len(dbContexts))
 		}
 
 		if loadRes.MaxTokensExceeded {
 			return nil
 		}
 
+		log.Printf("[ContextHelper] Committing changes to branch %s", branchName)
 		err = repo.GitAddAndCommit(branchName, res.Msg)
 
 		if err != nil {
 			return fmt.Errorf("error committing changes: %v", err)
 		}
+
+		log.Printf("[ContextHelper] Committing changes to branch %s completed successfully", branchName)
 
 		return nil
 	})
