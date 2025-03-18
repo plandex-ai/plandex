@@ -7,6 +7,8 @@ sidebar_label: Local Mode Quickstart
 
 Plandex is open source and uses a client-server architecture. The server can be self-hosted. You can either run it locally or on a cloud server that you control. To run it on a cloud server, go to  [Advanced Self-Hosting](./advanced-self-hosting) section. To run it locally, keep reading below.
 
+**Note for v1 users:** Both the Plandex v2 server and CLI are designed to run *separately* from v1. It's not an in-place upgrade. [More details here.](../../upgrading-v1-to-v2.md)
+
 ## Local Mode Quickstart
 
 The quickstart requires git, docker, and docker-compose. It's designed for local use with a single user.

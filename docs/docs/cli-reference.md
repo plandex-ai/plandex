@@ -291,7 +291,7 @@ pdx t # alias
 
 `--no-build/-n`: Don't build proposed changes into pending file updates. Defaults to opposite of config value `auto-build`.
 
-`--bg`: Run task in the background.
+`--bg`: Run task in the background. Only allowed if `--auto-load-context` and `--apply/-a` are not enabled. Not allowed with the default [autonomy level](./core-concepts/autonomy.md) in Plandex v2.
 
 `--auto-update-context`: Automatically confirm context updates. Defaults to config value `auto-update-context`.
 
@@ -325,7 +325,7 @@ pdx c # alias
 
 `--no-build/-n`: Don't build proposed changes into pending file updates. Defaults to opposite of config value `auto-build`.
 
-`--bg`: Run task in the background.
+`--bg`: Run task in the background. Only allowed if `--auto-load-context` and `--apply/-a` are not enabled. Not allowed with the default [autonomy level](./core-concepts/autonomy.md) in Plandex v2.
 
 `--auto-update-context`: Automatically confirm context updates. Defaults to config value `auto-update-context`.
 
@@ -354,13 +354,11 @@ plandex build
 pdx b # alias
 ```
 
-`--bg`: Build in the background.
+`--bg`: Build in the background. Not allowed if `--apply/-a` is enabled.
 
 `--stop/-s`: Stop after a single model response (don't auto-continue). Defaults to opposite of config value `auto-continue`.
 
 `--no-build/-n`: Don't build proposed changes into pending file updates. Defaults to opposite of config value `auto-build`.
-
-`--bg`: Run task in the background.
 
 `--auto-update-context`: Automatically confirm context updates. Defaults to config value `auto-update-context`.
 
@@ -387,7 +385,7 @@ pdx ch # alias
 
 `--file/-f`: File path containing prompt.
 
-`--bg`: Run task in the background.
+`--bg`: Run task in the background. Not allowed if `--auto-load-context` is enabled. Not allowed with the default [autonomy level](./core-concepts/autonomy.md) in Plandex v2.
 
 `--auto-update-context`: Automatically confirm context updates. Defaults to config value `auto-update-context`.
 
@@ -434,8 +432,6 @@ Apply pending changes to project files.
 plandex apply
 pdx ap # alias
 ```
-
-`--bg`: Run task in the background.
 
 `--auto-update-context`: Automatically confirm context updates. Defaults to config value `auto-update-context`.
 

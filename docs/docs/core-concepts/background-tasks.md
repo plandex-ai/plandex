@@ -7,6 +7,8 @@ sidebar_label: Background Tasks
 
 Plandex allows you to run tasks in the background, helping you work on multiple tasks in parallel.
 
+**Note:** in Plandex v2, sending tasks to the background is disabled by default, because it's not compatible with automatic context loading. If you set a lower [autonomy level](./autonomy.md), you can use background tasks.
+
 ## Running a Task in the Background
 
 To run a task in the background, use the `--bg` flag with `plandex tell` or `plandex continue`.
