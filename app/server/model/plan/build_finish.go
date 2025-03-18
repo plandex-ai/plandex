@@ -1,6 +1,7 @@
 package plan
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -140,10 +141,13 @@ func (state *activeBuildStreamFileState) onFinishBuild() {
 
 	if err != nil {
 		log.Printf("Error finishing build: %v\n", err)
-		ap.StreamDoneCh <- &shared.ApiError{
-			Type:   shared.ApiErrorTypeOther,
-			Status: http.StatusInternalServerError,
-			Msg:    "Error finishing build: " + err.Error(),
+
+		if err.Error() != context.Canceled.Error() {
+			ap.StreamDoneCh <- &shared.ApiError{
+				Type:   shared.ApiErrorTypeOther,
+				Status: http.StatusInternalServerError,
+				Msg:    "Error finishing build: " + err.Error(),
+			}
 		}
 		return
 	}

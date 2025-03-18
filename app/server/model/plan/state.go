@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"plandex-server/db"
+	"plandex-server/shutdown"
 	"plandex-server/types"
 	"strings"
 	"time"
@@ -51,6 +52,11 @@ func CreateActivePlan(orgId, userId, planId, branch, prompt string, buildOnly, a
 						log.Printf("Error setting plan %s status to ready: %v\n", planId, err)
 					}
 
+					// cancel *after* the DeleteActivePlan call
+					// allows queued operations to complete
+					DeleteActivePlan(orgId, userId, planId, branch)
+					activePlan.CancelFn()
+					return
 				} else {
 					log.Printf("Error streaming plan %s: %v\n", planId, apiErr)
 
@@ -71,12 +77,14 @@ func CreateActivePlan(orgId, userId, planId, branch, prompt string, buildOnly, a
 
 					log.Println("Waiting 100ms after streaming error before canceling active plan")
 					time.Sleep(100 * time.Millisecond)
-					log.Println("Cancelling active plan")
-				}
 
-				activePlan.CancelFn()
-				DeleteActivePlan(orgId, userId, planId, branch)
-				return
+					// cancel *before* the DeleteActivePlan call below
+					// short circuits any active operations
+					log.Println("Cancelling active plan")
+					activePlan.CancelFn()
+					DeleteActivePlan(orgId, userId, planId, branch)
+					return
+				}
 			}
 		}
 	}()
@@ -93,7 +101,7 @@ func DeleteActivePlan(orgId, userId, planId, branch string) {
 		return
 	}
 
-	ctx, cancelFn := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancelFn := context.WithTimeout(shutdown.ShutdownCtx, 10*time.Second)
 	defer cancelFn()
 
 	log.Printf("Clearing uncommitted changes for plan %s - %s - %s\n", planId, branch, orgId)

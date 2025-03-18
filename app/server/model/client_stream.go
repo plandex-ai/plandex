@@ -116,44 +116,50 @@ func processChatCompletionStream(
 				return accumulator.Result(false, nil), nil
 			}
 
-			if len(response.Choices) == 0 {
-				log.Println("No choices in response")
-				err := fmt.Errorf("no choices in response")
-				return accumulator.Result(false, err), err
-			}
-
-			if len(response.Choices) > 1 {
-				err = fmt.Errorf("stream finished with more than one choice | The model failed to generate a valid response.")
-				return accumulator.Result(true, err), err
-			}
-
-			choice := response.Choices[0]
-
-			if choice.FinishReason != "" {
-				if choice.FinishReason == "error" {
-					err = fmt.Errorf("model stopped with error status | The model is not responding.")
-					return accumulator.Result(true, err), err
-				} else {
-					// Reset the timer for the usage chunk
-					if !timer.Stop() {
-						<-timer.C
-					}
-					timer.Reset(OPENAI_USAGE_CHUNK_TIMEOUT)
-					streamFinished = true
-					continue
-				}
-			}
-
+			emptyChoices := false
 			var content string
 
-			if req.Tools != nil {
-				if choice.Delta.ToolCalls != nil {
-					toolCall := choice.Delta.ToolCalls[0]
-					content = toolCall.Function.Arguments
+			if len(response.Choices) == 0 {
+				// Previously we'd return an error if there were no choices, but some models do this and then keep streaming, so we'll just log it and continue
+				log.Println("processChatCompletionStream - no choices in response")
+				// err := fmt.Errorf("no choices in response")
+				// return accumulator.Result(false, err), err
+				emptyChoices = true
+			}
+
+			// We'll be more accepting of multiple choices and just take the first one
+			// if len(response.Choices) > 1 {
+			// 	err = fmt.Errorf("stream finished with more than one choice | The model failed to generate a valid response.")
+			// 	return accumulator.Result(true, err), err
+			// }
+
+			if !emptyChoices {
+				choice := response.Choices[0]
+
+				if choice.FinishReason != "" {
+					if choice.FinishReason == "error" {
+						err = fmt.Errorf("model stopped with error status | The model is not responding.")
+						return accumulator.Result(true, err), err
+					} else {
+						// Reset the timer for the usage chunk
+						if !timer.Stop() {
+							<-timer.C
+						}
+						timer.Reset(OPENAI_USAGE_CHUNK_TIMEOUT)
+						streamFinished = true
+						continue
+					}
 				}
-			} else {
-				if choice.Delta.Content != "" {
-					content = choice.Delta.Content
+
+				if req.Tools != nil {
+					if choice.Delta.ToolCalls != nil {
+						toolCall := choice.Delta.ToolCalls[0]
+						content = toolCall.Function.Arguments
+					}
+				} else {
+					if choice.Delta.Content != "" {
+						content = choice.Delta.Content
+					}
 				}
 			}
 
