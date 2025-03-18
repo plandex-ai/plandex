@@ -400,6 +400,7 @@ type Context struct {
 	MapParts        shared.FileMapBodies  `json:"mapParts,omitempty"`
 	MapShas         map[string]string     `json:"mapShas,omitempty"`
 	MapTokens       map[string]int        `json:"mapTokens,omitempty"`
+	MapSizes        map[string]int64      `json:"mapSizes,omitempty"`
 	AutoLoaded      bool                  `json:"autoLoaded"`
 	CreatedAt       time.Time             `json:"createdAt"`
 	UpdatedAt       time.Time             `json:"updatedAt"`
@@ -425,6 +426,7 @@ func (context *Context) ToMeta() *Context {
 		ImageDetail:     context.ImageDetail,
 		MapShas:         context.MapShas,
 		MapTokens:       context.MapTokens,
+		MapSizes:        context.MapSizes,
 		CreatedAt:       context.CreatedAt,
 		UpdatedAt:       context.UpdatedAt,
 	}
@@ -448,6 +450,7 @@ func (context *Context) ToApi() *shared.Context {
 		MapParts:        context.MapParts,
 		MapShas:         context.MapShas,
 		MapTokens:       context.MapTokens,
+		MapSizes:        context.MapSizes,
 		CreatedAt:       context.CreatedAt,
 		UpdatedAt:       context.UpdatedAt,
 	}

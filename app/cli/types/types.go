@@ -29,7 +29,7 @@ type ContextOutdatedResult struct {
 	NumMaps         int
 	NumFilesRemoved int
 	NumTreesRemoved int
-	Req             map[string]*shared.UpdateContextParams
+	ReqFn           func() (map[string]*shared.UpdateContextParams, error)
 }
 
 const (

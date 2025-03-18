@@ -28,17 +28,6 @@ func (m FileMapBodies) CombinedMap(tokensByPath map[string]int) string {
 	return combinedMap.String()
 }
 
-func (m FileMapBodies) TokenEstimateForPath(path string) int {
-	body := m[path]
-	body = strings.TrimSpace(body)
-	bodyTokens := GetNumTokensEstimate(body + "\n")
-
-	heading := MapFileHeading(path, bodyTokens)
-	headingTokens := GetNumTokensEstimate(heading)
-
-	return bodyTokens + headingTokens
-}
-
 func MapFileHeading(path string, tokens int) string {
 	return fmt.Sprintf("\n### %s (%d 🪙)\n\n", path, tokens)
 }
