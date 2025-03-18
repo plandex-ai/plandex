@@ -63,6 +63,7 @@ func getGitRepo(orgId, planId string) *GitRepo {
 }
 
 func (repo *GitRepo) GitAddAndCommit(branch, message string) error {
+	log.Printf("[Git] GitAddAndCommit - orgId: %s, planId: %s, branch: %s, message: %s", repo.orgId, repo.planId, branch, message)
 	orgId := repo.orgId
 	planId := repo.planId
 
@@ -70,17 +71,21 @@ func (repo *GitRepo) GitAddAndCommit(branch, message string) error {
 
 	err := gitWriteOperation(func() error {
 		return gitAdd(dir, ".")
-	}, fmt.Sprintf("GitAddAndCommit > gitAdd: plan=%s branch=%s", planId, branch))
+	}, dir, fmt.Sprintf("GitAddAndCommit > gitAdd: plan=%s branch=%s", planId, branch))
 	if err != nil {
 		return fmt.Errorf("error adding files to git repository for dir: %s, err: %v", dir, err)
 	}
 
 	err = gitWriteOperation(func() error {
 		return gitCommit(dir, message)
-	}, fmt.Sprintf("GitAddAndCommit > gitCommit: plan=%s branch=%s", planId, branch))
+	}, dir, fmt.Sprintf("GitAddAndCommit > gitCommit: plan=%s branch=%s", planId, branch))
 	if err != nil {
 		return fmt.Errorf("error committing files to git repository for dir: %s, err: %v", dir, err)
 	}
+
+	// log.Println("[Git] GitAddAndCommit - finished, logging repo state")
+
+	// repo.LogGitRepoState()
 
 	return nil
 }
@@ -93,7 +98,7 @@ func (repo *GitRepo) GitRewindToSha(branch, sha string) error {
 
 	err := gitWriteOperation(func() error {
 		return gitRewindToSha(dir, sha)
-	}, fmt.Sprintf("GitRewindToSha > gitRewindToSha: plan=%s branch=%s", planId, branch))
+	}, dir, fmt.Sprintf("GitRewindToSha > gitRewindToSha: plan=%s branch=%s", planId, branch))
 	if err != nil {
 		return fmt.Errorf("error rewinding git repository for dir: %s, err: %v", dir, err)
 	}
@@ -155,7 +160,7 @@ func (repo *GitRepo) GitResetToSha(sha string) error {
 		}
 
 		return nil
-	}, fmt.Sprintf("GitResetToSha > gitReset: plan=%s sha=%s", planId, sha))
+	}, dir, fmt.Sprintf("GitResetToSha > gitReset: plan=%s sha=%s", planId, sha))
 
 	if err != nil {
 		return fmt.Errorf("error resetting git repository to SHA for dir: %s, sha: %s, err: %v", dir, sha, err)
@@ -178,7 +183,7 @@ func (repo *GitRepo) GitCheckoutSha(sha string) error {
 		}
 
 		return nil
-	}, fmt.Sprintf("GitCheckoutSha > gitCheckout: plan=%s sha=%s", planId, sha))
+	}, dir, fmt.Sprintf("GitCheckoutSha > gitCheckout: plan=%s sha=%s", planId, sha))
 
 	if err != nil {
 		return fmt.Errorf("error checking out git repository at SHA for dir: %s, sha: %s, err: %v", dir, sha, err)
@@ -292,7 +297,7 @@ func (repo *GitRepo) GitCreateBranch(newBranch string) error {
 		}
 
 		return nil
-	}, fmt.Sprintf("GitCreateBranch > gitCheckout: plan=%s branch=%s", planId, newBranch))
+	}, dir, fmt.Sprintf("GitCreateBranch > gitCheckout: plan=%s branch=%s", planId, newBranch))
 
 	if err != nil {
 		return err
@@ -314,7 +319,7 @@ func (repo *GitRepo) GitDeleteBranch(branchName string) error {
 		}
 
 		return nil
-	}, fmt.Sprintf("GitDeleteBranch > gitBranch: plan=%s branch=%s", planId, branchName))
+	}, dir, fmt.Sprintf("GitDeleteBranch > gitBranch: plan=%s branch=%s", planId, branchName))
 
 	if err != nil {
 		return err
@@ -327,16 +332,35 @@ func (repo *GitRepo) GitClearUncommittedChanges(branch string) error {
 	orgId := repo.orgId
 	planId := repo.planId
 
+	log.Printf("[Git] GitClearUncommittedChanges - orgId: %s, planId: %s, branch: %s", orgId, planId, branch)
+
 	dir := getPlanDir(orgId, planId)
 
-	err := gitWriteOperation(func() error {
+	// first do a lightweight git status to check if there are any uncommitted changes
+	// prevents heavier operations below if there are no changes (the usual case)
+	res, err := exec.Command("git", "status", "--porcelain").CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("error checking for uncommitted changes: %v, output: %s", err, string(res))
+	}
+
+	// If there's output, there are uncommitted changes
+	hasChanges := strings.TrimSpace(string(res)) != ""
+
+	if !hasChanges {
+		log.Printf("[Git] GitClearUncommittedChanges - no changes to clear for plan %s", planId)
+		return nil
+	}
+
+	err = gitWriteOperation(func() error {
 		// Reset staged changes
+		log.Printf("[Git] GitClearUncommittedChanges - resetting staged changes for plan %s", planId)
 		res, err := exec.Command("git", "-C", dir, "reset", "--hard").CombinedOutput()
 		if err != nil {
 			return fmt.Errorf("error resetting staged changes | err: %v, output: %s", err, string(res))
 		}
+		log.Printf("[Git] GitClearUncommittedChanges - reset staged changes finished for plan %s", planId)
 		return nil
-	}, fmt.Sprintf("GitClearUncommittedChanges > gitReset: plan=%s", planId))
+	}, dir, fmt.Sprintf("GitClearUncommittedChanges > gitReset: plan=%s", planId))
 
 	if err != nil {
 		return err
@@ -344,13 +368,14 @@ func (repo *GitRepo) GitClearUncommittedChanges(branch string) error {
 
 	err = gitWriteOperation(func() error {
 		// Clean untracked files
+		log.Printf("[Git] GitClearUncommittedChanges - cleaning untracked files for plan %s", planId)
 		res, err := exec.Command("git", "-C", dir, "clean", "-d", "-f").CombinedOutput()
 		if err != nil {
 			return fmt.Errorf("error cleaning untracked files | err: %v, output: %s", err, string(res))
 		}
-
+		log.Printf("[Git] GitClearUncommittedChanges - clean untracked files finished for plan %s", planId)
 		return nil
-	}, fmt.Sprintf("GitClearUncommittedChanges > gitClean: plan=%s", planId))
+	}, dir, fmt.Sprintf("GitClearUncommittedChanges > gitClean: plan=%s", planId))
 
 	return err
 }
@@ -363,7 +388,7 @@ func (repo *GitRepo) GitCheckoutBranch(branch string) error {
 
 	err := gitWriteOperation(func() error {
 		return gitCheckoutBranch(dir, branch)
-	}, fmt.Sprintf("GitCheckoutBranch > gitCheckout: plan=%s branch=%s", planId, branch))
+	}, dir, fmt.Sprintf("GitCheckoutBranch > gitCheckout: plan=%s branch=%s", planId, branch))
 
 	if err != nil {
 		return err
@@ -372,91 +397,62 @@ func (repo *GitRepo) GitCheckoutBranch(branch string) error {
 	return nil
 }
 
-func withRetry(operation func() error) error {
-	var err error
-	for attempt := 0; attempt < maxGitRetries; attempt++ {
-		// Remove any existing lock file before each attempt
-		if attempt > 0 {
-			delay := time.Duration(1<<uint(attempt-1)) * baseGitRetryDelay // Exponential backoff
-			time.Sleep(delay)
-			log.Printf("Retry attempt %d for git operation (delay: %v)\n", attempt+1, delay)
-		}
-
-		err = operation()
-		if err == nil {
-			return nil
-		}
-
-		// Check if error is retryable
-		if strings.Contains(err.Error(), "index.lock") {
-			log.Printf("Git lock file error detected, will retry: %v\n", err)
-			continue
-		}
-
-		// Non-retryable error
-		return err
-	}
-	return fmt.Errorf("operation failed after %d attempts: %v", maxGitRetries, err)
-}
-
 func gitAdd(repoDir, path string) error {
-	return withRetry(func() error {
-		if err := gitRemoveIndexLockFileIfExists(repoDir); err != nil {
-			return fmt.Errorf("error removing lock file before add: %v", err)
-		}
 
-		res, err := exec.Command("git", "-C", repoDir, "add", path).CombinedOutput()
-		if err != nil {
-			return fmt.Errorf("error adding files to git repository for dir: %s, err: %v, output: %s", repoDir, err, string(res))
-		}
-		return nil
-	})
+	if err := gitRemoveIndexLockFileIfExists(repoDir); err != nil {
+		return fmt.Errorf("error removing lock file before add: %v", err)
+	}
+
+	res, err := exec.Command("git", "-C", repoDir, "add", path).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("error adding files to git repository for dir: %s, err: %v, output: %s", repoDir, err, string(res))
+	}
+	return nil
 }
 
 func gitCommit(repoDir, commitMsg string) error {
-	return withRetry(func() error {
-		if err := gitRemoveIndexLockFileIfExists(repoDir); err != nil {
-			return fmt.Errorf("error removing lock file before commit: %v", err)
-		}
+	if err := gitRemoveIndexLockFileIfExists(repoDir); err != nil {
+		return fmt.Errorf("error removing lock file before commit: %v", err)
+	}
 
-		res, err := exec.Command("git", "-C", repoDir, "commit", "-m", commitMsg).CombinedOutput()
-		if err != nil {
-			return fmt.Errorf("error committing files to git repository for dir: %s, err: %v, output: %s", repoDir, err, string(res))
-		}
-		return nil
-	})
+	res, err := exec.Command("git", "-C", repoDir, "commit", "-m", commitMsg).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("error committing files to git repository for dir: %s, err: %v, output: %s", repoDir, err, string(res))
+	}
+	return nil
+
 }
 
 func gitCheckoutBranch(repoDir, branch string) error {
-	return withRetry(func() error {
-		if err := gitRemoveIndexLockFileIfExists(repoDir); err != nil {
-			return fmt.Errorf("error removing lock file before checkout: %v", err)
-		}
+	log.Printf("[Git] gitCheckoutBranch - repoDir: %s, branch: %s", repoDir, branch)
+	if err := gitRemoveIndexLockFileIfExists(repoDir); err != nil {
+		return fmt.Errorf("error removing lock file before checkout: %v", err)
+	}
 
-		// get current branch and only checkout if it's not the same
-		// trying to check out the same branch will result in an error
-		var out bytes.Buffer
-		cmd := exec.Command("git", "-C", repoDir, "branch", "--show-current")
-		cmd.Stdout = &out
-		err := cmd.Run()
-		if err != nil {
-			return fmt.Errorf("error getting current git branch for dir: %s, err: %v", repoDir, err)
-		}
+	// get current branch and only checkout if it's not the same
+	// trying to check out the same branch will result in an error
+	var out bytes.Buffer
+	cmd := exec.Command("git", "-C", repoDir, "branch", "--show-current")
+	cmd.Stdout = &out
+	err := cmd.Run()
+	if err != nil {
+		return fmt.Errorf("error getting current git branch for dir: %s, err: %v", repoDir, err)
+	}
 
-		currentBranch := strings.TrimSpace(out.String())
-		log.Println("currentBranch:", currentBranch)
+	currentBranch := strings.TrimSpace(out.String())
+	log.Printf("[Git] gitCheckoutBranch - currentBranch: %s", currentBranch)
 
-		if currentBranch == branch {
-			return nil
-		}
-
-		log.Println("checking out branch:", branch)
-		res, err := exec.Command("git", "-C", repoDir, "checkout", branch).CombinedOutput()
-		if err != nil {
-			return fmt.Errorf("error checking out git branch for dir: %s, err: %v, output: %s", repoDir, err, string(res))
-		}
+	if currentBranch == branch {
+		log.Printf("[Git] gitCheckoutBranch - already on branch %s, skipping", branch)
 		return nil
-	})
+	}
+
+	log.Println("[Git] gitCheckoutBranch - checking out branch:", branch)
+	res, err := exec.Command("git", "-C", repoDir, "checkout", branch).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("error checking out git branch for dir: %s, err: %v, output: %s", repoDir, err, string(res))
+	}
+	return nil
 }
 
 func gitRewindToSha(repoDir, sha string) error {
@@ -570,11 +566,11 @@ func removeLockFile(lockFilePath string) error {
 			return fmt.Errorf("error removing index.lock file: %v after %d attempts", err, attempts)
 		}
 
-		log.Println("removing index.lock file:", lockFilePath, "attempt:", attempts)
+		log.Printf("[Git] removeLockFile - removing index.lock file: %s, attempt: %d", lockFilePath, attempts)
 
 		if err := os.Remove(lockFilePath); err != nil {
 			if os.IsNotExist(err) {
-				log.Println("index.lock file not found, skipping removal")
+				log.Printf("[Git] removeLockFile - %s file not found, skipping removal", lockFilePath)
 				return nil
 			}
 
@@ -588,11 +584,11 @@ func removeLockFile(lockFilePath string) error {
 			return fmt.Errorf("error checking lock file: %v", err)
 		}
 
-		log.Println("after removal, index.lock file exists:", exists)
+		log.Printf("[Git] removeLockFile - after removal, %s file exists: %t", lockFilePath, exists)
 		if exists {
-			log.Println("index.lock file still exists, retrying after delay")
+			log.Printf("[Git] removeLockFile - %s file still exists, retrying after delay", lockFilePath)
 		} else {
-			log.Println("index.lock file removed successfully")
+			log.Printf("[Git] removeLockFile - %s file removed successfully", lockFilePath)
 			return nil
 		}
 
@@ -604,9 +600,12 @@ func removeLockFile(lockFilePath string) error {
 }
 
 func gitRemoveIndexLockFileIfExists(repoDir string) error {
+	log.Printf("[Git] gitRemoveIndexLockFileIfExists - repoDir: %s", repoDir)
+
 	paths := []string{
 		filepath.Join(repoDir, ".git", "index.lock"),
 		filepath.Join(repoDir, ".git", "refs", "heads", "HEAD.lock"),
+		filepath.Join(repoDir, ".git", "HEAD.lock"),
 	}
 
 	errCh := make(chan error, len(paths))
@@ -615,6 +614,7 @@ func gitRemoveIndexLockFileIfExists(repoDir string) error {
 		go func(path string) {
 			if err := removeLockFile(path); err != nil {
 				errCh <- err
+				return
 			}
 			errCh <- nil
 		}(path)
@@ -643,7 +643,8 @@ func setGitConfig(repoDir, key, value string) error {
 	return nil
 }
 
-func gitWriteOperation(operation func() error, label string) error {
+func gitWriteOperation(operation func() error, repoDir, label string) error {
+	log.Printf("[Git] gitWriteOperation - label: %s", label)
 	var err error
 	for attempt := 0; attempt < maxGitRetries; attempt++ {
 		if attempt > 0 {
@@ -658,8 +659,12 @@ func gitWriteOperation(operation func() error, label string) error {
 		}
 
 		// Check if error is retryable
-		if strings.Contains(err.Error(), "index.lock") {
+		if strings.Contains(err.Error(), "index.lock") || strings.Contains(err.Error(), "cannot lock ref") {
 			log.Printf("Git lock file error detected for %s, will retry: %v\n", label, err)
+			err = gitRemoveIndexLockFileIfExists(repoDir)
+			if err != nil {
+				log.Printf("error removing lock files: %v", err)
+			}
 			continue
 		}
 
@@ -667,4 +672,104 @@ func gitWriteOperation(operation func() error, label string) error {
 		return err
 	}
 	return fmt.Errorf("operation %s failed after %d attempts: %v", label, maxGitRetries, err)
+}
+
+// LogGitRepoState prints out useful debug info about the current git repository:
+//   - The currently checked-out branch
+//   - The last few commits
+//   - The status (untracked changes, etc.)
+//   - A directory listing of refs/heads
+//   - A directory listing of .git/ (to spot any leftover lock files or HEAD files)
+func (repo *GitRepo) LogGitRepoState() {
+	repoDir := getPlanDir(repo.orgId, repo.planId)
+
+	log.Println("[DEBUG] --- Git Repo State ---")
+
+	// 1. Current branch
+	out, err := exec.Command("git", "-C", repoDir, "branch", "--show-current").CombinedOutput()
+	if err != nil {
+		log.Printf("[DEBUG] error running `git branch --show-current`: %v, output: %s", err, string(out))
+	} else {
+		log.Printf("[DEBUG] Current branch: %s", string(out))
+	}
+
+	// 2. Recent commits
+	out, err = exec.Command("git", "-C", repoDir, "log", "--oneline", "-5").CombinedOutput()
+	if err != nil {
+		log.Printf("[DEBUG] error running `git log --oneline -5`: %v, output: %s", err, string(out))
+	} else {
+		log.Printf("[DEBUG] Recent commits:\n%s", string(out))
+	}
+
+	// 3. Git status
+	out, err = exec.Command("git", "-C", repoDir, "status", "--short", "--branch").CombinedOutput()
+	if err != nil {
+		log.Printf("[DEBUG] error running `git status`: %v, output: %s", err, string(out))
+	} else {
+		log.Printf("[DEBUG] Git status:\n%s", string(out))
+	}
+
+	// 4. Show all refs (to see if `.git/refs/heads/HEAD` exists)
+	out, err = exec.Command("git", "-C", repoDir, "show-ref").CombinedOutput()
+	if err != nil {
+		log.Printf("[DEBUG] error running `git show-ref`: %v, output: %s", err, string(out))
+	} else {
+		log.Printf("[DEBUG] All refs:\n%s", string(out))
+	}
+
+	// 5. Directory listing of .git/refs/heads
+	headsDir := filepath.Join(repoDir, ".git", "refs", "heads")
+	out, err = exec.Command("ls", "-l", headsDir).CombinedOutput()
+	if err != nil {
+		log.Printf("[DEBUG] error listing heads dir: %s, err: %v, output: %s", headsDir, err, string(out))
+	} else {
+		log.Printf("[DEBUG] .git/refs/heads contents:\n%s", string(out))
+	}
+
+	// 5a. If there's actually a HEAD file in `.git/refs/heads`, cat it.
+	headRefPath := filepath.Join(headsDir, "HEAD")
+	if _, err := os.Stat(headRefPath); err == nil {
+		// The file `.git/refs/heads/HEAD` exists, which is unusual
+		log.Printf("[DEBUG] Found .git/refs/heads/HEAD. Dumping contents:")
+		catOut, _ := exec.Command("cat", headRefPath).CombinedOutput()
+		log.Printf("[DEBUG] .git/refs/heads/HEAD contents:\n%s", string(catOut))
+	} else if !os.IsNotExist(err) {
+		log.Printf("[DEBUG] error checking for .git/refs/heads/HEAD: %v", err)
+	}
+
+	// 6. Directory listing of .git/ in case there's HEAD.lock or index.lock
+	gitDir := filepath.Join(repoDir, ".git")
+	out, err = exec.Command("ls", "-l", gitDir).CombinedOutput()
+	if err != nil {
+		log.Printf("[DEBUG] error listing .git dir: %s, err: %v, output: %s", gitDir, err, string(out))
+	} else {
+		log.Printf("[DEBUG] .git/ contents:\n%s", string(out))
+	}
+
+	// 6a. If there's a .git/HEAD file, cat it
+	headFilePath := filepath.Join(gitDir, "HEAD")
+	if _, err := os.Stat(headFilePath); err == nil {
+		log.Printf("[DEBUG] .git/HEAD file exists. Dumping contents:")
+		catOut, _ := exec.Command("cat", headFilePath).CombinedOutput()
+		log.Printf("[DEBUG] .git/HEAD contents:\n%s", string(catOut))
+	} else if !os.IsNotExist(err) {
+		log.Printf("[DEBUG] error checking for .git/HEAD: %v", err)
+	}
+
+	// 6b. Check for HEAD.lock or index.lock specifically
+	headLockPath := filepath.Join(gitDir, "HEAD.lock")
+	if _, err := os.Stat(headLockPath); err == nil {
+		log.Printf("[DEBUG] HEAD.lock file exists at: %s", headLockPath)
+	} else if !os.IsNotExist(err) {
+		log.Printf("[DEBUG] error checking for HEAD.lock: %v", err)
+	}
+
+	indexLockPath := filepath.Join(gitDir, "index.lock")
+	if _, err := os.Stat(indexLockPath); err == nil {
+		log.Printf("[DEBUG] index.lock file exists at: %s", indexLockPath)
+	} else if !os.IsNotExist(err) {
+		log.Printf("[DEBUG] error checking for index.lock: %v", err)
+	}
+
+	log.Println("[DEBUG] --- End Git Repo State ---")
 }
