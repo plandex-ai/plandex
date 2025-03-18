@@ -21,22 +21,28 @@ func AutoLoadContextFiles(ctx context.Context, files []string) (string, error) {
 	}
 
 	var totalSize int64
+	totalContexts := len(contexts)
 
 	for _, context := range contexts {
-		totalSize += int64(len(context.Body))
+		totalSize += context.BodySize
 	}
 
 	loadContextReqsByIndex := make(map[int]*shared.LoadContextParams)
-	filesSkippedTooLarge := []struct {
-		Path string
-		Size int64
-	}{}
+	filesSkippedTooLarge := []filePathWithSize{}
 	filesSkippedAfterSizeLimit := []string{}
 
 	var mu sync.Mutex
 	errCh := make(chan error, len(files))
 
 	for i, path := range files {
+		totalContexts++
+		if totalContexts > shared.MaxContextCount {
+			log.Println("Skipping file", path, "because it would exceed the max context count", totalContexts)
+			filesSkippedAfterSizeLimit = append(filesSkippedAfterSizeLimit, path)
+			errCh <- nil
+			continue
+		}
+
 		go func(index int, path string) {
 			fileInfo, err := os.Stat(path)
 			if err != nil {
@@ -55,10 +61,7 @@ func AutoLoadContextFiles(ctx context.Context, files []string) (string, error) {
 			mu.Lock()
 			if size > shared.MaxContextBodySize {
 				log.Println("Skipping file", path, "because it's too large", size)
-				filesSkippedTooLarge = append(filesSkippedTooLarge, struct {
-					Path string
-					Size int64
-				}{Path: path, Size: size})
+				filesSkippedTooLarge = append(filesSkippedTooLarge, filePathWithSize{Path: path, Size: size})
 				mu.Unlock()
 				errCh <- nil
 				return
