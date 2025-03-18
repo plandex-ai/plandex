@@ -64,25 +64,10 @@ func usage(cmd *cobra.Command, args []string) {
 	}
 }
 
-func formatSpend(spend decimal.Decimal) string {
-	if spend.IsZero() {
-		return "$0.00"
-	}
-
-	spendStr := fmt.Sprintf("$%s", spend.StringFixed(4))
-	for i := 0; i < 2; i++ {
-		if strings.HasSuffix(spendStr, "0") {
-			spendStr = spendStr[:len(spendStr)-1]
-		}
-	}
-	if spendStr == "$0.00" {
-		return "<$0.0001"
-	}
-	return spendStr
-}
-
 func showUsage() {
 	auth.MustResolveAuthWithOrg()
+
+	term.StartSpinner("")
 
 	if !(creditsSession || creditsToday || creditsMonth || creditsCurrentPlan) {
 		if os.Getenv("PLANDEX_REPL_SESSION_ID") != "" {
@@ -159,13 +144,21 @@ func showUsage() {
 
 	table := tablewriter.NewWriter(&builder)
 	table.SetAutoWrapText(false)
-	table.SetHeader([]string{"💰 Current Balance", spendLbl, "🪙 Cache Savings"})
-	table.Append([]string{balanceStr, spendStr, formatSpend(res.CacheSavings)})
+	table.SetHeader([]string{"💰 Current Balance", spendLbl})
+	table.Append([]string{balanceStr, spendStr})
 	table.Render()
 	fmt.Fprintln(&builder)
 
-	amountByStr := map[string]float64{}
+	if !res.CacheSavings.IsZero() {
+		table := tablewriter.NewWriter(&builder)
+		table.SetAutoWrapText(false)
+		table.SetHeader([]string{"🎯 Cache Savings"})
+		table.Append([]string{formatSpend(res.CacheSavings)})
+		table.Render()
+		fmt.Fprintln(&builder)
+	}
 
+	amountByStr := map[string]float64{}
 	if len(res.ByPlanId) > 0 {
 		if !creditsCurrentPlan {
 			table := tablewriter.NewWriter(&builder)
@@ -544,4 +537,21 @@ func showLog(cmd *cobra.Command, args []string) {
 	if res.NumPages > 1 {
 		inputFn()
 	}
+}
+
+func formatSpend(spend decimal.Decimal) string {
+	if spend.IsZero() {
+		return "$0.00"
+	}
+
+	spendStr := fmt.Sprintf("$%s", spend.StringFixed(4))
+	for i := 0; i < 2; i++ {
+		if strings.HasSuffix(spendStr, "0") {
+			spendStr = spendStr[:len(spendStr)-1]
+		}
+	}
+	if spendStr == "$0.00" {
+		return "<$0.0001"
+	}
+	return spendStr
 }

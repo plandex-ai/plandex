@@ -50,7 +50,7 @@ func connect(cmd *cobra.Command, args []string) {
 	}
 
 	go func() {
-		err := streamtui.StartStreamUI("", false)
+		err := streamtui.StartStreamUI("", false, true)
 
 		if err != nil {
 			term.OutputErrorAndExit("Error starting stream UI", err)

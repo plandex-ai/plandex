@@ -59,6 +59,6 @@ func update(cmd *cobra.Command, args []string) {
 	lib.UpdateContextWithOutput(lib.UpdateContextParams{
 		Contexts:    contexts,
 		OutdatedRes: *outdated,
-		Req:         outdated.Req,
+		ReqFn:       outdated.ReqFn,
 	})
 }
