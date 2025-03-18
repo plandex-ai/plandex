@@ -16,6 +16,7 @@ import (
 	tree_sitter "github.com/smacker/go-tree-sitter"
 )
 
+// No longer used - all mapping is done via GetFileMap handler
 // handles concurrent processing of multiple files for mapping
 func ProcessMapFiles(ctx context.Context, inputs map[string]string) (shared.FileMapBodies, error) {
 	log.Println("ProcessMapFiles")
@@ -33,17 +34,21 @@ func ProcessMapFiles(ctx context.Context, inputs map[string]string) (shared.File
 	log.Printf("ProcessMapFiles: Max workers: %d", maxWorkers)
 	sem := make(chan struct{}, maxWorkers)
 
-	sortedPaths := make([]string, 0, len(inputs))
-	for path := range inputs {
-		sortedPaths = append(sortedPaths, path)
-	}
-	// sort paths by content length, longest first for more efficient cpu utilization
-	sort.Slice(sortedPaths, func(i, j int) bool {
-		return len(inputs[sortedPaths[i]]) > len(inputs[sortedPaths[j]])
-	})
+	for path, content := range inputs {
+		if !shared.HasFileMapSupport(path) {
+			mu.Lock()
+			bodies[path] = "[NO MAP]"
+			mu.Unlock()
+			errCh <- nil
+			continue
+		} else if len(content) > shared.MaxContextMapSingleInputSize { // 1MB
+			mu.Lock()
+			bodies[path] = "[NO MAP - TOO LARGE]"
+			mu.Unlock()
+			errCh <- nil
+			continue
+		}
 
-	for _, path := range sortedPaths {
-		content := inputs[path]
 		sem <- struct{}{}
 		go func(path, content string) {
 			defer func() { <-sem }()

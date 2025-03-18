@@ -79,27 +79,40 @@ func MapFile(ctx context.Context, filename string, content []byte) (*FileMap, er
 
 	parser, lang, fallbackParser, fallbackLang = syntax.GetParserForPath(filename)
 
-	if parser == nil {
+	if parser == nil && fallbackParser == nil {
 		// return nil, fmt.Errorf("unsupported file type: %s", ext)
 		return &FileMap{
 			Definitions: []Definition{},
 		}, nil
 	}
 
-	// Parse file
-	tree, err := parser.ParseCtx(ctx, nil, content)
-	if err != nil {
-		// return nil, fmt.Errorf("failed to parse file: %v", err)
-		return &FileMap{
-			Definitions: []Definition{},
-		}, nil
+	if parser != nil {
+		defer parser.Close()
 	}
-	defer tree.Close()
 
-	if tree.RootNode().Type() == "error" {
+	if fallbackParser != nil {
+		defer fallbackParser.Close()
+	}
+
+	var tree *tree_sitter.Tree
+	var err error
+
+	if parser != nil {
+		// Parse file
+		tree, err = parser.ParseCtx(ctx, nil, content)
+		if err != nil {
+			// return nil, fmt.Errorf("failed to parse file: %v", err)
+			return &FileMap{
+				Definitions: []Definition{},
+			}, nil
+		}
+		defer tree.Close()
+	}
+
+	if tree == nil || tree.RootNode().Type() == "error" {
 		fallbackTree, err := fallbackParser.ParseCtx(ctx, nil, content)
 		if err != nil {
-			// return nil, fmt.Errorf("failed to parse file with fallback parser: %v", err)
+			// return nil, fmt.Errorf("failed to parse file: %v", err)
 			return &FileMap{
 				Definitions: []Definition{},
 			}, nil
