@@ -6,8 +6,6 @@ import (
 	"log"
 	"net/http"
 	"plandex-server/db"
-	"plandex-server/syntax/file_map"
-	"runtime"
 	"sync"
 
 	shared "plandex-shared"
@@ -38,75 +36,68 @@ func GetFileMapHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	totalSize := 0
-	for _, input := range req.MapInputs {
+	for path, input := range req.MapInputs {
+		// the client should be truncating inputs to the max size, but we'll check here too
+		if len(input) > shared.MaxContextMapSingleInputSize {
+			http.Error(w, fmt.Sprintf("File %s is too large: %d (max %d)", path, len(input), shared.MaxContextMapSingleInputSize), http.StatusBadRequest)
+			return
+		}
 		totalSize += len(input)
 	}
 
-	// Allow a little extra space for empty file maps after the total size limit is exceeded
 	// On the client, once the total size limit is exceeded, we send empty file maps for remaining files
-	if totalSize > shared.MaxContextMapInputSize+10000 {
-		http.Error(w, fmt.Sprintf("Max map size exceeded: %d (max %d)", totalSize, shared.MaxContextMapInputSize), http.StatusBadRequest)
+	if totalSize > shared.MaxContextMapTotalInputSize+10000 {
+		http.Error(w, fmt.Sprintf("Max map size exceeded: %d (max %d)", totalSize, shared.MaxContextMapTotalInputSize), http.StatusBadRequest)
 		return
 	}
 
-	maps := make(shared.FileMapBodies)
-
-	// Use half of available CPUs
-	cpus := runtime.NumCPU()
-	log.Printf("GetFileMapHandler: Available CPUs: %d", cpus)
-	maxWorkers := cpus / 2
-	if maxWorkers < 1 {
-		maxWorkers = 1 // Ensure at least one worker
+	// Check batch size limits
+	if len(req.MapInputs) > shared.ContextMapMaxBatchSize {
+		http.Error(w, fmt.Sprintf("Batch contains too many files: %d (max %d)", len(req.MapInputs), shared.ContextMapMaxBatchSize), http.StatusBadRequest)
+		return
 	}
-	log.Printf("GetFileMapHandler: Max workers: %d", maxWorkers)
-	sem := make(chan struct{}, maxWorkers)
-	wg := sync.WaitGroup{}
-	var mu sync.Mutex
 
-	log.Printf("GetFileMapHandler: len(req.MapInputs): %d", len(req.MapInputs))
+	if int64(totalSize) > shared.ContextMapMaxBatchBytes {
+		http.Error(w, fmt.Sprintf("Batch size too large: %d bytes (max %d bytes)", totalSize, shared.ContextMapMaxBatchBytes), http.StatusBadRequest)
+		return
+	}
 
-	for path, input := range req.MapInputs {
-		if !shared.HasFileMapSupport(path) {
-			mu.Lock()
-			maps[path] = "[NO MAP]"
-			mu.Unlock()
-			continue
+	results := make(chan shared.FileMapBodies)
+
+	err := queueProjectMapJob(projectMapJob{
+		inputs:  req.MapInputs,
+		ctx:     r.Context(),
+		results: results,
+	})
+	if err != nil {
+		log.Println("GetFileMapHandler: map queue is full")
+		http.Error(w, "Too many project map jobs, please try again later", http.StatusServiceUnavailable)
+		return
+	}
+
+	select {
+	case <-r.Context().Done():
+		http.Error(w, "Request was cancelled", http.StatusRequestTimeout)
+		return
+	case maps := <-results:
+		if maps == nil {
+			http.Error(w, "Mapping timed out", http.StatusRequestTimeout)
+			return
 		}
 
-		wg.Add(1)
-		sem <- struct{}{}
-		go func(path string, input string) {
-			defer wg.Done()
-			defer func() { <-sem }()
-			fileMap, err := file_map.MapFile(r.Context(), path, []byte(input))
-			if err != nil {
-				// Skip files that can't be parsed, just log the error
-				log.Printf("Error mapping file %s: %v", path, err)
-				return
-			}
-			mu.Lock()
-			maps[path] = fileMap.String()
-			mu.Unlock()
-		}(path, input)
+		resp := shared.GetFileMapResponse{
+			MapBodies: maps,
+		}
+		respBytes, err := json.Marshal(resp)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Error marshalling response: %v", err), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(respBytes)
+
+		log.Printf("GetFileMapHandler success - writing response bytes: %d", len(respBytes))
 	}
-	wg.Wait()
-
-	log.Printf("GetFileMapHandler: len(maps): %d", len(maps))
-
-	resp := shared.GetFileMapResponse{
-		MapBodies: maps,
-	}
-
-	respBytes, err := json.Marshal(resp)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Error marshalling response: %v", err), http.StatusInternalServerError)
-		return
-	}
-
-	log.Printf("GetFileMapHandler success - writing response bytes: %d", len(respBytes))
-
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(respBytes)
 }
 
 func LoadCachedFileMapHandler(w http.ResponseWriter, r *http.Request) {
@@ -153,6 +144,7 @@ func LoadCachedFileMapHandler(w http.ResponseWriter, r *http.Request) {
 					MapParts:  cachedContext.MapParts,
 					MapShas:   cachedContext.MapShas,
 					MapTokens: cachedContext.MapTokens,
+					MapSizes:  cachedContext.MapSizes,
 				}
 				mu.Unlock()
 			}
