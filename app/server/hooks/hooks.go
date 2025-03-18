@@ -177,3 +177,7 @@ func ExecHook(name string, params HookParams) (HookResult, *shared.ApiError) {
 	}
 	return hook(params)
 }
+
+func TestUpdate() {
+
+}

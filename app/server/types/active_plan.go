@@ -341,7 +341,7 @@ func (ap *ActivePlan) Subscribe(reqCtx context.Context) (string, chan string) {
 
 	// Make a subscription context that will end if EITHER the request ends
 	// OR the plan’s context ends:
-	subCtx, subCancel := context.WithCancel(context.Background())
+	subCtx, subCancel := context.WithCancel(shutdown.ShutdownCtx)
 
 	// Use a small goroutine to combine the two cancels:
 	go func() {
