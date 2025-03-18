@@ -138,8 +138,10 @@ func (state *activeTellStreamState) formatModelContext(params formatModelContext
 	}
 
 	// Add any current pendingFiles in plan that weren't added to the context
+	var currentPlanFiles *shared.CurrentPlanFiles
 	var pendingFiles map[string]string = map[string]string{}
 	if state.currentPlanState != nil && state.currentPlanState.CurrentPlanFiles != nil && state.currentPlanState.CurrentPlanFiles.Files != nil {
+		currentPlanFiles = state.currentPlanState.CurrentPlanFiles
 		pendingFiles = state.currentPlanState.CurrentPlanFiles.Files
 	}
 
@@ -270,9 +272,9 @@ func (state *activeTellStreamState) formatModelContext(params formatModelContext
 		}
 	}
 
-	if len(state.currentPlanState.CurrentPlanFiles.Removed) > 0 {
+	if currentPlanFiles != nil && len(currentPlanFiles.Removed) > 0 {
 		contextBodies = append(contextBodies, "*Removed files:*\n")
-		for path := range state.currentPlanState.CurrentPlanFiles.Removed {
+		for path := range currentPlanFiles.Removed {
 			contextBodies = append(contextBodies, fmt.Sprintf("- %s", path))
 		}
 		contextBodies = append(contextBodies, "These files have been *removed* and are no longer in the plan. If you want to re-add them to the plan, you must explicitly create them again.")

@@ -7,6 +7,8 @@ import (
 	"time"
 
 	shared "plandex-shared"
+
+	"github.com/davecgh/go-spew/spew"
 )
 
 func (state *activeTellStreamState) listenStream(stream *model.ExtendedChatCompletionStream) {
@@ -112,34 +114,40 @@ mainLoop:
 					return
 				}
 
-				res := state.onError(onErrorParams{
-					streamErr: fmt.Errorf("stream finished with no choices | The model failed to generate a valid response."),
-					storeDesc: true,
-					canRetry:  true,
-				})
-				if res.shouldReturn {
-					return
-				}
-				if res.shouldContinueMainLoop {
-					// continue instead of returning so that context cancellation is handled
-					continue mainLoop
-				}
+				log.Println("listenStream - stream finished with no choices", spew.Sdump(response))
+
+				// Previously we'd return an error if there were no choices, but some models do this and then keep streaming, so we'll just log it and continue, waiting for an EOF if there's a problem
+				// res := state.onError(onErrorParams{
+				// 	streamErr: fmt.Errorf("stream finished with no choices | The model failed to generate a valid response."),
+				// 	storeDesc: true,
+				// 	canRetry:  true,
+				// })
+				// if res.shouldReturn {
+				// 	return
+				// }
+				// if res.shouldContinueMainLoop {
+				// 	// continue instead of returning so that context cancellation is handled
+				// 	continue mainLoop
+				// }
+
+				continue mainLoop
 			}
 
-			if len(response.Choices) > 1 {
-				res := state.onError(onErrorParams{
-					streamErr: fmt.Errorf("stream finished with more than one choice | The model failed to generate a valid response."),
-					storeDesc: true,
-					canRetry:  true,
-				})
-				if res.shouldReturn {
-					return
-				}
-				if res.shouldContinueMainLoop {
-					// continue instead of returning so that context cancellation is handled
-					continue mainLoop
-				}
-			}
+			// We'll be more accepting of multiple choices and just take the first one
+			// if len(response.Choices) > 1 {
+			// 	res := state.onError(onErrorParams{
+			// 		streamErr: fmt.Errorf("stream finished with more than one choice | The model failed to generate a valid response."),
+			// 		storeDesc: true,
+			// 		canRetry:  true,
+			// 	})
+			// 	if res.shouldReturn {
+			// 		return
+			// 	}
+			// 	if res.shouldContinueMainLoop {
+			// 		// continue instead of returning so that context cancellation is handled
+			// 		continue mainLoop
+			// 	}
+			// }
 
 			choice := response.Choices[0]
 

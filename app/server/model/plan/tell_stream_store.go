@@ -227,18 +227,6 @@ func (state *activeTellStreamState) storeOnFinished(params storeOnFinishedParams
 		}
 	}
 
-	log.Println("[storeOnFinished] Locked repo for assistant reply and description")
-
-	if err != nil {
-		return storeOnFinishedResult{
-			handleStreamFinishedResult: handleStreamFinishedResult{
-				shouldContinueMainLoop: true,
-				shouldReturn:           false,
-			},
-			allSubtasksFinished: allSubtasksFinished,
-		}
-	}
-
 	return storeOnFinishedResult{
 		handleStreamFinishedResult: handleStreamFinishedResult{},
 		allSubtasksFinished:        allSubtasksFinished,

@@ -46,6 +46,8 @@ func (state *activeTellStreamState) loadTellPlan() error {
 	var latestSummaryTokens int
 	var currentPlan *shared.CurrentPlanState
 
+	log.Printf("[TellLoad] Tell plan - loadTellPlan - iteration: %d, missingFileResponse: %s, req.IsUserContinue: %t, lockScope: %s\n", iteration, missingFileResponse, req.IsUserContinue, lockScope)
+
 	db.ExecRepoOperation(db.ExecRepoOperationParams{
 		OrgId:    auth.OrgId,
 		UserId:   auth.User.Id,
@@ -124,10 +126,10 @@ func (state *activeTellStreamState) loadTellPlan() error {
 					return
 				}
 
-				log.Printf("Tell plan - loadTellPlan - modelContext: %v\n", len(modelContext))
-				for _, part := range modelContext {
-					log.Printf("Tell plan - loadTellPlan - part: %s - %s - %s - %d tokens\n", part.ContextType, part.Name, part.FilePath, part.NumTokens)
-				}
+				log.Printf("[TellLoad] Tell plan - loadTellPlan - modelContext: %v\n", len(modelContext))
+				// for _, part := range modelContext {
+				// 	log.Printf("[TellLoad] Tell plan - loadTellPlan - part: %s - %s - %s - %d tokens\n", part.ContextType, part.Name, part.FilePath, part.NumTokens)
+				// }
 
 				modelContext = res
 			}
@@ -154,7 +156,7 @@ func (state *activeTellStreamState) loadTellPlan() error {
 				if iteration == 0 && missingFileResponse == "" && !req.IsUserContinue {
 					num := len(convo) + 1
 
-					log.Printf("storing user message | len(convo): %d | num: %d\n", len(convo), num)
+					log.Printf("[TellLoad] storing user message | len(convo): %d | num: %d\n", len(convo), num)
 
 					promptMsg = &db.ConvoMessage{
 						OrgId:   currentOrgId,
@@ -171,10 +173,13 @@ func (state *activeTellStreamState) loadTellPlan() error {
 						},
 					}
 
+					log.Println("[TellLoad] storing user message")
+					// repo.LogGitRepoState()
+
 					_, err = db.StoreConvoMessage(repo, promptMsg, auth.User.Id, branch, true)
 
 					if err != nil {
-						log.Printf("Error storing user message: %v\n", err)
+						log.Printf("[TellLoad] Error storing user message: %v\n", err)
 						innerErrCh <- fmt.Errorf("error storing user message: %v", err)
 						return
 					}

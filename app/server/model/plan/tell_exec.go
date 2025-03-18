@@ -323,7 +323,7 @@ func execTellPlan(params execTellPlanParams) {
 
 	log.Printf("\n\nMessages: %d\n", len(state.messages))
 	// for _, message := range state.messages {
-	// 	log.Printf("%s: %s\n", message.Role, message.Content)
+	// 	log.Printf("%s: %v\n", message.Role, message.Content)
 	// }
 
 	requestTokens := model.GetMessagesTokenEstimate(state.messages...) + model.TokensPerRequest
@@ -331,16 +331,27 @@ func execTellPlan(params execTellPlanParams) {
 
 	stop := []string{"<PlandexFinish/>"}
 	modelConfig := tentativeModelConfig
+
+	log.Println("Tell plan - setting modelConfig")
+	log.Println("Tell plan - requestTokens:", requestTokens)
+	log.Println("Tell plan - state.currentStage.TellStage:", state.currentStage.TellStage)
+	log.Println("Tell plan - state.currentStage.PlanningPhase:", state.currentStage.PlanningPhase)
+
 	if state.currentStage.TellStage == shared.TellStagePlanning {
 		if state.currentStage.PlanningPhase == shared.PlanningPhaseContext {
 			log.Println("Tell plan - isContextStage - setting modelConfig to context loader")
 			modelConfig = state.settings.ModelPack.GetArchitect().GetRoleForInputTokens(requestTokens)
+			log.Println("Tell plan - got modelConfig for context phase")
 		} else if state.currentStage.PlanningPhase == shared.PlanningPhaseTasks {
-			modelConfig = state.settings.ModelPack.Planner.GetRoleForInputTokens(requestTokens)
+			modelConfig = state.settings.ModelPack.Planner.GetRoleForInputTokens(requestTokens).ModelRoleConfig
+			log.Println("Tell plan - got modelConfig for tasks phase")
 		}
 	} else if state.currentStage.TellStage == shared.TellStageImplementation {
 		modelConfig = state.settings.ModelPack.GetCoder().GetRoleForInputTokens(requestTokens)
+		log.Println("Tell plan - got modelConfig for implementation stage")
 	}
+
+	log.Println("Tell plan - modelConfig:", spew.Sdump(modelConfig))
 
 	// if the model doesn't support cache control, remove the cache control spec from the messages
 	if !modelConfig.BaseModelConfig.SupportsCacheControl {

@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"plandex-server/db"
+	"plandex-server/shutdown"
 	"strconv"
 	"time"
 
@@ -79,7 +80,7 @@ func (state *activeTellStreamState) onError(params onErrorParams) onErrorResult 
 	}
 
 	storeDescAndReply := func() error {
-		ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
+		ctx, cancelFn := context.WithTimeout(shutdown.ShutdownCtx, 5*time.Second)
 
 		err := db.ExecRepoOperation(db.ExecRepoOperationParams{
 			OrgId:    currentOrgId,
