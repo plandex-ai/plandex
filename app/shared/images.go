@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"image"
+	"io"
 	"log"
 	"math"
 	"path/filepath"
@@ -26,7 +27,12 @@ func GetImageTokens(base64Image string, detail openai.ImageURLDetail) (int, erro
 		return 0, fmt.Errorf("failed to decode base64 image data: %w", err)
 	}
 
-	img, _, err := image.DecodeConfig(bytes.NewReader(imageData))
+	return GetImageTokensFromHeader(bytes.NewReader(imageData), detail, int64(len(imageData)))
+}
+
+func GetImageTokensFromHeader(reader io.Reader, detail openai.ImageURLDetail, maxBytes int64) (int, error) {
+	reader = io.LimitReader(reader, maxBytes)
+	img, _, err := image.DecodeConfig(reader)
 	if err != nil {
 		log.Println("failed to decode image config:", err)
 		return 0, fmt.Errorf("failed to decode image config: %w", err)
@@ -51,6 +57,10 @@ func GetImageTokens(base64Image string, detail openai.ImageURLDetail) (int, erro
 			float64(openaiTokens),
 		),
 	)), nil
+}
+
+func GetImageTokensEstimateFromBytes(l int64) int {
+	return int(l) / 750
 }
 
 func getAnthropicImageTokens(width, height int) int {

@@ -110,6 +110,7 @@ type Context struct {
 	MapParts        FileMapBodies         `json:"mapParts,omitempty"`
 	MapShas         map[string]string     `json:"mapShas,omitempty"`
 	MapTokens       map[string]int        `json:"mapTokens,omitempty"`
+	MapSizes        map[string]int64      `json:"mapSizes,omitempty"`
 	AutoLoaded      bool                  `json:"autoLoaded"`
 	CreatedAt       time.Time             `json:"createdAt"`
 	UpdatedAt       time.Time             `json:"updatedAt"`

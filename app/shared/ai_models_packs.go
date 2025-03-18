@@ -36,7 +36,7 @@ func init() {
 				ModelRoleConfig: *gemini15pro(ModelRolePlanner, nil),
 				PlannerModelConfig: PlannerModelConfig{
 					// Use the same max convo tokens as the default model so we don't mess with summarization too much
-					MaxConvoTokens: GetAvailableModel(ModelProviderOpenRouter, "anthropic/claude-3.7-sonnet").DefaultMaxConvoTokens,
+					MaxConvoTokens: GetAvailableModel(ModelProviderOpenRouter, "google/gemini-pro-1.5").DefaultMaxConvoTokens,
 				},
 			},
 		},

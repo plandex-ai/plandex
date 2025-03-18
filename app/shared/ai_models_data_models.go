@@ -229,7 +229,7 @@ func (p PlannerRoleConfig) GetFinalLargeContextFallback() PlannerRoleConfig {
 	return currentConfig
 }
 
-func (p PlannerRoleConfig) GetRoleForTokens(tokens int) PlannerRoleConfig {
+func (p PlannerRoleConfig) GetRoleForInputTokens(tokens int) PlannerRoleConfig {
 	var currentConfig PlannerRoleConfig = p
 	var n int = 0
 	for {

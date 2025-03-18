@@ -10,11 +10,15 @@ import (
 )
 
 const (
-	MaxContextBodySize     = 25 * 1024 * 1024 // 25MB
-	MaxContextCount        = 1000
-	MaxContextMapPaths     = 3000
-	MaxContextMapInputSize = 250 * 1024 * 1024      // 250MB
-	MaxTotalContextSize    = 1 * 1024 * 1024 * 1024 // 1GB
+	MaxContextBodySize           = 25 * 1024 * 1024 // 25MB
+	MaxContextCount              = 1000
+	MaxContextMapPaths           = 3000
+	MaxContextMapSingleInputSize = 500 * 1024             // 500KB
+	MaxContextMapTotalInputSize  = 250 * 1024 * 1024      // 250MB
+	MaxTotalContextSize          = 1 * 1024 * 1024 * 1024 // 1GB
+
+	ContextMapMaxBatchBytes = 10 * 1024 * 1024 // 10MB
+	ContextMapMaxBatchSize  = 500
 )
 
 type ContextUpdateResult struct {
