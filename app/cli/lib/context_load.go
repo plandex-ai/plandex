@@ -117,17 +117,11 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 	errCh := make(chan error)
 	ignoredPaths := make(map[string]string)
 
-	mapFilesSkippedTooLarge := []struct {
-		Path string
-		Size int64
-	}{}
+	mapFilesTruncatedTooLarge := []filePathWithSize{}
 	mapFilesSkippedAfterSizeLimit := []string{}
 
 	// We'll reuse these for all skipping, including directory-tree partial skipping and URLs
-	filesSkippedTooLarge := []struct {
-		Path string
-		Size int64
-	}{}
+	filesSkippedTooLarge := []filePathWithSize{}
 	filesSkippedAfterSizeLimit := []string{}
 
 	var totalSize int64
@@ -154,9 +148,19 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 	var cachedMapPaths map[string]bool
 	var cachedMapLoadRes *shared.LoadContextResponse
 
+	mapInputShas := map[string]string{}
+	mapInputTokens := map[string]int{}
+	mapInputSizes := map[string]int64{}
+
+	toLoadMapPaths := []string{}
+	mapInputPathsForPaths := map[string]string{}
+
+	currentMapInputBatch := shared.FileMapInputs{}
+	mapInputBatches := []shared.FileMapInputs{currentMapInputBatch}
+
+	sem := make(chan struct{}, ContextMapMaxClientConcurrency)
+
 	if len(inputFilePaths) > 0 {
-		mapInputsByPath := map[string]shared.FileMapInputs{}
-		toLoadMapPaths := []string{}
 
 		var mapSize int64
 
@@ -168,7 +172,6 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 					continue
 				}
 
-				mapInputsByPath[inputFilePath] = shared.FileMapInputs{}
 				toLoadMapPaths = append(toLoadMapPaths, inputFilePath)
 			}
 
@@ -204,7 +207,6 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 
 			toLoadMapPaths = uncachedMapPaths
 			inputFilePaths = toLoadMapPaths
-
 		}
 
 		if len(inputFilePaths) > 0 {
@@ -246,6 +248,9 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 
 					numRoutines++
 					go func(inputFilePath string) {
+						sem <- struct{}{}
+						defer func() { <-sem }()
+
 						flattenedPaths, err := ParseInputPaths(ParseInputPathsParams{
 							FileOrDirPaths: []string{inputFilePath},
 							BaseDir:        baseDir,
@@ -283,10 +288,7 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 
 							contextMu.Lock()
 							if lineSize > shared.MaxContextBodySize {
-								filesSkippedTooLarge = append(filesSkippedTooLarge, struct {
-									Path string
-									Size int64
-								}{Path: p, Size: lineSize})
+								filesSkippedTooLarge = append(filesSkippedTooLarge, filePathWithSize{Path: p, Size: lineSize})
 								contextMu.Unlock()
 								continue
 							}
@@ -360,29 +362,46 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 
 				var numPaths int
 				if params.DefsOnly {
+					filtered := []string{}
 					for _, path := range flattenedPaths {
 						if shared.HasFileMapSupport(path) {
 							numPaths++
-						}
-					}
-				} else {
-					numPaths = len(flattenedPaths)
-				}
 
-				if (params.DefsOnly || params.NamesOnly) && numPaths > shared.MaxContextMapPaths {
-					// Skip all remaining
-					for _, path := range flattenedPaths {
-						if params.DefsOnly {
-							mapFilesSkippedAfterSizeLimit = append(mapFilesSkippedAfterSizeLimit, path)
-						} else {
-							filesSkippedAfterSizeLimit = append(filesSkippedAfterSizeLimit, path)
+							if numPaths > shared.MaxContextMapPaths {
+								mapFilesSkippedAfterSizeLimit = append(mapFilesSkippedAfterSizeLimit, path)
+								continue
+							}
+
+							filtered = append(filtered, path)
 						}
 					}
-				} else if !params.DefsOnly && !params.NamesOnly && numPaths > shared.MaxContextCount {
-					// Skip all remaining
+					flattenedPaths = filtered
+				} else if params.NamesOnly {
+					filtered := []string{}
 					for _, path := range flattenedPaths {
-						filesSkippedAfterSizeLimit = append(filesSkippedAfterSizeLimit, path)
+						numPaths++
+
+						if numPaths > shared.MaxContextMapPaths {
+							filesSkippedAfterSizeLimit = append(filesSkippedAfterSizeLimit, path)
+							continue
+						}
+
+						filtered = append(filtered, path)
 					}
+					flattenedPaths = filtered
+				} else {
+					filtered := []string{}
+					for _, path := range flattenedPaths {
+						numPaths++
+
+						if numPaths > shared.MaxContextCount {
+							filesSkippedAfterSizeLimit = append(filesSkippedAfterSizeLimit, path)
+							continue
+						}
+
+						filtered = append(filtered, path)
+					}
+					flattenedPaths = filtered
 				}
 
 				inputFilePaths = flattenedPaths
@@ -400,7 +419,7 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 								continue
 							}
 							if absPath == absInputPath ||
-								strings.HasPrefix(absPath+string(filepath.Separator), absInputPath+string(filepath.Separator)) {
+								strings.HasPrefix(absPath+string(os.PathSeparator), absInputPath+string(os.PathSeparator)) {
 								mapInputPath = inputPath
 								break
 							}
@@ -409,6 +428,8 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 						if mapInputPath == "" {
 							continue
 						}
+
+						mapInputPathsForPaths[path] = mapInputPath
 					}
 
 					var contextType shared.ContextType
@@ -430,8 +451,11 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 					}
 
 					numRoutines++
+
 					go func(path string) {
-						var fileContent []byte
+						sem <- struct{}{}
+						defer func() { <-sem }()
+
 						var size int64
 
 						fileInfo, err := os.Stat(path)
@@ -443,63 +467,63 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 
 						if !params.DefsOnly && size > shared.MaxContextBodySize {
 							contextMu.Lock()
-							filesSkippedTooLarge = append(filesSkippedTooLarge, struct {
-								Path string
-								Size int64
-							}{Path: path, Size: size})
+							filesSkippedTooLarge = append(filesSkippedTooLarge, filePathWithSize{Path: path, Size: size})
 							contextMu.Unlock()
 							errCh <- nil
 							return
 						}
 
-						contextMu.Lock()
-						if !params.DefsOnly && totalSize+size > shared.MaxContextBodySize {
-							filesSkippedAfterSizeLimit = append(filesSkippedAfterSizeLimit, path)
-							contextMu.Unlock()
-							errCh <- nil
-							return
-						}
-						totalSize += size
-						contextMu.Unlock()
-
-						fileContent, err = os.ReadFile(path)
-						if err != nil {
-							errCh <- fmt.Errorf("failed to read the file %s: %v", path, err)
-							return
-						}
-
-						contextMu.Lock()
-						defer contextMu.Unlock()
-
-						if params.DefsOnly {
-							if !shared.HasFileMapSupport(path) {
-								size = 0
-							}
-
-							if size > shared.MaxContextBodySize {
-								mapFilesSkippedTooLarge = append(mapFilesSkippedTooLarge, struct {
-									Path string
-									Size int64
-								}{Path: path, Size: size})
+						if !params.DefsOnly {
+							contextMu.Lock()
+							if totalSize+size > shared.MaxContextBodySize {
+								filesSkippedAfterSizeLimit = append(filesSkippedAfterSizeLimit, path)
+								contextMu.Unlock()
 								errCh <- nil
 								return
 							}
+							totalSize += size
+							contextMu.Unlock()
+						}
 
-							var mapSizeExceeded bool
-							if mapSize+size > shared.MaxContextMapInputSize {
-								mapSizeExceeded = true
-								mapFilesSkippedAfterSizeLimit = append(mapFilesSkippedAfterSizeLimit, path)
+						if params.DefsOnly {
+							res, err := getMapFileDetails(path, size, totalSize)
+							if err != nil {
+								errCh <- fmt.Errorf("failed to get map file details for %s: %v", path, err)
+								return
 							}
 
-							content := string(fileContent)
-							if mapSizeExceeded || !shared.HasFileMapSupport(path) {
-								content = ""
-								size = 0
+							contextMu.Lock()
+							defer contextMu.Unlock()
+
+							if currentMapInputBatch.NumFiles()+1 > shared.ContextMapMaxBatchSize || currentMapInputBatch.TotalSize()+size > shared.ContextMapMaxBatchBytes {
+								currentMapInputBatch = shared.FileMapInputs{}
+								mapInputBatches = append(mapInputBatches, currentMapInputBatch)
 							}
 
-							mapInputsByPath[mapInputPath][path] = content
-							mapSize += size
+							currentMapInputBatch[path] = res.mapContent
+							mapSize += res.size
+							mapInputShas[path] = res.shaVal
+							mapInputTokens[path] = res.tokens
+							mapInputSizes[path] = res.size
+
+							if len(res.mapFilesTruncatedTooLarge) > 0 {
+								mapFilesTruncatedTooLarge = append(mapFilesTruncatedTooLarge, res.mapFilesTruncatedTooLarge...)
+							}
+
+							if len(res.mapFilesSkippedAfterSizeLimit) > 0 {
+								mapFilesSkippedAfterSizeLimit = append(mapFilesSkippedAfterSizeLimit, res.mapFilesSkippedAfterSizeLimit...)
+							}
+
 						} else if isImage {
+							fileContent, err := os.ReadFile(path)
+							if err != nil {
+								errCh <- fmt.Errorf("failed to read the file %s: %v", path, err)
+								return
+							}
+
+							contextMu.Lock()
+							defer contextMu.Unlock()
+
 							loadContextReq = append(loadContextReq, &shared.LoadContextParams{
 								ContextType: shared.ContextImageType,
 								Name:        path,
@@ -509,6 +533,15 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 								AutoLoaded:  params.AutoLoaded,
 							})
 						} else {
+							fileContent, err := os.ReadFile(path)
+							if err != nil {
+								errCh <- fmt.Errorf("failed to read the file %s: %v", path, err)
+								return
+							}
+
+							contextMu.Lock()
+							defer contextMu.Unlock()
+
 							loadContextReq = append(loadContextReq, &shared.LoadContextParams{
 								ContextType: shared.ContextFileType,
 								Name:        path,
@@ -520,27 +553,6 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 
 						errCh <- nil
 					}(path)
-				}
-
-				if params.DefsOnly {
-					for _, inputPath := range toLoadMapPaths {
-						var name string
-						if inputPath == "." {
-							name = "cwd"
-						} else if inputPath == ".." {
-							name = "parent"
-						} else {
-							name = inputPath
-						}
-
-						loadContextReq = append(loadContextReq, &shared.LoadContextParams{
-							ContextType: shared.ContextMapType,
-							Name:        name,
-							MapInputs:   mapInputsByPath[inputPath],
-							FilePath:    inputPath,
-							AutoLoaded:  params.AutoLoaded,
-						})
-					}
 				}
 			}
 		}
@@ -556,6 +568,9 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 
 			numRoutines++
 			go func(u string) {
+				sem <- struct{}{}
+				defer func() { <-sem }()
+
 				body, err := url.FetchURLContent(u)
 				if err != nil {
 					errCh <- fmt.Errorf("failed to fetch content from URL %s: %v", u, err)
@@ -572,25 +587,20 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 				size := int64(len(body))
 
 				contextMu.Lock()
+				defer contextMu.Unlock()
+
 				if size > shared.MaxContextBodySize {
-					filesSkippedTooLarge = append(filesSkippedTooLarge, struct {
-						Path string
-						Size int64
-					}{Path: u, Size: size})
-					contextMu.Unlock()
+					filesSkippedTooLarge = append(filesSkippedTooLarge, filePathWithSize{Path: u, Size: size})
 					errCh <- nil
 					return
 				}
 				if totalSize+size > shared.MaxContextBodySize {
 					filesSkippedAfterSizeLimit = append(filesSkippedAfterSizeLimit, u)
-					contextMu.Unlock()
 					errCh <- nil
 					return
 				}
 				totalSize += size
-				contextMu.Unlock()
 
-				contextMu.Lock()
 				loadContextReq = append(loadContextReq, &shared.LoadContextParams{
 					ContextType: shared.ContextURLType,
 					Name:        name,
@@ -598,7 +608,6 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 					Url:         u,
 					AutoLoaded:  params.AutoLoaded,
 				})
-				contextMu.Unlock()
 
 				errCh <- nil
 			}(u)
@@ -609,6 +618,51 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 		err := <-errCh
 		if err != nil {
 			onErr(err)
+		}
+	}
+
+	if params.DefsOnly {
+		allMapBodies, err := processMapBatches(mapInputBatches)
+		if err != nil {
+			onErr(fmt.Errorf("failed to process map batches: %v", err))
+		}
+
+		for _, inputPath := range toLoadMapPaths {
+			var name string
+			if inputPath == "." {
+				name = "cwd"
+			} else if inputPath == ".." {
+				name = "parent"
+			} else {
+				name = inputPath
+			}
+
+			pathBodies := shared.FileMapBodies{}
+			pathShas := map[string]string{}
+			pathTokens := map[string]int{}
+			pathSizes := map[string]int64{}
+			for path, body := range allMapBodies {
+				mapInputPath := mapInputPathsForPaths[path]
+				if mapInputPath == inputPath {
+					pathBodies[path] = body
+					pathShas[path] = mapInputShas[path]
+					pathTokens[path] = mapInputTokens[path]
+					pathSizes[path] = mapInputSizes[path]
+				}
+			}
+
+			if len(pathBodies) > 0 {
+				loadContextReq = append(loadContextReq, &shared.LoadContextParams{
+					ContextType: shared.ContextMapType,
+					Name:        name,
+					MapBodies:   pathBodies,
+					InputShas:   pathShas,
+					InputTokens: pathTokens,
+					InputSizes:  pathSizes,
+					FilePath:    inputPath,
+					AutoLoaded:  params.AutoLoaded,
+				})
+			}
 		}
 	}
 
@@ -700,9 +754,9 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 	}
 
 	if len(filesSkippedTooLarge) > 0 || len(filesSkippedAfterSizeLimit) > 0 ||
-		len(mapFilesSkippedTooLarge) > 0 || len(mapFilesSkippedAfterSizeLimit) > 0 {
+		len(mapFilesTruncatedTooLarge) > 0 || len(mapFilesSkippedAfterSizeLimit) > 0 {
 		printSkippedFilesMsg(filesSkippedTooLarge, filesSkippedAfterSizeLimit,
-			mapFilesSkippedTooLarge, mapFilesSkippedAfterSizeLimit)
+			mapFilesTruncatedTooLarge, mapFilesSkippedAfterSizeLimit)
 	}
 }
 
@@ -723,83 +777,4 @@ func printAlreadyLoadedMsg(alreadyLoadedByComposite map[string]*shared.Context) 
 func printIgnoredMsg() {
 	fmt.Println()
 	fmt.Println("ℹ️  " + color.New(color.FgWhite).Sprint("Due to .gitignore or .plandexignore, some paths weren't loaded.\nUse --force / -f to load ignored paths."))
-}
-
-func printSkippedFilesMsg(
-	filesSkippedTooLarge []struct {
-		Path string
-		Size int64
-	},
-	filesSkippedAfterSizeLimit []string,
-	mapFilesSkippedTooLarge []struct {
-		Path string
-		Size int64
-	},
-	mapFilesSkippedAfterSizeLimit []string,
-) {
-	fmt.Println()
-	fmt.Println(getSkippedFilesMsg(filesSkippedTooLarge, filesSkippedAfterSizeLimit, mapFilesSkippedTooLarge, mapFilesSkippedAfterSizeLimit))
-}
-
-func getSkippedFilesMsg(
-	filesSkippedTooLarge []struct {
-		Path string
-		Size int64
-	},
-	filesSkippedAfterSizeLimit []string,
-	mapFilesSkippedTooLarge []struct {
-		Path string
-		Size int64
-	},
-	mapFilesSkippedAfterSizeLimit []string,
-) string {
-	var builder strings.Builder
-
-	if len(filesSkippedTooLarge) > 0 {
-		fmt.Fprintf(&builder, "ℹ️  These files were skipped because they're too large:\n")
-		for i, file := range filesSkippedTooLarge {
-			if i >= maxSkippedFileList {
-				fmt.Fprintf(&builder, "  • and %d more\n", len(filesSkippedTooLarge)-maxSkippedFileList)
-				break
-			}
-			fmt.Fprintf(&builder, "  • %s - %d MB\n", file.Path, file.Size/1024/1024)
-		}
-	}
-	if len(mapFilesSkippedTooLarge) > 0 {
-		fmt.Fprintf(&builder, "ℹ️  These files were skipped because they're too large to map:\n")
-		for i, file := range mapFilesSkippedTooLarge {
-			if i >= maxSkippedFileList {
-				fmt.Fprintf(&builder, "  • and %d more\n", len(mapFilesSkippedTooLarge)-maxSkippedFileList)
-				break
-			}
-			fmt.Fprintf(&builder, "  • %s - %d MB\n", file.Path, file.Size/1024/1024)
-		}
-		if len(mapFilesSkippedTooLarge) > 0 {
-			fmt.Fprintf(&builder, "They will still be included in the map as paths in the project, but no maps will be generated for them.\n")
-		}
-	}
-	if len(filesSkippedAfterSizeLimit) > 0 {
-		fmt.Fprintf(&builder, "ℹ️  These files were skipped because the total size limit was exceeded:\n")
-		for i, file := range filesSkippedAfterSizeLimit {
-			if i >= maxSkippedFileList {
-				fmt.Fprintf(&builder, "  • and %d more\n", len(filesSkippedAfterSizeLimit)-maxSkippedFileList)
-				break
-			}
-			fmt.Fprintf(&builder, "  • %s\n", file)
-		}
-	}
-	if len(mapFilesSkippedAfterSizeLimit) > 0 {
-		fmt.Fprintf(&builder, "ℹ️  These files were skipped because the total map size limit was exceeded:\n")
-		for i, file := range mapFilesSkippedAfterSizeLimit {
-			if i >= maxSkippedFileList {
-				fmt.Fprintf(&builder, "  • and %d more\n", len(mapFilesSkippedAfterSizeLimit)-maxSkippedFileList)
-				break
-			}
-			fmt.Fprintf(&builder, "  • %s\n", file)
-		}
-		if len(mapFilesSkippedAfterSizeLimit) > 0 {
-			fmt.Fprintf(&builder, "They will still be included in the map as paths in the project, but no maps will be generated for them.\n")
-		}
-	}
-	return builder.String()
 }
