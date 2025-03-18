@@ -185,6 +185,7 @@ func StoreConvoMessage(repo *GitRepo, message *ConvoMessage, currentUserId, bran
 	// }
 
 	if commit {
+		log.Printf("[Git] StoreConvoMessage - committing convo message: %s, branch: %s", msg, branch)
 		err = repo.GitAddAndCommit(branch, msg)
 		if err != nil {
 			return "", fmt.Errorf("error committing convo message: %v", err)
