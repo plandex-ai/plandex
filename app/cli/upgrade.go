@@ -37,7 +37,7 @@ func checkForUpgrade() {
 	defer term.StopSpinner()
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	latestVersionURL := "https://v2.plandex.ai/v2/cli-version.txt"
+	latestVersionURL := "https://plandex.ai/v2/cli-version.txt"
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, latestVersionURL, nil)
 	if err != nil {
 		log.Println("Error creating request:", err)

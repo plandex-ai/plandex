@@ -25,7 +25,7 @@ func init() {
 			CloudApiHost = "http://localhost:8099"
 		}
 	} else {
-		CloudApiHost = "https://api-v2.plandex.ai"
+		CloudApiHost = "https://api-plandex.ai"
 	}
 }
 
