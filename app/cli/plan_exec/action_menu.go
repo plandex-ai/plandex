@@ -84,20 +84,26 @@ func showHotkeyMenu(diffs []string) {
 	}
 
 	numDiffs := len(diffs)
-	s := "files have"
-	if numDiffs == 1 {
-		s = "file has"
+	if hasApplyScript {
+		numDiffs--
 	}
-	color.New(color.Bold, term.ColorHiGreen).Printf("🧐 %d %s pending changes\n", numDiffs, s)
 
-	for _, diff := range diffs {
-		if diff == "_apply.sh" {
-			continue
+	if numDiffs > 0 {
+		s := "files have"
+		if numDiffs == 1 {
+			s = "file has"
 		}
+		color.New(color.Bold, term.ColorHiGreen).Printf("🧐 %d %s pending changes\n", numDiffs, s)
 
-		fmt.Printf("• 📄 %s\n", diff)
+		for _, diff := range diffs {
+			if diff == "_apply.sh" {
+				continue
+			}
+
+			fmt.Printf("• 📄 %s\n", diff)
+		}
+		fmt.Println()
 	}
-	fmt.Println()
 
 	if hasApplyScript {
 		color.New(color.Bold, term.ColorHiYellow).Println("🚀 Commands pending")

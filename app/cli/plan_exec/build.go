@@ -83,7 +83,7 @@ func Build(params ExecParams, flags types.BuildFlags) (bool, error) {
 		ch := make(chan error)
 
 		go func() {
-			err := streamtui.StartStreamUI("", true)
+			err := streamtui.StartStreamUI("", true, !flags.AutoApply)
 
 			if err != nil {
 				ch <- fmt.Errorf("error starting stream UI: %v", err)

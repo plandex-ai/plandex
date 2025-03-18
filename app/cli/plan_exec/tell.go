@@ -55,17 +55,12 @@ func TellPlan(
 	}
 
 	term.StartSpinner("")
-	log.Println("Getting context (ListContext)")
 	contexts, apiErr := api.Client.ListContext(params.CurrentPlanId, params.CurrentBranch)
 
 	if apiErr != nil {
 		outputPromptIfTell()
 		term.OutputErrorAndExit("Error getting context: %v", apiErr)
 	}
-
-	log.Println("Got context (ListContext)")
-
-	log.Println("Getting project paths")
 
 	paths, err := fs.GetProjectPaths(fs.GetBaseDirForContexts(contexts))
 
@@ -74,17 +69,12 @@ func TellPlan(
 		term.OutputErrorAndExit("Error getting project paths: %v", err)
 	}
 
-	log.Println("Got project paths")
-
-	log.Println("Checking outdated context (CheckOutdatedContext)")
 	anyOutdated, didUpdate, err := params.CheckOutdatedContext(contexts, paths)
 
 	if err != nil {
 		outputPromptIfTell()
 		term.OutputErrorAndExit("Error checking outdated context: %v", err)
 	}
-
-	log.Println("Checked outdated context (CheckOutdatedContext)")
 
 	if anyOutdated && !didUpdate {
 		term.StopSpinner()
@@ -194,7 +184,11 @@ func TellPlan(
 
 		if !tellBg {
 			go func() {
-				err := streamtui.StartStreamUI(prompt, false)
+				err := streamtui.StartStreamUI(
+					prompt,
+					false,
+					!(autoApply || autoContext || isApplyDebug || isDebugCmd),
+				)
 
 				if err != nil {
 					outputPromptIfTell()
@@ -208,12 +202,14 @@ func TellPlan(
 				} else if autoApply || isDebugCmd || isApplyDebug {
 					// do nothing, allow auto apply to run
 				} else {
+					term.StartSpinner("")
 					diffs, apiErr := getDiffs(params)
-					numDiffs := len(diffs)
+					term.StopSpinner()
 					if apiErr != nil {
 						term.OutputErrorAndExit("Error getting plan diffs: %v", apiErr.Msg)
 						return
 					}
+					numDiffs := len(diffs)
 					hasDiffs := numDiffs > 0
 
 					fmt.Println()
