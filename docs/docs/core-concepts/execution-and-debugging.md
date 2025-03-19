@@ -11,7 +11,7 @@ Plandex v2 includes command execution and automated debugging capabilities that 
 
 During a plan, apart from making changes to files, Plandex can write to a special path, `_apply.sh`, with any commands required to complete the plan. This commonly includes installing dependencies, running tests, building and running code, starting servers, and so on.
 
-Commands accumulate in the sandbox just like [pending changes to files](./reviewing-changes.md#pending-changes). If execution fails, you can roll back changes and optionally send the output to the model for automated debugging and retries.
+Commands accumulate in the sandbox just like [pending changes to files](./reviewing-changes.md). If execution fails, you can roll back changes and optionally send the output to the model for automated debugging and retries.
 
 While Plandex will attempt to automatically infer relevant commands to run, it also tries not to overdo it. It generally won't, for example, run a test suite unless you've specifically asked it to, since it may not be desirable after every change. It tries to only run what's strictly necessary, to make local project-level changes instead of global system-wide changes, to check existing dependencies before installing, to write idempotent commands, to avoid hiding output or asking for user input, and to recover gracefully from failures.
 
