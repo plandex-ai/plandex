@@ -3,21 +3,41 @@ name: Build and publish Docker Image if a new Github release was created
 on:
   release:
     types: [created]
+  workflow_dispatch: # enable manual triggering
 
 jobs:
   build_and_push:
     runs-on: ubuntu-latest
 
     steps:
+      # old output approach
+      # - name: Check if the release tag starts with 'server'
+      #   id: check_tag
+      #   run: |
+      #     if [[ ! "${GITHUB_REF_NAME}" =~ ^server ]]; then
+      #       echo "::set-output name=skip::true"
+      #     else
+      #       echo "::set-output name=skip::false"
+      #     fi
+      #   shell: bash
+
+      # use new $GITHUB_OUTPUT approach
       - name: Check if the release tag starts with 'server'
         id: check_tag
         run: |
           if [[ ! "${GITHUB_REF_NAME}" =~ ^server ]]; then
-            echo "::set-output name=skip::true"
+            echo "skip=true" >> $GITHUB_OUTPUT
           else
-            echo "::set-output name=skip::false"
+            echo "skip=false" >> $GITHUB_OUTPUT
           fi
         shell: bash
+
+      # for local testing with act
+      # - name: Check if the release tag starts with 'server'
+      #   id: check_tag
+      #   run: |
+      #     echo "skip=false" >> $GITHUB_OUTPUT
+      #   shell: bash
 
       - name: Skip build if tag does not start with 'server'
         if: steps.check_tag.outputs.skip == 'true'
@@ -31,27 +51,25 @@ jobs:
         if: steps.check_tag.outputs.skip == 'false'
         uses: docker/setup-buildx-action@v1
 
-      - name: Log in to GitHub Container Registry
+      - name: Log in to Docker Hub
         if: steps.check_tag.outputs.skip == 'false'
         uses: docker/login-action@v1
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Sanitize ref name
         id: sanitize
         if: steps.check_tag.outputs.skip == 'false'
-        run: echo "SANITIZED_REF_NAME=${GITHUB_REF_NAME//\//-}" >> $GITHUB_ENV
+        run: echo "SANITIZED_REF_NAME=$(echo $GITHUB_REF_NAME | tr '/' '-')" >> $GITHUB_OUTPUT
 
       - name: Build and push
         if: steps.check_tag.outputs.skip == 'false'
         uses: docker/build-push-action@v2
         with:
           context: ./app/
-          file: ./app/Dockerfile.server
-          push: true
+          file: ./app/server/Dockerfile
+          push: false
           tags: |
-            ghcr.io/${{ github.repository_owner }}/plandex-server:${{ env.SANITIZED_REF_NAME }}
-            ghcr.io/${{ github.repository_owner }}/plandex-server:latest
+            plandexai/plandex-server:${{ steps.sanitize.outputs.SANITIZED_REF_NAME }}
+            plandexai/plandex-server:latest

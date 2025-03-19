@@ -3,6 +3,8 @@
 .plandex-v2/
 .plandex-dev-v2/
 .envkey
+.env
+.env.*
 plandex
 plandex-dev
 plandex-server
