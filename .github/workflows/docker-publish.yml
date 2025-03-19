@@ -61,7 +61,7 @@ jobs:
       - name: Sanitize ref name
         id: sanitize
         if: steps.check_tag.outputs.skip == 'false'
-        run: echo "SANITIZED_REF_NAME=$(echo $GITHUB_REF_NAME | tr '/' '-')" >> $GITHUB_OUTPUT
+        run: echo "SANITIZED_REF_NAME=$(echo $GITHUB_REF_NAME | tr '/' '-' | tr '+' '-')" >> $GITHUB_OUTPUT
 
       - name: Build and push
         if: steps.check_tag.outputs.skip == 'false'
