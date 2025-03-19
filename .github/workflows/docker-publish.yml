@@ -69,7 +69,7 @@ jobs:
         with:
           context: ./app/
           file: ./app/server/Dockerfile
-          push: false
+          push: true
           tags: |
             plandexai/plandex-server:${{ steps.sanitize.outputs.SANITIZED_REF_NAME }}
             plandexai/plandex-server:latest
