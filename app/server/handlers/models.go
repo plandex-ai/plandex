@@ -32,20 +32,24 @@ func CreateCustomModelHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	baseModelConfig := model.BaseModelConfig
+
 	dbModel := &db.AvailableModel{
 		Id:                    model.Id,
 		OrgId:                 auth.OrgId,
-		Provider:              model.Provider,
-		CustomProvider:        model.CustomProvider,
-		BaseUrl:               model.BaseUrl,
-		ModelName:             model.ModelName,
+		Provider:              baseModelConfig.Provider,
+		CustomProvider:        baseModelConfig.CustomProvider,
+		BaseUrl:               baseModelConfig.BaseUrl,
+		ModelId:               baseModelConfig.ModelId,
+		ModelName:             baseModelConfig.ModelName,
 		Description:           model.Description,
-		MaxTokens:             model.MaxTokens,
-		ApiKeyEnvVar:          model.ApiKeyEnvVar,
-		HasImageSupport:       model.HasImageSupport,
+		MaxTokens:             baseModelConfig.MaxTokens,
+		ApiKeyEnvVar:          baseModelConfig.ApiKeyEnvVar,
+		HasImageSupport:       baseModelConfig.ModelCompatibility.HasImageSupport,
 		DefaultMaxConvoTokens: model.DefaultMaxConvoTokens,
-		MaxOutputTokens:       model.MaxOutputTokens,
-		ReservedOutputTokens:  model.ReservedOutputTokens,
+		MaxOutputTokens:       baseModelConfig.MaxOutputTokens,
+		ReservedOutputTokens:  baseModelConfig.ReservedOutputTokens,
+		PreferredOutputFormat: baseModelConfig.PreferredModelOutputFormat,
 	}
 
 	if err := db.CreateCustomModel(dbModel); err != nil {
