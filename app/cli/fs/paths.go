@@ -290,13 +290,18 @@ func GetPaths(baseDir, currentDir string) (*types.ProjectPaths, error) {
 		activePaths[dir] = true
 	}
 
+	removeDirs := map[string]bool{}
 	for dir := range allDirs {
 		if ShouldSkipDir(dir) {
-			delete(allDirs, dir)
-			delete(activeDirs, dir)
-			delete(allPaths, dir)
-			delete(activePaths, dir)
+			removeDirs[dir] = true
 		}
+	}
+
+	for dir := range removeDirs {
+		delete(allDirs, dir)
+		delete(activeDirs, dir)
+		delete(allPaths, dir)
+		delete(activePaths, dir)
 	}
 
 	// remove deleted files from active paths
@@ -306,6 +311,20 @@ func GetPaths(baseDir, currentDir string) (*types.ProjectPaths, error) {
 
 	for path := range activePaths {
 		allPaths[path] = true
+	}
+
+	removePaths := map[string]bool{}
+	for path := range allPaths {
+		if IsInSkippedDir(path) {
+			removePaths[path] = true
+		}
+	}
+
+	for path := range removePaths {
+		delete(allPaths, path)
+		delete(activePaths, path)
+		delete(activeDirs, path)
+		delete(allDirs, path)
 	}
 
 	ignoredPaths := map[string]string{}
@@ -485,16 +504,34 @@ var skipDirs = map[string]bool{
 }
 
 func ShouldSkipDir(path string) bool {
-	for k := range skipDirs {
-		if k == path {
-			return true
-		}
+	if skipDirs[path] {
+		return true
+	}
 
+	for k := range skipDirs {
 		splitPath := strings.Split(path, string(os.PathSeparator))
 		for _, p := range splitPath {
 			if p == k {
 				return true
 			}
+		}
+	}
+
+	return false
+}
+
+func IsInSkippedDir(path string) bool {
+	// Check the direct parent directory
+	dirName := filepath.Dir(path)
+	if skipDirs[dirName] {
+		return true
+	}
+
+	// Handle cases where the directory might include path separators
+	pathComponents := strings.Split(dirName, string(os.PathSeparator))
+	for _, component := range pathComponents {
+		if skipDirs[component] {
+			return true
 		}
 	}
 

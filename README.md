@@ -21,7 +21,7 @@
     <b>Website</b>
   </a>
    · 
-  <a href="https://docs-plandex.ai/">
+  <a href="https://docs.plandex.ai/">
     <b>Docs</b>
   </a>
    · 
@@ -29,7 +29,7 @@
     <b>Examples</b>
   </a>
    ·  -->
-  <a href="https://docs-plandex.ai/hosting/self-hosting/local-mode-quickstart">
+  <a href="https://docs.plandex.ai/hosting/self-hosting/local-mode-quickstart">
     <b>Local Self-Hosted Mode</b>
   </a>
 </p>
@@ -180,7 +180,7 @@ curl -sL https://plandex.ai/install.sh | bash
 
 **Note:** Windows is supported via [WSL](https://learn.microsoft.com/en-us/windows/wsl/install). Plandex only works correctly on Windows in the WSL shell. It doesn't work in the Windows CMD prompt or PowerShell.
 
-[More installation options.](https://docs-plandex.ai/install)
+[More installation options.](https://docs.plandex.ai/install)
 
 ## Hosting  ⚖️
 
@@ -235,7 +235,7 @@ Then just give the REPL help text a quick read, and you're ready go. The REPL st
 
 ## Docs  🛠️
 
-### [👉  Full documentation.](https://docs-plandex.ai/)
+### [👉  Full documentation.](https://docs.plandex.ai/)
 
 <br/>
 
@@ -259,4 +259,4 @@ Please feel free to give your feedback, ask questions, report a bug, or just han
 
 ⭐️  Please star, fork, explore, and contribute to Plandex. There's a lot of work to do and so much that can be improved.
 
-[Here's an overview on setting up a development environment.](https://docs-plandex.ai/development)
+[Here's an overview on setting up a development environment.](https://docs.plandex.ai/development)

@@ -651,18 +651,19 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 				}
 			}
 
-			if len(pathBodies) > 0 {
-				loadContextReq = append(loadContextReq, &shared.LoadContextParams{
-					ContextType: shared.ContextMapType,
-					Name:        name,
-					MapBodies:   pathBodies,
-					InputShas:   pathShas,
-					InputTokens: pathTokens,
-					InputSizes:  pathSizes,
-					FilePath:    inputPath,
-					AutoLoaded:  params.AutoLoaded,
-				})
-			}
+			// load the map even if it's empty (no paths)
+			// it needs to exist so it can be updated later
+			loadContextReq = append(loadContextReq, &shared.LoadContextParams{
+				ContextType: shared.ContextMapType,
+				Name:        name,
+				MapBodies:   pathBodies,
+				InputShas:   pathShas,
+				InputTokens: pathTokens,
+				InputSizes:  pathSizes,
+				FilePath:    inputPath,
+				AutoLoaded:  params.AutoLoaded,
+			})
+
 		}
 	}
 

@@ -35,6 +35,12 @@ BE CAREFUL AND CONSERVATIVE when making changes to the user's machine:
 
 Avoid user prompts. Make reasonable default choices rather than prompting the user for input. The _apply.sh script MUST be able to run successfully in a non-interactive context.
 
+#### Keep It Lightweight And Simple
+
+The _apply.sh script should be lightweight and shouldn't do too much work. *Offload to separate files* in the plan if a lot of scripting is needed. _apply.sh doesn't get written to the user's project, so anything that might be valuable to save, reuse, and version control should be in a separate file. You can chmod and execute those separate files from _apply.sh. _apply.sh is for 'throwaway' commands that only need to be run once after the plan is applied to the user's project, like installing dependencies, running tests, or starting servers. It shouldn't be complex.
+
+Do not use fancy bash constructs that can be difficult to debug or cause portability problems. Keep it very straightforward so there's a 0% chance of bugs in the _apply.sh script.
+
 #### Command Preservation Rules
 
 The _apply.sh script accumulates commands during the plan:
@@ -677,6 +683,9 @@ Good Practices:
 - Update existing commands rather than duplicating
 - Consider environment and likely installed tools
 - Group related file changes with their commands
+- Keep it lightweight and simple
+- Offload to separate files if a lot of scripting is needed
+- Use basic scripting that is easy to understand and debug
 
 Bad Practices to Avoid:
 - Don't write same command multiple times
@@ -685,6 +694,8 @@ Bad Practices to Avoid:
 - Don't run same program multiple times
 - Don't hide command output
 - Don't prompt the user for input
+- Don't use fancy bash constructs that can be difficult to understand and debug
+- Don't do too much work in _apply.sh. If it's getting complex, offload to separate files.
 
 Remember:
 - Include _apply.sh in 'Uses:' list when modifying it
@@ -877,6 +888,10 @@ CRITICAL: The script must handle both program execution and security carefully:
 6. Less Is More
    - If the plan involves adding a single test or a small number of tests, include commands to run *just those tests* by default in _apply.sh rather than running the entire test suite. Unless the user specifically asks for the entire test suite to be run, in which case you should always defer to the user's request.
    - Apply the same principle to other commands. Be minimal and selective when choosing which commands to run.
+
+7. Keep It Lightweight And Simple
+   - The _apply.sh script should be lightweight and shouldn't do too much work. *Offload to separate files* in the plan if a lot of scripting is needed. 
+   - Do not use fancy bash constructs that can be difficult to debug or cause portability problems.
 
 Remember:
 - Do NOT tell the user to run _apply.sh. It will be run automatically when the plan is applied.
