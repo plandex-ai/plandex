@@ -1,3 +1,123 @@
+## CLI Version 2.0.0
+👋 Hi, Dane here. I'm the creator and lead developer of Plandex.
+
+I'm excited to announce the beta release of Plandex v2, featuring major improvements in capabilities, user experience, and automation.
+
+Plandex
+
+## 🤖  Overview
+
+While built on the same basic foundations as v1, v2 is best thought of as a new project with far more ambitious goals. 
+
+Plandex is now a top-tier coding agent with fully autonomous capabilities.
+
+By default, it combines the strengths of three top foundation model providers—Anthropic, OpenAI, and Google—to achieve significantly better coding results than can be achieved with only a single provider's models.
+
+You get the coding abilities of Anthropic, the cost-effectiveness and speed of OpenAI's o3 mini, and the massive 2M token context window of Google Gemini, each used in the roles they're best suited for.
+
+Plandex can: 
+  - Discuss a project or feature at a high level
+  - Load relevant context as needed throughout the discussion
+  - Solidify the discussion into a detailed plan
+  - Implement the changes
+  - Apply the changes to your files
+  - Run necessary commands
+  - Automatically debug failures
+
+Adding these capabilities together, Plandex can handle complex tasks that span entire large features or entire projects, generating 50-100 files or more in a single run.
+
+Below is a more detailed look at what's new. You can also check out the updated [README](https://github.com/plandex-ai/plandex/blob/main/README.md), [website](https://plandex.ai), and [docs](https://docs.plandex.ai).
+
+## 🧠  Newer, Smarter Models
+
+- New default model pack combining Claude 3.7 Sonnet, o3-mini, and Gemini 1.5 Pro.
+
+- A new set of built-in models and model packs for different use cases, including `daily-driver` (the default pack), `strong`, `cheap`, and `oss` packs, among others.
+
+- New `architect` and `coder` roles that make it easier to use different models for different stages in the planning and implementation process.
+
+## 📥  Better Context Management
+
+- Automatic context selection with tree-sitter project maps (30+ languages supported).
+
+- Effective 2M token context window for large tasks (massive codebases of ~20M tokens and more can be indexed for automatic context selection).
+
+- Smart context management limits implementation steps to necessary files only, reducing costs and latency.
+
+- Prompt caching for OpenAI and Anthropic models further reduces latency and costs.
+
+## 📝  Reliable File Edits
+
+- Much improved file editing performance and reliability, especially for large files.
+
+- Simple edits can often be applied deterministically without a model call, reducing costs and latency.
+
+- For more complex edits, validation and multiple fallbacks help ensure a very low failure rate.
+
+- Supports individual files up to 100k tokens.
+
+- On Plandex Cloud, a fine-tuned "instant apply" model further speeds up and reduces the cost of editing files up to 32k tokens in size. This is offered at no additional cost.
+
+## 💻  New Developer Experience
+
+- v2 includes a new default way to use Plandex: the Plandex REPL. Just type `plandex` in any project directory to start the REPL.
+
+- Simple and intuitive chat-like experience.
+
+- Fuzzy autocomplete for commands and files, 'chat' vs. 'tell' modes that separate ideation from implementation, and a multi-line mode for friendly editing of long prompts.
+
+- All commands are still available as CLI calls directly from the terminal.
+
+## 🚀  Configurable Automation
+
+- Plandex is now capable of full autonomy with 'full auto' mode. It can load necessary context, apply changes, execute commands, and automatically debug problems.
+
+- The automation level can be precisely configured depending on the task and your comfort level. A `basic` mode works just like Plandex v1, where files are loaded manually and execution is disabled. The new default in v2 is `semi-auto`, which enables automatic context loading, but still requires approval to apply changes and execute commands.
+
+- By default, Plandex now includes command execution (with approval) in its planning process. It can install dependencies, build and run code, run tests, and more.
+
+- Command execution is integrated with Plandex's diff review sandbox. Changes are tentatively applied before running commands, then rolled back if the command fails.
+
+- A new `debug` command allows for automated debugging of any terminal command. Use it with type checkers, linters, builds, tests, and more.
+
+## 💳  Built-in Payments, Credits, and Budgeting on Plandex Cloud
+
+- Apart from the open source version of Plandex, which includes **all core features**, Plandex Cloud is a full-fledged product.
+
+- It offers two subscription options: an **Integrated Models** mode that requires no additional accounts or API keys, and a **BYO API Key** mode that allows you to use your own OpenAI and OpenRouter.ai accounts and API keys. 
+
+- In Integrated Models mode, you buy credits from Plandex Cloud and manage billing centrally. It includes usage tracking and reporting via the `usage` command, as well as convenience and budgeting features like an auto-recharge threshold, a notification threshold on monthly spend, and an overall monthly limit. You can [learn more about pricing here](https://plandex.ai#pricing).
+
+- Billing settings are managed with a web dashboard (it can be accessed via the CLI with the `billing` command).
+
+## 🪪  License Update
+
+- Plandex has transitioned from AGPL 3.0 to the MIT License, simplifying future open-source contributions and allowing easier integration of proprietary enhancements in Plandex Cloud and related products.
+
+- If you’ve previously contributed under AGPL and have concerns about this relicensing, please [reach out.](mailto:dane@plandex.ai)
+
+## 🧰  And More
+
+This isn't an exhaustive list! Apart from the above, there are many smaller features, bug fixes, and quality of life improvements. Give the updated [docs](https://docs.plandex.ai) a read for a full accounting of all commands and functionality.
+
+## 🌟  Get Started
+
+Go to the [quickstart](https://docs.plandex.ai/quickstart) to get started with v2 in minutes.
+
+**Note:** while built on the same foundations, Plandex v2 is designed to be a run separately and independently from v1. It's not an in-place upgrade. So there's nothing in particular you need to do to upgrade; just follow the quickstart as if you were a brand new user. [More details here.](https://docs.plandex.ai/upgrading-v1-to-v2)
+
+## 🙌  Don't Be A Stranger
+
+- Jump into the [Plandex Discord](https://discord.gg/plandex-ai) if you have questions or feedback, or just want to hang out.
+
+- You can [post an issue on GitHub](https://github.com/plandex-ai/plandex/issues) or [start a discussion](https://github.com/plandex-ai/plandex/discussions).
+
+- You can reach out by email: [support@plandex.ai](mailto:support@plandex.ai).
+
+- You can follow [@PlandexAI](https://x.com/plandexai) or my personal account [@Danenania](https://x.com/danenania) on X for updates, announcements, and random musings.
+
+- You can subscribe on [YouTube](https://www.youtube.com/@plandex-ny5ry) for demonstrations, tutorials, and AI coding projects.
+
 ## Version 1.1.1
 ## Fix for terminal flickering when streaming plans 📺
 
