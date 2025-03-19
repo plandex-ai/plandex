@@ -1,3 +1,6 @@
+## Server Version 2.0.0+2
+- Version tag sanitation fix for GitHub Action to build and push server image to DockerHub
+
 ## Server Version 2.0.0+1
 - Fix for custom model creation (https://github.com/plandex-ai/plandex/issues/214)
 - Fix for version check on self-hosted (https://github.com/plandex-ai/plandex/issues/213)
