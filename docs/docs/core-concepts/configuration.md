@@ -1,12 +1,11 @@
 ---
-sidebar_position: 10
+sidebar_position: 11
 sidebar_label: Configuration
 ---
 
 # Configuration
 
-Plandex v2 provides a flexible configuration system that lets you customize its behavior based on the task
-you're working on and your preferences.
+Plandex v2 provides a flexible configuration system that lets you customize its behavior based on the task you're working on and your preferences.
 
 ## Viewing Config
 
