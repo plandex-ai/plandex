@@ -1,21 +1,3 @@
-## CLI Version 2.0.0-rc.6
-Likely final release candidate for v2
-
-## CLI Version 2.0.0-rc.5
-Placeholder for v2 release testing
-
-## CLI Version 2.0.0-rc.4
-Placeholder for v2 release testing
-
-## CLI Version 2.0.0-rc.3
-Placeholder for v2 release testing
-
-## CLI Version 2.0.0-rc.2
-Placeholder for v2 release testing
-
-## CLI Version 2.0.0-rc.1
-Placeholder for v2 release testing
-
 ## Version 1.1.1
 ## Fix for terminal flickering when streaming plans 📺
 
