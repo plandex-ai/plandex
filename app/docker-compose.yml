@@ -13,9 +13,7 @@ services:
     networks:
       - plandex-network
   plandex-server:
-    build:
-      context: .
-      dockerfile: server/Dockerfile
+    image: plandexai/plandex-server:latest
     volumes:
       - plandex-files:/plandex-server
     ports:
