@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"plandex-cli/api"
@@ -70,15 +69,11 @@ func setReplConfig() {
 
 func runRepl(cmd *cobra.Command, args []string) {
 	sessionId = uuid.New().String()
-	log.Println("sessionId", sessionId)
 
 	term.SetIsRepl(true)
+
 	auth.MustResolveAuthWithOrg()
 	lib.MustResolveOrCreateProject()
-
-	if !auth.Current.IntegratedModelsMode {
-		lib.MustVerifyApiKeys()
-	}
 
 	term.StartSpinner("")
 	lib.LoadState()
@@ -106,6 +101,7 @@ func runRepl(cmd *cobra.Command, args []string) {
 	}
 
 	afterNew := false
+
 	if lib.CurrentPlanId == "" {
 		os.Setenv("PLANDEX_DISABLE_SUGGESTIONS", "1")
 		args := []string{}
@@ -135,6 +131,10 @@ func runRepl(cmd *cobra.Command, args []string) {
 		newCmd.Run(newCmd, args)
 		os.Setenv("PLANDEX_DISABLE_SUGGESTIONS", "")
 		afterNew = true
+	}
+
+	if !auth.Current.IntegratedModelsMode {
+		lib.MustVerifyApiKeys()
 	}
 
 	projectPaths, err = fs.GetProjectPaths(fs.Cwd)
