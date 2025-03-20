@@ -1,4 +1,4 @@
-name: Build and publish Docker Image if a new Github release was created
+name: Build and publish Docker Image
 
 on:
   release:
@@ -6,7 +6,36 @@ on:
   workflow_dispatch: # enable manual triggering
 
 jobs:
+  check_release:
+    runs-on: ubuntu-latest
+    outputs:
+      should_build: ${{ steps.check_release.outputs.should_build }}
+      tag: ${{ steps.check_release.outputs.tag }}
+    
+    steps:
+      - name: Check release tag and find latest server tag
+        id: check_release
+        run: |
+          if [ "${{ github.event_name }}" == "release" ]; then
+            # This is a release event - check if the tag starts with 'server'
+            if [[ "${{ github.ref_name }}" == server* ]]; then
+              echo "This is a server release: ${{ github.ref_name }}"
+              echo "should_build=true" >> $GITHUB_OUTPUT
+              echo "tag=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+            else
+              echo "This is not a server release. Skipping build."
+              echo "should_build=false" >> $GITHUB_OUTPUT
+            fi
+          else
+            # This is a manual workflow_dispatch event
+            echo "This is a manual workflow trigger. Proceeding to find latest server tag."
+            echo "should_build=true" >> $GITHUB_OUTPUT
+            echo "tag=latest_server" >> $GITHUB_OUTPUT
+          fi
+
   build_and_push:
+    needs: check_release
+    if: needs.check_release.outputs.should_build == 'true'
     runs-on: ubuntu-latest
 
     steps:
@@ -15,8 +44,9 @@ jobs:
         with:
           fetch-depth: 0  # Fetch all history and tags
 
-      - name: Find latest 'server' tag
+      - name: Find latest server tag
         id: find_tag
+        if: needs.check_release.outputs.tag == 'latest_server'
         run: |
           # Find the latest tag that starts with 'server'
           LATEST_SERVER_TAG=$(git tag -l "server*" --sort=-creatordate | head -n 1)
@@ -31,36 +61,47 @@ jobs:
           fi
         shell: bash
 
-      - name: Skip build if no server tag found
-        if: steps.find_tag.outputs.skip == 'true'
-        run: echo "Skipping build because no tag starting with 'server' was found."
+      - name: Set release tag
+        id: set_tag
+        if: needs.check_release.outputs.tag != 'latest_server'
+        run: |
+          echo "skip=false" >> $GITHUB_OUTPUT
+          echo "tag=${{ needs.check_release.outputs.tag }}" >> $GITHUB_OUTPUT
 
-      - name: Check out the repo
-        if: steps.check_tag.outputs.skip == 'false'
-        uses: actions/checkout@v2
+      - name: Skip build if no server tag found
+        if: (steps.find_tag.outputs.skip == 'true' && needs.check_release.outputs.tag == 'latest_server')
+        run: |
+          echo "Skipping build because no tag starting with 'server' was found."
+          exit 1
 
       - name: Set up QEMU
-        if: steps.check_tag.outputs.skip == 'false'
         uses: docker/setup-qemu-action@v2
 
       - name: Set up Docker Buildx
-        if: steps.check_tag.outputs.skip == 'false'
         uses: docker/setup-buildx-action@v1
 
       - name: Log in to Docker Hub
-        if: steps.check_tag.outputs.skip == 'false'
         uses: docker/login-action@v1
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Sanitize ref name
+      - name: Determine tag to use
+        id: determine_tag
+        run: |
+          if [ "${{ needs.check_release.outputs.tag }}" == "latest_server" ]; then
+            TAG="${{ steps.find_tag.outputs.tag }}"
+          else
+            TAG="${{ needs.check_release.outputs.tag }}"
+          fi
+          echo "Using tag: $TAG"
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+
+      - name: Sanitize tag name
         id: sanitize
-        if: steps.check_tag.outputs.skip == 'false'
-        run: echo "SANITIZED_REF_NAME=$(echo $GITHUB_REF_NAME | tr '/' '-' | tr '+' '-')" >> $GITHUB_OUTPUT
+        run: echo "SANITIZED_TAG_NAME=$(echo ${{ steps.determine_tag.outputs.tag }} | tr '/' '-' | tr '+' '-')" >> $GITHUB_OUTPUT
 
       - name: Build and push
-        if: steps.check_tag.outputs.skip == 'false'
         uses: docker/build-push-action@v2
         with:
           context: ./app/
@@ -68,5 +109,5 @@ jobs:
           push: true
           platforms: linux/amd64,linux/arm64
           tags: |
-            plandexai/plandex-server:${{ steps.sanitize.outputs.SANITIZED_REF_NAME }}
+            plandexai/plandex-server:${{ steps.sanitize.outputs.SANITIZED_TAG_NAME }}
             plandexai/plandex-server:latest
