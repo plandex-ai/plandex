@@ -1,3 +1,7 @@
+## CLI Version 2.0.1
+- Fix for REPL startup failing when self-hosting or using BYOK cloud mode (https://github.com/plandex-ai/plandex/issues/216)
+- Fix for potential crash with custom model pack (https://github.com/plandex-ai/plandex/issues/217)
+
 ## CLI Version 2.0.0
 👋 Hi, Dane here. I'm the creator and lead developer of Plandex.
 
