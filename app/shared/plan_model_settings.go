@@ -137,13 +137,19 @@ func (ps PlanSettings) GetRequiredEnvVars() map[string]bool {
 
 	envVars[ms.Planner.BaseModelConfig.ApiKeyEnvVar] = true
 	envVars[ms.Builder.BaseModelConfig.ApiKeyEnvVar] = true
-	envVars[ms.WholeFileBuilder.BaseModelConfig.ApiKeyEnvVar] = true
+	if ms.WholeFileBuilder != nil {
+		envVars[ms.WholeFileBuilder.BaseModelConfig.ApiKeyEnvVar] = true
+	}
 	envVars[ms.PlanSummary.BaseModelConfig.ApiKeyEnvVar] = true
 	envVars[ms.Namer.BaseModelConfig.ApiKeyEnvVar] = true
 	envVars[ms.CommitMsg.BaseModelConfig.ApiKeyEnvVar] = true
 	envVars[ms.ExecStatus.BaseModelConfig.ApiKeyEnvVar] = true
-	envVars[ms.Architect.BaseModelConfig.ApiKeyEnvVar] = true
-	envVars[ms.Coder.BaseModelConfig.ApiKeyEnvVar] = true
+	if ms.Architect != nil {
+		envVars[ms.Architect.BaseModelConfig.ApiKeyEnvVar] = true
+	}
+	if ms.Coder != nil {
+		envVars[ms.Coder.BaseModelConfig.ApiKeyEnvVar] = true
+	}
 
 	// for backward compatibility with <= 0.8.4 server versions
 	if len(envVars) == 0 {
