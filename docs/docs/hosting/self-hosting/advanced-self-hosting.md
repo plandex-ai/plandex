@@ -102,6 +102,16 @@ docker run -p 8099:8099 \
 
 The API_HOST and SMTP environment variables above are only required if you're running in [production mode](#development-vs-production).
 
+### DockerHub Server Images
+
+Apart from building manually with the Dockerfile, server images are also built and pushed to [DockerHub](https://hub.docker.com/r/plandexai/plandex-server/tags) automatically when a new version of the server is released.
+
+You can pull the latest server image with:
+
+```bash
+docker pull plandexai/plandex-server:latest
+```
+
 ### Run From Source
 
 You can also run the server from source:
