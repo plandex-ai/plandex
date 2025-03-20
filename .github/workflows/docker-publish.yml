@@ -10,42 +10,38 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # old output approach
-      # - name: Check if the release tag starts with 'server'
-      #   id: check_tag
-      #   run: |
-      #     if [[ ! "${GITHUB_REF_NAME}" =~ ^server ]]; then
-      #       echo "::set-output name=skip::true"
-      #     else
-      #       echo "::set-output name=skip::false"
-      #     fi
-      #   shell: bash
+      - name: Check out the repo
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0  # Fetch all history and tags
 
-      # use new $GITHUB_OUTPUT approach
-      - name: Check if the release tag starts with 'server'
-        id: check_tag
+      - name: Find latest 'server' tag
+        id: find_tag
         run: |
-          if [[ ! "${GITHUB_REF_NAME}" =~ ^server ]]; then
+          # Find the latest tag that starts with 'server'
+          LATEST_SERVER_TAG=$(git tag -l "server*" --sort=-creatordate | head -n 1)
+          
+          if [ -z "$LATEST_SERVER_TAG" ]; then
+            echo "No tags starting with 'server' found."
             echo "skip=true" >> $GITHUB_OUTPUT
           else
+            echo "Found latest server tag: $LATEST_SERVER_TAG"
             echo "skip=false" >> $GITHUB_OUTPUT
+            echo "tag=$LATEST_SERVER_TAG" >> $GITHUB_OUTPUT
           fi
         shell: bash
 
-      # for local testing with act
-      # - name: Check if the release tag starts with 'server'
-      #   id: check_tag
-      #   run: |
-      #     echo "skip=false" >> $GITHUB_OUTPUT
-      #   shell: bash
-
-      - name: Skip build if tag does not start with 'server'
-        if: steps.check_tag.outputs.skip == 'true'
-        run: echo "Skipping build because the tag does not start with 'server'."
+      - name: Skip build if no server tag found
+        if: steps.find_tag.outputs.skip == 'true'
+        run: echo "Skipping build because no tag starting with 'server' was found."
 
       - name: Check out the repo
         if: steps.check_tag.outputs.skip == 'false'
         uses: actions/checkout@v2
+
+      - name: Set up QEMU
+        if: steps.check_tag.outputs.skip == 'false'
+        uses: docker/setup-qemu-action@v2
 
       - name: Set up Docker Buildx
         if: steps.check_tag.outputs.skip == 'false'
@@ -70,6 +66,7 @@ jobs:
           context: ./app/
           file: ./app/server/Dockerfile
           push: true
+          platforms: linux/amd64,linux/arm64
           tags: |
             plandexai/plandex-server:${{ steps.sanitize.outputs.SANITIZED_REF_NAME }}
             plandexai/plandex-server:latest

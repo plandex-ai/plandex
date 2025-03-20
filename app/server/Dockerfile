@@ -1,4 +1,4 @@
-FROM --platform=linux/amd64 golang:1.23.3
+FROM golang:1.23.3
 
 # Update and install necessary packages including build tools for Tree-sitter
 RUN apt-get update && \
@@ -20,10 +20,6 @@ COPY ./scripts /scripts
 
 # Set working directory to server
 WORKDIR /app/server
-
-# Set environment variables for Go
-ENV GOOS=linux
-ENV GOARCH=amd64
 
 # Build the application
 RUN rm -f plandex-server && go build -o plandex-server .
