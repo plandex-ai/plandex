@@ -9,7 +9,7 @@ Plandex is open source and uses a client-server architecture. The server can be 
 
 ## Local Mode Quickstart
 
-The quickstart requires git, docker, and docker-compose. It's designed for local use with a single user.
+The quickstart requires git, docker, and docker-compose. It's designed for local use with a single user. Note that for `macOS` the docker app must be installed, not the headless version. For detailed instructions, see [Installing Docker](./installing-docker.md).
 
 1. Run the server in local mode: 
 
