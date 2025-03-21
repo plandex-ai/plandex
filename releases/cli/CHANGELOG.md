@@ -1,3 +1,8 @@
+## CLI Version 2.0.2
+- Fixed bug where context auto-load would hang if there was no valid context to load (for example, if they're all directories, which is only discovered client-side, and which can't be auto-loaded)
+- Fixed bug where the build output would sometimes wrap incorrectly, causing the Plan Stream TUI to get out of sync with the build output.
+- Fixed bug where build output would jump between collapsed and expanded states during a stream, after the user manually expanded.
+
 ## CLI Version 2.0.1
 - Fix for REPL startup failing when self-hosting or using BYOK cloud mode (https://github.com/plandex-ai/plandex/issues/216)
 - Fix for potential crash with custom model pack (https://github.com/plandex-ai/plandex/issues/217)
