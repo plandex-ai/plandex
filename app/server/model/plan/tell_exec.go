@@ -492,10 +492,16 @@ func (state *activeTellStreamState) dryRunCalculateTokensWithoutContext(tentativ
 
 	if err != nil {
 		log.Printf("error getting tell sys prompt for dry run token calculation: %v", err)
+
+		msg := "Error getting tell sys prompt for dry run token calculation"
+		if err.Error() == AllTasksCompletedMsg {
+			msg = "There's no current task to implement. Try a prompt instead of the 'continue' command."
+		}
+
 		state.activePlan.StreamDoneCh <- &shared.ApiError{
 			Type:   shared.ApiErrorTypeOther,
 			Status: http.StatusInternalServerError,
-			Msg:    "Error getting tell sys prompt for dry run token calculation",
+			Msg:    msg,
 		}
 		return false, 0
 	}

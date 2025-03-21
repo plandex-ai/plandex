@@ -403,6 +403,19 @@ func AutoLoadContextHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var err error
+	defer func() {
+		if err == nil {
+			active.AutoLoadContextCh <- struct{}{}
+		} else {
+			active.StreamDoneCh <- &shared.ApiError{
+				Type:   shared.ApiErrorTypeOther,
+				Status: http.StatusInternalServerError,
+				Msg:    "Error in AutoLoadContextHandler: " + err.Error(),
+			}
+		}
+	}()
+
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		log.Printf("Error reading request body: %v\n", err)
@@ -419,15 +432,20 @@ func AutoLoadContextHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Println("AutoLoadContextHandler - loading contexts")
-	res, dbContexts := loadContexts(loadContextsParams{
-		w:          w,
-		r:          r,
-		auth:       auth,
-		loadReq:    &requestBody,
-		plan:       plan,
-		branchName: branch,
-		autoLoaded: true,
-	})
+
+	var res *shared.LoadContextResponse
+	var dbContexts []*db.Context
+	if len(requestBody) > 0 {
+		res, dbContexts = loadContexts(loadContextsParams{
+			w:          w,
+			r:          r,
+			auth:       auth,
+			loadReq:    &requestBody,
+			plan:       plan,
+			branchName: branch,
+			autoLoaded: true,
+		})
+	}
 
 	if res == nil {
 		return
@@ -473,8 +491,6 @@ func AutoLoadContextHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Write(bytes)
-
-	active.AutoLoadContextCh <- struct{}{}
 
 	log.Println("Successfully processed request for AutoLoadContextHandler")
 }

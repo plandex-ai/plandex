@@ -26,8 +26,7 @@ Plandex Cloud has two billing modes:
 
 ### BYO API Key
 
-- Use your own OpenAI, OpenRouter.ai, or other OpenAI-compatible provider accounts.
-- Supply your own API keys.
+- Use your own OpenAI and OpenRouter.ai accounts and API keys.
 - Start with a free trial up to 10 plans and 20 model responses per plan.
 - After the trial, you can upgrade to a paid plan for $30 per month.
 

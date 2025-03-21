@@ -1,6 +1,7 @@
 package plan
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"plandex-server/model/prompts"
@@ -9,6 +10,8 @@ import (
 
 	"github.com/sashabaranov/go-openai"
 )
+
+const AllTasksCompletedMsg = "All tasks have been completed. There is no current task to implement."
 
 type getTellSysPromptParams struct {
 	planStageSharedMsgs   []*types.ExtendedChatMessagePart
@@ -122,7 +125,7 @@ func (state *activeTellStreamState) getTellSysPrompt(params getTellSysPromptPara
 
 	} else if currentStage.TellStage == shared.TellStageImplementation {
 		if state.currentSubtask == nil {
-			return nil, fmt.Errorf("All tasks have been completed. There is no current task to implement.")
+			return nil, errors.New(AllTasksCompletedMsg)
 		}
 
 		if len(state.subtasks) > 0 {

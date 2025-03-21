@@ -103,7 +103,7 @@ Here's how it changes when you load manual context on top:
 
 Loading files manually when using automatic context loading can sometimes be useful when you **know** certain files are relevant and don't want to risk the LLM leaving them out, or when the LLM is struggling to select the right context. If there are files that can help the LLM select the right context, like READMEs or documentation that describes the structure of the project, those can also be good candidates for manual loading.
 
-Another use for manual context loading is for context types that can't be loaded automatically, like images, URLs, notes, or piped data (for now Plandex can only automatically load project files).
+Another use for manual context loading is for context types that can't be loaded automatically, like URLs, notes, or piped data (for now Plandex can only automatically load project files and images within the project).
 
 ## Manually Loading Context
 
@@ -186,7 +186,7 @@ Plandex can load images into context.
 plandex load ui-mockup.png
 ```
 
-For the default GPT-4o model, png, jpeg, non-animated gif, and webp formats are supported. For other models, support for images in general, and particular formats specifically, will depend on the model.
+For most models that support images, png, jpeg, non-animated gif, and webp formats are supported. Some models may support fewer or additional formats.
 
 ### Loading Notes
 

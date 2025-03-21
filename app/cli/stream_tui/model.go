@@ -84,7 +84,7 @@ type streamUIModel struct {
 	autoLoadContextCancelFn context.CancelFunc
 
 	buildViewCollapsed bool
-	userExpandedBuild  bool
+	userToggledBuild   bool
 }
 
 type keymap = struct {

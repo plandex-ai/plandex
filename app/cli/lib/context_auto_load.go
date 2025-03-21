@@ -136,7 +136,6 @@ func AutoLoadContextFiles(ctx context.Context, files []string) (string, error) {
 			// Print skip info only
 			return getSkippedFilesMsg(filesSkippedTooLarge, filesSkippedAfterSizeLimit, nil, nil), nil
 		}
-		return "", nil
 	}
 
 	res, apiErr := api.Client.AutoLoadContext(ctx, CurrentPlanId, CurrentBranch, loadContextReqs)
@@ -155,6 +154,7 @@ func AutoLoadContextFiles(ctx context.Context, files []string) (string, error) {
 	if len(filesSkippedTooLarge) > 0 || len(filesSkippedAfterSizeLimit) > 0 {
 		msg += "\n\n" + getSkippedFilesMsg(filesSkippedTooLarge, filesSkippedAfterSizeLimit, nil, nil)
 	}
+
 	return msg, nil
 }
 

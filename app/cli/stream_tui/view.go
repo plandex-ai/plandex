@@ -176,34 +176,32 @@ func (m streamUIModel) getBuildHeader(static bool) string {
 
 func (m streamUIModel) getRows(static bool) []string {
 	built := m.didBuild() && static
-
 	head := m.getBuildHeader(static)
 
+	// Gather file paths, _apply.sh last
 	filePaths := make([]string, 0, len(m.tokensByPath))
 	for filePath := range m.tokensByPath {
-		// _apply.sh script goes last
 		if filePath == "_apply.sh" {
 			continue
 		}
 		filePaths = append(filePaths, filePath)
 	}
-
 	sort.Strings(filePaths)
-
 	if _, ok := m.tokensByPath["_apply.sh"]; ok {
 		filePaths = append(filePaths, "_apply.sh")
 	}
 
 	var rows [][]string
-	rows = append(rows, []string{})
 	lineWidth := 0
-	lineNum := 0
+	lineNum := -1
 	rowIdx := 0
 
 	for _, filePath := range filePaths {
 		tokens := m.tokensByPath[filePath]
 		finished := m.finished || m.finishedByPath[filePath] || built
 		removed := m.removedByPath[filePath]
+
+		// Basic block label
 		icon := "📄"
 		label := filePath
 		if filePath == "_apply.sh" {
@@ -212,53 +210,64 @@ func (m streamUIModel) getRows(static bool) []string {
 		}
 		block := fmt.Sprintf("%s %s", icon, label)
 
-		if removed {
+		// Mark removed/finished/tokens
+		switch {
+		case removed:
 			block += " ❌"
-		} else if finished {
+		case finished:
 			block += " ✅"
-		} else if tokens > 0 {
+		case tokens > 0:
 			block += fmt.Sprintf(" %d 🪙", tokens)
-		} else {
+		default:
 			block += " " + m.buildSpinner.View()
 		}
 
-		maybeBlockWidth := lipgloss.Width(block)
-
-		if maybeBlockWidth > m.width {
-			maxWidth := m.width - (lipgloss.Width("⋯"))
-			runes := []rune(block)
-			firstHalf := string(runes[:maxWidth/2])
-			secondHalf := string(runes[len(runes)-maxWidth/2:])
-			block = firstHalf + "⋯" + secondHalf
+		// Truncate if needed
+		blockWidth := lipgloss.Width(block)
+		if blockWidth > m.width {
+			maxWidth := m.width - lipgloss.Width("⋯")
+			if maxWidth < 4 {
+				block = string([]rune(block)[0:1]) + "⋯"
+			} else {
+				half := maxWidth / 2
+				runes := []rune(block)
+				block = string(runes[:half]) + "⋯" + string(runes[len(runes)-half:])
+			}
 		}
 
-		maybePrefix := ""
+		// Build the "prefix + block" text tentatively:
+		prefix := ""
 		if rowIdx > 0 {
-			maybePrefix = " | "
-			maybeBlockWidth += lipgloss.Width(maybePrefix)
+			prefix = " | "
 		}
+		candidate := prefix + block
+		candidateWidth := lipgloss.Width(candidate)
 
-		if lineWidth+maybeBlockWidth > m.width {
-			lineWidth = 0
+		// Check if we have no row or it won't fit with the prefix
+		if lineNum == -1 || lineWidth+candidateWidth > m.width {
+			// Start a new row
+			rows = append(rows, []string{})
 			lineNum++
 			rowIdx = 0
-			rows = append(rows, []string{})
-		} else {
-			block = maybePrefix + block
+			lineWidth = 0
+
+			// In a new row, there's no prefix
+			candidate = block
+			candidateWidth = lipgloss.Width(candidate)
 		}
 
-		defBlockWidth := lipgloss.Width(block)
-
-		row := rows[lineNum]
-		row = append(row, block)
-		rows[lineNum] = row
-
-		lineWidth += defBlockWidth
+		rows[lineNum] = append(rows[lineNum], candidate)
+		lineWidth += candidateWidth
 		rowIdx++
 	}
 
-	resRows := make([]string, len(rows)+1)
+	// If empty row left at the end, strip it
+	if len(rows) > 0 && len(rows[len(rows)-1]) == 0 {
+		rows = rows[:len(rows)-1]
+	}
 
+	// Final output lines
+	resRows := make([]string, len(rows)+1)
 	resRows[0] = head
 	for i, row := range rows {
 		resRows[i+1] = lipgloss.JoinHorizontal(lipgloss.Left, row...)
