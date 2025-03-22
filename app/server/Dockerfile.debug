@@ -37,6 +37,15 @@ FROM scratch
 
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
+# Copy shell and other common utils for debug image
+COPY --from=builder /bin/sh /bin/sh
+COPY --from=builder /bin/chown /bin/chown
+COPY --from=builder /bin/mkdir /bin/mkdir
+COPY --from=builder /bin/cat /bin/cat
+COPY --from=builder /bin/ls /bin/ls
+COPY --from=builder /bin/echo /bin/echo
+COPY --from=builder /usr/bin/id /bin/id
+
 # Shared libraries needed for Git binary
 COPY --from=builder /lib/ld-musl-*.so.1 /lib/
 COPY --from=builder /lib/libz.so.1 /lib/
@@ -59,4 +68,5 @@ ENV MIGRATIONS_DIR=/home/plandex/migrations
 ENV PORT=8099
 EXPOSE 8099
 
-ENTRYPOINT ["plandex-server"]
+ENTRYPOINT ["sh", "-c"]
+CMD ["plandex-server"]
