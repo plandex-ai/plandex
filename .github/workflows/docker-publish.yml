@@ -105,6 +105,16 @@ jobs:
         id: go_version
         run: echo "GO_VERSION=$(grep '^go ' ./app/server/go.mod | awk '{print $2}')" >> $GITHUB_OUTPUT
 
+      - name: Generate Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: plandexai/plandex-server
+          # Override this label and annotation
+          # since release event creates version in format release-<release-name>
+          labels: org.opencontainers.image.version=${{ steps.sanitize.outputs.SANITIZED_TAG_NAME }}
+          annotations: org.opencontainers.image.version=${{ steps.sanitize.outputs.SANITIZED_TAG_NAME }}
+
       - name: Build and push
         uses: docker/build-push-action@v6
         env:
@@ -115,6 +125,8 @@ jobs:
           push: true
           platforms: linux/amd64,linux/arm64
           build-args: GO_VERSION=${{ steps.go_version.outputs.GO_VERSION }}
+          labels: ${{ steps.meta.outputs.labels }}
+          annotations: ${{ steps.meta.outputs.annotations }}
           tags: |
             plandexai/plandex-server:${{ steps.sanitize.outputs.SANITIZED_TAG_NAME }}
             plandexai/plandex-server:latest
