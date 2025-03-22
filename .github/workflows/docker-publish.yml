@@ -11,7 +11,7 @@ jobs:
     outputs:
       should_build: ${{ steps.check_release.outputs.should_build }}
       tag: ${{ steps.check_release.outputs.tag }}
-    
+
     steps:
       - name: Check release tag and find latest server tag
         id: check_release
@@ -42,7 +42,7 @@ jobs:
       - name: Check out the repo
         uses: actions/checkout@v2
         with:
-          fetch-depth: 0  # Fetch all history and tags
+          fetch-depth: 0 # Fetch all history and tags
 
       - name: Find latest server tag
         id: find_tag
@@ -50,7 +50,7 @@ jobs:
         run: |
           # Find the latest tag that starts with 'server'
           LATEST_SERVER_TAG=$(git tag -l "server*" --sort=-creatordate | head -n 1)
-          
+
           if [ -z "$LATEST_SERVER_TAG" ]; then
             echo "No tags starting with 'server' found."
             echo "skip=true" >> $GITHUB_OUTPUT
@@ -101,6 +101,10 @@ jobs:
         id: sanitize
         run: echo "SANITIZED_TAG_NAME=$(echo ${{ steps.determine_tag.outputs.tag }} | tr '/' '-' | tr '+' '-')" >> $GITHUB_OUTPUT
 
+      - name: Extract Go version from go.mod
+        id: go_version
+        run: echo "GO_VERSION=$(grep '^go ' ./app/server/go.mod | awk '{print $2}')" >> $GITHUB_OUTPUT
+
       - name: Build and push
         uses: docker/build-push-action@v2
         with:
@@ -108,6 +112,7 @@ jobs:
           file: ./app/server/Dockerfile
           push: true
           platforms: linux/amd64,linux/arm64
+          build-args: GO_VERSION=${{ steps.go_version.outputs.GO_VERSION }}
           tags: |
             plandexai/plandex-server:${{ steps.sanitize.outputs.SANITIZED_TAG_NAME }}
             plandexai/plandex-server:latest
