@@ -19,6 +19,6 @@ func main() {
 	routes.AddProxyableApiRoutes(r)
 	setup.MustLoadIp()
 	setup.MustInitDb()
-	setup.StartServer(r, nil)
+	setup.StartServer(r, nil, nil)
 	os.Exit(0)
 }
