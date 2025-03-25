@@ -263,6 +263,9 @@ func (m *streamUIModel) getViewportDimensions() (int, int) {
 	}
 
 	maxViewportHeight := h - (helpHeight + processingHeight + buildHeight)
+	if maxViewportHeight < 0 {
+		maxViewportHeight = 0
+	}
 	viewportHeight := min(maxViewportHeight, lipgloss.Height(m.mainDisplay))
 	viewportWidth := w
 
@@ -350,7 +353,6 @@ func (m *streamUIModel) scrollEnd() {
 }
 
 func (m *streamUIModel) streamUpdate(msg *shared.StreamMessage, deferUIUpdate bool) (tea.Model, tea.Cmd) {
-
 	switch msg.Type {
 
 	case shared.StreamMessageMulti:
