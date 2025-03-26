@@ -684,9 +684,9 @@ func checkOutdatedAndMaybeUpdateContext(doUpdate bool, maybeContexts []*shared.C
 								mapFileInfoByPath[path] = fileInfo
 							}
 							mu.Unlock()
-
-							innerExistenceErrCh <- nil
 						}
+
+						innerExistenceErrCh <- nil
 					}(path)
 				}
 
@@ -753,7 +753,6 @@ func checkOutdatedAndMaybeUpdateContext(doUpdate bool, maybeContexts []*shared.C
 						}
 
 						mu.Lock()
-						defer mu.Unlock()
 
 						totalMapPaths++
 
@@ -766,6 +765,8 @@ func checkOutdatedAndMaybeUpdateContext(doUpdate bool, maybeContexts []*shared.C
 							innerUpdatesErrCh <- nil
 							return
 						}
+
+						defer mu.Unlock()
 
 						if state.currentMapInputBatch.NumFiles()+1 > shared.ContextMapMaxBatchSize || state.totalMapSize+res.size > shared.ContextMapMaxBatchBytes {
 							state.currentMapInputBatch = shared.FileMapInputs{}
