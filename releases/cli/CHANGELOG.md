@@ -1,3 +1,7 @@
+## CLI Version 2.0.3
+- Fix potential race condition/goroutine explosion/crash in context update.
+- Prevent crash with negative viewport height in stream tui.
+
 ## CLI Version 2.0.2
 - Fixed bug where context auto-load would hang if there was no valid context to load (for example, if they're all directories, which is only discovered client-side, and which can't be auto-loaded)
 - Fixed bug where the build output would sometimes wrap incorrectly, causing the Plan Stream TUI to get out of sync with the build output.
