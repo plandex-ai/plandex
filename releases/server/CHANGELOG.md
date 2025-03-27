@@ -1,3 +1,8 @@
+## Server Version 2.0.3
+- Fix for potential crash during chat/tell operation.
+- Panic handling to prevent crashes in general.
+- Fix for local queue handling bug during builds that could cause queue to get stuck and cause subsequent operations to hang.
+
 ## Server Version 2.0.2
 Server-side fix for context auto-load hanging when there's no valid context to load (for example, if they're all directories, which is only discovered client-side, and which can't be auto-loaded)
 
