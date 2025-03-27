@@ -7,6 +7,7 @@ import (
 	"plandex-server/db"
 	"plandex-server/types"
 	"regexp"
+	"runtime/debug"
 	"strings"
 	"time"
 
@@ -37,6 +38,18 @@ func (state *activeTellStreamState) processChunk(choice types.ExtendedChatComple
 		state.onActivePlanMissingError()
 		return processChunkResult{}
 	}
+
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("processChunk: Panic: %v\n%s\n", r, string(debug.Stack()))
+
+			active.StreamDoneCh <- &shared.ApiError{
+				Type:   shared.ApiErrorTypeOther,
+				Status: http.StatusInternalServerError,
+				Msg:    "Panic in processChunk",
+			}
+		}
+	}()
 
 	delta := choice.Delta
 	content := delta.Content

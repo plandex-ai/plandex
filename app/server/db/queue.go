@@ -152,21 +152,22 @@ func (q *repoQueue) runQueue() {
 	}
 
 	for {
-		shouldReturn := func() (shouldReturn bool) {
-			// get the next batch
-			ops := q.nextBatch()
-			if len(ops) == 0 {
-				// Nothing left in the queue, so mark not processing and return
-				if locksVerboseLogging {
-					log.Printf("[Queue] Queue empty, stopping processing")
-				}
-				q.mu.Lock()
-				q.isProcessing = false
-				q.mu.Unlock()
-				return true
+		// get the next batch
+		ops := q.nextBatch()
+		if len(ops) == 0 {
+			// Nothing left in the queue, so mark not processing and return
+			if locksVerboseLogging {
+				log.Printf("[Queue] Queue empty, stopping processing")
 			}
+			q.mu.Lock()
+			q.isProcessing = false
+			q.mu.Unlock()
+			return
+		}
 
-			firstOp := ops[0]
+		firstOp := ops[0]
+
+		func() {
 
 			if locksVerboseLogging {
 				log.Printf("[Queue] Attempting to acquire DB lock for plan %s, branch %s, scope %s",
@@ -207,7 +208,9 @@ func (q *repoQueue) runQueue() {
 					}
 					op.done <- fmt.Errorf("failed to get DB lock: %w", err)
 				}
-				return true
+				// we still need to process the rest of the queue
+				// if the error is critical, caller will handle it
+				return
 			}
 
 			if locksVerboseLogging {
@@ -288,13 +291,7 @@ func (q *repoQueue) runQueue() {
 					log.Printf("[Queue] Rollback completed successfully")
 				}
 			}
-
-			return false
 		}()
-
-		if shouldReturn {
-			return
-		}
 	}
 }
 

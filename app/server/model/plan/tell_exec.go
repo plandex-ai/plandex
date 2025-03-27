@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"runtime/debug"
 	"time"
 
 	"plandex-server/db"
@@ -85,6 +86,17 @@ func execTellPlan(params execTellPlanParams) {
 		log.Printf("execTellPlan: Active plan not found for plan ID %s on branch %s\n", plan.Id, branch)
 		return
 	}
+
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("execTellPlan: Panic: %v\n%s\n", r, string(debug.Stack()))
+			active.StreamDoneCh <- &shared.ApiError{
+				Type:   shared.ApiErrorTypeOther,
+				Status: http.StatusInternalServerError,
+				Msg:    "Panic in execTellPlan",
+			}
+		}
+	}()
 
 	if missingFileResponse == "" {
 		log.Println("Executing WillExecPlanHook")

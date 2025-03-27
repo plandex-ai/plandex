@@ -3,7 +3,9 @@ package plan
 import (
 	"fmt"
 	"log"
+	"net/http"
 	"plandex-server/model"
+	"runtime/debug"
 	"time"
 
 	shared "plandex-shared"
@@ -24,6 +26,17 @@ func (state *activeTellStreamState) listenStream(stream *model.ExtendedChatCompl
 		log.Printf("listenStream - Active plan not found for plan ID %s on branch %s\n", planId, branch)
 		return
 	}
+
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("listenStream: Panic: %v\n%s\n", r, string(debug.Stack()))
+			active.StreamDoneCh <- &shared.ApiError{
+				Type:   shared.ApiErrorTypeOther,
+				Status: http.StatusInternalServerError,
+				Msg:    "Panic in listenStream",
+			}
+		}
+	}()
 
 	state.chunkProcessor = &chunkProcessor{
 		replyOperations:                 []*shared.Operation{},
