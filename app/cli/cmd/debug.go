@@ -100,44 +100,62 @@ func doDebug(cmd *cobra.Command, args []string) {
 			term.OutputErrorAndExit("Failed to start command: %v", err)
 		}
 
+		maybeDeleteCgroup := lib.MaybeIsolateCgroup(execCmd)
+
 		ctx, cancel := context.WithCancel(context.Background())
 		var interrupted atomic.Bool
 		var interruptHandled atomic.Bool
 		var interruptWG sync.WaitGroup
 
 		sigChan := make(chan os.Signal, 1)
-		signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+		signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGQUIT)
 
 		interruptWG.Add(1)
 		go func() {
 			defer interruptWG.Done()
 			for {
 				select {
-				case <-sigChan:
+				case sig := <-sigChan:
 					if interruptHandled.CompareAndSwap(false, true) {
 						fmt.Println()
 						color.New(term.ColorHiYellow, color.Bold).Println("\n👉 Caught interrupt. Exiting gracefully...")
-						fmt.Println()
-
 						interrupted.Store(true)
 
-						if err := lib.KillProcessGroup(execCmd, syscall.SIGINT); err != nil {
-							log.Printf("Failed to send SIGINT to process group: %v", err)
+						var sysSig syscall.Signal
+
+						switch sig {
+						case os.Interrupt:
+							// user pressed Ctrl+C
+							sysSig = syscall.SIGINT
+						case syscall.SIGTERM:
+							// a polite "kill" request
+							sysSig = syscall.SIGTERM
+						case syscall.SIGHUP:
+							sysSig = syscall.SIGHUP
+						case syscall.SIGQUIT:
+							sysSig = syscall.SIGQUIT
+						default:
+							sysSig = syscall.SIGINT
+						}
+
+						if err := lib.KillProcessGroup(execCmd, sysSig); err != nil {
+							log.Printf("Failed to send signal %s to process group: %v", sysSig, err)
 						}
 
 						select {
 						case <-time.After(2 * time.Second):
-							fmt.Println()
 							color.New(term.ColorHiYellow, color.Bold).Println("👉 Commands didn't exit after 2 seconds. Sending SIGKILL.")
-							fmt.Println()
 							if err := lib.KillProcessGroup(execCmd, syscall.SIGKILL); err != nil {
 								log.Printf("Failed to send SIGKILL to process group: %v", err)
 							}
+							maybeDeleteCgroup()
 						case <-ctx.Done():
+							maybeDeleteCgroup()
 							return
 						}
 					}
 				case <-ctx.Done():
+					maybeDeleteCgroup()
 					return
 				}
 			}
@@ -178,7 +196,6 @@ func doDebug(cmd *cobra.Command, args []string) {
 		didSucceed := waitErr == nil
 
 		if interrupted.Load() {
-			fmt.Println()
 			color.New(term.ColorHiYellow, color.Bold).Println("👉  Execution interrupted")
 
 			res, canceled, err := term.ConfirmYesNoCancel("Did the command succeed?")

@@ -262,6 +262,7 @@ func ApplyRewindChanges(requiredChanges map[string]string) error {
 
 	// Track directories that might need cleanup
 	dirsToCheck := make(map[string]bool)
+	var mu sync.Mutex
 
 	errCh := make(chan error, len(requiredChanges))
 
@@ -278,7 +279,9 @@ func ApplyRewindChanges(requiredChanges map[string]string) error {
 				}
 				// Mark parent directory for cleanup
 				parentDir := filepath.Dir(dstPath)
+				mu.Lock()
 				dirsToCheck[parentDir] = true
+				mu.Unlock()
 				errCh <- nil
 				return
 			}

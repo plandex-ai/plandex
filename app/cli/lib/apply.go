@@ -221,7 +221,6 @@ func MustApplyPlanAttempt(
 				for _, file := range updatedFiles {
 					fmt.Println(" • 📄 " + file)
 				}
-				fmt.Println()
 			}
 
 			if isRepo && !noCommit {
@@ -300,11 +299,13 @@ func handleApplyScript(
 
 			if res == string(types.ApplyRollbackOptionRollback) {
 				Rollback(toRollback, true)
-				fmt.Println()
 				os.Exit(0)
 			} else {
 				onSuccess()
 			}
+		} else {
+			fmt.Println("🙅‍♂️ Skipped execution")
+			fmt.Println("🤷‍♂️ No changes to apply")
 		}
 	}
 }
@@ -332,7 +333,9 @@ func execApplyScript(
 ) {
 	log.Println("Executing apply script")
 
-	color.New(term.ColorHiCyan, color.Bold).Println("🚀 Executing... Output below:")
+	color.New(term.ColorHiYellow, color.Bold).Println("👉 For long-running commands, use ctrl+c to exit")
+	color.New(term.ColorHiCyan, color.Bold).Println("🚀 Executing... output below 👇")
+
 	fmt.Println()
 
 	var content string
@@ -343,7 +346,7 @@ func execApplyScript(
 		content = toApply["_apply.sh"]
 	}
 
-	dstPath := filepath.Join(fs.ProjectRoot, "_apply.sh")
+	scriptPath := filepath.Join(fs.ProjectRoot, "_apply.sh")
 	lines := strings.Split(content, "\n")
 	filteredLines := []string{}
 
@@ -380,13 +383,13 @@ func execApplyScript(
 
 	header := shebang + "\n" + errorHandling
 	content = header + "\n" + strings.Join(filteredLines, "\n")
-	err := os.WriteFile(dstPath, []byte(content), 0755)
+	err := os.WriteFile(scriptPath, []byte(content), 0755)
 
 	if err != nil {
 		onErr("failed to write _apply.sh: %s", err)
 	}
 
-	execCmd := exec.Command(shell, "-l", dstPath)
+	execCmd := exec.Command(shell, "-c", scriptPath)
 	execCmd.Dir = fs.ProjectRoot
 	execCmd.Env = os.Environ()
 	execCmd.Stdin = os.Stdin
@@ -394,7 +397,8 @@ func execApplyScript(
 	// Create a pipe for both stdout and stderr
 	pipe, err := execCmd.StdoutPipe()
 	if err != nil {
-		os.Remove(dstPath)
+		// best effort cleanup
+		os.Remove(scriptPath)
 		onErr("failed to create stdout pipe: %s", err)
 	}
 	execCmd.Stderr = execCmd.Stdout
@@ -403,8 +407,18 @@ func execApplyScript(
 	SetPlatformSpecificAttrs(execCmd)
 
 	if err := execCmd.Start(); err != nil {
-		os.Remove(dstPath)
+		// best effort cleanup
+		os.Remove(scriptPath)
 		onErr("failed to start command: %s", err)
+	}
+
+	maybeDeleteCgroup := MaybeIsolateCgroup(execCmd)
+
+	pgid, err := syscall.Getpgid(execCmd.Process.Pid)
+	if err != nil {
+		log.Printf("Getpgid error: %v", err)
+	} else {
+		log.Printf("Child PID=%d PGID=%d", execCmd.Process.Pid, pgid)
 	}
 
 	// Create a context that we can cancel
@@ -416,7 +430,7 @@ func execApplyScript(
 
 	// Handle SIGINT and SIGTERM
 	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGQUIT)
 
 	var interruptHandled atomic.Bool
 	var interruptWG sync.WaitGroup
@@ -428,32 +442,50 @@ func execApplyScript(
 
 		for {
 			select {
-			case <-sigChan:
+			case sig := <-sigChan:
 				if interruptHandled.CompareAndSwap(false, true) {
 					fmt.Println()
-					color.New(term.ColorHiYellow, color.Bold).Println("\n👉 Caught interrupt. Exiting gracefully...")
-					fmt.Println()
+					color.New(term.ColorHiYellow, color.Bold).Println("👉 Caught interrupt. Exiting gracefully...")
 					interrupted.Store(true)
 
-					if err := KillProcessGroup(execCmd, syscall.SIGINT); err != nil {
-						log.Printf("Failed to send interrupt signal to process group: %v", err)
+					var sysSig syscall.Signal
+
+					switch sig {
+					case os.Interrupt:
+						// user pressed Ctrl+C
+						sysSig = syscall.SIGINT
+					case syscall.SIGTERM:
+						// a polite "kill" request
+						sysSig = syscall.SIGTERM
+					case syscall.SIGHUP:
+						sysSig = syscall.SIGHUP
+					case syscall.SIGQUIT:
+						sysSig = syscall.SIGQUIT
+					default:
+						sysSig = syscall.SIGINT
+					}
+
+					if err := KillProcessGroup(execCmd, sysSig); err != nil {
+						log.Printf("Failed to send signal %s to process group: %v", sysSig, err)
 					}
 
 					select {
 					case <-time.After(2 * time.Second):
-						fmt.Println()
 						color.New(term.ColorHiYellow, color.Bold).Println("👉 Commands didn't exit after 2 seconds. Sending SIGKILL.")
-						fmt.Println()
 						if err := KillProcessGroup(execCmd, syscall.SIGKILL); err != nil {
 							log.Printf("Failed to terminate process group: %v", err)
 						}
+						pipe.Close()
+						maybeDeleteCgroup()
 					case <-ctx.Done():
+						maybeDeleteCgroup()
 						return
 					}
 				}
 
 			case <-ctx.Done():
 				// If no interrupts occurred, this will be the normal exit path
+				maybeDeleteCgroup()
 				return
 			}
 		}
@@ -484,10 +516,9 @@ func execApplyScript(
 	success := err == nil
 
 	if interrupted.Load() {
-		os.Remove(dstPath)
+		os.Remove(scriptPath)
 
-		fmt.Println()
-		color.New(term.ColorHiYellow, color.Bold).Println("👉  Execution interrupted")
+		color.New(term.ColorHiYellow, color.Bold).Println("👉 Execution interrupted")
 
 		didSucceed, canceled, err := term.ConfirmYesNoCancel("Did the commands succeed?")
 
@@ -500,14 +531,13 @@ func execApplyScript(
 		if canceled {
 			// rollback and exit
 			Rollback(toRollback, true)
-			fmt.Println()
 			os.Exit(0)
 		}
 	}
 
 	// remove _apply.sh without overwriting err val
 	{
-		err := os.Remove(dstPath)
+		err := os.Remove(scriptPath)
 		if err != nil && !os.IsNotExist(err) {
 			onErr("failed to remove _apply.sh: %s", err)
 		}
@@ -719,7 +749,8 @@ func ApplyFiles(toApply map[string]string, toRemove map[string]bool, projectPath
 }
 
 func Rollback(rollbackPlan *types.ApplyRollbackPlan, msg bool) error {
-	errCh := make(chan error, len(rollbackPlan.ToRevert)+len(rollbackPlan.ToRemove))
+	numRoutines := len(rollbackPlan.ToRevert) + len(rollbackPlan.ToRemove) + 1
+	errCh := make(chan error, numRoutines)
 	for path, revert := range rollbackPlan.ToRevert {
 		go func(path string, revert types.ApplyReversion) {
 			err := os.WriteFile(path, []byte(revert.Content), revert.Mode)
@@ -730,6 +761,7 @@ func Rollback(rollbackPlan *types.ApplyRollbackPlan, msg bool) error {
 			errCh <- nil
 		}(path, revert)
 	}
+
 	for _, path := range rollbackPlan.ToRemove {
 		go func(path string) {
 			err := os.Remove(path)
@@ -740,6 +772,7 @@ func Rollback(rollbackPlan *types.ApplyRollbackPlan, msg bool) error {
 			errCh <- nil
 		}(path)
 	}
+
 	go func() {
 		var err error
 		updatedProjectPaths, err := fs.GetProjectPaths(fs.ProjectRoot)
@@ -747,8 +780,8 @@ func Rollback(rollbackPlan *types.ApplyRollbackPlan, msg bool) error {
 			errCh <- fmt.Errorf("failed to get project paths: %v", err)
 		}
 		var toRemove []string
-		for path := range updatedProjectPaths.ActivePaths {
-			if _, ok := rollbackPlan.PreviousProjectPaths.ActivePaths[path]; !ok {
+		for path := range updatedProjectPaths.AllPaths {
+			if _, ok := rollbackPlan.PreviousProjectPaths.AllPaths[path]; !ok {
 				toRemove = append(toRemove, path)
 			}
 		}
@@ -768,8 +801,9 @@ func Rollback(rollbackPlan *types.ApplyRollbackPlan, msg bool) error {
 		}
 		errCh <- nil
 	}()
+
 	errs := []error{}
-	for i := 0; i < len(rollbackPlan.ToRevert)+len(rollbackPlan.ToRemove)+1; i++ {
+	for i := 0; i < numRoutines; i++ {
 		err := <-errCh
 		if err != nil {
 			errs = append(errs, err)
