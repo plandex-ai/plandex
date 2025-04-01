@@ -1,3 +1,24 @@
+## CLI Version 2.0.4
+- **Reliability**
+  - Implemented HTTP retry logic with exponential backoff for transient errors.
+
+- **Model Packs**
+  - Added commands:
+    - `model-packs update`
+    - `model-packs show`
+
+- **Debugging**
+  - Enhanced signal handling and subprocess termination robustness.
+  - Plandex can now directly debug browser applications by catching errors and reading the console logs (requires Chrome).
+
+- **REPL**
+  - Fixed whitespace handling issues.
+  - Improved command execution flow.
+
+- **Installation**
+  - Clarified support for WSL-only environments.
+  - Better handling of sudo and alias creation on Linux.
+
 ## CLI Version 2.0.3
 - Fix potential race condition/goroutine explosion/crash in context update.
 - Prevent crash with negative viewport height in stream tui.
