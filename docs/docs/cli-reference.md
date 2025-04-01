@@ -63,6 +63,7 @@ The REPL has a few convenient flags you can use to start it with different modes
 
   Models
     --daily        Daily driver pack (default models, balanced capability, cost, and speed)
+    --reasoning    Similar to daily driver, but uses reasoning model for planning
     --strong       Strong pack (more capable models, higher cost and slower)
     --cheap        Cheap pack (less capable models, lower cost and faster)
     --oss          Open source pack (open source models)
@@ -96,6 +97,8 @@ plandex new -n new-plan # with name
 `--full`: Start the plan with auto-mode 'Full-Auto' (auto-apply, auto-exec, auto-debug).
 
 `--daily`: Start the plan with the daily driver model pack.
+
+`--reasoning`: Start the plan with the reasoning model pack.
 
 `--strong`: Start the plan with the strong model pack.
 
@@ -760,6 +763,24 @@ plandex model-packs create
 ```
 
 Plandex will prompt you for all required information to create a custom model pack.
+
+### model-packs show
+
+Show a built-in or custom model pack's settings.
+
+```bash
+plandex model-packs show # select from a list of built-in and custom model packs
+plandex model-packs show some-model-pack # by name
+```
+
+### model-packs update
+
+Update a custom model pack's settings.
+
+```bash
+plandex model-packs update # select from a list of custom model packs
+plandex model-packs update some-model-pack # by name
+```
 
 ### model-packs delete
 

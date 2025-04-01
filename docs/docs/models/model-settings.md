@@ -41,7 +41,7 @@ You can list available model packs with `model-packs`:
 plandex model-packs # list all available model packs
 ```
 
-You can create your own model packs with `model-packs create`, list built-in and custom model packs with `model-packs`, and remove custom model packs with `model-packs delete`.
+You can create your own model packs with `model-packs create`, list built-in and custom model packs with `model-packs`, show a specific model pack with `model-packs show`, update a model pack with `model-packs update`, and remove custom model packs with `model-packs delete`.
 
 ```bash
 plandex set-model # select from a list of model packs for the current plan
@@ -52,6 +52,9 @@ plandex set-model default Mixtral-8x22b/Mixtral-8x7b/gpt-4o # set the default mo
 plandex model-packs # list built-in and custom model packs
 plandex model-packs create # create a new custom model pack
 plandex model-packs --custom # list only custom model packs
+plandex model-packs show # show a specific model pack
+plandex model-packs update # update a model pack
+plandex model-packs delete # delete a custom model pack
 ```
 
 ## Custom Models

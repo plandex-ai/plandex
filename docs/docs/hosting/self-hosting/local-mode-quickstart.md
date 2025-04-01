@@ -5,7 +5,7 @@ sidebar_label: Local Mode Quickstart
 
 # Self-Hosting
 
-Plandex is open source and uses a client-server architecture. The server can be self-hosted. You can either run it locally or on a cloud server that you control. To run it on a cloud server, go to  [Advanced Self-Hosting](./advanced-self-hosting) section. To run it locally, keep reading below.
+Plandex is open source and uses a client-server architecture. The server can be self-hosted. You can either run it locally or on a cloud server that you control. To run it on a cloud server, go to  [Advanced Self-Hosting](advanced-self-hosting.md) section. To run it locally, keep reading below.
 
 ## Local Mode Quickstart
 

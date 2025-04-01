@@ -16,6 +16,12 @@ Commands accumulate in the sandbox just like [pending changes to files](./review
 While Plandex will attempt to automatically infer relevant commands to run, it also tries not to overdo it. It generally won't, for example, run a test suite unless you've specifically asked it to, since it may not be desirable after every change. It tries to only run what's strictly necessary, to make local project-level changes instead of global system-wide changes, to check existing dependencies before installing, to write idempotent commands, to avoid hiding output or asking for user input, and to recover gracefully from failures.
 
 If you want specific commands to run and Plandex isn't including automatically them because of it's somewhat conservative approach, you can either mention them in the prompt, or you can use the `plandex debug` command to automatically debug based on the output of any command you choose.
+
+### Debugging Browser Applications
+
+If Chrome is installed, Plandex can automatically debug browser applications by catching errors and reading the console logs.
+
+If a plan calls for starting a browser, Plandex will automatically include a `plandex browser` call to start Chrome and monitor for errors.
    
 ### Execution Config
 
