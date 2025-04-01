@@ -2134,6 +2134,38 @@ func (a *Api) DeleteAvailableModel(modelId string) *shared.ApiError {
 	return nil
 }
 
+func (a *Api) UpdateCustomModel(model *shared.AvailableModel) *shared.ApiError {
+	serverUrl := fmt.Sprintf("%s/custom_models/%s", GetApiHost(), model.Id)
+	body, err := json.Marshal(model)
+	if err != nil {
+		return &shared.ApiError{Msg: "Failed to marshal model"}
+	}
+
+	req, err := http.NewRequest(http.MethodPut, serverUrl, bytes.NewBuffer(body))
+	if err != nil {
+		return &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error creating request: %v", err)}
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := authenticatedFastClient.Do(req)
+	if err != nil {
+		return &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error sending request: %v", err)}
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		errorBody, _ := io.ReadAll(resp.Body)
+		apiErr := HandleApiError(resp, errorBody)
+		tokenRefreshed, apiErr := refreshTokenIfNeeded(apiErr)
+		if tokenRefreshed {
+			return a.UpdateCustomModel(model)
+		}
+		return apiErr
+	}
+
+	return nil
+}
+
 func (a *Api) CreateModelPack(set *shared.ModelPack) *shared.ApiError {
 	serverUrl := fmt.Sprintf("%s/model_sets", GetApiHost())
 	body, err := json.Marshal(set)
@@ -2213,6 +2245,39 @@ func (a *Api) DeleteModelPack(setId string) *shared.ApiError {
 		tokenRefreshed, apiErr := refreshTokenIfNeeded(apiErr)
 		if tokenRefreshed {
 			return a.DeleteModelPack(setId)
+		}
+		return apiErr
+	}
+
+	return nil
+}
+
+func (a *Api) UpdateModelPack(set *shared.ModelPack) *shared.ApiError {
+	serverUrl := fmt.Sprintf("%s/model_sets/%s", GetApiHost(), set.Id)
+	body, err := json.Marshal(set)
+	if err != nil {
+		return &shared.ApiError{Msg: "Failed to marshal model pack"}
+	}
+
+	req, err := http.NewRequest(http.MethodPut, serverUrl, bytes.NewBuffer(body))
+	if err != nil {
+		return &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error creating request: %v", err)}
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := authenticatedFastClient.Do(req)
+	if err != nil {
+		return &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error sending request: %v", err)}
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		errorBody, _ := io.ReadAll(resp.Body)
+		apiErr := HandleApiError(resp, errorBody)
+		tokenRefreshed, apiErr := refreshTokenIfNeeded(apiErr)
+		if tokenRefreshed {
+			return a.UpdateModelPack(set)
 		}
 		return apiErr
 	}
