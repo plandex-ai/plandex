@@ -13,10 +13,10 @@ require (
 )
 
 require (
-	github.com/dlclark/regexp2 v1.11.4 // indirect
+	github.com/dlclark/regexp2 v1.11.5 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/olekukonko/tablewriter v0.0.5
-	github.com/sashabaranov/go-openai v1.35.6
+	github.com/sashabaranov/go-openai v1.38.1
 	github.com/shopspring/decimal v1.4.0
-	golang.org/x/image v0.22.0
+	golang.org/x/image v0.25.0
 )

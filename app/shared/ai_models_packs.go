@@ -1,7 +1,10 @@
 package shared
 
 var DailyDriverModelPack ModelPack
+var ReasoningModelPack ModelPack
 var StrongModelPack ModelPack
+
+// var CrazyModelPack ModelPack
 var OSSModelPack ModelPack
 var CheapModelPack ModelPack
 var AnthropicModelPack ModelPack
@@ -13,9 +16,11 @@ var PerplexityPlannerModelPack ModelPack
 
 var BuiltInModelPacks = []*ModelPack{
 	&DailyDriverModelPack,
+	&ReasoningModelPack,
 	&StrongModelPack,
 	&CheapModelPack,
 	&OSSModelPack,
+	// &CrazyModelPack,
 	&AnthropicModelPack,
 	&OpenAIModelPack,
 	&GeminiPlannerModelPack,
@@ -60,6 +65,25 @@ func init() {
 		ExecStatus:       *openaio3miniLow(ModelRoleExecStatus, nil),
 	}
 
+	ReasoningModelPack = ModelPack{
+		Name:        "reasoning",
+		Description: "Like the daily driver, but use 3.7-sonnet:thinking with reasoning enabled for planning and coding.",
+		Planner: PlannerRoleConfig{
+			ModelRoleConfig:    *claude37SonnetThinking(ModelRolePlanner, nil),
+			PlannerModelConfig: getPlannerModelConfig(ModelProviderOpenRouter, "anthropic/claude-3.7-sonnet:thinking"),
+		},
+		Coder:       claude37SonnetThinking(ModelRoleCoder, nil),
+		PlanSummary: *openaio3miniLow(ModelRolePlanSummary, nil),
+		Builder: *openaio3miniMedium(ModelRoleBuilder, &modelConfig{
+			strongModel: openaio3miniHigh(ModelRoleBuilder, nil),
+		}),
+
+		WholeFileBuilder: openaio3miniMedium(ModelRoleWholeFileBuilder, nil),
+		Namer:            *openai4omini(ModelRoleName, nil),
+		CommitMsg:        *openai4omini(ModelRoleCommitMsg, nil),
+		ExecStatus:       *openaio3miniLow(ModelRoleExecStatus, nil),
+	}
+
 	StrongModelPack = ModelPack{
 		Name:        "strong",
 		Description: "For difficult tasks where slower responses and builds are ok. Uses o1 for architecture and planning, claude-3.7-sonnet for implementation, prioritizes reliability over speed for builds. Supports up to 160k input context.",
@@ -68,7 +92,7 @@ func init() {
 			PlannerModelConfig: getPlannerModelConfig(ModelProviderOpenAI, "openai/o1"),
 		},
 		Architect:        openaio1(ModelRoleArchitect, nil),
-		Coder:            claude37Sonnet(ModelRoleCoder, nil),
+		Coder:            claude37SonnetThinking(ModelRoleCoder, nil),
 		PlanSummary:      *openaio3miniLow(ModelRolePlanSummary, nil),
 		Builder:          *openaio3miniHigh(ModelRoleBuilder, nil),
 		WholeFileBuilder: openaio3miniHigh(ModelRoleWholeFileBuilder, nil),
@@ -101,7 +125,7 @@ func init() {
 			ModelRoleConfig:    *deepseekr1Reasoning(ModelRolePlanner, nil),
 			PlannerModelConfig: getPlannerModelConfig(ModelProviderOpenRouter, "deepseek/deepseek-r1-reasoning"),
 		},
-		Coder:            deepseekr1Reasoning(ModelRoleCoder, nil),
+		Coder:            deepseekv3(ModelRoleCoder, nil),
 		PlanSummary:      *deepseekr1NoReasoning(ModelRolePlanSummary, nil),
 		Builder:          *deepseekr1NoReasoning(ModelRoleBuilder, nil),
 		WholeFileBuilder: deepseekr1NoReasoning(ModelRoleWholeFileBuilder, nil),
@@ -109,6 +133,23 @@ func init() {
 		CommitMsg:        *qwen25coder32b(ModelRoleCommitMsg, nil),
 		ExecStatus:       *deepseekr1NoReasoning(ModelRoleExecStatus, nil),
 	}
+
+	// Disabled for now - o1-pro is not supported yet
+	// CrazyModelPack = ModelPack{
+	// 	Name:        "crazy",
+	// 	Description: "Uses o1-pro for planning, 3.7 sonnet for implementation, o3-mini-high for builds and auto-continue checks, and gpt-4o for lighter tasks. Slow and expensive. Highly capable. Be careful, you can spend hundreds of dollars on a large task.",
+	// 	Planner: PlannerRoleConfig{
+	// 		ModelRoleConfig: *openaio1pro(ModelRolePlanner, nil),
+	// 	},
+	// 	Architect:        openaio1pro(ModelRoleArchitect, nil),
+	// 	Coder:            claude37Sonnet(ModelRoleCoder, nil),
+	// 	PlanSummary:      *openaio3miniLow(ModelRolePlanSummary, nil),
+	// 	Builder:          *openaio3miniHigh(ModelRoleBuilder, nil),
+	// 	WholeFileBuilder: openaio3miniHigh(ModelRoleWholeFileBuilder, nil),
+	// 	Namer:            *openai4o(ModelRoleName, nil),
+	// 	CommitMsg:        *openai4o(ModelRoleCommitMsg, nil),
+	// 	ExecStatus:       *openaio3miniHigh(ModelRoleExecStatus, nil),
+	// }
 
 	OpenAIModelPack = ModelPack{
 		Name:        "openai",
@@ -144,26 +185,26 @@ func init() {
 
 	GeminiModelPack = ModelPack{
 		Name:        "gemini-experimental",
-		Description: "Uses Gemini 2.0 Pro experimental (free) for heavy lifting, Gemini Flash 2.0 for light tasks. Supports up to 2M input context.",
+		Description: "Uses Gemini 2.5 Pro experimental (free) for heavy lifting, Gemini Flash 2.0 for light tasks. Supports up to 1M input context.",
 		Planner: PlannerRoleConfig{
-			ModelRoleConfig:    *geminipro20exp(ModelRolePlanner, nil),
-			PlannerModelConfig: getPlannerModelConfig(ModelProviderOpenRouter, "google/gemini-2.0-pro-exp-02-05:free"),
+			ModelRoleConfig:    *geminipro25exp(ModelRolePlanner, nil),
+			PlannerModelConfig: getPlannerModelConfig(ModelProviderOpenRouter, "google/gemini-2.5-pro-exp-03-25:free"),
 		},
-		Coder:            geminipro20exp(ModelRoleCoder, nil),
+		Coder:            geminipro25exp(ModelRoleCoder, nil),
 		PlanSummary:      *geminiflash20(ModelRolePlanSummary, nil),
-		Builder:          *geminipro20exp(ModelRoleBuilder, nil),
-		WholeFileBuilder: geminipro20exp(ModelRoleWholeFileBuilder, nil),
+		Builder:          *geminipro25exp(ModelRoleBuilder, nil),
+		WholeFileBuilder: geminipro25exp(ModelRoleWholeFileBuilder, nil),
 		Namer:            *geminiflash20(ModelRoleName, nil),
 		CommitMsg:        *geminiflash20(ModelRoleCommitMsg, nil),
-		ExecStatus:       *geminipro20exp(ModelRoleExecStatus, nil),
+		ExecStatus:       *geminipro25exp(ModelRoleExecStatus, nil),
 	}
 
 	GeminiPlannerModelPack = ModelPack{
 		Name:        "gemini-planner",
-		Description: "Uses Gemini 1.5 Pro for planning, Gemini Flash for light tasks, and default models for implementation. Supports up to 2M input context.",
+		Description: "Uses Gemini 2.5 Pro Experimental for planning, Gemini Flash for light tasks, and default models for implementation. Supports up to 1M input context.",
 		Planner: PlannerRoleConfig{
-			ModelRoleConfig:    *gemini15pro(ModelRolePlanner, nil),
-			PlannerModelConfig: getPlannerModelConfig(ModelProviderOpenRouter, "google/gemini-pro-1.5"),
+			ModelRoleConfig:    *geminipro25exp(ModelRolePlanner, nil),
+			PlannerModelConfig: getPlannerModelConfig(ModelProviderOpenRouter, "google/gemini-2.5-pro-exp-03-25:free"),
 		},
 		Coder:            claude37Sonnet(ModelRoleCoder, nil),
 		PlanSummary:      *geminiflash20(ModelRolePlanSummary, nil),
@@ -237,6 +278,10 @@ func claude37Sonnet(role ModelRole, fallbacks *modelConfig) *ModelRoleConfig {
 	return getModelConfig(role, ModelProviderOpenRouter, "anthropic/claude-3.7-sonnet", fallbacks)
 }
 
+func claude37SonnetThinking(role ModelRole, fallbacks *modelConfig) *ModelRoleConfig {
+	return getModelConfig(role, ModelProviderOpenRouter, "anthropic/claude-3.7-sonnet:thinking", fallbacks)
+}
+
 func claude35Sonnet(role ModelRole, fallbacks *modelConfig) *ModelRoleConfig {
 	return getModelConfig(role, ModelProviderOpenRouter, "anthropic/claude-3.5-sonnet", fallbacks)
 }
@@ -273,6 +318,10 @@ func openaio1(role ModelRole, fallbacks *modelConfig) *ModelRoleConfig {
 	return getModelConfig(role, ModelProviderOpenAI, "openai/o1", fallbacks)
 }
 
+func openaio1pro(role ModelRole, fallbacks *modelConfig) *ModelRoleConfig {
+	return getModelConfig(role, ModelProviderOpenAI, "openai/o1-pro", fallbacks)
+}
+
 func qwen25coder32b(role ModelRole, fallbacks *modelConfig) *ModelRoleConfig {
 	return getModelConfig(role, ModelProviderOpenRouter, "qwen/qwen-2.5-coder-32b-instruct", fallbacks)
 }
@@ -286,7 +335,7 @@ func deepseekr1NoReasoning(role ModelRole, fallbacks *modelConfig) *ModelRoleCon
 }
 
 func deepseekv3(role ModelRole, fallbacks *modelConfig) *ModelRoleConfig {
-	return getModelConfig(role, ModelProviderOpenRouter, "deepseek/deepseek-chat", fallbacks)
+	return getModelConfig(role, ModelProviderOpenRouter, "deepseek/deepseek-chat-v3-0324", fallbacks)
 }
 
 func geminiflash20(role ModelRole, fallbacks *modelConfig) *ModelRoleConfig {
@@ -305,6 +354,6 @@ func perplexitySonarReasoning(role ModelRole, fallbacks *modelConfig) *ModelRole
 // 	return getModelConfig(role, ModelProviderOpenRouter, "deepseek/deepseek-r1-distill-qwen-32b", fallbacks)
 // }
 
-func geminipro20exp(role ModelRole, fallbacks *modelConfig) *ModelRoleConfig {
-	return getModelConfig(role, ModelProviderOpenRouter, "google/gemini-2.0-pro-exp-02-05:free", fallbacks)
+func geminipro25exp(role ModelRole, fallbacks *modelConfig) *ModelRoleConfig {
+	return getModelConfig(role, ModelProviderOpenRouter, "google/gemini-2.5-pro-exp-03-25:free", fallbacks)
 }

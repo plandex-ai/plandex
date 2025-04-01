@@ -40,6 +40,7 @@ type BaseModelConfig struct {
 	ReasoningEffort            ReasoningEffort   `json:"reasoningEffort"`
 	IncludeReasoning           bool              `json:"includeReasoning"`
 	SupportsCacheControl       bool              `json:"supportsCacheControl"`
+	UsesOpenAIResponsesAPI     bool              `json:"usesOpenAIResponsesAPI"`
 	ModelCompatibility
 }
 

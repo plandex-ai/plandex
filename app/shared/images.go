@@ -44,10 +44,10 @@ func GetImageTokensFromHeader(reader io.Reader, detail openai.ImageURLDetail, ma
 	googleTokens := getGoogleImageTokens(width, height)
 	openaiTokens := getOpenAIImageTokens(width, height, detail)
 
-	log.Printf("GetImageTokens - width: %d, height: %d\n", width, height)
-	log.Printf("GetImageTokens - anthropicTokens: %d\n", anthropicTokens)
-	log.Printf("GetImageTokens - googleTokens: %d\n", googleTokens)
-	log.Printf("GetImageTokens - openaiTokens: %d\n", openaiTokens)
+	// log.Printf("GetImageTokens - width: %d, height: %d\n", width, height)
+	// log.Printf("GetImageTokens - anthropicTokens: %d\n", anthropicTokens)
+	// log.Printf("GetImageTokens - googleTokens: %d\n", googleTokens)
+	// log.Printf("GetImageTokens - openaiTokens: %d\n", openaiTokens)
 
 	// get max of the three
 	return int(math.Max(

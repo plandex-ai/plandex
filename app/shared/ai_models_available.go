@@ -121,6 +121,44 @@ var AvailableModels = []*AvailableModel{
 			RoleParamsDisabled:         true,
 		},
 	},
+
+	// o1-pro is not supported yet - more work is needed to support the responses API
+	// {
+	// 	Description:           "OpenAI o1-pro",
+	// 	DefaultMaxConvoTokens: 15000,
+	// 	BaseModelConfig: BaseModelConfig{
+	// 		Provider:                   ModelProviderOpenAI,
+	// 		ModelName:                  "o1-pro",
+	// 		ModelId:                    "openai/o1-pro",
+	// 		MaxTokens:                  200000,
+	// 		MaxOutputTokens:            100000,
+	// 		ReservedOutputTokens:       60000,
+	// 		ApiKeyEnvVar:               OpenAIEnvVar,
+	// 		ModelCompatibility:         fullCompatibility,
+	// 		BaseUrl:                    OpenAIV1BaseUrl,
+	// 		PreferredModelOutputFormat: ModelOutputFormatToolCallJson,
+	// 		RoleParamsDisabled:         true,
+	// 		UsesOpenAIResponsesAPI:     true,
+	// 	},
+	// },
+
+	{
+		Description:           "OpenAI gpt-4.5-preview",
+		DefaultMaxConvoTokens: 15000,
+		BaseModelConfig: BaseModelConfig{
+			Provider:                   ModelProviderOpenAI,
+			ModelName:                  "gpt-4.5-preview",
+			ModelId:                    "openai/gpt-4.5-preview",
+			MaxTokens:                  128000,
+			MaxOutputTokens:            16384,
+			ReservedOutputTokens:       16384,
+			ApiKeyEnvVar:               OpenAIEnvVar,
+			ModelCompatibility:         fullCompatibility,
+			BaseUrl:                    OpenAIV1BaseUrl,
+			PreferredModelOutputFormat: ModelOutputFormatToolCallJson,
+		},
+	},
+
 	{
 		Description:           "OpenAI gpt-4o",
 		DefaultMaxConvoTokens: 10000,
@@ -175,6 +213,24 @@ var AvailableModels = []*AvailableModel{
 		},
 	},
 	{
+		Description:           "Anthropic Claude 3.7 Sonnet (thinking) via OpenRouter",
+		DefaultMaxConvoTokens: 15000,
+		BaseModelConfig: BaseModelConfig{
+			Provider:                   ModelProviderOpenRouter,
+			ModelName:                  "anthropic/claude-3.7-sonnet:thinking",
+			ModelId:                    "anthropic/claude-3.7-sonnet:thinking",
+			MaxTokens:                  200000,
+			MaxOutputTokens:            128000,
+			ReservedOutputTokens:       40000,
+			SupportsCacheControl:       true,
+			ApiKeyEnvVar:               ApiKeyByProvider[ModelProviderOpenRouter],
+			ModelCompatibility:         fullCompatibility,
+			BaseUrl:                    BaseUrlByProvider[ModelProviderOpenRouter],
+			PreferredModelOutputFormat: ModelOutputFormatXml,
+			IncludeReasoning:           true,
+		},
+	},
+	{
 		Description:           "Anthropic Claude 3.5 Sonnet via OpenRouter",
 		DefaultMaxConvoTokens: 15000,
 		BaseModelConfig: BaseModelConfig{
@@ -225,15 +281,15 @@ var AvailableModels = []*AvailableModel{
 		},
 	},
 	{
-		Description:           "Google Gemini Pro 2.0 Experimental via OpenRouter",
-		DefaultMaxConvoTokens: 100000,
+		Description:           "Google Gemini Pro 2.5 Experimental via OpenRouter",
+		DefaultMaxConvoTokens: 75000,
 		BaseModelConfig: BaseModelConfig{
 			Provider:                   ModelProviderOpenRouter,
-			ModelName:                  "google/gemini-2.0-pro-exp-02-05:free",
-			ModelId:                    "google/gemini-2.0-pro-exp-02-05:free",
-			MaxTokens:                  2000000,
-			MaxOutputTokens:            8192,
-			ReservedOutputTokens:       8192,
+			ModelName:                  "google/gemini-2.5-pro-exp-03-25:free",
+			ModelId:                    "google/gemini-2.5-pro-exp-03-25:free",
+			MaxTokens:                  1000000,
+			MaxOutputTokens:            65535,
+			ReservedOutputTokens:       65535,
 			ApiKeyEnvVar:               ApiKeyByProvider[ModelProviderOpenRouter],
 			ModelCompatibility:         fullCompatibility,
 			BaseUrl:                    BaseUrlByProvider[ModelProviderOpenRouter],
@@ -258,12 +314,12 @@ var AvailableModels = []*AvailableModel{
 	},
 
 	{
-		Description:           "DeepSeek V3 via OpenRouter",
+		Description:           "DeepSeek V3 0324 via OpenRouter",
 		DefaultMaxConvoTokens: 7500,
 		BaseModelConfig: BaseModelConfig{
 			Provider:             ModelProviderOpenRouter,
-			ModelName:            "deepseek/deepseek-chat",
-			ModelId:              "deepseek/deepseek-chat",
+			ModelName:            "deepseek/deepseek-chat-v3-0324",
+			ModelId:              "deepseek/deepseek-chat-v3-0324",
 			MaxTokens:            64000,
 			MaxOutputTokens:      8192,
 			ReservedOutputTokens: 8192,

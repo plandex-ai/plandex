@@ -2,7 +2,6 @@ package shared
 
 const OpenAIEnvVar = "OPENAI_API_KEY"
 const OpenAIV1BaseUrl = "https://api.openai.com/v1"
-
 const OpenRouterApiKeyEnvVar = "OPENROUTER_API_KEY"
 const OpenRouterBaseUrl = "https://openrouter.ai/api/v1"
 
