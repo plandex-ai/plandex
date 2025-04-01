@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"plandex-server/model"
+	"plandex-server/notify"
 	"runtime/debug"
 	"time"
 
@@ -30,6 +31,9 @@ func (state *activeTellStreamState) listenStream(stream *model.ExtendedChatCompl
 	defer func() {
 		if r := recover(); r != nil {
 			log.Printf("listenStream: Panic: %v\n%s\n", r, string(debug.Stack()))
+
+			go notify.NotifyErr(notify.SeverityError, fmt.Errorf("listenStream: Panic: %v\n%s", r, string(debug.Stack())))
+
 			active.StreamDoneCh <- &shared.ApiError{
 				Type:   shared.ApiErrorTypeOther,
 				Status: http.StatusInternalServerError,
@@ -67,14 +71,15 @@ mainLoop:
 			log.Println("\nTell: stream timeout due to inactivity")
 			if streamFinished {
 				log.Println("Tell stream finished—timed out waiting for usage chunk")
-				state.execHookOnStop(true)
+				state.execHookOnStop(false)
 				return
 			} else {
 				res := state.onError(onErrorParams{
-					streamErr: fmt.Errorf("stream timeout due to inactivity | The model is not responding."),
+					streamErr: fmt.Errorf("stream timeout due to inactivity: The underlying LLM is not responding"),
 					storeDesc: true,
-					canRetry:  true,
+					canRetry:  active.CurrentReplyContent == "", // if there was no output yet, we can retry
 				})
+
 				if res.shouldReturn {
 					return
 				}
@@ -102,10 +107,16 @@ mainLoop:
 				log.Printf("Tell: error receiving stream chunk: %v\n", err)
 				state.execHookOnStop(true)
 
+				var msg string
+				if active.CurrentReplyContent == "" {
+					msg = "The AI model didn't respond: %v"
+				} else {
+					msg = "The AI model stopped responding: %v"
+				}
 				state.onError(onErrorParams{
-					streamErr: fmt.Errorf("error receiving stream chunk: %v", err),
+					streamErr: fmt.Errorf(msg, err),
 					storeDesc: true,
-					canRetry:  true,
+					canRetry:  active.CurrentReplyContent == "", // if there was no output yet, we can retry
 				})
 				// here we want to return no matter what -- state.onError will decide whether to retry or not
 				return
@@ -175,7 +186,7 @@ mainLoop:
 
 				if choice.FinishReason == "error" {
 					res := state.onError(onErrorParams{
-						streamErr: fmt.Errorf("model stopped with error status | The model is not responding."),
+						streamErr: fmt.Errorf("the underlying LLM stopped with an error status | This means the LLM is not responding."),
 						storeDesc: true,
 						canRetry:  true,
 					})

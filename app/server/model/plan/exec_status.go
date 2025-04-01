@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"plandex-server/model"
 	"plandex-server/model/prompts"
+	"plandex-server/notify"
 	"plandex-server/types"
 	"plandex-server/utils"
 	"strings"
@@ -162,6 +163,8 @@ func (state *activeTellStreamState) execStatusShouldContinue(currentMessage stri
 		subtaskFinished = subtaskFinishedStr == "true"
 
 		if reasoning == "" || subtaskFinishedStr == "" {
+			go notify.NotifyErr(notify.SeverityError, fmt.Errorf("execStatusShouldContinue: missing required XML tags in response"))
+
 			return execStatusShouldContinueResult{}, &shared.ApiError{
 				Type:   shared.ApiErrorTypeOther,
 				Status: http.StatusInternalServerError,

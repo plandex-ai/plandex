@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"plandex-server/db"
+	"plandex-server/notify"
 	"plandex-server/shutdown"
 	"strconv"
 	"time"
@@ -169,6 +170,8 @@ func (state *activeTellStreamState) onError(params onErrorParams) onErrorResult 
 		if params.canRetry && numRetries >= NumTellStreamRetries {
 			msg += " | Failed after " + strconv.Itoa(numRetries) + " retries."
 		}
+
+		go notify.NotifyErr(notify.SeverityInfo, fmt.Sprintf("tellStream stream error after %d retries: %v", numRetries, streamErr))
 
 		active.StreamDoneCh <- &shared.ApiError{
 			Type:   shared.ApiErrorTypeOther,

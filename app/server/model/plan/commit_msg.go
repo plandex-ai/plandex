@@ -9,6 +9,7 @@ import (
 	"plandex-server/db"
 	"plandex-server/model"
 	"plandex-server/model/prompts"
+	"plandex-server/notify"
 	"plandex-server/types"
 	"plandex-server/utils"
 
@@ -28,6 +29,8 @@ func (state *activeTellStreamState) genPlanDescription() (*db.ConvoMessageDescri
 
 	activePlan := GetActivePlan(planId, branch)
 	if activePlan == nil {
+		go notify.NotifyErr(notify.SeverityError, fmt.Errorf("active plan not found for plan %s and branch %s", planId, branch))
+
 		return nil, &shared.ApiError{
 			Type:   shared.ApiErrorTypeOther,
 			Status: http.StatusInternalServerError,
@@ -101,6 +104,8 @@ func (state *activeTellStreamState) genPlanDescription() (*db.ConvoMessageDescri
 	modelRes, err := model.ModelRequest(activePlan.Ctx, reqParams)
 
 	if err != nil {
+		go notify.NotifyErr(notify.SeverityError, fmt.Errorf("error during plan description model call: %v", err))
+
 		return nil, &shared.ApiError{
 			Type:   shared.ApiErrorTypeOther,
 			Status: http.StatusInternalServerError,
@@ -117,6 +122,8 @@ func (state *activeTellStreamState) genPlanDescription() (*db.ConvoMessageDescri
 	if config.BaseModelConfig.PreferredModelOutputFormat == shared.ModelOutputFormatXml {
 		commitMsg = utils.GetXMLContent(content, "commitMsg")
 		if commitMsg == "" {
+			go notify.NotifyErr(notify.SeverityError, fmt.Errorf("no commitMsg tag found in XML response"))
+
 			return nil, &shared.ApiError{
 				Type:   shared.ApiErrorTypeOther,
 				Status: http.StatusInternalServerError,
@@ -127,6 +134,8 @@ func (state *activeTellStreamState) genPlanDescription() (*db.ConvoMessageDescri
 
 		if content == "" {
 			fmt.Println("no describePlan function call found in response")
+
+			go notify.NotifyErr(notify.SeverityError, fmt.Errorf("no describePlan function call found in response"))
 
 			return nil, &shared.ApiError{
 				Type:   shared.ApiErrorTypeOther,
@@ -139,6 +148,9 @@ func (state *activeTellStreamState) genPlanDescription() (*db.ConvoMessageDescri
 		err = json.Unmarshal([]byte(content), &desc)
 		if err != nil {
 			fmt.Printf("Error unmarshalling plan description response: %v\n", err)
+
+			go notify.NotifyErr(notify.SeverityError, fmt.Errorf("error unmarshalling plan description response: %v", err))
+
 			return nil, &shared.ApiError{
 				Type:   shared.ApiErrorTypeOther,
 				Status: http.StatusInternalServerError,

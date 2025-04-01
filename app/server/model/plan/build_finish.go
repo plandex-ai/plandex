@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"plandex-server/db"
 	"plandex-server/hooks"
+	"plandex-server/notify"
 	"plandex-server/types"
 	"strings"
 	"time"
@@ -143,6 +144,8 @@ func (state *activeBuildStreamFileState) onFinishBuild() {
 		log.Printf("Error finishing build: %v\n", err)
 
 		if err.Error() != context.Canceled.Error() {
+			go notify.NotifyErr(notify.SeverityError, fmt.Errorf("error finishing build: %v", err))
+
 			ap.StreamDoneCh <- &shared.ApiError{
 				Type:   shared.ApiErrorTypeOther,
 				Status: http.StatusInternalServerError,
@@ -179,6 +182,8 @@ func (fileState *activeBuildStreamFileState) onFinishBuildFile(planRes *db.PlanF
 
 	if planRes == nil {
 		log.Println("onFinishBuildFile - planRes is nil")
+		go notify.NotifyErr(notify.SeverityError, fmt.Errorf("onFinishBuildFile: planRes is nil"))
+
 		activePlan.StreamDoneCh <- &shared.ApiError{
 			Type:   shared.ApiErrorTypeOther,
 			Status: http.StatusInternalServerError,
@@ -211,6 +216,8 @@ func (fileState *activeBuildStreamFileState) onFinishBuildFile(planRes *db.PlanF
 
 	if err != nil {
 		log.Printf("Error storing plan build result: %v\n", err)
+		go notify.NotifyErr(notify.SeverityError, fmt.Errorf("error storing plan build result: %v", err))
+
 		activePlan.StreamDoneCh <- &shared.ApiError{
 			Type:   shared.ApiErrorTypeOther,
 			Status: http.StatusInternalServerError,
@@ -284,6 +291,8 @@ func (fileState *activeBuildStreamFileState) onBuildFileError(err error) {
 
 	activeBuild.Success = false
 	activeBuild.Error = err
+
+	go notify.NotifyErr(notify.SeverityError, fmt.Errorf("error for file %s: %v", filePath, err))
 
 	activePlan.StreamDoneCh <- &shared.ApiError{
 		Type:   shared.ApiErrorTypeOther,

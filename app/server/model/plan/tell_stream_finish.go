@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"plandex-server/db"
+	"plandex-server/notify"
 	"plandex-server/types"
 	"time"
 
@@ -153,7 +154,7 @@ func (state *activeTellStreamState) handleStreamFinished() handleStreamFinishedR
 		select {
 		case <-active.Ctx.Done():
 			log.Println("Context cancelled while waiting for auto load context")
-			state.execHookOnStop(true)
+			state.execHookOnStop(false)
 			return handleStreamFinishedResult{
 				shouldContinueMainLoop: false,
 				shouldReturn:           true,
@@ -221,11 +222,14 @@ func (state *activeTellStreamState) handleStreamFinished() handleStreamFinishedR
 			err := db.SetPlanStatus(planId, branch, shared.PlanStatusBuilding, "")
 			if err != nil {
 				log.Printf("Error setting plan status to building: %v\n", err)
+				go notify.NotifyErr(notify.SeverityError, fmt.Errorf("error setting plan status to building: %v", err))
+
 				active.StreamDoneCh <- &shared.ApiError{
 					Type:   shared.ApiErrorTypeOther,
 					Status: http.StatusInternalServerError,
 					Msg:    "Error setting plan status to building",
 				}
+
 				return handleStreamFinishedResult{
 					shouldContinueMainLoop: true,
 					shouldReturn:           false,

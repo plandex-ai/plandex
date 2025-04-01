@@ -9,6 +9,7 @@ import (
 	"plandex-server/db"
 	"plandex-server/model"
 	"plandex-server/model/prompts"
+	"plandex-server/notify"
 	"plandex-server/types"
 	"time"
 
@@ -86,6 +87,8 @@ func (state *activeTellStreamState) addConversationMessages() bool {
 				log.Println("tokensUpToTimestamp:")
 				log.Println(spew.Sdump(tokensUpToTimestamp))
 
+				go notify.NotifyErr(notify.SeverityError, fmt.Errorf("conversation summary timestamp not found in conversation"))
+
 				active.StreamDoneCh <- &shared.ApiError{
 					Type:   shared.ApiErrorTypeOther,
 					Status: http.StatusInternalServerError,
@@ -113,6 +116,8 @@ func (state *activeTellStreamState) addConversationMessages() bool {
 		if summary == nil && tokensBeforeConvo+conversationTokens > state.settings.GetPlannerEffectiveMaxTokens() {
 			err := errors.New("couldn't get under token limit with conversation summary")
 			log.Printf("Error: %v\n", err)
+			go notify.NotifyErr(notify.SeverityInfo, fmt.Errorf("couldn't get under token limit with conversation summary"))
+
 			active.StreamDoneCh <- &shared.ApiError{
 				Type:   shared.ApiErrorTypeOther,
 				Status: http.StatusInternalServerError,
@@ -159,6 +164,8 @@ func (state *activeTellStreamState) addConversationMessages() bool {
 		}
 	} else {
 		if (tokensBeforeConvo + conversationTokens) > state.settings.GetPlannerEffectiveMaxTokens() {
+			go notify.NotifyErr(notify.SeverityError, fmt.Errorf("token limit still exceeded after summarizing conversation"))
+
 			active.StreamDoneCh <- &shared.ApiError{
 				Type:   shared.ApiErrorTypeOther,
 				Status: http.StatusInternalServerError,
@@ -242,6 +249,7 @@ func summarizeConvo(clients map[string]model.ClientInfo, config shared.ModelRole
 
 	if active == nil {
 		log.Printf("Active plan not found for plan ID %s and branch %s\n", planId, branch)
+
 		return &shared.ApiError{
 			Type:   shared.ApiErrorTypeOther,
 			Status: http.StatusInternalServerError,

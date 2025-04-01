@@ -155,12 +155,19 @@ func createChatCompletionExtended(
 	extendedReq types.ExtendedChatCompletionRequest,
 ) (openai.ChatCompletionResponse, error) {
 	var openaiReq *types.ExtendedOpenAIChatCompletionRequest
-	if modelConfig.BaseModelConfig.Provider == shared.ModelProviderOpenAI {
+	if modelConfig.BaseModelConfig.Provider == shared.ModelProviderOpenAI && !modelConfig.BaseModelConfig.UsesOpenAIResponsesAPI {
 		log.Println("Creating chat completion with direct OpenAI provider request")
 		openaiReq = extendedReq.ToOpenAI()
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "POST", baseUrl+"/chat/completions", nil)
+	var url string
+	if modelConfig.BaseModelConfig.UsesOpenAIResponsesAPI {
+		url = baseUrl + "/responses"
+	} else {
+		url = baseUrl + "/chat/completions"
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "POST", url, nil)
 	if err != nil {
 		return openai.ChatCompletionResponse{}, err
 	}
@@ -216,7 +223,7 @@ func createChatCompletionStreamExtended(
 	extendedReq types.ExtendedChatCompletionRequest,
 ) (*ExtendedChatCompletionStream, error) {
 	var openaiReq *types.ExtendedOpenAIChatCompletionRequest
-	if modelConfig.BaseModelConfig.Provider == shared.ModelProviderOpenAI {
+	if modelConfig.BaseModelConfig.Provider == shared.ModelProviderOpenAI && !modelConfig.BaseModelConfig.UsesOpenAIResponsesAPI {
 		openaiReq = extendedReq.ToOpenAI()
 		log.Println("Creating chat completion stream with direct OpenAI provider request")
 	}
@@ -236,7 +243,14 @@ func createChatCompletionStreamExtended(
 	// log.Println("request jsonBody", string(jsonBody))
 
 	// Create new request
-	req, err := http.NewRequestWithContext(ctx, "POST", baseUrl+"/chat/completions", bytes.NewReader(jsonBody))
+	var url string
+	if modelConfig.BaseModelConfig.UsesOpenAIResponsesAPI {
+		url = baseUrl + "/responses"
+	} else {
+		url = baseUrl + "/chat/completions"
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(jsonBody))
 	if err != nil {
 		return nil, fmt.Errorf("error creating request: %w", err)
 	}
@@ -456,6 +470,53 @@ func resolveReq(req *types.ExtendedChatCompletionRequest, modelConfig *shared.Mo
 			log.Println("Final message role:", msg.Role)
 		}
 	}
+
+	// this isn't working yet
+	// if modelConfig.BaseModelConfig.UsesOpenAIResponsesAPI {
+	// 	log.Println("Using OpenAI Responses API")
+	// 	input := make([]types.ExtendedChatMessage, 0)
+
+	// 	for _, msg := range req.Messages {
+	// 		// isDevRole := false
+	// 		isAssistantRole := false
+	// 		if msg.Role == openai.ChatMessageRoleSystem {
+	// 			log.Println("Changing role of system message to 'developer'")
+	// 			msg.Role = openai.ChatMessageRoleDeveloper
+	// 			// isDevRole = true
+	// 		} else if msg.Role == openai.ChatMessageRoleAssistant {
+	// 			isAssistantRole = true
+	// 		}
+
+	// 		for j, part := range msg.Content {
+	// 			if part.Type == "text" {
+	// 				if isAssistantRole {
+	// 					part.Type = "output_text"
+	// 				} else {
+	// 					part.Type = "input_text"
+	// 				}
+	// 			}
+
+	// 			msg.Content[j] = part
+	// 		}
+
+	// 		input = append(input, msg)
+	// 	}
+
+	// 	// stop is not supported for the responses API
+	// 	if req.Stop != nil {
+	// 		req.Stop = nil
+	// 	}
+
+	// 	if req.StreamOptions != nil {
+	// 		req.StreamOptions = nil
+	// 	}
+
+	// 	req.Input = input
+	// 	req.Messages = nil
+
+	// 	log.Println("req.Input", len(req.Input))
+	// 	log.Println("req.Messages", len(req.Messages))
+	// }
 
 	if modelConfig.BaseModelConfig.RoleParamsDisabled {
 		log.Println("Role params disabled - setting temperature and top p to 1")

@@ -3,9 +3,11 @@ package types
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"plandex-server/db"
+	"plandex-server/notify"
 	"plandex-server/shutdown"
 	"sync"
 	"time"
@@ -240,6 +242,8 @@ func (ap *ActivePlan) Stream(msg shared.StreamMessage) {
 	msgJson, err := json.Marshal(msg)
 	if err != nil {
 		ap.streamMu.Unlock()
+		go notify.NotifyErr(notify.SeverityError, fmt.Errorf("error marshalling stream message: %v", err))
+
 		ap.StreamDoneCh <- &shared.ApiError{
 			Type:   shared.ApiErrorTypeOther,
 			Status: http.StatusInternalServerError,

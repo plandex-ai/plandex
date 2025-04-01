@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"plandex-server/db"
+	"plandex-server/notify"
 	"plandex-server/syntax"
 	"plandex-server/types"
 
@@ -157,6 +158,8 @@ func (state *activeBuildStreamFileState) loadBuildFile(activeBuild *types.Active
 		UpdateActivePlan(activePlan.Id, activePlan.Branch, func(ap *types.ActivePlan) {
 			ap.IsBuildingByPath[filePath] = false
 		})
+		go notify.NotifyErr(notify.SeverityError, fmt.Errorf("error storing plan build: %v", err))
+
 		activePlan.StreamDoneCh <- &shared.ApiError{
 			Type:   shared.ApiErrorTypeOther,
 			Status: http.StatusInternalServerError,
@@ -194,6 +197,8 @@ func (state *activeBuildStreamFileState) loadBuildFile(activeBuild *types.Active
 				UpdateActivePlan(activePlan.Id, activePlan.Branch, func(ap *types.ActivePlan) {
 					ap.IsBuildingByPath[filePath] = false
 				})
+				go notify.NotifyErr(notify.SeverityError, fmt.Errorf("error getting current plan state: %v", err))
+
 				activePlan.StreamDoneCh <- &shared.ApiError{
 					Type:   shared.ApiErrorTypeOther,
 					Status: http.StatusInternalServerError,
@@ -236,6 +241,8 @@ func (state *activeBuildStreamFileState) loadBuildFile(activeBuild *types.Active
 		UpdateActivePlan(activePlan.Id, activePlan.Branch, func(ap *types.ActivePlan) {
 			ap.IsBuildingByPath[filePath] = false
 		})
+		go notify.NotifyErr(notify.SeverityError, fmt.Errorf("error loading build file: %v", err))
+
 		activePlan.StreamDoneCh <- &shared.ApiError{
 			Type:   shared.ApiErrorTypeOther,
 			Status: http.StatusInternalServerError,

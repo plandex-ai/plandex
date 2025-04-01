@@ -8,6 +8,7 @@ import (
 	"plandex-server/db"
 	"plandex-server/hooks"
 	"plandex-server/model"
+	"plandex-server/notify"
 	"plandex-server/types"
 	"runtime/debug"
 	"time"
@@ -140,6 +141,9 @@ func (buildState *activeBuildStreamState) execPlanBuild(activeBuild *types.Activ
 	defer func() {
 		if r := recover(); r != nil {
 			log.Printf("execPlanBuild: Panic: %v\n%s\n", r, string(debug.Stack()))
+
+			go notify.NotifyErr(notify.SeverityError, fmt.Errorf("execPlanBuild: Panic: %v\n%s", r, string(debug.Stack())))
+
 			activePlan.StreamDoneCh <- &shared.ApiError{
 				Type:   shared.ApiErrorTypeOther,
 				Status: http.StatusInternalServerError,

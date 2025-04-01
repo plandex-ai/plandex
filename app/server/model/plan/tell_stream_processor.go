@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"plandex-server/db"
+	"plandex-server/notify"
 	"plandex-server/types"
 	"regexp"
 	"runtime/debug"
@@ -42,6 +43,8 @@ func (state *activeTellStreamState) processChunk(choice types.ExtendedChatComple
 	defer func() {
 		if r := recover(); r != nil {
 			log.Printf("processChunk: Panic: %v\n%s\n", r, string(debug.Stack()))
+
+			go notify.NotifyErr(notify.SeverityError, fmt.Errorf("processChunk: Panic: %v\n%s", r, string(debug.Stack())))
 
 			active.StreamDoneCh <- &shared.ApiError{
 				Type:   shared.ApiErrorTypeOther,
@@ -543,6 +546,8 @@ func (state *activeTellStreamState) handleMissingFile(content, currentFile, bloc
 
 	if err != nil {
 		log.Printf("Error setting plan %s status to prompting: %v\n", planId, err)
+		go notify.NotifyErr(notify.SeverityError, fmt.Errorf("error setting plan %s status to prompting: %v", planId, err))
+
 		active.StreamDoneCh <- &shared.ApiError{
 			Type:   shared.ApiErrorTypeOther,
 			Status: http.StatusInternalServerError,
@@ -608,7 +613,7 @@ func (state *activeTellStreamState) handleMissingFile(content, currentFile, bloc
 	select {
 	case <-active.Ctx.Done():
 		log.Println("Context cancelled while waiting for missing file response")
-		state.execHookOnStop(true)
+		state.execHookOnStop(false)
 		return processChunkResult{shouldReturn: true}
 
 	case <-time.After(30 * time.Minute): // long timeout here since we're waiting for user input

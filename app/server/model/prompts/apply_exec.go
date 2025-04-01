@@ -37,9 +37,11 @@ Avoid user prompts. Make reasonable default choices rather than prompting the us
 
 #### Keep It Lightweight And Simple
 
-The _apply.sh script should be lightweight and shouldn't do too much work. *Offload to separate files* in the plan if a lot of scripting is needed. _apply.sh doesn't get written to the user's project, so anything that might be valuable to save, reuse, and version control should be in a separate file. You can chmod and execute those separate files from _apply.sh. _apply.sh is for 'throwaway' commands that only need to be run once after the plan is applied to the user's project, like installing dependencies, running tests, or starting servers. It shouldn't be complex.
+The _apply.sh script should be lightweight and shouldn't do too much work. *Offload to separate files* in the plan if a lot of scripting is needed. _apply.sh doesn't get written to the user's project, so anything that might be valuable to save, reuse, and version control should be in a separate file. You can chmod and execute those separate files from _apply.sh. _apply.sh is for 'throwaway' commands that only need to be run once after the plan is applied to the user's project, like installing dependencies, running tests, or runing a start command. It shouldn't be complex.
 
 Do not use fancy bash constructs that can be difficult to debug or cause portability problems. Keep it very straightforward so there's a 0% chance of bugs in the _apply.sh script.
+
+
 
 #### Command Preservation Rules
 
@@ -113,19 +115,24 @@ Running programs:
   * When starting a web server that needs a browser launched:
       * CRITICAL: ALWAYS run the server in the background using & or the script will block and never reach the browser launch
       * Add a brief sleep to allow the server to start (use your judgment based on the server type and the complexity of the server startup process how long is reasonable)
-      * Use the appropriate browser launch command for the OS (provided in context—DO NOT include commands for other operating systems, just the one that is appropriate for the user's OS):
-         - macOS: open http://localhost:$PORT
-         - Linux: xdg-open http://localhost:$PORT
-         - Windows: start http://localhost:$PORT
+      * ALWAYS use the special command 'plandex browser [urls...]' to launch the browser with one or more URLs. This command is provided by Plandex and is available on all operating systems. Substitute the actual URL or URLs you want to open in place of [urls...]. This special command *blocks* and streams the browser output to the console. So if you need to run other commands *after* the browser is launched, you must background the browser command and correclty handle cleanup like other background processes. If the browser command exits with an error, kill any other background processes and exit the entire script with a non-zero exit code.
       Example:
          # INCORRECT - will block and never launch browser:
          npm start
-         open http://localhost:$PORT
+         plandex browser http://localhost:$PORT 
          
          # CORRECT - runs in background, waits, then launches browser:
          npm start &
+         SERVER_PID=$!
          sleep 3
-         open http://localhost:$PORT  # Using appropriate command based on OS in context
+         plandex browser http://localhost:$PORT || {
+            kill $SERVER_PID
+            exit 1
+         }
+         wait $SERVER_PID
+            
+      NOTE: when running anything in the background, you must handle the possibility that the process might fail so that no orphaned processes remain.
+   
 `
 
 const ApplyScriptPlanningPrompt = ApplyScriptSharedPrompt + `
@@ -337,15 +344,84 @@ done
 # Build and start in background
 npm run build
 npm start & 
+SERVER_PID=$!
 
 # Wait briefly for server to be ready
 sleep 3
 
 # Launch browser
-open http://localhost:$PORT 
+plandex browser http://localhost:$PORT || {
+   kill $SERVER_PID
+   exit 1
+}
+wait $SERVER_PID
 </PlandexBlock>
 
 Note the usage of & to run the server in the background. This is CRITICAL to ensure the script does not block and allows the browser to launch.
+
+* If you run multiple processes in parallel with &, you ABSOLUTELY MUST handle partial failure by immediately exiting the script if any process returns a non-zero code.
+   * For example, store process PIDs, wait on all processes, check $?, kill all processes if a failure is detected, and exit with that code.
+EXAMPLE:
+
+- _apply.sh:
+<PlandexBlock lang="bash" path="_apply.sh">
+# Build assets first
+npm install
+npm run build
+
+# Start Node in background, maybe with --inspect
+echo "Starting Node server with inspector on port 9229..."
+node --inspect=0.0.0.0:9229 server.js &
+pidNode=$!
+
+# Start Python app in background
+echo "Starting Python service..."
+python main.py &
+pidPy=$!
+
+# Wait for the *first* process to exit (success or failure)
+echo "Waiting for either Node or Python to exit..."
+wait $pidNode $pidPy
+exit_code=$?
+
+if [ $exit_code -ne 0 ]; then
+  echo "⚠️ One process exited with an error. Stopping everything..."
+  kill $pidNode $pidPy 2>/dev/null
+  exit $exit_code
+fi
+
+# If we get here, the first process that ended did so with success code
+# We still need to wait on the other process
+echo "First process ended successfully, waiting for the second to exit..."
+wait $pidNode
+wait $pidPy
+</PlandexBlock>
+
+Note on example: notice there's no advanced job control (e.g. setsid, disown, etc.) is needed because the wrapper script handles cleanup. The processes remain in the same process group and are killed when the wrapper script exits. And notice that if either job fails, the wrapper script kills all the jobs and exits with the correct output and error code.
+
+If you only run one background job or run them sequentially, you do not need partial-failure logic. Only include logic for handling partial failures if it's really necessary—otherwise, keep it simple: you can just run the commands and let the wrapper script handle cleanup. For example:
+
+- _apply.sh:
+<PlandexBlock lang="bash" path="_apply.sh">
+# Run the server in the background
+npm start &
+
+# Run the tests in the foreground  
+npm test
+</PlandexBlock>
+
+In this case, the wrapper script will handle cleanup automatically.
+
+- Plandex automatically wraps ` + "`_apply.sh`" + ` in a script that enables job control and kills all processes if the user interrupts. Do NOT add ` + "`trap`" + `, ` + "`setsid`" + `, ` + "`nohup`" + `, or ` + "`disown`" + ` commands.
+- If you run multiple processes (e.g., ` + "`node server.js &`" + ` plus ` + "`python main.py &`" + `), you must handle partial failures by checking their exit codes. For example:
+  - ` + "`pidA=$!`" + ` after launching the first process
+  - Launch the second, ` + "`pidB=$!`" + `
+  - Use ` + "`wait $pidA $pidB`" + ` or check each PID. If one fails (` + "`exit_code != 0`" + `), kill the other.
+- If you only have a single process to run, you may simply do ` + "`command &`" + ` and then ` + "`wait`" + `. The wrapper script ensures no leftover processes remain if the user presses Ctrl+C.
+- Don't run commands that may daemonize themselves or change their process group unless absolutely necessary since it complicates the cleanup process. The wrapper script cannot reliably handle processes that daemonize themselves or change their process group, so if you really must run such commands, you MUST ALWAYS include code to ensure they are cleaned up properly and reliably before exiting.
+
+* You will be provided with the user's OS in the prompt. DO NOT include commands for other operating systems, just the user's specified OS.
+* You will always be running on a Unix-like operating system, either Linux, MacOS, or FreeBSD. You'll never be running on Windows.
 ` + ExitCodePrompt + ApplyScriptResetUpdateImplementationPrompt
 
 const ApplyScriptResetUpdateSharedPrompt = `
@@ -453,7 +529,7 @@ Remember, after successful execution, _apply.sh ALWAYS resets to empty.
 You MUST ALWAYS consider adding build/run commands again after ANY source changes.
 If the _apply.sh script previously had a build/run command, and then it was reset to empty after being successfully executed, and then you make ANY subsequent code changes, you MUST add a new build/run command to the _apply.sh file.
 
-CRITICAL: If you have run the project previously with the _apply.sh script *and* the _apply.sh script is empty, you ABSOLUTELY MUST ALWAYS add a task for writing to the _apply.sh file. DO NOT OMIT THIS STEP.
+CRITICAL: If you have run the project previously with the _apply.sh script *and* the _apply.sh script is empty, you ABSOLUTELY MUST ALWAYS add a task for writing to the _apply.sh file. DO NOT OMIT THIS STEP. **THAT SAID** you must *evaluate* the current state of the _apply.sh file and *only* update it if necessary. Only if it is *empty* should you *automatically* add a task for writing to the _apply.sh file. Otherwise, consider the current state of the _apply.sh file when making this decision, and decide whether it needs to be updated or already contains the necessary commands.
 
 INCORRECT FOLLOW UP:
 ### Tasks
@@ -685,7 +761,9 @@ Good Practices:
 - Group related file changes with their commands
 - Keep it lightweight and simple
 - Offload to separate files if a lot of scripting is needed
+- Offload to separate startup script/Makefile/package.json script/etc. for startup logic that is useful to have in the project
 - Use basic scripting that is easy to understand and debug
+- Use portable bash that will work across a wide range of shell versions and Unix-like operating systems
 
 Bad Practices to Avoid:
 - Don't write same command multiple times
@@ -695,7 +773,9 @@ Bad Practices to Avoid:
 - Don't hide command output
 - Don't prompt the user for input
 - Don't use fancy bash constructs that can be difficult to understand and debug
-- Don't do too much work in _apply.sh. If it's getting complex, offload to separate files.
+- Don't use bash constructs that require a recent version of bash—make them portable and 'just work' across a wide range of Unix-like operating systems and shell versions
+- Don't do too much work in _apply.sh. If it's getting complex, offload to separate files
+- Don't include application logic or code that should be saved in the project in _apply.sh. Write it in normal files in the plan instead.
 
 Remember:
 - Include _apply.sh in 'Uses:' list when modifying it
@@ -755,6 +835,12 @@ Updating Script:
 - Update existing commands rather than duplicate
 - Maintain command grouping and organization
 
+Browser Commands:
+- Use the special command 'plandex browser [urls...]' to launch the browser with one or more URLs.
+- This special command *blocks* and streams the browser output to the console.
+- If commands are needed after launching browser with 'plandex browser', background the browser command (handle cleanup like other background processes).
+- If the browser command exits with an error, kill any other background processes and exit the entire script with a non-zero exit code.
+
 Error Handling:
 - Check for required tools
 - Exit with clear error messages
@@ -778,6 +864,16 @@ Always:
 - Group related commands
 - Check tool prerequisites
 - Use clear error messages
+
+**Process Management & Partial Failures**  
+- If you run multiple background processes, handle partial failures by capturing PIDs and using ` + "`wait $pidA $pidB`" + ` or similar. If any process fails, kill the rest.
+- Do not add ` + "`setsid`" + `, ` + "`disown`" + `, or ` + "`nohup`" + `. The wrapper script already ensures group-wide kills on interrupt.
+- Do not use 'wait -n'. Use 'wait $pidA $pidB' instead.
+- If you only run a single background process (plus optional open/browser steps), you do not need partial-failure logic.  
+
+User OS:
+- You will be provided with the user's operating system. Do NOT include multiple commands for different operating systems. Use the specific appropriate command for the user's operating system ONLY.
+- You will always be running on a Unix-like operating system, either Linux, MacOS, or FreeBSD. You'll never be running on Windows.
 
 ---
 ` + ExitCodePrompt + ApplyScriptResetUpdateImplementationSummary + ApplyScriptExecutionSummary
@@ -816,7 +912,7 @@ Task Organization:
 - Plan for command reuse after reset
 - Account for the full change lifecycle
 
-CRITICAL: If you have run the project previously with the _apply.sh script *and* the _apply.sh script is empty, you ABSOLUTELY MUST ALWAYS add a task for writing to the _apply.sh file. DO NOT OMIT THIS STEP.
+CRITICAL: If you have run the project previously with the _apply.sh script *and* the _apply.sh script is empty, you ABSOLUTELY MUST ALWAYS add a task for writing to the _apply.sh file. DO NOT OMIT THIS STEP. **THAT SAID** you must *evaluate* the current state of the _apply.sh file and *only* update it if necessary. Only if it is *empty* should you *automatically* add a task for writing to the _apply.sh file. Otherwise, consider the current state of the _apply.sh file when making this decision, and decide whether it needs to be updated or already contains the necessary commands.
 `
 
 const ApplyScriptResetUpdateImplementationSummary = `
@@ -852,7 +948,8 @@ CRITICAL: The script must handle both program execution and security carefully:
 
 1. Program Execution
    - ALWAYS include commands to run the actual program after building/installing
-   - If there's a clear way to run the project, users should never need to run programs manually—always include commands to run the project in _apply.sh
+   - If there's a clear way to run the project, users should never need to run programs manually—always include commands to run the project (or call a startup script/Makefile/package.json script/etc.) in _apply.sh
+   - For re-usable startup logic or commands, include it in the project in whatever way is appropriate for the project (Makefile, package.json, etc.)—then call it from _apply.sh
    - Include ALL necessary startup steps (build → install → run)
    - For web applications and web servers:
      * ALWAYS include commands to launch a browser to the appropriate localhost URL—use the appropriate command for the *user's operating system* (do NOT include commands for other operating systems)
@@ -892,6 +989,9 @@ CRITICAL: The script must handle both program execution and security carefully:
 7. Keep It Lightweight And Simple
    - The _apply.sh script should be lightweight and shouldn't do too much work. *Offload to separate files* in the plan if a lot of scripting is needed. 
    - Do not use fancy bash constructs that can be difficult to debug or cause portability problems.
+   - Use portable bash that will work across a wide range of Unix-like operating systems and shell versions.
+   - If you must run many commands or store logic, create normal files in the plan (with code blocks) and then run them from _apply.sh.
+   - Do not include application logic or code that should be saved in the project in _apply.sh. Write it in normal files in the plan instead. _apply.sh is only for one-off commands—if there's any potential value for logic or commands to be saved in the project for later use, write it in normal files in the plan instead, then call them from _apply.sh.
 
 Remember:
 - Do NOT tell the user to run _apply.sh. It will be run automatically when the plan is applied.

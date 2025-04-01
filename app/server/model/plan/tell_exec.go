@@ -10,6 +10,7 @@ import (
 	"plandex-server/db"
 	"plandex-server/hooks"
 	"plandex-server/model"
+	"plandex-server/notify"
 	"plandex-server/types"
 
 	shared "plandex-shared"
@@ -90,6 +91,9 @@ func execTellPlan(params execTellPlanParams) {
 	defer func() {
 		if r := recover(); r != nil {
 			log.Printf("execTellPlan: Panic: %v\n%s\n", r, string(debug.Stack()))
+
+			go notify.NotifyErr(notify.SeverityError, fmt.Errorf("execTellPlan: Panic: %v\n%s", r, string(debug.Stack())))
+
 			active.StreamDoneCh <- &shared.ApiError{
 				Type:   shared.ApiErrorTypeOther,
 				Status: http.StatusInternalServerError,
@@ -117,6 +121,8 @@ func execTellPlan(params execTellPlanParams) {
 	err := db.SetPlanStatus(planId, branch, shared.PlanStatusReplying, "")
 	if err != nil {
 		log.Printf("Error setting plan %s status to replying: %v\n", planId, err)
+		go notify.NotifyErr(notify.SeverityError, fmt.Errorf("error setting plan %s status to replying: %v", planId, err))
+
 		active.StreamDoneCh <- &shared.ApiError{
 			Type:   shared.ApiErrorTypeOther,
 			Status: http.StatusInternalServerError,
@@ -168,6 +174,8 @@ func execTellPlan(params execTellPlanParams) {
 		tentativeMaxTokens = tentativeModelConfig.GetFinalLargeContextFallback().BaseModelConfig.MaxTokens
 	} else {
 		log.Printf("Tell plan - execTellPlan - unknown tell stage: %s\n", state.currentStage.TellStage)
+		go notify.NotifyErr(notify.SeverityError, fmt.Errorf("execTellPlan: unknown tell stage: %s", state.currentStage.TellStage))
+
 		active.StreamDoneCh <- &shared.ApiError{
 			Type:   shared.ApiErrorTypeOther,
 			Status: http.StatusInternalServerError,
@@ -218,6 +226,8 @@ func execTellPlan(params execTellPlanParams) {
 
 				if tokensRemaining < 0 {
 					log.Println("tokensRemaining is negative")
+					go notify.NotifyErr(notify.SeverityError, fmt.Errorf("tokensRemaining is negative"))
+
 					active.StreamDoneCh <- &shared.ApiError{
 						Type:   shared.ApiErrorTypeOther,
 						Status: http.StatusInternalServerError,
@@ -259,6 +269,8 @@ func execTellPlan(params execTellPlanParams) {
 	sysParts, err := state.getTellSysPrompt(getTellSysPromptParams)
 	if err != nil {
 		log.Printf("Error getting tell sys prompt: %v\n", err)
+		go notify.NotifyErr(notify.SeverityError, fmt.Errorf("error getting tell sys prompt: %v", err))
+
 		active.StreamDoneCh <- &shared.ApiError{
 			Type:   shared.ApiErrorTypeOther,
 			Status: http.StatusInternalServerError,
@@ -299,6 +311,8 @@ func execTellPlan(params execTellPlanParams) {
 		// token limit already exceeded before adding conversation
 		err := fmt.Errorf("token limit exceeded before adding conversation")
 		log.Printf("Error: %v\n", err)
+		go notify.NotifyErr(notify.SeverityError, fmt.Errorf("token limit exceeded before adding conversation"))
+
 		active.StreamDoneCh <- &shared.ApiError{
 			Type:   shared.ApiErrorTypeOther,
 			Status: http.StatusInternalServerError,
@@ -316,6 +330,8 @@ func execTellPlan(params execTellPlanParams) {
 		state.messages = append(state.messages, *promptMessage)
 	} else {
 		log.Println("promptMessage is nil")
+		go notify.NotifyErr(notify.SeverityError, fmt.Errorf("promptMessage is nil"))
+
 		active.StreamDoneCh <- &shared.ApiError{
 			Type:   shared.ApiErrorTypeOther,
 			Status: http.StatusInternalServerError,
@@ -446,7 +462,7 @@ func execTellPlan(params execTellPlanParams) {
 	stream, err := model.CreateChatCompletionStream(clients, &modelConfig, active.ModelStreamCtx, modelReq)
 	if err != nil {
 		log.Printf("Error starting reply stream: %v\n", err)
-
+		go notify.NotifyErr(notify.SeverityError, fmt.Errorf("error starting reply stream: %v", err))
 		active.StreamDoneCh <- &shared.ApiError{
 			Type:   shared.ApiErrorTypeOther,
 			Status: http.StatusInternalServerError,
@@ -508,6 +524,9 @@ func (state *activeTellStreamState) dryRunCalculateTokensWithoutContext(tentativ
 		msg := "Error getting tell sys prompt for dry run token calculation"
 		if err.Error() == AllTasksCompletedMsg {
 			msg = "There's no current task to implement. Try a prompt instead of the 'continue' command."
+			go notify.NotifyErr(notify.SeverityInfo, msg)
+		} else {
+			go notify.NotifyErr(notify.SeverityError, fmt.Errorf("error getting tell sys prompt for dry run token calculation: %v", err))
 		}
 
 		state.activePlan.StreamDoneCh <- &shared.ApiError{
@@ -538,6 +557,8 @@ func (state *activeTellStreamState) dryRunCalculateTokensWithoutContext(tentativ
 
 	if clone.tokensBeforeConvo > clone.settings.GetPlannerEffectiveMaxTokens() {
 		log.Println("tokensBeforeConvo exceeds max tokens during dry run")
+		go notify.NotifyErr(notify.SeverityError, fmt.Errorf("tokensBeforeConvo exceeds max tokens during dry run"))
+
 		state.activePlan.StreamDoneCh <- &shared.ApiError{
 			Type:   shared.ApiErrorTypeOther,
 			Status: http.StatusInternalServerError,

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"plandex-server/db"
 	"plandex-server/model"
+	"plandex-server/notify"
 	"plandex-server/types"
 
 	shared "plandex-shared"
@@ -248,6 +249,8 @@ func (state *activeTellStreamState) loadTellPlan() error {
 		for i := 0; i < 4; i++ {
 			err = <-errCh
 			if err != nil {
+				go notify.NotifyErr(notify.SeverityError, fmt.Errorf("error loading plan: %v", err))
+
 				active.StreamDoneCh <- &shared.ApiError{
 					Type:   shared.ApiErrorTypeOther,
 					Status: http.StatusInternalServerError,
@@ -274,6 +277,8 @@ func (state *activeTellStreamState) loadTellPlan() error {
 
 	if err != nil {
 		log.Printf("execTellPlan: error loading tell plan: %v\n", err)
+		go notify.NotifyErr(notify.SeverityError, fmt.Errorf("error loading tell plan: %v", err))
+
 		active.StreamDoneCh <- &shared.ApiError{
 			Type:   shared.ApiErrorTypeOther,
 			Status: http.StatusInternalServerError,

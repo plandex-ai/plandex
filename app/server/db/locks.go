@@ -25,7 +25,7 @@ const locksVerboseLogging = false
 const lockHeartbeatInterval = 3 * time.Second
 const lockHeartbeatTimeout = 60 * time.Second
 const maxLockRetries = 6
-const initialLockRetryDelay = 100 * time.Millisecond
+const initialLockRetryDelay = 300 * time.Millisecond
 const backoffFactor = 2    // Exponential base
 const jitterFraction = 0.3 // e.g. ±30% of the backoff
 

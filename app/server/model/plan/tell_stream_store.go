@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"plandex-server/db"
+	"plandex-server/notify"
 	"plandex-server/types"
 	shared "plandex-shared"
 
@@ -213,6 +214,8 @@ func (state *activeTellStreamState) storeOnFinished(params storeOnFinishedParams
 
 	if err != nil {
 		log.Printf("Error storing on finished: %v\n", err)
+		go notify.NotifyErr(notify.SeverityError, fmt.Errorf("error storing on finished: %v", err))
+
 		active.StreamDoneCh <- &shared.ApiError{
 			Type:   shared.ApiErrorTypeOther,
 			Status: http.StatusInternalServerError,

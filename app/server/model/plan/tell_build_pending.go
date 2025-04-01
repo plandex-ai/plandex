@@ -1,8 +1,10 @@
 package plan
 
 import (
+	"fmt"
 	"log"
 	"net/http"
+	"plandex-server/notify"
 
 	shared "plandex-shared"
 )
@@ -26,6 +28,8 @@ func (state *activeTellStreamState) queuePendingBuilds() {
 
 	if err != nil {
 		log.Printf("Error getting pending builds by path: %v\n", err)
+		go notify.NotifyErr(notify.SeverityError, fmt.Errorf("error getting pending builds by path: %v", err))
+
 		active.StreamDoneCh <- &shared.ApiError{
 			Type:   shared.ApiErrorTypeOther,
 			Status: http.StatusInternalServerError,

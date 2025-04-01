@@ -12,8 +12,25 @@ import (
 	"github.com/gorilla/mux"
 )
 
+type PlandexHandler func(w http.ResponseWriter, r *http.Request)
+type HandlePlandex func(router *mux.Router, path string, isStreaming bool, handler PlandexHandler) *mux.Route
+
+var HandlePlandexFn HandlePlandex
+
+func RegisterHandlePlandex(fn HandlePlandex) {
+	HandlePlandexFn = fn
+}
+
+func EnsureHandlePlandex() {
+	if HandlePlandexFn == nil {
+		panic("handlePlandexFn is not set")
+	}
+}
+
 func AddHealthRoutes(r *mux.Router) {
-	r.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+	EnsureHandlePlandex()
+
+	HandlePlandexFn(r, "/health", false, func(w http.ResponseWriter, r *http.Request) {
 		_, apiErr := hooks.ExecHook(hooks.HealthCheck, hooks.HookParams{})
 		if apiErr != nil {
 			log.Printf("Error in health check hook: %v\n", apiErr)
@@ -23,7 +40,7 @@ func AddHealthRoutes(r *mux.Router) {
 		fmt.Fprint(w, "OK")
 	})
 
-	r.HandleFunc("/version", func(w http.ResponseWriter, r *http.Request) {
+	HandlePlandexFn(r, "/version", false, func(w http.ResponseWriter, r *http.Request) {
 		// Log the host
 		host := r.Host
 		log.Printf("Host header: %s", host)
@@ -70,107 +87,112 @@ func AddProxyableApiRoutesWithPrefix(r *mux.Router, prefix string) {
 }
 
 func addApiRoutes(r *mux.Router, prefix string) {
-	r.HandleFunc(prefix+"/accounts/email_verifications", handlers.CreateEmailVerificationHandler).Methods("POST")
-	r.HandleFunc(prefix+"/accounts/email_verifications/check_pin", handlers.CheckEmailPinHandler).Methods("POST")
-	r.HandleFunc(prefix+"/accounts/sign_in_codes", handlers.CreateSignInCodeHandler).Methods("POST")
-	r.HandleFunc(prefix+"/accounts/sign_in", handlers.SignInHandler).Methods("POST")
-	r.HandleFunc(prefix+"/accounts/sign_out", handlers.SignOutHandler).Methods("POST")
-	r.HandleFunc(prefix+"/accounts", handlers.CreateAccountHandler).Methods("POST")
+	EnsureHandlePlandex()
 
-	r.HandleFunc(prefix+"/orgs/session", handlers.GetOrgSessionHandler).Methods("GET")
-	r.HandleFunc(prefix+"/orgs", handlers.ListOrgsHandler).Methods("GET")
-	r.HandleFunc(prefix+"/orgs", handlers.CreateOrgHandler).Methods("POST")
+	HandlePlandexFn(r, prefix+"/accounts/email_verifications", false, handlers.CreateEmailVerificationHandler).Methods("POST")
+	HandlePlandexFn(r, prefix+"/accounts/email_verifications/check_pin", false, handlers.CheckEmailPinHandler).Methods("POST")
+	HandlePlandexFn(r, prefix+"/accounts/sign_in_codes", false, handlers.CreateSignInCodeHandler).Methods("POST")
+	HandlePlandexFn(r, prefix+"/accounts/sign_in", false, handlers.SignInHandler).Methods("POST")
+	HandlePlandexFn(r, prefix+"/accounts/sign_out", false, handlers.SignOutHandler).Methods("POST")
+	HandlePlandexFn(r, prefix+"/accounts", false, handlers.CreateAccountHandler).Methods("POST")
 
-	r.HandleFunc(prefix+"/users", handlers.ListUsersHandler).Methods("GET")
-	r.HandleFunc(prefix+"/orgs/users/{userId}", handlers.DeleteOrgUserHandler).Methods("DELETE")
-	r.HandleFunc(prefix+"/orgs/roles", handlers.ListOrgRolesHandler).Methods("GET")
+	HandlePlandexFn(r, prefix+"/orgs/session", false, handlers.GetOrgSessionHandler).Methods("GET")
+	HandlePlandexFn(r, prefix+"/orgs", false, handlers.ListOrgsHandler).Methods("GET")
+	HandlePlandexFn(r, prefix+"/orgs", false, handlers.CreateOrgHandler).Methods("POST")
 
-	r.HandleFunc(prefix+"/invites", handlers.InviteUserHandler).Methods("POST")
-	r.HandleFunc(prefix+"/invites/pending", handlers.ListPendingInvitesHandler).Methods("GET")
-	r.HandleFunc(prefix+"/invites/accepted", handlers.ListAcceptedInvitesHandler).Methods("GET")
-	r.HandleFunc(prefix+"/invites/all", handlers.ListAllInvitesHandler).Methods("GET")
-	r.HandleFunc(prefix+"/invites/{inviteId}", handlers.DeleteInviteHandler).Methods("DELETE")
+	HandlePlandexFn(r, prefix+"/users", false, handlers.ListUsersHandler).Methods("GET")
+	HandlePlandexFn(r, prefix+"/orgs/users/{userId}", false, handlers.DeleteOrgUserHandler).Methods("DELETE")
+	HandlePlandexFn(r, prefix+"/orgs/roles", false, handlers.ListOrgRolesHandler).Methods("GET")
 
-	r.HandleFunc(prefix+"/projects", handlers.CreateProjectHandler).Methods("POST")
-	r.HandleFunc(prefix+"/projects", handlers.ListProjectsHandler).Methods("GET")
-	r.HandleFunc(prefix+"/projects/{projectId}/set_plan", handlers.ProjectSetPlanHandler).Methods("PUT")
-	r.HandleFunc(prefix+"/projects/{projectId}/rename", handlers.RenameProjectHandler).Methods("PUT")
+	HandlePlandexFn(r, prefix+"/invites", false, handlers.InviteUserHandler).Methods("POST")
+	HandlePlandexFn(r, prefix+"/invites/pending", false, handlers.ListPendingInvitesHandler).Methods("GET")
+	HandlePlandexFn(r, prefix+"/invites/accepted", false, handlers.ListAcceptedInvitesHandler).Methods("GET")
+	HandlePlandexFn(r, prefix+"/invites/all", false, handlers.ListAllInvitesHandler).Methods("GET")
+	HandlePlandexFn(r, prefix+"/invites/{inviteId}", false, handlers.DeleteInviteHandler).Methods("DELETE")
 
-	r.HandleFunc(prefix+"/projects/{projectId}/plans/current_branches", handlers.GetCurrentBranchByPlanIdHandler).Methods("POST")
+	HandlePlandexFn(r, prefix+"/projects", false, handlers.CreateProjectHandler).Methods("POST")
+	HandlePlandexFn(r, prefix+"/projects", false, handlers.ListProjectsHandler).Methods("GET")
+	HandlePlandexFn(r, prefix+"/projects/{projectId}/set_plan", false, handlers.ProjectSetPlanHandler).Methods("PUT")
+	HandlePlandexFn(r, prefix+"/projects/{projectId}/rename", false, handlers.RenameProjectHandler).Methods("PUT")
 
-	r.HandleFunc(prefix+"/plans", handlers.ListPlansHandler).Methods("GET")
-	r.HandleFunc(prefix+"/plans/archive", handlers.ListArchivedPlansHandler).Methods("GET")
-	r.HandleFunc(prefix+"/plans/ps", handlers.ListPlansRunningHandler).Methods("GET")
+	HandlePlandexFn(r, prefix+"/projects/{projectId}/plans/current_branches", false, handlers.GetCurrentBranchByPlanIdHandler).Methods("POST")
 
-	r.HandleFunc(prefix+"/projects/{projectId}/plans", handlers.CreatePlanHandler).Methods("POST")
+	HandlePlandexFn(r, prefix+"/plans", false, handlers.ListPlansHandler).Methods("GET")
+	HandlePlandexFn(r, prefix+"/plans/archive", false, handlers.ListArchivedPlansHandler).Methods("GET")
+	HandlePlandexFn(r, prefix+"/plans/ps", false, handlers.ListPlansRunningHandler).Methods("GET")
 
-	r.HandleFunc(prefix+"/projects/{projectId}/plans", handlers.CreatePlanHandler).Methods("DELETE")
+	HandlePlandexFn(r, prefix+"/projects/{projectId}/plans", false, handlers.CreatePlanHandler).Methods("POST")
 
-	r.HandleFunc(prefix+"/plans/{planId}", handlers.GetPlanHandler).Methods("GET")
-	r.HandleFunc(prefix+"/plans/{planId}", handlers.DeletePlanHandler).Methods("DELETE")
+	HandlePlandexFn(r, prefix+"/projects/{projectId}/plans", false, handlers.CreatePlanHandler).Methods("DELETE")
 
-	r.HandleFunc(prefix+"/plans/{planId}/current_plan/{sha}", handlers.CurrentPlanHandler).Methods("GET")
-	r.HandleFunc(prefix+"/plans/{planId}/{branch}/current_plan", handlers.CurrentPlanHandler).Methods("GET")
-	r.HandleFunc(prefix+"/plans/{planId}/{branch}/apply", handlers.ApplyPlanHandler).Methods("PATCH")
-	r.HandleFunc(prefix+"/plans/{planId}/archive", handlers.ArchivePlanHandler).Methods("PATCH")
-	r.HandleFunc(prefix+"/plans/{planId}/unarchive", handlers.UnarchivePlanHandler).Methods("PATCH")
+	HandlePlandexFn(r, prefix+"/plans/{planId}", false, handlers.GetPlanHandler).Methods("GET")
+	HandlePlandexFn(r, prefix+"/plans/{planId}", false, handlers.DeletePlanHandler).Methods("DELETE")
 
-	r.HandleFunc(prefix+"/plans/{planId}/rename", handlers.RenamePlanHandler).Methods("PATCH")
-	r.HandleFunc(prefix+"/plans/{planId}/{branch}/reject_all", handlers.RejectAllChangesHandler).Methods("PATCH")
-	r.HandleFunc(prefix+"/plans/{planId}/{branch}/reject_file", handlers.RejectFileHandler).Methods("PATCH")
-	r.HandleFunc(prefix+"/plans/{planId}/{branch}/reject_files", handlers.RejectFilesHandler).Methods("PATCH")
-	r.HandleFunc(prefix+"/plans/{planId}/{branch}/diffs", handlers.GetPlanDiffsHandler).Methods("GET")
+	HandlePlandexFn(r, prefix+"/plans/{planId}/current_plan/{sha}", false, handlers.CurrentPlanHandler).Methods("GET")
+	HandlePlandexFn(r, prefix+"/plans/{planId}/{branch}/current_plan", false, handlers.CurrentPlanHandler).Methods("GET")
+	HandlePlandexFn(r, prefix+"/plans/{planId}/{branch}/apply", false, handlers.ApplyPlanHandler).Methods("PATCH")
+	HandlePlandexFn(r, prefix+"/plans/{planId}/archive", false, handlers.ArchivePlanHandler).Methods("PATCH")
+	HandlePlandexFn(r, prefix+"/plans/{planId}/unarchive", false, handlers.UnarchivePlanHandler).Methods("PATCH")
 
-	r.HandleFunc(prefix+"/plans/{planId}/{branch}/context", handlers.ListContextHandler).Methods("GET")
-	r.HandleFunc(prefix+"/plans/{planId}/{branch}/context", handlers.LoadContextHandler).Methods("POST")
-	r.HandleFunc(prefix+"/plans/{planId}/{branch}/context/{contextId}/body", handlers.GetContextBodyHandler).Methods("GET")
-	r.HandleFunc(prefix+"/plans/{planId}/{branch}/context", handlers.UpdateContextHandler).Methods("PUT")
-	r.HandleFunc(prefix+"/plans/{planId}/{branch}/context", handlers.DeleteContextHandler).Methods("DELETE")
+	HandlePlandexFn(r, prefix+"/plans/{planId}/rename", false, handlers.RenamePlanHandler).Methods("PATCH")
+	HandlePlandexFn(r, prefix+"/plans/{planId}/{branch}/reject_all", false, handlers.RejectAllChangesHandler).Methods("PATCH")
+	HandlePlandexFn(r, prefix+"/plans/{planId}/{branch}/reject_file", false, handlers.RejectFileHandler).Methods("PATCH")
+	HandlePlandexFn(r, prefix+"/plans/{planId}/{branch}/reject_files", false, handlers.RejectFilesHandler).Methods("PATCH")
+	HandlePlandexFn(r, prefix+"/plans/{planId}/{branch}/diffs", false, handlers.GetPlanDiffsHandler).Methods("GET")
 
-	r.HandleFunc(prefix+"/plans/{planId}/{branch}/convo", handlers.ListConvoHandler).Methods("GET")
-	r.HandleFunc(prefix+"/plans/{planId}/{branch}/rewind", handlers.RewindPlanHandler).Methods("PATCH")
-	r.HandleFunc(prefix+"/plans/{planId}/{branch}/logs", handlers.ListLogsHandler).Methods("GET")
+	HandlePlandexFn(r, prefix+"/plans/{planId}/{branch}/context", false, handlers.ListContextHandler).Methods("GET")
+	HandlePlandexFn(r, prefix+"/plans/{planId}/{branch}/context", false, handlers.LoadContextHandler).Methods("POST")
+	HandlePlandexFn(r, prefix+"/plans/{planId}/{branch}/context/{contextId}/body", false, handlers.GetContextBodyHandler).Methods("GET")
+	HandlePlandexFn(r, prefix+"/plans/{planId}/{branch}/context", false, handlers.UpdateContextHandler).Methods("PUT")
+	HandlePlandexFn(r, prefix+"/plans/{planId}/{branch}/context", false, handlers.DeleteContextHandler).Methods("DELETE")
 
-	r.HandleFunc(prefix+"/plans/{planId}/branches", handlers.ListBranchesHandler).Methods("GET")
-	r.HandleFunc(prefix+"/plans/{planId}/branches/{branch}", handlers.DeleteBranchHandler).Methods("DELETE")
-	r.HandleFunc(prefix+"/plans/{planId}/{branch}/branches", handlers.CreateBranchHandler).Methods("POST")
+	HandlePlandexFn(r, prefix+"/plans/{planId}/{branch}/convo", false, handlers.ListConvoHandler).Methods("GET")
+	HandlePlandexFn(r, prefix+"/plans/{planId}/{branch}/rewind", false, handlers.RewindPlanHandler).Methods("PATCH")
+	HandlePlandexFn(r, prefix+"/plans/{planId}/{branch}/logs", false, handlers.ListLogsHandler).Methods("GET")
 
-	r.HandleFunc(prefix+"/plans/{planId}/{branch}/settings", handlers.GetSettingsHandler).Methods("GET")
-	r.HandleFunc(prefix+"/plans/{planId}/{branch}/settings", handlers.UpdateSettingsHandler).Methods("PUT")
+	HandlePlandexFn(r, prefix+"/plans/{planId}/branches", false, handlers.ListBranchesHandler).Methods("GET")
+	HandlePlandexFn(r, prefix+"/plans/{planId}/branches/{branch}", false, handlers.DeleteBranchHandler).Methods("DELETE")
+	HandlePlandexFn(r, prefix+"/plans/{planId}/{branch}/branches", false, handlers.CreateBranchHandler).Methods("POST")
 
-	r.HandleFunc(prefix+"/plans/{planId}/{branch}/status", handlers.GetPlanStatusHandler).Methods("GET")
+	HandlePlandexFn(r, prefix+"/plans/{planId}/{branch}/settings", false, handlers.GetSettingsHandler).Methods("GET")
+	HandlePlandexFn(r, prefix+"/plans/{planId}/{branch}/settings", false, handlers.UpdateSettingsHandler).Methods("PUT")
 
-	r.HandleFunc(prefix+"/plans/{planId}/{branch}/tell", handlers.TellPlanHandler).Methods("POST")
-	r.HandleFunc(prefix+"/plans/{planId}/{branch}/build", handlers.BuildPlanHandler).Methods("PATCH")
+	HandlePlandexFn(r, prefix+"/plans/{planId}/{branch}/status", false, handlers.GetPlanStatusHandler).Methods("GET")
 
-	r.HandleFunc(prefix+"/custom_models", handlers.ListCustomModelsHandler).Methods("GET")
-	r.HandleFunc(prefix+"/custom_models", handlers.CreateCustomModelHandler).Methods("POST")
-	r.HandleFunc(prefix+"/custom_models/{modelId}", handlers.DeleteAvailableModelHandler).Methods("DELETE")
+	HandlePlandexFn(r, prefix+"/plans/{planId}/{branch}/tell", true, handlers.TellPlanHandler).Methods("POST")
+	HandlePlandexFn(r, prefix+"/plans/{planId}/{branch}/build", true, handlers.BuildPlanHandler).Methods("PATCH")
 
-	r.HandleFunc(prefix+"/model_sets", handlers.ListModelPacksHandler).Methods("GET")
-	r.HandleFunc(prefix+"/model_sets", handlers.CreateModelPackHandler).Methods("POST")
-	r.HandleFunc(prefix+"/model_sets/{setId}", handlers.DeleteModelPackHandler).Methods("DELETE")
+	HandlePlandexFn(r, prefix+"/custom_models", false, handlers.ListCustomModelsHandler).Methods("GET")
+	HandlePlandexFn(r, prefix+"/custom_models", false, handlers.CreateCustomModelHandler).Methods("POST")
+	HandlePlandexFn(r, prefix+"/custom_models/{modelId}", false, handlers.DeleteAvailableModelHandler).Methods("DELETE")
+	HandlePlandexFn(r, prefix+"/custom_models/{modelId}", false, handlers.UpdateCustomModelHandler).Methods("PUT")
 
-	r.HandleFunc(prefix+"/default_settings", handlers.GetDefaultSettingsHandler).Methods("GET")
-	r.HandleFunc(prefix+"/default_settings", handlers.UpdateDefaultSettingsHandler).Methods("PUT")
+	HandlePlandexFn(r, prefix+"/model_sets", false, handlers.ListModelPacksHandler).Methods("GET")
+	HandlePlandexFn(r, prefix+"/model_sets", false, handlers.CreateModelPackHandler).Methods("POST")
+	HandlePlandexFn(r, prefix+"/model_sets/{setId}", false, handlers.DeleteModelPackHandler).Methods("DELETE")
+	HandlePlandexFn(r, prefix+"/model_sets/{setId}", false, handlers.UpdateModelPackHandler).Methods("PUT")
+	HandlePlandexFn(r, prefix+"/default_settings", false, handlers.GetDefaultSettingsHandler).Methods("GET")
+	HandlePlandexFn(r, prefix+"/default_settings", false, handlers.UpdateDefaultSettingsHandler).Methods("PUT")
 
-	r.HandleFunc(prefix+"/file_map", handlers.GetFileMapHandler).Methods("POST")
-	r.HandleFunc(prefix+"/plans/{planId}/{branch}/load_cached_file_map", handlers.LoadCachedFileMapHandler).Methods("POST")
+	HandlePlandexFn(r, prefix+"/file_map", false, handlers.GetFileMapHandler).Methods("POST")
+	HandlePlandexFn(r, prefix+"/plans/{planId}/{branch}/load_cached_file_map", false, handlers.LoadCachedFileMapHandler).Methods("POST")
 
-	r.HandleFunc(prefix+"/plans/{planId}/config", handlers.GetPlanConfigHandler).Methods("GET")
-	r.HandleFunc(prefix+"/plans/{planId}/config", handlers.UpdatePlanConfigHandler).Methods("PUT")
+	HandlePlandexFn(r, prefix+"/plans/{planId}/config", false, handlers.GetPlanConfigHandler).Methods("GET")
+	HandlePlandexFn(r, prefix+"/plans/{planId}/config", false, handlers.UpdatePlanConfigHandler).Methods("PUT")
 
-	r.HandleFunc(prefix+"/default_plan_config", handlers.GetDefaultPlanConfigHandler).Methods("GET")
-	r.HandleFunc(prefix+"/default_plan_config", handlers.UpdateDefaultPlanConfigHandler).Methods("PUT")
+	HandlePlandexFn(r, prefix+"/default_plan_config", false, handlers.GetDefaultPlanConfigHandler).Methods("GET")
+	HandlePlandexFn(r, prefix+"/default_plan_config", false, handlers.UpdateDefaultPlanConfigHandler).Methods("PUT")
 }
 
 func addProxyableApiRoutes(r *mux.Router, prefix string) {
-	r.HandleFunc(prefix+"/plans/{planId}/{branch}/connect", handlers.ConnectPlanHandler).Methods("PATCH")
-	r.HandleFunc(prefix+"/plans/{planId}/{branch}/stop", handlers.StopPlanHandler).Methods("DELETE")
+	EnsureHandlePlandex()
 
-	r.HandleFunc(prefix+"/plans/{planId}/{branch}/respond_missing_file", handlers.RespondMissingFileHandler).Methods("POST")
+	HandlePlandexFn(r, prefix+"/plans/{planId}/{branch}/connect", true, handlers.ConnectPlanHandler).Methods("PATCH")
+	HandlePlandexFn(r, prefix+"/plans/{planId}/{branch}/stop", false, handlers.StopPlanHandler).Methods("DELETE")
 
-	r.HandleFunc(prefix+"/plans/{planId}/{branch}/auto_load_context", handlers.AutoLoadContextHandler).Methods("POST")
+	HandlePlandexFn(r, prefix+"/plans/{planId}/{branch}/respond_missing_file", false, handlers.RespondMissingFileHandler).Methods("POST")
 
-	r.HandleFunc(prefix+"/plans/{planId}/{branch}/build_status", handlers.GetBuildStatusHandler).Methods("GET")
+	HandlePlandexFn(r, prefix+"/plans/{planId}/{branch}/auto_load_context", false, handlers.AutoLoadContextHandler).Methods("POST")
+
+	HandlePlandexFn(r, prefix+"/plans/{planId}/{branch}/build_status", false, handlers.GetBuildStatusHandler).Methods("GET")
 }

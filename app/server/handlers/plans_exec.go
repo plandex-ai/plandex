@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -10,6 +11,7 @@ import (
 	"plandex-server/hooks"
 	"plandex-server/host"
 	modelPlan "plandex-server/model/plan"
+	"plandex-server/notify"
 	"plandex-server/types"
 	"time"
 
@@ -40,6 +42,7 @@ func TellPlanHandler(w http.ResponseWriter, r *http.Request) {
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		log.Printf("Error reading request body: %v\n", err)
+		go notify.NotifyErr(notify.SeverityError, fmt.Errorf("error reading request body: %v", err))
 		http.Error(w, "Error reading request body", http.StatusInternalServerError)
 		return
 	}
@@ -51,6 +54,7 @@ func TellPlanHandler(w http.ResponseWriter, r *http.Request) {
 	var requestBody shared.TellPlanRequest
 	if err := json.Unmarshal(body, &requestBody); err != nil {
 		log.Printf("Error parsing request body: %v\n", err)
+		go notify.NotifyErr(notify.SeverityError, fmt.Errorf("error parsing request body: %v", err))
 		http.Error(w, "Error parsing request body", http.StatusBadRequest)
 		return
 	}
@@ -60,6 +64,7 @@ func TellPlanHandler(w http.ResponseWriter, r *http.Request) {
 		Plan: plan,
 	})
 	if apiErr != nil {
+		go notify.NotifyErr(notify.SeverityError, fmt.Errorf("error executing will tell plan hook: %v", apiErr))
 		writeApiError(w, *apiErr)
 		return
 	}
@@ -80,6 +85,7 @@ func TellPlanHandler(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Printf("Error telling plan: %v\n", err)
+		go notify.NotifyErr(notify.SeverityError, fmt.Errorf("error telling plan: %v", err))
 		http.Error(w, "Error telling plan", http.StatusInternalServerError)
 		return
 	}
@@ -111,6 +117,7 @@ func BuildPlanHandler(w http.ResponseWriter, r *http.Request) {
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		log.Printf("Error reading request body: %v\n", err)
+		go notify.NotifyErr(notify.SeverityError, fmt.Errorf("error reading request body: %v", err))
 		http.Error(w, "Error reading request body", http.StatusInternalServerError)
 		return
 	}
@@ -122,6 +129,7 @@ func BuildPlanHandler(w http.ResponseWriter, r *http.Request) {
 	var requestBody shared.BuildPlanRequest
 	if err := json.Unmarshal(body, &requestBody); err != nil {
 		log.Printf("Error parsing request body: %v\n", err)
+		go notify.NotifyErr(notify.SeverityError, fmt.Errorf("error parsing request body: %v", err))
 		http.Error(w, "Error parsing request body", http.StatusBadRequest)
 		return
 	}
@@ -142,12 +150,14 @@ func BuildPlanHandler(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Printf("Error building plan: %v\n", err)
+		go notify.NotifyErr(notify.SeverityError, fmt.Errorf("error building plan: %v", err))
 		http.Error(w, "Error building plan", http.StatusInternalServerError)
 		return
 	}
 
 	if numBuilds == 0 {
 		log.Println("No builds were executed")
+		go notify.NotifyErr(notify.SeverityInfo, fmt.Errorf("no builds were executed"))
 		http.Error(w, shared.NoBuildsErr, http.StatusNotFound)
 		return
 	}
@@ -173,6 +183,7 @@ func ConnectPlanHandler(w http.ResponseWriter, r *http.Request) {
 	if active == nil {
 		if isProxy {
 			log.Println("No active plan on proxied request")
+			go notify.NotifyErr(notify.SeverityInfo, fmt.Errorf("no active plan on proxied request"))
 			http.Error(w, "No active plan", http.StatusNotFound)
 			return
 		}
