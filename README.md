@@ -102,7 +102,7 @@
 
 - 🚦 **Configurable autonomy:** go from full auto mode to fine-grained control depending on the task.
 
-- 🐞 **Automated debugging** of terminal commands (like builds, linters, tests, deployments, and scripts).
+- 🐞 **Automated debugging** of terminal commands (like builds, linters, tests, deployments, and scripts). If you have Chrome installed, you can also automatically debug browser applications.
 
 ## Tools that help you get production-ready results
 
