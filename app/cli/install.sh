@@ -42,6 +42,12 @@ case "$(uname -s)" in
    ;;
 esac
 
+if [[ "$PLATFORM" == "windows" ]]; then
+  echo "🚨 Windows is only supported via WSL. It doesn't work in the Windows CMD prompt or PowerShell."
+  echo "How to install WSL 👉 https://learn.microsoft.com/en-us/windows/wsl/about"
+  exit 1
+fi
+
 # Set arch
 if [[ "$(uname -m)" == 'x86_64' ]]; then
   ARCH="amd64"
@@ -90,11 +96,14 @@ download_plandex () {
 
   tar zxf plandex.tar.gz 1> /dev/null
 
+  should_sudo=false
+
   if [ "$PLATFORM" == "darwin" ] || $IS_DOCKER ; then
     if [[ -d /usr/local/bin ]]; then
       if ! mv plandex /usr/local/bin/ 2>/dev/null; then
         echo "Permission denied when attempting to move Plandex to /usr/local/bin."
         if hash sudo 2>/dev/null; then
+          should_sudo=true
           echo "Attempting to use sudo to complete installation."
           sudo mv plandex /usr/local/bin/
           if [[ $? -eq 0 ]]; then
@@ -115,11 +124,6 @@ download_plandex () {
       echo >&2 'Error: /usr/local/bin does not exist. Create this directory with appropriate permissions, then re-install.'
       exit 1
     fi
-  elif [ "$PLATFORM" == "windows" ]; then
-    # ensure $HOME/bin exists (it's in PATH but not present in default git-bash install)
-    mkdir "$HOME/bin" 2> /dev/null
-    mv plandex.exe "$HOME/bin/"
-    echo "✅ Plandex is installed in '$HOME/bin'"
   else
     if [ $UID -eq 0 ]
     then
@@ -129,6 +133,7 @@ download_plandex () {
     then
       # not root, but can sudo
       sudo mv plandex /usr/local/bin/
+      should_sudo=true
     else
       echo "ERROR: This script must be run as root or be able to sudo to complete the installation."
       exit 1
@@ -137,12 +142,21 @@ download_plandex () {
     echo "✅ Plandex is installed in /usr/local/bin"
   fi
 
-  # create 'pdx' alias, but don't ovewrite existing pdx command
+  # create 'pdx' alias, but don't overwrite existing pdx command
   if [ ! -x "$(command -v pdx)" ]; then
-    echo "creating pdx alias"
+    echo "🎭 Creating pdx alias..."
     LOC=$(which plandex)
-    BIN_DIR=$(dirname $LOC)
-    error_msg=$(ln -s "$LOC" "$BIN_DIR/pdx" 2>&1) || { echo "⚠️ Failed to create 'pdx' alias for Plandex. Error: $error_msg. Please create it manually if needed."; }
+    BIN_DIR=$(dirname "$LOC")
+
+    if [ "$should_sudo" = true ]; then
+      sudo ln -s "$LOC" "$BIN_DIR/pdx" && \
+        echo "✅ Successfully created 'pdx' alias with sudo." || \
+        echo "⚠️ Failed to create 'pdx' alias even with sudo. Please create it manually."
+    else
+      ln -s "$LOC" "$BIN_DIR/pdx" && \
+        echo "✅ Successfully created 'pdx' alias." || \
+        echo "⚠️ Failed to create 'pdx' alias. Please create it manually."
+    fi
   fi
 }
 

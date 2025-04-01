@@ -126,6 +126,8 @@ func runRepl(cmd *cobra.Command, args []string) {
 			args = append(args, "--cheap")
 		} else if dailyModels {
 			args = append(args, "--daily")
+		} else if reasoningModels {
+			args = append(args, "--reasoning")
 		}
 
 		newCmd.Run(newCmd, args)
@@ -308,12 +310,12 @@ func executor(in string, p *prompt.Prompt) {
 	lastLine := lines[len(lines)-1]
 	lastLine = strings.TrimSpace(lastLine)
 
-	input := strings.TrimSpace(in)
-	if input == "" {
+	trimmedInput := strings.TrimSpace(in)
+	if trimmedInput == "" {
 		return
 	}
 	// condense whitespace
-	input = strings.Join(strings.Fields(input), " ")
+	condensedInput := strings.Join(strings.Fields(trimmedInput), " ")
 
 	// Handle plandex/pdx command prefix
 	if strings.HasPrefix(lastLine, "plandex ") || strings.HasPrefix(lastLine, "pdx ") {
@@ -429,10 +431,10 @@ func executor(in string, p *prompt.Prompt) {
 			return
 
 		case cmd == "send" || cmd == lib.ReplCmdAliases["send"]:
-			split := strings.Split(input, "\\s")
-			input = strings.TrimSpace(split[0])
-			input = strings.TrimSpace(input)
-			if input == "" {
+			split := strings.Split(condensedInput, "\\s")
+			condensedInput = strings.TrimSpace(split[0])
+			condensedInput = strings.TrimSpace(condensedInput)
+			if condensedInput == "" {
 				fmt.Println()
 				fmt.Println("🤷‍♂️ No prompt to send")
 				fmt.Println()
@@ -532,7 +534,7 @@ func executor(in string, p *prompt.Prompt) {
 	// Handle non-command input based on mode
 	if lib.CurrentReplState.Mode == lib.ReplModeTell {
 		fmt.Println()
-		args := []string{"tell", input}
+		args := []string{"tell", trimmedInput}
 		var err error
 		_, err = lib.ExecPlandexCommandWithParams(args, lib.ExecPlandexCommandParams{
 			SessionId: sessionId,
@@ -542,7 +544,7 @@ func executor(in string, p *prompt.Prompt) {
 		}
 	} else if lib.CurrentReplState.Mode == lib.ReplModeChat {
 		fmt.Println()
-		args := []string{"chat", input}
+		args := []string{"chat", trimmedInput}
 		output, err := lib.ExecPlandexCommandWithParams(args, lib.ExecPlandexCommandParams{
 			SessionId: sessionId,
 		})

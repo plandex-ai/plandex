@@ -39,10 +39,11 @@ var CliCommands = []CmdConfig{
 	{"new --none", "", fmt.Sprintf("start a new plan with auto-mode %s", "'none'"), true},
 
 	{"new --daily", "", fmt.Sprintf("start a new plan with %s model pack", "'daily-driver'"), true},
+	{"new --reasoning", "", fmt.Sprintf("start a new plan with %s model pack", "'reasoning'"), true},
 	{"new --strong", "", fmt.Sprintf("start a new plan with %s model pack", "'strong'"), true},
 	{"new --cheap", "", fmt.Sprintf("start a new plan with %s model pack", "'cheap'"), true},
 	{"new --oss", "", fmt.Sprintf("start a new plan with %s model pack", "'oss'"), true},
-
+	// {"new --crazy", "", fmt.Sprintf("start a new plan with %s model pack", "'crazy'"), true},
 	{"plans", "pl", "list plans", true},
 	{"cd", "", "set current plan by name or index", true},
 	{"current", "cu", "show current plan", true},
@@ -111,13 +112,17 @@ var CliCommands = []CmdConfig{
 	{"model-packs create", "", "create a new custom model pack", true},
 	{"model-packs delete", "", "delete a custom model pack", true},
 	{"model-packs --custom", "", "show custom model packs only", true},
+	{"model-packs update", "", "update a custom model pack", true},
+	{"model-packs show", "", "show a built-in or custom model pack's settings", true},
 	{"set-model", "", "update current plan model settings", true},
 	{"set-model default", "", "update the default model settings for new plans", true},
 
 	{"set-model daily", "", fmt.Sprintf("Use %s model pack", "'daily-driver'"), true},
+	{"set-model reasoning", "", fmt.Sprintf("Use %s model pack", "'reasoning'"), true},
 	{"set-model strong", "", fmt.Sprintf("Use %s model pack", "'strong'"), true},
 	{"set-model cheap", "", fmt.Sprintf("Use %s model pack", "'cheap'"), true},
 	{"set-model oss", "", fmt.Sprintf("Use %s model pack", "'oss'"), true},
+	// {"set-model crazy", "", fmt.Sprintf("Use %s model pack", "'crazy'"), true},
 
 	{"ps", "", "list active and recently finished plan streams", true},
 	{"stop", "", "stop an active plan stream", true},
@@ -249,9 +254,11 @@ func PrintCustomHelp(all bool) {
 
 	fmt.Fprintln(builder, color.New(color.Bold, color.FgHiBlue).Sprint("  Models "))
 	fmt.Fprintln(builder, "    --daily        Daily driver pack")
+	fmt.Fprintln(builder, "    --reasoning    Reasoning pack")
 	fmt.Fprintln(builder, "    --strong       Strong pack")
 	fmt.Fprintln(builder, "    --cheap        Cheap pack")
 	fmt.Fprintln(builder, "    --oss          Open source pack")
+	// fmt.Fprintln(builder, "    --crazy        Crazy pack")
 	fmt.Fprintln(builder)
 
 	if all {
@@ -313,11 +320,11 @@ func PrintHelpAllCommands() {
 	fmt.Fprintln(builder)
 
 	color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " AI Models ")
-	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "models", "models default", "model-packs", "set-model", "set-model daily", "set-model strong", "set-model cheap", "set-model oss", "set-model default")
+	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "models", "models default", "model-packs", "set-model", "set-model daily", "set-model reasoning", "set-model strong", "set-model cheap", "set-model oss" /*"set-model crazy",*/, "set-model default")
 	fmt.Fprintln(builder)
 
 	color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Custom Models ")
-	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "models available", "models available --custom", "models add", "models delete", "model-packs --custom", "model-packs create", "model-packs delete")
+	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "models available", "models available --custom", "models add", "models delete", "model-packs --custom", "model-packs create", "model-packs show", "model-packs update", "model-packs delete")
 	fmt.Fprintln(builder)
 
 	color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Accounts ")
@@ -329,7 +336,7 @@ func PrintHelpAllCommands() {
 	fmt.Fprintln(builder)
 
 	color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " New Plan Shortcuts ")
-	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "new --full", "new --semi", "new --plus", "new --basic", "new --none", "new --daily", "new --strong", "new --cheap", "new --oss")
+	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "new --full", "new --semi", "new --plus", "new --basic", "new --none", "new --daily", "new --reasoning", "new --strong", "new --cheap", "new --oss" /*"new --crazy"*/)
 	fmt.Fprintln(builder)
 
 	fmt.Print(builder.String())

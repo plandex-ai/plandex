@@ -4,10 +4,12 @@ import (
 	"encoding/json"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"plandex-cli/fs"
 	"plandex-cli/term"
 	"strconv"
+	"syscall"
 )
 
 var ReplSettingsDir string
@@ -198,7 +200,23 @@ func ExecPlandexCommandWithParams(args []string, params ExecPlandexCommandParams
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
-	err = cmd.Run()
+	err = cmd.Start()
+	if err != nil {
+		return "", err
+	}
+
+	signal.Ignore(syscall.SIGINT)
+	defer signal.Reset(syscall.SIGINT)
+
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+
+	go func() {
+		sig := <-sigChan
+		syscall.Kill(-cmd.Process.Pid, sig.(syscall.Signal))
+	}()
+
+	err = cmd.Wait()
 	if err != nil {
 		if _, ok := err.(*exec.ExitError); ok {
 			return "", nil
@@ -211,5 +229,6 @@ func ExecPlandexCommandWithParams(args []string, params ExecPlandexCommandParams
 	if err != nil {
 		return "", err
 	}
+
 	return string(output), nil
 }
