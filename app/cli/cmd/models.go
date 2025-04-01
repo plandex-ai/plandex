@@ -493,6 +493,38 @@ func renderSettings(settings *shared.PlanSettings) {
 	modelPack := settings.ModelPack
 
 	color.New(color.Bold, term.ColorHiCyan).Println("🎛️  Current Model Pack")
+	renderModelPack(modelPack)
+
+	color.New(color.Bold, term.ColorHiCyan).Println("🧠 Planner Defaults")
+	table := tablewriter.NewWriter(os.Stdout)
+	table.SetAutoWrapText(false)
+	table.SetHeader([]string{"Max Tokens", "Max Convo Tokens"})
+	table.Append([]string{
+		fmt.Sprintf("%d", modelPack.Planner.GetFinalLargeContextFallback().BaseModelConfig.MaxTokens),
+		fmt.Sprintf("%d", modelPack.Planner.GetFinalLargeContextFallback().MaxConvoTokens),
+	})
+	table.Render()
+	fmt.Println()
+
+	color.New(color.Bold, term.ColorHiCyan).Println("⚙️  Planner Overrides")
+	table = tablewriter.NewWriter(os.Stdout)
+	table.SetAutoWrapText(false)
+	table.SetHeader([]string{"Name", "Value"})
+	if settings.ModelOverrides.MaxTokens == nil {
+		table.Append([]string{"Max Tokens", "no override"})
+	} else {
+		table.Append([]string{"Max Tokens", fmt.Sprintf("%d", *settings.ModelOverrides.MaxTokens)})
+	}
+	if settings.ModelOverrides.MaxConvoTokens == nil {
+		table.Append([]string{"Max Convo Tokens", "no override"})
+	} else {
+		table.Append([]string{"Max Convo Tokens", fmt.Sprintf("%d", *settings.ModelOverrides.MaxConvoTokens)})
+	}
+	table.Render()
+	fmt.Println()
+}
+
+func renderModelPack(modelPack *shared.ModelPack) {
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetAutoFormatHeaders(false)
 	table.SetAutoWrapText(true)
@@ -701,31 +733,4 @@ func renderSettings(settings *shared.PlanSettings) {
 
 	fmt.Println()
 
-	color.New(color.Bold, term.ColorHiCyan).Println("🧠 Planner Defaults")
-	table = tablewriter.NewWriter(os.Stdout)
-	table.SetAutoWrapText(false)
-	table.SetHeader([]string{"Max Tokens", "Max Convo Tokens"})
-	table.Append([]string{
-		fmt.Sprintf("%d", modelPack.Planner.GetFinalLargeContextFallback().BaseModelConfig.MaxTokens),
-		fmt.Sprintf("%d", modelPack.Planner.GetFinalLargeContextFallback().MaxConvoTokens),
-	})
-	table.Render()
-	fmt.Println()
-
-	color.New(color.Bold, term.ColorHiCyan).Println("⚙️  Planner Overrides")
-	table = tablewriter.NewWriter(os.Stdout)
-	table.SetAutoWrapText(false)
-	table.SetHeader([]string{"Name", "Value"})
-	if settings.ModelOverrides.MaxTokens == nil {
-		table.Append([]string{"Max Tokens", "no override"})
-	} else {
-		table.Append([]string{"Max Tokens", fmt.Sprintf("%d", *settings.ModelOverrides.MaxTokens)})
-	}
-	if settings.ModelOverrides.MaxConvoTokens == nil {
-		table.Append([]string{"Max Convo Tokens", "no override"})
-	} else {
-		table.Append([]string{"Max Convo Tokens", fmt.Sprintf("%d", *settings.ModelOverrides.MaxConvoTokens)})
-	}
-	table.Render()
-	fmt.Println()
 }
