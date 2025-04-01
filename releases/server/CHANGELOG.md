@@ -1,3 +1,21 @@
+## Server Version 2.0.4
+- **Stability**
+  - Enhanced database locking mechanisms.
+  - Improved error notifications.
+
+- **API Enhancements**
+  - Added endpoints for managing custom models and updating model packs.
+
+- **Execution**
+  - Increased robustness in plan execution and subprocess lifecycle management.
+
+- **Observability**
+  - Real-time internal notifications for critical errors implemented.
+
+- **Consistency**
+  - Improved token management.
+  - Enhanced summarization accuracy.
+
 ## Server Version 2.0.3
 - Fix for potential crash during chat/tell operation.
 - Panic handling to prevent crashes in general.
