@@ -1,3 +1,10 @@
+## Server Version 2.0.5
+- Fix for a bug that was causing occasional model errors. Model calls should be much more reliable now.
+- Better error handling and error messages for model errors (rate limits or other errors).
+- No error retries for rate limit errors.
+- Fixed bug that caused retries to add the prompt to the conversation multiple times.
+- Error responses with no output no longer create a log entry.
+
 ## Server Version 2.0.4
 - **Stability**
   - Enhanced database locking mechanisms.
