@@ -1,15 +1,21 @@
 ## CLI Version 2.0.4
-- **Reliability**
-  - Implemented HTTP retry logic with exponential backoff for transient errors.
+- **Models**
+  - Claude Sonnet 3.7 thinking is now available as a built-in model. Try the `reasoning` model pack for more challenging tasks.
+  - Gemini 2.5 pro (free/experimental version) is now available. Try the 'gemini-planner' or 'gemini-experimental' model packs to use it.
+  - DeepSeek V3 03-24 version is available as a built-in model and is now used in the `oss` pack in the in the the `coder` role. 
+  - OpenAI GPT 4.5 is available as a built-in model. It's not in any model packs so far due to rate limits and high cost, but is available to use via `set-model`
+  
+- **Debugging**
+  - Plandex can now directly debug browser applications by catching errors and reading the console logs (requires Chrome).
+  - Enhanced signal handling and subprocess termination robustness for execution control.
 
 - **Model Packs**
   - Added commands:
     - `model-packs update`
     - `model-packs show`
 
-- **Debugging**
-  - Enhanced signal handling and subprocess termination robustness.
-  - Plandex can now directly debug browser applications by catching errors and reading the console logs (requires Chrome).
+- **Reliability**
+  - Implemented HTTP retry logic with exponential backoff for transient errors.    
 
 - **REPL**
   - Fixed whitespace handling issues.
