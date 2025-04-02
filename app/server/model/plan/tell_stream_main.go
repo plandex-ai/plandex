@@ -58,6 +58,9 @@ func (state *activeTellStreamState) listenStream(stream *model.ExtendedChatCompl
 	defer timer.Stop()
 	streamFinished := false
 
+	modelProvider := state.modelConfig.BaseModelConfig.Provider
+	modelName := state.modelConfig.BaseModelConfig.ModelName
+
 mainLoop:
 	for {
 		select {
@@ -109,9 +112,9 @@ mainLoop:
 
 				var msg string
 				if active.CurrentReplyContent == "" {
-					msg = "The AI model didn't respond: %v"
+					msg = fmt.Sprintf("The AI model (%s/%s) didn't respond: %v", modelProvider, modelName, err)
 				} else {
-					msg = "The AI model stopped responding: %v"
+					msg = fmt.Sprintf("The AI model (%s/%s) stopped responding: %v", modelProvider, modelName, err)
 				}
 				state.onError(onErrorParams{
 					streamErr: fmt.Errorf(msg, err),
@@ -130,6 +133,21 @@ mainLoop:
 
 			if state.firstTokenAt.IsZero() {
 				state.firstTokenAt = time.Now()
+			}
+
+			if response.Error != nil {
+				log.Println("listenStream - stream finished with error", spew.Sdump(response.Error))
+				res := state.onError(onErrorParams{
+					streamErr: fmt.Errorf("The AI model (%s/%s) stopped streaming with error code %d: %s", modelProvider, modelName, response.Error.Code, response.Error.Message),
+					storeDesc: true,
+					canRetry:  active.CurrentReplyContent == "" && response.Error.Code != 429,
+				})
+				if res.shouldReturn {
+					return
+				}
+				if res.shouldContinueMainLoop {
+					continue mainLoop
+				}
 			}
 
 			if len(response.Choices) == 0 {
@@ -185,10 +203,12 @@ mainLoop:
 				log.Println("Finish reason: ", choice.FinishReason)
 
 				if choice.FinishReason == "error" {
+					log.Println("Model stream finished with error")
+
 					res := state.onError(onErrorParams{
-						streamErr: fmt.Errorf("the underlying LLM stopped with an error status | This means the LLM is not responding."),
+						streamErr: fmt.Errorf("The AI model (%s/%s) stopped streaming with an error status", modelProvider, modelName),
 						storeDesc: true,
-						canRetry:  true,
+						canRetry:  active.CurrentReplyContent == "",
 					})
 					if res.shouldReturn {
 						return

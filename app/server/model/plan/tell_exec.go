@@ -149,7 +149,7 @@ func execTellPlan(params execTellPlanParams) {
 	}
 
 	log.Println("execTellPlan - Loading tell plan")
-	err = state.loadTellPlan()
+	err = state.loadTellPlan(params.numErrorRetry > 0)
 	if err != nil {
 		return
 	}
@@ -293,7 +293,7 @@ func execTellPlan(params execTellPlanParams) {
 		return
 	}
 
-	// log.Println("messages:\n\n", spew.Sdump(state.messages))
+	log.Println("messages:\n\n", spew.Sdump(state.messages))
 
 	// log.Println("promptMessage:", spew.Sdump(promptMessage))
 
@@ -348,6 +348,9 @@ func execTellPlan(params execTellPlanParams) {
 	} else if !state.handleMissingFileResponse(unfinishedSubtaskReasoning) {
 		return
 	}
+
+	// filter out any messages that are empty
+	state.messages = model.FilterEmptyMessages(state.messages)
 
 	log.Printf("\n\nMessages: %d\n", len(state.messages))
 	// for _, message := range state.messages {

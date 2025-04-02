@@ -55,6 +55,14 @@ func (state *activeTellStreamState) formatModelContext(params formatModelContext
 	addedFilesSet := map[string]bool{}
 
 	uses := map[string]bool{}
+
+	// log.Println("Tell plan - formatModelContext - state.currentSubtask:\n", spew.Sdump(state.currentSubtask))
+	// if state.currentSubtask != nil {
+	// 	log.Println("Tell plan - formatModelContext - state.currentSubtask.UsesFiles:\n", spew.Sdump(state.currentSubtask.UsesFiles))
+	// }
+	// log.Println("Tell plan - formatModelContext - currentStage.TellStage:\n", currentStage.TellStage)
+	// log.Println("Tell plan - formatModelContext - smartContextEnabled:\n", smartContextEnabled)
+
 	if currentStage.TellStage == shared.TellStageImplementation && smartContextEnabled && state.currentSubtask != nil {
 		log.Println("Tell plan - formatModelContext - implementation stage - smart context enabled for current subtask")
 		for _, path := range state.currentSubtask.UsesFiles {

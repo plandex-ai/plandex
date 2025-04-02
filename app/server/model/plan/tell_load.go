@@ -15,7 +15,7 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
-func (state *activeTellStreamState) loadTellPlan() error {
+func (state *activeTellStreamState) loadTellPlan(isRetry bool) error {
 	clients := state.clients
 	req := state.req
 	auth := state.auth
@@ -154,7 +154,7 @@ func (state *activeTellStreamState) loadTellPlan() error {
 			innerErrCh := make(chan error)
 
 			go func() {
-				if iteration == 0 && missingFileResponse == "" && !req.IsUserContinue {
+				if iteration == 0 && missingFileResponse == "" && !req.IsUserContinue && !isRetry {
 					num := len(convo) + 1
 
 					log.Printf("[TellLoad] storing user message | len(convo): %d | num: %d\n", len(convo), num)

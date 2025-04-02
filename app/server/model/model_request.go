@@ -66,6 +66,8 @@ func ModelRequest(
 		return nil, fmt.Errorf("purpose is required")
 	}
 
+	messages = FilterEmptyMessages(messages)
+
 	inputTokensEstimate := GetMessagesTokenEstimate(messages...) + TokensPerRequest
 
 	config := modelConfig.GetRoleForInputTokens(inputTokensEstimate)
@@ -182,4 +184,23 @@ func ModelRequest(
 	}()
 
 	return res, nil
+}
+
+func FilterEmptyMessages(messages []types.ExtendedChatMessage) []types.ExtendedChatMessage {
+	filteredMessages := []types.ExtendedChatMessage{}
+	for _, message := range messages {
+		var content []types.ExtendedChatMessagePart
+		for _, part := range message.Content {
+			if part.Type != openai.ChatMessagePartTypeText || part.Text != "" {
+				content = append(content, part)
+			}
+		}
+		if len(content) > 0 {
+			filteredMessages = append(filteredMessages, types.ExtendedChatMessage{
+				Role:    message.Role,
+				Content: content,
+			})
+		}
+	}
+	return filteredMessages
 }

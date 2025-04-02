@@ -200,6 +200,15 @@ type ExtendedChatCompletionStreamResponse struct {
 	// When present, it contains a null value except for the last chunk which contains the token usage statistics
 	// for the entire request.
 	Usage *openai.Usage `json:"usage,omitempty"`
+	Error *struct {
+		Message  string `json:"message"`
+		Code     int    `json:"code"`
+		Metadata struct {
+			Headers      map[string]string `json:"headers,omitempty"`
+			ProviderName string            `json:"provider_name,omitempty"`
+		} `json:"metadata,omitempty"`
+		UserId string `json:"user_id,omitempty"`
+	} `json:"error,omitempty"`
 }
 
 // ModelResponse holds both the accumulated content and final usage information from a streaming completion request

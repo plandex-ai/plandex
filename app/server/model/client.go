@@ -348,6 +348,8 @@ func (stream *StreamReader[T]) Recv() (*T, error) {
 		// Extract the data
 		data := strings.TrimPrefix(line, "data: ")
 
+		// log.Println("\n\n--- stream data:\n", data, "\n\n")
+
 		// Check for stream completion
 		if data == "[DONE]" {
 			return nil, io.EOF
