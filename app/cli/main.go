@@ -62,13 +62,20 @@ func init() {
 }
 
 func main() {
-	checkForUpgrade()
-
 	// Manually check for help flags at the root level
 	if len(os.Args) == 2 && (os.Args[1] == "-h" || os.Args[1] == "--help") {
 		// Display your custom help here
 		term.PrintCustomHelp(true)
 		os.Exit(0)
+	}
+
+	var firstArg string
+	if len(os.Args) > 1 {
+		firstArg = os.Args[1]
+	}
+
+	if firstArg != "version" && firstArg != "browser" && firstArg != "help" && firstArg != "h" {
+		checkForUpgrade()
 	}
 
 	cmd.Execute()
