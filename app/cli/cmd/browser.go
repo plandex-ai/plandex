@@ -133,7 +133,11 @@ func openChromeWithLogs(urls []string) error {
 			// This sometimes also includes target info
 			info := e.TargetInfo
 			if info.Type == "page" {
-				pages[info.TargetID] = info.URL
+				url := info.URL
+				if url == "about:blank" {
+					url = urls[0]
+				}
+				pages[info.TargetID] = url
 			}
 
 		case *target.EventTargetDestroyed:
