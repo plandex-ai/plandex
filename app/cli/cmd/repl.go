@@ -128,6 +128,8 @@ func runRepl(cmd *cobra.Command, args []string) {
 			args = append(args, "--daily")
 		} else if reasoningModels {
 			args = append(args, "--reasoning")
+		} else if geminiExpModels {
+			args = append(args, "--gemini-exp")
 		}
 
 		newCmd.Run(newCmd, args)
@@ -431,9 +433,14 @@ func executor(in string, p *prompt.Prompt) {
 			return
 
 		case cmd == "send" || cmd == lib.ReplCmdAliases["send"]:
-			split := strings.Split(condensedInput, "\\s")
-			condensedInput = strings.TrimSpace(split[0])
+			condensedSplit := strings.Split(condensedInput, "\\s")
+			condensedInput = strings.TrimSpace(condensedSplit[0])
 			condensedInput = strings.TrimSpace(condensedInput)
+
+			trimmedSplit := strings.Split(trimmedInput, "\\s")
+			trimmedInput = strings.TrimSpace(trimmedSplit[0])
+			trimmedInput = strings.TrimSpace(trimmedInput)
+
 			if condensedInput == "" {
 				fmt.Println()
 				fmt.Println("🤷‍♂️ No prompt to send")

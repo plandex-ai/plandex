@@ -49,4 +49,5 @@ The REPL has a few convenient flags you can use to start it with different modes
     --strong       Strong pack (more capable models, higher cost and slower)
     --cheap        Cheap pack (less capable models, lower cost and faster)
     --oss          Open source pack (open source models)
+    --gemini-exp   Gemini experimental pack (Gemini 2.5 Pro Experimental for planning and coding, default models for other roles)
 ```

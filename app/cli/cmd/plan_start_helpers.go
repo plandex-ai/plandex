@@ -26,6 +26,7 @@ var (
 	strongModels    bool
 	ossModels       bool
 	cheapModels     bool
+	geminiExpModels bool
 	// crazyModels     bool
 )
 
@@ -43,6 +44,7 @@ func AddNewPlanFlags(cmd *cobra.Command) {
 	cmd.Flags().BoolVar(&strongModels, "strong", false, shared.StrongModelPack.Description)
 	cmd.Flags().BoolVar(&cheapModels, "cheap", false, shared.CheapModelPack.Description)
 	cmd.Flags().BoolVar(&ossModels, "oss", false, shared.OSSModelPack.Description)
+	cmd.Flags().BoolVar(&geminiExpModels, "gemini-exp", false, shared.GeminiExperimentalModelPack.Description)
 	// cmd.Flags().BoolVar(&crazyModels, "crazy", false, shared.CrazyModelPack.Description)
 }
 

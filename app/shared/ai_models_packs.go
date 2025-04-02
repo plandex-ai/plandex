@@ -9,8 +9,9 @@ var OSSModelPack ModelPack
 var CheapModelPack ModelPack
 var AnthropicModelPack ModelPack
 var OpenAIModelPack ModelPack
-var GeminiModelPack ModelPack
-var GeminiPlannerModelPack ModelPack
+
+// var GeminiModelPack ModelPack
+var GeminiExperimentalModelPack ModelPack
 var R1PlannerModelPack ModelPack
 var PerplexityPlannerModelPack ModelPack
 
@@ -20,10 +21,12 @@ var BuiltInModelPacks = []*ModelPack{
 	&StrongModelPack,
 	&CheapModelPack,
 	&OSSModelPack,
+	// &GeminiPlannerModelPack,
 	// &CrazyModelPack,
 	&AnthropicModelPack,
 	&OpenAIModelPack,
-	&GeminiPlannerModelPack,
+	// &GeminiModelPack,
+	&GeminiExperimentalModelPack,
 	&R1PlannerModelPack,
 	&PerplexityPlannerModelPack,
 }
@@ -53,12 +56,6 @@ func init() {
 		Builder: *openaio3miniMedium(ModelRoleBuilder, &modelConfig{
 			strongModel: openaio3miniHigh(ModelRoleBuilder, nil),
 		}),
-
-		// This is interesting with predicted outputs/speculative decoding for small files, but isn't working well with current prompting strategy... o3-mini is much faster when there's early divergence in predicted output, and is also much cheaper, and takes advantage of caching more effectively, so sticking with that for now for all file sizes
-		// WholeFileBuilder: openai4o(ModelRoleWholeFileBuilder, &modelConfigFallbacks{
-		// 	largeOutputFallback: openaio3miniMedium(ModelRoleWholeFileBuilder, nil),
-		// }),
-
 		WholeFileBuilder: openaio3miniMedium(ModelRoleWholeFileBuilder, nil),
 		Namer:            *openai4omini(ModelRoleName, nil),
 		CommitMsg:        *openai4omini(ModelRoleCommitMsg, nil),
@@ -165,7 +162,7 @@ func init() {
 		WholeFileBuilder: openaio3miniLow(ModelRoleWholeFileBuilder, nil),
 		Namer:            *openai4omini(ModelRoleName, nil),
 		CommitMsg:        *openai4omini(ModelRoleCommitMsg, nil),
-		ExecStatus:       *openaio3miniMedium(ModelRoleExecStatus, nil),
+		ExecStatus:       *openaio3miniLow(ModelRoleExecStatus, nil),
 	}
 
 	AnthropicModelPack = ModelPack{
@@ -183,36 +180,38 @@ func init() {
 		ExecStatus:       *claude37Sonnet(ModelRoleExecStatus, nil),
 	}
 
-	GeminiModelPack = ModelPack{
-		Name:        "gemini-experimental",
-		Description: "Uses Gemini 2.5 Pro experimental (free) for heavy lifting, Gemini Flash 2.0 for light tasks. Supports up to 1M input context.",
-		Planner: PlannerRoleConfig{
-			ModelRoleConfig:    *geminipro25exp(ModelRolePlanner, nil),
-			PlannerModelConfig: getPlannerModelConfig(ModelProviderOpenRouter, "google/gemini-2.5-pro-exp-03-25:free"),
-		},
-		Coder:            geminipro25exp(ModelRoleCoder, nil),
-		PlanSummary:      *geminiflash20(ModelRolePlanSummary, nil),
-		Builder:          *geminipro25exp(ModelRoleBuilder, nil),
-		WholeFileBuilder: geminipro25exp(ModelRoleWholeFileBuilder, nil),
-		Namer:            *geminiflash20(ModelRoleName, nil),
-		CommitMsg:        *geminiflash20(ModelRoleCommitMsg, nil),
-		ExecStatus:       *geminipro25exp(ModelRoleExecStatus, nil),
-	}
+	// GeminiModelPack = ModelPack{
+	// 	Name:        "gemini-experimental",
+	// 	Description: "Uses Gemini 2.5 Pro experimental (free) for heavy lifting, Gemini Flash 2.0 for light tasks. Supports up to 1M input context.",
+	// 	Planner: PlannerRoleConfig{
+	// 		ModelRoleConfig:    *geminipro25exp(ModelRolePlanner, nil),
+	// 		PlannerModelConfig: getPlannerModelConfig(ModelProviderOpenRouter, "google/gemini-2.5-pro-exp-03-25:free"),
+	// 	},
+	// 	Coder:            geminipro25exp(ModelRoleCoder, nil),
+	// 	PlanSummary:      *geminiflash20(ModelRolePlanSummary, nil),
+	// 	Builder:          *geminipro25exp(ModelRoleBuilder, nil),
+	// 	WholeFileBuilder: geminipro25exp(ModelRoleWholeFileBuilder, nil),
+	// 	Namer:            *geminiflash20(ModelRoleName, nil),
+	// 	CommitMsg:        *geminiflash20(ModelRoleCommitMsg, nil),
+	// 	ExecStatus:       *geminipro25exp(ModelRoleExecStatus, nil),
+	// }
 
-	GeminiPlannerModelPack = ModelPack{
-		Name:        "gemini-planner",
-		Description: "Uses Gemini 2.5 Pro Experimental for planning, Gemini Flash for light tasks, and default models for implementation. Supports up to 1M input context.",
+	GeminiExperimentalModelPack = ModelPack{
+		Name:        "gemini-exp",
+		Description: "Uses Gemini 2.5 Pro Experimental for planning and coding, default models for other roles. Supports up to 1M input context.",
 		Planner: PlannerRoleConfig{
 			ModelRoleConfig:    *geminipro25exp(ModelRolePlanner, nil),
 			PlannerModelConfig: getPlannerModelConfig(ModelProviderOpenRouter, "google/gemini-2.5-pro-exp-03-25:free"),
 		},
-		Coder:            claude37Sonnet(ModelRoleCoder, nil),
-		PlanSummary:      *geminiflash20(ModelRolePlanSummary, nil),
-		Builder:          *openaio3miniMedium(ModelRoleBuilder, nil),
-		WholeFileBuilder: openaio3miniLow(ModelRoleWholeFileBuilder, nil),
-		Namer:            *geminiflash20(ModelRoleName, nil),
-		CommitMsg:        *geminiflash20(ModelRoleCommitMsg, nil),
-		ExecStatus:       *openaio3miniMedium(ModelRoleExecStatus, nil),
+		Coder:       geminipro25exp(ModelRoleCoder, nil),
+		PlanSummary: *openaio3miniLow(ModelRolePlanSummary, nil),
+		Builder: *openaio3miniMedium(ModelRoleBuilder, &modelConfig{
+			strongModel: openaio3miniHigh(ModelRoleBuilder, nil),
+		}),
+		WholeFileBuilder: openaio3miniMedium(ModelRoleWholeFileBuilder, nil),
+		Namer:            *openai4omini(ModelRoleName, nil),
+		CommitMsg:        *openai4omini(ModelRoleCommitMsg, nil),
+		ExecStatus:       *openaio3miniLow(ModelRoleExecStatus, nil),
 	}
 
 	R1PlannerModelPack = ModelPack{

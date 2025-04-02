@@ -41,7 +41,78 @@ The _apply.sh script should be lightweight and shouldn't do too much work. *Offl
 
 Do not use fancy bash constructs that can be difficult to debug or cause portability problems. Keep it very straightforward so there's a 0% chance of bugs in the _apply.sh script.
 
+ABSOLUTELY DO NOT use the _apply.sh script to generate config files, project files, instructions, documentation, or any other necessary files. The _apply.sh script MUST NOT create files or directories—this must be done ONLY with code blocks. Create those files like any other files in the plan using code blocks. Do NOT include any large context blocks of any kind in the _apply.sh script. Use separate files for large content. Keep the _apply.sh script lightweight, simple, and focused only on executing necessary commands.
 
+#### Startup Logic
+
+` + ApplyScriptStartupLogic + `
+
+❌ DO NOT include complex startup logic or commands with flags in _apply.sh:
+
+- _apply.sh:
+<PlandexBlock lang="bash" path="_apply.sh">
+echo "Importing project resources..."
+godot --headless --quit
+
+# Check if the main scene file exists
+if [ ! -f "scenes/main.tscn" ]; then
+   echo "Error: Main scene file 'scenes/main.tscn' not found."
+   exit 1
+fi
+
+echo "Validating main scene file..."
+if ! godot --headless --check-only --quit scenes/main.tscn; then
+   echo "Error: The main scene file 'scenes/main.tscn' contains errors."
+   exit 1
+fi
+
+echo "Checking for resource loading issues..."
+if ! godot --headless --check-only --quit project.godot; then
+   echo "Error: The project contains resource loading issues."
+   exit 1
+fi
+
+echo "Starting Godot project..."
+godot --position 100,100 --resolution 1280x720 --verbose
+</PlandexBlock>
+
+✅ DO include complex startup logic or commands with flags in a *separate file* in the project, created with a *code block*, not in _apply.sh:
+
+- run.sh:
+<PlandexBlock lang="bash" path="run.sh">
+#!/bin/bash
+set -euo pipefail
+
+echo "Importing project resources..."
+godot --headless --quit
+
+# Check if the main scene file exists
+if [ ! -f "scenes/main.tscn" ]; then
+   echo "Error: Main scene file 'scenes/main.tscn' not found."
+   exit 1
+fi
+
+echo "Validating main scene file..."
+if ! godot --headless --check-only --quit scenes/main.tscn; then
+   echo "Error: The main scene file 'scenes/main.tscn' contains errors."
+   exit 1
+fi
+
+echo "Checking for resource loading issues..."
+if ! godot --headless --check-only --quit project.godot; then
+   echo "Error: The project contains resource loading issues."
+   exit 1
+fi
+
+echo "Starting Godot project..."
+godot --position 100,100 --resolution 1280x720 --verbose
+</PlandexBlock>
+
+- _apply.sh:
+<PlandexBlock lang="bash" path="_apply.sh">
+chmod +x run.sh
+./run.sh
+</PlandexBlock>
 
 #### Command Preservation Rules
 
@@ -116,6 +187,7 @@ Running programs:
       * CRITICAL: ALWAYS run the server in the background using & or the script will block and never reach the browser launch
       * Add a brief sleep to allow the server to start (use your judgment based on the server type and the complexity of the server startup process how long is reasonable)
       * ALWAYS use the special command 'plandex browser [urls...]' to launch the browser with one or more URLs. This command is provided by Plandex and is available on all operating systems. Substitute the actual URL or URLs you want to open in place of [urls...]. This special command *blocks* and streams the browser output to the console. So if you need to run other commands *after* the browser is launched, you must background the browser command and correclty handle cleanup like other background processes. If the browser command exits with an error, kill any other background processes and exit the entire script with a non-zero exit code.
+      - ALWAYS use 'plandex browser' to open the browser and load urls. Do NOT use 'open' or 'xdg-open' or any other command to open the browser. USE 'plandex browser' instead.
       Example:
          # INCORRECT - will block and never launch browser:
          npm start
@@ -840,6 +912,7 @@ Browser Commands:
 - This special command *blocks* and streams the browser output to the console.
 - If commands are needed after launching browser with 'plandex browser', background the browser command (handle cleanup like other background processes).
 - If the browser command exits with an error, kill any other background processes and exit the entire script with a non-zero exit code.
+- ALWAYS use 'plandex browser' to open the browser and load urls. Do NOT use 'open' or 'xdg-open' or any other command to open the browser. USE 'plandex browser' instead.
 
 Error Handling:
 - Check for required tools
@@ -992,6 +1065,9 @@ CRITICAL: The script must handle both program execution and security carefully:
    - Use portable bash that will work across a wide range of Unix-like operating systems and shell versions.
    - If you must run many commands or store logic, create normal files in the plan (with code blocks) and then run them from _apply.sh.
    - Do not include application logic or code that should be saved in the project in _apply.sh. Write it in normal files in the plan instead. _apply.sh is only for one-off commands—if there's any potential value for logic or commands to be saved in the project for later use, write it in normal files in the plan instead, then call them from _apply.sh.
+   - Do NOT use the _apply.sh script to create files or directories of any kind. This must be done ONLY with code blocks.
+   - Do NOT include large context blocks of any kind in the _apply.sh script. Use separate files for large content. Keep the _apply.sh script lightweight, simple, and focused only on executing necessary commands.
+` + ApplyScriptStartupLogic + `
 
 Remember:
 - Do NOT tell the user to run _apply.sh. It will be run automatically when the plan is applied.
@@ -1053,4 +1129,10 @@ DO NOT update the _apply.sh script unless it is necessary to fix the problem. If
 
 const ExitCodePrompt = `
 Apart from _apply.sh, since execution is enabled, when writing *new* code, ensure that code which exits due to errors or otherwise exits unexpectedly does so with a non-zero exit code, unless the user has requested otherwise or there is a very good reason to do otherwise. Do NOT change *existing* code in the user's project to fit this requirement unless the user has specifically requested it, but *do* ensure that unless there's a very good reason to do otherwise, *new* code you add will exit with a non-zero exit code if it exits due to errors.
+`
+
+const ApplyScriptStartupLogic = `
+ALWAYS put startup logic that goes beyond a single command without flags in a *separate file* in the project, created with a *code block*, not in _apply.sh. Even if it's just a single command with some flags, give it its own file, whether that's a Makefile, package.json script, or a separate shell script file (depending on the language and project). This startup logic should follow similar guidelines as the _apply.sh script when it comes to portability, simplicity, backgrounding, cleanup, opening the browser if needed with 'plandex browser', etc. This startup logic should then be called from _apply.sh. It should also be given execution permissions in the _apply.sh script if needed.
+
+In startup scripts and _apply.sh, DO THE MINIMUM NECESSARY. Do not include extra options or ways of starting the project. Avoid conditional logic unless it's truly necessary. Don't output messages to the console. Don't include verbose logging. Don't include verbose comments. Keep it simple, short, and minimal. KEEP IT SIMPLE. Your goal is to accomplish the user's task. No less and no more. Don't go beyond what the user has asked for.
 `

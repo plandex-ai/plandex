@@ -43,6 +43,7 @@ var CliCommands = []CmdConfig{
 	{"new --strong", "", fmt.Sprintf("start a new plan with %s model pack", "'strong'"), true},
 	{"new --cheap", "", fmt.Sprintf("start a new plan with %s model pack", "'cheap'"), true},
 	{"new --oss", "", fmt.Sprintf("start a new plan with %s model pack", "'oss'"), true},
+	{"new --gemini-exp", "", fmt.Sprintf("start a new plan with %s model pack", "'gemini-exp'"), true},
 	// {"new --crazy", "", fmt.Sprintf("start a new plan with %s model pack", "'crazy'"), true},
 	{"plans", "pl", "list plans", true},
 	{"cd", "", "set current plan by name or index", true},
@@ -122,6 +123,7 @@ var CliCommands = []CmdConfig{
 	{"set-model strong", "", fmt.Sprintf("Use %s model pack", "'strong'"), true},
 	{"set-model cheap", "", fmt.Sprintf("Use %s model pack", "'cheap'"), true},
 	{"set-model oss", "", fmt.Sprintf("Use %s model pack", "'oss'"), true},
+	{"set-model gemini-exp", "", fmt.Sprintf("Use %s model pack", "'gemini-exp'"), true},
 	// {"set-model crazy", "", fmt.Sprintf("Use %s model pack", "'crazy'"), true},
 
 	{"ps", "", "list active and recently finished plan streams", true},
@@ -336,7 +338,7 @@ func PrintHelpAllCommands() {
 	fmt.Fprintln(builder)
 
 	color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " New Plan Shortcuts ")
-	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "new --full", "new --semi", "new --plus", "new --basic", "new --none", "new --daily", "new --reasoning", "new --strong", "new --cheap", "new --oss" /*"new --crazy"*/)
+	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "new --full", "new --semi", "new --plus", "new --basic", "new --none", "new --daily", "new --reasoning", "new --strong", "new --cheap", "new --oss", "new --gemini-exp" /*"new --crazy"*/)
 	fmt.Fprintln(builder)
 
 	fmt.Print(builder.String())

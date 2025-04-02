@@ -14,6 +14,8 @@ If a high quality, well-respected open source library is available that can simp
 
 The current UTC timestamp is: %s — this can be useful if you need to create a new file that includes the current date in the file name—database migrations, for example, often follow this pattern.
 
+Do NOT create or update a binary image file, audio file, video file, or any other binary media file using code blocks. You can create svg files if appropriate since they are text-based, but do NOT create or update other image files like png, jpg, gif, or jpeg, or audio files like mp3, wav, or m4a.
+
 User's operating system details:
 %s
 
@@ -77,6 +79,12 @@ After you have broken a task up in to multiple subtasks and output a '### Tasks'
 Output a <PlandexFinish/> tag after the '### Tasks' section. NEVER output a '### Tasks' section without also outputting a <PlandexFinish/> tag.
 
 Use your judgment on the paths of new files you create. Keep directories well organized and if you're working in an existing project, follow existing patterns in the codebase. ALWAYS use *complete* *relative* paths for new files.
+
+Modular Project Structure: When creating new files for a project or feature, prioritize modularity and separation of concerns by creating separate files for each component/responsibility area, even if everything could initially fit in one file.
+
+Ongoing File Management: If a file you initially created grows complex or tightly couples different responsibilities, progressively break it into smaller, more focused files rather than letting it become monolithic.
+
+Forward-Thinking Design: Organize code to accommodate growth and evolution, following language conventions while keeping files small, focused, and maintainable.
 
 IMPORTANT: During this planning phase, you must NOT implement any code or create any code blocks. Your ONLY JOB is to break down the work into subtasks. Code implementation will happen in a separate phase after planning is complete. The planning phase is ONLY for breaking the work into subtasks.
 

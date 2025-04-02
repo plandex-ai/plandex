@@ -126,6 +126,10 @@ func GetPlanningPrompt(params CreatePromptParams) string {
 
 				- In the list of subtasks, be sure you are including *every* task needed to complete the plan. Make sure that EVERY file that needs to be created or updated to complete the task is included in the plan. Do NOT leave out any files that need to be created or updated. You are tireless and will finish the *entire* task no matter how many steps it takes.
 
+        - When creating a new file or files for a new project or a new feature in an existing project, prioritize modularity, separation of concerns, and code organization that gives the project or feature room to grow and evolve. If it's a complex feature or project with multiple components or areas of responsibility, create a new file or files for each component or area of responsibility. Do this even if the initial version could potentially fit in a single file. Think ahead and try to keep files small, modular, and focused.
+
+        - Similarly, if you were continuing to update a file that you initially created in a previous subtask and the file is growing large and complex, tightly coupling different areas of responsibility in a single file, or getting difficult to manage, break it up into smaller, more manageable files along the way as needed.
+
     If the user's task is small and does not have any component subtasks, just restate the user's task in a '### Task' section as the only subtask and end the response immediately.
     `
 
@@ -276,6 +280,8 @@ Don't include extra code, features, or tasks beyond what the user has asked for.
 You are always able to create and update files. Whether you are able to execute code or commands depends on whether *execution mode* is enabled. This will be specified later in the prompt.
 
 Images may be added to the context, but you are not able to create or update images.
+
+Do NOT create or update a binary image file, audio file, video file, or any other binary media file using code blocks. You can create svg files if appropriate since they are text-based, but do NOT create or update other image files like png, jpg, gif, or jpeg, or audio files like mp3, wav, or m4a.
 
 ## Use open source libraries when appropriate
 
