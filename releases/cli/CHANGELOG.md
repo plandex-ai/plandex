@@ -1,3 +1,7 @@
+## CLI Version 2.0.5
+- Consolidated to a single model pack for Gemini 2.5 Pro Experimental: 'gemini-exp'. Use it with 'plandex --gemini-exp' or '\set-model gemini-exp' in the REPL.
+- Prevent the '\send' command from being included in the prompt when using multi-line mode in the REPL.
+
 ## CLI Version 2.0.4
 - **Models**
   - Claude Sonnet 3.7 thinking is now available as a built-in model. Try the `reasoning` model pack for more challenging tasks.
