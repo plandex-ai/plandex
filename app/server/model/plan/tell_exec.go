@@ -293,7 +293,7 @@ func execTellPlan(params execTellPlanParams) {
 		return
 	}
 
-	log.Println("messages:\n\n", spew.Sdump(state.messages))
+	// log.Println("messages:\n\n", spew.Sdump(state.messages))
 
 	// log.Println("promptMessage:", spew.Sdump(promptMessage))
 

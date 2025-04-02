@@ -187,7 +187,7 @@ Running programs:
       * CRITICAL: ALWAYS run the server in the background using & or the script will block and never reach the browser launch
       * Add a brief sleep to allow the server to start (use your judgment based on the server type and the complexity of the server startup process how long is reasonable)
       * ALWAYS use the special command 'plandex browser [urls...]' to launch the browser with one or more URLs. This command is provided by Plandex and is available on all operating systems. Substitute the actual URL or URLs you want to open in place of [urls...]. This special command *blocks* and streams the browser output to the console. So if you need to run other commands *after* the browser is launched, you must background the browser command and correclty handle cleanup like other background processes. If the browser command exits with an error, kill any other background processes and exit the entire script with a non-zero exit code.
-      - ALWAYS use 'plandex browser' to open the browser and load urls. Do NOT use 'open' or 'xdg-open' or any other command to open the browser. USE 'plandex browser' instead.
+
       Example:
          # INCORRECT - will block and never launch browser:
          npm start
@@ -204,7 +204,40 @@ Running programs:
          wait $SERVER_PID
             
       NOTE: when running anything in the background, you must handle the possibility that the process might fail so that no orphaned processes remain.
-   
+      - ALWAYS use 'plandex browser' to open the browser and load urls. Do NOT use 'open' or 'xdg-open' or any other command to open the browser. USE 'plandex browser' instead.
+      * When using the 'plandex browser' command, you ABSOLUTE MUST EXPLICITLY kill all other processes and exit the script with a non-zero exit code if the browser command fails. It is CRITICAL that you DO NOT omit this. The 'plandex browser' command will fail if there are any uncaught errors or console.error logs in the browser.
+      *CRUCIAL NOTE: the _apply.sh script will be run with 'set -e' (it will be set for you, don't add it yourself) so you must DIRECTLY handle errors in foreground commands and cleanup in a '|| { ... }' block immediately when the command fails. *This includes the 'plandex browser' command.* Do NOT omit the '|| { ... }' block for 'plandex browser' or any other foreground command.
+      * 'plandex browser' times out by default after 5 seconds if the page doesn't load. You can override the timeout with the '--timeout' flag if it's necessary to wait longer (only do this if there's a clear reason to wait longer, otherwise use the default).
+
+      Example:
+         ## INCORRECT - will not kill other processes and will not exit on browser failure:
+         npm start &
+         SERVER_PID=$!
+         sleep 3
+         plandex browser http://localhost:$PORT
+         wait $SERVER_PID
+
+         ## INCORRECT - will not cleanup on failure due to 'set -e':
+         npm start &
+         SERVER_PID=$!
+         sleep 3
+         plandex browser http://localhost:$PORT
+
+         if [ $? -ne 0 ]; then
+            kill $SERVER_PID
+            exit 1
+         fi
+         wait $SERVER_PID
+
+         ## CORRECT - will kill other processes and exit on browser failure, correctly handles 'set -e' with '|| { ... }' block:
+         npm start &
+         SERVER_PID=$!
+         sleep 3
+         plandex browser http://localhost:$PORT || {  
+            kill $SERVER_PID
+            exit 1
+         }
+         wait $SERVER_PID
 `
 
 const ApplyScriptPlanningPrompt = ApplyScriptSharedPrompt + `
@@ -913,7 +946,9 @@ Browser Commands:
 - If commands are needed after launching browser with 'plandex browser', background the browser command (handle cleanup like other background processes).
 - If the browser command exits with an error, kill any other background processes and exit the entire script with a non-zero exit code.
 - ALWAYS use 'plandex browser' to open the browser and load urls. Do NOT use 'open' or 'xdg-open' or any other command to open the browser. USE 'plandex browser' instead.
-
+- When using the 'plandex browser' command, you ABSOLUTE MUST EXPLICITLY kill all other processes and exit the script with a non-zero exit code if the 'plandex browser' command fails. It is CRITICAL that you DO NOT omit this. The 'plandex browser' command will fail if there are any uncaught errors or console.error logs in the browser.
+- 'plandex browser' times out by default after 5 seconds if the page doesn't load. You can override the timeout with the '--timeout' flag if it's necessary to wait longer (only do this if there's a clear reason to wait longer, otherwise use the default).
+- CRUCIAL NOTE: the _apply.sh script will be run with 'set -e' (it will be set for you, don't add it yourself) so you must DIRECTLY handle errors in foreground commands and cleanup in a '|| { ... }' block immediately when the command fails. *This includes the 'plandex browser' command.* Do NOT omit the '|| { ... }' block for 'plandex browser' or any other foreground command.
 Error Handling:
 - Check for required tools
 - Exit with clear error messages
