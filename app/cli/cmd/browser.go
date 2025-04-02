@@ -10,6 +10,7 @@ import (
 	"os/signal"
 	"runtime"
 	"syscall"
+	"time"
 
 	chrome_log "github.com/chromedp/cdproto/log"
 	chrome_runtime "github.com/chromedp/cdproto/runtime"
@@ -17,6 +18,8 @@ import (
 	"github.com/chromedp/chromedp"
 	"github.com/spf13/cobra"
 )
+
+var timeoutSeconds int
 
 // browserCmd is our cobra command
 var browserCmd = &cobra.Command{
@@ -27,6 +30,7 @@ var browserCmd = &cobra.Command{
 
 func init() {
 	RootCmd.AddCommand(browserCmd)
+	browserCmd.Flags().IntVar(&timeoutSeconds, "timeout", 5, "Timeout in seconds for browser to load")
 }
 
 // browser is the main function for our command.
@@ -108,7 +112,7 @@ func openChromeWithLogs(urls []string) error {
 	var initialTargetID target.ID
 	chromedp.ListenTarget(browserCtx, func(ev interface{}) {
 		if e, ok := ev.(*target.EventTargetCreated); ok {
-			fmt.Printf("[DEBUG] Got event: %#v\n", e)
+			// fmt.Printf("[DEBUG] Got event: %#v\n", e)
 			if e.TargetInfo.Type == "page" {
 				initialTargetID = e.TargetInfo.TargetID
 			}
@@ -169,13 +173,14 @@ func openChromeWithLogs(urls []string) error {
 	// 3) Open all URLs in new tabs
 	for i, url := range urls {
 		// Reuse the initial browser tab for the first URL
-		var tabCtx context.Context
+		var ctx context.Context
 		if i == 0 {
-			tabCtx, _ = chromedp.NewContext(browserCtx, chromedp.WithTargetID(initialTargetID))
+			ctx, _ = chromedp.NewContext(browserCtx, chromedp.WithTargetID(initialTargetID))
 		} else {
 			// Create a new tab for each additional URL
-			tabCtx, _ = chromedp.NewContext(browserCtx)
+			ctx, _ = chromedp.NewContext(browserCtx)
 		}
+		tabCtx, _ := context.WithTimeout(ctx, time.Duration(timeoutSeconds)*time.Second)
 
 		chromedp.ListenTarget(tabCtx, func(ev interface{}) {
 			switch e := ev.(type) {
@@ -203,8 +208,12 @@ func openChromeWithLogs(urls []string) error {
 			chrome_runtime.Enable(),
 			chrome_log.Enable(),
 			chromedp.Navigate(url),
+			chromedp.WaitReady("body", chromedp.ByQuery),
 		); err != nil {
-			log.Printf("Failed to navigate to %s: %v", url, err)
+			fmt.Printf("Failed to load url %s: %v", url, err)
+			cancelBrowser()
+			cancelAllocator()
+			os.Exit(1)
 		} else {
 			fmt.Printf("Opened (%d/%d): %s\n", i+1, len(urls), url)
 		}
