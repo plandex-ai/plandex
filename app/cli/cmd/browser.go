@@ -30,7 +30,7 @@ var browserCmd = &cobra.Command{
 
 func init() {
 	RootCmd.AddCommand(browserCmd)
-	browserCmd.Flags().IntVar(&timeoutSeconds, "timeout", 5, "Timeout in seconds for browser to load")
+	browserCmd.Flags().IntVar(&timeoutSeconds, "timeout", 10, "Timeout in seconds for browser to load")
 }
 
 // browser is the main function for our command.
