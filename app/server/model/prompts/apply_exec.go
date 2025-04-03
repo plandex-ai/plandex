@@ -207,7 +207,6 @@ Running programs:
       - ALWAYS use 'plandex browser' to open the browser and load urls. Do NOT use 'open' or 'xdg-open' or any other command to open the browser. USE 'plandex browser' instead.
       * When using the 'plandex browser' command, you ABSOLUTE MUST EXPLICITLY kill all other processes and exit the script with a non-zero exit code if the browser command fails. It is CRITICAL that you DO NOT omit this. The 'plandex browser' command will fail if there are any uncaught errors or console.error logs in the browser.
       *CRUCIAL NOTE: the _apply.sh script will be run with 'set -e' (it will be set for you, don't add it yourself) so you must DIRECTLY handle errors in foreground commands and cleanup in a '|| { ... }' block immediately when the command fails. *This includes the 'plandex browser' command.* Do NOT omit the '|| { ... }' block for 'plandex browser' or any other foreground command.
-      * 'plandex browser' times out by default after 5 seconds if the page doesn't load. You can override the timeout with the '--timeout' flag if it's necessary to wait longer (only do this if there's a clear reason to wait longer, otherwise use the default).
 
       Example:
          ## INCORRECT - will not kill other processes and will not exit on browser failure:
@@ -947,7 +946,6 @@ Browser Commands:
 - If the browser command exits with an error, kill any other background processes and exit the entire script with a non-zero exit code.
 - ALWAYS use 'plandex browser' to open the browser and load urls. Do NOT use 'open' or 'xdg-open' or any other command to open the browser. USE 'plandex browser' instead.
 - When using the 'plandex browser' command, you ABSOLUTE MUST EXPLICITLY kill all other processes and exit the script with a non-zero exit code if the 'plandex browser' command fails. It is CRITICAL that you DO NOT omit this. The 'plandex browser' command will fail if there are any uncaught errors or console.error logs in the browser.
-- 'plandex browser' times out by default after 5 seconds if the page doesn't load. You can override the timeout with the '--timeout' flag if it's necessary to wait longer (only do this if there's a clear reason to wait longer, otherwise use the default).
 - CRUCIAL NOTE: the _apply.sh script will be run with 'set -e' (it will be set for you, don't add it yourself) so you must DIRECTLY handle errors in foreground commands and cleanup in a '|| { ... }' block immediately when the command fails. *This includes the 'plandex browser' command.* Do NOT omit the '|| { ... }' block for 'plandex browser' or any other foreground command.
 Error Handling:
 - Check for required tools
