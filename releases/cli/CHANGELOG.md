@@ -1,3 +1,7 @@
+## CLI Version 2.0.6
+- Timeout for 'plandex browser' log capture command
+- Better failure handling for 'plandex browser' command
+
 ## CLI Version 2.0.5
 - Consolidated to a single model pack for Gemini 2.5 Pro Experimental: 'gemini-exp'. Use it with 'plandex --gemini-exp' or '\set-model gemini-exp' in the REPL.
 - Prevent the '\send' command from being included in the prompt when using multi-line mode in the REPL.
