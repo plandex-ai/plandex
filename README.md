@@ -25,10 +25,10 @@
     <b>Docs</b>
   </a>
    · 
-  <!-- <a href="#more-examples-">
+  <a href="#examples-">
     <b>Examples</b>
   </a>
-   ·  -->
+   · 
   <a href="https://docs.plandex.ai/hosting/self-hosting/local-mode-quickstart">
     <b>Local Self-Hosted Mode</b>
   </a>
@@ -124,53 +124,22 @@
 
 - 📦 **One-line, zero dependency CLI install**. Dockerized local mode for easily self-hosting the server. Cloud-hosting options for extra reliability and convenience.
 
-<!-- <br/>
-<br/> -->
-
-<!-- Vimeo link is nicer on mobile than embedded video... downside is it navigates to vimeo in same tab (no way to add target=_blank) -->
-<!-- https://github.com/plandex-ai/plandex/assets/545350/c2ee3bcd-1512-493f-bdd5-e3a4ca534a36 -->
-
-<!-- <a href="https://player.vimeo.com/video/926634577">
-  <img src="images/plandex-intro-vimeo.png" alt="Plandex intro video" width="100%"/>
-</a> -->
-
-<!-- <br/>
-<br/> -->
-
-<!-- ## More examples  🎥
-
-<h4>👉  <a href="https://www.youtube.com/watch?v=0ULjQx25S_Y">Building Pong in C/OpenGL with GPT-4o and Plandex</a></h4>
-
-<h4>👉  <a href="https://www.youtube.com/watch?v=rnlepfh7TN4">Fixing a tricky real-world bug in 5 minutes with Claude Opus 3 and Plandex</a></h4>
-
-<br/> -->
-
-<!-- ## Learn more  🧐
-
-<!-- - [Overview](#overview-) -->
-<!-- - [Install](#install)
-- [Hosting options](#hosting-options-)
-- [Get started](#get-started-)
-- [Docs](https://docs.plandex.ai/)
-- [Build complex software](#build-complex-software-with-llms-)
-- [Why Plandex?](#why-plandex-)
-- [Discussion and discord](#discussion-and-discord-)
-- [Contributors](#contributors-) -->
-<br/>
-
-<!-- ## Overview  📚
-
-<p>Churn through your backlog, work with unfamiliar technologies, get unstuck, and <strong>spend less time on the boring stuff.</strong></p>
-
-<p>Plandex is a <strong>reliable and developer-friendly</strong> AI coding agent in your terminal. It can plan out and complete <strong>large tasks</strong> that span many files and steps.</p>
-
-<p>Designed for <strong>real-world use-cases</strong>, Plandex can help you build a new app quickly, add new features to an existing codebase, write tests and scripts, understand code, fix bugs, and automatically debug failing commands (like tests, typecheckers, linters, etc.). </p>
-
-<br/> -->
 
 ## Workflow  🔄
 
 <img src="images/plandex-workflow.png" alt="Plandex workflow" width="100%"/>
+
+## Examples  🎥
+
+  <br/>
+
+<div align="center">
+  <a href="https://www.youtube.com/watch?v=VCegxOCAPq0">
+    <img src="images/plandex-browser-debug-yt.png" alt="Plandex Browser Debugging Example" width="800">
+  </a>
+</div>
+
+<br/>
 
 ## Install  📥
 
