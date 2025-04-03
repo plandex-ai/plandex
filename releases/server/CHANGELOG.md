@@ -1,3 +1,7 @@
+## Server Version 2.0.6
+- Improvements to process management and cleanup for command execution
+- Remove extraneous model request logging
+
 ## Server Version 2.0.5
 - Fix for a bug that was causing occasional model errors. Model calls should be much more reliable now.
 - Better error handling and error messages for model errors (rate limits or other errors).
