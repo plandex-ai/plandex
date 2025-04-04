@@ -134,7 +134,7 @@
   <br/>
 
 <div align="center">
-  <a href="https://www.youtube.com/watch?v=VCegxOCAPq0">
+  <a href="https://www.youtube.com/watch?v=g-_76U_nK0Y">
     <img src="images/plandex-browser-debug-yt.png" alt="Plandex Browser Debugging Example" width="800">
   </a>
 </div>
