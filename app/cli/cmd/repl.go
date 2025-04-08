@@ -509,7 +509,12 @@ func executor(in string, p *prompt.Prompt) {
 				}
 			}
 
+			if matchedCmd == "" && len(suggestions) > 0 {
+				matchedCmd = strings.Replace(suggestions[0].Text, "\\", "", 1)
+			}
+
 			if matchedCmd == "" {
+
 				cancelOpt := "Cancel"
 				asPrompt := cmd
 				if len(asPrompt) > 20 {
