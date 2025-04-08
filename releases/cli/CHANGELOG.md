@@ -1,3 +1,6 @@
+## CLI Version 2.0.7
+- Better handling of partial or mistyped commands in the REPL. Rather than falling through to the AI model, a partial `\` command that matches only a single option will default to that command. If multiple commands could match, you'll be given a list of options. For input that begins with a `\` but doesn't match any command, there is now a confirmation step. This helps to prevent accidentally sending mistyped commands the model and burning tokens.
+
 ## CLI Version 2.0.6
 - Timeout for 'plandex browser' log capture command
 - Better failure handling for 'plandex browser' command
