@@ -24,6 +24,8 @@ import (
 
 	"github.com/plandex-ai/go-prompt"
 	pstrings "github.com/plandex-ai/go-prompt/strings"
+
+	"github.com/lithammer/fuzzysearch/fuzzy"
 )
 
 var replCmd = &cobra.Command{
@@ -304,6 +306,8 @@ func executeOnEnter(p *prompt.Prompt, indentSize int) (int, bool) {
 	return 0, true
 }
 
+const cancelOpt = "Cancel"
+
 func executor(in string, p *prompt.Prompt) {
 	defer lib.WriteHistory(in)
 
@@ -395,194 +399,62 @@ func executor(in string, p *prompt.Prompt) {
 		if cmdString == "" {
 			return
 		}
-
-		// Split into command and args
-		parts := strings.Fields(cmdString)
-		cmd := parts[0]
-		args := parts[1:]
-
-		var substringNEQMatches []string
+		res := execWithInput(execWithInputParams{
+			cmdString:          cmdString,
+			in:                 condensedInput,
+			lastBackslashIndex: lastBackslashIndex,
+			preservedBuffer:    preservedBuffer,
+			p:                  p,
+			lastLine:           lastLine,
+			condensedInput:     condensedInput,
+			trimmedInput:       trimmedInput,
+			lines:              lines,
+			suggestions:        suggestions,
+		})
+		if res.shouldReturn {
+			return
+		}
+		condensedInput = res.condensedInput
+		trimmedInput = res.trimmedInput
+	} else if len(lines) == 1 {
+		// Check for likely accidental command inputs (with no backslash) and confirm with user
+		var allCommands []string
 		for replCmd := range lib.ReplCmdAliases {
-			if strings.HasPrefix(replCmd, cmd) && replCmd != cmd {
-				substringNEQMatches = append(substringNEQMatches, replCmd)
-			}
+			allCommands = append(allCommands, replCmd)
 		}
 		for _, config := range term.CliCommands {
-			if strings.HasPrefix(config.Cmd, cmd) && config.Cmd != cmd {
-				substringNEQMatches = append(substringNEQMatches, config.Cmd)
+			if config.Repl {
+				allCommands = append(allCommands, config.Cmd)
 			}
 		}
 
-		// Handle built-in REPL commands
-		switch {
-		case cmd == "quit" || cmd == lib.ReplCmdAliases["quit"] || len(substringNEQMatches) == 1 && substringNEQMatches[0] == "quit":
-			lib.WriteHistory(in)
-			os.Exit(0)
+		// Only suggest commands if they're close enough matches
+		maybeCmds := findSimilarCommands(lastLine, allCommands)
 
-		case cmd == "help" || cmd == lib.ReplCmdAliases["help"] || len(substringNEQMatches) == 1 && substringNEQMatches[0] == "help":
-			if lastBackslashIndex > 0 {
-				preservedBuffer += lastLine[:lastBackslashIndex]
-			}
-			replHelp()
-			fmt.Println()
-			if preservedBuffer != "" {
-				p.InsertTextMoveCursor(preservedBuffer, true)
-			}
-			return
-
-		case cmd == "multi" || cmd == lib.ReplCmdAliases["multi"] || len(substringNEQMatches) == 1 && substringNEQMatches[0] == "multi":
-			if lastBackslashIndex > 0 {
-				preservedBuffer += lastLine[:lastBackslashIndex]
-			}
-			fmt.Println()
-			lib.CurrentReplState.IsMulti = !lib.CurrentReplState.IsMulti
-			showMultiLineMode()
-			lib.WriteState()
-			fmt.Println()
-			if preservedBuffer != "" {
-				p.InsertTextMoveCursor(preservedBuffer, true)
-			}
-			return
-
-		case cmd == "send" || cmd == lib.ReplCmdAliases["send"] || len(substringNEQMatches) == 1 && substringNEQMatches[0] == "send":
-			condensedSplit := strings.Split(condensedInput, "\\s")
-			condensedInput = strings.TrimSpace(condensedSplit[0])
-			condensedInput = strings.TrimSpace(condensedInput)
-
-			trimmedSplit := strings.Split(trimmedInput, "\\s")
-			trimmedInput = strings.TrimSpace(trimmedSplit[0])
-			trimmedInput = strings.TrimSpace(trimmedInput)
-
-			if condensedInput == "" {
-				fmt.Println()
-				fmt.Println("🤷‍♂️ No prompt to send")
-				fmt.Println()
+		if len(maybeCmds) > 0 {
+			res := suggestCmds(maybeCmds, getPromptOpt(lastLine))
+			if res.shouldReturn {
 				return
 			}
-
-		case cmd == "tell" || cmd == lib.ReplCmdAliases["tell"] || len(substringNEQMatches) == 1 && substringNEQMatches[0] == "tell":
-			if lastBackslashIndex > 0 {
-				preservedBuffer += lastLine[:lastBackslashIndex]
-			}
-			lib.CurrentReplState.Mode = lib.ReplModeTell
-			lib.WriteState()
-			showReplMode()
-			if preservedBuffer != "" {
-				p.InsertTextMoveCursor(preservedBuffer, true)
-			}
-			return
-
-		case cmd == "chat" || cmd == lib.ReplCmdAliases["chat"] || len(substringNEQMatches) == 1 && substringNEQMatches[0] == "chat":
-			if lastBackslashIndex > 0 {
-				preservedBuffer += lastLine[:lastBackslashIndex]
-			}
-			lib.CurrentReplState.Mode = lib.ReplModeChat
-			lib.WriteState()
-			showReplMode()
-			if preservedBuffer != "" {
-				p.InsertTextMoveCursor(preservedBuffer, true)
-			}
-			return
-
-		case cmd == "run" || cmd == lib.ReplCmdAliases["run"] || len(substringNEQMatches) == 1 && substringNEQMatches[0] == "run":
-			if lastBackslashIndex > 0 {
-				preservedBuffer += lastLine[:lastBackslashIndex]
-			}
-			fmt.Println()
-			if err := handleRunCommand(args); err != nil {
-				color.New(term.ColorHiRed).Printf("Run command failed: %v\n", err)
-			}
-			fmt.Println()
-			if preservedBuffer != "" {
-				p.InsertTextMoveCursor(preservedBuffer, true)
-			}
-			return
-
-		default:
-			// Check CLI commands
-			var matchedCmd string
-
-			for _, config := range term.CliCommands {
-				if (cmd == config.Cmd || (config.Alias != "" && cmd == config.Alias) || len(substringNEQMatches) == 1 && substringNEQMatches[0] == config.Cmd) && config.Repl {
-					matchedCmd = config.Cmd
-					break
-				}
-			}
-
-			if matchedCmd == "" && len(suggestions) > 0 {
-				matchedCmd = strings.Replace(suggestions[0].Text, "\\", "", 1)
-			}
-
-			if matchedCmd == "" {
-
-				cancelOpt := "Cancel"
-				asPrompt := cmd
-				if len(asPrompt) > 20 {
-					asPrompt = asPrompt[:20] + "..."
-				}
-				promptOpt := fmt.Sprintf("Send '%s' as a prompt to the AI model", asPrompt)
-				if len(substringNEQMatches) > 1 {
-					fmt.Println()
-					opts := []string{}
-
-					for _, match := range substringNEQMatches {
-						opts = append(opts, "\\"+match)
-					}
-					opts = append(opts, cancelOpt, promptOpt)
-					sel, err := term.SelectFromList("🤔 Did you mean to type one of these commands?", opts)
-					if err != nil {
-						color.New(term.ColorHiRed).Printf("Error selecting from list: %v\n", err)
-					}
-					if sel == cancelOpt {
-						return
-					} else if sel != promptOpt {
-						matchedCmd = strings.Replace(sel, "\\", "", 1)
-					}
-				} else if len(lines) == 1 && strings.HasPrefix(trimmedInput, "\\") {
-					showCmdsOpt := "Show available commands"
-					opts := []string{cancelOpt, showCmdsOpt, promptOpt}
-					sel, err := term.SelectFromList("🤔 Couldn't find a matching command. What do you want to do?", opts)
-					if err != nil {
-						color.New(term.ColorHiRed).Printf("Error selecting from list: %v\n", err)
-					}
-					if sel == cancelOpt {
-						return
-					} else if sel == showCmdsOpt {
-						replHelp()
-						fmt.Println()
-						return
-					}
-				}
-			}
-
+			matchedCmd := res.matchedCmd
 			if matchedCmd != "" {
-				// fmt.Println("> plandex " + config.Cmd)
-				if lastBackslashIndex > 0 {
-					preservedBuffer += lastLine[:lastBackslashIndex]
-				}
-				fmt.Println()
-				execArgs := []string{matchedCmd}
-				if matchedCmd == "continue" && chatOnly {
-					execArgs = append(execArgs, "--chat")
-				}
-				execArgs = append(execArgs, args...)
-				_, err := lib.ExecPlandexCommandWithParams(execArgs, lib.ExecPlandexCommandParams{
-					SessionId: sessionId,
+				res := execWithInput(execWithInputParams{
+					cmdString:          matchedCmd,
+					in:                 condensedInput,
+					lastBackslashIndex: lastBackslashIndex,
+					preservedBuffer:    preservedBuffer,
+					p:                  p,
+					lastLine:           lastLine,
+					condensedInput:     condensedInput,
+					trimmedInput:       trimmedInput,
+					lines:              lines,
+					suggestions:        suggestions,
 				})
-				if err != nil {
-					color.New(term.ColorHiRed).Printf("Error executing command: %v\n", err)
+				if res.shouldReturn {
+					return
 				}
-				fmt.Println()
-				if preservedBuffer != "" {
-					p.InsertTextMoveCursor(preservedBuffer, true)
-				}
-
-				if strings.HasPrefix(matchedCmd, "set-auto") || strings.HasPrefix(matchedCmd, "set-config") {
-					term.StartSpinner("")
-					setReplConfig()
-					term.StopSpinner()
-				}
-				return
+				condensedInput = res.condensedInput
+				trimmedInput = res.trimmedInput
 			}
 		}
 	}
@@ -747,6 +619,9 @@ func completer(in prompt.Document) ([]prompt.Suggest, pstrings.RuneNumber, pstri
 	if strings.HasPrefix(w, "\\") {
 		isValidCommand := false
 		for _, config := range term.CliCommands {
+			if !config.Repl {
+				continue
+			}
 			if strings.HasPrefix(config.Cmd, wCmd) ||
 				(config.Alias != "" && strings.HasPrefix(config.Alias, wCmd)) {
 				isValidCommand = true
@@ -1130,6 +1005,7 @@ func parseCommand(in string) (string, string) {
 			var matchedCmd string
 
 			for _, config := range term.CliCommands {
+
 				if (cmd == config.Cmd || (config.Alias != "" && cmd == config.Alias)) && config.Repl {
 					matchedCmd = config.Cmd
 					break
@@ -1205,4 +1081,316 @@ func handleRunCommand(args []string) error {
 	}
 
 	return nil
+}
+
+func getPromptOpt(cmd string) string {
+	asPrompt := cmd
+	if len(asPrompt) > 20 {
+		asPrompt = asPrompt[:20] + "..."
+	}
+	return fmt.Sprintf("Send '%s' as a prompt to the AI model", asPrompt)
+}
+
+type suggestCmdsResult struct {
+	shouldReturn bool
+	matchedCmd   string
+}
+
+func suggestCmds(cmds []string, promptOpt string) suggestCmdsResult {
+	var matchedCmd string
+
+	fmt.Println()
+	opts := []string{}
+
+	for _, match := range cmds {
+		opts = append(opts, "\\"+match)
+	}
+	opts = append(opts, cancelOpt, promptOpt)
+	sel, err := term.SelectFromList("🤔 Did you mean to type one of these commands?", opts)
+	if err != nil {
+		color.New(term.ColorHiRed).Printf("Error selecting from list: %v\n", err)
+	}
+	if sel == cancelOpt {
+		return suggestCmdsResult{shouldReturn: true}
+	} else if sel != promptOpt {
+		matchedCmd = strings.Replace(sel, "\\", "", 1)
+	}
+
+	return suggestCmdsResult{matchedCmd: matchedCmd}
+}
+
+type execWithInputParams struct {
+	cmdString          string
+	in                 string
+	lastBackslashIndex int
+	preservedBuffer    string
+	p                  *prompt.Prompt
+	lastLine           string
+	condensedInput     string
+	trimmedInput       string
+	lines              []string
+	suggestions        []prompt.Suggest
+}
+
+type execWithInputResult struct {
+	shouldReturn   bool
+	condensedInput string
+	trimmedInput   string
+}
+
+func execWithInput(params execWithInputParams) execWithInputResult {
+	cmdString := params.cmdString
+	in := params.in
+	lastBackslashIndex := params.lastBackslashIndex
+	preservedBuffer := params.preservedBuffer
+	lastLine := params.lastLine
+	p := params.p
+	condensedInput := params.condensedInput
+	trimmedInput := params.trimmedInput
+	lines := params.lines
+	suggestions := params.suggestions
+
+	// Split into command and args
+	parts := strings.Fields(cmdString)
+	cmd := parts[0]
+	args := parts[1:]
+
+	var fuzzyNEQCheckCmds []string
+	for replCmd := range lib.ReplCmdAliases {
+		if replCmd != cmd {
+			fuzzyNEQCheckCmds = append(fuzzyNEQCheckCmds, replCmd)
+		}
+	}
+	for _, config := range term.CliCommands {
+		if !config.Repl {
+			continue
+		}
+		if config.Cmd != cmd {
+			fuzzyNEQCheckCmds = append(fuzzyNEQCheckCmds, config.Cmd)
+		}
+	}
+
+	fuzzyNEQMatches := findSimilarCommands(cmd, fuzzyNEQCheckCmds)
+
+	// Handle built-in REPL commands
+	switch {
+	case cmd == "quit" || cmd == lib.ReplCmdAliases["quit"]:
+		lib.WriteHistory(in)
+		os.Exit(0)
+
+	case cmd == "help" || cmd == lib.ReplCmdAliases["help"]:
+		if lastBackslashIndex > 0 {
+			preservedBuffer += lastLine[:lastBackslashIndex]
+		}
+		replHelp()
+		fmt.Println()
+		if preservedBuffer != "" {
+			p.InsertTextMoveCursor(preservedBuffer, true)
+		}
+		return execWithInputResult{shouldReturn: true}
+
+	case cmd == "multi" || cmd == lib.ReplCmdAliases["multi"]:
+		if lastBackslashIndex > 0 {
+			preservedBuffer += lastLine[:lastBackslashIndex]
+		}
+		fmt.Println()
+		lib.CurrentReplState.IsMulti = !lib.CurrentReplState.IsMulti
+		showMultiLineMode()
+		lib.WriteState()
+		fmt.Println()
+		if preservedBuffer != "" {
+			p.InsertTextMoveCursor(preservedBuffer, true)
+		}
+		return execWithInputResult{shouldReturn: true}
+
+	case cmd == "send" || cmd == lib.ReplCmdAliases["send"]:
+		condensedSplit := strings.Split(condensedInput, "\\s")
+		condensedInput = strings.TrimSpace(condensedSplit[0])
+		condensedInput = strings.TrimSpace(condensedInput)
+
+		trimmedSplit := strings.Split(trimmedInput, "\\s")
+		trimmedInput = strings.TrimSpace(trimmedSplit[0])
+		trimmedInput = strings.TrimSpace(trimmedInput)
+
+		if condensedInput == "" {
+			fmt.Println()
+			fmt.Println("🤷‍♂️ No prompt to send")
+			fmt.Println()
+			return execWithInputResult{shouldReturn: true}
+		}
+
+	case cmd == "tell" || cmd == lib.ReplCmdAliases["tell"]:
+		if lastBackslashIndex > 0 {
+			preservedBuffer += lastLine[:lastBackslashIndex]
+		}
+		lib.CurrentReplState.Mode = lib.ReplModeTell
+		lib.WriteState()
+		showReplMode()
+		if preservedBuffer != "" {
+			p.InsertTextMoveCursor(preservedBuffer, true)
+		}
+		return execWithInputResult{shouldReturn: true}
+
+	case cmd == "chat" || cmd == lib.ReplCmdAliases["chat"]:
+		if lastBackslashIndex > 0 {
+			preservedBuffer += lastLine[:lastBackslashIndex]
+		}
+		lib.CurrentReplState.Mode = lib.ReplModeChat
+		lib.WriteState()
+		showReplMode()
+		if preservedBuffer != "" {
+			p.InsertTextMoveCursor(preservedBuffer, true)
+		}
+		return execWithInputResult{shouldReturn: true}
+
+	case cmd == "run" || cmd == lib.ReplCmdAliases["run"]:
+		if lastBackslashIndex > 0 {
+			preservedBuffer += lastLine[:lastBackslashIndex]
+		}
+		fmt.Println()
+		if err := handleRunCommand(args); err != nil {
+			color.New(term.ColorHiRed).Printf("Run command failed: %v\n", err)
+		}
+		fmt.Println()
+		if preservedBuffer != "" {
+			p.InsertTextMoveCursor(preservedBuffer, true)
+		}
+		return execWithInputResult{shouldReturn: true}
+
+	default:
+		// Check CLI commands
+		var matchedCmd string
+
+		for _, config := range term.CliCommands {
+			if (cmd == config.Cmd || (config.Alias != "" && cmd == config.Alias)) && config.Repl {
+				matchedCmd = config.Cmd
+				break
+			}
+		}
+
+		if matchedCmd == "" && len(suggestions) > 0 {
+			matchedCmd = strings.Replace(suggestions[0].Text, "\\", "", 1)
+			return execWithInput(execWithInputParams{
+				cmdString:          matchedCmd,
+				in:                 condensedInput,
+				lastBackslashIndex: lastBackslashIndex,
+				preservedBuffer:    preservedBuffer,
+				p:                  p,
+				lastLine:           lastLine,
+				condensedInput:     condensedInput,
+				trimmedInput:       trimmedInput,
+				lines:              lines,
+				suggestions:        suggestions,
+			})
+		}
+
+		if matchedCmd == "" {
+
+			promptOpt := getPromptOpt(cmd)
+			if len(fuzzyNEQMatches) > 0 {
+				res := suggestCmds(fuzzyNEQMatches, promptOpt)
+				if res.shouldReturn {
+					return execWithInputResult{shouldReturn: true}
+				}
+				matchedCmd = res.matchedCmd
+				return execWithInput(execWithInputParams{
+					cmdString:          matchedCmd,
+					in:                 condensedInput,
+					lastBackslashIndex: lastBackslashIndex,
+					preservedBuffer:    preservedBuffer,
+					p:                  p,
+					lastLine:           lastLine,
+					condensedInput:     condensedInput,
+					trimmedInput:       trimmedInput,
+					lines:              lines,
+					suggestions:        suggestions,
+				})
+			} else if len(lines) == 1 && strings.HasPrefix(trimmedInput, "\\") {
+				showCmdsOpt := "Show available commands"
+				opts := []string{cancelOpt, showCmdsOpt, promptOpt}
+				sel, err := term.SelectFromList("🤔 Couldn't find a matching command. What do you want to do?", opts)
+				if err != nil {
+					color.New(term.ColorHiRed).Printf("Error selecting from list: %v\n", err)
+				}
+				if sel == cancelOpt {
+					return execWithInputResult{shouldReturn: true}
+				} else if sel == showCmdsOpt {
+					replHelp()
+					fmt.Println()
+					return execWithInputResult{shouldReturn: true}
+				}
+			}
+		}
+
+		if matchedCmd != "" {
+			// fmt.Println("> plandex " + config.Cmd)
+			if lastBackslashIndex > 0 {
+				preservedBuffer += lastLine[:lastBackslashIndex]
+			}
+			fmt.Println()
+			execArgs := []string{matchedCmd}
+			if matchedCmd == "continue" && chatOnly {
+				execArgs = append(execArgs, "--chat")
+			}
+			execArgs = append(execArgs, args...)
+			_, err := lib.ExecPlandexCommandWithParams(execArgs, lib.ExecPlandexCommandParams{
+				SessionId: sessionId,
+			})
+			if err != nil {
+				color.New(term.ColorHiRed).Printf("Error executing command: %v\n", err)
+			}
+			fmt.Println()
+			if preservedBuffer != "" {
+				p.InsertTextMoveCursor(preservedBuffer, true)
+			}
+
+			if strings.HasPrefix(matchedCmd, "set-auto") || strings.HasPrefix(matchedCmd, "set-config") {
+				term.StartSpinner("")
+				setReplConfig()
+				term.StopSpinner()
+			}
+			return execWithInputResult{shouldReturn: true}
+		}
+	}
+
+	return execWithInputResult{
+		condensedInput: condensedInput,
+		trimmedInput:   trimmedInput,
+	}
+}
+
+func findSimilarCommands(input string, commands []string) []string {
+	input = strings.TrimSpace(input)
+	input = strings.ToLower(input)
+	input = strings.Trim(input, "/")
+
+	// Get ranked matches
+	ranks := fuzzy.RankFind(input, commands)
+
+	// Filter strictly by distance
+	var filtered []string
+	for _, rank := range ranks {
+		// include if either is a substring of the other
+		if strings.Contains(rank.Target, input) || strings.Contains(input, rank.Target) {
+			filtered = append(filtered, rank.Target)
+			continue
+		}
+
+		// Normalize threshold based on command length
+		maxLen := len(input)
+		if len(rank.Target) > maxLen {
+			maxLen = len(rank.Target)
+		}
+
+		threshold := 4 // Base threshold
+		if maxLen < 5 {
+			threshold = 1 // Stricter for very short commands
+		}
+
+		if rank.Distance <= threshold {
+			filtered = append(filtered, rank.Target)
+		}
+	}
+
+	return filtered
 }
