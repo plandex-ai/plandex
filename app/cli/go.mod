@@ -11,6 +11,7 @@ require (
 	github.com/fatih/color v1.18.0
 	github.com/godbus/dbus/v5 v5.1.0
 	github.com/google/uuid v1.6.0
+	github.com/lithammer/fuzzysearch v1.1.8
 	github.com/muesli/reflow v0.3.0
 	github.com/muesli/termenv v0.15.3-0.20240618155329-98d742f6907a
 	github.com/olekukonko/tablewriter v0.0.5
