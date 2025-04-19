@@ -71,7 +71,7 @@ func GetFileMapHandler(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		log.Println("GetFileMapHandler: map queue is full")
-		http.Error(w, "Too many project map jobs, please try again later", http.StatusServiceUnavailable)
+		http.Error(w, "Too many project map jobs, please try again later", http.StatusTooManyRequests)
 		return
 	}
 

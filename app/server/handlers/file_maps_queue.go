@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"math"
 	"plandex-server/syntax/file_map"
 	shared "plandex-shared"
 	"runtime"
@@ -15,7 +16,7 @@ import (
 // ensures mapping doesn't take over all available CPUs
 
 const fileMapMaxQueueSize = 20 // caller errors out if this is exceeded
-var fileMapMaxConcurrency = 2  // set to half of available CPUs below
+var fileMapMaxConcurrency = 3  // set to 3/4 of available CPUs below
 const mapJobTimeout = 60 * time.Second
 
 type projectMapJob struct {
@@ -26,22 +27,33 @@ type projectMapJob struct {
 
 var projectMapQueue = make(chan projectMapJob, fileMapMaxQueueSize)
 
+var mapCPUSem chan struct{}
+
 func init() {
-	// Use half of available CPUs for mapping workers
+	// Use 3/4 of available CPUs for mapping workers
 	cpus := runtime.NumCPU()
-	fileMapMaxConcurrency = cpus / 2
+	fileMapMaxConcurrency = int(math.Ceil(float64(cpus) * 0.75))
 	if fileMapMaxConcurrency < 1 {
 		fileMapMaxConcurrency = 1
 	}
 
-	go processProjectMapQueue()
+	log.Printf("fileMapMaxConcurrency: %d", fileMapMaxConcurrency)
+
+	mapCPUSem = make(chan struct{}, fileMapMaxConcurrency)
+
+	// start workers, one per CPU
+	for i := 0; i < fileMapMaxConcurrency; i++ {
+		go processProjectMapQueue()
+	}
 }
 
-// map jobs are processed serially, one at a time
-// the jobs themselves can use concurrency
 func processProjectMapQueue() {
 	for job := range projectMapQueue {
 		if job.ctx.Err() != nil {
+			if job.ctx.Err() == context.DeadlineExceeded {
+				log.Printf("processProjectMapQueue: job context deadline exceeded: %v", job.ctx.Err())
+				continue
+			}
 			log.Printf("processProjectMapQueue: job context cancelled: %v", job.ctx.Err())
 			continue
 		}
@@ -56,6 +68,7 @@ func processProjectMapQueue() {
 }
 
 func queueProjectMapJob(job projectMapJob) error {
+	log.Printf("queueProjectMapJob: len(projectMapQueue): %d", len(projectMapQueue))
 	select {
 	case projectMapQueue <- job:
 		return nil
@@ -65,7 +78,6 @@ func queueProjectMapJob(job projectMapJob) error {
 }
 
 func mapWorker(job projectMapJob) {
-	sem := make(chan struct{}, fileMapMaxConcurrency)
 	maps := make(shared.FileMapBodies)
 	wg := sync.WaitGroup{}
 	var mu sync.Mutex
@@ -81,13 +93,16 @@ func mapWorker(job projectMapJob) {
 		}
 
 		wg.Add(1)
-		sem <- struct{}{}
 		go func(path string, input string) {
-			defer wg.Done()
-			defer func() { <-sem }()
 			if job.ctx.Err() != nil {
+				wg.Done()
 				return
 			}
+
+			mapCPUSem <- struct{}{}
+			defer func() { <-mapCPUSem }()
+			defer wg.Done()
+
 			fileMap, err := file_map.MapFile(job.ctx, path, []byte(input))
 			if err != nil {
 				// Skip files that can't be parsed, just log the error
