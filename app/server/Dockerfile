@@ -4,6 +4,16 @@ FROM golang:1.23.3
 RUN apt-get update && \
   apt-get install -y git gcc g++ make
 
+# Install Python and create a virtual environment for litellm passthrough
+RUN apt-get install -y python3 python3-venv && \
+    python3 -m venv /opt/venv
+    
+# Activate the virtual environment for all following RUN commands
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Now install litellm/prisma in the virtual environment
+RUN pip install --no-cache-dir "litellm==1.61.1" "fastapi==0.115.12" "uvicorn==0.34.1"
+
 WORKDIR /app
 
 # Copy go.mod and go.sum for shared and server, and install dependencies

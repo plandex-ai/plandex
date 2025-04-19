@@ -1,6 +1,7 @@
 package plan
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -61,6 +62,9 @@ func (state *activeTellStreamState) listenStream(stream *model.ExtendedChatCompl
 	modelProvider := state.modelConfig.BaseModelConfig.Provider
 	modelName := state.modelConfig.BaseModelConfig.ModelName
 
+	log.Println("modelProvider", modelProvider)
+	log.Println("modelName", modelName)
+
 mainLoop:
 	for {
 		select {
@@ -117,7 +121,7 @@ mainLoop:
 					msg = fmt.Sprintf("The AI model (%s/%s) stopped responding: %v", modelProvider, modelName, err)
 				}
 				state.onError(onErrorParams{
-					streamErr: fmt.Errorf(msg, err),
+					streamErr: errors.New(msg),
 					storeDesc: true,
 					canRetry:  active.CurrentReplyContent == "", // if there was no output yet, we can retry
 				})
@@ -140,7 +144,7 @@ mainLoop:
 				res := state.onError(onErrorParams{
 					streamErr: fmt.Errorf("The AI model (%s/%s) stopped streaming with error code %d: %s", modelProvider, modelName, response.Error.Code, response.Error.Message),
 					storeDesc: true,
-					canRetry:  active.CurrentReplyContent == "" && response.Error.Code != 429,
+					canRetry:  active.CurrentReplyContent == "" && !(response.Error.Code >= 400 && response.Error.Code < 500),
 				})
 				if res.shouldReturn {
 					return

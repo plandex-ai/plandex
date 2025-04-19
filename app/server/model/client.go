@@ -154,6 +154,7 @@ func createChatCompletionExtended(
 	ctx context.Context,
 	extendedReq types.ExtendedChatCompletionRequest,
 ) (openai.ChatCompletionResponse, error) {
+
 	var openaiReq *types.ExtendedOpenAIChatCompletionRequest
 	if modelConfig.BaseModelConfig.Provider == shared.ModelProviderOpenAI && !modelConfig.BaseModelConfig.UsesOpenAIResponsesAPI {
 		log.Println("Creating chat completion with direct OpenAI provider request")
@@ -179,7 +180,9 @@ func createChatCompletionExtended(
 		req.Header.Set("OpenAI-Organization", client.OrgId)
 	}
 
-	addOpenRouterHeaders(req)
+	if modelConfig.BaseModelConfig.Provider == shared.ModelProviderOpenRouter {
+		addOpenRouterHeaders(req)
+	}
 
 	// Add body
 	var jsonBody []byte
@@ -191,6 +194,7 @@ func createChatCompletionExtended(
 	if err != nil {
 		return openai.ChatCompletionResponse{}, err
 	}
+
 	req.Body = io.NopCloser(bytes.NewReader(jsonBody))
 
 	// Make request
@@ -222,6 +226,7 @@ func createChatCompletionStreamExtended(
 	ctx context.Context,
 	extendedReq types.ExtendedChatCompletionRequest,
 ) (*ExtendedChatCompletionStream, error) {
+
 	var openaiReq *types.ExtendedOpenAIChatCompletionRequest
 	if modelConfig.BaseModelConfig.Provider == shared.ModelProviderOpenAI && !modelConfig.BaseModelConfig.UsesOpenAIResponsesAPI {
 		openaiReq = extendedReq.ToOpenAI()
@@ -265,7 +270,9 @@ func createChatCompletionStreamExtended(
 		req.Header.Set("OpenAI-Organization", client.OrgId)
 	}
 
-	addOpenRouterHeaders(req)
+	if modelConfig.BaseModelConfig.Provider == shared.ModelProviderOpenRouter {
+		addOpenRouterHeaders(req)
+	}
 
 	// Send the request
 	resp, err := httpClient.Do(req) //nolint:bodyclose // body is closed in stream.Close()
@@ -408,6 +415,8 @@ func (stream *ExtendedChatCompletionStream) Close() error {
 func isNonRetriableErr(err error) bool {
 	errStr := err.Error()
 
+	log.Println("isNonRetriableErr errStr:\n", errStr)
+
 	// we don't want to retry on the errors below
 	if strings.Contains(errStr, "context deadline exceeded") || strings.Contains(errStr, "context canceled") {
 		log.Println("Context deadline exceeded or canceled - no retry")
@@ -416,7 +425,7 @@ func isNonRetriableErr(err error) bool {
 
 	if strings.Contains(errStr, "status code: 400") &&
 		strings.Contains(errStr, "reduce the length of the messages") {
-		log.Println("Token limit exceeded - no retry")
+		log.Println("Bad request - no retry")
 		return true
 	}
 
@@ -429,6 +438,8 @@ func isNonRetriableErr(err error) bool {
 		log.Println("Current quota exceeded - no retry")
 		return true
 	}
+
+	log.Println("isNonRetriableErr false")
 
 	return false
 }

@@ -13,11 +13,15 @@ services:
     networks:
       - plandex-network
   plandex-server:
-    image: plandexai/plandex-server:latest
+    # image: plandexai/plandex-server:latest
+    build:
+      context: .
+      dockerfile: server/Dockerfile
     volumes:
       - plandex-files:/plandex-server
     ports:
       - "8099:8099"
+      - "4000:4000"
     environment:
       DATABASE_URL: "postgres://plandex:plandex@plandex-postgres:5432/plandex?sslmode=disable"
       GOENV: development

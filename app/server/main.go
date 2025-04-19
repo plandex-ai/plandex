@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"os"
+	"plandex-server/model"
 	"plandex-server/routes"
 	"plandex-server/setup"
 
@@ -15,6 +16,11 @@ func main() {
 
 	routes.RegisterHandlePlandex(func(router *mux.Router, path string, isStreaming bool, handler routes.PlandexHandler) *mux.Route {
 		return router.HandleFunc(path, handler)
+	})
+
+	model.EnsureLiteLLM(2)
+	setup.RegisterShutdownHook(func() {
+		model.ShutdownLiteLLMServer()
 	})
 
 	r := mux.NewRouter()
