@@ -2,7 +2,8 @@ FROM golang:1.23.3
 
 # Update and install necessary packages including build tools for Tree-sitter
 RUN apt-get update && \
-  apt-get install -y git gcc g++ make
+  apt-get install -y git gcc g++ make && \
+  rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
