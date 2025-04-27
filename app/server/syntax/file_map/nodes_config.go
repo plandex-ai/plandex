@@ -817,3 +817,13 @@ var includeAndContinueNodeMap = nodeMap{
 		},
 	},
 }
+
+var unwrapNodeMap = nodeMap{
+	"export_statement": {
+		nodeMatch: matchTypeEqual,
+		languages: langSet{
+			shared.LanguageTypescript: true,
+			shared.LanguageTsx:        true,
+		},
+	},
+}
