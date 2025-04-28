@@ -1,6 +1,7 @@
 package shared
 
 import (
+	"bytes"
 	"crypto/rand"
 	"fmt"
 	"regexp"
@@ -135,4 +136,13 @@ func ReplaceReverse(s, old, new string, n int) string {
 		s = res
 	}
 	return res
+}
+
+func NormalizeEOL(data []byte) []byte {
+	// CRLF -> LF
+	n := bytes.ReplaceAll(data, []byte{'\r', '\n'}, []byte{'\n'})
+
+	// treat stray CR as newline as well
+	n = bytes.ReplaceAll(n, []byte{'\r'}, []byte{'\n'})
+	return n
 }
