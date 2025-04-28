@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"plandex-server/model"
 	"plandex-server/notify"
+	"plandex-server/types"
 	"runtime/debug"
 	"time"
 
@@ -54,12 +55,29 @@ func (state *activeTellStreamState) listenStream(stream *model.ExtendedChatCompl
 	}
 
 	// Create a timer that will trigger if no chunk is received within the specified duration
-	timer := time.NewTimer(model.OPENAI_STREAM_CHUNK_TIMEOUT)
+	firstTokenTimeout := firstTokenTimeout(state.totalRequestTokens)
+	log.Printf("listenStream - firstTokenTimeout: %s\n", firstTokenTimeout)
+	timer := time.NewTimer(firstTokenTimeout)
 	defer timer.Stop()
 	streamFinished := false
 
 	modelProvider := state.modelConfig.BaseModelConfig.Provider
 	modelName := state.modelConfig.BaseModelConfig.ModelName
+
+	respCh := make(chan *types.ExtendedChatCompletionStreamResponse)
+	streamErrCh := make(chan error)
+
+	// receive chunks from the stream in a separate goroutine so that we can handle errors and timeouts — needed because stream.Recv() blocks forever
+	go func() {
+		for {
+			resp, err := stream.Recv()
+			if err != nil {
+				streamErrCh <- err
+				return
+			}
+			respCh <- resp
+		}
+	}()
 
 mainLoop:
 	for {
@@ -78,7 +96,7 @@ mainLoop:
 				return
 			} else {
 				res := state.onError(onErrorParams{
-					streamErr: fmt.Errorf("stream timeout due to inactivity: The underlying LLM is not responding"),
+					streamErr: fmt.Errorf("stream timeout due to inactivity: The AI model (%s/%s) is not responding", modelProvider, modelName),
 					storeDesc: true,
 					canRetry:  active.CurrentReplyContent == "", // if there was no output yet, we can retry
 				})
@@ -91,39 +109,37 @@ mainLoop:
 				}
 			}
 
-		default:
-			response, err := stream.Recv()
+		case err := <-streamErrCh:
+			log.Printf("listenStream - received from streamErrCh: %v\n", err)
 
-			if err == nil {
-				// Successfully received a chunk, reset the timer
-				if !timer.Stop() {
-					<-timer.C
-				}
-				timer.Reset(model.OPENAI_STREAM_CHUNK_TIMEOUT)
-			} else {
-				if err.Error() == "context canceled" {
-					log.Println("Tell: stream context canceled")
-					state.execHookOnStop(false)
-					return
-				}
-
-				log.Printf("Tell: error receiving stream chunk: %v\n", err)
-				state.execHookOnStop(true)
-
-				var msg string
-				if active.CurrentReplyContent == "" {
-					msg = fmt.Sprintf("The AI model (%s/%s) didn't respond: %v", modelProvider, modelName, err)
-				} else {
-					msg = fmt.Sprintf("The AI model (%s/%s) stopped responding: %v", modelProvider, modelName, err)
-				}
-				state.onError(onErrorParams{
-					streamErr: fmt.Errorf(msg, err),
-					storeDesc: true,
-					canRetry:  active.CurrentReplyContent == "", // if there was no output yet, we can retry
-				})
-				// here we want to return no matter what -- state.onError will decide whether to retry or not
+			if err.Error() == "context canceled" {
+				log.Println("Tell: stream context canceled")
+				state.execHookOnStop(false)
 				return
 			}
+
+			log.Printf("Tell: error receiving stream chunk: %v\n", err)
+			state.execHookOnStop(true)
+
+			var msg string
+			if active.CurrentReplyContent == "" {
+				msg = fmt.Sprintf("The AI model (%s/%s) didn't respond: %v", modelProvider, modelName, err)
+			} else {
+				msg = fmt.Sprintf("The AI model (%s/%s) stopped responding: %v", modelProvider, modelName, err)
+			}
+			state.onError(onErrorParams{
+				streamErr: fmt.Errorf(msg, err),
+				storeDesc: true,
+				canRetry:  active.CurrentReplyContent == "", // if there was no output yet, we can retry
+			})
+			// here we want to return no matter what -- state.onError will decide whether to retry or not
+			return
+		case response := <-respCh:
+			// Successfully received a chunk, reset the timer
+			if !timer.Stop() {
+				<-timer.C
+			}
+			timer.Reset(model.ACTIVE_STREAM_CHUNK_TIMEOUT)
 
 			// log.Println("tell stream main: received stream response", spew.Sdump(response))
 
@@ -137,10 +153,14 @@ mainLoop:
 
 			if response.Error != nil {
 				log.Println("listenStream - stream finished with error", spew.Sdump(response.Error))
+
+				modelErr := model.ClassifyModelError(response.Error.Code, response.Error.Message, nil)
+
 				res := state.onError(onErrorParams{
 					streamErr: fmt.Errorf("The AI model (%s/%s) stopped streaming with error code %d: %s", modelProvider, modelName, response.Error.Code, response.Error.Message),
 					storeDesc: true,
-					canRetry:  active.CurrentReplyContent == "" && response.Error.Code != 429,
+					canRetry:  active.CurrentReplyContent == "",
+					modelErr:  &modelErr,
 				})
 				if res.shouldReturn {
 					return
@@ -175,27 +195,49 @@ mainLoop:
 				continue mainLoop
 			}
 
-			// We'll be more accepting of multiple choices and just take the first one
-			// if len(response.Choices) > 1 {
-			// 	res := state.onError(onErrorParams{
-			// 		streamErr: fmt.Errorf("stream finished with more than one choice | The model failed to generate a valid response."),
-			// 		storeDesc: true,
-			// 		canRetry:  true,
-			// 	})
-			// 	if res.shouldReturn {
-			// 		return
-			// 	}
-			// 	if res.shouldContinueMainLoop {
-			// 		// continue instead of returning so that context cancellation is handled
-			// 		continue mainLoop
-			// 	}
-			// }
-
 			choice := response.Choices[0]
 
 			processChunkRes := state.processChunk(choice)
 			if processChunkRes.shouldReturn {
 				return
+			}
+
+			handleFinished := func() handleStreamFinishedResult {
+				streamFinishResult := state.handleStreamFinished()
+				if streamFinishResult.shouldReturn || streamFinishResult.shouldContinueMainLoop {
+					return streamFinishResult
+				}
+
+				// usage can either be included in the final chunk (openrouter) or in a separate chunk (openai)
+				// if the usage chunk is included, handle it and then return out of listener
+				// otherwise keep listening for the usage chunk
+				if response.Usage != nil {
+					state.handleUsageChunk(response.Usage)
+					return handleStreamFinishedResult{
+						shouldReturn: true,
+					}
+				}
+
+				// Reset the timer for the usage chunk
+				if !timer.Stop() {
+					<-timer.C
+				}
+				timer.Reset(model.USAGE_CHUNK_TIMEOUT)
+				streamFinished = true
+
+				return handleStreamFinishedResult{
+					shouldContinueMainLoop: true,
+				}
+			}
+
+			if processChunkRes.shouldStop {
+				log.Println("Model stream reached stop sequence")
+
+				res := handleFinished()
+				if res.shouldReturn {
+					return
+				}
+				continue
 			}
 
 			if choice.FinishReason != "" {
@@ -218,28 +260,10 @@ mainLoop:
 					}
 				}
 
-				streamFinishResult := state.handleStreamFinished()
-				if streamFinishResult.shouldContinueMainLoop {
-					continue mainLoop
-				}
-				if streamFinishResult.shouldReturn {
+				res := handleFinished()
+				if res.shouldReturn {
 					return
 				}
-
-				// usage can either be included in the final chunk (openrouter) or in a separate chunk (openai)
-				// if the usage chunk is included, handle it and then return out of listener
-				// otherwise keep listening for the usage chunk
-				if response.Usage != nil {
-					state.handleUsageChunk(response.Usage)
-					return
-				}
-
-				// Reset the timer for the usage chunk
-				if !timer.Stop() {
-					<-timer.C
-				}
-				timer.Reset(model.OPENAI_USAGE_CHUNK_TIMEOUT)
-				streamFinished = true
 				continue
 			} else if response.Usage != nil {
 				state.handleUsageChunk(response.Usage)
@@ -248,4 +272,21 @@ mainLoop:
 			// let main loop continue
 		}
 	}
+}
+
+func firstTokenTimeout(tok int) time.Duration {
+	const (
+		base  = 90 * time.Second
+		slope = 90 * time.Second
+		step  = 150_000
+		cap   = 15 * time.Minute
+	)
+	if tok <= step {
+		return base
+	}
+	extra := time.Duration((tok-step)/step) * slope
+	if extra > cap-base {
+		extra = cap - base
+	}
+	return base + extra
 }

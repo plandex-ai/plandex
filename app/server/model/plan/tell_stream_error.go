@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"math/rand"
 	"net/http"
 	"plandex-server/db"
+	"plandex-server/model"
 	"plandex-server/notify"
 	"plandex-server/shutdown"
 	"strconv"
@@ -21,6 +23,7 @@ type onErrorParams struct {
 	convoMessageId string
 	commitMsg      string
 	canRetry       bool
+	modelErr       *shared.ModelError
 }
 
 type onErrorResult struct {
@@ -34,6 +37,7 @@ func (state *activeTellStreamState) onError(params onErrorParams) onErrorResult 
 	storeDesc := params.storeDesc
 	convoMessageId := params.convoMessageId
 	commitMsg := params.commitMsg
+	modelErr := params.modelErr
 
 	planId := state.plan.Id
 	branch := state.branch
@@ -41,7 +45,6 @@ func (state *activeTellStreamState) onError(params onErrorParams) onErrorResult 
 	summarizedToMessageId := state.summarizedToMessageId
 
 	active := GetActivePlan(planId, branch)
-	numRetries := state.execTellPlanParams.numErrorRetry
 
 	if active == nil {
 		log.Printf("tellStream onError - Active plan not found for plan ID %s on branch %s\n", planId, branch)
@@ -51,10 +54,46 @@ func (state *activeTellStreamState) onError(params onErrorParams) onErrorResult 
 	}
 
 	canRetry := params.canRetry
+	hasFallback := state.fallbackRes.HasErrorFallback
+	isFallback := state.fallbackRes.IsFallback
+
+	maxRetries := model.MAX_RETRIES_WITHOUT_FALLBACK
+	if hasFallback {
+		maxRetries = model.MAX_ADDITIONAL_RETRIES_WITH_FALLBACK
+	}
+
+	compareRetries := state.numErrorRetry
+	if isFallback {
+		compareRetries = state.numFallbackRetry
+	}
+
+	newFallback := false
+	if modelErr != nil {
+		if !modelErr.Retriable {
+			log.Printf("tellStream onError - operation returned non-retriable error: %v", modelErr)
+			if modelErr.Kind == shared.ErrContextTooLong && state.fallbackRes.ModelRoleConfig.LargeContextFallback == nil {
+				log.Printf("tellStream onError - non-retriable context too long error and no large context fallback is defined, no retry")
+				// if it's a context too long error and no large context fallback is defined, no retry
+				canRetry = false
+
+			} else if modelErr.Kind != shared.ErrContextTooLong && state.fallbackRes.ModelRoleConfig.ErrorFallback == nil {
+				log.Printf("tellStream onError - non-retriable error and no error fallback is defined, no retry")
+				// if it's any other error and no error fallback is defined, no retry
+				canRetry = false
+			} else {
+				log.Printf("tellStream onError - operation returned non-retriable error, but has fallback - resetting numFallbackRetry to 0 and continuing to retry")
+				state.numFallbackRetry = 0
+				// otherwise, continue to retry logic
+				canRetry = true
+				newFallback = true
+			}
+		}
+	}
 
 	if canRetry {
 		log.Println("tellStream onError - canRetry", canRetry)
-		if numRetries >= NumTellStreamRetries {
+
+		if compareRetries >= maxRetries {
 			log.Printf("tellStream onError - Max retries reached for plan ID %s on branch %s\n", planId, branch)
 
 			canRetry = false
@@ -68,15 +107,26 @@ func (state *activeTellStreamState) onError(params onErrorParams) onErrorResult 
 
 		active.ResetModelCtx()
 
-		retryDelaySeconds := 1 * numRetries * (numRetries / 2)
+		var retryDelay time.Duration
+		if modelErr != nil && modelErr.RetryAfterSeconds > 0 {
+			// if the model err has a retry after, then use that with a bit of padding
+			retryDelay = time.Duration(int(float64(modelErr.RetryAfterSeconds)*1.1)) * time.Second
+		} else {
+			// otherwise, use some jitter
+			retryDelay = time.Duration(1000+rand.Intn(200)) * time.Millisecond
+		}
 
-		log.Printf("tellStream onError - Retry %d/%d - Retrying stream in %d seconds", numRetries+1, NumTellStreamRetries, retryDelaySeconds)
-		time.Sleep(time.Duration(retryDelaySeconds) * time.Second)
+		log.Printf("tellStream onError - Retry %d/%d - Retrying stream in %v", state.numErrorRetry+1, maxRetries, retryDelay)
+		time.Sleep(retryDelay)
 
-		params := state.execTellPlanParams
-		params.numErrorRetry = numRetries + 1
+		state.numErrorRetry = state.numErrorRetry + 1
+		if isFallback && !newFallback {
+			state.numFallbackRetry = state.numFallbackRetry + 1
+		}
+		state.modelErr = modelErr
 
-		execTellPlan(params)
+		// retry the request
+		state.doTellRequest()
 		return onErrorResult{
 			shouldReturn: true,
 		}
@@ -172,11 +222,11 @@ func (state *activeTellStreamState) onError(params onErrorParams) onErrorResult 
 		active.StreamDoneCh <- params.streamApiErr
 	} else {
 		msg := "Stream error: " + streamErr.Error()
-		if params.canRetry && numRetries >= NumTellStreamRetries {
-			msg += " | Failed after " + strconv.Itoa(numRetries) + " retries."
+		if params.canRetry && state.numErrorRetry >= maxRetries {
+			msg += " | Failed after " + strconv.Itoa(state.numErrorRetry) + " retries"
 		}
 
-		go notify.NotifyErr(notify.SeverityInfo, fmt.Sprintf("tellStream stream error after %d retries: %v", numRetries, streamErr))
+		go notify.NotifyErr(notify.SeverityInfo, fmt.Sprintf("tellStream stream error after %d retries: %v", state.numErrorRetry, streamErr))
 
 		active.StreamDoneCh <- &shared.ApiError{
 			Type:   shared.ApiErrorTypeOther,

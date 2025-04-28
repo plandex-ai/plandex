@@ -11,12 +11,9 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
-const NumTellStreamRetries = 4
-
 type activeTellStreamState struct {
 	activePlan            *types.ActivePlan
 	modelStreamId         string
-	execTellPlanParams    execTellPlanParams
 	clients               map[string]model.ClientInfo
 	req                   *shared.TellPlanRequest
 	auth                  *types.ServerAuth
@@ -51,13 +48,19 @@ type activeTellStreamState struct {
 	chunkProcessor        *chunkProcessor
 	generationId          string
 
-	requestStartedAt    time.Time
-	firstTokenAt        time.Time
-	originalReq         *types.ExtendedChatCompletionRequest
-	tenativeModelConfig *shared.ModelRoleConfig
-	modelConfig         *shared.ModelRoleConfig
+	requestStartedAt time.Time
+	firstTokenAt     time.Time
+	originalReq      *types.ExtendedChatCompletionRequest
+	modelConfig      *shared.ModelRoleConfig
+	fallbackRes      shared.FallbackResult
 
 	skipConvoMessages map[string]bool
+
+	manualStop []string
+
+	numErrorRetry    int
+	numFallbackRetry int
+	modelErr         *shared.ModelError
 }
 
 type chunkProcessor struct {
