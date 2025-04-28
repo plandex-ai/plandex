@@ -688,7 +688,7 @@ func (m *streamUIModel) checkMissingFile(msg *shared.StreamMessage) (tea.Model, 
 						m.err = fmt.Errorf("failed to read file: %w", err)
 						return tea.Quit
 					}
-					content := string(bytes)
+					content := string(shared.NormalizeEOL(bytes))
 
 					log.Println("checkMissingFile - calling RespondMissingFile")
 					apiErr := api.Client.RespondMissingFile(lib.CurrentPlanId, lib.CurrentBranch, shared.RespondMissingFileRequest{
