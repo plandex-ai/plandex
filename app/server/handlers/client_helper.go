@@ -62,53 +62,57 @@ func initClients(params initClientsParams) map[string]model.ClientInfo {
 
 	endpointsByApiKeyEnvVar := map[string]string{}
 	for envVar := range apiKeys {
-		if planSettings.ModelPack.Planner.BaseModelConfig.ApiKeyEnvVar == envVar {
-			endpointsByApiKeyEnvVar[envVar] = planSettings.ModelPack.Planner.BaseModelConfig.BaseUrl
+		planBaseModelConfig := planSettings.ModelPack.Planner.BaseModelConfigForEnvVar(envVar)
+		if planBaseModelConfig != nil {
+			endpointsByApiKeyEnvVar[envVar] = planBaseModelConfig.BaseUrl
 			continue
 		}
 
-		if planSettings.ModelPack.GetCoder().BaseModelConfig.ApiKeyEnvVar == envVar {
-			endpointsByApiKeyEnvVar[envVar] = planSettings.ModelPack.GetCoder().BaseModelConfig.BaseUrl
+		coderModelConfig := planSettings.ModelPack.GetCoder().BaseModelConfigForEnvVar(envVar)
+		if coderModelConfig != nil {
+			endpointsByApiKeyEnvVar[envVar] = coderModelConfig.BaseUrl
 			continue
 		}
 
-		if planSettings.ModelPack.PlanSummary.BaseModelConfig.ApiKeyEnvVar == envVar {
-			endpointsByApiKeyEnvVar[envVar] = planSettings.ModelPack.PlanSummary.BaseModelConfig.BaseUrl
+		planSummaryModelConfig := planSettings.ModelPack.PlanSummary.BaseModelConfigForEnvVar(envVar)
+		if planSummaryModelConfig != nil {
+			endpointsByApiKeyEnvVar[envVar] = planSummaryModelConfig.BaseUrl
 			continue
 		}
 
-		if planSettings.ModelPack.Builder.BaseModelConfig.ApiKeyEnvVar == envVar {
-			endpointsByApiKeyEnvVar[envVar] = planSettings.ModelPack.Builder.BaseModelConfig.BaseUrl
+		builderModelConfig := planSettings.ModelPack.Builder.BaseModelConfigForEnvVar(envVar)
+		if builderModelConfig != nil {
+			endpointsByApiKeyEnvVar[envVar] = builderModelConfig.BaseUrl
 			continue
 		}
 
-		if planSettings.ModelPack.Namer.BaseModelConfig.ApiKeyEnvVar == envVar {
-			endpointsByApiKeyEnvVar[envVar] = planSettings.ModelPack.Namer.BaseModelConfig.BaseUrl
+		namerModelConfig := planSettings.ModelPack.Namer.BaseModelConfigForEnvVar(envVar)
+		if namerModelConfig != nil {
+			endpointsByApiKeyEnvVar[envVar] = namerModelConfig.BaseUrl
 			continue
 		}
 
-		if planSettings.ModelPack.CommitMsg.BaseModelConfig.ApiKeyEnvVar == envVar {
-			endpointsByApiKeyEnvVar[envVar] = planSettings.ModelPack.CommitMsg.BaseModelConfig.BaseUrl
+		commitMsgModelConfig := planSettings.ModelPack.CommitMsg.BaseModelConfigForEnvVar(envVar)
+		if commitMsgModelConfig != nil {
+			endpointsByApiKeyEnvVar[envVar] = commitMsgModelConfig.BaseUrl
 			continue
 		}
 
-		if planSettings.ModelPack.ExecStatus.BaseModelConfig.ApiKeyEnvVar == envVar {
-			endpointsByApiKeyEnvVar[envVar] = planSettings.ModelPack.ExecStatus.BaseModelConfig.BaseUrl
+		execStatusModelConfig := planSettings.ModelPack.ExecStatus.BaseModelConfigForEnvVar(envVar)
+		if execStatusModelConfig != nil {
+			endpointsByApiKeyEnvVar[envVar] = execStatusModelConfig.BaseUrl
 			continue
 		}
 
-		if planSettings.ModelPack.GetWholeFileBuilder().BaseModelConfig.ApiKeyEnvVar == envVar {
-			endpointsByApiKeyEnvVar[envVar] = planSettings.ModelPack.GetWholeFileBuilder().BaseModelConfig.BaseUrl
+		wholeFileBuilderModelConfig := planSettings.ModelPack.GetWholeFileBuilder().BaseModelConfigForEnvVar(envVar)
+		if wholeFileBuilderModelConfig != nil {
+			endpointsByApiKeyEnvVar[envVar] = wholeFileBuilderModelConfig.BaseUrl
 			continue
 		}
 
-		if planSettings.ModelPack.GetArchitect().BaseModelConfig.ApiKeyEnvVar == envVar {
-			endpointsByApiKeyEnvVar[envVar] = planSettings.ModelPack.GetArchitect().BaseModelConfig.BaseUrl
-			continue
-		}
-
-		if planSettings.ModelPack.GetCoder().BaseModelConfig.ApiKeyEnvVar == envVar {
-			endpointsByApiKeyEnvVar[envVar] = planSettings.ModelPack.GetCoder().BaseModelConfig.BaseUrl
+		architectModelConfig := planSettings.ModelPack.GetArchitect().BaseModelConfigForEnvVar(envVar)
+		if architectModelConfig != nil {
+			endpointsByApiKeyEnvVar[envVar] = architectModelConfig.BaseUrl
 			continue
 		}
 	}
