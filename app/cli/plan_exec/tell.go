@@ -11,11 +11,16 @@ import (
 	streamtui "plandex-cli/stream_tui"
 	"plandex-cli/term"
 	"plandex-cli/types"
+	"plandex-cli/ui"
 
 	shared "plandex-shared"
 
 	"github.com/fatih/color"
+	"github.com/shopspring/decimal"
 )
+
+// For cloud trials in Integrated Models mode, we warn after the stream finishes when the balance is less than $1
+const CloudTrialBalanceWarningThreshold = 1
 
 func TellPlan(
 	params ExecParams,
@@ -195,11 +200,40 @@ func TellPlan(
 					term.OutputErrorAndExit("Error starting stream UI: %v", err)
 				}
 
+				if auth.Current.IsCloud && auth.Current.IntegratedModelsMode && auth.Current.OrgIsTrial {
+					term.StartSpinner("")
+					balance, apiErr := api.Client.GetBalance()
+					term.StopSpinner()
+					if apiErr != nil {
+						term.OutputErrorAndExit("Error getting balance: %v", apiErr.Msg)
+						return
+					}
+
+					if balance.LessThan(decimal.NewFromInt(CloudTrialBalanceWarningThreshold)) {
+						color.New(term.ColorHiYellow, color.Bold).Printf("\n⚠️  Your Plandex Cloud trial has $%s in credits remaining\n\n", balance.StringFixed(2))
+
+						const continueOpt = "Continue"
+						const billingSettingsOpt = "Go to billing settings (then continue)"
+
+						opts := []string{continueOpt, billingSettingsOpt}
+						choice, err := term.SelectFromList("What do you want to do?", opts)
+						if err != nil {
+							term.OutputErrorAndExit("Error selecting option: %v", err)
+						}
+
+						if choice == billingSettingsOpt {
+							ui.OpenAuthenticatedURL("Opening billing settings in your browser.", "/settings/billing")
+						}
+					}
+				}
+
 				if isChatOnly {
+					term.StopSpinner()
 					if !term.IsRepl {
 						term.PrintCmds("", "tell", "convo", "summary", "log")
 					}
 				} else if autoApply || isDebugCmd || isApplyDebug {
+					term.StopSpinner()
 					// do nothing, allow auto apply to run
 				} else {
 					term.StartSpinner("")
