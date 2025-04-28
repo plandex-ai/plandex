@@ -64,6 +64,34 @@ func (ps PlanSettings) GetArchitectMaxReservedOutputTokens() int {
 	}
 }
 
+func (ps PlanSettings) GetCoderMaxTokens() int {
+	if ps.ModelOverrides.MaxTokens == nil {
+		if ps.ModelPack == nil {
+			defaultCoder := DefaultModelPack.Coder
+			return defaultCoder.GetFinalLargeContextFallback().BaseModelConfig.MaxTokens
+		} else {
+			coder := ps.ModelPack.Coder
+			return coder.GetFinalLargeContextFallback().BaseModelConfig.MaxTokens
+		}
+	} else {
+		return *ps.ModelOverrides.MaxTokens
+	}
+}
+
+func (ps PlanSettings) GetCoderMaxReservedOutputTokens() int {
+	if ps.ModelOverrides.MaxTokens == nil {
+		if ps.ModelPack == nil {
+			defaultCoder := DefaultModelPack.Coder
+			return defaultCoder.GetFinalLargeContextFallback().GetReservedOutputTokens()
+		} else {
+			coder := ps.ModelPack.Coder
+			return coder.GetFinalLargeContextFallback().GetReservedOutputTokens()
+		}
+	} else {
+		return *ps.ModelOverrides.MaxTokens
+	}
+}
+
 func (ps PlanSettings) GetWholeFileBuilderMaxTokens() int {
 	if ps.ModelOverrides.MaxTokens == nil {
 		if ps.ModelPack == nil {
@@ -96,10 +124,10 @@ func (ps PlanSettings) GetPlannerMaxConvoTokens() int {
 	if ps.ModelOverrides.MaxConvoTokens == nil {
 		if ps.ModelPack == nil {
 			defaultPlanner := DefaultModelPack.Planner
-			return defaultPlanner.GetFinalLargeContextFallback().MaxConvoTokens
+			return defaultPlanner.MaxConvoTokens
 		} else {
 			planner := ps.ModelPack.Planner
-			return planner.GetFinalLargeContextFallback().MaxConvoTokens
+			return planner.MaxConvoTokens
 		}
 	} else {
 		return *ps.ModelOverrides.MaxConvoTokens
@@ -120,6 +148,13 @@ func (ps PlanSettings) GetArchitectEffectiveMaxTokens() int {
 	return maxArchitectTokens - maxReservedOutputTokens
 }
 
+func (ps PlanSettings) GetCoderEffectiveMaxTokens() int {
+	maxCoderTokens := ps.GetCoderMaxTokens()
+	maxReservedOutputTokens := ps.GetCoderMaxReservedOutputTokens()
+
+	return maxCoderTokens - maxReservedOutputTokens
+}
+
 func (ps PlanSettings) GetWholeFileBuilderEffectiveMaxTokens() int {
 	maxWholeFileBuilderTokens := ps.GetWholeFileBuilderMaxTokens()
 	maxReservedOutputTokens := ps.GetWholeFileBuilderMaxReservedOutputTokens()
@@ -127,33 +162,98 @@ func (ps PlanSettings) GetWholeFileBuilderEffectiveMaxTokens() int {
 	return maxWholeFileBuilderTokens - maxReservedOutputTokens
 }
 
-func (ps PlanSettings) GetRequiredEnvVars() map[string]bool {
-	envVars := map[string]bool{}
+type RequiredEnvVars struct {
+	RequiresEither map[string]bool
+	RequiresAll    map[string]bool
+}
+
+func (ps PlanSettings) GetRequiredEnvVars() RequiredEnvVars {
+	envVars := RequiredEnvVars{
+		RequiresEither: map[string]bool{},
+		RequiresAll:    map[string]bool{},
+	}
 
 	ms := ps.ModelPack
 	if ms == nil {
 		ms = DefaultModelPack
 	}
 
-	envVars[ms.Planner.BaseModelConfig.ApiKeyEnvVar] = true
-	envVars[ms.Builder.BaseModelConfig.ApiKeyEnvVar] = true
-	if ms.WholeFileBuilder != nil {
-		envVars[ms.WholeFileBuilder.BaseModelConfig.ApiKeyEnvVar] = true
+	res := ms.Planner.GetRequiredEnvVars()
+	for envVar := range res.RequiresEither {
+		envVars.RequiresEither[envVar] = true
 	}
-	envVars[ms.PlanSummary.BaseModelConfig.ApiKeyEnvVar] = true
-	envVars[ms.Namer.BaseModelConfig.ApiKeyEnvVar] = true
-	envVars[ms.CommitMsg.BaseModelConfig.ApiKeyEnvVar] = true
-	envVars[ms.ExecStatus.BaseModelConfig.ApiKeyEnvVar] = true
-	if ms.Architect != nil {
-		envVars[ms.Architect.BaseModelConfig.ApiKeyEnvVar] = true
-	}
-	if ms.Coder != nil {
-		envVars[ms.Coder.BaseModelConfig.ApiKeyEnvVar] = true
+	for envVar := range res.RequiresAll {
+		envVars.RequiresAll[envVar] = true
 	}
 
-	// for backward compatibility with <= 0.8.4 server versions
-	if len(envVars) == 0 {
-		envVars["OPENAI_API_KEY"] = true
+	res = ms.Builder.GetRequiredEnvVars()
+	for envVar := range res.RequiresEither {
+		envVars.RequiresEither[envVar] = true
+	}
+	for envVar := range res.RequiresAll {
+		envVars.RequiresAll[envVar] = true
+	}
+
+	if ms.WholeFileBuilder != nil {
+		res = ms.WholeFileBuilder.GetRequiredEnvVars()
+		for envVar := range res.RequiresEither {
+			envVars.RequiresEither[envVar] = true
+		}
+		for envVar := range res.RequiresAll {
+			envVars.RequiresAll[envVar] = true
+		}
+	}
+
+	res = ms.PlanSummary.GetRequiredEnvVars()
+	for envVar := range res.RequiresEither {
+		envVars.RequiresEither[envVar] = true
+	}
+	for envVar := range res.RequiresAll {
+		envVars.RequiresAll[envVar] = true
+	}
+
+	res = ms.Namer.GetRequiredEnvVars()
+	for envVar := range res.RequiresEither {
+		envVars.RequiresEither[envVar] = true
+	}
+	for envVar := range res.RequiresAll {
+		envVars.RequiresAll[envVar] = true
+	}
+
+	res = ms.CommitMsg.GetRequiredEnvVars()
+	for envVar := range res.RequiresEither {
+		envVars.RequiresEither[envVar] = true
+	}
+	for envVar := range res.RequiresAll {
+		envVars.RequiresAll[envVar] = true
+	}
+
+	res = ms.ExecStatus.GetRequiredEnvVars()
+	for envVar := range res.RequiresEither {
+		envVars.RequiresEither[envVar] = true
+	}
+	for envVar := range res.RequiresAll {
+		envVars.RequiresAll[envVar] = true
+	}
+
+	if ms.Architect != nil {
+		res = ms.Architect.GetRequiredEnvVars()
+		for envVar := range res.RequiresEither {
+			envVars.RequiresEither[envVar] = true
+		}
+		for envVar := range res.RequiresAll {
+			envVars.RequiresAll[envVar] = true
+		}
+	}
+
+	if ms.Coder != nil {
+		res = ms.Coder.GetRequiredEnvVars()
+		for envVar := range res.RequiresEither {
+			envVars.RequiresEither[envVar] = true
+		}
+		for envVar := range res.RequiresAll {
+			envVars.RequiresAll[envVar] = true
+		}
 	}
 
 	return envVars
