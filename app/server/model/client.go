@@ -11,7 +11,6 @@ import (
 	"net/http"
 	"os"
 	"plandex-server/types"
-	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -21,13 +20,16 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
+// note that we are *only* using streaming requests now
+// non-streaming request handling has been removed completely
+// streams offer more predictable cancellation partial results
+
 const (
-	OPENAI_STREAM_CHUNK_TIMEOUT = time.Duration(30) * time.Second
-	OPENAI_USAGE_CHUNK_TIMEOUT  = time.Duration(5) * time.Second
-	OPENAI_MAX_RETRIES          = 3
-	OPENAI_MAX_WAIT_DURATION    = 60 * time.Second
-	OPENAI_ABORT_WAIT_DURATION  = 120 * time.Second
-	OPENAI_BACKOFF_MULTIPLIER   = 3.0
+	ACTIVE_STREAM_CHUNK_TIMEOUT          = time.Duration(60) * time.Second
+	USAGE_CHUNK_TIMEOUT                  = time.Duration(10) * time.Second
+	MAX_ADDITIONAL_RETRIES_WITH_FALLBACK = 1
+	MAX_RETRIES_WITHOUT_FALLBACK         = 2
+	MAX_RETRY_DELAY_SECONDS              = 10
 )
 
 var httpClient = &http.Client{}
@@ -103,8 +105,13 @@ func CreateChatCompletionStream(
 	ctx context.Context,
 	req types.ExtendedChatCompletionRequest,
 ) (*ExtendedChatCompletionStream, error) {
-	client, ok := clients[modelConfig.BaseModelConfig.ApiKeyEnvVar]
+	_, ok := clients[modelConfig.BaseModelConfig.ApiKeyEnvVar]
 	if !ok {
+		fmt.Printf("client not found for api key env var: %s", modelConfig.BaseModelConfig.ApiKeyEnvVar)
+		if modelConfig.MissingKeyFallback != nil {
+			fmt.Println("using missing key fallback")
+			return CreateChatCompletionStream(clients, modelConfig.MissingKeyFallback, ctx, req)
+		}
 		return nil, fmt.Errorf("client not found for api key env var: %s", modelConfig.BaseModelConfig.ApiKeyEnvVar)
 	}
 
@@ -119,100 +126,33 @@ func CreateChatCompletionStream(
 		req.IncludeReasoning = true
 	}
 
-	return withRetries(ctx, func() (*ExtendedChatCompletionStream, error) {
-		return createChatCompletionStreamExtended(modelConfig, client, modelConfig.BaseModelConfig.BaseUrl, ctx, req)
-	})
-}
+	return withStreamingRetries(ctx, func(numTotalRetry int, modelErr *shared.ModelError) (*ExtendedChatCompletionStream, shared.FallbackResult, error) {
+		fallbackRes := modelConfig.GetFallbackForModelError(numTotalRetry, modelErr)
+		resolvedModelConfig := fallbackRes.ModelRoleConfig
 
-func CreateChatCompletion(
-	clients map[string]ClientInfo,
-	modelConfig *shared.ModelRoleConfig,
-	ctx context.Context,
-	req types.ExtendedChatCompletionRequest,
-) (openai.ChatCompletionResponse, error) {
-	client, ok := clients[modelConfig.BaseModelConfig.ApiKeyEnvVar]
-	if !ok {
-		return openai.ChatCompletionResponse{}, fmt.Errorf("client not found for api key env var: %s", modelConfig.BaseModelConfig.ApiKeyEnvVar)
-	}
+		if resolvedModelConfig == nil {
+			return nil, fallbackRes, fmt.Errorf("model config is nil")
+		}
 
-	resolveReq(&req, modelConfig)
+		opClient, ok := clients[resolvedModelConfig.BaseModelConfig.ApiKeyEnvVar]
 
-	// choose the fastest provider by latency/throughput on openrouter
-	if modelConfig.BaseModelConfig.Provider == shared.ModelProviderOpenRouter {
-		req.Model += ":nitro"
-	}
+		if !ok {
+			if resolvedModelConfig.MissingKeyFallback != nil {
+				fmt.Println("using missing key fallback")
+				resolvedModelConfig = resolvedModelConfig.MissingKeyFallback
+				opClient, ok = clients[resolvedModelConfig.BaseModelConfig.ApiKeyEnvVar]
+				if !ok {
+					return nil, fallbackRes, fmt.Errorf("client not found for api key env var: %s", resolvedModelConfig.BaseModelConfig.ApiKeyEnvVar)
+				}
+			} else {
+				return nil, fallbackRes, fmt.Errorf("client not found for api key env var: %s", resolvedModelConfig.BaseModelConfig.ApiKeyEnvVar)
+			}
+		}
 
-	return withRetries(ctx, func() (openai.ChatCompletionResponse, error) {
-		return createChatCompletionExtended(modelConfig, client, modelConfig.BaseModelConfig.BaseUrl, ctx, req)
-	})
-}
-
-func createChatCompletionExtended(
-	modelConfig *shared.ModelRoleConfig,
-	client ClientInfo,
-	baseUrl string,
-	ctx context.Context,
-	extendedReq types.ExtendedChatCompletionRequest,
-) (openai.ChatCompletionResponse, error) {
-	var openaiReq *types.ExtendedOpenAIChatCompletionRequest
-	if modelConfig.BaseModelConfig.Provider == shared.ModelProviderOpenAI && !modelConfig.BaseModelConfig.UsesOpenAIResponsesAPI {
-		log.Println("Creating chat completion with direct OpenAI provider request")
-		openaiReq = extendedReq.ToOpenAI()
-	}
-
-	var url string
-	if modelConfig.BaseModelConfig.UsesOpenAIResponsesAPI {
-		url = baseUrl + "/responses"
-	} else {
-		url = baseUrl + "/chat/completions"
-	}
-
-	req, err := http.NewRequestWithContext(ctx, "POST", url, nil)
-	if err != nil {
-		return openai.ChatCompletionResponse{}, err
-	}
-
-	// Add headers
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+client.ApiKey)
-	if client.OrgId != "" {
-		req.Header.Set("OpenAI-Organization", client.OrgId)
-	}
-
-	addOpenRouterHeaders(req)
-
-	// Add body
-	var jsonBody []byte
-	if openaiReq != nil {
-		jsonBody, err = json.Marshal(openaiReq)
-	} else {
-		jsonBody, err = json.Marshal(extendedReq)
-	}
-	if err != nil {
-		return openai.ChatCompletionResponse{}, err
-	}
-	req.Body = io.NopCloser(bytes.NewReader(jsonBody))
-
-	// Make request
-	resp, err := httpClient.Do(req)
-	if err != nil {
-		return openai.ChatCompletionResponse{}, err
-	}
-	defer resp.Body.Close()
-
-	// log the response
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return openai.ChatCompletionResponse{}, err
-	}
-
-	var response openai.ChatCompletionResponse
-	err = json.Unmarshal(body, &response)
-	if err != nil {
-		return openai.ChatCompletionResponse{}, err
-	}
-
-	return response, nil
+		modelConfig = resolvedModelConfig
+		resp, err := createChatCompletionStreamExtended(resolvedModelConfig, opClient, resolvedModelConfig.BaseModelConfig.BaseUrl, ctx, req)
+		return resp, fallbackRes, err
+	}, func(resp *ExtendedChatCompletionStream, err error) {})
 }
 
 func createChatCompletionStreamExtended(
@@ -279,7 +219,11 @@ func createChatCompletionStreamExtended(
 		if err != nil {
 			return nil, fmt.Errorf("error reading error response: %w", err)
 		}
-		return nil, fmt.Errorf("streaming request failed: status code: %d, body: %s", resp.StatusCode, string(body))
+		return nil, &HTTPError{
+			StatusCode: resp.StatusCode,
+			Body:       string(body),
+			Header:     resp.Header.Clone(), // retain Retry-After etc.
+		}
 	}
 
 	// Log response headers
@@ -405,57 +349,6 @@ func (stream *ExtendedChatCompletionStream) Close() error {
 	return stream.customReader.Close()
 }
 
-func isNonRetriableErr(err error) bool {
-	errStr := err.Error()
-
-	// we don't want to retry on the errors below
-	if strings.Contains(errStr, "context deadline exceeded") || strings.Contains(errStr, "context canceled") {
-		log.Println("Context deadline exceeded or canceled - no retry")
-		return true
-	}
-
-	if strings.Contains(errStr, "status code: 400") &&
-		strings.Contains(errStr, "reduce the length of the messages") {
-		log.Println("Token limit exceeded - no retry")
-		return true
-	}
-
-	if strings.Contains(errStr, "status code: 401") {
-		log.Println("Invalid auth or api key - no retry")
-		return true
-	}
-
-	if strings.Contains(errStr, "status code: 429") && strings.Contains(errStr, "exceeded your current quota") {
-		log.Println("Current quota exceeded - no retry")
-		return true
-	}
-
-	return false
-}
-
-func waitBackoff(numRetry int) {
-	d := time.Duration(1<<uint(numRetry)) * time.Second
-	log.Printf("Retrying in %v\n", d)
-	time.Sleep(d)
-}
-
-// parseRetryAfter takes an error message and returns the retry duration or nil if no duration is found.
-func parseRetryAfter(errorMessage string) *time.Duration {
-	// Regex pattern to find the duration in seconds or milliseconds
-	pattern := regexp.MustCompile(`try again in (\d+(\.\d+)?(ms|s))`)
-	match := pattern.FindStringSubmatch(errorMessage)
-	if len(match) > 1 {
-		durationStr := match[1] // the duration string including the unit
-		duration, err := time.ParseDuration(durationStr)
-		if err != nil {
-			fmt.Println("Error parsing duration:", err)
-			return nil
-		}
-		return &duration
-	}
-	return nil
-}
-
 func resolveReq(req *types.ExtendedChatCompletionRequest, modelConfig *shared.ModelRoleConfig) {
 	// if system prompt is disabled, change the role of the system message to user
 	if modelConfig.BaseModelConfig.SystemPromptDisabled {
@@ -524,68 +417,6 @@ func resolveReq(req *types.ExtendedChatCompletionRequest, modelConfig *shared.Mo
 		log.Println("Role params disabled - setting temperature and top p to 1")
 		req.Temperature = 1
 		req.TopP = 1
-	}
-}
-
-// route directly to first-party providers on openrouter for the main models
-// seems to be much faster this way currently
-// func getOpenRouterProviderOrder(modelConfig *shared.ModelRoleConfig) []string {
-// 	var providerOrder []string
-// 	if modelConfig.BaseModelConfig.Provider == shared.ModelProviderOpenRouter {
-// 		if len(modelConfig.BaseModelConfig.PreferredOpenRouterProviders) > 0 {
-// 			for _, provider := range modelConfig.BaseModelConfig.PreferredOpenRouterProviders {
-// 				providerOrder = append(providerOrder, string(provider))
-// 			}
-// 		}
-// 	}
-// 	return providerOrder
-// }
-
-func withRetries[T any](
-	ctx context.Context,
-	operation func() (T, error),
-) (T, error) {
-	var result T
-	var numRetry int
-
-	for {
-		if ctx.Err() != nil {
-			return result, ctx.Err()
-		}
-
-		resp, err := operation()
-		if err == nil {
-			return resp, nil
-		}
-
-		log.Printf("Error in operation: %v, retry: %d\n", err, numRetry)
-
-		if isNonRetriableErr(err) {
-			return result, err
-		}
-
-		if numRetry >= OPENAI_MAX_RETRIES {
-			log.Println("Max retries reached - no retry")
-			return result, err
-		}
-
-		// Handle retry timing
-		if duration := parseRetryAfter(err.Error()); duration != nil {
-			log.Printf("Retry duration found: %v\n", *duration)
-			waitDuration := time.Duration(float64(*duration) * OPENAI_BACKOFF_MULTIPLIER)
-
-			if waitDuration > OPENAI_ABORT_WAIT_DURATION {
-				return result, err
-			} else if waitDuration > OPENAI_MAX_WAIT_DURATION {
-				waitDuration = OPENAI_MAX_WAIT_DURATION
-			}
-
-			time.Sleep(waitDuration)
-		} else {
-			waitBackoff(numRetry)
-		}
-
-		numRetry++
 	}
 }
 
