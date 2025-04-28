@@ -182,7 +182,7 @@ func (planState *CurrentPlanState) GetFilesBeforeReplacement(
 
 			if len(planRes.Replacements) == 0 {
 				if updated != "" {
-					log.Println("plan updates out of order: %s", path)
+					log.Println("plan updates out of order:", path)
 					log.Println("updated:")
 					log.Println(updated)
 					log.Println("planRes.Content:")
