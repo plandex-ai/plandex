@@ -3,6 +3,8 @@ package types
 import (
 	"context"
 	shared "plandex-shared"
+
+	"github.com/shopspring/decimal"
 )
 
 type OnStreamPlanParams struct {
@@ -113,6 +115,7 @@ type ApiClient interface {
 
 	GetCreditsTransactions(pageSize, pageNum int, req shared.CreditsLogRequest) (*shared.CreditsLogResponse, *shared.ApiError)
 	GetCreditsSummary(req shared.CreditsLogRequest) (*shared.CreditsSummaryResponse, *shared.ApiError)
+	GetBalance() (decimal.Decimal, *shared.ApiError)
 
 	GetFileMap(req shared.GetFileMapRequest) (*shared.GetFileMapResponse, *shared.ApiError)
 	GetContextBody(planId, branch, contextId string) (*shared.GetContextBodyResponse, *shared.ApiError)
