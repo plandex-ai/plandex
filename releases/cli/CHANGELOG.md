@@ -1,3 +1,6 @@
+## CLI Version 2.1.0+1
+- Fix for potential encoding issue when loading files into context.
+
 ## CLI Version 2.1.0
 ## 🚀  OpenRouter only for BYO key
 
