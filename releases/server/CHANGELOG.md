@@ -1,3 +1,6 @@
+## Server Version 2.1.0+1
+- Fix for context length exceeded error that still wasn't being caught and retried by the fallback correctly.
+
 ## Server Version 2.1.0
 See CLI 2.1.0 release notes.
 
