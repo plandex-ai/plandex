@@ -2,7 +2,6 @@ package api
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"plandex-cli/auth"
@@ -50,7 +49,6 @@ func refreshAuthIfNeeded(apiErr *shared.ApiError) (bool, *shared.ApiError) {
 		}
 		return true, nil
 	} else if apiErr.Type == shared.ApiErrorTypeAuthOutdated {
-		fmt.Println("refreshing auth")
 		err := auth.RefreshAuth()
 		if err != nil {
 			return false, &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: "error refreshing auth"}
