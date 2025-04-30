@@ -40,9 +40,34 @@ func ClassifyModelError(code int, message string, headers http.Header) shared.Mo
 
 	var res shared.ModelError
 
+	if strings.Contains(msg, "maximum context length") ||
+		strings.Contains(msg, "context length exceeded") ||
+		strings.Contains(msg, "exceed context limit") ||
+		strings.Contains(msg, "decrease input length") ||
+		strings.Contains(msg, "too many tokens") ||
+		strings.Contains(msg, "payload too large") {
+		return shared.ModelError{
+			Kind:              shared.ErrContextTooLong,
+			Retriable:         false,
+			RetryAfterSeconds: 0,
+		}
+	}
+
+	if strings.Contains(msg, "model_overloaded") ||
+		strings.Contains(msg, "model overloaded") ||
+		strings.Contains(msg, "server is overloaded") ||
+		strings.Contains(msg, "model is currently overloaded") ||
+		strings.Contains(msg, "overloaded_error") ||
+		strings.Contains(msg, "resource has been exhausted") {
+		return shared.ModelError{
+			Kind:              shared.ErrOverloaded,
+			Retriable:         true,
+			RetryAfterSeconds: 0,
+		}
+	}
+
 	switch code {
 	case 429, 529:
-
 		res = shared.ModelError{
 			Kind:              shared.ErrRateLimited,
 			Retriable:         true,
@@ -54,34 +79,6 @@ func ClassifyModelError(code int, message string, headers http.Header) shared.Mo
 			Retriable:         false,
 			RetryAfterSeconds: 0,
 		}
-	case 400:
-		switch {
-		case strings.Contains(msg, "model_overloaded") ||
-			strings.Contains(msg, "server is overloaded") ||
-			strings.Contains(msg, "model is currently overloaded") ||
-			strings.Contains(msg, "overloaded_error") ||
-			strings.Contains(msg, "resource has been exhausted"):
-			res = shared.ModelError{
-				Kind:              shared.ErrOverloaded,
-				Retriable:         true,
-				RetryAfterSeconds: 0,
-			}
-		case strings.Contains(msg, "maximum context length") ||
-			strings.Contains(msg, "context length exceeded") ||
-			strings.Contains(msg, "too many tokens") ||
-			strings.Contains(msg, "payload too large"):
-			res = shared.ModelError{
-				Kind:              shared.ErrContextTooLong,
-				Retriable:         false,
-				RetryAfterSeconds: 0,
-			}
-		default:
-			res = shared.ModelError{
-				Kind:              shared.ErrOther,
-				Retriable:         false,
-				RetryAfterSeconds: 0,
-			}
-		}
 
 	// rare codes but they never succeed on retry if they do show up
 	case 501, 505:
@@ -91,7 +88,6 @@ func ClassifyModelError(code int, message string, headers http.Header) shared.Mo
 			RetryAfterSeconds: 0,
 		}
 	default:
-
 		res = shared.ModelError{
 			Kind:              shared.ErrOther,
 			Retriable:         code >= 500,
