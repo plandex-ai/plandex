@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math/rand"
 	"plandex-server/types"
 	shared "plandex-shared"
 	"time"
@@ -20,8 +21,13 @@ func CreateChatCompletionWithInternalStream(
 	onStream OnStreamFn,
 	reqStarted time.Time,
 ) (*types.ModelResponse, error) {
-	client, ok := clients[modelConfig.BaseModelConfig.ApiKeyEnvVar]
+	_, ok := clients[modelConfig.BaseModelConfig.ApiKeyEnvVar]
 	if !ok {
+		fmt.Printf("client not found for api key env var: %s", modelConfig.BaseModelConfig.ApiKeyEnvVar)
+		if modelConfig.MissingKeyFallback != nil {
+			fmt.Println("using missing key fallback")
+			return CreateChatCompletionWithInternalStream(clients, modelConfig.MissingKeyFallback, ctx, req, onStream, reqStarted)
+		}
 		return nil, fmt.Errorf("client not found for api key env var: %s", modelConfig.BaseModelConfig.ApiKeyEnvVar)
 	}
 
@@ -35,8 +41,40 @@ func CreateChatCompletionWithInternalStream(
 	// Force streaming mode since we're using the streaming API
 	req.Stream = true
 
-	return withStreamingRetries[types.ModelResponse](ctx, func() (*types.ModelResponse, error) {
-		return processChatCompletionStream(modelConfig, client, modelConfig.BaseModelConfig.BaseUrl, ctx, req, onStream, reqStarted)
+	return withStreamingRetries(ctx, func(numTotalRetry int, modelErr *shared.ModelError) (resp *types.ModelResponse, fallbackRes shared.FallbackResult, err error) {
+		fallbackRes = modelConfig.GetFallbackForModelError(numTotalRetry, modelErr)
+		resolvedModelConfig := fallbackRes.ModelRoleConfig
+
+		if resolvedModelConfig == nil {
+			return nil, fallbackRes, fmt.Errorf("model config is nil")
+		}
+
+		opClient, ok := clients[resolvedModelConfig.BaseModelConfig.ApiKeyEnvVar]
+
+		if !ok {
+			if resolvedModelConfig.MissingKeyFallback != nil {
+				fmt.Println("using missing key fallback")
+				resolvedModelConfig = resolvedModelConfig.MissingKeyFallback
+				opClient, ok = clients[resolvedModelConfig.BaseModelConfig.ApiKeyEnvVar]
+				if !ok {
+					return nil, fallbackRes, fmt.Errorf("client not found for api key env var: %s", resolvedModelConfig.BaseModelConfig.ApiKeyEnvVar)
+				}
+			} else {
+				return nil, fallbackRes, fmt.Errorf("client not found for api key env var: %s", resolvedModelConfig.BaseModelConfig.ApiKeyEnvVar)
+			}
+		}
+
+		modelConfig = resolvedModelConfig
+		resp, err = processChatCompletionStream(resolvedModelConfig, opClient, resolvedModelConfig.BaseModelConfig.BaseUrl, ctx, req, onStream, reqStarted)
+		if err != nil {
+			return nil, fallbackRes, err
+		}
+		return resp, fallbackRes, nil
+	}, func(resp *types.ModelResponse, err error) {
+		if resp != nil {
+			resp.Stopped = true
+			resp.Error = err.Error()
+		}
 	})
 }
 
@@ -50,17 +88,19 @@ func processChatCompletionStream(
 	reqStarted time.Time,
 ) (*types.ModelResponse, error) {
 	streamCtx, cancel := context.WithCancel(ctx)
-	defer cancel()
 
 	stream, err := createChatCompletionStreamExtended(modelConfig, client, baseUrl, streamCtx, req)
 	if err != nil {
+		cancel()
 		return nil, fmt.Errorf("error creating chat completion stream: %w", err)
 	}
+
 	defer stream.Close()
+	defer cancel()
 
 	accumulator := types.NewStreamCompletionAccumulator()
 	// Create a timer that will trigger if no chunk is received within the specified duration
-	timer := time.NewTimer(OPENAI_STREAM_CHUNK_TIMEOUT)
+	timer := time.NewTimer(ACTIVE_STREAM_CHUNK_TIMEOUT)
 	defer timer.Stop()
 	streamFinished := false
 
@@ -108,7 +148,7 @@ func processChatCompletionStream(
 			if !timer.Stop() {
 				<-timer.C
 			}
-			timer.Reset(OPENAI_STREAM_CHUNK_TIMEOUT)
+			timer.Reset(ACTIVE_STREAM_CHUNK_TIMEOUT)
 
 			// Process the response
 			if response.Usage != nil {
@@ -145,7 +185,7 @@ func processChatCompletionStream(
 						if !timer.Stop() {
 							<-timer.C
 						}
-						timer.Reset(OPENAI_USAGE_CHUNK_TIMEOUT)
+						timer.Reset(USAGE_CHUNK_TIMEOUT)
 						streamFinished = true
 						continue
 					}
@@ -177,57 +217,97 @@ func processChatCompletionStream(
 
 func withStreamingRetries[T any](
 	ctx context.Context,
-	operation func() (*types.ModelResponse, error),
-) (*types.ModelResponse, error) {
-	var result *types.ModelResponse
-	var numRetry int
+	operation func(numRetry int, modelErr *shared.ModelError) (resp *T, fallbackRes shared.FallbackResult, err error),
+	onContextDone func(resp *T, err error),
+) (*T, error) {
+	var resp *T
+	var numTotalRetry int
+	var numFallbackRetry int
+	var fallbackRes shared.FallbackResult
+	var modelErr *shared.ModelError
 
 	for {
 		if ctx.Err() != nil {
-			if result != nil {
+			if resp != nil {
 				// Return partial result with context error
-				result.Stopped = true
-				result.Error = ctx.Err().Error()
-				return result, ctx.Err()
+				onContextDone(resp, ctx.Err())
+				return resp, ctx.Err()
 			}
 			return nil, ctx.Err()
 		}
 
-		resp, err := operation()
+		var err error
+
+		var numRetry int
+		if numFallbackRetry > 0 {
+			numRetry = numFallbackRetry
+		} else {
+			numRetry = numTotalRetry
+		}
+
+		log.Printf("withStreamingRetries - will run operation")
+
+		resp, fallbackRes, err = operation(numTotalRetry, modelErr)
 		if err == nil {
 			return resp, nil
 		}
 
-		// Store the partial result for potential return
-		result = resp
+		log.Printf("withStreamingRetries - operation returned error: %v", err)
 
-		log.Printf("Error in streaming operation: %v, retry: %d\n", err, numRetry)
-
-		if isNonRetriableErr(err) {
-			return result, err
+		isFallback := fallbackRes.IsFallback
+		maxRetries := MAX_RETRIES_WITHOUT_FALLBACK
+		if isFallback {
+			maxRetries = MAX_ADDITIONAL_RETRIES_WITH_FALLBACK
 		}
 
-		if numRetry >= OPENAI_MAX_RETRIES {
-			log.Println("Max retries reached - no retry")
-			return result, err
+		compareRetries := numTotalRetry
+		if isFallback {
+			compareRetries = numFallbackRetry
 		}
 
-		// Handle retry timing
-		if duration := parseRetryAfter(err.Error()); duration != nil {
-			log.Printf("Retry duration found: %v\n", *duration)
-			waitDuration := time.Duration(float64(*duration) * OPENAI_BACKOFF_MULTIPLIER)
+		log.Printf("Error in streaming operation: %v, isFallback: %t, numTotalRetry: %d, numFallbackRetry: %d, numRetry: %d, compareRetries: %d, maxRetries: %d\n", err, isFallback, numTotalRetry, numFallbackRetry, numRetry, compareRetries, maxRetries)
 
-			if waitDuration > OPENAI_ABORT_WAIT_DURATION {
-				return result, err
-			} else if waitDuration > OPENAI_MAX_WAIT_DURATION {
-				waitDuration = OPENAI_MAX_WAIT_DURATION
+		classifyRes := classifyBasicError(err)
+		modelErr = &classifyRes
+
+		newFallback := false
+		if !modelErr.Retriable {
+			log.Printf("withStreamingRetries - operation returned non-retriable error: %v", err)
+			if modelErr.Kind == shared.ErrContextTooLong && fallbackRes.ModelRoleConfig.LargeContextFallback == nil {
+				log.Printf("withStreamingRetries - non-retriable context too long error and no large context fallback is defined, returning error")
+				// if it's a context too long error and no large context fallback is defined, return the error
+				return resp, err
+			} else if modelErr.Kind != shared.ErrContextTooLong && fallbackRes.ModelRoleConfig.ErrorFallback == nil {
+				log.Printf("withStreamingRetries - non-retriable error and no error fallback is defined, returning error")
+				// if it's any other error and no error fallback is defined, return the error
+				return resp, err
 			}
-
-			time.Sleep(waitDuration)
-		} else {
-			waitBackoff(numRetry)
+			log.Printf("withStreamingRetries - operation returned non-retriable error, but has fallback - resetting numFallbackRetry to 0 and continuing to retry")
+			numFallbackRetry = 0
+			newFallback = true
+			// otherwise, continue to retry logic
 		}
 
-		numRetry++
+		if compareRetries >= maxRetries {
+			log.Printf("withStreamingRetries - compareRetries >= maxRetries - returning error")
+			return resp, err
+		}
+
+		var retryDelay time.Duration
+		if modelErr != nil && modelErr.RetryAfterSeconds > 0 {
+			// if the model err has a retry after, then use that with a bit of padding
+			retryDelay = time.Duration(int(float64(modelErr.RetryAfterSeconds)*1.1)) * time.Second
+		} else {
+			// otherwise, use some jitter
+			retryDelay = time.Duration(1000+rand.Intn(200)) * time.Millisecond
+		}
+
+		log.Printf("withStreamingRetries - retrying stream in %v seconds", retryDelay)
+		time.Sleep(retryDelay)
+
+		numTotalRetry++
+		if isFallback && !newFallback {
+			numFallbackRetry++
+		}
 	}
 }

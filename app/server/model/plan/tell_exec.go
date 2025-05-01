@@ -62,7 +62,6 @@ type execTellPlanParams struct {
 	iteration                  int
 	missingFileResponse        shared.RespondMissingFileChoice
 	shouldBuildPending         bool
-	numErrorRetry              int
 	unfinishedSubtaskReasoning string
 }
 
@@ -78,6 +77,7 @@ func execTellPlan(params execTellPlanParams) {
 	unfinishedSubtaskReasoning := params.unfinishedSubtaskReasoning
 
 	log.Printf("[TellExec] Starting iteration %d for plan %s on branch %s", iteration, plan.Id, branch)
+
 	currentUserId := auth.User.Id
 	currentOrgId := auth.OrgId
 
@@ -136,7 +136,6 @@ func execTellPlan(params execTellPlanParams) {
 
 	state := &activeTellStreamState{
 		modelStreamId:       active.ModelStreamId,
-		execTellPlanParams:  params,
 		clients:             clients,
 		req:                 req,
 		auth:                auth,
@@ -149,7 +148,7 @@ func execTellPlan(params execTellPlanParams) {
 	}
 
 	log.Println("execTellPlan - Loading tell plan")
-	err = state.loadTellPlan(params.numErrorRetry > 0)
+	err = state.loadTellPlan()
 	if err != nil {
 		return
 	}
@@ -171,7 +170,7 @@ func execTellPlan(params execTellPlanParams) {
 		}
 	} else if state.currentStage.TellStage == shared.TellStageImplementation {
 		tentativeModelConfig = state.settings.ModelPack.GetCoder()
-		tentativeMaxTokens = tentativeModelConfig.GetFinalLargeContextFallback().BaseModelConfig.MaxTokens
+		tentativeMaxTokens = state.settings.GetCoderEffectiveMaxTokens()
 	} else {
 		log.Printf("Tell plan - execTellPlan - unknown tell stage: %s\n", state.currentStage.TellStage)
 		go notify.NotifyErr(notify.SeverityError, fmt.Errorf("execTellPlan: unknown tell stage: %s", state.currentStage.TellStage))
@@ -183,7 +182,6 @@ func execTellPlan(params execTellPlanParams) {
 		}
 		return
 	}
-	state.tenativeModelConfig = &tentativeModelConfig
 
 	ok, tokensWithoutContext := state.dryRunCalculateTokensWithoutContext(tentativeMaxTokens, unfinishedSubtaskReasoning)
 	if !ok {
@@ -307,7 +305,18 @@ func execTellPlan(params execTellPlanParams) {
 	log.Printf("Latest summary tokens: %d\n", state.latestSummaryTokens)
 	log.Printf("Total tokens before convo: %d\n", state.tokensBeforeConvo)
 
-	if state.tokensBeforeConvo > state.settings.GetPlannerEffectiveMaxTokens() {
+	var effectiveMaxTokens int
+	if state.currentStage.TellStage == shared.TellStagePlanning {
+		if state.currentStage.PlanningPhase == shared.PlanningPhaseContext {
+			effectiveMaxTokens = state.settings.GetArchitectEffectiveMaxTokens()
+		} else {
+			effectiveMaxTokens = state.settings.GetPlannerEffectiveMaxTokens()
+		}
+	} else if state.currentStage.TellStage == shared.TellStageImplementation {
+		effectiveMaxTokens = state.settings.GetCoderEffectiveMaxTokens()
+	}
+
+	if state.tokensBeforeConvo > effectiveMaxTokens {
 		// token limit already exceeded before adding conversation
 		err := fmt.Errorf("token limit exceeded before adding conversation")
 		log.Printf("Error: %v\n", err)
@@ -343,9 +352,7 @@ func execTellPlan(params execTellPlanParams) {
 	state.replyId = uuid.New().String()
 	state.replyParser = types.NewReplyParser()
 
-	if missingFileResponse == "" {
-		state.messages = append(state.messages, *promptMessage)
-	} else if !state.handleMissingFileResponse(unfinishedSubtaskReasoning) {
+	if missingFileResponse != "" && !state.handleMissingFileResponse(unfinishedSubtaskReasoning) {
 		return
 	}
 
@@ -360,7 +367,6 @@ func execTellPlan(params execTellPlanParams) {
 	requestTokens := model.GetMessagesTokenEstimate(state.messages...) + model.TokensPerRequest
 	state.totalRequestTokens = requestTokens
 
-	stop := []string{"<PlandexFinish/>"}
 	modelConfig := tentativeModelConfig
 
 	log.Println("Tell plan - setting modelConfig")
@@ -374,7 +380,7 @@ func execTellPlan(params execTellPlanParams) {
 			modelConfig = state.settings.ModelPack.GetArchitect().GetRoleForInputTokens(requestTokens)
 			log.Println("Tell plan - got modelConfig for context phase")
 		} else if state.currentStage.PlanningPhase == shared.PlanningPhaseTasks {
-			modelConfig = state.settings.ModelPack.Planner.GetRoleForInputTokens(requestTokens).ModelRoleConfig
+			modelConfig = state.settings.ModelPack.Planner.GetRoleForInputTokens(requestTokens)
 			log.Println("Tell plan - got modelConfig for tasks phase")
 		}
 	} else if state.currentStage.TellStage == shared.TellStageImplementation {
@@ -383,6 +389,7 @@ func execTellPlan(params execTellPlanParams) {
 	}
 
 	log.Println("Tell plan - modelConfig:", spew.Sdump(modelConfig))
+	state.modelConfig = &modelConfig
 
 	// if the model doesn't support cache control, remove the cache control spec from the messages
 	if !modelConfig.BaseModelConfig.SupportsCacheControl {
@@ -423,12 +430,35 @@ func execTellPlan(params execTellPlanParams) {
 			InputTokens:  requestTokens,
 			OutputTokens: modelConfig.BaseModelConfig.MaxOutputTokens - requestTokens,
 			ModelName:    modelConfig.BaseModelConfig.ModelName,
+			IsUserPrompt: true,
 		},
 	})
 	if apiErr != nil {
 		active.StreamDoneCh <- apiErr
 		return
 	}
+
+	state.doTellRequest()
+
+	if shouldBuildPending {
+		go state.queuePendingBuilds()
+	}
+
+	UpdateActivePlan(planId, branch, func(ap *types.ActivePlan) {
+		ap.CurrentStreamingReplyId = state.replyId
+		ap.CurrentReplyDoneCh = make(chan bool, 1)
+	})
+
+}
+
+func (state *activeTellStreamState) doTellRequest() {
+	clients := state.clients
+	modelConfig := state.modelConfig
+	active := state.activePlan
+
+	fallbackRes := modelConfig.GetFallbackForModelError(state.numErrorRetry, state.modelErr)
+	modelConfig = fallbackRes.ModelRoleConfig
+	stop := []string{"<PlandexFinish/>"}
 
 	// log.Println("Stop:", stop)
 	// spew.Dump(state.messages)
@@ -444,12 +474,19 @@ func execTellPlan(params execTellPlanParams) {
 		},
 		Temperature: modelConfig.Temperature,
 		TopP:        modelConfig.TopP,
-		Stop:        stop,
 	}
 
+	if modelConfig.BaseModelConfig.StopDisabled {
+		state.manualStop = stop
+	} else {
+		modelReq.Stop = stop
+	}
+
+	// update state
+	state.fallbackRes = fallbackRes
 	state.requestStartedAt = time.Now()
 	state.originalReq = &modelReq
-	state.modelConfig = &modelConfig
+	state.modelConfig = modelConfig
 
 	// output the modelReq to a json file
 	// if jsonData, err := json.MarshalIndent(modelReq, "", "  "); err == nil {
@@ -462,7 +499,11 @@ func execTellPlan(params execTellPlanParams) {
 	// 	log.Printf("Error marshaling model request to JSON: %v\n", err)
 	// }
 
-	stream, err := model.CreateChatCompletionStream(clients, &modelConfig, active.ModelStreamCtx, modelReq)
+	log.Printf("[Tell] doTellRequest retry=%d fallbackRetry=%d using model=%s",
+		state.numErrorRetry, state.numFallbackRetry, state.modelConfig.BaseModelConfig.ModelName)
+
+	// start the stream
+	stream, err := model.CreateChatCompletionStream(clients, modelConfig, active.ModelStreamCtx, modelReq)
 	if err != nil {
 		log.Printf("Error starting reply stream: %v\n", err)
 		go notify.NotifyErr(notify.SeverityError, fmt.Errorf("error starting reply stream: %v", err))
@@ -474,22 +515,13 @@ func execTellPlan(params execTellPlanParams) {
 		return
 	}
 
-	if shouldBuildPending {
-		go state.queuePendingBuilds()
-	}
-
-	UpdateActivePlan(planId, branch, func(ap *types.ActivePlan) {
-		ap.CurrentStreamingReplyId = state.replyId
-		ap.CurrentReplyDoneCh = make(chan bool, 1)
-	})
-
+	// handle stream chunks
 	go state.listenStream(stream)
 }
 
 func (state *activeTellStreamState) dryRunCalculateTokensWithoutContext(tentativeMaxTokens int, unfinishedSubtaskReasoning string) (bool, int) {
 	clone := &activeTellStreamState{
 		modelStreamId:       state.modelStreamId,
-		execTellPlanParams:  state.execTellPlanParams,
 		clients:             state.clients,
 		req:                 state.req,
 		auth:                state.auth,
@@ -513,7 +545,6 @@ func (state *activeTellStreamState) dryRunCalculateTokensWithoutContext(tentativ
 		hasAssistantReply:   state.hasAssistantReply,
 		modelContext:        state.modelContext,
 		activePlan:          state.activePlan,
-		tenativeModelConfig: state.tenativeModelConfig,
 	}
 
 	sysParts, err := clone.getTellSysPrompt(getTellSysPromptParams{
@@ -558,7 +589,18 @@ func (state *activeTellStreamState) dryRunCalculateTokensWithoutContext(tentativ
 			clone.latestSummaryTokens +
 			model.TokensPerRequest
 
-	if clone.tokensBeforeConvo > clone.settings.GetPlannerEffectiveMaxTokens() {
+	var effectiveMaxTokens int
+	if clone.currentStage.TellStage == shared.TellStagePlanning {
+		if clone.currentStage.PlanningPhase == shared.PlanningPhaseContext {
+			effectiveMaxTokens = clone.settings.GetArchitectEffectiveMaxTokens()
+		} else {
+			effectiveMaxTokens = clone.settings.GetPlannerEffectiveMaxTokens()
+		}
+	} else if clone.currentStage.TellStage == shared.TellStageImplementation {
+		effectiveMaxTokens = clone.settings.GetCoderEffectiveMaxTokens()
+	}
+
+	if clone.tokensBeforeConvo > effectiveMaxTokens {
 		log.Println("tokensBeforeConvo exceeds max tokens during dry run")
 		go notify.NotifyErr(notify.SeverityError, fmt.Errorf("tokensBeforeConvo exceeds max tokens during dry run"))
 

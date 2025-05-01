@@ -388,6 +388,8 @@ func checkOutdatedAndMaybeUpdateContext(doUpdate bool, maybeContexts []*shared.C
 					errs = append(errs, fmt.Errorf("failed to read the file %s: %v", ctx.FilePath, err))
 					return
 				}
+				fileContent = shared.NormalizeEOL(fileContent)
+
 				fileInfo, err := os.Stat(ctx.FilePath)
 				if err != nil {
 					mu.Lock()

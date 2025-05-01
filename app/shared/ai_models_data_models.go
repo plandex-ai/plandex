@@ -35,12 +35,22 @@ type BaseModelConfig struct {
 	PreferredModelOutputFormat ModelOutputFormat `json:"preferredModelOutputFormat"`
 	SystemPromptDisabled       bool              `json:"systemPromptDisabled"`
 	RoleParamsDisabled         bool              `json:"roleParamsDisabled"`
+	StopDisabled               bool              `json:"stopDisabled"`
 	PredictedOutputEnabled     bool              `json:"predictedOutputEnabled"`
 	ReasoningEffortEnabled     bool              `json:"reasoningEffortEnabled"`
 	ReasoningEffort            ReasoningEffort   `json:"reasoningEffort"`
 	IncludeReasoning           bool              `json:"includeReasoning"`
 	SupportsCacheControl       bool              `json:"supportsCacheControl"`
-	UsesOpenAIResponsesAPI     bool              `json:"usesOpenAIResponsesAPI"`
+
+	// for openai responses API, not fully implemented yet
+	UsesOpenAIResponsesAPI bool `json:"usesOpenAIResponsesAPI"`
+
+	// for anthropic, single message system prompt needs to be flipped to 'user'
+	SingleMessageNoSystemPrompt bool `json:"singleMessageNoSystemPrompt"`
+
+	// for openai, token estimate padding percentage
+	TokenEstimatePaddingPct float64 `json:"tokenEstimatePaddingPct"`
+
 	ModelCompatibility
 }
 
@@ -84,9 +94,9 @@ type ModelRoleConfig struct {
 
 	LargeContextFallback *ModelRoleConfig `json:"largeContextFallback"`
 	LargeOutputFallback  *ModelRoleConfig `json:"largeOutputFallback"`
-	// ErrorFallback        *ModelRoleConfig `json:"errorFallback"`
-
-	StrongModel *ModelRoleConfig `json:"strongModel"`
+	ErrorFallback        *ModelRoleConfig `json:"errorFallback"`
+	MissingKeyFallback   *ModelRoleConfig `json:"missingKeyFallback"`
+	StrongModel          *ModelRoleConfig `json:"strongModel"`
 }
 
 func (m ModelRoleConfig) GetReservedOutputTokens() int {
@@ -114,145 +124,9 @@ func (m ModelRoleConfig) Value() (driver.Value, error) {
 	return json.Marshal(m)
 }
 
-const maxFallbackDepth = 10 // max fallback depth for large context fallback - should never be reached in real scenarios, but protects against infinite loops in case of circular references etc.
-
-func (m ModelRoleConfig) GetFinalLargeContextFallback() ModelRoleConfig {
-	var currentConfig ModelRoleConfig = m
-	var n int = 0
-
-	for {
-		if currentConfig.LargeContextFallback == nil {
-			return currentConfig
-		} else {
-			currentConfig = *currentConfig.LargeContextFallback
-		}
-		n++
-		if n > maxFallbackDepth {
-			break
-		}
-	}
-
-	return currentConfig
-}
-
-func (m ModelRoleConfig) GetFinalLargeOutputFallback() ModelRoleConfig {
-	var currentConfig ModelRoleConfig = m
-	var n int = 0
-
-	if currentConfig.LargeOutputFallback == nil {
-		return currentConfig.GetFinalLargeContextFallback()
-	}
-
-	for {
-		if currentConfig.LargeOutputFallback == nil {
-			return currentConfig
-		} else {
-			currentConfig = *currentConfig.LargeOutputFallback
-		}
-		n++
-		if n > maxFallbackDepth {
-			break
-		}
-	}
-
-	return currentConfig
-}
-
-// note that if the token number exeeds all the fallback models, it will return the last fallback model
-func (m ModelRoleConfig) GetRoleForInputTokens(inputTokens int) ModelRoleConfig {
-	var currentConfig ModelRoleConfig = m
-	var n int = 0
-	for {
-		if currentConfig.BaseModelConfig.MaxTokens >= inputTokens {
-			return currentConfig
-		}
-
-		if currentConfig.LargeContextFallback == nil {
-			return currentConfig
-		} else {
-			currentConfig = *currentConfig.LargeContextFallback
-		}
-		n++
-		if n > maxFallbackDepth {
-			break
-		}
-	}
-	return currentConfig
-}
-
-func (m ModelRoleConfig) GetRoleForOutputTokens(outputTokens int) ModelRoleConfig {
-	var currentConfig ModelRoleConfig = m
-	var n int = 0
-	for {
-		if currentConfig.GetReservedOutputTokens() >= outputTokens {
-			return currentConfig
-		}
-
-		if currentConfig.LargeOutputFallback == nil {
-			if currentConfig.LargeContextFallback == nil {
-				return currentConfig
-			} else {
-				currentConfig = *currentConfig.LargeContextFallback
-			}
-		} else {
-			currentConfig = *currentConfig.LargeOutputFallback
-		}
-		n++
-		if n > maxFallbackDepth {
-			break
-		}
-	}
-	return currentConfig
-}
-
 type PlannerRoleConfig struct {
 	ModelRoleConfig
 	PlannerModelConfig
-	PlannerLargeContextFallback *PlannerRoleConfig `json:"plannerLargeContextFallback"`
-	// PlannerErrorFallback        *PlannerRoleConfig `json:"plannerErrorFallback"`
-}
-
-func (p PlannerRoleConfig) GetFinalLargeContextFallback() PlannerRoleConfig {
-	var currentConfig PlannerRoleConfig = p
-	var n int = 0
-	for {
-		if currentConfig.PlannerLargeContextFallback == nil {
-			return currentConfig
-		} else {
-			currentConfig = *currentConfig.PlannerLargeContextFallback
-		}
-		n++
-		if n > maxFallbackDepth {
-			break
-		}
-	}
-
-	return currentConfig
-}
-
-func (p PlannerRoleConfig) GetRoleForInputTokens(tokens int) PlannerRoleConfig {
-	var currentConfig PlannerRoleConfig = p
-	var n int = 0
-	for {
-		effectiveMax := currentConfig.BaseModelConfig.MaxTokens
-		effectiveMax -= currentConfig.BaseModelConfig.ReservedOutputTokens
-		effectiveMax = int(float64(effectiveMax) * 0.9) // leave a little extra room
-
-		if effectiveMax >= tokens {
-			return currentConfig
-		}
-
-		if currentConfig.PlannerLargeContextFallback == nil {
-			return currentConfig
-		} else {
-			currentConfig = *currentConfig.PlannerLargeContextFallback
-		}
-		n++
-		if n > maxFallbackDepth {
-			break
-		}
-	}
-	return currentConfig
 }
 
 func (p *PlannerRoleConfig) Scan(src interface{}) error {

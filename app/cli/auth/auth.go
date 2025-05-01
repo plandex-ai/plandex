@@ -110,3 +110,27 @@ func RefreshInvalidToken() error {
 
 	return nil
 }
+
+func RefreshAuth() error {
+	if Current == nil {
+		return fmt.Errorf("error refreshing auth: auth not loaded")
+	}
+
+	org, apiErr := apiClient.GetOrgSession()
+
+	if apiErr != nil {
+		return fmt.Errorf("error getting org session: %v", apiErr.Msg)
+	}
+
+	Current.OrgName = org.Name
+	Current.OrgIsTrial = org.IsTrial
+	Current.IntegratedModelsMode = org.IntegratedModelsMode
+
+	err := writeCurrentAuth()
+
+	if err != nil {
+		return fmt.Errorf("error writing auth: %v", err)
+	}
+
+	return nil
+}

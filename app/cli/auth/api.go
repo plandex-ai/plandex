@@ -20,10 +20,12 @@ func SetAuthHeader(req *http.Request) error {
 	if Current == nil {
 		return fmt.Errorf("error setting auth header: auth not loaded")
 	}
+	hash := Current.ToHash()
 
 	authHeader := shared.AuthHeader{
 		Token: Current.Token,
 		OrgId: Current.OrgId,
+		Hash:  hash,
 	}
 
 	bytes, err := json.Marshal(authHeader)

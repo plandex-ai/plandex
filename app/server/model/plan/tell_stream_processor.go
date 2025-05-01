@@ -23,6 +23,7 @@ var openingTagRegex = regexp.MustCompile(`<PlandexBlock\s+lang="(.+?)"\s+path="(
 
 type processChunkResult struct {
 	shouldReturn bool
+	shouldStop   bool
 }
 
 func (state *activeTellStreamState) processChunk(choice types.ExtendedChatCompletionStreamChoice) processChunkResult {
@@ -57,7 +58,7 @@ func (state *activeTellStreamState) processChunk(choice types.ExtendedChatComple
 	delta := choice.Delta
 	content := delta.Content
 
-	if delta.Reasoning != "" {
+	if state.modelConfig.BaseModelConfig.IncludeReasoning && delta.Reasoning != "" {
 		content = delta.Reasoning
 	}
 
@@ -107,7 +108,7 @@ func (state *activeTellStreamState) processChunk(choice types.ExtendedChatComple
 
 	// Handle file that is present in project paths but not in context
 	// Prompt user for what to do on the client side, stop the stream, and wait for user response before proceeding
-	bufferOrStreamRes := processor.bufferOrStream(content, &parserRes, state.currentStage)
+	bufferOrStreamRes := processor.bufferOrStream(content, &parserRes, state.currentStage, state.manualStop)
 
 	if currentFile != "" &&
 		!req.IsChatOnly &&
@@ -147,17 +148,82 @@ func (state *activeTellStreamState) processChunk(choice types.ExtendedChatComple
 		state.handleNewOperations(&parserRes)
 	}
 
-	return processChunkResult{}
+	return processChunkResult{
+		shouldStop: bufferOrStreamRes.shouldStop,
+	}
 }
 
 type bufferOrStreamResult struct {
 	shouldStream bool
 	content      string
 	blockLang    string
+	shouldStop   bool
 }
 
-func (processor *chunkProcessor) bufferOrStream(content string, parserRes *types.ReplyParserRes, currentStage shared.CurrentStage) bufferOrStreamResult {
-	// no buffering in planning stages
+func (processor *chunkProcessor) bufferOrStream(content string, parserRes *types.ReplyParserRes, currentStage shared.CurrentStage, manualStopSequences []string) bufferOrStreamResult {
+	if len(manualStopSequences) > 0 {
+		for _, stopSequence := range manualStopSequences {
+
+			// if the chunk contains the entire stop sequence, stream everything before it then caller can stop the stream
+			if strings.Contains(content, stopSequence) {
+				split := strings.Split(content, stopSequence)
+				if len(split) > 1 {
+					return bufferOrStreamResult{
+						shouldStream: true,
+						content:      split[0],
+						shouldStop:   true,
+					}
+				} else {
+					// there was nothing before the stop sequence, so nothing to stream
+					return bufferOrStreamResult{
+						shouldStream: false,
+						shouldStop:   true,
+					}
+				}
+			}
+
+			// otherwise if the buffer plus chunk contains the stop sequence, don't stream anything and stop the stream
+			if strings.Contains(processor.contentBuffer+content, stopSequence) {
+				log.Printf("bufferOrStream - stop sequence found in buffer plus chunk\n")
+				split := strings.Split(content, stopSequence)
+				if len(split) > 1 {
+					// we'll stream the part before the stop sequence
+					return bufferOrStreamResult{
+						shouldStream: true,
+						content:      split[0],
+						shouldStop:   true,
+					}
+				} else {
+					// there was nothing before the stop sequence, so nothing to stream
+					return bufferOrStreamResult{
+						shouldStream: false,
+						shouldStop:   true,
+					}
+				}
+			}
+
+			// otherwise if the buffer plus chunk ends with a prefix of the stop sequence, buffer it and continue
+
+			toCheck := processor.contentBuffer + content
+			tailLen := len(stopSequence) - 1
+			if tailLen > len(toCheck) {
+				tailLen = len(toCheck)
+			}
+			suffix := toCheck[len(toCheck)-tailLen:]
+
+			if strings.HasPrefix(stopSequence, suffix) {
+				log.Printf("bufferOrStream - stop sequence prefix found in buffer plus chunk. buffer and continue\n")
+				processor.contentBuffer += content
+				return bufferOrStreamResult{
+					shouldStream: false,
+					content:      content,
+				}
+			}
+
+		}
+	}
+
+	// apart from manual stop sequences, no buffering in planning stages
 	if currentStage.TellStage == shared.TellStagePlanning {
 		return bufferOrStreamResult{
 			shouldStream: true,

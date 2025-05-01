@@ -1,11 +1,13 @@
 package shared
 
 import (
+	"bytes"
 	"crypto/rand"
 	"fmt"
 	"regexp"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 const TsFormat = "2006-01-02T15:04:05.999Z"
@@ -135,4 +137,43 @@ func ReplaceReverse(s, old, new string, n int) string {
 		s = res
 	}
 	return res
+}
+
+func NormalizeEOL(data []byte) []byte {
+	if !looksTextish(data) {
+		return data
+	}
+
+	// CRLF -> LF
+	n := bytes.ReplaceAll(data, []byte{'\r', '\n'}, []byte{'\n'})
+
+	// treat stray CR as newline as well
+	n = bytes.ReplaceAll(n, []byte{'\r'}, []byte{'\n'})
+	return n
+}
+
+// looksTextish checks some very cheap heuristics:
+//  1. no NUL bytes      → probably not binary
+//  2. valid UTF-8       → BOMs are OK
+//  3. printable ratio   → ≥ 90 % of runes are >= 0x20 or common whitespace
+func looksTextish(b []byte) bool {
+	if bytes.IndexByte(b, 0x00) != -1 { // 1
+		return false
+	}
+	if !utf8.Valid(b) { // 2
+		return false
+	}
+
+	printable := 0
+	for len(b) > 0 {
+		r, size := utf8.DecodeRune(b)
+		b = b[size:]
+		switch {
+		case r == '\n', r == '\r', r == '\t':
+			printable++
+		case r >= 0x20 && r != 0x7f:
+			printable++
+		}
+	}
+	return float64(printable)/float64(len(b)) > 0.90 // 3
 }

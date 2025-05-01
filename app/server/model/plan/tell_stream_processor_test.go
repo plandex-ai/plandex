@@ -19,6 +19,7 @@ func TestBufferOrStream(t *testing.T) {
 		isInResetBlock  bool
 		want            bufferOrStreamResult
 		wantState       *chunkProcessor // To verify state transitions
+		manualStop      []string
 	}{
 		{
 			name: "streams regular content",
@@ -367,6 +368,86 @@ func TestBufferOrStream(t *testing.T) {
 				fileOpen:                true,
 			},
 		},
+
+		{
+			name:         "stop tag entirely in one chunk",
+			initialState: &chunkProcessor{}, // empty buffer
+			chunk:        "hello <PlandexFinish/>bye",
+			manualStop:   []string{"<PlandexFinish/>"},
+			want: bufferOrStreamResult{
+				shouldStream: true,     // stream only the prefix
+				content:      "hello ", // text before the tag
+				shouldStop:   true,     // tell caller to stop
+			},
+			wantState: &chunkProcessor{
+				contentBuffer: "", // nothing left buffered
+			},
+		},
+		{
+			name: "stop tag split across two chunks (prefix + rest)",
+			only: true, // helper if you want to run just this one
+			initialState: &chunkProcessor{
+				contentBuffer: "", // begins empty
+			},
+			// FIRST CHUNK —— just a proper prefix
+			chunk:      "<PlandexFin", // no '<' in second part
+			manualStop: []string{"<PlandexFinish/>"},
+			want: bufferOrStreamResult{
+				shouldStream: false, // nothing streams yet
+				shouldStop:   false, // not complete, keep going
+			},
+			wantState: &chunkProcessor{
+				contentBuffer: "<PlandexFin", // prefix is buffered
+			},
+		},
+		{
+			// SECOND CHUNK —— completes the tag; nothing should stream
+			name: "stop tag split across two chunks (completes)",
+			initialState: &chunkProcessor{
+				contentBuffer: "<PlandexFin", // leftover from previous call
+			},
+			chunk:      "ish/>\nmore text", // completes tag + trailing text
+			manualStop: []string{"<PlandexFinish/>"},
+			want: bufferOrStreamResult{
+				shouldStream: false, // do NOT leak "more text"
+				shouldStop:   true,  // signal caller to stop
+			},
+			wantState: &chunkProcessor{
+				contentBuffer: "<PlandexFinish/>", // may keep full tag inside
+			},
+		},
+		{
+			name: "stop prefix turns out to be different tag, falls through to other parsing logic",
+			initialState: &chunkProcessor{
+				contentBuffer: "<Plandex",
+			},
+			chunk:      "Blo",
+			manualStop: []string{"<PlandexFinish/>"},
+			want: bufferOrStreamResult{
+				shouldStream: false,
+				shouldStop:   false,
+			},
+			wantState: &chunkProcessor{
+				contentBuffer:           "<PlandexBlo",
+				awaitingBlockOpeningTag: true,
+			},
+		},
+		{
+			name: "stop prefix turns out to be different tag, falls through to other parsing logic #2",
+			initialState: &chunkProcessor{
+				contentBuffer: "something\n<Plandex",
+			},
+			chunk:      "exBlock lang=\"go\" path=\"main.go\">\npackage",
+			manualStop: []string{"<PlandexFinish/>"},
+			want: bufferOrStreamResult{
+				shouldStream: true,
+				content:      "something\n```go\npackage",
+			},
+			wantState: &chunkProcessor{
+				awaitingBlockOpeningTag: false,
+				fileOpen:                true,
+			},
+		},
 	}
 
 	only := map[int]bool{}
@@ -392,7 +473,7 @@ func TestBufferOrStream(t *testing.T) {
 				IsInResetBlock:  tt.isInResetBlock,
 			}, shared.CurrentStage{
 				TellStage: shared.TellStageImplementation,
-			})
+			}, tt.manualStop)
 
 			if got.shouldStream != tt.want.shouldStream {
 				t.Errorf("shouldStream = %v, want %v", got.shouldStream, tt.want.shouldStream)

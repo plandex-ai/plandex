@@ -99,7 +99,7 @@ func AutoLoadContextFiles(ctx context.Context, files []string) (string, error) {
 			if isImage {
 				body = base64.StdEncoding.EncodeToString(b)
 			} else {
-				body = string(b)
+				body = string(shared.NormalizeEOL(b))
 			}
 
 			mu.Lock()

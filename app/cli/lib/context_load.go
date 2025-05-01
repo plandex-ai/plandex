@@ -538,6 +538,7 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 								errCh <- fmt.Errorf("failed to read the file %s: %v", path, err)
 								return
 							}
+							fileContent = shared.NormalizeEOL(fileContent)
 
 							contextMu.Lock()
 							defer contextMu.Unlock()

@@ -365,3 +365,7 @@ type CreditsSummaryResponse struct {
 
 	CacheSavings decimal.Decimal `json:"cacheSavings"`
 }
+
+type GetBalanceResponse struct {
+	Balance decimal.Decimal `json:"balance"`
+}

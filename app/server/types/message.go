@@ -187,6 +187,15 @@ type ExtendedChatCompletionStreamChoice struct {
 	ContentFilterResults openai.ContentFilterResults                `json:"content_filter_results,omitempty"`
 }
 
+type ExtendedChatCompletionStreamError struct {
+	Message  string `json:"message"`
+	Code     int    `json:"code"`
+	Metadata struct {
+		Headers      map[string]string `json:"headers,omitempty"`
+		ProviderName string            `json:"provider_name,omitempty"`
+	} `json:"metadata,omitempty"`
+	UserId string `json:"user_id,omitempty"`
+}
 type ExtendedChatCompletionStreamResponse struct {
 	ID                  string                               `json:"id"`
 	Object              string                               `json:"object"`
@@ -199,16 +208,8 @@ type ExtendedChatCompletionStreamResponse struct {
 	// An optional field that will only be present when you set stream_options: {"include_usage": true} in your request.
 	// When present, it contains a null value except for the last chunk which contains the token usage statistics
 	// for the entire request.
-	Usage *openai.Usage `json:"usage,omitempty"`
-	Error *struct {
-		Message  string `json:"message"`
-		Code     int    `json:"code"`
-		Metadata struct {
-			Headers      map[string]string `json:"headers,omitempty"`
-			ProviderName string            `json:"provider_name,omitempty"`
-		} `json:"metadata,omitempty"`
-		UserId string `json:"user_id,omitempty"`
-	} `json:"error,omitempty"`
+	Usage *openai.Usage                      `json:"usage,omitempty"`
+	Error *ExtendedChatCompletionStreamError `json:"error,omitempty"`
 }
 
 // ModelResponse holds both the accumulated content and final usage information from a streaming completion request

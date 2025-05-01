@@ -43,7 +43,7 @@ var CliCommands = []CmdConfig{
 	{"new --strong", "", fmt.Sprintf("start a new plan with %s model pack", "'strong'"), true},
 	{"new --cheap", "", fmt.Sprintf("start a new plan with %s model pack", "'cheap'"), true},
 	{"new --oss", "", fmt.Sprintf("start a new plan with %s model pack", "'oss'"), true},
-	{"new --gemini-exp", "", fmt.Sprintf("start a new plan with %s model pack", "'gemini-exp'"), true},
+	{"new --gemini-preview", "", fmt.Sprintf("start a new plan with %s model pack", "'gemini-preview'"), true},
 	// {"new --crazy", "", fmt.Sprintf("start a new plan with %s model pack", "'crazy'"), true},
 	{"plans", "pl", "list plans", true},
 	{"cd", "", "set current plan by name or index", true},
@@ -123,8 +123,7 @@ var CliCommands = []CmdConfig{
 	{"set-model strong", "", fmt.Sprintf("Use %s model pack", "'strong'"), true},
 	{"set-model cheap", "", fmt.Sprintf("Use %s model pack", "'cheap'"), true},
 	{"set-model oss", "", fmt.Sprintf("Use %s model pack", "'oss'"), true},
-	{"set-model gemini-exp", "", fmt.Sprintf("Use %s model pack", "'gemini-exp'"), true},
-	// {"set-model crazy", "", fmt.Sprintf("Use %s model pack", "'crazy'"), true},
+	{"set-model gemini-preview", "", fmt.Sprintf("Use %s model pack", "'gemini-preview'"), true},
 
 	{"ps", "", "list active and recently finished plan streams", true},
 	{"stop", "", "stop an active plan stream", true},
@@ -260,7 +259,7 @@ func PrintCustomHelp(all bool) {
 	fmt.Fprintln(builder, "    --strong       Strong pack")
 	fmt.Fprintln(builder, "    --cheap        Cheap pack")
 	fmt.Fprintln(builder, "    --oss          Open source pack")
-	// fmt.Fprintln(builder, "    --crazy        Crazy pack")
+
 	fmt.Fprintln(builder)
 
 	if all {
@@ -322,7 +321,7 @@ func PrintHelpAllCommands() {
 	fmt.Fprintln(builder)
 
 	color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " AI Models ")
-	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "models", "models default", "model-packs", "set-model", "set-model daily", "set-model reasoning", "set-model strong", "set-model cheap", "set-model oss" /*"set-model crazy",*/, "set-model default")
+	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "models", "models default", "model-packs", "set-model", "set-model daily", "set-model reasoning", "set-model strong", "set-model cheap", "set-model oss", "set-model default")
 	fmt.Fprintln(builder)
 
 	color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Custom Models ")
@@ -338,7 +337,7 @@ func PrintHelpAllCommands() {
 	fmt.Fprintln(builder)
 
 	color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " New Plan Shortcuts ")
-	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "new --full", "new --semi", "new --plus", "new --basic", "new --none", "new --daily", "new --reasoning", "new --strong", "new --cheap", "new --oss", "new --gemini-exp" /*"new --crazy"*/)
+	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "new --full", "new --semi", "new --plus", "new --basic", "new --none", "new --daily", "new --reasoning", "new --strong", "new --cheap", "new --oss", "new --gemini-preview" /*"new --crazy"*/)
 	fmt.Fprintln(builder)
 
 	fmt.Print(builder.String())

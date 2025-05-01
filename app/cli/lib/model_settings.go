@@ -5,6 +5,7 @@ import (
 	"os"
 	"plandex-cli/api"
 	"plandex-cli/term"
+	"strings"
 
 	shared "plandex-shared"
 
@@ -160,21 +161,38 @@ func mustVerifyApiKeys(silent bool) map[string]string {
 
 	apiKeys := make(map[string]string)
 
-	if len(requiredEnvVars) == 1 && requiredEnvVars["OPENAI_API_KEY"] {
-		if os.Getenv("OPENAI_API_KEY") == "" {
-			term.OutputNoOpenAIApiKeyMsgAndExit()
+	missingAny := false
+	if len(requiredEnvVars.RequiresAll) > 0 {
+		for envVar := range requiredEnvVars.RequiresAll {
+			if os.Getenv(envVar) == "" {
+				fmt.Fprintln(os.Stderr, color.New(color.Bold, term.ColorHiRed).Sprintf("🚨 %s environment variable is not set.\n", envVar))
+				delete(requiredEnvVars.RequiresEither, envVar)
+				missingAny = true
+			} else {
+				apiKeys[envVar] = os.Getenv(envVar)
+			}
 		}
-		apiKeys["OPENAI_API_KEY"] = os.Getenv("OPENAI_API_KEY")
-		return apiKeys
 	}
 
-	missingAny := false
-	for envVar := range requiredEnvVars {
-		if os.Getenv(envVar) == "" {
-			fmt.Fprintln(os.Stderr, color.New(color.Bold, term.ColorHiRed).Sprintf("🚨 %s environment variable is not set.\n", envVar))
+	if len(requiredEnvVars.RequiresEither) > 0 {
+		vars := []string{}
+		for envVar := range requiredEnvVars.RequiresEither {
+			if os.Getenv(envVar) == "" {
+				vars = append(vars, envVar)
+			} else {
+				apiKeys[envVar] = os.Getenv(envVar)
+			}
+		}
+		if len(vars) > 1 {
+			s := "🚨 Either "
+			if len(vars) == 2 {
+				s += strings.Join(vars, " or ") + " must be set as an environment variable."
+			} else {
+				withoutLast := vars[:len(vars)-1]
+				s += strings.Join(withoutLast, ", ") + ", or " + vars[len(vars)-1] + " must be set as an environment variable."
+			}
+			fmt.Fprintln(os.Stderr, color.New(color.Bold, term.ColorHiRed).Sprint(s))
 			missingAny = true
-		} else {
-			apiKeys[envVar] = os.Getenv(envVar)
 		}
 	}
 

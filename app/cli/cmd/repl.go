@@ -130,8 +130,8 @@ func runRepl(cmd *cobra.Command, args []string) {
 			args = append(args, "--daily")
 		} else if reasoningModels {
 			args = append(args, "--reasoning")
-		} else if geminiExpModels {
-			args = append(args, "--gemini-exp")
+		} else if geminiPreviewModels {
+			args = append(args, "--gemini-preview")
 		}
 
 		newCmd.Run(newCmd, args)

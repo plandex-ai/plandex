@@ -208,6 +208,8 @@ func (fileState *activeBuildStreamFileState) buildValidate(
 	originalWithLineNums := shared.AddLineNums(originalFile)
 	proposedWithLineNums := shared.AddLineNums(proposedContent)
 
+	maxExpectedOutputTokens := shared.GetNumTokensEstimate(originalFile)/2 + shared.GetNumTokensEstimate(proposedContent)
+
 	// Choose prompt and tools based on preferred format
 
 	log.Printf("Building XML validation replacements prompt")
@@ -282,8 +284,9 @@ func (fileState *activeBuildStreamFileState) buildValidate(
 		},
 		OnStream: onStream,
 
-		WillCacheNumTokens: willCacheNumTokens,
-		SessionId:          params.sessionId,
+		WillCacheNumTokens:    willCacheNumTokens,
+		SessionId:             params.sessionId,
+		EstimatedOutputTokens: maxExpectedOutputTokens,
 	})
 
 	if err != nil {

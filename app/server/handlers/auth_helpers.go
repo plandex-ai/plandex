@@ -567,10 +567,17 @@ func execAuthenticate(w http.ResponseWriter, r *http.Request, requireOrg bool, r
 		Permissions: permissionsMap,
 	}
 
+	// don't send hash for org-session requests
+	var hash string
+	if r.URL.Path != "/orgs/session" {
+		hash = parsed.Hash
+	}
+
 	_, apiErr := hooks.ExecHook(hooks.Authenticate, hooks.HookParams{
 		Auth: auth,
 		AuthenticateHookRequestParams: &hooks.AuthenticateHookRequestParams{
 			Path: r.URL.Path,
+			Hash: hash,
 		},
 	})
 

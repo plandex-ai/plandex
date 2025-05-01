@@ -33,6 +33,7 @@ type WillSendModelRequestParams struct {
 	InputTokens  int
 	OutputTokens int
 	ModelName    shared.ModelName
+	IsUserPrompt bool
 }
 
 type DidSendModelRequestParams struct {
@@ -119,6 +120,7 @@ type CreateOrgHookRequestParams struct {
 
 type AuthenticateHookRequestParams struct {
 	Path string
+	Hash string
 }
 
 type FastApplyParams struct {

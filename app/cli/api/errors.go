@@ -31,8 +31,8 @@ func HandleApiError(r *http.Response, errBody []byte) *shared.ApiError {
 		}
 	}
 
-	// return error for authentication/retry
-	if apiError.Type == shared.ApiErrorTypeInvalidToken {
+	// return error if token/auth refresh is needed
+	if apiError.Type == shared.ApiErrorTypeInvalidToken || apiError.Type == shared.ApiErrorTypeAuthOutdated {
 		return &apiError
 	}
 
@@ -41,13 +41,21 @@ func HandleApiError(r *http.Response, errBody []byte) *shared.ApiError {
 	return &apiError
 }
 
-func refreshTokenIfNeeded(apiErr *shared.ApiError) (bool, *shared.ApiError) {
+func refreshAuthIfNeeded(apiErr *shared.ApiError) (bool, *shared.ApiError) {
 	if apiErr.Type == shared.ApiErrorTypeInvalidToken {
 		err := auth.RefreshInvalidToken()
 		if err != nil {
 			return false, &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: "error refreshing invalid token"}
 		}
 		return true, nil
+	} else if apiErr.Type == shared.ApiErrorTypeAuthOutdated {
+		err := auth.RefreshAuth()
+		if err != nil {
+			return false, &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: "error refreshing auth"}
+		}
+
+		return true, nil
 	}
+
 	return false, apiErr
 }

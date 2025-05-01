@@ -373,8 +373,8 @@ func ApplyChanges(
 			originalLineMap[strings.TrimSpace(line)] = true
 		}
 
-		log.Println("NewFile:")
-		log.Println(strconv.Quote(res.NewFile))
+		// log.Println("NewFile:")
+		// log.Println(strconv.Quote(res.NewFile))
 
 		newLines := strings.Split(res.NewFile, "\n")
 		newLineMap := make(map[string]bool)
