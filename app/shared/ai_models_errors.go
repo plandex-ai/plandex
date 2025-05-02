@@ -7,6 +7,7 @@ const (
 	ErrContextTooLong ModelErrKind = "ErrContextTooLong"
 	ErrRateLimited    ModelErrKind = "ErrRateLimited"
 	ErrOther          ModelErrKind = "ErrOther"
+	ErrCacheSupport   ModelErrKind = "ErrCacheSupport"
 )
 
 type ModelError struct {

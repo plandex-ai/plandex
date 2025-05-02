@@ -41,7 +41,7 @@ func CreateChatCompletionWithInternalStream(
 	// Force streaming mode since we're using the streaming API
 	req.Stream = true
 
-	return withStreamingRetries(ctx, func(numTotalRetry int, modelErr *shared.ModelError) (resp *types.ModelResponse, fallbackRes shared.FallbackResult, err error) {
+	return withStreamingRetries(ctx, func(numTotalRetry int, modelErr *shared.ModelError, stripCacheControl bool) (resp *types.ModelResponse, fallbackRes shared.FallbackResult, err error) {
 		fallbackRes = modelConfig.GetFallbackForModelError(numTotalRetry, modelErr)
 		resolvedModelConfig := fallbackRes.ModelRoleConfig
 
@@ -65,6 +65,17 @@ func CreateChatCompletionWithInternalStream(
 		}
 
 		modelConfig = resolvedModelConfig
+
+		if stripCacheControl {
+			for i := range req.Messages {
+				for j := range req.Messages[i].Content {
+					if req.Messages[i].Content[j].CacheControl != nil {
+						req.Messages[i].Content[j].CacheControl = nil
+					}
+				}
+			}
+		}
+
 		resp, err = processChatCompletionStream(resolvedModelConfig, opClient, resolvedModelConfig.BaseModelConfig.BaseUrl, ctx, req, onStream, reqStarted)
 		if err != nil {
 			return nil, fallbackRes, err
@@ -217,7 +228,7 @@ func processChatCompletionStream(
 
 func withStreamingRetries[T any](
 	ctx context.Context,
-	operation func(numRetry int, modelErr *shared.ModelError) (resp *T, fallbackRes shared.FallbackResult, err error),
+	operation func(numRetry int, modelErr *shared.ModelError, stripCacheControl bool) (resp *T, fallbackRes shared.FallbackResult, err error),
 	onContextDone func(resp *T, err error),
 ) (*T, error) {
 	var resp *T
@@ -225,6 +236,7 @@ func withStreamingRetries[T any](
 	var numFallbackRetry int
 	var fallbackRes shared.FallbackResult
 	var modelErr *shared.ModelError
+	var hadCacheSupportErr bool
 
 	for {
 		if ctx.Err() != nil {
@@ -247,7 +259,7 @@ func withStreamingRetries[T any](
 
 		log.Printf("withStreamingRetries - will run operation")
 
-		resp, fallbackRes, err = operation(numTotalRetry, modelErr)
+		resp, fallbackRes, err = operation(numTotalRetry, modelErr, hadCacheSupportErr)
 		if err == nil {
 			return resp, nil
 		}
@@ -268,7 +280,14 @@ func withStreamingRetries[T any](
 		log.Printf("Error in streaming operation: %v, isFallback: %t, numTotalRetry: %d, numFallbackRetry: %d, numRetry: %d, compareRetries: %d, maxRetries: %d\n", err, isFallback, numTotalRetry, numFallbackRetry, numRetry, compareRetries, maxRetries)
 
 		classifyRes := classifyBasicError(err)
-		modelErr = &classifyRes
+
+		isCacheSupportErr := classifyRes.Kind == shared.ErrCacheSupport
+
+		if isCacheSupportErr {
+			hadCacheSupportErr = true
+		} else {
+			modelErr = &classifyRes
+		}
 
 		newFallback := false
 		if !modelErr.Retriable {
@@ -305,9 +324,16 @@ func withStreamingRetries[T any](
 		log.Printf("withStreamingRetries - retrying stream in %v seconds", retryDelay)
 		time.Sleep(retryDelay)
 
-		numTotalRetry++
-		if isFallback && !newFallback {
-			numFallbackRetry++
+		if !isCacheSupportErr {
+			numTotalRetry++
+			if isFallback && !newFallback {
+				numFallbackRetry++
+			}
+		}
+
+		// if we had a cache support error previously but now we're doing a new fallback, reset the hadCacheSupportErr flag since the fallback will use a new model
+		if hadCacheSupportErr && newFallback {
+			hadCacheSupportErr = false
 		}
 	}
 }

@@ -126,7 +126,7 @@ func CreateChatCompletionStream(
 		req.IncludeReasoning = true
 	}
 
-	return withStreamingRetries(ctx, func(numTotalRetry int, modelErr *shared.ModelError) (*ExtendedChatCompletionStream, shared.FallbackResult, error) {
+	return withStreamingRetries(ctx, func(numTotalRetry int, modelErr *shared.ModelError, stripCacheControl bool) (*ExtendedChatCompletionStream, shared.FallbackResult, error) {
 		fallbackRes := modelConfig.GetFallbackForModelError(numTotalRetry, modelErr)
 		resolvedModelConfig := fallbackRes.ModelRoleConfig
 
@@ -146,6 +146,16 @@ func CreateChatCompletionStream(
 				}
 			} else {
 				return nil, fallbackRes, fmt.Errorf("client not found for api key env var: %s", resolvedModelConfig.BaseModelConfig.ApiKeyEnvVar)
+			}
+		}
+
+		if stripCacheControl {
+			for i := range req.Messages {
+				for j := range req.Messages[i].Content {
+					if req.Messages[i].Content[j].CacheControl != nil {
+						req.Messages[i].Content[j].CacheControl = nil
+					}
+				}
 			}
 		}
 

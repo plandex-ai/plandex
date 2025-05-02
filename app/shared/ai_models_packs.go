@@ -190,7 +190,7 @@ func init() {
 		Description: "Uses Gemini 2.5 Pro Experimental (free) for planning and coding, default models for other roles. Supports up to 1M input context.",
 		Planner: PlannerRoleConfig{
 			ModelRoleConfig:    *geminipro25exp(ModelRolePlanner, nil),
-			PlannerModelConfig: getPlannerModelConfig(ModelProviderOpenRouter, "google/gemini-2.5-pro-exp-03-25:free"),
+			PlannerModelConfig: getPlannerModelConfig(ModelProviderOpenRouter, "google/gemini-2.5-pro-exp-03-25"),
 		},
 		Coder:       geminipro25exp(ModelRoleCoder, nil),
 		PlanSummary: *openaio4miniLowWitho3MiniFallback(ModelRolePlanSummary, nil),
@@ -448,7 +448,7 @@ func perplexitySonarReasoning(role ModelRole, fallbacks *modelConfig) *ModelRole
 // }
 
 func geminipro25exp(role ModelRole, fallbacks *modelConfig) *ModelRoleConfig {
-	return getModelConfig(role, ModelProviderOpenRouter, "google/gemini-2.5-pro-exp-03-25:free", fallbacks)
+	return getModelConfig(role, ModelProviderOpenRouter, "google/gemini-2.5-pro-exp-03-25", fallbacks)
 }
 
 func geminipro25preview(role ModelRole, fallbacks *modelConfig) *ModelRoleConfig {

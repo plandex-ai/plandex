@@ -1,3 +1,8 @@
+## CLI Version 2.1.1
+- Fix for free Gemini 2.5 Pro Experimental OpenRouter endpoint.
+- Retries for "No endpoints found that support cache control" error that showed up when OpenRouter temporarily disabled caching for Gemini 2.5 Pro Preview.
+- Other minor improvements to error handling and retries.
+
 ## CLI Version 2.1.0+1
 - Fix for potential encoding issue when loading files into context.
 

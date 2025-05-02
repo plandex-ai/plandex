@@ -465,6 +465,17 @@ func (state *activeTellStreamState) doTellRequest() {
 
 	// log.Println("modelConfig:", spew.Sdump(modelConfig))
 
+	if state.noCacheSupportErr {
+		log.Println("Tell exec - request failed with cache support error. Removing cache control breakpoints from messages.")
+		for i := range state.messages {
+			for j := range state.messages[i].Content {
+				if state.messages[i].Content[j].CacheControl != nil {
+					state.messages[i].Content[j].CacheControl = nil
+				}
+			}
+		}
+	}
+
 	modelReq := types.ExtendedChatCompletionRequest{
 		Model:    modelConfig.BaseModelConfig.ModelName,
 		Messages: state.messages,
