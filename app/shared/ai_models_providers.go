@@ -65,3 +65,42 @@ var ApiKeyByProvider = map[ModelProvider]string{
 	ModelProviderDeepSeek:       DeepSeekApiKeyEnvVar,
 	ModelProviderPerplexity:     PerplexityApiKeyEnvVar,
 }
+
+// these types can come in via JSON config which uses JSON schema with discriminated unions — thus the need for the `omitempty` and pointers on all optional fields
+type ModelProviderExtraAuthVars struct {
+	Var        string `json:"var"`
+	IsFilePath *bool  `json:"isFilePath,omitempty"`
+	Required   *bool  `json:"required,omitempty"`
+}
+
+type ModelProviderConfig struct {
+	SchemaVersion  string        `json:"schemaVersion"`
+	Provider       ModelProvider `json:"provider"`
+	CustomProvider *string       `json:"customProvider,omitempty"`
+	BaseUrl        string        `json:"baseUrl"`
+
+	// for local models that don't require auth (ollama, etc.)
+	SkipAuth *bool `json:"skipAuth,omitempty"`
+
+	ApiKeyEnvVar  *string                       `json:"apiKeyEnvVar,omitempty"`
+	ExtraAuthVars *[]ModelProviderExtraAuthVars `json:"extraAuthVars,omitempty"`
+}
+
+var BuiltInModelProviderConfigs = map[ModelProvider]ModelProviderConfig{
+	ModelProviderOpenAI: {
+		Provider: ModelProviderOpenAI,
+		BaseUrl:  OpenAIV1BaseUrl,
+
+		SkipAuth:      &[]bool{false}[0],
+		ApiKeyEnvVar:  &[]string{OpenAIEnvVar}[0],
+		ExtraAuthVars: &[]ModelProviderExtraAuthVars{},
+	},
+	ModelProviderOpenRouter: {
+		Provider: ModelProviderOpenRouter,
+		BaseUrl:  OpenRouterBaseUrl,
+
+		SkipAuth:      &[]bool{true}[0],
+		ApiKeyEnvVar:  &[]string{OpenRouterApiKeyEnvVar}[0],
+		ExtraAuthVars: &[]ModelProviderExtraAuthVars{},
+	},
+}

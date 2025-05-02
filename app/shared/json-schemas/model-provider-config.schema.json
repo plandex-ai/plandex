@@ -1,0 +1,126 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://plandex.ai/schemas/model-provider-config.schema.json",
+  "title": "Model Provider Config",
+  "description": "Config for a model provider",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "2025-05-01"
+    },
+    "provider": {
+      "$ref": "./definitions/model-providers.schema.json"
+    },
+    "customProvider": {
+      "type": "string"
+    },
+    "baseUrl": {
+      "type": "string"
+    },
+    "skipAuth": {
+      "type": "boolean",
+      "default": false
+    },
+    "apiKeyEnvVar": {
+      "type": "string"
+    },
+    "extraAuthVars": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "var": {
+            "type": "string"
+          },
+          "isFilePath": {
+            "type": "boolean"
+          },
+          "required": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "var"
+        ]
+      },
+      "minItems": 1
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "provider",
+    "baseUrl"
+  ],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "provider": {
+            "const": "custom"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "customProvider"
+        ]
+      },
+      "else": {
+        "not": {
+          "required": [
+            "customProvider"
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "skipAuth": {
+            "const": false
+          }
+        }
+      },
+      "then": {
+        "anyOf": [
+          {
+            "required": [
+              "apiKeyEnvVar"
+            ]
+          },
+          {
+            "required": [
+              "extraAuthVars"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "skipAuth": {
+            "const": true
+          }
+        }
+      },
+      "then": {
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "apiKeyEnvVar"
+              ]
+            },
+            {
+              "required": [
+                "extraAuthVars"
+              ]
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

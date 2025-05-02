@@ -18,20 +18,16 @@ const (
 	ModelOutputFormatXml          ModelOutputFormat = "xml"
 )
 
-// to help avoid confusion between the model name and the model id
+// to help avoid confusion between model tag, model name, and the model id
 type ModelName string
 type ModelId string
+type ModelTag string
 
-type BaseModelConfig struct {
-	Provider                   ModelProvider     `json:"provider"`
-	CustomProvider             *string           `json:"customProvider,omitempty"`
-	BaseUrl                    string            `json:"baseUrl"`
-	ModelName                  ModelName         `json:"modelName"`
-	ModelId                    ModelId           `json:"modelId"`
+type BaseModelShared struct {
+	ModelTag                   ModelTag          `json:"modelTag"`
 	MaxTokens                  int               `json:"maxTokens"`
 	MaxOutputTokens            int               `json:"maxOutputTokens"`
 	ReservedOutputTokens       int               `json:"reservedOutputTokens"`
-	ApiKeyEnvVar               string            `json:"apiKeyEnvVar"`
 	PreferredModelOutputFormat ModelOutputFormat `json:"preferredModelOutputFormat"`
 	SystemPromptDisabled       bool              `json:"systemPromptDisabled"`
 	RoleParamsDisabled         bool              `json:"roleParamsDisabled"`
@@ -41,17 +37,30 @@ type BaseModelConfig struct {
 	ReasoningEffort            ReasoningEffort   `json:"reasoningEffort"`
 	IncludeReasoning           bool              `json:"includeReasoning"`
 	SupportsCacheControl       bool              `json:"supportsCacheControl"`
-
-	// for openai responses API, not fully implemented yet
-	UsesOpenAIResponsesAPI bool `json:"usesOpenAIResponsesAPI"`
-
 	// for anthropic, single message system prompt needs to be flipped to 'user'
 	SingleMessageNoSystemPrompt bool `json:"singleMessageNoSystemPrompt"`
 
 	// for openai, token estimate padding percentage
 	TokenEstimatePaddingPct float64 `json:"tokenEstimatePaddingPct"`
+}
 
-	ModelCompatibility
+type BaseModelProviderConfig struct {
+	Provider       ModelProvider `json:"provider"`
+	CustomProvider *string       `json:"customProvider,omitempty"`
+	ModelName      ModelName     `json:"modelName"`
+	ModelId        ModelId       `json:"modelId"`
+}
+
+type BaseModelConfig struct {
+	ApiKeyEnvVar string `json:"apiKeyEnvVar"`
+	BaseModelShared
+	BaseModelProviderConfig
+}
+
+type BaseModelConfigSchema struct {
+	SchemaVersion string `json:"schemaVersion"`
+	BaseModelShared
+	Providers []BaseModelProviderConfig `json:"providers"`
 }
 
 type AvailableModel struct {
@@ -72,6 +81,15 @@ func (m *AvailableModel) ModelString() string {
 	return s
 }
 
+type AvailableModelSchema struct {
+	SchemaVersion string `json:"schemaVersion"`
+	BaseModelConfigSchema
+	Description           string    `json:"description"`
+	DefaultMaxConvoTokens int       `json:"defaultMaxConvoTokens"`
+	CreatedAt             time.Time `json:"createdAt"`
+	UpdatedAt             time.Time `json:"updatedAt"`
+}
+
 type PlannerModelConfig struct {
 	MaxConvoTokens int `json:"maxConvoTokens"`
 }
@@ -90,13 +108,15 @@ type ModelRoleConfig struct {
 	Temperature          float32         `json:"temperature"`
 	TopP                 float32         `json:"topP"`
 	ReservedOutputTokens int             `json:"reservedOutputTokens"`
-	ReasoningEffort      ReasoningEffort `json:"reasoningEffort"`
 
 	LargeContextFallback *ModelRoleConfig `json:"largeContextFallback"`
 	LargeOutputFallback  *ModelRoleConfig `json:"largeOutputFallback"`
 	ErrorFallback        *ModelRoleConfig `json:"errorFallback"`
 	MissingKeyFallback   *ModelRoleConfig `json:"missingKeyFallback"`
 	StrongModel          *ModelRoleConfig `json:"strongModel"`
+}
+
+type ModelRoleConfigSchema struct {
 }
 
 func (m ModelRoleConfig) GetReservedOutputTokens() int {

@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://plandex.ai/schemas/model-config.schema.json",
+  "title": "Model Config",
+  "description": "Config for a model",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "2025-05-01"
+    },
+    "modelTag": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "defaultMaxConvoTokens": {
+      "type": "number"
+    },
+    "maxTokens": {
+      "type": "number"
+    },
+    "maxOutputTokens": {
+      "type": "number"
+    },
+    "reservedOutputTokens": {
+      "type": "number"
+    },
+    "preferredModelOutputFormat": {
+      "type": "string",
+      "enum": [
+        "xml",
+        "tool-call-json"
+      ]
+    },
+    "systemPromptDisabled": {
+      "type": "boolean"
+    },
+    "roleParamsDisabled": {
+      "type": "boolean"
+    },
+    "stopDisabled": {
+      "type": "boolean"
+    },
+    "predictedOutputEnabled": {
+      "type": "boolean"
+    },
+    "reasoningEffortEnabled": {
+      "type": "boolean"
+    },
+    "reasoningEffort": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high"
+      ]
+    },
+    "supportsCacheControl": {
+      "type": "boolean"
+    },
+    "singleMessageNoSystemPrompt": {
+      "type": "boolean"
+    },
+    "tokenEstimatePaddingPct": {
+      "type": "number"
+    },
+    "providers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "$ref": "./model-provider-config.schema.json",
+        "minItems": 1
+      }
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "modelTag",
+    "description",
+    "maxTokens",
+    "maxOutputTokens",
+    "reservedOutputTokens",
+    "preferredModelOutputFormat",
+    "providers"
+  ]
+}

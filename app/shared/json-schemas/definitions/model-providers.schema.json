@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://plandex.ai/schemas/definitions/model-providers.schema.json",
+  "title": "Model Provider Enum",
+  "description": "Reusable enum for model providers",
+  "enum": [
+    "openrouter",
+    "openai",
+    "anthropic",
+    "google-ai-studio",
+    "google-vertex",
+    "azure-openai",
+    "deepseek",
+    "perplexity",
+    "custom"
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://plandex.ai/schemas/model-role-config.schema.json",
+  "title": "Model Role Config",
+  "description": "Config for a defined model role within a model pack",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "2025-05-01"
+    },
+    "role": {
+      "$ref": "./definitions/model-roles.schema.json"
+    },
+    "temperature": {
+      "type": "number"
+    },
+    "topP": {
+      "type": "number"
+    },
+    "reservedOutputTokens": {
+      "type": "number"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "role"
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://plandex.ai/schemas/definitions/auto-modes.schema.json",
+  "title": "Auto Mode Enum",
+  "description": "Reusable enum for auto modes",
+  "enum": [
+    "full",
+    "semi",
+    "plus",
+    "basic",
+    "none",
+    "custom"
+  ]
+}

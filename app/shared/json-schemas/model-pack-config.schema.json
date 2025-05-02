@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://plandex.ai/schemas/model-pack-config.schema.json",
+  "title": "Model Pack Config",
+  "description": "Config for a model pack",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "2025-05-01"
+    }
+  }
+}

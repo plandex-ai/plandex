@@ -163,7 +163,7 @@ func createChatCompletionStreamExtended(
 	extendedReq types.ExtendedChatCompletionRequest,
 ) (*ExtendedChatCompletionStream, error) {
 	var openaiReq *types.ExtendedOpenAIChatCompletionRequest
-	if modelConfig.BaseModelConfig.Provider == shared.ModelProviderOpenAI && !modelConfig.BaseModelConfig.UsesOpenAIResponsesAPI {
+	if modelConfig.BaseModelConfig.Provider == shared.ModelProviderOpenAI {
 		openaiReq = extendedReq.ToOpenAI()
 		log.Println("Creating chat completion stream with direct OpenAI provider request")
 	}
@@ -183,12 +183,7 @@ func createChatCompletionStreamExtended(
 	// log.Println("request jsonBody", string(jsonBody))
 
 	// Create new request
-	var url string
-	if modelConfig.BaseModelConfig.UsesOpenAIResponsesAPI {
-		url = baseUrl + "/responses"
-	} else {
-		url = baseUrl + "/chat/completions"
-	}
+	url := baseUrl + "/chat/completions"
 
 	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(jsonBody))
 	if err != nil {
