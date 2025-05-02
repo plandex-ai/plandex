@@ -116,14 +116,33 @@ func (state *activeTellStreamState) onError(params onErrorParams) onErrorResult 
 			retryDelay = time.Duration(1000+rand.Intn(200)) * time.Millisecond
 		}
 
-		log.Printf("tellStream onError - Retry %d/%d - Retrying stream in %v", state.numErrorRetry+1, maxRetries, retryDelay)
+		cacheSupportErr := false
+		numErrorRetry := state.numErrorRetry
+		if !(modelErr != nil && modelErr.Kind == shared.ErrCacheSupport) {
+			numErrorRetry = numErrorRetry + 1
+		} else {
+			cacheSupportErr = true
+		}
+
+		log.Printf("tellStream onError - Retry %d/%d - Retrying stream in %v", numErrorRetry, maxRetries, retryDelay)
 		time.Sleep(retryDelay)
 
-		state.numErrorRetry = state.numErrorRetry + 1
-		if isFallback && !newFallback {
+		state.numErrorRetry = numErrorRetry
+		if isFallback && !newFallback && !cacheSupportErr {
 			state.numFallbackRetry = state.numFallbackRetry + 1
 		}
-		state.modelErr = modelErr
+
+		// if we got a cache support error, keep everything the same, including the modelErr (if we're already retrying) so we can make the exact same request again without cache control breakpoints
+		if cacheSupportErr {
+			state.noCacheSupportErr = true
+		} else {
+			state.modelErr = modelErr
+
+			if newFallback {
+				// if we got a new fallback, we need to reset the noCacheSupportErr flag since we're using a different model now
+				state.noCacheSupportErr = false
+			}
+		}
 
 		// retry the request
 		state.doTellRequest()

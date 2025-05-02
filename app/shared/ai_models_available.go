@@ -421,8 +421,8 @@ var AvailableModels = []*AvailableModel{
 		DefaultMaxConvoTokens: 75000,
 		BaseModelConfig: BaseModelConfig{
 			Provider:                   ModelProviderOpenRouter,
-			ModelName:                  "google/gemini-2.5-pro-exp-03-25:free",
-			ModelId:                    "google/gemini-2.5-pro-exp-03-25:free",
+			ModelName:                  "google/gemini-2.5-pro-exp-03-25",
+			ModelId:                    "google/gemini-2.5-pro-exp-03-25",
 			MaxTokens:                  1000000,
 			MaxOutputTokens:            65535,
 			ReservedOutputTokens:       65535,

@@ -35,10 +35,8 @@ var reTryAgain = regexp.MustCompile(
 	`(?:re)?try[_\-\s]+(?:again[_\-\s]+)?in[_\-\s]+(\d+)(ms|seconds?|secs?|s)?`,
 )
 
-func ClassifyModelError(code int, message string, headers http.Header) shared.ModelError {
-	msg := strings.ToLower(message)
-
-	var res shared.ModelError
+func ClassifyErrMsg(msg string) *shared.ModelError {
+	msg = strings.ToLower(msg)
 
 	if strings.Contains(msg, "maximum context length") ||
 		strings.Contains(msg, "context length exceeded") ||
@@ -46,7 +44,7 @@ func ClassifyModelError(code int, message string, headers http.Header) shared.Mo
 		strings.Contains(msg, "decrease input length") ||
 		strings.Contains(msg, "too many tokens") ||
 		strings.Contains(msg, "payload too large") {
-		return shared.ModelError{
+		return &shared.ModelError{
 			Kind:              shared.ErrContextTooLong,
 			Retriable:         false,
 			RetryAfterSeconds: 0,
@@ -59,12 +57,34 @@ func ClassifyModelError(code int, message string, headers http.Header) shared.Mo
 		strings.Contains(msg, "model is currently overloaded") ||
 		strings.Contains(msg, "overloaded_error") ||
 		strings.Contains(msg, "resource has been exhausted") {
-		return shared.ModelError{
+		return &shared.ModelError{
 			Kind:              shared.ErrOverloaded,
 			Retriable:         true,
 			RetryAfterSeconds: 0,
 		}
 	}
+
+	if strings.Contains(msg, "cache control") {
+		return &shared.ModelError{
+			Kind:              shared.ErrCacheSupport,
+			Retriable:         true,
+			RetryAfterSeconds: 0,
+		}
+	}
+
+	return nil
+}
+
+func ClassifyModelError(code int, message string, headers http.Header) shared.ModelError {
+	msg := strings.ToLower(message)
+
+	// first try to classify the error based on the message only
+	msgRes := ClassifyErrMsg(msg)
+	if msgRes != nil {
+		return *msgRes
+	}
+
+	var res shared.ModelError
 
 	switch code {
 	case 429, 529:
@@ -178,6 +198,7 @@ func normalizeUnit(numStr, unit string) int {
 }
 
 func classifyBasicError(err error) shared.ModelError {
+	// if it's an http error, classify it based on the status code and body
 	if httpErr, ok := err.(*HTTPError); ok {
 		me := ClassifyModelError(
 			httpErr.StatusCode,
@@ -187,7 +208,13 @@ func classifyBasicError(err error) shared.ModelError {
 		return me
 	}
 
-	// Fall back to your old heuristic – still keeps the signature identical
+	// try to classify the error based on the message only
+	msgRes := ClassifyErrMsg(err.Error())
+	if msgRes != nil {
+		return *msgRes
+	}
+
+	// Fall back to old heuristic – still keeps the signature identical
 	if isNonRetriableBasicErr(err) {
 		return shared.ModelError{Kind: shared.ErrOther, Retriable: false}
 	}
