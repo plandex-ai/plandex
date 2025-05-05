@@ -5,10 +5,6 @@
   "description": "Config for a plan",
   "type": "object",
   "properties": {
-    "schemaVersion": {
-      "type": "string",
-      "const": "2025-05-01"
-    },
     "autoMode": {
       "$ref": "./definitions/auto-modes.schema.json"
     }

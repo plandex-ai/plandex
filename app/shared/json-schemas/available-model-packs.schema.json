@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://plandex.ai/schemas/available-model-packs.schema.json",
+  "title": "Available Model Packs",
+  "description": "A list of available model packs",
+  "type": "object",
+  "properties": {
+    "modelPacks": {
+      "type": "array",
+      "items": {
+        "$ref": "./model-pack-config.schema.json"
+      }
+    }
+  },
+  "required": [
+    "modelPacks"
+  ]
+}

@@ -4,6 +4,7 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -18,13 +19,13 @@ const (
 	ModelOutputFormatXml          ModelOutputFormat = "xml"
 )
 
-// to help avoid confusion between model tag, model name, and the model id
+// to help avoid confusion between model tag, price id, model name, and the model id
 type ModelName string
 type ModelId string
 type ModelTag string
+type VariantTag string
 
 type BaseModelShared struct {
-	ModelTag                   ModelTag          `json:"modelTag"`
 	MaxTokens                  int               `json:"maxTokens"`
 	MaxOutputTokens            int               `json:"maxOutputTokens"`
 	ReservedOutputTokens       int               `json:"reservedOutputTokens"`
@@ -36,31 +37,73 @@ type BaseModelShared struct {
 	ReasoningEffortEnabled     bool              `json:"reasoningEffortEnabled"`
 	ReasoningEffort            ReasoningEffort   `json:"reasoningEffort"`
 	IncludeReasoning           bool              `json:"includeReasoning"`
+	ReasoningBudget            int               `json:"reasoningBudget"`
 	SupportsCacheControl       bool              `json:"supportsCacheControl"`
 	// for anthropic, single message system prompt needs to be flipped to 'user'
 	SingleMessageNoSystemPrompt bool `json:"singleMessageNoSystemPrompt"`
 
 	// for openai, token estimate padding percentage
 	TokenEstimatePaddingPct float64 `json:"tokenEstimatePaddingPct"`
+
+	ModelCompatibility ModelCompatibility `json:"modelCompatibility"`
 }
 
 type BaseModelProviderConfig struct {
-	Provider       ModelProvider `json:"provider"`
-	CustomProvider *string       `json:"customProvider,omitempty"`
-	ModelName      ModelName     `json:"modelName"`
-	ModelId        ModelId       `json:"modelId"`
+	ModelProviderConfigSchema
+	ModelName ModelName `json:"modelName"`
 }
 
 type BaseModelConfig struct {
-	ApiKeyEnvVar string `json:"apiKeyEnvVar"`
+	ModelId ModelId `json:"modelId"`
 	BaseModelShared
 	BaseModelProviderConfig
 }
 
+type BaseModelUsesProvider struct {
+	Provider       ModelProvider `json:"provider"`
+	CustomProvider *string       `json:"customProvider,omitempty"`
+	ModelName      ModelName     `json:"modelName"`
+}
+
 type BaseModelConfigSchema struct {
-	SchemaVersion string `json:"schemaVersion"`
+	ModelTag              ModelTag `json:"modelTag"`
+	Description           string   `json:"description"`
+	DefaultMaxConvoTokens int      `json:"defaultMaxConvoTokens"`
 	BaseModelShared
-	Providers []BaseModelProviderConfig `json:"providers"`
+	Variants  []BaseModelConfigVariant `json:"variants"`
+	Providers []BaseModelUsesProvider  `json:"providers"`
+}
+
+type BaseModelConfigVariant struct {
+	VariantTag  VariantTag `json:"variantTag"`
+	Description string     `json:"description"`
+	BaseModelShared
+	Variants []BaseModelConfigVariant `json:"variants"`
+}
+
+func (b *BaseModelConfigSchema) ToAvailableModels() []*AvailableModel {
+	avail := []*AvailableModel{}
+	for _, provider := range b.Providers {
+
+		providerConfig, ok := BuiltInModelProviderConfigs[provider.Provider]
+		if !ok {
+			panic(fmt.Sprintf("provider %s not found", provider.Provider))
+		}
+
+		avail = append(avail, &AvailableModel{
+			Description:           b.Description,
+			DefaultMaxConvoTokens: b.DefaultMaxConvoTokens,
+			BaseModelConfig: BaseModelConfig{
+				ModelId:         ModelId(strings.Join([]string{string(provider.Provider), string(provider.ModelName)}, "/")),
+				BaseModelShared: b.BaseModelShared,
+				BaseModelProviderConfig: BaseModelProviderConfig{
+					ModelProviderConfigSchema: providerConfig,
+					ModelName:                 provider.ModelName,
+				},
+			},
+		})
+	}
+	return avail
 }
 
 type AvailableModel struct {
@@ -79,15 +122,6 @@ func (m *AvailableModel) ModelString() string {
 	}
 	s += string(m.ModelId)
 	return s
-}
-
-type AvailableModelSchema struct {
-	SchemaVersion string `json:"schemaVersion"`
-	BaseModelConfigSchema
-	Description           string    `json:"description"`
-	DefaultMaxConvoTokens int       `json:"defaultMaxConvoTokens"`
-	CreatedAt             time.Time `json:"createdAt"`
-	UpdatedAt             time.Time `json:"updatedAt"`
 }
 
 type PlannerModelConfig struct {
@@ -116,7 +150,77 @@ type ModelRoleConfig struct {
 	StrongModel          *ModelRoleConfig `json:"strongModel"`
 }
 
+type ModelRoleModelConfig struct {
+	Provider       ModelProvider `json:"provider"`
+	CustomProvider *string       `json:"customProvider,omitempty"`
+	ModelTag       ModelTag      `json:"modelTag"`
+}
+
 type ModelRoleConfigSchema struct {
+	Role     ModelRole `json:"role"`
+	ModelTag ModelTag  `json:"modelTag"`
+
+	Temperature          float32 `json:"temperature"`
+	TopP                 float32 `json:"topP"`
+	ReservedOutputTokens int     `json:"reservedOutputTokens"`
+	MaxConvoTokens       int     `json:"maxConvoTokens"`
+
+	LargeContextFallback *ModelRoleConfigSchema `json:"largeContextFallback"`
+	LargeOutputFallback  *ModelRoleConfigSchema `json:"largeOutputFallback"`
+	ErrorFallback        *ModelRoleConfigSchema `json:"errorFallback"`
+	StrongModel          *ModelRoleConfigSchema `json:"strongModel"`
+}
+
+func (m *ModelRoleConfigSchema) ToModelRoleConfig() ModelRoleConfig {
+
+	modelSchema
+
+	return m.toModelRoleConfig()
+}
+
+func (m *ModelRoleConfigSchema) toModelRoleConfig(providers []BaseModelUsesProvider) ModelRoleConfig {
+	if len(providers) == 0 {
+		panic("no providers")
+	}
+
+	provider := providers[0]
+	tail := providers[1:]
+
+	config := GetAvailableModel(m.Provider, m.ModelTag)
+
+	var largeContextFallback *ModelRoleConfig
+	if m.LargeContextFallback != nil {
+		c := m.LargeContextFallback.ToModelRoleConfig()
+		largeContextFallback = &c
+	}
+	var largeOutputFallback *ModelRoleConfig
+	if m.LargeOutputFallback != nil {
+		c := m.LargeOutputFallback.ToModelRoleConfig()
+		largeOutputFallback = &c
+	}
+	var errorFallback *ModelRoleConfig
+	if m.ErrorFallback != nil {
+		c := m.ErrorFallback.ToModelRoleConfig()
+		errorFallback = &c
+	}
+	var strongModel *ModelRoleConfig
+	if m.StrongModel != nil {
+		c := m.StrongModel.ToModelRoleConfig()
+		strongModel = &c
+	}
+
+	return ModelRoleConfig{
+		Role:                 m.Role,
+		BaseModelConfig:      config.BaseModelConfig,
+		Temperature:          m.Temperature,
+		TopP:                 m.TopP,
+		ReservedOutputTokens: m.ReservedOutputTokens,
+
+		LargeContextFallback: largeContextFallback,
+		LargeOutputFallback:  largeOutputFallback,
+		ErrorFallback:        errorFallback,
+		StrongModel:          strongModel,
+	}
 }
 
 func (m ModelRoleConfig) GetReservedOutputTokens() int {
@@ -165,6 +269,20 @@ func (p *PlannerRoleConfig) Scan(src interface{}) error {
 
 func (p PlannerRoleConfig) Value() (driver.Value, error) {
 	return json.Marshal(p)
+}
+
+type ModelPackSchema struct {
+	Name             string            `json:"name"`
+	Description      string            `json:"description"`
+	Planner          PlannerRoleConfig `json:"planner"`
+	Coder            *ModelRoleConfig  `json:"coder"`
+	PlanSummary      ModelRoleConfig   `json:"planSummary"`
+	Builder          ModelRoleConfig   `json:"builder"`
+	WholeFileBuilder *ModelRoleConfig  `json:"wholeFileBuilder"` // optional, defaults to builder model — access via GetWholeFileBuilder()
+	Namer            ModelRoleConfig   `json:"namer"`
+	CommitMsg        ModelRoleConfig   `json:"commitMsg"`
+	ExecStatus       ModelRoleConfig   `json:"execStatus"`
+	Architect        *ModelRoleConfig  `json:"contextLoader"`
 }
 
 type ModelPack struct {

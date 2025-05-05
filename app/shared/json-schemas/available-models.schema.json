@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://plandex.ai/schemas/available-models.schema.json",
+  "title": "Available Models",
+  "description": "A list of available models",
+  "type": "object",
+  "properties": {
+    "models": {
+      "type": "array",
+      "items": {
+        "$ref": "./model-config.schema.json"
+      }
+    }
+  },
+  "required": [
+    "models"
+  ]
+}

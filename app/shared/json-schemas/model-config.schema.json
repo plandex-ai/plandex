@@ -5,10 +5,6 @@
   "description": "Config for a model",
   "type": "object",
   "properties": {
-    "schemaVersion": {
-      "type": "string",
-      "const": "2025-05-01"
-    },
     "modelTag": {
       "type": "string"
     },
@@ -70,13 +66,49 @@
       "type": "array",
       "items": {
         "type": "object",
-        "$ref": "./model-provider-config.schema.json",
-        "minItems": 1
-      }
+        "properties": {
+          "provider": {
+            "$ref": "./definitions/model-providers.schema.json"
+          },
+          "customProvider": {
+            "type": "string"
+          },
+          "modelName": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider",
+          "modelName"
+        ],
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "provider": {
+                  "const": "custom"
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "customProvider"
+              ]
+            },
+            "else": {
+              "not": {
+                "required": [
+                  "customProvider"
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "minItems": 1
     }
   },
   "required": [
-    "schemaVersion",
     "modelTag",
     "description",
     "maxTokens",

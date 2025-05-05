@@ -5,12 +5,11 @@
   "description": "Config for a defined model role within a model pack",
   "type": "object",
   "properties": {
-    "schemaVersion": {
-      "type": "string",
-      "const": "2025-05-01"
-    },
     "role": {
       "$ref": "./definitions/model-roles.schema.json"
+    },
+    "modelTag": {
+      "type": "string"
     },
     "temperature": {
       "type": "number"
@@ -20,10 +19,25 @@
     },
     "reservedOutputTokens": {
       "type": "number"
+    },
+    "maxConvoTokens": {
+      "type": "number"
+    },
+    "largeContextFallback": {
+      "$ref": "./definitions/model-role-config.schema.json"
+    },
+    "largeOutputFallback": {
+      "$ref": "./definitions/model-role-config.schema.json"
+    },
+    "errorFallback": {
+      "$ref": "./definitions/model-role-config.schema.json"
+    },
+    "strongModel": {
+      "$ref": "./definitions/model-role-config.schema.json"
     }
   },
   "required": [
-    "schemaVersion",
-    "role"
+    "role",
+    "modelTag"
   ]
 }

@@ -5,9 +5,68 @@
   "description": "Config for a model pack",
   "type": "object",
   "properties": {
-    "schemaVersion": {
+    "name": {
       "type": "string",
-      "const": "2025-05-01"
+      "description": "The name of the model pack"
+    },
+    "description": {
+      "type": "string",
+      "description": "The description of the model pack"
+    },
+    "planner": {
+      "type": "object",
+      "description": "The planner model config",
+      "$ref": "./model-role-config.schema.json"
+    },
+    "coder": {
+      "type": "object",
+      "description": "The coder model config",
+      "$ref": "./model-role-config.schema.json"
+    },
+    "architect": {
+      "type": "object",
+      "description": "The architect model config",
+      "$ref": "./model-role-config.schema.json"
+    },
+    "planSummary": {
+      "type": "object",
+      "description": "The plan summary model config",
+      "$ref": "./model-role-config.schema.json"
+    },
+    "builder": {
+      "type": "object",
+      "description": "The builder model config",
+      "$ref": "./model-role-config.schema.json"
+    },
+    "wholeFileBuilder": {
+      "type": "object",
+      "description": "The whole file builder model config",
+      "$ref": "./model-role-config.schema.json"
+    },
+    "namer": {
+      "type": "object",
+      "description": "The namer model config",
+      "$ref": "./model-role-config.schema.json"
+    },
+    "commitMsg": {
+      "type": "object",
+      "description": "The commit message model config",
+      "$ref": "./model-role-config.schema.json"
+    },
+    "execStatus": {
+      "type": "object",
+      "description": "The execution status model config",
+      "$ref": "./model-role-config.schema.json"
     }
-  }
+  },
+  "required": [
+    "name",
+    "description",
+    "planner",
+    "planSummary",
+    "builder",
+    "namer",
+    "commitMsg",
+    "execStatus"
+  ]
 }

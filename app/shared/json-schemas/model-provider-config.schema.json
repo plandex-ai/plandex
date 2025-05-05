@@ -5,10 +5,6 @@
   "description": "Config for a model provider",
   "type": "object",
   "properties": {
-    "schemaVersion": {
-      "type": "string",
-      "const": "2025-05-01"
-    },
     "provider": {
       "$ref": "./definitions/model-providers.schema.json"
     },
@@ -48,7 +44,6 @@
     }
   },
   "required": [
-    "schemaVersion",
     "provider",
     "baseUrl"
   ],
@@ -75,52 +70,37 @@
       }
     },
     {
-      "if": {
-        "properties": {
-          "skipAuth": {
-            "const": false
-          }
-        }
-      },
-      "then": {
-        "anyOf": [
-          {
-            "required": [
-              "apiKeyEnvVar"
-            ]
-          },
-          {
-            "required": [
-              "extraAuthVars"
-            ]
-          }
-        ]
-      }
-    },
-    {
-      "if": {
-        "properties": {
-          "skipAuth": {
-            "const": true
-          }
-        }
-      },
-      "then": {
-        "not": {
-          "anyOf": [
-            {
-              "required": [
-                "apiKeyEnvVar"
-              ]
-            },
-            {
-              "required": [
-                "extraAuthVars"
-              ]
+      "anyOf": [
+        {
+          "properties": {
+            "provider": {
+              "not": {
+                "const": "custom"
+              }
             }
+          }
+        },
+        {
+          "required": [
+            "apiKeyEnvVar"
           ]
+        },
+        {
+          "required": [
+            "extraAuthVars"
+          ]
+        },
+        {
+          "required": [
+            "skipAuth"
+          ],
+          "properties": {
+            "skipAuth": {
+              "const": true
+            }
+          }
         }
-      }
+      ]
     }
   ]
 }

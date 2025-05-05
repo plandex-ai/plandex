@@ -26,8 +26,19 @@ const (
 	ModelProviderDeepSeek       ModelProvider = "deepseek"
 	ModelProviderPerplexity     ModelProvider = "perplexity"
 
+	ModelProviderAmazonBedrock ModelProvider = "aws-bedrock"
+
+	ModelProviderOllama ModelProvider = "ollama"
+
 	ModelProviderCustom ModelProvider = "custom"
 )
+
+var ModelProviderToLiteLLMId = map[ModelProvider]string{
+	ModelProviderGoogleAIStudio: "google_ai_studio",
+	ModelProviderGoogleVertex:   "vertex_ai",
+	ModelProviderAzureOpenAI:    "azure",
+	ModelProviderAmazonBedrock:  "bedrock",
+}
 
 var AllModelProviders = []string{
 	string(ModelProviderOpenAI),
@@ -38,69 +49,143 @@ var AllModelProviders = []string{
 	string(ModelProviderAzureOpenAI),
 	string(ModelProviderDeepSeek),
 	string(ModelProviderPerplexity),
+	string(ModelProviderAmazonBedrock),
 	string(ModelProviderCustom),
 }
 
-var BaseUrlByProvider = map[ModelProvider]string{
-	ModelProviderOpenAI:     OpenAIV1BaseUrl,
-	ModelProviderOpenRouter: OpenRouterBaseUrl,
+// var BaseUrlByProvider = map[ModelProvider]string{
+// 	ModelProviderOpenAI:     OpenAIV1BaseUrl,
+// 	ModelProviderOpenRouter: OpenRouterBaseUrl,
 
-	// apart from openai and openrouter, the rest are supported by liteLLM
-	ModelProviderAnthropic:      LiteLLMBaseUrl,
-	ModelProviderGoogleAIStudio: LiteLLMBaseUrl,
-	ModelProviderGoogleVertex:   LiteLLMBaseUrl,
-	ModelProviderAzureOpenAI:    LiteLLMBaseUrl,
-	ModelProviderDeepSeek:       LiteLLMBaseUrl,
-	ModelProviderPerplexity:     LiteLLMBaseUrl,
-}
+// 	// apart from openai and openrouter, the rest are supported by liteLLM
+// 	ModelProviderAnthropic:      LiteLLMBaseUrl,
+// 	ModelProviderGoogleAIStudio: LiteLLMBaseUrl,
+// 	ModelProviderGoogleVertex:   LiteLLMBaseUrl,
+// 	ModelProviderAzureOpenAI:    LiteLLMBaseUrl,
+// 	ModelProviderDeepSeek:       LiteLLMBaseUrl,
+// 	ModelProviderPerplexity:     LiteLLMBaseUrl,
+// 	ModelProviderAmazonBedrock:  LiteLLMBaseUrl,
+// }
 
-var ApiKeyByProvider = map[ModelProvider]string{
-	ModelProviderOpenAI:     OpenAIEnvVar,
-	ModelProviderOpenRouter: OpenRouterApiKeyEnvVar,
+// var ApiKeyByProvider = map[ModelProvider]string{
+// 	ModelProviderOpenAI:     OpenAIEnvVar,
+// 	ModelProviderOpenRouter: OpenRouterApiKeyEnvVar,
 
-	ModelProviderAnthropic:      AnthropicApiKeyEnvVar,
-	ModelProviderGoogleAIStudio: GoogleAIStudioApiKeyEnvVar,
-	ModelProviderGoogleVertex:   GoogleVertexApiKeyEnvVar,
-	ModelProviderAzureOpenAI:    AzureOpenAIEnvVar,
-	ModelProviderDeepSeek:       DeepSeekApiKeyEnvVar,
-	ModelProviderPerplexity:     PerplexityApiKeyEnvVar,
-}
+// 	ModelProviderAnthropic:      AnthropicApiKeyEnvVar,
+// 	ModelProviderGoogleAIStudio: GoogleAIStudioApiKeyEnvVar,
+// 	ModelProviderGoogleVertex:   GoogleVertexApiKeyEnvVar,
+// 	ModelProviderAzureOpenAI:    AzureOpenAIEnvVar,
+// 	ModelProviderDeepSeek:       DeepSeekApiKeyEnvVar,
+// 	ModelProviderPerplexity:     PerplexityApiKeyEnvVar,
+// }
 
-// these types can come in via JSON config which uses JSON schema with discriminated unions — thus the need for the `omitempty` and pointers on all optional fields
 type ModelProviderExtraAuthVars struct {
 	Var        string `json:"var"`
-	IsFilePath *bool  `json:"isFilePath,omitempty"`
-	Required   *bool  `json:"required,omitempty"`
+	IsFilePath bool   `json:"isFilePath,omitempty"`
+	Required   bool   `json:"required,omitempty"`
+	Default    string `json:"default,omitempty"`
 }
 
-type ModelProviderConfig struct {
-	SchemaVersion  string        `json:"schemaVersion"`
+type ModelProviderConfigSchema struct {
 	Provider       ModelProvider `json:"provider"`
 	CustomProvider *string       `json:"customProvider,omitempty"`
 	BaseUrl        string        `json:"baseUrl"`
 
-	// for local models that don't require auth (ollama, etc.)
-	SkipAuth *bool `json:"skipAuth,omitempty"`
+	// for AWS Bedrock models
+	HasAWSAuth bool `json:"hasAWSAuth,omitempty"`
 
-	ApiKeyEnvVar  *string                       `json:"apiKeyEnvVar,omitempty"`
-	ExtraAuthVars *[]ModelProviderExtraAuthVars `json:"extraAuthVars,omitempty"`
+	// for local models that don't require auth (ollama, etc.)
+	SkipAuth bool `json:"skipAuth,omitempty"`
+
+	ApiKeyEnvVar  string                       `json:"apiKeyEnvVar,omitempty"`
+	ExtraAuthVars []ModelProviderExtraAuthVars `json:"extraAuthVars,omitempty"`
 }
 
-var BuiltInModelProviderConfigs = map[ModelProvider]ModelProviderConfig{
-	ModelProviderOpenAI: {
-		Provider: ModelProviderOpenAI,
-		BaseUrl:  OpenAIV1BaseUrl,
+const DefaultAzureApiVersion = "2024-10-21"
+const AnthropicMaxReasoningBudget = 32000
 
-		SkipAuth:      &[]bool{false}[0],
-		ApiKeyEnvVar:  &[]string{OpenAIEnvVar}[0],
-		ExtraAuthVars: &[]ModelProviderExtraAuthVars{},
+var BuiltInModelProviderConfigs = map[ModelProvider]ModelProviderConfigSchema{
+	ModelProviderOpenAI: {
+		Provider:     ModelProviderOpenAI,
+		BaseUrl:      OpenAIV1BaseUrl,
+		ApiKeyEnvVar: OpenAIEnvVar,
 	},
 	ModelProviderOpenRouter: {
-		Provider: ModelProviderOpenRouter,
-		BaseUrl:  OpenRouterBaseUrl,
-
-		SkipAuth:      &[]bool{true}[0],
-		ApiKeyEnvVar:  &[]string{OpenRouterApiKeyEnvVar}[0],
-		ExtraAuthVars: &[]ModelProviderExtraAuthVars{},
+		Provider:     ModelProviderOpenRouter,
+		BaseUrl:      OpenRouterBaseUrl,
+		ApiKeyEnvVar: OpenRouterApiKeyEnvVar,
+	},
+	ModelProviderAnthropic: {
+		Provider:     ModelProviderAnthropic,
+		BaseUrl:      LiteLLMBaseUrl,
+		ApiKeyEnvVar: AnthropicApiKeyEnvVar,
+	},
+	ModelProviderGoogleAIStudio: {
+		Provider:     ModelProviderGoogleAIStudio,
+		BaseUrl:      LiteLLMBaseUrl,
+		ApiKeyEnvVar: GoogleAIStudioApiKeyEnvVar,
+	},
+	ModelProviderGoogleVertex: {
+		Provider: ModelProviderGoogleVertex,
+		BaseUrl:  LiteLLMBaseUrl,
+		ExtraAuthVars: []ModelProviderExtraAuthVars{
+			{
+				Var:        "GOOGLE_APPLICATION_CREDENTIALS",
+				IsFilePath: true,
+				Required:   true,
+			},
+			{
+				Var:      "VERTEXAI_PROJECT",
+				Required: true,
+			},
+			{
+				Var:      "VERTEXAI_LOCATION",
+				Required: true,
+			},
+		},
+	},
+	ModelProviderAzureOpenAI: {
+		Provider: ModelProviderAzureOpenAI,
+		BaseUrl:  LiteLLMBaseUrl,
+		ExtraAuthVars: []ModelProviderExtraAuthVars{
+			{
+				Var:      "AZURE_OPENAI_API_KEY",
+				Required: true,
+			},
+			{
+				Var:      "AZURE_API_BASE",
+				Required: true,
+			},
+			{
+				Var:      "AZURE_API_VERSION",
+				Required: false,
+				Default:  DefaultAzureApiVersion,
+			},
+		},
+	},
+	ModelProviderDeepSeek: {
+		Provider:     ModelProviderDeepSeek,
+		BaseUrl:      LiteLLMBaseUrl,
+		ApiKeyEnvVar: DeepSeekApiKeyEnvVar,
+	},
+	ModelProviderPerplexity: {
+		Provider:     ModelProviderPerplexity,
+		BaseUrl:      LiteLLMBaseUrl,
+		ApiKeyEnvVar: PerplexityApiKeyEnvVar,
+	},
+	ModelProviderAmazonBedrock: {
+		Provider:   ModelProviderAmazonBedrock,
+		BaseUrl:    LiteLLMBaseUrl,
+		HasAWSAuth: true,
+		ExtraAuthVars: []ModelProviderExtraAuthVars{
+			{Var: "AWS_ACCESS_KEY_ID", Required: false},
+			{Var: "AWS_SECRET_ACCESS_KEY", Required: false},
+			{Var: "AWS_REGION", Required: false},
+		},
+	},
+	ModelProviderOllama: {
+		Provider: ModelProviderOllama,
+		BaseUrl:  LiteLLMBaseUrl,
+		SkipAuth: true,
 	},
 }
