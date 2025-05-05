@@ -43,7 +43,12 @@ func ClassifyErrMsg(msg string) *shared.ModelError {
 		strings.Contains(msg, "exceed context limit") ||
 		strings.Contains(msg, "decrease input length") ||
 		strings.Contains(msg, "too many tokens") ||
-		strings.Contains(msg, "payload too large") {
+		strings.Contains(msg, "payload too large") ||
+		strings.Contains(msg, "payload is too large") ||
+		strings.Contains(msg, "input is too large") ||
+		strings.Contains(msg, "input too large") ||
+		strings.Contains(msg, "input is too long") ||
+		strings.Contains(msg, "input too long") {
 		return &shared.ModelError{
 			Kind:              shared.ErrContextTooLong,
 			Retriable:         false,
