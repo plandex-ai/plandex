@@ -4,12 +4,15 @@ import (
 	"bytes"
 	"crypto/rand"
 	"fmt"
-	"reflect"
 	"regexp"
 	"strings"
 	"time"
 	"unicode/utf8"
 )
+
+func Pointer[T any](v T) *T {
+	return &v
+}
 
 const TsFormat = "2006-01-02T15:04:05.999Z"
 
@@ -138,19 +141,6 @@ func ReplaceReverse(s, old, new string, n int) string {
 		s = res
 	}
 	return res
-}
-
-func Merge[T any](base T, ov T) T {
-	rvBase := reflect.ValueOf(&base).Elem() // addressable
-	rvOv := reflect.ValueOf(ov)
-
-	for i := 0; i < rvBase.NumField(); i++ {
-		fOv := rvOv.Field(i)
-		if !fOv.IsZero() { // ← built-in zero test
-			rvBase.Field(i).Set(fOv)
-		}
-	}
-	return base
 }
 
 func NormalizeEOL(data []byte) []byte {

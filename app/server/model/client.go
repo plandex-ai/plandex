@@ -126,7 +126,7 @@ func CreateChatCompletionStream(
 		req.IncludeReasoning = true
 	}
 
-	return withStreamingRetries(ctx, func(numTotalRetry int, modelErr *shared.ModelError, stripCacheControl bool) (*ExtendedChatCompletionStream, shared.FallbackResult, error) {
+	return withStreamingRetries(ctx, func(numTotalRetry int, modelErr *shared.ModelError) (*ExtendedChatCompletionStream, shared.FallbackResult, error) {
 		fallbackRes := modelConfig.GetFallbackForModelError(numTotalRetry, modelErr)
 		resolvedModelConfig := fallbackRes.ModelRoleConfig
 
@@ -149,7 +149,7 @@ func CreateChatCompletionStream(
 			}
 		}
 
-		if stripCacheControl {
+		if modelErr.Kind == shared.ErrCacheSupport {
 			for i := range req.Messages {
 				for j := range req.Messages[i].Content {
 					if req.Messages[i].Content[j].CacheControl != nil {

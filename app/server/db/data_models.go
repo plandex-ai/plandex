@@ -352,17 +352,26 @@ func (model *AvailableModel) ToApi() *shared.AvailableModel {
 	return &shared.AvailableModel{
 		Id: model.Id,
 		BaseModelConfig: shared.BaseModelConfig{
-			Provider:             model.Provider,
-			CustomProvider:       model.CustomProvider,
-			BaseUrl:              model.BaseUrl,
-			ModelId:              model.ModelId,
-			ModelName:            model.ModelName,
-			MaxTokens:            model.MaxTokens,
-			ApiKeyEnvVar:         model.ApiKeyEnvVar,
-			MaxOutputTokens:      model.MaxOutputTokens,
-			ReservedOutputTokens: model.ReservedOutputTokens,
-			ModelCompatibility: shared.ModelCompatibility{
-				HasImageSupport: model.HasImageSupport,
+
+			ModelId: model.ModelId,
+
+			BaseModelShared: shared.BaseModelShared{
+				MaxTokens:            model.MaxTokens,
+				MaxOutputTokens:      model.MaxOutputTokens,
+				ReservedOutputTokens: model.ReservedOutputTokens,
+				ModelCompatibility: shared.ModelCompatibility{
+					HasImageSupport: model.HasImageSupport,
+				},
+			},
+
+			BaseModelProviderConfig: shared.BaseModelProviderConfig{
+				ModelName: model.ModelName,
+				ModelProviderConfigSchema: shared.ModelProviderConfigSchema{
+					Provider:       model.Provider,
+					CustomProvider: model.CustomProvider,
+					BaseUrl:        model.BaseUrl,
+					ApiKeyEnvVar:   model.ApiKeyEnvVar,
+				},
 			},
 		},
 		Description:           model.Description,

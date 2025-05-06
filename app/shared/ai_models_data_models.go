@@ -45,7 +45,7 @@ type BaseModelShared struct {
 	// for openai, token estimate padding percentage
 	TokenEstimatePaddingPct float64 `json:"tokenEstimatePaddingPct"`
 
-	ModelCompatibility ModelCompatibility `json:"modelCompatibility"`
+	ModelCompatibility
 }
 
 type BaseModelProviderConfig struct {
@@ -54,7 +54,8 @@ type BaseModelProviderConfig struct {
 }
 
 type BaseModelConfig struct {
-	ModelId ModelId `json:"modelId"`
+	ModelId  ModelId  `json:"modelId"`
+	ModelTag ModelTag `json:"modelTag"`
 	BaseModelShared
 	BaseModelProviderConfig
 }
@@ -70,15 +71,20 @@ type BaseModelConfigSchema struct {
 	Description           string   `json:"description"`
 	DefaultMaxConvoTokens int      `json:"defaultMaxConvoTokens"`
 	BaseModelShared
+
+	RequiresVariantOverrides []string `json:"requiresVariantOverrides"`
+
 	Variants  []BaseModelConfigVariant `json:"variants"`
 	Providers []BaseModelUsesProvider  `json:"providers"`
 }
 
 type BaseModelConfigVariant struct {
-	VariantTag  VariantTag `json:"variantTag"`
-	Description string     `json:"description"`
-	BaseModelShared
-	Variants []BaseModelConfigVariant `json:"variants"`
+	IsBaseVariant            bool                     `json:"isBaseVariant"`
+	VariantTag               VariantTag               `json:"variantTag"`
+	Description              string                   `json:"description"`
+	Overrides                BaseModelShared          `json:"overrides"`
+	Variants                 []BaseModelConfigVariant `json:"variants"`
+	RequiresVariantOverrides []string                 `json:"requiresVariantOverrides"`
 }
 
 func (b *BaseModelConfigSchema) ToAvailableModels() []*AvailableModel {
@@ -90,18 +96,121 @@ func (b *BaseModelConfigSchema) ToAvailableModels() []*AvailableModel {
 			panic(fmt.Sprintf("provider %s not found", provider.Provider))
 		}
 
-		avail = append(avail, &AvailableModel{
-			Description:           b.Description,
-			DefaultMaxConvoTokens: b.DefaultMaxConvoTokens,
-			BaseModelConfig: BaseModelConfig{
-				ModelId:         ModelId(strings.Join([]string{string(provider.Provider), string(provider.ModelName)}, "/")),
-				BaseModelShared: b.BaseModelShared,
-				BaseModelProviderConfig: BaseModelProviderConfig{
-					ModelProviderConfigSchema: providerConfig,
-					ModelName:                 provider.ModelName,
+		addBase := func() {
+			avail = append(avail, &AvailableModel{
+				Description:           b.Description,
+				DefaultMaxConvoTokens: b.DefaultMaxConvoTokens,
+				BaseModelConfig: BaseModelConfig{
+					ModelTag:        b.ModelTag,
+					ModelId:         ModelId(string(b.ModelTag)),
+					BaseModelShared: b.BaseModelShared,
+					BaseModelProviderConfig: BaseModelProviderConfig{
+						ModelProviderConfigSchema: providerConfig,
+						ModelName:                 provider.ModelName,
+					},
 				},
-			},
-		})
+			})
+		}
+
+		type variantParams struct {
+			BaseVariant              *BaseModelConfigVariant
+			BaseId                   ModelId
+			BaseDescription          string
+			Overrides                BaseModelShared
+			RequiresVariantOverrides []string
+		}
+
+		addBaseVariant := func(params variantParams) {
+			if params.BaseVariant == nil {
+				addBase()
+				return
+			}
+			baseDescription := params.BaseVariant.Description
+			baseId := params.BaseId
+			mergedOverrides := params.Overrides
+
+			avail = append(avail, &AvailableModel{
+				Description:           baseDescription,
+				DefaultMaxConvoTokens: b.DefaultMaxConvoTokens,
+				BaseModelConfig: BaseModelConfig{
+					ModelTag:        b.ModelTag,
+					ModelId:         baseId,
+					BaseModelShared: mergedOverrides,
+					BaseModelProviderConfig: BaseModelProviderConfig{
+						ModelProviderConfigSchema: providerConfig,
+						ModelName:                 provider.ModelName,
+					},
+				},
+			})
+		}
+
+		if len(b.Variants) == 0 {
+			addBase()
+		} else {
+
+			var addVariants func(variants []BaseModelConfigVariant, baseParams variantParams)
+			addVariants = func(variants []BaseModelConfigVariant, baseParams variantParams) {
+				for _, variant := range variants {
+					if variant.IsBaseVariant {
+						addBaseVariant(baseParams)
+						continue
+					}
+
+					if len(baseParams.RequiresVariantOverrides) > 0 {
+						ok, missing := FieldsDefined(variant.Overrides, baseParams.RequiresVariantOverrides)
+						if !ok {
+							panic(fmt.Sprintf("variant %s is missing required field %s", variant.VariantTag, missing))
+						}
+					}
+
+					var baseId ModelId
+					var baseDescription string
+					if baseParams.BaseId != "" {
+						baseId = baseParams.BaseId
+						baseDescription = baseParams.BaseDescription
+					} else {
+						baseId = ModelId(string(b.ModelTag))
+						baseDescription = b.Description
+					}
+
+					modelId := ModelId(strings.Join([]string{string(baseId), string(variant.VariantTag)}, "-"))
+
+					description := strings.Join([]string{baseDescription, variant.Description}, " ")
+
+					merged := Merge(b.BaseModelShared, variant.Overrides)
+
+					if len(variant.Variants) > 0 {
+						addVariants(variant.Variants, variantParams{
+							BaseVariant:              &variant,
+							BaseId:                   modelId,
+							BaseDescription:          description,
+							Overrides:                merged,
+							RequiresVariantOverrides: variant.RequiresVariantOverrides,
+						})
+					}
+					avail = append(avail, &AvailableModel{
+						Description:           description,
+						DefaultMaxConvoTokens: b.DefaultMaxConvoTokens,
+						BaseModelConfig: BaseModelConfig{
+							ModelTag:        b.ModelTag,
+							ModelId:         modelId,
+							BaseModelShared: merged,
+							BaseModelProviderConfig: BaseModelProviderConfig{
+								ModelProviderConfigSchema: providerConfig,
+								ModelName:                 provider.ModelName,
+							},
+						},
+					})
+				}
+			}
+
+			addVariants(b.Variants, variantParams{
+				BaseId:                   ModelId(string(b.ModelTag)),
+				BaseDescription:          b.Description,
+				Overrides:                b.BaseModelShared,
+				RequiresVariantOverrides: b.RequiresVariantOverrides,
+			})
+		}
 	}
 	return avail
 }
@@ -157,8 +266,8 @@ type ModelRoleModelConfig struct {
 }
 
 type ModelRoleConfigSchema struct {
-	Role     ModelRole `json:"role"`
-	ModelTag ModelTag  `json:"modelTag"`
+	Role    ModelRole `json:"role"`
+	ModelId ModelId   `json:"modelId"`
 
 	Temperature          float32 `json:"temperature"`
 	TopP                 float32 `json:"topP"`
@@ -172,10 +281,12 @@ type ModelRoleConfigSchema struct {
 }
 
 func (m *ModelRoleConfigSchema) ToModelRoleConfig() ModelRoleConfig {
+	providers, ok := BuiltInModelProvidersByModelId[m.ModelId]
+	if !ok {
+		panic(fmt.Sprintf("no providers found for model %s", m.ModelId))
+	}
 
-	modelSchema
-
-	return m.toModelRoleConfig()
+	return m.toModelRoleConfig(providers)
 }
 
 func (m *ModelRoleConfigSchema) toModelRoleConfig(providers []BaseModelUsesProvider) ModelRoleConfig {
@@ -186,7 +297,7 @@ func (m *ModelRoleConfigSchema) toModelRoleConfig(providers []BaseModelUsesProvi
 	provider := providers[0]
 	tail := providers[1:]
 
-	config := GetAvailableModel(m.Provider, m.ModelTag)
+	config := GetAvailableModel(provider.Provider, m.ModelId)
 
 	var largeContextFallback *ModelRoleConfig
 	if m.LargeContextFallback != nil {
@@ -209,6 +320,13 @@ func (m *ModelRoleConfigSchema) toModelRoleConfig(providers []BaseModelUsesProvi
 		strongModel = &c
 	}
 
+	// recursive waterfall fallback chain for all the provider options
+	var missingKeyFallback *ModelRoleConfig
+	if len(tail) > 0 {
+		c := m.toModelRoleConfig(tail)
+		missingKeyFallback = &c
+	}
+
 	return ModelRoleConfig{
 		Role:                 m.Role,
 		BaseModelConfig:      config.BaseModelConfig,
@@ -220,6 +338,7 @@ func (m *ModelRoleConfigSchema) toModelRoleConfig(providers []BaseModelUsesProvi
 		LargeOutputFallback:  largeOutputFallback,
 		ErrorFallback:        errorFallback,
 		StrongModel:          strongModel,
+		MissingKeyFallback:   missingKeyFallback,
 	}
 }
 
@@ -272,17 +391,59 @@ func (p PlannerRoleConfig) Value() (driver.Value, error) {
 }
 
 type ModelPackSchema struct {
-	Name             string            `json:"name"`
-	Description      string            `json:"description"`
-	Planner          PlannerRoleConfig `json:"planner"`
-	Coder            *ModelRoleConfig  `json:"coder"`
-	PlanSummary      ModelRoleConfig   `json:"planSummary"`
-	Builder          ModelRoleConfig   `json:"builder"`
-	WholeFileBuilder *ModelRoleConfig  `json:"wholeFileBuilder"` // optional, defaults to builder model — access via GetWholeFileBuilder()
-	Namer            ModelRoleConfig   `json:"namer"`
-	CommitMsg        ModelRoleConfig   `json:"commitMsg"`
-	ExecStatus       ModelRoleConfig   `json:"execStatus"`
-	Architect        *ModelRoleConfig  `json:"contextLoader"`
+	Name             string                 `json:"name"`
+	Description      string                 `json:"description"`
+	Planner          ModelRoleConfigSchema  `json:"planner"`
+	Coder            *ModelRoleConfigSchema `json:"coder"`
+	PlanSummary      ModelRoleConfigSchema  `json:"planSummary"`
+	Builder          ModelRoleConfigSchema  `json:"builder"`
+	WholeFileBuilder *ModelRoleConfigSchema `json:"wholeFileBuilder"` // optional, defaults to builder model — access via GetWholeFileBuilder()
+	Namer            ModelRoleConfigSchema  `json:"namer"`
+	CommitMsg        ModelRoleConfigSchema  `json:"commitMsg"`
+	ExecStatus       ModelRoleConfigSchema  `json:"execStatus"`
+	Architect        *ModelRoleConfigSchema `json:"contextLoader"`
+}
+
+func (m *ModelPackSchema) ToModelPack() ModelPack {
+	var (
+		coder            *ModelRoleConfig
+		wholeFileBuilder *ModelRoleConfig
+		architect        *ModelRoleConfig
+	)
+
+	if m.Coder != nil {
+		c := m.Coder.ToModelRoleConfig()
+		coder = &c
+	}
+
+	if m.WholeFileBuilder != nil {
+		c := m.WholeFileBuilder.ToModelRoleConfig()
+		wholeFileBuilder = &c
+	}
+
+	if m.Architect != nil {
+		c := m.Architect.ToModelRoleConfig()
+		architect = &c
+	}
+
+	return ModelPack{
+		Name:        m.Name,
+		Description: m.Description,
+		Planner: PlannerRoleConfig{
+			ModelRoleConfig: m.Planner.ToModelRoleConfig(),
+			PlannerModelConfig: PlannerModelConfig{
+				MaxConvoTokens: m.Planner.MaxConvoTokens,
+			},
+		},
+		Coder:            coder,
+		PlanSummary:      m.PlanSummary.ToModelRoleConfig(),
+		Builder:          m.Builder.ToModelRoleConfig(),
+		WholeFileBuilder: wholeFileBuilder,
+		Namer:            m.Namer.ToModelRoleConfig(),
+		CommitMsg:        m.CommitMsg.ToModelRoleConfig(),
+		ExecStatus:       m.ExecStatus.ToModelRoleConfig(),
+		Architect:        architect,
+	}
 }
 
 type ModelPack struct {
