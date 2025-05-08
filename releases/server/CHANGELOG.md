@@ -1,3 +1,6 @@
+## Server Version 2.1.2
+- Fix for auto-load context error: 'Error decoding response → EOF'
+
 ## Server Version 2.1.1+1
 - Improve error handling to catch yet another "context length exceeded" error message variation from Anthropic.
 
