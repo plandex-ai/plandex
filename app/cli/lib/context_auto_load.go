@@ -130,14 +130,7 @@ func AutoLoadContextFiles(ctx context.Context, files []string) (string, error) {
 		}
 	}
 
-	if len(loadContextReqs) == 0 {
-		// If we have no new files to load, we can just display skip info.
-		if len(filesSkippedTooLarge) > 0 || len(filesSkippedAfterSizeLimit) > 0 {
-			// Print skip info only
-			return getSkippedFilesMsg(filesSkippedTooLarge, filesSkippedAfterSizeLimit, nil, nil), nil
-		}
-	}
-
+	// even if there are no files to load, we still need to hit the API endpoint because the stream is waiting on a channel for the autoload to finish
 	res, apiErr := api.Client.AutoLoadContext(ctx, CurrentPlanId, CurrentBranch, loadContextReqs)
 	if apiErr != nil {
 		return "", fmt.Errorf("failed to load context: %v", apiErr.Msg)
