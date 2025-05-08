@@ -459,6 +459,23 @@ func AutoLoadContextHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if res == nil {
+		// the client will treat this as a no-op
+		markdownRes := shared.LoadContextResponse{
+			TokensAdded:       0,
+			TotalTokens:       0,
+			MaxTokensExceeded: false,
+			MaxTokens:         0,
+			Msg:               "",
+		}
+
+		bytes, err := json.Marshal(markdownRes)
+		if err != nil {
+			log.Printf("Error marshalling response: %v\n", err)
+			http.Error(w, "Error marshalling response", http.StatusInternalServerError)
+			return
+		}
+
+		w.Write(bytes)
 		return
 	}
 
