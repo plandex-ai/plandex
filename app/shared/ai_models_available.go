@@ -490,9 +490,9 @@ var BuiltInModels = []*BaseModelConfigSchema{
 		},
 
 		Providers: []BaseModelUsesProvider{
-			{Provider: ModelProviderGoogleAIStudio, ModelName: "models/gemini-2.5-pro-preview-03-25"},
-			{Provider: ModelProviderGoogleVertex, ModelName: "gemini-2.5-pro-preview-03-25"},
-			{Provider: ModelProviderOpenRouter, ModelName: "google/gemini-2.5-pro-preview-03-25"},
+			{Provider: ModelProviderGoogleAIStudio, ModelName: "models/	gemini-2.5-pro-preview-05-06"},
+			{Provider: ModelProviderGoogleVertex, ModelName: "	gemini-2.5-pro-preview-05-06"},
+			{Provider: ModelProviderOpenRouter, ModelName: "google/gemini-2.5-pro-preview"},
 		},
 	},
 	{

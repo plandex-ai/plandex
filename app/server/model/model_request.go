@@ -93,6 +93,8 @@ func ModelRequest(
 			InputTokens:  inputTokensEstimate,
 			OutputTokens: expectedOutputTokens,
 			ModelName:    modelConfig.BaseModelConfig.ModelName,
+			ModelId:      modelConfig.BaseModelConfig.ModelId,
+			ModelTag:     modelConfig.BaseModelConfig.ModelTag,
 		},
 	})
 
@@ -204,6 +206,7 @@ func ModelRequest(
 				OutputTokens:   outputTokens,
 				CachedTokens:   cachedTokens,
 				ModelId:        modelConfig.BaseModelConfig.ModelId,
+				ModelTag:       modelConfig.BaseModelConfig.ModelTag,
 				ModelName:      modelConfig.BaseModelConfig.ModelName,
 				ModelProvider:  modelConfig.BaseModelConfig.Provider,
 				ModelPackName:  modelPackName,

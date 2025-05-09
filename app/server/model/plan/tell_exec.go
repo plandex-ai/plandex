@@ -430,6 +430,8 @@ func execTellPlan(params execTellPlanParams) {
 			InputTokens:  requestTokens,
 			OutputTokens: modelConfig.BaseModelConfig.MaxOutputTokens - requestTokens,
 			ModelName:    modelConfig.BaseModelConfig.ModelName,
+			ModelId:      modelConfig.BaseModelConfig.ModelId,
+			ModelTag:     modelConfig.BaseModelConfig.ModelTag,
 			IsUserPrompt: true,
 		},
 	})

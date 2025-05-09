@@ -146,8 +146,8 @@ func init() {
 	ReasoningPackSchema = ModelPackSchema{
 		Name:        "reasoning",
 		Description: "Same blend, but Sonnet:thinking with visible reasoning.",
-		Planner:     getModelRoleConfig(ModelRolePlanner, "anthropic/claude-3.7-sonnet:thinking-hidden"),
-		Coder:       Pointer(getModelRoleConfig(ModelRoleCoder, "anthropic/claude-3.7-sonnet:thinking-hidden")),
+		Planner:     getModelRoleConfig(ModelRolePlanner, "anthropic/claude-3.7-sonnet-thinking-hidden"),
+		Coder:       Pointer(getModelRoleConfig(ModelRoleCoder, "anthropic/claude-3.7-sonnet-thinking-hidden")),
 		PlanSummary: getModelRoleConfig(ModelRolePlanSummary, "openai/o4-mini-low", getErrorFallback("openai/o3-mini-low")),
 		Builder:     defaultBuilder,
 		WholeFileBuilder: Pointer(getModelRoleConfig(ModelRoleWholeFileBuilder, "openai/o4-mini-medium",
@@ -163,7 +163,7 @@ func init() {
 		Description:      "For difficult tasks where slower responses and builds are ok. Uses o3-high for architecture and planning, claude-3.7-sonnet thinking for implementation, prioritizes reliability over speed for builds. Supports up to 160k input context.",
 		Planner:          getModelRoleConfig(ModelRolePlanner, "openai/o3-high"),
 		Architect:        Pointer(getModelRoleConfig(ModelRoleArchitect, "openai/o3-high")),
-		Coder:            Pointer(getModelRoleConfig(ModelRoleCoder, "anthropic/claude-3.7-sonnet:thinking-hidden")),
+		Coder:            Pointer(getModelRoleConfig(ModelRoleCoder, "anthropic/claude-3.7-sonnet-thinking-hidden")),
 		PlanSummary:      getModelRoleConfig(ModelRolePlanSummary, "openai/o4-mini-low", getErrorFallback("openai/o3-mini-low")),
 		Builder:          getModelRoleConfig(ModelRoleBuilder, "openai/o4-mini-high", getErrorFallback("openai/o3-mini-high")),
 		WholeFileBuilder: Pointer(getModelRoleConfig(ModelRoleWholeFileBuilder, "openai/o4-mini-high", getErrorFallback("openai/o3-mini-high"))),
@@ -188,14 +188,14 @@ func init() {
 	OSSModelPackSchema = ModelPackSchema{
 		Name:             "oss",
 		Description:      "An experimental mix of the best open source models for coding. Supports up to 56k context, 8k per file. Works best with smaller projects and files. Includes reasoning.",
-		Planner:          getModelRoleConfig(ModelRolePlanner, "deepseek/deepseek-r1-reasoning"),
-		Coder:            Pointer(getModelRoleConfig(ModelRoleCoder, "deepseek/deepseek-chat-v3-0324")),
-		PlanSummary:      getModelRoleConfig(ModelRolePlanSummary, "deepseek/deepseek-r1-no-reasoning"),
-		Builder:          getModelRoleConfig(ModelRoleBuilder, "deepseek/deepseek-r1-no-reasoning"),
-		WholeFileBuilder: Pointer(getModelRoleConfig(ModelRoleWholeFileBuilder, "deepseek/deepseek-r1-no-reasoning")),
+		Planner:          getModelRoleConfig(ModelRolePlanner, "deepseek/r1-reasoning-visible"),
+		Coder:            Pointer(getModelRoleConfig(ModelRoleCoder, "deepseek/v3-0324")),
+		PlanSummary:      getModelRoleConfig(ModelRolePlanSummary, "deepseek/r1-reasoning-hidden"),
+		Builder:          getModelRoleConfig(ModelRoleBuilder, "deepseek/r1-reasoning-hidden"),
+		WholeFileBuilder: Pointer(getModelRoleConfig(ModelRoleWholeFileBuilder, "deepseek/r1-reasoning-hidden")),
 		Namer:            getModelRoleConfig(ModelRoleName, "qwen/qwen-2.5-coder-32b-instruct"),
 		CommitMsg:        getModelRoleConfig(ModelRoleCommitMsg, "qwen/qwen-2.5-coder-32b-instruct"),
-		ExecStatus:       getModelRoleConfig(ModelRoleExecStatus, "deepseek/deepseek-r1-no-reasoning"),
+		ExecStatus:       getModelRoleConfig(ModelRoleExecStatus, "deepseek/r1-reasoning-hidden"),
 	}
 
 	OpenAIPackSchema = ModelPackSchema{
@@ -239,8 +239,8 @@ func init() {
 	GeminiExperimentalPackSchema = ModelPackSchema{
 		Name:             "gemini-exp",
 		Description:      "Uses Gemini 2.5 Pro Experimental (free) for planning and coding, default models for other roles. Supports up to 1M input context.",
-		Planner:          getModelRoleConfig(ModelRolePlanner, "google/gemini-2.5-pro-exp-03-25"),
-		Coder:            Pointer(getModelRoleConfig(ModelRoleCoder, "google/gemini-2.5-pro-exp-03-25")),
+		Planner:          getModelRoleConfig(ModelRolePlanner, "google/gemini-2.5-pro-exp"),
+		Coder:            Pointer(getModelRoleConfig(ModelRoleCoder, "google/gemini-2.5-pro-exp")),
 		PlanSummary:      getModelRoleConfig(ModelRolePlanSummary, "openai/o4-mini-low", getErrorFallback("openai/o3-mini-low")),
 		Builder:          defaultBuilder,
 		WholeFileBuilder: Pointer(getModelRoleConfig(ModelRoleWholeFileBuilder, "openai/o4-mini-medium", getErrorFallback("openai/o3-mini-medium"))),
@@ -252,7 +252,7 @@ func init() {
 	R1PlannerPackSchema = ModelPackSchema{
 		Name:             "r1-planner",
 		Description:      "Uses DeepSeek R1 for planning, Qwen for light tasks, and default models for implementation. Supports up to 56k input context.",
-		Planner:          getModelRoleConfig(ModelRolePlanner, "deepseek/deepseek-r1-reasoning"),
+		Planner:          getModelRoleConfig(ModelRolePlanner, "deepseek/r1-reasoning-visible"),
 		Coder:            Pointer(getModelRoleConfig(ModelRoleCoder, "anthropic/claude-3.7-sonnet")),
 		PlanSummary:      getModelRoleConfig(ModelRolePlanSummary, "openai/o4-mini-low", getErrorFallback("openai/o3-mini-low")),
 		Builder:          getModelRoleConfig(ModelRoleBuilder, "openai/o4-mini-medium", getErrorFallback("openai/o3-mini-medium")),
@@ -265,7 +265,7 @@ func init() {
 	PerplexityPlannerPackSchema = ModelPackSchema{
 		Name:             "perplexity-planner",
 		Description:      "Uses Perplexity Sonar for planning, Qwen for light tasks, and default models for implementation. Supports up to 97k input context.",
-		Planner:          getModelRoleConfig(ModelRolePlanner, "perplexity/sonar-reasoning"),
+		Planner:          getModelRoleConfig(ModelRolePlanner, "perplexity/sonar-reasoning-visible"),
 		Coder:            Pointer(getModelRoleConfig(ModelRoleCoder, "anthropic/claude-3.7-sonnet")),
 		PlanSummary:      getModelRoleConfig(ModelRolePlanSummary, "openai/o4-mini-low", getErrorFallback("openai/o3-mini-low")),
 		Builder:          getModelRoleConfig(ModelRoleBuilder, "openai/o4-mini-medium", getErrorFallback("openai/o3-mini-medium")),
