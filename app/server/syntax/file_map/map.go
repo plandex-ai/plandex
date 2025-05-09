@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"plandex-server/syntax"
 	"strings"
 
@@ -38,7 +39,7 @@ type Node struct {
 
 func MapFile(ctx context.Context, filename string, content []byte) (*FileMap, error) {
 	if !shared.HasFileMapSupport(filename) {
-		// return nil, fmt.Errorf("unsupported file type: %s", filename)
+		fmt.Printf("MapFile: unsupported file type. ext: %s", filepath.Ext(filename))
 		return &FileMap{
 			Definitions: []Definition{
 				{
@@ -52,7 +53,7 @@ func MapFile(ctx context.Context, filename string, content []byte) (*FileMap, er
 	lang := syntax.GetLanguageForPath(filename)
 
 	if lang == "" {
-		// return nil, fmt.Errorf("unsupported file type: %s", ext)
+		fmt.Printf("MapFile: unsupported file type. ext: %s", filepath.Ext(filename))
 		return &FileMap{
 			Definitions: []Definition{},
 		}, nil
@@ -65,7 +66,7 @@ func MapFile(ctx context.Context, filename string, content []byte) (*FileMap, er
 				Definitions: mapMarkdownSimple(content),
 			}, nil
 		default:
-			// return nil, fmt.Errorf("unsupported file type: %s", ext)
+			fmt.Printf("MapFile: unsupported file type. lang: %s", lang)
 			return &FileMap{
 				Definitions: []Definition{},
 			}, nil
@@ -80,7 +81,7 @@ func MapFile(ctx context.Context, filename string, content []byte) (*FileMap, er
 	parser, lang, fallbackParser, fallbackLang = syntax.GetParserForPath(filename)
 
 	if parser == nil && fallbackParser == nil {
-		// return nil, fmt.Errorf("unsupported file type: %s", ext)
+		fmt.Printf("MapFile: no parser for path. lang: %s", lang)
 		return &FileMap{
 			Definitions: []Definition{},
 		}, nil
@@ -101,7 +102,8 @@ func MapFile(ctx context.Context, filename string, content []byte) (*FileMap, er
 		// Parse file
 		tree, err = parser.ParseCtx(ctx, nil, content)
 		if err != nil {
-			// return nil, fmt.Errorf("failed to parse file: %v", err)
+			fmt.Printf("MapFile: parser.ParseCtx failed. lang: %s, err: %v", lang, err)
+
 			return &FileMap{
 				Definitions: []Definition{},
 			}, nil
@@ -112,7 +114,8 @@ func MapFile(ctx context.Context, filename string, content []byte) (*FileMap, er
 	if tree == nil || tree.RootNode().Type() == "error" {
 		fallbackTree, err := fallbackParser.ParseCtx(ctx, nil, content)
 		if err != nil {
-			// return nil, fmt.Errorf("failed to parse file: %v", err)
+			fmt.Printf("MapFile: fallbackParser.ParseCtx failed. lang: %s, err: %v", lang, err)
+
 			return &FileMap{
 				Definitions: []Definition{},
 			}, nil
@@ -120,14 +123,26 @@ func MapFile(ctx context.Context, filename string, content []byte) (*FileMap, er
 		defer fallbackTree.Close()
 
 		if fallbackTree.RootNode().Type() != "error" {
+			definitions := mapNode(fallbackTree.RootNode(), content, fallbackLang)
+
+			if len(definitions) == 0 {
+				fmt.Printf("MapFile: no definitions mapped from tree-sitter tree. lang: %s", lang)
+			}
+
 			return &FileMap{
-				Definitions: mapNode(fallbackTree.RootNode(), content, fallbackLang),
+				Definitions: definitions,
 			}, nil
 		}
 	}
 
+	definitions := mapNode(tree.RootNode(), content, lang)
+
+	if len(definitions) == 0 {
+		fmt.Printf("MapFile: no definitions mapped from tree-sitter tree. lang: %s", lang)
+	}
+
 	return &FileMap{
-		Definitions: mapNode(tree.RootNode(), content, lang),
+		Definitions: definitions,
 	}, nil
 
 }
@@ -163,9 +178,25 @@ func mapTraditional(baseNode Node, parentNode *Node) []Definition {
 				Bytes:  baseNode.Bytes,
 			}
 
+			unwrapIdx := unwrapNodeIndex(node)
+
+			if unwrapIdx != nil {
+				if verboseLogging {
+					fmt.Println("is unwrap node", node.Type)
+				}
+
+				tsNode = tsNode.Child(*unwrapIdx)
+				node = Node{
+					Type:   tsNode.Type(),
+					Lang:   baseNode.Lang,
+					TsNode: tsNode,
+					Bytes:  baseNode.Bytes,
+				}
+			}
+
 			if isIncludeAndContinueNode(node) {
 				if verboseLogging {
-					fmt.Println("include and continue node", cursor.CurrentNode().Type())
+					fmt.Println("include and continue node", node.Type)
 				}
 				if !cursor.GoToNextSibling() {
 					break
