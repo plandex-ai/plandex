@@ -1,5 +1,9 @@
 package shared
 
+import (
+	"fmt"
+)
+
 const OpenAIV1BaseUrl = "https://api.openai.com/v1"
 const OpenRouterBaseUrl = "https://openrouter.ai/api/v1"
 const LiteLLMBaseUrl = "http://localhost:4000/v1" // runs in the same container alongside the plandex server
@@ -12,6 +16,17 @@ const GoogleVertexApiKeyEnvVar = "VERTEX_API_KEY"
 const AzureOpenAIEnvVar = "AZURE_OPENAI_API_KEY"
 const DeepSeekApiKeyEnvVar = "DEEPSEEK_API_KEY"
 const PerplexityApiKeyEnvVar = "PERPLEXITY_API_KEY"
+
+type ModelPublisher string
+
+const (
+	ModelPublisherOpenAI     ModelPublisher = "OpenAI"
+	ModelPublisherAnthropic  ModelPublisher = "Anthropic"
+	ModelPublisherGoogle     ModelPublisher = "Google"
+	ModelPublisherDeepSeek   ModelPublisher = "DeepSeek"
+	ModelPublisherPerplexity ModelPublisher = "Perplexity"
+	ModelPublisherQwen       ModelPublisher = "Qwen"
+)
 
 type ModelProvider string
 
@@ -34,7 +49,7 @@ const (
 )
 
 var ModelProviderToLiteLLMId = map[ModelProvider]string{
-	ModelProviderGoogleAIStudio: "google_ai_studio",
+	ModelProviderGoogleAIStudio: "gemini",
 	ModelProviderGoogleVertex:   "vertex_ai",
 	ModelProviderAzureOpenAI:    "azure",
 	ModelProviderAmazonBedrock:  "bedrock",
@@ -53,37 +68,11 @@ var AllModelProviders = []string{
 	string(ModelProviderCustom),
 }
 
-// var BaseUrlByProvider = map[ModelProvider]string{
-// 	ModelProviderOpenAI:     OpenAIV1BaseUrl,
-// 	ModelProviderOpenRouter: OpenRouterBaseUrl,
-
-// 	// apart from openai and openrouter, the rest are supported by liteLLM
-// 	ModelProviderAnthropic:      LiteLLMBaseUrl,
-// 	ModelProviderGoogleAIStudio: LiteLLMBaseUrl,
-// 	ModelProviderGoogleVertex:   LiteLLMBaseUrl,
-// 	ModelProviderAzureOpenAI:    LiteLLMBaseUrl,
-// 	ModelProviderDeepSeek:       LiteLLMBaseUrl,
-// 	ModelProviderPerplexity:     LiteLLMBaseUrl,
-// 	ModelProviderAmazonBedrock:  LiteLLMBaseUrl,
-// }
-
-// var ApiKeyByProvider = map[ModelProvider]string{
-// 	ModelProviderOpenAI:     OpenAIEnvVar,
-// 	ModelProviderOpenRouter: OpenRouterApiKeyEnvVar,
-
-// 	ModelProviderAnthropic:      AnthropicApiKeyEnvVar,
-// 	ModelProviderGoogleAIStudio: GoogleAIStudioApiKeyEnvVar,
-// 	ModelProviderGoogleVertex:   GoogleVertexApiKeyEnvVar,
-// 	ModelProviderAzureOpenAI:    AzureOpenAIEnvVar,
-// 	ModelProviderDeepSeek:       DeepSeekApiKeyEnvVar,
-// 	ModelProviderPerplexity:     PerplexityApiKeyEnvVar,
-// }
-
 type ModelProviderExtraAuthVars struct {
-	Var        string `json:"var"`
-	IsFilePath bool   `json:"isFilePath,omitempty"`
-	Required   bool   `json:"required,omitempty"`
-	Default    string `json:"default,omitempty"`
+	Var               string `json:"var"`
+	MaybeJSONFilePath bool   `json:"isFilePath,omitempty"`
+	Required          bool   `json:"required,omitempty"`
+	Default           string `json:"default,omitempty"`
 }
 
 type ModelProviderConfigSchema struct {
@@ -101,6 +90,13 @@ type ModelProviderConfigSchema struct {
 	ExtraAuthVars []ModelProviderExtraAuthVars `json:"extraAuthVars,omitempty"`
 }
 
+func (m *ModelProviderConfigSchema) ToComposite() string {
+	if m.CustomProvider != nil {
+		return fmt.Sprintf("%s|%s", m.Provider, *m.CustomProvider)
+	}
+	return string(m.Provider)
+}
+
 const DefaultAzureApiVersion = "2024-10-21"
 const AnthropicMaxReasoningBudget = 32000
 
@@ -109,6 +105,12 @@ var BuiltInModelProviderConfigs = map[ModelProvider]ModelProviderConfigSchema{
 		Provider:     ModelProviderOpenAI,
 		BaseUrl:      OpenAIV1BaseUrl,
 		ApiKeyEnvVar: OpenAIEnvVar,
+		ExtraAuthVars: []ModelProviderExtraAuthVars{
+			{
+				Var:      "OPENAI_ORG_ID",
+				Required: false,
+			},
+		},
 	},
 	ModelProviderOpenRouter: {
 		Provider:     ModelProviderOpenRouter,
@@ -130,9 +132,10 @@ var BuiltInModelProviderConfigs = map[ModelProvider]ModelProviderConfigSchema{
 		BaseUrl:  LiteLLMBaseUrl,
 		ExtraAuthVars: []ModelProviderExtraAuthVars{
 			{
-				Var:        "GOOGLE_APPLICATION_CREDENTIALS",
-				IsFilePath: true,
-				Required:   true,
+				// this is a file path, but client-side it will be read and then passed along as an auth var just as if it were an env var
+				Var:               "GOOGLE_APPLICATION_CREDENTIALS",
+				MaybeJSONFilePath: true,
+				Required:          true,
 			},
 			{
 				Var:      "VERTEXAI_PROJECT",
@@ -145,13 +148,10 @@ var BuiltInModelProviderConfigs = map[ModelProvider]ModelProviderConfigSchema{
 		},
 	},
 	ModelProviderAzureOpenAI: {
-		Provider: ModelProviderAzureOpenAI,
-		BaseUrl:  LiteLLMBaseUrl,
+		Provider:     ModelProviderAzureOpenAI,
+		BaseUrl:      LiteLLMBaseUrl,
+		ApiKeyEnvVar: AzureOpenAIEnvVar,
 		ExtraAuthVars: []ModelProviderExtraAuthVars{
-			{
-				Var:      "AZURE_OPENAI_API_KEY",
-				Required: true,
-			},
 			{
 				Var:      "AZURE_API_BASE",
 				Required: true,
@@ -177,10 +177,13 @@ var BuiltInModelProviderConfigs = map[ModelProvider]ModelProviderConfigSchema{
 		Provider:   ModelProviderAmazonBedrock,
 		BaseUrl:    LiteLLMBaseUrl,
 		HasAWSAuth: true,
+
+		// these aren't required as env vars—but if found in the credentials file, they are passed along as auth vars just as if they were env vars
 		ExtraAuthVars: []ModelProviderExtraAuthVars{
-			{Var: "AWS_ACCESS_KEY_ID", Required: false},
-			{Var: "AWS_SECRET_ACCESS_KEY", Required: false},
-			{Var: "AWS_REGION", Required: false},
+			{Var: "AWS_ACCESS_KEY_ID", Required: true},
+			{Var: "AWS_SECRET_ACCESS_KEY", Required: true},
+			{Var: "AWS_REGION", Required: true},
+			{Var: "AWS_SESSION_TOKEN", Required: false},
 		},
 	},
 	ModelProviderOllama: {
@@ -188,4 +191,81 @@ var BuiltInModelProviderConfigs = map[ModelProvider]ModelProviderConfigSchema{
 		BaseUrl:  LiteLLMBaseUrl,
 		SkipAuth: true,
 	},
+}
+
+var BuiltInModelProviderConfigsByComposite = map[string]ModelProviderConfigSchema{}
+
+func init() {
+	for _, providerConfig := range BuiltInModelProviderConfigs {
+		BuiltInModelProviderConfigsByComposite[providerConfig.ToComposite()] = providerConfig
+	}
+}
+
+func GetProvidersForAuthVars(authVars map[string]string) []ModelProviderConfigSchema {
+	var foundProviders []ModelProviderConfigSchema
+	for _, providerConfig := range BuiltInModelProviderConfigs {
+		if providerConfig.SkipAuth && len(authVars) == 0 {
+			foundProviders = append(foundProviders, providerConfig)
+			break
+		}
+
+		var checkVars []string
+		if providerConfig.ApiKeyEnvVar != "" {
+			checkVars = append(checkVars, providerConfig.ApiKeyEnvVar)
+		}
+		for _, extraAuthVar := range providerConfig.ExtraAuthVars {
+			if extraAuthVar.Required {
+				checkVars = append(checkVars, extraAuthVar.Var)
+			}
+		}
+
+		missingAny := false
+		for _, checkVar := range checkVars {
+			if _, ok := authVars[checkVar]; !ok {
+				missingAny = true
+				break
+			}
+		}
+		if missingAny {
+			continue
+		}
+
+		foundProviders = append(foundProviders, providerConfig)
+	}
+
+	return foundProviders
+}
+
+func (m ModelRoleConfig) GetProvidersForAuthVars(authVars map[string]string) []ModelProviderConfigSchema {
+	usesProviders, ok := BuiltInModelProvidersByModelId[m.ModelId]
+	if !ok {
+		return []ModelProviderConfigSchema{}
+	}
+
+	providers := GetProvidersForAuthVars(authVars)
+	providersByComposite := map[string]ModelProviderConfigSchema{}
+	for _, provider := range providers {
+		providersByComposite[provider.ToComposite()] = provider
+	}
+
+	res := []ModelProviderConfigSchema{}
+	for _, usesProvider := range usesProviders {
+		composite := usesProvider.ToComposite()
+		provider, ok := providersByComposite[composite]
+		if !ok {
+			continue
+		}
+
+		res = append(res, provider)
+	}
+
+	return res
+}
+
+func (m ModelRoleConfig) GetFirstProviderForAuthVars(authVars map[string]string) *ModelProviderConfigSchema {
+	providers := m.GetProvidersForAuthVars(authVars)
+	if len(providers) == 0 {
+		return nil
+	}
+	return &providers[0]
 }

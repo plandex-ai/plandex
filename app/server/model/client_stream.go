@@ -15,26 +15,25 @@ type OnStreamFn func(chunk string, buffer string) (shouldStop bool)
 
 func CreateChatCompletionWithInternalStream(
 	clients map[string]ClientInfo,
+	authVars map[string]string,
 	modelConfig *shared.ModelRoleConfig,
 	ctx context.Context,
 	req types.ExtendedChatCompletionRequest,
 	onStream OnStreamFn,
 	reqStarted time.Time,
 ) (*types.ModelResponse, error) {
-	_, ok := clients[modelConfig.BaseModelConfig.ApiKeyEnvVar]
+	providerComposite := modelConfig.GetProviderComposite(authVars)
+	_, ok := clients[providerComposite]
 	if !ok {
-		fmt.Printf("client not found for api key env var: %s", modelConfig.BaseModelConfig.ApiKeyEnvVar)
-		if modelConfig.MissingKeyFallback != nil {
-			fmt.Println("using missing key fallback")
-			return CreateChatCompletionWithInternalStream(clients, modelConfig.MissingKeyFallback, ctx, req, onStream, reqStarted)
-		}
-		return nil, fmt.Errorf("client not found for api key env var: %s", modelConfig.BaseModelConfig.ApiKeyEnvVar)
+		return nil, fmt.Errorf("client not found for provider composite: %s", providerComposite)
 	}
+
+	baseModelConfig := modelConfig.GetBaseModelConfig(authVars)
 
 	resolveReq(&req, modelConfig)
 
 	// choose the fastest provider by latency/throughput on openrouter
-	if modelConfig.BaseModelConfig.Provider == shared.ModelProviderOpenRouter {
+	if baseModelConfig.Provider == shared.ModelProviderOpenRouter {
 		req.Model += ":nitro"
 	}
 
@@ -49,23 +48,15 @@ func CreateChatCompletionWithInternalStream(
 			return nil, fallbackRes, fmt.Errorf("model config is nil")
 		}
 
-		opClient, ok := clients[resolvedModelConfig.BaseModelConfig.ApiKeyEnvVar]
+		providerComposite := resolvedModelConfig.GetProviderComposite(authVars)
+		opClient, ok := clients[providerComposite]
 
 		if !ok {
-			if resolvedModelConfig.MissingKeyFallback != nil {
-				fmt.Println("using missing key fallback")
-				resolvedModelConfig = resolvedModelConfig.MissingKeyFallback
-				opClient, ok = clients[resolvedModelConfig.BaseModelConfig.ApiKeyEnvVar]
-				if !ok {
-					return nil, fallbackRes, fmt.Errorf("client not found for api key env var: %s", resolvedModelConfig.BaseModelConfig.ApiKeyEnvVar)
-				}
-			} else {
-				return nil, fallbackRes, fmt.Errorf("client not found for api key env var: %s", resolvedModelConfig.BaseModelConfig.ApiKeyEnvVar)
-			}
+			return nil, fallbackRes, fmt.Errorf("client not found for provider composite: %s", providerComposite)
 		}
 
 		modelConfig = resolvedModelConfig
-		resp, err = processChatCompletionStream(resolvedModelConfig, opClient, resolvedModelConfig.BaseModelConfig.BaseUrl, ctx, req, onStream, reqStarted)
+		resp, err = processChatCompletionStream(resolvedModelConfig, opClient, authVars, ctx, req, onStream, reqStarted)
 		if err != nil {
 			return nil, fallbackRes, err
 		}
@@ -81,7 +72,7 @@ func CreateChatCompletionWithInternalStream(
 func processChatCompletionStream(
 	modelConfig *shared.ModelRoleConfig,
 	client ClientInfo,
-	baseUrl string,
+	authVars map[string]string,
 	ctx context.Context,
 	req types.ExtendedChatCompletionRequest,
 	onStream OnStreamFn,
@@ -89,7 +80,7 @@ func processChatCompletionStream(
 ) (*types.ModelResponse, error) {
 	streamCtx, cancel := context.WithCancel(ctx)
 
-	stream, err := createChatCompletionStreamExtended(modelConfig, client, baseUrl, streamCtx, req)
+	stream, err := createChatCompletionStreamExtended(modelConfig, client, authVars, streamCtx, req)
 	if err != nil {
 		cancel()
 		return nil, fmt.Errorf("error creating chat completion stream: %w", err)

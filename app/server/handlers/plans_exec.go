@@ -73,11 +73,9 @@ func TellPlanHandler(w http.ResponseWriter, r *http.Request) {
 		initClientsParams{
 			w:           w,
 			auth:        auth,
-			apiKey:      requestBody.ApiKey,
 			apiKeys:     requestBody.ApiKeys,
-			endpoint:    requestBody.Endpoint,
-			openAIBase:  requestBody.OpenAIBase,
 			openAIOrgId: requestBody.OpenAIOrgId,
+			authVars:    requestBody.AuthVars,
 			plan:        plan,
 		},
 	)
@@ -138,15 +136,13 @@ func BuildPlanHandler(w http.ResponseWriter, r *http.Request) {
 		initClientsParams{
 			w:           w,
 			auth:        auth,
-			apiKey:      requestBody.ApiKey,
 			apiKeys:     requestBody.ApiKeys,
-			endpoint:    requestBody.Endpoint,
-			openAIBase:  requestBody.OpenAIBase,
 			openAIOrgId: requestBody.OpenAIOrgId,
+			authVars:    requestBody.AuthVars,
 			plan:        plan,
 		},
 	)
-	numBuilds, err := modelPlan.Build(clients, plan, branch, auth, requestBody.SessionId)
+	numBuilds, err := modelPlan.Build(clients, requestBody.AuthVars, plan, branch, auth, requestBody.SessionId)
 
 	if err != nil {
 		log.Printf("Error building plan: %v\n", err)

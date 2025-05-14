@@ -49,6 +49,7 @@ When checking for sufficient credits on Plandex Cloud, we use MaxOutputTokens-In
 var BuiltInModels = []*BaseModelConfigSchema{
 	{
 		ModelTag:              "openai/o3",
+		Publisher:             ModelPublisherOpenAI,
 		Description:           "OpenAI o3",
 		DefaultMaxConvoTokens: 15000,
 
@@ -99,7 +100,7 @@ var BuiltInModels = []*BaseModelConfigSchema{
 			},
 			{
 				Provider:  ModelProviderAzureOpenAI,
-				ModelName: "o3",
+				ModelName: "azure/o3",
 			},
 			{
 				Provider:  ModelProviderOpenRouter,
@@ -109,6 +110,7 @@ var BuiltInModels = []*BaseModelConfigSchema{
 	},
 	{
 		ModelTag:              "openai/o4-mini",
+		Publisher:             ModelPublisherOpenAI,
 		Description:           "OpenAI o4-mini",
 		DefaultMaxConvoTokens: 10000,
 
@@ -162,7 +164,7 @@ var BuiltInModels = []*BaseModelConfigSchema{
 			},
 			{
 				Provider:  ModelProviderAzureOpenAI,
-				ModelName: "o4-mini",
+				ModelName: "azure/o4-mini",
 			},
 			{
 				Provider:  ModelProviderOpenRouter,
@@ -173,6 +175,7 @@ var BuiltInModels = []*BaseModelConfigSchema{
 
 	{
 		ModelTag:              "openai/gpt-4.1",
+		Publisher:             ModelPublisherOpenAI,
 		Description:           "OpenAI gpt-4.1",
 		DefaultMaxConvoTokens: 75000,
 
@@ -191,7 +194,7 @@ var BuiltInModels = []*BaseModelConfigSchema{
 			},
 			{
 				Provider:  ModelProviderAzureOpenAI,
-				ModelName: "gpt-4.1",
+				ModelName: "azure/gpt-4.1",
 			},
 			{
 				Provider:  ModelProviderOpenRouter,
@@ -202,6 +205,7 @@ var BuiltInModels = []*BaseModelConfigSchema{
 
 	{
 		ModelTag:              "openai/gpt-4.1-mini",
+		Publisher:             ModelPublisherOpenAI,
 		Description:           "OpenAI gpt-4.1-mini",
 		DefaultMaxConvoTokens: 75000,
 
@@ -220,7 +224,7 @@ var BuiltInModels = []*BaseModelConfigSchema{
 			},
 			{
 				Provider:  ModelProviderAzureOpenAI,
-				ModelName: "gpt-4.1-mini",
+				ModelName: "azure/gpt-4.1-mini",
 			},
 			{
 				Provider:  ModelProviderOpenRouter,
@@ -231,6 +235,7 @@ var BuiltInModels = []*BaseModelConfigSchema{
 
 	{
 		ModelTag:              "openai/gpt-4.1-nano",
+		Publisher:             ModelPublisherOpenAI,
 		Description:           "OpenAI gpt-4.1-nano",
 		DefaultMaxConvoTokens: 75000,
 
@@ -249,7 +254,7 @@ var BuiltInModels = []*BaseModelConfigSchema{
 			},
 			{
 				Provider:  ModelProviderAzureOpenAI,
-				ModelName: "gpt-4.1-nano",
+				ModelName: "azure/gpt-4.1-nano",
 			},
 			{
 				Provider:  ModelProviderOpenRouter,
@@ -260,6 +265,7 @@ var BuiltInModels = []*BaseModelConfigSchema{
 
 	{
 		ModelTag:              "openai/o3-mini",
+		Publisher:             ModelPublisherOpenAI,
 		Description:           "OpenAI o3-mini",
 		DefaultMaxConvoTokens: 10000,
 
@@ -313,7 +319,7 @@ var BuiltInModels = []*BaseModelConfigSchema{
 			},
 			{
 				Provider:  ModelProviderAzureOpenAI,
-				ModelName: "o3-mini",
+				ModelName: "azure/o3-mini",
 			},
 			{
 				Provider:  ModelProviderOpenRouter,
@@ -324,6 +330,7 @@ var BuiltInModels = []*BaseModelConfigSchema{
 
 	{
 		ModelTag:              "anthropic/claude-3.7-sonnet",
+		Publisher:             ModelPublisherAnthropic,
 		Description:           "Anthropic Claude 3.7 Sonnet",
 		DefaultMaxConvoTokens: 15000,
 
@@ -370,15 +377,15 @@ var BuiltInModels = []*BaseModelConfigSchema{
 		Providers: []BaseModelUsesProvider{
 			{
 				Provider:  ModelProviderAnthropic,
-				ModelName: "claude-3.7-sonnet",
-			},
-			{
-				Provider:  ModelProviderGoogleVertex,
-				ModelName: "claude-3-7-sonnet@20250219",
+				ModelName: "anthropic/claude-3-7-sonnet-latest",
 			},
 			{
 				Provider:  ModelProviderAmazonBedrock,
-				ModelName: "anthropic.claude-3-7-sonnet-20250219-v1:0",
+				ModelName: "bedrock/anthropic.claude-3-7-sonnet-20250219-v1:0",
+			},
+			{
+				Provider:  ModelProviderGoogleVertex,
+				ModelName: "vertex_ai/claude-3-7-sonnet@20250219",
 			},
 			{
 				Provider:  ModelProviderOpenRouter,
@@ -389,6 +396,7 @@ var BuiltInModels = []*BaseModelConfigSchema{
 
 	{
 		ModelTag:              "anthropic/claude-3.5-sonnet",
+		Publisher:             ModelPublisherAnthropic,
 		Description:           "Anthropic Claude 3.5 Sonnet",
 		DefaultMaxConvoTokens: 15000,
 
@@ -405,15 +413,15 @@ var BuiltInModels = []*BaseModelConfigSchema{
 		Providers: []BaseModelUsesProvider{
 			{
 				Provider:  ModelProviderAnthropic,
-				ModelName: "claude-3.5-sonnet",
+				ModelName: "anthropic/claude-3-5-sonnet-latest",
 			},
 			{
 				Provider:  ModelProviderGoogleVertex,
-				ModelName: "claude-3-5-sonnet@20240620",
+				ModelName: "vertex_ai/claude-3-5-sonnet@20240620",
 			},
 			{
 				Provider:  ModelProviderAmazonBedrock,
-				ModelName: "anthropic.claude-3-5-sonnet-20241022-v2:0",
+				ModelName: "bedrock/anthropic.claude-3-5-sonnet-20241022-v2:0",
 			},
 			{
 				Provider:  ModelProviderOpenRouter,
@@ -424,6 +432,7 @@ var BuiltInModels = []*BaseModelConfigSchema{
 
 	{
 		ModelTag:              "anthropic/claude-3.5-haiku",
+		Publisher:             ModelPublisherAnthropic,
 		Description:           "Anthropic Claude 3.5 Haiku",
 		DefaultMaxConvoTokens: 15000,
 
@@ -440,15 +449,15 @@ var BuiltInModels = []*BaseModelConfigSchema{
 		Providers: []BaseModelUsesProvider{
 			{
 				Provider:  ModelProviderAnthropic,
-				ModelName: "claude-3.5-haiku",
+				ModelName: "anthropic/claude-3-5-haiku-latest",
 			},
 			{
 				Provider:  ModelProviderGoogleVertex,
-				ModelName: "claude-3-5-haiku@20241022",
+				ModelName: "vertex_ai/claude-3-5-haiku@20241022",
 			},
 			{
 				Provider:  ModelProviderAmazonBedrock,
-				ModelName: "anthropic.claude-3-5-haiku-20241022-v1:0",
+				ModelName: "bedrock/anthropic.claude-3-5-haiku-20241022-v1:0",
 			},
 			{
 				Provider:  ModelProviderOpenRouter,
@@ -459,44 +468,65 @@ var BuiltInModels = []*BaseModelConfigSchema{
 
 	{
 		ModelTag:              "google/gemini-pro-1.5",
+		Publisher:             ModelPublisherGoogle,
 		Description:           "Google Gemini 1.5 Pro",
 		DefaultMaxConvoTokens: 75000,
 
 		BaseModelShared: BaseModelShared{
-			MaxTokens:                  2000000,
-			MaxOutputTokens:            8192,
-			ReservedOutputTokens:       8192,
-			SupportsCacheControl:       true,
+			MaxTokens:            2000000,
+			MaxOutputTokens:      8192,
+			ReservedOutputTokens: 8192,
+			// SupportsCacheControl:       true, // gemini now uses implicit caching
 			PreferredModelOutputFormat: ModelOutputFormatXml,
 		},
 
 		Providers: []BaseModelUsesProvider{
-			{Provider: ModelProviderGoogleAIStudio, ModelName: "models/gemini-1.5-pro"},
-			{Provider: ModelProviderGoogleVertex, ModelName: "gemini-1.5-pro-latest"},
-			{Provider: ModelProviderOpenRouter, ModelName: "google/gemini-pro-1.5"},
+			{
+				Provider:  ModelProviderGoogleAIStudio,
+				ModelName: "gemini/gemini-1.5-pro",
+			},
+			{
+				Provider:  ModelProviderGoogleVertex,
+				ModelName: "vertex_ai/gemini-1.5-pro-latest",
+			},
+			{
+				Provider:  ModelProviderOpenRouter,
+				ModelName: "google/gemini-pro-1.5",
+			},
 		},
 	},
 	{
 		ModelTag:              "google/gemini-2.5-pro-preview",
+		Publisher:             ModelPublisherGoogle,
 		Description:           "Google Gemini 2.5 Pro (Preview)",
 		DefaultMaxConvoTokens: 75000,
 
 		BaseModelShared: BaseModelShared{
-			MaxTokens:                  1048576,
-			MaxOutputTokens:            65535,
-			ReservedOutputTokens:       65535,
-			SupportsCacheControl:       true,
+			MaxTokens:            1048576,
+			MaxOutputTokens:      65535,
+			ReservedOutputTokens: 65535,
+			// SupportsCacheControl:       true, // gemini now uses implicit caching
 			PreferredModelOutputFormat: ModelOutputFormatXml,
 		},
 
 		Providers: []BaseModelUsesProvider{
-			{Provider: ModelProviderGoogleAIStudio, ModelName: "models/	gemini-2.5-pro-preview-05-06"},
-			{Provider: ModelProviderGoogleVertex, ModelName: "	gemini-2.5-pro-preview-05-06"},
-			{Provider: ModelProviderOpenRouter, ModelName: "google/gemini-2.5-pro-preview"},
+			{
+				Provider:  ModelProviderGoogleAIStudio,
+				ModelName: "gemini/gemini-2.5-pro-preview-05-06",
+			},
+			{
+				Provider:  ModelProviderGoogleVertex,
+				ModelName: "vertex_ai/gemini-2.5-pro-preview-05-06",
+			},
+			{
+				Provider:  ModelProviderOpenRouter,
+				ModelName: "google/gemini-2.5-pro-preview",
+			},
 		},
 	},
 	{
 		ModelTag:              "google/gemini-2.5-pro-exp",
+		Publisher:             ModelPublisherGoogle,
 		Description:           "Google Gemini 2.5 Pro (Experimental)",
 		DefaultMaxConvoTokens: 75000,
 
@@ -508,33 +538,53 @@ var BuiltInModels = []*BaseModelConfigSchema{
 		},
 
 		Providers: []BaseModelUsesProvider{
-			{Provider: ModelProviderGoogleAIStudio, ModelName: "models/gemini-2.5-pro-exp-03-25"},
-			{Provider: ModelProviderGoogleVertex, ModelName: "gemini-2.5-pro-exp-03-25"},
-			{Provider: ModelProviderOpenRouter, ModelName: "google/gemini-2.5-pro-exp-03-25"},
+			{
+				Provider:  ModelProviderGoogleAIStudio,
+				ModelName: "gemini/gemini-2.5-pro-exp-03-25",
+			},
+			{
+				Provider:  ModelProviderGoogleVertex,
+				ModelName: "vertex_ai/gemini-2.5-pro-exp-03-25",
+			},
+			{
+				Provider:  ModelProviderOpenRouter,
+				ModelName: "google/gemini-2.5-pro-exp-03-25",
+			},
 		},
 	},
 	{
 		ModelTag:              "google/gemini-2.5-flash-preview",
+		Publisher:             ModelPublisherGoogle,
 		Description:           "Google Gemini 2.5 Flash (Preview)",
 		DefaultMaxConvoTokens: 75000,
 
 		BaseModelShared: BaseModelShared{
-			MaxTokens:                  1048576,
-			MaxOutputTokens:            65535,
-			ReservedOutputTokens:       65535,
-			SupportsCacheControl:       true,
+			MaxTokens:            1048576,
+			MaxOutputTokens:      65535,
+			ReservedOutputTokens: 65535,
+			// SupportsCacheControl:       true, // gemini now uses implicit caching
 			PreferredModelOutputFormat: ModelOutputFormatXml,
 		},
 
 		Providers: []BaseModelUsesProvider{
-			{Provider: ModelProviderGoogleAIStudio, ModelName: "models/gemini-2.5-flash-preview-04-17"},
-			{Provider: ModelProviderGoogleVertex, ModelName: "gemini-2.5-flash-preview-04-17"},
-			{Provider: ModelProviderOpenRouter, ModelName: "google/gemini-2.5-flash-preview"},
+			{
+				Provider:  ModelProviderGoogleAIStudio,
+				ModelName: "gemini/gemini-2.5-flash-preview-04-17",
+			},
+			{
+				Provider:  ModelProviderGoogleVertex,
+				ModelName: "vertex_ai/gemini-2.5-flash-preview-04-17",
+			},
+			{
+				Provider:  ModelProviderOpenRouter,
+				ModelName: "google/gemini-2.5-flash-preview",
+			},
 		},
 	},
 
 	{
 		ModelTag:              "deepseek/v3-0324",
+		Publisher:             ModelPublisherDeepSeek,
 		Description:           "DeepSeek V3 (0324)",
 		DefaultMaxConvoTokens: 7500,
 
@@ -546,12 +596,19 @@ var BuiltInModels = []*BaseModelConfigSchema{
 		},
 
 		Providers: []BaseModelUsesProvider{
-			{Provider: ModelProviderDeepSeek, ModelName: "deepseek-chat"},
-			{Provider: ModelProviderOpenRouter, ModelName: "deepseek/deepseek-chat-v3-0324"},
+			{
+				Provider:  ModelProviderDeepSeek,
+				ModelName: "deepseek/deepseek-chat",
+			},
+			{
+				Provider:  ModelProviderOpenRouter,
+				ModelName: "deepseek/deepseek-chat-v3-0324",
+			},
 		},
 	},
 	{
 		ModelTag:              "deepseek/r1",
+		Publisher:             ModelPublisherDeepSeek,
 		Description:           "DeepSeek R1",
 		DefaultMaxConvoTokens: 7500,
 
@@ -580,13 +637,20 @@ var BuiltInModels = []*BaseModelConfigSchema{
 		},
 
 		Providers: []BaseModelUsesProvider{
-			{Provider: ModelProviderDeepSeek, ModelName: "deepseek-reasoner"},
-			{Provider: ModelProviderOpenRouter, ModelName: "deepseek/deepseek-r1"},
+			{
+				Provider:  ModelProviderDeepSeek,
+				ModelName: "deepseek/deepseek-reasoner",
+			},
+			{
+				Provider:  ModelProviderOpenRouter,
+				ModelName: "deepseek/deepseek-r1",
+			},
 		},
 	},
 
 	{
 		ModelTag:              "perplexity/r1-1776",
+		Publisher:             ModelPublisherPerplexity,
 		Description:           "Perplexity R1-1776",
 		DefaultMaxConvoTokens: 7500,
 
@@ -622,6 +686,7 @@ var BuiltInModels = []*BaseModelConfigSchema{
 	{
 		ModelTag:              "perplexity/sonar-reasoning",
 		Description:           "Perplexity Sonar Reasoning",
+		Publisher:             ModelPublisherPerplexity,
 		DefaultMaxConvoTokens: 7500,
 
 		BaseModelShared: BaseModelShared{
@@ -656,6 +721,7 @@ var BuiltInModels = []*BaseModelConfigSchema{
 
 	{
 		ModelTag:              "qwen/qwen-2.5-coder-32b-instruct",
+		Publisher:             ModelPublisherQwen,
 		Description:           "Qwen 2.5 Coder 32B (Instruct)",
 		DefaultMaxConvoTokens: 10000,
 
@@ -673,6 +739,7 @@ var BuiltInModels = []*BaseModelConfigSchema{
 
 	{
 		ModelTag:              "qwen/qwen3-32b",
+		Publisher:             ModelPublisherQwen,
 		Description:           "Qwen 3-32B (Experimental)",
 		DefaultMaxConvoTokens: 15000, // feel free to raise once you test
 
@@ -693,6 +760,7 @@ var BuiltInModels = []*BaseModelConfigSchema{
 	},
 	{
 		ModelTag:              "qwen/qwen3-8b",
+		Publisher:             ModelPublisherQwen,
 		Description:           "Qwen 3-8B (Experimental)",
 		DefaultMaxConvoTokens: 7500,
 
@@ -708,6 +776,8 @@ var BuiltInModels = []*BaseModelConfigSchema{
 		},
 	},
 }
+
+var BuiltInBaseModelsById = map[ModelId]*BaseModelConfigSchema{}
 
 var BuiltInModelProvidersByModelId = map[ModelId][]BaseModelUsesProvider{}
 
@@ -735,17 +805,21 @@ func init() {
 				}
 
 				BuiltInModelProvidersByModelId[modelId] = model.Providers
+				BuiltInBaseModelsById[modelId] = model
 			}
 		}
 
 		if len(model.Variants) > 0 {
 			addVariants(model.Variants, ModelId(string(model.ModelTag)))
 		} else {
-			BuiltInModelProvidersByModelId[ModelId(string(model.ModelTag))] = model.Providers
+			modelId := ModelId(string(model.ModelTag))
+			BuiltInModelProvidersByModelId[modelId] = model.Providers
+			BuiltInBaseModelsById[modelId] = model
 		}
 	}
 
-	spew.Dump(BuiltInModelProvidersByModelId)
+	// fmt.Println("AvailableModels")
+	// spew.Dump(AvailableModels)
 
 	for _, model := range AvailableModels {
 		if model.Description == "" {

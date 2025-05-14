@@ -1,5 +1,5 @@
-from fastapi import FastAPI, Request, HTTPException
-from fastapi.responses import StreamingResponse, JSONResponse, Response
+from fastapi import FastAPI, Request
+from fastapi.responses import StreamingResponse, JSONResponse
 from litellm import completion
 import json
 import re
@@ -16,6 +16,8 @@ async def health():
 
 @app.post("/v1/chat/completions")
 async def passthrough(request: Request):
+  payload = await request.json()
+
   if LOGGING_ENABLED:
     # Log the request data for debugging
     try:
@@ -23,16 +25,15 @@ async def passthrough(request: Request):
       headers = dict(request.headers)
       if "Authorization" in headers:
         headers["Authorization"] = "Bearer [REDACTED]"
-      
-      # Get request body
-      body = await request.json()
+      if "api-key" in headers:
+        headers["api-key"] = "[REDACTED]"
       
       # Create a log-friendly representation
       request_data = {
         "method": request.method,
         "url": str(request.url),
         "headers": headers,
-        "body": body
+        "body": payload
       }
     
       # Log the request data
@@ -41,14 +42,21 @@ async def passthrough(request: Request):
     except Exception as e:
       print(f"Error logging request: {str(e)}")
 
+  model = payload.get("model", None)
+  print(f"Litellm proxy: calling model: {model}")
 
-  payload = await request.json()
+  api_key = payload.pop("api_key", None)
 
-  api_key = request.headers.get("Authorization")
+  if not api_key:
+    api_key = request.headers.get("Authorization")
+
+  if not api_key:
+    api_key = request.headers.get("api-key")
+
   if api_key and api_key.startswith("Bearer "):
     api_key = api_key.replace("Bearer ", "")
-  else:
-    api_key = None  # optional for local/ollama models
+
+  # api key optional for local/ollama models, so no need to error if not provided
 
   try:
     if payload.get("stream"):

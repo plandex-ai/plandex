@@ -15,6 +15,7 @@ type activeTellStreamState struct {
 	activePlan            *types.ActivePlan
 	modelStreamId         string
 	clients               map[string]model.ClientInfo
+	authVars              map[string]string
 	req                   *shared.TellPlanRequest
 	auth                  *types.ServerAuth
 	currentOrgId          string

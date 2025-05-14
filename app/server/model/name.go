@@ -19,6 +19,7 @@ func GenPlanName(
 	plan *db.Plan,
 	settings *shared.PlanSettings,
 	clients map[string]ClientInfo,
+	authVars map[string]string,
 	planContent string,
 	sessionId string,
 	ctx context.Context,
@@ -28,8 +29,10 @@ func GenPlanName(
 	var tools []openai.Tool
 	var toolChoice *openai.ToolChoice
 
+	baseModelConfig := config.GetBaseModelConfig(authVars)
+
 	var sysPrompt string
-	if config.BaseModelConfig.PreferredModelOutputFormat == shared.ModelOutputFormatXml {
+	if baseModelConfig.PreferredModelOutputFormat == shared.ModelOutputFormatXml {
 		sysPrompt = prompts.SysPlanNameXml
 	} else {
 		sysPrompt = prompts.SysPlanName
@@ -64,6 +67,7 @@ func GenPlanName(
 
 	modelRes, err := ModelRequest(ctx, ModelRequestParams{
 		Clients:     clients,
+		AuthVars:    authVars,
 		Auth:        auth,
 		Plan:        plan,
 		ModelConfig: &config,
@@ -82,7 +86,7 @@ func GenPlanName(
 	var planName string
 	content := modelRes.Content
 
-	if config.BaseModelConfig.PreferredModelOutputFormat == shared.ModelOutputFormatXml {
+	if baseModelConfig.PreferredModelOutputFormat == shared.ModelOutputFormatXml {
 		planName = utils.GetXMLContent(content, "planName")
 		if planName == "" {
 			return "", fmt.Errorf("No planName tag found in XML response")
@@ -111,6 +115,7 @@ func GenPipedDataName(
 	plan *db.Plan,
 	settings *shared.PlanSettings,
 	clients map[string]ClientInfo,
+	authVars map[string]string,
 	pipedContent string,
 	sessionId string,
 ) (string, error) {
@@ -120,7 +125,9 @@ func GenPipedDataName(
 	var tools []openai.Tool
 	var toolChoice *openai.ToolChoice
 
-	if config.BaseModelConfig.PreferredModelOutputFormat == shared.ModelOutputFormatXml {
+	baseModelConfig := config.GetBaseModelConfig(authVars)
+
+	if baseModelConfig.PreferredModelOutputFormat == shared.ModelOutputFormatXml {
 		sysPrompt = prompts.SysPipedDataNameXml
 	} else {
 		sysPrompt = prompts.SysPipedDataName
@@ -156,6 +163,7 @@ func GenPipedDataName(
 	modelRes, err := ModelRequest(ctx, ModelRequestParams{
 		Clients:     clients,
 		Auth:        auth,
+		AuthVars:    authVars,
 		Plan:        plan,
 		ModelConfig: &config,
 		Purpose:     "Piped data name",
@@ -173,7 +181,7 @@ func GenPipedDataName(
 	var name string
 	content := modelRes.Content
 
-	if config.BaseModelConfig.PreferredModelOutputFormat == shared.ModelOutputFormatXml {
+	if baseModelConfig.PreferredModelOutputFormat == shared.ModelOutputFormatXml {
 		name = utils.GetXMLContent(content, "name")
 		if name == "" {
 			return "", fmt.Errorf("No name tag found in XML response")
@@ -202,6 +210,7 @@ func GenNoteName(
 	plan *db.Plan,
 	settings *shared.PlanSettings,
 	clients map[string]ClientInfo,
+	authVars map[string]string,
 	note string,
 	sessionId string,
 ) (string, error) {
@@ -211,7 +220,9 @@ func GenNoteName(
 	var tools []openai.Tool
 	var toolChoice *openai.ToolChoice
 
-	if config.BaseModelConfig.PreferredModelOutputFormat == shared.ModelOutputFormatXml {
+	baseModelConfig := config.GetBaseModelConfig(authVars)
+
+	if baseModelConfig.PreferredModelOutputFormat == shared.ModelOutputFormatXml {
 		sysPrompt = prompts.SysNoteNameXml
 	} else {
 		sysPrompt = prompts.SysNoteName
@@ -247,6 +258,7 @@ func GenNoteName(
 	modelRes, err := ModelRequest(ctx, ModelRequestParams{
 		Clients:     clients,
 		Auth:        auth,
+		AuthVars:    authVars,
 		Plan:        plan,
 		ModelConfig: &config,
 		Purpose:     "Note name",
@@ -264,7 +276,7 @@ func GenNoteName(
 	var name string
 	content := modelRes.Content
 
-	if config.BaseModelConfig.PreferredModelOutputFormat == shared.ModelOutputFormatXml {
+	if baseModelConfig.PreferredModelOutputFormat == shared.ModelOutputFormatXml {
 		name = utils.GetXMLContent(content, "name")
 		if name == "" {
 			return "", fmt.Errorf("No name tag found in XML response")

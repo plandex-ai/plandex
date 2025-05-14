@@ -113,18 +113,6 @@ func TellPlan(
 
 		term.StartSpinner("")
 
-		var legacyApiKey, openAIBase, openAIOrgId string
-
-		if params.ApiKeys["OPENAI_API_KEY"] != "" {
-			openAIBase = os.Getenv("OPENAI_API_BASE")
-			if openAIBase == "" {
-				openAIBase = os.Getenv("OPENAI_ENDPOINT")
-			}
-
-			legacyApiKey = params.ApiKeys["OPENAI_API_KEY"]
-			openAIOrgId = params.ApiKeys["OPENAI_ORG_ID"]
-		}
-
 		var osDetails string
 		if execEnabled {
 			osDetails = term.GetOsDetails()
@@ -145,11 +133,7 @@ func TellPlan(
 			SmartContext:           smartContext,
 			ExecEnabled:            execEnabled,
 			OsDetails:              osDetails,
-			ApiKey:                 legacyApiKey, // deprecated
-			Endpoint:               openAIBase,   // deprecated
-			ApiKeys:                params.ApiKeys,
-			OpenAIBase:             openAIBase,
-			OpenAIOrgId:            openAIOrgId,
+			AuthVars:               params.AuthVars,
 			IsImplementationOfChat: isImplementationOfChat,
 			IsGitRepo:              isGitRepo,
 			SessionId:              os.Getenv("PLANDEX_REPL_SESSION_ID"),

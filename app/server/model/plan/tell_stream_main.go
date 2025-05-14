@@ -61,8 +61,10 @@ func (state *activeTellStreamState) listenStream(stream *model.ExtendedChatCompl
 	defer timer.Stop()
 	streamFinished := false
 
-	modelProvider := state.modelConfig.BaseModelConfig.Provider
-	modelName := state.modelConfig.BaseModelConfig.ModelName
+	baseModelConfig := state.modelConfig.GetBaseModelConfig(state.authVars)
+
+	modelProvider := baseModelConfig.Provider
+	modelName := baseModelConfig.ModelName
 
 	respCh := make(chan *types.ExtendedChatCompletionStreamResponse)
 	streamErrCh := make(chan error)

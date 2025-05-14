@@ -334,6 +334,7 @@ type AvailableModel struct {
 	Provider              shared.ModelProvider     `db:"provider"`
 	CustomProvider        *string                  `db:"custom_provider"`
 	BaseUrl               string                   `db:"base_url"`
+	ModelTag              shared.ModelTag          `db:"model_tag"`
 	ModelId               shared.ModelId           `db:"model_id"`
 	ModelName             shared.ModelName         `db:"model_name"`
 	Description           string                   `db:"description"`
@@ -352,8 +353,8 @@ func (model *AvailableModel) ToApi() *shared.AvailableModel {
 	return &shared.AvailableModel{
 		Id: model.Id,
 		BaseModelConfig: shared.BaseModelConfig{
-
-			ModelId: model.ModelId,
+			ModelTag: model.ModelTag,
+			ModelId:  model.ModelId,
 
 			BaseModelShared: shared.BaseModelShared{
 				MaxTokens:            model.MaxTokens,

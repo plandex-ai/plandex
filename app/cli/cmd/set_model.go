@@ -450,7 +450,7 @@ func updateModelSettings(args []string, originalSettings *shared.PlanSettings) *
 			switch role {
 			case shared.ModelRolePlanner:
 				if selectedModel != nil {
-					settings.ModelPack.Planner.BaseModelConfig = selectedModel.BaseModelConfig
+					settings.ModelPack.Planner.BaseModelConfig = &selectedModel.BaseModelConfig
 					settings.ModelPack.Planner.PlannerModelConfig = shared.PlannerModelConfig{
 						MaxConvoTokens: selectedModel.DefaultMaxConvoTokens,
 					}
@@ -464,7 +464,7 @@ func updateModelSettings(args []string, originalSettings *shared.PlanSettings) *
 
 			case shared.ModelRoleArchitect:
 				if selectedModel != nil {
-					settings.ModelPack.Architect.BaseModelConfig = selectedModel.BaseModelConfig
+					settings.ModelPack.Architect.BaseModelConfig = &selectedModel.BaseModelConfig
 				} else if temperature != nil {
 					settings.ModelPack.Architect.Temperature = float32(*temperature)
 				} else if topP != nil {
@@ -473,7 +473,7 @@ func updateModelSettings(args []string, originalSettings *shared.PlanSettings) *
 
 			case shared.ModelRoleCoder:
 				if selectedModel != nil {
-					settings.ModelPack.Coder.BaseModelConfig = selectedModel.BaseModelConfig
+					settings.ModelPack.Coder.BaseModelConfig = &selectedModel.BaseModelConfig
 				} else if temperature != nil {
 					settings.ModelPack.Coder.Temperature = float32(*temperature)
 				} else if topP != nil {
@@ -482,7 +482,7 @@ func updateModelSettings(args []string, originalSettings *shared.PlanSettings) *
 
 			case shared.ModelRolePlanSummary:
 				if selectedModel != nil {
-					settings.ModelPack.PlanSummary.BaseModelConfig = selectedModel.BaseModelConfig
+					settings.ModelPack.PlanSummary.BaseModelConfig = &selectedModel.BaseModelConfig
 				} else if temperature != nil {
 					settings.ModelPack.PlanSummary.Temperature = float32(*temperature)
 				} else if topP != nil {
@@ -491,7 +491,7 @@ func updateModelSettings(args []string, originalSettings *shared.PlanSettings) *
 
 			case shared.ModelRoleBuilder:
 				if selectedModel != nil {
-					settings.ModelPack.Builder.BaseModelConfig = selectedModel.BaseModelConfig
+					settings.ModelPack.Builder.BaseModelConfig = &selectedModel.BaseModelConfig
 				} else if temperature != nil {
 					settings.ModelPack.Builder.Temperature = float32(*temperature)
 				} else if topP != nil {
@@ -500,7 +500,7 @@ func updateModelSettings(args []string, originalSettings *shared.PlanSettings) *
 
 			case shared.ModelRoleWholeFileBuilder:
 				if selectedModel != nil {
-					settings.ModelPack.WholeFileBuilder.BaseModelConfig = selectedModel.BaseModelConfig
+					settings.ModelPack.WholeFileBuilder.BaseModelConfig = &selectedModel.BaseModelConfig
 				} else if temperature != nil {
 					settings.ModelPack.WholeFileBuilder.Temperature = float32(*temperature)
 				} else if topP != nil {
@@ -509,7 +509,7 @@ func updateModelSettings(args []string, originalSettings *shared.PlanSettings) *
 
 			case shared.ModelRoleName:
 				if selectedModel != nil {
-					settings.ModelPack.Namer.BaseModelConfig = selectedModel.BaseModelConfig
+					settings.ModelPack.Namer.BaseModelConfig = &selectedModel.BaseModelConfig
 				} else if temperature != nil {
 					settings.ModelPack.Namer.Temperature = float32(*temperature)
 				} else if topP != nil {
@@ -518,7 +518,7 @@ func updateModelSettings(args []string, originalSettings *shared.PlanSettings) *
 
 			case shared.ModelRoleCommitMsg:
 				if selectedModel != nil {
-					settings.ModelPack.CommitMsg.BaseModelConfig = selectedModel.BaseModelConfig
+					settings.ModelPack.CommitMsg.BaseModelConfig = &selectedModel.BaseModelConfig
 				} else if temperature != nil {
 					settings.ModelPack.CommitMsg.Temperature = float32(*temperature)
 				} else if topP != nil {
@@ -527,7 +527,7 @@ func updateModelSettings(args []string, originalSettings *shared.PlanSettings) *
 
 			case shared.ModelRoleExecStatus:
 				if selectedModel != nil {
-					settings.ModelPack.ExecStatus.BaseModelConfig = selectedModel.BaseModelConfig
+					settings.ModelPack.ExecStatus.BaseModelConfig = &selectedModel.BaseModelConfig
 				} else if temperature != nil {
 					settings.ModelPack.ExecStatus.Temperature = float32(*temperature)
 				} else if topP != nil {

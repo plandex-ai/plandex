@@ -24,6 +24,7 @@ func (state *activeTellStreamState) handleUsageChunk(usage *openai.Usage) {
 	sessionId := state.activePlan.SessionId
 
 	modelConfig := state.modelConfig
+	baseModelConfig := modelConfig.GetBaseModelConfig(state.authVars)
 
 	go func() {
 		_, apiErr := hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
@@ -33,10 +34,10 @@ func (state *activeTellStreamState) handleUsageChunk(usage *openai.Usage) {
 				InputTokens:    usage.PromptTokens,
 				OutputTokens:   usage.CompletionTokens,
 				CachedTokens:   cachedTokens,
-				ModelId:        modelConfig.BaseModelConfig.ModelId,
-				ModelTag:       modelConfig.BaseModelConfig.ModelTag,
-				ModelName:      modelConfig.BaseModelConfig.ModelName,
-				ModelProvider:  modelConfig.BaseModelConfig.Provider,
+				ModelId:        baseModelConfig.ModelId,
+				ModelTag:       baseModelConfig.ModelTag,
+				ModelName:      baseModelConfig.ModelName,
+				ModelProvider:  baseModelConfig.Provider,
 				ModelPackName:  state.settings.ModelPack.Name,
 				ModelRole:      modelConfig.Role,
 				Purpose:        "Response",
@@ -79,6 +80,7 @@ func (state *activeTellStreamState) execHookOnStop(sendStreamErr bool) {
 	}
 
 	modelConfig := state.modelConfig
+	baseModelConfig := modelConfig.GetBaseModelConfig(state.authVars)
 
 	go func() {
 		_, apiErr := hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
@@ -87,10 +89,10 @@ func (state *activeTellStreamState) execHookOnStop(sendStreamErr bool) {
 			DidSendModelRequestParams: &hooks.DidSendModelRequestParams{
 				InputTokens:     state.totalRequestTokens,
 				OutputTokens:    active.NumTokens,
-				ModelId:         modelConfig.BaseModelConfig.ModelId,
-				ModelTag:        modelConfig.BaseModelConfig.ModelTag,
-				ModelName:       modelConfig.BaseModelConfig.ModelName,
-				ModelProvider:   modelConfig.BaseModelConfig.Provider,
+				ModelId:         baseModelConfig.ModelId,
+				ModelTag:        baseModelConfig.ModelTag,
+				ModelName:       baseModelConfig.ModelName,
+				ModelProvider:   baseModelConfig.Provider,
 				ModelPackName:   state.settings.ModelPack.Name,
 				ModelRole:       modelConfig.Role,
 				Purpose:         "Response",

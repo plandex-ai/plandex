@@ -2,14 +2,9 @@ package lib
 
 import (
 	"fmt"
-	"os"
-	"plandex-cli/api"
 	"plandex-cli/term"
-	"strings"
 
 	shared "plandex-shared"
-
-	"github.com/fatih/color"
 )
 
 const GoBack = "← Go back"
@@ -134,71 +129,4 @@ func SelectModelForRole(customModels []*shared.AvailableModel, role shared.Model
 
 	return nil
 
-}
-
-func MustVerifyApiKeys() map[string]string {
-	return mustVerifyApiKeys(false)
-}
-
-func MustVerifyApiKeysSilent() map[string]string {
-	return mustVerifyApiKeys(true)
-}
-
-func mustVerifyApiKeys(silent bool) map[string]string {
-	if !silent {
-		term.StartSpinner("")
-	}
-	planSettings, apiErr := api.Client.GetSettings(CurrentPlanId, CurrentBranch)
-	if !silent {
-		term.StopSpinner()
-	}
-
-	if apiErr != nil {
-		term.OutputErrorAndExit("Error getting current settings: %v", apiErr)
-	}
-
-	requiredEnvVars := planSettings.GetRequiredEnvVars()
-
-	apiKeys := make(map[string]string)
-
-	missingAny := false
-	if len(requiredEnvVars.RequiresAll) > 0 {
-		for envVar := range requiredEnvVars.RequiresAll {
-			if os.Getenv(envVar) == "" {
-				fmt.Fprintln(os.Stderr, color.New(color.Bold, term.ColorHiRed).Sprintf("🚨 %s environment variable is not set.\n", envVar))
-				delete(requiredEnvVars.RequiresEither, envVar)
-				missingAny = true
-			} else {
-				apiKeys[envVar] = os.Getenv(envVar)
-			}
-		}
-	}
-
-	if len(requiredEnvVars.RequiresEither) > 0 {
-		vars := []string{}
-		for envVar := range requiredEnvVars.RequiresEither {
-			if os.Getenv(envVar) == "" {
-				vars = append(vars, envVar)
-			} else {
-				apiKeys[envVar] = os.Getenv(envVar)
-			}
-		}
-		if len(vars) > 1 {
-			s := "🚨 Either "
-			if len(vars) == 2 {
-				s += strings.Join(vars, " or ") + " must be set as an environment variable."
-			} else {
-				withoutLast := vars[:len(vars)-1]
-				s += strings.Join(withoutLast, ", ") + ", or " + vars[len(vars)-1] + " must be set as an environment variable."
-			}
-			fmt.Fprintln(os.Stderr, color.New(color.Bold, term.ColorHiRed).Sprint(s))
-			missingAny = true
-		}
-	}
-
-	if missingAny {
-		os.Exit(1)
-	}
-
-	return apiKeys
 }

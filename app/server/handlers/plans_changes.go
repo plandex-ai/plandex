@@ -189,8 +189,8 @@ func ApplyPlanHandler(w http.ResponseWriter, r *http.Request) {
 			w:           w,
 			auth:        auth,
 			apiKeys:     requestBody.ApiKeys,
-			openAIBase:  requestBody.OpenAIBase,
 			openAIOrgId: requestBody.OpenAIOrgId,
+			authVars:    requestBody.AuthVars,
 			plan:        plan,
 		},
 	)

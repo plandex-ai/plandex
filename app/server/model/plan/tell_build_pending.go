@@ -15,6 +15,7 @@ func (state *activeTellStreamState) queuePendingBuilds() {
 	branch := state.branch
 	auth := state.auth
 	clients := state.clients
+	authVars := state.authVars
 	currentOrgId := state.currentOrgId
 	currentUserId := state.currentUserId
 	active := GetActivePlan(planId, branch)
@@ -49,6 +50,7 @@ func (state *activeTellStreamState) queuePendingBuilds() {
 	buildState := &activeBuildStreamState{
 		modelStreamId: active.ModelStreamId,
 		clients:       clients,
+		authVars:      authVars,
 		auth:          auth,
 		currentOrgId:  currentOrgId,
 		currentUserId: currentUserId,

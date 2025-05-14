@@ -32,7 +32,10 @@ func (state *activeTellStreamState) execStatusShouldContinue(currentMessage stri
 	plan := state.plan
 	settings := state.settings
 	clients := state.clients
+	authVars := state.authVars
 	config := settings.ModelPack.ExecStatus
+
+	baseModelConfig := config.GetBaseModelConfig(authVars)
 
 	// Check subtask completion
 	if state.currentSubtask != nil {
@@ -120,7 +123,7 @@ func (state *activeTellStreamState) execStatusShouldContinue(currentMessage stri
 		CurrentSubtask:             fullSubtask,
 		CurrentMessage:             currentMessage,
 		PreviousMessages:           previousMessages,
-		PreferredModelOutputFormat: config.BaseModelConfig.PreferredModelOutputFormat,
+		PreferredModelOutputFormat: baseModelConfig.PreferredModelOutputFormat,
 	})
 
 	messages := []types.ExtendedChatMessage{
@@ -138,6 +141,7 @@ func (state *activeTellStreamState) execStatusShouldContinue(currentMessage stri
 	modelRes, err := model.ModelRequest(ctx, model.ModelRequestParams{
 		Clients:        clients,
 		Auth:           auth,
+		AuthVars:       authVars,
 		Plan:           plan,
 		ModelConfig:    &config,
 		Purpose:        "Task completion check",
@@ -157,7 +161,7 @@ func (state *activeTellStreamState) execStatusShouldContinue(currentMessage stri
 	var reasoning string
 	var subtaskFinished bool
 
-	if config.BaseModelConfig.PreferredModelOutputFormat == shared.ModelOutputFormatXml {
+	if baseModelConfig.PreferredModelOutputFormat == shared.ModelOutputFormatXml {
 		reasoning = utils.GetXMLContent(content, "reasoning")
 		subtaskFinishedStr := utils.GetXMLContent(content, "subtaskFinished")
 		subtaskFinished = subtaskFinishedStr == "true"

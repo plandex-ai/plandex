@@ -479,7 +479,7 @@ func getModelWithRoleConfig(customModels []*shared.AvailableModel, modelRole sha
 
 	return model, shared.ModelRoleConfig{
 		Role:                 modelRole,
-		BaseModelConfig:      model.BaseModelConfig,
+		BaseModelConfig:      &model.BaseModelConfig,
 		Temperature:          float32(temperature),
 		TopP:                 float32(topP),
 		ReservedOutputTokens: reservedOutputTokens,

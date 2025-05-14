@@ -47,11 +47,18 @@ func (m ModelRoleConfig) GetFinalLargeOutputFallback() ModelRoleConfig {
 // note that if the token number exeeds all the fallback models, it will return the last fallback model
 
 func (m ModelRoleConfig) GetRoleForInputTokens(inputTokens int) ModelRoleConfig {
-	inputTokens = int(float64(inputTokens) * (1 + m.BaseModelConfig.TokenEstimatePaddingPct))
+	var maxTokens int
+	var paddingPct float64
+
+	sharedBaseConfig := m.GetSharedBaseConfig()
+	maxTokens = sharedBaseConfig.MaxTokens
+	paddingPct = sharedBaseConfig.TokenEstimatePaddingPct
+
+	inputTokens = int(float64(inputTokens) * (1 + paddingPct))
 	var currentConfig ModelRoleConfig = m
 	var n int = 0
 	for {
-		if currentConfig.BaseModelConfig.MaxTokens >= inputTokens {
+		if maxTokens >= inputTokens {
 			return currentConfig
 		}
 
@@ -69,7 +76,9 @@ func (m ModelRoleConfig) GetRoleForInputTokens(inputTokens int) ModelRoleConfig 
 }
 
 func (m ModelRoleConfig) GetRoleForOutputTokens(outputTokens int) ModelRoleConfig {
-	outputTokens = int(float64(outputTokens) * (1 + m.BaseModelConfig.TokenEstimatePaddingPct))
+	sharedBaseConfig := m.GetSharedBaseConfig()
+
+	outputTokens = int(float64(outputTokens) * (1 + sharedBaseConfig.TokenEstimatePaddingPct))
 	var currentConfig ModelRoleConfig = m
 	var n int = 0
 	for {

@@ -47,6 +47,7 @@ func Tell(clients map[string]model.ClientInfo, plan *db.Plan, branch string, aut
 		req:                req,
 		iteration:          0,
 		shouldBuildPending: !req.IsChatOnly && req.BuildMode == shared.BuildModeAuto,
+		authVars:           req.AuthVars,
 	})
 
 	log.Printf("Tell: Tell operation completed successfully for plan ID %s on branch %s\n", plan.Id, branch)
@@ -55,6 +56,7 @@ func Tell(clients map[string]model.ClientInfo, plan *db.Plan, branch string, aut
 
 type execTellPlanParams struct {
 	clients                    map[string]model.ClientInfo
+	authVars                   map[string]string
 	plan                       *db.Plan
 	branch                     string
 	auth                       *types.ServerAuth
@@ -67,6 +69,7 @@ type execTellPlanParams struct {
 
 func execTellPlan(params execTellPlanParams) {
 	clients := params.clients
+	authVars := params.authVars
 	plan := params.plan
 	branch := params.branch
 	auth := params.auth
@@ -137,6 +140,7 @@ func execTellPlan(params execTellPlanParams) {
 	state := &activeTellStreamState{
 		modelStreamId:       active.ModelStreamId,
 		clients:             clients,
+		authVars:            authVars,
 		req:                 req,
 		auth:                auth,
 		currentOrgId:        currentOrgId,
@@ -388,11 +392,12 @@ func execTellPlan(params execTellPlanParams) {
 		log.Println("Tell plan - got modelConfig for implementation stage")
 	}
 
-	log.Println("Tell plan - modelConfig:", spew.Sdump(modelConfig))
+	// log.Println("Tell plan - modelConfig:", spew.Sdump(modelConfig))
 	state.modelConfig = &modelConfig
+	baseModelConfig := modelConfig.GetBaseModelConfig(state.authVars)
 
 	// if the model doesn't support cache control, remove the cache control spec from the messages
-	if !modelConfig.BaseModelConfig.SupportsCacheControl {
+	if !baseModelConfig.SupportsCacheControl {
 		for i := range state.messages {
 			for j := range state.messages[i].Content {
 				if state.messages[i].Content[j].CacheControl != nil {
@@ -403,7 +408,7 @@ func execTellPlan(params execTellPlanParams) {
 	}
 
 	// if the model doesn't support images, remove any image parts from the messages
-	if !modelConfig.BaseModelConfig.HasImageSupport {
+	if !baseModelConfig.HasImageSupport {
 		log.Println("Tell exec - model doesn't support images. Removing image parts from messages. File name will still be included.")
 
 		for i := range state.messages {
@@ -418,9 +423,11 @@ func execTellPlan(params execTellPlanParams) {
 	}
 
 	log.Println("tell exec - will send model request with:", spew.Sdump(map[string]interface{}{
-		"provider": modelConfig.BaseModelConfig.Provider,
-		"model":    modelConfig.BaseModelConfig.ModelName,
-		"tokens":   requestTokens,
+		"provider":  baseModelConfig.Provider,
+		"modelId":   baseModelConfig.ModelId,
+		"modelTag":  baseModelConfig.ModelTag,
+		"modelName": baseModelConfig.ModelName,
+		"tokens":    requestTokens,
 	}))
 
 	_, apiErr := hooks.ExecHook(hooks.WillSendModelRequest, hooks.HookParams{
@@ -428,10 +435,10 @@ func execTellPlan(params execTellPlanParams) {
 		Plan: plan,
 		WillSendModelRequestParams: &hooks.WillSendModelRequestParams{
 			InputTokens:  requestTokens,
-			OutputTokens: modelConfig.BaseModelConfig.MaxOutputTokens - requestTokens,
-			ModelName:    modelConfig.BaseModelConfig.ModelName,
-			ModelId:      modelConfig.BaseModelConfig.ModelId,
-			ModelTag:     modelConfig.BaseModelConfig.ModelTag,
+			OutputTokens: baseModelConfig.MaxOutputTokens - requestTokens,
+			ModelName:    baseModelConfig.ModelName,
+			ModelId:      baseModelConfig.ModelId,
+			ModelTag:     baseModelConfig.ModelTag,
 			IsUserPrompt: true,
 		},
 	})
@@ -455,6 +462,7 @@ func execTellPlan(params execTellPlanParams) {
 
 func (state *activeTellStreamState) doTellRequest() {
 	clients := state.clients
+	authVars := state.authVars
 	modelConfig := state.modelConfig
 	active := state.activePlan
 
@@ -462,10 +470,16 @@ func (state *activeTellStreamState) doTellRequest() {
 	modelConfig = fallbackRes.ModelRoleConfig
 	stop := []string{"<PlandexFinish/>"}
 
+	baseModelConfig := modelConfig.GetBaseModelConfig(state.authVars)
+
 	// log.Println("Stop:", stop)
 	// spew.Dump(state.messages)
 
-	// log.Println("modelConfig:", spew.Sdump(modelConfig))
+	log.Println("modelConfig:", spew.Sdump(map[string]interface{}{
+		"modelName": baseModelConfig.ModelName,
+		"modelId":   baseModelConfig.ModelId,
+		"modelTag":  baseModelConfig.ModelTag,
+	}))
 
 	if state.noCacheSupportErr {
 		log.Println("Tell exec - request failed with cache support error. Removing cache control breakpoints from messages.")
@@ -479,7 +493,7 @@ func (state *activeTellStreamState) doTellRequest() {
 	}
 
 	modelReq := types.ExtendedChatCompletionRequest{
-		Model:    modelConfig.BaseModelConfig.ModelName,
+		Model:    baseModelConfig.ModelName,
 		Messages: state.messages,
 		Stream:   true,
 		StreamOptions: &openai.StreamOptions{
@@ -489,7 +503,7 @@ func (state *activeTellStreamState) doTellRequest() {
 		TopP:        modelConfig.TopP,
 	}
 
-	if modelConfig.BaseModelConfig.StopDisabled {
+	if baseModelConfig.StopDisabled {
 		state.manualStop = stop
 	} else {
 		modelReq.Stop = stop
@@ -513,10 +527,10 @@ func (state *activeTellStreamState) doTellRequest() {
 	// }
 
 	log.Printf("[Tell] doTellRequest retry=%d fallbackRetry=%d using model=%s",
-		state.numErrorRetry, state.numFallbackRetry, state.modelConfig.BaseModelConfig.ModelName)
+		state.numErrorRetry, state.numFallbackRetry, baseModelConfig.ModelName)
 
 	// start the stream
-	stream, err := model.CreateChatCompletionStream(clients, modelConfig, active.ModelStreamCtx, modelReq)
+	stream, err := model.CreateChatCompletionStream(clients, authVars, modelConfig, active.ModelStreamCtx, modelReq)
 	if err != nil {
 		log.Printf("Error starting reply stream: %v\n", err)
 		go notify.NotifyErr(notify.SeverityError, fmt.Errorf("error starting reply stream: %v", err))

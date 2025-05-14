@@ -68,7 +68,9 @@ func createCustomModel(cmd *cobra.Command, args []string) {
 
 	model := &shared.AvailableModel{
 		BaseModelConfig: shared.BaseModelConfig{
-			ModelCompatibility: shared.ModelCompatibility{},
+			BaseModelShared: shared.BaseModelShared{
+				ModelCompatibility: shared.ModelCompatibility{},
+			},
 		},
 	}
 
@@ -139,19 +141,25 @@ func createCustomModel(cmd *cobra.Command, args []string) {
 
 		model.BaseUrl = baseUrl
 	} else {
-		model.BaseUrl = shared.BaseUrlByProvider[model.Provider]
+		providerConfig, ok := shared.BuiltInModelProviderConfigs[model.Provider]
+		if !ok {
+			term.OutputErrorAndExit("Error getting provider config: %v", err)
+			return
+		}
+
+		model.BaseUrl = providerConfig.BaseUrl
 	}
 
-	apiKeyDefault := shared.ApiKeyByProvider[model.Provider]
 	var apiKeyEnvVar string
 	if model.Provider == shared.ModelProviderCustom {
-		if apiKeyDefault == "" {
-			apiKeyEnvVar, err = term.GetRequiredUserStringInput("API key environment variable:")
-		} else {
-			apiKeyEnvVar, err = term.GetUserStringInputWithDefault("API key environment variable:", apiKeyDefault)
-		}
+		apiKeyEnvVar, err = term.GetRequiredUserStringInput("API key environment variable:")
 	} else {
-		apiKeyEnvVar = apiKeyDefault
+		providerConfig, ok := shared.BuiltInModelProviderConfigs[model.Provider]
+		if !ok {
+			term.OutputErrorAndExit("Error getting provider config: %v", err)
+			return
+		}
+		apiKeyEnvVar = providerConfig.ApiKeyEnvVar
 	}
 
 	if err != nil {

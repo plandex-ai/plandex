@@ -11,7 +11,7 @@ RUN apt-get install -y python3 python3-venv && \
 # Activate the virtual environment for all following RUN commands
 ENV PATH="/opt/venv/bin:$PATH"
 
-# Now install litellm/prisma in the virtual environment
+# Now install litellm passthrough dependencies in the virtual environment
 RUN pip install --no-cache-dir "litellm==1.61.1" "fastapi==0.115.12" "uvicorn==0.34.1"
 
 WORKDIR /app

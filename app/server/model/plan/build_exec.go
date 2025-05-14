@@ -18,6 +18,7 @@ import (
 
 func Build(
 	clients map[string]model.ClientInfo,
+	authVars map[string]string,
 	plan *db.Plan,
 	branch string,
 	auth *types.ServerAuth,
@@ -28,6 +29,7 @@ func Build(
 
 	state := activeBuildStreamState{
 		clients:       clients,
+		authVars:      authVars,
 		auth:          auth,
 		currentOrgId:  auth.OrgId,
 		currentUserId: auth.User.Id,

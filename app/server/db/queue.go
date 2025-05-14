@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"runtime/debug"
 	"sync"
 
 	"github.com/google/uuid"
@@ -247,6 +248,7 @@ func (q *repoQueue) runQueue() {
 								panicErr := recover()
 								if panicErr != nil {
 									log.Printf("[Queue] Panic in operation %s (%s): %v", op.id, op.reason, panicErr)
+									log.Printf("[Queue] Stack trace: %s", string(debug.Stack()))
 									opErr = fmt.Errorf("panic in operation: %v", panicErr)
 								}
 

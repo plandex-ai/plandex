@@ -17,6 +17,7 @@ import (
 
 func (state *activeTellStreamState) loadTellPlan() error {
 	clients := state.clients
+	authVars := state.authVars
 	req := state.req
 	auth := state.auth
 	plan := state.plan
@@ -77,6 +78,7 @@ func (state *activeTellStreamState) loadTellPlan() error {
 					plan,
 					settings,
 					clients,
+					authVars,
 					req.Prompt,
 					active.SessionId,
 					active.Ctx,

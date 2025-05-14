@@ -54,8 +54,9 @@ type BaseModelProviderConfig struct {
 }
 
 type BaseModelConfig struct {
-	ModelId  ModelId  `json:"modelId"`
-	ModelTag ModelTag `json:"modelTag"`
+	ModelId   ModelId        `json:"modelId"`
+	ModelTag  ModelTag       `json:"modelTag"`
+	Publisher ModelPublisher `json:"publisher"`
 	BaseModelShared
 	BaseModelProviderConfig
 }
@@ -66,10 +67,18 @@ type BaseModelUsesProvider struct {
 	ModelName      ModelName     `json:"modelName"`
 }
 
+func (b BaseModelUsesProvider) ToComposite() string {
+	if b.CustomProvider != nil {
+		return fmt.Sprintf("%s|%s", b.Provider, *b.CustomProvider)
+	}
+	return string(b.Provider)
+}
+
 type BaseModelConfigSchema struct {
-	ModelTag              ModelTag `json:"modelTag"`
-	Description           string   `json:"description"`
-	DefaultMaxConvoTokens int      `json:"defaultMaxConvoTokens"`
+	ModelTag              ModelTag       `json:"modelTag"`
+	Publisher             ModelPublisher `json:"publisher"`
+	Description           string         `json:"description"`
+	DefaultMaxConvoTokens int            `json:"defaultMaxConvoTokens"`
 	BaseModelShared
 
 	RequiresVariantOverrides []string `json:"requiresVariantOverrides"`
@@ -135,6 +144,7 @@ func (b *BaseModelConfigSchema) ToAvailableModels() []*AvailableModel {
 				BaseModelConfig: BaseModelConfig{
 					ModelTag:        b.ModelTag,
 					ModelId:         baseId,
+					Publisher:       b.Publisher,
 					BaseModelShared: mergedOverrides,
 					BaseModelProviderConfig: BaseModelProviderConfig{
 						ModelProviderConfigSchema: providerConfig,
@@ -246,17 +256,20 @@ const (
 )
 
 type ModelRoleConfig struct {
-	Role                 ModelRole       `json:"role"`
-	BaseModelConfig      BaseModelConfig `json:"baseModelConfig"`
-	Temperature          float32         `json:"temperature"`
-	TopP                 float32         `json:"topP"`
-	ReservedOutputTokens int             `json:"reservedOutputTokens"`
+	Role ModelRole `json:"role"`
+
+	ModelId ModelId `json:"modelId"` // new in 2.2.0 refactor — uses provider lookup instead of BaseModelConfig and MissingKeyFallback
+
+	BaseModelConfig      *BaseModelConfig `json:"baseModelConfig,omitempty"`
+	Temperature          float32          `json:"temperature"`
+	TopP                 float32          `json:"topP"`
+	ReservedOutputTokens int              `json:"reservedOutputTokens"`
 
 	LargeContextFallback *ModelRoleConfig `json:"largeContextFallback"`
 	LargeOutputFallback  *ModelRoleConfig `json:"largeOutputFallback"`
 	ErrorFallback        *ModelRoleConfig `json:"errorFallback"`
-	MissingKeyFallback   *ModelRoleConfig `json:"missingKeyFallback"`
-	StrongModel          *ModelRoleConfig `json:"strongModel"`
+	// MissingKeyFallback   *ModelRoleConfig `json:"missingKeyFallback"` // removed in 2.2.0 refactor —
+	StrongModel *ModelRoleConfig `json:"strongModel"`
 }
 
 type ModelRoleModelConfig struct {
@@ -281,24 +294,11 @@ type ModelRoleConfigSchema struct {
 }
 
 func (m *ModelRoleConfigSchema) ToModelRoleConfig() ModelRoleConfig {
-	providers, ok := BuiltInModelProvidersByModelId[m.ModelId]
-	if !ok {
-		panic(fmt.Sprintf("no providers found for model %s", m.ModelId))
-	}
 
-	return m.toModelRoleConfig(providers)
+	return m.toModelRoleConfig()
 }
 
-func (m *ModelRoleConfigSchema) toModelRoleConfig(providers []BaseModelUsesProvider) ModelRoleConfig {
-	if len(providers) == 0 {
-		panic("no providers")
-	}
-
-	provider := providers[0]
-	tail := providers[1:]
-
-	config := GetAvailableModel(provider.Provider, m.ModelId)
-
+func (m *ModelRoleConfigSchema) toModelRoleConfig() ModelRoleConfig {
 	var largeContextFallback *ModelRoleConfig
 	if m.LargeContextFallback != nil {
 		c := m.LargeContextFallback.ToModelRoleConfig()
@@ -320,16 +320,11 @@ func (m *ModelRoleConfigSchema) toModelRoleConfig(providers []BaseModelUsesProvi
 		strongModel = &c
 	}
 
-	// recursive waterfall fallback chain for all the provider options
-	var missingKeyFallback *ModelRoleConfig
-	if len(tail) > 0 {
-		c := m.toModelRoleConfig(tail)
-		missingKeyFallback = &c
-	}
-
 	return ModelRoleConfig{
-		Role:                 m.Role,
-		BaseModelConfig:      config.BaseModelConfig,
+		Role: m.Role,
+
+		ModelId: m.ModelId,
+
 		Temperature:          m.Temperature,
 		TopP:                 m.TopP,
 		ReservedOutputTokens: m.ReservedOutputTokens,
@@ -338,15 +333,54 @@ func (m *ModelRoleConfigSchema) toModelRoleConfig(providers []BaseModelUsesProvi
 		LargeOutputFallback:  largeOutputFallback,
 		ErrorFallback:        errorFallback,
 		StrongModel:          strongModel,
-		MissingKeyFallback:   missingKeyFallback,
 	}
+}
+
+func (m ModelRoleConfig) GetBaseModelConfig(authVars map[string]string) *BaseModelConfig {
+	if m.BaseModelConfig != nil {
+		return m.BaseModelConfig
+	}
+
+	foundProvider := m.GetFirstProviderForAuthVars(authVars)
+	if foundProvider == nil {
+		return m.BaseModelConfig
+	}
+
+	c := GetAvailableModel(foundProvider.Provider, m.ModelId).BaseModelConfig
+
+	return &c
+}
+
+func (m ModelRoleConfig) GetProviderComposite(authVars map[string]string) string {
+	baseModelConfig := m.GetBaseModelConfig(authVars)
+
+	if baseModelConfig == nil {
+		return ""
+	}
+
+	return baseModelConfig.ToComposite()
 }
 
 func (m ModelRoleConfig) GetReservedOutputTokens() int {
 	if m.ReservedOutputTokens > 0 {
 		return m.ReservedOutputTokens
 	}
-	return m.BaseModelConfig.ReservedOutputTokens
+
+	sharedBaseConfig := m.GetSharedBaseConfig()
+	return sharedBaseConfig.ReservedOutputTokens
+}
+
+func (m ModelRoleConfig) GetSharedBaseConfig() *BaseModelShared {
+	if m.BaseModelConfig != nil {
+		return &m.BaseModelConfig.BaseModelShared
+	}
+
+	builtInModel := BuiltInBaseModelsById[m.ModelId]
+	if builtInModel == nil {
+		return nil
+	}
+
+	return &builtInModel.BaseModelShared
 }
 
 func (m *ModelRoleConfig) Scan(src interface{}) error {

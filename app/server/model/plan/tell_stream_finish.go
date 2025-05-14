@@ -28,6 +28,7 @@ func (state *activeTellStreamState) handleStreamFinished() handleStreamFinishedR
 	plan := state.plan
 	req := state.req
 	clients := state.clients
+	authVars := state.authVars
 	settings := state.settings
 	currentOrgId := state.currentOrgId
 	summaries := state.summaries
@@ -106,7 +107,7 @@ func (state *activeTellStreamState) handleStreamFinished() handleStreamFinishedR
 	log.Println("summarizing convo in background")
 	// summarize in the background
 	go func() {
-		err := summarizeConvo(clients, settings.ModelPack.PlanSummary, summarizeConvoParams{
+		err := summarizeConvo(clients, authVars, settings.ModelPack.PlanSummary, summarizeConvoParams{
 			auth:                  auth,
 			plan:                  plan,
 			branch:                branch,
@@ -191,6 +192,7 @@ func (state *activeTellStreamState) handleStreamFinished() handleStreamFinishedR
 			auth:      auth,
 			req:       req,
 			iteration: iteration + 1,
+			authVars:  authVars,
 		})
 	} else {
 		var buildFinished bool

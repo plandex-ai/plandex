@@ -112,6 +112,10 @@ func startLiteLLMServer(numWorkers int) error {
 		"--workers", strconv.Itoa(numWorkers),
 	)
 
+	if os.Getenv("LITELLM_PROXY_DIR") != "" {
+		liteLLMCmd.Dir = os.Getenv("LITELLM_PROXY_DIR")
+	}
+
 	// clean env
 	liteLLMCmd.Env = []string{
 		"PATH=" + os.Getenv("PATH"),

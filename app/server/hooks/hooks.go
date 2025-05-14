@@ -154,7 +154,7 @@ type HookParams struct {
 
 type GetIntegratedModelsResult struct {
 	IntegratedModelsMode bool
-	ApiKeys              map[string]string
+	AuthVars             map[string]string
 }
 
 type FastApplyResult struct {

@@ -13,6 +13,12 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Change to the script directory
 cd "$SCRIPT_DIR" || exit 1
 
+# Install Python deps
+"$SCRIPT_DIR/litellm_deps.sh"
+
+# Update PATH for python venv
+export PATH="$SCRIPT_DIR/../litellm-venv/bin:$PATH"
+
 # Detect if reflex is installed and install it if not
 if ! [ -x "$(command -v reflex)" ]; then
 

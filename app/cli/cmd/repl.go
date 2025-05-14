@@ -140,7 +140,7 @@ func runRepl(cmd *cobra.Command, args []string) {
 	}
 
 	if !auth.Current.IntegratedModelsMode {
-		lib.MustVerifyApiKeys()
+		lib.MustVerifyAuthVars()
 	}
 
 	projectPaths, err = fs.GetProjectPaths(fs.Cwd)

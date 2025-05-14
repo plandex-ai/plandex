@@ -25,6 +25,7 @@ func (state *activeTellStreamState) genPlanDescription() (*db.ConvoMessageDescri
 	branch := state.branch
 	settings := state.settings
 	clients := state.clients
+	authVars := state.authVars
 	config := settings.ModelPack.CommitMsg
 
 	activePlan := GetActivePlan(planId, branch)
@@ -38,11 +39,13 @@ func (state *activeTellStreamState) genPlanDescription() (*db.ConvoMessageDescri
 		}
 	}
 
+	baseModelConfig := config.GetBaseModelConfig(authVars)
+
 	var sysPrompt string
 	var tools []openai.Tool
 	var toolChoice *openai.ToolChoice
 
-	if config.BaseModelConfig.PreferredModelOutputFormat == shared.ModelOutputFormatXml {
+	if baseModelConfig.PreferredModelOutputFormat == shared.ModelOutputFormatXml {
 		sysPrompt = prompts.SysDescribeXml
 	} else {
 		sysPrompt = prompts.SysDescribe
@@ -85,6 +88,7 @@ func (state *activeTellStreamState) genPlanDescription() (*db.ConvoMessageDescri
 	reqParams := model.ModelRequestParams{
 		Clients:        clients,
 		Auth:           auth,
+		AuthVars:       authVars,
 		Plan:           plan,
 		ModelConfig:    &config,
 		Purpose:        "Response summary",
@@ -119,7 +123,7 @@ func (state *activeTellStreamState) genPlanDescription() (*db.ConvoMessageDescri
 
 	var commitMsg string
 
-	if config.BaseModelConfig.PreferredModelOutputFormat == shared.ModelOutputFormatXml {
+	if baseModelConfig.PreferredModelOutputFormat == shared.ModelOutputFormatXml {
 		commitMsg = utils.GetXMLContent(content, "commitMsg")
 		if commitMsg == "" {
 			go notify.NotifyErr(notify.SeverityError, fmt.Errorf("no commitMsg tag found in XML response"))

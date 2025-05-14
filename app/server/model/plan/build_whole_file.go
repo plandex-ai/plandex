@@ -21,6 +21,7 @@ func (fileState *activeBuildStreamFileState) buildWholeFileFallback(buildCtx con
 	auth := fileState.auth
 	filePath := fileState.filePath
 	clients := fileState.clients
+	authVars := fileState.authVars
 	planId := fileState.plan.Id
 	branch := fileState.branch
 	originalFile := fileState.preBuildState
@@ -33,6 +34,8 @@ func (fileState *activeBuildStreamFileState) buildWholeFileFallback(buildCtx con
 		fileState.onBuildFileError(fmt.Errorf("active plan not found for plan ID %s and branch %s", planId, branch))
 		return "", fmt.Errorf("active plan not found for plan ID %s and branch %s", planId, branch)
 	}
+
+	baseModelConfig := config.GetBaseModelConfig(authVars)
 
 	originalFileWithLineNums := shared.AddLineNums(originalFile)
 	proposedContentWithLineNums := shared.AddLineNums(proposedContent)
@@ -59,11 +62,9 @@ func (fileState *activeBuildStreamFileState) buildWholeFileFallback(buildCtx con
 
 	log.Println("buildWholeFile - calling model for whole file write")
 
-	log.Println("buildWholeFile - modelConfig.BaseModelConfig.PredictedOutputEnabled:", modelConfig.BaseModelConfig.PredictedOutputEnabled)
-
 	var prediction string
 
-	if modelConfig.BaseModelConfig.PredictedOutputEnabled && comments != "" {
+	if baseModelConfig.PredictedOutputEnabled && comments != "" {
 		prediction = `
 <PlandexWholeFile>
 ` + originalFile + `
@@ -74,7 +75,7 @@ func (fileState *activeBuildStreamFileState) buildWholeFileFallback(buildCtx con
 
 	// This allows proper accounting for cached input tokens even when the stream is cancelled -- OpenAI only for now
 	var willCacheNumTokens int
-	if modelConfig.BaseModelConfig.Provider == shared.ModelProviderOpenAI {
+	if baseModelConfig.Provider == shared.ModelProviderOpenAI {
 		willCacheNumTokens = headNumTokens
 	}
 
@@ -84,6 +85,7 @@ func (fileState *activeBuildStreamFileState) buildWholeFileFallback(buildCtx con
 	modelRes, err := model.ModelRequest(buildCtx, model.ModelRequestParams{
 		Clients:     clients,
 		Auth:        auth,
+		AuthVars:    authVars,
 		Plan:        fileState.plan,
 		ModelConfig: &config,
 		Purpose:     "File edit",

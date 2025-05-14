@@ -17,6 +17,7 @@ import (
 
 	shared "plandex-shared"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/sashabaranov/go-openai"
 )
 
@@ -35,42 +36,43 @@ const (
 var httpClient = &http.Client{}
 
 type ClientInfo struct {
-	Client   *openai.Client
-	ApiKey   string
-	OrgId    string
-	Endpoint string
+	Client         *openai.Client
+	ProviderConfig shared.ModelProviderConfigSchema
+	ApiKey         string
+	OpenAIOrgId    string
 }
 
-func InitClients(apiKeys map[string]string, endpointsByApiKeyEnvVar map[string]string, openAIEndpoint, orgId string) map[string]ClientInfo {
+func InitClients(authVars map[string]string) map[string]ClientInfo {
 	clients := make(map[string]ClientInfo)
-	for key, apiKey := range apiKeys {
-		var clientEndpoint string
-		var clientOrgId string
-		if key == "OPENAI_API_KEY" {
-			clientEndpoint = openAIEndpoint
-			clientOrgId = orgId
-		} else {
-			clientEndpoint = endpointsByApiKeyEnvVar[key]
-		}
-		clients[key] = newClient(apiKey, clientEndpoint, clientOrgId)
+	providers := shared.GetProvidersForAuthVars(authVars)
+
+	for _, provider := range providers {
+		clients[provider.ToComposite()] = newClient(provider, authVars)
 	}
+
 	return clients
 }
 
-func newClient(apiKey, endpoint, orgId string) ClientInfo {
-	config := openai.DefaultConfig(apiKey)
-	if endpoint != "" {
-		config.BaseURL = endpoint
+func newClient(providerConfig shared.ModelProviderConfigSchema, authVars map[string]string) ClientInfo {
+	var apiKey string
+	if providerConfig.ApiKeyEnvVar != "" {
+		apiKey = authVars[providerConfig.ApiKeyEnvVar]
 	}
-	if orgId != "" {
-		config.OrgID = orgId
+
+	config := openai.DefaultConfig(apiKey)
+	config.BaseURL = providerConfig.BaseUrl
+
+	var openAIOrgId string
+	if providerConfig.Provider == shared.ModelProviderOpenAI && authVars["OPENAI_ORG_ID"] != "" {
+		openAIOrgId = authVars["OPENAI_ORG_ID"]
+		config.OrgID = openAIOrgId
 	}
 
 	return ClientInfo{
-		Client:   openai.NewClientWithConfig(config),
-		ApiKey:   apiKey,
-		OrgId:    orgId,
-		Endpoint: endpoint,
+		Client:         openai.NewClientWithConfig(config),
+		ApiKey:         apiKey,
+		ProviderConfig: providerConfig,
+		OpenAIOrgId:    openAIOrgId,
 	}
 }
 
@@ -101,28 +103,30 @@ type JSONUnmarshaler struct{}
 
 func CreateChatCompletionStream(
 	clients map[string]ClientInfo,
+	authVars map[string]string,
 	modelConfig *shared.ModelRoleConfig,
 	ctx context.Context,
 	req types.ExtendedChatCompletionRequest,
 ) (*ExtendedChatCompletionStream, error) {
-	_, ok := clients[modelConfig.BaseModelConfig.ApiKeyEnvVar]
+	providerComposite := modelConfig.GetProviderComposite(authVars)
+	_, ok := clients[providerComposite]
 	if !ok {
-		fmt.Printf("client not found for api key env var: %s", modelConfig.BaseModelConfig.ApiKeyEnvVar)
-		if modelConfig.MissingKeyFallback != nil {
-			fmt.Println("using missing key fallback")
-			return CreateChatCompletionStream(clients, modelConfig.MissingKeyFallback, ctx, req)
-		}
-		return nil, fmt.Errorf("client not found for api key env var: %s", modelConfig.BaseModelConfig.ApiKeyEnvVar)
+		return nil, fmt.Errorf("client not found for provider composite: %s", providerComposite)
 	}
+
+	baseModelConfig := modelConfig.GetBaseModelConfig(authVars)
+
+	// ensure the model name is set correctly on fallbacks
+	req.Model = baseModelConfig.ModelName
 
 	resolveReq(&req, modelConfig)
 
 	// choose the fastest provider by latency/throughput on openrouter
-	if modelConfig.BaseModelConfig.Provider == shared.ModelProviderOpenRouter {
+	if baseModelConfig.Provider == shared.ModelProviderOpenRouter {
 		req.Model += ":nitro"
 	}
 
-	if modelConfig.BaseModelConfig.IncludeReasoning {
+	if baseModelConfig.IncludeReasoning {
 		req.IncludeReasoning = true
 	}
 
@@ -134,22 +138,17 @@ func CreateChatCompletionStream(
 			return nil, fallbackRes, fmt.Errorf("model config is nil")
 		}
 
-		opClient, ok := clients[resolvedModelConfig.BaseModelConfig.ApiKeyEnvVar]
+		providerComposite := resolvedModelConfig.GetProviderComposite(authVars)
+
+		baseModelConfig := resolvedModelConfig.GetBaseModelConfig(authVars)
+
+		opClient, ok := clients[providerComposite]
 
 		if !ok {
-			if resolvedModelConfig.MissingKeyFallback != nil {
-				fmt.Println("using missing key fallback")
-				resolvedModelConfig = resolvedModelConfig.MissingKeyFallback
-				opClient, ok = clients[resolvedModelConfig.BaseModelConfig.ApiKeyEnvVar]
-				if !ok {
-					return nil, fallbackRes, fmt.Errorf("client not found for api key env var: %s", resolvedModelConfig.BaseModelConfig.ApiKeyEnvVar)
-				}
-			} else {
-				return nil, fallbackRes, fmt.Errorf("client not found for api key env var: %s", resolvedModelConfig.BaseModelConfig.ApiKeyEnvVar)
-			}
+			return nil, fallbackRes, fmt.Errorf("client not found for provider composite: %s", providerComposite)
 		}
 
-		if modelErr.Kind == shared.ErrCacheSupport {
+		if modelErr != nil && modelErr.Kind == shared.ErrCacheSupport {
 			for i := range req.Messages {
 				for j := range req.Messages[i].Content {
 					if req.Messages[i].Content[j].CacheControl != nil {
@@ -160,7 +159,18 @@ func CreateChatCompletionStream(
 		}
 
 		modelConfig = resolvedModelConfig
-		resp, err := createChatCompletionStreamExtended(resolvedModelConfig, opClient, resolvedModelConfig.BaseModelConfig.BaseUrl, ctx, req)
+
+		log.Println("createChatCompletionStreamExtended - modelConfig")
+		spew.Dump(map[string]interface{}{
+			"modelConfig.ModelId":      baseModelConfig.ModelId,
+			"modelConfig.ModelTag":     baseModelConfig.ModelTag,
+			"modelConfig.ModelName":    baseModelConfig.ModelName,
+			"modelConfig.Provider":     baseModelConfig.Provider,
+			"modelConfig.BaseUrl":      baseModelConfig.BaseUrl,
+			"modelConfig.ApiKeyEnvVar": baseModelConfig.ApiKeyEnvVar,
+		})
+
+		resp, err := createChatCompletionStreamExtended(resolvedModelConfig, opClient, authVars, ctx, req)
 		return resp, fallbackRes, err
 	}, func(resp *ExtendedChatCompletionStream, err error) {})
 }
@@ -168,12 +178,17 @@ func CreateChatCompletionStream(
 func createChatCompletionStreamExtended(
 	modelConfig *shared.ModelRoleConfig,
 	client ClientInfo,
-	baseUrl string,
+	authVars map[string]string,
 	ctx context.Context,
 	extendedReq types.ExtendedChatCompletionRequest,
 ) (*ExtendedChatCompletionStream, error) {
+	baseModelConfig := modelConfig.GetBaseModelConfig(authVars)
+
+	// ensure the model name is set correctly on fallbacks
+	extendedReq.Model = baseModelConfig.ModelName
+
 	var openaiReq *types.ExtendedOpenAIChatCompletionRequest
-	if modelConfig.BaseModelConfig.Provider == shared.ModelProviderOpenAI {
+	if baseModelConfig.Provider == shared.ModelProviderOpenAI {
 		openaiReq = extendedReq.ToOpenAI()
 		log.Println("Creating chat completion stream with direct OpenAI provider request")
 	}
@@ -193,6 +208,7 @@ func createChatCompletionStreamExtended(
 	// log.Println("request jsonBody", string(jsonBody))
 
 	// Create new request
+	baseUrl := baseModelConfig.BaseUrl
 	url := baseUrl + "/chat/completions"
 
 	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(jsonBody))
@@ -205,9 +221,14 @@ func createChatCompletionStreamExtended(
 	req.Header.Set("Accept", "text/event-stream")
 	req.Header.Set("Cache-Control", "no-cache")
 	req.Header.Set("Connection", "keep-alive")
-	req.Header.Set("Authorization", "Bearer "+client.ApiKey)
-	if client.OrgId != "" {
-		req.Header.Set("OpenAI-Organization", client.OrgId)
+
+	// some providers send api key in the body, some in the header
+	// some use other auth methods and so don't have a simple api key
+	if client.ApiKey != "" {
+		req.Header.Set("Authorization", "Bearer "+client.ApiKey)
+	}
+	if client.OpenAIOrgId != "" {
+		req.Header.Set("OpenAI-Organization", client.OpenAIOrgId)
 	}
 
 	addOpenRouterHeaders(req)
@@ -356,7 +377,7 @@ func (stream *ExtendedChatCompletionStream) Close() error {
 
 func resolveReq(req *types.ExtendedChatCompletionRequest, modelConfig *shared.ModelRoleConfig) {
 	// if system prompt is disabled, change the role of the system message to user
-	if modelConfig.BaseModelConfig.SystemPromptDisabled {
+	if modelConfig.GetSharedBaseConfig().SystemPromptDisabled {
 		log.Println("System prompt disabled - changing role of system message to user")
 		for i, msg := range req.Messages {
 			log.Println("Message role:", msg.Role)
@@ -418,7 +439,7 @@ func resolveReq(req *types.ExtendedChatCompletionRequest, modelConfig *shared.Mo
 	// 	log.Println("req.Messages", len(req.Messages))
 	// }
 
-	if modelConfig.BaseModelConfig.RoleParamsDisabled {
+	if modelConfig.GetSharedBaseConfig().RoleParamsDisabled {
 		log.Println("Role params disabled - setting temperature and top p to 1")
 		req.Temperature = 1
 		req.TopP = 1

@@ -3,7 +3,6 @@ package plan_exec
 import (
 	"fmt"
 	"log"
-	"os"
 	"plandex-cli/api"
 	"plandex-cli/fs"
 	"plandex-cli/stream"
@@ -43,29 +42,10 @@ func Build(params ExecParams, flags types.BuildFlags) (bool, error) {
 		return false, nil
 	}
 
-	var legacyApiKey, openAIBase, openAIOrgId string
-
-	if params.ApiKeys["OPENAI_API_KEY"] != "" {
-		legacyApiKey = params.ApiKeys["OPENAI_API_KEY"]
-		openAIBase = os.Getenv("OPENAI_API_BASE")
-		if openAIBase == "" {
-			openAIBase = os.Getenv("OPENAI_ENDPOINT")
-		}
-		openAIOrgId = os.Getenv("OPENAI_ORG_ID")
-	}
-
-	// log.Println("Building plan...")
-	// log.Println("API keys:", params.ApiKeys)
-	// log.Println("Legacy API key:", legacyApiKey)
-
 	apiErr = api.Client.BuildPlan(params.CurrentPlanId, params.CurrentBranch, shared.BuildPlanRequest{
 		ConnectStream: !buildBg,
 		ProjectPaths:  paths.ActivePaths,
-		ApiKey:        legacyApiKey, // deprecated
-		Endpoint:      openAIBase,   // deprecated
-		ApiKeys:       params.ApiKeys,
-		OpenAIBase:    openAIBase,
-		OpenAIOrgId:   openAIOrgId,
+		AuthVars:      params.AuthVars,
 	}, stream.OnStreamPlan)
 
 	term.StopSpinner()

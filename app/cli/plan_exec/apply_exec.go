@@ -120,7 +120,7 @@ func getOnApplyExecFail(applyFlags types.ApplyFlags, tellFlags types.TellFlags, 
 
 			var apiKeys map[string]string
 			if !auth.Current.IntegratedModelsMode {
-				apiKeys = lib.MustVerifyApiKeysSilent()
+				apiKeys = lib.MustVerifyAuthVarsSilent()
 			}
 			prompt := fmt.Sprintf("Execution failed with exit status %d. Output:\n\n%s\n\n--\n\n",
 				status, output)
@@ -142,7 +142,7 @@ func getOnApplyExecFail(applyFlags types.ApplyFlags, tellFlags types.TellFlags, 
 			TellPlan(ExecParams{
 				CurrentPlanId: lib.CurrentPlanId,
 				CurrentBranch: lib.CurrentBranch,
-				ApiKeys:       apiKeys,
+				AuthVars:      apiKeys,
 				CheckOutdatedContext: func(maybeContexts []*shared.Context, projectPaths *types.ProjectPaths) (bool, bool, error) {
 					return lib.CheckOutdatedContextWithOutput(true, true, maybeContexts, projectPaths)
 				},

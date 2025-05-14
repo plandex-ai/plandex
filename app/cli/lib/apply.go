@@ -565,7 +565,7 @@ func apiApplyPlan(planId, branch string) (string, error) {
 
 	var apiKeys map[string]string
 	if !auth.Current.IntegratedModelsMode {
-		apiKeys = MustVerifyApiKeysSilent()
+		apiKeys = MustVerifyAuthVarsSilent()
 	}
 
 	var commitSummary string

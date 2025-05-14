@@ -188,6 +188,7 @@ func (fileState *activeBuildStreamFileState) buildValidate(
 	auth := fileState.auth
 	filePath := fileState.filePath
 	clients := fileState.clients
+	authVars := fileState.authVars
 	modelConfig := params.modelConfig
 
 	originalFile := params.originalFile
@@ -197,6 +198,9 @@ func (fileState *activeBuildStreamFileState) buildValidate(
 	onStream := params.onStream
 	syntaxErrors := params.syntaxErrors
 	reasons := params.reasons
+
+	baseModelConfig := modelConfig.GetBaseModelConfig(authVars)
+
 	// Get diff for validation
 	log.Printf("Getting diffs between original and updated content")
 	diff, err := diff_pkg.GetDiffs(originalFile, updated)
@@ -254,7 +258,7 @@ func (fileState *activeBuildStreamFileState) buildValidate(
 
 	var willCacheNumTokens int
 	isFirstPass := params.isInitial && params.phase == 1
-	if !isFirstPass && modelConfig.BaseModelConfig.Provider == shared.ModelProviderOpenAI {
+	if !isFirstPass && baseModelConfig.Provider == shared.ModelProviderOpenAI {
 		willCacheNumTokens = headNumTokens
 	}
 
@@ -265,6 +269,7 @@ func (fileState *activeBuildStreamFileState) buildValidate(
 	res, err := model.ModelRequest(ctx, model.ModelRequestParams{
 		Clients:        clients,
 		Auth:           auth,
+		AuthVars:       authVars,
 		Plan:           fileState.plan,
 		ModelConfig:    modelConfig,
 		Purpose:        "File edit",
