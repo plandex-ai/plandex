@@ -23,6 +23,7 @@ func GetPlanSettings(plan *Plan, fillDefaultModelPack bool) (*shared.PlanSetting
 	bytes, err := os.ReadFile(settingsPath)
 
 	if os.IsNotExist(err) || len(bytes) == 0 {
+		log.Printf("GetPlanSettings - no settings file found for plan %s - checking org defaults", plan.Id)
 		// see if org has default settings
 		defaultSettings, err := GetOrgDefaultSettings(plan.OrgId, fillDefaultModelPack)
 
@@ -31,7 +32,10 @@ func GetPlanSettings(plan *Plan, fillDefaultModelPack bool) (*shared.PlanSetting
 		}
 
 		if defaultSettings != nil {
+			log.Printf("GetPlanSettings - found org default settings for plan %s", plan.Id)
 			return defaultSettings, nil
+		} else {
+			log.Printf("GetPlanSettings - no org default settings found for plan %s", plan.Id)
 		}
 
 		// if it doesn't exist, return default settings object
@@ -46,6 +50,8 @@ func GetPlanSettings(plan *Plan, fillDefaultModelPack bool) (*shared.PlanSetting
 		return nil, fmt.Errorf("error reading settings file: %v", err)
 	}
 
+	log.Printf("GetPlanSettings - settings found in file")
+
 	err = json.Unmarshal(bytes, &settings)
 
 	if err != nil {
@@ -53,6 +59,7 @@ func GetPlanSettings(plan *Plan, fillDefaultModelPack bool) (*shared.PlanSetting
 	}
 
 	if settings.ModelPack == nil && fillDefaultModelPack {
+		log.Printf("GetPlanSettings - filling default model pack")
 		settings.ModelPack = shared.DefaultModelPack
 	}
 

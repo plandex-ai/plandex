@@ -1,3 +1,7 @@
+## CLI Version 2.1.3
+- Fix for default model pack not being correctly applied to new plans
+- Fix for potential crash on Linux when applying a plan
+
 ## CLI Version 2.1.2
 - Fix for rare auto-load context timeout error when no files are loaded.
 

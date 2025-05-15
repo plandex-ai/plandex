@@ -18,6 +18,7 @@ import (
 const cgroupCallTimeout = 1 * time.Second
 
 func MaybeIsolateCgroup(cmd *exec.Cmd) (deleteFn func()) {
+	noop := func() {}
 	pid := cmd.Process.Pid
 
 	// 1. Connect to the user manager (no prompt on typical distros).
@@ -26,7 +27,7 @@ func MaybeIsolateCgroup(cmd *exec.Cmd) (deleteFn func()) {
 	conn, err := systemdDbus.NewUserConnectionContext(ctx)
 	if err != nil {
 		log.Printf("⚠️  Could not connect to user systemd manager. No cgroup isolation for PID %d. Error: %v", pid, err)
-		return
+		return noop
 	}
 	// We'll keep 'conn' open while scope is active. The scope isn't strictly tied
 	// to the connection's lifetime, but it's nice to keep it in case we want to stop the unit.
@@ -53,10 +54,13 @@ func MaybeIsolateCgroup(cmd *exec.Cmd) (deleteFn func()) {
 	if err != nil {
 		// Fallback, no isolation
 		log.Printf("⚠️  Failed to start transient scope for PID %d: %v", pid, err)
-		return
+		return noop
 	}
 
 	return func() {
+		// Close the connection to the user manager.
+		defer conn.Close()
+
 		ctx, cancel := context.WithTimeout(context.Background(), cgroupCallTimeout)
 		defer cancel()
 
@@ -64,7 +68,6 @@ func MaybeIsolateCgroup(cmd *exec.Cmd) (deleteFn func()) {
 		_, stopErr := conn.StopUnitContext(ctx, scopeName, "replace", nil)
 		if stopErr != nil {
 			log.Printf("⚠️  Failed to stop scope %s: %v", scopeName, stopErr)
-			return
 		}
 	}
 }

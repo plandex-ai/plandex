@@ -21,3 +21,5 @@ __pycache__/
 
 .aider.*
 *.code-workspace
+
+__pycache__/

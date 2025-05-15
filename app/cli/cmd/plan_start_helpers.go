@@ -137,13 +137,13 @@ func resolveModelPackWithArgs(settings *shared.PlanSettings, silent bool) (*shar
 		packName = shared.CheapModelPack.Name
 	} else if reasoningModels {
 		packName = shared.ReasoningModelPack.Name
-		// } else if crazyModels {
-		// 	packName = shared.CrazyModelPack.Name
-	} else {
+	} else if dailyModels {
 		packName = shared.DailyDriverModelPack.Name
+	} else if geminiPreviewModels {
+		packName = shared.GeminiPreviewModelPack.Name
 	}
 
-	if packName != originalSettings.ModelPack.Name {
+	if packName != "" && packName != originalSettings.ModelPack.Name {
 		if !silent {
 			term.StartSpinner("")
 		}
@@ -175,7 +175,7 @@ func resolveModelPackWithArgs(settings *shared.PlanSettings, silent bool) (*shar
 			term.StopSpinner()
 		}
 		fn := func() {
-			printModelPackTable(packName)
+			printModelPackTable(originalSettings.ModelPack.Name)
 		}
 
 		if !silent {
