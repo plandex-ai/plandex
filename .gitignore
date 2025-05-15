@@ -20,3 +20,5 @@ dist/
 
 .aider.*
 *.code-workspace
+
+__pycache__/

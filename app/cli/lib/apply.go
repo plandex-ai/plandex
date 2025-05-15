@@ -476,16 +476,22 @@ func execApplyScript(
 							log.Printf("Failed to terminate process group: %v", err)
 						}
 						pipe.Close()
-						maybeDeleteCgroup()
+						if maybeDeleteCgroup != nil {
+							maybeDeleteCgroup()
+						}
 					case <-ctx.Done():
-						maybeDeleteCgroup()
+						if maybeDeleteCgroup != nil {
+							maybeDeleteCgroup()
+						}
 						return
 					}
 				}
 
 			case <-ctx.Done():
 				// If no interrupts occurred, this will be the normal exit path
-				maybeDeleteCgroup()
+				if maybeDeleteCgroup != nil {
+					maybeDeleteCgroup()
+				}
 				return
 			}
 		}
