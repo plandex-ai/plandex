@@ -466,11 +466,15 @@ func (state *activeTellStreamState) doTellRequest() {
 	modelConfig := state.modelConfig
 	active := state.activePlan
 
-	fallbackRes := modelConfig.GetFallbackForModelError(state.numErrorRetry, state.modelErr)
+	fallbackRes := modelConfig.GetFallbackForModelError(state.numErrorRetry, state.didProviderFallback, state.modelErr, authVars)
 	modelConfig = fallbackRes.ModelRoleConfig
 	stop := []string{"<PlandexFinish/>"}
 
 	baseModelConfig := modelConfig.GetBaseModelConfig(state.authVars)
+
+	if fallbackRes.FallbackType == shared.FallbackTypeProvider {
+		state.didProviderFallback = true
+	}
 
 	// log.Println("Stop:", stop)
 	// spew.Dump(state.messages)

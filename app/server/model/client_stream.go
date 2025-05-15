@@ -40,8 +40,8 @@ func CreateChatCompletionWithInternalStream(
 	// Force streaming mode since we're using the streaming API
 	req.Stream = true
 
-	return withStreamingRetries(ctx, func(numTotalRetry int, modelErr *shared.ModelError) (resp *types.ModelResponse, fallbackRes shared.FallbackResult, err error) {
-		fallbackRes = modelConfig.GetFallbackForModelError(numTotalRetry, modelErr)
+	return withStreamingRetries(ctx, func(numTotalRetry int, didProviderFallback bool, modelErr *shared.ModelError) (resp *types.ModelResponse, fallbackRes shared.FallbackResult, err error) {
+		fallbackRes = modelConfig.GetFallbackForModelError(numTotalRetry, didProviderFallback, modelErr, authVars)
 		resolvedModelConfig := fallbackRes.ModelRoleConfig
 
 		if resolvedModelConfig == nil {
@@ -208,7 +208,7 @@ func processChatCompletionStream(
 
 func withStreamingRetries[T any](
 	ctx context.Context,
-	operation func(numRetry int, modelErr *shared.ModelError) (resp *T, fallbackRes shared.FallbackResult, err error),
+	operation func(numRetry int, didProviderFallback bool, modelErr *shared.ModelError) (resp *T, fallbackRes shared.FallbackResult, err error),
 	onContextDone func(resp *T, err error),
 ) (*T, error) {
 	var resp *T
@@ -216,6 +216,7 @@ func withStreamingRetries[T any](
 	var numFallbackRetry int
 	var fallbackRes shared.FallbackResult
 	var modelErr *shared.ModelError
+	var didProviderFallback bool
 
 	for {
 		if ctx.Err() != nil {
@@ -238,7 +239,7 @@ func withStreamingRetries[T any](
 
 		log.Printf("withStreamingRetries - will run operation")
 
-		resp, fallbackRes, err = operation(numTotalRetry, modelErr)
+		resp, fallbackRes, err = operation(numTotalRetry, didProviderFallback, modelErr)
 		if err == nil {
 			return resp, nil
 		}
@@ -249,6 +250,10 @@ func withStreamingRetries[T any](
 		maxRetries := MAX_RETRIES_WITHOUT_FALLBACK
 		if isFallback {
 			maxRetries = MAX_ADDITIONAL_RETRIES_WITH_FALLBACK
+		}
+
+		if fallbackRes.FallbackType == shared.FallbackTypeProvider {
+			didProviderFallback = true
 		}
 
 		compareRetries := numTotalRetry

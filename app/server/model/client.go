@@ -130,8 +130,8 @@ func CreateChatCompletionStream(
 		req.IncludeReasoning = true
 	}
 
-	return withStreamingRetries(ctx, func(numTotalRetry int, modelErr *shared.ModelError) (*ExtendedChatCompletionStream, shared.FallbackResult, error) {
-		fallbackRes := modelConfig.GetFallbackForModelError(numTotalRetry, modelErr)
+	return withStreamingRetries(ctx, func(numTotalRetry int, didProviderFallback bool, modelErr *shared.ModelError) (*ExtendedChatCompletionStream, shared.FallbackResult, error) {
+		fallbackRes := modelConfig.GetFallbackForModelError(numTotalRetry, didProviderFallback, modelErr, authVars)
 		resolvedModelConfig := fallbackRes.ModelRoleConfig
 
 		if resolvedModelConfig == nil {

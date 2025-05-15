@@ -59,10 +59,11 @@ type activeTellStreamState struct {
 
 	manualStop []string
 
-	numErrorRetry     int
-	numFallbackRetry  int
-	modelErr          *shared.ModelError
-	noCacheSupportErr bool
+	numErrorRetry       int
+	numFallbackRetry    int
+	modelErr            *shared.ModelError
+	noCacheSupportErr   bool
+	didProviderFallback bool
 }
 
 type chunkProcessor struct {
