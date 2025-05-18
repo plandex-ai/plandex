@@ -29,11 +29,14 @@
           "var": {
             "type": "string"
           },
-          "isFilePath": {
+          "maybeJSONFilePath": {
             "type": "boolean"
           },
           "required": {
             "type": "boolean"
+          },
+          "default": {
+            "type": "string"
           }
         },
         "required": [

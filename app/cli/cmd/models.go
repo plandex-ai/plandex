@@ -19,8 +19,13 @@ import (
 
 var customModelsOnly bool
 
+var allProperties bool
+
 func init() {
 	RootCmd.AddCommand(modelsCmd)
+
+	modelsCmd.Flags().BoolVarP(&allProperties, "all", "a", false, "Show all properties")
+
 	modelsCmd.AddCommand(listAvailableModelsCmd)
 	modelsCmd.AddCommand(createCustomModelCmd)
 	modelsCmd.AddCommand(deleteCustomModelCmd)
@@ -267,7 +272,7 @@ func createCustomModel(cmd *cobra.Command, args []string) {
 	}
 	for key, label := range outputFormatLabels {
 		if label == res {
-			model.PreferredModelOutputFormat = shared.ModelOutputFormat(key)
+			model.PreferredOutputFormat = shared.ModelOutputFormat(key)
 			break
 		}
 	}
@@ -324,7 +329,7 @@ func models(cmd *cobra.Command, args []string) {
 	table.Render()
 	fmt.Println()
 
-	renderSettings(settings)
+	renderSettings(settings, allProperties)
 
 	term.PrintCmds("", "set-model", "models available", "models default")
 }
@@ -348,7 +353,7 @@ func defaultModels(cmd *cobra.Command, args []string) {
 	table.Render()
 	fmt.Println()
 
-	renderSettings(settings)
+	renderSettings(settings, allProperties)
 
 	term.PrintCmds("", "set-model default", "models available", "models")
 }
@@ -369,12 +374,13 @@ func listAvailableModels(cmd *cobra.Command, args []string) {
 
 	if !customModelsOnly {
 		color.New(color.Bold, term.ColorHiCyan).Println("🏠 Built-in Models")
-		builtIn := shared.AvailableModels
 		table := tablewriter.NewWriter(os.Stdout)
 		table.SetAutoWrapText(false)
-		table.SetHeader([]string{"Provider", "Name", "🪙", "🔑"})
-		for _, model := range builtIn {
-			table.Append([]string{string(model.Provider), string(model.ModelId), strconv.Itoa(model.MaxTokens), model.ApiKeyEnvVar})
+		table.SetHeader([]string{"Model", "Input", "Output", "Reserved"})
+		for _, modelId := range shared.BaseModelIds {
+			model := shared.BuiltInBaseModelsById[modelId]
+
+			table.Append([]string{string(modelId), fmt.Sprintf("%d 🪙", model.MaxTokens), fmt.Sprintf("%d 🪙", model.MaxOutputTokens), fmt.Sprintf("%d 🪙", model.ReservedOutputTokens)})
 		}
 		table.Render()
 		fmt.Println()
@@ -497,42 +503,44 @@ func deleteCustomModel(cmd *cobra.Command, args []string) {
 	term.PrintCmds("", "models available", "models add")
 }
 
-func renderSettings(settings *shared.PlanSettings) {
+func renderSettings(settings *shared.PlanSettings, allProperties bool) {
 	modelPack := settings.ModelPack
 
 	color.New(color.Bold, term.ColorHiCyan).Println("🎛️  Current Model Pack")
-	renderModelPack(modelPack)
+	renderModelPack(modelPack, allProperties)
 
-	color.New(color.Bold, term.ColorHiCyan).Println("🧠 Planner Defaults")
-	table := tablewriter.NewWriter(os.Stdout)
-	table.SetAutoWrapText(false)
-	table.SetHeader([]string{"Max Tokens", "Max Convo Tokens"})
-	table.Append([]string{
-		fmt.Sprintf("%d", modelPack.Planner.GetFinalLargeContextFallback().BaseModelConfig.MaxTokens),
-		fmt.Sprintf("%d", modelPack.Planner.MaxConvoTokens),
-	})
-	table.Render()
-	fmt.Println()
+	if allProperties {
+		color.New(color.Bold, term.ColorHiCyan).Println("🧠 Planner Defaults")
+		table := tablewriter.NewWriter(os.Stdout)
+		table.SetAutoWrapText(false)
+		table.SetHeader([]string{"Max Tokens", "Max Convo Tokens"})
+		table.Append([]string{
+			fmt.Sprintf("%d", modelPack.Planner.GetFinalLargeContextFallback().GetSharedBaseConfig().MaxTokens),
+			fmt.Sprintf("%d", modelPack.Planner.MaxConvoTokens),
+		})
+		table.Render()
+		fmt.Println()
 
-	color.New(color.Bold, term.ColorHiCyan).Println("⚙️  Planner Overrides")
-	table = tablewriter.NewWriter(os.Stdout)
-	table.SetAutoWrapText(false)
-	table.SetHeader([]string{"Name", "Value"})
-	if settings.ModelOverrides.MaxTokens == nil {
-		table.Append([]string{"Max Tokens", "no override"})
-	} else {
-		table.Append([]string{"Max Tokens", fmt.Sprintf("%d", *settings.ModelOverrides.MaxTokens)})
+		color.New(color.Bold, term.ColorHiCyan).Println("⚙️  Planner Overrides")
+		table = tablewriter.NewWriter(os.Stdout)
+		table.SetAutoWrapText(false)
+		table.SetHeader([]string{"Name", "Value"})
+		if settings.ModelOverrides.MaxTokens == nil {
+			table.Append([]string{"Max Tokens", "no override"})
+		} else {
+			table.Append([]string{"Max Tokens", fmt.Sprintf("%d", *settings.ModelOverrides.MaxTokens)})
+		}
+		if settings.ModelOverrides.MaxConvoTokens == nil {
+			table.Append([]string{"Max Convo Tokens", "no override"})
+		} else {
+			table.Append([]string{"Max Convo Tokens", fmt.Sprintf("%d", *settings.ModelOverrides.MaxConvoTokens)})
+		}
+		table.Render()
+		fmt.Println()
 	}
-	if settings.ModelOverrides.MaxConvoTokens == nil {
-		table.Append([]string{"Max Convo Tokens", "no override"})
-	} else {
-		table.Append([]string{"Max Convo Tokens", fmt.Sprintf("%d", *settings.ModelOverrides.MaxConvoTokens)})
-	}
-	table.Render()
-	fmt.Println()
 }
 
-func renderModelPack(modelPack *shared.ModelPack) {
+func renderModelPack(modelPack *shared.ModelPack, allProperties bool) {
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetAutoFormatHeaders(false)
 	table.SetAutoWrapText(true)
@@ -545,25 +553,37 @@ func renderModelPack(modelPack *shared.ModelPack) {
 	color.New(color.Bold, term.ColorHiCyan).Println("🤖 Models")
 	table = tablewriter.NewWriter(os.Stdout)
 	table.SetAutoWrapText(false)
-	table.SetHeader([]string{"Role", "Provider", "Model", "Temperature", "Top P", "Max Input"})
-	table.SetColumnAlignment([]int{
-		tablewriter.ALIGN_LEFT,  // Role
-		tablewriter.ALIGN_LEFT,  // Provider
-		tablewriter.ALIGN_LEFT,  // Model
-		tablewriter.ALIGN_RIGHT, // Temperature
-		tablewriter.ALIGN_RIGHT, // Top P
-		tablewriter.ALIGN_RIGHT, // Max Input
-	})
+	cols := []string{
+		"Role",
+		"Model",
+	}
+	align := []int{
+		tablewriter.ALIGN_LEFT, // Role
+		tablewriter.ALIGN_LEFT, // Model
+	}
+	if allProperties {
+		cols = append(cols, []string{
+			"Temperature",
+			"Top P",
+			"Max Input",
+		}...)
+		align = append(align, []int{
+			tablewriter.ALIGN_RIGHT, // Temperature
+			tablewriter.ALIGN_RIGHT, // Top P
+			tablewriter.ALIGN_RIGHT, // Max Input
+		}...)
+	}
+	table.SetHeader(cols)
+	table.SetColumnAlignment(align)
 
 	anyRoleParamsDisabled := false
 
 	addModelRow := func(role string, config shared.ModelRoleConfig) {
-
 		var temp float32
 		var topP float32
 		var disabled bool
 
-		if config.BaseModelConfig.RoleParamsDisabled {
+		if config.GetSharedBaseConfig().RoleParamsDisabled {
 			temp = 1
 			topP = 1
 			disabled = true
@@ -583,19 +603,24 @@ func renderModelPack(modelPack *shared.ModelPack) {
 			topPStr = "*" + topPStr
 		}
 
-		table.Append([]string{
+		row := []string{
 			role,
-			string(config.BaseModelConfig.Provider),
-			string(config.BaseModelConfig.ModelId),
-			tempStr,
-			topPStr,
-			fmt.Sprintf("%d 🪙", config.BaseModelConfig.MaxTokens-config.GetReservedOutputTokens()),
-		})
+			string(config.ModelId),
+		}
+
+		if allProperties {
+			row = append(row, []string{
+				tempStr,
+				topPStr,
+				fmt.Sprintf("%d 🪙", config.GetSharedBaseConfig().MaxTokens-config.GetReservedOutputTokens()),
+			}...)
+		}
+		table.Append(row)
 
 		// Add large context and large output fallback(s) if present
 
 		if config.LargeContextFallback != nil {
-			if config.LargeContextFallback.BaseModelConfig.RoleParamsDisabled {
+			if config.LargeContextFallback.GetSharedBaseConfig().RoleParamsDisabled {
 				temp = 1
 				topP = 1
 				disabled = true
@@ -615,18 +640,23 @@ func renderModelPack(modelPack *shared.ModelPack) {
 				topPStr = "*" + topPStr
 			}
 
-			table.Append([]string{
+			row = []string{
 				"└─ large-context",
-				string(config.LargeContextFallback.BaseModelConfig.Provider),
-				string(config.LargeContextFallback.BaseModelConfig.ModelId),
-				tempStr,
-				topPStr,
-				fmt.Sprintf("%d 🪙", config.LargeContextFallback.BaseModelConfig.MaxTokens-config.LargeContextFallback.GetReservedOutputTokens()),
-			})
+				string(config.LargeContextFallback.ModelId),
+			}
+			if allProperties {
+				row = append(row, []string{
+					tempStr,
+					topPStr,
+					fmt.Sprintf("%d 🪙", config.LargeContextFallback.GetSharedBaseConfig().MaxTokens-config.LargeContextFallback.GetReservedOutputTokens()),
+				}...)
+			}
+
+			table.Append(row)
 		}
 
 		if config.LargeOutputFallback != nil {
-			if config.LargeOutputFallback.BaseModelConfig.RoleParamsDisabled {
+			if config.LargeOutputFallback.GetSharedBaseConfig().RoleParamsDisabled {
 				temp = 1
 				topP = 1
 				disabled = true
@@ -646,22 +676,27 @@ func renderModelPack(modelPack *shared.ModelPack) {
 				topPStr = "*" + topPStr
 			}
 
-			table.Append([]string{
+			row := []string{
 				"└─ large-output",
-				string(config.LargeOutputFallback.BaseModelConfig.Provider),
-				string(config.LargeOutputFallback.BaseModelConfig.ModelId),
-				tempStr,
-				topPStr,
-				fmt.Sprintf("%d 🪙", config.LargeOutputFallback.BaseModelConfig.MaxTokens-config.LargeOutputFallback.GetReservedOutputTokens()),
-			})
+				string(config.LargeOutputFallback.ModelId),
+			}
+			if allProperties {
+				row = append(row, []string{
+					tempStr,
+					topPStr,
+					fmt.Sprintf("%d 🪙", config.LargeOutputFallback.GetSharedBaseConfig().MaxTokens-config.LargeOutputFallback.GetReservedOutputTokens()),
+				}...)
+			}
+			table.Append(row)
 		}
 	}
 
+	// Handle planner separately since it has a different fallback structure
 	var temp float32
 	var topP float32
 	var disabled bool
 
-	if modelPack.Planner.BaseModelConfig.RoleParamsDisabled {
+	if modelPack.Planner.GetSharedBaseConfig().RoleParamsDisabled {
 		temp = 1
 		topP = 1
 		disabled = true
@@ -681,21 +716,25 @@ func renderModelPack(modelPack *shared.ModelPack) {
 		topPStr = "*" + topPStr
 	}
 
-	// Handle planner separately since it has a different fallback structure
-	table.Append([]string{
+	row := []string{
 		string(shared.ModelRolePlanner),
-		string(modelPack.Planner.BaseModelConfig.Provider),
-		string(modelPack.Planner.BaseModelConfig.ModelId),
-		tempStr,
-		topPStr,
-		fmt.Sprintf("%d 🪙", modelPack.Planner.BaseModelConfig.MaxTokens-modelPack.Planner.GetReservedOutputTokens()),
-	})
+		string(modelPack.Planner.ModelId),
+	}
+	if allProperties {
+		row = append(row, []string{
+			tempStr,
+			topPStr,
+			fmt.Sprintf("%d 🪙", modelPack.Planner.GetSharedBaseConfig().MaxTokens-modelPack.Planner.GetReservedOutputTokens()),
+		}...)
+	}
+	table.Append(row)
+
 	if modelPack.Planner.LargeContextFallback != nil {
 		var temp float32
 		var topP float32
 		var disabled bool
 
-		if modelPack.Planner.LargeContextFallback.BaseModelConfig.RoleParamsDisabled {
+		if modelPack.Planner.LargeContextFallback.GetSharedBaseConfig().RoleParamsDisabled {
 			temp = 1
 			topP = 1
 			disabled = true
@@ -715,14 +754,18 @@ func renderModelPack(modelPack *shared.ModelPack) {
 			topPStr = "*" + topPStr
 		}
 
-		table.Append([]string{
+		row := []string{
 			"└─ large-context",
-			string(modelPack.Planner.LargeContextFallback.BaseModelConfig.Provider),
-			string(modelPack.Planner.LargeContextFallback.BaseModelConfig.ModelId),
-			tempStr,
-			topPStr,
-			fmt.Sprintf("%d 🪙", modelPack.Planner.LargeContextFallback.BaseModelConfig.MaxTokens-modelPack.Planner.LargeContextFallback.GetReservedOutputTokens()),
-		})
+			string(modelPack.Planner.LargeContextFallback.ModelId),
+		}
+		if allProperties {
+			row = append(row, []string{
+				tempStr,
+				topPStr,
+				fmt.Sprintf("%d 🪙", modelPack.Planner.LargeContextFallback.GetSharedBaseConfig().MaxTokens-modelPack.Planner.LargeContextFallback.GetReservedOutputTokens()),
+			}...)
+		}
+		table.Append(row)
 	}
 
 	addModelRow(string(shared.ModelRoleArchitect), modelPack.GetArchitect())
@@ -735,7 +778,7 @@ func renderModelPack(modelPack *shared.ModelPack) {
 	addModelRow(string(shared.ModelRoleExecStatus), modelPack.ExecStatus)
 	table.Render()
 
-	if anyRoleParamsDisabled {
+	if anyRoleParamsDisabled && allProperties {
 		fmt.Println("* these models do not support changing temperature or top p")
 	}
 

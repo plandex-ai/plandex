@@ -10,9 +10,9 @@ Look at 'build_exec.go' for an example of how to extract XML from a response.
 
 For each of the LLM calls:
 
-- Before the call, you'll need to check the model config to see if the 'PreferredModelOutputFormat' field is set to xml/tool call json. We'll need to branch all the logic and prompts based on this.
+- Before the call, you'll need to check the model config to see if the 'PreferredOutputFormat' field is set to xml/tool call json. We'll need to branch all the logic and prompts based on this.
 
-- Add new prompting to output the same data using xml tags instead of a JSON function call if the model's 'PreferredModelOutputFormat' field is set to 'Xml'. do not use XML attributes, just simple tags. if there are multiple results in the json schema for the function call, update the prompt to output multiple tags. keep the rest of the prompts exactly the same. You can refactor shared aspects of the prompts between the xml version and the tool call json version.
+- Add new prompting to output the same data using xml tags instead of a JSON function call if the model's 'PreferredOutputFormat' field is set to 'Xml'. do not use XML attributes, just simple tags. if there are multiple results in the json schema for the function call, update the prompt to output multiple tags. keep the rest of the prompts exactly the same. You can refactor shared aspects of the prompts between the xml version and the tool call json version.
 
 - Look at the corresponding prompts for the build (in prompt/build.go) and use similar language for outputting xml tags in the xml versions of prompts.
 

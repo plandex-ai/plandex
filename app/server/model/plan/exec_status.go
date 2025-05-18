@@ -119,11 +119,11 @@ func (state *activeTellStreamState) execStatusShouldContinue(currentMessage stri
 	}
 
 	prompt := prompts.GetExecStatusFinishedSubtask(prompts.GetExecStatusFinishedSubtaskParams{
-		UserPrompt:                 state.userPrompt,
-		CurrentSubtask:             fullSubtask,
-		CurrentMessage:             currentMessage,
-		PreviousMessages:           previousMessages,
-		PreferredModelOutputFormat: baseModelConfig.PreferredModelOutputFormat,
+		UserPrompt:            state.userPrompt,
+		CurrentSubtask:        fullSubtask,
+		CurrentMessage:        currentMessage,
+		PreviousMessages:      previousMessages,
+		PreferredOutputFormat: baseModelConfig.PreferredOutputFormat,
 	})
 
 	messages := []types.ExtendedChatMessage{
@@ -161,7 +161,7 @@ func (state *activeTellStreamState) execStatusShouldContinue(currentMessage stri
 	var reasoning string
 	var subtaskFinished bool
 
-	if baseModelConfig.PreferredModelOutputFormat == shared.ModelOutputFormatXml {
+	if baseModelConfig.PreferredOutputFormat == shared.ModelOutputFormatXml {
 		reasoning = utils.GetXMLContent(content, "reasoning")
 		subtaskFinishedStr := utils.GetXMLContent(content, "subtaskFinished")
 		subtaskFinished = subtaskFinishedStr == "true"

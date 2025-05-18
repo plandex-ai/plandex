@@ -1,6 +1,9 @@
 package db
 
 import (
+	"database/sql/driver"
+	"encoding/json"
+	"fmt"
 	"time"
 
 	shared "plandex-shared"
@@ -328,58 +331,223 @@ func (modelPack *ModelPack) ToApi() *shared.ModelPack {
 	}
 }
 
-type AvailableModel struct {
+// old version prior to 2.2.0 models refactor
+// type AvailableModel struct {
+// 	Id                    string                   `db:"id"`
+// 	OrgId                 string                   `db:"org_id"`
+// 	Provider              shared.ModelProvider     `db:"provider"`
+// 	CustomProvider        *string                  `db:"custom_provider"`
+// 	BaseUrl               string                   `db:"base_url"`
+// 	ModelTag              shared.ModelTag          `db:"model_tag"`
+// 	ModelId               shared.ModelId           `db:"model_id"`
+// 	ModelName             shared.ModelName         `db:"model_name"`
+// 	Description           string                   `db:"description"`
+// 	MaxTokens             int                      `db:"max_tokens"`
+// 	ApiKeyEnvVar          string                   `db:"api_key_env_var"`
+// 	DefaultMaxConvoTokens int                      `db:"default_max_convo_tokens"`
+// 	MaxOutputTokens       int                      `db:"max_output_tokens"`
+// 	ReservedOutputTokens  int                      `db:"reserved_output_tokens"`
+// 	HasImageSupport       bool                     `db:"has_image_support"`
+// 	PreferredOutputFormat shared.ModelOutputFormat `db:"preferred_output_format"`
+// 	CreatedAt             time.Time                `db:"created_at"`
+// 	UpdatedAt             time.Time                `db:"updated_at"`
+// }
+
+type CustomModel struct {
 	Id                    string                   `db:"id"`
 	OrgId                 string                   `db:"org_id"`
-	Provider              shared.ModelProvider     `db:"provider"`
-	CustomProvider        *string                  `db:"custom_provider"`
-	BaseUrl               string                   `db:"base_url"`
-	ModelTag              shared.ModelTag          `db:"model_tag"`
 	ModelId               shared.ModelId           `db:"model_id"`
-	ModelName             shared.ModelName         `db:"model_name"`
+	Publisher             shared.ModelPublisher    `db:"publisher"`
 	Description           string                   `db:"description"`
 	MaxTokens             int                      `db:"max_tokens"`
-	ApiKeyEnvVar          string                   `db:"api_key_env_var"`
 	DefaultMaxConvoTokens int                      `db:"default_max_convo_tokens"`
 	MaxOutputTokens       int                      `db:"max_output_tokens"`
 	ReservedOutputTokens  int                      `db:"reserved_output_tokens"`
 	HasImageSupport       bool                     `db:"has_image_support"`
 	PreferredOutputFormat shared.ModelOutputFormat `db:"preferred_output_format"`
-	CreatedAt             time.Time                `db:"created_at"`
-	UpdatedAt             time.Time                `db:"updated_at"`
+
+	SystemPromptDisabled   bool                   `db:"system_prompt_disabled"`
+	RoleParamsDisabled     bool                   `db:"role_params_disabled"`
+	StopDisabled           bool                   `db:"stop_disabled"`
+	PredictedOutputEnabled bool                   `db:"predicted_output_enabled"`
+	ReasoningEffortEnabled bool                   `db:"reasoning_effort_enabled"`
+	ReasoningEffort        shared.ReasoningEffort `db:"reasoning_effort"`
+	IncludeReasoning       bool                   `db:"include_reasoning"`
+	ReasoningBudget        int                    `db:"reasoning_budget"`
+	SupportsCacheControl   bool                   `db:"supports_cache_control"`
+	// for anthropic, single message system prompt needs to be flipped to 'user'
+	SingleMessageNoSystemPrompt bool `db:"single_message_no_system_prompt"`
+
+	// for anthropic, token estimate padding percentage
+	TokenEstimatePaddingPct float64 `db:"token_estimate_padding_pct"`
+
+	Providers CustomModelProviders `db:"providers"`
+
+	CreatedAt time.Time `db:"created_at"`
+	UpdatedAt time.Time `db:"updated_at"`
 }
 
-func (model *AvailableModel) ToApi() *shared.AvailableModel {
-	return &shared.AvailableModel{
-		Id: model.Id,
-		BaseModelConfig: shared.BaseModelConfig{
-			ModelTag: model.ModelTag,
-			ModelId:  model.ModelId,
+func CustomModelFromApi(apiModel *shared.CustomModel) *CustomModel {
+	providers := make(CustomModelProviders, len(apiModel.Providers))
+	for i, provider := range apiModel.Providers {
+		providers[i] = CustomModelUsesProvider{
+			Provider:       provider.Provider,
+			CustomProvider: provider.CustomProvider,
+			ModelName:      provider.ModelName,
+		}
+	}
+	dbModel := CustomModel{
+		Id:                          apiModel.Id,
+		ModelId:                     apiModel.ModelId,
+		Publisher:                   apiModel.Publisher,
+		Description:                 apiModel.Description,
+		MaxTokens:                   apiModel.MaxTokens,
+		HasImageSupport:             apiModel.ModelCompatibility.HasImageSupport,
+		DefaultMaxConvoTokens:       apiModel.DefaultMaxConvoTokens,
+		MaxOutputTokens:             apiModel.MaxOutputTokens,
+		ReservedOutputTokens:        apiModel.ReservedOutputTokens,
+		PreferredOutputFormat:       apiModel.PreferredOutputFormat,
+		SystemPromptDisabled:        apiModel.SystemPromptDisabled,
+		RoleParamsDisabled:          apiModel.RoleParamsDisabled,
+		StopDisabled:                apiModel.StopDisabled,
+		PredictedOutputEnabled:      apiModel.PredictedOutputEnabled,
+		IncludeReasoning:            apiModel.IncludeReasoning,
+		ReasoningEffortEnabled:      apiModel.ReasoningEffortEnabled,
+		ReasoningEffort:             apiModel.ReasoningEffort,
+		ReasoningBudget:             apiModel.ReasoningBudget,
+		SupportsCacheControl:        apiModel.SupportsCacheControl,
+		SingleMessageNoSystemPrompt: apiModel.SingleMessageNoSystemPrompt,
+		TokenEstimatePaddingPct:     apiModel.TokenEstimatePaddingPct,
+		Providers:                   providers,
+	}
 
-			BaseModelShared: shared.BaseModelShared{
-				MaxTokens:            model.MaxTokens,
-				MaxOutputTokens:      model.MaxOutputTokens,
-				ReservedOutputTokens: model.ReservedOutputTokens,
-				ModelCompatibility: shared.ModelCompatibility{
-					HasImageSupport: model.HasImageSupport,
-				},
-			},
+	return &dbModel
+}
 
-			BaseModelProviderConfig: shared.BaseModelProviderConfig{
-				ModelName: model.ModelName,
-				ModelProviderConfigSchema: shared.ModelProviderConfigSchema{
-					Provider:       model.Provider,
-					CustomProvider: model.CustomProvider,
-					BaseUrl:        model.BaseUrl,
-					ApiKeyEnvVar:   model.ApiKeyEnvVar,
-				},
+func (model *CustomModel) ToApi() *shared.CustomModel {
+	providers := make([]shared.BaseModelUsesProvider, len(model.Providers))
+	for i, provider := range model.Providers {
+		providers[i] = *provider.ToApi()
+	}
+	return &shared.CustomModel{
+		Id:          model.Id,
+		ModelId:     model.ModelId,
+		Publisher:   model.Publisher,
+		Description: model.Description,
+		BaseModelShared: shared.BaseModelShared{
+			DefaultMaxConvoTokens:       model.DefaultMaxConvoTokens,
+			MaxTokens:                   model.MaxTokens,
+			MaxOutputTokens:             model.MaxOutputTokens,
+			ReservedOutputTokens:        model.ReservedOutputTokens,
+			PreferredOutputFormat:       model.PreferredOutputFormat,
+			SystemPromptDisabled:        model.SystemPromptDisabled,
+			RoleParamsDisabled:          model.RoleParamsDisabled,
+			StopDisabled:                model.StopDisabled,
+			PredictedOutputEnabled:      model.PredictedOutputEnabled,
+			IncludeReasoning:            model.IncludeReasoning,
+			ReasoningEffortEnabled:      model.ReasoningEffortEnabled,
+			ReasoningEffort:             model.ReasoningEffort,
+			ReasoningBudget:             model.ReasoningBudget,
+			SupportsCacheControl:        model.SupportsCacheControl,
+			SingleMessageNoSystemPrompt: model.SingleMessageNoSystemPrompt,
+			TokenEstimatePaddingPct:     model.TokenEstimatePaddingPct,
+
+			ModelCompatibility: shared.ModelCompatibility{
+				HasImageSupport: model.HasImageSupport,
 			},
 		},
-		Description:           model.Description,
-		DefaultMaxConvoTokens: model.DefaultMaxConvoTokens,
-		CreatedAt:             model.CreatedAt,
-		UpdatedAt:             model.UpdatedAt,
+		Providers: providers,
 	}
+}
+
+type ExtraAuthVars []shared.ModelProviderExtraAuthVars
+
+func (e *ExtraAuthVars) Scan(src interface{}) error {
+	if src == nil {
+		return nil
+	}
+
+	switch s := src.(type) {
+	case []byte:
+		return json.Unmarshal(s, e)
+	case string:
+		return json.Unmarshal([]byte(s), e)
+	default:
+		return fmt.Errorf("unsupported data type: %T", src)
+	}
+}
+
+func (e ExtraAuthVars) Value() (driver.Value, error) {
+	return json.Marshal(e)
+}
+
+type CustomProvider struct {
+	Id            string        `db:"id"`
+	OrgId         string        `db:"org_id"`
+	Name          string        `db:"name"`
+	BaseUrl       string        `db:"base_url"`
+	SkipAuth      bool          `db:"skip_auth"`
+	ApiKeyEnvVar  string        `db:"api_key_env_var"`
+	ExtraAuthVars ExtraAuthVars `db:"extra_auth_vars"`
+	CreatedAt     time.Time     `db:"created_at"`
+	UpdatedAt     time.Time     `db:"updated_at"`
+}
+
+func CustomProviderFromApi(apiProvider *shared.CustomProvider) *CustomProvider {
+	return &CustomProvider{
+		Id:            apiProvider.Id,
+		Name:          apiProvider.Name,
+		BaseUrl:       apiProvider.BaseUrl,
+		SkipAuth:      apiProvider.SkipAuth,
+		ApiKeyEnvVar:  apiProvider.ApiKeyEnvVar,
+		ExtraAuthVars: apiProvider.ExtraAuthVars,
+	}
+}
+
+func (provider *CustomProvider) ToApi() *shared.CustomProvider {
+	return &shared.CustomProvider{
+		Id:            provider.Id,
+		Name:          provider.Name,
+		BaseUrl:       provider.BaseUrl,
+		SkipAuth:      provider.SkipAuth,
+		ApiKeyEnvVar:  provider.ApiKeyEnvVar,
+		ExtraAuthVars: provider.ExtraAuthVars,
+	}
+}
+
+type CustomModelUsesProvider struct {
+	Provider       shared.ModelProvider `db:"provider"`
+	CustomProvider *string              `db:"custom_provider"`
+	ModelName      shared.ModelName     `db:"model_name"`
+}
+
+func (usesProvider *CustomModelUsesProvider) ToApi() *shared.BaseModelUsesProvider {
+	return &shared.BaseModelUsesProvider{
+		Provider:       usesProvider.Provider,
+		ModelName:      usesProvider.ModelName,
+		CustomProvider: usesProvider.CustomProvider,
+	}
+}
+
+type CustomModelProviders []CustomModelUsesProvider
+
+func (providers *CustomModelProviders) Scan(src interface{}) error {
+	if src == nil {
+		return nil
+	}
+
+	switch s := src.(type) {
+	case []byte:
+		return json.Unmarshal(s, providers)
+	case string:
+		return json.Unmarshal([]byte(s), providers)
+	}
+
+	return fmt.Errorf("unsupported data type: %T", src)
+}
+
+func (providers *CustomModelProviders) Value() (driver.Value, error) {
+	return json.Marshal(providers)
 }
 
 type DefaultPlanSettings struct {

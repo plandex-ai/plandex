@@ -50,6 +50,7 @@ func (t *authenticatedTransport) RoundTrip(req *http.Request) (*http.Response, e
 	if err != nil {
 		return nil, err
 	}
+	auth.SetVersionHeader(req)
 	return t.underlyingTransport.RoundTrip(req)
 }
 
@@ -58,6 +59,7 @@ type unauthenticatedTransport struct {
 }
 
 func (t *unauthenticatedTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	auth.SetVersionHeader(req)
 	return t.underlyingTransport.RoundTrip(req)
 }
 

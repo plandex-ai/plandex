@@ -16,9 +16,22 @@ var RequiredCompatibilityByRole = map[ModelRole]ModelCompatibility{
 	ModelRoleWholeFileBuilder: {},
 }
 
-func FilterCompatibleModels(models []*AvailableModel, role ModelRole) []*AvailableModel {
+func FilterBuiltInCompatibleModels(models []*BaseModelConfigSchema, role ModelRole) []*BaseModelConfigSchema {
 	// required := RequiredCompatibilityByRole[role]
-	var compatibleModels []*AvailableModel
+	var compatibleModels []*BaseModelConfigSchema
+
+	for _, model := range models {
+		// no compatibility checks are needed in v2, but keeping this here in case compatibility checks are needed in the future
+
+		compatibleModels = append(compatibleModels, model)
+	}
+
+	return compatibleModels
+}
+
+func FilterCustomCompatibleModels(models []*CustomModel, role ModelRole) []*CustomModel {
+	// required := RequiredCompatibilityByRole[role]
+	var compatibleModels []*CustomModel
 
 	for _, model := range models {
 		// no compatibility checks are needed in v2, but keeping this here in case compatibility checks are needed in the future

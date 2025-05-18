@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"plandex-server/model"
@@ -18,7 +19,10 @@ func main() {
 		return router.HandleFunc(path, handler)
 	})
 
-	model.EnsureLiteLLM(2)
+	err := model.EnsureLiteLLM(2)
+	if err != nil {
+		panic(fmt.Sprintf("Failed to start LiteLLM proxy: %v", err))
+	}
 	setup.RegisterShutdownHook(func() {
 		model.ShutdownLiteLLMServer()
 	})

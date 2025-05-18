@@ -32,7 +32,7 @@ func GenPlanName(
 	baseModelConfig := config.GetBaseModelConfig(authVars)
 
 	var sysPrompt string
-	if baseModelConfig.PreferredModelOutputFormat == shared.ModelOutputFormatXml {
+	if baseModelConfig.PreferredOutputFormat == shared.ModelOutputFormatXml {
 		sysPrompt = prompts.SysPlanNameXml
 	} else {
 		sysPrompt = prompts.SysPlanName
@@ -86,7 +86,7 @@ func GenPlanName(
 	var planName string
 	content := modelRes.Content
 
-	if baseModelConfig.PreferredModelOutputFormat == shared.ModelOutputFormatXml {
+	if baseModelConfig.PreferredOutputFormat == shared.ModelOutputFormatXml {
 		planName = utils.GetXMLContent(content, "planName")
 		if planName == "" {
 			return "", fmt.Errorf("No planName tag found in XML response")
@@ -127,7 +127,7 @@ func GenPipedDataName(
 
 	baseModelConfig := config.GetBaseModelConfig(authVars)
 
-	if baseModelConfig.PreferredModelOutputFormat == shared.ModelOutputFormatXml {
+	if baseModelConfig.PreferredOutputFormat == shared.ModelOutputFormatXml {
 		sysPrompt = prompts.SysPipedDataNameXml
 	} else {
 		sysPrompt = prompts.SysPipedDataName
@@ -181,7 +181,7 @@ func GenPipedDataName(
 	var name string
 	content := modelRes.Content
 
-	if baseModelConfig.PreferredModelOutputFormat == shared.ModelOutputFormatXml {
+	if baseModelConfig.PreferredOutputFormat == shared.ModelOutputFormatXml {
 		name = utils.GetXMLContent(content, "name")
 		if name == "" {
 			return "", fmt.Errorf("No name tag found in XML response")
@@ -222,7 +222,7 @@ func GenNoteName(
 
 	baseModelConfig := config.GetBaseModelConfig(authVars)
 
-	if baseModelConfig.PreferredModelOutputFormat == shared.ModelOutputFormatXml {
+	if baseModelConfig.PreferredOutputFormat == shared.ModelOutputFormatXml {
 		sysPrompt = prompts.SysNoteNameXml
 	} else {
 		sysPrompt = prompts.SysNoteName
@@ -276,7 +276,7 @@ func GenNoteName(
 	var name string
 	content := modelRes.Content
 
-	if baseModelConfig.PreferredModelOutputFormat == shared.ModelOutputFormatXml {
+	if baseModelConfig.PreferredOutputFormat == shared.ModelOutputFormatXml {
 		name = utils.GetXMLContent(content, "name")
 		if name == "" {
 			return "", fmt.Errorf("No name tag found in XML response")

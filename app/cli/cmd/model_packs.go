@@ -59,6 +59,7 @@ func init() {
 	modelPacksCmd.AddCommand(updateModelPackCmd)
 	modelPacksCmd.AddCommand(showModelPackCmd)
 	modelPacksCmd.Flags().BoolVarP(&customModelPacksOnly, "custom", "c", false, "Only show custom model packs")
+	modelPacksCmd.Flags().BoolVarP(&allProperties, "all", "a", false, "Show all properties")
 }
 
 func deleteModelPack(cmd *cobra.Command, args []string) {
@@ -313,7 +314,7 @@ func updateModelPack(cmd *cobra.Command, args []string) {
 		roleOpts[i] = string(role)
 	}
 
-	renderModelPack(toUpdate)
+	renderModelPack(toUpdate, allProperties)
 
 	for {
 		selected, err := term.SelectFromList("Select a role to update:", roleOpts)
@@ -430,19 +431,19 @@ func showModelPack(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	renderModelPack(modelPack)
+	renderModelPack(modelPack, allProperties)
 
 	fmt.Println()
 
 	term.PrintCmds("", "model-packs update", "model-packs delete", "set-model", "set-model default")
 }
 
-func getModelRoleConfig(customModels []*shared.AvailableModel, modelRole shared.ModelRole) shared.ModelRoleConfig {
+func getModelRoleConfig(customModels []*shared.CustomModel, modelRole shared.ModelRole) shared.ModelRoleConfig {
 	_, modelConfig := getModelWithRoleConfig(customModels, modelRole)
 	return modelConfig
 }
 
-func getModelWithRoleConfig(customModels []*shared.AvailableModel, modelRole shared.ModelRole) (*shared.AvailableModel, shared.ModelRoleConfig) {
+func getModelWithRoleConfig(customModels []*shared.CustomModel, modelRole shared.ModelRole) (*shared.CustomModel, shared.ModelRoleConfig) {
 	role := string(modelRole)
 
 	model := getModelForRole(customModels, modelRole)
@@ -478,15 +479,15 @@ func getModelWithRoleConfig(customModels []*shared.AvailableModel, modelRole sha
 	}
 
 	return model, shared.ModelRoleConfig{
+		ModelId:              model.ModelId,
 		Role:                 modelRole,
-		BaseModelConfig:      &model.BaseModelConfig,
 		Temperature:          float32(temperature),
 		TopP:                 float32(topP),
 		ReservedOutputTokens: reservedOutputTokens,
 	}
 }
 
-func getPlannerRoleConfig(customModels []*shared.AvailableModel) shared.PlannerRoleConfig {
+func getPlannerRoleConfig(customModels []*shared.CustomModel) shared.PlannerRoleConfig {
 	model, modelConfig := getModelWithRoleConfig(customModels, shared.ModelRolePlanner)
 
 	return shared.PlannerRoleConfig{
@@ -497,7 +498,7 @@ func getPlannerRoleConfig(customModels []*shared.AvailableModel) shared.PlannerR
 	}
 }
 
-func getModelForRole(customModels []*shared.AvailableModel, role shared.ModelRole) *shared.AvailableModel {
+func getModelForRole(customModels []*shared.CustomModel, role shared.ModelRole) *shared.CustomModel {
 	color.New(color.Bold).Printf("Select a model for the %s role 👇\n", role)
 	return lib.SelectModelForRole(customModels, role, false)
 }

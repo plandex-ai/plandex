@@ -123,7 +123,7 @@ func addApiRoutes(r *mux.Router, prefix string) {
 
 	HandlePlandexFn(r, prefix+"/projects/{projectId}/plans", false, handlers.CreatePlanHandler).Methods("POST")
 
-	HandlePlandexFn(r, prefix+"/projects/{projectId}/plans", false, handlers.CreatePlanHandler).Methods("DELETE")
+	HandlePlandexFn(r, prefix+"/projects/{projectId}/plans", false, handlers.DeleteAllPlansHandler).Methods("DELETE")
 
 	HandlePlandexFn(r, prefix+"/plans/{planId}", false, handlers.GetPlanHandler).Methods("GET")
 	HandlePlandexFn(r, prefix+"/plans/{planId}", false, handlers.DeletePlanHandler).Methods("DELETE")
@@ -164,8 +164,15 @@ func addApiRoutes(r *mux.Router, prefix string) {
 
 	HandlePlandexFn(r, prefix+"/custom_models", false, handlers.ListCustomModelsHandler).Methods("GET")
 	HandlePlandexFn(r, prefix+"/custom_models", false, handlers.CreateCustomModelHandler).Methods("POST")
-	HandlePlandexFn(r, prefix+"/custom_models/{modelId}", false, handlers.DeleteAvailableModelHandler).Methods("DELETE")
+	HandlePlandexFn(r, prefix+"/custom_models/{modelId}", false, handlers.DeleteCustomModelHandler).Methods("DELETE")
 	HandlePlandexFn(r, prefix+"/custom_models/{modelId}", false, handlers.UpdateCustomModelHandler).Methods("PUT")
+	HandlePlandexFn(r, prefix+"/custom_models/{modelId}", false, handlers.GetCustomModelHandler).Methods("GET")
+
+	HandlePlandexFn(r, prefix+"/custom_providers", false, handlers.ListCustomProvidersHandler).Methods("GET")
+	HandlePlandexFn(r, prefix+"/custom_providers", false, handlers.CreateCustomProviderHandler).Methods("POST")
+	HandlePlandexFn(r, prefix+"/custom_providers/{providerId}", false, handlers.DeleteCustomProviderHandler).Methods("DELETE")
+	HandlePlandexFn(r, prefix+"/custom_providers/{providerId}", false, handlers.UpdateCustomProviderHandler).Methods("PUT")
+	HandlePlandexFn(r, prefix+"/custom_providers/{providerId}", false, handlers.GetCustomProviderHandler).Methods("GET")
 
 	HandlePlandexFn(r, prefix+"/model_sets", false, handlers.ListModelPacksHandler).Methods("GET")
 	HandlePlandexFn(r, prefix+"/model_sets", false, handlers.CreateModelPackHandler).Methods("POST")

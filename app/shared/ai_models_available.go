@@ -31,7 +31,7 @@ When checking for sufficient credits on Plandex Cloud, we use MaxOutputTokens-In
 
 'BaseUrl' is the base URL for the provider.
 
-'PreferredModelOutputFormat' is the preferred output format for the model—currently either 'ModelOutputFormatToolCallJson' or 'ModelOutputFormatXml' — OpenAI models like JSON (and benefit from strict JSON schemas), while most other providers are unreliable for JSON generation and do better with XML, even if they claim to support JSON.
+'PreferredOutputFormat' is the preferred output format for the model—currently either 'ModelOutputFormatToolCallJson' or 'ModelOutputFormatXml' — OpenAI models like JSON (and benefit from strict JSON schemas), while most other providers are unreliable for JSON generation and do better with XML, even if they claim to support JSON.
 
 'RoleParamsDisabled' is used to disable role-based parameters like temperature, top_p, etc. for the model—OpenAI early releases often don't allow changes to these.
 
@@ -48,21 +48,21 @@ When checking for sufficient credits on Plandex Cloud, we use MaxOutputTokens-In
 
 var BuiltInModels = []*BaseModelConfigSchema{
 	{
-		ModelTag:              "openai/o3",
-		Publisher:             ModelPublisherOpenAI,
-		Description:           "OpenAI o3",
-		DefaultMaxConvoTokens: 15000,
+		ModelTag:    "openai/o3",
+		Publisher:   ModelPublisherOpenAI,
+		Description: "OpenAI o3",
 
 		BaseModelShared: BaseModelShared{
-			MaxTokens:                  200000,
-			MaxOutputTokens:            100000,
-			ReservedOutputTokens:       40000, // 25k for reasoning, 15k for output
-			ModelCompatibility:         fullCompatibility,
-			PreferredModelOutputFormat: ModelOutputFormatXml,
-			SystemPromptDisabled:       true,
-			RoleParamsDisabled:         true,
-			ReasoningEffortEnabled:     true,
-			StopDisabled:               true,
+			DefaultMaxConvoTokens:  15000,
+			MaxTokens:              200000,
+			MaxOutputTokens:        100000,
+			ReservedOutputTokens:   40000, // 25k for reasoning, 15k for output
+			ModelCompatibility:     fullCompatibility,
+			PreferredOutputFormat:  ModelOutputFormatXml,
+			SystemPromptDisabled:   true,
+			RoleParamsDisabled:     true,
+			ReasoningEffortEnabled: true,
+			StopDisabled:           true,
 		},
 
 		RequiresVariantOverrides: []string{
@@ -109,22 +109,22 @@ var BuiltInModels = []*BaseModelConfigSchema{
 		},
 	},
 	{
-		ModelTag:              "openai/o4-mini",
-		Publisher:             ModelPublisherOpenAI,
-		Description:           "OpenAI o4-mini",
-		DefaultMaxConvoTokens: 10000,
+		ModelTag:    "openai/o4-mini",
+		Publisher:   ModelPublisherOpenAI,
+		Description: "OpenAI o4-mini",
 
 		BaseModelShared: BaseModelShared{
-			MaxTokens:                  200000,
-			MaxOutputTokens:            100000,
-			ReservedOutputTokens:       40000, // 25k for reasoning, 15k for output
-			ModelCompatibility:         fullCompatibility,
-			PreferredModelOutputFormat: ModelOutputFormatToolCallJson,
-			SystemPromptDisabled:       true,
-			RoleParamsDisabled:         true,
-			ReasoningEffortEnabled:     true,
-			ReasoningEffort:            ReasoningEffortHigh,
-			StopDisabled:               true,
+			DefaultMaxConvoTokens:  10000,
+			MaxTokens:              200000,
+			MaxOutputTokens:        100000,
+			ReservedOutputTokens:   40000, // 25k for reasoning, 15k for output
+			ModelCompatibility:     fullCompatibility,
+			PreferredOutputFormat:  ModelOutputFormatToolCallJson,
+			SystemPromptDisabled:   true,
+			RoleParamsDisabled:     true,
+			ReasoningEffortEnabled: true,
+			ReasoningEffort:        ReasoningEffortHigh,
+			StopDisabled:           true,
 		},
 
 		RequiresVariantOverrides: []string{
@@ -174,17 +174,17 @@ var BuiltInModels = []*BaseModelConfigSchema{
 	},
 
 	{
-		ModelTag:              "openai/gpt-4.1",
-		Publisher:             ModelPublisherOpenAI,
-		Description:           "OpenAI gpt-4.1",
-		DefaultMaxConvoTokens: 75000,
+		ModelTag:    "openai/gpt-4.1",
+		Publisher:   ModelPublisherOpenAI,
+		Description: "OpenAI gpt-4.1",
 
 		BaseModelShared: BaseModelShared{
-			MaxTokens:                  1047576,
-			MaxOutputTokens:            32768,
-			ReservedOutputTokens:       32768,
-			ModelCompatibility:         fullCompatibility,
-			PreferredModelOutputFormat: ModelOutputFormatToolCallJson,
+			DefaultMaxConvoTokens: 75000,
+			MaxTokens:             1047576,
+			MaxOutputTokens:       32768,
+			ReservedOutputTokens:  32768,
+			ModelCompatibility:    fullCompatibility,
+			PreferredOutputFormat: ModelOutputFormatToolCallJson,
 		},
 
 		Providers: []BaseModelUsesProvider{
@@ -204,17 +204,17 @@ var BuiltInModels = []*BaseModelConfigSchema{
 	},
 
 	{
-		ModelTag:              "openai/gpt-4.1-mini",
-		Publisher:             ModelPublisherOpenAI,
-		Description:           "OpenAI gpt-4.1-mini",
-		DefaultMaxConvoTokens: 75000,
+		ModelTag:    "openai/gpt-4.1-mini",
+		Publisher:   ModelPublisherOpenAI,
+		Description: "OpenAI gpt-4.1-mini",
 
 		BaseModelShared: BaseModelShared{
-			MaxTokens:                  1047576,
-			MaxOutputTokens:            32768,
-			ReservedOutputTokens:       32768,
-			ModelCompatibility:         fullCompatibility,
-			PreferredModelOutputFormat: ModelOutputFormatToolCallJson,
+			DefaultMaxConvoTokens: 75000,
+			MaxTokens:             1047576,
+			MaxOutputTokens:       32768,
+			ReservedOutputTokens:  32768,
+			ModelCompatibility:    fullCompatibility,
+			PreferredOutputFormat: ModelOutputFormatToolCallJson,
 		},
 
 		Providers: []BaseModelUsesProvider{
@@ -234,17 +234,17 @@ var BuiltInModels = []*BaseModelConfigSchema{
 	},
 
 	{
-		ModelTag:              "openai/gpt-4.1-nano",
-		Publisher:             ModelPublisherOpenAI,
-		Description:           "OpenAI gpt-4.1-nano",
-		DefaultMaxConvoTokens: 75000,
+		ModelTag:    "openai/gpt-4.1-nano",
+		Publisher:   ModelPublisherOpenAI,
+		Description: "OpenAI gpt-4.1-nano",
 
 		BaseModelShared: BaseModelShared{
-			MaxTokens:                  1047576,
-			MaxOutputTokens:            32768,
-			ReservedOutputTokens:       32768,
-			ModelCompatibility:         fullCompatibility,
-			PreferredModelOutputFormat: ModelOutputFormatToolCallJson,
+			DefaultMaxConvoTokens: 75000,
+			MaxTokens:             1047576,
+			MaxOutputTokens:       32768,
+			ReservedOutputTokens:  32768,
+			ModelCompatibility:    fullCompatibility,
+			PreferredOutputFormat: ModelOutputFormatToolCallJson,
 		},
 
 		Providers: []BaseModelUsesProvider{
@@ -264,22 +264,22 @@ var BuiltInModels = []*BaseModelConfigSchema{
 	},
 
 	{
-		ModelTag:              "openai/o3-mini",
-		Publisher:             ModelPublisherOpenAI,
-		Description:           "OpenAI o3-mini",
-		DefaultMaxConvoTokens: 10000,
+		ModelTag:    "openai/o3-mini",
+		Publisher:   ModelPublisherOpenAI,
+		Description: "OpenAI o3-mini",
 
 		BaseModelShared: BaseModelShared{
-			MaxTokens:                  200000,
-			MaxOutputTokens:            100000,
-			ReservedOutputTokens:       40000, // 25k for reasoning, 15k for output
-			ModelCompatibility:         fullCompatibility,
-			PreferredModelOutputFormat: ModelOutputFormatToolCallJson,
-			SystemPromptDisabled:       true,
-			RoleParamsDisabled:         true,
-			ReasoningEffortEnabled:     true,
-			ReasoningEffort:            ReasoningEffortHigh,
-			StopDisabled:               true,
+			DefaultMaxConvoTokens:  10000,
+			MaxTokens:              200000,
+			MaxOutputTokens:        100000,
+			ReservedOutputTokens:   40000, // 25k for reasoning, 15k for output
+			ModelCompatibility:     fullCompatibility,
+			PreferredOutputFormat:  ModelOutputFormatToolCallJson,
+			SystemPromptDisabled:   true,
+			RoleParamsDisabled:     true,
+			ReasoningEffortEnabled: true,
+			ReasoningEffort:        ReasoningEffortHigh,
+			StopDisabled:           true,
 		},
 
 		RequiresVariantOverrides: []string{
@@ -329,17 +329,17 @@ var BuiltInModels = []*BaseModelConfigSchema{
 	},
 
 	{
-		ModelTag:              "anthropic/claude-3.7-sonnet",
-		Publisher:             ModelPublisherAnthropic,
-		Description:           "Anthropic Claude 3.7 Sonnet",
-		DefaultMaxConvoTokens: 15000,
+		ModelTag:    "anthropic/claude-3.7-sonnet",
+		Publisher:   ModelPublisherAnthropic,
+		Description: "Anthropic Claude 3.7 Sonnet",
 
 		BaseModelShared: BaseModelShared{
+			DefaultMaxConvoTokens:       15000,
 			MaxTokens:                   200000,
 			MaxOutputTokens:             128000,
 			ReservedOutputTokens:        20000,
 			SupportsCacheControl:        true,
-			PreferredModelOutputFormat:  ModelOutputFormatXml,
+			PreferredOutputFormat:       ModelOutputFormatXml,
 			SingleMessageNoSystemPrompt: true,
 			TokenEstimatePaddingPct:     0.10,
 		},
@@ -395,17 +395,17 @@ var BuiltInModels = []*BaseModelConfigSchema{
 	},
 
 	{
-		ModelTag:              "anthropic/claude-3.5-sonnet",
-		Publisher:             ModelPublisherAnthropic,
-		Description:           "Anthropic Claude 3.5 Sonnet",
-		DefaultMaxConvoTokens: 15000,
+		ModelTag:    "anthropic/claude-3.5-sonnet",
+		Publisher:   ModelPublisherAnthropic,
+		Description: "Anthropic Claude 3.5 Sonnet",
 
 		BaseModelShared: BaseModelShared{
+			DefaultMaxConvoTokens:       15000,
 			MaxTokens:                   200000,
 			MaxOutputTokens:             128000,
 			ReservedOutputTokens:        20000,
 			SupportsCacheControl:        true,
-			PreferredModelOutputFormat:  ModelOutputFormatXml,
+			PreferredOutputFormat:       ModelOutputFormatXml,
 			SingleMessageNoSystemPrompt: true,
 			TokenEstimatePaddingPct:     0.10,
 		},
@@ -431,17 +431,17 @@ var BuiltInModels = []*BaseModelConfigSchema{
 	},
 
 	{
-		ModelTag:              "anthropic/claude-3.5-haiku",
-		Publisher:             ModelPublisherAnthropic,
-		Description:           "Anthropic Claude 3.5 Haiku",
-		DefaultMaxConvoTokens: 15000,
+		ModelTag:    "anthropic/claude-3.5-haiku",
+		Publisher:   ModelPublisherAnthropic,
+		Description: "Anthropic Claude 3.5 Haiku",
 
 		BaseModelShared: BaseModelShared{
+			DefaultMaxConvoTokens:       15000,
 			MaxTokens:                   200000,
 			MaxOutputTokens:             8192,
 			ReservedOutputTokens:        8192,
 			SupportsCacheControl:        true,
-			PreferredModelOutputFormat:  ModelOutputFormatXml,
+			PreferredOutputFormat:       ModelOutputFormatXml,
 			SingleMessageNoSystemPrompt: true,
 			TokenEstimatePaddingPct:     0.10,
 		},
@@ -467,17 +467,17 @@ var BuiltInModels = []*BaseModelConfigSchema{
 	},
 
 	{
-		ModelTag:              "google/gemini-pro-1.5",
-		Publisher:             ModelPublisherGoogle,
-		Description:           "Google Gemini 1.5 Pro",
-		DefaultMaxConvoTokens: 75000,
+		ModelTag:    "google/gemini-pro-1.5",
+		Publisher:   ModelPublisherGoogle,
+		Description: "Google Gemini 1.5 Pro",
 
 		BaseModelShared: BaseModelShared{
-			MaxTokens:            2000000,
-			MaxOutputTokens:      8192,
-			ReservedOutputTokens: 8192,
+			DefaultMaxConvoTokens: 75000,
+			MaxTokens:             2000000,
+			MaxOutputTokens:       8192,
+			ReservedOutputTokens:  8192,
 			// SupportsCacheControl:       true, // gemini now uses implicit caching
-			PreferredModelOutputFormat: ModelOutputFormatXml,
+			PreferredOutputFormat: ModelOutputFormatXml,
 		},
 
 		Providers: []BaseModelUsesProvider{
@@ -496,17 +496,17 @@ var BuiltInModels = []*BaseModelConfigSchema{
 		},
 	},
 	{
-		ModelTag:              "google/gemini-2.5-pro-preview",
-		Publisher:             ModelPublisherGoogle,
-		Description:           "Google Gemini 2.5 Pro (Preview)",
-		DefaultMaxConvoTokens: 75000,
+		ModelTag:    "google/gemini-2.5-pro-preview",
+		Publisher:   ModelPublisherGoogle,
+		Description: "Google Gemini 2.5 Pro (Preview)",
 
 		BaseModelShared: BaseModelShared{
-			MaxTokens:            1048576,
-			MaxOutputTokens:      65535,
-			ReservedOutputTokens: 65535,
+			DefaultMaxConvoTokens: 75000,
+			MaxTokens:             1048576,
+			MaxOutputTokens:       65535,
+			ReservedOutputTokens:  65535,
 			// SupportsCacheControl:       true, // gemini now uses implicit caching
-			PreferredModelOutputFormat: ModelOutputFormatXml,
+			PreferredOutputFormat: ModelOutputFormatXml,
 		},
 
 		Providers: []BaseModelUsesProvider{
@@ -525,16 +525,16 @@ var BuiltInModels = []*BaseModelConfigSchema{
 		},
 	},
 	{
-		ModelTag:              "google/gemini-2.5-pro-exp",
-		Publisher:             ModelPublisherGoogle,
-		Description:           "Google Gemini 2.5 Pro (Experimental)",
-		DefaultMaxConvoTokens: 75000,
+		ModelTag:    "google/gemini-2.5-pro-exp",
+		Publisher:   ModelPublisherGoogle,
+		Description: "Google Gemini 2.5 Pro (Experimental)",
 
 		BaseModelShared: BaseModelShared{
-			MaxTokens:                  1048576,
-			MaxOutputTokens:            65535,
-			ReservedOutputTokens:       65535,
-			PreferredModelOutputFormat: ModelOutputFormatXml,
+			DefaultMaxConvoTokens: 75000,
+			MaxTokens:             1048576,
+			MaxOutputTokens:       65535,
+			ReservedOutputTokens:  65535,
+			PreferredOutputFormat: ModelOutputFormatXml,
 		},
 
 		Providers: []BaseModelUsesProvider{
@@ -553,17 +553,18 @@ var BuiltInModels = []*BaseModelConfigSchema{
 		},
 	},
 	{
-		ModelTag:              "google/gemini-2.5-flash-preview",
-		Publisher:             ModelPublisherGoogle,
-		Description:           "Google Gemini 2.5 Flash (Preview)",
-		DefaultMaxConvoTokens: 75000,
+		ModelTag:    "google/gemini-2.5-flash-preview",
+		Publisher:   ModelPublisherGoogle,
+		Description: "Google Gemini 2.5 Flash (Preview)",
 
 		BaseModelShared: BaseModelShared{
+			DefaultMaxConvoTokens: 75000,
+
 			MaxTokens:            1048576,
 			MaxOutputTokens:      65535,
 			ReservedOutputTokens: 65535,
 			// SupportsCacheControl:       true, // gemini now uses implicit caching
-			PreferredModelOutputFormat: ModelOutputFormatXml,
+			PreferredOutputFormat: ModelOutputFormatXml,
 		},
 
 		Providers: []BaseModelUsesProvider{
@@ -583,16 +584,17 @@ var BuiltInModels = []*BaseModelConfigSchema{
 	},
 
 	{
-		ModelTag:              "deepseek/v3-0324",
-		Publisher:             ModelPublisherDeepSeek,
-		Description:           "DeepSeek V3 (0324)",
-		DefaultMaxConvoTokens: 7500,
+		ModelTag:    "deepseek/v3-0324",
+		Publisher:   ModelPublisherDeepSeek,
+		Description: "DeepSeek V3 (0324)",
 
 		BaseModelShared: BaseModelShared{
-			MaxTokens:                  64000,
-			MaxOutputTokens:            8192,
-			ReservedOutputTokens:       8192,
-			PreferredModelOutputFormat: ModelOutputFormatXml,
+			DefaultMaxConvoTokens: 7500,
+
+			MaxTokens:             64000,
+			MaxOutputTokens:       8192,
+			ReservedOutputTokens:  8192,
+			PreferredOutputFormat: ModelOutputFormatXml,
 		},
 
 		Providers: []BaseModelUsesProvider{
@@ -607,16 +609,17 @@ var BuiltInModels = []*BaseModelConfigSchema{
 		},
 	},
 	{
-		ModelTag:              "deepseek/r1",
-		Publisher:             ModelPublisherDeepSeek,
-		Description:           "DeepSeek R1",
-		DefaultMaxConvoTokens: 7500,
+		ModelTag:    "deepseek/r1",
+		Publisher:   ModelPublisherDeepSeek,
+		Description: "DeepSeek R1",
 
 		BaseModelShared: BaseModelShared{
-			MaxTokens:                  64000,
-			MaxOutputTokens:            8192,
-			ReservedOutputTokens:       8192,
-			PreferredModelOutputFormat: ModelOutputFormatXml,
+			DefaultMaxConvoTokens: 7500,
+
+			MaxTokens:             64000,
+			MaxOutputTokens:       8192,
+			ReservedOutputTokens:  8192,
+			PreferredOutputFormat: ModelOutputFormatXml,
 		},
 
 		Variants: []BaseModelConfigVariant{
@@ -649,16 +652,17 @@ var BuiltInModels = []*BaseModelConfigSchema{
 	},
 
 	{
-		ModelTag:              "perplexity/r1-1776",
-		Publisher:             ModelPublisherPerplexity,
-		Description:           "Perplexity R1-1776",
-		DefaultMaxConvoTokens: 7500,
+		ModelTag:    "perplexity/r1-1776",
+		Publisher:   ModelPublisherPerplexity,
+		Description: "Perplexity R1-1776",
 
 		BaseModelShared: BaseModelShared{
-			MaxTokens:                  128000,
-			MaxOutputTokens:            128000,
-			ReservedOutputTokens:       30000,
-			PreferredModelOutputFormat: ModelOutputFormatXml,
+			DefaultMaxConvoTokens: 7500,
+
+			MaxTokens:             128000,
+			MaxOutputTokens:       128000,
+			ReservedOutputTokens:  30000,
+			PreferredOutputFormat: ModelOutputFormatXml,
 		},
 
 		Variants: []BaseModelConfigVariant{
@@ -684,16 +688,17 @@ var BuiltInModels = []*BaseModelConfigSchema{
 		},
 	},
 	{
-		ModelTag:              "perplexity/sonar-reasoning",
-		Description:           "Perplexity Sonar Reasoning",
-		Publisher:             ModelPublisherPerplexity,
-		DefaultMaxConvoTokens: 7500,
+		ModelTag:    "perplexity/sonar-reasoning",
+		Description: "Perplexity Sonar Reasoning",
+		Publisher:   ModelPublisherPerplexity,
 
 		BaseModelShared: BaseModelShared{
-			MaxTokens:                  127000,
-			MaxOutputTokens:            127000,
-			ReservedOutputTokens:       30000,
-			PreferredModelOutputFormat: ModelOutputFormatXml,
+			DefaultMaxConvoTokens: 7500,
+
+			MaxTokens:             127000,
+			MaxOutputTokens:       127000,
+			ReservedOutputTokens:  30000,
+			PreferredOutputFormat: ModelOutputFormatXml,
 		},
 
 		Variants: []BaseModelConfigVariant{
@@ -720,16 +725,17 @@ var BuiltInModels = []*BaseModelConfigSchema{
 	},
 
 	{
-		ModelTag:              "qwen/qwen-2.5-coder-32b-instruct",
-		Publisher:             ModelPublisherQwen,
-		Description:           "Qwen 2.5 Coder 32B (Instruct)",
-		DefaultMaxConvoTokens: 10000,
+		ModelTag:    "qwen/qwen-2.5-coder-32b-instruct",
+		Publisher:   ModelPublisherQwen,
+		Description: "Qwen 2.5 Coder 32B (Instruct)",
 
 		BaseModelShared: BaseModelShared{
-			MaxTokens:                  128000,
-			MaxOutputTokens:            8192,
-			ReservedOutputTokens:       8192,
-			PreferredModelOutputFormat: ModelOutputFormatXml,
+			DefaultMaxConvoTokens: 10000,
+
+			MaxTokens:             128000,
+			MaxOutputTokens:       8192,
+			ReservedOutputTokens:  8192,
+			PreferredOutputFormat: ModelOutputFormatXml,
 		},
 
 		Providers: []BaseModelUsesProvider{
@@ -738,16 +744,16 @@ var BuiltInModels = []*BaseModelConfigSchema{
 	},
 
 	{
-		ModelTag:              "qwen/qwen3-32b",
-		Publisher:             ModelPublisherQwen,
-		Description:           "Qwen 3-32B (Experimental)",
-		DefaultMaxConvoTokens: 15000, // feel free to raise once you test
+		ModelTag:    "qwen/qwen3-32b",
+		Publisher:   ModelPublisherQwen,
+		Description: "Qwen 3-32B (Experimental)",
 
 		BaseModelShared: BaseModelShared{
-			MaxTokens:                  128000,
-			MaxOutputTokens:            16384,
-			ReservedOutputTokens:       16384,
-			PreferredModelOutputFormat: ModelOutputFormatXml,
+			DefaultMaxConvoTokens: 15000,
+			MaxTokens:             128000,
+			MaxOutputTokens:       16384,
+			ReservedOutputTokens:  16384,
+			PreferredOutputFormat: ModelOutputFormatXml,
 			// leave IncludeReasoning unset – Qwen3 has its own “thinking” mode but OR
 			// exposes it via a special prompt key, not a flag
 		},
@@ -759,16 +765,16 @@ var BuiltInModels = []*BaseModelConfigSchema{
 		},
 	},
 	{
-		ModelTag:              "qwen/qwen3-8b",
-		Publisher:             ModelPublisherQwen,
-		Description:           "Qwen 3-8B (Experimental)",
-		DefaultMaxConvoTokens: 7500,
+		ModelTag:    "qwen/qwen3-8b",
+		Publisher:   ModelPublisherQwen,
+		Description: "Qwen 3-8B (Experimental)",
 
 		BaseModelShared: BaseModelShared{
-			MaxTokens:                  32768,
-			MaxOutputTokens:            8192,
-			ReservedOutputTokens:       8192,
-			PreferredModelOutputFormat: ModelOutputFormatXml,
+			DefaultMaxConvoTokens: 7500,
+			MaxTokens:             32768,
+			MaxOutputTokens:       8192,
+			ReservedOutputTokens:  8192,
+			PreferredOutputFormat: ModelOutputFormatXml,
 		},
 
 		Providers: []BaseModelUsesProvider{
@@ -777,6 +783,7 @@ var BuiltInModels = []*BaseModelConfigSchema{
 	},
 }
 
+var BaseModelIds = []ModelId{}
 var BuiltInBaseModelsById = map[ModelId]*BaseModelConfigSchema{}
 
 var BuiltInModelProvidersByModelId = map[ModelId][]BaseModelUsesProvider{}
@@ -806,6 +813,7 @@ func init() {
 
 				BuiltInModelProvidersByModelId[modelId] = model.Providers
 				BuiltInBaseModelsById[modelId] = model
+				BaseModelIds = append(BaseModelIds, modelId)
 			}
 		}
 
@@ -815,6 +823,7 @@ func init() {
 			modelId := ModelId(string(model.ModelTag))
 			BuiltInModelProvidersByModelId[modelId] = model.Providers
 			BuiltInBaseModelsById[modelId] = model
+			BaseModelIds = append(BaseModelIds, modelId)
 		}
 	}
 
@@ -866,7 +875,7 @@ func init() {
 			panic("base url is not set")
 		}
 
-		if model.PreferredModelOutputFormat == "" {
+		if model.PreferredOutputFormat == "" {
 			spew.Dump(model)
 			panic("preferred model output format is not set")
 		}
@@ -879,4 +888,12 @@ func init() {
 func GetAvailableModel(provider ModelProvider, modelId ModelId) *AvailableModel {
 	compositeKey := string(provider) + "/" + string(modelId)
 	return AvailableModelsByComposite[compositeKey]
+}
+
+func GetBuiltInBaseModels() []*BaseModelConfigSchema {
+	models := []*BaseModelConfigSchema{}
+	for _, id := range BaseModelIds {
+		models = append(models, BuiltInBaseModelsById[id])
+	}
+	return models
 }

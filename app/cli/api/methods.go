@@ -2054,7 +2054,7 @@ func (a *Api) UpdateDefaultPlanConfig(req shared.UpdateDefaultPlanConfigRequest)
 	return nil
 }
 
-func (a *Api) CreateCustomModel(model *shared.AvailableModel) *shared.ApiError {
+func (a *Api) CreateCustomModel(model *shared.CustomModel) *shared.ApiError {
 	serverUrl := fmt.Sprintf("%s/custom_models", GetApiHost())
 	body, err := json.Marshal(model)
 	if err != nil {
@@ -2081,7 +2081,7 @@ func (a *Api) CreateCustomModel(model *shared.AvailableModel) *shared.ApiError {
 	return nil
 }
 
-func (a *Api) ListCustomModels() ([]*shared.AvailableModel, *shared.ApiError) {
+func (a *Api) ListCustomModels() ([]*shared.CustomModel, *shared.ApiError) {
 	serverUrl := fmt.Sprintf("%s/custom_models", GetApiHost())
 	resp, err := authenticatedFastClient.Get(serverUrl)
 	if err != nil {
@@ -2100,7 +2100,7 @@ func (a *Api) ListCustomModels() ([]*shared.AvailableModel, *shared.ApiError) {
 		return nil, apiErr
 	}
 
-	var models []*shared.AvailableModel
+	var models []*shared.CustomModel
 	err = json.NewDecoder(resp.Body).Decode(&models)
 	if err != nil {
 		return nil, &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error decoding response: %v", err)}
@@ -2109,7 +2109,7 @@ func (a *Api) ListCustomModels() ([]*shared.AvailableModel, *shared.ApiError) {
 	return models, nil
 }
 
-func (a *Api) DeleteAvailableModel(modelId string) *shared.ApiError {
+func (a *Api) DeleteCustomModel(modelId string) *shared.ApiError {
 	serverUrl := fmt.Sprintf("%s/custom_models/%s", GetApiHost(), modelId)
 	req, err := http.NewRequest(http.MethodDelete, serverUrl, nil)
 	if err != nil {
@@ -2128,7 +2128,7 @@ func (a *Api) DeleteAvailableModel(modelId string) *shared.ApiError {
 		apiErr := HandleApiError(resp, errorBody)
 		authRefreshed, apiErr := refreshAuthIfNeeded(apiErr)
 		if authRefreshed {
-			return a.DeleteAvailableModel(modelId)
+			return a.DeleteCustomModel(modelId)
 		}
 		return apiErr
 	}
@@ -2136,7 +2136,7 @@ func (a *Api) DeleteAvailableModel(modelId string) *shared.ApiError {
 	return nil
 }
 
-func (a *Api) UpdateCustomModel(model *shared.AvailableModel) *shared.ApiError {
+func (a *Api) UpdateCustomModel(model *shared.CustomModel) *shared.ApiError {
 	serverUrl := fmt.Sprintf("%s/custom_models/%s", GetApiHost(), model.Id)
 	body, err := json.Marshal(model)
 	if err != nil {
@@ -2161,6 +2161,117 @@ func (a *Api) UpdateCustomModel(model *shared.AvailableModel) *shared.ApiError {
 		authRefreshed, apiErr := refreshAuthIfNeeded(apiErr)
 		if authRefreshed {
 			return a.UpdateCustomModel(model)
+		}
+		return apiErr
+	}
+
+	return nil
+}
+
+func (a *Api) CreateCustomProvider(provider *shared.CustomProvider) *shared.ApiError {
+	serverUrl := fmt.Sprintf("%s/custom_providers", GetApiHost())
+	body, err := json.Marshal(provider)
+	if err != nil {
+		return &shared.ApiError{Msg: "Failed to marshal provider"}
+	}
+
+	resp, err := authenticatedFastClient.Post(serverUrl, "application/json", bytes.NewBuffer(body))
+	if err != nil {
+		return &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error sending request: %v", err)}
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		errorBody, _ := io.ReadAll(resp.Body)
+		apiErr := HandleApiError(resp, errorBody)
+		authRefreshed, apiErr := refreshAuthIfNeeded(apiErr)
+		if authRefreshed {
+			return a.CreateCustomProvider(provider)
+		}
+		return apiErr
+	}
+
+	return nil
+}
+
+func (a *Api) UpdateCustomProvider(provider *shared.CustomProvider) *shared.ApiError {
+	serverUrl := fmt.Sprintf("%s/custom_providers/%s", GetApiHost(), provider.Id)
+	body, err := json.Marshal(provider)
+	if err != nil {
+		return &shared.ApiError{Msg: "Failed to marshal provider"}
+	}
+
+	req, err := http.NewRequest(http.MethodPut, serverUrl, bytes.NewBuffer(body))
+	if err != nil {
+		return &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error creating request: %v", err)}
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := authenticatedFastClient.Do(req)
+	if err != nil {
+		return &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error sending request: %v", err)}
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		errorBody, _ := io.ReadAll(resp.Body)
+		apiErr := HandleApiError(resp, errorBody)
+		authRefreshed, apiErr := refreshAuthIfNeeded(apiErr)
+		if authRefreshed {
+			return a.UpdateCustomProvider(provider)
+		}
+		return apiErr
+	}
+
+	return nil
+}
+
+func (a *Api) ListCustomProviders() ([]*shared.CustomProvider, *shared.ApiError) {
+	serverUrl := fmt.Sprintf("%s/custom_providers", GetApiHost())
+	resp, err := authenticatedFastClient.Get(serverUrl)
+	if err != nil {
+		return nil, &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error sending request: %v", err)}
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		errorBody, _ := io.ReadAll(resp.Body)
+		apiErr := HandleApiError(resp, errorBody)
+		authRefreshed, apiErr := refreshAuthIfNeeded(apiErr)
+		if authRefreshed {
+			return a.ListCustomProviders()
+		}
+		return nil, apiErr
+	}
+
+	var providers []*shared.CustomProvider
+	err = json.NewDecoder(resp.Body).Decode(&providers)
+	if err != nil {
+		return nil, &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error decoding response: %v", err)}
+	}
+
+	return providers, nil
+}
+
+func (a *Api) DeleteCustomProvider(providerId string) *shared.ApiError {
+	serverUrl := fmt.Sprintf("%s/custom_providers/%s", GetApiHost(), providerId)
+	req, err := http.NewRequest(http.MethodDelete, serverUrl, nil)
+	if err != nil {
+		return &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error creating request: %v", err)}
+	}
+
+	resp, err := authenticatedFastClient.Do(req)
+	if err != nil {
+		return &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error sending request: %v", err)}
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		errorBody, _ := io.ReadAll(resp.Body)
+		apiErr := HandleApiError(resp, errorBody)
+		authRefreshed, apiErr := refreshAuthIfNeeded(apiErr)
+		if authRefreshed {
+			return a.DeleteCustomProvider(providerId)
 		}
 		return apiErr
 	}

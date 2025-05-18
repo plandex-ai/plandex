@@ -8,7 +8,7 @@
     "role": {
       "$ref": "./definitions/model-roles.schema.json"
     },
-    "modelTag": {
+    "modelId": {
       "type": "string"
     },
     "temperature": {
@@ -38,6 +38,6 @@
   },
   "required": [
     "role",
-    "modelTag"
+    "modelId"
   ]
 }

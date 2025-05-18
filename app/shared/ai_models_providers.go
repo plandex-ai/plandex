@@ -70,7 +70,7 @@ var AllModelProviders = []string{
 
 type ModelProviderExtraAuthVars struct {
 	Var               string `json:"var"`
-	MaybeJSONFilePath bool   `json:"isFilePath,omitempty"`
+	MaybeJSONFilePath bool   `json:"maybeJSONFilePath,omitempty"`
 	Required          bool   `json:"required,omitempty"`
 	Default           string `json:"default,omitempty"`
 }

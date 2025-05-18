@@ -45,7 +45,7 @@ func (state *activeTellStreamState) genPlanDescription() (*db.ConvoMessageDescri
 	var tools []openai.Tool
 	var toolChoice *openai.ToolChoice
 
-	if baseModelConfig.PreferredModelOutputFormat == shared.ModelOutputFormatXml {
+	if baseModelConfig.PreferredOutputFormat == shared.ModelOutputFormatXml {
 		sysPrompt = prompts.SysDescribeXml
 	} else {
 		sysPrompt = prompts.SysDescribe
@@ -123,7 +123,7 @@ func (state *activeTellStreamState) genPlanDescription() (*db.ConvoMessageDescri
 
 	var commitMsg string
 
-	if baseModelConfig.PreferredModelOutputFormat == shared.ModelOutputFormatXml {
+	if baseModelConfig.PreferredOutputFormat == shared.ModelOutputFormatXml {
 		commitMsg = utils.GetXMLContent(content, "commitMsg")
 		if commitMsg == "" {
 			go notify.NotifyErr(notify.SeverityError, fmt.Errorf("no commitMsg tag found in XML response"))

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"plandex-cli/types"
+	"plandex-cli/version"
 
 	shared "plandex-shared"
 )
@@ -40,4 +41,8 @@ func SetAuthHeader(req *http.Request) error {
 	req.Header.Set("Authorization", "Bearer "+token)
 
 	return nil
+}
+
+func SetVersionHeader(req *http.Request) {
+	req.Header.Set("X-Client-Version", version.Version)
 }

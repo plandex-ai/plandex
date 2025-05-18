@@ -145,7 +145,7 @@ func init() {
 
 	ReasoningPackSchema = ModelPackSchema{
 		Name:        "reasoning",
-		Description: "Same blend, but Sonnet:thinking with visible reasoning.",
+		Description: "Like the daily driver, but uses 3.7-sonnet:thinking with reasoning enabled for planning and coding. Supports up to 160k input context.",
 		Planner:     getModelRoleConfig(ModelRolePlanner, "anthropic/claude-3.7-sonnet-thinking-hidden"),
 		Coder:       Pointer(getModelRoleConfig(ModelRoleCoder, "anthropic/claude-3.7-sonnet-thinking-hidden")),
 		PlanSummary: getModelRoleConfig(ModelRolePlanSummary, "openai/o4-mini-low", getErrorFallback("openai/o3-mini-low")),

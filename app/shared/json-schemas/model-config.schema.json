@@ -5,7 +5,10 @@
   "description": "Config for a model",
   "type": "object",
   "properties": {
-    "modelTag": {
+    "modelId": {
+      "type": "string"
+    },
+    "publisher": {
       "type": "string"
     },
     "description": {
@@ -23,7 +26,7 @@
     "reservedOutputTokens": {
       "type": "number"
     },
-    "preferredModelOutputFormat": {
+    "preferredOutputFormat": {
       "type": "string",
       "enum": [
         "xml",
@@ -40,6 +43,15 @@
       "type": "boolean"
     },
     "predictedOutputEnabled": {
+      "type": "boolean"
+    },
+    "includeReasoning": {
+      "type": "boolean"
+    },
+    "reasoningBudget": {
+      "type": "number"
+    },
+    "hasImageSupport": {
       "type": "boolean"
     },
     "reasoningEffortEnabled": {
@@ -109,12 +121,12 @@
     }
   },
   "required": [
-    "modelTag",
-    "description",
+    "modelId",
+    "defaultMaxConvoTokens",
     "maxTokens",
     "maxOutputTokens",
     "reservedOutputTokens",
-    "preferredModelOutputFormat",
+    "preferredOutputFormat",
     "providers"
   ]
 }

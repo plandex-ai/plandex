@@ -26,23 +26,24 @@ type ModelTag string
 type VariantTag string
 
 type BaseModelShared struct {
-	MaxTokens                  int               `json:"maxTokens"`
-	MaxOutputTokens            int               `json:"maxOutputTokens"`
-	ReservedOutputTokens       int               `json:"reservedOutputTokens"`
-	PreferredModelOutputFormat ModelOutputFormat `json:"preferredModelOutputFormat"`
-	SystemPromptDisabled       bool              `json:"systemPromptDisabled"`
-	RoleParamsDisabled         bool              `json:"roleParamsDisabled"`
-	StopDisabled               bool              `json:"stopDisabled"`
-	PredictedOutputEnabled     bool              `json:"predictedOutputEnabled"`
-	ReasoningEffortEnabled     bool              `json:"reasoningEffortEnabled"`
-	ReasoningEffort            ReasoningEffort   `json:"reasoningEffort"`
-	IncludeReasoning           bool              `json:"includeReasoning"`
-	ReasoningBudget            int               `json:"reasoningBudget"`
-	SupportsCacheControl       bool              `json:"supportsCacheControl"`
+	DefaultMaxConvoTokens  int               `json:"defaultMaxConvoTokens"`
+	MaxTokens              int               `json:"maxTokens"`
+	MaxOutputTokens        int               `json:"maxOutputTokens"`
+	ReservedOutputTokens   int               `json:"reservedOutputTokens"`
+	PreferredOutputFormat  ModelOutputFormat `json:"preferredOutputFormat"`
+	SystemPromptDisabled   bool              `json:"systemPromptDisabled"`
+	RoleParamsDisabled     bool              `json:"roleParamsDisabled"`
+	StopDisabled           bool              `json:"stopDisabled"`
+	PredictedOutputEnabled bool              `json:"predictedOutputEnabled"`
+	ReasoningEffortEnabled bool              `json:"reasoningEffortEnabled"`
+	ReasoningEffort        ReasoningEffort   `json:"reasoningEffort"`
+	IncludeReasoning       bool              `json:"includeReasoning"`
+	ReasoningBudget        int               `json:"reasoningBudget"`
+	SupportsCacheControl   bool              `json:"supportsCacheControl"`
 	// for anthropic, single message system prompt needs to be flipped to 'user'
 	SingleMessageNoSystemPrompt bool `json:"singleMessageNoSystemPrompt"`
 
-	// for openai, token estimate padding percentage
+	// for anthropic, token estimate padding percentage
 	TokenEstimatePaddingPct float64 `json:"tokenEstimatePaddingPct"`
 
 	ModelCompatibility
@@ -75,10 +76,10 @@ func (b BaseModelUsesProvider) ToComposite() string {
 }
 
 type BaseModelConfigSchema struct {
-	ModelTag              ModelTag       `json:"modelTag"`
-	Publisher             ModelPublisher `json:"publisher"`
-	Description           string         `json:"description"`
-	DefaultMaxConvoTokens int            `json:"defaultMaxConvoTokens"`
+	ModelTag    ModelTag       `json:"modelTag"`
+	Publisher   ModelPublisher `json:"publisher"`
+	Description string         `json:"description"`
+
 	BaseModelShared
 
 	RequiresVariantOverrides []string `json:"requiresVariantOverrides"`
