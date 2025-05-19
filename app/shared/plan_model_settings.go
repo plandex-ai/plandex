@@ -67,10 +67,10 @@ func (ps PlanSettings) GetArchitectMaxReservedOutputTokens() int {
 func (ps PlanSettings) GetCoderMaxTokens() int {
 	if ps.ModelOverrides.MaxTokens == nil {
 		if ps.ModelPack == nil {
-			defaultCoder := DefaultModelPack.Coder
+			defaultCoder := DefaultModelPack.GetCoder()
 			return defaultCoder.GetFinalLargeContextFallback().BaseModelConfig.MaxTokens
 		} else {
-			coder := ps.ModelPack.Coder
+			coder := ps.ModelPack.GetCoder()
 			return coder.GetFinalLargeContextFallback().BaseModelConfig.MaxTokens
 		}
 	} else {
@@ -81,10 +81,10 @@ func (ps PlanSettings) GetCoderMaxTokens() int {
 func (ps PlanSettings) GetCoderMaxReservedOutputTokens() int {
 	if ps.ModelOverrides.MaxTokens == nil {
 		if ps.ModelPack == nil {
-			defaultCoder := DefaultModelPack.Coder
+			defaultCoder := DefaultModelPack.GetCoder()
 			return defaultCoder.GetFinalLargeContextFallback().GetReservedOutputTokens()
 		} else {
-			coder := ps.ModelPack.Coder
+			coder := ps.ModelPack.GetCoder()
 			return coder.GetFinalLargeContextFallback().GetReservedOutputTokens()
 		}
 	} else {
@@ -95,10 +95,10 @@ func (ps PlanSettings) GetCoderMaxReservedOutputTokens() int {
 func (ps PlanSettings) GetWholeFileBuilderMaxTokens() int {
 	if ps.ModelOverrides.MaxTokens == nil {
 		if ps.ModelPack == nil {
-			defaultBuilder := DefaultModelPack.WholeFileBuilder
+			defaultBuilder := DefaultModelPack.GetWholeFileBuilder()
 			return defaultBuilder.GetFinalLargeContextFallback().BaseModelConfig.MaxTokens
 		} else {
-			builder := ps.ModelPack.WholeFileBuilder
+			builder := ps.ModelPack.GetWholeFileBuilder()
 			return builder.GetFinalLargeContextFallback().BaseModelConfig.MaxTokens
 		}
 	} else {
@@ -109,10 +109,10 @@ func (ps PlanSettings) GetWholeFileBuilderMaxTokens() int {
 func (ps PlanSettings) GetWholeFileBuilderMaxReservedOutputTokens() int {
 	if ps.ModelOverrides.MaxTokens == nil {
 		if ps.ModelPack == nil {
-			defaultBuilder := DefaultModelPack.WholeFileBuilder
+			defaultBuilder := DefaultModelPack.GetWholeFileBuilder()
 			return defaultBuilder.GetFinalLargeOutputFallback().GetReservedOutputTokens()
 		} else {
-			builder := ps.ModelPack.WholeFileBuilder
+			builder := ps.ModelPack.GetWholeFileBuilder()
 			return builder.GetFinalLargeOutputFallback().GetReservedOutputTokens()
 		}
 	} else {
