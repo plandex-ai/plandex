@@ -1,3 +1,6 @@
+## Server Version 2.1.3
+- Fix for 'panic in execTellPlan' error when using a model pack that doesn't explicitly set the 'coder' or 'whole-file-builder' roles
+
 ## Server Version 2.1.2
 - Fix for auto-load context error: 'Error decoding response → EOF'
 
