@@ -1,3 +1,6 @@
+## Server Version 2.1.4
+- Fix to remove occasional extraneous blank lines from start/end of edited files.
+
 ## Server Version 2.1.3
 - Fix for 'panic in execTellPlan' error when using a model pack that doesn't explicitly set the 'coder' or 'whole-file-builder' roles
 
