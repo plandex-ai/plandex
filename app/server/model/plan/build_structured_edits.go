@@ -8,6 +8,7 @@ import (
 	diff_pkg "plandex-server/diff"
 	"plandex-server/hooks"
 	"plandex-server/syntax"
+	"plandex-server/utils"
 	"strings"
 	"time"
 
@@ -177,6 +178,9 @@ func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 		BuildInfo: buildInfo,
 	})
 	time.Sleep(50 * time.Millisecond)
+
+	// strip any blank lines from beginning/end of updated file
+	updated = utils.StripAddedBlankLines(originalFile, updated)
 
 	log.Printf("buildStructuredEdits - %s - getting diff replacements\n", filePath)
 	replacements, err := diff_pkg.GetDiffReplacements(originalFile, updated)
