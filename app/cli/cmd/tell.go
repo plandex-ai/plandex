@@ -43,9 +43,9 @@ func doTell(cmd *cobra.Command, args []string) {
 	lib.MustResolveProject()
 	mustSetPlanExecFlags(cmd)
 
-	var apiKeys map[string]string
+	var authVars map[string]string
 	if !auth.Current.IntegratedModelsMode {
-		apiKeys = lib.MustVerifyAuthVars()
+		authVars = lib.MustVerifyAuthVars()
 	}
 
 	if isImplementationOfChat && len(args) > 0 {
@@ -76,7 +76,7 @@ func doTell(cmd *cobra.Command, args []string) {
 	plan_exec.TellPlan(plan_exec.ExecParams{
 		CurrentPlanId: lib.CurrentPlanId,
 		CurrentBranch: lib.CurrentBranch,
-		AuthVars:      apiKeys,
+		AuthVars:      authVars,
 		CheckOutdatedContext: func(maybeContexts []*shared.Context, projectPaths *types.ProjectPaths) (bool, bool, error) {
 			auto := autoConfirm || tellAutoApply || tellAutoContext
 			return lib.CheckOutdatedContextWithOutput(auto, auto, maybeContexts, projectPaths)

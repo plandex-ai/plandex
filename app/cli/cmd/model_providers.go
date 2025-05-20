@@ -17,16 +17,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var customProvidersOnly bool
+
 var providersCmd = &cobra.Command{
 	Use:   "providers",
-	Short: "Manage custom model providers",
-}
-
-var listProvidersCmd = &cobra.Command{
-	Use:     "list",
-	Aliases: []string{"ls"},
-	Short:   "List custom model providers",
-	Run:     listProviders,
+	Short: "List built-in and custom model providers",
+	Run:   listProviders,
 }
 
 var addProviderCmd = &cobra.Command{
@@ -53,7 +49,7 @@ var updateProviderCmd = &cobra.Command{
 
 func init() {
 	RootCmd.AddCommand(providersCmd)
-	providersCmd.AddCommand(listProvidersCmd)
+	providersCmd.Flags().BoolVarP(&customProvidersOnly, "custom", "c", false, "List custom providers only")
 	providersCmd.AddCommand(addProviderCmd)
 	providersCmd.AddCommand(showProviderCmd)
 	providersCmd.AddCommand(updateProviderCmd)
@@ -62,39 +58,102 @@ func init() {
 func listProviders(cmd *cobra.Command, args []string) {
 	auth.MustResolveAuthWithOrg()
 
-	term.StartSpinner("")
-	providers, apiErr := api.Client.ListCustomProviders()
-	term.StopSpinner()
-	if apiErr != nil {
-		term.OutputErrorAndExit("Error fetching providers: %v", apiErr.Msg)
+	var customProviders []*shared.CustomProvider
+	var apiErr *shared.ApiError
+
+	if customProvidersOnly && auth.Current.IsCloud {
+		term.OutputErrorAndExit("Custom providers are not supported on Plandex Cloud")
 		return
 	}
 
-	if len(providers) == 0 {
+	if !auth.Current.IsCloud {
+		term.StartSpinner("")
+		customProviders, apiErr = api.Client.ListCustomProviders()
+		term.StopSpinner()
+		if apiErr != nil {
+			term.OutputErrorAndExit("Error fetching providers: %v", apiErr.Msg)
+			return
+		}
+	}
+
+	if customProvidersOnly && len(customProviders) == 0 {
 		fmt.Println("🤷‍♂️  No custom providers")
 		fmt.Println()
 		term.PrintCmds("", "providers add")
 		return
 	}
 
+	color.New(color.Bold, term.ColorHiCyan).Println("🏠 Built-in Providers")
 	table := tablewriter.NewWriter(os.Stdout)
-	table.SetHeader([]string{"#", "Name", "Base URL", "Skip Auth", "API Key Env Var"})
-	for i, p := range providers {
+	table.SetAutoWrapText(true)
+	table.SetHeader([]string{"ID", "Base URL", "API Key", "Other Vars"})
+	for _, p := range shared.AllModelProviders {
+		if p == shared.ModelProviderCustom {
+			continue
+		}
+		config := shared.BuiltInModelProviderConfigs[p]
+		if config.LocalOnly && auth.Current.IsCloud {
+			continue
+		}
+		var apiKey string
+		if config.ApiKeyEnvVar != "" {
+			apiKey = config.ApiKeyEnvVar
+		} else if config.SkipAuth {
+			apiKey = "No Auth"
+		}
+
+		extraVars := []string{}
+		for _, v := range config.ExtraAuthVars {
+			extraVars = append(extraVars, v.Var)
+		}
+
 		table.Append([]string{
-			strconv.Itoa(i + 1),
-			p.Name,
-			p.BaseUrl,
-			fmt.Sprintf("%v", p.SkipAuth),
-			p.ApiKeyEnvVar,
+			string(p),
+			config.BaseUrl,
+			apiKey,
+			strings.Join(extraVars, "\n"),
 		})
 	}
 	table.Render()
 	fmt.Println()
+
+	if len(customProviders) > 0 {
+		color.New(color.Bold, term.ColorHiCyan).Println("🛠️  Custom Providers")
+		table := tablewriter.NewWriter(os.Stdout)
+		table.SetAutoWrapText(false)
+		table.SetHeader([]string{"#", "Name", "Base URL", "API Key", "Other Vars"})
+		for i, p := range customProviders {
+			extraVars := []string{}
+			for _, v := range p.ExtraAuthVars {
+				extraVars = append(extraVars, v.Var)
+			}
+			apiKey := p.ApiKeyEnvVar
+			if apiKey == "" && p.SkipAuth {
+				apiKey = "No Auth"
+			}
+
+			table.Append([]string{
+				strconv.Itoa(i + 1),
+				p.Name,
+				p.BaseUrl,
+				apiKey,
+				strings.Join(extraVars, "\n"),
+			})
+		}
+		table.Render()
+		fmt.Println()
+	}
+
 	term.PrintCmds("", "providers show", "providers update", "providers add")
 }
 
 func addProvider(cmd *cobra.Command, args []string) {
 	auth.MustResolveAuthWithOrg()
+
+	if auth.Current.IsCloud {
+		term.OutputErrorAndExit("Custom providers are not supported on Plandex Cloud")
+		return
+	}
 
 	name, err := term.GetRequiredUserStringInput("Provider name:")
 	if err != nil {

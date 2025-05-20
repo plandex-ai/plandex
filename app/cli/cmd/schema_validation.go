@@ -23,8 +23,8 @@ type embeddedSchemaLoader struct {
 }
 
 // newEmbeddedSchemaLoader creates a new loader for embedded schemas
-func newEmbeddedSchemaLoader(source string) *embeddedSchemaLoader {
-	return &embeddedSchemaLoader{
+func newEmbeddedSchemaLoader(source string) embeddedSchemaLoader {
+	return embeddedSchemaLoader{
 		source: source,
 		fs:     schemaFS,
 	}
@@ -205,7 +205,7 @@ func ValidateModelConfigJSON(jsonFilePath string) (*shared.CustomModel, error) {
 	}
 
 	if tokenEstimatePaddingPct, ok := jsonMap["tokenEstimatePaddingPct"].(float64); ok {
-		model.TokenEstimatePaddingPct = float32(tokenEstimatePaddingPct)
+		model.TokenEstimatePaddingPct = tokenEstimatePaddingPct
 	}
 
 	if reasoningBudget, ok := jsonMap["reasoningBudget"].(float64); ok {

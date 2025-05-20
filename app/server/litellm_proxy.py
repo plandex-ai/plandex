@@ -1,8 +1,10 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import StreamingResponse, JSONResponse
-from litellm import completion
+from litellm import completion, _turn_on_debug
 import json
 import re
+
+# _turn_on_debug()
 
 LOGGING_ENABLED = False
 
@@ -60,21 +62,30 @@ async def passthrough(request: Request):
 
   try:
     if payload.get("stream"):
+      
+      try:
+        response_stream = completion(api_key=api_key, **payload)
+      except Exception as e:
+        return error_response(e)
       def stream_generator():
-        try:
-          response_stream = completion(api_key=api_key, **payload)
+        try:  
           for chunk in response_stream:
             yield f"data: {json.dumps(chunk.to_dict())}\n\n"
           yield "data: [DONE]\n\n"
         except Exception as e:
           yield f"data: {json.dumps({'error': str(e)})}\n\n"
+        finally:
+          response_stream.close()
 
       print(f"Litellm proxy: Initiating streaming response for model: {payload.get('model', 'unknown')}")
       return StreamingResponse(stream_generator(), media_type="text/event-stream")
 
     else:
       print(f"Litellm proxy: Non-streaming response requested for model: {payload.get('model', 'unknown')}")
-      result = completion(api_key=api_key, **payload)
+      try:
+        result = completion(api_key=api_key, **payload)
+      except Exception as e:
+        return error_response(e)
       return JSONResponse(content=result)
 
   except Exception as e:
@@ -89,3 +100,12 @@ async def passthrough(request: Request):
       status_code=status_code,
       content={"error": err_msg}
     )
+
+def error_response(exc: Exception) -> JSONResponse:
+  status = getattr(exc, "status_code", 500)
+  retry_after = (
+    getattr(getattr(exc, "response", None), "headers", {})
+    .get("Retry-After")
+  )
+  hdrs = {"Retry-After": retry_after} if retry_after else {}
+  return JSONResponse(status_code=status, content={"error": str(exc)}, headers=hdrs)

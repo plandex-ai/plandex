@@ -55,17 +55,18 @@ var ModelProviderToLiteLLMId = map[ModelProvider]string{
 	ModelProviderAmazonBedrock:  "bedrock",
 }
 
-var AllModelProviders = []string{
-	string(ModelProviderOpenAI),
-	string(ModelProviderOpenRouter),
-	string(ModelProviderAnthropic),
-	string(ModelProviderGoogleAIStudio),
-	string(ModelProviderGoogleVertex),
-	string(ModelProviderAzureOpenAI),
-	string(ModelProviderDeepSeek),
-	string(ModelProviderPerplexity),
-	string(ModelProviderAmazonBedrock),
-	string(ModelProviderCustom),
+var AllModelProviders = []ModelProvider{
+	ModelProviderOpenAI,
+	ModelProviderOpenRouter,
+	ModelProviderAnthropic,
+	ModelProviderGoogleAIStudio,
+	ModelProviderGoogleVertex,
+	ModelProviderAzureOpenAI,
+	ModelProviderDeepSeek,
+	ModelProviderPerplexity,
+	ModelProviderAmazonBedrock,
+	ModelProviderOllama,
+	ModelProviderCustom,
 }
 
 type ModelProviderExtraAuthVars struct {
@@ -84,7 +85,8 @@ type ModelProviderConfigSchema struct {
 	HasAWSAuth bool `json:"hasAWSAuth,omitempty"`
 
 	// for local models that don't require auth (ollama, etc.)
-	SkipAuth bool `json:"skipAuth,omitempty"`
+	SkipAuth  bool `json:"skipAuth,omitempty"`
+	LocalOnly bool `json:"localOnly,omitempty"`
 
 	ApiKeyEnvVar  string                       `json:"apiKeyEnvVar,omitempty"`
 	ExtraAuthVars []ModelProviderExtraAuthVars `json:"extraAuthVars,omitempty"`
@@ -187,9 +189,10 @@ var BuiltInModelProviderConfigs = map[ModelProvider]ModelProviderConfigSchema{
 		},
 	},
 	ModelProviderOllama: {
-		Provider: ModelProviderOllama,
-		BaseUrl:  LiteLLMBaseUrl,
-		SkipAuth: true,
+		Provider:  ModelProviderOllama,
+		BaseUrl:   LiteLLMBaseUrl,
+		SkipAuth:  true,
+		LocalOnly: true,
 	},
 }
 

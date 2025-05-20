@@ -109,12 +109,20 @@ var CliCommands = []CmdConfig{
 	{"models available --custom", "", "show available custom models only", true},
 	{"models delete", "", "delete a custom model", true},
 	{"models add", "", "add a custom model", true},
+
+	{"providers", "", "show all available model providers", true},
+	{"providers --custom", "", "show available custom model providers only", true},
+	{"providers show", "", "show a built-in or custom model provider's settings", true},
+	{"providers update", "", "update a custom model provider's settings", true},
+	{"providers delete", "", "delete a custom model provider", true},
+
 	{"model-packs", "", "show all available model packs", true},
 	{"model-packs create", "", "create a new custom model pack", true},
 	{"model-packs delete", "", "delete a custom model pack", true},
 	{"model-packs --custom", "", "show custom model packs only", true},
 	{"model-packs update", "", "update a custom model pack", true},
 	{"model-packs show", "", "show a built-in or custom model pack's settings", true},
+
 	{"set-model", "", "update current plan model settings", true},
 	{"set-model default", "", "update the default model settings for new plans", true},
 
@@ -325,7 +333,7 @@ func PrintHelpAllCommands() {
 	fmt.Fprintln(builder)
 
 	color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Custom Models ")
-	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "models available", "models available --custom", "models add", "models delete", "model-packs --custom", "model-packs create", "model-packs show", "model-packs update", "model-packs delete")
+	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "models available", "models available --custom", "models add", "models delete", "providers", "providers --custom", "providers show", "providers update", "providers delete", "model-packs --custom", "model-packs create", "model-packs show", "model-packs update", "model-packs delete")
 	fmt.Fprintln(builder)
 
 	color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Accounts ")

@@ -108,7 +108,6 @@ var BuiltInModelPackSchemas = []*ModelPackSchema{
 func init() {
 	defaultBuilder := getModelRoleConfig(ModelRoleBuilder, "openai/o4-mini-medium",
 		getStrongModelFallback("openai/o4-mini-high"),
-		getErrorFallback("openai/o3-mini-medium"),
 	)
 
 	DailyDriverPackSchema = ModelPackSchema{
@@ -117,30 +116,22 @@ func init() {
 		Planner: getModelRoleConfig(ModelRolePlanner, "anthropic/claude-3.7-sonnet",
 			getLargeContextFallback("google/gemini-2.5-pro-preview",
 				getLargeContextFallback("google/gemini-pro-1.5"),
-				getErrorFallback("google/gemini-pro-1.5"),
 			),
 		),
 		Architect: Pointer(getModelRoleConfig(ModelRoleArchitect, "anthropic/claude-3.7-sonnet",
 			getLargeContextFallback("google/gemini-2.5-pro-preview",
 				getLargeContextFallback("google/gemini-pro-1.5"),
-				getErrorFallback("google/gemini-pro-1.5"),
 			),
 		)),
 		Coder: Pointer(getModelRoleConfig(ModelRoleCoder, "anthropic/claude-3.7-sonnet",
 			getLargeContextFallback("openai/gpt-4.1"),
 		)),
-		PlanSummary: getModelRoleConfig(ModelRolePlanSummary, "openai/o4-mini-low",
-			getErrorFallback("openai/o3-mini-low"),
-		),
-		Builder: defaultBuilder,
-		WholeFileBuilder: Pointer(getModelRoleConfig(ModelRoleWholeFileBuilder, "openai/o4-mini-medium",
-			getErrorFallback("openai/o3-mini-medium"),
-		)),
-		Namer:     getModelRoleConfig(ModelRoleName, "openai/gpt-4.1-mini"),
-		CommitMsg: getModelRoleConfig(ModelRoleCommitMsg, "openai/gpt-4.1-mini"),
-		ExecStatus: getModelRoleConfig(ModelRoleExecStatus, "openai/o4-mini-low",
-			getErrorFallback("openai/o3-mini-low"),
-		),
+		PlanSummary:      getModelRoleConfig(ModelRolePlanSummary, "openai/o4-mini-low"),
+		Builder:          defaultBuilder,
+		WholeFileBuilder: Pointer(getModelRoleConfig(ModelRoleWholeFileBuilder, "openai/o4-mini-medium")),
+		Namer:            getModelRoleConfig(ModelRoleName, "openai/gpt-4.1-mini"),
+		CommitMsg:        getModelRoleConfig(ModelRoleCommitMsg, "openai/gpt-4.1-mini"),
+		ExecStatus:       getModelRoleConfig(ModelRoleExecStatus, "openai/o4-mini-low"),
 	}
 
 	ReasoningPackSchema = ModelPackSchema{

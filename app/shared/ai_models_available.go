@@ -783,10 +783,10 @@ var BuiltInModels = []*BaseModelConfigSchema{
 	},
 }
 
-var BaseModelIds = []ModelId{}
 var BuiltInBaseModelsById = map[ModelId]*BaseModelConfigSchema{}
 
 var BuiltInModelProvidersByModelId = map[ModelId][]BaseModelUsesProvider{}
+var BuiltInBaseModels = []*BaseModelConfigSchema{}
 
 var AvailableModels = []*AvailableModel{}
 
@@ -811,9 +811,10 @@ func init() {
 					continue
 				}
 
+				model.ModelId = modelId
 				BuiltInModelProvidersByModelId[modelId] = model.Providers
 				BuiltInBaseModelsById[modelId] = model
-				BaseModelIds = append(BaseModelIds, modelId)
+				BuiltInBaseModels = append(BuiltInBaseModels, model)
 			}
 		}
 
@@ -821,9 +822,10 @@ func init() {
 			addVariants(model.Variants, ModelId(string(model.ModelTag)))
 		} else {
 			modelId := ModelId(string(model.ModelTag))
+			model.ModelId = modelId
 			BuiltInModelProvidersByModelId[modelId] = model.Providers
 			BuiltInBaseModelsById[modelId] = model
-			BaseModelIds = append(BaseModelIds, modelId)
+			BuiltInBaseModels = append(BuiltInBaseModels, model)
 		}
 	}
 
@@ -888,12 +890,4 @@ func init() {
 func GetAvailableModel(provider ModelProvider, modelId ModelId) *AvailableModel {
 	compositeKey := string(provider) + "/" + string(modelId)
 	return AvailableModelsByComposite[compositeKey]
-}
-
-func GetBuiltInBaseModels() []*BaseModelConfigSchema {
-	models := []*BaseModelConfigSchema{}
-	for _, id := range BaseModelIds {
-		models = append(models, BuiltInBaseModelsById[id])
-	}
-	return models
 }

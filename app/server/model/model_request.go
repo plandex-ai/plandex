@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/sashabaranov/go-openai"
 )
 
@@ -82,6 +83,11 @@ func ModelRequest(
 		config = modelConfig.GetRoleForOutputTokens(params.EstimatedOutputTokens)
 		modelConfig = &config
 	}
+
+	log.Println("ModelRequest - modelConfig:")
+	spew.Dump(modelConfig)
+	log.Println("ModelRequest - baseModelConfig:")
+	spew.Dump(baseModelConfig)
 
 	log.Printf("Model config - role: %s, model: %s, max output tokens: %d\n", modelConfig.Role, baseModelConfig.ModelName, baseModelConfig.MaxOutputTokens)
 

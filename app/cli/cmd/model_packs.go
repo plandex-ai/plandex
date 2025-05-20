@@ -5,7 +5,6 @@ import (
 	"os"
 	"plandex-cli/api"
 	"plandex-cli/auth"
-	"plandex-cli/lib"
 	"plandex-cli/term"
 	"strconv"
 
@@ -209,36 +208,36 @@ func createModelPack(cmd *cobra.Command, args []string) {
 	}
 	mp.Description = description
 
-	term.StartSpinner("")
-	customModels, apiErr := api.Client.ListCustomModels()
-	term.StopSpinner()
+	// term.StartSpinner("")
+	// customModels, apiErr := api.Client.ListCustomModels()
+	// term.StopSpinner()
 
-	if apiErr != nil {
-		term.OutputErrorAndExit("Error fetching models: %v", apiErr)
-	}
+	// if apiErr != nil {
+	// 	term.OutputErrorAndExit("Error fetching models: %v", apiErr)
+	// }
 
 	// Selecting models for each role
-	mp.Planner = getPlannerRoleConfig(customModels)
+	// mp.Planner = getPlannerRoleConfig(customModels)
 
-	contextLoader := getModelRoleConfig(customModels, shared.ModelRoleArchitect)
-	mp.Architect = &contextLoader
+	// contextLoader := getModelRoleConfig(customModels, shared.ModelRoleArchitect)
+	// mp.Architect = &contextLoader
 
-	coder := getModelRoleConfig(customModels, shared.ModelRoleCoder)
-	mp.Coder = &coder
+	// coder := getModelRoleConfig(customModels, shared.ModelRoleCoder)
+	// mp.Coder = &coder
 
-	mp.Builder = getModelRoleConfig(customModels, shared.ModelRoleBuilder)
+	// mp.Builder = getModelRoleConfig(customModels, shared.ModelRoleBuilder)
 
-	wholeFileBuilder := getModelRoleConfig(customModels, shared.ModelRoleWholeFileBuilder)
-	mp.WholeFileBuilder = &wholeFileBuilder
+	// wholeFileBuilder := getModelRoleConfig(customModels, shared.ModelRoleWholeFileBuilder)
+	// mp.WholeFileBuilder = &wholeFileBuilder
 
-	mp.Namer = getModelRoleConfig(customModels, shared.ModelRoleName)
-	mp.CommitMsg = getModelRoleConfig(customModels, shared.ModelRoleCommitMsg)
+	// mp.Namer = getModelRoleConfig(customModels, shared.ModelRoleName)
+	// mp.CommitMsg = getModelRoleConfig(customModels, shared.ModelRoleCommitMsg)
 
-	mp.PlanSummary = getModelRoleConfig(customModels, shared.ModelRolePlanSummary)
-	mp.ExecStatus = getModelRoleConfig(customModels, shared.ModelRoleExecStatus)
+	// mp.PlanSummary = getModelRoleConfig(customModels, shared.ModelRolePlanSummary)
+	// mp.ExecStatus = getModelRoleConfig(customModels, shared.ModelRoleExecStatus)
 
 	term.StartSpinner("")
-	apiErr = api.Client.CreateModelPack(mp)
+	apiErr := api.Client.CreateModelPack(mp)
 	term.StopSpinner()
 
 	if apiErr != nil {
@@ -270,11 +269,11 @@ func updateModelPack(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	customModels, apiErr := api.Client.ListCustomModels()
-	term.StopSpinner()
-	if apiErr != nil {
-		term.OutputErrorAndExit("Error fetching models: %v", apiErr)
-	}
+	// customModels, apiErr := api.Client.ListCustomModels()
+	// term.StopSpinner()
+	// if apiErr != nil {
+	// 	term.OutputErrorAndExit("Error fetching models: %v", apiErr)
+	// }
 
 	var toUpdate *shared.ModelPack
 
@@ -307,7 +306,7 @@ func updateModelPack(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	var role shared.ModelRole
+	// var role shared.ModelRole
 
 	roleOpts := make([]string, len(shared.AllModelRoles))
 	for i, role := range shared.AllModelRoles {
@@ -316,52 +315,52 @@ func updateModelPack(cmd *cobra.Command, args []string) {
 
 	renderModelPack(toUpdate, allProperties)
 
-	for {
-		selected, err := term.SelectFromList("Select a role to update:", roleOpts)
-		if err != nil {
-			term.OutputErrorAndExit("Error selecting role: %v", err)
-		}
+	// for {
+	// 	selected, err := term.SelectFromList("Select a role to update:", roleOpts)
+	// 	if err != nil {
+	// 		term.OutputErrorAndExit("Error selecting role: %v", err)
+	// 	}
 
-		role = shared.ModelRole(selected)
+	// 	role = shared.ModelRole(selected)
 
-		switch role {
-		case shared.ModelRolePlanner:
-			toUpdate.Planner = getPlannerRoleConfig(customModels)
-		case shared.ModelRoleArchitect:
-			contextLoader := getModelRoleConfig(customModels, shared.ModelRoleArchitect)
-			toUpdate.Architect = &contextLoader
-		case shared.ModelRoleCoder:
-			coder := getModelRoleConfig(customModels, shared.ModelRoleCoder)
-			toUpdate.Coder = &coder
-		case shared.ModelRoleBuilder:
-			builder := getModelRoleConfig(customModels, shared.ModelRoleBuilder)
-			toUpdate.Builder = builder
-		case shared.ModelRoleWholeFileBuilder:
-			wholeFileBuilder := getModelRoleConfig(customModels, shared.ModelRoleWholeFileBuilder)
-			toUpdate.WholeFileBuilder = &wholeFileBuilder
-		case shared.ModelRolePlanSummary:
-			toUpdate.PlanSummary = getModelRoleConfig(customModels, role)
-		case shared.ModelRoleExecStatus:
-			toUpdate.ExecStatus = getModelRoleConfig(customModels, role)
-		case shared.ModelRoleCommitMsg:
-			toUpdate.CommitMsg = getModelRoleConfig(customModels, role)
-		case shared.ModelRoleName:
-			toUpdate.Namer = getModelRoleConfig(customModels, role)
-		}
+	// 	switch role {
+	// 	case shared.ModelRolePlanner:
+	// 		toUpdate.Planner = getPlannerRoleConfig(customModels)
+	// 	case shared.ModelRoleArchitect:
+	// 		contextLoader := getModelRoleConfig(customModels, shared.ModelRoleArchitect)
+	// 		toUpdate.Architect = &contextLoader
+	// 	case shared.ModelRoleCoder:
+	// 		coder := getModelRoleConfig(customModels, shared.ModelRoleCoder)
+	// 		toUpdate.Coder = &coder
+	// 	case shared.ModelRoleBuilder:
+	// 		builder := getModelRoleConfig(customModels, shared.ModelRoleBuilder)
+	// 		toUpdate.Builder = builder
+	// 	case shared.ModelRoleWholeFileBuilder:
+	// 		wholeFileBuilder := getModelRoleConfig(customModels, shared.ModelRoleWholeFileBuilder)
+	// 		toUpdate.WholeFileBuilder = &wholeFileBuilder
+	// 	case shared.ModelRolePlanSummary:
+	// 		toUpdate.PlanSummary = getModelRoleConfig(customModels, role)
+	// 	case shared.ModelRoleExecStatus:
+	// 		toUpdate.ExecStatus = getModelRoleConfig(customModels, role)
+	// 	case shared.ModelRoleCommitMsg:
+	// 		toUpdate.CommitMsg = getModelRoleConfig(customModels, role)
+	// 	case shared.ModelRoleName:
+	// 		toUpdate.Namer = getModelRoleConfig(customModels, role)
+	// 	}
 
-		updateOpt := "Update another role"
-		saveOpt := "Save model pack and exit"
-		opts := []string{updateOpt, saveOpt}
+	// 	updateOpt := "Update another role"
+	// 	saveOpt := "Save model pack and exit"
+	// 	opts := []string{updateOpt, saveOpt}
 
-		selected, err = term.SelectFromList("Finished editing?", opts)
-		if err != nil {
-			term.OutputErrorAndExit("Error selecting option: %v", err)
-		}
+	// 	selected, err = term.SelectFromList("Finished editing?", opts)
+	// 	if err != nil {
+	// 		term.OutputErrorAndExit("Error selecting option: %v", err)
+	// 	}
 
-		if selected == saveOpt {
-			break
-		}
-	}
+	// 	if selected == saveOpt {
+	// 		break
+	// 	}
+	// }
 
 	term.StartSpinner("")
 	apiErr = api.Client.UpdateModelPack(toUpdate)
@@ -438,67 +437,67 @@ func showModelPack(cmd *cobra.Command, args []string) {
 	term.PrintCmds("", "model-packs update", "model-packs delete", "set-model", "set-model default")
 }
 
-func getModelRoleConfig(customModels []*shared.CustomModel, modelRole shared.ModelRole) shared.ModelRoleConfig {
-	_, modelConfig := getModelWithRoleConfig(customModels, modelRole)
-	return modelConfig
-}
+// func getModelRoleConfig(customModels []*shared.CustomModel, modelRole shared.ModelRole) shared.ModelRoleConfig {
+// 	_, modelConfig := getModelWithRoleConfig(customModels, modelRole)
+// 	return modelConfig
+// }
 
-func getModelWithRoleConfig(customModels []*shared.CustomModel, modelRole shared.ModelRole) (*shared.CustomModel, shared.ModelRoleConfig) {
-	role := string(modelRole)
+// func getModelWithRoleConfig(customModels []*shared.CustomModel, modelRole shared.ModelRole) (*shared.CustomModel, shared.ModelRoleConfig) {
+// 	role := string(modelRole)
 
-	model := getModelForRole(customModels, modelRole)
+// 	modelId := getModelIdForRole(customModels, modelRole)
 
-	temperatureStr, err := term.GetUserStringInputWithDefault("Temperature for "+role+":", fmt.Sprintf("%.1f", shared.DefaultConfigByRole[modelRole].Temperature))
-	if err != nil {
-		term.OutputErrorAndExit("Error reading temperature: %v", err)
-	}
-	temperature, err := strconv.ParseFloat(temperatureStr, 32)
-	if err != nil {
-		term.OutputErrorAndExit("Invalid number for temperature: %v", err)
-	}
+// 	temperatureStr, err := term.GetUserStringInputWithDefault("Temperature for "+role+":", fmt.Sprintf("%.1f", shared.DefaultConfigByRole[modelRole].Temperature))
+// 	if err != nil {
+// 		term.OutputErrorAndExit("Error reading temperature: %v", err)
+// 	}
+// 	temperature, err := strconv.ParseFloat(temperatureStr, 32)
+// 	if err != nil {
+// 		term.OutputErrorAndExit("Invalid number for temperature: %v", err)
+// 	}
 
-	topPStr, err := term.GetUserStringInputWithDefault("Top P for "+role+":", fmt.Sprintf("%.1f", shared.DefaultConfigByRole[modelRole].TopP))
-	if err != nil {
-		term.OutputErrorAndExit("Error reading top P: %v", err)
-	}
-	topP, err := strconv.ParseFloat(topPStr, 32)
-	if err != nil {
-		term.OutputErrorAndExit("Invalid number for top P: %v", err)
-	}
+// 	topPStr, err := term.GetUserStringInputWithDefault("Top P for "+role+":", fmt.Sprintf("%.1f", shared.DefaultConfigByRole[modelRole].TopP))
+// 	if err != nil {
+// 		term.OutputErrorAndExit("Error reading top P: %v", err)
+// 	}
+// 	topP, err := strconv.ParseFloat(topPStr, 32)
+// 	if err != nil {
+// 		term.OutputErrorAndExit("Invalid number for top P: %v", err)
+// 	}
 
-	var reservedOutputTokens int
-	if modelRole == shared.ModelRoleBuilder || modelRole == shared.ModelRolePlanner || modelRole == shared.ModelRoleWholeFileBuilder {
-		reservedOutputTokensStr, err := term.GetUserStringInputWithDefault("Reserved output tokens for "+role+":", fmt.Sprintf("%d", model.ReservedOutputTokens))
-		if err != nil {
-			term.OutputErrorAndExit("Error reading reserved output tokens: %v", err)
-		}
-		reservedOutputTokens, err = strconv.Atoi(reservedOutputTokensStr)
-		if err != nil {
-			term.OutputErrorAndExit("Invalid number for reserved output tokens: %v", err)
-		}
-	}
+// 	var reservedOutputTokens int
+// 	if modelRole == shared.ModelRoleBuilder || modelRole == shared.ModelRolePlanner || modelRole == shared.ModelRoleWholeFileBuilder {
+// 		reservedOutputTokensStr, err := term.GetUserStringInputWithDefault("Reserved output tokens for "+role+":", fmt.Sprintf("%d", model.ReservedOutputTokens))
+// 		if err != nil {
+// 			term.OutputErrorAndExit("Error reading reserved output tokens: %v", err)
+// 		}
+// 		reservedOutputTokens, err = strconv.Atoi(reservedOutputTokensStr)
+// 		if err != nil {
+// 			term.OutputErrorAndExit("Invalid number for reserved output tokens: %v", err)
+// 		}
+// 	}
 
-	return model, shared.ModelRoleConfig{
-		ModelId:              model.ModelId,
-		Role:                 modelRole,
-		Temperature:          float32(temperature),
-		TopP:                 float32(topP),
-		ReservedOutputTokens: reservedOutputTokens,
-	}
-}
+// 	return model, shared.ModelRoleConfig{
+// 		ModelId:              model.ModelId,
+// 		Role:                 modelRole,
+// 		Temperature:          float32(temperature),
+// 		TopP:                 float32(topP),
+// 		ReservedOutputTokens: reservedOutputTokens,
+// 	}
+// }
 
-func getPlannerRoleConfig(customModels []*shared.CustomModel) shared.PlannerRoleConfig {
-	model, modelConfig := getModelWithRoleConfig(customModels, shared.ModelRolePlanner)
+// func getPlannerRoleConfig(customModels []*shared.CustomModel) shared.PlannerRoleConfig {
+// 	model, modelConfig := getModelWithRoleConfig(customModels, shared.ModelRolePlanner)
 
-	return shared.PlannerRoleConfig{
-		ModelRoleConfig: modelConfig,
-		PlannerModelConfig: shared.PlannerModelConfig{
-			MaxConvoTokens: model.DefaultMaxConvoTokens,
-		},
-	}
-}
+// 	return shared.PlannerRoleConfig{
+// 		ModelRoleConfig: modelConfig,
+// 		PlannerModelConfig: shared.PlannerModelConfig{
+// 			MaxConvoTokens: model.DefaultMaxConvoTokens,
+// 		},
+// 	}
+// }
 
-func getModelForRole(customModels []*shared.CustomModel, role shared.ModelRole) *shared.CustomModel {
-	color.New(color.Bold).Printf("Select a model for the %s role 👇\n", role)
-	return lib.SelectModelForRole(customModels, role, false)
-}
+// func getModelIdForRole(customModels []*shared.CustomModel, role shared.ModelRole) shared.ModelId {
+// 	color.New(color.Bold).Printf("Select a model for the %s role 👇\n", role)
+// 	return lib.SelectModelIdForRole(customModels, role)
+// }

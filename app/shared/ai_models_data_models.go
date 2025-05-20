@@ -77,6 +77,7 @@ func (b BaseModelUsesProvider) ToComposite() string {
 
 type BaseModelConfigSchema struct {
 	ModelTag    ModelTag       `json:"modelTag"`
+	ModelId     ModelId        `json:"modelId"`
 	Publisher   ModelPublisher `json:"publisher"`
 	Description string         `json:"description"`
 
@@ -337,6 +338,14 @@ func (m *ModelRoleConfigSchema) toModelRoleConfig() ModelRoleConfig {
 	}
 }
 
+func (m ModelRoleConfig) GetModelId() ModelId {
+	if m.BaseModelConfig != nil {
+		return m.BaseModelConfig.ModelId
+	}
+
+	return m.ModelId
+}
+
 func (m ModelRoleConfig) GetBaseModelConfig(authVars map[string]string) *BaseModelConfig {
 	if m.BaseModelConfig != nil {
 		return m.BaseModelConfig
@@ -423,6 +432,14 @@ func (p *PlannerRoleConfig) Scan(src interface{}) error {
 
 func (p PlannerRoleConfig) Value() (driver.Value, error) {
 	return json.Marshal(p)
+}
+
+func (p PlannerRoleConfig) GetMaxConvoTokens() int {
+	if p.MaxConvoTokens > 0 {
+		return p.MaxConvoTokens
+	}
+
+	return p.ModelRoleConfig.GetSharedBaseConfig().DefaultMaxConvoTokens
 }
 
 type ModelPackSchema struct {

@@ -394,7 +394,8 @@ func execTellPlan(params execTellPlanParams) {
 
 	// log.Println("Tell plan - modelConfig:", spew.Sdump(modelConfig))
 	state.modelConfig = &modelConfig
-	baseModelConfig := modelConfig.GetBaseModelConfig(state.authVars)
+
+	baseModelConfig := modelConfig.GetBaseModelConfig(authVars)
 
 	// if the model doesn't support cache control, remove the cache control spec from the messages
 	if !baseModelConfig.SupportsCacheControl {

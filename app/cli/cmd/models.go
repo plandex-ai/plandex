@@ -1,14 +1,15 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
+
 	"plandex-cli/api"
 	"plandex-cli/auth"
 	"plandex-cli/lib"
 	"plandex-cli/term"
 	"strconv"
-	"strings"
 
 	shared "plandex-shared"
 
@@ -20,6 +21,7 @@ import (
 var customModelsOnly bool
 
 var allProperties bool
+var jsonFile string
 
 func init() {
 	RootCmd.AddCommand(modelsCmd)
@@ -30,6 +32,8 @@ func init() {
 	modelsCmd.AddCommand(createCustomModelCmd)
 	modelsCmd.AddCommand(deleteCustomModelCmd)
 	modelsCmd.AddCommand(defaultModelsCmd)
+
+	createCustomModelCmd.Flags().StringVar(&jsonFile, "json", "", "Path to a JSON file containing model configuration")
 
 	listAvailableModelsCmd.Flags().BoolVarP(&customModelsOnly, "custom", "c", false, "List custom models only")
 }
@@ -71,216 +75,220 @@ var deleteCustomModelCmd = &cobra.Command{
 func createCustomModel(cmd *cobra.Command, args []string) {
 	auth.MustResolveAuthWithOrg()
 
-	model := &shared.AvailableModel{
-		BaseModelConfig: shared.BaseModelConfig{
+	var model *shared.CustomModel
+
+	if jsonFile != "" {
+		// Load model from JSON file
+		jsonData, err := os.ReadFile(jsonFile)
+		if err != nil {
+			term.OutputErrorAndExit("Error reading JSON file: %v", err)
+			return
+		}
+
+		// Parse JSON into a map
+		var jsonMap map[string]interface{}
+		if err := json.Unmarshal(jsonData, &jsonMap); err != nil {
+			term.OutputErrorAndExit("Error parsing JSON: %v", err)
+			return
+		}
+
+		// Convert to CustomModel
+		model = &shared.CustomModel{
 			BaseModelShared: shared.BaseModelShared{
 				ModelCompatibility: shared.ModelCompatibility{},
 			},
-		},
-	}
+		}
 
-	opts := shared.AllModelProviders
-	if auth.Current.IsCloud {
-		// remove custom provider if we're in cloud
-		filtered := []string{}
-		for _, provider := range opts {
-			if provider != string(shared.ModelProviderCustom) {
-				filtered = append(filtered, provider)
+		// Extract required fields
+		if modelId, ok := jsonMap["modelId"].(string); ok {
+			model.ModelId = shared.ModelId(modelId)
+		} else {
+			term.OutputErrorAndExit("Missing or invalid 'modelId' in JSON")
+			return
+		}
+
+		// Extract optional fields
+		if description, ok := jsonMap["description"].(string); ok {
+			model.Description = description
+		}
+
+		// Extract numeric fields
+		if maxTokens, ok := jsonMap["maxTokens"].(float64); ok {
+			model.MaxTokens = int(maxTokens)
+		} else {
+			term.OutputErrorAndExit("Missing or invalid 'maxTokens' in JSON")
+			return
+		}
+
+		if maxConvoTokens, ok := jsonMap["defaultMaxConvoTokens"].(float64); ok {
+			model.DefaultMaxConvoTokens = int(maxConvoTokens)
+		} else {
+			term.OutputErrorAndExit("Missing or invalid 'defaultMaxConvoTokens' in JSON")
+			return
+		}
+
+		if maxOutputTokens, ok := jsonMap["maxOutputTokens"].(float64); ok {
+			model.MaxOutputTokens = int(maxOutputTokens)
+		} else {
+			term.OutputErrorAndExit("Missing or invalid 'maxOutputTokens' in JSON")
+			return
+		}
+
+		if reservedOutputTokens, ok := jsonMap["reservedOutputTokens"].(float64); ok {
+			model.ReservedOutputTokens = int(reservedOutputTokens)
+		} else {
+			term.OutputErrorAndExit("Missing or invalid 'reservedOutputTokens' in JSON")
+			return
+		}
+
+		// Extract output format
+		if outputFormat, ok := jsonMap["preferredOutputFormat"].(string); ok {
+			model.PreferredOutputFormat = shared.ModelOutputFormat(outputFormat)
+		} else {
+			term.OutputErrorAndExit("Missing or invalid 'preferredOutputFormat' in JSON")
+			return
+		}
+
+		// Extract image support
+		if hasImageSupport, ok := jsonMap["hasImageSupport"].(bool); ok {
+			model.HasImageSupport = hasImageSupport
+		} else {
+			// Default to false if not specified
+			model.HasImageSupport = false
+		}
+	} else {
+		// Interactive mode
+		model = &shared.CustomModel{
+			BaseModelShared: shared.BaseModelShared{
+				ModelCompatibility: shared.ModelCompatibility{},
+			},
+		}
+
+		fmt.Println("For model id, use something like 'openai/gpt-4.1' that uniquely identifies the model. This doesn't need to match the model name for any particular provider (this is set when you add providers for the model).")
+		modelId, err := term.GetRequiredUserStringInput("Model id:")
+		if err != nil {
+			term.OutputErrorAndExit("Error reading model id: %v", err)
+			return
+		}
+		model.ModelId = shared.ModelId(modelId)
+
+		fmt.Println("Add a human friendly description if you want to.")
+		description, err := term.GetUserStringInput("Description (optional):")
+		if err != nil {
+			term.OutputErrorAndExit("Error reading description: %v", err)
+			return
+		}
+		model.Description = description
+
+		fmt.Println("Max Tokens is the total maximum context size of the model.")
+
+		maxTokensStr, err := term.GetRequiredUserStringInput("Max Tokens:")
+		if err != nil {
+			term.OutputErrorAndExit("Error reading max tokens: %v", err)
+			return
+		}
+		maxTokens, err := strconv.Atoi(maxTokensStr)
+		if err != nil {
+			term.OutputErrorAndExit("Invalid number for max tokens: %v", err)
+			return
+		}
+		model.MaxTokens = maxTokens
+
+		fmt.Println("'Default Max Convo Tokens' is the default maximum size a conversation can reach in the 'planner' role before it is shortened by summarization. For 128k context, ~10000 is recommended. For 200k context, ~15000 is recommended.")
+
+		var defaultMaxConvoTokens int
+
+		if maxTokens >= 180000 {
+			defaultMaxConvoTokens = 15000
+		} else if maxTokens >= 100000 {
+			defaultMaxConvoTokens = 10000
+		}
+
+		var maxConvoTokensStr string
+		if defaultMaxConvoTokens == 0 {
+			maxConvoTokensStr, err = term.GetRequiredUserStringInput("Default Max Convo Tokens:")
+		} else {
+			maxConvoTokensStr, err = term.GetRequiredUserStringInputWithDefault("Default Max Convo Tokens:", strconv.Itoa(defaultMaxConvoTokens))
+		}
+
+		if err != nil {
+			term.OutputErrorAndExit("Error reading max convo tokens: %v", err)
+			return
+		}
+		maxConvoTokens, err := strconv.Atoi(maxConvoTokensStr)
+		if err != nil {
+			term.OutputErrorAndExit("Invalid number for max convo tokens: %v", err)
+			return
+		}
+		model.DefaultMaxConvoTokens = maxConvoTokens
+
+		fmt.Println("'Max Output Tokens' is the hard limit on output length for the model. Check with the model provider for the recommended value. 8k is a reasonable default if it's not documented, though some models have no max output limit—in that case 'Max Output Tokens' should be set to the same value as 'Max Tokens'.")
+
+		maxOutputTokensStr, err := term.GetRequiredUserStringInputWithDefault("Max Output Tokens:", "8192")
+		if err != nil {
+			term.OutputErrorAndExit("Error reading reserved output tokens: %v", err)
+			return
+		}
+		maxOutputTokens, err := strconv.Atoi(maxOutputTokensStr)
+		if err != nil {
+			term.OutputErrorAndExit("Invalid number for reserved output tokens: %v", err)
+			return
+		}
+		model.MaxOutputTokens = maxOutputTokens
+
+		fmt.Println("'Reserved Output Tokens' is the default number of tokens reserved for model output. This ensures the model has enough tokens to generate a response. It can be lower than the 'Max Output Tokens' limit and should be set to what a *realistic* output could reach under normal circumstances. If the 'Max Output Tokens' limit is fairly low, just use that. If the 'Max Output Tokens' is very high, or is equal to the 'Max Tokens' input limit, set a lower value so that there's enough room for input. For reasoning models, make sure enough space is included for reasoning tokens.")
+
+		var defaultReservedOutputTokens int
+		if maxOutputTokens <= int(float64(maxTokens)*0.2) {
+			defaultReservedOutputTokens = maxOutputTokens
+		}
+
+		var reservedOutputTokensStr string
+		if defaultReservedOutputTokens == 0 {
+			reservedOutputTokensStr, err = term.GetRequiredUserStringInputWithDefault("Reserved Output Tokens:", "8192")
+		} else {
+			reservedOutputTokensStr, err = term.GetRequiredUserStringInputWithDefault("Reserved Output Tokens:", strconv.Itoa(defaultReservedOutputTokens))
+		}
+
+		if err != nil {
+			term.OutputErrorAndExit("Error reading reserved output tokens: %v", err)
+			return
+		}
+
+		reservedOutputTokens, err := strconv.Atoi(reservedOutputTokensStr)
+		if err != nil {
+			term.OutputErrorAndExit("Invalid number for reserved output tokens: %v", err)
+			return
+		}
+		model.ReservedOutputTokens = reservedOutputTokens
+
+		fmt.Println("'Preferred Output Format' is the format for roles needing structured output. Currently, OpenAI models do best with 'Tool Call JSON' and other models generally do better with 'XML'. Choose 'XML' if you're unsure as it offers the widest compatibility. 'Tool Call JSON' requires tool call support and reliable JSON generation.")
+
+		outputFormatLabels := map[string]string{
+			string(shared.ModelOutputFormatXml):          "XML",
+			string(shared.ModelOutputFormatToolCallJson): "Tool Call JSON",
+		}
+
+		res, err := term.SelectFromList("Preferred Output Format:", []string{
+			outputFormatLabels[string(shared.ModelOutputFormatXml)],
+			outputFormatLabels[string(shared.ModelOutputFormatToolCallJson)],
+		})
+		if err != nil {
+			term.OutputErrorAndExit("Error selecting output format: %v", err)
+			return
+		}
+		for key, label := range outputFormatLabels {
+			if label == res {
+				model.PreferredOutputFormat = shared.ModelOutputFormat(key)
+				break
 			}
 		}
-		opts = filtered
-	}
-	provider, err := term.SelectFromList("Select provider:", opts)
 
-	if err != nil {
-		term.OutputErrorAndExit("Error selecting provider: %v", err)
-		return
-	}
-	model.Provider = shared.ModelProvider(provider)
-
-	if model.Provider == shared.ModelProviderCustom {
-		if auth.Current.IsCloud {
-			term.OutputErrorAndExit("Custom model providers are not supported on Plandex Cloud")
-			return
-		}
-		customProvider, err := term.GetRequiredUserStringInput("Custom provider:")
+		model.HasImageSupport, err = term.ConfirmYesNo("Is multi-modal image support enabled?")
 		if err != nil {
-			term.OutputErrorAndExit("Error reading custom provider: %v", err)
+			term.OutputErrorAndExit("Error confirming image support: %v", err)
 			return
 		}
-		model.CustomProvider = &customProvider
-	}
-
-	fmt.Println("For model name, be sure to enter the exact, case-sensitive name of the model as it appears in the provider's API docs. Ex: 'gpt-4o', 'deepseek/deepseek-chat'")
-	modelName, err := term.GetRequiredUserStringInput("Model name:")
-	if err != nil {
-		term.OutputErrorAndExit("Error reading model name: %v", err)
-		return
-	}
-	model.ModelName = shared.ModelName(modelName)
-
-	fmt.Println("For model id, set a unique identifier for the model if you have multiple models with the same name and provider but different settings (otherwise, just press enter to use the model name)")
-	modelId, err := term.GetRequiredUserStringInputWithDefault("Model id:", modelName)
-	if err != nil {
-		term.OutputErrorAndExit("Error reading model id: %v", err)
-		return
-	}
-	model.ModelId = shared.ModelId(modelId)
-
-	fmt.Println("Add a human friendly description if you want to.")
-	description, err := term.GetUserStringInput("Description (optional):")
-	if err != nil {
-		term.OutputErrorAndExit("Error reading description: %v", err)
-		return
-	}
-	model.Description = description
-
-	if model.Provider == shared.ModelProviderCustom {
-		baseUrl, err := term.GetRequiredUserStringInput("Base URL:")
-		if err != nil {
-			term.OutputErrorAndExit("Error reading base URL: %v", err)
-			return
-		}
-
-		baseUrl = strings.TrimSuffix(baseUrl, "/")
-
-		model.BaseUrl = baseUrl
-	} else {
-		providerConfig, ok := shared.BuiltInModelProviderConfigs[model.Provider]
-		if !ok {
-			term.OutputErrorAndExit("Error getting provider config: %v", err)
-			return
-		}
-
-		model.BaseUrl = providerConfig.BaseUrl
-	}
-
-	var apiKeyEnvVar string
-	if model.Provider == shared.ModelProviderCustom {
-		apiKeyEnvVar, err = term.GetRequiredUserStringInput("API key environment variable:")
-	} else {
-		providerConfig, ok := shared.BuiltInModelProviderConfigs[model.Provider]
-		if !ok {
-			term.OutputErrorAndExit("Error getting provider config: %v", err)
-			return
-		}
-		apiKeyEnvVar = providerConfig.ApiKeyEnvVar
-	}
-
-	if err != nil {
-		term.OutputErrorAndExit("Error reading API key environment variable: %v", err)
-		return
-	}
-	model.ApiKeyEnvVar = apiKeyEnvVar
-
-	fmt.Println("Max Tokens is the total maximum context size of the model.")
-
-	maxTokensStr, err := term.GetRequiredUserStringInput("Max Tokens:")
-	if err != nil {
-		term.OutputErrorAndExit("Error reading max tokens: %v", err)
-		return
-	}
-	maxTokens, err := strconv.Atoi(maxTokensStr)
-	if err != nil {
-		term.OutputErrorAndExit("Invalid number for max tokens: %v", err)
-		return
-	}
-	model.MaxTokens = maxTokens
-
-	fmt.Println("'Default Max Convo Tokens' is the default maximum size a conversation can reach in the 'planner' role before it is shortened by summarization. For 128k context, ~10000 is recommended. For 200k context, ~15000 is recommended.")
-
-	var defaultMaxConvoTokens int
-
-	if maxTokens >= 180000 {
-		defaultMaxConvoTokens = 15000
-	} else if maxTokens >= 100000 {
-		defaultMaxConvoTokens = 10000
-	}
-
-	var maxConvoTokensStr string
-	if defaultMaxConvoTokens == 0 {
-		maxConvoTokensStr, err = term.GetRequiredUserStringInput("Default Max Convo Tokens:")
-	} else {
-		maxConvoTokensStr, err = term.GetRequiredUserStringInputWithDefault("Default Max Convo Tokens:", strconv.Itoa(defaultMaxConvoTokens))
-	}
-
-	if err != nil {
-		term.OutputErrorAndExit("Error reading max convo tokens: %v", err)
-		return
-	}
-	maxConvoTokens, err := strconv.Atoi(maxConvoTokensStr)
-	if err != nil {
-		term.OutputErrorAndExit("Invalid number for max convo tokens: %v", err)
-		return
-	}
-	model.DefaultMaxConvoTokens = maxConvoTokens
-
-	fmt.Println("'Max Output Tokens' is the hard limit on output length for the model. Check with the model provider for the recommended value. 8k is a reasonable default if it's not documented, though some models have no max output limit—in that case 'Max Output Tokens' should be set to the same value as 'Max Tokens'.")
-
-	maxOutputTokensStr, err := term.GetRequiredUserStringInputWithDefault("Max Output Tokens:", "8192")
-	if err != nil {
-		term.OutputErrorAndExit("Error reading reserved output tokens: %v", err)
-		return
-	}
-	maxOutputTokens, err := strconv.Atoi(maxOutputTokensStr)
-	if err != nil {
-		term.OutputErrorAndExit("Invalid number for reserved output tokens: %v", err)
-		return
-	}
-	model.MaxOutputTokens = maxOutputTokens
-
-	fmt.Println("'Reserved Output Tokens' is the default number of tokens reserved for model output. This ensures the model has enough tokens to generate a response. It can be lower than the 'Max Output Tokens' limit and should be set to what a *realistic* output could reach under normal circumstances. If the 'Max Output Tokens' limit is fairly low, just use that. If the 'Max Output Tokens' is very high, or is equal to the 'Max Tokens' input limit, set a lower value so that there's enough room for input. For reasoning models, make sure enough space is included for reasoning tokens.")
-
-	var defaultReservedOutputTokens int
-	if maxOutputTokens <= int(float64(maxTokens)*0.2) {
-		defaultReservedOutputTokens = maxOutputTokens
-	}
-
-	var reservedOutputTokensStr string
-	if defaultReservedOutputTokens == 0 {
-		reservedOutputTokensStr, err = term.GetRequiredUserStringInputWithDefault("Reserved Output Tokens:", "8192")
-	} else {
-		reservedOutputTokensStr, err = term.GetRequiredUserStringInputWithDefault("Reserved Output Tokens:", strconv.Itoa(defaultReservedOutputTokens))
-	}
-
-	if err != nil {
-		term.OutputErrorAndExit("Error reading reserved output tokens: %v", err)
-		return
-	}
-
-	reservedOutputTokens, err := strconv.Atoi(reservedOutputTokensStr)
-	if err != nil {
-		term.OutputErrorAndExit("Invalid number for reserved output tokens: %v", err)
-		return
-	}
-	model.ReservedOutputTokens = reservedOutputTokens
-
-	fmt.Println("'Preferred Output Format' is the format for roles needing structured output. Currently, OpenAI models do best with 'Tool Call JSON' and other models generally do better with 'XML'. Choose 'XML' if you're unsure as it offers the widest compatibility. 'Tool Call JSON' requires tool call support and reliable JSON generation.")
-
-	outputFormatLabels := map[string]string{
-		string(shared.ModelOutputFormatXml):          "XML",
-		string(shared.ModelOutputFormatToolCallJson): "Tool Call JSON",
-	}
-
-	res, err := term.SelectFromList("Preferred Output Format:", []string{
-		outputFormatLabels[string(shared.ModelOutputFormatXml)],
-		outputFormatLabels[string(shared.ModelOutputFormatToolCallJson)],
-	})
-	if err != nil {
-		term.OutputErrorAndExit("Error selecting output format: %v", err)
-		return
-	}
-	for key, label := range outputFormatLabels {
-		if label == res {
-			model.PreferredOutputFormat = shared.ModelOutputFormat(key)
-			break
-		}
-	}
-
-	model.HasImageSupport, err = term.ConfirmYesNo("Is multi-modal image support enabled?")
-	if err != nil {
-		term.OutputErrorAndExit("Error confirming image support: %v", err)
-		return
 	}
 
 	term.StartSpinner("")
@@ -292,7 +300,7 @@ func createCustomModel(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	fmt.Println("✅ Added custom model", color.New(color.Bold, term.ColorHiCyan).Sprint(string(model.Provider)+" → "+string(model.ModelId)))
+	fmt.Println("✅ Added custom model", color.New(color.Bold, term.ColorHiCyan).Sprint(string(model.ModelId)))
 }
 
 func models(cmd *cobra.Command, args []string) {
@@ -377,10 +385,8 @@ func listAvailableModels(cmd *cobra.Command, args []string) {
 		table := tablewriter.NewWriter(os.Stdout)
 		table.SetAutoWrapText(false)
 		table.SetHeader([]string{"Model", "Input", "Output", "Reserved"})
-		for _, modelId := range shared.BaseModelIds {
-			model := shared.BuiltInBaseModelsById[modelId]
-
-			table.Append([]string{string(modelId), fmt.Sprintf("%d 🪙", model.MaxTokens), fmt.Sprintf("%d 🪙", model.MaxOutputTokens), fmt.Sprintf("%d 🪙", model.ReservedOutputTokens)})
+		for _, model := range shared.BuiltInBaseModels {
+			table.Append([]string{string(model.ModelId), fmt.Sprintf("%d 🪙", model.MaxTokens), fmt.Sprintf("%d 🪙", model.MaxOutputTokens), fmt.Sprintf("%d 🪙", model.ReservedOutputTokens)})
 		}
 		table.Render()
 		fmt.Println()
@@ -390,17 +396,9 @@ func listAvailableModels(cmd *cobra.Command, args []string) {
 		color.New(color.Bold, term.ColorHiCyan).Println("🛠️  Custom Models")
 		table := tablewriter.NewWriter(os.Stdout)
 		table.SetAutoWrapText(false)
-		table.SetHeader([]string{"#", "Provider", "Name", "🪙", "🔑"})
+		table.SetHeader([]string{"#", "ID", "🪙"})
 		for i, model := range customModels {
-			var provider string
-			p := model.Provider
-			if p == shared.ModelProviderCustom {
-				provider = *model.CustomProvider
-			} else {
-				provider = string(p)
-			}
-
-			table.Append([]string{fmt.Sprintf("%d", i+1), provider, string(model.ModelId), strconv.Itoa(model.MaxTokens), model.ApiKeyEnvVar})
+			table.Append([]string{fmt.Sprintf("%d", i+1), string(model.ModelId), strconv.Itoa(model.MaxTokens)})
 		}
 		table.Render()
 	} else if customModelsOnly {
@@ -438,7 +436,7 @@ func deleteCustomModel(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	var modelToDelete *shared.AvailableModel
+	var modelToDelete *shared.CustomModel
 
 	if len(args) == 1 {
 		input := args[0]
@@ -460,14 +458,7 @@ func deleteCustomModel(cmd *cobra.Command, args []string) {
 	if modelToDelete == nil {
 		opts := make([]string, len(models))
 		for i, model := range models {
-			var provider string
-			p := model.Provider
-			if p == shared.ModelProviderCustom {
-				provider = *model.CustomProvider
-			} else {
-				provider = string(p)
-			}
-			opts[i] = provider + " → " + string(model.ModelId)
+			opts[i] = string(model.ModelId)
 		}
 
 		selected, err := term.SelectFromList("Select model to delete:", opts)
@@ -489,7 +480,7 @@ func deleteCustomModel(cmd *cobra.Command, args []string) {
 	}
 
 	term.StartSpinner("")
-	apiErr = api.Client.DeleteAvailableModel(modelToDelete.Id)
+	apiErr = api.Client.DeleteCustomModel(modelToDelete.Id)
 	term.StopSpinner()
 
 	if apiErr != nil {
@@ -497,7 +488,7 @@ func deleteCustomModel(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	fmt.Printf("✅ Deleted custom model %s\n", color.New(color.Bold, term.ColorHiCyan).Sprint(string(modelToDelete.Provider)+" → "+string(modelToDelete.ModelId)))
+	fmt.Printf("✅ Deleted custom model %s\n", color.New(color.Bold, term.ColorHiCyan).Sprint(string(modelToDelete.ModelId)))
 
 	fmt.Println()
 	term.PrintCmds("", "models available", "models add")
@@ -516,7 +507,7 @@ func renderSettings(settings *shared.PlanSettings, allProperties bool) {
 		table.SetHeader([]string{"Max Tokens", "Max Convo Tokens"})
 		table.Append([]string{
 			fmt.Sprintf("%d", modelPack.Planner.GetFinalLargeContextFallback().GetSharedBaseConfig().MaxTokens),
-			fmt.Sprintf("%d", modelPack.Planner.MaxConvoTokens),
+			fmt.Sprintf("%d", modelPack.Planner.GetMaxConvoTokens()),
 		})
 		table.Render()
 		fmt.Println()
@@ -578,7 +569,15 @@ func renderModelPack(modelPack *shared.ModelPack, allProperties bool) {
 
 	anyRoleParamsDisabled := false
 
-	addModelRow := func(role string, config shared.ModelRoleConfig) {
+	var addModelRow func(role string, config shared.ModelRoleConfig, indent int)
+	addModelRow = func(role string, config shared.ModelRoleConfig, indent int) {
+		if indent > 0 {
+			role = "└─ " + role
+			for i := 0; i < indent-1; i++ {
+				role = " " + role
+			}
+		}
+
 		var temp float32
 		var topP float32
 		var disabled bool
@@ -605,7 +604,7 @@ func renderModelPack(modelPack *shared.ModelPack, allProperties bool) {
 
 		row := []string{
 			role,
-			string(config.ModelId),
+			string(config.GetModelId()),
 		}
 
 		if allProperties {
@@ -618,164 +617,33 @@ func renderModelPack(modelPack *shared.ModelPack, allProperties bool) {
 		table.Append(row)
 
 		// Add large context and large output fallback(s) if present
-
 		if config.LargeContextFallback != nil {
-			if config.LargeContextFallback.GetSharedBaseConfig().RoleParamsDisabled {
-				temp = 1
-				topP = 1
-				disabled = true
-				anyRoleParamsDisabled = true
-			} else {
-				temp = config.LargeContextFallback.Temperature
-				topP = config.LargeContextFallback.TopP
-			}
-
-			tempStr := fmt.Sprintf("%.1f", temp)
-			if disabled {
-				tempStr = "*" + tempStr
-			}
-
-			topPStr := fmt.Sprintf("%.1f", topP)
-			if disabled {
-				topPStr = "*" + topPStr
-			}
-
-			row = []string{
-				"└─ large-context",
-				string(config.LargeContextFallback.ModelId),
-			}
-			if allProperties {
-				row = append(row, []string{
-					tempStr,
-					topPStr,
-					fmt.Sprintf("%d 🪙", config.LargeContextFallback.GetSharedBaseConfig().MaxTokens-config.LargeContextFallback.GetReservedOutputTokens()),
-				}...)
-			}
-
-			table.Append(row)
+			addModelRow("large-context", *config.LargeContextFallback, indent+1)
 		}
 
 		if config.LargeOutputFallback != nil {
-			if config.LargeOutputFallback.GetSharedBaseConfig().RoleParamsDisabled {
-				temp = 1
-				topP = 1
-				disabled = true
-				anyRoleParamsDisabled = true
-			} else {
-				temp = config.LargeOutputFallback.Temperature
-				topP = config.LargeOutputFallback.TopP
-			}
+			addModelRow("large-output", *config.LargeOutputFallback, indent+1)
+		}
 
-			tempStr := fmt.Sprintf("%.1f", temp)
-			if disabled {
-				tempStr = "*" + tempStr
-			}
+		if config.StrongModel != nil {
+			addModelRow("strong", *config.StrongModel, indent+1)
+		}
 
-			topPStr := fmt.Sprintf("%.1f", topP)
-			if disabled {
-				topPStr = "*" + topPStr
-			}
-
-			row := []string{
-				"└─ large-output",
-				string(config.LargeOutputFallback.ModelId),
-			}
-			if allProperties {
-				row = append(row, []string{
-					tempStr,
-					topPStr,
-					fmt.Sprintf("%d 🪙", config.LargeOutputFallback.GetSharedBaseConfig().MaxTokens-config.LargeOutputFallback.GetReservedOutputTokens()),
-				}...)
-			}
-			table.Append(row)
+		if config.ErrorFallback != nil {
+			addModelRow("error", *config.ErrorFallback, indent+1)
 		}
 	}
 
-	// Handle planner separately since it has a different fallback structure
-	var temp float32
-	var topP float32
-	var disabled bool
+	addModelRow(string(shared.ModelRolePlanner), modelPack.Planner.ModelRoleConfig, 0)
 
-	if modelPack.Planner.GetSharedBaseConfig().RoleParamsDisabled {
-		temp = 1
-		topP = 1
-		disabled = true
-		anyRoleParamsDisabled = true
-	} else {
-		temp = modelPack.Planner.Temperature
-		topP = modelPack.Planner.TopP
-	}
-
-	tempStr := fmt.Sprintf("%.1f", temp)
-	if disabled {
-		tempStr = "*" + tempStr
-	}
-
-	topPStr := fmt.Sprintf("%.1f", topP)
-	if disabled {
-		topPStr = "*" + topPStr
-	}
-
-	row := []string{
-		string(shared.ModelRolePlanner),
-		string(modelPack.Planner.ModelId),
-	}
-	if allProperties {
-		row = append(row, []string{
-			tempStr,
-			topPStr,
-			fmt.Sprintf("%d 🪙", modelPack.Planner.GetSharedBaseConfig().MaxTokens-modelPack.Planner.GetReservedOutputTokens()),
-		}...)
-	}
-	table.Append(row)
-
-	if modelPack.Planner.LargeContextFallback != nil {
-		var temp float32
-		var topP float32
-		var disabled bool
-
-		if modelPack.Planner.LargeContextFallback.GetSharedBaseConfig().RoleParamsDisabled {
-			temp = 1
-			topP = 1
-			disabled = true
-			anyRoleParamsDisabled = true
-		} else {
-			temp = modelPack.Planner.LargeContextFallback.Temperature
-			topP = modelPack.Planner.LargeContextFallback.TopP
-		}
-
-		tempStr := fmt.Sprintf("%.1f", temp)
-		if disabled {
-			tempStr = "*" + tempStr
-		}
-
-		topPStr := fmt.Sprintf("%.1f", topP)
-		if disabled {
-			topPStr = "*" + topPStr
-		}
-
-		row := []string{
-			"└─ large-context",
-			string(modelPack.Planner.LargeContextFallback.ModelId),
-		}
-		if allProperties {
-			row = append(row, []string{
-				tempStr,
-				topPStr,
-				fmt.Sprintf("%d 🪙", modelPack.Planner.LargeContextFallback.GetSharedBaseConfig().MaxTokens-modelPack.Planner.LargeContextFallback.GetReservedOutputTokens()),
-			}...)
-		}
-		table.Append(row)
-	}
-
-	addModelRow(string(shared.ModelRoleArchitect), modelPack.GetArchitect())
-	addModelRow(string(shared.ModelRoleCoder), modelPack.GetCoder())
-	addModelRow(string(shared.ModelRolePlanSummary), modelPack.PlanSummary)
-	addModelRow(string(shared.ModelRoleBuilder), modelPack.Builder)
-	addModelRow(string(shared.ModelRoleWholeFileBuilder), modelPack.GetWholeFileBuilder())
-	addModelRow(string(shared.ModelRoleName), modelPack.Namer)
-	addModelRow(string(shared.ModelRoleCommitMsg), modelPack.CommitMsg)
-	addModelRow(string(shared.ModelRoleExecStatus), modelPack.ExecStatus)
+	addModelRow(string(shared.ModelRoleArchitect), modelPack.GetArchitect(), 0)
+	addModelRow(string(shared.ModelRoleCoder), modelPack.GetCoder(), 0)
+	addModelRow(string(shared.ModelRolePlanSummary), modelPack.PlanSummary, 0)
+	addModelRow(string(shared.ModelRoleBuilder), modelPack.Builder, 0)
+	addModelRow(string(shared.ModelRoleWholeFileBuilder), modelPack.GetWholeFileBuilder(), 0)
+	addModelRow(string(shared.ModelRoleName), modelPack.Namer, 0)
+	addModelRow(string(shared.ModelRoleCommitMsg), modelPack.CommitMsg, 0)
+	addModelRow(string(shared.ModelRoleExecStatus), modelPack.ExecStatus, 0)
 	table.Render()
 
 	if anyRoleParamsDisabled && allProperties {

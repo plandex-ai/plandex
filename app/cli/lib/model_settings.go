@@ -9,24 +9,24 @@ import (
 
 const GoBack = "← Go back"
 
-func SelectModelForRole(customModels []*shared.CustomModel, role shared.ModelRole) *shared.CustomModel {
-	builtInModels := shared.FilterAvailableCompatibleModels(shared.AvailableModels, role)
+func SelectModelIdForRole(customModels []*shared.CustomModel, role shared.ModelRole) shared.ModelId {
+	builtInModels := shared.FilterBuiltInCompatibleModels(shared.BuiltInBaseModels, role)
 	customModels = shared.FilterCustomCompatibleModels(customModels, role)
 
 	for {
-		var selectableModels []*shared.AvailableModel
+		var selectableModelIds []shared.ModelId
 		opts := []string{}
 
 		for _, m := range builtInModels {
-			label := fmt.Sprintf("%s | max %d 🪙", m.ModelString(), m.MaxTokens)
+			label := fmt.Sprintf("%s | max %d 🪙", m.ModelId, m.MaxTokens)
 			opts = append(opts, label)
-			selectableModels = append(selectableModels, m)
+			selectableModelIds = append(selectableModelIds, m.ModelId)
 		}
 
 		for _, m := range customModels {
-			label := fmt.Sprintf("%s → %s | max %d 🪙", p, m.ModelName, m.MaxTokens)
+			label := fmt.Sprintf("%s | max %d 🪙", m.ModelId, m.MaxTokens)
 			opts = append(opts, label)
-			selectableModels = append(selectableModels, m)
+			selectableModelIds = append(selectableModelIds, m.ModelId)
 		}
 
 		opts = append(opts, GoBack)
@@ -35,11 +35,11 @@ func SelectModelForRole(customModels []*shared.CustomModel, role shared.ModelRol
 
 		if err != nil {
 			if err.Error() == "interrupt" {
-				return nil
+				return ""
 			}
 
 			term.OutputErrorAndExit("Error selecting model: %v", err)
-			return nil
+			return ""
 		}
 
 		if selection == GoBack {
@@ -54,10 +54,8 @@ func SelectModelForRole(customModels []*shared.CustomModel, role shared.ModelRol
 			}
 		}
 
-		return selectableModels[idx]
+		id := selectableModelIds[idx]
 
+		return id
 	}
-
-	return nil
-
 }

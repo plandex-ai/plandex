@@ -281,6 +281,7 @@ func withStreamingRetries[T any](
 			log.Printf("withStreamingRetries - operation returned non-retriable error, but has fallback - resetting numFallbackRetry to 0 and continuing to retry")
 			numFallbackRetry = 0
 			newFallback = true
+			compareRetries = 0
 			// otherwise, continue to retry logic
 		}
 

@@ -130,7 +130,7 @@ func updateModelSettings(args []string, originalSettings *shared.PlanSettings) *
 	var role shared.ModelRole
 	var settingCompact string
 	var settingDasherized string
-	var selectedModel *shared.AvailableModel
+	var selectedModelId shared.ModelId
 	var temperature *float64
 	var topP *float64
 	var reservedOutputTokens *int
@@ -320,28 +320,31 @@ func updateModelSettings(args []string, originalSettings *shared.PlanSettings) *
 					term.OutputErrorAndExit("Error fetching models: %v", apiErr)
 				}
 
-				customModels = shared.FilterCompatibleModels(customModels, role)
-				builtInModels := shared.FilterCompatibleModels(shared.AvailableModels, role)
+				builtInModels := shared.FilterBuiltInCompatibleModels(shared.BuiltInBaseModels, role)
+				customModels = shared.FilterCustomCompatibleModels(customModels, role)
 
-				allModels := append(customModels, builtInModels...)
+				customModelsById := map[shared.ModelId]*shared.CustomModel{}
+				for _, m := range customModels {
+					customModelsById[m.ModelId] = m
+				}
 
-				for _, m := range allModels {
-					var p string
-					if m.Provider == shared.ModelProviderCustom {
-						p = *m.CustomProvider
-					} else {
-						p = string(m.Provider)
-					}
-					p = strings.ToLower(p)
+				modelIds := []shared.ModelId{}
+				for _, m := range builtInModels {
+					modelIds = append(modelIds, m.ModelId)
+				}
+				for _, m := range customModels {
+					modelIds = append(modelIds, m.ModelId)
+				}
 
-					if propertyCompact == fmt.Sprintf("%s/%s", p, shared.Compact(string(m.ModelId))) {
-						selectedModel = m
+				for _, id := range modelIds {
+					if propertyCompact == fmt.Sprintf("%s/%s", role, shared.Compact(string(id))) {
+						selectedModelId = id
 						break
 					}
 				}
 			}
 
-			if selectedModel == nil && propertyCompact == "" {
+			if selectedModelId == "" && propertyCompact == "" {
 			Outer:
 				for {
 					opts := []string{
@@ -376,9 +379,9 @@ func updateModelSettings(args []string, originalSettings *shared.PlanSettings) *
 							term.OutputErrorAndExit("Error fetching models: %v", apiErr)
 						}
 
-						selectedModel = lib.SelectModelForRole(customModels, role, true)
+						selectedModelId = lib.SelectModelIdForRole(customModels, role)
 
-						if selectedModel != nil {
+						if selectedModelId != "" {
 							break Outer
 						}
 					} else if selection == "Set temperature" {
@@ -394,7 +397,7 @@ func updateModelSettings(args []string, originalSettings *shared.PlanSettings) *
 				}
 			}
 
-			if selectedModel == nil {
+			if selectedModelId == "" {
 				if propertyCompact != "" {
 					if value == "" {
 						msg := "Set"
@@ -449,11 +452,8 @@ func updateModelSettings(args []string, originalSettings *shared.PlanSettings) *
 
 			switch role {
 			case shared.ModelRolePlanner:
-				if selectedModel != nil {
-					settings.ModelPack.Planner.BaseModelConfig = &selectedModel.BaseModelConfig
-					settings.ModelPack.Planner.PlannerModelConfig = shared.PlannerModelConfig{
-						MaxConvoTokens: selectedModel.DefaultMaxConvoTokens,
-					}
+				if selectedModelId != "" {
+					settings.ModelPack.Planner.ModelId = selectedModelId
 				} else if temperature != nil {
 					settings.ModelPack.Planner.Temperature = float32(*temperature)
 				} else if topP != nil {
@@ -463,8 +463,8 @@ func updateModelSettings(args []string, originalSettings *shared.PlanSettings) *
 				}
 
 			case shared.ModelRoleArchitect:
-				if selectedModel != nil {
-					settings.ModelPack.Architect.BaseModelConfig = &selectedModel.BaseModelConfig
+				if selectedModelId != "" {
+					settings.ModelPack.Architect.ModelId = selectedModelId
 				} else if temperature != nil {
 					settings.ModelPack.Architect.Temperature = float32(*temperature)
 				} else if topP != nil {
@@ -472,8 +472,8 @@ func updateModelSettings(args []string, originalSettings *shared.PlanSettings) *
 				}
 
 			case shared.ModelRoleCoder:
-				if selectedModel != nil {
-					settings.ModelPack.Coder.BaseModelConfig = &selectedModel.BaseModelConfig
+				if selectedModelId != "" {
+					settings.ModelPack.Coder.ModelId = selectedModelId
 				} else if temperature != nil {
 					settings.ModelPack.Coder.Temperature = float32(*temperature)
 				} else if topP != nil {
@@ -481,8 +481,8 @@ func updateModelSettings(args []string, originalSettings *shared.PlanSettings) *
 				}
 
 			case shared.ModelRolePlanSummary:
-				if selectedModel != nil {
-					settings.ModelPack.PlanSummary.BaseModelConfig = &selectedModel.BaseModelConfig
+				if selectedModelId != "" {
+					settings.ModelPack.PlanSummary.ModelId = selectedModelId
 				} else if temperature != nil {
 					settings.ModelPack.PlanSummary.Temperature = float32(*temperature)
 				} else if topP != nil {
@@ -490,8 +490,8 @@ func updateModelSettings(args []string, originalSettings *shared.PlanSettings) *
 				}
 
 			case shared.ModelRoleBuilder:
-				if selectedModel != nil {
-					settings.ModelPack.Builder.BaseModelConfig = &selectedModel.BaseModelConfig
+				if selectedModelId != "" {
+					settings.ModelPack.Builder.ModelId = selectedModelId
 				} else if temperature != nil {
 					settings.ModelPack.Builder.Temperature = float32(*temperature)
 				} else if topP != nil {
@@ -499,8 +499,8 @@ func updateModelSettings(args []string, originalSettings *shared.PlanSettings) *
 				}
 
 			case shared.ModelRoleWholeFileBuilder:
-				if selectedModel != nil {
-					settings.ModelPack.WholeFileBuilder.BaseModelConfig = &selectedModel.BaseModelConfig
+				if selectedModelId != "" {
+					settings.ModelPack.WholeFileBuilder.ModelId = selectedModelId
 				} else if temperature != nil {
 					settings.ModelPack.WholeFileBuilder.Temperature = float32(*temperature)
 				} else if topP != nil {
@@ -508,8 +508,8 @@ func updateModelSettings(args []string, originalSettings *shared.PlanSettings) *
 				}
 
 			case shared.ModelRoleName:
-				if selectedModel != nil {
-					settings.ModelPack.Namer.BaseModelConfig = &selectedModel.BaseModelConfig
+				if selectedModelId != "" {
+					settings.ModelPack.Namer.ModelId = selectedModelId
 				} else if temperature != nil {
 					settings.ModelPack.Namer.Temperature = float32(*temperature)
 				} else if topP != nil {
@@ -517,8 +517,8 @@ func updateModelSettings(args []string, originalSettings *shared.PlanSettings) *
 				}
 
 			case shared.ModelRoleCommitMsg:
-				if selectedModel != nil {
-					settings.ModelPack.CommitMsg.BaseModelConfig = &selectedModel.BaseModelConfig
+				if selectedModelId != "" {
+					settings.ModelPack.CommitMsg.ModelId = selectedModelId
 				} else if temperature != nil {
 					settings.ModelPack.CommitMsg.Temperature = float32(*temperature)
 				} else if topP != nil {
@@ -526,8 +526,8 @@ func updateModelSettings(args []string, originalSettings *shared.PlanSettings) *
 				}
 
 			case shared.ModelRoleExecStatus:
-				if selectedModel != nil {
-					settings.ModelPack.ExecStatus.BaseModelConfig = &selectedModel.BaseModelConfig
+				if selectedModelId != "" {
+					settings.ModelPack.ExecStatus.ModelId = selectedModelId
 				} else if temperature != nil {
 					settings.ModelPack.ExecStatus.Temperature = float32(*temperature)
 				} else if topP != nil {

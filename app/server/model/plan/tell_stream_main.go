@@ -1,6 +1,7 @@
 package plan
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -8,6 +9,7 @@ import (
 	"plandex-server/notify"
 	"plandex-server/types"
 	"runtime/debug"
+	"strings"
 	"time"
 
 	shared "plandex-shared"
@@ -124,13 +126,17 @@ mainLoop:
 			state.execHookOnStop(true)
 
 			var msg string
+			name := modelName
+			if !strings.Contains(string(modelName), string(modelProvider)) {
+				name = shared.ModelName(fmt.Sprintf("%s/%s", modelProvider, modelName))
+			}
 			if active.CurrentReplyContent == "" {
-				msg = fmt.Sprintf("The AI model (%s/%s) didn't respond: %v", modelProvider, modelName, err)
+				msg = fmt.Sprintf("The AI model (%s) didn't respond: %v", name, err)
 			} else {
-				msg = fmt.Sprintf("The AI model (%s/%s) stopped responding: %v", modelProvider, modelName, err)
+				msg = fmt.Sprintf("The AI model (%s) stopped responding: %v", name, err)
 			}
 			state.onError(onErrorParams{
-				streamErr: fmt.Errorf(msg, err),
+				streamErr: errors.New(msg),
 				storeDesc: true,
 				canRetry:  active.CurrentReplyContent == "", // if there was no output yet, we can retry
 			})

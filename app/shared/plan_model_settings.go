@@ -129,16 +129,22 @@ func (ps PlanSettings) GetWholeFileBuilderMaxReservedOutputTokens() int {
 }
 
 func (ps PlanSettings) GetPlannerMaxConvoTokens() int {
-	if ps.ModelOverrides.MaxConvoTokens == nil {
-		if ps.ModelPack == nil {
-			defaultPlanner := DefaultModelPack.Planner
+	if ps.ModelPack != nil && ps.ModelPack.Planner.MaxConvoTokens != 0 {
+		return ps.ModelPack.Planner.MaxConvoTokens
+	}
+
+	if ps.ModelPack == nil {
+		defaultPlanner := DefaultModelPack.Planner
+		if defaultPlanner.MaxConvoTokens != 0 {
 			return defaultPlanner.MaxConvoTokens
-		} else {
-			planner := ps.ModelPack.Planner
+		}
+		return defaultPlanner.GetSharedBaseConfig().DefaultMaxConvoTokens
+	} else {
+		planner := ps.ModelPack.Planner
+		if planner.MaxConvoTokens != 0 {
 			return planner.MaxConvoTokens
 		}
-	} else {
-		return *ps.ModelOverrides.MaxConvoTokens
+		return planner.GetSharedBaseConfig().DefaultMaxConvoTokens
 	}
 }
 
