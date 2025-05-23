@@ -35,7 +35,6 @@ var DefaultModelPack *ModelPack = &DailyDriverModelPack
 
 func getModelRoleConfig(role ModelRole, modelId ModelId, fns ...func(*ModelRoleConfigSchema)) ModelRoleConfigSchema {
 	c := ModelRoleConfigSchema{
-		Role:        role,
 		ModelId:     modelId,
 		Temperature: DefaultConfigByRole[role].Temperature,
 		TopP:        DefaultConfigByRole[role].TopP,
@@ -46,9 +45,9 @@ func getModelRoleConfig(role ModelRole, modelId ModelId, fns ...func(*ModelRoleC
 	return c
 }
 
-func getLargeContextFallback(modelId ModelId, fns ...func(*ModelRoleConfigSchema)) func(*ModelRoleConfigSchema) {
+func getLargeContextFallback(role ModelRole, modelId ModelId, fns ...func(*ModelRoleConfigSchema)) func(*ModelRoleConfigSchema) {
 	return func(c *ModelRoleConfigSchema) {
-		n := getModelRoleConfig(c.Role, modelId)
+		n := getModelRoleConfig(role, modelId)
 		for _, f := range fns {
 			f(&n)
 		}
@@ -56,9 +55,9 @@ func getLargeContextFallback(modelId ModelId, fns ...func(*ModelRoleConfigSchema
 	}
 }
 
-func getErrorFallback(modelId ModelId, fns ...func(*ModelRoleConfigSchema)) func(*ModelRoleConfigSchema) {
+func getErrorFallback(role ModelRole, modelId ModelId, fns ...func(*ModelRoleConfigSchema)) func(*ModelRoleConfigSchema) {
 	return func(c *ModelRoleConfigSchema) {
-		n := getModelRoleConfig(c.Role, modelId)
+		n := getModelRoleConfig(role, modelId)
 		for _, f := range fns {
 			f(&n)
 		}
@@ -66,9 +65,9 @@ func getErrorFallback(modelId ModelId, fns ...func(*ModelRoleConfigSchema)) func
 	}
 }
 
-func getStrongModelFallback(modelId ModelId, fns ...func(*ModelRoleConfigSchema)) func(*ModelRoleConfigSchema) {
+func getStrongModelFallback(role ModelRole, modelId ModelId, fns ...func(*ModelRoleConfigSchema)) func(*ModelRoleConfigSchema) {
 	return func(c *ModelRoleConfigSchema) {
-		n := getModelRoleConfig(c.Role, modelId)
+		n := getModelRoleConfig(role, modelId)
 		for _, f := range fns {
 			f(&n)
 		}
@@ -107,24 +106,24 @@ var BuiltInModelPackSchemas = []*ModelPackSchema{
 
 func init() {
 	defaultBuilder := getModelRoleConfig(ModelRoleBuilder, "openai/o4-mini-medium",
-		getStrongModelFallback("openai/o4-mini-high"),
+		getStrongModelFallback(ModelRoleBuilder, "openai/o4-mini-high"),
 	)
 
 	DailyDriverPackSchema = ModelPackSchema{
 		Name:        "daily-driver",
 		Description: "A mix of models from Anthropic, OpenAI, and Google that balances speed, quality, and cost. Supports up to 2M context.",
 		Planner: getModelRoleConfig(ModelRolePlanner, "anthropic/claude-3.7-sonnet",
-			getLargeContextFallback("google/gemini-2.5-pro-preview",
-				getLargeContextFallback("google/gemini-pro-1.5"),
+			getLargeContextFallback(ModelRolePlanner, "google/gemini-2.5-pro-preview",
+				getLargeContextFallback(ModelRolePlanner, "google/gemini-pro-1.5"),
 			),
 		),
 		Architect: Pointer(getModelRoleConfig(ModelRoleArchitect, "anthropic/claude-3.7-sonnet",
-			getLargeContextFallback("google/gemini-2.5-pro-preview",
-				getLargeContextFallback("google/gemini-pro-1.5"),
+			getLargeContextFallback(ModelRoleArchitect, "google/gemini-2.5-pro-preview",
+				getLargeContextFallback(ModelRoleArchitect, "google/gemini-pro-1.5"),
 			),
 		)),
 		Coder: Pointer(getModelRoleConfig(ModelRoleCoder, "anthropic/claude-3.7-sonnet",
-			getLargeContextFallback("openai/gpt-4.1"),
+			getLargeContextFallback(ModelRoleCoder, "openai/gpt-4.1"),
 		)),
 		PlanSummary:      getModelRoleConfig(ModelRolePlanSummary, "openai/o4-mini-low"),
 		Builder:          defaultBuilder,
@@ -135,18 +134,16 @@ func init() {
 	}
 
 	ReasoningPackSchema = ModelPackSchema{
-		Name:        "reasoning",
-		Description: "Like the daily driver, but uses 3.7-sonnet:thinking with reasoning enabled for planning and coding. Supports up to 160k input context.",
-		Planner:     getModelRoleConfig(ModelRolePlanner, "anthropic/claude-3.7-sonnet-thinking-hidden"),
-		Coder:       Pointer(getModelRoleConfig(ModelRoleCoder, "anthropic/claude-3.7-sonnet-thinking-hidden")),
-		PlanSummary: getModelRoleConfig(ModelRolePlanSummary, "openai/o4-mini-low", getErrorFallback("openai/o3-mini-low")),
-		Builder:     defaultBuilder,
-		WholeFileBuilder: Pointer(getModelRoleConfig(ModelRoleWholeFileBuilder, "openai/o4-mini-medium",
-			getErrorFallback("openai/o3-mini-medium"),
-		)),
-		Namer:      getModelRoleConfig(ModelRoleName, "openai/gpt-4.1-mini"),
-		CommitMsg:  getModelRoleConfig(ModelRoleCommitMsg, "openai/gpt-4.1-mini"),
-		ExecStatus: getModelRoleConfig(ModelRoleExecStatus, "openai/o4-mini-low", getErrorFallback("openai/o3-mini-low")),
+		Name:             "reasoning",
+		Description:      "Like the daily driver, but uses 3.7-sonnet:thinking with reasoning enabled for planning and coding. Supports up to 160k input context.",
+		Planner:          getModelRoleConfig(ModelRolePlanner, "anthropic/claude-3.7-sonnet-thinking-hidden"),
+		Coder:            Pointer(getModelRoleConfig(ModelRoleCoder, "anthropic/claude-3.7-sonnet-thinking-hidden")),
+		PlanSummary:      getModelRoleConfig(ModelRolePlanSummary, "openai/o4-mini-low"),
+		Builder:          defaultBuilder,
+		WholeFileBuilder: Pointer(getModelRoleConfig(ModelRoleWholeFileBuilder, "openai/o4-mini-medium")),
+		Namer:            getModelRoleConfig(ModelRoleName, "openai/gpt-4.1-mini"),
+		CommitMsg:        getModelRoleConfig(ModelRoleCommitMsg, "openai/gpt-4.1-mini"),
+		ExecStatus:       getModelRoleConfig(ModelRoleExecStatus, "openai/o4-mini-low"),
 	}
 
 	StrongPackSchema = ModelPackSchema{
@@ -155,25 +152,25 @@ func init() {
 		Planner:          getModelRoleConfig(ModelRolePlanner, "openai/o3-high"),
 		Architect:        Pointer(getModelRoleConfig(ModelRoleArchitect, "openai/o3-high")),
 		Coder:            Pointer(getModelRoleConfig(ModelRoleCoder, "anthropic/claude-3.7-sonnet-thinking-hidden")),
-		PlanSummary:      getModelRoleConfig(ModelRolePlanSummary, "openai/o4-mini-low", getErrorFallback("openai/o3-mini-low")),
-		Builder:          getModelRoleConfig(ModelRoleBuilder, "openai/o4-mini-high", getErrorFallback("openai/o3-mini-high")),
-		WholeFileBuilder: Pointer(getModelRoleConfig(ModelRoleWholeFileBuilder, "openai/o4-mini-high", getErrorFallback("openai/o3-mini-high"))),
+		PlanSummary:      getModelRoleConfig(ModelRolePlanSummary, "openai/o4-mini-low"),
+		Builder:          getModelRoleConfig(ModelRoleBuilder, "openai/o4-mini-high"),
+		WholeFileBuilder: Pointer(getModelRoleConfig(ModelRoleWholeFileBuilder, "openai/o4-mini-high")),
 		Namer:            getModelRoleConfig(ModelRoleName, "openai/gpt-4.1-mini"),
 		CommitMsg:        getModelRoleConfig(ModelRoleCommitMsg, "openai/gpt-4.1-mini"),
-		ExecStatus:       getModelRoleConfig(ModelRoleExecStatus, "openai/o4-mini-medium", getErrorFallback("openai/o3-mini-medium")),
+		ExecStatus:       getModelRoleConfig(ModelRoleExecStatus, "openai/o4-mini-medium"),
 	}
 
 	CheapModelPackSchema = ModelPackSchema{
 		Name:             "cheap",
 		Description:      "Cost-effective models that can still get the job done for easier tasks. Supports up to 160k context. Uses OpenAI's o4-mini model for planning, GPT-4.1 for coding, and GPT-4.1 Mini for lighter tasks.",
-		Planner:          getModelRoleConfig(ModelRolePlanner, "openai/o4-mini-medium", getErrorFallback("openai/o3-mini-medium")),
+		Planner:          getModelRoleConfig(ModelRolePlanner, "openai/o4-mini-medium"),
 		Coder:            Pointer(getModelRoleConfig(ModelRoleCoder, "openai/gpt-4.1")),
 		PlanSummary:      getModelRoleConfig(ModelRolePlanSummary, "openai/gpt-4.1-mini"),
-		Builder:          getModelRoleConfig(ModelRoleBuilder, "openai/o4-mini-low", getStrongModelFallback("openai/o4-mini-medium"), getErrorFallback("openai/o3-mini-low")),
-		WholeFileBuilder: Pointer(getModelRoleConfig(ModelRoleWholeFileBuilder, "openai/o4-mini-low", getErrorFallback("openai/o3-mini-low"))),
+		Builder:          getModelRoleConfig(ModelRoleBuilder, "openai/o4-mini-low"),
+		WholeFileBuilder: Pointer(getModelRoleConfig(ModelRoleWholeFileBuilder, "openai/o4-mini-low")),
 		Namer:            getModelRoleConfig(ModelRoleName, "openai/gpt-4.1-mini"),
 		CommitMsg:        getModelRoleConfig(ModelRoleCommitMsg, "openai/gpt-4.1-mini"),
-		ExecStatus:       getModelRoleConfig(ModelRoleExecStatus, "openai/o4-mini-low", getErrorFallback("openai/o3-mini-low")),
+		ExecStatus:       getModelRoleConfig(ModelRoleExecStatus, "openai/o4-mini-low"),
 	}
 
 	OSSModelPackSchema = ModelPackSchema{
@@ -193,12 +190,12 @@ func init() {
 		Name:             "openai",
 		Description:      "OpenAI blend. Supports up to 1M context. Uses OpenAI's GPT-4.1 model for heavy lifting, GPT-4.1 Mini for lighter tasks.",
 		Planner:          getModelRoleConfig(ModelRolePlanner, "openai/gpt-4.1"),
-		PlanSummary:      getModelRoleConfig(ModelRolePlanSummary, "openai/o4-mini-low", getErrorFallback("openai/o3-mini-low")),
+		PlanSummary:      getModelRoleConfig(ModelRolePlanSummary, "openai/o4-mini-low"),
 		Builder:          defaultBuilder,
-		WholeFileBuilder: Pointer(getModelRoleConfig(ModelRoleWholeFileBuilder, "openai/o4-mini-medium", getErrorFallback("openai/o3-mini-medium"))),
+		WholeFileBuilder: Pointer(getModelRoleConfig(ModelRoleWholeFileBuilder, "openai/o4-mini-medium")),
 		Namer:            getModelRoleConfig(ModelRoleName, "openai/gpt-4.1-mini"),
 		CommitMsg:        getModelRoleConfig(ModelRoleCommitMsg, "openai/gpt-4.1-mini"),
-		ExecStatus:       getModelRoleConfig(ModelRoleExecStatus, "openai/o4-mini-low", getErrorFallback("openai/o3-mini-low")),
+		ExecStatus:       getModelRoleConfig(ModelRoleExecStatus, "openai/o4-mini-low"),
 	}
 
 	AnthropicPackSchema = ModelPackSchema{
@@ -219,12 +216,12 @@ func init() {
 		Description:      "Uses Gemini 2.5 Pro Preview for planning and coding, default models for other roles. Supports up to 1M input context.",
 		Planner:          getModelRoleConfig(ModelRolePlanner, "google/gemini-2.5-pro-preview"),
 		Coder:            Pointer(getModelRoleConfig(ModelRoleCoder, "google/gemini-2.5-pro-preview")),
-		PlanSummary:      getModelRoleConfig(ModelRolePlanSummary, "openai/o4-mini-low", getErrorFallback("openai/o3-mini-low")),
+		PlanSummary:      getModelRoleConfig(ModelRolePlanSummary, "openai/o4-mini-low"),
 		Builder:          defaultBuilder,
-		WholeFileBuilder: Pointer(getModelRoleConfig(ModelRoleWholeFileBuilder, "openai/o4-mini-medium", getErrorFallback("openai/o3-mini-medium"))),
+		WholeFileBuilder: Pointer(getModelRoleConfig(ModelRoleWholeFileBuilder, "openai/o4-mini-medium")),
 		Namer:            getModelRoleConfig(ModelRoleName, "openai/gpt-4.1-mini"),
 		CommitMsg:        getModelRoleConfig(ModelRoleCommitMsg, "openai/gpt-4.1-mini"),
-		ExecStatus:       getModelRoleConfig(ModelRoleExecStatus, "openai/o4-mini-low", getErrorFallback("openai/o3-mini-low")),
+		ExecStatus:       getModelRoleConfig(ModelRoleExecStatus, "openai/o4-mini-low"),
 	}
 
 	GeminiExperimentalPackSchema = ModelPackSchema{
@@ -232,12 +229,12 @@ func init() {
 		Description:      "Uses Gemini 2.5 Pro Experimental (free) for planning and coding, default models for other roles. Supports up to 1M input context.",
 		Planner:          getModelRoleConfig(ModelRolePlanner, "google/gemini-2.5-pro-exp"),
 		Coder:            Pointer(getModelRoleConfig(ModelRoleCoder, "google/gemini-2.5-pro-exp")),
-		PlanSummary:      getModelRoleConfig(ModelRolePlanSummary, "openai/o4-mini-low", getErrorFallback("openai/o3-mini-low")),
+		PlanSummary:      getModelRoleConfig(ModelRolePlanSummary, "openai/o4-mini-low"),
 		Builder:          defaultBuilder,
-		WholeFileBuilder: Pointer(getModelRoleConfig(ModelRoleWholeFileBuilder, "openai/o4-mini-medium", getErrorFallback("openai/o3-mini-medium"))),
+		WholeFileBuilder: Pointer(getModelRoleConfig(ModelRoleWholeFileBuilder, "openai/o4-mini-medium")),
 		Namer:            getModelRoleConfig(ModelRoleName, "openai/gpt-4.1-mini"),
 		CommitMsg:        getModelRoleConfig(ModelRoleCommitMsg, "openai/gpt-4.1-mini"),
-		ExecStatus:       getModelRoleConfig(ModelRoleExecStatus, "openai/o4-mini-low", getErrorFallback("openai/o3-mini-low")),
+		ExecStatus:       getModelRoleConfig(ModelRoleExecStatus, "openai/o4-mini-low"),
 	}
 
 	R1PlannerPackSchema = ModelPackSchema{
@@ -245,12 +242,12 @@ func init() {
 		Description:      "Uses DeepSeek R1 for planning, Qwen for light tasks, and default models for implementation. Supports up to 56k input context.",
 		Planner:          getModelRoleConfig(ModelRolePlanner, "deepseek/r1-reasoning-visible"),
 		Coder:            Pointer(getModelRoleConfig(ModelRoleCoder, "anthropic/claude-3.7-sonnet")),
-		PlanSummary:      getModelRoleConfig(ModelRolePlanSummary, "openai/o4-mini-low", getErrorFallback("openai/o3-mini-low")),
-		Builder:          getModelRoleConfig(ModelRoleBuilder, "openai/o4-mini-medium", getErrorFallback("openai/o3-mini-medium")),
-		WholeFileBuilder: Pointer(getModelRoleConfig(ModelRoleWholeFileBuilder, "openai/o4-mini-low", getErrorFallback("openai/o3-mini-low"))),
+		PlanSummary:      getModelRoleConfig(ModelRolePlanSummary, "openai/o4-mini-low"),
+		Builder:          getModelRoleConfig(ModelRoleBuilder, "openai/o4-mini-medium"),
+		WholeFileBuilder: Pointer(getModelRoleConfig(ModelRoleWholeFileBuilder, "openai/o4-mini-low")),
 		Namer:            getModelRoleConfig(ModelRoleName, "openai/gpt-4.1-mini"),
 		CommitMsg:        getModelRoleConfig(ModelRoleCommitMsg, "openai/gpt-4.1-mini"),
-		ExecStatus:       getModelRoleConfig(ModelRoleExecStatus, "openai/o4-mini-medium", getErrorFallback("openai/o3-mini-medium")),
+		ExecStatus:       getModelRoleConfig(ModelRoleExecStatus, "openai/o4-mini-medium"),
 	}
 
 	PerplexityPlannerPackSchema = ModelPackSchema{
@@ -258,12 +255,12 @@ func init() {
 		Description:      "Uses Perplexity Sonar for planning, Qwen for light tasks, and default models for implementation. Supports up to 97k input context.",
 		Planner:          getModelRoleConfig(ModelRolePlanner, "perplexity/sonar-reasoning-visible"),
 		Coder:            Pointer(getModelRoleConfig(ModelRoleCoder, "anthropic/claude-3.7-sonnet")),
-		PlanSummary:      getModelRoleConfig(ModelRolePlanSummary, "openai/o4-mini-low", getErrorFallback("openai/o3-mini-low")),
-		Builder:          getModelRoleConfig(ModelRoleBuilder, "openai/o4-mini-medium", getErrorFallback("openai/o3-mini-medium")),
-		WholeFileBuilder: Pointer(getModelRoleConfig(ModelRoleWholeFileBuilder, "openai/o4-mini-low", getErrorFallback("openai/o3-mini-low"))),
+		PlanSummary:      getModelRoleConfig(ModelRolePlanSummary, "openai/o4-mini-low"),
+		Builder:          getModelRoleConfig(ModelRoleBuilder, "openai/o4-mini-medium"),
+		WholeFileBuilder: Pointer(getModelRoleConfig(ModelRoleWholeFileBuilder, "openai/o4-mini-low")),
 		Namer:            getModelRoleConfig(ModelRoleName, "openai/gpt-4.1-mini"),
 		CommitMsg:        getModelRoleConfig(ModelRoleCommitMsg, "openai/gpt-4.1-mini"),
-		ExecStatus:       getModelRoleConfig(ModelRoleExecStatus, "openai/o4-mini-medium", getErrorFallback("openai/o3-mini-medium")),
+		ExecStatus:       getModelRoleConfig(ModelRoleExecStatus, "openai/o4-mini-medium"),
 	}
 
 	DailyDriverModelPack = DailyDriverPackSchema.ToModelPack()

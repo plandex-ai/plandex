@@ -315,6 +315,21 @@ type ModelPack struct {
 	CreatedAt        time.Time                `db:"created_at"`
 }
 
+func ModelPackFromApi(apiModelPack *shared.ModelPack) *ModelPack {
+	return &ModelPack{
+		Name:        apiModelPack.Name,
+		Description: apiModelPack.Description,
+		Planner:     apiModelPack.Planner,
+		Architect:   apiModelPack.Architect,
+		Coder:       apiModelPack.Coder,
+		PlanSummary: apiModelPack.PlanSummary,
+		Builder:     apiModelPack.Builder,
+		Namer:       apiModelPack.Namer,
+		CommitMsg:   apiModelPack.CommitMsg,
+		ExecStatus:  apiModelPack.ExecStatus,
+	}
+}
+
 func (modelPack *ModelPack) ToApi() *shared.ModelPack {
 	return &shared.ModelPack{
 		Id:          modelPack.Id,
@@ -330,28 +345,6 @@ func (modelPack *ModelPack) ToApi() *shared.ModelPack {
 		ExecStatus:  modelPack.ExecStatus,
 	}
 }
-
-// old version prior to 2.2.0 models refactor
-// type AvailableModel struct {
-// 	Id                    string                   `db:"id"`
-// 	OrgId                 string                   `db:"org_id"`
-// 	Provider              shared.ModelProvider     `db:"provider"`
-// 	CustomProvider        *string                  `db:"custom_provider"`
-// 	BaseUrl               string                   `db:"base_url"`
-// 	ModelTag              shared.ModelTag          `db:"model_tag"`
-// 	ModelId               shared.ModelId           `db:"model_id"`
-// 	ModelName             shared.ModelName         `db:"model_name"`
-// 	Description           string                   `db:"description"`
-// 	MaxTokens             int                      `db:"max_tokens"`
-// 	ApiKeyEnvVar          string                   `db:"api_key_env_var"`
-// 	DefaultMaxConvoTokens int                      `db:"default_max_convo_tokens"`
-// 	MaxOutputTokens       int                      `db:"max_output_tokens"`
-// 	ReservedOutputTokens  int                      `db:"reserved_output_tokens"`
-// 	HasImageSupport       bool                     `db:"has_image_support"`
-// 	PreferredOutputFormat shared.ModelOutputFormat `db:"preferred_output_format"`
-// 	CreatedAt             time.Time                `db:"created_at"`
-// 	UpdatedAt             time.Time                `db:"updated_at"`
-// }
 
 type CustomModel struct {
 	Id                    string                   `db:"id"`
@@ -457,6 +450,8 @@ func (model *CustomModel) ToApi() *shared.CustomModel {
 			},
 		},
 		Providers: providers,
+		CreatedAt: &model.CreatedAt,
+		UpdatedAt: &model.UpdatedAt,
 	}
 }
 
@@ -546,7 +541,7 @@ func (providers *CustomModelProviders) Scan(src interface{}) error {
 	return fmt.Errorf("unsupported data type: %T", src)
 }
 
-func (providers *CustomModelProviders) Value() (driver.Value, error) {
+func (providers CustomModelProviders) Value() (driver.Value, error) {
 	return json.Marshal(providers)
 }
 

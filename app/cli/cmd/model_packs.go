@@ -26,7 +26,7 @@ var modelPacksCmd = &cobra.Command{
 var createModelPackCmd = &cobra.Command{
 	Use:   "create",
 	Short: "Create a model pack",
-	Run:   createModelPack,
+	Run:   customModelsNotImplemented,
 }
 
 var deleteModelPackCmd = &cobra.Command{
@@ -38,10 +38,9 @@ var deleteModelPackCmd = &cobra.Command{
 }
 
 var updateModelPackCmd = &cobra.Command{
-	Use:   "update [name]",
+	Use:   "update",
 	Short: "Update a model pack by name",
-	Args:  cobra.MaximumNArgs(1),
-	Run:   updateModelPack,
+	Run:   customModelsNotImplemented,
 }
 
 var showModelPackCmd = &cobra.Command{
@@ -187,194 +186,6 @@ func listModelPacks(cmd *cobra.Command, args []string) {
 		term.PrintCmds("", "model-packs create", "model-packs show")
 	}
 
-}
-
-func createModelPack(cmd *cobra.Command, args []string) {
-	auth.MustResolveAuthWithOrg()
-
-	mp := &shared.ModelPack{}
-
-	name, err := term.GetRequiredUserStringInput("Enter model pack name:")
-	if err != nil {
-		term.OutputErrorAndExit("Error reading model pack name: %v", err)
-		return
-	}
-	mp.Name = name
-
-	description, err := term.GetUserStringInput("Enter description:")
-	if err != nil {
-		term.OutputErrorAndExit("Error reading description: %v", err)
-		return
-	}
-	mp.Description = description
-
-	// term.StartSpinner("")
-	// customModels, apiErr := api.Client.ListCustomModels()
-	// term.StopSpinner()
-
-	// if apiErr != nil {
-	// 	term.OutputErrorAndExit("Error fetching models: %v", apiErr)
-	// }
-
-	// Selecting models for each role
-	// mp.Planner = getPlannerRoleConfig(customModels)
-
-	// contextLoader := getModelRoleConfig(customModels, shared.ModelRoleArchitect)
-	// mp.Architect = &contextLoader
-
-	// coder := getModelRoleConfig(customModels, shared.ModelRoleCoder)
-	// mp.Coder = &coder
-
-	// mp.Builder = getModelRoleConfig(customModels, shared.ModelRoleBuilder)
-
-	// wholeFileBuilder := getModelRoleConfig(customModels, shared.ModelRoleWholeFileBuilder)
-	// mp.WholeFileBuilder = &wholeFileBuilder
-
-	// mp.Namer = getModelRoleConfig(customModels, shared.ModelRoleName)
-	// mp.CommitMsg = getModelRoleConfig(customModels, shared.ModelRoleCommitMsg)
-
-	// mp.PlanSummary = getModelRoleConfig(customModels, shared.ModelRolePlanSummary)
-	// mp.ExecStatus = getModelRoleConfig(customModels, shared.ModelRoleExecStatus)
-
-	term.StartSpinner("")
-	apiErr := api.Client.CreateModelPack(mp)
-	term.StopSpinner()
-
-	if apiErr != nil {
-		term.OutputErrorAndExit("Error creating model pack: %v", apiErr.Msg)
-		return
-	}
-
-	fmt.Println("✅ Created model pack", color.New(color.Bold, term.ColorHiCyan).Sprint(mp.Name))
-
-	fmt.Println()
-
-	term.PrintCmds("", "model-packs", "model-packs --custom", "model-packs delete")
-}
-
-func updateModelPack(cmd *cobra.Command, args []string) {
-	auth.MustResolveAuthWithOrg()
-
-	term.StartSpinner("")
-	modelPacks, apiErr := api.Client.ListModelPacks()
-
-	if apiErr != nil {
-		term.StopSpinner()
-		term.OutputErrorAndExit("Error fetching models: %v", apiErr)
-	}
-
-	if len(modelPacks) == 0 {
-		term.StopSpinner()
-		fmt.Println("🤷‍♂️ No model packs")
-		return
-	}
-
-	// customModels, apiErr := api.Client.ListCustomModels()
-	// term.StopSpinner()
-	// if apiErr != nil {
-	// 	term.OutputErrorAndExit("Error fetching models: %v", apiErr)
-	// }
-
-	var toUpdate *shared.ModelPack
-
-	var name string
-	if len(args) > 0 {
-		name = args[0]
-	}
-
-	if name == "" {
-		opts := make([]string, len(modelPacks))
-		for i, mp := range modelPacks {
-			opts[i] = mp.Name
-		}
-
-		selected, err := term.SelectFromList("Select a custom model pack:", opts)
-		if err != nil {
-			term.OutputErrorAndExit("Error selecting model pack: %v", err)
-		}
-
-		for _, mp := range modelPacks {
-			if mp.Name == selected {
-				toUpdate = mp
-				break
-			}
-		}
-	}
-
-	if toUpdate == nil {
-		term.OutputErrorAndExit("Model pack not found")
-		return
-	}
-
-	// var role shared.ModelRole
-
-	roleOpts := make([]string, len(shared.AllModelRoles))
-	for i, role := range shared.AllModelRoles {
-		roleOpts[i] = string(role)
-	}
-
-	renderModelPack(toUpdate, allProperties)
-
-	// for {
-	// 	selected, err := term.SelectFromList("Select a role to update:", roleOpts)
-	// 	if err != nil {
-	// 		term.OutputErrorAndExit("Error selecting role: %v", err)
-	// 	}
-
-	// 	role = shared.ModelRole(selected)
-
-	// 	switch role {
-	// 	case shared.ModelRolePlanner:
-	// 		toUpdate.Planner = getPlannerRoleConfig(customModels)
-	// 	case shared.ModelRoleArchitect:
-	// 		contextLoader := getModelRoleConfig(customModels, shared.ModelRoleArchitect)
-	// 		toUpdate.Architect = &contextLoader
-	// 	case shared.ModelRoleCoder:
-	// 		coder := getModelRoleConfig(customModels, shared.ModelRoleCoder)
-	// 		toUpdate.Coder = &coder
-	// 	case shared.ModelRoleBuilder:
-	// 		builder := getModelRoleConfig(customModels, shared.ModelRoleBuilder)
-	// 		toUpdate.Builder = builder
-	// 	case shared.ModelRoleWholeFileBuilder:
-	// 		wholeFileBuilder := getModelRoleConfig(customModels, shared.ModelRoleWholeFileBuilder)
-	// 		toUpdate.WholeFileBuilder = &wholeFileBuilder
-	// 	case shared.ModelRolePlanSummary:
-	// 		toUpdate.PlanSummary = getModelRoleConfig(customModels, role)
-	// 	case shared.ModelRoleExecStatus:
-	// 		toUpdate.ExecStatus = getModelRoleConfig(customModels, role)
-	// 	case shared.ModelRoleCommitMsg:
-	// 		toUpdate.CommitMsg = getModelRoleConfig(customModels, role)
-	// 	case shared.ModelRoleName:
-	// 		toUpdate.Namer = getModelRoleConfig(customModels, role)
-	// 	}
-
-	// 	updateOpt := "Update another role"
-	// 	saveOpt := "Save model pack and exit"
-	// 	opts := []string{updateOpt, saveOpt}
-
-	// 	selected, err = term.SelectFromList("Finished editing?", opts)
-	// 	if err != nil {
-	// 		term.OutputErrorAndExit("Error selecting option: %v", err)
-	// 	}
-
-	// 	if selected == saveOpt {
-	// 		break
-	// 	}
-	// }
-
-	term.StartSpinner("")
-	apiErr = api.Client.UpdateModelPack(toUpdate)
-	term.StopSpinner()
-
-	if apiErr != nil {
-		term.OutputErrorAndExit("Error updating model pack: %v", apiErr.Msg)
-	}
-
-	fmt.Println("✅ Model pack updated")
-
-	fmt.Println()
-
-	term.PrintCmds("", "model-packs show", "set-model", "set-model default")
 }
 
 func showModelPack(cmd *cobra.Command, args []string) {

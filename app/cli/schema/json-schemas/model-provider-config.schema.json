@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://plandex.ai/schemas/model-provider-config.schema.json",
+  "title": "Model Provider Config",
+  "description": "Config for a model provider",
+  "type": "object",
+  "properties": {
+    "baseUrl": {
+      "type": "string"
+    },
+    "skipAuth": {
+      "type": "boolean",
+      "default": false
+    },
+    "apiKeyEnvVar": {
+      "type": "string"
+    },
+    "extraAuthVars": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "var": {
+            "type": "string"
+          },
+          "maybeJSONFilePath": {
+            "type": "boolean"
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "default": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "var"
+        ]
+      },
+      "minItems": 1
+    }
+  },
+  "required": [
+    "name",
+    "baseUrl"
+  ],
+  "anyOf": [
+    {
+      "required": [
+        "apiKeyEnvVar"
+      ]
+    },
+    {
+      "required": [
+        "extraAuthVars"
+      ]
+    },
+    {
+      "required": [
+        "skipAuth"
+      ],
+      "properties": {
+        "skipAuth": {
+          "const": true
+        }
+      }
+    }
+  ]
+}

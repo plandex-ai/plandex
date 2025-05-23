@@ -31,20 +31,20 @@ type BaseModelShared struct {
 	MaxOutputTokens        int               `json:"maxOutputTokens"`
 	ReservedOutputTokens   int               `json:"reservedOutputTokens"`
 	PreferredOutputFormat  ModelOutputFormat `json:"preferredOutputFormat"`
-	SystemPromptDisabled   bool              `json:"systemPromptDisabled"`
-	RoleParamsDisabled     bool              `json:"roleParamsDisabled"`
-	StopDisabled           bool              `json:"stopDisabled"`
-	PredictedOutputEnabled bool              `json:"predictedOutputEnabled"`
-	ReasoningEffortEnabled bool              `json:"reasoningEffortEnabled"`
-	ReasoningEffort        ReasoningEffort   `json:"reasoningEffort"`
-	IncludeReasoning       bool              `json:"includeReasoning"`
-	ReasoningBudget        int               `json:"reasoningBudget"`
-	SupportsCacheControl   bool              `json:"supportsCacheControl"`
+	SystemPromptDisabled   bool              `json:"systemPromptDisabled,omitempty"`
+	RoleParamsDisabled     bool              `json:"roleParamsDisabled,omitempty"`
+	StopDisabled           bool              `json:"stopDisabled,omitempty"`
+	PredictedOutputEnabled bool              `json:"predictedOutputEnabled,omitempty"`
+	ReasoningEffortEnabled bool              `json:"reasoningEffortEnabled,omitempty"`
+	ReasoningEffort        ReasoningEffort   `json:"reasoningEffort,omitempty"`
+	IncludeReasoning       bool              `json:"includeReasoning,omitempty"`
+	ReasoningBudget        int               `json:"reasoningBudget,omitempty"`
+	SupportsCacheControl   bool              `json:"supportsCacheControl,omitempty"`
 	// for anthropic, single message system prompt needs to be flipped to 'user'
-	SingleMessageNoSystemPrompt bool `json:"singleMessageNoSystemPrompt"`
+	SingleMessageNoSystemPrompt bool `json:"singleMessageNoSystemPrompt,omitempty"`
 
 	// for anthropic, token estimate padding percentage
-	TokenEstimatePaddingPct float64 `json:"tokenEstimatePaddingPct"`
+	TokenEstimatePaddingPct float64 `json:"tokenEstimatePaddingPct,omitempty"`
 
 	ModelCompatibility
 }
@@ -281,49 +281,73 @@ type ModelRoleModelConfig struct {
 }
 
 type ModelRoleConfigSchema struct {
-	Role    ModelRole `json:"role"`
-	ModelId ModelId   `json:"modelId"`
+	ModelId ModelId `json:"modelId"`
 
-	Temperature          float32 `json:"temperature"`
-	TopP                 float32 `json:"topP"`
-	ReservedOutputTokens int     `json:"reservedOutputTokens"`
-	MaxConvoTokens       int     `json:"maxConvoTokens"`
+	Temperature          float32 `json:"temperature,omitempty"`
+	TopP                 float32 `json:"topP,omitempty"`
+	ReservedOutputTokens int     `json:"reservedOutputTokens,omitempty"`
+	MaxConvoTokens       int     `json:"maxConvoTokens,omitempty"`
 
-	LargeContextFallback *ModelRoleConfigSchema `json:"largeContextFallback"`
-	LargeOutputFallback  *ModelRoleConfigSchema `json:"largeOutputFallback"`
-	ErrorFallback        *ModelRoleConfigSchema `json:"errorFallback"`
-	StrongModel          *ModelRoleConfigSchema `json:"strongModel"`
+	LargeContextFallback *ModelRoleConfigSchema `json:"largeContextFallback,omitempty"`
+	LargeOutputFallback  *ModelRoleConfigSchema `json:"largeOutputFallback,omitempty"`
+	ErrorFallback        *ModelRoleConfigSchema `json:"errorFallback,omitempty"`
+	StrongModel          *ModelRoleConfigSchema `json:"strongModel,omitempty"`
 }
 
-func (m *ModelRoleConfigSchema) ToModelRoleConfig() ModelRoleConfig {
+func (m *ModelRoleConfigSchema) AllModelIds() []ModelId {
+	ids := []ModelId{}
 
-	return m.toModelRoleConfig()
+	if m.ModelId != "" {
+		ids = append(ids, m.ModelId)
+	}
+
+	if m.LargeContextFallback != nil {
+		ids = append(ids, m.LargeContextFallback.AllModelIds()...)
+	}
+
+	if m.LargeOutputFallback != nil {
+		ids = append(ids, m.LargeOutputFallback.AllModelIds()...)
+	}
+
+	if m.ErrorFallback != nil {
+		ids = append(ids, m.ErrorFallback.AllModelIds()...)
+	}
+
+	if m.StrongModel != nil {
+		ids = append(ids, m.StrongModel.AllModelIds()...)
+	}
+
+	return ids
 }
 
-func (m *ModelRoleConfigSchema) toModelRoleConfig() ModelRoleConfig {
+func (m *ModelRoleConfigSchema) ToModelRoleConfig(role ModelRole) ModelRoleConfig {
+	return m.toModelRoleConfig(role)
+}
+
+func (m *ModelRoleConfigSchema) toModelRoleConfig(role ModelRole) ModelRoleConfig {
 	var largeContextFallback *ModelRoleConfig
 	if m.LargeContextFallback != nil {
-		c := m.LargeContextFallback.ToModelRoleConfig()
+		c := m.LargeContextFallback.ToModelRoleConfig(role)
 		largeContextFallback = &c
 	}
 	var largeOutputFallback *ModelRoleConfig
 	if m.LargeOutputFallback != nil {
-		c := m.LargeOutputFallback.ToModelRoleConfig()
+		c := m.LargeOutputFallback.ToModelRoleConfig(role)
 		largeOutputFallback = &c
 	}
 	var errorFallback *ModelRoleConfig
 	if m.ErrorFallback != nil {
-		c := m.ErrorFallback.ToModelRoleConfig()
+		c := m.ErrorFallback.ToModelRoleConfig(role)
 		errorFallback = &c
 	}
 	var strongModel *ModelRoleConfig
 	if m.StrongModel != nil {
-		c := m.StrongModel.ToModelRoleConfig()
+		c := m.StrongModel.ToModelRoleConfig(role)
 		strongModel = &c
 	}
 
 	return ModelRoleConfig{
-		Role: m.Role,
+		Role: role,
 
 		ModelId: m.ModelId,
 
@@ -456,6 +480,33 @@ type ModelPackSchema struct {
 	Architect        *ModelRoleConfigSchema `json:"contextLoader"`
 }
 
+func (m *ModelPackSchema) AllModelIds() []ModelId {
+	ids := []ModelId{}
+
+	ids = append(ids, m.Planner.AllModelIds()...)
+
+	if m.Coder != nil {
+		ids = append(ids, m.Coder.AllModelIds()...)
+	}
+
+	ids = append(ids, m.PlanSummary.AllModelIds()...)
+	ids = append(ids, m.Builder.AllModelIds()...)
+
+	if m.WholeFileBuilder != nil {
+		ids = append(ids, m.WholeFileBuilder.AllModelIds()...)
+	}
+
+	ids = append(ids, m.Namer.AllModelIds()...)
+	ids = append(ids, m.CommitMsg.AllModelIds()...)
+	ids = append(ids, m.ExecStatus.AllModelIds()...)
+
+	if m.Architect != nil {
+		ids = append(ids, m.Architect.AllModelIds()...)
+	}
+
+	return ids
+}
+
 func (m *ModelPackSchema) ToModelPack() ModelPack {
 	var (
 		coder            *ModelRoleConfig
@@ -464,17 +515,17 @@ func (m *ModelPackSchema) ToModelPack() ModelPack {
 	)
 
 	if m.Coder != nil {
-		c := m.Coder.ToModelRoleConfig()
+		c := m.Coder.ToModelRoleConfig(ModelRoleCoder)
 		coder = &c
 	}
 
 	if m.WholeFileBuilder != nil {
-		c := m.WholeFileBuilder.ToModelRoleConfig()
+		c := m.WholeFileBuilder.ToModelRoleConfig(ModelRoleBuilder)
 		wholeFileBuilder = &c
 	}
 
 	if m.Architect != nil {
-		c := m.Architect.ToModelRoleConfig()
+		c := m.Architect.ToModelRoleConfig(ModelRoleArchitect)
 		architect = &c
 	}
 
@@ -482,18 +533,18 @@ func (m *ModelPackSchema) ToModelPack() ModelPack {
 		Name:        m.Name,
 		Description: m.Description,
 		Planner: PlannerRoleConfig{
-			ModelRoleConfig: m.Planner.ToModelRoleConfig(),
+			ModelRoleConfig: m.Planner.ToModelRoleConfig(ModelRolePlanner),
 			PlannerModelConfig: PlannerModelConfig{
 				MaxConvoTokens: m.Planner.MaxConvoTokens,
 			},
 		},
 		Coder:            coder,
-		PlanSummary:      m.PlanSummary.ToModelRoleConfig(),
-		Builder:          m.Builder.ToModelRoleConfig(),
+		PlanSummary:      m.PlanSummary.ToModelRoleConfig(ModelRolePlanner),
+		Builder:          m.Builder.ToModelRoleConfig(ModelRoleBuilder),
 		WholeFileBuilder: wholeFileBuilder,
-		Namer:            m.Namer.ToModelRoleConfig(),
-		CommitMsg:        m.CommitMsg.ToModelRoleConfig(),
-		ExecStatus:       m.ExecStatus.ToModelRoleConfig(),
+		Namer:            m.Namer.ToModelRoleConfig(ModelRoleName),
+		CommitMsg:        m.CommitMsg.ToModelRoleConfig(ModelRoleCommitMsg),
+		ExecStatus:       m.ExecStatus.ToModelRoleConfig(ModelRoleExecStatus),
 		Architect:        architect,
 	}
 }

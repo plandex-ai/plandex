@@ -164,14 +164,12 @@ func addApiRoutes(r *mux.Router, prefix string) {
 
 	HandlePlandexFn(r, prefix+"/custom_models", false, handlers.ListCustomModelsHandler).Methods("GET")
 	HandlePlandexFn(r, prefix+"/custom_models", false, handlers.CreateCustomModelHandler).Methods("POST")
+
 	HandlePlandexFn(r, prefix+"/custom_models/{modelId}", false, handlers.DeleteCustomModelHandler).Methods("DELETE")
-	HandlePlandexFn(r, prefix+"/custom_models/{modelId}", false, handlers.UpdateCustomModelHandler).Methods("PUT")
 	HandlePlandexFn(r, prefix+"/custom_models/{modelId}", false, handlers.GetCustomModelHandler).Methods("GET")
 
 	HandlePlandexFn(r, prefix+"/custom_providers", false, handlers.ListCustomProvidersHandler).Methods("GET")
-	HandlePlandexFn(r, prefix+"/custom_providers", false, handlers.CreateCustomProviderHandler).Methods("POST")
 	HandlePlandexFn(r, prefix+"/custom_providers/{providerId}", false, handlers.DeleteCustomProviderHandler).Methods("DELETE")
-	HandlePlandexFn(r, prefix+"/custom_providers/{providerId}", false, handlers.UpdateCustomProviderHandler).Methods("PUT")
 	HandlePlandexFn(r, prefix+"/custom_providers/{providerId}", false, handlers.GetCustomProviderHandler).Methods("GET")
 
 	HandlePlandexFn(r, prefix+"/model_sets", false, handlers.ListModelPacksHandler).Methods("GET")

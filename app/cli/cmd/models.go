@@ -4,10 +4,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
+	"path/filepath"
+	"sort"
+	"strings"
 
 	"plandex-cli/api"
 	"plandex-cli/auth"
 	"plandex-cli/lib"
+	"plandex-cli/schema"
 	"plandex-cli/term"
 	"strconv"
 
@@ -21,7 +26,7 @@ import (
 var customModelsOnly bool
 
 var allProperties bool
-var jsonFile string
+var genTemplatePath string
 
 func init() {
 	RootCmd.AddCommand(modelsCmd)
@@ -29,11 +34,13 @@ func init() {
 	modelsCmd.Flags().BoolVarP(&allProperties, "all", "a", false, "Show all properties")
 
 	modelsCmd.AddCommand(listAvailableModelsCmd)
-	modelsCmd.AddCommand(createCustomModelCmd)
+	modelsCmd.AddCommand(addCustomModelCmd)
+	modelsCmd.AddCommand(updateCustomModelCmd)
+	modelsCmd.AddCommand(importCustomModelCmd)
 	modelsCmd.AddCommand(deleteCustomModelCmd)
 	modelsCmd.AddCommand(defaultModelsCmd)
 
-	createCustomModelCmd.Flags().StringVar(&jsonFile, "json", "", "Path to a JSON file containing model configuration")
+	importCustomModelCmd.Flags().StringVarP(&genTemplatePath, "generate", "g", "", "Generate a template JSON file")
 
 	listAvailableModelsCmd.Flags().BoolVarP(&customModelsOnly, "custom", "c", false, "List custom models only")
 }
@@ -57,11 +64,25 @@ var listAvailableModelsCmd = &cobra.Command{
 	Run:     listAvailableModels,
 }
 
-var createCustomModelCmd = &cobra.Command{
+var importCustomModelCmd = &cobra.Command{
+	Use:   "import [json-file]",
+	Short: "Create or update custom models, providers, and model packs from a JSON file",
+	Run:   importCustomModels,
+	Args:  cobra.MaximumNArgs(1),
+}
+
+var addCustomModelCmd = &cobra.Command{
 	Use:     "add",
 	Aliases: []string{"create"},
 	Short:   "Add a custom model",
-	Run:     createCustomModel,
+	Run:     customModelsNotImplemented,
+}
+
+var updateCustomModelCmd = &cobra.Command{
+	Use:     "update",
+	Aliases: []string{"edit"},
+	Short:   "Update a custom model",
+	Run:     customModelsNotImplemented,
 }
 
 var deleteCustomModelCmd = &cobra.Command{
@@ -72,235 +93,170 @@ var deleteCustomModelCmd = &cobra.Command{
 	Run:     deleteCustomModel,
 }
 
-func createCustomModel(cmd *cobra.Command, args []string) {
+func importCustomModels(cmd *cobra.Command, args []string) {
 	auth.MustResolveAuthWithOrg()
 
-	var model *shared.CustomModel
+	var jsonFile string
+	genTemplate := genTemplatePath != ""
 
-	if jsonFile != "" {
-		// Load model from JSON file
-		jsonData, err := os.ReadFile(jsonFile)
+	if len(args) == 0 && !genTemplate {
+		fmt.Println(color.New(color.Bold, color.FgHiCyan).Sprint("To add custom models, providers, or model packs 👇") + `
+1. Generate a template JSON file
+2. Update it in an IDE or editor
+3. Load the template and finish import`)
+		fmt.Println()
+
+		fmt.Println("ℹ️  You can also " + color.New(color.Bold, color.FgHiCyan).Sprint("update") + " existing custom models, providers, or model packs with the same JSON file")
+		fmt.Println()
+
+		const createTemplate = "Generate template"
+		const loadTemplate = "Load template"
+		const cancel = "Cancel"
+		opts := []string{createTemplate, loadTemplate, cancel}
+		selected, err := term.SelectFromList("What do you want to do?", opts)
 		if err != nil {
-			term.OutputErrorAndExit("Error reading JSON file: %v", err)
+			term.OutputErrorAndExit("Error selecting option: %v", err)
 			return
 		}
 
-		// Parse JSON into a map
-		var jsonMap map[string]interface{}
-		if err := json.Unmarshal(jsonData, &jsonMap); err != nil {
-			term.OutputErrorAndExit("Error parsing JSON: %v", err)
+		if selected == cancel {
 			return
 		}
 
-		// Convert to CustomModel
-		model = &shared.CustomModel{
-			BaseModelShared: shared.BaseModelShared{
-				ModelCompatibility: shared.ModelCompatibility{},
-			},
-		}
-
-		// Extract required fields
-		if modelId, ok := jsonMap["modelId"].(string); ok {
-			model.ModelId = shared.ModelId(modelId)
-		} else {
-			term.OutputErrorAndExit("Missing or invalid 'modelId' in JSON")
-			return
-		}
-
-		// Extract optional fields
-		if description, ok := jsonMap["description"].(string); ok {
-			model.Description = description
-		}
-
-		// Extract numeric fields
-		if maxTokens, ok := jsonMap["maxTokens"].(float64); ok {
-			model.MaxTokens = int(maxTokens)
-		} else {
-			term.OutputErrorAndExit("Missing or invalid 'maxTokens' in JSON")
-			return
-		}
-
-		if maxConvoTokens, ok := jsonMap["defaultMaxConvoTokens"].(float64); ok {
-			model.DefaultMaxConvoTokens = int(maxConvoTokens)
-		} else {
-			term.OutputErrorAndExit("Missing or invalid 'defaultMaxConvoTokens' in JSON")
-			return
-		}
-
-		if maxOutputTokens, ok := jsonMap["maxOutputTokens"].(float64); ok {
-			model.MaxOutputTokens = int(maxOutputTokens)
-		} else {
-			term.OutputErrorAndExit("Missing or invalid 'maxOutputTokens' in JSON")
-			return
-		}
-
-		if reservedOutputTokens, ok := jsonMap["reservedOutputTokens"].(float64); ok {
-			model.ReservedOutputTokens = int(reservedOutputTokens)
-		} else {
-			term.OutputErrorAndExit("Missing or invalid 'reservedOutputTokens' in JSON")
-			return
-		}
-
-		// Extract output format
-		if outputFormat, ok := jsonMap["preferredOutputFormat"].(string); ok {
-			model.PreferredOutputFormat = shared.ModelOutputFormat(outputFormat)
-		} else {
-			term.OutputErrorAndExit("Missing or invalid 'preferredOutputFormat' in JSON")
-			return
-		}
-
-		// Extract image support
-		if hasImageSupport, ok := jsonMap["hasImageSupport"].(bool); ok {
-			model.HasImageSupport = hasImageSupport
-		} else {
-			// Default to false if not specified
-			model.HasImageSupport = false
-		}
-	} else {
-		// Interactive mode
-		model = &shared.CustomModel{
-			BaseModelShared: shared.BaseModelShared{
-				ModelCompatibility: shared.ModelCompatibility{},
-			},
-		}
-
-		fmt.Println("For model id, use something like 'openai/gpt-4.1' that uniquely identifies the model. This doesn't need to match the model name for any particular provider (this is set when you add providers for the model).")
-		modelId, err := term.GetRequiredUserStringInput("Model id:")
-		if err != nil {
-			term.OutputErrorAndExit("Error reading model id: %v", err)
-			return
-		}
-		model.ModelId = shared.ModelId(modelId)
-
-		fmt.Println("Add a human friendly description if you want to.")
-		description, err := term.GetUserStringInput("Description (optional):")
-		if err != nil {
-			term.OutputErrorAndExit("Error reading description: %v", err)
-			return
-		}
-		model.Description = description
-
-		fmt.Println("Max Tokens is the total maximum context size of the model.")
-
-		maxTokensStr, err := term.GetRequiredUserStringInput("Max Tokens:")
-		if err != nil {
-			term.OutputErrorAndExit("Error reading max tokens: %v", err)
-			return
-		}
-		maxTokens, err := strconv.Atoi(maxTokensStr)
-		if err != nil {
-			term.OutputErrorAndExit("Invalid number for max tokens: %v", err)
-			return
-		}
-		model.MaxTokens = maxTokens
-
-		fmt.Println("'Default Max Convo Tokens' is the default maximum size a conversation can reach in the 'planner' role before it is shortened by summarization. For 128k context, ~10000 is recommended. For 200k context, ~15000 is recommended.")
-
-		var defaultMaxConvoTokens int
-
-		if maxTokens >= 180000 {
-			defaultMaxConvoTokens = 15000
-		} else if maxTokens >= 100000 {
-			defaultMaxConvoTokens = 10000
-		}
-
-		var maxConvoTokensStr string
-		if defaultMaxConvoTokens == 0 {
-			maxConvoTokensStr, err = term.GetRequiredUserStringInput("Default Max Convo Tokens:")
-		} else {
-			maxConvoTokensStr, err = term.GetRequiredUserStringInputWithDefault("Default Max Convo Tokens:", strconv.Itoa(defaultMaxConvoTokens))
-		}
-
-		if err != nil {
-			term.OutputErrorAndExit("Error reading max convo tokens: %v", err)
-			return
-		}
-		maxConvoTokens, err := strconv.Atoi(maxConvoTokensStr)
-		if err != nil {
-			term.OutputErrorAndExit("Invalid number for max convo tokens: %v", err)
-			return
-		}
-		model.DefaultMaxConvoTokens = maxConvoTokens
-
-		fmt.Println("'Max Output Tokens' is the hard limit on output length for the model. Check with the model provider for the recommended value. 8k is a reasonable default if it's not documented, though some models have no max output limit—in that case 'Max Output Tokens' should be set to the same value as 'Max Tokens'.")
-
-		maxOutputTokensStr, err := term.GetRequiredUserStringInputWithDefault("Max Output Tokens:", "8192")
-		if err != nil {
-			term.OutputErrorAndExit("Error reading reserved output tokens: %v", err)
-			return
-		}
-		maxOutputTokens, err := strconv.Atoi(maxOutputTokensStr)
-		if err != nil {
-			term.OutputErrorAndExit("Invalid number for reserved output tokens: %v", err)
-			return
-		}
-		model.MaxOutputTokens = maxOutputTokens
-
-		fmt.Println("'Reserved Output Tokens' is the default number of tokens reserved for model output. This ensures the model has enough tokens to generate a response. It can be lower than the 'Max Output Tokens' limit and should be set to what a *realistic* output could reach under normal circumstances. If the 'Max Output Tokens' limit is fairly low, just use that. If the 'Max Output Tokens' is very high, or is equal to the 'Max Tokens' input limit, set a lower value so that there's enough room for input. For reasoning models, make sure enough space is included for reasoning tokens.")
-
-		var defaultReservedOutputTokens int
-		if maxOutputTokens <= int(float64(maxTokens)*0.2) {
-			defaultReservedOutputTokens = maxOutputTokens
-		}
-
-		var reservedOutputTokensStr string
-		if defaultReservedOutputTokens == 0 {
-			reservedOutputTokensStr, err = term.GetRequiredUserStringInputWithDefault("Reserved Output Tokens:", "8192")
-		} else {
-			reservedOutputTokensStr, err = term.GetRequiredUserStringInputWithDefault("Reserved Output Tokens:", strconv.Itoa(defaultReservedOutputTokens))
-		}
-
-		if err != nil {
-			term.OutputErrorAndExit("Error reading reserved output tokens: %v", err)
-			return
-		}
-
-		reservedOutputTokens, err := strconv.Atoi(reservedOutputTokensStr)
-		if err != nil {
-			term.OutputErrorAndExit("Invalid number for reserved output tokens: %v", err)
-			return
-		}
-		model.ReservedOutputTokens = reservedOutputTokens
-
-		fmt.Println("'Preferred Output Format' is the format for roles needing structured output. Currently, OpenAI models do best with 'Tool Call JSON' and other models generally do better with 'XML'. Choose 'XML' if you're unsure as it offers the widest compatibility. 'Tool Call JSON' requires tool call support and reliable JSON generation.")
-
-		outputFormatLabels := map[string]string{
-			string(shared.ModelOutputFormatXml):          "XML",
-			string(shared.ModelOutputFormatToolCallJson): "Tool Call JSON",
-		}
-
-		res, err := term.SelectFromList("Preferred Output Format:", []string{
-			outputFormatLabels[string(shared.ModelOutputFormatXml)],
-			outputFormatLabels[string(shared.ModelOutputFormatToolCallJson)],
-		})
-		if err != nil {
-			term.OutputErrorAndExit("Error selecting output format: %v", err)
-			return
-		}
-		for key, label := range outputFormatLabels {
-			if label == res {
-				model.PreferredOutputFormat = shared.ModelOutputFormat(key)
-				break
+		if selected == createTemplate {
+			genTemplate = true
+		} else if selected == loadTemplate {
+			jsonFile, err = term.GetRequiredUserStringInput("Template path:")
+			if err != nil {
+				term.OutputErrorAndExit("Error getting template file path: %v", err)
+				return
 			}
 		}
+	} else {
+		jsonFile = args[0]
+	}
 
-		model.HasImageSupport, err = term.ConfirmYesNo("Is multi-modal image support enabled?")
+	if genTemplate {
+		var path string
+		if genTemplatePath != "" {
+			path = genTemplatePath
+			// Check if file already exists
+			if _, err := os.Stat(path); err == nil {
+				term.OutputErrorAndExit("Template file already exists: %s", path)
+				return
+			} else if !os.IsNotExist(err) {
+				term.OutputErrorAndExit("Error checking template file: %v", err)
+				return
+			}
+		} else {
+			tmpDir := os.TempDir()
+			// Generate a unique temporary file if no path is specified
+			tmpFile, err := os.CreateTemp(tmpDir, "plandex-models-*.json")
+			if err != nil {
+				term.OutputErrorAndExit("Error creating template file: %v", err)
+				return
+			}
+			path = tmpFile.Name()
+			tmpFile.Close()
+		}
+
+		jsonData, err := json.MarshalIndent(getExampleTemplate(), "", "  ")
 		if err != nil {
-			term.OutputErrorAndExit("Error confirming image support: %v", err)
+			term.OutputErrorAndExit("Error marshalling custom model: %v", err)
+			return
+		}
+
+		err = os.WriteFile(path, jsonData, 0644)
+		if err != nil {
+			term.OutputErrorAndExit("Error writing template file: %v", err)
+			return
+		}
+
+		fmt.Printf("✅ Created template %s\n", color.New(color.Bold, term.ColorHiGreen).Sprint(path))
+
+		fmt.Println()
+
+		selectedEditor := maybePromptAndOpen(path)
+
+		pf := "\\"
+		if !term.IsRepl {
+			pf = "plandex "
+		}
+		manualImport := `• Run ` + color.New(color.Bold, color.BgCyan, color.FgHiWhite).Sprintf(" %smodels import ", pf) + ` again and select ` + color.New(color.Bold, color.FgHiCyan).Sprint("Load template") + `
+• Run ` + color.New(color.Bold, color.BgCyan, color.FgHiWhite).Sprintf(" %smodels import %s ", pf, path)
+
+		if selectedEditor {
+			fmt.Println("📝 Opened template")
+			fmt.Println(`👨‍💻 Edit it, then come back here to finish importing`)
+
+			fmt.Println()
+
+			confirmed, err := term.ConfirmYesNo("Done editing and ready to import?")
+			if err != nil {
+				term.OutputErrorAndExit("Error confirming template: %v", err)
+				return
+			}
+
+			fmt.Println()
+
+			if confirmed {
+				jsonFile = path
+			} else {
+				fmt.Println("🤷‍♂️ Didn't import")
+				fmt.Println()
+				fmt.Println("When you're ready, either:")
+				fmt.Println(manualImport)
+				return
+			}
+
+		} else {
+
+			fmt.Println(`👨‍💻 Edit the template in your IDE or JSON editor of choice, then either:`)
+			fmt.Println(manualImport)
 			return
 		}
 	}
 
-	term.StartSpinner("")
-	apiErr := api.Client.CreateCustomModel(model)
-	term.StopSpinner()
-
-	if apiErr != nil {
-		term.OutputErrorAndExit("Error adding model: %v", apiErr.Msg)
+	jsonData, err := os.ReadFile(jsonFile)
+	if err != nil {
+		term.OutputErrorAndExit("Error reading JSON file: %v", err)
 		return
 	}
 
-	fmt.Println("✅ Added custom model", color.New(color.Bold, term.ColorHiCyan).Sprint(string(model.ModelId)))
+	modelsInput, err := schema.ValidateModelsInputJSON(jsonData)
+	if err != nil {
+		color.New(color.Bold, term.ColorHiRed).Println("🚨 Error validating JSON file")
+		fmt.Println(err.Error())
+		return
+	}
+
+	term.StartSpinner("")
+	apiErr := api.Client.CreateCustomModels(&modelsInput)
+	term.StopSpinner()
+
+	if apiErr != nil {
+		term.OutputErrorAndExit("Error importing models: %v", apiErr.Msg)
+		return
+	}
+
+	for _, provider := range modelsInput.CustomProviders {
+		fmt.Println("✅ Imported custom", color.New(term.ColorHiCyan).Sprint("provider"), "→", color.New(color.Bold, term.ColorHiGreen).Sprint(provider.Name))
+	}
+
+	for _, model := range modelsInput.CustomModels {
+		fmt.Println("✅ Imported custom", color.New(term.ColorHiCyan).Sprint("model"), "→", color.New(color.Bold, term.ColorHiGreen).Sprint(string(model.ModelId)))
+	}
+
+	for _, modelPack := range modelsInput.CustomModelPacks {
+		fmt.Println("✅ Imported custom", color.New(term.ColorHiCyan).Sprint("model pack"), "→", color.New(color.Bold, term.ColorHiGreen).Sprint(modelPack.Name))
+	}
+
+	if genTemplate || looksLikeEphemeralTemplate(jsonFile) {
+		err = os.Remove(jsonFile)
+		if err != nil {
+			term.OutputErrorAndExit("Error cleaning up template: %v", err)
+		}
+	}
 }
 
 func models(cmd *cobra.Command, args []string) {
@@ -652,4 +608,234 @@ func renderModelPack(modelPack *shared.ModelPack, allProperties bool) {
 
 	fmt.Println()
 
+}
+
+func customModelsNotImplemented(cmd *cobra.Command, args []string) {
+	color.New(color.Bold, color.FgHiRed).Println("⛔️ Not implemented")
+	fmt.Println()
+	fmt.Println("Use " + color.New(color.BgCyan, color.FgHiWhite).Sprint(" plandex models import ") + " to add or update custom models, providers, and model packs with a JSON file")
+	os.Exit(1)
+}
+
+type editorCandidate struct {
+	name        string
+	cmd         string
+	args        []string
+	isJetBrains bool
+}
+
+const maxEditorOpts = 5
+
+func detectEditors() []editorCandidate {
+	guess := []editorCandidate{
+		// Popular non-JetBrains launchers
+		{"VS Code", "code", nil, false},
+		{"Cursor", "cursor", nil, false},
+		{"Zed", "zed", nil, false},
+		{"Neovim", "nvim", nil, false},
+
+		// JetBrains IDE-specific launchers
+		{"IntelliJ IDEA", "idea", nil, true},
+		{"GoLand", "goland", nil, true},
+		{"PyCharm", "pycharm", nil, true},
+		{"CLion", "clion", nil, true},
+		{"WebStorm", "webstorm", nil, true},
+		{"PhpStorm", "phpstorm", nil, true},
+		{"DataGrip", "datagrip", nil, true},
+		{"RubyMine", "rubymine", nil, true},
+		{"Rider", "rider", nil, true},
+		{"DataSpell", "dataspell", nil, true},
+
+		// JetBrains universal CLI (2023.2+)
+		{"JetBrains (jb)", "jb", []string{"open"}, true},
+
+		{"Vim", "vim", nil, false},
+		{"Nano", "nano", nil, false},
+		{"Helix", "hx", nil, false},
+		{"Micro", "micro", nil, false},
+		{"Sublime Text", "subl", nil, false},
+		{"TextMate", "mate", nil, false},
+		{"Kakoune", "kak", nil, false},
+		{"Emacs", "emacs", nil, false},
+		{"Kate", "kate", nil, false},
+	}
+	pref := map[string]bool{}
+	for _, env := range []string{"VISUAL", "EDITOR"} {
+		if v := os.Getenv(env); v != "" {
+			// keep only the binary name, drop path/flags
+			cmd := filepath.Base(strings.Fields(v)[0])
+			pref[cmd] = true
+		}
+	}
+
+	_, err := exec.LookPath("jb") // true if universal launcher exists
+	jbOnPath := err == nil
+
+	var found []editorCandidate
+	for _, c := range guess {
+		if _, err := exec.LookPath(c.cmd); err != nil {
+			continue // not on PATH
+		}
+
+		// If jb is present, drop per-IDE launchers *unless* this exact cmd
+		// is marked preferred by VISUAL/EDITOR.
+		if jbOnPath && c.isJetBrains && !pref[c.cmd] {
+			continue
+		}
+		found = append(found, c)
+	}
+
+	for cmd := range pref {
+		if _, err := exec.LookPath(cmd); err == nil {
+			already := false
+			for _, c := range found {
+				if c.cmd == cmd {
+					already = true
+					break
+				}
+			}
+			if !already {
+				found = append(found, editorCandidate{name: cmd, cmd: cmd})
+			}
+		}
+	}
+	sort.SliceStable(found, func(i, j int) bool {
+		pi, pj := pref[found[i].cmd], pref[found[j].cmd]
+		if pi == pj {
+			return false // keep original order
+		}
+		return pi // true → i comes before j
+	})
+	if len(found) > maxEditorOpts {
+		found = found[:maxEditorOpts]
+	}
+
+	return found
+}
+
+func maybePromptAndOpen(path string) bool {
+	editors := detectEditors()
+	if len(editors) == 0 {
+		// just exit if there are no editors available
+		return false
+	}
+	opts := []string{}
+	for _, c := range editors {
+		opts = append(opts, "Open with "+c.name)
+	}
+
+	const openManually = "Open manually"
+	opts = append(opts, openManually)
+
+	choice, err := term.SelectFromList("Edit the template now?", opts)
+	if err != nil {
+		term.OutputErrorAndExit("Error selecting editor: %v", err)
+	}
+
+	if choice == openManually {
+		return false
+	}
+
+	var idx int
+	for i, c := range opts {
+		if c == choice {
+			idx = i
+			break
+		}
+	}
+
+	if idx < len(editors) {
+		sel := editors[idx]
+		err = exec.Command(sel.cmd, append(sel.args, path)...).Start()
+		if err != nil {
+			term.OutputErrorAndExit("Error opening template: %v", err)
+		}
+		return true
+	}
+
+	return false
+}
+
+func looksLikeEphemeralTemplate(p string) bool {
+	// covers cases where the user pasted the temp name manually
+	tmp := os.TempDir()
+	return strings.HasPrefix(p, tmp+string(os.PathSeparator)) &&
+		strings.HasPrefix(filepath.Base(p), "plandex-models-") &&
+		strings.HasSuffix(p, ".json")
+}
+
+func getExampleTemplate() shared.ModelsInput {
+	exampleProviderName := "togetherai"
+
+	return shared.ModelsInput{
+		SchemaUrl: shared.SchemaUrlInputConfig,
+		CustomProviders: []shared.CustomProvider{
+			{
+				Name:         exampleProviderName,
+				BaseUrl:      "https://api.together.xyz/v1",
+				ApiKeyEnvVar: "TOGETHER_API_KEY",
+			},
+		},
+		CustomModels: []shared.CustomModel{
+			{
+				ModelId:     shared.ModelId("meta-llama/llama-4-maverick"),
+				Publisher:   shared.ModelPublisher("meta-llama"),
+				Description: "Meta Llama 4 Maverick",
+
+				BaseModelShared: shared.BaseModelShared{
+					DefaultMaxConvoTokens: 75000,
+					MaxTokens:             1048576,
+					MaxOutputTokens:       16000,
+					ReservedOutputTokens:  16000,
+					ModelCompatibility:    shared.FullCompatibility,
+					PreferredOutputFormat: shared.ModelOutputFormatXml,
+				},
+
+				Providers: []shared.BaseModelUsesProvider{
+					{
+						Provider:       shared.ModelProviderCustom,
+						CustomProvider: &exampleProviderName,
+						ModelName:      "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
+					},
+					{
+						Provider:  shared.ModelProviderOpenRouter,
+						ModelName: "meta-llama/llama-4-maverick",
+					},
+				},
+			},
+		},
+		CustomModelPacks: []shared.ModelPackSchema{
+			{
+				Name:        "example-model-pack",
+				Description: "Example model pack",
+				Planner: shared.ModelRoleConfigSchema{
+					ModelId: shared.ModelId("deepseek/r1-reasoning-visible"),
+				},
+				Architect: &shared.ModelRoleConfigSchema{
+					ModelId: shared.ModelId("deepseek/r1-reasoning-visible"),
+				},
+				Coder: &shared.ModelRoleConfigSchema{
+					ModelId: shared.ModelId("deepseek/v3-0324"),
+				},
+				PlanSummary: shared.ModelRoleConfigSchema{
+					ModelId: shared.ModelId("meta-llama/llama-4-maverick"),
+				},
+				Builder: shared.ModelRoleConfigSchema{
+					ModelId: shared.ModelId("deepseek/r1-reasoning-hidden"),
+				},
+				WholeFileBuilder: &shared.ModelRoleConfigSchema{
+					ModelId: shared.ModelId("deepseek/r1-reasoning-hidden"),
+				},
+				ExecStatus: shared.ModelRoleConfigSchema{
+					ModelId: shared.ModelId("deepseek/r1-reasoning-hidden"),
+				},
+				Namer: shared.ModelRoleConfigSchema{
+					ModelId: shared.ModelId("meta-llama/llama-4-maverick"),
+				},
+				CommitMsg: shared.ModelRoleConfigSchema{
+					ModelId: shared.ModelId("meta-llama/llama-4-maverick"),
+				},
+			},
+		},
+	}
 }

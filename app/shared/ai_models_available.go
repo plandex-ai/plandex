@@ -57,7 +57,7 @@ var BuiltInModels = []*BaseModelConfigSchema{
 			MaxTokens:              200000,
 			MaxOutputTokens:        100000,
 			ReservedOutputTokens:   40000, // 25k for reasoning, 15k for output
-			ModelCompatibility:     fullCompatibility,
+			ModelCompatibility:     FullCompatibility,
 			PreferredOutputFormat:  ModelOutputFormatXml,
 			SystemPromptDisabled:   true,
 			RoleParamsDisabled:     true,
@@ -118,7 +118,7 @@ var BuiltInModels = []*BaseModelConfigSchema{
 			MaxTokens:              200000,
 			MaxOutputTokens:        100000,
 			ReservedOutputTokens:   40000, // 25k for reasoning, 15k for output
-			ModelCompatibility:     fullCompatibility,
+			ModelCompatibility:     FullCompatibility,
 			PreferredOutputFormat:  ModelOutputFormatToolCallJson,
 			SystemPromptDisabled:   true,
 			RoleParamsDisabled:     true,
@@ -183,7 +183,7 @@ var BuiltInModels = []*BaseModelConfigSchema{
 			MaxTokens:             1047576,
 			MaxOutputTokens:       32768,
 			ReservedOutputTokens:  32768,
-			ModelCompatibility:    fullCompatibility,
+			ModelCompatibility:    FullCompatibility,
 			PreferredOutputFormat: ModelOutputFormatToolCallJson,
 		},
 
@@ -213,7 +213,7 @@ var BuiltInModels = []*BaseModelConfigSchema{
 			MaxTokens:             1047576,
 			MaxOutputTokens:       32768,
 			ReservedOutputTokens:  32768,
-			ModelCompatibility:    fullCompatibility,
+			ModelCompatibility:    FullCompatibility,
 			PreferredOutputFormat: ModelOutputFormatToolCallJson,
 		},
 
@@ -243,7 +243,7 @@ var BuiltInModels = []*BaseModelConfigSchema{
 			MaxTokens:             1047576,
 			MaxOutputTokens:       32768,
 			ReservedOutputTokens:  32768,
-			ModelCompatibility:    fullCompatibility,
+			ModelCompatibility:    FullCompatibility,
 			PreferredOutputFormat: ModelOutputFormatToolCallJson,
 		},
 
@@ -273,7 +273,7 @@ var BuiltInModels = []*BaseModelConfigSchema{
 			MaxTokens:              200000,
 			MaxOutputTokens:        100000,
 			ReservedOutputTokens:   40000, // 25k for reasoning, 15k for output
-			ModelCompatibility:     fullCompatibility,
+			ModelCompatibility:     FullCompatibility,
 			PreferredOutputFormat:  ModelOutputFormatToolCallJson,
 			SystemPromptDisabled:   true,
 			RoleParamsDisabled:     true,

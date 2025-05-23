@@ -5,9 +5,6 @@
   "description": "Config for a defined model role within a model pack",
   "type": "object",
   "properties": {
-    "role": {
-      "$ref": "./definitions/model-roles.schema.json"
-    },
     "modelId": {
       "type": "string"
     },
@@ -24,20 +21,19 @@
       "type": "number"
     },
     "largeContextFallback": {
-      "$ref": "./definitions/model-role-config.schema.json"
+      "$ref": "./model-role-config.schema.json"
     },
     "largeOutputFallback": {
-      "$ref": "./definitions/model-role-config.schema.json"
+      "$ref": "./model-role-config.schema.json"
     },
     "errorFallback": {
-      "$ref": "./definitions/model-role-config.schema.json"
+      "$ref": "./model-role-config.schema.json"
     },
     "strongModel": {
-      "$ref": "./definitions/model-role-config.schema.json"
+      "$ref": "./model-role-config.schema.json"
     }
   },
   "required": [
-    "role",
     "modelId"
   ]
 }

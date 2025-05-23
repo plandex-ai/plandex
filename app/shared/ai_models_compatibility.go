@@ -1,6 +1,6 @@
 package shared
 
-var fullCompatibility = ModelCompatibility{
+var FullCompatibility = ModelCompatibility{
 	HasImageSupport: true,
 }
 

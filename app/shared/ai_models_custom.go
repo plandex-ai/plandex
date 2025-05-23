@@ -2,8 +2,12 @@ package shared
 
 import "time"
 
+type SchemaUrl string
+
+const SchemaUrlInputConfig SchemaUrl = "https://plandex.ai/schemas/models-input.schema.json"
+
 type CustomModel struct {
-	Id          string         `json:"id"`
+	Id          string         `json:"id,omitempty"`
 	ModelId     ModelId        `json:"modelId"`
 	Publisher   ModelPublisher `json:"publisher"`
 	Description string         `json:"description"`
@@ -12,12 +16,12 @@ type CustomModel struct {
 
 	Providers []BaseModelUsesProvider `json:"providers"`
 
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
+	CreatedAt *time.Time `json:"createdAt,omitempty"`
+	UpdatedAt *time.Time `json:"updatedAt,omitempty"`
 }
 
 type CustomProvider struct {
-	Id      string `json:"id"`
+	Id      string `json:"id,omitempty"`
 	Name    string `json:"name"`
 	BaseUrl string `json:"baseUrl"`
 
@@ -29,4 +33,14 @@ type CustomProvider struct {
 
 	ApiKeyEnvVar  string                       `json:"apiKeyEnvVar,omitempty"`
 	ExtraAuthVars []ModelProviderExtraAuthVars `json:"extraAuthVars,omitempty"`
+
+	CreatedAt *time.Time `json:"createdAt,omitempty"`
+	UpdatedAt *time.Time `json:"updatedAt,omitempty"`
+}
+
+type ModelsInput struct {
+	SchemaUrl        SchemaUrl         `json:"schemaUrl"`
+	CustomModels     []CustomModel     `json:"customModels"`
+	CustomProviders  []CustomProvider  `json:"customProviders"`
+	CustomModelPacks []ModelPackSchema `json:"customModelPacks"`
 }

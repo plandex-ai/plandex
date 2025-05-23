@@ -103,18 +103,13 @@ type ApiClient interface {
 	GetDefaultPlanConfig() (*shared.PlanConfig, *shared.ApiError)
 	UpdateDefaultPlanConfig(req shared.UpdateDefaultPlanConfigRequest) *shared.ApiError
 
-	CreateCustomModel(model *shared.CustomModel) *shared.ApiError
-	UpdateCustomModel(model *shared.CustomModel) *shared.ApiError
+	CreateCustomModels(input *shared.ModelsInput) *shared.ApiError
 	ListCustomModels() ([]*shared.CustomModel, *shared.ApiError)
 	DeleteCustomModel(modelId string) *shared.ApiError
 
-	CreateCustomProvider(provider *shared.CustomProvider) *shared.ApiError
-	UpdateCustomProvider(provider *shared.CustomProvider) *shared.ApiError
 	ListCustomProviders() ([]*shared.CustomProvider, *shared.ApiError)
 	DeleteCustomProvider(providerId string) *shared.ApiError
 
-	CreateModelPack(set *shared.ModelPack) *shared.ApiError
-	UpdateModelPack(set *shared.ModelPack) *shared.ApiError
 	ListModelPacks() ([]*shared.ModelPack, *shared.ApiError)
 	DeleteModelPack(setId string) *shared.ApiError
 

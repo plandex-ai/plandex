@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://plandex.ai/schemas/models-input.schema.json",
+  "title": "Models Input",
+  "description": "Input schema for custom models, providers, and model packs",
+  "type": "object",
+  "properties": {
+    "customModels": {
+      "type": "array",
+      "items": {
+        "$ref": "./model-config.schema.json"
+      }
+    },
+    "customProviders": {
+      "type": "array",
+      "items": {
+        "$ref": "./model-provider-config.schema.json"
+      }
+    },
+    "customModelPacks": {
+      "type": "array",
+      "items": {
+        "$ref": "./model-pack-config.schema.json"
+      }
+    }
+  }
+}

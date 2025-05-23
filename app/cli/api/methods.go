@@ -2054,9 +2054,9 @@ func (a *Api) UpdateDefaultPlanConfig(req shared.UpdateDefaultPlanConfigRequest)
 	return nil
 }
 
-func (a *Api) CreateCustomModel(model *shared.CustomModel) *shared.ApiError {
+func (a *Api) CreateCustomModels(input *shared.ModelsInput) *shared.ApiError {
 	serverUrl := fmt.Sprintf("%s/custom_models", GetApiHost())
-	body, err := json.Marshal(model)
+	body, err := json.Marshal(input)
 	if err != nil {
 		return &shared.ApiError{Msg: "Failed to marshal model"}
 	}
@@ -2073,7 +2073,7 @@ func (a *Api) CreateCustomModel(model *shared.CustomModel) *shared.ApiError {
 		apiErr := HandleApiError(resp, errorBody)
 		authRefreshed, apiErr := refreshAuthIfNeeded(apiErr)
 		if authRefreshed {
-			return a.CreateCustomModel(model)
+			return a.CreateCustomModels(input)
 		}
 		return apiErr
 	}
@@ -2136,96 +2136,6 @@ func (a *Api) DeleteCustomModel(modelId string) *shared.ApiError {
 	return nil
 }
 
-func (a *Api) UpdateCustomModel(model *shared.CustomModel) *shared.ApiError {
-	serverUrl := fmt.Sprintf("%s/custom_models/%s", GetApiHost(), model.Id)
-	body, err := json.Marshal(model)
-	if err != nil {
-		return &shared.ApiError{Msg: "Failed to marshal model"}
-	}
-
-	req, err := http.NewRequest(http.MethodPut, serverUrl, bytes.NewBuffer(body))
-	if err != nil {
-		return &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error creating request: %v", err)}
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := authenticatedFastClient.Do(req)
-	if err != nil {
-		return &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error sending request: %v", err)}
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode >= 400 {
-		errorBody, _ := io.ReadAll(resp.Body)
-		apiErr := HandleApiError(resp, errorBody)
-		authRefreshed, apiErr := refreshAuthIfNeeded(apiErr)
-		if authRefreshed {
-			return a.UpdateCustomModel(model)
-		}
-		return apiErr
-	}
-
-	return nil
-}
-
-func (a *Api) CreateCustomProvider(provider *shared.CustomProvider) *shared.ApiError {
-	serverUrl := fmt.Sprintf("%s/custom_providers", GetApiHost())
-	body, err := json.Marshal(provider)
-	if err != nil {
-		return &shared.ApiError{Msg: "Failed to marshal provider"}
-	}
-
-	resp, err := authenticatedFastClient.Post(serverUrl, "application/json", bytes.NewBuffer(body))
-	if err != nil {
-		return &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error sending request: %v", err)}
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode >= 400 {
-		errorBody, _ := io.ReadAll(resp.Body)
-		apiErr := HandleApiError(resp, errorBody)
-		authRefreshed, apiErr := refreshAuthIfNeeded(apiErr)
-		if authRefreshed {
-			return a.CreateCustomProvider(provider)
-		}
-		return apiErr
-	}
-
-	return nil
-}
-
-func (a *Api) UpdateCustomProvider(provider *shared.CustomProvider) *shared.ApiError {
-	serverUrl := fmt.Sprintf("%s/custom_providers/%s", GetApiHost(), provider.Id)
-	body, err := json.Marshal(provider)
-	if err != nil {
-		return &shared.ApiError{Msg: "Failed to marshal provider"}
-	}
-
-	req, err := http.NewRequest(http.MethodPut, serverUrl, bytes.NewBuffer(body))
-	if err != nil {
-		return &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error creating request: %v", err)}
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := authenticatedFastClient.Do(req)
-	if err != nil {
-		return &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error sending request: %v", err)}
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode >= 400 {
-		errorBody, _ := io.ReadAll(resp.Body)
-		apiErr := HandleApiError(resp, errorBody)
-		authRefreshed, apiErr := refreshAuthIfNeeded(apiErr)
-		if authRefreshed {
-			return a.UpdateCustomProvider(provider)
-		}
-		return apiErr
-	}
-
-	return nil
-}
-
 func (a *Api) ListCustomProviders() ([]*shared.CustomProvider, *shared.ApiError) {
 	serverUrl := fmt.Sprintf("%s/custom_providers", GetApiHost())
 	resp, err := authenticatedFastClient.Get(serverUrl)
@@ -2279,34 +2189,6 @@ func (a *Api) DeleteCustomProvider(providerId string) *shared.ApiError {
 	return nil
 }
 
-func (a *Api) CreateModelPack(set *shared.ModelPack) *shared.ApiError {
-	serverUrl := fmt.Sprintf("%s/model_sets", GetApiHost())
-	body, err := json.Marshal(set)
-	if err != nil {
-		return &shared.ApiError{Msg: "Failed to marshal model pack"}
-	}
-
-	resp, err := authenticatedFastClient.Post(serverUrl, "application/json", bytes.NewBuffer(body))
-	if err != nil {
-		return &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error sending request: %v", err)}
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode >= 400 {
-		errorBody, _ := io.ReadAll(resp.Body)
-
-		apiErr := HandleApiError(resp, errorBody)
-		authRefreshed, apiErr := refreshAuthIfNeeded(apiErr)
-		if authRefreshed {
-			return a.CreateModelPack(set)
-		}
-		return apiErr
-	}
-
-	return nil
-
-}
-
 func (a *Api) ListModelPacks() ([]*shared.ModelPack, *shared.ApiError) {
 	serverUrl := fmt.Sprintf("%s/model_sets", GetApiHost())
 
@@ -2358,39 +2240,6 @@ func (a *Api) DeleteModelPack(setId string) *shared.ApiError {
 		authRefreshed, apiErr := refreshAuthIfNeeded(apiErr)
 		if authRefreshed {
 			return a.DeleteModelPack(setId)
-		}
-		return apiErr
-	}
-
-	return nil
-}
-
-func (a *Api) UpdateModelPack(set *shared.ModelPack) *shared.ApiError {
-	serverUrl := fmt.Sprintf("%s/model_sets/%s", GetApiHost(), set.Id)
-	body, err := json.Marshal(set)
-	if err != nil {
-		return &shared.ApiError{Msg: "Failed to marshal model pack"}
-	}
-
-	req, err := http.NewRequest(http.MethodPut, serverUrl, bytes.NewBuffer(body))
-	if err != nil {
-		return &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error creating request: %v", err)}
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := authenticatedFastClient.Do(req)
-	if err != nil {
-		return &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error sending request: %v", err)}
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode >= 400 {
-		errorBody, _ := io.ReadAll(resp.Body)
-		apiErr := HandleApiError(resp, errorBody)
-		authRefreshed, apiErr := refreshAuthIfNeeded(apiErr)
-		if authRefreshed {
-			return a.UpdateModelPack(set)
 		}
 		return apiErr
 	}

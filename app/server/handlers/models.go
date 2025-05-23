@@ -11,6 +11,7 @@ import (
 	shared "plandex-shared"
 
 	"github.com/gorilla/mux"
+	"github.com/jmoiron/sqlx"
 )
 
 const CustomModelsMinClientVersion = "2.2.0"
@@ -27,87 +28,194 @@ func CreateCustomModelHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var model shared.CustomModel
-	if err := json.NewDecoder(r.Body).Decode(&model); err != nil {
+	var modelsInput shared.ModelsInput
+	if err := json.NewDecoder(r.Body).Decode(&modelsInput); err != nil {
 		log.Printf("Error decoding request body: %v\n", err)
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
-	if model.ModelId == "" {
-		msg := "Model id is required"
-		log.Println(msg)
-		http.Error(w, msg, http.StatusBadRequest)
+	if len(modelsInput.CustomModels)+len(modelsInput.CustomProviders)+len(modelsInput.CustomModelPacks) == 0 {
+		http.Error(w, "No custom models, providers, or model packs provided", http.StatusBadRequest)
 		return
 	}
 
-	if shared.BuiltInBaseModelsById[model.ModelId] != nil {
-		msg := fmt.Sprintf("%s is a built-in base model id, so it can't be used for a custom model", model.ModelId)
-		log.Println(msg)
-		http.Error(w, msg, http.StatusUnprocessableEntity)
-		return
+	for _, model := range modelsInput.CustomModels {
+		if model.ModelId == "" {
+			msg := "Model id is required"
+			log.Println(msg)
+			http.Error(w, msg, http.StatusBadRequest)
+			return
+		}
+
+		if shared.BuiltInBaseModelsById[model.ModelId] != nil {
+			msg := fmt.Sprintf("%s is a built-in base model id, so it can't be used for a custom model", model.ModelId)
+			log.Println(msg)
+			http.Error(w, msg, http.StatusUnprocessableEntity)
+			return
+		}
 	}
 
-	dbModel := db.CustomModelFromApi(&model)
-	dbModel.OrgId = auth.OrgId
-
-	if err := db.CreateCustomModel(dbModel); err != nil {
-		log.Printf("Error creating custom model: %v\n", err)
-		http.Error(w, "Failed to create custom model: "+err.Error(), http.StatusInternalServerError)
-		return
+	for _, provider := range modelsInput.CustomProviders {
+		if provider.Name == "" {
+			msg := "Provider name is required"
+			log.Println(msg)
+			http.Error(w, msg, http.StatusBadRequest)
+			return
+		}
 	}
 
-	w.WriteHeader(http.StatusCreated)
-
-	log.Println("Successfully created custom model")
-}
-
-func UpdateCustomModelHandler(w http.ResponseWriter, r *http.Request) {
-	log.Println("Received request for UpdateCustomModelHandler")
-
-	auth := Authenticate(w, r, true)
-	if auth == nil {
-		return
+	for _, modelPack := range modelsInput.CustomModelPacks {
+		if modelPack.Name == "" {
+			msg := "Model pack name is required"
+			log.Println(msg)
+			http.Error(w, msg, http.StatusBadRequest)
+			return
+		}
 	}
 
-	if !requireMinClientVersion(w, r, CustomModelsMinClientVersion) {
-		return
+	var customModelIds = make(map[string]bool)
+	var customProviderNames = make(map[string]bool)
+
+	if len(modelsInput.CustomModels) > 0 {
+
+		var modelIds []string
+		for _, model := range modelsInput.CustomModels {
+			modelIds = append(modelIds, string(model.ModelId))
+		}
+
+		customModels, err := db.ListCustomModelsForModelIds(auth.OrgId, modelIds)
+		if err != nil {
+			log.Printf("Error fetching custom models: %v\n", err)
+			http.Error(w, "Failed to create custom model: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		for _, model := range customModels {
+			customModelIds[model.Id] = true
+		}
+
 	}
 
-	id := mux.Vars(r)["modelId"]
+	if len(modelsInput.CustomProviders) > 0 {
+		var names []string
+		for _, provider := range modelsInput.CustomProviders {
+			names = append(names, provider.Name)
+		}
 
-	var model shared.CustomModel
-	if err := json.NewDecoder(r.Body).Decode(&model); err != nil {
-		log.Printf("Error decoding request body: %v\n", err)
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
-		return
+		customProviders, err := db.ListCustomProvidersForNames(auth.OrgId, names)
+		if err != nil {
+			log.Printf("Error fetching custom providers: %v\n", err)
+			http.Error(w, "Failed to create custom model: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		for _, provider := range customProviders {
+			customProviderNames[provider.Name] = true
+		}
 	}
 
-	res, err := db.GetCustomModel(auth.OrgId, id)
+	var toUpsertCustomModels []*db.CustomModel
+	var toUpsertCustomProviders []*db.CustomProvider
+	var toUpsertModelPacks []*db.ModelPack
+
+	willCreateModelIds := make(map[string]bool)
+	willCreateProviderNames := make(map[string]bool)
+
+	for _, provider := range modelsInput.CustomProviders {
+		dbProvider := db.CustomProviderFromApi(&provider)
+		dbProvider.Id = provider.Id
+		dbProvider.OrgId = auth.OrgId
+
+		toUpsertCustomProviders = append(toUpsertCustomProviders, dbProvider)
+		willCreateProviderNames[provider.Name] = true
+	}
+
+	for _, model := range modelsInput.CustomModels {
+		// ensure that providers are either built-in, being created, or already exist
+		for _, provider := range model.Providers {
+			if provider.Provider == shared.ModelProviderCustom {
+				_, exists := customProviderNames[*provider.CustomProvider]
+				_, creating := willCreateProviderNames[*provider.CustomProvider]
+				if !exists && !creating {
+					msg := fmt.Sprintf("'%s' is not a custom model provider that exists or is being created", *provider.CustomProvider)
+					log.Println(msg)
+					http.Error(w, msg, http.StatusUnprocessableEntity)
+					return
+				}
+			} else {
+				_, builtIn := shared.BuiltInModelProviderConfigs[provider.Provider]
+				if !builtIn {
+					msg := fmt.Sprintf("'%s' is not a built-in model provider", provider.Provider)
+					log.Println(msg)
+					http.Error(w, msg, http.StatusUnprocessableEntity)
+					return
+				}
+			}
+		}
+
+		dbModel := db.CustomModelFromApi(&model)
+		dbModel.Id = model.Id
+		dbModel.OrgId = auth.OrgId
+
+		toUpsertCustomModels = append(toUpsertCustomModels, dbModel)
+		willCreateModelIds[string(model.ModelId)] = true
+	}
+
+	for _, modelPack := range modelsInput.CustomModelPacks {
+		// ensure that all models are either built-in, being created, or already exist
+		allModelIds := modelPack.AllModelIds()
+		for _, modelId := range allModelIds {
+			_, exists := customModelIds[string(modelId)]
+			_, creating := willCreateModelIds[string(modelId)]
+			_, builtIn := shared.BuiltInBaseModelsById[modelId]
+			if !exists && !creating && !builtIn {
+				msg := fmt.Sprintf("'%s' is not built-in, not being created, and not an existing custom model", modelId)
+				log.Println(msg)
+				http.Error(w, msg, http.StatusUnprocessableEntity)
+				return
+			}
+		}
+
+		mp := modelPack.ToModelPack()
+		dbMp := db.ModelPackFromApi(&mp)
+		dbMp.OrgId = auth.OrgId
+		dbMp.Id = mp.Id
+
+		toUpsertModelPacks = append(toUpsertModelPacks, dbMp)
+	}
+
+	err := db.WithTx(r.Context(), "create custom models/providers/model packs", func(tx *sqlx.Tx) error {
+		for _, model := range toUpsertCustomModels {
+			if err := db.UpsertCustomModel(tx, model); err != nil {
+				return fmt.Errorf("error creating custom model: %w", err)
+			}
+		}
+
+		for _, provider := range toUpsertCustomProviders {
+			if err := db.UpsertCustomProvider(tx, provider); err != nil {
+				return fmt.Errorf("error creating custom provider: %w", err)
+			}
+		}
+
+		for _, modelPack := range toUpsertModelPacks {
+			if err := db.UpsertModelPack(tx, modelPack); err != nil {
+				return fmt.Errorf("error creating model pack: %w", err)
+			}
+		}
+
+		return nil
+	})
+
 	if err != nil {
-		log.Printf("Error fetching custom model: %v\n", err)
-		http.Error(w, "Failed to fetch custom model: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	if res == nil {
-		http.Error(w, "Custom model not found", http.StatusNotFound)
-		return
-	}
-
-	dbModel := db.CustomModelFromApi(&model)
-	dbModel.Id = id
-	dbModel.OrgId = auth.OrgId
-
-	if err := db.UpdateCustomModel(dbModel); err != nil {
-		log.Printf("Error updating custom model: %v\n", err)
-		http.Error(w, "Failed to update custom model: "+err.Error(), http.StatusInternalServerError)
+		log.Printf("Error: %v\n", err)
+		http.Error(w, "Failed to create custom model: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	w.WriteHeader(http.StatusOK)
 
-	log.Println("Successfully updated custom model")
+	log.Println("Successfully created custom model")
 }
 
 func GetCustomModelHandler(w http.ResponseWriter, r *http.Request) {
@@ -221,67 +329,6 @@ func DeleteCustomModelHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Successfully deleted custom model")
 }
 
-func CreateCustomProviderHandler(w http.ResponseWriter, r *http.Request) {
-	auth := Authenticate(w, r, true)
-	if auth == nil {
-		return
-	}
-
-	if os.Getenv("IS_CLOUD") != "" {
-		http.Error(w, "Custom model providers are not supported on Plandex Cloud", http.StatusBadRequest)
-		return
-	}
-
-	var p shared.CustomProvider
-	if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
-		http.Error(w, "invalid body", http.StatusBadRequest)
-		return
-	}
-
-	dbP := db.CustomProviderFromApi(&p)
-	dbP.OrgId = auth.OrgId
-
-	if err := db.CreateCustomProvider(dbP); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	w.WriteHeader(http.StatusCreated)
-
-	log.Println("Successfully created custom provider")
-}
-
-func UpdateCustomProviderHandler(w http.ResponseWriter, r *http.Request) {
-	auth := Authenticate(w, r, true)
-	if auth == nil {
-		return
-	}
-
-	if os.Getenv("IS_CLOUD") != "" {
-		http.Error(w, "Custom model providers are not supported on Plandex Cloud", http.StatusBadRequest)
-		return
-	}
-
-	id := mux.Vars(r)["providerId"]
-
-	var p shared.CustomProvider
-	if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
-		http.Error(w, "invalid body", http.StatusBadRequest)
-		return
-	}
-	p.Id = id
-
-	dbP := db.CustomProviderFromApi(&p)
-	dbP.OrgId = auth.OrgId
-
-	if err := db.UpdateCustomProvider(dbP); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	w.WriteHeader(http.StatusOK)
-
-	log.Println("Successfully updated custom provider")
-}
-
 func GetCustomProviderHandler(w http.ResponseWriter, r *http.Request) {
 	auth := Authenticate(w, r, true)
 	if auth == nil {
@@ -371,36 +418,7 @@ func CreateModelPackHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var ms shared.ModelPack
-	if err := json.NewDecoder(r.Body).Decode(&ms); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
-		return
-	}
-
-	dbMs := &db.ModelPack{
-		OrgId:            auth.OrgId,
-		Name:             ms.Name,
-		Description:      ms.Description,
-		Planner:          ms.Planner,
-		Architect:        ms.Architect,
-		Coder:            ms.Coder,
-		Builder:          ms.Builder,
-		WholeFileBuilder: ms.WholeFileBuilder,
-		Namer:            ms.Namer,
-		CommitMsg:        ms.CommitMsg,
-		PlanSummary:      ms.PlanSummary,
-		ExecStatus:       ms.ExecStatus,
-	}
-
-	if err := db.CreateModelPack(dbMs); err != nil {
-		log.Printf("Error creating model pack: %v\n", err)
-		http.Error(w, "Failed to create model pack: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.WriteHeader(http.StatusCreated)
-
-	log.Println("Successfully created model pack")
+	http.Error(w, "Use POST /custom_models instead to create model packs", http.StatusBadRequest)
 }
 
 func UpdateModelPackHandler(w http.ResponseWriter, r *http.Request) {
@@ -415,59 +433,7 @@ func UpdateModelPackHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	mpId := mux.Vars(r)["setId"]
-
-	var ms shared.ModelPack
-	if err := json.NewDecoder(r.Body).Decode(&ms); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
-		return
-	}
-
-	packs, err := db.ListModelPacks(auth.OrgId)
-	if err != nil {
-		log.Printf("Error fetching model packs: %v\n", err)
-		http.Error(w, "Failed to fetch model packs: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	found := false
-	for _, m := range packs {
-		if m.Id == mpId {
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		http.Error(w, "Model pack not found", http.StatusNotFound)
-		return
-	}
-
-	dbMs := &db.ModelPack{
-		Id:               mpId,
-		OrgId:            auth.OrgId,
-		Name:             ms.Name,
-		Description:      ms.Description,
-		Planner:          ms.Planner,
-		Coder:            ms.Coder,
-		PlanSummary:      ms.PlanSummary,
-		Builder:          ms.Builder,
-		WholeFileBuilder: ms.WholeFileBuilder,
-		Namer:            ms.Namer,
-		CommitMsg:        ms.CommitMsg,
-		ExecStatus:       ms.ExecStatus,
-		Architect:        ms.Architect,
-	}
-
-	if err := db.UpdateModelPack(dbMs); err != nil {
-		log.Printf("Error updating model pack: %v\n", err)
-		http.Error(w, "Failed to update model pack: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
-
-	log.Println("Successfully updated model pack")
+	http.Error(w, "Use POST /custom_models instead to update model packs", http.StatusBadRequest)
 }
 
 func ListModelPacksHandler(w http.ResponseWriter, r *http.Request) {

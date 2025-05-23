@@ -155,7 +155,7 @@ func (state *activeTellStreamState) willContinuePlan(params willContinuePlanPara
 		}
 
 		// if there are new subtasks, continue
-		if hasNewSubtasks {
+		if hasNewSubtasks && !allSubtasksFinished {
 			log.Println("[willContinuePlan] Has new subtasks - continuing")
 			return true
 		}
