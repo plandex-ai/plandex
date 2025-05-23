@@ -15,6 +15,14 @@ curl -sL https://plandex.ai/install.sh | bash
 
 Grab the appropriate binary for your platform from the latest [release](https://github.com/plandex-ai/plandex/releases) and put it somewhere in your `PATH`.
 
+## WEBUI Installation
+
+Detailed WEBUI installation steps will be added here. Information about prerequisites, configuration, and deployment should be included.
+
+## MCP Installation
+
+Detailed MCP installation steps will be added here. Information about prerequisites, configuration, and deployment should be included.
+
 ## Build from source
 
 ```bash
