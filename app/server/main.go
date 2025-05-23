@@ -21,6 +21,7 @@ func main() {
 	routes.AddHealthRoutes(r)
 	routes.AddApiRoutes(r)
 	routes.AddProxyableApiRoutes(r)
+	routes.AddUIRoutesGlobal(r) // Add UI routes
 	setup.MustLoadIp()
 	setup.MustInitDb()
 	setup.StartServer(r, nil, nil)

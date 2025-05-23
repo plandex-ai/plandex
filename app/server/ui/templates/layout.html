@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.Title}} - Plandex</title>
+    <link rel="stylesheet" href="/ui/static/css/styles.css">
+    {{block "pageStyles" .}}{{end}} <!-- Placeholder for page-specific CSS -->
+</head>
+<body>
+    <div class="sidebar">
+        <div class="sidebar-header">
+             <h2>Plandex</h2>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="/ui/dashboard" class="{{if eq .ActiveNav "dashboard"}}active{{end}}">Dashboard</a>
+            <a href="/ui/plans" class="{{if eq .ActiveNav "plans"}}active{{end}}">Plans</a>
+            <a href="/ui/contexts" class="{{if eq .ActiveNav "contexts"}}active{{end}}">Contexts</a>
+            <a href="/ui/models" class="{{if eq .ActiveNav "models"}}active{{end}}">Models</a>
+            <a href="/ui/mcp" class="{{if eq .ActiveNav "mcp"}}active{{end}}">MCP</a>
+            <a href="/ui/settings" class="{{if eq .ActiveNav "settings"}}active{{end}}">Settings</a>
+        </nav>
+    </div>
+    <div class="main-content">
+        <header class="main-header">
+            <h1>{{.PageTitle}}</h1>
+        </header>
+        <div class="page-content">
+            {{template "content" .}}
+        </div>
+    </div>
+    <script src="/ui/static/js/main.js"></script>
+    {{block "pageScripts" .}}{{end}} <!-- Placeholder for page-specific JS -->
+</body>
+</html>

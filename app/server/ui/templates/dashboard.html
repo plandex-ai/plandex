@@ -1,0 +1,36 @@
+{{define "content"}}
+<div class="dashboard-grid">
+    <div class="dashboard-card">
+        <h3>Quick Stats</h3>
+        <p>Total Plans: <span id="stats-total-plans">N/A</span></p>
+        <p>Active Contexts: <span id="stats-active-contexts">N/A</span></p>
+        <p>Models Loaded: <span id="stats-models-loaded">N/A</span></p>
+    </div>
+    <div class="dashboard-card">
+        <h3>Recent Activity</h3>
+        <ul id="recent-activity-list">
+            <li>Plan "Alpha" executed (mock data)</li>
+            <li>Context "Project X" updated (mock data)</li>
+            <li>Model "GPT-4" loaded (mock data)</li>
+        </ul>
+    </div>
+    <div class="dashboard-card">
+        <h3>System Status</h3>
+        <p id="system-status">All systems operational (mock data)</p>
+    </div>
+    <div class="dashboard-card">
+        <h3>Notifications</h3>
+        <ul id="notifications-list">
+            <li>Update available for Plandex CLI (mock data)</li>
+        </ul>
+    </div>
+</div>
+{{end}}
+
+{{define "pageStyles"}}
+<!-- No page-specific styles for dashboard at the moment -->
+{{end}}
+
+{{define "pageScripts"}}
+<!-- No page-specific scripts for dashboard at the moment -->
+{{end}}

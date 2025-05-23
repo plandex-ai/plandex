@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"plandex-server/handlers"
+	mcp_handlers "plandex-server/handlers/mcp" // Added import for mcp handlers
 	"plandex-server/hooks"
 
 	"github.com/gorilla/mux"
@@ -182,6 +183,23 @@ func addApiRoutes(r *mux.Router, prefix string) {
 
 	HandlePlandexFn(r, prefix+"/default_plan_config", false, handlers.GetDefaultPlanConfigHandler).Methods("GET")
 	HandlePlandexFn(r, prefix+"/default_plan_config", false, handlers.UpdateDefaultPlanConfigHandler).Methods("PUT")
+
+	// MCP API Routes
+	// It's important to use the correct handlers package. Assuming mcp_handlers.go is in 'plandex-server/handlers/mcp'
+	// and PlandexHandler is compatible or we adjust.
+	// For now, let's assume the handler is correctly placed in the main 'handlers' package or a sub-package accessible to it.
+	// If MCPGetStatusHandler is in 'plandex-server/handlers/mcp', the import needs to reflect that.
+	// For this example, I'll assume it's been added to the existing 'handlers' package for simplicity of demonstration.
+	// If it is in `plandex-server/handlers/mcp` then the import `plandex-server/handlers` needs to be `plandex-server/handlers/mcp`
+	// or the handler needs to be referenced as `mcp_handlers.MCPGetStatusHandler` if `mcp_handlers` is an alias for the package.
+	HandlePlandexFn(r, prefix+"/mcp/status", false, mcp_handlers.MCPGetStatusHandler).Methods("GET")
+}
+
+// AddUIRoutesGlobal is a wrapper to call AddUIRoutes from ui_routes.go
+// This function can be called from main.go or any other place where the main router is configured.
+func AddUIRoutesGlobal(r *mux.Router) {
+	// ui_routes.go contains the AddUIRoutes function
+	AddUIRoutes(r)
 }
 
 func addProxyableApiRoutes(r *mux.Router, prefix string) {

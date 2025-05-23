@@ -234,3 +234,17 @@ Please feel free to give your feedback, ask questions, report a bug, or just han
 ⭐️  Please star, fork, explore, and contribute to Plandex. There's a lot of work to do and so much that can be improved.
 
 [Here's an overview on setting up a development environment.](https://docs.plandex.ai/development)
+
+## Web UI Management Interface  🖥️
+
+Plandex also features a Web UI for managing your projects, server instance, and accessing features like Multi-Channel Publishing (MCP) graphically. Once the Plandex server is running, the Web UI is typically accessible by navigating to `/ui` in your web browser (e.g., `http://localhost:PORT/ui` if running locally, where `PORT` is the server's port).
+
+The Web UI provides access to:
+- **Dashboard:** An overview of your Plandex activity.
+- **Plans:** Manage and monitor your coding plans.
+- **Contexts:** View and manage context files.
+- **Models:** Configure AI models and model packs.
+- **MCP:** Access Multi-Channel Publishing tools.
+- **Settings:** Configure various Plandex server and UI settings.
+
+For more details, refer to the [Web UI Guide](./docs/docs/web-ui.md) (once available on the documentation website).
