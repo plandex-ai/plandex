@@ -9,6 +9,8 @@ import (
 	"plandex-server/types"
 	shared "plandex-shared"
 	"time"
+
+	"github.com/davecgh/go-spew/spew"
 )
 
 type OnStreamFn func(chunk string, buffer string) (shouldStop bool)
@@ -99,6 +101,11 @@ func processChatCompletionStream(
 	reqStarted time.Time,
 ) (*types.ModelResponse, error) {
 	streamCtx, cancel := context.WithCancel(ctx)
+
+	log.Println("processChatCompletionStream - modelConfig", spew.Sdump(map[string]interface{}{
+		"model":    modelConfig.BaseModelConfig.ModelName,
+		"provider": modelConfig.BaseModelConfig.Provider,
+	}))
 
 	stream, err := createChatCompletionStreamExtended(modelConfig, client, baseUrl, streamCtx, req)
 	if err != nil {
@@ -292,6 +299,7 @@ func withStreamingRetries[T any](
 		newFallback := false
 		if !modelErr.Retriable {
 			log.Printf("withStreamingRetries - operation returned non-retriable error: %v", err)
+			spew.Dump(modelErr)
 			if modelErr.Kind == shared.ErrContextTooLong && fallbackRes.ModelRoleConfig.LargeContextFallback == nil {
 				log.Printf("withStreamingRetries - non-retriable context too long error and no large context fallback is defined, returning error")
 				// if it's a context too long error and no large context fallback is defined, return the error

@@ -376,53 +376,6 @@ func resolveReq(req *types.ExtendedChatCompletionRequest, modelConfig *shared.Mo
 		}
 	}
 
-	// this isn't working yet
-	// if modelConfig.BaseModelConfig.UsesOpenAIResponsesAPI {
-	// 	log.Println("Using OpenAI Responses API")
-	// 	input := make([]types.ExtendedChatMessage, 0)
-
-	// 	for _, msg := range req.Messages {
-	// 		// isDevRole := false
-	// 		isAssistantRole := false
-	// 		if msg.Role == openai.ChatMessageRoleSystem {
-	// 			log.Println("Changing role of system message to 'developer'")
-	// 			msg.Role = openai.ChatMessageRoleDeveloper
-	// 			// isDevRole = true
-	// 		} else if msg.Role == openai.ChatMessageRoleAssistant {
-	// 			isAssistantRole = true
-	// 		}
-
-	// 		for j, part := range msg.Content {
-	// 			if part.Type == "text" {
-	// 				if isAssistantRole {
-	// 					part.Type = "output_text"
-	// 				} else {
-	// 					part.Type = "input_text"
-	// 				}
-	// 			}
-
-	// 			msg.Content[j] = part
-	// 		}
-
-	// 		input = append(input, msg)
-	// 	}
-
-	// 	// stop is not supported for the responses API
-	// 	if req.Stop != nil {
-	// 		req.Stop = nil
-	// 	}
-
-	// 	if req.StreamOptions != nil {
-	// 		req.StreamOptions = nil
-	// 	}
-
-	// 	req.Input = input
-	// 	req.Messages = nil
-
-	// 	log.Println("req.Input", len(req.Input))
-	// 	log.Println("req.Messages", len(req.Messages))
-	// }
-
 	if modelConfig.BaseModelConfig.RoleParamsDisabled {
 		log.Println("Role params disabled - setting temperature and top p to 1")
 		req.Temperature = 1

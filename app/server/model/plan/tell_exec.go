@@ -388,7 +388,7 @@ func execTellPlan(params execTellPlanParams) {
 		log.Println("Tell plan - got modelConfig for implementation stage")
 	}
 
-	log.Println("Tell plan - modelConfig:", spew.Sdump(modelConfig))
+	// log.Println("Tell plan - modelConfig:", spew.Sdump(modelConfig))
 	state.modelConfig = &modelConfig
 
 	// if the model doesn't support cache control, remove the cache control spec from the messages
