@@ -63,6 +63,35 @@ type AvailableModel struct {
 	UpdatedAt             time.Time `json:"updatedAt"`
 }
 
+var JulesV1BaseConfig = BaseModelConfig{
+	Provider:                   ModelProviderJules,
+	BaseUrl:                    "https://mock-jules-api.example.com/v1",
+	ModelName:                  "jules-v1",
+	ModelId:                    "jules-v1",
+	MaxTokens:                  32000,
+	MaxOutputTokens:            4096,
+	ReservedOutputTokens:       1024,
+	ApiKeyEnvVar:               "JULES_API_KEY",
+	PreferredModelOutputFormat: ModelOutputFormatToolCallJson,
+	SystemPromptDisabled:       false,
+	RoleParamsDisabled:         false,
+	StopDisabled:               false,
+	PredictedOutputEnabled:     true,
+	ReasoningEffortEnabled:     true,
+	ReasoningEffort:            ReasoningEffortMedium,
+	IncludeReasoning:           true,
+	SupportsCacheControl:       true,
+}
+
+var JulesV1AvailableModel = AvailableModel{
+	Id:                    "jules-v1",
+	BaseModelConfig:       JulesV1BaseConfig,
+	Description:           "Jules v1: Advanced AI coding and general-purpose agent (mocked).",
+	DefaultMaxConvoTokens: 16000,
+	CreatedAt:             time.Now(),
+	UpdatedAt:             time.Now(),
+}
+
 func (m *AvailableModel) ModelString() string {
 	s := ""
 	if m.Provider != ModelProviderOpenAI {

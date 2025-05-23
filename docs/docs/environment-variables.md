@@ -21,6 +21,7 @@ PLANDEX_API_HOST= # Defaults to 'http://localhost:8099' if PLANDEX_ENV is develo
 ```bash
 OPENAI_API_KEY= # Your OpenAI key (if self-hosting or using BYO API Key mode with Plandex Cloud)
 OPENROUTER_API_KEY= # Your OpenRouter.ai API key (if self-hosting or using BYO API Key mode with Plandex Cloud)
+JULES_API_KEY= # API key for the mock "Jules" provider (any non-empty string will work for the mock).
 
 OPENAI_API_BASE= # Your OpenAI server, such as http://localhost:1234/v1 Defaults to empty.
 OPENAI_ORG_ID= # Your OpenAI organization ID. Defaults to empty.

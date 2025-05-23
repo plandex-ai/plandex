@@ -71,6 +71,17 @@ Once you've created an OpenAI account, [generate an API key here.](https://platf
 
 Apart from those listed above, Plandex can use models from any provider that is compatible with the OpenAI API, like Together.ai, Replicate, Ollama, and more. You'll need to create an account and generate an API key for any other providers you plan on using.
 
+### Jules (Mock Provider)
+
+Plandex also includes a built-in mock provider called "Jules". This provider simulates an advanced AI coding and general-purpose agent, primarily intended for testing and demonstration purposes within the Plandex ecosystem.
+
+*   **Model**: `jules-v1`
+    *   Description: "Jules v1: Advanced AI coding and general-purpose agent (mocked)."
+*   **API Key**: To use the Jules provider, you'll need to set the `JULES_API_KEY` environment variable. The actual value of the key can be any non-empty string for the mock provider.
+*   **Model Pack**: There is a "Jules Default" model pack available, which is configured to use the `jules-v1` model for all operational roles. This pack can be set using `plandex set-model jules-default`.
+
+While Jules is a mock provider, it's treated like any other external provider regarding configuration.
+
 ## Environment Variables
 
 Now that you've generated API keys for your providers, export them as environment variables in your terminal.

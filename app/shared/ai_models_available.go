@@ -45,6 +45,9 @@ When checking for sufficient credits on Plandex Cloud, we use MaxOutputTokens-In
 */
 
 var AvailableModels = []*AvailableModel{
+	// Jules models
+	&JulesV1AvailableModel,
+
 	// Direct OpenAI models
 	{
 		Description:           "OpenAI o3-high",

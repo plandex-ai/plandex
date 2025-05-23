@@ -13,6 +13,7 @@ var GeminiPreviewModelPack ModelPack
 var GeminiExperimentalModelPack ModelPack
 var R1PlannerModelPack ModelPack
 var PerplexityPlannerModelPack ModelPack
+var JulesDefaultPack ModelPack
 
 var BuiltInModelPacks = []*ModelPack{
 	&DailyDriverModelPack,
@@ -29,6 +30,7 @@ var BuiltInModelPacks = []*ModelPack{
 
 	&R1PlannerModelPack,
 	&PerplexityPlannerModelPack,
+	&JulesDefaultPack,
 }
 
 var DefaultModelPack *ModelPack = &DailyDriverModelPack
@@ -235,6 +237,23 @@ func init() {
 		ExecStatus:       *openaio4miniMediumWitho3MiniFallback(ModelRoleExecStatus, nil),
 	}
 
+	JulesDefaultPack = ModelPack{
+		Id:          "jules-default", // Explicitly set ID
+		Name:        "Jules Default",
+		Description: "Default model pack utilizing the Jules provider and jules-v1 model.",
+		Planner: PlannerRoleConfig{
+			ModelRoleConfig:    *julesV1(ModelRolePlanner, nil),
+			PlannerModelConfig: getPlannerModelConfig(ModelProviderJules, "jules-v1"),
+		},
+		Coder:            julesV1(ModelRoleCoder, nil),
+		Architect:        julesV1(ModelRoleArchitect, nil),
+		PlanSummary:      *julesV1(ModelRolePlanSummary, nil),
+		Builder:          *julesV1(ModelRoleBuilder, nil),
+		WholeFileBuilder: julesV1(ModelRoleWholeFileBuilder, nil),
+		Namer:            *julesV1(ModelRoleName, nil),
+		CommitMsg:        *julesV1(ModelRoleCommitMsg, nil),
+		ExecStatus:       *julesV1(ModelRoleExecStatus, nil),
+	}
 }
 
 type modelConfig struct {
@@ -453,4 +472,12 @@ func geminipro25exp(role ModelRole, fallbacks *modelConfig) *ModelRoleConfig {
 
 func geminipro25preview(role ModelRole, fallbacks *modelConfig) *ModelRoleConfig {
 	return getModelConfig(role, ModelProviderOpenRouter, "google/gemini-2.5-pro-preview-03-25", fallbacks)
+}
+
+func julesV1(role ModelRole, fallbacks *modelConfig) *ModelRoleConfig {
+	// Ensure GetAvailableModel can find "jules-v1" under ModelProviderJules
+	// JulesV1AvailableModel should already be in AvailableModels list from previous tasks.
+	// The ApiKeyEnvVar for JulesV1BaseConfig is "JULES_API_KEY".
+	// Fallbacks are nil for simplicity, matching other single-model role configs.
+	return getModelConfig(role, ModelProviderJules, "jules-v1", fallbacks)
 }

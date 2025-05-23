@@ -172,79 +172,109 @@ func createChatCompletionStreamExtended(
 	ctx context.Context,
 	extendedReq types.ExtendedChatCompletionRequest,
 ) (*ExtendedChatCompletionStream, error) {
-	var openaiReq *types.ExtendedOpenAIChatCompletionRequest
+	// var openaiReq *types.ExtendedOpenAIChatCompletionRequest // This variable was declared but not used after refactoring.
+	// The logic for using extendedReq.ToOpenAI() is handled by actualReqData below.
 	if modelConfig.BaseModelConfig.Provider == shared.ModelProviderOpenAI && !modelConfig.BaseModelConfig.UsesOpenAIResponsesAPI {
-		openaiReq = extendedReq.ToOpenAI()
+		// openaiReq = extendedReq.ToOpenAI() // This assignment is handled by actualReqData
 		log.Println("Creating chat completion stream with direct OpenAI provider request")
 	}
 
-	// Marshal the request body to JSON
-	var jsonBody []byte
-	var err error
-	if openaiReq != nil {
-		jsonBody, err = json.Marshal(openaiReq)
-	} else {
-		jsonBody, err = json.Marshal(extendedReq)
-	}
-	if err != nil {
-		return nil, fmt.Errorf("error marshaling request: %w", err)
-	}
+	var httpReq *http.Request
+	var err error // Declare err here to be used by all branches for json marshaling and request creation
 
-	// log.Println("request jsonBody", string(jsonBody))
+	if modelConfig.BaseModelConfig.Provider == shared.ModelProviderJules {
+		log.Println("Creating chat completion stream with Jules provider request")
+		jsonBody, err_marshal := json.Marshal(extendedReq)
+		if err_marshal != nil {
+			return nil, fmt.Errorf("error marshaling Jules request: %w", err_marshal)
+		}
 
-	// Create new request
-	var url string
-	if modelConfig.BaseModelConfig.UsesOpenAIResponsesAPI {
-		url = baseUrl + "/responses"
-	} else {
-		url = baseUrl + "/chat/completions"
-	}
-
-	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(jsonBody))
-	if err != nil {
-		return nil, fmt.Errorf("error creating request: %w", err)
-	}
-
-	// Set required headers for streaming
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Accept", "text/event-stream")
-	req.Header.Set("Cache-Control", "no-cache")
-	req.Header.Set("Connection", "keep-alive")
-	req.Header.Set("Authorization", "Bearer "+client.ApiKey)
-	if client.OrgId != "" {
-		req.Header.Set("OpenAI-Organization", client.OrgId)
-	}
-
-	addOpenRouterHeaders(req)
-
-	// Send the request
-	resp, err := httpClient.Do(req) //nolint:bodyclose // body is closed in stream.Close()
-	if err != nil {
-		return nil, fmt.Errorf("error making request: %w", err)
-	}
-
-	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusBadRequest {
-		defer resp.Body.Close()
-		body, err := io.ReadAll(resp.Body)
+		url := modelConfig.BaseModelConfig.BaseUrl + "/chat/completions"
+		httpReq, err = http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(jsonBody))
 		if err != nil {
-			return nil, fmt.Errorf("error reading error response: %w", err)
+			return nil, fmt.Errorf("error creating Jules request: %w", err)
+		}
+
+		httpReq.Header.Set("Content-Type", "application/json")
+		httpReq.Header.Set("Accept", "text/event-stream")
+		httpReq.Header.Set("Cache-Control", "no-cache")
+		httpReq.Header.Set("Connection", "keep-alive")
+		httpReq.Header.Set("Authorization", "Bearer "+client.ApiKey)
+		// No OrgId or OpenRouter specific headers for Jules
+	} else {
+		// Existing logic for OpenAI, OpenRouter, and other potential custom providers
+		var jsonBody []byte
+		var actualReqData interface{} // Use interface to hold either extendedReq or openaiReq
+
+		if modelConfig.BaseModelConfig.Provider == shared.ModelProviderOpenAI && !modelConfig.BaseModelConfig.UsesOpenAIResponsesAPI {
+			actualReqData = extendedReq.ToOpenAI() // Convert to OpenAI specific request
+			log.Println("Creating chat completion stream with direct OpenAI provider request (original body)")
+		} else {
+			actualReqData = extendedReq
+			log.Printf("Creating chat completion stream for provider %s (extendedReq body)", modelConfig.BaseModelConfig.Provider)
+		}
+
+		jsonBody, err = json.Marshal(actualReqData)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling request for provider %s: %w", modelConfig.BaseModelConfig.Provider, err)
+		}
+
+		var url string
+		if modelConfig.BaseModelConfig.UsesOpenAIResponsesAPI {
+			url = baseUrl + "/responses"
+		} else {
+			url = baseUrl + "/chat/completions"
+		}
+
+		httpReq, err = http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(jsonBody))
+		if err != nil {
+			return nil, fmt.Errorf("error creating request for provider %s: %w", modelConfig.BaseModelConfig.Provider, err)
+		}
+
+		httpReq.Header.Set("Content-Type", "application/json")
+		httpReq.Header.Set("Accept", "text/event-stream")
+		httpReq.Header.Set("Cache-Control", "no-cache")
+		httpReq.Header.Set("Connection", "keep-alive")
+		httpReq.Header.Set("Authorization", "Bearer "+client.ApiKey)
+
+		if modelConfig.BaseModelConfig.Provider == shared.ModelProviderOpenAI && client.OrgId != "" {
+			httpReq.Header.Set("OpenAI-Organization", client.OrgId)
+		}
+		if modelConfig.BaseModelConfig.Provider == shared.ModelProviderOpenRouter {
+			addOpenRouterHeaders(httpReq)
+		}
+	}
+
+	// Common logic for sending request and processing response
+	// log.Println("request jsonBody", string(jsonBody)) // jsonBody might be out of scope here if defined inside blocks
+
+	httpResp, err := httpClient.Do(httpReq) //nolint:bodyclose // body is closed in stream.Close()
+	if err != nil {
+		return nil, fmt.Errorf("error making request to provider %s: %w", modelConfig.BaseModelConfig.Provider, err)
+	}
+
+	if httpResp.StatusCode < http.StatusOK || httpResp.StatusCode >= http.StatusBadRequest {
+		defer httpResp.Body.Close()
+		body, errRead := io.ReadAll(httpResp.Body)
+		if errRead != nil { // Corrected the error variable name here
+			return nil, fmt.Errorf("error reading error response from provider %s: %w", modelConfig.BaseModelConfig.Provider, errRead)
 		}
 		return nil, &HTTPError{
-			StatusCode: resp.StatusCode,
+			StatusCode: httpResp.StatusCode,
 			Body:       string(body),
-			Header:     resp.Header.Clone(), // retain Retry-After etc.
+			Header:     httpResp.Header.Clone(), // retain Retry-After etc.
 		}
 	}
 
 	// Log response headers
 	// log.Println("Response headers:")
-	// for key, values := range resp.Header {
+	// for key, values := range httpResp.Header {
 	// 	log.Printf("%s: %v\n", key, values)
 	// }
 
 	reader := &StreamReader[types.ExtendedChatCompletionStreamResponse]{
-		reader:             bufio.NewReader(resp.Body),
-		response:           resp,
+		reader:             bufio.NewReader(httpResp.Body),
+		response:           httpResp,
 		emptyMessagesLimit: 30,
 		errAccumulator:     NewErrorAccumulator(),
 		unmarshaler:        &JSONUnmarshaler{},

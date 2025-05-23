@@ -10,12 +10,14 @@ type ModelProvider string
 const (
 	ModelProviderOpenRouter ModelProvider = "openrouter"
 	ModelProviderOpenAI     ModelProvider = "openai"
+	ModelProviderJules      ModelProvider = "jules"
 	ModelProviderCustom     ModelProvider = "custom"
 )
 
 var AllModelProviders = []string{
 	string(ModelProviderOpenAI),
 	string(ModelProviderOpenRouter),
+	string(ModelProviderJules),
 	// string(ModelProviderTogether),
 	string(ModelProviderCustom),
 }
@@ -23,9 +25,11 @@ var AllModelProviders = []string{
 var BaseUrlByProvider = map[ModelProvider]string{
 	ModelProviderOpenAI:     OpenAIV1BaseUrl,
 	ModelProviderOpenRouter: OpenRouterBaseUrl,
+	ModelProviderJules:      "https://mock-jules-api.example.com/v1",
 }
 
 var ApiKeyByProvider = map[ModelProvider]string{
 	ModelProviderOpenAI:     OpenAIEnvVar,
 	ModelProviderOpenRouter: OpenRouterApiKeyEnvVar,
+	ModelProviderJules:      "JULES_API_KEY",
 }
