@@ -329,6 +329,138 @@ var BuiltInModels = []*BaseModelConfigSchema{
 	},
 
 	{
+		ModelTag:    "anthropic/claude-opus-4",
+		Publisher:   ModelPublisherAnthropic,
+		Description: "Anthropic Claude Opus 4",
+
+		BaseModelShared: BaseModelShared{
+			DefaultMaxConvoTokens:       15000,
+			MaxTokens:                   200000,
+			MaxOutputTokens:             128000,
+			ReservedOutputTokens:        20000,
+			SupportsCacheControl:        true,
+			PreferredOutputFormat:       ModelOutputFormatXml,
+			SingleMessageNoSystemPrompt: true,
+			TokenEstimatePaddingPct:     0.10,
+		},
+
+		Variants: []BaseModelConfigVariant{
+			{
+				IsBaseVariant: true,
+			},
+			{
+				VariantTag:  "thinking",
+				Description: "thinking",
+				Overrides: BaseModelShared{
+					ReasoningBudget: AnthropicMaxReasoningBudget,
+				},
+
+				Variants: []BaseModelConfigVariant{
+					{
+						VariantTag:  "visible",
+						Description: "visible",
+						Overrides: BaseModelShared{
+							IncludeReasoning: true,
+						},
+					},
+					{
+						VariantTag:  "hidden",
+						Description: "hidden",
+						Overrides: BaseModelShared{
+							IncludeReasoning: false,
+						},
+					},
+				},
+			},
+		},
+
+		Providers: []BaseModelUsesProvider{
+			{
+				Provider:  ModelProviderAnthropic,
+				ModelName: "anthropic/claude-opus-4-0",
+			},
+			{
+				Provider:  ModelProviderAmazonBedrock,
+				ModelName: "bedrock/anthropic.claude-opus-4-20250514-v1:0",
+			},
+			{
+				Provider:  ModelProviderGoogleVertex,
+				ModelName: "vertex_ai/claude-opus-4@20250514",
+			},
+			{
+				Provider:  ModelProviderOpenRouter,
+				ModelName: "anthropic/claude-opus-4",
+			},
+		},
+	},
+
+	{
+		ModelTag:    "anthropic/claude-sonnet-4",
+		Publisher:   ModelPublisherAnthropic,
+		Description: "Anthropic Claude Sonnet 4",
+
+		BaseModelShared: BaseModelShared{
+			DefaultMaxConvoTokens:       15000,
+			MaxTokens:                   200000,
+			MaxOutputTokens:             128000,
+			ReservedOutputTokens:        20000,
+			SupportsCacheControl:        true,
+			PreferredOutputFormat:       ModelOutputFormatXml,
+			SingleMessageNoSystemPrompt: true,
+			TokenEstimatePaddingPct:     0.10,
+		},
+
+		Variants: []BaseModelConfigVariant{
+			{
+				IsBaseVariant: true,
+			},
+			{
+				VariantTag:  "thinking",
+				Description: "thinking",
+				Overrides: BaseModelShared{
+					ReasoningBudget: AnthropicMaxReasoningBudget,
+				},
+
+				Variants: []BaseModelConfigVariant{
+					{
+						VariantTag:  "visible",
+						Description: "visible",
+						Overrides: BaseModelShared{
+							IncludeReasoning: true,
+						},
+					},
+					{
+						VariantTag:  "hidden",
+						Description: "hidden",
+						Overrides: BaseModelShared{
+							IncludeReasoning: false,
+						},
+					},
+				},
+			},
+		},
+
+		Providers: []BaseModelUsesProvider{
+			{
+				Provider:  ModelProviderAnthropic,
+				ModelName: "anthropic/claude-sonnet-4-0", // “-0” alias
+			},
+			{
+				Provider:  ModelProviderAmazonBedrock,
+				ModelName: "bedrock/anthropic.claude-sonnet-4-20250514-v1:0",
+			},
+			{
+				Provider:  ModelProviderGoogleVertex,
+				ModelName: "vertex_ai/claude-sonnet-4@20250514",
+			},
+			{
+				Provider:  ModelProviderOpenRouter,
+				ModelName: "anthropic/claude-sonnet-4",
+			},
+		},
+	},
+
+	{
 		ModelTag:    "anthropic/claude-3.7-sonnet",
 		Publisher:   ModelPublisherAnthropic,
 		Description: "Anthropic Claude 3.7 Sonnet",
@@ -567,18 +699,31 @@ var BuiltInModels = []*BaseModelConfigSchema{
 			PreferredOutputFormat: ModelOutputFormatXml,
 		},
 
+		Variants: []BaseModelConfigVariant{
+			{
+				IsBaseVariant: true,
+			},
+			{
+				VariantTag:  "thinking",
+				Description: "thinking",
+				Overrides: BaseModelShared{
+					IncludeReasoning: true,
+				},
+			},
+		},
+
 		Providers: []BaseModelUsesProvider{
 			{
 				Provider:  ModelProviderGoogleAIStudio,
-				ModelName: "gemini/gemini-2.5-flash-preview-04-17",
+				ModelName: "gemini/gemini-2.5-flash-preview-05-20",
 			},
 			{
 				Provider:  ModelProviderGoogleVertex,
-				ModelName: "vertex_ai/gemini-2.5-flash-preview-04-17",
+				ModelName: "vertex_ai/gemini-2.5-flash-preview-05-20",
 			},
 			{
 				Provider:  ModelProviderOpenRouter,
-				ModelName: "google/gemini-2.5-flash-preview",
+				ModelName: "google/gemini-2.5-flash-preview-05-20",
 			},
 		},
 	},

@@ -362,6 +362,40 @@ func (m *ModelRoleConfigSchema) toModelRoleConfig(role ModelRole) ModelRoleConfi
 	}
 }
 
+func (m *ModelRoleConfig) ToModelRoleConfigSchema() ModelRoleConfigSchema {
+	var largeContextFallback *ModelRoleConfigSchema
+	if m.LargeContextFallback != nil {
+		c := m.LargeContextFallback.ToModelRoleConfigSchema()
+		largeContextFallback = &c
+	}
+	var largeOutputFallback *ModelRoleConfigSchema
+	if m.LargeOutputFallback != nil {
+		c := m.LargeOutputFallback.ToModelRoleConfigSchema()
+		largeOutputFallback = &c
+	}
+	var errorFallback *ModelRoleConfigSchema
+	if m.ErrorFallback != nil {
+		c := m.ErrorFallback.ToModelRoleConfigSchema()
+		errorFallback = &c
+	}
+	var strongModel *ModelRoleConfigSchema
+	if m.StrongModel != nil {
+		c := m.StrongModel.ToModelRoleConfigSchema()
+		strongModel = &c
+	}
+
+	return ModelRoleConfigSchema{
+		ModelId:              m.ModelId,
+		Temperature:          m.Temperature,
+		TopP:                 m.TopP,
+		ReservedOutputTokens: m.ReservedOutputTokens,
+		LargeContextFallback: largeContextFallback,
+		LargeOutputFallback:  largeOutputFallback,
+		ErrorFallback:        errorFallback,
+		StrongModel:          strongModel,
+	}
+}
+
 func (m ModelRoleConfig) GetModelId() ModelId {
 	if m.BaseModelConfig != nil {
 		return m.BaseModelConfig.ModelId
@@ -583,6 +617,38 @@ func (m *ModelPack) GetArchitect() ModelRoleConfig {
 		return m.Planner.ModelRoleConfig
 	}
 	return *m.Architect
+}
+
+func (m *ModelPack) ToModelPackSchema() *ModelPackSchema {
+	var coder *ModelRoleConfigSchema
+	if m.Coder != nil {
+		c := m.Coder.ToModelRoleConfigSchema()
+		coder = &c
+	}
+	var wholeFileBuilder *ModelRoleConfigSchema
+	if m.WholeFileBuilder != nil {
+		c := m.WholeFileBuilder.ToModelRoleConfigSchema()
+		wholeFileBuilder = &c
+	}
+	var architect *ModelRoleConfigSchema
+	if m.Architect != nil {
+		c := m.Architect.ToModelRoleConfigSchema()
+		architect = &c
+	}
+
+	return &ModelPackSchema{
+		Name:             m.Name,
+		Description:      m.Description,
+		Planner:          m.Planner.ToModelRoleConfigSchema(),
+		Coder:            coder,
+		Architect:        architect,
+		PlanSummary:      m.PlanSummary.ToModelRoleConfigSchema(),
+		Builder:          m.Builder.ToModelRoleConfigSchema(),
+		WholeFileBuilder: wholeFileBuilder,
+		Namer:            m.Namer.ToModelRoleConfigSchema(),
+		CommitMsg:        m.CommitMsg.ToModelRoleConfigSchema(),
+		ExecStatus:       m.ExecStatus.ToModelRoleConfigSchema(),
+	}
 }
 
 type ModelOverrides struct {

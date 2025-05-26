@@ -4,6 +4,9 @@ var DailyDriverModelPack ModelPack
 var ReasoningModelPack ModelPack
 var StrongModelPack ModelPack
 
+var Sonnet4ModelPack ModelPack
+var Opus4PlannerModelPack ModelPack
+
 var OSSModelPack ModelPack
 var CheapModelPack ModelPack
 var AnthropicModelPack ModelPack
@@ -20,6 +23,9 @@ var BuiltInModelPacks = []*ModelPack{
 	&StrongModelPack,
 	&CheapModelPack,
 	&OSSModelPack,
+
+	&Sonnet4ModelPack,
+	&Opus4PlannerModelPack,
 
 	&AnthropicModelPack,
 	&OpenAIModelPack,

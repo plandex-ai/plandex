@@ -39,8 +39,8 @@ type CustomProvider struct {
 }
 
 type ModelsInput struct {
-	SchemaUrl        SchemaUrl         `json:"schemaUrl"`
-	CustomModels     []CustomModel     `json:"customModels"`
-	CustomProviders  []CustomProvider  `json:"customProviders"`
-	CustomModelPacks []ModelPackSchema `json:"customModelPacks"`
+	SchemaUrl        SchemaUrl          `json:"schemaUrl"`
+	CustomModels     []*CustomModel     `json:"customModels"`
+	CustomProviders  []*CustomProvider  `json:"customProviders"`
+	CustomModelPacks []*ModelPackSchema `json:"customModelPacks"`
 }

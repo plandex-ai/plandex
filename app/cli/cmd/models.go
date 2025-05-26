@@ -27,6 +27,7 @@ var customModelsOnly bool
 
 var allProperties bool
 var genTemplatePath string
+var updateModels bool
 
 func init() {
 	RootCmd.AddCommand(modelsCmd)
@@ -41,6 +42,7 @@ func init() {
 	modelsCmd.AddCommand(defaultModelsCmd)
 
 	importCustomModelCmd.Flags().StringVarP(&genTemplatePath, "generate", "g", "", "Generate a template JSON file")
+	importCustomModelCmd.Flags().BoolVarP(&updateModels, "update", "u", false, "Update existing models")
 
 	listAvailableModelsCmd.Flags().BoolVarP(&customModelsOnly, "custom", "c", false, "List custom models only")
 }
@@ -97,126 +99,169 @@ func importCustomModels(cmd *cobra.Command, args []string) {
 	auth.MustResolveAuthWithOrg()
 
 	var jsonFile string
-	genTemplate := genTemplatePath != ""
 
-	if len(args) == 0 && !genTemplate {
-		fmt.Println(color.New(color.Bold, color.FgHiCyan).Sprint("To add custom models, providers, or model packs 👇") + `
-1. Generate a template JSON file
-2. Update it in an IDE or editor
-3. Load the template and finish import`)
-		fmt.Println()
-
-		fmt.Println("ℹ️  You can also " + color.New(color.Bold, color.FgHiCyan).Sprint("update") + " existing custom models, providers, or model packs with the same JSON file")
-		fmt.Println()
-
-		const createTemplate = "Generate template"
-		const loadTemplate = "Load template"
-		const cancel = "Cancel"
-		opts := []string{createTemplate, loadTemplate, cancel}
-		selected, err := term.SelectFromList("What do you want to do?", opts)
-		if err != nil {
-			term.OutputErrorAndExit("Error selecting option: %v", err)
-			return
-		}
-
-		if selected == cancel {
-			return
-		}
-
-		if selected == createTemplate {
-			genTemplate = true
-		} else if selected == loadTemplate {
-			jsonFile, err = term.GetRequiredUserStringInput("Template path:")
-			if err != nil {
-				term.OutputErrorAndExit("Error getting template file path: %v", err)
-				return
-			}
-		}
-	} else {
+	if len(args) == 1 {
 		jsonFile = args[0]
-	}
+	} else if updateModels {
+		term.StartSpinner("")
 
-	if genTemplate {
-		var path string
-		if genTemplatePath != "" {
-			path = genTemplatePath
-			// Check if file already exists
-			if _, err := os.Stat(path); err == nil {
-				term.OutputErrorAndExit("Template file already exists: %s", path)
-				return
-			} else if !os.IsNotExist(err) {
-				term.OutputErrorAndExit("Error checking template file: %v", err)
-				return
+		errCh := make(chan *shared.ApiError, 3)
+		var modelsInput *shared.ModelsInput
+
+		go func() {
+			models, apiErr := api.Client.ListCustomModels()
+			if apiErr != nil {
+				errCh <- apiErr
 			}
-		} else {
-			tmpDir := os.TempDir()
-			// Generate a unique temporary file if no path is specified
-			tmpFile, err := os.CreateTemp(tmpDir, "plandex-models-*.json")
+			modelsInput.CustomModels = models
+			errCh <- nil
+		}()
+
+		go func() {
+			providers, apiErr := api.Client.ListCustomProviders()
+			if apiErr != nil {
+				errCh <- apiErr
+			}
+			modelsInput.CustomProviders = providers
+			errCh <- nil
+		}()
+
+		go func() {
+			modelPacks, apiErr := api.Client.ListModelPacks()
+			if apiErr != nil {
+				errCh <- apiErr
+			}
+
+			schemas := make([]*shared.ModelPackSchema, len(modelPacks))
+			for i, modelPack := range modelPacks {
+				schemas[i] = modelPack.ToModelPackSchema()
+			}
+
+			modelsInput.CustomModelPacks = schemas
+			errCh <- nil
+		}()
+
+		term.StopSpinner()
+
+		for i := 0; i < 3; i++ {
+			err := <-errCh
 			if err != nil {
-				term.OutputErrorAndExit("Error creating template file: %v", err)
+				term.OutputErrorAndExit("Error fetching custom models: %v", err.Msg)
 				return
 			}
-			path = tmpFile.Name()
-			tmpFile.Close()
 		}
+
+		// Generate temp file with current state
+		tmpFile, err := os.CreateTemp("", "plandex-models-update-*.json")
+		if err != nil {
+			term.OutputErrorAndExit("Error creating temp file: %v", err)
+			return
+		}
+
+		jsonFile = tmpFile.Name()
+		tmpFile.Close()
+
+		jsonData, err := json.MarshalIndent(modelsInput, "", "  ")
+		if err != nil {
+			term.OutputErrorAndExit("Error marshalling models: %v", err)
+			return
+		}
+
+		err = os.WriteFile(jsonFile, jsonData, 0644)
+		if err != nil {
+			term.OutputErrorAndExit("Error writing file: %v", err)
+			return
+		}
+
+		fmt.Printf("✅ Created file with current configuration: %s\n",
+			color.New(color.Bold, term.ColorHiGreen).Sprint(jsonFile))
+		fmt.Println()
+
+	} else {
+		// Case 3: Create new models (default flow)
+		fmt.Println(color.New(color.Bold, color.FgHiCyan).Sprint("Creating template for custom models..."))
+		fmt.Println()
+
+		// Generate temp file with examples
+		tmpFile, err := os.CreateTemp("", "plandex-models-*.json")
+		if err != nil {
+			term.OutputErrorAndExit("Error creating template file: %v", err)
+			return
+		}
+
+		jsonFile = tmpFile.Name()
+		tmpFile.Close()
 
 		jsonData, err := json.MarshalIndent(getExampleTemplate(), "", "  ")
 		if err != nil {
-			term.OutputErrorAndExit("Error marshalling custom model: %v", err)
+			term.OutputErrorAndExit("Error marshalling template: %v", err)
 			return
 		}
 
-		err = os.WriteFile(path, jsonData, 0644)
+		err = os.WriteFile(jsonFile, jsonData, 0644)
 		if err != nil {
 			term.OutputErrorAndExit("Error writing template file: %v", err)
 			return
 		}
 
-		fmt.Printf("✅ Created template %s\n", color.New(color.Bold, term.ColorHiGreen).Sprint(path))
-
+		fmt.Printf("✅ Created template: %s\n",
+			color.New(color.Bold, term.ColorHiGreen).Sprint(jsonFile))
 		fmt.Println()
+	}
 
-		selectedEditor := maybePromptAndOpen(path)
-
-		pf := "\\"
-		if !term.IsRepl {
-			pf = "plandex "
-		}
-		manualImport := `• Run ` + color.New(color.Bold, color.BgCyan, color.FgHiWhite).Sprintf(" %smodels import ", pf) + ` again and select ` + color.New(color.Bold, color.FgHiCyan).Sprint("Load template") + `
-• Run ` + color.New(color.Bold, color.BgCyan, color.FgHiWhite).Sprintf(" %smodels import %s ", pf, path)
+	// For both add and update flows, open the editor
+	if len(args) == 0 {
+		selectedEditor := maybePromptAndOpen(jsonFile)
 
 		if selectedEditor {
-			fmt.Println("📝 Opened template")
-			fmt.Println(`👨‍💻 Edit it, then come back here to finish importing`)
-
+			fmt.Println("📝 Opened in editor")
+			fmt.Println("👨‍💻 Edit the file, then come back here to finish importing")
 			fmt.Println()
 
 			confirmed, err := term.ConfirmYesNo("Done editing and ready to import?")
 			if err != nil {
-				term.OutputErrorAndExit("Error confirming template: %v", err)
+				term.OutputErrorAndExit("Error confirming: %v", err)
 				return
 			}
 
+			if !confirmed {
+				fmt.Println("🤷‍♂️ Import cancelled")
+				fmt.Println()
+
+				// Clean up temp file
+				if looksLikeEphemeralTemplate(jsonFile) {
+					os.Remove(jsonFile)
+				}
+
+				pf := "\\"
+				if !term.IsRepl {
+					pf = "plandex "
+				}
+
+				fmt.Println("When you're ready, run:")
+				fmt.Printf("• %s\n", color.New(color.Bold, color.BgCyan, color.FgHiWhite).
+					Sprintf(" %smodels import %s ", pf, jsonFile))
+				return
+			}
+			fmt.Println()
+		} else {
+			// No editor available or user chose manual
+			fmt.Println("👨‍💻 Edit the file in your JSON editor of choice")
 			fmt.Println()
 
-			if confirmed {
-				jsonFile = path
-			} else {
-				fmt.Println("🤷‍♂️ Didn't import")
-				fmt.Println()
-				fmt.Println("When you're ready, either:")
-				fmt.Println(manualImport)
-				return
+			pf := "\\"
+			if !term.IsRepl {
+				pf = "plandex "
 			}
 
-		} else {
-
-			fmt.Println(`👨‍💻 Edit the template in your IDE or JSON editor of choice, then either:`)
-			fmt.Println(manualImport)
+			fmt.Println("When you're ready, run:")
+			fmt.Printf("• %s\n", color.New(color.Bold, color.BgCyan, color.FgHiWhite).
+				Sprintf(" %smodels import %s ", pf, jsonFile))
 			return
 		}
 	}
 
+	// Import the JSON file
 	jsonData, err := os.ReadFile(jsonFile)
 	if err != nil {
 		term.OutputErrorAndExit("Error reading JSON file: %v", err)
@@ -239,22 +284,34 @@ func importCustomModels(cmd *cobra.Command, args []string) {
 		return
 	}
 
+	action := "Imported"
+
 	for _, provider := range modelsInput.CustomProviders {
-		fmt.Println("✅ Imported custom", color.New(term.ColorHiCyan).Sprint("provider"), "→", color.New(color.Bold, term.ColorHiGreen).Sprint(provider.Name))
+		fmt.Printf("✅ %s custom %s → %s\n",
+			action,
+			color.New(term.ColorHiCyan).Sprint("provider"),
+			color.New(color.Bold, term.ColorHiGreen).Sprint(provider.Name))
 	}
 
 	for _, model := range modelsInput.CustomModels {
-		fmt.Println("✅ Imported custom", color.New(term.ColorHiCyan).Sprint("model"), "→", color.New(color.Bold, term.ColorHiGreen).Sprint(string(model.ModelId)))
+		fmt.Printf("✅ %s custom %s → %s\n",
+			action,
+			color.New(term.ColorHiCyan).Sprint("model"),
+			color.New(color.Bold, term.ColorHiGreen).Sprint(string(model.ModelId)))
 	}
 
 	for _, modelPack := range modelsInput.CustomModelPacks {
-		fmt.Println("✅ Imported custom", color.New(term.ColorHiCyan).Sprint("model pack"), "→", color.New(color.Bold, term.ColorHiGreen).Sprint(modelPack.Name))
+		fmt.Printf("✅ %s custom %s → %s\n",
+			action,
+			color.New(term.ColorHiCyan).Sprint("model pack"),
+			color.New(color.Bold, term.ColorHiGreen).Sprint(modelPack.Name))
 	}
 
-	if genTemplate || looksLikeEphemeralTemplate(jsonFile) {
+	// Clean up temp file if it was generated
+	if len(args) == 0 && looksLikeEphemeralTemplate(jsonFile) {
 		err = os.Remove(jsonFile)
 		if err != nil {
-			term.OutputErrorAndExit("Error cleaning up template: %v", err)
+			term.OutputErrorAndExit("Error cleaning up temp file: %v", err)
 		}
 	}
 }
@@ -769,14 +826,14 @@ func getExampleTemplate() shared.ModelsInput {
 
 	return shared.ModelsInput{
 		SchemaUrl: shared.SchemaUrlInputConfig,
-		CustomProviders: []shared.CustomProvider{
+		CustomProviders: []*shared.CustomProvider{
 			{
 				Name:         exampleProviderName,
 				BaseUrl:      "https://api.together.xyz/v1",
 				ApiKeyEnvVar: "TOGETHER_API_KEY",
 			},
 		},
-		CustomModels: []shared.CustomModel{
+		CustomModels: []*shared.CustomModel{
 			{
 				ModelId:     shared.ModelId("meta-llama/llama-4-maverick"),
 				Publisher:   shared.ModelPublisher("meta-llama"),
@@ -804,7 +861,7 @@ func getExampleTemplate() shared.ModelsInput {
 				},
 			},
 		},
-		CustomModelPacks: []shared.ModelPackSchema{
+		CustomModelPacks: []*shared.ModelPackSchema{
 			{
 				Name:        "example-model-pack",
 				Description: "Example model pack",

@@ -1,3 +1,6 @@
+## Server Version 2.1.5
+See CLI 2.1.5 release notes.
+
 ## Server Version 2.1.4
 - Fix to remove occasional extraneous blank lines from start/end of edited files.
 

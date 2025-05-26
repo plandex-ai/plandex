@@ -313,6 +313,7 @@ type ModelPack struct {
 	ExecStatus       shared.ModelRoleConfig   `db:"exec_status"`
 	Architect        *shared.ModelRoleConfig  `db:"context_loader"`
 	CreatedAt        time.Time                `db:"created_at"`
+	UpdatedAt        time.Time                `db:"updated_at"`
 }
 
 func ModelPackFromApi(apiModelPack *shared.ModelPack) *ModelPack {
