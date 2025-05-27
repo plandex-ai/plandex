@@ -44,17 +44,17 @@ func init() {
 		Name:        "daily-driver",
 		Description: "A mix of models from Anthropic, OpenAI, and Google that balances speed, quality, and cost. Supports up to 2M context. Plandex prompts are especially tested and optimized for this pack.",
 		Planner: PlannerRoleConfig{
-			ModelRoleConfig: *claudeSonnet4(ModelRolePlanner, &modelConfig{
+			ModelRoleConfig: *claudeSonnet4With37Fallback(ModelRolePlanner, &modelConfig{
 				largeContextFallback: geminipro25preview(ModelRolePlanner, &modelConfig{
 					largeContextFallback: gemini15pro(ModelRolePlanner, nil),
 				}),
 			}),
 			PlannerModelConfig: getPlannerModelConfig(ModelProviderOpenRouter, "anthropic/claude-sonnet-4"),
 		},
-		Coder: claude37Sonnet(ModelRoleCoder, &modelConfig{
+		Coder: claudeSonnet4With37Fallback(ModelRoleCoder, &modelConfig{
 			largeContextFallback: openaigpt41(ModelRoleCoder, nil),
 		}),
-		Architect: claude37Sonnet(ModelRoleArchitect, &modelConfig{
+		Architect: claudeSonnet4With37Fallback(ModelRoleArchitect, &modelConfig{
 			largeContextFallback: geminipro25preview(ModelRolePlanner, &modelConfig{
 				largeContextFallback: gemini15pro(ModelRolePlanner, nil),
 			}),
@@ -73,10 +73,14 @@ func init() {
 		Name:        "reasoning",
 		Description: "Like the daily driver, but uses sonnet-4 with reasoning enabled for planning and coding. Supports up to 160k input context.",
 		Planner: PlannerRoleConfig{
-			ModelRoleConfig:    *claudeSonnet4ThinkingHidden(ModelRolePlanner, nil),
+			ModelRoleConfig: *claudeSonnet4ThinkingHidden(ModelRolePlanner, &modelConfig{
+				errorFallback: claude37SonnetThinkingHidden(ModelRolePlanner, nil),
+			}),
 			PlannerModelConfig: getPlannerModelConfig(ModelProviderOpenRouter, "anthropic/claude-sonnet-4:thinking-hidden"),
 		},
-		Coder:       claudeSonnet4ThinkingHidden(ModelRoleCoder, nil),
+		Coder: claudeSonnet4ThinkingHidden(ModelRoleCoder, &modelConfig{
+			errorFallback: claude37SonnetThinkingHidden(ModelRoleCoder, nil),
+		}),
 		PlanSummary: *openaio4miniLow(ModelRolePlanSummary, nil),
 		Builder: *openaio4miniMedium(ModelRoleBuilder, &modelConfig{
 			strongModel: openaio4miniHigh(ModelRoleBuilder, nil),
@@ -95,8 +99,10 @@ func init() {
 			ModelRoleConfig:    *openaio3high(ModelRolePlanner, nil),
 			PlannerModelConfig: getPlannerModelConfig(ModelProviderOpenAI, "openai/o3-high"),
 		},
-		Architect:        openaio3high(ModelRoleArchitect, nil),
-		Coder:            claudeSonnet4Thinking(ModelRoleCoder, nil),
+		Architect: openaio3high(ModelRoleArchitect, nil),
+		Coder: claudeSonnet4ThinkingHidden(ModelRoleCoder, &modelConfig{
+			errorFallback: claude37SonnetThinkingHidden(ModelRoleCoder, nil),
+		}),
 		PlanSummary:      *openaio4miniLow(ModelRolePlanSummary, nil),
 		Builder:          *openaio4miniHigh(ModelRoleBuilder, nil),
 		WholeFileBuilder: openaio4miniHigh(ModelRoleWholeFileBuilder, nil),
@@ -163,7 +169,7 @@ func init() {
 			ModelRoleConfig:    *claudeOpus4(ModelRolePlanner, nil),
 			PlannerModelConfig: getPlannerModelConfig(ModelProviderOpenRouter, "anthropic/claude-opus-4"),
 		},
-		Coder:       claudeSonnet4(ModelRoleCoder, nil),
+		Coder:       claudeSonnet4With37Fallback(ModelRoleCoder, nil),
 		Architect:   claudeOpus4(ModelRoleArchitect, nil),
 		PlanSummary: *openaio4miniLow(ModelRolePlanSummary, nil),
 		Builder: *openaio4miniMedium(ModelRoleBuilder, &modelConfig{
@@ -196,15 +202,15 @@ func init() {
 		Name:        "anthropic",
 		Description: "Anthropic blend. Supports up to 180k context. Uses Claude Sonnet 4 for heavy lifting, Claude 3.5 Haiku for lighter tasks.",
 		Planner: PlannerRoleConfig{
-			ModelRoleConfig:    *claudeSonnet4(ModelRolePlanner, nil),
+			ModelRoleConfig:    *claudeSonnet4With37Fallback(ModelRolePlanner, nil),
 			PlannerModelConfig: getPlannerModelConfig(ModelProviderOpenRouter, "anthropic/claude-sonnet-4"),
 		},
 		PlanSummary:      *claude35haiku(ModelRolePlanSummary, nil),
-		Builder:          *claudeSonnet4(ModelRoleBuilder, nil),
-		WholeFileBuilder: claudeSonnet4(ModelRoleWholeFileBuilder, nil),
+		Builder:          *claudeSonnet4With37Fallback(ModelRoleBuilder, nil),
+		WholeFileBuilder: claudeSonnet4With37Fallback(ModelRoleWholeFileBuilder, nil),
 		Namer:            *claude35haiku(ModelRoleName, nil),
 		CommitMsg:        *claude35haiku(ModelRoleCommitMsg, nil),
-		ExecStatus:       *claudeSonnet4(ModelRoleExecStatus, nil),
+		ExecStatus:       *claudeSonnet4With37Fallback(ModelRoleExecStatus, nil),
 	}
 
 	GeminiPreviewModelPack = ModelPack{
