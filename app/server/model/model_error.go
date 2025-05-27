@@ -82,6 +82,16 @@ func ClassifyErrMsg(msg string) *shared.ModelError {
 		}
 	}
 
+	// openrouter specific error — can be 'non-retriable status code' but really it should still be retried since OpenRouter may switch to a different provider
+	if strings.Contains(msg, "provider returned error") {
+		log.Printf("Provider returned error: %s", msg)
+		return &shared.ModelError{
+			Kind:              shared.ErrOther,
+			Retriable:         true,
+			RetryAfterSeconds: 0,
+		}
+	}
+
 	log.Println("No error classification based on message")
 
 	return nil

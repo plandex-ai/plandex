@@ -18,6 +18,9 @@ const (
 	ModelOutputFormatXml          ModelOutputFormat = "xml"
 )
 
+const AnthropicMaxReasoningBudget = 32000
+const GoogleMaxReasoningBudget = 32000
+
 // to help avoid confusion between the model name and the model id
 type ModelName string
 type ModelId string
@@ -40,7 +43,11 @@ type BaseModelConfig struct {
 	ReasoningEffortEnabled     bool              `json:"reasoningEffortEnabled"`
 	ReasoningEffort            ReasoningEffort   `json:"reasoningEffort"`
 	IncludeReasoning           bool              `json:"includeReasoning"`
-	SupportsCacheControl       bool              `json:"supportsCacheControl"`
+
+	ReasoningBudgetEnabled bool `json:"reasoningBudgetEnabled"`
+	ReasoningBudget        int  `json:"reasoningBudget"`
+
+	SupportsCacheControl bool `json:"supportsCacheControl"`
 
 	// for openai responses API, not fully implemented yet
 	UsesOpenAIResponsesAPI bool `json:"usesOpenAIResponsesAPI"`

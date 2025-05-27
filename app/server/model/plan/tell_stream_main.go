@@ -1,6 +1,7 @@
 package plan
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -128,7 +129,7 @@ mainLoop:
 				msg = fmt.Sprintf("The AI model (%s/%s) stopped responding: %v", modelProvider, modelName, err)
 			}
 			state.onError(onErrorParams{
-				streamErr: fmt.Errorf(msg, err),
+				streamErr: errors.New(msg),
 				storeDesc: true,
 				canRetry:  active.CurrentReplyContent == "", // if there was no output yet, we can retry
 			})
