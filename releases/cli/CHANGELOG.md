@@ -1,3 +1,8 @@
+## CLI Version 2.1.6+1
+- Error handling fix
+- Fix for some roles in the `daily-driver` model pack that weren't correctly updated to Sonnet 4 in 2.1.6
+- Added fallback from Sonnet 4 to Sonnet 3.7 to deal with occasional provider errors and rate limit issues
+
 ## CLI Version 2.1.6
 - The newly released Claude Sonnet 4 is now stable in testing, so it now replaces Sonnet 3.7 as the default model for context sizes under 200k across all model packs where 3.7 was previously used.
 - A new `strong-opus` model pack is now available. It uses Claude Opus 4 for planning and coding, and is otherwise the same as the 'strong' pack. Use it with `\set-model strong-opus` to try it out.
