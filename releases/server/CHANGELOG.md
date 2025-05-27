@@ -1,3 +1,6 @@
+## Server Version 2.1.6
+See CLI 2.1.6 release notes.
+
 ## Server Version 2.1.5
 See CLI 2.1.5 release notes.
 
