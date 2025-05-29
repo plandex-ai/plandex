@@ -41,7 +41,7 @@ func getGlamourRenderer() (*glamour.TermRenderer, error) {
 
 	// Always set word wrap and preserved newlines.
 	opts = append(opts,
-		glamour.WithWordWrap(min(width, 80)),
+		glamour.WithWordWrap(width-2),
 		glamour.WithPreservedNewLines(),
 	)
 
@@ -74,7 +74,7 @@ func GetMarkdown(input string) (string, error) {
 func GetPlain(input string) string {
 	width := GetTerminalWidth()
 
-	s := wordwrap.String(input, min(width-2, 80))
+	s := wordwrap.String(input, width-2)
 	// add padding
 	lines := strings.Split(s, "\n")
 	// for i := range lines {
