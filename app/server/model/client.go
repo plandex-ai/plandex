@@ -9,6 +9,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"plandex-server/types"
 	"strings"
@@ -32,7 +33,21 @@ const (
 	MAX_RETRY_DELAY_SECONDS              = 10
 )
 
-var httpClient = &http.Client{}
+var httpClient = createHTTPClient()
+
+func createHTTPClient() *http.Client {
+	client := &http.Client{}
+
+	if proxyURL := os.Getenv("HTTP_PROXY"); proxyURL != "" {
+		if parsedURL, err := url.Parse(proxyURL); err == nil {
+			client.Transport = &http.Transport{
+				Proxy: http.ProxyURL(parsedURL),
+			}
+		}
+	}
+
+	return client
+}
 
 type ClientInfo struct {
 	Client   *openai.Client
