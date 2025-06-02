@@ -318,10 +318,12 @@ type CloudBillingFields struct {
 	ChangedBillingMode bool `json:"changedBillingMode"`
 	TrialPaid          bool `json:"trialPaid"`
 
-	StripeSubscriptionId *string    `json:"stripeSubscriptionId"`
-	SubscriptionStatus   *string    `json:"subscriptionStatus"`
-	SubscriptionPausedAt *time.Time `json:"subscriptionPausedAt"`
-	StripePaymentMethod  *string    `json:"stripePaymentMethod"`
+	StripeSubscriptionId                 *string    `json:"stripeSubscriptionId"`
+	SubscriptionStatus                   *string    `json:"subscriptionStatus"`
+	SubscriptionPausedAt                 *time.Time `json:"subscriptionPausedAt"`
+	StripePaymentMethod                  *string    `json:"stripePaymentMethod"`
+	SubscriptionActionRequired           bool       `json:"subscriptionActionRequired"` // for 3ds/sca approvals
+	SubscriptionActionRequiredInvoiceUrl *string    `json:"subscriptionActionRequiredInvoiceUrl"`
 }
 
 type CreditsTransactionType string
