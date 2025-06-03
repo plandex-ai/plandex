@@ -123,7 +123,7 @@ func CreateCustomModelHandler(w http.ResponseWriter, r *http.Request) {
 	willCreateProviderNames := make(map[string]bool)
 
 	for _, provider := range modelsInput.CustomProviders {
-		dbProvider := db.CustomProviderFromApi(&provider)
+		dbProvider := db.CustomProviderFromApi(provider)
 		dbProvider.Id = provider.Id
 		dbProvider.OrgId = auth.OrgId
 
@@ -154,7 +154,7 @@ func CreateCustomModelHandler(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		dbModel := db.CustomModelFromApi(&model)
+		dbModel := db.CustomModelFromApi(model)
 		dbModel.Id = model.Id
 		dbModel.OrgId = auth.OrgId
 

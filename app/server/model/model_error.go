@@ -123,7 +123,7 @@ func ClassifyModelError(code int, message string, headers http.Header) shared.Mo
 	default:
 		res = shared.ModelError{
 			Kind:              shared.ErrOther,
-			Retriable:         code >= 500,
+			Retriable:         code >= 500 || strings.Contains(msg, "provider returned error"), // 'provider returned error' is from OpenRouter, and unless it's a non-retriable status code, it should still be retried since OpenRouter may switch to a different provider
 			RetryAfterSeconds: 0,
 		}
 	}

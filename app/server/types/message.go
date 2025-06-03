@@ -61,9 +61,19 @@ type OpenAIPrediction struct {
 	Content string `json:"content"`
 }
 
+type ReasoningConfig struct {
+	Effort    shared.ReasoningEffort `json:"effort,omitempty"`     // "high" | "medium" | "low"
+	MaxTokens int                    `json:"max_tokens,omitempty"` // Anthropic-style budget
+	Exclude   bool                   `json:"exclude,omitempty"`    // don’t echo reasoning in the response
+}
+
 type OpenRouterProviderConfig struct {
-	Order          []string `json:"order"`
-	AllowFallbacks bool     `json:"allow_fallbacks"`
+	Order            []string `json:"order"`
+	AllowFallbacks   bool     `json:"allow_fallbacks"`
+	RequireParamters bool     `json:"require_paramters"`
+	DataCollection   bool     `json:"data_collection"`
+	Only             []string `json:"only"`
+	Ignore           []string `json:"ignore"`
 }
 
 type ExtendedChatCompletionRequest struct {
@@ -117,10 +127,14 @@ type ExtendedChatCompletionRequest struct {
 	// Metadata to store with the completion.
 	Metadata map[string]string `json:"metadata,omitempty"`
 
-	Prediction       *OpenAIPrediction         `json:"prediction,omitempty"`
-	Provider         *OpenRouterProviderConfig `json:"provider,omitempty"`
-	ReasoningEffort  *shared.ReasoningEffort   `json:"reasoning_effort,omitempty"`
-	IncludeReasoning bool                      `json:"include_reasoning,omitempty"`
+	Prediction *OpenAIPrediction         `json:"prediction,omitempty"`
+	Provider   *OpenRouterProviderConfig `json:"provider,omitempty"`
+
+	// Openrouter/LiteLLM reasoning
+	ReasoningConfig *ReasoningConfig `json:"reasoning,omitempty"`
+
+	// Openrouter ignore providers
+
 }
 
 // for properties that OpenAI direct api calls support but aren't included in https://github.com/sashabaranov/go-openai
@@ -135,6 +149,11 @@ func (req *ExtendedChatCompletionRequest) ToOpenAI() *ExtendedOpenAIChatCompleti
 	openaiMessages := make([]openai.ChatCompletionMessage, len(req.Messages))
 	for i, msg := range req.Messages {
 		openaiMessages[i] = *msg.ToOpenAI()
+	}
+
+	var reasoningEffort *shared.ReasoningEffort
+	if req.ReasoningConfig != nil && req.ReasoningConfig.Effort != "" {
+		reasoningEffort = &req.ReasoningConfig.Effort
 	}
 
 	return &ExtendedOpenAIChatCompletionRequest{
@@ -166,7 +185,7 @@ func (req *ExtendedChatCompletionRequest) ToOpenAI() *ExtendedOpenAIChatCompleti
 			Metadata:            req.Metadata,
 		},
 		Prediction:      req.Prediction,
-		ReasoningEffort: req.ReasoningEffort,
+		ReasoningEffort: reasoningEffort,
 	}
 }
 

@@ -12,6 +12,7 @@ import (
 	"plandex-cli/term"
 	"plandex-cli/types"
 	"plandex-cli/ui"
+	"time"
 
 	shared "plandex-shared"
 
@@ -221,6 +222,8 @@ func TellPlan(
 					// do nothing, allow auto apply to run
 				} else {
 					term.StartSpinner("")
+					// sleep a little to prevent lock contention on server
+					time.Sleep(500 * time.Millisecond)
 					diffs, apiErr := getDiffs(params)
 					term.StopSpinner()
 					if apiErr != nil {

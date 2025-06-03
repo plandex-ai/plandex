@@ -29,7 +29,7 @@ const (
 	ACTIVE_STREAM_CHUNK_TIMEOUT          = time.Duration(60) * time.Second
 	USAGE_CHUNK_TIMEOUT                  = time.Duration(10) * time.Second
 	MAX_ADDITIONAL_RETRIES_WITH_FALLBACK = 1
-	MAX_RETRIES_WITHOUT_FALLBACK         = 2
+	MAX_RETRIES_WITHOUT_FALLBACK         = 3
 	MAX_RETRY_DELAY_SECONDS              = 10
 )
 
@@ -126,8 +126,20 @@ func CreateChatCompletionStream(
 		req.Model += ":nitro"
 	}
 
-	if baseModelConfig.IncludeReasoning {
-		req.IncludeReasoning = true
+	if baseModelConfig.ReasoningBudgetEnabled {
+		req.ReasoningConfig = &types.ReasoningConfig{
+			MaxTokens: baseModelConfig.ReasoningBudget,
+			Exclude:   !baseModelConfig.IncludeReasoning,
+		}
+	} else if baseModelConfig.ReasoningEffortEnabled {
+		req.ReasoningConfig = &types.ReasoningConfig{
+			Effort:  shared.ReasoningEffort(baseModelConfig.ReasoningEffort),
+			Exclude: !baseModelConfig.IncludeReasoning,
+		}
+	} else if baseModelConfig.IncludeReasoning {
+		req.ReasoningConfig = &types.ReasoningConfig{
+			Exclude: false,
+		}
 	}
 
 	return withStreamingRetries(ctx, func(numTotalRetry int, didProviderFallback bool, modelErr *shared.ModelError) (*ExtendedChatCompletionStream, shared.FallbackResult, error) {

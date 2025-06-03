@@ -26,26 +26,22 @@ type ModelTag string
 type VariantTag string
 
 type BaseModelShared struct {
-	DefaultMaxConvoTokens  int               `json:"defaultMaxConvoTokens"`
-	MaxTokens              int               `json:"maxTokens"`
-	MaxOutputTokens        int               `json:"maxOutputTokens"`
-	ReservedOutputTokens   int               `json:"reservedOutputTokens"`
-	PreferredOutputFormat  ModelOutputFormat `json:"preferredOutputFormat"`
-	SystemPromptDisabled   bool              `json:"systemPromptDisabled,omitempty"`
-	RoleParamsDisabled     bool              `json:"roleParamsDisabled,omitempty"`
-	StopDisabled           bool              `json:"stopDisabled,omitempty"`
-	PredictedOutputEnabled bool              `json:"predictedOutputEnabled,omitempty"`
-	ReasoningEffortEnabled bool              `json:"reasoningEffortEnabled,omitempty"`
-	ReasoningEffort        ReasoningEffort   `json:"reasoningEffort,omitempty"`
-	IncludeReasoning       bool              `json:"includeReasoning,omitempty"`
-	ReasoningBudget        int               `json:"reasoningBudget,omitempty"`
-	SupportsCacheControl   bool              `json:"supportsCacheControl,omitempty"`
-	// for anthropic, single message system prompt needs to be flipped to 'user'
-	SingleMessageNoSystemPrompt bool `json:"singleMessageNoSystemPrompt,omitempty"`
-
-	// for anthropic, token estimate padding percentage
-	TokenEstimatePaddingPct float64 `json:"tokenEstimatePaddingPct,omitempty"`
-
+	DefaultMaxConvoTokens       int               `json:"defaultMaxConvoTokens"`
+	MaxTokens                   int               `json:"maxTokens"`
+	MaxOutputTokens             int               `json:"maxOutputTokens"`
+	ReservedOutputTokens        int               `json:"reservedOutputTokens"`
+	PreferredOutputFormat       ModelOutputFormat `json:"preferredOutputFormat"`
+	SystemPromptDisabled        bool              `json:"systemPromptDisabled,omitempty"`
+	RoleParamsDisabled          bool              `json:"roleParamsDisabled,omitempty"`
+	StopDisabled                bool              `json:"stopDisabled,omitempty"`
+	PredictedOutputEnabled      bool              `json:"predictedOutputEnabled,omitempty"`
+	ReasoningEffortEnabled      bool              `json:"reasoningEffortEnabled,omitempty"`
+	ReasoningEffort             ReasoningEffort   `json:"reasoningEffort,omitempty"`
+	IncludeReasoning            bool              `json:"includeReasoning,omitempty"`
+	ReasoningBudget             int               `json:"reasoningBudget,omitempty"`
+	SupportsCacheControl        bool              `json:"supportsCacheControl,omitempty"`
+	SingleMessageNoSystemPrompt bool              `json:"singleMessageNoSystemPrompt,omitempty"`
+	TokenEstimatePaddingPct     float64           `json:"tokenEstimatePaddingPct,omitempty"`
 	ModelCompatibility
 }
 
@@ -55,11 +51,17 @@ type BaseModelProviderConfig struct {
 }
 
 type BaseModelConfig struct {
-	ModelId   ModelId        `json:"modelId"`
 	ModelTag  ModelTag       `json:"modelTag"`
-	Publisher ModelPublisher `json:"publisher"`
+	ModelId   ModelId        `json:"modelId"`
+	Publisher ModelPublisher `json:"publisher,omitempty"`
 	BaseModelShared
 	BaseModelProviderConfig
+	ApiKeyEnvVar               string            `json:"apiKeyEnvVar,omitempty"`
+	PreferredModelOutputFormat ModelOutputFormat `json:"preferredModelOutputFormat,omitempty"`
+	ReasoningBudgetEnabled     bool              `json:"reasoningBudgetEnabled,omitempty"`
+	ReasoningBudget            int               `json:"reasoningBudget,omitempty"`
+	SupportsCacheControl       bool              `json:"supportsCacheControl,omitempty"`
+	UsesOpenAIResponsesAPI     bool              `json:"usesOpenAIResponsesAPI,omitempty"`
 }
 
 type BaseModelUsesProvider struct {
@@ -119,6 +121,7 @@ func (b *BaseModelConfigSchema) ToAvailableModels() []*AvailableModel {
 						ModelProviderConfigSchema: providerConfig,
 						ModelName:                 provider.ModelName,
 					},
+					ApiKeyEnvVar: providerConfig.ApiKeyEnvVar,
 				},
 			})
 		}
@@ -152,6 +155,7 @@ func (b *BaseModelConfigSchema) ToAvailableModels() []*AvailableModel {
 						ModelProviderConfigSchema: providerConfig,
 						ModelName:                 provider.ModelName,
 					},
+					ApiKeyEnvVar: providerConfig.ApiKeyEnvVar,
 				},
 			})
 		}
@@ -211,6 +215,7 @@ func (b *BaseModelConfigSchema) ToAvailableModels() []*AvailableModel {
 								ModelProviderConfigSchema: providerConfig,
 								ModelName:                 provider.ModelName,
 							},
+							ApiKeyEnvVar: providerConfig.ApiKeyEnvVar,
 						},
 					})
 				}

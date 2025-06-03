@@ -1,3 +1,16 @@
+## CLI Version 2.1.6+1
+- Error handling fix
+- Fix for some roles in the `daily-driver` model pack that weren't correctly updated to Sonnet 4 in 2.1.6
+- Added fallback from Sonnet 4 to Sonnet 3.7 to deal with occasional provider errors and rate limit issues
+
+## CLI Version 2.1.6
+- The newly released Claude Sonnet 4 is now stable in testing, so it now replaces Sonnet 3.7 as the default model for context sizes under 200k across all model packs where 3.7 was previously used.
+- A new `strong-opus` model pack is now available. It uses Claude Opus 4 for planning and coding, and is otherwise the same as the 'strong' pack. Use it with `\set-model strong-opus` to try it out.
+- The `opus-4-planner` model pack that was introduced in 2.1.5 has been renamed to `opus-planner`, but the old name is still supported. This model pack uses Claude Opus 4 for planning, and the default models for other roles.
+- Fix for occasional garbled error message when the model is unresponsive.
+- Fix for occasional 'couldn't aquire lock' error after stream finishes.
+- Additional retry when model is unresponsive or hits provider rate limits—helps particularly with new Opus 4 model on OpenRouter.
+
 ## CLI Version 2.1.5
 - Added newly released Claude Sonnet 4 and Claude Opus 4 as built-in models.
 - Sonnet 4 isn't yet used in the default 'daily-driver' model pack due to sporadic errors in early testing, but it can be used with the 'sonnet-4-daily' model pack (use '\set-model sonnet-4-daily' to use it). It will be promoted to the default model pack soon.

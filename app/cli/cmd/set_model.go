@@ -142,6 +142,9 @@ func updateModelSettings(args []string, originalSettings *shared.PlanSettings) *
 		if compare == "daily" {
 			compare = "daily-driver"
 		}
+		if compare == "opus-4-planner" {
+			compare = "opus-planner"
+		}
 		for _, ms := range shared.BuiltInModelPacks {
 			if strings.EqualFold(ms.Name, compare) {
 				modelPack = ms

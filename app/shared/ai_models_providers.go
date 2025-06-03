@@ -101,6 +101,7 @@ func (m *ModelProviderConfigSchema) ToComposite() string {
 
 const DefaultAzureApiVersion = "2024-10-21"
 const AnthropicMaxReasoningBudget = 32000
+const GoogleMaxReasoningBudget = 32000
 
 var BuiltInModelProviderConfigs = map[ModelProvider]ModelProviderConfigSchema{
 	ModelProviderOpenAI: {
