@@ -6,6 +6,8 @@ import (
 	"log"
 	"net/http"
 	"plandex-server/db"
+	"runtime"
+	"runtime/debug"
 	"sync"
 
 	shared "plandex-shared"
@@ -132,6 +134,14 @@ func LoadCachedFileMapHandler(w http.ResponseWriter, r *http.Request) {
 
 	for _, path := range req.FilePaths {
 		go func(path string) {
+			defer func() {
+				if r := recover(); r != nil {
+					log.Printf("panic in LoadCachedFileMapHandler: %v\n%s", r, debug.Stack())
+					errCh <- fmt.Errorf("panic in LoadCachedFileMapHandler: %v\n%s", r, debug.Stack())
+					runtime.Goexit() // don't allow outer function to continue and double-send to channel
+				}
+			}()
+
 			cachedContext, err := db.GetCachedMap(plan.OrgId, plan.ProjectId, path)
 			if err != nil {
 				errCh <- fmt.Errorf("error getting cached map: %v", err)
@@ -155,6 +165,7 @@ func LoadCachedFileMapHandler(w http.ResponseWriter, r *http.Request) {
 	for range req.FilePaths {
 		err := <-errCh
 		if err != nil {
+			log.Printf("Error getting cached map: %v", err)
 			http.Error(w, fmt.Sprintf("Error getting cached map: %v", err), http.StatusInternalServerError)
 			return
 		}

@@ -2,8 +2,10 @@ package plan
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"plandex-server/db"
+	"plandex-server/notify"
 	"plandex-server/shutdown"
 	"plandex-server/types"
 	"strings"
@@ -59,6 +61,8 @@ func CreateActivePlan(orgId, userId, planId, branch, prompt string, buildOnly, a
 					return
 				} else {
 					log.Printf("Error streaming plan %s: %v\n", planId, apiErr)
+
+					go notify.NotifyErr(notify.SeverityError, fmt.Errorf("error streaming plan %s: %v", planId, apiErr))
 
 					err := db.SetPlanStatus(planId, branch, shared.PlanStatusError, apiErr.Msg)
 					if err != nil {

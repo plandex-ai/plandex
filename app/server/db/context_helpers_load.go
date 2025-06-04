@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"log"
 	shared "plandex-shared"
+	"runtime"
+	"runtime/debug"
 	"strings"
 	"sync"
 
@@ -289,6 +291,13 @@ func LoadContexts(ctx Ctx, params LoadContextsParams) (*shared.LoadContextRespon
 	for tempId, loadParams := range paramsByTempId {
 
 		go func(tempId string, loadParams *shared.LoadContextParams) {
+			defer func() {
+				if r := recover(); r != nil {
+					log.Printf("panic in LoadContexts: %v\n%s", r, debug.Stack())
+					errCh <- fmt.Errorf("panic in LoadContexts: %v\n%s", r, debug.Stack())
+					runtime.Goexit() // don't allow outer function to continue and double-send to channel
+				}
+			}()
 			hash := sha256.Sum256([]byte(loadParams.Body))
 			sha := hex.EncodeToString(hash[:])
 

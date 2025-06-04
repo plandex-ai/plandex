@@ -7,6 +7,8 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
+	"runtime/debug"
 	"sort"
 	"strings"
 	"sync"
@@ -60,13 +62,21 @@ type CurrentPlanStateParams struct {
 }
 
 func GetFullCurrentPlanStateParams(orgId, planId string) (CurrentPlanStateParams, error) {
-	errCh := make(chan error)
+	errCh := make(chan error, 3)
 
 	var results []*PlanFileResult
 	var convoMessageDescriptions []*ConvoMessageDescription
 	var contexts []*Context
 
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("panic in GetFullCurrentPlanStateParams: %v\n%s", r, debug.Stack())
+				errCh <- fmt.Errorf("panic in GetFullCurrentPlanStateParams: %v\n%s", r, debug.Stack())
+				runtime.Goexit() // don't allow outer function to continue and double-send to channel
+			}
+		}()
+
 		res, err := GetPlanFileResults(orgId, planId)
 		if err != nil {
 			errCh <- fmt.Errorf("error getting plan file results: %v", err)
@@ -77,6 +87,13 @@ func GetFullCurrentPlanStateParams(orgId, planId string) (CurrentPlanStateParams
 	}()
 
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("panic in GetFullCurrentPlanStateParams: %v\n%s", r, debug.Stack())
+				errCh <- fmt.Errorf("panic in GetFullCurrentPlanStateParams: %v\n%s", r, debug.Stack())
+				runtime.Goexit() // don't allow outer function to continue and double-send to channel
+			}
+		}()
 		res, err := GetConvoMessageDescriptions(orgId, planId)
 		if err != nil {
 			errCh <- fmt.Errorf("error getting latest plan build description: %v", err)
@@ -87,6 +104,13 @@ func GetFullCurrentPlanStateParams(orgId, planId string) (CurrentPlanStateParams
 	}()
 
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("panic in GetFullCurrentPlanStateParams: %v\n%s", r, debug.Stack())
+				errCh <- fmt.Errorf("panic in GetFullCurrentPlanStateParams: %v\n%s", r, debug.Stack())
+				runtime.Goexit() // don't allow outer function to continue and double-send to channel
+			}
+		}()
 		res, err := GetPlanContexts(orgId, planId, true, false)
 		if err != nil {
 			errCh <- fmt.Errorf("error getting contexts: %v", err)
@@ -122,9 +146,16 @@ func GetCurrentPlanState(params CurrentPlanStateParams) (*shared.CurrentPlanStat
 	var convoMessageDescriptions []*shared.ConvoMessageDescription
 	contextsByPath := map[string]*Context{}
 	planApplies := []*shared.PlanApply{}
-	errCh := make(chan error)
+	errCh := make(chan error, 4)
 
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("panic in GetCurrentPlanState: %v\n%s", r, debug.Stack())
+				errCh <- fmt.Errorf("panic in GetCurrentPlanState: %v\n%s", r, debug.Stack())
+				runtime.Goexit() // don't allow outer function to continue and double-send to channel
+			}
+		}()
 		if params.PlanFileResults == nil {
 			res, err := GetPlanFileResults(orgId, planId)
 			dbPlanFileResults = res
@@ -141,6 +172,13 @@ func GetCurrentPlanState(params CurrentPlanStateParams) (*shared.CurrentPlanStat
 	}()
 
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("panic in GetCurrentPlanState: %v\n%s", r, debug.Stack())
+				errCh <- fmt.Errorf("panic in GetCurrentPlanState: %v\n%s", r, debug.Stack())
+				runtime.Goexit() // don't allow outer function to continue and double-send to channel
+			}
+		}()
 		if params.ConvoMessageDescriptions == nil {
 			res, err := GetConvoMessageDescriptions(orgId, planId)
 			if err != nil {
@@ -161,6 +199,13 @@ func GetCurrentPlanState(params CurrentPlanStateParams) (*shared.CurrentPlanStat
 	}()
 
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("panic in GetCurrentPlanState: %v\n%s", r, debug.Stack())
+				errCh <- fmt.Errorf("panic in GetCurrentPlanState: %v\n%s", r, debug.Stack())
+				runtime.Goexit() // don't allow outer function to continue and double-send to channel
+			}
+		}()
 		var contexts []*Context
 		if params.Contexts == nil {
 			res, err := GetPlanContexts(orgId, planId, true, false)
@@ -185,6 +230,13 @@ func GetCurrentPlanState(params CurrentPlanStateParams) (*shared.CurrentPlanStat
 	}()
 
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("panic in GetCurrentPlanState: %v\n%s", r, debug.Stack())
+				errCh <- fmt.Errorf("panic in GetCurrentPlanState: %v\n%s", r, debug.Stack())
+				runtime.Goexit() // don't allow outer function to continue and double-send to channel
+			}
+		}()
 		res, err := GetPlanApplies(orgId, planId)
 		if err != nil {
 			errCh <- fmt.Errorf("error getting plan applies: %v", err)
@@ -273,6 +325,13 @@ func GetConvoMessageDescriptions(orgId, planId string) ([]*ConvoMessageDescripti
 
 	for _, file := range files {
 		go func(file os.DirEntry) {
+			defer func() {
+				if r := recover(); r != nil {
+					log.Printf("panic in GetConvoMessageDescriptions: %v\n%s", r, debug.Stack())
+					errCh <- fmt.Errorf("panic in GetConvoMessageDescriptions: %v\n%s", r, debug.Stack())
+					runtime.Goexit() // don't allow outer function to continue and double-send to channel
+				}
+			}()
 			path := filepath.Join(descriptionsDir, file.Name())
 
 			bytes, err := os.ReadFile(path)
@@ -338,6 +397,13 @@ func GetPlanFileResults(orgId, planId string) ([]*PlanFileResult, error) {
 		// log.Printf("Result file: %s", file.Name())
 
 		go func(file os.DirEntry) {
+			defer func() {
+				if r := recover(); r != nil {
+					log.Printf("panic in GetPlanFileResults: %v\n%s", r, debug.Stack())
+					errCh <- fmt.Errorf("panic in GetPlanFileResults: %v\n%s", r, debug.Stack())
+					runtime.Goexit() // don't allow outer function to continue and double-send to channel
+				}
+			}()
 
 			bytes, err := os.ReadFile(filepath.Join(resultsDir, file.Name()))
 
@@ -489,11 +555,28 @@ func ApplyPlan(repo *GitRepo, ctx context.Context, params ApplyPlanParams) error
 	var loadContextRes *shared.LoadContextResponse
 	var updateContextRes *shared.UpdateContextResponse
 
-	errCh := make(chan error)
+	numRoutines := len(pendingDbResults) +
+		len(convoMessageDescriptions)
+
+	if len(pendingNewFilesSet) > 0 {
+		numRoutines++
+	}
+	if len(pendingUpdatedFilesSet) > 0 {
+		numRoutines++
+	}
+
+	errCh := make(chan error, numRoutines)
 	now := time.Now()
 
 	for _, result := range pendingDbResults {
 		go func(result *PlanFileResult) {
+			defer func() {
+				if r := recover(); r != nil {
+					log.Printf("panic in ApplyPlan: %v\n%s", r, debug.Stack())
+					errCh <- fmt.Errorf("panic in ApplyPlan: %v\n%s", r, debug.Stack())
+					runtime.Goexit() // don't allow outer function to continue and double-send to channel
+				}
+			}()
 			result.AppliedAt = &now
 
 			bytes, err := json.MarshalIndent(result, "", "  ")
@@ -517,6 +600,13 @@ func ApplyPlan(repo *GitRepo, ctx context.Context, params ApplyPlanParams) error
 
 	for _, description := range convoMessageDescriptions {
 		go func(description *ConvoMessageDescription) {
+			defer func() {
+				if r := recover(); r != nil {
+					log.Printf("panic in ApplyPlan: %v\n%s", r, debug.Stack())
+					errCh <- fmt.Errorf("panic in ApplyPlan: %v\n%s", r, debug.Stack())
+					runtime.Goexit() // don't allow outer function to continue and double-send to channel
+				}
+			}()
 			description.AppliedAt = &now
 
 			err := StoreDescription(description)
@@ -532,6 +622,13 @@ func ApplyPlan(repo *GitRepo, ctx context.Context, params ApplyPlanParams) error
 
 	if len(pendingNewFilesSet) > 0 {
 		go func() {
+			defer func() {
+				if r := recover(); r != nil {
+					log.Printf("panic in ApplyPlan: %v\n%s", r, debug.Stack())
+					errCh <- fmt.Errorf("panic in ApplyPlan: %v\n%s", r, debug.Stack())
+					runtime.Goexit() // don't allow outer function to continue and double-send to channel
+				}
+			}()
 			loadReq := shared.LoadContextRequest{}
 			for path := range pendingNewFilesSet {
 				loadReq = append(loadReq, &shared.LoadContextParams{
@@ -570,6 +667,13 @@ func ApplyPlan(repo *GitRepo, ctx context.Context, params ApplyPlanParams) error
 
 	if len(pendingUpdatedFilesSet) > 0 {
 		go func() {
+			defer func() {
+				if r := recover(); r != nil {
+					log.Printf("panic in ApplyPlan: %v\n%s", r, debug.Stack())
+					errCh <- fmt.Errorf("panic in ApplyPlan: %v\n%s", r, debug.Stack())
+					runtime.Goexit() // don't allow outer function to continue and double-send to channel
+				}
+			}()
 			updateReq := shared.UpdateContextRequest{}
 			for path := range pendingUpdatedFilesSet {
 				context := contextsByPath[path]
@@ -600,16 +704,6 @@ func ApplyPlan(repo *GitRepo, ctx context.Context, params ApplyPlanParams) error
 
 		}()
 
-	}
-
-	numRoutines := len(pendingDbResults) +
-		len(convoMessageDescriptions)
-
-	if len(pendingNewFilesSet) > 0 {
-		numRoutines++
-	}
-	if len(pendingUpdatedFilesSet) > 0 {
-		numRoutines++
 	}
 
 	for i := 0; i < numRoutines; i++ {
@@ -713,6 +807,13 @@ func RejectAllResults(orgId, planId string) error {
 		resultId := strings.TrimSuffix(file.Name(), ".json")
 
 		go func(resultId string) {
+			defer func() {
+				if r := recover(); r != nil {
+					log.Printf("panic in RejectAllResults: %v\n%s", r, debug.Stack())
+					errCh <- fmt.Errorf("panic in RejectAllResults: %v\n%s", r, debug.Stack())
+					runtime.Goexit() // don't allow outer function to continue and double-send to channel
+				}
+			}()
 			err := RejectPlanFile(orgId, planId, resultId, now)
 
 			if err != nil {
@@ -753,6 +854,13 @@ func DeletePendingResultsForPaths(orgId, planId string, paths map[string]bool) e
 		resultId := strings.TrimSuffix(file.Name(), ".json")
 
 		go func(resultId string) {
+			defer func() {
+				if r := recover(); r != nil {
+					log.Printf("panic in DeletePendingResultsForPaths: %v\n%s", r, debug.Stack())
+					errCh <- fmt.Errorf("panic in DeletePendingResultsForPaths: %v\n%s", r, debug.Stack())
+					runtime.Goexit() // don't allow outer function to continue and double-send to channel
+				}
+			}()
 			bytes, err := os.ReadFile(filepath.Join(resultsDir, resultId+".json"))
 
 			if err != nil {
@@ -800,6 +908,13 @@ func RejectPlanFiles(orgId, planId string, files []string, now time.Time) error 
 
 	for _, file := range files {
 		go func(file string) {
+			defer func() {
+				if r := recover(); r != nil {
+					log.Printf("panic in RejectPlanFiles: %v\n%s", r, debug.Stack())
+					errCh <- fmt.Errorf("panic in RejectPlanFiles: %v\n%s", r, debug.Stack())
+					runtime.Goexit() // don't allow outer function to continue and double-send to channel
+				}
+			}()
 			err := RejectPlanFile(orgId, planId, file, now)
 
 			if err != nil {
@@ -833,6 +948,13 @@ func RejectPlanFile(orgId, planId, filePathOrResultId string, now time.Time) err
 
 	for _, result := range results {
 		go func(result *PlanFileResult) {
+			defer func() {
+				if r := recover(); r != nil {
+					log.Printf("panic in RejectPlanFile: %v\n%s", r, debug.Stack())
+					errCh <- fmt.Errorf("panic in RejectPlanFile: %v\n%s", r, debug.Stack())
+					runtime.Goexit() // don't allow outer function to continue and double-send to channel
+				}
+			}()
 			if (result.Path == filePathOrResultId || result.Id == filePathOrResultId) && result.AppliedAt == nil && result.RejectedAt == nil {
 				result.RejectedAt = &now
 			} else {
@@ -923,6 +1045,13 @@ func GetPlanApplies(orgId, planId string) ([]*PlanApply, error) {
 
 	for _, file := range files {
 		go func(file os.DirEntry) {
+			defer func() {
+				if r := recover(); r != nil {
+					log.Printf("panic in GetPlanApplies: %v\n%s", r, debug.Stack())
+					errCh <- fmt.Errorf("panic in GetPlanApplies: %v\n%s", r, debug.Stack())
+					runtime.Goexit() // don't allow outer function to continue and double-send to channel
+				}
+			}()
 			bytes, err := os.ReadFile(filepath.Join(appliesDir, file.Name()))
 
 			if err != nil {

@@ -98,7 +98,7 @@ func (state *activeBuildStreamFileState) onFinishBuild() {
 			return fmt.Errorf("error getting current plan state: %v", err)
 		}
 
-		descErrCh := make(chan error)
+		descErrCh := make(chan error, len(unbuiltDescs))
 		for _, desc := range unbuiltDescs {
 			if len(desc.Operations) > 0 {
 				desc.DidBuild = true

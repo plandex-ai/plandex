@@ -9,6 +9,8 @@ import (
 	"plandex-server/db"
 	"plandex-server/model"
 	"plandex-server/types"
+	"runtime"
+	"runtime/debug"
 
 	shared "plandex-shared"
 )
@@ -133,6 +135,14 @@ func loadContexts(
 			num++
 
 			go func(context *shared.LoadContextParams) {
+				defer func() {
+					if r := recover(); r != nil {
+						log.Printf("panic in GenPipedDataName: %v\n%s", r, debug.Stack())
+						errCh <- fmt.Errorf("panic in GenPipedDataName: %v\n%s", r, debug.Stack())
+						runtime.Goexit() // don't allow outer function to continue and double-send to channel
+					}
+				}()
+
 				name, err := model.GenPipedDataName(r.Context(), auth, plan, settings, clients, context.Body, context.SessionId)
 
 				if err != nil {
@@ -147,6 +157,14 @@ func loadContexts(
 			num++
 
 			go func(context *shared.LoadContextParams) {
+				defer func() {
+					if r := recover(); r != nil {
+						log.Printf("panic in GenNoteName: %v\n%s", r, debug.Stack())
+						errCh <- fmt.Errorf("panic in GenNoteName: %v\n%s", r, debug.Stack())
+						runtime.Goexit() // don't allow outer function to continue and double-send to channel
+					}
+				}()
+
 				name, err := model.GenNoteName(r.Context(), auth, plan, settings, clients, context.Body, context.SessionId)
 
 				if err != nil {

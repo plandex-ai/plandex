@@ -7,6 +7,8 @@ import (
 	"log"
 	"plandex-server/syntax"
 	"plandex-server/utils"
+	"runtime"
+	"runtime/debug"
 	"strings"
 	"time"
 )
@@ -78,6 +80,13 @@ func (fileState *activeBuildStreamFileState) buildRace(
 	startWholeFileBuild := func(comments string) {
 		log.Printf("buildRace - starting whole file fallback build")
 		go func() {
+			defer func() {
+				if r := recover(); r != nil {
+					log.Printf("panic in startWholeFileBuild: %v\n%s", r, debug.Stack())
+					sendErr(fmt.Errorf("error starting whole file build: %v", r))
+					runtime.Goexit() // don't allow outer function to continue and double-send to channel
+				}
+			}()
 			select {
 			case <-buildCtx.Done():
 				log.Printf("buildRace - context already canceled, skipping whole file build")
@@ -112,6 +121,14 @@ func (fileState *activeBuildStreamFileState) buildRace(
 		}
 
 		go func() {
+			defer func() {
+				if r := recover(); r != nil {
+					log.Printf("panic in maybeStartFastApply: %v\n%s", r, debug.Stack())
+					sendErr(fmt.Errorf("error starting fast apply: %v", r))
+					onFail()
+					runtime.Goexit() // don't allow outer function to continue and double-send to channel
+				}
+			}()
 			var fastApplyRes string
 
 			select {
@@ -208,6 +225,14 @@ func (fileState *activeBuildStreamFileState) buildRace(
 	fileState.builderRun.AutoApplyValidationStartedAt = time.Now()
 
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("panic in buildRace validation loop: %v\n%s", r, debug.Stack())
+				sendErr(fmt.Errorf("error building validate loop: %v", r))
+				runtime.Goexit() // don't allow outer function to continue and double-send to channel
+			}
+		}()
+
 		log.Printf("buildRace - starting validation loop")
 		validateResult, err := fileState.buildValidateLoop(buildCtx, buildValidateLoopParams{
 			originalFile:         originalFile,

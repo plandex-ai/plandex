@@ -7,6 +7,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"time"
@@ -612,6 +614,13 @@ func gitRemoveIndexLockFileIfExists(repoDir string) error {
 
 	for _, path := range paths {
 		go func(path string) {
+			defer func() {
+				if r := recover(); r != nil {
+					log.Printf("panic in gitRemoveIndexLockFileIfExists: %v\n%s", r, debug.Stack())
+					errCh <- fmt.Errorf("panic in gitRemoveIndexLockFileIfExists: %v\n%s", r, debug.Stack())
+					runtime.Goexit() // don't allow outer function to continue and double-send to channel
+				}
+			}()
 			if err := removeLockFile(path); err != nil {
 				errCh <- err
 				return

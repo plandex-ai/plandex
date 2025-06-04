@@ -1,9 +1,12 @@
 package plan
 
 import (
+	"fmt"
 	"log"
+	"net/http"
 	"plandex-server/db"
 	shared "plandex-shared"
+	"runtime/debug"
 )
 
 type handleDescAndExecStatusResult struct {
@@ -36,6 +39,17 @@ func (state *activeTellStreamState) handleDescAndExecStatus() handleDescAndExecS
 	var errCh = make(chan *shared.ApiError, 2)
 
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("panic in genPlanDescription: %v\n%s", r, debug.Stack())
+				errCh <- &shared.ApiError{
+					Type:   shared.ApiErrorTypeOther,
+					Status: http.StatusInternalServerError,
+					Msg:    fmt.Sprintf("Error generating plan description: %v", r),
+				}
+			}
+		}()
+
 		if len(replyOperations) > 0 {
 			log.Println("Generating plan description")
 
@@ -58,6 +72,17 @@ func (state *activeTellStreamState) handleDescAndExecStatus() handleDescAndExecS
 
 	if state.currentStage.TellStage == shared.TellStageImplementation {
 		go func() {
+			defer func() {
+				if r := recover(); r != nil {
+					log.Printf("panic in execStatusShouldContinue: %v\n%s", r, debug.Stack())
+					errCh <- &shared.ApiError{
+						Type:   shared.ApiErrorTypeOther,
+						Status: http.StatusInternalServerError,
+						Msg:    fmt.Sprintf("Error getting exec status: %v", r),
+					}
+				}
+			}()
+
 			log.Println("Getting exec status")
 			var err *shared.ApiError
 			res, err := state.execStatusShouldContinue(active.CurrentReplyContent, active.SessionId, active.Ctx)
@@ -115,6 +140,7 @@ func (state *activeTellStreamState) willContinuePlan(params willContinuePlanPara
 	removedSubtasks := params.removedSubtasks
 	allSubtasksFinished := params.allSubtasksFinished
 	activatePaths := params.activatePaths
+	currentSubtask := state.currentSubtask
 
 	log.Printf("[willContinuePlan] currentStage: %v", state.currentStage)
 
@@ -169,9 +195,9 @@ func (state *activeTellStreamState) willContinuePlan(params willContinuePlanPara
 		log.Printf("[willContinuePlan] Checking subtasks finished - allSubtasksFinished: %v, will continue: %v",
 			allSubtasksFinished, !allSubtasksFinished)
 
-		log.Printf("[willContinuePlan] currentSubtask: %v", state.currentSubtask)
+		log.Printf("[willContinuePlan] currentSubtask: %v", currentSubtask)
 
-		return !allSubtasksFinished && state.currentSubtask != nil
+		return !allSubtasksFinished && currentSubtask != nil
 
 	} else if state.currentStage.TellStage == shared.TellStageImplementation {
 		log.Println("[willContinuePlan] In implementation stage")

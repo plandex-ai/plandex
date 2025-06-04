@@ -1,8 +1,11 @@
 package plan
 
 import (
+	"fmt"
 	"log"
 	"plandex-server/hooks"
+	"plandex-server/notify"
+	"runtime/debug"
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/sashabaranov/go-openai"
@@ -26,6 +29,13 @@ func (state *activeTellStreamState) handleUsageChunk(usage *openai.Usage) {
 	modelConfig := state.modelConfig
 
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("panic in handleUsageChunk: %v\n%s", r, debug.Stack())
+				go notify.NotifyErr(notify.SeverityError, fmt.Errorf("panic in handleUsageChunk: %v\n%s", r, debug.Stack()))
+			}
+		}()
+
 		_, apiErr := hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
 			Auth: auth,
 			Plan: plan,
@@ -80,6 +90,13 @@ func (state *activeTellStreamState) execHookOnStop(sendStreamErr bool) {
 	modelConfig := state.modelConfig
 
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("panic in execHookOnStop: %v\n%s", r, debug.Stack())
+				go notify.NotifyErr(notify.SeverityError, fmt.Errorf("panic in execHookOnStop: %v\n%s", r, debug.Stack()))
+			}
+		}()
+
 		_, apiErr := hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
 			Auth: auth,
 			Plan: plan,

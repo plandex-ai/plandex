@@ -7,6 +7,8 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
+	"runtime/debug"
 	"strconv"
 	"time"
 
@@ -138,9 +140,17 @@ func AddPlanContextTokens(planId, branch string, addTokens int) error {
 }
 
 func AddPlanConvoMessage(msg *ConvoMessage, branch string) error {
-	errCh := make(chan error)
+	errCh := make(chan error, 2)
 
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("panic in AddPlanConvoMessage: %v\n%s", r, debug.Stack())
+				errCh <- fmt.Errorf("panic in AddPlanConvoMessage: %v\n%s", r, debug.Stack())
+				runtime.Goexit() // don't allow outer function to continue and double-send to channel
+			}
+		}()
+
 		_, err := Conn.Exec("UPDATE branches SET convo_tokens = convo_tokens + $1 WHERE plan_id = $2 AND name = $3", msg.Tokens, msg.PlanId, branch)
 
 		if err != nil {
@@ -152,6 +162,14 @@ func AddPlanConvoMessage(msg *ConvoMessage, branch string) error {
 	}()
 
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("panic in AddPlanConvoMessage: %v\n%s", r, debug.Stack())
+				errCh <- fmt.Errorf("panic in AddPlanConvoMessage: %v\n%s", r, debug.Stack())
+				runtime.Goexit() // don't allow outer function to continue and double-send to channel
+			}
+		}()
+
 		if msg.Role != openai.ChatMessageRoleAssistant {
 			errCh <- nil
 			return
@@ -177,15 +195,29 @@ func AddPlanConvoMessage(msg *ConvoMessage, branch string) error {
 func SyncPlanTokens(orgId, planId, branch string) error {
 	var contexts []*Context
 	var convos []*ConvoMessage
-	errCh := make(chan error)
+	errCh := make(chan error, 2)
 
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("panic in SyncPlanTokens: %v\n%s", r, debug.Stack())
+				errCh <- fmt.Errorf("panic in SyncPlanTokens: %v\n%s", r, debug.Stack())
+				runtime.Goexit() // don't allow outer function to continue and double-send to channel
+			}
+		}()
 		var err error
 		contexts, err = GetPlanContexts(orgId, planId, false, false)
 		errCh <- err
 	}()
 
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("panic in SyncPlanTokens: %v\n%s", r, debug.Stack())
+				errCh <- fmt.Errorf("panic in SyncPlanTokens: %v\n%s", r, debug.Stack())
+				runtime.Goexit() // don't allow outer function to continue and double-send to channel
+			}
+		}()
 		var err error
 		convos, err = GetPlanConvo(orgId, planId)
 		errCh <- err
@@ -337,9 +369,16 @@ func DeleteDraftPlans(orgId, projectId, userId string) error {
 		ids = append(ids, id)
 	}
 
-	errCh := make(chan error)
+	errCh := make(chan error, len(ids))
 	for _, planId := range ids {
 		go func(planId string) {
+			defer func() {
+				if r := recover(); r != nil {
+					log.Printf("panic in DeleteDraftPlans: %v\n%s", r, debug.Stack())
+					errCh <- fmt.Errorf("panic in DeleteDraftPlans: %v\n%s", r, debug.Stack())
+					runtime.Goexit() // don't allow outer function to continue and double-send to channel
+				}
+			}()
 			errCh <- DeletePlanDir(orgId, planId)
 		}(planId)
 	}
@@ -378,9 +417,16 @@ func DeleteOwnerPlans(orgId, projectId, userId string) error {
 		ids = append(ids, id)
 	}
 
-	errCh := make(chan error)
+	errCh := make(chan error, len(ids))
 	for _, planId := range ids {
 		go func(planId string) {
+			defer func() {
+				if r := recover(); r != nil {
+					log.Printf("panic in DeleteOwnerPlans: %v\n%s", r, debug.Stack())
+					errCh <- fmt.Errorf("panic in DeleteOwnerPlans: %v\n%s", r, debug.Stack())
+					runtime.Goexit() // don't allow outer function to continue and double-send to channel
+				}
+			}()
 			errCh <- DeletePlanDir(orgId, planId)
 		}(planId)
 	}

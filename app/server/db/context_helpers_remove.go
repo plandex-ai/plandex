@@ -2,9 +2,12 @@ package db
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	shared "plandex-shared"
+	"runtime"
+	"runtime/debug"
 )
 
 func ContextRemove(orgId, planId string, contexts []*Context) error {
@@ -40,6 +43,13 @@ func contextRemove(params contextRemoveParams) error {
 		for _, ext := range []string{".meta", ".body", ".map-parts"} {
 			numFiles++
 			go func(context *Context, dir, ext string) {
+				defer func() {
+					if r := recover(); r != nil {
+						log.Printf("panic in contextRemove: %v\n%s", r, debug.Stack())
+						errCh <- fmt.Errorf("panic in contextRemove: %v\n%s", r, debug.Stack())
+						runtime.Goexit() // don't allow outer function to continue and double-send to channel
+					}
+				}()
 				errCh <- os.Remove(filepath.Join(dir, context.Id+ext))
 			}(context, contextDir, ext)
 		}
