@@ -1,3 +1,8 @@
+## Server Version 2.1.7
+- Fix for "conversation summary timestamp not found in conversation" error (https://github.com/plandex-ai/plandex/issues/274)
+- Fix for potential panic/crash during plan stream (https://github.com/plandex-ai/plandex/issues/275)
+- Better protection against panics/crashes in server goroutines across the board
+
 ## Server Version 2.1.6+1
 See CLI 2.1.6+1 release notes.
 
