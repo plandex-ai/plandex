@@ -77,14 +77,14 @@ var addCustomModelCmd = &cobra.Command{
 	Use:     "add",
 	Aliases: []string{"create"},
 	Short:   "Add a custom model",
-	Run:     customModelsNotImplemented,
+	Run:     customModelsCreateNotImplemented,
 }
 
 var updateCustomModelCmd = &cobra.Command{
 	Use:     "update",
 	Aliases: []string{"edit"},
 	Short:   "Update a custom model",
-	Run:     customModelsNotImplemented,
+	Run:     customModelsUpdateNotImplemented,
 }
 
 var deleteCustomModelCmd = &cobra.Command{
@@ -100,56 +100,85 @@ func importCustomModels(cmd *cobra.Command, args []string) {
 
 	var jsonFile string
 
+	term.StartSpinner("")
+
+	errCh := make(chan *shared.ApiError, 3)
+	var (
+		customModels     []*shared.CustomModel
+		customProviders  []*shared.CustomProvider
+		customModelPacks []*shared.ModelPackSchema
+	)
+
+	go func() {
+		models, apiErr := api.Client.ListCustomModels()
+		if apiErr != nil {
+			errCh <- apiErr
+			return
+		}
+		customModels = models
+		errCh <- nil
+	}()
+
+	go func() {
+		// custom providers are not supported on cloud
+		if auth.Current.IsCloud {
+			errCh <- nil
+			return
+		}
+		providers, apiErr := api.Client.ListCustomProviders()
+		if apiErr != nil {
+			errCh <- apiErr
+			return
+		}
+		customProviders = providers
+		errCh <- nil
+	}()
+
+	go func() {
+		modelPacks, apiErr := api.Client.ListModelPacks()
+		if apiErr != nil {
+			errCh <- apiErr
+			return
+		}
+
+		schemas := make([]*shared.ModelPackSchema, len(modelPacks))
+		for i, modelPack := range modelPacks {
+			schemas[i] = modelPack.ToModelPackSchema()
+		}
+
+		customModelPacks = schemas
+		errCh <- nil
+	}()
+
+	for i := 0; i < 3; i++ {
+		err := <-errCh
+		if err != nil {
+			term.OutputErrorAndExit("Error fetching custom models: %v", err.Msg)
+			return
+		}
+	}
+
+	existsById := map[string]bool{}
+	for _, model := range customModels {
+		existsById[string(model.ModelId)] = true
+	}
+	for _, provider := range customProviders {
+		existsById[provider.Name] = true
+	}
+	for _, modelPack := range customModelPacks {
+		existsById[modelPack.Name] = true
+	}
+
 	if len(args) == 1 {
 		jsonFile = args[0]
 	} else if updateModels {
-		term.StartSpinner("")
-
-		errCh := make(chan *shared.ApiError, 3)
-		var modelsInput *shared.ModelsInput
-
-		go func() {
-			models, apiErr := api.Client.ListCustomModels()
-			if apiErr != nil {
-				errCh <- apiErr
-			}
-			modelsInput.CustomModels = models
-			errCh <- nil
-		}()
-
-		go func() {
-			providers, apiErr := api.Client.ListCustomProviders()
-			if apiErr != nil {
-				errCh <- apiErr
-			}
-			modelsInput.CustomProviders = providers
-			errCh <- nil
-		}()
-
-		go func() {
-			modelPacks, apiErr := api.Client.ListModelPacks()
-			if apiErr != nil {
-				errCh <- apiErr
-			}
-
-			schemas := make([]*shared.ModelPackSchema, len(modelPacks))
-			for i, modelPack := range modelPacks {
-				schemas[i] = modelPack.ToModelPackSchema()
-			}
-
-			modelsInput.CustomModelPacks = schemas
-			errCh <- nil
-		}()
-
-		term.StopSpinner()
-
-		for i := 0; i < 3; i++ {
-			err := <-errCh
-			if err != nil {
-				term.OutputErrorAndExit("Error fetching custom models: %v", err.Msg)
-				return
-			}
+		modelsInput := &shared.ModelsInput{
+			CustomModels:     customModels,
+			CustomProviders:  customProviders,
+			CustomModelPacks: customModelPacks,
 		}
+
+		modelsInput.PrepareUpdate()
 
 		// Generate temp file with current state
 		tmpFile, err := os.CreateTemp("", "plandex-models-update-*.json")
@@ -173,15 +202,12 @@ func importCustomModels(cmd *cobra.Command, args []string) {
 			return
 		}
 
-		fmt.Printf("✅ Created file with current configuration: %s\n",
-			color.New(color.Bold, term.ColorHiGreen).Sprint(jsonFile))
-		fmt.Println()
+		term.StopSpinner()
 
+		fmt.Printf("✅ Exported models file: %s\n", jsonFile)
+		fmt.Println("👨‍💻 Edit the file, then come back here to finish importing")
+		fmt.Println()
 	} else {
-		// Case 3: Create new models (default flow)
-		fmt.Println(color.New(color.Bold, color.FgHiCyan).Sprint("Creating template for custom models..."))
-		fmt.Println()
-
 		// Generate temp file with examples
 		tmpFile, err := os.CreateTemp("", "plandex-models-*.json")
 		if err != nil {
@@ -192,7 +218,7 @@ func importCustomModels(cmd *cobra.Command, args []string) {
 		jsonFile = tmpFile.Name()
 		tmpFile.Close()
 
-		jsonData, err := json.MarshalIndent(getExampleTemplate(), "", "  ")
+		jsonData, err := json.MarshalIndent(getExampleTemplate(auth.Current.IsCloud), "", "  ")
 		if err != nil {
 			term.OutputErrorAndExit("Error marshalling template: %v", err)
 			return
@@ -204,21 +230,22 @@ func importCustomModels(cmd *cobra.Command, args []string) {
 			return
 		}
 
-		fmt.Printf("✅ Created template: %s\n",
-			color.New(color.Bold, term.ColorHiGreen).Sprint(jsonFile))
+		term.StopSpinner()
+
+		fmt.Printf("✅ Created example template: %s\n", jsonFile)
+		fmt.Println("👨‍💻 Edit the file, then come back here to finish importing")
 		fmt.Println()
 	}
 
 	// For both add and update flows, open the editor
-	if len(args) == 0 {
+	if len(args) == 0 || (len(args) == 1 && updateModels) {
 		selectedEditor := maybePromptAndOpen(jsonFile)
 
 		if selectedEditor {
 			fmt.Println("📝 Opened in editor")
-			fmt.Println("👨‍💻 Edit the file, then come back here to finish importing")
 			fmt.Println()
 
-			confirmed, err := term.ConfirmYesNo("Done editing and ready to import?")
+			confirmed, err := term.ConfirmYesNo("Ready to import?")
 			if err != nil {
 				term.OutputErrorAndExit("Error confirming: %v", err)
 				return
@@ -243,7 +270,6 @@ func importCustomModels(cmd *cobra.Command, args []string) {
 					Sprintf(" %smodels import %s ", pf, jsonFile))
 				return
 			}
-			fmt.Println()
 		} else {
 			// No editor available or user chose manual
 			fmt.Println("👨‍💻 Edit the file in your JSON editor of choice")
@@ -261,6 +287,7 @@ func importCustomModels(cmd *cobra.Command, args []string) {
 		}
 	}
 
+	term.StartSpinner("")
 	// Import the JSON file
 	jsonData, err := os.ReadFile(jsonFile)
 	if err != nil {
@@ -270,12 +297,35 @@ func importCustomModels(cmd *cobra.Command, args []string) {
 
 	modelsInput, err := schema.ValidateModelsInputJSON(jsonData)
 	if err != nil {
+		term.StopSpinner()
 		color.New(color.Bold, term.ColorHiRed).Println("🚨 Error validating JSON file")
 		fmt.Println(err.Error())
 		return
 	}
 
-	term.StartSpinner("")
+	noDuplicates, errMsg := modelsInput.CheckNoDuplicates()
+	if !noDuplicates {
+		term.StopSpinner()
+		color.New(color.Bold, term.ColorHiRed).Println("🚨 Some items are duplicated:")
+		fmt.Println()
+		fmt.Println(errMsg)
+		return
+	}
+
+	modelsInput = modelsInput.FilterUnchanged(&shared.ModelsInput{
+		CustomModels:     customModels,
+		CustomProviders:  customProviders,
+		CustomModelPacks: customModelPacks,
+	})
+
+	if modelsInput.IsEmpty() {
+		term.StopSpinner()
+		fmt.Println("🤷‍♂️ Nothing to import")
+		fmt.Println()
+		term.PrintCmds("", "models available", "models import", "models import --update")
+		return
+	}
+
 	apiErr := api.Client.CreateCustomModels(&modelsInput)
 	term.StopSpinner()
 
@@ -284,31 +334,53 @@ func importCustomModels(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	action := "Imported"
+	added := strings.Builder{}
+	updated := strings.Builder{}
 
 	for _, provider := range modelsInput.CustomProviders {
-		fmt.Printf("✅ %s custom %s → %s\n",
+		action := "✅ Added"
+		builder := &added
+		if existsById[provider.Name] {
+			action = "🔄 Updated"
+			builder = &updated
+		}
+		builder.WriteString(fmt.Sprintf("%s custom %s → %s\n",
 			action,
 			color.New(term.ColorHiCyan).Sprint("provider"),
-			color.New(color.Bold, term.ColorHiGreen).Sprint(provider.Name))
+			color.New(color.Bold, term.ColorHiGreen).Sprint(provider.Name)))
 	}
 
 	for _, model := range modelsInput.CustomModels {
-		fmt.Printf("✅ %s custom %s → %s\n",
+		action := "✅ Added"
+		builder := &added
+		if existsById[string(model.ModelId)] {
+			action = "🔄 Updated"
+			builder = &updated
+		}
+		builder.WriteString(fmt.Sprintf("%s custom %s → %s\n",
 			action,
 			color.New(term.ColorHiCyan).Sprint("model"),
-			color.New(color.Bold, term.ColorHiGreen).Sprint(string(model.ModelId)))
+			color.New(color.Bold, term.ColorHiGreen).Sprint(string(model.ModelId))))
 	}
 
 	for _, modelPack := range modelsInput.CustomModelPacks {
-		fmt.Printf("✅ %s custom %s → %s\n",
+		action := "✅ Added"
+		builder := &added
+		if existsById[modelPack.Name] {
+			action = "🔄 Updated"
+			builder = &updated
+		}
+		builder.WriteString(fmt.Sprintf("%s custom %s → %s\n",
 			action,
 			color.New(term.ColorHiCyan).Sprint("model pack"),
-			color.New(color.Bold, term.ColorHiGreen).Sprint(modelPack.Name))
+			color.New(color.Bold, term.ColorHiGreen).Sprint(modelPack.Name)))
 	}
 
+	fmt.Print(added.String())
+	fmt.Print(updated.String())
+
 	// Clean up temp file if it was generated
-	if len(args) == 0 && looksLikeEphemeralTemplate(jsonFile) {
+	if (len(args) == 0 || (len(args) == 1 && updateModels)) && looksLikeEphemeralTemplate(jsonFile) {
 		err = os.Remove(jsonFile)
 		if err != nil {
 			term.OutputErrorAndExit("Error cleaning up temp file: %v", err)
@@ -667,10 +739,17 @@ func renderModelPack(modelPack *shared.ModelPack, allProperties bool) {
 
 }
 
-func customModelsNotImplemented(cmd *cobra.Command, args []string) {
+func customModelsCreateNotImplemented(cmd *cobra.Command, args []string) {
 	color.New(color.Bold, color.FgHiRed).Println("⛔️ Not implemented")
 	fmt.Println()
-	fmt.Println("Use " + color.New(color.BgCyan, color.FgHiWhite).Sprint(" plandex models import ") + " to add or update custom models, providers, and model packs with a JSON file")
+	fmt.Println("Use " + color.New(color.BgCyan, color.FgHiWhite).Sprint(" plandex models import ") + " to add custom models, providers, and model packs with a JSON file")
+	os.Exit(1)
+}
+
+func customModelsUpdateNotImplemented(cmd *cobra.Command, args []string) {
+	color.New(color.Bold, color.FgHiRed).Println("⛔️ Not implemented")
+	fmt.Println()
+	fmt.Println("Use " + color.New(color.BgCyan, color.FgHiWhite).Sprint(" plandex models import --update ") + " to update existing custom models, providers, and model packs with a JSON file")
 	os.Exit(1)
 }
 
@@ -784,7 +863,7 @@ func maybePromptAndOpen(path string) bool {
 	const openManually = "Open manually"
 	opts = append(opts, openManually)
 
-	choice, err := term.SelectFromList("Edit the template now?", opts)
+	choice, err := term.SelectFromList("Open the file now?", opts)
 	if err != nil {
 		term.OutputErrorAndExit("Error selecting editor: %v", err)
 	}
@@ -821,18 +900,32 @@ func looksLikeEphemeralTemplate(p string) bool {
 		strings.HasSuffix(p, ".json")
 }
 
-func getExampleTemplate() shared.ModelsInput {
+func getExampleTemplate(isCloud bool) shared.ModelsInput {
 	exampleProviderName := "togetherai"
 
+	var customProviders []*shared.CustomProvider
+	usesProviders := []shared.BaseModelUsesProvider{}
+	if !isCloud {
+		customProviders = append(customProviders, &shared.CustomProvider{
+			Name:         exampleProviderName,
+			BaseUrl:      "https://api.together.xyz/v1",
+			ApiKeyEnvVar: "TOGETHER_API_KEY",
+		})
+
+		usesProviders = append(usesProviders, shared.BaseModelUsesProvider{
+			Provider:       shared.ModelProviderCustom,
+			CustomProvider: &exampleProviderName,
+			ModelName:      "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
+		})
+	}
+	usesProviders = append(usesProviders, shared.BaseModelUsesProvider{
+		Provider:  shared.ModelProviderOpenRouter,
+		ModelName: "meta-llama/llama-4-maverick",
+	})
+
 	return shared.ModelsInput{
-		SchemaUrl: shared.SchemaUrlInputConfig,
-		CustomProviders: []*shared.CustomProvider{
-			{
-				Name:         exampleProviderName,
-				BaseUrl:      "https://api.together.xyz/v1",
-				ApiKeyEnvVar: "TOGETHER_API_KEY",
-			},
-		},
+		SchemaUrl:       shared.SchemaUrlInputConfig,
+		CustomProviders: customProviders,
 		CustomModels: []*shared.CustomModel{
 			{
 				ModelId:     shared.ModelId("meta-llama/llama-4-maverick"),
@@ -848,17 +941,7 @@ func getExampleTemplate() shared.ModelsInput {
 					PreferredOutputFormat: shared.ModelOutputFormatXml,
 				},
 
-				Providers: []shared.BaseModelUsesProvider{
-					{
-						Provider:       shared.ModelProviderCustom,
-						CustomProvider: &exampleProviderName,
-						ModelName:      "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
-					},
-					{
-						Provider:  shared.ModelProviderOpenRouter,
-						ModelName: "meta-llama/llama-4-maverick",
-					},
-				},
+				Providers: usesProviders,
 			},
 		},
 		CustomModelPacks: []*shared.ModelPackSchema{
@@ -866,10 +949,10 @@ func getExampleTemplate() shared.ModelsInput {
 				Name:        "example-model-pack",
 				Description: "Example model pack",
 				Planner: shared.ModelRoleConfigSchema{
-					ModelId: shared.ModelId("deepseek/r1-reasoning-visible"),
+					ModelId: shared.ModelId("deepseek/r1"),
 				},
 				Architect: &shared.ModelRoleConfigSchema{
-					ModelId: shared.ModelId("deepseek/r1-reasoning-visible"),
+					ModelId: shared.ModelId("deepseek/r1"),
 				},
 				Coder: &shared.ModelRoleConfigSchema{
 					ModelId: shared.ModelId("deepseek/v3-0324"),
@@ -878,13 +961,13 @@ func getExampleTemplate() shared.ModelsInput {
 					ModelId: shared.ModelId("meta-llama/llama-4-maverick"),
 				},
 				Builder: shared.ModelRoleConfigSchema{
-					ModelId: shared.ModelId("deepseek/r1-reasoning-hidden"),
+					ModelId: shared.ModelId("deepseek/r1-hidden"),
 				},
 				WholeFileBuilder: &shared.ModelRoleConfigSchema{
-					ModelId: shared.ModelId("deepseek/r1-reasoning-hidden"),
+					ModelId: shared.ModelId("deepseek/r1-hidden"),
 				},
 				ExecStatus: shared.ModelRoleConfigSchema{
-					ModelId: shared.ModelId("deepseek/r1-reasoning-hidden"),
+					ModelId: shared.ModelId("deepseek/r1-hidden"),
 				},
 				Namer: shared.ModelRoleConfigSchema{
 					ModelId: shared.ModelId("meta-llama/llama-4-maverick"),

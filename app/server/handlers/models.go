@@ -10,6 +10,7 @@ import (
 
 	shared "plandex-shared"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/gorilla/mux"
 	"github.com/jmoiron/sqlx"
 )
@@ -35,9 +36,31 @@ func CreateCustomModelHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if len(modelsInput.CustomModels)+len(modelsInput.CustomProviders)+len(modelsInput.CustomModelPacks) == 0 {
+	if modelsInput.IsEmpty() {
 		http.Error(w, "No custom models, providers, or model packs provided", http.StatusBadRequest)
 		return
+	}
+
+	if len(modelsInput.CustomProviders) > 0 {
+		if os.Getenv("IS_CLOUD") != "" {
+			http.Error(w, "Custom model providers are not supported on Plandex Cloud", http.StatusBadRequest)
+			return
+		}
+	}
+
+	hasDuplicates, errMsg := modelsInput.CheckNoDuplicates()
+	if !hasDuplicates {
+		http.Error(w, "Has duplicates: "+errMsg, http.StatusBadRequest)
+		return
+	}
+
+	for _, provider := range modelsInput.CustomProviders {
+		if provider.Name == "" {
+			msg := "Provider name is required"
+			log.Println(msg)
+			http.Error(w, msg, http.StatusBadRequest)
+			return
+		}
 	}
 
 	for _, model := range modelsInput.CustomModels {
@@ -56,15 +79,6 @@ func CreateCustomModelHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	for _, provider := range modelsInput.CustomProviders {
-		if provider.Name == "" {
-			msg := "Provider name is required"
-			log.Println(msg)
-			http.Error(w, msg, http.StatusBadRequest)
-			return
-		}
-	}
-
 	for _, modelPack := range modelsInput.CustomModelPacks {
 		if modelPack.Name == "" {
 			msg := "Model pack name is required"
@@ -74,36 +88,22 @@ func CreateCustomModelHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	var customModelIds = make(map[string]bool)
+	var customModelIds = make(map[shared.ModelId]bool)
 	var customProviderNames = make(map[string]bool)
 
-	if len(modelsInput.CustomModels) > 0 {
-
-		var modelIds []string
-		for _, model := range modelsInput.CustomModels {
-			modelIds = append(modelIds, string(model.ModelId))
-		}
-
-		customModels, err := db.ListCustomModelsForModelIds(auth.OrgId, modelIds)
-		if err != nil {
-			log.Printf("Error fetching custom models: %v\n", err)
-			http.Error(w, "Failed to create custom model: "+err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		for _, model := range customModels {
-			customModelIds[model.Id] = true
-		}
-
+	customModels, err := db.ListCustomModels(auth.OrgId)
+	if err != nil {
+		log.Printf("Error fetching custom models: %v\n", err)
+		http.Error(w, "Failed to create custom model: "+err.Error(), http.StatusInternalServerError)
+		return
 	}
 
-	if len(modelsInput.CustomProviders) > 0 {
-		var names []string
-		for _, provider := range modelsInput.CustomProviders {
-			names = append(names, provider.Name)
-		}
+	for _, model := range customModels {
+		customModelIds[model.ModelId] = true
+	}
 
-		customProviders, err := db.ListCustomProvidersForNames(auth.OrgId, names)
+	if os.Getenv("IS_CLOUD") == "" {
+		customProviders, err := db.ListCustomProviders(auth.OrgId)
 		if err != nil {
 			log.Printf("Error fetching custom providers: %v\n", err)
 			http.Error(w, "Failed to create custom model: "+err.Error(), http.StatusInternalServerError)
@@ -162,13 +162,20 @@ func CreateCustomModelHandler(w http.ResponseWriter, r *http.Request) {
 		willCreateModelIds[string(model.ModelId)] = true
 	}
 
+	log.Println(spew.Sdump(map[string]interface{}{
+		"customModelIds":     customModelIds,
+		"willCreateModelIds": willCreateModelIds,
+	}))
+
 	for _, modelPack := range modelsInput.CustomModelPacks {
 		// ensure that all models are either built-in, being created, or already exist
 		allModelIds := modelPack.AllModelIds()
+
 		for _, modelId := range allModelIds {
-			_, exists := customModelIds[string(modelId)]
+			_, exists := customModelIds[modelId]
 			_, creating := willCreateModelIds[string(modelId)]
 			_, builtIn := shared.BuiltInBaseModelsById[modelId]
+
 			if !exists && !creating && !builtIn {
 				msg := fmt.Sprintf("'%s' is not built-in, not being created, and not an existing custom model", modelId)
 				log.Println(msg)
@@ -185,7 +192,7 @@ func CreateCustomModelHandler(w http.ResponseWriter, r *http.Request) {
 		toUpsertModelPacks = append(toUpsertModelPacks, dbMp)
 	}
 
-	err := db.WithTx(r.Context(), "create custom models/providers/model packs", func(tx *sqlx.Tx) error {
+	err = db.WithTx(r.Context(), "create custom models/providers/model packs", func(tx *sqlx.Tx) error {
 		for _, model := range toUpsertCustomModels {
 			if err := db.UpsertCustomModel(tx, model); err != nil {
 				return fmt.Errorf("error creating custom model: %w", err)
@@ -209,13 +216,13 @@ func CreateCustomModelHandler(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Printf("Error: %v\n", err)
-		http.Error(w, "Failed to create custom model: "+err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Failed to import custom models/providers/model packs: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	w.WriteHeader(http.StatusOK)
 
-	log.Println("Successfully created custom model")
+	log.Println("Successfully imported custom models/providers/model packs")
 }
 
 func GetCustomModelHandler(w http.ResponseWriter, r *http.Request) {

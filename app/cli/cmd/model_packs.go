@@ -26,7 +26,7 @@ var modelPacksCmd = &cobra.Command{
 var createModelPackCmd = &cobra.Command{
 	Use:   "create",
 	Short: "Create a model pack",
-	Run:   customModelsNotImplemented,
+	Run:   customModelsCreateNotImplemented,
 }
 
 var deleteModelPackCmd = &cobra.Command{
@@ -40,7 +40,7 @@ var deleteModelPackCmd = &cobra.Command{
 var updateModelPackCmd = &cobra.Command{
 	Use:   "update",
 	Short: "Update a model pack by name",
-	Run:   customModelsNotImplemented,
+	Run:   customModelsCreateNotImplemented,
 }
 
 var showModelPackCmd = &cobra.Command{

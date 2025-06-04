@@ -138,29 +138,6 @@ var BuiltInModels = []*BaseModelConfigSchema{
 		},
 	},
 	{
-		ModelTag:    "openai/o3-mini",
-		Publisher:   ModelPublisherOpenAI,
-		Description: "OpenAI o3-mini",
-		BaseModelShared: BaseModelShared{
-			DefaultMaxConvoTokens: 10000, MaxTokens: 200000, MaxOutputTokens: 100000,
-			ReservedOutputTokens: 40000, ModelCompatibility: FullCompatibility,
-			PreferredOutputFormat: ModelOutputFormatToolCallJson, SystemPromptDisabled: true,
-			RoleParamsDisabled: true, ReasoningEffortEnabled: true, ReasoningEffort: ReasoningEffortHigh,
-			StopDisabled: true,
-		},
-		RequiresVariantOverrides: []string{"ReasoningEffort"},
-		Variants: []BaseModelConfigVariant{
-			{VariantTag: "high", Description: "high", Overrides: BaseModelShared{ReasoningEffort: ReasoningEffortHigh}},
-			{VariantTag: "medium", Description: "medium", Overrides: BaseModelShared{ReasoningEffort: ReasoningEffortMedium, ReservedOutputTokens: 30000}},
-			{VariantTag: "low", Description: "low", Overrides: BaseModelShared{ReasoningEffort: ReasoningEffortLow, ReservedOutputTokens: 20000}},
-		},
-		Providers: []BaseModelUsesProvider{
-			{Provider: ModelProviderOpenAI, ModelName: "o3-mini"},
-			{Provider: ModelProviderAzureOpenAI, ModelName: "azure/o3-mini"},
-			{Provider: ModelProviderOpenRouter, ModelName: "openai/o3-mini"},
-		},
-	},
-	{
 		ModelTag:    "anthropic/claude-opus-4",
 		Publisher:   ModelPublisherAnthropic,
 		Description: "Anthropic Claude Opus 4",
@@ -172,14 +149,15 @@ var BuiltInModels = []*BaseModelConfigSchema{
 		},
 		Variants: []BaseModelConfigVariant{
 			{IsBaseVariant: true},
-			{
-				VariantTag: "thinking", Description: "thinking",
-				Overrides: BaseModelShared{ReasoningBudget: AnthropicMaxReasoningBudget},
-				Variants: []BaseModelConfigVariant{
-					{VariantTag: "visible", Description: "visible", Overrides: BaseModelShared{IncludeReasoning: true}},
-					{VariantTag: "hidden", Description: "hidden", Overrides: BaseModelShared{IncludeReasoning: false}},
-				},
-			},
+			// Opus thinking variant not working yet—might need a specific cap set
+			// {
+			// 	VariantTag: "thinking", Description: "thinking",
+			// 	Overrides: BaseModelShared{ReasoningBudget: AnthropicMaxReasoningBudget},
+			// 	Variants: []BaseModelConfigVariant{
+			// 		{VariantTag: "visible", IsDefaultVariant: true, Description: "visible", Overrides: BaseModelShared{IncludeReasoning: true}},
+			// 		{VariantTag: "hidden", Description: "hidden", Overrides: BaseModelShared{IncludeReasoning: false}},
+			// 	},
+			// },
 		},
 		Providers: []BaseModelUsesProvider{
 			{Provider: ModelProviderAnthropic, ModelName: "anthropic/claude-opus-4-0"},
@@ -204,7 +182,7 @@ var BuiltInModels = []*BaseModelConfigSchema{
 				VariantTag: "thinking", Description: "thinking",
 				Overrides: BaseModelShared{ReasoningBudget: AnthropicMaxReasoningBudget},
 				Variants: []BaseModelConfigVariant{
-					{VariantTag: "visible", Description: "visible", Overrides: BaseModelShared{IncludeReasoning: true}},
+					{VariantTag: "visible", IsDefaultVariant: true, Description: "visible", Overrides: BaseModelShared{IncludeReasoning: true}},
 					{VariantTag: "hidden", Description: "hidden", Overrides: BaseModelShared{IncludeReasoning: false}},
 				},
 			},
@@ -232,7 +210,7 @@ var BuiltInModels = []*BaseModelConfigSchema{
 				VariantTag: "thinking", Description: "thinking",
 				Overrides: BaseModelShared{ReasoningBudget: AnthropicMaxReasoningBudget},
 				Variants: []BaseModelConfigVariant{
-					{VariantTag: "visible", Description: "visible", Overrides: BaseModelShared{IncludeReasoning: true}},
+					{VariantTag: "visible", IsDefaultVariant: true, Description: "visible", Overrides: BaseModelShared{IncludeReasoning: true}},
 					{VariantTag: "hidden", Description: "hidden", Overrides: BaseModelShared{IncludeReasoning: false}},
 				},
 			},
@@ -366,8 +344,8 @@ var BuiltInModels = []*BaseModelConfigSchema{
 			PreferredOutputFormat: ModelOutputFormatXml,
 		},
 		Variants: []BaseModelConfigVariant{
-			{VariantTag: "reasoning-visible", Description: "(reasoning visible)", Overrides: BaseModelShared{IncludeReasoning: true}},
-			{VariantTag: "reasoning-hidden", Description: "(reasoning hidden)", Overrides: BaseModelShared{IncludeReasoning: false}},
+			{VariantTag: "visible", IsDefaultVariant: true, Description: "(reasoning visible)", Overrides: BaseModelShared{IncludeReasoning: true}},
+			{VariantTag: "hidden", Description: "(reasoning hidden)", Overrides: BaseModelShared{IncludeReasoning: false}},
 		},
 		Providers: []BaseModelUsesProvider{
 			{Provider: ModelProviderDeepSeek, ModelName: "deepseek/deepseek-reasoner"},
@@ -384,8 +362,8 @@ var BuiltInModels = []*BaseModelConfigSchema{
 			PreferredOutputFormat: ModelOutputFormatXml,
 		},
 		Variants: []BaseModelConfigVariant{
-			{VariantTag: "reasoning-visible", Description: "(reasoning visible)", Overrides: BaseModelShared{IncludeReasoning: true}},
-			{VariantTag: "reasoning-hidden", Description: "(reasoning hidden)", Overrides: BaseModelShared{IncludeReasoning: false}},
+			{VariantTag: "visible", IsDefaultVariant: true, Description: "(reasoning visible)", Overrides: BaseModelShared{IncludeReasoning: true}},
+			{VariantTag: "hidden", Description: "(reasoning hidden)", Overrides: BaseModelShared{IncludeReasoning: false}},
 		},
 		Providers: []BaseModelUsesProvider{
 			{Provider: ModelProviderPerplexity, ModelName: "r1-1776-online"},
@@ -402,7 +380,7 @@ var BuiltInModels = []*BaseModelConfigSchema{
 			PreferredOutputFormat: ModelOutputFormatXml,
 		},
 		Variants: []BaseModelConfigVariant{
-			{VariantTag: "visible", Description: "(reasoning visible)", Overrides: BaseModelShared{IncludeReasoning: true}},
+			{VariantTag: "visible", IsDefaultVariant: true, Description: "(reasoning visible)", Overrides: BaseModelShared{IncludeReasoning: true}},
 			{VariantTag: "hidden", Description: "(reasoning hidden)", Overrides: BaseModelShared{IncludeReasoning: false}},
 		},
 		Providers: []BaseModelUsesProvider{
@@ -468,7 +446,7 @@ func init() {
 		addVariants = func(variants []BaseModelConfigVariant, baseId ModelId) {
 			for _, variant := range variants {
 				var modelId ModelId
-				if variant.IsBaseVariant {
+				if variant.IsBaseVariant || variant.IsDefaultVariant {
 					modelId = baseId
 				} else {
 					modelId = ModelId(strings.Join([]string{string(baseId), string(variant.VariantTag)}, "-"))
@@ -479,10 +457,12 @@ func init() {
 					continue
 				}
 
-				model.ModelId = modelId
-				BuiltInModelProvidersByModelId[modelId] = model.Providers
-				BuiltInBaseModelsById[modelId] = model
-				BuiltInBaseModels = append(BuiltInBaseModels, model)
+				cloned := *model
+				cloned.ModelId = modelId
+
+				BuiltInModelProvidersByModelId[modelId] = cloned.Providers
+				BuiltInBaseModelsById[modelId] = &cloned
+				BuiltInBaseModels = append(BuiltInBaseModels, &cloned)
 			}
 		}
 

@@ -98,6 +98,7 @@ type BaseModelConfigVariant struct {
 	Overrides                BaseModelShared          `json:"overrides"`
 	Variants                 []BaseModelConfigVariant `json:"variants"`
 	RequiresVariantOverrides []string                 `json:"requiresVariantOverrides"`
+	IsDefaultVariant         bool                     `json:"isDefaultVariant"`
 }
 
 func (b *BaseModelConfigSchema) ToAvailableModels() []*AvailableModel {
@@ -509,14 +510,14 @@ type ModelPackSchema struct {
 	Name             string                 `json:"name"`
 	Description      string                 `json:"description"`
 	Planner          ModelRoleConfigSchema  `json:"planner"`
-	Coder            *ModelRoleConfigSchema `json:"coder"`
+	Coder            *ModelRoleConfigSchema `json:"coder,omitempty"`
 	PlanSummary      ModelRoleConfigSchema  `json:"planSummary"`
 	Builder          ModelRoleConfigSchema  `json:"builder"`
-	WholeFileBuilder *ModelRoleConfigSchema `json:"wholeFileBuilder"` // optional, defaults to builder model — access via GetWholeFileBuilder()
+	WholeFileBuilder *ModelRoleConfigSchema `json:"wholeFileBuilder,omitempty"` // optional, defaults to builder model — access via GetWholeFileBuilder()
 	Namer            ModelRoleConfigSchema  `json:"namer"`
 	CommitMsg        ModelRoleConfigSchema  `json:"commitMsg"`
 	ExecStatus       ModelRoleConfigSchema  `json:"execStatus"`
-	Architect        *ModelRoleConfigSchema `json:"contextLoader"`
+	Architect        *ModelRoleConfigSchema `json:"contextLoader,omitempty"`
 }
 
 func (m *ModelPackSchema) AllModelIds() []ModelId {

@@ -247,6 +247,12 @@ func withStreamingRetries[T any](
 
 		log.Printf("withStreamingRetries - will run operation")
 
+		log.Println(spew.Sdump(map[string]interface{}{
+			"numTotalRetry":       numTotalRetry,
+			"didProviderFallback": didProviderFallback,
+			"modelErr":            modelErr,
+		}))
+
 		resp, fallbackRes, err = operation(numTotalRetry, didProviderFallback, modelErr)
 		if err == nil {
 			return resp, nil

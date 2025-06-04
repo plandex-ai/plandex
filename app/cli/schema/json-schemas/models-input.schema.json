@@ -5,19 +5,19 @@
   "description": "Input schema for custom models, providers, and model packs",
   "type": "object",
   "properties": {
-    "customModels": {
+    "models": {
       "type": "array",
       "items": {
         "$ref": "./model-config.schema.json"
       }
     },
-    "customProviders": {
+    "providers": {
       "type": "array",
       "items": {
         "$ref": "./model-provider-config.schema.json"
       }
     },
-    "customModelPacks": {
+    "modelPacks": {
       "type": "array",
       "items": {
         "$ref": "./model-pack-config.schema.json"

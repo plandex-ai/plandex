@@ -36,14 +36,14 @@ var addProviderCmd = &cobra.Command{
 	Use:     "add",
 	Aliases: []string{"create"},
 	Short:   "Add a custom model provider",
-	Run:     customModelsNotImplemented,
+	Run:     customModelsCreateNotImplemented,
 }
 
 var updateProviderCmd = &cobra.Command{
 	Use:     "update",
 	Aliases: []string{"edit"},
 	Short:   "Update a custom model provider",
-	Run:     customModelsNotImplemented,
+	Run:     customModelsCreateNotImplemented,
 }
 
 func init() {

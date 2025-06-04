@@ -3,6 +3,7 @@ package shared
 import (
 	"log"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/jinzhu/copier"
 )
 
@@ -68,7 +69,14 @@ func (m *ModelRoleConfig) GetFallbackForModelError(
 				IsFallback:      true,
 			}
 		} else if !didProviderFallback {
+			log.Println("no error fallback, trying provider fallback")
+
 			providerFallback := m.GetProviderFallback(authVars)
+
+			log.Println(spew.Sdump(map[string]interface{}{
+				"providerFallback": providerFallback,
+			}))
+
 			if providerFallback != nil {
 				return FallbackResult{
 					ModelRoleConfig: providerFallback,
