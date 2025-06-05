@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"plandex-server/db"
 	"plandex-server/hooks"
+	"runtime"
+	"runtime/debug"
 	"sort"
 	"strings"
 	"time"
@@ -435,11 +437,19 @@ func ListPlansRunningHandler(w http.ResponseWriter, r *http.Request) {
 		planIds = append(planIds, plan.Id)
 	}
 
-	errCh := make(chan error)
+	errCh := make(chan error, 2)
 	var streams []*db.ModelStream
 	var branches []*db.Branch
 
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("panic in ListPlansRunningHandler: %v\n%s", r, debug.Stack())
+				errCh <- fmt.Errorf("panic in ListPlansRunningHandler: %v\n%s", r, debug.Stack())
+				runtime.Goexit() // don't allow outer function to continue and double-send to channel
+			}
+		}()
+
 		var err error
 		if includeRecent {
 			streams, err = db.GetActiveOrRecentModelStreams(planIds)
@@ -454,6 +464,13 @@ func ListPlansRunningHandler(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("panic in ListPlansRunningHandler: %v\n%s", r, debug.Stack())
+				errCh <- fmt.Errorf("panic in ListPlansRunningHandler: %v\n%s", r, debug.Stack())
+				runtime.Goexit() // don't allow outer function to continue and double-send to channel
+			}
+		}()
 		var err error
 		branches, err = db.ListBranchesForPlans(auth.OrgId, planIds)
 		if err != nil {

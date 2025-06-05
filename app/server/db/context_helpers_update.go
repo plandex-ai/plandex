@@ -4,7 +4,10 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"log"
 	shared "plandex-shared"
+	"runtime"
+	"runtime/debug"
 	"sync"
 )
 
@@ -126,6 +129,13 @@ func UpdateContexts(params UpdateContextsParams) (*shared.UpdateContextResponse,
 
 	for id, params := range *req {
 		go func(id string, params *shared.UpdateContextParams) {
+			defer func() {
+				if r := recover(); r != nil {
+					log.Printf("panic in UpdateContexts: %v\n%s", r, debug.Stack())
+					errCh <- fmt.Errorf("panic in UpdateContexts: %v\n%s", r, debug.Stack())
+					runtime.Goexit() // don't allow outer function to continue and double-send to channel
+				}
+			}()
 			var context *Context
 			if _, ok := contextsById[id]; ok {
 				context = contextsById[id]
@@ -229,6 +239,13 @@ func UpdateContexts(params UpdateContextsParams) (*shared.UpdateContextResponse,
 
 	for id, params := range *req {
 		go func(id string, params *shared.UpdateContextParams) {
+			defer func() {
+				if r := recover(); r != nil {
+					log.Printf("panic in UpdateContexts: %v\n%s", r, debug.Stack())
+					errCh <- fmt.Errorf("panic in UpdateContexts: %v\n%s", r, debug.Stack())
+					runtime.Goexit() // don't allow outer function to continue and double-send to channel
+				}
+			}()
 			context := contextsById[id]
 
 			if context.ContextType == shared.ContextMapType {

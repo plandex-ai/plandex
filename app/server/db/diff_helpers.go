@@ -2,9 +2,12 @@ package db
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
+	"runtime/debug"
 
 	shared "plandex-shared"
 )
@@ -46,6 +49,13 @@ func GetPlanDiffs(orgId, planId string, plain bool) (string, error) {
 
 	for path, context := range planState.ContextsByPath {
 		go func(path string, context *shared.Context) {
+			defer func() {
+				if r := recover(); r != nil {
+					log.Printf("panic in GetPlanDiffs: %v\n%s", r, debug.Stack())
+					errCh <- fmt.Errorf("panic in GetPlanDiffs: %v\n%s", r, debug.Stack())
+					runtime.Goexit() // don't allow outer function to continue and double-send to channel
+				}
+			}()
 			_, hasPath := files[path]
 			_, hasRemoved := removed[path]
 			if hasPath || hasRemoved {
@@ -92,6 +102,13 @@ func GetPlanDiffs(orgId, planId string, plain bool) (string, error) {
 
 	for path, file := range files {
 		go func(path, file string) {
+			defer func() {
+				if r := recover(); r != nil {
+					log.Printf("panic in GetPlanDiffs: %v\n%s", r, debug.Stack())
+					errCh <- fmt.Errorf("panic in GetPlanDiffs: %v\n%s", r, debug.Stack())
+					runtime.Goexit() // don't allow outer function to continue and double-send to channel
+				}
+			}()
 			// ensure file directory exists
 			err = os.MkdirAll(filepath.Dir(filepath.Join(tempDirPath, path)), 0755)
 			if err != nil {
@@ -110,6 +127,13 @@ func GetPlanDiffs(orgId, planId string, plain bool) (string, error) {
 
 	for path, shouldRemove := range removed {
 		go func(path string, shouldRemove bool) {
+			defer func() {
+				if r := recover(); r != nil {
+					log.Printf("panic in GetPlanDiffs: %v\n%s", r, debug.Stack())
+					errCh <- fmt.Errorf("panic in GetPlanDiffs: %v\n%s", r, debug.Stack())
+					runtime.Goexit() // don't allow outer function to continue and double-send to channel
+				}
+			}()
 			if shouldRemove {
 				err = os.RemoveAll(filepath.Join(tempDirPath, path))
 				if err != nil {

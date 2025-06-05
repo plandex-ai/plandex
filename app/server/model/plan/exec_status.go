@@ -36,77 +36,83 @@ func (state *activeTellStreamState) execStatusShouldContinue(currentMessage stri
 	config := settings.ModelPack.ExecStatus
 
 	baseModelConfig := config.GetBaseModelConfig(authVars)
+	currentSubtask := state.currentSubtask
+
+	if currentSubtask == nil {
+		log.Printf("[ExecStatus] No current subtask")
+		return execStatusShouldContinueResult{
+			subtaskFinished: true,
+		}, nil
+	}
 
 	// Check subtask completion
-	if state.currentSubtask != nil {
-		completionMarker := fmt.Sprintf("**%s** has been completed", state.currentSubtask.Title)
-		log.Printf("[ExecStatus] Checking for subtask completion marker: %q", completionMarker)
-		log.Printf("[ExecStatus] Current subtask: %q", state.currentSubtask.Title)
+	completionMarker := fmt.Sprintf("**%s** has been completed", currentSubtask.Title)
+	log.Printf("[ExecStatus] Checking for subtask completion marker: %q", completionMarker)
+	log.Printf("[ExecStatus] Current subtask: %q", currentSubtask.Title)
 
-		if strings.Contains(currentMessage, completionMarker) {
-			log.Printf("[ExecStatus] ✓ Subtask completion marker found")
-			return execStatusShouldContinueResult{
-				subtaskFinished: true,
-			}, nil
+	if strings.Contains(currentMessage, completionMarker) {
+		log.Printf("[ExecStatus] ✓ Subtask completion marker found")
+		return execStatusShouldContinueResult{
+			subtaskFinished: true,
+		}, nil
 
-			// NOTE: tried using an LLM to verify "suspicious" subtask completions, but in practice led to too many extra LLM calls and disagreement cycles between agent roles (it's finished. no it's note! etc.)
-			// now just going back to trusting the completion marker... basically it's better to err on the side of marking tasks done.
+		// NOTE: tried using an LLM to verify "suspicious" subtask completions, but in practice led to too many extra LLM calls and disagreement cycles between agent roles (it's finished. no it's note! etc.)
+		// now just going back to trusting the completion marker... basically it's better to err on the side of marking tasks done.
 
-			// var potentialProblem bool
+		// var potentialProblem bool
 
-			// if len(state.chunkProcessor.replyOperations) == 0 {
-			// 	log.Printf("[ExecStatus] ✗ Subtask completion marker found, but there are no operations to execute")
-			// 	potentialProblem = true
-			// } else {
-			// wroteToPaths := map[string]bool{}
-			// for _, op := range state.chunkProcessor.replyOperations {
-			// 	if op.Type == shared.OperationTypeFile {
-			// 		wroteToPaths[op.Path] = true
-			// 	}
-			// }
+		// if len(state.chunkProcessor.replyOperations) == 0 {
+		// 	log.Printf("[ExecStatus] ✗ Subtask completion marker found, but there are no operations to execute")
+		// 	potentialProblem = true
+		// } else {
+		// wroteToPaths := map[string]bool{}
+		// for _, op := range state.chunkProcessor.replyOperations {
+		// 	if op.Type == shared.OperationTypeFile {
+		// 		wroteToPaths[op.Path] = true
+		// 	}
+		// }
 
-			// for _, path := range state.currentSubtask.UsesFiles {
-			// 	if !wroteToPaths[path] {
-			// 		log.Printf("[ExecStatus] ✗ Subtask completion marker found, but the operations did not write to the file %q from the 'Uses' list", path)
-			// 		potentialProblem = true
-			// 		break
-			// 	}
-			// }
-			// }
+		// for _, path := range currentSubtask.UsesFiles {
+		// 	if !wroteToPaths[path] {
+		// 		log.Printf("[ExecStatus] ✗ Subtask completion marker found, but the operations did not write to the file %q from the 'Uses' list", path)
+		// 		potentialProblem = true
+		// 		break
+		// 	}
+		// }
+		// }
 
-			// if !potentialProblem {
-			// 	log.Printf("[ExecStatus] ✓ Subtask completion marker found and no potential problem - will mark as completed")
+		// if !potentialProblem {
+		// 	log.Printf("[ExecStatus] ✓ Subtask completion marker found and no potential problem - will mark as completed")
 
-			// 	return execStatusShouldContinueResult{
-			// 		subtaskFinished: true,
-			// 	}, nil
-			// } else if state.currentSubtask.NumTries >= 1 {
-			// 	log.Printf("[ExecStatus] ✓ Subtask completion marker found, but the operations are questionable -- marking it done anyway since it's the second try and we can't risk an infinite loop")
+		// 	return execStatusShouldContinueResult{
+		// 		subtaskFinished: true,
+		// 	}, nil
+		// } else if currentSubtask.NumTries >= 1 {
+		// 	log.Printf("[ExecStatus] ✓ Subtask completion marker found, but the operations are questionable -- marking it done anyway since it's the second try and we can't risk an infinite loop")
 
-			// 	return execStatusShouldContinueResult{
-			// 		subtaskFinished: true,
-			// 	}, nil
-			// } else {
-			// 	log.Printf("[ExecStatus] ✗ Subtask completion marker found, but the operations are questionable -- will verify with LLM call")
-			// }
-		} else {
-			log.Printf("[ExecStatus] ✗ No subtask completion marker found in message")
-		}
+		// 	return execStatusShouldContinueResult{
+		// 		subtaskFinished: true,
+		// 	}, nil
+		// } else {
+		// 	log.Printf("[ExecStatus] ✗ Subtask completion marker found, but the operations are questionable -- will verify with LLM call")
+		// }
+	} else {
+		log.Printf("[ExecStatus] ✗ No subtask completion marker found in message")
+	}
 
-		log.Println("[ExecStatus] Current subtasks state:")
-		for i, task := range state.subtasks {
-			log.Printf("[ExecStatus] Task %d: %q (finished=%v)", i+1, task.Title, task.IsFinished)
-		}
+	log.Println("[ExecStatus] Current subtasks state:")
+	for i, task := range state.subtasks {
+		log.Printf("[ExecStatus] Task %d: %q (finished=%v)", i+1, task.Title, task.IsFinished)
 	}
 
 	log.Println("Checking if plan should continue based on exec status")
 
-	fullSubtask := state.currentSubtask.Title
-	fullSubtask += "\n\n" + state.currentSubtask.Description
+	fullSubtask := currentSubtask.Title
+	fullSubtask += "\n\n" + currentSubtask.Description
 
 	previousMessages := []string{}
 	for _, msg := range state.convo {
-		if msg.Subtask != nil && msg.Subtask.Title == state.currentSubtask.Title {
+		if msg.Subtask != nil && msg.Subtask.Title == currentSubtask.Title {
 			previousMessages = append(previousMessages, msg.Message)
 		}
 	}

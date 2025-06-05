@@ -7,6 +7,7 @@ import (
 	"plandex-server/db"
 	"plandex-server/notify"
 	"plandex-server/types"
+	"runtime/debug"
 	"time"
 
 	shared "plandex-shared"
@@ -113,6 +114,18 @@ func (state *activeTellStreamState) handleStreamFinished() handleStreamFinishedR
 	log.Println("summarizing convo in background")
 	// summarize in the background
 	go func() {
+
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("panic in summarizeConvo: %v\n%s", r, debug.Stack())
+				active.StreamDoneCh <- &shared.ApiError{
+					Type:   shared.ApiErrorTypeOther,
+					Status: http.StatusInternalServerError,
+					Msg:    fmt.Sprintf("Error summarizing convo: %v", r),
+				}
+			}
+		}()
+
 		err := summarizeConvo(clients, authVars, settings.ModelPack.PlanSummary, summarizeConvoParams{
 			auth:                  auth,
 			plan:                  plan,
@@ -149,6 +162,13 @@ func (state *activeTellStreamState) handleStreamFinished() handleStreamFinishedR
 		log.Println("Sending stream message to load context files")
 
 		go func() {
+			defer func() {
+				if r := recover(); r != nil {
+					log.Printf("panic streaming auto-load context: %v\n%s", r, debug.Stack())
+					go notify.NotifyErr(notify.SeverityError, fmt.Errorf("panic streaming auto-load context: %v\n%s", r, debug.Stack()))
+				}
+			}()
+
 			active.Stream(shared.StreamMessage{
 				Type:             shared.StreamMessageLoadContext,
 				LoadContextFiles: autoLoadPaths,

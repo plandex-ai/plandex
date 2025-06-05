@@ -6,8 +6,10 @@ import (
 	"log"
 	"plandex-server/db"
 	"plandex-server/hooks"
+	"plandex-server/notify"
 	"plandex-server/types"
 	shared "plandex-shared"
+	"runtime/debug"
 	"strings"
 	"time"
 
@@ -208,6 +210,13 @@ func ModelRequest(
 	}
 
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("panic in DidSendModelRequest hook: %v\n%s", r, debug.Stack())
+				go notify.NotifyErr(notify.SeverityError, fmt.Errorf("panic in DidSendModelRequest hook: %v\n%s", r, debug.Stack()))
+			}
+		}()
+
 		_, apiErr := hooks.ExecHook(hooks.DidSendModelRequest, hooks.HookParams{
 			Auth: auth,
 			Plan: plan,
@@ -240,6 +249,7 @@ func ModelRequest(
 
 		if apiErr != nil {
 			log.Printf("buildWholeFile - error executing DidSendModelRequest hook: %v", apiErr)
+			go notify.NotifyErr(notify.SeverityError, fmt.Errorf("error executing DidSendModelRequest hook: %v", apiErr))
 		}
 	}()
 

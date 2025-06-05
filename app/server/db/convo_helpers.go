@@ -6,6 +6,8 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
+	"runtime/debug"
 	"sort"
 	"strings"
 	"time"
@@ -35,6 +37,13 @@ func GetPlanConvo(orgId, planId string) ([]*ConvoMessage, error) {
 
 	for _, file := range files {
 		go func(file os.DirEntry) {
+			defer func() {
+				if r := recover(); r != nil {
+					log.Printf("panic in GetPlanConvo: %v\n%s", r, debug.Stack())
+					errCh <- fmt.Errorf("panic in GetPlanConvo: %v\n%s", r, debug.Stack())
+					runtime.Goexit() // don't allow outer function to continue and double-send to channel
+				}
+			}()
 			bytes, err := os.ReadFile(filepath.Join(convoDir, file.Name()))
 
 			if err != nil {

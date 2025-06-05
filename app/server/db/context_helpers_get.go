@@ -3,8 +3,11 @@ package db
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
+	"runtime"
+	"runtime/debug"
 	"sort"
 	"strings"
 	"sync"
@@ -31,6 +34,13 @@ func GetPlanContexts(orgId, planId string, includeBody, includeMapParts bool) ([
 	for _, file := range files {
 		if strings.HasSuffix(file.Name(), ".meta") {
 			go func(file os.DirEntry) {
+				defer func() {
+					if r := recover(); r != nil {
+						log.Printf("panic in GetPlanContexts: %v\n%s", r, debug.Stack())
+						errCh <- fmt.Errorf("panic in GetPlanContexts: %v\n%s", r, debug.Stack())
+						runtime.Goexit() // don't allow outer function to continue and double-send to channel
+					}
+				}()
 				context, err := GetContext(orgId, planId, strings.TrimSuffix(file.Name(), ".meta"), includeBody, includeMapParts)
 
 				mu.Lock()

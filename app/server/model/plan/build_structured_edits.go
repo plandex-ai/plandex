@@ -9,6 +9,8 @@ import (
 	"plandex-server/hooks"
 	"plandex-server/syntax"
 	"plandex-server/utils"
+	"runtime"
+	"runtime/debug"
 	"strings"
 	"time"
 
@@ -56,6 +58,14 @@ func (fileState *activeBuildStreamFileState) buildStructuredEdits() {
 		calledFastApply = true
 
 		go func() {
+			defer func() {
+				if r := recover(); r != nil {
+					log.Printf("panic in callFastApply: %v\n%s", r, debug.Stack())
+					fastApplyCh <- ""
+					runtime.Goexit() // don't allow outer function to continue and double-send to channel
+				}
+			}()
+
 			res, err := hooks.ExecHook(hooks.CallFastApply, hooks.HookParams{
 				FastApplyParams: &hooks.FastApplyParams{
 					InitialCode: originalFile,
