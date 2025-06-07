@@ -105,21 +105,22 @@ func CreateChatCompletionStream(
 	clients map[string]ClientInfo,
 	authVars map[string]string,
 	modelConfig *shared.ModelRoleConfig,
+	localProvider shared.ModelProvider,
 	ctx context.Context,
 	req types.ExtendedChatCompletionRequest,
 ) (*ExtendedChatCompletionStream, error) {
-	providerComposite := modelConfig.GetProviderComposite(authVars)
+	providerComposite := modelConfig.GetProviderComposite(authVars, localProvider)
 	_, ok := clients[providerComposite]
 	if !ok {
 		return nil, fmt.Errorf("client not found for provider composite: %s", providerComposite)
 	}
 
-	baseModelConfig := modelConfig.GetBaseModelConfig(authVars)
+	baseModelConfig := modelConfig.GetBaseModelConfig(authVars, localProvider)
 
 	// ensure the model name is set correctly on fallbacks
 	req.Model = baseModelConfig.ModelName
 
-	resolveReq(&req, modelConfig)
+	resolveReq(&req, modelConfig, baseModelConfig)
 
 	// choose the fastest provider by latency/throughput on openrouter
 	if baseModelConfig.Provider == shared.ModelProviderOpenRouter {
@@ -143,16 +144,16 @@ func CreateChatCompletionStream(
 	}
 
 	return withStreamingRetries(ctx, func(numTotalRetry int, didProviderFallback bool, modelErr *shared.ModelError) (*ExtendedChatCompletionStream, shared.FallbackResult, error) {
-		fallbackRes := modelConfig.GetFallbackForModelError(numTotalRetry, didProviderFallback, modelErr, authVars)
+		fallbackRes := modelConfig.GetFallbackForModelError(numTotalRetry, didProviderFallback, modelErr, authVars, localProvider)
 		resolvedModelConfig := fallbackRes.ModelRoleConfig
 
 		if resolvedModelConfig == nil {
 			return nil, fallbackRes, fmt.Errorf("model config is nil")
 		}
 
-		providerComposite := resolvedModelConfig.GetProviderComposite(authVars)
+		providerComposite := resolvedModelConfig.GetProviderComposite(authVars, localProvider)
 
-		baseModelConfig := resolvedModelConfig.GetBaseModelConfig(authVars)
+		baseModelConfig := resolvedModelConfig.GetBaseModelConfig(authVars, localProvider)
 
 		opClient, ok := clients[providerComposite]
 
@@ -182,7 +183,7 @@ func CreateChatCompletionStream(
 			"modelConfig.ApiKeyEnvVar": baseModelConfig.ApiKeyEnvVar,
 		})
 
-		resp, err := createChatCompletionStreamExtended(resolvedModelConfig, opClient, authVars, ctx, req)
+		resp, err := createChatCompletionStreamExtended(resolvedModelConfig, opClient, authVars, localProvider, ctx, req)
 		return resp, fallbackRes, err
 	}, func(resp *ExtendedChatCompletionStream, err error) {})
 }
@@ -191,10 +192,11 @@ func createChatCompletionStreamExtended(
 	modelConfig *shared.ModelRoleConfig,
 	client ClientInfo,
 	authVars map[string]string,
+	localProvider shared.ModelProvider,
 	ctx context.Context,
 	extendedReq types.ExtendedChatCompletionRequest,
 ) (*ExtendedChatCompletionStream, error) {
-	baseModelConfig := modelConfig.GetBaseModelConfig(authVars)
+	baseModelConfig := modelConfig.GetBaseModelConfig(authVars, localProvider)
 
 	// ensure the model name is set correctly on fallbacks
 	extendedReq.Model = baseModelConfig.ModelName
@@ -203,6 +205,18 @@ func createChatCompletionStreamExtended(
 	if baseModelConfig.Provider == shared.ModelProviderOpenAI {
 		openaiReq = extendedReq.ToOpenAI()
 		log.Println("Creating chat completion stream with direct OpenAI provider request")
+	}
+
+	if baseModelConfig.Provider == shared.ModelProviderGoogleVertex {
+		if authVars["VERTEXAI_PROJECT"] != "" {
+			extendedReq.VertexProject = authVars["VERTEXAI_PROJECT"]
+		}
+		if authVars["VERTEXAI_LOCATION"] != "" {
+			extendedReq.VertexLocation = authVars["VERTEXAI_LOCATION"]
+		}
+		if authVars["GOOGLE_APPLICATION_CREDENTIALS"] != "" {
+			extendedReq.VertexCredentials = authVars["GOOGLE_APPLICATION_CREDENTIALS"]
+		}
 	}
 
 	// Marshal the request body to JSON
@@ -387,7 +401,7 @@ func (stream *ExtendedChatCompletionStream) Close() error {
 	return stream.customReader.Close()
 }
 
-func resolveReq(req *types.ExtendedChatCompletionRequest, modelConfig *shared.ModelRoleConfig) {
+func resolveReq(req *types.ExtendedChatCompletionRequest, modelConfig *shared.ModelRoleConfig, baseModelConfig *shared.BaseModelConfig) {
 	// if system prompt is disabled, change the role of the system message to user
 	if modelConfig.GetSharedBaseConfig().SystemPromptDisabled {
 		log.Println("System prompt disabled - changing role of system message to user")
@@ -408,6 +422,13 @@ func resolveReq(req *types.ExtendedChatCompletionRequest, modelConfig *shared.Mo
 		log.Println("Role params disabled - setting temperature and top p to 1")
 		req.Temperature = 1
 		req.TopP = 1
+	}
+
+	if baseModelConfig.Provider == shared.ModelProviderOllama {
+		// ollama doesn't support temperature or top p params
+		log.Println("Ollama - clearing temperature and top p")
+		req.Temperature = 0
+		req.TopP = 0
 	}
 }
 
