@@ -13,10 +13,10 @@ services:
     networks:
       - plandex-network
   plandex-server:
-    # image: plandexai/plandex-server:latest
-    build:
-      context: .
-      dockerfile: server/Dockerfile
+    image: plandexai/plandex-server:latest
+    # build:
+    #   context: .
+    #   dockerfile: server/Dockerfile
     volumes:
       - plandex-files:/plandex-server
     ports:
