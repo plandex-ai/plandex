@@ -140,6 +140,17 @@ func listModelPacks(cmd *cobra.Command, args []string) {
 
 	term.StartSpinner("")
 	builtInModelPacks := shared.BuiltInModelPacks
+
+	if auth.Current.IsCloud {
+		filtered := []*shared.ModelPack{}
+		for _, mp := range builtInModelPacks {
+			if mp.LocalProvider == "" {
+				filtered = append(filtered, mp)
+			}
+		}
+		builtInModelPacks = filtered
+	}
+
 	customModelPacks, err := api.Client.ListModelPacks()
 	term.StopSpinner()
 
@@ -201,7 +212,18 @@ func showModelPack(cmd *cobra.Command, args []string) {
 
 	modelPacks := []*shared.ModelPack{}
 	modelPacks = append(modelPacks, customModelPacks...)
-	modelPacks = append(modelPacks, shared.BuiltInModelPacks...)
+
+	builtInModelPacks := shared.BuiltInModelPacks
+	if auth.Current.IsCloud {
+		filtered := []*shared.ModelPack{}
+		for _, mp := range builtInModelPacks {
+			if mp.LocalProvider == "" {
+				filtered = append(filtered, mp)
+			}
+		}
+		builtInModelPacks = filtered
+	}
+	modelPacks = append(modelPacks, builtInModelPacks...)
 
 	var name string
 	if len(args) > 0 {

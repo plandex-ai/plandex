@@ -118,6 +118,18 @@ func updateModelSettings(args []string, originalSettings *shared.PlanSettings) *
 		return nil
 	}
 
+	builtInModelPacks := shared.BuiltInModelPacks
+
+	if auth.Current.IsCloud {
+		filtered := []*shared.ModelPack{}
+		for _, ms := range builtInModelPacks {
+			if ms.LocalProvider == "" {
+				filtered = append(filtered, ms)
+			}
+		}
+		builtInModelPacks = filtered
+	}
+
 	var settings *shared.PlanSettings
 	err = json.Unmarshal(jsonBytes, &settings)
 	if err != nil {
@@ -145,7 +157,8 @@ func updateModelSettings(args []string, originalSettings *shared.PlanSettings) *
 		if compare == "opus-4-planner" {
 			compare = "opus-planner"
 		}
-		for _, ms := range shared.BuiltInModelPacks {
+
+		for _, ms := range builtInModelPacks {
 			if strings.EqualFold(ms.Name, compare) {
 				modelPack = ms
 				break
@@ -205,7 +218,7 @@ func updateModelSettings(args []string, originalSettings *shared.PlanSettings) *
 
 		if idx == 0 {
 			var opts []string
-			for _, ms := range shared.BuiltInModelPacks {
+			for _, ms := range builtInModelPacks {
 				opts = append(opts, "Built-in | "+ms.Name)
 			}
 
@@ -246,10 +259,10 @@ func updateModelSettings(args []string, originalSettings *shared.PlanSettings) *
 				}
 			}
 
-			if idx < len(shared.BuiltInModelPacks) {
-				modelPack = shared.BuiltInModelPacks[idx]
+			if idx < len(builtInModelPacks) {
+				modelPack = builtInModelPacks[idx]
 			} else {
-				modelPack = customModelPacks[idx-len(shared.BuiltInModelPacks)]
+				modelPack = customModelPacks[idx-len(builtInModelPacks)]
 			}
 
 		} else if idx < len(shared.AllModelRoles)+1 {
