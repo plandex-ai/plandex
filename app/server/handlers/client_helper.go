@@ -3,6 +3,7 @@ package handlers
 import (
 	"log"
 	"net/http"
+	"os"
 	"plandex-server/db"
 	"plandex-server/hooks"
 	"plandex-server/model"
@@ -21,7 +22,12 @@ type initClientsParams struct {
 	plan *db.Plan
 }
 
-func initClients(params initClientsParams) map[string]model.ClientInfo {
+type initClientsResult struct {
+	clients  map[string]model.ClientInfo
+	authVars map[string]string
+}
+
+func initClients(params initClientsParams) initClientsResult {
 	w := params.w
 
 	var authVars map[string]string
@@ -45,19 +51,22 @@ func initClients(params initClientsParams) map[string]model.ClientInfo {
 	if apiErr != nil {
 		log.Printf("Error getting integrated models: %v\n", apiErr)
 		http.Error(w, "Error getting integrated models", http.StatusInternalServerError)
-		return nil
+		return initClientsResult{}
 	}
 
 	if hookResult.GetIntegratedModelsResult != nil && hookResult.GetIntegratedModelsResult.IntegratedModelsMode {
 		authVars = hookResult.GetIntegratedModelsResult.AuthVars
 	}
-	if len(authVars) == 0 {
+	if len(authVars) == 0 && os.Getenv("IS_CLOUD") != "" {
 		log.Println("No api keys/credentials provided for models")
 		http.Error(w, "No api keys/credentials provided for models", http.StatusBadRequest)
-		return nil
+		return initClientsResult{}
 	}
 
 	clients := model.InitClients(authVars)
 
-	return clients
+	return initClientsResult{
+		clients:  clients,
+		authVars: authVars,
+	}
 }

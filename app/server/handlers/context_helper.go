@@ -102,7 +102,7 @@ func loadContexts(
 				return nil, nil
 			}
 
-			clients = initClients(
+			res := initClients(
 				initClientsParams{
 					w:           w,
 					auth:        auth,
@@ -113,7 +113,8 @@ func loadContexts(
 				},
 			)
 
-			authVars = context.AuthVars
+			clients = res.clients
+			authVars = res.authVars
 
 			break
 		}
@@ -146,7 +147,16 @@ func loadContexts(
 					}
 				}()
 
-				name, err := model.GenPipedDataName(r.Context(), auth, plan, settings, clients, authVars, context.Body, context.SessionId)
+				name, err := model.GenPipedDataName(model.GenPipedDataNameParams{
+					Ctx:          r.Context(),
+					Auth:         auth,
+					Plan:         plan,
+					Settings:     settings,
+					AuthVars:     authVars,
+					SessionId:    context.SessionId,
+					Clients:      clients,
+					PipedContent: context.Body,
+				})
 
 				if err != nil {
 					errCh <- fmt.Errorf("error generating name for piped data: %v", err)
