@@ -60,6 +60,9 @@ async def passthrough(request: Request):
 
   # api key optional for local/ollama models, so no need to error if not provided
 
+  # clean up for ollama if needed
+  payload = normalise_for_ollama(payload)
+
   try:
     if payload.get("stream"):
       
@@ -73,7 +76,10 @@ async def passthrough(request: Request):
             yield f"data: {json.dumps(chunk.to_dict())}\n\n"
           yield "data: [DONE]\n\n"
         except Exception as e:
+          # surface the problem to the client _inside_ the SSE stream
           yield f"data: {json.dumps({'error': str(e)})}\n\n"
+          return
+
         finally:
           response_stream.close()
 
@@ -109,3 +115,21 @@ def error_response(exc: Exception) -> JSONResponse:
   )
   hdrs = {"Retry-After": retry_after} if retry_after else {}
   return JSONResponse(status_code=status, content={"error": str(exc)}, headers=hdrs)
+
+def normalise_for_ollama(p):
+  if not p.get("model", "").startswith("ollama"):
+    return p
+
+  # flatten content parts
+  for m in p.get("messages", []):
+    if isinstance(m["content"], list):  # [{type:"text", text:"…"}]
+        m["content"] = "".join(part.get("text", "")
+                                for part in m["content"]
+                                if part.get("type") == "text")
+
+  # drop params Ollama ignores
+  for k in ("top_p", "temperature", "presence_penalty",
+            "tool_choice", "tools", "seed"):
+      p.pop(k, None)
+
+  return p
