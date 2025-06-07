@@ -18,12 +18,13 @@ import (
 )
 
 type ModelRequestParams struct {
-	Clients     map[string]ClientInfo
-	AuthVars    map[string]string
-	Auth        *types.ServerAuth
-	Plan        *db.Plan
-	ModelConfig *shared.ModelRoleConfig
-	Purpose     string
+	Clients       map[string]ClientInfo
+	AuthVars      map[string]string
+	Auth          *types.ServerAuth
+	Plan          *db.Plan
+	ModelConfig   *shared.ModelRoleConfig
+	LocalProvider shared.ModelProvider
+	Purpose       string
 
 	Messages   []types.ExtendedChatMessage
 	Prediction string
@@ -67,12 +68,13 @@ func ModelRequest(
 	modelPackName := params.ModelPackName
 	purpose := params.Purpose
 	sessionId := params.SessionId
+	localProvider := params.LocalProvider
 
 	if purpose == "" {
 		return nil, fmt.Errorf("purpose is required")
 	}
 
-	baseModelConfig := modelConfig.GetBaseModelConfig(authVars)
+	baseModelConfig := modelConfig.GetBaseModelConfig(authVars, localProvider)
 
 	messages = FilterEmptyMessages(messages)
 	messages = CheckSingleSystemMessage(modelConfig, baseModelConfig, messages)
@@ -164,7 +166,7 @@ func ModelRequest(
 		}
 	}
 
-	res, err := CreateChatCompletionWithInternalStream(clients, authVars, modelConfig, ctx, req, onStream, reqStarted)
+	res, err := CreateChatCompletionWithInternalStream(clients, authVars, modelConfig, localProvider, ctx, req, onStream, reqStarted)
 
 	if err != nil {
 		return nil, err

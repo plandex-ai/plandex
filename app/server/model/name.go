@@ -29,7 +29,7 @@ func GenPlanName(
 	var tools []openai.Tool
 	var toolChoice *openai.ToolChoice
 
-	baseModelConfig := config.GetBaseModelConfig(authVars)
+	baseModelConfig := config.GetBaseModelConfig(authVars, settings.ModelPack.LocalProvider)
 
 	var sysPrompt string
 	if baseModelConfig.PreferredOutputFormat == shared.ModelOutputFormatXml {
@@ -66,16 +66,17 @@ func GenPlanName(
 	}
 
 	modelRes, err := ModelRequest(ctx, ModelRequestParams{
-		Clients:     clients,
-		AuthVars:    authVars,
-		Auth:        auth,
-		Plan:        plan,
-		ModelConfig: &config,
-		Purpose:     "Plan name",
-		Messages:    messages,
-		Tools:       tools,
-		ToolChoice:  toolChoice,
-		SessionId:   sessionId,
+		Clients:       clients,
+		AuthVars:      authVars,
+		Auth:          auth,
+		Plan:          plan,
+		ModelConfig:   &config,
+		Purpose:       "Plan name",
+		Messages:      messages,
+		Tools:         tools,
+		ToolChoice:    toolChoice,
+		SessionId:     sessionId,
+		LocalProvider: settings.ModelPack.LocalProvider,
 	})
 
 	if err != nil {
@@ -109,23 +110,36 @@ func GenPlanName(
 	return planName, nil
 }
 
+type GenPipedDataNameParams struct {
+	Ctx          context.Context
+	Auth         *types.ServerAuth
+	Plan         *db.Plan
+	Settings     *shared.PlanSettings
+	AuthVars     map[string]string
+	SessionId    string
+	Clients      map[string]ClientInfo
+	PipedContent string
+}
+
 func GenPipedDataName(
-	ctx context.Context,
-	auth *types.ServerAuth,
-	plan *db.Plan,
-	settings *shared.PlanSettings,
-	clients map[string]ClientInfo,
-	authVars map[string]string,
-	pipedContent string,
-	sessionId string,
+	params GenPipedDataNameParams,
 ) (string, error) {
+	ctx := params.Ctx
+	auth := params.Auth
+	plan := params.Plan
+	settings := params.Settings
+	clients := params.Clients
+	authVars := params.AuthVars
+	pipedContent := params.PipedContent
+	sessionId := params.SessionId
+
 	config := settings.ModelPack.Namer
 
 	var sysPrompt string
 	var tools []openai.Tool
 	var toolChoice *openai.ToolChoice
 
-	baseModelConfig := config.GetBaseModelConfig(authVars)
+	baseModelConfig := config.GetBaseModelConfig(authVars, settings.ModelPack.LocalProvider)
 
 	if baseModelConfig.PreferredOutputFormat == shared.ModelOutputFormatXml {
 		sysPrompt = prompts.SysPipedDataNameXml
@@ -161,16 +175,17 @@ func GenPipedDataName(
 	}
 
 	modelRes, err := ModelRequest(ctx, ModelRequestParams{
-		Clients:     clients,
-		Auth:        auth,
-		AuthVars:    authVars,
-		Plan:        plan,
-		ModelConfig: &config,
-		Purpose:     "Piped data name",
-		Messages:    messages,
-		Tools:       tools,
-		ToolChoice:  toolChoice,
-		SessionId:   sessionId,
+		Clients:       clients,
+		Auth:          auth,
+		AuthVars:      authVars,
+		Plan:          plan,
+		ModelConfig:   &config,
+		Purpose:       "Piped data name",
+		Messages:      messages,
+		Tools:         tools,
+		ToolChoice:    toolChoice,
+		SessionId:     sessionId,
+		LocalProvider: settings.ModelPack.LocalProvider,
 	})
 
 	if err != nil {
@@ -220,7 +235,7 @@ func GenNoteName(
 	var tools []openai.Tool
 	var toolChoice *openai.ToolChoice
 
-	baseModelConfig := config.GetBaseModelConfig(authVars)
+	baseModelConfig := config.GetBaseModelConfig(authVars, settings.ModelPack.LocalProvider)
 
 	if baseModelConfig.PreferredOutputFormat == shared.ModelOutputFormatXml {
 		sysPrompt = prompts.SysNoteNameXml
@@ -256,16 +271,17 @@ func GenNoteName(
 	}
 
 	modelRes, err := ModelRequest(ctx, ModelRequestParams{
-		Clients:     clients,
-		Auth:        auth,
-		AuthVars:    authVars,
-		Plan:        plan,
-		ModelConfig: &config,
-		Purpose:     "Note name",
-		Messages:    messages,
-		Tools:       tools,
-		ToolChoice:  toolChoice,
-		SessionId:   sessionId,
+		Clients:       clients,
+		Auth:          auth,
+		AuthVars:      authVars,
+		Plan:          plan,
+		ModelConfig:   &config,
+		Purpose:       "Note name",
+		Messages:      messages,
+		Tools:         tools,
+		ToolChoice:    toolChoice,
+		SessionId:     sessionId,
+		LocalProvider: settings.ModelPack.LocalProvider,
 	})
 
 	if err != nil {
