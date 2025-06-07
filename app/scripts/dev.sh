@@ -44,6 +44,10 @@ trap terminate SIGTERM SIGINT
 
 cd ../
 
+export DATABASE_URL=postgres://ds:@localhost/plandex_local?sslmode=disable
+export GOENV=development
+export LOCAL_MODE=1
+
 reflex -r '^(cli|shared)/.*\.(go|mod|sum)$' -- sh -c 'cd cli && ./dev.sh' &
 pid1=$!
 
