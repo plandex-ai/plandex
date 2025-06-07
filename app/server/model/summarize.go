@@ -28,7 +28,7 @@ type PlanSummaryParams struct {
 	SessionId                   string
 }
 
-func PlanSummary(clients map[string]ClientInfo, authVars map[string]string, config shared.ModelRoleConfig, params PlanSummaryParams, ctx context.Context) (*db.ConvoSummary, *shared.ApiError) {
+func PlanSummary(clients map[string]ClientInfo, authVars map[string]string, localProvider shared.ModelProvider, config shared.ModelRoleConfig, params PlanSummaryParams, ctx context.Context) (*db.ConvoSummary, *shared.ApiError) {
 	messages := []types.ExtendedChatMessage{
 		{
 			Role: openai.ChatMessageRoleSystem,
@@ -66,6 +66,7 @@ func PlanSummary(clients map[string]ClientInfo, authVars map[string]string, conf
 		ModelStreamId:  params.ModelStreamId,
 		Messages:       messages,
 		SessionId:      params.SessionId,
+		LocalProvider:  localProvider,
 	})
 
 	if err != nil {
