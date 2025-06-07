@@ -53,6 +53,7 @@ type activeTellStreamState struct {
 	firstTokenAt     time.Time
 	originalReq      *types.ExtendedChatCompletionRequest
 	modelConfig      *shared.ModelRoleConfig
+	baseModelConfig  *shared.BaseModelConfig
 	fallbackRes      shared.FallbackResult
 
 	skipConvoMessages map[string]bool

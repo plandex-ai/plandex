@@ -57,13 +57,13 @@ func (state *activeTellStreamState) listenStream(stream *model.ExtendedChatCompl
 	}
 
 	// Create a timer that will trigger if no chunk is received within the specified duration
-	firstTokenTimeout := firstTokenTimeout(state.totalRequestTokens)
+	firstTokenTimeout := firstTokenTimeout(state.totalRequestTokens, state.baseModelConfig.LocalOnly)
 	log.Printf("listenStream - firstTokenTimeout: %s\n", firstTokenTimeout)
 	timer := time.NewTimer(firstTokenTimeout)
 	defer timer.Stop()
 	streamFinished := false
 
-	baseModelConfig := state.modelConfig.GetBaseModelConfig(state.authVars)
+	baseModelConfig := state.modelConfig.GetBaseModelConfig(state.authVars, state.settings.ModelPack.LocalProvider)
 
 	modelProvider := baseModelConfig.Provider
 	modelName := baseModelConfig.ModelName
@@ -282,13 +282,19 @@ mainLoop:
 	}
 }
 
-func firstTokenTimeout(tok int) time.Duration {
+func firstTokenTimeout(tok int, isLocalModel bool) time.Duration {
 	const (
 		base  = 90 * time.Second
 		slope = 90 * time.Second
 		step  = 150_000
 		cap   = 15 * time.Minute
 	)
+
+	// local models can have a long cold start, and timeouts are less relevant
+	if isLocalModel {
+		return cap
+	}
+
 	if tok <= step {
 		return base
 	}

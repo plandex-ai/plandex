@@ -243,7 +243,7 @@ type summarizeConvoParams struct {
 	modelPackName         string
 }
 
-func summarizeConvo(clients map[string]model.ClientInfo, authVars map[string]string, config shared.ModelRoleConfig, params summarizeConvoParams, ctx context.Context) *shared.ApiError {
+func summarizeConvo(clients map[string]model.ClientInfo, authVars map[string]string, localProvider shared.ModelProvider, config shared.ModelRoleConfig, params summarizeConvoParams, ctx context.Context) *shared.ApiError {
 	plan := params.plan
 	planId := plan.Id
 	log.Printf("summarizeConvo: Called for plan ID %s on branch %s\n", planId, params.branch)
@@ -392,7 +392,7 @@ func summarizeConvo(clients map[string]model.ClientInfo, authVars map[string]str
 	// latestSummaryCh := make(chan *db.ConvoSummary, 1)
 	// active.LatestSummaryCh = latestSummaryCh
 
-	summary, apiErr := model.PlanSummary(clients, authVars, config, model.PlanSummaryParams{
+	summary, apiErr := model.PlanSummary(clients, authVars, localProvider, config, model.PlanSummaryParams{
 		Conversation:                summaryMessages,
 		ConversationNumTokens:       numTokens,
 		LatestConvoMessageId:        latestMessageId,

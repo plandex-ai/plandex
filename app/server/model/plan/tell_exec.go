@@ -20,7 +20,23 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
-func Tell(clients map[string]model.ClientInfo, plan *db.Plan, branch string, auth *types.ServerAuth, req *shared.TellPlanRequest) error {
+type TellParams struct {
+	Clients  map[string]model.ClientInfo
+	AuthVars map[string]string
+	Plan     *db.Plan
+	Branch   string
+	Auth     *types.ServerAuth
+	Req      *shared.TellPlanRequest
+}
+
+func Tell(params TellParams) error {
+	clients := params.Clients
+	plan := params.Plan
+	branch := params.Branch
+	auth := params.Auth
+	req := params.Req
+	authVars := params.AuthVars
+
 	log.Printf("Tell: Called with plan ID %s on branch %s\n", plan.Id, branch)
 
 	_, err := activatePlan(
@@ -47,7 +63,7 @@ func Tell(clients map[string]model.ClientInfo, plan *db.Plan, branch string, aut
 		req:                req,
 		iteration:          0,
 		shouldBuildPending: !req.IsChatOnly && req.BuildMode == shared.BuildModeAuto,
-		authVars:           req.AuthVars,
+		authVars:           authVars,
 	})
 
 	log.Printf("Tell: Tell operation completed successfully for plan ID %s on branch %s\n", plan.Id, branch)
@@ -395,7 +411,9 @@ func execTellPlan(params execTellPlanParams) {
 	// log.Println("Tell plan - modelConfig:", spew.Sdump(modelConfig))
 	state.modelConfig = &modelConfig
 
-	baseModelConfig := modelConfig.GetBaseModelConfig(authVars)
+	baseModelConfig := modelConfig.GetBaseModelConfig(authVars, state.settings.ModelPack.LocalProvider)
+
+	state.baseModelConfig = baseModelConfig
 
 	// if the model doesn't support cache control, remove the cache control spec from the messages
 	if !baseModelConfig.SupportsCacheControl {
@@ -467,11 +485,11 @@ func (state *activeTellStreamState) doTellRequest() {
 	modelConfig := state.modelConfig
 	active := state.activePlan
 
-	fallbackRes := modelConfig.GetFallbackForModelError(state.numErrorRetry, state.didProviderFallback, state.modelErr, authVars)
+	fallbackRes := modelConfig.GetFallbackForModelError(state.numErrorRetry, state.didProviderFallback, state.modelErr, authVars, state.settings.ModelPack.LocalProvider)
 	modelConfig = fallbackRes.ModelRoleConfig
 	stop := []string{"<PlandexFinish/>"}
 
-	baseModelConfig := modelConfig.GetBaseModelConfig(state.authVars)
+	baseModelConfig := modelConfig.GetBaseModelConfig(state.authVars, state.settings.ModelPack.LocalProvider)
 
 	if fallbackRes.FallbackType == shared.FallbackTypeProvider {
 		state.didProviderFallback = true
@@ -535,7 +553,7 @@ func (state *activeTellStreamState) doTellRequest() {
 		state.numErrorRetry, state.numFallbackRetry, baseModelConfig.ModelName)
 
 	// start the stream
-	stream, err := model.CreateChatCompletionStream(clients, authVars, modelConfig, active.ModelStreamCtx, modelReq)
+	stream, err := model.CreateChatCompletionStream(clients, authVars, modelConfig, state.settings.ModelPack.LocalProvider, active.ModelStreamCtx, modelReq)
 	if err != nil {
 		log.Printf("Error starting reply stream: %v\n", err)
 		go notify.NotifyErr(notify.SeverityError, fmt.Errorf("error starting reply stream: %v", err))
