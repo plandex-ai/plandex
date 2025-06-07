@@ -278,6 +278,8 @@ type ModelRoleConfig struct {
 	ErrorFallback        *ModelRoleConfig `json:"errorFallback"`
 	// MissingKeyFallback   *ModelRoleConfig `json:"missingKeyFallback"` // removed in 2.2.0 refactor —
 	StrongModel *ModelRoleConfig `json:"strongModel"`
+
+	LocalProvider ModelProvider `json:"localProvider,omitempty"`
 }
 
 type ModelRoleModelConfig struct {
@@ -410,12 +412,12 @@ func (m ModelRoleConfig) GetModelId() ModelId {
 	return m.ModelId
 }
 
-func (m ModelRoleConfig) GetBaseModelConfig(authVars map[string]string) *BaseModelConfig {
+func (m ModelRoleConfig) GetBaseModelConfig(authVars map[string]string, localProvider ModelProvider) *BaseModelConfig {
 	if m.BaseModelConfig != nil {
 		return m.BaseModelConfig
 	}
 
-	foundProvider := m.GetFirstProviderForAuthVars(authVars)
+	foundProvider := m.GetFirstProviderForAuthVars(authVars, localProvider)
 	if foundProvider == nil {
 		return m.BaseModelConfig
 	}
@@ -425,8 +427,8 @@ func (m ModelRoleConfig) GetBaseModelConfig(authVars map[string]string) *BaseMod
 	return &c
 }
 
-func (m ModelRoleConfig) GetProviderComposite(authVars map[string]string) string {
-	baseModelConfig := m.GetBaseModelConfig(authVars)
+func (m ModelRoleConfig) GetProviderComposite(authVars map[string]string, localProvider ModelProvider) string {
+	baseModelConfig := m.GetBaseModelConfig(authVars, localProvider)
 
 	if baseModelConfig == nil {
 		return ""
@@ -509,6 +511,7 @@ func (p PlannerRoleConfig) GetMaxConvoTokens() int {
 type ModelPackSchema struct {
 	Name             string                 `json:"name"`
 	Description      string                 `json:"description"`
+	LocalProvider    ModelProvider          `json:"localProvider,omitempty"`
 	Planner          ModelRoleConfigSchema  `json:"planner"`
 	Coder            *ModelRoleConfigSchema `json:"coder,omitempty"`
 	PlanSummary      ModelRoleConfigSchema  `json:"planSummary"`
@@ -570,8 +573,9 @@ func (m *ModelPackSchema) ToModelPack() ModelPack {
 	}
 
 	return ModelPack{
-		Name:        m.Name,
-		Description: m.Description,
+		Name:          m.Name,
+		Description:   m.Description,
+		LocalProvider: m.LocalProvider,
 		Planner: PlannerRoleConfig{
 			ModelRoleConfig: m.Planner.ToModelRoleConfig(ModelRolePlanner),
 			PlannerModelConfig: PlannerModelConfig{
@@ -592,6 +596,7 @@ func (m *ModelPackSchema) ToModelPack() ModelPack {
 type ModelPack struct {
 	Id               string            `json:"id"`
 	Name             string            `json:"name"`
+	LocalProvider    ModelProvider     `json:"localProvider,omitempty"`
 	Description      string            `json:"description"`
 	Planner          PlannerRoleConfig `json:"planner"`
 	Coder            *ModelRoleConfig  `json:"coder"`

@@ -401,30 +401,76 @@ var BuiltInModels = []*BaseModelConfigSchema{
 			{Provider: ModelProviderOpenRouter, ModelName: "qwen/qwen-2.5-coder-32b-instruct"},
 		},
 	},
+
+	{
+		ModelTag:    "mistral/devstral-small",
+		Publisher:   ModelPublisherMistral,
+		Description: "Mistral Devstral Small",
+		BaseModelShared: BaseModelShared{
+			DefaultMaxConvoTokens: 15000, MaxTokens: 128000,
+			MaxOutputTokens: 128000, ReservedOutputTokens: 16384,
+			PreferredOutputFormat: ModelOutputFormatXml,
+		},
+		Providers: []BaseModelUsesProvider{
+			{Provider: ModelProviderOllama, ModelName: "ollama_chat/devstral:24b"},
+			{Provider: ModelProviderOpenRouter, ModelName: "mistral/devstral-small"},
+		},
+	},
+
+	{
+		ModelTag:    "qwen/qwen3-235b",
+		Publisher:   ModelPublisherQwen,
+		Description: "Qwen 3-235B",
+		BaseModelShared: BaseModelShared{
+			DefaultMaxConvoTokens: 5000, MaxTokens: 40960,
+			MaxOutputTokens: 40960, ReservedOutputTokens: 8192,
+			PreferredOutputFormat: ModelOutputFormatXml,
+		},
+		Providers: []BaseModelUsesProvider{
+			{Provider: ModelProviderOllama, ModelName: "ollama_chat/qwen3:235b"},
+			{Provider: ModelProviderOpenRouter, ModelName: "qwen/qwen3-235b-a22b"},
+		},
+	},
 	{
 		ModelTag:    "qwen/qwen3-32b",
 		Publisher:   ModelPublisherQwen,
-		Description: "Qwen 3-32B (Experimental)",
+		Description: "Qwen 3-32B",
 		BaseModelShared: BaseModelShared{
 			DefaultMaxConvoTokens: 15000, MaxTokens: 128000,
 			MaxOutputTokens: 16384, ReservedOutputTokens: 16384,
 			PreferredOutputFormat: ModelOutputFormatXml,
 		},
 		Providers: []BaseModelUsesProvider{
-			{Provider: ModelProviderOpenRouter, ModelName: "qwen/qwen3-32b-a3b"},
+			{Provider: ModelProviderOllama, ModelName: "ollama_chat/qwen3:32b"},
+			{Provider: ModelProviderOpenRouter, ModelName: "qwen/qwen3-32b"},
+		},
+	},
+	{
+		ModelTag:    "qwen/qwen3-14b",
+		Publisher:   ModelPublisherQwen,
+		Description: "Qwen 3-14B",
+		BaseModelShared: BaseModelShared{
+			DefaultMaxConvoTokens: 5000, MaxTokens: 40960,
+			MaxOutputTokens: 40960, ReservedOutputTokens: 8192,
+			PreferredOutputFormat: ModelOutputFormatXml,
+		},
+		Providers: []BaseModelUsesProvider{
+			{Provider: ModelProviderOllama, ModelName: "ollama_chat/qwen3:14b"},
+			{Provider: ModelProviderOpenRouter, ModelName: "qwen/qwen3-14b"},
 		},
 	},
 	{
 		ModelTag:    "qwen/qwen3-8b",
 		Publisher:   ModelPublisherQwen,
-		Description: "Qwen 3-8B (Experimental)",
+		Description: "Qwen 3-8B",
 		BaseModelShared: BaseModelShared{
 			DefaultMaxConvoTokens: 7500, MaxTokens: 32768,
 			MaxOutputTokens: 8192, ReservedOutputTokens: 8192,
 			PreferredOutputFormat: ModelOutputFormatXml,
 		},
 		Providers: []BaseModelUsesProvider{
-			{Provider: ModelProviderOpenRouter, ModelName: "qwen/qwen3-8b-04-28"},
+			{Provider: ModelProviderOllama, ModelName: "ollama_chat/qwen3:8b"},
+			{Provider: ModelProviderOpenRouter, ModelName: "qwen/qwen3-8b"},
 		},
 	},
 }

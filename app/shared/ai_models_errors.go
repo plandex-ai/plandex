@@ -46,6 +46,7 @@ func (m *ModelRoleConfig) GetFallbackForModelError(
 	didProviderFallback bool,
 	modelErr *ModelError,
 	authVars map[string]string,
+	localProvider ModelProvider,
 ) FallbackResult {
 	if m == nil || modelErr == nil {
 		return FallbackResult{
@@ -71,7 +72,7 @@ func (m *ModelRoleConfig) GetFallbackForModelError(
 		} else if !didProviderFallback {
 			log.Println("no error fallback, trying provider fallback")
 
-			providerFallback := m.GetProviderFallback(authVars)
+			providerFallback := m.GetProviderFallback(authVars, localProvider)
 
 			log.Println(spew.Sdump(map[string]interface{}{
 				"providerFallback": providerFallback,
@@ -96,8 +97,8 @@ func (m *ModelRoleConfig) GetFallbackForModelError(
 // we just try a single provider fallback if all defined fallbacks are exhausted
 // if we've got openrouter credentials in the stack, we always use OpenRouter as the fallback since it has its own routing/fallback routing to maximize resilience
 // otherwise we just use the second provider in the stack
-func (m ModelRoleConfig) GetProviderFallback(authVars map[string]string) *ModelRoleConfig {
-	providers := m.GetProvidersForAuthVars(authVars)
+func (m ModelRoleConfig) GetProviderFallback(authVars map[string]string, localProvider ModelProvider) *ModelRoleConfig {
+	providers := m.GetProvidersForAuthVars(authVars, localProvider)
 
 	if len(providers) < 2 {
 		return nil

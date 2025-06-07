@@ -17,12 +17,15 @@ var GeminiExperimentalModelPack ModelPack
 var R1PlannerModelPack ModelPack
 var PerplexityPlannerModelPack ModelPack
 
+var OllamaModelPack ModelPack
+
 var BuiltInModelPacks = []*ModelPack{
 	&DailyDriverModelPack,
 	&ReasoningModelPack,
 	&StrongModelPack,
 	&CheapModelPack,
 	&OSSModelPack,
+	&OllamaModelPack,
 	&OpusPlannerModelPack,
 	&StrongModelOpus,
 	&AnthropicModelPack,
@@ -83,6 +86,7 @@ var (
 	StrongPackSchema             ModelPackSchema
 	OSSModelPackSchema           ModelPackSchema
 	CheapModelPackSchema         ModelPackSchema
+	OllamaModelPackSchema        ModelPackSchema
 	AnthropicPackSchema          ModelPackSchema
 	OpenAIPackSchema             ModelPackSchema
 	GeminiPreviewPackSchema      ModelPackSchema
@@ -97,6 +101,7 @@ var BuiltInModelPackSchemas = []*ModelPackSchema{
 	&StrongPackSchema,
 	&CheapModelPackSchema,
 	&OSSModelPackSchema,
+	&OllamaModelPackSchema,
 	&AnthropicPackSchema,
 	&OpenAIPackSchema,
 	&GeminiPreviewPackSchema,
@@ -191,6 +196,20 @@ func init() {
 		ExecStatus: getModelRoleConfig(ModelRoleExecStatus, "deepseek/r1-reasoning-hidden"),
 	}
 
+	OllamaModelPackSchema = ModelPackSchema{
+		Name:          "ollama",
+		LocalProvider: ModelProviderOllama,
+		Description:   "Ollama local blend. Supports up to 110k context. Uses Qwen3-32b model for heavy lifting, Qwen3-14b for summaries, Qwen3-8b for lighter tasks.",
+		Planner:       getModelRoleConfig(ModelRolePlanner, "mistral/devstral-small"),
+		PlanSummary:   getModelRoleConfig(ModelRolePlanSummary, "qwen/qwen3-14b"),
+		Builder:       getModelRoleConfig(ModelRoleBuilder, "mistral/devstral-small"),
+		WholeFileBuilder: Pointer(getModelRoleConfig(ModelRoleWholeFileBuilder,
+			"mistral/devstral-small")),
+		Namer:      getModelRoleConfig(ModelRoleName, "qwen/qwen3-8b"),
+		CommitMsg:  getModelRoleConfig(ModelRoleCommitMsg, "qwen/qwen3-8b"),
+		ExecStatus: getModelRoleConfig(ModelRoleExecStatus, "mistral/devstral-small"),
+	}
+
 	OpenAIPackSchema = ModelPackSchema{
 		Name:        "openai",
 		Description: "OpenAI blend. Supports up to 1M context. Uses OpenAI's GPT-4.1 model for heavy lifting, GPT-4.1 Mini for lighter tasks.",
@@ -279,6 +298,7 @@ func init() {
 	StrongModelPack = StrongPackSchema.ToModelPack()
 	CheapModelPack = CheapModelPackSchema.ToModelPack()
 	OSSModelPack = OSSModelPackSchema.ToModelPack()
+	OllamaModelPack = OllamaModelPackSchema.ToModelPack()
 	AnthropicModelPack = AnthropicPackSchema.ToModelPack()
 	OpenAIModelPack = OpenAIPackSchema.ToModelPack()
 	GeminiPreviewModelPack = GeminiPreviewPackSchema.ToModelPack()
@@ -292,6 +312,7 @@ func init() {
 		&StrongModelPack,
 		&CheapModelPack,
 		&OSSModelPack,
+		&OllamaModelPack,
 		&AnthropicModelPack,
 		&OpenAIModelPack,
 		&GeminiPreviewModelPack,

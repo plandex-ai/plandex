@@ -26,6 +26,7 @@ const (
 	ModelPublisherDeepSeek   ModelPublisher = "DeepSeek"
 	ModelPublisherPerplexity ModelPublisher = "Perplexity"
 	ModelPublisherQwen       ModelPublisher = "Qwen"
+	ModelPublisherMistral    ModelPublisher = "Mistral"
 )
 
 type ModelProvider string
@@ -74,6 +75,7 @@ type ModelProviderExtraAuthVars struct {
 	MaybeJSONFilePath bool   `json:"maybeJSONFilePath,omitempty"`
 	Required          bool   `json:"required,omitempty"`
 	Default           string `json:"default,omitempty"`
+	RequestKey        string `json:"requestKey,omitempty"`
 }
 
 type ModelProviderConfigSchema struct {
@@ -208,9 +210,10 @@ func init() {
 func GetProvidersForAuthVars(authVars map[string]string) []ModelProviderConfigSchema {
 	var foundProviders []ModelProviderConfigSchema
 	for _, providerConfig := range BuiltInModelProviderConfigs {
-		if providerConfig.SkipAuth && len(authVars) == 0 {
+
+		if providerConfig.SkipAuth {
 			foundProviders = append(foundProviders, providerConfig)
-			break
+			continue
 		}
 
 		var checkVars []string
@@ -240,7 +243,13 @@ func GetProvidersForAuthVars(authVars map[string]string) []ModelProviderConfigSc
 	return foundProviders
 }
 
-func (m ModelRoleConfig) GetProvidersForAuthVars(authVars map[string]string) []ModelProviderConfigSchema {
+func (m ModelRoleConfig) GetProvidersForAuthVars(authVars map[string]string, localProvider ModelProvider) []ModelProviderConfigSchema {
+
+	// localProvider can come from the model pack *or* the model role config
+	if localProvider == "" && m.LocalProvider != "" {
+		localProvider = m.LocalProvider
+	}
+
 	usesProviders, ok := BuiltInModelProvidersByModelId[m.ModelId]
 	if !ok {
 		return []ModelProviderConfigSchema{}
@@ -260,14 +269,23 @@ func (m ModelRoleConfig) GetProvidersForAuthVars(authVars map[string]string) []M
 			continue
 		}
 
+		if localProvider != "" {
+			if !provider.LocalOnly {
+				continue
+			}
+			if provider.Provider != localProvider {
+				continue
+			}
+		}
+
 		res = append(res, provider)
 	}
 
 	return res
 }
 
-func (m ModelRoleConfig) GetFirstProviderForAuthVars(authVars map[string]string) *ModelProviderConfigSchema {
-	providers := m.GetProvidersForAuthVars(authVars)
+func (m ModelRoleConfig) GetFirstProviderForAuthVars(authVars map[string]string, localProvider ModelProvider) *ModelProviderConfigSchema {
+	providers := m.GetProvidersForAuthVars(authVars, localProvider)
 	if len(providers) == 0 {
 		return nil
 	}
