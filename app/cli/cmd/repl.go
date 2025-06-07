@@ -480,6 +480,9 @@ func executor(in string, p *prompt.Prompt) {
 			color.New(term.ColorHiRed).Printf("Error executing chat: %v\n", err)
 		}
 
+		replacer := strings.NewReplacer("'", "", "\"", "", "*", "", "`", "", "_", "")
+		output = replacer.Replace(output)
+
 		rx := regexp.MustCompile(`(?i)(switch|start|continue|begin|change|chang|move|proceed|go|transition)(ing)?( to | with | into )?(tell|implementation|coding|development)( mode)?`)
 
 		if rx.MatchString(output) {
