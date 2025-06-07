@@ -133,8 +133,10 @@ type ExtendedChatCompletionRequest struct {
 	// Openrouter/LiteLLM reasoning
 	ReasoningConfig *ReasoningConfig `json:"reasoning,omitempty"`
 
-	// Openrouter ignore providers
-
+	// Vertex request vars
+	VertexProject     string `json:"vertex_project,omitempty"`
+	VertexLocation    string `json:"vertex_location,omitempty"`
+	VertexCredentials string `json:"vertex_credentials,omitempty"`
 }
 
 // for properties that OpenAI direct api calls support but aren't included in https://github.com/sashabaranov/go-openai
