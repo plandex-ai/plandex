@@ -69,7 +69,7 @@ func TellPlanHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clients := initClients(
+	res := initClients(
 		initClientsParams{
 			w:           w,
 			auth:        auth,
@@ -79,7 +79,14 @@ func TellPlanHandler(w http.ResponseWriter, r *http.Request) {
 			plan:        plan,
 		},
 	)
-	err = modelPlan.Tell(clients, plan, branch, auth, &requestBody)
+	err = modelPlan.Tell(modelPlan.TellParams{
+		Clients:  res.clients,
+		Plan:     plan,
+		Branch:   branch,
+		Auth:     auth,
+		Req:      &requestBody,
+		AuthVars: res.authVars,
+	})
 
 	if err != nil {
 		log.Printf("Error telling plan: %v\n", err)
@@ -132,7 +139,7 @@ func BuildPlanHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clients := initClients(
+	res := initClients(
 		initClientsParams{
 			w:           w,
 			auth:        auth,
@@ -142,7 +149,14 @@ func BuildPlanHandler(w http.ResponseWriter, r *http.Request) {
 			plan:        plan,
 		},
 	)
-	numBuilds, err := modelPlan.Build(clients, requestBody.AuthVars, plan, branch, auth, requestBody.SessionId)
+	numBuilds, err := modelPlan.Build(modelPlan.BuildParams{
+		Clients:   res.clients,
+		AuthVars:  res.authVars,
+		Plan:      plan,
+		Branch:    branch,
+		Auth:      auth,
+		SessionId: requestBody.SessionId,
+	})
 
 	if err != nil {
 		log.Printf("Error building plan: %v\n", err)

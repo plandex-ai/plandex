@@ -184,7 +184,7 @@ func ApplyPlanHandler(w http.ResponseWriter, r *http.Request) {
 
 	log.Println("ApplyPlanHandler: Got current plan state:", currentPlan != nil)
 
-	clients := initClients(
+	res := initClients(
 		initClientsParams{
 			w:           w,
 			auth:        auth,
@@ -195,7 +195,19 @@ func ApplyPlanHandler(w http.ResponseWriter, r *http.Request) {
 		},
 	)
 
-	commitMsg, err := modelPlan.GenCommitMsgForPendingResults(auth, plan, clients, settings, currentPlan, requestBody.SessionId, r.Context())
+	clients := res.clients
+	authVars := res.authVars
+
+	commitMsg, err := modelPlan.GenCommitMsgForPendingResults(modelPlan.GenCommitMsgForPendingResultsParams{
+		Auth:      auth,
+		Plan:      plan,
+		Clients:   clients,
+		Settings:  settings,
+		Current:   currentPlan,
+		AuthVars:  authVars,
+		SessionId: requestBody.SessionId,
+		Ctx:       r.Context(),
+	})
 
 	if err != nil {
 		log.Printf("Error generating commit message: %v\n", err)
