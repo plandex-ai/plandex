@@ -52,9 +52,11 @@ func processProjectMapQueue() {
 		if job.ctx.Err() != nil {
 			if job.ctx.Err() == context.DeadlineExceeded {
 				log.Printf("processProjectMapQueue: job context deadline exceeded: %v", job.ctx.Err())
+				safeSend(job.results, nil)
 				continue
 			}
 			log.Printf("processProjectMapQueue: job context cancelled: %v", job.ctx.Err())
+			safeSend(job.results, nil)
 			continue
 		}
 		ctxWithTimeout, cancel := context.WithTimeout(job.ctx, mapJobTimeout)
@@ -121,9 +123,17 @@ func mapWorker(job projectMapJob) {
 	wg.Wait()
 
 	if job.ctx.Err() != nil {
-		job.results <- nil
+		safeSend(job.results, nil)
 		return
 	}
 
-	job.results <- maps
+	safeSend(job.results, maps)
+}
+
+func safeSend(ch chan shared.FileMapBodies, v shared.FileMapBodies) {
+	// never block, never panic
+	select {
+	case ch <- v:
+	default: // buffer already full – receiver must have gone away
+	}
 }
