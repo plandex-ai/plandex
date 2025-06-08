@@ -2109,33 +2109,6 @@ func (a *Api) ListCustomModels() ([]*shared.CustomModel, *shared.ApiError) {
 	return models, nil
 }
 
-func (a *Api) DeleteCustomModel(modelId string) *shared.ApiError {
-	serverUrl := fmt.Sprintf("%s/custom_models/%s", GetApiHost(), modelId)
-	req, err := http.NewRequest(http.MethodDelete, serverUrl, nil)
-	if err != nil {
-		return &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error creating request: %v", err)}
-	}
-
-	resp, err := authenticatedFastClient.Do(req)
-	if err != nil {
-		return &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error sending request: %v", err)}
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode >= 400 {
-		errorBody, _ := io.ReadAll(resp.Body)
-
-		apiErr := HandleApiError(resp, errorBody)
-		authRefreshed, apiErr := refreshAuthIfNeeded(apiErr)
-		if authRefreshed {
-			return a.DeleteCustomModel(modelId)
-		}
-		return apiErr
-	}
-
-	return nil
-}
-
 func (a *Api) ListCustomProviders() ([]*shared.CustomProvider, *shared.ApiError) {
 	serverUrl := fmt.Sprintf("%s/custom_providers", GetApiHost())
 	resp, err := authenticatedFastClient.Get(serverUrl)
@@ -2161,32 +2134,6 @@ func (a *Api) ListCustomProviders() ([]*shared.CustomProvider, *shared.ApiError)
 	}
 
 	return providers, nil
-}
-
-func (a *Api) DeleteCustomProvider(providerId string) *shared.ApiError {
-	serverUrl := fmt.Sprintf("%s/custom_providers/%s", GetApiHost(), providerId)
-	req, err := http.NewRequest(http.MethodDelete, serverUrl, nil)
-	if err != nil {
-		return &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error creating request: %v", err)}
-	}
-
-	resp, err := authenticatedFastClient.Do(req)
-	if err != nil {
-		return &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error sending request: %v", err)}
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode >= 400 {
-		errorBody, _ := io.ReadAll(resp.Body)
-		apiErr := HandleApiError(resp, errorBody)
-		authRefreshed, apiErr := refreshAuthIfNeeded(apiErr)
-		if authRefreshed {
-			return a.DeleteCustomProvider(providerId)
-		}
-		return apiErr
-	}
-
-	return nil
 }
 
 func (a *Api) ListModelPacks() ([]*shared.ModelPack, *shared.ApiError) {
@@ -2217,34 +2164,6 @@ func (a *Api) ListModelPacks() ([]*shared.ModelPack, *shared.ApiError) {
 
 	return sets, nil
 
-}
-
-func (a *Api) DeleteModelPack(setId string) *shared.ApiError {
-	serverUrl := fmt.Sprintf("%s/model_sets/%s", GetApiHost(), setId)
-
-	req, err := http.NewRequest(http.MethodDelete, serverUrl, nil)
-	if err != nil {
-		return &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error creating request: %v", err)}
-	}
-
-	resp, err := authenticatedFastClient.Do(req)
-	if err != nil {
-		return &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error sending request: %v", err)}
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode >= 400 {
-		errorBody, _ := io.ReadAll(resp.Body)
-
-		apiErr := HandleApiError(resp, errorBody)
-		authRefreshed, apiErr := refreshAuthIfNeeded(apiErr)
-		if authRefreshed {
-			return a.DeleteModelPack(setId)
-		}
-		return apiErr
-	}
-
-	return nil
 }
 
 func (a *Api) GetCreditsTransactions(pageSize, pageNum int, req shared.CreditsLogRequest) (*shared.CreditsLogResponse, *shared.ApiError) {

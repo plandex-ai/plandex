@@ -112,9 +112,15 @@ func GetCustomModel(orgId, id string) (*CustomModel, error) {
 	return &model, nil
 }
 
-func DeleteCustomModel(orgId, id string) error {
-	_, err := Conn.Exec(`DELETE FROM custom_models WHERE org_id = $1 AND id = $2`, orgId, id)
-	return err
+func DeleteCustomModels(tx *sqlx.Tx, orgId string, ids []string) error {
+	if tx == nil {
+		return fmt.Errorf("tx is nil")
+	}
+	_, err := tx.Exec(`DELETE FROM custom_models WHERE org_id = $1 AND id = ANY($2)`, orgId, pq.Array(ids))
+	if err != nil {
+		return fmt.Errorf("error deleting custom models: %v", err)
+	}
+	return nil
 }
 
 func UpsertCustomProvider(tx *sqlx.Tx, p *CustomProvider) error {
@@ -174,9 +180,15 @@ func ListCustomProvidersForNames(orgId string, names []string) ([]*CustomProvide
 	return providers, err
 }
 
-func DeleteCustomProvider(orgId, id string) error {
-	_, err := Conn.Exec(`DELETE FROM custom_providers WHERE org_id = $1 AND id = $2`, orgId, id)
-	return err
+func DeleteCustomProviders(tx *sqlx.Tx, orgId string, ids []string) error {
+	if tx == nil {
+		return fmt.Errorf("tx is nil")
+	}
+	_, err := tx.Exec(`DELETE FROM custom_providers WHERE org_id = $1 AND id = ANY($2)`, orgId, pq.Array(ids))
+	if err != nil {
+		return fmt.Errorf("error deleting custom providers: %v", err)
+	}
+	return nil
 }
 
 func UpsertModelPack(tx *sqlx.Tx, mp *ModelPack) error {
@@ -247,9 +259,11 @@ func ListModelPacksForNames(orgId string, names []string) ([]*ModelPack, error) 
 	return modelPacks, err
 }
 
-func DeleteModelPack(setId string) error {
-	query := `DELETE FROM model_sets WHERE id = $1`
-	_, err := Conn.Exec(query, setId)
+func DeleteModelPacks(tx *sqlx.Tx, orgId string, ids []string) error {
+	if tx == nil {
+		return fmt.Errorf("tx is nil")
+	}
+	_, err := tx.Exec(`DELETE FROM model_sets WHERE org_id = $1 AND id = ANY($2)`, orgId, pq.Array(ids))
 
 	if err != nil {
 		return fmt.Errorf("error deleting model pack: %v", err)

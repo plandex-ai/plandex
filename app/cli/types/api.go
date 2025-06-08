@@ -105,13 +105,10 @@ type ApiClient interface {
 
 	CreateCustomModels(input *shared.ModelsInput) *shared.ApiError
 	ListCustomModels() ([]*shared.CustomModel, *shared.ApiError)
-	DeleteCustomModel(modelId string) *shared.ApiError
 
 	ListCustomProviders() ([]*shared.CustomProvider, *shared.ApiError)
-	DeleteCustomProvider(providerId string) *shared.ApiError
 
 	ListModelPacks() ([]*shared.ModelPack, *shared.ApiError)
-	DeleteModelPack(setId string) *shared.ApiError
 
 	GetCreditsTransactions(pageSize, pageNum int, req shared.CreditsLogRequest) (*shared.CreditsLogResponse, *shared.ApiError)
 	GetCreditsSummary(req shared.CreditsLogRequest) (*shared.CreditsSummaryResponse, *shared.ApiError)

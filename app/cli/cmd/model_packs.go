@@ -6,7 +6,6 @@ import (
 	"plandex-cli/api"
 	"plandex-cli/auth"
 	"plandex-cli/term"
-	"strconv"
 
 	shared "plandex-shared"
 
@@ -26,21 +25,20 @@ var modelPacksCmd = &cobra.Command{
 var createModelPackCmd = &cobra.Command{
 	Use:   "create",
 	Short: "Create a model pack",
-	Run:   customModelsCreateNotImplemented,
+	Run:   customModelsNotImplemented,
 }
 
 var deleteModelPackCmd = &cobra.Command{
-	Use:     "delete [name-or-index]",
+	Use:     "delete",
 	Aliases: []string{"rm"},
 	Short:   "Delete a model pack by name or index",
-	Args:    cobra.MaximumNArgs(1),
-	Run:     deleteModelPack,
+	Run:     customModelsNotImplemented,
 }
 
 var updateModelPackCmd = &cobra.Command{
 	Use:   "update",
 	Short: "Update a model pack by name",
-	Run:   customModelsCreateNotImplemented,
+	Run:   customModelsNotImplemented,
 }
 
 var showModelPackCmd = &cobra.Command{
@@ -58,81 +56,6 @@ func init() {
 	modelPacksCmd.AddCommand(showModelPackCmd)
 	modelPacksCmd.Flags().BoolVarP(&customModelPacksOnly, "custom", "c", false, "Only show custom model packs")
 	modelPacksCmd.Flags().BoolVarP(&allProperties, "all", "a", false, "Show all properties")
-}
-
-func deleteModelPack(cmd *cobra.Command, args []string) {
-	auth.MustResolveAuthWithOrg()
-
-	term.StartSpinner("")
-	modelPacks, err := api.Client.ListModelPacks()
-	term.StopSpinner()
-
-	if err != nil {
-		term.OutputErrorAndExit("Error fetching model packs: %v", err)
-		return
-	}
-
-	if len(modelPacks) == 0 {
-		fmt.Println("🤷‍♂️ No custom model packs")
-		return
-	}
-
-	var setToDelete *shared.ModelPack
-
-	if len(args) == 1 {
-		input := args[0]
-		// Try to parse input as index
-		index, err := strconv.Atoi(input)
-		if err == nil && index > 0 && index <= len(modelPacks) {
-			setToDelete = modelPacks[index-1]
-		} else {
-			// Search by name
-			for _, s := range modelPacks {
-				if s.Name == input {
-					setToDelete = s
-					break
-				}
-			}
-		}
-	}
-
-	if setToDelete == nil {
-		opts := make([]string, len(modelPacks))
-		for i, mp := range modelPacks {
-			opts[i] = mp.Name
-		}
-
-		selected, err := term.SelectFromList("Select a custom model pack:", opts)
-
-		if err != nil {
-			term.OutputErrorAndExit("Error selecting model pack: %v", err)
-		}
-
-		var selectedIndex int
-		for i, opt := range opts {
-			if opt == selected {
-				selectedIndex = i
-				break
-			}
-		}
-
-		setToDelete = modelPacks[selectedIndex]
-	}
-
-	term.StartSpinner("")
-	err = api.Client.DeleteModelPack(setToDelete.Id)
-	term.StopSpinner()
-
-	if err != nil {
-		term.OutputErrorAndExit("Error deleting model pack: %v", err)
-		return
-	}
-
-	fmt.Printf("✅ Deleted model pack %s\n", color.New(color.Bold, term.ColorHiCyan).Sprint(setToDelete.Name))
-
-	fmt.Println()
-
-	term.PrintCmds("", "model-packs", "model-packs --custom", "model-packs create")
 }
 
 func listModelPacks(cmd *cobra.Command, args []string) {

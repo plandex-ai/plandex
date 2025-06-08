@@ -11,6 +11,7 @@ import (
 
 	"plandex-cli/api"
 	"plandex-cli/auth"
+	"plandex-cli/fs"
 	"plandex-cli/lib"
 	"plandex-cli/schema"
 	"plandex-cli/term"
@@ -24,10 +25,9 @@ import (
 )
 
 var customModelsOnly bool
-
 var allProperties bool
-var genTemplatePath string
-var updateModels bool
+var saveCustomModels bool
+var customModelsPath string
 
 func init() {
 	RootCmd.AddCommand(modelsCmd)
@@ -41,8 +41,8 @@ func init() {
 	modelsCmd.AddCommand(deleteCustomModelCmd)
 	modelsCmd.AddCommand(defaultModelsCmd)
 
-	importCustomModelCmd.Flags().StringVarP(&genTemplatePath, "generate", "g", "", "Generate a template JSON file")
-	importCustomModelCmd.Flags().BoolVarP(&updateModels, "update", "u", false, "Update existing models")
+	importCustomModelCmd.Flags().BoolVar(&saveCustomModels, "save", false, "Save custom models")
+	importCustomModelCmd.Flags().StringVar(&customModelsPath, "path", "", "Path to custom models file")
 
 	listAvailableModelsCmd.Flags().BoolVarP(&customModelsOnly, "custom", "c", false, "List custom models only")
 }
@@ -67,24 +67,23 @@ var listAvailableModelsCmd = &cobra.Command{
 }
 
 var importCustomModelCmd = &cobra.Command{
-	Use:   "import [json-file]",
-	Short: "Create or update custom models, providers, and model packs from a JSON file",
+	Use:   "custom",
+	Short: "Manage custom models, providers, and model packs",
 	Run:   importCustomModels,
-	Args:  cobra.MaximumNArgs(1),
 }
 
 var addCustomModelCmd = &cobra.Command{
 	Use:     "add",
 	Aliases: []string{"create"},
 	Short:   "Add a custom model",
-	Run:     customModelsCreateNotImplemented,
+	Run:     customModelsNotImplemented,
 }
 
 var updateCustomModelCmd = &cobra.Command{
 	Use:     "update",
 	Aliases: []string{"edit"},
 	Short:   "Update a custom model",
-	Run:     customModelsUpdateNotImplemented,
+	Run:     customModelsNotImplemented,
 }
 
 var deleteCustomModelCmd = &cobra.Command{
@@ -92,13 +91,11 @@ var deleteCustomModelCmd = &cobra.Command{
 	Aliases: []string{"remove", "delete"},
 	Short:   "Remove a custom model",
 	Args:    cobra.MaximumNArgs(1),
-	Run:     deleteCustomModel,
+	Run:     customModelsNotImplemented,
 }
 
 func importCustomModels(cmd *cobra.Command, args []string) {
 	auth.MustResolveAuthWithOrg()
-
-	var jsonFile string
 
 	term.StartSpinner("")
 
@@ -167,6 +164,23 @@ func importCustomModels(cmd *cobra.Command, args []string) {
 	}
 	for _, modelPack := range customModelPacks {
 		existsById[modelPack.Name] = true
+	}
+
+	usingDefaultPath := false
+	if customModelsPath == "" {
+		usingDefaultPath = true
+		customModelsPath = filepath.Join(fs.HomePlandexDir, "custom-models.json")
+	}
+
+	exists := false
+	_, err := os.Stat(customModelsPath)
+	if err == nil {
+		exists = true
+	} else if os.IsNotExist(err) {
+		exists = false
+	} else {
+		term.OutputErrorAndExit("Error checking custom models file: %v", err)
+		return
 	}
 
 	if len(args) == 1 {
@@ -283,6 +297,13 @@ func importCustomModels(cmd *cobra.Command, args []string) {
 			fmt.Println("When you're ready, run:")
 			fmt.Printf("• %s\n", color.New(color.Bold, color.BgCyan, color.FgHiWhite).
 				Sprintf(" %smodels import %s ", pf, jsonFile))
+			return
+		}
+	}
+
+	if saveCustomModels {
+		if !exists {
+			term.OutputErrorAndExit("File not found: %s", customModelsPath)
 			return
 		}
 	}
@@ -502,83 +523,6 @@ func listAvailableModels(cmd *cobra.Command, args []string) {
 	}
 }
 
-func deleteCustomModel(cmd *cobra.Command, args []string) {
-	auth.MustResolveAuthWithOrg()
-
-	term.StartSpinner("")
-	models, apiErr := api.Client.ListCustomModels()
-	term.StopSpinner()
-
-	if apiErr != nil {
-		term.OutputErrorAndExit("Error fetching custom models: %v", apiErr)
-		return
-	}
-
-	if len(models) == 0 {
-		fmt.Println("🤷‍♂️ No custom models")
-		fmt.Println()
-		term.PrintCmds("", "models add")
-		return
-	}
-
-	var modelToDelete *shared.CustomModel
-
-	if len(args) == 1 {
-		input := args[0]
-		// Try to parse input as index
-		index, err := strconv.Atoi(input)
-		if err == nil && index > 0 && index <= len(models) {
-			modelToDelete = models[index-1]
-		} else {
-			// Search by name
-			for _, m := range models {
-				if string(m.ModelId) == input {
-					modelToDelete = m
-					break
-				}
-			}
-		}
-	}
-
-	if modelToDelete == nil {
-		opts := make([]string, len(models))
-		for i, model := range models {
-			opts[i] = string(model.ModelId)
-		}
-
-		selected, err := term.SelectFromList("Select model to delete:", opts)
-
-		if err != nil {
-			term.OutputErrorAndExit("Error selecting model: %v", err)
-			return
-		}
-
-		var selectedIndex int
-		for i, opt := range opts {
-			if opt == selected {
-				selectedIndex = i
-				break
-			}
-		}
-
-		modelToDelete = models[selectedIndex]
-	}
-
-	term.StartSpinner("")
-	apiErr = api.Client.DeleteCustomModel(modelToDelete.Id)
-	term.StopSpinner()
-
-	if apiErr != nil {
-		term.OutputErrorAndExit("Error deleting custom model: %v", apiErr)
-		return
-	}
-
-	fmt.Printf("✅ Deleted custom model %s\n", color.New(color.Bold, term.ColorHiCyan).Sprint(string(modelToDelete.ModelId)))
-
-	fmt.Println()
-	term.PrintCmds("", "models available", "models add")
-}
-
 func renderSettings(settings *shared.PlanSettings, allProperties bool) {
 	modelPack := settings.ModelPack
 
@@ -739,17 +683,10 @@ func renderModelPack(modelPack *shared.ModelPack, allProperties bool) {
 
 }
 
-func customModelsCreateNotImplemented(cmd *cobra.Command, args []string) {
+func customModelsNotImplemented(cmd *cobra.Command, args []string) {
 	color.New(color.Bold, color.FgHiRed).Println("⛔️ Not implemented")
 	fmt.Println()
-	fmt.Println("Use " + color.New(color.BgCyan, color.FgHiWhite).Sprint(" plandex models import ") + " to add custom models, providers, and model packs with a JSON file")
-	os.Exit(1)
-}
-
-func customModelsUpdateNotImplemented(cmd *cobra.Command, args []string) {
-	color.New(color.Bold, color.FgHiRed).Println("⛔️ Not implemented")
-	fmt.Println()
-	fmt.Println("Use " + color.New(color.BgCyan, color.FgHiWhite).Sprint(" plandex models import --update ") + " to update existing custom models, providers, and model packs with a JSON file")
+	fmt.Println("Use " + color.New(color.BgCyan, color.FgHiWhite).Sprint(" plandex models custom ") + " to manage custom models, providers, and model packs")
 	os.Exit(1)
 }
 

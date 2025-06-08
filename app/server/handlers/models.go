@@ -10,7 +10,6 @@ import (
 
 	shared "plandex-shared"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/gorilla/mux"
 	"github.com/jmoiron/sqlx"
 )
@@ -88,8 +87,8 @@ func CreateCustomModelHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	var customModelIds = make(map[shared.ModelId]bool)
-	var customProviderNames = make(map[string]bool)
+	var existingCustomModelIds = make(map[shared.ModelId]bool)
+	var existingCustomProviderNames = make(map[string]bool)
 
 	customModels, err := db.ListCustomModels(auth.OrgId)
 	if err != nil {
@@ -98,29 +97,51 @@ func CreateCustomModelHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	for _, model := range customModels {
-		customModelIds[model.ModelId] = true
+	customModelPacks, err := db.ListModelPacks(auth.OrgId)
+	if err != nil {
+		log.Printf("Error fetching custom model packs: %v\n", err)
+		http.Error(w, "Failed to create custom model: "+err.Error(), http.StatusInternalServerError)
+		return
 	}
 
+	var customProviders []*db.CustomProvider
+
 	if os.Getenv("IS_CLOUD") == "" {
-		customProviders, err := db.ListCustomProviders(auth.OrgId)
+		customProviders, err = db.ListCustomProviders(auth.OrgId)
 		if err != nil {
 			log.Printf("Error fetching custom providers: %v\n", err)
 			http.Error(w, "Failed to create custom model: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
+	}
 
-		for _, provider := range customProviders {
-			customProviderNames[provider.Name] = true
-		}
+	for _, model := range customModels {
+		existingCustomModelIds[model.ModelId] = true
+	}
+
+	for _, provider := range customProviders {
+		existingCustomProviderNames[provider.Name] = true
+	}
+
+	willUpsertModelIds := make(map[string]bool)
+	willUpsertProviderNames := make(map[string]bool)
+	willUpsertModelPackNames := make(map[string]bool)
+
+	for _, model := range modelsInput.CustomModels {
+		willUpsertModelIds[string(model.ModelId)] = true
+	}
+
+	for _, provider := range modelsInput.CustomProviders {
+		willUpsertProviderNames[provider.Name] = true
+	}
+
+	for _, modelPack := range modelsInput.CustomModelPacks {
+		willUpsertModelPackNames[modelPack.Name] = true
 	}
 
 	var toUpsertCustomModels []*db.CustomModel
 	var toUpsertCustomProviders []*db.CustomProvider
 	var toUpsertModelPacks []*db.ModelPack
-
-	willCreateModelIds := make(map[string]bool)
-	willCreateProviderNames := make(map[string]bool)
 
 	for _, provider := range modelsInput.CustomProviders {
 		dbProvider := db.CustomProviderFromApi(provider)
@@ -128,15 +149,14 @@ func CreateCustomModelHandler(w http.ResponseWriter, r *http.Request) {
 		dbProvider.OrgId = auth.OrgId
 
 		toUpsertCustomProviders = append(toUpsertCustomProviders, dbProvider)
-		willCreateProviderNames[provider.Name] = true
 	}
 
 	for _, model := range modelsInput.CustomModels {
 		// ensure that providers are either built-in, being created, or already exist
 		for _, provider := range model.Providers {
 			if provider.Provider == shared.ModelProviderCustom {
-				_, exists := customProviderNames[*provider.CustomProvider]
-				_, creating := willCreateProviderNames[*provider.CustomProvider]
+				_, exists := existingCustomProviderNames[*provider.CustomProvider]
+				_, creating := willUpsertProviderNames[*provider.CustomProvider]
 				if !exists && !creating {
 					msg := fmt.Sprintf("'%s' is not a custom model provider that exists or is being created", *provider.CustomProvider)
 					log.Println(msg)
@@ -159,21 +179,15 @@ func CreateCustomModelHandler(w http.ResponseWriter, r *http.Request) {
 		dbModel.OrgId = auth.OrgId
 
 		toUpsertCustomModels = append(toUpsertCustomModels, dbModel)
-		willCreateModelIds[string(model.ModelId)] = true
 	}
-
-	log.Println(spew.Sdump(map[string]interface{}{
-		"customModelIds":     customModelIds,
-		"willCreateModelIds": willCreateModelIds,
-	}))
 
 	for _, modelPack := range modelsInput.CustomModelPacks {
 		// ensure that all models are either built-in, being created, or already exist
 		allModelIds := modelPack.AllModelIds()
 
 		for _, modelId := range allModelIds {
-			_, exists := customModelIds[modelId]
-			_, creating := willCreateModelIds[string(modelId)]
+			_, exists := existingCustomModelIds[modelId]
+			_, creating := willUpsertModelIds[string(modelId)]
 			_, builtIn := shared.BuiltInBaseModelsById[modelId]
 
 			if !exists && !creating && !builtIn {
@@ -192,6 +206,28 @@ func CreateCustomModelHandler(w http.ResponseWriter, r *http.Request) {
 		toUpsertModelPacks = append(toUpsertModelPacks, dbMp)
 	}
 
+	toDeleteCustomModelIds := []string{}
+	toDeleteCustomProviderIds := []string{}
+	toDeleteModelPackIds := []string{}
+
+	for _, model := range customModels {
+		if _, exists := willUpsertModelIds[string(model.ModelId)]; !exists {
+			toDeleteCustomModelIds = append(toDeleteCustomModelIds, model.Id)
+		}
+	}
+
+	for _, provider := range customProviders {
+		if _, exists := willUpsertProviderNames[provider.Name]; !exists {
+			toDeleteCustomProviderIds = append(toDeleteCustomProviderIds, provider.Id)
+		}
+	}
+
+	for _, modelPack := range customModelPacks {
+		if _, exists := willUpsertModelPackNames[modelPack.Name]; !exists {
+			toDeleteModelPackIds = append(toDeleteModelPackIds, modelPack.Id)
+		}
+	}
+
 	err = db.WithTx(r.Context(), "create custom models/providers/model packs", func(tx *sqlx.Tx) error {
 		for _, model := range toUpsertCustomModels {
 			if err := db.UpsertCustomModel(tx, model); err != nil {
@@ -208,6 +244,24 @@ func CreateCustomModelHandler(w http.ResponseWriter, r *http.Request) {
 		for _, modelPack := range toUpsertModelPacks {
 			if err := db.UpsertModelPack(tx, modelPack); err != nil {
 				return fmt.Errorf("error creating model pack: %w", err)
+			}
+		}
+
+		if len(toDeleteCustomModelIds) > 0 {
+			if err := db.DeleteCustomModels(tx, auth.OrgId, toDeleteCustomModelIds); err != nil {
+				return fmt.Errorf("error deleting custom models: %w", err)
+			}
+		}
+
+		if len(toDeleteCustomProviderIds) > 0 {
+			if err := db.DeleteCustomProviders(tx, auth.OrgId, toDeleteCustomProviderIds); err != nil {
+				return fmt.Errorf("error deleting custom providers: %w", err)
+			}
+		}
+
+		if len(toDeleteModelPackIds) > 0 {
+			if err := db.DeleteModelPacks(tx, auth.OrgId, toDeleteModelPackIds); err != nil {
+				return fmt.Errorf("error deleting model packs: %w", err)
 			}
 		}
 
@@ -291,51 +345,6 @@ func ListCustomModelsHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Successfully fetched custom models")
 }
 
-func DeleteCustomModelHandler(w http.ResponseWriter, r *http.Request) {
-	log.Println("Received request for DeleteAvailableModelHandler")
-
-	auth := Authenticate(w, r, true)
-	if auth == nil {
-		return
-	}
-
-	if !requireMinClientVersion(w, r, CustomModelsMinClientVersion) {
-		return
-	}
-
-	id := mux.Vars(r)["modelId"]
-
-	models, err := db.ListCustomModels(auth.OrgId)
-	if err != nil {
-		log.Printf("Error fetching custom models: %v\n", err)
-		http.Error(w, "Failed to fetch custom models: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	found := false
-	for _, m := range models {
-		if m.Id == id {
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		http.Error(w, "Custom model not found", http.StatusNotFound)
-		return
-	}
-
-	if err := db.DeleteCustomModel(auth.OrgId, id); err != nil {
-		log.Printf("Error deleting custom model: %v\n", err)
-		http.Error(w, "Failed to delete custom model: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
-
-	log.Println("Successfully deleted custom model")
-}
-
 func GetCustomProviderHandler(w http.ResponseWriter, r *http.Request) {
 	auth := Authenticate(w, r, true)
 	if auth == nil {
@@ -390,27 +399,6 @@ func ListCustomProvidersHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Println("Successfully fetched custom providers")
-}
-
-func DeleteCustomProviderHandler(w http.ResponseWriter, r *http.Request) {
-	auth := Authenticate(w, r, true)
-	if auth == nil {
-		return
-	}
-
-	if os.Getenv("IS_CLOUD") != "" {
-		http.Error(w, "Custom model providers are not supported on Plandex Cloud", http.StatusBadRequest)
-		return
-	}
-
-	id := mux.Vars(r)["providerId"]
-	if err := db.DeleteCustomProvider(auth.OrgId, id); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	w.WriteHeader(http.StatusOK)
-
-	log.Println("Successfully deleted custom provider")
 }
 
 func CreateModelPackHandler(w http.ResponseWriter, r *http.Request) {
@@ -471,51 +459,4 @@ func ListModelPacksHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(apiPacks)
 
 	log.Println("Successfully fetched model packs")
-}
-
-func DeleteModelPackHandler(w http.ResponseWriter, r *http.Request) {
-	log.Println("Received request for DeleteModelPackHandler")
-
-	auth := Authenticate(w, r, true)
-	if auth == nil {
-		return
-	}
-
-	if !requireMinClientVersion(w, r, CustomModelsMinClientVersion) {
-		return
-	}
-
-	mpId := mux.Vars(r)["setId"]
-
-	packs, err := db.ListModelPacks(auth.OrgId)
-	if err != nil {
-		log.Printf("Error fetching model packs: %v\n", err)
-		http.Error(w, "Failed to fetch model packs: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	found := false
-	for _, m := range packs {
-		if m.Id == mpId {
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		http.Error(w, "Model pack not found", http.StatusNotFound)
-		return
-	}
-
-	log.Printf("Deleting model pack with id: %s\n", mpId)
-
-	if err := db.DeleteModelPack(mpId); err != nil {
-		log.Printf("Error deleting model pack: %v\n", err)
-		http.Error(w, "Failed to delete model pack: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
-
-	log.Println("Successfully deleted model pack")
 }
