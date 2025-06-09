@@ -37,12 +37,12 @@ func init() {
 	modelsCmd.AddCommand(listAvailableModelsCmd)
 	modelsCmd.AddCommand(addCustomModelCmd)
 	modelsCmd.AddCommand(updateCustomModelCmd)
-	modelsCmd.AddCommand(importCustomModelCmd)
+	modelsCmd.AddCommand(manageCustomModelsCmd)
 	modelsCmd.AddCommand(deleteCustomModelCmd)
 	modelsCmd.AddCommand(defaultModelsCmd)
 
-	importCustomModelCmd.Flags().BoolVar(&saveCustomModels, "save", false, "Save custom models")
-	importCustomModelCmd.Flags().StringVar(&customModelsPath, "path", "", "Path to custom models file")
+	manageCustomModelsCmd.Flags().BoolVar(&saveCustomModels, "save", false, "Save custom models")
+	manageCustomModelsCmd.Flags().StringVarP(&customModelsPath, "file", "f", "", "Path to custom models file")
 
 	listAvailableModelsCmd.Flags().BoolVarP(&customModelsOnly, "custom", "c", false, "List custom models only")
 }
@@ -66,10 +66,10 @@ var listAvailableModelsCmd = &cobra.Command{
 	Run:     listAvailableModels,
 }
 
-var importCustomModelCmd = &cobra.Command{
+var manageCustomModelsCmd = &cobra.Command{
 	Use:   "custom",
 	Short: "Manage custom models, providers, and model packs",
-	Run:   importCustomModels,
+	Run:   manageCustomModels,
 }
 
 var addCustomModelCmd = &cobra.Command{
@@ -94,7 +94,7 @@ var deleteCustomModelCmd = &cobra.Command{
 	Run:     customModelsNotImplemented,
 }
 
-func importCustomModels(cmd *cobra.Command, args []string) {
+func manageCustomModels(cmd *cobra.Command, args []string) {
 	auth.MustResolveAuthWithOrg()
 
 	term.StartSpinner("")
@@ -166,10 +166,22 @@ func importCustomModels(cmd *cobra.Command, args []string) {
 		existsById[modelPack.Name] = true
 	}
 
+	serverModelsInput := &shared.ModelsInput{
+		CustomModels:     customModels,
+		CustomProviders:  customProviders,
+		CustomModelPacks: customModelPacks,
+	}
+
 	usingDefaultPath := false
 	if customModelsPath == "" {
 		usingDefaultPath = true
 		customModelsPath = filepath.Join(fs.HomePlandexDir, "custom-models.json")
+	}
+	hashPath := customModelsPath + ".hash"
+
+	cmdPrefix := "\\"
+	if !term.IsRepl {
+		cmdPrefix = "plandex "
 	}
 
 	exists := false
@@ -183,105 +195,167 @@ func importCustomModels(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	if len(args) == 1 {
-		jsonFile = args[0]
-	} else if updateModels {
-		modelsInput := &shared.ModelsInput{
-			CustomModels:     customModels,
-			CustomProviders:  customProviders,
-			CustomModelPacks: customModelPacks,
-		}
+	var jsonData []byte
 
-		modelsInput.PrepareUpdate()
-
-		// Generate temp file with current state
-		tmpFile, err := os.CreateTemp("", "plandex-models-update-*.json")
-		if err != nil {
-			term.OutputErrorAndExit("Error creating temp file: %v", err)
+	if saveCustomModels {
+		if !exists {
+			term.OutputErrorAndExit("File not found: %s", customModelsPath)
 			return
 		}
-
-		jsonFile = tmpFile.Name()
-		tmpFile.Close()
-
-		jsonData, err := json.MarshalIndent(modelsInput, "", "  ")
+		jsonData, err = os.ReadFile(customModelsPath)
 		if err != nil {
-			term.OutputErrorAndExit("Error marshalling models: %v", err)
+			term.OutputErrorAndExit("Error reading JSON file: %v", err)
 			return
 		}
-
-		err = os.WriteFile(jsonFile, jsonData, 0644)
-		if err != nil {
-			term.OutputErrorAndExit("Error writing file: %v", err)
-			return
-		}
-
-		term.StopSpinner()
-
-		fmt.Printf("✅ Exported models file: %s\n", jsonFile)
-		fmt.Println("👨‍💻 Edit the file, then come back here to finish importing")
-		fmt.Println()
 	} else {
-		// Generate temp file with examples
-		tmpFile, err := os.CreateTemp("", "plandex-models-*.json")
-		if err != nil {
-			term.OutputErrorAndExit("Error creating template file: %v", err)
-			return
+		if serverModelsInput.IsEmpty() {
+			jsonData, err = json.MarshalIndent(getExampleTemplate(auth.Current.IsCloud), "", "  ")
+			if err != nil {
+				term.OutputErrorAndExit("Error marshalling template: %v", err)
+				return
+			}
+
+			err = os.MkdirAll(filepath.Dir(customModelsPath), 0755)
+			if err != nil {
+				term.OutputErrorAndExit("Error creating directory: %v", err)
+				return
+			}
+
+			err = os.WriteFile(customModelsPath, jsonData, 0644)
+			if err != nil {
+				term.OutputErrorAndExit("Error writing template file: %v", err)
+				return
+			}
+
+			term.StopSpinner()
+
+			fmt.Printf("🧠 Example models file → %s\n", customModelsPath)
+			fmt.Println("👨‍💻 Edit it, then come back here to save")
+			fmt.Println()
+		} else {
+			localJsonData, err := os.ReadFile(customModelsPath)
+			if err != nil {
+				term.OutputErrorAndExit("Error reading JSON file: %v", err)
+				return
+			}
+
+			var localModelsInput shared.ModelsInput
+			err = json.Unmarshal(localJsonData, &localModelsInput)
+			if err != nil {
+				term.OutputErrorAndExit("Error unmarshalling JSON file: %v", err)
+				return
+			}
+
+			// we only do a conflict check on the default path in the home dir
+			// if user specifies the path and the file exists, just open the file without checking for conflicts
+			var currentHash string
+			if usingDefaultPath {
+				lastSavedHash, err := os.ReadFile(hashPath)
+				if err != nil && !os.IsNotExist(err) {
+					term.OutputErrorAndExit("Error reading hash file: %v", err)
+					return
+				}
+
+				currentHash, err = localModelsInput.Hash()
+				if err != nil {
+					term.OutputErrorAndExit("Error hashing models: %v", err)
+					return
+				}
+
+				if currentHash != string(lastSavedHash) {
+					term.StopSpinner()
+					color.New(color.Bold, term.ColorHiYellow).Println("⚠️  The models file has local changes")
+
+					fmt.Println()
+					fmt.Println("Path → " + customModelsPath)
+					fmt.Println()
+
+					fmt.Println("If you continue, local changes will be dropped in favor of the latest server state")
+
+					fmt.Println()
+					fmt.Printf("To keep the local version instead, quit and run %s\n", color.New(color.Bold, color.BgCyan, color.FgHiWhite).
+						Sprintf(" %smodels custom --save ", cmdPrefix))
+					fmt.Println()
+					res, err := term.ConfirmYesNo("Drop local changes and continue?")
+					if err != nil {
+						term.OutputErrorAndExit("Error confirming: %v", err)
+						return
+					}
+					if !res {
+						return
+					}
+					fmt.Println()
+					term.StartSpinner("")
+				}
+			}
+
+			serverModelsInput.PrepareUpdate()
+
+			if serverModelsInput.Equals(localModelsInput) {
+				jsonData = localJsonData
+			} else {
+				jsonData, err = json.MarshalIndent(serverModelsInput, "", "  ")
+				if err != nil {
+					term.OutputErrorAndExit("Error marshalling models: %v", err)
+					return
+				}
+
+				err = os.WriteFile(customModelsPath, jsonData, 0644)
+				if err != nil {
+					term.OutputErrorAndExit("Error writing file: %v", err)
+					return
+				}
+			}
+
+			if currentHash != "" {
+				err = os.WriteFile(hashPath, []byte(currentHash), 0644)
+				if err != nil {
+					term.OutputErrorAndExit("Error writing hash file: %v", err)
+					return
+				}
+			}
+
+			term.StopSpinner()
+
+			fmt.Printf("🧠 %s → %s\n", color.New(color.Bold, term.ColorHiCyan).Sprint("Models file"), customModelsPath)
+			fmt.Println("👨‍💻 Edit it, then come back here to save")
+			fmt.Println()
 		}
 
-		jsonFile = tmpFile.Name()
-		tmpFile.Close()
-
-		jsonData, err := json.MarshalIndent(getExampleTemplate(auth.Current.IsCloud), "", "  ")
-		if err != nil {
-			term.OutputErrorAndExit("Error marshalling template: %v", err)
-			return
+		pathArg := ""
+		if !usingDefaultPath {
+			pathArg = fmt.Sprintf(" --file %s", customModelsPath)
+		}
+		printManual := func() {
+			fmt.Println("To save changes, run " +
+				fmt.Sprintf(" %s ", color.New(color.Bold, color.BgCyan, color.FgHiWhite).
+					Sprintf(" %smodels custom --save%s ", cmdPrefix, pathArg)))
 		}
 
-		err = os.WriteFile(jsonFile, jsonData, 0644)
-		if err != nil {
-			term.OutputErrorAndExit("Error writing template file: %v", err)
-			return
-		}
-
-		term.StopSpinner()
-
-		fmt.Printf("✅ Created example template: %s\n", jsonFile)
-		fmt.Println("👨‍💻 Edit the file, then come back here to finish importing")
-		fmt.Println()
-	}
-
-	// For both add and update flows, open the editor
-	if len(args) == 0 || (len(args) == 1 && updateModels) {
-		selectedEditor := maybePromptAndOpen(jsonFile)
+		selectedEditor := maybePromptAndOpen(customModelsPath)
 
 		if selectedEditor {
 			fmt.Println("📝 Opened in editor")
 			fmt.Println()
 
-			confirmed, err := term.ConfirmYesNo("Ready to import?")
+			confirmed, err := term.ConfirmYesNo("Ready to save?")
 			if err != nil {
 				term.OutputErrorAndExit("Error confirming: %v", err)
 				return
 			}
 
 			if !confirmed {
-				fmt.Println("🤷‍♂️ Import cancelled")
+				fmt.Println("🙅‍♂️ Update canceled")
 				fmt.Println()
 
-				// Clean up temp file
-				if looksLikeEphemeralTemplate(jsonFile) {
-					os.Remove(jsonFile)
-				}
+				printManual()
+				return
+			}
 
-				pf := "\\"
-				if !term.IsRepl {
-					pf = "plandex "
-				}
-
-				fmt.Println("When you're ready, run:")
-				fmt.Printf("• %s\n", color.New(color.Bold, color.BgCyan, color.FgHiWhite).
-					Sprintf(" %smodels import %s ", pf, jsonFile))
+			// get updated file state
+			jsonData, err = os.ReadFile(customModelsPath)
+			if err != nil {
+				term.OutputErrorAndExit("Error reading JSON file: %v", err)
 				return
 			}
 		} else {
@@ -289,32 +363,12 @@ func importCustomModels(cmd *cobra.Command, args []string) {
 			fmt.Println("👨‍💻 Edit the file in your JSON editor of choice")
 			fmt.Println()
 
-			pf := "\\"
-			if !term.IsRepl {
-				pf = "plandex "
-			}
-
-			fmt.Println("When you're ready, run:")
-			fmt.Printf("• %s\n", color.New(color.Bold, color.BgCyan, color.FgHiWhite).
-				Sprintf(" %smodels import %s ", pf, jsonFile))
-			return
-		}
-	}
-
-	if saveCustomModels {
-		if !exists {
-			term.OutputErrorAndExit("File not found: %s", customModelsPath)
+			printManual()
 			return
 		}
 	}
 
 	term.StartSpinner("")
-	// Import the JSON file
-	jsonData, err := os.ReadFile(jsonFile)
-	if err != nil {
-		term.OutputErrorAndExit("Error reading JSON file: %v", err)
-		return
-	}
 
 	modelsInput, err := schema.ValidateModelsInputJSON(jsonData)
 	if err != nil {
@@ -333,32 +387,65 @@ func importCustomModels(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	modelsInput = modelsInput.FilterUnchanged(&shared.ModelsInput{
-		CustomModels:     customModels,
-		CustomProviders:  customProviders,
-		CustomModelPacks: customModelPacks,
-	})
+	printNoChanges := func() {
+		term.StopSpinner()
+		fmt.Println("🤷‍♂️ No changes to custom models/providers/model packs")
+	}
 
 	if modelsInput.IsEmpty() {
-		term.StopSpinner()
-		fmt.Println("🤷‍♂️ Nothing to import")
-		fmt.Println()
-		term.PrintCmds("", "models available", "models import", "models import --update")
+		printNoChanges()
 		return
 	}
 
 	apiErr := api.Client.CreateCustomModels(&modelsInput)
-	term.StopSpinner()
 
 	if apiErr != nil {
 		term.OutputErrorAndExit("Error importing models: %v", apiErr.Msg)
 		return
 	}
 
+	// only write the hash if we're using the default path in the home dir
+	// otherwise we don't do conflict checking, so we don't need the hash file
+	if usingDefaultPath {
+		hash, err := modelsInput.Hash()
+		if err != nil {
+			term.OutputErrorAndExit("Error hashing models: %v", err)
+			return
+		}
+
+		err = os.WriteFile(hashPath, []byte(hash), 0644)
+		if err != nil {
+			term.OutputErrorAndExit("Error writing hash file: %v", err)
+			return
+		}
+	}
+
+	inputModelIds := map[string]bool{}
+	inputProviderNames := map[string]bool{}
+	inputModelPackNames := map[string]bool{}
+	for _, model := range modelsInput.CustomModels {
+		inputModelIds[string(model.ModelId)] = true
+	}
+	for _, provider := range modelsInput.CustomProviders {
+		inputProviderNames[provider.Name] = true
+	}
+	for _, modelPack := range modelsInput.CustomModelPacks {
+		inputModelPackNames[modelPack.Name] = true
+	}
+
+	updatedModelsInput := modelsInput.FilterUnchanged(&shared.ModelsInput{
+		CustomModels:     customModels,
+		CustomProviders:  customProviders,
+		CustomModelPacks: customModelPacks,
+	})
+
+	term.StopSpinner()
+
 	added := strings.Builder{}
 	updated := strings.Builder{}
+	deleted := strings.Builder{}
 
-	for _, provider := range modelsInput.CustomProviders {
+	for _, provider := range updatedModelsInput.CustomProviders {
 		action := "✅ Added"
 		builder := &added
 		if existsById[provider.Name] {
@@ -370,8 +457,15 @@ func importCustomModels(cmd *cobra.Command, args []string) {
 			color.New(term.ColorHiCyan).Sprint("provider"),
 			color.New(color.Bold, term.ColorHiGreen).Sprint(provider.Name)))
 	}
+	for _, provider := range customProviders {
+		if !inputProviderNames[provider.Name] {
+			deleted.WriteString(fmt.Sprintf("❌ Removed custom %s → %s\n",
+				color.New(term.ColorHiCyan).Sprint("provider"),
+				color.New(color.Bold, term.ColorHiRed).Sprint(provider.Name)))
+		}
+	}
 
-	for _, model := range modelsInput.CustomModels {
+	for _, model := range updatedModelsInput.CustomModels {
 		action := "✅ Added"
 		builder := &added
 		if existsById[string(model.ModelId)] {
@@ -383,8 +477,15 @@ func importCustomModels(cmd *cobra.Command, args []string) {
 			color.New(term.ColorHiCyan).Sprint("model"),
 			color.New(color.Bold, term.ColorHiGreen).Sprint(string(model.ModelId))))
 	}
+	for _, model := range customModels {
+		if !inputModelIds[string(model.ModelId)] {
+			deleted.WriteString(fmt.Sprintf("❌ Removed custom %s → %s\n",
+				color.New(term.ColorHiCyan).Sprint("model"),
+				color.New(color.Bold, term.ColorHiRed).Sprint(string(model.ModelId))))
+		}
+	}
 
-	for _, modelPack := range modelsInput.CustomModelPacks {
+	for _, modelPack := range updatedModelsInput.CustomModelPacks {
 		action := "✅ Added"
 		builder := &added
 		if existsById[modelPack.Name] {
@@ -396,17 +497,22 @@ func importCustomModels(cmd *cobra.Command, args []string) {
 			color.New(term.ColorHiCyan).Sprint("model pack"),
 			color.New(color.Bold, term.ColorHiGreen).Sprint(modelPack.Name)))
 	}
+	for _, modelPack := range customModelPacks {
+		if !inputModelPackNames[modelPack.Name] {
+			deleted.WriteString(fmt.Sprintf("❌ Removed custom %s → %s\n",
+				color.New(term.ColorHiCyan).Sprint("model pack"),
+				color.New(color.Bold, term.ColorHiRed).Sprint(modelPack.Name)))
+		}
+	}
+
+	if updated.Len()+added.Len()+deleted.Len() == 0 {
+		printNoChanges()
+		return
+	}
 
 	fmt.Print(added.String())
 	fmt.Print(updated.String())
-
-	// Clean up temp file if it was generated
-	if (len(args) == 0 || (len(args) == 1 && updateModels)) && looksLikeEphemeralTemplate(jsonFile) {
-		err = os.Remove(jsonFile)
-		if err != nil {
-			term.OutputErrorAndExit("Error cleaning up temp file: %v", err)
-		}
-	}
+	fmt.Print(deleted.String())
 }
 
 func models(cmd *cobra.Command, args []string) {
@@ -827,14 +933,6 @@ func maybePromptAndOpen(path string) bool {
 	}
 
 	return false
-}
-
-func looksLikeEphemeralTemplate(p string) bool {
-	// covers cases where the user pasted the temp name manually
-	tmp := os.TempDir()
-	return strings.HasPrefix(p, tmp+string(os.PathSeparator)) &&
-		strings.HasPrefix(filepath.Base(p), "plandex-models-") &&
-		strings.HasSuffix(p, ".json")
 }
 
 func getExampleTemplate(isCloud bool) shared.ModelsInput {

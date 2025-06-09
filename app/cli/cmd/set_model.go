@@ -24,10 +24,11 @@ func init() {
 }
 
 var modelsSetCmd = &cobra.Command{
-	Use:   "set-model [model-set-or-role-or-setting] [property-or-value] [value]",
-	Short: "Update current plan model settings",
-	Run:   modelsSet,
-	Args:  cobra.MaximumNArgs(3),
+	Use:     "set-model [model-set-or-role-or-setting] [property-or-value] [value]",
+	Aliases: []string{"set-models"},
+	Short:   "Update current plan model settings",
+	Run:     modelsSet,
+	Args:    cobra.MaximumNArgs(3),
 }
 
 var defaultModelSetCmd = &cobra.Command{

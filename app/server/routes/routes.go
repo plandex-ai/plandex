@@ -163,7 +163,7 @@ func addApiRoutes(r *mux.Router, prefix string) {
 	HandlePlandexFn(r, prefix+"/plans/{planId}/{branch}/build", true, handlers.BuildPlanHandler).Methods("PATCH")
 
 	HandlePlandexFn(r, prefix+"/custom_models", false, handlers.ListCustomModelsHandler).Methods("GET")
-	HandlePlandexFn(r, prefix+"/custom_models", false, handlers.CreateCustomModelHandler).Methods("POST")
+	HandlePlandexFn(r, prefix+"/custom_models", false, handlers.UpsertCustomModelsHandler).Methods("POST")
 
 	HandlePlandexFn(r, prefix+"/custom_models/{modelId}", false, handlers.GetCustomModelHandler).Methods("GET")
 

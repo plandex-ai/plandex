@@ -16,7 +16,7 @@ import (
 
 const CustomModelsMinClientVersion = "2.2.0"
 
-func CreateCustomModelHandler(w http.ResponseWriter, r *http.Request) {
+func UpsertCustomModelsHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for CreateCustomModelHandler")
 
 	auth := Authenticate(w, r, true)
@@ -115,6 +115,27 @@ func CreateCustomModelHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	apiCustomModels := make([]*shared.CustomModel, len(customModels))
+	for i, model := range customModels {
+		apiCustomModels[i] = model.ToApi()
+	}
+
+	apiCustomProviders := make([]*shared.CustomProvider, len(customProviders))
+	for i, provider := range customProviders {
+		apiCustomProviders[i] = provider.ToApi()
+	}
+
+	apiCustomModelPacks := make([]*shared.ModelPackSchema, len(customModelPacks))
+	for i, modelPack := range customModelPacks {
+		apiCustomModelPacks[i] = modelPack.ToApi().ToModelPackSchema()
+	}
+
+	updatedModelsInput := modelsInput.FilterUnchanged(&shared.ModelsInput{
+		CustomModels:     apiCustomModels,
+		CustomProviders:  apiCustomProviders,
+		CustomModelPacks: apiCustomModelPacks,
+	})
+
 	for _, model := range customModels {
 		existingCustomModelIds[model.ModelId] = true
 	}
@@ -123,27 +144,27 @@ func CreateCustomModelHandler(w http.ResponseWriter, r *http.Request) {
 		existingCustomProviderNames[provider.Name] = true
 	}
 
-	willUpsertModelIds := make(map[string]bool)
-	willUpsertProviderNames := make(map[string]bool)
-	willUpsertModelPackNames := make(map[string]bool)
+	inputModelIds := make(map[string]bool)
+	inputProviderNames := make(map[string]bool)
+	inputModelPackNames := make(map[string]bool)
 
 	for _, model := range modelsInput.CustomModels {
-		willUpsertModelIds[string(model.ModelId)] = true
+		inputModelIds[string(model.ModelId)] = true
 	}
 
 	for _, provider := range modelsInput.CustomProviders {
-		willUpsertProviderNames[provider.Name] = true
+		inputProviderNames[provider.Name] = true
 	}
 
 	for _, modelPack := range modelsInput.CustomModelPacks {
-		willUpsertModelPackNames[modelPack.Name] = true
+		inputModelPackNames[modelPack.Name] = true
 	}
 
 	var toUpsertCustomModels []*db.CustomModel
 	var toUpsertCustomProviders []*db.CustomProvider
 	var toUpsertModelPacks []*db.ModelPack
 
-	for _, provider := range modelsInput.CustomProviders {
+	for _, provider := range updatedModelsInput.CustomProviders {
 		dbProvider := db.CustomProviderFromApi(provider)
 		dbProvider.Id = provider.Id
 		dbProvider.OrgId = auth.OrgId
@@ -151,12 +172,12 @@ func CreateCustomModelHandler(w http.ResponseWriter, r *http.Request) {
 		toUpsertCustomProviders = append(toUpsertCustomProviders, dbProvider)
 	}
 
-	for _, model := range modelsInput.CustomModels {
-		// ensure that providers are either built-in, being created, or already exist
+	for _, model := range updatedModelsInput.CustomModels {
+		// ensure that providers to upsert are either built-in, being created, or already exist
 		for _, provider := range model.Providers {
 			if provider.Provider == shared.ModelProviderCustom {
 				_, exists := existingCustomProviderNames[*provider.CustomProvider]
-				_, creating := willUpsertProviderNames[*provider.CustomProvider]
+				_, creating := inputProviderNames[*provider.CustomProvider]
 				if !exists && !creating {
 					msg := fmt.Sprintf("'%s' is not a custom model provider that exists or is being created", *provider.CustomProvider)
 					log.Println(msg)
@@ -181,13 +202,13 @@ func CreateCustomModelHandler(w http.ResponseWriter, r *http.Request) {
 		toUpsertCustomModels = append(toUpsertCustomModels, dbModel)
 	}
 
-	for _, modelPack := range modelsInput.CustomModelPacks {
+	for _, modelPack := range updatedModelsInput.CustomModelPacks {
 		// ensure that all models are either built-in, being created, or already exist
 		allModelIds := modelPack.AllModelIds()
 
 		for _, modelId := range allModelIds {
 			_, exists := existingCustomModelIds[modelId]
-			_, creating := willUpsertModelIds[string(modelId)]
+			_, creating := inputModelIds[string(modelId)]
 			_, builtIn := shared.BuiltInBaseModelsById[modelId]
 
 			if !exists && !creating && !builtIn {
@@ -211,19 +232,19 @@ func CreateCustomModelHandler(w http.ResponseWriter, r *http.Request) {
 	toDeleteModelPackIds := []string{}
 
 	for _, model := range customModels {
-		if _, exists := willUpsertModelIds[string(model.ModelId)]; !exists {
+		if _, exists := inputModelIds[string(model.ModelId)]; !exists {
 			toDeleteCustomModelIds = append(toDeleteCustomModelIds, model.Id)
 		}
 	}
 
 	for _, provider := range customProviders {
-		if _, exists := willUpsertProviderNames[provider.Name]; !exists {
+		if _, exists := inputProviderNames[provider.Name]; !exists {
 			toDeleteCustomProviderIds = append(toDeleteCustomProviderIds, provider.Id)
 		}
 	}
 
 	for _, modelPack := range customModelPacks {
-		if _, exists := willUpsertModelPackNames[modelPack.Name]; !exists {
+		if _, exists := inputModelPackNames[modelPack.Name]; !exists {
 			toDeleteModelPackIds = append(toDeleteModelPackIds, modelPack.Id)
 		}
 	}

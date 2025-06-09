@@ -318,32 +318,34 @@ type ModelPack struct {
 
 func ModelPackFromApi(apiModelPack *shared.ModelPack) *ModelPack {
 	return &ModelPack{
-		Name:        apiModelPack.Name,
-		Description: apiModelPack.Description,
-		Planner:     apiModelPack.Planner,
-		Architect:   apiModelPack.Architect,
-		Coder:       apiModelPack.Coder,
-		PlanSummary: apiModelPack.PlanSummary,
-		Builder:     apiModelPack.Builder,
-		Namer:       apiModelPack.Namer,
-		CommitMsg:   apiModelPack.CommitMsg,
-		ExecStatus:  apiModelPack.ExecStatus,
+		Name:             apiModelPack.Name,
+		Description:      apiModelPack.Description,
+		Planner:          apiModelPack.Planner,
+		Architect:        apiModelPack.Architect,
+		Coder:            apiModelPack.Coder,
+		PlanSummary:      apiModelPack.PlanSummary,
+		Builder:          apiModelPack.Builder,
+		WholeFileBuilder: apiModelPack.WholeFileBuilder,
+		Namer:            apiModelPack.Namer,
+		CommitMsg:        apiModelPack.CommitMsg,
+		ExecStatus:       apiModelPack.ExecStatus,
 	}
 }
 
 func (modelPack *ModelPack) ToApi() *shared.ModelPack {
 	return &shared.ModelPack{
-		Id:          modelPack.Id,
-		Name:        modelPack.Name,
-		Description: modelPack.Description,
-		Planner:     modelPack.Planner,
-		Architect:   modelPack.Architect,
-		Coder:       modelPack.Coder,
-		PlanSummary: modelPack.PlanSummary,
-		Builder:     modelPack.Builder,
-		Namer:       modelPack.Namer,
-		CommitMsg:   modelPack.CommitMsg,
-		ExecStatus:  modelPack.ExecStatus,
+		Id:               modelPack.Id,
+		Name:             modelPack.Name,
+		Description:      modelPack.Description,
+		Planner:          modelPack.Planner,
+		Architect:        modelPack.Architect,
+		Coder:            modelPack.Coder,
+		PlanSummary:      modelPack.PlanSummary,
+		Builder:          modelPack.Builder,
+		WholeFileBuilder: modelPack.WholeFileBuilder,
+		Namer:            modelPack.Namer,
+		CommitMsg:        modelPack.CommitMsg,
+		ExecStatus:       modelPack.ExecStatus,
 	}
 }
 

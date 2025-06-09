@@ -1,6 +1,9 @@
 package shared
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -12,6 +15,8 @@ import (
 type SchemaUrl string
 
 const SchemaUrlInputConfig SchemaUrl = "https://plandex.ai/schemas/models-input.schema.json"
+
+// Note that none of the custom model structs should have maps anywhere in the hierarchy, since it will break deterministic hashing. Use structs or slices instead.
 
 type CustomModel struct {
 	Id          string         `json:"id,omitempty"`
@@ -91,6 +96,13 @@ func (input ModelsInput) FilterUnchanged(existing *ModelsInput) ModelsInput {
 	return filtered
 }
 
+func (input ModelsInput) Equals(other ModelsInput) bool {
+	left := input.FilterUnchanged(&other)
+	right := other.FilterUnchanged(&input)
+
+	return left.IsEmpty() && right.IsEmpty()
+}
+
 func (input ModelsInput) CheckNoDuplicates() (bool, string) {
 	sawModelIds := map[ModelId]bool{}
 	sawProviderNames := map[string]bool{}
@@ -154,12 +166,31 @@ func modelsEqual(a, b *CustomModel) bool {
 
 func providersEqual(a, b *CustomProvider) bool {
 	return cmp.Equal(
-		a, b,
+		a,
+		b,
 		cmpopts.EquateEmpty(),
 		cmpopts.IgnoreFields(CustomProvider{}, "CreatedAt", "UpdatedAt", "Id"),
 	)
 }
 
 func packsEqual(a, b *ModelPackSchema) bool {
-	return cmp.Equal(a, b, cmpopts.EquateEmpty())
+	res := cmp.Equal(
+		a,
+		b,
+		cmpopts.EquateEmpty(),
+	)
+	return res
+}
+
+// Hash returns a deterministic hash of the ModelsInput.
+// WARNING: This relies on json.Marshal being deterministic for our struct types.
+// Do not add map fields to these structs or the hash will become non-deterministic.
+func (input ModelsInput) Hash() (string, error) {
+	data, err := json.Marshal(input)
+	if err != nil {
+		return "", err
+	}
+
+	hash := sha256.Sum256(data)
+	return hex.EncodeToString(hash[:]), nil
 }
