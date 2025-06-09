@@ -1,3 +1,6 @@
+## Server Version 2.1.8
+- Fix for potential hang in file map queue
+
 ## Server Version 2.1.7
 - Fix for "conversation summary timestamp not found in conversation" error (https://github.com/plandex-ai/plandex/issues/274)
 - Fix for potential panic/crash during plan stream (https://github.com/plandex-ai/plandex/issues/275)

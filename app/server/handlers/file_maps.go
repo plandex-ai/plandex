@@ -64,7 +64,7 @@ func GetFileMapHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	results := make(chan shared.FileMapBodies)
+	results := make(chan shared.FileMapBodies, 1)
 
 	err := queueProjectMapJob(projectMapJob{
 		inputs:  req.MapInputs,
