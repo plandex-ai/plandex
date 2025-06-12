@@ -1,151 +1,157 @@
 package shared
 
-var SettingDescriptions = map[string]string{
-	"max-convo-tokens":       "max conversation 🪙 before summarization",
-	"max-tokens":             "overall 🪙 limit",
-	"reserved-output-tokens": "🪙 reserved for model output",
+import (
+	"database/sql/driver"
+	"encoding/json"
+	"fmt"
+	"time"
+)
+
+type PlanSettings struct {
+	ModelPackName    string       `json:"modelPackName"`
+	ModelPack        *ModelPack   `json:"modelPack"`
+	CustomModelPacks []*ModelPack `json:"customModelPacks"`
+	IsCloud          bool         `json:"isCloud"`
+	Configured       bool         `json:"configured"`
+	UpdatedAt        time.Time    `json:"updatedAt"`
 }
 
-var ModelOverridePropsDasherized = []string{"max-convo-tokens", "max-tokens", "reserved-output-tokens"}
+func (p *PlanSettings) Configure(customModelPacks []*ModelPack, isCloud bool) {
+	p.CustomModelPacks = customModelPacks
+	p.IsCloud = isCloud
+	p.Configured = true
+}
+
+func (p PlanSettings) GetModelPack() *ModelPack {
+	if !p.Configured {
+		panic("PlanSettings not configured")
+	}
+
+	customModelPacks := p.CustomModelPacks
+	isCloud := p.IsCloud
+
+	fillDefault := true // seems best to make this the default behavior, but keeping the switch just in case
+
+	if p.ModelPack != nil {
+		return p.ModelPack
+	}
+
+	for _, builtInModelPack := range BuiltInModelPacks {
+		if isCloud && builtInModelPack.LocalProvider != "" {
+			continue
+		}
+
+		if builtInModelPack.Name == p.ModelPackName {
+			return builtInModelPack
+		}
+	}
+
+	for _, customModelPack := range customModelPacks {
+		if customModelPack.Name == p.ModelPackName {
+			return customModelPack
+		}
+	}
+
+	if fillDefault {
+		return DefaultModelPack
+	}
+
+	return nil
+}
+
+func (p *PlanSettings) SetModelPackByName(modelPackName string) {
+	p.ModelPackName = modelPackName
+	p.ModelPack = nil
+}
+
+func (p *PlanSettings) SetCustomModelPack(modelPack *ModelPack) {
+	p.ModelPackName = ""
+	p.ModelPack = modelPack
+}
+
+func (p *PlanSettings) Scan(src interface{}) error {
+	if src == nil {
+		return nil
+	}
+	switch s := src.(type) {
+	case []byte:
+		return json.Unmarshal(s, p)
+	case string:
+		return json.Unmarshal([]byte(s), p)
+	default:
+		return fmt.Errorf("unsupported data type: %T", src)
+	}
+}
+
+func (p PlanSettings) Value() (driver.Value, error) {
+	return json.Marshal(p)
+}
 
 func (ps PlanSettings) GetPlannerMaxTokens() int {
-	if ps.ModelOverrides.MaxTokens == nil {
-		if ps.ModelPack == nil {
-			defaultPlanner := DefaultModelPack.Planner
-			fallback := defaultPlanner.GetFinalLargeContextFallback()
-			return fallback.GetSharedBaseConfig().MaxTokens
-		} else {
-			planner := ps.ModelPack.Planner
-			fallback := planner.GetFinalLargeContextFallback()
-			return fallback.GetSharedBaseConfig().MaxTokens
-		}
-	} else {
-		return *ps.ModelOverrides.MaxTokens
-	}
+	modelPack := ps.GetModelPack()
+	planner := modelPack.Planner
+	fallback := planner.GetFinalLargeContextFallback()
+	return fallback.GetSharedBaseConfig().MaxTokens
 }
 
 func (ps PlanSettings) GetPlannerMaxReservedOutputTokens() int {
-	if ps.ModelOverrides.MaxTokens == nil {
-		if ps.ModelPack == nil {
-			defaultPlanner := DefaultModelPack.Planner
-			return defaultPlanner.GetFinalLargeContextFallback().GetReservedOutputTokens()
-		} else {
-			planner := ps.ModelPack.Planner
-			return planner.GetFinalLargeContextFallback().GetReservedOutputTokens()
-		}
-	} else {
-		return *ps.ModelOverrides.MaxTokens
-	}
+	modelPack := ps.GetModelPack()
+	planner := modelPack.Planner
+	return planner.GetFinalLargeContextFallback().GetReservedOutputTokens()
 }
 
 func (ps PlanSettings) GetArchitectMaxTokens() int {
-	if ps.ModelOverrides.MaxTokens == nil {
-		if ps.ModelPack == nil {
-			defaultLoader := DefaultModelPack.GetArchitect()
-			fallback := defaultLoader.GetFinalLargeContextFallback()
-			return fallback.GetSharedBaseConfig().MaxTokens
-		} else {
-			loader := ps.ModelPack.GetArchitect()
-			fallback := loader.GetFinalLargeContextFallback()
-			return fallback.GetSharedBaseConfig().MaxTokens
-		}
-	} else {
-		return *ps.ModelOverrides.MaxTokens
-	}
+	modelPack := ps.GetModelPack()
+	architect := modelPack.GetArchitect()
+	fallback := architect.GetFinalLargeContextFallback()
+	return fallback.GetSharedBaseConfig().MaxTokens
 }
 
 func (ps PlanSettings) GetArchitectMaxReservedOutputTokens() int {
-	if ps.ModelOverrides.MaxTokens == nil {
-		if ps.ModelPack == nil {
-			defaultLoader := DefaultModelPack.GetArchitect()
-			return defaultLoader.GetFinalLargeContextFallback().GetReservedOutputTokens()
-		} else {
-			loader := ps.ModelPack.GetArchitect()
-			return loader.GetFinalLargeContextFallback().GetReservedOutputTokens()
-		}
-	} else {
-		return *ps.ModelOverrides.MaxTokens
-	}
+	modelPack := ps.GetModelPack()
+	architect := modelPack.GetArchitect()
+	fallback := architect.GetFinalLargeContextFallback()
+	return fallback.GetReservedOutputTokens()
 }
 
 func (ps PlanSettings) GetCoderMaxTokens() int {
-	if ps.ModelOverrides.MaxTokens == nil {
-		if ps.ModelPack == nil {
-			defaultCoder := DefaultModelPack.GetCoder()
-			fallback := defaultCoder.GetFinalLargeContextFallback()
-			return fallback.GetSharedBaseConfig().MaxTokens
-		} else {
-			coder := ps.ModelPack.GetCoder()
-			fallback := coder.GetFinalLargeContextFallback()
-			return fallback.GetSharedBaseConfig().MaxTokens
-		}
-	} else {
-		return *ps.ModelOverrides.MaxTokens
-	}
+	modelPack := ps.GetModelPack()
+	coder := modelPack.GetCoder()
+	fallback := coder.GetFinalLargeContextFallback()
+	return fallback.GetSharedBaseConfig().MaxTokens
 }
 
 func (ps PlanSettings) GetCoderMaxReservedOutputTokens() int {
-	if ps.ModelOverrides.MaxTokens == nil {
-		if ps.ModelPack == nil {
-			defaultCoder := DefaultModelPack.GetCoder()
-			return defaultCoder.GetFinalLargeContextFallback().GetReservedOutputTokens()
-		} else {
-			coder := ps.ModelPack.GetCoder()
-			return coder.GetFinalLargeContextFallback().GetReservedOutputTokens()
-		}
-	} else {
-		return *ps.ModelOverrides.MaxTokens
-	}
+	modelPack := ps.GetModelPack()
+	coder := modelPack.GetCoder()
+	fallback := coder.GetFinalLargeContextFallback()
+	return fallback.GetReservedOutputTokens()
 }
 
 func (ps PlanSettings) GetWholeFileBuilderMaxTokens() int {
-	if ps.ModelOverrides.MaxTokens == nil {
-		if ps.ModelPack == nil {
-			defaultBuilder := DefaultModelPack.GetWholeFileBuilder()
-			fallback := defaultBuilder.GetFinalLargeContextFallback()
-			return fallback.GetSharedBaseConfig().MaxTokens
-		} else {
-			builder := ps.ModelPack.GetWholeFileBuilder()
-			fallback := builder.GetFinalLargeContextFallback()
-			return fallback.GetSharedBaseConfig().MaxTokens
-		}
-	} else {
-		return *ps.ModelOverrides.MaxTokens
-	}
+	modelPack := ps.GetModelPack()
+	builder := modelPack.GetWholeFileBuilder()
+	fallback := builder.GetFinalLargeContextFallback()
+	return fallback.GetSharedBaseConfig().MaxTokens
 }
 
 func (ps PlanSettings) GetWholeFileBuilderMaxReservedOutputTokens() int {
-	if ps.ModelOverrides.MaxTokens == nil {
-		if ps.ModelPack == nil {
-			defaultBuilder := DefaultModelPack.GetWholeFileBuilder()
-			return defaultBuilder.GetFinalLargeOutputFallback().GetReservedOutputTokens()
-		} else {
-			builder := ps.ModelPack.GetWholeFileBuilder()
-			return builder.GetFinalLargeOutputFallback().GetReservedOutputTokens()
-		}
-	} else {
-		return *ps.ModelOverrides.MaxTokens
-	}
+	modelPack := ps.GetModelPack()
+	builder := modelPack.GetWholeFileBuilder()
+	fallback := builder.GetFinalLargeOutputFallback()
+	return fallback.GetReservedOutputTokens()
 }
 
 func (ps PlanSettings) GetPlannerMaxConvoTokens() int {
-	if ps.ModelPack != nil && ps.ModelPack.Planner.MaxConvoTokens != 0 {
-		return ps.ModelPack.Planner.MaxConvoTokens
+	modelPack := ps.GetModelPack()
+
+	// for max convo tokens, we use the planner's default max convo tokens, *not* the fallback, so that we don't end up switching to the fallback just based on the conversation length
+	planner := modelPack.Planner
+	if planner.MaxConvoTokens != 0 {
+		return planner.MaxConvoTokens
 	}
 
-	if ps.ModelPack == nil {
-		defaultPlanner := DefaultModelPack.Planner
-		if defaultPlanner.MaxConvoTokens != 0 {
-			return defaultPlanner.MaxConvoTokens
-		}
-		return defaultPlanner.GetSharedBaseConfig().DefaultMaxConvoTokens
-	} else {
-		planner := ps.ModelPack.Planner
-		if planner.MaxConvoTokens != 0 {
-			return planner.MaxConvoTokens
-		}
-		return planner.GetSharedBaseConfig().DefaultMaxConvoTokens
-	}
+	return planner.GetSharedBaseConfig().DefaultMaxConvoTokens
 }
 
 func (ps PlanSettings) GetPlannerEffectiveMaxTokens() int {
@@ -179,7 +185,7 @@ func (ps PlanSettings) GetWholeFileBuilderEffectiveMaxTokens() int {
 func (ps PlanSettings) GetModelProviderOptions() ModelProviderOptions {
 	opts := ModelProviderOptions{}
 
-	ms := ps.ModelPack
+	ms := ps.GetModelPack()
 	if ms == nil {
 		ms = DefaultModelPack
 	}
@@ -198,6 +204,31 @@ func (ps PlanSettings) GetModelProviderOptions() ModelProviderOptions {
 	)
 
 	return opts
+}
+
+func (ps *PlanSettings) Equals(other *PlanSettings) bool {
+	return ps.GetModelPack().Equals(other.GetModelPack())
+}
+
+func (ps PlanSettings) ForCompare() PlanSettings {
+	ps.UpdatedAt = time.Time{}
+	ps.CustomModelPacks = nil
+	ps.IsCloud = false
+	ps.Configured = false
+	return ps
+}
+
+func (ps PlanSettings) DeepCopy() (*PlanSettings, error) {
+	bytes, err := json.Marshal(ps)
+	if err != nil {
+		return nil, fmt.Errorf("error marshalling plan settings: %v", err)
+	}
+	var copy PlanSettings
+	err = json.Unmarshal(bytes, &copy)
+	if err != nil {
+		return nil, fmt.Errorf("error unmarshalling plan settings: %v", err)
+	}
+	return &copy, nil
 }
 
 func getOptionalModelProviderOptions(cfg *ModelRoleConfig) ModelProviderOptions {

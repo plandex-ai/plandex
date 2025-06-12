@@ -25,7 +25,7 @@ func (fileState *activeBuildStreamFileState) buildWholeFileFallback(buildCtx con
 	planId := fileState.plan.Id
 	branch := fileState.branch
 	originalFile := fileState.preBuildState
-	config := fileState.settings.ModelPack.GetWholeFileBuilder()
+	config := fileState.settings.GetModelPack().GetWholeFileBuilder()
 
 	activePlan := GetActivePlan(planId, branch)
 
@@ -35,7 +35,7 @@ func (fileState *activeBuildStreamFileState) buildWholeFileFallback(buildCtx con
 		return "", fmt.Errorf("active plan not found for plan ID %s and branch %s", planId, branch)
 	}
 
-	baseModelConfig := config.GetBaseModelConfig(authVars, fileState.settings.ModelPack.LocalProvider)
+	baseModelConfig := config.GetBaseModelConfig(authVars, fileState.settings.GetModelPack().LocalProvider)
 
 	originalFileWithLineNums := shared.AddLineNums(originalFile)
 	proposedContentWithLineNums := shared.AddLineNums(proposedContent)
@@ -110,7 +110,7 @@ func (fileState *activeBuildStreamFileState) buildWholeFileFallback(buildCtx con
 		EstimatedOutputTokens: maxExpectedOutputTokens,
 
 		SessionId:     sessionId,
-		LocalProvider: fileState.settings.ModelPack.LocalProvider,
+		LocalProvider: fileState.settings.GetModelPack().LocalProvider,
 	})
 
 	if err != nil {

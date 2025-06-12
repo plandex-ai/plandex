@@ -5,8 +5,12 @@
   "description": "Config for a plan",
   "type": "object",
   "properties": {
+    "$schema": {
+      "type": "string"
+    },
     "autoMode": {
       "$ref": "./definitions/auto-modes.schema.json"
     }
-  }
+  },
+  "additionalProperties": false
 }

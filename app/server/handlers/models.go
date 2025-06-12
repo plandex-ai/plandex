@@ -35,11 +35,6 @@ func UpsertCustomModelsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if modelsInput.IsEmpty() {
-		http.Error(w, "No custom models, providers, or model packs provided", http.StatusBadRequest)
-		return
-	}
-
 	if len(modelsInput.CustomProviders) > 0 {
 		if os.Getenv("IS_CLOUD") != "" {
 			http.Error(w, "Custom model providers are not supported on Plandex Cloud", http.StatusBadRequest)
@@ -247,6 +242,13 @@ func UpsertCustomModelsHandler(w http.ResponseWriter, r *http.Request) {
 		if _, exists := inputModelPackNames[modelPack.Name]; !exists {
 			toDeleteModelPackIds = append(toDeleteModelPackIds, modelPack.Id)
 		}
+	}
+
+	numChanges := len(toUpsertCustomModels) + len(toUpsertCustomProviders) + len(toUpsertModelPacks) + len(toDeleteCustomModelIds) + len(toDeleteCustomProviderIds) + len(toDeleteModelPackIds)
+	if numChanges == 0 {
+		w.WriteHeader(http.StatusOK)
+		log.Println("No changes to custom models/providers/model packs")
+		return
 	}
 
 	err = db.WithTx(r.Context(), "create custom models/providers/model packs", func(tx *sqlx.Tx) error {

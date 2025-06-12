@@ -294,7 +294,8 @@ type CreateBranchRequest struct {
 }
 
 type UpdateSettingsRequest struct {
-	Settings *PlanSettings `json:"settings"`
+	ModelPackName string     `json:"modelPackName"`
+	ModelPack     *ModelPack `json:"modelPack"`
 }
 
 type UpdateSettingsResponse struct {

@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://plandex.ai/schemas/model-pack-roles.strict.schema.json",
+  "title": "Inline Model Pack Config",
+  "allOf": [
+    {
+      "$ref": "./model-pack-roles.schema.json"
+    }
+  ],
+  "unevaluatedProperties": false
+}

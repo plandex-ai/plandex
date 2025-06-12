@@ -126,7 +126,7 @@ func (state *activeTellStreamState) handleStreamFinished() handleStreamFinishedR
 			}
 		}()
 
-		err := summarizeConvo(clients, authVars, settings.ModelPack.LocalProvider, settings.ModelPack.PlanSummary, summarizeConvoParams{
+		err := summarizeConvo(clients, authVars, settings.GetModelPack().LocalProvider, settings.GetModelPack().PlanSummary, summarizeConvoParams{
 			auth:                  auth,
 			plan:                  plan,
 			branch:                branch,
@@ -136,7 +136,7 @@ func (state *activeTellStreamState) handleStreamFinished() handleStreamFinishedR
 			currentOrgId:          currentOrgId,
 			currentReply:          active.CurrentReplyContent,
 			currentReplyNumTokens: active.NumTokens,
-			modelPackName:         settings.ModelPack.Name,
+			modelPackName:         settings.GetModelPack().Name,
 		}, active.SummaryCtx)
 
 		if err != nil {

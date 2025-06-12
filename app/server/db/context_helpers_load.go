@@ -79,7 +79,7 @@ func LoadContexts(ctx Ctx, params LoadContextsParams) (*shared.LoadContextRespon
 	totalBasicPlannerTokens := 0
 	totalMapTokens := 0
 
-	settings, err := GetPlanSettings(plan, true)
+	settings, err := GetPlanSettings(plan)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error getting settings: %v", err)
 	}

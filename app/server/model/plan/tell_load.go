@@ -74,7 +74,7 @@ func (state *activeTellStreamState) loadTellPlan() error {
 				}
 			}()
 
-			res, err := db.GetPlanSettings(plan, true)
+			res, err := db.GetPlanSettings(plan)
 			if err != nil {
 				log.Printf("Error getting plan settings: %v\n", err)
 				errCh <- fmt.Errorf("error getting plan settings: %v", err)

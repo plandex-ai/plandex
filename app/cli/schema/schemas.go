@@ -20,8 +20,9 @@ const scheme = "embed://"
 type SchemaPath string
 
 const (
-	SchemaPathInputConfig SchemaPath = "json-schemas/models-input.schema.json"
-	SchemaPathPlanConfig  SchemaPath = "json-schemas/plan-config.schema.json"
+	SchemaPathInputConfig     SchemaPath = "json-schemas/models-input.schema.json"
+	SchemaPathPlanConfig      SchemaPath = "json-schemas/plan-config.schema.json"
+	SchemaPathModelPackInline SchemaPath = "json-schemas/model-pack-inline.schema.json"
 )
 
 //go:embed json-schemas/*.schema.json json-schemas/definitions/*.schema.json
@@ -32,12 +33,30 @@ type embeddedSchemaLoader struct {
 	fs     embed.FS
 }
 
-func ValidateModelsInputJSON(jsonData []byte) (shared.ModelsInput, error) {
-	return validateJSON[shared.ModelsInput](jsonData, SchemaPathInputConfig)
+func ValidateModelsInputJSON(jsonData []byte) (shared.ClientModelsInput, error) {
+	return validateJSON[shared.ClientModelsInput](jsonData, SchemaPathInputConfig)
+}
+
+func ValidateModelPackInlineJSON(jsonData []byte) (shared.ClientModelPackSchemaRoles, error) {
+	return validateJSON[shared.ClientModelPackSchemaRoles](jsonData, SchemaPathModelPackInline)
 }
 
 func validateJSON[T any](jsonData []byte, schemaPath SchemaPath) (T, error) {
 	var zero T
+
+	// strip meta-keywords that break additionalProperties ──
+	var tmp interface{}
+	if err := json.Unmarshal(jsonData, &tmp); err != nil {
+		return zero, fmt.Errorf("invalid json: %w", err)
+	}
+	if obj, ok := tmp.(map[string]interface{}); ok {
+		delete(obj, "$schema") // ignore top-level $schema
+		var err error
+		jsonData, err = json.Marshal(obj)
+		if err != nil {
+			return zero, fmt.Errorf("error marshalling json: %w", err)
+		}
+	}
 
 	schemaLoader := newEmbeddedSchemaLoader(schemaPath)
 	documentLoader := gojsonschema.NewBytesLoader(jsonData)

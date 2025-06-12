@@ -14,7 +14,11 @@ import (
 
 type SchemaUrl string
 
-const SchemaUrlInputConfig SchemaUrl = "https://plandex.ai/schemas/models-input.schema.json"
+const (
+	SchemaUrlInputConfig    SchemaUrl = "https://plandex.ai/schemas/models-input.schema.json"
+	SchemaUrlPlanConfig     SchemaUrl = "https://plandex.ai/schemas/plan-config.schema.json"
+	SchemaUrlModelPackRoles SchemaUrl = "https://plandex.ai/schemas/model-pack-roles.schema.json"
+)
 
 // Note that none of the custom model structs should have maps anywhere in the hierarchy, since it will break deterministic hashing. Use structs or slices instead.
 
@@ -51,16 +55,13 @@ type CustomProvider struct {
 }
 
 type ModelsInput struct {
-	SchemaUrl        SchemaUrl          `json:"schemaUrl"`
 	CustomModels     []*CustomModel     `json:"models"`
 	CustomProviders  []*CustomProvider  `json:"providers,omitempty"`
 	CustomModelPacks []*ModelPackSchema `json:"modelPacks"`
 }
 
 func (input ModelsInput) FilterUnchanged(existing *ModelsInput) ModelsInput {
-	filtered := ModelsInput{
-		SchemaUrl: input.SchemaUrl,
-	}
+	filtered := ModelsInput{}
 
 	existingProvidersById := map[string]*CustomProvider{}
 	for _, provider := range existing.CustomProviders {
@@ -140,22 +141,6 @@ func (input ModelsInput) IsEmpty() bool {
 	return len(input.CustomModels) == 0 && len(input.CustomProviders) == 0 && len(input.CustomModelPacks) == 0
 }
 
-func (input *ModelsInput) PrepareUpdate() {
-	input.SchemaUrl = SchemaUrlInputConfig
-
-	for _, model := range input.CustomModels {
-		model.Id = ""
-		model.CreatedAt = nil
-		model.UpdatedAt = nil
-	}
-
-	for _, provider := range input.CustomProviders {
-		provider.Id = ""
-		provider.CreatedAt = nil
-		provider.UpdatedAt = nil
-	}
-}
-
 func modelsEqual(a, b *CustomModel) bool {
 	return cmp.Equal(
 		a, b,
@@ -182,6 +167,14 @@ func packsEqual(a, b *ModelPackSchema) bool {
 	return res
 }
 
+func (s *ModelPackSchema) Equals(other *ModelPackSchema) bool {
+	return packsEqual(s, other)
+}
+
+func (mp *ModelPack) Equals(other *ModelPack) bool {
+	return mp.ToModelPackSchema().Equals(other.ToModelPackSchema())
+}
+
 // Hash returns a deterministic hash of the ModelsInput.
 // WARNING: This relies on json.Marshal being deterministic for our struct types.
 // Do not add map fields to these structs or the hash will become non-deterministic.
@@ -193,4 +186,76 @@ func (input ModelsInput) Hash() (string, error) {
 
 	hash := sha256.Sum256(data)
 	return hex.EncodeToString(hash[:]), nil
+}
+
+type ClientModelPackSchema struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+
+	ClientModelPackSchemaRoles
+}
+
+func (input *ClientModelPackSchema) ToModelPackSchema() *ModelPackSchema {
+	return &ModelPackSchema{
+		Name:                 input.Name,
+		Description:          input.Description,
+		ModelPackSchemaRoles: input.ClientModelPackSchemaRoles.ToModelPackSchemaRoles(),
+	}
+}
+
+func (input *ModelPackSchema) ToClientModelPackSchema() *ClientModelPackSchema {
+	return &ClientModelPackSchema{
+		Name:                       input.Name,
+		Description:                input.Description,
+		ClientModelPackSchemaRoles: input.ToClientModelPackSchemaRoles(),
+	}
+}
+
+type ClientModelsInput struct {
+	SchemaUrl SchemaUrl `json:"$schema"`
+
+	CustomModels     []*CustomModel           `json:"models"`
+	CustomProviders  []*CustomProvider        `json:"providers,omitempty"`
+	CustomModelPacks []*ClientModelPackSchema `json:"modelPacks"`
+}
+
+func (input ClientModelsInput) ToModelsInput() ModelsInput {
+	modelPacks := []*ModelPackSchema{}
+	for _, pack := range input.CustomModelPacks {
+		modelPacks = append(modelPacks, pack.ToModelPackSchema())
+	}
+
+	return ModelsInput{
+		CustomModels:     input.CustomModels,
+		CustomProviders:  input.CustomProviders,
+		CustomModelPacks: modelPacks,
+	}
+}
+
+func (input *ClientModelsInput) PrepareUpdate() {
+	for _, model := range input.CustomModels {
+		model.Id = ""
+		model.CreatedAt = nil
+		model.UpdatedAt = nil
+	}
+
+	for _, provider := range input.CustomProviders {
+		provider.Id = ""
+		provider.CreatedAt = nil
+		provider.UpdatedAt = nil
+	}
+}
+
+func (input ModelsInput) ToClientModelsInput() ClientModelsInput {
+	clientModelPacks := []*ClientModelPackSchema{}
+	for _, pack := range input.CustomModelPacks {
+		clientModelPacks = append(clientModelPacks, pack.ToClientModelPackSchema())
+	}
+
+	return ClientModelsInput{
+		SchemaUrl:        SchemaUrlInputConfig,
+		CustomModels:     input.CustomModels,
+		CustomProviders:  input.CustomProviders,
+		CustomModelPacks: clientModelPacks,
+	}
 }

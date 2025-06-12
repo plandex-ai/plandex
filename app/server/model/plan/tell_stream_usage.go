@@ -27,7 +27,7 @@ func (state *activeTellStreamState) handleUsageChunk(usage *openai.Usage) {
 	sessionId := state.activePlan.SessionId
 
 	modelConfig := state.modelConfig
-	baseModelConfig := modelConfig.GetBaseModelConfig(state.authVars, state.settings.ModelPack.LocalProvider)
+	baseModelConfig := modelConfig.GetBaseModelConfig(state.authVars, state.settings.GetModelPack().LocalProvider)
 
 	go func() {
 		defer func() {
@@ -48,7 +48,7 @@ func (state *activeTellStreamState) handleUsageChunk(usage *openai.Usage) {
 				ModelTag:       baseModelConfig.ModelTag,
 				ModelName:      baseModelConfig.ModelName,
 				ModelProvider:  baseModelConfig.Provider,
-				ModelPackName:  state.settings.ModelPack.Name,
+				ModelPackName:  state.settings.GetModelPack().Name,
 				ModelRole:      modelConfig.Role,
 				Purpose:        "Response",
 				GenerationId:   generationId,
@@ -90,7 +90,7 @@ func (state *activeTellStreamState) execHookOnStop(sendStreamErr bool) {
 	}
 
 	modelConfig := state.modelConfig
-	baseModelConfig := modelConfig.GetBaseModelConfig(state.authVars, state.settings.ModelPack.LocalProvider)
+	baseModelConfig := modelConfig.GetBaseModelConfig(state.authVars, state.settings.GetModelPack().LocalProvider)
 
 	go func() {
 		defer func() {
@@ -110,7 +110,7 @@ func (state *activeTellStreamState) execHookOnStop(sendStreamErr bool) {
 				ModelTag:        baseModelConfig.ModelTag,
 				ModelName:       baseModelConfig.ModelName,
 				ModelProvider:   baseModelConfig.Provider,
-				ModelPackName:   state.settings.ModelPack.Name,
+				ModelPackName:   state.settings.GetModelPack().Name,
 				ModelRole:       modelConfig.Role,
 				Purpose:         "Response",
 				GenerationId:    generationId,

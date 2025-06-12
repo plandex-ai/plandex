@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://plandex.ai/schemas/definitions/local-providers.schema.json",
+  "title": "Local Provider Enum",
+  "description": "Reusable enum for local providers",
+  "enum": [
+    "ollama"
+  ]
+}

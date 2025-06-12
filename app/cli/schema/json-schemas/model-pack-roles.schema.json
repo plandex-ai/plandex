@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://plandex.ai/schemas/model-pack-roles.schema.json",
+  "title": "Model Pack Roles",
+  "type": "object",
+  "description": "Config for a model pack's roles",
+  "$defs": {
+    "roleRef": {
+      "oneOf": [
+        {
+          "type": "string",
+          "minLength": 1
+        },
+        {
+          "$ref": "./model-role-config.schema.json"
+        }
+      ]
+    }
+  },
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "localProvider": {
+      "description": "The local provider for the model pack",
+      "$ref": "./definitions/local-providers.schema.json"
+    },
+    "planner": {
+      "description": "The planner model config",
+      "$ref": "#/$defs/roleRef"
+    },
+    "coder": {
+      "description": "The coder model config",
+      "$ref": "#/$defs/roleRef"
+    },
+    "architect": {
+      "description": "The architect model config",
+      "$ref": "#/$defs/roleRef"
+    },
+    "summarizer": {
+      "description": "The plan summary model config",
+      "$ref": "#/$defs/roleRef"
+    },
+    "builder": {
+      "description": "The builder model config",
+      "$ref": "#/$defs/roleRef"
+    },
+    "wholeFileBuilder": {
+      "description": "The whole file builder model config",
+      "$ref": "#/$defs/roleRef"
+    },
+    "names": {
+      "description": "The namer model config",
+      "$ref": "#/$defs/roleRef"
+    },
+    "commitMessages": {
+      "description": "The commit message model config",
+      "$ref": "#/$defs/roleRef"
+    },
+    "autoContinue": {
+      "description": "The execution status model config",
+      "$ref": "#/$defs/roleRef"
+    }
+  },
+  "required": [
+    "planner",
+    "summarizer",
+    "builder",
+    "names",
+    "commitMessages",
+    "autoContinue"
+  ]
+}

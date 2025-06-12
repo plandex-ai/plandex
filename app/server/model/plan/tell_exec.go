@@ -181,15 +181,15 @@ func execTellPlan(params execTellPlanParams) {
 	if state.currentStage.TellStage == shared.TellStagePlanning {
 		if state.currentStage.PlanningPhase == shared.PlanningPhaseContext {
 			log.Println("Tell plan - isContextStage - setting modelConfig to context loader")
-			tentativeModelConfig = state.settings.ModelPack.GetArchitect()
+			tentativeModelConfig = state.settings.GetModelPack().GetArchitect()
 			tentativeMaxTokens = state.settings.GetArchitectEffectiveMaxTokens()
 		} else {
-			plannerConfig := state.settings.ModelPack.Planner
+			plannerConfig := state.settings.GetModelPack().Planner
 			tentativeModelConfig = plannerConfig.ModelRoleConfig
 			tentativeMaxTokens = state.settings.GetPlannerEffectiveMaxTokens()
 		}
 	} else if state.currentStage.TellStage == shared.TellStageImplementation {
-		tentativeModelConfig = state.settings.ModelPack.GetCoder()
+		tentativeModelConfig = state.settings.GetModelPack().GetCoder()
 		tentativeMaxTokens = state.settings.GetCoderEffectiveMaxTokens()
 	} else {
 		log.Printf("Tell plan - execTellPlan - unknown tell stage: %s\n", state.currentStage.TellStage)
@@ -397,21 +397,21 @@ func execTellPlan(params execTellPlanParams) {
 	if state.currentStage.TellStage == shared.TellStagePlanning {
 		if state.currentStage.PlanningPhase == shared.PlanningPhaseContext {
 			log.Println("Tell plan - isContextStage - setting modelConfig to context loader")
-			modelConfig = state.settings.ModelPack.GetArchitect().GetRoleForInputTokens(requestTokens)
+			modelConfig = state.settings.GetModelPack().GetArchitect().GetRoleForInputTokens(requestTokens)
 			log.Println("Tell plan - got modelConfig for context phase")
 		} else if state.currentStage.PlanningPhase == shared.PlanningPhaseTasks {
-			modelConfig = state.settings.ModelPack.Planner.GetRoleForInputTokens(requestTokens)
+			modelConfig = state.settings.GetModelPack().Planner.GetRoleForInputTokens(requestTokens)
 			log.Println("Tell plan - got modelConfig for tasks phase")
 		}
 	} else if state.currentStage.TellStage == shared.TellStageImplementation {
-		modelConfig = state.settings.ModelPack.GetCoder().GetRoleForInputTokens(requestTokens)
+		modelConfig = state.settings.GetModelPack().GetCoder().GetRoleForInputTokens(requestTokens)
 		log.Println("Tell plan - got modelConfig for implementation stage")
 	}
 
 	// log.Println("Tell plan - modelConfig:", spew.Sdump(modelConfig))
 	state.modelConfig = &modelConfig
 
-	baseModelConfig := modelConfig.GetBaseModelConfig(authVars, state.settings.ModelPack.LocalProvider)
+	baseModelConfig := modelConfig.GetBaseModelConfig(authVars, state.settings.GetModelPack().LocalProvider)
 
 	state.baseModelConfig = baseModelConfig
 
@@ -485,11 +485,11 @@ func (state *activeTellStreamState) doTellRequest() {
 	modelConfig := state.modelConfig
 	active := state.activePlan
 
-	fallbackRes := modelConfig.GetFallbackForModelError(state.numErrorRetry, state.didProviderFallback, state.modelErr, authVars, state.settings.ModelPack.LocalProvider)
+	fallbackRes := modelConfig.GetFallbackForModelError(state.numErrorRetry, state.didProviderFallback, state.modelErr, authVars, state.settings.GetModelPack().LocalProvider)
 	modelConfig = fallbackRes.ModelRoleConfig
 	stop := []string{"<PlandexFinish/>"}
 
-	baseModelConfig := modelConfig.GetBaseModelConfig(state.authVars, state.settings.ModelPack.LocalProvider)
+	baseModelConfig := modelConfig.GetBaseModelConfig(state.authVars, state.settings.GetModelPack().LocalProvider)
 
 	if fallbackRes.FallbackType == shared.FallbackTypeProvider {
 		state.didProviderFallback = true
@@ -553,7 +553,7 @@ func (state *activeTellStreamState) doTellRequest() {
 		state.numErrorRetry, state.numFallbackRetry, baseModelConfig.ModelName)
 
 	// start the stream
-	stream, err := model.CreateChatCompletionStream(clients, authVars, modelConfig, state.settings.ModelPack.LocalProvider, active.ModelStreamCtx, modelReq)
+	stream, err := model.CreateChatCompletionStream(clients, authVars, modelConfig, state.settings.GetModelPack().LocalProvider, active.ModelStreamCtx, modelReq)
 	if err != nil {
 		log.Printf("Error starting reply stream: %v\n", err)
 		go notify.NotifyErr(notify.SeverityError, fmt.Errorf("error starting reply stream: %v", err))

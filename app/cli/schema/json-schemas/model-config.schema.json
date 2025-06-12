@@ -128,5 +128,6 @@
     "reservedOutputTokens",
     "preferredOutputFormat",
     "providers"
-  ]
+  ],
+  "additionalProperties": false
 }

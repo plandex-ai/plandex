@@ -24,12 +24,12 @@ func GenPlanName(
 	sessionId string,
 	ctx context.Context,
 ) (string, error) {
-	config := settings.ModelPack.Namer
+	config := settings.GetModelPack().Namer
 
 	var tools []openai.Tool
 	var toolChoice *openai.ToolChoice
 
-	baseModelConfig := config.GetBaseModelConfig(authVars, settings.ModelPack.LocalProvider)
+	baseModelConfig := config.GetBaseModelConfig(authVars, settings.GetModelPack().LocalProvider)
 
 	var sysPrompt string
 	if baseModelConfig.PreferredOutputFormat == shared.ModelOutputFormatXml {
@@ -76,7 +76,7 @@ func GenPlanName(
 		Tools:         tools,
 		ToolChoice:    toolChoice,
 		SessionId:     sessionId,
-		LocalProvider: settings.ModelPack.LocalProvider,
+		LocalProvider: settings.GetModelPack().LocalProvider,
 	})
 
 	if err != nil {
@@ -133,13 +133,13 @@ func GenPipedDataName(
 	pipedContent := params.PipedContent
 	sessionId := params.SessionId
 
-	config := settings.ModelPack.Namer
+	config := settings.GetModelPack().Namer
 
 	var sysPrompt string
 	var tools []openai.Tool
 	var toolChoice *openai.ToolChoice
 
-	baseModelConfig := config.GetBaseModelConfig(authVars, settings.ModelPack.LocalProvider)
+	baseModelConfig := config.GetBaseModelConfig(authVars, settings.GetModelPack().LocalProvider)
 
 	if baseModelConfig.PreferredOutputFormat == shared.ModelOutputFormatXml {
 		sysPrompt = prompts.SysPipedDataNameXml
@@ -185,7 +185,7 @@ func GenPipedDataName(
 		Tools:         tools,
 		ToolChoice:    toolChoice,
 		SessionId:     sessionId,
-		LocalProvider: settings.ModelPack.LocalProvider,
+		LocalProvider: settings.GetModelPack().LocalProvider,
 	})
 
 	if err != nil {
@@ -229,13 +229,13 @@ func GenNoteName(
 	note string,
 	sessionId string,
 ) (string, error) {
-	config := settings.ModelPack.Namer
+	config := settings.GetModelPack().Namer
 
 	var sysPrompt string
 	var tools []openai.Tool
 	var toolChoice *openai.ToolChoice
 
-	baseModelConfig := config.GetBaseModelConfig(authVars, settings.ModelPack.LocalProvider)
+	baseModelConfig := config.GetBaseModelConfig(authVars, settings.GetModelPack().LocalProvider)
 
 	if baseModelConfig.PreferredOutputFormat == shared.ModelOutputFormatXml {
 		sysPrompt = prompts.SysNoteNameXml
@@ -281,7 +281,7 @@ func GenNoteName(
 		Tools:         tools,
 		ToolChoice:    toolChoice,
 		SessionId:     sessionId,
-		LocalProvider: settings.ModelPack.LocalProvider,
+		LocalProvider: settings.GetModelPack().LocalProvider,
 	})
 
 	if err != nil {

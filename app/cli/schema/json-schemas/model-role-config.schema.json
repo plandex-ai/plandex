@@ -35,5 +35,6 @@
   },
   "required": [
     "modelId"
-  ]
+  ],
+  "additionalProperties": false
 }

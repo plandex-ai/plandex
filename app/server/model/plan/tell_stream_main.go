@@ -63,7 +63,7 @@ func (state *activeTellStreamState) listenStream(stream *model.ExtendedChatCompl
 	defer timer.Stop()
 	streamFinished := false
 
-	baseModelConfig := state.modelConfig.GetBaseModelConfig(state.authVars, state.settings.ModelPack.LocalProvider)
+	baseModelConfig := state.modelConfig.GetBaseModelConfig(state.authVars, state.settings.GetModelPack().LocalProvider)
 
 	modelProvider := baseModelConfig.Provider
 	modelName := baseModelConfig.ModelName

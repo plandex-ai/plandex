@@ -158,7 +158,7 @@ func ApplyPlanHandler(w http.ResponseWriter, r *http.Request) {
 		CancelFn: cancel,
 	}, func(repo *db.GitRepo) error {
 		var err error
-		settings, err = db.GetPlanSettings(plan, true)
+		settings, err = db.GetPlanSettings(plan)
 		if err != nil {
 			return fmt.Errorf("error getting plan settings: %v", err)
 		}

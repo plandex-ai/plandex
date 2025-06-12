@@ -94,7 +94,7 @@ func loadContexts(
 	for _, context := range *loadReq {
 		if context.ContextType == shared.ContextPipedDataType || context.ContextType == shared.ContextNoteType || context.ContextType == shared.ContextImageType {
 
-			settings, err = db.GetPlanSettings(plan, true)
+			settings, err = db.GetPlanSettings(plan)
 
 			if err != nil {
 				log.Printf("Error getting plan settings: %v\n", err)
@@ -123,9 +123,9 @@ func loadContexts(
 	// ensure image compatibility if we're loading an image
 	for _, context := range *loadReq {
 		if context.ContextType == shared.ContextImageType {
-			if !settings.ModelPack.Planner.GetSharedBaseConfig().HasImageSupport {
-				log.Printf("Error loading context: %s does not support images in context\n", settings.ModelPack.Planner.ModelId)
-				http.Error(w, fmt.Sprintf("Error loading context: %s does not support images in context", settings.ModelPack.Planner.ModelId), http.StatusBadRequest)
+			if !settings.GetModelPack().Planner.GetSharedBaseConfig().HasImageSupport {
+				log.Printf("Error loading context: %s does not support images in context\n", settings.GetModelPack().Planner.ModelId)
+				http.Error(w, fmt.Sprintf("Error loading context: %s does not support images in context", settings.GetModelPack().Planner.ModelId), http.StatusBadRequest)
 				return nil, nil
 			}
 		}

@@ -4,9 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"sort"
 	"strings"
 
 	"plandex-cli/api"
@@ -179,11 +177,6 @@ func manageCustomModels(cmd *cobra.Command, args []string) {
 	}
 	hashPath := customModelsPath + ".hash"
 
-	cmdPrefix := "\\"
-	if !term.IsRepl {
-		cmdPrefix = "plandex "
-	}
-
 	exists := false
 	_, err := os.Stat(customModelsPath)
 	if err == nil {
@@ -233,68 +226,64 @@ func manageCustomModels(cmd *cobra.Command, args []string) {
 			fmt.Println("👨‍💻 Edit it, then come back here to save")
 			fmt.Println()
 		} else {
-			localJsonData, err := os.ReadFile(customModelsPath)
-			if err != nil {
-				term.OutputErrorAndExit("Error reading JSON file: %v", err)
-				return
-			}
-
+			serverClientModelsInput := serverModelsInput.ToClientModelsInput()
+			serverClientModelsInput.PrepareUpdate()
+			var localClientModelsInput shared.ClientModelsInput
 			var localModelsInput shared.ModelsInput
-			err = json.Unmarshal(localJsonData, &localModelsInput)
-			if err != nil {
-				term.OutputErrorAndExit("Error unmarshalling JSON file: %v", err)
-				return
-			}
+			var localJsonData []byte
 
-			// we only do a conflict check on the default path in the home dir
-			// if user specifies the path and the file exists, just open the file without checking for conflicts
-			var currentHash string
-			if usingDefaultPath {
-				lastSavedHash, err := os.ReadFile(hashPath)
-				if err != nil && !os.IsNotExist(err) {
-					term.OutputErrorAndExit("Error reading hash file: %v", err)
-					return
-				}
-
-				currentHash, err = localModelsInput.Hash()
+			if exists {
+				localJsonData, err = os.ReadFile(customModelsPath)
 				if err != nil {
-					term.OutputErrorAndExit("Error hashing models: %v", err)
+					term.OutputErrorAndExit("Error reading JSON file: %v", err)
 					return
 				}
 
-				if currentHash != string(lastSavedHash) {
-					term.StopSpinner()
-					color.New(color.Bold, term.ColorHiYellow).Println("⚠️  The models file has local changes")
+				err = json.Unmarshal(localJsonData, &localClientModelsInput)
+				if err != nil {
+					term.OutputErrorAndExit("Error unmarshalling JSON file: %v", err)
+					return
+				}
 
-					fmt.Println()
-					fmt.Println("Path → " + customModelsPath)
-					fmt.Println()
+				localModelsInput = localClientModelsInput.ToModelsInput()
 
-					fmt.Println("If you continue, local changes will be dropped in favor of the latest server state")
+				// we only do a conflict check on the default path in the home dir
+				// if user specifies the path and the file exists, just open the file without checking for conflicts
+				var currentHash string
+				if usingDefaultPath {
+					lastSavedHash, err := os.ReadFile(hashPath)
+					if err != nil && !os.IsNotExist(err) {
+						term.OutputErrorAndExit("Error reading hash file: %v", err)
+						return
+					}
 
-					fmt.Println()
-					fmt.Printf("To keep the local version instead, quit and run %s\n", color.New(color.Bold, color.BgCyan, color.FgHiWhite).
-						Sprintf(" %smodels custom --save ", cmdPrefix))
-					fmt.Println()
-					res, err := term.ConfirmYesNo("Drop local changes and continue?")
+					currentHash, err = localModelsInput.Hash()
 					if err != nil {
-						term.OutputErrorAndExit("Error confirming: %v", err)
+						term.OutputErrorAndExit("Error hashing models: %v", err)
 						return
 					}
-					if !res {
-						return
+
+					if currentHash != string(lastSavedHash) {
+						term.StopSpinner()
+
+						res, err := warnModelsFileLocalChanges(customModelsPath, "models custom")
+						if err != nil {
+							term.OutputErrorAndExit("Error confirming: %v", err)
+							return
+						}
+						if !res {
+							return
+						}
+						fmt.Println()
+						term.StartSpinner("")
 					}
-					fmt.Println()
-					term.StartSpinner("")
 				}
 			}
-
-			serverModelsInput.PrepareUpdate()
 
 			if serverModelsInput.Equals(localModelsInput) {
 				jsonData = localJsonData
 			} else {
-				jsonData, err = json.MarshalIndent(serverModelsInput, "", "  ")
+				jsonData, err = json.MarshalIndent(serverClientModelsInput, "", "  ")
 				if err != nil {
 					term.OutputErrorAndExit("Error marshalling models: %v", err)
 					return
@@ -305,14 +294,19 @@ func manageCustomModels(cmd *cobra.Command, args []string) {
 					term.OutputErrorAndExit("Error writing file: %v", err)
 					return
 				}
-			}
 
-			if currentHash != "" {
-				err = os.WriteFile(hashPath, []byte(currentHash), 0644)
+				hash, err := serverModelsInput.Hash()
+				if err != nil {
+					term.OutputErrorAndExit("Error hashing models: %v", err)
+					return
+				}
+
+				err = os.WriteFile(hashPath, []byte(hash), 0644)
 				if err != nil {
 					term.OutputErrorAndExit("Error writing hash file: %v", err)
 					return
 				}
+
 			}
 
 			term.StopSpinner()
@@ -326,57 +320,25 @@ func manageCustomModels(cmd *cobra.Command, args []string) {
 		if !usingDefaultPath {
 			pathArg = fmt.Sprintf(" --file %s", customModelsPath)
 		}
-		printManual := func() {
-			fmt.Println("To save changes, run " +
-				fmt.Sprintf(" %s ", color.New(color.Bold, color.BgCyan, color.FgHiWhite).
-					Sprintf(" %smodels custom --save%s ", cmdPrefix, pathArg)))
-		}
 
-		selectedEditor := maybePromptAndOpen(customModelsPath)
-
-		if selectedEditor {
-			fmt.Println("📝 Opened in editor")
-			fmt.Println()
-
-			confirmed, err := term.ConfirmYesNo("Ready to save?")
-			if err != nil {
-				term.OutputErrorAndExit("Error confirming: %v", err)
-				return
-			}
-
-			if !confirmed {
-				fmt.Println("🙅‍♂️ Update canceled")
-				fmt.Println()
-
-				printManual()
-				return
-			}
-
-			// get updated file state
-			jsonData, err = os.ReadFile(customModelsPath)
-			if err != nil {
-				term.OutputErrorAndExit("Error reading JSON file: %v", err)
-				return
-			}
-		} else {
-			// No editor available or user chose manual
-			fmt.Println("👨‍💻 Edit the file in your JSON editor of choice")
-			fmt.Println()
-
-			printManual()
+		res := maybePromptAndOpenModelsFile(customModelsPath, pathArg, "models custom")
+		if res.shouldReturn {
 			return
 		}
+		jsonData = res.jsonData
 	}
 
 	term.StartSpinner("")
 
-	modelsInput, err := schema.ValidateModelsInputJSON(jsonData)
+	clientModelsInput, err := schema.ValidateModelsInputJSON(jsonData)
 	if err != nil {
 		term.StopSpinner()
 		color.New(color.Bold, term.ColorHiRed).Println("🚨 Error validating JSON file")
 		fmt.Println(err.Error())
 		return
 	}
+
+	modelsInput := clientModelsInput.ToModelsInput()
 
 	noDuplicates, errMsg := modelsInput.CheckNoDuplicates()
 	if !noDuplicates {
@@ -392,7 +354,7 @@ func manageCustomModels(cmd *cobra.Command, args []string) {
 		fmt.Println("🤷‍♂️ No changes to custom models/providers/model packs")
 	}
 
-	if modelsInput.IsEmpty() {
+	if modelsInput.Equals(*serverModelsInput) {
 		printNoChanges()
 		return
 	}
@@ -423,13 +385,13 @@ func manageCustomModels(cmd *cobra.Command, args []string) {
 	inputModelIds := map[string]bool{}
 	inputProviderNames := map[string]bool{}
 	inputModelPackNames := map[string]bool{}
-	for _, model := range modelsInput.CustomModels {
+	for _, model := range clientModelsInput.CustomModels {
 		inputModelIds[string(model.ModelId)] = true
 	}
-	for _, provider := range modelsInput.CustomProviders {
+	for _, provider := range clientModelsInput.CustomProviders {
 		inputProviderNames[provider.Name] = true
 	}
-	for _, modelPack := range modelsInput.CustomModelPacks {
+	for _, modelPack := range clientModelsInput.CustomModelPacks {
 		inputModelPackNames[modelPack.Name] = true
 	}
 
@@ -559,12 +521,13 @@ func defaultModels(cmd *cobra.Command, args []string) {
 
 	term.StartSpinner("")
 	settings, err := api.Client.GetOrgDefaultSettings()
-	term.StopSpinner()
 
 	if err != nil {
 		term.OutputErrorAndExit("Error getting default model settings: %v", err)
 		return
 	}
+
+	term.StopSpinner()
 
 	title := fmt.Sprintf("%s Model Settings", color.New(color.Bold, term.ColorHiGreen).Sprint("Org-Wide Default"))
 	table := tablewriter.NewWriter(os.Stdout)
@@ -630,7 +593,7 @@ func listAvailableModels(cmd *cobra.Command, args []string) {
 }
 
 func renderSettings(settings *shared.PlanSettings, allProperties bool) {
-	modelPack := settings.ModelPack
+	modelPack := settings.GetModelPack()
 
 	color.New(color.Bold, term.ColorHiCyan).Println("🎛️  Current Model Pack")
 	renderModelPack(modelPack, allProperties)
@@ -644,23 +607,6 @@ func renderSettings(settings *shared.PlanSettings, allProperties bool) {
 			fmt.Sprintf("%d", modelPack.Planner.GetFinalLargeContextFallback().GetSharedBaseConfig().MaxTokens),
 			fmt.Sprintf("%d", modelPack.Planner.GetMaxConvoTokens()),
 		})
-		table.Render()
-		fmt.Println()
-
-		color.New(color.Bold, term.ColorHiCyan).Println("⚙️  Planner Overrides")
-		table = tablewriter.NewWriter(os.Stdout)
-		table.SetAutoWrapText(false)
-		table.SetHeader([]string{"Name", "Value"})
-		if settings.ModelOverrides.MaxTokens == nil {
-			table.Append([]string{"Max Tokens", "no override"})
-		} else {
-			table.Append([]string{"Max Tokens", fmt.Sprintf("%d", *settings.ModelOverrides.MaxTokens)})
-		}
-		if settings.ModelOverrides.MaxConvoTokens == nil {
-			table.Append([]string{"Max Convo Tokens", "no override"})
-		} else {
-			table.Append([]string{"Max Convo Tokens", fmt.Sprintf("%d", *settings.ModelOverrides.MaxConvoTokens)})
-		}
 		table.Render()
 		fmt.Println()
 	}
@@ -796,146 +742,7 @@ func customModelsNotImplemented(cmd *cobra.Command, args []string) {
 	os.Exit(1)
 }
 
-type editorCandidate struct {
-	name        string
-	cmd         string
-	args        []string
-	isJetBrains bool
-}
-
-const maxEditorOpts = 5
-
-func detectEditors() []editorCandidate {
-	guess := []editorCandidate{
-		// Popular non-JetBrains launchers
-		{"VS Code", "code", nil, false},
-		{"Cursor", "cursor", nil, false},
-		{"Zed", "zed", nil, false},
-		{"Neovim", "nvim", nil, false},
-
-		// JetBrains IDE-specific launchers
-		{"IntelliJ IDEA", "idea", nil, true},
-		{"GoLand", "goland", nil, true},
-		{"PyCharm", "pycharm", nil, true},
-		{"CLion", "clion", nil, true},
-		{"WebStorm", "webstorm", nil, true},
-		{"PhpStorm", "phpstorm", nil, true},
-		{"DataGrip", "datagrip", nil, true},
-		{"RubyMine", "rubymine", nil, true},
-		{"Rider", "rider", nil, true},
-		{"DataSpell", "dataspell", nil, true},
-
-		// JetBrains universal CLI (2023.2+)
-		{"JetBrains (jb)", "jb", []string{"open"}, true},
-
-		{"Vim", "vim", nil, false},
-		{"Nano", "nano", nil, false},
-		{"Helix", "hx", nil, false},
-		{"Micro", "micro", nil, false},
-		{"Sublime Text", "subl", nil, false},
-		{"TextMate", "mate", nil, false},
-		{"Kakoune", "kak", nil, false},
-		{"Emacs", "emacs", nil, false},
-		{"Kate", "kate", nil, false},
-	}
-	pref := map[string]bool{}
-	for _, env := range []string{"VISUAL", "EDITOR"} {
-		if v := os.Getenv(env); v != "" {
-			// keep only the binary name, drop path/flags
-			cmd := filepath.Base(strings.Fields(v)[0])
-			pref[cmd] = true
-		}
-	}
-
-	_, err := exec.LookPath("jb") // true if universal launcher exists
-	jbOnPath := err == nil
-
-	var found []editorCandidate
-	for _, c := range guess {
-		if _, err := exec.LookPath(c.cmd); err != nil {
-			continue // not on PATH
-		}
-
-		// If jb is present, drop per-IDE launchers *unless* this exact cmd
-		// is marked preferred by VISUAL/EDITOR.
-		if jbOnPath && c.isJetBrains && !pref[c.cmd] {
-			continue
-		}
-		found = append(found, c)
-	}
-
-	for cmd := range pref {
-		if _, err := exec.LookPath(cmd); err == nil {
-			already := false
-			for _, c := range found {
-				if c.cmd == cmd {
-					already = true
-					break
-				}
-			}
-			if !already {
-				found = append(found, editorCandidate{name: cmd, cmd: cmd})
-			}
-		}
-	}
-	sort.SliceStable(found, func(i, j int) bool {
-		pi, pj := pref[found[i].cmd], pref[found[j].cmd]
-		if pi == pj {
-			return false // keep original order
-		}
-		return pi // true → i comes before j
-	})
-	if len(found) > maxEditorOpts {
-		found = found[:maxEditorOpts]
-	}
-
-	return found
-}
-
-func maybePromptAndOpen(path string) bool {
-	editors := detectEditors()
-	if len(editors) == 0 {
-		// just exit if there are no editors available
-		return false
-	}
-	opts := []string{}
-	for _, c := range editors {
-		opts = append(opts, "Open with "+c.name)
-	}
-
-	const openManually = "Open manually"
-	opts = append(opts, openManually)
-
-	choice, err := term.SelectFromList("Open the file now?", opts)
-	if err != nil {
-		term.OutputErrorAndExit("Error selecting editor: %v", err)
-	}
-
-	if choice == openManually {
-		return false
-	}
-
-	var idx int
-	for i, c := range opts {
-		if c == choice {
-			idx = i
-			break
-		}
-	}
-
-	if idx < len(editors) {
-		sel := editors[idx]
-		err = exec.Command(sel.cmd, append(sel.args, path)...).Start()
-		if err != nil {
-			term.OutputErrorAndExit("Error opening template: %v", err)
-		}
-		return true
-	}
-
-	return false
-}
-
-func getExampleTemplate(isCloud bool) shared.ModelsInput {
+func getExampleTemplate(isCloud bool) shared.ClientModelsInput {
 	exampleProviderName := "togetherai"
 
 	var customProviders []*shared.CustomProvider
@@ -958,7 +765,7 @@ func getExampleTemplate(isCloud bool) shared.ModelsInput {
 		ModelName: "meta-llama/llama-4-maverick",
 	})
 
-	return shared.ModelsInput{
+	return shared.ClientModelsInput{
 		SchemaUrl:       shared.SchemaUrlInputConfig,
 		CustomProviders: customProviders,
 		CustomModels: []*shared.CustomModel{
@@ -979,36 +786,20 @@ func getExampleTemplate(isCloud bool) shared.ModelsInput {
 				Providers: usesProviders,
 			},
 		},
-		CustomModelPacks: []*shared.ModelPackSchema{
+		CustomModelPacks: []*shared.ClientModelPackSchema{
 			{
 				Name:        "example-model-pack",
 				Description: "Example model pack",
-				Planner: shared.ModelRoleConfigSchema{
-					ModelId: shared.ModelId("deepseek/r1"),
-				},
-				Architect: &shared.ModelRoleConfigSchema{
-					ModelId: shared.ModelId("deepseek/r1"),
-				},
-				Coder: &shared.ModelRoleConfigSchema{
-					ModelId: shared.ModelId("deepseek/v3-0324"),
-				},
-				PlanSummary: shared.ModelRoleConfigSchema{
-					ModelId: shared.ModelId("meta-llama/llama-4-maverick"),
-				},
-				Builder: shared.ModelRoleConfigSchema{
-					ModelId: shared.ModelId("deepseek/r1-hidden"),
-				},
-				WholeFileBuilder: &shared.ModelRoleConfigSchema{
-					ModelId: shared.ModelId("deepseek/r1-hidden"),
-				},
-				ExecStatus: shared.ModelRoleConfigSchema{
-					ModelId: shared.ModelId("deepseek/r1-hidden"),
-				},
-				Namer: shared.ModelRoleConfigSchema{
-					ModelId: shared.ModelId("meta-llama/llama-4-maverick"),
-				},
-				CommitMsg: shared.ModelRoleConfigSchema{
-					ModelId: shared.ModelId("meta-llama/llama-4-maverick"),
+				ClientModelPackSchemaRoles: shared.ClientModelPackSchemaRoles{
+					Planner:          "deepseek/r1",
+					Architect:        "deepseek/r1",
+					Coder:            "deepseek/v3-0324",
+					PlanSummary:      "meta-llama/llama-4-maverick",
+					Builder:          "deepseek/r1-hidden",
+					WholeFileBuilder: "deepseek/r1-hidden",
+					ExecStatus:       "deepseek/r1-hidden",
+					Namer:            "meta-llama/llama-4-maverick",
+					CommitMsg:        "meta-llama/llama-4-maverick",
 				},
 			},
 		},

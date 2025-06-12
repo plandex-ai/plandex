@@ -14,18 +14,32 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-func GetPlanSettings(plan *Plan, fillDefaultModelPack bool) (*shared.PlanSettings, error) {
+func GetPlanSettings(plan *Plan) (settings *shared.PlanSettings, err error) {
 	planDir := getPlanDir(plan.OrgId, plan.Id)
 	settingsPath := filepath.Join(planDir, "settings.json")
 
-	var settings *shared.PlanSettings
+	customModelPacks, err := ListModelPacks(plan.OrgId)
+	if err != nil {
+		return nil, fmt.Errorf("error getting custom model packs: %v", err)
+	}
+
+	apiModelPacks := make([]*shared.ModelPack, len(customModelPacks))
+	for i, modelPack := range customModelPacks {
+		apiModelPacks[i] = modelPack.ToApi()
+	}
+
+	defer func() {
+		if settings != nil {
+			settings.Configure(apiModelPacks, os.Getenv("PLANDEX_CLOUD") != "")
+		}
+	}()
 
 	bytes, err := os.ReadFile(settingsPath)
 
 	if os.IsNotExist(err) || len(bytes) == 0 {
 		log.Printf("GetPlanSettings - no settings file found for plan %s - checking org defaults", plan.Id)
 		// see if org has default settings
-		defaultSettings, err := GetOrgDefaultSettings(plan.OrgId, fillDefaultModelPack)
+		defaultSettings, err := GetOrgDefaultSettings(plan.OrgId)
 
 		if err != nil {
 			return nil, fmt.Errorf("error getting org default settings: %v", err)
@@ -42,9 +56,6 @@ func GetPlanSettings(plan *Plan, fillDefaultModelPack bool) (*shared.PlanSetting
 		settings = &shared.PlanSettings{
 			UpdatedAt: plan.CreatedAt,
 		}
-		if settings.ModelPack == nil && fillDefaultModelPack {
-			settings.ModelPack = shared.DefaultModelPack
-		}
 		return settings, nil
 	} else if err != nil {
 		return nil, fmt.Errorf("error reading settings file: %v", err)
@@ -58,25 +69,23 @@ func GetPlanSettings(plan *Plan, fillDefaultModelPack bool) (*shared.PlanSetting
 		return nil, fmt.Errorf("error unmarshalling settings: %v", err)
 	}
 
-	if settings.ModelPack == nil && fillDefaultModelPack {
-		log.Printf("GetPlanSettings - filling default model pack")
-		settings.ModelPack = shared.DefaultModelPack
-	}
-
 	return settings, nil
 }
 
-func StorePlanSettings(plan *Plan, settings *shared.PlanSettings) error {
+func StorePlanSettings(plan *Plan, settings shared.PlanSettings) error {
 	planDir := getPlanDir(plan.OrgId, plan.Id)
 	settingsPath := filepath.Join(planDir, "settings.json")
+
+	settings.UpdatedAt = time.Now()
+	settings.CustomModelPacks = nil
+	settings.IsCloud = false
+	settings.Configured = false
 
 	bytes, err := json.Marshal(settings)
 
 	if err != nil {
 		return fmt.Errorf("error marshalling settings: %v", err)
 	}
-
-	settings.UpdatedAt = time.Now()
 
 	err = os.WriteFile(settingsPath, bytes, 0644)
 
@@ -93,12 +102,28 @@ func StorePlanSettings(plan *Plan, settings *shared.PlanSettings) error {
 	return nil
 }
 
-func GetOrgDefaultSettings(orgId string, fillDefaultModelPack bool) (*shared.PlanSettings, error) {
+func GetOrgDefaultSettings(orgId string) (settings *shared.PlanSettings, err error) {
+	customModelPacks, err := ListModelPacks(orgId)
+	if err != nil {
+		return nil, fmt.Errorf("error getting custom model packs: %v", err)
+	}
+
+	apiModelPacks := make([]*shared.ModelPack, len(customModelPacks))
+	for i, modelPack := range customModelPacks {
+		apiModelPacks[i] = modelPack.ToApi()
+	}
+
+	defer func() {
+		if settings != nil {
+			settings.Configure(apiModelPacks, os.Getenv("PLANDEX_CLOUD") != "")
+		}
+	}()
+
 	query := "SELECT * FROM default_plan_settings WHERE org_id = $1"
 
 	var defaults DefaultPlanSettings
 
-	err := Conn.Get(&defaults, query, orgId)
+	err = Conn.Get(&defaults, query, orgId)
 
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -107,37 +132,42 @@ func GetOrgDefaultSettings(orgId string, fillDefaultModelPack bool) (*shared.Pla
 			settings := &shared.PlanSettings{
 				UpdatedAt: time.Time{},
 			}
-			if settings.ModelPack == nil && fillDefaultModelPack {
-				settings.ModelPack = shared.DefaultModelPack
-			}
 			return settings, nil
 		}
 		return nil, fmt.Errorf("error getting default plan settings: %v", err)
 	}
 
-	// fill in default WholeFileBuilder if not set
-	if defaults.PlanSettings.ModelPack.WholeFileBuilder == nil {
-		defaults.PlanSettings.ModelPack.WholeFileBuilder = shared.DefaultModelPack.WholeFileBuilder
-	}
-
 	return &defaults.PlanSettings, nil
 }
 
-func GetOrgDefaultSettingsForUpdate(orgId string, tx *sqlx.Tx, fillDefaultModelPack bool) (*shared.PlanSettings, error) {
+func GetOrgDefaultSettingsForUpdate(orgId string, tx *sqlx.Tx) (settings *shared.PlanSettings, err error) {
+	customModelPacks, err := ListModelPacks(orgId)
+	if err != nil {
+		return nil, fmt.Errorf("error getting custom model packs: %v", err)
+	}
+
+	apiModelPacks := make([]*shared.ModelPack, len(customModelPacks))
+	for i, modelPack := range customModelPacks {
+		apiModelPacks[i] = modelPack.ToApi()
+	}
+
+	defer func() {
+		if settings != nil {
+			settings.Configure(apiModelPacks, os.Getenv("PLANDEX_CLOUD") != "")
+		}
+	}()
+
 	query := "SELECT * FROM default_plan_settings WHERE org_id = $1 FOR UPDATE"
 
 	var defaults DefaultPlanSettings
 
-	err := tx.Get(&defaults, query, orgId)
+	err = tx.Get(&defaults, query, orgId)
 
 	if err != nil {
 		if err == sql.ErrNoRows {
 			// if it doesn't exist, return default settings object
 			settings := &shared.PlanSettings{
 				UpdatedAt: time.Time{},
-			}
-			if settings.ModelPack == nil && fillDefaultModelPack {
-				settings.ModelPack = shared.DefaultModelPack
 			}
 			return settings, nil
 		}

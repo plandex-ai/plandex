@@ -1,9 +1,12 @@
 package shared
 
 import (
+	"crypto/sha256"
 	"database/sql/driver"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"strings"
 	"time"
 )
@@ -291,15 +294,56 @@ type ModelRoleModelConfig struct {
 type ModelRoleConfigSchema struct {
 	ModelId ModelId `json:"modelId"`
 
-	Temperature          float32 `json:"temperature,omitempty"`
-	TopP                 float32 `json:"topP,omitempty"`
-	ReservedOutputTokens int     `json:"reservedOutputTokens,omitempty"`
-	MaxConvoTokens       int     `json:"maxConvoTokens,omitempty"`
+	Temperature          *float32 `json:"temperature,omitempty"`
+	TopP                 *float32 `json:"topP,omitempty"`
+	ReservedOutputTokens *int     `json:"reservedOutputTokens,omitempty"`
+	MaxConvoTokens       *int     `json:"maxConvoTokens,omitempty"`
 
 	LargeContextFallback *ModelRoleConfigSchema `json:"largeContextFallback,omitempty"`
 	LargeOutputFallback  *ModelRoleConfigSchema `json:"largeOutputFallback,omitempty"`
 	ErrorFallback        *ModelRoleConfigSchema `json:"errorFallback,omitempty"`
 	StrongModel          *ModelRoleConfigSchema `json:"strongModel,omitempty"`
+}
+
+func (m *ModelRoleConfigSchema) ToClientVal() RoleJSON {
+	if m == nil {
+		return nil
+	}
+	if m.bareRole() {
+		return string(m.ModelId)
+	}
+	return m
+}
+
+// bareRole returns true if *every* field except ModelId is nil / zero.
+func (m *ModelRoleConfigSchema) bareRole() bool {
+	if m == nil {
+		return true
+	}
+
+	v := reflect.ValueOf(*m)
+	t := v.Type()
+
+	for i := 0; i < v.NumField(); i++ {
+		f := t.Field(i)
+		if f.Name == "ModelId" { // skip the sentinel field
+			continue
+		}
+
+		fv := v.Field(i)
+
+		switch fv.Kind() {
+		case reflect.Pointer, reflect.Interface, reflect.Map, reflect.Slice:
+			if !fv.IsNil() {
+				return false
+			}
+		default:
+			if !fv.IsZero() {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 func (m *ModelRoleConfigSchema) AllModelIds() []ModelId {
@@ -354,14 +398,31 @@ func (m *ModelRoleConfigSchema) toModelRoleConfig(role ModelRole) ModelRoleConfi
 		strongModel = &c
 	}
 
+	temperature := m.Temperature
+	topP := m.TopP
+
+	config := DefaultConfigByRole[role]
+
+	if temperature == nil {
+		temperature = &config.Temperature
+	}
+	if topP == nil {
+		topP = &config.TopP
+	}
+
+	var reservedOutputTokens int
+	if m.ReservedOutputTokens != nil {
+		reservedOutputTokens = *m.ReservedOutputTokens
+	}
+
 	return ModelRoleConfig{
 		Role: role,
 
 		ModelId: m.ModelId,
 
-		Temperature:          m.Temperature,
-		TopP:                 m.TopP,
-		ReservedOutputTokens: m.ReservedOutputTokens,
+		Temperature:          *temperature,
+		TopP:                 *topP,
+		ReservedOutputTokens: reservedOutputTokens,
 
 		LargeContextFallback: largeContextFallback,
 		LargeOutputFallback:  largeOutputFallback,
@@ -392,16 +453,45 @@ func (m *ModelRoleConfig) ToModelRoleConfigSchema() ModelRoleConfigSchema {
 		strongModel = &c
 	}
 
+	defaultConfig := DefaultConfigByRole[m.Role]
+
+	var temperature *float32
+	var topP *float32
+	var reservedOutputTokens *int
+
+	if m.Temperature != defaultConfig.Temperature {
+		temperature = &m.Temperature
+	}
+	if m.TopP != defaultConfig.TopP {
+		topP = &m.TopP
+	}
+
+	if m.ReservedOutputTokens != 0 {
+		reservedOutputTokens = &m.ReservedOutputTokens
+	}
+
 	return ModelRoleConfigSchema{
-		ModelId:              m.ModelId,
-		Temperature:          m.Temperature,
-		TopP:                 m.TopP,
-		ReservedOutputTokens: m.ReservedOutputTokens,
+		ModelId:              m.GetModelId(),
+		Temperature:          temperature,
+		TopP:                 topP,
+		ReservedOutputTokens: reservedOutputTokens,
 		LargeContextFallback: largeContextFallback,
 		LargeOutputFallback:  largeOutputFallback,
 		ErrorFallback:        errorFallback,
 		StrongModel:          strongModel,
 	}
+}
+
+func (p PlannerRoleConfig) ToModelRoleConfigSchema() ModelRoleConfigSchema {
+	s := p.ModelRoleConfig.ToModelRoleConfigSchema()
+
+	var maxConvoTokens *int
+	if p.MaxConvoTokens != 0 {
+		maxConvoTokens = &p.MaxConvoTokens
+	}
+
+	s.MaxConvoTokens = maxConvoTokens
+	return s
 }
 
 func (m ModelRoleConfig) GetModelId() ModelId {
@@ -508,9 +598,81 @@ func (p PlannerRoleConfig) GetMaxConvoTokens() int {
 	return p.ModelRoleConfig.GetSharedBaseConfig().DefaultMaxConvoTokens
 }
 
-type ModelPackSchema struct {
-	Name             string                 `json:"name"`
-	Description      string                 `json:"description"`
+type RoleJSON any
+
+type ClientModelPackSchemaRoles struct {
+	SchemaUrl SchemaUrl `json:"$schema,omitempty"`
+
+	LocalProvider ModelProvider `json:"local-provider,omitempty"`
+
+	// in the JSON, these can either be a role as a string or a ModelRoleConfigSchema object for more complex config
+	Planner          RoleJSON `json:"planner"`
+	Architect        RoleJSON `json:"architect,omitempty"`
+	Coder            RoleJSON `json:"coder,omitempty"`
+	PlanSummary      RoleJSON `json:"summarizer"`
+	Builder          RoleJSON `json:"builder"`
+	WholeFileBuilder RoleJSON `json:"wholeFileBuilder,omitempty"`
+	Namer            RoleJSON `json:"names"`
+	CommitMsg        RoleJSON `json:"commitMessages"`
+	ExecStatus       RoleJSON `json:"autoContinue"`
+}
+
+func (c *ClientModelPackSchemaRoles) ToModelPackSchemaRoles() ModelPackSchemaRoles {
+	res := ModelPackSchemaRoles{
+		LocalProvider: c.LocalProvider,
+	}
+
+	// Helper function to convert o the appropriate type
+	convertField := func(field interface{}) *ModelRoleConfigSchema {
+		if field == nil {
+			return nil
+		}
+
+		switch v := field.(type) {
+		case string:
+			// It's a string, handle accordingly
+			return &ModelRoleConfigSchema{
+				ModelId: ModelId(v),
+			}
+		case map[string]any:
+			// re-marshal then unmarshal into the right struct
+			b, _ := json.Marshal(v)
+			var m ModelRoleConfigSchema
+			if err := json.Unmarshal(b, &m); err != nil {
+				return nil
+			}
+			return &m
+		default:
+			// Handle unexpected type - you might want to log or panic
+			// Or try to convert from a map if it's coming from JSON
+			return nil
+		}
+	}
+
+	// Convert each field
+	res.Planner = *convertField(c.Planner)
+	if c.Coder != nil {
+		converted := convertField(c.Coder)
+		res.Coder = converted
+	}
+	res.PlanSummary = *convertField(c.PlanSummary)
+	res.Builder = *convertField(c.Builder)
+	if c.WholeFileBuilder != nil {
+		converted := convertField(c.WholeFileBuilder)
+		res.WholeFileBuilder = converted
+	}
+	res.Namer = *convertField(c.Namer)
+	res.CommitMsg = *convertField(c.CommitMsg)
+	res.ExecStatus = *convertField(c.ExecStatus)
+	if c.Architect != nil {
+		converted := convertField(c.Architect)
+		res.Architect = converted
+	}
+
+	return res
+}
+
+type ModelPackSchemaRoles struct {
 	LocalProvider    ModelProvider          `json:"localProvider,omitempty"`
 	Planner          ModelRoleConfigSchema  `json:"planner"`
 	Coder            *ModelRoleConfigSchema `json:"coder,omitempty"`
@@ -521,6 +683,41 @@ type ModelPackSchema struct {
 	CommitMsg        ModelRoleConfigSchema  `json:"commitMsg"`
 	ExecStatus       ModelRoleConfigSchema  `json:"execStatus"`
 	Architect        *ModelRoleConfigSchema `json:"contextLoader,omitempty"`
+}
+
+func (m *ModelPackSchemaRoles) ToClientModelPackSchemaRoles() ClientModelPackSchemaRoles {
+	res := ClientModelPackSchemaRoles{
+		SchemaUrl:     SchemaUrlModelPackRoles,
+		LocalProvider: m.LocalProvider,
+	}
+
+	res.Planner = m.Planner.ToClientVal()
+	if m.Coder != nil {
+		val := m.Coder.ToClientVal()
+		res.Coder = &val
+	}
+	res.PlanSummary = m.PlanSummary.ToClientVal()
+	res.Builder = m.Builder.ToClientVal()
+	if m.WholeFileBuilder != nil {
+		val := m.WholeFileBuilder.ToClientVal()
+		res.WholeFileBuilder = &val
+	}
+	res.Namer = m.Namer.ToClientVal()
+	res.CommitMsg = m.CommitMsg.ToClientVal()
+	res.ExecStatus = m.ExecStatus.ToClientVal()
+	if m.Architect != nil {
+		val := m.Architect.ToClientVal()
+		res.Architect = &val
+	}
+
+	return res
+}
+
+type ModelPackSchema struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+
+	ModelPackSchemaRoles
 }
 
 func (m *ModelPackSchema) AllModelIds() []ModelId {
@@ -563,13 +760,18 @@ func (m *ModelPackSchema) ToModelPack() ModelPack {
 	}
 
 	if m.WholeFileBuilder != nil {
-		c := m.WholeFileBuilder.ToModelRoleConfig(ModelRoleBuilder)
+		c := m.WholeFileBuilder.ToModelRoleConfig(ModelRoleWholeFileBuilder)
 		wholeFileBuilder = &c
 	}
 
 	if m.Architect != nil {
 		c := m.Architect.ToModelRoleConfig(ModelRoleArchitect)
 		architect = &c
+	}
+
+	var maxConvoTokens int
+	if m.Planner.MaxConvoTokens != nil {
+		maxConvoTokens = *m.Planner.MaxConvoTokens
 	}
 
 	return ModelPack{
@@ -579,11 +781,11 @@ func (m *ModelPackSchema) ToModelPack() ModelPack {
 		Planner: PlannerRoleConfig{
 			ModelRoleConfig: m.Planner.ToModelRoleConfig(ModelRolePlanner),
 			PlannerModelConfig: PlannerModelConfig{
-				MaxConvoTokens: m.Planner.MaxConvoTokens,
+				MaxConvoTokens: maxConvoTokens,
 			},
 		},
 		Coder:            coder,
-		PlanSummary:      m.PlanSummary.ToModelRoleConfig(ModelRolePlanner),
+		PlanSummary:      m.PlanSummary.ToModelRoleConfig(ModelRolePlanSummary),
 		Builder:          m.Builder.ToModelRoleConfig(ModelRoleBuilder),
 		WholeFileBuilder: wholeFileBuilder,
 		Namer:            m.Namer.ToModelRoleConfig(ModelRoleName),
@@ -648,46 +850,28 @@ func (m *ModelPack) ToModelPackSchema() *ModelPackSchema {
 	}
 
 	return &ModelPackSchema{
-		Name:             m.Name,
-		Description:      m.Description,
-		Planner:          m.Planner.ToModelRoleConfigSchema(),
-		Coder:            coder,
-		Architect:        architect,
-		PlanSummary:      m.PlanSummary.ToModelRoleConfigSchema(),
-		Builder:          m.Builder.ToModelRoleConfigSchema(),
-		WholeFileBuilder: wholeFileBuilder,
-		Namer:            m.Namer.ToModelRoleConfigSchema(),
-		CommitMsg:        m.CommitMsg.ToModelRoleConfigSchema(),
-		ExecStatus:       m.ExecStatus.ToModelRoleConfigSchema(),
+		Name:        m.Name,
+		Description: m.Description,
+		ModelPackSchemaRoles: ModelPackSchemaRoles{
+			LocalProvider:    m.LocalProvider,
+			Planner:          m.Planner.ToModelRoleConfigSchema(),
+			Coder:            coder,
+			Architect:        architect,
+			PlanSummary:      m.PlanSummary.ToModelRoleConfigSchema(),
+			Builder:          m.Builder.ToModelRoleConfigSchema(),
+			WholeFileBuilder: wholeFileBuilder,
+			Namer:            m.Namer.ToModelRoleConfigSchema(),
+			CommitMsg:        m.CommitMsg.ToModelRoleConfigSchema(),
+			ExecStatus:       m.ExecStatus.ToModelRoleConfigSchema(),
+		},
 	}
 }
 
-type ModelOverrides struct {
-	MaxConvoTokens       *int `json:"maxConvoTokens"`
-	MaxTokens            *int `json:"maxContextTokens"`
-	ReservedOutputTokens *int `json:"maxOutputTokens"`
-}
-
-type PlanSettings struct {
-	ModelOverrides ModelOverrides `json:"modelOverrides"`
-	ModelPack      *ModelPack     `json:"modelPack"`
-	UpdatedAt      time.Time      `json:"updatedAt"`
-}
-
-func (p *PlanSettings) Scan(src interface{}) error {
-	if src == nil {
-		return nil
+func (m ModelPackSchemaRoles) Hash() (string, error) {
+	bytes, err := json.Marshal(m)
+	if err != nil {
+		return "", err
 	}
-	switch s := src.(type) {
-	case []byte:
-		return json.Unmarshal(s, p)
-	case string:
-		return json.Unmarshal([]byte(s), p)
-	default:
-		return fmt.Errorf("unsupported data type: %T", src)
-	}
-}
-
-func (p PlanSettings) Value() (driver.Value, error) {
-	return json.Marshal(p)
+	hash := sha256.Sum256(bytes)
+	return hex.EncodeToString(hash[:]), nil
 }

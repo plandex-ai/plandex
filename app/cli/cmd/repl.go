@@ -184,7 +184,7 @@ func runRepl(cmd *cobra.Command, args []string) {
 		printAutoFn:  printAutoFn,
 		printModelFn: printModelFn,
 		config:       replConfig,
-		packName:     settings.ModelPack.Name,
+		packName:     settings.GetModelPack().Name,
 	})
 
 	var p *prompt.Prompt

@@ -143,13 +143,14 @@ func resolveModelPackWithArgs(settings *shared.PlanSettings, silent bool) (*shar
 		packName = shared.GeminiPreviewModelPack.Name
 	}
 
-	if packName != "" && packName != originalSettings.ModelPack.Name {
+	if packName != "" && packName != originalSettings.GetModelPack().Name {
 		if !silent {
 			term.StartSpinner("")
 		}
-		updatedSettings := updateModelSettings([]string{packName}, originalSettings)
+		updatedSettings := updateModelSettings([]string{packName}, originalSettings, "")
 		_, apiErr = api.Client.UpdateSettings(lib.CurrentPlanId, lib.CurrentBranch, shared.UpdateSettingsRequest{
-			Settings: updatedSettings,
+			ModelPackName: updatedSettings.ModelPackName,
+			ModelPack:     updatedSettings.ModelPack,
 		})
 		if !silent {
 			term.StopSpinner()
@@ -175,7 +176,7 @@ func resolveModelPackWithArgs(settings *shared.PlanSettings, silent bool) (*shar
 			term.StopSpinner()
 		}
 		fn := func() {
-			printModelPackTable(originalSettings.ModelPack.Name)
+			printModelPackTable(originalSettings.GetModelPack().Name)
 		}
 
 		if !silent {

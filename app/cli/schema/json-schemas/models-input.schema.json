@@ -5,6 +5,9 @@
   "description": "Input schema for custom models, providers, and model packs",
   "type": "object",
   "properties": {
+    "$schema": {
+      "type": "string"
+    },
     "models": {
       "type": "array",
       "items": {
@@ -23,5 +26,6 @@
         "$ref": "./model-pack-config.schema.json"
       }
     }
-  }
+  },
+  "additionalProperties": false
 }

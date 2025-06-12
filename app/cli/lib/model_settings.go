@@ -2,6 +2,7 @@ package lib
 
 import (
 	"fmt"
+	"os/exec"
 	"plandex-cli/term"
 
 	shared "plandex-shared"
@@ -58,4 +59,47 @@ func SelectModelIdForRole(customModels []*shared.CustomModel, role shared.ModelR
 
 		return id
 	}
+}
+
+func MaybePromptAndOpen(path string) bool {
+	editors := detectEditors()
+	if len(editors) == 0 {
+		// just exit if there are no editors available
+		return false
+	}
+	opts := []string{}
+	for _, c := range editors {
+		opts = append(opts, "Open with "+c.name)
+	}
+
+	const openManually = "Open manually"
+	opts = append(opts, openManually)
+
+	choice, err := term.SelectFromList("Open the file now?", opts)
+	if err != nil {
+		term.OutputErrorAndExit("Error selecting editor: %v", err)
+	}
+
+	if choice == openManually {
+		return false
+	}
+
+	var idx int
+	for i, c := range opts {
+		if c == choice {
+			idx = i
+			break
+		}
+	}
+
+	if idx < len(editors) {
+		sel := editors[idx]
+		err = exec.Command(sel.cmd, append(sel.args, path)...).Start()
+		if err != nil {
+			term.OutputErrorAndExit("Error opening template: %v", err)
+		}
+		return true
+	}
+
+	return false
 }
