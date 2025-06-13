@@ -1,15 +1,12 @@
 package cmd
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 	"plandex-cli/api"
 	"plandex-cli/auth"
 	"plandex-cli/fs"
 	"plandex-cli/lib"
-	"plandex-cli/schema"
 	"plandex-cli/term"
 	"strings"
 
@@ -64,7 +61,7 @@ func modelsSet(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	defaultPath := filepath.Join(fs.HomePlandexDir, lib.CurrentPlanId, "model-settings.json")
+	defaultPath := lib.GetPlanModelSettingsPath(lib.CurrentPlanId)
 
 	settings := updateModelSettings(args, originalSettings, defaultPath)
 
@@ -107,7 +104,7 @@ func defaultModelsSet(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	defaultPath := filepath.Join(fs.HomePlandexDir, "default-model-settings.json")
+	defaultPath := lib.DefaultModelSettingsPath
 
 	settings := updateModelSettings(args, originalSettings, defaultPath)
 
@@ -196,56 +193,26 @@ func updateModelSettings(args []string, originalSettings *shared.PlanSettings, d
 			usingDefaultPath = true
 			setModelJsonFilePath = defaultPath
 		}
-		hashPath := setModelJsonFilePath + ".hash"
 
-		exists := false
-		_, err := os.Stat(setModelJsonFilePath)
-		if err == nil {
-			exists = true
-		} else if os.IsNotExist(err) {
-			exists = false
-		} else {
-			term.OutputErrorAndExit("Error checking custom models file: %v", err)
+		exists, err := fs.FileExists(setModelJsonFilePath)
+		if err != nil {
+			term.OutputErrorAndExit("Error checking model settings file: %v", err)
 			return nil
 		}
-
-		var jsonData []byte
 
 		if saveCustomModels {
 			if !exists {
 				term.OutputErrorAndExit("File not found: %s", customModelsPath)
 			}
-			jsonData, err = os.ReadFile(setModelJsonFilePath)
-			if err != nil {
-				term.OutputErrorAndExit("Error reading JSON file: %v", err)
-				return nil
-			}
 		} else {
 			if usingDefaultPath && exists {
-				lastSavedHash, err := os.ReadFile(hashPath)
-				if err != nil && !os.IsNotExist(err) {
-					term.OutputErrorAndExit("Error reading hash file: %v", err)
+				modelSettingsCheckLocalChangesResult, err := lib.ModelSettingsCheckLocalChanges(setModelJsonFilePath)
+				if err != nil {
+					term.OutputErrorAndExit("Error checking model settings file: %v", err)
 					return nil
 				}
 
-				localJsonData, err := os.ReadFile(setModelJsonFilePath)
-				if err != nil {
-					term.OutputErrorAndExit("Error reading JSON file: %v", err)
-				}
-
-				var localModelPackSchemaRoles *shared.ClientModelPackSchemaRoles
-				err = json.Unmarshal(localJsonData, &localModelPackSchemaRoles)
-				if err != nil {
-					term.OutputErrorAndExit("Error unmarshalling JSON file: %v", err)
-				}
-
-				currentHash, err := localModelPackSchemaRoles.ToModelPackSchemaRoles().Hash()
-				if err != nil {
-					term.OutputErrorAndExit("Error hashing model pack: %v", err)
-					return nil
-				}
-
-				if currentHash != string(lastSavedHash) {
+				if modelSettingsCheckLocalChangesResult.HasLocalChanges {
 					term.StopSpinner()
 
 					res, err := warnModelsFileLocalChanges(setModelJsonFilePath, "set-model")
@@ -262,22 +229,9 @@ func updateModelSettings(args []string, originalSettings *shared.PlanSettings, d
 				}
 			}
 
-			err = os.MkdirAll(filepath.Dir(setModelJsonFilePath), 0755)
+			err = lib.WriteModelSettingsFile(setModelJsonFilePath, originalSettings)
 			if err != nil {
-				term.OutputErrorAndExit("Error creating directory: %v", err)
-				return nil
-			}
-
-			clientModelPackRoles := originalSettings.GetModelPack().ToModelPackSchema().ToClientModelPackSchemaRoles()
-			bytes, err := json.MarshalIndent(clientModelPackRoles, "", "  ")
-			if err != nil {
-				term.OutputErrorAndExit("Error marshalling model pack: %v", err)
-				return nil
-			}
-
-			err = os.WriteFile(setModelJsonFilePath, bytes, 0644)
-			if err != nil {
-				term.OutputErrorAndExit("Error writing JSON file: %v", err)
+				term.OutputErrorAndExit("Error writing model settings file: %v", err)
 				return nil
 			}
 
@@ -295,36 +249,14 @@ func updateModelSettings(args []string, originalSettings *shared.PlanSettings, d
 			if res.shouldReturn {
 				return nil
 			}
-			jsonData = res.jsonData
 		}
 
 		term.StartSpinner("")
 
-		clientModelPackRoles, err := schema.ValidateModelPackInlineJSON(jsonData)
-		if err != nil {
-			term.StopSpinner()
-			color.New(color.Bold, term.ColorHiRed).Println("🚨 Error validating JSON file")
-			fmt.Println(err.Error())
-			os.Exit(1)
-		}
-		modelPackRoles := clientModelPackRoles.ToModelPackSchemaRoles()
+		settings, err = lib.ApplyModelSettings(setModelJsonFilePath, originalSettings)
 
-		modelPackSchema := shared.ModelPackSchema{
-			Name:                 "custom",
-			Description:          "Model pack with custom settings",
-			ModelPackSchemaRoles: modelPackRoles,
-		}
-		modelPack := modelPackSchema.ToModelPack()
-		settings.SetCustomModelPack(&modelPack)
-
-		hash, err := modelPackRoles.Hash()
 		if err != nil {
-			term.OutputErrorAndExit("Error hashing model pack: %v", err)
-			return nil
-		}
-		err = os.WriteFile(hashPath, []byte(hash), 0644)
-		if err != nil {
-			term.OutputErrorAndExit("Error writing hash file: %v", err)
+			term.OutputErrorAndExit("Error applying model settings: %v", err)
 			return nil
 		}
 

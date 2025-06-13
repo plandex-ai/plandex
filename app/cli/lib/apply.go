@@ -58,6 +58,13 @@ func MustApplyPlanAttempt(
 
 	term.StartSpinner("")
 
+	err := PromptSyncModelsIfNeeded()
+	if err != nil {
+		term.OutputErrorAndExit("Error syncing models: %v", err)
+	}
+
+	term.StartSpinner("")
+
 	currentPlanState, apiErr := api.Client.GetCurrentPlanState(planId, branch)
 
 	if apiErr != nil {

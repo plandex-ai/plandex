@@ -5,13 +5,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"plandex-cli/api"
 	"plandex-cli/auth"
 	"plandex-cli/fs"
 	"plandex-cli/lib"
-	"plandex-cli/schema"
 	"plandex-cli/term"
 	"strconv"
 
@@ -97,112 +95,32 @@ func manageCustomModels(cmd *cobra.Command, args []string) {
 
 	term.StartSpinner("")
 
-	errCh := make(chan *shared.ApiError, 3)
-	var (
-		customModels     []*shared.CustomModel
-		customProviders  []*shared.CustomProvider
-		customModelPacks []*shared.ModelPackSchema
-	)
-
-	go func() {
-		models, apiErr := api.Client.ListCustomModels()
-		if apiErr != nil {
-			errCh <- apiErr
-			return
-		}
-		customModels = models
-		errCh <- nil
-	}()
-
-	go func() {
-		// custom providers are not supported on cloud
-		if auth.Current.IsCloud {
-			errCh <- nil
-			return
-		}
-		providers, apiErr := api.Client.ListCustomProviders()
-		if apiErr != nil {
-			errCh <- apiErr
-			return
-		}
-		customProviders = providers
-		errCh <- nil
-	}()
-
-	go func() {
-		modelPacks, apiErr := api.Client.ListModelPacks()
-		if apiErr != nil {
-			errCh <- apiErr
-			return
-		}
-
-		schemas := make([]*shared.ModelPackSchema, len(modelPacks))
-		for i, modelPack := range modelPacks {
-			schemas[i] = modelPack.ToModelPackSchema()
-		}
-
-		customModelPacks = schemas
-		errCh <- nil
-	}()
-
-	for i := 0; i < 3; i++ {
-		err := <-errCh
-		if err != nil {
-			term.OutputErrorAndExit("Error fetching custom models: %v", err.Msg)
-			return
-		}
-	}
-
-	existsById := map[string]bool{}
-	for _, model := range customModels {
-		existsById[string(model.ModelId)] = true
-	}
-	for _, provider := range customProviders {
-		existsById[provider.Name] = true
-	}
-	for _, modelPack := range customModelPacks {
-		existsById[modelPack.Name] = true
-	}
-
-	serverModelsInput := &shared.ModelsInput{
-		CustomModels:     customModels,
-		CustomProviders:  customProviders,
-		CustomModelPacks: customModelPacks,
+	serverModelsInput, err := lib.GetServerModelsInput()
+	if err != nil {
+		term.OutputErrorAndExit("Error getting server models input: %v", err)
+		return
 	}
 
 	usingDefaultPath := false
 	if customModelsPath == "" {
 		usingDefaultPath = true
-		customModelsPath = filepath.Join(fs.HomePlandexDir, "custom-models.json")
+		customModelsPath = lib.CustomModelsDefaultPath
 	}
-	hashPath := customModelsPath + ".hash"
 
-	exists := false
-	_, err := os.Stat(customModelsPath)
-	if err == nil {
-		exists = true
-	} else if os.IsNotExist(err) {
-		exists = false
-	} else {
+	exists, err := fs.FileExists(customModelsPath)
+	if err != nil {
 		term.OutputErrorAndExit("Error checking custom models file: %v", err)
 		return
 	}
-
-	var jsonData []byte
 
 	if saveCustomModels {
 		if !exists {
 			term.OutputErrorAndExit("File not found: %s", customModelsPath)
 			return
 		}
-		jsonData, err = os.ReadFile(customModelsPath)
-		if err != nil {
-			term.OutputErrorAndExit("Error reading JSON file: %v", err)
-			return
-		}
 	} else {
 		if serverModelsInput.IsEmpty() {
-			jsonData, err = json.MarshalIndent(getExampleTemplate(auth.Current.IsCloud), "", "  ")
+			jsonData, err := json.MarshalIndent(getExampleTemplate(auth.Current.IsCloud), "", "  ")
 			if err != nil {
 				term.OutputErrorAndExit("Error marshalling template: %v", err)
 				return
@@ -228,42 +146,21 @@ func manageCustomModels(cmd *cobra.Command, args []string) {
 		} else {
 			serverClientModelsInput := serverModelsInput.ToClientModelsInput()
 			serverClientModelsInput.PrepareUpdate()
-			var localClientModelsInput shared.ClientModelsInput
+
 			var localModelsInput shared.ModelsInput
-			var localJsonData []byte
 
 			if exists {
-				localJsonData, err = os.ReadFile(customModelsPath)
-				if err != nil {
-					term.OutputErrorAndExit("Error reading JSON file: %v", err)
-					return
-				}
-
-				err = json.Unmarshal(localJsonData, &localClientModelsInput)
-				if err != nil {
-					term.OutputErrorAndExit("Error unmarshalling JSON file: %v", err)
-					return
-				}
-
-				localModelsInput = localClientModelsInput.ToModelsInput()
-
 				// we only do a conflict check on the default path in the home dir
 				// if user specifies the path and the file exists, just open the file without checking for conflicts
-				var currentHash string
 				if usingDefaultPath {
-					lastSavedHash, err := os.ReadFile(hashPath)
-					if err != nil && !os.IsNotExist(err) {
-						term.OutputErrorAndExit("Error reading hash file: %v", err)
-						return
-					}
-
-					currentHash, err = localModelsInput.Hash()
+					res, err := lib.CustomModelsCheckLocalChanges(customModelsPath)
 					if err != nil {
-						term.OutputErrorAndExit("Error hashing models: %v", err)
+						term.OutputErrorAndExit("Error checking local changes: %v", err)
 						return
 					}
 
-					if currentHash != string(lastSavedHash) {
+					localModelsInput = res.LocalModelsInput
+					if res.HasLocalChanges {
 						term.StopSpinner()
 
 						res, err := warnModelsFileLocalChanges(customModelsPath, "models custom")
@@ -280,33 +177,12 @@ func manageCustomModels(cmd *cobra.Command, args []string) {
 				}
 			}
 
-			if serverModelsInput.Equals(localModelsInput) {
-				jsonData = localJsonData
-			} else {
-				jsonData, err = json.MarshalIndent(serverClientModelsInput, "", "  ")
+			if !serverModelsInput.Equals(localModelsInput) {
+				err := lib.WriteCustomModelsFile(customModelsPath, serverModelsInput, true)
 				if err != nil {
-					term.OutputErrorAndExit("Error marshalling models: %v", err)
+					term.OutputErrorAndExit("Error saving custom models file: %v", err)
 					return
 				}
-
-				err = os.WriteFile(customModelsPath, jsonData, 0644)
-				if err != nil {
-					term.OutputErrorAndExit("Error writing file: %v", err)
-					return
-				}
-
-				hash, err := serverModelsInput.Hash()
-				if err != nil {
-					term.OutputErrorAndExit("Error hashing models: %v", err)
-					return
-				}
-
-				err = os.WriteFile(hashPath, []byte(hash), 0644)
-				if err != nil {
-					term.OutputErrorAndExit("Error writing hash file: %v", err)
-					return
-				}
-
 			}
 
 			term.StopSpinner()
@@ -325,156 +201,13 @@ func manageCustomModels(cmd *cobra.Command, args []string) {
 		if res.shouldReturn {
 			return
 		}
-		jsonData = res.jsonData
 	}
 
-	term.StartSpinner("")
+	didUpdate := lib.MustSyncCustomModels(customModelsPath, serverModelsInput, saveCustomModels)
 
-	clientModelsInput, err := schema.ValidateModelsInputJSON(jsonData)
-	if err != nil {
-		term.StopSpinner()
-		color.New(color.Bold, term.ColorHiRed).Println("🚨 Error validating JSON file")
-		fmt.Println(err.Error())
-		return
-	}
-
-	modelsInput := clientModelsInput.ToModelsInput()
-
-	noDuplicates, errMsg := modelsInput.CheckNoDuplicates()
-	if !noDuplicates {
-		term.StopSpinner()
-		color.New(color.Bold, term.ColorHiRed).Println("🚨 Some items are duplicated:")
-		fmt.Println()
-		fmt.Println(errMsg)
-		return
-	}
-
-	printNoChanges := func() {
-		term.StopSpinner()
+	if !didUpdate {
 		fmt.Println("🤷‍♂️ No changes to custom models/providers/model packs")
 	}
-
-	if modelsInput.Equals(*serverModelsInput) {
-		printNoChanges()
-		return
-	}
-
-	apiErr := api.Client.CreateCustomModels(&modelsInput)
-
-	if apiErr != nil {
-		term.OutputErrorAndExit("Error importing models: %v", apiErr.Msg)
-		return
-	}
-
-	// only write the hash if we're using the default path in the home dir
-	// otherwise we don't do conflict checking, so we don't need the hash file
-	if usingDefaultPath {
-		hash, err := modelsInput.Hash()
-		if err != nil {
-			term.OutputErrorAndExit("Error hashing models: %v", err)
-			return
-		}
-
-		err = os.WriteFile(hashPath, []byte(hash), 0644)
-		if err != nil {
-			term.OutputErrorAndExit("Error writing hash file: %v", err)
-			return
-		}
-	}
-
-	inputModelIds := map[string]bool{}
-	inputProviderNames := map[string]bool{}
-	inputModelPackNames := map[string]bool{}
-	for _, model := range clientModelsInput.CustomModels {
-		inputModelIds[string(model.ModelId)] = true
-	}
-	for _, provider := range clientModelsInput.CustomProviders {
-		inputProviderNames[provider.Name] = true
-	}
-	for _, modelPack := range clientModelsInput.CustomModelPacks {
-		inputModelPackNames[modelPack.Name] = true
-	}
-
-	updatedModelsInput := modelsInput.FilterUnchanged(&shared.ModelsInput{
-		CustomModels:     customModels,
-		CustomProviders:  customProviders,
-		CustomModelPacks: customModelPacks,
-	})
-
-	term.StopSpinner()
-
-	added := strings.Builder{}
-	updated := strings.Builder{}
-	deleted := strings.Builder{}
-
-	for _, provider := range updatedModelsInput.CustomProviders {
-		action := "✅ Added"
-		builder := &added
-		if existsById[provider.Name] {
-			action = "🔄 Updated"
-			builder = &updated
-		}
-		builder.WriteString(fmt.Sprintf("%s custom %s → %s\n",
-			action,
-			color.New(term.ColorHiCyan).Sprint("provider"),
-			color.New(color.Bold, term.ColorHiGreen).Sprint(provider.Name)))
-	}
-	for _, provider := range customProviders {
-		if !inputProviderNames[provider.Name] {
-			deleted.WriteString(fmt.Sprintf("❌ Removed custom %s → %s\n",
-				color.New(term.ColorHiCyan).Sprint("provider"),
-				color.New(color.Bold, term.ColorHiRed).Sprint(provider.Name)))
-		}
-	}
-
-	for _, model := range updatedModelsInput.CustomModels {
-		action := "✅ Added"
-		builder := &added
-		if existsById[string(model.ModelId)] {
-			action = "🔄 Updated"
-			builder = &updated
-		}
-		builder.WriteString(fmt.Sprintf("%s custom %s → %s\n",
-			action,
-			color.New(term.ColorHiCyan).Sprint("model"),
-			color.New(color.Bold, term.ColorHiGreen).Sprint(string(model.ModelId))))
-	}
-	for _, model := range customModels {
-		if !inputModelIds[string(model.ModelId)] {
-			deleted.WriteString(fmt.Sprintf("❌ Removed custom %s → %s\n",
-				color.New(term.ColorHiCyan).Sprint("model"),
-				color.New(color.Bold, term.ColorHiRed).Sprint(string(model.ModelId))))
-		}
-	}
-
-	for _, modelPack := range updatedModelsInput.CustomModelPacks {
-		action := "✅ Added"
-		builder := &added
-		if existsById[modelPack.Name] {
-			action = "🔄 Updated"
-			builder = &updated
-		}
-		builder.WriteString(fmt.Sprintf("%s custom %s → %s\n",
-			action,
-			color.New(term.ColorHiCyan).Sprint("model pack"),
-			color.New(color.Bold, term.ColorHiGreen).Sprint(modelPack.Name)))
-	}
-	for _, modelPack := range customModelPacks {
-		if !inputModelPackNames[modelPack.Name] {
-			deleted.WriteString(fmt.Sprintf("❌ Removed custom %s → %s\n",
-				color.New(term.ColorHiCyan).Sprint("model pack"),
-				color.New(color.Bold, term.ColorHiRed).Sprint(modelPack.Name)))
-		}
-	}
-
-	if updated.Len()+added.Len()+deleted.Len() == 0 {
-		printNoChanges()
-		return
-	}
-
-	fmt.Print(added.String())
-	fmt.Print(updated.String())
-	fmt.Print(deleted.String())
 }
 
 func models(cmd *cobra.Command, args []string) {

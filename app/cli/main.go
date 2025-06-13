@@ -30,6 +30,8 @@ func init() {
 	term.SetOpenUnauthenticatedCloudURLFn(ui.OpenUnauthenticatedCloudURL)
 	term.SetConvertTrialFn(auth.ConvertTrial)
 
+	plan_exec.SetPromptSyncModelsIfNeeded(lib.PromptSyncModelsIfNeeded)
+
 	lib.SetBuildPlanInlineFn(func(autoConfirm bool, maybeContexts []*shared.Context) (bool, error) {
 		var apiKeys map[string]string
 		if !auth.Current.IntegratedModelsMode {

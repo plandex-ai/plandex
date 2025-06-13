@@ -122,10 +122,9 @@ func checkout(cmd *cobra.Command, args []string) {
 		term.OutputErrorAndExit("Branch not found")
 	}
 
+	term.StartSpinner("")
 	if willCreate {
-		term.StartSpinner("")
 		err := api.Client.CreateBranch(lib.CurrentPlanId, lib.CurrentBranch, shared.CreateBranchRequest{Name: branchName})
-		term.StopSpinner()
 
 		if err != nil {
 			term.OutputErrorAndExit("Error creating branch: %v", err)
@@ -142,7 +141,20 @@ func checkout(cmd *cobra.Command, args []string) {
 		return
 	}
 
+	updatedModelSettings, err := lib.SaveLatestPlanModelSettingsIfNeeded()
+	term.StopSpinner()
+	if err != nil {
+		term.OutputErrorAndExit("Error saving model settings: %v", err)
+	}
+
+	term.StopSpinner()
+
 	fmt.Printf("✅ Checked out branch %s\n", color.New(color.Bold, term.ColorHiGreen).Sprint(branchName))
+
+	if updatedModelSettings {
+		fmt.Println()
+		fmt.Println("🧠 Model settings file updated → ", lib.GetPlanModelSettingsPath(lib.CurrentPlanId))
+	}
 
 	fmt.Println()
 	term.PrintCmds("", "load", "tell", "branches", "delete-branch")

@@ -18,6 +18,13 @@ func Build(params ExecParams, flags types.BuildFlags) (bool, error) {
 
 	term.StartSpinner("")
 
+	err := PromptSyncModelsIfNeeded()
+	if err != nil {
+		term.OutputErrorAndExit("Error syncing models: %v", err)
+	}
+
+	term.StartSpinner("")
+
 	contexts, apiErr := api.Client.ListContext(params.CurrentPlanId, params.CurrentBranch)
 
 	if apiErr != nil {

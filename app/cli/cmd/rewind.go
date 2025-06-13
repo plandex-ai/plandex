@@ -149,14 +149,23 @@ func rewind(cmd *cobra.Command, args []string) {
 	}
 
 	doRewind := func() {
+		var updatedModelSettings bool
+
 		term.StartSpinner("")
 		_, apiErr := api.Client.RewindPlan(lib.CurrentPlanId, lib.CurrentBranch, shared.RewindPlanRequest{
 			Sha: targetSha,
 		})
-		term.StopSpinner()
 
 		if apiErr != nil {
+			term.StopSpinner()
 			term.OutputErrorAndExit("Error rewinding plan: %v", apiErr)
+		}
+
+		var err error
+		updatedModelSettings, err = lib.SaveLatestPlanModelSettingsIfNeeded()
+		term.StopSpinner()
+		if err != nil {
+			term.OutputErrorAndExit("Error saving model settings: %v", err)
 		}
 
 		var msg string
@@ -171,6 +180,11 @@ func rewind(cmd *cobra.Command, args []string) {
 		}
 
 		fmt.Println(msg)
+
+		if updatedModelSettings {
+			fmt.Println()
+			fmt.Println("🧠 Model settings file updated → ", lib.GetPlanModelSettingsPath(lib.CurrentPlanId))
+		}
 		fmt.Println()
 	}
 
