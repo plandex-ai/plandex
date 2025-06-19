@@ -11,7 +11,7 @@ jobs:
     outputs:
       should_build: ${{ steps.check_release.outputs.should_build }}
       tag: ${{ steps.check_release.outputs.tag }}
-    
+
     steps:
       - name: Check release tag and find latest server tag
         id: check_release
@@ -40,9 +40,9 @@ jobs:
 
     steps:
       - name: Check out the repo
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Fetch all history and tags
+          fetch-depth: 0 # Fetch all history and tags
 
       - name: Find latest server tag
         id: find_tag
@@ -50,7 +50,7 @@ jobs:
         run: |
           # Find the latest tag that starts with 'server'
           LATEST_SERVER_TAG=$(git tag -l "server*" --sort=-creatordate | head -n 1)
-          
+
           if [ -z "$LATEST_SERVER_TAG" ]; then
             echo "No tags starting with 'server' found."
             echo "skip=true" >> $GITHUB_OUTPUT
@@ -75,13 +75,13 @@ jobs:
           exit 1
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
+        uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
+        uses: docker/setup-buildx-action@v3
 
       - name: Log in to Docker Hub
-        uses: docker/login-action@v1
+        uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -101,13 +101,32 @@ jobs:
         id: sanitize
         run: echo "SANITIZED_TAG_NAME=$(echo ${{ steps.determine_tag.outputs.tag }} | tr '/' '-' | tr '+' '-')" >> $GITHUB_OUTPUT
 
+      - name: Extract Go version from go.mod
+        id: go_version
+        run: echo "GO_VERSION=$(grep '^go ' ./app/server/go.mod | awk '{print $2}')" >> $GITHUB_OUTPUT
+
+      - name: Generate Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: plandexai/plandex-server
+          # Override this label and annotation
+          # since release event creates version in format release-<release-name>
+          labels: org.opencontainers.image.version=${{ steps.sanitize.outputs.SANITIZED_TAG_NAME }}
+          annotations: org.opencontainers.image.version=${{ steps.sanitize.outputs.SANITIZED_TAG_NAME }}
+
       - name: Build and push
-        uses: docker/build-push-action@v2
+        uses: docker/build-push-action@v6
+        env:
+          DOCKER_BUILD_RECORD_UPLOAD: false
         with:
           context: ./app/
           file: ./app/server/Dockerfile
           push: true
           platforms: linux/amd64,linux/arm64
+          build-args: GO_VERSION=${{ steps.go_version.outputs.GO_VERSION }}
+          labels: ${{ steps.meta.outputs.labels }}
+          annotations: ${{ steps.meta.outputs.annotations }}
           tags: |
             plandexai/plandex-server:${{ steps.sanitize.outputs.SANITIZED_TAG_NAME }}
             plandexai/plandex-server:latest
