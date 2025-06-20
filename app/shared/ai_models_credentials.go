@@ -1,9 +1,5 @@
 package shared
 
-import (
-	"fmt"
-)
-
 type ModelProviderOption struct {
 	Publishers map[ModelPublisher]bool
 	Config     *ModelProviderConfigSchema
@@ -17,7 +13,6 @@ func (m ModelRoleConfig) GetModelProviderOptions() ModelProviderOptions {
 
 	usesProviders, ok := BuiltInModelProvidersByModelId[m.ModelId]
 	if !ok {
-		fmt.Println("no built in model providers for", m.ModelId)
 		return opts
 	}
 
@@ -25,13 +20,11 @@ func (m ModelRoleConfig) GetModelProviderOptions() ModelProviderOptions {
 		composite := usesProvider.ToComposite()
 		config, ok := BuiltInModelProviderConfigs[usesProvider.Provider]
 		if !ok {
-			fmt.Println("no provider config for", usesProvider.Provider)
 			continue
 		}
 
 		baseModel, ok := BuiltInBaseModelsById[m.ModelId]
 		if !ok {
-			fmt.Println("no base model for", m.ModelId)
 			continue
 		}
 
