@@ -42,6 +42,22 @@ func UpsertCustomModelsHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	if len(modelsInput.CustomModels) > 0 {
+		if os.Getenv("IS_CLOUD") != "" {
+			apiOrg, err := getApiOrg(auth.OrgId)
+			if err != nil {
+				log.Printf("Error fetching org: %v\n", err)
+				http.Error(w, "Failed to create custom model: "+err.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			if apiOrg.IntegratedModelsMode {
+				http.Error(w, "Custom models are not supported on Plandex Cloud in Integrated Models mode", http.StatusBadRequest)
+				return
+			}
+		}
+	}
+
 	hasDuplicates, errMsg := modelsInput.CheckNoDuplicates()
 	if !hasDuplicates {
 		http.Error(w, "Has duplicates: "+errMsg, http.StatusBadRequest)
