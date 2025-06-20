@@ -81,7 +81,10 @@ async def passthrough(request: Request):
           return
 
         finally:
-          response_stream.close()
+          try:
+            response_stream.close()
+          except AttributeError:
+            pass
 
       print(f"Litellm proxy: Initiating streaming response for model: {payload.get('model', 'unknown')}")
       return StreamingResponse(stream_generator(), media_type="text/event-stream")
