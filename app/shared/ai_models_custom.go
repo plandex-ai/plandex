@@ -15,9 +15,9 @@ import (
 type SchemaUrl string
 
 const (
-	SchemaUrlInputConfig    SchemaUrl = "https://plandex.ai/schemas/models-input.schema.json"
-	SchemaUrlPlanConfig     SchemaUrl = "https://plandex.ai/schemas/plan-config.schema.json"
-	SchemaUrlModelPackRoles SchemaUrl = "https://plandex.ai/schemas/model-pack-roles.schema.json"
+	SchemaUrlInputConfig     SchemaUrl = "https://plandex.ai/schemas/models-input.schema.json"
+	SchemaUrlPlanConfig      SchemaUrl = "https://plandex.ai/schemas/plan-config.schema.json"
+	SchemaUrlInlineModelPack SchemaUrl = "https://plandex.ai/schemas/model-pack-inline.schema.json"
 )
 
 // Note that none of the custom model structs should have maps anywhere in the hierarchy, since it will break deterministic hashing. Use structs or slices instead.
