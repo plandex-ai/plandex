@@ -19,11 +19,39 @@ PLANDEX_API_HOST= # Defaults to 'http://localhost:8099' if PLANDEX_ENV is develo
 ### LLM Providers
 
 ```bash
-OPENAI_API_KEY= # Your OpenAI key (if self-hosting or using BYO API Key mode with Plandex Cloud)
-OPENROUTER_API_KEY= # Your OpenRouter.ai API key (if self-hosting or using BYO API Key mode with Plandex Cloud)
+# OpenRouter.ai
+OPENROUTER_API_KEY= # Your OpenRouter.ai API key 
 
-OPENAI_API_BASE= # Your OpenAI server, such as http://localhost:1234/v1 Defaults to empty.
+# OpenAI
+OPENAI_API_KEY= # Your OpenAI key 
 OPENAI_ORG_ID= # Your OpenAI organization ID. Defaults to empty.
+
+# Anthropic
+ANTHROPIC_API_KEY= # Your Anthropic API key 
+
+# Google AI Studio
+GEMINI_API_KEY= # Your Google AI Studio API key 
+
+# Google Vertex AI
+GOOGLE_APPLICATION_CREDENTIALS= # Your Google Vertex AI credentials file path
+VERTEXAI_PROJECT= # Your Google Vertex AI project ID
+VERTEXAI_LOCATION= # Your Google Vertex AI location
+
+# Azure OpenAI
+AZURE_OPENAI_API_KEY= # Your Azure OpenAI API key
+AZURE_API_BASE= # Your Azure OpenAI API base URL
+AZURE_API_VERSION= # Your Azure OpenAI API version
+
+# DeepSeek
+DEEPSEEK_API_KEY= # Your DeepSeek API key
+
+# Perplexity
+PERPLEXITY_API_KEY= # Your Perplexity API key
+
+# Amazon Bedrock
+AWS_ACCESS_KEY_ID= # Your AWS access key ID
+AWS_SECRET_ACCESS_KEY= # Your AWS secret access key
+AWS_REGION= # Your AWS region
 ```
 
 ### Upgrades

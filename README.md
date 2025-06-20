@@ -156,21 +156,15 @@ curl -sL https://plandex.ai/install.sh | bash
 | Option                                | Description                                                                                                                                                                                                                                                 |
 | ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Plandex Cloud (Integrated Models)** | • No separate accounts or API keys.<br/>• Easy multi-device usage.<br/>• Centralized billing, budgeting, usage tracking, and cost reporting.<br/>• Quickest way to [get started.](https://app.plandex.ai/start?modelsMode=integrated)                                                        |
-| **Plandex Cloud (BYO API Key)**       | • Use Plandex Cloud with your own [OpenRouter.ai](https://openrouter.ai) key (and **optionally** your own [OpenAI](https://platform.openai.com) key).<br/>• [Get started](https://app.plandex.ai/start?modelsMode=byo)                                                                   |
-| **Self-hosted/Local Mode**            | • Run Plandex locally with Docker or host on your own server.<br/>• Use your own [OpenRouter.ai](https://openrouter.ai) key (and **optionally** your own [OpenAI](https://platform.openai.com) key).<br/>• Follow the [local-mode quickstart](./hosting/self-hosting.md) to get started. |
+| **Plandex Cloud (BYO API Key)**       | • Use Plandex Cloud with your own [OpenRouter.ai](https://openrouter.ai) key (or [other model provider](https://docs.plandex.ai/models/model-providers) accounts and API keys).<br/>• [Get started](https://app.plandex.ai/start?modelsMode=byo)                                                                   |
+| **Self-hosted/Local Mode**            | • Run Plandex locally with Docker or host on your own server.<br/>• Use your own [OpenRouter.ai](https://openrouter.ai) key (or [other model provider](https://docs.plandex.ai/models/model-providers) accounts and API keys).<br/>• Follow the [local-mode quickstart](./hosting/self-hosting.md) to get started. |
 
 ## Provider keys  🔑
 
-If you're going with a 'BYO API Key' option above (whether cloud or self-hosted), you'll need to set the `OPENROUTER_API_KEY` environment variable before continuing:
+<!-- If you're going with a 'BYO API Key' option above (whether cloud or self-hosted), you'll need to set API keys for the [model providers](https://docs.plandex.ai/models/model-providers) you're using: -->
 
 ```bash
-export OPENROUTER_API_KEY=...
-```
-
-You can also **optionally** set a `OPENAI_API_KEY` environment variable if you want OpenAI models to use the OpenAI API directly instead of OpenRouter (for slightly lower latency and costs):
-
-```bash
-export OPENAI_API_KEY=...
+export OPENROUTER_API_KEY=... # if using OpenRouter.ai
 ```
 
 <br/>
