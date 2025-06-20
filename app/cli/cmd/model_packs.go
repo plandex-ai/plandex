@@ -113,11 +113,11 @@ func listModelPacks(cmd *cobra.Command, args []string) {
 	}
 
 	if customModelPacksOnly && len(customModelPacks) > 0 {
-		term.PrintCmds("", "model-packs create", "model-packs show", "model-packs update", "model-packs delete")
+		term.PrintCmds("", "model-packs show", "models custom")
 	} else if len(customModelPacks) > 0 {
-		term.PrintCmds("", "model-packs --custom", "model-packs create", "model-packs show", "model-packs update", "model-packs delete")
+		term.PrintCmds("", "model-packs --custom", "model-packs show", "models custom")
 	} else {
-		term.PrintCmds("", "model-packs create", "model-packs show")
+		term.PrintCmds("", "model-packs show", "models custom")
 	}
 
 }
@@ -190,7 +190,7 @@ func showModelPack(cmd *cobra.Command, args []string) {
 
 	fmt.Println()
 
-	term.PrintCmds("", "model-packs update", "model-packs delete", "set-model", "set-model default")
+	term.PrintCmds("", "set-model", "set-model default", "models custom")
 }
 
 // func getModelRoleConfig(customModels []*shared.CustomModel, modelRole shared.ModelRole) shared.ModelRoleConfig {

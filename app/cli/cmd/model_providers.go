@@ -25,13 +25,6 @@ var providersCmd = &cobra.Command{
 	Run:   listProviders,
 }
 
-var showProviderCmd = &cobra.Command{
-	Use:   "show [id|name]",
-	Short: "Show a custom model provider",
-	Args:  cobra.MaximumNArgs(1),
-	Run:   showProvider,
-}
-
 var addProviderCmd = &cobra.Command{
 	Use:     "add",
 	Aliases: []string{"create"},
@@ -49,7 +42,6 @@ var updateProviderCmd = &cobra.Command{
 func init() {
 	RootCmd.AddCommand(providersCmd)
 	providersCmd.Flags().BoolVarP(&customProvidersOnly, "custom", "c", false, "List custom providers only")
-	providersCmd.AddCommand(showProviderCmd)
 	providersCmd.AddCommand(addProviderCmd)
 	providersCmd.AddCommand(updateProviderCmd)
 }
@@ -78,7 +70,7 @@ func listProviders(cmd *cobra.Command, args []string) {
 	if customProvidersOnly && len(customProviders) == 0 {
 		fmt.Println("🤷‍♂️  No custom providers")
 		fmt.Println()
-		term.PrintCmds("", "providers add")
+		term.PrintCmds("", "models custom")
 		return
 	}
 
@@ -143,75 +135,5 @@ func listProviders(cmd *cobra.Command, args []string) {
 		fmt.Println()
 	}
 
-	term.PrintCmds("", "providers show", "providers update", "models import")
-}
-
-func showProvider(cmd *cobra.Command, args []string) {
-	auth.MustResolveAuthWithOrg()
-
-	term.StartSpinner("")
-	providers, apiErr := api.Client.ListCustomProviders()
-	term.StopSpinner()
-	if apiErr != nil {
-		term.OutputErrorAndExit("Error fetching providers: %v", apiErr.Msg)
-		return
-	}
-
-	if len(providers) == 0 {
-		fmt.Println("🤷‍♂️  No custom providers")
-		fmt.Println()
-		term.PrintCmds("", "providers add")
-		return
-	}
-
-	var selected *shared.CustomProvider
-	if len(args) == 1 {
-		input := args[0]
-		idx, err := strconv.Atoi(input)
-		if err == nil && idx > 0 && idx <= len(providers) {
-			selected = providers[idx-1]
-		} else {
-			for _, p := range providers {
-				if p.Name == input || p.Id == input {
-					selected = p
-					break
-				}
-			}
-		}
-	}
-
-	if selected == nil {
-		opts := make([]string, len(providers))
-		for i, p := range providers {
-			opts[i] = fmt.Sprintf("%s (%s)", p.Name, p.BaseUrl)
-		}
-		choice, err := term.SelectFromList("Select provider:", opts)
-		if err != nil {
-			term.OutputErrorAndExit("Error selecting provider: %v", err)
-			return
-		}
-		for i, o := range opts {
-			if o == choice {
-				selected = providers[i]
-				break
-			}
-		}
-	}
-
-	table := tablewriter.NewWriter(os.Stdout)
-	table.SetAutoWrapText(false)
-	table.SetHeader([]string{"Field", "Value"})
-	table.Append([]string{"Name", selected.Name})
-	table.Append([]string{"Base URL", selected.BaseUrl})
-	table.Append([]string{"Skip Auth", fmt.Sprintf("%v", selected.SkipAuth)})
-	table.Append([]string{"API Key Env Var", selected.ApiKeyEnvVar})
-	if len(selected.ExtraAuthVars) > 0 {
-		for i, v := range selected.ExtraAuthVars {
-			label := fmt.Sprintf("Extra Auth %d", i+1)
-			table.Append([]string{label, v.Var})
-		}
-	}
-	table.Render()
-	fmt.Println()
-	term.PrintCmds("", "providers update", "providers list")
+	term.PrintCmds("", "models custom")
 }
