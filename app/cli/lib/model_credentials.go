@@ -2,6 +2,7 @@ package lib
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"os"
 	"plandex-cli/api"
@@ -232,6 +233,15 @@ func maybeLoadFile(pathOrJson string) (string, error) {
 	if strings.HasPrefix(strings.TrimSpace(pathOrJson), "{") {
 		// var contains json directly, so we can return it as is
 		return pathOrJson, nil
+	}
+
+	// see if it's base64 encoded json
+	decoded, err := base64.StdEncoding.DecodeString(pathOrJson)
+	if err == nil {
+		s := string(decoded)
+		if strings.HasPrefix(strings.TrimSpace(s), "{") {
+			return s, nil
+		}
 	}
 
 	content, err := os.ReadFile(pathOrJson)
