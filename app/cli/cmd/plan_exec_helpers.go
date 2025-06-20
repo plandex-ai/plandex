@@ -34,7 +34,7 @@ var tellSmartContext bool
 var noExec bool
 var autoDebug int
 
-var editor string
+var editor = EditorTypeVim // default to vim
 var editorSetByFlag bool
 
 func init() {
@@ -203,7 +203,11 @@ func mustSetPlanExecFlagsWithConfig(cmd *cobra.Command, config *shared.PlanConfi
 		}
 	}
 
-	if !editorSetByFlag {
+	// tell command editor is no longer tied to config *unless* it's set to vim or nano
+	// otherwise, the flag or EDITOR env var are used
+	// config.Editor is now used for mainly for JSON editing (and perhaps other purposes)
+	// this is because it's pretty rare to use the editor for writing prompts now rather than the REPL
+	if !editorSetByFlag && (config.Editor == shared.EditorTypeVim || config.Editor == shared.EditorTypeNano) {
 		editor = config.Editor
 	}
 
