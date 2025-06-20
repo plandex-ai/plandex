@@ -137,6 +137,18 @@ type ExtendedChatCompletionRequest struct {
 	VertexProject     string `json:"vertex_project,omitempty"`
 	VertexLocation    string `json:"vertex_location,omitempty"`
 	VertexCredentials string `json:"vertex_credentials,omitempty"`
+
+	// Azure OpenAI request vars
+	AzureApiBase         string                 `json:"api_base,omitempty"`
+	AzureApiVersion      string                 `json:"api_version,omitempty"`
+	AzureReasoningEffort shared.ReasoningEffort `json:"reasoning_effort,omitempty"`
+
+	// AWS Bedrock request vars
+	BedrockAccessKeyId         string `json:"aws_access_key_id,omitempty"`
+	BedrockSecretAccessKey     string `json:"aws_secret_access_key,omitempty"`
+	BedrockSessionToken        string `json:"aws_session_token,omitempty"`
+	BedrockRegion              string `json:"aws_region_name,omitempty"`
+	BedrockInferenceProfileArn string `json:"aws_inference_profile_arn,omitempty"`
 }
 
 // for properties that OpenAI direct api calls support but aren't included in https://github.com/sashabaranov/go-openai
