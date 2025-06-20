@@ -12,7 +12,6 @@ const OpenAIEnvVar = "OPENAI_API_KEY"
 const OpenRouterApiKeyEnvVar = "OPENROUTER_API_KEY"
 const AnthropicApiKeyEnvVar = "ANTHROPIC_API_KEY"
 const GoogleAIStudioApiKeyEnvVar = "GEMINI_API_KEY"
-const GoogleVertexApiKeyEnvVar = "VERTEX_API_KEY"
 const AzureOpenAIEnvVar = "AZURE_OPENAI_API_KEY"
 const DeepSeekApiKeyEnvVar = "DEEPSEEK_API_KEY"
 const PerplexityApiKeyEnvVar = "PERPLEXITY_API_KEY"
@@ -75,7 +74,6 @@ type ModelProviderExtraAuthVars struct {
 	MaybeJSONFilePath bool   `json:"maybeJSONFilePath,omitempty"`
 	Required          bool   `json:"required,omitempty"`
 	Default           string `json:"default,omitempty"`
-	RequestKey        string `json:"requestKey,omitempty"`
 }
 
 type ModelProviderConfigSchema struct {
@@ -101,7 +99,7 @@ func (m *ModelProviderConfigSchema) ToComposite() string {
 	return string(m.Provider)
 }
 
-const DefaultAzureApiVersion = "2024-10-21"
+const DefaultAzureApiVersion = "2025-04-01-preview"
 const AnthropicMaxReasoningBudget = 32000
 const GoogleMaxReasoningBudget = 32000
 
@@ -166,6 +164,11 @@ var BuiltInModelProviderConfigs = map[ModelProvider]ModelProviderConfigSchema{
 				Required: false,
 				Default:  DefaultAzureApiVersion,
 			},
+			{
+				Var:               "AZURE_DEPLOYMENTS_MAP",
+				Required:          false,
+				MaybeJSONFilePath: true,
+			},
 		},
 	},
 	ModelProviderDeepSeek: {
@@ -189,6 +192,7 @@ var BuiltInModelProviderConfigs = map[ModelProvider]ModelProviderConfigSchema{
 			{Var: "AWS_SECRET_ACCESS_KEY", Required: true},
 			{Var: "AWS_REGION", Required: true},
 			{Var: "AWS_SESSION_TOKEN", Required: false},
+			{Var: "AWS_INFERENCE_PROFILE_ARN", Required: false},
 		},
 	},
 	ModelProviderOllama: {
