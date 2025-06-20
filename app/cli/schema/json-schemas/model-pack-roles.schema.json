@@ -1,11 +1,12 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://plandex.ai/schemas/model-pack-roles.schema.json",
   "title": "Model Pack Roles",
   "type": "object",
   "description": "Config for a model pack's roles",
-  "$defs": {
+  "definitions": {
     "roleRef": {
+      "description": "Can be a string like 'openai/o3-high' or an object with model config if you want to defined role properties like temperature/topP, or fallbacks like 'largeContextFallback', 'largeOutputFallback', 'errorFallback', 'strongModel'",
       "oneOf": [
         {
           "type": "string",
@@ -26,40 +27,40 @@
       "$ref": "./definitions/local-providers.schema.json"
     },
     "planner": {
-      "description": "The planner model config",
-      "$ref": "#/$defs/roleRef"
+      "description": "This is the 'main' role that replies to prompts and makes plans.",
+      "$ref": "#/definitions/roleRef"
     },
     "coder": {
-      "description": "The coder model config",
-      "$ref": "#/$defs/roleRef"
+      "description": "This role writes code to implement each step of the plan made by the 'planner' role during the planning stage.\n\nInstruction-following is important for this role as it needs to follow specific formatting rules.",
+      "$ref": "#/definitions/roleRef"
     },
     "architect": {
-      "description": "The architect model config",
-      "$ref": "#/$defs/roleRef"
+      "description": "When auto-context is enabled, this role makes a high-level plan using the project map, then determines what context to provide for the 'planner' role.",
+      "$ref": "#/definitions/roleRef"
     },
     "summarizer": {
-      "description": "The plan summary model config",
-      "$ref": "#/$defs/roleRef"
+      "description": "Summarizes conversations to stay under the limit set in the model's 'defaultMaxConvoTokens'.",
+      "$ref": "#/definitions/roleRef"
     },
     "builder": {
-      "description": "The builder model config",
-      "$ref": "#/$defs/roleRef"
+      "description": "Builds the proposed changes described by the `planner` role into pending file updates.",
+      "$ref": "#/definitions/roleRef"
     },
     "wholeFileBuilder": {
-      "description": "The whole file builder model config",
-      "$ref": "#/$defs/roleRef"
+      "description": "Builds the proposed changes described by the `planner` role into pending file updates by writing the entire file. Used as a fallback if more targeted edits fail.\n\nThis role is optional. It falls back to the `builder` role if not set.",
+      "$ref": "#/definitions/roleRef"
     },
     "names": {
-      "description": "The namer model config",
-      "$ref": "#/$defs/roleRef"
+      "description": "Gives automatically-generated names to plans and context.",
+      "$ref": "#/definitions/roleRef"
     },
     "commitMessages": {
-      "description": "The commit message model config",
-      "$ref": "#/$defs/roleRef"
+      "description": "Automatically generates commit messages for a set of pending updates.",
+      "$ref": "#/definitions/roleRef"
     },
     "autoContinue": {
-      "description": "The execution status model config",
-      "$ref": "#/$defs/roleRef"
+      "description": "Determines whether a plan is finished or should automatically continue based on the previous response.",
+      "$ref": "#/definitions/roleRef"
     }
   },
   "required": [

@@ -1,5 +1,5 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://plandex.ai/schemas/plan-config.schema.json",
   "title": "Plan Config",
   "description": "Config for a plan",

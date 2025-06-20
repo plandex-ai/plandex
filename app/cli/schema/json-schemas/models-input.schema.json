@@ -1,5 +1,5 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://plandex.ai/schemas/models-input.schema.json",
   "title": "Models Input",
   "description": "Input schema for custom models, providers, and model packs",
@@ -10,18 +10,21 @@
     },
     "models": {
       "type": "array",
+      "description": "Custom models to import into Plandex. They can be referenced by 'modelId' in model packs.",
       "items": {
         "$ref": "./model-config.schema.json"
       }
     },
     "providers": {
       "type": "array",
+      "description": "Custom model providers to import into Plandex. They can be referenced in a custom model's 'providers' array.",
       "items": {
         "$ref": "./model-provider-config.schema.json"
       }
     },
     "modelPacks": {
       "type": "array",
+      "description": "Model packs to import into Plandex. These define which models to use for each of Plandex's roles.",
       "items": {
         "$ref": "./model-pack-config.schema.json"
       }

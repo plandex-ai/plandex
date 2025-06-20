@@ -1,32 +1,26 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://plandex.ai/schemas/model-pack-config.schema.json",
   "title": "Model Pack Config",
-  "description": "Config for a model pack",
-  "type": "object",
   "allOf": [
     {
-      "$ref": "./model-pack-roles.schema.json"
-    },
-    {
-      "properties": {
-        "$schema": {
-          "type": "string"
-        },
-        "name": {
-          "type": "string",
-          "description": "The name of the model pack"
-        },
-        "description": {
-          "type": "string",
-          "description": "The description of the model pack"
-        }
-      },
-      "required": [
-        "name",
-        "description"
-      ],
-      "unevaluatedProperties": false
+      "$ref": "./model-pack-base-config.schema.json"
     }
-  ]
+  ],
+  "properties": {
+    "$schema": true,
+    "name": true,
+    "description": true,
+    "localProvider": true,
+    "planner": true,
+    "coder": true,
+    "architect": true,
+    "summarizer": true,
+    "builder": true,
+    "wholeFileBuilder": true,
+    "names": true,
+    "commitMessages": true,
+    "autoContinue": true
+  },
+  "additionalProperties": false
 }

@@ -1,0 +1,29 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://plandex.ai/schemas/model-pack-base-config.schema.json",
+  "title": "Base Model Pack Config",
+  "description": "Base config for a model pack",
+  "type": "object",
+  "allOf": [
+    {
+      "$ref": "./model-pack-roles.schema.json"
+    }
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string",
+      "description": "The name of the model pack"
+    },
+    "description": {
+      "type": "string",
+      "description": "The human-friendly description of the model pack"
+    }
+  },
+  "required": [
+    "name",
+    "description"
+  ]
+}

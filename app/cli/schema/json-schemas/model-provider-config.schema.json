@@ -1,33 +1,44 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://plandex.ai/schemas/model-provider-config.schema.json",
   "title": "Model Provider Config",
-  "description": "Config for a model provider",
+  "description": "Config for a custom model provider",
   "type": "object",
   "properties": {
+    "name": {
+      "type": "string",
+      "description": "The name of the model provider. This is used to reference the model provider in a model's 'providers' array."
+    },
     "baseUrl": {
-      "type": "string"
+      "type": "string",
+      "description": "The base URL for the model provider. This is used to construct the full URL for the model. For example, 'https://api.openai.com/v1' for OpenAI."
     },
     "skipAuth": {
       "type": "boolean",
-      "default": false
+      "default": false,
+      "description": "Whether to skip authentication for the model provider. If set to true, the model provider will not require an API key or other authentication. Mainly used for local models (ollama, etc.)."
     },
     "apiKeyEnvVar": {
-      "type": "string"
+      "type": "string",
+      "description": "The environment variable that contains the API key for the model provider. This is used to authenticate the model provider. For example, 'OPENAI_API_KEY' for OpenAI."
     },
     "extraAuthVars": {
       "type": "array",
+      "description": "Extra authentication variables for the model provider. In some cases these are used for authentication in place of an API key (e.g. AWS Bedrock). In other cases, they provide additional data on top of the API key (AZURE_API_VERSION, OPENAI_ORG_ID, etc.).",
       "items": {
         "type": "object",
         "properties": {
           "var": {
-            "type": "string"
+            "type": "string",
+            "description": "The name of the environment variable that contains the authentication variable. For example, 'OPENAI_ORG_ID' for OpenAI."
           },
           "maybeJSONFilePath": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Whether the variable can be a JSON file path. If set to true, the value can be read from a JSON file path *OR* an environment variable. For example, 'true' for Google Vertex's GOOGLE_APPLICATION_CREDENTIALS."
           },
           "required": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Whether the variable is required. If set to true, the authentication variable is required. For example, 'true' for OpenAI."
           },
           "default": {
             "type": "string"

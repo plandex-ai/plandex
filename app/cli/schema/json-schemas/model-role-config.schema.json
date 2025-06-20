@@ -1,18 +1,34 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://plandex.ai/schemas/model-role-config.schema.json",
   "title": "Model Role Config",
   "description": "Config for a defined model role within a model pack",
   "type": "object",
+  "definitions": {
+    "roleRef": {
+      "oneOf": [
+        {
+          "type": "string",
+          "minLength": 1
+        },
+        {
+          "$ref": "#"
+        }
+      ]
+    }
+  },
   "properties": {
     "modelId": {
-      "type": "string"
+      "type": "string",
+      "description": "The 'modelId' of the built-in or custom model to use for this role."
     },
     "temperature": {
-      "type": "number"
+      "type": "number",
+      "description": "The temperature to use for the model. This is used to control the randomness of the model's output. A sensible default is used by Plandex depending on the role, but you can override it here."
     },
     "topP": {
-      "type": "number"
+      "type": "number",
+      "description": "The topP to use for the model. This is used to control the randomness of the model's output. A sensible default is used by Plandex depending on the role, but you can override it here."
     },
     "reservedOutputTokens": {
       "type": "number"
@@ -21,16 +37,16 @@
       "type": "number"
     },
     "largeContextFallback": {
-      "$ref": "./model-role-config.schema.json"
+      "$ref": "#/definitions/roleRef"
     },
     "largeOutputFallback": {
-      "$ref": "./model-role-config.schema.json"
+      "$ref": "#/definitions/roleRef"
     },
     "errorFallback": {
-      "$ref": "./model-role-config.schema.json"
+      "$ref": "#/definitions/roleRef"
     },
     "strongModel": {
-      "$ref": "./model-role-config.schema.json"
+      "$ref": "#/definitions/roleRef"
     }
   },
   "required": [
