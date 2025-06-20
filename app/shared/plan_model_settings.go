@@ -91,7 +91,8 @@ func (ps PlanSettings) GetPlannerMaxTokens() int {
 	modelPack := ps.GetModelPack()
 	planner := modelPack.Planner
 	fallback := planner.GetFinalLargeContextFallback()
-	return fallback.GetSharedBaseConfig().MaxTokens
+	baseConfig := fallback.GetSharedBaseConfig()
+	return baseConfig.MaxTokens
 }
 
 func (ps PlanSettings) GetPlannerMaxReservedOutputTokens() int {
