@@ -305,6 +305,10 @@ type ModelRoleConfigSchema struct {
 	StrongModel          *ModelRoleConfigSchema `json:"strongModel,omitempty"`
 }
 
+// ToClientVal returns either:
+//   - string  – when the value (or any nested fallback) is just a bare role
+//   - map[string]any – when additional fields are set, with all fallbacks
+//     processed recursively.
 func (m *ModelRoleConfigSchema) ToClientVal() RoleJSON {
 	if m == nil {
 		return nil
@@ -312,7 +316,40 @@ func (m *ModelRoleConfigSchema) ToClientVal() RoleJSON {
 	if m.bareRole() {
 		return string(m.ModelId)
 	}
-	return m
+
+	out := map[string]any{
+		"modelId": string(m.ModelId),
+	}
+
+	// simple optional scalars
+	if m.Temperature != nil {
+		out["temperature"] = *m.Temperature
+	}
+	if m.TopP != nil {
+		out["topP"] = *m.TopP
+	}
+	if m.ReservedOutputTokens != nil {
+		out["reservedOutputTokens"] = *m.ReservedOutputTokens
+	}
+	if m.MaxConvoTokens != nil {
+		out["maxConvoTokens"] = *m.MaxConvoTokens
+	}
+
+	// recurse on each fallback, collapsing to string when bare
+	if m.LargeContextFallback != nil {
+		out["largeContextFallback"] = m.LargeContextFallback.ToClientVal()
+	}
+	if m.LargeOutputFallback != nil {
+		out["largeOutputFallback"] = m.LargeOutputFallback.ToClientVal()
+	}
+	if m.ErrorFallback != nil {
+		out["errorFallback"] = m.ErrorFallback.ToClientVal()
+	}
+	if m.StrongModel != nil {
+		out["strongModel"] = m.StrongModel.ToClientVal()
+	}
+
+	return out
 }
 
 // bareRole returns true if *every* field except ModelId is nil / zero.
@@ -622,8 +659,8 @@ func (c *ClientModelPackSchemaRoles) ToModelPackSchemaRoles() ModelPackSchemaRol
 		LocalProvider: c.LocalProvider,
 	}
 
-	// Helper function to convert o the appropriate type
-	convertField := func(field interface{}) *ModelRoleConfigSchema {
+	var convertField func(field interface{}) *ModelRoleConfigSchema
+	convertField = func(field interface{}) *ModelRoleConfigSchema {
 		if field == nil {
 			return nil
 		}
@@ -641,6 +678,21 @@ func (c *ClientModelPackSchemaRoles) ToModelPackSchemaRoles() ModelPackSchemaRol
 			if err := json.Unmarshal(b, &m); err != nil {
 				return nil
 			}
+
+			// Now handle the fallback fields recursively
+			if fallback, ok := v["largeContextFallback"]; ok && fallback != nil {
+				m.LargeContextFallback = convertField(fallback)
+			}
+			if fallback, ok := v["largeOutputFallback"]; ok && fallback != nil {
+				m.LargeOutputFallback = convertField(fallback)
+			}
+			if fallback, ok := v["errorFallback"]; ok && fallback != nil {
+				m.ErrorFallback = convertField(fallback)
+			}
+			if fallback, ok := v["strongModel"]; ok && fallback != nil {
+				m.StrongModel = convertField(fallback)
+			}
+
 			return &m
 		default:
 			// Handle unexpected type - you might want to log or panic
@@ -687,7 +739,7 @@ type ModelPackSchemaRoles struct {
 
 func (m *ModelPackSchemaRoles) ToClientModelPackSchemaRoles() ClientModelPackSchemaRoles {
 	res := ClientModelPackSchemaRoles{
-		SchemaUrl:     SchemaUrlModelPackRoles,
+		SchemaUrl:     SchemaUrlInlineModelPack,
 		LocalProvider: m.LocalProvider,
 	}
 
