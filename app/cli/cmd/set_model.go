@@ -152,10 +152,48 @@ func updateModelSettings(args []string, originalSettings *shared.PlanSettings, d
 		builtInModelPacks = filtered
 	}
 
-	customModelPacks, apiErr := api.Client.ListModelPacks()
-	if apiErr != nil {
-		term.OutputErrorAndExit("Error getting custom model packs: %v", apiErr)
-		return nil
+	var customModelPacks []*shared.ModelPack
+	var defaultConfig *shared.PlanConfig
+	var planConfig *shared.PlanConfig
+
+	errCh := make(chan error, 3)
+
+	go func() {
+		var apiErr *shared.ApiError
+		customModelPacks, apiErr = api.Client.ListModelPacks()
+		if apiErr != nil {
+			errCh <- fmt.Errorf("error getting custom model packs: %v", apiErr.Msg)
+			return
+		}
+		errCh <- nil
+	}()
+
+	go func() {
+		var apiErr *shared.ApiError
+		defaultConfig, apiErr = api.Client.GetDefaultPlanConfig()
+		if apiErr != nil {
+			errCh <- fmt.Errorf("error getting default config: %v", apiErr.Msg)
+			return
+		}
+		errCh <- nil
+	}()
+
+	go func() {
+		var apiErr *shared.ApiError
+		planConfig, apiErr = api.Client.GetPlanConfig(lib.CurrentPlanId)
+		if apiErr != nil {
+			errCh <- fmt.Errorf("error getting plan config: %v", apiErr.Msg)
+			return
+		}
+		errCh <- nil
+	}()
+
+	for i := 0; i < 3; i++ {
+		err := <-errCh
+		if err != nil {
+			term.OutputErrorAndExit(err.Error())
+			return nil
+		}
 	}
 
 	useJsonFile := setModelUseJsonFile || setModelSave
@@ -200,7 +238,7 @@ func updateModelSettings(args []string, originalSettings *shared.PlanSettings, d
 			return nil
 		}
 
-		if saveCustomModels {
+		if setModelSave {
 			if !exists {
 				term.OutputErrorAndExit("File not found: %s", customModelsPath)
 			}
@@ -245,7 +283,7 @@ func updateModelSettings(args []string, originalSettings *shared.PlanSettings, d
 				pathArg = fmt.Sprintf(" --file %s", setModelJsonFilePath)
 			}
 
-			res := maybePromptAndOpenModelsFile(setModelJsonFilePath, pathArg, "set-model")
+			res := maybePromptAndOpenModelsFile(setModelJsonFilePath, pathArg, "set-model", defaultConfig, planConfig)
 			if res.shouldReturn {
 				return nil
 			}

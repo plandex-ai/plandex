@@ -95,10 +95,37 @@ func manageCustomModels(cmd *cobra.Command, args []string) {
 
 	term.StartSpinner("")
 
-	serverModelsInput, err := lib.GetServerModelsInput()
-	if err != nil {
-		term.OutputErrorAndExit("Error getting server models input: %v", err)
-		return
+	var serverModelsInput *shared.ModelsInput
+	var defaultConfig *shared.PlanConfig
+
+	errCh := make(chan error, 2)
+
+	go func() {
+		var err error
+		serverModelsInput, err = lib.GetServerModelsInput()
+		if err != nil {
+			errCh <- fmt.Errorf("error getting server models input: %v", err)
+			return
+		}
+		errCh <- nil
+	}()
+
+	go func() {
+		var apiErr *shared.ApiError
+		defaultConfig, apiErr = api.Client.GetDefaultPlanConfig()
+		if apiErr != nil {
+			errCh <- fmt.Errorf("error getting default config: %v", apiErr.Msg)
+			return
+		}
+		errCh <- nil
+	}()
+
+	for i := 0; i < 2; i++ {
+		err := <-errCh
+		if err != nil {
+			term.OutputErrorAndExit(err.Error())
+			return
+		}
 	}
 
 	usingDefaultPath := false
@@ -120,7 +147,7 @@ func manageCustomModels(cmd *cobra.Command, args []string) {
 		}
 	} else {
 		if serverModelsInput.IsEmpty() {
-			jsonData, err := json.MarshalIndent(getExampleTemplate(auth.Current.IsCloud), "", "  ")
+			jsonData, err := json.MarshalIndent(getExampleTemplate(auth.Current.IsCloud, auth.Current.IntegratedModelsMode), "", "  ")
 			if err != nil {
 				term.OutputErrorAndExit("Error marshalling template: %v", err)
 				return
@@ -197,7 +224,7 @@ func manageCustomModels(cmd *cobra.Command, args []string) {
 			pathArg = fmt.Sprintf(" --file %s", customModelsPath)
 		}
 
-		res := maybePromptAndOpenModelsFile(customModelsPath, pathArg, "models custom")
+		res := maybePromptAndOpenModelsFile(customModelsPath, pathArg, "models custom", defaultConfig, nil)
 		if res.shouldReturn {
 			return
 		}
@@ -246,7 +273,7 @@ func models(cmd *cobra.Command, args []string) {
 
 	renderSettings(settings, allProperties)
 
-	term.PrintCmds("", "set-model", "models available", "models default")
+	term.PrintCmds("", "set-model", "models available", "models default", "models custom")
 }
 
 func defaultModels(cmd *cobra.Command, args []string) {
@@ -276,6 +303,11 @@ func defaultModels(cmd *cobra.Command, args []string) {
 
 func listAvailableModels(cmd *cobra.Command, args []string) {
 	auth.MustResolveAuthWithOrg()
+
+	if customModelsOnly && auth.Current.IntegratedModelsMode {
+		term.OutputErrorAndExit("Custom models are not supported in Integrated Models mode on Plandex Cloud")
+		return
+	}
 
 	term.StartSpinner("")
 
@@ -316,12 +348,12 @@ func listAvailableModels(cmd *cobra.Command, args []string) {
 
 	if customModelsOnly {
 		if len(customModels) > 0 {
-			term.PrintCmds("", "models", "set-model", "models add", "models delete")
+			term.PrintCmds("", "models", "set-model", "models custom")
 		} else {
-			term.PrintCmds("", "models add")
+			term.PrintCmds("", "models custom")
 		}
 	} else {
-		term.PrintCmds("", "models available --custom", "models", "set-model", "models add", "models delete")
+		term.PrintCmds("", "models available --custom", "models", "set-model", "models custom")
 	}
 }
 
@@ -475,7 +507,7 @@ func customModelsNotImplemented(cmd *cobra.Command, args []string) {
 	os.Exit(1)
 }
 
-func getExampleTemplate(isCloud bool) shared.ClientModelsInput {
+func getExampleTemplate(isCloud, isCloudIntegratedModels bool) shared.ClientModelsInput {
 	exampleProviderName := "togetherai"
 
 	var customProviders []*shared.CustomProvider
@@ -498,10 +530,9 @@ func getExampleTemplate(isCloud bool) shared.ClientModelsInput {
 		ModelName: "meta-llama/llama-4-maverick",
 	})
 
-	return shared.ClientModelsInput{
-		SchemaUrl:       shared.SchemaUrlInputConfig,
-		CustomProviders: customProviders,
-		CustomModels: []*shared.CustomModel{
+	var customModels []*shared.CustomModel
+	if !isCloudIntegratedModels {
+		customModels = []*shared.CustomModel{
 			{
 				ModelId:     shared.ModelId("meta-llama/llama-4-maverick"),
 				Publisher:   shared.ModelPublisher("meta-llama"),
@@ -518,7 +549,13 @@ func getExampleTemplate(isCloud bool) shared.ClientModelsInput {
 
 				Providers: usesProviders,
 			},
-		},
+		}
+	}
+
+	return shared.ClientModelsInput{
+		SchemaUrl:       shared.SchemaUrlInputConfig,
+		CustomProviders: customProviders,
+		CustomModels:    customModels,
 		CustomModelPacks: []*shared.ClientModelPackSchema{
 			{
 				Name:        "example-model-pack",

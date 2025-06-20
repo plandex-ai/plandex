@@ -76,7 +76,9 @@ func WriteModelSettingsFile(path string, originalSettings *shared.PlanSettings) 
 		return fmt.Errorf("error creating directory: %v", err)
 	}
 
-	clientModelPackRoles := originalSettings.GetModelPack().ToModelPackSchema().ToClientModelPackSchemaRoles()
+	modelPackSchemaRoles := originalSettings.GetModelPack().ToModelPackSchema().ModelPackSchemaRoles
+
+	clientModelPackRoles := modelPackSchemaRoles.ToClientModelPackSchemaRoles()
 
 	bytes, err := json.MarshalIndent(clientModelPackRoles, "", "  ")
 	if err != nil {
@@ -86,6 +88,11 @@ func WriteModelSettingsFile(path string, originalSettings *shared.PlanSettings) 
 	err = os.WriteFile(path, bytes, 0644)
 	if err != nil {
 		return fmt.Errorf("error writing JSON file: %v", err)
+	}
+
+	err = SaveModelPackRolesHash(path, &modelPackSchemaRoles)
+	if err != nil {
+		return fmt.Errorf("error saving model pack roles hash: %v", err)
 	}
 
 	return nil
