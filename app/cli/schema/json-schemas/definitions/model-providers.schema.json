@@ -1,8 +1,8 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://plandex.ai/schemas/definitions/model-providers.schema.json",
-  "title": "Model Provider Enum",
-  "description": "Reusable enum for model providers",
+  "title": "Model Providers",
+  "description": "The built-in model providers that Plandex supports. Use 'custom' for a provider that is not built-in.",
   "enum": [
     "openrouter",
     "openai",
