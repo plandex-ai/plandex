@@ -82,7 +82,7 @@ export GEMINI_API_KEY=... # set your Google AI Studio API key for Google Gemini 
 You can optionally use Google Vertex AI, which offers models from Gemini, Anthropic, and more. Vertex authentication requires a few environment variables to be set.
 
 ```bash
-export GOOGLE_APPLICATION_CREDENTIALS=... # either a path to a JSON file or the JSON itself as a string
+export GOOGLE_APPLICATION_CREDENTIALS=... # either a path to a JSON file, the JSON itself as a string, or the base64 encoded JSON
 export VERTEXAI_PROJECT=... # your Vertex project ID
 export VERTEXAI_LOCATION=... # your Vertex location (e.g. us-east5)
 ```
@@ -94,8 +94,8 @@ You can optionally use Microsoft Azure for OpenAI models. Azure authentication r
 ```bash
 export AZURE_OPENAI_API_KEY=... # set your Azure OpenAI API key
 export AZURE_API_BASE=... # set your Azure API base URL (required)
-
-export AZURE_API_VERSION=... # optionally set your Azure API version - defaults to 2024-10-21
+export AZURE_API_VERSION=... # optionally set your Azure API version - defaults to 2025-04-01-preview
+export AZURE_DEPLOYMENTS_MAP='{"gpt-4.1": "gpt-4.1-deployment-name"}' # optionally set a map of model names to deployment names with a JSON object (only needed if deployment names are different from model names)
 ```
 
 ### AWS Bedrock
@@ -106,6 +106,9 @@ You can optionally use AWS Bedrock for Anthropic models. AWS Bedrock uses standa
 export AWS_ACCESS_KEY_ID=... # set your AWS access key ID
 export AWS_SECRET_ACCESS_KEY=... # set your AWS secret access key
 export AWS_REGION=... # set your AWS region (e.g. us-east-1)
+
+export AWS_SESSION_TOKEN=... # optionally set your AWS session token
+export AWS_INFERENCE_PROFILE_ARN=... # optionally set your AWS inference profile ARN
 ```
 
 ### DeepSeek
