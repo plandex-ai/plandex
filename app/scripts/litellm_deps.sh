@@ -5,7 +5,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VENV_DIR="$SCRIPT_DIR/../litellm-venv"
 REQUIRED_PYTHON="python3"
-REQUIRED_PACKAGES=("litellm==1.61.1" "fastapi==0.115.12" "uvicorn==0.34.1" "google-cloud-aiplatform==1.96.0")
+REQUIRED_PACKAGES=("litellm==1.72.6" "fastapi==0.115.12" "uvicorn==0.34.1" "google-cloud-aiplatform==1.96.0" "boto3==1.38.40" "botocore==1.38.40")
 
 if ! command -v "$REQUIRED_PYTHON" &>/dev/null; then
   echo "Python3 not found. Please install it and run this script again."

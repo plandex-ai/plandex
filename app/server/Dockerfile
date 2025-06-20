@@ -12,7 +12,7 @@ RUN apt-get install -y python3 python3-venv && \
 ENV PATH="/opt/venv/bin:$PATH"
 
 # Now install litellm passthrough dependencies in the virtual environment
-RUN pip install --no-cache-dir "litellm==1.61.1" "fastapi==0.115.12" "uvicorn==0.34.1" "google-cloud-aiplatform==1.96.0"
+RUN pip install --no-cache-dir "litellm==1.72.6" "fastapi==0.115.12" "uvicorn==0.34.1" "google-cloud-aiplatform==1.96.0" "boto3==1.38.40" "botocore==1.38.40"
 
 WORKDIR /app
 
