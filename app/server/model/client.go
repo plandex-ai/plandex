@@ -207,7 +207,8 @@ func createChatCompletionStreamExtended(
 		log.Println("Creating chat completion stream with direct OpenAI provider request")
 	}
 
-	if baseModelConfig.Provider == shared.ModelProviderGoogleVertex {
+	switch baseModelConfig.Provider {
+	case shared.ModelProviderGoogleVertex:
 		if authVars["VERTEXAI_PROJECT"] != "" {
 			extendedReq.VertexProject = authVars["VERTEXAI_PROJECT"]
 		}
@@ -216,6 +217,52 @@ func createChatCompletionStreamExtended(
 		}
 		if authVars["GOOGLE_APPLICATION_CREDENTIALS"] != "" {
 			extendedReq.VertexCredentials = authVars["GOOGLE_APPLICATION_CREDENTIALS"]
+		}
+	case shared.ModelProviderAzureOpenAI:
+		if authVars["AZURE_API_BASE"] != "" {
+			extendedReq.AzureApiBase = authVars["AZURE_API_BASE"]
+		}
+		if authVars["AZURE_API_VERSION"] != "" {
+			extendedReq.AzureApiVersion = authVars["AZURE_API_VERSION"]
+		}
+
+		if authVars["AZURE_DEPLOYMENTS_MAP"] != "" {
+			var azureDeploymentsMap map[string]string
+			err := json.Unmarshal([]byte(authVars["AZURE_DEPLOYMENTS_MAP"]), &azureDeploymentsMap)
+			if err != nil {
+				return nil, fmt.Errorf("error unmarshalling AZURE_DEPLOYMENTS_MAP: %w", err)
+			}
+			modelName := string(extendedReq.Model)
+			modelName = strings.ReplaceAll(modelName, "azure/", "")
+
+			deploymentName, ok := azureDeploymentsMap[modelName]
+			if ok {
+				log.Println("azure - deploymentName", deploymentName)
+				modelName = "azure/" + deploymentName
+				extendedReq.Model = shared.ModelName(modelName)
+			}
+		}
+
+		// azure uses 'reasoning_config' instead of 'reasoning' like direct openai api
+		if extendedReq.ReasoningConfig != nil {
+			extendedReq.AzureReasoningEffort = extendedReq.ReasoningConfig.Effort
+			extendedReq.ReasoningConfig = nil
+		}
+	case shared.ModelProviderAmazonBedrock:
+		if authVars["AWS_ACCESS_KEY_ID"] != "" {
+			extendedReq.BedrockAccessKeyId = authVars["AWS_ACCESS_KEY_ID"]
+		}
+		if authVars["AWS_SECRET_ACCESS_KEY"] != "" {
+			extendedReq.BedrockSecretAccessKey = authVars["AWS_SECRET_ACCESS_KEY"]
+		}
+		if authVars["AWS_SESSION_TOKEN"] != "" {
+			extendedReq.BedrockSessionToken = authVars["AWS_SESSION_TOKEN"]
+		}
+		if authVars["AWS_REGION"] != "" {
+			extendedReq.BedrockRegion = authVars["AWS_REGION"]
+		}
+		if authVars["AWS_INFERENCE_PROFILE_ARN"] != "" {
+			extendedReq.BedrockInferenceProfileArn = authVars["AWS_INFERENCE_PROFILE_ARN"]
 		}
 	}
 
@@ -419,9 +466,9 @@ func resolveReq(req *types.ExtendedChatCompletionRequest, modelConfig *shared.Mo
 	}
 
 	if modelConfig.GetSharedBaseConfig().RoleParamsDisabled {
-		log.Println("Role params disabled - setting temperature and top p to 1")
-		req.Temperature = 1
-		req.TopP = 1
+		log.Println("Role params disabled - setting temperature and top p to 0")
+		req.Temperature = 0
+		req.TopP = 0
 	}
 
 	if baseModelConfig.Provider == shared.ModelProviderOllama {
