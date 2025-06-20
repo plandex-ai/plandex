@@ -4,52 +4,152 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"plandex-cli/api"
 	"plandex-cli/term"
+	shared "plandex-shared"
 	"sort"
 	"strings"
 )
 
-func MaybePromptAndOpen(path string) bool {
-	editors := detectEditors()
-	if len(editors) == 0 {
-		// just exit if there are no editors available
+func MaybePromptAndOpen(path string, defaultConfig *shared.PlanConfig, planConfig *shared.PlanConfig) bool {
+	var cmd string
+	var args []string
+	var openManually bool
+
+	var checkConfig *shared.PlanConfig
+	if planConfig != nil {
+		checkConfig = planConfig
+	} else if defaultConfig != nil {
+		checkConfig = defaultConfig
+	} else {
+		term.OutputErrorAndExit("Missing config")
+	}
+
+	if checkConfig.EditorOpenManually {
 		return false
 	}
-	opts := []string{}
-	for _, c := range editors {
-		opts = append(opts, "Open with "+c.name)
+
+	if checkConfig.EditorCommand == "" {
+		editorRes := SelectEditor(true)
+		cmd = editorRes.Cmd
+		args = editorRes.Args
+		openManually = editorRes.OpenManually
+
+		// update the default editor config
+		toUpdateDefault := *defaultConfig
+		toUpdateDefault.Editor = editorRes.Name
+		toUpdateDefault.EditorCommand = cmd
+		toUpdateDefault.EditorArgs = args
+		toUpdateDefault.EditorOpenManually = openManually
+
+		apiErr := api.Client.UpdateDefaultPlanConfig(shared.UpdateDefaultPlanConfigRequest{
+			Config: &toUpdateDefault,
+		})
+		if apiErr != nil {
+			term.OutputErrorAndExit("Error updating default config: %v", apiErr)
+		}
+
+		// also update the current plan config
+		if planConfig != nil {
+			toUpdate := *planConfig
+			toUpdate.Editor = editorRes.Name
+			toUpdate.EditorCommand = cmd
+			toUpdate.EditorArgs = args
+			toUpdate.EditorOpenManually = openManually
+			apiErr = api.Client.UpdatePlanConfig(CurrentPlanId, shared.UpdatePlanConfigRequest{
+				Config: &toUpdate,
+			})
+			if apiErr != nil {
+				term.OutputErrorAndExit("Error updating plan config: %v", apiErr)
+			}
+		}
+	} else {
+		cmd = checkConfig.EditorCommand
+		args = checkConfig.EditorArgs
 	}
 
-	const openManually = "Open manually"
-	opts = append(opts, openManually)
+	if openManually {
+		return false
+	}
 
-	choice, err := term.SelectFromList("Open the file now?", opts)
+	err := exec.Command(cmd, append(args, path)...).Start()
+	if err != nil {
+		term.OutputErrorAndExit("Error opening template: %v", err)
+	}
+
+	return true
+}
+
+type SelectEditorResult struct {
+	Name         string
+	Cmd          string
+	Args         []string
+	OpenManually bool
+}
+
+func SelectEditor(includeOpenManuallyOpt bool) SelectEditorResult {
+	editors := detectEditors()
+
+	opts := []string{}
+	for _, c := range editors {
+		opts = append(opts, c.name)
+	}
+	const otherOpt = "Other (custom command)"
+	opts = append(opts, otherOpt)
+
+	const openManuallyOpt = "Open files manually"
+	if includeOpenManuallyOpt {
+		opts = append(opts, openManuallyOpt)
+	}
+
+	choice, err := term.SelectFromList("What's your preferred editor?", opts)
 	if err != nil {
 		term.OutputErrorAndExit("Error selecting editor: %v", err)
 	}
 
-	if choice == openManually {
-		return false
-	}
+	var name string
+	var cmd string
+	var args []string
 
-	var idx int
-	for i, c := range opts {
-		if c == choice {
-			idx = i
-			break
-		}
-	}
-
-	if idx < len(editors) {
-		sel := editors[idx]
-		err = exec.Command(sel.cmd, append(sel.args, path)...).Start()
+	if choice == otherOpt {
+		choice, err = term.GetRequiredUserStringInput("Enter the command to open the editor")
 		if err != nil {
-			term.OutputErrorAndExit("Error opening template: %v", err)
+			term.OutputErrorAndExit("Error getting editor command: %v", err)
 		}
-		return true
+		name = choice
+		parts := strings.Fields(choice)
+		if len(parts) == 0 {
+			term.OutputErrorAndExit("Invalid editor command: %s", choice)
+		}
+		cmd = parts[0]
+		if len(parts) > 1 {
+			args = parts[1:]
+		}
+	} else if choice == openManuallyOpt {
+		return SelectEditorResult{
+			Name:         "Open manually",
+			Cmd:          "",
+			Args:         []string{},
+			OpenManually: true,
+		}
+	} else {
+		var candidate editorCandidate
+		for _, c := range editors {
+			if c.name == choice {
+				candidate = c
+				break
+			}
+		}
+		name = candidate.name
+		cmd = candidate.cmd
+		args = candidate.args
 	}
 
-	return false
+	return SelectEditorResult{
+		Name: name,
+		Cmd:  cmd,
+		Args: args,
+	}
 }
 
 type editorCandidate struct {

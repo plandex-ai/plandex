@@ -17,23 +17,23 @@ import (
 )
 
 func init() {
-	RootCmd.AddCommand(setCmd)
-	setCmd.AddCommand(defaultSetCmd)
+	RootCmd.AddCommand(setConfigCmd)
+	setConfigCmd.AddCommand(defaultSetConfigCmd)
 	RootCmd.AddCommand(setAutoCmd)
 	setAutoCmd.AddCommand(setAutoDefaultCmd)
 }
 
-var setCmd = &cobra.Command{
+var setConfigCmd = &cobra.Command{
 	Use:   "set-config [setting] [value]",
 	Short: "Update current plan config",
-	Run:   set,
+	Run:   setConfig,
 	Args:  cobra.MaximumNArgs(2),
 }
 
-var defaultSetCmd = &cobra.Command{
+var defaultSetConfigCmd = &cobra.Command{
 	Use:   "default [setting] [value]",
 	Short: "Update default plan config",
-	Run:   defaultSet,
+	Run:   defaultSetConfig,
 	Args:  cobra.MaximumNArgs(2),
 }
 
@@ -52,14 +52,14 @@ var setAutoDefaultCmd = &cobra.Command{
 }
 
 func setAuto(cmd *cobra.Command, args []string) {
-	set(cmd, append([]string{"auto-mode"}, args...))
+	setConfig(cmd, append([]string{"auto-mode"}, args...))
 }
 
 func setAutoDefault(cmd *cobra.Command, args []string) {
-	defaultSet(cmd, append([]string{"auto-mode"}, args...))
+	defaultSetConfig(cmd, append([]string{"auto-mode"}, args...))
 }
 
-func set(cmd *cobra.Command, args []string) {
+func setConfig(cmd *cobra.Command, args []string) {
 	auth.MustResolveAuthWithOrg()
 	lib.MustResolveProject()
 
@@ -120,7 +120,7 @@ func set(cmd *cobra.Command, args []string) {
 	term.PrintCmds("", "config", "config default", "set-config default")
 }
 
-func defaultSet(cmd *cobra.Command, args []string) {
+func defaultSetConfig(cmd *cobra.Command, args []string) {
 	auth.MustResolveAuthWithOrg()
 
 	term.StartSpinner("")
@@ -271,6 +271,9 @@ func updateConfig(args []string, originalConfig *shared.PlanConfig) (string, *sh
 				} else if cfgSetting.ChoiceToKey != nil {
 					selection = cfgSetting.ChoiceToKey(selection)
 				}
+			} else if cfgSetting.EditorSetter != nil {
+				editor := lib.SelectEditor(false)
+				cfgSetting.EditorSetter(&config, editor.Name, editor.Cmd, editor.Args)
 			} else {
 				selection, err = term.GetRequiredUserStringInput(fmt.Sprintf("Set %s", cfgSetting.Name))
 				if err != nil {

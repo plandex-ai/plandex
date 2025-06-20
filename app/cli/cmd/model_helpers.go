@@ -5,6 +5,7 @@ import (
 	"os"
 	"plandex-cli/lib"
 	"plandex-cli/term"
+	shared "plandex-shared"
 
 	"github.com/fatih/color"
 )
@@ -36,7 +37,7 @@ type maybePromptAndOpenModelsFileResult struct {
 	jsonData     []byte
 }
 
-func maybePromptAndOpenModelsFile(filePath, pathArg, cmd string) maybePromptAndOpenModelsFileResult {
+func maybePromptAndOpenModelsFile(filePath, pathArg, cmd string, defaultConfig *shared.PlanConfig, planConfig *shared.PlanConfig) maybePromptAndOpenModelsFileResult {
 
 	printManual := func() {
 		cmdPrefix := "\\"
@@ -48,7 +49,7 @@ func maybePromptAndOpenModelsFile(filePath, pathArg, cmd string) maybePromptAndO
 				Sprintf(" %s%s --save%s ", cmdPrefix, cmd, pathArg)))
 	}
 
-	selectedEditor := lib.MaybePromptAndOpen(filePath)
+	selectedEditor := lib.MaybePromptAndOpen(filePath, defaultConfig, planConfig)
 
 	if selectedEditor {
 		fmt.Println("📝 Opened in editor")
