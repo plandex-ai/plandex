@@ -17,7 +17,7 @@ Plandex Cloud has two billing modes:
 
 - Use Plandex credits to pay for AI models.
 - No separate accounts or API keys are required.
-- Credits are deducted at the model's price from OpenAI or OpenRouter.ai plus a small markup to cover credit card processing costs.
+- Credits are deducted at the model's price from the provider plus a small markup to cover credit card processing costs.
 - Start with a $10 trial (includes $10 in credits).
 - After the trial, you can upgrade to a paid plan for $45 per month—includes $20 in credits every month that never expire.
 
@@ -26,7 +26,7 @@ Plandex Cloud has two billing modes:
 
 ### BYO API Key
 
-- Use your own OpenAI and OpenRouter.ai accounts and API keys.
+- Use your own model provider accounts and API keys.
 - Start with a free trial up to 10 plans and 20 model responses per plan.
 - After the trial, you can upgrade to a paid plan for $30 per month.
 
@@ -83,6 +83,7 @@ Data sent to Plandex Cloud may be shared with the following third parties:
 
 - [OpenAI](https://openai.com) for OpenAI models when using Integrated Models Mode.
 - [OpenRouter.ai](https://openrouter.ai/) for Anthropic, Google, and other non-OpenAI models when using Integrated Models Mode.
+- [Google Vertex AI](https://cloud.google.com/vertex-ai) for Google and Anthropic models when using Integrated Models Mode.
 - [AWS](https://aws.amazon.com/) for hosting and database services. Data is encrypted in transit and at rest.
 - Your name and email is shared with [Loops](https://loops.so/), an email marketing service, in order to send you updates on Plandex. You can opt out of these emails at any time with one click.
 - Your name and email are shared with our payment processor [Stripe](https://stripe.com/) if you subscribe to a paid plan or purchase the $10 trial.
