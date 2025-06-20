@@ -189,7 +189,7 @@ var BuiltInModels = []*BaseModelConfigSchema{
 		},
 		Providers: []BaseModelUsesProvider{
 			{Provider: ModelProviderAnthropic, ModelName: "anthropic/claude-sonnet-4-0"},
-			{Provider: ModelProviderAmazonBedrock, ModelName: "bedrock/anthropic.claude-sonnet-4-20250514-v1:0"},
+			{Provider: ModelProviderAmazonBedrock, ModelName: "anthropic.claude-sonnet-4-20250514-v1:0"},
 			{Provider: ModelProviderGoogleVertex, ModelName: "vertex_ai/claude-sonnet-4@20250514"},
 			{Provider: ModelProviderOpenRouter, ModelName: "anthropic/claude-sonnet-4"},
 		},
