@@ -88,6 +88,7 @@ func mapWorker(job projectMapJob) {
 
 	for path, input := range job.inputs {
 		if !shared.HasFileMapSupport(path) {
+			log.Printf("mapWorker: Skipping unsupported file %s", path)
 			mu.Lock()
 			maps[path] = "[NO MAP]"
 			mu.Unlock()
@@ -108,7 +109,7 @@ func mapWorker(job projectMapJob) {
 			fileMap, err := file_map.MapFile(job.ctx, path, []byte(input))
 			if err != nil {
 				// Skip files that can't be parsed, just log the error
-				log.Printf("Error mapping file %s: %v", path, err)
+				log.Printf("mapWorker: Error mapping file %s: %v", path, err)
 				mu.Lock()
 				maps[path] = "[NO MAP]"
 				mu.Unlock()

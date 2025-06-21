@@ -99,6 +99,45 @@ func isIncludeAndContinueNode(node Node) bool {
 	return !config.ignore
 }
 
+func isUnwrapNode(node Node) bool {
+	setNodeType(&node)
+	config := unwrapNodeMap.getConfig(node.Type, node.Lang)
+
+	if config == nil {
+		return false
+	}
+
+	return true
+}
+
+func unwrapNodeIndex(node Node) *int {
+	idx := new(int)
+
+	if isUnwrapNode(node) {
+
+		if node.Lang == shared.LanguageTypescript || node.Lang == shared.LanguageTsx {
+			switch node.TsNode.ChildCount() {
+			case 1:
+				// ???
+				*idx = 0
+				return idx
+			case 2:
+				// export const foo = "bar"
+				*idx = 1
+				return idx
+			case 3:
+				// export default function(){...}
+				*idx = 2
+				return idx
+			default:
+				fmt.Printf("Unexpected number of children for unwrap node: %s (%d)", node.Type, node.TsNode.ChildCount())
+			}
+		}
+	}
+
+	return nil
+}
+
 func (m nodeMap) getConfig(t string, lang shared.Language) *nodeConfig {
 	// first look for exact match
 	config, ok := m[nodeType(t)]
