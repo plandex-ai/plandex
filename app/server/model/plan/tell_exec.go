@@ -116,7 +116,7 @@ func execTellPlan(params execTellPlanParams) {
 			active.StreamDoneCh <- &shared.ApiError{
 				Type:   shared.ApiErrorTypeOther,
 				Status: http.StatusInternalServerError,
-				Msg:    "Panic in execTellPlan",
+				Msg:    fmt.Sprintf("Panic in execTellPlan: %v\n%s", r, string(debug.Stack())),
 			}
 		}
 	}()
@@ -145,7 +145,7 @@ func execTellPlan(params execTellPlanParams) {
 		active.StreamDoneCh <- &shared.ApiError{
 			Type:   shared.ApiErrorTypeOther,
 			Status: http.StatusInternalServerError,
-			Msg:    "Error setting plan status to replying",
+			Msg:    fmt.Sprintf("Error setting plan status to replying: %v", err),
 		}
 
 		log.Printf("execTellPlan: execTellPlan operation completed for plan ID %s on branch %s, iteration %d\n", plan.Id, branch, iteration)
@@ -292,7 +292,7 @@ func execTellPlan(params execTellPlanParams) {
 		active.StreamDoneCh <- &shared.ApiError{
 			Type:   shared.ApiErrorTypeOther,
 			Status: http.StatusInternalServerError,
-			Msg:    err.Error(),
+			Msg:    fmt.Sprintf("Error getting tell sys prompt: %v", err),
 		}
 		return
 	}

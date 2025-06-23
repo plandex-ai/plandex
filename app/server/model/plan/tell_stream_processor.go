@@ -50,7 +50,7 @@ func (state *activeTellStreamState) processChunk(choice types.ExtendedChatComple
 			active.StreamDoneCh <- &shared.ApiError{
 				Type:   shared.ApiErrorTypeOther,
 				Status: http.StatusInternalServerError,
-				Msg:    "Panic in processChunk",
+				Msg:    fmt.Sprintf("Panic in processChunk: %v\n%s", r, string(debug.Stack())),
 			}
 		}
 	}()
@@ -622,7 +622,7 @@ func (state *activeTellStreamState) handleMissingFile(content, currentFile, bloc
 		active.StreamDoneCh <- &shared.ApiError{
 			Type:   shared.ApiErrorTypeOther,
 			Status: http.StatusInternalServerError,
-			Msg:    "Error setting plan status to prompting",
+			Msg:    fmt.Sprintf("Error setting plan status to prompting: %v", err),
 		}
 		return processChunkResult{}
 	}

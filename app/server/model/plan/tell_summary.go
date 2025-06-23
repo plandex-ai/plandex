@@ -130,7 +130,7 @@ func (state *activeTellStreamState) addConversationMessages() bool {
 			active.StreamDoneCh <- &shared.ApiError{
 				Type:   shared.ApiErrorTypeOther,
 				Status: http.StatusInternalServerError,
-				Msg:    "Exceeded token limit",
+				Msg:    "Couldn't get under token limit with conversation summary",
 			}
 			return false
 		}

@@ -255,7 +255,7 @@ func (state *activeTellStreamState) handleStreamFinished() handleStreamFinishedR
 				active.StreamDoneCh <- &shared.ApiError{
 					Type:   shared.ApiErrorTypeOther,
 					Status: http.StatusInternalServerError,
-					Msg:    "Error setting plan status to building",
+					Msg:    fmt.Sprintf("Error setting plan status to building: %v", err),
 				}
 
 				return handleStreamFinishedResult{

@@ -249,7 +249,7 @@ func (q *repoQueue) runQueue() {
 								if panicErr != nil {
 									log.Printf("[Queue] Panic in operation %s (%s): %v", op.id, op.reason, panicErr)
 									log.Printf("[Queue] Stack trace: %s", string(debug.Stack()))
-									opErr = fmt.Errorf("panic in operation: %v", panicErr)
+									opErr = fmt.Errorf("panic in operation: %v\n%s", panicErr, string(debug.Stack()))
 								}
 
 								if opErr != nil && op.scope == LockScopeWrite && op.clearRepoOnErr {
