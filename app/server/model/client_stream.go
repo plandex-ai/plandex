@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/davecgh/go-spew/spew"
+	"github.com/sashabaranov/go-openai"
 )
 
 type OnStreamFn func(chunk string, buffer string) (shouldStop bool)
@@ -42,6 +43,11 @@ func CreateChatCompletionWithInternalStream(
 
 	// Force streaming mode since we're using the streaming API
 	req.Stream = true
+
+	// Include usage in stream response
+	req.StreamOptions = &openai.StreamOptions{
+		IncludeUsage: true,
+	}
 
 	return withStreamingRetries(ctx, func(numTotalRetry int, didProviderFallback bool, modelErr *shared.ModelError) (resp *types.ModelResponse, fallbackRes shared.FallbackResult, err error) {
 		fallbackRes = modelConfig.GetFallbackForModelError(numTotalRetry, didProviderFallback, modelErr, authVars, localProvider)
