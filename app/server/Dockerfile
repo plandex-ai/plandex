@@ -2,11 +2,10 @@ FROM golang:1.23.3
 
 # Update and install necessary packages including build tools for Tree-sitter
 RUN apt-get update && \
-  apt-get install -y git gcc g++ make
+  apt-get install -y git gcc g++ make python3 python3-venv
 
 # Install Python and create a virtual environment for litellm passthrough
-RUN apt-get install -y python3 python3-venv && \
-    python3 -m venv /opt/venv
+RUN python3 -m venv /opt/venv
     
 # Activate the virtual environment for all following RUN commands
 ENV PATH="/opt/venv/bin:$PATH"
