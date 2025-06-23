@@ -41,6 +41,7 @@ VERTEXAI_LOCATION= # Your Google Vertex AI location
 AZURE_OPENAI_API_KEY= # Your Azure OpenAI API key
 AZURE_API_BASE= # Your Azure OpenAI API base URL
 AZURE_API_VERSION= # Your Azure OpenAI API version
+AZURE_DEPLOYMENTS_MAP= # Your Azure OpenAI deployments map—a JSON object mapping model names to deployment names (only needed if deployment names are different from model names)
 
 # DeepSeek
 DEEPSEEK_API_KEY= # Your DeepSeek API key
@@ -49,9 +50,12 @@ DEEPSEEK_API_KEY= # Your DeepSeek API key
 PERPLEXITY_API_KEY= # Your Perplexity API key
 
 # Amazon Bedrock
+PLANDEX_AWS_PROFILE= # Name of AWS profile in ~/.aws/credentials to use for AWS Bedrock. If not set, the credentials file won't be used.
 AWS_ACCESS_KEY_ID= # Your AWS access key ID
 AWS_SECRET_ACCESS_KEY= # Your AWS secret access key
 AWS_REGION= # Your AWS region
+AWS_SESSION_TOKEN= # Your AWS session token
+AWS_INFERENCE_PROFILE_ARN= # Your AWS inference profile ARN
 ```
 
 ### Upgrades

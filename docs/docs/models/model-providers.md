@@ -100,7 +100,17 @@ export AZURE_DEPLOYMENTS_MAP='{"gpt-4.1": "gpt-4.1-deployment-name"}' # optional
 
 ### AWS Bedrock
 
-You can optionally use AWS Bedrock for Anthropic models. AWS Bedrock uses standard AWS authentication via environment variables.
+You can optionally use AWS Bedrock for Anthropic models.
+
+If you have an AWS credentials file at `~/.aws/credentials`, you can use that to authenticate by setting the `PLANDEX_AWS_PROFILE` environment variable:
+
+```bash
+export PLANDEX_AWS_PROFILE=... # set the name of the profile in ~/.aws/credentials to use
+```
+
+Note that the credentials file will _only_ be read if `PLANDEX_AWS_PROFILE` is set.
+
+You can also use environment variables for AWS authentication:
 
 ```bash
 export AWS_ACCESS_KEY_ID=... # set your AWS access key ID

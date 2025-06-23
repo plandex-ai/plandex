@@ -99,13 +99,4 @@ While you can use Plandex with many different providers and models as described 
 
 Plandex supports local models via [Ollama](https://ollama.com/). For more details, see the [Ollama Quickstart](./ollama.md).
 
-### Local Models Disclaimer
-
-While local models are supported via Ollama, small models that can be run locally often aren't strong enough to produce usable results for the [heavy-lifting roles](./roles.md) like `planner`, `architect`, `coder`, and `builder`. The prompts for these roles require strong instruction following that can be hard to achieve with small models.
-
-The strongest open source models _are_ capable enough for decent results, but these models are quite large for running locally without a very powerful system. This isn't meant to discourage experimentation with local models, but to set expectations for what is realistically achievable.
-
-To help bridge the gap as local models continue to improve their capabilities, a built-in `ollama-adaptive` model pack is available. This model pack uses local Ollama models for less demanding roles, plus larger remote models for heavy-lifting.  
-
-
 
