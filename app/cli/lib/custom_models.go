@@ -118,6 +118,7 @@ func CustomModelsCheckLocalChanges(path string) (CustomModelsCheckLocalChangesRe
 	localModelsInput := localClientModelsInput.ToModelsInput()
 
 	lastSavedHash, err := os.ReadFile(hashPath)
+
 	if err != nil && !os.IsNotExist(err) {
 		return CustomModelsCheckLocalChangesResult{}, fmt.Errorf("error reading hash file: %v", err)
 	}
@@ -133,7 +134,7 @@ func CustomModelsCheckLocalChanges(path string) (CustomModelsCheckLocalChangesRe
 	}, nil
 }
 
-func WriteCustomModelsFile(path string, modelsInput *shared.ModelsInput, saveHash bool) error {
+func WriteCustomModelsFile(path string, modelsInput *shared.ModelsInput) error {
 	err := os.MkdirAll(filepath.Dir(path), 0755)
 	if err != nil {
 		return fmt.Errorf("error creating directory: %v", err)
@@ -152,11 +153,9 @@ func WriteCustomModelsFile(path string, modelsInput *shared.ModelsInput, saveHas
 		return fmt.Errorf("error writing file: %v", err)
 	}
 
-	if saveHash {
-		err = SaveCustomModelsHash(path, modelsInput)
-		if err != nil {
-			return fmt.Errorf("error saving hash file: %v", err)
-		}
+	err = SaveCustomModelsHash(path, modelsInput)
+	if err != nil {
+		return fmt.Errorf("error saving hash file: %v", err)
 	}
 
 	return nil
@@ -178,7 +177,7 @@ func SaveCustomModelsHash(basePath string, modelsInput *shared.ModelsInput) erro
 	return nil
 }
 
-func MustSyncCustomModels(path string, serverModelsInput *shared.ModelsInput, saveHash bool) bool {
+func MustSyncCustomModels(path string, serverModelsInput *shared.ModelsInput) bool {
 	term.StartSpinner("")
 
 	jsonData, err := os.ReadFile(path)
@@ -217,12 +216,10 @@ func MustSyncCustomModels(path string, serverModelsInput *shared.ModelsInput, sa
 		return false
 	}
 
-	if saveHash {
-		err := SaveCustomModelsHash(path, &modelsInput)
-		if err != nil {
-			term.OutputErrorAndExit("Error saving hash file: %v", err)
-			return false
-		}
+	err = SaveCustomModelsHash(path, &modelsInput)
+	if err != nil {
+		term.OutputErrorAndExit("Error saving hash file: %v", err)
+		return false
 	}
 
 	inputModelIds := map[string]bool{}
@@ -338,7 +335,7 @@ func SyncCustomModels() error {
 		return fmt.Errorf("error getting server models input: %v", err)
 	}
 
-	MustSyncCustomModels(CustomModelsDefaultPath, serverModelsInput, true)
+	MustSyncCustomModels(CustomModelsDefaultPath, serverModelsInput)
 
 	return nil
 }

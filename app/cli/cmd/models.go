@@ -205,7 +205,7 @@ func manageCustomModels(cmd *cobra.Command, args []string) {
 			}
 
 			if !serverModelsInput.Equals(localModelsInput) {
-				err := lib.WriteCustomModelsFile(customModelsPath, serverModelsInput, true)
+				err := lib.WriteCustomModelsFile(customModelsPath, serverModelsInput)
 				if err != nil {
 					term.OutputErrorAndExit("Error saving custom models file: %v", err)
 					return
@@ -230,7 +230,7 @@ func manageCustomModels(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	didUpdate := lib.MustSyncCustomModels(customModelsPath, serverModelsInput, saveCustomModels)
+	didUpdate := lib.MustSyncCustomModels(customModelsPath, serverModelsInput)
 
 	if !didUpdate {
 		fmt.Println("🤷‍♂️ No changes to custom models/providers/model packs")
@@ -552,6 +552,11 @@ func getExampleTemplate(isCloud, isCloudIntegratedModels bool) shared.ClientMode
 		}
 	}
 
+	lightModelId := "meta-llama/llama-4-maverick"
+	if len(customModels) == 0 {
+		lightModelId = "mistral/devstral-small"
+	}
+
 	return shared.ClientModelsInput{
 		SchemaUrl:       shared.SchemaUrlInputConfig,
 		CustomProviders: customProviders,
@@ -564,12 +569,12 @@ func getExampleTemplate(isCloud, isCloudIntegratedModels bool) shared.ClientMode
 					Planner:          "deepseek/r1",
 					Architect:        "deepseek/r1",
 					Coder:            "deepseek/v3-0324",
-					PlanSummary:      "meta-llama/llama-4-maverick",
+					PlanSummary:      lightModelId,
 					Builder:          "deepseek/r1-hidden",
 					WholeFileBuilder: "deepseek/r1-hidden",
 					ExecStatus:       "deepseek/r1-hidden",
-					Namer:            "meta-llama/llama-4-maverick",
-					CommitMsg:        "meta-llama/llama-4-maverick",
+					Namer:            lightModelId,
+					CommitMsg:        lightModelId,
 				},
 			},
 		},

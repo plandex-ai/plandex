@@ -417,7 +417,7 @@ func showCredentialErrorMessage(res CredentialCheckResult, opts shared.ModelProv
 
 		// TODO: set correct link
 		fmt.Println(color.New(color.Bold, term.ColorHiCyan).Sprint("\n📖 Per-provider instructions"))
-		fmt.Println("For details on the API key/credentials required for each provider, go to:\n" + color.New(color.Bold).Sprint("https://docs.plandex.ai/guides/..."))
+		fmt.Println("For details on the API key/credentials required for each provider, go to:\n" + color.New(color.Bold).Sprint("https://docs.plandex.ai/models/model-providers"))
 	}
 
 	fmt.Println()
