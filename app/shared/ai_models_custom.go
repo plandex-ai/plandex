@@ -55,9 +55,9 @@ type CustomProvider struct {
 }
 
 type ModelsInput struct {
-	CustomModels     []*CustomModel     `json:"models"`
+	CustomModels     []*CustomModel     `json:"models,omitempty"`
 	CustomProviders  []*CustomProvider  `json:"providers,omitempty"`
-	CustomModelPacks []*ModelPackSchema `json:"modelPacks"`
+	CustomModelPacks []*ModelPackSchema `json:"modelPacks,omitempty"`
 }
 
 func (input ModelsInput) FilterUnchanged(existing *ModelsInput) ModelsInput {
@@ -214,9 +214,9 @@ func (input *ModelPackSchema) ToClientModelPackSchema() *ClientModelPackSchema {
 type ClientModelsInput struct {
 	SchemaUrl SchemaUrl `json:"$schema"`
 
-	CustomModels     []*CustomModel           `json:"models"`
+	CustomModels     []*CustomModel           `json:"models,omitempty"`
 	CustomProviders  []*CustomProvider        `json:"providers,omitempty"`
-	CustomModelPacks []*ClientModelPackSchema `json:"modelPacks"`
+	CustomModelPacks []*ClientModelPackSchema `json:"modelPacks,omitempty"`
 }
 
 func (input ClientModelsInput) ToModelsInput() ModelsInput {

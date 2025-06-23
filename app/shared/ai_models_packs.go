@@ -17,7 +17,8 @@ var GeminiExperimentalModelPack ModelPack
 var R1PlannerModelPack ModelPack
 var PerplexityPlannerModelPack ModelPack
 
-var OllamaModelPack ModelPack
+var OllamaExperimentalModelPack ModelPack
+var OllamaAdaptiveModelPack ModelPack
 
 var BuiltInModelPacks = []*ModelPack{
 	&DailyDriverModelPack,
@@ -25,7 +26,8 @@ var BuiltInModelPacks = []*ModelPack{
 	&StrongModelPack,
 	&CheapModelPack,
 	&OSSModelPack,
-	&OllamaModelPack,
+	&OllamaExperimentalModelPack,
+	&OllamaAdaptiveModelPack,
 	&OpusPlannerModelPack,
 	&StrongModelOpus,
 	&AnthropicModelPack,
@@ -79,33 +81,35 @@ func getStrongModelFallback(role ModelRole, modelId ModelId, fns ...func(*ModelR
 }
 
 var (
-	DailyDriverPackSchema        ModelPackSchema
-	ReasoningPackSchema          ModelPackSchema
-	StrongPackSchema             ModelPackSchema
-	OSSModelPackSchema           ModelPackSchema
-	CheapModelPackSchema         ModelPackSchema
-	OllamaModelPackSchema        ModelPackSchema
-	AnthropicPackSchema          ModelPackSchema
-	OpenAIPackSchema             ModelPackSchema
-	GeminiPreviewPackSchema      ModelPackSchema
-	GeminiExperimentalPackSchema ModelPackSchema
-	R1PlannerPackSchema          ModelPackSchema
-	PerplexityPlannerPackSchema  ModelPackSchema
+	DailyDriverSchema        ModelPackSchema
+	ReasoningSchema          ModelPackSchema
+	StrongSchema             ModelPackSchema
+	OssSchema                ModelPackSchema
+	CheapSchema              ModelPackSchema
+	OllamaExperimentalSchema ModelPackSchema
+	OllamaAdaptiveSchema     ModelPackSchema
+	AnthropicSchema          ModelPackSchema
+	OpenAISchema             ModelPackSchema
+	GeminiPreviewSchema      ModelPackSchema
+	GeminiExperimentalSchema ModelPackSchema
+	R1PlannerSchema          ModelPackSchema
+	PerplexityPlannerSchema  ModelPackSchema
 )
 
 var BuiltInModelPackSchemas = []*ModelPackSchema{
-	&DailyDriverPackSchema,
-	&ReasoningPackSchema,
-	&StrongPackSchema,
-	&CheapModelPackSchema,
-	&OSSModelPackSchema,
-	&OllamaModelPackSchema,
-	&AnthropicPackSchema,
-	&OpenAIPackSchema,
-	&GeminiPreviewPackSchema,
-	&GeminiExperimentalPackSchema,
-	&R1PlannerPackSchema,
-	&PerplexityPlannerPackSchema,
+	&DailyDriverSchema,
+	&ReasoningSchema,
+	&StrongSchema,
+	&CheapSchema,
+	&OssSchema,
+	&OllamaExperimentalSchema,
+	&OllamaAdaptiveSchema,
+	&AnthropicSchema,
+	&OpenAISchema,
+	&GeminiPreviewSchema,
+	&GeminiExperimentalSchema,
+	&R1PlannerSchema,
+	&PerplexityPlannerSchema,
 }
 
 func init() {
@@ -113,7 +117,7 @@ func init() {
 		getStrongModelFallback(ModelRoleBuilder, "openai/o4-mini-high"),
 	)
 
-	DailyDriverPackSchema = ModelPackSchema{
+	DailyDriverSchema = ModelPackSchema{
 		Name:        "daily-driver",
 		Description: "A mix of models from Anthropic, OpenAI, and Google that balances speed, quality, and cost. Supports up to 2M context.",
 		ModelPackSchemaRoles: ModelPackSchemaRoles{
@@ -139,7 +143,7 @@ func init() {
 		},
 	}
 
-	ReasoningPackSchema = ModelPackSchema{
+	ReasoningSchema = ModelPackSchema{
 		Name:        "reasoning",
 		Description: "Like the daily driver, but uses sonnet-4-thinking with reasoning enabled for planning and coding. Supports up to 160k input context.",
 		ModelPackSchemaRoles: ModelPackSchemaRoles{
@@ -155,7 +159,7 @@ func init() {
 		},
 	}
 
-	StrongPackSchema = ModelPackSchema{
+	StrongSchema = ModelPackSchema{
 		Name:        "strong",
 		Description: "For difficult tasks where slower responses and builds are ok. Uses o3-high for architecture and planning, claude-sonnet-4 thinking for implementation. Supports up to 160k input context.",
 		ModelPackSchemaRoles: ModelPackSchemaRoles{
@@ -172,7 +176,7 @@ func init() {
 		},
 	}
 
-	CheapModelPackSchema = ModelPackSchema{
+	CheapSchema = ModelPackSchema{
 		Name:        "cheap",
 		Description: "Cost-effective models that can still get the job done for easier tasks. Supports up to 160k context. Uses OpenAI's o4-mini model for planning, GPT-4.1 for coding, and GPT-4.1 Mini for lighter tasks.",
 		ModelPackSchemaRoles: ModelPackSchemaRoles{
@@ -188,25 +192,25 @@ func init() {
 		},
 	}
 
-	OSSModelPackSchema = ModelPackSchema{
+	OssSchema = ModelPackSchema{
 		Name:        "oss",
 		Description: "An experimental mix of the best open source models for coding. Supports up to 56k context, 8k per file. Works best with smaller projects and files. Includes reasoning.",
 		ModelPackSchemaRoles: ModelPackSchemaRoles{
-			Planner:     getModelRoleConfig(ModelRolePlanner, "deepseek/r1-reasoning-visible"),
+			Planner:     getModelRoleConfig(ModelRolePlanner, "deepseek/r1"),
 			Coder:       Pointer(getModelRoleConfig(ModelRoleCoder, "deepseek/v3-0324")),
-			PlanSummary: getModelRoleConfig(ModelRolePlanSummary, "deepseek/r1-reasoning-hidden"),
-			Builder:     getModelRoleConfig(ModelRoleBuilder, "deepseek/r1-reasoning-hidden"),
+			PlanSummary: getModelRoleConfig(ModelRolePlanSummary, "deepseek/r1-hidden"),
+			Builder:     getModelRoleConfig(ModelRoleBuilder, "deepseek/r1-hidden"),
 			WholeFileBuilder: Pointer(getModelRoleConfig(ModelRoleWholeFileBuilder,
-				"deepseek/r1-reasoning-hidden")),
+				"deepseek/r1-hidden")),
 			Namer:      getModelRoleConfig(ModelRoleName, "qwen/qwen-2.5-coder-32b-instruct"),
 			CommitMsg:  getModelRoleConfig(ModelRoleCommitMsg, "qwen/qwen-2.5-coder-32b-instruct"),
-			ExecStatus: getModelRoleConfig(ModelRoleExecStatus, "deepseek/r1-reasoning-hidden"),
+			ExecStatus: getModelRoleConfig(ModelRoleExecStatus, "deepseek/r1-hidden"),
 		},
 	}
 
-	OllamaModelPackSchema = ModelPackSchema{
-		Name:        "ollama",
-		Description: "Ollama local blend. Supports up to 110k context. Uses Qwen3-32b model for heavy lifting, Qwen3-14b for summaries, Qwen3-8b for lighter tasks.",
+	OllamaExperimentalSchema = ModelPackSchema{
+		Name:        "ollama-experimental",
+		Description: "Ollama experimental local blend. Supports up to 110k context. Uses Qwen3-32b model for heavy lifting, Qwen3-14b for summaries, Qwen3-8b for lighter tasks.",
 		ModelPackSchemaRoles: ModelPackSchemaRoles{
 			LocalProvider: ModelProviderOllama,
 			Planner:       getModelRoleConfig(ModelRolePlanner, "mistral/devstral-small"),
@@ -220,7 +224,23 @@ func init() {
 		},
 	}
 
-	OpenAIPackSchema = ModelPackSchema{
+	OllamaAdaptiveSchema = ModelPackSchema{
+		Name:        "ollama-adaptive",
+		Description: "Ollama adaptive blend. Uses local models for planning and context selection, cloud models for implementation and file edits. Supports up to 110k context.",
+		ModelPackSchemaRoles: ModelPackSchemaRoles{
+			LocalProvider: ModelProviderOllama,
+			Planner:       getModelRoleConfig(ModelRolePlanner, "mistral/devstral-small"),
+			PlanSummary:   getModelRoleConfig(ModelRolePlanSummary, "qwen/qwen3-14b"),
+			Builder:       getModelRoleConfig(ModelRoleBuilder, "mistral/devstral-small"),
+			WholeFileBuilder: Pointer(getModelRoleConfig(ModelRoleWholeFileBuilder,
+				"mistral/devstral-small")),
+			Namer:      getModelRoleConfig(ModelRoleName, "qwen/qwen3-8b"),
+			CommitMsg:  getModelRoleConfig(ModelRoleCommitMsg, "qwen/qwen3-8b"),
+			ExecStatus: getModelRoleConfig(ModelRoleExecStatus, "mistral/devstral-small"),
+		},
+	}
+
+	OpenAISchema = ModelPackSchema{
 		Name:        "openai",
 		Description: "OpenAI blend. Supports up to 1M context. Uses OpenAI's GPT-4.1 model for heavy lifting, GPT-4.1 Mini for lighter tasks.",
 		ModelPackSchemaRoles: ModelPackSchemaRoles{
@@ -235,7 +255,7 @@ func init() {
 		},
 	}
 
-	AnthropicPackSchema = ModelPackSchema{
+	AnthropicSchema = ModelPackSchema{
 		Name:        "anthropic",
 		Description: "Anthropic blend. Supports up to 180k context. Uses Claude Sonnet 4 for heavy lifting, Claude 3 Haiku for lighter tasks.",
 		ModelPackSchemaRoles: ModelPackSchemaRoles{
@@ -251,7 +271,7 @@ func init() {
 		},
 	}
 
-	GeminiPreviewPackSchema = ModelPackSchema{
+	GeminiPreviewSchema = ModelPackSchema{
 		Name:        "gemini-preview",
 		Description: "Uses Gemini 2.5 Pro Preview for planning and coding, default models for other roles. Supports up to 1M input context.",
 		ModelPackSchemaRoles: ModelPackSchemaRoles{
@@ -267,7 +287,7 @@ func init() {
 		},
 	}
 
-	GeminiExperimentalPackSchema = ModelPackSchema{
+	GeminiExperimentalSchema = ModelPackSchema{
 		Name:        "gemini-exp",
 		Description: "Uses Gemini 2.5 Pro Experimental (free) for planning and coding, default models for other roles. Supports up to 1M input context.",
 		ModelPackSchemaRoles: ModelPackSchemaRoles{
@@ -283,11 +303,11 @@ func init() {
 		},
 	}
 
-	R1PlannerPackSchema = ModelPackSchema{
+	R1PlannerSchema = ModelPackSchema{
 		Name:        "r1-planner",
 		Description: "Uses DeepSeek R1 for planning, Qwen for light tasks, and default models for implementation. Supports up to 56k input context.",
 		ModelPackSchemaRoles: ModelPackSchemaRoles{
-			Planner:     getModelRoleConfig(ModelRolePlanner, "deepseek/r1-reasoning-visible"),
+			Planner:     getModelRoleConfig(ModelRolePlanner, "deepseek/r1"),
 			Coder:       Pointer(getModelRoleConfig(ModelRoleCoder, "anthropic/claude-sonnet-4")),
 			PlanSummary: getModelRoleConfig(ModelRolePlanSummary, "openai/o4-mini-low"),
 			Builder:     getModelRoleConfig(ModelRoleBuilder, "openai/o4-mini-medium"),
@@ -299,11 +319,11 @@ func init() {
 		},
 	}
 
-	PerplexityPlannerPackSchema = ModelPackSchema{
+	PerplexityPlannerSchema = ModelPackSchema{
 		Name:        "perplexity-planner",
 		Description: "Uses Perplexity Sonar for planning, Qwen for light tasks, and default models for implementation. Supports up to 97k input context.",
 		ModelPackSchemaRoles: ModelPackSchemaRoles{
-			Planner:     getModelRoleConfig(ModelRolePlanner, "perplexity/sonar-reasoning-visible"),
+			Planner:     getModelRoleConfig(ModelRolePlanner, "perplexity/sonar-reasoning"),
 			Coder:       Pointer(getModelRoleConfig(ModelRoleCoder, "anthropic/claude-sonnet-4")),
 			PlanSummary: getModelRoleConfig(ModelRolePlanSummary, "openai/o4-mini-low"),
 			Builder:     getModelRoleConfig(ModelRoleBuilder, "openai/o4-mini-medium"),
@@ -315,18 +335,19 @@ func init() {
 		},
 	}
 
-	DailyDriverModelPack = DailyDriverPackSchema.ToModelPack()
-	ReasoningModelPack = ReasoningPackSchema.ToModelPack()
-	StrongModelPack = StrongPackSchema.ToModelPack()
-	CheapModelPack = CheapModelPackSchema.ToModelPack()
-	OSSModelPack = OSSModelPackSchema.ToModelPack()
-	OllamaModelPack = OllamaModelPackSchema.ToModelPack()
-	AnthropicModelPack = AnthropicPackSchema.ToModelPack()
-	OpenAIModelPack = OpenAIPackSchema.ToModelPack()
-	GeminiPreviewModelPack = GeminiPreviewPackSchema.ToModelPack()
-	GeminiExperimentalModelPack = GeminiExperimentalPackSchema.ToModelPack()
-	R1PlannerModelPack = R1PlannerPackSchema.ToModelPack()
-	PerplexityPlannerModelPack = PerplexityPlannerPackSchema.ToModelPack()
+	DailyDriverModelPack = DailyDriverSchema.ToModelPack()
+	ReasoningModelPack = ReasoningSchema.ToModelPack()
+	StrongModelPack = StrongSchema.ToModelPack()
+	CheapModelPack = CheapSchema.ToModelPack()
+	OSSModelPack = OssSchema.ToModelPack()
+	OllamaExperimentalModelPack = OllamaExperimentalSchema.ToModelPack()
+	OllamaAdaptiveModelPack = OllamaAdaptiveSchema.ToModelPack()
+	AnthropicModelPack = AnthropicSchema.ToModelPack()
+	OpenAIModelPack = OpenAISchema.ToModelPack()
+	GeminiPreviewModelPack = GeminiPreviewSchema.ToModelPack()
+	GeminiExperimentalModelPack = GeminiExperimentalSchema.ToModelPack()
+	R1PlannerModelPack = R1PlannerSchema.ToModelPack()
+	PerplexityPlannerModelPack = PerplexityPlannerSchema.ToModelPack()
 
 	BuiltInModelPacks = []*ModelPack{
 		&DailyDriverModelPack,
@@ -334,7 +355,8 @@ func init() {
 		&StrongModelPack,
 		&CheapModelPack,
 		&OSSModelPack,
-		&OllamaModelPack,
+		&OllamaExperimentalModelPack,
+		&OllamaAdaptiveModelPack,
 		&AnthropicModelPack,
 		&OpenAIModelPack,
 		&GeminiPreviewModelPack,
@@ -344,4 +366,13 @@ func init() {
 	}
 
 	DefaultModelPack = &DailyDriverModelPack
+
+	for _, mp := range BuiltInModelPacks {
+		for _, id := range mp.ToModelPackSchema().AllModelIds() {
+			if BuiltInBaseModelsById[id] == nil {
+				panic("missing base model: " + id)
+			}
+		}
+	}
+
 }

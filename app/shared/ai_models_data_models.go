@@ -247,7 +247,7 @@ type AvailableModel struct {
 
 func (m *AvailableModel) ModelString() string {
 	s := ""
-	if m.Provider != ModelProviderOpenAI {
+	if m.Provider != "" && m.Provider != ModelProviderOpenAI {
 		s += string(m.Provider) + "/"
 	}
 	s += string(m.ModelId)

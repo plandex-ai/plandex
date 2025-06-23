@@ -498,17 +498,22 @@ func init() {
 					modelId = ModelId(strings.Join([]string{string(baseId), string(variant.VariantTag)}, "-"))
 				}
 
+				if _, ok := BuiltInBaseModelsById[modelId]; !ok {
+					cloned := *model
+					cloned.ModelId = modelId
+					merged := Merge(model.BaseModelShared, variant.Overrides)
+					cloned.BaseModelShared = merged
+
+					BuiltInModelProvidersByModelId[modelId] = cloned.Providers
+					BuiltInBaseModelsById[modelId] = &cloned
+					BuiltInBaseModels = append(BuiltInBaseModels, &cloned)
+				}
+
 				if len(variant.Variants) > 0 {
 					addVariants(variant.Variants, modelId)
 					continue
 				}
 
-				cloned := *model
-				cloned.ModelId = modelId
-
-				BuiltInModelProvidersByModelId[modelId] = cloned.Providers
-				BuiltInBaseModelsById[modelId] = &cloned
-				BuiltInBaseModels = append(BuiltInBaseModels, &cloned)
 			}
 		}
 
@@ -524,7 +529,9 @@ func init() {
 	}
 
 	// fmt.Println("AvailableModels")
-	// spew.Dump(AvailableModels)
+	// for _, model := range AvailableModels {
+	// 	fmt.Println(model.ModelString())
+	// }
 
 	for _, model := range AvailableModels {
 		if model.Description == "" {
