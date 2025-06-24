@@ -8,18 +8,32 @@ import (
 )
 
 type PlanSettings struct {
-	ModelPackName    string       `json:"modelPackName"`
-	ModelPack        *ModelPack   `json:"modelPack"`
-	CustomModelPacks []*ModelPack `json:"customModelPacks"`
-	IsCloud          bool         `json:"isCloud"`
-	Configured       bool         `json:"configured"`
-	UpdatedAt        time.Time    `json:"updatedAt"`
+	ModelPackName               string                              `json:"modelPackName"`
+	ModelPack                   *ModelPack                          `json:"modelPack"`
+	CustomModelPacks            []*ModelPack                        `json:"customModelPacks"`
+	CustomModels                []*CustomModel                      `json:"customModels"`
+	CustomModelsById            map[ModelId]*CustomModel            `json:"customModelsById"`
+	CustomProviders             []*CustomProvider                   `json:"customProviders"`
+	UsesCustomProviderByModelId map[ModelId][]BaseModelUsesProvider `json:"usesCustomProviderByModelId"`
+	IsCloud                     bool                                `json:"isCloud"`
+	Configured                  bool                                `json:"configured"`
+	UpdatedAt                   time.Time                           `json:"updatedAt"`
 }
 
-func (p *PlanSettings) Configure(customModelPacks []*ModelPack, isCloud bool) {
+func (p *PlanSettings) Configure(customModelPacks []*ModelPack, customModels []*CustomModel, customProviders []*CustomProvider, isCloud bool) {
 	p.CustomModelPacks = customModelPacks
+	p.CustomModels = customModels
+	p.CustomProviders = customProviders
 	p.IsCloud = isCloud
 	p.Configured = true
+	p.CustomModelsById = map[ModelId]*CustomModel{}
+	p.UsesCustomProviderByModelId = map[ModelId][]BaseModelUsesProvider{}
+
+	for _, customModel := range customModels {
+		p.CustomModelsById[customModel.ModelId] = customModel
+		p.UsesCustomProviderByModelId[customModel.ModelId] = customModel.Providers
+	}
+
 }
 
 func (p PlanSettings) GetModelPack() *ModelPack {
@@ -91,56 +105,56 @@ func (ps PlanSettings) GetPlannerMaxTokens() int {
 	modelPack := ps.GetModelPack()
 	planner := modelPack.Planner
 	fallback := planner.GetFinalLargeContextFallback()
-	baseConfig := fallback.GetSharedBaseConfig()
+	baseConfig := fallback.GetSharedBaseConfig(&ps)
 	return baseConfig.MaxTokens
 }
 
 func (ps PlanSettings) GetPlannerMaxReservedOutputTokens() int {
 	modelPack := ps.GetModelPack()
 	planner := modelPack.Planner
-	return planner.GetFinalLargeContextFallback().GetReservedOutputTokens()
+	return planner.GetFinalLargeContextFallback().GetReservedOutputTokens(ps.CustomModelsById)
 }
 
 func (ps PlanSettings) GetArchitectMaxTokens() int {
 	modelPack := ps.GetModelPack()
 	architect := modelPack.GetArchitect()
 	fallback := architect.GetFinalLargeContextFallback()
-	return fallback.GetSharedBaseConfig().MaxTokens
+	return fallback.GetSharedBaseConfig(&ps).MaxTokens
 }
 
 func (ps PlanSettings) GetArchitectMaxReservedOutputTokens() int {
 	modelPack := ps.GetModelPack()
 	architect := modelPack.GetArchitect()
 	fallback := architect.GetFinalLargeContextFallback()
-	return fallback.GetReservedOutputTokens()
+	return fallback.GetReservedOutputTokens(ps.CustomModelsById)
 }
 
 func (ps PlanSettings) GetCoderMaxTokens() int {
 	modelPack := ps.GetModelPack()
 	coder := modelPack.GetCoder()
 	fallback := coder.GetFinalLargeContextFallback()
-	return fallback.GetSharedBaseConfig().MaxTokens
+	return fallback.GetSharedBaseConfig(&ps).MaxTokens
 }
 
 func (ps PlanSettings) GetCoderMaxReservedOutputTokens() int {
 	modelPack := ps.GetModelPack()
 	coder := modelPack.GetCoder()
 	fallback := coder.GetFinalLargeContextFallback()
-	return fallback.GetReservedOutputTokens()
+	return fallback.GetReservedOutputTokens(ps.CustomModelsById)
 }
 
 func (ps PlanSettings) GetWholeFileBuilderMaxTokens() int {
 	modelPack := ps.GetModelPack()
 	builder := modelPack.GetWholeFileBuilder()
 	fallback := builder.GetFinalLargeContextFallback()
-	return fallback.GetSharedBaseConfig().MaxTokens
+	return fallback.GetSharedBaseConfig(&ps).MaxTokens
 }
 
 func (ps PlanSettings) GetWholeFileBuilderMaxReservedOutputTokens() int {
 	modelPack := ps.GetModelPack()
 	builder := modelPack.GetWholeFileBuilder()
 	fallback := builder.GetFinalLargeOutputFallback()
-	return fallback.GetReservedOutputTokens()
+	return fallback.GetReservedOutputTokens(ps.CustomModelsById)
 }
 
 func (ps PlanSettings) GetPlannerMaxConvoTokens() int {
@@ -152,7 +166,7 @@ func (ps PlanSettings) GetPlannerMaxConvoTokens() int {
 		return planner.MaxConvoTokens
 	}
 
-	return planner.GetSharedBaseConfig().DefaultMaxConvoTokens
+	return planner.GetSharedBaseConfig(&ps).DefaultMaxConvoTokens
 }
 
 func (ps PlanSettings) GetPlannerEffectiveMaxTokens() int {
@@ -192,16 +206,16 @@ func (ps PlanSettings) GetModelProviderOptions() ModelProviderOptions {
 	}
 
 	opts = opts.Condense(
-		ms.Planner.GetModelProviderOptions(),
-		ms.Builder.GetModelProviderOptions(),
-		ms.PlanSummary.GetModelProviderOptions(),
-		ms.Namer.GetModelProviderOptions(),
-		ms.CommitMsg.GetModelProviderOptions(),
-		ms.ExecStatus.GetModelProviderOptions(),
+		ms.Planner.GetModelProviderOptions(&ps),
+		ms.Builder.GetModelProviderOptions(&ps),
+		ms.PlanSummary.GetModelProviderOptions(&ps),
+		ms.Namer.GetModelProviderOptions(&ps),
+		ms.CommitMsg.GetModelProviderOptions(&ps),
+		ms.ExecStatus.GetModelProviderOptions(&ps),
 		// optional roles
-		getOptionalModelProviderOptions(ms.WholeFileBuilder),
-		getOptionalModelProviderOptions(ms.Architect),
-		getOptionalModelProviderOptions(ms.Coder),
+		getOptionalModelProviderOptions(&ps, ms.WholeFileBuilder),
+		getOptionalModelProviderOptions(&ps, ms.Architect),
+		getOptionalModelProviderOptions(&ps, ms.Coder),
 	)
 
 	return opts
@@ -214,6 +228,8 @@ func (ps *PlanSettings) Equals(other *PlanSettings) bool {
 func (ps PlanSettings) ForCompare() PlanSettings {
 	ps.UpdatedAt = time.Time{}
 	ps.CustomModelPacks = nil
+	ps.CustomModels = nil
+	ps.CustomProviders = nil
 	ps.IsCloud = false
 	ps.Configured = false
 	return ps
@@ -232,9 +248,9 @@ func (ps PlanSettings) DeepCopy() (*PlanSettings, error) {
 	return &copy, nil
 }
 
-func getOptionalModelProviderOptions(cfg *ModelRoleConfig) ModelProviderOptions {
+func getOptionalModelProviderOptions(settings *PlanSettings, cfg *ModelRoleConfig) ModelProviderOptions {
 	if cfg == nil {
 		return ModelProviderOptions{}
 	}
-	return cfg.GetModelProviderOptions()
+	return cfg.GetModelProviderOptions(settings)
 }

@@ -127,11 +127,19 @@ func showModelPack(cmd *cobra.Command, args []string) {
 
 	term.StartSpinner("")
 	customModelPacks, apiErr := api.Client.ListModelPacks()
-	term.StopSpinner()
-
 	if apiErr != nil {
 		term.OutputErrorAndExit("Error fetching models: %v", apiErr)
 	}
+	customModels, err := api.Client.ListCustomModels()
+	if err != nil {
+		term.OutputErrorAndExit("Error fetching custom models: %v", err)
+	}
+	customModelsById := make(map[shared.ModelId]*shared.CustomModel)
+	for _, m := range customModels {
+		customModelsById[m.ModelId] = m
+	}
+
+	term.StopSpinner()
 
 	modelPacks := []*shared.ModelPack{}
 	modelPacks = append(modelPacks, customModelPacks...)
@@ -186,7 +194,7 @@ func showModelPack(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	renderModelPack(modelPack, allProperties)
+	renderModelPack(modelPack, customModelsById, allProperties)
 
 	fmt.Println()
 

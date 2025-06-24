@@ -199,7 +199,7 @@ func (fileState *activeBuildStreamFileState) buildValidate(
 	syntaxErrors := params.syntaxErrors
 	reasons := params.reasons
 
-	baseModelConfig := modelConfig.GetBaseModelConfig(authVars, fileState.settings.GetModelPack().LocalProvider)
+	baseModelConfig := modelConfig.GetBaseModelConfig(authVars, fileState.settings)
 
 	// Get diff for validation
 	log.Printf("Getting diffs between original and updated content")
@@ -292,7 +292,7 @@ func (fileState *activeBuildStreamFileState) buildValidate(
 		WillCacheNumTokens:    willCacheNumTokens,
 		SessionId:             params.sessionId,
 		EstimatedOutputTokens: maxExpectedOutputTokens,
-		LocalProvider:         fileState.settings.GetModelPack().LocalProvider,
+		Settings:              fileState.settings,
 	})
 
 	if err != nil {

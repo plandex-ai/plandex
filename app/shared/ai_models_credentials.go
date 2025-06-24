@@ -8,11 +8,18 @@ type ModelProviderOption struct {
 
 type ModelProviderOptions map[string]ModelProviderOption
 
-func (m ModelRoleConfig) GetModelProviderOptions() ModelProviderOptions {
+func (m ModelRoleConfig) GetModelProviderOptions(settings *PlanSettings) ModelProviderOptions {
 	opts := ModelProviderOptions{}
 
-	usesProviders, ok := BuiltInModelProvidersByModelId[m.ModelId]
-	if !ok {
+	builtInUsesProviders := BuiltInModelProvidersByModelId[m.ModelId]
+
+	var customUsesProviders []BaseModelUsesProvider
+	if settings != nil {
+		customUsesProviders = settings.UsesCustomProviderByModelId[m.ModelId]
+	}
+
+	usesProviders := append(builtInUsesProviders, customUsesProviders...)
+	if len(usesProviders) == 0 {
 		return opts
 	}
 
@@ -38,19 +45,19 @@ func (m ModelRoleConfig) GetModelProviderOptions() ModelProviderOptions {
 	}
 
 	if m.ErrorFallback != nil {
-		opts = opts.Condense(m.ErrorFallback.GetModelProviderOptions())
+		opts = opts.Condense(m.ErrorFallback.GetModelProviderOptions(settings))
 	}
 
 	if m.LargeContextFallback != nil {
-		opts = opts.Condense(m.LargeContextFallback.GetModelProviderOptions())
+		opts = opts.Condense(m.LargeContextFallback.GetModelProviderOptions(settings))
 	}
 
 	if m.LargeOutputFallback != nil {
-		opts = opts.Condense(m.LargeOutputFallback.GetModelProviderOptions())
+		opts = opts.Condense(m.LargeOutputFallback.GetModelProviderOptions(settings))
 	}
 
 	if m.StrongModel != nil {
-		opts = opts.Condense(m.StrongModel.GetModelProviderOptions())
+		opts = opts.Condense(m.StrongModel.GetModelProviderOptions(settings))
 	}
 
 	return opts

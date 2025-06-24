@@ -211,9 +211,22 @@ func init() {
 	}
 }
 
-func GetProvidersForAuthVars(authVars map[string]string) []ModelProviderConfigSchema {
+func GetProvidersForAuthVars(authVars map[string]string, settings *PlanSettings) []ModelProviderConfigSchema {
 	var foundProviders []ModelProviderConfigSchema
+
+	allProviders := []ModelProviderConfigSchema{}
+
 	for _, providerConfig := range BuiltInModelProviderConfigs {
+		allProviders = append(allProviders, providerConfig)
+	}
+
+	if settings != nil {
+		for _, customProvider := range settings.CustomProviders {
+			allProviders = append(allProviders, customProvider.ToModelProviderConfigSchema())
+		}
+	}
+
+	for _, providerConfig := range allProviders {
 
 		if providerConfig.SkipAuth {
 			foundProviders = append(foundProviders, providerConfig)
@@ -247,19 +260,28 @@ func GetProvidersForAuthVars(authVars map[string]string) []ModelProviderConfigSc
 	return foundProviders
 }
 
-func (m ModelRoleConfig) GetProvidersForAuthVars(authVars map[string]string, localProvider ModelProvider) []ModelProviderConfigSchema {
-
-	// localProvider can come from the model pack *or* the model role config
-	if localProvider == "" && m.LocalProvider != "" {
-		localProvider = m.LocalProvider
+func GetProvidersForAuthVarsWithModelId(authVars map[string]string, settings *PlanSettings, modelId ModelId) []ModelProviderConfigSchema {
+	var localProvider ModelProvider
+	if settings != nil {
+		modelPack := settings.GetModelPack()
+		if modelPack != nil {
+			localProvider = modelPack.LocalProvider
+		}
 	}
 
-	usesProviders, ok := BuiltInModelProvidersByModelId[m.ModelId]
-	if !ok {
+	builtInUsesProviders := BuiltInModelProvidersByModelId[modelId]
+
+	var customUsesProviders []BaseModelUsesProvider
+	if settings != nil {
+		customUsesProviders = settings.UsesCustomProviderByModelId[modelId]
+	}
+
+	usesProviders := append(builtInUsesProviders, customUsesProviders...)
+	if len(usesProviders) == 0 {
 		return []ModelProviderConfigSchema{}
 	}
 
-	providers := GetProvidersForAuthVars(authVars)
+	providers := GetProvidersForAuthVars(authVars, settings)
 	providersByComposite := map[string]ModelProviderConfigSchema{}
 	for _, provider := range providers {
 		providersByComposite[provider.ToComposite()] = provider
@@ -286,10 +308,15 @@ func (m ModelRoleConfig) GetProvidersForAuthVars(authVars map[string]string, loc
 	}
 
 	return res
+
 }
 
-func (m ModelRoleConfig) GetFirstProviderForAuthVars(authVars map[string]string, localProvider ModelProvider) *ModelProviderConfigSchema {
-	providers := m.GetProvidersForAuthVars(authVars, localProvider)
+func (m ModelRoleConfig) GetProvidersForAuthVars(authVars map[string]string, settings *PlanSettings) []ModelProviderConfigSchema {
+	return GetProvidersForAuthVarsWithModelId(authVars, settings, m.ModelId)
+}
+
+func (m ModelRoleConfig) GetFirstProviderForAuthVars(authVars map[string]string, settings *PlanSettings) *ModelProviderConfigSchema {
+	providers := m.GetProvidersForAuthVars(authVars, settings)
 	if len(providers) == 0 {
 		return nil
 	}

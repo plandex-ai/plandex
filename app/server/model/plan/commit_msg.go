@@ -39,7 +39,7 @@ func (state *activeTellStreamState) genPlanDescription() (*db.ConvoMessageDescri
 		}
 	}
 
-	baseModelConfig := config.GetBaseModelConfig(authVars, settings.GetModelPack().LocalProvider)
+	baseModelConfig := config.GetBaseModelConfig(authVars, settings)
 
 	var sysPrompt string
 	var tools []openai.Tool
@@ -96,7 +96,7 @@ func (state *activeTellStreamState) genPlanDescription() (*db.ConvoMessageDescri
 		ModelStreamId:  state.modelStreamId,
 		ConvoMessageId: state.replyId,
 		SessionId:      activePlan.SessionId,
-		LocalProvider:  settings.GetModelPack().LocalProvider,
+		Settings:       settings,
 	}
 
 	if tools != nil {
@@ -232,15 +232,15 @@ func GenCommitMsgForPendingResults(params GenCommitMsgForPendingResultsParams) (
 	}
 
 	modelRes, err := model.ModelRequest(ctx, model.ModelRequestParams{
-		Clients:       clients,
-		AuthVars:      authVars,
-		Auth:          auth,
-		Plan:          plan,
-		ModelConfig:   &config,
-		Purpose:       "Commit message",
-		Messages:      messages,
-		SessionId:     sessionId,
-		LocalProvider: settings.GetModelPack().LocalProvider,
+		Clients:     clients,
+		AuthVars:    authVars,
+		Auth:        auth,
+		Plan:        plan,
+		ModelConfig: &config,
+		Purpose:     "Commit message",
+		Messages:    messages,
+		SessionId:   sessionId,
+		Settings:    settings,
 	})
 
 	if err != nil {

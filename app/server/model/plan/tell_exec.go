@@ -397,21 +397,21 @@ func execTellPlan(params execTellPlanParams) {
 	if state.currentStage.TellStage == shared.TellStagePlanning {
 		if state.currentStage.PlanningPhase == shared.PlanningPhaseContext {
 			log.Println("Tell plan - isContextStage - setting modelConfig to context loader")
-			modelConfig = state.settings.GetModelPack().GetArchitect().GetRoleForInputTokens(requestTokens)
+			modelConfig = state.settings.GetModelPack().GetArchitect().GetRoleForInputTokens(requestTokens, state.settings)
 			log.Println("Tell plan - got modelConfig for context phase")
 		} else if state.currentStage.PlanningPhase == shared.PlanningPhaseTasks {
-			modelConfig = state.settings.GetModelPack().Planner.GetRoleForInputTokens(requestTokens)
+			modelConfig = state.settings.GetModelPack().Planner.GetRoleForInputTokens(requestTokens, state.settings)
 			log.Println("Tell plan - got modelConfig for tasks phase")
 		}
 	} else if state.currentStage.TellStage == shared.TellStageImplementation {
-		modelConfig = state.settings.GetModelPack().GetCoder().GetRoleForInputTokens(requestTokens)
+		modelConfig = state.settings.GetModelPack().GetCoder().GetRoleForInputTokens(requestTokens, state.settings)
 		log.Println("Tell plan - got modelConfig for implementation stage")
 	}
 
 	// log.Println("Tell plan - modelConfig:", spew.Sdump(modelConfig))
 	state.modelConfig = &modelConfig
 
-	baseModelConfig := modelConfig.GetBaseModelConfig(authVars, state.settings.GetModelPack().LocalProvider)
+	baseModelConfig := modelConfig.GetBaseModelConfig(authVars, state.settings)
 
 	state.baseModelConfig = baseModelConfig
 
@@ -485,11 +485,11 @@ func (state *activeTellStreamState) doTellRequest() {
 	modelConfig := state.modelConfig
 	active := state.activePlan
 
-	fallbackRes := modelConfig.GetFallbackForModelError(state.numErrorRetry, state.didProviderFallback, state.modelErr, authVars, state.settings.GetModelPack().LocalProvider)
+	fallbackRes := modelConfig.GetFallbackForModelError(state.numErrorRetry, state.didProviderFallback, state.modelErr, authVars, state.settings)
 	modelConfig = fallbackRes.ModelRoleConfig
 	stop := []string{"<PlandexFinish/>"}
 
-	baseModelConfig := modelConfig.GetBaseModelConfig(state.authVars, state.settings.GetModelPack().LocalProvider)
+	baseModelConfig := modelConfig.GetBaseModelConfig(state.authVars, state.settings)
 
 	if fallbackRes.FallbackType == shared.FallbackTypeProvider {
 		state.didProviderFallback = true
@@ -553,7 +553,7 @@ func (state *activeTellStreamState) doTellRequest() {
 		state.numErrorRetry, state.numFallbackRetry, baseModelConfig.ModelName)
 
 	// start the stream
-	stream, err := model.CreateChatCompletionStream(clients, authVars, modelConfig, state.settings.GetModelPack().LocalProvider, active.ModelStreamCtx, modelReq)
+	stream, err := model.CreateChatCompletionStream(clients, authVars, modelConfig, state.settings, active.ModelStreamCtx, modelReq)
 	if err != nil {
 		log.Printf("Error starting reply stream: %v\n", err)
 		go notify.NotifyErr(notify.SeverityError, fmt.Errorf("error starting reply stream: %v", err))

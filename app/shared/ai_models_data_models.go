@@ -59,12 +59,6 @@ type BaseModelConfig struct {
 	Publisher ModelPublisher `json:"publisher,omitempty"`
 	BaseModelShared
 	BaseModelProviderConfig
-	ApiKeyEnvVar               string            `json:"apiKeyEnvVar,omitempty"`
-	PreferredModelOutputFormat ModelOutputFormat `json:"preferredModelOutputFormat,omitempty"`
-	ReasoningBudgetEnabled     bool              `json:"reasoningBudgetEnabled,omitempty"`
-	ReasoningBudget            int               `json:"reasoningBudget,omitempty"`
-	SupportsCacheControl       bool              `json:"supportsCacheControl,omitempty"`
-	UsesOpenAIResponsesAPI     bool              `json:"usesOpenAIResponsesAPI,omitempty"`
 }
 
 type BaseModelUsesProvider struct {
@@ -125,7 +119,6 @@ func (b *BaseModelConfigSchema) ToAvailableModels() []*AvailableModel {
 						ModelProviderConfigSchema: providerConfig,
 						ModelName:                 provider.ModelName,
 					},
-					ApiKeyEnvVar: providerConfig.ApiKeyEnvVar,
 				},
 			})
 		}
@@ -134,7 +127,7 @@ func (b *BaseModelConfigSchema) ToAvailableModels() []*AvailableModel {
 			BaseVariant              *BaseModelConfigVariant
 			BaseId                   ModelId
 			BaseDescription          string
-			Overrides                BaseModelShared
+			CumulativeOverrides      BaseModelShared
 			RequiresVariantOverrides []string
 		}
 
@@ -145,7 +138,7 @@ func (b *BaseModelConfigSchema) ToAvailableModels() []*AvailableModel {
 			}
 			baseDescription := params.BaseVariant.Description
 			baseId := params.BaseId
-			mergedOverrides := params.Overrides
+			mergedOverrides := params.CumulativeOverrides
 
 			avail = append(avail, &AvailableModel{
 				Description:           baseDescription,
@@ -159,7 +152,6 @@ func (b *BaseModelConfigSchema) ToAvailableModels() []*AvailableModel {
 						ModelProviderConfigSchema: providerConfig,
 						ModelName:                 provider.ModelName,
 					},
-					ApiKeyEnvVar: providerConfig.ApiKeyEnvVar,
 				},
 			})
 		}
@@ -193,18 +185,23 @@ func (b *BaseModelConfigSchema) ToAvailableModels() []*AvailableModel {
 						baseDescription = b.Description
 					}
 
-					modelId := ModelId(strings.Join([]string{string(baseId), string(variant.VariantTag)}, "-"))
+					var modelId ModelId
+					if variant.IsDefaultVariant {
+						modelId = baseId
+					} else {
+						modelId = ModelId(strings.Join([]string{string(baseId), string(variant.VariantTag)}, "-"))
+					}
 
 					description := strings.Join([]string{baseDescription, variant.Description}, " ")
 
-					merged := Merge(b.BaseModelShared, variant.Overrides)
+					merged := Merge(baseParams.CumulativeOverrides, variant.Overrides)
 
 					if len(variant.Variants) > 0 {
 						addVariants(variant.Variants, variantParams{
 							BaseVariant:              &variant,
 							BaseId:                   modelId,
 							BaseDescription:          description,
-							Overrides:                merged,
+							CumulativeOverrides:      merged,
 							RequiresVariantOverrides: variant.RequiresVariantOverrides,
 						})
 					}
@@ -219,7 +216,6 @@ func (b *BaseModelConfigSchema) ToAvailableModels() []*AvailableModel {
 								ModelProviderConfigSchema: providerConfig,
 								ModelName:                 provider.ModelName,
 							},
-							ApiKeyEnvVar: providerConfig.ApiKeyEnvVar,
 						},
 					})
 				}
@@ -228,7 +224,7 @@ func (b *BaseModelConfigSchema) ToAvailableModels() []*AvailableModel {
 			addVariants(b.Variants, variantParams{
 				BaseId:                   ModelId(string(b.ModelTag)),
 				BaseDescription:          b.Description,
-				Overrides:                b.BaseModelShared,
+				CumulativeOverrides:      b.BaseModelShared,
 				RequiresVariantOverrides: b.RequiresVariantOverrides,
 			})
 		}
@@ -539,23 +535,40 @@ func (m ModelRoleConfig) GetModelId() ModelId {
 	return m.ModelId
 }
 
-func (m ModelRoleConfig) GetBaseModelConfig(authVars map[string]string, localProvider ModelProvider) *BaseModelConfig {
+func (m ModelRoleConfig) GetBaseModelConfig(authVars map[string]string, settings *PlanSettings) *BaseModelConfig {
+	foundProvider := m.GetFirstProviderForAuthVars(authVars, settings)
+	if foundProvider == nil {
+		return nil
+	}
+
+	return m.GetBaseModelConfigForProvider(authVars, settings, foundProvider)
+}
+
+func (m ModelRoleConfig) GetBaseModelConfigForProvider(authVars map[string]string, settings *PlanSettings, providerSchema *ModelProviderConfigSchema) *BaseModelConfig {
 	if m.BaseModelConfig != nil {
 		return m.BaseModelConfig
 	}
 
-	foundProvider := m.GetFirstProviderForAuthVars(authVars, localProvider)
-	if foundProvider == nil {
-		return m.BaseModelConfig
+	availableModel := GetAvailableModel(providerSchema.Provider, m.ModelId)
+	if availableModel != nil {
+		c := availableModel.BaseModelConfig
+		return &c
 	}
 
-	c := GetAvailableModel(foundProvider.Provider, m.ModelId).BaseModelConfig
+	var customModel *CustomModel
+	if settings != nil {
+		customModel = settings.CustomModelsById[m.ModelId]
+	}
+	if customModel != nil {
+		c := customModel.ToBaseModelConfigForProvider(authVars, settings, providerSchema)
+		return c
+	}
 
-	return &c
+	return nil
 }
 
-func (m ModelRoleConfig) GetProviderComposite(authVars map[string]string, localProvider ModelProvider) string {
-	baseModelConfig := m.GetBaseModelConfig(authVars, localProvider)
+func (m ModelRoleConfig) GetProviderComposite(authVars map[string]string, settings *PlanSettings) string {
+	baseModelConfig := m.GetBaseModelConfig(authVars, settings)
 
 	if baseModelConfig == nil {
 		return ""
@@ -564,26 +577,35 @@ func (m ModelRoleConfig) GetProviderComposite(authVars map[string]string, localP
 	return baseModelConfig.ToComposite()
 }
 
-func (m ModelRoleConfig) GetReservedOutputTokens() int {
+func (m ModelRoleConfig) GetReservedOutputTokens(customModelsById map[ModelId]*CustomModel) int {
 	if m.ReservedOutputTokens > 0 {
 		return m.ReservedOutputTokens
 	}
 
-	sharedBaseConfig := m.GetSharedBaseConfig()
+	sharedBaseConfig := m.GetSharedBaseConfigWithCustomModels(customModelsById)
 	return sharedBaseConfig.ReservedOutputTokens
 }
 
-func (m ModelRoleConfig) GetSharedBaseConfig() *BaseModelShared {
+func (m ModelRoleConfig) GetSharedBaseConfig(settings *PlanSettings) *BaseModelShared {
+	return m.GetSharedBaseConfigWithCustomModels(settings.CustomModelsById)
+}
+
+func (m ModelRoleConfig) GetSharedBaseConfigWithCustomModels(customModels map[ModelId]*CustomModel) *BaseModelShared {
 	if m.BaseModelConfig != nil {
 		return &m.BaseModelConfig.BaseModelShared
 	}
 
 	builtInModel := BuiltInBaseModelsById[m.ModelId]
-	if builtInModel == nil {
-		return nil
+	if builtInModel != nil {
+		return &builtInModel.BaseModelShared
 	}
 
-	return &builtInModel.BaseModelShared
+	customModel := customModels[m.ModelId]
+	if customModel != nil {
+		return &customModel.BaseModelShared
+	}
+
+	return nil
 }
 
 func (m *ModelRoleConfig) Scan(src interface{}) error {
@@ -627,12 +649,12 @@ func (p PlannerRoleConfig) Value() (driver.Value, error) {
 	return json.Marshal(p)
 }
 
-func (p PlannerRoleConfig) GetMaxConvoTokens() int {
+func (p PlannerRoleConfig) GetMaxConvoTokens(settings *PlanSettings) int {
 	if p.MaxConvoTokens > 0 {
 		return p.MaxConvoTokens
 	}
 
-	return p.ModelRoleConfig.GetSharedBaseConfig().DefaultMaxConvoTokens
+	return p.ModelRoleConfig.GetSharedBaseConfig(settings).DefaultMaxConvoTokens
 }
 
 type RoleJSON any

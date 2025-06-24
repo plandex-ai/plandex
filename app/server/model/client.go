@@ -42,9 +42,9 @@ type ClientInfo struct {
 	OpenAIOrgId    string
 }
 
-func InitClients(authVars map[string]string) map[string]ClientInfo {
+func InitClients(authVars map[string]string, settings *shared.PlanSettings) map[string]ClientInfo {
 	clients := make(map[string]ClientInfo)
-	providers := shared.GetProvidersForAuthVars(authVars)
+	providers := shared.GetProvidersForAuthVars(authVars, settings)
 
 	for _, provider := range providers {
 		clients[provider.ToComposite()] = newClient(provider, authVars)
@@ -105,29 +105,31 @@ func CreateChatCompletionStream(
 	clients map[string]ClientInfo,
 	authVars map[string]string,
 	modelConfig *shared.ModelRoleConfig,
-	localProvider shared.ModelProvider,
+	settings *shared.PlanSettings,
 	ctx context.Context,
 	req types.ExtendedChatCompletionRequest,
 ) (*ExtendedChatCompletionStream, error) {
-	providerComposite := modelConfig.GetProviderComposite(authVars, localProvider)
+	providerComposite := modelConfig.GetProviderComposite(authVars, settings)
 	_, ok := clients[providerComposite]
 	if !ok {
 		return nil, fmt.Errorf("client not found for provider composite: %s", providerComposite)
 	}
 
-	baseModelConfig := modelConfig.GetBaseModelConfig(authVars, localProvider)
+	baseModelConfig := modelConfig.GetBaseModelConfig(authVars, settings)
 
 	// ensure the model name is set correctly on fallbacks
 	req.Model = baseModelConfig.ModelName
 
-	resolveReq(&req, modelConfig, baseModelConfig)
+	resolveReq(&req, modelConfig, baseModelConfig, settings)
 
 	// choose the fastest provider by latency/throughput on openrouter
 	if baseModelConfig.Provider == shared.ModelProviderOpenRouter {
-		req.Model += ":nitro"
+		if !strings.HasSuffix(string(req.Model), ":nitro") && !strings.HasSuffix(string(req.Model), ":free") && !strings.HasSuffix(string(req.Model), ":floor") {
+			req.Model += ":nitro"
+		}
 	}
 
-	if baseModelConfig.ReasoningBudgetEnabled {
+	if baseModelConfig.ReasoningBudget > 0 {
 		req.ReasoningConfig = &types.ReasoningConfig{
 			MaxTokens: baseModelConfig.ReasoningBudget,
 			Exclude:   !baseModelConfig.IncludeReasoning,
@@ -144,16 +146,16 @@ func CreateChatCompletionStream(
 	}
 
 	return withStreamingRetries(ctx, func(numTotalRetry int, didProviderFallback bool, modelErr *shared.ModelError) (*ExtendedChatCompletionStream, shared.FallbackResult, error) {
-		fallbackRes := modelConfig.GetFallbackForModelError(numTotalRetry, didProviderFallback, modelErr, authVars, localProvider)
+		fallbackRes := modelConfig.GetFallbackForModelError(numTotalRetry, didProviderFallback, modelErr, authVars, settings)
 		resolvedModelConfig := fallbackRes.ModelRoleConfig
 
 		if resolvedModelConfig == nil {
 			return nil, fallbackRes, fmt.Errorf("model config is nil")
 		}
 
-		providerComposite := resolvedModelConfig.GetProviderComposite(authVars, localProvider)
+		providerComposite := resolvedModelConfig.GetProviderComposite(authVars, settings)
 
-		baseModelConfig := resolvedModelConfig.GetBaseModelConfig(authVars, localProvider)
+		baseModelConfig := resolvedModelConfig.GetBaseModelConfig(authVars, settings)
 
 		opClient, ok := clients[providerComposite]
 
@@ -183,7 +185,7 @@ func CreateChatCompletionStream(
 			"modelConfig.ApiKeyEnvVar": baseModelConfig.ApiKeyEnvVar,
 		})
 
-		resp, err := createChatCompletionStreamExtended(resolvedModelConfig, opClient, authVars, localProvider, ctx, req)
+		resp, err := createChatCompletionStreamExtended(resolvedModelConfig, opClient, authVars, settings, ctx, req)
 		return resp, fallbackRes, err
 	}, func(resp *ExtendedChatCompletionStream, err error) {})
 }
@@ -192,11 +194,11 @@ func createChatCompletionStreamExtended(
 	modelConfig *shared.ModelRoleConfig,
 	client ClientInfo,
 	authVars map[string]string,
-	localProvider shared.ModelProvider,
+	settings *shared.PlanSettings,
 	ctx context.Context,
 	extendedReq types.ExtendedChatCompletionRequest,
 ) (*ExtendedChatCompletionStream, error) {
-	baseModelConfig := modelConfig.GetBaseModelConfig(authVars, localProvider)
+	baseModelConfig := modelConfig.GetBaseModelConfig(authVars, settings)
 
 	// ensure the model name is set correctly on fallbacks
 	extendedReq.Model = baseModelConfig.ModelName
@@ -448,9 +450,9 @@ func (stream *ExtendedChatCompletionStream) Close() error {
 	return stream.customReader.Close()
 }
 
-func resolveReq(req *types.ExtendedChatCompletionRequest, modelConfig *shared.ModelRoleConfig, baseModelConfig *shared.BaseModelConfig) {
+func resolveReq(req *types.ExtendedChatCompletionRequest, modelConfig *shared.ModelRoleConfig, baseModelConfig *shared.BaseModelConfig, settings *shared.PlanSettings) {
 	// if system prompt is disabled, change the role of the system message to user
-	if modelConfig.GetSharedBaseConfig().SystemPromptDisabled {
+	if modelConfig.GetSharedBaseConfig(settings).SystemPromptDisabled {
 		log.Println("System prompt disabled - changing role of system message to user")
 		for i, msg := range req.Messages {
 			log.Println("Message role:", msg.Role)
@@ -465,7 +467,7 @@ func resolveReq(req *types.ExtendedChatCompletionRequest, modelConfig *shared.Mo
 		}
 	}
 
-	if modelConfig.GetSharedBaseConfig().RoleParamsDisabled {
+	if modelConfig.GetSharedBaseConfig(settings).RoleParamsDisabled {
 		log.Println("Role params disabled - setting temperature and top p to 0")
 		req.Temperature = 0
 		req.TopP = 0

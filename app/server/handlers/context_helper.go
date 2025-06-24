@@ -110,6 +110,7 @@ func loadContexts(
 					openAIOrgId: context.OpenAIOrgId,
 					authVars:    context.AuthVars,
 					plan:        plan,
+					settings:    settings,
 				},
 			)
 
@@ -123,7 +124,7 @@ func loadContexts(
 	// ensure image compatibility if we're loading an image
 	for _, context := range *loadReq {
 		if context.ContextType == shared.ContextImageType {
-			if !settings.GetModelPack().Planner.GetSharedBaseConfig().HasImageSupport {
+			if !settings.GetModelPack().Planner.GetSharedBaseConfig(settings).HasImageSupport {
 				log.Printf("Error loading context: %s does not support images in context\n", settings.GetModelPack().Planner.ModelId)
 				http.Error(w, fmt.Sprintf("Error loading context: %s does not support images in context", settings.GetModelPack().Planner.ModelId), http.StatusBadRequest)
 				return nil, nil

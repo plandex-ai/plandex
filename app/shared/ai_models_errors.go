@@ -46,7 +46,7 @@ func (m *ModelRoleConfig) GetFallbackForModelError(
 	didProviderFallback bool,
 	modelErr *ModelError,
 	authVars map[string]string,
-	localProvider ModelProvider,
+	settings *PlanSettings,
 ) FallbackResult {
 	if m == nil || modelErr == nil {
 		return FallbackResult{
@@ -72,7 +72,7 @@ func (m *ModelRoleConfig) GetFallbackForModelError(
 		} else if !didProviderFallback {
 			log.Println("no error fallback, trying provider fallback")
 
-			providerFallback := m.GetProviderFallback(authVars, localProvider)
+			providerFallback := m.GetProviderFallback(authVars, settings)
 
 			log.Println(spew.Sdump(map[string]interface{}{
 				"providerFallback": providerFallback,
@@ -97,8 +97,8 @@ func (m *ModelRoleConfig) GetFallbackForModelError(
 // we just try a single provider fallback if all defined fallbacks are exhausted
 // if we've got openrouter credentials in the stack, we always use OpenRouter as the fallback since it has its own routing/fallback routing to maximize resilience
 // otherwise we just use the second provider in the stack
-func (m ModelRoleConfig) GetProviderFallback(authVars map[string]string, localProvider ModelProvider) *ModelRoleConfig {
-	providers := m.GetProvidersForAuthVars(authVars, localProvider)
+func (m ModelRoleConfig) GetProviderFallback(authVars map[string]string, settings *PlanSettings) *ModelRoleConfig {
+	providers := m.GetProvidersForAuthVars(authVars, settings)
 
 	if len(providers) < 2 {
 		return nil
@@ -121,13 +121,13 @@ func (m ModelRoleConfig) GetProviderFallback(authVars map[string]string, localPr
 
 	availableModel := GetAvailableModel(provider, m.ModelId)
 
-	if availableModel == nil {
-		log.Printf("no available model found for provider %s and model id %s", provider, m.ModelId)
-		return nil
+	if availableModel != nil {
+		c := availableModel.BaseModelConfig
+		res.BaseModelConfig = &c
+	} else {
+		c := m.GetBaseModelConfig(authVars, settings)
+		res.BaseModelConfig = c
 	}
-
-	c := availableModel.BaseModelConfig
-	res.BaseModelConfig = &c
 
 	return &res
 }

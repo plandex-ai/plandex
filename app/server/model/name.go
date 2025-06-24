@@ -29,7 +29,7 @@ func GenPlanName(
 	var tools []openai.Tool
 	var toolChoice *openai.ToolChoice
 
-	baseModelConfig := config.GetBaseModelConfig(authVars, settings.GetModelPack().LocalProvider)
+	baseModelConfig := config.GetBaseModelConfig(authVars, settings)
 
 	var sysPrompt string
 	if baseModelConfig.PreferredOutputFormat == shared.ModelOutputFormatXml {
@@ -66,17 +66,17 @@ func GenPlanName(
 	}
 
 	modelRes, err := ModelRequest(ctx, ModelRequestParams{
-		Clients:       clients,
-		AuthVars:      authVars,
-		Auth:          auth,
-		Plan:          plan,
-		ModelConfig:   &config,
-		Purpose:       "Plan name",
-		Messages:      messages,
-		Tools:         tools,
-		ToolChoice:    toolChoice,
-		SessionId:     sessionId,
-		LocalProvider: settings.GetModelPack().LocalProvider,
+		Clients:     clients,
+		AuthVars:    authVars,
+		Auth:        auth,
+		Plan:        plan,
+		ModelConfig: &config,
+		Purpose:     "Plan name",
+		Messages:    messages,
+		Tools:       tools,
+		ToolChoice:  toolChoice,
+		SessionId:   sessionId,
+		Settings:    settings,
 	})
 
 	if err != nil {
@@ -139,7 +139,7 @@ func GenPipedDataName(
 	var tools []openai.Tool
 	var toolChoice *openai.ToolChoice
 
-	baseModelConfig := config.GetBaseModelConfig(authVars, settings.GetModelPack().LocalProvider)
+	baseModelConfig := config.GetBaseModelConfig(authVars, settings)
 
 	if baseModelConfig.PreferredOutputFormat == shared.ModelOutputFormatXml {
 		sysPrompt = prompts.SysPipedDataNameXml
@@ -175,17 +175,17 @@ func GenPipedDataName(
 	}
 
 	modelRes, err := ModelRequest(ctx, ModelRequestParams{
-		Clients:       clients,
-		Auth:          auth,
-		AuthVars:      authVars,
-		Plan:          plan,
-		ModelConfig:   &config,
-		Purpose:       "Piped data name",
-		Messages:      messages,
-		Tools:         tools,
-		ToolChoice:    toolChoice,
-		SessionId:     sessionId,
-		LocalProvider: settings.GetModelPack().LocalProvider,
+		Clients:     clients,
+		Auth:        auth,
+		AuthVars:    authVars,
+		Plan:        plan,
+		ModelConfig: &config,
+		Purpose:     "Piped data name",
+		Messages:    messages,
+		Tools:       tools,
+		ToolChoice:  toolChoice,
+		SessionId:   sessionId,
+		Settings:    settings,
 	})
 
 	if err != nil {
@@ -235,7 +235,7 @@ func GenNoteName(
 	var tools []openai.Tool
 	var toolChoice *openai.ToolChoice
 
-	baseModelConfig := config.GetBaseModelConfig(authVars, settings.GetModelPack().LocalProvider)
+	baseModelConfig := config.GetBaseModelConfig(authVars, settings)
 
 	if baseModelConfig.PreferredOutputFormat == shared.ModelOutputFormatXml {
 		sysPrompt = prompts.SysNoteNameXml
@@ -271,17 +271,17 @@ func GenNoteName(
 	}
 
 	modelRes, err := ModelRequest(ctx, ModelRequestParams{
-		Clients:       clients,
-		Auth:          auth,
-		AuthVars:      authVars,
-		Plan:          plan,
-		ModelConfig:   &config,
-		Purpose:       "Note name",
-		Messages:      messages,
-		Tools:         tools,
-		ToolChoice:    toolChoice,
-		SessionId:     sessionId,
-		LocalProvider: settings.GetModelPack().LocalProvider,
+		Clients:     clients,
+		Auth:        auth,
+		AuthVars:    authVars,
+		Plan:        plan,
+		ModelConfig: &config,
+		Purpose:     "Note name",
+		Messages:    messages,
+		Tools:       tools,
+		ToolChoice:  toolChoice,
+		SessionId:   sessionId,
+		Settings:    settings,
 	})
 
 	if err != nil {

@@ -8,6 +8,7 @@ import (
 	"plandex-server/hooks"
 	"plandex-server/model"
 	"plandex-server/types"
+	shared "plandex-shared"
 )
 
 type initClientsParams struct {
@@ -19,7 +20,8 @@ type initClientsParams struct {
 
 	authVars map[string]string
 
-	plan *db.Plan
+	plan     *db.Plan
+	settings *shared.PlanSettings
 }
 
 type initClientsResult struct {
@@ -29,6 +31,7 @@ type initClientsResult struct {
 
 func initClients(params initClientsParams) initClientsResult {
 	w := params.w
+	settings := params.settings
 
 	var authVars map[string]string
 	if params.authVars != nil {
@@ -63,7 +66,7 @@ func initClients(params initClientsParams) initClientsResult {
 		return initClientsResult{}
 	}
 
-	clients := model.InitClients(authVars)
+	clients := model.InitClients(authVars, settings)
 
 	return initClientsResult{
 		clients:  clients,

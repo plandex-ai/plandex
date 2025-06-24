@@ -39,6 +39,13 @@ func TellPlanHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	settings, err := db.GetPlanSettings(plan)
+	if err != nil {
+		log.Printf("Error getting plan settings: %v\n", err)
+		http.Error(w, "Error getting plan settings", http.StatusInternalServerError)
+		return
+	}
+
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		log.Printf("Error reading request body: %v\n", err)
@@ -77,6 +84,7 @@ func TellPlanHandler(w http.ResponseWriter, r *http.Request) {
 			openAIOrgId: requestBody.OpenAIOrgId,
 			authVars:    requestBody.AuthVars,
 			plan:        plan,
+			settings:    settings,
 		},
 	)
 	err = modelPlan.Tell(modelPlan.TellParams{
@@ -119,6 +127,13 @@ func BuildPlanHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	settings, err := db.GetPlanSettings(plan)
+	if err != nil {
+		log.Printf("Error getting plan settings: %v\n", err)
+		http.Error(w, "Error getting plan settings", http.StatusInternalServerError)
+		return
+	}
+
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		log.Printf("Error reading request body: %v\n", err)
@@ -147,6 +162,7 @@ func BuildPlanHandler(w http.ResponseWriter, r *http.Request) {
 			openAIOrgId: requestBody.OpenAIOrgId,
 			authVars:    requestBody.AuthVars,
 			plan:        plan,
+			settings:    settings,
 		},
 	)
 	numBuilds, err := modelPlan.Build(modelPlan.BuildParams{

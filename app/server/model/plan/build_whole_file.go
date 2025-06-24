@@ -35,7 +35,7 @@ func (fileState *activeBuildStreamFileState) buildWholeFileFallback(buildCtx con
 		return "", fmt.Errorf("active plan not found for plan ID %s and branch %s", planId, branch)
 	}
 
-	baseModelConfig := config.GetBaseModelConfig(authVars, fileState.settings.GetModelPack().LocalProvider)
+	baseModelConfig := config.GetBaseModelConfig(authVars, fileState.settings)
 
 	originalFileWithLineNums := shared.AddLineNums(originalFile)
 	proposedContentWithLineNums := shared.AddLineNums(proposedContent)
@@ -57,8 +57,8 @@ func (fileState *activeBuildStreamFileState) buildWholeFileFallback(buildCtx con
 	inputTokens := model.GetMessagesTokenEstimate(messages...) + model.TokensPerRequest
 	maxExpectedOutputTokens := shared.GetNumTokensEstimate(originalFile + proposedContent)
 
-	modelConfig := config.GetRoleForInputTokens(inputTokens)
-	modelConfig = modelConfig.GetRoleForOutputTokens(maxExpectedOutputTokens)
+	modelConfig := config.GetRoleForInputTokens(inputTokens, fileState.settings)
+	modelConfig = modelConfig.GetRoleForOutputTokens(maxExpectedOutputTokens, fileState.settings)
 
 	log.Println("buildWholeFile - calling model for whole file write")
 
@@ -109,8 +109,8 @@ func (fileState *activeBuildStreamFileState) buildWholeFileFallback(buildCtx con
 		WillCacheNumTokens:    willCacheNumTokens,
 		EstimatedOutputTokens: maxExpectedOutputTokens,
 
-		SessionId:     sessionId,
-		LocalProvider: fileState.settings.GetModelPack().LocalProvider,
+		SessionId: sessionId,
+		Settings:  fileState.settings,
 	})
 
 	if err != nil {

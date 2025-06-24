@@ -361,7 +361,7 @@ func renderSettings(settings *shared.PlanSettings, allProperties bool) {
 	modelPack := settings.GetModelPack()
 
 	color.New(color.Bold, term.ColorHiCyan).Println("🎛️  Current Model Pack")
-	renderModelPack(modelPack, allProperties)
+	renderModelPack(modelPack, settings.CustomModelsById, allProperties)
 
 	if allProperties {
 		color.New(color.Bold, term.ColorHiCyan).Println("🧠 Planner Defaults")
@@ -369,15 +369,15 @@ func renderSettings(settings *shared.PlanSettings, allProperties bool) {
 		table.SetAutoWrapText(false)
 		table.SetHeader([]string{"Max Tokens", "Max Convo Tokens"})
 		table.Append([]string{
-			fmt.Sprintf("%d", modelPack.Planner.GetFinalLargeContextFallback().GetSharedBaseConfig().MaxTokens),
-			fmt.Sprintf("%d", modelPack.Planner.GetMaxConvoTokens()),
+			fmt.Sprintf("%d", modelPack.Planner.GetFinalLargeContextFallback().GetSharedBaseConfig(settings).MaxTokens),
+			fmt.Sprintf("%d", modelPack.Planner.GetMaxConvoTokens(settings)),
 		})
 		table.Render()
 		fmt.Println()
 	}
 }
 
-func renderModelPack(modelPack *shared.ModelPack, allProperties bool) {
+func renderModelPack(modelPack *shared.ModelPack, customModelsById map[shared.ModelId]*shared.CustomModel, allProperties bool) {
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetAutoFormatHeaders(false)
 	table.SetAutoWrapText(true)
@@ -428,7 +428,9 @@ func renderModelPack(modelPack *shared.ModelPack, allProperties bool) {
 		var topP float32
 		var disabled bool
 
-		if config.GetSharedBaseConfig().RoleParamsDisabled {
+		sharedBaseConfig := config.GetSharedBaseConfigWithCustomModels(customModelsById)
+
+		if sharedBaseConfig.RoleParamsDisabled {
 			temp = 1
 			topP = 1
 			disabled = true
@@ -457,7 +459,7 @@ func renderModelPack(modelPack *shared.ModelPack, allProperties bool) {
 			row = append(row, []string{
 				tempStr,
 				topPStr,
-				fmt.Sprintf("%d 🪙", config.GetSharedBaseConfig().MaxTokens-config.GetReservedOutputTokens()),
+				fmt.Sprintf("%d 🪙", sharedBaseConfig.MaxTokens-config.GetReservedOutputTokens(customModelsById)),
 			}...)
 		}
 		table.Append(row)

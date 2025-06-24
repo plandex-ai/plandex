@@ -259,3 +259,47 @@ func (input ModelsInput) ToClientModelsInput() ClientModelsInput {
 		CustomModelPacks: clientModelPacks,
 	}
 }
+
+func (cp *CustomProvider) ToModelProviderConfigSchema() ModelProviderConfigSchema {
+	return ModelProviderConfigSchema{
+		Provider:       ModelProviderCustom,
+		CustomProvider: &cp.Name,
+		BaseUrl:        cp.BaseUrl,
+		HasAWSAuth:     cp.HasAWSAuth,
+		SkipAuth:       cp.SkipAuth,
+		ApiKeyEnvVar:   cp.ApiKeyEnvVar,
+		ExtraAuthVars:  cp.ExtraAuthVars,
+	}
+}
+
+func (input *CustomModel) ToBaseModelConfig(authVars map[string]string, settings *PlanSettings) *BaseModelConfig {
+	providers := GetProvidersForAuthVarsWithModelId(authVars, settings, input.ModelId)
+
+	if len(providers) == 0 {
+		return nil
+	}
+
+	providerSchema := providers[0]
+	return input.ToBaseModelConfigForProvider(authVars, settings, &providerSchema)
+}
+
+func (input *CustomModel) ToBaseModelConfigForProvider(authVars map[string]string, settings *PlanSettings, providerSchema *ModelProviderConfigSchema) *BaseModelConfig {
+	var modelName ModelName
+	for _, usesProvider := range input.Providers {
+		if usesProvider.Provider == providerSchema.Provider {
+			modelName = usesProvider.ModelName
+			break
+		}
+	}
+
+	return &BaseModelConfig{
+		ModelTag:        ModelTag(input.ModelId),
+		ModelId:         input.ModelId,
+		Publisher:       input.Publisher,
+		BaseModelShared: input.BaseModelShared,
+		BaseModelProviderConfig: BaseModelProviderConfig{
+			ModelProviderConfigSchema: *providerSchema,
+			ModelName:                 modelName,
+		},
+	}
+}

@@ -35,7 +35,7 @@ func (state *activeTellStreamState) execStatusShouldContinue(currentMessage stri
 	authVars := state.authVars
 	config := settings.GetModelPack().ExecStatus
 
-	baseModelConfig := config.GetBaseModelConfig(authVars, settings.GetModelPack().LocalProvider)
+	baseModelConfig := config.GetBaseModelConfig(authVars, settings)
 	currentSubtask := state.currentSubtask
 
 	if currentSubtask == nil {
@@ -155,7 +155,7 @@ func (state *activeTellStreamState) execStatusShouldContinue(currentMessage stri
 		ModelStreamId:  state.modelStreamId,
 		ConvoMessageId: state.replyId,
 		SessionId:      sessionId,
-		LocalProvider:  settings.GetModelPack().LocalProvider,
+		Settings:       settings,
 	})
 
 	if err != nil {

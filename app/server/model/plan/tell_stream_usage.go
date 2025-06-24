@@ -27,7 +27,7 @@ func (state *activeTellStreamState) handleUsageChunk(usage *openai.Usage) {
 	sessionId := state.activePlan.SessionId
 
 	modelConfig := state.modelConfig
-	baseModelConfig := modelConfig.GetBaseModelConfig(state.authVars, state.settings.GetModelPack().LocalProvider)
+	baseModelConfig := modelConfig.GetBaseModelConfig(state.authVars, state.settings)
 
 	go func() {
 		defer func() {
@@ -90,7 +90,7 @@ func (state *activeTellStreamState) execHookOnStop(sendStreamErr bool) {
 	}
 
 	modelConfig := state.modelConfig
-	baseModelConfig := modelConfig.GetBaseModelConfig(state.authVars, state.settings.GetModelPack().LocalProvider)
+	baseModelConfig := modelConfig.GetBaseModelConfig(state.authVars, state.settings)
 
 	go func() {
 		defer func() {

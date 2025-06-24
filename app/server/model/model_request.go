@@ -18,13 +18,13 @@ import (
 )
 
 type ModelRequestParams struct {
-	Clients       map[string]ClientInfo
-	AuthVars      map[string]string
-	Auth          *types.ServerAuth
-	Plan          *db.Plan
-	ModelConfig   *shared.ModelRoleConfig
-	LocalProvider shared.ModelProvider
-	Purpose       string
+	Clients     map[string]ClientInfo
+	AuthVars    map[string]string
+	Auth        *types.ServerAuth
+	Plan        *db.Plan
+	ModelConfig *shared.ModelRoleConfig
+	Settings    *shared.PlanSettings
+	Purpose     string
 
 	Messages   []types.ExtendedChatMessage
 	Prediction string
@@ -68,23 +68,23 @@ func ModelRequest(
 	modelPackName := params.ModelPackName
 	purpose := params.Purpose
 	sessionId := params.SessionId
-	localProvider := params.LocalProvider
+	settings := params.Settings
 
 	if purpose == "" {
 		return nil, fmt.Errorf("purpose is required")
 	}
 
-	baseModelConfig := modelConfig.GetBaseModelConfig(authVars, localProvider)
+	baseModelConfig := modelConfig.GetBaseModelConfig(authVars, settings)
 
 	messages = FilterEmptyMessages(messages)
 	messages = CheckSingleSystemMessage(modelConfig, baseModelConfig, messages)
 	inputTokensEstimate := GetMessagesTokenEstimate(messages...) + TokensPerRequest
 
-	config := modelConfig.GetRoleForInputTokens(inputTokensEstimate)
+	config := modelConfig.GetRoleForInputTokens(inputTokensEstimate, settings)
 	modelConfig = &config
 
 	if params.EstimatedOutputTokens != 0 {
-		config = modelConfig.GetRoleForOutputTokens(params.EstimatedOutputTokens)
+		config = modelConfig.GetRoleForOutputTokens(params.EstimatedOutputTokens, settings)
 		modelConfig = &config
 	}
 
@@ -166,7 +166,7 @@ func ModelRequest(
 		}
 	}
 
-	res, err := CreateChatCompletionWithInternalStream(clients, authVars, modelConfig, localProvider, ctx, req, onStream, reqStarted)
+	res, err := CreateChatCompletionWithInternalStream(clients, authVars, modelConfig, settings, ctx, req, onStream, reqStarted)
 
 	if err != nil {
 		return nil, err

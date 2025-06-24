@@ -18,19 +18,14 @@ func GetPlanSettings(plan *Plan) (settings *shared.PlanSettings, err error) {
 	planDir := getPlanDir(plan.OrgId, plan.Id)
 	settingsPath := filepath.Join(planDir, "settings.json")
 
-	customModelPacks, err := ListModelPacks(plan.OrgId)
+	result, err := GetApiCustomModels(plan.OrgId)
 	if err != nil {
-		return nil, fmt.Errorf("error getting custom model packs: %v", err)
-	}
-
-	apiModelPacks := make([]*shared.ModelPack, len(customModelPacks))
-	for i, modelPack := range customModelPacks {
-		apiModelPacks[i] = modelPack.ToApi()
+		return nil, fmt.Errorf("error getting custom models: %v", err)
 	}
 
 	defer func() {
 		if settings != nil {
-			settings.Configure(apiModelPacks, os.Getenv("PLANDEX_CLOUD") != "")
+			settings.Configure(result.CustomModelPacks, result.CustomModels, result.CustomProviders, os.Getenv("PLANDEX_CLOUD") != "")
 		}
 	}()
 
@@ -103,19 +98,14 @@ func StorePlanSettings(plan *Plan, settings shared.PlanSettings) error {
 }
 
 func GetOrgDefaultSettings(orgId string) (settings *shared.PlanSettings, err error) {
-	customModelPacks, err := ListModelPacks(orgId)
+	result, err := GetApiCustomModels(orgId)
 	if err != nil {
-		return nil, fmt.Errorf("error getting custom model packs: %v", err)
-	}
-
-	apiModelPacks := make([]*shared.ModelPack, len(customModelPacks))
-	for i, modelPack := range customModelPacks {
-		apiModelPacks[i] = modelPack.ToApi()
+		return nil, fmt.Errorf("error getting custom models: %v", err)
 	}
 
 	defer func() {
 		if settings != nil {
-			settings.Configure(apiModelPacks, os.Getenv("PLANDEX_CLOUD") != "")
+			settings.Configure(result.CustomModelPacks, result.CustomModels, result.CustomProviders, os.Getenv("PLANDEX_CLOUD") != "")
 		}
 	}()
 
@@ -141,19 +131,14 @@ func GetOrgDefaultSettings(orgId string) (settings *shared.PlanSettings, err err
 }
 
 func GetOrgDefaultSettingsForUpdate(orgId string, tx *sqlx.Tx) (settings *shared.PlanSettings, err error) {
-	customModelPacks, err := ListModelPacks(orgId)
+	result, err := GetApiCustomModels(orgId)
 	if err != nil {
-		return nil, fmt.Errorf("error getting custom model packs: %v", err)
-	}
-
-	apiModelPacks := make([]*shared.ModelPack, len(customModelPacks))
-	for i, modelPack := range customModelPacks {
-		apiModelPacks[i] = modelPack.ToApi()
+		return nil, fmt.Errorf("error getting custom models: %v", err)
 	}
 
 	defer func() {
 		if settings != nil {
-			settings.Configure(apiModelPacks, os.Getenv("PLANDEX_CLOUD") != "")
+			settings.Configure(result.CustomModelPacks, result.CustomModels, result.CustomProviders, os.Getenv("PLANDEX_CLOUD") != "")
 		}
 	}()
 
@@ -192,4 +177,75 @@ func StoreOrgDefaultSettings(orgId string, settings *shared.PlanSettings, tx *sq
 	}
 
 	return nil
+}
+
+type GetCustomModelsResult struct {
+	CustomModels     []*shared.CustomModel
+	CustomProviders  []*shared.CustomProvider
+	CustomModelPacks []*shared.ModelPack
+}
+
+func GetApiCustomModels(orgId string) (result *GetCustomModelsResult, err error) {
+	var customModels []*CustomModel
+	var customProviders []*CustomProvider
+	var customModelPacks []*ModelPack
+
+	errCh := make(chan error, 3)
+
+	go func() {
+		res, err := ListModelPacks(orgId)
+		if err != nil {
+			errCh <- fmt.Errorf("error getting custom model packs: %v", err)
+		}
+		customModelPacks = res
+		errCh <- nil
+	}()
+
+	go func() {
+		res, err := ListCustomModels(orgId)
+		if err != nil {
+			errCh <- fmt.Errorf("error getting custom models: %v", err)
+		}
+		customModels = res
+		errCh <- nil
+	}()
+
+	go func() {
+		res, err := ListCustomProviders(orgId)
+		if err != nil {
+			errCh <- fmt.Errorf("error getting custom providers: %v", err)
+		}
+		customProviders = res
+		errCh <- nil
+	}()
+
+	for i := 0; i < 3; i++ {
+		err := <-errCh
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	apiModelPacks := make([]*shared.ModelPack, len(customModelPacks))
+	for i, modelPack := range customModelPacks {
+		apiModelPacks[i] = modelPack.ToApi()
+	}
+
+	apiCustomModels := make([]*shared.CustomModel, len(customModels))
+	for i, model := range customModels {
+		apiCustomModels[i] = model.ToApi()
+	}
+
+	apiCustomProviders := make([]*shared.CustomProvider, len(customProviders))
+	for i, provider := range customProviders {
+		apiCustomProviders[i] = provider.ToApi()
+	}
+
+	result = &GetCustomModelsResult{
+		CustomModels:     apiCustomModels,
+		CustomProviders:  apiCustomProviders,
+		CustomModelPacks: apiModelPacks,
+	}
+
+	return result, nil
 }
