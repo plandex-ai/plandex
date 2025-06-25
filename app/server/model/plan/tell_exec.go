@@ -408,10 +408,22 @@ func execTellPlan(params execTellPlanParams) {
 		log.Println("Tell plan - got modelConfig for implementation stage")
 	}
 
-	// log.Println("Tell plan - modelConfig:", spew.Sdump(modelConfig))
 	state.modelConfig = &modelConfig
 
 	baseModelConfig := modelConfig.GetBaseModelConfig(authVars, state.settings)
+
+	if baseModelConfig == nil {
+		log.Println("Tell plan - baseModelConfig is nil")
+		log.Println("Tell plan - modelConfig id:", modelConfig.ModelId)
+
+		go notify.NotifyErr(notify.SeverityError, fmt.Errorf("No model config found for: %s", state.modelConfig.ModelId))
+		active.StreamDoneCh <- &shared.ApiError{
+			Type:   shared.ApiErrorTypeOther,
+			Status: http.StatusInternalServerError,
+			Msg:    "No model config found for: " + string(state.modelConfig.ModelId),
+		}
+		return
+	}
 
 	state.baseModelConfig = baseModelConfig
 

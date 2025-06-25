@@ -295,13 +295,9 @@ func GetProvidersForAuthVarsWithModelId(authVars map[string]string, settings *Pl
 			continue
 		}
 
-		if localProvider != "" {
-			if !provider.LocalOnly {
-				continue
-			}
-			if provider.Provider != localProvider {
-				continue
-			}
+		// if the model pack has a local provider, the provider is local only, and the provider is not the local provider, skip it
+		if localProvider != "" && provider.LocalOnly && provider.Provider != localProvider {
+			continue
 		}
 
 		res = append(res, provider)

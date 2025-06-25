@@ -67,7 +67,7 @@ The REPL has a few convenient flags you can use to start it with different modes
     --strong       Strong pack (more capable models, higher cost and slower)
     --cheap        Cheap pack (less capable models, lower cost and faster)
     --oss          Open source pack (open source models)
-    --gemini-preview   Gemini preview pack (Gemini 2.5 Pro Preview for planning and coding, default models for other roles)
+    --gemini       Gemini pack (Gemini 2.5 Pro Preview for planning and coding, default models for other roles)
 ```
 
 All commands listed below can be run in the REPL by prefixing them with a backslash (`\`), e.g. `\new`.
@@ -107,7 +107,7 @@ plandex new -n new-plan # with name
 
 `--oss`: Start the plan with the open source model pack.
 
-`--gemini-preview`: Start the plan with the Gemini preview model pack.
+`--gemini`: Start the plan with the Gemini model pack.
 
 ### plans
 
@@ -747,7 +747,7 @@ plandex set-model reasoning
 plandex set-model strong
 plandex set-model cheap
 plandex set-model oss
-plandex set-model gemini-preview
+plandex set-model gemini
 ```
 
 ### set-model default

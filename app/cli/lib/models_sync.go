@@ -2,6 +2,7 @@ package lib
 
 import (
 	"fmt"
+	"plandex-cli/auth"
 	"plandex-cli/term"
 
 	"github.com/fatih/color"
@@ -11,7 +12,14 @@ func PromptSyncModelsIfNeeded() error {
 	var changes []string
 	var onApprove []func() error
 
-	customModelsRes, err := CustomModelsCheckLocalChanges(CustomModelsDefaultPath)
+	userId := auth.Current.UserId
+	if userId == "" {
+		return fmt.Errorf("auth.Current.UserId is empty")
+	}
+
+	customModelsPath := GetCustomModelsPath(userId)
+
+	customModelsRes, err := CustomModelsCheckLocalChanges(customModelsPath)
 	if err != nil {
 		return fmt.Errorf("error checking custom models: %v", err)
 	}
@@ -19,7 +27,7 @@ func PromptSyncModelsIfNeeded() error {
 	if customModelsRes.HasLocalChanges {
 		changes = append(
 			changes,
-			fmt.Sprintf("%s → %s", color.New(term.ColorHiCyan, color.Bold).Sprint("Custom models"), CustomModelsDefaultPath))
+			fmt.Sprintf("%s → %s", color.New(term.ColorHiCyan, color.Bold).Sprint("Custom models"), customModelsPath))
 
 		onApprove = append(onApprove, SyncCustomModels)
 	}

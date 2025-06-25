@@ -87,20 +87,14 @@ GOENV=development # Whether to run in development or production mode. Must be 'd
 PLANDEX_BASE_DIR= # The base directory to read and write files. Defaults to '$HOME/plandex-server' in development mode, '/plandex-server' in production.
 API_HOST= # The host the API server listens on. Defaults to 'http://localhost:$PORT'. In production mode, should be a host like 'https://api.your-domain.ai'.
 PORT=8099 # The port the server listens on. Defaults to 8099.
+DATABASE_URL= # The URL of the PostgreSQL database. Defaults to 'postgres://plandex:plandex@plandex-postgres:5432/plandex?sslmode=disable' in development mode
+LOCAL_MODE= # Whether to run in local mode
+OLLAMA_BASE_URL= # The base URL of the Ollama server—only need when the server is running in a Docker container and needs to access Ollama models running outside of the container
 ```
 
 ### docker-compose
 
-For self-hosting with docker-compose, default environment variables are set in `app/_env`. This file should be copied to `app/.env` before running the server. You can override any of these defaults in `.env`. 
-
-```bash
-PLANDEX_DATA_DIR=/var/lib/plandex/data # When using docker-compose, this is the directory *on your machine* that the Plandex server will use to store data—it will be mounted to the Docker container as a volume.
-
-# Database Credentials
-POSTGRES_DATABASE=plandex # Your postgres database.
-POSTGRES_USER=plandex # Your postgres user.
-POSTGRES_PASSWORD=plandex # Your postgres password.
-```
+For self-hosting with docker-compose, default values for all necessary environment variables are set in the `app/docker-compose.yml` file. This file is designed to be used with [local mode](./hosting/self-hosting/local-mode-quickstart.md), but you can adapt it to your needs.
 
 ### Other methods
 

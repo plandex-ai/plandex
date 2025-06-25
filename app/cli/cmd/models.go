@@ -131,7 +131,7 @@ func manageCustomModels(cmd *cobra.Command, args []string) {
 	usingDefaultPath := false
 	if customModelsPath == "" {
 		usingDefaultPath = true
-		customModelsPath = lib.CustomModelsDefaultPath
+		customModelsPath = lib.GetCustomModelsPath(auth.Current.UserId)
 	}
 
 	exists, err := fs.FileExists(customModelsPath)
@@ -568,15 +568,39 @@ func getExampleTemplate(isCloud, isCloudIntegratedModels bool) shared.ClientMode
 				Name:        "example-model-pack",
 				Description: "Example model pack",
 				ClientModelPackSchemaRoles: shared.ClientModelPackSchemaRoles{
-					Planner:          "deepseek/r1",
-					Architect:        "deepseek/r1",
-					Coder:            "deepseek/v3-0324",
-					PlanSummary:      lightModelId,
-					Builder:          "deepseek/r1-hidden",
-					WholeFileBuilder: "deepseek/r1-hidden",
-					ExecStatus:       "deepseek/r1-hidden",
-					Namer:            lightModelId,
-					CommitMsg:        lightModelId,
+					Planner:   "deepseek/r1",
+					Architect: "deepseek/r1",
+					Coder: &shared.ModelRoleConfigSchema{
+						ModelId: "deepseek/v3",
+						LargeContextFallback: &shared.ModelRoleConfigSchema{
+							ModelId: "google/gemini-2.5-pro",
+						},
+						ErrorFallback: &shared.ModelRoleConfigSchema{
+							ModelId: "deepseek/r1-hidden",
+						},
+					},
+					PlanSummary: lightModelId,
+					Builder: shared.ModelRoleConfigSchema{
+						ModelId: "deepseek/r1-hidden",
+						StrongModel: &shared.ModelRoleConfigSchema{
+							ModelId: "openai/o3-medium",
+						},
+					},
+					WholeFileBuilder: shared.ModelRoleConfigSchema{
+						ModelId: "deepseek/r1-hidden",
+						LargeContextFallback: &shared.ModelRoleConfigSchema{
+							ModelId: "google/gemini-2.5-pro",
+							LargeOutputFallback: &shared.ModelRoleConfigSchema{
+								ModelId: "openai/o3-low",
+							},
+						},
+						LargeOutputFallback: &shared.ModelRoleConfigSchema{
+							ModelId: "openai/o3-low",
+						},
+					},
+					ExecStatus: "deepseek/r1-hidden",
+					Namer:      lightModelId,
+					CommitMsg:  lightModelId,
 				},
 			},
 		},

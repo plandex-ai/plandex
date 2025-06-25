@@ -31,7 +31,7 @@ func UpsertCustomModelsHandler(w http.ResponseWriter, r *http.Request) {
 	var modelsInput shared.ModelsInput
 	if err := json.NewDecoder(r.Body).Decode(&modelsInput); err != nil {
 		log.Printf("Error decoding request body: %v\n", err)
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		http.Error(w, "Invalid request body: "+err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -184,13 +184,13 @@ func UpsertCustomModelsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, model := range updatedModelsInput.CustomModels {
-		// ensure that providers to upsert are either built-in, being created, or already exist
+		// ensure that providers to upsert are either built-in, being imported, or already exist
 		for _, provider := range model.Providers {
 			if provider.Provider == shared.ModelProviderCustom {
 				_, exists := existingCustomProviderNames[*provider.CustomProvider]
 				_, creating := inputProviderNames[*provider.CustomProvider]
 				if !exists && !creating {
-					msg := fmt.Sprintf("'%s' is not a custom model provider that exists or is being created", *provider.CustomProvider)
+					msg := fmt.Sprintf("'%s' is not a custom model provider that exists or is being imported", *provider.CustomProvider)
 					log.Println(msg)
 					http.Error(w, msg, http.StatusUnprocessableEntity)
 					return
@@ -214,7 +214,7 @@ func UpsertCustomModelsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, modelPack := range updatedModelsInput.CustomModelPacks {
-		// ensure that all models are either built-in, being created, or already exist
+		// ensure that all models are either built-in, being imported, or already exist
 		allModelIds := modelPack.AllModelIds()
 
 		for _, modelId := range allModelIds {
@@ -223,7 +223,7 @@ func UpsertCustomModelsHandler(w http.ResponseWriter, r *http.Request) {
 			_, builtIn := shared.BuiltInBaseModelsById[modelId]
 
 			if !exists && !creating && !builtIn {
-				msg := fmt.Sprintf("'%s' is not built-in, not being created, and not an existing custom model", modelId)
+				msg := fmt.Sprintf("'%s' is not built-in, not being imported, and not an existing custom model", modelId)
 				log.Println(msg)
 				http.Error(w, msg, http.StatusUnprocessableEntity)
 				return

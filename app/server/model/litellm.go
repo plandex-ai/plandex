@@ -122,6 +122,12 @@ func startLiteLLMServer(numWorkers int) error {
 		"HOME=" + os.Getenv("HOME"),
 	}
 
+	if os.Getenv("OLLAMA_BASE_URL") != "" {
+		log.Println("OLLAMA_BASE_URL is set, so we can reach ollama from inside docker container in local mode")
+		// so we can reach ollama from inside docker container in local mode
+		liteLLMCmd.Env = append(liteLLMCmd.Env, "OLLAMA_BASE_URL="+os.Getenv("OLLAMA_BASE_URL"))
+	}
+
 	liteLLMCmd.Stdout = os.Stdout
 	liteLLMCmd.Stderr = os.Stderr
 

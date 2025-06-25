@@ -37,6 +37,7 @@ Model roles can either be a string (the model ID) or an object with model config
 
 ```json
 {
+  "$schema": "https://plandex.ai/schemas/model-pack-inline.schema.json",
   "planner": "anthropic/claude-opus-4",
   "coder": "anthropic/claude-sonnet-4",
   "architect": "anthropic/claude-sonnet-4",
@@ -54,11 +55,12 @@ You can also configure individual role settings and fallbacks with an object:
 
 ```json
 {
+  "$schema": "https://plandex.ai/schemas/model-pack-inline.schema.json",
   "planner": {
     "modelId": "anthropic/claude-opus-4",
     "temperature": 0.7,
     "topP": 0.9,
-    "largeContextFallback": "google/gemini-2.5-pro-preview"
+    "largeContextFallback": "google/gemini-2.5-pro"
   },
   "coder": "anthropic/claude-sonnet-4",
   "architect": "anthropic/claude-sonnet-4",
@@ -66,6 +68,13 @@ You can also configure individual role settings and fallbacks with an object:
   "builder": {
     "modelId": "anthropic/claude-sonnet-4",
     "errorFallback": "openai/gpt-4.1"
+  },
+  "wholeFileBuilder": {
+    "modelId": "anthropic/claude-sonnet-4",
+    "largeContextFallback": {
+      "modelId": "google/gemini-2.5-pro",
+      "largeOutputFallback": "openai/o4-mini-low"
+    }
   },
   "names": "anthropic/claude-3.5-haiku",
   "commitMessages": "anthropic/claude-3.5-haiku",
@@ -93,6 +102,7 @@ You can set the top-level `localProvider` key to `ollama` to use local models vi
 
 ```json
 {
+  "$schema": "https://plandex.ai/schemas/model-pack-inline.schema.json",
   "localProvider": "ollama",
   "planner": "ollama/deepseek-r1:14b",
   ...

@@ -27,6 +27,10 @@ services:
       GOENV: development
       LOCAL_MODE: 1
       PLANDEX_BASE_DIR: /plandex-server
+      OLLAMA_BASE_URL: http://host.docker.internal:11434
+      
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     networks:
       - plandex-network
     depends_on:

@@ -130,6 +130,9 @@ type ExtendedChatCompletionRequest struct {
 	Prediction *OpenAIPrediction         `json:"prediction,omitempty"`
 	Provider   *OpenRouterProviderConfig `json:"provider,omitempty"`
 
+	// LiteLLM api base
+	LiteLLMApiBase string `json:"api_base,omitempty"`
+
 	// Openrouter/LiteLLM reasoning
 	ReasoningConfig *ReasoningConfig `json:"reasoning,omitempty"`
 
@@ -139,7 +142,6 @@ type ExtendedChatCompletionRequest struct {
 	VertexCredentials string `json:"vertex_credentials,omitempty"`
 
 	// Azure OpenAI request vars
-	AzureApiBase         string                 `json:"api_base,omitempty"`
 	AzureApiVersion      string                 `json:"api_version,omitempty"`
 	AzureReasoningEffort shared.ReasoningEffort `json:"reasoning_effort,omitempty"`
 

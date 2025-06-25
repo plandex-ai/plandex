@@ -464,6 +464,33 @@ func (m *ModelRoleConfigSchema) toModelRoleConfig(role ModelRole) ModelRoleConfi
 	}
 }
 
+func (m *ModelRoleConfigSchema) MarshalJSON() ([]byte, error) {
+	if m == nil {
+		return []byte("null"), nil
+	}
+	if m.bareRole() {
+		if m.ModelId == "" {
+			return []byte("null"), nil
+		}
+
+		return json.Marshal(string(m.ModelId)) // compact form
+	}
+	type alias ModelRoleConfigSchema
+	return json.Marshal((*alias)(m)) // full object
+}
+
+func (m *ModelRoleConfigSchema) UnmarshalJSON(data []byte) error {
+	// attempt the short string first
+	var s string
+	if err := json.Unmarshal(data, &s); err == nil {
+		*m = ModelRoleConfigSchema{ModelId: ModelId(s)}
+		return nil
+	}
+	// fallback to full object
+	type alias ModelRoleConfigSchema
+	return json.Unmarshal(data, (*alias)(m))
+}
+
 func (m *ModelRoleConfig) ToModelRoleConfigSchema() ModelRoleConfigSchema {
 	var largeContextFallback *ModelRoleConfigSchema
 	if m.LargeContextFallback != nil {
@@ -662,7 +689,7 @@ type RoleJSON any
 type ClientModelPackSchemaRoles struct {
 	SchemaUrl SchemaUrl `json:"$schema,omitempty"`
 
-	LocalProvider ModelProvider `json:"local-provider,omitempty"`
+	LocalProvider ModelProvider `json:"localProvider,omitempty"`
 
 	// in the JSON, these can either be a role as a string or a ModelRoleConfigSchema object for more complex config
 	Planner          RoleJSON `json:"planner"`

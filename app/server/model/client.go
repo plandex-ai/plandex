@@ -222,7 +222,7 @@ func createChatCompletionStreamExtended(
 		}
 	case shared.ModelProviderAzureOpenAI:
 		if authVars["AZURE_API_BASE"] != "" {
-			extendedReq.AzureApiBase = authVars["AZURE_API_BASE"]
+			extendedReq.LiteLLMApiBase = authVars["AZURE_API_BASE"]
 		}
 		if authVars["AZURE_API_VERSION"] != "" {
 			extendedReq.AzureApiVersion = authVars["AZURE_API_VERSION"]
@@ -265,6 +265,11 @@ func createChatCompletionStreamExtended(
 		}
 		if authVars["AWS_INFERENCE_PROFILE_ARN"] != "" {
 			extendedReq.BedrockInferenceProfileArn = authVars["AWS_INFERENCE_PROFILE_ARN"]
+		}
+
+	case shared.ModelProviderOllama:
+		if os.Getenv("OLLAMA_BASE_URL") != "" {
+			extendedReq.LiteLLMApiBase = os.Getenv("OLLAMA_BASE_URL")
 		}
 	}
 
@@ -478,6 +483,7 @@ func resolveReq(req *types.ExtendedChatCompletionRequest, modelConfig *shared.Mo
 		log.Println("Ollama - clearing temperature and top p")
 		req.Temperature = 0
 		req.TopP = 0
+
 	}
 }
 

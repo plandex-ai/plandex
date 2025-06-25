@@ -97,6 +97,7 @@ Define models with their capabilities and provider mappings:
 
 ```json
 {
+  "$schema": "https://plandex.ai/schemas/models-input.schema.json",
   "models": [
     {
       "modelId": "my-model",
@@ -138,6 +139,7 @@ Create your own combinations of models for different roles:
 
 ```json
 {
+  "$schema": "https://plandex.ai/schemas/models-input.schema.json",
   "modelPacks": [
     {
       "name": "custom-pack",
@@ -146,7 +148,18 @@ Create your own combinations of models for different roles:
       "coder": "anthropic/claude-sonnet-4",
       "architect": "custom-model-publisher/model-name",
       "summarizer": "openai/gpt-4.1",
-      "builder": "anthropic/claude-sonnet-4",
+      "builder": {
+        "modelId": "anthropic/claude-sonnet-4",
+        "strongModel": "openai/o3-medium"
+      },
+      "wholeFileBuilder": {
+        "modelId": "anthropic/claude-sonnet-4",
+        "largeContextFallback": {
+          "modelId": "google/gemini-2.5-pro",
+          "largeOutputFallback": "openai/o4-mini-low"
+        },
+        "errorFallback": "openai/gpt-4.1"
+      },
       "names": "openai/gpt-4.1-mini",
       "commitMessages": "openai/gpt-4.1-mini",
       "autoContinue": "openai/o4-mini-medium"

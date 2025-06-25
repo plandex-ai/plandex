@@ -21,12 +21,12 @@ var (
 	fullAuto  bool
 
 	// Type flags
-	dailyModels         bool
-	reasoningModels     bool
-	strongModels        bool
-	ossModels           bool
-	cheapModels         bool
-	geminiPreviewModels bool
+	dailyModels     bool
+	reasoningModels bool
+	strongModels    bool
+	ossModels       bool
+	cheapModels     bool
+	geminiModels    bool
 )
 
 func AddNewPlanFlags(cmd *cobra.Command) {
@@ -43,7 +43,7 @@ func AddNewPlanFlags(cmd *cobra.Command) {
 	cmd.Flags().BoolVar(&strongModels, "strong", false, shared.StrongModelPack.Description)
 	cmd.Flags().BoolVar(&cheapModels, "cheap", false, shared.CheapModelPack.Description)
 	cmd.Flags().BoolVar(&ossModels, "oss", false, shared.OSSModelPack.Description)
-	cmd.Flags().BoolVar(&geminiPreviewModels, "gemini-preview", false, shared.GeminiPreviewModelPack.Description)
+	cmd.Flags().BoolVar(&geminiModels, "gemini", false, shared.GeminiModelPack.Description)
 }
 
 func resolveAutoMode(config *shared.PlanConfig) (bool, *shared.PlanConfig) {
@@ -139,8 +139,8 @@ func resolveModelPackWithArgs(settings *shared.PlanSettings, silent bool) (*shar
 		packName = shared.ReasoningModelPack.Name
 	} else if dailyModels {
 		packName = shared.DailyDriverModelPack.Name
-	} else if geminiPreviewModels {
-		packName = shared.GeminiPreviewModelPack.Name
+	} else if geminiModels {
+		packName = shared.GeminiModelPack.Name
 	}
 
 	if packName != "" && packName != originalSettings.GetModelPack().Name {

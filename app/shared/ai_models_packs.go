@@ -12,13 +12,13 @@ var StrongModelOpus ModelPack
 var AnthropicModelPack ModelPack
 var OpenAIModelPack ModelPack
 
-var GeminiPreviewModelPack ModelPack
-var GeminiExperimentalModelPack ModelPack
+var GeminiModelPack ModelPack
 var R1PlannerModelPack ModelPack
 var PerplexityPlannerModelPack ModelPack
 
 var OllamaExperimentalModelPack ModelPack
-var OllamaAdaptiveModelPack ModelPack
+var OllamaAdaptiveOssModelPack ModelPack
+var OllamaAdaptiveCommercialModelPack ModelPack
 
 var BuiltInModelPacks = []*ModelPack{
 	&DailyDriverModelPack,
@@ -27,13 +27,13 @@ var BuiltInModelPacks = []*ModelPack{
 	&CheapModelPack,
 	&OSSModelPack,
 	&OllamaExperimentalModelPack,
-	&OllamaAdaptiveModelPack,
+	&OllamaAdaptiveOssModelPack,
+	&OllamaAdaptiveCommercialModelPack,
 	&OpusPlannerModelPack,
 	&StrongModelOpus,
 	&AnthropicModelPack,
 	&OpenAIModelPack,
-	&GeminiPreviewModelPack,
-	&GeminiExperimentalModelPack,
+	&GeminiModelPack,
 	&R1PlannerModelPack,
 	&PerplexityPlannerModelPack,
 }
@@ -81,19 +81,19 @@ func getStrongModelFallback(role ModelRole, modelId ModelId, fns ...func(*ModelR
 }
 
 var (
-	DailyDriverSchema        ModelPackSchema
-	ReasoningSchema          ModelPackSchema
-	StrongSchema             ModelPackSchema
-	OssSchema                ModelPackSchema
-	CheapSchema              ModelPackSchema
-	OllamaExperimentalSchema ModelPackSchema
-	OllamaAdaptiveSchema     ModelPackSchema
-	AnthropicSchema          ModelPackSchema
-	OpenAISchema             ModelPackSchema
-	GeminiPreviewSchema      ModelPackSchema
-	GeminiExperimentalSchema ModelPackSchema
-	R1PlannerSchema          ModelPackSchema
-	PerplexityPlannerSchema  ModelPackSchema
+	DailyDriverSchema              ModelPackSchema
+	ReasoningSchema                ModelPackSchema
+	StrongSchema                   ModelPackSchema
+	OssSchema                      ModelPackSchema
+	CheapSchema                    ModelPackSchema
+	OllamaExperimentalSchema       ModelPackSchema
+	OllamaAdaptiveOssSchema        ModelPackSchema
+	OllamaAdaptiveCommercialSchema ModelPackSchema
+	AnthropicSchema                ModelPackSchema
+	OpenAISchema                   ModelPackSchema
+	GeminiSchema                   ModelPackSchema
+	R1PlannerSchema                ModelPackSchema
+	PerplexityPlannerSchema        ModelPackSchema
 )
 
 var BuiltInModelPackSchemas = []*ModelPackSchema{
@@ -103,11 +103,11 @@ var BuiltInModelPackSchemas = []*ModelPackSchema{
 	&CheapSchema,
 	&OssSchema,
 	&OllamaExperimentalSchema,
-	&OllamaAdaptiveSchema,
+	&OllamaAdaptiveOssSchema,
+	&OllamaAdaptiveCommercialSchema,
 	&AnthropicSchema,
 	&OpenAISchema,
-	&GeminiPreviewSchema,
-	&GeminiExperimentalSchema,
+	&GeminiSchema,
 	&R1PlannerSchema,
 	&PerplexityPlannerSchema,
 }
@@ -122,12 +122,12 @@ func init() {
 		Description: "A mix of models from Anthropic, OpenAI, and Google that balances speed, quality, and cost. Supports up to 2M context.",
 		ModelPackSchemaRoles: ModelPackSchemaRoles{
 			Planner: getModelRoleConfig(ModelRolePlanner, "anthropic/claude-sonnet-4",
-				getLargeContextFallback(ModelRolePlanner, "google/gemini-2.5-pro-preview",
+				getLargeContextFallback(ModelRolePlanner, "google/gemini-2.5-pro",
 					getLargeContextFallback(ModelRolePlanner, "google/gemini-pro-1.5"),
 				),
 			),
 			Architect: Pointer(getModelRoleConfig(ModelRoleArchitect, "anthropic/claude-sonnet-4",
-				getLargeContextFallback(ModelRoleArchitect, "google/gemini-2.5-pro-preview",
+				getLargeContextFallback(ModelRoleArchitect, "google/gemini-2.5-pro",
 					getLargeContextFallback(ModelRoleArchitect, "google/gemini-pro-1.5"),
 				),
 			)),
@@ -194,27 +194,27 @@ func init() {
 
 	OssSchema = ModelPackSchema{
 		Name:        "oss",
-		Description: "An experimental mix of the best open source models for coding. Supports up to 56k context, 8k per file. Works best with smaller projects and files. Includes reasoning.",
+		Description: "An experimental mix of the best open source models for coding. Supports up to 144k context, 33k per file.",
 		ModelPackSchemaRoles: ModelPackSchemaRoles{
 			Planner:     getModelRoleConfig(ModelRolePlanner, "deepseek/r1"),
-			Coder:       Pointer(getModelRoleConfig(ModelRoleCoder, "deepseek/v3-0324")),
+			Coder:       Pointer(getModelRoleConfig(ModelRoleCoder, "deepseek/v3")),
 			PlanSummary: getModelRoleConfig(ModelRolePlanSummary, "deepseek/r1-hidden"),
 			Builder:     getModelRoleConfig(ModelRoleBuilder, "deepseek/r1-hidden"),
 			WholeFileBuilder: Pointer(getModelRoleConfig(ModelRoleWholeFileBuilder,
 				"deepseek/r1-hidden")),
-			Namer:      getModelRoleConfig(ModelRoleName, "qwen/qwen-2.5-coder-32b-instruct"),
-			CommitMsg:  getModelRoleConfig(ModelRoleCommitMsg, "qwen/qwen-2.5-coder-32b-instruct"),
+			Namer:      getModelRoleConfig(ModelRoleName, "qwen/qwen3-8b"),
+			CommitMsg:  getModelRoleConfig(ModelRoleCommitMsg, "qwen/qwen3-8b"),
 			ExecStatus: getModelRoleConfig(ModelRoleExecStatus, "deepseek/r1-hidden"),
 		},
 	}
 
 	OllamaExperimentalSchema = ModelPackSchema{
 		Name:        "ollama-experimental",
-		Description: "Ollama experimental local blend. Supports up to 110k context. Uses Qwen3-32b model for heavy lifting, Qwen3-14b for summaries, Qwen3-8b for lighter tasks.",
+		Description: "Ollama experimental local blend. Supports up to 110k context. For now, more for experimentation and benchmarking than getting work done.",
 		ModelPackSchemaRoles: ModelPackSchemaRoles{
 			LocalProvider: ModelProviderOllama,
-			Planner:       getModelRoleConfig(ModelRolePlanner, "mistral/devstral-small"),
-			PlanSummary:   getModelRoleConfig(ModelRolePlanSummary, "qwen/qwen3-14b"),
+			Planner:       getModelRoleConfig(ModelRolePlanner, "qwen/qwen3-32b"),
+			PlanSummary:   getModelRoleConfig(ModelRolePlanSummary, "mistral/devstral-small"),
 			Builder:       getModelRoleConfig(ModelRoleBuilder, "mistral/devstral-small"),
 			WholeFileBuilder: Pointer(getModelRoleConfig(ModelRoleWholeFileBuilder,
 				"mistral/devstral-small")),
@@ -224,21 +224,23 @@ func init() {
 		},
 	}
 
-	OllamaAdaptiveSchema = ModelPackSchema{
-		Name:        "ollama-adaptive",
-		Description: "Ollama adaptive blend. Uses local models for planning and context selection, cloud models for implementation and file edits. Supports up to 110k context.",
-		ModelPackSchemaRoles: ModelPackSchemaRoles{
-			LocalProvider: ModelProviderOllama,
-			Planner:       getModelRoleConfig(ModelRolePlanner, "mistral/devstral-small"),
-			PlanSummary:   getModelRoleConfig(ModelRolePlanSummary, "qwen/qwen3-14b"),
-			Builder:       getModelRoleConfig(ModelRoleBuilder, "mistral/devstral-small"),
-			WholeFileBuilder: Pointer(getModelRoleConfig(ModelRoleWholeFileBuilder,
-				"mistral/devstral-small")),
-			Namer:      getModelRoleConfig(ModelRoleName, "qwen/qwen3-8b"),
-			CommitMsg:  getModelRoleConfig(ModelRoleCommitMsg, "qwen/qwen3-8b"),
-			ExecStatus: getModelRoleConfig(ModelRoleExecStatus, "mistral/devstral-small"),
-		},
-	}
+	// Copy daily driver schema and modify it to use ollama for lighter tasks
+	OllamaAdaptiveCommercialSchema = cloneSchema(DailyDriverSchema)
+	OllamaAdaptiveCommercialSchema.Name = "ollama-adaptive-commercial"
+	OllamaAdaptiveCommercialSchema.Description = "Ollama adaptive commercial blend. Uses 'daily-driver' for heavy lifting, local models for lighter tasks."
+	OllamaAdaptiveCommercialSchema.LocalProvider = ModelProviderOllama
+	OllamaAdaptiveCommercialSchema.PlanSummary = getModelRoleConfig(ModelRolePlanSummary, "mistral/devstral-small")
+	OllamaAdaptiveCommercialSchema.CommitMsg = getModelRoleConfig(ModelRoleCommitMsg, "qwen/qwen3-8b")
+	OllamaAdaptiveCommercialSchema.Namer = getModelRoleConfig(ModelRoleName, "qwen/qwen3-8b")
+
+	// Copy oss schema and modify it to use ollama for lighter tasks
+	OllamaAdaptiveOssSchema = cloneSchema(OssSchema)
+	OllamaAdaptiveOssSchema.Name = "ollama-adaptive-oss"
+	OllamaAdaptiveOssSchema.Description = "Ollama adaptive OSS blend. Uses local models for planning and context selection, open source cloud models for implementation and file edits. Supports up to 110k context."
+	OllamaAdaptiveOssSchema.LocalProvider = ModelProviderOllama
+	OllamaAdaptiveOssSchema.PlanSummary = getModelRoleConfig(ModelRolePlanSummary, "mistral/devstral-small")
+	OllamaAdaptiveOssSchema.CommitMsg = getModelRoleConfig(ModelRoleCommitMsg, "qwen/qwen3-8b")
+	OllamaAdaptiveOssSchema.Namer = getModelRoleConfig(ModelRoleName, "qwen/qwen3-8b")
 
 	OpenAISchema = ModelPackSchema{
 		Name:        "openai",
@@ -271,28 +273,12 @@ func init() {
 		},
 	}
 
-	GeminiPreviewSchema = ModelPackSchema{
+	GeminiSchema = ModelPackSchema{
 		Name:        "gemini-preview",
 		Description: "Uses Gemini 2.5 Pro Preview for planning and coding, default models for other roles. Supports up to 1M input context.",
 		ModelPackSchemaRoles: ModelPackSchemaRoles{
-			Planner:     getModelRoleConfig(ModelRolePlanner, "google/gemini-2.5-pro-preview"),
-			Coder:       Pointer(getModelRoleConfig(ModelRoleCoder, "google/gemini-2.5-pro-preview")),
-			PlanSummary: getModelRoleConfig(ModelRolePlanSummary, "openai/o4-mini-low"),
-			Builder:     defaultBuilder,
-			WholeFileBuilder: Pointer(getModelRoleConfig(ModelRoleWholeFileBuilder,
-				"openai/o4-mini-medium")),
-			Namer:      getModelRoleConfig(ModelRoleName, "openai/gpt-4.1-mini"),
-			CommitMsg:  getModelRoleConfig(ModelRoleCommitMsg, "openai/gpt-4.1-mini"),
-			ExecStatus: getModelRoleConfig(ModelRoleExecStatus, "openai/o4-mini-low"),
-		},
-	}
-
-	GeminiExperimentalSchema = ModelPackSchema{
-		Name:        "gemini-exp",
-		Description: "Uses Gemini 2.5 Pro Experimental (free) for planning and coding, default models for other roles. Supports up to 1M input context.",
-		ModelPackSchemaRoles: ModelPackSchemaRoles{
-			Planner:     getModelRoleConfig(ModelRolePlanner, "google/gemini-2.5-pro-exp"),
-			Coder:       Pointer(getModelRoleConfig(ModelRoleCoder, "google/gemini-2.5-pro-exp")),
+			Planner:     getModelRoleConfig(ModelRolePlanner, "google/gemini-2.5-pro"),
+			Coder:       Pointer(getModelRoleConfig(ModelRoleCoder, "google/gemini-2.5-pro")),
 			PlanSummary: getModelRoleConfig(ModelRolePlanSummary, "openai/o4-mini-low"),
 			Builder:     defaultBuilder,
 			WholeFileBuilder: Pointer(getModelRoleConfig(ModelRoleWholeFileBuilder,
@@ -341,11 +327,11 @@ func init() {
 	CheapModelPack = CheapSchema.ToModelPack()
 	OSSModelPack = OssSchema.ToModelPack()
 	OllamaExperimentalModelPack = OllamaExperimentalSchema.ToModelPack()
-	OllamaAdaptiveModelPack = OllamaAdaptiveSchema.ToModelPack()
+	OllamaAdaptiveOssModelPack = OllamaAdaptiveOssSchema.ToModelPack()
+	OllamaAdaptiveCommercialModelPack = OllamaAdaptiveCommercialSchema.ToModelPack()
 	AnthropicModelPack = AnthropicSchema.ToModelPack()
 	OpenAIModelPack = OpenAISchema.ToModelPack()
-	GeminiPreviewModelPack = GeminiPreviewSchema.ToModelPack()
-	GeminiExperimentalModelPack = GeminiExperimentalSchema.ToModelPack()
+	GeminiModelPack = GeminiSchema.ToModelPack()
 	R1PlannerModelPack = R1PlannerSchema.ToModelPack()
 	PerplexityPlannerModelPack = PerplexityPlannerSchema.ToModelPack()
 
@@ -356,11 +342,11 @@ func init() {
 		&CheapModelPack,
 		&OSSModelPack,
 		&OllamaExperimentalModelPack,
-		&OllamaAdaptiveModelPack,
+		&OllamaAdaptiveOssModelPack,
+		&OllamaAdaptiveCommercialModelPack,
 		&AnthropicModelPack,
 		&OpenAIModelPack,
-		&GeminiPreviewModelPack,
-		&GeminiExperimentalModelPack,
+		&GeminiModelPack,
 		&R1PlannerModelPack,
 		&PerplexityPlannerModelPack,
 	}
@@ -375,4 +361,25 @@ func init() {
 		}
 	}
 
+}
+
+// pointer fields need to be cloned to avoid modifying the original schema
+func cloneSchema(schema ModelPackSchema) ModelPackSchema {
+	res := schema
+
+	if schema.Architect != nil {
+		tmp := *schema.Architect
+		res.Architect = &tmp
+	}
+
+	if schema.Coder != nil {
+		tmp := *schema.Coder
+		res.Coder = &tmp
+	}
+	if schema.WholeFileBuilder != nil {
+		tmp := *schema.WholeFileBuilder
+		res.WholeFileBuilder = &tmp
+	}
+
+	return res
 }

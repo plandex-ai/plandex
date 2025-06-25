@@ -16,15 +16,13 @@ import (
 	"github.com/fatih/color"
 )
 
-var CustomModelsDefaultPath string
-
 type CustomModelsCheckLocalChangesResult struct {
 	HasLocalChanges  bool
 	LocalModelsInput shared.ModelsInput
 }
 
-func init() {
-	CustomModelsDefaultPath = filepath.Join(fs.HomePlandexDir, "custom-models.json")
+func GetCustomModelsPath(userId string) string {
+	return filepath.Join(fs.HomePlandexDir, "accounts", userId, "custom-models.json")
 }
 
 func GetServerModelsInput() (*shared.ModelsInput, error) {
@@ -330,12 +328,17 @@ func MustSyncCustomModels(path string, serverModelsInput *shared.ModelsInput) bo
 }
 
 func SyncCustomModels() error {
+	userId := auth.Current.UserId
+	if userId == "" {
+		return fmt.Errorf("auth.Current.UserId is empty")
+	}
+
 	serverModelsInput, err := GetServerModelsInput()
 	if err != nil {
 		return fmt.Errorf("error getting server models input: %v", err)
 	}
 
-	MustSyncCustomModels(CustomModelsDefaultPath, serverModelsInput)
+	MustSyncCustomModels(GetCustomModelsPath(userId), serverModelsInput)
 
 	return nil
 }

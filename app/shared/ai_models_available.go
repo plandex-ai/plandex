@@ -234,7 +234,7 @@ var BuiltInModels = []*BaseModelConfigSchema{
 		},
 		Providers: []BaseModelUsesProvider{
 			{Provider: ModelProviderAnthropic, ModelName: "anthropic/claude-3-5-sonnet-latest"},
-			{Provider: ModelProviderGoogleVertex, ModelName: "vertex_ai/claude-3-5-sonnet@20240620"},
+			{Provider: ModelProviderGoogleVertex, ModelName: "vertex_ai/claude-3-5-sonnet-v2@20241022"},
 			{Provider: ModelProviderAmazonBedrock, ModelName: "bedrock/anthropic.claude-3-5-sonnet-20241022-v2:0"},
 			{Provider: ModelProviderOpenRouter, ModelName: "anthropic/claude-3.5-sonnet"},
 		},
@@ -267,44 +267,29 @@ var BuiltInModels = []*BaseModelConfigSchema{
 		},
 		Providers: []BaseModelUsesProvider{
 			{Provider: ModelProviderGoogleAIStudio, ModelName: "gemini/gemini-1.5-pro"},
-			{Provider: ModelProviderGoogleVertex, ModelName: "vertex_ai/gemini-1.5-pro-latest"},
+			{Provider: ModelProviderGoogleVertex, ModelName: "vertex_ai/gemini-1.5-pro"},
 			{Provider: ModelProviderOpenRouter, ModelName: "google/gemini-pro-1.5"},
 		},
 	},
 	{
-		ModelTag:    "google/gemini-2.5-pro-preview",
+		ModelTag:    "google/gemini-2.5-pro",
 		Publisher:   ModelPublisherGoogle,
-		Description: "Google Gemini 2.5 Pro (Preview)",
+		Description: "Google Gemini 2.5 Pro",
 		BaseModelShared: BaseModelShared{
 			DefaultMaxConvoTokens: 75000, MaxTokens: 1048576,
 			MaxOutputTokens: 65535, ReservedOutputTokens: 65535,
 			PreferredOutputFormat: ModelOutputFormatXml,
 		},
 		Providers: []BaseModelUsesProvider{
-			{Provider: ModelProviderGoogleAIStudio, ModelName: "gemini/gemini-2.5-pro-preview-05-06"},
-			{Provider: ModelProviderGoogleVertex, ModelName: "vertex_ai/gemini-2.5-pro-preview-05-06"},
-			{Provider: ModelProviderOpenRouter, ModelName: "google/gemini-2.5-pro-preview"},
+			{Provider: ModelProviderGoogleAIStudio, ModelName: "gemini/gemini-2.5-pro"},
+			{Provider: ModelProviderGoogleVertex, ModelName: "vertex_ai/gemini-2.5-pro"},
+			{Provider: ModelProviderOpenRouter, ModelName: "google/gemini-2.5-pro"},
 		},
 	},
 	{
-		ModelTag:    "google/gemini-2.5-pro-exp",
+		ModelTag:    "google/gemini-2.5-flash",
 		Publisher:   ModelPublisherGoogle,
-		Description: "Google Gemini 2.5 Pro (Experimental)",
-		BaseModelShared: BaseModelShared{
-			DefaultMaxConvoTokens: 75000, MaxTokens: 1048576,
-			MaxOutputTokens: 65535, ReservedOutputTokens: 65535,
-			PreferredOutputFormat: ModelOutputFormatXml,
-		},
-		Providers: []BaseModelUsesProvider{
-			{Provider: ModelProviderGoogleAIStudio, ModelName: "gemini/gemini-2.5-pro-exp-03-25"},
-			{Provider: ModelProviderGoogleVertex, ModelName: "vertex_ai/gemini-2.5-pro-exp-03-25"},
-			{Provider: ModelProviderOpenRouter, ModelName: "google/gemini-2.5-pro-exp-03-25"},
-		},
-	},
-	{
-		ModelTag:    "google/gemini-2.5-flash-preview",
-		Publisher:   ModelPublisherGoogle,
-		Description: "Google Gemini 2.5 Flash (Preview)",
+		Description: "Google Gemini 2.5 Flash",
 		BaseModelShared: BaseModelShared{
 			DefaultMaxConvoTokens: 75000, MaxTokens: 1048576,
 			MaxOutputTokens: 65535, ReservedOutputTokens: 65535,
@@ -315,15 +300,15 @@ var BuiltInModels = []*BaseModelConfigSchema{
 			{VariantTag: "thinking", Description: "thinking", Overrides: BaseModelShared{IncludeReasoning: true}},
 		},
 		Providers: []BaseModelUsesProvider{
-			{Provider: ModelProviderGoogleAIStudio, ModelName: "gemini/gemini-2.5-flash-preview-05-20"},
-			{Provider: ModelProviderGoogleVertex, ModelName: "vertex_ai/gemini-2.5-flash-preview-05-20"},
-			{Provider: ModelProviderOpenRouter, ModelName: "google/gemini-2.5-flash-preview-05-20"},
+			{Provider: ModelProviderGoogleAIStudio, ModelName: "gemini/gemini-2.5-flash"},
+			{Provider: ModelProviderGoogleVertex, ModelName: "vertex_ai/gemini-2.5-flash"},
+			{Provider: ModelProviderOpenRouter, ModelName: "google/gemini-2.5-flash"},
 		},
 	},
 	{
-		ModelTag:    "deepseek/v3-0324",
+		ModelTag:    "deepseek/v3",
 		Publisher:   ModelPublisherDeepSeek,
-		Description: "DeepSeek V3 (0324)",
+		Description: "DeepSeek V3",
 		BaseModelShared: BaseModelShared{
 			DefaultMaxConvoTokens: 7500, MaxTokens: 64000,
 			MaxOutputTokens: 8192, ReservedOutputTokens: 8192,
@@ -331,7 +316,7 @@ var BuiltInModels = []*BaseModelConfigSchema{
 		},
 		Providers: []BaseModelUsesProvider{
 			{Provider: ModelProviderDeepSeek, ModelName: "deepseek/deepseek-chat"},
-			{Provider: ModelProviderOpenRouter, ModelName: "deepseek/deepseek-chat-v3-0324"},
+			{Provider: ModelProviderOpenRouter, ModelName: "deepseek/deepseek-chat-v3"},
 		},
 	},
 	{
@@ -339,8 +324,8 @@ var BuiltInModels = []*BaseModelConfigSchema{
 		Publisher:   ModelPublisherDeepSeek,
 		Description: "DeepSeek R1",
 		BaseModelShared: BaseModelShared{
-			DefaultMaxConvoTokens: 7500, MaxTokens: 64000,
-			MaxOutputTokens: 8192, ReservedOutputTokens: 8192,
+			DefaultMaxConvoTokens: 7500, MaxTokens: 164000,
+			MaxOutputTokens: 33000, ReservedOutputTokens: 20000,
 			PreferredOutputFormat: ModelOutputFormatXml,
 		},
 		Variants: []BaseModelConfigVariant{
@@ -349,7 +334,59 @@ var BuiltInModels = []*BaseModelConfigSchema{
 		},
 		Providers: []BaseModelUsesProvider{
 			{Provider: ModelProviderDeepSeek, ModelName: "deepseek/deepseek-reasoner"},
-			{Provider: ModelProviderOpenRouter, ModelName: "deepseek/deepseek-r1"},
+			{Provider: ModelProviderOpenRouter, ModelName: "deepseek/deepseek-r1-0528"},
+		},
+	},
+	{
+		ModelTag:    "deepseek/r1-70b",
+		Publisher:   ModelPublisherDeepSeek,
+		Description: "DeepSeek R1 70B",
+		BaseModelShared: BaseModelShared{
+			DefaultMaxConvoTokens: 10000, MaxTokens: 131072,
+			MaxOutputTokens: 131072, ReservedOutputTokens: 20000,
+			PreferredOutputFormat: ModelOutputFormatXml,
+		},
+		Providers: []BaseModelUsesProvider{
+			{Provider: ModelProviderOllama, ModelName: "ollama_chat/deepseek-r1:70b"},
+		},
+	},
+	{
+		ModelTag:    "deepseek/r1-32b",
+		Publisher:   ModelPublisherDeepSeek,
+		Description: "DeepSeek R1 32B",
+		BaseModelShared: BaseModelShared{
+			DefaultMaxConvoTokens: 10000, MaxTokens: 131072,
+			MaxOutputTokens: 131072, ReservedOutputTokens: 20000,
+			PreferredOutputFormat: ModelOutputFormatXml,
+		},
+		Providers: []BaseModelUsesProvider{
+			{Provider: ModelProviderOllama, ModelName: "ollama_chat/deepseek-r1:32b"},
+		},
+	},
+	{
+		ModelTag:    "deepseek/r1-14b",
+		Publisher:   ModelPublisherDeepSeek,
+		Description: "DeepSeek R1 14B",
+		BaseModelShared: BaseModelShared{
+			DefaultMaxConvoTokens: 10000, MaxTokens: 131072,
+			MaxOutputTokens: 131072, ReservedOutputTokens: 20000,
+			PreferredOutputFormat: ModelOutputFormatXml,
+		},
+		Providers: []BaseModelUsesProvider{
+			{Provider: ModelProviderOllama, ModelName: "ollama_chat/deepseek-r1:14b"},
+		},
+	},
+	{
+		ModelTag:    "deepseek/r1-8b",
+		Publisher:   ModelPublisherDeepSeek,
+		Description: "DeepSeek R1 8B",
+		BaseModelShared: BaseModelShared{
+			DefaultMaxConvoTokens: 10000, MaxTokens: 131072,
+			MaxOutputTokens: 131072, ReservedOutputTokens: 20000,
+			PreferredOutputFormat: ModelOutputFormatXml,
+		},
+		Providers: []BaseModelUsesProvider{
+			{Provider: ModelProviderOllama, ModelName: "ollama_chat/deepseek-r1:8b"},
 		},
 	},
 	{
@@ -370,6 +407,21 @@ var BuiltInModels = []*BaseModelConfigSchema{
 			{Provider: ModelProviderOpenRouter, ModelName: "perplexity/r1-1776"},
 		},
 	},
+
+	{
+		ModelTag:    "perplexity/r1-1776-70b",
+		Publisher:   ModelPublisherPerplexity,
+		Description: "Perplexity R1-1776 70B",
+		BaseModelShared: BaseModelShared{
+			DefaultMaxConvoTokens: 10000, MaxTokens: 131072,
+			MaxOutputTokens: 131072, ReservedOutputTokens: 20000,
+			PreferredOutputFormat: ModelOutputFormatXml,
+		},
+		Providers: []BaseModelUsesProvider{
+			{Provider: ModelProviderOllama, ModelName: "ollama_chat/r1-1776:70b"},
+		},
+	},
+
 	{
 		ModelTag:    "perplexity/sonar-reasoning",
 		Publisher:   ModelPublisherPerplexity,
