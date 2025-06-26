@@ -231,8 +231,16 @@ func firstDefinitionChild(node Node) *Node {
 }
 
 func findAssignmentBoundary(node Node) *Node {
-	if isAssignmentBoundaryNode(node) {
-		return &node
+	return findAssignmentBoundaryOnly(node, nil)
+}
+
+func findAssignmentBoundaryOnly(node Node, only map[nodeType]bool) *Node {
+	if only != nil {
+		if _, ok := only[nodeType(node.Type)]; ok {
+			return &node
+		}
+	} else if isAssignmentBoundaryNode(node) {
+		return skipForwardIfNeeded(node)
 	}
 
 	for i := 0; i < int(node.TsNode.ChildCount()); i++ {
@@ -249,12 +257,39 @@ func findAssignmentBoundary(node Node) *Node {
 			fmt.Println("  child", child.Type())
 		}
 
-		found := findAssignmentBoundary(childNode)
+		found := findAssignmentBoundaryOnly(childNode, only)
 		if found != nil {
 			return found
 		}
 	}
 	return nil
+}
+
+func skipForwardIfNeeded(node Node) *Node {
+	config := assignmentBoundarySkipForwardNodeMap.getConfig(node.Type, node.Lang)
+	if config == nil {
+		return &node
+	}
+
+	if config.skipForward != nil {
+		tsParent := node.TsNode.Parent()
+		if tsParent == nil {
+			return &node
+		}
+
+		parent := Node{
+			Type:   tsParent.Type(),
+			Lang:   node.Lang,
+			TsNode: tsParent,
+			Bytes:  node.Bytes,
+		}
+
+		skipToNode := findAssignmentBoundaryOnly(parent, config.skipForward)
+		if skipToNode != nil {
+			return skipToNode
+		}
+	}
+	return &node
 }
 
 func setNodeType(node *Node) {

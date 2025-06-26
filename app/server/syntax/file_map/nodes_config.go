@@ -21,6 +21,7 @@ type nodeConfig struct {
 	except       langSet
 	languages    langSet
 	onlyChildren map[nodeType]bool
+	skipForward  map[nodeType]bool
 }
 
 type nodeMap map[nodeType]nodeConfig
@@ -80,9 +81,7 @@ var assignmentNodeMap = nodeMap{
 	"interface_declaration": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
-			shared.LanguageTypescript: true,
-			shared.LanguageTsx:        true,
-			shared.LanguagePhp:        true,
+			shared.LanguagePhp: true,
 		},
 	},
 
@@ -247,6 +246,16 @@ var assignmentNodeMap = nodeMap{
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
 			shared.LanguageSwift: true,
+		},
+	},
+
+	"_field_definition": {
+		nodeMatch: matchTypeSuffix,
+		languages: langSet{
+			shared.LanguageTypescript: true,
+			shared.LanguageTsx:        true,
+			shared.LanguageJavascript: true,
+			shared.LanguageJsx:        true,
 		},
 	},
 }
@@ -509,6 +518,26 @@ var parentNodeMap = nodeMap{
 		},
 	},
 
+	"export_statement": {
+		nodeMatch: matchTypeEqual,
+		languages: langSet{
+			shared.LanguageTypescript: true,
+			shared.LanguageJavascript: true,
+			shared.LanguageTsx:        true,
+			shared.LanguageJsx:        true,
+		},
+		onlyChildren: map[nodeType]bool{
+			"lexical_declaration":    true,
+			"variable_declaration":   true,
+			"type_alias_declaration": true,
+			"interface_declaration":  true,
+			"enum_declaration":       true,
+			"class_declaration":      true,
+			"function_declaration":   true,
+			"arrow_function":         true,
+		},
+	},
+
 	"module": {
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
@@ -579,6 +608,45 @@ var parentNodeMap = nodeMap{
 		},
 		onlyChildren: map[nodeType]bool{
 			"function_statement": true,
+		},
+	},
+
+	"internal_module": {
+		nodeMatch: matchTypeEqual,
+		languages: langSet{
+			shared.LanguageTypescript: true,
+			shared.LanguageJavascript: true,
+			shared.LanguageTsx:        true,
+			shared.LanguageJsx:        true,
+		},
+	},
+
+	"expression_statement": {
+		nodeMatch: matchTypeEqual,
+		languages: langSet{
+			shared.LanguageTypescript: true,
+			shared.LanguageJavascript: true,
+			shared.LanguageTsx:        true,
+			shared.LanguageJsx:        true,
+		},
+		onlyChildren: map[nodeType]bool{
+			"internal_module": true,
+		},
+	},
+
+	"ambient_declaration": {
+		nodeMatch: matchTypeEqual,
+		languages: langSet{
+			shared.LanguageTypescript: true,
+			shared.LanguageTsx:        true,
+		},
+	},
+
+	"interface_declaration": {
+		nodeMatch: matchTypeEqual,
+		languages: langSet{
+			shared.LanguageTypescript: true,
+			shared.LanguageTsx:        true,
 		},
 	},
 }
@@ -767,6 +835,22 @@ var assignmentBoundaryNodeMap = nodeMap{
 	},
 }
 
+var assignmentBoundarySkipForwardNodeMap = nodeMap{
+	"=": {
+		nodeMatch: matchTypeEqual,
+		languages: langSet{
+			shared.LanguageTypescript: true,
+			shared.LanguageJavascript: true,
+			shared.LanguageTsx:        true,
+			shared.LanguageJsx:        true,
+		},
+		skipForward: map[nodeType]bool{
+			"statement_block": true,
+			"=>":              true,
+		},
+	},
+}
+
 var identifierNodeMap = nodeMap{
 	// Common patterns
 	"identifier": {
@@ -805,6 +889,27 @@ var passThroughParentNodeMap = nodeMap{
 		nodeMatch: matchTypeEqual,
 		languages: langSet{
 			shared.LanguageCpp: true,
+		},
+	},
+	"export_statement": {
+		nodeMatch: matchTypeEqual,
+		languages: langSet{
+			shared.LanguageTypescript: true,
+			shared.LanguageJavascript: true,
+			shared.LanguageTsx:        true,
+			shared.LanguageJsx:        true,
+		},
+	},
+	"expression_statement": {
+		nodeMatch: matchTypeEqual,
+		languages: langSet{
+			shared.LanguageTypescript: true,
+			shared.LanguageJavascript: true,
+			shared.LanguageTsx:        true,
+			shared.LanguageJsx:        true,
+		},
+		onlyChildren: map[nodeType]bool{
+			"internal_module": true,
 		},
 	},
 }
