@@ -132,16 +132,16 @@ func CreateChatCompletionStream(
 	if baseModelConfig.ReasoningBudget > 0 {
 		req.ReasoningConfig = &types.ReasoningConfig{
 			MaxTokens: baseModelConfig.ReasoningBudget,
-			Exclude:   !baseModelConfig.IncludeReasoning,
+			Exclude:   !baseModelConfig.IncludeReasoning || baseModelConfig.HideReasoning,
 		}
 	} else if baseModelConfig.ReasoningEffortEnabled {
 		req.ReasoningConfig = &types.ReasoningConfig{
 			Effort:  shared.ReasoningEffort(baseModelConfig.ReasoningEffort),
-			Exclude: !baseModelConfig.IncludeReasoning,
+			Exclude: !baseModelConfig.IncludeReasoning || baseModelConfig.HideReasoning,
 		}
 	} else if baseModelConfig.IncludeReasoning {
 		req.ReasoningConfig = &types.ReasoningConfig{
-			Exclude: false,
+			Exclude: baseModelConfig.HideReasoning,
 		}
 	}
 
