@@ -21,12 +21,16 @@ var (
 	fullAuto  bool
 
 	// Type flags
-	dailyModels     bool
-	reasoningModels bool
-	strongModels    bool
-	ossModels       bool
-	cheapModels     bool
-	geminiModels    bool
+	dailyModels             bool
+	reasoningModels         bool
+	strongModels            bool
+	ossModels               bool
+	cheapModels             bool
+	geminiPlannerModels     bool
+	o3PlannerModels         bool
+	r1PlannerModels         bool
+	perplexityPlannerModels bool
+	opusPlannerModels       bool
 )
 
 func AddNewPlanFlags(cmd *cobra.Command) {
@@ -43,7 +47,12 @@ func AddNewPlanFlags(cmd *cobra.Command) {
 	cmd.Flags().BoolVar(&strongModels, "strong", false, shared.StrongModelPack.Description)
 	cmd.Flags().BoolVar(&cheapModels, "cheap", false, shared.CheapModelPack.Description)
 	cmd.Flags().BoolVar(&ossModels, "oss", false, shared.OSSModelPack.Description)
-	cmd.Flags().BoolVar(&geminiModels, "gemini", false, shared.GeminiModelPack.Description)
+
+	cmd.Flags().BoolVar(&geminiPlannerModels, "gemini-planner", false, shared.GeminiPlannerModelPack.Description)
+	cmd.Flags().BoolVar(&o3PlannerModels, "o3-planner", false, shared.O3PlannerModelPack.Description)
+	cmd.Flags().BoolVar(&r1PlannerModels, "r1-planner", false, shared.R1PlannerModelPack.Description)
+	cmd.Flags().BoolVar(&perplexityPlannerModels, "perplexity-planner", false, shared.PerplexityPlannerModelPack.Description)
+	cmd.Flags().BoolVar(&opusPlannerModels, "opus-planner", false, shared.OpusPlannerModelPack.Description)
 }
 
 func resolveAutoMode(config *shared.PlanConfig) (bool, *shared.PlanConfig) {
@@ -139,8 +148,16 @@ func resolveModelPackWithArgs(settings *shared.PlanSettings, silent bool) (*shar
 		packName = shared.ReasoningModelPack.Name
 	} else if dailyModels {
 		packName = shared.DailyDriverModelPack.Name
-	} else if geminiModels {
-		packName = shared.GeminiModelPack.Name
+	} else if geminiPlannerModels {
+		packName = shared.GeminiPlannerModelPack.Name
+	} else if o3PlannerModels {
+		packName = shared.O3PlannerModelPack.Name
+	} else if r1PlannerModels {
+		packName = shared.R1PlannerModelPack.Name
+	} else if perplexityPlannerModels {
+		packName = shared.PerplexityPlannerModelPack.Name
+	} else if opusPlannerModels {
+		packName = shared.OpusPlannerModelPack.Name
 	}
 
 	if packName != "" && packName != originalSettings.GetModelPack().Name {

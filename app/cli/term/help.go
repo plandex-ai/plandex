@@ -43,7 +43,12 @@ var CliCommands = []CmdConfig{
 	{"new --strong", "", fmt.Sprintf("start a new plan with %s model pack", "'strong'"), true},
 	{"new --cheap", "", fmt.Sprintf("start a new plan with %s model pack", "'cheap'"), true},
 	{"new --oss", "", fmt.Sprintf("start a new plan with %s model pack", "'oss'"), true},
-	{"new --gemini", "", fmt.Sprintf("start a new plan with %s model pack", "'gemini'"), true},
+	{"new --gemini-planner", "", fmt.Sprintf("start a new plan with %s model pack", "'gemini-planner'"), true},
+	{"new --o3-planner", "", fmt.Sprintf("start a new plan with %s model pack", "'o3-planner'"), true},
+	{"new --r1-planner", "", fmt.Sprintf("start a new plan with %s model pack", "'r1-planner'"), true},
+	{"new --perplexity-planner", "", fmt.Sprintf("start a new plan with %s model pack", "'perplexity-planner'"), true},
+	{"new --opus-planner", "", fmt.Sprintf("start a new plan with %s model pack", "'opus-planner'"), true},
+
 	{"plans", "pl", "list plans", true},
 	{"cd", "", "set current plan by name or index", true},
 	{"current", "cu", "show current plan", true},
@@ -126,7 +131,11 @@ var CliCommands = []CmdConfig{
 	{"set-model strong", "", fmt.Sprintf("Use %s model pack", "'strong'"), true},
 	{"set-model cheap", "", fmt.Sprintf("Use %s model pack", "'cheap'"), true},
 	{"set-model oss", "", fmt.Sprintf("Use %s model pack", "'oss'"), true},
-	{"set-model gemini", "", fmt.Sprintf("Use %s model pack", "'gemini'"), true},
+	{"set-model gemini-planner", "", fmt.Sprintf("Use %s model pack", "'gemini-planner'"), true},
+	{"set-model o3-planner", "", fmt.Sprintf("Use %s model pack", "'o3-planner'"), true},
+	{"set-model r1-planner", "", fmt.Sprintf("Use %s model pack", "'r1-planner'"), true},
+	{"set-model perplexity-planner", "", fmt.Sprintf("Use %s model pack", "'perplexity-planner'"), true},
+	{"set-model opus-planner", "", fmt.Sprintf("Use %s model pack", "'opus-planner'"), true},
 
 	{"ps", "", "list active and recently finished plan streams", true},
 	{"stop", "", "stop an active plan stream", true},
@@ -341,7 +350,7 @@ func PrintHelpAllCommands() {
 	fmt.Fprintln(builder)
 
 	color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " New Plan Shortcuts ")
-	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "new --full", "new --semi", "new --plus", "new --basic", "new --none", "new --daily", "new --reasoning", "new --strong", "new --cheap", "new --oss", "new --gemini" /*"new --crazy"*/)
+	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "new --full", "new --semi", "new --plus", "new --basic", "new --none", "new --daily", "new --reasoning", "new --strong", "new --cheap", "new --oss", "new --gemini-planner", "new --o3-planner", "new --r1-planner", "new --perplexity-planner", "new --opus-planner")
 	fmt.Fprintln(builder)
 
 	fmt.Print(builder.String())

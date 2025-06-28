@@ -11,14 +11,16 @@ var StrongModelOpus ModelPack
 
 var AnthropicModelPack ModelPack
 var OpenAIModelPack ModelPack
+var GoogleModelPack ModelPack
 
-var GeminiModelPack ModelPack
+var GeminiPlannerModelPack ModelPack
+var O3PlannerModelPack ModelPack
 var R1PlannerModelPack ModelPack
 var PerplexityPlannerModelPack ModelPack
 
 var OllamaExperimentalModelPack ModelPack
 var OllamaAdaptiveOssModelPack ModelPack
-var OllamaAdaptiveCommercialModelPack ModelPack
+var OllamaAdaptiveDailyModelPack ModelPack
 
 var BuiltInModelPacks = []*ModelPack{
 	&DailyDriverModelPack,
@@ -28,15 +30,19 @@ var BuiltInModelPacks = []*ModelPack{
 	&OSSModelPack,
 	&OllamaExperimentalModelPack,
 	&OllamaAdaptiveOssModelPack,
-	&OllamaAdaptiveCommercialModelPack,
+	&OllamaAdaptiveDailyModelPack,
 	&OpusPlannerModelPack,
 	&StrongModelOpus,
 	&AnthropicModelPack,
 	&OpenAIModelPack,
-	&GeminiModelPack,
+	&GoogleModelPack,
+	&GeminiPlannerModelPack,
+	&O3PlannerModelPack,
 	&R1PlannerModelPack,
 	&PerplexityPlannerModelPack,
 }
+
+var BuiltInModelPacksByName = make(map[string]*ModelPack)
 
 var DefaultModelPack *ModelPack = &DailyDriverModelPack
 
@@ -81,19 +87,22 @@ func getStrongModelFallback(role ModelRole, modelId ModelId, fns ...func(*ModelR
 }
 
 var (
-	DailyDriverSchema              ModelPackSchema
-	ReasoningSchema                ModelPackSchema
-	StrongSchema                   ModelPackSchema
-	OssSchema                      ModelPackSchema
-	CheapSchema                    ModelPackSchema
-	OllamaExperimentalSchema       ModelPackSchema
-	OllamaAdaptiveOssSchema        ModelPackSchema
-	OllamaAdaptiveCommercialSchema ModelPackSchema
-	AnthropicSchema                ModelPackSchema
-	OpenAISchema                   ModelPackSchema
-	GeminiSchema                   ModelPackSchema
-	R1PlannerSchema                ModelPackSchema
-	PerplexityPlannerSchema        ModelPackSchema
+	DailyDriverSchema         ModelPackSchema
+	ReasoningSchema           ModelPackSchema
+	StrongSchema              ModelPackSchema
+	OssSchema                 ModelPackSchema
+	CheapSchema               ModelPackSchema
+	OllamaExperimentalSchema  ModelPackSchema
+	OllamaAdaptiveOssSchema   ModelPackSchema
+	OllamaAdaptiveDailySchema ModelPackSchema
+	AnthropicSchema           ModelPackSchema
+	OpenAISchema              ModelPackSchema
+	GoogleSchema              ModelPackSchema
+	GeminiPlannerSchema       ModelPackSchema
+	OpusPlannerSchema         ModelPackSchema
+	R1PlannerSchema           ModelPackSchema
+	PerplexityPlannerSchema   ModelPackSchema
+	O3PlannerSchema           ModelPackSchema
 )
 
 var BuiltInModelPackSchemas = []*ModelPackSchema{
@@ -104,10 +113,12 @@ var BuiltInModelPackSchemas = []*ModelPackSchema{
 	&OssSchema,
 	&OllamaExperimentalSchema,
 	&OllamaAdaptiveOssSchema,
-	&OllamaAdaptiveCommercialSchema,
+	&OllamaAdaptiveDailySchema,
 	&AnthropicSchema,
 	&OpenAISchema,
-	&GeminiSchema,
+	&GeminiPlannerSchema,
+	&OpusPlannerSchema,
+	&O3PlannerSchema,
 	&R1PlannerSchema,
 	&PerplexityPlannerSchema,
 }
@@ -202,45 +213,45 @@ func init() {
 			Builder:     getModelRoleConfig(ModelRoleBuilder, "deepseek/r1-hidden"),
 			WholeFileBuilder: Pointer(getModelRoleConfig(ModelRoleWholeFileBuilder,
 				"deepseek/r1-hidden")),
-			Namer:      getModelRoleConfig(ModelRoleName, "qwen/qwen3-8b"),
-			CommitMsg:  getModelRoleConfig(ModelRoleCommitMsg, "qwen/qwen3-8b"),
+			Namer:      getModelRoleConfig(ModelRoleName, "qwen/qwen3-8b-cloud"),
+			CommitMsg:  getModelRoleConfig(ModelRoleCommitMsg, "qwen/qwen3-8b-cloud"),
 			ExecStatus: getModelRoleConfig(ModelRoleExecStatus, "deepseek/r1-hidden"),
 		},
 	}
 
 	OllamaExperimentalSchema = ModelPackSchema{
-		Name:        "ollama-experimental",
+		Name:        "ollama",
 		Description: "Ollama experimental local blend. Supports up to 110k context. For now, more for experimentation and benchmarking than getting work done.",
 		ModelPackSchemaRoles: ModelPackSchemaRoles{
 			LocalProvider: ModelProviderOllama,
-			Planner:       getModelRoleConfig(ModelRolePlanner, "qwen/qwen3-32b"),
+			Planner:       getModelRoleConfig(ModelRolePlanner, "qwen/qwen3-32b-local"),
 			PlanSummary:   getModelRoleConfig(ModelRolePlanSummary, "mistral/devstral-small"),
 			Builder:       getModelRoleConfig(ModelRoleBuilder, "mistral/devstral-small"),
 			WholeFileBuilder: Pointer(getModelRoleConfig(ModelRoleWholeFileBuilder,
 				"mistral/devstral-small")),
-			Namer:      getModelRoleConfig(ModelRoleName, "qwen/qwen3-8b"),
-			CommitMsg:  getModelRoleConfig(ModelRoleCommitMsg, "qwen/qwen3-8b"),
+			Namer:      getModelRoleConfig(ModelRoleName, "qwen/qwen3-8b-local"),
+			CommitMsg:  getModelRoleConfig(ModelRoleCommitMsg, "qwen/qwen3-8b-local"),
 			ExecStatus: getModelRoleConfig(ModelRoleExecStatus, "mistral/devstral-small"),
 		},
 	}
 
 	// Copy daily driver schema and modify it to use ollama for lighter tasks
-	OllamaAdaptiveCommercialSchema = cloneSchema(DailyDriverSchema)
-	OllamaAdaptiveCommercialSchema.Name = "ollama-adaptive-commercial"
-	OllamaAdaptiveCommercialSchema.Description = "Ollama adaptive commercial blend. Uses 'daily-driver' for heavy lifting, local models for lighter tasks."
-	OllamaAdaptiveCommercialSchema.LocalProvider = ModelProviderOllama
-	OllamaAdaptiveCommercialSchema.PlanSummary = getModelRoleConfig(ModelRolePlanSummary, "mistral/devstral-small")
-	OllamaAdaptiveCommercialSchema.CommitMsg = getModelRoleConfig(ModelRoleCommitMsg, "qwen/qwen3-8b")
-	OllamaAdaptiveCommercialSchema.Namer = getModelRoleConfig(ModelRoleName, "qwen/qwen3-8b")
+	OllamaAdaptiveDailySchema = cloneSchema(DailyDriverSchema)
+	OllamaAdaptiveDailySchema.Name = "ollama-daily"
+	OllamaAdaptiveDailySchema.Description = "Ollama adaptive/daily-driver blend. Uses 'daily-driver' for heavy lifting, local models for lighter tasks."
+	OllamaAdaptiveDailySchema.LocalProvider = ModelProviderOllama
+	OllamaAdaptiveDailySchema.PlanSummary = getModelRoleConfig(ModelRolePlanSummary, "mistral/devstral-small")
+	OllamaAdaptiveDailySchema.CommitMsg = getModelRoleConfig(ModelRoleCommitMsg, "qwen/qwen3-8b-local")
+	OllamaAdaptiveDailySchema.Namer = getModelRoleConfig(ModelRoleName, "qwen/qwen3-8b-local")
 
 	// Copy oss schema and modify it to use ollama for lighter tasks
 	OllamaAdaptiveOssSchema = cloneSchema(OssSchema)
-	OllamaAdaptiveOssSchema.Name = "ollama-adaptive-oss"
-	OllamaAdaptiveOssSchema.Description = "Ollama adaptive OSS blend. Uses local models for planning and context selection, open source cloud models for implementation and file edits. Supports up to 110k context."
+	OllamaAdaptiveOssSchema.Name = "ollama-oss"
+	OllamaAdaptiveOssSchema.Description = "Ollama adaptive/oss blend. Uses local models for planning and context selection, open source cloud models for implementation and file edits. Supports up to 110k context."
 	OllamaAdaptiveOssSchema.LocalProvider = ModelProviderOllama
 	OllamaAdaptiveOssSchema.PlanSummary = getModelRoleConfig(ModelRolePlanSummary, "mistral/devstral-small")
-	OllamaAdaptiveOssSchema.CommitMsg = getModelRoleConfig(ModelRoleCommitMsg, "qwen/qwen3-8b")
-	OllamaAdaptiveOssSchema.Namer = getModelRoleConfig(ModelRoleName, "qwen/qwen3-8b")
+	OllamaAdaptiveOssSchema.CommitMsg = getModelRoleConfig(ModelRoleCommitMsg, "qwen/qwen3-8b-local")
+	OllamaAdaptiveOssSchema.Namer = getModelRoleConfig(ModelRoleName, "qwen/qwen3-8b-local")
 
 	OpenAISchema = ModelPackSchema{
 		Name:        "openai",
@@ -273,12 +284,64 @@ func init() {
 		},
 	}
 
-	GeminiSchema = ModelPackSchema{
-		Name:        "gemini-preview",
-		Description: "Uses Gemini 2.5 Pro Preview for planning and coding, default models for other roles. Supports up to 1M input context.",
+	GoogleSchema = ModelPackSchema{
+		Name:        "google",
+		Description: "Uses Gemini 2.5 Pro for heavy lifting, 2.5 Flash for light tasks. Supports up to 1M input context.",
 		ModelPackSchemaRoles: ModelPackSchemaRoles{
 			Planner:     getModelRoleConfig(ModelRolePlanner, "google/gemini-2.5-pro"),
-			Coder:       Pointer(getModelRoleConfig(ModelRoleCoder, "google/gemini-2.5-pro")),
+			Coder:       Pointer(getModelRoleConfig(ModelRoleCoder, "google/gemini-2.5-flash")),
+			PlanSummary: getModelRoleConfig(ModelRolePlanSummary, "google/gemini-2.5-flash"),
+			Builder:     getModelRoleConfig(ModelRoleBuilder, "google/gemini-2.5-pro"),
+			Namer:       getModelRoleConfig(ModelRoleName, "google/gemini-2.5-flash"),
+			CommitMsg:   getModelRoleConfig(ModelRoleCommitMsg, "google/gemini-2.5-flash"),
+			ExecStatus:  getModelRoleConfig(ModelRoleExecStatus, "google/gemini-2.5-pro"),
+		},
+	}
+
+	GeminiPlannerSchema = ModelPackSchema{
+		Name:        "gemini-planner",
+		Description: "Uses Gemini 2.5 Pro for planning, default models for other roles. Supports up to 1M input context.",
+		ModelPackSchemaRoles: ModelPackSchemaRoles{
+			Planner: getModelRoleConfig(ModelRolePlanner, "google/gemini-2.5-pro"),
+			Coder: Pointer(getModelRoleConfig(ModelRoleCoder, "anthropic/claude-sonnet-4",
+				getLargeContextFallback(ModelRoleCoder, "openai/gpt-4.1"),
+			)),
+			PlanSummary: getModelRoleConfig(ModelRolePlanSummary, "openai/o4-mini-low"),
+			Builder:     defaultBuilder,
+			WholeFileBuilder: Pointer(getModelRoleConfig(ModelRoleWholeFileBuilder,
+				"openai/o4-mini-medium")),
+			Namer:      getModelRoleConfig(ModelRoleName, "openai/gpt-4.1-mini"),
+			CommitMsg:  getModelRoleConfig(ModelRoleCommitMsg, "openai/gpt-4.1-mini"),
+			ExecStatus: getModelRoleConfig(ModelRoleExecStatus, "openai/o4-mini-low"),
+		},
+	}
+
+	O3PlannerSchema = ModelPackSchema{
+		Name:        "o3-planner",
+		Description: "Uses Claude Opus 4 for planning, default models for other roles. Supports up to 180k input context.",
+		ModelPackSchemaRoles: ModelPackSchemaRoles{
+			Planner: getModelRoleConfig(ModelRolePlanner, "anthropic/opus-4"),
+			Coder: Pointer(getModelRoleConfig(ModelRoleCoder, "anthropic/claude-sonnet-4",
+				getLargeContextFallback(ModelRoleCoder, "openai/gpt-4.1"),
+			)),
+			PlanSummary: getModelRoleConfig(ModelRolePlanSummary, "openai/o4-mini-low"),
+			Builder:     defaultBuilder,
+			WholeFileBuilder: Pointer(getModelRoleConfig(ModelRoleWholeFileBuilder,
+				"openai/o4-mini-medium")),
+			Namer:      getModelRoleConfig(ModelRoleName, "openai/gpt-4.1-mini"),
+			CommitMsg:  getModelRoleConfig(ModelRoleCommitMsg, "openai/gpt-4.1-mini"),
+			ExecStatus: getModelRoleConfig(ModelRoleExecStatus, "openai/o4-mini-low"),
+		},
+	}
+
+	O3PlannerSchema = ModelPackSchema{
+		Name:        "o3-planner",
+		Description: "Uses OpenAI o3-medium for planning, default models for other roles. Supports up to 160k input context.",
+		ModelPackSchemaRoles: ModelPackSchemaRoles{
+			Planner: getModelRoleConfig(ModelRolePlanner, "openai/o3-medium"),
+			Coder: Pointer(getModelRoleConfig(ModelRoleCoder, "anthropic/claude-sonnet-4",
+				getLargeContextFallback(ModelRoleCoder, "openai/gpt-4.1"),
+			)),
 			PlanSummary: getModelRoleConfig(ModelRolePlanSummary, "openai/o4-mini-low"),
 			Builder:     defaultBuilder,
 			WholeFileBuilder: Pointer(getModelRoleConfig(ModelRoleWholeFileBuilder,
@@ -328,12 +391,15 @@ func init() {
 	OSSModelPack = OssSchema.ToModelPack()
 	OllamaExperimentalModelPack = OllamaExperimentalSchema.ToModelPack()
 	OllamaAdaptiveOssModelPack = OllamaAdaptiveOssSchema.ToModelPack()
-	OllamaAdaptiveCommercialModelPack = OllamaAdaptiveCommercialSchema.ToModelPack()
+	OllamaAdaptiveDailyModelPack = OllamaAdaptiveDailySchema.ToModelPack()
 	AnthropicModelPack = AnthropicSchema.ToModelPack()
 	OpenAIModelPack = OpenAISchema.ToModelPack()
-	GeminiModelPack = GeminiSchema.ToModelPack()
+	GoogleModelPack = GoogleSchema.ToModelPack()
+	GeminiPlannerModelPack = GeminiPlannerSchema.ToModelPack()
+	OpusPlannerModelPack = OpusPlannerSchema.ToModelPack()
 	R1PlannerModelPack = R1PlannerSchema.ToModelPack()
 	PerplexityPlannerModelPack = PerplexityPlannerSchema.ToModelPack()
+	O3PlannerModelPack = O3PlannerSchema.ToModelPack()
 
 	BuiltInModelPacks = []*ModelPack{
 		&DailyDriverModelPack,
@@ -343,10 +409,13 @@ func init() {
 		&OSSModelPack,
 		&OllamaExperimentalModelPack,
 		&OllamaAdaptiveOssModelPack,
-		&OllamaAdaptiveCommercialModelPack,
+		&OllamaAdaptiveDailyModelPack,
 		&AnthropicModelPack,
 		&OpenAIModelPack,
-		&GeminiModelPack,
+		&GoogleModelPack,
+		&GeminiPlannerModelPack,
+		&OpusPlannerModelPack,
+		&O3PlannerModelPack,
 		&R1PlannerModelPack,
 		&PerplexityPlannerModelPack,
 	}
@@ -354,6 +423,8 @@ func init() {
 	DefaultModelPack = &DailyDriverModelPack
 
 	for _, mp := range BuiltInModelPacks {
+		BuiltInModelPacksByName[mp.Name] = mp
+
 		for _, id := range mp.ToModelPackSchema().AllModelIds() {
 			if BuiltInBaseModelsById[id] == nil {
 				panic("missing base model: " + id)
