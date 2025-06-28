@@ -56,15 +56,15 @@ var ModelProviderToLiteLLMId = map[ModelProvider]string{
 }
 
 var AllModelProviders = []ModelProvider{
-	ModelProviderOpenAI,
 	ModelProviderOpenRouter,
+	ModelProviderOpenAI,
 	ModelProviderAnthropic,
 	ModelProviderGoogleAIStudio,
 	ModelProviderGoogleVertex,
 	ModelProviderAzureOpenAI,
+	ModelProviderAmazonBedrock,
 	ModelProviderDeepSeek,
 	ModelProviderPerplexity,
-	ModelProviderAmazonBedrock,
 	ModelProviderOllama,
 	ModelProviderCustom,
 }

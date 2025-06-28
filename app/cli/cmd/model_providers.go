@@ -77,7 +77,14 @@ func listProviders(cmd *cobra.Command, args []string) {
 	color.New(color.Bold, term.ColorHiCyan).Println("🏠 Built-in Providers")
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetAutoWrapText(true)
-	table.SetHeader([]string{"ID", "Base URL", "API Key", "Other Vars"})
+
+	var header []string
+	if auth.Current.IsCloud {
+		header = []string{"ID", "API Key", "Other Vars"}
+	} else {
+		header = []string{"ID", "Base URL", "API Key", "Other Vars"}
+	}
+	table.SetHeader(header)
 	for _, p := range shared.AllModelProviders {
 		if p == shared.ModelProviderCustom {
 			continue
@@ -94,16 +101,27 @@ func listProviders(cmd *cobra.Command, args []string) {
 		}
 
 		extraVars := []string{}
+		if config.Provider == shared.ModelProviderAmazonBedrock {
+			extraVars = append(extraVars, "PLANDEX_AWS_PROFILE")
+		}
 		for _, v := range config.ExtraAuthVars {
 			extraVars = append(extraVars, v.Var)
 		}
 
-		table.Append([]string{
-			string(p),
-			config.BaseUrl,
-			apiKey,
-			strings.Join(extraVars, "\n"),
-		})
+		if auth.Current.IsCloud {
+			table.Append([]string{
+				string(p),
+				apiKey,
+				strings.Join(extraVars, "\n"),
+			})
+		} else {
+			table.Append([]string{
+				string(p),
+				config.BaseUrl,
+				apiKey,
+				strings.Join(extraVars, "\n"),
+			})
+		}
 	}
 	table.Render()
 	fmt.Println()
@@ -134,6 +152,10 @@ func listProviders(cmd *cobra.Command, args []string) {
 		table.Render()
 		fmt.Println()
 	}
+
+	fmt.Println(color.New(color.Bold, term.ColorHiCyan).Sprint("\n📖 Per-provider instructions"))
+	fmt.Println("Go to → " + color.New(color.Bold).Sprint("https://docs.plandex.ai/models/model-providers"))
+	fmt.Println()
 
 	term.PrintCmds("", "models custom")
 }

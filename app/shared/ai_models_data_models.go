@@ -41,6 +41,7 @@ type BaseModelShared struct {
 	ReasoningEffortEnabled      bool              `json:"reasoningEffortEnabled,omitempty"`
 	ReasoningEffort             ReasoningEffort   `json:"reasoningEffort,omitempty"`
 	IncludeReasoning            bool              `json:"includeReasoning,omitempty"`
+	HideReasoning               bool              `json:"hideReasoning,omitempty"`
 	ReasoningBudget             int               `json:"reasoningBudget,omitempty"`
 	SupportsCacheControl        bool              `json:"supportsCacheControl,omitempty"`
 	SingleMessageNoSystemPrompt bool              `json:"singleMessageNoSystemPrompt,omitempty"`
@@ -96,6 +97,26 @@ type BaseModelConfigVariant struct {
 	Variants                 []BaseModelConfigVariant `json:"variants"`
 	RequiresVariantOverrides []string                 `json:"requiresVariantOverrides"`
 	IsDefaultVariant         bool                     `json:"isDefaultVariant"`
+}
+
+func (b *BaseModelConfigSchema) IsLocalOnly() bool {
+	if len(b.Providers) == 0 {
+		return false
+	}
+
+	for _, provider := range b.Providers {
+		builtIn, ok := BuiltInModelProviderConfigs[provider.Provider]
+		if !ok {
+			// has a custom provider—assume not local only
+			return false
+		}
+		if !builtIn.LocalOnly {
+			// has a built-in provider that is not local only
+			return false
+		}
+	}
+
+	return true
 }
 
 func (b *BaseModelConfigSchema) ToAvailableModels() []*AvailableModel {

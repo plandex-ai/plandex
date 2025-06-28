@@ -285,7 +285,7 @@ func mergeAuthVars(dest, src map[string]string) {
 func showCredentialErrorMessage(res CredentialCheckResult, opts shared.ModelProviderOptions) {
 	boldRed := color.New(color.Bold, term.ColorHiRed)
 	cyanChip := color.New(color.BgCyan, color.FgHiWhite)
-	fmt.Println(boldRed.Sprint("🚨 Required model credentials are missing"))
+	fmt.Println(boldRed.Sprint("🚨 Required API key(s) or model credentials are missing"))
 
 	someOK, someMissing := false, false
 	for _, p := range res.Publishers {
@@ -415,7 +415,6 @@ func showCredentialErrorMessage(res CredentialCheckResult, opts shared.ModelProv
 			fmt.Printf("%s → %s\n", color.New(color.Bold).Sprint(p+" models"), strings.Join(providerNames, ", "))
 		}
 
-		// TODO: set correct link
 		fmt.Println(color.New(color.Bold, term.ColorHiCyan).Sprint("\n📖 Per-provider instructions"))
 		fmt.Println("For details on the API key/credentials required for each provider, go to:\n" + color.New(color.Bold).Sprint("https://docs.plandex.ai/models/model-providers"))
 	}
