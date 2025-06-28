@@ -63,7 +63,7 @@ plandex apply
 
 ### Apply Flags & Config
 
-Plandex v2 introduces several [new config settings and flags](./configuration.md) for the `apply` command that give you control over what happens after changes are applied.
+Plandex v2 introduced several [new config settings and flags](./configuration.md) for the `apply` command that give you control over what happens after changes are applied.
 
 ### Command Execution & Debugging
 

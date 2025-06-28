@@ -67,7 +67,12 @@ The REPL has a few convenient flags you can use to start it with different modes
     --strong       Strong pack (more capable models, higher cost and slower)
     --cheap        Cheap pack (less capable models, lower cost and faster)
     --oss          Open source pack (open source models)
-    --gemini       Gemini pack (Gemini 2.5 Pro Preview for planning and coding, default models for other roles)
+    
+    --gemini-planner       Gemini pack (Gemini 2.5 Pro for planning, default models for other roles)
+    --o3-planner           OpenAI o3-medium for planning, default models for other roles
+    --r1-planner           DeepSeek R1 for planning, default models for other roles
+    --perplexity-planner   Perplexity for planning, default models for other roles
+    --opus-planner         Anthropic Opus 4 for planning, default models for other roles
 ```
 
 All commands listed below can be run in the REPL by prefixing them with a backslash (`\`), e.g. `\new`.
@@ -107,7 +112,15 @@ plandex new -n new-plan # with name
 
 `--oss`: Start the plan with the open source model pack.
 
-`--gemini`: Start the plan with the Gemini model pack.
+`--gemini-planner`: Start the plan with the Gemini planner model pack.
+
+`--o3-planner`: Start the plan with the OpenAI o3-medium planner model pack.
+
+`--r1-planner`: Start the plan with the DeepSeek R1 planner model pack.
+
+`--perplexity-planner`: Start the plan with the Perplexity planner model pack.
+
+`--opus-planner`: Start the plan with the Anthropic Opus 4 planner model pack.
 
 ### plans
 

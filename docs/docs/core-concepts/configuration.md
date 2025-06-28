@@ -5,7 +5,7 @@ sidebar_label: Configuration
 
 # Configuration
 
-Plandex v2 provides a flexible configuration system that lets you customize its behavior based on the task you're working on and your preferences.
+Plandex provides a flexible configuration system that lets you customize its behavior based on the task you're working on and your preferences.
 
 ## Viewing Config
 
@@ -64,10 +64,18 @@ Autonomy settings control the overall level of automation Plandex will use. See 
 | `auto-commit`           | Commit changes to git when applied       | `true` |
 | `auto-revert-on-rewind` | Revert project files when rewinding      | `true`  |
 
+### Editor
+
+| Setting                 | Description                              | Default |
+| ----------------------- | ---------------------------------------- | ------- |
+| `editor`                | Editor to use for editing files          |   |
+
+
+
 
 ## Command Line Overrides
 
-Settings can be overridden with command line flags:
+Many settings can be overridden with command line flags:
 
 ```bash
 # this will apply changes, automatically execute commands, and automatically debug regardless of your autonomy level and config settings
