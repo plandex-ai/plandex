@@ -271,9 +271,6 @@ func updateConfig(args []string, originalConfig *shared.PlanConfig) (string, *sh
 				} else if cfgSetting.ChoiceToKey != nil {
 					selection = cfgSetting.ChoiceToKey(selection)
 				}
-			} else if cfgSetting.EditorSetter != nil {
-				editor := lib.SelectEditor(false)
-				cfgSetting.EditorSetter(&config, editor.Name, editor.Cmd, editor.Args)
 			} else {
 				selection, err = term.GetRequiredUserStringInput(fmt.Sprintf("Set %s", cfgSetting.Name))
 				if err != nil {
@@ -285,6 +282,9 @@ func updateConfig(args []string, originalConfig *shared.PlanConfig) (string, *sh
 				}
 			}
 			cfgSetting.StringSetter(&config, selection)
+		} else if cfgSetting.EditorSetter != nil {
+			editor := lib.SelectEditor(false)
+			cfgSetting.EditorSetter(&config, editor.Name, editor.Cmd, editor.Args)
 		}
 	} else {
 		if cfgSetting.BoolSetter != nil {
@@ -303,6 +303,14 @@ func updateConfig(args []string, originalConfig *shared.PlanConfig) (string, *sh
 			cfgSetting.IntSetter(&config, n)
 		} else if cfgSetting.StringSetter != nil {
 			cfgSetting.StringSetter(&config, value)
+		} else if cfgSetting.EditorSetter != nil {
+			fields := strings.Fields(value)
+			cmd := fields[0]
+			var cmdArgs []string
+			if len(fields) > 1 {
+				cmdArgs = fields[1:]
+			}
+			cfgSetting.EditorSetter(&config, value, cmd, cmdArgs)
 		}
 	}
 
