@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"plandex-server/db"
 	"reflect"
 
@@ -109,6 +110,37 @@ func UpdateSettingsHandler(w http.ResponseWriter, r *http.Request) {
 		log.Println("No model pack name or model pack provided")
 		http.Error(w, "No model pack name or model pack provided", http.StatusBadRequest)
 		return
+	}
+
+	if req.ModelPackName != "" {
+		if mp, builtIn := shared.BuiltInModelPacksByName[req.ModelPackName]; builtIn {
+			if os.Getenv("IS_CLOUD") != "" && mp.LocalProvider != "" {
+				msg := fmt.Sprintf("Built-in local model pack %s can't be used on Plandex Cloud", req.ModelPackName)
+				log.Println(msg)
+				http.Error(w, msg, http.StatusUnprocessableEntity)
+				return
+			}
+		}
+	}
+
+	if req.ModelPack != nil {
+		if req.ModelPack.LocalProvider != "" {
+			msg := fmt.Sprintf("Local model pack %s can't be used on Plandex Cloud", req.ModelPack.Name)
+			log.Println(msg)
+			http.Error(w, msg, http.StatusUnprocessableEntity)
+			return
+		}
+
+		ids := req.ModelPack.ToModelPackSchema().AllModelIds()
+		for _, id := range ids {
+			bm, builtIn := shared.BuiltInBaseModelsById[id]
+			if builtIn && os.Getenv("IS_CLOUD") != "" && bm.IsLocalOnly() {
+				msg := fmt.Sprintf("Built-in local model %s can't be used on Plandex Cloud", id)
+				log.Println(msg)
+				http.Error(w, msg, http.StatusUnprocessableEntity)
+				return
+			}
+		}
 	}
 
 	ctx, cancel := context.WithCancel(r.Context())

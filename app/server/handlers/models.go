@@ -96,6 +96,13 @@ func UpsertCustomModelsHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, msg, http.StatusBadRequest)
 			return
 		}
+
+		if shared.BuiltInModelPacksByName[modelPack.Name] != nil {
+			msg := fmt.Sprintf("%s is a built-in model pack name, so it can't be used for a custom model pack", modelPack.Name)
+			log.Println(msg)
+			http.Error(w, msg, http.StatusUnprocessableEntity)
+			return
+		}
 	}
 
 	var existingCustomModelIds = make(map[shared.ModelId]bool)
@@ -196,9 +203,15 @@ func UpsertCustomModelsHandler(w http.ResponseWriter, r *http.Request) {
 					return
 				}
 			} else {
-				_, builtIn := shared.BuiltInModelProviderConfigs[provider.Provider]
+				pc, builtIn := shared.BuiltInModelProviderConfigs[provider.Provider]
 				if !builtIn {
 					msg := fmt.Sprintf("'%s' is not a built-in model provider", provider.Provider)
+					log.Println(msg)
+					http.Error(w, msg, http.StatusUnprocessableEntity)
+					return
+				}
+				if os.Getenv("IS_CLOUD") != "" && pc.LocalOnly {
+					msg := fmt.Sprintf("'%s' is a local-only model provider, so it can't be used on Plandex Cloud", provider.Provider)
 					log.Println(msg)
 					http.Error(w, msg, http.StatusUnprocessableEntity)
 					return
@@ -220,10 +233,17 @@ func UpsertCustomModelsHandler(w http.ResponseWriter, r *http.Request) {
 		for _, modelId := range allModelIds {
 			_, exists := existingCustomModelIds[modelId]
 			_, creating := inputModelIds[string(modelId)]
-			_, builtIn := shared.BuiltInBaseModelsById[modelId]
+			bm, builtIn := shared.BuiltInBaseModelsById[modelId]
 
 			if !exists && !creating && !builtIn {
 				msg := fmt.Sprintf("'%s' is not built-in, not being imported, and not an existing custom model", modelId)
+				log.Println(msg)
+				http.Error(w, msg, http.StatusUnprocessableEntity)
+				return
+			}
+
+			if builtIn && os.Getenv("IS_CLOUD") != "" && bm.IsLocalOnly() {
+				msg := fmt.Sprintf("'%s' is a local-only built-in model, so it can't be used on Plandex Cloud", modelId)
 				log.Println(msg)
 				http.Error(w, msg, http.StatusUnprocessableEntity)
 				return

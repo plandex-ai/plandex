@@ -326,6 +326,10 @@ func listAvailableModels(cmd *cobra.Command, args []string) {
 		table.SetAutoWrapText(false)
 		table.SetHeader([]string{"Model", "Input", "Output", "Reserved"})
 		for _, model := range shared.BuiltInBaseModels {
+			if auth.Current.IsCloud && model.IsLocalOnly() {
+				continue
+			}
+
 			table.Append([]string{string(model.ModelId), fmt.Sprintf("%d 🪙", model.MaxTokens), fmt.Sprintf("%d 🪙", model.MaxOutputTokens), fmt.Sprintf("%d 🪙", model.ReservedOutputTokens)})
 		}
 		table.Render()

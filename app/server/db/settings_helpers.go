@@ -47,9 +47,11 @@ func GetPlanSettings(plan *Plan) (settings *shared.PlanSettings, err error) {
 			log.Printf("GetPlanSettings - no org default settings found for plan %s", plan.Id)
 		}
 
+		log.Println("GetPlanSettings - no default settings found, returning default settings object")
 		// if it doesn't exist, return default settings object
 		settings = &shared.PlanSettings{
-			UpdatedAt: plan.CreatedAt,
+			UpdatedAt:     plan.CreatedAt,
+			ModelPackName: shared.DefaultModelPack.Name,
 		}
 		return settings, nil
 	} else if err != nil {
@@ -73,6 +75,10 @@ func StorePlanSettings(plan *Plan, settings shared.PlanSettings) error {
 
 	settings.UpdatedAt = time.Now()
 	settings.CustomModelPacks = nil
+	settings.CustomModels = nil
+	settings.CustomModelsById = nil
+	settings.CustomProviders = nil
+	settings.UsesCustomProviderByModelId = nil
 	settings.IsCloud = false
 	settings.Configured = false
 
@@ -120,7 +126,8 @@ func GetOrgDefaultSettings(orgId string) (settings *shared.PlanSettings, err err
 			log.Println("GetOrgDefaultSettings - no rows - returning default settings")
 			// if it doesn't exist, return default settings object
 			settings := &shared.PlanSettings{
-				UpdatedAt: time.Time{},
+				UpdatedAt:     time.Time{},
+				ModelPackName: shared.DefaultModelPack.Name,
 			}
 			return settings, nil
 		}
@@ -152,7 +159,8 @@ func GetOrgDefaultSettingsForUpdate(orgId string, tx *sqlx.Tx) (settings *shared
 		if err == sql.ErrNoRows {
 			// if it doesn't exist, return default settings object
 			settings := &shared.PlanSettings{
-				UpdatedAt: time.Time{},
+				UpdatedAt:     time.Time{},
+				ModelPackName: shared.DefaultModelPack.Name,
 			}
 			return settings, nil
 		}
