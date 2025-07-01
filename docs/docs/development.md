@@ -10,6 +10,7 @@ To set up a development environment, first install dependencies:
 - Go 1.23.3 - [install here](https://go.dev/doc/install)
 - [reflex](https://github.com/cespare/reflex) 0.3.1 - for watching files and rebuilding in development. Install with `go install github.com/cespare/reflex@v0.3.1`
 - PostgreSQL 14 - https://www.postgresql.org/download/
+- Python 3 - for LiteLLM passthrough proxy - [install here](https://www.python.org/downloads/)
 
 Make sure `$GOPATH` is in your $PATH
 

@@ -54,11 +54,7 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 
 	if !auth.Current.IntegratedModelsMode {
 		if params.Note != "" || fileInfo.Mode()&os.ModeNamedPipe != 0 {
-			apiKeys = MustVerifyApiKeysSilent()
-			openAIBase = os.Getenv("OPENAI_API_BASE")
-			if openAIBase == "" {
-				openAIBase = os.Getenv("OPENAI_ENDPOINT")
-			}
+			apiKeys = MustVerifyAuthVarsSilent()
 		}
 	}
 

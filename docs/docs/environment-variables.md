@@ -19,11 +19,43 @@ PLANDEX_API_HOST= # Defaults to 'http://localhost:8099' if PLANDEX_ENV is develo
 ### LLM Providers
 
 ```bash
-OPENAI_API_KEY= # Your OpenAI key (if self-hosting or using BYO API Key mode with Plandex Cloud)
-OPENROUTER_API_KEY= # Your OpenRouter.ai API key (if self-hosting or using BYO API Key mode with Plandex Cloud)
+# OpenRouter.ai
+OPENROUTER_API_KEY= # Your OpenRouter.ai API key 
 
-OPENAI_API_BASE= # Your OpenAI server, such as http://localhost:1234/v1 Defaults to empty.
+# OpenAI
+OPENAI_API_KEY= # Your OpenAI key 
 OPENAI_ORG_ID= # Your OpenAI organization ID. Defaults to empty.
+
+# Anthropic
+ANTHROPIC_API_KEY= # Your Anthropic API key 
+
+# Google AI Studio
+GEMINI_API_KEY= # Your Google AI Studio API key 
+
+# Google Vertex AI
+GOOGLE_APPLICATION_CREDENTIALS= # Your Google Vertex AI credentials file path
+VERTEXAI_PROJECT= # Your Google Vertex AI project ID
+VERTEXAI_LOCATION= # Your Google Vertex AI location
+
+# Azure OpenAI
+AZURE_OPENAI_API_KEY= # Your Azure OpenAI API key
+AZURE_API_BASE= # Your Azure OpenAI API base URL
+AZURE_API_VERSION= # Your Azure OpenAI API version
+AZURE_DEPLOYMENTS_MAP= # Your Azure OpenAI deployments map—a JSON object mapping model names to deployment names (only needed if deployment names are different from model names)
+
+# DeepSeek
+DEEPSEEK_API_KEY= # Your DeepSeek API key
+
+# Perplexity
+PERPLEXITY_API_KEY= # Your Perplexity API key
+
+# Amazon Bedrock
+PLANDEX_AWS_PROFILE= # Name of AWS profile in ~/.aws/credentials to use for AWS Bedrock. If not set, the credentials file won't be used.
+AWS_ACCESS_KEY_ID= # Your AWS access key ID
+AWS_SECRET_ACCESS_KEY= # Your AWS secret access key
+AWS_REGION= # Your AWS region
+AWS_SESSION_TOKEN= # Your AWS session token
+AWS_INFERENCE_PROFILE_ARN= # Your AWS inference profile ARN
 ```
 
 ### Upgrades
@@ -55,20 +87,14 @@ GOENV=development # Whether to run in development or production mode. Must be 'd
 PLANDEX_BASE_DIR= # The base directory to read and write files. Defaults to '$HOME/plandex-server' in development mode, '/plandex-server' in production.
 API_HOST= # The host the API server listens on. Defaults to 'http://localhost:$PORT'. In production mode, should be a host like 'https://api.your-domain.ai'.
 PORT=8099 # The port the server listens on. Defaults to 8099.
+DATABASE_URL= # The URL of the PostgreSQL database. Defaults to 'postgres://plandex:plandex@plandex-postgres:5432/plandex?sslmode=disable' in development mode
+LOCAL_MODE= # Whether to run in local mode
+OLLAMA_BASE_URL= # The base URL of the Ollama server—only need when the server is running in a Docker container and needs to access Ollama models running outside of the container
 ```
 
 ### docker-compose
 
-For self-hosting with docker-compose, default environment variables are set in `app/_env`. This file should be copied to `app/.env` before running the server. You can override any of these defaults in `.env`. 
-
-```bash
-PLANDEX_DATA_DIR=/var/lib/plandex/data # When using docker-compose, this is the directory *on your machine* that the Plandex server will use to store data—it will be mounted to the Docker container as a volume.
-
-# Database Credentials
-POSTGRES_DATABASE=plandex # Your postgres database.
-POSTGRES_USER=plandex # Your postgres user.
-POSTGRES_PASSWORD=plandex # Your postgres password.
-```
+For self-hosting with docker-compose, default values for all necessary environment variables are set in the `app/docker-compose.yml` file. This file is designed to be used with [local mode](./hosting/self-hosting/local-mode-quickstart.md), but you can adapt it to your needs.
 
 ### Other methods
 

@@ -39,6 +39,13 @@ func TellPlanHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	settings, err := db.GetPlanSettings(plan)
+	if err != nil {
+		log.Printf("Error getting plan settings: %v\n", err)
+		http.Error(w, "Error getting plan settings", http.StatusInternalServerError)
+		return
+	}
+
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		log.Printf("Error reading request body: %v\n", err)
@@ -69,19 +76,25 @@ func TellPlanHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clients := initClients(
+	res := initClients(
 		initClientsParams{
 			w:           w,
 			auth:        auth,
-			apiKey:      requestBody.ApiKey,
 			apiKeys:     requestBody.ApiKeys,
-			endpoint:    requestBody.Endpoint,
-			openAIBase:  requestBody.OpenAIBase,
 			openAIOrgId: requestBody.OpenAIOrgId,
+			authVars:    requestBody.AuthVars,
 			plan:        plan,
+			settings:    settings,
 		},
 	)
-	err = modelPlan.Tell(clients, plan, branch, auth, &requestBody)
+	err = modelPlan.Tell(modelPlan.TellParams{
+		Clients:  res.clients,
+		Plan:     plan,
+		Branch:   branch,
+		Auth:     auth,
+		Req:      &requestBody,
+		AuthVars: res.authVars,
+	})
 
 	if err != nil {
 		log.Printf("Error telling plan: %v\n", err)
@@ -114,6 +127,13 @@ func BuildPlanHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	settings, err := db.GetPlanSettings(plan)
+	if err != nil {
+		log.Printf("Error getting plan settings: %v\n", err)
+		http.Error(w, "Error getting plan settings", http.StatusInternalServerError)
+		return
+	}
+
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		log.Printf("Error reading request body: %v\n", err)
@@ -134,19 +154,25 @@ func BuildPlanHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clients := initClients(
+	res := initClients(
 		initClientsParams{
 			w:           w,
 			auth:        auth,
-			apiKey:      requestBody.ApiKey,
 			apiKeys:     requestBody.ApiKeys,
-			endpoint:    requestBody.Endpoint,
-			openAIBase:  requestBody.OpenAIBase,
 			openAIOrgId: requestBody.OpenAIOrgId,
+			authVars:    requestBody.AuthVars,
 			plan:        plan,
+			settings:    settings,
 		},
 	)
-	numBuilds, err := modelPlan.Build(clients, plan, branch, auth, requestBody.SessionId)
+	numBuilds, err := modelPlan.Build(modelPlan.BuildParams{
+		Clients:   res.clients,
+		AuthVars:  res.authVars,
+		Plan:      plan,
+		Branch:    branch,
+		Auth:      auth,
+		SessionId: requestBody.SessionId,
+	})
 
 	if err != nil {
 		log.Printf("Error building plan: %v\n", err)

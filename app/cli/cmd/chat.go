@@ -31,6 +31,7 @@ func init() {
 		omitApply:        true,
 		omitExec:         true,
 		omitSmartContext: true,
+		omitSkipMenu:     true,
 	})
 
 }
@@ -38,11 +39,11 @@ func init() {
 func doChat(cmd *cobra.Command, args []string) {
 	auth.MustResolveAuthWithOrg()
 	lib.MustResolveProject()
-	mustSetPlanExecFlags(cmd)
+	mustSetPlanExecFlags(cmd, false)
 
 	var apiKeys map[string]string
 	if !auth.Current.IntegratedModelsMode {
-		apiKeys = lib.MustVerifyApiKeys()
+		apiKeys = lib.MustVerifyAuthVars()
 	}
 
 	prompt := getTellPrompt(args)
@@ -55,13 +56,14 @@ func doChat(cmd *cobra.Command, args []string) {
 	plan_exec.TellPlan(plan_exec.ExecParams{
 		CurrentPlanId: lib.CurrentPlanId,
 		CurrentBranch: lib.CurrentBranch,
-		ApiKeys:       apiKeys,
+		AuthVars:      apiKeys,
 		CheckOutdatedContext: func(maybeContexts []*shared.Context, projectPaths *types.ProjectPaths) (bool, bool, error) {
 			auto := autoConfirm || tellAutoApply || tellAutoContext
 			return lib.CheckOutdatedContextWithOutput(auto, auto, maybeContexts, projectPaths)
 		},
 	}, prompt, types.TellFlags{
-		IsChatOnly:  true,
-		AutoContext: tellAutoContext,
+		IsChatOnly:      true,
+		AutoContext:     tellAutoContext,
+		SkipChangesMenu: tellSkipMenu,
 	})
 }

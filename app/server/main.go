@@ -1,8 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
+	"plandex-server/model"
 	"plandex-server/routes"
 	"plandex-server/setup"
 
@@ -15,6 +17,14 @@ func main() {
 
 	routes.RegisterHandlePlandex(func(router *mux.Router, path string, isStreaming bool, handler routes.PlandexHandler) *mux.Route {
 		return router.HandleFunc(path, handler)
+	})
+
+	err := model.EnsureLiteLLM(2)
+	if err != nil {
+		panic(fmt.Sprintf("Failed to start LiteLLM proxy: %v", err))
+	}
+	setup.RegisterShutdownHook(func() {
+		model.ShutdownLiteLLMServer()
 	})
 
 	r := mux.NewRouter()

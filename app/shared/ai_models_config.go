@@ -1,11 +1,5 @@
 package shared
 
-func getPlannerModelConfig(provider ModelProvider, modelId ModelId) PlannerModelConfig {
-	return PlannerModelConfig{
-		MaxConvoTokens: GetAvailableModel(provider, modelId).DefaultMaxConvoTokens,
-	}
-}
-
 var DefaultConfigByRole = map[ModelRole]ModelRoleConfig{
 	ModelRolePlanner: {
 		Temperature: 0.3,

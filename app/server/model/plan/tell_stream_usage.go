@@ -27,6 +27,7 @@ func (state *activeTellStreamState) handleUsageChunk(usage *openai.Usage) {
 	sessionId := state.activePlan.SessionId
 
 	modelConfig := state.modelConfig
+	baseModelConfig := modelConfig.GetBaseModelConfig(state.authVars, state.settings)
 
 	go func() {
 		defer func() {
@@ -43,10 +44,11 @@ func (state *activeTellStreamState) handleUsageChunk(usage *openai.Usage) {
 				InputTokens:    usage.PromptTokens,
 				OutputTokens:   usage.CompletionTokens,
 				CachedTokens:   cachedTokens,
-				ModelId:        modelConfig.BaseModelConfig.ModelId,
-				ModelName:      modelConfig.BaseModelConfig.ModelName,
-				ModelProvider:  modelConfig.BaseModelConfig.Provider,
-				ModelPackName:  state.settings.ModelPack.Name,
+				ModelId:        baseModelConfig.ModelId,
+				ModelTag:       baseModelConfig.ModelTag,
+				ModelName:      baseModelConfig.ModelName,
+				ModelProvider:  baseModelConfig.Provider,
+				ModelPackName:  state.settings.GetModelPack().Name,
 				ModelRole:      modelConfig.Role,
 				Purpose:        "Response",
 				GenerationId:   generationId,
@@ -88,6 +90,7 @@ func (state *activeTellStreamState) execHookOnStop(sendStreamErr bool) {
 	}
 
 	modelConfig := state.modelConfig
+	baseModelConfig := modelConfig.GetBaseModelConfig(state.authVars, state.settings)
 
 	go func() {
 		defer func() {
@@ -103,10 +106,11 @@ func (state *activeTellStreamState) execHookOnStop(sendStreamErr bool) {
 			DidSendModelRequestParams: &hooks.DidSendModelRequestParams{
 				InputTokens:     state.totalRequestTokens,
 				OutputTokens:    active.NumTokens,
-				ModelId:         modelConfig.BaseModelConfig.ModelId,
-				ModelName:       modelConfig.BaseModelConfig.ModelName,
-				ModelProvider:   modelConfig.BaseModelConfig.Provider,
-				ModelPackName:   state.settings.ModelPack.Name,
+				ModelId:         baseModelConfig.ModelId,
+				ModelTag:        baseModelConfig.ModelTag,
+				ModelName:       baseModelConfig.ModelName,
+				ModelProvider:   baseModelConfig.Provider,
+				ModelPackName:   state.settings.GetModelPack().Name,
 				ModelRole:       modelConfig.Role,
 				Purpose:         "Response",
 				GenerationId:    generationId,

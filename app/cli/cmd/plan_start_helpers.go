@@ -21,12 +21,16 @@ var (
 	fullAuto  bool
 
 	// Type flags
-	dailyModels         bool
-	reasoningModels     bool
-	strongModels        bool
-	ossModels           bool
-	cheapModels         bool
-	geminiPreviewModels bool
+	dailyModels             bool
+	reasoningModels         bool
+	strongModels            bool
+	ossModels               bool
+	cheapModels             bool
+	geminiPlannerModels     bool
+	o3PlannerModels         bool
+	r1PlannerModels         bool
+	perplexityPlannerModels bool
+	opusPlannerModels       bool
 )
 
 func AddNewPlanFlags(cmd *cobra.Command) {
@@ -43,7 +47,12 @@ func AddNewPlanFlags(cmd *cobra.Command) {
 	cmd.Flags().BoolVar(&strongModels, "strong", false, shared.StrongModelPack.Description)
 	cmd.Flags().BoolVar(&cheapModels, "cheap", false, shared.CheapModelPack.Description)
 	cmd.Flags().BoolVar(&ossModels, "oss", false, shared.OSSModelPack.Description)
-	cmd.Flags().BoolVar(&geminiPreviewModels, "gemini-preview", false, shared.GeminiPreviewModelPack.Description)
+
+	cmd.Flags().BoolVar(&geminiPlannerModels, "gemini-planner", false, shared.GeminiPlannerModelPack.Description)
+	cmd.Flags().BoolVar(&o3PlannerModels, "o3-planner", false, shared.O3PlannerModelPack.Description)
+	cmd.Flags().BoolVar(&r1PlannerModels, "r1-planner", false, shared.R1PlannerModelPack.Description)
+	cmd.Flags().BoolVar(&perplexityPlannerModels, "perplexity-planner", false, shared.PerplexityPlannerModelPack.Description)
+	cmd.Flags().BoolVar(&opusPlannerModels, "opus-planner", false, shared.OpusPlannerModelPack.Description)
 }
 
 func resolveAutoMode(config *shared.PlanConfig) (bool, *shared.PlanConfig) {
@@ -139,17 +148,26 @@ func resolveModelPackWithArgs(settings *shared.PlanSettings, silent bool) (*shar
 		packName = shared.ReasoningModelPack.Name
 	} else if dailyModels {
 		packName = shared.DailyDriverModelPack.Name
-	} else if geminiPreviewModels {
-		packName = shared.GeminiPreviewModelPack.Name
+	} else if geminiPlannerModels {
+		packName = shared.GeminiPlannerModelPack.Name
+	} else if o3PlannerModels {
+		packName = shared.O3PlannerModelPack.Name
+	} else if r1PlannerModels {
+		packName = shared.R1PlannerModelPack.Name
+	} else if perplexityPlannerModels {
+		packName = shared.PerplexityPlannerModelPack.Name
+	} else if opusPlannerModels {
+		packName = shared.OpusPlannerModelPack.Name
 	}
 
-	if packName != "" && packName != originalSettings.ModelPack.Name {
+	if packName != "" && packName != originalSettings.GetModelPack().Name {
 		if !silent {
 			term.StartSpinner("")
 		}
-		updatedSettings := updateModelSettings([]string{packName}, originalSettings)
+		updatedSettings := updateModelSettings([]string{packName}, originalSettings, "")
 		_, apiErr = api.Client.UpdateSettings(lib.CurrentPlanId, lib.CurrentBranch, shared.UpdateSettingsRequest{
-			Settings: updatedSettings,
+			ModelPackName: updatedSettings.ModelPackName,
+			ModelPack:     updatedSettings.ModelPack,
 		})
 		if !silent {
 			term.StopSpinner()
@@ -175,7 +193,7 @@ func resolveModelPackWithArgs(settings *shared.PlanSettings, silent bool) (*shar
 			term.StopSpinner()
 		}
 		fn := func() {
-			printModelPackTable(originalSettings.ModelPack.Name)
+			printModelPackTable(originalSettings.GetModelPack().Name)
 		}
 
 		if !silent {

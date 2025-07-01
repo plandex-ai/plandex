@@ -16,6 +16,7 @@ func (state *activeTellStreamState) queuePendingBuilds() {
 	branch := state.branch
 	auth := state.auth
 	clients := state.clients
+	authVars := state.authVars
 	currentOrgId := state.currentOrgId
 	currentUserId := state.currentUserId
 	active := GetActivePlan(planId, branch)
@@ -32,7 +33,7 @@ func (state *activeTellStreamState) queuePendingBuilds() {
 			active.StreamDoneCh <- &shared.ApiError{
 				Type:   shared.ApiErrorTypeOther,
 				Status: http.StatusInternalServerError,
-				Msg:    fmt.Sprintf("Error getting pending builds by path: %v", r),
+				Msg:    fmt.Sprintf("Error getting pending builds by path: %v\n%s", r, debug.Stack()),
 			}
 		}
 	}()
@@ -46,7 +47,7 @@ func (state *activeTellStreamState) queuePendingBuilds() {
 		active.StreamDoneCh <- &shared.ApiError{
 			Type:   shared.ApiErrorTypeOther,
 			Status: http.StatusInternalServerError,
-			Msg:    "Error getting pending builds by path",
+			Msg:    fmt.Sprintf("Error getting pending builds by path: %v", err),
 		}
 		return
 	}
@@ -62,6 +63,7 @@ func (state *activeTellStreamState) queuePendingBuilds() {
 	buildState := &activeBuildStreamState{
 		modelStreamId: active.ModelStreamId,
 		clients:       clients,
+		authVars:      authVars,
 		auth:          auth,
 		currentOrgId:  currentOrgId,
 		currentUserId: currentUserId,

@@ -1,0 +1,26 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://plandex.ai/schemas/model-pack-config.schema.json",
+  "title": "Model Pack Config",
+  "allOf": [
+    {
+      "$ref": "./model-pack-base-config.schema.json"
+    }
+  ],
+  "properties": {
+    "$schema": true,
+    "name": true,
+    "description": true,
+    "localProvider": true,
+    "planner": true,
+    "coder": true,
+    "architect": true,
+    "summarizer": true,
+    "builder": true,
+    "wholeFileBuilder": true,
+    "names": true,
+    "commitMessages": true,
+    "autoContinue": true
+  },
+  "additionalProperties": false
+}

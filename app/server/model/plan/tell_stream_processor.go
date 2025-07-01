@@ -50,7 +50,7 @@ func (state *activeTellStreamState) processChunk(choice types.ExtendedChatComple
 			active.StreamDoneCh <- &shared.ApiError{
 				Type:   shared.ApiErrorTypeOther,
 				Status: http.StatusInternalServerError,
-				Msg:    "Panic in processChunk",
+				Msg:    fmt.Sprintf("Panic in processChunk: %v\n%s", r, string(debug.Stack())),
 			}
 		}
 	}()
@@ -58,7 +58,9 @@ func (state *activeTellStreamState) processChunk(choice types.ExtendedChatComple
 	delta := choice.Delta
 	content := delta.Content
 
-	if state.modelConfig.BaseModelConfig.IncludeReasoning && delta.Reasoning != "" {
+	baseModelConfig := state.modelConfig.GetBaseModelConfig(state.authVars, state.settings)
+
+	if baseModelConfig.IncludeReasoning && !baseModelConfig.HideReasoning && delta.Reasoning != "" {
 		content = delta.Reasoning
 	}
 
@@ -524,6 +526,7 @@ func (state *activeTellStreamState) handleNewOperations(parserRes *types.ReplyPa
 	branch := state.branch
 	clients := state.clients
 	auth := state.auth
+	authVars := state.authVars
 	req := state.req
 	replyId := state.replyId
 	currentOrgId := state.currentOrgId
@@ -549,6 +552,7 @@ func (state *activeTellStreamState) handleNewOperations(parserRes *types.ReplyPa
 			buildState := &activeBuildStreamState{
 				modelStreamId: state.modelStreamId,
 				clients:       clients,
+				authVars:      authVars,
 				auth:          auth,
 				currentOrgId:  currentOrgId,
 				currentUserId: currentUserId,
@@ -596,6 +600,7 @@ func (state *activeTellStreamState) handleMissingFile(content, currentFile, bloc
 	clients := state.clients
 	auth := state.auth
 	req := state.req
+	authVars := state.authVars
 
 	active := GetActivePlan(planId, branch)
 
@@ -617,7 +622,7 @@ func (state *activeTellStreamState) handleMissingFile(content, currentFile, bloc
 		active.StreamDoneCh <- &shared.ApiError{
 			Type:   shared.ApiErrorTypeOther,
 			Status: http.StatusInternalServerError,
-			Msg:    "Error setting plan status to prompting",
+			Msg:    fmt.Sprintf("Error setting plan status to prompting: %v", err),
 		}
 		return processChunkResult{}
 	}
@@ -713,6 +718,7 @@ func (state *activeTellStreamState) handleMissingFile(content, currentFile, bloc
 		req:                 req,
 		iteration:           iteration, // keep the same iteration
 		missingFileResponse: userChoice,
+		authVars:            authVars,
 	})
 
 	return processChunkResult{shouldReturn: true}

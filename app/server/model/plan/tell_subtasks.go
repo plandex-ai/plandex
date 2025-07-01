@@ -77,11 +77,19 @@ func (state *activeTellStreamState) formatSubtasks() string {
 	return subtasksText
 }
 
-func (state *activeTellStreamState) checkNewSubtasks() []*db.Subtask {
+type checkNewSubtasksResult struct {
+	hasExplicitTasks bool
+	newSubtasks      []*db.Subtask
+}
+
+func (state *activeTellStreamState) checkNewSubtasks() checkNewSubtasksResult {
 	activePlan := GetActivePlan(state.plan.Id, state.branch)
 
 	if activePlan == nil {
-		return nil
+		return checkNewSubtasksResult{
+			hasExplicitTasks: false,
+			newSubtasks:      nil,
+		}
 	}
 
 	content := activePlan.CurrentReplyContent
@@ -90,7 +98,10 @@ func (state *activeTellStreamState) checkNewSubtasks() []*db.Subtask {
 
 	if len(subtasks) == 0 {
 		log.Println("No new subtasks found")
-		return nil
+		return checkNewSubtasksResult{
+			hasExplicitTasks: false,
+			newSubtasks:      nil,
+		}
 	}
 
 	log.Println("Found new subtasks:", len(subtasks))
@@ -154,14 +165,25 @@ func (state *activeTellStreamState) checkNewSubtasks() []*db.Subtask {
 	// log.Println("state.subtasks:\n", spew.Sdump(state.subtasks))
 	log.Println("state.currentSubtask:\n", spew.Sdump(state.currentSubtask))
 
-	return newSubtasks
+	return checkNewSubtasksResult{
+		hasExplicitTasks: len(subtasks) > 0,
+		newSubtasks:      newSubtasks,
+	}
 }
 
-func (state *activeTellStreamState) checkRemoveSubtasks() []string {
+type checkRemoveSubtasksResult struct {
+	hasExplicitRemoveTasks bool
+	removedSubtasks        []string
+}
+
+func (state *activeTellStreamState) checkRemoveSubtasks() checkRemoveSubtasksResult {
 	activePlan := GetActivePlan(state.plan.Id, state.branch)
 
 	if activePlan == nil {
-		return nil
+		return checkRemoveSubtasksResult{
+			hasExplicitRemoveTasks: false,
+			removedSubtasks:        nil,
+		}
 	}
 
 	content := activePlan.CurrentReplyContent
@@ -171,7 +193,10 @@ func (state *activeTellStreamState) checkRemoveSubtasks() []string {
 
 	if len(tasksToRemove) == 0 {
 		log.Println("No tasks to remove found")
-		return nil
+		return checkRemoveSubtasksResult{
+			hasExplicitRemoveTasks: false,
+			removedSubtasks:        nil,
+		}
 	}
 
 	log.Println("Found tasks to remove:", len(tasksToRemove))
@@ -218,5 +243,8 @@ func (state *activeTellStreamState) checkRemoveSubtasks() []string {
 	}
 	log.Println("removedSubtaskTitles:\n", spew.Sdump(removedSubtaskTitles))
 
-	return removedSubtaskTitles
+	return checkRemoveSubtasksResult{
+		hasExplicitRemoveTasks: len(tasksToRemove) > 0,
+		removedSubtasks:        removedSubtaskTitles,
+	}
 }

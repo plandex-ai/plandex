@@ -48,7 +48,7 @@ func UpdateContexts(params UpdateContextsParams) (*shared.UpdateContextResponse,
 		}
 	}
 
-	settings, err := GetPlanSettings(plan, true)
+	settings, err := GetPlanSettings(plan)
 	if err != nil {
 		return nil, fmt.Errorf("error getting settings: %v", err)
 	}
@@ -56,6 +56,16 @@ func UpdateContexts(params UpdateContextsParams) (*shared.UpdateContextResponse,
 	planConfig, err := GetPlanConfig(planId)
 	if err != nil {
 		return nil, fmt.Errorf("error getting plan config: %v", err)
+	}
+
+	modelPacks, err := ListModelPacks(orgId)
+	if err != nil {
+		return nil, fmt.Errorf("error getting model packs: %v", err)
+	}
+
+	apiModelPacks := make([]*shared.ModelPack, len(modelPacks))
+	for i, modelPack := range modelPacks {
+		apiModelPacks[i] = modelPack.ToApi()
 	}
 
 	plannerMaxTokens := settings.GetPlannerEffectiveMaxTokens()

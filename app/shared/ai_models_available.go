@@ -1,6 +1,8 @@
 package shared
 
 import (
+	"strings"
+
 	"github.com/davecgh/go-spew/spew"
 )
 
@@ -29,7 +31,7 @@ When checking for sufficient credits on Plandex Cloud, we use MaxOutputTokens-In
 
 'BaseUrl' is the base URL for the provider.
 
-'PreferredModelOutputFormat' is the preferred output format for the model—currently either 'ModelOutputFormatToolCallJson' or 'ModelOutputFormatXml' — OpenAI models like JSON (and benefit from strict JSON schemas), while most other providers are unreliable for JSON generation and do better with XML, even if they claim to support JSON.
+'PreferredOutputFormat' is the preferred output format for the model—currently either 'ModelOutputFormatToolCallJson' or 'ModelOutputFormatXml' — OpenAI models like JSON (and benefit from strict JSON schemas), while most other providers are unreliable for JSON generation and do better with XML, even if they claim to support JSON.
 
 'RoleParamsDisabled' is used to disable role-based parameters like temperature, top_p, etc. for the model—OpenAI early releases often don't allow changes to these.
 
@@ -44,777 +46,603 @@ When checking for sufficient credits on Plandex Cloud, we use MaxOutputTokens-In
 'ApiKeyEnvVar' is the environment variable that contains the API key for the model.
 */
 
-var AvailableModels = []*AvailableModel{
-	// Direct OpenAI models
+var BuiltInModels = []*BaseModelConfigSchema{
 	{
-		Description:           "OpenAI o3-high",
-		DefaultMaxConvoTokens: 15000,
-		BaseModelConfig: BaseModelConfig{
-			Provider:                   ModelProviderOpenAI,
-			ModelName:                  "o3",
-			ModelId:                    "openai/o3-high",
-			MaxTokens:                  200000,
-			MaxOutputTokens:            100000,
-			ReservedOutputTokens:       40000, // 25k for reasoning, 15k for output
-			ApiKeyEnvVar:               OpenAIEnvVar,
-			ModelCompatibility:         fullCompatibility,
-			BaseUrl:                    OpenAIV1BaseUrl,
-			PreferredModelOutputFormat: ModelOutputFormatXml,
-			SystemPromptDisabled:       true,
-			RoleParamsDisabled:         true,
-			ReasoningEffortEnabled:     true,
-			ReasoningEffort:            ReasoningEffortHigh,
-			StopDisabled:               true,
+		ModelTag:    "openai/o3",
+		Publisher:   ModelPublisherOpenAI,
+		Description: "OpenAI o3",
+		BaseModelShared: BaseModelShared{
+			DefaultMaxConvoTokens: 15000, MaxTokens: 200000, MaxOutputTokens: 100000,
+			ReservedOutputTokens: 40000, ModelCompatibility: FullCompatibility,
+			PreferredOutputFormat: ModelOutputFormatXml, SystemPromptDisabled: true,
+			RoleParamsDisabled: true, ReasoningEffortEnabled: true, StopDisabled: true,
 		},
-	},
-
-	{
-		Description:           "OpenAI o3-medium",
-		DefaultMaxConvoTokens: 15000,
-		BaseModelConfig: BaseModelConfig{
-			Provider:                   ModelProviderOpenAI,
-			ModelName:                  "o3",
-			ModelId:                    "openai/o3-medium",
-			MaxTokens:                  200000,
-			MaxOutputTokens:            100000,
-			ReservedOutputTokens:       40000, // 25k for reasoning, 15k for output
-			ApiKeyEnvVar:               OpenAIEnvVar,
-			ModelCompatibility:         fullCompatibility,
-			BaseUrl:                    OpenAIV1BaseUrl,
-			PreferredModelOutputFormat: ModelOutputFormatXml,
-			SystemPromptDisabled:       true,
-			RoleParamsDisabled:         true,
-			ReasoningEffortEnabled:     true,
-			ReasoningEffort:            ReasoningEffortMedium,
-			StopDisabled:               true,
+		RequiresVariantOverrides: []string{"ReasoningEffort"},
+		Variants: []BaseModelConfigVariant{
+			{VariantTag: "high", Description: "high", Overrides: BaseModelShared{ReasoningEffort: ReasoningEffortHigh}},
+			{VariantTag: "medium", Description: "medium", Overrides: BaseModelShared{ReasoningEffort: ReasoningEffortMedium}},
+			{VariantTag: "low", Description: "low", Overrides: BaseModelShared{ReasoningEffort: ReasoningEffortLow}},
 		},
-	},
-
-	{
-		Description:           "OpenAI o3-low",
-		DefaultMaxConvoTokens: 15000,
-		BaseModelConfig: BaseModelConfig{
-			Provider:                   ModelProviderOpenAI,
-			ModelName:                  "o3",
-			ModelId:                    "openai/o3-low",
-			MaxTokens:                  200000,
-			MaxOutputTokens:            100000,
-			ReservedOutputTokens:       40000, // 25k for reasoning, 15k for output
-			ApiKeyEnvVar:               OpenAIEnvVar,
-			ModelCompatibility:         fullCompatibility,
-			BaseUrl:                    OpenAIV1BaseUrl,
-			PreferredModelOutputFormat: ModelOutputFormatXml,
-			SystemPromptDisabled:       true,
-			RoleParamsDisabled:         true,
-			ReasoningEffortEnabled:     true,
-			ReasoningEffort:            ReasoningEffortLow,
-			StopDisabled:               true,
-		},
-	},
-
-	{
-		Description:           "OpenAI o4-mini-high",
-		DefaultMaxConvoTokens: 10000,
-		BaseModelConfig: BaseModelConfig{
-			Provider:                   ModelProviderOpenAI,
-			ModelName:                  "o4-mini",
-			ModelId:                    "openai/o4-mini-high",
-			MaxTokens:                  200000,
-			MaxOutputTokens:            100000,
-			ReservedOutputTokens:       30000,
-			ApiKeyEnvVar:               OpenAIEnvVar,
-			ModelCompatibility:         fullCompatibility,
-			BaseUrl:                    OpenAIV1BaseUrl,
-			PreferredModelOutputFormat: ModelOutputFormatToolCallJson,
-			RoleParamsDisabled:         true,
-			ReasoningEffortEnabled:     true,
-			ReasoningEffort:            ReasoningEffortHigh,
-			StopDisabled:               true,
+		Providers: []BaseModelUsesProvider{
+			{Provider: ModelProviderOpenAI, ModelName: "o3"},
+			{Provider: ModelProviderAzureOpenAI, ModelName: "azure/o3"},
+			{Provider: ModelProviderOpenRouter, ModelName: "openai/o3"},
 		},
 	},
 	{
-		Description:           "OpenAI o4-mini-medium",
-		DefaultMaxConvoTokens: 10000,
-		BaseModelConfig: BaseModelConfig{
-			Provider:                   ModelProviderOpenAI,
-			ModelName:                  "o4-mini",
-			ModelId:                    "openai/o4-mini-medium",
-			MaxTokens:                  200000,
-			MaxOutputTokens:            100000,
-			ReservedOutputTokens:       40000, // 25k for reasoning, 15k for output
-			ApiKeyEnvVar:               OpenAIEnvVar,
-			ModelCompatibility:         fullCompatibility,
-			BaseUrl:                    OpenAIV1BaseUrl,
-			PreferredModelOutputFormat: ModelOutputFormatToolCallJson,
-			RoleParamsDisabled:         true,
-			ReasoningEffortEnabled:     true,
-			ReasoningEffort:            ReasoningEffortMedium,
-			StopDisabled:               true,
+		ModelTag:    "openai/o4-mini",
+		Publisher:   ModelPublisherOpenAI,
+		Description: "OpenAI o4-mini",
+		BaseModelShared: BaseModelShared{
+			DefaultMaxConvoTokens: 10000, MaxTokens: 200000, MaxOutputTokens: 100000,
+			ReservedOutputTokens: 40000, ModelCompatibility: FullCompatibility,
+			PreferredOutputFormat: ModelOutputFormatToolCallJson, SystemPromptDisabled: true,
+			RoleParamsDisabled: true, ReasoningEffortEnabled: true, ReasoningEffort: ReasoningEffortHigh,
+			StopDisabled: true,
+		},
+		RequiresVariantOverrides: []string{"ReasoningEffort"},
+		Variants: []BaseModelConfigVariant{
+			{VariantTag: "high", Description: "high", Overrides: BaseModelShared{ReasoningEffort: ReasoningEffortHigh}},
+			{VariantTag: "medium", Description: "medium", Overrides: BaseModelShared{ReasoningEffort: ReasoningEffortMedium, ReservedOutputTokens: 30000}},
+			{VariantTag: "low", Description: "low", Overrides: BaseModelShared{ReasoningEffort: ReasoningEffortLow, ReservedOutputTokens: 20000}},
+		},
+		Providers: []BaseModelUsesProvider{
+			{Provider: ModelProviderOpenAI, ModelName: "o4-mini"},
+			{Provider: ModelProviderAzureOpenAI, ModelName: "azure/o4-mini"},
+			{Provider: ModelProviderOpenRouter, ModelName: "openai/o4-mini"},
 		},
 	},
 	{
-		Description:           "OpenAI o4-mini-low",
-		DefaultMaxConvoTokens: 10000,
-		BaseModelConfig: BaseModelConfig{
-			Provider:                   ModelProviderOpenAI,
-			ModelName:                  "o4-mini",
-			ModelId:                    "openai/o4-mini-low",
-			MaxTokens:                  200000,
-			MaxOutputTokens:            100000,
-			ReservedOutputTokens:       40000, // 25k for reasoning, 15k for output
-			ApiKeyEnvVar:               OpenAIEnvVar,
-			ModelCompatibility:         fullCompatibility,
-			BaseUrl:                    OpenAIV1BaseUrl,
-			PreferredModelOutputFormat: ModelOutputFormatToolCallJson,
-			RoleParamsDisabled:         true,
-			ReasoningEffortEnabled:     true,
-			ReasoningEffort:            ReasoningEffortLow,
-			StopDisabled:               true,
+		ModelTag:    "openai/gpt-4.1",
+		Publisher:   ModelPublisherOpenAI,
+		Description: "OpenAI gpt-4.1",
+		BaseModelShared: BaseModelShared{
+			DefaultMaxConvoTokens: 75000, MaxTokens: 1047576,
+			MaxOutputTokens: 32768, ReservedOutputTokens: 32768,
+			ModelCompatibility: FullCompatibility, PreferredOutputFormat: ModelOutputFormatToolCallJson,
 		},
-	},
-
-	{
-		Description:           "OpenAI gpt-4.1",
-		DefaultMaxConvoTokens: 75000,
-		BaseModelConfig: BaseModelConfig{
-			Provider:                   ModelProviderOpenAI,
-			ModelName:                  "gpt-4.1",
-			ModelId:                    "openai/gpt-4.1",
-			MaxTokens:                  1047576,
-			MaxOutputTokens:            32768,
-			ReservedOutputTokens:       32768,
-			ApiKeyEnvVar:               OpenAIEnvVar,
-			ModelCompatibility:         fullCompatibility,
-			BaseUrl:                    OpenAIV1BaseUrl,
-			PreferredModelOutputFormat: ModelOutputFormatToolCallJson,
-		},
-	},
-
-	{
-		Description:           "OpenAI gpt-4.1-mini",
-		DefaultMaxConvoTokens: 75000,
-		BaseModelConfig: BaseModelConfig{
-			Provider:                   ModelProviderOpenAI,
-			ModelName:                  "gpt-4.1-mini",
-			ModelId:                    "openai/gpt-4.1-mini",
-			MaxTokens:                  1047576,
-			MaxOutputTokens:            32768,
-			ReservedOutputTokens:       32768,
-			ApiKeyEnvVar:               OpenAIEnvVar,
-			ModelCompatibility:         fullCompatibility,
-			BaseUrl:                    OpenAIV1BaseUrl,
-			PreferredModelOutputFormat: ModelOutputFormatToolCallJson,
-		},
-	},
-
-	{
-		Description:           "OpenAI gpt-4.1-nano",
-		DefaultMaxConvoTokens: 75000,
-		BaseModelConfig: BaseModelConfig{
-			Provider:                   ModelProviderOpenAI,
-			ModelName:                  "gpt-4.1-nano",
-			ModelId:                    "openai/gpt-4.1-nano",
-			MaxTokens:                  1047576,
-			MaxOutputTokens:            32768,
-			ReservedOutputTokens:       32768,
-			ApiKeyEnvVar:               OpenAIEnvVar,
-			ModelCompatibility:         fullCompatibility,
-			BaseUrl:                    OpenAIV1BaseUrl,
-			PreferredModelOutputFormat: ModelOutputFormatToolCallJson,
-		},
-	},
-
-	// OpenRouter models
-	{
-		Description:           "Anthropic Claude 4 Sonnet via OpenRouter",
-		DefaultMaxConvoTokens: 15000,
-		BaseModelConfig: BaseModelConfig{
-			Provider:                    ModelProviderOpenRouter,
-			ModelName:                   "anthropic/claude-sonnet-4",
-			ModelId:                     "anthropic/claude-sonnet-4",
-			MaxTokens:                   200000,
-			MaxOutputTokens:             128000,
-			ReservedOutputTokens:        20000,
-			SupportsCacheControl:        true,
-			ApiKeyEnvVar:                ApiKeyByProvider[ModelProviderOpenRouter],
-			ModelCompatibility:          fullCompatibility,
-			BaseUrl:                     BaseUrlByProvider[ModelProviderOpenRouter],
-			PreferredModelOutputFormat:  ModelOutputFormatXml,
-			SingleMessageNoSystemPrompt: true,
-			TokenEstimatePaddingPct:     0.10,
+		Providers: []BaseModelUsesProvider{
+			{Provider: ModelProviderOpenAI, ModelName: "gpt-4.1"},
+			{Provider: ModelProviderAzureOpenAI, ModelName: "azure/gpt-4.1"},
+			{Provider: ModelProviderOpenRouter, ModelName: "openai/gpt-4.1"},
 		},
 	},
 	{
-		Description:           "Anthropic Claude 4 Opus via OpenRouter",
-		DefaultMaxConvoTokens: 15000,
-		BaseModelConfig: BaseModelConfig{
-			Provider:                    ModelProviderOpenRouter,
-			ModelName:                   "anthropic/claude-opus-4",
-			ModelId:                     "anthropic/claude-opus-4",
-			MaxTokens:                   200000,
-			MaxOutputTokens:             128000,
-			ReservedOutputTokens:        40000,
-			SupportsCacheControl:        true,
-			ApiKeyEnvVar:                ApiKeyByProvider[ModelProviderOpenRouter],
-			ModelCompatibility:          fullCompatibility,
-			BaseUrl:                     BaseUrlByProvider[ModelProviderOpenRouter],
-			PreferredModelOutputFormat:  ModelOutputFormatXml,
-			SingleMessageNoSystemPrompt: true,
-			TokenEstimatePaddingPct:     0.10,
+		ModelTag:    "openai/gpt-4.1-mini",
+		Publisher:   ModelPublisherOpenAI,
+		Description: "OpenAI gpt-4.1-mini",
+		BaseModelShared: BaseModelShared{
+			DefaultMaxConvoTokens: 75000, MaxTokens: 1047576,
+			MaxOutputTokens: 32768, ReservedOutputTokens: 32768,
+			ModelCompatibility: FullCompatibility, PreferredOutputFormat: ModelOutputFormatToolCallJson,
+		},
+		Providers: []BaseModelUsesProvider{
+			{Provider: ModelProviderOpenAI, ModelName: "gpt-4.1-mini"},
+			{Provider: ModelProviderAzureOpenAI, ModelName: "azure/gpt-4.1-mini"},
+			{Provider: ModelProviderOpenRouter, ModelName: "openai/gpt-4.1-mini"},
 		},
 	},
 	{
-		Description:           "Anthropic Claude 4 Sonnet (thinking—includes reasoning) via OpenRouter",
-		DefaultMaxConvoTokens: 15000,
-		BaseModelConfig: BaseModelConfig{
-			Provider:                    ModelProviderOpenRouter,
-			ModelName:                   "anthropic/claude-sonnet-4",
-			ModelId:                     "anthropic/claude-sonnet-4:thinking",
-			MaxTokens:                   200000,
-			MaxOutputTokens:             128000,
-			ReservedOutputTokens:        40000,
-			SupportsCacheControl:        true,
-			ApiKeyEnvVar:                ApiKeyByProvider[ModelProviderOpenRouter],
-			ModelCompatibility:          fullCompatibility,
-			BaseUrl:                     BaseUrlByProvider[ModelProviderOpenRouter],
-			PreferredModelOutputFormat:  ModelOutputFormatXml,
-			SingleMessageNoSystemPrompt: true,
-			TokenEstimatePaddingPct:     0.10,
-			ReasoningBudgetEnabled:      true,
-			ReasoningBudget:             AnthropicMaxReasoningBudget,
-			IncludeReasoning:            true,
+		ModelTag:    "openai/gpt-4.1-nano",
+		Publisher:   ModelPublisherOpenAI,
+		Description: "OpenAI gpt-4.1-nano",
+		BaseModelShared: BaseModelShared{
+			DefaultMaxConvoTokens: 75000, MaxTokens: 1047576,
+			MaxOutputTokens: 32768, ReservedOutputTokens: 32768,
+			ModelCompatibility: FullCompatibility, PreferredOutputFormat: ModelOutputFormatToolCallJson,
+		},
+		Providers: []BaseModelUsesProvider{
+			{Provider: ModelProviderOpenAI, ModelName: "gpt-4.1-nano"},
+			{Provider: ModelProviderAzureOpenAI, ModelName: "azure/gpt-4.1-nano"},
+			{Provider: ModelProviderOpenRouter, ModelName: "openai/gpt-4.1-nano"},
 		},
 	},
 	{
-		Description:           "Anthropic Claude 4 Sonnet (thinking-reasoning hidden) via OpenRouter",
-		DefaultMaxConvoTokens: 15000,
-		BaseModelConfig: BaseModelConfig{
-			Provider:                    ModelProviderOpenRouter,
-			ModelName:                   "anthropic/claude-sonnet-4",
-			ModelId:                     "anthropic/claude-sonnet-4:thinking-hidden",
-			MaxTokens:                   200000,
-			MaxOutputTokens:             128000,
-			ReservedOutputTokens:        20000,
-			SupportsCacheControl:        true,
-			ApiKeyEnvVar:                ApiKeyByProvider[ModelProviderOpenRouter],
-			ModelCompatibility:          fullCompatibility,
-			BaseUrl:                     BaseUrlByProvider[ModelProviderOpenRouter],
-			PreferredModelOutputFormat:  ModelOutputFormatXml,
-			SingleMessageNoSystemPrompt: true,
-			TokenEstimatePaddingPct:     0.10,
-			ReasoningBudgetEnabled:      true,
-			ReasoningBudget:             AnthropicMaxReasoningBudget,
-			IncludeReasoning:            false,
+		ModelTag:    "anthropic/claude-opus-4",
+		Publisher:   ModelPublisherAnthropic,
+		Description: "Anthropic Claude Opus 4",
+		BaseModelShared: BaseModelShared{
+			DefaultMaxConvoTokens: 15000, MaxTokens: 200000, MaxOutputTokens: 128000,
+			ReservedOutputTokens: 20000, SupportsCacheControl: true,
+			PreferredOutputFormat: ModelOutputFormatXml, SingleMessageNoSystemPrompt: true,
+			TokenEstimatePaddingPct: 0.10,
+		},
+		Variants: []BaseModelConfigVariant{
+			{IsBaseVariant: true},
+			// Opus thinking variant not working yet—might need a specific cap set
+			// {
+			// 	VariantTag: "thinking", Description: "thinking",
+			// 	Overrides: BaseModelShared{ReasoningBudget: AnthropicMaxReasoningBudget},
+			// 	Variants: []BaseModelConfigVariant{
+			// 		{VariantTag: "visible", IsDefaultVariant: true, Description: "visible", Overrides: BaseModelShared{IncludeReasoning: true}},
+			// 		{VariantTag: "hidden", Description: "hidden", Overrides: BaseModelShared{IncludeReasoning: false}},
+			// 	},
+			// },
+		},
+		Providers: []BaseModelUsesProvider{
+			{Provider: ModelProviderAnthropic, ModelName: "anthropic/claude-opus-4-0"},
+			{Provider: ModelProviderAmazonBedrock, ModelName: "bedrock/anthropic.claude-opus-4-20250514-v1:0"},
+			{Provider: ModelProviderGoogleVertex, ModelName: "vertex_ai/claude-opus-4@20250514"},
+			{Provider: ModelProviderOpenRouter, ModelName: "anthropic/claude-opus-4"},
 		},
 	},
 	{
-		Description:           "Anthropic Claude 3.7 Sonnet via OpenRouter",
-		DefaultMaxConvoTokens: 15000,
-		BaseModelConfig: BaseModelConfig{
-			Provider:                    ModelProviderOpenRouter,
-			ModelName:                   "anthropic/claude-3.7-sonnet",
-			ModelId:                     "anthropic/claude-3.7-sonnet",
-			MaxTokens:                   200000,
-			MaxOutputTokens:             128000,
-			ReservedOutputTokens:        20000,
-			SupportsCacheControl:        true,
-			ApiKeyEnvVar:                ApiKeyByProvider[ModelProviderOpenRouter],
-			ModelCompatibility:          fullCompatibility,
-			BaseUrl:                     BaseUrlByProvider[ModelProviderOpenRouter],
-			PreferredModelOutputFormat:  ModelOutputFormatXml,
-			SingleMessageNoSystemPrompt: true,
-			TokenEstimatePaddingPct:     0.10,
+		ModelTag:    "anthropic/claude-sonnet-4",
+		Publisher:   ModelPublisherAnthropic,
+		Description: "Anthropic Claude Sonnet 4",
+		BaseModelShared: BaseModelShared{
+			DefaultMaxConvoTokens: 15000, MaxTokens: 200000, MaxOutputTokens: 128000,
+			ReservedOutputTokens: 40000, SupportsCacheControl: true,
+			PreferredOutputFormat: ModelOutputFormatXml, SingleMessageNoSystemPrompt: true,
+			TokenEstimatePaddingPct: 0.10,
 		},
-	},
-	{
-		Description:           "Anthropic Claude 3.7 Sonnet (thinking—includes reasoning) via OpenRouter",
-		DefaultMaxConvoTokens: 15000,
-		BaseModelConfig: BaseModelConfig{
-			Provider:                    ModelProviderOpenRouter,
-			ModelName:                   "anthropic/claude-3.7-sonnet:thinking",
-			ModelId:                     "anthropic/claude-3.7-sonnet:thinking",
-			MaxTokens:                   200000,
-			MaxOutputTokens:             128000,
-			ReservedOutputTokens:        40000,
-			SupportsCacheControl:        true,
-			ApiKeyEnvVar:                ApiKeyByProvider[ModelProviderOpenRouter],
-			ModelCompatibility:          fullCompatibility,
-			BaseUrl:                     BaseUrlByProvider[ModelProviderOpenRouter],
-			PreferredModelOutputFormat:  ModelOutputFormatXml,
-			IncludeReasoning:            true,
-			SingleMessageNoSystemPrompt: true,
-			TokenEstimatePaddingPct:     0.10,
-		},
-	},
-	{
-		Description:           "Anthropic Claude 3.7 Sonnet (thinking—reasoning hidden) via OpenRouter",
-		DefaultMaxConvoTokens: 15000,
-		BaseModelConfig: BaseModelConfig{
-			Provider:                    ModelProviderOpenRouter,
-			ModelName:                   "anthropic/claude-3.7-sonnet:thinking",
-			ModelId:                     "anthropic/claude-3.7-sonnet:thinking-hidden",
-			MaxTokens:                   200000,
-			MaxOutputTokens:             128000,
-			ReservedOutputTokens:        40000,
-			SupportsCacheControl:        true,
-			ApiKeyEnvVar:                ApiKeyByProvider[ModelProviderOpenRouter],
-			ModelCompatibility:          fullCompatibility,
-			BaseUrl:                     BaseUrlByProvider[ModelProviderOpenRouter],
-			PreferredModelOutputFormat:  ModelOutputFormatXml,
-			IncludeReasoning:            false,
-			SingleMessageNoSystemPrompt: true,
-			TokenEstimatePaddingPct:     0.10,
-		},
-	},
-	{
-		Description:           "Anthropic Claude 3.5 Sonnet via OpenRouter",
-		DefaultMaxConvoTokens: 15000,
-		BaseModelConfig: BaseModelConfig{
-			Provider:                    ModelProviderOpenRouter,
-			ModelName:                   "anthropic/claude-3.5-sonnet",
-			ModelId:                     "anthropic/claude-3.5-sonnet",
-			MaxTokens:                   200000,
-			MaxOutputTokens:             128000,
-			ReservedOutputTokens:        20000,
-			SupportsCacheControl:        true,
-			ApiKeyEnvVar:                ApiKeyByProvider[ModelProviderOpenRouter],
-			ModelCompatibility:          fullCompatibility,
-			BaseUrl:                     BaseUrlByProvider[ModelProviderOpenRouter],
-			PreferredModelOutputFormat:  ModelOutputFormatXml,
-			SingleMessageNoSystemPrompt: true,
-			TokenEstimatePaddingPct:     0.10,
-		},
-	},
-	{
-		Description:           "Anthropic Claude 3.5 Haiku via OpenRouter",
-		DefaultMaxConvoTokens: 15000,
-		BaseModelConfig: BaseModelConfig{
-			Provider:                    ModelProviderOpenRouter,
-			ModelName:                   "anthropic/claude-3.5-haiku",
-			ModelId:                     "anthropic/claude-3.5-haiku",
-			MaxTokens:                   200000,
-			MaxOutputTokens:             8192,
-			ReservedOutputTokens:        8192,
-			SupportsCacheControl:        true,
-			ApiKeyEnvVar:                ApiKeyByProvider[ModelProviderOpenRouter],
-			ModelCompatibility:          fullCompatibility,
-			BaseUrl:                     BaseUrlByProvider[ModelProviderOpenRouter],
-			PreferredModelOutputFormat:  ModelOutputFormatXml,
-			SingleMessageNoSystemPrompt: true,
-			TokenEstimatePaddingPct:     0.10,
-		},
-	},
-	{
-		Description:           "Google Gemini Pro 1.5 via OpenRouter",
-		DefaultMaxConvoTokens: 100000,
-		BaseModelConfig: BaseModelConfig{
-			Provider:                   ModelProviderOpenRouter,
-			ModelName:                  "google/gemini-pro-1.5",
-			ModelId:                    "google/gemini-pro-1.5",
-			MaxTokens:                  2000000,
-			MaxOutputTokens:            8192,
-			ReservedOutputTokens:       8192,
-			ApiKeyEnvVar:               ApiKeyByProvider[ModelProviderOpenRouter],
-			ModelCompatibility:         fullCompatibility,
-			BaseUrl:                    BaseUrlByProvider[ModelProviderOpenRouter],
-			PreferredModelOutputFormat: ModelOutputFormatXml,
-			SupportsCacheControl:       true,
-		},
-	},
-
-	{
-		Description:           "Google Gemini Pro 2.5 Preview via OpenRouter",
-		DefaultMaxConvoTokens: 75000,
-		BaseModelConfig: BaseModelConfig{
-			Provider:                   ModelProviderOpenRouter,
-			ModelName:                  "google/gemini-2.5-pro-preview",
-			ModelId:                    "google/gemini-2.5-pro-preview",
-			MaxTokens:                  1048576,
-			MaxOutputTokens:            65535,
-			ReservedOutputTokens:       65535,
-			ApiKeyEnvVar:               ApiKeyByProvider[ModelProviderOpenRouter],
-			ModelCompatibility:         fullCompatibility,
-			BaseUrl:                    BaseUrlByProvider[ModelProviderOpenRouter],
-			PreferredModelOutputFormat: ModelOutputFormatXml,
-			SupportsCacheControl:       true,
-		},
-	},
-
-	{
-		Description:           "Google Gemini Pro 2.5 Experimental via OpenRouter",
-		DefaultMaxConvoTokens: 75000,
-		BaseModelConfig: BaseModelConfig{
-			Provider:                   ModelProviderOpenRouter,
-			ModelName:                  "google/gemini-2.5-pro-exp-03-25",
-			ModelId:                    "google/gemini-2.5-pro-exp-03-25",
-			MaxTokens:                  1000000,
-			MaxOutputTokens:            65535,
-			ReservedOutputTokens:       65535,
-			ApiKeyEnvVar:               ApiKeyByProvider[ModelProviderOpenRouter],
-			ModelCompatibility:         fullCompatibility,
-			BaseUrl:                    BaseUrlByProvider[ModelProviderOpenRouter],
-			PreferredModelOutputFormat: ModelOutputFormatXml,
-		},
-	},
-	{
-		Description:           "Google Gemini Flash 2.5 Preview via OpenRouter",
-		DefaultMaxConvoTokens: 75000,
-		BaseModelConfig: BaseModelConfig{
-			Provider:                   ModelProviderOpenRouter,
-			ModelName:                  "google/gemini-2.5-flash-preview",
-			ModelId:                    "google/gemini-2.5-flash-preview",
-			MaxTokens:                  1048576,
-			MaxOutputTokens:            65535,
-			ReservedOutputTokens:       65535,
-			ApiKeyEnvVar:               ApiKeyByProvider[ModelProviderOpenRouter],
-			ModelCompatibility:         fullCompatibility,
-			BaseUrl:                    BaseUrlByProvider[ModelProviderOpenRouter],
-			PreferredModelOutputFormat: ModelOutputFormatXml,
-			SupportsCacheControl:       true,
-		},
-	},
-
-	{
-		Description:           "Google Gemini Flash 2.5 Preview (thinking-includes reasoning) via OpenRouter",
-		DefaultMaxConvoTokens: 75000,
-		BaseModelConfig: BaseModelConfig{
-			Provider:                   ModelProviderOpenRouter,
-			ModelName:                  "google/gemini-2.5-flash-preview-05-20:thinking",
-			ModelId:                    "google/gemini-2.5-flash-preview-05-20:thinking",
-			MaxTokens:                  1048576,
-			MaxOutputTokens:            65535,
-			ReservedOutputTokens:       65535,
-			ApiKeyEnvVar:               ApiKeyByProvider[ModelProviderOpenRouter],
-			ModelCompatibility:         fullCompatibility,
-			BaseUrl:                    BaseUrlByProvider[ModelProviderOpenRouter],
-			PreferredModelOutputFormat: ModelOutputFormatXml,
-			SupportsCacheControl:       true,
-			ReasoningBudgetEnabled:     true,
-			ReasoningBudget:            GoogleMaxReasoningBudget,
-			IncludeReasoning:           true,
-		},
-	},
-
-	{
-		Description:           "Google Gemini Flash 2.5 Preview (thinking-reasoning hidden) via OpenRouter",
-		DefaultMaxConvoTokens: 75000,
-		BaseModelConfig: BaseModelConfig{
-			Provider:                   ModelProviderOpenRouter,
-			ModelName:                  "google/gemini-2.5-flash-preview-05-20:thinking",
-			ModelId:                    "google/gemini-2.5-flash-preview-05-20:thinking-hidden",
-			MaxTokens:                  1048576,
-			MaxOutputTokens:            65535,
-			ReservedOutputTokens:       65535,
-			ApiKeyEnvVar:               ApiKeyByProvider[ModelProviderOpenRouter],
-			ModelCompatibility:         fullCompatibility,
-			BaseUrl:                    BaseUrlByProvider[ModelProviderOpenRouter],
-			PreferredModelOutputFormat: ModelOutputFormatXml,
-			SupportsCacheControl:       true,
-			ReasoningBudgetEnabled:     true,
-			ReasoningBudget:            GoogleMaxReasoningBudget,
-			IncludeReasoning:           false,
-		},
-	},
-
-	{
-		Description:           "DeepSeek V3 0324 via OpenRouter",
-		DefaultMaxConvoTokens: 7500,
-		BaseModelConfig: BaseModelConfig{
-			Provider:             ModelProviderOpenRouter,
-			ModelName:            "deepseek/deepseek-chat-v3-0324",
-			ModelId:              "deepseek/deepseek-chat-v3-0324",
-			MaxTokens:            64000,
-			MaxOutputTokens:      8192,
-			ReservedOutputTokens: 8192,
-			ApiKeyEnvVar:         ApiKeyByProvider[ModelProviderOpenRouter],
-			ModelCompatibility: ModelCompatibility{
-				HasImageSupport: false,
+		Variants: []BaseModelConfigVariant{
+			{IsBaseVariant: true},
+			{
+				VariantTag: "thinking", Description: "thinking",
+				Overrides: BaseModelShared{ReasoningBudget: AnthropicMaxReasoningBudget},
+				Variants: []BaseModelConfigVariant{
+					{VariantTag: "visible", IsDefaultVariant: true, Description: "visible", Overrides: BaseModelShared{IncludeReasoning: true}},
+					{VariantTag: "hidden", Description: "hidden", Overrides: BaseModelShared{IncludeReasoning: false}},
+				},
 			},
-			BaseUrl:                    BaseUrlByProvider[ModelProviderOpenRouter],
-			PreferredModelOutputFormat: ModelOutputFormatXml,
+		},
+		Providers: []BaseModelUsesProvider{
+			{Provider: ModelProviderAnthropic, ModelName: "anthropic/claude-sonnet-4-0"},
+			{Provider: ModelProviderAmazonBedrock, ModelName: "anthropic.claude-sonnet-4-20250514-v1:0"},
+			{Provider: ModelProviderGoogleVertex, ModelName: "vertex_ai/claude-sonnet-4@20250514"},
+			{Provider: ModelProviderOpenRouter, ModelName: "anthropic/claude-sonnet-4"},
 		},
 	},
-
 	{
-		Description:           "DeepSeek R1 via OpenRouter (includes reasoning)",
-		DefaultMaxConvoTokens: 7500,
-		BaseModelConfig: BaseModelConfig{
-			Provider:             ModelProviderOpenRouter,
-			ModelName:            "deepseek/deepseek-r1",
-			ModelId:              "deepseek/deepseek-r1-reasoning",
-			MaxTokens:            64000,
-			MaxOutputTokens:      8192,
-			ReservedOutputTokens: 8192,
-			ApiKeyEnvVar:         ApiKeyByProvider[ModelProviderOpenRouter],
-			ModelCompatibility: ModelCompatibility{
-				HasImageSupport: false,
+		ModelTag:    "anthropic/claude-3.7-sonnet",
+		Publisher:   ModelPublisherAnthropic,
+		Description: "Anthropic Claude 3.7 Sonnet",
+		BaseModelShared: BaseModelShared{
+			DefaultMaxConvoTokens: 15000, MaxTokens: 200000, MaxOutputTokens: 128000,
+			ReservedOutputTokens: 20000, SupportsCacheControl: true,
+			PreferredOutputFormat: ModelOutputFormatXml, SingleMessageNoSystemPrompt: true,
+			TokenEstimatePaddingPct: 0.10,
+		},
+		Variants: []BaseModelConfigVariant{
+			{IsBaseVariant: true},
+			{
+				VariantTag: "thinking", Description: "thinking",
+				Overrides: BaseModelShared{ReasoningBudget: AnthropicMaxReasoningBudget},
+				Variants: []BaseModelConfigVariant{
+					{VariantTag: "visible", IsDefaultVariant: true, Description: "visible", Overrides: BaseModelShared{IncludeReasoning: true}},
+					{VariantTag: "hidden", Description: "hidden", Overrides: BaseModelShared{IncludeReasoning: false}},
+				},
 			},
-			BaseUrl:                    BaseUrlByProvider[ModelProviderOpenRouter],
-			PreferredModelOutputFormat: ModelOutputFormatXml,
-			IncludeReasoning:           true,
+		},
+		Providers: []BaseModelUsesProvider{
+			{Provider: ModelProviderAnthropic, ModelName: "anthropic/claude-3-7-sonnet-latest"},
+			{Provider: ModelProviderAmazonBedrock, ModelName: "bedrock/anthropic.claude-3-7-sonnet-20250219-v1:0"},
+			{Provider: ModelProviderGoogleVertex, ModelName: "vertex_ai/claude-3-7-sonnet@20250219"},
+			{Provider: ModelProviderOpenRouter, ModelName: "anthropic/claude-3.7-sonnet"},
 		},
 	},
-
 	{
-		Description:           "DeepSeek R1 via OpenRouter (reasoning hidden)",
-		DefaultMaxConvoTokens: 7500,
-		BaseModelConfig: BaseModelConfig{
-			Provider:             ModelProviderOpenRouter,
-			ModelName:            "deepseek/deepseek-r1",
-			ModelId:              "deepseek/deepseek-r1-no-reasoning",
-			MaxTokens:            64000,
-			MaxOutputTokens:      8192,
-			ReservedOutputTokens: 8192,
-			ApiKeyEnvVar:         ApiKeyByProvider[ModelProviderOpenRouter],
-			ModelCompatibility: ModelCompatibility{
-				HasImageSupport: false,
+		ModelTag:    "anthropic/claude-3.5-sonnet",
+		Publisher:   ModelPublisherAnthropic,
+		Description: "Anthropic Claude 3.5 Sonnet",
+		BaseModelShared: BaseModelShared{
+			DefaultMaxConvoTokens: 15000, MaxTokens: 200000, MaxOutputTokens: 128000,
+			ReservedOutputTokens: 20000, SupportsCacheControl: true,
+			PreferredOutputFormat: ModelOutputFormatXml, SingleMessageNoSystemPrompt: true,
+			TokenEstimatePaddingPct: 0.10,
+		},
+		Providers: []BaseModelUsesProvider{
+			{Provider: ModelProviderAnthropic, ModelName: "anthropic/claude-3-5-sonnet-latest"},
+			{Provider: ModelProviderGoogleVertex, ModelName: "vertex_ai/claude-3-5-sonnet-v2@20241022"},
+			{Provider: ModelProviderAmazonBedrock, ModelName: "bedrock/anthropic.claude-3-5-sonnet-20241022-v2:0"},
+			{Provider: ModelProviderOpenRouter, ModelName: "anthropic/claude-3.5-sonnet"},
+		},
+	},
+	{
+		ModelTag:    "anthropic/claude-3.5-haiku",
+		Publisher:   ModelPublisherAnthropic,
+		Description: "Anthropic Claude 3.5 Haiku",
+		BaseModelShared: BaseModelShared{
+			DefaultMaxConvoTokens: 15000, MaxTokens: 200000, MaxOutputTokens: 8192,
+			ReservedOutputTokens: 8192, SupportsCacheControl: true,
+			PreferredOutputFormat: ModelOutputFormatXml, SingleMessageNoSystemPrompt: true,
+			TokenEstimatePaddingPct: 0.10,
+		},
+		Providers: []BaseModelUsesProvider{
+			{Provider: ModelProviderAnthropic, ModelName: "anthropic/claude-3-5-haiku-latest"},
+			{Provider: ModelProviderGoogleVertex, ModelName: "vertex_ai/claude-3-5-haiku@20241022"},
+			{Provider: ModelProviderAmazonBedrock, ModelName: "bedrock/anthropic.claude-3-5-haiku-20241022-v1:0"},
+			{Provider: ModelProviderOpenRouter, ModelName: "anthropic/claude-3.5-haiku"},
+		},
+	},
+	{
+		ModelTag:    "google/gemini-pro-1.5",
+		Publisher:   ModelPublisherGoogle,
+		Description: "Google Gemini 1.5 Pro",
+		BaseModelShared: BaseModelShared{
+			DefaultMaxConvoTokens: 75000, MaxTokens: 2000000,
+			MaxOutputTokens: 8192, ReservedOutputTokens: 8192,
+			PreferredOutputFormat: ModelOutputFormatXml,
+		},
+		Providers: []BaseModelUsesProvider{
+			{Provider: ModelProviderGoogleAIStudio, ModelName: "gemini/gemini-1.5-pro"},
+			{Provider: ModelProviderGoogleVertex, ModelName: "vertex_ai/gemini-1.5-pro"},
+			{Provider: ModelProviderOpenRouter, ModelName: "google/gemini-pro-1.5"},
+		},
+	},
+	{
+		ModelTag:    "google/gemini-2.5-pro",
+		Publisher:   ModelPublisherGoogle,
+		Description: "Google Gemini 2.5 Pro",
+		BaseModelShared: BaseModelShared{
+			DefaultMaxConvoTokens: 75000, MaxTokens: 1048576,
+			MaxOutputTokens: 65535, ReservedOutputTokens: 65535,
+			PreferredOutputFormat: ModelOutputFormatXml,
+		},
+		Providers: []BaseModelUsesProvider{
+			{Provider: ModelProviderGoogleAIStudio, ModelName: "gemini/gemini-2.5-pro"},
+			{Provider: ModelProviderGoogleVertex, ModelName: "vertex_ai/gemini-2.5-pro"},
+			{Provider: ModelProviderOpenRouter, ModelName: "google/gemini-2.5-pro"},
+		},
+	},
+	{
+		ModelTag:    "google/gemini-2.5-flash",
+		Publisher:   ModelPublisherGoogle,
+		Description: "Google Gemini 2.5 Flash",
+		BaseModelShared: BaseModelShared{
+			DefaultMaxConvoTokens: 75000, MaxTokens: 1048576,
+			MaxOutputTokens: 65535, ReservedOutputTokens: 65535,
+			PreferredOutputFormat: ModelOutputFormatXml,
+		},
+		Variants: []BaseModelConfigVariant{
+			{IsBaseVariant: true},
+			{
+				VariantTag:  "thinking",
+				Description: "thinking",
+				Overrides:   BaseModelShared{IncludeReasoning: true},
+				Variants: []BaseModelConfigVariant{
+					{VariantTag: "visible", IsDefaultVariant: true, Description: "visible"},
+					{VariantTag: "hidden", Description: "hidden", Overrides: BaseModelShared{HideReasoning: true}},
+				},
 			},
-			BaseUrl:                    BaseUrlByProvider[ModelProviderOpenRouter],
-			PreferredModelOutputFormat: ModelOutputFormatXml,
+		},
+		Providers: []BaseModelUsesProvider{
+			{Provider: ModelProviderGoogleAIStudio, ModelName: "gemini/gemini-2.5-flash"},
+			{Provider: ModelProviderGoogleVertex, ModelName: "vertex_ai/gemini-2.5-flash"},
+			{Provider: ModelProviderOpenRouter, ModelName: "google/gemini-2.5-flash"},
+		},
+	},
+	{
+		ModelTag:    "deepseek/v3",
+		Publisher:   ModelPublisherDeepSeek,
+		Description: "DeepSeek V3",
+		BaseModelShared: BaseModelShared{
+			DefaultMaxConvoTokens: 7500, MaxTokens: 64000,
+			MaxOutputTokens: 8192, ReservedOutputTokens: 8192,
+			PreferredOutputFormat: ModelOutputFormatXml,
+		},
+		Providers: []BaseModelUsesProvider{
+			{Provider: ModelProviderDeepSeek, ModelName: "deepseek/deepseek-chat"},
+			{Provider: ModelProviderOpenRouter, ModelName: "deepseek/deepseek-chat-v3"},
+		},
+	},
+	{
+		ModelTag:    "deepseek/r1",
+		Publisher:   ModelPublisherDeepSeek,
+		Description: "DeepSeek R1",
+		BaseModelShared: BaseModelShared{
+			DefaultMaxConvoTokens: 7500, MaxTokens: 164000,
+			MaxOutputTokens: 33000, ReservedOutputTokens: 20000,
+			PreferredOutputFormat: ModelOutputFormatXml,
+		},
+		Variants: []BaseModelConfigVariant{
+			{VariantTag: "visible", IsDefaultVariant: true, Description: "(reasoning visible)", Overrides: BaseModelShared{IncludeReasoning: true}},
+			{VariantTag: "hidden", Description: "(reasoning hidden)", Overrides: BaseModelShared{IncludeReasoning: false}},
+		},
+		Providers: []BaseModelUsesProvider{
+			{Provider: ModelProviderDeepSeek, ModelName: "deepseek/deepseek-reasoner"},
+			{Provider: ModelProviderOpenRouter, ModelName: "deepseek/deepseek-r1-0528"},
+		},
+	},
+	{
+		ModelTag:    "deepseek/r1-70b",
+		Publisher:   ModelPublisherDeepSeek,
+		Description: "DeepSeek R1 70B",
+		BaseModelShared: BaseModelShared{
+			DefaultMaxConvoTokens: 10000, MaxTokens: 131072,
+			MaxOutputTokens: 131072, ReservedOutputTokens: 20000,
+			PreferredOutputFormat: ModelOutputFormatXml,
+		},
+		Providers: []BaseModelUsesProvider{
+			{Provider: ModelProviderOllama, ModelName: "ollama_chat/deepseek-r1:70b"},
+		},
+	},
+	{
+		ModelTag:    "deepseek/r1-32b",
+		Publisher:   ModelPublisherDeepSeek,
+		Description: "DeepSeek R1 32B",
+		BaseModelShared: BaseModelShared{
+			DefaultMaxConvoTokens: 10000, MaxTokens: 131072,
+			MaxOutputTokens: 131072, ReservedOutputTokens: 20000,
+			PreferredOutputFormat: ModelOutputFormatXml,
+		},
+		Providers: []BaseModelUsesProvider{
+			{Provider: ModelProviderOllama, ModelName: "ollama_chat/deepseek-r1:32b"},
+		},
+	},
+	{
+		ModelTag:    "deepseek/r1-14b",
+		Publisher:   ModelPublisherDeepSeek,
+		Description: "DeepSeek R1 14B",
+		BaseModelShared: BaseModelShared{
+			DefaultMaxConvoTokens: 10000, MaxTokens: 131072,
+			MaxOutputTokens: 131072, ReservedOutputTokens: 20000,
+			PreferredOutputFormat: ModelOutputFormatXml,
+		},
+		Providers: []BaseModelUsesProvider{
+			{Provider: ModelProviderOllama, ModelName: "ollama_chat/deepseek-r1:14b"},
+		},
+	},
+	{
+		ModelTag:    "deepseek/r1-8b",
+		Publisher:   ModelPublisherDeepSeek,
+		Description: "DeepSeek R1 8B",
+		BaseModelShared: BaseModelShared{
+			DefaultMaxConvoTokens: 10000, MaxTokens: 131072,
+			MaxOutputTokens: 131072, ReservedOutputTokens: 20000,
+			PreferredOutputFormat: ModelOutputFormatXml,
+		},
+		Providers: []BaseModelUsesProvider{
+			{Provider: ModelProviderOllama, ModelName: "ollama_chat/deepseek-r1:8b"},
 		},
 	},
 
 	{
-		Description:           "Perplexity R1 1776 via OpenRouter (includes reasoning)",
-		DefaultMaxConvoTokens: 7500,
-		BaseModelConfig: BaseModelConfig{
-			Provider:             ModelProviderOpenRouter,
-			ModelName:            "perplexity/r1-1776",
-			ModelId:              "perplexity/r1-1776",
-			MaxTokens:            128000,
-			MaxOutputTokens:      128000,
-			ReservedOutputTokens: 30000,
-			ApiKeyEnvVar:         ApiKeyByProvider[ModelProviderOpenRouter],
-			ModelCompatibility: ModelCompatibility{
-				HasImageSupport: false,
-			},
-			BaseUrl:                    BaseUrlByProvider[ModelProviderOpenRouter],
-			PreferredModelOutputFormat: ModelOutputFormatXml,
-			IncludeReasoning:           true,
+		ModelTag:    "qwen/qwen-2.5-coder-32b-instruct",
+		Publisher:   ModelPublisherQwen,
+		Description: "Qwen 2.5 Coder 32B (Instruct)",
+		BaseModelShared: BaseModelShared{
+			DefaultMaxConvoTokens: 10000, MaxTokens: 128000,
+			MaxOutputTokens: 8192, ReservedOutputTokens: 8192,
+			PreferredOutputFormat: ModelOutputFormatXml,
+		},
+		Providers: []BaseModelUsesProvider{
+			{Provider: ModelProviderOpenRouter, ModelName: "qwen/qwen-2.5-coder-32b-instruct"},
+		},
+	},
+	{
+		ModelTag:    "qwen/qwen3-235b-local",
+		Publisher:   ModelPublisherQwen,
+		Description: "Qwen 3-235B (Local)",
+		BaseModelShared: BaseModelShared{
+			DefaultMaxConvoTokens: 5000, MaxTokens: 40960,
+			MaxOutputTokens: 40960, ReservedOutputTokens: 8192,
+			PreferredOutputFormat: ModelOutputFormatXml,
+		},
+		Providers: []BaseModelUsesProvider{
+			{Provider: ModelProviderOllama, ModelName: "ollama_chat/qwen3:235b"},
 		},
 	},
 
 	{
-		Description:           "Perplexity Sonar Reasoning via OpenRouter (includes reasoning)",
-		DefaultMaxConvoTokens: 7500,
-		BaseModelConfig: BaseModelConfig{
-			Provider:             ModelProviderOpenRouter,
-			ModelName:            "perplexity/sonar-reasoning",
-			ModelId:              "perplexity/sonar-reasoning",
-			MaxTokens:            127000,
-			MaxOutputTokens:      127000,
-			ReservedOutputTokens: 30000,
-			ApiKeyEnvVar:         ApiKeyByProvider[ModelProviderOpenRouter],
-			ModelCompatibility: ModelCompatibility{
-				HasImageSupport: false,
-			},
-			BaseUrl:                    BaseUrlByProvider[ModelProviderOpenRouter],
-			PreferredModelOutputFormat: ModelOutputFormatXml,
-			IncludeReasoning:           true,
+		ModelTag:    "qwen/qwen3-235b-a22b-cloud",
+		Publisher:   ModelPublisherQwen,
+		Description: "Qwen 3-235B A22B (Cloud)",
+		BaseModelShared: BaseModelShared{
+			DefaultMaxConvoTokens: 5000, MaxTokens: 40960,
+			MaxOutputTokens: 40960, ReservedOutputTokens: 8192,
+			PreferredOutputFormat: ModelOutputFormatXml,
+		},
+		Providers: []BaseModelUsesProvider{
+			{Provider: ModelProviderOpenRouter, ModelName: "qwen/qwen3-235b-a22b"},
+		},
+	},
+	{
+		ModelTag:    "qwen/qwen3-32b-local",
+		Publisher:   ModelPublisherQwen,
+		Description: "Qwen 3-32B (Local)",
+		BaseModelShared: BaseModelShared{
+			DefaultMaxConvoTokens: 5000, MaxTokens: 40960,
+			MaxOutputTokens: 40960, ReservedOutputTokens: 8192,
+			PreferredOutputFormat: ModelOutputFormatXml,
+		},
+		Providers: []BaseModelUsesProvider{
+			{Provider: ModelProviderOllama, ModelName: "ollama_chat/qwen3:32b"},
+		},
+	},
+	{
+		ModelTag:    "qwen/qwen3-32b-cloud",
+		Publisher:   ModelPublisherQwen,
+		Description: "Qwen 3-32B (Cloud)",
+		BaseModelShared: BaseModelShared{
+			DefaultMaxConvoTokens: 5000, MaxTokens: 40960,
+			MaxOutputTokens: 40960, ReservedOutputTokens: 8192,
+			PreferredOutputFormat: ModelOutputFormatXml,
+		},
+		Providers: []BaseModelUsesProvider{
+			{Provider: ModelProviderOpenRouter, ModelName: "qwen/qwen3-32b"},
+		},
+	},
+	{
+		ModelTag:    "qwen/qwen3-14b-local",
+		Publisher:   ModelPublisherQwen,
+		Description: "Qwen 3-14B (Local)",
+		BaseModelShared: BaseModelShared{
+			DefaultMaxConvoTokens: 5000, MaxTokens: 40960,
+			MaxOutputTokens: 40960, ReservedOutputTokens: 8192,
+			PreferredOutputFormat: ModelOutputFormatXml,
+		},
+		Providers: []BaseModelUsesProvider{
+			{Provider: ModelProviderOllama, ModelName: "ollama_chat/qwen3:14b"},
+		},
+	},
+	{
+		ModelTag:    "qwen/qwen3-14b-cloud",
+		Publisher:   ModelPublisherQwen,
+		Description: "Qwen 3-14B (Cloud)",
+		BaseModelShared: BaseModelShared{
+			DefaultMaxConvoTokens: 5000, MaxTokens: 40960,
+			MaxOutputTokens: 40960, ReservedOutputTokens: 8192,
+			PreferredOutputFormat: ModelOutputFormatXml,
+		},
+		Providers: []BaseModelUsesProvider{
+			{Provider: ModelProviderOpenRouter, ModelName: "qwen/qwen3-14b"},
+		},
+	},
+	{
+		ModelTag:    "qwen/qwen3-8b-local",
+		Publisher:   ModelPublisherQwen,
+		Description: "Qwen 3-8B (Local)",
+		BaseModelShared: BaseModelShared{
+			DefaultMaxConvoTokens: 5000, MaxTokens: 32768,
+			MaxOutputTokens: 32768, ReservedOutputTokens: 8192,
+			PreferredOutputFormat: ModelOutputFormatXml,
+		},
+		Providers: []BaseModelUsesProvider{
+			{Provider: ModelProviderOllama, ModelName: "ollama_chat/qwen3:8b"},
+		},
+	},
+	{
+		ModelTag:    "qwen/qwen3-8b-cloud",
+		Publisher:   ModelPublisherQwen,
+		Description: "Qwen 3-8B (Cloud)",
+		BaseModelShared: BaseModelShared{
+			DefaultMaxConvoTokens: 15000, MaxTokens: 128000,
+			MaxOutputTokens: 20000, ReservedOutputTokens: 20000,
+			PreferredOutputFormat: ModelOutputFormatXml,
+		},
+		Providers: []BaseModelUsesProvider{
+			{Provider: ModelProviderOpenRouter, ModelName: "qwen/qwen3-8b"},
 		},
 	},
 
 	{
-		Description:           "Qwen 2.5 Coder 32B via OpenRouter",
-		DefaultMaxConvoTokens: 10000,
-		BaseModelConfig: BaseModelConfig{
-			Provider:                   ModelProviderOpenRouter,
-			ModelName:                  "qwen/qwen-2.5-coder-32b-instruct",
-			ModelId:                    "qwen/qwen-2.5-coder-32b-instruct",
-			MaxTokens:                  128000,
-			MaxOutputTokens:            8192,
-			ReservedOutputTokens:       8192,
-			ApiKeyEnvVar:               ApiKeyByProvider[ModelProviderOpenRouter],
-			ModelCompatibility:         fullCompatibility,
-			BaseUrl:                    BaseUrlByProvider[ModelProviderOpenRouter],
-			PreferredModelOutputFormat: ModelOutputFormatXml,
+		ModelTag:    "mistral/devstral-small",
+		Publisher:   ModelPublisherMistral,
+		Description: "Mistral Devstral Small",
+		BaseModelShared: BaseModelShared{
+			DefaultMaxConvoTokens: 15000, MaxTokens: 128000,
+			MaxOutputTokens: 128000, ReservedOutputTokens: 16384,
+			PreferredOutputFormat: ModelOutputFormatXml,
 		},
-	},
-
-	// OpenAI models via OpenRouter
-
-	{
-		Description:           "OpenAI o3-high via OpenRouter",
-		DefaultMaxConvoTokens: 15000,
-		BaseModelConfig: BaseModelConfig{
-			Provider:                   ModelProviderOpenRouter,
-			ModelName:                  "openai/o3",
-			ModelId:                    "openai/o3-high",
-			MaxTokens:                  200000,
-			MaxOutputTokens:            100000,
-			ReservedOutputTokens:       40000, // 25k for reasoning, 15k for output
-			ApiKeyEnvVar:               OpenRouterApiKeyEnvVar,
-			ModelCompatibility:         fullCompatibility,
-			BaseUrl:                    BaseUrlByProvider[ModelProviderOpenRouter],
-			PreferredModelOutputFormat: ModelOutputFormatXml,
-			SystemPromptDisabled:       true,
-			RoleParamsDisabled:         true,
-			ReasoningEffortEnabled:     true,
-			ReasoningEffort:            ReasoningEffortHigh,
-			StopDisabled:               true,
+		Providers: []BaseModelUsesProvider{
+			{Provider: ModelProviderOllama, ModelName: "ollama_chat/devstral:24b"},
+			{Provider: ModelProviderOpenRouter, ModelName: "mistral/devstral-small"},
 		},
 	},
 
 	{
-		Description:           "OpenAI o3-medium via OpenRouter",
-		DefaultMaxConvoTokens: 15000,
-		BaseModelConfig: BaseModelConfig{
-			Provider:                   ModelProviderOpenRouter,
-			ModelName:                  "openai/o3",
-			ModelId:                    "openai/o3-medium",
-			MaxTokens:                  200000,
-			MaxOutputTokens:            100000,
-			ReservedOutputTokens:       40000, // 25k for reasoning, 15k for output
-			ApiKeyEnvVar:               OpenRouterApiKeyEnvVar,
-			ModelCompatibility:         fullCompatibility,
-			BaseUrl:                    BaseUrlByProvider[ModelProviderOpenRouter],
-			PreferredModelOutputFormat: ModelOutputFormatToolCallJson,
-			SystemPromptDisabled:       true,
-			RoleParamsDisabled:         true,
-			ReasoningEffortEnabled:     true,
-			ReasoningEffort:            ReasoningEffortMedium,
-			StopDisabled:               true,
+		ModelTag:    "perplexity/r1-1776",
+		Publisher:   ModelPublisherPerplexity,
+		Description: "Perplexity R1-1776",
+		BaseModelShared: BaseModelShared{
+			DefaultMaxConvoTokens: 7500, MaxTokens: 128000,
+			MaxOutputTokens: 128000, ReservedOutputTokens: 30000,
+			PreferredOutputFormat: ModelOutputFormatXml,
+		},
+		Variants: []BaseModelConfigVariant{
+			{VariantTag: "visible", IsDefaultVariant: true, Description: "(reasoning visible)", Overrides: BaseModelShared{IncludeReasoning: true}},
+			{VariantTag: "hidden", Description: "(reasoning hidden)", Overrides: BaseModelShared{IncludeReasoning: false}},
+		},
+		Providers: []BaseModelUsesProvider{
+			{Provider: ModelProviderPerplexity, ModelName: "r1-1776-online"},
+			{Provider: ModelProviderOpenRouter, ModelName: "perplexity/r1-1776"},
 		},
 	},
 
 	{
-		Description:           "OpenAI o3-low via OpenRouter",
-		DefaultMaxConvoTokens: 15000,
-		BaseModelConfig: BaseModelConfig{
-			Provider:                   ModelProviderOpenRouter,
-			ModelName:                  "openai/o3",
-			ModelId:                    "openai/o3-low",
-			MaxTokens:                  200000,
-			MaxOutputTokens:            100000,
-			ReservedOutputTokens:       40000, // 25k for reasoning, 15k for output
-			ApiKeyEnvVar:               OpenRouterApiKeyEnvVar,
-			ModelCompatibility:         fullCompatibility,
-			BaseUrl:                    BaseUrlByProvider[ModelProviderOpenRouter],
-			PreferredModelOutputFormat: ModelOutputFormatXml,
-			SystemPromptDisabled:       true,
-			RoleParamsDisabled:         true,
-			ReasoningEffortEnabled:     true,
-			ReasoningEffort:            ReasoningEffortLow,
-			StopDisabled:               true,
+		ModelTag:    "perplexity/r1-1776-70b",
+		Publisher:   ModelPublisherPerplexity,
+		Description: "Perplexity R1-1776 70B",
+		BaseModelShared: BaseModelShared{
+			DefaultMaxConvoTokens: 10000, MaxTokens: 131072,
+			MaxOutputTokens: 131072, ReservedOutputTokens: 20000,
+			PreferredOutputFormat: ModelOutputFormatXml,
+		},
+		Providers: []BaseModelUsesProvider{
+			{Provider: ModelProviderOllama, ModelName: "ollama_chat/r1-1776:70b"},
 		},
 	},
 
 	{
-		Description:           "OpenAI o4-mini-high via OpenRouter",
-		DefaultMaxConvoTokens: 10000,
-		BaseModelConfig: BaseModelConfig{
-			Provider:                   ModelProviderOpenRouter,
-			ModelName:                  "openai/o4-mini",
-			ModelId:                    "openai/o4-mini-high",
-			MaxTokens:                  200000,
-			MaxOutputTokens:            100000,
-			ReservedOutputTokens:       30000,
-			ApiKeyEnvVar:               OpenRouterApiKeyEnvVar,
-			ModelCompatibility:         fullCompatibility,
-			BaseUrl:                    BaseUrlByProvider[ModelProviderOpenRouter],
-			PreferredModelOutputFormat: ModelOutputFormatToolCallJson,
-			RoleParamsDisabled:         true,
-			ReasoningEffortEnabled:     true,
-			ReasoningEffort:            ReasoningEffortHigh,
-			StopDisabled:               true,
+		ModelTag:    "perplexity/sonar-reasoning",
+		Publisher:   ModelPublisherPerplexity,
+		Description: "Perplexity Sonar Reasoning",
+		BaseModelShared: BaseModelShared{
+			DefaultMaxConvoTokens: 7500, MaxTokens: 127000,
+			MaxOutputTokens: 127000, ReservedOutputTokens: 30000,
+			PreferredOutputFormat: ModelOutputFormatXml,
 		},
-	},
-	{
-		Description:           "OpenAI o4-mini-medium via OpenRouter",
-		DefaultMaxConvoTokens: 10000,
-		BaseModelConfig: BaseModelConfig{
-			Provider:                   ModelProviderOpenRouter,
-			ModelName:                  "openai/o4-mini",
-			ModelId:                    "openai/o4-mini-medium",
-			MaxTokens:                  200000,
-			MaxOutputTokens:            100000,
-			ReservedOutputTokens:       40000, // 25k for reasoning, 15k for output
-			ApiKeyEnvVar:               OpenRouterApiKeyEnvVar,
-			ModelCompatibility:         fullCompatibility,
-			BaseUrl:                    BaseUrlByProvider[ModelProviderOpenRouter],
-			PreferredModelOutputFormat: ModelOutputFormatToolCallJson,
-			RoleParamsDisabled:         true,
-			ReasoningEffortEnabled:     true,
-			ReasoningEffort:            ReasoningEffortMedium,
-			StopDisabled:               true,
+		Variants: []BaseModelConfigVariant{
+			{VariantTag: "visible", IsDefaultVariant: true, Description: "(reasoning visible)", Overrides: BaseModelShared{IncludeReasoning: true}},
+			{VariantTag: "hidden", Description: "(reasoning hidden)", Overrides: BaseModelShared{IncludeReasoning: false}},
 		},
-	},
-	{
-		Description:           "OpenAI o4-mini-low via OpenRouter",
-		DefaultMaxConvoTokens: 10000,
-		BaseModelConfig: BaseModelConfig{
-			Provider:                   ModelProviderOpenRouter,
-			ModelName:                  "openai/o4-mini",
-			ModelId:                    "openai/o4-mini-low",
-			MaxTokens:                  200000,
-			MaxOutputTokens:            100000,
-			ReservedOutputTokens:       40000, // 25k for reasoning, 15k for output
-			ApiKeyEnvVar:               OpenRouterApiKeyEnvVar,
-			ModelCompatibility:         fullCompatibility,
-			BaseUrl:                    BaseUrlByProvider[ModelProviderOpenRouter],
-			PreferredModelOutputFormat: ModelOutputFormatToolCallJson,
-			RoleParamsDisabled:         true,
-			ReasoningEffortEnabled:     true,
-			ReasoningEffort:            ReasoningEffortLow,
-			StopDisabled:               true,
-		},
-	},
-
-	{
-		Description:           "OpenAI gpt-4.1 via OpenRouter",
-		DefaultMaxConvoTokens: 75000,
-		BaseModelConfig: BaseModelConfig{
-			Provider:                   ModelProviderOpenRouter,
-			ModelName:                  "openai/gpt-4.1",
-			ModelId:                    "openai/gpt-4.1",
-			MaxTokens:                  1047576,
-			MaxOutputTokens:            32768,
-			ReservedOutputTokens:       32768,
-			ApiKeyEnvVar:               OpenRouterApiKeyEnvVar,
-			ModelCompatibility:         fullCompatibility,
-			BaseUrl:                    BaseUrlByProvider[ModelProviderOpenRouter],
-			PreferredModelOutputFormat: ModelOutputFormatToolCallJson,
-		},
-	},
-
-	{
-		Description:           "OpenAI gpt-4.1-mini via OpenRouter",
-		DefaultMaxConvoTokens: 75000,
-		BaseModelConfig: BaseModelConfig{
-			Provider:                   ModelProviderOpenRouter,
-			ModelName:                  "openai/gpt-4.1-mini",
-			ModelId:                    "openai/gpt-4.1-mini",
-			MaxTokens:                  1047576,
-			MaxOutputTokens:            32768,
-			ReservedOutputTokens:       32768,
-			ApiKeyEnvVar:               OpenRouterApiKeyEnvVar,
-			ModelCompatibility:         fullCompatibility,
-			BaseUrl:                    BaseUrlByProvider[ModelProviderOpenRouter],
-			PreferredModelOutputFormat: ModelOutputFormatToolCallJson,
-		},
-	},
-
-	{
-		Description:           "OpenAI gpt-4.1-nano via OpenRouter",
-		DefaultMaxConvoTokens: 75000,
-		BaseModelConfig: BaseModelConfig{
-			Provider:                   ModelProviderOpenRouter,
-			ModelName:                  "openai/gpt-4.1-nano",
-			ModelId:                    "openai/gpt-4.1-nano",
-			MaxTokens:                  1047576,
-			MaxOutputTokens:            32768,
-			ReservedOutputTokens:       32768,
-			ApiKeyEnvVar:               OpenRouterApiKeyEnvVar,
-			ModelCompatibility:         fullCompatibility,
-			BaseUrl:                    BaseUrlByProvider[ModelProviderOpenRouter],
-			PreferredModelOutputFormat: ModelOutputFormatToolCallJson,
+		Providers: []BaseModelUsesProvider{
+			{Provider: ModelProviderPerplexity, ModelName: "sonar-reasoning-online"},
+			{Provider: ModelProviderOpenRouter, ModelName: "perplexity/sonar-reasoning"},
 		},
 	},
 }
 
+var BuiltInBaseModelsById = map[ModelId]*BaseModelConfigSchema{}
+
+var BuiltInModelProvidersByModelId = map[ModelId][]BaseModelUsesProvider{}
+var BuiltInBaseModels = []*BaseModelConfigSchema{}
+
+var AvailableModels = []*AvailableModel{}
+
 var AvailableModelsByComposite = map[string]*AvailableModel{}
 
 func init() {
+	for _, model := range BuiltInModels {
+		AvailableModels = append(AvailableModels, model.ToAvailableModels()...)
+
+		var addVariants func(variants []BaseModelConfigVariant, baseId ModelId)
+		addVariants = func(variants []BaseModelConfigVariant, baseId ModelId) {
+			for _, variant := range variants {
+				var modelId ModelId
+				if variant.IsBaseVariant || variant.IsDefaultVariant {
+					modelId = baseId
+				} else {
+					modelId = ModelId(strings.Join([]string{string(baseId), string(variant.VariantTag)}, "-"))
+				}
+
+				if _, ok := BuiltInBaseModelsById[modelId]; !ok {
+					cloned := *model
+					cloned.ModelId = modelId
+					merged := Merge(model.BaseModelShared, variant.Overrides)
+					cloned.BaseModelShared = merged
+
+					BuiltInModelProvidersByModelId[modelId] = cloned.Providers
+					BuiltInBaseModelsById[modelId] = &cloned
+					BuiltInBaseModels = append(BuiltInBaseModels, &cloned)
+				}
+
+				if len(variant.Variants) > 0 {
+					addVariants(variant.Variants, modelId)
+					continue
+				}
+
+			}
+		}
+
+		if len(model.Variants) > 0 {
+			addVariants(model.Variants, ModelId(string(model.ModelTag)))
+		} else {
+			modelId := ModelId(string(model.ModelTag))
+			model.ModelId = modelId
+			BuiltInModelProvidersByModelId[modelId] = model.Providers
+			BuiltInBaseModelsById[modelId] = model
+			BuiltInBaseModels = append(BuiltInBaseModels, model)
+		}
+	}
+
+	// fmt.Println("AvailableModels")
+	// for _, model := range AvailableModels {
+	// 	fmt.Println(model.ModelString())
+	// }
+
 	for _, model := range AvailableModels {
 		if model.Description == "" {
 			spew.Dump(model)
@@ -850,9 +678,9 @@ func init() {
 			panic("reserved output tokens is not set")
 		}
 
-		if model.ApiKeyEnvVar == "" {
+		if model.ApiKeyEnvVar == "" && len(model.ExtraAuthVars) == 0 && !model.SkipAuth && !model.HasAWSAuth {
 			spew.Dump(model)
-			panic("api key env var is not set")
+			panic("api key or auth settings are not set")
 		}
 
 		if model.BaseUrl == "" {
@@ -860,7 +688,7 @@ func init() {
 			panic("base url is not set")
 		}
 
-		if model.PreferredModelOutputFormat == "" {
+		if model.PreferredOutputFormat == "" {
 			spew.Dump(model)
 			panic("preferred model output format is not set")
 		}

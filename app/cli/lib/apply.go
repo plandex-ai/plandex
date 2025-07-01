@@ -58,6 +58,13 @@ func MustApplyPlanAttempt(
 
 	term.StartSpinner("")
 
+	err := PromptSyncModelsIfNeeded()
+	if err != nil {
+		term.OutputErrorAndExit("Error syncing models: %v", err)
+	}
+
+	term.StartSpinner("")
+
 	currentPlanState, apiErr := api.Client.GetCurrentPlanState(planId, branch)
 
 	if apiErr != nil {
@@ -571,7 +578,7 @@ func apiApplyPlan(planId, branch string) (string, error) {
 
 	var apiKeys map[string]string
 	if !auth.Current.IntegratedModelsMode {
-		apiKeys = MustVerifyApiKeysSilent()
+		apiKeys = MustVerifyAuthVarsSilent()
 	}
 
 	var commitSummary string

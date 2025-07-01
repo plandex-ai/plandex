@@ -16,6 +16,7 @@ const MaxBuildErrorRetries = 3 // uses semi-exponential backoff so be careful wi
 type activeBuildStreamState struct {
 	modelStreamId string
 	clients       map[string]model.ClientInfo
+	authVars      map[string]string
 	auth          *types.ServerAuth
 	currentOrgId  string
 	currentUserId string

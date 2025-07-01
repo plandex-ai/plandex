@@ -46,11 +46,11 @@ The 'subtaskFinished' key is a boolean that indicates whether the current task h
 You must always call 'didFinishSubtask'. Don't call any other function.`
 
 type GetExecStatusFinishedSubtaskParams struct {
-	UserPrompt                 string
-	CurrentSubtask             string
-	CurrentMessage             string
-	PreviousMessages           []string
-	PreferredModelOutputFormat shared.ModelOutputFormat
+	UserPrompt            string
+	CurrentSubtask        string
+	CurrentMessage        string
+	PreviousMessages      []string
+	PreferredOutputFormat shared.ModelOutputFormat
 }
 
 func GetExecStatusFinishedSubtask(params GetExecStatusFinishedSubtaskParams) string {
@@ -58,10 +58,10 @@ func GetExecStatusFinishedSubtask(params GetExecStatusFinishedSubtaskParams) str
 	currentSubtask := params.CurrentSubtask
 	currentMessage := params.CurrentMessage
 	previousMessages := params.PreviousMessages
-	preferredModelOutputFormat := params.PreferredModelOutputFormat
+	preferredOutputFormat := params.PreferredOutputFormat
 
 	var s string
-	if preferredModelOutputFormat == shared.ModelOutputFormatXml {
+	if preferredOutputFormat == shared.ModelOutputFormatXml {
 		s = SysExecStatusFinishedSubtaskXml
 	} else {
 		s = SysExecStatusFinishedSubtask

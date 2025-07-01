@@ -33,19 +33,15 @@ plandex sign-in
 
 4. When prompted 'Use Plandex Cloud or another host?', select 'Local mode host'. Confirm the default host, which is `http://localhost:8099`.
 
-5. If you don't have an OpenRouter account, first [sign up here.](https://openrouter.ai/signup) Then [generate an API key here.](https://openrouter.ai/keys) Set the `OPENROUTER_API_KEY` environment variable:
+5. Decide on the model provider(s) you want to use. The quickest option is to use OpenRouter.ai, but you can also use [many other providers](https://docs.plandex.ai/models/model-providers).
+
+If you're using OpenRouter.ai, first [sign up here.](https://openrouter.ai/signup) Then [generate an API key here.](https://openrouter.ai/keys) Set the `OPENROUTER_API_KEY` environment variable:
 
 ```bash
 export OPENROUTER_API_KEY=...
 ```
 
-6. **Optional**: set a `OPENAI_API_KEY` environment variable if you want OpenAI models to use the OpenAI API directly instead of OpenRouter (for slightly lower latency and costs). This requires an [OpenAI account.](https://platform.openai.com/signup).
-
-```bash
-export OPENAI_API_KEY=...
-```
-
-7. In a project directory, start the Plandex REPL:
+6. In a project directory, start the Plandex REPL:
 
 ```bash
 plandex

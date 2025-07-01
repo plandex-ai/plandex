@@ -16,6 +16,7 @@ import (
 	shared "plandex-shared"
 
 	"github.com/jmoiron/sqlx"
+	"golang.org/x/mod/semver"
 )
 
 func Authenticate(w http.ResponseWriter, r *http.Request, requireOrg bool) *types.ServerAuth {
@@ -436,6 +437,27 @@ func ValidateAndSignIn(w http.ResponseWriter, r *http.Request, req shared.SignIn
 	}
 
 	return &resp, nil
+}
+
+func requireMinClientVersion(w http.ResponseWriter, r *http.Request, minVersion string) bool {
+	msg := fmt.Sprintf("Client version is too old for this endpoint. Please upgrade to version %s or later.", minVersion)
+
+	version := r.Header.Get("X-Client-Version")
+	if version == "" {
+		http.Error(w, msg, http.StatusBadRequest)
+		return false
+	}
+
+	if version == "development" {
+		return true
+	}
+
+	if semver.Compare(version, minVersion) < 0 {
+		http.Error(w, msg, http.StatusBadRequest)
+		return false
+	}
+
+	return true
 }
 
 func execAuthenticate(w http.ResponseWriter, r *http.Request, requireOrg bool, raiseErr bool) *types.ServerAuth {

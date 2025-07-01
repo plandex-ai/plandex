@@ -1,0 +1,16 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://plandex.ai/schemas/plan-config.schema.json",
+  "title": "Plan Config",
+  "description": "Config for a plan",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "autoMode": {
+      "$ref": "./definitions/auto-modes.schema.json"
+    }
+  },
+  "additionalProperties": false
+}

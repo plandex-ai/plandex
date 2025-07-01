@@ -1,137 +1,172 @@
 package shared
 
-var SettingDescriptions = map[string]string{
-	"max-convo-tokens":       "max conversation 🪙 before summarization",
-	"max-tokens":             "overall 🪙 limit",
-	"reserved-output-tokens": "🪙 reserved for model output",
+import (
+	"database/sql/driver"
+	"encoding/json"
+	"fmt"
+	"time"
+)
+
+type PlanSettings struct {
+	ModelPackName               string                              `json:"modelPackName"`
+	ModelPack                   *ModelPack                          `json:"modelPack"`
+	CustomModelPacks            []*ModelPack                        `json:"customModelPacks"`
+	CustomModels                []*CustomModel                      `json:"customModels"`
+	CustomModelsById            map[ModelId]*CustomModel            `json:"customModelsById"`
+	CustomProviders             []*CustomProvider                   `json:"customProviders"`
+	UsesCustomProviderByModelId map[ModelId][]BaseModelUsesProvider `json:"usesCustomProviderByModelId"`
+	IsCloud                     bool                                `json:"isCloud"`
+	Configured                  bool                                `json:"configured"`
+	UpdatedAt                   time.Time                           `json:"updatedAt"`
 }
 
-var ModelOverridePropsDasherized = []string{"max-convo-tokens", "max-tokens", "reserved-output-tokens"}
+func (p *PlanSettings) Configure(customModelPacks []*ModelPack, customModels []*CustomModel, customProviders []*CustomProvider, isCloud bool) {
+	p.CustomModelPacks = customModelPacks
+	p.CustomModels = customModels
+	p.CustomProviders = customProviders
+	p.IsCloud = isCloud
+	p.Configured = true
+	p.CustomModelsById = map[ModelId]*CustomModel{}
+	p.UsesCustomProviderByModelId = map[ModelId][]BaseModelUsesProvider{}
+
+	for _, customModel := range customModels {
+		p.CustomModelsById[customModel.ModelId] = customModel
+		p.UsesCustomProviderByModelId[customModel.ModelId] = customModel.Providers
+	}
+
+}
+
+func (p PlanSettings) GetModelPack() *ModelPack {
+	if !p.Configured {
+		panic("PlanSettings not configured")
+	}
+
+	customModelPacks := p.CustomModelPacks
+	isCloud := p.IsCloud
+
+	fillDefault := true // seems best to make this the default behavior, but keeping the switch just in case
+
+	if p.ModelPack != nil {
+		return p.ModelPack
+	}
+
+	for _, builtInModelPack := range BuiltInModelPacks {
+		if isCloud && builtInModelPack.LocalProvider != "" {
+			continue
+		}
+
+		if builtInModelPack.Name == p.ModelPackName {
+			return builtInModelPack
+		}
+	}
+
+	for _, customModelPack := range customModelPacks {
+		if customModelPack.Name == p.ModelPackName {
+			return customModelPack
+		}
+	}
+
+	if fillDefault {
+		return DefaultModelPack
+	}
+
+	return nil
+}
+
+func (p *PlanSettings) SetModelPackByName(modelPackName string) {
+	p.ModelPackName = modelPackName
+	p.ModelPack = nil
+}
+
+func (p *PlanSettings) SetCustomModelPack(modelPack *ModelPack) {
+	p.ModelPackName = ""
+	p.ModelPack = modelPack
+}
+
+func (p *PlanSettings) Scan(src interface{}) error {
+	if src == nil {
+		return nil
+	}
+	switch s := src.(type) {
+	case []byte:
+		return json.Unmarshal(s, p)
+	case string:
+		return json.Unmarshal([]byte(s), p)
+	default:
+		return fmt.Errorf("unsupported data type: %T", src)
+	}
+}
+
+func (p PlanSettings) Value() (driver.Value, error) {
+	return json.Marshal(p)
+}
 
 func (ps PlanSettings) GetPlannerMaxTokens() int {
-	if ps.ModelOverrides.MaxTokens == nil {
-		if ps.ModelPack == nil {
-			defaultPlanner := DefaultModelPack.Planner
-			return defaultPlanner.GetFinalLargeContextFallback().BaseModelConfig.MaxTokens
-		} else {
-			planner := ps.ModelPack.Planner
-			return planner.GetFinalLargeContextFallback().BaseModelConfig.MaxTokens
-		}
-	} else {
-		return *ps.ModelOverrides.MaxTokens
-	}
+	modelPack := ps.GetModelPack()
+	planner := modelPack.Planner
+	fallback := planner.GetFinalLargeContextFallback()
+	baseConfig := fallback.GetSharedBaseConfig(&ps)
+	return baseConfig.MaxTokens
 }
 
 func (ps PlanSettings) GetPlannerMaxReservedOutputTokens() int {
-	if ps.ModelOverrides.MaxTokens == nil {
-		if ps.ModelPack == nil {
-			defaultPlanner := DefaultModelPack.Planner
-			return defaultPlanner.GetFinalLargeContextFallback().GetReservedOutputTokens()
-		} else {
-			planner := ps.ModelPack.Planner
-			return planner.GetFinalLargeContextFallback().GetReservedOutputTokens()
-		}
-	} else {
-		return *ps.ModelOverrides.MaxTokens
-	}
+	modelPack := ps.GetModelPack()
+	planner := modelPack.Planner
+	return planner.GetFinalLargeContextFallback().GetReservedOutputTokens(ps.CustomModelsById)
 }
 
 func (ps PlanSettings) GetArchitectMaxTokens() int {
-	if ps.ModelOverrides.MaxTokens == nil {
-		if ps.ModelPack == nil {
-			defaultLoader := DefaultModelPack.GetArchitect()
-			return defaultLoader.GetFinalLargeContextFallback().BaseModelConfig.MaxTokens
-		} else {
-			loader := ps.ModelPack.GetArchitect()
-			return loader.GetFinalLargeContextFallback().BaseModelConfig.MaxTokens
-		}
-	} else {
-		return *ps.ModelOverrides.MaxTokens
-	}
+	modelPack := ps.GetModelPack()
+	architect := modelPack.GetArchitect()
+	fallback := architect.GetFinalLargeContextFallback()
+	return fallback.GetSharedBaseConfig(&ps).MaxTokens
 }
 
 func (ps PlanSettings) GetArchitectMaxReservedOutputTokens() int {
-	if ps.ModelOverrides.MaxTokens == nil {
-		if ps.ModelPack == nil {
-			defaultLoader := DefaultModelPack.GetArchitect()
-			return defaultLoader.GetFinalLargeContextFallback().GetReservedOutputTokens()
-		} else {
-			loader := ps.ModelPack.GetArchitect()
-			return loader.GetFinalLargeContextFallback().GetReservedOutputTokens()
-		}
-	} else {
-		return *ps.ModelOverrides.MaxTokens
-	}
+	modelPack := ps.GetModelPack()
+	architect := modelPack.GetArchitect()
+	fallback := architect.GetFinalLargeContextFallback()
+	return fallback.GetReservedOutputTokens(ps.CustomModelsById)
 }
 
 func (ps PlanSettings) GetCoderMaxTokens() int {
-	if ps.ModelOverrides.MaxTokens == nil {
-		if ps.ModelPack == nil {
-			defaultCoder := DefaultModelPack.GetCoder()
-			return defaultCoder.GetFinalLargeContextFallback().BaseModelConfig.MaxTokens
-		} else {
-			coder := ps.ModelPack.GetCoder()
-			return coder.GetFinalLargeContextFallback().BaseModelConfig.MaxTokens
-		}
-	} else {
-		return *ps.ModelOverrides.MaxTokens
-	}
+	modelPack := ps.GetModelPack()
+	coder := modelPack.GetCoder()
+	fallback := coder.GetFinalLargeContextFallback()
+	return fallback.GetSharedBaseConfig(&ps).MaxTokens
 }
 
 func (ps PlanSettings) GetCoderMaxReservedOutputTokens() int {
-	if ps.ModelOverrides.MaxTokens == nil {
-		if ps.ModelPack == nil {
-			defaultCoder := DefaultModelPack.GetCoder()
-			return defaultCoder.GetFinalLargeContextFallback().GetReservedOutputTokens()
-		} else {
-			coder := ps.ModelPack.GetCoder()
-			return coder.GetFinalLargeContextFallback().GetReservedOutputTokens()
-		}
-	} else {
-		return *ps.ModelOverrides.MaxTokens
-	}
+	modelPack := ps.GetModelPack()
+	coder := modelPack.GetCoder()
+	fallback := coder.GetFinalLargeContextFallback()
+	return fallback.GetReservedOutputTokens(ps.CustomModelsById)
 }
 
 func (ps PlanSettings) GetWholeFileBuilderMaxTokens() int {
-	if ps.ModelOverrides.MaxTokens == nil {
-		if ps.ModelPack == nil {
-			defaultBuilder := DefaultModelPack.GetWholeFileBuilder()
-			return defaultBuilder.GetFinalLargeContextFallback().BaseModelConfig.MaxTokens
-		} else {
-			builder := ps.ModelPack.GetWholeFileBuilder()
-			return builder.GetFinalLargeContextFallback().BaseModelConfig.MaxTokens
-		}
-	} else {
-		return *ps.ModelOverrides.MaxTokens
-	}
+	modelPack := ps.GetModelPack()
+	builder := modelPack.GetWholeFileBuilder()
+	fallback := builder.GetFinalLargeContextFallback()
+	return fallback.GetSharedBaseConfig(&ps).MaxTokens
 }
 
 func (ps PlanSettings) GetWholeFileBuilderMaxReservedOutputTokens() int {
-	if ps.ModelOverrides.MaxTokens == nil {
-		if ps.ModelPack == nil {
-			defaultBuilder := DefaultModelPack.GetWholeFileBuilder()
-			return defaultBuilder.GetFinalLargeOutputFallback().GetReservedOutputTokens()
-		} else {
-			builder := ps.ModelPack.GetWholeFileBuilder()
-			return builder.GetFinalLargeOutputFallback().GetReservedOutputTokens()
-		}
-	} else {
-		return *ps.ModelOverrides.MaxTokens
-	}
+	modelPack := ps.GetModelPack()
+	builder := modelPack.GetWholeFileBuilder()
+	fallback := builder.GetFinalLargeOutputFallback()
+	return fallback.GetReservedOutputTokens(ps.CustomModelsById)
 }
 
 func (ps PlanSettings) GetPlannerMaxConvoTokens() int {
-	if ps.ModelOverrides.MaxConvoTokens == nil {
-		if ps.ModelPack == nil {
-			defaultPlanner := DefaultModelPack.Planner
-			return defaultPlanner.MaxConvoTokens
-		} else {
-			planner := ps.ModelPack.Planner
-			return planner.MaxConvoTokens
-		}
-	} else {
-		return *ps.ModelOverrides.MaxConvoTokens
+	modelPack := ps.GetModelPack()
+
+	// for max convo tokens, we use the planner's default max convo tokens, *not* the fallback, so that we don't end up switching to the fallback just based on the conversation length
+	planner := modelPack.Planner
+	if planner.MaxConvoTokens != 0 {
+		return planner.MaxConvoTokens
 	}
+
+	return planner.GetSharedBaseConfig(&ps).DefaultMaxConvoTokens
 }
 
 func (ps PlanSettings) GetPlannerEffectiveMaxTokens() int {
@@ -162,99 +197,60 @@ func (ps PlanSettings) GetWholeFileBuilderEffectiveMaxTokens() int {
 	return maxWholeFileBuilderTokens - maxReservedOutputTokens
 }
 
-type RequiredEnvVars struct {
-	RequiresEither map[string]bool
-	RequiresAll    map[string]bool
-}
+func (ps PlanSettings) GetModelProviderOptions() ModelProviderOptions {
+	opts := ModelProviderOptions{}
 
-func (ps PlanSettings) GetRequiredEnvVars() RequiredEnvVars {
-	envVars := RequiredEnvVars{
-		RequiresEither: map[string]bool{},
-		RequiresAll:    map[string]bool{},
-	}
-
-	ms := ps.ModelPack
+	ms := ps.GetModelPack()
 	if ms == nil {
 		ms = DefaultModelPack
 	}
 
-	res := ms.Planner.GetRequiredEnvVars()
-	for envVar := range res.RequiresEither {
-		envVars.RequiresEither[envVar] = true
-	}
-	for envVar := range res.RequiresAll {
-		envVars.RequiresAll[envVar] = true
-	}
+	opts = opts.Condense(
+		ms.Planner.GetModelProviderOptions(&ps),
+		ms.Builder.GetModelProviderOptions(&ps),
+		ms.PlanSummary.GetModelProviderOptions(&ps),
+		ms.Namer.GetModelProviderOptions(&ps),
+		ms.CommitMsg.GetModelProviderOptions(&ps),
+		ms.ExecStatus.GetModelProviderOptions(&ps),
+		// optional roles
+		getOptionalModelProviderOptions(&ps, ms.WholeFileBuilder),
+		getOptionalModelProviderOptions(&ps, ms.Architect),
+		getOptionalModelProviderOptions(&ps, ms.Coder),
+	)
 
-	res = ms.Builder.GetRequiredEnvVars()
-	for envVar := range res.RequiresEither {
-		envVars.RequiresEither[envVar] = true
-	}
-	for envVar := range res.RequiresAll {
-		envVars.RequiresAll[envVar] = true
-	}
+	return opts
+}
 
-	if ms.WholeFileBuilder != nil {
-		res = ms.WholeFileBuilder.GetRequiredEnvVars()
-		for envVar := range res.RequiresEither {
-			envVars.RequiresEither[envVar] = true
-		}
-		for envVar := range res.RequiresAll {
-			envVars.RequiresAll[envVar] = true
-		}
-	}
+func (ps *PlanSettings) Equals(other *PlanSettings) bool {
+	return ps.GetModelPack().Equals(other.GetModelPack())
+}
 
-	res = ms.PlanSummary.GetRequiredEnvVars()
-	for envVar := range res.RequiresEither {
-		envVars.RequiresEither[envVar] = true
-	}
-	for envVar := range res.RequiresAll {
-		envVars.RequiresAll[envVar] = true
-	}
+func (ps PlanSettings) ForCompare() PlanSettings {
+	ps.UpdatedAt = time.Time{}
+	ps.CustomModelPacks = nil
+	ps.CustomModels = nil
+	ps.CustomProviders = nil
+	ps.IsCloud = false
+	ps.Configured = false
+	return ps
+}
 
-	res = ms.Namer.GetRequiredEnvVars()
-	for envVar := range res.RequiresEither {
-		envVars.RequiresEither[envVar] = true
+func (ps PlanSettings) DeepCopy() (*PlanSettings, error) {
+	bytes, err := json.Marshal(ps)
+	if err != nil {
+		return nil, fmt.Errorf("error marshalling plan settings: %v", err)
 	}
-	for envVar := range res.RequiresAll {
-		envVars.RequiresAll[envVar] = true
+	var copy PlanSettings
+	err = json.Unmarshal(bytes, &copy)
+	if err != nil {
+		return nil, fmt.Errorf("error unmarshalling plan settings: %v", err)
 	}
+	return &copy, nil
+}
 
-	res = ms.CommitMsg.GetRequiredEnvVars()
-	for envVar := range res.RequiresEither {
-		envVars.RequiresEither[envVar] = true
+func getOptionalModelProviderOptions(settings *PlanSettings, cfg *ModelRoleConfig) ModelProviderOptions {
+	if cfg == nil {
+		return ModelProviderOptions{}
 	}
-	for envVar := range res.RequiresAll {
-		envVars.RequiresAll[envVar] = true
-	}
-
-	res = ms.ExecStatus.GetRequiredEnvVars()
-	for envVar := range res.RequiresEither {
-		envVars.RequiresEither[envVar] = true
-	}
-	for envVar := range res.RequiresAll {
-		envVars.RequiresAll[envVar] = true
-	}
-
-	if ms.Architect != nil {
-		res = ms.Architect.GetRequiredEnvVars()
-		for envVar := range res.RequiresEither {
-			envVars.RequiresEither[envVar] = true
-		}
-		for envVar := range res.RequiresAll {
-			envVars.RequiresAll[envVar] = true
-		}
-	}
-
-	if ms.Coder != nil {
-		res = ms.Coder.GetRequiredEnvVars()
-		for envVar := range res.RequiresEither {
-			envVars.RequiresEither[envVar] = true
-		}
-		for envVar := range res.RequiresAll {
-			envVars.RequiresAll[envVar] = true
-		}
-	}
-
-	return envVars
+	return cfg.GetModelProviderOptions(settings)
 }

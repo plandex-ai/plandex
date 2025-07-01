@@ -130,7 +130,7 @@ func (state *activeTellStreamState) addConversationMessages() bool {
 			active.StreamDoneCh <- &shared.ApiError{
 				Type:   shared.ApiErrorTypeOther,
 				Status: http.StatusInternalServerError,
-				Msg:    "Exceeded token limit",
+				Msg:    "Couldn't get under token limit with conversation summary",
 			}
 			return false
 		}
@@ -243,7 +243,7 @@ type summarizeConvoParams struct {
 	modelPackName         string
 }
 
-func summarizeConvo(clients map[string]model.ClientInfo, config shared.ModelRoleConfig, params summarizeConvoParams, ctx context.Context) *shared.ApiError {
+func summarizeConvo(clients map[string]model.ClientInfo, authVars map[string]string, settings *shared.PlanSettings, params summarizeConvoParams, ctx context.Context) *shared.ApiError {
 	plan := params.plan
 	planId := plan.Id
 	log.Printf("summarizeConvo: Called for plan ID %s on branch %s\n", planId, params.branch)
@@ -255,6 +255,8 @@ func summarizeConvo(clients map[string]model.ClientInfo, config shared.ModelRole
 	userPrompt := params.userPrompt
 	currentReply := params.currentReply
 	active := GetActivePlan(planId, branch)
+
+	config := settings.GetModelPack().PlanSummary
 
 	if active == nil {
 		log.Printf("Active plan not found for plan ID %s and branch %s\n", planId, branch)
@@ -392,7 +394,7 @@ func summarizeConvo(clients map[string]model.ClientInfo, config shared.ModelRole
 	// latestSummaryCh := make(chan *db.ConvoSummary, 1)
 	// active.LatestSummaryCh = latestSummaryCh
 
-	summary, apiErr := model.PlanSummary(clients, config, model.PlanSummaryParams{
+	summary, apiErr := model.PlanSummary(clients, authVars, settings, config, model.PlanSummaryParams{
 		Conversation:                summaryMessages,
 		ConversationNumTokens:       numTokens,
 		LatestConvoMessageId:        latestMessageId,

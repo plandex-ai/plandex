@@ -46,12 +46,19 @@ func (m ModelRoleConfig) GetFinalLargeOutputFallback() ModelRoleConfig {
 
 // note that if the token number exeeds all the fallback models, it will return the last fallback model
 
-func (m ModelRoleConfig) GetRoleForInputTokens(inputTokens int) ModelRoleConfig {
-	inputTokens = int(float64(inputTokens) * (1 + m.BaseModelConfig.TokenEstimatePaddingPct))
+func (m ModelRoleConfig) GetRoleForInputTokens(inputTokens int, settings *PlanSettings) ModelRoleConfig {
+	var maxTokens int
+	var paddingPct float64
+
+	sharedBaseConfig := m.GetSharedBaseConfig(settings)
+	maxTokens = sharedBaseConfig.MaxTokens
+	paddingPct = sharedBaseConfig.TokenEstimatePaddingPct
+
+	inputTokens = int(float64(inputTokens) * (1 + paddingPct))
 	var currentConfig ModelRoleConfig = m
 	var n int = 0
 	for {
-		if currentConfig.BaseModelConfig.MaxTokens >= inputTokens {
+		if maxTokens >= inputTokens {
 			return currentConfig
 		}
 
@@ -68,12 +75,20 @@ func (m ModelRoleConfig) GetRoleForInputTokens(inputTokens int) ModelRoleConfig 
 	return currentConfig
 }
 
-func (m ModelRoleConfig) GetRoleForOutputTokens(outputTokens int) ModelRoleConfig {
-	outputTokens = int(float64(outputTokens) * (1 + m.BaseModelConfig.TokenEstimatePaddingPct))
+func (m ModelRoleConfig) GetRoleForOutputTokens(outputTokens int, settings *PlanSettings) ModelRoleConfig {
+	sharedBaseConfig := m.GetSharedBaseConfig(settings)
+
+	outputTokens = int(float64(outputTokens) * (1 + sharedBaseConfig.TokenEstimatePaddingPct))
 	var currentConfig ModelRoleConfig = m
+
+	customModelsById := map[ModelId]*CustomModel{}
+	if settings != nil {
+		customModelsById = settings.CustomModelsById
+	}
+
 	var n int = 0
 	for {
-		if currentConfig.GetReservedOutputTokens() >= outputTokens {
+		if currentConfig.GetReservedOutputTokens(customModelsById) >= outputTokens {
 			return currentConfig
 		}
 

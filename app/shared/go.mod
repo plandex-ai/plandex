@@ -4,6 +4,8 @@ go 1.23.3
 
 require (
 	github.com/davecgh/go-spew v1.1.1
+	github.com/google/go-cmp v0.7.0
+	github.com/jinzhu/copier v0.4.0
 	github.com/pkoukk/tiktoken-go v0.1.7
 )
 

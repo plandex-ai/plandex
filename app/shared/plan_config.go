@@ -54,9 +54,13 @@ type PlanConfig struct {
 	AutoMode AutoModeType `json:"autoMode"`
 	// QuietMode bool         `json:"quietMode"`
 
-	Editor       string `json:"editor"`
-	AutoContinue bool   `json:"autoContinue"`
-	AutoBuild    bool   `json:"autoBuild"`
+	Editor             string   `json:"editor"`
+	EditorCommand      string   `json:"editorCommand"`
+	EditorArgs         []string `json:"editorArgs"`
+	EditorOpenManually bool     `json:"editorOpenManually"`
+
+	AutoContinue bool `json:"autoContinue"`
+	AutoBuild    bool `json:"autoBuild"`
 
 	AutoUpdateContext bool `json:"autoUpdateContext"`
 	AutoLoadContext   bool `json:"autoContext"`
@@ -81,6 +85,8 @@ type PlanConfig struct {
 
 	AutoRevertOnRewind bool `json:"autoRevertOnRewind"`
 
+	SkipChangesMenu bool `json:"skipChangesMenu"`
+
 	// ReplMode    bool     `json:"replMode"`
 	// DefaultRepl ReplType `json:"defaultRepl"`
 
@@ -89,9 +95,7 @@ type PlanConfig struct {
 	// PlainTextStream   bool `json:"plainTextStream"`
 }
 
-var DefaultPlanConfig = PlanConfig{
-	Editor: defaultEditor,
-}
+var DefaultPlanConfig = PlanConfig{}
 
 func (p *PlanConfig) Scan(src interface{}) error {
 	if src == nil {
@@ -137,6 +141,7 @@ func (p *PlanConfig) SetAutoMode(mode AutoModeType) {
 		p.AutoDebug = true
 		p.AutoDebugTries = defaultAutoDebugTries
 		p.AutoRevertOnRewind = true
+		p.SkipChangesMenu = false
 
 	case AutoModeSemi:
 		p.AutoContinue = true
@@ -150,6 +155,7 @@ func (p *PlanConfig) SetAutoMode(mode AutoModeType) {
 		p.AutoExec = false
 		p.AutoDebug = false
 		p.AutoRevertOnRewind = true
+		p.SkipChangesMenu = false
 
 	case AutoModePlus:
 		p.AutoContinue = true
@@ -163,6 +169,7 @@ func (p *PlanConfig) SetAutoMode(mode AutoModeType) {
 		p.AutoExec = false
 		p.AutoDebug = false
 		p.AutoRevertOnRewind = true
+		p.SkipChangesMenu = false
 
 	case AutoModeBasic:
 		p.AutoContinue = true
@@ -176,6 +183,7 @@ func (p *PlanConfig) SetAutoMode(mode AutoModeType) {
 		p.AutoExec = false
 		p.AutoDebug = false
 		p.AutoRevertOnRewind = true
+		p.SkipChangesMenu = false
 
 	case AutoModeNone:
 		p.AutoContinue = false
@@ -189,6 +197,7 @@ func (p *PlanConfig) SetAutoMode(mode AutoModeType) {
 		p.AutoExec = false
 		p.AutoDebug = false
 		p.AutoRevertOnRewind = true
+		p.SkipChangesMenu = false
 	}
 }
 
@@ -199,6 +208,7 @@ type ConfigSetting struct {
 	BoolSetter      func(p *PlanConfig, enabled bool)
 	IntSetter       func(p *PlanConfig, value int)
 	StringSetter    func(p *PlanConfig, value string)
+	EditorSetter    func(p *PlanConfig, label, command string, args []string)
 	Getter          func(p *PlanConfig) string
 	Choices         *[]string
 	HasCustomChoice bool
@@ -240,15 +250,15 @@ var ConfigSettingsByKey = map[string]ConfigSetting{
 
 	"editor": {
 		Name: "editor",
-		Desc: "System editor",
-		StringSetter: func(p *PlanConfig, value string) {
-			p.Editor = value
+		Desc: "Preferred editor",
+		EditorSetter: func(p *PlanConfig, label, command string, args []string) {
+			p.Editor = label
+			p.EditorCommand = command
+			p.EditorArgs = args
 		},
 		Getter: func(p *PlanConfig) string {
 			return p.Editor
 		},
-		Choices:         &[]string{EditorTypeVim, EditorTypeNano},
-		HasCustomChoice: true,
 	},
 
 	"autocontinue": {
@@ -463,6 +473,16 @@ var ConfigSettingsByKey = map[string]ConfigSetting{
 		},
 		Getter: func(p *PlanConfig) string {
 			return fmt.Sprintf("%t", p.AutoRevertOnRewind)
+		},
+	},
+	"skipchangesmenu": {
+		Name: "skip-changes-menu",
+		Desc: "Skip interactive menu when response finishes and changes are pending",
+		BoolSetter: func(p *PlanConfig, enabled bool) {
+			p.SkipChangesMenu = enabled
+		},
+		Getter: func(p *PlanConfig) string {
+			return fmt.Sprintf("%t", p.SkipChangesMenu)
 		},
 	},
 }

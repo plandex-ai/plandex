@@ -5,7 +5,7 @@ sidebar_label: Execution and Debugging
 
 # Execution and Debugging
 
-Plandex v2 includes command execution and automated debugging capabilities that aim to balance power, control, and safety.
+Plandex includes command execution and automated debugging capabilities that aim to balance power, control, and safety.
 
 ## Command Execution
 

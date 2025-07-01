@@ -94,7 +94,7 @@ func (fileState *activeBuildStreamFileState) buildValidateLoop(
 			log.Printf("Using empty reasons list for attempt %d", currentAttempt)
 		}
 
-		modelConfig := fileState.settings.ModelPack.Builder
+		modelConfig := fileState.settings.GetModelPack().Builder
 		// if available, switch to stronger model after the first attempt failed
 		if currentAttempt > 2 && modelConfig.StrongModel != nil {
 			log.Printf("Switching to strong model for attempt %d", currentAttempt)
@@ -188,6 +188,7 @@ func (fileState *activeBuildStreamFileState) buildValidate(
 	auth := fileState.auth
 	filePath := fileState.filePath
 	clients := fileState.clients
+	authVars := fileState.authVars
 	modelConfig := params.modelConfig
 
 	originalFile := params.originalFile
@@ -197,6 +198,9 @@ func (fileState *activeBuildStreamFileState) buildValidate(
 	onStream := params.onStream
 	syntaxErrors := params.syntaxErrors
 	reasons := params.reasons
+
+	baseModelConfig := modelConfig.GetBaseModelConfig(authVars, fileState.settings)
+
 	// Get diff for validation
 	log.Printf("Getting diffs between original and updated content")
 	diff, err := diff_pkg.GetDiffs(originalFile, updated)
@@ -254,7 +258,7 @@ func (fileState *activeBuildStreamFileState) buildValidate(
 
 	var willCacheNumTokens int
 	isFirstPass := params.isInitial && params.phase == 1
-	if !isFirstPass && modelConfig.BaseModelConfig.Provider == shared.ModelProviderOpenAI {
+	if !isFirstPass && baseModelConfig.Provider == shared.ModelProviderOpenAI {
 		willCacheNumTokens = headNumTokens
 	}
 
@@ -265,6 +269,7 @@ func (fileState *activeBuildStreamFileState) buildValidate(
 	res, err := model.ModelRequest(ctx, model.ModelRequestParams{
 		Clients:        clients,
 		Auth:           auth,
+		AuthVars:       authVars,
 		Plan:           fileState.plan,
 		ModelConfig:    modelConfig,
 		Purpose:        "File edit",
@@ -272,7 +277,7 @@ func (fileState *activeBuildStreamFileState) buildValidate(
 		ModelStreamId:  fileState.modelStreamId,
 		ConvoMessageId: fileState.convoMessageId,
 		BuildId:        fileState.build.Id,
-		ModelPackName:  fileState.settings.ModelPack.Name,
+		ModelPackName:  fileState.settings.GetModelPack().Name,
 		Stop:           stop,
 		BeforeReq: func() {
 			log.Printf("Starting model request")
@@ -287,6 +292,7 @@ func (fileState *activeBuildStreamFileState) buildValidate(
 		WillCacheNumTokens:    willCacheNumTokens,
 		SessionId:             params.sessionId,
 		EstimatedOutputTokens: maxExpectedOutputTokens,
+		Settings:              fileState.settings,
 	})
 
 	if err != nil {

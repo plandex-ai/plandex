@@ -1,0 +1,156 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://plandex.ai/schemas/model-config.schema.json",
+  "title": "Model Config",
+  "description": "Config for a model",
+  "type": "object",
+  "properties": {
+    "modelId": {
+      "type": "string",
+      "description": "Unique identifier for the model on the Plandex side.\n\nIt's distinct from the 'modelName', which is associated with a specific provider. Different modelIds can be used when the same model is called with different settings. Examples: 'openai/o3-high', 'openai/o3-low', 'anthropic/claude-sonnet-4'."
+    },
+    "publisher": {
+      "type": "string",
+      "description": "The publisher of the model, e.g. 'OpenAI', 'Anthropic', 'Google', 'DeepSeek', etc.\n\nNot necessarily the same as the provider—for example, the 'google-vertex' provider serves models published by Google, but also models published by Anthropic and others."
+    },
+    "description": {
+      "type": "string",
+      "description": "A human-readable description of the model, e.g. 'OpenAI o3'."
+    },
+    "defaultMaxConvoTokens": {
+      "type": "number",
+      "description": "The default maximum number of conversation tokens that are allowed before Plandex starts using gradual summarization to shorten the conversation."
+    },
+    "maxTokens": {
+      "type": "number",
+      "description": "The maximum number of input tokens the model can be called with."
+    },
+    "maxOutputTokens": {
+      "type": "number",
+      "description": "The maximum number of output tokens the model can produce."
+    },
+    "reservedOutputTokens": {
+      "type": "number",
+      "description": "How many tokens are set aside in context for the model to use in its output.\n\nIt's more of a realistic output limit than 'maxOutputTokens', since for some models, the hard maximum 'MaxTokens' is actually equal to the input limit, which would leave no room for input. The effective input limit is 'MaxTokens' - 'ReservedOutputTokens'.\n\nFor example, OpenAI o3 models have a MaxTokens of 200k and a MaxOutputTokens of 100k. But in practice, we are very unlikely to use all the output tokens, and we want to leave more space for input. So we set ReservedOutputTokens to 40k, allowing ~25k for reasoning tokens, as well as ~15k for real output tokens, which is enough for most use cases. The new effective input limit is therefore 200k - 40k = 160k.\n\nNote that these are not passed through as hard limits. So if we have a smaller amount of input (under 100k) the model could still use up to the full 100k output tokens if necessary."
+    },
+    "preferredOutputFormat": {
+      "type": "string",
+      "description": "The preferred output format for the model—currently either 'xml' or 'tool-call-json'.\n\nOpenAI models like JSON (and benefit from strict JSON schemas), while most other providers are unreliable for JSON generation and do better with XML, even when they claim to support JSON.",
+      "enum": [
+        "xml",
+        "tool-call-json"
+      ]
+    },
+    "systemPromptDisabled": {
+      "type": "boolean",
+      "description": "Whether the model's system prompt is disabled. This is used to disable the system prompt for the model. Some OpenAI models, for example, don't allow system prompts."
+    },
+    "roleParamsDisabled": {
+      "type": "boolean",
+      "description": "Whether the model's role-based parameters (mainly temperature and topP) are disabled. Some OpenAI models, for example, don't allow changes to these parameters."
+    },
+    "stopDisabled": {
+      "type": "boolean",
+      "description": "Whether the model's 'stop token' parameter is disabled. Some OpenAI models, for example, don't allow the 'stop token' parameter. When this is true, Plandex uses its own stop token implementation."
+    },
+    "predictedOutputEnabled": {
+      "type": "boolean",
+      "description": "Whether the model's 'predicted output' parameter is enabled. This is used to enable predicted output for the model (currently only supported by OpenAI's gpt-4o). Not currently used by Plandex, but could be in the future."
+    },
+    "includeReasoning": {
+      "type": "boolean",
+      "description": "For reasoning models, whether the reasoning should be included in the output. If set to false, the reasoning will be hidden from the user."
+    },
+    "reasoningBudget": {
+      "type": "number",
+      "description": "For reasoning models, the maximum number of tokens that can be used for reasoning. This is used to limit the reasoning budget for the model.\n\nSome reasoning models use 'reasoningBudget' to control reasoning output (e.g. Anthropic Claude Sonnet 4, Google Gemini 2.5 Pro), while others use 'reasoningEffort' (e.g. OpenAI o3)."
+    },
+    "hasImageSupport": {
+      "type": "boolean",
+      "description": "Whether the model is multi-modal and supports images in context."
+    },
+    "reasoningEffortEnabled": {
+      "type": "boolean",
+      "description": "For reasoning models, whether the 'reasoningEffort' parameter is enabled. This is used in conjunction with 'reasoningEffort' to control the reasoning budget for the model.\n\nSome reasoning models use 'reasoningEffort' to control reasoning output (e.g. OpenAI o3), while others use 'reasoningBudget' (e.g. Anthropic Claude Sonnet 4, Google Gemini 2.5 Pro)."
+    },
+    "reasoningEffort": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high"
+      ],
+      "description": "For reasoning models that use 'reasoningEffort' to control reasoning output (e.g. OpenAI o3), this is the reasoning effort to use."
+    },
+    "supportsCacheControl": {
+      "type": "boolean",
+      "description": "Whether the model supports cache control breakpoints for caching (e.g. Anthropic models). Models with implicit caching (e.g. OpenAI models) do not support this."
+    },
+    "singleMessageNoSystemPrompt": {
+      "type": "boolean",
+      "description": "Whether the model rejects a single message that is a system prompt (e.g. Anthropic models)."
+    },
+    "tokenEstimatePaddingPct": {
+      "type": "number",
+      "description": "The percentage of tokens to add to the token estimate, which uses the OpenAI tokenizer. This helps to account for other provider's tokenizers, which may be slightly different."
+    },
+    "providers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "provider": {
+            "description": "The model provider. Use 'custom' for a provider that is not built-in.",
+            "$ref": "./definitions/model-providers.schema.json"
+          },
+          "customProvider": {
+            "type": "string",
+            "description": "If the provider is 'custom', this is the name of the custom provider."
+          },
+          "modelName": {
+            "type": "string",
+            "description": "The name of the model on the provider's side. It must exactly match the model name as it appears on the provider's website or documentation."
+          }
+        },
+        "required": [
+          "provider",
+          "modelName"
+        ],
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "provider": {
+                  "const": "custom"
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "customProvider"
+              ]
+            },
+            "else": {
+              "not": {
+                "required": [
+                  "customProvider"
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "minItems": 1
+    }
+  },
+  "required": [
+    "modelId",
+    "defaultMaxConvoTokens",
+    "maxTokens",
+    "maxOutputTokens",
+    "reservedOutputTokens",
+    "preferredOutputFormat",
+    "providers"
+  ],
+  "additionalProperties": false
+}

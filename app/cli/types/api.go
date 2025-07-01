@@ -103,15 +103,12 @@ type ApiClient interface {
 	GetDefaultPlanConfig() (*shared.PlanConfig, *shared.ApiError)
 	UpdateDefaultPlanConfig(req shared.UpdateDefaultPlanConfigRequest) *shared.ApiError
 
-	CreateCustomModel(model *shared.AvailableModel) *shared.ApiError
-	UpdateCustomModel(model *shared.AvailableModel) *shared.ApiError
-	ListCustomModels() ([]*shared.AvailableModel, *shared.ApiError)
-	DeleteAvailableModel(modelId string) *shared.ApiError
+	CreateCustomModels(input *shared.ModelsInput) *shared.ApiError
+	ListCustomModels() ([]*shared.CustomModel, *shared.ApiError)
 
-	CreateModelPack(set *shared.ModelPack) *shared.ApiError
-	UpdateModelPack(set *shared.ModelPack) *shared.ApiError
+	ListCustomProviders() ([]*shared.CustomProvider, *shared.ApiError)
+
 	ListModelPacks() ([]*shared.ModelPack, *shared.ApiError)
-	DeleteModelPack(setId string) *shared.ApiError
 
 	GetCreditsTransactions(pageSize, pageNum int, req shared.CreditsLogRequest) (*shared.CreditsLogResponse, *shared.ApiError)
 	GetCreditsSummary(req shared.CreditsLogRequest) (*shared.CreditsSummaryResponse, *shared.ApiError)

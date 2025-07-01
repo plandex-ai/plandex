@@ -19,6 +19,8 @@ const (
 	OptCreateNewBranch = "Create a new branch"
 )
 
+var confirmCreateBranch bool
+
 var checkoutCmd = &cobra.Command{
 	Use:     "checkout [name-or-index]",
 	Aliases: []string{"co"},
@@ -29,6 +31,7 @@ var checkoutCmd = &cobra.Command{
 
 func init() {
 	RootCmd.AddCommand(checkoutCmd)
+	checkoutCmd.Flags().BoolVarP(&confirmCreateBranch, "yes", "y", false, "Confirm creating a new branch")
 }
 
 func checkout(cmd *cobra.Command, args []string) {
@@ -76,17 +79,24 @@ func checkout(cmd *cobra.Command, args []string) {
 
 		if branchName == "" {
 			fmt.Printf("🌱 Branch %s not found\n", color.New(color.Bold, term.ColorHiCyan).Sprint(nameOrIdx))
-			res, err := term.ConfirmYesNo("Create it now?")
 
-			if err != nil {
-				term.OutputErrorAndExit("Error getting user input: %v", err)
-			}
-
-			if res {
+			if confirmCreateBranch {
+				fmt.Println("✅ --yes flag set, will create branch")
 				branchName = nameOrIdx
 				willCreate = true
 			} else {
-				return
+				res, err := term.ConfirmYesNo("Create it now?")
+
+				if err != nil {
+					term.OutputErrorAndExit("Error getting user input: %v", err)
+				}
+
+				if res {
+					branchName = nameOrIdx
+					willCreate = true
+				} else {
+					return
+				}
 			}
 		}
 
@@ -122,10 +132,9 @@ func checkout(cmd *cobra.Command, args []string) {
 		term.OutputErrorAndExit("Branch not found")
 	}
 
+	term.StartSpinner("")
 	if willCreate {
-		term.StartSpinner("")
 		err := api.Client.CreateBranch(lib.CurrentPlanId, lib.CurrentBranch, shared.CreateBranchRequest{Name: branchName})
-		term.StopSpinner()
 
 		if err != nil {
 			term.OutputErrorAndExit("Error creating branch: %v", err)
@@ -142,7 +151,20 @@ func checkout(cmd *cobra.Command, args []string) {
 		return
 	}
 
+	updatedModelSettings, err := lib.SaveLatestPlanModelSettingsIfNeeded()
+	term.StopSpinner()
+	if err != nil {
+		term.OutputErrorAndExit("Error saving model settings: %v", err)
+	}
+
+	term.StopSpinner()
+
 	fmt.Printf("✅ Checked out branch %s\n", color.New(color.Bold, term.ColorHiGreen).Sprint(branchName))
+
+	if updatedModelSettings {
+		fmt.Println()
+		fmt.Println("🧠 Model settings file updated → ", lib.GetPlanModelSettingsPath(lib.CurrentPlanId))
+	}
 
 	fmt.Println()
 	term.PrintCmds("", "load", "tell", "branches", "delete-branch")

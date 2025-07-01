@@ -1,6 +1,7 @@
 package term
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -24,11 +25,6 @@ func SetConvertTrialFn(fn func()) {
 	convertTrial = fn
 }
 
-func OutputNoOpenAIApiKeyMsgAndExit() {
-	fmt.Fprintln(os.Stderr, color.New(color.Bold, ColorHiRed).Sprintln("\n🚨 OPENAI_API_KEY environment variable is not set.")+color.New().Sprintln("\nSet it with:\n\nexport OPENAI_API_KEY=your-api-key\n\nThen try again.\n\n👉 If you don't have an OpenAI account, sign up here → https://platform.openai.com/signup\n\n🔑 Generate an api key here → https://platform.openai.com/api-keys"))
-	os.Exit(1)
-}
-
 func OutputSimpleError(msg string, args ...interface{}) {
 	msg = fmt.Sprintf(msg, args...)
 	fmt.Fprintln(os.Stderr, color.New(ColorHiRed, color.Bold).Sprint("🚨 "+shared.Capitalize(msg)))
@@ -36,7 +32,11 @@ func OutputSimpleError(msg string, args ...interface{}) {
 
 func OutputErrorAndExit(msg string, args ...interface{}) {
 	StopSpinner()
+
 	msg = fmt.Sprintf(msg, args...)
+
+	msg = strings.ReplaceAll(msg, "status code:", "status code")
+	msg = strings.ReplaceAll(msg, ", body:", ":")
 
 	displayMsg := ""
 	errorParts := strings.Split(msg, ": ")
@@ -46,10 +46,23 @@ func OutputErrorAndExit(msg string, args ...interface{}) {
 	if len(errorParts) > 1 {
 		var lastPart string
 		i := 0
-		for _, part := range errorParts {
+		for idx, part := range errorParts {
 			// don't repeat the same error message
 			if _, ok := addedErrors[strings.ToLower(part)]; ok {
 				continue
+			}
+
+			tail := strings.Join(errorParts[idx:], ": ")
+			if maybeJSON(tail) {
+				prettyJSON := prettyJSON(tail)
+				indent := strings.Repeat("  ", i)
+
+				// prepend indent to **each** line in the pretty JSON
+				indentedJSON := strings.ReplaceAll(prettyJSON, "\n", "\n"+indent+"  ")
+
+				// now write the block
+				displayMsg += "\n" + indent + "→ " + indentedJSON
+				break
 			}
 
 			if len(lastPart) < 10 && i > 0 {
@@ -200,4 +213,24 @@ func HandleApiError(apiError *shared.ApiError) {
 
 	StopSpinner()
 	OutputErrorAndExit(apiError.Msg)
+}
+
+func maybeJSON(s string) bool {
+	s = strings.TrimSpace(s)
+	if strings.HasPrefix(s, "{") && strings.HasSuffix(s, "}") {
+		return true
+	}
+	if strings.HasPrefix(s, "[") && strings.HasSuffix(s, "]") {
+		return true
+	}
+	return false
+}
+
+func prettyJSON(s string) string {
+	var v any
+	if err := json.Unmarshal([]byte(s), &v); err != nil {
+		return s // not JSON
+	}
+	out, _ := json.MarshalIndent(v, "", "  ")
+	return string(out)
 }

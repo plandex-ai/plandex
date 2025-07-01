@@ -47,7 +47,7 @@ func apply(cmd *cobra.Command, args []string) {
 		printFn()
 	}
 
-	mustSetPlanExecFlagsWithConfig(cmd, config)
+	mustSetPlanExecFlagsWithConfig(cmd, config, true)
 
 	if lib.CurrentPlanId == "" {
 		term.OutputNoCurrentPlanErrorAndExit()

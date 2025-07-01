@@ -2054,9 +2054,9 @@ func (a *Api) UpdateDefaultPlanConfig(req shared.UpdateDefaultPlanConfigRequest)
 	return nil
 }
 
-func (a *Api) CreateCustomModel(model *shared.AvailableModel) *shared.ApiError {
+func (a *Api) CreateCustomModels(input *shared.ModelsInput) *shared.ApiError {
 	serverUrl := fmt.Sprintf("%s/custom_models", GetApiHost())
-	body, err := json.Marshal(model)
+	body, err := json.Marshal(input)
 	if err != nil {
 		return &shared.ApiError{Msg: "Failed to marshal model"}
 	}
@@ -2073,7 +2073,7 @@ func (a *Api) CreateCustomModel(model *shared.AvailableModel) *shared.ApiError {
 		apiErr := HandleApiError(resp, errorBody)
 		authRefreshed, apiErr := refreshAuthIfNeeded(apiErr)
 		if authRefreshed {
-			return a.CreateCustomModel(model)
+			return a.CreateCustomModels(input)
 		}
 		return apiErr
 	}
@@ -2081,7 +2081,7 @@ func (a *Api) CreateCustomModel(model *shared.AvailableModel) *shared.ApiError {
 	return nil
 }
 
-func (a *Api) ListCustomModels() ([]*shared.AvailableModel, *shared.ApiError) {
+func (a *Api) ListCustomModels() ([]*shared.CustomModel, *shared.ApiError) {
 	serverUrl := fmt.Sprintf("%s/custom_models", GetApiHost())
 	resp, err := authenticatedFastClient.Get(serverUrl)
 	if err != nil {
@@ -2100,7 +2100,7 @@ func (a *Api) ListCustomModels() ([]*shared.AvailableModel, *shared.ApiError) {
 		return nil, apiErr
 	}
 
-	var models []*shared.AvailableModel
+	var models []*shared.CustomModel
 	err = json.NewDecoder(resp.Body).Decode(&models)
 	if err != nil {
 		return nil, &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error decoding response: %v", err)}
@@ -2109,49 +2109,11 @@ func (a *Api) ListCustomModels() ([]*shared.AvailableModel, *shared.ApiError) {
 	return models, nil
 }
 
-func (a *Api) DeleteAvailableModel(modelId string) *shared.ApiError {
-	serverUrl := fmt.Sprintf("%s/custom_models/%s", GetApiHost(), modelId)
-	req, err := http.NewRequest(http.MethodDelete, serverUrl, nil)
+func (a *Api) ListCustomProviders() ([]*shared.CustomProvider, *shared.ApiError) {
+	serverUrl := fmt.Sprintf("%s/custom_providers", GetApiHost())
+	resp, err := authenticatedFastClient.Get(serverUrl)
 	if err != nil {
-		return &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error creating request: %v", err)}
-	}
-
-	resp, err := authenticatedFastClient.Do(req)
-	if err != nil {
-		return &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error sending request: %v", err)}
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode >= 400 {
-		errorBody, _ := io.ReadAll(resp.Body)
-
-		apiErr := HandleApiError(resp, errorBody)
-		authRefreshed, apiErr := refreshAuthIfNeeded(apiErr)
-		if authRefreshed {
-			return a.DeleteAvailableModel(modelId)
-		}
-		return apiErr
-	}
-
-	return nil
-}
-
-func (a *Api) UpdateCustomModel(model *shared.AvailableModel) *shared.ApiError {
-	serverUrl := fmt.Sprintf("%s/custom_models/%s", GetApiHost(), model.Id)
-	body, err := json.Marshal(model)
-	if err != nil {
-		return &shared.ApiError{Msg: "Failed to marshal model"}
-	}
-
-	req, err := http.NewRequest(http.MethodPut, serverUrl, bytes.NewBuffer(body))
-	if err != nil {
-		return &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error creating request: %v", err)}
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := authenticatedFastClient.Do(req)
-	if err != nil {
-		return &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error sending request: %v", err)}
+		return nil, &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error sending request: %v", err)}
 	}
 	defer resp.Body.Close()
 
@@ -2160,40 +2122,18 @@ func (a *Api) UpdateCustomModel(model *shared.AvailableModel) *shared.ApiError {
 		apiErr := HandleApiError(resp, errorBody)
 		authRefreshed, apiErr := refreshAuthIfNeeded(apiErr)
 		if authRefreshed {
-			return a.UpdateCustomModel(model)
+			return a.ListCustomProviders()
 		}
-		return apiErr
+		return nil, apiErr
 	}
 
-	return nil
-}
-
-func (a *Api) CreateModelPack(set *shared.ModelPack) *shared.ApiError {
-	serverUrl := fmt.Sprintf("%s/model_sets", GetApiHost())
-	body, err := json.Marshal(set)
+	var providers []*shared.CustomProvider
+	err = json.NewDecoder(resp.Body).Decode(&providers)
 	if err != nil {
-		return &shared.ApiError{Msg: "Failed to marshal model pack"}
+		return nil, &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error decoding response: %v", err)}
 	}
 
-	resp, err := authenticatedFastClient.Post(serverUrl, "application/json", bytes.NewBuffer(body))
-	if err != nil {
-		return &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error sending request: %v", err)}
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode >= 400 {
-		errorBody, _ := io.ReadAll(resp.Body)
-
-		apiErr := HandleApiError(resp, errorBody)
-		authRefreshed, apiErr := refreshAuthIfNeeded(apiErr)
-		if authRefreshed {
-			return a.CreateModelPack(set)
-		}
-		return apiErr
-	}
-
-	return nil
-
+	return providers, nil
 }
 
 func (a *Api) ListModelPacks() ([]*shared.ModelPack, *shared.ApiError) {
@@ -2224,67 +2164,6 @@ func (a *Api) ListModelPacks() ([]*shared.ModelPack, *shared.ApiError) {
 
 	return sets, nil
 
-}
-
-func (a *Api) DeleteModelPack(setId string) *shared.ApiError {
-	serverUrl := fmt.Sprintf("%s/model_sets/%s", GetApiHost(), setId)
-
-	req, err := http.NewRequest(http.MethodDelete, serverUrl, nil)
-	if err != nil {
-		return &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error creating request: %v", err)}
-	}
-
-	resp, err := authenticatedFastClient.Do(req)
-	if err != nil {
-		return &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error sending request: %v", err)}
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode >= 400 {
-		errorBody, _ := io.ReadAll(resp.Body)
-
-		apiErr := HandleApiError(resp, errorBody)
-		authRefreshed, apiErr := refreshAuthIfNeeded(apiErr)
-		if authRefreshed {
-			return a.DeleteModelPack(setId)
-		}
-		return apiErr
-	}
-
-	return nil
-}
-
-func (a *Api) UpdateModelPack(set *shared.ModelPack) *shared.ApiError {
-	serverUrl := fmt.Sprintf("%s/model_sets/%s", GetApiHost(), set.Id)
-	body, err := json.Marshal(set)
-	if err != nil {
-		return &shared.ApiError{Msg: "Failed to marshal model pack"}
-	}
-
-	req, err := http.NewRequest(http.MethodPut, serverUrl, bytes.NewBuffer(body))
-	if err != nil {
-		return &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error creating request: %v", err)}
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := authenticatedFastClient.Do(req)
-	if err != nil {
-		return &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error sending request: %v", err)}
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode >= 400 {
-		errorBody, _ := io.ReadAll(resp.Body)
-		apiErr := HandleApiError(resp, errorBody)
-		authRefreshed, apiErr := refreshAuthIfNeeded(apiErr)
-		if authRefreshed {
-			return a.UpdateModelPack(set)
-		}
-		return apiErr
-	}
-
-	return nil
 }
 
 func (a *Api) GetCreditsTransactions(pageSize, pageNum int, req shared.CreditsLogRequest) (*shared.CreditsLogResponse, *shared.ApiError) {

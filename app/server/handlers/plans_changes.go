@@ -158,7 +158,7 @@ func ApplyPlanHandler(w http.ResponseWriter, r *http.Request) {
 		CancelFn: cancel,
 	}, func(repo *db.GitRepo) error {
 		var err error
-		settings, err = db.GetPlanSettings(plan, true)
+		settings, err = db.GetPlanSettings(plan)
 		if err != nil {
 			return fmt.Errorf("error getting plan settings: %v", err)
 		}
@@ -184,18 +184,31 @@ func ApplyPlanHandler(w http.ResponseWriter, r *http.Request) {
 
 	log.Println("ApplyPlanHandler: Got current plan state:", currentPlan != nil)
 
-	clients := initClients(
+	res := initClients(
 		initClientsParams{
 			w:           w,
 			auth:        auth,
 			apiKeys:     requestBody.ApiKeys,
-			openAIBase:  requestBody.OpenAIBase,
 			openAIOrgId: requestBody.OpenAIOrgId,
+			authVars:    requestBody.AuthVars,
 			plan:        plan,
+			settings:    settings,
 		},
 	)
 
-	commitMsg, err := modelPlan.GenCommitMsgForPendingResults(auth, plan, clients, settings, currentPlan, requestBody.SessionId, r.Context())
+	clients := res.clients
+	authVars := res.authVars
+
+	commitMsg, err := modelPlan.GenCommitMsgForPendingResults(modelPlan.GenCommitMsgForPendingResultsParams{
+		Auth:      auth,
+		Plan:      plan,
+		Clients:   clients,
+		Settings:  settings,
+		Current:   currentPlan,
+		AuthVars:  authVars,
+		SessionId: requestBody.SessionId,
+		Ctx:       r.Context(),
+	})
 
 	if err != nil {
 		log.Printf("Error generating commit message: %v\n", err)

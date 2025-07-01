@@ -32,7 +32,7 @@ func withTx(ctx context.Context, opts *sql.TxOptions, reason string, fn func(tx 
 	defer func() {
 		panicErr := recover()
 		if panicErr != nil {
-			log.Printf("panic in WithTx (%s): %v", reason, panicErr)
+			log.Printf("panic in WithTx (%s): %v\n%s", reason, panicErr, debug.Stack())
 			log.Printf("stack trace (panic - %s):\n%s", reason, debug.Stack())
 		}
 

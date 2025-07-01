@@ -8,6 +8,12 @@ import (
 type ExecParams struct {
 	CurrentPlanId        string
 	CurrentBranch        string
-	ApiKeys              map[string]string
+	AuthVars             map[string]string
 	CheckOutdatedContext func(maybeContexts []*shared.Context, projectPaths *types.ProjectPaths) (bool, bool, error)
+}
+
+var PromptSyncModelsIfNeeded func() error
+
+func SetPromptSyncModelsIfNeeded(fn func() error) {
+	PromptSyncModelsIfNeeded = fn
 }

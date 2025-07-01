@@ -1,0 +1,17 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://plandex.ai/schemas/definitions/model-providers.schema.json",
+  "title": "Model Providers",
+  "description": "The built-in model providers that Plandex supports. Use 'custom' for a provider that is not built-in.",
+  "enum": [
+    "openrouter",
+    "openai",
+    "anthropic",
+    "google-ai-studio",
+    "google-vertex",
+    "azure-openai",
+    "deepseek",
+    "perplexity",
+    "custom"
+  ]
+}

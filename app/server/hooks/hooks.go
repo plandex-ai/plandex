@@ -34,6 +34,8 @@ type WillSendModelRequestParams struct {
 	OutputTokens int
 	ModelName    shared.ModelName
 	IsUserPrompt bool
+	ModelTag     shared.ModelTag
+	ModelId      shared.ModelId
 }
 
 type DidSendModelRequestParams struct {
@@ -41,6 +43,7 @@ type DidSendModelRequestParams struct {
 	OutputTokens    int
 	CachedTokens    int
 	ModelId         shared.ModelId
+	ModelTag        shared.ModelTag
 	ModelName       shared.ModelName
 	ModelProvider   shared.ModelProvider
 	ModelRole       shared.ModelRole
@@ -151,7 +154,7 @@ type HookParams struct {
 
 type GetIntegratedModelsResult struct {
 	IntegratedModelsMode bool
-	ApiKeys              map[string]string
+	AuthVars             map[string]string
 }
 
 type FastApplyResult struct {

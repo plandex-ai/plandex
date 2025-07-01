@@ -118,38 +118,40 @@ const (
 )
 
 type TellPlanRequest struct {
-	Prompt                 string            `json:"prompt"`
-	BuildMode              BuildMode         `json:"buildMode"`
-	ConnectStream          bool              `json:"connectStream"`
-	AutoContinue           bool              `json:"autoContinue"`
-	IsUserContinue         bool              `json:"isUserContinue"`
-	IsUserDebug            bool              `json:"isUserDebug"`
-	IsApplyDebug           bool              `json:"isApplyDebug"`
-	IsChatOnly             bool              `json:"isChatOnly"`
-	AutoContext            bool              `json:"autoContext"`
-	SmartContext           bool              `json:"smartContext"`
-	ExecEnabled            bool              `json:"execEnabled"`
-	OsDetails              string            `json:"osDetails"`
-	ApiKey                 string            `json:"apiKey"`   // deprecated
-	Endpoint               string            `json:"endpoint"` // deprecated
-	ApiKeys                map[string]string `json:"apiKeys"`
-	OpenAIBase             string            `json:"openAIBase"`
-	OpenAIOrgId            string            `json:"openAIOrgId"`
-	ProjectPaths           map[string]bool   `json:"projectPaths"`
-	IsImplementationOfChat bool              `json:"isImplementationOfChat"`
-	IsGitRepo              bool              `json:"isGitRepo"`
-	SessionId              string            `json:"sessionId"`
+	Prompt         string    `json:"prompt"`
+	BuildMode      BuildMode `json:"buildMode"`
+	ConnectStream  bool      `json:"connectStream"`
+	AutoContinue   bool      `json:"autoContinue"`
+	IsUserContinue bool      `json:"isUserContinue"`
+	IsUserDebug    bool      `json:"isUserDebug"`
+	IsApplyDebug   bool      `json:"isApplyDebug"`
+	IsChatOnly     bool      `json:"isChatOnly"`
+	AutoContext    bool      `json:"autoContext"`
+	SmartContext   bool      `json:"smartContext"`
+	ExecEnabled    bool      `json:"execEnabled"`
+	OsDetails      string    `json:"osDetails"`
+
+	ApiKeys     map[string]string `json:"apiKeys"`     // deprecated
+	OpenAIOrgId string            `json:"openAIOrgId"` // deprecated
+
+	AuthVars map[string]string `json:"authVars"`
+
+	ProjectPaths           map[string]bool `json:"projectPaths"`
+	IsImplementationOfChat bool            `json:"isImplementationOfChat"`
+	IsGitRepo              bool            `json:"isGitRepo"`
+	SessionId              string          `json:"sessionId"`
 }
 
 type BuildPlanRequest struct {
-	ConnectStream bool              `json:"connectStream"`
-	ApiKey        string            `json:"apiKey"`   // deprecated
-	Endpoint      string            `json:"endpoint"` // deprecated
-	ApiKeys       map[string]string `json:"apiKeys"`
-	OpenAIBase    string            `json:"openAIBase"`
-	OpenAIOrgId   string            `json:"openAIOrgId"`
-	ProjectPaths  map[string]bool   `json:"projectPaths"`
-	SessionId     string            `json:"sessionId"`
+	ConnectStream bool `json:"connectStream"`
+
+	ApiKeys     map[string]string `json:"apiKeys"`     // deprecated
+	OpenAIOrgId string            `json:"openAIOrgId"` // deprecated
+
+	AuthVars map[string]string `json:"authVars"`
+
+	ProjectPaths map[string]bool `json:"projectPaths"`
+	SessionId    string          `json:"sessionId"`
 }
 
 const NoBuildsErr string = "No builds"
@@ -198,10 +200,13 @@ type LoadContextParams struct {
 	MapBodies   FileMapBodies     `json:"mapBodies"`
 
 	// For naming piped data
-	ApiKeys     map[string]string `json:"apiKeys"`
-	OpenAIBase  string            `json:"openAIBase"`
-	OpenAIOrgId string            `json:"openAIOrgId"`
-	SessionId   string            `json:"sessionId"`
+	ApiKeys     map[string]string `json:"apiKeys"`     // deprecated
+	OpenAIBase  string            `json:"openAIBase"`  // deprecated
+	OpenAIOrgId string            `json:"openAIOrgId"` // deprecated
+
+	AuthVars map[string]string `json:"authVars"`
+
+	SessionId string `json:"sessionId"`
 }
 
 type LoadContextRequest []*LoadContextParams
@@ -289,7 +294,8 @@ type CreateBranchRequest struct {
 }
 
 type UpdateSettingsRequest struct {
-	Settings *PlanSettings `json:"settings"`
+	ModelPackName string     `json:"modelPackName"`
+	ModelPack     *ModelPack `json:"modelPack"`
 }
 
 type UpdateSettingsResponse struct {
@@ -318,10 +324,13 @@ type ListUsersResponse struct {
 }
 
 type ApplyPlanRequest struct {
-	ApiKeys     map[string]string `json:"apiKeys"`
-	OpenAIBase  string            `json:"openAIBase"`
-	OpenAIOrgId string            `json:"openAIOrgId"`
-	SessionId   string            `json:"sessionId"`
+	ApiKeys     map[string]string `json:"apiKeys"`     // deprecated
+	OpenAIBase  string            `json:"openAIBase"`  // deprecated
+	OpenAIOrgId string            `json:"openAIOrgId"` // deprecated
+
+	AuthVars map[string]string `json:"authVars"`
+
+	SessionId string `json:"sessionId"`
 }
 
 type RenamePlanRequest struct {

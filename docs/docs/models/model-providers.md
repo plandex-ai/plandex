@@ -1,96 +1,157 @@
 ---
-sidebar_position: 1
+sidebar_position: 2
 sidebar_label: Providers
 ---
 
 # Model Providers
 
-By default, Plandex uses a mix of Anthropic, OpenAI, and Google models. If an OpenAI API key is set, OpenAI models will use the OpenAI API directly. Otherwise, all models will use [OpenRouter.ai](https://openrouter.ai/).
+If you use [Plandex Cloud](../hosting/cloud.md) in **Integrated Models Mode**, you can use Plandex credits to pay for AI models. No separate accounts or API keys are required in this case.
 
-You can also use Plandex with models from any provider that provides an OpenAI-compatible API, like the aforementioned [OpenRouter.ai](https://openrouter.ai/), [Together.ai](https://together.ai), [Replicate](https://replicate.com/), [Ollama](https://ollama.com/), and more.
+If you instead use **BYO API Key Mode** with Plandex Cloud, or if you self-host Plandex, you'll need to set API keys (or other credentials) for the providers you want to use.
 
-## Model Performance
-
-While you can use Plandex with many different providers and models as described above, Plandex's prompts have mainly been written and tested against the built-in models and model packs, so you should expect them to give the best results.
-
-### Local Models Disclaimer
-
-In particular, small models that can be run locally generally aren't strong enough to produce usable results for the [heavy-lifting roles][./roles.md] like `planner`, `architect`, `coder`, and `builder`. The prompts for these roles require very strong instruction following that is hard to achieve with small models.
-
-The strongest open source models like DeepSeek R1 and V3 _are_ capable enough for decent results, but these models are quite large for running locally without a very powerful system. This isn't meant to discourage experimentation with local models, but to set expectations for what is realistically achievable.
-
-## Built-in Models and Model Packs
-
-Plandex provides a curated set of built-in models and model packs.
-
-You can see the list of available model packs with:
+To see available providers, run:
 
 ```bash
-\model-packs # REPL
-plandex model-packs # CLI
+\providers # REPL
+plandex providers # CLI
 ```
 
-You can see the list of available models with:
+## API Keys / Environment Variables
 
-```bash
-\models available # REPL
-plandex models available # CLI
-```
-
-## Integrated Models
-
-If you use [Plandex Cloud](../hosting/cloud.md), you have the option of using **Integrated Models Mode** which allows you to use Plandex credits to pay for AI models. No separate accounts or API keys are required in this case.
-
-If, alternatively, you use **BYO API Key Mode** with Plandex Cloud, or if you self-host Plandex, you'll need to generate API keys for the providers you want to use.
-
-## OpenRouter
-
-### Account
-
-If you don't have an OpenRouter account, first [sign up here.](https://openrouter.ai/signup)
-
-### API Key
-
-Once you've created an OpenRouter account, [generate an API key here.](https://openrouter.ai/keys)
-
-## OpenAI
-
-Note that as of v2.0.8, setting an OpenAI API key is **optional**. Plandex will use OpenRouter as a fallback for OpenAI models if no OpenAI API key is set.
-
-If you do set an OpenAI API key, Plandex will call the OpenAI API directly for OpenAI models, which offers slightly lower latency and costs about 5% less than OpenRouter.
-
-### Account
-
-If you don't have an OpenAI account, first [sign up here.](https://platform.openai.com/signup)
-
-### API Key
-
-Once you've created an OpenAI account, [generate an API key here.](https://platform.openai.com/account/api-keys)
-
-## Other Providers
-
-Apart from those listed above, Plandex can use models from any provider that is compatible with the OpenAI API, like Together.ai, Replicate, Ollama, and more. You'll need to create an account and generate an API key for any other providers you plan on using.
-
-## Environment Variables
-
-Now that you've generated API keys for your providers, export them as environment variables in your terminal.
+API keys or credentials are set through **environment variables** when running the Plandex CLI. For example:
 
 ```bash
 export OPENROUTER_API_KEY=...
 export OPENAI_API_KEY=...
+export ANTHROPIC_API_KEY=...
 
-# optional - set api keys for any other providers you're using
-export TOGETHER_API_KEY...
+plandex # start the Plandex REPL
 ```
 
-If you're using OpenAI as a model provider, you can also set a different base URL for API calls:
+## Provider Selection
+
+Many models can be served by multiple different providers. For example, OpenAI models are available via OpenAI, Microsoft Azure, and OpenRouter.
+
+When multiple providers are available for a model, which provider is selected depends on the authentication environment variables that are set when running the CLI or REPL. If environment variables are set for multiple providers, the direct provider takes precedence. For example, if you set both `ANTHROPIC_API_KEY` (for the direct Anthropic API) and `OPENROUTER_API_KEY` (for OpenRouter), Plandex will use the direct Anthropic API for Anthropic models.
+
+## Built-In Providers
+
+### OpenRouter
+
+Apart from Plandex Cloud's Integrated Models Mode, the quickest way to get started is to use [OpenRouter.ai](https://openrouter.ai/), which allows you to use a wide range of models—including all those Plandex uses by default—with a single account and API key.
+
+To use OpenRouter, you'll need to create an account and generate an API key, then set the `OPENROUTER_API_KEY` environment variable.
 
 ```bash
-export OPENAI_API_BASE=... # optional - set a different base url for OpenAI calls e.g. https://<your-proxy>/v1
+export OPENROUTER_API_KEY=...
+
+plandex # start the Plandex REPL
 ```
 
-If you have multiple OpenAI orgs, you can specify which org to use:
+You can also use OpenRouter alongside other providers. For example, if you set both `OPENROUTER_API_KEY` and `OPENAI_API_KEY`, Plandex will use the OpenAI API directly for OpenAI models and OpenRouter for other models. Using direct providers offers slightly lower latency and costs about 5% less than OpenRouter.
+
+If you set a `OPENROUTER_API_KEY` and are also using other providers, Plandex will also **fail over** to OpenRouter if another provider has an error. This offers a strong layer of redundancy since OpenRouter itself routes model calls across a number of different upstream providers.
+
+### OpenAI
+
+You can optionally set an `OPENAI_API_KEY` to use the OpenAI API directly with your own OpenAI account when calling OpenAI models.
 
 ```bash
-export OPENAI_ORG_ID=... # optional - set the OpenAI OrgID if you have multiple orgs
+export OPENAI_API_KEY=... # set your OpenAI API key for OpenAI models
+export OPENAI_ORG_ID=... # optionally set your OpenAI OrgID if you have multiple orgs
 ```
+
+### Anthropic
+
+You can optionally set an `ANTHROPIC_API_KEY` to use the Anthropic API directly with your own Anthropic account when calling Anthropic models.
+
+```bash
+export ANTHROPIC_API_KEY=... # set your Anthropic API key for Anthropic models
+```
+
+### Google AI Studio
+
+You can optionally set a `GEMINI_API_KEY` to use Google Gemini models with your own Google account via Google AI Studio.
+
+```bash
+export GEMINI_API_KEY=... # set your Google AI Studio API key for Google Gemini models
+```
+
+### Google Vertex AI
+
+You can optionally use Google Vertex AI, which offers models from Gemini, Anthropic, and more. Vertex authentication requires a few environment variables to be set.
+
+```bash
+export GOOGLE_APPLICATION_CREDENTIALS=... # either a path to a JSON file, the JSON itself as a string, or the base64 encoded JSON
+export VERTEXAI_PROJECT=... # your Vertex project ID
+export VERTEXAI_LOCATION=... # your Vertex location (e.g. us-east5)
+```
+
+### Azure
+
+You can optionally use Microsoft Azure for OpenAI models. Azure authentication requires both an API key and a base URL.
+
+```bash
+export AZURE_OPENAI_API_KEY=... # set your Azure OpenAI API key
+export AZURE_API_BASE=... # set your Azure API base URL (required)
+export AZURE_API_VERSION=... # optionally set your Azure API version - defaults to 2025-04-01-preview
+export AZURE_DEPLOYMENTS_MAP='{"gpt-4.1": "gpt-4.1-deployment-name"}' # optionally set a map of model names to deployment names with a JSON object (only needed if deployment names are different from model names)
+```
+
+### AWS Bedrock
+
+You can optionally use AWS Bedrock for Anthropic models.
+
+If you have an AWS credentials file at `~/.aws/credentials`, you can use that to authenticate by setting the `PLANDEX_AWS_PROFILE` environment variable:
+
+```bash
+export PLANDEX_AWS_PROFILE=... # set the name of the profile in ~/.aws/credentials to use
+```
+
+Note that the credentials file will _only_ be read if `PLANDEX_AWS_PROFILE` is set.
+
+You can also use environment variables for AWS authentication:
+
+```bash
+export AWS_ACCESS_KEY_ID=... # set your AWS access key ID
+export AWS_SECRET_ACCESS_KEY=... # set your AWS secret access key
+export AWS_REGION=... # set your AWS region (e.g. us-east-1)
+
+export AWS_SESSION_TOKEN=... # optionally set your AWS session token
+export AWS_INFERENCE_PROFILE_ARN=... # optionally set your AWS inference profile ARN
+```
+
+### DeepSeek
+
+You can optionally use DeepSeek models with your own DeepSeek account.
+
+```bash
+export DEEPSEEK_API_KEY=... # set your DeepSeek API key for DeepSeek models
+```
+
+### Perplexity
+
+You can optionally use Perplexity models with your own Perplexity account.
+
+```bash
+export PERPLEXITY_API_KEY=... # set your Perplexity API key for Perplexity models
+```
+
+## Custom Providers
+
+If you're self-hosting Plandex, you can also use with models from any provider that provides an OpenAI-compatible API.
+
+To configure custom providers, you can use a dev-friendly JSON config file:
+
+```bash
+\models custom # REPL
+plandex models custom # CLI
+```
+
+[More details on custom providers](./custom-models.md)
+
+## Local Models
+
+Plandex supports local models via [Ollama](https://ollama.com/). It doesn't require any authentication or API keys.
+ 
+For more details, see the [Ollama Quickstart](./ollama.md).

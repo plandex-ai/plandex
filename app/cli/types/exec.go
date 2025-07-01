@@ -14,6 +14,7 @@ type TellFlags struct {
 	ExecEnabled            bool
 	AutoApply              bool
 	IsImplementationOfChat bool
+	SkipChangesMenu        bool
 }
 type BuildFlags struct {
 	BuildBg   bool

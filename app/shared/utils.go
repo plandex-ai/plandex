@@ -10,6 +10,10 @@ import (
 	"unicode/utf8"
 )
 
+func Pointer[T any](v T) *T {
+	return &v
+}
+
 const TsFormat = "2006-01-02T15:04:05.999Z"
 
 func StringTs() string {

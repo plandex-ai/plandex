@@ -1,14 +1,17 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
+
 	"plandex-cli/api"
 	"plandex-cli/auth"
+	"plandex-cli/fs"
 	"plandex-cli/lib"
 	"plandex-cli/term"
 	"strconv"
-	"strings"
 
 	shared "plandex-shared"
 
@@ -18,13 +21,24 @@ import (
 )
 
 var customModelsOnly bool
+var allProperties bool
+var saveCustomModels bool
+var customModelsPath string
 
 func init() {
 	RootCmd.AddCommand(modelsCmd)
+
+	modelsCmd.Flags().BoolVarP(&allProperties, "all", "a", false, "Show all properties")
+
 	modelsCmd.AddCommand(listAvailableModelsCmd)
-	modelsCmd.AddCommand(createCustomModelCmd)
+	modelsCmd.AddCommand(addCustomModelCmd)
+	modelsCmd.AddCommand(updateCustomModelCmd)
+	modelsCmd.AddCommand(manageCustomModelsCmd)
 	modelsCmd.AddCommand(deleteCustomModelCmd)
 	modelsCmd.AddCommand(defaultModelsCmd)
+
+	manageCustomModelsCmd.Flags().BoolVar(&saveCustomModels, "save", false, "Save custom models")
+	manageCustomModelsCmd.Flags().StringVarP(&customModelsPath, "file", "f", "", "Path to custom models file")
 
 	listAvailableModelsCmd.Flags().BoolVarP(&customModelsOnly, "custom", "c", false, "List custom models only")
 }
@@ -48,11 +62,24 @@ var listAvailableModelsCmd = &cobra.Command{
 	Run:     listAvailableModels,
 }
 
-var createCustomModelCmd = &cobra.Command{
+var manageCustomModelsCmd = &cobra.Command{
+	Use:   "custom",
+	Short: "Manage custom models, providers, and model packs",
+	Run:   manageCustomModels,
+}
+
+var addCustomModelCmd = &cobra.Command{
 	Use:     "add",
 	Aliases: []string{"create"},
 	Short:   "Add a custom model",
-	Run:     createCustomModel,
+	Run:     customModelsNotImplemented,
+}
+
+var updateCustomModelCmd = &cobra.Command{
+	Use:     "update",
+	Aliases: []string{"edit"},
+	Short:   "Update a custom model",
+	Run:     customModelsNotImplemented,
 }
 
 var deleteCustomModelCmd = &cobra.Command{
@@ -60,226 +87,154 @@ var deleteCustomModelCmd = &cobra.Command{
 	Aliases: []string{"remove", "delete"},
 	Short:   "Remove a custom model",
 	Args:    cobra.MaximumNArgs(1),
-	Run:     deleteCustomModel,
+	Run:     customModelsNotImplemented,
 }
 
-func createCustomModel(cmd *cobra.Command, args []string) {
+func manageCustomModels(cmd *cobra.Command, args []string) {
 	auth.MustResolveAuthWithOrg()
 
-	model := &shared.AvailableModel{
-		BaseModelConfig: shared.BaseModelConfig{
-			ModelCompatibility: shared.ModelCompatibility{},
-		},
-	}
-
-	opts := shared.AllModelProviders
-	if auth.Current.IsCloud {
-		// remove custom provider if we're in cloud
-		filtered := []string{}
-		for _, provider := range opts {
-			if provider != string(shared.ModelProviderCustom) {
-				filtered = append(filtered, provider)
-			}
-		}
-		opts = filtered
-	}
-	provider, err := term.SelectFromList("Select provider:", opts)
-
-	if err != nil {
-		term.OutputErrorAndExit("Error selecting provider: %v", err)
-		return
-	}
-	model.Provider = shared.ModelProvider(provider)
-
-	if model.Provider == shared.ModelProviderCustom {
-		if auth.Current.IsCloud {
-			term.OutputErrorAndExit("Custom model providers are not supported on Plandex Cloud")
-			return
-		}
-		customProvider, err := term.GetRequiredUserStringInput("Custom provider:")
-		if err != nil {
-			term.OutputErrorAndExit("Error reading custom provider: %v", err)
-			return
-		}
-		model.CustomProvider = &customProvider
-	}
-
-	fmt.Println("For model name, be sure to enter the exact, case-sensitive name of the model as it appears in the provider's API docs. Ex: 'gpt-4o', 'deepseek/deepseek-chat'")
-	modelName, err := term.GetRequiredUserStringInput("Model name:")
-	if err != nil {
-		term.OutputErrorAndExit("Error reading model name: %v", err)
-		return
-	}
-	model.ModelName = shared.ModelName(modelName)
-
-	fmt.Println("For model id, set a unique identifier for the model if you have multiple models with the same name and provider but different settings (otherwise, just press enter to use the model name)")
-	modelId, err := term.GetRequiredUserStringInputWithDefault("Model id:", modelName)
-	if err != nil {
-		term.OutputErrorAndExit("Error reading model id: %v", err)
-		return
-	}
-	model.ModelId = shared.ModelId(modelId)
-
-	fmt.Println("Add a human friendly description if you want to.")
-	description, err := term.GetUserStringInput("Description (optional):")
-	if err != nil {
-		term.OutputErrorAndExit("Error reading description: %v", err)
-		return
-	}
-	model.Description = description
-
-	if model.Provider == shared.ModelProviderCustom {
-		baseUrl, err := term.GetRequiredUserStringInput("Base URL:")
-		if err != nil {
-			term.OutputErrorAndExit("Error reading base URL: %v", err)
-			return
-		}
-
-		baseUrl = strings.TrimSuffix(baseUrl, "/")
-
-		model.BaseUrl = baseUrl
-	} else {
-		model.BaseUrl = shared.BaseUrlByProvider[model.Provider]
-	}
-
-	apiKeyDefault := shared.ApiKeyByProvider[model.Provider]
-	var apiKeyEnvVar string
-	if model.Provider == shared.ModelProviderCustom {
-		if apiKeyDefault == "" {
-			apiKeyEnvVar, err = term.GetRequiredUserStringInput("API key environment variable:")
-		} else {
-			apiKeyEnvVar, err = term.GetUserStringInputWithDefault("API key environment variable:", apiKeyDefault)
-		}
-	} else {
-		apiKeyEnvVar = apiKeyDefault
-	}
-
-	if err != nil {
-		term.OutputErrorAndExit("Error reading API key environment variable: %v", err)
-		return
-	}
-	model.ApiKeyEnvVar = apiKeyEnvVar
-
-	fmt.Println("Max Tokens is the total maximum context size of the model.")
-
-	maxTokensStr, err := term.GetRequiredUserStringInput("Max Tokens:")
-	if err != nil {
-		term.OutputErrorAndExit("Error reading max tokens: %v", err)
-		return
-	}
-	maxTokens, err := strconv.Atoi(maxTokensStr)
-	if err != nil {
-		term.OutputErrorAndExit("Invalid number for max tokens: %v", err)
-		return
-	}
-	model.MaxTokens = maxTokens
-
-	fmt.Println("'Default Max Convo Tokens' is the default maximum size a conversation can reach in the 'planner' role before it is shortened by summarization. For 128k context, ~10000 is recommended. For 200k context, ~15000 is recommended.")
-
-	var defaultMaxConvoTokens int
-
-	if maxTokens >= 180000 {
-		defaultMaxConvoTokens = 15000
-	} else if maxTokens >= 100000 {
-		defaultMaxConvoTokens = 10000
-	}
-
-	var maxConvoTokensStr string
-	if defaultMaxConvoTokens == 0 {
-		maxConvoTokensStr, err = term.GetRequiredUserStringInput("Default Max Convo Tokens:")
-	} else {
-		maxConvoTokensStr, err = term.GetRequiredUserStringInputWithDefault("Default Max Convo Tokens:", strconv.Itoa(defaultMaxConvoTokens))
-	}
-
-	if err != nil {
-		term.OutputErrorAndExit("Error reading max convo tokens: %v", err)
-		return
-	}
-	maxConvoTokens, err := strconv.Atoi(maxConvoTokensStr)
-	if err != nil {
-		term.OutputErrorAndExit("Invalid number for max convo tokens: %v", err)
-		return
-	}
-	model.DefaultMaxConvoTokens = maxConvoTokens
-
-	fmt.Println("'Max Output Tokens' is the hard limit on output length for the model. Check with the model provider for the recommended value. 8k is a reasonable default if it's not documented, though some models have no max output limit—in that case 'Max Output Tokens' should be set to the same value as 'Max Tokens'.")
-
-	maxOutputTokensStr, err := term.GetRequiredUserStringInputWithDefault("Max Output Tokens:", "8192")
-	if err != nil {
-		term.OutputErrorAndExit("Error reading reserved output tokens: %v", err)
-		return
-	}
-	maxOutputTokens, err := strconv.Atoi(maxOutputTokensStr)
-	if err != nil {
-		term.OutputErrorAndExit("Invalid number for reserved output tokens: %v", err)
-		return
-	}
-	model.MaxOutputTokens = maxOutputTokens
-
-	fmt.Println("'Reserved Output Tokens' is the default number of tokens reserved for model output. This ensures the model has enough tokens to generate a response. It can be lower than the 'Max Output Tokens' limit and should be set to what a *realistic* output could reach under normal circumstances. If the 'Max Output Tokens' limit is fairly low, just use that. If the 'Max Output Tokens' is very high, or is equal to the 'Max Tokens' input limit, set a lower value so that there's enough room for input. For reasoning models, make sure enough space is included for reasoning tokens.")
-
-	var defaultReservedOutputTokens int
-	if maxOutputTokens <= int(float64(maxTokens)*0.2) {
-		defaultReservedOutputTokens = maxOutputTokens
-	}
-
-	var reservedOutputTokensStr string
-	if defaultReservedOutputTokens == 0 {
-		reservedOutputTokensStr, err = term.GetRequiredUserStringInputWithDefault("Reserved Output Tokens:", "8192")
-	} else {
-		reservedOutputTokensStr, err = term.GetRequiredUserStringInputWithDefault("Reserved Output Tokens:", strconv.Itoa(defaultReservedOutputTokens))
-	}
-
-	if err != nil {
-		term.OutputErrorAndExit("Error reading reserved output tokens: %v", err)
-		return
-	}
-
-	reservedOutputTokens, err := strconv.Atoi(reservedOutputTokensStr)
-	if err != nil {
-		term.OutputErrorAndExit("Invalid number for reserved output tokens: %v", err)
-		return
-	}
-	model.ReservedOutputTokens = reservedOutputTokens
-
-	fmt.Println("'Preferred Output Format' is the format for roles needing structured output. Currently, OpenAI models do best with 'Tool Call JSON' and other models generally do better with 'XML'. Choose 'XML' if you're unsure as it offers the widest compatibility. 'Tool Call JSON' requires tool call support and reliable JSON generation.")
-
-	outputFormatLabels := map[string]string{
-		string(shared.ModelOutputFormatXml):          "XML",
-		string(shared.ModelOutputFormatToolCallJson): "Tool Call JSON",
-	}
-
-	res, err := term.SelectFromList("Preferred Output Format:", []string{
-		outputFormatLabels[string(shared.ModelOutputFormatXml)],
-		outputFormatLabels[string(shared.ModelOutputFormatToolCallJson)],
-	})
-	if err != nil {
-		term.OutputErrorAndExit("Error selecting output format: %v", err)
-		return
-	}
-	for key, label := range outputFormatLabels {
-		if label == res {
-			model.PreferredModelOutputFormat = shared.ModelOutputFormat(key)
-			break
-		}
-	}
-
-	model.HasImageSupport, err = term.ConfirmYesNo("Is multi-modal image support enabled?")
-	if err != nil {
-		term.OutputErrorAndExit("Error confirming image support: %v", err)
-		return
-	}
-
 	term.StartSpinner("")
-	apiErr := api.Client.CreateCustomModel(model)
-	term.StopSpinner()
 
-	if apiErr != nil {
-		term.OutputErrorAndExit("Error adding model: %v", apiErr.Msg)
+	var serverModelsInput *shared.ModelsInput
+	var defaultConfig *shared.PlanConfig
+
+	errCh := make(chan error, 2)
+
+	go func() {
+		var err error
+		serverModelsInput, err = lib.GetServerModelsInput()
+		if err != nil {
+			errCh <- fmt.Errorf("error getting server models input: %v", err)
+			return
+		}
+		errCh <- nil
+	}()
+
+	go func() {
+		var apiErr *shared.ApiError
+		defaultConfig, apiErr = api.Client.GetDefaultPlanConfig()
+		if apiErr != nil {
+			errCh <- fmt.Errorf("error getting default config: %v", apiErr.Msg)
+			return
+		}
+		errCh <- nil
+	}()
+
+	for i := 0; i < 2; i++ {
+		err := <-errCh
+		if err != nil {
+			term.OutputErrorAndExit(err.Error())
+			return
+		}
+	}
+
+	usingDefaultPath := false
+	if customModelsPath == "" {
+		usingDefaultPath = true
+		customModelsPath = lib.GetCustomModelsPath(auth.Current.UserId)
+	}
+
+	exists, err := fs.FileExists(customModelsPath)
+	if err != nil {
+		term.OutputErrorAndExit("Error checking custom models file: %v", err)
 		return
 	}
 
-	fmt.Println("✅ Added custom model", color.New(color.Bold, term.ColorHiCyan).Sprint(string(model.Provider)+" → "+string(model.ModelId)))
+	if saveCustomModels {
+		if !exists {
+			term.OutputErrorAndExit("File not found: %s", customModelsPath)
+			return
+		}
+	} else {
+		if serverModelsInput.IsEmpty() {
+			jsonData, err := json.MarshalIndent(getExampleTemplate(auth.Current.IsCloud, auth.Current.IntegratedModelsMode), "", "  ")
+			if err != nil {
+				term.OutputErrorAndExit("Error marshalling template: %v", err)
+				return
+			}
+
+			err = os.MkdirAll(filepath.Dir(customModelsPath), 0755)
+			if err != nil {
+				term.OutputErrorAndExit("Error creating directory: %v", err)
+				return
+			}
+
+			err = os.WriteFile(customModelsPath, jsonData, 0644)
+			if err != nil {
+				term.OutputErrorAndExit("Error writing template file: %v", err)
+				return
+			}
+
+			term.StopSpinner()
+
+			fmt.Printf("🧠 Example models file → %s\n", customModelsPath)
+			fmt.Println("👨‍💻 Edit it, then come back here to save")
+			fmt.Println()
+		} else {
+			serverClientModelsInput := serverModelsInput.ToClientModelsInput()
+			serverClientModelsInput.PrepareUpdate()
+
+			var localModelsInput shared.ModelsInput
+
+			if exists {
+				// we only do a conflict check on the default path in the home dir
+				// if user specifies the path and the file exists, just open the file without checking for conflicts
+				if usingDefaultPath {
+					res, err := lib.CustomModelsCheckLocalChanges(customModelsPath)
+					if err != nil {
+						term.OutputErrorAndExit("Error checking local changes: %v", err)
+						return
+					}
+
+					localModelsInput = res.LocalModelsInput
+					if res.HasLocalChanges {
+						term.StopSpinner()
+
+						res, err := warnModelsFileLocalChanges(customModelsPath, "models custom")
+						if err != nil {
+							term.OutputErrorAndExit("Error confirming: %v", err)
+							return
+						}
+						if !res {
+							return
+						}
+						fmt.Println()
+						term.StartSpinner("")
+					}
+				}
+			}
+
+			if !serverModelsInput.Equals(localModelsInput) {
+				err := lib.WriteCustomModelsFile(customModelsPath, serverModelsInput)
+				if err != nil {
+					term.OutputErrorAndExit("Error saving custom models file: %v", err)
+					return
+				}
+			}
+
+			term.StopSpinner()
+
+			fmt.Printf("🧠 %s → %s\n", color.New(color.Bold, term.ColorHiCyan).Sprint("Models file"), customModelsPath)
+			fmt.Println("👨‍💻 Edit it, then come back here to save")
+			fmt.Println()
+		}
+
+		pathArg := ""
+		if !usingDefaultPath {
+			pathArg = fmt.Sprintf(" --file %s", customModelsPath)
+		}
+
+		res := maybePromptAndOpenModelsFile(customModelsPath, pathArg, "models custom", defaultConfig, nil)
+		if res.shouldReturn {
+			return
+		}
+	}
+
+	didUpdate := lib.MustSyncCustomModels(customModelsPath, serverModelsInput)
+
+	if !didUpdate {
+		fmt.Println("🤷‍♂️ No changes to custom models/providers/model packs")
+	}
 }
 
 func models(cmd *cobra.Command, args []string) {
@@ -316,9 +271,9 @@ func models(cmd *cobra.Command, args []string) {
 	table.Render()
 	fmt.Println()
 
-	renderSettings(settings)
+	renderSettings(settings, allProperties)
 
-	term.PrintCmds("", "set-model", "models available", "models default")
+	term.PrintCmds("", "set-model", "models available", "models default", "models custom")
 }
 
 func defaultModels(cmd *cobra.Command, args []string) {
@@ -326,12 +281,13 @@ func defaultModels(cmd *cobra.Command, args []string) {
 
 	term.StartSpinner("")
 	settings, err := api.Client.GetOrgDefaultSettings()
-	term.StopSpinner()
 
 	if err != nil {
 		term.OutputErrorAndExit("Error getting default model settings: %v", err)
 		return
 	}
+
+	term.StopSpinner()
 
 	title := fmt.Sprintf("%s Model Settings", color.New(color.Bold, term.ColorHiGreen).Sprint("Org-Wide Default"))
 	table := tablewriter.NewWriter(os.Stdout)
@@ -340,13 +296,18 @@ func defaultModels(cmd *cobra.Command, args []string) {
 	table.Render()
 	fmt.Println()
 
-	renderSettings(settings)
+	renderSettings(settings, allProperties)
 
 	term.PrintCmds("", "set-model default", "models available", "models")
 }
 
 func listAvailableModels(cmd *cobra.Command, args []string) {
 	auth.MustResolveAuthWithOrg()
+
+	if customModelsOnly && auth.Current.IntegratedModelsMode {
+		term.OutputErrorAndExit("Custom models are not supported in Integrated Models mode on Plandex Cloud")
+		return
+	}
 
 	term.StartSpinner("")
 
@@ -361,12 +322,15 @@ func listAvailableModels(cmd *cobra.Command, args []string) {
 
 	if !customModelsOnly {
 		color.New(color.Bold, term.ColorHiCyan).Println("🏠 Built-in Models")
-		builtIn := shared.AvailableModels
 		table := tablewriter.NewWriter(os.Stdout)
 		table.SetAutoWrapText(false)
-		table.SetHeader([]string{"Provider", "Name", "🪙", "🔑"})
-		for _, model := range builtIn {
-			table.Append([]string{string(model.Provider), string(model.ModelId), strconv.Itoa(model.MaxTokens), model.ApiKeyEnvVar})
+		table.SetHeader([]string{"Model", "Input", "Output", "Reserved"})
+		for _, model := range shared.BuiltInBaseModels {
+			if auth.Current.IsCloud && model.IsLocalOnly() {
+				continue
+			}
+
+			table.Append([]string{string(model.ModelId), fmt.Sprintf("%d 🪙", model.MaxTokens), fmt.Sprintf("%d 🪙", model.MaxOutputTokens), fmt.Sprintf("%d 🪙", model.ReservedOutputTokens)})
 		}
 		table.Render()
 		fmt.Println()
@@ -376,17 +340,9 @@ func listAvailableModels(cmd *cobra.Command, args []string) {
 		color.New(color.Bold, term.ColorHiCyan).Println("🛠️  Custom Models")
 		table := tablewriter.NewWriter(os.Stdout)
 		table.SetAutoWrapText(false)
-		table.SetHeader([]string{"#", "Provider", "Name", "🪙", "🔑"})
+		table.SetHeader([]string{"#", "ID", "🪙"})
 		for i, model := range customModels {
-			var provider string
-			p := model.Provider
-			if p == shared.ModelProviderCustom {
-				provider = *model.CustomProvider
-			} else {
-				provider = string(p)
-			}
-
-			table.Append([]string{fmt.Sprintf("%d", i+1), provider, string(model.ModelId), strconv.Itoa(model.MaxTokens), model.ApiKeyEnvVar})
+			table.Append([]string{fmt.Sprintf("%d", i+1), string(model.ModelId), strconv.Itoa(model.MaxTokens)})
 		}
 		table.Render()
 	} else if customModelsOnly {
@@ -396,135 +352,36 @@ func listAvailableModels(cmd *cobra.Command, args []string) {
 
 	if customModelsOnly {
 		if len(customModels) > 0 {
-			term.PrintCmds("", "models", "set-model", "models add", "models delete")
+			term.PrintCmds("", "models", "set-model", "models custom")
 		} else {
-			term.PrintCmds("", "models add")
+			term.PrintCmds("", "models custom")
 		}
 	} else {
-		term.PrintCmds("", "models available --custom", "models", "set-model", "models add", "models delete")
+		term.PrintCmds("", "models available --custom", "models", "set-model", "models custom")
 	}
 }
 
-func deleteCustomModel(cmd *cobra.Command, args []string) {
-	auth.MustResolveAuthWithOrg()
-
-	term.StartSpinner("")
-	models, apiErr := api.Client.ListCustomModels()
-	term.StopSpinner()
-
-	if apiErr != nil {
-		term.OutputErrorAndExit("Error fetching custom models: %v", apiErr)
-		return
-	}
-
-	if len(models) == 0 {
-		fmt.Println("🤷‍♂️ No custom models")
-		fmt.Println()
-		term.PrintCmds("", "models add")
-		return
-	}
-
-	var modelToDelete *shared.AvailableModel
-
-	if len(args) == 1 {
-		input := args[0]
-		// Try to parse input as index
-		index, err := strconv.Atoi(input)
-		if err == nil && index > 0 && index <= len(models) {
-			modelToDelete = models[index-1]
-		} else {
-			// Search by name
-			for _, m := range models {
-				if string(m.ModelId) == input {
-					modelToDelete = m
-					break
-				}
-			}
-		}
-	}
-
-	if modelToDelete == nil {
-		opts := make([]string, len(models))
-		for i, model := range models {
-			var provider string
-			p := model.Provider
-			if p == shared.ModelProviderCustom {
-				provider = *model.CustomProvider
-			} else {
-				provider = string(p)
-			}
-			opts[i] = provider + " → " + string(model.ModelId)
-		}
-
-		selected, err := term.SelectFromList("Select model to delete:", opts)
-
-		if err != nil {
-			term.OutputErrorAndExit("Error selecting model: %v", err)
-			return
-		}
-
-		var selectedIndex int
-		for i, opt := range opts {
-			if opt == selected {
-				selectedIndex = i
-				break
-			}
-		}
-
-		modelToDelete = models[selectedIndex]
-	}
-
-	term.StartSpinner("")
-	apiErr = api.Client.DeleteAvailableModel(modelToDelete.Id)
-	term.StopSpinner()
-
-	if apiErr != nil {
-		term.OutputErrorAndExit("Error deleting custom model: %v", apiErr)
-		return
-	}
-
-	fmt.Printf("✅ Deleted custom model %s\n", color.New(color.Bold, term.ColorHiCyan).Sprint(string(modelToDelete.Provider)+" → "+string(modelToDelete.ModelId)))
-
-	fmt.Println()
-	term.PrintCmds("", "models available", "models add")
-}
-
-func renderSettings(settings *shared.PlanSettings) {
-	modelPack := settings.ModelPack
+func renderSettings(settings *shared.PlanSettings, allProperties bool) {
+	modelPack := settings.GetModelPack()
 
 	color.New(color.Bold, term.ColorHiCyan).Println("🎛️  Current Model Pack")
-	renderModelPack(modelPack)
+	renderModelPack(modelPack, settings.CustomModelsById, allProperties)
 
-	color.New(color.Bold, term.ColorHiCyan).Println("🧠 Planner Defaults")
-	table := tablewriter.NewWriter(os.Stdout)
-	table.SetAutoWrapText(false)
-	table.SetHeader([]string{"Max Tokens", "Max Convo Tokens"})
-	table.Append([]string{
-		fmt.Sprintf("%d", modelPack.Planner.GetFinalLargeContextFallback().BaseModelConfig.MaxTokens),
-		fmt.Sprintf("%d", modelPack.Planner.MaxConvoTokens),
-	})
-	table.Render()
-	fmt.Println()
-
-	color.New(color.Bold, term.ColorHiCyan).Println("⚙️  Planner Overrides")
-	table = tablewriter.NewWriter(os.Stdout)
-	table.SetAutoWrapText(false)
-	table.SetHeader([]string{"Name", "Value"})
-	if settings.ModelOverrides.MaxTokens == nil {
-		table.Append([]string{"Max Tokens", "no override"})
-	} else {
-		table.Append([]string{"Max Tokens", fmt.Sprintf("%d", *settings.ModelOverrides.MaxTokens)})
+	if allProperties {
+		color.New(color.Bold, term.ColorHiCyan).Println("🧠 Planner Defaults")
+		table := tablewriter.NewWriter(os.Stdout)
+		table.SetAutoWrapText(false)
+		table.SetHeader([]string{"Max Tokens", "Max Convo Tokens"})
+		table.Append([]string{
+			fmt.Sprintf("%d", modelPack.Planner.GetFinalLargeContextFallback().GetSharedBaseConfig(settings).MaxTokens),
+			fmt.Sprintf("%d", modelPack.Planner.GetMaxConvoTokens(settings)),
+		})
+		table.Render()
+		fmt.Println()
 	}
-	if settings.ModelOverrides.MaxConvoTokens == nil {
-		table.Append([]string{"Max Convo Tokens", "no override"})
-	} else {
-		table.Append([]string{"Max Convo Tokens", fmt.Sprintf("%d", *settings.ModelOverrides.MaxConvoTokens)})
-	}
-	table.Render()
-	fmt.Println()
 }
 
-func renderModelPack(modelPack *shared.ModelPack) {
+func renderModelPack(modelPack *shared.ModelPack, customModelsById map[shared.ModelId]*shared.CustomModel, allProperties bool) {
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetAutoFormatHeaders(false)
 	table.SetAutoWrapText(true)
@@ -537,25 +394,47 @@ func renderModelPack(modelPack *shared.ModelPack) {
 	color.New(color.Bold, term.ColorHiCyan).Println("🤖 Models")
 	table = tablewriter.NewWriter(os.Stdout)
 	table.SetAutoWrapText(false)
-	table.SetHeader([]string{"Role", "Provider", "Model", "Temperature", "Top P", "Max Input"})
-	table.SetColumnAlignment([]int{
-		tablewriter.ALIGN_LEFT,  // Role
-		tablewriter.ALIGN_LEFT,  // Provider
-		tablewriter.ALIGN_LEFT,  // Model
-		tablewriter.ALIGN_RIGHT, // Temperature
-		tablewriter.ALIGN_RIGHT, // Top P
-		tablewriter.ALIGN_RIGHT, // Max Input
-	})
+	cols := []string{
+		"Role",
+		"Model",
+	}
+	align := []int{
+		tablewriter.ALIGN_LEFT, // Role
+		tablewriter.ALIGN_LEFT, // Model
+	}
+	if allProperties {
+		cols = append(cols, []string{
+			"Temperature",
+			"Top P",
+			"Max Input",
+		}...)
+		align = append(align, []int{
+			tablewriter.ALIGN_RIGHT, // Temperature
+			tablewriter.ALIGN_RIGHT, // Top P
+			tablewriter.ALIGN_RIGHT, // Max Input
+		}...)
+	}
+	table.SetHeader(cols)
+	table.SetColumnAlignment(align)
 
 	anyRoleParamsDisabled := false
 
-	addModelRow := func(role string, config shared.ModelRoleConfig) {
+	var addModelRow func(role string, config shared.ModelRoleConfig, indent int)
+	addModelRow = func(role string, config shared.ModelRoleConfig, indent int) {
+		if indent > 0 {
+			role = "└─ " + role
+			for i := 0; i < indent-1; i++ {
+				role = " " + role
+			}
+		}
 
 		var temp float32
 		var topP float32
 		var disabled bool
 
-		if config.BaseModelConfig.RoleParamsDisabled {
+		sharedBaseConfig := config.GetSharedBaseConfigWithCustomModels(customModelsById)
+
+		if sharedBaseConfig.RoleParamsDisabled {
 			temp = 1
 			topP = 1
 			disabled = true
@@ -575,162 +454,159 @@ func renderModelPack(modelPack *shared.ModelPack) {
 			topPStr = "*" + topPStr
 		}
 
-		table.Append([]string{
+		row := []string{
 			role,
-			string(config.BaseModelConfig.Provider),
-			string(config.BaseModelConfig.ModelId),
-			tempStr,
-			topPStr,
-			fmt.Sprintf("%d 🪙", config.BaseModelConfig.MaxTokens-config.GetReservedOutputTokens()),
-		})
+			string(config.GetModelId()),
+		}
 
-		// Add large context and large output fallback(s) if present
-
-		if config.LargeContextFallback != nil {
-			if config.LargeContextFallback.BaseModelConfig.RoleParamsDisabled {
-				temp = 1
-				topP = 1
-				disabled = true
-				anyRoleParamsDisabled = true
-			} else {
-				temp = config.LargeContextFallback.Temperature
-				topP = config.LargeContextFallback.TopP
-			}
-
-			tempStr := fmt.Sprintf("%.1f", temp)
-			if disabled {
-				tempStr = "*" + tempStr
-			}
-
-			topPStr := fmt.Sprintf("%.1f", topP)
-			if disabled {
-				topPStr = "*" + topPStr
-			}
-
-			table.Append([]string{
-				"└─ large-context",
-				string(config.LargeContextFallback.BaseModelConfig.Provider),
-				string(config.LargeContextFallback.BaseModelConfig.ModelId),
+		if allProperties {
+			row = append(row, []string{
 				tempStr,
 				topPStr,
-				fmt.Sprintf("%d 🪙", config.LargeContextFallback.BaseModelConfig.MaxTokens-config.LargeContextFallback.GetReservedOutputTokens()),
-			})
+				fmt.Sprintf("%d 🪙", sharedBaseConfig.MaxTokens-config.GetReservedOutputTokens(customModelsById)),
+			}...)
+		}
+		table.Append(row)
+
+		// Add large context and large output fallback(s) if present
+		if config.LargeContextFallback != nil {
+			addModelRow("large-context", *config.LargeContextFallback, indent+1)
 		}
 
 		if config.LargeOutputFallback != nil {
-			if config.LargeOutputFallback.BaseModelConfig.RoleParamsDisabled {
-				temp = 1
-				topP = 1
-				disabled = true
-				anyRoleParamsDisabled = true
-			} else {
-				temp = config.LargeOutputFallback.Temperature
-				topP = config.LargeOutputFallback.TopP
-			}
+			addModelRow("large-output", *config.LargeOutputFallback, indent+1)
+		}
 
-			tempStr := fmt.Sprintf("%.1f", temp)
-			if disabled {
-				tempStr = "*" + tempStr
-			}
+		if config.StrongModel != nil {
+			addModelRow("strong", *config.StrongModel, indent+1)
+		}
 
-			topPStr := fmt.Sprintf("%.1f", topP)
-			if disabled {
-				topPStr = "*" + topPStr
-			}
-
-			table.Append([]string{
-				"└─ large-output",
-				string(config.LargeOutputFallback.BaseModelConfig.Provider),
-				string(config.LargeOutputFallback.BaseModelConfig.ModelId),
-				tempStr,
-				topPStr,
-				fmt.Sprintf("%d 🪙", config.LargeOutputFallback.BaseModelConfig.MaxTokens-config.LargeOutputFallback.GetReservedOutputTokens()),
-			})
+		if config.ErrorFallback != nil {
+			addModelRow("error", *config.ErrorFallback, indent+1)
 		}
 	}
 
-	var temp float32
-	var topP float32
-	var disabled bool
+	addModelRow(string(shared.ModelRolePlanner), modelPack.Planner.ModelRoleConfig, 0)
 
-	if modelPack.Planner.BaseModelConfig.RoleParamsDisabled {
-		temp = 1
-		topP = 1
-		disabled = true
-		anyRoleParamsDisabled = true
-	} else {
-		temp = modelPack.Planner.Temperature
-		topP = modelPack.Planner.TopP
-	}
-
-	tempStr := fmt.Sprintf("%.1f", temp)
-	if disabled {
-		tempStr = "*" + tempStr
-	}
-
-	topPStr := fmt.Sprintf("%.1f", topP)
-	if disabled {
-		topPStr = "*" + topPStr
-	}
-
-	// Handle planner separately since it has a different fallback structure
-	table.Append([]string{
-		string(shared.ModelRolePlanner),
-		string(modelPack.Planner.BaseModelConfig.Provider),
-		string(modelPack.Planner.BaseModelConfig.ModelId),
-		tempStr,
-		topPStr,
-		fmt.Sprintf("%d 🪙", modelPack.Planner.BaseModelConfig.MaxTokens-modelPack.Planner.GetReservedOutputTokens()),
-	})
-	if modelPack.Planner.LargeContextFallback != nil {
-		var temp float32
-		var topP float32
-		var disabled bool
-
-		if modelPack.Planner.LargeContextFallback.BaseModelConfig.RoleParamsDisabled {
-			temp = 1
-			topP = 1
-			disabled = true
-			anyRoleParamsDisabled = true
-		} else {
-			temp = modelPack.Planner.LargeContextFallback.Temperature
-			topP = modelPack.Planner.LargeContextFallback.TopP
-		}
-
-		tempStr := fmt.Sprintf("%.1f", temp)
-		if disabled {
-			tempStr = "*" + tempStr
-		}
-
-		topPStr := fmt.Sprintf("%.1f", topP)
-		if disabled {
-			topPStr = "*" + topPStr
-		}
-
-		table.Append([]string{
-			"└─ large-context",
-			string(modelPack.Planner.LargeContextFallback.BaseModelConfig.Provider),
-			string(modelPack.Planner.LargeContextFallback.BaseModelConfig.ModelId),
-			tempStr,
-			topPStr,
-			fmt.Sprintf("%d 🪙", modelPack.Planner.LargeContextFallback.BaseModelConfig.MaxTokens-modelPack.Planner.LargeContextFallback.GetReservedOutputTokens()),
-		})
-	}
-
-	addModelRow(string(shared.ModelRoleArchitect), modelPack.GetArchitect())
-	addModelRow(string(shared.ModelRoleCoder), modelPack.GetCoder())
-	addModelRow(string(shared.ModelRolePlanSummary), modelPack.PlanSummary)
-	addModelRow(string(shared.ModelRoleBuilder), modelPack.Builder)
-	addModelRow(string(shared.ModelRoleWholeFileBuilder), modelPack.GetWholeFileBuilder())
-	addModelRow(string(shared.ModelRoleName), modelPack.Namer)
-	addModelRow(string(shared.ModelRoleCommitMsg), modelPack.CommitMsg)
-	addModelRow(string(shared.ModelRoleExecStatus), modelPack.ExecStatus)
+	addModelRow(string(shared.ModelRoleArchitect), modelPack.GetArchitect(), 0)
+	addModelRow(string(shared.ModelRoleCoder), modelPack.GetCoder(), 0)
+	addModelRow(string(shared.ModelRolePlanSummary), modelPack.PlanSummary, 0)
+	addModelRow(string(shared.ModelRoleBuilder), modelPack.Builder, 0)
+	addModelRow(string(shared.ModelRoleWholeFileBuilder), modelPack.GetWholeFileBuilder(), 0)
+	addModelRow(string(shared.ModelRoleName), modelPack.Namer, 0)
+	addModelRow(string(shared.ModelRoleCommitMsg), modelPack.CommitMsg, 0)
+	addModelRow(string(shared.ModelRoleExecStatus), modelPack.ExecStatus, 0)
 	table.Render()
 
-	if anyRoleParamsDisabled {
+	if anyRoleParamsDisabled && allProperties {
 		fmt.Println("* these models do not support changing temperature or top p")
 	}
 
 	fmt.Println()
 
+}
+
+func customModelsNotImplemented(cmd *cobra.Command, args []string) {
+	color.New(color.Bold, color.FgHiRed).Println("⛔️ Not implemented")
+	fmt.Println()
+	fmt.Println("Use " + color.New(color.BgCyan, color.FgHiWhite).Sprint(" plandex models custom ") + " to manage custom models, providers, and model packs")
+	os.Exit(1)
+}
+
+func getExampleTemplate(isCloud, isCloudIntegratedModels bool) shared.ClientModelsInput {
+	exampleProviderName := "togetherai"
+
+	var customProviders []*shared.CustomProvider
+	usesProviders := []shared.BaseModelUsesProvider{}
+	if !isCloud {
+		customProviders = append(customProviders, &shared.CustomProvider{
+			Name:         exampleProviderName,
+			BaseUrl:      "https://api.together.xyz/v1",
+			ApiKeyEnvVar: "TOGETHER_API_KEY",
+		})
+
+		usesProviders = append(usesProviders, shared.BaseModelUsesProvider{
+			Provider:       shared.ModelProviderCustom,
+			CustomProvider: &exampleProviderName,
+			ModelName:      "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
+		})
+	}
+	usesProviders = append(usesProviders, shared.BaseModelUsesProvider{
+		Provider:  shared.ModelProviderOpenRouter,
+		ModelName: "meta-llama/llama-4-maverick",
+	})
+
+	var customModels []*shared.CustomModel
+	if !isCloudIntegratedModels {
+		customModels = []*shared.CustomModel{
+			{
+				ModelId:     shared.ModelId("meta-llama/llama-4-maverick"),
+				Publisher:   shared.ModelPublisher("meta-llama"),
+				Description: "Meta Llama 4 Maverick",
+
+				BaseModelShared: shared.BaseModelShared{
+					DefaultMaxConvoTokens: 75000,
+					MaxTokens:             1048576,
+					MaxOutputTokens:       16000,
+					ReservedOutputTokens:  16000,
+					ModelCompatibility:    shared.FullCompatibility,
+					PreferredOutputFormat: shared.ModelOutputFormatXml,
+				},
+
+				Providers: usesProviders,
+			},
+		}
+	}
+
+	lightModelId := "meta-llama/llama-4-maverick"
+	if len(customModels) == 0 {
+		lightModelId = "mistral/devstral-small"
+	}
+
+	return shared.ClientModelsInput{
+		SchemaUrl:       shared.SchemaUrlInputConfig,
+		CustomProviders: customProviders,
+		CustomModels:    customModels,
+		CustomModelPacks: []*shared.ClientModelPackSchema{
+			{
+				Name:        "example-model-pack",
+				Description: "Example model pack",
+				ClientModelPackSchemaRoles: shared.ClientModelPackSchemaRoles{
+					Planner:   "deepseek/r1",
+					Architect: "deepseek/r1",
+					Coder: &shared.ModelRoleConfigSchema{
+						ModelId: "deepseek/v3",
+						LargeContextFallback: &shared.ModelRoleConfigSchema{
+							ModelId: "google/gemini-2.5-pro",
+						},
+						ErrorFallback: &shared.ModelRoleConfigSchema{
+							ModelId: "deepseek/r1-hidden",
+						},
+					},
+					PlanSummary: lightModelId,
+					Builder: shared.ModelRoleConfigSchema{
+						ModelId: "deepseek/r1-hidden",
+						StrongModel: &shared.ModelRoleConfigSchema{
+							ModelId: "openai/o3-medium",
+						},
+					},
+					WholeFileBuilder: shared.ModelRoleConfigSchema{
+						ModelId: "deepseek/r1-hidden",
+						LargeContextFallback: &shared.ModelRoleConfigSchema{
+							ModelId: "google/gemini-2.5-pro",
+							LargeOutputFallback: &shared.ModelRoleConfigSchema{
+								ModelId: "openai/o3-low",
+							},
+						},
+						LargeOutputFallback: &shared.ModelRoleConfigSchema{
+							ModelId: "openai/o3-low",
+						},
+					},
+					ExecStatus: "deepseek/r1-hidden",
+					Namer:      lightModelId,
+					CommitMsg:  lightModelId,
+				},
+			},
+		},
+	}
 }

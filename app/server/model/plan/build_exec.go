@@ -16,18 +16,29 @@ import (
 	shared "plandex-shared"
 )
 
-func Build(
-	clients map[string]model.ClientInfo,
-	plan *db.Plan,
-	branch string,
-	auth *types.ServerAuth,
-	sessionId string,
-) (int, error) {
+type BuildParams struct {
+	Clients   map[string]model.ClientInfo
+	AuthVars  map[string]string
+	Plan      *db.Plan
+	Branch    string
+	Auth      *types.ServerAuth
+	SessionId string
+}
+
+func Build(params BuildParams) (int, error) {
+	clients := params.Clients
+	authVars := params.AuthVars
+	plan := params.Plan
+	branch := params.Branch
+	auth := params.Auth
+	sessionId := params.SessionId
+
 	log.Printf("Build: Called with plan ID %s on branch %s\n", plan.Id, branch)
 	log.Println("Build: Starting Build operation")
 
 	state := activeBuildStreamState{
 		clients:       clients,
+		authVars:      authVars,
 		auth:          auth,
 		currentOrgId:  auth.OrgId,
 		currentUserId: auth.User.Id,

@@ -25,7 +25,8 @@ func (state *activeTellStreamState) genPlanDescription() (*db.ConvoMessageDescri
 	branch := state.branch
 	settings := state.settings
 	clients := state.clients
-	config := settings.ModelPack.CommitMsg
+	authVars := state.authVars
+	config := settings.GetModelPack().CommitMsg
 
 	activePlan := GetActivePlan(planId, branch)
 	if activePlan == nil {
@@ -38,11 +39,13 @@ func (state *activeTellStreamState) genPlanDescription() (*db.ConvoMessageDescri
 		}
 	}
 
+	baseModelConfig := config.GetBaseModelConfig(authVars, settings)
+
 	var sysPrompt string
 	var tools []openai.Tool
 	var toolChoice *openai.ToolChoice
 
-	if config.BaseModelConfig.PreferredModelOutputFormat == shared.ModelOutputFormatXml {
+	if baseModelConfig.PreferredOutputFormat == shared.ModelOutputFormatXml {
 		sysPrompt = prompts.SysDescribeXml
 	} else {
 		sysPrompt = prompts.SysDescribe
@@ -85,6 +88,7 @@ func (state *activeTellStreamState) genPlanDescription() (*db.ConvoMessageDescri
 	reqParams := model.ModelRequestParams{
 		Clients:        clients,
 		Auth:           auth,
+		AuthVars:       authVars,
 		Plan:           plan,
 		ModelConfig:    &config,
 		Purpose:        "Response summary",
@@ -92,6 +96,7 @@ func (state *activeTellStreamState) genPlanDescription() (*db.ConvoMessageDescri
 		ModelStreamId:  state.modelStreamId,
 		ConvoMessageId: state.replyId,
 		SessionId:      activePlan.SessionId,
+		Settings:       settings,
 	}
 
 	if tools != nil {
@@ -119,7 +124,7 @@ func (state *activeTellStreamState) genPlanDescription() (*db.ConvoMessageDescri
 
 	var commitMsg string
 
-	if config.BaseModelConfig.PreferredModelOutputFormat == shared.ModelOutputFormatXml {
+	if baseModelConfig.PreferredOutputFormat == shared.ModelOutputFormatXml {
 		commitMsg = utils.GetXMLContent(content, "commitMsg")
 		if commitMsg == "" {
 			go notify.NotifyErr(notify.SeverityError, fmt.Errorf("no commitMsg tag found in XML response"))
@@ -166,8 +171,28 @@ func (state *activeTellStreamState) genPlanDescription() (*db.ConvoMessageDescri
 	}, nil
 }
 
-func GenCommitMsgForPendingResults(auth *types.ServerAuth, plan *db.Plan, clients map[string]model.ClientInfo, settings *shared.PlanSettings, current *shared.CurrentPlanState, sessionId string, ctx context.Context) (string, error) {
-	config := settings.ModelPack.CommitMsg
+type GenCommitMsgForPendingResultsParams struct {
+	Auth      *types.ServerAuth
+	Plan      *db.Plan
+	Settings  *shared.PlanSettings
+	Current   *shared.CurrentPlanState
+	SessionId string
+	Ctx       context.Context
+	Clients   map[string]model.ClientInfo
+	AuthVars  map[string]string
+}
+
+func GenCommitMsgForPendingResults(params GenCommitMsgForPendingResultsParams) (string, error) {
+	auth := params.Auth
+	plan := params.Plan
+	settings := params.Settings
+	current := params.Current
+	sessionId := params.SessionId
+	ctx := params.Ctx
+	clients := params.Clients
+	authVars := params.AuthVars
+
+	config := settings.GetModelPack().CommitMsg
 
 	s := ""
 
@@ -208,12 +233,14 @@ func GenCommitMsgForPendingResults(auth *types.ServerAuth, plan *db.Plan, client
 
 	modelRes, err := model.ModelRequest(ctx, model.ModelRequestParams{
 		Clients:     clients,
+		AuthVars:    authVars,
 		Auth:        auth,
 		Plan:        plan,
 		ModelConfig: &config,
 		Purpose:     "Commit message",
 		Messages:    messages,
 		SessionId:   sessionId,
+		Settings:    settings,
 	})
 
 	if err != nil {

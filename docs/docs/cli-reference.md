@@ -67,7 +67,12 @@ The REPL has a few convenient flags you can use to start it with different modes
     --strong       Strong pack (more capable models, higher cost and slower)
     --cheap        Cheap pack (less capable models, lower cost and faster)
     --oss          Open source pack (open source models)
-    --gemini-preview   Gemini preview pack (Gemini 2.5 Pro Preview for planning and coding, default models for other roles)
+    
+    --gemini-planner       Gemini pack (Gemini 2.5 Pro for planning, default models for other roles)
+    --o3-planner           OpenAI o3-medium for planning, default models for other roles
+    --r1-planner           DeepSeek R1 for planning, default models for other roles
+    --perplexity-planner   Perplexity for planning, default models for other roles
+    --opus-planner         Anthropic Opus 4 for planning, default models for other roles
 ```
 
 All commands listed below can be run in the REPL by prefixing them with a backslash (`\`), e.g. `\new`.
@@ -107,7 +112,15 @@ plandex new -n new-plan # with name
 
 `--oss`: Start the plan with the open source model pack.
 
-`--gemini-exp`: Start the plan with the Gemini experimental model pack.
+`--gemini-planner`: Start the plan with the Gemini planner model pack.
+
+`--o3-planner`: Start the plan with the OpenAI o3-medium planner model pack.
+
+`--r1-planner`: Start the plan with the DeepSeek R1 planner model pack.
+
+`--perplexity-planner`: Start the plan with the Perplexity planner model pack.
+
+`--opus-planner`: Start the plan with the Anthropic Opus 4 planner model pack.
 
 ### plans
 
@@ -309,6 +322,8 @@ pdx t # alias
 
 `--auto-exec`: Automatically execute commands after successful apply without confirmation. Defaults to config value `auto-exec`.
 
+`--skip-menu`: Skip interactive menu when response finishes and changes are pending. Defaults to config value `skip-changes-menu`.
+
 `--debug`: Automatically execute and debug failing commands (optionally specify number of tries—default is 5). Defaults to config values of `auto-debug` and `auto-debug-tries`.
 
 `--apply/-a`: Automatically apply changes (and confirm context updates). Defaults to config value `auto-apply`.
@@ -343,6 +358,8 @@ pdx c # alias
 
 `--auto-exec`: Automatically execute commands after successful apply without confirmation. Defaults to config value `auto-exec`.
 
+`--skip-menu`: Skip interactive menu when response finishes and changes are pending. Defaults to config value `skip-changes-menu`.
+
 `--debug`: Automatically execute and debug failing commands (optionally specify number of tries—default is 5). Defaults to config values of `auto-debug` and `auto-debug-tries`.
 
 `--apply/-a`: Automatically apply changes (and confirm context updates). Defaults to config value `auto-apply`.
@@ -371,6 +388,8 @@ pdx b # alias
 `--no-exec`: Don't execute commands after successful apply. Defaults to opposite of config value `can-exec`.
 
 `--auto-exec`: Automatically execute commands after successful apply without confirmation. Defaults to config value `auto-exec`.
+
+`--skip-menu`: Skip interactive menu when response finishes and changes are pending. Defaults to config value `skip-changes-menu`.
 
 `--debug`: Automatically execute and debug failing commands (optionally specify number of tries—default is 5). Defaults to config values of `auto-debug` and `auto-debug-tries`.
 
@@ -532,9 +551,12 @@ Checkout or create a branch.
 ```bash
 plandex checkout # select from a list of branches or prompt to create a new branch
 plandex checkout some-branch # checkout by name or create a new branch with that name
+plandex checkout some-branch -y # checkout by name or create a new branch with that name, auto-confirming branch creation
 
 pdx co # alias
 ```
+
+`--yes/-y`: Auto-confirm creating a new branch if it doesn't exist.
 
 ### delete-branch
 
@@ -667,6 +689,28 @@ Show org-wide default models and model settings for new plans.
 plandex models default
 ```
 
+### models custom
+
+Manage custom models, providers, and model packs via JSON file.
+
+```bash
+plandex models custom
+plandex models custom --save # save changes from the default custom-models.json file to the server
+plandex models custom --file /path/to/models.json # import custom models/providers/model-packs from a non-default JSON file
+```
+
+`--save`: Save changes from the JSON file to the server.
+
+`--file/-f`: Path to non-default custom models JSON file.
+
+Without `--save`, this command will:
+
+- Create an example models file if none exists, or sync current server state to the file
+- Open the file in your configured editor
+- Prompt you to save changes when you return
+
+With `--save`, it will skip opening the editor and sync changes from the JSON file to the server.
+
 ### models available
 
 Show available models.
@@ -678,94 +722,81 @@ plandex models available --custom # show available custom models only
 
 `--custom`: Show available custom models only.
 
+### providers
+
+Show all available model providers.
+
+```bash
+plandex providers
+plandex providers --custom # show custom providers only (not supported on Plandex Cloud)
+```
+
+`--custom/-c`: Show custom providers only (not supported on Plandex Cloud).
+
 ### set-model
 
 Update current plan models or model settings.
 
 ```bash
-plandex set-model # select from a list of models and settings
-plandex set-model planner openai/gpt-4 # set the model for a role
-plandex set-model gpt-4-turbo-latest # set the current plan's model pack by name (sets all model roles at once—see `model-packs` below)
-plandex set-model builder temperature 0.1 # set a model setting for a role
-plandex set-model max-tokens 4000 # set the planner model overall token limit to 4000
-plandex set-model max-convo-tokens 20000  # set how large the conversation can grow before Plandex starts using summaries
+plandex set-model # select from a list of model packs or edit via JSON
+plandex set-model daily # set model pack by name
+plandex set-model --json # edit plan's model settings via JSON file at default path
+plandex set-model --save # save changes from the plan's model settings JSON file to the server
+plandex set-model --json --file /path/to/settings.json # set plan's model settings from a JSON file at a non-default path
 ```
 
-With no arguments, Plandex prompts you to select from a list of models and settings.
+`--json`: Edit plan's model settings via JSON file at default path.
 
-With arguments, can take one of the following forms:
+`--save`: Save changes from the plan's model settings JSON file to the server.
 
-- `plandex set-model [role] [model]`: Set the model for a role.
-- `plandex set-model [model-pack]`: Set the current plan's model pack by name.
-- `plandex set-model [role] [setting] [value]`: Set a model setting for a role.
-- `plandex set-model [setting] [value]`: Set a model setting for the current plan.
+`--file`: Set plan's model settings from a JSON file at a non-default path.
 
-Models are specified as `provider/model-name`, e.g. `openai/gpt-4`, `openrouter/anthropic/claude-opus-3`, `together/mistralai/Mixtral-8x22B-Instruct-v0.1`, etc.
+With no arguments, Plandex prompts you to either select a model pack or edit settings via JSON.
 
-See all the model roles [here](./models/roles.md).
+When using JSON mode without `--save`, Plandex will:
 
-Model role settings:
+- Write current settings to a JSON file
+- Open it in your configured editor
+- Apply the changes when you save and return
 
-- `temperature`: Higher temperature means more randomness, which can produce more creativity but also more errors.
-- `top-p`: Top-p sampling is a way to prevent the model from generating improbable text by only considering the most likely tokens.
+With `--save`, it will skip opening the editor and sync changes from the JSON file to the server.
 
-Plan settings:
+Model pack shortcuts are still available:
 
-- `max-tokens`: The overall token limit for the planner model.
-- `max-convo-tokens`: How large the conversation can grow before Plandex starts using summaries.
-- `reserved-output-tokens`: The number of tokens reserved for output from the model.
+```bash
+plandex set-model daily
+plandex set-model reasoning
+plandex set-model strong
+plandex set-model cheap
+plandex set-model oss
+plandex set-model gemini
+```
 
 ### set-model default
 
 Update org-wide default model settings for new plans.
 
 ```bash
-plandex set-model default # select from a list of models and settings
-plandex set-model default planner openai/gpt-4 # set the model for a role
-# etc. — same options as `set-model` above
+plandex set-model default # select from a list of model packs or edit via JSON
+plandex set-model default daily # set default model pack by name
+plandex set-model default --json # edit default settings via JSON file at default path
+plandex set-model default --save # save changes from the default model settings JSON file to the server
+plandex set-model default --json --file /path/to/settings.json # set default model settings from a JSON file at a non-default path
 ```
 
 Works exactly the same as `set-model` above, but sets the default model settings for all new plans instead of only the current plan.
-
-### models add
-
-Add a custom model.
-
-```bash
-plandex models add
-```
-
-Plandex will prompt you for all required information to add a custom model.
-
-### models delete
-
-Delete a custom model.
-
-```bash
-plandex models delete # select from a list of custom models
-plandex models delete some-model # by name
-plandex models delete 4 # by index in `plandex models available --custom`
-```
 
 ### model-packs
 
 Show all available model packs.
 
 ```bash
-plandex model-packs
+plandex model-packs # list built-in and custom model packs
+plandex model-packs --custom # list custom model packs only
 ```
 
 `--custom`: Show available custom (user-created) model packs only.
 
-### model-packs create
-
-Create a new custom model pack.
-
-```bash
-plandex model-packs create
-```
-
-Plandex will prompt you for all required information to create a custom model pack.
 
 ### model-packs show
 
@@ -774,25 +805,6 @@ Show a built-in or custom model pack's settings.
 ```bash
 plandex model-packs show # select from a list of built-in and custom model packs
 plandex model-packs show some-model-pack # by name
-```
-
-### model-packs update
-
-Update a custom model pack's settings.
-
-```bash
-plandex model-packs update # select from a list of custom model packs
-plandex model-packs update some-model-pack # by name
-```
-
-### model-packs delete
-
-Delete a custom model pack.
-
-```bash
-plandex model-packs delete
-plandex model-packs delete some-model-pack # by name
-plandex model-packs delete 4 # by index in `plandex model-packs --custom`
 ```
 
 ## Account Management

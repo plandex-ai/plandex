@@ -219,7 +219,7 @@ func (state *activeTellStreamState) storeOnFinished(params storeOnFinishedParams
 		active.StreamDoneCh <- &shared.ApiError{
 			Type:   shared.ApiErrorTypeOther,
 			Status: http.StatusInternalServerError,
-			Msg:    "Error storing on finished",
+			Msg:    fmt.Sprintf("Error storing on finished: %v", err),
 		}
 		return storeOnFinishedResult{
 			handleStreamFinishedResult: handleStreamFinishedResult{

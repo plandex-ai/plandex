@@ -15,6 +15,7 @@ type activeTellStreamState struct {
 	activePlan            *types.ActivePlan
 	modelStreamId         string
 	clients               map[string]model.ClientInfo
+	authVars              map[string]string
 	req                   *shared.TellPlanRequest
 	auth                  *types.ServerAuth
 	currentOrgId          string
@@ -52,16 +53,18 @@ type activeTellStreamState struct {
 	firstTokenAt     time.Time
 	originalReq      *types.ExtendedChatCompletionRequest
 	modelConfig      *shared.ModelRoleConfig
+	baseModelConfig  *shared.BaseModelConfig
 	fallbackRes      shared.FallbackResult
 
 	skipConvoMessages map[string]bool
 
 	manualStop []string
 
-	numErrorRetry     int
-	numFallbackRetry  int
-	modelErr          *shared.ModelError
-	noCacheSupportErr bool
+	numErrorRetry       int
+	numFallbackRetry    int
+	modelErr            *shared.ModelError
+	noCacheSupportErr   bool
+	didProviderFallback bool
 }
 
 type chunkProcessor struct {

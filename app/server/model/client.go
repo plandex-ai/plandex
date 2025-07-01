@@ -17,6 +17,7 @@ import (
 
 	shared "plandex-shared"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/sashabaranov/go-openai"
 )
 
@@ -35,42 +36,43 @@ const (
 var httpClient = &http.Client{}
 
 type ClientInfo struct {
-	Client   *openai.Client
-	ApiKey   string
-	OrgId    string
-	Endpoint string
+	Client         *openai.Client
+	ProviderConfig shared.ModelProviderConfigSchema
+	ApiKey         string
+	OpenAIOrgId    string
 }
 
-func InitClients(apiKeys map[string]string, endpointsByApiKeyEnvVar map[string]string, openAIEndpoint, orgId string) map[string]ClientInfo {
+func InitClients(authVars map[string]string, settings *shared.PlanSettings) map[string]ClientInfo {
 	clients := make(map[string]ClientInfo)
-	for key, apiKey := range apiKeys {
-		var clientEndpoint string
-		var clientOrgId string
-		if key == "OPENAI_API_KEY" {
-			clientEndpoint = openAIEndpoint
-			clientOrgId = orgId
-		} else {
-			clientEndpoint = endpointsByApiKeyEnvVar[key]
-		}
-		clients[key] = newClient(apiKey, clientEndpoint, clientOrgId)
+	providers := shared.GetProvidersForAuthVars(authVars, settings)
+
+	for _, provider := range providers {
+		clients[provider.ToComposite()] = newClient(provider, authVars)
 	}
+
 	return clients
 }
 
-func newClient(apiKey, endpoint, orgId string) ClientInfo {
-	config := openai.DefaultConfig(apiKey)
-	if endpoint != "" {
-		config.BaseURL = endpoint
+func newClient(providerConfig shared.ModelProviderConfigSchema, authVars map[string]string) ClientInfo {
+	var apiKey string
+	if providerConfig.ApiKeyEnvVar != "" {
+		apiKey = authVars[providerConfig.ApiKeyEnvVar]
 	}
-	if orgId != "" {
-		config.OrgID = orgId
+
+	config := openai.DefaultConfig(apiKey)
+	config.BaseURL = providerConfig.BaseUrl
+
+	var openAIOrgId string
+	if providerConfig.Provider == shared.ModelProviderOpenAI && authVars["OPENAI_ORG_ID"] != "" {
+		openAIOrgId = authVars["OPENAI_ORG_ID"]
+		config.OrgID = openAIOrgId
 	}
 
 	return ClientInfo{
-		Client:   openai.NewClientWithConfig(config),
-		ApiKey:   apiKey,
-		OrgId:    orgId,
-		Endpoint: endpoint,
+		Client:         openai.NewClientWithConfig(config),
+		ApiKey:         apiKey,
+		ProviderConfig: providerConfig,
+		OpenAIOrgId:    openAIOrgId,
 	}
 }
 
@@ -101,67 +103,67 @@ type JSONUnmarshaler struct{}
 
 func CreateChatCompletionStream(
 	clients map[string]ClientInfo,
+	authVars map[string]string,
 	modelConfig *shared.ModelRoleConfig,
+	settings *shared.PlanSettings,
 	ctx context.Context,
 	req types.ExtendedChatCompletionRequest,
 ) (*ExtendedChatCompletionStream, error) {
-	_, ok := clients[modelConfig.BaseModelConfig.ApiKeyEnvVar]
+	providerComposite := modelConfig.GetProviderComposite(authVars, settings)
+	_, ok := clients[providerComposite]
 	if !ok {
-		fmt.Printf("client not found for api key env var: %s", modelConfig.BaseModelConfig.ApiKeyEnvVar)
-		if modelConfig.MissingKeyFallback != nil {
-			fmt.Println("using missing key fallback")
-			return CreateChatCompletionStream(clients, modelConfig.MissingKeyFallback, ctx, req)
-		}
-		return nil, fmt.Errorf("client not found for api key env var: %s", modelConfig.BaseModelConfig.ApiKeyEnvVar)
+		return nil, fmt.Errorf("client not found for provider composite: %s", providerComposite)
 	}
 
-	resolveReq(&req, modelConfig)
+	baseModelConfig := modelConfig.GetBaseModelConfig(authVars, settings)
+
+	// ensure the model name is set correctly on fallbacks
+	req.Model = baseModelConfig.ModelName
+
+	resolveReq(&req, modelConfig, baseModelConfig, settings)
 
 	// choose the fastest provider by latency/throughput on openrouter
-	if modelConfig.BaseModelConfig.Provider == shared.ModelProviderOpenRouter {
-		req.Model += ":nitro"
-	}
-
-	if modelConfig.BaseModelConfig.ReasoningBudgetEnabled {
-		req.ReasoningConfig = &types.ReasoningConfig{
-			MaxTokens: modelConfig.BaseModelConfig.ReasoningBudget,
-			Exclude:   !modelConfig.BaseModelConfig.IncludeReasoning,
-		}
-	} else if modelConfig.BaseModelConfig.ReasoningEffortEnabled {
-		req.ReasoningConfig = &types.ReasoningConfig{
-			Effort:  shared.ReasoningEffort(modelConfig.BaseModelConfig.ReasoningEffort),
-			Exclude: !modelConfig.BaseModelConfig.IncludeReasoning,
-		}
-	} else if modelConfig.BaseModelConfig.IncludeReasoning {
-		req.ReasoningConfig = &types.ReasoningConfig{
-			Exclude: false,
+	if baseModelConfig.Provider == shared.ModelProviderOpenRouter {
+		if !strings.HasSuffix(string(req.Model), ":nitro") && !strings.HasSuffix(string(req.Model), ":free") && !strings.HasSuffix(string(req.Model), ":floor") {
+			req.Model += ":nitro"
 		}
 	}
 
-	return withStreamingRetries(ctx, func(numTotalRetry int, modelErr *shared.ModelError, stripCacheControl bool) (*ExtendedChatCompletionStream, shared.FallbackResult, error) {
-		fallbackRes := modelConfig.GetFallbackForModelError(numTotalRetry, modelErr)
+	if baseModelConfig.ReasoningBudget > 0 {
+		req.ReasoningConfig = &types.ReasoningConfig{
+			MaxTokens: baseModelConfig.ReasoningBudget,
+			Exclude:   !baseModelConfig.IncludeReasoning || baseModelConfig.HideReasoning,
+		}
+	} else if baseModelConfig.ReasoningEffortEnabled {
+		req.ReasoningConfig = &types.ReasoningConfig{
+			Effort:  shared.ReasoningEffort(baseModelConfig.ReasoningEffort),
+			Exclude: !baseModelConfig.IncludeReasoning || baseModelConfig.HideReasoning,
+		}
+	} else if baseModelConfig.IncludeReasoning {
+		req.ReasoningConfig = &types.ReasoningConfig{
+			Exclude: baseModelConfig.HideReasoning,
+		}
+	}
+
+	return withStreamingRetries(ctx, func(numTotalRetry int, didProviderFallback bool, modelErr *shared.ModelError) (*ExtendedChatCompletionStream, shared.FallbackResult, error) {
+		fallbackRes := modelConfig.GetFallbackForModelError(numTotalRetry, didProviderFallback, modelErr, authVars, settings)
 		resolvedModelConfig := fallbackRes.ModelRoleConfig
 
 		if resolvedModelConfig == nil {
 			return nil, fallbackRes, fmt.Errorf("model config is nil")
 		}
 
-		opClient, ok := clients[resolvedModelConfig.BaseModelConfig.ApiKeyEnvVar]
+		providerComposite := resolvedModelConfig.GetProviderComposite(authVars, settings)
+
+		baseModelConfig := resolvedModelConfig.GetBaseModelConfig(authVars, settings)
+
+		opClient, ok := clients[providerComposite]
 
 		if !ok {
-			if resolvedModelConfig.MissingKeyFallback != nil {
-				fmt.Println("using missing key fallback")
-				resolvedModelConfig = resolvedModelConfig.MissingKeyFallback
-				opClient, ok = clients[resolvedModelConfig.BaseModelConfig.ApiKeyEnvVar]
-				if !ok {
-					return nil, fallbackRes, fmt.Errorf("client not found for api key env var: %s", resolvedModelConfig.BaseModelConfig.ApiKeyEnvVar)
-				}
-			} else {
-				return nil, fallbackRes, fmt.Errorf("client not found for api key env var: %s", resolvedModelConfig.BaseModelConfig.ApiKeyEnvVar)
-			}
+			return nil, fallbackRes, fmt.Errorf("client not found for provider composite: %s", providerComposite)
 		}
 
-		if stripCacheControl {
+		if modelErr != nil && modelErr.Kind == shared.ErrCacheSupport {
 			for i := range req.Messages {
 				for j := range req.Messages[i].Content {
 					if req.Messages[i].Content[j].CacheControl != nil {
@@ -172,7 +174,18 @@ func CreateChatCompletionStream(
 		}
 
 		modelConfig = resolvedModelConfig
-		resp, err := createChatCompletionStreamExtended(resolvedModelConfig, opClient, resolvedModelConfig.BaseModelConfig.BaseUrl, ctx, req)
+
+		log.Println("createChatCompletionStreamExtended - modelConfig")
+		spew.Dump(map[string]interface{}{
+			"modelConfig.ModelId":      baseModelConfig.ModelId,
+			"modelConfig.ModelTag":     baseModelConfig.ModelTag,
+			"modelConfig.ModelName":    baseModelConfig.ModelName,
+			"modelConfig.Provider":     baseModelConfig.Provider,
+			"modelConfig.BaseUrl":      baseModelConfig.BaseUrl,
+			"modelConfig.ApiKeyEnvVar": baseModelConfig.ApiKeyEnvVar,
+		})
+
+		resp, err := createChatCompletionStreamExtended(resolvedModelConfig, opClient, authVars, settings, ctx, req)
 		return resp, fallbackRes, err
 	}, func(resp *ExtendedChatCompletionStream, err error) {})
 }
@@ -180,14 +193,84 @@ func CreateChatCompletionStream(
 func createChatCompletionStreamExtended(
 	modelConfig *shared.ModelRoleConfig,
 	client ClientInfo,
-	baseUrl string,
+	authVars map[string]string,
+	settings *shared.PlanSettings,
 	ctx context.Context,
 	extendedReq types.ExtendedChatCompletionRequest,
 ) (*ExtendedChatCompletionStream, error) {
+	baseModelConfig := modelConfig.GetBaseModelConfig(authVars, settings)
+
+	// ensure the model name is set correctly on fallbacks
+	extendedReq.Model = baseModelConfig.ModelName
+
 	var openaiReq *types.ExtendedOpenAIChatCompletionRequest
-	if modelConfig.BaseModelConfig.Provider == shared.ModelProviderOpenAI && !modelConfig.BaseModelConfig.UsesOpenAIResponsesAPI {
+	if baseModelConfig.Provider == shared.ModelProviderOpenAI {
 		openaiReq = extendedReq.ToOpenAI()
 		log.Println("Creating chat completion stream with direct OpenAI provider request")
+	}
+
+	switch baseModelConfig.Provider {
+	case shared.ModelProviderGoogleVertex:
+		if authVars["VERTEXAI_PROJECT"] != "" {
+			extendedReq.VertexProject = authVars["VERTEXAI_PROJECT"]
+		}
+		if authVars["VERTEXAI_LOCATION"] != "" {
+			extendedReq.VertexLocation = authVars["VERTEXAI_LOCATION"]
+		}
+		if authVars["GOOGLE_APPLICATION_CREDENTIALS"] != "" {
+			extendedReq.VertexCredentials = authVars["GOOGLE_APPLICATION_CREDENTIALS"]
+		}
+	case shared.ModelProviderAzureOpenAI:
+		if authVars["AZURE_API_BASE"] != "" {
+			extendedReq.LiteLLMApiBase = authVars["AZURE_API_BASE"]
+		}
+		if authVars["AZURE_API_VERSION"] != "" {
+			extendedReq.AzureApiVersion = authVars["AZURE_API_VERSION"]
+		}
+
+		if authVars["AZURE_DEPLOYMENTS_MAP"] != "" {
+			var azureDeploymentsMap map[string]string
+			err := json.Unmarshal([]byte(authVars["AZURE_DEPLOYMENTS_MAP"]), &azureDeploymentsMap)
+			if err != nil {
+				return nil, fmt.Errorf("error unmarshalling AZURE_DEPLOYMENTS_MAP: %w", err)
+			}
+			modelName := string(extendedReq.Model)
+			modelName = strings.ReplaceAll(modelName, "azure/", "")
+
+			deploymentName, ok := azureDeploymentsMap[modelName]
+			if ok {
+				log.Println("azure - deploymentName", deploymentName)
+				modelName = "azure/" + deploymentName
+				extendedReq.Model = shared.ModelName(modelName)
+			}
+		}
+
+		// azure uses 'reasoning_config' instead of 'reasoning' like direct openai api
+		if extendedReq.ReasoningConfig != nil {
+			extendedReq.AzureReasoningEffort = extendedReq.ReasoningConfig.Effort
+			extendedReq.ReasoningConfig = nil
+		}
+	case shared.ModelProviderAmazonBedrock:
+		if authVars["AWS_ACCESS_KEY_ID"] != "" {
+			extendedReq.BedrockAccessKeyId = authVars["AWS_ACCESS_KEY_ID"]
+		}
+		if authVars["AWS_SECRET_ACCESS_KEY"] != "" {
+			extendedReq.BedrockSecretAccessKey = authVars["AWS_SECRET_ACCESS_KEY"]
+		}
+		if authVars["AWS_SESSION_TOKEN"] != "" {
+			extendedReq.BedrockSessionToken = authVars["AWS_SESSION_TOKEN"]
+		}
+		if authVars["AWS_REGION"] != "" {
+			extendedReq.BedrockRegion = authVars["AWS_REGION"]
+		}
+		if authVars["AWS_INFERENCE_PROFILE_ARN"] != "" {
+			extendedReq.BedrockInferenceProfileArn = authVars["AWS_INFERENCE_PROFILE_ARN"]
+		}
+
+	case shared.ModelProviderOllama:
+		if os.Getenv("OLLAMA_BASE_URL") != "" {
+			extendedReq.LiteLLMApiBase = os.Getenv("OLLAMA_BASE_URL")
+		}
 	}
 
 	// Marshal the request body to JSON
@@ -205,12 +288,8 @@ func createChatCompletionStreamExtended(
 	// log.Println("request jsonBody", string(jsonBody))
 
 	// Create new request
-	var url string
-	if modelConfig.BaseModelConfig.UsesOpenAIResponsesAPI {
-		url = baseUrl + "/responses"
-	} else {
-		url = baseUrl + "/chat/completions"
-	}
+	baseUrl := baseModelConfig.BaseUrl
+	url := baseUrl + "/chat/completions"
 
 	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(jsonBody))
 	if err != nil {
@@ -222,9 +301,14 @@ func createChatCompletionStreamExtended(
 	req.Header.Set("Accept", "text/event-stream")
 	req.Header.Set("Cache-Control", "no-cache")
 	req.Header.Set("Connection", "keep-alive")
-	req.Header.Set("Authorization", "Bearer "+client.ApiKey)
-	if client.OrgId != "" {
-		req.Header.Set("OpenAI-Organization", client.OrgId)
+
+	// some providers send api key in the body, some in the header
+	// some use other auth methods and so don't have a simple api key
+	if client.ApiKey != "" {
+		req.Header.Set("Authorization", "Bearer "+client.ApiKey)
+	}
+	if client.OpenAIOrgId != "" {
+		req.Header.Set("OpenAI-Organization", client.OpenAIOrgId)
 	}
 
 	addOpenRouterHeaders(req)
@@ -371,9 +455,9 @@ func (stream *ExtendedChatCompletionStream) Close() error {
 	return stream.customReader.Close()
 }
 
-func resolveReq(req *types.ExtendedChatCompletionRequest, modelConfig *shared.ModelRoleConfig) {
+func resolveReq(req *types.ExtendedChatCompletionRequest, modelConfig *shared.ModelRoleConfig, baseModelConfig *shared.BaseModelConfig, settings *shared.PlanSettings) {
 	// if system prompt is disabled, change the role of the system message to user
-	if modelConfig.BaseModelConfig.SystemPromptDisabled {
+	if modelConfig.GetSharedBaseConfig(settings).SystemPromptDisabled {
 		log.Println("System prompt disabled - changing role of system message to user")
 		for i, msg := range req.Messages {
 			log.Println("Message role:", msg.Role)
@@ -388,10 +472,18 @@ func resolveReq(req *types.ExtendedChatCompletionRequest, modelConfig *shared.Mo
 		}
 	}
 
-	if modelConfig.BaseModelConfig.RoleParamsDisabled {
-		log.Println("Role params disabled - setting temperature and top p to 1")
-		req.Temperature = 1
-		req.TopP = 1
+	if modelConfig.GetSharedBaseConfig(settings).RoleParamsDisabled {
+		log.Println("Role params disabled - setting temperature and top p to 0")
+		req.Temperature = 0
+		req.TopP = 0
+	}
+
+	if baseModelConfig.Provider == shared.ModelProviderOllama {
+		// ollama doesn't support temperature or top p params
+		log.Println("Ollama - clearing temperature and top p")
+		req.Temperature = 0
+		req.TopP = 0
+
 	}
 }
 

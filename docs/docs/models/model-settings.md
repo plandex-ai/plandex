@@ -5,20 +5,15 @@ sidebar_label: Settings
 
 # Model Settings
 
-Plandex gives you a number of ways to control the models and models settings used in your plans. Changes to models and model settings are [version controlled](../core-concepts/version-control.md) and can be [branched](../core-concepts/branches.md).
+Plandex gives you a number of ways to control the models used in your plans. Changes to models are [version controlled](../core-concepts/version-control.md) and can be [branched](../core-concepts/branches.md).
 
 ## `models` and `set-model`
 
-You can see the current plan's models and model settings with the `models` command and change them with the `set-model` command.
+You can see the current plan's models with the `models` command and change them with the `set-model` command.
 
 ```bash
-plandex models # show the current AI models and model settings
-plandex models available # show all available models
-plandex set-model # select from a list of models, model packs, and settings
-plandex set-model planner openrouter/anthropic/claude-3.7-sonnet # set the main planner model to Claude Sonnet 3.7 from OpenRouter.ai
-plandex set-model builder temperature 0.1 # set the builder model's temperature to 0.1
-plandex set-model max-tokens 4000 # set the planner model overall token limit to 4000
-plandex set-model max-convo-tokens 20000  # set how large the conversation can grow before Plandex starts using summaries
+plandex models # show the current models
+plandex set-model # select a model pack or configure model settings in JSON
 ```
 
 ## Model Defaults 
@@ -26,43 +21,90 @@ plandex set-model max-convo-tokens 20000  # set how large the conversation can g
 `set-model` updates model settings for the current plan. If you want to change the default model settings for all new plans, use `set-model default`.
 
 ```bash
-plandex models default # show the default model settings
-plandex set-model default # select from a list of models and settings
-plandex set-model default planner openai/gpt-4o # set the default planner model to OpenAI gpt-4o
+plandex models default # show the default models for new plans
+plandex set-model default # select a default model pack for new plans or configure default model settings in JSON
 ```
 
-## Model Packs
+## Model Settings JSON
 
-Instead of changing models for each role one by one, model packs let you switch out all roles at once. It's the recommended way to manage models.
+If you select the 'edit JSON' option in either the `set-model` or `set-model default` commands, or you use the `--json` flag, you can edit the model settings in a JSON file in your preferred editor.
 
-You can list available model packs with `model-packs`:
+The models file lets you configure which model to use for each role, along with settings like temperature/top-p and fallback models. It uses a JSON schema, allowing most editors to provide autocomplete, validation, and inline documentation.
 
-```bash
-plandex model-packs # list all available model packs
+Model roles can either be a string (the model ID) or an object with model config.
+
+### Basic Example
+
+```json
+{
+  "$schema": "https://plandex.ai/schemas/model-pack-inline.schema.json",
+  "planner": "anthropic/claude-opus-4",
+  "coder": "anthropic/claude-sonnet-4",
+  "architect": "anthropic/claude-sonnet-4",
+  "summarizer": "anthropic/claude-3.5-haiku",
+  "builder": "anthropic/claude-sonnet-4",
+  "names": "anthropic/claude-3.5-haiku",
+  "commitMessages": "anthropic/claude-3.5-haiku",
+  "autoContinue": "anthropic/claude-3.5-haiku"
+}
 ```
 
-You can create your own model packs with `model-packs create`, list built-in and custom model packs with `model-packs`, show a specific model pack with `model-packs show`, update a model pack with `model-packs update`, and remove custom model packs with `model-packs delete`.
+### Advanced Example
 
-```bash
-plandex set-model # select from a list of model packs for the current plan
-plandex set-model default # select from a list of model packs to set as the default for all new plans
-plandex set-model anthropic-claude-3.5-sonnet-gpt-4o # set the current plan's model pack by name
-plandex set-model default Mixtral-8x22b/Mixtral-8x7b/gpt-4o # set the default model pack for all new plans
+You can also configure individual role settings and fallbacks with an object:
 
-plandex model-packs # list built-in and custom model packs
-plandex model-packs create # create a new custom model pack
-plandex model-packs --custom # list only custom model packs
-plandex model-packs show # show a specific model pack
-plandex model-packs update # update a model pack
-plandex model-packs delete # delete a custom model pack
+```json
+{
+  "$schema": "https://plandex.ai/schemas/model-pack-inline.schema.json",
+  "planner": {
+    "modelId": "anthropic/claude-opus-4",
+    "temperature": 0.7,
+    "topP": 0.9,
+    "largeContextFallback": "google/gemini-2.5-pro"
+  },
+  "coder": "anthropic/claude-sonnet-4",
+  "architect": "anthropic/claude-sonnet-4",
+  "summarizer": "anthropic/claude-3.5-haiku",
+  "builder": {
+    "modelId": "anthropic/claude-sonnet-4",
+    "errorFallback": "openai/gpt-4.1"
+  },
+  "wholeFileBuilder": {
+    "modelId": "anthropic/claude-sonnet-4",
+    "largeContextFallback": {
+      "modelId": "google/gemini-2.5-pro",
+      "largeOutputFallback": "openai/o4-mini-low"
+    }
+  },
+  "names": "anthropic/claude-3.5-haiku",
+  "commitMessages": "anthropic/claude-3.5-haiku",
+  "autoContinue": "anthropic/claude-3.5-haiku"
+}
 ```
 
-## Custom Models
+### Role Config
 
-Use `models add` to add a custom model and use any provider that is compatible with OpenAI, including OpenRouter.ai, Together.ai, Ollama, Replicate, and more.
+For each role, you can either use a simple string (the model ID) or a config object with these settings:
 
-```bash
-plandex models add # add a custom model
-plandex models available --custom # show all available custom models
-plandex models delete # delete a custom model
+- `modelId` - The model to use (required when using object form)
+- `temperature` - Controls randomness (0-2, role-specific defaults)
+- `topP` - Alternative randomness control (0-1)
+- `largeContextFallback` - Model to use when context is large
+- `largeOutputFallback` - Model to use when output needs to be large
+- `errorFallback` - Model to use if the primary model fails
+- `strongModel` - Stronger model for complex tasks
+
+When using a config object, all settings except `modelId` are optional.
+
+## Local Provider
+
+You can set the top-level `localProvider` key to `ollama` to use local models via [Ollama](https://ollama.com/):
+
+```json
+{
+  "$schema": "https://plandex.ai/schemas/model-pack-inline.schema.json",
+  "localProvider": "ollama",
+  "planner": "ollama/deepseek-r1:14b",
+  ...
+}
 ```

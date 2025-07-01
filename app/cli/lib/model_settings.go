@@ -1,204 +1,255 @@
 package lib
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"plandex-cli/api"
+	"plandex-cli/fs"
+	"plandex-cli/schema"
 	"plandex-cli/term"
-	"strings"
-
 	shared "plandex-shared"
 
 	"github.com/fatih/color"
 )
 
-const GoBack = "← Go back"
+var DefaultModelSettingsPath string
 
-func SelectModelForRole(customModels []*shared.AvailableModel, role shared.ModelRole, includeProviderGoBack bool) *shared.AvailableModel {
-	var providers []string
-	addedProviders := map[string]bool{}
+func init() {
+	DefaultModelSettingsPath = filepath.Join(fs.HomePlandexDir, "default-model-settings.json")
+}
 
-	builtInModels := shared.FilterCompatibleModels(shared.AvailableModels, role)
+func GetPlanModelSettingsPath(planId string) string {
+	return filepath.Join(fs.HomePlandexDir, planId, "model-settings.json")
+}
 
-	for _, m := range builtInModels {
-		var p string
-		if m.Provider == shared.ModelProviderCustom {
-			p = *m.CustomProvider
-		} else {
-			p = string(m.Provider)
-		}
+type ModelSettingsCheckLocalChangesResult struct {
+	HasLocalChanges           bool
+	LocalModelPackSchemaRoles *shared.ModelPackSchemaRoles
+}
 
-		if !addedProviders[p] {
-			providers = append(providers, p)
-			addedProviders[p] = true
-		}
+func ModelSettingsCheckLocalChanges(path string) (ModelSettingsCheckLocalChangesResult, error) {
+	hashPath := path + ".hash"
+
+	exists, err := fs.FileExists(path)
+	if err != nil {
+		return ModelSettingsCheckLocalChangesResult{}, fmt.Errorf("error checking model settings file: %v", err)
 	}
 
-	customModels = shared.FilterCompatibleModels(customModels, role)
-
-	for _, m := range customModels {
-		var p string
-		if m.Provider == shared.ModelProviderCustom {
-			p = *m.CustomProvider
-		} else {
-			p = string(m.Provider)
-		}
-
-		if !addedProviders[p] {
-			providers = append(providers, p)
-			addedProviders[p] = true
-		}
+	if !exists {
+		return ModelSettingsCheckLocalChangesResult{}, nil
 	}
 
-	for {
-		var opts []string
-		opts = append(opts, providers...)
-		if includeProviderGoBack {
-			opts = append(opts, GoBack)
-		}
-		provider, err := term.SelectFromList("Select a provider:", opts)
-		if err != nil {
-			if err.Error() == "interrupt" {
-				return nil
-			}
+	lastSavedHash, err := os.ReadFile(hashPath)
+	if err != nil && !os.IsNotExist(err) {
+		return ModelSettingsCheckLocalChangesResult{}, fmt.Errorf("error reading hash file: %v", err)
+	}
 
-			term.OutputErrorAndExit("Error selecting provider: %v", err)
-			return nil
-		}
+	localJsonData, err := os.ReadFile(path)
+	if err != nil {
+		return ModelSettingsCheckLocalChangesResult{}, fmt.Errorf("error reading JSON file: %v", err)
+	}
 
-		if provider == GoBack {
-			break
-		}
+	var clientModelPackSchemaRoles *shared.ClientModelPackSchemaRoles
+	err = json.Unmarshal(localJsonData, &clientModelPackSchemaRoles)
+	if err != nil {
+		return ModelSettingsCheckLocalChangesResult{}, fmt.Errorf("error unmarshalling JSON file: %v", err)
+	}
 
-		var selectableModels []*shared.AvailableModel
-		opts = []string{}
+	currentHash, err := clientModelPackSchemaRoles.ToModelPackSchemaRoles().Hash()
+	if err != nil {
+		return ModelSettingsCheckLocalChangesResult{}, fmt.Errorf("error hashing model pack: %v", err)
+	}
 
-		for _, m := range builtInModels {
-			var p string
-			if m.Provider == shared.ModelProviderCustom {
-				p = *m.CustomProvider
-			} else {
-				p = string(m.Provider)
-			}
+	modelPackSchemaRoles := clientModelPackSchemaRoles.ToModelPackSchemaRoles()
 
-			if p == provider {
-				label := fmt.Sprintf("%s | max %d 🪙", m.ModelString(), m.MaxTokens)
-				opts = append(opts, label)
-				selectableModels = append(selectableModels, m)
-			}
-		}
+	return ModelSettingsCheckLocalChangesResult{
+		HasLocalChanges:           currentHash != string(lastSavedHash),
+		LocalModelPackSchemaRoles: &modelPackSchemaRoles,
+	}, nil
+}
 
-		for _, m := range customModels {
-			var p string
-			if m.Provider == shared.ModelProviderCustom {
-				p = *m.CustomProvider
-			} else {
-				p = string(m.Provider)
-			}
+func WriteModelSettingsFile(path string, originalSettings *shared.PlanSettings) error {
+	err := os.MkdirAll(filepath.Dir(path), 0755)
+	if err != nil {
+		return fmt.Errorf("error creating directory: %v", err)
+	}
 
-			if p == provider {
-				label := fmt.Sprintf("%s → %s | max %d 🪙", p, m.ModelName, m.MaxTokens)
-				opts = append(opts, label)
-				selectableModels = append(selectableModels, m)
-			}
-		}
+	modelPackSchemaRoles := originalSettings.GetModelPack().ToModelPackSchema().ModelPackSchemaRoles
 
-		opts = append(opts, GoBack)
+	clientModelPackRoles := modelPackSchemaRoles.ToClientModelPackSchemaRoles()
 
-		selection, err := term.SelectFromList("Select a model:", opts)
+	bytes, err := json.MarshalIndent(clientModelPackRoles, "", "  ")
+	if err != nil {
+		return fmt.Errorf("error marshalling model pack: %v", err)
+	}
 
-		if err != nil {
-			if err.Error() == "interrupt" {
-				return nil
-			}
+	err = os.WriteFile(path, bytes, 0644)
+	if err != nil {
+		return fmt.Errorf("error writing JSON file: %v", err)
+	}
 
-			term.OutputErrorAndExit("Error selecting model: %v", err)
-			return nil
-		}
-
-		if selection == GoBack {
-			continue
-		}
-
-		var idx int
-		for i := range opts {
-			if opts[i] == selection {
-				idx = i
-				break
-			}
-		}
-
-		return selectableModels[idx]
-
+	err = SaveModelPackRolesHash(path, &modelPackSchemaRoles)
+	if err != nil {
+		return fmt.Errorf("error saving model pack roles hash: %v", err)
 	}
 
 	return nil
-
 }
 
-func MustVerifyApiKeys() map[string]string {
-	return mustVerifyApiKeys(false)
-}
+func SaveModelPackRolesHash(basePath string, serverModelPack *shared.ModelPackSchemaRoles) error {
+	hashPath := basePath + ".hash"
 
-func MustVerifyApiKeysSilent() map[string]string {
-	return mustVerifyApiKeys(true)
-}
-
-func mustVerifyApiKeys(silent bool) map[string]string {
-	if !silent {
-		term.StartSpinner("")
+	hash, err := serverModelPack.Hash()
+	if err != nil {
+		return fmt.Errorf("error hashing model pack: %v", err)
 	}
-	planSettings, apiErr := api.Client.GetSettings(CurrentPlanId, CurrentBranch)
-	if !silent {
+
+	err = os.WriteFile(hashPath, []byte(hash), 0644)
+	if err != nil {
+		return fmt.Errorf("error writing hash file: %v", err)
+	}
+
+	return nil
+}
+
+func ApplyModelSettings(path string, originalSettings *shared.PlanSettings) (*shared.PlanSettings, error) {
+	jsonData, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("error reading JSON file: %v", err)
+	}
+
+	settings, err := originalSettings.DeepCopy()
+	if err != nil {
+		return nil, fmt.Errorf("error copying settings: %v", err)
+	}
+
+	clientModelPackRoles, err := schema.ValidateModelPackInlineJSON(jsonData)
+	if err != nil {
 		term.StopSpinner()
-	}
-
-	if apiErr != nil {
-		term.OutputErrorAndExit("Error getting current settings: %v", apiErr)
-	}
-
-	requiredEnvVars := planSettings.GetRequiredEnvVars()
-
-	apiKeys := make(map[string]string)
-
-	missingAny := false
-	if len(requiredEnvVars.RequiresAll) > 0 {
-		for envVar := range requiredEnvVars.RequiresAll {
-			if os.Getenv(envVar) == "" {
-				fmt.Fprintln(os.Stderr, color.New(color.Bold, term.ColorHiRed).Sprintf("🚨 %s environment variable is not set.\n", envVar))
-				delete(requiredEnvVars.RequiresEither, envVar)
-				missingAny = true
-			} else {
-				apiKeys[envVar] = os.Getenv(envVar)
-			}
-		}
-	}
-
-	if len(requiredEnvVars.RequiresEither) > 0 {
-		vars := []string{}
-		for envVar := range requiredEnvVars.RequiresEither {
-			if os.Getenv(envVar) == "" {
-				vars = append(vars, envVar)
-			} else {
-				apiKeys[envVar] = os.Getenv(envVar)
-			}
-		}
-		if len(vars) > 1 {
-			s := "🚨 Either "
-			if len(vars) == 2 {
-				s += strings.Join(vars, " or ") + " must be set as an environment variable."
-			} else {
-				withoutLast := vars[:len(vars)-1]
-				s += strings.Join(withoutLast, ", ") + ", or " + vars[len(vars)-1] + " must be set as an environment variable."
-			}
-			fmt.Fprintln(os.Stderr, color.New(color.Bold, term.ColorHiRed).Sprint(s))
-			missingAny = true
-		}
-	}
-
-	if missingAny {
+		color.New(color.Bold, term.ColorHiRed).Println("🚨 Error validating JSON file")
+		fmt.Println(err.Error())
 		os.Exit(1)
 	}
+	modelPackRoles := clientModelPackRoles.ToModelPackSchemaRoles()
 
-	return apiKeys
+	modelPackSchema := shared.ModelPackSchema{
+		Name:                 "custom",
+		Description:          "Model pack with custom settings",
+		ModelPackSchemaRoles: modelPackRoles,
+	}
+	modelPack := modelPackSchema.ToModelPack()
+	settings.SetCustomModelPack(&modelPack)
+
+	err = SaveModelPackRolesHash(path, &modelPackRoles)
+	if err != nil {
+		return nil, fmt.Errorf("error saving model settings hash: %v", err)
+	}
+
+	return settings, nil
+}
+
+func SaveLatestPlanModelSettingsIfNeeded() (bool, error) {
+	path := GetPlanModelSettingsPath(CurrentPlanId)
+	jsonData, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, fmt.Errorf("error reading JSON file: %v", err)
+	}
+
+	var clientModelPackSchemaRoles *shared.ClientModelPackSchemaRoles
+	err = json.Unmarshal(jsonData, &clientModelPackSchemaRoles)
+	if err != nil {
+		return false, fmt.Errorf("error unmarshalling JSON file: %v", err)
+	}
+
+	modelPackSchemaRoles := clientModelPackSchemaRoles.ToModelPackSchemaRoles()
+
+	localHash, err := modelPackSchemaRoles.Hash()
+	if err != nil {
+		return false, fmt.Errorf("error hashing model pack: %v", err)
+	}
+
+	settings, apiErr := api.Client.GetSettings(CurrentPlanId, CurrentBranch)
+	if apiErr != nil {
+		return false, fmt.Errorf("error getting settings: %v", apiErr)
+	}
+
+	serverHash, err := settings.GetModelPack().ToModelPackSchema().ModelPackSchemaRoles.Hash()
+	if err != nil {
+		return false, fmt.Errorf("error hashing model pack: %v", err)
+	}
+
+	if localHash == serverHash {
+		return false, nil
+	}
+
+	err = WriteModelSettingsFile(path, settings)
+	if err != nil {
+		return false, fmt.Errorf("error writing model settings file: %v", err)
+	}
+
+	return true, nil
+}
+
+// save settings in file to server
+func SyncPlanModelSettings() error {
+	settings, err := api.Client.GetSettings(CurrentPlanId, CurrentBranch)
+	if err != nil {
+		return fmt.Errorf("error getting settings: %v", err)
+	}
+
+	updatedSettings, apiErr := ApplyModelSettings(GetPlanModelSettingsPath(CurrentPlanId), settings)
+	if apiErr != nil {
+		return fmt.Errorf("error applying model settings: %v", err)
+	}
+
+	res, updateErr := api.Client.UpdateSettings(CurrentPlanId, CurrentBranch, shared.UpdateSettingsRequest{
+		ModelPackName: updatedSettings.ModelPackName,
+		ModelPack:     updatedSettings.ModelPack,
+	})
+
+	if updateErr != nil {
+		return fmt.Errorf("error updating settings: %v", err)
+	}
+
+	if res == nil {
+		return nil
+	}
+
+	fmt.Println(res.Msg)
+
+	return nil
+}
+
+func SyncDefaultModelSettings() error {
+	settings, err := api.Client.GetOrgDefaultSettings()
+	if err != nil {
+		return fmt.Errorf("error getting settings: %v", err)
+	}
+
+	updatedSettings, apiErr := ApplyModelSettings(DefaultModelSettingsPath, settings)
+	if apiErr != nil {
+		return fmt.Errorf("error applying model settings: %v", err)
+	}
+
+	res, updateErr := api.Client.UpdateOrgDefaultSettings(shared.UpdateSettingsRequest{
+		ModelPackName: updatedSettings.ModelPackName,
+		ModelPack:     updatedSettings.ModelPack,
+	})
+
+	if updateErr != nil {
+		return fmt.Errorf("error updating settings: %v", err)
+	}
+
+	if res == nil {
+		return nil
+	}
+
+	fmt.Println(res.Msg)
+
+	return nil
 }

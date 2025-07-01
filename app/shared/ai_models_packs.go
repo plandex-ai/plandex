@@ -11,11 +11,16 @@ var StrongModelOpus ModelPack
 
 var AnthropicModelPack ModelPack
 var OpenAIModelPack ModelPack
+var GoogleModelPack ModelPack
 
-var GeminiPreviewModelPack ModelPack
-var GeminiExperimentalModelPack ModelPack
+var GeminiPlannerModelPack ModelPack
+var O3PlannerModelPack ModelPack
 var R1PlannerModelPack ModelPack
 var PerplexityPlannerModelPack ModelPack
+
+var OllamaExperimentalModelPack ModelPack
+var OllamaAdaptiveOssModelPack ModelPack
+var OllamaAdaptiveDailyModelPack ModelPack
 
 var BuiltInModelPacks = []*ModelPack{
 	&DailyDriverModelPack,
@@ -23,466 +28,429 @@ var BuiltInModelPacks = []*ModelPack{
 	&StrongModelPack,
 	&CheapModelPack,
 	&OSSModelPack,
-
+	&OllamaExperimentalModelPack,
+	&OllamaAdaptiveOssModelPack,
+	&OllamaAdaptiveDailyModelPack,
 	&OpusPlannerModelPack,
 	&StrongModelOpus,
-
 	&AnthropicModelPack,
 	&OpenAIModelPack,
-
-	&GeminiPreviewModelPack,
-	&GeminiExperimentalModelPack,
-
+	&GoogleModelPack,
+	&GeminiPlannerModelPack,
+	&O3PlannerModelPack,
 	&R1PlannerModelPack,
 	&PerplexityPlannerModelPack,
 }
 
+var BuiltInModelPacksByName = make(map[string]*ModelPack)
+
 var DefaultModelPack *ModelPack = &DailyDriverModelPack
 
+func getModelRoleConfig(role ModelRole, modelId ModelId, fns ...func(*ModelRoleConfigSchema)) ModelRoleConfigSchema {
+	c := ModelRoleConfigSchema{
+		ModelId: modelId,
+	}
+	for _, f := range fns {
+		f(&c)
+	}
+	return c
+}
+
+func getLargeContextFallback(role ModelRole, modelId ModelId, fns ...func(*ModelRoleConfigSchema)) func(*ModelRoleConfigSchema) {
+	return func(c *ModelRoleConfigSchema) {
+		n := getModelRoleConfig(role, modelId)
+		for _, f := range fns {
+			f(&n)
+		}
+		c.LargeContextFallback = &n
+	}
+}
+
+func getErrorFallback(role ModelRole, modelId ModelId, fns ...func(*ModelRoleConfigSchema)) func(*ModelRoleConfigSchema) {
+	return func(c *ModelRoleConfigSchema) {
+		n := getModelRoleConfig(role, modelId)
+		for _, f := range fns {
+			f(&n)
+		}
+		c.ErrorFallback = &n
+	}
+}
+
+func getStrongModelFallback(role ModelRole, modelId ModelId, fns ...func(*ModelRoleConfigSchema)) func(*ModelRoleConfigSchema) {
+	return func(c *ModelRoleConfigSchema) {
+		n := getModelRoleConfig(role, modelId)
+		for _, f := range fns {
+			f(&n)
+		}
+		c.StrongModel = &n
+	}
+}
+
+var (
+	DailyDriverSchema         ModelPackSchema
+	ReasoningSchema           ModelPackSchema
+	StrongSchema              ModelPackSchema
+	OssSchema                 ModelPackSchema
+	CheapSchema               ModelPackSchema
+	OllamaExperimentalSchema  ModelPackSchema
+	OllamaAdaptiveOssSchema   ModelPackSchema
+	OllamaAdaptiveDailySchema ModelPackSchema
+	AnthropicSchema           ModelPackSchema
+	OpenAISchema              ModelPackSchema
+	GoogleSchema              ModelPackSchema
+	GeminiPlannerSchema       ModelPackSchema
+	OpusPlannerSchema         ModelPackSchema
+	R1PlannerSchema           ModelPackSchema
+	PerplexityPlannerSchema   ModelPackSchema
+	O3PlannerSchema           ModelPackSchema
+)
+
+var BuiltInModelPackSchemas = []*ModelPackSchema{
+	&DailyDriverSchema,
+	&ReasoningSchema,
+	&StrongSchema,
+	&CheapSchema,
+	&OssSchema,
+	&OllamaExperimentalSchema,
+	&OllamaAdaptiveOssSchema,
+	&OllamaAdaptiveDailySchema,
+	&AnthropicSchema,
+	&OpenAISchema,
+	&GeminiPlannerSchema,
+	&OpusPlannerSchema,
+	&O3PlannerSchema,
+	&R1PlannerSchema,
+	&PerplexityPlannerSchema,
+}
+
 func init() {
-	DailyDriverModelPack = ModelPack{
+	defaultBuilder := getModelRoleConfig(ModelRoleBuilder, "openai/o4-mini-medium",
+		getStrongModelFallback(ModelRoleBuilder, "openai/o4-mini-high"),
+	)
+
+	DailyDriverSchema = ModelPackSchema{
 		Name:        "daily-driver",
-		Description: "A mix of models from Anthropic, OpenAI, and Google that balances speed, quality, and cost. Supports up to 2M context. Plandex prompts are especially tested and optimized for this pack.",
-		Planner: PlannerRoleConfig{
-			ModelRoleConfig: *claudeSonnet4With37Fallback(ModelRolePlanner, &modelConfig{
-				largeContextFallback: geminipro25preview(ModelRolePlanner, &modelConfig{
-					largeContextFallback: gemini15pro(ModelRolePlanner, nil),
-				}),
-			}),
-			PlannerModelConfig: getPlannerModelConfig(ModelProviderOpenRouter, "anthropic/claude-sonnet-4"),
+		Description: "A mix of models from Anthropic, OpenAI, and Google that balances speed, quality, and cost. Supports up to 2M context.",
+		ModelPackSchemaRoles: ModelPackSchemaRoles{
+			Planner: getModelRoleConfig(ModelRolePlanner, "anthropic/claude-sonnet-4",
+				getLargeContextFallback(ModelRolePlanner, "google/gemini-2.5-pro",
+					getLargeContextFallback(ModelRolePlanner, "google/gemini-pro-1.5"),
+				),
+			),
+			Architect: Pointer(getModelRoleConfig(ModelRoleArchitect, "anthropic/claude-sonnet-4",
+				getLargeContextFallback(ModelRoleArchitect, "google/gemini-2.5-pro",
+					getLargeContextFallback(ModelRoleArchitect, "google/gemini-pro-1.5"),
+				),
+			)),
+			Coder: Pointer(getModelRoleConfig(ModelRoleCoder, "anthropic/claude-sonnet-4",
+				getLargeContextFallback(ModelRoleCoder, "openai/gpt-4.1"),
+			)),
+			PlanSummary:      getModelRoleConfig(ModelRolePlanSummary, "openai/o4-mini-low"),
+			Builder:          defaultBuilder,
+			WholeFileBuilder: Pointer(getModelRoleConfig(ModelRoleWholeFileBuilder, "openai/o4-mini-medium")),
+			Namer:            getModelRoleConfig(ModelRoleName, "openai/gpt-4.1-mini"),
+			CommitMsg:        getModelRoleConfig(ModelRoleCommitMsg, "openai/gpt-4.1-mini"),
+			ExecStatus:       getModelRoleConfig(ModelRoleExecStatus, "openai/o4-mini-low"),
 		},
-		Coder: claudeSonnet4With37Fallback(ModelRoleCoder, &modelConfig{
-			largeContextFallback: openaigpt41(ModelRoleCoder, nil),
-		}),
-		Architect: claudeSonnet4With37Fallback(ModelRoleArchitect, &modelConfig{
-			largeContextFallback: geminipro25preview(ModelRolePlanner, &modelConfig{
-				largeContextFallback: gemini15pro(ModelRolePlanner, nil),
-			}),
-		}),
-		PlanSummary: *openaio4miniLow(ModelRolePlanSummary, nil),
-		Builder: *openaio4miniMedium(ModelRoleBuilder, &modelConfig{
-			strongModel: openaio4miniHigh(ModelRoleBuilder, nil),
-		}),
-		WholeFileBuilder: openaio4miniMedium(ModelRoleWholeFileBuilder, nil),
-		Namer:            *openaigpt41mini(ModelRoleName, nil),
-		CommitMsg:        *openaigpt41mini(ModelRoleCommitMsg, nil),
-		ExecStatus:       *openaio4miniLow(ModelRoleExecStatus, nil),
 	}
 
-	ReasoningModelPack = ModelPack{
+	ReasoningSchema = ModelPackSchema{
 		Name:        "reasoning",
-		Description: "Like the daily driver, but uses sonnet-4 with reasoning enabled for planning and coding. Supports up to 160k input context.",
-		Planner: PlannerRoleConfig{
-			ModelRoleConfig: *claudeSonnet4ThinkingHidden(ModelRolePlanner, &modelConfig{
-				errorFallback: claude37SonnetThinkingHidden(ModelRolePlanner, nil),
-			}),
-			PlannerModelConfig: getPlannerModelConfig(ModelProviderOpenRouter, "anthropic/claude-sonnet-4:thinking-hidden"),
+		Description: "Like the daily driver, but uses sonnet-4-thinking with reasoning enabled for planning and coding. Supports up to 160k input context.",
+		ModelPackSchemaRoles: ModelPackSchemaRoles{
+			Planner:     getModelRoleConfig(ModelRolePlanner, "anthropic/claude-sonnet-4-thinking-hidden"),
+			Coder:       Pointer(getModelRoleConfig(ModelRoleCoder, "anthropic/claude-sonnet-4-thinking-hidden")),
+			PlanSummary: getModelRoleConfig(ModelRolePlanSummary, "openai/o4-mini-low"),
+			Builder:     defaultBuilder,
+			WholeFileBuilder: Pointer(getModelRoleConfig(ModelRoleWholeFileBuilder,
+				"openai/o4-mini-medium")),
+			Namer:      getModelRoleConfig(ModelRoleName, "openai/gpt-4.1-mini"),
+			CommitMsg:  getModelRoleConfig(ModelRoleCommitMsg, "openai/gpt-4.1-mini"),
+			ExecStatus: getModelRoleConfig(ModelRoleExecStatus, "openai/o4-mini-low"),
 		},
-		Coder: claudeSonnet4ThinkingHidden(ModelRoleCoder, &modelConfig{
-			errorFallback: claude37SonnetThinkingHidden(ModelRoleCoder, nil),
-		}),
-		PlanSummary: *openaio4miniLow(ModelRolePlanSummary, nil),
-		Builder: *openaio4miniMedium(ModelRoleBuilder, &modelConfig{
-			strongModel: openaio4miniHigh(ModelRoleBuilder, nil),
-		}),
-
-		WholeFileBuilder: openaio4miniMedium(ModelRoleWholeFileBuilder, nil),
-		Namer:            *openaigpt41mini(ModelRoleName, nil),
-		CommitMsg:        *openaigpt41mini(ModelRoleCommitMsg, nil),
-		ExecStatus:       *openaio4miniLow(ModelRoleExecStatus, nil),
 	}
 
-	StrongModelPack = ModelPack{
+	StrongSchema = ModelPackSchema{
 		Name:        "strong",
-		Description: "For difficult tasks where slower responses and builds are ok. Uses o3-high for architecture and planning, claude-sonnet-4 thinking for implementation, prioritizes reliability over speed for builds. Supports up to 160k input context.",
-		Planner: PlannerRoleConfig{
-			ModelRoleConfig:    *openaio3high(ModelRolePlanner, nil),
-			PlannerModelConfig: getPlannerModelConfig(ModelProviderOpenAI, "openai/o3-high"),
+		Description: "For difficult tasks where slower responses and builds are ok. Uses o3-high for architecture and planning, claude-sonnet-4 thinking for implementation. Supports up to 160k input context.",
+		ModelPackSchemaRoles: ModelPackSchemaRoles{
+			Planner:     getModelRoleConfig(ModelRolePlanner, "openai/o3-high"),
+			Architect:   Pointer(getModelRoleConfig(ModelRoleArchitect, "openai/o3-high")),
+			Coder:       Pointer(getModelRoleConfig(ModelRoleCoder, "anthropic/claude-sonnet-4-thinking-hidden")),
+			PlanSummary: getModelRoleConfig(ModelRolePlanSummary, "openai/o4-mini-low"),
+			Builder:     getModelRoleConfig(ModelRoleBuilder, "openai/o4-mini-high"),
+			WholeFileBuilder: Pointer(getModelRoleConfig(ModelRoleWholeFileBuilder,
+				"openai/o4-mini-high")),
+			Namer:      getModelRoleConfig(ModelRoleName, "openai/gpt-4.1-mini"),
+			CommitMsg:  getModelRoleConfig(ModelRoleCommitMsg, "openai/gpt-4.1-mini"),
+			ExecStatus: getModelRoleConfig(ModelRoleExecStatus, "openai/o4-mini-medium"),
 		},
-		Architect: openaio3high(ModelRoleArchitect, nil),
-		Coder: claudeSonnet4ThinkingHidden(ModelRoleCoder, &modelConfig{
-			errorFallback: claude37SonnetThinkingHidden(ModelRoleCoder, nil),
-		}),
-		PlanSummary:      *openaio4miniLow(ModelRolePlanSummary, nil),
-		Builder:          *openaio4miniHigh(ModelRoleBuilder, nil),
-		WholeFileBuilder: openaio4miniHigh(ModelRoleWholeFileBuilder, nil),
-		Namer:            *openaigpt41mini(ModelRoleName, nil),
-		CommitMsg:        *openaigpt41mini(ModelRoleCommitMsg, nil),
-		ExecStatus:       *openaio4miniMedium(ModelRoleExecStatus, nil),
 	}
 
-	StrongModelOpus = ModelPack{
-		Name:        "strong-opus",
-		Description: "Like the strong pack, but uses Claude Opus 4 thinking for planning and coding. Supports up to 160k input context.",
-		Planner: PlannerRoleConfig{
-			ModelRoleConfig:    *claudeOpus4(ModelRolePlanner, nil),
-			PlannerModelConfig: getPlannerModelConfig(ModelProviderOpenRouter, "anthropic/claude-opus-4"),
-		},
-		Architect:        claudeOpus4(ModelRoleArchitect, nil),
-		Coder:            claudeOpus4(ModelRoleCoder, nil),
-		PlanSummary:      *openaio4miniLow(ModelRolePlanSummary, nil),
-		Builder:          *openaio4miniHigh(ModelRoleBuilder, nil),
-		WholeFileBuilder: openaio4miniHigh(ModelRoleWholeFileBuilder, nil),
-		Namer:            *openaigpt41mini(ModelRoleName, nil),
-		CommitMsg:        *openaigpt41mini(ModelRoleCommitMsg, nil),
-		ExecStatus:       *openaio4miniMedium(ModelRoleExecStatus, nil),
-	}
-
-	CheapModelPack = ModelPack{
+	CheapSchema = ModelPackSchema{
 		Name:        "cheap",
 		Description: "Cost-effective models that can still get the job done for easier tasks. Supports up to 160k context. Uses OpenAI's o4-mini model for planning, GPT-4.1 for coding, and GPT-4.1 Mini for lighter tasks.",
-		Planner: PlannerRoleConfig{
-			ModelRoleConfig:    *openaio4miniMedium(ModelRolePlanner, nil),
-			PlannerModelConfig: getPlannerModelConfig(ModelProviderOpenAI, "openai/o4-mini-medium"),
+		ModelPackSchemaRoles: ModelPackSchemaRoles{
+			Planner:     getModelRoleConfig(ModelRolePlanner, "openai/o4-mini-medium"),
+			Coder:       Pointer(getModelRoleConfig(ModelRoleCoder, "openai/gpt-4.1")),
+			PlanSummary: getModelRoleConfig(ModelRolePlanSummary, "openai/gpt-4.1-mini"),
+			Builder:     getModelRoleConfig(ModelRoleBuilder, "openai/o4-mini-low"),
+			WholeFileBuilder: Pointer(getModelRoleConfig(ModelRoleWholeFileBuilder,
+				"openai/o4-mini-low")),
+			Namer:      getModelRoleConfig(ModelRoleName, "openai/gpt-4.1-mini"),
+			CommitMsg:  getModelRoleConfig(ModelRoleCommitMsg, "openai/gpt-4.1-mini"),
+			ExecStatus: getModelRoleConfig(ModelRoleExecStatus, "openai/o4-mini-low"),
 		},
-		Coder:       openaigpt41(ModelRoleCoder, nil),
-		PlanSummary: *openaigpt41mini(ModelRolePlanSummary, nil),
-		Builder: *openaio4miniLow(ModelRoleBuilder, &modelConfig{
-			strongModel: openaio4miniMedium(ModelRoleBuilder, nil),
-		}),
-		WholeFileBuilder: openaio4miniLow(ModelRoleWholeFileBuilder, nil),
-		Namer:            *openaigpt41mini(ModelRoleName, nil),
-		CommitMsg:        *openaigpt41mini(ModelRoleCommitMsg, nil),
-		ExecStatus:       *openaio4miniLow(ModelRoleExecStatus, nil),
 	}
 
-	OSSModelPack = ModelPack{
+	OssSchema = ModelPackSchema{
 		Name:        "oss",
-		Description: "An experimental mix of the best open source models for coding. Supports up to 56k context, 8k per file. Works best with smaller projects and files. Includes reasoning.",
-		Planner: PlannerRoleConfig{
-			ModelRoleConfig:    *deepseekr1Reasoning(ModelRolePlanner, nil),
-			PlannerModelConfig: getPlannerModelConfig(ModelProviderOpenRouter, "deepseek/deepseek-r1-reasoning"),
+		Description: "An experimental mix of the best open source models for coding. Supports up to 144k context, 33k per file.",
+		ModelPackSchemaRoles: ModelPackSchemaRoles{
+			Planner:     getModelRoleConfig(ModelRolePlanner, "deepseek/r1"),
+			Coder:       Pointer(getModelRoleConfig(ModelRoleCoder, "deepseek/v3")),
+			PlanSummary: getModelRoleConfig(ModelRolePlanSummary, "deepseek/r1-hidden"),
+			Builder:     getModelRoleConfig(ModelRoleBuilder, "deepseek/r1-hidden"),
+			WholeFileBuilder: Pointer(getModelRoleConfig(ModelRoleWholeFileBuilder,
+				"deepseek/r1-hidden")),
+			Namer:      getModelRoleConfig(ModelRoleName, "qwen/qwen3-8b-cloud"),
+			CommitMsg:  getModelRoleConfig(ModelRoleCommitMsg, "qwen/qwen3-8b-cloud"),
+			ExecStatus: getModelRoleConfig(ModelRoleExecStatus, "deepseek/r1-hidden"),
 		},
-		Coder:            deepseekv3(ModelRoleCoder, nil),
-		PlanSummary:      *deepseekr1NoReasoning(ModelRolePlanSummary, nil),
-		Builder:          *deepseekr1NoReasoning(ModelRoleBuilder, nil),
-		WholeFileBuilder: deepseekr1NoReasoning(ModelRoleWholeFileBuilder, nil),
-		Namer:            *qwen25coder32b(ModelRoleName, nil),
-		CommitMsg:        *qwen25coder32b(ModelRoleCommitMsg, nil),
-		ExecStatus:       *deepseekr1NoReasoning(ModelRoleExecStatus, nil),
 	}
 
-	OpusPlannerModelPack = ModelPack{
-		Name:        "opus-planner",
-		Description: "Like daily driver, but uses Claude Opus 4 for planning. Supports up to 160k input context.",
-		Planner: PlannerRoleConfig{
-			ModelRoleConfig:    *claudeOpus4(ModelRolePlanner, nil),
-			PlannerModelConfig: getPlannerModelConfig(ModelProviderOpenRouter, "anthropic/claude-opus-4"),
+	OllamaExperimentalSchema = ModelPackSchema{
+		Name:        "ollama",
+		Description: "Ollama experimental local blend. Supports up to 110k context. For now, more for experimentation and benchmarking than getting work done.",
+		ModelPackSchemaRoles: ModelPackSchemaRoles{
+			LocalProvider: ModelProviderOllama,
+			Planner:       getModelRoleConfig(ModelRolePlanner, "qwen/qwen3-32b-local"),
+			PlanSummary:   getModelRoleConfig(ModelRolePlanSummary, "mistral/devstral-small"),
+			Builder:       getModelRoleConfig(ModelRoleBuilder, "mistral/devstral-small"),
+			WholeFileBuilder: Pointer(getModelRoleConfig(ModelRoleWholeFileBuilder,
+				"mistral/devstral-small")),
+			Namer:      getModelRoleConfig(ModelRoleName, "qwen/qwen3-8b-local"),
+			CommitMsg:  getModelRoleConfig(ModelRoleCommitMsg, "qwen/qwen3-8b-local"),
+			ExecStatus: getModelRoleConfig(ModelRoleExecStatus, "mistral/devstral-small"),
 		},
-		Coder:       claudeSonnet4With37Fallback(ModelRoleCoder, nil),
-		Architect:   claudeOpus4(ModelRoleArchitect, nil),
-		PlanSummary: *openaio4miniLow(ModelRolePlanSummary, nil),
-		Builder: *openaio4miniMedium(ModelRoleBuilder, &modelConfig{
-			strongModel: openaio4miniHigh(ModelRoleBuilder, nil),
-		}),
-		WholeFileBuilder: openaio4miniMedium(ModelRoleWholeFileBuilder, nil),
-		Namer:            *openaigpt41mini(ModelRoleName, nil),
-		CommitMsg:        *openaigpt41mini(ModelRoleCommitMsg, nil),
-		ExecStatus:       *openaio4miniLow(ModelRoleExecStatus, nil),
 	}
 
-	OpenAIModelPack = ModelPack{
+	// Copy daily driver schema and modify it to use ollama for lighter tasks
+	OllamaAdaptiveDailySchema = cloneSchema(DailyDriverSchema)
+	OllamaAdaptiveDailySchema.Name = "ollama-daily"
+	OllamaAdaptiveDailySchema.Description = "Ollama adaptive/daily-driver blend. Uses 'daily-driver' for heavy lifting, local models for lighter tasks."
+	OllamaAdaptiveDailySchema.LocalProvider = ModelProviderOllama
+	OllamaAdaptiveDailySchema.PlanSummary = getModelRoleConfig(ModelRolePlanSummary, "mistral/devstral-small")
+	OllamaAdaptiveDailySchema.CommitMsg = getModelRoleConfig(ModelRoleCommitMsg, "qwen/qwen3-8b-local")
+	OllamaAdaptiveDailySchema.Namer = getModelRoleConfig(ModelRoleName, "qwen/qwen3-8b-local")
+
+	// Copy oss schema and modify it to use ollama for lighter tasks
+	OllamaAdaptiveOssSchema = cloneSchema(OssSchema)
+	OllamaAdaptiveOssSchema.Name = "ollama-oss"
+	OllamaAdaptiveOssSchema.Description = "Ollama adaptive/oss blend. Uses local models for planning and context selection, open source cloud models for implementation and file edits. Supports up to 110k context."
+	OllamaAdaptiveOssSchema.LocalProvider = ModelProviderOllama
+	OllamaAdaptiveOssSchema.PlanSummary = getModelRoleConfig(ModelRolePlanSummary, "mistral/devstral-small")
+	OllamaAdaptiveOssSchema.CommitMsg = getModelRoleConfig(ModelRoleCommitMsg, "qwen/qwen3-8b-local")
+	OllamaAdaptiveOssSchema.Namer = getModelRoleConfig(ModelRoleName, "qwen/qwen3-8b-local")
+
+	OpenAISchema = ModelPackSchema{
 		Name:        "openai",
 		Description: "OpenAI blend. Supports up to 1M context. Uses OpenAI's GPT-4.1 model for heavy lifting, GPT-4.1 Mini for lighter tasks.",
-		Planner: PlannerRoleConfig{
-			ModelRoleConfig:    *openaigpt41(ModelRolePlanner, nil),
-			PlannerModelConfig: getPlannerModelConfig(ModelProviderOpenAI, "openai/gpt-4.1"),
+		ModelPackSchemaRoles: ModelPackSchemaRoles{
+			Planner:     getModelRoleConfig(ModelRolePlanner, "openai/gpt-4.1"),
+			PlanSummary: getModelRoleConfig(ModelRolePlanSummary, "openai/o4-mini-low"),
+			Builder:     defaultBuilder,
+			WholeFileBuilder: Pointer(getModelRoleConfig(ModelRoleWholeFileBuilder,
+				"openai/o4-mini-medium")),
+			Namer:      getModelRoleConfig(ModelRoleName, "openai/gpt-4.1-mini"),
+			CommitMsg:  getModelRoleConfig(ModelRoleCommitMsg, "openai/gpt-4.1-mini"),
+			ExecStatus: getModelRoleConfig(ModelRoleExecStatus, "openai/o4-mini-low"),
 		},
-		PlanSummary: *openaio4miniLow(ModelRolePlanSummary, nil),
-		Builder: *openaio4miniMedium(ModelRoleBuilder, &modelConfig{
-			strongModel: openaio4miniHigh(ModelRoleBuilder, nil),
-		}),
-		WholeFileBuilder: openaio4miniMedium(ModelRoleWholeFileBuilder, nil),
-		Namer:            *openaigpt41mini(ModelRoleName, nil),
-		CommitMsg:        *openaigpt41mini(ModelRoleCommitMsg, nil),
-		ExecStatus:       *openaio4miniLow(ModelRoleExecStatus, nil),
 	}
 
-	AnthropicModelPack = ModelPack{
+	AnthropicSchema = ModelPackSchema{
 		Name:        "anthropic",
-		Description: "Anthropic blend. Supports up to 180k context. Uses Claude Sonnet 4 for heavy lifting, Claude 3.5 Haiku for lighter tasks.",
-		Planner: PlannerRoleConfig{
-			ModelRoleConfig:    *claudeSonnet4With37Fallback(ModelRolePlanner, nil),
-			PlannerModelConfig: getPlannerModelConfig(ModelProviderOpenRouter, "anthropic/claude-sonnet-4"),
+		Description: "Anthropic blend. Supports up to 180k context. Uses Claude Sonnet 4 for heavy lifting, Claude 3 Haiku for lighter tasks.",
+		ModelPackSchemaRoles: ModelPackSchemaRoles{
+			Planner:     getModelRoleConfig(ModelRolePlanner, "anthropic/claude-sonnet-4"),
+			Coder:       Pointer(getModelRoleConfig(ModelRoleCoder, "anthropic/claude-sonnet-4")),
+			PlanSummary: getModelRoleConfig(ModelRolePlanSummary, "anthropic/claude-3.5-haiku"),
+			Builder:     getModelRoleConfig(ModelRoleBuilder, "anthropic/claude-sonnet-4"),
+			WholeFileBuilder: Pointer(getModelRoleConfig(ModelRoleWholeFileBuilder,
+				"anthropic/claude-sonnet-4")),
+			Namer:      getModelRoleConfig(ModelRoleName, "anthropic/claude-3.5-haiku"),
+			CommitMsg:  getModelRoleConfig(ModelRoleCommitMsg, "anthropic/claude-3.5-haiku"),
+			ExecStatus: getModelRoleConfig(ModelRoleExecStatus, "anthropic/claude-sonnet-4"),
 		},
-		PlanSummary:      *claude35haiku(ModelRolePlanSummary, nil),
-		Builder:          *claudeSonnet4With37Fallback(ModelRoleBuilder, nil),
-		WholeFileBuilder: claudeSonnet4With37Fallback(ModelRoleWholeFileBuilder, nil),
-		Namer:            *claude35haiku(ModelRoleName, nil),
-		CommitMsg:        *claude35haiku(ModelRoleCommitMsg, nil),
-		ExecStatus:       *claudeSonnet4With37Fallback(ModelRoleExecStatus, nil),
 	}
 
-	GeminiPreviewModelPack = ModelPack{
-		Name:        "gemini-preview",
-		Description: "Uses Gemini 2.5 Pro Preview for planning and coding, default models for other roles. Supports up to 1M input context.",
-		Planner: PlannerRoleConfig{
-			ModelRoleConfig:    *geminipro25preview(ModelRolePlanner, nil),
-			PlannerModelConfig: getPlannerModelConfig(ModelProviderOpenRouter, "google/gemini-2.5-pro-preview"),
+	GoogleSchema = ModelPackSchema{
+		Name:        "google",
+		Description: "Uses Gemini 2.5 Pro for heavy lifting, 2.5 Flash for light tasks. Supports up to 1M input context.",
+		ModelPackSchemaRoles: ModelPackSchemaRoles{
+			Planner:     getModelRoleConfig(ModelRolePlanner, "google/gemini-2.5-pro"),
+			Coder:       Pointer(getModelRoleConfig(ModelRoleCoder, "google/gemini-2.5-flash")),
+			PlanSummary: getModelRoleConfig(ModelRolePlanSummary, "google/gemini-2.5-flash"),
+			Builder:     getModelRoleConfig(ModelRoleBuilder, "google/gemini-2.5-pro"),
+			Namer:       getModelRoleConfig(ModelRoleName, "google/gemini-2.5-flash"),
+			CommitMsg:   getModelRoleConfig(ModelRoleCommitMsg, "google/gemini-2.5-flash"),
+			ExecStatus:  getModelRoleConfig(ModelRoleExecStatus, "google/gemini-2.5-pro"),
 		},
-		Coder:       geminipro25preview(ModelRoleCoder, nil),
-		PlanSummary: *openaio4miniLow(ModelRolePlanSummary, nil),
-		Builder: *openaio4miniMedium(ModelRoleBuilder, &modelConfig{
-			strongModel: openaio4miniHigh(ModelRoleBuilder, nil),
-		}),
-		WholeFileBuilder: openaio4miniMedium(ModelRoleWholeFileBuilder, nil),
-		Namer:            *openaigpt41mini(ModelRoleName, nil),
-		CommitMsg:        *openaigpt41mini(ModelRoleCommitMsg, nil),
-		ExecStatus:       *openaio4miniLow(ModelRoleExecStatus, nil),
 	}
 
-	GeminiExperimentalModelPack = ModelPack{
-		Name:        "gemini-exp",
-		Description: "Uses Gemini 2.5 Pro Experimental (free) for planning and coding, default models for other roles. Supports up to 1M input context.",
-		Planner: PlannerRoleConfig{
-			ModelRoleConfig:    *geminipro25exp(ModelRolePlanner, nil),
-			PlannerModelConfig: getPlannerModelConfig(ModelProviderOpenRouter, "google/gemini-2.5-pro-exp-03-25"),
+	GeminiPlannerSchema = ModelPackSchema{
+		Name:        "gemini-planner",
+		Description: "Uses Gemini 2.5 Pro for planning, default models for other roles. Supports up to 1M input context.",
+		ModelPackSchemaRoles: ModelPackSchemaRoles{
+			Planner: getModelRoleConfig(ModelRolePlanner, "google/gemini-2.5-pro"),
+			Coder: Pointer(getModelRoleConfig(ModelRoleCoder, "anthropic/claude-sonnet-4",
+				getLargeContextFallback(ModelRoleCoder, "openai/gpt-4.1"),
+			)),
+			PlanSummary: getModelRoleConfig(ModelRolePlanSummary, "openai/o4-mini-low"),
+			Builder:     defaultBuilder,
+			WholeFileBuilder: Pointer(getModelRoleConfig(ModelRoleWholeFileBuilder,
+				"openai/o4-mini-medium")),
+			Namer:      getModelRoleConfig(ModelRoleName, "openai/gpt-4.1-mini"),
+			CommitMsg:  getModelRoleConfig(ModelRoleCommitMsg, "openai/gpt-4.1-mini"),
+			ExecStatus: getModelRoleConfig(ModelRoleExecStatus, "openai/o4-mini-low"),
 		},
-		Coder:       geminipro25exp(ModelRoleCoder, nil),
-		PlanSummary: *openaio4miniLow(ModelRolePlanSummary, nil),
-		Builder: *openaio4miniMedium(ModelRoleBuilder, &modelConfig{
-			strongModel: openaio4miniHigh(ModelRoleBuilder, nil),
-		}),
-		WholeFileBuilder: openaio4miniMedium(ModelRoleWholeFileBuilder, nil),
-		Namer:            *openaigpt41mini(ModelRoleName, nil),
-		CommitMsg:        *openaigpt41mini(ModelRoleCommitMsg, nil),
-		ExecStatus:       *openaio4miniLow(ModelRoleExecStatus, nil),
 	}
 
-	R1PlannerModelPack = ModelPack{
+	O3PlannerSchema = ModelPackSchema{
+		Name:        "o3-planner",
+		Description: "Uses Claude Opus 4 for planning, default models for other roles. Supports up to 180k input context.",
+		ModelPackSchemaRoles: ModelPackSchemaRoles{
+			Planner: getModelRoleConfig(ModelRolePlanner, "anthropic/opus-4"),
+			Coder: Pointer(getModelRoleConfig(ModelRoleCoder, "anthropic/claude-sonnet-4",
+				getLargeContextFallback(ModelRoleCoder, "openai/gpt-4.1"),
+			)),
+			PlanSummary: getModelRoleConfig(ModelRolePlanSummary, "openai/o4-mini-low"),
+			Builder:     defaultBuilder,
+			WholeFileBuilder: Pointer(getModelRoleConfig(ModelRoleWholeFileBuilder,
+				"openai/o4-mini-medium")),
+			Namer:      getModelRoleConfig(ModelRoleName, "openai/gpt-4.1-mini"),
+			CommitMsg:  getModelRoleConfig(ModelRoleCommitMsg, "openai/gpt-4.1-mini"),
+			ExecStatus: getModelRoleConfig(ModelRoleExecStatus, "openai/o4-mini-low"),
+		},
+	}
+
+	O3PlannerSchema = ModelPackSchema{
+		Name:        "o3-planner",
+		Description: "Uses OpenAI o3-medium for planning, default models for other roles. Supports up to 160k input context.",
+		ModelPackSchemaRoles: ModelPackSchemaRoles{
+			Planner: getModelRoleConfig(ModelRolePlanner, "openai/o3-medium"),
+			Coder: Pointer(getModelRoleConfig(ModelRoleCoder, "anthropic/claude-sonnet-4",
+				getLargeContextFallback(ModelRoleCoder, "openai/gpt-4.1"),
+			)),
+			PlanSummary: getModelRoleConfig(ModelRolePlanSummary, "openai/o4-mini-low"),
+			Builder:     defaultBuilder,
+			WholeFileBuilder: Pointer(getModelRoleConfig(ModelRoleWholeFileBuilder,
+				"openai/o4-mini-medium")),
+			Namer:      getModelRoleConfig(ModelRoleName, "openai/gpt-4.1-mini"),
+			CommitMsg:  getModelRoleConfig(ModelRoleCommitMsg, "openai/gpt-4.1-mini"),
+			ExecStatus: getModelRoleConfig(ModelRoleExecStatus, "openai/o4-mini-low"),
+		},
+	}
+
+	R1PlannerSchema = ModelPackSchema{
 		Name:        "r1-planner",
 		Description: "Uses DeepSeek R1 for planning, Qwen for light tasks, and default models for implementation. Supports up to 56k input context.",
-		Planner: PlannerRoleConfig{
-			ModelRoleConfig:    *deepseekr1Reasoning(ModelRolePlanner, nil),
-			PlannerModelConfig: getPlannerModelConfig(ModelProviderOpenRouter, "deepseek/deepseek-r1-reasoning"),
+		ModelPackSchemaRoles: ModelPackSchemaRoles{
+			Planner:     getModelRoleConfig(ModelRolePlanner, "deepseek/r1"),
+			Coder:       Pointer(getModelRoleConfig(ModelRoleCoder, "anthropic/claude-sonnet-4")),
+			PlanSummary: getModelRoleConfig(ModelRolePlanSummary, "openai/o4-mini-low"),
+			Builder:     getModelRoleConfig(ModelRoleBuilder, "openai/o4-mini-medium"),
+			WholeFileBuilder: Pointer(getModelRoleConfig(ModelRoleWholeFileBuilder,
+				"openai/o4-mini-low")),
+			Namer:      getModelRoleConfig(ModelRoleName, "openai/gpt-4.1-mini"),
+			CommitMsg:  getModelRoleConfig(ModelRoleCommitMsg, "openai/gpt-4.1-mini"),
+			ExecStatus: getModelRoleConfig(ModelRoleExecStatus, "openai/o4-mini-medium"),
 		},
-		Coder:            claude37Sonnet(ModelRoleCoder, nil),
-		PlanSummary:      *openaio4miniLow(ModelRolePlanSummary, nil),
-		Builder:          *openaio4miniMedium(ModelRoleBuilder, nil),
-		WholeFileBuilder: openaio4miniLow(ModelRoleWholeFileBuilder, nil),
-		Namer:            *openaigpt41mini(ModelRoleName, nil),
-		CommitMsg:        *openaigpt41mini(ModelRoleCommitMsg, nil),
-		ExecStatus:       *openaio4miniMedium(ModelRoleExecStatus, nil),
 	}
 
-	PerplexityPlannerModelPack = ModelPack{
+	PerplexityPlannerSchema = ModelPackSchema{
 		Name:        "perplexity-planner",
 		Description: "Uses Perplexity Sonar for planning, Qwen for light tasks, and default models for implementation. Supports up to 97k input context.",
-		Planner: PlannerRoleConfig{
-			ModelRoleConfig:    *perplexitySonarReasoning(ModelRolePlanner, nil),
-			PlannerModelConfig: getPlannerModelConfig(ModelProviderOpenRouter, "perplexity/sonar-reasoning"),
+		ModelPackSchemaRoles: ModelPackSchemaRoles{
+			Planner:     getModelRoleConfig(ModelRolePlanner, "perplexity/sonar-reasoning"),
+			Coder:       Pointer(getModelRoleConfig(ModelRoleCoder, "anthropic/claude-sonnet-4")),
+			PlanSummary: getModelRoleConfig(ModelRolePlanSummary, "openai/o4-mini-low"),
+			Builder:     getModelRoleConfig(ModelRoleBuilder, "openai/o4-mini-medium"),
+			WholeFileBuilder: Pointer(getModelRoleConfig(ModelRoleWholeFileBuilder,
+				"openai/o4-mini-low")),
+			Namer:      getModelRoleConfig(ModelRoleName, "openai/gpt-4.1-mini"),
+			CommitMsg:  getModelRoleConfig(ModelRoleCommitMsg, "openai/gpt-4.1-mini"),
+			ExecStatus: getModelRoleConfig(ModelRoleExecStatus, "openai/o4-mini-medium"),
 		},
-		Coder:            claude37Sonnet(ModelRoleCoder, nil),
-		PlanSummary:      *openaio4miniLow(ModelRolePlanSummary, nil),
-		Builder:          *openaio4miniMedium(ModelRoleBuilder, nil),
-		WholeFileBuilder: openaio4miniLow(ModelRoleWholeFileBuilder, nil),
-		Namer:            *openaigpt41mini(ModelRoleName, nil),
-		CommitMsg:        *openaigpt41mini(ModelRoleCommitMsg, nil),
-		ExecStatus:       *openaio4miniMedium(ModelRoleExecStatus, nil),
+	}
+
+	DailyDriverModelPack = DailyDriverSchema.ToModelPack()
+	ReasoningModelPack = ReasoningSchema.ToModelPack()
+	StrongModelPack = StrongSchema.ToModelPack()
+	CheapModelPack = CheapSchema.ToModelPack()
+	OSSModelPack = OssSchema.ToModelPack()
+	OllamaExperimentalModelPack = OllamaExperimentalSchema.ToModelPack()
+	OllamaAdaptiveOssModelPack = OllamaAdaptiveOssSchema.ToModelPack()
+	OllamaAdaptiveDailyModelPack = OllamaAdaptiveDailySchema.ToModelPack()
+	AnthropicModelPack = AnthropicSchema.ToModelPack()
+	OpenAIModelPack = OpenAISchema.ToModelPack()
+	GoogleModelPack = GoogleSchema.ToModelPack()
+	GeminiPlannerModelPack = GeminiPlannerSchema.ToModelPack()
+	OpusPlannerModelPack = OpusPlannerSchema.ToModelPack()
+	R1PlannerModelPack = R1PlannerSchema.ToModelPack()
+	PerplexityPlannerModelPack = PerplexityPlannerSchema.ToModelPack()
+	O3PlannerModelPack = O3PlannerSchema.ToModelPack()
+
+	BuiltInModelPacks = []*ModelPack{
+		&DailyDriverModelPack,
+		&ReasoningModelPack,
+		&StrongModelPack,
+		&CheapModelPack,
+		&OSSModelPack,
+		&OllamaExperimentalModelPack,
+		&OllamaAdaptiveOssModelPack,
+		&OllamaAdaptiveDailyModelPack,
+		&AnthropicModelPack,
+		&OpenAIModelPack,
+		&GoogleModelPack,
+		&GeminiPlannerModelPack,
+		&OpusPlannerModelPack,
+		&O3PlannerModelPack,
+		&R1PlannerModelPack,
+		&PerplexityPlannerModelPack,
+	}
+
+	DefaultModelPack = &DailyDriverModelPack
+
+	for _, mp := range BuiltInModelPacks {
+		BuiltInModelPacksByName[mp.Name] = mp
+
+		for _, id := range mp.ToModelPackSchema().AllModelIds() {
+			if BuiltInBaseModelsById[id] == nil {
+				panic("missing base model: " + id)
+			}
+		}
 	}
 
 }
 
-type modelConfig struct {
-	largeContextFallback *ModelRoleConfig
-	largeOutputFallback  *ModelRoleConfig
-	errorFallback        *ModelRoleConfig
-	strongModel          *ModelRoleConfig
-	missingKeyFallback   *ModelRoleConfig
-}
+// pointer fields need to be cloned to avoid modifying the original schema
+func cloneSchema(schema ModelPackSchema) ModelPackSchema {
+	res := schema
 
-func getModelConfig(role ModelRole, provider ModelProvider, modelId ModelId, fallbacks *modelConfig) *ModelRoleConfig {
-	if fallbacks == nil {
-		fallbacks = &modelConfig{}
+	if schema.Architect != nil {
+		tmp := *schema.Architect
+		res.Architect = &tmp
 	}
 
-	return &ModelRoleConfig{
-		Role:            role,
-		BaseModelConfig: GetAvailableModel(provider, modelId).BaseModelConfig,
-		Temperature:     DefaultConfigByRole[role].Temperature,
-		TopP:            DefaultConfigByRole[role].TopP,
-
-		LargeContextFallback: fallbacks.largeContextFallback,
-		LargeOutputFallback:  fallbacks.largeOutputFallback,
-		ErrorFallback:        fallbacks.errorFallback,
-		StrongModel:          fallbacks.strongModel,
-		MissingKeyFallback:   fallbacks.missingKeyFallback,
+	if schema.Coder != nil {
+		tmp := *schema.Coder
+		res.Coder = &tmp
 	}
-}
-
-func claude37Sonnet(role ModelRole, fallbacks *modelConfig) *ModelRoleConfig {
-	return getModelConfig(role, ModelProviderOpenRouter, "anthropic/claude-3.7-sonnet", fallbacks)
-}
-
-func claudeSonnet4(role ModelRole, fallbacks *modelConfig) *ModelRoleConfig {
-	return getModelConfig(role, ModelProviderOpenRouter, "anthropic/claude-sonnet-4", fallbacks)
-}
-
-func claudeSonnet4Thinking(role ModelRole, fallbacks *modelConfig) *ModelRoleConfig {
-	return getModelConfig(role, ModelProviderOpenRouter, "anthropic/claude-sonnet-4:thinking", fallbacks)
-}
-
-func claudeSonnet4ThinkingHidden(role ModelRole, fallbacks *modelConfig) *ModelRoleConfig {
-	return getModelConfig(role, ModelProviderOpenRouter, "anthropic/claude-sonnet-4:thinking-hidden", fallbacks)
-}
-
-func claudeOpus4(role ModelRole, fallbacks *modelConfig) *ModelRoleConfig {
-	return getModelConfig(role, ModelProviderOpenRouter, "anthropic/claude-opus-4", fallbacks)
-}
-
-func claudeSonnet4With37Fallback(role ModelRole, fallbacks *modelConfig) *ModelRoleConfig {
-	claude37Fallback := getModelConfig(role, ModelProviderOpenRouter, "anthropic/claude-3.7-sonnet", nil)
-	if fallbacks == nil {
-		fallbacks = &modelConfig{}
+	if schema.WholeFileBuilder != nil {
+		tmp := *schema.WholeFileBuilder
+		res.WholeFileBuilder = &tmp
 	}
-	fallbacks.errorFallback = claude37Fallback
 
-	return getModelConfig(role, ModelProviderOpenRouter, "anthropic/claude-sonnet-4", fallbacks)
-}
-
-func claude37SonnetThinking(role ModelRole, fallbacks *modelConfig) *ModelRoleConfig {
-	return getModelConfig(role, ModelProviderOpenRouter, "anthropic/claude-3.7-sonnet:thinking", fallbacks)
-}
-
-func claude37SonnetThinkingHidden(role ModelRole, fallbacks *modelConfig) *ModelRoleConfig {
-	return getModelConfig(role, ModelProviderOpenRouter, "anthropic/claude-3.7-sonnet:thinking-hidden", fallbacks)
-}
-
-func claude35Sonnet(role ModelRole, fallbacks *modelConfig) *ModelRoleConfig {
-	return getModelConfig(role, ModelProviderOpenRouter, "anthropic/claude-3.5-sonnet", fallbacks)
-}
-
-func claude35haiku(role ModelRole, fallbacks *modelConfig) *ModelRoleConfig {
-	return getModelConfig(role, ModelProviderOpenRouter, "anthropic/claude-3.5-haiku", fallbacks)
-}
-
-func gemini15pro(role ModelRole, fallbacks *modelConfig) *ModelRoleConfig {
-	return getModelConfig(role, ModelProviderOpenRouter, "google/gemini-pro-1.5", fallbacks)
-}
-
-func gemini25propreview(role ModelRole, fallbacks *modelConfig) *ModelRoleConfig {
-	return getModelConfig(role, ModelProviderOpenRouter, "google/gemini-2.5-pro-preview", fallbacks)
-}
-
-func openaigpt41(role ModelRole, fallbacks *modelConfig) *ModelRoleConfig {
-	openrouterFallback := getModelConfig(role, ModelProviderOpenRouter, "openai/gpt-4.1", nil)
-	if fallbacks == nil {
-		fallbacks = &modelConfig{}
-	}
-	fallbacks.missingKeyFallback = openrouterFallback
-	return getModelConfig(role, ModelProviderOpenAI, "openai/gpt-4.1", fallbacks)
-}
-
-func openaigpt41mini(role ModelRole, fallbacks *modelConfig) *ModelRoleConfig {
-	openrouterFallback := getModelConfig(role, ModelProviderOpenRouter, "openai/gpt-4.1-mini", nil)
-	if fallbacks == nil {
-		fallbacks = &modelConfig{}
-	}
-	fallbacks.missingKeyFallback = openrouterFallback
-	return getModelConfig(role, ModelProviderOpenAI, "openai/gpt-4.1-mini", fallbacks)
-}
-
-func openaio3highWitho4miniFallback(role ModelRole, fallbacks *modelConfig) *ModelRoleConfig {
-	openrouterFallback := getModelConfig(role, ModelProviderOpenRouter, "openai/o3-high", nil)
-	if fallbacks == nil {
-		fallbacks = &modelConfig{}
-	}
-	fallbacks.missingKeyFallback = openrouterFallback
-	fallbacks.errorFallback = openaio4miniHigh(role, nil)
-	return getModelConfig(role, ModelProviderOpenAI, "openai/o3-high", fallbacks)
-}
-
-func openaio3high(role ModelRole, fallbacks *modelConfig) *ModelRoleConfig {
-	openrouterFallback := getModelConfig(role, ModelProviderOpenRouter, "openai/o3-high", nil)
-	if fallbacks == nil {
-		fallbacks = &modelConfig{}
-	}
-	fallbacks.missingKeyFallback = openrouterFallback
-	return getModelConfig(role, ModelProviderOpenAI, "openai/o3-high", fallbacks)
-}
-
-func openaio3medium(role ModelRole, fallbacks *modelConfig) *ModelRoleConfig {
-	openrouterFallback := getModelConfig(role, ModelProviderOpenRouter, "openai/o3-medium", nil)
-	if fallbacks == nil {
-		fallbacks = &modelConfig{}
-	}
-	fallbacks.missingKeyFallback = openrouterFallback
-	return getModelConfig(role, ModelProviderOpenAI, "openai/o3-medium", fallbacks)
-}
-
-func openaio3low(role ModelRole, fallbacks *modelConfig) *ModelRoleConfig {
-	openrouterFallback := getModelConfig(role, ModelProviderOpenRouter, "openai/o3-low", nil)
-	if fallbacks == nil {
-		fallbacks = &modelConfig{}
-	}
-	fallbacks.missingKeyFallback = openrouterFallback
-	return getModelConfig(role, ModelProviderOpenAI, "openai/o3-low", fallbacks)
-}
-
-func openaio4miniHigh(role ModelRole, fallbacks *modelConfig) *ModelRoleConfig {
-	openrouterFallback := getModelConfig(role, ModelProviderOpenRouter, "openai/o4-mini-high", nil)
-	if fallbacks == nil {
-		fallbacks = &modelConfig{}
-	}
-	fallbacks.missingKeyFallback = openrouterFallback
-	return getModelConfig(role, ModelProviderOpenAI, "openai/o4-mini-high", fallbacks)
-}
-
-func openaio4miniMedium(role ModelRole, fallbacks *modelConfig) *ModelRoleConfig {
-	openrouterFallback := getModelConfig(role, ModelProviderOpenRouter, "openai/o4-mini-medium", nil)
-	if fallbacks == nil {
-		fallbacks = &modelConfig{}
-	}
-	fallbacks.missingKeyFallback = openrouterFallback
-	res := getModelConfig(role, ModelProviderOpenAI, "openai/o4-mini-medium", fallbacks)
 	return res
-}
-
-func openaio4miniLow(role ModelRole, fallbacks *modelConfig) *ModelRoleConfig {
-	openrouterFallback := getModelConfig(role, ModelProviderOpenRouter, "openai/o4-mini-low", nil)
-	if fallbacks == nil {
-		fallbacks = &modelConfig{}
-	}
-	fallbacks.missingKeyFallback = openrouterFallback
-	return getModelConfig(role, ModelProviderOpenAI, "openai/o4-mini-low", fallbacks)
-}
-
-func qwen25coder32b(role ModelRole, fallbacks *modelConfig) *ModelRoleConfig {
-	return getModelConfig(role, ModelProviderOpenRouter, "qwen/qwen-2.5-coder-32b-instruct", fallbacks)
-}
-
-func deepseekr1Reasoning(role ModelRole, fallbacks *modelConfig) *ModelRoleConfig {
-	return getModelConfig(role, ModelProviderOpenRouter, "deepseek/deepseek-r1-reasoning", fallbacks)
-}
-
-func deepseekr1NoReasoning(role ModelRole, fallbacks *modelConfig) *ModelRoleConfig {
-	return getModelConfig(role, ModelProviderOpenRouter, "deepseek/deepseek-r1-no-reasoning", fallbacks)
-}
-
-func deepseekv3(role ModelRole, fallbacks *modelConfig) *ModelRoleConfig {
-	return getModelConfig(role, ModelProviderOpenRouter, "deepseek/deepseek-chat-v3-0324", fallbacks)
-}
-
-func geminiflash25preview(role ModelRole, fallbacks *modelConfig) *ModelRoleConfig {
-	return getModelConfig(role, ModelProviderOpenRouter, "google/gemini-2.5-flash-preview", fallbacks)
-}
-
-func perplexityR11776(role ModelRole, fallbacks *modelConfig) *ModelRoleConfig {
-	return getModelConfig(role, ModelProviderOpenRouter, "perplexity/r1-1776", fallbacks)
-}
-
-func perplexitySonarReasoning(role ModelRole, fallbacks *modelConfig) *ModelRoleConfig {
-	return getModelConfig(role, ModelProviderOpenRouter, "perplexity/sonar-reasoning", fallbacks)
-}
-
-// func r1distillqwen32b(role ModelRole, fallbacks *modelConfigFallbacks) *ModelRoleConfig {
-// 	return getModelConfig(role, ModelProviderOpenRouter, "deepseek/deepseek-r1-distill-qwen-32b", fallbacks)
-// }
-
-func geminipro25exp(role ModelRole, fallbacks *modelConfig) *ModelRoleConfig {
-	return getModelConfig(role, ModelProviderOpenRouter, "google/gemini-2.5-pro-exp-03-25", fallbacks)
-}
-
-func geminipro25preview(role ModelRole, fallbacks *modelConfig) *ModelRoleConfig {
-	return getModelConfig(role, ModelProviderOpenRouter, "google/gemini-2.5-pro-preview", fallbacks)
 }

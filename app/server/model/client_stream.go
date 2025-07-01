@@ -11,74 +11,61 @@ import (
 	"time"
 
 	"github.com/davecgh/go-spew/spew"
+	"github.com/sashabaranov/go-openai"
 )
 
 type OnStreamFn func(chunk string, buffer string) (shouldStop bool)
 
 func CreateChatCompletionWithInternalStream(
 	clients map[string]ClientInfo,
+	authVars map[string]string,
 	modelConfig *shared.ModelRoleConfig,
+	settings *shared.PlanSettings,
 	ctx context.Context,
 	req types.ExtendedChatCompletionRequest,
 	onStream OnStreamFn,
 	reqStarted time.Time,
 ) (*types.ModelResponse, error) {
-	_, ok := clients[modelConfig.BaseModelConfig.ApiKeyEnvVar]
+	providerComposite := modelConfig.GetProviderComposite(authVars, settings)
+	_, ok := clients[providerComposite]
 	if !ok {
-		fmt.Printf("client not found for api key env var: %s", modelConfig.BaseModelConfig.ApiKeyEnvVar)
-		if modelConfig.MissingKeyFallback != nil {
-			fmt.Println("using missing key fallback")
-			return CreateChatCompletionWithInternalStream(clients, modelConfig.MissingKeyFallback, ctx, req, onStream, reqStarted)
-		}
-		return nil, fmt.Errorf("client not found for api key env var: %s", modelConfig.BaseModelConfig.ApiKeyEnvVar)
+		return nil, fmt.Errorf("client not found for provider composite: %s", providerComposite)
 	}
 
-	resolveReq(&req, modelConfig)
+	baseModelConfig := modelConfig.GetBaseModelConfig(authVars, settings)
+
+	resolveReq(&req, modelConfig, baseModelConfig, settings)
 
 	// choose the fastest provider by latency/throughput on openrouter
-	if modelConfig.BaseModelConfig.Provider == shared.ModelProviderOpenRouter {
+	if baseModelConfig.Provider == shared.ModelProviderOpenRouter {
 		req.Model += ":nitro"
 	}
 
 	// Force streaming mode since we're using the streaming API
 	req.Stream = true
 
-	return withStreamingRetries(ctx, func(numTotalRetry int, modelErr *shared.ModelError, stripCacheControl bool) (resp *types.ModelResponse, fallbackRes shared.FallbackResult, err error) {
-		fallbackRes = modelConfig.GetFallbackForModelError(numTotalRetry, modelErr)
+	// Include usage in stream response
+	req.StreamOptions = &openai.StreamOptions{
+		IncludeUsage: true,
+	}
+
+	return withStreamingRetries(ctx, func(numTotalRetry int, didProviderFallback bool, modelErr *shared.ModelError) (resp *types.ModelResponse, fallbackRes shared.FallbackResult, err error) {
+		fallbackRes = modelConfig.GetFallbackForModelError(numTotalRetry, didProviderFallback, modelErr, authVars, settings)
 		resolvedModelConfig := fallbackRes.ModelRoleConfig
 
 		if resolvedModelConfig == nil {
 			return nil, fallbackRes, fmt.Errorf("model config is nil")
 		}
 
-		opClient, ok := clients[resolvedModelConfig.BaseModelConfig.ApiKeyEnvVar]
+		providerComposite := resolvedModelConfig.GetProviderComposite(authVars, settings)
+		opClient, ok := clients[providerComposite]
 
 		if !ok {
-			if resolvedModelConfig.MissingKeyFallback != nil {
-				fmt.Println("using missing key fallback")
-				resolvedModelConfig = resolvedModelConfig.MissingKeyFallback
-				opClient, ok = clients[resolvedModelConfig.BaseModelConfig.ApiKeyEnvVar]
-				if !ok {
-					return nil, fallbackRes, fmt.Errorf("client not found for api key env var: %s", resolvedModelConfig.BaseModelConfig.ApiKeyEnvVar)
-				}
-			} else {
-				return nil, fallbackRes, fmt.Errorf("client not found for api key env var: %s", resolvedModelConfig.BaseModelConfig.ApiKeyEnvVar)
-			}
+			return nil, fallbackRes, fmt.Errorf("client not found for provider composite: %s", providerComposite)
 		}
 
 		modelConfig = resolvedModelConfig
-
-		if stripCacheControl {
-			for i := range req.Messages {
-				for j := range req.Messages[i].Content {
-					if req.Messages[i].Content[j].CacheControl != nil {
-						req.Messages[i].Content[j].CacheControl = nil
-					}
-				}
-			}
-		}
-
-		resp, err = processChatCompletionStream(resolvedModelConfig, opClient, resolvedModelConfig.BaseModelConfig.BaseUrl, ctx, req, onStream, reqStarted)
+		resp, err = processChatCompletionStream(resolvedModelConfig, opClient, authVars, settings, ctx, req, onStream, reqStarted)
 		if err != nil {
 			return nil, fallbackRes, err
 		}
@@ -94,7 +81,8 @@ func CreateChatCompletionWithInternalStream(
 func processChatCompletionStream(
 	modelConfig *shared.ModelRoleConfig,
 	client ClientInfo,
-	baseUrl string,
+	authVars map[string]string,
+	settings *shared.PlanSettings,
 	ctx context.Context,
 	req types.ExtendedChatCompletionRequest,
 	onStream OnStreamFn,
@@ -103,11 +91,11 @@ func processChatCompletionStream(
 	streamCtx, cancel := context.WithCancel(ctx)
 
 	log.Println("processChatCompletionStream - modelConfig", spew.Sdump(map[string]interface{}{
-		"model":    modelConfig.BaseModelConfig.ModelName,
-		"provider": modelConfig.BaseModelConfig.Provider,
+		"model": modelConfig.ModelId,
 	}))
 
-	stream, err := createChatCompletionStreamExtended(modelConfig, client, baseUrl, streamCtx, req)
+	stream, err := createChatCompletionStreamExtended(modelConfig, client, authVars, settings, streamCtx, req)
+
 	if err != nil {
 		cancel()
 		return nil, fmt.Errorf("error creating chat completion stream: %w", err)
@@ -235,7 +223,7 @@ func processChatCompletionStream(
 
 func withStreamingRetries[T any](
 	ctx context.Context,
-	operation func(numRetry int, modelErr *shared.ModelError, stripCacheControl bool) (resp *T, fallbackRes shared.FallbackResult, err error),
+	operation func(numRetry int, didProviderFallback bool, modelErr *shared.ModelError) (resp *T, fallbackRes shared.FallbackResult, err error),
 	onContextDone func(resp *T, err error),
 ) (*T, error) {
 	var resp *T
@@ -243,7 +231,7 @@ func withStreamingRetries[T any](
 	var numFallbackRetry int
 	var fallbackRes shared.FallbackResult
 	var modelErr *shared.ModelError
-	var hadCacheSupportErr bool
+	var didProviderFallback bool
 
 	for {
 		if ctx.Err() != nil {
@@ -266,7 +254,13 @@ func withStreamingRetries[T any](
 
 		log.Printf("withStreamingRetries - will run operation")
 
-		resp, fallbackRes, err = operation(numTotalRetry, modelErr, hadCacheSupportErr)
+		log.Println(spew.Sdump(map[string]interface{}{
+			"numTotalRetry":       numTotalRetry,
+			"didProviderFallback": didProviderFallback,
+			"modelErr":            modelErr,
+		}))
+
+		resp, fallbackRes, err = operation(numTotalRetry, didProviderFallback, modelErr)
 		if err == nil {
 			return resp, nil
 		}
@@ -279,6 +273,10 @@ func withStreamingRetries[T any](
 			maxRetries = MAX_ADDITIONAL_RETRIES_WITH_FALLBACK
 		}
 
+		if fallbackRes.FallbackType == shared.FallbackTypeProvider {
+			didProviderFallback = true
+		}
+
 		compareRetries := numTotalRetry
 		if isFallback {
 			compareRetries = numFallbackRetry
@@ -287,14 +285,7 @@ func withStreamingRetries[T any](
 		log.Printf("Error in streaming operation: %v, isFallback: %t, numTotalRetry: %d, numFallbackRetry: %d, numRetry: %d, compareRetries: %d, maxRetries: %d\n", err, isFallback, numTotalRetry, numFallbackRetry, numRetry, compareRetries, maxRetries)
 
 		classifyRes := classifyBasicError(err)
-
-		isCacheSupportErr := classifyRes.Kind == shared.ErrCacheSupport
-
-		if isCacheSupportErr {
-			hadCacheSupportErr = true
-		} else {
-			modelErr = &classifyRes
-		}
+		modelErr = &classifyRes
 
 		newFallback := false
 		if !modelErr.Retriable {
@@ -312,6 +303,7 @@ func withStreamingRetries[T any](
 			log.Printf("withStreamingRetries - operation returned non-retriable error, but has fallback - resetting numFallbackRetry to 0 and continuing to retry")
 			numFallbackRetry = 0
 			newFallback = true
+			compareRetries = 0
 			// otherwise, continue to retry logic
 		}
 
@@ -332,16 +324,9 @@ func withStreamingRetries[T any](
 		log.Printf("withStreamingRetries - retrying stream in %v seconds", retryDelay)
 		time.Sleep(retryDelay)
 
-		if !isCacheSupportErr {
-			numTotalRetry++
-			if isFallback && !newFallback {
-				numFallbackRetry++
-			}
-		}
-
-		// if we had a cache support error previously but now we're doing a new fallback, reset the hadCacheSupportErr flag since the fallback will use a new model
-		if hadCacheSupportErr && newFallback {
-			hadCacheSupportErr = false
+		numTotalRetry++
+		if isFallback && !newFallback {
+			numFallbackRetry++
 		}
 	}
 }

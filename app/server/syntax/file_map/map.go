@@ -153,6 +153,11 @@ func mapTraditional(baseNode Node, parentNode *Node) []Definition {
 	cursor := tree_sitter.NewTreeCursor(baseNode.TsNode)
 	defer cursor.Close()
 
+	// potentially too much output even for verbose logging — uncomment if you need to see the full tree
+	// if verboseLogging {
+	// 	fmt.Println("mapTraditional", baseNode.TsNode)
+	// }
+
 	if cursor.GoToFirstChild() {
 		for {
 			tsNode := cursor.CurrentNode()
@@ -238,14 +243,29 @@ func mapTraditional(baseNode Node, parentNode *Node) []Definition {
 							fmt.Println("firstChild", firstChild.Type)
 						}
 						end := firstChild.TsNode.StartByte()
-						def.Signature = string(node.Bytes[start:end])
+
+						sig := string(node.Bytes[start:end])
+						sig = strings.TrimSpace(sig)
 
 						if verboseLogging {
 							fmt.Println("got pass through parent signature", def.Signature)
 							fmt.Println("recursing into first child", firstChild.Type)
 						}
 
-						def.Children = mapTraditional(node, nil)
+						children := mapTraditional(node, nil)
+
+						if sig == "" {
+							// collapse if signature is empty
+							if len(children) > 0 {
+								sig = children[0].Signature
+								grandchildren := children[0].Children
+								sibs := children[1:]
+								children = append(grandchildren, sibs...)
+							}
+						}
+
+						def.Signature = sig
+						def.Children = children
 					} else {
 						if verboseLogging {
 							fmt.Println("no first child found", node.Type)
