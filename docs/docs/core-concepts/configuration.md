@@ -64,6 +64,14 @@ Autonomy settings control the overall level of automation Plandex will use. See 
 | `auto-commit`           | Commit changes to git when applied       | `true` |
 | `auto-revert-on-rewind` | Revert project files when rewinding      | `true`  |
 
+### Changes Menu
+
+| Setting                 | Description                              | Default |
+| ----------------------- | ---------------------------------------- | ------- |
+| `skip-changes-menu`     | Skip interactive menu when response finishes and changes are pending | `false` |
+
+
+
 ### Editor
 
 | Setting                 | Description                              | Default |

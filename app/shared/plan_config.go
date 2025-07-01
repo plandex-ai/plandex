@@ -85,6 +85,8 @@ type PlanConfig struct {
 
 	AutoRevertOnRewind bool `json:"autoRevertOnRewind"`
 
+	SkipChangesMenu bool `json:"skipChangesMenu"`
+
 	// ReplMode    bool     `json:"replMode"`
 	// DefaultRepl ReplType `json:"defaultRepl"`
 
@@ -139,6 +141,7 @@ func (p *PlanConfig) SetAutoMode(mode AutoModeType) {
 		p.AutoDebug = true
 		p.AutoDebugTries = defaultAutoDebugTries
 		p.AutoRevertOnRewind = true
+		p.SkipChangesMenu = false
 
 	case AutoModeSemi:
 		p.AutoContinue = true
@@ -152,6 +155,7 @@ func (p *PlanConfig) SetAutoMode(mode AutoModeType) {
 		p.AutoExec = false
 		p.AutoDebug = false
 		p.AutoRevertOnRewind = true
+		p.SkipChangesMenu = false
 
 	case AutoModePlus:
 		p.AutoContinue = true
@@ -165,6 +169,7 @@ func (p *PlanConfig) SetAutoMode(mode AutoModeType) {
 		p.AutoExec = false
 		p.AutoDebug = false
 		p.AutoRevertOnRewind = true
+		p.SkipChangesMenu = false
 
 	case AutoModeBasic:
 		p.AutoContinue = true
@@ -178,6 +183,7 @@ func (p *PlanConfig) SetAutoMode(mode AutoModeType) {
 		p.AutoExec = false
 		p.AutoDebug = false
 		p.AutoRevertOnRewind = true
+		p.SkipChangesMenu = false
 
 	case AutoModeNone:
 		p.AutoContinue = false
@@ -191,6 +197,7 @@ func (p *PlanConfig) SetAutoMode(mode AutoModeType) {
 		p.AutoExec = false
 		p.AutoDebug = false
 		p.AutoRevertOnRewind = true
+		p.SkipChangesMenu = false
 	}
 }
 
@@ -466,6 +473,16 @@ var ConfigSettingsByKey = map[string]ConfigSetting{
 		},
 		Getter: func(p *PlanConfig) string {
 			return fmt.Sprintf("%t", p.AutoRevertOnRewind)
+		},
+	},
+	"skipchangesmenu": {
+		Name: "skip-changes-menu",
+		Desc: "Skip interactive menu when response finishes and changes are pending",
+		BoolSetter: func(p *PlanConfig, enabled bool) {
+			p.SkipChangesMenu = enabled
+		},
+		Getter: func(p *PlanConfig) string {
+			return fmt.Sprintf("%t", p.SkipChangesMenu)
 		},
 	},
 }

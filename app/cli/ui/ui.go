@@ -23,6 +23,7 @@ func OpenAuthenticatedURL(msg, path string) {
 
 	apiHost := api.GetApiHost()
 	appHost := strings.Replace(apiHost, "api-v2.", "app.", 1)
+	appHost = strings.Replace(appHost, "api.", "app.", 1)
 
 	token := shared.UiSignInToken{
 		Pin:        signInCode,

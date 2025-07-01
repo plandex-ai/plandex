@@ -44,7 +44,7 @@ func init() {
 func doDebug(cmd *cobra.Command, args []string) {
 	auth.MustResolveAuthWithOrg()
 	lib.MustResolveProject()
-	mustSetPlanExecFlags(cmd)
+	mustSetPlanExecFlags(cmd, false)
 
 	if lib.CurrentPlanId == "" {
 		term.OutputNoCurrentPlanErrorAndExit()

@@ -41,6 +41,7 @@ func TellPlan(
 	autoApply := flags.AutoApply
 	isApplyDebug := flags.IsApplyDebug
 	isImplementationOfChat := flags.IsImplementationOfChat
+	skipChangesMenu := flags.SkipChangesMenu
 	done := make(chan struct{})
 
 	if prompt == "" && isImplementationOfChat {
@@ -229,6 +230,9 @@ func TellPlan(
 				} else if autoApply || isDebugCmd || isApplyDebug {
 					term.StopSpinner()
 					// do nothing, allow auto apply to run
+				} else if skipChangesMenu {
+					term.StopSpinner()
+					// script mode, don't show menu
 				} else {
 					term.StartSpinner("")
 					// sleep a little to prevent lock contention on server

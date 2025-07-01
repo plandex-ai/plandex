@@ -19,6 +19,8 @@ const (
 	OptCreateNewBranch = "Create a new branch"
 )
 
+var confirmCreateBranch bool
+
 var checkoutCmd = &cobra.Command{
 	Use:     "checkout [name-or-index]",
 	Aliases: []string{"co"},
@@ -29,6 +31,7 @@ var checkoutCmd = &cobra.Command{
 
 func init() {
 	RootCmd.AddCommand(checkoutCmd)
+	checkoutCmd.Flags().BoolVarP(&confirmCreateBranch, "yes", "y", false, "Confirm creating a new branch")
 }
 
 func checkout(cmd *cobra.Command, args []string) {
@@ -76,17 +79,24 @@ func checkout(cmd *cobra.Command, args []string) {
 
 		if branchName == "" {
 			fmt.Printf("🌱 Branch %s not found\n", color.New(color.Bold, term.ColorHiCyan).Sprint(nameOrIdx))
-			res, err := term.ConfirmYesNo("Create it now?")
 
-			if err != nil {
-				term.OutputErrorAndExit("Error getting user input: %v", err)
-			}
-
-			if res {
+			if confirmCreateBranch {
+				fmt.Println("✅ --yes flag set, will create branch")
 				branchName = nameOrIdx
 				willCreate = true
 			} else {
-				return
+				res, err := term.ConfirmYesNo("Create it now?")
+
+				if err != nil {
+					term.OutputErrorAndExit("Error getting user input: %v", err)
+				}
+
+				if res {
+					branchName = nameOrIdx
+					willCreate = true
+				} else {
+					return
+				}
 			}
 		}
 

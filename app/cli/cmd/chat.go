@@ -31,6 +31,7 @@ func init() {
 		omitApply:        true,
 		omitExec:         true,
 		omitSmartContext: true,
+		omitSkipMenu:     true,
 	})
 
 }
@@ -38,7 +39,7 @@ func init() {
 func doChat(cmd *cobra.Command, args []string) {
 	auth.MustResolveAuthWithOrg()
 	lib.MustResolveProject()
-	mustSetPlanExecFlags(cmd)
+	mustSetPlanExecFlags(cmd, false)
 
 	var apiKeys map[string]string
 	if !auth.Current.IntegratedModelsMode {
@@ -61,7 +62,8 @@ func doChat(cmd *cobra.Command, args []string) {
 			return lib.CheckOutdatedContextWithOutput(auto, auto, maybeContexts, projectPaths)
 		},
 	}, prompt, types.TellFlags{
-		IsChatOnly:  true,
-		AutoContext: tellAutoContext,
+		IsChatOnly:      true,
+		AutoContext:     tellAutoContext,
+		SkipChangesMenu: tellSkipMenu,
 	})
 }

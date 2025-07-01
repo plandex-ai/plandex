@@ -322,6 +322,8 @@ pdx t # alias
 
 `--auto-exec`: Automatically execute commands after successful apply without confirmation. Defaults to config value `auto-exec`.
 
+`--skip-menu`: Skip interactive menu when response finishes and changes are pending. Defaults to config value `skip-changes-menu`.
+
 `--debug`: Automatically execute and debug failing commands (optionally specify number of tries—default is 5). Defaults to config values of `auto-debug` and `auto-debug-tries`.
 
 `--apply/-a`: Automatically apply changes (and confirm context updates). Defaults to config value `auto-apply`.
@@ -356,6 +358,8 @@ pdx c # alias
 
 `--auto-exec`: Automatically execute commands after successful apply without confirmation. Defaults to config value `auto-exec`.
 
+`--skip-menu`: Skip interactive menu when response finishes and changes are pending. Defaults to config value `skip-changes-menu`.
+
 `--debug`: Automatically execute and debug failing commands (optionally specify number of tries—default is 5). Defaults to config values of `auto-debug` and `auto-debug-tries`.
 
 `--apply/-a`: Automatically apply changes (and confirm context updates). Defaults to config value `auto-apply`.
@@ -384,6 +388,8 @@ pdx b # alias
 `--no-exec`: Don't execute commands after successful apply. Defaults to opposite of config value `can-exec`.
 
 `--auto-exec`: Automatically execute commands after successful apply without confirmation. Defaults to config value `auto-exec`.
+
+`--skip-menu`: Skip interactive menu when response finishes and changes are pending. Defaults to config value `skip-changes-menu`.
 
 `--debug`: Automatically execute and debug failing commands (optionally specify number of tries—default is 5). Defaults to config values of `auto-debug` and `auto-debug-tries`.
 
@@ -545,9 +551,12 @@ Checkout or create a branch.
 ```bash
 plandex checkout # select from a list of branches or prompt to create a new branch
 plandex checkout some-branch # checkout by name or create a new branch with that name
+plandex checkout some-branch -y # checkout by name or create a new branch with that name, auto-confirming branch creation
 
 pdx co # alias
 ```
+
+`--yes/-y`: Auto-confirm creating a new branch if it doesn't exist.
 
 ### delete-branch
 

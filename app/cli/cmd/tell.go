@@ -41,7 +41,7 @@ func init() {
 func doTell(cmd *cobra.Command, args []string) {
 	auth.MustResolveAuthWithOrg()
 	lib.MustResolveProject()
-	mustSetPlanExecFlags(cmd)
+	mustSetPlanExecFlags(cmd, false)
 
 	var authVars map[string]string
 	if !auth.Current.IntegratedModelsMode {
@@ -71,6 +71,7 @@ func doTell(cmd *cobra.Command, args []string) {
 		ExecEnabled:            !noExec,
 		AutoApply:              tellAutoApply,
 		IsImplementationOfChat: isImplementationOfChat,
+		SkipChangesMenu:        tellSkipMenu,
 	}
 
 	plan_exec.TellPlan(plan_exec.ExecParams{
