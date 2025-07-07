@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/smtp"
 	"os"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -73,7 +74,8 @@ func sendEmailViaSMTP(recipient, subject, htmlBody, textBody string) error {
 
 	// Generate a MIME boundary
 	boundary := "BOUNDARY1234567890"
-	header := fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: %s\r\nMIME-Version: 1.0\r\nContent-Type: multipart/alternative; boundary=\"%s\"\r\n\r\n", smtpFrom, recipient, subject, boundary)
+	header := fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: %s\r\nDate: %s\r\nMIME-Version: 1.0\r\nContent-Type: multipart/alternative; boundary=\"%s\"\r\n\r\n",
+		smtpFrom, recipient, subject, time.Now().Format("Mon, 02 Jan 2006 15:04:05 -0700"), boundary)
 
 	// Prepare the text body part
 	textPart := fmt.Sprintf("--%s\r\nContent-Type: text/plain; charset=\"UTF-8\"\r\n\r\n%s\r\n", boundary, textBody)
