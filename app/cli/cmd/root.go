@@ -85,6 +85,8 @@ func init() {
 	}
 
 	RootCmd.AddCommand(helpCmd)
+	RootCmd.AddCommand(connectClaudeCmd)
+	RootCmd.AddCommand(disconnectClaudeCmd)
 
 	// add an --all/-a flag
 	helpCmd.Flags().BoolVarP(&helpShowAll, "all", "a", false, "Show all commands")

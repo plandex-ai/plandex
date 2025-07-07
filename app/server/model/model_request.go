@@ -18,13 +18,14 @@ import (
 )
 
 type ModelRequestParams struct {
-	Clients     map[string]ClientInfo
-	AuthVars    map[string]string
-	Auth        *types.ServerAuth
-	Plan        *db.Plan
-	ModelConfig *shared.ModelRoleConfig
-	Settings    *shared.PlanSettings
-	Purpose     string
+	Clients       map[string]ClientInfo
+	AuthVars      map[string]string
+	Auth          *types.ServerAuth
+	Plan          *db.Plan
+	ModelConfig   *shared.ModelRoleConfig
+	Settings      *shared.PlanSettings
+	OrgUserConfig *shared.OrgUserConfig
+	Purpose       string
 
 	Messages   []types.ExtendedChatMessage
 	Prediction string
@@ -69,12 +70,15 @@ func ModelRequest(
 	purpose := params.Purpose
 	sessionId := params.SessionId
 	settings := params.Settings
+	orgUserConfig := params.OrgUserConfig
+	currentOrgId := auth.OrgId
+	currentUserId := auth.User.Id
 
 	if purpose == "" {
 		return nil, fmt.Errorf("purpose is required")
 	}
 
-	baseModelConfig := modelConfig.GetBaseModelConfig(authVars, settings)
+	baseModelConfig := modelConfig.GetBaseModelConfig(authVars, settings, orgUserConfig)
 
 	messages = FilterEmptyMessages(messages)
 	messages = CheckSingleSystemMessage(modelConfig, baseModelConfig, messages)
@@ -166,7 +170,7 @@ func ModelRequest(
 		}
 	}
 
-	res, err := CreateChatCompletionWithInternalStream(clients, authVars, modelConfig, settings, ctx, req, onStream, reqStarted)
+	res, err := CreateChatCompletionWithInternalStream(clients, authVars, modelConfig, settings, orgUserConfig, currentOrgId, currentUserId, ctx, req, onStream, reqStarted)
 
 	if err != nil {
 		return nil, err

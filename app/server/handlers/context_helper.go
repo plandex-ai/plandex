@@ -90,6 +90,7 @@ func loadContexts(
 	var settings *shared.PlanSettings
 	var clients map[string]model.ClientInfo
 	var authVars map[string]string
+	var orgUserConfig *shared.OrgUserConfig
 
 	for _, context := range *loadReq {
 		if context.ContextType == shared.ContextPipedDataType || context.ContextType == shared.ContextNoteType || context.ContextType == shared.ContextImageType {
@@ -99,6 +100,13 @@ func loadContexts(
 			if err != nil {
 				log.Printf("Error getting plan settings: %v\n", err)
 				http.Error(w, "Error getting plan settings: "+err.Error(), http.StatusInternalServerError)
+				return nil, nil
+			}
+
+			orgUserConfig, err = db.GetOrgUserConfig(auth.User.Id, auth.OrgId)
+			if err != nil {
+				log.Printf("Error getting org user config: %v\n", err)
+				http.Error(w, "Error getting org user config: "+err.Error(), http.StatusInternalServerError)
 				return nil, nil
 			}
 
@@ -149,14 +157,15 @@ func loadContexts(
 				}()
 
 				name, err := model.GenPipedDataName(model.GenPipedDataNameParams{
-					Ctx:          r.Context(),
-					Auth:         auth,
-					Plan:         plan,
-					Settings:     settings,
-					AuthVars:     authVars,
-					SessionId:    context.SessionId,
-					Clients:      clients,
-					PipedContent: context.Body,
+					Ctx:           r.Context(),
+					Auth:          auth,
+					Plan:          plan,
+					Settings:      settings,
+					AuthVars:      authVars,
+					SessionId:     context.SessionId,
+					Clients:       clients,
+					PipedContent:  context.Body,
+					OrgUserConfig: orgUserConfig,
 				})
 
 				if err != nil {
@@ -179,7 +188,7 @@ func loadContexts(
 					}
 				}()
 
-				name, err := model.GenNoteName(r.Context(), auth, plan, settings, clients, authVars, context.Body, context.SessionId)
+				name, err := model.GenNoteName(r.Context(), auth, plan, settings, orgUserConfig, clients, authVars, context.Body, context.SessionId)
 
 				if err != nil {
 					errCh <- fmt.Errorf("error generating name for note: %v", err)

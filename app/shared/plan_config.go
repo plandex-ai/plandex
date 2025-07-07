@@ -93,6 +93,7 @@ type PlanConfig struct {
 	// PlainTextMode     bool `json:"plainTextMode"`
 	// PlainTextCommands bool `json:"plainTextCommands"`
 	// PlainTextStream   bool `json:"plainTextStream"`
+
 }
 
 var DefaultPlanConfig = PlanConfig{}

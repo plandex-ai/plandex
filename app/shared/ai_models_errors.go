@@ -47,6 +47,7 @@ func (m *ModelRoleConfig) GetFallbackForModelError(
 	modelErr *ModelError,
 	authVars map[string]string,
 	settings *PlanSettings,
+	orgUserConfig *OrgUserConfig,
 ) FallbackResult {
 	if m == nil || modelErr == nil {
 		return FallbackResult{
@@ -72,7 +73,7 @@ func (m *ModelRoleConfig) GetFallbackForModelError(
 		} else if !didProviderFallback {
 			log.Println("no error fallback, trying provider fallback")
 
-			providerFallback := m.GetProviderFallback(authVars, settings)
+			providerFallback := m.GetProviderFallback(authVars, settings, orgUserConfig)
 
 			log.Println(spew.Sdump(map[string]interface{}{
 				"providerFallback": providerFallback,
@@ -97,21 +98,27 @@ func (m *ModelRoleConfig) GetFallbackForModelError(
 // we just try a single provider fallback if all defined fallbacks are exhausted
 // if we've got openrouter credentials in the stack, we always use OpenRouter as the fallback since it has its own routing/fallback routing to maximize resilience
 // otherwise we just use the second provider in the stack
-func (m ModelRoleConfig) GetProviderFallback(authVars map[string]string, settings *PlanSettings) *ModelRoleConfig {
-	providers := m.GetProvidersForAuthVars(authVars, settings)
+// if we're using the claude subscription, we also go to second provider in the stack rather than openrouter
+func (m ModelRoleConfig) GetProviderFallback(authVars map[string]string, settings *PlanSettings, orgUserConfig *OrgUserConfig) *ModelRoleConfig {
+	providers := m.GetProvidersForAuthVars(authVars, settings, orgUserConfig)
 
 	if len(providers) < 2 {
 		return nil
 	}
 
+	firstProvider := providers[0]
+
 	res := ModelRoleConfig{}
 	copier.Copy(&res, m)
 
 	var provider ModelProvider
-	for _, p := range providers {
-		if p.Provider == ModelProviderOpenRouter {
-			provider = p.Provider
-			break
+
+	if !firstProvider.HasClaudeMaxAuth {
+		for _, p := range providers {
+			if p.Provider == ModelProviderOpenRouter {
+				provider = p.Provider
+				break
+			}
 		}
 	}
 
@@ -125,7 +132,7 @@ func (m ModelRoleConfig) GetProviderFallback(authVars map[string]string, setting
 		c := availableModel.BaseModelConfig
 		res.BaseModelConfig = &c
 	} else {
-		c := m.GetBaseModelConfig(authVars, settings)
+		c := m.GetBaseModelConfig(authVars, settings, orgUserConfig)
 		res.BaseModelConfig = c
 	}
 

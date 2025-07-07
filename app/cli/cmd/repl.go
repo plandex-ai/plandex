@@ -62,11 +62,7 @@ func init() {
 }
 
 func setReplConfig() {
-	res, apiErr := api.Client.GetPlanConfig(lib.CurrentPlanId)
-	if apiErr != nil {
-		term.OutputErrorAndExit("Error getting plan config: %v", apiErr.Msg)
-	}
-	replConfig = res
+	replConfig = lib.MustGetCurrentPlanConfig()
 }
 
 func runRepl(cmd *cobra.Command, args []string) {
@@ -147,6 +143,8 @@ func runRepl(cmd *cobra.Command, args []string) {
 		afterNew = true
 	}
 
+	setReplConfig()
+
 	if !auth.Current.IntegratedModelsMode {
 		lib.MustVerifyAuthVars()
 	}
@@ -155,8 +153,6 @@ func runRepl(cmd *cobra.Command, args []string) {
 	if err != nil {
 		color.New(term.ColorHiRed).Printf("Error getting project paths: %v\n", err)
 	}
-
-	setReplConfig()
 
 	settings, apiErr := api.Client.GetSettings(lib.CurrentPlanId, lib.CurrentBranch)
 	if apiErr != nil {

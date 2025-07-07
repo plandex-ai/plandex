@@ -95,12 +95,13 @@ func (invite *Invite) ToApi() *shared.Invite {
 }
 
 type OrgUser struct {
-	Id        string    `db:"id"`
-	OrgId     string    `db:"org_id"`
-	OrgRoleId string    `db:"org_role_id"`
-	UserId    string    `db:"user_id"`
-	CreatedAt time.Time `db:"created_at"`
-	UpdatedAt time.Time `db:"updated_at"`
+	Id        string                `db:"id"`
+	OrgId     string                `db:"org_id"`
+	OrgRoleId string                `db:"org_role_id"`
+	UserId    string                `db:"user_id"`
+	Config    *shared.OrgUserConfig `db:"config"`
+	CreatedAt time.Time             `db:"created_at"`
+	UpdatedAt time.Time             `db:"updated_at"`
 }
 
 func (orgUser *OrgUser) ToApi() *shared.OrgUser {
@@ -108,6 +109,7 @@ func (orgUser *OrgUser) ToApi() *shared.OrgUser {
 		OrgId:     orgUser.OrgId,
 		OrgRoleId: orgUser.OrgRoleId,
 		UserId:    orgUser.UserId,
+		Config:    orgUser.Config,
 	}
 }
 

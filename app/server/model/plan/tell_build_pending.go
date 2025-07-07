@@ -71,6 +71,7 @@ func (state *activeTellStreamState) queuePendingBuilds() {
 		branch:        branch,
 		settings:      state.settings,
 		modelContext:  state.modelContext,
+		orgUserConfig: state.orgUserConfig,
 	}
 
 	for _, pendingBuilds := range pendingBuildsByPath {

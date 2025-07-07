@@ -31,6 +31,7 @@ func (state *activeTellStreamState) handleStreamFinished() handleStreamFinishedR
 	clients := state.clients
 	authVars := state.authVars
 	settings := state.settings
+	orgUserConfig := state.orgUserConfig
 	currentOrgId := state.currentOrgId
 	summaries := state.summaries
 	convo := state.convo
@@ -126,7 +127,7 @@ func (state *activeTellStreamState) handleStreamFinished() handleStreamFinishedR
 			}
 		}()
 
-		err := summarizeConvo(clients, authVars, settings, summarizeConvoParams{
+		err := summarizeConvo(clients, authVars, settings, orgUserConfig, summarizeConvoParams{
 			auth:                  auth,
 			plan:                  plan,
 			branch:                branch,

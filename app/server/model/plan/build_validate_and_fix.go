@@ -199,7 +199,7 @@ func (fileState *activeBuildStreamFileState) buildValidate(
 	syntaxErrors := params.syntaxErrors
 	reasons := params.reasons
 
-	baseModelConfig := modelConfig.GetBaseModelConfig(authVars, fileState.settings)
+	baseModelConfig := modelConfig.GetBaseModelConfig(authVars, fileState.settings, fileState.orgUserConfig)
 
 	// Get diff for validation
 	log.Printf("Getting diffs between original and updated content")
@@ -293,6 +293,7 @@ func (fileState *activeBuildStreamFileState) buildValidate(
 		SessionId:             params.sessionId,
 		EstimatedOutputTokens: maxExpectedOutputTokens,
 		Settings:              fileState.settings,
+		OrgUserConfig:         fileState.orgUserConfig,
 	})
 
 	if err != nil {

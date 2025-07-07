@@ -1,13 +1,11 @@
 package cmd
 
 import (
-	"plandex-cli/api"
 	"plandex-cli/auth"
 	"plandex-cli/lib"
 	"plandex-cli/plan_exec"
 	"plandex-cli/term"
 	"plandex-cli/types"
-	shared "plandex-shared"
 
 	"github.com/spf13/cobra"
 )
@@ -33,21 +31,16 @@ func apply(cmd *cobra.Command, args []string) {
 	auth.MustResolveAuthWithOrg()
 	lib.MustResolveProject()
 
-	var config *shared.PlanConfig
 	if fullAuto {
 		term.StartSpinner("")
-		var apiErr *shared.ApiError
-		config, apiErr = api.Client.GetPlanConfig(lib.CurrentPlanId)
-		if apiErr != nil {
-			term.OutputErrorAndExit("Error getting plan config: %v", apiErr)
-		}
+		config := lib.MustGetCurrentPlanConfig()
 		_, updatedConfig, printFn := resolveAutoModeSilent(config)
-		config = updatedConfig
+		lib.SetCachedPlanConfig(updatedConfig)
 		term.StopSpinner()
 		printFn()
 	}
 
-	mustSetPlanExecFlagsWithConfig(cmd, config, true)
+	mustSetPlanExecFlags(cmd, true)
 
 	if lib.CurrentPlanId == "" {
 		term.OutputNoCurrentPlanErrorAndExit()

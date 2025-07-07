@@ -32,6 +32,7 @@ func (state *activeBuildStreamState) loadPendingBuilds(sessionId string) (map[st
 	var modelContext []*db.Context
 	var pendingBuildsByPath map[string][]*types.ActiveBuild
 	var settings *shared.PlanSettings
+	var orgUserConfig *shared.OrgUserConfig
 
 	err = db.ExecRepoOperation(db.ExecRepoOperationParams{
 		OrgId:    auth.OrgId,
@@ -43,7 +44,7 @@ func (state *activeBuildStreamState) loadPendingBuilds(sessionId string) (map[st
 		CancelFn: active.CancelFn,
 		Reason:   "load pending builds",
 	}, func(repo *db.GitRepo) error {
-		errCh := make(chan error, 3)
+		errCh := make(chan error, 4)
 
 		go func() {
 			defer func() {
@@ -104,7 +105,28 @@ func (state *activeBuildStreamState) loadPendingBuilds(sessionId string) (map[st
 			errCh <- nil
 		}()
 
-		for i := 0; i < 3; i++ {
+		go func() {
+
+			defer func() {
+				if r := recover(); r != nil {
+					log.Printf("panic in getOrgUserConfig: %v\n%s", r, debug.Stack())
+					errCh <- fmt.Errorf("error getting org user config: %v", r)
+					runtime.Goexit() // don't allow outer function to continue and double-send to channel
+				}
+			}()
+
+			res, err := db.GetOrgUserConfig(auth.User.Id, auth.OrgId)
+			if err != nil {
+				log.Printf("Error getting org user config: %v\n", err)
+				errCh <- fmt.Errorf("error getting org user config: %v", err)
+				return
+			}
+
+			orgUserConfig = res
+			errCh <- nil
+		}()
+
+		for i := 0; i < 4; i++ {
 			err = <-errCh
 			if err != nil {
 				log.Printf("Error getting plan data: %v\n", err)
@@ -129,6 +151,7 @@ func (state *activeBuildStreamState) loadPendingBuilds(sessionId string) (map[st
 
 	state.modelContext = modelContext
 	state.settings = settings
+	state.orgUserConfig = orgUserConfig
 
 	return pendingBuildsByPath, nil
 }

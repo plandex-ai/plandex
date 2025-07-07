@@ -76,15 +76,23 @@ func TellPlanHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	orgUserConfig, err := db.GetOrgUserConfig(auth.User.Id, auth.OrgId)
+	if err != nil {
+		log.Printf("Error getting org user config: %v\n", err)
+		http.Error(w, "Error getting org user config", http.StatusInternalServerError)
+		return
+	}
+
 	res := initClients(
 		initClientsParams{
-			w:           w,
-			auth:        auth,
-			apiKeys:     requestBody.ApiKeys,
-			openAIOrgId: requestBody.OpenAIOrgId,
-			authVars:    requestBody.AuthVars,
-			plan:        plan,
-			settings:    settings,
+			w:             w,
+			auth:          auth,
+			apiKeys:       requestBody.ApiKeys,
+			openAIOrgId:   requestBody.OpenAIOrgId,
+			authVars:      requestBody.AuthVars,
+			plan:          plan,
+			settings:      settings,
+			orgUserConfig: orgUserConfig,
 		},
 	)
 	err = modelPlan.Tell(modelPlan.TellParams{
@@ -154,24 +162,34 @@ func BuildPlanHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	orgUserConfig, err := db.GetOrgUserConfig(auth.User.Id, auth.OrgId)
+	if err != nil {
+		log.Printf("Error getting org user config: %v\n", err)
+		http.Error(w, "Error getting org user config", http.StatusInternalServerError)
+		return
+	}
+
 	res := initClients(
 		initClientsParams{
-			w:           w,
-			auth:        auth,
-			apiKeys:     requestBody.ApiKeys,
-			openAIOrgId: requestBody.OpenAIOrgId,
-			authVars:    requestBody.AuthVars,
-			plan:        plan,
-			settings:    settings,
+			w:             w,
+			auth:          auth,
+			apiKeys:       requestBody.ApiKeys,
+			openAIOrgId:   requestBody.OpenAIOrgId,
+			authVars:      requestBody.AuthVars,
+			plan:          plan,
+			settings:      settings,
+			orgUserConfig: orgUserConfig,
 		},
 	)
 	numBuilds, err := modelPlan.Build(modelPlan.BuildParams{
-		Clients:   res.clients,
-		AuthVars:  res.authVars,
-		Plan:      plan,
-		Branch:    branch,
-		Auth:      auth,
-		SessionId: requestBody.SessionId,
+		Clients:       res.clients,
+		AuthVars:      res.authVars,
+		Plan:          plan,
+		Branch:        branch,
+		Auth:          auth,
+		SessionId:     requestBody.SessionId,
+		OrgUserConfig: orgUserConfig,
+		Settings:      settings,
 	})
 
 	if err != nil {

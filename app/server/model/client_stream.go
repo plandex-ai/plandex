@@ -21,18 +21,21 @@ func CreateChatCompletionWithInternalStream(
 	authVars map[string]string,
 	modelConfig *shared.ModelRoleConfig,
 	settings *shared.PlanSettings,
+	orgUserConfig *shared.OrgUserConfig,
+	currentOrgId string,
+	currentUserId string,
 	ctx context.Context,
 	req types.ExtendedChatCompletionRequest,
 	onStream OnStreamFn,
 	reqStarted time.Time,
 ) (*types.ModelResponse, error) {
-	providerComposite := modelConfig.GetProviderComposite(authVars, settings)
+	providerComposite := modelConfig.GetProviderComposite(authVars, settings, orgUserConfig)
 	_, ok := clients[providerComposite]
 	if !ok {
 		return nil, fmt.Errorf("client not found for provider composite: %s", providerComposite)
 	}
 
-	baseModelConfig := modelConfig.GetBaseModelConfig(authVars, settings)
+	baseModelConfig := modelConfig.GetBaseModelConfig(authVars, settings, orgUserConfig)
 
 	resolveReq(&req, modelConfig, baseModelConfig, settings)
 
@@ -50,14 +53,16 @@ func CreateChatCompletionWithInternalStream(
 	}
 
 	return withStreamingRetries(ctx, func(numTotalRetry int, didProviderFallback bool, modelErr *shared.ModelError) (resp *types.ModelResponse, fallbackRes shared.FallbackResult, err error) {
-		fallbackRes = modelConfig.GetFallbackForModelError(numTotalRetry, didProviderFallback, modelErr, authVars, settings)
+		handleClaudeMaxRateLimitedIfNeeded(modelErr, modelConfig, authVars, settings, orgUserConfig, currentOrgId, currentUserId)
+
+		fallbackRes = modelConfig.GetFallbackForModelError(numTotalRetry, didProviderFallback, modelErr, authVars, settings, orgUserConfig)
 		resolvedModelConfig := fallbackRes.ModelRoleConfig
 
 		if resolvedModelConfig == nil {
 			return nil, fallbackRes, fmt.Errorf("model config is nil")
 		}
 
-		providerComposite := resolvedModelConfig.GetProviderComposite(authVars, settings)
+		providerComposite := resolvedModelConfig.GetProviderComposite(authVars, settings, orgUserConfig)
 		opClient, ok := clients[providerComposite]
 
 		if !ok {
@@ -65,7 +70,7 @@ func CreateChatCompletionWithInternalStream(
 		}
 
 		modelConfig = resolvedModelConfig
-		resp, err = processChatCompletionStream(resolvedModelConfig, opClient, authVars, settings, ctx, req, onStream, reqStarted)
+		resp, err = processChatCompletionStream(resolvedModelConfig, opClient, authVars, settings, orgUserConfig, ctx, req, onStream, reqStarted)
 		if err != nil {
 			return nil, fallbackRes, err
 		}
@@ -83,6 +88,7 @@ func processChatCompletionStream(
 	client ClientInfo,
 	authVars map[string]string,
 	settings *shared.PlanSettings,
+	orgUserConfig *shared.OrgUserConfig,
 	ctx context.Context,
 	req types.ExtendedChatCompletionRequest,
 	onStream OnStreamFn,
@@ -94,7 +100,7 @@ func processChatCompletionStream(
 		"model": modelConfig.ModelId,
 	}))
 
-	stream, err := createChatCompletionStreamExtended(modelConfig, client, authVars, settings, streamCtx, req)
+	stream, err := createChatCompletionStreamExtended(modelConfig, client, authVars, settings, orgUserConfig, streamCtx, req)
 
 	if err != nil {
 		cancel()

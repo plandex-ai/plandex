@@ -16,6 +16,11 @@ const AzureOpenAIEnvVar = "AZURE_OPENAI_API_KEY"
 const DeepSeekApiKeyEnvVar = "DEEPSEEK_API_KEY"
 const PerplexityApiKeyEnvVar = "PERPLEXITY_API_KEY"
 
+// not set directly via env vars, but used for auth var resolution
+const AnthropicClaudeMaxTokenEnvVar = "ANTHROPIC_CLAUDE_MAX_TOKEN"
+const AnthropicClaudeMaxBetaHeader = "oauth-2025-04-20"
+const LiteLLMAnthropicBaseUrl = "https://api.anthropic.com"
+
 type ModelPublisher string
 
 const (
@@ -34,12 +39,13 @@ const (
 	ModelProviderOpenRouter ModelProvider = "openrouter"
 	ModelProviderOpenAI     ModelProvider = "openai"
 
-	ModelProviderAnthropic      ModelProvider = "anthropic"
-	ModelProviderGoogleAIStudio ModelProvider = "google-ai-studio"
-	ModelProviderGoogleVertex   ModelProvider = "google-vertex"
-	ModelProviderAzureOpenAI    ModelProvider = "azure-openai"
-	ModelProviderDeepSeek       ModelProvider = "deepseek"
-	ModelProviderPerplexity     ModelProvider = "perplexity"
+	ModelProviderAnthropic          ModelProvider = "anthropic"
+	ModelProviderAnthropicClaudeMax ModelProvider = "anthropic-claude-max"
+	ModelProviderGoogleAIStudio     ModelProvider = "google-ai-studio"
+	ModelProviderGoogleVertex       ModelProvider = "google-vertex"
+	ModelProviderAzureOpenAI        ModelProvider = "azure-openai"
+	ModelProviderDeepSeek           ModelProvider = "deepseek"
+	ModelProviderPerplexity         ModelProvider = "perplexity"
 
 	ModelProviderAmazonBedrock ModelProvider = "aws-bedrock"
 
@@ -59,6 +65,7 @@ var AllModelProviders = []ModelProvider{
 	ModelProviderOpenRouter,
 	ModelProviderOpenAI,
 	ModelProviderAnthropic,
+	ModelProviderAnthropicClaudeMax,
 	ModelProviderGoogleAIStudio,
 	ModelProviderGoogleVertex,
 	ModelProviderAzureOpenAI,
@@ -83,6 +90,9 @@ type ModelProviderConfigSchema struct {
 
 	// for AWS Bedrock models
 	HasAWSAuth bool `json:"hasAWSAuth,omitempty"`
+
+	// for Claude Max integration
+	HasClaudeMaxAuth bool `json:"hasClaudeMaxAuth,omitempty"`
 
 	// for local models that don't require auth (ollama, etc.)
 	SkipAuth  bool `json:"skipAuth,omitempty"`
@@ -124,6 +134,11 @@ var BuiltInModelProviderConfigs = map[ModelProvider]ModelProviderConfigSchema{
 		Provider:     ModelProviderAnthropic,
 		BaseUrl:      LiteLLMBaseUrl,
 		ApiKeyEnvVar: AnthropicApiKeyEnvVar,
+	},
+	ModelProviderAnthropicClaudeMax: {
+		Provider:         ModelProviderAnthropicClaudeMax,
+		BaseUrl:          LiteLLMBaseUrl,
+		HasClaudeMaxAuth: true,
 	},
 	ModelProviderGoogleAIStudio: {
 		Provider:     ModelProviderGoogleAIStudio,
@@ -211,7 +226,12 @@ func init() {
 	}
 }
 
-func GetProvidersForAuthVars(authVars map[string]string, settings *PlanSettings) []ModelProviderConfigSchema {
+func GetProvidersForAuthVars(authVars map[string]string, settings *PlanSettings, orgUserConfig *OrgUserConfig) []ModelProviderConfigSchema {
+	var claudeSubscriptionCooldownActive bool
+	if orgUserConfig != nil {
+		claudeSubscriptionCooldownActive = orgUserConfig.IsClaudeSubscriptionCooldownActive()
+	}
+
 	var foundProviders []ModelProviderConfigSchema
 
 	allProviders := []ModelProviderConfigSchema{}
@@ -227,6 +247,10 @@ func GetProvidersForAuthVars(authVars map[string]string, settings *PlanSettings)
 	}
 
 	for _, providerConfig := range allProviders {
+		// filter out claude max if the cooldown is active
+		if claudeSubscriptionCooldownActive && providerConfig.HasClaudeMaxAuth {
+			continue
+		}
 
 		if providerConfig.SkipAuth {
 			foundProviders = append(foundProviders, providerConfig)
@@ -260,7 +284,7 @@ func GetProvidersForAuthVars(authVars map[string]string, settings *PlanSettings)
 	return foundProviders
 }
 
-func GetProvidersForAuthVarsWithModelId(authVars map[string]string, settings *PlanSettings, modelId ModelId) []ModelProviderConfigSchema {
+func GetProvidersForAuthVarsWithModelId(authVars map[string]string, settings *PlanSettings, modelId ModelId, orgUserConfig *OrgUserConfig) []ModelProviderConfigSchema {
 	var localProvider ModelProvider
 	if settings != nil {
 		modelPack := settings.GetModelPack()
@@ -281,7 +305,7 @@ func GetProvidersForAuthVarsWithModelId(authVars map[string]string, settings *Pl
 		return []ModelProviderConfigSchema{}
 	}
 
-	providers := GetProvidersForAuthVars(authVars, settings)
+	providers := GetProvidersForAuthVars(authVars, settings, orgUserConfig)
 	providersByComposite := map[string]ModelProviderConfigSchema{}
 	for _, provider := range providers {
 		providersByComposite[provider.ToComposite()] = provider
@@ -307,12 +331,12 @@ func GetProvidersForAuthVarsWithModelId(authVars map[string]string, settings *Pl
 
 }
 
-func (m ModelRoleConfig) GetProvidersForAuthVars(authVars map[string]string, settings *PlanSettings) []ModelProviderConfigSchema {
-	return GetProvidersForAuthVarsWithModelId(authVars, settings, m.ModelId)
+func (m ModelRoleConfig) GetProvidersForAuthVars(authVars map[string]string, settings *PlanSettings, orgUserConfig *OrgUserConfig) []ModelProviderConfigSchema {
+	return GetProvidersForAuthVarsWithModelId(authVars, settings, m.ModelId, orgUserConfig)
 }
 
-func (m ModelRoleConfig) GetFirstProviderForAuthVars(authVars map[string]string, settings *PlanSettings) *ModelProviderConfigSchema {
-	providers := m.GetProvidersForAuthVars(authVars, settings)
+func (m ModelRoleConfig) GetFirstProviderForAuthVars(authVars map[string]string, settings *PlanSettings, orgUserConfig *OrgUserConfig) *ModelProviderConfigSchema {
+	providers := m.GetProvidersForAuthVars(authVars, settings, orgUserConfig)
 	if len(providers) == 0 {
 		return nil
 	}

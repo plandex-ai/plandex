@@ -38,6 +38,7 @@ func init() {
 func build(cmd *cobra.Command, args []string) {
 	auth.MustResolveAuthWithOrg()
 	lib.MustResolveProject()
+
 	mustSetPlanExecFlags(cmd, false)
 
 	var apiKeys map[string]string

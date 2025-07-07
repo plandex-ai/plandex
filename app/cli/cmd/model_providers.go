@@ -98,6 +98,8 @@ func listProviders(cmd *cobra.Command, args []string) {
 			apiKey = config.ApiKeyEnvVar
 		} else if config.SkipAuth {
 			apiKey = "No Auth"
+		} else if config.HasClaudeMaxAuth {
+			apiKey = "Claude Max Oauth"
 		}
 
 		extraVars := []string{}

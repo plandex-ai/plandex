@@ -10,6 +10,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"plandex-server/db"
 	"plandex-server/types"
 	"strings"
 	"sync"
@@ -42,9 +43,9 @@ type ClientInfo struct {
 	OpenAIOrgId    string
 }
 
-func InitClients(authVars map[string]string, settings *shared.PlanSettings) map[string]ClientInfo {
+func InitClients(authVars map[string]string, settings *shared.PlanSettings, orgUserConfig *shared.OrgUserConfig) map[string]ClientInfo {
 	clients := make(map[string]ClientInfo)
-	providers := shared.GetProvidersForAuthVars(authVars, settings)
+	providers := shared.GetProvidersForAuthVars(authVars, settings, orgUserConfig)
 
 	for _, provider := range providers {
 		clients[provider.ToComposite()] = newClient(provider, authVars)
@@ -57,6 +58,8 @@ func newClient(providerConfig shared.ModelProviderConfigSchema, authVars map[str
 	var apiKey string
 	if providerConfig.ApiKeyEnvVar != "" {
 		apiKey = authVars[providerConfig.ApiKeyEnvVar]
+	} else if providerConfig.HasClaudeMaxAuth {
+		apiKey = authVars[shared.AnthropicClaudeMaxTokenEnvVar]
 	}
 
 	config := openai.DefaultConfig(apiKey)
@@ -106,16 +109,19 @@ func CreateChatCompletionStream(
 	authVars map[string]string,
 	modelConfig *shared.ModelRoleConfig,
 	settings *shared.PlanSettings,
+	orgUserConfig *shared.OrgUserConfig,
+	currentOrgId string,
+	currentUserId string,
 	ctx context.Context,
 	req types.ExtendedChatCompletionRequest,
 ) (*ExtendedChatCompletionStream, error) {
-	providerComposite := modelConfig.GetProviderComposite(authVars, settings)
+	providerComposite := modelConfig.GetProviderComposite(authVars, settings, orgUserConfig)
 	_, ok := clients[providerComposite]
 	if !ok {
 		return nil, fmt.Errorf("client not found for provider composite: %s", providerComposite)
 	}
 
-	baseModelConfig := modelConfig.GetBaseModelConfig(authVars, settings)
+	baseModelConfig := modelConfig.GetBaseModelConfig(authVars, settings, orgUserConfig)
 
 	// ensure the model name is set correctly on fallbacks
 	req.Model = baseModelConfig.ModelName
@@ -146,16 +152,18 @@ func CreateChatCompletionStream(
 	}
 
 	return withStreamingRetries(ctx, func(numTotalRetry int, didProviderFallback bool, modelErr *shared.ModelError) (*ExtendedChatCompletionStream, shared.FallbackResult, error) {
-		fallbackRes := modelConfig.GetFallbackForModelError(numTotalRetry, didProviderFallback, modelErr, authVars, settings)
+		handleClaudeMaxRateLimitedIfNeeded(modelErr, modelConfig, authVars, settings, orgUserConfig, currentOrgId, currentUserId)
+
+		fallbackRes := modelConfig.GetFallbackForModelError(numTotalRetry, didProviderFallback, modelErr, authVars, settings, orgUserConfig)
 		resolvedModelConfig := fallbackRes.ModelRoleConfig
 
 		if resolvedModelConfig == nil {
 			return nil, fallbackRes, fmt.Errorf("model config is nil")
 		}
 
-		providerComposite := resolvedModelConfig.GetProviderComposite(authVars, settings)
+		providerComposite := resolvedModelConfig.GetProviderComposite(authVars, settings, orgUserConfig)
 
-		baseModelConfig := resolvedModelConfig.GetBaseModelConfig(authVars, settings)
+		baseModelConfig := resolvedModelConfig.GetBaseModelConfig(authVars, settings, orgUserConfig)
 
 		opClient, ok := clients[providerComposite]
 
@@ -185,7 +193,7 @@ func CreateChatCompletionStream(
 			"modelConfig.ApiKeyEnvVar": baseModelConfig.ApiKeyEnvVar,
 		})
 
-		resp, err := createChatCompletionStreamExtended(resolvedModelConfig, opClient, authVars, settings, ctx, req)
+		resp, err := createChatCompletionStreamExtended(resolvedModelConfig, opClient, authVars, settings, orgUserConfig, ctx, req)
 		return resp, fallbackRes, err
 	}, func(resp *ExtendedChatCompletionStream, err error) {})
 }
@@ -195,10 +203,11 @@ func createChatCompletionStreamExtended(
 	client ClientInfo,
 	authVars map[string]string,
 	settings *shared.PlanSettings,
+	orgUserConfig *shared.OrgUserConfig,
 	ctx context.Context,
 	extendedReq types.ExtendedChatCompletionRequest,
 ) (*ExtendedChatCompletionStream, error) {
-	baseModelConfig := modelConfig.GetBaseModelConfig(authVars, settings)
+	baseModelConfig := modelConfig.GetBaseModelConfig(authVars, settings, orgUserConfig)
 
 	// ensure the model name is set correctly on fallbacks
 	extendedReq.Model = baseModelConfig.ModelName
@@ -271,6 +280,26 @@ func createChatCompletionStreamExtended(
 		if os.Getenv("OLLAMA_BASE_URL") != "" {
 			extendedReq.LiteLLMApiBase = os.Getenv("OLLAMA_BASE_URL")
 		}
+	}
+
+	if client.ProviderConfig.HasClaudeMaxAuth {
+		extendedReq.Messages = append([]types.ExtendedChatMessage{
+			{
+				Role: openai.ChatMessageRoleSystem,
+				Content: []types.ExtendedChatMessagePart{
+					{Type: openai.ChatMessagePartTypeText,
+						Text: "You are Claude Code, Anthropic's official CLI for Claude."},
+				},
+			},
+		}, extendedReq.Messages...)
+
+		if extendedReq.ExtraHeaders == nil {
+			extendedReq.ExtraHeaders = make(map[string]string)
+		}
+		extendedReq.ExtraHeaders["anthropic-beta"] = shared.AnthropicClaudeMaxBetaHeader
+		extendedReq.ExtraHeaders["Authorization"] = "Bearer " + authVars[shared.AnthropicClaudeMaxTokenEnvVar]
+		extendedReq.ExtraHeaders["anthropic-product"] = "claude-code"
+
 	}
 
 	// Marshal the request body to JSON
@@ -494,4 +523,23 @@ func addOpenRouterHeaders(req *http.Request) {
 	if os.Getenv("GOENV") == "production" {
 		req.Header.Set("X-OR-Region", "us-east-1")
 	}
+}
+
+func handleClaudeMaxRateLimitedIfNeeded(modelErr *shared.ModelError, modelConfig *shared.ModelRoleConfig, authVars map[string]string, settings *shared.PlanSettings, orgUserConfig *shared.OrgUserConfig, currentOrgId string, currentUserId string) {
+
+	// if we used a claude max provider and got rate limited, set the cooldown on org user config and update the db in the background
+	if modelErr != nil && modelErr.Kind == shared.ErrRateLimited && modelErr.RetryAfterSeconds == 0 {
+		baseModelConfig := modelConfig.GetBaseModelConfig(authVars, settings, orgUserConfig)
+		if baseModelConfig.BaseModelProviderConfig.HasClaudeMaxAuth {
+			orgUserConfig.ClaudeSubscriptionCooldownStartedAt = time.Now()
+
+			go func() {
+				err := db.UpdateOrgUserConfig(currentUserId, currentOrgId, orgUserConfig)
+				if err != nil {
+					log.Printf("Error updating org user config: %v\n", err)
+				}
+			}()
+		}
+	}
+
 }

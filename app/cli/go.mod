@@ -88,7 +88,7 @@ require (
 	github.com/charmbracelet/bubbletea v1.3.0
 	github.com/charmbracelet/glamour v0.6.0
 	github.com/charmbracelet/glow v1.5.1
-	github.com/cqroot/prompt v0.9.3
+	github.com/cqroot/prompt v0.9.4
 	github.com/eiannone/keyboard v0.0.0-20220611211555-0d226195f203
 	github.com/inconshreveable/go-update v0.0.0-20160112193335-8152e7eb6ccf
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect

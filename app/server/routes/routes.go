@@ -184,6 +184,9 @@ func addApiRoutes(r *mux.Router, prefix string) {
 
 	HandlePlandexFn(r, prefix+"/default_plan_config", false, handlers.GetDefaultPlanConfigHandler).Methods("GET")
 	HandlePlandexFn(r, prefix+"/default_plan_config", false, handlers.UpdateDefaultPlanConfigHandler).Methods("PUT")
+
+	HandlePlandexFn(r, prefix+"/org_user_config", false, handlers.GetOrgUserConfigHandler).Methods("GET")
+	HandlePlandexFn(r, prefix+"/org_user_config", false, handlers.UpdateOrgUserConfigHandler).Methods("PUT")
 }
 
 func addProxyableApiRoutes(r *mux.Router, prefix string) {

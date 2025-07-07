@@ -583,8 +583,8 @@ func (m ModelRoleConfig) GetModelId() ModelId {
 	return m.ModelId
 }
 
-func (m ModelRoleConfig) GetBaseModelConfig(authVars map[string]string, settings *PlanSettings) *BaseModelConfig {
-	foundProvider := m.GetFirstProviderForAuthVars(authVars, settings)
+func (m ModelRoleConfig) GetBaseModelConfig(authVars map[string]string, settings *PlanSettings, orgUserConfig *OrgUserConfig) *BaseModelConfig {
+	foundProvider := m.GetFirstProviderForAuthVars(authVars, settings, orgUserConfig)
 	if foundProvider == nil {
 		return nil
 	}
@@ -615,8 +615,8 @@ func (m ModelRoleConfig) GetBaseModelConfigForProvider(authVars map[string]strin
 	return nil
 }
 
-func (m ModelRoleConfig) GetProviderComposite(authVars map[string]string, settings *PlanSettings) string {
-	baseModelConfig := m.GetBaseModelConfig(authVars, settings)
+func (m ModelRoleConfig) GetProviderComposite(authVars map[string]string, settings *PlanSettings, orgUserConfig *OrgUserConfig) string {
+	baseModelConfig := m.GetBaseModelConfig(authVars, settings, orgUserConfig)
 
 	if baseModelConfig == nil {
 		return ""

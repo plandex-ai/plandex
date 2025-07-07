@@ -26,6 +26,7 @@ func (state *activeTellStreamState) genPlanDescription() (*db.ConvoMessageDescri
 	settings := state.settings
 	clients := state.clients
 	authVars := state.authVars
+	orgUserConfig := state.orgUserConfig
 	config := settings.GetModelPack().CommitMsg
 
 	activePlan := GetActivePlan(planId, branch)
@@ -39,7 +40,7 @@ func (state *activeTellStreamState) genPlanDescription() (*db.ConvoMessageDescri
 		}
 	}
 
-	baseModelConfig := config.GetBaseModelConfig(authVars, settings)
+	baseModelConfig := config.GetBaseModelConfig(authVars, settings, orgUserConfig)
 
 	var sysPrompt string
 	var tools []openai.Tool
@@ -97,6 +98,7 @@ func (state *activeTellStreamState) genPlanDescription() (*db.ConvoMessageDescri
 		ConvoMessageId: state.replyId,
 		SessionId:      activePlan.SessionId,
 		Settings:       settings,
+		OrgUserConfig:  orgUserConfig,
 	}
 
 	if tools != nil {

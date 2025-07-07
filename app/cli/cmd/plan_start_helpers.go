@@ -87,6 +87,7 @@ func resolveAutoModeWithArgs(config *shared.PlanConfig, silent bool) (bool, *sha
 		apiErr := api.Client.UpdatePlanConfig(lib.CurrentPlanId, shared.UpdatePlanConfigRequest{
 			Config: updatedConfig,
 		})
+		lib.SetCachedPlanConfig(updatedConfig)
 		if !silent {
 			term.StopSpinner()
 		}

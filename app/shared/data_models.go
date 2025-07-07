@@ -32,6 +32,8 @@ type OrgUser struct {
 	OrgId     string `json:"orgId"`
 	UserId    string `json:"userId"`
 	OrgRoleId string `json:"orgRoleId"`
+
+	Config *OrgUserConfig `json:"config,omitempty"`
 }
 
 type Invite struct {

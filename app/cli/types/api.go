@@ -31,6 +31,9 @@ type ApiClient interface {
 	ListOrgs() ([]*shared.Org, *shared.ApiError)
 	CreateOrg(req shared.CreateOrgRequest) (*shared.CreateOrgResponse, *shared.ApiError)
 
+	GetOrgUserConfig() (*shared.OrgUserConfig, *shared.ApiError)
+	UpdateOrgUserConfig(req shared.OrgUserConfig) *shared.ApiError
+
 	ListUsers() (*shared.ListUsersResponse, *shared.ApiError)
 	DeleteUser(userId string) *shared.ApiError
 

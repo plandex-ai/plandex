@@ -18,6 +18,7 @@ func GenPlanName(
 	auth *types.ServerAuth,
 	plan *db.Plan,
 	settings *shared.PlanSettings,
+	orgUserConfig *shared.OrgUserConfig,
 	clients map[string]ClientInfo,
 	authVars map[string]string,
 	planContent string,
@@ -29,7 +30,7 @@ func GenPlanName(
 	var tools []openai.Tool
 	var toolChoice *openai.ToolChoice
 
-	baseModelConfig := config.GetBaseModelConfig(authVars, settings)
+	baseModelConfig := config.GetBaseModelConfig(authVars, settings, orgUserConfig)
 
 	var sysPrompt string
 	if baseModelConfig.PreferredOutputFormat == shared.ModelOutputFormatXml {
@@ -66,17 +67,18 @@ func GenPlanName(
 	}
 
 	modelRes, err := ModelRequest(ctx, ModelRequestParams{
-		Clients:     clients,
-		AuthVars:    authVars,
-		Auth:        auth,
-		Plan:        plan,
-		ModelConfig: &config,
-		Purpose:     "Plan name",
-		Messages:    messages,
-		Tools:       tools,
-		ToolChoice:  toolChoice,
-		SessionId:   sessionId,
-		Settings:    settings,
+		Clients:       clients,
+		AuthVars:      authVars,
+		Auth:          auth,
+		Plan:          plan,
+		ModelConfig:   &config,
+		OrgUserConfig: orgUserConfig,
+		Purpose:       "Plan name",
+		Messages:      messages,
+		Tools:         tools,
+		ToolChoice:    toolChoice,
+		SessionId:     sessionId,
+		Settings:      settings,
 	})
 
 	if err != nil {
@@ -111,14 +113,15 @@ func GenPlanName(
 }
 
 type GenPipedDataNameParams struct {
-	Ctx          context.Context
-	Auth         *types.ServerAuth
-	Plan         *db.Plan
-	Settings     *shared.PlanSettings
-	AuthVars     map[string]string
-	SessionId    string
-	Clients      map[string]ClientInfo
-	PipedContent string
+	Ctx           context.Context
+	Auth          *types.ServerAuth
+	Plan          *db.Plan
+	Settings      *shared.PlanSettings
+	OrgUserConfig *shared.OrgUserConfig
+	AuthVars      map[string]string
+	SessionId     string
+	Clients       map[string]ClientInfo
+	PipedContent  string
 }
 
 func GenPipedDataName(
@@ -132,6 +135,7 @@ func GenPipedDataName(
 	authVars := params.AuthVars
 	pipedContent := params.PipedContent
 	sessionId := params.SessionId
+	orgUserConfig := params.OrgUserConfig
 
 	config := settings.GetModelPack().Namer
 
@@ -139,7 +143,7 @@ func GenPipedDataName(
 	var tools []openai.Tool
 	var toolChoice *openai.ToolChoice
 
-	baseModelConfig := config.GetBaseModelConfig(authVars, settings)
+	baseModelConfig := config.GetBaseModelConfig(authVars, settings, orgUserConfig)
 
 	if baseModelConfig.PreferredOutputFormat == shared.ModelOutputFormatXml {
 		sysPrompt = prompts.SysPipedDataNameXml
@@ -175,17 +179,18 @@ func GenPipedDataName(
 	}
 
 	modelRes, err := ModelRequest(ctx, ModelRequestParams{
-		Clients:     clients,
-		Auth:        auth,
-		AuthVars:    authVars,
-		Plan:        plan,
-		ModelConfig: &config,
-		Purpose:     "Piped data name",
-		Messages:    messages,
-		Tools:       tools,
-		ToolChoice:  toolChoice,
-		SessionId:   sessionId,
-		Settings:    settings,
+		Clients:       clients,
+		Auth:          auth,
+		AuthVars:      authVars,
+		Plan:          plan,
+		ModelConfig:   &config,
+		Purpose:       "Piped data name",
+		Messages:      messages,
+		Tools:         tools,
+		ToolChoice:    toolChoice,
+		SessionId:     sessionId,
+		Settings:      settings,
+		OrgUserConfig: orgUserConfig,
 	})
 
 	if err != nil {
@@ -224,6 +229,7 @@ func GenNoteName(
 	auth *types.ServerAuth,
 	plan *db.Plan,
 	settings *shared.PlanSettings,
+	orgUserConfig *shared.OrgUserConfig,
 	clients map[string]ClientInfo,
 	authVars map[string]string,
 	note string,
@@ -235,7 +241,7 @@ func GenNoteName(
 	var tools []openai.Tool
 	var toolChoice *openai.ToolChoice
 
-	baseModelConfig := config.GetBaseModelConfig(authVars, settings)
+	baseModelConfig := config.GetBaseModelConfig(authVars, settings, orgUserConfig)
 
 	if baseModelConfig.PreferredOutputFormat == shared.ModelOutputFormatXml {
 		sysPrompt = prompts.SysNoteNameXml
@@ -271,17 +277,18 @@ func GenNoteName(
 	}
 
 	modelRes, err := ModelRequest(ctx, ModelRequestParams{
-		Clients:     clients,
-		Auth:        auth,
-		AuthVars:    authVars,
-		Plan:        plan,
-		ModelConfig: &config,
-		Purpose:     "Note name",
-		Messages:    messages,
-		Tools:       tools,
-		ToolChoice:  toolChoice,
-		SessionId:   sessionId,
-		Settings:    settings,
+		Clients:       clients,
+		Auth:          auth,
+		AuthVars:      authVars,
+		Plan:          plan,
+		ModelConfig:   &config,
+		Purpose:       "Note name",
+		Messages:      messages,
+		Tools:         tools,
+		ToolChoice:    toolChoice,
+		SessionId:     sessionId,
+		Settings:      settings,
+		OrgUserConfig: orgUserConfig,
 	})
 
 	if err != nil {

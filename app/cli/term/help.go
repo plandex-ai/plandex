@@ -146,6 +146,9 @@ var CliCommands = []CmdConfig{
 	{"revoke", "", "revoke an invite or remove a user from your org", true},
 	{"users", "", "list users and pending invites in your org", true},
 
+	{"connect-claude", "", "connect your Claude Pro or Max subscription", true},
+	{"disconnect-claude", "", "disconnect your Claude Pro or Max subscription", true},
+
 	{"usage", "", "show Plandex Cloud current balance and usage report", true},
 	{"usage --today", "", "show Plandex Cloud usage for the day so far", true},
 	{"usage --month", "", "show Plandex Cloud usage for the current billing month", true},
@@ -345,6 +348,10 @@ func PrintHelpAllCommands() {
 	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "sign-in", "invite", "revoke", "users")
 	fmt.Fprintln(builder)
 
+	color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Integrations ")
+	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "connect-claude", "disconnect-claude")
+	fmt.Fprintln(builder)
+
 	color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Cloud ")
 	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "usage", "usage --today", "usage --month", "usage --plan", "usage --log", "billing")
 	fmt.Fprintln(builder)
@@ -354,4 +361,14 @@ func PrintHelpAllCommands() {
 	fmt.Fprintln(builder)
 
 	fmt.Print(builder.String())
+}
+
+func ShowCmd(cmd string) string {
+	if IsRepl {
+		cmd = fmt.Sprintf("\\%s", cmd)
+	} else {
+		cmd = fmt.Sprintf("plandex %s", cmd)
+	}
+
+	return color.New(color.Bold, color.BgCyan, color.FgHiWhite).Sprintf(" %s ", cmd)
 }

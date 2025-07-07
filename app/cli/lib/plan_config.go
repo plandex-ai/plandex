@@ -2,12 +2,33 @@ package lib
 
 import (
 	"os"
+	"plandex-cli/api"
+	"plandex-cli/term"
 	"sort"
 
 	shared "plandex-shared"
 
 	"github.com/olekukonko/tablewriter"
 )
+
+var cachedPlanConfig *shared.PlanConfig
+
+func MustGetCurrentPlanConfig() *shared.PlanConfig {
+	if cachedPlanConfig != nil {
+		return cachedPlanConfig
+	}
+
+	planConfig, apiErr := api.Client.GetPlanConfig(CurrentPlanId)
+	if apiErr != nil {
+		term.OutputErrorAndExit("Error getting plan config: %v", apiErr)
+	}
+	cachedPlanConfig = planConfig
+	return planConfig
+}
+
+func SetCachedPlanConfig(planConfig *shared.PlanConfig) {
+	cachedPlanConfig = planConfig
+}
 
 func ShowPlanConfig(config *shared.PlanConfig, key string) {
 	table := tablewriter.NewWriter(os.Stdout)

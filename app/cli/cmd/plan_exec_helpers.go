@@ -3,7 +3,6 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"plandex-cli/api"
 	"plandex-cli/lib"
 	"plandex-cli/term"
 	"strconv"
@@ -157,21 +156,11 @@ func validatePlanExecFlags(isApply bool) {
 }
 
 func mustSetPlanExecFlags(cmd *cobra.Command, isApply bool) {
-	mustSetPlanExecFlagsWithConfig(cmd, nil, isApply)
-}
-
-func mustSetPlanExecFlagsWithConfig(cmd *cobra.Command, config *shared.PlanConfig, isApply bool) {
 	if lib.CurrentPlanId == "" {
 		term.OutputNoCurrentPlanErrorAndExit()
 	}
 
-	if config == nil {
-		var apiErr *shared.ApiError
-		config, apiErr = api.Client.GetPlanConfig(lib.CurrentPlanId)
-		if apiErr != nil {
-			term.OutputErrorAndExit("Error getting plan config: %v", apiErr)
-		}
-	}
+	config := lib.MustGetCurrentPlanConfig()
 
 	// Set flag vars from config when flags aren't explicitly set
 	if !cmd.Flags().Changed("stop") {

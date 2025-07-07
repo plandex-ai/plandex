@@ -47,6 +47,7 @@ func (state *activeTellStreamState) loadTellPlan() error {
 	var summaries []*db.ConvoSummary
 	var subtasks []*db.Subtask
 	var settings *shared.PlanSettings
+	var orgUserConfig *shared.OrgUserConfig
 	var latestSummaryTokens int
 	var currentPlan *shared.CurrentPlanState
 
@@ -82,11 +83,20 @@ func (state *activeTellStreamState) loadTellPlan() error {
 			}
 			settings = res
 
+			orgUserConfigRes, err := db.GetOrgUserConfig(auth.User.Id, auth.OrgId)
+			if err != nil {
+				log.Printf("Error getting org user config: %v\n", err)
+				errCh <- fmt.Errorf("error getting org user config: %v", err)
+				return
+			}
+			orgUserConfig = orgUserConfigRes
+
 			if plan.Name == "draft" {
 				name, err := model.GenPlanName(
 					auth,
 					plan,
 					settings,
+					orgUserConfig,
 					clients,
 					authVars,
 					req.Prompt,

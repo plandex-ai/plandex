@@ -58,7 +58,7 @@ func (state *activeTellStreamState) processChunk(choice types.ExtendedChatComple
 	delta := choice.Delta
 	content := delta.Content
 
-	baseModelConfig := state.modelConfig.GetBaseModelConfig(state.authVars, state.settings)
+	baseModelConfig := state.modelConfig.GetBaseModelConfig(state.authVars, state.settings, state.orgUserConfig)
 
 	if baseModelConfig.IncludeReasoning && !baseModelConfig.HideReasoning && delta.Reasoning != "" {
 		content = delta.Reasoning
@@ -560,6 +560,7 @@ func (state *activeTellStreamState) handleNewOperations(parserRes *types.ReplyPa
 				branch:        branch,
 				settings:      settings,
 				modelContext:  state.modelContext,
+				orgUserConfig: state.orgUserConfig,
 			}
 
 			var opContentTokens int

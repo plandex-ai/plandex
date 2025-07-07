@@ -1,0 +1,1 @@
+ALTER TABLE orgs_users ADD COLUMN config JSON;

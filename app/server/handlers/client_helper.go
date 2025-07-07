@@ -20,8 +20,9 @@ type initClientsParams struct {
 
 	authVars map[string]string
 
-	plan     *db.Plan
-	settings *shared.PlanSettings
+	plan          *db.Plan
+	settings      *shared.PlanSettings
+	orgUserConfig *shared.OrgUserConfig
 }
 
 type initClientsResult struct {
@@ -32,6 +33,7 @@ type initClientsResult struct {
 func initClients(params initClientsParams) initClientsResult {
 	w := params.w
 	settings := params.settings
+	orgUserConfig := params.orgUserConfig
 
 	var authVars map[string]string
 	if params.authVars != nil {
@@ -66,7 +68,7 @@ func initClients(params initClientsParams) initClientsResult {
 		return initClientsResult{}
 	}
 
-	clients := model.InitClients(authVars, settings)
+	clients := model.InitClients(authVars, settings, orgUserConfig)
 
 	return initClientsResult{
 		clients:  clients,

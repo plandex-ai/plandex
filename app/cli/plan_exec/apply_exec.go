@@ -84,6 +84,8 @@ func getOnApplyExecFail(applyFlags types.ApplyFlags, tellFlags types.TellFlags, 
 						term.OutputErrorAndExit("failed to update plan config: %s", apiErr)
 					}
 
+					lib.SetCachedPlanConfig(config)
+
 					applyFlags.AutoCommit = true
 					applyFlags.AutoConfirm = true
 					applyFlags.AutoExec = true

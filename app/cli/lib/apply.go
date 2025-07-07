@@ -574,8 +574,6 @@ func execApplyScript(
 }
 
 func apiApplyPlan(planId, branch string) (string, error) {
-	log.Println("Getting API keys")
-
 	var apiKeys map[string]string
 	if !auth.Current.IntegratedModelsMode {
 		apiKeys = MustVerifyAuthVarsSilent()

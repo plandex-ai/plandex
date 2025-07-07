@@ -29,6 +29,9 @@ func GetUserStringInput(msg string) (string, error) {
 }
 
 func GetUserStringInputWithDefault(msg, def string) (string, error) {
+	disableBracketedPaste()
+	defer enableBracketedPaste()
+
 	res, err := prompt.New().Ask(msg).Input(def)
 
 	if err != nil && err.Error() == "user quit prompt" {
@@ -53,6 +56,9 @@ func GetRequiredUserStringInputWithDefault(msg, def string) (string, error) {
 }
 
 func GetUserPasswordInput(msg string) (string, error) {
+	disableBracketedPaste()
+	defer enableBracketedPaste()
+
 	res, err := prompt.New().Ask(msg).Input("", input.WithEchoMode(input.EchoPassword))
 
 	if err != nil && err.Error() == "user quit prompt" {
@@ -130,4 +136,12 @@ func ConfirmYesNoCancel(fmtStr string, fmtArgs ...interface{}) (bool, bool, erro
 		color.New(ColorHiRed, color.Bold).Print("Invalid input.\nEnter 'y' for yes, 'n' for no, or 'c' for cancel.\n\n")
 		return ConfirmYesNoCancel(fmtStr, fmtArgs...)
 	}
+}
+
+func disableBracketedPaste() {
+	fmt.Print("\033[?2004l")
+}
+
+func enableBracketedPaste() {
+	fmt.Print("\033[?2004h")
 }

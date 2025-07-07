@@ -1406,6 +1406,68 @@ func (a *Api) ListOrgs() ([]*shared.Org, *shared.ApiError) {
 	return orgs, nil
 }
 
+func (a *Api) GetOrgUserConfig() (*shared.OrgUserConfig, *shared.ApiError) {
+	serverUrl := GetApiHost() + "/org_user_config"
+	resp, err := authenticatedFastClient.Get(serverUrl)
+	if err != nil {
+		return nil, &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error sending request: %v", err)}
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		errorBody, _ := io.ReadAll(resp.Body)
+		apiErr := HandleApiError(resp, errorBody)
+		authRefreshed, apiErr := refreshAuthIfNeeded(apiErr)
+		if authRefreshed {
+			return a.GetOrgUserConfig()
+		}
+		return nil, apiErr
+	}
+
+	var orgUserConfig shared.OrgUserConfig
+	err = json.NewDecoder(resp.Body).Decode(&orgUserConfig)
+	if err != nil {
+		return nil, &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error decoding response: %v", err)}
+	}
+
+	return &orgUserConfig, nil
+}
+
+func (a *Api) UpdateOrgUserConfig(c shared.OrgUserConfig) *shared.ApiError {
+	serverUrl := GetApiHost() + "/org_user_config"
+
+	reqBytes, err := json.Marshal(c)
+
+	if err != nil {
+		return &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error marshalling request: %v", err)}
+	}
+
+	request, err := http.NewRequest(http.MethodPut, serverUrl, bytes.NewBuffer(reqBytes))
+	if err != nil {
+		return &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error creating request: %v", err)}
+	}
+
+	request.Header.Set("Content-Type", "application/json")
+
+	resp, err := authenticatedFastClient.Do(request)
+	if err != nil {
+		return &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error sending request: %v", err)}
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		errorBody, _ := io.ReadAll(resp.Body)
+		apiErr := HandleApiError(resp, errorBody)
+		authRefreshed, apiErr := refreshAuthIfNeeded(apiErr)
+		if authRefreshed {
+			return a.UpdateOrgUserConfig(c)
+		}
+		return apiErr
+	}
+
+	return nil
+}
+
 func (a *Api) DeleteUser(userId string) *shared.ApiError {
 	serverUrl := fmt.Sprintf("%s/orgs/users/%s", GetApiHost(), userId)
 	req, err := http.NewRequest(http.MethodDelete, serverUrl, nil)

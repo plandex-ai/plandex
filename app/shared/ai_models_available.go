@@ -596,6 +596,24 @@ var AvailableModelsByComposite = map[string]*AvailableModel{}
 
 func init() {
 	for _, model := range BuiltInModels {
+		// if the model has an anthropic provider, insert claude max provider before it
+		var usesAnthropicProvider *BaseModelUsesProvider
+		for _, provider := range model.Providers {
+			if provider.Provider == ModelProviderAnthropic {
+				copy := provider
+				latestModelName, ok := AnthropicLatestModelNameMap[provider.ModelName]
+				if ok {
+					copy.ModelName = latestModelName
+				}
+				usesAnthropicProvider = &copy
+				break
+			}
+		}
+		if usesAnthropicProvider != nil {
+			usesAnthropicProvider.Provider = ModelProviderAnthropicClaudeMax
+			model.Providers = append([]BaseModelUsesProvider{*usesAnthropicProvider}, model.Providers...)
+		}
+
 		AvailableModels = append(AvailableModels, model.ToAvailableModels()...)
 
 		var addVariants func(variants []BaseModelConfigVariant, baseId ModelId)
@@ -678,7 +696,7 @@ func init() {
 			panic("reserved output tokens is not set")
 		}
 
-		if model.ApiKeyEnvVar == "" && len(model.ExtraAuthVars) == 0 && !model.SkipAuth && !model.HasAWSAuth {
+		if model.ApiKeyEnvVar == "" && len(model.ExtraAuthVars) == 0 && !model.SkipAuth && !model.HasAWSAuth && !model.HasClaudeMaxAuth {
 			spew.Dump(model)
 			panic("api key or auth settings are not set")
 		}
@@ -701,4 +719,12 @@ func init() {
 func GetAvailableModel(provider ModelProvider, modelId ModelId) *AvailableModel {
 	compositeKey := string(provider) + "/" + string(modelId)
 	return AvailableModelsByComposite[compositeKey]
+}
+
+var AnthropicLatestModelNameMap = map[ModelName]ModelName{
+	"anthropic/claude-sonnet-4-0":        "anthropic/claude-sonnet-4-20250514",
+	"anthropic/claude-opus-4-0":          "anthropic/claude-opus-4-20250514",
+	"anthropic/claude-3-7-sonnet-latest": "anthropic/claude-3-7-sonnet-20250219",
+	"anthropic/claude-3-5-haiku-latest":  "anthropic/claude-3-5-haiku-20241022",
+	"anthropic/claude-3-5-sonnet-latest": "anthropic/claude-3-5-sonnet-20241022",
 }

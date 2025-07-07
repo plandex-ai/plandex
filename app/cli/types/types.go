@@ -2,6 +2,7 @@ package types
 
 import (
 	shared "plandex-shared"
+	"time"
 
 	"github.com/sashabaranov/go-openai"
 )
@@ -67,3 +68,18 @@ type ChangesUIViewportsUpdate struct {
 }
 
 type OnErrFn func(errMsg string, errArgs ...interface{})
+
+type OauthResponse struct {
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
+	ExpiresIn    int    `json:"expires_in"`
+}
+
+type OauthCreds struct {
+	OauthResponse
+	ExpiresAt time.Time `json:"expires_at"`
+}
+
+type AccountCredentials struct {
+	ClaudeMax *OauthCreds `json:"claudeMax"`
+}

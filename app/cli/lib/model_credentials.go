@@ -3,10 +3,15 @@ package lib
 import (
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"plandex-cli/api"
+	"plandex-cli/auth"
+	"plandex-cli/fs"
 	"plandex-cli/term"
+	"plandex-cli/types"
 	shared "plandex-shared"
 	"sort"
 	"strings"
@@ -41,7 +46,7 @@ type CredentialCheckResult struct {
 	AuthVars     map[string]string
 }
 
-func CheckCredentialStatus(opts shared.ModelProviderOptions) CredentialCheckResult {
+func CheckCredentialStatus(opts shared.ModelProviderOptions, claudeMaxEnabled bool) (CredentialCheckResult, error) {
 	publishersToProviders := groupProvidersByPublisher(opts)
 
 	selectedAuthVars := map[string]string{}
@@ -53,8 +58,18 @@ func CheckCredentialStatus(opts shared.ModelProviderOptions) CredentialCheckResu
 		partialProviders := []ProviderCredentialStatus{}
 
 		for _, provider := range providers {
-			authVars, _ := ResolveProviderAuthVars(provider.Config)
-			status, missingVars := checkProviderCredentialStatus(provider.Config, authVars)
+			if provider.Config.HasClaudeMaxAuth && !claudeMaxEnabled {
+				continue
+			}
+
+			authVars, err := ResolveProviderAuthVars(provider.Config)
+			if err != nil {
+				return CredentialCheckResult{}, fmt.Errorf("error checking API keys/credentials: %v", err)
+			}
+			status, missingVars, err := checkProviderCredentialStatus(provider.Config, authVars)
+			if err != nil {
+				return CredentialCheckResult{}, fmt.Errorf("error checking API keys/credentials: %v", err)
+			}
 
 			providerStatus := ProviderCredentialStatus{
 				ProviderComposite: provider.Config.ToComposite(),
@@ -87,7 +102,7 @@ func CheckCredentialStatus(opts shared.ModelProviderOptions) CredentialCheckResu
 		AllSatisfied: allSatisfied,
 		Publishers:   publisherStatuses,
 		AuthVars:     selectedAuthVars,
-	}
+	}, nil
 }
 
 func groupProvidersByPublisher(opts shared.ModelProviderOptions) map[shared.ModelPublisher][]shared.ModelProviderOption {
@@ -106,11 +121,21 @@ func groupProvidersByPublisher(opts shared.ModelProviderOptions) map[shared.Mode
 	return grouped
 }
 
-func checkProviderCredentialStatus(cfg *shared.ModelProviderConfigSchema, authVars map[string]string) (ProviderAuthStatus, []string) {
+func checkProviderCredentialStatus(cfg *shared.ModelProviderConfigSchema, authVars map[string]string) (ProviderAuthStatus, []string, error) {
 	var missing []string
 
 	if cfg.SkipAuth {
-		return FullySatisfied, nil
+		return FullySatisfied, nil, nil
+	}
+
+	if cfg.HasClaudeMaxAuth {
+		creds, err := GetAccountCredentials()
+		if err != nil {
+			return FullyMissing, nil, fmt.Errorf("error getting account credentials: %v", err)
+		}
+		if creds == nil || creds.ClaudeMax == nil {
+			return FullyMissing, nil, nil
+		}
 	}
 
 	if cfg.ApiKeyEnvVar != "" && authVars[cfg.ApiKeyEnvVar] == "" {
@@ -135,11 +160,11 @@ func checkProviderCredentialStatus(cfg *shared.ModelProviderConfigSchema, authVa
 
 	switch {
 	case len(missing) == 0:
-		return FullySatisfied, nil
+		return FullySatisfied, nil, nil
 	case len(missing) == numRequired:
-		return FullyMissing, missing
+		return FullyMissing, missing, nil
 	default:
-		return PartiallySatisfied, missing
+		return PartiallySatisfied, missing, nil
 	}
 }
 
@@ -155,19 +180,33 @@ func mustVerifyAuthVars(silent bool) map[string]string {
 	if !silent {
 		term.StartSpinner("")
 	}
+
 	planSettings, apiErr := api.Client.GetSettings(CurrentPlanId, CurrentBranch)
-	if !silent {
-		term.StopSpinner()
+	if apiErr != nil {
+		term.OutputErrorAndExit("Error getting settings: %v", apiErr)
 	}
 
-	if apiErr != nil {
-		term.OutputErrorAndExit("Error getting current settings: %v", apiErr)
-	}
+	orgUserConfig := MustGetOrgUserConfig()
 
 	opts := planSettings.GetModelProviderOptions()
 
-	checkResult := CheckCredentialStatus(opts)
+	if !silent {
+		if hasAnthropicModels(opts) {
+			didConnect := promptClaudeMaxIfNeeded()
+			term.StartSpinner("")
+			if !didConnect && orgUserConfig.UseClaudeSubscription {
+				didConnect = connectClaudeMaxIfNeeded()
+				if !didConnect {
+					refreshClaudeMaxCredsIfNeeded()
+				}
+			}
+		}
+	}
 
+	checkResult, err := CheckCredentialStatus(opts, orgUserConfig.UseClaudeSubscription)
+	if err != nil {
+		term.OutputErrorAndExit("Error checking API keys/credentials: %v", err)
+	}
 	if checkResult.AllSatisfied {
 		return checkResult.AuthVars
 	}
@@ -197,6 +236,18 @@ func ResolveProviderAuthVars(cfg *shared.ModelProviderConfigSchema) (map[string]
 		// if no PLANDEX_AWS_PROFILE is set OR loading aws vars fails, just silently fall through to the default env var checks
 
 		// because we're disabling the EC2 metadata service, the aws check will fail unless appropriate env vars or credentials file is found, but it's not actually a problem—just indicates AWS creds aren't set
+	}
+
+	if cfg.HasClaudeMaxAuth {
+		creds, err := GetAccountCredentials()
+		if err != nil {
+			return nil, fmt.Errorf("error getting account credentials: %v", err)
+		}
+
+		if creds != nil && creds.ClaudeMax != nil {
+			token := creds.ClaudeMax.AccessToken
+			authVars[shared.AnthropicClaudeMaxTokenEnvVar] = token
+		}
 	}
 
 	if cfg.ApiKeyEnvVar != "" {
@@ -480,4 +531,59 @@ func mark(ok bool) string {
 		return "✅"
 	}
 	return "❌"
+}
+
+var cachedAccountCredentials *types.AccountCredentials
+
+func SetAccountCredentials(creds *types.AccountCredentials) error {
+	if auth.Current == nil {
+		return fmt.Errorf("no authenticated user")
+	}
+	dir := filepath.Join(fs.HomePlandexDir, auth.Current.UserId, auth.Current.OrgId)
+	err := os.MkdirAll(dir, 0700)
+	if err != nil {
+		return fmt.Errorf("error creating account credentials directory: %v", err)
+	}
+	path := filepath.Join(dir, "creds.json")
+	bytes, err := json.MarshalIndent(creds, "", "  ")
+	if err != nil {
+		return fmt.Errorf("error marshalling account credentials: %v", err)
+	}
+	err = os.WriteFile(path, bytes, 0600)
+	if err != nil {
+		return fmt.Errorf("error writing account credentials: %v", err)
+	}
+
+	cachedAccountCredentials = creds
+
+	return nil
+}
+
+func GetAccountCredentials() (*types.AccountCredentials, error) {
+	if cachedAccountCredentials != nil {
+		return cachedAccountCredentials, nil
+	}
+
+	if auth.Current == nil {
+		return nil, fmt.Errorf("no authenticated user")
+	}
+	path := filepath.Join(fs.HomePlandexDir, auth.Current.UserId, auth.Current.OrgId, "creds.json")
+
+	bytes, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	var creds types.AccountCredentials
+	err = json.Unmarshal(bytes, &creds)
+	if err != nil {
+		return nil, err
+	}
+
+	cachedAccountCredentials = &creds
+
+	return &creds, nil
 }

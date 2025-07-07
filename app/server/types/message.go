@@ -131,10 +131,15 @@ type ExtendedChatCompletionRequest struct {
 	Provider   *OpenRouterProviderConfig `json:"provider,omitempty"`
 
 	// LiteLLM api base
-	LiteLLMApiBase string `json:"api_base,omitempty"`
+	LiteLLMApiBase           string `json:"api_base,omitempty"`
+	LiteLLMBaseUrl           string `json:"base_url,omitempty"`
+	LiteLLMCustomLLMProvider string `json:"custom_llm_provider,omitempty"`
 
 	// Openrouter/LiteLLM reasoning
 	ReasoningConfig *ReasoningConfig `json:"reasoning,omitempty"`
+
+	// Headers that pass through to LiteLLM proxy
+	ExtraHeaders map[string]string `json:"extra_headers,omitempty"`
 
 	// Vertex request vars
 	VertexProject     string `json:"vertex_project,omitempty"`

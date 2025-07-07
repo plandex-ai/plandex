@@ -20,6 +20,7 @@ type activeBuildStreamState struct {
 	auth          *types.ServerAuth
 	currentOrgId  string
 	currentUserId string
+	orgUserConfig *shared.OrgUserConfig
 	plan          *db.Plan
 	branch        string
 	settings      *shared.PlanSettings

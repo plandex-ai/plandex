@@ -283,3 +283,64 @@ func SignOutHandler(w http.ResponseWriter, r *http.Request) {
 
 	log.Println("Successfully signed out")
 }
+
+func GetOrgUserConfigHandler(w http.ResponseWriter, r *http.Request) {
+	log.Println("Received request for GetOrgUserConfigHandler")
+
+	auth := Authenticate(w, r, true)
+	if auth == nil {
+		return
+	}
+
+	orgUserConfig, err := db.GetOrgUserConfig(auth.User.Id, auth.OrgId)
+
+	if err != nil {
+		log.Printf("Error getting org user config: %v\n", err)
+		http.Error(w, "Error getting org user config: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	bytes, err := json.Marshal(orgUserConfig)
+
+	if err != nil {
+		log.Printf("Error marshalling response: %v\n", err)
+		http.Error(w, "Error marshalling response: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Write(bytes)
+}
+
+func UpdateOrgUserConfigHandler(w http.ResponseWriter, r *http.Request) {
+	log.Println("Received request for UpdateOrgUserConfigHandler")
+
+	auth := Authenticate(w, r, true)
+	if auth == nil {
+		return
+	}
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		log.Printf("Error reading request body: %v\n", err)
+		http.Error(w, "Error reading request body: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	var req shared.OrgUserConfig
+	err = json.Unmarshal(body, &req)
+	if err != nil {
+		log.Printf("Error unmarshalling request: %v\n", err)
+		http.Error(w, "Error unmarshalling request: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	err = db.UpdateOrgUserConfig(auth.User.Id, auth.OrgId, &req)
+
+	if err != nil {
+		log.Printf("Error updating org user config: %v\n", err)
+		http.Error(w, "Error updating org user config: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	log.Println("Successfully updated org user config")
+}

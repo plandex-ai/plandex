@@ -3,6 +3,7 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	shared "plandex-shared"
 	"strings"
 
 	"github.com/jmoiron/sqlx"
@@ -67,6 +68,31 @@ func GetOrgUser(userId, orgId string) (*OrgUser, error) {
 	}
 
 	return &orgUser, nil
+}
+
+func GetOrgUserConfig(userId, orgId string) (*shared.OrgUserConfig, error) {
+	var orgUserConfig shared.OrgUserConfig
+	err := Conn.Get(&orgUserConfig, "SELECT config FROM orgs_users WHERE user_id = $1 AND org_id = $2", userId, orgId)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+
+		return nil, fmt.Errorf("error getting org user config: %v", err)
+	}
+
+	return &orgUserConfig, nil
+}
+
+func UpdateOrgUserConfig(userId, orgId string, config *shared.OrgUserConfig) error {
+	_, err := Conn.Exec("UPDATE orgs_users SET config = $1 WHERE user_id = $2 AND org_id = $3", config, userId, orgId)
+
+	if err != nil {
+		return fmt.Errorf("error updating org user config: %v", err)
+	}
+
+	return nil
 }
 
 func ListOrgUsers(orgId string) ([]*OrgUser, error) {

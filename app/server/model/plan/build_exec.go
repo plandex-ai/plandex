@@ -17,12 +17,14 @@ import (
 )
 
 type BuildParams struct {
-	Clients   map[string]model.ClientInfo
-	AuthVars  map[string]string
-	Plan      *db.Plan
-	Branch    string
-	Auth      *types.ServerAuth
-	SessionId string
+	Clients       map[string]model.ClientInfo
+	AuthVars      map[string]string
+	Plan          *db.Plan
+	Branch        string
+	Auth          *types.ServerAuth
+	SessionId     string
+	OrgUserConfig *shared.OrgUserConfig
+	Settings      *shared.PlanSettings
 }
 
 func Build(params BuildParams) (int, error) {
@@ -32,6 +34,8 @@ func Build(params BuildParams) (int, error) {
 	branch := params.Branch
 	auth := params.Auth
 	sessionId := params.SessionId
+	orgUserConfig := params.OrgUserConfig
+	settings := params.Settings
 
 	log.Printf("Build: Called with plan ID %s on branch %s\n", plan.Id, branch)
 	log.Println("Build: Starting Build operation")
@@ -42,8 +46,10 @@ func Build(params BuildParams) (int, error) {
 		auth:          auth,
 		currentOrgId:  auth.OrgId,
 		currentUserId: auth.User.Id,
+		orgUserConfig: orgUserConfig,
 		plan:          plan,
 		branch:        branch,
+		settings:      settings,
 	}
 
 	streamDone := func() {

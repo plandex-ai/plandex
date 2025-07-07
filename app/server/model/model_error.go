@@ -87,10 +87,27 @@ func ClassifyErrMsg(msg string) *shared.ModelError {
 	return nil
 }
 
-func ClassifyModelError(code int, message string, headers http.Header) shared.ModelError {
+func ClassifyModelError(code int, message string, headers http.Header, isClaudeMax bool) shared.ModelError {
 	msg := strings.ToLower(message)
 
-	// first try to classify the error based on the message only
+	// first of all, if it's claude max and a 429, it means the subscription limit was reached, so handle it accordingly
+	if isClaudeMax && code == 429 {
+		retryAfter := extractRetryAfter(headers, msg)
+		if retryAfter > 0 {
+			return shared.ModelError{
+				Kind:              shared.ErrRateLimited,
+				Retriable:         true,
+				RetryAfterSeconds: retryAfter,
+			}
+		}
+		return shared.ModelError{
+			Kind:              shared.ErrRateLimited,
+			Retriable:         false,
+			RetryAfterSeconds: 0,
+		}
+	}
+
+	// next try to classify the error based on the message only
 	msgRes := ClassifyErrMsg(msg)
 	if msgRes != nil {
 		log.Printf("Classified error message: %+v", msgRes)
@@ -210,13 +227,14 @@ func normalizeUnit(numStr, unit string) int {
 	}
 }
 
-func classifyBasicError(err error) shared.ModelError {
+func classifyBasicError(err error, isClaudeMax bool) shared.ModelError {
 	// if it's an http error, classify it based on the status code and body
 	if httpErr, ok := err.(*HTTPError); ok {
 		me := ClassifyModelError(
 			httpErr.StatusCode,
 			httpErr.Body,
 			httpErr.Header,
+			isClaudeMax,
 		)
 		return me
 	}

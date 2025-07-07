@@ -1,12 +1,57 @@
+from litellm.llms.anthropic.common_utils import AnthropicModelInfo
+from typing import List, Optional
+
+_orig_get_hdrs = AnthropicModelInfo.get_anthropic_headers
+
+def _oauth_get_hdrs(
+  self,
+  api_key: str,
+  anthropic_version: Optional[str] = None,
+  computer_tool_used: bool = False,
+  prompt_caching_set: bool = False,
+  pdf_used: bool = False,
+  file_id_used: bool = False,
+  mcp_server_used: bool = False,
+  is_vertex_request: bool = False,
+  user_anthropic_beta_headers: Optional[List[str]] = None,
+):
+  # call the original builder first
+  hdrs = _orig_get_hdrs(
+    self,
+    api_key=api_key,
+    anthropic_version=anthropic_version,
+    computer_tool_used=computer_tool_used,
+    prompt_caching_set=prompt_caching_set,
+    pdf_used=pdf_used,
+    file_id_used=file_id_used,
+    mcp_server_used=mcp_server_used,
+    is_vertex_request=is_vertex_request,
+    user_anthropic_beta_headers=user_anthropic_beta_headers,
+  )
+
+  # remove x-api-key when we detect an OAuth access-token
+  print(f"api_key: {api_key}")
+  if api_key and api_key.startswith(("sk-ant-oat", "sk-ant-oau")):
+    hdrs["anthropic-beta"] = "oauth-2025-04-20"
+    hdrs["anthropic-product"] = "claude-code"
+    hdrs.pop("x-api-key", None)
+
+  print(f"Anthropic headers: {hdrs}")
+
+  return hdrs
+
+# monkey-patch AnthropicModelInfo.get_anthropic_headers to handle OAuth headers
+AnthropicModelInfo.get_anthropic_headers = _oauth_get_hdrs
+
 from fastapi import FastAPI, Request
 from fastapi.responses import StreamingResponse, JSONResponse
 from litellm import completion, _turn_on_debug
 import json
 import re
 
-# _turn_on_debug()
+_turn_on_debug()
 
-LOGGING_ENABLED = False
+LOGGING_ENABLED = True
 
 print("Litellm proxy: starting proxy server on port 4000...")
 

@@ -51,7 +51,7 @@ export LOCAL_MODE=1
 reflex -r '^(cli|shared)/.*\.(go|mod|sum)$' -- sh -c 'cd cli && ./dev.sh' &
 pid1=$!
 
-reflex -r '^(server|shared)/.*\.(go|mod|sum)$' -s -- sh -c 'cd server && go build && ./plandex-server' &
+reflex -r '^(server|shared)/.*\.(go|mod|sum|py)$' -s -- sh -c 'cd server && go build && ./plandex-server' &
 pid2=$!
 
 wait $pid1

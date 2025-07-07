@@ -410,7 +410,7 @@ func execTellPlan(params execTellPlanParams) {
 
 	state.modelConfig = &modelConfig
 
-	baseModelConfig := modelConfig.GetBaseModelConfig(authVars, state.settings)
+	baseModelConfig := modelConfig.GetBaseModelConfig(authVars, state.settings, state.orgUserConfig)
 
 	if baseModelConfig == nil {
 		log.Println("Tell plan - baseModelConfig is nil")
@@ -497,11 +497,11 @@ func (state *activeTellStreamState) doTellRequest() {
 	modelConfig := state.modelConfig
 	active := state.activePlan
 
-	fallbackRes := modelConfig.GetFallbackForModelError(state.numErrorRetry, state.didProviderFallback, state.modelErr, authVars, state.settings)
+	fallbackRes := modelConfig.GetFallbackForModelError(state.numErrorRetry, state.didProviderFallback, state.modelErr, authVars, state.settings, state.orgUserConfig)
 	modelConfig = fallbackRes.ModelRoleConfig
 	stop := []string{"<PlandexFinish/>"}
 
-	baseModelConfig := modelConfig.GetBaseModelConfig(state.authVars, state.settings)
+	baseModelConfig := modelConfig.GetBaseModelConfig(state.authVars, state.settings, state.orgUserConfig)
 
 	if fallbackRes.FallbackType == shared.FallbackTypeProvider {
 		state.didProviderFallback = true
@@ -565,7 +565,7 @@ func (state *activeTellStreamState) doTellRequest() {
 		state.numErrorRetry, state.numFallbackRetry, baseModelConfig.ModelName)
 
 	// start the stream
-	stream, err := model.CreateChatCompletionStream(clients, authVars, modelConfig, state.settings, active.ModelStreamCtx, modelReq)
+	stream, err := model.CreateChatCompletionStream(clients, authVars, modelConfig, state.settings, state.orgUserConfig, state.currentOrgId, state.currentUserId, active.ModelStreamCtx, modelReq)
 	if err != nil {
 		log.Printf("Error starting reply stream: %v\n", err)
 		go notify.NotifyErr(notify.SeverityError, fmt.Errorf("error starting reply stream: %v", err))

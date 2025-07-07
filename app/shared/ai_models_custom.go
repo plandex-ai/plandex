@@ -272,8 +272,8 @@ func (cp *CustomProvider) ToModelProviderConfigSchema() ModelProviderConfigSchem
 	}
 }
 
-func (input *CustomModel) ToBaseModelConfig(authVars map[string]string, settings *PlanSettings) *BaseModelConfig {
-	providers := GetProvidersForAuthVarsWithModelId(authVars, settings, input.ModelId)
+func (input *CustomModel) ToBaseModelConfig(authVars map[string]string, settings *PlanSettings, orgUserConfig *OrgUserConfig) *BaseModelConfig {
+	providers := GetProvidersForAuthVarsWithModelId(authVars, settings, input.ModelId, orgUserConfig)
 
 	if len(providers) == 0 {
 		return nil

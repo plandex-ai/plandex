@@ -87,7 +87,7 @@ SELECT
 
     created_at, updated_at
 FROM custom_models_legacy
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (org_id, model_id) DO NOTHING;
 
 /* ---- migrate unique custom providers ------------------------------- */
 WITH src AS (

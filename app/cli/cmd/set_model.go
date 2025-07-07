@@ -175,15 +175,18 @@ func updateModelSettings(args []string, originalSettings *shared.PlanSettings, d
 			errCh <- fmt.Errorf("error getting default config: %v", apiErr.Msg)
 			return
 		}
+
 		errCh <- nil
 	}()
 
 	go func() {
-		var apiErr *shared.ApiError
-		planConfig, apiErr = api.Client.GetPlanConfig(lib.CurrentPlanId)
-		if apiErr != nil {
-			errCh <- fmt.Errorf("error getting plan config: %v", apiErr.Msg)
-			return
+		if lib.CurrentPlanId != "" {
+			var apiErr *shared.ApiError
+			planConfig, apiErr = api.Client.GetPlanConfig(lib.CurrentPlanId)
+			if apiErr != nil {
+				errCh <- fmt.Errorf("error getting plan config: %v", apiErr.Msg)
+				return
+			}
 		}
 		errCh <- nil
 	}()
