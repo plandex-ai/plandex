@@ -38,11 +38,6 @@ func doContinue(cmd *cobra.Command, args []string) {
 	lib.MustResolveProject()
 	mustSetPlanExecFlags(cmd, false)
 
-	var apiKeys map[string]string
-	if !auth.Current.IntegratedModelsMode {
-		apiKeys = lib.MustVerifyAuthVars()
-	}
-
 	tellFlags := types.TellFlags{
 		TellBg:          tellBg,
 		TellStop:        tellStop,
@@ -59,7 +54,7 @@ func doContinue(cmd *cobra.Command, args []string) {
 	plan_exec.TellPlan(plan_exec.ExecParams{
 		CurrentPlanId: lib.CurrentPlanId,
 		CurrentBranch: lib.CurrentBranch,
-		AuthVars:      apiKeys,
+		AuthVars:      lib.MustVerifyAuthVars(auth.Current.IntegratedModelsMode),
 		CheckOutdatedContext: func(maybeContexts []*shared.Context, projectPaths *types.ProjectPaths) (bool, bool, error) {
 			auto := autoConfirm || tellAutoApply || tellAutoContext
 

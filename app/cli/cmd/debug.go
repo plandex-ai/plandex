@@ -66,11 +66,6 @@ func doDebug(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	var apiKeys map[string]string
-	if !auth.Current.IntegratedModelsMode {
-		apiKeys = lib.MustVerifyAuthVars()
-	}
-
 	// Get current working directory
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -248,7 +243,7 @@ func doDebug(cmd *cobra.Command, args []string) {
 		plan_exec.TellPlan(plan_exec.ExecParams{
 			CurrentPlanId: lib.CurrentPlanId,
 			CurrentBranch: lib.CurrentBranch,
-			AuthVars:      apiKeys,
+			AuthVars:      lib.MustVerifyAuthVars(auth.Current.IntegratedModelsMode),
 			CheckOutdatedContext: func(maybeContexts []*shared.Context, projectPaths *types.ProjectPaths) (bool, bool, error) {
 				return lib.CheckOutdatedContextWithOutput(true, true, maybeContexts, projectPaths)
 			},

@@ -574,24 +574,14 @@ func execApplyScript(
 }
 
 func apiApplyPlan(planId, branch string) (string, error) {
-	var apiKeys map[string]string
-	if !auth.Current.IntegratedModelsMode {
-		apiKeys = MustVerifyAuthVarsSilent()
-	}
+	authVars := MustVerifyAuthVarsSilent(auth.Current.IntegratedModelsMode)
 
 	var commitSummary string
-
-	openAIBase := os.Getenv("OPENAI_API_BASE")
-	if openAIBase == "" {
-		openAIBase = os.Getenv("OPENAI_ENDPOINT")
-	}
 
 	log.Println("Applying plan with API call")
 
 	commitSummary, apiErr := api.Client.ApplyPlan(planId, branch, shared.ApplyPlanRequest{
-		ApiKeys:     apiKeys,
-		OpenAIBase:  openAIBase,
-		OpenAIOrgId: os.Getenv("OPENAI_ORG_ID"),
+		AuthVars: authVars,
 	})
 
 	if apiErr != nil {

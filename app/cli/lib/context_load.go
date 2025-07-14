@@ -49,20 +49,18 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 		onErr(fmt.Errorf("failed to stat stdin: %v", err))
 	}
 
-	var apiKeys map[string]string
+	var authVars map[string]string
 	var openAIBase string
 
-	if !auth.Current.IntegratedModelsMode {
-		if params.Note != "" || fileInfo.Mode()&os.ModeNamedPipe != 0 {
-			apiKeys = MustVerifyAuthVarsSilent()
-		}
+	if params.Note != "" || fileInfo.Mode()&os.ModeNamedPipe != 0 {
+		authVars = MustVerifyAuthVarsSilent(auth.Current.IntegratedModelsMode)
 	}
 
 	if params.Note != "" {
 		loadContextReq = append(loadContextReq, &shared.LoadContextParams{
 			ContextType: shared.ContextNoteType,
 			Body:        params.Note,
-			ApiKeys:     apiKeys,
+			ApiKeys:     authVars,
 			OpenAIBase:  openAIBase,
 			OpenAIOrgId: os.Getenv("OPENAI_ORG_ID"),
 			SessionId:   params.SessionId,
@@ -81,7 +79,7 @@ func MustLoadContext(resources []string, params *types.LoadContextParams) {
 			loadContextReq = append(loadContextReq, &shared.LoadContextParams{
 				ContextType: shared.ContextPipedDataType,
 				Body:        string(pipedData),
-				ApiKeys:     apiKeys,
+				ApiKeys:     authVars,
 				OpenAIBase:  openAIBase,
 				OpenAIOrgId: os.Getenv("OPENAI_ORG_ID"),
 				SessionId:   params.SessionId,

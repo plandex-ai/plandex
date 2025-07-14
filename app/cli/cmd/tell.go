@@ -43,11 +43,6 @@ func doTell(cmd *cobra.Command, args []string) {
 	lib.MustResolveProject()
 	mustSetPlanExecFlags(cmd, false)
 
-	var authVars map[string]string
-	if !auth.Current.IntegratedModelsMode {
-		authVars = lib.MustVerifyAuthVars()
-	}
-
 	if isImplementationOfChat && len(args) > 0 {
 		term.OutputErrorAndExit("Error: --from-chat cannot be used with a prompt")
 	}
@@ -77,7 +72,7 @@ func doTell(cmd *cobra.Command, args []string) {
 	plan_exec.TellPlan(plan_exec.ExecParams{
 		CurrentPlanId: lib.CurrentPlanId,
 		CurrentBranch: lib.CurrentBranch,
-		AuthVars:      authVars,
+		AuthVars:      lib.MustVerifyAuthVars(auth.Current.IntegratedModelsMode),
 		CheckOutdatedContext: func(maybeContexts []*shared.Context, projectPaths *types.ProjectPaths) (bool, bool, error) {
 			auto := autoConfirm || tellAutoApply || tellAutoContext
 			return lib.CheckOutdatedContextWithOutput(auto, auto, maybeContexts, projectPaths)
