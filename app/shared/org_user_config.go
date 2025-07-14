@@ -7,7 +7,9 @@ import (
 	"time"
 )
 
-const claudeSubscriptionCooldownDuration = 1 * time.Hour
+// Claude pro and max use time-based cooldowns (4 hours, 8 hours, etc.) after reaching quota
+// However, we still use a relatively short cooldown so that we find out fairly quickly if the quota has reset
+const claudeSubscriptionCooldownDuration = 10 * time.Minute
 
 type OrgUserConfig struct {
 	PromptedClaudeMax                   bool      `json:"promptedClaudeMax"`
