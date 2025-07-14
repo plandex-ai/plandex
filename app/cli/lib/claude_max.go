@@ -192,7 +192,8 @@ func connectClaudeMaxOauth() {
 	ui.OpenURL("Opening Claude authentication page in your default browser...", authURL)
 	fmt.Println()
 
-	color.New(color.FgHiGreen, color.Bold).Println("📋 Click 'Authorize', copy the Authentication Code, then paste it below.\n")
+	color.New(color.FgHiGreen, color.Bold).Println("📋 Click 'Authorize', copy the Authentication Code, then paste it below.")
+	fmt.Println()
 
 	pastedCode, err := term.GetUserPasswordInput("Authentication Code:")
 	if err != nil {
