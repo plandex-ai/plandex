@@ -168,15 +168,15 @@ func checkProviderCredentialStatus(cfg *shared.ModelProviderConfigSchema, authVa
 	}
 }
 
-func MustVerifyAuthVars() map[string]string {
-	return mustVerifyAuthVars(false)
+func MustVerifyAuthVars(integratedModels bool) map[string]string {
+	return mustVerifyAuthVars(integratedModels, false)
 }
 
-func MustVerifyAuthVarsSilent() map[string]string {
-	return mustVerifyAuthVars(true)
+func MustVerifyAuthVarsSilent(integratedModels bool) map[string]string {
+	return mustVerifyAuthVars(integratedModels, true)
 }
 
-func mustVerifyAuthVars(silent bool) map[string]string {
+func mustVerifyAuthVars(integratedModels, silent bool) map[string]string {
 	if !silent {
 		term.StartSpinner("")
 	}
@@ -201,6 +201,24 @@ func mustVerifyAuthVars(silent bool) map[string]string {
 				}
 			}
 		}
+	}
+
+	// For IntegratedModelsMode on Cloud, we only send the connected Claude subscription api key—nothing else
+	// If we're in IntegratedModelsMode and there's no connected Claude sub, return nil
+	if integratedModels {
+		if orgUserConfig.UseClaudeSubscription {
+			creds, err := GetAccountCredentials()
+			if err != nil {
+				term.OutputErrorAndExit("Error getting Claude subscription credentials: %v", err)
+			}
+
+			if creds != nil && creds.ClaudeMax != nil {
+				return map[string]string{
+					shared.AnthropicClaudeMaxTokenEnvVar: creds.ClaudeMax.AccessToken,
+				}
+			}
+		}
+		return nil
 	}
 
 	checkResult, err := CheckCredentialStatus(opts, orgUserConfig.UseClaudeSubscription)

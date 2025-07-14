@@ -37,6 +37,7 @@ type FallbackResult struct {
 	HasErrorFallback bool
 	IsFallback       bool
 	FallbackType     FallbackType
+	BaseModelConfig  *BaseModelConfig
 }
 
 const MAX_RETRIES_BEFORE_FALLBACK = 1
@@ -52,6 +53,7 @@ func (m *ModelRoleConfig) GetFallbackForModelError(
 	if m == nil || modelErr == nil {
 		return FallbackResult{
 			ModelRoleConfig: m,
+			BaseModelConfig: m.GetBaseModelConfig(authVars, settings, orgUserConfig),
 			IsFallback:      false,
 		}
 	}
@@ -59,6 +61,7 @@ func (m *ModelRoleConfig) GetFallbackForModelError(
 		if m.LargeContextFallback != nil {
 			return FallbackResult{
 				ModelRoleConfig: m.LargeContextFallback,
+				BaseModelConfig: m.LargeContextFallback.GetBaseModelConfig(authVars, settings, orgUserConfig),
 				FallbackType:    FallbackTypeContext,
 				IsFallback:      true,
 			}
@@ -67,6 +70,7 @@ func (m *ModelRoleConfig) GetFallbackForModelError(
 		if m.ErrorFallback != nil {
 			return FallbackResult{
 				ModelRoleConfig: m.ErrorFallback,
+				BaseModelConfig: m.ErrorFallback.GetBaseModelConfig(authVars, settings, orgUserConfig),
 				FallbackType:    FallbackTypeError,
 				IsFallback:      true,
 			}
@@ -82,6 +86,7 @@ func (m *ModelRoleConfig) GetFallbackForModelError(
 			if providerFallback != nil {
 				return FallbackResult{
 					ModelRoleConfig: providerFallback,
+					BaseModelConfig: providerFallback.GetBaseModelConfig(authVars, settings, orgUserConfig),
 					FallbackType:    FallbackTypeProvider,
 					IsFallback:      true,
 				}

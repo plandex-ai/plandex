@@ -162,7 +162,8 @@ mainLoop:
 			if response.Error != nil {
 				log.Println("listenStream - stream finished with error", spew.Sdump(response.Error))
 
-				modelErr := model.ClassifyModelError(response.Error.Code, response.Error.Message, nil)
+				baseModelConfig := state.fallbackRes.BaseModelConfig
+				modelErr := model.ClassifyModelError(response.Error.Code, response.Error.Message, nil, baseModelConfig.HasClaudeMaxAuth)
 
 				res := state.onError(onErrorParams{
 					streamErr: fmt.Errorf("The AI model (%s/%s) stopped streaming with error code %d: %s", modelProvider, modelName, response.Error.Code, response.Error.Message),

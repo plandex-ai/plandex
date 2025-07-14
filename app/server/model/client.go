@@ -152,9 +152,24 @@ func CreateChatCompletionStream(
 	}
 
 	return withStreamingRetries(ctx, func(numTotalRetry int, didProviderFallback bool, modelErr *shared.ModelError) (*ExtendedChatCompletionStream, shared.FallbackResult, error) {
-		handleClaudeMaxRateLimitedIfNeeded(modelErr, modelConfig, authVars, settings, orgUserConfig, currentOrgId, currentUserId)
+		handleClaudeMaxRateLimitedIfNeeded(
+			modelErr,
+			modelConfig,
+			authVars,
+			settings,
+			orgUserConfig,
+			currentOrgId,
+			currentUserId,
+		)
 
-		fallbackRes := modelConfig.GetFallbackForModelError(numTotalRetry, didProviderFallback, modelErr, authVars, settings, orgUserConfig)
+		fallbackRes := modelConfig.GetFallbackForModelError(
+			numTotalRetry,
+			didProviderFallback,
+			modelErr,
+			authVars,
+			settings,
+			orgUserConfig,
+		)
 		resolvedModelConfig := fallbackRes.ModelRoleConfig
 
 		if resolvedModelConfig == nil {

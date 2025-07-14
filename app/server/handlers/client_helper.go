@@ -35,7 +35,7 @@ func initClients(params initClientsParams) initClientsResult {
 	settings := params.settings
 	orgUserConfig := params.orgUserConfig
 
-	var authVars map[string]string
+	authVars := map[string]string{}
 	if params.authVars != nil {
 		authVars = params.authVars
 	} else if params.apiKeys != nil {
@@ -60,7 +60,14 @@ func initClients(params initClientsParams) initClientsResult {
 	}
 
 	if hookResult.GetIntegratedModelsResult != nil && hookResult.GetIntegratedModelsResult.IntegratedModelsMode {
-		authVars = hookResult.GetIntegratedModelsResult.AuthVars
+		merged := map[string]string{}
+		for k, v := range hookResult.GetIntegratedModelsResult.AuthVars {
+			merged[k] = v
+		}
+		if authVars[shared.AnthropicClaudeMaxTokenEnvVar] != "" {
+			merged[shared.AnthropicClaudeMaxTokenEnvVar] = authVars[shared.AnthropicClaudeMaxTokenEnvVar]
+		}
+		authVars = merged
 	}
 	if len(authVars) == 0 && os.Getenv("IS_CLOUD") != "" {
 		log.Println("No api keys/credentials provided for models")
