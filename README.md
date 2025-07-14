@@ -169,6 +169,12 @@ export OPENROUTER_API_KEY=... # if using OpenRouter.ai
 
 <br/>
 
+## Claude Pro/Max subscription  🖇️
+
+If you have a Claude Pro or Max subscription, Plandex can use it when calling Anthropic models. You'll be asked if you want to connect a subscription the first time you run Plandex.
+
+<br/>
+
 ## Get started  🚀
 
 First, `cd` into a **project directory** where you want to get something done or chat about the project. Make a new directory first with `mkdir your-project-dir` if you're starting on a new project.
