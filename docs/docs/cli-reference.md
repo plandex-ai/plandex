@@ -849,6 +849,24 @@ List users and pending invites in your org.
 plandex users
 ```
 
+## Integrations
+
+### connect-claude
+
+Connect a Claude Pro or Max subscription. When Plandex calls Anthropic models, it will use your Claude subscription up to its quota.
+
+```bash
+plandex connect-claude
+```
+
+### disconnect-claude
+
+```bash
+plandex disconnect-claude
+```
+
+Disconnect your Claude Pro or Max subscription and clear credentials from your device. 
+
 ## Plandex Cloud
 
 ### billing

@@ -34,6 +34,10 @@ Many models can be served by multiple different providers. For example, OpenAI m
 
 When multiple providers are available for a model, which provider is selected depends on the authentication environment variables that are set when running the CLI or REPL. If environment variables are set for multiple providers, the direct provider takes precedence. For example, if you set both `ANTHROPIC_API_KEY` (for the direct Anthropic API) and `OPENROUTER_API_KEY` (for OpenRouter), Plandex will use the direct Anthropic API for Anthropic models.
 
+## Claude Pro/Max Subscription
+
+If you have a Claude Pro or Max subscription, Plandex can use it when calling Anthropic models. [Learn more.](./claude-subscription.md)
+
 ## Built-In Providers
 
 ### OpenRouter
