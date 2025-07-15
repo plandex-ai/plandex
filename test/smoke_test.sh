@@ -1,130 +1,23 @@
 #!/bin/bash
-
 # Plandex Smoke Test Script
 # Tests core functionality in a linear flow mimicking real usage
-# Assumes: Already signed in to Plandex Cloud (staging account)
+# Assumes: Already signed in to Plandex Cloud (dev or staging account)
 
 set -e  # Exit on error
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+# Source common utilities
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/test_utils.sh"
 
-# Test directory setup
-TEST_DIR="/tmp/plandex-smoke-test-$$"
-TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-LOG_FILE="${TEST_DIR}/smoke-test-${TIMESTAMP}.log"
-
-PLANDEX_CMD="plandex-dev"
-
-# Minimal prompts to keep costs down
+# Test-specific variables
 PROMPT_CREATE_FUNCTION="add a simple hello world function in main.go"
 PROMPT_ADD_TEST="add a test for the hello function"
 PROMPT_CHAT_QUESTION="what does the hello function do?"
 PROMPT_ADD_FEATURE="add a goodbye function that returns: goodbye world"
 
-# Helper functions
-log() {
-    if [ -f "$LOG_FILE" ]; then
-        echo -e "$1" | tee -a "$LOG_FILE"
-    else
-        echo -e "$1"
-    fi
-}
-
-
-
-success() {
-    log "${GREEN}✓ $1${NC}"
-}
-
-error() {
-    log "${RED}✗ $1${NC}"
-    exit 1
-}
-
-info() {
-    log "${YELLOW}→ $1${NC}"
-}
-
-# Run command and check for success
-run_cmd() {
-    local cmd="$1"
-    local description="$2"
-    
-    info "Running: $cmd"
-    
-    # Create a temporary file for capturing exit status
-    local tmpfile=$(mktemp)
-    
-    # Run command with output visible and logged
-    ( eval "$cmd" 2>&1; echo $? > "$tmpfile" ) | tee -a "$LOG_FILE"
-    
-    # Get the exit status
-    local exit_code=$(cat "$tmpfile")
-    rm -f "$tmpfile"
-    
-    if [ "$exit_code" -eq 0 ]; then
-        success "$description"
-    else
-        error "$description failed (exit code: $exit_code)"
-    fi
-}
-
-# Run command and capture output
-run_cmd_output() {
-    local cmd="$1"
-    
-    # Create a temporary file for capturing exit status
-    local tmpfile=$(mktemp)
-    
-    if [ -f "$LOG_FILE" ]; then
-        ( eval "$cmd" 2>&1; echo $? > "$tmpfile" ) | tee -a "$LOG_FILE"
-    else
-        ( eval "$cmd" 2>&1; echo $? > "$tmpfile" )
-    fi
-    
-    # Get the exit status
-    local exit_code=$(cat "$tmpfile")
-    rm -f "$tmpfile"
-    
-    # Return the exit code so the caller can handle it
-    return $exit_code
-}
-
-run_plandex_cmd() {
-    local cmd="$1"
-    local description="$2"
-    run_cmd "$PLANDEX_CMD $cmd" "$description"
-}
-
-run_plandex_cmd_output() {
-    local cmd="$1"
-    if ! run_cmd_output "$PLANDEX_CMD $cmd"; then
-        error "Command failed: $PLANDEX_CMD $cmd"
-    fi
-}
-
-# Check if file exists
-check_file() {
-    if [ -f "$1" ]; then
-        success "File exists: $1"
-    else
-        error "File missing: $1"
-    fi
-}
-
-# Setup test environment
+# Setup for this test
 setup() {
-    info "Setting up test environment in $TEST_DIR"
-    mkdir -p "$TEST_DIR"
-    cd "$TEST_DIR"
-    
-    # Now create the log file after directory exists
-    LOG_FILE="${TEST_DIR}/smoke-test-${TIMESTAMP}.log"
-    touch "$LOG_FILE"
+    setup_test_dir "smoke-test"
     
     # Create a simple Go project structure
     mkdir -p cmd
@@ -136,20 +29,10 @@ setup() {
 # Test Project
 This is a test project for Plandex smoke testing.
 EOF
-    
-    success "Test environment created"
-}
-
-# Cleanup function
-cleanup() {
-    info "Cleaning up test environment"
-    cd /
-    rm -rf "$TEST_DIR"
-    success "Cleanup complete"
 }
 
 # Set trap for cleanup on exit
-trap cleanup EXIT
+trap cleanup_test_dir EXIT
 
 # Main test flow
 main() {
@@ -254,7 +137,7 @@ main() {
     info "Will rewind $REWIND_STEPS steps"
     
     # Rewind
-    run_plandex_cmd "rewind $REWIND_STEPS" "Rewind $REWIND_STEPS steps"
+    run_plandex_cmd "rewind $REWIND_STEPS --revert" "Rewind $REWIND_STEPS steps"
     
     # 8. CONFIGURATION
     log "\n=== Testing Configuration ==="

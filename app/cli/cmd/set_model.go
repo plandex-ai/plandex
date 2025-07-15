@@ -338,6 +338,7 @@ func updateModelSettings(args []string, originalSettings *shared.PlanSettings, d
 		if compare == "opus-4-planner" {
 			compare = "opus-planner"
 		}
+
 		for _, ms := range builtInModelPacks {
 			if strings.EqualFold(ms.Name, compare) {
 				modelPackName = ms.Name
@@ -352,7 +353,11 @@ func updateModelSettings(args []string, originalSettings *shared.PlanSettings, d
 		}
 
 		if modelPackName == "" {
-			term.OutputErrorAndExit("No model pack found with name: %s", modelPackName)
+			term.StopSpinner()
+			term.OutputSimpleError("No model pack found with name '%s'", nameArg)
+			fmt.Println()
+			term.PrintCmds("", "model-packs")
+			os.Exit(1)
 			return nil
 		}
 

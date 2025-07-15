@@ -23,3 +23,5 @@ __pycache__/
 *.code-workspace
 
 __pycache__/
+
+.repo_ignore
