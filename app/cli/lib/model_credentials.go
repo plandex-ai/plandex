@@ -368,6 +368,19 @@ func showCredentialErrorMessage(res CredentialCheckResult, opts shared.ModelProv
 
 	byPub := providersByPublisher(opts)
 
+	byPubWithoutOpenRouter := map[shared.ModelPublisher][]shared.ModelProvider{}
+	for pub, providers := range byPub {
+		nonOrProviders := []shared.ModelProvider{}
+		for _, provider := range providers {
+			if provider != shared.ModelProviderOpenRouter {
+				nonOrProviders = append(nonOrProviders, provider)
+			}
+		}
+		if len(nonOrProviders) > 0 {
+			byPubWithoutOpenRouter[pub] = nonOrProviders
+		}
+	}
+
 	allPublishersHaveOpenRouter := allPublishersHaveProvider(byPub, shared.ModelProviderOpenRouter)
 
 	if allPublishersHaveOpenRouter {
@@ -388,7 +401,7 @@ func showCredentialErrorMessage(res CredentialCheckResult, opts shared.ModelProv
 		}
 	}
 
-	if len(byPub) > 0 {
+	if len(byPubWithoutOpenRouter) > 0 {
 		fmt.Println()
 		fmt.Println(color.New(term.ColorHiCyan, color.Bold).Sprint("🔑 Other model providers"))
 		if allPublishersHaveOpenRouter {
@@ -398,18 +411,15 @@ func showCredentialErrorMessage(res CredentialCheckResult, opts shared.ModelProv
 		}
 
 		fmt.Println()
-		pubs := make([]string, 0, len(byPub))
-		for p := range byPub {
+		pubs := make([]string, 0, len(byPubWithoutOpenRouter))
+		for p := range byPubWithoutOpenRouter {
 			pubs = append(pubs, string(p))
 		}
 		sort.Strings(pubs)
 		for _, p := range pubs {
-			providers := byPub[shared.ModelPublisher(p)]
+			providers := byPubWithoutOpenRouter[shared.ModelPublisher(p)]
 			providerNames := make([]string, 0, len(providers))
 			for _, provider := range providers {
-				if allPublishersHaveOpenRouter && provider == shared.ModelProviderOpenRouter {
-					continue
-				}
 				providerNames = append(providerNames, string(provider))
 			}
 			fmt.Printf("%s → %s\n", color.New(color.Bold).Sprint(p+" models"), strings.Join(providerNames, ", "))

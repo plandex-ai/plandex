@@ -7,7 +7,6 @@ var OSSModelPack ModelPack
 var CheapModelPack ModelPack
 
 var OpusPlannerModelPack ModelPack
-var StrongModelOpus ModelPack
 
 var AnthropicModelPack ModelPack
 var OpenAIModelPack ModelPack
@@ -31,12 +30,11 @@ var BuiltInModelPacks = []*ModelPack{
 	&OllamaExperimentalModelPack,
 	&OllamaAdaptiveOssModelPack,
 	&OllamaAdaptiveDailyModelPack,
-	&OpusPlannerModelPack,
-	&StrongModelOpus,
 	&AnthropicModelPack,
 	&OpenAIModelPack,
 	&GoogleModelPack,
 	&GeminiPlannerModelPack,
+	&OpusPlannerModelPack,
 	&O3PlannerModelPack,
 	&R1PlannerModelPack,
 	&PerplexityPlannerModelPack,
@@ -303,6 +301,24 @@ func init() {
 		Description: "Uses Gemini 2.5 Pro for planning, default models for other roles. Supports up to 1M input context.",
 		ModelPackSchemaRoles: ModelPackSchemaRoles{
 			Planner: getModelRoleConfig(ModelRolePlanner, "google/gemini-2.5-pro"),
+			Coder: Pointer(getModelRoleConfig(ModelRoleCoder, "anthropic/claude-sonnet-4",
+				getLargeContextFallback(ModelRoleCoder, "openai/gpt-4.1"),
+			)),
+			PlanSummary: getModelRoleConfig(ModelRolePlanSummary, "openai/o4-mini-low"),
+			Builder:     defaultBuilder,
+			WholeFileBuilder: Pointer(getModelRoleConfig(ModelRoleWholeFileBuilder,
+				"openai/o4-mini-medium")),
+			Namer:      getModelRoleConfig(ModelRoleName, "openai/gpt-4.1-mini"),
+			CommitMsg:  getModelRoleConfig(ModelRoleCommitMsg, "openai/gpt-4.1-mini"),
+			ExecStatus: getModelRoleConfig(ModelRoleExecStatus, "openai/o4-mini-low"),
+		},
+	}
+
+	OpusPlannerSchema = ModelPackSchema{
+		Name:        "opus-planner",
+		Description: "Uses Claude Opus 4 for planning, default models for other roles. Supports up to 180k input context.",
+		ModelPackSchemaRoles: ModelPackSchemaRoles{
+			Planner: getModelRoleConfig(ModelRolePlanner, "anthropic/claude-opus-4"),
 			Coder: Pointer(getModelRoleConfig(ModelRoleCoder, "anthropic/claude-sonnet-4",
 				getLargeContextFallback(ModelRoleCoder, "openai/gpt-4.1"),
 			)),

@@ -25,19 +25,46 @@ func (m ModelRoleConfig) GetModelProviderOptions(settings *PlanSettings) ModelPr
 
 	for i, usesProvider := range usesProviders {
 		composite := usesProvider.ToComposite()
+
+		foundProvider := false
 		config, ok := BuiltInModelProviderConfigs[usesProvider.Provider]
-		if !ok {
+		if ok {
+			// built-in provider
+			foundProvider = true
+		} else if settings != nil && settings.CustomProviders != nil {
+			// no built-in provider, check custom providers
+			for _, customProvider := range settings.CustomProviders {
+				if usesProvider.CustomProvider != nil && customProvider.Name == *usesProvider.CustomProvider {
+					config = customProvider.ToModelProviderConfigSchema()
+					foundProvider = true
+					break
+				}
+			}
+		}
+
+		if !foundProvider {
 			continue
 		}
 
+		var publisher ModelPublisher
+
 		baseModel, ok := BuiltInBaseModelsById[m.ModelId]
-		if !ok {
+		if ok {
+			publisher = baseModel.Publisher
+		} else if settings != nil && settings.CustomModelsById != nil {
+			customModel, ok := settings.CustomModelsById[m.ModelId]
+			if ok {
+				publisher = customModel.Publisher
+			}
+		}
+
+		if publisher == "" {
 			continue
 		}
 
 		opts[composite] = ModelProviderOption{
 			Publishers: map[ModelPublisher]bool{
-				baseModel.Publisher: true,
+				publisher: true,
 			},
 			Config:   &config,
 			Priority: i,
