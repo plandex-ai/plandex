@@ -330,9 +330,11 @@ func withStreamingRetries[T any](
 		log.Printf("withStreamingRetries - retrying stream in %v seconds", retryDelay)
 		time.Sleep(retryDelay)
 
-		numTotalRetry++
-		if isFallback && !newFallback {
-			numFallbackRetry++
+		if modelErr != nil && modelErr.ShouldIncrementRetry() {
+			numTotalRetry++
+			if isFallback && !newFallback {
+				numFallbackRetry++
+			}
 		}
 	}
 }

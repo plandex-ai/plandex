@@ -14,11 +14,7 @@ export PLANDEX_CMD="${PLANDEX_CMD:-plandex-dev}"
 
 # Logging functions
 log() {
-    if [ -f "$LOG_FILE" ]; then
-        echo -e "$1" | tee -a "$LOG_FILE"
-    else
-        echo -e "$1"
-    fi
+    echo -e "$1"
 }
 
 success() {
@@ -48,7 +44,7 @@ run_cmd() {
     set -e  # Re-enable exit on error
     
     # Log the output
-    echo "$output" | tee -a "$LOG_FILE"
+    echo "$output"
     
     if [ "$exit_code" -eq 0 ]; then
         success "$description"
@@ -73,7 +69,7 @@ check_plandex_contains() {
     info "Running: $PLANDEX_CMD $cmd"
     
     local output=$($PLANDEX_CMD $cmd 2>&1)
-    echo "$output" | tee -a "$LOG_FILE"
+    echo "$output"
     
     if echo "$output" | grep -q "$expected"; then
         success "$description"
@@ -95,7 +91,7 @@ expect_failure() {
     local exit_code=$?
     set -e  # Re-enable exit on error
     
-    echo "$output" | tee -a "$LOG_FILE"
+    echo "$output"
     
     if [ "$exit_code" -ne 0 ]; then
         success "$description (failed as expected with exit code $exit_code)"
@@ -127,12 +123,10 @@ setup_test_dir() {
     local test_name="$1"
     TEST_DIR="/tmp/plandex-${test_name}-$$"
     TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-    LOG_FILE="${TEST_DIR}/${test_name}-${TIMESTAMP}.log"
     
     info "Setting up test environment in $TEST_DIR"
     mkdir -p "$TEST_DIR"
     cd "$TEST_DIR"
-    touch "$LOG_FILE"
     
     success "Test environment created"
 }

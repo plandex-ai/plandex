@@ -352,6 +352,7 @@ func mergeAuthVars(dest, src map[string]string) {
 }
 
 func showCredentialErrorMessage(res CredentialCheckResult, opts shared.ModelProviderOptions) {
+	term.StopSpinner()
 	boldRed := color.New(color.Bold, term.ColorHiRed)
 	cyanChip := color.New(color.BgCyan, color.FgHiWhite)
 	fmt.Println(boldRed.Sprint("🚨 Required API key(s) or model credentials are missing"))

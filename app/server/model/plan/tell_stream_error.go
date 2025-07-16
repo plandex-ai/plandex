@@ -54,11 +54,10 @@ func (state *activeTellStreamState) onError(params onErrorParams) onErrorResult 
 	}
 
 	canRetry := params.canRetry
-	hasFallback := state.fallbackRes.HasErrorFallback
 	isFallback := state.fallbackRes.IsFallback
 
 	maxRetries := model.MAX_RETRIES_WITHOUT_FALLBACK
-	if hasFallback {
+	if isFallback {
 		maxRetries = model.MAX_ADDITIONAL_RETRIES_WITH_FALLBACK
 	}
 
@@ -67,18 +66,20 @@ func (state *activeTellStreamState) onError(params onErrorParams) onErrorResult 
 		compareRetries = state.numFallbackRetry
 	}
 
+	potentialFallback := state.modelConfig.GetFallbackForModelError(
+		state.numErrorRetry,
+		state.didProviderFallback,
+		modelErr,
+		state.authVars,
+		state.settings,
+		state.orgUserConfig,
+	)
+
 	newFallback := false
 	if modelErr != nil {
 		if !modelErr.Retriable {
 			log.Printf("tellStream onError - operation returned non-retriable error: %v", modelErr)
-			if modelErr.Kind == shared.ErrContextTooLong && state.fallbackRes.ModelRoleConfig.LargeContextFallback == nil {
-				log.Printf("tellStream onError - non-retriable context too long error and no large context fallback is defined, no retry")
-				// if it's a context too long error and no large context fallback is defined, no retry
-				canRetry = false
-
-			} else if modelErr.Kind != shared.ErrContextTooLong && state.fallbackRes.ModelRoleConfig.ErrorFallback == nil {
-				log.Printf("tellStream onError - non-retriable error and no error fallback is defined, no retry")
-				// if it's any other error and no error fallback is defined, no retry
+			if !potentialFallback.IsFallback {
 				canRetry = false
 			} else {
 				log.Printf("tellStream onError - operation returned non-retriable error, but has fallback - resetting numFallbackRetry to 0 and continuing to retry")
@@ -116,19 +117,18 @@ func (state *activeTellStreamState) onError(params onErrorParams) onErrorResult 
 			retryDelay = time.Duration(1000+rand.Intn(200)) * time.Millisecond
 		}
 
-		cacheSupportErr := false
+		cacheSupportErr := modelErr != nil && modelErr.Kind == shared.ErrCacheSupport
+
 		numErrorRetry := state.numErrorRetry
-		if !(modelErr != nil && modelErr.Kind == shared.ErrCacheSupport) {
+		if modelErr != nil && modelErr.ShouldIncrementRetry() {
 			numErrorRetry = numErrorRetry + 1
-		} else {
-			cacheSupportErr = true
 		}
 
 		log.Printf("tellStream onError - Retry %d/%d - Retrying stream in %v", numErrorRetry, maxRetries, retryDelay)
 		time.Sleep(retryDelay)
 
 		state.numErrorRetry = numErrorRetry
-		if isFallback && !newFallback && !cacheSupportErr {
+		if isFallback && !newFallback && modelErr != nil && modelErr.ShouldIncrementRetry() {
 			state.numFallbackRetry = state.numFallbackRetry + 1
 		}
 

@@ -47,10 +47,10 @@ main() {
     run_plandex_cmd "new -n smoke-test-plan" "Create named plan"
     
     # Check current plan
-    run_plandex_cmd_output "current"
+    run_plandex_cmd "current"
     
     # List plans
-    run_plandex_cmd_output "plans"
+    run_plandex_cmd "plans"
     
     # 2. CONTEXT MANAGEMENT
     log "\n=== Testing Context Management ==="
@@ -65,10 +65,10 @@ main() {
     run_plandex_cmd "load . --tree" "Load directory tree"
     
     # List context
-    run_plandex_cmd_output "ls"
+    run_plandex_cmd "ls"
     
     # Show specific context
-    run_plandex_cmd_output "show main.go"
+    run_plandex_cmd "show main.go"
     
     # 3. BASIC TASK EXECUTION
     log "\n=== Testing Task Execution ==="
@@ -80,7 +80,7 @@ main() {
     run_plandex_cmd "tell '$PROMPT_CREATE_FUNCTION'" "Execute tell command"
     
     # Check diff
-    run_plandex_cmd_output "diff --git"
+    run_plandex_cmd "diff --git"
     
     # Apply changes
     run_plandex_cmd "apply --auto-exec --debug 2 --skip-commit" "Apply changes"
@@ -92,7 +92,7 @@ main() {
     log "\n=== Testing Chat ==="
     
     # Chat without making changes
-    run_plandex_cmd_output "chat '$PROMPT_CHAT_QUESTION'"
+    run_plandex_cmd "chat '$PROMPT_CHAT_QUESTION'"
     
     # 5. CONTINUE AND BUILD
     log "\n=== Testing Continue and Build ==="
@@ -104,7 +104,7 @@ main() {
     run_plandex_cmd "build" "Build pending changes"
     
     # Review and apply
-    run_plandex_cmd_output "diff --git"
+    run_plandex_cmd "diff --git"
     run_plandex_cmd "apply --auto-exec --debug 2 --skip-commit" "Apply test changes"
     
     # 6. BRANCHES
@@ -118,7 +118,7 @@ main() {
     run_plandex_cmd "apply --auto-exec --debug 2 --skip-commit" "Apply on branch"
     
     # List branches
-    run_plandex_cmd_output "branches"
+    run_plandex_cmd "branches"
     
     # Switch back to main
     run_plandex_cmd "checkout main" "Switch to main branch"
@@ -127,10 +127,10 @@ main() {
     log "\n=== Testing Version Control ==="
     
     # View log
-    run_plandex_cmd_output "log"
+    run_plandex_cmd "log"
     
     # View conversation
-    run_plandex_cmd_output "convo"
+    run_plandex_cmd "convo"
     
     # Get current state for rewind test
     REWIND_STEPS=2
@@ -143,7 +143,7 @@ main() {
     log "\n=== Testing Configuration ==="
     
     # View current config
-    run_plandex_cmd_output "config"
+    run_plandex_cmd "config"
     
     # Change a setting
     run_plandex_cmd "set-config auto-continue false" "Set auto-continue to false"
@@ -152,10 +152,10 @@ main() {
     run_plandex_cmd "set-config auto-continue true" "Set auto-continue to true"
     
     # View models
-    run_plandex_cmd_output "models"
+    run_plandex_cmd "models"
     
     # List model packs
-    run_plandex_cmd_output "model-packs"
+    run_plandex_cmd "model-packs"
     
     # 9. CONTEXT UPDATES
     log "\n=== Testing Context Updates ==="
@@ -189,7 +189,7 @@ main() {
     run_plandex_cmd "archive smoke-test-plan" "Archive plan"
     
     # List archived plans
-    run_plandex_cmd_output "plans --archived"
+    run_plandex_cmd "plans --archived"
     
     # Unarchive
     run_plandex_cmd "unarchive smoke-test-plan" "Unarchive plan"
@@ -202,7 +202,7 @@ main() {
     
     # Switch between plans
     run_plandex_cmd "cd smoke-test-plan" "Switch to first plan"
-    run_plandex_cmd_output "current"
+    run_plandex_cmd "current"
     
     log "\n=== Plandex Smoke Test Completed Successfully at $(date) ==="
 }

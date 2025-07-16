@@ -867,6 +867,14 @@ plandex disconnect-claude
 
 Disconnect your Claude Pro or Max subscription and clear credentials from your device. 
 
+### claude-status
+
+```bash
+plandex claude-status
+```
+
+Shows whether a Claude Pro or Max subscription is connected, and whether the quota has been exceeded.
+
 ## Plandex Cloud
 
 ### billing

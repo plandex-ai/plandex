@@ -148,6 +148,7 @@ var CliCommands = []CmdConfig{
 
 	{"connect-claude", "", "connect your Claude Pro or Max subscription", true},
 	{"disconnect-claude", "", "disconnect your Claude Pro or Max subscription", true},
+	{"claude-status", "", "status of your Claude Pro or Max subscription connection", true},
 
 	{"usage", "", "show Plandex Cloud current balance and usage report", true},
 	{"usage --today", "", "show Plandex Cloud usage for the day so far", true},
@@ -349,7 +350,7 @@ func PrintHelpAllCommands() {
 	fmt.Fprintln(builder)
 
 	color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Integrations ")
-	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "connect-claude", "disconnect-claude")
+	printCmds(builder, " ", []color.Attribute{color.Bold, ColorHiCyan}, "connect-claude", "disconnect-claude", "claude-status")
 	fmt.Fprintln(builder)
 
 	color.New(color.Bold, color.BgCyan, color.FgHiWhite).Fprintln(builder, " Cloud ")

@@ -10,17 +10,22 @@ import (
 type ModelErrKind string
 
 const (
-	ErrOverloaded     ModelErrKind = "ErrOverloaded"
-	ErrContextTooLong ModelErrKind = "ErrContextTooLong"
-	ErrRateLimited    ModelErrKind = "ErrRateLimited"
-	ErrOther          ModelErrKind = "ErrOther"
-	ErrCacheSupport   ModelErrKind = "ErrCacheSupport"
+	ErrOverloaded                 ModelErrKind = "ErrOverloaded"
+	ErrContextTooLong             ModelErrKind = "ErrContextTooLong"
+	ErrRateLimited                ModelErrKind = "ErrRateLimited"
+	ErrSubscriptionQuotaExhausted ModelErrKind = "ErrSubscriptionQuotaExhausted"
+	ErrOther                      ModelErrKind = "ErrOther"
+	ErrCacheSupport               ModelErrKind = "ErrCacheSupport"
 )
 
 type ModelError struct {
 	Kind              ModelErrKind
 	Retriable         bool
 	RetryAfterSeconds int
+}
+
+func (m ModelError) ShouldIncrementRetry() bool {
+	return m.Kind != ErrSubscriptionQuotaExhausted && m.Kind != ErrCacheSupport
 }
 
 // if fallback is defined, retry with main model, then remaining tries use error fallback
@@ -33,11 +38,10 @@ const (
 )
 
 type FallbackResult struct {
-	ModelRoleConfig  *ModelRoleConfig
-	HasErrorFallback bool
-	IsFallback       bool
-	FallbackType     FallbackType
-	BaseModelConfig  *BaseModelConfig
+	ModelRoleConfig *ModelRoleConfig
+	IsFallback      bool
+	FallbackType    FallbackType
+	BaseModelConfig *BaseModelConfig
 }
 
 const MAX_RETRIES_BEFORE_FALLBACK = 1

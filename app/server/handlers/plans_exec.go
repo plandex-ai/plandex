@@ -107,7 +107,7 @@ func TellPlanHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Printf("Error telling plan: %v\n", err)
 		go notify.NotifyErr(notify.SeverityError, fmt.Errorf("error telling plan: %v", err))
-		http.Error(w, "Error telling plan", http.StatusInternalServerError)
+		http.Error(w, "Error telling plan: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 

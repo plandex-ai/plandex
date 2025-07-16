@@ -95,13 +95,13 @@ func ClassifyModelError(code int, message string, headers http.Header, isClaudeM
 		retryAfter := extractRetryAfter(headers, msg)
 		if retryAfter > 0 {
 			return shared.ModelError{
-				Kind:              shared.ErrRateLimited,
+				Kind:              shared.ErrSubscriptionQuotaExhausted,
 				Retriable:         true,
 				RetryAfterSeconds: retryAfter,
 			}
 		}
 		return shared.ModelError{
-			Kind:              shared.ErrRateLimited,
+			Kind:              shared.ErrSubscriptionQuotaExhausted,
 			Retriable:         false,
 			RetryAfterSeconds: 0,
 		}

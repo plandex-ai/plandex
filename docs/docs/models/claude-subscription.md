@@ -31,6 +31,17 @@ plandex disconnect-claude # CLI
 \disconnect-claude  # REPL
 ```
 
+### `claude-status`
+
+You can check whether a subscription is connected with `claude-status`
+
+```bash
+plandex claude-status # CLI
+\claude-status  # REPL
+```
+
+This command will also tell you if the subscription's quota has been exceeded and a backup provider is being used instead.
+
 ## Quota Exhaustion
 
 If you're using Plandex Cloud with Integrated Models Mode, Anthropic model calls will use your Claude subscription until it runs out of quota, then switch to using Plandex credits until the quota resets.

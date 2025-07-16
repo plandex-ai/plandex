@@ -40,7 +40,7 @@ const (
 	ModelProviderOpenAI     ModelProvider = "openai"
 
 	ModelProviderAnthropic          ModelProvider = "anthropic"
-	ModelProviderAnthropicClaudeMax ModelProvider = "anthropic-claude-max"
+	ModelProviderAnthropicClaudeMax ModelProvider = "anthropic-pro"
 	ModelProviderGoogleAIStudio     ModelProvider = "google-ai-studio"
 	ModelProviderGoogleVertex       ModelProvider = "google-vertex"
 	ModelProviderAzureOpenAI        ModelProvider = "azure-openai"
@@ -265,6 +265,9 @@ func GetProvidersForAuthVars(authVars map[string]string, settings *PlanSettings,
 			if extraAuthVar.Required {
 				checkVars = append(checkVars, extraAuthVar.Var)
 			}
+		}
+		if providerConfig.HasClaudeMaxAuth {
+			checkVars = append(checkVars, AnthropicClaudeMaxTokenEnvVar)
 		}
 
 		missingAny := false

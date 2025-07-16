@@ -49,9 +49,9 @@ from litellm import completion, _turn_on_debug
 import json
 import re
 
-_turn_on_debug()
+# _turn_on_debug()
 
-LOGGING_ENABLED = True
+LOGGING_ENABLED = False
 
 print("Litellm proxy: starting proxy server on port 4000...")
 

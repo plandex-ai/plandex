@@ -41,7 +41,7 @@ func promptClaudeMaxIfNeeded() bool {
 	}
 
 	term.StopSpinner()
-	fmt.Println("ℹ️  The current model pack uses Anthropic models.\nIf you have a " + color.New(color.FgHiGreen, color.Bold).Sprint("Claude Pro or Max Subscription") + ", you can connect to it.\nPlandex will then use your Claude subscription for Anthropic model calls up to your limit.\n")
+	fmt.Println("ℹ️  The current model pack uses Anthropic models.\n\nIf you have a " + color.New(color.FgHiGreen, color.Bold).Sprint("Claude Pro or Max Subscription") + ", you can connect to it.\n\nPlandex will then use your Claude subscription for Anthropic model calls up to your limit.\n")
 
 	res, err := term.ConfirmYesNo("Connect your Claude subscription?")
 	if err != nil {
@@ -54,7 +54,7 @@ func promptClaudeMaxIfNeeded() bool {
 
 	if !res {
 		fmt.Println()
-		color.New(color.FgHiBlue).Println("To connect a Claude subscription later, run:\n" + term.ShowCmd("connect-claude"))
+		fmt.Println("To connect a Claude subscription later, run:\n" + term.ShowCmd("connect-claude"))
 		fmt.Println()
 		return false
 	}
@@ -138,7 +138,7 @@ func ConnectClaudeMax() {
 	fmt.Println("✅ Your Claude subscription is now connected")
 	fmt.Println()
 
-	color.New(color.FgHiBlue).Println("To disconnect, run:\n" + term.ShowCmd("disconnect-claude"))
+	fmt.Println("To disconnect, run:\n" + term.ShowCmd("disconnect-claude"))
 	fmt.Println()
 }
 
@@ -165,7 +165,7 @@ func DisconnectClaudeMax() {
 
 	fmt.Println("✅ Your Claude subscription has been disconnected")
 	fmt.Println()
-	color.New(color.FgHiBlue).Println("To reconnect, run:\n" + term.ShowCmd("connect-claude"))
+	fmt.Println("To reconnect, run:\n" + term.ShowCmd("connect-claude"))
 	fmt.Println()
 }
 
