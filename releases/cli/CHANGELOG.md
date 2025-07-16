@@ -1,3 +1,16 @@
+## CLI Version 2.2.1
+## 🖇️  Connect your Claude Pro or Max subscription
+
+If you have a Claude Pro or Max subscription, Plandex can use it when calling Anthropic models. You can use it in either Integrated Models Mode on Plandex Cloud, or in BYO Key Mode (whether on Cloud or self-hosting).
+
+Assuming you're using Anthropic models (which the default model pack does), you'll be asked if you want to connect your Claude subscription the first time you run Plandex. Follow the instructions to connect.
+
+[Learn more in the docs.](https://docs.plandex.ai/models/claude-subscription)
+
+## 🐞  Bug fixes
+
+Fixed an [issue](https://github.com/plandex-ai/plandex/issues/291) with custom models and providers.
+
 ## CLI Version 2.2.0
 This is a big release that is mainly focused on Plandex's model provider and model config system. It significantly increases model provider flexibility, makes custom model configuration much easier, reduces costs on Cloud, and adds built-in support for Ollama.
 
