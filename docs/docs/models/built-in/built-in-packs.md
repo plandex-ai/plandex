@@ -7,7 +7,7 @@ sidebar_label: Model Packs
 
 Plandex includes a curated selection of built-in model packs that have been tested and optimized for different use cases.
 
-*A model pack is a mapping of [model roles](../models/model-roles) to [models](./built-in-models.md).*
+*A model pack is a mapping of [model roles](../roles.md) to [models](./built-in-models.md).*
 
 *They can also define fallback models for large context, large output, error handling, as well as a strong variant for the `builder` role.*
 
