@@ -27,7 +27,10 @@ var tellCmd = &cobra.Command{
 	Short:   "Send a prompt for the current plan",
 	// Long:  ``,
 	Args: cobra.RangeArgs(0, 1),
-	Run:  doTell,
+	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{}, cobra.ShellCompDirectiveNoFileComp
+	},
+	Run: doTell,
 }
 
 func init() {
