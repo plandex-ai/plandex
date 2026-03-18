@@ -541,12 +541,12 @@ func ListPlansRunningHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sort.Slice(res.Branches, func(i, j int) bool {
-		iComposite := res.Branches[i].PlanId + "|" + res.Branches[i].Name
-		jComposite := res.Branches[j].PlanId + "|" + res.Branches[j].Name
-		iFinishedAt, iOk := res.StreamFinishedAtByBranchId[iComposite]
-		jFinishedAt, jOk := res.StreamFinishedAtByBranchId[jComposite]
-		iCreatedAt := res.StreamStartedAtByBranchId[iComposite]
-		jCreatedAt := res.StreamStartedAtByBranchId[jComposite]
+		iId := res.Branches[i].Id
+		jId := res.Branches[j].Id
+		iFinishedAt, iOk := res.StreamFinishedAtByBranchId[iId]
+		jFinishedAt, jOk := res.StreamFinishedAtByBranchId[jId]
+		iCreatedAt := res.StreamStartedAtByBranchId[iId]
+		jCreatedAt := res.StreamStartedAtByBranchId[jId]
 
 		if iOk && jOk {
 			return iFinishedAt.Before(jFinishedAt) // Sort finished streams by finishedAt in ascending order.
