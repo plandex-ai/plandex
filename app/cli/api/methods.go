@@ -51,11 +51,11 @@ func (a *Api) GetCliTrialSession(token string) (*shared.SessionResponse, *shared
 		return nil, &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error sending request: %v", err)}
 	}
 
+	defer resp.Body.Close()
+
 	if resp.StatusCode == 404 {
 		return nil, nil
 	}
-
-	defer resp.Body.Close()
 
 	if resp.StatusCode >= 400 {
 		errorBody, _ := io.ReadAll(resp.Body)
@@ -582,6 +582,7 @@ func (a *Api) RespondMissingFile(planId, branch string, req shared.RespondMissin
 	if err != nil {
 		return &shared.ApiError{Msg: fmt.Sprintf("error sending request: %v", err)}
 	}
+	defer resp.Body.Close()
 
 	if resp.StatusCode >= 400 {
 		errorBody, _ := io.ReadAll(resp.Body)
@@ -613,6 +614,7 @@ func (a *Api) ConnectPlan(planId, branch string, onStream types.OnStreamPlan) *s
 	}
 
 	if resp.StatusCode >= 400 {
+		defer resp.Body.Close()
 		errorBody, _ := io.ReadAll(resp.Body)
 		apiErr := HandleApiError(resp, errorBody)
 
