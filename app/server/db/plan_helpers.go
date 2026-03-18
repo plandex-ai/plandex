@@ -177,6 +177,7 @@ func AddPlanConvoMessage(msg *ConvoMessage, branch string) error {
 		_, err := Conn.Exec("UPDATE plans SET total_replies = total_replies + 1 WHERE id = $1", msg.PlanId)
 		if err != nil {
 			errCh <- fmt.Errorf("error updating plan total replies: %v", err)
+			return
 		}
 
 		errCh <- nil

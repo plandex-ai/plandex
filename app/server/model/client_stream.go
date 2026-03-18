@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"plandex-server/types"
 	shared "plandex-shared"
+	"strings"
 	"time"
 
 	"github.com/davecgh/go-spew/spew"
@@ -41,7 +42,9 @@ func CreateChatCompletionWithInternalStream(
 
 	// choose the fastest provider by latency/throughput on openrouter
 	if baseModelConfig.Provider == shared.ModelProviderOpenRouter {
-		req.Model += ":nitro"
+		if !strings.HasSuffix(string(req.Model), ":nitro") && !strings.HasSuffix(string(req.Model), ":free") && !strings.HasSuffix(string(req.Model), ":floor") {
+			req.Model += ":nitro"
+		}
 	}
 
 	// Force streaming mode since we're using the streaming API
