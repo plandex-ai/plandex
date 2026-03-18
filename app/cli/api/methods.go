@@ -786,7 +786,7 @@ func (a *Api) UnarchivePlan(planId string) *shared.ApiError {
 
 		didRefresh, apiErr := refreshAuthIfNeeded(apiErr)
 		if didRefresh {
-			return a.ArchivePlan(planId)
+			return a.UnarchivePlan(planId)
 		}
 		return apiErr
 	}
@@ -887,7 +887,7 @@ func (a *Api) RejectFile(planId, branch, filePath string) *shared.ApiError {
 		apiErr := HandleApiError(resp, errorBody)
 		didRefresh, apiErr := refreshAuthIfNeeded(apiErr)
 		if didRefresh {
-			a.RejectFile(planId, branch, filePath)
+			return a.RejectFile(planId, branch, filePath)
 		}
 		return apiErr
 	}
@@ -921,7 +921,7 @@ func (a *Api) RejectFiles(planId, branch string, paths []string) *shared.ApiErro
 		apiErr := HandleApiError(resp, errorBody)
 		didRefresh, apiErr := refreshAuthIfNeeded(apiErr)
 		if didRefresh {
-			a.RejectFiles(planId, branch, paths)
+			return a.RejectFiles(planId, branch, paths)
 		}
 		return apiErr
 	}
@@ -2411,7 +2411,7 @@ func (a *Api) AutoLoadContext(ctx context.Context, planId, branch string, req sh
 		apiErr := HandleApiError(resp, errorBody)
 		authRefreshed, apiErr := refreshAuthIfNeeded(apiErr)
 		if authRefreshed {
-			return a.LoadContext(planId, branch, req)
+			return a.AutoLoadContext(ctx, planId, branch, req)
 		}
 		return nil, apiErr
 	}
