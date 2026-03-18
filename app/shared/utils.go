@@ -131,7 +131,7 @@ func ReplaceReverse(s, old, new string, n int) string {
 	}
 
 	// If n is positive, replace the last n occurrences of old with new
-	var res string
+	res := s
 	for i := 0; i < n; i++ {
 		idx := strings.LastIndex(s, old)
 		if idx == -1 {
@@ -168,6 +168,11 @@ func looksTextish(b []byte) bool {
 		return false
 	}
 
+	total := len(b)
+	if total == 0 {
+		return true
+	}
+
 	printable := 0
 	for len(b) > 0 {
 		r, size := utf8.DecodeRune(b)
@@ -179,5 +184,5 @@ func looksTextish(b []byte) bool {
 			printable++
 		}
 	}
-	return float64(printable)/float64(len(b)) > 0.90 // 3
+	return float64(printable)/float64(total) > 0.90 // 3
 }

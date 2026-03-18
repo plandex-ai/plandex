@@ -180,6 +180,8 @@ func SummaryForLoadContext(contexts []*Context, tokensAdded, totalTokens int) st
 		for i, add := range added {
 			if i == len(added)-1 {
 				msg += ", and " + add
+			} else if i == 0 {
+				msg += add
 			} else {
 				msg += ", " + add
 			}
@@ -288,6 +290,8 @@ func SummaryForUpdateContext(params SummaryForUpdateContextParams) string {
 		for i, add := range toAdd {
 			if i == len(toAdd)-1 {
 				msg += ", and " + add
+			} else if i == 0 {
+				msg += " " + add
 			} else {
 				msg += ", " + add
 			}
