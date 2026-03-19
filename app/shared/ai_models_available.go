@@ -325,6 +325,7 @@ var BuiltInModels = []*BaseModelConfigSchema{
 		Providers: []BaseModelUsesProvider{
 			{Provider: ModelProviderDeepSeek, ModelName: "deepseek/deepseek-chat"},
 			{Provider: ModelProviderOpenRouter, ModelName: "deepseek/deepseek-chat-v3"},
+			{Provider: ModelProviderQiniu, ModelName: "deepseek-v3"},
 		},
 	},
 	{
@@ -343,6 +344,7 @@ var BuiltInModels = []*BaseModelConfigSchema{
 		Providers: []BaseModelUsesProvider{
 			{Provider: ModelProviderDeepSeek, ModelName: "deepseek/deepseek-reasoner"},
 			{Provider: ModelProviderOpenRouter, ModelName: "deepseek/deepseek-r1-0528"},
+			{Provider: ModelProviderQiniu, ModelName: "deepseek-r1"},
 		},
 	},
 	{
@@ -581,6 +583,34 @@ var BuiltInModels = []*BaseModelConfigSchema{
 		Providers: []BaseModelUsesProvider{
 			{Provider: ModelProviderPerplexity, ModelName: "sonar-reasoning-online"},
 			{Provider: ModelProviderOpenRouter, ModelName: "perplexity/sonar-reasoning"},
+		},
+	},
+
+	// Qiniu Cloud (七牛云) models via AI Inference Hub (api.qnaigc.com)
+	{
+		ModelTag:    "qiniu/kimi-k2",
+		Publisher:   ModelPublisherQwen,
+		Description: "Kimi K2 (via Qiniu)",
+		BaseModelShared: BaseModelShared{
+			DefaultMaxConvoTokens: 15000, MaxTokens: 256000,
+			MaxOutputTokens: 16384, ReservedOutputTokens: 16384,
+			PreferredOutputFormat: ModelOutputFormatXml,
+		},
+		Providers: []BaseModelUsesProvider{
+			{Provider: ModelProviderQiniu, ModelName: "moonshotai/kimi-k2.5"},
+		},
+	},
+	{
+		ModelTag:    "qiniu/glm-5",
+		Publisher:   ModelPublisherQwen,
+		Description: "GLM-5 (via Qiniu)",
+		BaseModelShared: BaseModelShared{
+			DefaultMaxConvoTokens: 15000, MaxTokens: 128000,
+			MaxOutputTokens: 8192, ReservedOutputTokens: 8192,
+			PreferredOutputFormat: ModelOutputFormatXml,
+		},
+		Providers: []BaseModelUsesProvider{
+			{Provider: ModelProviderQiniu, ModelName: "z-ai/glm-5"},
 		},
 	},
 }
