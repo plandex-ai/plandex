@@ -15,6 +15,7 @@ const GoogleAIStudioApiKeyEnvVar = "GEMINI_API_KEY"
 const AzureOpenAIEnvVar = "AZURE_OPENAI_API_KEY"
 const DeepSeekApiKeyEnvVar = "DEEPSEEK_API_KEY"
 const PerplexityApiKeyEnvVar = "PERPLEXITY_API_KEY"
+const QiniuApiKeyEnvVar = "QINIU_API_KEY"
 
 // not set directly via env vars, but used for auth var resolution
 const AnthropicClaudeMaxTokenEnvVar = "ANTHROPIC_CLAUDE_MAX_TOKEN"
@@ -46,6 +47,7 @@ const (
 	ModelProviderAzureOpenAI        ModelProvider = "azure-openai"
 	ModelProviderDeepSeek           ModelProvider = "deepseek"
 	ModelProviderPerplexity         ModelProvider = "perplexity"
+	ModelProviderQiniu              ModelProvider = "qiniu"
 
 	ModelProviderAmazonBedrock ModelProvider = "aws-bedrock"
 
@@ -72,6 +74,7 @@ var AllModelProviders = []ModelProvider{
 	ModelProviderAmazonBedrock,
 	ModelProviderDeepSeek,
 	ModelProviderPerplexity,
+	ModelProviderQiniu,
 	ModelProviderOllama,
 	ModelProviderCustom,
 }
@@ -215,6 +218,11 @@ var BuiltInModelProviderConfigs = map[ModelProvider]ModelProviderConfigSchema{
 		BaseUrl:   LiteLLMBaseUrl,
 		SkipAuth:  true,
 		LocalOnly: true,
+	},
+	ModelProviderQiniu: {
+		Provider:     ModelProviderQiniu,
+		BaseUrl:      "https://api.qnaigc.com/v1",
+		ApiKeyEnvVar: QiniuApiKeyEnvVar,
 	},
 }
 
