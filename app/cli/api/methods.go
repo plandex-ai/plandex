@@ -51,11 +51,11 @@ func (a *Api) GetCliTrialSession(token string) (*shared.SessionResponse, *shared
 		return nil, &shared.ApiError{Type: shared.ApiErrorTypeOther, Msg: fmt.Sprintf("error sending request: %v", err)}
 	}
 
+	defer resp.Body.Close()
+
 	if resp.StatusCode == 404 {
 		return nil, nil
 	}
-
-	defer resp.Body.Close()
 
 	if resp.StatusCode >= 400 {
 		errorBody, _ := io.ReadAll(resp.Body)
@@ -487,6 +487,7 @@ func (a *Api) TellPlan(planId, branch string, req shared.TellPlanRequest, onStre
 	if err != nil {
 		return &shared.ApiError{Msg: fmt.Sprintf("error sending request: %v", err)}
 	}
+	defer resp.Body.Close()
 
 	if resp.StatusCode >= 400 {
 		errorBody, _ := io.ReadAll(resp.Body)
@@ -503,9 +504,6 @@ func (a *Api) TellPlan(planId, branch string, req shared.TellPlanRequest, onStre
 	if req.ConnectStream {
 		log.Println("Connecting stream")
 		connectPlanRespStream(resp.Body, onStream)
-	} else {
-		// log.Println("Background exec - not connecting stream")
-		resp.Body.Close()
 	}
 
 	return nil
@@ -538,6 +536,7 @@ func (a *Api) BuildPlan(planId, branch string, req shared.BuildPlanRequest, onSt
 	if err != nil {
 		return &shared.ApiError{Msg: fmt.Sprintf("error sending request: %v", err)}
 	}
+	defer resp.Body.Close()
 
 	if resp.StatusCode >= 400 {
 		log.Println("Error response from build plan", resp.StatusCode)
@@ -556,9 +555,6 @@ func (a *Api) BuildPlan(planId, branch string, req shared.BuildPlanRequest, onSt
 	if req.ConnectStream {
 		log.Println("Connecting stream")
 		connectPlanRespStream(resp.Body, onStream)
-	} else {
-		// log.Println("Background exec - not connecting stream")
-		resp.Body.Close()
 	}
 
 	return nil
@@ -582,6 +578,7 @@ func (a *Api) RespondMissingFile(planId, branch string, req shared.RespondMissin
 	if err != nil {
 		return &shared.ApiError{Msg: fmt.Sprintf("error sending request: %v", err)}
 	}
+	defer resp.Body.Close()
 
 	if resp.StatusCode >= 400 {
 		errorBody, _ := io.ReadAll(resp.Body)
@@ -611,6 +608,7 @@ func (a *Api) ConnectPlan(planId, branch string, onStream types.OnStreamPlan) *s
 	if err != nil {
 		return &shared.ApiError{Msg: fmt.Sprintf("error sending request: %v", err)}
 	}
+	defer resp.Body.Close()
 
 	if resp.StatusCode >= 400 {
 		errorBody, _ := io.ReadAll(resp.Body)
