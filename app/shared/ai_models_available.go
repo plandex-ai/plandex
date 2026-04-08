@@ -1,6 +1,7 @@
 package shared
 
 import (
+	"log"
 	"strings"
 
 	"github.com/davecgh/go-spew/spew"
@@ -664,51 +665,51 @@ func init() {
 	for _, model := range AvailableModels {
 		if model.Description == "" {
 			spew.Dump(model)
-			panic("description is not set")
+			log.Fatalf("model validation failed: description is not set")
 		}
 
 		if model.Provider == "" {
 			spew.Dump(model)
-			panic("model provider is not set")
+			log.Fatalf("model validation failed: model provider is not set")
 		}
 		if model.ModelId == "" {
 			spew.Dump(model)
-			panic("model id is not set")
+			log.Fatalf("model validation failed: model id is not set")
 		}
 
 		if model.DefaultMaxConvoTokens == 0 {
 			spew.Dump(model)
-			panic("default max convo tokens is not set")
+			log.Fatalf("model validation failed: default max convo tokens is not set")
 		}
 
 		if model.MaxTokens == 0 {
 			spew.Dump(model)
-			panic("max tokens is not set")
+			log.Fatalf("model validation failed: max tokens is not set")
 		}
 
 		if model.MaxOutputTokens == 0 {
 			spew.Dump(model)
-			panic("max output tokens is not set")
+			log.Fatalf("model validation failed: max output tokens is not set")
 		}
 
 		if model.ReservedOutputTokens == 0 {
 			spew.Dump(model)
-			panic("reserved output tokens is not set")
+			log.Fatalf("model validation failed: reserved output tokens is not set")
 		}
 
 		if model.ApiKeyEnvVar == "" && len(model.ExtraAuthVars) == 0 && !model.SkipAuth && !model.HasAWSAuth && !model.HasClaudeMaxAuth {
 			spew.Dump(model)
-			panic("api key or auth settings are not set")
+			log.Fatalf("model validation failed: api key or auth settings are not set")
 		}
 
 		if model.BaseUrl == "" {
 			spew.Dump(model)
-			panic("base url is not set")
+			log.Fatalf("model validation failed: base url is not set")
 		}
 
 		if model.PreferredOutputFormat == "" {
 			spew.Dump(model)
-			panic("preferred model output format is not set")
+			log.Fatalf("model validation failed: preferred model output format is not set")
 		}
 
 		compositeKey := string(model.Provider) + "/" + string(model.ModelId)
