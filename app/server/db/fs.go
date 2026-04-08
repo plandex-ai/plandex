@@ -12,7 +12,7 @@ var BaseDir string
 func init() {
 	home, err := os.UserHomeDir()
 	if err != nil {
-		panic(fmt.Errorf("error getting user home dir: %v", err))
+		log.Fatalf("error getting user home dir: %v", err)
 	}
 
 	log.Println("Plandex server home dir:", home)
