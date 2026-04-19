@@ -27,8 +27,16 @@ services:
       GOENV: development
       LOCAL_MODE: 1
       PLANDEX_BASE_DIR: /plandex-server
+      # OLLAMA_BASE_URL sets the base URL for local Ollama-compatible inference.
+      # Change this if your Ollama server is running on a different host or port,
+      # or if you're using another Ollama-API-compatible server (e.g. vLLM with
+      # --api-base ollama, LM Studio in Ollama mode). Remove or comment out this
+      # line if you're not using any local Ollama-compatible models.
+      # To use a non-Ollama OpenAI-compatible API (e.g. vLLM in OpenAI mode),
+      # configure it as a custom model provider via the Plandex CLI instead:
+      # https://docs.plandex.ai/models/model-providers#custom-models
       OLLAMA_BASE_URL: http://host.docker.internal:11434
-      
+
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:
