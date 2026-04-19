@@ -89,7 +89,7 @@ API_HOST= # The host the API server listens on. Defaults to 'http://localhost:$P
 PORT=8099 # The port the server listens on. Defaults to 8099.
 DATABASE_URL= # The URL of the PostgreSQL database. Defaults to 'postgres://plandex:plandex@plandex-postgres:5432/plandex?sslmode=disable' in development mode
 LOCAL_MODE= # Whether to run in local mode
-OLLAMA_BASE_URL= # The base URL of the Ollama server—only need when the server is running in a Docker container and needs to access Ollama models running outside of the container
+OLLAMA_BASE_URL= # The base URL of the Ollama server—only needed when the server is running in a Docker container and needs to access Ollama models running outside of the container. This can point to any Ollama-API-compatible server (e.g. vLLM with --api-base ollama, LM Studio in Ollama mode). For other OpenAI-compatible servers, use custom model providers via the CLI instead.
 ```
 
 ### docker-compose
