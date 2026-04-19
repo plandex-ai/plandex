@@ -69,6 +69,17 @@ func GetUserPasswordInput(msg string) (string, error) {
 }
 
 func GetUserKeyInput() (rune, keyboard.Key, error) {
+	// Temporarily unset TERMINFO so the keyboard library falls through to
+	// TERMINFO_DIRS and standard system paths (e.g. /usr/share/terminfo).
+	// Without this, terminals like Ghostty set $TERMINFO to a directory that
+	// only contains their own entries; when running inside tmux the library
+	// then fails to locate tmux-256color and returns "Unsupported terminal".
+	// See: https://github.com/plandex-ai/plandex/issues/320
+	if terminfo := os.Getenv("TERMINFO"); terminfo != "" {
+		os.Unsetenv("TERMINFO")
+		defer os.Setenv("TERMINFO", terminfo)
+	}
+
 	if err := keyboard.Open(); err != nil {
 		return 0, 0, fmt.Errorf("failed to open keyboard: %s", err)
 	}
