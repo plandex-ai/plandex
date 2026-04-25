@@ -2,6 +2,7 @@ package types
 
 import (
 	shared "plandex-shared"
+	"encoding/json"
 	"time"
 
 	"strings"
@@ -54,6 +55,33 @@ func (msg *ExtendedChatMessage) ToOpenAI() *openai.ChatCompletionMessage {
 		Role:         msg.Role,
 		MultiContent: parts,
 	}
+}
+
+// MarshalJSON serializes ExtendedChatMessage to JSON. When the content is a
+// single plain-text part with no cache control, it emits content as a JSON
+// string rather than an array. Many OpenAI-compatible providers (e.g. Groq)
+// reject array-valued content on system messages and do not support the
+// cache_control extension, so using a string keeps the payload compatible.
+func (msg ExtendedChatMessage) MarshalJSON() ([]byte, error) {
+	type rawMsg struct {
+		Role    string      `json:"role"`
+		Content interface{} `json:"content"`
+	}
+
+	if len(msg.Content) == 1 &&
+		msg.Content[0].Type == openai.ChatMessagePartTypeText &&
+		msg.Content[0].CacheControl == nil &&
+		msg.Content[0].ImageURL == nil {
+		return json.Marshal(rawMsg{
+			Role:    msg.Role,
+			Content: msg.Content[0].Text,
+		})
+	}
+
+	return json.Marshal(rawMsg{
+		Role:    msg.Role,
+		Content: msg.Content,
+	})
 }
 
 type OpenAIPrediction struct {
