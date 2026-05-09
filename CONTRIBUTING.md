@@ -39,9 +39,7 @@ cd app/cli && go build -o plandex .
 cd app/server && go build -o plandex-server .
 
 # Run tests
-cd app/cli && go test -race ./...
-cd app/server && go test -race ./...
-cd app/shared && go test ./...
+./scripts/test_modules.sh
 ```
 
 ### Server development
@@ -97,12 +95,13 @@ app/
 2. Make your changes.
 3. Run `go vet ./...` and `gofmt -l .` in the affected module.
 4. Add tests if applicable.
-5. Run `go test -race ./...` to verify nothing breaks.
+5. Run `./scripts/test_modules.sh` to verify nothing breaks (it uses `-race` on supported platforms and automatically falls back on unsupported ones such as `android/arm64`).
 6. Open a PR against `main`.
 
 CI will automatically:
 - Lint (`go vet`, `gofmt`, `staticcheck`)
-- Test with race detector
+- Test with platform-aware race handling (`scripts/test_modules.sh`)
+- Validate the explicit non-race fallback path (`PLDX_FORCE_NO_RACE=1`)
 - Build all modules
 - Run an integration smoke test
 

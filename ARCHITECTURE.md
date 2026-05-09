@@ -171,7 +171,7 @@ docker compose up -d          # starts PostgreSQL + server
 
 - **Server**: Docker image `plandexai/plandex-server` published on Docker Hub
 - **CLI**: Single binary distributed via `curl -sL https://plandex.ai/install.sh | bash`
-- **CI/CD**: GitHub Actions workflows for CI (build/test/lint/integration), CLI release builds, and Docker image publishing
+- **CI/CD**: GitHub Actions workflows for CI (build/test/lint/integration), CLI release builds, and Docker image publishing. Test execution uses a platform-aware runner (`scripts/test_modules.sh`) to handle unsupported race-detector targets like `android/arm64`.
 
 ## Dependencies
 
