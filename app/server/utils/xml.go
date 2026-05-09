@@ -37,8 +37,10 @@ func UnescapeCdata(xmlString string) string {
 func StripCdata(xmlString, tagName string) string {
 	openTag := "<" + tagName + ">"
 	closeTag := "</" + tagName + ">"
-	xmlString = regexp.MustCompile(openTag+`\s*<!\[CDATA\[`).ReplaceAllString(xmlString, openTag)
-	xmlString = regexp.MustCompile(`]]>\s*`+closeTag).ReplaceAllString(xmlString, closeTag)
+	quotedOpenTag := regexp.QuoteMeta(openTag)
+	quotedCloseTag := regexp.QuoteMeta(closeTag)
+	xmlString = regexp.MustCompile(quotedOpenTag+`\s*<!\[CDATA\[`).ReplaceAllString(xmlString, openTag)
+	xmlString = regexp.MustCompile(`]]>\s*`+quotedCloseTag).ReplaceAllString(xmlString, closeTag)
 	return xmlString
 }
 
@@ -66,7 +68,7 @@ func GetXMLTag(xmlString, tagName string, wrapCdata bool) string {
 
 	// Get everything before the first closing tag
 	split2 := strings.Split(afterOpenTag, closeTag)
-	if len(split2) < 1 {
+	if len(split2) < 2 {
 		return ""
 	}
 
@@ -92,7 +94,7 @@ func GetXMLContent(xmlString, tagName string) string {
 
 	// Get everything before the first closing tag
 	split2 := strings.Split(afterOpenTag, closeTag)
-	if len(split2) < 1 {
+	if len(split2) < 2 {
 		return ""
 	}
 
@@ -113,7 +115,7 @@ func GetAllXMLContent(xmlString, tagName string) []string {
 	for i := 1; i < len(parts); i++ {
 		// Split by closing tag
 		subParts := strings.Split(parts[i], closeTag)
-		if len(subParts) > 0 {
+		if len(subParts) > 1 {
 			// The content is before the first closing tag
 			results = append(results, subParts[0])
 		}

@@ -22,7 +22,8 @@ func MaybeIsolateCgroup(cmd *exec.Cmd) (deleteFn func()) {
 	pid := cmd.Process.Pid
 
 	// 1. Connect to the user manager (no prompt on typical distros).
-	ctx, _ := context.WithTimeout(context.Background(), cgroupCallTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), cgroupCallTimeout)
+	defer cancel()
 
 	conn, err := systemdDbus.NewUserConnectionContext(ctx)
 	if err != nil {

@@ -5,7 +5,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"plandex-cli/term"
 	"regexp"
 	"strings"
 	"time"
@@ -20,7 +19,7 @@ const (
 	maxContentSizeInMB = 10
 )
 
-func FetchURLContent(url string) (string, error) {
+func FetchURLContent(rawURL string) (string, error) {
 	client := &http.Client{
 		Timeout: httpTimeout,
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
@@ -31,7 +30,7 @@ func FetchURLContent(url string) (string, error) {
 		},
 	}
 
-	resp, err := client.Get(url)
+	resp, err := client.Get(rawURL)
 	if err != nil {
 		return "", err
 	}
@@ -61,7 +60,8 @@ func ExtractTextualContent(htmlContent string) string {
 	r := strings.NewReader(htmlContent)
 	doc, err := goquery.NewDocumentFromReader(r)
 	if err != nil {
-		term.OutputErrorAndExit("Failed to parse HTML: %v", err)
+		// Keep this helper side-effect free; callers can decide how to handle raw content.
+		return htmlContent
 	}
 
 	return doc.Text()

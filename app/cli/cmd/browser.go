@@ -174,13 +174,16 @@ func openChromeWithLogs(urls []string) error {
 	for i, url := range urls {
 		// Reuse the initial browser tab for the first URL
 		var ctx context.Context
+		var cancelTab func()
 		if i == 0 {
-			ctx, _ = chromedp.NewContext(browserCtx, chromedp.WithTargetID(initialTargetID))
+			ctx, cancelTab = chromedp.NewContext(browserCtx, chromedp.WithTargetID(initialTargetID))
 		} else {
 			// Create a new tab for each additional URL
-			ctx, _ = chromedp.NewContext(browserCtx)
+			ctx, cancelTab = chromedp.NewContext(browserCtx)
 		}
-		tabCtx, _ := context.WithTimeout(ctx, time.Duration(timeoutSeconds)*time.Second)
+		defer cancelTab()
+		tabCtx, cancelTimeout := context.WithTimeout(ctx, time.Duration(timeoutSeconds)*time.Second)
+		defer cancelTimeout()
 
 		chromedp.ListenTarget(tabCtx, func(ev interface{}) {
 			switch e := ev.(type) {
