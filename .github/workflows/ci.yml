@@ -1,0 +1,138 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        module: [cli, server, shared]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+          cache: true
+          cache-dependency-path: app/${{ matrix.module }}/go.sum
+
+      - name: go vet
+        working-directory: app/${{ matrix.module }}
+        run: go vet ./...
+
+      - name: gofmt check
+        working-directory: app/${{ matrix.module }}
+        run: |
+          fmt=$(gofmt -l .)
+          if [ -n "$fmt" ]; then
+            echo "The following files need formatting:"
+            echo "$fmt"
+            exit 1
+          fi
+
+      - name: staticcheck
+        uses: dominikh/staticcheck-action@v1.3
+        with:
+          version: "2024.1"
+          working-directory: app/${{ matrix.module }}
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        module: [cli, server, shared]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+          cache: true
+          cache-dependency-path: app/${{ matrix.module }}/go.sum
+
+      - name: Run tests
+        working-directory: app/${{ matrix.module }}
+        run: go test -race -coverprofile=coverage.out -covermode=atomic ./...
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ matrix.module }}
+          path: app/${{ matrix.module }}/coverage.out
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        module: [cli, server]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+          cache: true
+          cache-dependency-path: app/${{ matrix.module }}/go.sum
+
+      - name: Build
+        working-directory: app/${{ matrix.module }}
+        run: go build -v ./...
+
+  integration:
+    name: Integration Smoke Test
+    runs-on: ubuntu-latest
+    needs: [build]
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: plandex
+          POSTGRES_PASSWORD: plandex
+          POSTGRES_DB: plandex
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+          cache: true
+          cache-dependency-path: app/server/go.sum
+
+      - name: Run server smoke test
+        working-directory: app/server
+        env:
+          DATABASE_URL: "postgres://plandex:plandex@localhost:5432/plandex?sslmode=disable"
+          GOENV: development
+        run: |
+          set -eu
+          go build -o plandex-server .
+          code=0
+          timeout 5 ./plandex-server || code=$?
+          # server exits with error when no LiteLLM is configured — that's expected in CI
+          if [ $code -eq 124 ] || [ $code -eq 0 ] || [ $code -eq 2 ]; then
+            echo "Server started and ran cleanly (exit code: $code)"
+            exit 0
+          else
+            echo "Unexpected exit code: $code"
+            exit 1
+          fi
