@@ -4,7 +4,7 @@ import "sync"
 
 type SafeMap[V any] struct {
 	items map[string]V
-	mu    sync.Mutex
+	mu    sync.RWMutex
 }
 
 func NewSafeMap[V any]() *SafeMap[V] {
@@ -12,8 +12,8 @@ func NewSafeMap[V any]() *SafeMap[V] {
 }
 
 func (sm *SafeMap[V]) Get(key string) V {
-	sm.mu.Lock()
-	defer sm.mu.Unlock()
+	sm.mu.RLock()
+	defer sm.mu.RUnlock()
 	return sm.items[key]
 }
 
@@ -39,14 +39,20 @@ func (sm *SafeMap[V]) Update(key string, fn func(V)) {
 }
 
 func (sm *SafeMap[V]) Items() map[string]V {
-	sm.mu.Lock()
-	defer sm.mu.Unlock()
-	return sm.items
+	sm.mu.RLock()
+	defer sm.mu.RUnlock()
+
+	// Return a snapshot copy so callers can't mutate internal state without locks.
+	items := make(map[string]V, len(sm.items))
+	for k, v := range sm.items {
+		items[k] = v
+	}
+	return items
 }
 
 func (sm *SafeMap[V]) Keys() []string {
-	sm.mu.Lock()
-	defer sm.mu.Unlock()
+	sm.mu.RLock()
+	defer sm.mu.RUnlock()
 	keys := make([]string, len(sm.items))
 	i := 0
 	for k := range sm.items {
@@ -57,7 +63,7 @@ func (sm *SafeMap[V]) Keys() []string {
 }
 
 func (sm *SafeMap[V]) Len() int {
-	sm.mu.Lock()
-	defer sm.mu.Unlock()
+	sm.mu.RLock()
+	defer sm.mu.RUnlock()
 	return len(sm.items)
 }
