@@ -6,10 +6,12 @@ import (
 
 const OpenAIV1BaseUrl = "https://api.openai.com/v1"
 const OpenRouterBaseUrl = "https://openrouter.ai/api/v1"
+const RequestyBaseUrl = "https://router.requesty.ai/v1"
 const LiteLLMBaseUrl = "http://localhost:4000/v1" // runs in the same container alongside the plandex server
 
 const OpenAIEnvVar = "OPENAI_API_KEY"
 const OpenRouterApiKeyEnvVar = "OPENROUTER_API_KEY"
+const RequestyApiKeyEnvVar = "REQUESTY_API_KEY"
 const AnthropicApiKeyEnvVar = "ANTHROPIC_API_KEY"
 const GoogleAIStudioApiKeyEnvVar = "GEMINI_API_KEY"
 const AzureOpenAIEnvVar = "AZURE_OPENAI_API_KEY"
@@ -37,6 +39,7 @@ type ModelProvider string
 
 const (
 	ModelProviderOpenRouter ModelProvider = "openrouter"
+	ModelProviderRequesty   ModelProvider = "requesty"
 	ModelProviderOpenAI     ModelProvider = "openai"
 
 	ModelProviderAnthropic          ModelProvider = "anthropic"
@@ -63,6 +66,7 @@ var ModelProviderToLiteLLMId = map[ModelProvider]string{
 
 var AllModelProviders = []ModelProvider{
 	ModelProviderOpenRouter,
+	ModelProviderRequesty,
 	ModelProviderOpenAI,
 	ModelProviderAnthropic,
 	ModelProviderAnthropicClaudeMax,
@@ -129,6 +133,11 @@ var BuiltInModelProviderConfigs = map[ModelProvider]ModelProviderConfigSchema{
 		Provider:     ModelProviderOpenRouter,
 		BaseUrl:      OpenRouterBaseUrl,
 		ApiKeyEnvVar: OpenRouterApiKeyEnvVar,
+	},
+	ModelProviderRequesty: {
+		Provider:     ModelProviderRequesty,
+		BaseUrl:      RequestyBaseUrl,
+		ApiKeyEnvVar: RequestyApiKeyEnvVar,
 	},
 	ModelProviderAnthropic: {
 		Provider:     ModelProviderAnthropic,
