@@ -105,6 +105,7 @@ var BuiltInModels = []*BaseModelConfigSchema{
 			{Provider: ModelProviderOpenAI, ModelName: "gpt-4.1"},
 			{Provider: ModelProviderAzureOpenAI, ModelName: "azure/gpt-4.1"},
 			{Provider: ModelProviderOpenRouter, ModelName: "openai/gpt-4.1"},
+			{Provider: ModelProviderRequesty, ModelName: "openai/gpt-4.1"},
 		},
 	},
 	{
@@ -120,6 +121,7 @@ var BuiltInModels = []*BaseModelConfigSchema{
 			{Provider: ModelProviderOpenAI, ModelName: "gpt-4.1-mini"},
 			{Provider: ModelProviderAzureOpenAI, ModelName: "azure/gpt-4.1-mini"},
 			{Provider: ModelProviderOpenRouter, ModelName: "openai/gpt-4.1-mini"},
+			{Provider: ModelProviderRequesty, ModelName: "openai/gpt-4.1-mini"},
 		},
 	},
 	{
@@ -284,6 +286,7 @@ var BuiltInModels = []*BaseModelConfigSchema{
 			{Provider: ModelProviderGoogleAIStudio, ModelName: "gemini/gemini-2.5-pro"},
 			{Provider: ModelProviderGoogleVertex, ModelName: "vertex_ai/gemini-2.5-pro"},
 			{Provider: ModelProviderOpenRouter, ModelName: "google/gemini-2.5-pro"},
+			{Provider: ModelProviderRequesty, ModelName: "google/gemini-2.5-pro"},
 		},
 	},
 	{
@@ -311,6 +314,7 @@ var BuiltInModels = []*BaseModelConfigSchema{
 			{Provider: ModelProviderGoogleAIStudio, ModelName: "gemini/gemini-2.5-flash"},
 			{Provider: ModelProviderGoogleVertex, ModelName: "vertex_ai/gemini-2.5-flash"},
 			{Provider: ModelProviderOpenRouter, ModelName: "google/gemini-2.5-flash"},
+			{Provider: ModelProviderRequesty, ModelName: "google/gemini-2.5-flash"},
 		},
 	},
 	{

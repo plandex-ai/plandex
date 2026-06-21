@@ -56,6 +56,20 @@ You can also use OpenRouter alongside other providers. For example, if you set b
 
 If you set a `OPENROUTER_API_KEY` and are also using other providers, Plandex will also **fail over** to OpenRouter if another provider has an error. This offers a strong layer of redundancy since OpenRouter itself routes model calls across a number of different upstream providers.
 
+### Requesty
+
+[Requesty](https://requesty.ai/) is an OpenAI-compatible LLM gateway that, like OpenRouter, lets you reach models from multiple publishers through a single account and API key.
+
+To use Requesty, create an account and generate an API key, then set the `REQUESTY_API_KEY` environment variable.
+
+```bash
+export REQUESTY_API_KEY=...
+
+plandex # start the Plandex REPL
+```
+
+Requesty uses the same `publisher/model` naming convention as OpenRouter (e.g. `openai/gpt-4.1`, `google/gemini-2.5-flash`) and can be combined with other providers in the same way—direct providers take precedence when their credentials are also set. See the [Requesty model list](https://app.requesty.ai/router/list) for available models.
+
 ### OpenAI
 
 You can optionally set an `OPENAI_API_KEY` to use the OpenAI API directly with your own OpenAI account when calling OpenAI models.
