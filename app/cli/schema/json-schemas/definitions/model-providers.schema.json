@@ -5,6 +5,7 @@
   "description": "The built-in model providers that Plandex supports. Use 'custom' for a provider that is not built-in.",
   "enum": [
     "openrouter",
+    "orcarouter",
     "openai",
     "anthropic",
     "google-ai-studio",

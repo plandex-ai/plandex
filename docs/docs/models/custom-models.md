@@ -124,6 +124,13 @@ Define models with their capabilities and provider mappings:
 }
 ```
 
+To discover the models a meta-provider like `openrouter` or `orcarouter` is currently serving—along with context lengths and pricing—run:
+
+```bash
+plandex models available --provider openrouter
+plandex models available --provider orcarouter
+```
+
 ### Model Settings
 
 - `modelId` - Unique identifier used in model packs

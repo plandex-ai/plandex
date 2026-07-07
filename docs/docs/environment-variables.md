@@ -22,6 +22,9 @@ PLANDEX_API_HOST= # Defaults to 'http://localhost:8099' if PLANDEX_ENV is develo
 # OpenRouter.ai
 OPENROUTER_API_KEY= # Your OpenRouter.ai API key 
 
+# OrcaRouter
+ORCAROUTER_API_KEY= # Your OrcaRouter API key
+
 # OpenAI
 OPENAI_API_KEY= # Your OpenAI key 
 OPENAI_ORG_ID= # Your OpenAI organization ID. Defaults to empty.

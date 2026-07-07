@@ -105,6 +105,7 @@ var BuiltInModels = []*BaseModelConfigSchema{
 			{Provider: ModelProviderOpenAI, ModelName: "gpt-4.1"},
 			{Provider: ModelProviderAzureOpenAI, ModelName: "azure/gpt-4.1"},
 			{Provider: ModelProviderOpenRouter, ModelName: "openai/gpt-4.1"},
+			{Provider: ModelProviderOrcaRouter, ModelName: "openai/gpt-4.1"},
 		},
 	},
 	{
@@ -120,6 +121,7 @@ var BuiltInModels = []*BaseModelConfigSchema{
 			{Provider: ModelProviderOpenAI, ModelName: "gpt-4.1-mini"},
 			{Provider: ModelProviderAzureOpenAI, ModelName: "azure/gpt-4.1-mini"},
 			{Provider: ModelProviderOpenRouter, ModelName: "openai/gpt-4.1-mini"},
+			{Provider: ModelProviderOrcaRouter, ModelName: "openai/gpt-4.1-mini"},
 		},
 	},
 	{
@@ -135,6 +137,7 @@ var BuiltInModels = []*BaseModelConfigSchema{
 			{Provider: ModelProviderOpenAI, ModelName: "gpt-4.1-nano"},
 			{Provider: ModelProviderAzureOpenAI, ModelName: "azure/gpt-4.1-nano"},
 			{Provider: ModelProviderOpenRouter, ModelName: "openai/gpt-4.1-nano"},
+			{Provider: ModelProviderOrcaRouter, ModelName: "openai/gpt-4.1-nano"},
 		},
 	},
 	{
@@ -284,6 +287,7 @@ var BuiltInModels = []*BaseModelConfigSchema{
 			{Provider: ModelProviderGoogleAIStudio, ModelName: "gemini/gemini-2.5-pro"},
 			{Provider: ModelProviderGoogleVertex, ModelName: "vertex_ai/gemini-2.5-pro"},
 			{Provider: ModelProviderOpenRouter, ModelName: "google/gemini-2.5-pro"},
+			{Provider: ModelProviderOrcaRouter, ModelName: "google/gemini-2.5-pro"},
 		},
 	},
 	{
@@ -311,6 +315,7 @@ var BuiltInModels = []*BaseModelConfigSchema{
 			{Provider: ModelProviderGoogleAIStudio, ModelName: "gemini/gemini-2.5-flash"},
 			{Provider: ModelProviderGoogleVertex, ModelName: "vertex_ai/gemini-2.5-flash"},
 			{Provider: ModelProviderOpenRouter, ModelName: "google/gemini-2.5-flash"},
+			{Provider: ModelProviderOrcaRouter, ModelName: "google/gemini-2.5-flash"},
 		},
 	},
 	{
@@ -325,6 +330,7 @@ var BuiltInModels = []*BaseModelConfigSchema{
 		Providers: []BaseModelUsesProvider{
 			{Provider: ModelProviderDeepSeek, ModelName: "deepseek/deepseek-chat"},
 			{Provider: ModelProviderOpenRouter, ModelName: "deepseek/deepseek-chat-v3"},
+			{Provider: ModelProviderOrcaRouter, ModelName: "deepseek/deepseek-chat"},
 		},
 	},
 	{
@@ -343,6 +349,7 @@ var BuiltInModels = []*BaseModelConfigSchema{
 		Providers: []BaseModelUsesProvider{
 			{Provider: ModelProviderDeepSeek, ModelName: "deepseek/deepseek-reasoner"},
 			{Provider: ModelProviderOpenRouter, ModelName: "deepseek/deepseek-r1-0528"},
+			{Provider: ModelProviderOrcaRouter, ModelName: "deepseek/deepseek-reasoner"},
 		},
 	},
 	{
@@ -581,6 +588,47 @@ var BuiltInModels = []*BaseModelConfigSchema{
 		Providers: []BaseModelUsesProvider{
 			{Provider: ModelProviderPerplexity, ModelName: "sonar-reasoning-online"},
 			{Provider: ModelProviderOpenRouter, ModelName: "perplexity/sonar-reasoning"},
+		},
+	},
+
+	{
+		ModelTag:    "orcarouter/fusion",
+		Publisher:   ModelPublisherOrcaRouter,
+		Description: "OrcaRouter Fusion",
+		BaseModelShared: BaseModelShared{
+			DefaultMaxConvoTokens: 75000, MaxTokens: 1000000, MaxOutputTokens: 128000,
+			ReservedOutputTokens: 40000, PreferredOutputFormat: ModelOutputFormatXml,
+			// the panel includes reasoning models that reject temperature/top_p and stop params
+			RoleParamsDisabled: true, StopDisabled: true,
+		},
+		Providers: []BaseModelUsesProvider{
+			{Provider: ModelProviderOrcaRouter, ModelName: "orcarouter/fusion"},
+		},
+	},
+	{
+		ModelTag:    "orcarouter/fusion-mini",
+		Publisher:   ModelPublisherOrcaRouter,
+		Description: "OrcaRouter Fusion Mini",
+		BaseModelShared: BaseModelShared{
+			DefaultMaxConvoTokens: 75000, MaxTokens: 1000000, MaxOutputTokens: 128000,
+			ReservedOutputTokens: 40000, PreferredOutputFormat: ModelOutputFormatXml,
+			RoleParamsDisabled: true, StopDisabled: true,
+		},
+		Providers: []BaseModelUsesProvider{
+			{Provider: ModelProviderOrcaRouter, ModelName: "orcarouter/fusion-mini"},
+		},
+	},
+	{
+		ModelTag:    "orcarouter/fusion-flash",
+		Publisher:   ModelPublisherOrcaRouter,
+		Description: "OrcaRouter Fusion Flash",
+		BaseModelShared: BaseModelShared{
+			DefaultMaxConvoTokens: 15000, MaxTokens: 200000, MaxOutputTokens: 65536,
+			ReservedOutputTokens: 20000, PreferredOutputFormat: ModelOutputFormatXml,
+			RoleParamsDisabled: true, StopDisabled: true,
+		},
+		Providers: []BaseModelUsesProvider{
+			{Provider: ModelProviderOrcaRouter, ModelName: "orcarouter/fusion-flash"},
 		},
 	},
 }

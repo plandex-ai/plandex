@@ -24,6 +24,7 @@ var customModelsOnly bool
 var allProperties bool
 var saveCustomModels bool
 var customModelsPath string
+var availableModelsProvider string
 
 func init() {
 	RootCmd.AddCommand(modelsCmd)
@@ -41,6 +42,7 @@ func init() {
 	manageCustomModelsCmd.Flags().StringVarP(&customModelsPath, "file", "f", "", "Path to custom models file")
 
 	listAvailableModelsCmd.Flags().BoolVarP(&customModelsOnly, "custom", "c", false, "List custom models only")
+	listAvailableModelsCmd.Flags().StringVarP(&availableModelsProvider, "provider", "p", "", "List models a provider is currently serving (fetched live from the provider's /models endpoint)")
 }
 
 var modelsCmd = &cobra.Command{
@@ -309,6 +311,11 @@ func listAvailableModels(cmd *cobra.Command, args []string) {
 		return
 	}
 
+	if availableModelsProvider != "" {
+		listProviderModels(availableModelsProvider)
+		return
+	}
+
 	term.StartSpinner("")
 
 	customModels, err := api.Client.ListCustomModels()
@@ -359,6 +366,70 @@ func listAvailableModels(cmd *cobra.Command, args []string) {
 	} else {
 		term.PrintCmds("", "models available --custom", "models", "set-model", "models custom")
 	}
+}
+
+func listProviderModels(providerName string) {
+	var providerConfig *shared.ModelProviderConfigSchema
+
+	if builtIn, ok := shared.BuiltInModelProviderConfigs[shared.ModelProvider(providerName)]; ok {
+		providerConfig = &builtIn
+	} else if !auth.Current.IntegratedModelsMode {
+		customProviders, apiErr := api.Client.ListCustomProviders()
+		if apiErr != nil {
+			term.OutputErrorAndExit("Error fetching custom providers: %v", apiErr)
+			return
+		}
+		for _, customProvider := range customProviders {
+			if customProvider.Name == providerName {
+				config := customProvider.ToModelProviderConfigSchema()
+				providerConfig = &config
+				break
+			}
+		}
+	}
+
+	if providerConfig == nil {
+		term.OutputErrorAndExit("Unknown provider '%s'", providerName)
+		return
+	}
+
+	term.StartSpinner("")
+	providerModels, err := lib.FetchProviderModels(providerConfig)
+	term.StopSpinner()
+
+	if err != nil {
+		term.OutputErrorAndExit("Error listing models for provider '%s': %v", providerName, err)
+		return
+	}
+
+	if len(providerModels) == 0 {
+		fmt.Printf("🤷‍♂️ Provider '%s' isn't serving any models\n", providerName)
+		return
+	}
+
+	color.New(color.Bold, term.ColorHiCyan).Printf("🌐 Models served by '%s'\n", providerName)
+	table := tablewriter.NewWriter(os.Stdout)
+	table.SetAutoWrapText(false)
+	table.SetHeader([]string{"Model", "Context", "Max Output", "Input $/1M", "Output $/1M"})
+	for _, model := range providerModels {
+		row := []string{model.Id, "", "", "", ""}
+		if model.ContextLength > 0 {
+			row[1] = fmt.Sprintf("%d 🪙", model.ContextLength)
+		}
+		if model.MaxCompletionTokens > 0 {
+			row[2] = fmt.Sprintf("%d 🪙", model.MaxCompletionTokens)
+		}
+		if model.HasPricing {
+			row[3] = fmt.Sprintf("$%.2f", model.InputPerM)
+			row[4] = fmt.Sprintf("$%.2f", model.OutputPerM)
+		}
+		table.Append(row)
+	}
+	table.Render()
+	fmt.Println()
+
+	fmt.Println("To use a model that isn't built-in, add it as a custom model.")
+	term.PrintCmds("", "models custom", "models available", "set-model")
 }
 
 func renderSettings(settings *shared.PlanSettings, allProperties bool) {
