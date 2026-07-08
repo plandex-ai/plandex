@@ -77,7 +77,7 @@ Plandex includes a curated selection of built-in models.
 - Reserved Output: 32,768
 - Effective Input: 1,014,808
 - Features: JSON output, full compatibility
-- Providers: OpenAI, Azure OpenAI, OpenRouter
+- Providers: OpenAI, Azure OpenAI, OpenRouter, OrcaRouter
 
 ### `openai/gpt-4.1-mini`
 
@@ -87,7 +87,7 @@ Plandex includes a curated selection of built-in models.
 - Reserved Output: 32,768
 - Effective Input: 1,014,808
 - Features: JSON output, full compatibility
-- Providers: OpenAI, Azure OpenAI, OpenRouter
+- Providers: OpenAI, Azure OpenAI, OpenRouter, OrcaRouter
 
 ### `openai/gpt-4.1-nano`
 
@@ -97,7 +97,7 @@ Plandex includes a curated selection of built-in models.
 - Reserved Output: 32,768
 - Effective Input: 1,014,808
 - Features: JSON output, full compatibility
-- Providers: OpenAI, Azure OpenAI, OpenRouter
+- Providers: OpenAI, Azure OpenAI, OpenRouter, OrcaRouter
 
 ## Anthropic
 
@@ -201,7 +201,7 @@ Plandex includes a curated selection of built-in models.
 - Reserved Output: 65,535
 - Effective Input: 983,041
 - Features: XML output
-- Providers: Google AI Studio, Google Vertex, OpenRouter
+- Providers: Google AI Studio, Google Vertex, OpenRouter, OrcaRouter
 
 ### `google/gemini-2.5-flash`
 
@@ -211,7 +211,7 @@ Plandex includes a curated selection of built-in models.
 - Reserved Output: 65,535
 - Effective Input: 983,041
 - Features: XML output
-- Providers: Google AI Studio, Google Vertex, OpenRouter
+- Providers: Google AI Studio, Google Vertex, OpenRouter, OrcaRouter
 
 ### `google/gemini-2.5-flash-thinking`
 
@@ -221,7 +221,7 @@ Plandex includes a curated selection of built-in models.
 - Reserved Output: 65,535
 - Effective Input: 983,041
 - Features: XML output, visible reasoning
-- Providers: Google AI Studio, Google Vertex, OpenRouter
+- Providers: Google AI Studio, Google Vertex, OpenRouter, OrcaRouter
 
 ### `google/gemini-2.5-flash-thinking-hidden`
 
@@ -231,7 +231,7 @@ Plandex includes a curated selection of built-in models.
 - Reserved Output: 65,535
 - Effective Input: 983,041
 - Features: XML output, hidden reasoning
-- Providers: Google AI Studio, Google Vertex, OpenRouter
+- Providers: Google AI Studio, Google Vertex, OpenRouter, OrcaRouter
 
 ### `google/gemini-pro-1.5`
 
@@ -253,7 +253,7 @@ Plandex includes a curated selection of built-in models.
 - Reserved Output: 8,192
 - Effective Input: 55,808
 - Features: XML output
-- Providers: DeepSeek, OpenRouter
+- Providers: DeepSeek, OpenRouter, OrcaRouter
 
 ### `deepseek/r1`
 
@@ -263,7 +263,7 @@ Plandex includes a curated selection of built-in models.
 - Reserved Output: 20k
 - Effective Input: 144k
 - Features: XML output, visible reasoning
-- Providers: DeepSeek, OpenRouter
+- Providers: DeepSeek, OpenRouter, OrcaRouter
 
 ### `deepseek/r1-hidden`
 
@@ -273,7 +273,7 @@ Plandex includes a curated selection of built-in models.
 - Reserved Output: 20k
 - Effective Input: 144k
 - Features: XML output, hidden reasoning
-- Providers: DeepSeek, OpenRouter
+- Providers: DeepSeek, OpenRouter, OrcaRouter
 
 ### `deepseek/r1-70b`
 
@@ -470,3 +470,34 @@ Plandex includes a curated selection of built-in models.
 - Effective Input: 111,616
 - Features: XML output
 - Providers: Ollama, OpenRouter
+## OrcaRouter
+
+### `orcarouter/fusion`
+
+- OrcaRouter Fusion — runs a panel of frontier models in parallel on hard requests, then a judge model returns the strongest answer
+- Max Tokens: 1,000,000
+- Max Output: 128k
+- Reserved Output: 40k
+- Effective Input: 960k
+- Features: XML output, fixed parameters
+- Providers: OrcaRouter
+
+### `orcarouter/fusion-mini`
+
+- OrcaRouter Fusion Mini — a leaner two-model panel
+- Max Tokens: 1,000,000
+- Max Output: 128k
+- Reserved Output: 40k
+- Effective Input: 960k
+- Features: XML output, fixed parameters
+- Providers: OrcaRouter
+
+### `orcarouter/fusion-flash`
+
+- OrcaRouter Fusion Flash — a budget panel of cheaper models
+- Max Tokens: 200k
+- Max Output: 65,536
+- Reserved Output: 20k
+- Effective Input: 180k
+- Features: XML output, fixed parameters
+- Providers: OrcaRouter

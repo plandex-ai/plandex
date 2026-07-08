@@ -56,6 +56,36 @@ You can also use OpenRouter alongside other providers. For example, if you set b
 
 If you set a `OPENROUTER_API_KEY` and are also using other providers, Plandex will also **fail over** to OpenRouter if another provider has an error. This offers a strong layer of redundancy since OpenRouter itself routes model calls across a number of different upstream providers.
 
+### OrcaRouter
+
+[OrcaRouter](https://www.orcarouter.ai/) is another meta-provider that serves models from many publishers with a single account and API key.
+
+To use OrcaRouter, create an account and generate an API key, then set the `ORCAROUTER_API_KEY` environment variable.
+
+```bash
+export ORCAROUTER_API_KEY=...
+
+plandex # start the Plandex REPL
+```
+
+Like OpenRouter, OrcaRouter can serve a number of Plandex's built-in models, and the same provider selection rules apply—direct providers take precedence when their keys are also set, and Plandex will fail over to OrcaRouter if another provider has an error.
+
+OrcaRouter also serves its own **Fusion** models, which are available as built-in models in Plandex:
+
+- `orcarouter/fusion` — runs a panel of frontier models in parallel on hard requests, then a judge model returns the strongest answer. Easy requests fall through to a cheaper default.
+- `orcarouter/fusion-mini` — a leaner two-model panel.
+- `orcarouter/fusion-flash` — a budget panel of cheaper models.
+
+Note that a fanned-out Fusion request is billed as the sum of the underlying panel completions, so `orcarouter/fusion` costs more per request than calling a single frontier model.
+
+OrcaRouter's full catalog goes well beyond Plandex's built-in models. To see everything it's currently serving, run:
+
+```bash
+plandex models available --provider orcarouter
+```
+
+Models that aren't built-in can be added as [custom models](./custom-models.md). This includes `orcarouter/auto`, a router that picks the cheapest live model per request—if you use it, keep in mind that the cheapest model often isn't a good fit for coding tasks, so it's best to first narrow the router's model pool in the OrcaRouter dashboard.
+
 ### OpenAI
 
 You can optionally set an `OPENAI_API_KEY` to use the OpenAI API directly with your own OpenAI account when calling OpenAI models.

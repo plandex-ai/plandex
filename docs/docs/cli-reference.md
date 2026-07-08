@@ -718,9 +718,12 @@ Show available models.
 ```bash
 plandex models available # show all available models
 plandex models available --custom # show available custom models only
+plandex models available --provider orcarouter # show models a provider is currently serving
 ```
 
 `--custom`: Show available custom models only.
+
+`--provider`: Fetch the live list of models a provider is currently serving from the provider's `/models` endpoint. Works with providers that are reached directly via a public base URL (e.g. `openrouter`, `orcarouter`, `openai`), as well as custom providers. Models that aren't built-in can be added as [custom models](./models/custom-models.md).
 
 ### providers
 

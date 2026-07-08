@@ -6,10 +6,12 @@ import (
 
 const OpenAIV1BaseUrl = "https://api.openai.com/v1"
 const OpenRouterBaseUrl = "https://openrouter.ai/api/v1"
+const OrcaRouterBaseUrl = "https://api.orcarouter.ai/v1"
 const LiteLLMBaseUrl = "http://localhost:4000/v1" // runs in the same container alongside the plandex server
 
 const OpenAIEnvVar = "OPENAI_API_KEY"
 const OpenRouterApiKeyEnvVar = "OPENROUTER_API_KEY"
+const OrcaRouterApiKeyEnvVar = "ORCAROUTER_API_KEY"
 const AnthropicApiKeyEnvVar = "ANTHROPIC_API_KEY"
 const GoogleAIStudioApiKeyEnvVar = "GEMINI_API_KEY"
 const AzureOpenAIEnvVar = "AZURE_OPENAI_API_KEY"
@@ -26,6 +28,7 @@ type ModelPublisher string
 const (
 	ModelPublisherOpenAI     ModelPublisher = "OpenAI"
 	ModelPublisherAnthropic  ModelPublisher = "Anthropic"
+	ModelPublisherOrcaRouter ModelPublisher = "OrcaRouter"
 	ModelPublisherGoogle     ModelPublisher = "Google"
 	ModelPublisherDeepSeek   ModelPublisher = "DeepSeek"
 	ModelPublisherPerplexity ModelPublisher = "Perplexity"
@@ -37,6 +40,7 @@ type ModelProvider string
 
 const (
 	ModelProviderOpenRouter ModelProvider = "openrouter"
+	ModelProviderOrcaRouter ModelProvider = "orcarouter"
 	ModelProviderOpenAI     ModelProvider = "openai"
 
 	ModelProviderAnthropic          ModelProvider = "anthropic"
@@ -63,6 +67,7 @@ var ModelProviderToLiteLLMId = map[ModelProvider]string{
 
 var AllModelProviders = []ModelProvider{
 	ModelProviderOpenRouter,
+	ModelProviderOrcaRouter,
 	ModelProviderOpenAI,
 	ModelProviderAnthropic,
 	ModelProviderAnthropicClaudeMax,
@@ -129,6 +134,11 @@ var BuiltInModelProviderConfigs = map[ModelProvider]ModelProviderConfigSchema{
 		Provider:     ModelProviderOpenRouter,
 		BaseUrl:      OpenRouterBaseUrl,
 		ApiKeyEnvVar: OpenRouterApiKeyEnvVar,
+	},
+	ModelProviderOrcaRouter: {
+		Provider:     ModelProviderOrcaRouter,
+		BaseUrl:      OrcaRouterBaseUrl,
+		ApiKeyEnvVar: OrcaRouterApiKeyEnvVar,
 	},
 	ModelProviderAnthropic: {
 		Provider:     ModelProviderAnthropic,
