@@ -6,10 +6,12 @@ import (
 
 const OpenAIV1BaseUrl = "https://api.openai.com/v1"
 const OpenRouterBaseUrl = "https://openrouter.ai/api/v1"
+const AtlasCloudBaseUrl = "https://api.atlascloud.ai/v1"
 const LiteLLMBaseUrl = "http://localhost:4000/v1" // runs in the same container alongside the plandex server
 
 const OpenAIEnvVar = "OPENAI_API_KEY"
 const OpenRouterApiKeyEnvVar = "OPENROUTER_API_KEY"
+const AtlasCloudApiKeyEnvVar = "ATLASCLOUD_API_KEY"
 const AnthropicApiKeyEnvVar = "ANTHROPIC_API_KEY"
 const GoogleAIStudioApiKeyEnvVar = "GEMINI_API_KEY"
 const AzureOpenAIEnvVar = "AZURE_OPENAI_API_KEY"
@@ -38,6 +40,7 @@ type ModelProvider string
 const (
 	ModelProviderOpenRouter ModelProvider = "openrouter"
 	ModelProviderOpenAI     ModelProvider = "openai"
+	ModelProviderAtlasCloud ModelProvider = "atlascloud"
 
 	ModelProviderAnthropic          ModelProvider = "anthropic"
 	ModelProviderAnthropicClaudeMax ModelProvider = "anthropic-pro"
@@ -64,6 +67,7 @@ var ModelProviderToLiteLLMId = map[ModelProvider]string{
 var AllModelProviders = []ModelProvider{
 	ModelProviderOpenRouter,
 	ModelProviderOpenAI,
+	ModelProviderAtlasCloud,
 	ModelProviderAnthropic,
 	ModelProviderAnthropicClaudeMax,
 	ModelProviderGoogleAIStudio,
@@ -129,6 +133,11 @@ var BuiltInModelProviderConfigs = map[ModelProvider]ModelProviderConfigSchema{
 		Provider:     ModelProviderOpenRouter,
 		BaseUrl:      OpenRouterBaseUrl,
 		ApiKeyEnvVar: OpenRouterApiKeyEnvVar,
+	},
+	ModelProviderAtlasCloud: {
+		Provider:     ModelProviderAtlasCloud,
+		BaseUrl:      AtlasCloudBaseUrl,
+		ApiKeyEnvVar: AtlasCloudApiKeyEnvVar,
 	},
 	ModelProviderAnthropic: {
 		Provider:     ModelProviderAnthropic,

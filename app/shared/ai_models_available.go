@@ -346,6 +346,23 @@ var BuiltInModels = []*BaseModelConfigSchema{
 		},
 	},
 	{
+		ModelTag:    "atlascloud/deepseek-v4-pro",
+		Publisher:   ModelPublisherDeepSeek,
+		Description: "DeepSeek V4 Pro via Atlas Cloud",
+		BaseModelShared: BaseModelShared{
+			DefaultMaxConvoTokens: 15000, MaxTokens: 1000000,
+			MaxOutputTokens: 32768, ReservedOutputTokens: 8192,
+			PreferredOutputFormat: ModelOutputFormatXml,
+		},
+		Variants: []BaseModelConfigVariant{
+			{VariantTag: "visible", IsDefaultVariant: true, Description: "(reasoning visible)", Overrides: BaseModelShared{IncludeReasoning: true}},
+			{VariantTag: "hidden", Description: "(reasoning hidden)", Overrides: BaseModelShared{IncludeReasoning: false}},
+		},
+		Providers: []BaseModelUsesProvider{
+			{Provider: ModelProviderAtlasCloud, ModelName: "deepseek-ai/deepseek-v4-pro"},
+		},
+	},
+	{
 		ModelTag:    "deepseek/r1-70b",
 		Publisher:   ModelPublisherDeepSeek,
 		Description: "DeepSeek R1 70B",
@@ -409,6 +426,19 @@ var BuiltInModels = []*BaseModelConfigSchema{
 		},
 		Providers: []BaseModelUsesProvider{
 			{Provider: ModelProviderOpenRouter, ModelName: "qwen/qwen-2.5-coder-32b-instruct"},
+		},
+	},
+	{
+		ModelTag:    "atlascloud/qwen3.5-flash",
+		Publisher:   ModelPublisherQwen,
+		Description: "Qwen3.5 Flash via Atlas Cloud",
+		BaseModelShared: BaseModelShared{
+			DefaultMaxConvoTokens: 10000, MaxTokens: 131072,
+			MaxOutputTokens: 8192, ReservedOutputTokens: 8192,
+			PreferredOutputFormat: ModelOutputFormatXml,
+		},
+		Providers: []BaseModelUsesProvider{
+			{Provider: ModelProviderAtlasCloud, ModelName: "qwen/qwen3.5-flash"},
 		},
 	},
 	{
