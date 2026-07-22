@@ -636,6 +636,23 @@ func ApplyFiles(toApply map[string]string, toRemove map[string]bool, projectPath
 		go func(path, content string) {
 			// Compute destination path
 			dstPath := filepath.Join(fs.ProjectRoot, path)
+
+			// Security: prevent path traversal (CWE-22). The `path` originates
+			// from the model's output and may contain parent-directory segments
+			// like `../` that could escape the project root.
+			cleanDst, err := filepath.Abs(filepath.Clean(dstPath))
+			if err == nil {
+				cleanRoot, _ := filepath.Abs(filepath.Clean(fs.ProjectRoot))
+				if !strings.HasPrefix(cleanDst, cleanRoot) {
+					log.Printf(
+						"Path traversal blocked: %q attempted to escape project root %q",
+						path, fs.ProjectRoot,
+					)
+					errCh <- nil
+					return
+				}
+			}
+
 			content = strings.ReplaceAll(content, "\\`\\`\\`", "```")
 			// Check if the file exists
 			var exists bool
@@ -701,6 +718,20 @@ func ApplyFiles(toApply map[string]string, toRemove map[string]bool, projectPath
 			}
 			// Compute destination path
 			dstPath := filepath.Join(fs.ProjectRoot, path)
+
+			// Security: prevent path traversal (CWE-22)
+			cleanDst, err := filepath.Abs(filepath.Clean(dstPath))
+			if err == nil {
+				cleanRoot, _ := filepath.Abs(filepath.Clean(fs.ProjectRoot))
+				if !strings.HasPrefix(cleanDst, cleanRoot) {
+					log.Printf(
+						"Path traversal blocked (delete): %q attempted to escape project root %q",
+						path, fs.ProjectRoot,
+					)
+					errCh <- nil
+					return
+				}
+			}
 			// Check if the file exists
 			var exists bool
 			var mode os.FileMode
