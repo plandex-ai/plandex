@@ -91,6 +91,48 @@ Define providers that use OpenAI-compatible APIs:
 - `skipAuth` - Set to `true` for local models that don't need authentication
 - `extraAuthVars` - Additional authentication variables if needed
 
+### OmniRoute
+
+[OmniRoute](https://github.com/diegosouzapw/OmniRoute) exposes an OpenAI-compatible API,
+so self-hosted Plandex can use it as a custom provider without a provider-specific adapter:
+
+```json
+{
+  "providers": [
+    {
+      "name": "omniroute",
+      "baseUrl": "http://localhost:20128/v1",
+      "apiKeyEnvVar": "OMNIROUTE_API_KEY"
+    }
+  ]
+}
+```
+
+Plandex appends `/chat/completions` to `baseUrl`, so keep the `/v1` suffix. The URL must be
+reachable from the Plandex server; when Plandex runs in Docker, use the OmniRoute container name
+or another host address instead of `localhost` when the services are in different containers.
+
+Set the API key before starting Plandex:
+
+```bash
+export OMNIROUTE_API_KEY=...
+```
+
+Then add a custom model whose provider mapping references `omniroute` and whose `modelName` is an
+exact model ID exposed by OmniRoute:
+
+```json
+{
+  "provider": "custom",
+  "customProvider": "omniroute",
+  "modelName": "provider/model-id"
+}
+```
+
+Use the model's real context and output limits in the surrounding custom model definition. Model
+discovery is not automatic, so choose the model ID from OmniRoute before importing the file with
+`plandex models custom`.
+
 ## Custom Models
 
 Define models with their capabilities and provider mappings:
