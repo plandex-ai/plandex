@@ -30,11 +30,7 @@ func init() {
 	}
 	HomeDir = home
 
-	if os.Getenv("PLANDEX_ENV") == "development" {
-		HomePlandexDir = filepath.Join(home, ".plandex-home-dev-v2")
-	} else {
-		HomePlandexDir = filepath.Join(home, ".plandex-home-v2")
-	}
+	HomePlandexDir = getHomePlandexDir(home, os.Getenv("XDG_CONFIG_HOME"), os.Getenv("PLANDEX_ENV"))
 
 	// Create the home plandex directory if it doesn't exist
 	err = os.MkdirAll(HomePlandexDir, os.ModePerm)
@@ -84,6 +80,20 @@ func FindOrCreatePlandex() (string, bool, error) {
 	ProjectRoot = Cwd
 
 	return dir, true, nil
+}
+
+func getHomePlandexDir(home, xdgConfigHome, plandexEnv string) string {
+	if xdgConfigHome != "" && filepath.IsAbs(xdgConfigHome) {
+		if plandexEnv == "development" {
+			return filepath.Join(xdgConfigHome, "plandex-dev")
+		}
+		return filepath.Join(xdgConfigHome, "plandex")
+	}
+
+	if plandexEnv == "development" {
+		return filepath.Join(home, ".plandex-home-dev-v2")
+	}
+	return filepath.Join(home, ".plandex-home-v2")
 }
 
 func ProjectRootIsGitRepo() bool {
