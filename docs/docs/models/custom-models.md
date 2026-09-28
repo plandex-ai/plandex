@@ -62,6 +62,71 @@ Here's a minimal example that adds a model from Together.ai:
 }
 ```
 
+## Tsubasa for self-hosted Plandex
+
+Use Tsubasa through Plandex's existing custom-provider support. This example
+adds two model choices. Custom providers are available only with self-hosted
+Plandex.
+
+Set `TSUBASA_API_KEY` in the environment used by your Plandex CLI. Run
+`plandex models custom` and merge these entries into the custom models file:
+
+```json
+{
+  "$schema": "https://plandex.ai/schemas/models-input.schema.json",
+  "providers": [
+    {
+      "name": "tsubasa",
+      "baseUrl": "https://api.tsubasa.sh/v1",
+      "apiKeyEnvVar": "TSUBASA_API_KEY"
+    }
+  ],
+  "models": [
+    {
+      "modelId": "tsubasa/fast",
+      "publisher": "Tsubasa",
+      "description": "Tsubasa Fast",
+      "defaultMaxConvoTokens": 16000,
+      "maxTokens": 32768,
+      "maxOutputTokens": 8192,
+      "reservedOutputTokens": 8192,
+      "preferredOutputFormat": "xml",
+      "hasImageSupport": false,
+      "providers": [
+        {
+          "provider": "custom",
+          "customProvider": "tsubasa",
+          "modelName": "tsubasa-fast"
+        }
+      ]
+    },
+    {
+      "modelId": "tsubasa/pro",
+      "publisher": "Tsubasa",
+      "description": "Tsubasa Pro",
+      "defaultMaxConvoTokens": 16000,
+      "maxTokens": 32768,
+      "maxOutputTokens": 8192,
+      "reservedOutputTokens": 8192,
+      "preferredOutputFormat": "xml",
+      "hasImageSupport": false,
+      "providers": [
+        {
+          "provider": "custom",
+          "customProvider": "tsubasa",
+          "modelName": "tsubasa-pro"
+        }
+      ]
+    }
+  ]
+}
+```
+
+Assign `tsubasa/fast` or `tsubasa/pro` to a role in a custom model pack. This example uses XML output and does not enable
+images or tool-call JSON. Both aliases share a 32,768-token input/output
+budget; this configuration reserves and caps output at 8,192 tokens. Pro's
+API maximum is 16,384, but a smaller default leaves more room for context.
+
 ## Custom Providers
 
 Define providers that use OpenAI-compatible APIs:
