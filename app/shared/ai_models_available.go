@@ -135,6 +135,7 @@ var BuiltInModels = []*BaseModelConfigSchema{
 			{Provider: ModelProviderOpenAI, ModelName: "gpt-4.1-nano"},
 			{Provider: ModelProviderAzureOpenAI, ModelName: "azure/gpt-4.1-nano"},
 			{Provider: ModelProviderOpenRouter, ModelName: "openai/gpt-4.1-nano"},
+			{Provider: ModelProviderCheaperInference, ModelName: "gpt-4.1-nano"},
 		},
 	},
 	{
@@ -311,6 +312,7 @@ var BuiltInModels = []*BaseModelConfigSchema{
 			{Provider: ModelProviderGoogleAIStudio, ModelName: "gemini/gemini-2.5-flash"},
 			{Provider: ModelProviderGoogleVertex, ModelName: "vertex_ai/gemini-2.5-flash"},
 			{Provider: ModelProviderOpenRouter, ModelName: "google/gemini-2.5-flash"},
+			{Provider: ModelProviderCheaperInference, ModelName: "gemini-2.5-flash"},
 		},
 	},
 	{
@@ -462,6 +464,7 @@ var BuiltInModels = []*BaseModelConfigSchema{
 		},
 		Providers: []BaseModelUsesProvider{
 			{Provider: ModelProviderOpenRouter, ModelName: "qwen/qwen3-32b"},
+			{Provider: ModelProviderCheaperInference, ModelName: "qwen3-32b"},
 		},
 	},
 	{

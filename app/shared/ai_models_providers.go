@@ -6,10 +6,12 @@ import (
 
 const OpenAIV1BaseUrl = "https://api.openai.com/v1"
 const OpenRouterBaseUrl = "https://openrouter.ai/api/v1"
+const CheaperInferenceBaseUrl = "https://api.cheaperinference.com/v1"
 const LiteLLMBaseUrl = "http://localhost:4000/v1" // runs in the same container alongside the plandex server
 
 const OpenAIEnvVar = "OPENAI_API_KEY"
 const OpenRouterApiKeyEnvVar = "OPENROUTER_API_KEY"
+const CheaperInferenceApiKeyEnvVar = "CHEAPER_INFERENCE_API_KEY"
 const AnthropicApiKeyEnvVar = "ANTHROPIC_API_KEY"
 const GoogleAIStudioApiKeyEnvVar = "GEMINI_API_KEY"
 const AzureOpenAIEnvVar = "AZURE_OPENAI_API_KEY"
@@ -36,8 +38,9 @@ const (
 type ModelProvider string
 
 const (
-	ModelProviderOpenRouter ModelProvider = "openrouter"
-	ModelProviderOpenAI     ModelProvider = "openai"
+	ModelProviderOpenRouter       ModelProvider = "openrouter"
+	ModelProviderCheaperInference ModelProvider = "cheaperinference"
+	ModelProviderOpenAI           ModelProvider = "openai"
 
 	ModelProviderAnthropic          ModelProvider = "anthropic"
 	ModelProviderAnthropicClaudeMax ModelProvider = "anthropic-pro"
@@ -63,6 +66,7 @@ var ModelProviderToLiteLLMId = map[ModelProvider]string{
 
 var AllModelProviders = []ModelProvider{
 	ModelProviderOpenRouter,
+	ModelProviderCheaperInference,
 	ModelProviderOpenAI,
 	ModelProviderAnthropic,
 	ModelProviderAnthropicClaudeMax,
@@ -129,6 +133,11 @@ var BuiltInModelProviderConfigs = map[ModelProvider]ModelProviderConfigSchema{
 		Provider:     ModelProviderOpenRouter,
 		BaseUrl:      OpenRouterBaseUrl,
 		ApiKeyEnvVar: OpenRouterApiKeyEnvVar,
+	},
+	ModelProviderCheaperInference: {
+		Provider:     ModelProviderCheaperInference,
+		BaseUrl:      CheaperInferenceBaseUrl,
+		ApiKeyEnvVar: CheaperInferenceApiKeyEnvVar,
 	},
 	ModelProviderAnthropic: {
 		Provider:     ModelProviderAnthropic,

@@ -56,6 +56,20 @@ You can also use OpenRouter alongside other providers. For example, if you set b
 
 If you set a `OPENROUTER_API_KEY` and are also using other providers, Plandex will also **fail over** to OpenRouter if another provider has an error. This offers a strong layer of redundancy since OpenRouter itself routes model calls across a number of different upstream providers.
 
+### Cheaper Inference
+
+[Cheaper Inference](https://cheaperinference.com/) is an OpenAI-compatible LLM gateway. One API key gives access to models from several labs.
+
+To use Cheaper Inference, create an account and generate an API key, then set the `CHEAPER_INFERENCE_API_KEY` environment variable.
+
+```bash
+export CHEAPER_INFERENCE_API_KEY=...
+
+plandex # start the Plandex REPL
+```
+
+Cheaper Inference serves these built-in models: `openai/gpt-4.1-nano`, `google/gemini-2.5-flash` and `qwen/qwen3-32b-cloud`. Use it alongside other providers in the same way as OpenRouter—direct providers take precedence when their credentials are also set. See the [Cheaper Inference model list](https://cheaperinference.com/markets) for available models.
+
 ### OpenAI
 
 You can optionally set an `OPENAI_API_KEY` to use the OpenAI API directly with your own OpenAI account when calling OpenAI models.
