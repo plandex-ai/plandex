@@ -12,22 +12,31 @@ import (
 )
 
 var cachedPlanConfig *shared.PlanConfig
+var cachedPlanConfigPlanId string
 
 func MustGetCurrentPlanConfig() *shared.PlanConfig {
-	if cachedPlanConfig != nil {
-		return cachedPlanConfig
+	if planConfig := getCachedPlanConfig(CurrentPlanId); planConfig != nil {
+		return planConfig
 	}
 
 	planConfig, apiErr := api.Client.GetPlanConfig(CurrentPlanId)
 	if apiErr != nil {
 		term.OutputErrorAndExit("Error getting plan config: %v", apiErr)
 	}
-	cachedPlanConfig = planConfig
+	SetCachedPlanConfig(planConfig)
 	return planConfig
 }
 
 func SetCachedPlanConfig(planConfig *shared.PlanConfig) {
 	cachedPlanConfig = planConfig
+	cachedPlanConfigPlanId = CurrentPlanId
+}
+
+func getCachedPlanConfig(planId string) *shared.PlanConfig {
+	if cachedPlanConfigPlanId != planId {
+		return nil
+	}
+	return cachedPlanConfig
 }
 
 func ShowPlanConfig(config *shared.PlanConfig, key string) {
