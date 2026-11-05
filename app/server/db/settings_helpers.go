@@ -31,7 +31,7 @@ func GetPlanSettings(plan *Plan) (settings *shared.PlanSettings, err error) {
 
 	bytes, err := os.ReadFile(settingsPath)
 
-	if os.IsNotExist(err) || len(bytes) == 0 {
+	if os.IsNotExist(err) {
 		log.Printf("GetPlanSettings - no settings file found for plan %s - checking org defaults", plan.Id)
 		// see if org has default settings
 		defaultSettings, err := GetOrgDefaultSettings(plan.OrgId)
@@ -56,6 +56,10 @@ func GetPlanSettings(plan *Plan) (settings *shared.PlanSettings, err error) {
 		return settings, nil
 	} else if err != nil {
 		return nil, fmt.Errorf("error reading settings file: %v", err)
+	}
+
+	if len(bytes) == 0 {
+		return nil, fmt.Errorf("plan settings file is empty: %s", settingsPath)
 	}
 
 	log.Printf("GetPlanSettings - settings found in file")
@@ -88,7 +92,7 @@ func StorePlanSettings(plan *Plan, settings shared.PlanSettings) error {
 		return fmt.Errorf("error marshalling settings: %v", err)
 	}
 
-	err = os.WriteFile(settingsPath, bytes, 0644)
+	err = writePlanSettingsAtomically(settingsPath, bytes)
 
 	if err != nil {
 		return fmt.Errorf("error writing settings file: %v", err)
@@ -98,6 +102,36 @@ func StorePlanSettings(plan *Plan, settings shared.PlanSettings) error {
 
 	if err != nil {
 		return fmt.Errorf("error bumping plan updated at: %v", err)
+	}
+
+	return nil
+}
+
+func writePlanSettingsAtomically(settingsPath string, contents []byte) error {
+	tempFile, err := os.CreateTemp(filepath.Dir(settingsPath), ".settings-*.tmp")
+	if err != nil {
+		return fmt.Errorf("error creating temporary settings file: %v", err)
+	}
+	tempPath := tempFile.Name()
+	defer func() {
+		_ = tempFile.Close()
+		_ = os.Remove(tempPath)
+	}()
+
+	if err := tempFile.Chmod(0644); err != nil {
+		return fmt.Errorf("error setting temporary settings file permissions: %v", err)
+	}
+	if _, err := tempFile.Write(contents); err != nil {
+		return fmt.Errorf("error writing temporary settings file: %v", err)
+	}
+	if err := tempFile.Sync(); err != nil {
+		return fmt.Errorf("error syncing temporary settings file: %v", err)
+	}
+	if err := tempFile.Close(); err != nil {
+		return fmt.Errorf("error closing temporary settings file: %v", err)
+	}
+	if err := os.Rename(tempPath, settingsPath); err != nil {
+		return fmt.Errorf("error replacing settings file: %v", err)
 	}
 
 	return nil
